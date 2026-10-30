@@ -10,6 +10,7 @@ import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
+import { type BookHistory, HISTORY_LIMIT, type HistoryStep, NO_HISTORY } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
@@ -68,6 +69,8 @@ export interface MatomezuState {
   touched: Readonly<Record<string, string>>
   trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる。サーバーなしなら false）
+  // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。1 段がいくつかのブックを変えたら、その全部のブックに同じ段が入る
+  history: Readonly<Record<string, BookHistory>>
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
@@ -134,6 +137,9 @@ export interface Actions {
   openPicker(stage: string, at: Point | null): void
   closePicker(): void
   showPickerMap(stage: string): void // そのステージで開いている道具のアイコンを、ミニマップに替える
+  // ブック book の履歴の、戻せる段（from が undo）かやり直せる段（redo）の最後の段を、反対の側へ移す。段が変えたほかのブックの履歴でも移す。
+  // 段を戻す・やり直すアクションを行えたあとに呼ぶ
+  moveHistory(book: string, from: "undo" | "redo"): void
 }
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
@@ -198,6 +204,7 @@ function initialState(
     touched: {},
     trash: { ...trash },
     offline: false,
+    history: {},
   }
 }
 
@@ -297,6 +304,25 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const next = change(ws)
     if (next !== ws) commit({ workspace: next })
   }
+  // 開いている段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 段にまとめ、処理が終わったら
+  // 履歴に入れる（入れた段が変えたブックの、やり直せる段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
+  let open: { at: string; books: Record<string, { before: Book; after: Book }> } | null = null
+  const closeStep = () => {
+    if (!open) return
+    const step: HistoryStep = open
+    open = null
+    const history = { ...getState().history }
+    for (const id of Object.keys(step.books))
+      history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
+    setState({ history })
+  }
+  const record = (before: Book, after: Book, at: string) => {
+    if (!open) {
+      open = { at, books: {} }
+      queueMicrotask(closeStep)
+    }
+    open.books[after.id] = { before: open.books[after.id]?.before ?? before, after }
+  }
   // アクションを行い、入れる状態の差分を返す（入れるのは呼んだ側。ほかの変更と一度に入れられるように）
   const run = (
     id: string,
@@ -318,6 +344,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     options.observe?.({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now })
     const next: Partial<MatomezuState> = {}
     if (done.book) {
+      const before = books[done.book.id]
+      if (before && catalog.actions.get(id)?.history !== false) record(before, done.book, c.now)
       next.books = { ...books, [done.book.id]: done.book }
       next.workspace = followBook(catalog, workspace, done.book, books[done.book.id])
     }
@@ -355,6 +383,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return { ok: true, result: done.result } as Performed<typeof id>
     },
     command: (stage, id, ...args) => {
+      closeStep()
       const state = getState()
       const def = commandDef(defs, id)
       const ctx = commandContext(catalog, home, state, stage)
@@ -444,6 +473,19 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }),
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
     showPickerMap: id => withWorkspace(ws => mapStage(ws, id, showPickerMap)),
+    moveHistory: (book, from) => {
+      closeStep()
+      const to = from === "undo" ? "redo" : "undo"
+      const { history } = getState()
+      const step = (history[book] ?? NO_HISTORY)[from].at(-1)
+      if (!step) return
+      const next = { ...history }
+      for (const id of Object.keys(step.books)) {
+        const was = next[id] ?? NO_HISTORY
+        next[id] = { ...was, [from]: was[from].filter(s => s !== step), [to]: [...was[to], step] } as BookHistory
+      }
+      setState({ history: next })
+    },
   }
   const instance: MatomezuInstance<Ps> = {
     ...defs,

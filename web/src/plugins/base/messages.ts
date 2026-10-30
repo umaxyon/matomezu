@@ -4,6 +4,7 @@ import { BOOK_NEW_MESSAGES } from "./book-new/messages"
 import { BOOK_OPEN_MESSAGES } from "./book-open/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
+import { HISTORY_MESSAGES } from "./history/messages"
 import { ITEM_PARTS_MESSAGES } from "./item-parts/messages"
 import { LOCK_MESSAGES } from "./lock/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
@@ -37,4 +38,5 @@ export const BASE_MESSAGES = {
   ...ITEM_PARTS_MESSAGES,
   ...TEXT_MESSAGES,
   ...ELAPSED_MESSAGES,
+  ...HISTORY_MESSAGES,
 }
