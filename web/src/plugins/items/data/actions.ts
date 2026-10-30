@@ -2,6 +2,7 @@
 import { z } from "zod"
 import { findShape, hasPages } from "../../../plugin-api"
 import { contentIdMaker, paperSize, replaceShapePushing } from "../../base"
+import { settleAxes } from "./axes"
 import { DATA } from "./data"
 import { kit } from "./kit"
 import { fitTable } from "./size"
@@ -28,7 +29,7 @@ export const DATA_SET = kit.defineAction({
   id: "data-set",
   attach: { items: [DATA.id] },
   aiDescription:
-    "Replace the whole table of a data item (@matomezu/data:shape-data). Each column has a name and a type, number or text; each row has one cell per column, in column order: a finite number in a number column, a string in a text column. No cell may be empty: write 0 where a number is missing. A column or row given with the id of one in the table now keeps that id (and what refers to it); one without an id gets a new id. While the item shows the table (view table), it is resized to show the whole table, up to the paper's edge, pushing the items it would come too close to (when they cannot move, it keeps its size); a column is as wide as its longest text and a row is one line high. With no columns, the table is removed and the item shows No Data. It is refused when a row's cells do not fit the columns, or when an id is not in the table now. Returns the ids of the columns and rows, in order. read_book shows the table in the item's table field.",
+    "Replace the whole table of a data item (@matomezu/data:shape-data). Each column has a name and a type, number or text; each row has one cell per column, in column order: a finite number in a number column, a string in a text column. No cell may be empty: write 0 where a number is missing. A column or row given with the id of one in the table now keeps that id (and what refers to it); one without an id gets a new id. While the item shows the table (view table), it is resized to show the whole table, up to the paper's edge, pushing the items it would come too close to (when they cannot move, it keeps its size); a column is as wide as its longest text and a row is one line high. With no columns, the table is removed and the item shows No Data. It is refused when a row's cells do not fit the columns, or when an id is not in the table now. Axes naming a column that is gone or no longer a number column are dropped. Returns the ids of the columns and rows, in order. read_book shows the table in the item's table field.",
   title: "Set data",
   target: "book",
   args: z.strictObject({
@@ -60,6 +61,8 @@ export const DATA_SET = kit.defineAction({
       rows: args.rows.map(r => ({ id: r.id ?? newId(), cells: r.cells })),
     })
     if (!table.success) return null
+    // 軸は新しい表に合わせる（無くなった列の軸を外し、グラフで軸が無ければ既定の列を選ぶ）
+    const props = settleAxes(now.props, table.data)
     // 表の見た目なら、表が全部見える大きさ（紙の端で止める）に合わせる。合わせて置けなければ、大きさはそのまま
     const paper = paperSize(ctx.catalog, page)
     const onPage = page.items?.some(i => i.id === args.item) ?? false
@@ -67,8 +70,13 @@ export const DATA_SET = kit.defineAction({
     const fitted = now.props.view === "table" && room ? fitTable(table.data, room) : null
     const next =
       (fitted &&
-        replaceShapePushing(ctx.catalog, book, args.page, args.item, s => ({ ...s, ...fitted, table: table.data }))) ??
-      replaceShapePushing(ctx.catalog, book, args.page, args.item, s => ({ ...s, table: table.data }))
+        replaceShapePushing(ctx.catalog, book, args.page, args.item, () => ({
+          ...now,
+          ...fitted,
+          props,
+          table: table.data,
+        }))) ??
+      replaceShapePushing(ctx.catalog, book, args.page, args.item, () => ({ ...now, props, table: table.data }))
     return (
       next && {
         next,

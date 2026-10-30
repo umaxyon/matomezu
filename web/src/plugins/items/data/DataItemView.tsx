@@ -1,9 +1,11 @@
 // データのアイテムのビュー: 表を持たない間は、点線の枠の真ん中に「No Data」と出す。表を持てば、見出しの行（列の名前）の下に行を並べた表で描く
 // （数の列は右寄せ、文字の列は左寄せ。列の幅と行の高さは size.ts の値で、セルの中では折り返さない）。入りきらない行と列は、枠の中でスクロールする。
+// グラフの見た目なら、グラフ（ChartView）を描く。
 // データにテーマ（theme）を当てていれば、そのテーマのデータのテーマキーで描く。表に無いテーマならブックのテーマのまま
 import type { ItemProps } from "../../../plugin-api"
 import { type ItemViewProps, useMessages } from "../../../plugin-api/ui"
 import { useThemeVars } from "../../base/ui"
+import { ChartView } from "./ChartView"
 import styles from "./DataItemView.module.css"
 import { type DATA, DATA_TOKENS } from "./data"
 import { kit } from "./kit"
@@ -12,7 +14,7 @@ import type { Table } from "./table"
 
 type DataProps = ItemProps<typeof DATA.id>
 
-export function DataItemView({ props, content }: ItemViewProps<DataProps, { readonly table?: Table }>) {
+export function DataItemView({ props, content, size }: ItemViewProps<DataProps, { readonly table?: Table }>) {
   const t = useMessages(kit)
   const vars = useThemeVars(props.theme, DATA_TOKENS)
   const table = content.table
@@ -20,6 +22,12 @@ export function DataItemView({ props, content }: ItemViewProps<DataProps, { read
     return (
       <div className={styles.empty} style={vars} data-theme={props.theme} data-empty>
         {t("No Data")}
+      </div>
+    )
+  if (props.view !== "table")
+    return (
+      <div className={styles.chartFrame} style={vars} data-theme={props.theme} data-view={props.view}>
+        <ChartView table={table} props={props} size={size} />
       </div>
     )
   const widths = columnWidths(table)
