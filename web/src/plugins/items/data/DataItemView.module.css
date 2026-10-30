@@ -1,0 +1,54 @@
+/* データの字: 箱と同じく同梱の Noto Sans JP で、字詰めなどを止める */
+.empty,
+.frame {
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--data-radius);
+  color: var(--data-text);
+}
+/* 表の無い間: 点線の枠の真ん中に「No Data」 */
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--data-empty);
+  color: var(--data-empty);
+}
+/* 表: 枠の中でスクロールする */
+.frame {
+  overflow: auto;
+  border: 1px solid var(--data-line);
+  background: var(--data-fill);
+}
+.table {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+.table th,
+.table td {
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--data-line);
+  white-space: nowrap;
+  text-align: left;
+}
+.table th {
+  font-weight: 700;
+}
+.table th + th,
+.table td + td {
+  border-left: 1px solid var(--data-line);
+}
+.table [data-type="number"] {
+  text-align: right;
+}
+.table tbody tr:last-child td {
+  border-bottom: none;
+}

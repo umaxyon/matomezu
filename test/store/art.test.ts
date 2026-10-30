@@ -27,9 +27,13 @@ const resize = (store: Store, item: string, size: { w?: number; h?: number; y?: 
 const update = (store: Store, item: string, props: Record<string, unknown>) =>
   store.actions.perform("@matomezu/paper:item-update", { page: "p1", item, props }, { book: "b1" })
 
-test("図面のツールボックスは箱とリストのボタンで、シェイプ 15 はシェイプパネルに並ぶ（8 つの形は図面には無い）", () => {
+test("図面のツールボックスは箱とリストとデータのボタンで、シェイプ 15 はシェイプパネルに並ぶ（8 つの形は図面には無い）", () => {
   const store = ready()
-  expect(toolboxOf(CORE_CATALOG, book(store))).toEqual(["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list"])
+  expect(toolboxOf(CORE_CATALOG, book(store))).toEqual([
+    "@matomezu/box:shape-nest-box",
+    "@matomezu/list:shape-list",
+    "@matomezu/data:shape-data",
+  ])
   expect(panelOf(CORE_CATALOG, book(store))).toEqual(ART_ITEMS)
   expect(ART_ITEMS).toHaveLength(15)
 })

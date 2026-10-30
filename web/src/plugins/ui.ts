@@ -8,6 +8,7 @@ import { MASTER_UI } from "./books/master/ui"
 import { TREE_UI } from "./books/tree/ui"
 import { ART_UI } from "./items/art/ui"
 import { BOX_UI } from "./items/box/ui"
+import { DATA_UI } from "./items/data/ui"
 import { LINE_UI } from "./items/line/ui"
 import { LIST_UI } from "./items/list/ui"
 import { SHAPE_UI } from "./items/shape/ui"
@@ -19,6 +20,7 @@ export const BUILTIN_UI = [
   PAPER_UI,
   BOX_UI,
   LIST_UI,
+  DATA_UI,
   LINE_UI,
   SHAPE_UI,
   ART_UI,
