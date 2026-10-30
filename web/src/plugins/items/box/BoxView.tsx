@@ -1,5 +1,5 @@
 // 箱のアイテムのビュー（箱と内包ボックス）: キャプション・区切り線・本文の塊を、縦の位置（size.ts の vAlignOf）に置く。塊の上にキャプション（1 行で、収まらなければ … で切る）、本文が出るなら区切り線と本文。寄せはそれぞれの項目（captionAlign・bodyAlign）。
-// 本文は size.ts の boxLayout が本文の列の幅で折り返して高さに収めた行を、その列の中に 1 行ずつ、装飾（太字・文字の色）を付けて描く（ブラウザには折り返させない）。
+// 本文は size.ts の boxLayout が本文の列の幅で折り返して高さに収めた行を、その列の中に 1 行ずつ、装飾（太字・文字の色）を付けて描く（ブラウザには折り返させない）。区切り線も本文の列の幅に引く。
 // 箱を選んでいる間（紙をずらす道具の間は除く）は、本文の列の動かせる端（size.ts の bodySides）につまみを出す。つまみを横にドラッグすると、本文の列の幅を描き直し、
 // 離したら本文の幅（bodyWidth）をアクション item-update で書く（箱の中いっぱいになれば消す）。書き換えが止められていれば、つまみを出さない。
 // 箱にテーマ（theme）を当てていれば、そのテーマの箱のテーマキー（塗り・線・文字・角の丸み・影・角の折り返し）で描く。表に無いテーマならブックのテーマのまま。
@@ -71,7 +71,7 @@ export function BoxView({ props, size, hasChildren, id, stage }: ItemViewProps<B
             {props.caption}
           </div>
         )}
-        {rule && <hr className={styles.rule} />}
+        {rule && <hr className={styles.rule} style={{ marginLeft: column.x, width: column.w }} />}
         {hasBody && (
           <div className={styles.body} data-align={props.bodyAlign} style={{ marginLeft: column.x, width: column.w }}>
             {body.map((line, i) => (

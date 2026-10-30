@@ -550,4 +550,5 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
     store.state.getState().books.w1 as { pages: readonly { items: readonly { id: string; props: object }[] }[] }
   ).pages[0]!.items[1]!
   expect(placed.props).toMatchObject({ bodyWidth: 220 - 18 - 40 })
+  expect(item("l").querySelector<HTMLElement>("hr")?.style.width).toBe(`${220 - 18 - 40}px`) // 区切り線も本文の列の幅
 })
