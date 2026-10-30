@@ -240,6 +240,10 @@ textarea.control {
   opacity: 0;
   pointer-events: none;
 }
+.choice:has(.radio:disabled) {
+  opacity: 0.35;
+  cursor: default;
+}
 .choice:has(.radio:checked) {
   background: var(--skin-btn);
   color: var(--skin-text);

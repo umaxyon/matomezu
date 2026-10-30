@@ -51,7 +51,7 @@ export function Field({
 }
 
 // 選択肢から 1 つを選ぶボタンの並び（名前は label。選択肢ごとに値・名前・中身のアイコン。中は見えないラジオボタン）。
-// clearable なら、どれも選ばない（undefined）を許し、選んでいる物をもう一度押すと外す
+// clearable なら、どれも選ばない（undefined）を許し、選んでいる物をもう一度押すと外す。disabled の選択肢は灰色で押せない
 export function Choices<V extends string>({
   label,
   value,
@@ -60,7 +60,7 @@ export function Choices<V extends string>({
   clearable,
 }: {
   label: string
-  options: readonly { value: V; label: string; icon: ReactNode }[]
+  options: readonly { value: V; label: string; icon: ReactNode; disabled?: boolean }[]
 } & (
   | { value: V; onChange: (value: V) => void; clearable?: false }
   | { value: V | undefined; onChange: (value: V | undefined) => void; clearable: true }
@@ -76,6 +76,7 @@ export function Choices<V extends string>({
             name={name}
             value={o.value}
             aria-label={o.label}
+            disabled={o.disabled}
             checked={o.value === value}
             onChange={() => onChange(o.value)}
             onClick={() => {

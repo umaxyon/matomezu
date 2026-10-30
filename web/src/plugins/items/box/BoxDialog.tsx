@@ -1,5 +1,6 @@
 // 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ・色。キャプションと本文の名前の右に、左・中央・右の寄せ）。
 // キャプションの寄せの隣に、キャプションと本文の塊の縦の位置（上・真ん中・下）。押している物をもう一度押すと自動（どれも押していない）に戻す。
+// 子を持つ内包ボックスでは、真ん中は押せない（子がある間は上として描くため）。
 // テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
 // 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで、上の装飾のボックスで太字と文字の色を付けられる（base の RichBody）。
@@ -87,6 +88,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const box = useItem(stage, args.page, args.item, BOX.id)
   const nestBox = useItem(stage, args.page, args.item, NEST_BOX.id)
   const start = (box ?? nestBox)?.props
+  const hasChildren = (nestBox?.shapes?.length ?? 0) > 0
   const { previewDialog } = useActions()
   const perform = usePerform(stage)
   const preview = useCallback(
@@ -110,6 +112,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
       title={kit.message("Edit box")}
       submit={kit.message("OK")}
       start={start}
+      hasChildren={hasChildren}
       bookTheme={bookTheme}
       ready
       onSubmit={update}
@@ -129,6 +132,7 @@ function BoxDialog({
   onSubmit,
   onPreview,
   onClose,
+  hasChildren = false,
 }: {
   stage: string
   title: MessageKey
@@ -139,6 +143,7 @@ function BoxDialog({
   onSubmit: (props: BoxProps) => boolean // 決められたか
   onPreview?: (look: Look | null) => void // 本文・寄せ・テーマ・色を変えた（元の値に戻せば null。無ければ見せない）
   onClose: () => void
+  hasChildren?: boolean // 子を持つ内包ボックスか（縦の位置の真ん中を押せなくする）
 }) {
   const t = useMessages(kit)
   const form = useId()
@@ -165,7 +170,12 @@ function BoxDialog({
     onPreview?.(changed ? { body, captionAlign, bodyAlign, vAlign, theme: theme || undefined, color } : null)
   }, [changed, body, captionAlign, bodyAlign, vAlign, theme, color, onPreview])
   const aligns = useAligns()
-  const vAligns = VALIGNS.map(v => ({ value: v, label: t(VALIGN_LOOK[v].label), icon: VALIGN_LOOK[v].icon }))
+  const vAligns = VALIGNS.map(v => ({
+    value: v,
+    label: t(VALIGN_LOOK[v].label),
+    icon: VALIGN_LOOK[v].icon,
+    disabled: hasChildren && v === "middle",
+  }))
   const [refused, setRefused] = useState(false)
   const hasBody = body !== ""
   return (
