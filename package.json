@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p test/added-plugins/ex1 && tsc --noEmit -p test/added-plugins/ex2 && tsc --noEmit -p test/added-plugins/ex3 && tsc --noEmit -p test/added-plugins/ex4 && tsc --noEmit -p test/added-plugins/ex4/tsconfig.without-tests.json && tsc --noEmit -p test/added-plugins/ex5 && tsc --noEmit -p test/added-plugins/ex6-spec && tsc --noEmit -p test/added-plugins/ex6 && tsc --noEmit -p test/added-plugins/ex7 && tsc --noEmit -p test/type-checks/unowned-names",
     "test": "bun test",
     "e2e": "playwright test",
+    "e2e:perf": "playwright test -c playwright.perf.config.ts",
     "lint": "biome check",
     "format": "biome check --write",
     "build:engine": "bun build web/src/engine/engine.ts --target browser --format iife --minify --outfile internal/engine/engine.js"

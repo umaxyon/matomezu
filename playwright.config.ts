@@ -17,7 +17,11 @@ export default defineConfig({
     locale: "ja-JP",
   },
   projects: [
-    { name: "screen", testIgnore: ["server/**", "plugins/**"], use: { baseURL: `http://localhost:${port}` } },
+    {
+      name: "screen",
+      testIgnore: ["server/**", "plugins/**", "perf/**"],
+      use: { baseURL: `http://localhost:${port}` },
+    },
     { name: "server", testMatch: "server/**", use: { baseURL: `http://127.0.0.1:${serverPort}` } },
     { name: "plugins", testMatch: "plugins/**", use: { baseURL: `http://127.0.0.1:${pluginsPort}` } },
   ],
