@@ -555,14 +555,15 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
   expect(item("l").querySelector<HTMLElement>("hr")?.style.width).toBe(`${220 - 18 - 40}px`) // 区切り線も本文の列の幅
 })
 
-test("紙の右クリックのメニューの「画面を分割」で分割し、分割している間は同じ所に「分割をやめる」が出る", () => {
+test("紙の右クリックのメニューの「画面を分割」で分割し、分割している間は同じ所に「ステージを閉じる」が出て、右クリックした側のステージを閉じる", () => {
   renderScreen()
   fireEvent.contextMenu(screen.getAllByRole("img", { name: "紙" })[0]!, { clientX: 40, clientY: 50 })
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "画面を分割" }))
   expect(stages()).toHaveLength(2)
-  fireEvent.contextMenu(screen.getAllByRole("img", { name: "紙" })[0]!, { clientX: 40, clientY: 50 })
+  const [left, right] = stages()
+  fireEvent.contextMenu(within(left!).getByRole("img", { name: "紙" }), { clientX: 40, clientY: 50 })
   const menu = screen.getByRole("menu")
-  expect(within(menu).getAllByRole("menuitem")[1]?.textContent).toBe("分割をやめる")
-  fireEvent.click(within(menu).getByRole("menuitem", { name: "分割をやめる" }))
-  expect(stages()).toHaveLength(1)
+  expect(within(menu).getAllByRole("menuitem")[1]?.textContent).toBe("ステージを閉じる")
+  fireEvent.click(within(menu).getByRole("menuitem", { name: "ステージを閉じる" }))
+  expect(stages()).toEqual([right!])
 })
