@@ -30,6 +30,6 @@
 - main に直接積む。捨てるかもしれない試みだけブランチを切り、戻る目印はタグ
 - 区切りのコミットは頼まれなくてよい。push は頼まれたときだけ
 - コミットの前に、変更をステージしてから、サブエージェント conventions-review（`.claude/agents/conventions-review.md`）でステージ済みの変更が規約に違反していないかを確かめる。違反があれば直してからコミットする
-- 画面や AI の操作が変わるコミットでは、変更をステージしてから、サブエージェント manual-creator（`.claude/agents/manual-creator.md`）で利用者向けマニュアルの下書きに書き足す。書き足した下書きもステージしてから conventions-review で確かめ、一緒にコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
+- AGENT.md の「利用者向けマニュアル」のとおりサブエージェント manual-creator（`.claude/agents/manual-creator.md`）が書き足した下書きは、ステージしてから conventions-review で確かめ、タスクを閉じる前にコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
 - メッセージは英語で、何をどう変えたかを書く。Co-Authored-By を付けない
 - `docs/`・`_old_docs/`・`tmp/` はコミットしない
