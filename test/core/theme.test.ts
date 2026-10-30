@@ -68,7 +68,8 @@ test("ビルトインプラグインと画面の CSS とビューが書いた --
       if (!core.has(name as string)) unknown.push(`${file}: ${name}`)
     const dir = [...own.keys()].find(d => file.startsWith(d))
     if (!dir) continue
-    for (const [, name] of src.matchAll(/var\((--[a-z][a-z0-9-]*)/g))
+    // 名前を組み立てる所（var(--data-series-${…})）は見ない
+    for (const [, name] of src.matchAll(/var\((--[a-z][a-z0-9-]*)(?![a-z0-9-]*\$)/g))
       if (
         !name!.startsWith("--theme-") &&
         !name!.startsWith("--skin-") &&
@@ -87,4 +88,5 @@ const dirOf = (id: string) =>
     "@matomezu/list": "web/src/plugins/items/list",
     "@matomezu/line": "web/src/plugins/items/line",
     "@matomezu/shape": "web/src/plugins/items/shape",
+    "@matomezu/data": "web/src/plugins/items/data",
   })[id.split(":")[0]!] ?? "web/src/plugins/none"

@@ -23,13 +23,13 @@
 }
 /* 値 0 の線 */
 .base {
-  stroke: var(--data-axis);
+  stroke: var(--data-zero);
   stroke-width: 1;
   shape-rendering: crispEdges;
 }
 .line {
   fill: none;
-  stroke-width: 2;
+  stroke-width: var(--data-line-width);
   stroke-linejoin: round;
   stroke-linecap: round;
 }
@@ -38,6 +38,9 @@
 .slice {
   stroke: var(--data-fill);
   stroke-width: 2;
+}
+.dot {
+  r: var(--data-dot-size);
 }
 /* 理由（軸が足りないなど）: 真ん中に */
 .notice {
@@ -102,4 +105,104 @@
 }
 .grip[data-label-grip="x"] {
   cursor: ew-resize;
+}
+/* 動き（motion.ts）: きっかけ（data-motion）ごとの長さで、印ごとの動き方（data-*-motion）で動かす。長さが 0ms なら動かない。
+   OS で動きを減らす設定なら動かさない */
+.svg[data-motion="draw"] {
+  --motion-time: var(--data-motion-draw);
+}
+.svg[data-motion="data"] {
+  --motion-time: var(--data-motion-data);
+}
+.svg[data-motion="look"] {
+  --motion-time: var(--data-motion-look);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .svg[data-motion] [data-bars] > path,
+  .svg[data-motion] .line,
+  .svg[data-motion] .dot,
+  .svg[data-motion] [data-slices],
+  .svg[data-motion] [data-sweep] {
+    animation-duration: var(--motion-time);
+    animation-timing-function: var(--data-motion-ease);
+    animation-fill-mode: backwards;
+  }
+  /* 棒: 浮かび上がる・値 0 の線から伸びる */
+  .svg[data-bar-motion="fade"] [data-bars] > path {
+    animation-name: fade;
+  }
+  .svg[data-bar-motion="grow"] [data-bars] > path {
+    transform-box: view-box;
+    transform-origin: var(--zero);
+    animation-name: grow-y;
+  }
+  .svg[data-bar-motion="grow"] [data-bars][data-horizontal] > path {
+    animation-name: grow-x;
+  }
+  /* 折れ線: 左から引く・浮かび上がる */
+  .svg[data-line-motion="draw"] .line {
+    animation-name: draw;
+  }
+  .svg[data-line-motion="fade"] .line {
+    animation-name: fade;
+  }
+  /* 点: 真ん中から膨らむ・浮かび上がる */
+  .svg[data-dot-motion="pop"] .dot {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation-name: pop;
+  }
+  .svg[data-dot-motion="fade"] .dot {
+    animation-name: fade;
+  }
+  /* 円: 12 時から右回りに広がる（覆いの線を伸ばす）・真ん中から膨らむ・浮かび上がる */
+  .svg[data-pie-motion="sweep"] [data-sweep] {
+    animation-name: sweep;
+  }
+  .svg[data-pie-motion="pop"] [data-slices] {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation-name: pop;
+  }
+  .svg[data-pie-motion="fade"] [data-slices] {
+    animation-name: fade;
+  }
+}
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop {
+  from {
+    transform: scale(0);
+  }
+}
+@keyframes draw {
+  from {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sweep {
+  from {
+    stroke-dasharray: 0 1;
+  }
+  to {
+    stroke-dasharray: 1 0;
+  }
 }

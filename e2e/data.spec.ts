@@ -1,6 +1,9 @@
 import { expect, type Page, test } from "@playwright/test"
 import { drawerTool } from "./drawer"
 
+// グラフの動きで棒や点の大きさが変わる間に測らないよう、OS の動きを減らす設定で開く（動きを確かめるテストは除く）
+test.use({ reducedMotion: "reduce" })
+
 // データを紙の (120, 120) に置き、置いたデータを返す
 async function addData(page: Page) {
   await (await drawerTool(page, "データ")).click()
@@ -215,4 +218,41 @@ test("データにもキャプションと本文を書け、表やグラフの�
   await dialog.getByLabel("文字の置き場所").selectOption("none")
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(block).toHaveCount(0)
+})
+
+test("グラフは、表を入れたときと見た目を変えたときに動く（棒は伸び、折れ線は引かれる）。OS で動きを減らす設定なら動かない", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await page.goto("/")
+  const data = await addData(page)
+  const dialog = await fillMonths(page, data)
+  await dialog.getByLabel("見た目").selectOption("bar")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  const svg = data.getByRole("img", { name: "棒グラフ" })
+  await expect(svg).toHaveAttribute("data-motion", "data")
+  const animation = (selector: string) =>
+    svg
+      .locator(selector)
+      .first()
+      .evaluate(e => getComputedStyle(e).animationName)
+  expect(await animation("[data-bar]")).toContain("grow-y")
+  await data.dblclick()
+  await dialog.getByLabel("見た目").selectOption("line")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  const line = data.getByRole("img", { name: "折れ線グラフ" })
+  await expect(line).toHaveAttribute("data-motion", "look")
+  expect(
+    await line
+      .locator("[data-line]")
+      .first()
+      .evaluate(e => getComputedStyle(e).animationName),
+  ).toContain("draw")
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  expect(
+    await line
+      .locator("[data-line]")
+      .first()
+      .evaluate(e => getComputedStyle(e).animationName),
+  ).toBe("none")
 })

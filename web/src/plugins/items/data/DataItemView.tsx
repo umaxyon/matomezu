@@ -3,8 +3,9 @@
 // （数の列は右寄せ、文字の列は左寄せ。列の幅と行の高さは size.ts の値で、セルの中では折り返さない。入りきらない行と列は描く所の中でスクロールする）、
 // グラフの見た目なら、グラフ（ChartView）を描く。
 // データを選んでいる間（紙をずらす道具の間は除く）は、本文の列の端につまみを出し、離したら本文の幅（bodyWidth）をアクション item-update で書く。
+// 表やグラフの動き（motion.ts）のきっかけは、ここで前の様子と比べて決める（表からグラフに変えたのも、見た目を変えたきっかけにする）。
 // データにテーマ（theme）を当てていれば、そのテーマのデータのテーマキーで描く。表に無いテーマならブックのテーマのまま
-import type { ReactNode } from "react"
+import { type ReactNode, useState } from "react"
 import type { ItemProps } from "../../../plugin-api"
 import { type ItemViewProps, useAllowed, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
 import { TextBlockView, useThemeVars } from "../../base/ui"
@@ -13,6 +14,7 @@ import { ChartView } from "./ChartView"
 import styles from "./DataItemView.module.css"
 import { type DATA, DATA_TOKENS } from "./data"
 import { kit } from "./kit"
+import { type MotionState, type MotionTrigger, motionOf, motionState } from "./motion"
 import { cellText, columnWidths, ROW_HEIGHT, TABLE_LOOK } from "./size"
 import type { Table } from "./table"
 
@@ -34,6 +36,7 @@ export function DataItemView({
   const grips = allowed && at !== null && !at.pans && at.selection.includes(id)
   const table = content.table
   const areas = areasOf(props, size)
+  const motion = useMotion(motionState(table, props))
   const text = areas.text && (
     <div className={styles.text} style={{ height: areas.text.height }}>
       <TextBlockView
@@ -53,7 +56,7 @@ export function DataItemView({
   let body: ReactNode
   if (!table) body = <div className={styles.noData}>{t("No Data")}</div>
   else if (props.view !== "table")
-    body = <ChartView table={table} props={props} size={areas.content} stage={stage} id={id} />
+    body = <ChartView table={table} props={props} size={areas.content} stage={stage} id={id} motion={motion} />
   else body = <TableView table={table} />
   return (
     <div
@@ -70,6 +73,23 @@ export function DataItemView({
       {areas.contentTop && text}
     </div>
   )
+}
+
+// 前に描いたときの様子と比べた、動かすきっかけ（変わったときだけ回の番号を増やす。初めて描いたときは draw）。
+// 様子が変われば、描いている間に覚え直す（React の、前の値から決まる状態の形）
+function useMotion(next: MotionState | null): { trigger: MotionTrigger | null; round: number } {
+  const [last, setLast] = useState<{
+    state: MotionState | null | undefined
+    trigger: MotionTrigger | null
+    round: number
+  }>({ state: undefined, trigger: null, round: 0 })
+  if (JSON.stringify(last.state) !== JSON.stringify(next) || last.state === undefined) {
+    const trigger = motionOf(last.state, next)
+    const now = trigger ? { state: next, trigger, round: last.round + 1 } : { ...last, state: next }
+    setLast(now)
+    return now
+  }
+  return last
 }
 
 function TableView({ table }: { table: Table }) {

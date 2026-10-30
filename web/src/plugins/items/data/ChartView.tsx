@@ -1,8 +1,18 @@
 // グラフのビュー: 棒・折れ線（cartesian.ts）・円（pie.ts）・散布図（scatter.ts）を、計算した寸法のとおりに SVG で描く。
 // 系列の色はテーマキー data-series-1〜8、軸と凡例の文字は data-axis、目盛りの線は data-grid。文字は系列の色で塗らない。
 // 棒と折れ線は、項目の文字を傾けて描け、選んでいる間は項目の文字の領域のつまみを出す（LabelGrip）。
-// 棒・扇・点にポインタを乗せると、その値を小さな吹き出しで出す。軸が足りない・円にできない値のときは、真ん中に理由を出す
-import { type PointerEvent, type ReactNode, useState } from "react"
+// 棒・扇・点にポインタを乗せると、その値を小さな吹き出しで出す。軸が足りない・円にできない値のときは、真ん中に理由を出す。
+// 動き（motion.ts）は、きっかけ（motion）が来るたびにグラフを描き直して動かし直す。動き方と棒の角の丸みは、テーマキーの値を描いた要素から読む
+import {
+  type CSSProperties,
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
 import type { Size } from "../../../plugin-api"
 import { useMessages } from "../../../plugin-api/ui"
 import styles from "./ChartView.module.css"
@@ -10,6 +20,7 @@ import { barPath, type CartesianLayout, CHART_LOOK, cartesianLayout } from "./ca
 import type { DataProps } from "./data"
 import { kit } from "./kit"
 import { LabelGrip } from "./LabelGrip"
+import { type ChartMotions, chartMotions, cssPx, type MotionTrigger } from "./motion"
 import { type PieLayout, pieLayout } from "./pie"
 import { type ScatterLayout, scatterLayout } from "./scatter"
 import type { Table } from "./table"
@@ -26,6 +37,26 @@ const CHART_TITLES = {
 } as const
 const color = (i: number) => `var(--data-series-${(i % 8) + 1})`
 
+// テーマキーから読む描き方: 印ごとの動き方と、棒の先の角の丸み（px）
+interface ChartLook {
+  motions: ChartMotions
+  radius: number
+}
+const NO_LOOK: ChartLook = { motions: { bar: "none", line: "none", dot: "none", pie: "none" }, radius: 4 }
+
+// 要素 ref に効いているテーマキーの値から描き方を読む（テーマが変われば読み直す）
+function useChartLook(ref: RefObject<HTMLElement | null>): ChartLook {
+  const [look, setLook] = useState(NO_LOOK)
+  useLayoutEffect(() => {
+    if (!ref.current) return
+    const css = getComputedStyle(ref.current)
+    const read = (token: string) => css.getPropertyValue(`--${token}`)
+    const next = { motions: chartMotions(read), radius: cssPx(read("data-bar-radius"), NO_LOOK.radius) }
+    setLook(now => (JSON.stringify(now) === JSON.stringify(next) ? now : next))
+  })
+  return look
+}
+
 // 吹き出し: ポインタの所（枠の左上からの px）に、見出しと、色の印・名前・値の行
 interface Tip extends TipContent {
   x: number
@@ -38,14 +69,18 @@ export function ChartView({
   size,
   stage,
   id,
+  motion,
 }: {
   table: Table
   props: DataProps
   size: Size
   stage: string
   id: string
+  motion: { trigger: MotionTrigger | null; round: number } // 動かすきっかけと、その回の番号（変われば描き直して動かし直す）
 }) {
   const t = useMessages(kit)
+  const ref = useRef<HTMLDivElement>(null)
+  const look = useChartLook(ref)
   const [tip, setTip] = useState<Tip | null>(null)
   // 項目の文字の領域のつまみをドラッグしている間の大きさ
   const [dragged, setDragged] = useState<number | undefined>(undefined)
@@ -64,20 +99,28 @@ export function ChartView({
     const pie = pieLayout(table, props, size, t("Other"))
     if (pie && !pie.ok)
       return <Notice>{t(pie.problem === "negative" ? "Pie cannot show negative values" : "All values are 0")}</Notice>
-    body = pie ? <PieChart pie={pie} hover={hover} leave={leave} /> : null
+    body = pie ? <PieChart pie={pie} sweep={look.motions.pie === "sweep"} hover={hover} leave={leave} /> : null
   } else if (props.view === "scatter") {
     const sc = scatterLayout(table, props, size)
     body = sc ? <ScatterChart sc={sc} hover={hover} leave={leave} /> : null
   } else {
     const c = cartesianLayout(table, props, size)
-    body = c ? <CartesianChart c={c} names={seriesNames(table, props)} hover={hover} leave={leave} /> : null
+    body = c ? (
+      <CartesianChart c={c} names={seriesNames(table, props)} radius={look.radius} hover={hover} leave={leave} />
+    ) : null
     if (c) grip = <LabelGrip c={c} size={size} stage={stage} id={id} onDrag={setDragged} />
   }
   if (!body) return <Notice>{t("Choose the axes")}</Notice>
   return (
-    <div className={styles.chart}>
+    <div className={styles.chart} ref={ref}>
       <svg
+        key={motion.round}
         className={styles.svg}
+        data-motion={motion.trigger ?? undefined}
+        data-bar-motion={look.motions.bar}
+        data-line-motion={look.motions.line}
+        data-dot-motion={look.motions.dot}
+        data-pie-motion={look.motions.pie}
         width={size.w}
         height={size.h}
         viewBox={`0 0 ${size.w} ${size.h}`}
@@ -142,11 +185,13 @@ function Legend({
 function CartesianChart({
   c,
   names,
+  radius,
   hover,
   leave,
 }: {
   c: CartesianLayout
   names: readonly string[]
+  radius: number
   hover: Hover
   leave: () => void
 }) {
@@ -209,11 +254,16 @@ function CartesianChart({
             ),
           )}
       </g>
-      <g data-bars>
+      {/* 棒は値 0 の線から伸びる（動きの基準の所） */}
+      <g
+        data-bars
+        data-horizontal={horizontal || undefined}
+        style={{ "--zero": horizontal ? `${c.zero}px 0px` : `0px ${c.zero}px` } as CSSProperties}
+      >
         {c.bars.map(b => (
           <path
             key={`${b.row}-${b.series}`}
-            d={barPath(b, horizontal, c.zero)}
+            d={barPath(b, horizontal, c.zero, radius)}
             fill={color(b.series)}
             data-bar
             onPointerMove={e => hover(e, tipOf(b.row))}
@@ -232,6 +282,7 @@ function CartesianChart({
             <polyline
               className={styles.line}
               points={l.points.map(p => `${p.x},${p.y}`).join(" ")}
+              pathLength={1}
               stroke={color(l.series)}
               data-line
             />
@@ -241,7 +292,6 @@ function CartesianChart({
                 className={styles.dot}
                 cx={p.x}
                 cy={p.y}
-                r={L.dot}
                 fill={color(l.series)}
                 onPointerMove={e => hover(e, tipOf(p.row))}
                 onPointerLeave={leave}
@@ -255,10 +305,37 @@ function CartesianChart({
   )
 }
 
-function PieChart({ pie, hover, leave }: { pie: Extract<PieLayout, { ok: true }>; hover: Hover; leave: () => void }) {
+function PieChart({
+  pie,
+  sweep,
+  hover,
+  leave,
+}: {
+  pie: Extract<PieLayout, { ok: true }>
+  sweep: boolean // 12 時から右回りに広げて見せるか（扇の全体を、太い円の線の覆いで隠しておき、線を伸ばす）
+  hover: Hover
+  leave: () => void
+}) {
+  const mask = useId()
+  const { center, r } = pie
   return (
     <>
-      <g data-slices>
+      {sweep && (
+        <mask id={mask}>
+          <circle
+            data-sweep
+            cx={center.x}
+            cy={center.y}
+            r={r / 2 + 1}
+            fill="none"
+            stroke="white"
+            strokeWidth={r + 2}
+            pathLength={1}
+            transform={`rotate(-90 ${center.x} ${center.y})`}
+          />
+        </mask>
+      )}
+      <g data-slices mask={sweep ? `url(#${mask})` : undefined}>
         {pie.slices.map(s => (
           <path
             key={s.rows.join(",")}
@@ -313,7 +390,6 @@ function ScatterChart({ sc, hover, leave }: { sc: ScatterLayout; hover: Hover; l
             className={styles.dot}
             cx={d.x}
             cy={d.y}
-            r={L.dot}
             fill={color(0)}
             data-dot
             onPointerMove={e => hover(e, scatterTip(sc, d))}
