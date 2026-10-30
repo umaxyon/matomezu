@@ -1,0 +1,68 @@
+/* 編集のダイアログの表の格子: 列はどれも同じ幅で、入りきらなければ格子の中でスクロールする */
+.grid {
+  max-height: 360px;
+  overflow: auto;
+}
+.grid table {
+  border-collapse: collapse;
+}
+.grid th,
+.grid td {
+  padding: 2px;
+  font-weight: 400;
+  vertical-align: top;
+}
+/* 列の見出し: 名前の下に、型と消す × */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 132px;
+}
+.headRow {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+/* 入力Form: ダイアログの入力Formと同じ枠を、格子に入る小ささで */
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--skin-line);
+  border-radius: 4px;
+  background: var(--skin-bg);
+  color: var(--skin-text);
+  font: inherit;
+}
+.input:focus {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: -1px;
+}
+.input[data-type="number"] {
+  text-align: right;
+}
+/* 数の列に数でない文字を書いたセル */
+.input[aria-invalid="true"] {
+  border-color: var(--skin-danger);
+  outline: 1px solid var(--skin-danger);
+  outline-offset: -1px;
+}
+.remove,
+.add {
+  border: none;
+  background: none;
+  color: var(--skin-hint);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.remove {
+  padding: 4px 6px;
+}
+.add {
+  padding: 4px 6px;
+}
+.footer {
+  display: flex;
+  justify-content: flex-start;
+}

@@ -7,6 +7,7 @@ import { MASTER_PLUGIN } from "./books/master"
 import { TREE_PLUGIN } from "./books/tree"
 import { ART_PLUGIN } from "./items/art"
 import { BOX_PLUGIN } from "./items/box"
+import { DATA_PLUGIN } from "./items/data"
 import { LINE_PLUGIN } from "./items/line"
 import { LIST_PLUGIN } from "./items/list"
 import { SHAPE_PLUGIN } from "./items/shape"
@@ -18,6 +19,7 @@ export const BUILTIN = [
   PAPER_PLUGIN,
   BOX_PLUGIN,
   LIST_PLUGIN,
+  DATA_PLUGIN,
   LINE_PLUGIN,
   SHAPE_PLUGIN,
   ART_PLUGIN,

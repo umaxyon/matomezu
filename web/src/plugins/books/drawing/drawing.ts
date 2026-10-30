@@ -3,10 +3,11 @@ import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 
-// ツールボックスに出す順: 内包ボックス・リスト・シェイプ（シェイプパネルに並ぶ）、線
+// ツールボックスに出す順: 内包ボックス・リスト・データ・シェイプ（シェイプパネルに並ぶ）、線
 const ITEMS = [
   "@matomezu/box:shape-nest-box",
   "@matomezu/list:shape-list",
+  "@matomezu/data:shape-data",
   "@matomezu/art:shape-person",
   "@matomezu/art:shape-db",
   "@matomezu/art:shape-server",
