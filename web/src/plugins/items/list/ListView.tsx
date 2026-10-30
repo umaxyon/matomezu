@@ -33,7 +33,7 @@ import { kit } from "./kit"
 import styles from "./ListView.module.css"
 import { LIST, type ListRow, ROW_CONTEXT } from "./list"
 import { listPaintVars } from "./paint"
-import { canCarry, shownOrder } from "./rows"
+import { canCarry, dropPlace, shownOrder } from "./rows"
 import { linesFor, listLayout, type RowLayout, rowHeight } from "./size"
 
 // リストを描くテーマキー
@@ -81,9 +81,10 @@ interface Drop {
   bar: { x: number; y: number; w: number }
 }
 
-// ポインタ（画面の座標）の下のリストで、行 row を落とす所（無ければ null）。行の並びは画面に見えている順。行の真ん中より上なら、その行の前。
+// ポインタ（画面の座標）の下のリストで、チェック済みか（checked）の行 row を落とす所（無ければ null）。行の並びは画面に見えている順。行の真ん中より上なら、その行の前。
+// チェック済みを寄せて見せているリストでは、落とせるのはその行が寄せられる組の中だけ（rows.ts の dropPlace）。
 // ポインタの高さと光る線は、行の並びの見えている範囲（スクロールする所）の中に収める（範囲の外の行の間には出さない）
-function dropAt(x: number, pointerY: number, row: string): Drop | null {
+function dropAt(x: number, pointerY: number, row: string, checked: boolean): Drop | null {
   const under = document.elementsFromPoint(x, pointerY)
   const item = under.map(el => el.closest("[data-item]")).find(Boolean)
   const ul = item?.querySelector<HTMLElement>("[data-list-rows]")
@@ -93,15 +94,30 @@ function dropAt(x: number, pointerY: number, row: string): Drop | null {
   const view = (ul.parentElement ?? ul).getBoundingClientRect()
   const y = clamp(pointerY, view.top, view.bottom)
   const others = [...ul.querySelectorAll<HTMLElement>(":scope > [data-row]")].filter(li => li.dataset.row !== row)
-  const next = others.find(li => {
-    const r = li.getBoundingClientRect()
-    return y < r.top + r.height / 2
+  const li = new Map(others.map(el => [el.dataset.row ?? "", el]))
+  const gather = (ul.dataset.gather ?? "none") as "none" | "first" | "last"
+  const rows = others.map(el => ({
+    id: el.dataset.row ?? "",
+    checked: el.dataset.checked === "true",
+    order: Number(el.dataset.order),
+  }))
+  const place = dropPlace(rows, gather, checked, id => {
+    const r = li.get(id)?.getBoundingClientRect()
+    return r !== undefined && y < r.top + r.height / 2
   })
-  const last = others.at(-1)?.getBoundingClientRect()
-  const gap = next ? next.getBoundingClientRect().top - GAP_MID : last ? last.bottom + GAP_MID : box.top + INSET_MID
+  const rect = (id: string) => li.get(id)?.getBoundingClientRect()
+  const bar = place.bar
+  const gap =
+    "before" in bar
+      ? (rect(bar.before)?.top ?? box.top) - GAP_MID
+      : "after" in bar
+        ? (rect(bar.after)?.bottom ?? box.top) + GAP_MID
+        : others.length > 0
+          ? (others[0]?.getBoundingClientRect().top ?? box.top) - GAP_MID
+          : box.top + INSET_MID
   return {
     list,
-    ...(next?.dataset.row ? { before: next.dataset.row } : {}),
+    ...(place.before ? { before: place.before } : {}),
     bar: { x: box.left + 8, y: clamp(gap, view.top + BAR_HALF, view.bottom - BAR_HALF), w: box.width - 16 },
   }
 }
@@ -180,7 +196,7 @@ export function ListView({
         e.currentTarget.setPointerCapture(e.pointerId)
       }
       const { clientX: x, clientY: y } = e
-      const follow = () => setCarried({ x, y, drop: dropAt(x, y, c.row.id) })
+      const follow = () => setCarried({ x, y, drop: dropAt(x, y, c.row.id, c.row.props.checked === true) })
       follow()
       edge.follow(x, y, follow)
     },
@@ -243,6 +259,7 @@ export function ListView({
           <ul
             className={styles.items}
             data-list-rows={id}
+            data-gather={props.checklist ? props.checkedOrder : "none"}
             data-carrying={carried !== null}
             aria-label={t("Rows of {name}", { name: props.caption })}
           >
@@ -254,6 +271,8 @@ export function ListView({
                   key={row.id}
                   className={styles.row}
                   data-row={row.id}
+                  data-checked={row.props.checked === true}
+                  data-order={i}
                   data-done={props.checklist && props.checkedGray && row.props.checked === true}
                   data-carried={carried !== null && carry.current?.row.id === row.id}
                   {...carrying(row)}

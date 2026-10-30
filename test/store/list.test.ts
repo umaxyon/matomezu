@@ -4,7 +4,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { plainOf } from "../../web/src/plugins/base/text/rich"
 import { BOX_LOOK } from "../../web/src/plugins/items/box/size"
 import type { ListRow } from "../../web/src/plugins/items/list/list"
-import { canCarry, shownOrder } from "../../web/src/plugins/items/list/rows"
+import { canCarry, dropPlace, shownOrder } from "../../web/src/plugins/items/list/rows"
 import { LIST_SIZE, linesFor, listLayout, rowHeight } from "../../web/src/plugins/items/list/size"
 import { newStore } from "../support"
 
@@ -195,4 +195,48 @@ test("見せる順: チェックリストでチェック済みを先頭か最後
   expect(canCarry(look(true, "first"), rows[0]!)).toBe(true)
   expect(canCarry(look(true, "none"), rows[1]!)).toBe(true)
   expect(canCarry(look(false, "last"), rows[1]!)).toBe(true)
+})
+
+test("チェック済みを寄せたリストに落とすときは、その行の組の中だけ。組の最後の後ろなら、データでもその行のすぐ後ろに入れる", () => {
+  // データの順は A済・B・C済・D・E、見えている順（最後に寄せる）は B・D・E・A済・C済
+  const rows = [
+    { id: "b", checked: false, order: 1 },
+    { id: "d", checked: false, order: 3 },
+    { id: "e", checked: false, order: 4 },
+    { id: "a", checked: true, order: 0 },
+    { id: "c", checked: true, order: 2 },
+  ]
+  const above = (ids: string[]) => (id: string) => ids.includes(id)
+  // チェックの無い行を、チェック済みの並びの中へ持っていっても、チェックの無い並びの最後
+  expect(dropPlace(rows, "last", false, above(["c"]))).toEqual({ bar: { after: "e" } })
+  // チェックの無い並びの途中
+  expect(dropPlace(rows, "last", false, above(["d", "e", "a", "c"]))).toEqual({ before: "d", bar: { before: "d" } })
+  // 組の最後がデータの途中なら、データでそのすぐ後ろ（D の後ろは E）
+  expect(
+    dropPlace(
+      rows.filter(r => r.id !== "e"),
+      "last",
+      false,
+      above([]),
+    ),
+  ).toEqual({ bar: { after: "d" } })
+  expect(
+    dropPlace(
+      rows.filter(r => r.id !== "d" && r.id !== "e"),
+      "last",
+      false,
+      above([]),
+    ),
+  ).toEqual({
+    before: "c",
+    bar: { after: "b" },
+  })
+  // チェック済みの行は、チェック済みの並びの中だけ
+  expect(dropPlace(rows, "last", true, above(["b", "d", "e", "a", "c"]))).toEqual({ before: "a", bar: { before: "a" } })
+  // 寄せていなければ、どこでも
+  expect(dropPlace(rows, "none", false, above(["a", "c"]))).toEqual({ before: "a", bar: { before: "a" } })
+  // 組に行が無い: 先に見える組なら並びの先頭、後に見える組なら最後の行の後ろ
+  const unchecked = rows.filter(r => !r.checked)
+  expect(dropPlace(unchecked, "first", true, above([]))).toEqual({ bar: { top: true } })
+  expect(dropPlace(unchecked, "last", true, above([]))).toEqual({ bar: { after: "e" } })
 })

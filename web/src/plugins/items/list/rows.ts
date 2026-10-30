@@ -51,3 +51,37 @@ export function withRowLines(list: PlacedList, lines: RowsLines, ids?: readonly 
   })
   return { ...list, children }
 }
+
+// 行を落とす所を決めるための、見えている順の行（落とす行は除く）: チェック済みか、データの順の番号
+export interface DropRow {
+  id: string
+  checked: boolean
+  order: number
+}
+
+// 行を落とす所: アクション row-move に渡す before（無ければ最後）と、線を引く所（行 before の前・行 after の後ろ・行の並びの先頭）
+export interface DropPlace {
+  before?: string
+  bar: { before: string } | { after: string } | { top: true }
+}
+
+// チェック済みを寄せて見せているリスト（gather）に、チェック済みか（checked）の行を落とす所。落とせるのは、その行が寄せられる組（同じチェックの行）の中だけで、
+// above(行) が真の最初の組の行の前（無ければ組の最後の後ろ）。組の最後の後ろに落とすときは、データの上でもその行のすぐ後ろに入れる（寄せ直しても落とした所に出る）
+export function dropPlace(
+  rows: readonly DropRow[],
+  gather: "none" | "first" | "last",
+  checked: boolean,
+  above: (row: string) => boolean,
+): DropPlace {
+  const group = gather === "none" ? rows : rows.filter(r => r.checked === checked)
+  const next = group.find(r => above(r.id))
+  if (next) return { before: next.id, bar: { before: next.id } }
+  const last = group.at(-1)
+  if (!last) {
+    // 組に行が無い: 組が先に見えるなら並びの先頭、後に見えるなら最後の行の後ろ
+    const end = rows.at(-1)
+    return { bar: (gather === "first") === checked || !end ? { top: true } : { after: end.id } }
+  }
+  const after = rows.filter(r => r.order > last.order).sort((a, b) => a.order - b.order)[0]
+  return { ...(after ? { before: after.id } : {}), bar: { after: last.id } }
+}
