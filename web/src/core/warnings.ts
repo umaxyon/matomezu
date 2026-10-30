@@ -16,6 +16,7 @@ export const WARNINGS = {
   W012: "tool {tool}: performs {action}, which is not in the catalog",
   W013: "bookType {type}: fixedUserSettings names {setting}, which is not a user setting",
   W014: "theme {theme}: textColors names {textColor}, which is not in the catalog",
+  W015: "theme {theme}: token {token} is {value}, which is not {expected} (not used)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

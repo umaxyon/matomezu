@@ -302,4 +302,5 @@ test("動き方はテーマキーの言葉から選び、知らない言葉な�
   expect(chartMotions(name => tokens[name] ?? "")).toEqual({ bar: "fade", line: "none", dot: "pop", pie: "none" })
   expect(cssPx(" 6px", 4)).toBe(6)
   expect(cssPx("", 4)).toBe(4)
+  expect(cssPx("6em", 4)).toBe(4) // px の長さでなければ既定（組み立てで W015）
 })

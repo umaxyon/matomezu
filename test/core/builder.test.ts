@@ -192,6 +192,34 @@ test("テーマの textColors が機能台帳に無い文字の色を名指し�
   expect(warnings.map(w => [w.code, w.plugin, w.params.textColor])).toEqual([["W014", "@matomezu/base", "@ex/gone:x"]])
 })
 
+test("テーマがデータの動き方のテーマキーに決まった言葉でない値を、棒の丸みに px でない値を書いたら W015 を残し、組み立ては止めない", () => {
+  const plugins = (BUILTIN as readonly Plugin[]).map(p =>
+    p.id === "@matomezu/base"
+      ? {
+          ...p,
+          themes: (p.themes ?? []).map(t =>
+            t.id === "@matomezu/base:simple"
+              ? {
+                  ...t,
+                  tokens: {
+                    ...t.tokens,
+                    "@matomezu/data:data-motion-bar": "fade",
+                    "@matomezu/data:data-motion-pie": { light: "sweep", dark: "spin" },
+                    "@matomezu/data:data-bar-radius": "large",
+                  },
+                }
+              : t,
+          ),
+        }
+      : p,
+  )
+  const warnings = assemble(plugins).catalog.store.warnings.filter(w => w.code === "W015")
+  expect(warnings.map(w => [w.plugin, w.params.token, w.params.value])).toEqual([
+    ["@matomezu/base", "@matomezu/data:data-motion-pie", "spin"],
+    ["@matomezu/base", "@matomezu/data:data-bar-radius", "large"],
+  ])
+})
+
 test("追加プラグインは組み立てのときの確かめを持てない（E308）", () => {
   expect(() => assemble([...BUILTIN, { id: "extra", checks: [() => []] }])).toThrow(/E308|only built-in/)
 })
