@@ -70,3 +70,18 @@ test("Tab の枠と f で中身を足して名前を書き、行をフォルダ�
   await paper(page).getByRole("button", { name: "開く" }).click()
   await expect(rows(page)).toHaveText(["proj", "src", "a.ts", "README.md"])
 })
+
+test("足して名前を書いた行は、1 回の Ctrl+Z で消える。あとで書き直したのは、書き直しだけが 1 段", async ({ page }) => {
+  await dirBook(page)
+  await page.keyboard.press("f")
+  await write(page, "a.ts")
+  await expect(rows(page)).toHaveText(["proj", "a.ts"])
+  await row(page, "a.ts").dblclick()
+  await page.keyboard.press("Control+a")
+  await write(page, "b.ts")
+  await expect(rows(page)).toHaveText(["proj", "b.ts"])
+  await page.keyboard.press("Control+z")
+  await expect(rows(page)).toHaveText(["proj", "a.ts"])
+  await page.keyboard.press("Control+z")
+  await expect(rows(page)).toHaveText(["proj"])
+})

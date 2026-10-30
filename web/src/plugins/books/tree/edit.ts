@@ -2,6 +2,7 @@
 // 上下左右のキーで動いた先の節（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ。中央の木の根からは、押した向きへ伸びる最初の子へ）
 import { parseRich, plainOf } from "../../base"
 import type { Grow } from "./grow"
+import { kit } from "./kit"
 import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
 import type { NodeSize } from "./size"
 
@@ -253,7 +254,7 @@ export function plusPoint(rect: { x: number; y: number; w: number; h: number }, 
 }
 
 // 足した節をその場で書いている編集の名前（ステージの editing）。終えるとき、書いたのを足した段に続ける（足すのと書くのが 1 段）
-export const ADDED_EDIT = "added"
+export const ADDED_EDIT = kit.name("added-edit")
 
 // その場の編集を終えたときにすること: 書いた字 text（取り消しなら null）で、節 id を
 // 消す（キャプションの空の子が空のまま終わった）・根のキャプションを替える・子のキャプションを替える・何もしない（変わらない・今ある節を空にした）
