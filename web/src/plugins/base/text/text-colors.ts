@@ -1,5 +1,5 @@
 // 文字の色の値: 文字の色の定義の色を、ブックのテーマの textColors で変え、ブックの設定の項目 book-text-colors（文字の色の id → #rrggbb）で上書きし、
-// 見る人の上書き（利用者の設定の項目 text-colors）をさらに重ねる。ブックのタイプが settings.book に選んだブックだけが上書きを持てる（選ばなければテーマか定義の色）
+// 利用者の上書き（利用者の設定の項目 text-colors）をさらに重ねる。ブックのタイプが settings.book に選んだブックだけが上書きを持てる（選ばなければテーマか定義の色）
 import { z } from "zod"
 import { HEX } from "../../../core/color"
 import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
@@ -31,7 +31,7 @@ export const BOOK_TEXT_COLORS = kit.defineSetting({
   schema: z.record(z.string(), z.string().regex(HEX)),
 })
 
-// 見る人の文字の色の上書き（利用者の設定の項目。無い色の id は使わずに残す）
+// 利用者の文字の色の上書き（利用者の設定の項目。無い色の id は使わずに残す）
 export const USER_TEXT_COLORS = kit.defineSetting({
   id: "text-colors",
   title: "Text colors",
@@ -39,7 +39,7 @@ export const USER_TEXT_COLORS = kit.defineSetting({
   default: {},
 })
 
-// 見る人の上書き own の、文字の色 id を color にした値（null は上書きを消す）。項目の値は丸ごと置き換わるので、ほかの色の上書きも残す
+// 利用者の上書き own の、文字の色 id を color にした値（null は上書きを消す）。項目の値は丸ごと置き換わるので、ほかの色の上書きも残す
 export function withTextColor(own: TextColorValues, id: string, color: string | null): TextColorValues {
   const { [id]: _, ...rest } = own
   return color === null ? rest : { ...rest, [id]: color }
@@ -56,7 +56,7 @@ export function textColorVars(colors: ReadonlyMap<string, string>): Record<strin
 
 export type TextColorValues = Readonly<Record<string, string>>
 
-// 文字の色の id → 色: 定義の色 ← テーマ ← ブックの上書き ← 見る人の上書き viewer
+// 文字の色の id → 色: 定義の色 ← テーマ ← ブックの上書き ← 利用者の上書き viewer
 export function textColorsOf(
   catalog: CoreCatalog,
   book: Book,
