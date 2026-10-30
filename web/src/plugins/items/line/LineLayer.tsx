@@ -15,6 +15,7 @@ import {
   useShownBook,
 } from "../../../plugin-api/ui"
 import { type PortArea, portAreasOf } from "../../base"
+import { useDrawnMinimap } from "../../base/ui"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { drawLines, type LineCache } from "./drawn"
@@ -82,6 +83,14 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const only = stage.selection.length === 1 ? stage.selection[0] : undefined
   // つまむ印を出す線: 直せるときの、1 本だけ選んでいる線
   const editing = selectable && lineDrag.editable && only && drafted.some(l => l.id === only) ? only : null
+
+  // ミニマップの線は、紙に描いた点の並びで描かせる（形を動かしている間は置き直さない。ミニマップの形も、離すまで動かないため）
+  useDrawnMinimap(
+    stage.id,
+    LINE.id,
+    page.id,
+    scene.busy ? null : lines.map(d => ({ kind: "polyline", points: d.points })),
+  )
 
   // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
   useLayoutEffect(() => {
