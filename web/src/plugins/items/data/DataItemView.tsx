@@ -14,7 +14,13 @@ import type { Table } from "./table"
 
 type DataProps = ItemProps<typeof DATA.id>
 
-export function DataItemView({ props, content, size }: ItemViewProps<DataProps, { readonly table?: Table }>) {
+export function DataItemView({
+  props,
+  content,
+  size,
+  stage,
+  id,
+}: ItemViewProps<DataProps, { readonly table?: Table }>) {
   const t = useMessages(kit)
   const vars = useThemeVars(props.theme, DATA_TOKENS)
   const table = content.table
@@ -27,7 +33,7 @@ export function DataItemView({ props, content, size }: ItemViewProps<DataProps, 
   if (props.view !== "table")
     return (
       <div className={styles.chartFrame} style={vars} data-theme={props.theme} data-view={props.view}>
-        <ChartView table={table} props={props} size={size} />
+        <ChartView table={table} props={props} size={size} stage={stage} id={id} />
       </div>
     )
   const widths = columnWidths(table)

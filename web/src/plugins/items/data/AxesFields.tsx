@@ -1,5 +1,6 @@
 // 編集のダイアログの、見た目と軸を選ぶ所: 見た目（表・棒・折れ線・円・散布図）と、見た目ごとの軸。
 // 棒・折れ線は横軸と値の列（いくつでも。数の列だけ）、円はラベルと値の列 1 つ、散布図は X・Y（数の列）と点のラベル（任意）。
+// 棒と折れ線は、項目の文字が入りきらないときの扱い（飛ばす・傾ける。横の棒は飛ばすだけ）と出す文字（等間隔・多い順・選んだ行だけ。選んだ行は表の行の印）。
 // 棒は向き、棒と円は並べ方（表の順・多い順・少ない順）と、値が 2 つ以上なら並べる値も選ぶ
 import { useMessages } from "../../../plugin-api/ui"
 import { controlClass, Field } from "../../base/ui"
@@ -159,6 +160,39 @@ export function AxesFields({
                 </select>
               )}
             </Field>
+          )}
+          {(view === "bar" || view === "line") && (
+            <>
+              {!(view === "bar" && axes.bar === "horizontal") && (
+                <Field label={t("Crowded labels")}>
+                  {id => (
+                    <select
+                      id={id}
+                      className={controlClass}
+                      value={axes.crowd}
+                      onChange={e => onChange({ ...axes, crowd: e.target.value as AxesDraft["crowd"] })}
+                    >
+                      <option value="skip">{t("Skip some")}</option>
+                      <option value="rotate">{t("Tilt")}</option>
+                    </select>
+                  )}
+                </Field>
+              )}
+              <Field label={t("Labels shown")}>
+                {id => (
+                  <select
+                    id={id}
+                    className={controlClass}
+                    value={axes.skip}
+                    onChange={e => onChange({ ...axes, skip: e.target.value as AxesDraft["skip"] })}
+                  >
+                    <option value="even">{t("Evenly spaced")}</option>
+                    <option value="top">{t("Largest first")}</option>
+                    <option value="picked">{t("Picked rows")}</option>
+                  </select>
+                )}
+              </Field>
+            </>
           )}
           {view === "bar" && axes.sort !== "none" && axes.values.length > 1 && (
             <Field label={t("Order by")}>

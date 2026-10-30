@@ -1,6 +1,8 @@
 // 棒と折れ線のグラフの寸法: 横軸（項目）に x の列の値を並べ、系列の値を縦軸 1 本に描く（横向きの棒なら、項目を縦に並べ、値を横に伸ばす）。
 // 棒はいつも 0 から伸ばし、項目ごとに系列の棒を 2px 空けて並べる（太さは 24px まで）。折れ線は項目の真ん中を 2px の線で結ぶ。
-// 系列が 2 つ以上なら上に凡例を出す。項目の文字が入りきらなければ、最初と最後を必ず出して、間を同じ間隔で飛ばす。収まらない文字は … で切る。
+// 系列が 2 つ以上なら上に凡例を出す。項目の文字は文字の領域（縦の棒なら下、横の棒なら左。大きさは labelSize かその既定）に描く。
+// 入りきらなければ間を飛ばす（等間隔・値の多い順・選んだ行だけ）。縦のグラフでは 45 度に傾けられ、傾けても入らなければ間を飛ばす。
+// どの文字も、使える長さに収まらなければ … で切る。
 // 文字の幅は base の text で計算する。画面（ChartView）はこの値のとおりに描く
 import type { Size } from "../../../plugin-api"
 import { type Font, textWidth } from "../../base"
@@ -65,6 +67,8 @@ export interface LegendItem {
 
 export interface CartesianLayout {
   horizontal: boolean
+  rotate: boolean // 項目の文字を 45 度に傾けて描くか
+  labelArea: Rect // 項目の文字の領域（縦の棒なら描く所の下、横の棒なら左）
   plot: Rect // 描く所（軸の文字の内側）
   zero: number // 値 0 の位置（棒の根元）
   ticks: Tick[]
@@ -113,6 +117,79 @@ export function evenShown(n: number, step: number): boolean[] {
   return shown
 }
 
+// 項目の文字の領域の大きさ（縦の棒なら高さ、横の棒なら幅）: labelSize があればそれを、無ければ 1 行（傾けるなら文字の斜めの高さを、高さの 4 割まで）、
+// 横の棒なら一番長い文字の幅を、幅の 35% まで。どれも 1 行から、枠の 6 割まで
+export function labelAreaSize(
+  props: Pick<DataProps, "labelSize">,
+  horizontal: boolean,
+  rotate: boolean,
+  widest: number,
+  inner: Size,
+): number {
+  const room = horizontal ? inner.w : inner.h
+  const auto = horizontal
+    ? Math.min(Math.ceil(widest), Math.floor(inner.w * 0.35))
+    : rotate
+      ? Math.min(Math.ceil((widest + L.line) / Math.SQRT2), Math.floor(inner.h * 0.4))
+      : L.line
+  return Math.round(Math.max(L.line, Math.min(props.labelSize ?? auto, room * LABEL_AREA_MAX)))
+}
+// 項目の文字の領域の、枠に対する上限の割合
+export const LABEL_AREA_MAX = 0.6
+
+// 出す項目（行の番号ごと）: 等間隔（evenShown）・値の多い順（ほかの出す項目から step 未満の項目は出さない）・選んだ行だけ
+function shownOf(
+  table: Table,
+  props: DataProps,
+  rows: readonly { id: string; cells: readonly unknown[] }[],
+  step: number,
+) {
+  const n = rows.length
+  if (props.skip === "picked") {
+    const picked = new Set(props.picked ?? [])
+    return rows.map(r => picked.has(r.id))
+  }
+  if (props.skip === "even" || step === 1) return evenShown(n, step)
+  const by = props.sortBy ?? props.series[0]?.column
+  const col = table.columns.findIndex(c => c.id === by)
+  const value = (i: number) => (col >= 0 ? (rows[i]?.cells[col] as number) : 0)
+  const ranked = rows.map((_, i) => i).sort((a, b) => value(b) - value(a) || a - b)
+  const shown = rows.map(() => false)
+  const taken: number[] = []
+  for (const i of ranked)
+    if (taken.every(j => Math.abs(i - j) >= step)) {
+      taken.push(i)
+      shown[i] = true
+    }
+  return shown
+}
+
+// 出す項目 i から、隣の出す項目までの近いほうの数（隣が無ければ全部の数）。横に並べた文字の使える幅は、これに項目の幅を掛けた幅
+function neighborGap(shown: readonly boolean[], i: number): number {
+  let gap = shown.length
+  for (let j = i - 1; j >= 0; j--)
+    if (shown[j]) {
+      gap = Math.min(gap, i - j)
+      break
+    }
+  for (let j = i + 1; j < shown.length; j++)
+    if (shown[j]) {
+      gap = Math.min(gap, j - i)
+      break
+    }
+  return gap
+}
+
+// 今の領域の大きさ（縦の棒なら高さ、横の棒なら幅）
+export const labelAreaOf = (c: Pick<CartesianLayout, "horizontal" | "labelArea">): number =>
+  c.horizontal ? c.labelArea.w : c.labelArea.h
+
+// 大きさ now の項目の文字の領域を、つまみで delta（紙の上の px。縦の棒なら上へ、横の棒なら右へが正）だけ広げた大きさ
+export function labelSizeAfter(now: number, horizontal: boolean, size: Size, delta: number): number {
+  const room = (horizontal ? size.w : size.h) - 2 * L.pad
+  return Math.round(Math.max(L.line, Math.min(now + delta, room * LABEL_AREA_MAX)))
+}
+
 // 凡例の項目を、幅 w の中に左から並べる（入らなければ次の行へ）。返すのは項目と、使った高さ
 function legendOf(drawn: readonly Drawn[], w: number, top: number, left: number): { items: LegendItem[]; h: number } {
   if (drawn.length < 2) return { items: [], h: 0 }
@@ -159,16 +236,18 @@ export function cartesianLayout(table: Table, props: DataProps, size: Size): Car
   const valueLen = horizontal ? inner.w : inner.h - legend.h
   const ticks = niceTicks(lo, hi, hasBars, Math.max(2, Math.min(6, Math.floor(valueLen / (horizontal ? 64 : 36)))))
   const tickTexts = ticks.values.map(v => tickText(v, ticks))
+  const rotate = !horizontal && props.crowd === "rotate"
+  const area = labelAreaSize(props, horizontal, rotate, widest, inner)
   let plot: Rect
   if (horizontal) {
-    const catW = Math.min(Math.ceil(widest), Math.floor(inner.w * 0.35)) + L.tickGap
+    const catW = area + L.tickGap
     const tickH = L.line + L.tickGap
     // 一番右の目盛りの文字が枠からはみ出さないように、右に文字の半分を空ける
     const right = Math.ceil(textWidth(tickTexts[tickTexts.length - 1] ?? "", L.font) / 2)
     plot = { x: inner.x + catW, y: top, w: inner.w - catW - right, h: inner.y + inner.h - top - tickH }
   } else {
     const axisW = Math.ceil(Math.max(0, ...tickTexts.map(t => textWidth(t, L.font)))) + L.tickGap
-    const catH = L.line + L.tickGap
+    const catH = area + L.tickGap
     // 一番上の目盛りの文字が枠や凡例に重ならないように、上に文字の半分を空ける
     const lift = Math.ceil(L.line / 2)
     plot = { x: inner.x + axisW, y: top + lift, w: inner.w - axisW, h: inner.y + inner.h - top - lift - catH }
@@ -183,15 +262,16 @@ export function cartesianLayout(table: Table, props: DataProps, size: Size): Car
   const band = (horizontal ? plot.h : plot.w) / Math.max(n, 1)
   const start = horizontal ? plot.y : plot.x
   const center = (i: number) => start + band * (i + 0.5)
-  // 項目の文字: 入る間隔で飛ばし、出す文字は使える幅で切る
-  const need = horizontal ? L.line : Math.ceil(widest) + L.labelGap
+  // 項目の文字: 入る間隔で出す文字を選び（shownOf）、出す文字は使える長さで切る
+  const need = horizontal ? L.line : rotate ? Math.ceil(L.line * Math.SQRT2) : Math.ceil(widest) + L.labelGap
   const step = Math.max(1, Math.ceil(need / Math.max(band, 1)))
-  const shown = evenShown(n, step)
-  const room = horizontal ? plot.x - inner.x - L.tickGap : band * step - L.labelGap
+  const shown = shownOf(table, props, rows, step)
+  const room = (i: number) =>
+    horizontal ? area : rotate ? Math.max(area * Math.SQRT2 - L.line, 0) : neighborGap(shown, i) * band - L.labelGap
   const categories = rows.map((r, i) => ({
     row: r.id,
     label: labels[i] ?? "",
-    text: fitText(labels[i] ?? "", room),
+    text: shown[i] ? fitText(labels[i] ?? "", room(i)) : "",
     center: center(i),
     shown: shown[i] ?? false,
   }))
@@ -220,8 +300,13 @@ export function cartesianLayout(table: Table, props: DataProps, size: Size): Car
         return { x: center(i), y: at(value), row: r.id, value }
       }),
     }))
+  const labelArea = horizontal
+    ? { x: inner.x, y: plot.y, w: area, h: plot.h }
+    : { x: plot.x, y: plot.y + plot.h + L.tickGap, w: plot.w, h: area }
   return {
     horizontal,
+    rotate,
+    labelArea,
     plot,
     zero,
     ticks: ticks.values.map((v, i) => ({ pos: at(v), text: tickTexts[i] ?? "" })),

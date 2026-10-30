@@ -17,6 +17,7 @@ import {
   axesOk,
   axesProps,
   axesWithout,
+  axesWithoutRow,
   cellOk,
   type Draft,
   draftArgs,
@@ -27,6 +28,7 @@ import {
   setCell,
   toAxesDraft,
   toDraft,
+  togglePicked,
 } from "./draft"
 import { kit } from "./kit"
 import type { ColumnType } from "./table"
@@ -45,7 +47,7 @@ export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: str
     const done = viewOk ? perform(DATA_SET.id, { ...at, ...set }) : null
     const axesOk =
       done?.ok === true &&
-      perform("@matomezu/paper:item-update", { ...at, props: axesProps(a, done.result.columns) }).ok
+      perform("@matomezu/paper:item-update", { ...at, props: axesProps(a, done.result.columns, done.result.rows) }).ok
     if (axesOk) {
       onClose()
       return true
@@ -90,6 +92,8 @@ function DataDialog({
     if (next) change(next, type === "text" ? axesForText(axes, col) : axes)
     else setProblem("type")
   }
+  // 行ごとに項目の文字を出すかの印（棒と折れ線で、選んだ行だけを出すとき）
+  const picking = (axes.view === "bar" || axes.view === "line") && axes.skip === "picked"
   // 列が無ければ表は無いので、軸は見ない
   const ok = draftArgs(draft) !== null && (draft.columns.length === 0 || axesOk(axes, draft))
   return (
@@ -164,10 +168,18 @@ function DataDialog({
                       type="button"
                       className={styles.remove}
                       aria-label={t("Remove row")}
-                      onClick={() => change(removeRow(draft, row))}
+                      onClick={() => change(removeRow(draft, row), axesWithoutRow(axes, row))}
                     >
                       ×
                     </button>
+                    {picking && (
+                      <input
+                        type="checkbox"
+                        aria-label={t("Show label")}
+                        checked={axes.picked.includes(row)}
+                        onChange={() => setAxes(togglePicked(axes, row))}
+                      />
+                    )}
                   </td>
                   {r.cells.map((text, col) => {
                     const type = draft.columns[col]?.type ?? "text"

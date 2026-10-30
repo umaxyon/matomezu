@@ -1,5 +1,6 @@
 // グラフのビュー: 棒・折れ線（cartesian.ts）・円（pie.ts）・散布図（scatter.ts）を、計算した寸法のとおりに SVG で描く。
 // 系列の色はテーマキー data-series-1〜8、軸と凡例の文字は data-axis、目盛りの線は data-grid。文字は系列の色で塗らない。
+// 棒と折れ線は、項目の文字を傾けて描け、選んでいる間は項目の文字の領域のつまみを出す（LabelGrip）。
 // 棒・扇・点にポインタを乗せると、その値を小さな吹き出しで出す。軸が足りない・円にできない値のときは、真ん中に理由を出す
 import { type PointerEvent, type ReactNode, useState } from "react"
 import type { Size } from "../../../plugin-api"
@@ -8,6 +9,7 @@ import styles from "./ChartView.module.css"
 import { barPath, type CartesianLayout, CHART_LOOK, cartesianLayout } from "./cartesian"
 import type { DataProps } from "./data"
 import { kit } from "./kit"
+import { LabelGrip } from "./LabelGrip"
 import { type PieLayout, pieLayout } from "./pie"
 import { type ScatterLayout, scatterLayout } from "./scatter"
 import type { Table } from "./table"
@@ -30,9 +32,25 @@ interface Tip extends TipContent {
   y: number
 }
 
-export function ChartView({ table, props, size }: { table: Table; props: DataProps; size: Size }) {
+export function ChartView({
+  table,
+  props: placed,
+  size,
+  stage,
+  id,
+}: {
+  table: Table
+  props: DataProps
+  size: Size
+  stage: string
+  id: string
+}) {
   const t = useMessages(kit)
   const [tip, setTip] = useState<Tip | null>(null)
+  // 項目の文字の領域のつまみをドラッグしている間の大きさ
+  const [dragged, setDragged] = useState<number | undefined>(undefined)
+  const props = dragged === undefined ? placed : { ...placed, labelSize: dragged }
+  let grip: ReactNode = null
   const hover = (e: PointerEvent, next: TipContent) => {
     const box = e.currentTarget.closest("svg")?.getBoundingClientRect()
     if (!box) return
@@ -53,6 +71,7 @@ export function ChartView({ table, props, size }: { table: Table; props: DataPro
   } else {
     const c = cartesianLayout(table, props, size)
     body = c ? <CartesianChart c={c} names={seriesNames(table, props)} hover={hover} leave={leave} /> : null
+    if (c) grip = <LabelGrip c={c} size={size} stage={stage} id={id} onDrag={setDragged} />
   }
   if (!body) return <Notice>{t("Choose the axes")}</Notice>
   return (
@@ -67,6 +86,7 @@ export function ChartView({ table, props, size }: { table: Table; props: DataPro
       >
         {body}
       </svg>
+      {grip}
       {tip && (
         <div className={styles.tip} style={{ left: tip.x + 10, top: tip.y + 10 }} role="tooltip">
           <div className={styles.tipTitle}>{tip.title}</div>
@@ -170,14 +190,20 @@ function CartesianChart({
               <text key={k.row} className={styles.text} x={plot.x - L.tickGap} y={k.center + 4} textAnchor="end">
                 {k.text}
               </text>
-            ) : (
+            ) : c.rotate ? (
+              // 45 度に傾け、文字の終わりを項目の真ん中の下に置く
               <text
                 key={k.row}
                 className={styles.text}
-                x={k.center}
-                y={plot.y + plot.h + L.tickGap + 11}
-                textAnchor="middle"
+                x={k.center + 4}
+                y={c.labelArea.y + 8}
+                textAnchor="end"
+                transform={`rotate(-45 ${k.center + 4} ${c.labelArea.y + 8})`}
               >
+                {k.text}
+              </text>
+            ) : (
+              <text key={k.row} className={styles.text} x={k.center} y={c.labelArea.y + 11} textAnchor="middle">
                 {k.text}
               </text>
             ),

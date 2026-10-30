@@ -145,3 +145,35 @@ test("表の列を消したり文字の列にしたりすると、その列の�
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(data.locator("th")).toHaveText(["月", "目標"])
 })
+
+test("入りきらない項目の文字は傾けられ、選んでいる間は文字の領域のつまみで広げ縮めできる。「選んだ行だけ」なら、表の行の印の行の文字だけが出る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const data = await addData(page)
+  const dialog = await fillMonths(page, data)
+  await dialog.getByLabel("見た目").selectOption("bar")
+  await dialog.getByLabel("入りきらない文字").selectOption("rotate")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  const labels = data.locator("[data-categories] text")
+  await expect(labels.first()).toHaveAttribute("transform", /rotate\(-45/)
+  // 選んでいる間だけつまみが出る。上へドラッグすると文字の領域が広がり、描く所が低くなる
+  await page.mouse.click(5, 5)
+  await expect(data.locator("[data-label-grip]")).toHaveCount(0)
+  await data.click()
+  const grip = data.locator("[data-label-grip]")
+  const before = (await grip.boundingBox())!
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2 - 10, { steps: 4 })
+  await page.mouse.up()
+  // 動かした量だけ広がる（ドラッグの途中で足し重ねない）
+  await expect.poll(async () => Math.round(before.y - (await grip.boundingBox())!.y)).toBe(10)
+  // 選んだ行だけ（2 行目の印）
+  await data.dblclick()
+  await dialog.getByLabel("入りきらない文字").selectOption("skip")
+  await dialog.getByLabel("出す文字").selectOption("picked")
+  await dialog.getByLabel("文字を出す").nth(1).check()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(labels).toHaveText(["2月"])
+})
