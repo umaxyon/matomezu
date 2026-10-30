@@ -6,7 +6,7 @@ import { z } from "zod"
 import { HEX, PALETTE, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
 import { NEST_PADDING, textProps } from "../../base"
 import { kit } from "./kit"
-import { BOX_MIN, BOX_SIZE, headHeight, placedHeight, placedWidth } from "./size"
+import { BOX_MIN, BOX_SIZE, headHeight, placedHeight, placedWidth, VALIGNS } from "./size"
 
 // 箱の塗りのテーマキー（色の見本の「なし」もこの色）
 export const BOX_FILL = { id: kit.name("box-fill"), fallback: "fill" } as const
@@ -21,6 +21,13 @@ export const BoxPropsSchema = z.strictObject({
   ...textProps("center"), // キャプション・区切り線・本文と寄せ（キャプションは中央寄せ）
   theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければブックのテーマ）
   color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
+  // キャプション・区切り線・本文の塊を置く縦の位置（無ければ自動。size.ts の vAlignOf）
+  vAlign: z
+    .enum(VALIGNS)
+    .optional()
+    .describe(
+      "Where the caption, divider and body sit together in the box: top, middle or bottom. Without it, middle when the box has no body and no children, else top. In a nest box holding children, middle is drawn as top, and bottom puts the children's area above the caption and body",
+    ),
 })
 
 // 内包ボックスの追加のダイアログ（箱の追加のダイアログと同じ見た目で、内包ボックスを置く）
@@ -63,11 +70,22 @@ export const BOX = kit.defineShape({
 })
 
 // 内包ボックス: 箱と同じ見た目で、子の形を持てる（能力 nests）。子があれば、w・h は大きさの下限になる（子まで入る大きさは base が決める）。
-// 子の領域は、キャプションと本文を全部出した下から（左は NEST_PADDING）
+// 子の領域は、キャプションと本文を全部出した下から（左は NEST_PADDING）。縦の位置が下なら、上から NEST_PADDING で、下にキャプションと本文の高さを空ける。
+// 縦の位置を下へ・下から変えたら、子を子の領域が動いた分だけ動かす（並びは崩さない）
+type BoxData = { w?: number; props: z.output<typeof BoxPropsSchema>; shapes?: readonly { y: number }[] }
+const below = (box: BoxData) => box.props.vAlign === "bottom"
+const head = (box: BoxData) => headHeight(box.props, box.w ?? placedWidth(box.props))
+const originY = (box: BoxData) => (below(box) ? NEST_PADDING : head(box))
 export const NEST_BOX = kit.defineShape({
   ...BOX_BASE,
   id: "shape-nest-box",
   capabilities: ["connectable", "resizable", "nests"],
   dialogs: { add: NEST_BOX_ADD_DIALOG.id, edit: BOX_EDIT_DIALOG.id },
-  childOrigin: box => ({ x: NEST_PADDING, y: headHeight(box.props, box.w ?? placedWidth(box.props)) }),
+  childOrigin: box => ({ x: NEST_PADDING, y: originY(box) }),
+  childBottom: box => (below(box) ? head(box) : NEST_PADDING),
+  "@matomezu/paper:settle": (box, before) => {
+    if (!before || !box.shapes || below(box) === below(before)) return box
+    const dy = originY(box) - originY(before)
+    return { ...box, shapes: box.shapes.map(c => ({ ...c, y: c.y + dy })) }
+  },
 })

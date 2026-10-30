@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { findShape, type ItemPage, walkShapes } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { childOrigin } from "../../web/src/plugins/base/place/frame"
-import { NEST_PADDING, portAreasOf } from "../../web/src/plugins/base/place/placed"
+import { NEST_PADDING, placedSize, portAreasOf } from "../../web/src/plugins/base/place/placed"
 import { targetsFrom } from "../../web/src/plugins/items/line/connect"
 import { routeInputOf } from "../../web/src/plugins/items/line/drawn"
 import { dropTarget } from "../../web/src/plugins/paper/placing/items"
@@ -214,4 +214,22 @@ test("子に付いた線は、端の形の先祖を避けずに通り、別の�
   expect(input.obstacles).not.toContainEqual(area(a))
   expect(input.obstacles).toContainEqual(area(e))
   expect(input.obstacles).toContainEqual(area(b))
+})
+
+test("縦の位置が下の内包ボックスは、子の領域が上から始まり、子の下にキャプションと本文の高さを空ける。上・下を替えると子は子の領域ごと動く", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 300, h: 100, props: { caption: "社内" } })!
+  const b = place(store, { at: { x: 20, y: 40 }, parent: a, w: 64, h: 40 })!
+  const top = at(store, b)!.shape.y
+  expect(top).toBeGreaterThanOrEqual(O.y)
+  expect(run(store, "@matomezu/paper:item-update", { item: a, props: { vAlign: "bottom" } }).ok).toBe(true)
+  const parent = at(store, a)!.shape
+  expect(childOrigin(CORE_CATALOG, parent as never).y).toBe(NEST_PADDING)
+  // 子は子の領域が上がった分だけ上がる
+  expect(at(store, b)!.shape.y).toBe(top - (O.y - NEST_PADDING))
+  // 親の大きさは、子の下にキャプションの高さ（何も書いていない箱の子の領域の上と同じ）を空ける
+  const child = at(store, b)!.shape
+  expect(placedSize(CORE_CATALOG, at(store, a)!.shape as never)!.h).toBeGreaterThanOrEqual(child.y + 40 + O.y)
+  expect(run(store, "@matomezu/paper:item-update", { item: a, props: { vAlign: null } }).ok).toBe(true)
+  expect(at(store, b)!.shape.y).toBe(top)
 })

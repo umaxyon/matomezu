@@ -1,0 +1,5 @@
+/* キャプションの寄せと縦の位置を横に並べる */
+.aligns {
+  display: inline-flex;
+  gap: 6px;
+}

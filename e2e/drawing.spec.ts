@@ -423,7 +423,7 @@ test("ダイアログで箱のテーマを付箋紙にすると黄色の付箋�
 }) => {
   await page.goto("/")
   await addBodyBox(page)
-  const box = page.locator("[data-item] [data-body]")
+  const box = page.locator("[data-item] [data-valign]")
   const look = () =>
     box.evaluate(el => ({
       fill: getComputedStyle(el).backgroundColor,
@@ -448,7 +448,7 @@ test("編集のダイアログでテーマと寄せを選ぶと、確定の前�
 }) => {
   await page.goto("/")
   await addBodyBox(page)
-  const box = page.locator("[data-item] [data-body]")
+  const box = page.locator("[data-item] [data-valign]")
   const fill = () => box.evaluate(el => getComputedStyle(el).backgroundColor)
   const bodyAlign = () =>
     page
@@ -482,7 +482,7 @@ test("編集のダイアログの色のボタンでポップアップを開き�
 }) => {
   await page.goto("/")
   await addBodyBox(page)
-  const box = page.locator("[data-item] [data-body]")
+  const box = page.locator("[data-item] [data-valign]")
   const look = () =>
     box.evaluate(el => ({ fill: getComputedStyle(el).backgroundColor, text: getComputedStyle(el).color }))
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
@@ -503,7 +503,7 @@ test("テーマの色はテーマを変えるとそのテーマの色になり�
 }) => {
   await page.goto("/")
   await addBodyBox(page)
-  const box = page.locator("[data-item] [data-body]")
+  const box = page.locator("[data-item] [data-valign]")
   const fill = () => box.evaluate(el => getComputedStyle(el).backgroundColor)
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
   const picker = page.getByRole("dialog", { name: "色を選ぶ" })
@@ -552,7 +552,7 @@ test("設定のダイアログでブックのテーマと紙の色を選ぶと�
   await page.goto("/")
   await addBodyBox(page)
   const paper = page.getByRole("img", { name: "紙" })
-  const box = page.locator("[data-item] [data-body]")
+  const box = page.locator("[data-item] [data-valign]")
   const look = async () => ({
     paper: await paper.evaluate(el => getComputedStyle(el).backgroundColor),
     box: await box.evaluate(el => getComputedStyle(el).backgroundColor),

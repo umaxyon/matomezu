@@ -50,18 +50,21 @@ export function Field({
   )
 }
 
-// 選択肢から 1 つを選ぶボタンの並び（名前は label。選択肢ごとに値・名前・中身のアイコン。中は見えないラジオボタン）
+// 選択肢から 1 つを選ぶボタンの並び（名前は label。選択肢ごとに値・名前・中身のアイコン。中は見えないラジオボタン）。
+// clearable なら、どれも選ばない（undefined）を許し、選んでいる物をもう一度押すと外す
 export function Choices<V extends string>({
   label,
   value,
   options,
   onChange,
+  clearable,
 }: {
   label: string
-  value: V
   options: readonly { value: V; label: string; icon: ReactNode }[]
-  onChange: (value: V) => void
-}) {
+} & (
+  | { value: V; onChange: (value: V) => void; clearable?: false }
+  | { value: V | undefined; onChange: (value: V | undefined) => void; clearable: true }
+)) {
   const name = useId()
   return (
     <fieldset aria-label={label} className={styles.choices}>
@@ -75,6 +78,9 @@ export function Choices<V extends string>({
             aria-label={o.label}
             checked={o.value === value}
             onChange={() => onChange(o.value)}
+            onClick={() => {
+              if (clearable && o.value === value) (onChange as (value: V | undefined) => void)(undefined)
+            }}
           />
           {o.icon}
         </label>

@@ -5,7 +5,7 @@ import { resolveTokens } from "../../web/src/core/theme"
 import { plainOf } from "../../web/src/plugins/base/text/rich"
 import { textWidth } from "../../web/src/plugins/base/text/text"
 import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
-import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/items/box/size"
+import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth, vAlignOf } from "../../web/src/plugins/items/box/size"
 import { newStore } from "../support"
 
 const page = (store: ReturnType<typeof newStore>) =>
@@ -208,4 +208,13 @@ test("ダイアログの下書きは開いているダイアログが持ち、�
   expect("theme" in items(store)[0]!.props).toBe(false)
   store.actions.closeDialog()
   expect(store.state.getState().dialog).toBeNull()
+})
+
+test("縦の位置は書いていなければ自動（本文も子も無ければ真ん中、あれば上）。子がある間は真ん中を上として描く", () => {
+  expect(vAlignOf({ body: "" }, false)).toBe("middle")
+  expect(vAlignOf({ body: "本文" }, false)).toBe("top")
+  expect(vAlignOf({ body: "" }, true)).toBe("top")
+  expect(vAlignOf({ body: "本文", vAlign: "bottom" }, false)).toBe("bottom")
+  expect(vAlignOf({ body: "", vAlign: "middle" }, true)).toBe("top")
+  expect(vAlignOf({ body: "", vAlign: "bottom" }, true)).toBe("bottom")
 })

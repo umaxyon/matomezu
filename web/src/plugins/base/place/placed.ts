@@ -37,6 +37,8 @@ declare module "../../../core/catalog" {
     sizeOf?(item: D): Size
     // 子の形を持つ形の、子の領域の左上（形の左上から。キャプションや本文の下など）。無ければ左と上から NEST_PADDING
     childOrigin?(item: D): Point
+    // 子の形を持つ形の、子の領域の下に空ける高さ（キャプションや本文を底に置くときなど）。無ければ NEST_PADDING
+    childBottom?(item: D): number
   }
   interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
     gaps?(lines: readonly D[], base: Gap): Gap // つないだ組の間隔の下限（base に重ねる）
@@ -57,7 +59,7 @@ const connectorDef = (catalog: CoreCatalog, item: string): ConnectorItemDef | nu
   return def?.kind === "connector" ? def : null
 }
 
-// 子の形を持つ形の、右と下の端から子までの間
+// 子の形を持つ形の、右と下の端から子までの間（下は、形が childBottom で変えられる）
 export const NEST_PADDING = 8
 
 // 置いた形の大きさ（機能台帳に無いアイテムは、データの w・h か UNKNOWN_SIZE。形でないアイテムは null）。
@@ -68,12 +70,13 @@ export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | null
   if (!def) return null
   const own = def.sizeOf?.(item as ShapeData) ?? { w: item.w ?? def.size.w, h: item.h ?? def.size.h }
   if (!def.capabilities.includes("nests") || !item.shapes) return own
+  const bottom = def.childBottom?.(item as ShapeData) ?? NEST_PADDING
   return item.shapes.reduce((size, child) => {
     const c = placedSize(catalog, child as PlacedShape)
     if (!c) return size
     return {
       w: Math.max(size.w, child.x + c.w + NEST_PADDING),
-      h: Math.max(size.h, child.y + c.h + NEST_PADDING),
+      h: Math.max(size.h, child.y + c.h + bottom),
     }
   }, own)
 }
