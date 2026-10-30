@@ -1,5 +1,5 @@
 // 箱を数百と線を置いたときの速さ。合否は付けず、数値を端末の表と e2e/.perf/<日時>.json に出す。
-// - 描き方: 箱 100・200・300 と線のブックを置き（JSON を PUT）、開くまで・パン（ホイール）・箱のドラッグ・左右に同じブックを開いてのパンを測る
+// - 描き方: 箱 100・200・300 と線のブックを置き（JSON を PUT）、開くまで・パン（ホイール）・箱のドラッグ・〇から線を引く・左右に同じブックを開いてのパンを測る
 // - アクション: AI の入口から item-place と line-connect を 300 まで重ね、1 回の perform の時間を 100 ずつに分けて測る
 import { execSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -69,6 +69,27 @@ async function drag(page: Page, n: number) {
   return measured(await stopRecording(page, since))
 }
 
+// 4 行目の左端の箱（画面に入り、ドラッグで選んだ箱でない）の右の〇から、2 つ右の箱（線でつながっていない）へ線を引く。離してから線が描かれるまでの時間も測る
+async function connect(page: Page) {
+  const from = page.locator('[data-item="b45"]')
+  const s = (await from.boundingBox())!
+  const to = (await page.locator('[data-item="b47"]').boundingBox())!
+  const lines = page.locator("[data-item]:not([data-shape])")
+  const before = await lines.count()
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  const port = (await from.locator('[data-port="r"]').boundingBox({ timeout: 10_000 }))!
+  await page.mouse.move(port.x + port.width / 2, port.y + port.height / 2)
+  const since = await startRecording(page)
+  await page.mouse.down()
+  await page.mouse.move(to.x + 10, to.y + to.height / 2, { steps: DRAG_STEPS / 2 })
+  const up = await page.evaluate(() => performance.now())
+  await page.mouse.up()
+  await expect(lines).toHaveCount(before + 1)
+  const drawnMs = Math.round((await page.evaluate(() => performance.now())) - up)
+  await page.waitForTimeout(200)
+  return { ...measured(await stopRecording(page, since)), drawnMs }
+}
+
 const one = (book: string) => `?b0=${book}&p0=${PAGE}&v0=1,0,0&c=0&r=0.5`
 const split = (book: string) => `?b0=${book}&p0=${PAGE}&v0=1,0,0&b1=${book}&p1=${PAGE}&v1=1,0,0&c=0&r=0.5`
 
@@ -83,6 +104,7 @@ for (const n of COUNTS) {
     const openMs = await open(single, one(id), items)
     const panned = await pan(single)
     const dragged = await drag(single, n)
+    const connected = await connect(single)
     await single.close()
 
     const both = await browser.newPage()
@@ -98,6 +120,7 @@ for (const n of COUNTS) {
       openSplitMs,
       pan: panned,
       drag: dragged,
+      connect: connected,
       panSplit: pannedSplit,
     })
   })
@@ -187,17 +210,27 @@ test.afterAll(({ browserName }) => {
       .map(([s, c]) => `${s}:${c}`)
       .join(" ") || "0"
   const rows = results.drawing.flatMap(d => {
-    const r = d as { boxes: number; openMs: number; openSplitMs: number; pan: M; drag: M; panSplit: M }
+    const r = d as {
+      boxes: number
+      openMs: number
+      openSplitMs: number
+      pan: M
+      drag: M
+      connect: M & { drawnMs: number }
+      panSplit: M
+    }
     return (
       [
-        ["パン", r.pan, r.openMs],
-        ["ドラッグ", r.drag, null],
-        ["左右でパン", r.panSplit, r.openSplitMs],
+        ["パン", r.pan, r.openMs, null],
+        ["ドラッグ", r.drag, null, null],
+        ["線を引く", r.connect, null, r.connect.drawnMs],
+        ["左右でパン", r.panSplit, r.openSplitMs, null],
       ] as const
-    ).map(([what, m, openMs]) => ({
+    ).map(([what, m, openMs, drawnMs]) => ({
       箱: r.boxes,
       操作: what,
       "開くまで ms": openMs ?? "",
+      "離して描くまで ms": drawnMs ?? "",
       "1コマ ms 平均/中央/95%/最大": f(m.frame),
       "長い処理 回/ms": `${m.longTasks.count}/${m.longTasks.total}`,
       コミット: m.commits,
