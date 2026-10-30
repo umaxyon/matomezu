@@ -285,7 +285,8 @@ test("図面の画面を右クリックすると押した位置にメニュー�
   const at = (await menu.boundingBox())!
   expect(Math.round(at.x)).toBe(Math.round(box.x + 30))
   expect(Math.round(at.y)).toBe(Math.round(box.y + 40))
-  await page.mouse.click(box.x + 200, box.y + 200)
+  // メニューの外（メニューより右下）を押す
+  await page.mouse.click(at.x + at.width + 100, at.y + at.height + 100)
   await expect(menu).toHaveCount(0)
   await page.mouse.click(box.x + 30, box.y + 40, { button: "right" })
   await menu.getByRole("menuitem", { name: "ブックの設定" }).click()
