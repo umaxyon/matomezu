@@ -13,6 +13,9 @@ node_modules/
 # 実際のブラウザのテストの出力
 /e2e/.results/
 /e2e/.dist/
+/e2e/.results-perf/
+/e2e/.perf-dist/
+/e2e/.perf/
 
 # 開発用の常駐のアプリのフォルダ（bun run dev）
 /.dev-home/
