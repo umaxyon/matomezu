@@ -177,6 +177,21 @@ test("テーマの textColors の色が #rrggbb でなければ E038（base の�
   expect(found.map(p => p.code)).toEqual(["E038"])
 })
 
+test("テーマの textColors が機能台帳に無い文字の色を名指したら W014 を残し、組み立ては止めない（base の組み立てのときの確かめ）", () => {
+  const plugins = (BUILTIN as readonly Plugin[]).map(p =>
+    p.id === "@matomezu/base"
+      ? {
+          ...p,
+          themes: (p.themes ?? []).map(t =>
+            t.id === "@matomezu/base:matomezu" ? { ...t, textColors: { ...t.textColors, "@ex/gone:x": "#123456" } } : t,
+          ),
+        }
+      : p,
+  )
+  const warnings = assemble(plugins).catalog.store.warnings
+  expect(warnings.map(w => [w.code, w.plugin, w.params.textColor])).toEqual([["W014", "@matomezu/base", "@ex/gone:x"]])
+})
+
 test("追加プラグインは組み立てのときの確かめを持てない（E308）", () => {
   expect(() => assemble([...BUILTIN, { id: "extra", checks: [() => []] }])).toThrow(/E308|only built-in/)
 })

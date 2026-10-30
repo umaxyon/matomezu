@@ -15,6 +15,7 @@ export const WARNINGS = {
   W011: "the screen did not add it ({reason}); its actions still work on the host, but nothing it draws is shown",
   W012: "tool {tool}: performs {action}, which is not in the catalog",
   W013: "bookType {type}: fixedUserSettings names {setting}, which is not a user setting",
+  W014: "theme {theme}: textColors names {textColor}, which is not in the catalog",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

@@ -6,7 +6,7 @@ import { buildCoreCatalog, type CatalogCheck, type CoreCatalog, type CoreCatalog
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { Scheme } from "../core/def/skin"
 import type { TokenDef } from "../core/def/theme"
-import { fail, matomezuError, problem } from "../core/errors"
+import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import type { LanguagePackDef, MessageSetDef } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
 import { isOwnedBy, splitId } from "../core/names"
@@ -101,9 +101,9 @@ export const definePlugin = <const P extends Plugin>(
   plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never },
 ): P => plugin
 
-// ビルトインプラグインが組み立てのときの確かめ（checks）を書くための型と、問題の作り方（plugin-api/builtin が出し直す）
+// ビルトインプラグインが組み立てのときの確かめ（checks）を書くための型と、問題と warning の作り方（plugin-api/builtin が出し直す）
 export type { CatalogCheck }
-export { problem }
+export { problem, warning }
 
 // ビルトインプラグインの印: キーの割り当てで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
@@ -120,7 +120,7 @@ export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
   keys: ReadonlyMap<string, DefaultKey> // キーの既定の割り当て（id → 割り当て。キーはそろえた書き方）
-  warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs。core/warnings.ts）
+  warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
 }
 
 // インスタンスが持つ機能台帳（core 台帳と store 台帳。ui 台帳は画面が持つ）
@@ -193,12 +193,13 @@ export function assemble(
     languages: plugins.flatMap(p => p.languages ?? []),
     tokens: plugins.flatMap(p => p.tokens ?? []),
   })
-  // コマンドの名前も文言の表から引く。ビルトインプラグインの組み立てのときの確かめもかける
+  // コマンドの名前も文言の表から引く。ビルトインプラグインの組み立てのときの確かめもかける（warning は store 台帳に残す）
+  const checked = plugins.filter(isBuiltin).flatMap(p => (p.checks ?? []).flatMap(check => check(catalog)))
   const untitled = [
     ...commands
       .filter(c => !catalog.messages.has(c.title))
       .map(c => problem("E018", { kind: "command", id: c.id, title: c.title })),
-    ...plugins.filter(isBuiltin).flatMap(p => (p.checks ?? []).flatMap(check => check(catalog))),
+    ...checked.filter((c): c is Problem => !c.code.startsWith("W")),
   ]
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
   const keys = defaultKeys(plugins, new Set(commands.map(c => c.id)))
@@ -210,7 +211,11 @@ export function assemble(
         commands: new Map(commands.map(c => [c.id, c])),
         dialogs: new Map(dialogs.map(d => [d.id, d])),
         keys: new Map(keys.map(k => [k.id, k])),
-        warnings: [...performsWarnings(plugins, catalog), ...keyWarnings(keys)],
+        warnings: [
+          ...performsWarnings(plugins, catalog),
+          ...keyWarnings(keys),
+          ...checked.filter((c): c is Warning => c.code.startsWith("W")),
+        ],
       },
     },
     home,

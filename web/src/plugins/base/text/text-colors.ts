@@ -4,24 +4,29 @@ import { z } from "zod"
 import { HEX } from "../../../core/color"
 import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
+import { splitId } from "../../../core/names"
 import type { Book } from "../../../core/schema/book"
+import { warning } from "../../../core/warnings"
 import { bookTheme } from "../book-look"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 
 declare module "../../../core/catalog" {
   interface ThemeExtras {
-    // そのテーマのブックの文字の色（文字の色の id → #rrggbb）。無い色の id は使わない
+    // そのテーマのブックの文字の色（文字の色の id → #rrggbb）。機能台帳に無い色の id は使わない（W014）
     textColors?: Readonly<Record<string, string>>
   }
 }
 
-// テーマの textColors の色が #rrggbb か（組み立てのときの確かめ）
+// テーマの textColors の色が #rrggbb か（E038）と、機能台帳にある文字の色か（W014。その色だけ効かない）。組み立てのときの確かめ
 export const THEME_TEXT_COLORS_CHECK: CatalogCheck = catalog =>
   [...catalog.themes.values()].flatMap(t =>
-    Object.entries(t.textColors ?? {})
-      .filter(([, color]) => !HEX.test(color))
-      .map(([textColor, color]) => problem("E038", { id: t.id, textColor, color })),
+    Object.entries(t.textColors ?? {}).flatMap(([textColor, color]) => [
+      ...(HEX.test(color) ? [] : [problem("E038", { id: t.id, textColor, color })]),
+      ...(catalog.textColors.has(textColor)
+        ? []
+        : [warning("W014", splitId(t.id).owner ?? "", { theme: t.id, textColor })]),
+    ]),
   )
 
 // ブックの文字の色の上書き（無い色の id は使わずに残す）

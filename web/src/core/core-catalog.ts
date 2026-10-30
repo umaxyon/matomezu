@@ -77,9 +77,9 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
 
-// 組み立てのときの確かめ: 作った機能台帳を受けて、問題（error の番号は E の表）を返す。ビルトインプラグインだけが持てる
-// （プラグインの checks。ビルトインプラグインが拡張ポイントに書き足したフィールドを確かめる）
-export type CatalogCheck = (catalog: CoreCatalog) => readonly Problem[]
+// 組み立てのときの確かめ: 作った機能台帳を受けて、問題（error の番号は E の表）と warning（W の表）を返す。ビルトインプラグインだけが持てる
+// （プラグインの checks。ビルトインプラグインが拡張ポイントに書き足したフィールドを確かめる）。問題が 1 つでもあれば組み立てを止め、warning は store 台帳に残す
+export type CatalogCheck = (catalog: CoreCatalog) => readonly (Problem | Warning)[]
 
 // 食い違いがあれば、直す所が分かる文を並べて error にする
 export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
