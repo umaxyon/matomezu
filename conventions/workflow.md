@@ -15,6 +15,7 @@
   - 型: `bun run typecheck`
   - lint: `bun run lint`（直すのは `bun run format`）
   - e2e: `bun run e2e`
+- 速さは `bun run e2e:perf` で測る。コミットの前の全部のテストには入れない
 - `bun test` の結果は末尾だけでなく、pass と fail の行を見る
 
 ## ビルドと常駐
