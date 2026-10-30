@@ -33,7 +33,7 @@ function ToastView({ toast }: { toast: Toast }) {
       type="button"
       className={styles.toast}
       data-kind={toast.kind}
-      role={toast.kind === "info" ? "status" : "alert"}
+      role={toast.kind === "info" || toast.kind === "success" ? "status" : "alert"}
       onClick={() => dismissToast(toast.id)}
     >
       {t(toast.message, toast.params)}

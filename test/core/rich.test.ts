@@ -101,7 +101,7 @@ test("記号の字の前の \\ でただの文字になり、戻すときは記�
   }
 })
 
-test("文字の色は定義の色を、ブックの設定、見る人の上書きの順に上書きする", () => {
+test("文字の色は定義の色を、テーマ、ブックの設定、見る人の上書きの順に上書きする", () => {
   const book = {
     type: "@matomezu/drawing:drawing",
     id: "b",
@@ -113,6 +113,12 @@ test("文字の色は定義の色を、ブックの設定、見る人の上書�
   expect(textColorsOf(CORE_CATALOG, plain).get(W)).toBe("#d97706")
   expect(textColorsOf(CORE_CATALOG, book).get(W)).toBe("#111111")
   expect(textColorsOf(CORE_CATALOG, book, { [W]: "#222222" }).get(W)).toBe("#222222")
+  const themed = (more: Record<string, unknown>) =>
+    ({ ...book, settings: { "@matomezu/base:book-theme": "@matomezu/base:matomezu", ...more } }) as unknown as Book
+  expect(textColorsOf(CORE_CATALOG, themed({})).get(W)).toBe("#b86e00")
+  expect(textColorsOf(CORE_CATALOG, themed({ "@matomezu/base:book-text-colors": { [W]: "#111111" } })).get(W)).toBe(
+    "#111111",
+  )
   expect([...textColorsOf(CORE_CATALOG, plain).keys()]).toEqual([
     "@matomezu/base:success",
     "@matomezu/base:info",

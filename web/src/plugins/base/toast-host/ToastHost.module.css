@@ -1,4 +1,4 @@
-/* トースト: 画面の下の真ん中に、ほかのコンポーネントより手前に積む。印の色は種類ごと（info はお知らせの色、warn は断りを知らせる色、error は取り消せない操作の色） */
+/* トースト: 画面の下の真ん中に、ほかのコンポーネントより手前に積む。印の色は種類ごと（info はお知らせの色、success はうまくいったことを知らせる色、warn は断りを知らせる色、error は取り消せない操作の色） */
 .toasts {
   position: fixed;
   left: 50%;
@@ -29,6 +29,9 @@
   overflow-wrap: anywhere;
   cursor: pointer;
   pointer-events: auto;
+}
+.toast[data-kind="success"] {
+  --mark: var(--skin-success);
 }
 .toast[data-kind="warn"] {
   --mark: var(--skin-warn);

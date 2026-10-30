@@ -18,7 +18,7 @@ import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import { KEYS, LANG, OPTION_TITLES_CHECK, SETTINGS_SET, SETTINGS_SET_COMMAND, SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
-import { BOOK_TEXT_COLORS, TEXT_COLORS, USER_TEXT_COLORS } from "./text"
+import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_NEXT } from "./tool-switch"
 import { HAND_TOOL, SELECT_TOOL } from "./tool-switch/tools"
@@ -152,7 +152,7 @@ export const BASE = defineBuiltin(
     skins: [DARK, LIGHT, MATOMEZU_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
-    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK],
+    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK, THEME_TEXT_COLORS_CHECK],
     commands: [
       BOOK_NEW,
       STAGE_HOME,
