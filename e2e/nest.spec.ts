@@ -85,7 +85,7 @@ test("選択の道具で親をドラッグすると子もついて動き、子�
   await expect(item(page, "親").locator("[data-item]")).toHaveCount(1)
 })
 
-test("箱の編集のダイアログで縦の位置の「下」を押すと、子を持つ親のキャプションが子の下に出る。もう一度押すと自動に戻り、上に出る", async ({
+test("箱の編集のダイアログで縦の位置の「下」を押すと、子を持つ親のキャプションが子の下に出る。もう一度押すと自動に戻り、上に出る。子がある間は真ん中を押せない", async ({
   page,
 }) => {
   await page.goto("/")
@@ -100,6 +100,8 @@ test("箱の編集のダイアログで縦の位置の「下」を押すと、�
     const caption = (await item(page, "親").getByText("親", { exact: true }).boundingBox())!
     await page.mouse.dblclick(caption.x + 4, caption.y + caption.height / 2)
     const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+    // 子がある間は、真ん中は押せない
+    await expect(dialog.getByRole("radio", { name: "真ん中" })).toBeDisabled()
     await dialog.getByRole("group", { name: "縦の位置" }).getByTitle("下").click()
     await dialog.getByRole("button", { name: "確定" }).click()
     await expect(dialog).toBeHidden()
