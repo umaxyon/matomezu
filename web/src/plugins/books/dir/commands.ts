@@ -84,7 +84,7 @@ export function addEntry(ctx: CommandContext, a: CommandActions, at: AddAt, kind
     return
   }
   a.select(ctx.stage.id, [added])
-  a.setEditing(ctx.stage.id, true)
+  a.setEditing(ctx.stage.id, ADDED_EDIT)
 }
 
 // 選んでいる行
@@ -206,6 +206,8 @@ export const FILE_ADD = addIntoCommand("file-add", "Add file", "file")
 
 // その場の編集の名前: 選んでいるフォルダの中に足す種類を選んでいる
 export const KIND_PICK = kit.name("kind-pick")
+// その場の編集の名前: 足した行の名前を書いている（終えるとき、書いたのを足した段に続ける。足すのと書くのが 1 段）
+export const ADDED_EDIT = kit.name("added-edit")
 
 // 選んでいるフォルダの中に足す種類を選び始める（フォルダを選んでいるときだけ出す）
 export const ENTRY_KIND_PICK = kit.defineCommand({

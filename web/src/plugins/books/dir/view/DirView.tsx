@@ -41,7 +41,7 @@ import {
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
 import { RichBar, RichInput, type RichInputHandle, RichText, useZoomMotion } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
-import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
+import { ADDED_EDIT, FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
 import { dropAt, subtreeIds } from "../drag"
 import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from "../edit"
@@ -110,7 +110,7 @@ function Rows({
   const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
-  const { select, setEditing, showToast } = useActions()
+  const { select, setEditing, showToast, continueStep } = useActions()
   const toggle = useCommand(stage.id, FOLDER_TOGGLE.id)
   const addFolder = useCommand(stage.id, FOLDER_ADD.id)
   const addFile = useCommand(stage.id, FILE_ADD.id)
@@ -127,7 +127,7 @@ function Rows({
   const dir = root.data
   const usingPencil = stage.tool === PENCIL_TOOL.id
   const selected = selectedIn(dir, stage.selection)
-  const writing = usingPencil && stage.editing === true
+  const writing = usingPencil && (stage.editing === true || stage.editing === ADDED_EDIT)
   const picking = usingPencil && stage.editing === KIND_PICK
   const text = writing && draft?.entry === selected ? draft.text : null
   const shown: DirFolder = text === null ? dir : (changeEntry(dir, selected, { name: text }) ?? dir)
@@ -152,6 +152,7 @@ function Rows({
   const end = (commit: boolean) => {
     if (ended.current) return
     ended.current = true
+    if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
     const todo = editEnd(dir, selected, commit ? text : null)
     if (todo.kind === "remove") {
       const next = afterRemove(dir, selected)
