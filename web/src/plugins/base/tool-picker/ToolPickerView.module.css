@@ -39,21 +39,21 @@
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--skin-float-line);
+  border: 1px solid var(--skin-border);
   border-radius: 50%;
-  background: var(--skin-float);
+  background: var(--skin-surface-raised);
   color: var(--skin-text);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--skin-shadow-2);
   cursor: pointer;
 }
 .button:hover:not(:disabled),
 .button:focus-visible {
-  background: var(--skin-float-hover);
+  background: var(--skin-accent-subtle);
   outline: none;
 }
 /* 使えない道具: 押せず、斜めの線を引く */
 .button:disabled {
-  color: var(--skin-hint);
+  color: var(--skin-text-disabled);
   cursor: default;
 }
 .button:disabled::after {
@@ -85,11 +85,11 @@
 .tip {
   position: fixed;
   padding: 3px 8px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 5px;
-  background: var(--skin-bar);
+  background: var(--skin-surface-raised);
   color: var(--skin-text);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--skin-shadow-2);
   font-size: 12px;
   line-height: 1.4;
   white-space: nowrap;

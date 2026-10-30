@@ -19,7 +19,7 @@
   background: var(--skin-btn-hover);
 }
 .item:disabled {
-  opacity: 0.4;
+  color: var(--skin-text-disabled);
   cursor: default;
 }
 .item[aria-pressed="true"] {

@@ -7,7 +7,7 @@
 }
 /* 紙があるとき: 点の格子の上に紙を置く */
 .stage[data-paper="true"] {
-  background-image: radial-gradient(var(--skin-grid) 1px, transparent 1px);
+  background-image: radial-gradient(var(--skin-stage-grid) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 /* 紙をずらす道具の間は、中のアイテムが何のカーソルを持っていても手のひら（ドラッグで紙をずらす。ドラッグ中は握った手） */
@@ -36,9 +36,9 @@
   gap: 10px;
   width: min(320px, calc(100% - 32px));
   padding: 16px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 10px;
-  background: var(--skin-bar);
+  background: var(--skin-surface-raised);
   cursor: default;
   user-select: text;
 }

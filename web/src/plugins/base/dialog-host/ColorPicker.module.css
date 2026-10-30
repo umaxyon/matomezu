@@ -31,11 +31,11 @@
   box-sizing: border-box;
   width: 232px;
   padding: 10px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 8px;
-  background: var(--skin-bar);
+  background: var(--skin-surface-raised);
   color: var(--skin-text);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--skin-shadow-3);
   font-size: 12px;
 }
 .popup:focus {

@@ -1,15 +1,15 @@
 /* ダイアログと設定の画面の決まり（どのダイアログもこのコンポーネントと値で組む）:
-   - 文字: 入力Formの名前はどれも 13px・薄い色（--skin-hint）、値と入力は --skin-text。区分の見出しは 12px・薄い色・太字で、右に線を伸ばす
+   - 文字: 入力Formの名前はどれも 13px・薄い色（--skin-text-muted）、値と入力は --skin-text。区分の見出しは 12px・薄い色・太字で、右に線を伸ばす
    - 余白: 入力Formどうしは 14px、区分（Section）の前はさらに 6px、区分の中は 10px、横に並べる物どうしは 12px、名前と入力の間は 8px
    - 区分: 大きな区分は Section（見出しと線）、スイッチに属する入力Formは SwitchPanel（スイッチの下に開く地の色の違う枠）の 2 つだけ
    - ボタン: 強調の色のボタン（.submit）はダイアログを決める 1 つだけ。ほかのボタンは、つなげたコンポーネントの中も含めて縁取りのボタン（.plain と同じ見た目） */
 .dialog {
   padding: 0;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 10px;
-  background: var(--skin-bar);
+  background: var(--skin-surface-raised);
   color: var(--skin-text);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--skin-shadow-3);
 }
 .dialog::backdrop {
   background: rgba(0, 0, 0, 0.35);
@@ -67,14 +67,14 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
 }
 .control {
   width: 100%;
   padding: 7px 10px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border-strong);
   border-radius: 6px;
-  background: var(--skin-bg);
+  background: var(--skin-surface-muted);
   color: var(--skin-text);
   font: inherit;
 }
@@ -87,7 +87,7 @@ textarea.control {
   outline-offset: -1px;
 }
 .control:disabled {
-  color: var(--skin-hint);
+  color: var(--skin-text-disabled);
 }
 .actions {
   display: flex;
@@ -98,7 +98,7 @@ textarea.control {
   border: 0;
   border-radius: 6px;
   background: var(--skin-accent);
-  color: var(--skin-bg);
+  color: var(--skin-on-accent);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -111,7 +111,7 @@ textarea.control {
   flex: none;
   padding: 6px 14px;
   white-space: nowrap;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 6px;
   background: transparent;
   color: var(--skin-text);
@@ -145,9 +145,9 @@ textarea.control {
   width: 34px;
   height: 20px;
   padding: 0;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 10px;
-  background: var(--skin-bg);
+  background: var(--skin-surface-muted);
   cursor: pointer;
 }
 .switch::after {
@@ -158,7 +158,7 @@ textarea.control {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--skin-hint);
+  background: var(--skin-text-muted);
   transition: left 0.12s;
 }
 .switch[aria-checked="true"] {
@@ -167,7 +167,7 @@ textarea.control {
 }
 .switch[aria-checked="true"]::after {
   left: 16px;
-  background: var(--skin-bg);
+  background: var(--skin-on-accent);
 }
 .switch:disabled {
   opacity: 0.4;
@@ -182,7 +182,7 @@ textarea.control {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
 }
 /* 決められなかった理由 */
 .problem {
@@ -203,7 +203,7 @@ textarea.control {
   margin: 0;
   padding: 0;
   min-width: 0;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -215,7 +215,7 @@ textarea.control {
   height: 22px;
   padding: 0;
   background: transparent;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   cursor: pointer;
 }
 .choice svg {
@@ -273,26 +273,26 @@ textarea.control {
   flex: none;
   align-items: stretch;
   overflow: hidden;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border-strong);
   border-radius: 6px;
 }
 /* セレクトFormの地はスキンの地にする（透明だと、開いた選択肢の一覧がブラウザの明るい地に明るい文字で描かれて見えない） */
 .selectButton > select {
   padding: 6px 4px 6px 10px;
   border: 0;
-  background: var(--skin-bg);
+  background: var(--skin-surface-muted);
   color: var(--skin-text);
   font: inherit;
   cursor: pointer;
 }
 .selectButton option {
-  background: var(--skin-bg);
+  background: var(--skin-surface-muted);
   color: var(--skin-text);
 }
 .selectButton > button {
   padding: 6px 14px;
   border: 0;
-  border-left: 1px solid var(--skin-line);
+  border-left: 1px solid var(--skin-border);
   background: transparent;
   color: var(--skin-text);
   font: inherit;
@@ -328,7 +328,7 @@ textarea.control {
   margin-top: 0;
   padding: 0 12px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--skin-bar), var(--skin-text) 6%);
+  background: color-mix(in srgb, var(--skin-surface-raised), var(--skin-text) 6%);
   transition:
     margin-top 0.16s ease,
     padding 0.16s ease;
@@ -342,7 +342,7 @@ textarea.control {
   float: left;
   width: 100%;
   padding: 0;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   font-size: 12px;
   font-weight: 600;
 }
@@ -375,7 +375,7 @@ textarea.control {
   gap: 8px;
   width: 100%;
   padding: 0 0 2px;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   font-size: 12px;
   font-weight: 600;
 }
@@ -383,7 +383,7 @@ textarea.control {
   content: "";
   flex: 1;
   height: 1px;
-  background: var(--skin-line);
+  background: var(--skin-border);
 }
 /* 横に並べる行: 物どうしは 12px、入らなければ次の行へ */
 .inline {
@@ -398,7 +398,7 @@ textarea.control {
   flex: none;
   align-items: center;
   gap: 8px;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   white-space: nowrap;
 }
 .pair > .control {
@@ -409,5 +409,5 @@ textarea.control {
   flex: none;
   align-self: stretch;
   width: 1px;
-  background: var(--skin-line);
+  background: var(--skin-border);
 }
