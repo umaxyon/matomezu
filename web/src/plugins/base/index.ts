@@ -7,6 +7,7 @@ import { CREATE_SETTINGS_CHECK } from "./book-new/book-create"
 import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRASH_EMPTY } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
+import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
 import { kit } from "./kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
@@ -128,6 +129,7 @@ export const BASE = defineBuiltin(
       BOOK_PURGE,
       TRASH_EMPTY,
       SETTINGS_SET,
+      HISTORY_RESTORE,
     ],
     settings: [BOOK_THEME, BOOK_PAPER_COLOR, BOOK_TEXT_COLORS],
     userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS],
@@ -162,9 +164,11 @@ export const BASE = defineBuiltin(
       PAGE_SETTINGS,
       BOOK_SETTINGS,
       SETTINGS_SET_COMMAND,
+      UNDO,
+      REDO,
     ],
     dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG, NEW_BOOK_DIALOG],
-    keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...ZOOM_KEYS, ...DIALOG_KEYS, ...MENU_KEYS],
+    keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...ZOOM_KEYS, ...DIALOG_KEYS, ...MENU_KEYS, ...HISTORY_KEYS],
   }),
 )
 
@@ -196,6 +200,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-purge": typeof BOOK_PURGE
     "@matomezu/base:trash-empty": typeof TRASH_EMPTY
     "@matomezu/base:settings-set": typeof SETTINGS_SET
+    "@matomezu/base:book-revert": typeof HISTORY_RESTORE
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD
@@ -228,6 +233,8 @@ declare module "../../core/catalog" {
   }
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW
+    "@matomezu/base:undo": typeof UNDO
+    "@matomezu/base:redo": typeof REDO
     "@matomezu/base:stage-home": typeof STAGE_HOME
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT

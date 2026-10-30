@@ -75,6 +75,7 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:stage-bottom is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-corner is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:drawer-map is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:drawer-history is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:drawer-basics is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:drawer-book-tools is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",

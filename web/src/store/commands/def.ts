@@ -4,6 +4,7 @@
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { Where } from "../../core/def/action"
+import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
 import type { StageView, Workspace } from "../../core/workspace"
@@ -35,6 +36,7 @@ export interface CommandContext {
   settings: Settings
   dialog: OpenedDialog | null // 開いているダイアログ
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
+  bookHistory: BookHistory // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
 }
 
 export interface CommandDef<A = undefined, Tt extends string = MessageKey> extends CommandExtras {

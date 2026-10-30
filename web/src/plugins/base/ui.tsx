@@ -3,11 +3,12 @@
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."
 import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from "./book-look/ui"
-import { BOOK_NAME, DRAWER_MINIMAP, STAGE_MENU_BUTTONS } from "./book-name/ui"
+import { BOOK_NAME, DRAWER_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./book-name/ui"
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
+import { HISTORY_ICONS } from "./history/icons"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { USER_SETTING_VIEWS } from "./settings/ui"
 import { BOOK_VIEW, CLOSE_BUTTON, STAGE_ICONS } from "./stage/ui"
@@ -61,11 +62,12 @@ export const BASE_UI = definePluginUi(BASE, {
     TOOLBOX,
     BOOK_NAME,
     DRAWER_MINIMAP,
+    HISTORY_BUTTONS,
     STAGE_MENU_BUTTONS,
     PAGE_TABS,
     CLOSE_BUTTON,
   ],
-  commandIcons: { ...STAGE_ICONS, ...ZOOM_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS },
+  commandIcons: { ...STAGE_ICONS, ...ZOOM_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS, ...HISTORY_ICONS },
   toolIcons: TOOL_ICONS,
 })
 
@@ -76,6 +78,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:stage-bottom": StageSlotProps
     "@matomezu/base:stage-corner": StageSlotProps
     "@matomezu/base:drawer-map": StageSlotProps
+    "@matomezu/base:drawer-history": StageSlotProps
     "@matomezu/base:drawer-basics": StageSlotProps
     "@matomezu/base:drawer-book-tools": StageSlotProps
   }
@@ -90,6 +93,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME
     "@matomezu/base:drawer-minimap": typeof DRAWER_MINIMAP
+    "@matomezu/base:history-buttons": typeof HISTORY_BUTTONS
     "@matomezu/base:stage-menu-buttons": typeof STAGE_MENU_BUTTONS
     "@matomezu/base:page-tabs": typeof PAGE_TABS
     "@matomezu/base:close-button": typeof CLOSE_BUTTON

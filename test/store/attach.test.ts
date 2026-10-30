@@ -31,6 +31,7 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
     "@matomezu/base:book-purge",
     "@matomezu/base:trash-empty",
     "@matomezu/base:settings-set",
+    "@matomezu/base:book-revert",
   ])
 })
 

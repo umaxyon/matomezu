@@ -3,6 +3,7 @@
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import { fail } from "../../core/errors"
+import { NO_HISTORY } from "../../core/history"
 import { inspect, withoutPermissions } from "../../core/inspect"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
@@ -40,6 +41,7 @@ export function commandContext(
     settings,
     dialog,
     contextMenu,
+    bookHistory: (book && state.history[book.id]) || NO_HISTORY,
   }
 }
 

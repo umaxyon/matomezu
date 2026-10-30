@@ -70,10 +70,13 @@ export function singleBooks(catalog: CoreCatalog): Book[] {
   return catalog.parts.bookTypes.flatMap(t => (t.single ? [bookSchemas(catalog, t.id).book.parse(t.book) as Book] : []))
 }
 
-// ブック book の、同じ id のページを page に替える。page に置いたアイテムがブックのタイプの選んだものかは型では確かめられないので、
-// 渡されたブックの型のまま返すと言い張る（形は perform がアクションの後に機能台帳のブックの形で確かめ直す）
-export function putPage<B extends PagedBook>(book: B, page: ItemPage): B {
-  return { ...book, pages: book.pages.map((p: ItemPage) => (p.id === page.id ? page : p)) } as B
+// ブック book の、同じ id のページを page に替える（無ければ、at があればその並びの所に足す。並びより後ろなら末尾）。page に置いたアイテムが
+// ブックのタイプの選んだものかは型では確かめられないので、渡されたブックの型のまま返すと言い張る（形は perform がアクションの後に機能台帳のブックの形で確かめ直す）
+export function putPage<B extends PagedBook>(book: B, page: ItemPage, at?: number): B {
+  const pages: readonly ItemPage[] = book.pages
+  if (at === undefined || pages.some(p => p.id === page.id))
+    return { ...book, pages: pages.map(p => (p.id === page.id ? page : p)) } as B
+  return { ...book, pages: [...pages.slice(0, at), page, ...pages.slice(at)] } as B
 }
 
 // ブック book から、id が page のページを除く（型は putPage と同じく渡されたブックの型）
