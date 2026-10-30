@@ -6,4 +6,5 @@ export const ZOOM_MESSAGES = defineMessages({
   "Zoom out": { en: "Zoom out", ja: "縮小" },
   "Reset view": { en: "Reset view", ja: "初めの位置に戻す" },
   Zoom: { en: "Zoom", ja: "倍率" },
+  "Fit the page": { en: "Fit the page", ja: "ページ全体を収める" },
 })

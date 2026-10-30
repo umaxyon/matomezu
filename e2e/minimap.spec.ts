@@ -12,6 +12,9 @@ async function drawer(page: Page) {
   await expect(page.locator('button[aria-haspopup="menu"]').first()).toHaveAttribute("aria-expanded", "true")
 }
 
+// Ctrl+ホイールを 100 回したときの倍率（回した量に合わせて滑らかに変える。base/zoom の wheelZoom）
+const WHEEL_100 = 1.16
+
 test("ドロワーの行の左端に拡大縮小、その真上にミニマップが出る。四角をドラッグすると紙が動き、ドロワーから出ても下がらない", async ({
   page,
 }) => {
@@ -49,7 +52,7 @@ test("ドロワーの拡大縮小で倍率が変わる", async ({ page }) => {
   await expect(level).toHaveText("100%")
   await page.getByRole("button", { name: "拡大" }).first().click()
   await drawer(page)
-  await expect(level).toHaveText("125%")
+  await expect(level).toHaveText("110%")
 })
 
 test("右ボタンの長押しのアイコンのミニマップを押すと、アイコンの代わりにその場にミニマップが出る。ドラッグで紙が動き、ミニマップから離れると閉じる", async ({
@@ -66,7 +69,7 @@ test("右ボタンの長押しのアイコンのミニマップを押すと、�
   await picker.getByRole("button", { name: "ミニマップ" }).click()
   await expect(page.locator("[data-minimap=picker]")).toBeVisible()
   // 道具のアイコンは消え、ミニマップの下の拡大縮小の帯のボタンだけ
-  await expect(picker.getByRole("button")).toHaveText(["", "", ""])
+  await expect(picker.getByRole("button")).toHaveText(["", "", "", ""])
   await expect(picker.getByRole("button", { name: "ハンドツール" })).toHaveCount(0)
   const before = (await paper(page).boundingBox())!.y
   // ドラッグしている間は、ミニマップの外へ出ても閉じない
@@ -85,7 +88,7 @@ test("右ボタンの長押しのアイコンのミニマップを押すと、�
   await expect(picker).toHaveCount(0)
 })
 
-test("右ボタンの長押しのミニマップの下の帯で拡大縮小する（50〜125%、端では押せない）。初めの位置に戻すと 100%。Ctrl+ホイールと Home キーでも", async ({
+test("右ボタンの長押しのミニマップの下の帯で拡大縮小する（10% ずつ、30〜180%、端では押せない）。初めの位置に戻すと 100%、ページ全体を収めると紙が表示領域に入る。Ctrl+ホイールは滑らかに、Home キーでも戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -101,14 +104,26 @@ test("右ボタンの長押しのミニマップの下の帯で拡大縮小す�
   await expect(level).toHaveText("100%")
   await expect(map.getByRole("button", { name: "初めの位置に戻す" })).toBeDisabled()
   await map.getByRole("button", { name: "拡大" }).click()
-  await expect(level).toHaveText("125%")
+  await expect(level).toHaveText("110%")
+  await expect.poll(width).toBeCloseTo(p.width * 1.1, 0)
+  for (const _ of Array(7)) await map.getByRole("button", { name: "拡大" }).click()
+  await expect(level).toHaveText("180%")
   await expect(map.getByRole("button", { name: "拡大" })).toBeDisabled()
-  await expect.poll(width).toBeCloseTo(p.width * 1.25, 0)
-  for (const _ of [1, 2, 3]) await map.getByRole("button", { name: "縮小" }).click()
-  await expect(level).toHaveText("50%")
+  for (const _ of Array(15)) await map.getByRole("button", { name: "縮小" }).click()
+  await expect(level).toHaveText("30%")
   await expect(map.getByRole("button", { name: "縮小" })).toBeDisabled()
   await map.getByRole("button", { name: "初めの位置に戻す" }).click()
   await expect(level).toHaveText("100%")
+  await expect.poll(width).toBeCloseTo(p.width, 0)
+  // ページ全体を収める: 紙が表示領域（ステージ）に入り、収めた見え方ではもう押せない
+  await map.getByRole("button", { name: "ページ全体を収める" }).click()
+  await expect(map.getByRole("button", { name: "ページ全体を収める" })).toBeDisabled()
+  const stage = (await page.locator("section[data-tool]").first().boundingBox())!
+  await expect.poll(async () => (await paper(page).boundingBox())!.height).toBeLessThanOrEqual(stage.height)
+  const fitted = (await paper(page).boundingBox())!
+  expect(fitted.y).toBeGreaterThanOrEqual(stage.y)
+  expect(fitted.y + fitted.height).toBeLessThanOrEqual(stage.y + stage.height)
+  await map.getByRole("button", { name: "初めの位置に戻す" }).click()
   await expect.poll(width).toBeCloseTo(p.width, 0)
   // Ctrl+ホイールはポインタの下の紙の点を動かさない
   await page.keyboard.press("Escape")
@@ -118,10 +133,10 @@ test("右ボタンの長押しのミニマップの下の帯で拡大縮小す�
   await page.keyboard.down("Control")
   await page.mouse.wheel(0, -100)
   await page.keyboard.up("Control")
-  await expect.poll(width).toBeCloseTo(p.width * 1.25, 0)
+  await expect.poll(width).toBeCloseTo(p.width * WHEEL_100, 0)
   const q = (await paper(page).boundingBox())!
-  expect((at.x - q.x) / 1.25).toBeCloseTo(at.x - p.x, 0)
-  expect((at.y - q.y) / 1.25).toBeCloseTo(at.y - p.y, 0)
+  expect((at.x - q.x) / WHEEL_100).toBeCloseTo(at.x - p.x, 0)
+  expect((at.y - q.y) / WHEEL_100).toBeCloseTo(at.y - p.y, 0)
   await page.keyboard.press("Home")
   await expect.poll(width).toBeCloseTo(p.width, 0)
 })
@@ -139,10 +154,10 @@ test("拡大縮小はなめらかに移り、途中でもポインタの下の�
   await page.waitForTimeout(60)
   const mid = (await paper(page).boundingBox())!
   expect(mid.width).toBeGreaterThan(p.width + 1)
-  expect(mid.width).toBeLessThan(p.width * 1.25 - 1)
+  expect(mid.width).toBeLessThan(p.width * WHEEL_100 - 1)
   const k = mid.width / p.width
   expect(at.x - mid.x).toBeCloseTo((at.x - p.x) * k, 0)
-  await expect.poll(async () => (await paper(page).boundingBox())!.width).toBeCloseTo(p.width * 1.25, 0)
+  await expect.poll(async () => (await paper(page).boundingBox())!.width).toBeCloseTo(p.width * WHEEL_100, 0)
   await page.waitForTimeout(250)
   await expect(paper(page)).not.toHaveCSS("transition-duration", "0.2s")
 })
