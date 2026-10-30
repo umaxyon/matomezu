@@ -162,7 +162,7 @@ test("拡大縮小はなめらかに移り、途中でもポインタの下の�
   await expect(paper(page)).not.toHaveCSS("transition-duration", "0.2s")
 })
 
-test("ドロワーの拡大縮小の帯の上でホイールを回すと（Ctrl 無しでも）、倍率が滑らかに変わり、ページはスクロールしない。紙の上のホイールは今まで通り紙をずらす", async ({
+test("ドロワーの拡大縮小の帯とミニマップの上でホイールを回すと（Ctrl 無しでも）、倍率が滑らかに変わり、ページはスクロールしない。紙の上のホイールは今まで通り紙をずらす", async ({
   page,
 }) => {
   await page.goto("/")
@@ -187,6 +187,13 @@ test("ドロワーの拡大縮小の帯の上でホイールを回すと（Ctrl 
   await page.mouse.wheel(0, 100)
   await expect(level).toHaveText("100%")
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
+  // ミニマップの上のホイールも拡大縮小する
+  const map = (await page.locator("[data-minimap=drawer]").boundingBox())!
+  await page.mouse.move(map.x + map.width / 2, map.y + map.height / 2)
+  await page.mouse.wheel(0, -100)
+  await expect(level).toHaveText(`${Math.round(WHEEL_100 * 100)}%`)
+  await page.mouse.wheel(0, 100)
+  await expect(level).toHaveText("100%")
   // 紙の上のホイールは紙をずらし、倍率は変えない
   const p = (await paper(page).boundingBox())!
   await page.mouse.move(p.x + 300, p.y + 200)
