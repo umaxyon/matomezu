@@ -97,7 +97,11 @@ export const findShape = (page: ItemPage, id: string): ShapeOnPage | undefined =
 // つなぐものを種類ごとに分ける（表に無いものは入れない）
 function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorItemDef, PlacedConnector[]][] {
   const groups = new Map<string, PlacedConnector[]>()
-  for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
+  for (const c of connectorsOf(page)) {
+    const list = groups.get(c.item)
+    if (list) list.push(c)
+    else groups.set(c.item, [c])
+  }
   return [...groups].flatMap(([id, list]) => {
     const def = connectorDef(catalog, id)
     return def ? [[def, list] as [ConnectorItemDef, PlacedConnector[]]] : []
@@ -108,14 +112,22 @@ function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorItemDef, P
 // 機能台帳に無い形は、何ができるか分からないので、つなげる物として扱う（前につないだ線のあるブックを読めるように）
 export function connectableShape(catalog: CoreCatalog, page: ItemPage, id: string): boolean {
   const shape = findShape(page, id)?.shape
-  if (!shape) return false
+  return !!shape && isConnectable(catalog, shape)
+}
+
+const isConnectable = (catalog: CoreCatalog, shape: PlacedShape): boolean => {
   const def = catalog.items.get(shape.item)
   return def ? def.capabilities.includes("connectable") : true
 }
 
-// ページが、つなぐものの定義の関係の決まり（holds）を全部守っているか
+// ページが、つなぐものの定義の関係の決まり（holds）を全部守っているか。つなげる形は、ページを 1 回たどって集める
 export function pageHolds(catalog: CoreCatalog, page: ItemPage): boolean {
-  return byConnector(catalog, page).every(
-    ([def, list]) => def.holds?.(list as ConnectorData[], id => connectableShape(catalog, page, id)) ?? true,
+  const groups = byConnector(catalog, page)
+  if (groups.length === 0) return true
+  const connectable = new Set(
+    walkShapes(page)
+      .filter(s => isConnectable(catalog, s.shape))
+      .map(s => s.shape.id),
   )
+  return groups.every(([def, list]) => def.holds?.(list as ConnectorData[], id => connectable.has(id)) ?? true)
 }
