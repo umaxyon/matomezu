@@ -11,4 +11,11 @@ export {
   textColorRef,
   wrapRich,
 } from "./rich"
-export { BOOK_TEXT_COLORS, textColorsOf, textColorVars, USER_TEXT_COLORS, withTextColor } from "./text-colors"
+export {
+  BOOK_TEXT_COLORS,
+  THEME_TEXT_COLORS_CHECK,
+  textColorsOf,
+  textColorVars,
+  USER_TEXT_COLORS,
+  withTextColor,
+} from "./text-colors"

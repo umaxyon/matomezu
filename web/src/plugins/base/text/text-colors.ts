@@ -1,11 +1,33 @@
-// 文字の色の値: 文字の色の定義の色を、ブックの設定の項目 book-text-colors（文字の色の id → #rrggbb）で上書きし、見る人の上書き（利用者の設定の項目 text-colors）をさらに重ねる。
-// ブックのタイプが settings.book に選んだブックだけが上書きを持てる（選ばなければ定義の色）
+// 文字の色の値: 文字の色の定義の色を、ブックのテーマの textColors で変え、ブックの設定の項目 book-text-colors（文字の色の id → #rrggbb）で上書きし、
+// 利用者の上書き（利用者の設定の項目 text-colors）をさらに重ねる。ブックのタイプが settings.book に選んだブックだけが上書きを持てる（選ばなければテーマか定義の色）
 import { z } from "zod"
 import { HEX } from "../../../core/color"
-import type { CoreCatalog } from "../../../core/core-catalog"
+import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
+import { problem } from "../../../core/errors"
+import { splitId } from "../../../core/names"
 import type { Book } from "../../../core/schema/book"
+import { warning } from "../../../core/warnings"
+import { bookTheme } from "../book-look"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
+
+declare module "../../../core/catalog" {
+  interface ThemeExtras {
+    // そのテーマのブックの文字の色（文字の色の id → #rrggbb）。機能台帳に無い色の id は使わない（W014）
+    textColors?: Readonly<Record<string, string>>
+  }
+}
+
+// テーマの textColors の色が #rrggbb か（E038）と、機能台帳にある文字の色か（W014。その色だけ効かない）。組み立てのときの確かめ
+export const THEME_TEXT_COLORS_CHECK: CatalogCheck = catalog =>
+  [...catalog.themes.values()].flatMap(t =>
+    Object.entries(t.textColors ?? {}).flatMap(([textColor, color]) => [
+      ...(HEX.test(color) ? [] : [problem("E038", { id: t.id, textColor, color })]),
+      ...(catalog.textColors.has(textColor)
+        ? []
+        : [warning("W014", splitId(t.id).owner ?? "", { theme: t.id, textColor })]),
+    ]),
+  )
 
 // ブックの文字の色の上書き（無い色の id は使わずに残す）
 export const BOOK_TEXT_COLORS = kit.defineSetting({
@@ -14,7 +36,7 @@ export const BOOK_TEXT_COLORS = kit.defineSetting({
   schema: z.record(z.string(), z.string().regex(HEX)),
 })
 
-// 見る人の文字の色の上書き（利用者の設定の項目。無い色の id は使わずに残す）
+// 利用者の文字の色の上書き（利用者の設定の項目。無い色の id は使わずに残す）
 export const USER_TEXT_COLORS = kit.defineSetting({
   id: "text-colors",
   title: "Text colors",
@@ -22,7 +44,7 @@ export const USER_TEXT_COLORS = kit.defineSetting({
   default: {},
 })
 
-// 見る人の上書き own の、文字の色 id を color にした値（null は上書きを消す）。項目の値は丸ごと置き換わるので、ほかの色の上書きも残す
+// 利用者の上書き own の、文字の色 id を color にした値（null は上書きを消す）。項目の値は丸ごと置き換わるので、ほかの色の上書きも残す
 export function withTextColor(own: TextColorValues, id: string, color: string | null): TextColorValues {
   const { [id]: _, ...rest } = own
   return color === null ? rest : { ...rest, [id]: color }
@@ -39,12 +61,15 @@ export function textColorVars(colors: ReadonlyMap<string, string>): Record<strin
 
 export type TextColorValues = Readonly<Record<string, string>>
 
-// 文字の色の id → 色: 定義の色 ← ブックの上書き ← 見る人の上書き viewer
+// 文字の色の id → 色: 定義の色 ← テーマ ← ブックの上書き ← 利用者の上書き viewer
 export function textColorsOf(
   catalog: CoreCatalog,
   book: Book,
   viewer: TextColorValues = {},
 ): ReadonlyMap<string, string> {
   const own = (settingValue(catalog, book, null, BOOK_TEXT_COLORS.id) ?? {}) as TextColorValues
-  return new Map([...catalog.textColors.values()].map(c => [c.id, viewer[c.id] ?? own[c.id] ?? c.color] as const))
+  const theme = catalog.themes.get(bookTheme(catalog, book))?.textColors ?? {}
+  return new Map(
+    [...catalog.textColors.values()].map(c => [c.id, viewer[c.id] ?? own[c.id] ?? theme[c.id] ?? c.color] as const),
+  )
 }

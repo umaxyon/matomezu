@@ -35,6 +35,7 @@ export const ERRORS = {
   E035: "bookType {id}: createSettings has {setting}, which is not one of its book settings",
   E036: "setting {id}: only a user setting may have {field}",
   E037: "userSetting {id}: role {role} is held by {other} too",
+  E038: "theme {id}: textColors has {color} for {textColor}, which is not #rrggbb",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",

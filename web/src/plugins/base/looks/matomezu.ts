@@ -1,4 +1,5 @@
 import { kit } from "../kit"
+import { TEXT_ERROR, TEXT_INFO, TEXT_SUCCESS, TEXT_WARN } from "../text/colors"
 import { DARK } from "./dark"
 
 // base の matomezu のテーマとスキン: マスコットの鳥 5 羽の色。広い面はクリーム色と白、色は小さな面と印に配る。
@@ -11,6 +12,7 @@ const CHARCOAL = "#45474b" // 07D 文鳥
 const TERRA = "#a84b28" // 07A スズメ
 const TERRA_TINT = "#fff1e5"
 const AMBER = "#f5a623"
+const AMBER_TEXT = "#b86e00" // 文字にするアンバー（白い紙で読める暗さ）
 const FOREST = "#356650" // 07 ツナギドリ
 const INDIGO = "#303d73" // 08 ホンフクロウ
 const RED = "#b42332" // 消す・失敗（鳥の色とは別）
@@ -59,6 +61,12 @@ export const MATOMEZU_THEME = kit.defineTheme({
     "@matomezu/data:data-shadow": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
     "@matomezu/data:data-head-fill": CREAM,
     "@matomezu/data:data-grid": "#efe9e1",
+  },
+  textColors: {
+    [TEXT_SUCCESS.id]: FOREST,
+    [TEXT_INFO.id]: INDIGO,
+    [TEXT_WARN.id]: AMBER_TEXT,
+    [TEXT_ERROR.id]: RED,
   },
 })
 
