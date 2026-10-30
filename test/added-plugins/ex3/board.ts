@@ -87,6 +87,8 @@ export const NIGHT = kit.defineSkin({
     "on-accent": "#0b1020",
     danger: "#ff8a8a",
     warn: "#ffcc66",
+    info: "#7aa2ff",
+    success: "#6fd39a",
     font: 'system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif',
   },
 })

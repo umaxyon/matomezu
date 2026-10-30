@@ -1,4 +1,4 @@
-/* トースト: 画面の下の真ん中に、ほかのコンポーネントより手前に積む。印の色は種類ごと（info は強調、warn は断りを知らせる色、error は取り消せない操作の色） */
+/* トースト: 画面の下の真ん中に、ほかのコンポーネントより手前に積む。印の色は種類ごと（info はお知らせの色、warn は断りを知らせる色、error は取り消せない操作の色） */
 .toasts {
   position: fixed;
   left: 50%;
@@ -13,7 +13,7 @@
   pointer-events: none;
 }
 .toast {
-  --mark: var(--skin-accent);
+  --mark: var(--skin-info);
   max-width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--skin-border);

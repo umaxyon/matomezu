@@ -10,7 +10,7 @@ import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
 import { kit } from "./kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
-import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
+import { DARK, LIGHT, MATOMEZU_SKIN, MATOMEZU_THEME, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
@@ -133,10 +133,10 @@ export const BASE = defineBuiltin(
     ],
     settings: [BOOK_THEME, BOOK_PAPER_COLOR, BOOK_TEXT_COLORS],
     userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS],
-    themes: [STANDARD, STICKY, SIMPLE],
+    themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
     textColors: TEXT_COLORS,
-    skins: [DARK, LIGHT],
+    skins: [DARK, LIGHT, MATOMEZU_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK],
@@ -206,6 +206,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:standard": typeof STANDARD
     "@matomezu/base:sticky": typeof STICKY
     "@matomezu/base:simple": typeof SIMPLE
+    "@matomezu/base:matomezu": typeof MATOMEZU_THEME
   }
   interface PermissionTable {
     "@matomezu/base:lock": typeof LOCK
@@ -217,6 +218,7 @@ declare module "../../core/catalog" {
   interface SkinTable {
     "@matomezu/base:dark": typeof DARK
     "@matomezu/base:light": typeof LIGHT
+    "@matomezu/base:matomezu": typeof MATOMEZU_SKIN
   }
   interface TextColorTable {
     "@matomezu/base:success": (typeof TEXT_COLORS)[0]

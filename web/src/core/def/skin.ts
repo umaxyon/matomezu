@@ -32,6 +32,8 @@ export const SKIN_TOKENS = [
   // 状態
   "danger", // 取り消せない操作（消すなど）のボタンの文字と縁。失敗を知らせるトーストの印
   "warn", // 断りを知らせるトーストの印
+  "info", // お知らせのトーストの印
+  "success", // うまくいったことを知らせる印
   "font",
 ] as const
 
