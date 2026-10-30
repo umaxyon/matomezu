@@ -56,14 +56,26 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:book-settings",
     ],
   },
+  // 紙（何も無い所）の右クリックのメニューは、一番上にページ全体を収めると画面の分割（分割中は、右クリックしたステージを閉じる）を置き、区切り線で分ける
   contextMenus: {
     "@matomezu/paper:paper-context": [
+      "@matomezu/base:zoom-fit",
+      "@matomezu/base:stage-split",
+      "@matomezu/base:stage-close",
+      "-",
       "@matomezu/base:page-settings",
       "@matomezu/base:book-settings",
       "-",
       "@matomezu/flowchart:page-align",
     ],
-    "@matomezu/dir:dir-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
+    "@matomezu/dir:dir-context": [
+      "@matomezu/base:zoom-fit",
+      "@matomezu/base:stage-split",
+      "@matomezu/base:stage-close",
+      "-",
+      "@matomezu/base:page-settings",
+      "@matomezu/base:book-settings",
+    ],
     "@matomezu/dir:entry-context": [
       "@matomezu/dir:entry-settings",
       "@matomezu/dir:folder-sort-asc",
@@ -71,7 +83,14 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/dir:entry-delete",
     ],
-    "@matomezu/tree:tree-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
+    "@matomezu/tree:tree-context": [
+      "@matomezu/base:zoom-fit",
+      "@matomezu/base:stage-split",
+      "@matomezu/base:stage-close",
+      "-",
+      "@matomezu/base:page-settings",
+      "@matomezu/base:book-settings",
+    ],
     "@matomezu/tree:node-context": [
       "@matomezu/tree:node-edit",
       "@matomezu/tree:node-color-edit",

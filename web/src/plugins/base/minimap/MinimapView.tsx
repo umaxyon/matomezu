@@ -1,12 +1,14 @@
 // ミニマップの絵: ステージの紙の全体を、幅 width・高さ height に収まるように縮めて描き（アイテムは marks.ts の絵）、見えている範囲を四角で重ねる。
 // 四角をドラッグすると、ステージの見る所がついて動く。四角の外を押すと、そこが真ん中に来るように飛んでから、そのままドラッグできる
 // （紙をずらさない道具の間に押すと、組の紙をずらす道具に替えてから動かす。組にそれが無ければ動かさない）。
+// ミニマップの上でホイールを回すと、回した量をコマンド zoom-wheel に渡して、表示領域の真ん中を動かさずに拡大縮小する（ページはスクロールさせない）。
 // 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）。className は枠の見た目を替える（無ければ浮かぶ枠）
-import { type PointerEvent, type ReactNode, useMemo, useRef } from "react"
+import { type PointerEvent, type ReactNode, useCallback, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
+import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
@@ -15,6 +17,7 @@ import { bookTokens } from "../book-look/look"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
 import { keepsPan, panningTool } from "../tool-switch/tools"
+import { ZOOM_WHEEL } from "../zoom"
 import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
 import { type MinimapMark, minimapMarks } from "./marks"
@@ -50,6 +53,21 @@ export function MinimapView({
     () => (book && page ? minimapMarks(catalog, book.type, page, settingsAt(catalog, book, page)) : []),
     [catalog, book, page],
   )
+  const wheel = useCommand(id, ZOOM_WHEEL.id)
+  const wheelRef = useRef(wheel)
+  wheelRef.current = wheel
+  // ページのスクロールを止めるため、受け身でない受け取りで付ける（描かれたときに付く）
+  const attachWheel = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (!wheelRef.current.shown) return
+      e.preventDefault()
+      e.stopPropagation()
+      wheelRef.current.run({ delta: e.deltaY })
+    }
+    el.addEventListener("wheel", onWheel, { passive: false })
+    return () => el.removeEventListener("wheel", onWheel)
+  }, [])
   const paper = stage ? paperOf(stage) : null
   if (!stage || !book || !paper) return null
   const scale = fitScale(paper, width, height)
@@ -95,7 +113,7 @@ export function MinimapView({
   }
   const line = 1 / scale // 画面で 1px の線
   return (
-    <div className={className ?? styles.minimap} style={vars}>
+    <div ref={attachWheel} className={className ?? styles.minimap} style={vars}>
       <svg
         className={styles.map}
         role="img"

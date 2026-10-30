@@ -161,3 +161,44 @@ test("拡大縮小はなめらかに移り、途中でもポインタの下の�
   await page.waitForTimeout(250)
   await expect(paper(page)).not.toHaveCSS("transition-duration", "0.2s")
 })
+
+test("ドロワーの拡大縮小の帯とミニマップの上でホイールを回すと（Ctrl 無しでも）、倍率が滑らかに変わり、ページはスクロールしない。紙の上のホイールは今まで通り紙をずらす", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await expect(paper(page)).toBeVisible()
+  await drawer(page)
+  const level = page.getByTitle("倍率").first()
+  await expect(level).toHaveText("100%")
+  // ドロワーが上がりきる（帯が動かなくなる）まで待つ
+  let last = Number.NaN
+  await expect
+    .poll(async () => {
+      const y = (await level.boundingBox())!.y
+      const still = y === last
+      last = y
+      return still
+    })
+    .toBe(true)
+  const bar = (await level.boundingBox())!
+  await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2)
+  await page.mouse.wheel(0, -100)
+  await expect(level).toHaveText(`${Math.round(WHEEL_100 * 100)}%`)
+  await page.mouse.wheel(0, 100)
+  await expect(level).toHaveText("100%")
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+  // ミニマップの上のホイールも拡大縮小する
+  const map = (await page.locator("[data-minimap=drawer]").boundingBox())!
+  await page.mouse.move(map.x + map.width / 2, map.y + map.height / 2)
+  await page.mouse.wheel(0, -100)
+  await expect(level).toHaveText(`${Math.round(WHEEL_100 * 100)}%`)
+  await page.mouse.wheel(0, 100)
+  await expect(level).toHaveText("100%")
+  // 紙の上のホイールは紙をずらし、倍率は変えない
+  const p = (await paper(page).boundingBox())!
+  await page.mouse.move(p.x + 300, p.y + 200)
+  await page.mouse.wheel(0, 200)
+  await expect.poll(async () => (await paper(page).boundingBox())!.y).toBeLessThan(p.y - 20)
+  await drawer(page)
+  await expect(level).toHaveText("100%")
+})
