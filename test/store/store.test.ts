@@ -175,3 +175,18 @@ test("トーストは出した順に積み、id で消す（もう無い id な�
   actions.dismissToast(a)
   expect(state.getState().toasts.map(t => t.id)).toEqual([b])
 })
+
+test("プラグインが持つステージの画面の状態は、プラグインの id ごとに置き、undefined で消える。無いステージには置かず、ステージを閉じれば消える", () => {
+  const store = newStore()
+  const { state, actions } = store
+  actions.split("s1")
+  store.setStageState("s1", "@x/a", { n: 1 })
+  store.setStageState("s1", "@x/b", { n: 2 })
+  store.setStageState("s2", "@x/a", { n: 3 })
+  store.setStageState("s9", "@x/a", { n: 4 })
+  expect(state.getState().stageStates).toEqual({ s1: { "@x/a": { n: 1 }, "@x/b": { n: 2 } }, s2: { "@x/a": { n: 3 } } })
+  store.setStageState("s1", "@x/a", undefined)
+  expect(state.getState().stageStates.s1).toEqual({ "@x/b": { n: 2 } })
+  actions.closeStage("s2")
+  expect(state.getState().stageStates).toEqual({ s1: { "@x/b": { n: 2 } } })
+})
