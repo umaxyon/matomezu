@@ -115,6 +115,12 @@ func (h *Hub) checkBooks(ids []string) error {
 	if err != nil {
 		return err
 	}
+	h.recordWarnings(ids, found)
+	return nil
+}
+
+// recordWarnings は、ブック ids を確かめた結果 found を一覧に持つ（変わった warning はログに書く。h.mu を持って呼ぶ）
+func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
 	before := map[string]string{}
 	for _, id := range ids {
 		if n, ok := h.bookWarnings[id]; ok {
@@ -128,7 +134,6 @@ func (h *Hub) checkBooks(ids []string) error {
 			fmt.Fprintln(os.Stderr, "warning:", n.Warning)
 		}
 	}
-	return nil
 }
 
 // BookWarnings は warning のあるブックの id → その warning
@@ -295,7 +300,7 @@ func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *stor
 		}
 	}
 	version, have, err := h.store.PutBook(id, body, base)
-	if errors.Is(err, storage.ErrConflict) || err != nil {
+	if err != nil {
 		return 0, have, err
 	}
 	if _, ok := h.books[id]; !ok {
@@ -304,9 +309,7 @@ func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *stor
 	h.books[id] = entry{body, version}
 	h.broadcast("book", map[string]any{"book": body, "version": version})
 	h.touch(id, stamp())
-	if err := h.checkBooks([]string{id}); err != nil {
-		return 0, nil, err
-	}
+	h.recordWarnings([]string{id}, found) // 書く前に確かめた結果をそのまま持つ（同じブックを確かめ直さない）
 	return version, nil, nil
 }
 
