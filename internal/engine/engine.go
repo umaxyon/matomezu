@@ -248,8 +248,8 @@ func (e *Engine) AISettings(settings json.RawMessage) (out json.RawMessage, err 
 	return json.RawMessage(e.settings(string(settings))), nil
 }
 
-// AICatalog は MCP 公開ツールの actions が返す物（アクションとアイテムなど） {"actions": [{"id", "target", "title", "args"}], "items": [{"id", "title", "size", "props"}]}。
-// args と props は JSON Schema
+// AICatalog は MCP 公開ツールの actions が返す物: アクション（{"id", "target", "title", "args"}）・アイテム（{"id", "title", "size", "props"}）・
+// ブックのタイプ・利用者の設定の項目・テーマ・言語パック・スキン・色・文字の色（作るのは web/src/engine/engine.ts の aiCatalog）。args と props は JSON Schema
 func (e *Engine) AICatalog() json.RawMessage {
 	e.mu.Lock()
 	defer e.mu.Unlock()

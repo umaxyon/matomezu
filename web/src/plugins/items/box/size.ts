@@ -33,7 +33,7 @@ export function vAlignOf(props: Pick<BoxProps, "vAlign" | "body">, hasChildren: 
   return hasChildren && v === "middle" ? "top" : v
 }
 
-// 箱の見た目の寸法（px）。BoxView.module.css と同じ値にする。文字の寸法は形で共通（shape の TEXT_LOOK）
+// 箱の見た目の寸法（px）。BoxView.module.css と同じ値にする。文字の寸法は形で共通（base の TEXT_LOOK）
 export const BOX_LOOK = { border: 1, ...TEXT_LOOK } as const
 
 const L = BOX_LOOK

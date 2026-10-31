@@ -1,4 +1,4 @@
-// ex5（文字を持たず、中身のフィールドが children でない形）で、監査 B1〜B3 を確かめる（themeProp の型は type-checks.ts）
+// ex5（文字を持たず、中身のフィールドが children でない形）で、自分の意味の theme の項目・文字を持たない形の幅・children でない中身のフィールドを確かめる（themeProp の型は type-checks.ts）
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { addPageIn, createBookIn, nextItemId, type PagedBook } from "matomezu"
@@ -65,23 +65,23 @@ test("自分の認可ステップ: 1 ページの札が 6 枚になると、そ�
   expect(page().items![0]!.tiles).toHaveLength(6)
 })
 
-test("B3: ビューの content に、中身のフィールド tiles の札が来る（children でなくても）", () => {
+test("ビューの content に、中身のフィールド tiles の札が来る（children でなくても）", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
   act(() => {
     instance.actions.perform("ex5:tile-add", { page: page().id, item, color: "#ff0000" }, on)
   })
   expect(document.querySelector("[data-ex5-tiles]")?.getAttribute("data-ex5-tiles")).toBe("1")
-  // 形のビューには、ステージの今の倍率も渡る（監査 B7）
+  // 形のビューには、ステージの今の倍率も渡る
   expect(document.querySelector("[data-ex5-tiles]")?.getAttribute("data-ex5-zoom")).toBe("1")
 })
 
-test("B1: 自分の意味の theme の項目（札の色合い）を持つ形を置ける", () => {
+test("自分の意味の theme の項目（札の色合い）を持つ形を置ける", () => {
   const { place } = shelf()
   expect(place({ theme: "cool" })).toMatchObject({ ok: true })
 })
 
-test("B2: 文字を持たない形は、caption の項目を変えても幅が変わらない", () => {
+test("文字を持たない形は、caption の項目を変えても幅が変わらない", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({ caption: "a" }, 100) as { result: { item: string } }).result.item
   act(() => {
@@ -96,7 +96,7 @@ test("B2: 文字を持たない形は、caption の項目を変えても幅が�
   expect(page().items![0]!.w).toBe(100)
 })
 
-test("B3: 次に置くアイテムの id は、中身のフィールド tiles の札の id とも重ならない", () => {
+test("次に置くアイテムの id は、中身のフィールド tiles の札の id とも重ならない", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
   let tile = ""

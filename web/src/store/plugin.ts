@@ -1,4 +1,4 @@
-// プラグイン: 1 つの部品の定義の組（ブックのタイプ・アイテム・アクション・テーマ・紙・コマンド・ダイアログ・キーの既定の割り当て）。React を使わない部分だけを持つ。
+// プラグイン: 1 つの部品の定義の組（定義の種類は core/catalog.ts の PARTS と、store の物（コマンド・ダイアログ・キーの既定の割り当てなど））。React を使わない部分だけを持つ。
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
 import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
