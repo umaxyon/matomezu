@@ -14,7 +14,7 @@ import { type AutoSkin, autoSkin } from "../core/skin"
 import { type Warning, warning } from "../core/warnings"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef, DialogTaking, PageSettingsArgs } from "./dialogs"
-import type { DefaultKey, KeyDef } from "./keys"
+import { type DefaultKey, type KeyDef, keyTable } from "./keys"
 
 // store 台帳の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
 declare module "../core/catalog" {
@@ -263,15 +263,17 @@ function performsWarnings(plugins: readonly Plugin[], catalog: CoreCatalog): War
 }
 
 // 追加プラグインの既定のキーで使わない行: ビルトインプラグインのキーがある（W008）・ほかの追加プラグインと同じキー（W009。両方使わない）
+// どの行を使わないかは、キーの割り当ての表（keyTable）と同じ決まりで決める
 function keyWarnings(keys: readonly DefaultKey[]): Warning[] {
-  const at = (k: DefaultKey) => `${k.binding.scope} ${k.binding.key}`
-  const builtin = new Set(keys.filter(k => k.builtin).map(at))
-  const added = keys.filter(k => !k.builtin)
-  return added.flatMap(k => {
-    const params = { key: k.binding.key, scope: k.binding.scope, command: k.binding.command }
-    if (builtin.has(at(k))) return [warning("W008", k.plugin, params)]
-    const other = added.find(o => o.plugin !== k.plugin && at(o) === at(k))
-    return other ? [warning("W009", k.plugin, { ...params, other: other.plugin })] : []
+  return keyTable(keys, { added: [], removed: [] }).dropped.flatMap(({ entry, reason }) => {
+    const { binding, plugin } = entry
+    if (plugin === null) return []
+    const params = { key: binding.key, scope: binding.scope, command: binding.command }
+    if (reason === "builtin") return [warning("W008", plugin, params)]
+    const other = keys.find(
+      o => !o.builtin && o.plugin !== plugin && o.binding.scope === binding.scope && o.binding.key === binding.key,
+    )
+    return reason === "plugins" && other ? [warning("W009", plugin, { ...params, other: other.plugin })] : []
   })
 }
 

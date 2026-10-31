@@ -179,6 +179,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   locate(address: Address): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setOffline(offline: boolean): void
+  // 今の利用者の設定でのキーの割り当ての表（作り直すのは利用者の変更が変わったときだけ。画面がキーの名前を出すのに使う）
+  keys(): KeyTable
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
   // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と error を返す
   use(
@@ -565,6 +567,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })
     },
+    keys: () => keysFor(getState().settings),
     use: (added, check) => {
       const failed: { id: string; error: unknown }[] = []
       let used: Plugin[] = []
