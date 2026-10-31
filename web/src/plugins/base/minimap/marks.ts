@@ -1,5 +1,6 @@
 // ミニマップに描く、ページのアイテムの絵（紙の座標）: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
 // つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角。
+// つなぐものは、紙が描いた絵（drawn.tsx）があればそれを使う。
 // アイテムを置かずに自分の見せ方で描くタイプ（ツリーなど）は、ブックのタイプの minimap がページの絵を決める
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
@@ -37,24 +38,35 @@ declare module "../../../core/catalog" {
 
 const rectMark = (r: Rect): MinimapMark => ({ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h })
 
-// タイプ type のブックのページ page の絵
+// タイプ type のブックのページ page の絵。drawn は、紙が描いたつなぐものの絵（種類の id ごと。無ければ定義の minimap で作る）
 export function minimapMarks(
   catalog: CoreCatalog,
   type: string,
   page: ItemPage,
   setting: (id: string) => unknown,
+  drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
 ): readonly MinimapMark[] {
   const own = bookType(catalog, type).minimap
-  return own ? own(catalog, page, setting) : itemMarks(catalog, page, setting)
+  return own ? own(catalog, page, setting) : itemMarks(catalog, page, setting, drawn)
 }
 
-function itemMarks(catalog: CoreCatalog, page: ItemPage, setting: (id: string) => unknown): MinimapMark[] {
+function itemMarks(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  setting: (id: string) => unknown,
+  drawn: (item: string) => readonly MinimapMark[] | undefined,
+): MinimapMark[] {
   const rects = rectsOf(catalog, page)
   const areas = portAreasOf(catalog, page, rects)
   const marks: MinimapMark[] = []
   const groups = new Map<string, PlacedConnector[]>()
   for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
   for (const [id, list] of groups) {
+    const shown = drawn(id)
+    if (shown) {
+      marks.push(...shown)
+      continue
+    }
     const def = catalog.items.get(id)
     if (def?.kind === "connector" && def.minimap) marks.push(...def.minimap(list as ConnectorData[], areas, setting))
   }
