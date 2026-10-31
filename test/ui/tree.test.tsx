@@ -711,6 +711,24 @@ test("根は F2・ダブルクリック・紙の右クリックの「ページ�
   expect(within(dialog).getByRole("button", { name: "ページを削除" })).toBeTruthy()
 })
 
+test("ツリーのページの設定の鍵でページをロックし、ロック中は削除を押せない。鍵を外して確定すればロックが外れる", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根" })
+  const open = () => {
+    act(() => store.actions.openDialog("s1", "@matomezu/tree:page-settings", { page: done.page }))
+    return screen.getByRole("dialog", { name: "ページの設定" })
+  }
+  let dialog = open()
+  fireEvent.click(within(dialog).getByRole("button", { name: "ページをロックする" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).toMatchObject({ locked: true })
+  dialog = open()
+  expect((within(dialog).getByRole("button", { name: "ページを削除" }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.click(within(dialog).getByRole("button", { name: "ページのロックを外す" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).not.toHaveProperty("locked")
+})
+
 test("ツリーのページの設定でも、選んでいる値で木が紙に入らなければ、確定の前から知らせを出して確定できない", () => {
   const { store, id } = setup()
   act(() => {

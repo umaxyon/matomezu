@@ -1,5 +1,5 @@
 // ロックの切り替えのボタン（設定のダイアログの見出しの右に置く）: 鍵のアイコンで今の値を見せ、押すと掛ける・外すを切り替える
-import { LockIcon } from "./LockIcon"
+import { LockIcon } from "../lock/LockIcon"
 import styles from "./LockToggle.module.css"
 
 export function LockToggle({
