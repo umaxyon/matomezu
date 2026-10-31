@@ -15,9 +15,10 @@ import {
   useShownBook,
 } from "../../../plugin-api/ui"
 import { type PortArea, portAreasOf } from "../../base"
+import { useDrawnMinimap } from "../../base/ui"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
-import { drawLines, type LineCache } from "./drawn"
+import { drawLines, type LineCache, newLineCache } from "./drawn"
 import type { Rect } from "./geom"
 import { LinesView } from "./LinesView"
 import { elbowAt, LINE } from "./line"
@@ -56,7 +57,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const lineDrag = useLineEdit(stage, catalog, localOf)
   // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角
   const memo = useRef(new Map<string, EndMemory>())
-  const cache = useRef<LineCache>(new Map())
+  const cache = useRef<LineCache>(newLineCache())
   const drawnRects = useRef<ReadonlyMap<string, Rect>>(new Map())
   // 離したあとに付け替えを見る線: 離したばかりの形につながる線
   const settle = new Set(
@@ -82,6 +83,14 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const only = stage.selection.length === 1 ? stage.selection[0] : undefined
   // つまむ印を出す線: 直せるときの、1 本だけ選んでいる線
   const editing = selectable && lineDrag.editable && only && drafted.some(l => l.id === only) ? only : null
+
+  // ミニマップの線は、紙に描いた点の並びで描かせる（形を動かしている間は置き直さない。ミニマップの形も、離すまで動かないため）
+  useDrawnMinimap(
+    stage.id,
+    LINE.id,
+    page.id,
+    scene.busy ? null : lines.map(d => ({ kind: "polyline", points: d.points })),
+  )
 
   // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
   useLayoutEffect(() => {
