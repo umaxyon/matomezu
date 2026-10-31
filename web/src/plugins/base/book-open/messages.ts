@@ -28,4 +28,8 @@ export const BOOK_OPEN_MESSAGES = defineMessages({
     ja: "ゴミ箱のブックが全部、完全に消えます",
   },
   "Some parts cannot be shown": { en: "Some parts cannot be shown", ja: "一部表示できない物があります" },
+  "Search books": { en: "Search books", ja: "ブックを探す" },
+  "Search by book name": { en: "Search by book name", ja: "ブックの名前で探す" },
+  Books: { en: "Books", ja: "ブック" },
+  "No matching books": { en: "No matching books", ja: "当てはまるブックはありません" },
 })

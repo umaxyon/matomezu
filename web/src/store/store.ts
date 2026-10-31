@@ -83,13 +83,6 @@ export interface Toast {
   message: MessageKey
   params?: Params
 }
-// トーストを出しておく時間（ms）。null は時間では消さない
-export const TOAST_MS: Readonly<Record<Toast["kind"], number | null>> = {
-  info: 3500,
-  success: 3500,
-  warn: 7000,
-  error: null,
-}
 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
 export type PerformArgs<Id extends ActionId> =
