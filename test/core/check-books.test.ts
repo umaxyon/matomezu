@@ -52,3 +52,26 @@ test("機能台帳に無いアイテムと設定の項目は、ブックを読�
   }
   expect(checkBooks(CORE_CATALOG, [unselected, misfit]).warnings.map(n => n.code)).toEqual(["W005", "W005"])
 })
+
+test("子の形の中にある機能台帳に無いアイテムも W007 に出す（どの深さでも）", () => {
+  const ok = SAMPLE_BOOKS[0]!
+  const star = { id: "s", item: "@foo/stars:star", x: 4, y: 4, props: { points: 5 } }
+  const moon = { id: "m", item: "@foo/stars:moon", x: 4, y: 4, props: {} }
+  const nest = (id: string, shapes: object[]) => ({
+    id,
+    item: "@matomezu/box:shape-nest-box",
+    x: 10,
+    y: 10,
+    w: 300,
+    h: 200,
+    props: {},
+    shapes,
+  })
+  const page = { id: "p1", title: "P", paper: "@matomezu/base:a4", orientation: "landscape" as const }
+  const book = { ...ok, id: "z1", title: "入れ子", pages: [{ ...page, items: [nest("a", [star, nest("b", [moon])])] }] }
+  const done = checkBooks(CORE_CATALOG, [book])
+  expect(done.books).toHaveLength(1)
+  expect(done.partial.map(warningText)).toEqual([
+    "W007 @foo/stars: book z1 (入れ子): it has @foo/stars:star, @foo/stars:moon, not in the catalog (kept as they are)",
+  ])
+})
