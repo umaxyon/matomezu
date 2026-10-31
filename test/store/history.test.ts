@@ -161,3 +161,23 @@ test("continueStep のあとに同じ処理で行ったアクションは、そ�
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(0)
 })
+
+test("いくつものブックを変えた画面の履歴の段は、途中のブックが断られたら、置き直したブックも元に戻し、画面の履歴の段は残る", async () => {
+  const store = ready()
+  const placeIn = (book: string) =>
+    store.actions.perform(
+      "@matomezu/paper:item-place",
+      { page: "p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+      { book },
+    )
+  placeIn("b1")
+  placeIn("b2")
+  await settled()
+  expect(Object.keys(historyOf(store)!.undo[0]!.books)).toEqual(["b1", "b2"])
+  store.actions.perform("@matomezu/base:page-lock", { page: "p1" }, { book: "b2" })
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn", message: "@matomezu/base:Locked" })
+  expect(itemsOf(store)).toHaveLength(1)
+  expect((bookOf(store, "b2").pages[0]?.items ?? []).length).toBe(1)
+  expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
+})
