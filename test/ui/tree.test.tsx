@@ -402,9 +402,9 @@ test("F2 かダブルクリックで、選んでいる子の節をその場で�
   expect(within(paper()).queryByRole("textbox")).toBeNull()
 })
 
-test("認可ステップが節を足す・書き換えるのを止めていれば、＋を出さず、ダブルクリックでも書き始めない", () => {
+// 認可ステップがアクション stopped を止めるプラグインを入れて開く
+function frozen(stopped: readonly string[]) {
   const kit = pluginKit("@ex/freeze", defineMessages({ freeze: { en: "Frozen", ja: "凍結" } }))
-  const stopped = ["@matomezu/tree:node-add", "@matomezu/tree:node-update", "@matomezu/tree:node-move"]
   const freeze = definePluginUi(
     kit.plugin({
       permissions: [
@@ -418,13 +418,25 @@ test("認可ステップが節を足す・書き換えるのを止めていれ�
     }),
     {},
   )
-  const { store, id } = setup([...BUILTIN_UI, freeze])
+  return setup([...BUILTIN_UI, freeze])
+}
+
+test("認可ステップが節を足す・書き換えるのを止めていれば、＋を出さず、ダブルクリックでも書き始めない", () => {
+  const { store, id } = frozen(["@matomezu/tree:node-add", "@matomezu/tree:node-update", "@matomezu/tree:node-move"])
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
   const a = done.fields!.root.children[0]!.id
   const paper = () => screen.getByRole("img", { name: "紙" })
   expect(within(paper()).queryAllByRole("button")).toHaveLength(0)
   fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
   expect(within(paper()).queryByRole("textbox")).toBeNull()
+})
+
+test("認可ステップが節とページの書き換えを止めていれば、F2 のコマンドは押せず、書き始めない", () => {
+  const { store, id } = frozen(["@matomezu/tree:node-update", "@matomezu/base:page-update"])
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  act(() => store.actions.select("s1", [done.fields!.root.children[0]!.id]))
+  fireEvent.keyDown(window, { key: "F2" })
+  expect(within(screen.getByRole("img", { name: "紙" })).queryByRole("textbox")).toBeNull()
 })
 
 test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足して、空のキャプションから書き始める。根では Enter で兄弟を足さない", () => {
