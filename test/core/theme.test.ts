@@ -5,8 +5,11 @@ import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineTheme, THEME_TOKENS, themeVar, tokenVarName } from "../../web/src/core/def/theme"
 import { resolveTokens, shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
+import { FILE_COLOR, FOLDER_COLOR } from "../../web/src/plugins/books/dir/dir"
+import { NODE_FILL } from "../../web/src/plugins/books/tree/tree"
+import { LIST_FILL } from "../../web/src/plugins/items/list/list"
 import { ownTokenVars, themeVars } from "../../web/src/ui/theme-vars"
-import { BUILTIN_PARTS } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 test("テーマキーの値は、色 1 つか片方だけなら明暗どちらでもその色、両方なら明暗ごとの色", () => {
   expect(shades("#fff")).toEqual({ light: "#fff", dark: "#fff" })
@@ -90,3 +93,9 @@ const dirOf = (id: string) =>
     "@matomezu/shape": "web/src/plugins/items/shape",
     "@matomezu/data": "web/src/plugins/items/data",
   })[id.split(":")[0]!] ?? "web/src/plugins/none"
+
+test("色の候補に使うテーマキーの定義（ダイアログが持つ物）は長い id で宣言し、テーマが上書きした値を引ける", () => {
+  for (const def of [LIST_FILL, NODE_FILL, FILE_COLOR, FOLDER_COLOR]) expect(def.id.startsWith("@matomezu/")).toBe(true)
+  // matomezu のテーマはフォルダのアイコンを琥珀色に上書きする
+  expect(resolveTokens(CORE_CATALOG, "@matomezu/base:matomezu", [FOLDER_COLOR])[FOLDER_COLOR.id]?.light).toBe("#f5a623")
+})
