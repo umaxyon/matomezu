@@ -2,7 +2,6 @@
 // 行ごとに戻すボタン（book-restore）と消すボタン（book-purge。上に重ねたモーダルで確かめてから。戻せないため）、
 // 上の行にゴミ箱を空にするボタン（trash-empty。同じく確かめる）
 import { useState } from "react"
-import { bookTitle } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { Confirm } from "../dialog-host/Confirm"
@@ -10,6 +9,7 @@ import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
+import { bookTitle } from "./book-title"
 import { BOOK_PURGE, BOOK_RESTORE, TRASH_EMPTY, trashOrder } from "./book-trash"
 
 export function TrashList() {

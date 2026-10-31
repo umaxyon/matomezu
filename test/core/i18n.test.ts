@@ -3,8 +3,8 @@ import { detectLang, translate } from "../../web/src/core/i18n/i18n"
 import { CORE_CATALOG } from "../support"
 
 test("英語は鍵のまま、ほかの言語は表の訳を出し、{name} を値で置き換える", () => {
-  expect(translate(CORE_CATALOG.messages, "en", "Page {n}", { n: 3 })).toBe("Page 3")
-  expect(translate(CORE_CATALOG.messages, "ja", "Page {n}", { n: 3 })).toBe("ページ 3")
+  expect(translate(CORE_CATALOG.messages, "en", "@matomezu/base:Page {n}", { n: 3 })).toBe("Page 3")
+  expect(translate(CORE_CATALOG.messages, "ja", "@matomezu/base:Page {n}", { n: 3 })).toBe("ページ 3")
   expect(translate(CORE_CATALOG.messages, "ja", "@matomezu/base:Split screen")).toBe("画面を分割")
 })
 
@@ -16,8 +16,8 @@ test("訳の中の {name} は、英語の鍵と同じものを使う", () => {
 })
 
 test("訳の無い言語と表に無い鍵は、英語の鍵をそのまま出す", () => {
-  expect(translate(CORE_CATALOG.messages, "fr", "Page {n}", { n: 2 })).toBe("Page 2")
-  expect(translate(new Map(), "ja", "Page {n}", { n: 2 })).toBe("Page 2")
+  expect(translate(CORE_CATALOG.messages, "fr", "@matomezu/base:Page {n}", { n: 2 })).toBe("Page 2")
+  expect(translate(new Map(), "ja", "@matomezu/base:Page {n}", { n: 2 })).toBe("@matomezu/base:Page 2")
 })
 
 test("好む言語の並びから、インスタンスにある最初の言語を選ぶ。無ければ英語", () => {

@@ -37,19 +37,6 @@ export const LANGUAGES: readonly LanguagePackDef[] = [
 
 // 土台（core・store・ui）が使う文言
 export const MESSAGES = defineMessages({
-  "Add page": { ja: "ページを足す" },
-  "Page {n}": { ja: "ページ {n}" },
-  Stage: { ja: "ステージ" },
-  "Select a book": { ja: "ブックを選択してください" },
-  "Search books": { ja: "ブックを探す" },
-  "Search by book name": { ja: "ブックの名前で探す" },
-  Books: { ja: "ブック" },
-  "No matching books": { ja: "当てはまるブックはありません" },
-  Portrait: { ja: "縦" },
-  Landscape: { ja: "横" },
-  "Book menu": { ja: "ブックのメニュー" },
-  Tools: { ja: "ツール" },
-  Menu: { ja: "メニュー" },
   "An edit could not be saved": { ja: "編集を反映できませんでした" },
 })
 
