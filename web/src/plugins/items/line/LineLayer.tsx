@@ -18,7 +18,7 @@ import { type PortArea, portAreasOf } from "../../base"
 import { useDrawnMinimap } from "../../base/ui"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
-import { drawLines, type LineCache } from "./drawn"
+import { drawLines, type LineCache, newLineCache } from "./drawn"
 import type { Rect } from "./geom"
 import { LinesView } from "./LinesView"
 import { elbowAt, LINE } from "./line"
@@ -57,7 +57,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const lineDrag = useLineEdit(stage, catalog, localOf)
   // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角
   const memo = useRef(new Map<string, EndMemory>())
-  const cache = useRef<LineCache>(new Map())
+  const cache = useRef<LineCache>(newLineCache())
   const drawnRects = useRef<ReadonlyMap<string, Rect>>(new Map())
   // 離したあとに付け替えを見る線: 離したばかりの形につながる線
   const settle = new Set(
