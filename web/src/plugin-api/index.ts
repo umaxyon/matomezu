@@ -58,6 +58,7 @@ export {
   connectorsOf,
   findShape,
   pageItemsOf,
+  replaceShape,
   shapeSchema,
   shapesOf,
   walkShapes,
