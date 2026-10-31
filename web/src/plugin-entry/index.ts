@@ -67,7 +67,6 @@ export {
   removeItems,
   replaceChild,
   replacePushing,
-  replaceShape,
   replaceShapePushing,
   resizedBy,
   settingValue,
