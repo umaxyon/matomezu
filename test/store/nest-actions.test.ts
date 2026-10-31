@@ -233,3 +233,25 @@ test("縦の位置が下の内包ボックスは、子の領域が上から始�
   expect(run(store, "@matomezu/paper:item-update", { item: a, props: { vAlign: null } }).ok).toBe(true)
   expect(at(store, b)!.shape.y).toBe(top)
 })
+
+test("内包ボックスの中のリストにも、行のアクションが効く（足す・変える・チェック・動かす・消す）", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 40, y: 40 }, w: 400, h: 300 })!
+  const l = place(store, { item: LIST, at: { x: 0, y: 0 }, parent: a, w: 240, h: 120, props: { checklist: true } })!
+  type Row = { id: string; props: { caption: string; checked?: boolean } }
+  const rows = () => (at(store, l)!.shape as { children?: Row[] }).children ?? []
+  const added = run(store, "@matomezu/list:row-add", { list: l, props: { caption: "牛乳" } })
+  expect(added.ok).toBe(true)
+  run(store, "@matomezu/list:row-add", { list: l, props: { caption: "卵" } })
+  const [milk, egg] = rows().map(r => r.id)
+  expect(run(store, "@matomezu/list:row-update", { list: l, row: egg, props: { caption: "卵 6 個" } }).ok).toBe(true)
+  expect(run(store, "@matomezu/list:row-check", { list: l, row: milk, checked: true }).ok).toBe(true)
+  expect(run(store, "@matomezu/list:row-move", { list: l, row: egg, before: milk }).ok).toBe(true)
+  expect(rows().map(r => [r.props.caption, r.props.checked === true])).toEqual([
+    ["卵 6 個", false],
+    ["牛乳", true],
+  ])
+  expect(run(store, "@matomezu/list:row-remove", { list: l, rows: [milk] }).ok).toBe(true)
+  expect(rows().map(r => r.props.caption)).toEqual(["卵 6 個"])
+  expect(at(store, l)?.parent).toBe(a)
+})

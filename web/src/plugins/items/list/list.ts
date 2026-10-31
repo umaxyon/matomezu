@@ -27,7 +27,7 @@ export const ListRowSchema = z.strictObject({ id: z.string().min(1), item: z.lit
 export type ListRow = z.infer<typeof ListRowSchema>
 
 // リストの塗りのテーマキー（行のカードの地。色の見本の「なし」もこの色）
-export const LIST_FILL = { id: "list-fill", fallback: "fill" } as const
+export const LIST_FILL = { id: kit.name("list-fill"), fallback: "fill" } as const
 
 // リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
 export const LIST_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "list-add" })

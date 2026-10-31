@@ -10,7 +10,7 @@ import { freshId } from "./ids"
 import { splitId } from "./names"
 import type { PaperChoice, PaperRule } from "./paper"
 import { holds } from "./perform"
-import type { ItemPage } from "./placed"
+import { type ItemPage, walkShapes } from "./placed"
 import type { Book, Page } from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
@@ -49,7 +49,7 @@ export function checkBooks(
   return { books, warnings, partial }
 }
 
-// ブックが持つ、機能台帳に無いアイテムと設定の項目の id（重ねずに、見つけた順）
+// ブックが持つ、機能台帳に無いアイテム（どの深さの子の形も）と設定の項目の id（重ねずに、見つけた順）
 function missingIn(catalog: CoreCatalog, book: Book): string[] {
   const found = new Set<string>()
   const settingsOf = (o: object) => Object.keys((o as { settings?: object }).settings ?? {})
@@ -57,6 +57,7 @@ function missingIn(catalog: CoreCatalog, book: Book): string[] {
   for (const page of "pages" in book ? (book.pages as readonly ItemPage[]) : []) {
     for (const k of settingsOf(page)) if (!catalog.settings.has(k)) found.add(k)
     for (const i of page.items ?? []) if (!catalog.items.has(i.item)) found.add(i.item)
+    for (const { shape } of walkShapes(page)) if (!catalog.items.has(shape.item)) found.add(shape.item)
   }
   return [...found]
 }
