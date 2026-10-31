@@ -18,6 +18,7 @@ import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
 import { keepsPan, panningTool } from "../tool-switch/tools"
 import { ZOOM_WHEEL } from "../zoom"
+import { drawnOn, useDrawnTable } from "./drawn"
 import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
 import { type MinimapMark, minimapMarks } from "./marks"
@@ -49,9 +50,13 @@ export function MinimapView({
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
   const vars = useMemo(() => (book ? themeVars(bookTokens(catalog, book)) : undefined), [catalog, book])
+  const drawn = useDrawnTable(id)
   const marks = useMemo(
-    () => (book && page ? minimapMarks(catalog, book.type, page, settingsAt(catalog, book, page)) : []),
-    [catalog, book, page],
+    () =>
+      book && page
+        ? minimapMarks(catalog, book.type, page, settingsAt(catalog, book, page), item => drawnOn(drawn, item, page.id))
+        : [],
+    [catalog, book, page, drawn],
   )
   const wheel = useCommand(id, ZOOM_WHEEL.id)
   const wheelRef = useRef(wheel)

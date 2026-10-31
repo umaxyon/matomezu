@@ -22,9 +22,18 @@ import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { toPaper } from "../core/stage"
 import { type StageView, stageView, toolOf } from "../core/workspace"
+import type { PluginKit } from "../store/kit"
 import type { Performed } from "../store/store"
 import type { UiCatalog } from "./plugin"
-import { useActions, useCatalog, useHome, useMatomezuState, useReadState, useUiCatalog as useUi } from "./store-context"
+import {
+  useActions,
+  useCatalog,
+  useHome,
+  useInstance,
+  useMatomezuState,
+  useReadState,
+  useUiCatalog as useUi,
+} from "./store-context"
 
 // そのステージが開いているブック（何も開いていなければ null）
 export function useBook(stage: string): Book | null {
@@ -136,6 +145,28 @@ export function useStage(stage: string): StageView | null {
   )
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage, s.books))
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
+}
+
+// 画面の状態の置き場の持ち主（プラグインの kit。kit の id の置き場を使う。id だけの物は受けない）
+// biome-ignore lint/suspicious/noExplicitAny: どのプラグインの kit も受ける（文言の表の型は見ない）
+type Owner = PluginKit<string, any>
+
+// プラグインが持つ、ステージ stage の画面の状態（無ければ undefined）。自分の kit を渡し、自分の置き場だけを読む。置き直すたびに描き直す
+export const useStageState = (stage: string, kit: Owner): unknown =>
+  useMatomezuState(s => s.stageStates[stage]?.[kit.id])
+
+// プラグインが持つステージの画面の状態を、描き直さずに読む関数（置いた側が、前に置いた値と比べるときなど）
+export function useReadStageState(kit: Owner): (stage: string) => unknown {
+  const read = useReadState()
+  const { id } = kit
+  return useCallback(stage => read().stageStates[stage]?.[id], [read, id])
+}
+
+// プラグインが持つ、ステージの画面の状態を変える関数（undefined なら消す。無いステージには置かない）
+export function useSetStageState(kit: Owner): (stage: string, value: unknown) => void {
+  const { setStageState } = useInstance()
+  const { id } = kit
+  return useCallback((stage, value) => setStageState(stage, id, value), [setStageState, id])
 }
 
 // そのステージの紙をずらす量（無いステージなら null）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
