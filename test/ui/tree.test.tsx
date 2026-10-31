@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { z } from "zod"
+import { defineMessages } from "../../web/src/core/i18n/messages"
 import { toolsIn } from "../../web/src/core/tools"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { fieldsArgs } from "../../web/src/plugins/base/page-tabs/page-fields"
@@ -9,14 +10,16 @@ import { keepsPan } from "../../web/src/plugins/base/tool-switch/tools"
 import { layoutTree } from "../../web/src/plugins/books/tree/layout"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
+import { pluginKit } from "../../web/src/store/kit"
+import { type AnyPluginUi, definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { writeRich } from "./rich-input"
 
 afterEach(cleanup)
 
-function setup() {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI })
+function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
+  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins, partial: true })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -396,6 +399,31 @@ test("F2 かダブルクリックで、選んでいる子の節をその場で�
   writeRich(input, "子 B")
   fireEvent.keyDown(input, { key: "Escape" })
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+})
+
+test("認可ステップが節を足す・書き換えるのを止めていれば、＋を出さず、ダブルクリックでも書き始めない", () => {
+  const kit = pluginKit("@ex/freeze", defineMessages({ freeze: { en: "Frozen", ja: "凍結" } }))
+  const stopped = ["@matomezu/tree:node-add", "@matomezu/tree:node-update", "@matomezu/tree:node-move"]
+  const freeze = definePluginUi(
+    kit.plugin({
+      permissions: [
+        kit.definePermission({
+          id: "freeze",
+          title: "freeze",
+          aiDescription: "the tree is frozen",
+          denies: ({ action }) => stopped.includes(action.id),
+        }),
+      ],
+    }),
+    {},
+  )
+  const { store, id } = setup([...BUILTIN_UI, freeze])
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  const a = done.fields!.root.children[0]!.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  expect(within(paper()).queryAllByRole("button")).toHaveLength(0)
+  fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
   expect(within(paper()).queryByRole("textbox")).toBeNull()
 })
 
