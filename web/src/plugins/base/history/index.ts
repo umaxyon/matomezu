@@ -49,22 +49,28 @@ export const HISTORY_RESTORE = kit.defineAction({
 // 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとも残る最初のページ
 const pageOf = (args: RestoreArgs): string | undefined => args.pages.find(p => !("page" in p) || p.page !== null)?.id
 
-// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ、画面の履歴の段は動かさない
+// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ、画面の履歴の段は動かさない。
+// いくつものブックを変えた画面の履歴の段で途中のブックが断られたら、置き直したブックを元に戻す（どのブックも画面の履歴の段のとおりのまま）
 function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
   const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
   const opened = ctx.stage.opened
   if (!step || !opened) return
+  const done: { book: string; args: RestoreArgs; back: RestoreArgs }[] = []
   for (const [book, { before, after }] of Object.entries(step.books)) {
-    const args = from === "undo" ? restoreArgs(after, before) : restoreArgs(before, after)
-    const done = a.perform(HISTORY_RESTORE.id, args, { book })
-    if (!done.ok) {
+    const [was, to] = from === "undo" ? [after, before] : [before, after]
+    const args = restoreArgs(was, to)
+    const result = a.perform(HISTORY_RESTORE.id, args, { book })
+    if (!result.ok) {
+      for (const d of done.reverse()) a.perform(HISTORY_RESTORE.id, d.back, { book: d.book })
       const fallback = from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo")
-      a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, fallback) })
+      a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, result, fallback) })
       return
     }
-    const page = book === opened.book ? pageOf(args) : undefined
-    if (page && page !== opened.page) a.openPage(ctx.stage.id, page)
+    done.push({ book, args, back: restoreArgs(to, was) })
   }
+  const shown = done.find(d => d.book === opened.book)
+  const page = shown && pageOf(shown.args)
+  if (page && page !== opened.page) a.openPage(ctx.stage.id, page)
   a.moveHistory(opened.book, from)
 }
 
