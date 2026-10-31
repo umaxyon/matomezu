@@ -1,10 +1,13 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { StrictMode } from "react"
+import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
+import { pluginKit } from "../../web/src/store/kit"
 import type { StoreOptions } from "../../web/src/store/store"
+import { definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
@@ -329,6 +332,38 @@ test("ページの設定のダイアログの「ページを削除」は、確�
   fireEvent.click(within(open()).getByRole("button", { name: "削除" }))
   expect(screen.queryByRole("dialog")).toBeNull()
   expect(pages()).toBe(before - 1)
+})
+
+test("認可ステップがページの削除を止めていれば、ページの設定のダイアログの「ページを削除」は押せない", () => {
+  const kit = pluginKit("@ex/keep", defineMessages({ keep: { en: "Keep pages", ja: "ページを残す" } }))
+  const keep = definePluginUi(
+    kit.plugin({
+      permissions: [
+        kit.definePermission({
+          id: "keep",
+          title: "keep",
+          aiDescription: "pages are kept",
+          denies: ({ action }) => action.id === "@matomezu/base:page-remove",
+        }),
+      ],
+    }),
+    {},
+  )
+  const store = createMatomezu({
+    home: "@matomezu/master:master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    plugins: [...BUILTIN_UI, keep],
+    partial: true,
+  })
+  render(
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
+      <Screen />
+    </MatomezuProvider>,
+  )
+  fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "ページの設定" }))
+  expect((screen.getByRole("button", { name: "ページを削除" }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 test("右クリックのメニューは、外を押すか Escape で閉じる", () => {
