@@ -10,7 +10,14 @@ import type { Point } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { deniedBy, inspect } from "../core/inspect"
 import type { ArgsOf } from "../core/perform"
-import { findShape, type ItemPage, type PlacedItem, type PlacedOf } from "../core/placed"
+import {
+  findShape,
+  type ItemPage,
+  type PlacedItem,
+  type PlacedOf,
+  type PlacedShape,
+  replaceShape,
+} from "../core/placed"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { toPaper } from "../core/stage"
@@ -83,17 +90,12 @@ export function useShownPage(stage: string): ItemPage | null {
     if (!page || !preview || preview.book !== book) return page
     if (preview.item === undefined)
       return preview.page === (page as { id?: string }).id ? withSettings(page, preview.props) : page
-    if (!page.items) return page
-    const items = page.items.map(i =>
-      i.id === preview.item
-        ? ({
-            ...i,
-            props: { ...(i.props as object), ...preview.props },
-            ...preview.content,
-          } as PlacedItem)
-        : i,
-    )
-    return { ...page, items }
+    // ページのアイテムか、どの深さの子の形も
+    const shown = (i: PlacedItem): PlacedItem =>
+      ({ ...i, props: { ...(i.props as object), ...preview.props }, ...preview.content }) as PlacedItem
+    const top = page.items?.find(i => i.id === preview.item)
+    if (top) return { ...page, items: (page.items ?? []).map(i => (i === top ? shown(i) : i)) }
+    return replaceShape(page, preview.item, s => shown(s) as PlacedShape) ?? page
   }, [page, book, preview])
 }
 
