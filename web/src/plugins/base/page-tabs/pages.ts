@@ -9,7 +9,7 @@ import type { PaperChoice, PaperRule } from "../../../core/paper"
 import type { Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
-import { extentOf, paperSize } from "../place/items"
+import { extentOf, pageArea } from "../place/items"
 
 function pagesRule(catalog: CoreCatalog, book: PagedBook) {
   const rule = bookType(catalog, book.type).pages
@@ -66,14 +66,14 @@ export function nextPageTitle(catalog: CoreCatalog, book: PagedBook, lang: Lang)
   return translate(catalog.messages, lang, kit.message("Page {n}"), { n: book.pages.length + 1 })
 }
 
-// ブック book のページ page の形が紙に収まるか（伸びるページは、伸びる向きに印刷区画を増やして広がるので見ない）
+// ブック book のページ page の形が、ページの広さに収まるか（伸びるページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）
 export function shapesFit(catalog: CoreCatalog, book: PagedBook, page: string): boolean {
   const found = book.pages.find(p => p.id === page)
-  if (!found || found.grows) return true
-  const size = paperSize(catalog, found)
+  if (!found) return true
+  const area = pageArea(catalog, book, found)?.size
   const extent = extentOf(catalog, found, settingsAt(catalog, book, found))
   return (
     !extent ||
-    (!!size && extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= size.w && extent.y + extent.h <= size.h)
+    (!!area && extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= area.w && extent.y + extent.h <= area.h)
   )
 }

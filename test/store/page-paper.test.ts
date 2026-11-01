@@ -5,9 +5,10 @@ import { defineBookType } from "../../web/src/core/def/book-type"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
+import { DRAWING } from "../../web/src/plugins/books/drawing/drawing"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
-import { newStore } from "../support"
+import { newStore, sequence } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
 
@@ -88,4 +89,43 @@ test("伸びられるタイプのページは、作るときもあとからも�
   expect(perform("@matomezu/base:page-update", { page: "n2", paper: "@matomezu/base:a4" }, { book: "n1" }).ok).toBe(
     false,
   )
+})
+
+// 下へだけ伸びられる、形を置くタイプの見本（図面のブックのタイプを借りる）
+const SCROLL = defineBookType({
+  ...DRAWING,
+  id: "notes:scroll",
+  schema: z.strictObject({ type: z.literal("notes:scroll"), id: z.string().min(1) }),
+  create: init => ({ type: "notes:scroll" as const, ...init, pages: [] }),
+  pages: { paper: { ...DRAWING.pages.paper, grow: "down" } },
+})
+
+test("伸びるページは、伸びない向き（下へだけ伸びるなら横）だけ紙 1 枚に収まればよい。伸びるのをやめるのは、形が紙 1 枚に入るときだけ", () => {
+  const instance = createMatomezu({
+    plugins: [...BUILTIN, definePlugin({ id: "notes", bookTypes: [SCROLL] })],
+    partial: true,
+    home: "@matomezu/master:master",
+    newId: sequence(),
+  })
+  const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
+  expect(createBookIn(instance, "s1", { title: "巻物", type: "notes:scroll" as never })).toBe(true)
+  const book = Object.keys(instance.state.getState().books).find(id => id !== "@matomezu/master:master") as string
+  const pages = () => (instance.state.getState().books[book] as unknown as { pages: { id: string }[] }).pages
+  expect(perform("@matomezu/base:page-add", { title: "p", orientation: "portrait", grows: true }, { book }).ok).toBe(
+    true,
+  )
+  const page = pages()[0]?.id as string
+  const place = (x: number, y: number) =>
+    perform("@matomezu/paper:item-place", { page, item: "@matomezu/box:shape-nest-box", at: { x, y } }, { book }).ok
+  const update = (args: object) => perform("@matomezu/base:page-update", { page, ...args }, { book }).ok
+  // A4 縦（794×1123）の下の方の箱は、A5 縦（559×794）の高さを越えるが、下へ伸びるので入る
+  expect(place(40, 900)).toBe(true)
+  expect(update({ paper: "@matomezu/base:a5" })).toBe(true)
+  // 伸びるのをやめると、A5 1 枚には入らない
+  expect(update({ grows: false })).toBe(false)
+  expect(update({ paper: "@matomezu/base:a4", grows: false })).toBe(true)
+  // 横に寄った箱は、下へだけ伸びるページでも横は紙 1 枚に収める
+  expect(update({ grows: true })).toBe(true)
+  expect(place(600, 40)).toBe(true)
+  expect(update({ paper: "@matomezu/base:a5" })).toBe(false)
 })
