@@ -97,7 +97,7 @@ const split = (book: string) => `?b0=${book}&p0=${PAGE}&v0=1,0,0&b1=${book}&p1=$
 for (const n of COUNTS) {
   test(`描き方: 箱 ${n}・線 ${n - 1}`, async ({ browser, request }) => {
     const id = `perf-${n}`
-    const put = await request.put(`/api/books/${id}`, { data: { book: gridBook(id, n), base: 0 } })
+    const put = await request.put(`/api/books-for-test/${id}`, { data: { book: gridBook(id, n), base: 0 } })
     expect(put.ok()).toBe(true)
     const items = n + n - 1
 
@@ -141,7 +141,7 @@ for (const o of OTHERS)
   for (const n of COUNTS) {
     test(`描き方: ${o.name} ${n}`, async ({ browser, request }) => {
       const id = `${o.id}-${n}`
-      const put = await request.put(`/api/books/${id}`, { data: { book: o.make(id, n), base: 0 } })
+      const put = await request.put(`/api/books-for-test/${id}`, { data: { book: o.make(id, n), base: 0 } })
       expect(put.ok()).toBe(true)
 
       const single = await browser.newPage()

@@ -486,3 +486,69 @@ test("拡張ポイントへの書き足しは、base は短い名前、ほかの
   expect(owners.some(({ f }) => augmented(f.text).some(a => EXTRAS.has(a.name)))).toBe(true)
   expect(bad).toEqual([])
 })
+
+// テストの用意の手段（名前が ForTest で終わる物と、Go のビルドタグ e2e）は、テスト（test/・e2e/・e2e の常駐を作るスクリプト）の外から使わない
+describe("テストの用意の手段", () => {
+  const goUnder = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+      e.isDirectory() ? goUnder(join(dir, e.name)) : e.name.endsWith(".go") ? [join(dir, e.name)] : [],
+    )
+  const goAll = ["cmd", "internal"]
+    .flatMap(d => goUnder(join(ROOT, d)))
+    .map(path => ({ rel: relative(ROOT, path), text: readFileSync(path, "utf8") }))
+  const tagged = (text: string, tag: string) => new RegExp(`^//go:build ${tag}$`, "m").test(text)
+  const goFiles = goAll.filter(f => !f.rel.endsWith("_test.go"))
+  const e2eFiles = goFiles.filter(f => tagged(f.text, "e2e"))
+  const offFiles = goFiles.filter(f => tagged(f.text, "!e2e"))
+  const funcsOf = (text: string) =>
+    new Map(
+      [...text.matchAll(/^func (?:\([^)]*\) )?(\w+)\(.*\}$|^func (?:\([^)]*\) )?(\w+)\([\s\S]*?^}$/gm)].map(m => [
+        m[1] ?? m[2]!,
+        m[0],
+      ]),
+    )
+  // 本番の実行ファイルで空になる関数（ビルドタグ !e2e のファイルに置き、同じ名前の中身を e2e のファイルに置く）は、本番のコードから呼んでよい
+  const stubs = new Set(offFiles.flatMap(f => [...f.text.matchAll(/^func (\w+ForTest)\(/gm)].map(m => m[1]!)))
+
+  test("本番のコード（web/src と、e2e のタグの付かない Go のファイル）に、ForTest で終わる名前と for-test のパスを書かない（!e2e の空の関数を呼ぶのは除く）", () => {
+    expect(goFiles.length).toBeGreaterThan(0)
+    const named = (text: string) => [...text.matchAll(/\w+ForTest\b|for-test/g)].some(m => !stubs.has(m[0]))
+    const plain = goFiles.filter(f => !tagged(f.text, "e2e") && !tagged(f.text, "!e2e"))
+    expect([
+      ...sources.filter(f => /\w+ForTest\b|for-test/.test(f.text)).map(f => `web/src/${f.rel}`),
+      ...plain.filter(f => named(f.text)).map(f => f.rel),
+    ]).toEqual([])
+  })
+
+  test("ビルドタグ !e2e のファイルには、中身の無い ForTest の関数だけを置き、同じ名前の関数を e2e のファイルに置く", () => {
+    const inE2e = new Set(e2eFiles.flatMap(f => [...funcsOf(f.text).keys()]))
+    expect(
+      offFiles.flatMap(f =>
+        [...funcsOf(f.text)]
+          .filter(([name, text]) => !name.endsWith("ForTest") || !text.endsWith("{}") || !inE2e.has(name))
+          .map(([name]) => `${f.rel}: ${name}`),
+      ),
+    ).toEqual([])
+    expect(offFiles.filter(f => /for-test/.test(f.text.replace(/^\/\/.*$/gm, ""))).map(f => f.rel)).toEqual([])
+  })
+
+  test("ビルドタグ e2e を付けて組むのは、e2e の常駐を作るスクリプトだけ", () => {
+    const scripts = filesUnder(join(ROOT, "scripts")).map(p => relative(ROOT, p))
+    const places = [...scripts, "package.json", ...readdirSync(ROOT).filter(f => /^playwright.*\.ts$/.test(f))]
+    expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8")))).toEqual(["scripts/e2e-server.ts"])
+  })
+
+  test("e2e のファイルと、同じクレートの Go のテストのファイルの両方にある関数は、同じ中身にする（go test はタグを付けずに流す）", () => {
+    const differ = e2eFiles.flatMap(e => {
+      const mine = funcsOf(e.text)
+      return goAll
+        .filter(t => t.rel.endsWith("_test.go") && dirname(t.rel) === dirname(e.rel))
+        .flatMap(t =>
+          [...funcsOf(t.text)]
+            .filter(([n, body]) => mine.has(n) && mine.get(n) !== body)
+            .map(([n]) => `${t.rel}: ${n}`),
+        )
+    })
+    expect(differ).toEqual([])
+  })
+})

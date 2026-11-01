@@ -116,6 +116,12 @@ func (h *Hub) checkBooks(ids []string) error {
 	if err != nil {
 		return err
 	}
+	h.recordWarnings(ids, found)
+	return nil
+}
+
+// recordWarnings は、ブック ids を確かめた結果 found を一覧に持つ（変わった warning はログに書く。h.mu を持って呼ぶ）
+func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
 	before := map[string]string{}
 	for _, id := range ids {
 		if n, ok := h.bookWarnings[id]; ok {
@@ -129,7 +135,6 @@ func (h *Hub) checkBooks(ids []string) error {
 			fmt.Fprintln(os.Stderr, "warning:", n.Warning)
 		}
 	}
-	return nil
 }
 
 // BookWarnings は warning のあるブックの id → その warning
@@ -271,44 +276,6 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq})
 	h.touch(head.ID, stamp())
 	return h.checkBooks([]string{head.ID})
-}
-
-// ErrConflict は、置いてある版が添えた版と違うこと
-var ErrConflict = storage.ErrConflict
-
-// UnreadableError は、書こうとしたブックが今の機能台帳で読めない（warning W004〜W006）ので書かなかったこと
-type UnreadableError struct{ Warning string }
-
-func (e UnreadableError) Error() string { return "unreadable: " + e.Warning }
-
-// PutBook はブックを丸ごと置く（読み込みなど、アクションを通さない入口）。置いてある版が base のときだけ書き、知らせる
-func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *storage.Book, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	// 読めないブック（タイプが無い・形に合わない・決まりを守らない）は書かない。一部のプラグインが無いだけ（W007）なら書く
-	found, err := h.engine.CheckBooks([]json.RawMessage{body})
-	if err != nil {
-		return 0, nil, err
-	}
-	for _, n := range found {
-		if n.Unreadable {
-			return 0, nil, UnreadableError{n.Warning}
-		}
-	}
-	version, have, err := h.store.PutBook(id, body, base)
-	if errors.Is(err, storage.ErrConflict) || err != nil {
-		return 0, have, err
-	}
-	if _, ok := h.books[id]; !ok {
-		h.order = append(h.order, id)
-	}
-	h.books[id] = entry{body, version}
-	h.broadcast("book", map[string]any{"book": body, "version": version})
-	h.touch(id, stamp())
-	if err := h.checkBooks([]string{id}); err != nil {
-		return 0, nil, err
-	}
-	return version, nil, nil
 }
 
 // Join は画面をつなぎ、知らせの通り道を返す。最初の知らせは hello
