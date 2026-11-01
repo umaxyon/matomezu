@@ -12,12 +12,14 @@ import { type ResolvedPaper, resolvePaper } from "./paper"
 import type { Book } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
-// 開いているブック。ブックのタイプと、開いたページの紙を写して持つ（開くときに決まる）
+// 開いているブック。ブックのタイプと、開いたページの紙を写して持つ（開くときに決まる）。
+// area は、見せ方が描く広さ（伸びるページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない
 export interface Opened {
   type: BookTypeId
   book: string // ブックの id
   page: string | null // 開いているページの id（ページを持たないタイプと、ページが無いブックは null）
   paper: ResolvedPaper | null // 開いているページの描く紙（ページを開いていなければ null）
+  area?: Size
 }
 
 export interface Stage {
@@ -35,7 +37,7 @@ export interface Stage {
   picker: { at: Point | null; map: boolean } | null
 }
 
-// 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ
+// 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ（伸びるページは、見せ方が知らせた広さ。areaOf）
 export interface Placement {
   x: number
   y: number
@@ -73,9 +75,25 @@ export function paperOf(stage: Pick<Stage, "opened">): Size | null {
   return paper && paper.status !== "unshowable" ? paper.size : null
 }
 
+// ステージに描く広さ（見せ方が知らせた広さ。無ければ紙 1 枚。紙が無ければ null）。ずらす量の範囲・紙の枠の大きさ・全体を収める倍率は、これで決める
+export function areaOf(stage: Pick<Stage, "opened">): Size | null {
+  const paper = paperOf(stage)
+  return paper && (stage.opened?.area ?? paper)
+}
+
+// 見せ方が描く広さを area にする（null なら紙 1 枚に戻す）。ずらす量は範囲に収め直す
+export function setArea(stage: Stage, area: Size | null): Stage {
+  const o = stage.opened
+  if (!o || !paperOf(stage)) return stage
+  const now = o.area ?? null
+  if (now === area || (now && area && now.w === area.w && now.h === area.h)) return stage
+  const { area: _, ...rest } = o
+  return settle({ ...stage, opened: area ? { ...rest, area } : rest }, stage.pan)
+}
+
 // ずらす量を pan にして、範囲に収める
 function settle(stage: Stage, pan: Point): Stage {
-  const paper = paperOf(stage)
+  const paper = areaOf(stage)
   const next = stage.view && paper ? clampPan(stage.view, contentSize(paper, stage.zoom), pan) : pan
   if (next.x === stage.pan.x && next.y === stage.pan.y) return stage
   return { ...stage, pan: next }
@@ -114,7 +132,8 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, pa
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found || o.page === page) return stage
-  return settle(leave({ ...stage, opened: { ...o, page, paper: resolvePaper(catalog, found) } }), HOME)
+  const opened = { type: o.type, book: o.book, page, paper: resolvePaper(catalog, found) }
+  return settle(leave({ ...stage, opened }), HOME)
 }
 
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
@@ -127,7 +146,8 @@ export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, befor
   const page = found?.id ?? null
   const paper = found ? resolvePaper(catalog, found) : null
   if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) return stage
-  const opened = { ...o, page, paper }
+  // 紙が変われば、見せ方が知らせた広さは捨てる（知らせ直すまで紙 1 枚）
+  const opened = { type: o.type, book: o.book, page, paper }
   return page === o.page ? settle({ ...stage, opened }, stage.pan) : settle(leave({ ...stage, opened }), HOME)
 }
 
@@ -204,7 +224,7 @@ export function setEditing(stage: Stage, editing: boolean | string): Stage {
 
 // 紙の置き場所（何も開いていなければ null）
 export function placement(stage: Pick<Stage, "opened" | "pan" | "zoom">): Placement | null {
-  const paper = paperOf(stage)
+  const paper = areaOf(stage)
   if (!paper) return null
   const origin = paperOrigin(stage.pan)
   return { x: origin.x, y: origin.y, w: paper.w, h: paper.h, zoom: stage.zoom }

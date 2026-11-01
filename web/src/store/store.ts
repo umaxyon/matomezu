@@ -24,6 +24,7 @@ import {
   resetView,
   resize,
   select,
+  setArea,
   setEditing,
   showPickerMap,
   stopPlacing,
@@ -122,6 +123,7 @@ export interface Actions {
   openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
+  setStageArea(id: string, area: Size | null): void // 見せ方が描く広さ（伸びるページ。null なら紙 1 枚）
   panStageBy(id: string, dx: number, dy: number): void
   // そのステージの倍率を zoom にする（表示領域の中の点 at、無ければ真ん中の下の紙の点は動かさない）
   zoomStage(id: string, zoom: number, at?: Point): void
@@ -474,6 +476,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (book && hasPages(book)) withWorkspace(ws => showPage(catalog, focus(ws, stage), stage, book, page))
     },
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
+    setStageArea: (id, area) => withWorkspace(ws => mapStage(ws, id, s => setArea(s, area))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
     zoomStage: (id, zoom, at) => withWorkspace(ws => mapStage(ws, id, s => zoomTo(s, zoom, at))),
     resetStageView: id => withWorkspace(ws => mapStage(ws, id, resetView)),

@@ -1,12 +1,12 @@
 // プラグインの見た目が使うフック（matomezu/ui）: matomezu が渡すステージの id から、約束のものだけを引く。状態を丸ごとは見せない。
 // データはブック・ページ・アイテム、ステージは読むだけの StageView、ほかに機能台帳と利用者の設定。データを変えるのは usePerform（アクション）だけ
-import { useCallback, useMemo } from "react"
+import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { Where } from "../core/def/action"
-import type { Point } from "../core/geom"
+import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { deniedBy, inspect } from "../core/inspect"
 import type { ArgsOf } from "../core/perform"
@@ -167,6 +167,18 @@ export function useSetStageState(kit: Owner): (stage: string, value: unknown) =>
   const { setStageState } = useInstance()
   const { id } = kit
   return useCallback((stage, value) => setStageState(stage, id, value), [setStageState, id])
+}
+
+// 見せ方のビューが、そのステージに描く広さ（伸びるページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。
+// 広さが変わったときだけ知らせ、ビューが消えたら紙 1 枚に戻す。ずらす量の範囲・紙の枠・全体を収める倍率・ミニマップは、この広さで決まる
+export function useStageArea(stage: string, area: Size | null): void {
+  const { setStageArea } = useActions()
+  const w = area?.w
+  const h = area?.h
+  useLayoutEffect(() => {
+    setStageArea(stage, w !== undefined && h !== undefined ? { w, h } : null)
+  }, [setStageArea, stage, w, h])
+  useLayoutEffect(() => () => setStageArea(stage, null), [setStageArea, stage])
 }
 
 // そのステージの紙をずらす量（無いステージなら null）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
