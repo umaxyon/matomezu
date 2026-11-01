@@ -25,7 +25,7 @@
 | テーマキー（`TokenDef`） | テーマの値の名前と既定 | `core/def/theme.ts` |
 | キーの既定の割り当て（`KeyDef`） | キーとコマンドの組 1 つ | `store/keys.ts` |
 
-- 定義の種類（文言の組・言語パック・テーマキー・キーの既定の割り当てを除く上の表）の一覧は `core/catalog.ts` の `PARTS`（フィールドの名前・入る台帳・error の文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その台帳の層が `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインのフィールド（`PluginParts`）・core 台帳と store 台帳・id の頭と重なりの検査は、この一覧から作る。種類ごとに意味の違う見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く（種類が抜けると型の誤り。書いたフィールドと関数があることはテストが確かめる）
+- 定義の種類（文言の組・言語パック・テーマキー・キーの既定の割り当てを除く上の表）の一覧は `core/catalog.ts` の `PARTS`（フィールドの名前・入る台帳・error の文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その台帳のクレートが `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインのフィールド（`PluginParts`）・core 台帳と store 台帳・id の頭と重なりの検査は、この一覧から作る。種類ごとに意味の違う見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く（種類が抜けると型の誤り。書いたフィールドと関数があることはテストが確かめる）
 - 文言の組・言語パック・テーマキー・キーの既定の割り当ては、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとブックのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作り、土台の文言の組と言語の id の頭は `matomezu`（`matomezu:messages`・`matomezu:en`・`matomezu:ja`）
 - 定義は `defineX()` で書く。React を使わない（描き方はプラグインの見た目で結ぶ）
 

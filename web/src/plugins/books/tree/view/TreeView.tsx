@@ -1,4 +1,4 @@
-// ツリーのビュー（見せ方 tree）: ステージの紙の置き場所（placement）に紙を描き、その上に開いたページの根から伸びる木を描く
+// ツリーのビュー（見せ方 tree）: ブックのビューのレイヤー（book-content）が描く。紙の枠（PaperFrame。紙の面は下のレイヤーが描く）の中に、開いたページの根から伸びる木を描く
 // （節の位置と線は layout.ts が伸びる向きから決める）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
@@ -11,8 +11,8 @@
 // 子として入る節には点線の枠、兄弟の間に入る所には線を出す）。押している間は、選んだ節を真ん中に持ってこない（離してから）。
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
 // 足す・書き換える・付け替えるのが紙に入らないので断られたら、トーストで知らせる
-import { type CSSProperties, Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
-import { type Point, placement, type Size, type StageView, toPaper } from "../../../../plugin-api"
+import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
+import { type Point, paperOf, placement, type Size, type StageView, toPaper } from "../../../../plugin-api"
 import {
   type BookViewProps,
   useActions,
@@ -30,7 +30,7 @@ import {
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
-import { RichBar, RichInput, type RichInputHandle, RichText, useResize, useZoomMotion } from "../../../base/ui"
+import { PaperFrame, RichBar, RichInput, type RichInputHandle, RichText, useResize } from "../../../base/ui"
 import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { dropAt, subtreeIds } from "../drag"
 import {
@@ -84,35 +84,20 @@ function Content({
   area: RefObject<HTMLDivElement | null>
 }) {
   const t = useMessages(kit)
-  const pan = useStagePan(stage.id)
-  const p = pan && placement({ ...stage, pan })
   // 紙の大きさ（変わらなければ同じ物を渡し、紙をずらしただけでは木を描き直さない）
-  const w = p?.w
-  const h = p?.h
+  const size = paperOf(stage)
+  const w = size?.w
+  const h = size?.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
-  // 倍率と、編集の道具で選んでいる節が替わったときは、紙の動きをなめらかにする
-  const motion = useZoomMotion(stage.zoom, stage.tool === EDIT_TOOL.id ? (stage.selection[0] ?? "") : "")
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
-  if (!p || !paperSize) return null
+  if (!paperSize) return null
   return (
-    <div
-      className={styles.paper}
-      role="img"
-      aria-label={t("Paper")}
-      style={
-        {
-          width: p.w,
-          height: p.h,
-          transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})`,
-          transition: motion,
-        } as CSSProperties
-      }
-    >
+    <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
       <Tree stage={stage} paper={paperSize} view={view} area={area} />
-    </div>
+    </PaperFrame>
   )
 }
 

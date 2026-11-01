@@ -34,7 +34,7 @@ export const RELATE = kit.defineAction({
   },
 })
 
-// 関係図: ビルトインの箱と線に、関係線を足したタイプ。関係線を先に選ぶ（つなぐものの層の外側になる）
+// 関係図: ビルトインの箱と線に、関係線を足したタイプ。関係線を先に選ぶ（つなぐもののビューの外側になる）
 export const MAP = kit.defineBookType({
   id: "map",
   version: 1,

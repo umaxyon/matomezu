@@ -1,4 +1,4 @@
-// 関係線の層と〇: 関係線を点線で描き、ポインタを乗せた形と関係のある形のほかを薄くするよう求める（ShapeMarks）。
+// 関係線のビューと〇: 関係線を点線で描き、ポインタを乗せた形と関係のある形のほかを薄くするよう求める（ShapeMarks）。
 // 〇は形ごとに右上の小さな点（引く操作は持たない。ビルトインの線の〇と重なるかを見るため）
 import { connectorsOf } from "matomezu"
 import { ShapeMarksProvider, type ShapeScene } from "matomezu/ui"
@@ -7,7 +7,7 @@ import { RELATION } from "./relation"
 
 const relationsIn = (scene: ShapeScene) => connectorsOf(scene.page).filter(c => c.item === RELATION.id)
 
-export function RelationLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
+export function RelationView({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const relations = relationsIn(scene)
   const { hover } = scene
   const keep = hover

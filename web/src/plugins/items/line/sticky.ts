@@ -1,5 +1,5 @@
 // 前の辺に留まる線を選ぶ純粋な関数（箱をドラッグしている間の線）。
-// 自由な端が前に描いた辺と位置（記憶）を、どの線に渡すかを決める。記憶は描く側（線の層）が画面の中だけに持つ
+// 自由な端が前に描いた辺と位置（記憶）を、どの線に渡すかを決める。記憶は描く側（ラインビュー）が画面の中だけに持つ
 import type { Rect } from "../../../plugin-api"
 import type { DrawnLine } from "./drawn"
 import type { PlacedLine } from "./placed"

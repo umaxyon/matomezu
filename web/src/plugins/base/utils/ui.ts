@@ -2,6 +2,7 @@
 
 export { LockToggle } from "./LockToggle"
 export { PageProblemsView, usePageProblems } from "./PageProblems"
+export { PaperFrame } from "./PaperFrame"
 export { type SettingsPatch, useSettingControls } from "./SettingControls"
 export { useElapsed } from "./useElapsed"
 export { useResize } from "./useResize"

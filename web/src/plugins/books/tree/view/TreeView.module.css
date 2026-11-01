@@ -3,17 +3,7 @@
   position: absolute;
   inset: 0;
 }
-.paper {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-  background: var(--theme-paper);
-  box-shadow:
-    0 0 0 1px var(--theme-paper-line),
-    0 6px 24px var(--theme-paper-shadow);
-}
-/* 親から子への線（紙と同じ大きさの層。節の下に描く） */
+/* 親から子への線（紙と同じ大きさの入れ物。節の下に描く） */
 .lines {
   position: absolute;
   left: 0;

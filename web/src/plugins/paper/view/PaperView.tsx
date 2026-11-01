@@ -1,4 +1,4 @@
-// 紙のビュー（見せ方 paper）: ステージの紙の置き場所（core/stage.ts の placement）に紙を描き、その上に開いたページのアイテムを置く。
+// 紙のビュー（見せ方 paper）: ブックのビューのレイヤー（book-content）が描く。紙の枠（PaperFrame。紙の面は下のレイヤーが描く）の中に、開いたページのアイテムを置く。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、紙のメニュー（paper-context）を開く。
 // アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（paper-place。紙からはみ出す所では薄く出し、置かない）。
@@ -8,12 +8,11 @@
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに paper-resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。下書きを重ねた形は、形の整え（settle）を通して描く（placing/draft.ts。子を動かす整えも、決める前から見える）。
-// ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）の層で形の並びを包み、形ごとに重ねるコンポーネントを形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
+// ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）で形の並びを包み、形ごとに重ねるコンポーネントを形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ。
-// 紙をずらしても、ずらすのは紙の置き場所だけで、アイテムは描き直さない（紙をずらす量を読むのは紙を置く Content と点線の箱だけ）
+// 紙をずらしても、ずらすのは紙の枠だけで、アイテムは描き直さない（紙をずらす量を読むのは紙の枠と点線の箱だけ）
 
 import {
-  type CSSProperties,
   type MouseEvent,
   memo,
   type PointerEvent,
@@ -32,7 +31,6 @@ import {
   type PlacedShape,
   type Point,
   paperOf,
-  placement,
   type Rect,
   type StageView,
   shapesOf,
@@ -60,7 +58,7 @@ import {
   useUiCatalog,
 } from "../../../plugin-api/ui"
 import { type Edges, fitsPaper, itemSize, minSize, placedSize, resizedBy, shownRects } from "../../base"
-import { useZoomMotion } from "../../base/ui"
+import { PaperFrame } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
@@ -129,32 +127,15 @@ type LocalOf = (e: PointerEvent<Element>) => Point | null
 
 function Content({ stage, pointer, localOf }: { stage: StageView; pointer: Point | null; localOf: LocalOf }) {
   const t = useMessages(kit)
-  const pan = useStagePan(stage.id)
-  const p = pan && placement({ ...stage, pan })
-  const motion = useZoomMotion(stage.zoom)
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
-  if (!p) return null
   return (
-    <div
-      className={styles.paper}
-      role="img"
-      aria-label={t("Paper")}
-      style={
-        {
-          width: p.w,
-          height: p.h,
-          transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})`,
-          transition: motion,
-          "--paper-zoom": p.zoom,
-        } as CSSProperties
-      }
-    >
+    <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
       <Items stage={stage} localOf={localOf} />
       {pointer && <Ghost stage={stage} pointer={pointer} />}
-    </div>
+    </PaperFrame>
   )
 }
 
@@ -188,7 +169,7 @@ const Items = memo(function Items({ stage, localOf }: { stage: StageView; localO
   return page && shownPage ? <PageItems stage={stage} page={page} shownPage={shownPage} localOf={localOf} /> : null
 })
 
-// ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューの層で包む
+// ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューで包む
 function PageItems({
   stage,
   page,
@@ -392,10 +373,10 @@ function PageItems({
   )
   const items = shapes.map(({ item, shift }) => render(item, shift))
   return connectors.reduceRight<ReactNode>((inner, c) => {
-    const Layer = c.layer
+    const View = c.view
     return (
       <TokenScope key={c.id} def={c.id}>
-        <Layer scene={scene}>{inner}</Layer>
+        <View scene={scene}>{inner}</View>
       </TokenScope>
     )
   }, items)

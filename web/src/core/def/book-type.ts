@@ -100,6 +100,6 @@ export const withTypeField = <S extends z.ZodObject, const Id extends string>(
   schema: S,
   id: Id,
 ): WithTypeField<S, Id> => schema.extend({ type: z.literal(id) }) as unknown as WithTypeField<S, Id>
-// schema に合うブックのデータの型（zod を読まない層が使う）
+// schema に合うブックのデータの型（zod を読まないクレートが使う）
 export type DataOf<S extends z.ZodType> = z.infer<S>
 export type BookSchema = z.ZodObject

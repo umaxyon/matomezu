@@ -6,7 +6,7 @@ AI と人が同じ図（ブック）を見て、直し合うための図エデ�
 
 作るときの決まりは、ここから辿る規約だけを正とする。
 
-- [構造と層](conventions/architecture.md) — フォルダの層と、読み込んでよい向き
+- [構造とクレート](conventions/architecture.md) — `web/src` のクレートと Go のパッケージ、読み込んでよい向き
 - [定義と機能台帳](conventions/definitions.md) — ブックのタイプ・アイテム・アクションなどの定義と、その参照の向き
 - [プラグイン](conventions/plugins.md) — 定義の束ね方、置き場所、プラグインどうしの関係
 - [コードの書き方](conventions/code-style.md) — コメント・データとビュー・文言
