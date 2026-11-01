@@ -1,4 +1,4 @@
-// プラグイン API（React なし）: 追加プラグインとビルトインプラグインが使ってよい名前を、土台（core・store）から出し直すだけの層。
+// プラグイン API（React なし）: 追加プラグインとビルトインプラグインが使ってよい名前を、土台（core・store）から出し直すだけのクレート。
 // 外から読む入口は plugin-entry（matomezu）。名前の一覧は test/plugin-api.test.ts
 
 export type { PagedBook } from "../core/book"

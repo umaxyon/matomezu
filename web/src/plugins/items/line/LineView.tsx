@@ -1,4 +1,4 @@
-// 線の層（形を並べるビューに重ねる、つなぐもののビュー。ui/connector.ts）: 形の並びを包み、形より手前に線を描く。
+// ラインビュー（線のつなぐもののビュー。ui/connector.ts）: 形の並びを包み、形より手前に線を描く。
 // 線は描いている形の四角（下書き・ドラッグでずらした所も）から道筋を決めて描く（drawn.ts の drawLines）。自由な端は前に描いた辺に留まる（sticky.ts）。
 // 選択の道具で線を押すと線を選び、ダブルクリックで線の編集のダイアログ（line-edit）、右クリックで線を選んで線のメニュー（line-context）を開く。
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
@@ -18,9 +18,9 @@ import { type PortArea, portAreasOf } from "../../base"
 import { useDrawnMinimap } from "../../base/ui"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
+import { DrawnLinesView } from "./DrawnLinesView"
 import { drawLines, type LineCache, newLineCache } from "./drawn"
 import type { Rect } from "./geom"
-import { LinesView } from "./LinesView"
 import { elbowAt, LINE } from "./line"
 import { LINE_CONTEXT } from "./menu"
 import { LinkPreview, Ports } from "./PortsView"
@@ -30,7 +30,7 @@ import { memoryOf, stickyMemory } from "./sticky"
 import { useLineEdit } from "./useLineEdit"
 import { useLinkDrag } from "./useLinkDrag"
 
-// 層と〇が共に見る、〇から引くドラッグ
+// ラインビューと〇が共に見る、〇から引くドラッグ
 interface Linking {
   scene: ShapeScene
   areas: ReadonlyMap<string, PortArea> // 形のつながる範囲
@@ -42,7 +42,7 @@ const LinkingContext = createContext<Linking | null>(null)
 const linesIn = (scene: ShapeScene): PlacedLine[] =>
   (scene.page.items ?? []).filter((i): i is PlacedConnector & PlacedLine => i.item === LINE.id)
 
-export function LineLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
+export function LineView({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, localOf } = scene
   const catalog = useCoreCatalog()
   const book = useShownBook(stage.id)
@@ -126,7 +126,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
     <ShapeMarksProvider value={marks}>
       <LinkingContext.Provider value={{ scene, areas: rects, link: linkDrag, portsOf }}>
         {children}
-        <LinesView
+        <DrawnLinesView
           lines={lines}
           selection={stage.selection}
           selectable={selectable}

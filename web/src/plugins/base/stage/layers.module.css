@@ -1,0 +1,8 @@
+/* 紙の白い面（位置と大きさは紙の枠が決める） */
+.paper {
+  background: var(--theme-paper);
+  box-shadow:
+    0 0 0 1px var(--theme-paper-line),
+    0 6px 24px var(--theme-paper-shadow);
+  pointer-events: none;
+}
