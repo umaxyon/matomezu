@@ -186,16 +186,14 @@ func (e *Engine) Perform(in Input) (out Output, err error) {
 	return out, nil
 }
 
-// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行。
-// 読めない（W004 タイプが無い・W005 形に合わない・W006 決まりを守らない）か、読めるが機能台帳に無い物を持つ（W007）
+// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、読めないか（エンジンが決める。
+// 読めない W004 タイプが無い・W005 形に合わない・W006 決まりを守らない、読めるが機能台帳に無い物を持つ W007 など）
 type BookWarning struct {
-	Book    string `json:"book"`
-	Code    string `json:"code"`
-	Warning string `json:"warning"`
+	Book       string `json:"book"`
+	Code       string `json:"code"`
+	Warning    string `json:"warning"`
+	Unreadable bool   `json:"unreadable"`
 }
-
-// Unreadable は、そのブックが読めない warning か
-func (n BookWarning) Unreadable() bool { return n.Code != "W007" }
 
 // CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）
 func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err error) {

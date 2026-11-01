@@ -5,10 +5,10 @@
 // ドロワーには、左から地図・履歴・基本・ブックの道具の 4 つのスロット（drawer.ts の DRAWER_SLOTS）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
 // 中のウィジェットは、項目を選んだらドロワーを下げられる（drawer-context.tsx）
 import { useEffect, useRef, useState } from "react"
-import { bookTitle } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { bookTitle } from "../book-open/book-title"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { useBottomHover } from "../workspace/bottom-hover"

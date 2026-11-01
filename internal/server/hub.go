@@ -291,7 +291,7 @@ func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *stor
 		return 0, nil, err
 	}
 	for _, n := range found {
-		if n.Unreadable() {
+		if n.Unreadable {
 			return 0, nil, UnreadableError{n.Warning}
 		}
 	}

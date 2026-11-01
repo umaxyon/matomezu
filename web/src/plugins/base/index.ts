@@ -75,7 +75,6 @@ export {
   placeItem,
   removeItems,
   replacePushing,
-  replaceShape,
   replaceShapePushing,
   resizedBy,
   rootOf,

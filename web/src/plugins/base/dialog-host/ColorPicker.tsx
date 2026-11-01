@@ -13,10 +13,10 @@ import {
   useRef,
   useState,
 } from "react"
-import { type Hsv, hexToHsv, hsvToHex, parseHex } from "../../../core/color"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
 import styles from "./ColorPicker.module.css"
+import { type Hsv, hexToHsv, hsvToHex, parseHex } from "./hsv"
 
 export interface Swatch {
   name: string // 選んだときの値（代表色の名前か #rrggbb）

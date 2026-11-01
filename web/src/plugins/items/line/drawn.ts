@@ -51,8 +51,12 @@ export interface DrawOptions {
   cache?: LineCache
 }
 
-// 線ごとの道筋の覚え（描く側が持つ）
-export type LineCache = Map<string, { key: string; route: Route }>
+// 線ごとの道筋の覚え（描く側が持つ）。rects は前に描いた形のつながる範囲（JSON）。それが同じなら、線の項目が同じ線は道筋の入力も作り直さない
+export interface LineCache {
+  rects: string
+  lines: Map<string, { line: string; key: string; input: RouteInput; route: Route }>
+}
+export const newLineCache = (): LineCache => ({ rects: "", lines: new Map() })
 
 // p から q へ向かって d だけ進んだ点
 function toward(p: Point, q: Point, d: number): Point {
@@ -86,13 +90,14 @@ export function routeInputOf(l: PlacedLine, rects: ReadonlyMap<string, PortArea>
   const a = rects.get(l.from)
   const b = rects.get(l.to)
   if (!a || !b || l.from === l.to) return null
+  const own = ownersOf([l.from, l.to], rects)
   const input = {
     a,
     b,
     elbow: (l.props.route ?? (elbow ? "elbow" : "straight")) === "elbow",
     via: l.props.via ?? null,
     // 両端の形と、その先祖（端の形を中に持つ形。線はその枠を越えて出る）は避けない
-    obstacles: [...rects].filter(([id]) => !ownersOf([l.from, l.to], rects).has(id)).map(([, r]) => r),
+    obstacles: [...rects].filter(([id]) => !own.has(id)).map(([, r]) => r),
     margin: BEND_MARGIN,
     exitAt: l.props.exitAt ?? null,
     enterAt: l.props.enterAt ?? null,
@@ -135,16 +140,30 @@ export function drawLines(
   // 辺の真ん中だけにつなぐ形から出る線の頂点（spread.ts）
   const split = splitVertices(lines, rects)
   const routed: Routed[] = []
+  const cache = options.cache
+  const rectsKey = cache ? JSON.stringify([...rects]) : ""
+  const sameRects = cache?.rects === rectsKey
+  if (cache) cache.rects = rectsKey
   for (const l of lines) {
-    const found = routeInputOf(l, rects, elbow)
-    if (!found) continue
     const v = split.get(l.id)
-    const base = v && found.exitAt == null ? { ...found, exitAt: perimeterAt(found.a, vertexAt(found.a, v)) } : found
     const memory = options.memory?.get(l.id) ?? null
     const loose = options.loose?.has(l.id) ?? false
+    const hit = cache?.lines.get(l.id)
+    const line = JSON.stringify([l.from, l.to, l.props, elbow, v, memory, loose])
+    // 形の範囲も線の項目も前と同じなら、道筋の入力も同じ
+    if (sameRects && hit?.line === line) {
+      routed.push({ line: l, input: hit.input, route: hit.route })
+      continue
+    }
+    const found = routeInputOf(l, rects, elbow)
+    if (!found) {
+      cache?.lines.delete(l.id)
+      continue
+    }
+    const base = v && found.exitAt == null ? { ...found, exitAt: perimeterAt(found.a, vertexAt(found.a, v)) } : found
     const key = JSON.stringify([base, memory, loose])
-    const hit = options.cache?.get(l.id)
     if (hit?.key === key) {
+      cache?.lines.set(l.id, { ...hit, line, input: base })
       routed.push({ line: l, input: base, route: hit.route })
       continue
     }
@@ -154,7 +173,7 @@ export function drawLines(
       const best = fewestRoute(base)
       if (r.bends - best.bends >= LOOSEN_BENDS) r = best
     }
-    options.cache?.set(l.id, { key, route: r })
+    cache?.lines.set(l.id, { line, key, input: base, route: r })
     routed.push({ line: l, input: base, route: r })
   }
   // 同じ形の同じ所に入る線を散らす（spread.ts）

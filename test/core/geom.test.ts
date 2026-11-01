@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { fitInside } from "../../web/src/core/geom"
+import { fitInside } from "../../web/src/plugins/base/context-menu/fit"
 
 test("fitInside は、はみ出す分だけ左と上に戻し、範囲より大きければ左上をそろえる", () => {
   const bounds = { w: 100, h: 80 }

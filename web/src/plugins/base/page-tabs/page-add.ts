@@ -3,12 +3,13 @@
 // （タイプのフィールドで要るものを渡さなければ、ブックのデータの形に合わず断られる）。フィールドの受け方が結果を返せば、結果の fields に入れて返す。
 // 足したページにタイプが問題を知らせれば断る（page-problems.ts）
 import { z } from "zod"
-import { addPage, canChoose, defaultPaper, hasPages, paperChoices, putPage, withSettings } from "../../../core/book"
+import { addPage, hasPages, putPage, withSettings } from "../../../core/book"
 import { ORIENTATIONS } from "../../../core/def/paper"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblems } from "./page-problems"
+import { canChoose, defaultPaper, paperChoices } from "./pages"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),

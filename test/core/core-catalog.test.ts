@@ -107,7 +107,7 @@ describe("機能台帳", () => {
       ["fr", "Français"],
     ])
     expect(translate(catalog.messages, "fr", "@matomezu/box:Box")).toBe("Boîte")
-    expect(translate(catalog.messages, "fr", "Add page")).toBe("Add page")
+    expect(translate(catalog.messages, "fr", "An edit could not be saved")).toBe("An edit could not be saved")
     expect(translate(catalog.messages, "ja", "@matomezu/master:Master")).toBe("親分")
     // インスタンスに無い鍵の訳は使わない
     const stray: LanguagePackDef = {

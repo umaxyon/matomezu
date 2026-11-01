@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
-import { addPage, choosablePapers, createBook, defaultPaper, paperChoices } from "../../web/src/core/book"
+import { addPage, createBook } from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
+import { choosablePapers, defaultPaper, paperChoices } from "../../web/src/plugins/base/page-tabs/pages"
 import { CORE_CATALOG } from "../support"
 
 const book = {
