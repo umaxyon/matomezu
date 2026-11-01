@@ -1,8 +1,8 @@
 // アクションの中で振る id（core/ids.ts の idMaker と、base の utils/ids.ts）: ブックの全部のページの中身の、どの深さの id とも重ならず、続けて振った id どうしも重ならない
 import { expect, test } from "bun:test"
 import type { PagedBook } from "../../web/src/core/book"
-import { idMaker } from "../../web/src/core/ids"
-import { contentIdMaker, idsIn } from "../../web/src/plugins/base/utils/ids"
+import { idMaker, idsIn } from "../../web/src/core/ids"
+import { contentIdMaker } from "../../web/src/plugins/base/utils/ids"
 
 // 決めた並びの値を返す newId（尽きたら同じ値を返し続ける）
 const seq = (...values: string[]) => {

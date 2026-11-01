@@ -1,7 +1,7 @@
 // ブックのタイプの定義: データの形・並べ方の決まり・使えるアイテムとアクションの規定・既定のテーマ。
 // アイテム・アクション・テーマは id で参照する（アイテムとアクションはブックのタイプを知らない）
 import { z } from "zod"
-import type { ActionId, BookTypeExtras, ItemOptionTable } from "../catalog"
+import type { ActionId, AnnotationId, BookTypeExtras, ItemOptionTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
@@ -63,6 +63,8 @@ interface BookTypeBase<S extends z.ZodObject> extends BookTypeExtras {
   settings?: BookTypeSettings
   // ホームにしたときに、利用者の設定の項目のうち変えさせない物の id（利用者にも AI にも。組織のホームで決める）。actions.without の、項目ごとの版
   fixedUserSettings?: readonly string[]
+  // 使わせないアノテーションの種類の id（無ければ、どの種類も使える。core/def/annotation.ts）
+  annotations?: { without?: readonly AnnotationId[] }
 }
 
 // ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。base のアクション book-update はブックの、page-update はページの項目を受け付ける

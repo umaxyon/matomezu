@@ -1,7 +1,8 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book が対象ならそのブックのタイプ、library と settings が対象ならインスタンスのホームのブックのタイプが決める（ホームが無ければ断る）。
+// 使えるかは、book と annotations が対象ならそのブックのタイプ、library と settings が対象ならインスタンスのホームのブックのタイプが決める（ホームが無ければ断る）。
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
+import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { bookType, type CoreCatalog } from "./core-catalog"
@@ -91,8 +92,16 @@ function permits(
   subject: Subjects[keyof Subjects],
   args: { success: true; data: unknown } | { success: false },
 ): { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string } {
-  const book = action.target === "book" ? (subject as Book) : undefined
-  const where = args.success && book ? scopeOf(action.permissionScope as AnyPermissionScope, args.data) : undefined
+  const book =
+    action.target === "book"
+      ? (subject as Book)
+      : action.target === "annotations"
+        ? (subject as BookAnnotations).book
+        : undefined
+  const where =
+    args.success && action.target === "book"
+      ? scopeOf(action.permissionScope as AnyPermissionScope, args.data)
+      : undefined
   const settings =
     args.success && action.target === "settings"
       ? settingsScopeOf(action.permissionScope as AnySettingsScope, args.data)
@@ -136,31 +145,44 @@ export function perform<Id extends ActionId>(
   if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
   const done = action.run(subject as never, parsed.data, ctx)
   if (!done) return { ok: false, reason: "refused" }
+  // アノテーションのアクションはブックを変えない（変えたら断る）。認可ステップの keeps は、変わらないブックで見る
+  const pair = subject as unknown as BookAnnotations
+  if (action.target === "annotations" && (done.next as unknown as BookAnnotations).book !== pair.book)
+    return { ok: false, reason: "refused" }
   const permission =
     action.target === "book"
       ? broken(ctx, action, subject as Book, done.next as Book)
       : action.target === "library"
         ? brokenIn(ctx, action, subject as Library, done.next as Library)
-        : null
+        : action.target === "annotations"
+          ? broken(ctx, action, pair.book, pair.book)
+          : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (action.target === "book" && !settles(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
+  if (action.target === "annotations") {
+    const next = (done.next as unknown as BookAnnotations).annotations
+    if (!annotationsSettle(ctx.catalog, pair.book, pair.annotations, next)) return { ok: false, reason: "refused" }
+  }
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }
 
-// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定
+// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーション
 export interface World {
   books: Library
   settings: Settings
+  annotations: Annotations
 }
 
-// performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧）
+// performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧、
+// annotations はアノテーションが変わったブックの id → 新しい並び。アノテーションが対象のアクションのほか、ブックの物が消えたときと、ブックが一覧から無くなったときにも変わる）
 export type PerformedIn =
-  | { ok: true; result: unknown; book?: Book; books?: Library; settings?: Settings }
+  | { ok: true; result: unknown; book?: Book; books?: Library; settings?: Settings; annotations?: Annotations }
   | Refused
   | { ok: false; reason: "no-book" }
 
 // 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
-// ブックが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、id を変えたら断る。同じ値の設定は変わらなかったとみなす
+// ブックとアノテーションが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
+// ブックが変わったら、無くなった物をそのブックのアノテーションのアンカーから外し（core/annotation.ts の prune）、一覧から無くなったブックのアノテーションは消す
 export function performIn(
   world: World,
   id: string,
@@ -175,18 +197,39 @@ export function performIn(
     args: unknown,
     ctx: ActionContext,
   ) => ReturnType<typeof perform>
-  if (target === "book") {
+  if (target === "book" || target === "annotations") {
     const book = world.books[on?.book ?? ""]
     if (!book || book.trashed !== undefined) return { ok: false, reason: "no-book" }
+    const annotations = world.annotations[book.id] ?? []
+    if (target === "annotations") {
+      const done = loose({ book, annotations }, id, args, ctx)
+      if (!done.ok) return done
+      const next = (done.next as BookAnnotations).annotations
+      return next === annotations
+        ? { ok: true, result: done.result }
+        : { ok: true, result: done.result, annotations: { [book.id]: next } }
+    }
     const done = loose(book, id, args, ctx)
     if (!done.ok) return done
     const next = done.next as Book
     if (next.id !== book.id) return { ok: false, reason: "refused" }
-    return next === book ? { ok: true, result: done.result } : { ok: true, result: done.result, book: next }
+    if (next === book) return { ok: true, result: done.result }
+    const kept = prune(annotations, next)
+    return kept === annotations
+      ? { ok: true, result: done.result, book: next }
+      : { ok: true, result: done.result, book: next, annotations: { [book.id]: kept } }
   }
-  const done = loose(target === "library" ? world.books : world.settings, id, args, ctx)
+  if (target === "library") {
+    const done = loose(world.books, id, args, ctx)
+    if (!done.ok) return done
+    const books = done.next as Library
+    const gone = Object.keys(world.annotations).filter(b => !books[b] && (world.annotations[b]?.length ?? 0) > 0)
+    return gone.length === 0
+      ? { ok: true, result: done.result, books }
+      : { ok: true, result: done.result, books, annotations: Object.fromEntries(gone.map(b => [b, []])) }
+  }
+  const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
-  if (target === "library") return { ok: true, result: done.result, books: done.next as Library }
   const next = done.next as Settings
   const same = JSON.stringify(next) === JSON.stringify(world.settings)
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }

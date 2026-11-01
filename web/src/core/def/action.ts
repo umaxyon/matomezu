@@ -1,6 +1,7 @@
 // アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も LLM の操作も同じものを通る。
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 import type { z } from "zod"
+import type { BookAnnotations } from "../annotation"
 import type { PagedBook } from "../book"
 import type { ActionExtras, ActionId } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
@@ -11,14 +12,20 @@ import type { Settings } from "../settings"
 import type { BookTypeDef } from "./book-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
-// この 2 つのアクションを使えるかはホームのブックのタイプが決める
+// この 2 つのアクションを使えるかはホームのブックのタイプが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
+// 使えるかは book と同じくそのブックのタイプが決める
 export interface Subjects {
   library: Library
   book: Book
   settings: Settings
+  annotations: BookAnnotations
 }
 
 export type ActionTarget = keyof Subjects
+
+// 宛先のブック（on.book）を要る対象か（ブックと、ブックのアノテーション）
+export type BookTarget = "book" | "annotations"
+export const isOnBook = (target: ActionTarget | undefined): boolean => target === "book" || target === "annotations"
 
 export interface ActionContext {
   catalog: CoreCatalog // 使う機能台帳（アクション・ブックのタイプ・紙など）
@@ -37,21 +44,28 @@ export interface Done<T extends ActionTarget, R> {
 }
 
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）
-// 付く先: items はそのアイテムを置けるタイプ、presentations はその見せ方のタイプ、pages はページを持つタイプ、books はどのタイプも
+// 付く先: items はそのアイテムを置けるタイプ、presentations はその見せ方のタイプ、pages はページを持つタイプ、books はどのタイプも、
+// annotations はそのアノテーションの種類を使えるタイプ
 export interface ActionAttach {
   items?: readonly string[]
   presentations?: readonly string[]
   pages?: true
   books?: true
+  annotations?: readonly string[]
 }
 
 // 付く先がページを持つタイプだけか（pages か items だけを書き、books・presentations を書いていない）。
 // そうなら run にはページを持つブックだけが来る（perform がページの無いブックには断る）
-type PagedOnly = ({ pages: true } | { items: readonly string[] }) & { books?: undefined; presentations?: undefined }
+type PagedOnly = ({ pages: true } | { items: readonly string[] }) & {
+  books?: undefined
+  presentations?: undefined
+  annotations?: undefined
+}
 export const pagedOnly = (attach: ActionAttach | undefined): boolean =>
   attach !== undefined &&
   attach.books === undefined &&
   attach.presentations === undefined &&
+  attach.annotations === undefined &&
   (attach.pages === true || attach.items !== undefined)
 
 // run が受け取る対象: ブックが対象で、付く先がページを持つタイプだけなら PagedBook
@@ -69,7 +83,8 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): b
     a.books === true ||
     (a.pages === true && type.pages !== null) ||
     (a.items?.some(id => type.items.allowed.includes(id)) ?? false) ||
-    (a.presentations?.includes(type.presentation) ?? false)
+    (a.presentations?.includes(type.presentation) ?? false) ||
+    (a.annotations?.some(id => !type.annotations?.without?.includes(id as never)) ?? false)
   )
 }
 

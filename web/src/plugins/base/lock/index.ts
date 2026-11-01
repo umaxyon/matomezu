@@ -95,8 +95,9 @@ export const LOCK = kit.definePermission({
   title: "Locked",
   aiDescription:
     "the book or a page it would change is locked; nothing in it can be changed until it is unlocked, and only the user can unlock it, so ask the user in the chat",
-  // 変える所が分からないアクションは、ページのロックでは止めない（行った後の keeps が止める）
+  // 変える所が分からないアクションは、ページのロックでは止めない（行った後の keeps が止める）。アノテーションは図の中身ではないので止めない
   denies: ({ action, book, where }) => {
+    if (action.target === "annotations") return false
     if (book.locked) return !BOOK_SWITCHES.includes(action.id)
     const page = where?.page
     const locked = page !== undefined && pagesOf(book).some(p => p.id === page && p.locked)

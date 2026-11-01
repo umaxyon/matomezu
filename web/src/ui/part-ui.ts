@@ -24,6 +24,7 @@ export const PART_UI = {
   tools: { views: ["toolIcons"], define: ["defineTool"] },
   toolSets: { views: [], define: ["defineToolSet"] },
   permissions: { views: [], define: ["definePermission"] },
+  annotations: { views: [], define: ["defineAnnotation"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
   textColors: { views: [], define: ["defineTextColor"] },

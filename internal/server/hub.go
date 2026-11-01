@@ -1,6 +1,6 @@
 package server
 
-// Hub は常駐が持つ今の世界（ブックと設定）と、つながっている画面。
+// Hub は常駐が持つ今の世界（ブックと設定とアノテーション）と、つながっている画面。
 //
 // アクションは 1 つずつ順に行い（鍵 mu）、変わったものを置き場所に書いてから、つながっている全部の画面に同じ順で知らせる。
 // 画面は自分で先に行ったアクションを、知らせ（client と seq）で確かめる。
@@ -10,7 +10,8 @@ package server
 //	hello     {"client"} この接続の id。画面はアクションにこの id と、自分で振った順の番号 seq を添えて送る
 //	book      {"book", "version", "client", "seq"} ブックが変わった・足された（client と seq は変えたアクションのもの。画面の外からなら空）
 //	settings  {"settings", "client", "seq"} 設定が変わった
-//	ack       {"seq", "ok", "reason"} 送った画面にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings のあとに届く
+//	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
+//	ack       {"seq", "ok", "reason"} 送った画面にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた画面にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。画面は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
@@ -64,6 +65,7 @@ type Hub struct {
 	books          map[string]entry
 	order          []string // 置いた順のブックの id（GET /api/data の並び）
 	settings       json.RawMessage
+	annotations    map[string]json.RawMessage // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
 	clients        map[string]*client
 	next           int
 	ticks          int64            // フォーカスの順を振る数
@@ -73,6 +75,8 @@ type Hub struct {
 	// warning のあるブックの id → その warning（読めない W004〜W006・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookWarnings map[string]engine.BookWarning
+	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
+	annotationWarnings []string
 	// 画面が見つけて知らせた warning（画面のつながりの id → warning の 1 行ずつ。warnings.go）。画面が離れたら消す
 	screenWarnings map[string][]string
 	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
@@ -94,7 +98,11 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
+	annotations, err := store.Annotations()
+	if err != nil {
+		return nil, err
+	}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -102,7 +110,52 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err := h.checkBooks(h.order); err != nil {
 		return nil, err
 	}
+	if err := h.checkAnnotations(); err != nil {
+		return nil, err
+	}
 	return h, nil
+}
+
+// checkAnnotations は全部のアノテーションを今のプラグインで確かめ、効かないもの（種類が無い・形が合わない）の warning の一覧を直す。
+// 新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
+func (h *Hub) checkAnnotations() error {
+	pairs := []engine.AnnotatedBook{}
+	for _, id := range h.order {
+		if list, ok := h.annotations[id]; ok {
+			pairs = append(pairs, engine.AnnotatedBook{Book: h.books[id].body, Annotations: list})
+		}
+	}
+	lines := []string{}
+	if len(pairs) > 0 {
+		found, err := h.engine.CheckAnnotations(pairs)
+		if err != nil {
+			return err
+		}
+		lines = found
+	}
+	for _, line := range lines {
+		if !slices.Contains(h.annotationWarnings, line) {
+			fmt.Fprintln(os.Stderr, "warning:", line)
+		}
+	}
+	h.annotationWarnings = lines
+	return nil
+}
+
+// putAnnotations は、ブック book のアノテーションの並びを書いて知らせる（空の並びなら消す。h.mu を持って呼ぶ）
+func (h *Hub) putAnnotations(book string, body json.RawMessage, client string, seq int64) error {
+	if err := h.store.PutAnnotations(book, body); err != nil {
+		return err
+	}
+	var list []json.RawMessage
+	if json.Unmarshal(body, &list) == nil && len(list) == 0 {
+		delete(h.annotations, book)
+		body = json.RawMessage("[]")
+	} else {
+		h.annotations[book] = body
+	}
+	h.broadcast("annotations", map[string]any{"book": book, "annotations": body, "client": client, "seq": seq})
+	return nil
 }
 
 // checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
@@ -149,8 +202,8 @@ func (h *Hub) BookWarnings() map[string]engine.BookWarning {
 	return out
 }
 
-// Data は全部のブック（ゴミ箱のブックも）と設定
-func (h *Hub) Data() ([]storage.Book, json.RawMessage) {
+// Data は全部のブック（ゴミ箱のブックも）と設定とアノテーション（ブックの id → 並び）
+func (h *Hub) Data() ([]storage.Book, json.RawMessage, map[string]json.RawMessage) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	books := make([]storage.Book, 0, len(h.order))
@@ -158,7 +211,11 @@ func (h *Hub) Data() ([]storage.Book, json.RawMessage) {
 		e := h.books[id]
 		books = append(books, storage.Book{ID: id, Body: e.body, Version: e.version})
 	}
-	return books, h.settings
+	annotations := make(map[string]json.RawMessage, len(h.annotations))
+	for id, list := range h.annotations {
+		annotations[id] = list
+	}
+	return books, h.settings, annotations
 }
 
 // AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、置いた順に返す
@@ -207,13 +264,20 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		return done, nil
 	}
 	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, By: p.By}
+	in.Annotations = map[string]json.RawMessage{}
 	if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {
 			in.Books = []json.RawMessage{e.body}
 		}
+		if list, ok := h.annotations[p.On.Book]; ok {
+			in.Annotations[p.On.Book] = list
+		}
 	} else {
 		for _, id := range h.order {
 			in.Books = append(in.Books, h.books[id].body)
+		}
+		for id, list := range h.annotations {
+			in.Annotations[id] = list
 		}
 	}
 	out, err := h.engine.Perform(in)
@@ -243,6 +307,11 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			}
 			h.settings = out.Settings
 			h.broadcast("settings", map[string]any{"settings": out.Settings, "client": p.Client, "seq": p.Seq})
+		}
+		for book, body := range out.Annotations {
+			if err := h.putAnnotations(book, body, p.Client, p.Seq); err != nil {
+				return Performed{}, err
+			}
 		}
 	}
 	h.remember(p.Key, done)
@@ -473,7 +542,7 @@ func (h *Hub) Book(id string) *storage.Book {
 
 // AISettings は AI が読む設定（engine.AISettings）
 func (h *Hub) AISettings() (json.RawMessage, error) {
-	_, settings := h.Data()
+	_, settings, _ := h.Data()
 	return h.engine.AISettings(settings)
 }
 

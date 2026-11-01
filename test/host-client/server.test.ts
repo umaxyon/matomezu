@@ -311,6 +311,15 @@ test("設定の知らせで設定を入れ替える", async () => {
   expect(store.state.getState().settings).toMatchObject({ lang: "en", skin: "@matomezu/base:dark" })
 })
 
+test("アノテーションの知らせで、そのブックのアノテーションを入れ替える（空の並びなら無くす）", async () => {
+  const { store, emit } = await connected()
+  const list = [{ id: "c1", annotation: "@matomezu/base:comment", anchors: ["x"], props: {} }]
+  emit("annotations", { book: "b1", annotations: list })
+  expect(store.state.getState().annotations).toEqual({ b1: list })
+  emit("annotations", { book: "b1", annotations: [] })
+  expect(store.state.getState().annotations).toEqual({})
+})
+
 test("読んでいる間に届いた新しい版の知らせは、読んだ古い版で消さない", async () => {
   let answer = (_: Response) => {}
   const listeners = new Map<string, (data: string) => void>()

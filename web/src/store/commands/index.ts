@@ -2,6 +2,7 @@
 
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
+import { isOnBook } from "../../core/def/action"
 import { fail } from "../../core/errors"
 import { NO_HISTORY } from "../../core/history"
 import { inspect, withoutPermissions } from "../../core/inspect"
@@ -70,7 +71,7 @@ function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
   return (
     actions.length === 0 ||
     actions.some(action => {
-      const onBook = ctx.catalog.actions.get(action)?.target === "book"
+      const onBook = isOnBook(ctx.catalog.actions.get(action)?.target)
       const book = onBook ? (ctx.book ?? undefined) : undefined
       return (
         inspect(ctx.catalog, { kind: "action", action, book, ...(onBook && where ? { where } : {}) }, ctx).value ===

@@ -39,7 +39,8 @@ func (h *Hub) LinkPlugin(dir string) (string, error) {
 	return b.Manifest.ID, nil
 }
 
-// UnlinkPlugin は id の追加プラグインを外す
+// UnlinkPlugin は id の追加プラグインを外し、そのプラグインが足した種類のアノテーションを消す
+// （外したプラグインの物はもう使わない。プラグインを入れずに起動したときや、版が変わって種類が無くなったときは消さずに warning にする）
 func (h *Hub) UnlinkPlugin(id string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -47,7 +48,27 @@ func (h *Hub) UnlinkPlugin(id string) error {
 	if len(next) == len(h.plugins) {
 		return fmt.Errorf("no plugin %q", id)
 	}
-	return h.usePlugins(next)
+	if err := h.usePlugins(next); err != nil {
+		return err
+	}
+	return h.dropAnnotationsOf(id)
+}
+
+// dropAnnotationsOf は、プラグイン id が足した種類のアノテーションを消して知らせる（どの種類がそのプラグインの物かはエンジンが決める。h.mu を持って呼ぶ）
+func (h *Hub) dropAnnotationsOf(id string) error {
+	for book, body := range h.annotations {
+		kept, changed, err := h.engine.AnnotationsWithout(id, body)
+		if err != nil {
+			return err
+		}
+		if !changed {
+			continue
+		}
+		if err := h.putAnnotations(book, kept, "", 0); err != nil {
+			return err
+		}
+	}
+	return h.checkAnnotations()
 }
 
 // usePlugins はホストのエンジンを組み直し、画面に知らせる（h.mu を持って呼ぶ）
@@ -58,6 +79,9 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	// warning は止めずに、常駐のログ（標準エラー）に書く。読めるブックも今のプラグインで確かめ直す
 	for _, n := range h.engine.Warnings() {
 		fmt.Fprintln(os.Stderr, "warning:", n)
+	}
+	if err := h.checkAnnotations(); err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
 	}
 	if err := h.checkBooks(h.order); err != nil {
 		// 確かめ直せなければ、エンジンを前の組に戻す（h.plugins は前のまま）

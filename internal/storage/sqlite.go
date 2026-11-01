@@ -33,6 +33,12 @@ var migrations = []string{
 	// ゴミ箱に入れた時刻は、ブックのデータ（土台のフィールド trashed）に移す
 	`UPDATE books SET body = json_set(body, '$.trashed', trashed_at) WHERE trashed_at IS NOT NULL;
 	ALTER TABLE books DROP COLUMN trashed_at;`,
+	// ブックごとのアノテーションの並び（ブックのデータとは別に持ち、ブックの版は進めない）
+	`CREATE TABLE annotations (
+		book TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
 }
 
 type sqliteStorage struct {
@@ -179,7 +185,43 @@ func (s *sqliteStorage) DeleteBook(id string) error {
 	if _, err := tx.Exec(`DELETE FROM opened WHERE id = ?`, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(`DELETE FROM annotations WHERE book = ?`, id); err != nil {
+		return err
+	}
 	return tx.Commit()
+}
+
+func (s *sqliteStorage) Annotations() (map[string]json.RawMessage, error) {
+	rows, err := s.db.Query(`SELECT book, body FROM annotations`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	all := map[string]json.RawMessage{}
+	for rows.Next() {
+		var book, body string
+		if err := rows.Scan(&book, &body); err != nil {
+			return nil, err
+		}
+		all[book] = json.RawMessage(body)
+	}
+	return all, rows.Err()
+}
+
+func (s *sqliteStorage) PutAnnotations(book string, body json.RawMessage) error {
+	if empty(body) {
+		_, err := s.db.Exec(`DELETE FROM annotations WHERE book = ?`, book)
+		return err
+	}
+	_, err := s.db.Exec(`INSERT INTO annotations (book, body, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(book) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, book, string(body), now())
+	return err
+}
+
+// empty は、並びの JSON が空（[] か null）か
+func empty(body json.RawMessage) bool {
+	var list []json.RawMessage
+	return json.Unmarshal(body, &list) == nil && len(list) == 0
 }
 
 func (s *sqliteStorage) Settings(user string) (json.RawMessage, error) {

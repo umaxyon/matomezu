@@ -2,6 +2,7 @@
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_NEW_MESSAGES } from "./book-new/messages"
 import { BOOK_OPEN_MESSAGES } from "./book-open/messages"
+import { COMMENT_MESSAGES } from "./comment/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
 import { HISTORY_MESSAGES } from "./history/messages"
@@ -33,6 +34,7 @@ export const BASE_MESSAGES = {
   ...BOOK_NEW_MESSAGES,
   ...PAGE_MESSAGES,
   ...LOCK_MESSAGES,
+  ...COMMENT_MESSAGES,
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,
   ...ITEM_PARTS_MESSAGES,

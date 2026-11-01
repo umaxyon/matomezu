@@ -3,10 +3,11 @@
 
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { type Address, addressOf, placeAt } from "../core/address"
+import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { checkBooks, hasPages, singleBooks } from "../core/book"
 import type { ActionId, DialogId, ItemId, MessageKey, SingleBookTypeId, SkinId, ToolId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
-import type { ActionContext } from "../core/def/action"
+import type { ActionContext, BookTarget } from "../core/def/action"
 import { fail } from "../core/errors"
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
@@ -62,6 +63,7 @@ export interface MatomezuState {
   partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
   workspace: Workspace
   settings: Settings
+  annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
   lang: Lang // 今の言語（設定の言語の項目が選んだ言語パックの言語。選んでいない・使えなければ、インスタンスを作ったときに決めた言語）
   dialog: OpenedDialog | null
   contextMenu: OpenedContextMenu | null
@@ -87,7 +89,7 @@ export interface Toast {
 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
 export type PerformArgs<Id extends ActionId> =
-  TargetOf<Id> extends "book" ? [args: ArgsOf<Id>, on: { book: string }] : [args: ArgsOf<Id>]
+  TargetOf<Id> extends BookTarget ? [args: ArgsOf<Id>, on: { book: string }] : [args: ArgsOf<Id>]
 // 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は認可ステップが止めたとき（permission はそのステップの id）
 export type Performed<Id extends ActionId> =
   | { ok: true; result: ResultOf<Id> }
@@ -168,7 +170,12 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(
-    world: { books: readonly unknown[]; settings: unknown; touched?: Readonly<Record<string, string>> },
+    world: {
+      books: readonly unknown[]
+      settings: unknown
+      annotations?: unknown
+      touched?: Readonly<Record<string, string>>
+    },
     replay: readonly DoneAction[],
   ): void
   // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
@@ -207,6 +214,7 @@ function initialState(
     partial,
     workspace: newWorkspace(catalog, first),
     settings,
+    annotations: {},
     lang,
     dialog: null,
     contextMenu: null,
@@ -343,10 +351,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     args: unknown,
     on?: { book: string },
   ): { ok: true; result: unknown; next: Partial<MatomezuState> } | Refused | { ok: false; reason: "no-book" } => {
-    const { books, trash, workspace, settings } = getState()
+    const { books, trash, workspace, settings, annotations } = getState()
     const ids: string[] = []
     const c = ctx()
-    const done = performIn({ books: { ...books, ...trash }, settings }, id, args, on, {
+    const done = performIn({ books: { ...books, ...trash }, settings, annotations }, id, args, on, {
       ...c,
       newId: () => {
         const made = c.newId()
@@ -373,6 +381,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.settings = done.settings
       next.lang = langOf(catalog, done.settings, fallback)
     }
+    if (done.annotations) next.annotations = withAnnotations(annotations, done.annotations)
     return { ok: true, result: done.result, next }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージの画面の状態は消す
@@ -529,9 +538,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const found = restore(world.books)
       let library: Library = Object.fromEntries([...singleBooks(catalog), ...found.books].map(b => [b.id, b]))
       let settings = restoreSettings(world.settings)
+      let annotations = restoreAllAnnotations(world.annotations)
       for (const done of replay) {
         const ids = [...done.ids]
-        const next = performIn({ books: library, settings }, done.action, done.args, done.on, {
+        const next = performIn({ books: library, settings, annotations }, done.action, done.args, done.on, {
           catalog,
           home,
           lang: done.lang,
@@ -542,12 +552,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (next.book) library = { ...library, [next.book.id]: next.book }
         if (next.books) library = next.books
         if (next.settings) settings = next.settings
+        annotations = withAnnotations(annotations, next.annotations)
       }
       const now = getState()
       const split = splitTrash(library)
       const books = sameAs(split.books, now.books)
       const trash = sameAs(split.trash, now.trash)
       if (JSON.stringify(settings) === JSON.stringify(now.settings)) settings = now.settings
+      if (JSON.stringify(annotations) === JSON.stringify(now.annotations)) annotations = now.annotations
       const unreadable =
         JSON.stringify(found.warnings) === JSON.stringify(now.unreadable) ? now.unreadable : found.warnings
       const partial = JSON.stringify(found.partial) === JSON.stringify(now.partial) ? now.partial : found.partial
@@ -560,6 +572,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(trash === now.trash ? {} : { trash }),
         ...(books === now.books ? {} : { books, workspace: followLibrary(catalog, now.workspace, books, now.books) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
+        ...(annotations === now.annotations ? {} : { annotations }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
       })

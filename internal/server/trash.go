@@ -46,6 +46,7 @@ func (h *Hub) remove(id, client string, seq int64) error {
 		return err
 	}
 	delete(h.books, id)
+	delete(h.annotations, id)
 	delete(h.bookWarnings, id)
 	delete(h.touched, id)
 	h.order = slices.DeleteFunc(h.order, func(x string) bool { return x == id })
