@@ -5,7 +5,7 @@
   filter: var(--box-shadow);
 }
 /* 箱。キャプションと本文の塊を、縦の位置（data-valign）に置く。寸法は size.ts の BOX_LOOK と同じ値にする。
-   字は同梱の Noto Sans JP で描き、字詰め・合字・字の形の切り替え・約物の詰め・和欧の間の空きを止める（幅は core/text が計算した値のとおりにする） */
+   字は同梱の Noto Sans JP で描き、字詰め・合字・字の形の切り替え・約物の詰め・和欧の間の空きを止める（幅は base の文字の幅が計算した値のとおりにする） */
 .box {
   display: flex;
   flex-direction: column;
@@ -33,7 +33,7 @@
   text-spacing-trim: space-all;
   text-autospace: no-autospace;
 }
-/* 右上の角の折り返し（テーマの box.fold の大きさ。0 なら折り返さない）: 角を切り欠き、塗りより少し濃い三角を重ねる */
+/* 右上の角の折り返し（テーマキー box-fold の大きさ。0 なら折り返さない）: 角を切り欠き、塗りより少し濃い三角を重ねる */
 .box {
   position: relative;
   clip-path: polygon(0 0, calc(100% - var(--box-fold)) 0, 100% var(--box-fold), 100% 100%, 0 100%);

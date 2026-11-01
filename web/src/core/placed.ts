@@ -1,5 +1,5 @@
 // ページに置いたアイテムのデータ: 外枠（形は id・左上・大きさ・子の形、つなぐものは id・つなぐ相手）と、アイテムの項目と中身。
-// 外枠は kind ごとにここで決め、アイテムの定義は項目と中身のフィールドだけを持つ。ページの形は、ブックのタイプが選んだアイテムから機能台帳が組み立てる（catalog.ts）。
+// 外枠は kind ごとにここで決め、アイテムの定義は項目と中身のフィールドだけを持つ。ページの形は、ブックのタイプが選んだアイテムから機能台帳が組み立てる（core-catalog.ts）。
 // 関係の決まりは、ページのつなぐもの（線）の定義が持つものを全部かける（形が変わったあとの整えは base の place/placed.ts）
 import { z } from "zod"
 import type { ItemTable } from "./catalog"
@@ -93,6 +93,38 @@ export function walkShapes(page: ItemPage): ShapeOnPage[] {
 // ページの中のどの深さの形も、id で探す
 export const findShape = (page: ItemPage, id: string): ShapeOnPage | undefined =>
   walkShapes(page).find(s => s.shape.id === id)
+
+// id の形を f の返す形に置き換えたページ（どの深さでも。f が null を返せば子孫ごと除く）。形が無ければ null
+export function replaceShape(
+  page: ItemPage,
+  id: string,
+  f: (shape: PlacedShape) => PlacedShape | null,
+): ItemPage | null {
+  const items = replaceIn(pageItemsOf(page), id, f)
+  return items && { ...page, items }
+}
+
+// 並びの中の id の形を置き換えた並び（子の並びもたどる。子の並びが空になれば shapes を持たない）。無ければ null
+function replaceIn<T extends { id: string }>(
+  list: readonly T[],
+  id: string,
+  f: (shape: PlacedShape) => PlacedShape | null,
+): T[] | null {
+  for (const [i, item] of list.entries()) {
+    if (!("x" in item)) continue
+    const shape = item as unknown as ShapeData
+    if (shape.id === id) {
+      const next = f(shape as PlacedShape)
+      return [...list.slice(0, i), ...(next ? [next as unknown as T] : []), ...list.slice(i + 1)]
+    }
+    const shapes = shape.shapes && replaceIn(shape.shapes, id, f)
+    if (!shapes) continue
+    const { shapes: _, ...rest } = shape
+    const changed = (shapes.length > 0 ? { ...rest, shapes } : rest) as unknown as T
+    return [...list.slice(0, i), changed, ...list.slice(i + 1)]
+  }
+  return null
+}
 
 // つなぐものを種類ごとに分ける（表に無いものは入れない）
 function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorItemDef, PlacedConnector[]][] {

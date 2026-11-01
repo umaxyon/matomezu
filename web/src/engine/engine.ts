@@ -155,11 +155,17 @@ function aiCatalog(of: Assembled = assembled) {
 ;(globalThis as { matomezuReadSettings?: (settings: string) => string }).matomezuReadSettings = settings =>
   JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
-// 残したブックを今の機能台帳で確かめ、warning のあるブック（読めない W004〜W006・一部に無い物がある W007）の id・番号・warning の 1 行を返す（常駐が一覧に持つ）
+// 残したブックを今の機能台帳で確かめ、warning のあるブック（読めない W004〜W006・一部に無い物がある W007）の id・番号・warning の 1 行と、
+// 読めないか（unreadable）を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
   const { warnings, partial } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
   return JSON.stringify(
-    [...warnings, ...partial].map(n => ({ book: n.params.book ?? "", code: n.code, warning: warningText(n) })),
+    [...warnings.map(n => [n, true] as const), ...partial.map(n => [n, false] as const)].map(([n, unreadable]) => ({
+      book: n.params.book ?? "",
+      code: n.code,
+      warning: warningText(n),
+      unreadable,
+    })),
   )
 }
 

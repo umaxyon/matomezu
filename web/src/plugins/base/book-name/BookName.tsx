@@ -2,13 +2,13 @@
 // ロック中のブックは名前の左に鍵を出す（印だけ。外すのはブックの設定のダイアログ）。
 // 乗せるか押すと、下の行の真上に、行の幅いっぱいのドロワーが下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
 // 下の行から離れると下がる（ドロワーは下の行の中に描くので、ドロワーに乗っている間も下の行に乗っている）。
-// ドロワーには、左から地図・基本・ブックの道具の 3 つのスロット（drawer.ts）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
+// ドロワーには、左から地図・履歴・基本・ブックの道具の 4 つのスロット（drawer.ts の DRAWER_SLOTS）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
 // 中のウィジェットは、項目を選んだらドロワーを下げられる（drawer-context.tsx）
 import { useEffect, useRef, useState } from "react"
-import { bookTitle } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { bookTitle } from "../book-open/book-title"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { useBottomHover } from "../workspace/bottom-hover"

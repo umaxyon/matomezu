@@ -1,11 +1,19 @@
 // トーストの置き場（ウィジェット toast-host）: store の出しているトースト（toasts）を、画面の下の真ん中に、古いものを上にして積む。
-// 種類ごとの出しておく時間（store の TOAST_MS）が過ぎるか、押すと消える
+// 種類ごとの出しておく時間（TOAST_MS）が過ぎるか、押すと消える
 import { useEffect } from "react"
-import { TOAST_MS, type Toast } from "../../../store/store"
+import type { Toast } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "./ToastHost.module.css"
+
+// トーストを出しておく時間（ms）。null は時間では消さない
+const TOAST_MS: Readonly<Record<Toast["kind"], number | null>> = {
+  info: 3500,
+  success: 3500,
+  warn: 7000,
+  error: null,
+}
 
 export function ToastHost() {
   const toasts = useMatomezuState(s => s.toasts)

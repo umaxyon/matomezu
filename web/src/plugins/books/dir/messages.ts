@@ -2,6 +2,7 @@
 import { defineMessages } from "../../../plugin-api"
 
 export const DIR_MESSAGES = defineMessages({
+  "Page {n}": { en: "Page {n}", ja: "ページ {n}" },
   Directory: { en: "Directory", ja: "ディレクトリ構成図" },
   Pencil: { en: "Pencil", ja: "鉛筆" },
   "Add entries": { en: "Add entries", ja: "中身を足す" },

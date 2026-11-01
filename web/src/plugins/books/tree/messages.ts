@@ -2,6 +2,7 @@
 import { defineMessages } from "../../../plugin-api"
 
 export const TREE_MESSAGES = defineMessages({
+  "Page {n}": { en: "Page {n}", ja: "ページ {n}" },
   Tree: { en: "Tree", ja: "ツリー" },
   "Edit tool": { en: "Edit tool", ja: "編集ツール" },
   "Add nodes": { en: "Add nodes", ja: "節を足す" },
