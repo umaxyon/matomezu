@@ -9,6 +9,7 @@ import {
   type ItemPage,
   type PlacedShape,
   putPage,
+  replaceShape,
   type ShapeData,
   shapeSchema,
 } from "../../../plugin-api"
@@ -21,7 +22,6 @@ import {
   removeItems,
   replaceChild,
   replacePushing,
-  replaceShape,
   settleChildren,
   shapeDefOf,
   widenForCaption,

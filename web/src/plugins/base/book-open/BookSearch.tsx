@@ -6,7 +6,6 @@
 // onTrash を渡すと、ゴミ箱に入れられるブック（canTrash）の行にポインタを乗せている間、ゴミ箱のボタンを出す（入れられない行も同じ幅を空け、時刻の列をそろえる）
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { bookTitle } from "../../../core/book"
 import type { Book } from "../../../core/schema/book"
 import type { Warning } from "../../../core/warnings"
 import { useMessages } from "../../../ui/i18n"
@@ -15,6 +14,7 @@ import { kit } from "../kit"
 import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
 import { matchesQuery, searchBooks } from "./book-search"
+import { bookTitle } from "./book-title"
 import { TrashIcon } from "./TrashIcon"
 
 export function BookSearch({

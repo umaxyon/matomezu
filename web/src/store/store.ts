@@ -71,6 +71,8 @@ export interface MatomezuState {
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる。サーバーなしなら false）
   // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのブックを変えたら、その全部のブックに同じ画面の履歴の段が入る
   history: Readonly<Record<string, BookHistory>>
+  // ステージの id → プラグインの id → そのプラグインが持つ、そのステージの画面の状態（中身の形はプラグインが決め、土台は読まない）
+  stageStates: Readonly<Record<string, Readonly<Record<string, unknown>>>>
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、success はうまくいったことを知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
@@ -80,13 +82,6 @@ export interface Toast {
   kind: "info" | "success" | "warn" | "error"
   message: MessageKey
   params?: Params
-}
-// トーストを出しておく時間（ms）。null は時間では消さない
-export const TOAST_MS: Readonly<Record<Toast["kind"], number | null>> = {
-  info: 3500,
-  success: 3500,
-  warn: 7000,
-  error: null,
 }
 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
@@ -179,6 +174,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   locate(address: Address): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setOffline(offline: boolean): void
+  // プラグイン owner（プラグインの id）が持つ、ステージ stage の画面の状態を value にする（undefined なら消す）。無いステージには置かない。
+  // プラグインは、自分の kit を渡すフック useSetStageState を通して、自分の置き場だけを変える（プラグインに渡す actions には入れない）
+  setStageState(stage: string, owner: string, value: unknown): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
   // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と error を返す
   use(
@@ -213,6 +211,7 @@ function initialState(
     trash: { ...trash },
     offline: false,
     history: {},
+    stageStates: {},
   }
 }
 
@@ -372,17 +371,21 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     return { ok: true, result: done.result, next }
   }
-  // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じる
+  // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージの画面の状態は消す
   const commit = (next: Partial<MatomezuState>) => {
     if (Object.keys(next).length === 0) return
-    const { dialog, contextMenu } = getState()
+    const { dialog, contextMenu, stageStates } = getState()
     const stages = next.workspace?.stages
     const gone = (opened: { stage: string } | null) =>
       stages !== undefined && opened !== null && !stages.some(s => s.id === opened.stage)
+    const kept = stages && Object.keys(stageStates).filter(id => stages.some(s => s.id === id))
     setState({
       ...next,
       ...(gone(dialog) ? { dialog: null } : {}),
       ...(gone(contextMenu) ? { contextMenu: null } : {}),
+      ...(kept && kept.length < Object.keys(stageStates).length
+        ? { stageStates: Object.fromEntries(kept.map(id => [id, stageStates[id] ?? {}])) }
+        : {}),
     })
   }
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
@@ -561,6 +564,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (JSON.stringify(addressOf(now.workspace)) === JSON.stringify(address)) return
       const workspace = placeAt(catalog, now.books, now.workspace, address)
       if (workspace !== now.workspace) commit({ workspace })
+    },
+    setStageState: (stage, owner, value) => {
+      const { stageStates: now, workspace } = getState()
+      const { [owner]: _, ...rest } = now[stage] ?? {}
+      if (value === undefined) {
+        if (now[stage] && owner in now[stage]) setState({ stageStates: { ...now, [stage]: rest } })
+      } else if (hasStage(workspace, stage)) setState({ stageStates: { ...now, [stage]: { ...rest, [owner]: value } } })
     },
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })

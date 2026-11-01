@@ -21,7 +21,7 @@ import {
   stopPlacing,
   togglePlacing as togglePlacingOn,
 } from "./stage"
-import { hasTool, nextTool, placingTool, type Tools, toolDef, toolIn, toolSetOf, toolsIn, toolUsable } from "./tools"
+import { hasTool, nextTool, placingTool, type Tools, toolDef, toolIn, toolSetOf, toolUsable } from "./tools"
 
 // 横に並べる。share は分割したときの左のステージの幅の割合（分割をやめても覚えていて、次に分割したときもその割合で分ける）
 export interface Arrangement {
@@ -127,15 +127,6 @@ export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: L
   if (usable(tool)) return tool
   const next = nextTool(catalog, set, tool, usable)
   return usable(next) ? next : null
-}
-
-// ステージ id の道具の組の、使えない道具（回す順）
-export function unusableTools(catalog: CoreCatalog, ws: Workspace, id: string, books: Library): readonly ToolId[] {
-  const stage = ws.stages.find(s => s.id === id)
-  const set = stage ? toolSetOf(catalog, stage) : null
-  if (!stage || !set) return []
-  const usable = usableIn(catalog, stage, books)
-  return toolsIn(catalog, set).filter(tool => !usable(tool))
 }
 
 // ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを認可ステップが止めない）
