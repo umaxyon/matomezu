@@ -23,6 +23,6 @@ export const PAGE_MESSAGES = defineMessages({
   "Page {n}": { en: "Page {n}", ja: "ページ {n}" },
   Portrait: { en: "Portrait", ja: "縦" },
   Landscape: { en: "Landscape", ja: "横" },
-  "Grow the page": { en: "Grow the page", ja: "ページを伸ばす" },
+  "Variable page": { en: "Variable page", ja: "可変ページにする" },
   "The shapes do not fit on the paper": { en: "The shapes do not fit on the paper", ja: "形が紙に入りません" },
 })

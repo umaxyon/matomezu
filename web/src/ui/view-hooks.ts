@@ -169,7 +169,7 @@ export function useSetStageState(kit: Owner): (stage: string, value: unknown) =>
   return useCallback((stage, value) => setStageState(stage, id, value), [setStageState, id])
 }
 
-// 見せ方のビューが、そのステージに描く広さ（伸びるページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。
+// 見せ方のビューが、そのステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。
 // 広さが変わったときだけ知らせ、ビューが消えたら紙 1 枚に戻す。ずらす量の範囲・紙の枠・全体を収める倍率・ミニマップは、この広さで決まる
 export function useStageArea(stage: string, area: Size | null): void {
   const { setStageArea } = useActions()

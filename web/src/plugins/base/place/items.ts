@@ -210,7 +210,7 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
   return paper.status === "unshowable" ? null : paper.size
 }
 
-// ブック book のページ page の広さ: 伸びないページは紙 1 枚。伸びるページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
+// ブック book のページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
 // （spare なら伸びる向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
 export function pageArea(
   catalog: CoreCatalog,

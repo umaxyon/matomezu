@@ -15,7 +15,7 @@ const ARGS = z.strictObject({
   title: z.string().trim().min(1),
   paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定
   orientation: z.enum(ORIENTATIONS).optional(), // 無ければ規定の既定
-  grows: z.boolean().optional(), // 伸びるページにするか（タイプが伸びられる向きを宣言したときだけ）。無ければ伸びない
+  grows: z.boolean().optional(), // 可変ページにするか（タイプが伸びられる向きを宣言したときだけ）。無ければ可変ページでない
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだページの設定の項目（形はタイプが決める）
   fields: z.record(z.string(), z.unknown()).optional(), // ブックのタイプがページに足したフィールド（形はタイプが決める）
 })

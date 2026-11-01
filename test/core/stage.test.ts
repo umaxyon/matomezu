@@ -156,7 +156,7 @@ test("その場で編集中（editing）は、選んでいる物があるとき�
   expect(setEditing(editing, false).editing).toBe(false)
 })
 
-test("見せ方が知らせた広さ（伸びるページ）は、紙の枠とずらす量の範囲に効き、紙 1 枚の大きさ（paperOf）は変えない。紙が変われば捨てる", () => {
+test("見せ方が知らせた広さ（可変ページ）は、紙の枠とずらす量の範囲に効き、紙 1 枚の大きさ（paperOf）は変えない。紙が変われば捨てる", () => {
   const book = {
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
