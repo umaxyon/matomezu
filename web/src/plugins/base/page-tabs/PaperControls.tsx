@@ -9,7 +9,7 @@ import { useCatalog } from "../../../ui/store-context"
 import { controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { PageProblem } from "./page-problems"
-import { canGrow, defaultPaper, paperChoices, paperChoicesFor, shapesFit } from "./pages"
+import { canGrow, defaultPaper, paperChoices, paperChoicesFor, shapesFit, withGrows } from "./pages"
 
 // 向きの名前
 const ORIENTATION_TITLES = { portrait: "Portrait", landscape: "Landscape" } as const satisfies Record<
@@ -41,11 +41,9 @@ export function usePaperControls(book: PagedBook | undefined, page: Page | null)
     ...(!page || value.orientation !== page.orientation ? { orientation: value.orientation } : {}),
     ...(!page || value.grows !== (page.grows === true) ? { grows: value.grows } : {}),
   }
-  // 選んでいる紙を重ねたページ
-  const draft = (p: Page): Page => {
-    const { grows: _, ...rest } = p
-    return { ...rest, paper: value.paper, orientation: value.orientation, ...(value.grows ? { grows: true } : {}) }
-  }
+  // 選んでいる紙を重ねたページ（可変ページをやめるなら、アクションと同じく空きを詰める）
+  const draft = (p: Page): Page =>
+    withGrows(catalog, book, { ...p, paper: value.paper, orientation: value.orientation }, value.grows)
   const fits = !page || Object.keys(patch).length === 0 || shapesFit(catalog, putPage(book, draft(page)), page.id)
   const problems: { page: Page; problem: PageProblem }[] =
     page && !fits ? [{ page, problem: { message: kit.message("The shapes do not fit on the paper") } }] : []
