@@ -3,8 +3,8 @@
 // 色（color）はテーマの上の塗りの上書き: 代表色の名前ならそのテーマの色、#rrggbb ならどのテーマでもその色、無ければテーマの塗り（paint.ts）。
 // 置くときは、置く所を覚えて追加のダイアログ（box-add）を開き、中身を決めてから置く。中身は編集のダイアログ（box-edit）で変える
 import { z } from "zod"
-import { HEX, PALETTE, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
-import { NEST_PADDING, textProps } from "../../base"
+import type { ShapeAddArgs, ShapeEditArgs } from "../../../plugin-api"
+import { ColorSchema, NEST_PADDING, textProps } from "../../base"
 import { kit } from "./kit"
 import { BOX_MIN, BOX_SIZE, headHeight, placedHeight, placedWidth, VALIGNS } from "./size"
 
@@ -21,7 +21,7 @@ export const BoxPropsSchema = z
   .strictObject({
     ...textProps("center"), // キャプション・区切り線・本文と寄せ（キャプションは中央寄せ）
     theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければブックのテーマ）
-    color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
+    color: ColorSchema.optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
     // 本文の列の幅（無ければ箱の中いっぱい。size.ts の bodyColumn）
     bodyWidth: z
       .number()

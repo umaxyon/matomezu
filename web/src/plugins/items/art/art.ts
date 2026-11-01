@@ -3,7 +3,8 @@
 // ツールボックスではシェイプパネルに並べる。置くときは絵ごとの追加のダイアログでキャプションと色を聞いてから置き、中身は 1 つの編集のダイアログで変える。
 // 線は絵とキャプションを合わせた四角のふちにつなぐ
 import { z } from "zod"
-import { HEX, type MessageKey, PALETTE, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
+import type { MessageKey, ShapeAddArgs, ShapeEditArgs } from "../../../plugin-api"
+import { ColorSchema } from "../../base"
 import { kit } from "./kit"
 import type { ART_MESSAGES } from "./messages"
 import { PICTURES, type PictureName } from "./pictures"
@@ -19,7 +20,7 @@ export const ART_TOKENS = [
 
 export const ArtPropsSchema = z.strictObject({
   caption: z.string().default(""),
-  color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 絵の色（代表色の名前か #rrggbb。無ければテーマの絵の色）
+  color: ColorSchema.optional(), // 絵の色（代表色の名前か #rrggbb。無ければテーマの絵の色）
 })
 
 // 編集のダイアログ（どの絵も同じ）

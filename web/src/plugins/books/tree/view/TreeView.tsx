@@ -12,7 +12,7 @@
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
 // 足す・書き換える・付け替えるのが紙に入らないので断られたら、トーストで知らせる
 import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
-import { type Point, paperOf, placement, type Size, type StageView, toPaper } from "../../../../plugin-api"
+import { paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
 import {
   type BookViewProps,
   useActions,
@@ -27,10 +27,8 @@ import {
   useShownPage,
   useStage,
   useStageArea,
-  useStagePan,
-  useToPaper,
 } from "../../../../plugin-api/ui"
-import { edgePanner, grownArea, growOf, refusalMessage, settingValue } from "../../../base"
+import { grownArea, growOf, refusalMessage, settingValue } from "../../../base"
 import {
   PaperFrame,
   RichBar,
@@ -39,6 +37,7 @@ import {
   RichText,
   useAnchorRef,
   useBookTheme,
+  usePaperDrag,
   useResize,
   useSwatches,
 } from "../../../base/ui"
@@ -166,7 +165,11 @@ const Tree = memo(function Tree({
   const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
   const ended = useRef(false)
   const editor = useRef<RichInputHandle>(null)
-  const drag = useNodeDrag(stage, area)
+  // 節のドラッグ: 動かし始めたら、ポインタの所を中心に倍率を 100% にし（遠くの節にも落とせる）、終えたら編集の道具の倍率に戻す
+  const drag = usePaperDrag(stage, area, {
+    begin: p => zoomStage(stage.id, 1, p),
+    end: () => zoomStage(stage.id, toolZoom(true)),
+  })
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
@@ -215,9 +218,9 @@ const Tree = memo(function Tree({
   const { nodes, lines } = laid
   // ドラッグで動かしている節（押しただけでまだ動かしていなければ null）と、落とす先
   const dragging = drag.state?.moved ? drag.state : null
-  const moving = dragging ? subtreeIds(nodeOf(tree, dragging.node) ?? { id: dragging.node, caption: "" }) : null
-  const drop = dragging ? dropAt(tree, grow, nodes, dragging.node, dragging.at) : null
-  const ghost = dragging && nodes.find(n => n.id === dragging.node)
+  const moving = dragging ? subtreeIds(nodeOf(tree, dragging.id) ?? { id: dragging.id, caption: "" }) : null
+  const drop = dragging ? dropAt(tree, grow, nodes, dragging.id, dragging.at) : null
+  const ghost = dragging && nodes.find(n => n.id === dragging.id)
   drag.onDrop.current = (node, at) => {
     const target = dropAt(tree, grow, nodes, node, at)
     if (!target) return
@@ -391,113 +394,6 @@ function NodeText({ node: n }: { node: LaidNode }) {
       )}
     </>
   )
-}
-
-// ドラッグを始めるまでに動かす長さ（画面の px）
-const DRAG_START = 4
-
-interface NodeDrag {
-  node: string
-  from: Point // 押した所（画面の座標）
-  grab: Point // 節の左上から、押した所まで（紙の座標）
-  at: Point // ポインタの所（紙の座標）
-  moved: boolean // DRAG_START より動かしたか
-}
-
-// 節のドラッグ: start で押した節を覚え、動かすと紙の座標の位置を追い、離したら onDrop に渡す（動かさずに離せば何もしない）。
-// 押した所は、ステージ stage の表示領域の要素 area から見た点にして、紙の座標に直す。
-// 動かし始めたら、ポインタの所を中心に倍率を 100% にし、ポインタが表示領域の端に近い間は、その向きへ紙をずらし続ける（base の edgePanner）。
-// 終えたら（落としても、やめても）編集の道具の倍率に戻す
-function useNodeDrag(stage: StageView, area: RefObject<HTMLDivElement | null>) {
-  const { zoomStage, panStageBy } = useActions()
-  const [state, setPress] = useState<NodeDrag | null>(null)
-  const latest = useRef(state)
-  latest.current = state
-  const onDrop = useRef<(node: string, at: Point) => void>(() => {})
-  const local = (cx: number, cy: number): Point | null => {
-    const r = area.current?.getBoundingClientRect()
-    return r ? { x: cx - r.left, y: cy - r.top } : null
-  }
-  const toPaperOf = useToPaper(stage.id)
-  const toPaperAt = (cx: number, cy: number): Point | null => {
-    const p = local(cx, cy)
-    return p ? toPaperOf(p) : null
-  }
-  const toPaperRef = useRef(toPaperAt)
-  toPaperRef.current = toPaperAt
-  const localRef = useRef(local)
-  localRef.current = local
-  const id = stage.id
-  const pressed = state !== null
-  const pointer = useRef<Point | null>(null) // 最後のポインタの所（画面の座標）
-  // 紙がずれたり倍率が変わったりしたら（描き直したあとのステージで）、ポインタの下の紙の所を追い直す。
-  // 紙をずらす量は押している間だけ追う（押していなければ、ずらしても描き直さない）
-  const { opened, zoom } = stage
-  const pan = useStagePan(id, pressed)
-  useEffect(() => {
-    const d = latest.current
-    const c = pointer.current
-    const p = c && localRef.current(c.x, c.y)
-    if (!d?.moved || !p || !pan) return
-    const at = toPaper({ opened, pan, zoom }, p)
-    if (at && (at.x !== d.at.x || at.y !== d.at.y)) setPress({ ...d, at })
-  }, [opened, pan, zoom])
-  useEffect(() => {
-    if (!pressed) return
-    // 端に近い間、紙をずらし続ける
-    const panner = edgePanner(
-      () => {
-        const r = area.current?.getBoundingClientRect()
-        return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null
-      },
-      (dx, dy) => panStageBy(id, dx, dy),
-    )
-    const move = (e: PointerEvent) => {
-      const d = latest.current
-      if (!d) return
-      pointer.current = { x: e.clientX, y: e.clientY }
-      if (!d.moved && Math.hypot(e.clientX - d.from.x, e.clientY - d.from.y) < DRAG_START) return
-      if (!d.moved) {
-        const p = localRef.current(e.clientX, e.clientY)
-        if (p) zoomStage(id, 1, p) // ポインタの下の所を動かさずに 100% へ
-      }
-      const at = toPaperRef.current(e.clientX, e.clientY)
-      if (at) setPress({ ...d, moved: true, at })
-      panner.follow(pointer.current)
-    }
-    const finish = (drop: boolean) => {
-      const d = latest.current
-      pointer.current = null
-      panner.stop()
-      setPress(null)
-      if (!d?.moved) return
-      zoomStage(id, toolZoom(true))
-      if (drop) onDrop.current(d.node, d.at)
-    }
-    const up = () => finish(true)
-    const cancel = () => finish(false)
-    window.addEventListener("pointermove", move)
-    window.addEventListener("pointerup", up)
-    window.addEventListener("pointercancel", cancel)
-    return () => {
-      panner.stop()
-      window.removeEventListener("pointermove", move)
-      window.removeEventListener("pointerup", up)
-      window.removeEventListener("pointercancel", cancel)
-    }
-  }, [pressed, id, area, zoomStage, panStageBy])
-  const start = (node: { id: string; x: number; y: number }, cx: number, cy: number) => {
-    const at = toPaperAt(cx, cy)
-    if (at)
-      setPress({
-        node: node.id,
-        from: { x: cx, y: cy },
-        grab: { x: at.x - node.x, y: at.y - node.y },
-        at,
-        moved: false,
-      })
-  }
-  return { state, start, onDrop }
 }
 
 // 道具が替わったら（初めて描くときも）、道具の倍率にする（edit.ts の toolZoom）

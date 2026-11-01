@@ -4,13 +4,10 @@
 // 名前と説明は、base の本文の装飾（**太字**・{色:文字}）で書ける。同じフォルダに同じ名前があってもよい（id で見分ける）。
 // id は呼び出す側が書かず、アクションが振る（足すときに受ける形は NewEntrySchema）
 import { z } from "zod"
-import { HEX, PALETTE } from "../../../plugin-api"
+import { ColorSchema } from "../../base"
 
 export const KINDS = ["folder", "file"] as const
 export type Kind = (typeof KINDS)[number]
-
-// 中身の色（代表色の名前か #rrggbb）
-export const EntryColorSchema = z.union([z.enum(PALETTE), z.string().regex(HEX)])
 
 export interface DirFile {
   id: string
@@ -53,7 +50,7 @@ const FileSchema = z.strictObject({
   kind: z.literal("file"),
   name: nameText(),
   description: descriptionText().optional(),
-  color: EntryColorSchema.optional(),
+  color: ColorSchema.optional(),
 })
 
 export const DirFolderSchema: z.ZodType<DirFolder> = z.strictObject({
@@ -61,7 +58,7 @@ export const DirFolderSchema: z.ZodType<DirFolder> = z.strictObject({
   kind: z.literal("folder"),
   name: nameText(),
   description: descriptionText().optional(),
-  color: EntryColorSchema.optional(),
+  color: ColorSchema.optional(),
   closed: z.boolean().optional(),
   get children() {
     return z.array(z.union([FileSchema, DirFolderSchema])).optional()
@@ -77,7 +74,7 @@ const NewFileSchema = z.strictObject({
   kind: z.literal("file"),
   name: nameText(),
   description: descriptionText().optional(),
-  color: EntryColorSchema.optional(),
+  color: ColorSchema.optional(),
 })
 
 export const NewEntrySchema: z.ZodType<NewEntry> = z.union([
@@ -86,7 +83,7 @@ export const NewEntrySchema: z.ZodType<NewEntry> = z.union([
     kind: z.literal("folder"),
     name: nameText(),
     description: descriptionText().optional(),
-    color: EntryColorSchema.optional(),
+    color: ColorSchema.optional(),
     closed: z.boolean().optional().describe("Drawn closed (its contents hidden)"),
     get children() {
       return z.array(NewEntrySchema).optional()

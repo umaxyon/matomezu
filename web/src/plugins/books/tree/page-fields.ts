@@ -2,15 +2,15 @@
 // 根と子の全部に id を振って書き（色の無い子は親の色を写す）、振った id を同じ入れ子で返す。直すときは、根のキャプション・本文・本文を描くか・色の書いた所だけを替え
 // （本文と色の null は消す）、子には触れない
 import { z } from "zod"
-import { BODY_MAX, type PageFieldsWay, pageFieldsWay } from "../../base"
-import { giveIds, NewNodeSchema, NodeColorSchema, TreeRootSchema } from "./node"
+import { BODY_MAX, ColorSchema, type PageFieldsWay, pageFieldsWay } from "../../base"
+import { giveIds, NewNodeSchema, TreeRootSchema } from "./node"
 
 const ADD_ROOT = z
   .strictObject({
     caption: z.string(),
     body: z.string().max(BODY_MAX).optional(),
     showBody: z.boolean().optional(),
-    color: NodeColorSchema.optional(),
+    color: ColorSchema.optional(),
     children: z.array(NewNodeSchema).optional(),
   })
   .describe(
@@ -22,7 +22,7 @@ const UPDATE_ROOT = z
     caption: z.string().optional(),
     body: z.string().max(BODY_MAX).nullable().optional(),
     showBody: z.boolean().optional(),
-    color: NodeColorSchema.nullable().optional(),
+    color: ColorSchema.nullable().optional(),
   })
   .describe("Only what is given changes (null removes the body or the color). Children do not change here")
 

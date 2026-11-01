@@ -3,9 +3,9 @@
 // ページのフィールド root を書き換える。書き換えた行が紙に入らなければ断る。ディレクトリ構成図の見せ方について来る
 import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
-import { contentIdMaker } from "../../base"
+import { ColorSchema, contentIdMaker } from "../../base"
 import { addEntries, buildPaths, changeEntry, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
-import { type DirFolder, DirFolderSchema, descriptionText, EntryColorSchema, giveIds, NewEntrySchema } from "./entry"
+import { type DirFolder, DirFolderSchema, descriptionText, giveIds, NewEntrySchema } from "./entry"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 
@@ -87,7 +87,7 @@ export const ENTRY_UPDATE = kit.defineAction({
     entry: z.string().min(1),
     name: z.string().optional(),
     description: descriptionText().nullable().optional(),
-    color: EntryColorSchema.nullable().optional(),
+    color: ColorSchema.nullable().optional(),
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {

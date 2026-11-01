@@ -1,14 +1,14 @@
 // ディレクトリ構成図のページのフィールドの受け方（base の page-add・page-update が使う）: 作るときは、根のフォルダの名前・説明・色と、id の無い中身の入れ子を受け、
 // 根と中身の全部に id を振って書き、振った id を同じ入れ子で返す。直すときは何も受けない（根も中身も、ディレクトリ構成図のアクションで替える）
 import { z } from "zod"
-import { type PageFieldsWay, pageFieldsWay } from "../../base"
-import { descriptionText, EntryColorSchema, giveIds, NewEntrySchema } from "./entry"
+import { ColorSchema, type PageFieldsWay, pageFieldsWay } from "../../base"
+import { descriptionText, giveIds, NewEntrySchema } from "./entry"
 
 const ADD_ROOT = z
   .strictObject({
     name: z.string(),
     description: descriptionText().optional(),
-    color: EntryColorSchema.optional(),
+    color: ColorSchema.optional(),
     closed: z.boolean().optional(),
     children: z.array(NewEntrySchema).optional(),
   })

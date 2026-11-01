@@ -21,12 +21,11 @@ import {
   memo,
   type PointerEvent,
   type RefObject,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react"
-import { isPaletteName, type Point, paperOf, type StageView, themeVar, toPaper } from "../../../../plugin-api"
+import { isPaletteName, paperOf, type StageView, themeVar } from "../../../../plugin-api"
 import {
   type BookViewProps,
   useActions,
@@ -40,11 +39,17 @@ import {
   useShownPage,
   useStage,
   useStageArea,
-  useStagePan,
-  useToPaper,
 } from "../../../../plugin-api/ui"
-import { edgePanner, grownArea, growOf, refusalMessage, settingValue } from "../../../base"
-import { PaperFrame, RichBar, RichInput, type RichInputHandle, RichText, useAnchorRef } from "../../../base/ui"
+import { grownArea, growOf, refusalMessage, settingValue } from "../../../base"
+import {
+  PaperFrame,
+  RichBar,
+  RichInput,
+  type RichInputHandle,
+  RichText,
+  useAnchorRef,
+  usePaperDrag,
+} from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
 import { ADDED_EDIT, FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
@@ -118,7 +123,7 @@ const Rows = memo(function Rows({
   const [noteDraft, setNoteDraft] = useState<{ entry: string; text: string } | null>(null) // 書いている説明
   const ended = useRef(false)
   const editor = useRef<RichInputHandle>(null)
-  const drag = useRowDrag(stage, area)
+  const drag = usePaperDrag(stage, area)
   const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
   const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok // ドラッグで動かし始められるか
   const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
@@ -146,11 +151,9 @@ const Rows = memo(function Rows({
   const description = entryOf(dir, selected)?.description ?? ""
   // ドラッグで動かしている行（押しただけでまだ動かしていなければ null）と、落とす先
   const dragging = drag.state?.moved ? drag.state : null
-  const moving = dragging
-    ? subtreeIds(entryOf(dir, dragging.entry) ?? { id: dragging.entry, kind: "file", name: "" })
-    : null
-  const drop = dragging ? dropAt(dir, rows, dragging.entry, dragging.at) : null
-  const ghost = dragging && rows.find(r => r.id === dragging.entry)
+  const moving = dragging ? subtreeIds(entryOf(dir, dragging.id) ?? { id: dragging.id, kind: "file", name: "" }) : null
+  const drop = dragging ? dropAt(dir, rows, dragging.id, dragging.at) : null
+  const ghost = dragging && rows.find(r => r.id === dragging.id)
   const pageId = page.id
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
@@ -575,92 +578,4 @@ function NoPages({ stage }: { stage: StageView }) {
       )}
     </div>
   )
-}
-
-// ドラッグを始めるまでに動かす長さ（画面の px）
-const DRAG_START = 4
-
-interface RowDrag {
-  entry: string
-  from: Point // 押した所（画面の座標）
-  grab: Point // 行の左上から、押した所まで（紙の座標）
-  at: Point // ポインタの所（紙の座標）
-  moved: boolean // DRAG_START より動かしたか
-}
-
-// 行のドラッグ: start で押した行を覚え、動かすと紙の座標の位置を追い、離したら onDrop に渡す（動かさずに離せば何もしない）。
-// 押した所は、ステージ stage の表示領域の要素 area から見た点にして、紙の座標に直す。ポインタが表示領域の端に近い間は、その向きへ紙をずらし続ける
-function useRowDrag(stage: StageView, area: RefObject<HTMLDivElement | null>) {
-  const { panStageBy } = useActions()
-  const [state, setPress] = useState<RowDrag | null>(null)
-  const latest = useRef(state)
-  latest.current = state
-  const onDrop = useRef<(entry: string, at: Point) => void>(() => {})
-  const local = (cx: number, cy: number): Point | null => {
-    const r = area.current?.getBoundingClientRect()
-    return r ? { x: cx - r.left, y: cy - r.top } : null
-  }
-  const localRef = useRef(local)
-  localRef.current = local
-  const toPaperAt = useToPaper(stage.id)
-  const id = stage.id
-  const pressed = state !== null
-  const pointer = useRef<Point | null>(null) // 最後のポインタの所（画面の座標）
-  // 紙がずれたら（描き直したあとのステージで）、ポインタの下の紙の所を追い直す。
-  // 紙をずらす量は押している間だけ追う（押していなければ、ずらしても描き直さない）
-  const { opened, zoom } = stage
-  const pan = useStagePan(id, pressed)
-  useEffect(() => {
-    const d = latest.current
-    const c = pointer.current
-    const p = c && localRef.current(c.x, c.y)
-    if (!d?.moved || !p || !pan) return
-    const at = toPaper({ opened, pan, zoom }, p)
-    if (at && (at.x !== d.at.x || at.y !== d.at.y)) setPress({ ...d, at })
-  }, [opened, pan, zoom])
-  useEffect(() => {
-    if (!pressed) return
-    const panner = edgePanner(
-      () => {
-        const r = area.current?.getBoundingClientRect()
-        return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null
-      },
-      (dx, dy) => panStageBy(id, dx, dy),
-    )
-    const move = (e: globalThis.PointerEvent) => {
-      const d = latest.current
-      if (!d) return
-      pointer.current = { x: e.clientX, y: e.clientY }
-      if (!d.moved && Math.hypot(e.clientX - d.from.x, e.clientY - d.from.y) < DRAG_START) return
-      const p = localRef.current(e.clientX, e.clientY)
-      const at = p && toPaperAt(p)
-      if (at) setPress({ ...d, moved: true, at })
-      panner.follow(pointer.current)
-    }
-    const finish = (drop: boolean) => {
-      const d = latest.current
-      pointer.current = null
-      panner.stop()
-      setPress(null)
-      if (d?.moved && drop) onDrop.current(d.entry, d.at)
-    }
-    const up = () => finish(true)
-    const cancel = () => finish(false)
-    window.addEventListener("pointermove", move)
-    window.addEventListener("pointerup", up)
-    window.addEventListener("pointercancel", cancel)
-    return () => {
-      panner.stop()
-      window.removeEventListener("pointermove", move)
-      window.removeEventListener("pointerup", up)
-      window.removeEventListener("pointercancel", cancel)
-    }
-  }, [pressed, id, area, panStageBy, toPaperAt])
-  const start = (row: { id: string; x: number; y: number }, cx: number, cy: number) => {
-    const p = local(cx, cy)
-    const at = p && toPaperAt(p)
-    if (at)
-      setPress({ entry: row.id, from: { x: cx, y: cy }, grab: { x: at.x - row.x, y: at.y - row.y }, at, moved: false })
-  }
-  return { state, start, onDrop }
 }

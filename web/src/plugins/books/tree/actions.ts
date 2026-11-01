@@ -4,11 +4,11 @@
 // ページのフィールド root を書き換える。書き換えた木が紙に入らなければ断る。ツリーの見せ方について来る
 import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
-import { contentIdMaker, settingValue } from "../../base"
+import { ColorSchema, contentIdMaker, settingValue } from "../../base"
 import { addNodes, changeNode, moveNode, nodeOf, removeNode } from "./edit"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
-import { giveIds, NewNodeSchema, NodeColorSchema, SIDE_NAMES, type TreeRoot, TreeRootSchema } from "./node"
+import { giveIds, NewNodeSchema, SIDE_NAMES, type TreeRoot, TreeRootSchema } from "./node"
 import { NODE_SIZES } from "./size"
 
 const ON_TREES = { presentations: [kit.name("tree")] }
@@ -67,7 +67,7 @@ export const NODE_UPDATE = kit.defineAction({
     node: z.string().min(1),
     caption: z.string().optional(),
     size: z.enum(NODE_SIZES).nullable().optional(),
-    color: NodeColorSchema.nullable().optional(),
+    color: ColorSchema.nullable().optional(),
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {

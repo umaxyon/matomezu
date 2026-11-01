@@ -4,15 +4,11 @@
 // 根の直系の子は、中央の木でどの向きへ伸びるか（side。無ければ右）を持てる。ほかの向きの木と、孫より下では使わない。
 // 子は大きさの選び方（size。無ければページで効いている選び方）を持てる。どの節も色（color。代表色の名前か #rrggbb。無ければテーマの塗り）を持てる
 import { z } from "zod"
-import { HEX, PALETTE } from "../../../plugin-api"
-import { bodyText } from "../../base"
+import { bodyText, ColorSchema } from "../../base"
 import { NODE_SIZES, type NodeSize } from "./size"
 
 export const SIDE_NAMES = ["up", "down", "left", "right"] as const
 export type Side = (typeof SIDE_NAMES)[number]
-
-// 節の色（代表色の名前か #rrggbb）
-export const NodeColorSchema = z.union([z.enum(PALETTE), z.string().regex(HEX)])
 
 export interface TreeNode {
   id: string
@@ -39,7 +35,7 @@ export const TreeNodeSchema: z.ZodType<TreeNode> = z.strictObject({
   caption: captionText(),
   side: z.enum(SIDE_NAMES).optional(),
   size: z.enum(NODE_SIZES).optional(),
-  color: NodeColorSchema.optional(),
+  color: ColorSchema.optional(),
   get children() {
     return z.array(TreeNodeSchema).optional()
   },
@@ -50,7 +46,7 @@ export const TreeRootSchema = z.strictObject({
   caption: captionText(),
   body: bodyText().optional(),
   showBody: z.boolean().optional(), // 本文を紙の上に描くか（無ければ描かない）
-  color: NodeColorSchema.optional(),
+  color: ColorSchema.optional(),
   children: z.array(TreeNodeSchema).optional(),
 })
 export type TreeRoot = z.infer<typeof TreeRootSchema>
@@ -66,7 +62,7 @@ export interface NewNode {
 export const NewNodeSchema: z.ZodType<NewNode> = z.strictObject({
   caption: captionText(),
   side: z.enum(SIDE_NAMES).optional(),
-  color: NodeColorSchema.optional(),
+  color: ColorSchema.optional(),
   get children() {
     return z.array(NewNodeSchema).optional()
   },

@@ -8,8 +8,8 @@
 // テーマは大きさを変えないので、どのテーマでも行の高さと折り返しは同じ。
 // 置くときは追加のダイアログ（list-add）、設定は編集のダイアログ（list-edit）。行は行の追加（row-add）・編集（row-edit）のダイアログで中身を決める
 import { z } from "zod"
-import { HEX, PALETTE, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
-import { AlignSchema, textProps } from "../../base"
+import type { ShapeAddArgs, ShapeEditArgs } from "../../../plugin-api"
+import { AlignSchema, ColorSchema, textProps } from "../../base"
 import { kit } from "./kit"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, MAX_ROW_LINES, placedListWidth } from "./size"
 
@@ -67,7 +67,7 @@ export const LIST = kit.defineShape({
       caption: z.string().default(""),
       captionAlign: AlignSchema.default("center"), // 見出しのキャプションの寄せ（箱と同じ）
       theme: z.string().min(1).optional(), // リストに当てるテーマの id（無ければブックのテーマ）
-      color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（箱と同じ）
+      color: ColorSchema.optional(), // 塗りの色（箱と同じ）
       checklist: z.boolean().default(false), // 行の左にチェックの印を出す
       zebra: z.boolean().default(false), // 1 行おきに地の色を少し変える
       checkedGray: z.boolean().default(false), // チェックリストで、チェック済みの行を薄く描く

@@ -3,16 +3,8 @@
 // 項目はキャプションと寄せ・色（代表色の名前か #rrggbb）。個別のテーマは持たない（いつもブックのテーマで描く）。台形とその逆は向きも持つ（turnable）。テーマキーは 8 つの形で共通の 1 組。
 // 置くときは形ごとの追加のダイアログでキャプションと色を聞いてから置き、中身は 1 つの編集のダイアログで変える
 import { z } from "zod"
-import {
-  type Book,
-  type CoreCatalog,
-  HEX,
-  PALETTE,
-  pagedOf,
-  type ShapeAddArgs,
-  type ShapeEditArgs,
-} from "../../../plugin-api"
-import { AlignSchema, pageContext } from "../../base"
+import { type Book, type CoreCatalog, pagedOf, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
+import { AlignSchema, ColorSchema, pageContext } from "../../base"
 import { kit } from "./kit"
 import type { SHAPE_MESSAGES } from "./messages"
 import { shapeMinimap } from "./minimap"
@@ -32,7 +24,7 @@ export const SHAPE_TOKENS = [
 export const ShapePropsSchema = z.strictObject({
   caption: z.string().default(""),
   captionAlign: AlignSchema.default("center"),
-  color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
+  color: ColorSchema.optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
 })
 
 // 回せる形（台形とその逆）の項目: ほかの形の項目に、向き turned（true なら反時計回りに 90 度回した横向き。文字も縦になる）を足す
