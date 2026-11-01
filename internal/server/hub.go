@@ -14,6 +14,7 @@ package server
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた画面にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。画面は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
+//	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 
 import (
 	"encoding/json"

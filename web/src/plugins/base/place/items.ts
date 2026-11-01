@@ -308,7 +308,7 @@ export function shownRects(
   return rects
 }
 
-// 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行。
+// 編集で縮めてよい下限（紙に収める）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行。
 // 文字を縦に置く形はキャプションが全部見える高さ）。
 // 今それより小さければ今の大きさ
 export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
