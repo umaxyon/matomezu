@@ -53,7 +53,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
     "@matomezu/base:drawer-map": ["@matomezu/base:drawer-minimap"],
     "@matomezu/base:drawer-history": ["@matomezu/base:history-buttons"],
-    "@matomezu/base:drawer-basics": ["@matomezu/base:stage-menu-buttons"],
+    "@matomezu/base:drawer-basics": ["@matomezu/base:stage-menu-buttons", "@matomezu/base:print-area-toggle"],
     "@matomezu/base:drawer-book-tools": ["@matomezu/base:toolbox"],
   },
   menus: {

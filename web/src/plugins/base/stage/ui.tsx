@@ -7,6 +7,7 @@ import { STAGE_SLOTS } from "../workspace/ui"
 import { CloseButton } from "./CloseButton"
 import { STAGE_ICONS } from "./icons"
 import { BookContentLayer, PaperLayer, PrintAreaLayer } from "./layers"
+import { PrintAreaToggle } from "./PrintAreaToggle"
 import { StageView } from "./StageView"
 
 export const BOOK_VIEW = defineWidget({
@@ -23,6 +24,11 @@ export const PRINT_AREA_LAYER = defineWidget({
 })
 export const BOOK_CONTENT = defineWidget({ id: kit.name("book-content"), slots: [BOOK_LAYERS], view: BookContentLayer })
 export const STAND_LAYER = defineWidget({ id: kit.name("stand-layer"), slots: [BOOK_LAYERS], view: StandLayer })
+export const PRINT_AREA_TOGGLE = defineWidget({
+  id: kit.name("print-area-toggle"),
+  slots: STAGE_SLOTS,
+  view: PrintAreaToggle,
+})
 export const CLOSE_BUTTON = defineWidget({ id: kit.name("close-button"), slots: STAGE_SLOTS, view: CloseButton })
 
 export { STAGE_ICONS }
