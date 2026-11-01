@@ -1,7 +1,7 @@
 // 節の色のスタンド: 色を選んでいる間（その場の編集 NODE_COLOR_PICK）、選んでいる節のすぐ下に立ち、ブックのテーマの代表色・「なし」（テーマの塗り）・好きな色を出す。
 // 代表色と「なし」は押すとすぐ塗って閉じる。好きな色は選んでいる間はビューに持ち、スタンドを閉じるときに塗る。
 // 子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）で塗る。塗れなければ（ロックなど）色は押せない形で出す。
-// 断られたら、トーストで知らせる。外を押すか Esc で閉じる
+// 断られたら、トーストで知らせる。外を押すと閉じ（好きな色を選んでいれば塗る）、Esc は塗らずに閉じる
 import { useEffect, useRef, useState } from "react"
 import { useActions, useAllowed, useCoreCatalog, useMessages, usePerform } from "../../../../plugin-api/ui"
 import { refusalMessage } from "../../../base"
@@ -52,7 +52,7 @@ export function NodeColorStand({
     else setEditing(stage, false)
   }
 
-  // 外を押すか Esc で閉じる（好きな色のポップアップの中も、このスタンドの中）
+  // 外を押すと閉じ、Esc は選んでいた好きな色を塗らずに閉じる（好きな色のポップアップの中も、このスタンドの中）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 閉じ方は開いている間ずっと同じ
   useEffect(() => {
     const down = (e: PointerEvent) => {
@@ -60,7 +60,7 @@ export function NodeColorStand({
       close()
     }
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close()
+      if (e.key === "Escape") setEditing(stage, false)
     }
     document.addEventListener("pointerdown", down, true)
     window.addEventListener("keydown", key)

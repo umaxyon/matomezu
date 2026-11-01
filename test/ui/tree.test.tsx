@@ -689,7 +689,7 @@ test("節の大きさ: ページの設定で選び方を変えると並べ直し
   expect(node().textContent).toBe(long)
 })
 
-test("節の色: 節のメニューの「節の色」で節のそばに色のスタンドを出し、子も根も選んだ色で塗る。代表色は押すとすぐ塗って閉じ、Esc でも閉じる。足した子は親の色を写す", () => {
+test("節の色: 節のメニューの「節の色」で節のそばに色のスタンドを出し、子も根も選んだ色で塗る。代表色は押すとすぐ塗って閉じる。好きな色は外を押すと塗って閉じ、Esc は塗らずに閉じる。足した子は親の色を写す", () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
   const root = done.fields!.root
@@ -707,13 +707,24 @@ test("節の色: 節のメニューの「節の色」で節のそばに色のス
     const picker = within(stand).getByRole("dialog", { name: "色を選ぶ" })
     fireEvent.change(within(picker).getByRole("textbox"), { target: { value: color } })
     fireEvent.keyDown(within(picker).getByRole("textbox"), { key: "Enter" })
-    fireEvent.keyDown(window, { key: "Escape" })
+    fireEvent.pointerDown(document.body) // 外を押すと、選んだ好きな色で塗って閉じる
     expect(screen.queryByRole("group", { name: "節の色" })).toBeNull()
   }
   // 代表色は押すとすぐ塗って閉じる
   fireEvent.click(within(open(a)).getByRole("button", { name: "テーマの色 1" }))
   expect(screen.queryByRole("group", { name: "節の色" })).toBeNull()
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "primary" }] } })
+  // Esc は、選んだ好きな色を塗らずに閉じる
+  {
+    const stand = open(a)
+    fireEvent.click(within(stand).getByRole("button", { name: "好きな色" }))
+    const picker = within(stand).getByRole("dialog", { name: "色を選ぶ" })
+    fireEvent.change(within(picker).getByRole("textbox"), { target: { value: "#0000ff" } })
+    fireEvent.keyDown(within(picker).getByRole("textbox"), { key: "Enter" })
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(screen.queryByRole("group", { name: "節の色" })).toBeNull()
+    expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "primary" }] } })
+  }
   pick(a, "#ff0000")
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "#ff0000" }] } })
   expect(nodeEl(a).style.getPropertyValue("--tree-node-fill")).toBe("#ff0000")
