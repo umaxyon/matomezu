@@ -5,6 +5,7 @@
 // キャプションの札は選べるときに押せ、押すと線を選んでドラッグを始める。端が吸い付いた点（snap）には輪を出す
 import type { MouseEvent, PointerEvent } from "react"
 import type { Point } from "../../../plugin-api"
+import { useAnchorRef } from "../../base/ui"
 import styles from "./DrawnLinesView.module.css"
 import type { DrawnLine } from "./drawn"
 
@@ -42,6 +43,7 @@ export function DrawnLinesView({
   drag,
 }: Props) {
   const follow = { onPointerMove: drag.move, onPointerUp: drag.up, onPointerCancel: drag.cancel }
+  const anchor = useAnchorRef() // 線にアンカーを付ける（そばにスタンドを立てられる）
   // 選んだ線は、ほかの線に隠れないよう手前（後ろの順）に描く
   const ordered = [...lines.filter(l => !selection.includes(l.id)), ...lines.filter(l => selection.includes(l.id))]
   return (
@@ -50,6 +52,7 @@ export function DrawnLinesView({
         // biome-ignore lint/a11y/noStaticElementInteractions: 線を選ぶのはポインタの操作で、キーの操作は選んだあとのコマンドが受ける
         <g
           key={l.id}
+          ref={anchor(l.id)}
           data-item={l.id}
           className={styles.line}
           data-selected={selection.includes(l.id)}

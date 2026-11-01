@@ -58,7 +58,7 @@ import {
   useUiCatalog,
 } from "../../../plugin-api/ui"
 import { type Edges, fitsPaper, itemSize, minSize, placedSize, resizedBy, shownRects } from "../../base"
-import { PaperFrame } from "../../base/ui"
+import { PaperFrame, useAnchorRef } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
@@ -466,6 +466,7 @@ function Item({
 }: ItemProps) {
   const catalog = useCoreCatalog()
   const marks = useShapeMarks()
+  const anchor = useAnchorRef() // アイテムにアンカーを付ける（そばにスタンドを立てられる）
   // ドラッグ中の見た目: つなぐもののビューが薄くするよう求めた形は薄く。動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く
   const look = marks.keep
     ? marks.keep.has(item.id)
@@ -487,6 +488,7 @@ function Item({
   const grips = def?.kind === "shape" && def[kit.name("stretch")] === "width" ? GRIPS.filter(g => !g.edges.y) : GRIPS
   return (
     <div
+      ref={anchor(item.id)}
       data-item={item.id}
       data-shape
       data-target={marks.target === item.id}

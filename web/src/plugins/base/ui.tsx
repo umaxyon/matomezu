@@ -11,7 +11,7 @@ import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { USER_SETTING_VIEWS } from "./settings/ui"
-import { BOOK_CONTENT, BOOK_VIEW, CLOSE_BUTTON, PAPER_LAYER, STAGE_ICONS } from "./stage/ui"
+import { BOOK_CONTENT, BOOK_VIEW, CLOSE_BUTTON, PAPER_LAYER, STAGE_ICONS, STAND_LAYER } from "./stage/ui"
 import { TEXT_SETTING_VIEWS } from "./text/ui"
 import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
@@ -61,6 +61,7 @@ export const BASE_UI = definePluginUi(BASE, {
     BOOK_VIEW,
     PAPER_LAYER,
     BOOK_CONTENT,
+    STAND_LAYER,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
@@ -95,6 +96,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-view": typeof BOOK_VIEW
     "@matomezu/base:paper-layer": typeof PAPER_LAYER
     "@matomezu/base:book-content": typeof BOOK_CONTENT
+    "@matomezu/base:stand-layer": typeof STAND_LAYER
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME

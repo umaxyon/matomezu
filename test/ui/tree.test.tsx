@@ -689,22 +689,31 @@ test("節の大きさ: ページの設定で選び方を変えると並べ直し
   expect(node().textContent).toBe(long)
 })
 
-test("節の色: 節のメニューの「節の色」で子も根も色を選べ、選んだ色で塗る。足した子は親の色を写す", () => {
+test("節の色: 節のメニューの「節の色」で節のそばに色のスタンドを出し、子も根も選んだ色で塗る。代表色は押すとすぐ塗って閉じ、Esc でも閉じる。足した子は親の色を写す", () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
   const root = done.fields!.root
   const a = root.children[0]!.id
   const paper = () => screen.getByRole("img", { name: "紙" })
   const nodeEl = (n: string) => paper().querySelector(`[data-node="${n}"]`) as HTMLElement
-  const pick = (n: string, color: string) => {
+  const open = (n: string) => {
     fireEvent.contextMenu(nodeEl(n))
     fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /^節の色/ }))
-    const dialog = screen.getByRole("dialog", { name: "節の色" })
-    fireEvent.click(within(dialog).getByRole("button", { name: "色" }))
-    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: color } })
-    fireEvent.keyDown(within(dialog).getByRole("textbox"), { key: "Enter" })
-    fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+    return screen.getByRole("group", { name: "節の色" })
   }
+  const pick = (n: string, color: string) => {
+    const stand = open(n)
+    fireEvent.click(within(stand).getByRole("button", { name: "好きな色" }))
+    const picker = within(stand).getByRole("dialog", { name: "色を選ぶ" })
+    fireEvent.change(within(picker).getByRole("textbox"), { target: { value: color } })
+    fireEvent.keyDown(within(picker).getByRole("textbox"), { key: "Enter" })
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(screen.queryByRole("group", { name: "節の色" })).toBeNull()
+  }
+  // 代表色は押すとすぐ塗って閉じる
+  fireEvent.click(within(open(a)).getByRole("button", { name: "テーマの色 1" }))
+  expect(screen.queryByRole("group", { name: "節の色" })).toBeNull()
+  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "primary" }] } })
   pick(a, "#ff0000")
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "#ff0000" }] } })
   expect(nodeEl(a).style.getPropertyValue("--tree-node-fill")).toBe("#ff0000")

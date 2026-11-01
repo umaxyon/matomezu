@@ -4,12 +4,12 @@
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { refusalMessage, settingValue } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
-import { ADDED_EDIT, type Arrow, addArgs, afterRemove, keyPlus, moveFrom, selectedIn } from "./edit"
+import { ADDED_EDIT, type Arrow, addArgs, afterRemove, keyPlus, moveFrom, NODE_COLOR_PICK, selectedIn } from "./edit"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
 import { EDIT_TOOL } from "./tools"
-import { NODE_COLOR_DIALOG, NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./tree"
+import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./tree"
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
 function treeAt(ctx: CommandContext) {
@@ -152,7 +152,7 @@ export const NODE_SIZE_EDIT = kit.defineCommand({
   },
 })
 
-// 選んでいる節（根も）の色を変えるダイアログを開く（その場の編集中は出さない）
+// 選んでいる節（根も）の色を選び始める（その場の編集 NODE_COLOR_PICK。節のそばに出す色のスタンドはビューが出す。その場の編集中は出さない）
 export const NODE_COLOR_EDIT = kit.defineCommand({
   id: "node-color-edit",
   performs: [NODE_UPDATE.id, "@matomezu/base:page-update"],
@@ -161,10 +161,8 @@ export const NODE_COLOR_EDIT = kit.defineCommand({
   run: (ctx, a) => {
     const tree = treeAt(ctx)
     if (!tree) return
-    a.openDialog(ctx.stage.id, NODE_COLOR_DIALOG.id, {
-      page: tree.page.id,
-      node: selectedIn(tree.root, ctx.stage.selection),
-    })
+    a.select(ctx.stage.id, [selectedIn(tree.root, ctx.stage.selection)])
+    a.setEditing(ctx.stage.id, NODE_COLOR_PICK)
   },
   when: ctx => editingTree(ctx) && !ctx.stage.editing && treeAt(ctx) !== null,
 })
