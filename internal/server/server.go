@@ -328,7 +328,7 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
-	books, _ := o.Hub.Data()
+	books := o.Hub.AIBooks()
 	warnings := o.Hub.BookWarnings()
 	type head struct {
 		ID      string `json:"id"`
@@ -340,9 +340,6 @@ func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
 	}
 	heads := make([]head, 0, len(books))
 	for _, b := range books {
-		if trashed(b.Body) {
-			continue
-		}
 		h := head{ID: b.ID, Version: b.Version}
 		_ = json.Unmarshal(b.Body, &h)
 		h.ID, h.Version = b.ID, b.Version

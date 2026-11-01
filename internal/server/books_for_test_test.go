@@ -67,7 +67,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64
 	if _, ok := h.books[id]; !ok {
 		h.order = append(h.order, id)
 	}
-	h.books[id] = entry{body, version}
+	h.books[id] = entry{body, version, trashed(body)}
 	h.broadcast("book", map[string]any{"book": body, "version": version})
 	h.touch(id, stamp())
 	h.recordWarnings([]string{id}, found)

@@ -560,6 +560,10 @@ func TestTrashABook(t *testing.T) {
 	if got := next(t, a); strings.Contains(got, `"trashed"`) {
 		t.Fatalf("book after restore = %s", got)
 	}
+	// 戻したブックは、AI の読む口にまた出る
+	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); code != 200 {
+		t.Fatalf("ai book after restore = %d", code)
+	}
 	perform("book-trash", `{"book":"b1"}`)
 	next(t, a)
 	if got := perform("trash-empty", `{}`); got != `{"ok":true,"result":{}}` {
