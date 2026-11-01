@@ -15,7 +15,7 @@ export function treeMinimap(catalog: CoreCatalog, page: ItemPage, setting: (id: 
   const grow = GROW.schema.safeParse(setting(GROW.id)).data ?? "down"
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
   const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
-  const laid = layoutTree(root.data, grow, paper, size, shape)
+  const laid = layoutTree(root.data, grow, paper, size, shape, page.grows === true)
   return [
     ...laid.lines.map((l): MinimapMark => ({ kind: "polyline", points: [l.from, l.to] })),
     ...laid.nodes.map((n): MinimapMark => ({ kind: "rect", x: n.x, y: n.y, w: n.w, h: n.h, rx: 2 })),

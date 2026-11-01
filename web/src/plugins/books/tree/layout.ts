@@ -205,8 +205,21 @@ function shiftInto(out: TreeLayout, paper: { w: number; h: number }) {
   const x1 = Math.max(...out.nodes.map(n => n.x + n.w))
   const y1 = Math.max(...out.nodes.map(n => n.y + n.h))
   const into = (lo: number, hi: number, size: number) => (hi - lo > size ? 0 : lo < 0 ? -lo : hi > size ? size - hi : 0)
-  const dx = into(x0, x1, paper.w)
-  const dy = into(y0, y1, paper.h)
+  shiftBy(out, into(x0, x1, paper.w), into(y0, y1, paper.h))
+}
+
+// 可変ページで、木が紙 1 枚からあふれた向きは、木全体の左端（上端）を紙の辺から MARGIN の所へ寄せる（右と下へは印刷区画が増える）
+function alignStart(out: TreeLayout, paper: { w: number; h: number }) {
+  const x0 = Math.min(...out.nodes.map(n => n.x))
+  const y0 = Math.min(...out.nodes.map(n => n.y))
+  const x1 = Math.max(...out.nodes.map(n => n.x + n.w))
+  const y1 = Math.max(...out.nodes.map(n => n.y + n.h))
+  const start = (lo: number, hi: number, size: number) => (lo < 0 || hi > size ? MARGIN - lo : 0)
+  shiftBy(out, start(x0, x1, paper.w), start(y0, y1, paper.h))
+}
+
+// 木の節と線を dx・dy だけずらす
+function shiftBy(out: TreeLayout, dx: number, dy: number) {
   if (dx === 0 && dy === 0) return
   for (const n of out.nodes) {
     n.x += dx
@@ -219,13 +232,15 @@ function shiftInto(out: TreeLayout, paper: { w: number; h: number }) {
   }))
 }
 
-// size はページで効いている節の大きさの選び方（節が自分で選んでいなければ、これに従う）、shape は節の形
+// size はページで効いている節の大きさの選び方（節が自分で選んでいなければ、これに従う）、shape は節の形。
+// variable（可変ページ）なら、紙 1 枚からあふれた向きは木の左端（上端）を寄せ、紙に入るか（fits）はいつも真（印刷区画が増える）
 export function layoutTree(
   root: TreeRoot,
   grow: Grow,
   paper: { w: number; h: number },
   size: NodeSize = DEFAULT_NODE_SIZE,
   shape: NodeShape = DEFAULT_NODE_SHAPE,
+  variable = false,
 ): TreeLayout {
   const look = { size, shape }
   const box = rootBox(root, size)
@@ -258,5 +273,17 @@ export function layoutTree(
     shiftInto(out, paper)
   } else branch(r, kids, grow, look, out)
   out.fits = out.nodes.every(n => n.x >= 0 && n.y >= 0 && n.x + n.w <= paper.w && n.y + n.h <= paper.h)
+  if (variable && !out.fits) {
+    alignStart(out, paper)
+    out.fits = true
+  }
   return out
+}
+
+// 並べた節の外枠（紙の座標。節が無ければ null）
+export function laidExtent(nodes: readonly Rect[]): Rect | null {
+  if (nodes.length === 0) return null
+  const x = Math.min(...nodes.map(n => n.x))
+  const y = Math.min(...nodes.map(n => n.y))
+  return { x, y, w: Math.max(...nodes.map(n => n.x + n.w)) - x, h: Math.max(...nodes.map(n => n.y + n.h)) - y }
 }

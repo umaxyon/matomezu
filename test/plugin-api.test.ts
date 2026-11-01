@@ -68,6 +68,7 @@ test("matomezu が出す名前", () => {
     "frameOf",
     "gapOf",
     "growOf",
+    "grownArea",
     "hasPages",
     "inPaper",
     "isLight",

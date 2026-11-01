@@ -66,8 +66,14 @@ export const editorWidth = (raw: string, shown: number): number =>
   Math.max(shown, Math.ceil(richWidth(parseRich(raw).flat(), FONT))) + EDITOR_PAD * 2 + 16
 const EDITOR_PAD = 4
 
-// 根 root を大きさ paper の紙に並べる（look は説明の見せ方。無ければ既定）
-export function layoutDir(root: DirFolder, paper: { w: number; h: number }, look: NoteLook = NOTE_DEFAULT): DirLayout {
+// 根 root を大きさ paper の紙に並べる（look は説明の見せ方。無ければ既定）。variable（可変ページ）なら下へは印刷区画が増えるので、
+// 紙に入るか（fits）は幅だけで見て、説明の区切りの縦の線は最後の行まで引く
+export function layoutDir(
+  root: DirFolder,
+  paper: { w: number; h: number },
+  look: NoteLook = NOTE_DEFAULT,
+  variable = false,
+): DirLayout {
   const rows = rowsOf(root)
   const laid = rows.map(({ entry, depth }, i): LaidRow => {
     const x = iconX(depth)
@@ -107,7 +113,7 @@ export function layoutDir(root: DirFolder, paper: { w: number; h: number }, look
       lines.push({ from: { x, y: row.y + ROW / 2 + ICON / 2 }, to: { x, y: end.y + ROW / 2 } })
     }
   }
-  const fits = laid.every(r => r.x + r.w <= paper.w - MARGIN && r.y + r.h <= paper.h - MARGIN)
+  const fits = laid.every(r => r.x + r.w <= paper.w - MARGIN && (variable || r.y + r.h <= paper.h - MARGIN))
   const notes = look.shown ? notesOf(laid, paper.w) : null
   if (notes)
     for (const [i, r] of rows.entries()) {
@@ -117,7 +123,8 @@ export function layoutDir(root: DirFolder, paper: { w: number; h: number }, look
       if (row && shown) row.note = clampRich(wrapRich(shown, notes.w, FONT), 1, notes.w, FONT)[0] ?? null
     }
   const x = notes ? notes.x - DIVIDER_GAP : 0
-  const divider = notes && look.divider ? { from: { x, y: MARGIN }, to: { x, y: paper.h - MARGIN } } : null
+  const bottom = variable ? Math.max(paper.h - MARGIN, ...laid.map(r => r.y + r.h)) : paper.h - MARGIN
+  const divider = notes && look.divider ? { from: { x, y: MARGIN }, to: { x, y: bottom } } : null
   return { rows: laid, lines, notes, divider, fits }
 }
 
@@ -128,3 +135,6 @@ function notesOf(rows: readonly LaidRow[], paperW: number): { x: number; w: numb
   const w = paperW - MARGIN - x
   return right > paperW * NOTE_LIMIT || w <= 0 ? null : { x, w }
 }
+
+// 並べた行の下端に余白を足した高さ（可変ページの広さを測るのに使う）
+export const laidBottom = (rows: readonly LaidRow[]): number => Math.max(0, ...rows.map(r => r.y + r.h)) + MARGIN

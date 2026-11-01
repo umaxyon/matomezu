@@ -39,10 +39,11 @@ import {
   useShownBook,
   useShownPage,
   useStage,
+  useStageArea,
   useStagePan,
   useToPaper,
 } from "../../../../plugin-api/ui"
-import { edgePanner, refusalMessage, settingValue } from "../../../base"
+import { edgePanner, grownArea, growOf, refusalMessage, settingValue } from "../../../base"
 import { PaperFrame, RichBar, RichInput, type RichInputHandle, RichText, useAnchorRef } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
 import { ADDED_EDIT, FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
@@ -51,7 +52,7 @@ import { dropAt, subtreeIds } from "../drag"
 import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from "../edit"
 import { type DirFolder, DirFolderSchema } from "../entry"
 import { kit } from "../kit"
-import { editorWidth, ICON, type LaidRow, layoutDir, nameLeft } from "../layout"
+import { editorWidth, ICON, type LaidRow, laidBottom, layoutDir, nameLeft } from "../layout"
 import { noteLookOf } from "../notes"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
@@ -121,6 +122,14 @@ const Rows = memo(function Rows({
   const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
   const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok // ドラッグで動かし始められるか
   const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
+  // 可変ページなら、行が入るだけ下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
+  const growing = book && page ? growOf(catalog, book, page) : undefined // ページが伸びる向き（タイプの紙の規定）
+  const variable = growing !== undefined
+  const rowsBottom = variable && root.success ? laidBottom(layoutDir(root.data, paper, undefined, true).rows) : 0
+  useStageArea(
+    stage.id,
+    growing ? grownArea(paper, growing, { x: 0, y: 0, w: paper.w, h: rowsBottom }, true).size : null,
+  )
   if (!page || !root.success) return null
   const dir = root.data
   const usingPencil = stage.tool === PENCIL_TOOL.id
@@ -130,7 +139,7 @@ const Rows = memo(function Rows({
   const text = writing && draft?.entry === selected ? draft.text : null
   const shown: DirFolder = text === null ? dir : (changeEntry(dir, selected, { name: text }) ?? dir)
   const look = noteLookOf(id => (book ? settingValue(catalog, book, page, id) : undefined))
-  const { rows, lines, notes, divider } = layoutDir(shown, paper, look)
+  const { rows, lines, notes, divider } = layoutDir(shown, paper, look, variable)
   const at = rows.find(r => r.id === selected)
   const noting = usingPencil && stage.editing === NOTE_EDIT && notes !== null
   const noteText = noting && noteDraft?.entry === selected ? noteDraft.text : null

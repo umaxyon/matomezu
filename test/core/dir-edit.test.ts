@@ -188,6 +188,18 @@ test("行は上から 1 行ずつ、深さごとに字下げ。罫線はフォ�
   expect(layoutDir(setClosed(dir, "src", true)!, { w: 794, h: MARGIN * 2 + ROW * 3 }).fits).toBe(true)
 })
 
+test("可変ページでは、行は下へいくらでも並べられる（紙に入るかは幅だけで見る）", () => {
+  const dir = {
+    id: "root",
+    kind: "folder" as const,
+    name: "root",
+    children: [{ id: "f", kind: "file" as const, name: "a" }],
+  }
+  expect(layoutDir(dir, { w: 794, h: MARGIN }).fits).toBe(false)
+  expect(layoutDir(dir, { w: 794, h: MARGIN }, undefined, true).fits).toBe(true)
+  expect(layoutDir(dir, { w: 40, h: MARGIN }, undefined, true).fits).toBe(false)
+})
+
 test("ドラッグで落とす先: フォルダの行の真ん中は中の末尾、上下の端は前後（開いたフォルダの下の端は中の先頭）。ファイルの行は上半分で前・下半分で後ろ。根は中へだけ。自分と中身の行には落とせない", () => {
   const rows = layoutDir(dir, { w: 794, h: 1123 }).rows
   const at = (id: string, t: number) => {

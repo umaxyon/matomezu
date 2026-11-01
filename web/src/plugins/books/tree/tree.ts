@@ -50,7 +50,7 @@ export const TREE = kit.defineBookType({
     treeFits(catalog, page, setting) ? null : { message: kit.message("Does not fit on the paper") },
   minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true, grow: "both" },
     fields: { root: TreeRootSchema },
     dialogs: { add: NEW_TREE_PAGE_DIALOG.id, settings: TREE_PAGE_SETTINGS_DIALOG.id },
   },

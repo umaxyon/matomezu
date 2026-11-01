@@ -26,10 +26,11 @@ import {
   useShownBook,
   useShownPage,
   useStage,
+  useStageArea,
   useStagePan,
   useToPaper,
 } from "../../../../plugin-api/ui"
-import { edgePanner, refusalMessage, settingValue } from "../../../base"
+import { edgePanner, grownArea, growOf, refusalMessage, settingValue } from "../../../base"
 import {
   PaperFrame,
   RichBar,
@@ -60,7 +61,7 @@ import {
 } from "../edit"
 import { GROW } from "../grow"
 import { kit } from "../kit"
-import { editorWidth, type LaidNode, layoutTree } from "../layout"
+import { editorWidth, type LaidNode, laidExtent, layoutTree } from "../layout"
 import { DEFAULT_LINE_SHAPE, LINE_SHAPE, treePath } from "../line-shape"
 import { TreeRootSchema } from "../node"
 import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "../shape"
@@ -171,7 +172,11 @@ const Tree = memo(function Tree({
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
   const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
   const lineShape = LINE_SHAPE.schema.safeParse(setting(LINE_SHAPE.id)).data ?? DEFAULT_LINE_SHAPE
-  const laid = shown ? layoutTree(shown, grow, paper, size, shape) : null
+  // ページが伸びる向き（タイプの紙の規定。可変ページでなければ undefined）
+  const growing = book && page ? growOf(catalog, book, page) : undefined
+  const laid = shown ? layoutTree(shown, grow, paper, size, shape, growing !== undefined) : null
+  // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さを、ステージに知らせる
+  useStageArea(stage.id, laid && growing ? grownArea(paper, growing, laidExtent(laid.nodes), true).size : null)
   const at = laid?.nodes.find(n => n.id === selected)
   useCentered(stage, usingEdit && !drag.state ? at : undefined, view, panStageBy)
   useToolZoom(stage.id, usingEdit, zoomStage)
