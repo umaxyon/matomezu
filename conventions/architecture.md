@@ -1,10 +1,10 @@
-# 構造と層
+# 構造とクレート
 
-## 層
+## クレート
 
-`web/src` の下を、役割ごとの層に分ける。
+`web/src` の下を、役割ごとのクレートに分ける。
 
-| 層 | 役割 | 読んでよいもの |
+| クレート | 役割 | 読んでよいもの |
 |---|---|---|
 | `core` | データの形・定義の型・core 台帳・純粋な関数。React も状態も持たない | `core`・zod |
 | `store` | 状態（Zustand）・コマンド・ダイアログの表・プラグインの組み立て | `core`・`store`・zustand |
@@ -12,7 +12,7 @@
 | `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）と外の世界（通信・保存・URL・クリップボード）に頼む口 | `core`・`store`・`host-client`・zod |
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
-| `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけの層（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーの割り当てでビルトインを先に扱う）と、組み立てのときの確かめ（`checks`）を書く `CatalogCheck`・`problem`・`warning`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
+| `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーの割り当てでビルトインを先に扱う）と、組み立てのときの確かめ（`checks`）を書く `CatalogCheck`・`problem`・`warning`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
 | `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（置く計算・文字と、base が拡張ポイントに書き足した物の型を出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
 | `testing` | テストで組む入口（`matomezu/testing`） | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
 | `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`index.ts` はホストのエンジン用、`ui.ts` は画面用） | `plugin-entry`・React |
@@ -30,7 +30,7 @@
 - 見た目でないファイルは、見た目を読まない
 - これらは `test/rules.test.ts` が見張る
 
-## Go の側の層
+## Go のパッケージ
 
 `internal/` の下を、役割ごとのパッケージに分ける。読み込みの向きは一方向で、輪を作らない。
 

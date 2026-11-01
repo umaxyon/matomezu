@@ -3,7 +3,7 @@
   position: absolute;
   inset: 0;
 }
-/* 親から子への線（紙と同じ大きさの層。節の下に描く） */
+/* 親から子への線（紙と同じ大きさの入れ物。節の下に描く） */
 .lines {
   position: absolute;
   left: 0;

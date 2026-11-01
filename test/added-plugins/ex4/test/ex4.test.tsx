@@ -71,11 +71,11 @@ test("関係線とビルトインの線を同じページに引き、どちら�
   expect(document.querySelector(`[data-ex4-port="${a}"]`)).not.toBeNull()
 })
 
-test("関係線の層が薄くするよう求めた形は薄くなる（外側のつなぐものの ShapeMarks も効く）", () => {
+test("関係線のビューが薄くするよう求めた形は薄くなる（外側のつなぐものの ShapeMarks も効く）", () => {
   const { a, c, el } = map()
   fireEvent.pointerEnter(el(a))
   expect(el(a).querySelector("[data-port]")).not.toBeNull() // 乗せたことは線の〇で分かる
-  // a に乗せると、関係線は a と b のほかを薄くするよう求める。内側のビルトインの線の層が何も求めないので、c は薄くならない
+  // a に乗せると、関係線は a と b のほかを薄くするよう求める。内側のビルトインのラインビューが何も求めないので、c は薄くならない
   expect(el(c).getAttribute("data-look")).toBe("faded")
 })
 

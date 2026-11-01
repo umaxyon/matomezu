@@ -51,7 +51,7 @@
   color: var(--skin-text-muted);
   font-size: 14px;
 }
-/* 罫線（紙と同じ大きさの層。行の下に描く） */
+/* 罫線（紙と同じ大きさの入れ物。行の下に描く） */
 .lines {
   position: absolute;
   left: 0;
