@@ -12,11 +12,12 @@ import type { StageView } from "../core/workspace"
 export interface ShapeScene {
   stage: StageView // 描いているステージ（読むだけ）
   page: ItemPage
-  rects: ReadonlyMap<string, Rect> // 描いている形の四角（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）
-  dragged: readonly string[] // ドラッグで動かしている形
-  pushed: readonly string[] // ドラッグの入れ替えでずれて描いている形
-  swapped: boolean // このドラッグで入れ替えが起きたか
-  settled: ReadonlySet<string> // 離したばかりの形（離したあとの 1 回の描画だけ）
+  rects: ReadonlyMap<string, Rect> // 描いている形の四角（下書き・大きさを変えている途中・動かしている途中の位置を重ねたもの）
+  // 利用者が形を動かす操作の様子（つなぐものは、形の位置が変わった理由で、前に描いた形を保つか引き直すかを決める）
+  dragged: readonly string[] // 利用者がつかんで動かしている形
+  displaced: readonly string[] // つかんでいる形の動きで、位置がずれて描かれている形
+  reordered: boolean // このつかみで、形の並びが変わったか
+  released: ReadonlySet<string> // 離したばかりの形（離したあとの 1 回の描画だけ）
   busy: boolean // 形を動かしているか、大きさを変えている間
   selectable: boolean // 選択の道具で、置こうとしていないとき
   hover: string | null // ポインタを乗せている形
