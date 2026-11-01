@@ -56,6 +56,8 @@ export const TREE_MESSAGES = defineMessages({
   "Show the body on the paper": { en: "Show the body on the paper", ja: "本文を紙に描く" },
   "Page settings": { en: "Page settings", ja: "ページの設定" },
   "Delete page": { en: "Delete page", ja: "ページを削除" },
+  "Lock page": { en: "Lock page", ja: "ページをロックする" },
+  "Unlock page": { en: "Unlock page", ja: "ページのロックを外す" },
   "The page and its contents will be deleted": {
     en: "The page and its contents will be deleted",
     ja: "ページと中身が消えます",
