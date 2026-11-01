@@ -12,10 +12,10 @@ import type { ToolId } from "../../../core/catalog"
 import type { Point, Rect } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
-import { toolOf } from "../../../core/workspace"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useStage } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { MINIMAP } from "../minimap/icons"
 import { MinimapView } from "../minimap/MinimapView"
@@ -147,7 +147,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const opened = useMatomezuState(s => s.workspace.stages.find(st => st.picker !== null))
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
-  const current = useMatomezuState(s => (opened ? toolOf(catalog, s.workspace, opened.id, s.books) : null))
+  const current = useStage(opened?.id ?? "")?.tool ?? null
   const set = opened ? toolSetOf(catalog, opened) : null
   const picks: readonly ToolId[] = set ? toolsIn(catalog, set) : []
   // 使えない道具（開いているページで、行うアクションをどれも認可ステップに止められる）。並びを文字で比べて、変わったときだけ描き直す

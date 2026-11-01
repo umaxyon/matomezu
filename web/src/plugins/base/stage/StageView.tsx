@@ -19,13 +19,12 @@ import type { BookTypeId } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { paperOf, type Stage } from "../../../core/stage"
 import { toolDef } from "../../../core/tools"
-import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars, useTokenScope } from "../../../ui/theme-vars"
-import { useUserSetting } from "../../../ui/view-hooks"
+import { useStage, useUserSetting } from "../../../ui/view-hooks"
 import { bookTokens } from "../book-look/look"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
@@ -58,7 +57,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       ? preview.props
       : null
   const catalog = useCatalog().core
-  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id, s.books))
+  const tool = useStage(id)?.tool ?? null
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
   // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる。文字の色は見る人の上書きがいちばん強い）
   const viewerColors = useUserSetting(USER_TEXT_COLORS.id) as TextColorValues
