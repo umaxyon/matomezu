@@ -1,6 +1,6 @@
 // 伸びるページの広さ（base の place/grow.ts の grownArea）: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる
 import { expect, test } from "bun:test"
-import { grownArea } from "../../web/src/plugins/base/place/grow"
+import { grownArea, printAreaLines } from "../../web/src/plugins/base/place/grow"
 
 const A4 = { w: 794, h: 1123 }
 
@@ -19,4 +19,14 @@ test("端がちょうど境目なら次の印刷区画は足さない。spare �
   expect(grownArea(A4, "both", { x: 0, y: 0, w: 794 * 2, h: 1123 })).toMatchObject({ columns: 2, rows: 1 })
   expect(grownArea(A4, "both", null, true)).toMatchObject({ columns: 2, rows: 2 })
   expect(grownArea(A4, "down", null, true)).toMatchObject({ columns: 1, rows: 2 })
+})
+
+test("区切りの線: 紙 1 枚に収まる広さなら無し。右に 2 つ・下に 3 つなら、縦の線 1 本と横の線 2 本の位置", () => {
+  expect(printAreaLines(A4, A4)).toBeNull()
+  expect(printAreaLines(A4, { w: A4.w * 2, h: A4.h * 3 })).toEqual({
+    columns: 2,
+    rows: 3,
+    xs: [794],
+    ys: [1123, 2246],
+  })
 })

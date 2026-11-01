@@ -305,6 +305,7 @@ describe("取り込んだプラグインの置き場所", () => {
     expect(layout.slots["@matomezu/base:book-layers"] as readonly unknown[] | undefined).toEqual([
       "@matomezu/base:paper-layer",
       "q:over",
+      "@matomezu/base:print-area-layer",
       "q:under",
       "@matomezu/base:book-content",
       "@matomezu/base:stand-layer",

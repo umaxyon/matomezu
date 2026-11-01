@@ -45,6 +45,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:stage-body": ["@matomezu/base:book-view"],
     "@matomezu/base:book-layers": [
       "@matomezu/base:paper-layer",
+      "@matomezu/base:print-area-layer",
       "@matomezu/base:book-content",
       "@matomezu/base:stand-layer",
     ],
