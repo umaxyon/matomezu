@@ -58,6 +58,7 @@ export {
   connectorsOf,
   findShape,
   pageItemsOf,
+  replaceShape,
   shapeSchema,
   shapesOf,
   walkShapes,
@@ -69,7 +70,7 @@ export { resolveTokens } from "../core/theme"
 export type { StageView } from "../core/workspace"
 export { toolOf } from "../core/workspace"
 export type { CommandContext } from "../store/commands/def"
-export { defineCommand, toPaperIn } from "../store/commands/def"
+export { defineCommand } from "../store/commands/def"
 export type { PageSettingsArgs } from "../store/dialogs"
 export { defineDialog, defineDialogWith, shapeDialogs } from "../store/dialogs"
 export type { OwnedMessages } from "../store/kit"

@@ -119,6 +119,7 @@ const Rows = memo(function Rows({
   const editor = useRef<RichInputHandle>(null)
   const drag = useRowDrag(stage, area)
   const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
+  const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok // ドラッグで動かし始められるか
   const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
   if (!page || !root.success) return null
   const dir = root.data
@@ -217,7 +218,7 @@ const Rows = memo(function Rows({
             if (e.button !== 0 || !usingPencil) return
             settle()
             select(stage.id, [r.id])
-            if (r.id !== dir.id) drag.start(r, e.clientX, e.clientY)
+            if (r.id !== dir.id && movable) drag.start(r, e.clientX, e.clientY)
           }}
           onDoubleClick={() => {
             if (!usingPencil || !renamable) return

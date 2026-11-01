@@ -4,7 +4,7 @@
 // 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ContextMenuId } from "../../../core/catalog"
-import { fitInside, type Point } from "../../../core/geom"
+import type { Point } from "../../../core/geom"
 import type { OpenedContextMenu } from "../../../store/context-menus"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenuItems } from "../../../ui/context-menu"
@@ -14,6 +14,7 @@ import { type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
 import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "./ContextMenuHost.module.css"
+import { fitInside } from "./fit"
 
 export function ContextMenuHost() {
   const menu = useMatomezuState(s => s.contextMenu)

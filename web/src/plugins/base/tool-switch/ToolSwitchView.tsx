@@ -4,13 +4,14 @@
 import { useEffect, useRef } from "react"
 import type { ToolId } from "../../../core/catalog"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
-import { toolOf, unusableTools } from "../../../core/workspace"
+import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { TOOL_NEXT } from "."
 import styles from "./ToolSwitchView.module.css"
+import { unusableTools } from "./tools"
 
 // 左右の控え（手前から 120 度）が、真ん中から 20px 横・4px 下になる輪の半径と、真後ろで下げる量（px）
 const R = 20 / Math.sin(Math.PI / 3)

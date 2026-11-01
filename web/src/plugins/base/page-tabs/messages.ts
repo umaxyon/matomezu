@@ -20,4 +20,7 @@ export const PAGE_MESSAGES = defineMessages({
     ja: "ページと中身が消えます",
   },
   Delete: { en: "Delete", ja: "削除" },
+  "Page {n}": { en: "Page {n}", ja: "ページ {n}" },
+  Portrait: { en: "Portrait", ja: "縦" },
+  Landscape: { en: "Landscape", ja: "横" },
 })

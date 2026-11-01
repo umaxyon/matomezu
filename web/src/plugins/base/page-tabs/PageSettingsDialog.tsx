@@ -1,8 +1,8 @@
 // ページの設定のダイアログ: 開いているページの名前と、ブックのタイプが選んだページの設定の項目（値が無ければブックの値を継ぐ）。
 // 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからページに重ねて見せる（ダイアログの下書き。名前は見せない）。
 // 確定でアクション page-update（設定の項目は settings）を書き、キャンセルでは元のまま。選んでいる値でページに問題が出れば、その知らせを出して確定できない
-// 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。ロック中のページは削除のボタンを押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）。
-// ページを削除するボタンは、上に重ねたモーダルで確かめてから page-remove を行う（中身ごと消え、戻せないため）
+// 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。削除のボタンは、ロック中（ページかブック）など認可ステップが page-remove を止めていれば押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）。
+// ページを削除するボタンは、上に重ねたモーダルで確かめてから page-remove を行う（中身ごと消え、戻せないため）。断られたらダイアログを開いたままにする
 import { useEffect, useId, useState } from "react"
 import { pagedOf, putPage, withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
@@ -13,8 +13,9 @@ import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { changeWithLock, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "../lock"
-import { LockToggle } from "../lock/LockToggle"
+import { LOCK, PAGE_LOCK, PAGE_UNLOCK } from "../lock"
+import { LockToggle } from "../utils/LockToggle"
+import { changeWithLock } from "../utils/lock"
 import { PageProblemsView, usePageProblems } from "../utils/PageProblems"
 import { useSettingControls } from "../utils/SettingControls"
 import { PAGE_REMOVE } from "./page-remove"
@@ -33,6 +34,8 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(stage, PAGE_UPDATE.id, { page: args.page })
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
+  // 削除できるか（ページとブックのロック・ほかの認可ステップも見る）
+  const removable = useAllowed(stage, PAGE_REMOVE.id, { page: args.page }).ok
   const [confirming, setConfirming] = useState(false)
   const settings = useSettingControls(book, "page", page ?? null)
   const { previewDialog } = useActions()
@@ -60,8 +63,8 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
     if (done) onClose()
   }
   const remove = () => {
-    perform(PAGE_REMOVE.id, { page: page.id })
-    onClose()
+    if (perform(PAGE_REMOVE.id, { page: page.id }).ok) onClose()
+    else setConfirming(false)
   }
   return (
     <Dialog
@@ -84,7 +87,7 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
         {settings.controls}
         <PageProblemsView problems={problems} />
         <div className={rowClass}>
-          <ActionButton danger disabled={page.locked === true} onClick={() => setConfirming(true)}>
+          <ActionButton danger disabled={!removable} onClick={() => setConfirming(true)}>
             {t("Delete page")}
           </ActionButton>
         </div>

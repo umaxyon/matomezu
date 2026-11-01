@@ -6,4 +6,7 @@ export const STAGE_MESSAGES = defineMessages({
   "Split screen": { en: "Split screen", ja: "画面を分割" },
   "Close stage": { en: "Close stage", ja: "ステージを閉じる" },
   Unsplit: { en: "Unsplit", ja: "分割をやめる" },
+  Stage: { en: "Stage", ja: "ステージ" },
+  "Select a book": { en: "Select a book", ja: "ブックを選択してください" },
+  "Book menu": { en: "Book menu", ja: "ブックのメニュー" },
 })

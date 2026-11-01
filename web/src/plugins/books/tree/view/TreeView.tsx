@@ -16,6 +16,7 @@ import { type Point, paperOf, placement, type Size, type StageView, toPaper } fr
 import {
   type BookViewProps,
   useActions,
+  useAllowed,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -130,6 +131,11 @@ const Tree = memo(function Tree({
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog, continueStep } = useActions()
+  // 変更を始めてよいか（動かす・書き換える・足す。認可ステップが止めていれば始めない）
+  const where = page ? { page: page.id } : undefined
+  const movable = useAllowed(stage.id, NODE_MOVE.id, where).ok
+  const editable = useAllowed(stage.id, NODE_UPDATE.id, where).ok
+  const addable = useAllowed(stage.id, NODE_ADD.id, where).ok
   // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
@@ -222,7 +228,7 @@ const Tree = memo(function Tree({
             if (e.button !== 0 || !usingEdit) return
             if (writing) end(true) // 入力Formが外れるより先に選びが替わるので、ここで確定する
             select(stage.id, [n.id])
-            if (n.id !== tree.id) drag.start(n, e.clientX, e.clientY)
+            if (n.id !== tree.id && movable) drag.start(n, e.clientX, e.clientY)
           }}
           onContextMenu={e => {
             if (!usingEdit) return
@@ -234,7 +240,7 @@ const Tree = memo(function Tree({
             if (!usingEdit) return
             select(stage.id, [n.id])
             if (n.id === tree.id) openDialog(stage.id, TREE_PAGE_SETTINGS_DIALOG.id, { page: pageId })
-            else setEditing(stage.id, true)
+            else if (editable) setEditing(stage.id, true)
           }}
         >
           <NodeText node={n} />
@@ -302,6 +308,7 @@ const Tree = memo(function Tree({
         />
       )}
       {usingEdit &&
+        addable &&
         !writing &&
         !dragging &&
         at &&
