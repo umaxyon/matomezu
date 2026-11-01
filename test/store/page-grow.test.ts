@@ -1,4 +1,4 @@
-// 伸びるページの広さ（base の place/grow.ts の grownArea）: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる
+// 可変ページの広さ（base の place/grow.ts の grownArea）: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる
 import { expect, test } from "bun:test"
 import { grownArea, printAreaLines } from "../../web/src/plugins/base/place/grow"
 

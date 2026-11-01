@@ -1,4 +1,4 @@
-// 伸びるページの広さ: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる（place/items の pageArea が使う）。区切りの線の位置も出す
+// 可変ページの広さ: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる（place/items の pageArea が使う）。区切りの線の位置も出す
 import type { Rect, Size } from "../../../core/geom"
 import type { GrowDirection } from "../../../core/paper"
 

@@ -90,8 +90,8 @@ export function usePaperControls(book: PagedBook | undefined, page: Page | null)
       </Field>
       {canGrow(catalog, book) && (
         <div className={rowClass}>
-          <span>{t("Grow the page")}</span>
-          <Switch label={t("Grow the page")} checked={value.grows} onChange={grows => setValue({ ...value, grows })} />
+          <span>{t("Variable page")}</span>
+          <Switch label={t("Variable page")} checked={value.grows} onChange={grows => setValue({ ...value, grows })} />
         </div>
       )}
     </>

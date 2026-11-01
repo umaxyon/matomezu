@@ -28,7 +28,7 @@ export function stepZoom(zoom: number, dir: 1 | -1): number {
 // Ctrl+ホイールで回した量 delta（下へ回すと正）をかけた倍率
 export const wheelZoom = (zoom: number, delta: number): number => clampZoom(zoom * Math.exp(-delta * WHEEL_RATE))
 
-// ページの紙全体（伸びるページは、見せ方が知らせた広さ全体）を表示領域に収めた見え方: 収まる倍率（ZOOM_MIN～ZOOM_MAX）にして、紙を真ん中に置く。紙か表示領域が無ければそのまま
+// ページの紙全体（可変ページは、見せ方が知らせた広さ全体）を表示領域に収めた見え方: 収まる倍率（ZOOM_MIN～ZOOM_MAX）にして、紙を真ん中に置く。紙か表示領域が無ければそのまま
 export function fitView(stage: Stage): Stage {
   const paper = areaOf(stage)
   const view = stage.view

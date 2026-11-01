@@ -1,4 +1,4 @@
-// 次のページ（と、あとで変えるページ）に選べる紙と向き、伸びるページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
+// 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
 import type { PagedBook } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
@@ -42,7 +42,7 @@ export function paperChoicesFor(catalog: CoreCatalog, book: PagedBook, page: str
   )
 }
 
-// ブックのタイプが伸びるページを作れるか
+// ブックのタイプが可変ページを作れるか
 export const canGrow = (catalog: CoreCatalog, book: PagedBook): boolean =>
   pagesRule(catalog, book).paper.grow !== undefined
 
@@ -66,7 +66,7 @@ export function nextPageTitle(catalog: CoreCatalog, book: PagedBook, lang: Lang)
   return translate(catalog.messages, lang, kit.message("Page {n}"), { n: book.pages.length + 1 })
 }
 
-// ブック book のページ page の形が、ページの広さに収まるか（伸びるページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）
+// ブック book のページ page の形が、ページの広さに収まるか（可変ページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）
 export function shapesFit(catalog: CoreCatalog, book: PagedBook, page: string): boolean {
   const found = book.pages.find(p => p.id === page)
   if (!found) return true

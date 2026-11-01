@@ -13,7 +13,7 @@ import type { Book } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
 // 開いているブック。ブックのタイプと、開いたページの紙を写して持つ（開くときに決まる）。
-// area は、見せ方が描く広さ（伸びるページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない
+// area は、見せ方が描く広さ（可変ページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない
 export interface Opened {
   type: BookTypeId
   book: string // ブックの id
@@ -37,7 +37,7 @@ export interface Stage {
   picker: { at: Point | null; map: boolean } | null
 }
 
-// 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ（伸びるページは、見せ方が知らせた広さ。areaOf）
+// 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ（可変ページは、見せ方が知らせた広さ。areaOf）
 export interface Placement {
   x: number
   y: number

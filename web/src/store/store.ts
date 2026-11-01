@@ -123,7 +123,7 @@ export interface Actions {
   openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
-  setStageArea(id: string, area: Size | null): void // 見せ方が描く広さ（伸びるページ。null なら紙 1 枚）
+  setStageArea(id: string, area: Size | null): void // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）
   panStageBy(id: string, dx: number, dy: number): void
   // そのステージの倍率を zoom にする（表示領域の中の点 at、無ければ真ん中の下の紙の点は動かさない）
   zoomStage(id: string, zoom: number, at?: Point): void
