@@ -260,6 +260,31 @@ test("自動で整列は、紙に収まらなければ断って何も変えな�
   expect(page()).toBe(before)
 })
 
+test("可変ページの自動で整列は、紙 1 枚に収まらない流れも下へ並べ、印刷区画を増やす", () => {
+  const { store, on, page } = flowchart()
+  act(() => {
+    expect(store.actions.perform("@matomezu/base:page-update", { page: page().id, grows: true }, on).ok).toBe(true)
+    for (let i = 0; i < 20; i++)
+      store.actions.perform(
+        "@matomezu/paper:item-place",
+        {
+          page: page().id,
+          item: "@matomezu/box:shape-box",
+          at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 },
+        },
+        on,
+      )
+  })
+  const ids = shapesOf(page()).map(s => s.id)
+  act(() => {
+    for (let i = 1; i < ids.length; i++)
+      store.actions.perform("@matomezu/line:line-connect", { page: page().id, from: ids[i - 1]!, to: ids[i]! }, on)
+    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+  })
+  // A4 縦（高さ 1123）より下まで並ぶ
+  expect(Math.max(...shapesOf(page()).map(s => s.y))).toBeGreaterThan(1123)
+})
+
 test("紙の右クリックのメニューの「自動で整列」は、確認のダイアログを出し、実行で整える（図面のメニューに出ないことは screen.test.tsx）", () => {
   const f = flowchart()
   chart(f)

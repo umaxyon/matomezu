@@ -1,7 +1,7 @@
 // フローチャートのアクションとコマンドとダイアログ: ページの形を流れに沿って並べ直す（自動で整列。確かめてから行う）。
 // 開始の形・分岐の形は、タイプが選んだアイテムの中から決めたもの（flowchart.ts の START_ITEMS・BRANCH_ITEMS）。並べ方は align.ts の alignFlow で、流れの向きが右へなら縦と横を入れ替えて使う。
 // 線でつながった形のまとまり（チャート）ごとに並べ、線を含めた広さで左右に並べて、紙の幅を超えたら折り返す。
-// 並べ直したら線の端の固定と手直しを外す（つなぐものの定義の unpin）。紙に収まらなければ間隔を詰めて試し、それでも収まらなければ断る
+// 並べ直したら線の端の固定と手直しを外す（つなぐものの定義の unpin）。紙に収まらなければ間隔を詰めて試し、それでも収まらなければ断る（可変ページは、下へ段を重ね、広いチャートは右へはみ出して印刷区画を増やすので断らない）
 import { z } from "zod"
 import {
   type CommandContext,
@@ -17,6 +17,7 @@ import {
 import {
   adaptPage,
   extentOf,
+  growOf,
   pageContext,
   paperSize,
   placedAt,
@@ -62,12 +63,14 @@ function chartsOf(page: ItemPage, ids: readonly string[]): string[][] {
 // ページの形を流れに沿って並べ直した形の四角（形ごと）。紙に収まらなければ null。
 // 線でつながった形のまとまり（チャート）ごとに並べ、線を含めた外枠（base の extentOf）で測って、流れと交わる向き（下へなら横）に間隔を空けて並べる。
 // 紙からはみ出すなら折り返して次の段へ。段の中のチャートは流れの始まりの側（下へなら上）をそろえ、段全体を紙の真ん中に置く。
-// setting はそのページで効いている設定の値（線の通り方を測るのに使う）
+// setting はそのページで効いている設定の値（線の通り方を測るのに使う）。grows（可変ページ）なら、折り返しと真ん中は紙 1 枚（印刷区画 1 つ）で決め、
+// 段は下へいくらでも重ね、紙の幅より広いチャートは紙の端から置く（印刷区画が増える）
 export function alignedRects(
   catalog: CoreCatalog,
   page: ItemPage,
   dir: FlowDirection,
   setting: (id: string) => unknown,
+  grows = false,
 ): Map<string, Rect> | null {
   const paper = paperSize(catalog, page)
   if (!paper) return null
@@ -115,7 +118,7 @@ export function alignedRects(
       const ext = extentOf(catalog, alone, setting)
       return { placed, ext: turn(ext ?? { x: 0, y: 0, w: 0, h: 0 }, dir) }
     })
-    if (laid.some(c => c.ext.w > width)) continue
+    if (!grows && laid.some(c => c.ext.w > width)) continue
     // 段に分ける（隣に置くと紙の幅を超えるなら折り返す）
     const rows: (typeof laid)[] = []
     for (const c of laid) {
@@ -128,7 +131,7 @@ export function alignedRects(
     let top = ALIGN_MARGIN
     for (const row of rows) {
       const total = row.reduce((w, o) => w + o.ext.w, 0) + (row.length - 1) * gap.gapX
-      let left = Math.round((room.w - total) / 2)
+      let left = Math.max(ALIGN_MARGIN, Math.round((room.w - total) / 2))
       for (const c of row) {
         const dx = left - c.ext.x
         const dy = top - c.ext.y
@@ -137,7 +140,7 @@ export function alignedRects(
       }
       top += Math.max(...row.map(c => c.ext.h)) + gap.gapY
     }
-    if (top - gap.gapY > room.h - ALIGN_MARGIN) continue
+    if (!grows && top - gap.gapY > room.h - ALIGN_MARGIN) continue
     return out
   }
   return null
@@ -161,7 +164,7 @@ export function adaptedTitles(catalog: CoreCatalog, book: PagedBook, page: ItemP
 export const PAGE_ALIGN = kit.defineAction({
   id: "page-align",
   aiDescription:
-    "Arrange the shapes of a flowchart page along its lines: starting from a rounded or circle shape with no line coming in, the main path is lined up on the middle of the paper and branches go beside it (right first; for a page whose flow direction is right (the page's own, or else its book's), the main path runs left to right and branches go below first). A line from one diamond to another puts the second diamond beside the first. Shapes not joined by lines make separate charts, placed side by side with their tops level (rows centered on the paper; for the flow direction right, one below another with their left ends level) and wrapped to a new row when the next one would not fit. With adapt true, the shapes are first made to suit the page (trapezoids turn sideways for the flow direction right and upright for down); without it they keep their orientation. Lines lose their fixed ends and hand-set routes. It is refused if the shapes do not fit on the paper even with smaller gaps.",
+    "Arrange the shapes of a flowchart page along its lines: starting from a rounded or circle shape with no line coming in, the main path is lined up on the middle of the paper and branches go beside it (right first; for a page whose flow direction is right (the page's own, or else its book's), the main path runs left to right and branches go below first). A line from one diamond to another puts the second diamond beside the first. Shapes not joined by lines make separate charts, placed side by side with their tops level (rows centered on the paper; for the flow direction right, one below another with their left ends level) and wrapped to a new row when the next one would not fit. With adapt true, the shapes are first made to suit the page (trapezoids turn sideways for the flow direction right and upright for down); without it they keep their orientation. Lines lose their fixed ends and hand-set routes. It is refused if the shapes do not fit on the paper even with smaller gaps; on a variable page (grows) it wraps at the paper's width, rows go on downward and a chart wider than the paper starts at its left, adding print areas.",
   title: "Auto align",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), adapt: z.boolean().optional() }),
@@ -173,7 +176,13 @@ export const PAGE_ALIGN = kit.defineAction({
     const dir = settingValue(ctx.catalog, book, page, FLOW_DIRECTION.id) as FlowDirection
     // adapt なら、先に形をそのページに合わせる（台形の向きをページの流れの向きにそろえる）
     const shaped = args.adapt ? adaptPage(ctx.catalog, page, pageContext(ctx.catalog, book, page)) : page
-    const rects = alignedRects(ctx.catalog, shaped, dir, id => settingValue(ctx.catalog, book, page, id))
+    const rects = alignedRects(
+      ctx.catalog,
+      shaped,
+      dir,
+      id => settingValue(ctx.catalog, book, page, id),
+      growOf(ctx.catalog, book, page) !== undefined,
+    )
     if (!rects) return null
     const next: PagedBook = withPage(
       ctx.catalog,
