@@ -65,7 +65,7 @@ export {
 } from "../core/placed"
 export type { Book } from "../core/schema/book"
 export type { Stage } from "../core/stage"
-export { paperOf, placement, toPaper, toPaperDelta } from "../core/stage"
+export { areaOf, paperOf, placement, toPaper, toPaperDelta } from "../core/stage"
 export { resolveTokens } from "../core/theme"
 export type { StageView } from "../core/workspace"
 export { toolOf } from "../core/workspace"

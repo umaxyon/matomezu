@@ -5,7 +5,7 @@
 // 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）。className は枠の見た目を替える（無ければ浮かぶ枠）
 import { memo, type PointerEvent, type ReactNode, useCallback, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
-import { paperOf } from "../../../core/stage"
+import { areaOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
@@ -73,7 +73,7 @@ export function MinimapView({
     el.addEventListener("wheel", onWheel, { passive: false })
     return () => el.removeEventListener("wheel", onWheel)
   }, [])
-  const paper = stage ? paperOf(stage) : null
+  const paper = stage ? areaOf(stage) : null
   if (!stage || !book || !paper) return null
   const scale = fitScale(paper, width, height)
   const seen = stage.view ? seenRect(paper, stage.view, stage.pan, stage.zoom) : null

@@ -37,6 +37,7 @@ export {
   useShownBook,
   useShownPage,
   useStage,
+  useStageArea,
   useStagePan,
   useStageState,
   useToPaper,
