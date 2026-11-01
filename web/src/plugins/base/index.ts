@@ -33,14 +33,15 @@ import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_NEXT } from "./tool-switch"
 import { HAND_TOOL, SELECT_TOOL } from "./tool-switch/tools"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
+// 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
+import type {} from "./toolbox/toolbox"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
-export { NEW_BOOK_DIALOG } from "./book-new"
 export { createBookIn } from "./book-new/create-book"
 export type { PageContext } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
-export { PAPER_IDS, PAPERS } from "./looks"
+export { PAPER_IDS } from "./looks"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export type { MinimapMark } from "./minimap/marks"
 export { addPageIn } from "./page-tabs/add-page"
@@ -77,7 +78,6 @@ export {
   replacePushing,
   replaceShapePushing,
   resizedBy,
-  rootOf,
   shapeDefOf,
   shownRects,
   unpinPage,
@@ -88,7 +88,6 @@ export type { PortArea, Ports } from "./place/placed"
 export { NEST_PADDING, placedSize, portAreasOf, rectsOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
-export { shownLanguagePack } from "./settings"
 export {
   BOOK_TEXT_COLORS,
   clampRich,
@@ -97,20 +96,13 @@ export {
   type RichLine,
   type Run,
   richWidth,
-  textColorId,
-  textColorRef,
-  textColorsOf,
-  withTextColor,
   wrapRich,
 } from "./text"
 export {
-  BLOCK_CAPTION,
-  BLOCK_RULE,
   type BlockProps,
   type BodyColumn,
   bodyColumn,
   bodyMinWidth,
-  bodySides,
   bodyWidthAfter,
   type TextBlock,
   textBlock,
@@ -129,10 +121,8 @@ export {
 } from "./text/fields"
 export type { Font, Weight } from "./text/text"
 export { clampLines, textWidth, wrap } from "./text/text"
-export { toolboxOf } from "./toolbox/toolbox"
 // プラグインに公開する共通の処理（utils。ビルトインプラグインもここから使う）
 export * from "./utils"
-export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin(
   kit.plugin({
