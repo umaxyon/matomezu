@@ -7,12 +7,11 @@ import { memo, type PointerEvent, type ReactNode, useCallback, useMemo, useRef }
 import type { Point } from "../../../core/geom"
 import { areaOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
-import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
-import { useShownPage } from "../../../ui/view-hooks"
+import { useShownPage, useStage } from "../../../ui/view-hooks"
 import { bookTokens } from "../book-look/look"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
@@ -44,7 +43,7 @@ export function MinimapView({
     return o ? s.books[o.book] : undefined
   })
   const page = useShownPage(id)
-  const held = useMatomezuState(s => keepsPan(catalog, toolOf(catalog, s.workspace, id, s.books)))
+  const held = keepsPan(catalog, useStage(id)?.tool ?? null)
   const { panStageBy, focusStage, setTool } = useActions()
   const latest = useRef(stage)
   latest.current = stage

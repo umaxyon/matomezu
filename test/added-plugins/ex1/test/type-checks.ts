@@ -1,5 +1,4 @@
 // 型が誤りにする場面（tsc -p でこのプロジェクトを確かめる。@ts-expect-error の行が誤りにならなければ、確かめが落ちる）
-import { defineCommand } from "matomezu"
 import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
 import { kit } from "../kit"
 import EX1_UI from "../ui"
@@ -16,9 +15,9 @@ instance.actions.command("s1", "ex1:nope")
 createMatomezu({ plugins: BUILTIN_UI, home: "master" })
 // @ts-expect-error 引数の型が違う既定のキー
 kit.defineKey({ id: "bad-key", key: "Mod+K", command: "ex1:lang", scope: "global", args: "de" })
-defineCommand({
-  id: "ex1:arg",
-  title: "ex1:sayHello",
+kit.defineCommand({
+  id: "arg",
+  title: "sayHello",
   run: (_ctx, _a, _n: number) => {},
   when: () => true,
   // @ts-expect-error 引数を取るコマンドはメニューに入れられない

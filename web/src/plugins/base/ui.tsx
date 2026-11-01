@@ -17,6 +17,7 @@ import {
   CLOSE_BUTTON,
   PAPER_LAYER,
   PRINT_AREA_LAYER,
+  PRINT_AREA_TOGGLE,
   STAGE_ICONS,
   STAND_LAYER,
 } from "./stage/ui"
@@ -72,6 +73,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_AREA_LAYER,
     BOOK_CONTENT,
     STAND_LAYER,
+    PRINT_AREA_TOGGLE,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
@@ -108,6 +110,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-area-layer": typeof PRINT_AREA_LAYER
     "@matomezu/base:book-content": typeof BOOK_CONTENT
     "@matomezu/base:stand-layer": typeof STAND_LAYER
+    "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME

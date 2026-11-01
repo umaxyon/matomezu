@@ -24,13 +24,13 @@ import {
   useState,
 } from "react"
 import {
+  areaOf,
   bookItems,
   type CoreCatalog,
   findShape,
   type ItemPage,
   type PlacedShape,
   type Point,
-  paperOf,
   type Rect,
   type StageView,
   shapesOf,
@@ -52,12 +52,13 @@ import {
   useShapeMarks,
   useShownPage,
   useStage,
+  useStageArea,
   useStagePan,
   useTokenScope,
   useToPaper,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { type Edges, fitsPaper, itemSize, minSize, placedSize, resizedBy, shownRects } from "../../base"
+import { type Edges, fitsPaper, growOf, itemSize, minSize, placedSize, resizedBy, roomOf, shownRects } from "../../base"
 import { PaperFrame, useAnchorRef } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
@@ -184,6 +185,12 @@ function PageItems({
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
   const book = useBook(stage.id)
+  // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
+  const room = useMemo(
+    () => (book && growOf(catalog, book, page) ? roomOf(catalog, book, page) : null),
+    [catalog, book, page],
+  )
+  useStageArea(stage.id, room)
   // ブックで使えるつなぐもののビュー
   const connectors = (book ? bookItems(catalog, book) : []).flatMap(id => {
     const c = ui.connectors.get(id)
@@ -238,11 +245,11 @@ function PageItems({
       const at = localOf(e)
       const point = at && toPaperAt(at)
       setTarget(point ? dropTarget(catalog, page, d.items[0] as string, point) : null)
-    } else if (d.items.length === 1) {
+    } else if (d.items.length === 1 && book) {
       const id = d.items[0] as string
-      d.came = trackDrag(catalog, page, id, d.prev, by, d.came)
+      d.came = trackDrag(catalog, book, page, id, d.prev, by, d.came)
       // 入れ替えが起きたら覚える（このドラッグの終わりまで）
-      const plan = dragging(catalog, page, id, by, d.came)
+      const plan = dragging(catalog, book, page, id, by, d.came)
       const moved = ([k, r]: [string, Rect]) => {
         const now = findShape(page, k)?.shape
         return k !== id && (r.x !== now?.x || r.y !== now?.y)
@@ -267,7 +274,9 @@ function PageItems({
   const d = drag.current
   const dragged = shift && d ? d.items : []
   const plan =
-    shift && d?.items.length === 1 && !d.reparent ? dragging(catalog, page, d.items[0] as string, shift, d.came) : null
+    shift && book && d?.items.length === 1 && !d.reparent
+      ? dragging(catalog, book, page, d.items[0] as string, shift, d.came)
+      : null
   // ドラッグ中にずらして描く量（紙の上）
   const shiftOf = (item: PlacedShape): Point | null => {
     if (!shift) return null
@@ -293,7 +302,7 @@ function PageItems({
     setStretched({ x: 0, y: 0 })
     if (drop && (stretched.x !== 0 || stretched.y !== 0)) resize.run({ item: st.item, edges: st.edges, by: stretched })
   }
-  const paper = paperOf(stage)
+  const paper = areaOf(stage)
   // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きは、下書きを重ねたページ（useShownPage）のアイテムで描く（子の形も）
   const shown = (placed: PlacedShape): PlacedShape => {
     const item = findShape(shownPage, placed.id)?.shape ?? placed
@@ -545,7 +554,7 @@ function Ghost({ stage, pointer }: { stage: StageView; pointer: Point }) {
   const pan = useStagePan(stage.id)
   const at = pan && placeAt(p => toPaper({ ...stage, pan }, p), pointer)
   const size = stage.placing ? itemSize(catalog, stage.placing) : null
-  const paper = paperOf(stage)
+  const paper = areaOf(stage)
   if (!at || !size || !paper) return null
   return (
     <div

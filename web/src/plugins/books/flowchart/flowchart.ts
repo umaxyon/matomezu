@@ -64,7 +64,7 @@ export const FLOWCHART = kit.defineBookType({
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
+    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait", perPage: true, grow: "both" },
   },
   items: {
     allowed: ITEMS,
