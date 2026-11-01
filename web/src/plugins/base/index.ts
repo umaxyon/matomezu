@@ -65,6 +65,7 @@ export { grownArea } from "./place/grow"
 export type { Edges, GrowFrom } from "./place/items"
 export {
   adaptPage,
+  alignPadding,
   extentOf,
   fitsPaper,
   gapOf,
@@ -82,6 +83,7 @@ export {
   replaceShapePushing,
   resizedBy,
   roomOf,
+  settleVariablePages,
   shapeDefOf,
   shownRects,
   unpinPage,

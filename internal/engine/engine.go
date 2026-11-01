@@ -53,6 +53,7 @@ type Output struct {
 	Removed     []string                   `json:"removed,omitempty"`
 	Settings    json.RawMessage            `json:"settings,omitempty"`
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
+	Notice      string                     `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 }
 
 // Engine は読み込んだ core

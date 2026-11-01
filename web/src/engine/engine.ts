@@ -11,7 +11,7 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { splitId } from "../core/names"
 import { type PerformedIn, performIn } from "../core/perform"
-import type { Book } from "../core/schema/book"
+import type { Book, Page } from "../core/schema/book"
 import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
@@ -50,7 +50,15 @@ interface Input {
 // 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
-  | { ok: true; result: unknown; books: Book[]; removed: string[]; settings?: unknown; annotations?: Annotations }
+  | {
+      ok: true
+      result: unknown
+      books: Book[]
+      removed: string[]
+      settings?: unknown
+      annotations?: Annotations
+      notice?: string
+    }
   | { ok: false; reason: string; permission?: string; detail?: string }
 
 declare const crypto: { randomUUID(): string }
@@ -104,6 +112,7 @@ function perform(input: Input): Output {
   const next = done.books
   const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
   const removed = next ? Object.keys(books).filter(id => !(id in next)) : []
+  const notice = shiftNotice(books, changed)
   return {
     ok: true,
     result: done.result,
@@ -111,7 +120,28 @@ function perform(input: Input): Output {
     removed,
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
+    ...(notice ? { notice } : {}),
   }
+}
+
+// 中身をずらした可変ページ（ページの shift が変わった）があれば、AI への知らせ（位置が変わったので読み直す）
+function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly Book[]): string | null {
+  const shiftOf = (b: Book | undefined, page: string) =>
+    (b && "pages" in b ? (b.pages as readonly Page[]).find(p => p.id === page)?.shift : undefined) ?? { x: 0, y: 0 }
+  const moved = changed.flatMap(b =>
+    "pages" in b
+      ? (b.pages as readonly Page[]).flatMap(p => {
+          const was = shiftOf(before[b.id], p.id)
+          const now = shiftOf(b, p.id)
+          const dx = now.x - was.x
+          const dy = now.y - was.y
+          return dx || dy ? [`page ${p.id} of book ${b.id} by ${dx} paper(s) right and ${dy} down`] : []
+        })
+      : [],
+  )
+  return moved.length
+    ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_book before using positions.`
+    : null
 }
 // MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・利用者の設定の項目（利用者だけが変える項目は除く）・テーマ・代表色を絞って書き出したもの。
 // args・props・設定の項目の schema は JSON Schema。名前は英語

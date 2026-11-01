@@ -129,3 +129,43 @@ test("可変ページは、伸びない向き（下へだけ伸びるなら横�
   expect(place(600, 40)).toBe(true)
   expect(update({ paper: "@matomezu/base:a5" })).toBe(false)
 })
+
+test("上下左右へ伸びる可変ページは、左・上に空きの印刷区画を 1 つ持つ。左の空きへ置けば中身を 印刷区画 1 つ分右へずらし、左端の印刷区画が空けば詰める（ずらした量はページの shift）", () => {
+  const { state, actions } = newStore()
+  const pages = () => (state.getState().books.b1 as Drawing).pages
+  expect(actions.perform("@matomezu/base:page-add", { title: "p", orientation: "landscape" }, { book: "b1" }).ok).toBe(
+    true,
+  )
+  const page = pages().at(-1)?.id as string
+  const at = () =>
+    pages().find(p => p.id === page) as unknown as {
+      shift?: { x: number; y: number }
+      items: { id: string; x: number; y: number }[]
+    }
+  const place = (x: number, y: number) =>
+    (
+      actions.perform(
+        "@matomezu/paper:item-place",
+        { page, item: "@matomezu/box:shape-nest-box", at: { x, y } },
+        { book: "b1" },
+      ) as { ok: boolean; result?: { item: string } }
+    ).result?.item
+  const first = place(100, 100) as string
+  // 可変ページにすると、左と上に空きの印刷区画を 1 つずつ持つよう中身が 印刷区画 1 つ分ずつずれる（A4 横は 1123×794）
+  expect(actions.perform("@matomezu/base:page-update", { page, grows: true }, { book: "b1" }).ok).toBe(true)
+  expect(at().shift).toEqual({ x: 1, y: 1 })
+  expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
+  // 左の空きの印刷区画へ置くと、全体が印刷区画 1 つ分右へずれる
+  const left = place(50, 900) as string
+  expect(at().shift).toEqual({ x: 2, y: 1 })
+  expect(at().items.find(i => i.id === left)).toMatchObject({ x: 1173, y: 900 })
+  expect(at().items.find(i => i.id === first)).toMatchObject({ x: 2346, y: 894 })
+  // 左の箱を消すと、空いた左端の印刷区画を詰める
+  expect(actions.perform("@matomezu/paper:item-remove", { page, items: [left] }, { book: "b1" }).ok).toBe(true)
+  expect(at().shift).toEqual({ x: 1, y: 1 })
+  expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
+  // 可変ページをやめると、空きを詰めて紙 1 枚に戻す
+  expect(actions.perform("@matomezu/base:page-update", { page, grows: false }, { book: "b1" }).ok).toBe(true)
+  expect(at().shift).toBeUndefined()
+  expect(at().items.find(i => i.id === first)).toMatchObject({ x: 100, y: 100 })
+})

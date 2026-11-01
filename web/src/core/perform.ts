@@ -60,6 +60,11 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
   return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }
 
+// アクションが返したブックを、そのタイプが整えたもの（タイプの settle。無ければそのまま）
+function settled(catalog: CoreCatalog, book: Book): Book {
+  return (bookType(catalog, book.type).settle?.(book, catalog) as Book | undefined) ?? book
+}
+
 // アクションが返したブックが、機能台帳のブックの形に合い、データの形の外の決まりも守っているか（型を言い張った所があっても、ここで止める）
 function settles(catalog: CoreCatalog, book: Book): boolean {
   return catalog.bookSchema.safeParse(book).success && holds(catalog, book)
@@ -143,8 +148,9 @@ export function perform<Id extends ActionId>(
   if (!parsed.success) return { ok: false, reason: "bad-args" }
   // 付く先がページを持つタイプだけのアクションに、ページの無いブックは渡さない（run は PagedBook を受ける）
   if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
-  const done = action.run(subject as never, parsed.data, ctx)
-  if (!done) return { ok: false, reason: "refused" }
+  const ran = action.run(subject as never, parsed.data, ctx)
+  if (!ran) return { ok: false, reason: "refused" }
+  const done = action.target === "book" ? { ...ran, next: settled(ctx.catalog, ran.next as Book) } : ran
   // アノテーションのアクションはブックを変えない（変えたら断る）。認可ステップの keeps は、変わらないブックで見る
   const pair = subject as unknown as BookAnnotations
   if (action.target === "annotations" && (done.next as unknown as BookAnnotations).book !== pair.book)

@@ -7,6 +7,7 @@ import type { Page } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { setField } from "../fields"
 import { kit } from "../kit"
+import { alignPadding, growOf } from "../place/items"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblems } from "./page-problems"
 import { canChoose, canGrow, paperChoicesFor, shapesFit } from "./pages"
@@ -69,5 +70,8 @@ function withPaper(catalog: CoreCatalog, book: PagedBook, page: Page, args: z.in
   if (!canChoose(paperChoicesFor(catalog, book, page.id), choice)) return null
   if (args.grows && !canGrow(catalog, book)) return null
   const grows = args.grows === undefined ? page.grows : args.grows || undefined
-  return setField({ ...page, ...choice }, ["orientation"], "grows", grows)
+  const next = setField({ ...page, ...choice }, ["orientation"], "grows", grows)
+  // 上下左右へ伸びる可変ページをやめるなら、左・上の空きを詰めて中身を 1 つ目の印刷区画からにする（入らなければ、あとの shapesFit が断る）
+  const unpad = page.grows && !grows && growOf(catalog, book, page) === "all"
+  return unpad ? alignPadding(catalog, book, next, 0) : next
 }

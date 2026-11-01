@@ -1,6 +1,6 @@
 // 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
 import { z } from "zod"
-import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
+import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS, settleVariablePages } from "../../base"
 import { kit } from "./kit"
 
 // ツールボックスに出す順: 内包ボックス・リスト・データ・シェイプ（シェイプパネルに並ぶ）、線
@@ -35,7 +35,7 @@ export const DRAWING = kit.defineBookType({
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true, grow: "both" },
+    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true, grow: "all" },
   },
   items: {
     allowed: ITEMS,
@@ -48,6 +48,8 @@ export const DRAWING = kit.defineBookType({
   tokens: [],
   tools: "@matomezu/paper:paper",
   // テーマ・紙の色・線の既定の通り方（ページは線の既定の通り方を持たなければブックの既定を継ぐ）
+  // 上下左右へ伸びる可変ページの中身を、印刷区画の単位でずらしてそろえる（base の settleVariablePages）
+  settle: (book, catalog) => settleVariablePages(catalog, book),
   settings: {
     book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, "@matomezu/line:line-route", BOOK_TEXT_COLORS.id],
     page: ["@matomezu/line:line-route"],

@@ -11,7 +11,7 @@ export type PlacedLine = PlacedOf<typeof LINE.id>
 export const linesOf = (page: ItemPage): PlacedLine[] =>
   connectorsOf(page).filter((i): i is PlacedLine => i.item === kit.name("connector-line"))
 // 線の決まりが見るフィールド（置いたデータの型が決まる前の、線の定義からも呼ぶ）
-type LineLike = ConnectorData<{
+export type LineLike = ConnectorData<{
   caption?: string
   via?: number[]
   route?: "straight" | "elbow"
