@@ -1,4 +1,4 @@
-// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）のフィールドの一覧。
+// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）とコマンドが受け取る文脈のフィールドの一覧。
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
 import { newStage } from "../web/src/core/stage"
@@ -118,7 +118,6 @@ test("matomezu が出す名前", () => {
     "toData",
     "toPaper",
     "toPaperDelta",
-    "toPaperIn",
     "tooClose",
     "toolOf",
     "unpinPage",
@@ -248,4 +247,19 @@ test("コマンドに見せるステージは、プラグインに見せるス�
   expect(commandContext(store.catalog.core, null, state, "s1")?.stage).toEqual(
     stageView(store.catalog.core, stage, tool),
   )
+})
+
+test("コマンドが受け取る文脈（CommandContext）のフィールド（ステージの並び・表示領域の大きさなどは渡さない）", () => {
+  const store = newStore()
+  expect(names(commandContext(store.catalog.core, null, store.state.getState(), "s1")!)).toEqual([
+    "book",
+    "bookHistory",
+    "catalog",
+    "contextMenu",
+    "dialog",
+    "home",
+    "settings",
+    "stage",
+    "toPaper",
+  ])
 })

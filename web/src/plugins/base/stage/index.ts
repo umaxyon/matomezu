@@ -1,8 +1,8 @@
 // ステージのコマンド: ホームを開く・分割する・分割をやめる・閉じる
-import type { CommandContext } from "../../../store/commands/def"
+import { type CommandContext, workspaceOf } from "../../../store/commands/def"
 import { kit } from "../kit"
 
-const isSplit = (ctx: CommandContext) => ctx.workspace.stages.length > 1
+const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
 
 // インスタンスのホームのブックを、そのステージで開く（ホームが無いインスタンスでは出さない）
 export const STAGE_HOME = kit.defineCommand({

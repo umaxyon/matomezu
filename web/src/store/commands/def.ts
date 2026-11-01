@@ -4,6 +4,7 @@
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { Where } from "../../core/def/action"
+import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
@@ -34,12 +35,31 @@ export interface CommandContext {
   home: string | null // インスタンスのホームのブックの id
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
   book: Book | null // そのステージで開いているブック
-  workspace: Workspace
   settings: Settings
   dialog: OpenedDialog | null // 開いているダイアログ
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
   bookHistory: BookHistory // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
+  toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
 }
+
+// コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）
+const workspaces = new WeakMap<CommandContext, Workspace>()
+
+// ctx に、ステージの並び workspace から紙の上の点を求める toPaper を足した、コマンドの文脈
+export function withWorkspace(ctx: Omit<CommandContext, "toPaper">, workspace: Workspace): CommandContext {
+  const full: CommandContext = {
+    ...ctx,
+    toPaper: p => {
+      const stage = workspace.stages.find(s => s.id === ctx.stage.id)
+      return stage ? toPaper(stage, p) : null
+    },
+  }
+  workspaces.set(full, workspace)
+  return full
+}
+
+// コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
+export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx) ?? fail("E116", { id: ctx.stage.id })
 
 export interface CommandDef<A = undefined, Tt extends string = MessageKey> extends CommandExtras {
   id: string // 本当の id。名前は「対象-動き」（例: stage-split）
@@ -88,10 +108,4 @@ export function defineCommand<
   def: CommandDef<A> & { id: Id; performs?: P; place?: CommandPlace<NoInfer<A>> } & CommandScopeRequired<P>,
 ): CommandDef<A> & { id: Id } {
   return def
-}
-
-// 表示領域の中の点（左上から）を、コマンドが呼ばれたステージの今の紙の上の点に直す（紙が無ければ null）
-export function toPaperIn(ctx: Pick<CommandContext, "stage" | "workspace">, p: Point): Point | null {
-  const stage = ctx.workspace.stages.find(s => s.id === ctx.stage.id)
-  return stage ? toPaper(stage, p) : null
 }

@@ -1,4 +1,5 @@
 // メニューのコマンド: 開いているメニュー（右クリックのメニュー・道具のアイコン）を閉じる（キーの既定は Escape と Space）
+import { workspaceOf } from "../../../store/commands/def"
 import { kit } from "../kit"
 
 export const MENU_CLOSE = kit.defineCommand({
@@ -8,7 +9,7 @@ export const MENU_CLOSE = kit.defineCommand({
     a.closeContextMenu()
     a.closePicker()
   },
-  when: ctx => ctx.contextMenu !== null || ctx.workspace.stages.some(s => s.picker !== null),
+  when: ctx => ctx.contextMenu !== null || workspaceOf(ctx).stages.some(s => s.picker !== null),
 })
 
 // Space で開いた道具のアイコンは、もう一度 Space で閉じる
