@@ -17,6 +17,8 @@ export const WARNINGS = {
   W013: "bookType {type}: fixedUserSettings names {setting}, which is not a user setting",
   W014: "theme {theme}: textColors names {textColor}, which is not in the catalog",
   W015: "theme {theme}: token {token} is {value}, which is not {expected} (not used)",
+  W016: "widget {widget}: place names {target} in slot {slot}, which is not there (not placed)",
+  W017: "widget {widget}: place in slot {slot} names both before and after (not placed)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

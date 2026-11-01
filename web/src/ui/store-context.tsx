@@ -12,7 +12,7 @@ interface MatomezuContext {
   store: MatomezuInstance
   ui: UiCatalog
   layout: LayoutDef // 組み込まれていないプラグインの物を除いた配置
-  warnings: readonly Warning[] // 配置の warning（除いた物）
+  warnings: readonly Warning[] // 画面の warning（配置を作るときに見つかった物と、配置で除いた物）
 }
 const Context = createContext<MatomezuContext | null>(null)
 
@@ -31,21 +31,24 @@ export function shownLayout(
 
 // 見た目を結んだプラグインだけで作ったインスタンスを、配置と一緒に置く（結んでいないプラグインがあれば型の誤り）。
 // 配置は渡すたびに確かめ（知らないウィジェット・置けないスロット・インスタンスに無いコマンド）、変えればその場で組み直す。
-// 持ち主のプラグインが組み込まれていない物は、確かめる前に除いて warning にする
+// 持ち主のプラグインが組み込まれていない物は、確かめる前に除いて warning にする。
+// warnings は、配置を作るときに見つかった warning（置かなかったウィジェット・外した追加プラグインなど）で、除いた物の warning と一緒に画面の warning にする
 export function MatomezuProvider({
   instance,
   layout,
+  warnings = NO_WARNINGS,
   children,
 }: {
   instance: MatomezuInstance<readonly AnyPluginUi[]>
   layout: LayoutDef
+  warnings?: readonly Warning[]
   children: ReactNode
 }) {
   const ui = useMemo(() => assembleUi(instance.plugins), [instance])
   const value = useMemo(() => {
     const shown = shownLayout(layout, instance.plugins, ui)
-    return { store: instance, ui, layout: shown.layout, warnings: shown.warnings }
-  }, [instance, ui, layout])
+    return { store: instance, ui, layout: shown.layout, warnings: [...warnings, ...shown.warnings] }
+  }, [instance, ui, layout, warnings])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
@@ -77,7 +80,9 @@ export function useInstance(): MatomezuInstance {
   return useMatomezuContext().store
 }
 
-// 配置の warning（持ち主のプラグインが組み込まれていないので除いた物。W010）
+const NO_WARNINGS: readonly Warning[] = []
+
+// 画面の warning（配置を作るときに見つかった物と、持ち主のプラグインが組み込まれていないので配置で除いた物）
 export function useLayoutWarnings(): readonly Warning[] {
   return useMatomezuContext().warnings
 }

@@ -6,7 +6,7 @@ export type { ConnectorUi, ShapeScene } from "../ui/connector"
 export { ShapeMarksProvider, useShapeMarks } from "../ui/connector"
 export { useContextMenu } from "../ui/context-menu"
 export { useMessages, useT } from "../ui/i18n"
-export type { ContextMenuEntry, LayoutDef, MenuItem, WidgetDef } from "../ui/layout"
+export type { ContextMenuEntry, LayoutDef, MenuItem, WidgetDef, WidgetPlace } from "../ui/layout"
 export { defineLayout, defineWidget } from "../ui/layout"
 export { useMenu, useMenuCommand } from "../ui/menu"
 export type {

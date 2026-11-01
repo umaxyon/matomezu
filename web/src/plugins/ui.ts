@@ -43,6 +43,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view"],
+    "@matomezu/base:book-layers": ["@matomezu/base:paper-layer", "@matomezu/base:book-content"],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
     "@matomezu/base:drawer-map": ["@matomezu/base:drawer-minimap"],

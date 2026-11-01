@@ -14,7 +14,7 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
 import { loadFonts } from "./ui/fonts"
-import { placeAdded } from "./ui/layout"
+import { placeAdded, placeAddedWithWarnings } from "./ui/layout"
 import { type AnyPluginUi, assembleUi } from "./ui/plugin"
 import { Screen } from "./ui/Screen"
 import { MatomezuProvider, shownLayout } from "./ui/store-context"
@@ -38,15 +38,14 @@ const added = store.use(saved.plugins as AnyPluginUi[], all => {
 })
 const failed = [...saved.failed, ...added.failed]
 for (const { id, error } of failed) console.error(`plugin ${id} is not added:`, error)
-const layout = placeAdded(DEFAULT_LAYOUT, store.plugins)
+const placed = placeAddedWithWarnings(DEFAULT_LAYOUT, store.plugins)
+const layout = placed.layout
 // 外した理由を文にする（warning W011 の値）
 const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
-// 画面が見つけた warning をホストに知らせる（ホストが集めてログと AI に出す）: 配置で飛ばした物（W010）と、外した追加プラグイン（W011。
-// ホストのエンジンには入っているので、AI は使えるのに画面には出ない）
-client.reportWarnings([
-  ...shownLayout(layout, store.plugins, assembleUi(store.plugins)).warnings,
-  ...failed.map(f => warning("W011", f.id, { reason: reasonOf(f.error) })),
-])
+// 画面が見つけた warning をホストに知らせる（ホストが集めてログと AI に出す）: 置く所が並びに無くて置かなかったウィジェット（W016）、
+// 配置で飛ばした物（W010）と、外した追加プラグイン（W011。ホストのエンジンには入っているので、AI は使えるのに画面には出ない）
+const screenWarnings = [...placed.warnings, ...failed.map(f => warning("W011", f.id, { reason: reasonOf(f.error) }))]
+client.reportWarnings([...screenWarnings, ...shownLayout(layout, store.plugins, assembleUi(store.plugins)).warnings])
 client.connect(store)
 // 画面の場所を URL と行き来させる（読み直しても同じ所が開き、ブラウザの戻る・進むで移動を戻る）
 followLocation(store)
@@ -55,7 +54,7 @@ if (!root) fail("E202")
 
 createRoot(root).render(
   <StrictMode>
-    <MatomezuProvider instance={store} layout={layout}>
+    <MatomezuProvider instance={store} layout={layout} warnings={screenWarnings}>
       <Screen />
     </MatomezuProvider>
   </StrictMode>,

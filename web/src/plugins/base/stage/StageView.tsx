@@ -1,5 +1,5 @@
-// ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
-// ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
+// ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、レイヤー（スロット book-layers。
+// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
 // 紙をずらす道具（pans）の間は、ステージの中のどこでもポインタを手にする（中のアイテムのカーソルより強い。ドラッグ中は握った手）。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
@@ -15,15 +15,15 @@ import {
   type WheelEvent,
 } from "react"
 import { withSettings } from "../../../core/book"
-import { type BookTypeId, bookType } from "../../../core/core-catalog"
-import { fail } from "../../../core/errors"
+import type { BookTypeId } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { paperOf, type Stage } from "../../../core/stage"
 import { toolDef } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { Slot } from "../../../ui/Slot"
+import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars, useTokenScope } from "../../../ui/theme-vars"
 import { useUserSetting } from "../../../ui/view-hooks"
 import { bookTokens } from "../book-look/look"
@@ -33,6 +33,7 @@ import { textColorsOf, textColorVars, USER_TEXT_COLORS } from "../text"
 import type { TextColorValues } from "../text/text-colors"
 import { keepsPan } from "../tool-switch/tools"
 import { useResize } from "../utils/useResize"
+import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
 import styles from "./StageView.module.css"
 
@@ -145,16 +146,12 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   )
 })
 
-// 開いたブックを、そのタイプが選んだ見せ方のビューで、テーマの値の中に描く
+// 開いたブックを、レイヤーを重ねて、テーマの値の中に描く
 function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
-  const presentation = bookType(useCatalog().core, type).presentation
-  const View = (
-    useUiCatalog().presentationViews.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })
-  ).view
   const tokens = useTokenScope(type) // ブックのタイプのプラグインのテーマキー（--<名前>）
   return (
     <div className={styles.book} style={{ ...vars, ...tokens }}>
-      <View stage={stage.id} />
+      <Slot name={BOOK_LAYERS} props={{ stage: stage.id }} />
     </div>
   )
 }

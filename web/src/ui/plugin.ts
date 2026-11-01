@@ -17,7 +17,7 @@ import type { AnyWidgetDef } from "./layout"
 export interface BookViewProps {
   stage: string
 }
-// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネントで、ステージの真ん中に描く（配置には書かない）。
+// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、配置には書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
 export interface BookViewDef extends BookViewExtras {
   view: ComponentType<BookViewProps>
