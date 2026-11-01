@@ -8,7 +8,7 @@
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに paper-resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。下書きを重ねた形は、形の整え（settle）を通して描く（placing/draft.ts。子を動かす整えも、決める前から見える）。
-// ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）の層で形の並びを包み、形ごとに重ねるコンポーネントを形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
+// ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）で形の並びを包み、形ごとに重ねるコンポーネントを形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ。
 // 紙をずらしても、ずらすのは紙の枠だけで、アイテムは描き直さない（紙をずらす量を読むのは紙の枠と点線の箱だけ）
 
@@ -169,7 +169,7 @@ const Items = memo(function Items({ stage, localOf }: { stage: StageView; localO
   return page && shownPage ? <PageItems stage={stage} page={page} shownPage={shownPage} localOf={localOf} /> : null
 })
 
-// ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューの層で包む
+// ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューで包む
 function PageItems({
   stage,
   page,
@@ -373,10 +373,10 @@ function PageItems({
   )
   const items = shapes.map(({ item, shift }) => render(item, shift))
   return connectors.reduceRight<ReactNode>((inner, c) => {
-    const Layer = c.layer
+    const View = c.view
     return (
       <TokenScope key={c.id} def={c.id}>
-        <Layer scene={scene}>{inner}</Layer>
+        <View scene={scene}>{inner}</View>
       </TokenScope>
     )
   }, items)

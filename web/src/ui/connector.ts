@@ -1,5 +1,5 @@
 // 形を並べるビュー（紙など）と、つなぐもの（線など）のビューの間の口。
-// 形を並べるビューは、ブックで使えるつなぐもののビュー（ConnectorUi）の layer で形の並びを包み、形 1 つごとに overlay を重ねる。
+// 形を並べるビューは、ブックで使えるつなぐもののビュー（ConnectorUi）の view で形の並びを包み、形 1 つごとに overlay を重ねる。
 // 渡すのは今の形の様子（ShapeScene）だけで、つなぐものの状態（引いている途中など）はつなぐもののビューが持つ。
 // つなぐもののビューは、形に求める見た目（ShapeMarks）を ShapeMarksProvider で返す（つなぐものがいくつあっても、求めを合わせて形に届く）。
 // 形の要素は data-shape と data-item（形の id）を持つ（つなぐもののビューは、ポインタの下の形をこれで探す）
@@ -40,16 +40,16 @@ export function mergeMarks(outer: ShapeMarks, inner: ShapeMarks): ShapeMarks {
   return { keep, target: inner.target ?? outer.target }
 }
 
-// つなぐものの層が、形に求める見た目を渡す。外側の層の求めと合わせて、内側（形）に届ける
+// つなぐもののビューが、形に求める見た目を渡す。外側のビューの求めと合わせて、内側（形）に届ける
 export function ShapeMarksProvider({ value, children }: { value: ShapeMarks; children: ReactNode }) {
   const outer = useContext(ShapeMarksContext)
   return createElement(ShapeMarksContext.Provider, { value: mergeMarks(outer, value) }, children)
 }
 
 export interface ConnectorUi {
-  // ページのつなぐものを描く層。形の並び（children）を包み、overlay と同じ状態を持てる
-  layer: ComponentType<{ scene: ShapeScene; children: ReactNode }>
+  // ページのつなぐものを描くビュー。形の並び（children）を包み、overlay と同じ状態を持てる
+  view: ComponentType<{ scene: ShapeScene; children: ReactNode }>
   // 形 1 つの上に重ねるコンポーネント（線を引く〇など）
   overlay?: ComponentType<{ scene: ShapeScene; id: string }>
-  contextMenus?: readonly ContextMenuId[] // 層が開く右クリックのメニュー
+  contextMenus?: readonly ContextMenuId[] // view が開く右クリックのメニュー
 }

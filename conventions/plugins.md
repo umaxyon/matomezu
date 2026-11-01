@@ -45,7 +45,7 @@
 
 ## 見た目と差し替え
 
-- `definePluginUi(plugin, { presentationViews, items, settingViews, userSettingViews, dialogViews, widgets, commandIcons, toolIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ブックの設定の項目・ダイアログ・道具に、ビューやアイコンが無いと型の誤り。利用者の設定の項目のビュー（`userSettingViews`）は書かなくてよい
+- `definePluginUi(plugin, { presentationViews, items, connectors, settingViews, userSettingViews, dialogViews, widgets, commandIcons, toolIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ブックの設定の項目・ダイアログ・道具に、ビューやアイコンが無いと型の誤り。利用者の設定の項目のビュー（`userSettingViews`）は書かなくてよい
 - 差し替えられるのはビュー（ブック・ダイアログ・ウィジェット）だけで、`overrides` に書く。アクションやブックのタイプなど中身は差し替えない
 - 画面の配置（スロットにどのウィジェットを置くか、メニューの中身）は配置（`defineLayout`）に書く。matomezu/testing でアプリを組むときは、配置は丸ごと替え、差分を重ねて混ぜない
 - 配置が名指したウィジェット・コマンド・スロット・メニューのうち、持ち主のプラグイン（id の頭）が組み込まれていない物は、その行だけ飛ばし、warning を残す。持ち主が組み込まれているのに無い物は error。画面の warning は `useLayoutWarnings` で読む
