@@ -101,7 +101,7 @@ func TestPerformingAnAction(t *testing.T) {
 	if api.posts[0] != `api/ai/perform {"action":"@matomezu/paper:item-place","args":{"page":"p1"},"on":{"book":"b1"}}` {
 		t.Fatalf("posted = %v", api.posts)
 	}
-	for answer, want := range map[string]string{`{"ok":false,"reason":"no-book"}`: "no-book:", `{"ok":false,"reason":"unknown"}`: "unknown:", `{"ok":false,"reason":"unreadable","detail":"W004 x"}`: "unreadable: the book cannot be read now (W004 x)", `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"it is locked"}`: "denied by @matomezu/base:lock: it is locked", `{"ok":false,"reason":"not-allowed","detail":"the home book's type keeps the setting x fixed"}`: "not-allowed: the home book's type keeps the setting x fixed", `{"ok":false,"reason":"not-allowed"}`: "not-allowed: this book's type"} {
+	for answer, want := range map[string]string{`{"ok":false,"reason":"no-book"}`: "no-book:", `{"ok":false,"reason":"unknown"}`: "unknown:", `{"ok":false,"reason":"unreadable","detail":"W004 x"}`: "unreadable: the book cannot be read now (W004 x)", `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"by @matomezu/base:lock: it is locked"}`: "denied: by @matomezu/base:lock: it is locked", `{"ok":false,"reason":"not-allowed","detail":"the home book's type keeps the setting x fixed"}`: "not-allowed: the home book's type keeps the setting x fixed", `{"ok":false,"reason":"refused","detail":"the action's rules refuse it"}`: "refused: the action's rules refuse it", `{"ok":false,"reason":"not-allowed"}`: "not-allowed: it could not be done here"} {
 		api.answer = answer
 		got = talk(t, api, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"perform","arguments":{"action":"x.y","args":{}}}}`)
 		r = got[0]["result"].(map[string]any)
@@ -139,5 +139,9 @@ func TestShowTool(t *testing.T) {
 	api.answer = `{"ok":false,"reason":"no-window","url":"http://127.0.0.1:7230/"}`
 	if got, failed := text(api); !strings.Contains(got, "open http://127.0.0.1:7230/") || !failed {
 		t.Fatalf("show without a window = %s %v", got, failed)
+	}
+	api.answer = `{"ok":false,"reason":"no-book"}`
+	if got, failed := text(api); !strings.HasPrefix(got, "no-book: there is no book with that id") || !failed {
+		t.Fatalf("show without the book = %s %v", got, failed)
 	}
 }
