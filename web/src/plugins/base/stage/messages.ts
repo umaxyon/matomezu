@@ -9,4 +9,5 @@ export const STAGE_MESSAGES = defineMessages({
   Stage: { en: "Stage", ja: "ステージ" },
   "Select a book": { en: "Select a book", ja: "ブックを選択してください" },
   "Book menu": { en: "Book menu", ja: "ブックのメニュー" },
+  "Print areas": { en: "Print areas", ja: "印刷区画の区切り" },
 })

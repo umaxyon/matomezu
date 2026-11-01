@@ -641,7 +641,9 @@ test("「ページの設定」で紙を A3 にすると紙が大きくなる。�
   await expect.poll(async () => (await surface.boundingBox())!.width).toBeGreaterThan(before.width)
 })
 
-test("「ページの設定」で可変ページにすると、右と下に空きの印刷区画が出て、区切りの破線が引かれる", async ({ page }) => {
+test("「ページの設定」で可変ページにすると、右と下に空きの印刷区画が出て、区切りの破線が引かれる。破線はドロワーのボタンで隠せる", async ({
+  page,
+}) => {
   await page.goto("/")
   const surface = page.locator("[data-paper-surface]")
   const before = (await surface.boundingBox())!
@@ -655,6 +657,15 @@ test("「ページの設定」で可変ページにすると、右と下に空�
   await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "2x2")
   await expect(page.locator("[data-print-areas] line")).toHaveCount(2)
   await expect.poll(async () => Math.round((await surface.boundingBox())!.width / before.width)).toBe(2)
+  // ドロワーのボタンで、区切りの線を隠して、また見せる
+  const tabs = (await page.getByRole("tablist").first().boundingBox())!
+  await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
+  const toggle = page.getByRole("button", { name: "印刷区画の区切り" })
+  await expect(toggle).toHaveAttribute("aria-pressed", "true")
+  await toggle.click()
+  await expect(page.locator("[data-print-areas]")).toHaveCount(0)
+  await toggle.click()
+  await expect(page.locator("[data-print-areas]")).toHaveCount(1)
 })
 
 test("箱の右の辺を右の箱へ向けて広げると、手を離したときに右の箱が押されて右へずれる", async ({ page }) => {

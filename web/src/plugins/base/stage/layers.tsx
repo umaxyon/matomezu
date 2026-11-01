@@ -9,6 +9,7 @@ import { printAreaLines } from "../place/grow"
 import { PaperFrame } from "../utils/PaperFrame"
 import type { StageSlotProps } from "../workspace/ui"
 import styles from "./layers.module.css"
+import { usePrintAreasHidden } from "./print-areas"
 
 export function PaperLayer({ stage: id }: StageSlotProps) {
   const stage = useStage(id)
@@ -16,12 +17,13 @@ export function PaperLayer({ stage: id }: StageSlotProps) {
   return <PaperFrame stage={stage} className={styles.paper} aria-hidden="true" data-paper-surface />
 }
 
-// 可変ページの、印刷区画の境目の破線（見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない）
+// 可変ページの、印刷区画の境目の破線（見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。ドロワーのボタンで隠せる）
 export function PrintAreaLayer({ stage: id }: StageSlotProps) {
   const stage = useStage(id)
   const paper = stage && paperOf(stage)
   const area = stage && areaOf(stage)
-  const lines = paper && area ? printAreaLines(paper, area) : null
+  const hidden = usePrintAreasHidden(id)
+  const lines = paper && area && !hidden ? printAreaLines(paper, area) : null
   if (!stage || !area || !lines) return null
   const { columns, rows, xs, ys } = lines
   return (
