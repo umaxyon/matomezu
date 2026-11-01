@@ -33,10 +33,7 @@ export const NODE_CONTEXT = kit.name("node-context")
 export const NODE_SIZE_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({ id: "node-size-edit" })
 
 // 節の塗りのテーマキー（無ければテーマの塗り。節の色を選ぶときの「なし」の色）
-export const NODE_FILL = { id: "tree-node-fill", fallback: "fill" } as const
-
-// 節の色を変えるダイアログ（開いたステージのブックの、ページ page の節 node。根も）
-export const NODE_COLOR_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({ id: "node-color-edit" })
+export const NODE_FILL = { id: kit.name("tree-node-fill"), fallback: "fill" } as const
 
 export const TREE = kit.defineBookType({
   id: "tree",

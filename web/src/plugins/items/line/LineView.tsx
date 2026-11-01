@@ -1,4 +1,4 @@
-// 線の層（形を並べるビューに重ねる、つなぐもののビュー。ui/connector.ts）: 形の並びを包み、形より手前に線を描く。
+// ラインビュー（線のつなぐもののビュー。ui/connector.ts）: 形の並びを包み、形より手前に線を描く。
 // 線は描いている形の四角（下書き・ドラッグでずらした所も）から道筋を決めて描く（drawn.ts の drawLines）。自由な端は前に描いた辺に留まる（sticky.ts）。
 // 選択の道具で線を押すと線を選び、ダブルクリックで線の編集のダイアログ（line-edit）、右クリックで線を選んで線のメニュー（line-context）を開く。
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
@@ -15,11 +15,12 @@ import {
   useShownBook,
 } from "../../../plugin-api/ui"
 import { type PortArea, portAreasOf } from "../../base"
+import { useDrawnMinimap } from "../../base/ui"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
-import { drawLines, type LineCache } from "./drawn"
+import { DrawnLinesView } from "./DrawnLinesView"
+import { drawLines, type LineCache, newLineCache } from "./drawn"
 import type { Rect } from "./geom"
-import { LinesView } from "./LinesView"
 import { elbowAt, LINE } from "./line"
 import { LINE_CONTEXT } from "./menu"
 import { LinkPreview, Ports } from "./PortsView"
@@ -29,7 +30,7 @@ import { memoryOf, stickyMemory } from "./sticky"
 import { useLineEdit } from "./useLineEdit"
 import { useLinkDrag } from "./useLinkDrag"
 
-// 層と〇が共に見る、〇から引くドラッグ
+// ラインビューと〇が共に見る、〇から引くドラッグ
 interface Linking {
   scene: ShapeScene
   areas: ReadonlyMap<string, PortArea> // 形のつながる範囲
@@ -41,7 +42,7 @@ const LinkingContext = createContext<Linking | null>(null)
 const linesIn = (scene: ShapeScene): PlacedLine[] =>
   (scene.page.items ?? []).filter((i): i is PlacedConnector & PlacedLine => i.item === LINE.id)
 
-export function LineLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
+export function LineView({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, localOf } = scene
   const catalog = useCoreCatalog()
   const book = useShownBook(stage.id)
@@ -56,7 +57,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const lineDrag = useLineEdit(stage, catalog, localOf)
   // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角
   const memo = useRef(new Map<string, EndMemory>())
-  const cache = useRef<LineCache>(new Map())
+  const cache = useRef<LineCache>(newLineCache())
   const drawnRects = useRef<ReadonlyMap<string, Rect>>(new Map())
   // 離したあとに付け替えを見る線: 離したばかりの形につながる線
   const settle = new Set(
@@ -82,6 +83,14 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const only = stage.selection.length === 1 ? stage.selection[0] : undefined
   // つまむ印を出す線: 直せるときの、1 本だけ選んでいる線
   const editing = selectable && lineDrag.editable && only && drafted.some(l => l.id === only) ? only : null
+
+  // ミニマップの線は、紙に描いた点の並びで描かせる（形を動かしている間は置き直さない。ミニマップの形も、離すまで動かないため）
+  useDrawnMinimap(
+    stage.id,
+    LINE.id,
+    page.id,
+    scene.busy ? null : lines.map(d => ({ kind: "polyline", points: d.points })),
+  )
 
   // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
   useLayoutEffect(() => {
@@ -117,7 +126,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
     <ShapeMarksProvider value={marks}>
       <LinkingContext.Provider value={{ scene, areas: rects, link: linkDrag, portsOf }}>
         {children}
-        <LinesView
+        <DrawnLinesView
           lines={lines}
           selection={stage.selection}
           selectable={selectable}

@@ -552,9 +552,10 @@ test("設定のダイアログでブックのテーマと紙の色を選ぶと�
   await page.goto("/")
   await addBodyBox(page)
   const paper = page.getByRole("img", { name: "紙" })
+  const surface = page.locator("[data-paper-surface]") // 紙の白い面（紙の面のレイヤー）
   const box = page.locator("[data-item] [data-valign]")
   const look = async () => ({
-    paper: await paper.evaluate(el => getComputedStyle(el).backgroundColor),
+    paper: await surface.evaluate(el => getComputedStyle(el).backgroundColor),
     box: await box.evaluate(el => getComputedStyle(el).backgroundColor),
   })
   const dialog = page.getByRole("dialog", { name: "ブックの設定" })
@@ -614,6 +615,30 @@ test("紙の右クリックの「ページの設定」でページの名前を�
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()
   await expect(tab).toHaveText("表紙")
+})
+
+test("「ページの設定」で紙を A3 にすると紙が大きくなる。形が入らない紙を選ぶと知らせを出して確定できない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await (await drawerTool(page, "箱")).click()
+  const right = await onPaper(page, 900, 120)
+  await addBox(page, right.x, right.y, "右")
+  const surface = page.locator("[data-paper-surface]")
+  const before = (await surface.boundingBox())!
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  // 右に置いた箱は A5 に入らない
+  await dialog.getByLabel("紙のサイズ").selectOption({ label: "A5" })
+  await expect(dialog.getByRole("alert")).toContainText("形が紙に入りません")
+  await expect(dialog.getByRole("button", { name: "確定" })).toBeDisabled()
+  await dialog.getByLabel("紙のサイズ").selectOption({ label: "A3" })
+  await expect(dialog.getByRole("alert")).toHaveCount(0)
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect.poll(async () => (await surface.boundingBox())!.width).toBeGreaterThan(before.width)
 })
 
 test("箱の右の辺を右の箱へ向けて広げると、手を離したときに右の箱が押されて右へずれる", async ({ page }) => {

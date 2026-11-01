@@ -5,3 +5,5 @@ export const STAGE_TOP = kit.name("stage-top")
 export const STAGE_BODY = kit.name("stage-body")
 export const STAGE_BOTTOM = kit.name("stage-bottom")
 export const STAGE_CORNER = kit.name("stage-corner")
+// ステージの中のレイヤー（ステージのビューが開く）。並べた順に下から重ねる。紙の座標で描くレイヤーは PaperFrame の中に描く
+export const BOOK_LAYERS = kit.name("book-layers")

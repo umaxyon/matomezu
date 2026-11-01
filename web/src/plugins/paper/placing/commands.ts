@@ -8,7 +8,6 @@ import {
   paperOf,
   shapeDialogs,
   toPaperDelta,
-  toPaperIn,
 } from "../../../plugin-api"
 import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
@@ -32,7 +31,7 @@ export const PAPER_PLACE = kit.defineCommand({
   title: "Place item",
   run: (ctx, a, pointer: Point) => {
     const { stage } = ctx
-    const at = placeAt(p => toPaperIn(ctx, p), pointer)
+    const at = placeAt(ctx.toPaper, pointer)
     const page = stage.opened?.page
     const size = stage.placing && itemSize(ctx.catalog, stage.placing)
     const paper = paperOf(stage)
@@ -63,7 +62,7 @@ function editable(ctx: CommandContext): boolean {
   return def ? shapeDialogs(def).edit !== undefined : false
 }
 
-// アイテムの中身を変えるダイアログを開く（箱は box-edit、リストは list-edit。どの深さの子の形も）。開いているページに無いアイテムなら何もしない。
+// アイテムの中身を変えるダイアログを開く（アイテムの定義の dialogs.edit。どの深さの子の形も）。開いているページに無いアイテムなら何もしない。
 // 右クリックのメニューでは「設定」として出す
 export const PAPER_EDIT = kit.defineCommand({
   id: "paper-edit",

@@ -5,11 +5,11 @@
 // リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
 // 行を押して少し動かすと行のドラッグになり（押しただけ・ダブルクリック・チェックは今まで通り）、行のカードの写しがポインタに付いてきて、
 // 落とす所の行と行の間に線が出る。チェック済みの行を寄せて見せているリストでは、チェック済みの行は動かせない。リストの行の並びの上か下の端へ寄せると、その向きへスクロールする（edge-scroll.ts）。つかんだ行は元の所では隠し（場所は空けたまま）、同じリストのほかの行を薄くする（アイテムのドラッグと同じ見せ方）。
-// 写しは画面の上の層に描くので、行の所のテーマと色の変数を写し取って当てる。
+// 写し（ゴースト）はゴーストエリアに描くので、行の所のテーマと色の変数を写し取って当てる。
 // 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list-move-row）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
-// ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外の層に描く）。
+// ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外のゴーストエリアに描く）。
 // 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list-stretch-row。ドラッグの途中の動いた量だけはビューに持つ）。
-// リストのテーマと色はリストのテーマキー（list.*）で描き、行はリストに従う。
+// リストのテーマと色はリストのテーマキー（list-*）で描き、行はリストに従う。
 // チェックリストでは、チェック済みの行を薄く描き（checkedGray）、先頭か最後に寄せて見せる（checkedOrder。見せる順と動かせる行は rows.ts）。
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 
@@ -26,7 +26,7 @@ import {
   useMessages,
   useStage,
 } from "../../../plugin-api/ui"
-import { RichText, useThemeVars } from "../../base/ui"
+import { RichText, useAnchorRef, useThemeVars } from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
@@ -143,6 +143,7 @@ export function ListView({
   zoom,
 }: ItemViewProps<ItemProps<typeof LIST.id>, { readonly children?: readonly ListRow[] }>) {
   const t = useMessages(kit)
+  const anchor = useAnchorRef() // 行にアンカーを付ける（そばにスタンドを立てられる）
   const catalog = useCoreCatalog()
   const rows: readonly ListRow[] = content.children ?? []
   const theme = props.theme
@@ -269,6 +270,7 @@ export function ListView({
               return (
                 <li
                   key={row.id}
+                  ref={anchor(row.id)}
                   className={styles.row}
                   data-row={row.id}
                   data-checked={row.props.checked === true}

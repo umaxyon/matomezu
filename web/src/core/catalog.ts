@@ -52,7 +52,7 @@ export interface MenuTable {} // メニューの id → true
 export interface ContextMenuTable {}
 
 // 定義の種類: プラグインが持てる定義のフィールドの名前 → その種類が入る台帳（core 台帳か store 台帳）と、error の文に使う名前。
-// 種類を足すときは、ここに 1 行と、下の PartTables に id の表を足し、定義の型をその台帳の層から PartDefTable に書き足す（core の種類は core/core-catalog.ts、store の種類は store/plugin.ts）
+// 種類を足すときは、ここに 1 行と、下の PartTables に id の表を足し、定義の型をその台帳のクレートから PartDefTable に書き足す（core の種類は core/core-catalog.ts、store の種類は store/plugin.ts）
 export const PARTS = {
   bookTypes: { catalog: "core", label: "bookType" },
   items: { catalog: "core", label: "item" },
@@ -94,7 +94,7 @@ export interface PartTables {
   commands: CommandTable
   dialogs: DialogTable
 }
-// 種類ごとの定義の型。その台帳の層が書き足す（ここは空。書き足し忘れは、種類ごとに引く所 PartDefTable[Part] が型の誤りになる）
+// 種類ごとの定義の型。その台帳のクレートが書き足す（ここは空。書き足し忘れは、種類ごとに引く所 PartDefTable[Part] が型の誤りになる）
 export interface PartDefTable {}
 
 export type BookTypeId = keyof BookTypeTable & string

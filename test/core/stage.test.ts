@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
+  areaOf,
+  followBook,
   newStage,
   openBook,
   openPage,
@@ -9,6 +11,7 @@ import {
   resetView,
   resize,
   select,
+  setArea,
   setEditing,
   toPaper,
   zoomTo,
@@ -151,4 +154,31 @@ test("その場で編集中（editing）は、選んでいる物があるとき�
   expect(select(editing, ["a"]).editing).toBe(true) // 同じ選びなら続く
   expect(select(editing, ["b"]).editing).toBe(false)
   expect(setEditing(editing, false).editing).toBe(false)
+})
+
+test("見せ方が知らせた広さ（可変ページ）は、紙の枠とずらす量の範囲に効き、紙 1 枚の大きさ（paperOf）は変えない。紙が変われば捨てる", () => {
+  const book = {
+    type: "@matomezu/drawing:drawing" as const,
+    id: "b1",
+    title: "見本",
+    pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }],
+  }
+  const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
+  const sheet = paperOf(opened)!
+  expect(areaOf(opened)).toEqual(sheet)
+  const area = { w: sheet.w, h: sheet.h * 3 }
+  const grown = setArea(opened, area)
+  expect(paperOf(grown)).toEqual(sheet)
+  expect(areaOf(grown)).toEqual(area)
+  expect(placement(grown)).toMatchObject({ w: area.w, h: area.h })
+  // 下へは、3 枚分の広さまでずらせる
+  expect(panBy(grown, 0, -100000).pan.y).toBe(300 - contentSize(area, 1).h)
+  // 同じ広さなら同じ値。null で紙 1 枚に戻し、ずらす量も収め直す
+  expect(setArea(grown, { ...area })).toBe(grown)
+  const back = setArea(panBy(grown, 0, -100000), null)
+  expect(areaOf(back)).toEqual(sheet)
+  expect(back.pan.y).toBe(300 - contentSize(sheet, 1).h)
+  // 開いているページの紙が変われば、知らせた広さは捨てる（知らせ直すまで紙 1 枚）
+  const a3 = { ...book, pages: [{ ...book.pages[0]!, paper: "@matomezu/base:a3" }] }
+  expect(areaOf(followBook(CORE_CATALOG, grown, a3))).toEqual(paperOf(followBook(CORE_CATALOG, grown, a3)))
 })

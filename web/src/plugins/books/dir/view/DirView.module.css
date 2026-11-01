@@ -3,16 +3,6 @@
   position: absolute;
   inset: 0;
 }
-.paper {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-  background: var(--theme-paper);
-  box-shadow:
-    0 0 0 1px var(--theme-paper-line),
-    0 6px 24px var(--theme-paper-shadow);
-}
 /* ページが無いとき: 真ん中に知らせとページを作るボタン */
 .empty {
   position: absolute;
@@ -61,7 +51,7 @@
   color: var(--skin-text-muted);
   font-size: 14px;
 }
-/* 罫線（紙と同じ大きさの層。行の下に描く） */
+/* 罫線（紙と同じ大きさの入れ物。行の下に描く） */
 .lines {
   position: absolute;
   left: 0;

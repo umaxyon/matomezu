@@ -1,0 +1,25 @@
+/* 紙の白い面（位置と大きさは紙の枠が決める） */
+.paper {
+  background: var(--theme-paper);
+  box-shadow:
+    0 0 0 1px var(--theme-paper-line),
+    0 6px 24px var(--theme-paper-shadow);
+  pointer-events: none;
+}
+
+/* 印刷区画の境目の破線（位置と大きさは紙の枠が決める。線の太さは倍率で変えない） */
+.printAreas {
+  pointer-events: none;
+}
+
+.printAreaLines {
+  display: block;
+  overflow: visible;
+}
+
+.printAreaLines line {
+  stroke: var(--theme-paper-line);
+  stroke-width: 1;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}

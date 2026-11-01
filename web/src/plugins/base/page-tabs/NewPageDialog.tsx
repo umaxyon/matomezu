@@ -1,9 +1,6 @@
-// ページを作るダイアログ: 名前と紙を決めて、そのステージのブックに足し（アクション page-add）、そのページを開く。
-// 選べる紙と向きはブックのタイプの規定で決まる（1 つしか無ければ選べない）
+// ページを作るダイアログ: 名前と紙（紙・向き・伸びるか。PaperControls.tsx）を決めて、そのステージのブックに足し（アクション page-add）、そのページを開く
 import { useState } from "react"
-import { defaultPaper, hasPages, nextPageTitle, type PagedBook, paperChoices } from "../../../core/book"
-import { ORIENTATION_TITLES, type Orientation } from "../../../core/def/paper"
-import type { PaperChoice } from "../../../core/paper"
+import { hasPages, type PagedBook } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useCatalog, useInstance, useMatomezuState } from "../../../ui/store-context"
@@ -11,6 +8,8 @@ import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { addPageIn } from "./add-page"
+import { usePaperControls } from "./PaperControls"
+import { nextPageTitle } from "./pages"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
@@ -31,15 +30,14 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
   const lang = useMatomezuState(s => s.lang)
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const { papers, orientations } = paperChoices(catalog, book)
   const [title, setTitle] = useState(() => nextPageTitle(catalog, book, lang))
-  const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(catalog, book))
+  const paper = usePaperControls(book, null)
   return (
     <Form
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        if (addPageIn(instance, stage, { title, ...choice })) onDone()
+        if (addPageIn(instance, stage, { title, ...paper.patch })) onDone()
       }}
     >
       <Field label={t("Page name")}>
@@ -48,43 +46,7 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
           <input id={id} className={controlClass} value={title} autoFocus onChange={e => setTitle(e.target.value)} />
         )}
       </Field>
-      <Field label={t("Paper size")}>
-        {id => (
-          <select
-            id={id}
-            className={controlClass}
-            value={choice.paper}
-            disabled={papers.length < 2}
-            onChange={e => setChoice({ ...choice, paper: e.target.value })}
-          >
-            {papers.map(p => {
-              const def = catalog.papers.get(p)
-              return (
-                <option key={p} value={p}>
-                  {def ? t(def.title) : t("Unknown paper")}
-                </option>
-              )
-            })}
-          </select>
-        )}
-      </Field>
-      <Field label={t("Orientation")}>
-        {id => (
-          <select
-            id={id}
-            className={controlClass}
-            value={choice.orientation}
-            disabled={orientations.length < 2}
-            onChange={e => setChoice({ ...choice, orientation: e.target.value as Orientation })}
-          >
-            {orientations.map(o => (
-              <option key={o} value={o}>
-                {t(ORIENTATION_TITLES[o])}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
+      {paper.controls}
     </Form>
   )
 }

@@ -1,0 +1,13 @@
+/* スタンドのレイヤー: ステージいっぱいに重ね、ポインタは中のスタンドだけが受ける */
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* スタンド 1 つ（位置はアンカーから決める。倍率では大きさを変えない） */
+.stand {
+  position: absolute;
+  pointer-events: auto;
+  cursor: default;
+}

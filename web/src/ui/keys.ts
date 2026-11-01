@@ -2,11 +2,10 @@
 // 日本語の変換中のキーは見ない。テキストFormの中では、Escape と 1 行のテキストFormの Enter だけを見る（ほかはテキストFormに任せる）。
 // 焦点のあるボタン・リンクの Space と Enter は、それを押す動きに任せる。
 // 押した所の要素から外側へたどり、data-key-scope で名乗った範囲（プラグインの範囲）を狭いものから渡す
-import { useEffect, useMemo } from "react"
+import { useEffect } from "react"
 import type { CommandId } from "../core/catalog"
 import { keyLabel, pressedKey, seenInText } from "../core/keys"
-import { keyChangesOf } from "../core/settings"
-import { keysOf, keyTable } from "../store/keys"
+import { keysOf } from "../store/keys"
 import { useActions, useInstance, useMatomezuState } from "./store-context"
 
 // Mac か（Mod を Cmd にし、キーの名前を記号で出す）
@@ -53,12 +52,9 @@ export function KeyListener() {
 
 // コマンドに効いているキーの、画面に出す名前（無ければ null。いくつもあれば勝つ順の最初）
 export function useKeyLabel(command: CommandId): string | null {
-  const defs = useInstance()
-  const settings = useMatomezuState(s => s.settings)
-  const table = useMemo(
-    () => keyTable([...defs.catalog.store.keys.values()], keyChangesOf(defs.catalog.core, settings)),
-    [defs.catalog, settings],
-  )
+  const instance = useInstance()
+  // 表はインスタンスが利用者の変更ごとに 1 つ持つ（使うコンポーネントごとに作らない。同じ変更の間は同じ表が返る）
+  const table = useMatomezuState(() => instance.keys())
   const first = keysOf(table, command)[0]
   return first ? keyLabel(first.binding.key, isMac()) : null
 }

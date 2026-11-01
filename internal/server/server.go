@@ -12,9 +12,6 @@
 //	GET  /api/events      SSE。世界の変わり目の知らせ（hub.go）                                    … 画面から
 //	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "result"} を返す。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
-//	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
-//	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}。
-//	                      今の機能台帳で読めないブック（warning W004〜W006）は書かず、400 と理由  … 画面から
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 画面が見つけた warning（その画面の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/view        {"client", "view", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view は捨てる（届く順が入れ替わるため）  … 画面から
@@ -50,7 +47,7 @@ import (
 	"time"
 )
 
-// user は設定の持ち主。利用者の区別ができるまでは 1 人
+// user は設定の持ち主（利用者は 1 人）
 const user = "me"
 
 // 書く頼みの中身の大きさの上限
@@ -105,12 +102,12 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/plugins", o.auth(o.linkPlugin))
 	mux.Handle("POST /api/plugins/remove", o.auth(o.unlinkPlugin))
 	mux.Handle("POST /api/perform", sameOrigin(o.perform))
-	mux.Handle("PUT /api/books/{id}", sameOrigin(o.putBook))
 	mux.Handle("POST /api/view", sameOrigin(o.view))
 	mux.Handle("POST /api/warnings", sameOrigin(o.warnings))
 	mux.Handle("GET /api/ai/view", o.auth(o.aiView))
 	mux.Handle("GET /api/ai/books", o.auth(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
+	routesForTest(mux, o)
 	mux.Handle("GET /api/ai/settings", o.auth(func(w http.ResponseWriter, _ *http.Request) {
 		settings, err := o.Hub.AISettings()
 		if err != nil {
@@ -283,41 +280,6 @@ func (o Options) perform(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, done)
 }
 
-func (o Options) putBook(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Book json.RawMessage `json:"book"`
-		Base int64           `json:"base"`
-	}
-	if !readJSON(w, r, &req) {
-		return
-	}
-	id := r.PathValue("id")
-	var head struct {
-		ID string `json:"id"`
-	}
-	if json.Unmarshal(req.Book, &head) != nil || head.ID != id {
-		http.Error(w, "the book must be an object with the id of the path", http.StatusBadRequest)
-		return
-	}
-	version, have, err := o.Hub.PutBook(id, req.Book, req.Base)
-	var unreadable UnreadableError
-	if errors.As(err, &unreadable) {
-		http.Error(w, unreadable.Error(), http.StatusBadRequest)
-		return
-	}
-	if errors.Is(err, ErrConflict) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(have)
-		return
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, map[string]any{"version": version})
-}
-
 func (o Options) view(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Client  string          `json:"client"`
@@ -366,7 +328,7 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
-	books, _ := o.Hub.Data()
+	books := o.Hub.AIBooks()
 	warnings := o.Hub.BookWarnings()
 	type head struct {
 		ID      string `json:"id"`
@@ -378,13 +340,10 @@ func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
 	}
 	heads := make([]head, 0, len(books))
 	for _, b := range books {
-		if trashed(b.Body) {
-			continue
-		}
 		h := head{ID: b.ID, Version: b.Version}
 		_ = json.Unmarshal(b.Body, &h)
 		h.ID, h.Version = b.ID, b.Version
-		if n, ok := warnings[b.ID]; ok && n.Unreadable() {
+		if n, ok := warnings[b.ID]; ok && n.Unreadable {
 			h.Problem = n.Warning
 		} else if ok {
 			h.Warning = n.Warning
@@ -415,7 +374,7 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	}
 	// 読めないブック（保存はあるが今のプラグインで読めない）は「無い」でなく、その理由で断る
 	if !done.OK && done.Reason == "no-book" && p.On != nil {
-		if n, ok := o.Hub.BookWarnings()[p.On.Book]; ok && n.Unreadable() {
+		if n, ok := o.Hub.BookWarnings()[p.On.Book]; ok && n.Unreadable {
 			writeJSON(w, map[string]any{"ok": false, "reason": "unreadable", "detail": n.Warning})
 			return
 		}

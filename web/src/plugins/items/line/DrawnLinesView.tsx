@@ -1,12 +1,13 @@
-// ページの線のビュー: 形より手前の層に、線（見える線・端の形・破線）とキャプションの札を描く（選んだ線はほかの線より手前）。道筋は drawLines（drawn.ts）が決めたものを描くだけ。
+// 描く線（drawn.ts の DrawnLine）のビュー: 形より手前に、線（見える線・端の形・破線）とキャプションの札を描く（選んだ線はほかの線より手前）。道筋は drawLines（drawn.ts）が決めたものを描くだけ。
 // 線を選べるのは選択の道具のときだけで、線の上（見える線より太い透明な当たり）を押すと線を選び、ダブルクリックで編集のダイアログ、右クリックで線のメニューを開く。
 // ほかのときは、線はポインタを受けず、下の形と紙に届く。
 // 1 本だけ選んでいる線（editing）には、両端をつまむ丸と、折れ線の途中の区間をつまむ透明な線を出す（区間は向きに合わせて左右か上下に動かす）。
 // キャプションの札は選べるときに押せ、押すと線を選んでドラッグを始める。端が吸い付いた点（snap）には輪を出す
 import type { MouseEvent, PointerEvent } from "react"
 import type { Point } from "../../../plugin-api"
+import { useAnchorRef } from "../../base/ui"
+import styles from "./DrawnLinesView.module.css"
 import type { DrawnLine } from "./drawn"
-import styles from "./LinesView.module.css"
 
 const pointsAttr = (pts: readonly Point[]) =>
   pts.map(({ x, y }) => `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`).join(" ")
@@ -30,7 +31,7 @@ interface Props {
   }
 }
 
-export function LinesView({
+export function DrawnLinesView({
   lines,
   selection,
   selectable,
@@ -42,6 +43,7 @@ export function LinesView({
   drag,
 }: Props) {
   const follow = { onPointerMove: drag.move, onPointerUp: drag.up, onPointerCancel: drag.cancel }
+  const anchor = useAnchorRef() // 線にアンカーを付ける（そばにスタンドを立てられる）
   // 選んだ線は、ほかの線に隠れないよう手前（後ろの順）に描く
   const ordered = [...lines.filter(l => !selection.includes(l.id)), ...lines.filter(l => selection.includes(l.id))]
   return (
@@ -50,6 +52,7 @@ export function LinesView({
         // biome-ignore lint/a11y/noStaticElementInteractions: 線を選ぶのはポインタの操作で、キーの操作は選んだあとのコマンドが受ける
         <g
           key={l.id}
+          ref={anchor(l.id)}
           data-item={l.id}
           className={styles.line}
           data-selected={selection.includes(l.id)}

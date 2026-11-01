@@ -1,10 +1,12 @@
-// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）のフィールドの一覧。
+// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）とコマンドが受け取る文脈のフィールドの一覧と、base の入口の名前がプラグイン API にもあること。
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
 import { newStage } from "../web/src/core/stage"
 import { stageView, toolOf } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
+import * as plugin from "../web/src/plugins/base"
+import * as pluginUi from "../web/src/plugins/base/ui"
 import { commandContext } from "../web/src/store/commands"
 import * as testing from "../web/src/testing"
 import { CORE_CATALOG, newStore } from "./support"
@@ -15,6 +17,9 @@ test("matomezu が出す名前", () => {
   expect(names(api)).toEqual([
     "AlignSchema",
     "BODY_MAX",
+    "BOOK_PAPER_COLOR",
+    "BOOK_TEXT_COLORS",
+    "BOOK_THEME",
     "CHILD_AREA",
     "EDGE_MAX",
     "EDGE_ZONE",
@@ -22,15 +27,22 @@ test("matomezu が出す名前", () => {
     "LEN",
     "NEST_PADDING",
     "PALETTE",
+    "PAPER_IDS",
     "PLACE_LINES",
     "TEXT_LOOK",
     "actionsOf",
     "adaptPage",
     "addPageIn",
     "apart",
+    "areaOf",
+    "bodyColumn",
+    "bodyMinWidth",
+    "bodyText",
+    "bodyWidthAfter",
     "bookItems",
     "bookType",
     "captionTextWidth",
+    "changeWithLock",
     "childOrigin",
     "clampLines",
     "clampRich",
@@ -42,21 +54,8 @@ test("matomezu が出す名前", () => {
     "creatableTypes",
     "createBook",
     "createBookIn",
-    "defineAction",
-    "defineBookType",
-    "defineCommand",
-    "defineConnector",
-    "defineDialog",
-    "defineDialogWith",
     "defineMessages",
-    "definePaper",
     "definePlugin",
-    "definePresentation",
-    "defineSetting",
-    "defineShape",
-    "defineSkin",
-    "defineTextColor",
-    "defineTheme",
     "edgePanner",
     "edgeScroll",
     "edgeSpeed",
@@ -103,6 +102,7 @@ test("matomezu が出す名前", () => {
     "replaceShapePushing",
     "resizedBy",
     "resolveTokens",
+    "richWidth",
     "settingValue",
     "settleChildren",
     "shapeDefOf",
@@ -110,16 +110,17 @@ test("matomezu が出す名前", () => {
     "shapeSchema",
     "shapesOf",
     "shownRects",
+    "textBlock",
+    "textBlockHeight",
     "textNew",
     "textPatch",
     "textProps",
+    "textWidth",
     "themeVar",
     "toData",
     "toPaper",
     "toPaperDelta",
-    "toPaperIn",
     "tooClose",
-    "toolOf",
     "unpinPage",
     "walkShapes",
     "widenForCaption",
@@ -146,7 +147,9 @@ test("matomezu/ui が出す名前", () => {
     "Field",
     "Form",
     "InheritChoices",
+    "LockToggle",
     "PageProblemsView",
+    "PaperFrame",
     "Problem",
     "RichBar",
     "RichBody",
@@ -157,9 +160,12 @@ test("matomezu/ui が出す名前", () => {
     "SelectButton",
     "ShapeMarksProvider",
     "Slot",
+    "Stand",
     "Switch",
     "SwitchPanel",
+    "TextBlockView",
     "TokenScope",
+    "UserSettings",
     "controlClass",
     "defineLayout",
     "definePluginUi",
@@ -173,12 +179,14 @@ test("matomezu/ui が出す名前", () => {
     "useActions",
     "useAligns",
     "useAllowed",
+    "useAnchorRef",
     "useBook",
     "useBookOf",
     "useBookTheme",
     "useCommand",
     "useContextMenu",
     "useCoreCatalog",
+    "useDrawnMinimap",
     "useElapsed",
     "useItem",
     "useLatestPan",
@@ -188,15 +196,20 @@ test("matomezu/ui が出す名前", () => {
     "useMessages",
     "usePage",
     "usePageProblems",
+    "usePaperControls",
     "usePerform",
+    "useReadStageState",
     "useResize",
+    "useSetStageState",
     "useSettingControls",
     "useSettings",
     "useShapeMarks",
     "useShownBook",
     "useShownPage",
     "useStage",
+    "useStageArea",
     "useStagePan",
+    "useStageState",
     "useSwatches",
     "useT",
     "useThemeVars",
@@ -242,4 +255,25 @@ test("コマンドに見せるステージは、プラグインに見せるス�
   expect(commandContext(store.catalog.core, null, state, "s1")?.stage).toEqual(
     stageView(store.catalog.core, stage, tool),
   )
+})
+
+test("コマンドが受け取る文脈（CommandContext）のフィールド（ステージの並び・表示領域の大きさなどは渡さない）", () => {
+  const store = newStore()
+  expect(names(commandContext(store.catalog.core, null, store.state.getState(), "s1")!)).toEqual([
+    "book",
+    "bookHistory",
+    "catalog",
+    "contextMenu",
+    "dialog",
+    "home",
+    "settings",
+    "stage",
+    "toPaper",
+  ])
+})
+
+test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {
+  const shown = new Set([...names(api), ...names(ui)])
+  const own = ["BASE", "BASE_UI"]
+  expect([...names(plugin), ...names(pluginUi)].filter(n => !own.includes(n) && !shown.has(n))).toEqual([])
 })

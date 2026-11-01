@@ -2,15 +2,12 @@
 
 import { bookSchemas, bookType, type CoreCatalog } from "./core-catalog"
 import type { NewBook } from "./def/book-type"
-import { ORIENTATIONS, type Orientation } from "./def/paper"
 import { fail } from "./errors"
-import type { Lang } from "./i18n/i18n"
-import { translate } from "./i18n/i18n"
 import { freshId } from "./ids"
 import { splitId } from "./names"
-import type { PaperChoice, PaperRule } from "./paper"
+import type { PaperChoice } from "./paper"
 import { holds } from "./perform"
-import type { ItemPage } from "./placed"
+import { type ItemPage, walkShapes } from "./placed"
 import type { Book, Page } from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
@@ -49,7 +46,7 @@ export function checkBooks(
   return { books, warnings, partial }
 }
 
-// ブックが持つ、機能台帳に無いアイテムと設定の項目の id（重ねずに、見つけた順）
+// ブックが持つ、機能台帳に無いアイテム（どの深さの子の形も）と設定の項目の id（重ねずに、見つけた順）
 function missingIn(catalog: CoreCatalog, book: Book): string[] {
   const found = new Set<string>()
   const settingsOf = (o: object) => Object.keys((o as { settings?: object }).settings ?? {})
@@ -57,6 +54,7 @@ function missingIn(catalog: CoreCatalog, book: Book): string[] {
   for (const page of "pages" in book ? (book.pages as readonly ItemPage[]) : []) {
     for (const k of settingsOf(page)) if (!catalog.settings.has(k)) found.add(k)
     for (const i of page.items ?? []) if (!catalog.items.has(i.item)) found.add(i.item)
+    for (const { shape } of walkShapes(page)) if (!catalog.items.has(shape.item)) found.add(shape.item)
   }
   return [...found]
 }
@@ -104,65 +102,15 @@ export function createBook(catalog: CoreCatalog, type: string, init: NewBook): B
   return def.create(init) as Book
 }
 
-// 画面に出すブックの名前。題名を持たないか空のブックは、タイプの名前で呼ぶ
-export function bookTitle(catalog: CoreCatalog, book: Book, lang: Lang): string {
-  return "title" in book && book.title.trim() !== ""
-    ? book.title
-    : translate(catalog.messages, lang, bookType(catalog, book.type).title)
-}
-
-function pagesRule(catalog: CoreCatalog, book: PagedBook) {
-  const rule = bookType(catalog, book.type).pages
-  if (!rule) return fail("E103", { type: book.type })
-  return rule
-}
-
-// 次のページに選べる紙と向き。1 冊の紙をそろえる規定では、最初のページの紙と向きだけ
-export interface PaperOptions {
-  papers: readonly string[]
-  orientations: readonly Orientation[]
-}
-
-// 規定の下で、次のページに選べる紙と向き
-export function choosablePapers(rule: PaperRule, pages: readonly Page[]): PaperOptions {
-  const first = pages[0]
-  if (rule.perPage || !first) return { papers: rule.allowed, orientations: ORIENTATIONS }
-  return { papers: [first.paper], orientations: [first.orientation] }
-}
-
-export function paperChoices(catalog: CoreCatalog, book: PagedBook): PaperOptions {
-  return choosablePapers(pagesRule(catalog, book).paper, book.pages)
-}
-
-// 選べるものに入るか
-export function canChoose(options: PaperOptions, choice: PaperChoice): boolean {
-  return options.papers.includes(choice.paper) && options.orientations.includes(choice.orientation)
-}
-
-// 次のページの紙の既定（規定の既定を選べなければ、選べるものの最初）
-export function defaultPaper(catalog: CoreCatalog, book: PagedBook): PaperChoice {
-  const rule = pagesRule(catalog, book).paper
-  const { papers, orientations } = paperChoices(catalog, book)
-  return {
-    paper: papers.includes(rule.default) ? rule.default : (papers[0] ?? rule.default),
-    orientation: orientations.includes(rule.orientation) ? rule.orientation : (orientations[0] ?? rule.orientation),
-  }
-}
-
 // ブックで使えるアイテム（タイプの既定。置ける・引けるのはこの中だけ）
 export function bookItems(catalog: CoreCatalog, book: Pick<Book, "type">): readonly string[] {
   return bookType(catalog, book.type).items.defaults
 }
 
-// 次のページの題名の案
-export function nextPageTitle(catalog: CoreCatalog, book: PagedBook, lang: Lang): string {
-  return translate(catalog.messages, lang, "Page {n}", { n: book.pages.length + 1 })
-}
-
 // ページを末尾に足す。id は newId から振る（ブックのほかのページと重ならない）
 export function addPage<B extends PagedBook>(
   book: B,
-  init: { title: string } & PaperChoice,
+  init: { title: string; grows?: true } & PaperChoice,
   newId: () => string,
 ): { book: B; page: Page } {
   const page = {

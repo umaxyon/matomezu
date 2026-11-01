@@ -16,11 +16,13 @@ import {
   type PlacedItem,
   type PlacedShape,
   pageItemsOf,
+  replaceShape,
   shapesOf,
 } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { type PageContext, settingsAt } from "../book-settings"
 import { contentIdMaker } from "../utils/ids"
+import { grownArea } from "./grow"
 import { connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, tidyConnectors as tidyItems } from "./placed"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
@@ -208,6 +210,21 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
   return paper.status === "unshowable" ? null : paper.size
 }
 
+// ブック book のページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
+// （spare なら伸びる向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
+export function pageArea(
+  catalog: CoreCatalog,
+  book: Book,
+  page: ItemPage & { grows?: true },
+  spare = false,
+): { columns: number; rows: number; size: Size } | null {
+  const paper = paperSize(catalog, page)
+  if (!paper) return null
+  const grow = page.grows ? catalog.bookTypes.get(book.type)?.pages?.paper.grow : undefined
+  if (!grow) return { columns: 1, rows: 1, size: paper }
+  return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, book, page)), spare)
+}
+
 // ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
 export function withPage<B extends PagedBook>(catalog: CoreCatalog, book: B, page: ItemPage): B {
   return putPage(book, tidyPage(catalog, book, page))
@@ -307,7 +324,7 @@ export function shownRects(
   return rects
 }
 
-// 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行。
+// 編集で縮めてよい下限（紙に収める）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行。
 // 文字を縦に置く形はキャプションが全部見える高さ）。
 // 今それより小さければ今の大きさ
 export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
@@ -431,36 +448,4 @@ export function keepApart<B extends PagedBook>(
   const after = pushFrom(before, b, { ...rb, [axis]: at }, paper, floorsOf(catalog, page), gap)
   if (!after || newClash(before, after, gap)) return null
   return withPage(catalog, book, { ...page, items: placedAt(catalog, page, after) })
-}
-
-// id の形を f の返す形に置き換えたページ（どの深さでも。f が null を返せば子孫ごと除く）。形が無ければ null
-export function replaceShape(
-  page: ItemPage,
-  id: string,
-  f: (shape: PlacedShape) => PlacedShape | null,
-): ItemPage | null {
-  const items = replaceIn(pageItemsOf(page), id, f)
-  return items && { ...page, items }
-}
-
-// 並びの中の id の形を置き換えた並び（子の並びもたどる。子の並びが空になれば shapes を持たない）。無ければ null
-function replaceIn<T extends { id: string }>(
-  list: readonly T[],
-  id: string,
-  f: (shape: PlacedShape) => PlacedShape | null,
-): T[] | null {
-  for (const [i, item] of list.entries()) {
-    if (!("x" in item)) continue
-    const shape = item as unknown as ShapeData
-    if (shape.id === id) {
-      const next = f(shape as PlacedShape)
-      return [...list.slice(0, i), ...(next ? [next as unknown as T] : []), ...list.slice(i + 1)]
-    }
-    const shapes = shape.shapes && replaceIn(shape.shapes, id, f)
-    if (!shapes) continue
-    const { shapes: _, ...rest } = shape
-    const changed = (shapes.length > 0 ? { ...rest, shapes } : rest) as unknown as T
-    return [...list.slice(0, i), changed, ...list.slice(i + 1)]
-  }
-  return null
 }

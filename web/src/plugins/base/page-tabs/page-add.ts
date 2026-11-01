@@ -3,17 +3,19 @@
 // （タイプのフィールドで要るものを渡さなければ、ブックのデータの形に合わず断られる）。フィールドの受け方が結果を返せば、結果の fields に入れて返す。
 // 足したページにタイプが問題を知らせれば断る（page-problems.ts）
 import { z } from "zod"
-import { addPage, canChoose, defaultPaper, hasPages, paperChoices, putPage, withSettings } from "../../../core/book"
+import { addPage, hasPages, putPage, withSettings } from "../../../core/book"
 import { ORIENTATIONS } from "../../../core/def/paper"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblems } from "./page-problems"
+import { canChoose, canGrow, defaultPaper, paperChoices } from "./pages"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),
   paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定
   orientation: z.enum(ORIENTATIONS).optional(), // 無ければ規定の既定
+  grows: z.boolean().optional(), // 可変ページにするか（タイプが伸びられる向きを宣言したときだけ）。無ければ可変ページでない
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだページの設定の項目（形はタイプが決める）
   fields: z.record(z.string(), z.unknown()).optional(), // ブックのタイプがページに足したフィールド（形はタイプが決める）
 })
@@ -22,7 +24,7 @@ export const PAGE_ADD = kit.defineAction({
   id: "page-add",
   attach: { pages: true },
   aiDescription:
-    "Add a page at the end of a book. Paper and orientation default to the book type's. fields are the page's own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page's id, and in fields what the book type returns for its fields (such as the ids it gave).",
+    "Add a page at the end of a book. Paper and orientation default to the book type's. With grows true, the page grows by whole papers (right and down, or only down; see the book type's grow in actions) as its contents need, instead of keeping to one paper; refused for a book type whose grow is null. fields are the page's own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page's id, and in fields what the book type returns for its fields (such as the ids it gave).",
   title: "Add page",
   target: "book",
   permissionScope: "book",
@@ -34,10 +36,15 @@ export const PAGE_ADD = kit.defineAction({
     const fallback = defaultPaper(ctx.catalog, book)
     const choice = { paper: args.paper ?? fallback.paper, orientation: args.orientation ?? fallback.orientation }
     if (!canChoose(paperChoices(ctx.catalog, book), choice)) return null
+    if (args.grows && !canGrow(ctx.catalog, book)) return null
     const settings =
       args.settings === undefined ? null : settingsPatchOf(ctx.catalog, book, "page")?.safeParse(args.settings)
     if (settings === undefined || settings?.success === false) return null
-    const done = addPage(book, { title: args.title, ...choice }, ctx.newId)
+    const done = addPage(
+      book,
+      { title: args.title, ...choice, ...(args.grows ? { grows: true as const } : {}) },
+      ctx.newId,
+    )
     const written = writeFields(ctx.catalog, done.book, done.page, args.fields, "add", ctx.newId)
     if (!written) return null
     const result = { page: done.page.id, ...(written.result === undefined ? {} : { fields: written.result }) }

@@ -8,10 +8,13 @@ export * from "../plugin-api"
 // 追加プラグインのプロジェクトがビルトインのファイルを読まなくても、ビルトインの id と型が引ける）
 import type {} from "../plugins"
 
-// base の置く計算・文字と、base が拡張ポイントに書き足した物の型（ビルトインプラグインは plugins/base から読む）
+// base の入口の名前（置く計算・文字・ブックの設定の項目・紙と、base が拡張ポイントに書き足した物の型。ビルトインプラグインは plugins/base から読む）
 export type {
   Axis,
+  BlockProps,
+  BodyColumn,
   Edges,
+  Font,
   Frame,
   Gap,
   GrowFrom,
@@ -23,6 +26,8 @@ export type {
   Ports,
   RichLine,
   Run,
+  TextBlock,
+  Weight,
 } from "../plugins/base"
 export {
   AlignSchema,
@@ -30,6 +35,13 @@ export {
   addPageIn,
   apart,
   BODY_MAX,
+  BOOK_PAPER_COLOR,
+  BOOK_TEXT_COLORS,
+  BOOK_THEME,
+  bodyColumn,
+  bodyMinWidth,
+  bodyText,
+  bodyWidthAfter,
   CHILD_AREA,
   captionTextWidth,
   childOrigin,
@@ -52,6 +64,7 @@ export {
   NEST_PADDING,
   newClash,
   nextItemId,
+  PAPER_IDS,
   PLACE_LINES,
   pageContext,
   pageFieldsWay,
@@ -67,17 +80,20 @@ export {
   removeItems,
   replaceChild,
   replacePushing,
-  replaceShape,
   replaceShapePushing,
   resizedBy,
+  richWidth,
   settingValue,
   settleChildren,
   shapeDefOf,
   shownRects,
   TEXT_LOOK,
+  textBlock,
+  textBlockHeight,
   textNew,
   textPatch,
   textProps,
+  textWidth,
   toData,
   tooClose,
   unpinPage,

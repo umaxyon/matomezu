@@ -13,10 +13,10 @@ import {
   useRef,
   useState,
 } from "react"
-import { type Hsv, hexToHsv, hsvToHex, parseHex } from "../../../core/color"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
 import styles from "./ColorPicker.module.css"
+import { type Hsv, hexToHsv, hsvToHex, parseHex } from "./hsv"
 
 export interface Swatch {
   name: string // 選んだときの値（代表色の名前か #rrggbb）
@@ -30,6 +30,7 @@ export function ColorPicker({
   value,
   palette,
   none,
+  disabled,
   onChange,
 }: {
   id?: string
@@ -37,6 +38,7 @@ export function ColorPicker({
   value: string | undefined // 代表色の名前か #rrggbb。undefined は「なし」
   palette: readonly Swatch[]
   none: string // 「なし」のときの見た目の色（#rrggbb）
+  disabled?: boolean
   onChange: (value: string | undefined) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -54,12 +56,13 @@ export function ColorPicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         data-none={value === undefined}
+        disabled={disabled}
         style={{ "--color": shown } as CSSProperties}
         onClick={() => setOpen(o => !o)}
       />
       {open && button.current && (
         <Popup
-          anchor={button.current}
+          opener={button.current}
           value={value}
           start={shown}
           palette={palette}
@@ -75,14 +78,14 @@ export function ColorPicker({
 }
 
 function Popup({
-  anchor,
+  opener,
   value,
   start,
   palette,
   onChange,
   onClose,
 }: {
-  anchor: HTMLElement
+  opener: HTMLElement // 開いたボタン
   value: string | undefined
   start: string
   palette: readonly Swatch[]
@@ -99,22 +102,22 @@ function Popup({
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const a = anchor.getBoundingClientRect()
+    const a = opener.getBoundingClientRect()
     const h = el.offsetHeight
     const top = a.bottom + 4 + h > window.innerHeight ? Math.max(4, a.top - 4 - h) : a.bottom + 4
     setAt({ left: Math.min(a.left, window.innerWidth - el.offsetWidth - 4), top })
     el.focus()
-  }, [anchor])
+  }, [opener])
 
   // 外を押したら閉じる（開いたボタンを押したときは、ボタンの側で閉じる）
   useEffect(() => {
     const down = (e: globalThis.PointerEvent) => {
-      if (e.target instanceof Node && (ref.current?.contains(e.target) || anchor.contains(e.target))) return
+      if (e.target instanceof Node && (ref.current?.contains(e.target) || opener.contains(e.target))) return
       onClose()
     }
     document.addEventListener("pointerdown", down, true)
     return () => document.removeEventListener("pointerdown", down, true)
-  }, [anchor, onClose])
+  }, [opener, onClose])
 
   const pick = (next: Hsv) => {
     setHsv(next)

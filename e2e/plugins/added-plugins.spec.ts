@@ -25,7 +25,7 @@ const flow = {
 
 test("常駐が結んだ追加プラグインを画面に渡し、画面はその見た目の JS を読む", async ({ page }) => {
   expect((await data(page)).plugins).toEqual([{ id: "ex2", ui: "api/plugins/0/ui.js?v=1" }])
-  const put = await page.request.put(`/api/books/${flow.id}`, { data: { book: flow, base: 0 } })
+  const put = await page.request.put(`/api/books-for-test/${flow.id}`, { data: { book: flow, base: 0 } })
   expect(put.ok()).toBe(true)
   await page.goto("/")
   await expect(page.locator("[data-ex2-diamond]")).toHaveAccessibleName("判断")
@@ -244,7 +244,7 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
       },
     ],
   }
-  expect((await page.request.put(`/api/books/${yard.id}`, { data: { book: yard, base: 0 } })).ok()).toBe(true)
+  expect((await page.request.put(`/api/books-for-test/${yard.id}`, { data: { book: yard, base: 0 } })).ok()).toBe(true)
   const perform = async (body: object) =>
     (await page.request.post("/api/ai/perform", { headers: ai(), data: body })).json()
   expect(await perform({ action: "ex6:page-weight", args: { page: "p1" }, on: { book: yard.id } })).toMatchObject({

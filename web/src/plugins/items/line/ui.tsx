@@ -1,14 +1,14 @@
-// 線の見た目: 形を並べるビューに重ねる線の層と形の上の〇（ui/connector.ts）、線の編集のダイアログ、線の既定の通り方の設定のコンポーネント
+// 線の見た目: 形の並びを包むラインビューと形の上の〇（ui/connector.ts）、線の編集のダイアログ、線の既定の通り方の設定のコンポーネント
 import { type ConnectorUi, definePluginUi } from "../../../plugin-api/ui"
 import { LINE_PLUGIN } from "."
 import { EditLineDialog } from "./LineDialog"
-import { LineLayer, PortOverlay } from "./LineLayer"
+import { LineView, PortOverlay } from "./LineView"
 import { LINE, LINE_EDIT_DIALOG, LINE_ROUTE } from "./line"
 import { LINE_CONTEXT } from "./menu"
 import { RouteSetting } from "./RouteSetting"
 
 export const LINE_CONNECTOR_UI = {
-  layer: LineLayer,
+  view: LineView,
   overlay: PortOverlay,
   contextMenus: [LINE_CONTEXT],
 } as const satisfies ConnectorUi

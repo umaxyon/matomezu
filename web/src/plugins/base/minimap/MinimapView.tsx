@@ -5,19 +5,19 @@
 // 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）。className は枠の見た目を替える（無ければ浮かぶ枠）
 import { memo, type PointerEvent, type ReactNode, useCallback, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
-import { paperOf } from "../../../core/stage"
+import { areaOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
-import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
-import { useShownPage } from "../../../ui/view-hooks"
+import { useShownPage, useStage } from "../../../ui/view-hooks"
 import { bookTokens } from "../book-look/look"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
 import { keepsPan, panningTool } from "../tool-switch/tools"
 import { ZOOM_WHEEL } from "../zoom"
+import { drawnOn, useDrawnTable } from "./drawn"
 import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
 import { type MinimapMark, minimapMarks } from "./marks"
@@ -43,15 +43,19 @@ export function MinimapView({
     return o ? s.books[o.book] : undefined
   })
   const page = useShownPage(id)
-  const held = useMatomezuState(s => keepsPan(catalog, toolOf(catalog, s.workspace, id, s.books)))
+  const held = keepsPan(catalog, useStage(id)?.tool ?? null)
   const { panStageBy, focusStage, setTool } = useActions()
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
   const vars = useMemo(() => (book ? themeVars(bookTokens(catalog, book)) : undefined), [catalog, book])
+  const drawn = useDrawnTable(id)
   const marks = useMemo(
-    () => (book && page ? minimapMarks(catalog, book.type, page, settingsAt(catalog, book, page)) : []),
-    [catalog, book, page],
+    () =>
+      book && page
+        ? minimapMarks(catalog, book.type, page, settingsAt(catalog, book, page), item => drawnOn(drawn, item, page.id))
+        : [],
+    [catalog, book, page, drawn],
   )
   const wheel = useCommand(id, ZOOM_WHEEL.id)
   const wheelRef = useRef(wheel)
@@ -68,7 +72,7 @@ export function MinimapView({
     el.addEventListener("wheel", onWheel, { passive: false })
     return () => el.removeEventListener("wheel", onWheel)
   }, [])
-  const paper = stage ? paperOf(stage) : null
+  const paper = stage ? areaOf(stage) : null
   if (!stage || !book || !paper) return null
   const scale = fitScale(paper, width, height)
   const seen = stage.view ? seenRect(paper, stage.view, stage.pan, stage.zoom) : null

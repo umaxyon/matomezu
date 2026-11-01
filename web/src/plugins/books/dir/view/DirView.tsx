@@ -1,4 +1,4 @@
-// ディレクトリ構成図のビュー（見せ方 dir）: ステージの紙の置き場所（placement）に紙を描き、その上に開いたページの根のフォルダから下の中身を、
+// ディレクトリ構成図のビュー（見せ方 dir）: ブックのビューのレイヤー（book-content）が描く。紙の枠（PaperFrame。紙の面は下のレイヤーが描く）の中に、開いたページの根のフォルダから下の中身を、
 // 上から下へ並べて描く（行と罫線は layout.ts が決める）。行は、アイコン（フォルダは開・閉、ファイル）と、その右の名前（装飾して描く）。
 // 説明は、行の右にそろえた列に 1 行で描く（列の位置・… で切るか・出さないか・前の「・・・」・紙を縦に分ける区切り線は、ページの設定の項目から layout.ts が決める）。選んでいる行の説明にも、行と同じ印を付ける。
 // フォルダには開け閉めの印（▸・▾）を出し、押すとコマンド folder-toggle で開け閉めする（鉛筆でもハンドでも。アクションが止められていれば押せない形で描く）。
@@ -26,7 +26,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { isPaletteName, type Point, placement, type StageView, themeVar, toPaper } from "../../../../plugin-api"
+import { isPaletteName, type Point, paperOf, type StageView, themeVar, toPaper } from "../../../../plugin-api"
 import {
   type BookViewProps,
   useActions,
@@ -43,7 +43,7 @@ import {
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
-import { RichBar, RichInput, type RichInputHandle, RichText, useZoomMotion } from "../../../base/ui"
+import { PaperFrame, RichBar, RichInput, type RichInputHandle, RichText, useAnchorRef } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
 import { ADDED_EDIT, FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
@@ -75,32 +75,20 @@ export function DirView({ stage: id }: BookViewProps) {
 // area はステージの表示領域の要素（押した所を紙の座標に直すのに使う）
 function Content({ stage, area }: { stage: StageView; area: RefObject<HTMLDivElement | null> }) {
   const t = useMessages(kit)
-  const pan = useStagePan(stage.id)
-  const p = pan && placement({ ...stage, pan })
   // 紙の大きさ（変わらなければ同じ物を渡し、紙をずらしただけでは行を描き直さない）
-  const w = p?.w
-  const h = p?.h
+  const size = paperOf(stage)
+  const w = size?.w
+  const h = size?.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
-  const motion = useZoomMotion(stage.zoom, "")
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
-  if (!p || !paperSize) return null
+  if (!paperSize) return null
   return (
-    <div
-      className={styles.paper}
-      role="img"
-      aria-label={t("Paper")}
-      style={{
-        width: p.w,
-        height: p.h,
-        transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})`,
-        transition: motion,
-      }}
-    >
+    <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
       <Rows stage={stage} paper={paperSize} area={area} />
-    </div>
+    </PaperFrame>
   )
 }
 
@@ -131,6 +119,7 @@ const Rows = memo(function Rows({
   const editor = useRef<RichInputHandle>(null)
   const drag = useRowDrag(stage, area)
   const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
+  const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok // ドラッグで動かし始められるか
   const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
   if (!page || !root.success) return null
   const dir = root.data
@@ -229,7 +218,7 @@ const Rows = memo(function Rows({
             if (e.button !== 0 || !usingPencil) return
             settle()
             select(stage.id, [r.id])
-            if (r.id !== dir.id) drag.start(r, e.clientX, e.clientY)
+            if (r.id !== dir.id && movable) drag.start(r, e.clientX, e.clientY)
           }}
           onDoubleClick={() => {
             if (!usingPencil || !renamable) return
@@ -489,10 +478,12 @@ function Row({
   onContextMenu: (e: MouseEvent<HTMLDivElement>) => void
 }) {
   const t = useMessages(kit)
+  const anchor = useAnchorRef() // 行にアンカーを付ける（そばにスタンドを立てられる）
   return (
     <>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 行はポインタで選び・書き始め、キーの操作はコマンドが受ける */}
       <div
+        ref={anchor(r.id)}
         className={styles.row}
         data-entry={r.id}
         data-kind={r.kind}

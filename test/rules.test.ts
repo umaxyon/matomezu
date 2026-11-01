@@ -16,7 +16,7 @@ function filesUnder(dir: string): string[] {
 }
 
 const sources = filesUnder(SRC).map(path => ({ path, rel: relative(SRC, path), text: readFileSync(path, "utf8") }))
-const layerOf = (rel: string) => rel.split("/")[0]!
+const crateOf = (rel: string) => rel.split("/")[0]!
 
 // import の行き先。相対なら web/src から見たパス（拡張子なし）、そうでなければパッケージ名
 function importsOf(file: { path: string; text: string }): string[] {
@@ -36,7 +36,7 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
   ui: t =>
     ["core", "store", "ui", "react", "react-dom", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),
-  // プラグイン API は土台から名前を出し直すだけ（index は core・store、ui は ui。下の「プラグイン API の層」で分けて見る）。プラグインは読まない
+  // プラグイン API は土台から名前を出し直すだけ（index は core・store、ui は ui。下の「プラグイン API のクレート」で分けて見る）。プラグインは読まない
   "plugin-api": t => t === "core" || t === "store" || t === "ui",
 }
 // プラグインのファイルは役割で見る。見た目（.tsx と ui.ts）は ui と同じもの、ほかは core・store・zod だけ
@@ -58,11 +58,11 @@ const apiAllowed = (rel: string) => (t: string) =>
 
 describe("依存の向き", () => {
   for (const file of sources) {
-    const layer = layerOf(file.rel)
+    const crate = crateOf(file.rel)
     const targets = importsOf(file)
     const local = (t: string) =>
       ["core", "store", "ui", "plugins", "host-client", "engine"].includes(topOf(t)) && !t.endsWith(".css")
-    if (layer === "plugins") {
+    if (crate === "plugins") {
       const own = pluginRoot(file.rel)
       const pluginAllowed = own === "plugins/base" ? baseAllowed : apiAllowed
       test(file.rel, () => {
@@ -84,7 +84,7 @@ describe("依存の向き", () => {
       })
       continue
     }
-    const allowed = ALLOWED[layer]
+    const allowed = ALLOWED[crate]
     if (!allowed) continue
     test(file.rel, () => {
       // 土台（core・store・ui）は、プラグインを読まない
@@ -100,14 +100,14 @@ test("ブックのタイプの名前で振る舞いを分けない（使える�
 })
 
 test("状態を変えるのは store の中だけ（画面は setState を使わない）", () => {
-  const offenders = sources.filter(f => layerOf(f.rel) !== "store" && /\bsetState\b/.test(f.text)).map(f => f.rel)
+  const offenders = sources.filter(f => crateOf(f.rel) !== "store" && /\bsetState\b/.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])
 })
 
 test("土台（core・store・ui）は、プラグインのアクションの id を名指さない", () => {
   const actions = new Set(CORE_CATALOG.actions.keys())
   const offenders = sources
-    .filter(f => ["core", "store", "ui"].includes(layerOf(f.rel)))
+    .filter(f => ["core", "store", "ui"].includes(crateOf(f.rel)))
     .flatMap(f =>
       [...f.text.replace(/\/\/.*$/gm, "").matchAll(/["'`](@[a-z0-9-]+\/[a-z0-9-]+:[a-z0-9-]+)["'`]/g)]
         .filter(m => actions.has(m[1]! as never))
@@ -134,7 +134,7 @@ test("型の書き足し（declare module）は core/catalog.ts そのもの（�
 test("外の世界（通信・保存・URL・クリップボード）に触るのはホストクライアントだけ", () => {
   const host =
     /\bfetch\(|\blocalStorage\b|\bsessionStorage\b|\blocation\.|\bhistory\.|navigator\.clipboard|\bEventSource\b|\bWebSocket\b/
-  const offenders = sources.filter(f => layerOf(f.rel) !== "host-client" && host.test(f.text)).map(f => f.rel)
+  const offenders = sources.filter(f => crateOf(f.rel) !== "host-client" && host.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])
 })
 
@@ -157,14 +157,14 @@ test("ソースに、その時の状況でしか意味を持たない言葉を�
 test("core のデータと同じ名前のコンポーネントは作らない（データ X のビューは XView）", () => {
   const dataNames = new Set(
     sources
-      .filter(f => layerOf(f.rel) === "core")
+      .filter(f => crateOf(f.rel) === "core")
       .map(f =>
         basename(f.rel)
           .replace(/\.tsx?$/, "")
           .toLowerCase(),
       ),
   )
-  const views = sources.filter(f => (layerOf(f.rel) === "ui" || layerOf(f.rel) === "plugins") && f.rel.endsWith(".tsx"))
+  const views = sources.filter(f => (crateOf(f.rel) === "ui" || crateOf(f.rel) === "plugins") && f.rel.endsWith(".tsx"))
   const clashes = views.filter(f => dataNames.has(basename(f.rel, ".tsx").toLowerCase())).map(f => f.rel)
   expect(clashes).toEqual([])
 })
@@ -173,7 +173,7 @@ test("core のデータと同じ名前のコンポーネントは作らない（
 test("画面の文言は t() を通す（ui に日本語を直に書かない）", () => {
   const japanese = /[\u3040-\u30ff\u3400-\u9fff]/
   const offenders = sources
-    .filter(f => layerOf(f.rel) === "ui" || (layerOf(f.rel) === "plugins" && f.rel.endsWith(".tsx")))
+    .filter(f => crateOf(f.rel) === "ui" || (crateOf(f.rel) === "plugins" && f.rel.endsWith(".tsx")))
     .flatMap(f =>
       f.text
         .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -193,7 +193,7 @@ test("画面の文言は t() を通す（ui に日本語を直に書かない）
 
 // 外に見せる入口: プラグイン API の入口（plugin-entry/。matomezu は React なしの定義の口、matomezu/ui は見た目を結ぶ口）と、
 // テストで組む入口（testing/。matomezu/testing）。中のコードは入口を読まない（入口が中を読む向きだけ）
-const ENTRY_LAYERS = ["plugin-entry", "testing"]
+const ENTRY_CRATES = ["plugin-entry", "testing"]
 const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
   // zod と base の置く計算・文字、base の公開する共通の処理（utils）も出し直す。plugins と plugins/ui は、ビルトインの型の書き足しを含めるための型だけの読み込み
   "plugin-entry/index.ts": t =>
@@ -214,8 +214,8 @@ test("プラグイン API の入口は、ビルトインの一覧（plugins・pl
   expect(bad).toEqual([])
 })
 
-test("外に見せる入口は、決めた層だけを読み、中のコードは入口を読まない", () => {
-  const entries = sources.filter(f => ENTRY_LAYERS.includes(layerOf(f.rel)))
+test("外に見せる入口は、決めたクレートだけを読み、中のコードは入口を読まない", () => {
+  const entries = sources.filter(f => ENTRY_CRATES.includes(crateOf(f.rel)))
   expect(entries.map(f => f.rel).sort()).toEqual(Object.keys(ENTRY_ALLOWED).sort())
   const bad = entries.flatMap(f =>
     importsOf(f)
@@ -223,18 +223,18 @@ test("外に見せる入口は、決めた層だけを読み、中のコード�
       .map(t => `${f.rel} → ${t}`),
   )
   const inward = sources
-    .filter(f => !ENTRY_LAYERS.includes(layerOf(f.rel)) && layerOf(f.rel) !== "plugin-modules")
+    .filter(f => !ENTRY_CRATES.includes(crateOf(f.rel)) && crateOf(f.rel) !== "plugin-modules")
     .flatMap(f =>
       importsOf(f)
-        .filter(t => ENTRY_LAYERS.includes(topOf(t)))
+        .filter(t => ENTRY_CRATES.includes(topOf(t)))
         .map(t => `${f.rel} → ${t}`),
     )
   expect([...bad, ...inward]).toEqual([])
 })
 
-// プラグイン API の層（plugin-api/）: index は core・store だけ、ui は ui だけを読み、名前を出し直すだけ（ほかのことを書かない）
-test("プラグイン API の層は、index が core と store、ui が ui、builtin が store だけから名前を出し直す", () => {
-  const api = sources.filter(f => layerOf(f.rel) === "plugin-api")
+// プラグイン API のクレート（plugin-api/）: index は core・store だけ、ui は ui だけを読み、名前を出し直すだけ（ほかのことを書かない）
+test("プラグイン API のクレートは、index が core と store、ui が ui、builtin が store だけから名前を出し直す", () => {
+  const api = sources.filter(f => crateOf(f.rel) === "plugin-api")
   expect(api.map(f => f.rel).sort()).toEqual(["plugin-api/builtin.ts", "plugin-api/index.ts", "plugin-api/ui.ts"])
   const bad = api.flatMap(f => {
     const ok = f.rel === "plugin-api/ui.ts" ? ["ui"] : f.rel === "plugin-api/builtin.ts" ? ["store"] : ["core", "store"]
@@ -257,14 +257,14 @@ const MODULES_ALLOWED = ["plugin-entry", "plugin-entry/ui", "plugin-modules", "r
 const MODULES_READERS = ["engine/engine.ts", "main.tsx"]
 
 test("plugin-modules は入口と React だけを読み、ホストのエンジンと画面の入口だけが読む", () => {
-  const own = sources.filter(f => layerOf(f.rel) === "plugin-modules")
+  const own = sources.filter(f => crateOf(f.rel) === "plugin-modules")
   const bad = own.flatMap(f =>
     importsOf(f)
       .filter(t => !MODULES_ALLOWED.includes(t === "plugin-entry/index" ? "plugin-entry" : t))
       .map(t => `${f.rel} → ${t}`),
   )
   const readers = sources
-    .filter(f => layerOf(f.rel) !== "plugin-modules" && !MODULES_READERS.includes(f.rel))
+    .filter(f => crateOf(f.rel) !== "plugin-modules" && !MODULES_READERS.includes(f.rel))
     .flatMap(f =>
       importsOf(f)
         .filter(t => topOf(t) === "plugin-modules")
@@ -370,10 +370,10 @@ test("core のモジュールで、プラグインとプラグイン API しか�
   for (const f of sources)
     for (const t of importsOf(f)) {
       const key = t.replace(/\/index$/, "")
-      readers.set(key, (readers.get(key) ?? new Set()).add(layerOf(f.rel)))
+      readers.set(key, (readers.get(key) ?? new Set()).add(crateOf(f.rel)))
     }
   const pluginsOnly = sources
-    .filter(f => layerOf(f.rel) === "core")
+    .filter(f => crateOf(f.rel) === "core")
     .map(f => f.rel.replace(/\.tsx?$/, ""))
     .filter(m => {
       const by = [...(readers.get(m) ?? [])]
@@ -385,13 +385,13 @@ test("core のモジュールで、プラグインとプラグイン API しか�
 // ページを替えるのは土台の putPage だけ。プラグイン（ビルトインと見本）はブックを { ...book, pages } で組み直さない（新しいブックを作る create の pages: [] は除く）
 test("プラグインはブックのページを { ...book, pages } で組み直さない（putPage を使う）", () => {
   const rebuild = /\.\.\.\s*\w+\s*,\s*pages\s*(?:[,}]|:(?!\s*\[\s*\]))/
-  const offenders = [...sources.filter(f => layerOf(f.rel) === "plugins"), ...added]
+  const offenders = [...sources.filter(f => crateOf(f.rel) === "plugins"), ...added]
     .filter(f => rebuild.test(f.text))
     .map(f => f.rel)
   expect(offenders).toEqual([])
 })
 
-// Go の側の層（conventions/architecture.md の「Go の側の層」）: internal/ のパッケージは、決めたパッケージだけを読む（テストのファイルは除く）
+// Go のパッケージ（conventions/architecture.md の「Go のパッケージ」）: internal/ のパッケージは、決めたパッケージだけを読む（テストのファイルは除く）
 const GO_ALLOWED: Record<string, readonly string[]> = {
   storage: [],
   plugin: [],
@@ -450,7 +450,7 @@ const kitIdOf = (dir: string): string | null => {
 test("プラグインは自分の物を、自分の id で始まる文字列で名指さない（返した定義の id か kit.name を使う）", () => {
   const files = [
     ...sources
-      .filter(f => layerOf(f.rel) === "plugins" && f.rel.split("/").length > 2)
+      .filter(f => crateOf(f.rel) === "plugins" && f.rel.split("/").length > 2)
       .map(f => ({ ...f, root: join(SRC, pluginRoot(f.rel)) })),
     ...added
       .filter(f => f.rel.split("/")[1] !== "test" && plugins.includes(f.rel.split("/")[0]!)) // 連携ポイントは kit を持たない
@@ -502,7 +502,7 @@ test("拡張ポイントへの書き足しは、base は短い名前、ほかの
   expect(EXTRAS.size).toBeGreaterThan(0)
   const owners = [
     ...sources
-      .filter(f => layerOf(f.rel) === "plugins" && f.rel.split("/").length > 2)
+      .filter(f => crateOf(f.rel) === "plugins" && f.rel.split("/").length > 2)
       .map(f => ({ f, id: kitIdOf(join(SRC, pluginRoot(f.rel))), spec: false })),
     ...added.map(f => {
       const folder = f.rel.split("/")[0]!
@@ -521,4 +521,70 @@ test("拡張ポイントへの書き足しは、base は短い名前、ほかの
   // 見張りが空振りしていない（base・紙・見本の連携ポイントの書き足しを見ている）
   expect(owners.some(({ f }) => augmented(f.text).some(a => EXTRAS.has(a.name)))).toBe(true)
   expect(bad).toEqual([])
+})
+
+// テストの用意の手段（名前が ForTest で終わる物と、Go のビルドタグ e2e）は、テスト（test/・e2e/・e2e の常駐を作るスクリプト）の外から使わない
+describe("テストの用意の手段", () => {
+  const goUnder = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+      e.isDirectory() ? goUnder(join(dir, e.name)) : e.name.endsWith(".go") ? [join(dir, e.name)] : [],
+    )
+  const goAll = ["cmd", "internal"]
+    .flatMap(d => goUnder(join(ROOT, d)))
+    .map(path => ({ rel: relative(ROOT, path), text: readFileSync(path, "utf8") }))
+  const tagged = (text: string, tag: string) => new RegExp(`^//go:build ${tag}$`, "m").test(text)
+  const goFiles = goAll.filter(f => !f.rel.endsWith("_test.go"))
+  const e2eFiles = goFiles.filter(f => tagged(f.text, "e2e"))
+  const offFiles = goFiles.filter(f => tagged(f.text, "!e2e"))
+  const funcsOf = (text: string) =>
+    new Map(
+      [...text.matchAll(/^func (?:\([^)]*\) )?(\w+)\(.*\}$|^func (?:\([^)]*\) )?(\w+)\([\s\S]*?^}$/gm)].map(m => [
+        m[1] ?? m[2]!,
+        m[0],
+      ]),
+    )
+  // 本番の実行ファイルで空になる関数（ビルドタグ !e2e のファイルに置き、同じ名前の中身を e2e のファイルに置く）は、本番のコードから呼んでよい
+  const stubs = new Set(offFiles.flatMap(f => [...f.text.matchAll(/^func (\w+ForTest)\(/gm)].map(m => m[1]!)))
+
+  test("本番のコード（web/src と、e2e のタグの付かない Go のファイル）に、ForTest で終わる名前と for-test のパスを書かない（!e2e の空の関数を呼ぶのは除く）", () => {
+    expect(goFiles.length).toBeGreaterThan(0)
+    const named = (text: string) => [...text.matchAll(/\w+ForTest\b|for-test/g)].some(m => !stubs.has(m[0]))
+    const plain = goFiles.filter(f => !tagged(f.text, "e2e") && !tagged(f.text, "!e2e"))
+    expect([
+      ...sources.filter(f => /\w+ForTest\b|for-test/.test(f.text)).map(f => `web/src/${f.rel}`),
+      ...plain.filter(f => named(f.text)).map(f => f.rel),
+    ]).toEqual([])
+  })
+
+  test("ビルドタグ !e2e のファイルには、中身の無い ForTest の関数だけを置き、同じ名前の関数を e2e のファイルに置く", () => {
+    const inE2e = new Set(e2eFiles.flatMap(f => [...funcsOf(f.text).keys()]))
+    expect(
+      offFiles.flatMap(f =>
+        [...funcsOf(f.text)]
+          .filter(([name, text]) => !name.endsWith("ForTest") || !text.endsWith("{}") || !inE2e.has(name))
+          .map(([name]) => `${f.rel}: ${name}`),
+      ),
+    ).toEqual([])
+    expect(offFiles.filter(f => /for-test/.test(f.text.replace(/^\/\/.*$/gm, ""))).map(f => f.rel)).toEqual([])
+  })
+
+  test("ビルドタグ e2e を付けて組むのは、e2e の常駐を作るスクリプトだけ", () => {
+    const scripts = filesUnder(join(ROOT, "scripts")).map(p => relative(ROOT, p))
+    const places = [...scripts, "package.json", ...readdirSync(ROOT).filter(f => /^playwright.*\.ts$/.test(f))]
+    expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8")))).toEqual(["scripts/e2e-server.ts"])
+  })
+
+  test("e2e のファイルと、同じクレートの Go のテストのファイルの両方にある関数は、同じ中身にする（go test はタグを付けずに流す）", () => {
+    const differ = e2eFiles.flatMap(e => {
+      const mine = funcsOf(e.text)
+      return goAll
+        .filter(t => t.rel.endsWith("_test.go") && dirname(t.rel) === dirname(e.rel))
+        .flatMap(t =>
+          [...funcsOf(t.text)]
+            .filter(([n, body]) => mine.has(n) && mine.get(n) !== body)
+            .map(([n]) => `${t.rel}: ${n}`),
+        )
+    })
+    expect(differ).toEqual([])
+  })
 })

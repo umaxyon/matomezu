@@ -32,7 +32,7 @@ test("マスターで変えた設定は常駐に残り、読み直しても同�
 
 test("置いた箱は少し待って常駐に残り、読み直しても同じ所にある", async ({ page }) => {
   const book = { ...SAMPLE_BOOKS[0]!, id: "e2e-1" }
-  const put = await page.request.put(`/api/books/${book.id}`, { data: { book, base: 0 } })
+  const put = await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })
   expect(put.ok()).toBe(true)
   await page.goto("/")
   await (await drawerTool(page, "箱")).click()
@@ -159,7 +159,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
 }) => {
   const token = aiToken()
   const ai = { Authorization: `Bearer ${token}` }
-  const put = await page.request.put(`/api/books/${LINE_BOOK.id}`, { data: { book: LINE_BOOK, base: 0 } })
+  const put = await page.request.put(`/api/books-for-test/${LINE_BOOK.id}`, { data: { book: LINE_BOOK, base: 0 } })
   expect(put.ok()).toBe(true)
   await page.goto("/")
   await page.bringToFront()
@@ -208,7 +208,7 @@ test("開いているブックとページは URL に入り、読み直しても
   page,
 }) => {
   const book = { ...SAMPLE_BOOKS[1]!, id: "e2e-url" }
-  const put = await page.request.put(`/api/books/${book.id}`, { data: { book, base: 0 } })
+  const put = await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })
   expect(put.ok()).toBe(true)
   await page.goto(`/?b0=${book.id}&p0=p1&v0=1,0,0&c=0&r=0.5`)
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
@@ -226,7 +226,7 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
     ["e2e-locked", "鍵のブック", true],
   ] as const) {
     const book = { ...base, id, title, ...(locked ? { locked: true } : {}) }
-    expect((await page.request.put(`/api/books/${id}`, { data: { book, base: 0 } })).ok()).toBe(true)
+    expect((await page.request.put(`/api/books-for-test/${id}`, { data: { book, base: 0 } })).ok()).toBe(true)
   }
   await page.goto("/")
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
@@ -265,7 +265,9 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
   // 前のテストで置いたロック中のブック（e2e-locked）の最初のページにもロックを掛ける
   const have = (await data(page)).books.find((b: { id: string }) => b.id === "e2e-locked")
   const pages = have.book.pages.map((p: object, i: number) => (i === 0 ? { ...p, locked: true } : p))
-  await page.request.put("/api/books/e2e-locked", { data: { book: { ...have.book, pages }, base: have.version } })
+  await page.request.put("/api/books-for-test/e2e-locked", {
+    data: { book: { ...have.book, pages }, base: have.version },
+  })
   await page.goto("/?b0=e2e-locked")
   await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(2)
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!

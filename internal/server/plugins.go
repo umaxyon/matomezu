@@ -60,6 +60,10 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 		fmt.Fprintln(os.Stderr, "warning:", n)
 	}
 	if err := h.checkBooks(h.order); err != nil {
+		// 確かめ直せなければ、エンジンを前の組に戻す（h.plugins は前のまま）
+		if _, back := h.engine.Use(h.plugins); back != nil {
+			fmt.Fprintln(os.Stderr, "engine: could not go back to the previous plugins:", back)
+		}
 		return err
 	}
 	h.plugins = next

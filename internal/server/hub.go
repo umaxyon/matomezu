@@ -14,6 +14,7 @@ package server
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた画面にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。画面は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
+//	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 
 import (
 	"encoding/json"
@@ -38,6 +39,7 @@ const performedKeys = 1024
 type entry struct {
 	body    json.RawMessage
 	version int64
+	trashed bool // ゴミ箱のブックか（土台のフィールド trashed があるか。覚えるときに 1 度だけ読む）
 }
 
 type event struct {
@@ -94,7 +96,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	}
 	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
 	for _, b := range books {
-		h.books[b.ID] = entry{b.Body, b.Version}
+		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
 	}
 	if err := h.checkBooks(h.order); err != nil {
@@ -115,6 +117,12 @@ func (h *Hub) checkBooks(ids []string) error {
 	if err != nil {
 		return err
 	}
+	h.recordWarnings(ids, found)
+	return nil
+}
+
+// recordWarnings は、ブック ids を確かめた結果 found を一覧に持つ（変わった warning はログに書く。h.mu を持って呼ぶ）
+func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
 	before := map[string]string{}
 	for _, id := range ids {
 		if n, ok := h.bookWarnings[id]; ok {
@@ -128,7 +136,6 @@ func (h *Hub) checkBooks(ids []string) error {
 			fmt.Fprintln(os.Stderr, "warning:", n.Warning)
 		}
 	}
-	return nil
 }
 
 // BookWarnings は warning のあるブックの id → その warning
@@ -154,6 +161,19 @@ func (h *Hub) Data() ([]storage.Book, json.RawMessage) {
 	return books, h.settings
 }
 
+// AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、置いた順に返す
+func (h *Hub) AIBooks() []storage.Book {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	books := make([]storage.Book, 0, len(h.order))
+	for _, id := range h.order {
+		if e := h.books[id]; !e.trashed {
+			books = append(books, storage.Book{ID: id, Body: e.body, Version: e.version})
+		}
+	}
+	return books
+}
+
 // Perform の頼み。Client と Seq は送った画面とその番号（画面の外からなら空）。
 // Key は画面がアクションごとに振る一意の番号（つなぎ直しても変えない）。同じ番号のアクションは二度行わない
 type Perform struct {
@@ -169,7 +189,7 @@ type Perform struct {
 	By     string          `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。画面からは受けない）
 }
 
-// Performed は行った結果（認可ステップが止めたら Permission にそのステップの id、Detail にそのステップの AI への説明）
+// Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
 type Performed struct {
 	OK         bool            `json:"ok"`
 	Reason     string          `json:"reason,omitempty"`
@@ -266,48 +286,10 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 	if !ok {
 		h.order = append(h.order, head.ID)
 	}
-	h.books[head.ID] = entry{body, version}
+	h.books[head.ID] = entry{body, version, trashed(body)}
 	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq})
 	h.touch(head.ID, stamp())
 	return h.checkBooks([]string{head.ID})
-}
-
-// ErrConflict は、置いてある版が添えた版と違うこと
-var ErrConflict = storage.ErrConflict
-
-// UnreadableError は、書こうとしたブックが今の機能台帳で読めない（warning W004〜W006）ので書かなかったこと
-type UnreadableError struct{ Warning string }
-
-func (e UnreadableError) Error() string { return "unreadable: " + e.Warning }
-
-// PutBook はブックを丸ごと置く（読み込みなど、アクションを通さない入口）。置いてある版が base のときだけ書き、知らせる
-func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *storage.Book, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	// 読めないブック（タイプが無い・形に合わない・決まりを守らない）は書かない。一部のプラグインが無いだけ（W007）なら書く
-	found, err := h.engine.CheckBooks([]json.RawMessage{body})
-	if err != nil {
-		return 0, nil, err
-	}
-	for _, n := range found {
-		if n.Unreadable() {
-			return 0, nil, UnreadableError{n.Warning}
-		}
-	}
-	version, have, err := h.store.PutBook(id, body, base)
-	if errors.Is(err, storage.ErrConflict) || err != nil {
-		return 0, have, err
-	}
-	if _, ok := h.books[id]; !ok {
-		h.order = append(h.order, id)
-	}
-	h.books[id] = entry{body, version}
-	h.broadcast("book", map[string]any{"book": body, "version": version})
-	h.touch(id, stamp())
-	if err := h.checkBooks([]string{id}); err != nil {
-		return 0, nil, err
-	}
-	return version, nil, nil
 }
 
 // Join は画面をつなぎ、知らせの通り道を返す。最初の知らせは hello
@@ -450,7 +432,7 @@ var (
 func (h *Hub) Show(s Show) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if e, ok := h.books[s.Book]; !ok || trashed(e.body) {
+	if e, ok := h.books[s.Book]; !ok || e.trashed {
 		return ErrNoBook
 	}
 	c := h.window()
@@ -483,7 +465,7 @@ func (h *Hub) Book(id string) *storage.Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	e, ok := h.books[id]
-	if !ok || trashed(e.body) {
+	if !ok || e.trashed {
 		return nil
 	}
 	return &storage.Book{ID: id, Body: e.body, Version: e.version}
