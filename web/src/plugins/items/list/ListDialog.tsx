@@ -10,15 +10,15 @@
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { refusalMessage } from "../../base"
 import {
   ActionButton,
-  Choices,
+  CaptionField,
   ColorPicker,
   Confirm,
   controlClass,
   Dialog,
   dividerClass,
-  Field,
   Form,
   inlineClass,
   Problem,
@@ -27,7 +27,6 @@ import {
   SelectButton,
   Switch,
   SwitchPanel,
-  useAligns,
   useBookOf,
   useBookTheme,
   useSwatches,
@@ -66,12 +65,12 @@ export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const { select } = useActions()
   const perform = usePerform(stage)
   const add = (props: ListProps) => {
-    if (!book) return false
+    if (!book) return { reason: "no-book" }
     const done = perform("@matomezu/paper:item-place", { page: args.page, item: LIST.id, at: args.at, props })
-    if (!done.ok) return false
+    if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()
-    return true
+    return null
   }
   return (
     <ListDialog
@@ -117,7 +116,7 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
     if (done.ok && rowLines !== undefined && rows.length > 0)
       perform(ROW_LINES.id, { page: args.page, list: args.item, lines: rowLines })
     if (done.ok) onClose()
-    return done.ok
+    return done.ok ? null : done
   }
   return (
     <ListDialog
@@ -154,16 +153,15 @@ function ListDialog({
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
   bookTheme: string | undefined
   ready: boolean
-  onSubmit: (props: ListProps, rowLines?: RowsLines) => boolean // 決められたか
+  onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
   onPreview?: (look: Look | null, rowLines?: RowsLines) => void // テーマ・色・チェックリスト・行の色分け・行の高さを選んだ（元の値に戻せば null）
   onClose: () => void
 }) {
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const [caption, setCaption] = useState(start.caption)
-  const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
-  const aligns = useAligns()
+  const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
+  const { caption, captionAlign } = head
   const [theme, setTheme] = useState(start.theme ?? "")
   const [color, setColor] = useState(start.color)
   const [checklist, setChecklist] = useState(start.checklist)
@@ -171,7 +169,7 @@ function ListDialog({
   const [checkedGray, setCheckedGray] = useState(start.checkedGray)
   const [checkedOrder, setCheckedOrder] = useState(start.checkedOrder)
   const [confirming, setConfirming] = useState(false)
-  const [refused, setRefused] = useState(false)
+  const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
   const [pick, setPick] = useState<number | "max">("max")
   const swatches = useSwatches(theme || bookTheme, LIST_FILL)
@@ -223,32 +221,24 @@ function ListDialog({
       <Form
         id={form}
         ready={ready && !confirming}
-        onSubmit={() =>
-          setRefused(
-            !onSubmit(
-              {
-                caption,
-                captionAlign,
-                checklist,
-                zebra,
-                checkedGray,
-                checkedOrder,
-                ...(theme ? { theme } : {}),
-                ...(color ? { color } : {}),
-              },
-              rowLines,
-            ),
+        onSubmit={() => {
+          const no = onSubmit(
+            {
+              caption,
+              captionAlign,
+              checklist,
+              zebra,
+              checkedGray,
+              checkedOrder,
+              ...(theme ? { theme } : {}),
+              ...(color ? { color } : {}),
+            },
+            rowLines,
           )
-        }
+          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+        }}
       >
-        <Field
-          label={t("Caption")}
-          aside={
-            <Choices label={t("Caption alignment")} value={captionAlign} options={aligns} onChange={setCaptionAlign} />
-          }
-        >
-          {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
-        </Field>
+        <CaptionField text={head} onChange={setHead} />
         <div className={inlineClass}>
           <label className={pairClass}>
             <span>{t("Theme")}</span>
@@ -331,7 +321,7 @@ function ListDialog({
             </div>
           </Section>
         )}
-        {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
+        {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
   )

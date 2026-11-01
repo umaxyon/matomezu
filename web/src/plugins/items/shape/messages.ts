@@ -13,8 +13,6 @@ export const SHAPE_MESSAGES = defineMessages({
   Circle: { en: "Circle", ja: "円" },
   "Add shape": { en: "Add shape", ja: "形の追加" },
   "Edit shape": { en: "Edit shape", ja: "形の編集" },
-  Caption: { en: "Caption", ja: "キャプション" },
-  "Caption alignment": { en: "Caption alignment", ja: "キャプションの寄せ" },
   Color: { en: "Color", ja: "色" },
   Cancel: { en: "Cancel", ja: "キャンセル" },
   Add: { en: "Add", ja: "追加" },

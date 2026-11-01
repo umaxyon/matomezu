@@ -31,7 +31,7 @@ import {
   togglePicked,
 } from "./draft"
 import { kit } from "./kit"
-import { type TextDraft, TextFields } from "./TextFields"
+import { type DataTextDraft, TextFields } from "./TextFields"
 import type { ColumnType } from "./table"
 
 export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
@@ -39,7 +39,7 @@ export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: str
   const perform = usePerform(stage)
   if (!placed) return null
   // 見た目と文字の項目を書いてから表を入れ替え（表の見た目なら、大きさが表と文字に合う）、data-set が返した列と行の id で軸を書く（1 回の操作）
-  const save = (d: Draft, a: AxesDraft, text: TextDraft) => {
+  const save = (d: Draft, a: AxesDraft, text: DataTextDraft) => {
     const set = draftArgs(d)
     if (!set) return false
     const at = { page: args.page, item: args.item }
@@ -73,7 +73,7 @@ export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: str
 }
 
 // 文字の領域の項目の下書き
-const textDraftOf = (p: TextDraft): TextDraft => ({
+const textDraftOf = (p: DataTextDraft): DataTextDraft => ({
   caption: p.caption,
   rule: p.rule,
   body: p.body,
@@ -92,9 +92,9 @@ function DataDialog({
 }: {
   start: Draft
   startAxes: AxesDraft
-  startText: TextDraft
+  startText: DataTextDraft
   stage: string
-  onSubmit: (d: Draft, a: AxesDraft, text: TextDraft) => boolean // 決められたか
+  onSubmit: (d: Draft, a: AxesDraft, text: DataTextDraft) => boolean // 決められたか
   onClose: () => void
 }) {
   const t = useMessages(kit)

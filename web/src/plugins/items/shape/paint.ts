@@ -1,14 +1,8 @@
-// 形の色（color）を塗る CSS 変数: 形の塗りと文字のテーマキー（--shape-fill・--shape-text）を上書きする。線はテーマのまま。
-// 代表色の名前は、ブックのテーマの代表色のテーマキー（palette.<役割>）とその上の文字の色を指す。
-// #rrggbb はその色で塗り、暗い色なら文字を白にする
-import { isLight, isPaletteName, themeVar } from "../../../plugin-api"
+// 形の色（color）を塗る CSS 変数: 形の塗りと文字のテーマキー（--shape-fill・--shape-text）を、色の塗りと文字の色（base の colorPaint）で上書きする。線はテーマのまま
+import { colorPaint } from "../../base"
 
 export function paintVars(color: string | undefined): Record<string, string> | undefined {
   if (color === undefined) return undefined
-  if (isPaletteName(color))
-    return {
-      "--shape-fill": themeVar(`palette.${color}`),
-      "--shape-text": themeVar(`palette.${color}.ink`),
-    }
-  return { "--shape-fill": color, ...(isLight(color) ? {} : { "--shape-text": "#ffffff" }) }
+  const { fill, ink } = colorPaint(color)
+  return { "--shape-fill": fill, ...(ink ? { "--shape-text": ink } : {}) }
 }

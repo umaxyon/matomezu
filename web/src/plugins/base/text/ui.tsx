@@ -7,6 +7,7 @@ export { RichBar } from "./RichBar"
 export { RichBody } from "./RichBody"
 export { RichInput, type RichInputHandle } from "./RichInput"
 export { RichText } from "./RichText"
+export { BodyField, CaptionField, DividerField, type TextDraft } from "./TextBlockFields"
 export { TextBlockView } from "./TextBlockView"
 
 export const TEXT_SETTING_VIEWS = { [BOOK_TEXT_COLORS.id]: { control: TextColorsSetting } }

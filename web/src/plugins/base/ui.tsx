@@ -54,7 +54,18 @@ export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeV
 export { useDrawnMinimap } from "./minimap/drawn"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { UserSettings } from "./settings/ui"
-export { RichBar, RichBody, RichInput, type RichInputHandle, RichText, TextBlockView } from "./text/ui"
+export {
+  BodyField,
+  CaptionField,
+  DividerField,
+  RichBar,
+  RichBody,
+  RichInput,
+  type RichInputHandle,
+  RichText,
+  TextBlockView,
+  type TextDraft,
+} from "./text/ui"
 export * from "./utils/ui"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 

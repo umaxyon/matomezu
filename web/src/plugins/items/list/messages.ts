@@ -34,13 +34,8 @@ export const LIST_MESSAGES = defineMessages({
   Add: { en: "Add", ja: "追加" },
   OK: { en: "OK", ja: "確定" },
   Cancel: { en: "Cancel", ja: "キャンセル" },
-  Caption: { en: "Caption", ja: "キャプション" },
-  "Caption alignment": { en: "Caption alignment", ja: "キャプションの寄せ" },
   Theme: { en: "Theme", ja: "テーマ" },
   Color: { en: "Color", ja: "色" },
   "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に収まりません" },
-  Divider: { en: "Divider", ja: "区切り線" },
-  Body: { en: "Body", ja: "本文" },
-  "Body alignment": { en: "Body alignment", ja: "本文の寄せ" },
   "Book's theme": { en: "Book's theme", ja: "ブックを継承" },
 })
