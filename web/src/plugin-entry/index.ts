@@ -93,6 +93,8 @@ export {
   TEXT_LOOK,
   textBlock,
   textBlockHeight,
+  textColorId,
+  textColorRef,
   textNew,
   textPatch,
   textProps,

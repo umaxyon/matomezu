@@ -15,6 +15,12 @@ function filesUnder(dir: string): string[] {
   })
 }
 
+// dir の下の、名前が ext で終わるファイル
+const filesEnding = (dir: string, ext: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+    e.isDirectory() ? filesEnding(join(dir, e.name), ext) : e.name.endsWith(ext) ? [join(dir, e.name)] : [],
+  )
+
 const sources = filesUnder(SRC).map(path => ({ path, rel: relative(SRC, path), text: readFileSync(path, "utf8") }))
 const crateOf = (rel: string) => rel.split("/")[0]!
 
@@ -56,6 +62,14 @@ const apiAllowed = (rel: string) => (t: string) =>
   t === "zod" ||
   (isView(rel) && ["plugin-api/ui", "react", "react-dom"].includes(t))
 
+// web/src の直下は、architecture の表のクレートと、直下に置くファイル（画面の入口・見本のブック・CSS の型の宣言）だけ。
+// 表に無いクレートは「依存の向き」が見ないので、足したら表と ALLOWED（か入口の見張り）を決める
+const CRATES = [...Object.keys(ALLOWED), "plugins", "plugin-entry", "testing", "plugin-modules"]
+const ROOT_FILES = ["main.tsx", "sample-books.ts", "css.d.ts"]
+test("web/src の直下は、決めたクレートとファイルだけ", () => {
+  expect(readdirSync(SRC).sort()).toEqual([...CRATES, ...ROOT_FILES].sort())
+})
+
 describe("依存の向き", () => {
   for (const file of sources) {
     const crate = crateOf(file.rel)
@@ -91,6 +105,17 @@ describe("依存の向き", () => {
       expect(targets.filter(t => (local(t) ? !allowed(topOf(t)) : !allowed(t)))).toEqual([])
     })
   }
+})
+
+test("ホストのエンジンが読むプラグインは、ビルトインの一覧と各プラグインの入口だけ（中のファイルは、そのプラグインが組み直してよい所）", () => {
+  const bad = sources
+    .filter(f => crateOf(f.rel) === "engine")
+    .flatMap(f =>
+      importsOf(f)
+        .filter(t => topOf(t) === "plugins" && t !== "plugins" && t !== pluginRoot(t) && t !== `${pluginRoot(t)}/index`)
+        .map(t => `${f.rel} → ${t}`),
+    )
+  expect(bad).toEqual([])
 })
 
 test("ブックのタイプの名前で振る舞いを分けない（使えるかは、タイプが選んだものと宣言で決める）", () => {
@@ -144,8 +169,14 @@ test("error は error の表（core/errors.ts）の番号で投げる（ほか�
 })
 
 test("ソースに、その時の状況でしか意味を持たない言葉を書かない", () => {
-  const words = /新基盤|オーバーホール|仮の|とりあえず|暫定|旧版|前の作り/
-  const files = [...sources, ...filesUnder(join(ROOT, "test")), ...filesUnder(join(ROOT, "e2e"))]
+  const words = /新基盤|オーバーホール|仮の|とりあえず|暫定|旧版|前の作り|今まで通り|今までどおり/
+  const files = [
+    ...sources,
+    ...filesUnder(join(ROOT, "test")),
+    ...filesUnder(join(ROOT, "e2e")),
+    ...filesEnding(SRC, ".css"),
+    ...["cmd", "internal", "web"].flatMap(d => filesEnding(join(ROOT, d), ".go")),
+  ]
     .map(f => (typeof f === "string" ? { rel: relative(ROOT, f), text: readFileSync(f, "utf8") } : f))
     .filter(f => !f.rel.endsWith("rules.test.ts"))
   // 決まりはコメントのもの。画面に出す文言で、その言葉を使うと決めたものは見ない
@@ -401,6 +432,20 @@ const GO_ALLOWED: Record<string, readonly string[]> = {
   home: [],
   browser: [],
 }
+
+test("Go のパッケージは internal の下と、実行ファイルの入口（cmd/matomezu）と埋め込みの画面（web）だけ。web は internal を読まない", () => {
+  const tops = readdirSync(ROOT, { withFileTypes: true })
+    .filter(e => e.isDirectory() && !e.name.startsWith(".") && !["node_modules", "internal"].includes(e.name))
+    .map(e => e.name)
+  const outside = [
+    ...new Set(tops.flatMap(d => filesEnding(join(ROOT, d), ".go")).map(f => relative(ROOT, dirname(f)))),
+  ].sort()
+  expect(outside).toEqual(["cmd/matomezu", "web"])
+  const bad = filesEnding(join(ROOT, "web"), ".go").filter(f =>
+    /"github\.com\/umaxyon\/matomezu\/internal\//.test(readFileSync(f, "utf8")),
+  )
+  expect(bad).toEqual([])
+})
 
 test("Go の internal のパッケージは、決めたパッケージだけを読む", () => {
   const internal = join(ROOT, "internal")

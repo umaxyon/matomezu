@@ -99,6 +99,8 @@ export {
   type RichLine,
   type Run,
   richWidth,
+  textColorId,
+  textColorRef,
   wrapRich,
 } from "./text"
 export {

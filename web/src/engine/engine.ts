@@ -14,7 +14,7 @@ import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/sett
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
-import { textColorRef } from "../plugins/base/text/rich"
+import { textColorRef } from "../plugins/base"
 import { MASTER_BOOK } from "../plugins/books/master"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
