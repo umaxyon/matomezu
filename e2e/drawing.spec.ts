@@ -641,6 +641,22 @@ test("「ページの設定」で紙を A3 にすると紙が大きくなる。�
   await expect.poll(async () => (await surface.boundingBox())!.width).toBeGreaterThan(before.width)
 })
 
+test("「ページの設定」で可変ページにすると、右と下に空きの印刷区画が出て、区切りの破線が引かれる", async ({ page }) => {
+  await page.goto("/")
+  const surface = page.locator("[data-paper-surface]")
+  const before = (await surface.boundingBox())!
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByRole("switch", { name: "可変ページにする" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "2x2")
+  await expect(page.locator("[data-print-areas] line")).toHaveCount(2)
+  await expect.poll(async () => Math.round((await surface.boundingBox())!.width / before.width)).toBe(2)
+})
+
 test("箱の右の辺を右の箱へ向けて広げると、手を離したときに右の箱が押されて右へずれる", async ({ page }) => {
   await page.goto("/")
   for (const [x, caption] of [
