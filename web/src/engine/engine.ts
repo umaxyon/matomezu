@@ -126,7 +126,7 @@ function aiCatalog(of: Assembled = assembled) {
       title: en(t.title),
       creatable: !t.single, // book-create で作れるか（1 冊だけのタイプは作れない）
       pages: t.pages !== null,
-      grow: t.pages?.paper.grow ?? null, // ページが伸びられる向き（both は右と下、down は下だけ。null は可変ページを作れない）
+      grow: t.pages?.paper.grow ?? null, // ページが伸びられる向き（all は上下左右、both は右と下、down は下だけ。null は可変ページを作れない）
       items: t.items.allowed, // ページに置けるアイテム
     })),
     items: [...catalog.items.values()].map(i => ({

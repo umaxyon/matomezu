@@ -182,3 +182,21 @@ test("見せ方が知らせた広さ（可変ページ）は、紙の枠とず�
   const a3 = { ...book, pages: [{ ...book.pages[0]!, paper: "@matomezu/base:a3" }] }
   expect(areaOf(followBook(CORE_CATALOG, grown, a3))).toEqual(paperOf(followBook(CORE_CATALOG, grown, a3)))
 })
+
+test("開いているページの中身をずらした（ページの shift が変わった）なら、中身が同じ所に見えるようパンを合わせ、知らせた広さも先に広げる", () => {
+  const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
+  const book = { type: "@matomezu/drawing:drawing" as const, id: "b1", title: "見本", pages: [page] }
+  const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
+  const view = { w: 400, h: 300 }
+  const start = setArea(resize(openBook(CORE_CATALOG, newStage("s1"), book), view), { w: sheet.w * 3, h: sheet.h * 3 })
+  const at = panBy(start, -sheet.w, -sheet.h) // 2 つ目の印刷区画の左上あたりを見ている
+  // 右へ 1 区画、下へは動かさずにずらす
+  const shifted = followBook(CORE_CATALOG, at, { ...book, pages: [{ ...page, shift: { x: 1, y: 0 } }] })
+  expect(shifted.pan).toEqual({ x: at.pan.x - sheet.w, y: at.pan.y })
+  expect(areaOf(shifted)).toEqual({ w: sheet.w * 4, h: sheet.h * 3 })
+  // 詰めて戻せば、パンも戻る
+  const back = followBook(CORE_CATALOG, shifted, book)
+  expect(back.pan).toEqual(at.pan)
+  // ずらしていなければ同じ値
+  expect(followBook(CORE_CATALOG, back, book)).toBe(back)
+})

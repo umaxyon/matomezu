@@ -9,18 +9,23 @@ import type { ItemId } from "./catalog"
 import type { BookTypeId, CoreCatalog } from "./core-catalog"
 import type { Point, Size } from "./geom"
 import { type ResolvedPaper, resolvePaper } from "./paper"
-import type { Book } from "./schema/book"
+import type { Book, Page } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
 // 開いているブック。ブックのタイプと、開いたページの紙を写して持つ（開くときに決まる）。
-// area は、見せ方が描く広さ（可変ページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない
+// area は、見せ方が描く広さ（可変ページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない。
+// shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）
 export interface Opened {
   type: BookTypeId
   book: string // ブックの id
   page: string | null // 開いているページの id（ページを持たないタイプと、ページが無いブックは null）
   paper: ResolvedPaper | null // 開いているページの描く紙（ページを開いていなければ null）
   area?: Size
+  shift?: Point
 }
+
+// ページの中身をずらした量（印刷区画の数。ずらしていなければ持たない）
+const shiftOf = (page: Page | undefined): { shift?: Point } => (page?.shift ? { shift: page.shift } : {})
 
 export interface Stage {
   id: string
@@ -123,6 +128,7 @@ export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage 
     book: book.id,
     page: first?.id ?? null,
     paper: first ? resolvePaper(catalog, first) : null,
+    ...shiftOf(first),
   }
   return settle(leave({ ...stage, opened }), HOME)
 }
@@ -132,22 +138,38 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, pa
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found || o.page === page) return stage
-  const opened = { type: o.type, book: o.book, page, paper: resolvePaper(catalog, found) }
+  const opened = { type: o.type, book: o.book, page, paper: resolvePaper(catalog, found), ...shiftOf(found) }
   return settle(leave({ ...stage, opened }), HOME)
 }
 
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
 // 無くなっていれば隣のページ（変わる前のブック before で後ろにあったページ、無ければ前のページ。before が無ければ最初のページ。ページが無ければ開かない）。
-// ページが変わったときだけ、ずらす量を最初の位置に戻し、選択を捨てる。そのブックを開いていなければ、同じ値を返す
+// ページが変わったときだけ、ずらす量を最初の位置に戻し、選択を捨てる。同じページで紙も同じまま中身をずらした（ページの shift が変わった）なら、
+// 中身が画面の同じ所に見えるよう、ずらした分だけパンを合わせ、見せ方が知らせた広さもその分だけ先に変える（知らせ直す前に範囲に収め直して打ち消さないように）。
+// そのブックを開いていなければ、同じ値を返す
 export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const o = stage.opened
   if (!o || o.book !== book.id || !hasPages(book)) return stage
   const found = book.pages.find(p => p.id === o.page) ?? neighbourOf(book, o.page, before)
   const page = found?.id ?? null
   const paper = found ? resolvePaper(catalog, found) : null
-  if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) return stage
+  if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) {
+    const was = o.shift ?? HOME
+    const now = found?.shift ?? HOME
+    const sheet = paperOf(stage)
+    if (was.x === now.x && was.y === now.y) return stage
+    const { shift: _, area, ...rest } = o
+    const dx = sheet ? (now.x - was.x) * sheet.w : 0
+    const dy = sheet ? (now.y - was.y) * sheet.h : 0
+    const opened = {
+      ...rest,
+      ...shiftOf(found),
+      ...(area ? { area: { w: area.w + dx, h: area.h + dy } } : {}),
+    }
+    return settle({ ...stage, opened }, { x: stage.pan.x - dx * stage.zoom, y: stage.pan.y - dy * stage.zoom })
+  }
   // 紙が変われば、見せ方が知らせた広さは捨てる（知らせ直すまで紙 1 枚）
-  const opened = { type: o.type, book: o.book, page, paper }
+  const opened = { type: o.type, book: o.book, page, paper, ...shiftOf(found) }
   return page === o.page ? settle({ ...stage, opened }, stage.pan) : settle(leave({ ...stage, opened }), HOME)
 }
 
