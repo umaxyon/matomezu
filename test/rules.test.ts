@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, relative, resolve } from "node:path"
+import { CORE_CATALOG } from "./support"
 
 const ROOT = resolve(import.meta.dir, "..")
 const SRC = join(ROOT, "web/src")
@@ -67,11 +68,6 @@ describe("依存の向き", () => {
       test(file.rel, () => {
         const bad = targets.filter(t => {
           if (t.endsWith(".css")) return !isView(file.rel)
-          if (
-            ["ui/store-context", "plugin-api", "plugin-api/ui", "plugin-api/builtin"].includes(t) &&
-            own !== "plugins/base"
-          )
-            return !pluginAllowed(file.rel)(t)
           if (!local(t)) return !pluginAllowed(file.rel)(t)
           if (topOf(t) !== "plugins") return !pluginAllowed(file.rel)(topOf(t))
           // 同じプラグインの中（下のフォルダも含む）か、base の入口（index・ui）だけ。見た目でないファイルは見た目を読まない
@@ -106,6 +102,33 @@ test("ブックのタイプの名前で振る舞いを分けない（使える�
 test("状態を変えるのは store の中だけ（画面は setState を使わない）", () => {
   const offenders = sources.filter(f => crateOf(f.rel) !== "store" && /\bsetState\b/.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])
+})
+
+test("土台（core・store・ui）は、プラグインのアクションの id を名指さない", () => {
+  const actions = new Set(CORE_CATALOG.actions.keys())
+  const offenders = sources
+    .filter(f => ["core", "store", "ui"].includes(crateOf(f.rel)))
+    .flatMap(f =>
+      [...f.text.replace(/\/\/.*$/gm, "").matchAll(/["'`](@[a-z0-9-]+\/[a-z0-9-]+:[a-z0-9-]+)["'`]/g)]
+        .filter(m => actions.has(m[1]! as never))
+        .map(m => `${f.rel}: ${m[1]}`),
+    )
+  expect(offenders).toEqual([])
+})
+
+test("型の書き足し（declare module）は core/catalog.ts そのもの（見本は matomezu/catalog）に向ける", () => {
+  const CATALOG = join(SRC, "core/catalog")
+  const bad = [...sources, ...added].flatMap(f =>
+    [...f.text.matchAll(/declare module\s+["']([^"']+)["']/g)]
+      .map(m => m[1]!)
+      .filter(target => {
+        if (target.startsWith("*.")) return !f.path.endsWith("css.d.ts")
+        if (target === "matomezu/catalog") return false
+        return !target.startsWith(".") || resolve(dirname(f.path), target) !== CATALOG
+      })
+      .map(target => `${relative(ROOT, f.path)} → ${target}`),
+  )
+  expect(bad).toEqual([])
 })
 
 test("外の世界（通信・保存・URL・クリップボード）に触るのはホストクライアントだけ", () => {
@@ -179,6 +202,17 @@ const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
     t === "plugin-api/ui" || t === "plugins/base/ui" || t === "plugins/base/utils/ui" || t === "plugins/ui",
   "testing/index.ts": t => ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui",
 }
+
+test("プラグイン API の入口は、ビルトインの一覧（plugins・plugins/ui）を型だけ読む（値で読むと、ビルトインの全部が入口に入る）", () => {
+  const bad = sources
+    .filter(f => f.rel.startsWith("plugin-entry/"))
+    .flatMap(f =>
+      readsOf(f.text)
+        .filter(r => !r.typeOnly && ["plugins", "plugins/ui"].includes(relative(SRC, resolve(dirname(f.path), r.spec))))
+        .map(r => `${f.rel} → ${r.spec}`),
+    )
+  expect(bad).toEqual([])
+})
 
 test("外に見せる入口は、決めたクレートだけを読み、中のコードは入口を読まない", () => {
   const entries = sources.filter(f => ENTRY_CRATES.includes(crateOf(f.rel)))
@@ -288,12 +322,14 @@ test("追加プラグインの見本はプラグイン API と連携ポイント
         if (s.startsWith(".")) {
           const target = relative(ADDED, resolve(dirname(f.path), s))
           if (target.split("/")[0] !== own) return true
-          return s.endsWith(".css") && !view
+          // 見た目でないファイルは、自分の見た目（.tsx と ui.ts）も CSS も読まない（engine の入口が React を読まないように）
+          const targetIsView = isView(target) || added.some(a => a.rel === `${target}.tsx`)
+          return !view && !isTest && (s.endsWith(".css") || targetIsView)
         }
-        const always = ["matomezu", "matomezu/catalog"] // zod も matomezu から読む
         const forViews = ["matomezu/ui", "react"]
         const forTests = ["matomezu/testing", "matomezu/ui", "bun:test", "@testing-library/react"]
-        if (always.includes(s)) return false
+        if (s === "matomezu") return false // zod も matomezu から読む
+        if (s === "matomezu/catalog") return !typeOnly // 型の書き足しの先（ホストの実物の表に無いので、値では読めない）
         if (named(specs, s)) return !typeOnly // 連携ポイントは型だけ
         if (isTest) return !(forTests.includes(s) || named(answers(own!), s))
         return !(forViews.includes(s) && view)
