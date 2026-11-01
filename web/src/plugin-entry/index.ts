@@ -55,6 +55,7 @@ export {
   frameAround,
   frameOf,
   gapOf,
+  grownArea,
   growOf,
   inPaper,
   itemSize,

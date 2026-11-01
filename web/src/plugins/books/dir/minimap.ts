@@ -8,7 +8,7 @@ export function dirMinimap(catalog: CoreCatalog, page: ItemPage): MinimapMark[] 
   const root = DirFolderSchema.safeParse("root" in page ? page.root : undefined)
   const paper = paperSize(catalog, page)
   if (!root.success || !paper) return []
-  const laid = layoutDir(root.data, paper)
+  const laid = layoutDir(root.data, paper, undefined, page.grows === true)
   return [
     ...laid.lines.map((l): MinimapMark => ({ kind: "polyline", points: [l.from, l.to] })),
     ...laid.rows.map((r): MinimapMark => ({ kind: "rect", x: r.x, y: r.y + 4, w: r.w, h: r.h - 8, rx: 2 })),

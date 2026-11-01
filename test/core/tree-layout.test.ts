@@ -224,3 +224,22 @@ test("節のキャプションの標準は普通の太さで、**…** の所だ
   expect(editEnd(root, "a", "****")).toEqual({ kind: "remove" })
   expect(editEnd(root, "a", "**子**")).toEqual({ kind: "child", caption: "**子**" })
 })
+
+test("可変ページでは、紙 1 枚に入る木は可変ページでないときと同じ位置に置き、あふれた向きは木の左端を紙の辺から MARGIN の所へ寄せて、入るとする", () => {
+  const small = { w: 300, h: 200 }
+  const wide = {
+    id: "r",
+    caption: "根",
+    children: Array.from({ length: 8 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` })),
+  }
+  // 入る木は、可変ページでないときと同じ位置
+  expect(layoutTree(family, "down", PAPER, DEFAULT_NODE_SIZE, undefined, true)).toEqual(
+    layoutTree(family, "down", PAPER),
+  )
+  expect(layoutTree(wide, "down", small).fits).toBe(false)
+  const grown = layoutTree(wide, "down", small, DEFAULT_NODE_SIZE, undefined, true)
+  expect(grown.fits).toBe(true)
+  expect(Math.min(...grown.nodes.map(n => n.x))).toBe(MARGIN)
+  // 下へは、あふれていなければ動かさない（根は上辺から MARGIN）
+  expect(at(grown, "r").y).toBe(MARGIN)
+})
