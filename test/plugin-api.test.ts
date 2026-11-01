@@ -114,6 +114,8 @@ test("matomezu が出す名前", () => {
     "shownRects",
     "textBlock",
     "textBlockHeight",
+    "textColorId",
+    "textColorRef",
     "textNew",
     "textPatch",
     "textProps",

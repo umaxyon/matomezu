@@ -10,7 +10,7 @@
 | `store` | 状態（Zustand）・コマンド・ダイアログの表・プラグインの組み立て | `core`・`store`・zustand |
 | `ui` | 画面の根と、プラグインが使う画面の口。画面に出る物は置かない | `core`・`store`・`ui`・React・zustand |
 | `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）と外の世界（通信・保存・URL・クリップボード）に頼む口 | `core`・`store`・`host-client`・zod |
-| `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`・`plugin-modules`・zod |
+| `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`（ビルトインの一覧と、各プラグインの入口だけ）・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
 | `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーの割り当てでビルトインを先に扱う）と、組み立てのときの確かめ（`checks`）を書く `CatalogCheck`・`problem`・`warning`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
 | `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（base の入口の名前を、一つずつ書いて出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
@@ -65,7 +65,7 @@
 ## error
 
 - 投げる error は `core/errors.ts` の表に番号（E と 3 桁）と文を書き、`problem`・`fail` で作る。ほかで `new Error` を作らない
-- 番号は一度付けたら変えず、消した番号も使い回さない。範囲は E0xx 定義の組の食い違い、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン
+- 番号は一度付けたら変えず、消した番号も使い回さない。範囲は E0xx 定義の組の食い違い、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン、E4xx 外の世界とのやり取り
 - 文は開発者向けの英語で、画面には出さない
 - アクションが断る理由（`unknown`・`not-allowed` など）は結果であって error ではないので、表に入れない
 

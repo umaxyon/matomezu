@@ -222,7 +222,7 @@ test("リストのキャプションも、箱と同じく左・中央・右に�
   await expect(head).toHaveCSS("text-align", "left")
 })
 
-test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは今まで通り。ハンドツールの間は行を運ばず、行の高さも変えず、紙がずれる。ダブルクリックでダイアログも開かない", async ({
+test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは行のドラッグにならない（ダブルクリックは行の編集を開く）。ハンドツールの間は行を運ばず、行の高さも変えず、紙がずれる。ダブルクリックでダイアログも開かない", async ({
   page,
 }) => {
   await page.goto("/")
@@ -257,7 +257,7 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   await drag({ x: moving.x + 40, y: moving.y + 10 }, { x: target.x + 40, y: target.y + 10 })
   await expect(rows(first)).toHaveText(["三", "二"])
   await expect(rows(second)).toHaveText(["一"])
-  // ダブルクリックは行の編集のまま
+  // ダブルクリックは行の編集を開く
   await rows(second).first().dblclick()
   const edit = page.getByRole("dialog", { name: "行の編集" })
   await expect(edit).toBeVisible()
