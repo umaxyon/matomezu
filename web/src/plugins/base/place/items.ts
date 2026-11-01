@@ -22,6 +22,7 @@ import {
 import type { Book } from "../../../core/schema/book"
 import { type PageContext, settingsAt } from "../book-settings"
 import { contentIdMaker } from "../utils/ids"
+import { grownArea } from "./grow"
 import { connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, tidyConnectors as tidyItems } from "./placed"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
@@ -207,6 +208,21 @@ export function fitsPaper(at: Point, size: Size, paper: Size): boolean {
 export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
   const paper = resolvePaper(catalog, page)
   return paper.status === "unshowable" ? null : paper.size
+}
+
+// ブック book のページ page の広さ: 伸びないページは紙 1 枚。伸びるページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
+// （spare なら伸びる向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
+export function pageArea(
+  catalog: CoreCatalog,
+  book: Book,
+  page: ItemPage & { grows?: true },
+  spare = false,
+): { columns: number; rows: number; size: Size } | null {
+  const paper = paperSize(catalog, page)
+  if (!paper) return null
+  const grow = page.grows ? catalog.bookTypes.get(book.type)?.pages?.paper.grow : undefined
+  if (!grow) return { columns: 1, rows: 1, size: paper }
+  return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, book, page)), spare)
 }
 
 // ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
