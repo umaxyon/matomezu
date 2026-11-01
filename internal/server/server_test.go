@@ -500,7 +500,7 @@ func TestRefusedActionChangesNothing(t *testing.T) {
 	next(t, a)
 	code, body := send(t, "POST", s.URL+"/api/perform",
 		`{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"gone","props":{}},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`, nil)
-	if code != 200 || body != `{"ok":false,"reason":"refused"}` {
+	if code != 200 || !strings.HasPrefix(body, `{"ok":false,"reason":"refused","detail":`) {
 		t.Fatalf("perform = %d %s", code, body)
 	}
 	if got := next(t, a); got != `ack {"ok":false,"reason":"refused","seq":1}` {
@@ -587,7 +587,7 @@ func TestAICannotRestoreOrPurge(t *testing.T) {
 		`{"action":"@matomezu/base:book-purge","args":{"books":["b1"]}}`,
 		`{"action":"@matomezu/base:trash-empty","args":{}}`,
 	} {
-		if _, got := send(t, "POST", s.URL+"/api/ai/perform", req, ai); got != `{"ok":false,"reason":"not-allowed"}` {
+		if _, got := send(t, "POST", s.URL+"/api/ai/perform", req, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"not-allowed","detail":`) {
 			t.Fatalf("ai %s = %s", req, got)
 		}
 	}
@@ -621,10 +621,10 @@ func TestAICanLockButNotUnlock(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-lock"`+on, ai); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("lock = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"}}`, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"the book or a page it would change is locked`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"}}`, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"by @matomezu/base:lock: the book or a page it would change is locked`) {
 		t.Fatalf("update = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-unlock"`+on, ai); got != `{"ok":false,"reason":"not-allowed"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-unlock"`+on, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"not-allowed","detail":`) {
 		t.Fatalf("ai unlock = %s", got)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-unlock","lang":"ja"`+on, nil); got != `{"ok":true,"result":{}}` {

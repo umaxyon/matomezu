@@ -45,17 +45,30 @@ interface Input {
 }
 
 // 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック。
-// 認可ステップが止めたら（denied）、permission にそのステップの id、detail にそのステップの AI への説明。
-// 利用者の設定の項目で使えなければ（not-allowed）、detail にその項目と理由
+// 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
   | { ok: true; result: unknown; books: Book[]; removed: string[]; settings?: unknown }
   | { ok: false; reason: string; permission?: string; detail?: string }
 
 declare const crypto: { randomUUID(): string }
 
+// 理由ごとの AI への説明
+const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> = {
+  unknown: "there is no action with that id (see actions)",
+  "bad-args": "the args do not match the action's args (see actions)",
+  "not-allowed": "this book's type (or, for the library and the settings, the home book's type) does not allow it",
+  refused: "the action's rules refuse it (for example the page or item does not exist); read_book to check",
+  denied: "a permission step stopped it",
+  "no-book": "there is no book with that id (see list_books)",
+}
+
 // 断りに、AI への説明を添える
 function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>): Output {
-  if ("permission" in done) return { ...done, detail: catalog.permissions.get(done.permission)?.aiDescription }
+  if ("permission" in done)
+    return {
+      ...done,
+      detail: `by ${done.permission}: ${catalog.permissions.get(done.permission)?.aiDescription ?? AI_REFUSALS.denied}`,
+    }
   if ("setting" in done && done.setting !== undefined) {
     const detail =
       done.because === "user-only"
@@ -63,7 +76,7 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
         : `the home book's type keeps the setting ${done.setting} fixed`
     return { ok: false, reason: done.reason, detail }
   }
-  return done
+  return { ok: false, reason: done.reason, detail: AI_REFUSALS[done.reason] }
 }
 
 function perform(input: Input): Output {

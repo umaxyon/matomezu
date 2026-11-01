@@ -151,17 +151,13 @@ func perform(api API, args map[string]any) (string, bool) {
 		return err.Error(), true
 	}
 	var done struct {
-		OK         bool            `json:"ok"`
-		Reason     string          `json:"reason"`
-		Permission string          `json:"permission"`
-		Detail     string          `json:"detail"`
-		Result     json.RawMessage `json:"result"`
+		OK     bool            `json:"ok"`
+		Reason string          `json:"reason"`
+		Detail string          `json:"detail"`
+		Result json.RawMessage `json:"result"`
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
-	}
-	if done.Reason == "denied" {
-		return "denied by " + done.Permission + ": " + done.Detail, true
 	}
 	if !done.OK {
 		return refusalText(done.Reason, done.Detail), true
@@ -191,6 +187,8 @@ func show(api API, args map[string]any) (string, bool) {
 		return "shown", false
 	case done.Reason == "no-browser":
 		return "no-browser: could not open a browser (" + done.Detail + "); ask the user to open " + done.URL + " and call show again", true
+	case done.Reason == "no-book":
+		return "no-book: there is no book with that id (see list_books)", true
 	case done.Reason == "no-window":
 		return "no-window: no matomezu window connected; ask the user to open " + done.URL + " and call show again", true
 	case done.Reason == "no-stage":
@@ -201,25 +199,16 @@ func show(api API, args map[string]any) (string, bool) {
 	return refusalText(done.Reason, done.Detail), true
 }
 
-// refusalText は断った理由の、AI に返す 1 行。detail は理由に添える値（読めないブックの warning、使えない利用者の設定の項目と理由など）
+// refusalText は断った理由の、AI に返す 1 行。常駐が決めた理由のほかは、エンジンが添えた AI への説明（detail）を使う
 func refusalText(reason, detail string) string {
-	switch reason {
-	case "no-book":
-		return "no-book: there is no book with that id (see list_books)"
-	case "unreadable":
+	switch {
+	case reason == "unreadable":
 		return "unreadable: the book cannot be read now (" + detail + "); it cannot be changed until that is fixed (see list_books)"
-	case "bad-args":
-		return "bad-args: the args do not match the action's args (see actions)"
-	case "not-allowed":
-		if detail != "" {
-			return "not-allowed: " + detail
-		}
-		return "not-allowed: this book's type (or, for the library and the settings, the home book's type) does not allow it"
-	case "unknown":
-		return "unknown: there is no action with that id (see actions)"
-	case "open-on-screen":
+	case reason == "open-on-screen":
 		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
+	case detail != "":
+		return reason + ": " + detail
 	default:
-		return reason + ": it could not be done here (for example the page or item does not exist, or the action's rules refuse it; read_book to check)"
+		return reason + ": it could not be done here (read_book to check)"
 	}
 }
