@@ -24,7 +24,7 @@ export const PAGE_ADD = kit.defineAction({
   id: "page-add",
   attach: { pages: true },
   aiDescription:
-    "Add a page at the end of a book. Paper and orientation default to the book type's. With grows true, the page grows by whole papers (right and down, or only down; see the book type's grow in actions) as its contents need, instead of keeping to one paper; refused for a book type whose grow is null. fields are the page's own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page's id, and in fields what the book type returns for its fields (such as the ids it gave).",
+    "Add a page at the end of a book. Paper and orientation default to the book type's. With grows true, the page grows by whole papers (all ways, right and down, or only down; see the book type's grow in actions) as its contents need, instead of keeping to one paper; refused for a book type whose grow is null. A page that grows all ways keeps one blank paper left of and above its contents: putting something there shifts all its contents right or down by whole papers (and an emptied first paper is closed up), so positions change; the result's notice says so. fields are the page's own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page's id, and in fields what the book type returns for its fields (such as the ids it gave).",
   title: "Add page",
   target: "book",
   permissionScope: "book",

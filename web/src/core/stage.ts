@@ -161,10 +161,11 @@ export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, befor
     const { shift: _, area, ...rest } = o
     const dx = sheet ? (now.x - was.x) * sheet.w : 0
     const dy = sheet ? (now.y - was.y) * sheet.h : 0
+    const base = area ?? sheet
     const opened = {
       ...rest,
       ...shiftOf(found),
-      ...(area ? { area: { w: area.w + dx, h: area.h + dy } } : {}),
+      ...(base ? { area: { w: base.w + dx, h: base.h + dy } } : {}),
     }
     return settle({ ...stage, opened }, { x: stage.pan.x - dx * stage.zoom, y: stage.pan.y - dy * stage.zoom })
   }

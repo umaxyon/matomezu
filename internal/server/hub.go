@@ -253,6 +253,7 @@ type Performed struct {
 	Permission string          `json:"permission,omitempty"`
 	Detail     string          `json:"detail,omitempty"`
 	Result     json.RawMessage `json:"result,omitempty"`
+	Notice     string          `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 }
 
 // Perform はアクションを行い、変わったものを書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
@@ -284,7 +285,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if err != nil {
 		return Performed{}, err
 	}
-	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Result: out.Result}
+	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Result: out.Result, Notice: out.Notice}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
 	if out.OK && p.By == "ai" && h.trashesShown(out.Books) {
 		done = Performed{OK: false, Reason: "open-on-screen"}

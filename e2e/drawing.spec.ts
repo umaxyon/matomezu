@@ -641,12 +641,15 @@ test("「ページの設定」で紙を A3 にすると紙が大きくなる。�
   await expect.poll(async () => (await surface.boundingBox())!.width).toBeGreaterThan(before.width)
 })
 
-test("「ページの設定」で可変ページにすると、右と下に空きの印刷区画が出て、区切りの破線が引かれる。破線はドロワーのボタンで隠せる", async ({
+test("「ページの設定」で可変ページにすると、上下左右に空きの印刷区画が出て、区切りの破線が引かれる（中身は 印刷区画 1 つ分ずつずれるが、箱は画面の同じ所のまま）。破線はドロワーのボタンで隠せる", async ({
   page,
 }) => {
   await page.goto("/")
-  const surface = page.locator("[data-paper-surface]")
-  const before = (await surface.boundingBox())!
+  await (await drawerTool(page, "箱")).click()
+  const at = await onPaper(page, 200, 200)
+  await addBox(page, at.x, at.y, "元")
+  const origin = page.locator("[data-item]").filter({ hasText: "元" })
+  const before = (await origin.boundingBox())!
   const empty = await onPaper(page, 900, 600)
   await page.mouse.click(empty.x, empty.y, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
@@ -654,9 +657,12 @@ test("「ページの設定」で可変ページにすると、右と下に空�
   await dialog.getByRole("switch", { name: "可変ページにする" }).click()
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()
-  await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "2x2")
-  await expect(page.locator("[data-print-areas] line")).toHaveCount(2)
-  await expect.poll(async () => Math.round((await surface.boundingBox())!.width / before.width)).toBe(2)
+  // 左と上の空き・中身・右と下の空きで 3×3。中身は 印刷区画 1 つ分ずつずれるが、画面ではパンを合わせるので同じ所
+  await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "3x3")
+  await expect(page.locator("[data-print-areas] line")).toHaveCount(4)
+  const kept = (await origin.boundingBox())!
+  expect(Math.abs(kept.x - before.x)).toBeLessThan(1)
+  expect(Math.abs(kept.y - before.y)).toBeLessThan(1)
   // ドロワーのボタンで、区切りの線を隠して、また見せる
   const tabs = (await page.getByRole("tablist").first().boundingBox())!
   await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)

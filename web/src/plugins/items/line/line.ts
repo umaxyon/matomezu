@@ -10,6 +10,7 @@ import { linesBounds, linesMinimap } from "./drawn"
 import { HEADS } from "./heads"
 import { kit } from "./kit"
 import { lineGaps, linesHold, tidyLines, unpinLines } from "./placed"
+import { shiftLines } from "./shift"
 
 export const ROUTES = ["straight", "elbow"] as const
 export type LineRoute = (typeof ROUTES)[number]
@@ -52,7 +53,7 @@ export const LINE_ROUTE = kit.defineSetting({
 })
 
 // 線は置いた形と次の決まりを持つ: つないだ組は間隔を広げる（placed.ts の lineGaps）、形が変わったあと引けなくなった手直しを消す（tidyLines）、
-// 形を並べ直したら端の固定と手直しを外す（unpinLines）、描いたときの外枠を測る（drawn.ts の linesBounds）、両端がつなげる形にあり同じ組に 2 本無い（linesHold）。
+// 形を並べ直したら端の固定と手直しを外す（unpinLines）、中身をずらしたら手直しの点も一緒にずらす（shiftLines）、描いたときの外枠を測る（drawn.ts の linesBounds）、両端がつなげる形にあり同じ組に 2 本無い（linesHold）。
 // ミニマップには通り道を折れ線で描く（linesMinimap）
 export const LINE = kit.defineConnector({
   id: "connector-line",
@@ -68,6 +69,7 @@ export const LINE = kit.defineConnector({
   },
   tidy: (lines, rects, setting) => tidyLines(lines, rects, setting(LINE_ROUTE.id) === "elbow"),
   unpin: unpinLines,
+  shift: shiftLines,
   bounds: (lines, areas, setting) => linesBounds(lines, areas, setting(LINE_ROUTE.id) === "elbow"),
   holds: linesHold,
   minimap: (lines, areas, setting) => linesMinimap(lines, areas, setting(LINE_ROUTE.id) === "elbow"),
