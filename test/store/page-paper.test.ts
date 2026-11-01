@@ -12,7 +12,7 @@ import { newStore, sequence } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
 
-test("紙と向きはあとから変えられ、形が紙からはみ出す変更は断る。伸びられないタイプのページは可変ページにできない", () => {
+test("紙と向きはあとから変えられ、形が紙からはみ出す変更は断る。図面のページは可変ページにでき、そうすれば紙の外へ広がってよい", () => {
   const { state, actions } = newStore()
   const pages = () => (state.getState().books.b1 as Drawing).pages
   expect(actions.perform("@matomezu/base:page-add", { title: "p", orientation: "landscape" }, { book: "b1" }).ok).toBe(
@@ -35,10 +35,10 @@ test("紙と向きはあとから変えられ、形が紙からはみ出す変�
   expect(pages().at(-1)).toMatchObject({ paper: "@matomezu/base:a3", orientation: "portrait" })
   // 表に無い紙は選べない
   expect(update({ paper: "@matomezu/base:b9" })).toBe(false)
-  // 図面のブックのタイプは伸びられる向きを宣言していない
-  expect(update({ grows: true })).toBe(false)
-  expect(actions.perform("@matomezu/base:page-add", { title: "q", grows: true }, { book: "b1" }).ok).toBe(false)
-  expect("grows" in (pages().at(-1) ?? {})).toBe(false)
+  // 図面のページは可変ページにでき、そうすれば右と下へ広がるので、A5 にも入る
+  expect(update({ grows: true })).toBe(true)
+  expect(update({ paper: "@matomezu/base:a5" })).toBe(true)
+  expect(pages().at(-1)).toMatchObject({ paper: "@matomezu/base:a5", grows: true })
 })
 
 // 伸びられるタイプの見本（core/catalog.ts には書き足さないので、インスタンスは partial で作る）

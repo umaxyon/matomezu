@@ -6,7 +6,7 @@ import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData, ShapeItemDef } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
-import { resolvePaper } from "../../../core/paper"
+import { type GrowDirection, resolvePaper } from "../../../core/paper"
 import {
   connectorsOf,
   findShape,
@@ -174,7 +174,7 @@ export function widenForCaption(
   const caption = (p: PlacedShape) => (p.props as Record<string, unknown>)[prop]
   if (caption(next) === caption(before)) return next
   const size = placedSize(catalog, next)
-  const paper = paperSize(catalog, page)
+  const paper = roomOf(catalog, book, page)
   if (!size || !paper) return next
   const from = catalog.bookTypes.get(book.type)?.growFrom?.(settingsAt(catalog, book, page))
   // 1 つの向きに、want まで広げた位置と長さ（at は左か上、len は今の長さ、room は紙の長さ）
@@ -210,19 +210,41 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
   return paper.status === "unshowable" ? null : paper.size
 }
 
+// ブック book のページ page が伸びる向き（可変ページでなければ undefined）
+export const growOf = (catalog: CoreCatalog, book: Book, page: ItemPage): GrowDirection | undefined =>
+  page.grows ? catalog.bookTypes.get(book.type)?.pages?.paper.grow : undefined
+
 // ブック book のページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
 // （spare なら伸びる向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
 export function pageArea(
   catalog: CoreCatalog,
   book: Book,
-  page: ItemPage & { grows?: true },
+  page: ItemPage,
   spare = false,
 ): { columns: number; rows: number; size: Size } | null {
   const paper = paperSize(catalog, page)
   if (!paper) return null
-  const grow = page.grows ? catalog.bookTypes.get(book.type)?.pages?.paper.grow : undefined
+  const grow = growOf(catalog, book, page)
   if (!grow) return { columns: 1, rows: 1, size: paper }
   return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, book, page)), spare)
+}
+
+// ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
+// 伸びる向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）。描けない紙なら null
+export function roomOf(catalog: CoreCatalog, book: Book, page: ItemPage): Size | null {
+  const paper = paperSize(catalog, page)
+  const grow = growOf(catalog, book, page)
+  if (!paper || !grow) return paper
+  const rects = [...rectsOf(catalog, page).values()]
+  const extent = rects.length
+    ? {
+        x: 0,
+        y: 0,
+        w: Math.max(...rects.map(r => r.x + r.w)),
+        h: Math.max(...rects.map(r => r.y + r.h)),
+      }
+    : null
+  return grownArea(paper, grow, extent, true).size
 }
 
 // ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
@@ -289,7 +311,7 @@ export function placeItem<B extends PagedBook>(
   item: PlacedShape,
 ): B | null {
   const page = book.pages.find(p => p.id === pageId)
-  const paper = page && paperSize(catalog, page)
+  const paper = page && roomOf(catalog, book, page)
   const size = placedSize(catalog, item)
   if (!page || !paper || !size) return null
   const after = planPlace(
@@ -350,7 +372,7 @@ export function replacePushing<B extends PagedBook>(
   shrink: boolean,
 ): B | null {
   const page = book.pages.find(p => p.id === pageId)
-  const paper = page && paperSize(catalog, page)
+  const paper = page && roomOf(catalog, book, page)
   const size = placedSize(catalog, next)
   if (!page || !paper || !size || !shapesOf(page).some(i => i.id === next.id)) return null
   const before = rectsOf(catalog, page)
@@ -434,7 +456,7 @@ export function keepApart<B extends PagedBook>(
   b: string,
 ): B | null {
   const page = book.pages.find(p => p.id === pageId)
-  const paper = page && paperSize(catalog, page)
+  const paper = page && roomOf(catalog, book, page)
   if (!page || !paper) return null
   const before = rectsOf(catalog, page)
   const ra = before.get(a)

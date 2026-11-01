@@ -1,11 +1,11 @@
 // 紙のビューから置く・動かすコマンド。画面の座標を受け取り、紙の上の座標に直してアクションを呼ぶ
 
 import {
+  areaOf,
   type CommandContext,
   findShape,
   type Point,
   pagedOf,
-  paperOf,
   shapeDialogs,
   toPaperDelta,
 } from "../../../plugin-api"
@@ -34,7 +34,7 @@ export const PAPER_PLACE = kit.defineCommand({
     const at = placeAt(ctx.toPaper, pointer)
     const page = stage.opened?.page
     const size = stage.placing && itemSize(ctx.catalog, stage.placing)
-    const paper = paperOf(stage)
+    const paper = areaOf(stage)
     if (!at || !page || !stage.placing || !stage.opened || !size || !paper || !fitsPaper(at, size, paper)) return
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く）
     const def = shapeDefOf(ctx.catalog, stage.placing)
@@ -146,7 +146,7 @@ export const PAPER_RESIZE = kit.defineCommand({
   title: "Resize item",
   run: (ctx, a, args: { item: string; edges: Edges; by: Point }) => {
     const { opened } = ctx.stage
-    const paper = paperOf(ctx.stage)
+    const paper = areaOf(ctx.stage)
     const book = pagedOf(ctx.book) ?? null
     const page = book?.pages.find(p => p.id === opened?.page)
     const placed = page && findShape(page, args.item)?.shape

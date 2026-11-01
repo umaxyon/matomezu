@@ -35,7 +35,7 @@ export const DRAWING = kit.defineBookType({
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true, grow: "both" },
   },
   items: {
     allowed: ITEMS,
