@@ -1,4 +1,4 @@
-// ページの設定のダイアログ: 開いているページの名前と、ブックのタイプが選んだページの設定の項目（値が無ければブックの値を継ぐ）。
+// ページの設定のダイアログ: 開いているページの名前と、紙・向き・伸びるか（PaperControls.tsx）と、ブックのタイプが選んだページの設定の項目（値が無ければブックの値を継ぐ）。
 // 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからページに重ねて見せる（ダイアログの下書き。名前は見せない）。
 // 確定でアクション page-update（設定の項目は settings）を書き、キャンセルでは元のまま。選んでいる値でページに問題が出れば、その知らせを出して確定できない
 // 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。削除のボタンは、ロック中（ページかブック）など認可ステップが page-remove を止めていれば押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）。
@@ -18,6 +18,7 @@ import { LockToggle } from "../utils/LockToggle"
 import { changeWithLock } from "../utils/lock"
 import { PageProblemsView, usePageProblems } from "../utils/PageProblems"
 import { useSettingControls } from "../utils/SettingControls"
+import { usePaperControls } from "./PaperControls"
 import { PAGE_REMOVE } from "./page-remove"
 import { PAGE_UPDATE } from "./page-update"
 
@@ -38,15 +39,19 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
   const removable = useAllowed(stage, PAGE_REMOVE.id, { page: args.page }).ok
   const [confirming, setConfirming] = useState(false)
   const settings = useSettingControls(book, "page", page ?? null)
+  const paper = usePaperControls(book, page ?? null)
   const { previewDialog } = useActions()
   const perform = usePerform(stage)
   const bookId = book?.id
   const pageId = page?.id
   const changed = Object.keys(settings.patch).length > 0
-  const problems = usePageProblems(
-    book && page ? putPage(book, withSettings(page, settings.patch)) : undefined,
-    pageId ? [pageId] : [],
-  )
+  const problems = [
+    ...usePageProblems(
+      book && page ? putPage(book, withSettings(paper.draft(page), settings.patch)) : undefined,
+      pageId ? [pageId] : [],
+    ),
+    ...paper.problems,
+  ]
   useEffect(() => {
     previewDialog(changed && bookId && pageId ? { book: bookId, page: pageId, props: settings.patch } : null)
   }, [changed, bookId, pageId, settings.patch, previewDialog])
@@ -58,7 +63,7 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
       locked,
       () => perform(PAGE_LOCK.id, { page: page.id }).ok,
       () => perform(PAGE_UNLOCK.id, { page: page.id }).ok,
-      () => perform(PAGE_UPDATE.id, { page: page.id, title, settings: settings.patch }).ok,
+      () => perform(PAGE_UPDATE.id, { page: page.id, title, settings: settings.patch, ...paper.patch }).ok,
     )
     if (done) onClose()
   }
@@ -84,6 +89,7 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
         <Field label={t("Page name")}>
           {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
         </Field>
+        {paper.controls}
         {settings.controls}
         <PageProblemsView problems={problems} />
         <div className={rowClass}>

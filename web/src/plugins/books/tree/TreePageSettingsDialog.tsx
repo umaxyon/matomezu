@@ -1,4 +1,4 @@
-// ツリーのページの設定のダイアログ（根のダイアログを兼ねる）: ページ名・伸びる向き・節の大きさ（ページの設定の項目。無ければブックを継承）と、
+// ツリーのページの設定のダイアログ（根のダイアログを兼ねる）: ページ名・紙と向き（base の usePaperControls）・木の伸びる向き・節の大きさ（ページの設定の項目。無ければブックを継承）と、
 // 根のキャプション・本文・本文を紙に描くか（ページのフィールド root）を並べる。見出しの行の右にキャンセルと確定のボタン。
 // 設定の項目はタイプが選んだ物（base の useSettingControls）を並べ、選んだそばからページに重ねて見せる（ダイアログの下書き）。
 // 選んでいる値でページに問題（木が紙に入らないなど）が出れば、その知らせを出して確定できない。
@@ -22,6 +22,7 @@ import {
   rowClass,
   Switch,
   usePageProblems,
+  usePaperControls,
   useSettingControls,
 } from "../../base/ui"
 import { kit } from "./kit"
@@ -37,6 +38,7 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
   const { previewDialog } = useActions()
   const [title, setTitle] = useState(page?.title ?? "")
   const settings = useSettingControls(book, "page", page ?? null)
+  const paper = usePaperControls(book, page ?? null)
   const [caption, setCaption] = useState(root.success ? root.data.caption : "")
   const [body, setBody] = useState(root.success ? (root.data.body ?? "") : "")
   const [showBody, setShowBody] = useState(root.success && root.data.showBody === true)
@@ -58,10 +60,10 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
       ? (() => {
           const { body: _body, showBody: _show, ...rest } = root.data
           const draftRoot = { ...rest, caption, ...(body ? { body } : {}), ...(showBody ? { showBody } : {}) }
-          return putPage(book, withSettings({ ...page, root: draftRoot }, settings.patch))
+          return putPage(book, withSettings({ ...paper.draft(page), root: draftRoot }, settings.patch))
         })()
       : undefined
-  const problems = usePageProblems(draft, pageId ? [pageId] : [])
+  const problems = [...usePageProblems(draft, pageId ? [pageId] : []), ...paper.problems]
   if (!book || !page || !root.success) return null
   const ready = title.trim() !== "" && problems.length === 0
   const submit = () => {
@@ -75,6 +77,7 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
           page: page.id,
           title,
           settings: settings.patch,
+          ...paper.patch,
           fields: { root: { caption, body: body === "" ? null : body, showBody } },
         }).ok,
     )
@@ -102,6 +105,7 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
         <Field label={t("Page name")}>
           {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
         </Field>
+        {paper.controls}
         {settings.controls}
         <Field label={t("Root caption")}>
           {fid => (

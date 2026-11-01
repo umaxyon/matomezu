@@ -4,13 +4,12 @@ import { hasPages, type PagedBook, putPage, withSettings } from "../../../core/b
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { ORIENTATIONS } from "../../../core/def/paper"
 import type { Page } from "../../../core/schema/book"
-import { settingsArgs, settingsAt, settingsPatchOf, settleBook } from "../book-settings"
+import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { setField } from "../fields"
 import { kit } from "../kit"
-import { extentOf, paperSize } from "../place/items"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblems } from "./page-problems"
-import { canChoose, canGrow, paperChoicesFor } from "./pages"
+import { canChoose, canGrow, paperChoicesFor, shapesFit } from "./pages"
 
 const ARGS = z.strictObject({
   page: z.string().min(1),
@@ -58,7 +57,7 @@ export const PAGE_UPDATE = kit.defineAction({
       ? settleBook(ctx.catalog, putPage(book, withSettings(page, patch.data as Record<string, unknown>)))
       : putPage(book, page)
     if (pageProblems(ctx.catalog, next, [found.id]).length > 0) return null
-    if (papered !== written.page && !fitsPaper(ctx.catalog, next, found.id)) return null
+    if (papered !== written.page && !shapesFit(ctx.catalog, next, found.id)) return null
     return { next, result }
   },
 })
@@ -71,16 +70,4 @@ function withPaper(catalog: CoreCatalog, book: PagedBook, page: Page, args: z.in
   if (args.grows && !canGrow(catalog, book)) return null
   const grows = args.grows === undefined ? page.grows : args.grows || undefined
   return setField({ ...page, ...choice }, ["orientation"], "grows", grows)
-}
-
-// ブック book のページ page の形が紙に収まるか（伸びるページは、伸びる向きに印刷区画を増やして広がるので見ない）
-function fitsPaper(catalog: CoreCatalog, book: PagedBook, page: string): boolean {
-  const found = book.pages.find(p => p.id === page)
-  if (!found || found.grows) return true
-  const size = paperSize(catalog, found)
-  const extent = extentOf(catalog, found, settingsAt(catalog, book, found))
-  return (
-    !extent ||
-    (!!size && extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= size.w && extent.y + extent.h <= size.h)
-  )
 }
