@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>matomezu</title>
+  <defs><clipPath id="corner"><rect width="64" height="64" rx="17"/></clipPath></defs>
+  <rect width="64" height="64" rx="17" fill="#F5E6CF"/>
+  <g clip-path="url(#corner)">
+  <g transform="translate(-7 -2)">
+    <path d="M-8 72C1 56 13 46 26 35c3-11 11-18 21-18 9 0 16 6 16 15 0 11-8 19-19 22-12 4-22 14-31 23Z" fill="#A9C596"/>
+    <path d="M26 35c3-11 11-18 21-18 9 0 16 6 16 15-5-3-10-3-14 0-5 3-9 5-14 4Z" fill="#254C3A"/>
+    <path d="M-4 62C1 49 6 29 10 14c11 5 19 15 20 26 1 9-7 16-17 20L3 68Z" fill="#356650"/>
+    <path d="M2 54C7 42 9 29 11 20c8 5 14 13 15 21 1 6-5 11-12 15L5 61Z" fill="#254C3A"/>
+    <circle cx="51" cy="32" r="4.8" fill="#20352E"/>
+    <path d="M56 36c2-4 5-5 8-4l7 2-14 6Z" fill="#F5A623"/>
+    <path d="m57 40 14-6-8 7Z" fill="#C87521"/>
+  </g>
+  </g>
+</svg>

@@ -6,7 +6,7 @@
 import type { Point } from "../../../core/geom"
 import { panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN } from "../../../core/viewport"
-import type { CommandContext } from "../../../store/commands/def"
+import { type CommandContext, workspaceOf } from "../../../store/commands/def"
 import { kit } from "../kit"
 
 export const ZOOM_MIN = 0.3
@@ -40,7 +40,7 @@ export function fitView(stage: Stage): Stage {
 }
 
 // 呼ばれたステージの中の状態（表示領域の大きさとずらす量）
-const stageOf = (ctx: CommandContext) => ctx.workspace.stages.find(s => s.id === ctx.stage.id)
+const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
 
 export const ZOOM_IN = kit.defineCommand({
   id: "zoom-in",

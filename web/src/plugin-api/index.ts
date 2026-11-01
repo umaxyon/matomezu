@@ -1,4 +1,4 @@
-// プラグイン API（React なし）: 追加プラグインとビルトインプラグインが使ってよい名前を、土台（core・store）から出し直すだけの層。
+// プラグイン API（React なし）: 追加プラグインとビルトインプラグインが使ってよい名前を、土台（core・store）から出し直すだけのクレート。
 // 外から読む入口は plugin-entry（matomezu）。名前の一覧は test/plugin-api.test.ts
 
 export type { PagedBook } from "../core/book"
@@ -58,6 +58,7 @@ export {
   connectorsOf,
   findShape,
   pageItemsOf,
+  replaceShape,
   shapeSchema,
   shapesOf,
   walkShapes,
@@ -69,7 +70,7 @@ export { resolveTokens } from "../core/theme"
 export type { StageView } from "../core/workspace"
 export { toolOf } from "../core/workspace"
 export type { CommandContext } from "../store/commands/def"
-export { defineCommand, toPaperIn } from "../store/commands/def"
+export { defineCommand } from "../store/commands/def"
 export type { PageSettingsArgs } from "../store/dialogs"
 export { defineDialog, defineDialogWith, shapeDialogs } from "../store/dialogs"
 export type { OwnedMessages } from "../store/kit"

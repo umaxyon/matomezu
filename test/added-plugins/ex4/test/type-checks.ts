@@ -8,7 +8,7 @@ kit.defineConnector({
   version: 1,
   title: "relation",
   capabilities: [],
-  // @ts-expect-error つなぐものはツールボックスに出せない（監査 B5）
+  // @ts-expect-error つなぐものはツールボックスに出せない
   toolbox: true,
   props: z.strictObject({}),
   tokens: [],

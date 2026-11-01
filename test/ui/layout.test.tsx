@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import { isMatomezuError, problemText } from "../../web/src/core/errors"
+import { type Warning, warning, warningText } from "../../web/src/core/warnings"
 import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
@@ -13,12 +14,13 @@ import {
   defineWidget,
   type LayoutDef,
   placeAdded,
+  placeAddedWithWarnings,
   skipAbsent,
   tidySeparators,
 } from "../../web/src/ui/layout"
 import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
-import { MatomezuProvider, shownLayout } from "../../web/src/ui/store-context"
+import { MatomezuProvider, shownLayout, useLayoutWarnings } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
@@ -72,6 +74,7 @@ describe("配置", () => {
     expect(checkLayout(noStages, ui, commands).map(problemText)).toEqual([
       "E211 layout no-stages: slot @matomezu/base:stage-top is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-body is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:book-layers is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-bottom is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-corner is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:drawer-map is not opened by any placed widget",
@@ -254,9 +257,78 @@ describe("取り込んだプラグインの置き場所", () => {
     expect(checkLayout(layout, all, commandsWith)).toEqual([])
   })
 
+  test("置いてほしいウィジェットのすぐ前（before）・すぐ後ろ（after）に足す。名指ししたウィジェットが並びに無い（W016）・両方書いた（W017）なら置かずに warning", () => {
+    const Layer = () => null
+    const layers = definePluginUi(definePlugin({ id: "q" }), {
+      widgets: [
+        defineWidget({
+          id: "q:under",
+          slots: ["@matomezu/base:book-layers"],
+          place: { slot: "@matomezu/base:book-layers", before: "@matomezu/base:book-content" },
+          view: Layer,
+        }),
+        defineWidget({
+          id: "q:over",
+          slots: ["@matomezu/base:book-layers"],
+          place: { slot: "@matomezu/base:book-layers", after: "@matomezu/base:paper-layer" },
+          view: Layer,
+        }),
+        defineWidget({
+          id: "q:lost",
+          slots: ["@matomezu/base:book-layers"],
+          place: { slot: "@matomezu/base:book-layers", before: "q:nothing" },
+          view: Layer,
+        }),
+        defineWidget({
+          id: "q:both",
+          slots: ["@matomezu/base:book-layers"],
+          place: {
+            slot: "@matomezu/base:book-layers",
+            before: "@matomezu/base:book-content",
+            after: "@matomezu/base:paper-layer",
+          } as never,
+          view: Layer,
+        }),
+        defineWidget({
+          id: "q:top",
+          slots: ["@matomezu/base:book-layers"],
+          place: { slot: "@matomezu/base:book-layers" },
+          view: Layer,
+        }),
+      ],
+    })
+    const { layout, warnings } = placeAddedWithWarnings(DEFAULT_LAYOUT, [...BUILTIN_UI, layers])
+    expect(warnings.map(warningText)).toEqual([
+      "W016 q: widget q:lost: place names q:nothing in slot @matomezu/base:book-layers, which is not there (not placed)",
+      "W017 q: widget q:both: place in slot @matomezu/base:book-layers names both before and after (not placed)",
+    ])
+    expect(layout.slots["@matomezu/base:book-layers"] as readonly unknown[] | undefined).toEqual([
+      "@matomezu/base:paper-layer",
+      "q:over",
+      "q:under",
+      "@matomezu/base:book-content",
+      "q:top",
+    ])
+    expect(checkLayout(layout, assembleUi([...BUILTIN_UI, layers]), commands)).toEqual([])
+  })
+
   test("置けないスロットと、引数の合わないメニューは型の誤り", () => {
     // @ts-expect-error 置けるスロットに無い
     defineWidget({ id: "p:x", slots: ["@matomezu/base:stage-top"], place: "@matomezu/base:stage-bottom", view: Ping })
+    defineWidget({
+      id: "p:y",
+      slots: ["@matomezu/base:stage-top"],
+      // @ts-expect-error 置けるスロットに無い（位置も書く形）
+      place: { slot: "@matomezu/base:stage-bottom" },
+      view: Ping,
+    })
+    defineWidget({
+      id: "p:z",
+      slots: ["@matomezu/base:stage-top"],
+      // @ts-expect-error before と after は、どちらか 1 つだけ
+      place: { slot: "@matomezu/base:stage-top", before: "p:a", after: "p:b" },
+      view: Ping,
+    })
     defineCommand({
       id: "p:arg",
       title: "Arg" as never,
@@ -290,6 +362,21 @@ describe("組み込まれていないプラグインの物", () => {
     const commands = new Set(createMatomezu({ plugins: BUILTIN_UI }).catalog.store.commands.keys())
     expect(checkLayout(all.layout, ui, commands).map(p => p.code)).toEqual(["E209"])
   })
+})
+
+test("配置を作るときに見つかった warning は、配置で除いた物の warning と一緒に useLayoutWarnings で読める", () => {
+  const found = warning("W016", "q", { widget: "q:lost", slot: "@matomezu/base:book-layers", target: "q:nothing" })
+  let read: readonly Warning[] = []
+  const Read = () => {
+    read = useLayoutWarnings()
+    return null
+  }
+  render(
+    <MatomezuProvider instance={instance()} layout={DEFAULT_LAYOUT} warnings={[found]}>
+      <Read />
+    </MatomezuProvider>,
+  )
+  expect(read).toEqual([found])
 })
 
 describe("取り込むときの配置の確かめ", () => {

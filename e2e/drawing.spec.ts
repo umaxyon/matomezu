@@ -552,9 +552,10 @@ test("設定のダイアログでブックのテーマと紙の色を選ぶと�
   await page.goto("/")
   await addBodyBox(page)
   const paper = page.getByRole("img", { name: "紙" })
+  const surface = page.locator("[data-paper-surface]") // 紙の白い面（紙の面のレイヤー）
   const box = page.locator("[data-item] [data-valign]")
   const look = async () => ({
-    paper: await paper.evaluate(el => getComputedStyle(el).backgroundColor),
+    paper: await surface.evaluate(el => getComputedStyle(el).backgroundColor),
     box: await box.evaluate(el => getComputedStyle(el).backgroundColor),
   })
   const dialog = page.getByRole("dialog", { name: "ブックの設定" })

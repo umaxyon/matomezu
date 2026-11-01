@@ -7,7 +7,7 @@ import type { Size } from "../../../plugin-api"
 import { captionTextWidth, clampRich, PLACE_LINES, type RichLine, TEXT_LOOK, wrapRich } from "../../base"
 import type { ListRow } from "./list"
 
-// リストの見た目の寸法（px。どのテーマでも同じ）。ListView.module.css と同じ値にする。文字の寸法は形で共通（shape の TEXT_LOOK）
+// リストの見た目の寸法（px。どのテーマでも同じ）。ListView.module.css と同じ値にする。文字の寸法は形で共通（base の TEXT_LOOK）
 export const LIST_LOOK = {
   border: 1,
   padX: TEXT_LOOK.padX, // 見出しの左右の余白

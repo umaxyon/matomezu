@@ -27,7 +27,7 @@ export function ownTokenVars(tokens: Iterable<string>, owner: string): CSSProper
 }
 
 // 定義 def（アイテム・ブックのタイプなど。本当の id）のプラグインのテーマキーを、--<名前> で読めるようにする値。
-// プラグインの見た目を描く所（紙のアイテムの枠・つなぐものの層など）が、その要素の style に置く
+// プラグインの見た目を描く所（紙のアイテムの枠・つなぐもののビューなど）が、その要素の style に置く
 export function useTokenScope(def: string): CSSProperties {
   const catalog = useCatalog().core
   return useMemo(() => {
@@ -41,7 +41,7 @@ export function useTokenScope(def: string): CSSProperties {
   }, [catalog, def])
 }
 
-// 定義 def のプラグインのテーマキーを --<名前> で読める範囲（箱を作らない要素で包む）。紙が、つなぐもののビューの層と重ねるコンポーネントを包むのに使う
+// 定義 def のプラグインのテーマキーを --<名前> で読める範囲（箱を作らない要素で包む）。紙が、つなぐもののビューと重ねるコンポーネントを包むのに使う
 export function TokenScope({ def, children }: { def: string; children: ReactNode }) {
   return createElement("div", { style: { display: "contents", ...useTokenScope(def) } }, children)
 }

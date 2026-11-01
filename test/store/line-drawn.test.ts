@@ -1,7 +1,7 @@
 // ページの線を描く形（drawing/line/drawn.ts の drawLines）
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
-import { drawLines } from "../../web/src/plugins/items/line/drawn"
+import { drawLines, newLineCache } from "../../web/src/plugins/items/line/drawn"
 import type { PlacedLine } from "../../web/src/plugins/items/line/placed"
 
 const rects = new Map([
@@ -89,7 +89,7 @@ test("前の辺の記憶: 渡した線は、自由な端が前に描いた辺に
 })
 
 test("道筋の覚え: 入力（両端の形・道筋に関わるほかの形・項目・記憶）が同じ線は、計算し直さずに覚えた形を使う", () => {
-  const cache = new Map()
+  const cache = newLineCache()
   const lines = [line("l1", "a", "b"), line("l2", "a", "c")]
   const first = drawLines(lines, rects, true, { cache })
   // 遠くの形が動いても、どちらの線の入力も変わらない
@@ -102,4 +102,8 @@ test("道筋の覚え: 入力（両端の形・道筋に関わるほかの形・
   const third = drawLines(lines, bMoved, true, { cache })
   expect(third[0]!.points).not.toBe(first[0]!.points)
   expect(third[1]!.points).toBe(first[1]!.points)
+  // 線を足しても、覚えを使って描いた形は、全部を計算し直した形と同じ
+  const added = [...lines, line("l3", "b", "c")]
+  expect(drawLines(added, bMoved, true, { cache })).toEqual(drawLines(added, bMoved, true))
+  expect(drawLines(added, bMoved, true, { cache })).toEqual(drawLines(added, bMoved, true))
 })

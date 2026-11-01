@@ -25,17 +25,23 @@ import type { Plugin } from "../store/plugin"
 export interface WidgetDef<S extends SlotId = SlotId> extends WidgetExtras {
   id: string // 本当の id（「プラグインの id:名前」。kit.name で作る）
   slots: readonly S[]
-  place?: NoInfer<S> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）
+  place?: NoInfer<S> | WidgetPlace<NoInfer<S>> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の配置に足す（placeAdded）
   opens?: readonly SlotId[]
   menus?: readonly MenuId[]
   contextMenus?: readonly ContextMenuId[]
   view: (props: SlotProps<S>) => ReactNode
 }
+// 置いてほしいスロットと、並びの中の位置: before か after のどちらか 1 つに書いたウィジェットのすぐ前・すぐ後ろ（書かなければ末尾）。
+// 書いたウィジェットが並びに無ければ置かない（warning W016）。型を通らずに両方書いてあっても置かない（W017）
+export type WidgetPlace<S extends SlotId = SlotId> = { slot: S } & (
+  | { before?: string; after?: never }
+  | { after?: string; before?: never }
+)
 // どれかのウィジェット（表に入れるときの形）
 export interface AnyWidgetDef extends WidgetExtras {
   id: string
   slots: readonly SlotId[]
-  place?: SlotId
+  place?: SlotId | WidgetPlace
   opens?: readonly SlotId[]
   menus?: readonly MenuId[]
   contextMenus?: readonly ContextMenuId[]
@@ -86,17 +92,40 @@ export interface LayoutDef extends LayoutExtras {
 }
 export const defineLayout = <const L extends LayoutDef>(def: L): L => def
 
-// 配置に、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニューの末尾に足し、
-// 右クリックのメニューでは前の項目と区切り線で分ける。配置にもうあるものは足さない（動いている matomezu の画面が、取り込んだプラグインを置くのに使う）
+// 配置に、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニューの末尾
+// （ウィジェットは before・after に書いた所。WidgetPlace）に足し、右クリックのメニューでは前の項目と区切り線で分ける。配置にもうあるものは足さない
+// （動いている matomezu の画面が、取り込んだプラグインを置くのに使う）
 export function placeAdded(layout: LayoutDef, plugins: readonly Plugin[]): LayoutDef {
+  return placeAddedWithWarnings(layout, plugins).layout
+}
+
+// placeAdded と同じく足し、置かなかったウィジェットごとに warning を返す（before・after に書いたウィジェットが並びに無い W016、両方書いた W017）
+export function placeAddedWithWarnings(
+  layout: LayoutDef,
+  plugins: readonly Plugin[],
+): { layout: LayoutDef; warnings: Warning[] } {
+  const warnings: Warning[] = []
   const slots = { ...layout.slots } as Record<string, readonly string[]>
   const menus = { ...layout.menus } as Record<string, readonly MenuItem[]>
   const contextMenus = { ...layout.contextMenus } as Record<string, readonly string[]>
   for (const p of plugins) {
     const widgets = ((p as { ui?: { widgets?: readonly AnyWidgetDef[] } }).ui?.widgets ?? []).filter(w => w.place)
     for (const w of widgets) {
-      const slot = w.place as string
-      if (!slots[slot]?.includes(w.id)) slots[slot] = [...(slots[slot] ?? []), w.id]
+      const place: WidgetPlace = typeof w.place === "string" ? { slot: w.place } : (w.place as WidgetPlace)
+      const ids = slots[place.slot] ?? []
+      if (ids.includes(w.id)) continue
+      const { before, after } = place as { before?: string; after?: string } // 型を通らずに届いた追加プラグインは、両方書いていることがある
+      if (before !== undefined && after !== undefined) {
+        warnings.push(warning("W017", p.id, { widget: w.id, slot: place.slot }))
+        continue
+      }
+      const at = indexFor(ids, place)
+      if (at === null) {
+        const target = place.before ?? place.after ?? ""
+        warnings.push(warning("W016", p.id, { widget: w.id, slot: place.slot, target }))
+        continue
+      }
+      slots[place.slot] = [...ids.slice(0, at), w.id, ...ids.slice(at)]
     }
     const added = new Set<string>()
     for (const c of p.commands ?? []) {
@@ -111,7 +140,14 @@ export function placeAdded(layout: LayoutDef, plugins: readonly Plugin[]): Layou
       }
     }
   }
-  return { ...layout, slots, menus, contextMenus } as LayoutDef
+  return { layout: { ...layout, slots, menus, contextMenus } as LayoutDef, warnings }
+}
+
+// 並びの中の入れる位置: before のすぐ前・after のすぐ後ろ・どちらも書かなければ末尾。書いたウィジェットが並びに無ければ null
+function indexFor(ids: readonly string[], place: WidgetPlace): number | null {
+  if (place.before !== undefined) return ids.includes(place.before) ? ids.indexOf(place.before) : null
+  if (place.after !== undefined) return ids.includes(place.after) ? ids.indexOf(place.after) + 1 : null
+  return ids.length
 }
 
 // 配置から、持ち主のプラグイン（id の頭）が組み込まれていない物を除く（ウィジェット・コマンド・スロット・メニュー・右クリックのメニュー）。

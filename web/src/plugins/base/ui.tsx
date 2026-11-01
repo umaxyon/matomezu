@@ -11,7 +11,7 @@ import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { USER_SETTING_VIEWS } from "./settings/ui"
-import { BOOK_VIEW, CLOSE_BUTTON, STAGE_ICONS } from "./stage/ui"
+import { BOOK_CONTENT, BOOK_VIEW, CLOSE_BUTTON, PAPER_LAYER, STAGE_ICONS } from "./stage/ui"
 import { TEXT_SETTING_VIEWS } from "./text/ui"
 import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
@@ -42,6 +42,7 @@ export {
   SwitchPanel,
 } from "./dialog-host/FormParts"
 export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
+export { useDrawnMinimap } from "./minimap/drawn"
 export { UserSettings } from "./settings/ui"
 export { RichBar, RichBody, RichInput, type RichInputHandle, RichText, TextBlockView } from "./text/ui"
 export * from "./utils/ui"
@@ -58,6 +59,8 @@ export const BASE_UI = definePluginUi(BASE, {
     TOAST_HOST,
     TOOL_PICKER_WIDGET,
     BOOK_VIEW,
+    PAPER_LAYER,
+    BOOK_CONTENT,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
@@ -75,6 +78,7 @@ declare module "../../core/catalog" {
   interface SlotTable {
     "@matomezu/base:stage-top": StageSlotProps
     "@matomezu/base:stage-body": StageSlotProps
+    "@matomezu/base:book-layers": StageSlotProps
     "@matomezu/base:stage-bottom": StageSlotProps
     "@matomezu/base:stage-corner": StageSlotProps
     "@matomezu/base:drawer-map": StageSlotProps
@@ -89,6 +93,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:toast-host": typeof TOAST_HOST
     "@matomezu/base:tool-picker": typeof TOOL_PICKER_WIDGET
     "@matomezu/base:book-view": typeof BOOK_VIEW
+    "@matomezu/base:paper-layer": typeof PAPER_LAYER
+    "@matomezu/base:book-content": typeof BOOK_CONTENT
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME

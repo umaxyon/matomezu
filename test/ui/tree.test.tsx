@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { z } from "zod"
+import { defineMessages } from "../../web/src/core/i18n/messages"
 import { toolsIn } from "../../web/src/core/tools"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { fieldsArgs } from "../../web/src/plugins/base/page-tabs/page-fields"
@@ -9,14 +10,16 @@ import { keepsPan } from "../../web/src/plugins/base/tool-switch/tools"
 import { layoutTree } from "../../web/src/plugins/books/tree/layout"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
+import { pluginKit } from "../../web/src/store/kit"
+import { type AnyPluginUi, definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { writeRich } from "./rich-input"
 
 afterEach(cleanup)
 
-function setup() {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI })
+function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
+  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins, partial: true })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -141,7 +144,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
   const node = (n: string) => paper.querySelector(`[data-node="${n}"]`) as HTMLElement
   expect(node(a!).textContent).toBe("子 A")
   expect(node(b!).textContent).toBe("子 B")
-  expect(paper.querySelector("svg")!.querySelectorAll("path")).toHaveLength(2) // 線の層（＋ の印の svg は数えない）
+  expect(paper.querySelector("svg")!.querySelectorAll("path")).toHaveLength(2) // 親から子への線（＋ の印の svg は数えない）
   const top = (n: string) => Number.parseFloat(node(n).style.top)
   expect(top(a!)).toBeGreaterThan(top(done.fields!.root.id)) // 既定は下へ
   const page = (store.state.getState().books[id] as { pages: readonly { id: string }[] }).pages[0]!.id
@@ -397,6 +400,43 @@ test("F2 かダブルクリックで、選んでいる子の節をその場で�
   fireEvent.keyDown(input, { key: "Escape" })
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
   expect(within(paper()).queryByRole("textbox")).toBeNull()
+})
+
+// 認可ステップがアクション stopped を止めるプラグインを入れて開く
+function frozen(stopped: readonly string[]) {
+  const kit = pluginKit("@ex/freeze", defineMessages({ freeze: { en: "Frozen", ja: "凍結" } }))
+  const freeze = definePluginUi(
+    kit.plugin({
+      permissions: [
+        kit.definePermission({
+          id: "freeze",
+          title: "freeze",
+          aiDescription: "the tree is frozen",
+          denies: ({ action }) => stopped.includes(action.id),
+        }),
+      ],
+    }),
+    {},
+  )
+  return setup([...BUILTIN_UI, freeze])
+}
+
+test("認可ステップが節を足す・書き換えるのを止めていれば、＋を出さず、ダブルクリックでも書き始めない", () => {
+  const { store, id } = frozen(["@matomezu/tree:node-add", "@matomezu/tree:node-update", "@matomezu/tree:node-move"])
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  const a = done.fields!.root.children[0]!.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  expect(within(paper()).queryAllByRole("button")).toHaveLength(0)
+  fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+})
+
+test("認可ステップが節とページの書き換えを止めていれば、F2 のコマンドは押せず、書き始めない", () => {
+  const { store, id } = frozen(["@matomezu/tree:node-update", "@matomezu/base:page-update"])
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  act(() => store.actions.select("s1", [done.fields!.root.children[0]!.id]))
+  fireEvent.keyDown(window, { key: "F2" })
+  expect(within(screen.getByRole("img", { name: "紙" })).queryByRole("textbox")).toBeNull()
 })
 
 test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足して、空のキャプションから書き始める。根では Enter で兄弟を足さない", () => {
@@ -709,6 +749,24 @@ test("根は F2・ダブルクリック・紙の右クリックの「ページ�
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /^ページの設定/ }))
   dialog = screen.getByRole("dialog", { name: "ページの設定" })
   expect(within(dialog).getByRole("button", { name: "ページを削除" })).toBeTruthy()
+})
+
+test("ツリーのページの設定の鍵でページをロックし、ロック中は削除を押せない。鍵を外して確定すればロックが外れる", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根" })
+  const open = () => {
+    act(() => store.actions.openDialog("s1", "@matomezu/tree:page-settings", { page: done.page }))
+    return screen.getByRole("dialog", { name: "ページの設定" })
+  }
+  let dialog = open()
+  fireEvent.click(within(dialog).getByRole("button", { name: "ページをロックする" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).toMatchObject({ locked: true })
+  dialog = open()
+  expect((within(dialog).getByRole("button", { name: "ページを削除" }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.click(within(dialog).getByRole("button", { name: "ページのロックを外す" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).not.toHaveProperty("locked")
 })
 
 test("ツリーのページの設定でも、選んでいる値で木が紙に入らなければ、確定の前から知らせを出して確定できない", () => {

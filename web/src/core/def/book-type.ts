@@ -7,7 +7,7 @@ import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
 import type { TokenDef } from "./theme"
 
-// 使えるものの規定。ブックは allowed の中から選び、選んでいなければ defaults を使う
+// 使えるものの規定。allowed はデータに置ける物（候補）、defaults はそのうちツールボックスに出す物
 export interface Choice {
   allowed: readonly string[]
   defaults: readonly string[]
@@ -58,7 +58,7 @@ interface BookTypeBase<S extends z.ZodObject> extends BookTypeExtras {
   tokens: readonly TokenDef[] // ブックの画面を描くのに使うテーマキー
   tools?: string // ステージで使う道具の組の id（core/def/tool.ts。無ければ道具を使わない）
   // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。
-  // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
+  // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、残しておいたブックは読めないとして warning W006 にする。データは捨てない）
   holds?(book: z.infer<S>, catalog: CoreCatalog): boolean
   settings?: BookTypeSettings
   // ホームにしたときに、利用者の設定の項目のうち変えさせない物の id（利用者にも AI にも。組織のホームで決める）。actions.without の、項目ごとの版
@@ -100,6 +100,6 @@ export const withTypeField = <S extends z.ZodObject, const Id extends string>(
   schema: S,
   id: Id,
 ): WithTypeField<S, Id> => schema.extend({ type: z.literal(id) }) as unknown as WithTypeField<S, Id>
-// schema に合うブックのデータの型（zod を読まない層が使う）
+// schema に合うブックのデータの型（zod を読まないクレートが使う）
 export type DataOf<S extends z.ZodType> = z.infer<S>
 export type BookSchema = z.ZodObject

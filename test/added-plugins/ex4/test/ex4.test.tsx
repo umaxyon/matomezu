@@ -1,4 +1,4 @@
-// ex4（2 つ目のつなぐもの）で、監査 E1〜E5 を確かめる（B5 は type-checks.ts）。
+// ex4（2 つ目のつなぐもの）で、追加プラグインのつなぐものが、ビルトインの線と並んで描かれ・薄くする求めが効き・端が消えれば消え・線を外しても組めることを確かめる（ツールボックスに出せないことは type-checks.ts）。
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render } from "@testing-library/react"
@@ -71,15 +71,15 @@ test("関係線とビルトインの線を同じページに引き、どちら�
   expect(document.querySelector(`[data-ex4-port="${a}"]`)).not.toBeNull()
 })
 
-test("E1: 関係線の層が薄くするよう求めた形は薄くなる（外側のつなぐものの ShapeMarks も効く）", () => {
+test("関係線のビューが薄くするよう求めた形は薄くなる（外側のつなぐものの ShapeMarks も効く）", () => {
   const { a, c, el } = map()
   fireEvent.pointerEnter(el(a))
   expect(el(a).querySelector("[data-port]")).not.toBeNull() // 乗せたことは線の〇で分かる
-  // a に乗せると、関係線は a と b のほかを薄くするよう求める。内側のビルトインの線の層が何も求めないので、c は薄くならない
+  // a に乗せると、関係線は a と b のほかを薄くするよう求める。内側のビルトインのラインビューが何も求めないので、c は薄くならない
   expect(el(c).getAttribute("data-look")).toBe("faded")
 })
 
-test("E4: 端の形を消すと、端の無くなった関係線も消える（つなぐものが tidy を書かなくても）", () => {
+test("端の形を消すと、端の無くなった関係線も消える（つなぐものが tidy を書かなくても）", () => {
   const { instance, on, page, a } = map()
   act(() => {
     expect(instance.actions.perform("@matomezu/paper:item-remove", { page: page().id, items: [a] }, on)).toMatchObject({
@@ -89,7 +89,7 @@ test("E4: 端の形を消すと、端の無くなった関係線も消える（�
   expect(page().items!.filter(i => i.item === "ex4:relation")).toEqual([])
 })
 
-test("E5: ビルトインの線（と線を選ぶ図面・フローチャート）を外しても、既定の配置で組める", () => {
+test("ビルトインの線（と線を選ぶ図面・フローチャート）を外しても、既定の配置で組める", () => {
   const plugins = BUILTIN_UI.filter(
     ui => !["@matomezu/line", "@matomezu/drawing", "@matomezu/flowchart"].includes(ui.id),
   )

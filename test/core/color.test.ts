@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
-import { hexToHsv, hsvToHex, isLight, isPaletteName, parseHex } from "../../web/src/core/color"
+import { isLight, isPaletteName } from "../../web/src/core/color"
+import { hexToHsv, hsvToHex, parseHex } from "../../web/src/plugins/base/dialog-host/hsv"
 
 test("色の値は #rgb か #rrggbb を読み、#rrggbb の小文字にする。ほかは読めない", () => {
   expect(parseHex(" #3B82F6 ")).toBe("#3b82f6")
