@@ -63,7 +63,7 @@ function editable(ctx: CommandContext): boolean {
   return def ? shapeDialogs(def).edit !== undefined : false
 }
 
-// アイテムの中身を変えるダイアログを開く（箱は box-edit、リストは list-edit。どの深さの子の形も）。開いているページに無いアイテムなら何もしない。
+// アイテムの中身を変えるダイアログを開く（アイテムの定義の dialogs.edit。どの深さの子の形も）。開いているページに無いアイテムなら何もしない。
 // 右クリックのメニューでは「設定」として出す
 export const PAPER_EDIT = kit.defineCommand({
   id: "paper-edit",
