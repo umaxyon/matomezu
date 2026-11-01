@@ -323,9 +323,9 @@ function PageItems({
       return { item, shift: shiftOf(item) }
     }),
     dragged,
-    pushed: shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id),
-    swapped: d?.swapped ?? false,
-    settled: settled.current,
+    displaced: shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id),
+    reordered: d?.swapped ?? false,
+    released: settled.current,
     busy: dragged.length > 0 || resizing !== null,
     selectable: !pans && stage.placing === null,
     hover,

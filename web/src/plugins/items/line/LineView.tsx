@@ -62,7 +62,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   // 離したあとに付け替えを見る線: 離したばかりの形につながる線
   const settle = new Set(
     linesIn(scene)
-      .filter(l => scene.settled.has(l.from) || scene.settled.has(l.to))
+      .filter(l => scene.released.has(l.from) || scene.released.has(l.to))
       .map(l => l.id),
   )
   // ダイアログの下書きは、見せ方が渡すページ（下書きを重ねたページ）にもう入っている。じかに直しているドラッグの線は、その途中の項目で描く
@@ -73,8 +73,8 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
     before: drawnRects.current,
     rects,
     dragged: scene.dragged,
-    pushed: scene.pushed,
-    swapped: scene.swapped,
+    displaced: scene.displaced,
+    reordered: scene.reordered,
     settle,
   })
   const lines = drawLines(drafted, rects, elbow, { memory, loose: settle, cache: cache.current })
