@@ -43,7 +43,7 @@ import {
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
-import { PaperFrame, RichBar, RichInput, type RichInputHandle, RichText } from "../../../base/ui"
+import { PaperFrame, RichBar, RichInput, type RichInputHandle, RichText, useAnchorRef } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
 import { ADDED_EDIT, FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
@@ -478,10 +478,12 @@ function Row({
   onContextMenu: (e: MouseEvent<HTMLDivElement>) => void
 }) {
   const t = useMessages(kit)
+  const anchor = useAnchorRef() // 行にアンカーを付ける（そばにスタンドを立てられる）
   return (
     <>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 行はポインタで選び・書き始め、キーの操作はコマンドが受ける */}
       <div
+        ref={anchor(r.id)}
         className={styles.row}
         data-entry={r.id}
         data-kind={r.kind}

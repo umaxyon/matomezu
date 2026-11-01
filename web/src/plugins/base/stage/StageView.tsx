@@ -32,6 +32,7 @@ import { kit } from "../kit"
 import { textColorsOf, textColorVars, USER_TEXT_COLORS } from "../text"
 import type { TextColorValues } from "../text/text-colors"
 import { keepsPan } from "../tool-switch/tools"
+import { AnchorsProvider } from "../utils/anchors"
 import { useResize } from "../utils/useResize"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
@@ -146,12 +147,14 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   )
 })
 
-// 開いたブックを、レイヤーを重ねて、テーマの値の中に描く
+// 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表はレイヤーみんなで使う）
 function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
   const tokens = useTokenScope(type) // ブックのタイプのプラグインのテーマキー（--<名前>）
   return (
     <div className={styles.book} style={{ ...vars, ...tokens }}>
-      <Slot name={BOOK_LAYERS} props={{ stage: stage.id }} />
+      <AnchorsProvider stage={stage.id}>
+        <Slot name={BOOK_LAYERS} props={{ stage: stage.id }} />
+      </AnchorsProvider>
     </div>
   )
 }

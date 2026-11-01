@@ -256,6 +256,9 @@ export function plusPoint(rect: { x: number; y: number; w: number; h: number }, 
 // 足した節をその場で書いている編集の名前（ステージの editing）。終えるとき、書いたのを足した画面の履歴の段に続ける（足すのと書くのが 1 つの画面の履歴の段）
 export const ADDED_EDIT = kit.name("added-edit")
 
+// 選んでいる節の色を選んでいる間の、その場の編集の名前（ステージの editing）。節のそばに節の色のスタンドを出す
+export const NODE_COLOR_PICK = kit.name("node-color-pick")
+
 // その場の編集を終えたときにすること: 書いた字 text（取り消しなら null）で、節 id を
 // 消す（キャプションの空の子が空のまま終わった）・根のキャプションを替える・子のキャプションを替える・何もしない（変わらない・今ある節を空にした）
 export type EditEnd = { kind: "remove" } | { kind: "root" | "child"; caption: string } | { kind: "none" }

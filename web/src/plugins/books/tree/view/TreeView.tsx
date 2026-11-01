@@ -30,7 +30,17 @@ import {
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
-import { PaperFrame, RichBar, RichInput, type RichInputHandle, RichText, useResize } from "../../../base/ui"
+import {
+  PaperFrame,
+  RichBar,
+  RichInput,
+  type RichInputHandle,
+  RichText,
+  useAnchorRef,
+  useBookTheme,
+  useResize,
+  useSwatches,
+} from "../../../base/ui"
 import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { dropAt, subtreeIds } from "../drag"
 import {
@@ -39,6 +49,7 @@ import {
   afterRemove,
   centerShift,
   editEnd,
+  NODE_COLOR_PICK,
   nodeOf,
   type Plus,
   plusesOf,
@@ -55,7 +66,8 @@ import { TreeRootSchema } from "../node"
 import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "../shape"
 import { DEFAULT_NODE_SIZE, NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
-import { NODE_CONTEXT, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
+import { NODE_CONTEXT, NODE_FILL, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
+import { NodeColorStand } from "./NodeColorStand"
 import { nodePaint } from "./paint"
 import styles from "./TreeView.module.css"
 
@@ -131,6 +143,7 @@ const Tree = memo(function Tree({
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog, continueStep } = useActions()
+  const anchor = useAnchorRef() // 節にアンカーを付ける（そばにスタンドを立てられる）
   // 変更を始めてよいか（動かす・書き換える・足す。認可ステップが止めていれば始めない）
   const where = page ? { page: page.id } : undefined
   const movable = useAllowed(stage.id, NODE_MOVE.id, where).ok
@@ -145,7 +158,9 @@ const Tree = memo(function Tree({
   const grow = GROW.schema.safeParse(setting(GROW.id)).data ?? "down"
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root.success ? selectedIn(root.data, stage.selection) : null
-  const writing = usingEdit && stage.editing && selected !== null
+  const swatches = useSwatches(useBookTheme(book?.id), NODE_FILL) // 節の色のスタンドに並べる色
+  const picking = usingEdit && stage.editing === NODE_COLOR_PICK && selected !== null // 節の色を選んでいる
+  const writing = usingEdit && stage.editing && !picking && selected !== null
   // 書いている字（どの節のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
   const ended = useRef(false)
@@ -216,6 +231,7 @@ const Tree = memo(function Tree({
         // biome-ignore lint/a11y/noStaticElementInteractions: 節はポインタで選び・編集し始め、キーの操作はコマンドが受ける
         <div
           key={n.id}
+          ref={anchor(n.id)}
           className={styles.node}
           data-node={n.id}
           data-root={n.id === tree.id}
@@ -277,6 +293,16 @@ const Tree = memo(function Tree({
       {usingEdit && at && !dragging && (
         // 選んでいる節のほかを少し暗くする（節の周りに大きな影を落とす）
         <div data-spotlight className={styles.spotlight} style={{ left: at.x, top: at.y, width: at.w, height: at.h }} />
+      )}
+      {picking && swatches && (
+        <NodeColorStand
+          stage={stage.id}
+          page={pageId}
+          node={selected}
+          isRoot={selected === tree.id}
+          color={selected === tree.id ? tree.color : nodeOf(tree, selected)?.color}
+          swatches={swatches}
+        />
       )}
       {writing && at && (
         <RichBar stage={stage.id} target={editor} className={styles.editorBar} style={{ left: at.x, top: at.y }} />

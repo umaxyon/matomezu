@@ -20,21 +20,14 @@ import { LINE_SHAPE } from "./line-shape"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 import { EDIT_TOOL, TREE_TOOLS } from "./tools"
-import {
-  NEW_TREE_PAGE_DIALOG,
-  NODE_COLOR_DIALOG,
-  NODE_SIZE_DIALOG,
-  TREE,
-  TREE_PAGE_SETTINGS_DIALOG,
-  TREE_PRESENTATION,
-} from "./tree"
+import { NEW_TREE_PAGE_DIALOG, NODE_SIZE_DIALOG, TREE, TREE_PAGE_SETTINGS_DIALOG, TREE_PRESENTATION } from "./tree"
 
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [TREE],
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],
-    dialogs: [NEW_TREE_PAGE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, NODE_SIZE_DIALOG, NODE_COLOR_DIALOG],
+    dialogs: [NEW_TREE_PAGE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, NODE_SIZE_DIALOG],
     actions: [NODE_ADD, NODE_UPDATE, NODE_REMOVE, NODE_MOVE],
     commands: [
       NODE_SELECT_MOVE,
@@ -94,7 +87,6 @@ declare module "../../../core/catalog" {
     "@matomezu/tree:page-new": typeof NEW_TREE_PAGE_DIALOG
     "@matomezu/tree:page-settings": typeof TREE_PAGE_SETTINGS_DIALOG
     "@matomezu/tree:node-size-edit": typeof NODE_SIZE_DIALOG
-    "@matomezu/tree:node-color-edit": typeof NODE_COLOR_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

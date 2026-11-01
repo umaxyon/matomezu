@@ -1,0 +1,29 @@
+/* 節の色のスタンド: 色の丸を横に並べた浮かぶ面 */
+.panel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-surface-raised);
+  box-shadow: var(--skin-shadow-raised);
+}
+.swatch,
+.none {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--skin-border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+/* 「なし」はテーマの塗りに任せる印に、縁を点線にする */
+.none {
+  border-style: dashed;
+}
+.swatch[aria-pressed="true"],
+.none[aria-pressed="true"] {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
+}
