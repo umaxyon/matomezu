@@ -1,4 +1,4 @@
-// 次のページに選べる紙と向きと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
+// 次のページ（と、あとで変えるページ）に選べる紙と向き、伸びるページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
 import type { PagedBook } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
@@ -31,6 +31,18 @@ export function choosablePapers(rule: PaperRule, pages: readonly Page[]): PaperO
 export function paperChoices(catalog: CoreCatalog, book: PagedBook): PaperOptions {
   return choosablePapers(pagesRule(catalog, book).paper, book.pages)
 }
+
+// ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、1 冊の紙をそろえる規定の手本にしない）
+export function paperChoicesFor(catalog: CoreCatalog, book: PagedBook, page: string): PaperOptions {
+  return choosablePapers(
+    pagesRule(catalog, book).paper,
+    book.pages.filter(p => p.id !== page),
+  )
+}
+
+// ブックのタイプが伸びるページを作れるか
+export const canGrow = (catalog: CoreCatalog, book: PagedBook): boolean =>
+  pagesRule(catalog, book).paper.grow !== undefined
 
 // 選べるものに入るか
 export function canChoose(options: PaperOptions, choice: PaperChoice): boolean {
