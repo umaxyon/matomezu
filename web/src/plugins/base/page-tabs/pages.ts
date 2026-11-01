@@ -8,8 +8,9 @@ import { type Lang, translate } from "../../../core/i18n/i18n"
 import type { PaperChoice, PaperRule } from "../../../core/paper"
 import type { Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
+import { setField } from "../fields"
 import { kit } from "../kit"
-import { extentOf, pageArea } from "../place/items"
+import { alignPadding, extentOf, growOf, pageArea } from "../place/items"
 
 function pagesRule(catalog: CoreCatalog, book: PagedBook) {
   const rule = bookType(catalog, book.type).pages
@@ -45,6 +46,14 @@ export function paperChoicesFor(catalog: CoreCatalog, book: PagedBook, page: str
 // ブックのタイプが可変ページを作れるか
 export const canGrow = (catalog: CoreCatalog, book: PagedBook): boolean =>
   pagesRule(catalog, book).paper.grow !== undefined
+
+// ページ page を、可変ページにするかを grows にしたもの。上下左右へ伸びる可変ページをやめるなら、左・上の空きを詰めて中身を 1 つ目の印刷区画からにする
+// （入らないかは shapesFit で確かめる）
+export function withGrows<P extends Page>(catalog: CoreCatalog, book: PagedBook, page: P, grows: boolean): P {
+  const next = setField(page, ["orientation"], "grows", grows || undefined)
+  const unpad = page.grows && !grows && growOf(catalog, book, page) === "all"
+  return unpad ? alignPadding(catalog, book, next, 0) : next
+}
 
 // 選べるものに入るか
 export function canChoose(options: PaperOptions, choice: PaperChoice): boolean {

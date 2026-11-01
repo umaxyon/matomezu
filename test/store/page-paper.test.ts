@@ -1,14 +1,16 @@
 // ページの紙・向き・伸びるか: page-add で決め、page-update であとから変える（plugins/base/page-tabs）
 import { expect, test } from "bun:test"
 import { z } from "zod"
+import { putPage } from "../../web/src/core/book"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
+import { shapesFit, withGrows } from "../../web/src/plugins/base/page-tabs/pages"
 import { DRAWING } from "../../web/src/plugins/books/drawing/drawing"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
-import { newStore, sequence } from "../support"
+import { CORE_CATALOG, newStore, sequence } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
 
@@ -164,6 +166,10 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
   expect(actions.perform("@matomezu/paper:item-remove", { page, items: [left] }, { book: "b1" }).ok).toBe(true)
   expect(at().shift).toEqual({ x: 1, y: 1 })
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
+  // ページの設定のダイアログが確かめる下書き（withGrows）も、アクションと同じく空きを詰めてから紙に入るかを見る
+  const book = state.getState().books.b1 as Drawing
+  const draft = withGrows(CORE_CATALOG, book, book.pages.find(p => p.id === page) as Drawing["pages"][number], false)
+  expect(shapesFit(CORE_CATALOG, putPage(book, draft), page)).toBe(true)
   // 可変ページをやめると、空きを詰めて紙 1 枚に戻す
   expect(actions.perform("@matomezu/base:page-update", { page, grows: false }, { book: "b1" }).ok).toBe(true)
   expect(at().shift).toBeUndefined()

@@ -672,6 +672,13 @@ test("「ページの設定」で可変ページにすると、上下左右に�
   await expect(page.locator("[data-print-areas]")).toHaveCount(0)
   await toggle.click()
   await expect(page.locator("[data-print-areas]")).toHaveCount(1)
+  // 「ページの設定」で可変ページをやめると、空きを詰めて紙 1 枚に戻る（中身は 1 つ目の印刷区画に入るので確定できる）
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  await dialog.getByRole("switch", { name: "可変ページにする" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.locator("[data-print-areas]")).toHaveCount(0)
 })
 
 test("箱の右の辺を右の箱へ向けて広げると、手を離したときに右の箱が押されて右へずれる", async ({ page }) => {
