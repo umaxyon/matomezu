@@ -39,6 +39,7 @@ const performedKeys = 1024
 type entry struct {
 	body    json.RawMessage
 	version int64
+	trashed bool // ゴミ箱のブックか（土台のフィールド trashed があるか。覚えるときに 1 度だけ読む）
 }
 
 type event struct {
@@ -95,7 +96,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	}
 	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
 	for _, b := range books {
-		h.books[b.ID] = entry{b.Body, b.Version}
+		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
 	}
 	if err := h.checkBooks(h.order); err != nil {
@@ -158,6 +159,19 @@ func (h *Hub) Data() ([]storage.Book, json.RawMessage) {
 		books = append(books, storage.Book{ID: id, Body: e.body, Version: e.version})
 	}
 	return books, h.settings
+}
+
+// AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、置いた順に返す
+func (h *Hub) AIBooks() []storage.Book {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	books := make([]storage.Book, 0, len(h.order))
+	for _, id := range h.order {
+		if e := h.books[id]; !e.trashed {
+			books = append(books, storage.Book{ID: id, Body: e.body, Version: e.version})
+		}
+	}
+	return books
 }
 
 // Perform の頼み。Client と Seq は送った画面とその番号（画面の外からなら空）。
@@ -272,7 +286,7 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 	if !ok {
 		h.order = append(h.order, head.ID)
 	}
-	h.books[head.ID] = entry{body, version}
+	h.books[head.ID] = entry{body, version, trashed(body)}
 	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq})
 	h.touch(head.ID, stamp())
 	return h.checkBooks([]string{head.ID})
@@ -418,7 +432,7 @@ var (
 func (h *Hub) Show(s Show) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if e, ok := h.books[s.Book]; !ok || trashed(e.body) {
+	if e, ok := h.books[s.Book]; !ok || e.trashed {
 		return ErrNoBook
 	}
 	c := h.window()
@@ -451,7 +465,7 @@ func (h *Hub) Book(id string) *storage.Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	e, ok := h.books[id]
-	if !ok || trashed(e.body) {
+	if !ok || e.trashed {
 		return nil
 	}
 	return &storage.Book{ID: id, Body: e.body, Version: e.version}
