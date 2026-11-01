@@ -209,6 +209,7 @@ test("matomezu/ui が出す名前", () => {
     "useMessages",
     "usePage",
     "usePageProblems",
+    "usePaperControls",
     "usePerform",
     "useReadStageState",
     "useResize",

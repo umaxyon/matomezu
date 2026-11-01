@@ -15,6 +15,7 @@ export {
   Form,
   InheritChoices,
   inlineClass,
+  type PaperValue,
   Problem,
   pairClass,
   RichBar,
@@ -36,6 +37,7 @@ export {
   useBookOf,
   useBookTheme,
   useDrawnMinimap,
+  usePaperControls,
   useSwatches,
   useThemeVars,
 } from "../plugins/base/ui"
