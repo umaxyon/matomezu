@@ -234,3 +234,41 @@ test("節のドラッグの間は 100% に戻り、ステージの端へ寄せ�
   await page.mouse.up()
   await expect.poll(async () => Math.round((await paperAt(page)).width)).toBe(Math.round(zoomed.width))
 })
+
+test("節のメニューの「節の色」で、節のすぐ下に色のスタンドが出て、拡大縮小しても節に付いてくる。代表色を押すと塗って閉じる", async ({
+  page,
+}) => {
+  await treeBook(page)
+  const paperEl = paper(page)
+  const rootEl = paperEl.locator('[data-root="true"]')
+  await rootEl.click({ button: "right" })
+  await page
+    .getByRole("menu")
+    .getByRole("menuitem", { name: /^節の色/ })
+    .click()
+  const stand = page.getByRole("group", { name: "節の色" })
+  await expect(stand).toBeVisible()
+  // 節のすぐ下に、左端をそろえて立つ
+  const below = async () => {
+    const n = (await rootEl.boundingBox())!
+    const s = (await stand.boundingBox())!
+    return { gap: s.y - (n.y + n.height), left: s.x - n.x }
+  }
+  await expect.poll(async () => (await below()).gap).toBeGreaterThan(0)
+  await expect.poll(async () => (await below()).gap).toBeLessThan(20)
+  // 拡大縮小しても、節に付いてくる（スタンドの大きさは変わらない）
+  const width = (await stand.boundingBox())!.width
+  const n = (await rootEl.boundingBox())!
+  await page.mouse.move(n.x + n.width / 2, n.y + n.height / 2)
+  await page.keyboard.down("Control")
+  await page.mouse.wheel(0, -300)
+  await page.keyboard.up("Control")
+  await expect.poll(async () => Math.abs((await rootEl.boundingBox())!.width - n.width)).toBeGreaterThan(5)
+  await expect.poll(async () => Math.abs((await below()).left)).toBeLessThan(2)
+  await expect.poll(async () => (await below()).gap).toBeLessThan(20)
+  expect((await stand.boundingBox())!.width).toBeCloseTo(width, 0)
+  const before = await rootEl.evaluate(el => getComputedStyle(el).backgroundColor)
+  await stand.getByRole("button", { name: "テーマの色 2" }).click()
+  await expect(stand).toHaveCount(0)
+  await expect.poll(() => rootEl.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe(before)
+})

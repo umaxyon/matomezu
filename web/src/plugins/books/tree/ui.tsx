@@ -8,20 +8,13 @@ import { TREE_TOOL_ICONS } from "./icons"
 import { LineShapeSetting } from "./LineShapeSetting"
 import { LINE_SHAPE } from "./line-shape"
 import { NewTreePageDialog } from "./NewTreePageDialog"
-import { NodeColorDialog } from "./NodeColorDialog"
 import { NodeShapeSetting } from "./NodeShapeSetting"
 import { NodeSizeDialog } from "./NodeSizeDialog"
 import { NodeSizeSetting } from "./NodeSizeSetting"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 import { TreePageSettingsDialog } from "./TreePageSettingsDialog"
-import {
-  NEW_TREE_PAGE_DIALOG,
-  NODE_COLOR_DIALOG,
-  NODE_SIZE_DIALOG,
-  TREE_PAGE_SETTINGS_DIALOG,
-  TREE_PRESENTATION,
-} from "./tree"
+import { NEW_TREE_PAGE_DIALOG, NODE_SIZE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, TREE_PRESENTATION } from "./tree"
 import { TREE_VIEW } from "./view/ui"
 
 export const TREE_UI = definePluginUi(TREE_PLUGIN, {
@@ -36,7 +29,6 @@ export const TREE_UI = definePluginUi(TREE_PLUGIN, {
     [NEW_TREE_PAGE_DIALOG.id]: NewTreePageDialog,
     [TREE_PAGE_SETTINGS_DIALOG.id]: TreePageSettingsDialog,
     [NODE_SIZE_DIALOG.id]: NodeSizeDialog,
-    [NODE_COLOR_DIALOG.id]: NodeColorDialog,
   },
   toolIcons: TREE_TOOL_ICONS,
 })

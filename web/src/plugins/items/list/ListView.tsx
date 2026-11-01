@@ -26,7 +26,7 @@ import {
   useMessages,
   useStage,
 } from "../../../plugin-api/ui"
-import { RichText, useThemeVars } from "../../base/ui"
+import { RichText, useAnchorRef, useThemeVars } from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
@@ -143,6 +143,7 @@ export function ListView({
   zoom,
 }: ItemViewProps<ItemProps<typeof LIST.id>, { readonly children?: readonly ListRow[] }>) {
   const t = useMessages(kit)
+  const anchor = useAnchorRef() // 行にアンカーを付ける（そばにスタンドを立てられる）
   const catalog = useCoreCatalog()
   const rows: readonly ListRow[] = content.children ?? []
   const theme = props.theme
@@ -269,6 +270,7 @@ export function ListView({
               return (
                 <li
                   key={row.id}
+                  ref={anchor(row.id)}
                   className={styles.row}
                   data-row={row.id}
                   data-checked={row.props.checked === true}
