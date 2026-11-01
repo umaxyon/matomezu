@@ -20,3 +20,10 @@ export function idMaker(newId: () => string, taken: Iterable<string>): () => str
     return fail("E112")
   }
 }
+
+// 値の中の、どの深さのオブジェクトの id（文字列のフィールド id）も集める（ページの中の物の id を、中の作りを知らずに集めるのに使う）
+export function idsIn(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(idsIn)
+  if (typeof value !== "object" || value === null) return []
+  return Object.entries(value).flatMap(([k, v]) => (k === "id" ? (typeof v === "string" ? [v] : []) : idsIn(v)))
+}

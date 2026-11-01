@@ -30,7 +30,9 @@ type Input struct {
 	Now      string            `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
 	Books    []json.RawMessage `json:"books"`
 	Settings json.RawMessage   `json:"settings"`
-	By       string            `json:"by,omitempty"` // 頼んだのが AI なら "ai"（空なら利用者）
+	// Annotations は要るブックのアノテーション（ブックの id → 並び。宛先のブックのか、一覧のアクションなら全部）
+	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
+	By          string                     `json:"by,omitempty"` // 頼んだのが AI なら "ai"（空なら利用者）
 }
 
 // On はアクションの宛先のブック
@@ -39,16 +41,18 @@ type On struct {
 }
 
 // Output は行った結果。断ったときは OK が false で Reason に理由、Detail に AI への説明（認可ステップが止めた denied なら、Permission にそのステップの id）。
-// Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）
+// Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）、
+// Annotations はアノテーションが変わったブックの id → 新しい並び（空の並びなら全部無くなった）
 type Output struct {
-	OK         bool              `json:"ok"`
-	Reason     string            `json:"reason,omitempty"`
-	Permission string            `json:"permission,omitempty"`
-	Detail     string            `json:"detail,omitempty"`
-	Result     json.RawMessage   `json:"result,omitempty"`
-	Books      []json.RawMessage `json:"books,omitempty"`
-	Removed    []string          `json:"removed,omitempty"`
-	Settings   json.RawMessage   `json:"settings,omitempty"`
+	OK          bool                       `json:"ok"`
+	Reason      string                     `json:"reason,omitempty"`
+	Permission  string                     `json:"permission,omitempty"`
+	Detail      string                     `json:"detail,omitempty"`
+	Result      json.RawMessage            `json:"result,omitempty"`
+	Books       []json.RawMessage          `json:"books,omitempty"`
+	Removed     []string                   `json:"removed,omitempty"`
+	Settings    json.RawMessage            `json:"settings,omitempty"`
+	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
 }
 
 // Engine は読み込んだ core
@@ -60,6 +64,8 @@ type Engine struct {
 	check     func(string) string
 	lines     func(string) string
 	settings  func(string) string
+	notes     func(string) string
+	without   func(string, string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
@@ -90,6 +96,12 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuReadSettings"), &e.settings); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuReadSettings: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuCheckAnnotations"), &e.notes); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuCheckAnnotations: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAnnotationsWithout"), &e.without); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAnnotationsWithout: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -212,6 +224,51 @@ func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err err
 		return nil, err
 	}
 	return out, nil
+}
+
+// CheckAnnotations はブックのアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）。
+// pairs はブックとそのアノテーションの並び
+func (e *Engine) CheckAnnotations(pairs []AnnotatedBook) (out []string, err error) {
+	b, err := json.Marshal(pairs)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	if err := json.Unmarshal([]byte(e.notes(string(b))), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AnnotationsWithout は、アノテーションの並び list から、プラグイン plugin が足した種類のアノテーションを除いた並びと、除いたかを返す
+func (e *Engine) AnnotationsWithout(plugin string, list json.RawMessage) (out json.RawMessage, changed bool, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got struct {
+		Annotations json.RawMessage `json:"annotations"`
+		Changed     bool            `json:"changed"`
+	}
+	if err := json.Unmarshal([]byte(e.without(plugin, string(list))), &got); err != nil {
+		return nil, false, err
+	}
+	return got.Annotations, got.Changed, nil
+}
+
+// AnnotatedBook はブックとそのアノテーションの並び（CheckAnnotations に渡す）
+type AnnotatedBook struct {
+	Book        json.RawMessage `json:"book"`
+	Annotations json.RawMessage `json:"annotations"`
 }
 
 // WarningLines は、画面が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする。

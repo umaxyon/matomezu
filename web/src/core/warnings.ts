@@ -19,6 +19,8 @@ export const WARNINGS = {
   W015: "theme {theme}: token {token} is {value}, which is not {expected} (not used)",
   W016: "widget {widget}: place names {target} in slot {slot}, which is not there (not placed)",
   W017: "widget {widget}: place in slot {slot} names both before and after (not placed)",
+  W018: "book {book} ({title}): annotation {id} is a {annotation}, which is not in the catalog (kept as it is, not used)",
+  W019: "book {book} ({title}): annotation {id} does not fit {annotation} (kept as it is, not used)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

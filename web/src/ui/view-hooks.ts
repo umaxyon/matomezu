@@ -5,7 +5,7 @@ import { useShallow } from "zustand/react/shallow"
 import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
-import type { Where } from "../core/def/action"
+import { isOnBook, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { deniedBy, inspect } from "../core/inspect"
@@ -114,7 +114,7 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   // 答えを文字にして比べ、変わったときだけ描き直す（"" は使える、"-" はタイプなどで使えない、ほかは止めた認可ステップの id）
   const answer = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    const onBook = catalog.actions.get(action)?.target === "book"
+    const onBook = isOnBook(catalog.actions.get(action)?.target)
     const book = onBook && o ? s.books[o.book] : undefined
     const page = place?.page ?? o?.page ?? undefined
     const at = { ...(page ? { page } : {}), ...(items ? { items: items.split("\n") } : {}) }

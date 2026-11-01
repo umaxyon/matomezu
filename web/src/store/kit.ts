@@ -3,6 +3,7 @@
 // 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマキーの id・テーマが上書きする自分のテーマキーだけ
 import type { ActionId, MessageKey } from "../core/catalog"
 import type { ActionAttach, ActionDef, ActionTarget, ScopeRequired } from "../core/def/action"
+import type { AnnotationDef } from "../core/def/annotation"
 import {
   type BookSchema,
   type DataOf,
@@ -126,6 +127,10 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: T & { id: Id },
   ): Placed<T, Owned<P, Id>>
 
+  defineAnnotation<const Id extends string, Pr extends AnnotationDef["props"]>(
+    def: AnnotationDef<Pr, keyof M & string> & { id: Id },
+  ): Omit<AnnotationDef<Pr>, "id"> & { id: Owned<P, Id> }
+
   // ブックのタイプ: データの type（と 1 冊だけのタイプのブックの id）は本当の id。schema に type は書かず、ここで足す
   defineBookType<
     const Id extends string,
@@ -209,6 +214,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineTool: place,
     defineToolSet: place,
     definePermission: place,
+    defineAnnotation: place,
     defineBookType: (def: { id: string; schema: BookSchema; book?: object; create?(init: NewBook): object }) => {
       const id = owned(plugin, def.id)
       const placed = { ...place(def), schema: withTypeField(def.schema, id) }

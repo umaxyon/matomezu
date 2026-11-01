@@ -1,0 +1,67 @@
+// アノテーション（core/annotation.ts）: 種類が無い・形が合わない物は、その 1 つだけ効かず warning になり、ほかのアノテーションは変えられる
+import { expect, test } from "bun:test"
+import { type Annotation, checkAnnotations, prune } from "../../web/src/core/annotation"
+import { performIn } from "../../web/src/core/perform"
+import type { Book } from "../../web/src/core/schema/book"
+import { warningText } from "../../web/src/core/warnings"
+import { CORE_CATALOG } from "../support"
+
+const book = {
+  type: "@matomezu/drawing:drawing",
+  id: "d",
+  title: "D",
+  pages: [
+    {
+      id: "p",
+      title: "P",
+      paper: "@matomezu/base:a4",
+      orientation: "portrait",
+      items: [{ id: "a", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, w: 64, h: 64, props: { caption: "A" } }],
+    },
+  ],
+} as unknown as Book
+
+const comment = (id: string, props: unknown): Annotation => ({
+  id,
+  annotation: "@matomezu/base:comment",
+  anchors: ["a"],
+  props,
+})
+const GOOD = comment("c1", { ask: "reply", bubble: true, posts: [{ by: "user", text: "x", at: "t" }] })
+const BAD = comment("c2", { ask: "later" })
+const GONE: Annotation = { id: "c3", annotation: "@ex/notes:sticky", anchors: ["a"], props: {} }
+
+test("種類が機能台帳に無い物は W018、形が合わない物は W019 になる（データには手を付けない）", () => {
+  expect(checkAnnotations(CORE_CATALOG, book, [GOOD, BAD, GONE]).map(warningText)).toEqual([
+    "W019 @matomezu/base: book d (D): annotation c2 does not fit @matomezu/base:comment (kept as it is, not used)",
+    "W018 @ex/notes: book d (D): annotation c3 is a @ex/notes:sticky, which is not in the catalog (kept as it is, not used)",
+  ])
+})
+
+test("効かないアノテーションがあっても、ほかのアノテーションは変えられ、効かない物はそのまま残る", () => {
+  const world = { books: { d: book }, settings: {}, annotations: { d: [GOOD, BAD, GONE] } }
+  const done = performIn(
+    world,
+    "@matomezu/base:comment-remove",
+    { comment: "c1" },
+    { book: "d" },
+    {
+      catalog: CORE_CATALOG,
+      home: null,
+      lang: "en",
+      newId: () => "n",
+      now: "2026-11-01T00:00:00.000Z",
+    },
+  )
+  expect(done).toMatchObject({ ok: true, annotations: { d: [BAD, GONE] } })
+})
+
+test("prune は無くなった物をアンカーから外し、全部無くなった物を消す。変わらなければ同じ並び", () => {
+  const list = [GOOD, { ...GOOD, id: "c4", anchors: ["a", "x"] }, { ...GOOD, id: "c5", anchors: ["x"] }]
+  expect(prune(list, book).map(a => [a.id, a.anchors])).toEqual([
+    ["c1", ["a"]],
+    ["c4", ["a"]],
+  ])
+  const same = [GOOD]
+  expect(prune(same, book)).toBe(same)
+})

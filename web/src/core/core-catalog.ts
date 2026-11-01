@@ -6,6 +6,7 @@ import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
 import { HEX } from "./color"
 import { type ActionDef, attachedTo } from "./def/action"
+import type { AnnotationDef } from "./def/annotation"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
@@ -45,6 +46,7 @@ declare module "./catalog" {
     tools: ToolDef
     toolSets: ToolSetDef
     permissions: PermissionDef
+    annotations: AnnotationDef
   }
 }
 

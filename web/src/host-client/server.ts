@@ -127,6 +127,7 @@ export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSche
 const DataSchema = z.object({
   books: z.array(z.object({ id: z.string(), book: z.unknown(), version: z.number().int() })),
   settings: z.unknown(),
+  annotations: z.record(z.string(), z.unknown()).optional(),
   plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
   touched: z.record(z.string(), z.string()).optional(),
 })
@@ -137,6 +138,7 @@ const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
 const AckSchema = z.object({ seq: z.number().int() })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
+const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
 
 export interface ServerClient extends HostClient {
   pending(): readonly DoneAction[] // まだ確かめられていない自分のアクション
@@ -145,6 +147,7 @@ export interface ServerClient extends HostClient {
 export function serverClient(net: Net = browserNet): ServerClient {
   const confirmed = new Map<string, { book: unknown; version: number }>()
   let settings: unknown
+  let annotations: Record<string, unknown> = {} // ブックの id → アノテーションの並び
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: Pending[] = []
@@ -170,7 +173,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
 
   const show = () =>
     instance?.receive(
-      { books: [...confirmed.values()].map(e => e.book), settings, touched },
+      { books: [...confirmed.values()].map(e => e.book), settings, annotations, touched },
       pending.map(p => p.done),
     )
   const settle = (mark: { client?: string; seq?: number }) => {
@@ -239,6 +242,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       if (!have || have.version < b.version) confirmed.set(b.id, { book: b.book, version: b.version })
     }
     settings = data.settings ?? undefined
+    annotations = data.annotations ?? {}
     plugins = data.plugins ?? []
     // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
     for (const [id, at] of Object.entries(data.touched ?? {}))
@@ -300,6 +304,14 @@ export function serverClient(net: Net = browserNet): ServerClient {
       source.on("settings", data => {
         const e = SettingsSchema.parse(JSON.parse(data))
         settings = e.settings
+        settle(e)
+        show()
+      })
+      source.on("annotations", data => {
+        const e = AnnotationsSchema.parse(JSON.parse(data))
+        const { [e.book]: _, ...rest } = annotations
+        annotations =
+          Array.isArray(e.annotations) && e.annotations.length === 0 ? rest : { ...rest, [e.book]: e.annotations }
         settle(e)
         show()
       })

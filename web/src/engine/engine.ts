@@ -4,10 +4,12 @@
 // 追加プラグインが借りる実物（plugin-modules）は、読み込んだときに globalThis.__matomezuModules に置く（変換した JS はここから取り出す）
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
+import { type Annotations, checkAnnotations, restoreAnnotations } from "../core/annotation"
 import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { detectLang, translate } from "../core/i18n/i18n"
+import { splitId } from "../core/names"
 import { type PerformedIn, performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
@@ -41,13 +43,14 @@ interface Input {
   now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
   books?: unknown[]
   settings: unknown
+  annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
 }
 
-// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック。
+// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
-  | { ok: true; result: unknown; books: Book[]; removed: string[]; settings?: unknown }
+  | { ok: true; result: unknown; books: Book[]; removed: string[]; settings?: unknown; annotations?: Annotations }
   | { ok: false; reason: string; permission?: string; detail?: string }
 
 declare const crypto: { randomUUID(): string }
@@ -86,7 +89,10 @@ function perform(input: Input): Output {
   const lang = input.lang ? detectLang([input.lang], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
   const ids = [...(input.ids ?? [])]
   const books = Object.fromEntries(restoreBooks(catalog, input.books ?? []).map(b => [b.id, b]))
-  const done = performIn({ books, settings }, input.action, input.args, input.on, {
+  const annotations = Object.fromEntries(
+    Object.entries(input.annotations ?? {}).map(([book, list]) => [book, restoreAnnotations(list)]),
+  )
+  const done = performIn({ books, settings, annotations }, input.action, input.args, input.on, {
     catalog,
     home,
     lang,
@@ -104,6 +110,7 @@ function perform(input: Input): Output {
     books: changed,
     removed,
     ...(done.settings ? { settings: done.settings } : {}),
+    ...(done.annotations ? { annotations: done.annotations } : {}),
   }
 }
 // MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・利用者の設定の項目（利用者だけが変える項目は除く）・テーマ・代表色を絞って書き出したもの。
@@ -182,6 +189,25 @@ function aiCatalog(of: Assembled = assembled) {
     })),
   )
 }
+
+// 残したアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い W018・形が合わない W019）の warning の 1 行ずつを返す（常駐がログに書く）。
+// 読めないブックのアノテーションは確かめない
+;(globalThis as { matomezuCheckAnnotations?: (pairs: string) => string }).matomezuCheckAnnotations = pairs => {
+  const catalog = assembled.catalog.core
+  const lines = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).flatMap(p => {
+    const [book] = restoreBooks(catalog, [p.book])
+    return book ? checkAnnotations(catalog, book, restoreAnnotations(p.annotations)).map(warningText) : []
+  })
+  return JSON.stringify(lines)
+}
+
+// アノテーションの並びから、プラグイン plugin が足した種類（種類の id の持ち主が plugin）の物を除く（利用者がプラグインを外したときに常駐が消す）
+;(globalThis as { matomezuAnnotationsWithout?: (plugin: string, list: string) => string }).matomezuAnnotationsWithout =
+  (plugin, list) => {
+    const all = restoreAnnotations(JSON.parse(list))
+    const kept = all.filter(a => splitId(String(a.annotation)).owner !== plugin)
+    return JSON.stringify({ annotations: kept, changed: kept.length !== all.length })
+  }
 
 // 画面が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする（常駐が集めてログと AI に出す）。
 // 表に無い番号・形の合わないものは捨てる（画面が作った文は使わない）

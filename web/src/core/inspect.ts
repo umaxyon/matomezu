@@ -133,7 +133,7 @@ function userSettingSteps(
 }
 
 // アクションの許可: 表にあるか → AI が利用者だけのアクション・項目を頼んだか → 認可ステップ（ブックがあるとき）→
-// ブックが対象ならそのブックのタイプ、一覧と設定が対象ならホームのタイプ（変えさせない項目 → アクションを使えるか）
+// ブックとアノテーションが対象ならそのブックのタイプ、一覧と設定が対象ならホームのタイプ（変えさせない項目 → アクションを使えるか）
 function action(catalog: CoreCatalog, q: Extract<Query, { kind: "action" }>, home: string | null): Inspected<boolean> {
   const def: ActionDef | undefined = catalog.actions.get(q.action)
   const known: Step<boolean> = {
@@ -147,7 +147,7 @@ function action(catalog: CoreCatalog, q: Extract<Query, { kind: "action" }>, hom
   }
   const { kind: _, action: __, book, settings, ...where } = q
   const permitted = book ? permissionSteps(catalog, { ...where, action: def, book }) : []
-  if (def.target === "book")
+  if (def.target === "book" || def.target === "annotations")
     return book
       ? decide([known, userOnly, ...permitted, ...typeSteps(def, bookType(catalog, book.type))])
       : decide([known, userOnly])

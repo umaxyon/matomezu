@@ -134,6 +134,31 @@ func TestDeleteBook(t *testing.T) {
 	}
 }
 
+// アノテーションはブックごとに、ブックとは別に持つ。空の並びを書くと消え、ブックを消すと一緒に消える
+func TestAnnotationsPerBook(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "data.db"))
+	for _, id := range []string{"b1", "b2"} {
+		if _, _, err := s.PutBook(id, json.RawMessage(`{"id":"`+id+`"}`), 0); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.PutAnnotations(id, json.RawMessage(`[{"id":"c"}]`)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if all, _ := s.Annotations(); len(all) != 2 || string(all["b1"]) != `[{"id":"c"}]` {
+		t.Fatalf("annotations = %v", all)
+	}
+	if err := s.PutAnnotations("b1", json.RawMessage(`[]`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteBook("b2"); err != nil {
+		t.Fatal(err)
+	}
+	if all, _ := s.Annotations(); len(all) != 0 {
+		t.Fatalf("annotations after clearing and deleting = %v", all)
+	}
+}
+
 // ゴミ箱に入れた時刻の列（trashed_at）を持っていた置き場所は、時刻をブックのデータの trashed に移す
 func TestTrashedAtMovesIntoTheBook(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")

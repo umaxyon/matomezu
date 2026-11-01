@@ -4,6 +4,7 @@
 
 import type { ToolId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
+import { isOnBook } from "./def/action"
 import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail } from "./errors"
 import { deniedBy, inspect } from "./inspect"
@@ -39,7 +40,7 @@ export function toolUsable(catalog: CoreCatalog, tool: string, book: Book | null
   if (!book || performs.length === 0) return true
   const where = page ? { where: { page } } : {}
   return performs.some(action => {
-    const onBook = catalog.actions.get(action)?.target === "book"
+    const onBook = isOnBook(catalog.actions.get(action)?.target)
     return deniedBy(inspect(catalog, { kind: "action", action, ...(onBook ? { book, ...where } : {}) })) === null
   })
 }

@@ -5,6 +5,7 @@ import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { CREATE_SETTINGS_CHECK } from "./book-new/book-create"
 import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRASH_EMPTY } from "./book-open"
+import { COMMENT, COMMENT_ADD, COMMENT_READ, COMMENT_REMOVE, COMMENT_REPLY, COMMENT_UPDATE } from "./comment"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
@@ -147,6 +148,11 @@ export const BASE = defineBuiltin(
       TRASH_EMPTY,
       SETTINGS_SET,
       HISTORY_RESTORE,
+      COMMENT_ADD,
+      COMMENT_REPLY,
+      COMMENT_READ,
+      COMMENT_UPDATE,
+      COMMENT_REMOVE,
     ],
     settings: [BOOK_THEME, BOOK_PAPER_COLOR, BOOK_TEXT_COLORS],
     userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS],
@@ -156,6 +162,7 @@ export const BASE = defineBuiltin(
     skins: [DARK, LIGHT, MATOMEZU_LIGHT_SKIN, MATOMEZU_DARK_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
+    annotations: [COMMENT],
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK, THEME_TEXT_COLORS_CHECK],
     commands: [
       BOOK_NEW,
@@ -218,6 +225,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:trash-empty": typeof TRASH_EMPTY
     "@matomezu/base:settings-set": typeof SETTINGS_SET
     "@matomezu/base:book-revert": typeof HISTORY_RESTORE
+    "@matomezu/base:comment-add": typeof COMMENT_ADD
+    "@matomezu/base:comment-reply": typeof COMMENT_REPLY
+    "@matomezu/base:comment-read": typeof COMMENT_READ
+    "@matomezu/base:comment-update": typeof COMMENT_UPDATE
+    "@matomezu/base:comment-remove": typeof COMMENT_REMOVE
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD
@@ -227,6 +239,9 @@ declare module "../../core/catalog" {
   }
   interface PermissionTable {
     "@matomezu/base:lock": typeof LOCK
+  }
+  interface AnnotationTable {
+    "@matomezu/base:comment": typeof COMMENT
   }
   interface ToolTable {
     "@matomezu/base:select": typeof SELECT_TOOL
