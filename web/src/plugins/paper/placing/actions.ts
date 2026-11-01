@@ -9,6 +9,7 @@ import {
   type ItemPage,
   type PlacedShape,
   putPage,
+  replaceShape,
   type ShapeData,
   shapeSchema,
 } from "../../../plugin-api"
@@ -21,7 +22,6 @@ import {
   removeItems,
   replaceChild,
   replacePushing,
-  replaceShape,
   settleChildren,
   shapeDefOf,
   widenForCaption,
@@ -75,7 +75,7 @@ export const ITEM_PLACE = kit.defineAction({
   id: "item-place",
   attach: ON_PAPER,
   aiDescription:
-    "Place an item on a page with its top-left at at (in paper pixels). With parent (the id of a shape that can hold children, such as a nest box @matomezu/box:shape-nest-box), the item becomes the parent's last child and at is from the parent's top-left; it goes in the parent's child area below its caption and body (moved there if at is left of or above it), pushing the other children right or else down as on the paper, and the parent grows to hold its children and pushes the page's boxes as it grows. w and h set the size of an item that can be resized (a box, a list). A list (@matomezu/list:shape-list) starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with @matomezu/list:row-add. Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. Boxes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed. It is refused if it does not fit on the paper. Returns the new item's id. Two items joined by a line keep 32 pixels apart (40 when the line has a caption) instead of 8, here and in @matomezu/paper:item-move, @matomezu/paper:item-update and @matomezu/paper:item-resize. The items, their props and sizes, the themes and the colors are in actions.",
+    "Place an item on a page with its top-left at at (in paper pixels). With parent (the id of a shape that can hold children), the item becomes the parent's last child and at is from the parent's top-left; it goes in the parent's child area below its caption and body (moved there if at is left of or above it), pushing the other children right or else down as on the paper, and the parent grows to hold its children and pushes the page's shapes as it grows. w and h set the size of an item that can be resized; without them it takes its own default size (see its props). Shapes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed (shapes joined by some connectors keep further apart; see those connectors' actions). It is refused if it does not fit on the paper. Returns the new item's id. The items, their props and sizes, the themes and the colors are in actions.",
   title: "Place item",
   target: "book",
   args: z.strictObject({
@@ -113,7 +113,7 @@ export const ITEM_MOVE = kit.defineAction({
   id: "item-move",
   attach: ON_PAPER,
   aiDescription:
-    "Move items of a page by (x, y) paper pixels. Other boxes are not pushed: moving one box at least half into the box ahead of it swaps them; coming within 8 pixels of a box otherwise stops it just before that box. It is refused if any would leave the paper. Children (shapes inside a parent) move the same way inside their parent's child area (below its caption and body; it has no right or bottom edge, the parent grows to hold them and pushes the page's boxes). Items of the page and children, or children of different parents, are not moved together.",
+    "Move items of a page by (x, y) paper pixels. Other shapes are not pushed: moving one shape at least half into the shape ahead of it swaps them; coming within 8 pixels of a shape otherwise stops it just before that shape. It is refused if any would leave the paper. Children (shapes inside a parent) move the same way inside their parent's child area (below its caption and body; it has no right or bottom edge, the parent grows to hold them and pushes the page's shapes). Items of the page and children, or children of different parents, are not moved together.",
   title: "Move items",
   target: "book",
   args: z.strictObject({
@@ -137,7 +137,7 @@ export const ITEM_REPARENT = kit.defineAction({
   id: "item-reparent",
   attach: ON_PAPER,
   aiDescription:
-    "Move a shape into a shape that can hold children (parent: its id) or out to the page (parent: null), keeping where it is on the paper (or putting its top-left at at, in paper pixels); its children and the lines joined to them come along. Inside, it goes in the parent's child area (moved there if it is left of or above it), pushing the other children as in @matomezu/paper:item-place. The parent grows to hold it and pushes the page's boxes; on the page, boxes it comes within 8 pixels of are pushed as in @matomezu/paper:item-place. It is refused into itself or its children, into a shape that cannot hold children, into the parent it is already in, or when it does not fit on the paper.",
+    "Move a shape into a shape that can hold children (parent: its id) or out to the page (parent: null), keeping where it is on the paper (or putting its top-left at at, in paper pixels); its children and the lines joined to them come along. Inside, it goes in the parent's child area (moved there if it is left of or above it), pushing the other children as in @matomezu/paper:item-place. The parent grows to hold it and pushes the page's shapes; on the page, shapes it comes within 8 pixels of are pushed as in @matomezu/paper:item-place. It is refused into itself or its children, into a shape that cannot hold children, into the parent it is already in, or when it does not fit on the paper.",
   title: "Reparent item",
   target: "book",
   args: z.strictObject({
@@ -178,7 +178,7 @@ export const ITEM_UPDATE = kit.defineAction({
   id: "item-update",
   attach: ON_PAPER,
   aiDescription:
-    "Change some props of an item (a box or a list, also a child inside a parent; a line is changed with @matomezu/line:line-update). Props not given stay; a prop given as null is removed (back to its default). The item's size does not change, except that a box whose caption grows widens to show it up to 20 characters, pushing the boxes it would come too close to (when they would leave the paper, it stays as wide). When a box's caption or body grows so its children's area moves down, its children move down with it, keeping how they lie.",
+    "Change some props of a shape (also a child inside a parent; a connector is changed with its own actions). Props not given stay; a prop given as null is removed (back to its default). The shape's size does not change, except that a shape whose caption grows widens to show it (as far as the shape lets its caption widen it), pushing the shapes it would come too close to (when they would leave the paper, it stays as wide). When a shape's caption or body grows so its children's area moves down, its children move down with it, keeping how they lie.",
   title: "Update item",
   target: "book",
   args: z.strictObject({
@@ -212,7 +212,7 @@ export const ITEM_RESIZE = kit.defineAction({
   id: "item-resize",
   attach: ON_PAPER,
   aiDescription:
-    "Change the size of an item that can be resized (a box): only w and h given change; x and y move its top-left too. An item whose height comes from its contents (such as a picture with its caption under it) changes only its width: its height follows the width, and h and y are ignored. A child stays in its parent's child area (x and y are from the parent's top-left) and pushes the other children, which do not shrink; its parent grows to hold it and pushes the page's boxes. Boxes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed boxes shrink (no narrower than their caption, no lower than one caption line). It is refused below the item's smallest size, off the paper, or when they cannot shrink enough.",
+    "Change the size of an item that can be resized: only w and h given change; x and y move its top-left too. An item whose height comes from its contents (such as a picture with its caption under it) changes only its width: its height follows the width, and h and y are ignored. A child stays in its parent's child area (x and y are from the parent's top-left) and pushes the other children, which do not shrink; its parent grows to hold it and pushes the page's shapes. Shapes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed shapes shrink (no narrower than their caption, no lower than one caption line). It is refused below the item's smallest size, off the paper, or when they cannot shrink enough.",
   title: "Resize item",
   target: "book",
   args: z.strictObject({
@@ -253,7 +253,7 @@ export const ITEM_REMOVE = kit.defineAction({
   id: "item-remove",
   attach: ON_PAPER,
   aiDescription:
-    "Remove items (boxes, lists, lines, and children inside a parent) from a page. Removing a box or a list removes its children and the lines joined to any of them.",
+    "Remove items (shapes, connectors, and children inside a parent) from a page. Removing a shape removes its children and the connectors joined to any of them.",
   title: "Remove items",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),

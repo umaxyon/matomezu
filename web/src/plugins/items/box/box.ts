@@ -17,26 +17,30 @@ export const BOX_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "box-ad
 // 箱の編集のダイアログ。開いたステージのブックの、ページ page の箱 item の中身を変える
 export const BOX_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "box-edit" })
 
-export const BoxPropsSchema = z.strictObject({
-  ...textProps("center"), // キャプション・区切り線・本文と寄せ（キャプションは中央寄せ）
-  theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければブックのテーマ）
-  color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
-  // 本文の列の幅（無ければ箱の中いっぱい。size.ts の bodyColumn）
-  bodyWidth: z
-    .number()
-    .positive()
-    .optional()
-    .describe(
-      "Width in pixels of the column the body wraps in (bodyAlign aligns inside it). It is never narrower than the caption, and a box narrower than it fills its inside. The column follows captionAlign: left-aligned under a left caption, centered under a centered one, right-aligned under a right one. Without it, the body fills the box's inside",
-    ),
-  // キャプション・区切り線・本文の塊を置く縦の位置（無ければ自動。size.ts の vAlignOf）
-  vAlign: z
-    .enum(VALIGNS)
-    .optional()
-    .describe(
-      "Where the caption, divider and body sit together in the box: top, middle or bottom. Without it, middle when the box has no body and no children, else top. In a nest box holding children, middle is drawn as top, and bottom puts the children's area above the caption and body",
-    ),
-})
+export const BoxPropsSchema = z
+  .strictObject({
+    ...textProps("center"), // キャプション・区切り線・本文と寄せ（キャプションは中央寄せ）
+    theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければブックのテーマ）
+    color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
+    // 本文の列の幅（無ければ箱の中いっぱい。size.ts の bodyColumn）
+    bodyWidth: z
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        "Width in pixels of the column the body wraps in (bodyAlign aligns inside it). It is never narrower than the caption, and a box narrower than it fills its inside. The column follows captionAlign: left-aligned under a left caption, centered under a centered one, right-aligned under a right one. Without it, the body fills the box's inside",
+      ),
+    // キャプション・区切り線・本文の塊を置く縦の位置（無ければ自動。size.ts の vAlignOf）
+    vAlign: z
+      .enum(VALIGNS)
+      .optional()
+      .describe(
+        "Where the caption, divider and body sit together in the box: top, middle or bottom. Without it, middle when the box has no body and no children, else top. In a nest box holding children, middle is drawn as top, and bottom puts the children's area above the caption and body",
+      ),
+  })
+  .describe(
+    "A box placed without w is as wide as its caption up to 20 characters (64 at the least), and widens to show a longer caption up to 20 characters; without h, tall enough to show up to 5 lines of its body. The body wraps to the width and what does not fit in the height is cut with …",
+  )
 
 // 内包ボックスの追加のダイアログ（箱の追加のダイアログと同じ見た目で、内包ボックスを置く）
 export const NEST_BOX_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "nest-box-add" })

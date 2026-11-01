@@ -1,8 +1,8 @@
-// 子の形（能力 nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す関数（core/placed.ts）・置き換える関数（base の place/items.ts）・子を持つ形の大きさ（base の place/placed.ts）
+// 子の形（能力 nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
 import { describe, expect, test } from "bun:test"
 import { pagedOf, restoreBooks } from "../../web/src/core/book"
-import { findShape, type ItemPage, type PlacedShape, walkShapes } from "../../web/src/core/placed"
-import { replaceShape, shownRects } from "../../web/src/plugins/base/place/items"
+import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
+import { shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
 import { CORE_CATALOG } from "../support"
 

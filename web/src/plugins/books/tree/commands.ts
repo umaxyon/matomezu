@@ -47,6 +47,8 @@ export const NODE_SELECT_ROOT = kit.defineCommand({
 // 選んでいる節（何も選んでいなければ根）を編集し始める。子はその場で、根はページの設定のダイアログ（根のダイアログを兼ねる）で
 export const NODE_EDIT = kit.defineCommand({
   id: "node-edit",
+  performs: [NODE_UPDATE.id, "@matomezu/base:page-update"],
+  permissionScope: "opened-page",
   title: "Edit caption",
   run: (ctx, a) => {
     const tree = treeAt(ctx)

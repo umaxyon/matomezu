@@ -325,3 +325,20 @@ func TestWarningLinesUseTheTable(t *testing.T) {
 		t.Fatalf("lines = %q", lines)
 	}
 }
+
+func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
+	e := newEngine(t)
+	noType := json.RawMessage(`{"type":"@foo/stamps:board","id":"x1","title":"S"}`)
+	star := json.RawMessage(`{"type":"@matomezu/drawing:drawing","id":"y1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":1,"y":1,"props":{}}]}]}`)
+	found, err := e.CheckBooks([]json.RawMessage{noType, star})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, n := range found {
+		got[n.Code] = n.Unreadable
+	}
+	if len(got) != 2 || !got["W004"] || got["W007"] {
+		t.Fatalf("CheckBooks = %+v", found)
+	}
+}

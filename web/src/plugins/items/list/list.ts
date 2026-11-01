@@ -27,7 +27,7 @@ export const ListRowSchema = z.strictObject({ id: z.string().min(1), item: z.lit
 export type ListRow = z.infer<typeof ListRowSchema>
 
 // リストの塗りのテーマキー（行のカードの地。色の見本の「なし」もこの色）
-export const LIST_FILL = { id: "list-fill", fallback: "fill" } as const
+export const LIST_FILL = { id: kit.name("list-fill"), fallback: "fill" } as const
 
 // リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
 export const LIST_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "list-add" })
@@ -62,16 +62,20 @@ export const LIST = kit.defineShape({
   captionWidth: list => listCaptionWidth(list.props.caption),
   "@matomezu/paper:settle": settleChecks,
   dialogs: { add: LIST_ADD_DIALOG.id, edit: LIST_EDIT_DIALOG.id },
-  props: z.strictObject({
-    caption: z.string().default(""),
-    captionAlign: AlignSchema.default("center"), // 見出しのキャプションの寄せ（箱と同じ）
-    theme: z.string().min(1).optional(), // リストに当てるテーマの id（無ければブックのテーマ）
-    color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（箱と同じ）
-    checklist: z.boolean().default(false), // 行の左にチェックの印を出す
-    zebra: z.boolean().default(false), // 1 行おきに地の色を少し変える
-    checkedGray: z.boolean().default(false), // チェックリストで、チェック済みの行を薄く描く
-    checkedOrder: z.enum(["none", "first", "last"]).default("none"), // チェックリストで、チェック済みの行を先頭か最後に寄せて見せる（データの順は変えない）
-  }),
+  props: z
+    .strictObject({
+      caption: z.string().default(""),
+      captionAlign: AlignSchema.default("center"), // 見出しのキャプションの寄せ（箱と同じ）
+      theme: z.string().min(1).optional(), // リストに当てるテーマの id（無ければブックのテーマ）
+      color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（箱と同じ）
+      checklist: z.boolean().default(false), // 行の左にチェックの印を出す
+      zebra: z.boolean().default(false), // 1 行おきに地の色を少し変える
+      checkedGray: z.boolean().default(false), // チェックリストで、チェック済みの行を薄く描く
+      checkedOrder: z.enum(["none", "first", "last"]).default("none"), // チェックリストで、チェック済みの行を先頭か最後に寄せて見せる（データの順は変えない）
+    })
+    .describe(
+      `A list starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with ${kit.name("row-add")}`,
+    ),
   size: LIST_SIZE,
   tokens: [
     LIST_FILL,
