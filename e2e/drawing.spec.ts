@@ -617,7 +617,9 @@ test("紙の右クリックの「ページの設定」でページの名前を�
   await expect(tab).toHaveText("表紙")
 })
 
-test("「ページの設定」で紙を A3 にすると紙が大きくなる。形が入らない紙を選ぶと知らせを出して確定できない", async ({ page }) => {
+test("「ページの設定」で紙を A3 にすると紙が大きくなる。形が入らない紙を選ぶと知らせを出して確定できない", async ({
+  page,
+}) => {
   await page.goto("/")
   await (await drawerTool(page, "箱")).click()
   const right = await onPaper(page, 900, 120)
