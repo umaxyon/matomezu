@@ -8,7 +8,7 @@ import { inspect, withoutPermissions } from "../../core/inspect"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import type { MatomezuState } from "../store"
-import { type CommandContext, type CommandDef, commandScopeOf } from "./def"
+import { type CommandContext, type CommandDef, commandScopeOf, withWorkspace } from "./def"
 
 export type { CommandId } from "../../core/catalog"
 
@@ -32,17 +32,19 @@ export function commandContext(
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
   const { workspace, settings, dialog, contextMenu } = state
-  return {
-    catalog,
-    home,
-    stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
-    book,
+  return withWorkspace(
+    {
+      catalog,
+      home,
+      stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
+      book,
+      settings,
+      dialog,
+      contextMenu,
+      bookHistory: (book && state.history[book.id]) || NO_HISTORY,
+    },
     workspace,
-    settings,
-    dialog,
-    contextMenu,
-    bookHistory: (book && state.history[book.id]) || NO_HISTORY,
-  }
+  )
 }
 
 // コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければホームのタイプ）で使えるか（認可ステップが止めているかは見ない）
