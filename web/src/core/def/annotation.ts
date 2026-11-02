@@ -9,7 +9,9 @@ export interface AnnotationDef<P extends z.ZodType = z.ZodType, Tt extends strin
   extends AnnotationExtras {
   id: string // 本当の id（例: @matomezu/base:comment）
   title: Tt
+  aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。何のための物で、AI がどう応えるか）
   props: P // 種類ごとの形
+  awaits?(props: z.output<P>): boolean // AI の応えを待っているか（無ければ待たない。待っている物を AI に知らせる）
 }
 
 export function defineAnnotation<const Id extends string, P extends z.ZodType>(

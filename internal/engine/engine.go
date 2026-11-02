@@ -67,6 +67,7 @@ type Engine struct {
 	settings  func(string) string
 	notes     func(string) string
 	without   func(string, string) string
+	forAI     func(string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
@@ -103,6 +104,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAnnotationsWithout"), &e.without); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAnnotationsWithout: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiAnnotations"), &e.forAI); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiAnnotations: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -266,7 +270,27 @@ func (e *Engine) AnnotationsWithout(plugin string, list json.RawMessage) (out js
 	return got.Annotations, got.Changed, nil
 }
 
-// AnnotatedBook はブックとそのアノテーションの並び（CheckAnnotations に渡す）
+// AIAnnotations は、ブックとそのアノテーションの並びごとに、AI に見せる並び（アノテーションに、結び付く物の最後のあるページ page と、
+// AI の応えを待っているか awaits を添えたもの）を返す。並びは pairs と同じ順
+func (e *Engine) AIAnnotations(pairs []AnnotatedBook) (out []json.RawMessage, err error) {
+	b, err := json.Marshal(pairs)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	if err := json.Unmarshal([]byte(e.forAI(string(b))), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AnnotatedBook はブックとそのアノテーションの並び（CheckAnnotations・AIAnnotations に渡す）
 type AnnotatedBook struct {
 	Book        json.RawMessage `json:"book"`
 	Annotations json.RawMessage `json:"annotations"`

@@ -82,3 +82,32 @@ func TestDroppingAPluginsAnnotations(t *testing.T) {
 		t.Fatalf("after dropping all = %v %v %v", kept, h.annotations, h.Warnings())
 	}
 }
+
+// AI の読む口: read_book・read_page はアノテーションを、立つ物のページと AI の応えを待っているかを添えて返し、
+// list_books は待つ数を、awaiting は待つ物の全部を返す。AI が既読にすると待たなくなる
+func TestAIReadsAnnotations(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
+	ai := map[string]string{"Authorization": "Bearer secret"}
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:comment-add","args":{"anchors":["a"],"text":"x","ask":"reply"},"on":{"book":"b1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
+	const waiting = `{"id":"c1","annotation":"@matomezu/base:comment","anchors":["a"],"props":{"ask":"reply","bubble":true,"posts":[{"by":"user","text":"x","at":"2026-11-02T00:00:00.000Z"}]},"page":"p1","awaits":true}`
+	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
+		t.Fatalf("read_book = %s", got)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"id":"b1","page":{"id":"p1"`) {
+		t.Fatalf("read_page = %s", got)
+	}
+	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1/pages/nothing", "", ai); code != 404 {
+		t.Fatalf("read_page of no page = %d", code)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"version":1,"awaiting":1}`) {
+		t.Fatalf("list_books = %s", got)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"book":"b1","title":"T","annotation":`+waiting+`}]}` {
+		t.Fatalf("awaiting = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:comment-read","args":{"comment":"c1"},"on":{"book":"b1"}}`, ai)
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[]}` {
+		t.Fatalf("awaiting after read = %s", got)
+	}
+}

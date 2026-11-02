@@ -87,6 +87,23 @@ export function checkAnnotations(catalog: CoreCatalog, book: Book, annotations: 
   })
 }
 
+// AI に見せるアノテーション: 結び付く物の最後（anchors の最後）のあるページと、AI の応えを待っているか（種類の awaits）を添える
+export interface AiAnnotation extends Annotation {
+  page: string | null // 結び付く物の最後（anchors の最後）があるページ（ページの無いブックや、見つからなければ null）
+  awaits: boolean
+}
+
+export function annotationsForAi(catalog: CoreCatalog, book: Book, annotations: readonly Annotation[]): AiAnnotation[] {
+  const pages = "pages" in book ? (book.pages as readonly { id: string }[]) : []
+  const pageOf = new Map(pages.flatMap(({ id: page, ...content }) => idsIn(content).map(id => [id, page] as const)))
+  const ids = anchorIds(book)
+  return annotations.map(a => {
+    const def = catalog.annotations.get(a.annotation)
+    const awaits = def?.awaits !== undefined && fits(catalog, book, ids, a) && def.awaits(a.props)
+    return { ...a, page: pageOf.get(a.anchors.at(-1) ?? "") ?? null, awaits }
+  })
+}
+
 // ブックごとのアノテーション all に、変わったブックの並び changed（performIn の annotations）を入れる。空の並びのブックは持たない
 export function withAnnotations(all: Annotations, changed: Annotations | undefined): Annotations {
   if (!changed) return all

@@ -18,9 +18,11 @@
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
-//	GET  /api/ai/view        最後にフォーカスされた画面が見ているもの（{"book", "page", "selection"}。無ければ null）
-//	GET  /api/ai/books       {"books": [{"id", "type", "title", "version"}]}
-//	GET  /api/ai/books/{id}  {"id", "book", "version"}
+//	GET  /api/ai/view        最後にフォーカスされた画面が見ているもの（{"book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション）
+//	GET  /api/ai/books       {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
+//	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations"}
+//	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
+//	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}]} AI の応えを待つアノテーションの全部
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "result"} を返す
@@ -107,6 +109,8 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/view", o.auth(o.aiView))
 	mux.Handle("GET /api/ai/books", o.auth(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
+	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.auth(o.aiPage))
+	mux.Handle("GET /api/ai/awaiting", o.auth(o.aiAwaiting))
 	routesForTest(mux, o)
 	mux.Handle("GET /api/ai/settings", o.auth(func(w http.ResponseWriter, _ *http.Request) {
 		settings, err := o.Hub.AISettings()
@@ -320,29 +324,45 @@ func (o Options) warnings(w http.ResponseWriter, r *http.Request) {
 func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 	o.waitLatest()
 	v := o.Hub.View()
-	if v == nil {
-		v = json.RawMessage("null")
+	var view map[string]json.RawMessage
+	if v == nil || json.Unmarshal(v, &view) != nil || view == nil {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("null"))
+		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(v)
+	var book string
+	_ = json.Unmarshal(view["book"], &book)
+	list, err := o.annotationsOf(book)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	view["awaiting"], _ = json.Marshal(pick(list, awaiting))
+	writeJSON(w, view)
 }
 
 func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
 	books := o.Hub.AIBooks()
 	warnings := o.Hub.BookWarnings()
+	annotations, err := o.Hub.AIAnnotations(nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	type head struct {
 		ID      string `json:"id"`
 		Type    string `json:"type"`
 		Title   string `json:"title"`
 		Version int64  `json:"version"`
-		Problem string `json:"problem,omitempty"` // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）
-		Warning string `json:"warning,omitempty"` // 読めるが、機能台帳に無いアイテムや設定の項目を持つ（そのまま残っている）
+		Problem string `json:"problem,omitempty"`  // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）
+		Warning string `json:"warning,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目を持つ（そのまま残っている）
+		Awaits  int    `json:"awaiting,omitempty"` // AI の応えを待つアノテーションの数
 	}
 	heads := make([]head, 0, len(books))
 	for _, b := range books {
 		h := head{ID: b.ID, Version: b.Version}
 		_ = json.Unmarshal(b.Body, &h)
-		h.ID, h.Version = b.ID, b.Version
+		h.ID, h.Version, h.Awaits = b.ID, b.Version, len(pick(annotations[b.ID], awaiting))
 		if n, ok := warnings[b.ID]; ok && n.Unreadable {
 			h.Problem = n.Warning
 		} else if ok {
@@ -359,7 +379,12 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no such book", http.StatusNotFound)
 		return
 	}
-	writeJSON(w, b)
+	list, err := o.annotationsOf(b.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"id": b.ID, "book": b.Body, "version": b.Version, "annotations": list})
 }
 
 func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {

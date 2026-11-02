@@ -24,7 +24,11 @@ export type CommentProps = z.output<typeof CommentSchema>
 export const COMMENT = kit.defineAnnotation({
   id: "comment",
   title: "Comment",
+  aiDescription:
+    "A comment the user put on things in a book (anchors). posts are what was written, the first by the user (empty text: a mark, only pointing). ask reply wants an answer: write it with comment-reply (that marks it read), or comment-read when there is nothing to say. ask point only points at the things: remove it with comment-remove once understood. readAt is when AI read it (none: unread).",
   props: CommentSchema,
+  // 返事が欲しくて未読のものと、指すだけのもの（分かったら AI が消す）
+  awaits: p => (p.ask === "reply" ? p.readAt === undefined : true),
 })
 
 const by = (ctx: ActionContext) => ctx.by ?? "user"

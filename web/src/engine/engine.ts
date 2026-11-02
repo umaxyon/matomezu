@@ -4,7 +4,7 @@
 // 追加プラグインが借りる実物（plugin-modules）は、読み込んだときに globalThis.__matomezuModules に置く（変換した JS はここから取り出す）
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
-import { type Annotations, checkAnnotations, restoreAnnotations } from "../core/annotation"
+import { type Annotations, annotationsForAi, checkAnnotations, restoreAnnotations } from "../core/annotation"
 import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -181,6 +181,13 @@ function aiCatalog(of: Assembled = assembled) {
         title: en(d.title),
         schema: z.toJSONSchema(settingSchema(catalog, d), { io: "input", unrepresentable: "any" }),
       })),
+    // アノテーションの種類（read_book・read_page の annotations と view の awaiting の annotation は、この id）
+    annotations: [...catalog.annotations.values()].map(a => ({
+      id: a.id,
+      title: en(a.title),
+      description: a.aiDescription,
+      props: z.toJSONSchema(a.props, { io: "input", unrepresentable: "any" }),
+    })),
     themes: [...catalog.themes.values()].map(th => ({ id: th.id, title: en(th.title) })),
     // 言語パック（言語の項目の値は、この id）とスキン
     languages: [...catalog.languagePacks.values()].map(p => ({ id: p.id, lang: p.lang, name: p.name })),
@@ -229,6 +236,18 @@ function aiCatalog(of: Assembled = assembled) {
     return book ? checkAnnotations(catalog, book, restoreAnnotations(p.annotations)).map(warningText) : []
   })
   return JSON.stringify(lines)
+}
+
+// ブックとそのアノテーションの並びごとに、AI に見せる並び（annotationsForAi。結び付く物の最後のあるページと、AI の応えを待っているか）を返す。
+// 読めないブックのアノテーションは、ページが分からず待たないものとして返す
+;(globalThis as { matomezuAiAnnotations?: (pairs: string) => string }).matomezuAiAnnotations = pairs => {
+  const catalog = assembled.catalog.core
+  const out = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).map(p => {
+    const list = restoreAnnotations(p.annotations)
+    const [book] = restoreBooks(catalog, [p.book])
+    return book ? annotationsForAi(catalog, book, list) : list.map(a => ({ ...a, page: null, awaits: false }))
+  })
+  return JSON.stringify(out)
 }
 
 // アノテーションの並びから、プラグイン plugin が足した種類（種類の id の持ち主が plugin）の物を除く（利用者がプラグインを外したときに常駐が消す）

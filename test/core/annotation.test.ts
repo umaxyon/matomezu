@@ -1,6 +1,6 @@
 // アノテーション（core/annotation.ts）: 種類が無い・形が合わない物は、その 1 つだけ効かず warning になり、ほかのアノテーションは変えられる
 import { expect, test } from "bun:test"
-import { type Annotation, checkAnnotations, prune } from "../../web/src/core/annotation"
+import { type Annotation, annotationsForAi, checkAnnotations, prune } from "../../web/src/core/annotation"
 import { performIn } from "../../web/src/core/perform"
 import type { Book } from "../../web/src/core/schema/book"
 import { warningText } from "../../web/src/core/warnings"
@@ -64,4 +64,18 @@ test("prune は無くなった物をアンカーから外し、全部無くな�
   ])
   const same = [GOOD]
   expect(prune(same, book)).toBe(same)
+})
+
+test("AI に見せるアノテーションは、結び付く物の最後のあるページと、AI の応えを待っているか（種類の awaits。形が合わない物と種類の無い物は待たない）を添える", () => {
+  const read = comment("c4", { ask: "reply", bubble: true, posts: [{ by: "user", text: "x", at: "t" }], readAt: "t" })
+  const point = comment("c5", { ask: "point", bubble: false, posts: [{ by: "user", text: "", at: "t" }] })
+  expect(
+    annotationsForAi(CORE_CATALOG, book, [GOOD, read, point, BAD, GONE]).map(a => [a.id, a.page, a.awaits]),
+  ).toEqual([
+    ["c1", "p", true],
+    ["c4", "p", false],
+    ["c5", "p", true],
+    ["c2", "p", false],
+    ["c3", "p", false],
+  ])
 })
