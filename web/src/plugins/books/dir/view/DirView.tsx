@@ -58,7 +58,7 @@ import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from 
 import { type DirFolder, DirFolderSchema } from "../entry"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, laidBottom, laidRight, layoutDir, nameLeft } from "../layout"
-import { noteLookOf } from "../notes"
+import { NOTES } from "../notes"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
 
@@ -132,12 +132,7 @@ const Rows = memo(function Rows({
   const variable = growing !== undefined
   const wide =
     variable && root.success && book && page
-      ? layoutDir(
-          root.data,
-          paper,
-          noteLookOf(id => settingValue(catalog, book, page, id)),
-          true,
-        )
+      ? layoutDir(root.data, paper, settingValue(catalog, book, page, NOTES), true)
       : null
   useStageArea(
     stage.id,
@@ -153,7 +148,7 @@ const Rows = memo(function Rows({
   const picking = usingPencil && stage.editing === KIND_PICK
   const text = writing && draft?.entry === selected ? draft.text : null
   const shown: DirFolder = text === null ? dir : (changeEntry(dir, selected, { name: text }) ?? dir)
-  const look = noteLookOf(id => (book ? settingValue(catalog, book, page, id) : undefined))
+  const look = settingValue(catalog, book ?? null, page, NOTES)
   const { rows, lines, notes, divider } = layoutDir(shown, paper, look, variable)
   const at = rows.find(r => r.id === selected)
   const noting = usingPencil && stage.editing === NOTE_EDIT && notes !== null

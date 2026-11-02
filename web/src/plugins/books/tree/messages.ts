@@ -30,8 +30,6 @@ export const TREE_MESSAGES = defineMessages({
   Straight: { en: "Straight", ja: "直線" },
   Elbow: { en: "Elbow", ja: "折れ線" },
   Curve: { en: "Curve", ja: "曲線" },
-  "Inherit from book ({line})": { en: "Inherit from book ({line})", ja: "ブックを継承（{line}）" },
-  "Inherit from book ({shape})": { en: "Inherit from book ({shape})", ja: "ブックを継承（{shape}）" },
   "Node color": { en: "Node color", ja: "節の色" },
   None: { en: "None", ja: "なし" },
   "Any color": { en: "Any color", ja: "好きな色" },

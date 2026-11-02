@@ -150,6 +150,7 @@ test("matomezu/ui が出す名前", () => {
     "ActionButton",
     "BodyField",
     "CaptionField",
+    "ChoiceSetting",
     "Choices",
     "ColorPicker",
     "Confirm",

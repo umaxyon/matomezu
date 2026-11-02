@@ -6,6 +6,7 @@ import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-cata
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { settingValue } from "../../web/src/plugins/base/book-settings"
+import { LINE_ROUTE } from "../../web/src/plugins/items/line/line"
 import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -74,8 +75,7 @@ describe("組み立てたブックの形", () => {
       settings: { "@matomezu/line:line-route": "elbow" },
     })
     const [p1, p2] = (b as { pages: object[] }).pages
-    const read = (target: object, at: object | null) =>
-      settingValue(CORE_CATALOG, target as never, at, "@matomezu/line:line-route")
+    const read = (target: object, at: object | null) => settingValue(CORE_CATALOG, target as never, at, LINE_ROUTE)
     expect(read(b, p1!)).toBe("straight")
     expect(read(b, p2!)).toBe("elbow")
     expect(read(book([page([])]), null)).toBe("elbow") // 定義の既定

@@ -67,12 +67,12 @@ export const LINE = kit.defineConnector({
     const linked = lineGaps(lines, 0)
     return (a, b) => Math.max(base(a, b), linked(a, b))
   },
-  tidy: (lines, rects, setting) => tidyLines(lines, rects, setting(LINE_ROUTE.id) === "elbow"),
+  tidy: (lines, rects, setting) => tidyLines(lines, rects, setting(LINE_ROUTE) === "elbow"),
   unpin: unpinLines,
   shift: shiftLines,
-  bounds: (lines, areas, setting) => linesBounds(lines, areas, setting(LINE_ROUTE.id) === "elbow"),
+  bounds: (lines, areas, setting) => linesBounds(lines, areas, setting(LINE_ROUTE) === "elbow"),
   holds: linesHold,
-  minimap: (lines, areas, setting) => linesMinimap(lines, areas, setting(LINE_ROUTE.id) === "elbow"),
+  minimap: (lines, areas, setting) => linesMinimap(lines, areas, setting(LINE_ROUTE) === "elbow"),
   tokens: [
     // 線と端の形の色: 灰色を紙の色に 4 割混ぜた色（紙の色に合わせて変わる。半透明にしないのは、線が重なった区間だけ濃く見えないように）
     // （明暗で分けない。紙の色はテーマが決め、見る人の明暗では変わらないため）
@@ -101,7 +101,7 @@ export const LINE_EDIT_DIALOG = kit.defineDialogWith<{ page: string; item: strin
 
 // ページ page の線の既定が折れ線か（ページの既定、無ければブックの既定、それも無ければ設定の既定）
 export const elbowAt = (catalog: CoreCatalog, book: Book, page: object | null): boolean =>
-  settingValue(catalog, book, page, LINE_ROUTE.id) === "elbow"
+  settingValue(catalog, book, page, LINE_ROUTE) === "elbow"
 
 // ブックで線が使えるか（線のアイテムが、そのブックで使えるアイテムに入っている）。線を引く操作と、線の既定の通り方の設定はこれで出し分ける
 export const usesLines = (catalog: CoreCatalog, book: Pick<Book, "type">): boolean =>

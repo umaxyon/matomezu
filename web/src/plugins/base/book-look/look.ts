@@ -25,7 +25,7 @@ export const BOOK_PAPER_COLOR = kit.defineSetting({
 
 // ブックのテーマの id: ブックのテーマの項目（表に無ければ使わない）か、ブックのタイプのテーマ
 export function bookTheme(catalog: CoreCatalog, book: Book): string {
-  const own = settingValue(catalog, book, null, BOOK_THEME.id) as string | undefined
+  const own = settingValue(catalog, book, null, BOOK_THEME)
   return own !== undefined && catalog.themes.has(own) ? own : bookType(catalog, book.type).theme
 }
 
@@ -33,6 +33,6 @@ export function bookTheme(catalog: CoreCatalog, book: Book): string {
 export function bookTokens(catalog: CoreCatalog, book: Book): Record<string, Shades> {
   const type = bookType(catalog, book.type)
   const values = resolveTokens(catalog, bookTheme(catalog, book), tokenDefsOf(catalog, type))
-  const paper = settingValue(catalog, book, null, BOOK_PAPER_COLOR.id) as string | undefined
+  const paper = settingValue(catalog, book, null, BOOK_PAPER_COLOR)
   return paper === undefined ? values : { ...values, paper: shades(paper) }
 }

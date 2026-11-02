@@ -6,7 +6,7 @@ import { z } from "zod"
 import { hasPages, putPage } from "../../core/book"
 
 import { bookType, type CoreCatalog } from "../../core/core-catalog"
-import type { SettingDef } from "../../core/def/setting"
+import type { DefaultedSettingDef, SettingDef } from "../../core/def/setting"
 import { fail } from "../../core/errors"
 import type { ItemPage } from "../../core/placed"
 import type { Book } from "../../core/schema/book"
@@ -45,22 +45,46 @@ export function settingsArgs(catalog: CoreCatalog, of: SettingsOf): z.ZodType {
   return first ? (rest.length ? z.union([first, ...rest]) : first) : z.strictObject({})
 }
 
-// 設定 id の値: ページの値、無ければブックの値、それも無ければ定義の既定（page は無くてよい）
-export function settingValue(catalog: CoreCatalog, book: Book, page: object | null, id: string): unknown {
-  const def = catalog.settings.get(id) ?? fail("E113", { id })
-  return ownSettings(page)[def.id] ?? ownSettings(book)[def.id] ?? def.default
+// 設定の項目 def の値を、項目の値の形で読む関数（既定を持つ項目は必ず値があり、持たない項目は undefined がありうる）
+export interface SettingReader {
+  <S extends z.ZodType>(def: DefaultedSettingDef<S>): z.output<S>
+  <S extends z.ZodType>(def: SettingDef<S>): z.output<S> | undefined
+}
+
+// 設定の項目 def の値: ページの値、無ければブックの値、それも無ければ定義の既定（book・page は無くてよい）。
+// ブックの値は、読み込むときとアクションのあとに機能台帳のブックの形（項目の schema）で確かめてあるので、ここでは確かめ直さない
+// （利用者の設定は確かめずに残すので、読むときに確かめる。core/settings.ts の userSetting）
+export function settingValue<S extends z.ZodType>(
+  catalog: CoreCatalog,
+  book: Book | null,
+  page: object | null,
+  def: DefaultedSettingDef<S>,
+): z.output<S>
+export function settingValue<S extends z.ZodType>(
+  catalog: CoreCatalog,
+  book: Book | null,
+  page: object | null,
+  def: SettingDef<S>,
+): z.output<S> | undefined
+export function settingValue(catalog: CoreCatalog, book: Book | null, page: object | null, def: SettingDef): unknown {
+  const known = catalog.settings.get(def.id) ?? fail("E113", { id: def.id })
+  return ownSettings(page)[known.id] ?? ownSettings(book)[known.id] ?? known.default
 }
 
 // ページ page で効いている設定の値を読む関数
-export const settingsAt =
-  (catalog: CoreCatalog, book: Book, page: object | null) =>
-  (id: string): unknown =>
-    settingValue(catalog, book, page, id)
+export function settingsAt(catalog: CoreCatalog, book: Book, page: object | null): SettingReader {
+  function read<S extends z.ZodType>(def: DefaultedSettingDef<S>): z.output<S>
+  function read<S extends z.ZodType>(def: SettingDef<S>): z.output<S> | undefined
+  function read(def: SettingDef): unknown {
+    return settingValue(catalog, book, page, def)
+  }
+  return read
+}
 
 // 形の置かれたページの事情: ブックのタイプと、そのページで効いている設定の値
 export interface PageContext {
   type: string
-  setting(id: string): unknown
+  setting: SettingReader
 }
 
 // ページ page の事情（ブックのタイプと、そのページで効いている設定の値）。ブックによって変わるつなぎ口などを決めるのに渡す

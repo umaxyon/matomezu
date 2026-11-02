@@ -10,7 +10,7 @@ import { nodeOf } from "./edit"
 import { kit } from "./kit"
 import { NodeSizeSelect } from "./NodeSizeSetting"
 import { TreeRootSchema } from "./node"
-import { DEFAULT_NODE_SIZE, NODE_SIZE, type NodeSize } from "./size"
+import { NODE_SIZE, type NodeSize } from "./size"
 
 export function NodeSizeDialog({ stage, args, onClose }: DialogProps<{ page: string; node: string }>) {
   const t = useMessages(kit)
@@ -24,8 +24,7 @@ export function NodeSizeDialog({ stage, args, onClose }: DialogProps<{ page: str
   const [size, setSize] = useState<NodeSize | undefined>(node?.size)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !node) return null
-  const inherited =
-    NODE_SIZE.schema.safeParse(settingValue(catalog, book, page, NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
+  const inherited = settingValue(catalog, book, page, NODE_SIZE)
   const submit = () => {
     const done = perform(NODE_UPDATE.id, { page: page.id, node: node.id, size: size ?? null })
     if (done.ok) onClose()

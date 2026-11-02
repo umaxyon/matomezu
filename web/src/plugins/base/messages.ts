@@ -17,7 +17,7 @@ import { TEXT_MESSAGES } from "./text/messages"
 import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
-import { ELAPSED_MESSAGES } from "./utils/messages"
+import { CHOICE_SETTING_MESSAGES, ELAPSED_MESSAGES } from "./utils/messages"
 import { ZOOM_MESSAGES } from "./zoom/messages"
 
 export const BASE_MESSAGES = {
@@ -40,5 +40,6 @@ export const BASE_MESSAGES = {
   ...ITEM_PARTS_MESSAGES,
   ...TEXT_MESSAGES,
   ...ELAPSED_MESSAGES,
+  ...CHOICE_SETTING_MESSAGES,
   ...HISTORY_MESSAGES,
 }

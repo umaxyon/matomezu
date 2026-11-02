@@ -4,7 +4,7 @@
 // ページのフィールド root を書き換える。書き換えた木が紙に入らなければ断る。ツリーの見せ方について来る
 import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
-import { ColorSchema, contentIdMaker, settingValue } from "../../base"
+import { ColorSchema, contentIdMaker, pageContext } from "../../base"
 import { addNodes, changeNode, moveNode, nodeOf, removeNode } from "./edit"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
@@ -23,7 +23,7 @@ function treeOf(book: PagedBook, page: string, catalog: CoreCatalog) {
     root: root.data,
     put: (next: TreeRoot) => {
       const written = { ...found, root: next }
-      const fits = treeFits(catalog, written, id => settingValue(catalog, book, written, id), next)
+      const fits = treeFits(catalog, written, pageContext(catalog, book, written).setting, next)
       return fits ? putPage(book, written) : null
     },
   }

@@ -5,7 +5,7 @@ import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { refusalMessage, settingValue } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { ADDED_EDIT, type Arrow, addArgs, afterRemove, keyPlus, moveFrom, NODE_COLOR_PICK, selectedIn } from "./edit"
-import { GROW, type Grow } from "./grow"
+import { GROW } from "./grow"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
 import { EDIT_TOOL } from "./tools"
@@ -17,7 +17,7 @@ function treeAt(ctx: CommandContext) {
   const page = book?.pages.find(p => p.id === ctx.stage.opened?.page)
   const root = TreeRootSchema.safeParse(page && "root" in page ? page.root : undefined)
   if (!book || !page || !root.success) return null
-  return { book, page, root: root.data, grow: settingValue(ctx.catalog, book, page, GROW.id) as Grow }
+  return { book, page, root: root.data, grow: settingValue(ctx.catalog, book, page, GROW) }
 }
 
 const editingTree = (ctx: CommandContext) => ctx.stage.tool === EDIT_TOOL.id && ctx.stage.opened?.page != null

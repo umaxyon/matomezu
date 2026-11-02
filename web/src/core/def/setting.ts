@@ -22,6 +22,11 @@ export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string =
   role?: SettingRole // 土台が読む利用者の設定の項目（ビルトインプラグインの利用者の設定の項目だけが持ち、1 つの role は 1 つの項目だけ）
 }
 
+// 既定を持つ設定の項目の定義（どこにも値が無くても、読めば既定の値がある）
+export type DefaultedSettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> = SettingDef<S, Tt> & {
+  default: z.output<S>
+}
+
 export function defineSetting<const Id extends string, S extends z.ZodType>(
   def: SettingDef<S> & { id: Id },
 ): SettingDef<S> & { id: Id } {

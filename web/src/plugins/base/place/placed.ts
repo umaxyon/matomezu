@@ -14,6 +14,7 @@ import {
   shapesOf,
   walkShapes,
 } from "../../../core/placed"
+import type { SettingReader } from "../book-settings"
 import type { Gap } from "./push"
 
 // つなぎ口: つなぐもの（線）が、形のどこにつながるか。書かなければ、形の四角のふち全体
@@ -43,7 +44,7 @@ declare module "../../../core/catalog" {
   interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
     gaps?(lines: readonly D[], base: Gap): Gap // つないだ組の間隔の下限（base に重ねる）
     // 形が変わったあとの整え。areas は形のつながる範囲、setting はそのページで効いている設定の値（設定の定義の id から）
-    tidy?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: (id: string) => unknown): D[]
+    tidy?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: SettingReader): D[]
   }
 }
 
@@ -160,7 +161,7 @@ export function connectorGaps(catalog: CoreCatalog, page: ItemPage, base: Gap): 
 
 // 形が変わったあとのページ: 端の形が無くなったつなぐものを消し、残りにつなぐものの定義の整え（tidy）を全部かける。
 // setting はそのページで効いている設定の値。変わらなければそのまま
-export function tidyConnectors<P extends ItemPage>(catalog: CoreCatalog, page: P, setting: (id: string) => unknown): P {
+export function tidyConnectors<P extends ItemPage>(catalog: CoreCatalog, page: P, setting: SettingReader): P {
   const groups = byConnector(catalog, page)
   if (groups.length === 0) return page
   const areas = portAreasOf(catalog, page)

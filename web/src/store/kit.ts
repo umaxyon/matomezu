@@ -17,7 +17,7 @@ import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } fro
 import type { PaperDef } from "../core/def/paper"
 import type { PermissionDef } from "../core/def/permission"
 import type { PresentationDef } from "../core/def/presentation"
-import type { SettingDef } from "../core/def/setting"
+import type { DefaultedSettingDef, SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
 import type { TextColorDef } from "../core/def/text-color"
 import type { ThemeDef, TokenDef } from "../core/def/theme"
@@ -105,6 +105,10 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id } & ScopeRequired<T, A>,
   ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> }
 
+  // 既定を持つ項目は、読むとき（settingValue）に必ず値があると分かるように、default を持つ形で返す
+  defineSetting<const Id extends string, S extends SettingDef["schema"]>(
+    def: DefaultedSettingDef<S, keyof M & string> & { id: Id },
+  ): Omit<DefaultedSettingDef<S>, "id"> & { id: Owned<P, Id> }
   defineSetting<const Id extends string, S extends SettingDef["schema"]>(
     def: SettingDef<S, keyof M & string> & { id: Id },
   ): Omit<SettingDef<S>, "id"> & { id: Owned<P, Id> }

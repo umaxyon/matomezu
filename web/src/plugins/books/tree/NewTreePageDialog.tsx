@@ -21,7 +21,7 @@ export function NewTreePageDialog({ stage, onClose }: DialogProps) {
   const [grow, setGrow] = useState<Grow | undefined>(undefined) // undefined はブック継承
   const [caption, setCaption] = useState("")
   if (!book) return null
-  const inherited = settingValue(catalog, book, null, GROW.id) as Grow
+  const inherited = settingValue(catalog, book, null, GROW)
   const create = () => {
     const done = perform("@matomezu/base:page-add", {
       title,
