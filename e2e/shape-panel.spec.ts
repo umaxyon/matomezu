@@ -1,7 +1,7 @@
-// シェイプパネル（base のツールボックス）: ドロワーの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く。
+// シェイプパネル（base のツールボックス）: フッタメニューの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く。
 // 図面のパネルにはシェイプ（@matomezu/art）が並ぶ
 import { expect, type Page, test } from "@playwright/test"
-import { drawerTool } from "./drawer"
+import { footerMenuTool } from "./footer-menu"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 
@@ -20,7 +20,7 @@ async function flowchartBook(page: Page) {
   await expect(paper(page)).toBeVisible()
 }
 
-test("「形」のボタンでパネルを開き、乗せたまま形を押すとドロワーごと閉じ、紙を押した所でその形の追加のダイアログが開く。Escape はパネルだけを閉じる", async ({
+test("「形」のボタンでパネルを開き、乗せたまま形を押すとフッタメニューごと閉じ、紙を押した所でその形の追加のダイアログが開く。Escape はパネルだけを閉じる", async ({
   page,
 }) => {
   await flowchartBook(page)
@@ -37,7 +37,7 @@ test("「形」のボタンでパネルを開き、乗せたまま形を押す�
   await panel.getByRole("button", { name: "ひし形" }).hover()
   await panel.getByRole("button", { name: "ひし形" }).click()
   await expect(panel).toBeHidden()
-  // ドロワーは下がって読み上げから外れるので、ボタンそのもので見る
+  // フッタメニューは下がって読み上げから外れるので、ボタンそのもので見る
   await expect(page.locator(`button[aria-label="形"]`)).toHaveAttribute("aria-pressed", "true")
   const p = (await paper(page).boundingBox())!
   await page.mouse.click(p.x + 200, p.y + 200)
@@ -49,7 +49,7 @@ test("「形」のボタンでパネルを開き、乗せたまま形を押す�
 
 test("図面のパネルのシェイプを置くと、絵の足元にキャプションを出し、つかめるのは左右の辺だけ", async ({ page }) => {
   await page.goto("/")
-  await (await drawerTool(page, "形")).click()
+  await (await footerMenuTool(page, "形")).click()
   const panel = page.getByRole("toolbar", { name: "ツール" }).getByRole("group", { name: "形" })
   await panel.getByRole("button", { name: "スティックマン" }).click()
   const p = (await paper(page).boundingBox())!

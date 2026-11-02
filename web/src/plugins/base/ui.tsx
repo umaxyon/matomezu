@@ -3,7 +3,7 @@
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."
 import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from "./book-look/ui"
-import { BOOK_NAME, DRAWER_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./book-name/ui"
+import { BOOK_NAME, FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./book-name/ui"
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { COMMENT_LAYER, COMMENT_THREAD } from "./comment/ui"
@@ -97,7 +97,7 @@ export const BASE_UI = definePluginUi(BASE, {
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
-    DRAWER_MINIMAP,
+    FOOTER_MENU_MINIMAP,
     HISTORY_BUTTONS,
     STAGE_MENU_BUTTONS,
     PAGE_TABS,
@@ -114,10 +114,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-layers": StageSlotProps
     "@matomezu/base:stage-bottom": StageSlotProps
     "@matomezu/base:stage-corner": StageSlotProps
-    "@matomezu/base:drawer-map": StageSlotProps
-    "@matomezu/base:drawer-history": StageSlotProps
-    "@matomezu/base:drawer-basics": StageSlotProps
-    "@matomezu/base:drawer-book-tools": StageSlotProps
+    "@matomezu/base:footer-menu-map": StageSlotProps
+    "@matomezu/base:footer-menu-history": StageSlotProps
+    "@matomezu/base:footer-menu-basics": StageSlotProps
+    "@matomezu/base:footer-menu-book-tools": StageSlotProps
     "@matomezu/base:right-side-panel": StageSlotProps
   }
   interface WidgetExtras {
@@ -142,7 +142,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME
-    "@matomezu/base:drawer-minimap": typeof DRAWER_MINIMAP
+    "@matomezu/base:footer-menu-minimap": typeof FOOTER_MENU_MINIMAP
     "@matomezu/base:history-buttons": typeof HISTORY_BUTTONS
     "@matomezu/base:stage-menu-buttons": typeof STAGE_MENU_BUTTONS
     "@matomezu/base:page-tabs": typeof PAGE_TABS

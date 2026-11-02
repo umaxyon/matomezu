@@ -1,5 +1,5 @@
 // ツールボックス: ブックで置けるアイテムのうち、ツールボックスに出すもの（並びはブックのタイプの規定の順）。
-// ボタンで出すものと、シェイプパネル（「形」のボタン 1 つから開く格子）に並べるものがある。どこにどう出すか（上の行・ドロワーなど）はビューと配置が決める
+// ボタンで出すものと、シェイプパネル（「形」のボタン 1 つから開く格子）に並べるものがある。どこにどう出すか（上の行・フッタメニューなど）はビューと配置が決める
 import { bookItems } from "../../../core/book"
 import type { CoreCatalog, ItemId } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"

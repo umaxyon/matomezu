@@ -62,10 +62,12 @@ test("ツリーの道具は編集とハンド。編集の間は、ホイール�
   await expect.poll(async () => (await paperAt(page)).y).toBeLessThan(before.y)
 })
 
-test("編集の間にドロワーのミニマップを押すと、ハンドの道具に替わり、そのままドラッグで紙が動く", async ({ page }) => {
+test("編集の間にフッタメニューのミニマップを押すと、ハンドの道具に替わり、そのままドラッグで紙が動く", async ({
+  page,
+}) => {
   await treeBook(page)
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  const seen = page.locator("[data-minimap=drawer] [data-minimap-seen]")
+  const seen = page.locator("[data-minimap=footer-menu] [data-minimap-seen]")
   // 四角をつかんで dy だけ縦にドラッグする
   const drag = async (dy: number) => {
     await trigger.hover()

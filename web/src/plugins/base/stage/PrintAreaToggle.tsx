@@ -1,4 +1,4 @@
-// 印刷区画の区切りの線を見せる・隠すボタン（ウィジェット print-area-toggle。ドロワーに置く）。可変ページで印刷区画が 2 つ以上あるときだけ出す
+// 印刷区画の区切りの線を見せる・隠すボタン（ウィジェット print-area-toggle。フッタメニューに置く）。可変ページで印刷区画が 2 つ以上あるときだけ出す
 import { areaOf, paperOf } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useStage } from "../../../ui/view-hooks"

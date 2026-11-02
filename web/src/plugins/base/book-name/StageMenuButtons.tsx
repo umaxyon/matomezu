@@ -1,11 +1,11 @@
-// ステージのメニューのボタン（ウィジェット stage-menu-buttons）: 配置のメニュー stage-menu の項目を横に並べる。項目はコマンドを呼び、ドロワーの中ならドロワーを下げる
+// ステージのメニューのボタン（ウィジェット stage-menu-buttons）: 配置のメニュー stage-menu の項目を横に並べる。項目はコマンドを呼び、フッタメニューの中ならフッタメニューを下げる
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
 import { useMenu, useMenuCommand } from "../../../ui/menu"
 import { useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { useCloseDrawer } from "./drawer-context"
+import { useCloseFooterMenu } from "./footer-menu-context"
 import { STAGE_MENU } from "./menu"
 import styles from "./StageMenuButtons.module.css"
 
@@ -30,7 +30,7 @@ function MenuEntry({ stage, item }: { stage: string; item: MenuItem }) {
 function MenuButton({ stage, id }: { stage: string; id: MenuCommandId }) {
   const command = useCommand(stage, id)
   const icon = useUiCatalog().commandIcons.get(id)
-  const close = useCloseDrawer()
+  const close = useCloseFooterMenu()
   const t = useMessages(kit)
   return (
     <button

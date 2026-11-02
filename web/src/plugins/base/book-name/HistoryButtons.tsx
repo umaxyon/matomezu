@@ -1,4 +1,4 @@
-// 履歴のボタン（ウィジェット history-buttons）: 元に戻す・やり直すを横に並べる。続けて押せるように、押してもドロワーは下げない
+// 履歴のボタン（ウィジェット history-buttons）: 元に戻す・やり直すを横に並べる。続けて押せるように、押してもフッタメニューは下げない
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useUiCatalog } from "../../../ui/store-context"

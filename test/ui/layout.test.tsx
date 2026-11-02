@@ -37,7 +37,7 @@ const TABS_ON_TOP = defineLayout({
     ...DEFAULT_LAYOUT.slots,
     "@matomezu/base:stage-top": ["@matomezu/base:toolbox", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],
-    "@matomezu/base:drawer-book-tools": [],
+    "@matomezu/base:footer-menu-book-tools": [],
   },
 })
 
@@ -77,10 +77,10 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:book-layers is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-bottom is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-corner is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:drawer-map is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:drawer-history is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:drawer-basics is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:drawer-book-tools is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:footer-menu-map is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:footer-menu-history is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:footer-menu-basics is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:footer-menu-book-tools is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
     ])

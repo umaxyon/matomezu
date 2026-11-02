@@ -1,13 +1,13 @@
 // ツールボックスのビュー（ウィジェット toolbox）: ステージのブックのツールボックス（toolbox.ts）を横に並べる。出すツールが無ければ何も描かない。
 // 押すとそのアイテムを置こうとし（もう一度押すと取り消す）、置こうとしているものは押されている見た目にする。
 // シェイプパネルに並べるアイテムがあれば、最後に「形」のボタンを 1 つ出す。押すと、その上に形のアイコンの格子（パネル）を開き、
-// 形を押すとその形を置こうとして、パネルを閉じる（ドロワーの中ならドロワーも下げる）。パネルの外を押すか Escape でも閉じる。
+// 形を押すとその形を置こうとして、パネルを閉じる（フッタメニューの中ならフッタメニューも下げる）。パネルの外を押すか Escape でも閉じる。
 // シェイプパネルのどれかを置こうとしている間は、「形」のボタンを押されている見た目にする
 import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useCloseDrawer } from "../book-name/drawer-context"
+import { useCloseFooterMenu } from "../book-name/footer-menu-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
@@ -89,7 +89,7 @@ function ShapePanel({
   onPick: (id: ItemId) => void
 }) {
   const t = useMessages(kit)
-  const close = useCloseDrawer()
+  const close = useCloseFooterMenu()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
