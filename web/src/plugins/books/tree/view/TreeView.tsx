@@ -175,11 +175,15 @@ const Tree = memo(function Tree({
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
   const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
   const lineShape = LINE_SHAPE.schema.safeParse(setting(LINE_SHAPE.id)).data ?? DEFAULT_LINE_SHAPE
-  // ページが伸びる向き（タイプの紙の規定。可変ページでなければ undefined）
+  // ページの増やす向き（可変ページでなければ undefined）
   const growing = book && page ? growOf(catalog, book, page) : undefined
-  const laid = shown ? layoutTree(shown, grow, paper, size, shape, growing !== undefined) : null
-  // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さを、ステージに知らせる
-  useStageArea(stage.id, laid && growing ? grownArea(paper, growing, laidExtent(laid.nodes), true).size : null)
+  const laid = shown ? layoutTree(shown, grow, paper, size, shape, growing) : null
+  // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
+  useStageArea(
+    stage.id,
+    laid && growing ? grownArea(paper, growing, laidExtent(laid.nodes), true).size : null,
+    laid?.origin ?? null,
+  )
   const at = laid?.nodes.find(n => n.id === selected)
   useCentered(stage, usingEdit && !drag.state ? at : undefined, view, panStageBy)
   useToolZoom(stage.id, usingEdit, zoomStage)

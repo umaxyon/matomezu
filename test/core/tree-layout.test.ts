@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import { plainOf } from "../../web/src/plugins/base/text/rich"
 import { editEnd } from "../../web/src/plugins/books/tree/edit"
+import { growSidesOf } from "../../web/src/plugins/books/tree/grow"
 import { layoutTree, MARGIN, nodeSize, rootBox } from "../../web/src/plugins/books/tree/layout"
 import { treePath } from "../../web/src/plugins/books/tree/line-shape"
 import { DEFAULT_NODE_SIZE } from "../../web/src/plugins/books/tree/size"
@@ -225,21 +226,28 @@ test("節のキャプションの標準は普通の太さで、**…** の所だ
   expect(editEnd(root, "a", "**子**")).toEqual({ kind: "child", caption: "**子**" })
 })
 
-test("可変ページでは、紙 1 枚に入る木は可変ページでないときと同じ位置に置き、あふれた向きは木の左端を紙の辺から MARGIN の所へ寄せて、入るとする", () => {
+test("可変ページでは、根のある側は増やさず、木はいつも入る。左（上）へ増やすなら、あふれた分と空きの印刷区画 1 つだけ木全体を右（下）へずらす", () => {
   const small = { w: 300, h: 200 }
   const wide = {
     id: "r",
     caption: "根",
     children: Array.from({ length: 8 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` })),
   }
-  // 入る木は、可変ページでないときと同じ位置
-  expect(layoutTree(family, "down", PAPER, DEFAULT_NODE_SIZE, undefined, true)).toEqual(
-    layoutTree(family, "down", PAPER),
-  )
-  expect(layoutTree(wide, "down", small).fits).toBe(false)
-  const grown = layoutTree(wide, "down", small, DEFAULT_NODE_SIZE, undefined, true)
-  expect(grown.fits).toBe(true)
-  expect(Math.min(...grown.nodes.map(n => n.x))).toBe(MARGIN)
-  // 下へは、あふれていなければ動かさない（根は上辺から MARGIN）
-  expect(at(grown, "r").y).toBe(MARGIN)
+  const plain = layoutTree(wide, "down", small)
+  expect(plain.fits).toBe(false)
+  expect(plain.origin).toEqual({ x: 0, y: 0 })
+  // 下へ伸びる木は、上を固定して左・下・右へ増やす。左へあふれた分と空きの 1 つだけ右へずらし、上へはずらさない
+  const down = layoutTree(wide, "down", small, DEFAULT_NODE_SIZE, undefined, growSidesOf("down"))
+  expect(down.fits).toBe(true)
+  const over = Math.ceil(-Math.min(...plain.nodes.map(n => n.x)) / small.w)
+  expect(down.origin).toEqual({ x: over + 1, y: 0 })
+  expect(at(down, "r").x).toBe(at(plain, "r").x + (over + 1) * small.w)
+  expect(at(down, "r").y).toBe(MARGIN)
+  // 右へ伸びる木は、左を固定する。紙 1 枚に入れば、上の空きの 1 つだけ下へずらす
+  const right = layoutTree(family, "right", PAPER, DEFAULT_NODE_SIZE, undefined, growSidesOf("right"))
+  expect(right.origin).toEqual({ x: 0, y: 1 })
+  expect(at(right, "r").x).toBe(MARGIN)
+  // 中央の木は 4 つの向きとも増やす
+  expect(growSidesOf("center")).toEqual({ up: true, down: true, left: true, right: true })
+  expect(growSidesOf("left")).toEqual({ up: true, down: true, left: true, right: false })
 })

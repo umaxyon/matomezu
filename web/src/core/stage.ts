@@ -14,7 +14,8 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 
 // 開いているブック。ブックのタイプと、開いたページの紙を写して持つ（開くときに決まる）。
 // area は、見せ方が描く広さ（可変ページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない。
-// shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）
+// shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）。
+// origin は、位置をデータに持たない見せ方が、描く中身を右・下へずらした量（印刷区画の数。見せ方が広さと一緒に知らせる。変わったらパンを合わせる）
 export interface Opened {
   type: BookTypeId
   book: string // ブックの id
@@ -22,6 +23,7 @@ export interface Opened {
   paper: ResolvedPaper | null // 開いているページの描く紙（ページを開いていなければ null）
   area?: Size
   shift?: Point
+  origin?: Point
 }
 
 // ページの中身をずらした量（印刷区画の数。ずらしていなければ持たない）
@@ -86,14 +88,26 @@ export function areaOf(stage: Pick<Stage, "opened">): Size | null {
   return paper && (stage.opened?.area ?? paper)
 }
 
-// 見せ方が描く広さを area にする（null なら紙 1 枚に戻す）。ずらす量は範囲に収め直す
-export function setArea(stage: Stage, area: Size | null): Stage {
+// 見せ方が描く広さを area に、描く中身をずらした量を origin にする（null なら紙 1 枚に戻し、ずらさない）。origin が変わったら、
+// 中身が画面の同じ所に見えるよう、変わった分だけパンを合わせる。ずらす量は範囲に収め直す
+export function setArea(stage: Stage, area: Size | null, origin: Point | null = null): Stage {
   const o = stage.opened
-  if (!o || !paperOf(stage)) return stage
+  const sheet = paperOf(stage)
+  if (!o || !sheet) return stage
   const now = o.area ?? null
-  if (now === area || (now && area && now.w === area.w && now.h === area.h)) return stage
-  const { area: _, ...rest } = o
-  return settle({ ...stage, opened: area ? { ...rest, area } : rest }, stage.pan)
+  const was = o.origin ?? HOME
+  const next = area ? (origin ?? HOME) : HOME
+  const sameArea = now === area || (now && area && now.w === area.w && now.h === area.h)
+  if (sameArea && was.x === next.x && was.y === next.y) return stage
+  const { area: _, origin: __, ...rest } = o
+  const opened = {
+    ...rest,
+    ...(area ? { area } : {}),
+    ...(next.x !== 0 || next.y !== 0 ? { origin: next } : {}),
+  }
+  const dx = (next.x - was.x) * sheet.w * stage.zoom
+  const dy = (next.y - was.y) * sheet.h * stage.zoom
+  return settle({ ...stage, opened }, { x: stage.pan.x - dx, y: stage.pan.y - dy })
 }
 
 // ずらす量を pan にして、範囲に収める

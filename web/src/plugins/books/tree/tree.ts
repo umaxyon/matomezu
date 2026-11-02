@@ -5,6 +5,7 @@ import { z } from "zod"
 import type { PageSettingsArgs } from "../../../plugin-api"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
 import { treeFits } from "./fit"
+import { GROW, growSidesOf } from "./grow"
 import { kit } from "./kit"
 import { treeMinimap } from "./minimap"
 import { TreeRootSchema } from "./node"
@@ -49,7 +50,8 @@ export const TREE = kit.defineBookType({
   pageProblem: (catalog, page, setting) =>
     treeFits(catalog, page, setting) ? null : { message: kit.message("Does not fit on the paper") },
   minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
-  grow: { sides: () => ({ up: false, down: true, left: false, right: true }) }, // 可変ページの増やす向き（base の拡張ポイント）
+  // 可変ページは、根のある側を固定して残りの向きへ増やす（中央なら 4 つとも。base の拡張ポイント）
+  grow: { sides: setting => growSidesOf(GROW.schema.safeParse(setting(GROW.id)).data ?? "down") },
   pages: {
     paper: {
       allowed: PAPER_IDS,
