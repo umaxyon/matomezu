@@ -22,7 +22,7 @@ const ARGS = z.strictObject({
 
 // ページ page の、渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
 // 紙と向きはタイプの規定の中から選ぶ（1 冊の紙をそろえる規定では、ほかのページと同じものだけ）。可変ページはタイプが増やす向きの決め方を持つときだけで、向きはタイプが選べるものの中から。
-// 形が紙からはみ出すなら、整えステップ（variable-pages.ts）が断る（可変ページの広さは、紙の大きさで区切った印刷区画を増やして決まる）。
+// 形が紙からはみ出すなら、ノーマライズステップ（variable-pages.ts）が断る（可変ページの広さは、紙の大きさで区切った印刷区画を増やして決まる）。
 // settings はブックのタイプが選んだ項目だけ（null は消す。形に合わない・選んでいないタイプ・無いページなら断る）。設定を変えたらページを整える（settleBook）。
 // fields はタイプがページに足したフィールドだけで、受け方はタイプが決められる（決めていなければ、書いたフィールドを丸ごと替える。形に合わない・フィールドの無いタイプなら断る）。
 // 受け方が結果を返せば、結果の fields に入れて返す。変えたページにタイプが問題を知らせれば断る（page-problems.ts）
@@ -67,6 +67,6 @@ function withPaper(catalog: CoreCatalog, book: PagedBook, page: Page, args: z.in
   if (!canChoose(paperChoicesFor(catalog, book, page.id), choice)) return null
   const grows = args.grows === undefined ? page.grows : growsValue(catalog, book, args.grows)
   if (grows === null) return null
-  // 中身のずらしと、形が紙に入るかの確かめは、整えステップ（variable-pages.ts）がする
+  // 中身のずらしと、形が紙に入るかの確かめは、ノーマライズステップ（variable-pages.ts）がする
   return withGrows({ ...page, ...choice }, grows)
 }

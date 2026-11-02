@@ -166,7 +166,7 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [COMMENT],
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK, THEME_TEXT_COLORS_CHECK],
-    settleSteps: [VARIABLE_PAGES],
+    normalizeSteps: [VARIABLE_PAGES],
     commands: [
       BOOK_NEW,
       STAGE_HOME,

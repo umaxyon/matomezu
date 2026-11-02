@@ -9,7 +9,7 @@ import { useCatalog } from "../../../ui/store-context"
 import { controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { PageProblem } from "./page-problems"
-import { canGrow, defaultPaper, growChoices, paperChoices, paperChoicesFor, settledPage, withGrows } from "./pages"
+import { canGrow, defaultPaper, growChoices, normalizedPage, paperChoices, paperChoicesFor, withGrows } from "./pages"
 
 // 向きの名前
 const ORIENTATION_TITLES = { portrait: "Portrait", landscape: "Landscape" } as const satisfies Record<
@@ -53,12 +53,12 @@ export function usePaperControls(book: PagedBook | undefined, page: Page | null)
     ...(!page || value.orientation !== page.orientation ? { orientation: value.orientation } : {}),
     ...(!page || value.grows !== page.grows ? { grows: value.grows ?? false } : {}),
   }
-  // 選んでいる紙を重ねたページ。増やす向きに合わせた中身のずらしと、形が紙に入るかは、アクションのあとの整えステップと同じ settledPage で見る
+  // 選んでいる紙を重ねたページ。増やす向きに合わせた中身のずらしと、形が紙に入るかは、アクションのあとのノーマライズステップと同じ normalizedPage で見る
   const chosenPage = (p: Page): Page =>
     withGrows({ ...p, paper: value.paper, orientation: value.orientation }, value.grows)
   const settle = (p: Page): Page | null => {
     const next = chosenPage(p)
-    return settledPage(catalog, book, putPage(book, next), next)
+    return normalizedPage(catalog, book, putPage(book, next), next)
   }
   const draft = (p: Page): Page => settle(p) ?? chosenPage(p)
   const fits = !page || Object.keys(patch).length === 0 || settle(page) !== null

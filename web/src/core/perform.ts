@@ -60,14 +60,14 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
   return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }
 
-// アクションが返したブック after を、整えステップ（core/def/settle-step.ts）を順にかけて整えたもの。
+// アクションが返したブック after を、ノーマライズステップ（core/def/normalize-step.ts）を順にかけて整えたもの。
 // run がステップだけが書くページのフィールドを変えていたら（前の状態に戻すアクションを除く）、または整えられなければ null
-function settled(catalog: CoreCatalog, action: ActionDef, before: Book, after: Book): Book | null {
+function normalized(catalog: CoreCatalog, action: ActionDef, before: Book, after: Book): Book | null {
   const changed = new Set(changesOf(before, after).pages.flatMap(p => p.fields))
   let next: Book | null = after
-  for (const step of catalog.settleSteps) {
+  for (const step of catalog.normalizeSteps) {
     if (!step.restoring?.includes(action.id) && step.pageFields.some(f => changed.has(f))) return null
-    next = next && step.settle(before, next, catalog)
+    next = next && step.normalize(before, next, catalog)
   }
   return next
 }
@@ -157,7 +157,7 @@ export function perform<Id extends ActionId>(
   if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
   const ran = action.run(subject as never, parsed.data, ctx)
   if (!ran) return { ok: false, reason: "refused" }
-  const next = action.target === "book" ? settled(ctx.catalog, action, subject as Book, ran.next as Book) : ran.next
+  const next = action.target === "book" ? normalized(ctx.catalog, action, subject as Book, ran.next as Book) : ran.next
   if (!next) return { ok: false, reason: "refused" }
   const done = { ...ran, next }
   // アノテーションのアクションはブックを変えない（変えたら断る）。認可ステップの keeps は、変わらないブックで見る

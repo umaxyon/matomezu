@@ -63,14 +63,14 @@ export function growsValue(catalog: CoreCatalog, book: PagedBook, grows: boolean
   return choices.includes(grows) ? grows : null
 }
 
-// ページ page の grows を grows（ページの grows の値）にしたもの（中身は、整えステップ variable-pages.ts が増やす向きに合わせてずらす）
+// ページ page の grows を grows（ページの grows の値）にしたもの（中身は、ノーマライズステップ variable-pages.ts が増やす向きに合わせてずらす）
 export const withGrows = <P extends Page>(page: P, grows: Page["grows"]): P =>
   setField(page, ["orientation"], "grows", grows)
 
 // アクションのあとのブック after のページ page を、増やす向きに合わせて整えたもの: 左・上へ増やすなら空きの印刷区画を持たせ、前のブック before では
 // 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す）。紙・向き・可変ページかを変えたか、
-// 中身をずらしたページの形が、増やさない向きで紙からはみ出すなら null（整えステップ variable-pages.ts と、ページの設定のダイアログが使う）
-export function settledPage(catalog: CoreCatalog, before: Book, after: PagedBook, page: Page): Page | null {
+// 中身をずらしたページの形が、増やさない向きで紙からはみ出すなら null（ノーマライズステップ variable-pages.ts と、ページの設定のダイアログが使う）
+export function normalizedPage(catalog: CoreCatalog, before: Book, after: PagedBook, page: Page): Page | null {
   const prev = hasPages(before) ? before.pages.find(p => p.id === page.id) : undefined
   const was = prev && growOf(catalog, before, prev)
   const padded = paddedFor(catalog, page, growOf(catalog, after, page), was)

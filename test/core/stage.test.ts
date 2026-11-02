@@ -190,7 +190,7 @@ test("開いているページの中身をずらした（ページの shift が�
   const view = { w: 400, h: 300 }
   const start = setArea(resize(openBook(CORE_CATALOG, newStage("s1"), book), view), { w: sheet.w * 3, h: sheet.h * 3 })
   const at = panBy(start, -sheet.w, -sheet.h) // 2 つ目の印刷区画の左上あたりを見ている
-  // 右へ 1 区画、下へは動かさずにずらす
+  // 右へ印刷区画 1 つ分、下へは動かさずにずらす
   const shifted = followBook(CORE_CATALOG, at, { ...book, pages: [{ ...page, shift: { x: 1, y: 0 } }] })
   expect(shifted.pan).toEqual({ x: at.pan.x - sheet.w, y: at.pan.y })
   expect(areaOf(shifted)).toEqual({ w: sheet.w * 4, h: sheet.h * 3 })
