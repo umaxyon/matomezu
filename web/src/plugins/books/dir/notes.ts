@@ -14,7 +14,3 @@ export const NOTES = kit.defineSetting({
   schema: NoteLookSchema,
   default: NOTE_DEFAULT,
 })
-
-// そのページで効いている設定の値を読む関数 setting から、説明の見せ方を決める（読めない値は既定）
-export const noteLookOf = (setting: (id: string) => unknown): NoteLook =>
-  NoteLookSchema.safeParse(setting(NOTES.id)).data ?? NOTE_DEFAULT

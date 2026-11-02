@@ -1,6 +1,7 @@
 // 可変ページの広さ: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる（place/items の pageArea が使う）。区切りの線の位置も出す
 import type { GrowChoice } from "../../../core/def/paper"
 import type { Rect, Size } from "../../../core/geom"
+import type { SettingReader } from "../book-settings"
 
 // 可変ページの増やす向き: 上・下・左・右のうち、どれへ印刷区画を増やすか
 export interface GrowSides {
@@ -20,7 +21,7 @@ export const GROW_CHOICE_SIDES = {
 
 // 可変ページの増やす向きの決め方: 利用者が choices から選ぶ（最初のものが既定。ページの grows に選んだものを持つ）か、
 // タイプがページで効いている設定の値 setting から決める（ページの grows は true）
-export type GrowRule = { choices: readonly GrowChoice[] } | { sides(setting: (id: string) => unknown): GrowSides }
+export type GrowRule = { choices: readonly GrowChoice[] } | { sides(setting: SettingReader): GrowSides }
 
 // 可変ページの増やす向きの決め方（定義オブジェクトの拡張ポイントに書き足す。無ければ可変ページを作れない。ページを持つタイプだけが使う）
 declare module "../../../core/catalog" {

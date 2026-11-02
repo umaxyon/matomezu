@@ -51,7 +51,7 @@ export const TREE = kit.defineBookType({
     treeFits(catalog, page, setting) ? null : { message: kit.message("Does not fit on the paper") },
   minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
   // 可変ページは、根のある側を固定して残りの向きへ増やす（中央なら 4 つとも。base の拡張ポイント）
-  grow: { sides: setting => growSidesOf(GROW.schema.safeParse(setting(GROW.id)).data ?? "down") },
+  grow: { sides: setting => growSidesOf(setting(GROW)) },
   pages: {
     paper: {
       allowed: PAPER_IDS,

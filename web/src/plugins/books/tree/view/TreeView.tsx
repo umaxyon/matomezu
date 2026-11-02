@@ -61,10 +61,10 @@ import {
 import { GROW } from "../grow"
 import { kit } from "../kit"
 import { editorWidth, type LaidNode, laidExtent, layoutTree } from "../layout"
-import { DEFAULT_LINE_SHAPE, LINE_SHAPE, treePath } from "../line-shape"
+import { LINE_SHAPE, treePath } from "../line-shape"
 import { TreeRootSchema } from "../node"
-import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "../shape"
-import { DEFAULT_NODE_SIZE, NODE_SIZE } from "../size"
+import { NODE_SHAPE } from "../shape"
+import { NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, NODE_FILL, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
 import { NodeColorStand } from "./NodeColorStand"
@@ -154,8 +154,7 @@ const Tree = memo(function Tree({
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
-  const setting = (id: string) => (book && page ? settingValue(catalog, book, page, id) : undefined)
-  const grow = GROW.schema.safeParse(setting(GROW.id)).data ?? "down"
+  const grow = settingValue(catalog, book ?? null, page ?? null, GROW)
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root.success ? selectedIn(root.data, stage.selection) : null
   const swatches = useSwatches(useBookTheme(book?.id), NODE_FILL) // 節の色のスタンドに並べる色
@@ -172,9 +171,9 @@ const Tree = memo(function Tree({
   })
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
-  const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
-  const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
-  const lineShape = LINE_SHAPE.schema.safeParse(setting(LINE_SHAPE.id)).data ?? DEFAULT_LINE_SHAPE
+  const size = settingValue(catalog, book ?? null, page ?? null, NODE_SIZE)
+  const shape = settingValue(catalog, book ?? null, page ?? null, NODE_SHAPE)
+  const lineShape = settingValue(catalog, book ?? null, page ?? null, LINE_SHAPE)
   // ページの増やす向き（可変ページでなければ undefined）
   const growing = book && page ? growOf(catalog, book, page) : undefined
   const laid = shown ? layoutTree(shown, grow, paper, size, shape, growing) : null
@@ -271,7 +270,8 @@ const Tree = memo(function Tree({
             else if (editable) setEditing(stage.id, true)
           }}
         >
-          <NodeText node={n} />
+          {/* 編集している節の字は描かない（下線の形の入力Formは地が透けるので、字がダブって見える） */}
+          {!(writing && n.id === selected) && <NodeText node={n} />}
         </div>
       ))}
       {ghost && dragging && (

@@ -6,6 +6,7 @@ import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import type { Point, Rect } from "../../../core/geom"
 import { connectorsOf, type ItemPage, type PlacedConnector, shapesOf } from "../../../core/placed"
+import type { SettingReader } from "../book-settings"
 import { type PortArea, portAreasOf, rectsOf } from "../place/placed"
 
 // ミニマップに描く簡単な絵 1 つ（紙の座標）。色と線の太さはミニマップが決める。
@@ -20,7 +21,7 @@ export type MinimapMark =
 declare module "../../../core/catalog" {
   interface BookTypeExtras {
     // ページ page に描く絵（紙の座標。page で効いている設定の値は setting で読む）。無ければ、置いたアイテムの絵
-    minimap?(catalog: CoreCatalog, page: ItemPage, setting: (id: string) => unknown): readonly MinimapMark[]
+    minimap?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): readonly MinimapMark[]
   }
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     // ミニマップに描く絵（rect は置いた形の四角。紙の座標）。無ければ、その四角を描く
@@ -28,11 +29,7 @@ declare module "../../../core/catalog" {
   }
   interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
     // ミニマップに描く、つなぐもの全部の絵（紙の座標）。引数は bounds と同じ。無ければ描かない
-    minimap?(
-      lines: readonly D[],
-      areas: ReadonlyMap<string, PortArea>,
-      setting: (id: string) => unknown,
-    ): readonly MinimapMark[]
+    minimap?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: SettingReader): readonly MinimapMark[]
   }
 }
 
@@ -43,7 +40,7 @@ export function minimapMarks(
   catalog: CoreCatalog,
   type: string,
   page: ItemPage,
-  setting: (id: string) => unknown,
+  setting: SettingReader,
   drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
 ): readonly MinimapMark[] {
   const own = bookType(catalog, type).minimap
@@ -53,7 +50,7 @@ export function minimapMarks(
 function itemMarks(
   catalog: CoreCatalog,
   page: ItemPage,
-  setting: (id: string) => unknown,
+  setting: SettingReader,
   drawn: (item: string) => readonly MinimapMark[] | undefined,
 ): MinimapMark[] {
   const rects = rectsOf(catalog, page)

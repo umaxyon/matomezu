@@ -6,8 +6,6 @@ export const FLOWCHART_MESSAGES = defineMessages({
   "Flow direction": { en: "Flow direction", ja: "流れの向き" },
   Down: { en: "Down", ja: "下へ" },
   Right: { en: "Right", ja: "右へ" },
-  "Inherit from book": { en: "Book", ja: "ブック継承" },
-  "Inherit from book ({direction})": { en: "Inherit from book ({direction})", ja: "ブックを継承（{direction}）" },
   Yes: { en: "Yes", ja: "Yes" },
   No: { en: "No", ja: "No" },
   "Auto align": { en: "Auto align", ja: "自動で整列" },

@@ -4,7 +4,7 @@
 // 置くときは形ごとの追加のダイアログでキャプションと色を聞いてから置き、中身は 1 つの編集のダイアログで変える
 import { z } from "zod"
 import { type Book, type CoreCatalog, pagedOf, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
-import { AlignSchema, ColorSchema, pageContext } from "../../base"
+import { AlignSchema, ColorSchema, pageContext, type SettingReader } from "../../base"
 import { kit } from "./kit"
 import type { SHAPE_MESSAGES } from "./messages"
 import { shapeMinimap } from "./minimap"
@@ -33,7 +33,7 @@ export const TurnablePropsSchema = ShapePropsSchema.extend({ turned: z.boolean()
 // タイプが回せる形に渡す指定（ItemOptionTable）。turned はそのブックで回せる形を横向きにするか（setting はそのページで効いている設定の値）。
 // 追加のダイアログが最初に選ぶ向きと、形をブックに合わせるとき（adapt）の向きに使う
 export interface ShapeOptions {
-  turned?(setting: (id: string) => unknown): boolean
+  turned?(setting: SettingReader): boolean
 }
 
 // 回せる形 item を、ブック book のページ page に置くときの最初の向き（タイプの指定 ShapeOptions の turned。ページの設定で決める）

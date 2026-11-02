@@ -28,6 +28,7 @@ export type {
   Ports,
   RichLine,
   Run,
+  SettingReader,
   TextBlock,
   Weight,
 } from "../plugins/base"

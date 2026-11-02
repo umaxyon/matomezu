@@ -22,6 +22,7 @@ import {
   paperSize,
   placedAt,
   rectsOf,
+  type SettingReader,
   settingValue,
   unpinPage,
   withPage,
@@ -69,7 +70,7 @@ export function alignedRects(
   catalog: CoreCatalog,
   page: ItemPage,
   dir: FlowDirection,
-  setting: (id: string) => unknown,
+  setting: SettingReader,
   grows = false,
 ): Map<string, Rect> | null {
   const paper = paperSize(catalog, page)
@@ -173,14 +174,14 @@ export const PAGE_ALIGN = kit.defineAction({
     const book = pagedOf(subject)
     const page = book?.pages.find(p => p.id === args.page)
     if (!book || !page) return null
-    const dir = settingValue(ctx.catalog, book, page, FLOW_DIRECTION.id) as FlowDirection
+    const dir = settingValue(ctx.catalog, book, page, FLOW_DIRECTION)
     // adapt なら、先に形をそのページに合わせる（台形の向きをページの流れの向きにそろえる）
     const shaped = args.adapt ? adaptPage(ctx.catalog, page, pageContext(ctx.catalog, book, page)) : page
     const rects = alignedRects(
       ctx.catalog,
       shaped,
       dir,
-      id => settingValue(ctx.catalog, book, page, id),
+      pageContext(ctx.catalog, book, page).setting,
       growOf(ctx.catalog, book, page) !== undefined,
     )
     if (!rects) return null

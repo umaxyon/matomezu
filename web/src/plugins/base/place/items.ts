@@ -20,7 +20,7 @@ import {
   shapesOf,
 } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
-import { type PageContext, settingsAt } from "../book-settings"
+import { type PageContext, type SettingReader, settingsAt } from "../book-settings"
 import { setField } from "../fields"
 import { contentIdMaker } from "../utils/ids"
 import { GROW_CHOICE_SIDES, type GrowSides, grownArea } from "./grow"
@@ -72,7 +72,7 @@ declare module "../../../core/catalog" {
     captionHeight?(item: D): number | null
     // 形をそのブックに合わせた形（並べ直すアクションが adaptPage でかける）。option はタイプがこのアイテムに渡す指定（items.options）、
     // setting はそのページで効いている設定の値。合わせることが無ければそのまま返す
-    adapt?(item: D, option: unknown, setting: (id: string) => unknown): D
+    adapt?(item: D, option: unknown, setting: SettingReader): D
   }
   interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
     // 形を並べ直したとき（整列など）のつなぐもの: 前の並びに合わせて手で決めた形（端の固定など）を外す。無ければそのまま。
@@ -83,12 +83,12 @@ declare module "../../../core/catalog" {
     shift?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, d: Point): D[]
     // 形をつながる範囲 areas の所に置いて描いたときの、つなぐもの全部の外枠（紙の座標。描くものが無ければ null）。
     // setting はそのページで効いている設定の値。並べるアクションが、形とつなぐものを合わせた広さを測るのに使う（extentOf）
-    bounds?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: (id: string) => unknown): Rect | null
+    bounds?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: SettingReader): Rect | null
   }
   interface BookTypeExtras {
     // 中身（キャプション）で形の大きさが変わるときに、横と縦で保つ所。setting はそのページで効いている設定の値（設定で変えてよい）。
     // 無ければ左と上を保つ
-    growFrom?(setting: (id: string) => unknown): { x: GrowFrom; y: GrowFrom }
+    growFrom?(setting: SettingReader): { x: GrowFrom; y: GrowFrom }
   }
 }
 
@@ -264,7 +264,7 @@ export function withPage<B extends PagedBook>(catalog: CoreCatalog, book: B, pag
 
 // ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ null。
 // setting はそのページで効いている設定の値
-export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: (id: string) => unknown): Rect | null {
+export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): Rect | null {
   const rects = rectsOf(catalog, page)
   const boxes: Rect[] = [...rects.values()]
   const areas = portAreasOf(catalog, page, rects)

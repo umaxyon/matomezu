@@ -44,7 +44,7 @@ import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
 export { createBookIn } from "./book-new/create-book"
-export type { PageContext } from "./book-settings"
+export type { PageContext, SettingReader } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
 export { PAPER_IDS } from "./looks"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）

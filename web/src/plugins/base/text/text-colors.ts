@@ -67,7 +67,7 @@ export function textColorsOf(
   book: Book,
   viewer: TextColorValues = {},
 ): ReadonlyMap<string, string> {
-  const own = (settingValue(catalog, book, null, BOOK_TEXT_COLORS.id) ?? {}) as TextColorValues
+  const own = settingValue(catalog, book, null, BOOK_TEXT_COLORS) ?? {}
   const theme = catalog.themes.get(bookTheme(catalog, book))?.textColors ?? {}
   return new Map(
     [...catalog.textColors.values()].map(c => [c.id, viewer[c.id] ?? own[c.id] ?? theme[c.id] ?? c.color] as const),

@@ -6,7 +6,7 @@ import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
-import { settingsAt } from "../book-settings"
+import { type SettingReader, settingsAt } from "../book-settings"
 
 export interface PageProblem {
   message?: MessageKey
@@ -15,7 +15,7 @@ export interface PageProblem {
 declare module "../../../core/catalog" {
   interface BookTypeExtras {
     // page で効いている設定の値は setting で読む（ブックとページの設定の項目を、ページ → ブック → 既定の順に）
-    pageProblem?(catalog: CoreCatalog, page: ItemPage, setting: (id: string) => unknown): PageProblem | null
+    pageProblem?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): PageProblem | null
   }
 }
 

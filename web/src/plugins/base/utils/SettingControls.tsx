@@ -30,7 +30,7 @@ export function useSettingControls(
     if (!view || !book || !draft) return []
     const own = (at as { settings?: Record<string, unknown> } | null | undefined)?.settings?.[def.id]
     const value = def.id in patch ? (patch[def.id] ?? undefined) : own
-    const inherited = of === "page" ? settingValue(catalog, book, null, def.id) : def.default
+    const inherited = of === "page" ? settingValue(catalog, book, null, def) : def.default
     const Control = view.control
     return [
       <Control
