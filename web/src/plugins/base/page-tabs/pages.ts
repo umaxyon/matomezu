@@ -1,12 +1,12 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
-import type { PagedBook } from "../../../core/book"
+import { hasPages, type PagedBook, putPage } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import { fail } from "../../../core/errors"
 import { type Lang, translate } from "../../../core/i18n/i18n"
 import type { PaperChoice, PaperRule } from "../../../core/paper"
-import type { Page } from "../../../core/schema/book"
+import type { Book, Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { setField } from "../fields"
 import { kit } from "../kit"
@@ -63,11 +63,22 @@ export function growsValue(catalog: CoreCatalog, book: PagedBook, grows: boolean
   return choices.includes(grows) ? grows : null
 }
 
-// ページ page の grows を grows（ページの grows の値）にしたもの。中身は増やす向きに合わせてずらす（左・上へ増やすなら空きの印刷区画を持たせ、
-// 増やさなくなった向きは空きを詰める。入らないかは shapesFit で確かめる）
-export function withGrows<P extends Page>(catalog: CoreCatalog, book: PagedBook, page: P, grows: Page["grows"]): P {
-  const next = setField(page, ["orientation"], "grows", grows)
-  return paddedFor(catalog, next, growOf(catalog, book, next), growOf(catalog, book, page))
+// ページ page の grows を grows（ページの grows の値）にしたもの（中身は、整えステップ variable-pages.ts が増やす向きに合わせてずらす）
+export const withGrows = <P extends Page>(page: P, grows: Page["grows"]): P =>
+  setField(page, ["orientation"], "grows", grows)
+
+// アクションのあとのブック after のページ page を、増やす向きに合わせて整えたもの: 左・上へ増やすなら空きの印刷区画を持たせ、前のブック before では
+// 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す）。紙・向き・可変ページかを変えたか、
+// 中身をずらしたページの形が、増やさない向きで紙からはみ出すなら null（整えステップ variable-pages.ts と、ページの設定のダイアログが使う）
+export function settledPage(catalog: CoreCatalog, before: Book, after: PagedBook, page: Page): Page | null {
+  const prev = hasPages(before) ? before.pages.find(p => p.id === page.id) : undefined
+  const was = prev && growOf(catalog, before, prev)
+  const padded = paddedFor(catalog, page, growOf(catalog, after, page), was)
+  const papered =
+    prev !== undefined &&
+    (prev.paper !== page.paper || prev.orientation !== page.orientation || prev.grows !== page.grows)
+  if (padded === page && !papered) return page
+  return shapesFit(catalog, padded === page ? after : putPage(after, padded), page.id) ? padded : null
 }
 
 // 選べるものに入るか

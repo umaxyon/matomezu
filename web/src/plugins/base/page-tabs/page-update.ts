@@ -8,7 +8,7 @@ import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblems } from "./page-problems"
-import { canChoose, growsValue, paperChoicesFor, shapesFit, withGrows } from "./pages"
+import { canChoose, growsValue, paperChoicesFor, withGrows } from "./pages"
 
 const ARGS = z.strictObject({
   page: z.string().min(1),
@@ -22,7 +22,7 @@ const ARGS = z.strictObject({
 
 // ページ page の、渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
 // 紙と向きはタイプの規定の中から選ぶ（1 冊の紙をそろえる規定では、ほかのページと同じものだけ）。可変ページはタイプが増やす向きの決め方を持つときだけで、向きはタイプが選べるものの中から。
-// 可変ページでなくした形が紙からはみ出すなら断る（可変ページの広さは、紙の大きさで区切った印刷区画を増やして決まる）。
+// 形が紙からはみ出すなら、整えステップ（variable-pages.ts）が断る（可変ページの広さは、紙の大きさで区切った印刷区画を増やして決まる）。
 // settings はブックのタイプが選んだ項目だけ（null は消す。形に合わない・選んでいないタイプ・無いページなら断る）。設定を変えたらページを整える（settleBook）。
 // fields はタイプがページに足したフィールドだけで、受け方はタイプが決められる（決めていなければ、書いたフィールドを丸ごと替える。形に合わない・フィールドの無いタイプなら断る）。
 // 受け方が結果を返せば、結果の fields に入れて返す。変えたページにタイプが問題を知らせれば断る（page-problems.ts）
@@ -56,7 +56,6 @@ export const PAGE_UPDATE = kit.defineAction({
       ? settleBook(ctx.catalog, putPage(book, withSettings(page, patch.data as Record<string, unknown>)))
       : putPage(book, page)
     if (pageProblems(ctx.catalog, next, [found.id]).length > 0) return null
-    if (papered !== written.page && !shapesFit(ctx.catalog, next, found.id)) return null
     return { next, result }
   },
 })
@@ -68,6 +67,6 @@ function withPaper(catalog: CoreCatalog, book: PagedBook, page: Page, args: z.in
   if (!canChoose(paperChoicesFor(catalog, book, page.id), choice)) return null
   const grows = args.grows === undefined ? page.grows : growsValue(catalog, book, args.grows)
   if (grows === null) return null
-  // 入らなければ、あとの shapesFit が断る
-  return withGrows(catalog, book, { ...page, ...choice }, grows)
+  // 中身のずらしと、形が紙に入るかの確かめは、整えステップ（variable-pages.ts）がする
+  return withGrows({ ...page, ...choice }, grows)
 }

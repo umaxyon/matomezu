@@ -26,6 +26,7 @@ import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
+import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import { KEYS, LANG, OPTION_TITLES_CHECK, SETTINGS_SET, SETTINGS_SET_COMMAND, SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
@@ -83,7 +84,6 @@ export {
   replaceShapePushing,
   resizedBy,
   roomOf,
-  settleVariablePages,
   shapeDefOf,
   shownRects,
   unpinPage,
@@ -166,6 +166,7 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [COMMENT],
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK, THEME_TEXT_COLORS_CHECK],
+    settleSteps: [VARIABLE_PAGES],
     commands: [
       BOOK_NEW,
       STAGE_HOME,

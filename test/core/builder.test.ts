@@ -220,6 +220,11 @@ test("テーマがデータの動き方のテーマキーに決まった言葉�
   ])
 })
 
+test("追加プラグインは整えステップを持てない（E310）", () => {
+  const step = { pageFields: [], settle: (_before: unknown, after: never) => after }
+  expect(() => assemble([...BUILTIN, { id: "extra", settleSteps: [step] }])).toThrow(/E310|only built-in/)
+})
+
 test("追加プラグインは組み立てのときの確かめを持てない（E308）", () => {
   expect(() => assemble([...BUILTIN, { id: "extra", checks: [() => []] }])).toThrow(/E308|only built-in/)
 })

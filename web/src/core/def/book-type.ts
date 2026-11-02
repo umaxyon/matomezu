@@ -60,9 +60,6 @@ interface BookTypeBase<S extends z.ZodObject> extends BookTypeExtras {
   // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、残しておいたブックは読めないとして warning W006 にする。データは捨てない）
   holds?(book: z.infer<S>, catalog: CoreCatalog): boolean
-  // ブックが対象のアクションのあとに、ブックを整える（可変ページの中身を印刷区画の単位でずらすなど）。整えることが無ければそのまま返す。
-  // 決まり（holds）と認可ステップの確かめは、整えたブックにかける
-  settle?(book: { type: string }, catalog: CoreCatalog): { type: string }
   settings?: BookTypeSettings
   // ホームにしたときに、利用者の設定の項目のうち変えさせない物の id（利用者にも AI にも。組織のホームで決める）。actions.without の、項目ごとの版
   fixedUserSettings?: readonly string[]

@@ -338,20 +338,6 @@ export function paddedFor<P extends ItemPage>(
   return alignPadding(catalog, page, { x: axis(sides?.left, was?.left), y: axis(sides?.up, was?.up) })
 }
 
-// 可変ページを持つブックを、どのページも増やす向きに合わせてそろえたもの（タイプの settle に使う。変わらなければそのまま）
-export function settleVariablePages<B extends { type: string; pages?: readonly ItemPage[] }>(
-  catalog: CoreCatalog,
-  book: B,
-): B {
-  let next = book as unknown as PagedBook
-  for (const page of book.pages ?? []) {
-    const sides = growOf(catalog, next, page)
-    const aligned = paddedFor(catalog, page, sides, sides)
-    if (aligned !== page) next = putPage(next, aligned)
-  }
-  return next as unknown as B
-}
-
 // 形を並べ直したページ（整列など）: つなぐものに、定義の固定の外し（unpin）を種類ごとにかける（前の並びに合わせて手で決めた形を外す）。
 // 変わらなければそのまま
 export function unpinPage<P extends ItemPage>(catalog: CoreCatalog, page: P): P {

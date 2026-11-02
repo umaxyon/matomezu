@@ -181,3 +181,19 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   expect((bookOf(store, "b2").pages[0]?.items ?? []).length).toBe(1)
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
 })
+
+test("上下左右へ増やす可変ページで、左の空きへ置いて中身をずらした段を元に戻すと、ずらした量（shift）も前に戻る", async () => {
+  const store = ready()
+  const page = bookOf(store).pages[0]!.id
+  expect(store.actions.perform("@matomezu/base:page-update", { page, grows: "all" }, { book: "b1" }).ok).toBe(true)
+  await settled()
+  const shift = () => bookOf(store).pages[0]!.shift
+  const was = shift()
+  expect(
+    store.actions.perform("@matomezu/paper:item-place", { page, item: BOX, at: { x: 20, y: 900 } }, { book: "b1" }).ok,
+  ).toBe(true)
+  await settled()
+  expect(shift()?.x).toBe((was?.x ?? 0) + 1)
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(shift()).toEqual(was)
+})
