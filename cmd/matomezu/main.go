@@ -37,12 +37,12 @@ const DefaultAddr = "127.0.0.1:7230"
 const startWait = 10 * time.Second
 
 type cli struct {
-	Serve    serveCmd    `cmd:"" help:"Run the server in the foreground."`
-	Start    startCmd    `cmd:"" help:"Start the server in the background unless it is running, and print its URL."`
-	Stop     stopCmd     `cmd:"" help:"Stop the background server."`
-	MCP      mcpCmd      `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
-	Comments commentsCmd `cmd:"" help:"Print the annotations (such as the user's comments) that wait for AI's answer, for an AI's hook. Prints nothing when there are none or the server is not running."`
-	Version  versionCmd  `cmd:"" help:"Print the version."`
+	Serve       serveCmd       `cmd:"" help:"Run the server in the foreground."`
+	Start       startCmd       `cmd:"" help:"Start the server in the background unless it is running, and print its URL."`
+	Stop        stopCmd        `cmd:"" help:"Stop the background server."`
+	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
+	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's comments) that wait for AI's answer, for an AI's hook. Prints nothing when there are none or the server is not running."`
+	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 
 // 常駐の立て方（serve と start で共通）
@@ -77,7 +77,7 @@ type mcpCmd struct {
 	serverFlags
 }
 
-type commentsCmd struct{}
+type annotationsCmd struct{}
 
 type versionCmd struct{}
 
@@ -214,7 +214,7 @@ func (c *mcpCmd) Run() error {
 
 // Run は、AI の応えを待つアノテーションを、AI に読ませる短い文で書き出す（AI のフックが、利用者の話しかけに添える）。
 // 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（話しかけを止めない）
-func (c *commentsCmd) Run() error {
+func (c *annotationsCmd) Run() error {
 	h, err := openHome()
 	if err != nil {
 		return nil
