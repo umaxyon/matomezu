@@ -14,22 +14,20 @@ import {
   useState,
   type WheelEvent,
 } from "react"
-import { withSettings } from "../../../core/book"
 import type { BookTypeId } from "../../../core/core-catalog"
-import type { Book } from "../../../core/schema/book"
 import { paperOf, type Stage } from "../../../core/stage"
 import { toolDef } from "../../../core/tools"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { themeVars, useTokenScope } from "../../../ui/theme-vars"
-import { useStage, useUserSetting } from "../../../ui/view-hooks"
-import { bookTokens } from "../book-look/look"
+import { useTokenScope } from "../../../ui/theme-vars"
+import { useShownBook, useStage } from "../../../ui/view-hooks"
+import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
-import { textColorsOf, textColorVars, USER_TEXT_COLORS } from "../text"
-import type { TextColorValues } from "../text/text-colors"
+import { textColorVars } from "../text"
+import { useTextColors } from "../text/use-text-colors"
 import { keepsPan } from "../tool-switch/tools"
 import { AnchorsProvider } from "../utils/anchors"
 import { useResize } from "../utils/useResize"
@@ -47,25 +45,14 @@ interface Drag {
 export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
   const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
   const isCurrent = useMatomezuState(s => s.workspace.current === id)
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === id)?.opened
-    return o ? s.books[o.book] : undefined
-  })
-  const preview = useMatomezuState(s => s.dialog?.preview ?? null)
-  const look =
-    preview && preview.item === undefined && preview.page === undefined && preview.book === book?.id
-      ? preview.props
-      : null
+  const book = useShownBook(id) // ブックの設定のダイアログの下書きを重ねたブック
   const catalog = useCatalog().core
   const tool = useStage(id)?.tool ?? null
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
-  // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる。文字の色は見る人の上書きがいちばん強い）
-  const viewerColors = useUserSetting(USER_TEXT_COLORS.id) as TextColorValues
-  const vars = useMemo(() => {
-    if (!book) return undefined
-    const shown = look ? withSettings<Book>(book, look) : book
-    return { ...themeVars(bookTokens(catalog, shown)), ...textColorVars(textColorsOf(catalog, shown, viewerColors)) }
-  }, [catalog, book, look, viewerColors])
+  // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）
+  const theme = useBookThemeVars(id)
+  const colors = useTextColors(id)
+  const vars = useMemo(() => (colors ? { ...theme, ...textColorVars(colors) } : undefined), [theme, colors])
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const wheelZoom = useCommand(id, ZOOM_WHEEL.id)
   const t = useMessages(kit)

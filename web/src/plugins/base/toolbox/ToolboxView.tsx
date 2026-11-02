@@ -7,16 +7,14 @@ import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useBook } from "../../../ui/view-hooks"
 import { useCloseDrawer } from "../book-name/drawer-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
 
 export function ToolboxView({ stage }: { stage: string }) {
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    return o ? s.books[o.book] : undefined
-  })
+  const book = useBook(stage) ?? undefined
   const placing = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.placing ?? null)
   const { togglePlacing } = useActions()
   const t = useMessages(kit)

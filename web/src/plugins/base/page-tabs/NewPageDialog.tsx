@@ -4,6 +4,7 @@ import { hasPages, type PagedBook } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useCatalog, useInstance, useMatomezuState } from "../../../ui/store-context"
+import { useBook } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -13,10 +14,7 @@ import { nextPageTitle } from "./pages"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    return o ? s.books[o.book] : undefined
-  })
+  const book = useBook(stage) ?? undefined
   if (!book || !hasPages(book)) return null
   return (
     <Dialog title={t("New page")} onClose={onClose}>
