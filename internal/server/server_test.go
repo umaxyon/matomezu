@@ -651,11 +651,11 @@ func TestViewIsTheLastFocusedScreens(t *testing.T) {
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"A"},"focused":true}`, nil)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":{"book":"B"}}`, nil)
-	if got := ai(); got != `{"book":"A"}` {
+	if got := ai(); got != `{"awaiting":[],"book":"A"}` {
 		t.Fatalf("view = %s; want the focused screen's", got)
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c2","focused":true}`, nil)
-	if got := ai(); got != `{"book":"B"}` {
+	if got := ai(); got != `{"awaiting":[],"book":"B"}` {
 		t.Fatalf("view after c2 is focused = %s", got)
 	}
 	if code, _ := send(t, "POST", s.URL+"/api/view", `{"client":"c9"}`, nil); code != 404 {
@@ -679,7 +679,7 @@ func TestViewWaitsForTheLatestWindow(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	start := time.Now()
 	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":{"book":"new"}}`, nil)
-	if body := <-got; body != `{"book":"new"}` {
+	if body := <-got; body != `{"awaiting":[],"book":"new"}` {
 		t.Fatalf("view = %s; want the latest window's", body)
 	}
 	if waited := time.Since(start); waited > time.Second {
@@ -694,7 +694,7 @@ func TestViewKeepsTheNewestReport(t *testing.T) {
 	next(t, a)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stage":"s2"},"focused":true,"seq":2}`, nil)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stage":"s1"},"seq":1}`, nil)
-	if _, got := send(t, "GET", s.URL+"/api/ai/view", "", map[string]string{"Authorization": "Bearer secret"}); got != `{"stage":"s2"}` {
+	if _, got := send(t, "GET", s.URL+"/api/ai/view", "", map[string]string{"Authorization": "Bearer secret"}); got != `{"awaiting":[],"stage":"s2"}` {
 		t.Fatalf("view = %s; want the newer report", got)
 	}
 }

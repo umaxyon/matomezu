@@ -7,7 +7,8 @@ import (
 
 // instructions は、つないだ AI に渡す matomezu の説明
 const instructions = "matomezu shows books (such as diagrams) to the user in a browser. " +
-	"Use view to see what the user is looking at, list_books and read_book to read, actions to see what can be done, and perform to do it. " +
+	"Use view to see what the user is looking at, list_books, read_book and read_page to read, actions to see what can be done, and perform to do it. " +
+	"The user may put comments on things in a book; view and list_books tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
 	"Changes appear at once on screens showing that book; use show to put a book on the user's screen."
 
 type readTool struct {
@@ -22,19 +23,19 @@ var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "a
 var readTools = []readTool{
 	{
 		"view",
-		"What the user is looking at now: the book, page and selected items of the matomezu window focused last. null when no window is open.",
+		"What the user is looking at now: the book, page and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's comments) that wait for your answer, each with its page. null when no window is open.",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") },
 	},
 	{
 		"list_books",
-		"List the books: id, type, title and version. A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
+		"List the books: id, type, title, version and awaiting (how many annotations, such as the user's comments, wait for your answer; left out when none). A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/books") },
 	},
 	{
 		"read_book",
-		"Read a whole book (its pages and the items on them) and its version.",
+		"Read a whole book (its pages and the items on them), its version and its annotations (such as the user's comments: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). To read one page, use read_page.",
 		map[string]any{
 			"type":                 "object",
 			"properties":           map[string]any{"book": map[string]any{"type": "string", "description": "The book's id."}},
@@ -44,6 +45,24 @@ var readTools = []readTool{
 		func(api API, args map[string]any) (json.RawMessage, error) {
 			id, _ := args["book"].(string)
 			return api.Get("api/ai/books/" + url.PathEscape(id)) // 1 冊だけのブックの id は / を含む
+		},
+	},
+	{
+		"read_page",
+		"Read one page of a book (the page and the items on it), the book's version, and the annotations (such as the user's comments) standing on things of that page.",
+		map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"book": map[string]any{"type": "string", "description": "The book's id."},
+				"page": map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
+			},
+			"required":             []string{"book", "page"},
+			"additionalProperties": false,
+		},
+		func(api API, args map[string]any) (json.RawMessage, error) {
+			book, _ := args["book"].(string)
+			page, _ := args["page"].(string)
+			return api.Get("api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page))
 		},
 	},
 	{
