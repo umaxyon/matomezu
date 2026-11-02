@@ -137,7 +137,7 @@ const thrown = (run: () => unknown) => {
   try {
     run()
   } catch (e) {
-    return (e as MatomezuError).name === "MatomezuError" ? (e as MatomezuError).details.map(p => p.code) : e
+    return e instanceof Error && e.name === "MatomezuError" ? (e as MatomezuError).details.map(p => p.code) : e
   }
   return null
 }
