@@ -81,6 +81,7 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:drawer-history is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:drawer-basics is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:drawer-book-tools is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
     ])
     // 中身を書かなければ、ステージの無い画面にできる
@@ -99,7 +100,17 @@ describe("配置", () => {
       id: "mine",
       slots: { ...DEFAULT_LAYOUT.slots, root: ["w:workspace", "@matomezu/base:dialog-host"] },
     }
-    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
+    // 右サイドパネルを開けない骨組みなら、その中身を書いた配置は error
+    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual(["E211"])
+    const { "@matomezu/base:right-side-panel": _, ...slots } = layout.slots
+    expect(checkLayout({ ...layout, slots } as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
+    // 開けるスロットを足せば、中身も置ける
+    const WITH_PANEL = defineWorkspace({
+      id: "w:workspace",
+      view: MyWorkspace,
+      opens: ["@matomezu/base:right-side-panel"],
+    })
+    expect(WITH_PANEL.opens).toEqual([...STAGE_BASE_SLOTS, "@matomezu/base:right-side-panel"])
   })
 
   test("右クリックのメニューのインスタンスに無いコマンドと、どのコンポーネントも開かないメニューは error", () => {

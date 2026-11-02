@@ -3,11 +3,14 @@
 // 下の行にポインタが乗っているかを、下の行に置いたウィジェットに渡す（bottom-hover.tsx）。
 // 右上の角は、ステージの中身が縦にスクロールするとき右端に出るスクロールバーに重ならないよう、スクロールバーの幅（この画面で測った値）だけ内側に浮かべる。
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
-// ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（割合の計算と収め方は workspace の側）
+// ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（割合の計算と収め方は workspace の側）。
+// 列の右に右サイドパネルを置く。開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）
 import { type CSSProperties, type PointerEvent, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { useRightSidePanelStage } from "../right-side-panel/hooks"
+import { RightSidePanel } from "../right-side-panel/RightSidePanel"
 import { BottomHoverContext } from "./bottom-hover"
 import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import styles from "./WorkspaceView.module.css"
@@ -22,6 +25,8 @@ export function WorkspaceView() {
   const [scrollbar, setScrollbar] = useState(0)
   useLayoutEffect(() => setScrollbar(scrollbarWidth()), [])
   const split = ids.length === 2
+  const panel = useRightSidePanelStage()
+  const grow = (stage: string, i: number) => (panel !== null ? (stage === panel ? 1 : 0) : i === 0 ? share : 1 - share)
   const drag = (e: PointerEvent<HTMLElement>) => {
     if (e.type === "pointerdown") {
       if (e.button !== 0) return
@@ -41,9 +46,11 @@ export function WorkspaceView() {
           key={stage}
           className={styles.column}
           data-current={split && stage === current}
-          style={split ? { flexGrow: i === 0 ? share : 1 - share } : undefined}
+          data-hidden={panel !== null && stage !== panel}
+          inert={panel !== null && stage !== panel}
+          style={split ? { flexGrow: grow(stage, i) } : undefined}
         >
-          {i === 1 && (
+          {i === 1 && panel === null && (
             // biome-ignore lint/a11y/noStaticElementInteractions: 境目はポインタで動かす（キーの操作は持たない）
             <div
               className={styles.divider}
@@ -65,6 +72,7 @@ export function WorkspaceView() {
           </div>
         </div>
       ))}
+      <RightSidePanel />
     </main>
   )
 }

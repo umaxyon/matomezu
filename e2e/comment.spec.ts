@@ -15,7 +15,7 @@ async function addBox(page: Page, x: number, caption: string) {
   await expect(dialog).toBeHidden()
 }
 
-test("箱の右クリックの「コメント」で、箱の右にコメントの下書きの吹き出しが開き、書いて付けると吹き出しで出る。たたむと右上にコメントの絵が出て、押すと開く。消すと無くなる", async ({
+test("箱の右クリックの「コメント」で、箱の右にコメントの下書きの吹き出しが開き、書いて付けると吹き出しで出る。たたむと右上にコメントの絵が出て、押すと右サイドパネルに出る。消すと無くなる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -49,8 +49,11 @@ test("箱の右クリックの「コメント」で、箱の右にコメント�
   const mark = page.getByRole("button", { name: "コメントを開く" })
   await expect(mark).toBeVisible()
   await mark.click()
-  await bubble.getByRole("button", { name: "消す" }).click()
+  const panel = page.getByRole("complementary", { name: "右サイドパネル" })
+  await expect(panel).toContainText("まだです")
+  await panel.getByRole("button", { name: "消す" }).click()
   await expect(stands(page)).toHaveCount(0)
+  await expect(panel).toHaveCount(0)
 })
 
 test("コメントの下書きは Esc で付けずに閉じる。文が無ければ付けられない", async ({ page }) => {

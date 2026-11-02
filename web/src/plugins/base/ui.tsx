@@ -6,7 +6,7 @@ import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from
 import { BOOK_NAME, DRAWER_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./book-name/ui"
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
-import { COMMENT_LAYER } from "./comment/ui"
+import { COMMENT_LAYER, COMMENT_THREAD } from "./comment/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
@@ -88,6 +88,7 @@ export const BASE_UI = definePluginUi(BASE, {
     BOOK_CONTENT,
     STAND_LAYER,
     COMMENT_LAYER,
+    COMMENT_THREAD,
     MARK_LAYER,
     PRINT_AREA_TOGGLE,
     TOOL_SWITCH,
@@ -114,6 +115,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:drawer-history": StageSlotProps
     "@matomezu/base:drawer-basics": StageSlotProps
     "@matomezu/base:drawer-book-tools": StageSlotProps
+    "@matomezu/base:right-side-panel": StageSlotProps
+  }
+  interface WidgetExtras {
+    // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）
+    rightSidePanel?: { width: number }
   }
   interface WidgetTable {
     "@matomezu/base:workspace": typeof WORKSPACE
@@ -127,6 +133,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-content": typeof BOOK_CONTENT
     "@matomezu/base:stand-layer": typeof STAND_LAYER
     "@matomezu/base:comment-layer": typeof COMMENT_LAYER
+    "@matomezu/base:comment-thread": typeof COMMENT_THREAD
     "@matomezu/base:mark-layer": typeof MARK_LAYER
     "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH

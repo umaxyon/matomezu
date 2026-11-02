@@ -14,9 +14,20 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  transition: flex-grow 0.25s ease; /* 右サイドパネルを開け閉めするときは、列の幅を動かす（動きを減らす設定では動かさない） */
 }
 .column + .column {
   border-left: 1px solid var(--skin-border);
+}
+@media (prefers-reduced-motion: reduce) {
+  .column {
+    transition: none;
+  }
+}
+/* 右サイドパネルを開いている間の、もう片方の列（幅 0） */
+.column[data-hidden="true"] {
+  overflow: hidden;
+  border-left-width: 0;
 }
 /* 列の境目をつかむ所（境目の線をまたぐ細い帯。色はつかんでいる間だけ付ける） */
 .divider {
