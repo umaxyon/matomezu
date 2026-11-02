@@ -271,7 +271,8 @@ const Tree = memo(function Tree({
             else if (editable) setEditing(stage.id, true)
           }}
         >
-          <NodeText node={n} />
+          {/* 編集している節の字は描かない（下線の形の入力Formは地が透けるので、字がダブって見える） */}
+          {!(writing && n.id === selected) && <NodeText node={n} />}
         </div>
       ))}
       {ghost && dragging && (

@@ -123,6 +123,8 @@ test("＋で子を足してその場で書き、Enter で確定する。書い�
   const before = (await input.boundingBox())!.width
   await page.keyboard.type("とても長いキャプションの子")
   await expect.poll(async () => (await input.boundingBox())!.width).toBeGreaterThan(before)
+  // 書いている節の字は描かない（入力Formの地が透ける下線の形でも、字がダブらない）
+  await expect(paperEl.locator('[data-node][data-selected="true"]')).toHaveText("")
   await page.keyboard.press("Enter")
   await expect(input).toHaveCount(0)
   const child = paperEl.locator('[data-node]:not([data-root="true"])')
