@@ -3,7 +3,7 @@ import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
 import { isShown } from "../store/commands"
-import { type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
+import { type AnchorMenuCommandId, type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
 import { useActions, useInstance, useLayout, useMatomezuState } from "./store-context"
 
 // 右ボタンの押し続け: ブラウザが右クリックを知らせるのは、Windows では離したとき、Mac・Linux では押したとき。
@@ -58,4 +58,11 @@ export function useContextMenuItems<M extends ContextMenuId>(stage: string, id: 
   return useMatomezuState(
     useShallow(s => tidySeparators(items.filter(c => c === SEPARATOR || isShown(defs, s, stage, c)))),
   )
+}
+
+// 配置の anchorMenu（押した物にアンカーがあるとき、どの右クリックのメニューにも足すコマンド）のうち、そのステージから見て出ているもの（並びは配置の順）
+export function useAnchorMenuItems(stage: string): readonly AnchorMenuCommandId[] {
+  const items = useLayout().anchorMenu ?? []
+  const defs = useInstance()
+  return useMatomezuState(useShallow(s => items.filter(c => isShown(defs, s, stage, c))))
 }

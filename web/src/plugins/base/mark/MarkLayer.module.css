@@ -1,0 +1,127 @@
+/* 鳥が歩く所（物の上の辺に乗る。幅は物の幅）。鳥は足元を下の辺に合わせて描く */
+.walk {
+  position: relative;
+  height: 48px;
+  pointer-events: none;
+}
+/* 鳥の足元（大きさは持たず、絵と吹き出しはここから置く） */
+.foot {
+  position: absolute;
+  top: 100%;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+/* 物の裏にいる間: 上の辺より下を隠す */
+.behind {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 200px;
+  overflow: hidden;
+}
+.behind > .foot {
+  top: 200px;
+}
+/* 絵の 1 コマ（コマと位置は MarkLayer の frameStyle が決める） */
+.bird {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  pointer-events: auto;
+}
+/* びっくりマークの丸（物の右上の角） */
+.alert {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--skin-danger);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-on-accent);
+  font: 700 12px / 1 sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+}
+/* 押すと「外す？」を出す所（吹き出しは押した物の上に出す） */
+.ask {
+  position: relative;
+}
+.askBubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  font-size: 11px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+.foot .askBubble {
+  bottom: 48px;
+  left: 0;
+}
+.yes {
+  padding: 1px 8px;
+  border: 1px solid var(--skin-danger);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--skin-danger);
+  font: inherit;
+  cursor: pointer;
+}
+/* マークの種類を選ぶスタンド（6 つの種類の絵を横に並べる） */
+.picker {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+}
+.pick {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.pick:hover,
+.pick:focus-visible {
+  background: var(--skin-btn-hover);
+}
+/* 種類を選ぶスタンドの鳥（足元を下の辺の真ん中に置く） */
+.pickBird {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+.pickBird > .bird {
+  margin-left: 20px;
+  margin-top: 40px;
+  pointer-events: none;
+}
+.pick .alert {
+  pointer-events: none;
+}

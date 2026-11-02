@@ -10,6 +10,7 @@ import { COMMENT_LAYER } from "./comment/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
+import { MARK_LAYER } from "./mark/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { USER_SETTING_VIEWS } from "./settings/ui"
 import {
@@ -87,6 +88,7 @@ export const BASE_UI = definePluginUi(BASE, {
     BOOK_CONTENT,
     STAND_LAYER,
     COMMENT_LAYER,
+    MARK_LAYER,
     PRINT_AREA_TOGGLE,
     TOOL_SWITCH,
     TOOLBOX,
@@ -125,6 +127,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-content": typeof BOOK_CONTENT
     "@matomezu/base:stand-layer": typeof STAND_LAYER
     "@matomezu/base:comment-layer": typeof COMMENT_LAYER
+    "@matomezu/base:mark-layer": typeof MARK_LAYER
     "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX

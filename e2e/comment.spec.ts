@@ -53,26 +53,15 @@ test("箱の右クリックの「コメント」で、箱の右にコメント�
   await expect(stands(page)).toHaveCount(0)
 })
 
-test("コメントの下書きは Esc で付けずに閉じる。指すだけのマーク（文の無い「指すだけ」）は、吹き出しを出さず箱の上の辺に絵を出す", async ({
-  page,
-}) => {
+test("コメントの下書きは Esc で付けずに閉じる。文が無ければ付けられない", async ({ page }) => {
   await page.goto("/")
   await addBox(page, 200, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "コメント" }).click()
   const draft = page.getByRole("group", { name: "コメントを付ける" })
+  await expect(draft.getByRole("button", { name: "付ける" })).toBeDisabled()
   await draft.getByLabel("コメント", { exact: true }).press("Escape")
   await expect(draft).toHaveCount(0)
   await expect(items(page)).toHaveCount(1)
-
-  await box.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "コメント" }).click()
-  await draft.getByText("指すだけ").click()
-  await draft.getByRole("button", { name: "付ける" }).click()
-  const walker = page.getByRole("button", { name: "コメントを開く" })
-  await expect(walker).toBeVisible()
-  const b = (await box.boundingBox())!
-  const w = (await walker.boundingBox())!
-  expect(w.y + w.height).toBeLessThanOrEqual(b.y + 5)
 })

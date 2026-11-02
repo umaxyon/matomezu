@@ -68,7 +68,7 @@ test("prune は無くなった物をアンカーから外し、全部無くな�
 
 test("AI に見せるアノテーションは、結び付く物の最後のあるページと、AI の応えを待っているか（種類の awaits。形が合わない物と種類の無い物は待たない）を添える", () => {
   const read = comment("c4", { ask: "reply", bubble: true, posts: [{ by: "user", text: "x", at: "t" }], readAt: "t" })
-  const point = comment("c5", { ask: "point", bubble: false, posts: [{ by: "user", text: "", at: "t" }] })
+  const point = comment("c5", { ask: "point", bubble: false, posts: [{ by: "user", text: "見て", at: "t" }] })
   expect(
     annotationsForAi(CORE_CATALOG, book, [GOOD, read, point, BAD, GONE]).map(a => [a.id, a.page, a.awaits]),
   ).toEqual([

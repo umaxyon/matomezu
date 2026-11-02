@@ -1,5 +1,5 @@
 // コメント: ブックの物に付ける、アノテーションの種類（core/def/annotation.ts）。付けるのは利用者だけ（userOnly）で、利用者も AI も返事を続けて書け、誰でも消せる。
-// 付けるときに、返事が欲しい（reply）か、指すだけ（point。伝わったら AI が消す）かを選ぶ。文の無いコメントはマーク。
+// 付けるときに、返事が欲しい（reply）か、指すだけ（point。伝わったら AI が消す）かを選ぶ。文の無い印はコメントではなくマーク（mark/）。
 // AI が読んだかは readAt（AI が読んだ時点）で持ち、利用者が書き込むと未読に戻る。ロック中のブックにも付けられる（ロックはアノテーションを止めない）
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
@@ -15,8 +15,8 @@ const PostSchema = z.strictObject({
 
 const CommentSchema = z.strictObject({
   ask: z.enum(["reply", "point"]), // 求めること: 返事が欲しい・指すだけ
-  bubble: z.boolean(), // 吹き出しを出すか（出さなければマークだけ）
-  posts: z.array(PostSchema).min(1), // 書き込み（最初が付けた人の文。空ならマーク）
+  bubble: z.boolean(), // 吹き出しを出すか（出さなければ、たたんだコメントの絵だけ）
+  posts: z.array(PostSchema).min(1), // 書き込み（最初が付けた人の文）
   readAt: z.string().optional(), // AI が読んだ時点（無ければ未読）
 })
 export type CommentProps = z.output<typeof CommentSchema>
@@ -25,7 +25,7 @@ export const COMMENT = kit.defineAnnotation({
   id: "comment",
   title: "Comment",
   aiDescription:
-    "A comment the user put on things in a book (anchors). posts are what was written, the first by the user (empty text: a mark, only pointing). ask reply wants an answer: write it with comment-reply (that marks it read), or comment-read when there is nothing to say. ask point only points at the things: remove it with comment-remove once understood. readAt is when AI read it (none: unread).",
+    "A comment the user put on things in a book (anchors). posts are what was written, the first by the user. ask reply wants an answer: write it with comment-reply (that marks it read), or comment-read when there is nothing to say. ask point only points at the things: remove it with comment-remove once understood. readAt is when AI read it (none: unread).",
   props: CommentSchema,
   // 返事が欲しくて未読のものと、指すだけのもの（分かったら AI が消す）
   awaits: p => (p.ask === "reply" ? p.readAt === undefined : true),
@@ -52,13 +52,13 @@ export const COMMENT_ADD = kit.defineAction({
   id: "comment-add",
   attach: { annotations: [COMMENT.id] },
   aiDescription:
-    "Add a comment to things in the book (only the user adds comments): anchors are the ids of the things it is about (items, lines, list rows, tree nodes, folder rows; one or more, not pages). ask is reply (an answer is wanted) or point (only pointing at them; remove it once understood). text may be empty (a mark). bubble (default true) shows its text in a bubble. Returns the new comment's id.",
+    "Add a comment to things in the book (only the user adds comments): anchors are the ids of the things it is about (items, lines, list rows, tree nodes, folder rows; one or more, not pages). ask is reply (an answer is wanted) or point (only pointing at them; remove it once understood). bubble (default true) shows its text in a bubble. Returns the new comment's id.",
   title: "Add comment",
   target: "annotations",
   userOnly: true,
   args: z.strictObject({
     anchors: z.array(z.string().min(1)).min(1),
-    text: z.string().max(2000),
+    text: z.string().min(1).max(2000),
     ask: z.enum(["reply", "point"]),
     bubble: z.boolean().optional(),
   }),

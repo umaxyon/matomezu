@@ -9,6 +9,7 @@ import { HISTORY_MESSAGES } from "./history/messages"
 import { ITEM_PARTS_MESSAGES } from "./item-parts/messages"
 import { LOCK_MESSAGES } from "./lock/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
+import { MARK_MESSAGES } from "./mark/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
@@ -35,6 +36,7 @@ export const BASE_MESSAGES = {
   ...PAGE_MESSAGES,
   ...LOCK_MESSAGES,
   ...COMMENT_MESSAGES,
+  ...MARK_MESSAGES,
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,
   ...ITEM_PARTS_MESSAGES,

@@ -1,4 +1,4 @@
-// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）とコマンドが受け取る文脈のフィールドの一覧と、base の入口の名前がプラグイン API にもあること。
+// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）とコマンドの run が受け取る文脈と操作（CommandActions）のフィールドの一覧と、base の入口の名前がプラグイン API にもあること。
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
 import { newStage } from "../web/src/core/stage"
@@ -7,7 +7,7 @@ import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
 import * as plugin from "../web/src/plugins/base"
 import * as pluginUi from "../web/src/plugins/base/ui"
-import { commandContext } from "../web/src/store/commands"
+import { commandContext, commandDef } from "../web/src/store/commands"
 import * as testing from "../web/src/testing"
 import { CORE_CATALOG, newStore } from "./support"
 
@@ -283,6 +283,60 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "stage",
     "toPaper",
   ])
+})
+
+test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグインの置き場を変える updateStageState（インスタンスだけが持つ receive・locate・setOffline・setStageState は渡さない）", () => {
+  const store = newStore()
+  const def = commandDef(store, "@matomezu/base:mark-new")
+  const run = def.run
+  let got: object = {}
+  def.run = (_ctx, actions) => {
+    got = actions
+  }
+  try {
+    store.actions.command("s1", "@matomezu/base:mark-new" as never, "x" as never)
+  } finally {
+    def.run = run
+  }
+  expect(names(got)).toEqual([
+    "closeContextMenu",
+    "closeDialog",
+    "closePicker",
+    "closeStage",
+    "command",
+    "continueStep",
+    "dismissToast",
+    "evenDivider",
+    "focusStage",
+    "moveDivider",
+    "moveHistory",
+    "openBook",
+    "openContextMenu",
+    "openDialog",
+    "openPage",
+    "openPicker",
+    "panStageBy",
+    "perform",
+    "pressKey",
+    "previewDialog",
+    "resetStageView",
+    "resizeStage",
+    "select",
+    "setEditing",
+    "setStageArea",
+    "setTool",
+    "showPickerMap",
+    "showToast",
+    "split",
+    "stopPlacing",
+    "submitDialog",
+    "togglePlacing",
+    "unsplit",
+    "updateStageState",
+    "zoomStage",
+  ])
+  // useActions の操作は、そこから updateStageState を除いた物
+  expect(names(store.actions)).toEqual(names(got).filter(n => n !== "updateStageState"))
 })
 
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {

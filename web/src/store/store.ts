@@ -14,6 +14,7 @@ import type { Point, Size } from "../core/geom"
 import { type BookHistory, HISTORY_LIMIT, type HistoryStep, NO_HISTORY } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
+import { splitId } from "../core/names"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
@@ -403,6 +404,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     })
   }
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
+  // プラグイン owner の、ステージ stage の画面の状態を value にする（undefined なら消す。無いステージには置かない）
+  const setStageState = (stage: string, owner: string, value: unknown) => {
+    const { stageStates: now, workspace } = getState()
+    const { [owner]: _, ...rest } = now[stage] ?? {}
+    if (value === undefined) {
+      if (now[stage] && owner in now[stage]) setState({ stageStates: { ...now, [stage]: rest } })
+    } else if (hasStage(workspace, stage)) setState({ stageStates: { ...now, [stage]: { ...rest, [owner]: value } } })
+  }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
       const done = run(id, args, on)
@@ -416,7 +425,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const def = commandDef(defs, id)
       const ctx = commandContext(catalog, home, state, stage)
       if (!ctx || !isEnabled(defs, state, stage, id)) return false
-      def.run(ctx, actions, args[0] as never)
+      const { owner } = splitId(id)
+      const updateStageState = (at: string, change: (now: unknown) => unknown) => {
+        if (owner === null) fail("E117", { id })
+        setStageState(at, owner, change(getState().stageStates[at]?.[owner]))
+      }
+      def.run(ctx, { ...actions, updateStageState }, args[0] as never)
       return true
     },
     openDialog: (stage, id, ...args) => {
@@ -584,13 +598,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const workspace = placeAt(catalog, now.books, now.workspace, address)
       if (workspace !== now.workspace) commit({ workspace })
     },
-    setStageState: (stage, owner, value) => {
-      const { stageStates: now, workspace } = getState()
-      const { [owner]: _, ...rest } = now[stage] ?? {}
-      if (value === undefined) {
-        if (now[stage] && owner in now[stage]) setState({ stageStates: { ...now, [stage]: rest } })
-      } else if (hasStage(workspace, stage)) setState({ stageStates: { ...now, [stage]: { ...rest, [owner]: value } } })
-    },
+    setStageState,
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })
     },

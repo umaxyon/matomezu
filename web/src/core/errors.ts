@@ -52,6 +52,7 @@ export const ERRORS = {
   E114: "unknown tool set: {id}",
   E115: "unknown tool: {id}",
   E116: "stage {id}: the command context was not made by matomezu (a copy of it does not carry the workspace)",
+  E117: "command {id} has no owner plugin, so it has no stage state",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

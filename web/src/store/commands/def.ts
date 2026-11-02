@@ -61,25 +61,34 @@ export function withWorkspace(ctx: Omit<CommandContext, "toPaper">, workspace: W
 // コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx) ?? fail("E116", { id: ctx.stage.id })
 
+// コマンドが受け取る store の操作: 画面の操作（Actions）に、そのコマンドを持つプラグインの、ステージの画面の状態を変える操作を足したもの
+export interface CommandActions extends Actions {
+  // ステージ stage の、このコマンドを持つプラグインの画面の状態を、今の値から change が返す値にする（undefined なら消す）。ほかのプラグインの状態は変えられない
+  updateStageState(stage: string, change: (now: unknown) => unknown): void
+}
+
 export interface CommandDef<A = undefined, Tt extends string = MessageKey> extends CommandExtras {
   id: string // 本当の id。名前は「対象-動き」（例: stage-split）
   title: Tt
   when(ctx: CommandContext): boolean // 出すか
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない
-  run(ctx: CommandContext, actions: Actions, args: A): void
+  run(ctx: CommandContext, actions: CommandActions, args: A): void
   // 行うアクション。どれかが今のブック（ブックが対象でなければホームのタイプ）で使えなければ、土台はこのコマンドを出さない。
   // どれも認可ステップに止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
   performs?: readonly ActionId[]
   // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（認可ステップに渡す）。ブックが対象のアクションを行うなら必ず書く（defineCommand の型が求める）
   permissionScope?: CommandScope
-  // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる
-  place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[] }
+  // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる。
+  // anchorMenu は、押した物にアンカーがあるときにどの右クリックのメニューにも足す項目（LayoutDef の anchorMenu）
+  place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[]; anchorMenu?: boolean }
 }
 
 // 入れてほしいメニュー: メニューは引数を取らないコマンドだけ、右クリックのメニューは受け取る物（右クリックされた物）を引数に取れるものだけ
+// anchorMenu に置けるのは、引数を取らないものと、押した物のアンカーの id（文字列）を引数に取れるもの
 export interface CommandPlace<A> {
   menus?: [A] extends [undefined] ? readonly MenuId[] : never
+  anchorMenu?: [A] extends [undefined] ? boolean : string extends A ? boolean : never
   contextMenus?: readonly {
     [M in ContextMenuId]: [A] extends [undefined] ? M : ContextMenuTable[M] extends A ? M : never
   }[ContextMenuId][]

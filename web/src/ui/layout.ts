@@ -72,6 +72,17 @@ export type ContextMenuCommandId<M extends ContextMenuId> = {
       : never
 }[CommandId]
 
+// 押した物にアンカーがあるときに、どの右クリックのメニューにも足せるコマンド: 引数を取らないものと、押した物のアンカーの id（文字列）を引数に取れるもの
+export type AnchorMenuCommandId = {
+  [K in CommandId]: CommandArgs<K> extends []
+    ? K
+    : CommandArgs<K> extends [infer A]
+      ? string extends A
+        ? K
+        : never
+      : never
+}[CommandId]
+
 // 右クリックのメニューの区切り線（種類の違う項目の間に引く）
 export const SEPARATOR = "-"
 export type ContextMenuEntry<M extends ContextMenuId> = ContextMenuCommandId<M> | typeof SEPARATOR
@@ -89,10 +100,12 @@ export interface LayoutDef extends LayoutExtras {
   slots: { [S in SlotId]?: readonly WidgetsFor<S>[] }
   menus: { [M in MenuId]?: readonly MenuItem[] }
   contextMenus?: { [M in ContextMenuId]?: readonly ContextMenuEntry<M>[] } // 区切り線は SEPARATOR
+  // 右クリックで押した物にアンカーが付いていれば、どの右クリックのメニューにも、区切り線のあとの末尾に足すコマンド（押した物のアンカーの id を渡す）
+  anchorMenu?: readonly AnchorMenuCommandId[]
 }
 export const defineLayout = <const L extends LayoutDef>(def: L): L => def
 
-// 配置に、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニューの末尾
+// 配置に、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニュー（anchorMenu も）の末尾
 // （ウィジェットは before・after に書いた所。WidgetPlace）に足し、右クリックのメニューでは前の項目と区切り線で分ける。配置にもうあるものは足さない
 // （動いている matomezu の画面が、取り込んだプラグインを置くのに使う）
 export function placeAdded(layout: LayoutDef, plugins: readonly Plugin[]): LayoutDef {
@@ -108,6 +121,7 @@ export function placeAddedWithWarnings(
   const slots = { ...layout.slots } as Record<string, readonly string[]>
   const menus = { ...layout.menus } as Record<string, readonly MenuItem[]>
   const contextMenus = { ...layout.contextMenus } as Record<string, readonly string[]>
+  let anchorMenu = (layout.anchorMenu ?? []) as readonly string[]
   for (const p of plugins) {
     const widgets = ((p as { ui?: { widgets?: readonly AnyWidgetDef[] } }).ui?.widgets ?? []).filter(w => w.place)
     for (const w of widgets) {
@@ -138,9 +152,10 @@ export function placeAddedWithWarnings(
         added.add(menu)
         contextMenus[menu] = [...(contextMenus[menu] ?? []), ...before, c.id]
       }
+      if (c.place?.anchorMenu && !anchorMenu.includes(c.id)) anchorMenu = [...anchorMenu, c.id]
     }
   }
-  return { layout: { ...layout, slots, menus, contextMenus } as LayoutDef, warnings }
+  return { layout: { ...layout, slots, menus, contextMenus, anchorMenu } as LayoutDef, warnings }
 }
 
 // 並びの中の入れる位置: before のすぐ前・after のすぐ後ろ・どちらも書かなければ末尾。書いたウィジェットが並びに無ければ null
@@ -150,7 +165,7 @@ function indexFor(ids: readonly string[], place: WidgetPlace): number | null {
   return ids.length
 }
 
-// 配置から、持ち主のプラグイン（id の頭）が組み込まれていない物を除く（ウィジェット・コマンド・スロット・メニュー・右クリックのメニュー）。
+// 配置から、持ち主のプラグイン（id の頭）が組み込まれていない物を除く（ウィジェット・コマンド・スロット・メニュー・右クリックのメニュー・anchorMenu）。
 // 除いた物ごとに warning W010（plugin は無いプラグイン）。頭の無い名前（土台の言葉）と、持ち主がいる物は残す（無ければ checkLayout が error にする）
 export function skipAbsent(
   layout: LayoutDef,
@@ -182,11 +197,13 @@ export function skipAbsent(
   const contextMenus = entries<readonly string[]>(layout.contextMenus ?? {}, "contextMenu").map(
     ([menu, ids]) => [menu, tidySeparators(ids.filter(id => id === SEPARATOR || keep("command", id)))] as const,
   )
+  const anchorMenu = (layout.anchorMenu ?? []).filter(id => keep("command", id))
   const skipped = {
     ...layout,
     slots: Object.fromEntries(slots),
     menus: Object.fromEntries(menus),
     contextMenus: Object.fromEntries(contextMenus),
+    anchorMenu,
   } as LayoutDef
   return { layout: warnings.length > 0 ? skipped : layout, warnings }
 }
@@ -226,6 +243,8 @@ export function checkLayout(
     for (const id of ids)
       if (id !== SEPARATOR && !commands.has(id))
         problems.push(problem("E209", { layout: layout.id, menu, command: id }))
+  for (const id of layout.anchorMenu ?? [])
+    if (!commands.has(id)) problems.push(problem("E209", { layout: layout.id, menu: "anchorMenu", command: id }))
   const { slots, menus, contextMenus: openedMenus } = opened(layout, widgets)
   for (const view of [...views.presentationViews.values(), ...views.connectors.values(), ...views.items.values()])
     for (const m of view.contextMenus ?? []) openedMenus.add(m)

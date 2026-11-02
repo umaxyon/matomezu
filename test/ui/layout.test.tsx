@@ -117,6 +117,19 @@ describe("配置", () => {
     ])
   })
 
+  test("anchorMenu のインスタンスに無いコマンドは error。置けるのは引数の無いコマンドとアンカーの id を引数に取れるコマンドだけ", () => {
+    const bad = { ...DEFAULT_LAYOUT, id: "bad", anchorMenu: ["drawing.nope"] } as unknown as LayoutDef
+    expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
+      "E209 layout bad: menu anchorMenu has unknown command drawing.nope",
+    ])
+    defineLayout({
+      ...DEFAULT_LAYOUT,
+      id: "typed",
+      // @ts-expect-error tool-set は道具の id だけを取る
+      anchorMenu: ["@matomezu/base:comment-new", "@matomezu/base:stage-home", "@matomezu/base:tool-set"],
+    })
+  })
+
   test("右クリックのメニューに置けるのは、引数の無いコマンドと受け取る物を引数に取れるコマンドだけ", () => {
     defineLayout({
       ...DEFAULT_LAYOUT,
@@ -217,7 +230,14 @@ describe("取り込んだプラグインの置き場所", () => {
     when: () => true,
     place: { contextMenus: ["@matomezu/paper:item-context", "@matomezu/paper:paper-context"] },
   })
-  const added = definePluginUi(definePlugin({ id: "p", commands: [open, edit] }), {
+  const note = defineCommand({
+    id: "p:note",
+    title: "Note" as never,
+    run: (_ctx, _a, _anchor: string) => {},
+    when: () => true,
+    place: { anchorMenu: true },
+  })
+  const added = definePluginUi(definePlugin({ id: "p", commands: [open, edit, note] }), {
     widgets: [
       defineWidget({
         id: "p:ping",
@@ -251,9 +271,11 @@ describe("取り込んだプラグインの置き場所", () => {
       "-",
       "p:edit",
     ])
+    // 押した物にアンカーがあるときのメニュー（anchorMenu）にも、末尾に足す
+    expect(layout.anchorMenu as readonly unknown[] | undefined).toEqual([...DEFAULT_LAYOUT.anchorMenu, "p:note"])
     expect(placeAdded(layout, [added])).toEqual(layout)
     const all = assembleUi([...BUILTIN_UI, added])
-    const commandsWith = new Set([...commands, "p:open", "p:edit"])
+    const commandsWith = new Set([...commands, "p:open", "p:edit", "p:note"])
     expect(checkLayout(layout, all, commandsWith)).toEqual([])
   })
 
@@ -310,6 +332,7 @@ describe("取り込んだプラグインの置き場所", () => {
       "@matomezu/base:book-content",
       "@matomezu/base:stand-layer",
       "@matomezu/base:comment-layer",
+      "@matomezu/base:mark-layer",
       "q:top",
     ])
     expect(checkLayout(layout, assembleUi([...BUILTIN_UI, layers]), commands)).toEqual([])
@@ -352,6 +375,15 @@ describe("組み込まれていないプラグインの物", () => {
       ["W010", "@matomezu/line", "contextMenu", LINE_CONTEXT],
     ])
     expect((layout.contextMenus as Record<string, unknown>)[LINE_CONTEXT]).toBeUndefined()
+    // anchorMenu の持ち主のいないコマンドも除く
+    const anchored = { ...DEFAULT_LAYOUT, anchorMenu: [...DEFAULT_LAYOUT.anchorMenu, "@matomezu/line:line-note"] }
+    const noted = skipAbsent(anchored as LayoutDef, present)
+    expect(noted.layout.anchorMenu).toEqual(DEFAULT_LAYOUT.anchorMenu)
+    expect(noted.warnings.at(-1)?.params).toEqual({
+      layout: DEFAULT_LAYOUT.id,
+      kind: "command",
+      id: "@matomezu/line:line-note",
+    })
     // 線があれば何も除かない
     expect(skipAbsent(DEFAULT_LAYOUT, new Set(BUILTIN_UI.map(ui => ui.id))).warnings).toEqual([])
     // 持ち主の線はいるのに、無いコマンドを書いた（書き間違い）なら、除かずに error のまま

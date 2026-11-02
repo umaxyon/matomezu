@@ -2,20 +2,17 @@
 // 配置に書いたそのメニューのコマンドの並びで描く（区切り線も）。出ていないコマンドは並べず、押せないものは押せない見た目にする。出るコマンドが無ければ閉じる。
 // 外を押す・閉じるキー（キーの割り当ての menu-close。既定は Escape）・窓の大きさが変わると閉じ（窓から離れただけでは閉じない）、
 // 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える。
-// 押した物にアンカーが付いていて、開いているブックにコメントを付けられれば、どのメニューにも、区切り線のあとに「コメント」を足す（プラグインは何も書かない）
+// 押した物にアンカーが付いていれば、どのメニューにも、区切り線のあとに配置の anchorMenu のコマンドを足し、押した物のアンカーの id を渡す
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ContextMenuId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
 import type { OpenedContextMenu } from "../../../store/context-menus"
 import { useCommand } from "../../../ui/commands"
-import { useContextMenuItems } from "../../../ui/context-menu"
+import { useAnchorMenuItems, useContextMenuItems } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useKeyLabel } from "../../../ui/keys"
-import { type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
+import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
 import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useAllowed, useStage } from "../../../ui/view-hooks"
-import { COMMENT_ADD } from "../comment"
-import { anchorsFor, useSetCommentDraft } from "../comment/draft"
 import { kit } from "../kit"
 import styles from "./ContextMenuHost.module.css"
 import { fitInside } from "./fit"
@@ -32,8 +29,9 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const items = useContextMenuItems(menu.stage, menu.id as ContextMenuId)
   const t = useMessages(kit)
   const [anchor] = useState(pressedAnchor) // 開いたときの、押した物のアンカー
-  const commentable = useAllowed(menu.stage, COMMENT_ADD.id).ok && anchor !== undefined
-  const empty = items.every(i => i === SEPARATOR) && !commentable
+  const shown = useAnchorMenuItems(menu.stage)
+  const anchored = anchor === undefined ? [] : shown
+  const empty = items.every(i => i === SEPARATOR) && anchored.length === 0
   useEffect(() => {
     if (empty) closeContextMenu()
   }, [empty, closeContextMenu])
@@ -71,10 +69,12 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
           <ContextMenuItem key={id} menu={menu} id={id} />
         ),
       )}
-      {commentable && anchor !== undefined && (
+      {anchor !== undefined && anchored.length > 0 && (
         <>
           {items.length > 0 && <hr className={styles.separator} />}
-          <CommentItem stage={menu.stage} anchor={anchor} />
+          {anchored.map(id => (
+            <AnchorMenuItem key={id} stage={menu.stage} id={id} anchor={anchor} />
+          ))}
         </>
       )}
     </div>
@@ -106,23 +106,26 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
   )
 }
 
-// 押した物に、コメントの下書きを始める（選んでいる物の 1 つを押したなら、選んでいる物の全部に付ける）
-function CommentItem({ stage, anchor }: { stage: string; anchor: string }) {
-  const selection = useStage(stage)?.selection ?? []
+// anchorMenu の項目: 押すと閉じてから、押した物のアンカーの id を渡してコマンドを呼ぶ
+function AnchorMenuItem({ stage, id, anchor }: { stage: string; id: AnchorMenuCommandId; anchor: string }) {
+  const command = useCommand(stage, id)
+  const icon = useUiCatalog().commandIcons.get(id)
   const { closeContextMenu } = useActions()
-  const setDraft = useSetCommentDraft()
   const t = useMessages(kit)
   return (
     <button
       type="button"
       role="menuitem"
       className={styles.item}
+      disabled={!command.enabled}
       onClick={() => {
         closeContextMenu()
-        setDraft(stage, { anchors: anchorsFor(anchor, selection) })
+        // 引数を取らないコマンドは、渡した物を使わない
+        ;(command.run as (anchor?: string) => void)(anchor)
       }}
     >
-      <span className={styles.label}>{t("Comment")}</span>
+      {icon && <span className={styles.icon}>{icon}</span>}
+      <span className={styles.label}>{t(command.title)}</span>
     </button>
   )
 }

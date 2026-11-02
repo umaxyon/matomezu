@@ -27,8 +27,8 @@ export const MASTER = kit.defineBookType({
     ],
     without: ["@matomezu/base:book-update", "@matomezu/base:book-lock", "@matomezu/base:book-unlock"],
   },
-  // マスターの物はブックのリンクで、図の物ではないのでコメントは付けない
-  annotations: { without: ["@matomezu/base:comment"] },
+  // マスターの物はブックのリンクで、図の物ではないのでコメントもマークも付けない
+  annotations: { without: ["@matomezu/base:comment", "@matomezu/base:mark"] },
 
   theme: "@matomezu/base:standard",
   presentation: MASTER_PRESENTATION.id,

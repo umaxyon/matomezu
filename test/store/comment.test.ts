@@ -29,10 +29,10 @@ function ready() {
   return { store, page, a, b, comments }
 }
 
-test("コメントを付けると、ブックとは別に持ち、id を返す。文が空でも付けられ（マーク）、吹き出しは既定で出す", () => {
+test("コメントを付けると、ブックとは別に持ち、id を返す。吹き出しは既定で出す。文が空なら付けない（文の無い印はマーク）", () => {
   const { store, a, b, comments } = ready()
   const before = store.state.getState().books.b1
-  const done = store.actions.perform("@matomezu/base:comment-add", { anchors: [a, b], text: "", ask: "point" }, ON)
+  const done = store.actions.perform("@matomezu/base:comment-add", { anchors: [a, b], text: "見て", ask: "point" }, ON)
   expect(done).toMatchObject({ ok: true, result: { comment: expect.any(String) } })
   expect(store.state.getState().books.b1).toBe(before)
   expect(comments()).toEqual([
@@ -40,9 +40,12 @@ test("コメントを付けると、ブックとは別に持ち、id を返す�
       id: done.ok ? (done.result as { comment: string }).comment : "",
       annotation: "@matomezu/base:comment",
       anchors: [a, b],
-      props: { ask: "point", bubble: true, posts: [{ by: "user", text: "", at: expect.any(String) }] },
+      props: { ask: "point", bubble: true, posts: [{ by: "user", text: "見て", at: expect.any(String) }] },
     },
   ])
+  expect(store.actions.perform("@matomezu/base:comment-add", { anchors: [a], text: "", ask: "point" }, ON).ok).toBe(
+    false,
+  )
 })
 
 test("ブックに無い物や、ページそのものにはコメントを付けられない", () => {

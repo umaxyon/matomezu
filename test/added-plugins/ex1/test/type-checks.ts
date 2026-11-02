@@ -23,3 +23,18 @@ kit.defineCommand({
   // @ts-expect-error 引数を取るコマンドはメニューに入れられない
   place: { menus: ["@matomezu/base:stage-menu"] },
 })
+kit.defineCommand({
+  id: "anchor-arg",
+  title: "sayHello",
+  run: (_ctx, _a, _anchor: string) => {},
+  when: () => true,
+  place: { anchorMenu: true },
+})
+kit.defineCommand({
+  id: "anchor-bad",
+  title: "sayHello",
+  run: (_ctx, _a, _n: number) => {},
+  when: () => true,
+  // @ts-expect-error アンカーの id（文字列）を取れないコマンドは anchorMenu に入れられない
+  place: { anchorMenu: true },
+})
