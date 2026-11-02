@@ -13,6 +13,7 @@ import type { PaperDef } from "./def/paper"
 import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
 import type { SettingDef, SettingRole } from "./def/setting"
+import type { SettleStep } from "./def/settle-step"
 import type { SkinDef } from "./def/skin"
 import type { TextColorDef } from "./def/text-color"
 import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
@@ -55,6 +56,7 @@ export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable
   messages: readonly MessageSetDef[] // 土台の文言（CORE_MESSAGES）は、いつも表に入る
   languages: readonly LanguagePackDef[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
   tokens: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムやタイプが共に使う）
+  settleSteps: readonly SettleStep[] // 整えステップ（ビルトインプラグインが持つ。並びの順にかける）
 }
 
 // ブックのタイプごとに組み立てたデータの形（ページを持たないタイプは page が null）
@@ -74,6 +76,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   bookSchema: z.ZodType
   warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとブックのタイプのテーマキーは、その定義の tokens）
+  settleSteps: readonly SettleStep[] // 整えステップ（core/def/settle-step.ts）
   roles: ReadonlyMap<SettingRole, SettingDef> // role → その role を持つ利用者の設定の項目（土台は role で引く）
 }
 
@@ -105,6 +108,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
     warnings: coreWarnings(parts),
     tokens: byId(parts.tokens),
+    settleSteps: parts.settleSteps,
     roles: new Map(parts.userSettings.flatMap(d => (d.role ? [[d.role, d] as const] : []))),
   }
 }

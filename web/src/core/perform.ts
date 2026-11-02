@@ -60,9 +60,16 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
   return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }
 
-// アクションが返したブックを、そのタイプが整えたもの（タイプの settle。無ければそのまま）
-function settled(catalog: CoreCatalog, book: Book): Book {
-  return (bookType(catalog, book.type).settle?.(book, catalog) as Book | undefined) ?? book
+// アクションが返したブック after を、整えステップ（core/def/settle-step.ts）を順にかけて整えたもの。
+// run がステップだけが書くページのフィールドを変えていたら（前の状態に戻すアクションを除く）、または整えられなければ null
+function settled(catalog: CoreCatalog, action: ActionDef, before: Book, after: Book): Book | null {
+  const changed = new Set(changesOf(before, after).pages.flatMap(p => p.fields))
+  let next: Book | null = after
+  for (const step of catalog.settleSteps) {
+    if (!step.restoring?.includes(action.id) && step.pageFields.some(f => changed.has(f))) return null
+    next = next && step.settle(before, next, catalog)
+  }
+  return next
 }
 
 // アクションが返したブックが、機能台帳のブックの形に合い、データの形の外の決まりも守っているか（型を言い張った所があっても、ここで止める）
@@ -150,7 +157,9 @@ export function perform<Id extends ActionId>(
   if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
   const ran = action.run(subject as never, parsed.data, ctx)
   if (!ran) return { ok: false, reason: "refused" }
-  const done = action.target === "book" ? { ...ran, next: settled(ctx.catalog, ran.next as Book) } : ran
+  const next = action.target === "book" ? settled(ctx.catalog, action, subject as Book, ran.next as Book) : ran.next
+  if (!next) return { ok: false, reason: "refused" }
+  const done = { ...ran, next }
   // アノテーションのアクションはブックを変えない（変えたら断る）。認可ステップの keeps は、変わらないブックで見る
   const pair = subject as unknown as BookAnnotations
   if (action.target === "annotations" && (done.next as unknown as BookAnnotations).book !== pair.book)

@@ -91,7 +91,6 @@ export {
   roomOf,
   settingValue,
   settleChildren,
-  settleVariablePages,
   shapeDefOf,
   shownRects,
   TEXT_LOOK,

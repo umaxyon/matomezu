@@ -1,7 +1,7 @@
 // フローチャートのブック: ページごとに紙を置き、紙の上に形（@matomezu/shape）・箱・線を置く。
 // 流れの向き（下へ・右へ）はブックとページの設定の項目で持つ（ページはブックを継承できる）。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
 import { z } from "zod"
-import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS, settleVariablePages } from "../../base"
+import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 import { FLOWCHART_TOOLS } from "./tools"
 
@@ -92,8 +92,6 @@ export const FLOWCHART = kit.defineBookType({
   tools: FLOWCHART_TOOLS.id,
   // キャプションで形が広がるときは、流れが下へなら横の真ん中を保ち（本筋の縦の線がずれない）、右へなら左を保つ
   growFrom: setting => (turnedRight(setting) ? { x: "start", y: "center" } : { x: "center", y: "start" }),
-  // 左・上へ増やす可変ページの中身を、印刷区画の単位でずらしてそろえる（base の settleVariablePages）
-  settle: (book, catalog) => settleVariablePages(catalog, book),
   settings: {
     book: [
       BOOK_THEME.id,

@@ -111,7 +111,6 @@ test("matomezu が出す名前", () => {
     "roomOf",
     "settingValue",
     "settleChildren",
-    "settleVariablePages",
     "shapeDefOf",
     "shapeDialogs",
     "shapeSchema",

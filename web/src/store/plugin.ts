@@ -4,6 +4,7 @@
 import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
 import { buildCoreCatalog, type CatalogCheck, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
+import type { SettleStep } from "../core/def/settle-step"
 import type { Scheme } from "../core/def/skin"
 import type { TokenDef } from "../core/def/theme"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
@@ -31,6 +32,7 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   keys?: readonly KeyDef[] // キーの既定の割り当て（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
   checks?: readonly CatalogCheck[] // 組み立てのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E308 で止める）
+  settleSteps?: readonly SettleStep[] // 整えステップ（core/def/settle-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E310 で止める）
 }
 
 export type Plugin = PluginParts & {
@@ -98,7 +100,7 @@ type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [neve
 
 // プラグインを書く入口。id の頭と、形とブックのタイプが名指すダイアログの受ける値を型で確かめる（組み立てでも確かめる）
 export const definePlugin = <const P extends Plugin>(
-  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never },
+  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never; settleSteps?: never },
 ): P => plugin
 
 // ビルトインプラグインが組み立てのときの確かめ（checks）を書くための型と、問題と warning の作り方（plugin-api/builtin が出し直す）
@@ -144,6 +146,7 @@ export function assemble(
 ): Assembled {
   for (const p of plugins) {
     if (p.checks !== undefined && !isBuiltin(p)) fail("E308", { plugin: p.id })
+    if (p.settleSteps !== undefined && !isBuiltin(p)) fail("E310", { plugin: p.id })
     for (const d of p.userSettings ?? []) if (d.role && !isBuiltin(p)) fail("E309", { plugin: p.id, id: d.id })
     for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!isOwnedBy(p.id, d.id)) fail("E301", { plugin: p.id, kind, id: d.id })
@@ -192,6 +195,7 @@ export function assemble(
     messages: plugins.flatMap(p => (p.messages ? [p.messages] : [])),
     languages: plugins.flatMap(p => p.languages ?? []),
     tokens: plugins.flatMap(p => p.tokens ?? []),
+    settleSteps: plugins.flatMap(p => p.settleSteps ?? []),
   })
   // コマンドの名前も文言の表から引く。ビルトインプラグインの組み立てのときの確かめもかける（warning は store 台帳に残す）
   const checked = plugins.filter(isBuiltin).flatMap(p => (p.checks ?? []).flatMap(check => check(catalog)))

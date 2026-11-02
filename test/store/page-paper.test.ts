@@ -2,11 +2,12 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { putPage } from "../../web/src/core/book"
+import { defineAction } from "../../web/src/core/def/action"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
-import { shapesFit, withGrows } from "../../web/src/plugins/base/page-tabs/pages"
+import { settledPage, withGrows } from "../../web/src/plugins/base/page-tabs/pages"
 import { DRAWING } from "../../web/src/plugins/books/drawing/drawing"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
@@ -173,17 +174,49 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
   expect(actions.perform("@matomezu/paper:item-remove", { page, items: [left] }, { book: "b1" }).ok).toBe(true)
   expect(at().shift).toEqual({ x: 1, y: 1 })
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
-  // ページの設定のダイアログが確かめる下書き（withGrows）も、アクションと同じく空きを詰めてから紙に入るかを見る
+  // ページの設定のダイアログが確かめる下書き（settledPage）も、アクションのあとと同じく空きを詰めてから紙に入るかを見る
   const book = state.getState().books.b1 as Drawing
-  const draft = withGrows(
-    CORE_CATALOG,
-    book,
-    book.pages.find(p => p.id === page) as Drawing["pages"][number],
-    undefined,
-  )
-  expect(shapesFit(CORE_CATALOG, putPage(book, draft), page)).toBe(true)
+  const off = withGrows(book.pages.find(p => p.id === page) as Drawing["pages"][number], undefined)
+  expect(settledPage(CORE_CATALOG, book, putPage(book, off), off)).toMatchObject({ items: [{ x: 100, y: 100 }] })
   // 可変ページをやめると、空きを詰めて紙 1 枚に戻す
   expect(actions.perform("@matomezu/base:page-update", { page, grows: false }, { book: "b1" }).ok).toBe(true)
   expect(at().shift).toBeUndefined()
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 100, y: 100 })
+})
+
+// ページの shift を自分で書くアクションの見本（図面のブックに足す）
+const SHIFTER = defineAction({
+  id: "notes:shift",
+  title: "@matomezu/drawing:Drawing",
+  aiDescription: "Write a page's shift.",
+  target: "book",
+  attach: { pages: true },
+  permissionScope: "book",
+  args: z.strictObject({ page: z.string() }),
+  run: (book, args) => ({
+    next: putPage(book, {
+      ...(book.pages.find(p => p.id === args.page) as Drawing["pages"][number]),
+      shift: { x: 1, y: 0 },
+    }),
+    result: {},
+  }),
+})
+
+test("ページの shift は可変ページを整えるステップだけが書く。アクションが書けば断る", () => {
+  const instance = createMatomezu({
+    plugins: [...BUILTIN, definePlugin({ id: "notes", actions: [SHIFTER] })],
+    partial: true,
+    home: "@matomezu/master:master",
+    newId: sequence(),
+  })
+  const perform = instance.actions.perform as (
+    id: string,
+    args: unknown,
+    on: unknown,
+  ) => { ok: boolean; reason?: string }
+  expect(createBookIn(instance, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
+  const book = Object.keys(instance.state.getState().books).find(id => id !== "@matomezu/master:master") as string
+  expect(perform("@matomezu/base:page-add", { title: "p" }, { book }).ok).toBe(true)
+  const page = (instance.state.getState().books[book] as Drawing).pages[0]?.id
+  expect(perform("notes:shift", { page }, { book })).toMatchObject({ ok: false, reason: "refused" })
 })
