@@ -9,5 +9,5 @@ export function dirFits(catalog: CoreCatalog, page: ItemPage, root?: DirFolder):
   const paper = paperSize(catalog, page)
   if (!paper) return true
   if (!found) return false
-  return layoutDir(found, paper, undefined, page.grows === true).fits
+  return layoutDir(found, paper, undefined, page.grows !== undefined).fits
 }

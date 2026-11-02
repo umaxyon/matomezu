@@ -6,7 +6,7 @@ import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData, ShapeItemDef } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
-import { type GrowDirection, resolvePaper } from "../../../core/paper"
+import { resolvePaper } from "../../../core/paper"
 import {
   connectorsOf,
   findShape,
@@ -23,7 +23,7 @@ import type { Book } from "../../../core/schema/book"
 import { type PageContext, settingsAt } from "../book-settings"
 import { setField } from "../fields"
 import { contentIdMaker } from "../utils/ids"
-import { grownArea } from "./grow"
+import { GROW_CHOICE_SIDES, type GrowSides, grownArea } from "./grow"
 import { connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, tidyConnectors as tidyItems } from "./placed"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
@@ -214,12 +214,18 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
   return paper.status === "unshowable" ? null : paper.size
 }
 
-// ブック book のページ page が伸びる向き（可変ページでなければ undefined）
-export const growOf = (catalog: CoreCatalog, book: { type: string }, page: ItemPage): GrowDirection | undefined =>
-  page.grows ? catalog.bookTypes.get(book.type)?.pages?.paper.grow : undefined
+// ブック book のページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
+// タイプが決めるタイプは、そのページで効いている設定の値から
+export function growOf(catalog: CoreCatalog, book: Book, page: ItemPage): GrowSides | undefined {
+  const rule = catalog.bookTypes.get(book.type)?.grow
+  if (!page.grows || !rule) return undefined
+  if ("sides" in rule) return rule.sides(settingsAt(catalog, book, page))
+  const chosen = page.grows === true || !rule.choices.includes(page.grows) ? rule.choices[0] : page.grows
+  return chosen && GROW_CHOICE_SIDES[chosen]
+}
 
 // ブック book のページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
-// （spare なら伸びる向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
+// （spare なら右・下へ増やす向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
 export function pageArea(
   catalog: CoreCatalog,
   book: Book,
@@ -234,7 +240,7 @@ export function pageArea(
 }
 
 // ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
-// 伸びる向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）。描けない紙なら null
+// 右・下へ増やす向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）。描けない紙なら null
 export function roomOf(catalog: CoreCatalog, book: Book, page: ItemPage): Size | null {
   const paper = paperSize(catalog, page)
   const grow = growOf(catalog, book, page)
@@ -291,16 +297,16 @@ export function adaptPage<P extends ItemPage>(catalog: CoreCatalog, page: P, con
   return changed ? { ...page, items } : page
 }
 
-// 上下左右へ伸びる可変ページ（grow all）の中身を、印刷区画の単位でずらしたページ: 形の外枠の左端（上端）が、左（上）から into 番目の印刷区画に来るようにする
-// （into は既定で 1。左・上に空きの印刷区画を 1 つ持つ。0 なら空きを持たない）。ずらした量（印刷区画の数）はページの shift に足す（0 なら消す）。
-// つなぐものは、定義の shift で位置を持つ物も一緒にずらす。上下左右へ伸びないページ・形の無いページ・ずらさなくてよいページはそのまま
-export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, book: { type: string }, page: P, into = 1): P {
+// 可変ページの中身を、印刷区画の単位でずらしたページ: 形の外枠の左端（上端）が、左（上）から into.x（into.y）番目の印刷区画に来るようにする
+// （1 なら左・上に空きの印刷区画を 1 つ持ち、0 なら持たない。無い向きはずらさない）。ずらした量（印刷区画の数）はページの shift に足す（0 なら消す）。
+// つなぐものは、定義の shift で位置を持つ物も一緒にずらす。形の無いページ・ずらさなくてよいページはそのまま
+export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, page: P, into: { x?: 0 | 1; y?: 0 | 1 }): P {
   const paper = paperSize(catalog, page)
-  if (!paper || (into === 1 && growOf(catalog, book, page) !== "all")) return page
+  if (!paper) return page
   const rects = [...rectsOf(catalog, page).values()]
   if (rects.length === 0) return page
-  const kx = into - Math.floor(Math.min(...rects.map(r => r.x)) / paper.w)
-  const ky = into - Math.floor(Math.min(...rects.map(r => r.y)) / paper.h)
+  const kx = into.x === undefined ? 0 : into.x - Math.floor(Math.min(...rects.map(r => r.x)) / paper.w)
+  const ky = into.y === undefined ? 0 : into.y - Math.floor(Math.min(...rects.map(r => r.y)) / paper.h)
   if (kx === 0 && ky === 0) return page
   const d = { x: kx * paper.w, y: ky * paper.h }
   const areas = portAreasOf(catalog, page)
@@ -320,14 +326,27 @@ export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, book: { t
   return setField(moved, ["orientation", "grows"], "shift", total.x === 0 && total.y === 0 ? undefined : total)
 }
 
-// 上下左右へ伸びる可変ページを持つブックを、どのページも alignPadding でそろえたもの（タイプの settle に使う。変わらなければそのまま）
+// 可変ページの中身を、増やす向き sides に合わせてずらしたページ: 左（上）へ増やすなら左（上）に空きの印刷区画を 1 つ持たせ、
+// 前は増やしていた（was）が増やさなくなった向きは空きを詰める（入らないかは shapesFit で確かめる）
+export function paddedFor<P extends ItemPage>(
+  catalog: CoreCatalog,
+  page: P,
+  sides: GrowSides | undefined,
+  was: GrowSides | undefined,
+): P {
+  const axis = (now: boolean | undefined, before: boolean | undefined) => (now ? 1 : before ? 0 : undefined)
+  return alignPadding(catalog, page, { x: axis(sides?.left, was?.left), y: axis(sides?.up, was?.up) })
+}
+
+// 可変ページを持つブックを、どのページも増やす向きに合わせてそろえたもの（タイプの settle に使う。変わらなければそのまま）
 export function settleVariablePages<B extends { type: string; pages?: readonly ItemPage[] }>(
   catalog: CoreCatalog,
   book: B,
 ): B {
   let next = book as unknown as PagedBook
   for (const page of book.pages ?? []) {
-    const aligned = alignPadding(catalog, book, page)
+    const sides = growOf(catalog, next, page)
+    const aligned = paddedFor(catalog, page, sides, sides)
     if (aligned !== page) next = putPage(next, aligned)
   }
   return next as unknown as B

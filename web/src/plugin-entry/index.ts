@@ -18,6 +18,8 @@ export type {
   Frame,
   Gap,
   GrowFrom,
+  GrowRule,
+  GrowSides,
   MinimapMark,
   PageContext,
   PageFieldsWay,

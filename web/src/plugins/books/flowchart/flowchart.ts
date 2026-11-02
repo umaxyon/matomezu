@@ -63,8 +63,14 @@ export const FLOWCHART = kit.defineBookType({
   single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
+  grow: { sides: () => ({ up: true, down: true, left: true, right: true }) }, // 可変ページの増やす向き（base の拡張ポイント）
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait", perPage: true, grow: "all" },
+    paper: {
+      allowed: PAPER_IDS,
+      default: "@matomezu/base:a4",
+      orientation: "portrait",
+      perPage: true,
+    },
   },
   items: {
     allowed: ITEMS,
@@ -86,7 +92,7 @@ export const FLOWCHART = kit.defineBookType({
   tools: FLOWCHART_TOOLS.id,
   // キャプションで形が広がるときは、流れが下へなら横の真ん中を保ち（本筋の縦の線がずれない）、右へなら左を保つ
   growFrom: setting => (turnedRight(setting) ? { x: "start", y: "center" } : { x: "center", y: "start" }),
-  // 上下左右へ伸びる可変ページの中身を、印刷区画の単位でずらしてそろえる（base の settleVariablePages）
+  // 左・上へ増やす可変ページの中身を、印刷区画の単位でずらしてそろえる（base の settleVariablePages）
   settle: (book, catalog) => settleVariablePages(catalog, book),
   settings: {
     book: [

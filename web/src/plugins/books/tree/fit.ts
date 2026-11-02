@@ -21,5 +21,5 @@ export function treeFits(
   const grow = GROW.schema.safeParse(setting(GROW.id)).data ?? "down"
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
   const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
-  return layoutTree(found, grow, paper, size, shape, page.grows === true).fits
+  return layoutTree(found, grow, paper, size, shape, page.grows !== undefined).fits
 }

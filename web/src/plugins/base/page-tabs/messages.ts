@@ -24,5 +24,10 @@ export const PAGE_MESSAGES = defineMessages({
   Portrait: { en: "Portrait", ja: "縦" },
   Landscape: { en: "Landscape", ja: "横" },
   "Variable page": { en: "Variable page", ja: "可変ページにする" },
+  "Grow toward": { en: "Grow toward", ja: "増やす向き" },
+  "Right and down": { en: "Right and down", ja: "右と下" },
+  "Right only": { en: "Right only", ja: "右だけ" },
+  "Down only": { en: "Down only", ja: "下だけ" },
+  "All ways": { en: "All ways", ja: "上下左右" },
   "The shapes do not fit on the paper": { en: "The shapes do not fit on the paper", ja: "形が紙に入りません" },
 })

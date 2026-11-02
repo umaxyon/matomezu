@@ -43,8 +43,14 @@ export const DIR = kit.defineBookType({
   pageProblem: (catalog, page) =>
     dirFits(catalog, page) ? null : { message: kit.message("Does not fit on the paper") },
   minimap: dirMinimap, // ミニマップには、行を四角で、罫線を線で描く
+  grow: { sides: () => ({ up: false, down: true, left: false, right: false }) }, // 可変ページの増やす向き（base の拡張ポイント）
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait", perPage: true, grow: "down" },
+    paper: {
+      allowed: PAPER_IDS,
+      default: "@matomezu/base:a4",
+      orientation: "portrait",
+      perPage: true,
+    },
     fields: { root: DirFolderSchema },
     dialogs: { add: NEW_DIR_PAGE_DIALOG.id },
   },

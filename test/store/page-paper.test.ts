@@ -37,10 +37,14 @@ test("紙と向きはあとから変えられ、形が紙からはみ出す変�
   expect(pages().at(-1)).toMatchObject({ paper: "@matomezu/base:a3", orientation: "portrait" })
   // 表に無い紙は選べない
   expect(update({ paper: "@matomezu/base:b9" })).toBe(false)
-  // 図面のページは可変ページにでき、そうすれば右と下へ広がるので、A5 にも入る
+  // 図面のページは可変ページにでき、既定の向き（右と下）へ広がるので、A5 にも入る。選べない向きは断る
   expect(update({ grows: true })).toBe(true)
   expect(update({ paper: "@matomezu/base:a5" })).toBe(true)
-  expect(pages().at(-1)).toMatchObject({ paper: "@matomezu/base:a5", grows: true })
+  expect(pages().at(-1)).toMatchObject({ paper: "@matomezu/base:a5", grows: "right-down" })
+  expect(update({ grows: "left" })).toBe(false)
+  // 右だけに変えると、高さは紙 1 枚に収める（A5 横の高さ 559 には入る）。下だけなら、右寄りの箱は A5 の幅に入らない
+  expect(update({ grows: "right" })).toBe(true)
+  expect(update({ grows: "down" })).toBe(false)
 })
 
 // 伸びられるタイプの見本（core/catalog.ts には書き足さないので、インスタンスは partial で作る）
@@ -51,13 +55,13 @@ const SHEET = defineBookType({
   schema: z.strictObject({ type: z.literal("notes:sheet"), id: z.string().min(1) }),
   single: false,
   create: init => ({ type: "notes:sheet" as const, ...init, pages: [] }),
+  grow: { sides: () => ({ up: false, down: true, left: false, right: true }) },
   pages: {
     paper: {
       allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
       default: "@matomezu/base:a4",
       orientation: "portrait",
       perPage: false,
-      grow: "both",
     },
   },
   items: { allowed: [], defaults: [] },
@@ -80,6 +84,9 @@ test("伸びられるタイプのページは、作るときもあとからも�
   expect(createBookIn(instance, "s1", { title: "表", type: "notes:sheet" as never })).toBe(true)
   expect(perform("@matomezu/base:page-add", { title: "p", grows: true }, { book: "n1" }).ok).toBe(true)
   expect(Object.keys(pages()[0] ?? {})).toEqual(["id", "title", "paper", "orientation", "grows"])
+  // タイプが向きを決めるなら grows は true だけ（向きは選べない）
+  expect(pages()[0]?.grows).toBe(true)
+  expect(perform("@matomezu/base:page-update", { page: "n2", grows: "down" }, { book: "n1" }).ok).toBe(false)
   expect(perform("@matomezu/base:page-update", { page: "n2", grows: false }, { book: "n1" }).ok).toBe(true)
   expect("grows" in (pages()[0] ?? {})).toBe(false)
   // ページが 1 枚なら、紙をそろえる規定でも変えられる
@@ -99,7 +106,7 @@ const SCROLL = defineBookType({
   id: "notes:scroll",
   schema: z.strictObject({ type: z.literal("notes:scroll"), id: z.string().min(1) }),
   create: init => ({ type: "notes:scroll" as const, ...init, pages: [] }),
-  pages: { paper: { ...DRAWING.pages.paper, grow: "down" } },
+  grow: { choices: ["down"] },
 })
 
 test("可変ページは、伸びない向き（下へだけ伸びるなら横）だけ紙 1 枚に収まればよい。伸びるのをやめるのは、形が紙 1 枚に入るときだけ", () => {
@@ -154,7 +161,7 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
     ).result?.item
   const first = place(100, 100) as string
   // 可変ページにすると、左と上に空きの印刷区画を 1 つずつ持つよう中身が 印刷区画 1 つ分ずつずれる（A4 横は 1123×794）
-  expect(actions.perform("@matomezu/base:page-update", { page, grows: true }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-update", { page, grows: "all" }, { book: "b1" }).ok).toBe(true)
   expect(at().shift).toEqual({ x: 1, y: 1 })
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
   // 左の空きの印刷区画へ置くと、全体が印刷区画 1 つ分右へずれる
@@ -168,7 +175,12 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
   // ページの設定のダイアログが確かめる下書き（withGrows）も、アクションと同じく空きを詰めてから紙に入るかを見る
   const book = state.getState().books.b1 as Drawing
-  const draft = withGrows(CORE_CATALOG, book, book.pages.find(p => p.id === page) as Drawing["pages"][number], false)
+  const draft = withGrows(
+    CORE_CATALOG,
+    book,
+    book.pages.find(p => p.id === page) as Drawing["pages"][number],
+    undefined,
+  )
   expect(shapesFit(CORE_CATALOG, putPage(book, draft), page)).toBe(true)
   // 可変ページをやめると、空きを詰めて紙 1 枚に戻す
   expect(actions.perform("@matomezu/base:page-update", { page, grows: false }, { book: "b1" }).ok).toBe(true)

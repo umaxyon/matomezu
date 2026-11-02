@@ -16,7 +16,7 @@ import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/sett
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
-import { textColorRef } from "../plugins/base"
+import { type GrowRule, textColorRef } from "../plugins/base"
 import { MASTER_BOOK } from "../plugins/books/master"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
@@ -145,6 +145,10 @@ function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly B
 }
 // MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・利用者の設定の項目（利用者だけが変える項目は除く）・テーマ・代表色を絞って書き出したもの。
 // args・props・設定の項目の schema は JSON Schema。名前は英語
+// ブックのタイプのページの grows に書ける値（aiCatalog）
+const growsOf = (rule: GrowRule | undefined): readonly string[] | true | null =>
+  !rule ? null : "choices" in rule ? rule.choices : true
+
 function aiCatalog(of: Assembled = assembled) {
   const catalog = of.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
@@ -163,7 +167,8 @@ function aiCatalog(of: Assembled = assembled) {
       title: en(t.title),
       creatable: !t.single, // book-create で作れるか（1 冊だけのタイプは作れない）
       pages: t.pages !== null,
-      grow: t.pages?.paper.grow ?? null, // ページが伸びられる向き（all は上下左右、both は右と下、down は下だけ。null は可変ページを作れない）
+      // ページの grows に書ける値: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決めるなら true、可変ページを作れなければ null
+      grows: t.pages ? growsOf(t.grow) : null,
       items: t.items.allowed, // ページに置けるアイテム
     })),
     items: [...catalog.items.values()].map(i => ({

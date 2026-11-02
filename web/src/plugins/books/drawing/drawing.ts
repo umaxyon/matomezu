@@ -34,8 +34,14 @@ export const DRAWING = kit.defineBookType({
   single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
+  grow: { choices: ["right-down", "right", "down", "all"] }, // 可変ページの増やす向き（base の拡張ポイント）
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true, grow: "all" },
+    paper: {
+      allowed: PAPER_IDS,
+      default: "@matomezu/base:a4",
+      orientation: "landscape",
+      perPage: true,
+    },
   },
   items: {
     allowed: ITEMS,
@@ -48,7 +54,7 @@ export const DRAWING = kit.defineBookType({
   tokens: [],
   tools: "@matomezu/paper:paper",
   // テーマ・紙の色・線の既定の通り方（ページは線の既定の通り方を持たなければブックの既定を継ぐ）
-  // 上下左右へ伸びる可変ページの中身を、印刷区画の単位でずらしてそろえる（base の settleVariablePages）
+  // 左・上へ増やす可変ページの中身を、印刷区画の単位でずらしてそろえる（base の settleVariablePages）
   settle: (book, catalog) => settleVariablePages(catalog, book),
   settings: {
     book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, "@matomezu/line:line-route", BOOK_TEXT_COLORS.id],

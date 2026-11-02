@@ -641,7 +641,7 @@ test("「ページの設定」で紙を A3 にすると紙が大きくなる。�
   await expect.poll(async () => (await surface.boundingBox())!.width).toBeGreaterThan(before.width)
 })
 
-test("「ページの設定」で可変ページにすると、上下左右に空きの印刷区画が出て、区切りの破線が引かれる（中身は 印刷区画 1 つ分ずつずれるが、箱は画面の同じ所のまま）。破線はドロワーのボタンで隠せる", async ({
+test("「ページの設定」で可変ページにして上下左右へ増やすと、上下左右に空きの印刷区画が出て、区切りの破線が引かれる（中身は 印刷区画 1 つ分ずつずれるが、箱は画面の同じ所のまま）。破線はドロワーのボタンで隠せる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -655,6 +655,10 @@ test("「ページの設定」で可変ページにすると、上下左右に�
   await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ページの設定" })
   await dialog.getByRole("switch", { name: "可変ページにする" }).click()
+  // 増やす向きの既定は右と下。上下左右に変える
+  const toward = dialog.getByLabel("増やす向き")
+  await expect(toward).toHaveValue("right-down")
+  await toward.selectOption({ label: "上下左右" })
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()
   // 左と上の空き・中身・右と下の空きで 3×3。中身は 印刷区画 1 つ分ずつずれるが、画面ではパンを合わせるので同じ所
