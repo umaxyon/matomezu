@@ -1,0 +1,30 @@
+// ペインの分割のコマンド（ペインのタブの右クリックのメニューに置く）: 1 つだけ見せているときは左右（縦分割）か上下（横分割）に並べ、
+// 並べているときは、右クリックしたペインを閉じてもう一方を残す（ステージを閉じるのと同じ）。並べ方はこのプラグインのステージの画面の状態に持つ
+import type { CommandContext } from "../../../plugin-api"
+import { kit } from "./kit"
+import { MARKDOWN } from "./markdown"
+import { type Pane, paneLayoutOf, unsplit } from "./panes"
+
+const onMarkdown = (ctx: CommandContext) => ctx.book?.type === MARKDOWN.id
+const isSplit = (ctx: CommandContext) => paneLayoutOf(ctx.stageState).split !== null
+
+export const PANE_SPLIT_ROW = kit.defineCommand({
+  id: "pane-split-row",
+  title: "Split vertically",
+  run: (_ctx, a, _at: { pane: Pane }) => a.updateStageState(() => ({ split: "row" })),
+  when: ctx => onMarkdown(ctx) && !isSplit(ctx),
+})
+
+export const PANE_SPLIT_COLUMN = kit.defineCommand({
+  id: "pane-split-column",
+  title: "Split horizontally",
+  run: (_ctx, a, _at: { pane: Pane }) => a.updateStageState(() => ({ split: "column" })),
+  when: ctx => onMarkdown(ctx) && !isSplit(ctx),
+})
+
+export const PANE_UNSPLIT = kit.defineCommand({
+  id: "pane-unsplit",
+  title: "Close split",
+  run: (_ctx, a, { pane }: { pane: Pane }) => a.updateStageState(() => unsplit(pane)),
+  when: ctx => onMarkdown(ctx) && isSplit(ctx),
+})

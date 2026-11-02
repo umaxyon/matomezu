@@ -3,6 +3,7 @@ import { BASE } from "./base"
 import { DIR_PLUGIN } from "./books/dir"
 import { DRAWING_PLUGIN } from "./books/drawing"
 import { FLOWCHART_PLUGIN } from "./books/flowchart"
+import { MARKDOWN_PLUGIN } from "./books/markdown"
 import { MASTER_PLUGIN } from "./books/master"
 import { TREE_PLUGIN } from "./books/tree"
 import { ART_PLUGIN } from "./items/art"
@@ -27,4 +28,5 @@ export const BUILTIN = [
   FLOWCHART_PLUGIN,
   TREE_PLUGIN,
   DIR_PLUGIN,
+  MARKDOWN_PLUGIN,
 ] as const

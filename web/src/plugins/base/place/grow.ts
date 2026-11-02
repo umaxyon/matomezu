@@ -20,8 +20,12 @@ export const GROW_CHOICE_SIDES = {
 } as const satisfies Record<GrowChoice, GrowSides>
 
 // 可変ページの増やす向きの決め方: 利用者が choices から選ぶ（最初のものが既定。ページの grows に選んだものを持つ）か、
-// タイプがページで効いている設定の値 setting から決める（ページの grows は true）
-export type GrowRule = { choices: readonly GrowChoice[] } | { sides(setting: SettingReader): GrowSides }
+// タイプがページで効いている設定の値 setting から決める（ページの grows は true）か、どのページもいつも可変ページで、いつも always へ増やす
+// （ページの grows には持たず、可変ページにする・やめるは選べない）
+export type GrowRule =
+  | { choices: readonly GrowChoice[] }
+  | { sides(setting: SettingReader): GrowSides }
+  | { always: GrowSides }
 
 // 可変ページの増やす向きの決め方（定義オブジェクトの拡張ポイントに書き足す。無ければ可変ページを作れない。ページを持つタイプだけが使う）
 declare module "../../../core/catalog" {

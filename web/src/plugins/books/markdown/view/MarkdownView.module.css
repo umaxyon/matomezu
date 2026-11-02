@@ -1,0 +1,108 @@
+/* ステージいっぱいの入れ物（上辺のタブと、ペインを並べる所） */
+.markdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  cursor: default;
+}
+.panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.markdown[data-split="column"] .panes {
+  flex-direction: column;
+}
+.pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* 並べたペインの境目 */
+.markdown[data-split="row"] .pane + .pane {
+  border-left: 1px solid var(--theme-line);
+}
+.markdown[data-split="column"] .pane + .pane {
+  border-top: 1px solid var(--theme-line);
+}
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid var(--theme-line);
+}
+.tab {
+  padding: 4px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--skin-text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--skin-accent);
+  color: var(--theme-text);
+}
+/* ペインの中のスクロール */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  user-select: text;
+}
+.source {
+  margin: 0;
+  padding: 12px 16px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* 描いた文書: 紙の幅で、枠を付けずに紙の色の面に（下へいくらでも伸びる） */
+.document {
+  box-sizing: border-box;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 24px 32px;
+  background: var(--theme-paper);
+}
+.plain {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+.prompt {
+  margin: 0;
+  font-size: 14px;
+  color: var(--skin-text-muted);
+}
+.create {
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--skin-accent);
+  color: var(--skin-on-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
