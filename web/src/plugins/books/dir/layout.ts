@@ -66,8 +66,8 @@ export const editorWidth = (raw: string, shown: number): number =>
   Math.max(shown, Math.ceil(richWidth(parseRich(raw).flat(), FONT))) + EDITOR_PAD * 2 + 16
 const EDITOR_PAD = 4
 
-// 根 root を大きさ paper の紙に並べる（look は説明の見せ方。無ければ既定）。variable（可変ページ）なら下へは印刷区画が増えるので、
-// 紙に入るか（fits）は幅だけで見て、説明の区切りの縦の線は最後の行まで引く
+// 根 root を大きさ paper の紙に並べる（look は説明の見せ方。無ければ既定）。variable（可変ページ）なら右と下へ印刷区画が増えるので、
+// いつも紙に入り（fits）、説明は切らずに 1 行で置き（行がどれほど右へ伸びても出す）、説明の区切りの縦の線は最後の行まで引く
 export function layoutDir(
   root: DirFolder,
   paper: { w: number; h: number },
@@ -113,14 +113,19 @@ export function layoutDir(
       lines.push({ from: { x, y: row.y + ROW / 2 + ICON / 2 }, to: { x, y: end.y + ROW / 2 } })
     }
   }
-  const fits = laid.every(r => r.x + r.w <= paper.w - MARGIN && (variable || r.y + r.h <= paper.h - MARGIN))
-  const notes = look.shown ? notesOf(laid, paper.w) : null
+  const fits = variable || laid.every(r => r.x + r.w <= paper.w - MARGIN && r.y + r.h <= paper.h - MARGIN)
+  const texts = rows.map(r => {
+    const text = r.entry.description?.replace(/\n/g, " ")
+    return text ? (look.dots ? DOTS + text : text) : null
+  })
+  const notes = !look.shown ? null : variable ? wideNotes(laid, texts) : notesOf(laid, paper.w)
   if (notes)
-    for (const [i, r] of rows.entries()) {
+    for (const [i, shown] of texts.entries()) {
       const row = laid[i]
-      const text = r.entry.description?.replace(/\n/g, " ")
-      const shown = text && (look.dots ? DOTS + text : text)
-      if (row && shown) row.note = clampRich(wrapRich(shown, notes.w, FONT), 1, notes.w, FONT)[0] ?? null
+      if (!row || !shown) continue
+      row.note = variable
+        ? (parseRich(shown)[0] ?? null)
+        : (clampRich(wrapRich(shown, notes.w, FONT), 1, notes.w, FONT)[0] ?? null)
     }
   const x = notes ? notes.x - DIVIDER_GAP : 0
   const bottom = variable ? Math.max(paper.h - MARGIN, ...laid.map(r => r.y + r.h)) : paper.h - MARGIN
@@ -136,5 +141,15 @@ function notesOf(rows: readonly LaidRow[], paperW: number): { x: number; w: numb
   return right > paperW * NOTE_LIMIT || w <= 0 ? null : { x, w }
 }
 
+// 可変ページの説明の列（いちばん右まで伸びた行の右から NOTE_GAP。幅はいちばん長い説明の 1 行の幅）。説明が無ければ null
+function wideNotes(rows: readonly LaidRow[], texts: readonly (string | null)[]): { x: number; w: number } | null {
+  const w = Math.max(0, ...texts.map(t => (t ? Math.ceil(richWidth(parseRich(t)[0] ?? [], FONT)) : 0)))
+  return w > 0 ? { x: Math.max(...rows.map(r => r.x + r.w)) + NOTE_GAP, w } : null
+}
+
 // 並べた行の下端に余白を足した高さ（可変ページの広さを測るのに使う）
 export const laidBottom = (rows: readonly LaidRow[]): number => Math.max(0, ...rows.map(r => r.y + r.h)) + MARGIN
+
+// 並べた行と説明の右端に余白を足した幅（可変ページの広さを測るのに使う）
+export const laidRight = (laid: DirLayout): number =>
+  Math.max(0, ...laid.rows.map(r => r.x + r.w), laid.notes ? laid.notes.x + laid.notes.w : 0) + MARGIN

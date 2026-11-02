@@ -63,7 +63,13 @@ export const FLOWCHART = kit.defineBookType({
   single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
-  grow: { sides: () => ({ up: true, down: true, left: true, right: true }) }, // 可変ページの増やす向き（base の拡張ポイント）
+  // 可変ページは、流れの始まりの側を固定して残りの 3 つの向きへ増やす（下へなら上を、右へなら左を固定。base の拡張ポイント）
+  grow: {
+    sides: setting =>
+      turnedRight(setting)
+        ? { up: true, down: true, left: false, right: true }
+        : { up: false, down: true, left: true, right: true },
+  },
   pages: {
     paper: {
       allowed: PAPER_IDS,

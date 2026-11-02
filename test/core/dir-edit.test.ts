@@ -21,6 +21,7 @@ import {
   DIVIDER_GAP,
   ICON,
   INDENT,
+  laidRight,
   layoutDir,
   MARGIN,
   NOTE_GAP,
@@ -188,7 +189,7 @@ test("行は上から 1 行ずつ、深さごとに字下げ。罫線はフォ�
   expect(layoutDir(setClosed(dir, "src", true)!, { w: 794, h: MARGIN * 2 + ROW * 3 }).fits).toBe(true)
 })
 
-test("可変ページでは、行は下へいくらでも並べられる（紙に入るかは幅だけで見る）", () => {
+test("可変ページでは右と下へ増えるので、行はどれほど下へも右へも並べられる。説明は切らずに 1 行で置き、行と説明の右端が可変ページの幅になる", () => {
   const dir = {
     id: "root",
     kind: "folder" as const,
@@ -197,7 +198,17 @@ test("可変ページでは、行は下へいくらでも並べられる（紙�
   }
   expect(layoutDir(dir, { w: 794, h: MARGIN }).fits).toBe(false)
   expect(layoutDir(dir, { w: 794, h: MARGIN }, undefined, true).fits).toBe(true)
-  expect(layoutDir(dir, { w: 40, h: MARGIN }, undefined, true).fits).toBe(false)
+  expect(layoutDir(dir, { w: 40, h: MARGIN }, undefined, true).fits).toBe(true)
+  const long = "説明".repeat(200)
+  const noted = { ...dir, children: [{ id: "f", kind: "file" as const, name: "a", description: long }] }
+  expect(
+    layoutDir(noted, { w: 794, h: 1123 })
+      .rows[1]?.note?.map(r => r.text)
+      .join(""),
+  ).not.toBe(long)
+  const wide = layoutDir(noted, { w: 794, h: 1123 }, undefined, true)
+  expect(wide.rows[1]?.note?.map(r => r.text).join("")).toBe(long)
+  expect(laidRight(wide)).toBeGreaterThan(794 * 2)
 })
 
 test("ドラッグで落とす先: フォルダの行の真ん中は中の末尾、上下の端は前後（開いたフォルダの下の端は中の先頭）。ファイルの行は上半分で前・下半分で後ろ。根は中へだけ。自分と中身の行には落とせない", () => {
