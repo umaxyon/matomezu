@@ -216,8 +216,11 @@ function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title
 // 鳥の絵の 1 コマを、足元を原点に描く形（size は鳥の大きさ。flip なら足元で左右を返す）
 function frameStyle(bird: Bird, index: number, size: number, flip = false): CSSProperties {
   const { sheet, image } = BIRDS[bird]
-  const [x, y, w, h, anchorX, groundY] = sheet.frames[index] ?? sheet.frames[FRONT] ?? [0, 0, 0, 0, 0, 0]
+  const [x, y, w, h, anchorX, groundY, clip] = sheet.frames[index] ?? sheet.frames[FRONT] ?? [0, 0, 0, 0, 0, 0, []]
   const s = size / sheet.cell
+  const points: string[] = []
+  for (let i = 0; i + 1 < clip.length; i += 2)
+    points.push(`${((clip[i] ?? 0) * s).toString()}px ${((clip[i + 1] ?? 0) * s).toString()}px`)
   return {
     left: -anchorX * s,
     top: -(groundY + 1) * s,
@@ -226,6 +229,7 @@ function frameStyle(bird: Bird, index: number, size: number, flip = false): CSSP
     backgroundImage: `url(${image})`,
     backgroundSize: `${(sheet.size * s).toString()}px`,
     backgroundPosition: `${(-x * s).toString()}px ${(-y * s).toString()}px`,
+    ...(points.length > 0 ? { clipPath: `polygon(${points.join(", ")})` } : {}),
     ...(flip ? { transform: "scaleX(-1)", transformOrigin: `${(anchorX * s).toString()}px 0` } : {}),
   }
 }
