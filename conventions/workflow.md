@@ -9,13 +9,14 @@
 ## テスト
 
 - 作業中は、直したものに関係するテストだけを流す（`bun test test/xxx.test.ts`・`go test ./internal/xxx -run Xxx`・`bunx playwright test e2e/xxx.spec.ts`）
-- 全部を流すのは、コミットの前と、ユーザーに画面の確認を頼む前だけ
+- 全部を流すのは、main への取り込みを頼む前と、ユーザーに画面の確認を頼む前だけ（main に直接積むときは、コミットの前）
   - 単体: `bun test`
   - Go: `go test ./...`（リポジトリの根から動かす）
   - 型: `bun run typecheck`
   - lint: `bun run lint`（直すのは `bun run format`）
   - e2e: `bun run e2e`
-- 速さは `bun run e2e:perf` で測る。コミットの前の全部のテストには入れない
+- main の側では、fast-forward で取り込むときは流さない（頼んだ側が同じコミットで流してある）。マージのコミットができたときは、main で全部流す
+- 速さは `bun run e2e:perf` で測る。全部のテストには入れない
 - `bun test` の結果は末尾だけでなく、pass と fail の行を見る
 - テストの用意（データを置く・状態を覗く）のためだけの関数と、常駐の HTTP のパスは、置いてよい。「データを変える入口はアクションだけ」の決まりは、この用意に限って外してよい（クレートの読み込みの向きなど、ほかの決まりは外さない）。確かめたい操作そのものは、アクションと画面を通す
   - 関数は名前の終わりを `ForTest` に、HTTP のパスは `for-test` を含む名前にする
@@ -33,9 +34,11 @@
 
 ## コミット
 
-- main に直接積む。捨てるかもしれない試みだけブランチを切り、戻る目印はタグ
+- main に直接積む。ただし平行作業の worktree では、その worktree のブランチに積み、main のセッション（main_manager）に main への取り込みを頼む。捨てるかもしれない試みだけブランチを切り、戻る目印はタグ（このブランチを main に入れるときは、main に直接積むときと同じに確かめる）
+- 平行作業の worktree から取り込みを頼む前は、次の順に確かめる。1 変更を全部コミットする 2 main の最新を取り込む 3 全部のテストを流す 4 conventions-review に main との差分を見せる。3・4 のあとに直したら、直した分を流し直し、見せ直す
 - 区切りのコミットは頼まれなくてよい。push は頼まれたときだけ
-- コミットの前に、変更をステージしてから、サブエージェント conventions-review（`.claude/agents/conventions-review.md`）でステージ済みの変更が規約に違反していないかを確かめる。違反があれば直してからコミットする
-- AGENT.md の「利用者向けマニュアル」のとおりサブエージェント manual-creator（`.claude/agents/manual-creator.md`）が書き足した下書きは、ステージしてから conventions-review で確かめ、タスクを閉じる前にコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
+- サブエージェント conventions-review（`.claude/agents/conventions-review.md`）で、変更が規約に違反していないかを確かめる。違反があれば直す。見せる物は、取り込みを頼む前なら main との差分、main に直接積むときと、main で衝突を解いてマージのコミットを作るときは、コミットの前のステージ済みの変更
+- 見せる差分が利用者向けマニュアルの下書き（`.claude/matomezu-manual-memo.md`）だけのときは、conventions-review を省く
+- AGENT.md の「利用者向けマニュアル」のとおりサブエージェント manual-creator（`.claude/agents/manual-creator.md`）が書き足した下書きは、タスクを閉じる前にコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
 - メッセージは英語で、何をどう変えたかを書く。Co-Authored-By を付けない
 - `docs/`・`_old_docs/`・`tmp/` はコミットしない
