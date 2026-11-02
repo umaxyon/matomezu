@@ -245,7 +245,7 @@ test("行の右クリックでその行を選んでメニューを開く。並�
     within(screen.getByRole("menu"))
       .getAllByRole("menuitem")
       .map(m => m.textContent)
-  expect(items()).toEqual(["設定…", "昇順で並べる", "降順で並べる", "削除Delete"])
+  expect(items()).toEqual(["設定…", "昇順で並べる", "降順で並べる", "削除Delete", "コメント"])
   fireEvent.keyDown(window, { key: "Escape" })
   fireEvent.contextMenu(row(ids.a))
   expect(items()).not.toContain("昇順で並べる")

@@ -43,8 +43,10 @@ function newAnchors(): Anchors {
       let r = refs.get(id)
       if (!r) {
         r = el => {
-          if (el) elements.set(id, el)
-          else elements.delete(id)
+          if (el) {
+            elements.set(id, el)
+            el.setAttribute(ANCHOR_ATTR, id)
+          } else elements.delete(id)
           changed()
         }
         refs.set(id, r)
@@ -58,6 +60,14 @@ function newAnchors(): Anchors {
     },
     snapshot: () => version,
   }
+}
+
+// アンカーを付けた要素は、その id を属性に持つ（押された要素から、アンカーの付いた物を探すため）
+const ANCHOR_ATTR = "data-anchor"
+
+// 要素 el か、その外側で一番近い、アンカーの付いた物の id（無ければ undefined）
+export function anchorOf(el: Element | null): string | undefined {
+  return el?.closest(`[${ANCHOR_ATTR}]`)?.getAttribute(ANCHOR_ATTR) ?? undefined
 }
 
 interface StandContext {
@@ -89,15 +99,18 @@ export function StandLayer() {
   return <div ref={setLayer} className={styles.layer} data-stand-layer />
 }
 
-// アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない
+// アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
+// span なら、幅をアンカーの幅（画面の上の幅）にそろえる
 export function Stand({
   anchor,
   side = "below",
+  span = false,
   label,
   children,
 }: {
   anchor: string | readonly string[]
   side?: StandSide
+  span?: boolean
   label?: string
   children: ReactNode
 }) {
@@ -128,7 +141,7 @@ export function Stand({
       className={styles.stand}
       role="group"
       aria-label={label}
-      style={{ left: at.x, top: at.y, visibility: size ? undefined : "hidden" }}
+      style={{ left: at.x, top: at.y, width: span ? rect.w : undefined, visibility: size ? undefined : "hidden" }}
       data-stand
       onPointerDown={stop}
       onClick={stop}

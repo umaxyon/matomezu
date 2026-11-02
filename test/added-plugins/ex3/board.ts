@@ -72,6 +72,7 @@ export const NIGHT = kit.defineSkin({
     "surface-muted": "#0e1429",
     "surface-strong": "#1b2447",
     "surface-raised": "#18214a",
+    bubble: "#2a2f52",
     "shadow-1": "0 0 10px rgb(0 0 0 / 0.5)",
     "shadow-2": "0 4px 12px rgb(0 0 0 / 0.55)",
     "shadow-3": "0 12px 36px rgb(0 0 0 / 0.65)",

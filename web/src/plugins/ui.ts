@@ -48,6 +48,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-area-layer",
       "@matomezu/base:book-content",
       "@matomezu/base:stand-layer",
+      "@matomezu/base:comment-layer",
     ],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],

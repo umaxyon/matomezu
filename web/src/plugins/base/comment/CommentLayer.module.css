@@ -1,0 +1,153 @@
+/* 吹き出し: 決まった幅で文字を折り返し、上の辺をそろえて下へ伸びる。色はスキンの bubble だけ */
+.bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 180px;
+  max-height: 360px;
+  padding: 8px;
+  border: 1px solid var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+/* 書き込みの並び（多ければ、この中だけスクロール） */
+.posts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+.posts:empty {
+  display: none;
+}
+.post {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.by {
+  margin-right: 6px;
+  color: var(--skin-text-muted);
+  font-size: 11px;
+}
+.text {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 24px;
+  padding: 4px 6px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 4px;
+  background: var(--skin-surface-muted);
+  color: var(--skin-text);
+  font: inherit;
+  resize: none;
+  overflow: hidden;
+}
+.asks {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+/* 選ぶ印は隠し、名前の札を押して選ぶ */
+.radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.button,
+.primary,
+.danger,
+.ask,
+.askOn {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--skin-btn);
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.button:hover,
+.ask:hover {
+  background: var(--skin-btn-hover);
+}
+.primary,
+.askOn {
+  background: var(--skin-accent);
+  color: var(--skin-on-accent);
+}
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.danger {
+  border-color: var(--skin-danger);
+  background: transparent;
+  color: var(--skin-danger);
+}
+/* たたんだコメントの絵（物の右上の角） */
+.folded {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--skin-border);
+  border-radius: 50%;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  cursor: pointer;
+}
+.folded svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+/* マークの絵が歩く所（物の上の辺。幅は物の幅） */
+.walk {
+  position: relative;
+  height: 14px;
+  pointer-events: none;
+}
+/* マークの絵: 辺の端から端へ往復する */
+.mark {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 50%;
+  background: var(--skin-bubble);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: walk 4s ease-in-out infinite alternate;
+}
+@keyframes walk {
+  to {
+    left: calc(100% - 12px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark {
+    animation: none;
+  }
+}

@@ -309,6 +309,7 @@ describe("取り込んだプラグインの置き場所", () => {
       "q:under",
       "@matomezu/base:book-content",
       "@matomezu/base:stand-layer",
+      "@matomezu/base:comment-layer",
       "q:top",
     ])
     expect(checkLayout(layout, assembleUi([...BUILTIN_UI, layers]), commands)).toEqual([])

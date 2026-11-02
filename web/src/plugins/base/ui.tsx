@@ -6,6 +6,7 @@ import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from
 import { BOOK_NAME, DRAWER_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./book-name/ui"
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
+import { COMMENT_LAYER } from "./comment/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
@@ -85,6 +86,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_AREA_LAYER,
     BOOK_CONTENT,
     STAND_LAYER,
+    COMMENT_LAYER,
     PRINT_AREA_TOGGLE,
     TOOL_SWITCH,
     TOOLBOX,
@@ -122,6 +124,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-area-layer": typeof PRINT_AREA_LAYER
     "@matomezu/base:book-content": typeof BOOK_CONTENT
     "@matomezu/base:stand-layer": typeof STAND_LAYER
+    "@matomezu/base:comment-layer": typeof COMMENT_LAYER
     "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX

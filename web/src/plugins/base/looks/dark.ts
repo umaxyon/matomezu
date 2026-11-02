@@ -12,6 +12,7 @@ export const DARK = kit.defineSkin({
     "surface-muted": "#17212b",
     "surface-strong": "#304154",
     "surface-raised": "#253341",
+    bubble: "#3a3a2c",
     "shadow-1": "0 1px 6px rgb(0 0 0 / 0.20)",
     "shadow-2": "0 2px 4px rgb(0 0 0 / 0.20), 0 8px 20px rgb(0 0 0 / 0.24)",
     "shadow-3": "0 4px 12px rgb(0 0 0 / 0.24), 0 20px 48px rgb(0 0 0 / 0.32)",

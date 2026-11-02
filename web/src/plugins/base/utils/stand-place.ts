@@ -1,12 +1,20 @@
 // スタンドの置き場所: アンカーの四角のどちら側に、どれだけ離して立てるか。入らなければ反対の側へ回し、置ける範囲（スタンドのレイヤー）の中に収める
 import type { Point, Rect, Size } from "../../../core/geom"
 
-export type StandSide = "below" | "above" | "right" | "left"
+// corner は右上の角に重ね、edge は上の辺に（すき間を空けずに）乗せる
+export type StandSide = "below" | "above" | "right" | "left" | "corner" | "edge"
 
 const GAP = 6 // アンカーとのすき間
 const MARGIN = 4 // 置ける範囲の端とのすき間
 
-const OPPOSITE: Record<StandSide, StandSide> = { below: "above", above: "below", right: "left", left: "right" }
+const OPPOSITE: Record<StandSide, StandSide> = {
+  below: "above",
+  above: "below",
+  right: "left",
+  left: "right",
+  corner: "corner",
+  edge: "edge",
+}
 
 // アンカーの四角 anchor の side に、大きさ size のスタンドを置く左上（area は置ける範囲の大きさ。左上が 0,0）
 export function standAt(anchor: Rect, size: Size, area: Size, side: StandSide): Point {
@@ -19,7 +27,7 @@ export function standAt(anchor: Rect, size: Size, area: Size, side: StandSide): 
   return { x: clamp(p.x, MARGIN, area.w - MARGIN - size.w), y: clamp(p.y, MARGIN, area.h - MARGIN - size.h) }
 }
 
-// 上下に立てるときは左端をそろえ、左右に立てるときは上端をそろえる
+// 上下に立てるときは左端をそろえ、左右に立てるときは上端をそろえる。角に立てるときは、真ん中を右上の角に置く。辺に乗せるときは左端をそろえる
 function besides(a: Rect, size: Size, side: StandSide): Point {
   switch (side) {
     case "below":
@@ -30,6 +38,10 @@ function besides(a: Rect, size: Size, side: StandSide): Point {
       return { x: a.x + a.w + GAP, y: a.y }
     case "left":
       return { x: a.x - GAP - size.w, y: a.y }
+    case "corner":
+      return { x: a.x + a.w - size.w / 2, y: a.y - size.h / 2 }
+    case "edge":
+      return { x: a.x, y: a.y - size.h }
   }
 }
 

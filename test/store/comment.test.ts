@@ -1,10 +1,11 @@
-// コメント（base のアノテーションの種類）: ブックのデータとは別に持ち、利用者も AI も付け・返し・消せる。
+// コメント（base のアノテーションの種類）: ブックのデータとは別に持ち、付けるのは利用者だけで、利用者も AI も返し・消せる。
 // ロック中のブックにも付けられ、画面の履歴に入らず、アンカーの物が全部無くなると消える
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../web/src/core/annotation"
+import { performIn } from "../../web/src/core/perform"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
-import { newStore } from "../support"
+import { CORE_CATALOG, newStore } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
 const ON = { book: "b1" }
@@ -133,4 +134,20 @@ test("ブックを消すと、そのブックのコメントも消える", () =>
   expect(comments()).toHaveLength(1)
   expect(store.actions.perform("@matomezu/base:book-purge", { books: ["b1"] }).ok).toBe(true)
   expect(store.state.getState().annotations).toEqual({})
+})
+
+test("AI はコメントを付けられない（付けるのは利用者だけ）が、返し・消せる", () => {
+  const { store, a, comments } = ready()
+  store.actions.perform("@matomezu/base:comment-add", { anchors: [a], text: "x", ask: "reply" }, ON)
+  const id = comments()[0]!.id
+  const s = store.state.getState()
+  const world = { books: s.books, settings: s.settings, annotations: s.annotations }
+  const ctx = { catalog: CORE_CATALOG, home: null, lang: "en" as const, newId: () => "n", now: "t", by: "ai" as const }
+  const ai = (action: string, args: unknown) => performIn(world, action, args, ON, ctx)
+  expect(ai("@matomezu/base:comment-add", { anchors: [a], text: "y", ask: "reply" })).toEqual({
+    ok: false,
+    reason: "not-allowed",
+  })
+  expect(ai("@matomezu/base:comment-reply", { comment: id, text: "y" }).ok).toBe(true)
+  expect(ai("@matomezu/base:comment-remove", { comment: id }).ok).toBe(true)
 })

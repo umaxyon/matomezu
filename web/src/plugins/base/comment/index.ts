@@ -1,4 +1,4 @@
-// コメント: ブックの物に付ける、アノテーションの種類（core/def/annotation.ts）。利用者も AI も付け、返事を続けて書け、誰でも消せる。
+// コメント: ブックの物に付ける、アノテーションの種類（core/def/annotation.ts）。付けるのは利用者だけ（userOnly）で、利用者も AI も返事を続けて書け、誰でも消せる。
 // 付けるときに、返事が欲しい（reply）か、指すだけ（point。伝わったら AI が消す）かを選ぶ。文の無いコメントはマーク。
 // AI が読んだかは readAt（AI が読んだ時点）で持ち、利用者が書き込むと未読に戻る。ロック中のブックにも付けられる（ロックはアノテーションを止めない）
 import { z } from "zod"
@@ -48,9 +48,10 @@ export const COMMENT_ADD = kit.defineAction({
   id: "comment-add",
   attach: { annotations: [COMMENT.id] },
   aiDescription:
-    "Add a comment to things in the book: anchors are the ids of the things it is about (items, lines, list rows, tree nodes, folder rows; one or more, not pages). ask is reply (an answer is wanted) or point (only pointing at them; remove it once understood). text may be empty (a mark). bubble (default true) shows its text in a bubble. Comments are kept apart from the book's data: they can be added to a locked book, are not undone, and go away when all their anchors are gone. Returns the new comment's id.",
+    "Add a comment to things in the book (only the user adds comments): anchors are the ids of the things it is about (items, lines, list rows, tree nodes, folder rows; one or more, not pages). ask is reply (an answer is wanted) or point (only pointing at them; remove it once understood). text may be empty (a mark). bubble (default true) shows its text in a bubble. Returns the new comment's id.",
   title: "Add comment",
   target: "annotations",
+  userOnly: true,
   args: z.strictObject({
     anchors: z.array(z.string().min(1)).min(1),
     text: z.string().max(2000),
@@ -62,12 +63,10 @@ export const COMMENT_ADD = kit.defineAction({
       ctx.newId,
       annotations.map(a => a.id),
     )
-    const who = by(ctx)
     const props: CommentProps = {
       ask: args.ask,
       bubble: args.bubble ?? true,
-      posts: [{ by: who, text: args.text, at: ctx.now }],
-      ...(who === "ai" ? { readAt: ctx.now } : {}),
+      posts: [{ by: "user", text: args.text, at: ctx.now }],
     }
     const comment: Annotation = { id, annotation: COMMENT.id, anchors: [...new Set(args.anchors)], props }
     return { next: { book, annotations: [...annotations, comment] }, result: { comment: id } }

@@ -229,7 +229,7 @@ export function useUserSetting(id: string): unknown {
   return useMemo(() => userSetting(catalog, values, id), [catalog, values, id])
 }
 
-// そのステージが開いているブックにアクションを行う関数（ブックが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ
+// そのステージが開いているブックにアクションを行う関数（ブックかアノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ
 export function usePerform(stage: string): <Id extends ActionId>(action: Id, args: ArgsOf<Id>) => Performed<Id> {
   const { perform } = useActions()
   const catalog = useCatalog().core
@@ -238,7 +238,7 @@ export function usePerform(stage: string): <Id extends ActionId>(action: Id, arg
     () =>
       <Id extends ActionId>(action: Id, args: ArgsOf<Id>): Performed<Id> => {
         const loose = perform as (id: string, args: unknown, on?: { book: string }) => Performed<Id>
-        if (catalog.actions.get(action)?.target !== "book") return loose(action, args)
+        if (!isOnBook(catalog.actions.get(action)?.target)) return loose(action, args)
         return book === undefined ? { ok: false, reason: "no-book" } : loose(action, args, { book })
       },
     [perform, catalog, book],

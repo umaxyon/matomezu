@@ -19,6 +19,10 @@ describe("スタンドの置き場所", () => {
     expect(standAt({ x: 50, y: 50, w: 80, h: 30 }, size, area, "right")).toEqual({ x: 136, y: 50 })
     expect(standAt({ x: 330, y: 50, w: 60, h: 30 }, size, area, "right")).toEqual({ x: 224, y: 50 })
   })
+  test("角に立てるときは真ん中を右上の角に、辺に乗せるときは左端をそろえて上の辺に置く", () => {
+    expect(standAt({ x: 50, y: 50, w: 80, h: 30 }, { w: 20, h: 20 }, area, "corner")).toEqual({ x: 120, y: 40 })
+    expect(standAt({ x: 50, y: 50, w: 80, h: 30 }, { w: 80, h: 14 }, area, "edge")).toEqual({ x: 50, y: 36 })
+  })
   test("いくつものアンカーは、まとめて囲む四角のそばに立てる", () => {
     expect(
       unionRect([
