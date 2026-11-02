@@ -22,7 +22,7 @@ import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useTokenScope } from "../../../ui/theme-vars"
-import { useShownBook, useStage } from "../../../ui/view-hooks"
+import { useBook, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
@@ -45,7 +45,7 @@ interface Drag {
 export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
   const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
   const isCurrent = useMatomezuState(s => s.workspace.current === id)
-  const book = useShownBook(id) // ブックの設定のダイアログの下書きを重ねたブック
+  const book = useBook(id)
   const catalog = useCatalog().core
   const tool = useStage(id)?.tool ?? null
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
