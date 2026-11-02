@@ -2,7 +2,7 @@
 
 import type { PagedBook } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
+import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import { fail } from "../../../core/errors"
 import { type Lang, translate } from "../../../core/i18n/i18n"
 import type { PaperChoice, PaperRule } from "../../../core/paper"
@@ -10,7 +10,7 @@ import type { Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { setField } from "../fields"
 import { kit } from "../kit"
-import { alignPadding, extentOf, growOf, pageArea } from "../place/items"
+import { extentOf, growOf, paddedFor, pageArea } from "../place/items"
 
 function pagesRule(catalog: CoreCatalog, book: PagedBook) {
   const rule = bookType(catalog, book.type).pages
@@ -45,14 +45,29 @@ export function paperChoicesFor(catalog: CoreCatalog, book: PagedBook, page: str
 
 // ブックのタイプが可変ページを作れるか
 export const canGrow = (catalog: CoreCatalog, book: PagedBook): boolean =>
-  pagesRule(catalog, book).paper.grow !== undefined
+  pagesRule(catalog, book) !== undefined && bookType(catalog, book.type).grow !== undefined
 
-// ページ page を、可変ページにするかを grows にしたもの。上下左右へ伸びる可変ページをやめるなら、左・上の空きを詰めて中身を 1 つ目の印刷区画からにする
-// （入らないかは shapesFit で確かめる）
-export function withGrows<P extends Page>(catalog: CoreCatalog, book: PagedBook, page: P, grows: boolean): P {
-  const next = setField(page, ["orientation"], "grows", grows || undefined)
-  const unpad = page.grows && !grows && growOf(catalog, book, page) === "all"
-  return unpad ? alignPadding(catalog, book, next, 0) : next
+// ブックのタイプで利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
+export function growChoices(catalog: CoreCatalog, book: PagedBook): readonly GrowChoice[] {
+  const rule = bookType(catalog, book.type).grow
+  return rule && "choices" in rule ? rule.choices : []
+}
+
+// 可変ページにするか（true・false）か、選んだ増やす向き grows を、ページの grows の値にしたもの。作れない・選べない向きなら null。
+// 向きを選べるタイプで true なら既定の向き。false なら undefined（可変ページでない）
+export function growsValue(catalog: CoreCatalog, book: PagedBook, grows: boolean | GrowChoice): Page["grows"] | null {
+  if (grows === false) return undefined
+  if (!canGrow(catalog, book)) return null
+  const choices = growChoices(catalog, book)
+  if (grows === true) return choices[0] ?? true
+  return choices.includes(grows) ? grows : null
+}
+
+// ページ page の grows を grows（ページの grows の値）にしたもの。中身は増やす向きに合わせてずらす（左・上へ増やすなら空きの印刷区画を持たせ、
+// 増やさなくなった向きは空きを詰める。入らないかは shapesFit で確かめる）
+export function withGrows<P extends Page>(catalog: CoreCatalog, book: PagedBook, page: P, grows: Page["grows"]): P {
+  const next = setField(page, ["orientation"], "grows", grows)
+  return paddedFor(catalog, next, growOf(catalog, book, next), growOf(catalog, book, page))
 }
 
 // 選べるものに入るか

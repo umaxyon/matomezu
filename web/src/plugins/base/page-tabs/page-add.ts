@@ -4,18 +4,18 @@
 // 足したページにタイプが問題を知らせれば断る（page-problems.ts）
 import { z } from "zod"
 import { addPage, hasPages, putPage, withSettings } from "../../../core/book"
-import { ORIENTATIONS } from "../../../core/def/paper"
+import { GROW_CHOICES, ORIENTATIONS } from "../../../core/def/paper"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblems } from "./page-problems"
-import { canChoose, canGrow, defaultPaper, paperChoices } from "./pages"
+import { canChoose, defaultPaper, growsValue, paperChoices } from "./pages"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),
   paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定
   orientation: z.enum(ORIENTATIONS).optional(), // 無ければ規定の既定
-  grows: z.boolean().optional(), // 可変ページにするか（タイプが伸びられる向きを宣言したときだけ）。無ければ可変ページでない
+  grows: z.union([z.boolean(), z.enum(GROW_CHOICES)]).optional(), // 可変ページにするか、選んだ増やす向き（pages.ts の growsValue）。無ければ可変ページでない
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだページの設定の項目（形はタイプが決める）
   fields: z.record(z.string(), z.unknown()).optional(), // ブックのタイプがページに足したフィールド（形はタイプが決める）
 })
@@ -24,7 +24,7 @@ export const PAGE_ADD = kit.defineAction({
   id: "page-add",
   attach: { pages: true },
   aiDescription:
-    "Add a page at the end of a book. Paper and orientation default to the book type's. With grows true, the page grows by whole papers (all ways, right and down, or only down; see the book type's grow in actions) as its contents need, instead of keeping to one paper; refused for a book type whose grow is null. A page that grows all ways keeps one blank paper left of and above its contents: putting something there shifts all its contents right or down by whole papers (and an emptied first paper is closed up), so positions change; the result's notice says so. fields are the page's own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page's id, and in fields what the book type returns for its fields (such as the ids it gave).",
+    "Add a page at the end of a book. Paper and orientation default to the book type's. With grows, the page grows by whole papers as its contents need, instead of keeping to one paper: the book type's grows in actions lists the ways a user picks from (right-down, right, down or all; true takes the first), or is true when the book type decides the ways itself (give true), or is null when its pages cannot grow. A page that grows left or up keeps one blank paper left of or above its contents: putting something there shifts all its contents right or down by whole papers (and an emptied first paper is closed up), so positions change; the result's notice says so. fields are the page's own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page's id, and in fields what the book type returns for its fields (such as the ids it gave).",
   title: "Add page",
   target: "book",
   permissionScope: "book",
@@ -36,15 +36,12 @@ export const PAGE_ADD = kit.defineAction({
     const fallback = defaultPaper(ctx.catalog, book)
     const choice = { paper: args.paper ?? fallback.paper, orientation: args.orientation ?? fallback.orientation }
     if (!canChoose(paperChoices(ctx.catalog, book), choice)) return null
-    if (args.grows && !canGrow(ctx.catalog, book)) return null
+    const grows = growsValue(ctx.catalog, book, args.grows ?? false)
+    if (grows === null) return null
     const settings =
       args.settings === undefined ? null : settingsPatchOf(ctx.catalog, book, "page")?.safeParse(args.settings)
     if (settings === undefined || settings?.success === false) return null
-    const done = addPage(
-      book,
-      { title: args.title, ...choice, ...(args.grows ? { grows: true as const } : {}) },
-      ctx.newId,
-    )
+    const done = addPage(book, { title: args.title, ...choice, ...(grows === undefined ? {} : { grows }) }, ctx.newId)
     const written = writeFields(ctx.catalog, done.book, done.page, args.fields, "add", ctx.newId)
     if (!written) return null
     const result = { page: done.page.id, ...(written.result === undefined ? {} : { fields: written.result }) }

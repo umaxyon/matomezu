@@ -6,17 +6,12 @@ import type { Size } from "./geom"
 
 // 紙の選び方の規定（紙は機能台帳の紙の id）。ページは allowed の中から選び、選ばなければ default と orientation。
 // perPage が false なら、1 冊の紙と向きは最初のページで決まり、後のページも同じにする。
-// grow はページが伸びられる向き（all は上下左右、both は右と下、down は下だけ）。無ければ可変ページを作れない
 export interface PaperRule {
   allowed: readonly string[]
   default: string
   orientation: Orientation
   perPage: boolean
-  grow?: GrowDirection
 }
-
-// 可変ページが伸びる向き
-export type GrowDirection = "all" | "both" | "down"
 
 // ページが持つ紙
 export interface PaperChoice {

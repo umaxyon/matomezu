@@ -110,7 +110,7 @@ export function bookItems(catalog: CoreCatalog, book: Pick<Book, "type">): reado
 // ページを末尾に足す。id は newId から振る（ブックのほかのページと重ならない）
 export function addPage<B extends PagedBook>(
   book: B,
-  init: { title: string; grows?: true } & PaperChoice,
+  init: { title: string; grows?: Page["grows"] } & PaperChoice,
   newId: () => string,
 ): { book: B; page: Page } {
   const page = {

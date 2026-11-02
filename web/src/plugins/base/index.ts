@@ -60,7 +60,7 @@ export {
   settleChildren,
   toData,
 } from "./place/frame"
-export { grownArea } from "./place/grow"
+export { type GrowRule, type GrowSides, grownArea } from "./place/grow"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Edges, GrowFrom } from "./place/items"
 export {
