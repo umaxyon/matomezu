@@ -1,0 +1,5 @@
+/* キャプションの寄せと、隣に並べるほかの選択を横に並べる */
+.aligns {
+  display: inline-flex;
+  gap: 6px;
+}

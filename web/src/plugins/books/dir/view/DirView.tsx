@@ -25,7 +25,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { isPaletteName, paperOf, type StageView, themeVar } from "../../../../plugin-api"
+import { paperOf, type StageView } from "../../../../plugin-api"
 import {
   type BookViewProps,
   useActions,
@@ -40,7 +40,7 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { grownArea, growOf, refusalMessage, settingValue } from "../../../base"
+import { colorPaint, grownArea, growOf, refusalMessage, settingValue } from "../../../base"
 import {
   PaperFrame,
   RichBar,
@@ -466,9 +466,7 @@ const PLUS_GAP = 2
 
 // 中身の色（color）を塗る CSS 変数: アイコンの色（--dir-icon）を上書きする。代表色の名前は、ブックのテーマの代表色のテーマキーを指す
 const paint = (color: string | undefined): CSSProperties | undefined =>
-  color === undefined
-    ? undefined
-    : ({ "--dir-icon": isPaletteName(color) ? themeVar(`palette.${color}`) : color } as CSSProperties)
+  color === undefined ? undefined : ({ "--dir-icon": colorPaint(color).fill } as CSSProperties)
 
 function Row({
   row: r,

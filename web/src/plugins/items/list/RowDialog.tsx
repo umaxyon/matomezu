@@ -1,25 +1,12 @@
 // 行のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。テーマと色はリストに従うので持たない。
-// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで、上の装飾のボックスで太字と文字の色を付けられる（base の RichBody）。
+// キャプション・区切り線・本文は base の文字の領域の入力Formのコンポーネント（CaptionField・DividerField・BodyField）。
 // 追加はリストの最後に行を足し（row-add）、編集は行の項目を書き換える（row-update。書いた値は確定の前から行に重ねて見せる。ダイアログの下書き）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
 // 編集だけに「行を削除」があり、押すと確かめずに行を消して閉じる（row-remove）
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
 import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
-import { BODY_MAX } from "../../base"
-import {
-  ActionButton,
-  Choices,
-  controlClass,
-  Dialog,
-  Field,
-  Form,
-  RichBody,
-  rowClass,
-  Switch,
-  useAligns,
-  useBookOf,
-} from "../../base/ui"
+import { ActionButton, BodyField, CaptionField, Dialog, DividerField, Form, rowClass, useBookOf } from "../../base/ui"
 import { ROW_ADD, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { LIST, type RowProps } from "./list"
@@ -116,22 +103,22 @@ function RowDialog({
 }) {
   const t = useMessages(kit)
   const form = useId()
-  const aligns = useAligns()
-  const [caption, setCaption] = useState(start.caption)
-  const [body, setBody] = useState(start.body)
-  const [rule, setRule] = useState(start.rule)
-  const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
-  const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
-  const hasBody = body !== ""
+  const [text, setText] = useState<Text>({
+    caption: start.caption,
+    rule: start.rule,
+    body: start.body,
+    captionAlign: start.captionAlign,
+    bodyAlign: start.bodyAlign,
+  }) // 編集では start に行のチェックも入っているので、文字の項目だけを取る
   const changed =
-    caption !== start.caption ||
-    body !== start.body ||
-    rule !== start.rule ||
-    captionAlign !== start.captionAlign ||
-    bodyAlign !== start.bodyAlign
+    text.caption !== start.caption ||
+    text.body !== start.body ||
+    text.rule !== start.rule ||
+    text.captionAlign !== start.captionAlign ||
+    text.bodyAlign !== start.bodyAlign
   useEffect(() => {
-    onPreview?.(changed ? { caption, rule, body, captionAlign, bodyAlign } : null)
-  }, [changed, caption, rule, body, captionAlign, bodyAlign, onPreview])
+    onPreview?.(changed ? text : null)
+  }, [changed, text, onPreview])
   return (
     <Dialog
       title={t(title)}
@@ -145,38 +132,10 @@ function RowDialog({
         </>
       }
     >
-      <Form id={form} ready={ready} onSubmit={() => onSubmit({ caption, rule, body, captionAlign, bodyAlign })}>
-        <Field
-          label={t("Caption")}
-          aside={
-            <Choices label={t("Caption alignment")} value={captionAlign} options={aligns} onChange={setCaptionAlign} />
-          }
-        >
-          {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
-        </Field>
-        <div className={rowClass}>
-          <span>{t("Divider")}</span>
-          <Switch label={t("Divider")} checked={rule} disabled={!hasBody} onChange={setRule} />
-        </div>
-        <Field
-          label={t("Body")}
-          aside={<Choices label={t("Body alignment")} value={bodyAlign} options={aligns} onChange={setBodyAlign} />}
-        >
-          {id => (
-            <RichBody
-              id={id}
-              stage={stage}
-              label={t("Body")}
-              rows={4}
-              maxLength={BODY_MAX}
-              value={body}
-              onChange={text => {
-                if (!hasBody && text !== "") setRule(true)
-                setBody(text)
-              }}
-            />
-          )}
-        </Field>
+      <Form id={form} ready={ready} onSubmit={() => onSubmit(text)}>
+        <CaptionField text={text} onChange={setText} />
+        <DividerField text={text} onChange={setText} />
+        <BodyField stage={stage} text={text} onChange={setText} rows={4} />
         {onRemove && (
           <div className={rowClass}>
             <ActionButton danger onClick={onRemove}>

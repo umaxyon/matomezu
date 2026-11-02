@@ -7,8 +7,8 @@
 
 import type { CSSProperties } from "react"
 import type { ItemProps } from "../../../plugin-api"
-import { type ItemViewProps, useAllowed, usePerform, useStage } from "../../../plugin-api/ui"
-import { TextBlockView, useThemeVars } from "../../base/ui"
+import { type ItemViewProps, usePerform, useStage } from "../../../plugin-api/ui"
+import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"
 import { type BOX, BOX_TOKENS } from "./box"
 import { paintVars } from "./paint"
@@ -22,8 +22,7 @@ export function BoxView({ props, size, hasChildren, id, stage }: ItemViewProps<B
   const at = useStage(stage)
   const page = at?.opened?.page ?? undefined
   const perform = usePerform(stage)
-  const allowed = useAllowed(stage, "@matomezu/paper:item-update", { page, items: [id] }).ok
-  const grips = allowed && at !== null && !at.pans && at.selection.includes(id)
+  const grips = useBodyGrips(stage, id, "@matomezu/paper:item-update")
   return (
     <div className={styles.frame} style={vars} data-theme={theme}>
       <div

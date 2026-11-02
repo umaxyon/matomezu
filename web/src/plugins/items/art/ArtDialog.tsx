@@ -4,7 +4,8 @@
 // 追加は開いたときに覚えた所に絵を置いて（アクション item-place）選び、編集は絵の項目を書き換える（アクション item-update）
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
-import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { refusalMessage } from "../../base"
 import {
   ActionButton,
   ColorPicker,
@@ -31,12 +32,12 @@ export function addArtDialog(item: string) {
     const { select } = useActions()
     const perform = usePerform(stage)
     const add = (props: ArtProps) => {
-      if (!book) return false
+      if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
-      if (!done.ok) return false
+      if (!done.ok) return done
       select(stage, [done.result.item])
       onClose()
-      return true
+      return null
     }
     return (
       <ArtDialog
@@ -73,7 +74,7 @@ export function EditArtDialog({ stage, args, onClose }: DialogProps<{ page: stri
       props: { ...props, color: props.color ?? null },
     })
     if (done.ok) onClose()
-    return done.ok
+    return done.ok ? null : done
   }
   return (
     <ArtDialog
@@ -104,7 +105,7 @@ function ArtDialog({
   start: ArtProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: ArtProps) => boolean // 決められたか
+  onSubmit: (props: ArtProps) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
   onPreview?: (color: ArtProps["color"] | null) => void // 色を選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
@@ -117,7 +118,8 @@ function ArtDialog({
   useEffect(() => {
     onPreview?.(color !== start.color ? color : null)
   }, [color, start.color, onPreview])
-  const [refused, setRefused] = useState(false)
+  const catalog = useCoreCatalog()
+  const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   return (
     <Dialog
       title={t(title)}
@@ -131,7 +133,14 @@ function ArtDialog({
         </>
       }
     >
-      <Form id={form} ready={ready} onSubmit={() => setRefused(!onSubmit({ caption, ...(color ? { color } : {}) }))}>
+      <Form
+        id={form}
+        ready={ready}
+        onSubmit={() => {
+          const no = onSubmit({ caption, ...(color ? { color } : {}) })
+          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+        }}
+      >
         <Field label={t("Caption")}>
           {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
         </Field>
@@ -147,7 +156,7 @@ function ArtDialog({
             />
           </div>
         )}
-        {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
+        {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
   )

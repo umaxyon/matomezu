@@ -15,18 +15,16 @@ import {
   useMessages,
   usePerform,
 } from "../../../plugin-api/ui"
+import { refusalMessage } from "../../base"
 import {
   ActionButton,
-  Choices,
+  CaptionField,
   ColorPicker,
-  controlClass,
   Dialog,
-  Field,
   Form,
   Problem,
   rowClass,
   Switch,
-  useAligns,
   useBookOf,
   useBookTheme,
   useSwatches,
@@ -53,12 +51,12 @@ export function addShapeDialog(item: string, turnable = false) {
     const { select } = useActions()
     const perform = usePerform(stage)
     const add = (props: ShapeProps) => {
-      if (!book) return false
+      if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
-      if (!done.ok) return false
+      if (!done.ok) return done
       select(stage, [done.result.item])
       onClose()
-      return true
+      return null
     }
     return (
       <ShapeDialog
@@ -96,7 +94,7 @@ export function EditShapeDialog({ stage, args, onClose }: DialogProps<{ page: st
       props: { ...props, color: props.color ?? null },
     })
     if (done.ok) onClose()
-    return done.ok
+    return done.ok ? null : done
   }
   return (
     <ShapeDialog
@@ -127,14 +125,15 @@ function ShapeDialog({
   start: ShapeProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: ShapeProps) => boolean // 決められたか
+  onSubmit: (props: ShapeProps) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
   onPreview?: (look: Look | null) => void // 寄せ・色を選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
   const t = useMessages(kit)
   const form = useId()
-  const [caption, setCaption] = useState(start.caption)
-  const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
+  const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
+  const { caption, captionAlign } = head
+  const catalog = useCoreCatalog()
   const [color, setColor] = useState(start.color)
   const [turned, setTurned] = useState(start.turned)
   // 色の見本: ブックのテーマの代表色と塗り
@@ -143,8 +142,7 @@ function ShapeDialog({
   useEffect(() => {
     onPreview?.(changed ? { captionAlign, color } : null)
   }, [changed, captionAlign, color, onPreview])
-  const aligns = useAligns()
-  const [refused, setRefused] = useState(false)
+  const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   return (
     <Dialog
       title={t(title)}
@@ -161,25 +159,17 @@ function ShapeDialog({
       <Form
         id={form}
         ready={ready}
-        onSubmit={() =>
-          setRefused(
-            !onSubmit({
-              caption,
-              captionAlign,
-              ...(color ? { color } : {}),
-              ...(turned === undefined ? {} : { turned }),
-            }),
-          )
-        }
+        onSubmit={() => {
+          const no = onSubmit({
+            caption,
+            captionAlign,
+            ...(color ? { color } : {}),
+            ...(turned === undefined ? {} : { turned }),
+          })
+          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+        }}
       >
-        <Field
-          label={t("Caption")}
-          aside={
-            <Choices label={t("Caption alignment")} value={captionAlign} options={aligns} onChange={setCaptionAlign} />
-          }
-        >
-          {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
-        </Field>
+        <CaptionField text={head} onChange={setHead} />
         {swatches && (
           <div className={rowClass}>
             <span>{t("Color")}</span>
@@ -198,7 +188,7 @@ function ShapeDialog({
             <Switch label={t("Rotate 90°")} checked={turned} onChange={setTurned} />
           </div>
         )}
-        {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
+        {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
   )

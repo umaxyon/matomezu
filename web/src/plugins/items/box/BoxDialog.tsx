@@ -3,32 +3,32 @@
 // 子を持つ内包ボックスでは、真ん中は押せない（子がある間は上として描くため）。
 // テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
 // 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
-// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで、上の装飾のボックスで太字と文字の色を付けられる（base の RichBody）。
-// 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
+// キャプション・区切り線・本文は base の文字の領域の入力Formのコンポーネント（CaptionField・DividerField・BodyField）。
+// 置けない（紙からはみ出す・止められたなど）ときは閉じずに理由を出す。
 // 追加は開いたときに覚えた所に箱を置いて（アクション item-place）選び、編集は箱の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
-import { BODY_MAX } from "../../base"
+import { refusalMessage } from "../../base"
 import {
   ActionButton,
+  BodyField,
+  CaptionField,
   Choices,
   ColorPicker,
   controlClass,
   Dialog,
+  DividerField,
   Field,
   Form,
   Problem,
-  RichBody,
   rowClass,
-  Switch,
-  useAligns,
+  type TextDraft,
   useBookOf,
   useBookTheme,
   useSwatches,
 } from "../../base/ui"
-import styles from "./BoxDialog.module.css"
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
 import { kit } from "./kit"
 import { VALIGNS, type VAlign } from "./size"
@@ -60,12 +60,12 @@ function AddBox({
   const { select } = useActions()
   const perform = usePerform(stage)
   const add = (props: BoxProps) => {
-    if (!book) return false
+    if (!book) return { reason: "no-book" }
     const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
-    if (!done.ok) return false
+    if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()
-    return true
+    return null
   }
   return (
     <BoxDialog
@@ -104,7 +104,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
       props: { ...props, vAlign: props.vAlign ?? null, theme: props.theme ?? null, color: props.color ?? null },
     })
     if (done.ok) onClose()
-    return done.ok
+    return done.ok ? null : done
   }
   return (
     <BoxDialog
@@ -140,18 +140,21 @@ function BoxDialog({
   start: BoxProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: BoxProps) => boolean // 決められたか
+  onSubmit: (props: BoxProps) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
   onPreview?: (look: Look | null) => void // 本文・寄せ・テーマ・色を変えた（元の値に戻せば null。無ければ見せない）
   onClose: () => void
   hasChildren?: boolean // 子を持つ内包ボックスか（縦の位置の真ん中を押せなくする）
 }) {
   const t = useMessages(kit)
   const form = useId()
-  const [caption, setCaption] = useState(start.caption)
-  const [body, setBody] = useState(start.body)
-  const [rule, setRule] = useState(start.rule)
-  const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
-  const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
+  const [text, setText] = useState<TextDraft>({
+    caption: start.caption,
+    rule: start.rule,
+    body: start.body,
+    captionAlign: start.captionAlign,
+    bodyAlign: start.bodyAlign,
+  })
+  const { body, captionAlign, bodyAlign } = text
   const [vAlign, setVAlign] = useState(start.vAlign)
   const [theme, setTheme] = useState(start.theme ?? "")
   const [color, setColor] = useState(start.color)
@@ -169,15 +172,13 @@ function BoxDialog({
   useEffect(() => {
     onPreview?.(changed ? { body, captionAlign, bodyAlign, vAlign, theme: theme || undefined, color } : null)
   }, [changed, body, captionAlign, bodyAlign, vAlign, theme, color, onPreview])
-  const aligns = useAligns()
   const vAligns = VALIGNS.map(v => ({
     value: v,
     label: t(VALIGN_LOOK[v].label),
     icon: VALIGN_LOOK[v].icon,
     disabled: hasChildren && v === "middle",
   }))
-  const [refused, setRefused] = useState(false)
-  const hasBody = body !== ""
+  const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   return (
     <Dialog
       title={t(title)}
@@ -194,66 +195,31 @@ function BoxDialog({
       <Form
         id={form}
         ready={ready}
-        onSubmit={() =>
-          setRefused(
-            !onSubmit({
-              caption,
-              rule,
-              body,
-              captionAlign,
-              bodyAlign,
-              ...(vAlign ? { vAlign } : {}),
-              ...(theme ? { theme } : {}),
-              ...(color ? { color } : {}),
-            }),
-          )
-        }
+        onSubmit={() => {
+          const no = onSubmit({
+            ...text,
+            ...(vAlign ? { vAlign } : {}),
+            ...(theme ? { theme } : {}),
+            ...(color ? { color } : {}),
+          })
+          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+        }}
       >
-        <Field
-          label={t("Caption")}
+        <CaptionField
+          text={text}
+          onChange={setText}
           aside={
-            <span className={styles.aligns}>
-              <Choices
-                label={t("Caption alignment")}
-                value={captionAlign}
-                options={aligns}
-                onChange={setCaptionAlign}
-              />
-              <Choices<VAlign>
-                label={t("Vertical position")}
-                value={vAlign}
-                options={vAligns}
-                onChange={setVAlign}
-                clearable
-              />
-            </span>
-          }
-        >
-          {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
-        </Field>
-        <div className={rowClass}>
-          <span>{t("Divider")}</span>
-          <Switch label={t("Divider")} checked={rule} disabled={!hasBody} onChange={setRule} />
-        </div>
-        <Field
-          label={t("Body")}
-          aside={<Choices label={t("Body alignment")} value={bodyAlign} options={aligns} onChange={setBodyAlign} />}
-        >
-          {id => (
-            <RichBody
-              id={id}
-              stage={stage}
-              label={t("Body")}
-              rows={4}
-              maxLength={BODY_MAX}
-              value={body}
-              onChange={text => {
-                if (!hasBody && text !== "") setRule(true)
-                setBody(text)
-              }}
+            <Choices<VAlign>
+              label={t("Vertical position")}
+              value={vAlign}
+              options={vAligns}
+              onChange={setVAlign}
+              clearable
             />
-          )}
-        </Field>
+          }
+        />
+        <DividerField text={text} onChange={setText} />
+        <BodyField stage={stage} text={text} onChange={setText} rows={4} />
         <Field label={t("Theme")}>
           {id => (
             <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
@@ -278,7 +244,7 @@ function BoxDialog({
             />
           </div>
         )}
-        {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
+        {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
   )
