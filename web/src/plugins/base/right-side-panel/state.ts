@@ -3,7 +3,7 @@
 import type { Stage } from "../../../core/stage"
 
 export interface RightSidePanelOpen {
-  panel: string // 出している中身（右サイドパネルのスロットに置いたウィジェットの id）
+  widget: string // 出している中身（右サイドパネルのスロットに置いたウィジェットの id）
   subject: string // 中身が見せている物の id（コメントなら、そのコメントの id）
   anchor: string // 見せている物が付いた先（ステージの物の id）
   book: string // 開いたときのブック

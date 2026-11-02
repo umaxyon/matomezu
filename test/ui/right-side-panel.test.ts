@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { panelIn, stillOn, withPanel } from "../../web/src/plugins/base/right-side-panel/state"
 
-const OPEN = { panel: "p:panel", subject: "c1", anchor: "a1", book: "b1", page: "p1" }
+const OPEN = { widget: "p:panel", subject: "c1", anchor: "a1", book: "b1", page: "p1" }
 
 test("開くと置き、閉じると消す。ほかの画面の状態は残す", () => {
   const opened = withPanel({ commentDraft: { anchors: ["x"] } }, OPEN)

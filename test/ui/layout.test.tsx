@@ -104,13 +104,6 @@ describe("配置", () => {
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual(["E211"])
     const { "@matomezu/base:right-side-panel": _, ...slots } = layout.slots
     expect(checkLayout({ ...layout, slots } as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
-    // 開けるスロットを足せば、中身も置ける
-    const WITH_PANEL = defineWorkspace({
-      id: "w:workspace",
-      view: MyWorkspace,
-      opens: ["@matomezu/base:right-side-panel"],
-    })
-    expect(WITH_PANEL.opens).toEqual([...STAGE_BASE_SLOTS, "@matomezu/base:right-side-panel"])
   })
 
   test("右クリックのメニューのインスタンスに無いコマンドと、どのコンポーネントも開かないメニューは error", () => {

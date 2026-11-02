@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test"
 import { drawerTool } from "./drawer"
+import { fromMenu } from "./stage-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
 const panel = (page: Page) => page.getByRole("complementary", { name: "右サイドパネル" })
@@ -23,13 +24,6 @@ async function foldedComment(page: Page, x: number, caption: string, text: strin
   await page.getByRole("group", { name: "コメント", exact: true }).getByRole("button", { name: "たたむ" }).click()
 }
 
-// 下の行のブックの名前のメニューから押す
-async function fromMenu(page: Page, name: string) {
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name }).click()
-}
-
 const widths = async (page: Page) => {
   const boxes = await stages(page).evaluateAll(els => els.map(e => e.parentElement!.getBoundingClientRect().width))
   return boxes.map(Math.round)
@@ -41,7 +35,7 @@ test("コメントの絵を押すと、窓の右から 320px の右サイドパ�
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
   await foldedComment(page, 200, "一", "見てほしい")
-  await fromMenu(page, "画面を分割")
+  await (await fromMenu(page, "画面を分割")).click()
   const split = await widths(page)
   expect(split[1]).toBeGreaterThan(100)
   await page.getByRole("button", { name: "コメントを開く" }).click()
@@ -95,4 +89,42 @@ test("外を押すと閉じる。ハンドツールの間は閉じない。開�
   await expect(panel(page)).toHaveCount(0)
   // たたんだまま（押して開いても、吹き出しを出すかは変えない）
   await expect(icons).toHaveCount(2)
+})
+
+test("開いたステージのページが替わるか、分けると閉じる。中の「吹き出しを出す」で吹き出しに戻り、吹き出しの書き込みはキーでも右サイドパネルに出せる", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto("/")
+  await foldedComment(page, 200, "一", "見てほしい")
+  const icon = page.getByRole("button", { name: "コメントを開く" })
+  // ハンドツールの間は外を押しても閉じないので、ページや分割で閉じるかだけを見られる
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  await page.mouse.move(paper.x + 40, paper.y + 500)
+  await page.mouse.down({ button: "right" })
+  await page.waitForTimeout(350)
+  await page.mouse.up({ button: "right" })
+  await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name: "ハンドツール" }).click()
+  await icon.click()
+  await expect(panel(page)).toContainText("見てほしい")
+  await page.getByRole("button", { name: "ページを足す" }).click()
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
+  await expect(panel(page)).toHaveCount(0)
+  await page.getByRole("tab", { name: "ページ 1" }).click()
+  await icon.click()
+  await expect(panel(page)).toContainText("見てほしい")
+  await (await fromMenu(page, "画面を分割")).click()
+  await expect(panel(page)).toHaveCount(0)
+  await (await fromMenu(page, "分割をやめる")).click()
+  // 吹き出しに戻す
+  await icon.click()
+  await panel(page).getByRole("button", { name: "吹き出しを出す" }).click()
+  const bubble = page.getByRole("group", { name: "コメント", exact: true })
+  await expect(bubble).toContainText("見てほしい")
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+  await bubble.getByRole("button", { name: "コメントを開く" }).focus()
+  await page.keyboard.press("Enter")
+  await expect(panel(page)).toContainText("見てほしい")
 })

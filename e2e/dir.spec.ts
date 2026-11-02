@@ -1,15 +1,10 @@
 // ディレクトリ構成図のブック（@matomezu/dir）: キーで中身を足して名前を書き、行をドラッグして付け替え、▸・▾ で開け閉めする
 import { expect, type Page, test } from "@playwright/test"
+import { fromMenu } from "./stage-menu"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 const rows = (page: Page) => paper(page).locator("[data-entry]")
 const row = (page: Page, name: string) => rows(page).filter({ hasText: new RegExp(`^${name}$`) })
-
-async function fromMenu(page: Page, name: string) {
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  return trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name })
-}
 
 // マスターでディレクトリ構成図のブックを作り、根のフォルダ proj だけのページを作る
 async function dirBook(page: Page) {
