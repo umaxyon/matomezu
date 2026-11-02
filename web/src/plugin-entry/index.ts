@@ -42,6 +42,8 @@ export {
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
+  blockBodyHeight,
+  blockBodyLines,
   bodyColumn,
   bodyMinWidth,
   bodyText,
