@@ -200,3 +200,20 @@ test("開いているページの中身をずらした（ページの shift が�
   // ずらしていなければ同じ値
   expect(followBook(CORE_CATALOG, back, book)).toBe(back)
 })
+
+test("位置をデータに持たない見せ方が、描く中身をずらした量（origin）を広さと一緒に知らせて変われば、中身が同じ所に見えるようパンを合わせる", () => {
+  const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
+  const book = { type: "@matomezu/drawing:drawing" as const, id: "b1", title: "見本", pages: [page] }
+  const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
+  const view = { w: 400, h: 300 }
+  const area = { w: sheet.w * 3, h: sheet.h * 2 }
+  const start = setArea(resize(openBook(CORE_CATALOG, newStage("s1"), book), view), area, { x: 1, y: 0 })
+  const at = panBy(start, -sheet.w, 0)
+  // 左へ印刷区画 1 つ分あふれて、右へ印刷区画 2 つ分ずらすことになった
+  const moved = setArea(at, { w: sheet.w * 4, h: sheet.h * 2 }, { x: 2, y: 0 })
+  expect(moved.pan).toEqual({ x: at.pan.x - sheet.w, y: at.pan.y })
+  expect(moved.opened?.origin).toEqual({ x: 2, y: 0 })
+  // 同じ広さとずらした量なら同じ値。紙 1 枚に戻せば、ずらした量も無くなる
+  expect(setArea(moved, { w: sheet.w * 4, h: sheet.h * 2 }, { x: 2, y: 0 })).toBe(moved)
+  expect(setArea(moved, null).opened?.origin).toBeUndefined()
+})

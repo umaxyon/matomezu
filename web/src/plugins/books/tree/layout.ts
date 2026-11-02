@@ -7,7 +7,16 @@
 // 節の大きさは、節の大きさの選び方（節の size、無ければページで効いている選び方 size.ts）で決める: 伸びるはキャプション 1 行の幅、
 // 折り返すは N 字の幅で折り返した行、最大で固定は N 字の幅まで（超えた分は … で切る）
 import type { Point } from "../../../plugin-api"
-import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, textWidth, wrapRich } from "../../base"
+import {
+  clampRich,
+  type GrowSides,
+  parseRich,
+  type RichLine,
+  richWidth,
+  TEXT_LOOK,
+  textWidth,
+  wrapRich,
+} from "../../base"
 import type { Grow } from "./grow"
 import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
 import { DEFAULT_NODE_SHAPE, type NodeShape } from "./shape"
@@ -35,6 +44,7 @@ export interface TreeLayout {
   nodes: LaidNode[]
   lines: { from: Point; to: Point; side: Side }[] // 親から子への線（side はその枝の伸びる向き）
   fits: boolean // どの節も紙に収まるか
+  origin: Point // 可変ページで、木全体を右・下へずらした印刷区画の数（可変ページでなければ 0）
 }
 
 type Rect = { x: number; y: number; w: number; h: number }
@@ -208,14 +218,12 @@ function shiftInto(out: TreeLayout, paper: { w: number; h: number }) {
   shiftBy(out, into(x0, x1, paper.w), into(y0, y1, paper.h))
 }
 
-// 可変ページで、木が紙 1 枚からあふれた向きは、木全体の左端（上端）を紙の辺から MARGIN の所へ寄せる（右と下へは印刷区画が増える）
-function alignStart(out: TreeLayout, paper: { w: number; h: number }) {
+// 可変ページで、木全体を右・下へずらす印刷区画の数: 左（上）へ増やすなら、紙の左（上）からあふれた分と、空きの印刷区画 1 つ
+function originOf(out: TreeLayout, paper: { w: number; h: number }, sides: GrowSides): Point {
   const x0 = Math.min(...out.nodes.map(n => n.x))
   const y0 = Math.min(...out.nodes.map(n => n.y))
-  const x1 = Math.max(...out.nodes.map(n => n.x + n.w))
-  const y1 = Math.max(...out.nodes.map(n => n.y + n.h))
-  const start = (lo: number, hi: number, size: number) => (lo < 0 || hi > size ? MARGIN - lo : 0)
-  shiftBy(out, start(x0, x1, paper.w), start(y0, y1, paper.h))
+  const over = (lo: number, size: number) => (lo < 0 ? Math.ceil(-lo / size - 1e-9) : 0)
+  return { x: sides.left ? over(x0, paper.w) + 1 : 0, y: sides.up ? over(y0, paper.h) + 1 : 0 }
 }
 
 // 木の節と線を dx・dy だけずらす
@@ -233,14 +241,15 @@ function shiftBy(out: TreeLayout, dx: number, dy: number) {
 }
 
 // size はページで効いている節の大きさの選び方（節が自分で選んでいなければ、これに従う）、shape は節の形。
-// variable（可変ページ）なら、紙 1 枚からあふれた向きは木の左端（上端）を寄せ、紙に入るか（fits）はいつも真（印刷区画が増える）
+// sides（可変ページの増やす向き）があれば、紙に入るか（fits）はいつも真（根のある側のほかへ印刷区画が増える）で、左（上）へ増やすなら、
+// あふれた分と空きの印刷区画 1 つだけ木全体を右（下）へずらす（origin）
 export function layoutTree(
   root: TreeRoot,
   grow: Grow,
   paper: { w: number; h: number },
   size: NodeSize = DEFAULT_NODE_SIZE,
   shape: NodeShape = DEFAULT_NODE_SHAPE,
-  variable = false,
+  sides?: GrowSides,
 ): TreeLayout {
   const look = { size, shape }
   const box = rootBox(root, size)
@@ -258,6 +267,7 @@ export function layoutTree(
     ],
     lines: [],
     fits: true,
+    origin: { x: 0, y: 0 },
   }
   const kids = root.children ?? []
   if (grow === "center") {
@@ -266,15 +276,16 @@ export function layoutTree(
     for (const side of stays) branch(r, group(side), side, look, out)
     const near = out.nodes.slice(1)
     for (const side of SIDE_NAMES.filter(s => !stays.includes(s))) {
-      const trial: TreeLayout = { nodes: [], lines: [], fits: true }
+      const trial: TreeLayout = { nodes: [], lines: [], fits: true, origin: { x: 0, y: 0 } }
       branch(r, group(side), side, look, trial)
       branch(r, group(side), side, look, out, pushOut(trial.nodes, near, side))
     }
     shiftInto(out, paper)
   } else branch(r, kids, grow, look, out)
   out.fits = out.nodes.every(n => n.x >= 0 && n.y >= 0 && n.x + n.w <= paper.w && n.y + n.h <= paper.h)
-  if (variable && !out.fits) {
-    alignStart(out, paper)
+  if (sides) {
+    out.origin = originOf(out, paper, sides)
+    shiftBy(out, out.origin.x * paper.w, out.origin.y * paper.h)
     out.fits = true
   }
   return out

@@ -1,7 +1,7 @@
 // ツリーのページが紙に入るか: ページの根（root を渡せばそれ）を、そのページで効いている伸びる向きで並べ、どの節も紙に収まるか（描けない紙のページは確かめない。可変ページはいつも入る）
 import type { CoreCatalog, ItemPage } from "../../../plugin-api"
 import { paperSize } from "../../base"
-import { GROW } from "./grow"
+import { GROW, growSidesOf } from "./grow"
 import { layoutTree } from "./layout"
 import { type TreeRoot, TreeRootSchema } from "./node"
 import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "./shape"
@@ -21,5 +21,5 @@ export function treeFits(
   const grow = GROW.schema.safeParse(setting(GROW.id)).data ?? "down"
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
   const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
-  return layoutTree(found, grow, paper, size, shape, page.grows !== undefined).fits
+  return layoutTree(found, grow, paper, size, shape, page.grows !== undefined ? growSidesOf(grow) : undefined).fits
 }
