@@ -82,7 +82,7 @@ function leave(stage: Stage): Stage {
   return { ...stage, placing: null, selection: NONE, editing: false, picker: null }
 }
 
-// ステージに出す紙の大きさ（ページを開いていないか、描けない紙なら null）
+// ステージに出す紙の大きさ（ページを開いていないか、描けない紙か、見せ方が紙を置かないなら null）
 export function paperOf(stage: Pick<Stage, "opened">): Size | null {
   const paper = stage.opened?.paper
   return paper && paper.status !== "unshowable" ? paper.size : null

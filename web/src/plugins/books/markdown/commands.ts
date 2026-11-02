@@ -2,23 +2,25 @@
 // 並べているときは、右クリックしたペインを閉じてもう一方を残す（ステージを閉じるのと同じ）。並べ方はこのプラグインのステージの画面の状態に持つ
 import type { CommandContext } from "../../../plugin-api"
 import { kit } from "./kit"
-import { MARKDOWN } from "./markdown"
+import { MARKDOWN_PRESENTATION } from "./markdown"
 import { type Pane, paneLayoutOf, unsplit } from "./panes"
 
-const onMarkdown = (ctx: CommandContext) => ctx.book?.type === MARKDOWN.id
+// 開いているブックのタイプが、マークダウンの見せ方で描くか
+const onMarkdown = (ctx: CommandContext) =>
+  ctx.book !== null && ctx.catalog.bookTypes.get(ctx.book.type)?.presentation === MARKDOWN_PRESENTATION.id
 const isSplit = (ctx: CommandContext) => paneLayoutOf(ctx.stageState).split !== null
 
 export const PANE_SPLIT_ROW = kit.defineCommand({
   id: "pane-split-row",
   title: "Split vertically",
-  run: (_ctx, a, _at: { pane: Pane }) => a.updateStageState(() => ({ split: "row" })),
+  run: (_ctx, a) => a.updateStageState(() => ({ split: "row" })),
   when: ctx => onMarkdown(ctx) && !isSplit(ctx),
 })
 
 export const PANE_SPLIT_COLUMN = kit.defineCommand({
   id: "pane-split-column",
   title: "Split horizontally",
-  run: (_ctx, a, _at: { pane: Pane }) => a.updateStageState(() => ({ split: "column" })),
+  run: (_ctx, a) => a.updateStageState(() => ({ split: "column" })),
   when: ctx => onMarkdown(ctx) && !isSplit(ctx),
 })
 

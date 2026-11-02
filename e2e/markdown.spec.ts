@@ -37,7 +37,6 @@ test("紙を置かずに、ソースとプレビューを左右に並べて開�
   expect(preview.x).toBeGreaterThan(source.x) // 左右
 
   await pane(page, "ソース").getByRole("tab", { name: "ソース" }).click({ button: "right" })
-  await expect(page.getByRole("menuitem", { name: "縦分割" })).toHaveCount(0)
   await page.getByRole("menuitem", { name: "分割を閉じる" }).click()
   await expect(pane(page, "ソース")).toHaveCount(0)
   await expect(pane(page, "プレビュー")).toBeVisible()

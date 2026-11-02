@@ -5,7 +5,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { growOf } from "../../web/src/plugins/base"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
-import { paneLayoutOf, unsplit } from "../../web/src/plugins/books/markdown/panes"
+import { paneLayoutOf } from "../../web/src/plugins/books/markdown/panes"
 import { isShown } from "../../web/src/store/commands"
 import { newStore } from "../support"
 
@@ -54,7 +54,6 @@ test("ペインの並べ方: 何も無ければ左右に並べる。分割を閉
   expect(paneLayoutOf({ split: "column" })).toEqual({ split: "column" })
   expect(paneLayoutOf({ split: null, shown: "rendered" })).toEqual({ split: null, shown: "rendered" })
   expect(paneLayoutOf({ split: "diagonal" })).toEqual({ split: "row" })
-  expect(unsplit("source")).toEqual({ split: null, shown: "rendered" })
 })
 
 test("並べている間は「分割を閉じる」だけ、1 つだけ見せている間は縦分割・横分割だけを出す。並べ方はそのステージだけに効く", () => {
@@ -72,11 +71,25 @@ test("並べている間は「分割を閉じる」だけ、1 つだけ見せて
   actions.command("s1", "@matomezu/markdown:pane-unsplit", { pane: "rendered" })
   expect(state.getState().stageStates.s1?.["@matomezu/markdown"]).toEqual({ split: null, shown: "source" })
   expect(shown("s1")).toEqual(["@matomezu/markdown:pane-split-row", "@matomezu/markdown:pane-split-column"])
-  actions.command("s1", "@matomezu/markdown:pane-split-column", { pane: "source" })
+  actions.command("s1", "@matomezu/markdown:pane-split-column")
   expect(paneLayoutOf(state.getState().stageStates.s1?.["@matomezu/markdown"])).toEqual({ split: "column" })
 })
 
 test("ほかのタイプのブックでは、ペインの分割のコマンドを出さない", () => {
   const store = newStore()
   expect(isShown(store, store.state.getState(), "s1", "@matomezu/markdown:pane-unsplit")).toBe(false)
+})
+
+test("ページを切り替えても、紙を変えても、ステージに紙を置かない。紙で決まる倍率・道具のアイコンのコマンドは出さない", () => {
+  const { store, id, book } = markdownStore()
+  const { state, actions } = store
+  addPageIn(store, "s1", { title: "ページ 2" })
+  const [first, second] = book().pages.map(p => p.id) as [string, string]
+  expect(state.getState().workspace.stages[0]!.opened?.page).toBe(second)
+  actions.openPage("s1", first)
+  expect(state.getState().workspace.stages[0]!.opened).toMatchObject({ page: first, paper: null })
+  actions.perform("@matomezu/base:page-update", { page: first, paper: "@matomezu/base:a3" }, { book: id })
+  expect(state.getState().workspace.stages[0]!.opened).toMatchObject({ page: first, paper: null })
+  for (const c of ["@matomezu/base:zoom-in", "@matomezu/base:tool-picker"] as const)
+    expect(isShown(store, state.getState(), "s1", c)).toBe(false)
 })

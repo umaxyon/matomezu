@@ -2,6 +2,7 @@
 import { definePluginUi } from "../../../plugin-api/ui"
 import { MARKDOWN_PLUGIN } from "."
 import { MARKDOWN_PRESENTATION } from "./markdown"
+import type { Pane } from "./panes"
 import { MARKDOWN_VIEW } from "./view/ui"
 
 export const MARKDOWN_UI = definePluginUi(MARKDOWN_PLUGIN, {
@@ -10,6 +11,6 @@ export const MARKDOWN_UI = definePluginUi(MARKDOWN_PLUGIN, {
 
 declare module "../../../core/catalog" {
   interface ContextMenuTable {
-    "@matomezu/markdown:pane-context": { pane: "source" | "rendered" } // ペインのタブ（右クリックしたペイン）
+    "@matomezu/markdown:pane-context": { pane: Pane } // ペインのタブ（右クリックしたペイン）
   }
 }
