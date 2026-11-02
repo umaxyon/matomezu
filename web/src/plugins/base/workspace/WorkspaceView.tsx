@@ -16,6 +16,7 @@ import {
   useRightSidePanelSliding,
 } from "../right-side-panel/hooks"
 import { RightSidePanel } from "../right-side-panel/RightSidePanel"
+import { columnGrow } from "../right-side-panel/state"
 import { BottomHoverContext } from "./bottom-hover"
 import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import styles from "./WorkspaceView.module.css"
@@ -33,7 +34,6 @@ export function WorkspaceView() {
   const panel = useOpenedRightSidePanel()?.stage ?? null
   const sliding = useRightSidePanelSliding(panel)
   const pressClosed = useRef(false)
-  const grow = (stage: string, i: number) => (panel !== null ? (stage === panel ? 1 : 0) : i === 0 ? share : 1 - share)
   const drag = (e: PointerEvent<HTMLElement>) => {
     if (e.type === "pointerdown") {
       if (e.button !== 0) return
@@ -61,7 +61,7 @@ export function WorkspaceView() {
             data-current={split && stage === current}
             data-hidden={panel !== null && stage !== panel}
             inert={panel !== null && stage !== panel}
-            style={split ? { flexGrow: grow(stage, i) } : undefined}
+            style={split ? { flexGrow: columnGrow(stage, i, panel, share) } : undefined}
           >
             {i === 1 && panel === null && (
               // biome-ignore lint/a11y/noStaticElementInteractions: 境目はポインタで動かす（キーの操作は持たない）

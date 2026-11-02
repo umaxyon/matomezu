@@ -1,4 +1,4 @@
-// i 番目のステージの下の行のブックの名前のボタンにマウスを乗せ、せり上がったメニューの中のボタン name を返す
+// i 番目のステージの下の行のブックの名前のボタンにマウスを乗せ、上がったフッタメニューの中のボタン name を返す
 import type { Page } from "@playwright/test"
 
 export async function fromMenu(page: Page, name: string, i = 0) {

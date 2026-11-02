@@ -18,7 +18,7 @@ import {
 } from "./hooks"
 import styles from "./RightSidePanel.module.css"
 import { RIGHT_SIDE_PANEL } from "./slots"
-import { type RightSidePanelOpen, stillOn } from "./state"
+import { pressCloses, type RightSidePanelOpen, stillOn } from "./state"
 
 const WIDTH = 480 // 中身のウィジェットが幅を書いていないときの幅（px。PC のブラウザの窓をいちばん狭くしても入る幅）
 
@@ -43,16 +43,18 @@ export function RightSidePanel() {
   useEffect(() => {
     for (const stage of all) if (stage !== found?.stage) close(stage)
   }, [all, found?.stage, close])
-  // 押すたびに、この押しで閉じたかを決める（外を左ボタンで押し、ずらす道具の間でなく、閉じない所でもなければ閉じる）
+  // 押すたびに、この押しで閉じたかを決める（決め方は state.ts の pressCloses）
   const stage = opened?.stage ?? null
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       pressClosed.current = false
       const target = e.target instanceof Element ? e.target : null
-      if (!stage || e.button !== 0 || !target || ref.current?.contains(target) || target.closest(KEEPS)) return
+      if (!stage || !target) return
       const s = read()
       const tool = toolOf(catalog, s.workspace, stage, s.books)
-      if (tool && catalog.tools.get(tool)?.pans) return
+      const inside = ref.current?.contains(target) ?? false
+      const pans = !!tool && !!catalog.tools.get(tool)?.pans
+      if (!pressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS), pans })) return
       pressClosed.current = true
       close(stage)
     }
