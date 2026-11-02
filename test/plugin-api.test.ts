@@ -266,14 +266,16 @@ test("コマンドに見せるステージは、プラグインに見せるス�
   const state = store.state.getState()
   const stage = state.workspace.stages.find(s => s.id === "s1")!
   const tool = toolOf(store.catalog.core, state.workspace, "s1", state.books)
-  expect(commandContext(store.catalog.core, null, state, "s1")?.stage).toEqual(
+  expect(commandContext(store.catalog.core, null, state, "s1", "@matomezu/base:stage-split")?.stage).toEqual(
     stageView(store.catalog.core, stage, tool),
   )
 })
 
 test("コマンドが受け取る文脈（CommandContext）のフィールド（ステージの並び・表示領域の大きさなどは渡さない）", () => {
   const store = newStore()
-  expect(names(commandContext(store.catalog.core, null, store.state.getState(), "s1")!)).toEqual([
+  expect(
+    names(commandContext(store.catalog.core, null, store.state.getState(), "s1", "@matomezu/base:stage-split")!),
+  ).toEqual([
     "book",
     "bookHistory",
     "catalog",
@@ -282,6 +284,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "home",
     "settings",
     "stage",
+    "stageState",
     "toPaper",
   ])
 })

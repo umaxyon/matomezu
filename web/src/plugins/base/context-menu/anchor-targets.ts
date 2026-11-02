@@ -31,6 +31,6 @@ export function anchorTargetState(key: string): AnchorTargetState {
     read,
     write,
     start: (ctx, a, anchor) =>
-      a.updateStageState(ctx.stage.id, now => write(now, { anchors: anchorsFor(anchor, ctx.stage.selection) })),
+      a.updateStageState(now => write(now, { anchors: anchorsFor(anchor, ctx.stage.selection) })),
   }
 }

@@ -40,6 +40,7 @@ export interface CommandContext {
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
   bookHistory: BookHistory // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
+  stageState: unknown // コマンドを持つプラグイン（id の頭）が持つ、そのステージの画面の状態（無ければ undefined。変えるのは run が受け取る updateStageState）
 }
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）
@@ -63,8 +64,8 @@ export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ct
 
 // コマンドが受け取る store の操作: 画面の操作（Actions）に、そのコマンドを持つプラグインの、ステージの画面の状態を変える操作を足したもの
 export interface CommandActions extends Actions {
-  // ステージ stage の、このコマンドを持つプラグインの画面の状態を、今の値から change が返す値にする（undefined なら消す）。ほかのプラグインの状態は変えられない
-  updateStageState(stage: string, change: (now: unknown) => unknown): void
+  // 呼ばれた場所のステージの、このコマンドを持つプラグインの画面の状態を、今の値から change が返す値にする（undefined なら消す）。ほかのステージ・プラグインの状態は変えられない
+  updateStageState(change: (now: unknown) => unknown): void
 }
 
 export interface CommandDef<A = undefined, Tt extends string = MessageKey> extends CommandExtras {

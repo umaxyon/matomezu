@@ -14,7 +14,6 @@ import type { Point, Size } from "../core/geom"
 import { type BookHistory, HISTORY_LIMIT, type HistoryStep, NO_HISTORY } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
-import { splitId } from "../core/names"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
@@ -50,7 +49,7 @@ import {
   unsplit,
   type Workspace,
 } from "../core/workspace"
-import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
+import { type CommandArgs, type CommandId, commandContext, commandDef, commandOwner, isEnabled } from "./commands"
 import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
 import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
@@ -423,13 +422,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       closeStep()
       const state = getState()
       const def = commandDef(defs, id)
-      const ctx = commandContext(catalog, home, state, stage)
+      const ctx = commandContext(catalog, home, state, stage, id)
       if (!ctx || !isEnabled(defs, state, stage, id)) return false
-      const { owner } = splitId(id)
-      const updateStageState = (at: string, change: (now: unknown) => unknown) => {
-        if (owner === null) fail("E117", { id })
-        setStageState(at, owner, change(getState().stageStates[at]?.[owner]))
-      }
+      const owner = commandOwner(id)
+      const updateStageState = (change: (now: unknown) => unknown) =>
+        setStageState(stage, owner, change(getState().stageStates[stage]?.[owner]))
       def.run(ctx, { ...actions, updateStageState }, args[0] as never)
       return true
     },

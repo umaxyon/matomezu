@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { isShown } from "../../web/src/store/commands"
-import { newStore } from "../support"
+import { defineMessages } from "../../web/src/core/i18n/messages"
+import { BUILTIN } from "../../web/src/plugins"
+import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { isActive, isShown } from "../../web/src/store/commands"
+import { pluginKit } from "../../web/src/store/kit"
+import { definePlugin } from "../../web/src/store/plugin"
+import { createMatomezuInstance } from "../../web/src/store/store"
+import { newStore, sequence } from "../support"
 
 describe("コマンドを出すかは、呼んだ場所の様子で決まる", () => {
   test("分割していなければ分割を出し、分割していれば、やめると閉じるを出す", () => {
@@ -82,5 +88,47 @@ describe("コマンドを行う", () => {
       actions.command("s1", "stage.nope")
     }
     expect(typeOnly).toBeFunction()
+  })
+})
+
+describe("コマンドは、自分のプラグインが持つステージの画面の状態を文脈で読み、run が受け取る updateStageState で変える", () => {
+  const kit = pluginKit("@x/pane", defineMessages({ toggle: { en: "Toggle", ja: "切り替え" } }))
+  const TOGGLE = kit.defineCommand({
+    id: "toggle",
+    title: "toggle",
+    run: (_, a) => a.updateStageState(now => (now === "split" ? undefined : "split")),
+    when: ctx => ctx.stageState !== "hidden",
+    active: ctx => ctx.stageState === "split",
+  })
+  const newPaneStore = () =>
+    createMatomezuInstance({
+      plugins: [...BUILTIN, definePlugin(kit.plugin({ commands: [TOGGLE] }))],
+      home: "@matomezu/master:master",
+      books: SAMPLE_BOOKS,
+      lang: "ja",
+      newId: sequence(),
+    })
+
+  test("run で置いた値を、そのステージの when・active が読む。ほかのステージには効かない", () => {
+    const store = newPaneStore()
+    const { state, actions } = store
+    // 表に無い id（型に書き足していない追加プラグインのコマンド）を呼ぶ
+    const toggle = (stage: string) =>
+      (actions.command as (stage: string, id: string) => boolean)(stage, "@x/pane:toggle")
+    actions.split("s1")
+    toggle("s1")
+    expect(state.getState().stageStates).toEqual({ s1: { "@x/pane": "split" } })
+    expect(isActive(store, state.getState(), "s1", "@x/pane:toggle" as never)).toBe(true)
+    expect(isActive(store, state.getState(), "s2", "@x/pane:toggle" as never)).toBe(false)
+    toggle("s1")
+    expect(state.getState().stageStates.s1).toEqual({})
+  })
+
+  test("読むのは自分の置き場だけ（ほかのプラグインの置き場の値は見えない）", () => {
+    const store = newPaneStore()
+    store.setStageState("s1", "@x/other", "hidden")
+    expect(isShown(store, store.state.getState(), "s1", "@x/pane:toggle" as never)).toBe(true)
+    store.setStageState("s1", "@x/pane", "hidden")
+    expect(isShown(store, store.state.getState(), "s1", "@x/pane:toggle" as never)).toBe(false)
   })
 })
