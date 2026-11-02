@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { isMatomezuError } from "../../web/src/core/errors"
+import type { MatomezuError } from "../../web/src/core/errors"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
@@ -137,7 +137,7 @@ const thrown = (run: () => unknown) => {
   try {
     run()
   } catch (e) {
-    return isMatomezuError(e) ? e.details.map(p => p.code) : e
+    return (e as MatomezuError).name === "MatomezuError" ? (e as MatomezuError).details.map(p => p.code) : e
   }
   return null
 }

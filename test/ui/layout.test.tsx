@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
-import { isMatomezuError, problemText } from "../../web/src/core/errors"
+import { problemText } from "../../web/src/core/errors"
 import { type Warning, warning, warningText } from "../../web/src/core/warnings"
 import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -151,7 +151,7 @@ describe("配置", () => {
     } catch (e) {
       thrown = e
     }
-    expect(isMatomezuError(thrown) && thrown.code).toBe("E210")
+    expect(thrown).toMatchObject({ name: "MatomezuError", code: "E210" })
   })
 
   test("配置の型: 置けないスロット・知らないウィジェット・引数の要るコマンドは型の誤り（行わない）", () => {

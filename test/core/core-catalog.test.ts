@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { z } from "zod"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineBookType } from "../../web/src/core/def/book-type"
-import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
+import { ERRORS, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import type { LanguagePackDef } from "../../web/src/core/i18n/messages"
 import { perform } from "../../web/src/core/perform"
@@ -55,8 +55,7 @@ describe("機能台帳", () => {
         return e
       }
     })()
-    expect(isMatomezuError(thrown) && thrown.code).toBe("E016")
-    expect(isMatomezuError(thrown) && thrown.details).toEqual(problems)
+    expect(thrown).toMatchObject({ name: "MatomezuError", code: "E016", details: problems })
     expect(String(thrown)).toContain(
       "E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-nest-box",
     )

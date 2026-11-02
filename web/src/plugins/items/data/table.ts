@@ -21,7 +21,6 @@ export const TableRowSchema = z.strictObject({
   id: z.string().min(1),
   cells: z.array(CellSchema), // 列の順に、列の数だけ
 })
-export type TableRow = z.infer<typeof TableRowSchema>
 
 // セルの並びが列の数と型に合うか
 export const cellsFit = (columns: readonly Pick<Column, "type">[], cells: readonly Cell[]): boolean =>

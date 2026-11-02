@@ -112,6 +112,8 @@ export {
 export {
   type BlockProps,
   type BodyColumn,
+  blockBodyHeight,
+  blockBodyLines,
   bodyColumn,
   bodyMinWidth,
   bodyWidthAfter,
