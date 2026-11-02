@@ -220,3 +220,38 @@ test("ページの shift は可変ページを整えるステップだけが書�
   const page = (instance.state.getState().books[book] as Drawing).pages[0]?.id
   expect(perform("notes:shift", { page }, { book })).toMatchObject({ ok: false, reason: "refused" })
 })
+
+test("フローチャートの可変ページは、流れの始まりの側を固定する。下へなら左に空きの印刷区画を持ち（上は持たない）、右へに変えると左を詰めて上に持つ", () => {
+  const store = newStore()
+  const { state, actions } = store
+  const before = new Set(Object.keys(state.getState().books))
+  expect(createBookIn(store, "s1", { title: "流れ", type: "@matomezu/flowchart:flowchart" })).toBe(true)
+  const book = Object.keys(state.getState().books).find(id => !before.has(id)) as string
+  const pageOf = () =>
+    (
+      state.getState().books[book] as unknown as {
+        pages: { id: string; shift?: object; items?: { x: number; y: number }[] }[]
+      }
+    ).pages[0]
+  expect(actions.perform("@matomezu/base:page-add", { title: "p", grows: true }, { book }).ok).toBe(true)
+  const page = pageOf()?.id as string
+  expect(
+    actions.perform(
+      "@matomezu/paper:item-place",
+      { page, item: "@matomezu/box:shape-box", at: { x: 100, y: 100 } },
+      { book },
+    ).ok,
+  ).toBe(true)
+  // A4 縦は 794×1123
+  expect(pageOf()?.shift).toEqual({ x: 1, y: 0 })
+  expect(pageOf()?.items?.[0]).toMatchObject({ x: 894, y: 100 })
+  expect(
+    actions.perform(
+      "@matomezu/base:page-update",
+      { page, settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      { book },
+    ).ok,
+  ).toBe(true)
+  expect(pageOf()?.shift).toEqual({ x: 0, y: 1 })
+  expect(pageOf()?.items?.[0]).toMatchObject({ x: 100, y: 1223 })
+})

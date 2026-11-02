@@ -57,7 +57,7 @@ import { dropAt, subtreeIds } from "../drag"
 import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from "../edit"
 import { type DirFolder, DirFolderSchema } from "../entry"
 import { kit } from "../kit"
-import { editorWidth, ICON, type LaidRow, laidBottom, layoutDir, nameLeft } from "../layout"
+import { editorWidth, ICON, type LaidRow, laidBottom, laidRight, layoutDir, nameLeft } from "../layout"
 import { noteLookOf } from "../notes"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
@@ -127,13 +127,23 @@ const Rows = memo(function Rows({
   const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
   const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok // ドラッグで動かし始められるか
   const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
-  // 可変ページなら、行が入るだけ下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
-  const growing = book && page ? growOf(catalog, book, page) : undefined // ページが伸びる向き（タイプの紙の規定）
+  // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
+  const growing = book && page ? growOf(catalog, book, page) : undefined // ページの増やす向き
   const variable = growing !== undefined
-  const rowsBottom = variable && root.success ? laidBottom(layoutDir(root.data, paper, undefined, true).rows) : 0
+  const wide =
+    variable && root.success && book && page
+      ? layoutDir(
+          root.data,
+          paper,
+          noteLookOf(id => settingValue(catalog, book, page, id)),
+          true,
+        )
+      : null
   useStageArea(
     stage.id,
-    growing ? grownArea(paper, growing, { x: 0, y: 0, w: paper.w, h: rowsBottom }, true).size : null,
+    growing && wide
+      ? grownArea(paper, growing, { x: 0, y: 0, w: laidRight(wide), h: laidBottom(wide.rows) }, true).size
+      : null,
   )
   if (!page || !root.success) return null
   const dir = root.data
