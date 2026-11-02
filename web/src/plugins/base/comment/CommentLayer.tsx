@@ -14,6 +14,7 @@ import type { StageSlotProps } from "../workspace/ui"
 import { COMMENT, COMMENT_ADD, COMMENT_REMOVE, COMMENT_REPLY, COMMENT_UPDATE, type CommentProps } from "."
 import styles from "./CommentLayer.module.css"
 import { type CommentDraft, useCommentDraft, useSetCommentDraft } from "./draft"
+import { MarkWalker } from "./MarkWalker"
 
 const NONE: readonly Annotation[] = []
 
@@ -64,9 +65,7 @@ function CommentStand({
   if (props.ask === "point" && props.posts.every(p => p.text === ""))
     return (
       <Stand anchor={anchor} side="edge" span label={t("Comment")}>
-        <div className={styles.walk}>
-          <button type="button" className={styles.mark} aria-label={t("Open comment")} onClick={open} />
-        </div>
+        <MarkWalker label={t("Open comment")} onOpen={open} />
       </Stand>
     )
   return (

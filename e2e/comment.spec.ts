@@ -74,5 +74,5 @@ test("コメントの下書きは Esc で付けずに閉じる。指すだけの
   await expect(walker).toBeVisible()
   const b = (await box.boundingBox())!
   const w = (await walker.boundingBox())!
-  expect(w.y + w.height).toBeLessThanOrEqual(b.y + 1)
+  expect(w.y + w.height).toBeLessThanOrEqual(b.y + 5)
 })

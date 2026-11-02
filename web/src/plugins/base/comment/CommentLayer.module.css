@@ -123,31 +123,20 @@
 /* マークの絵が歩く所（物の上の辺。幅は物の幅） */
 .walk {
   position: relative;
-  height: 14px;
+  height: 32px;
   pointer-events: none;
 }
-/* マークの絵: 辺の端から端へ往復する */
+/* マークの絵: 1 コマ 32px の、4 列 2 行のコマの並び（コマと位置は MarkWalker が決める）。コマの中の足の下の余白だけ下げ、辺に立たせる */
 .mark {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 12px;
-  height: 12px;
+  bottom: -4px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: 1px solid var(--skin-border-strong);
-  border-radius: 50%;
-  background: var(--skin-bubble);
+  border: 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: 128px 64px;
   cursor: pointer;
   pointer-events: auto;
-  animation: walk 4s ease-in-out infinite alternate;
-}
-@keyframes walk {
-  to {
-    left: calc(100% - 12px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .mark {
-    animation: none;
-  }
 }
