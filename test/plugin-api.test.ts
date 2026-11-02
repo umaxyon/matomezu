@@ -192,6 +192,7 @@ test("matomezu/ui が出す名前", () => {
     "useAligns",
     "useAllowed",
     "useAnchorRef",
+    "useBodyGrips",
     "useBook",
     "useBookOf",
     "useBookTheme",

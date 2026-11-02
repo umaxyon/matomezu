@@ -65,6 +65,7 @@ export {
   RichText,
   TextBlockView,
   type TextDraft,
+  useBodyGrips,
 } from "./text/ui"
 export * from "./utils/ui"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"

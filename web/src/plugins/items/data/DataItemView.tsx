@@ -7,8 +7,8 @@
 // データにテーマ（theme）を当てていれば、そのテーマのデータのテーマキーで描く。表に無いテーマならブックのテーマのまま
 import { type ReactNode, useState } from "react"
 import type { ItemProps } from "../../../plugin-api"
-import { type ItemViewProps, useAllowed, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
-import { TextBlockView, useThemeVars } from "../../base/ui"
+import { type ItemViewProps, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
+import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import { areasOf } from "./areas"
 import { ChartView } from "./ChartView"
 import styles from "./DataItemView.module.css"
@@ -32,8 +32,7 @@ export function DataItemView({
   const at = useStage(stage)
   const page = at?.opened?.page ?? undefined
   const perform = usePerform(stage)
-  const allowed = useAllowed(stage, "@matomezu/paper:item-update", { page, items: [id] }).ok
-  const grips = allowed && at !== null && !at.pans && at.selection.includes(id)
+  const grips = useBodyGrips(stage, id, "@matomezu/paper:item-update")
   const table = content.table
   const areas = areasOf(props, size)
   const motion = useMotion(motionState(table, props))

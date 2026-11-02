@@ -38,6 +38,7 @@ export {
   type TextDraft,
   UserSettings,
   useAligns,
+  useBodyGrips,
   useBookOf,
   useBookTheme,
   useDrawnMinimap,
