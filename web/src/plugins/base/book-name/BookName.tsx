@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useBook } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
@@ -20,10 +21,7 @@ import { FooterMenuContext } from "./footer-menu-context"
 const LEAVE_MS = 250
 
 export function BookName({ stage }: { stage: string }) {
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    return o ? s.books[o.book] : undefined
-  })
+  const book = useBook(stage) ?? undefined
   const lang = useMatomezuState(s => s.lang)
   const current = useMatomezuState(s => s.workspace.current === stage)
   const t = useMessages(kit)
