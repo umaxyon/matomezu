@@ -82,7 +82,9 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
   )
 }
 
-// 押すと「外す？」の吹き出しを出す所。children は押す物（吹き出しを出し入れする関数を受け取る）。ポインタが離れるか、ほかを押すと隠す
+const LEAVE_GRACE = 400 // ポインタが離れてから「外す？」を隠すまでの ms
+
+// 押すと「外す？」の吹き出しを出す所。children は押す物（吹き出しを出し入れする関数を受け取る）。ポインタが離れて少し経つか、ほかを押すと隠す
 function RemoveAsk({
   onRemove,
   onAsking,
@@ -107,8 +109,20 @@ function RemoveAsk({
     document.addEventListener("pointerdown", onPointerDown, true)
     return () => document.removeEventListener("pointerdown", onPointerDown, true)
   }, [asking])
+  // ポインタが離れたら少し待って隠す（押す物と吹き出しの間の隙間を通って「はい」へ行けるように。戻れば隠さない）
+  const leaving = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const stay = () => clearTimeout(leaving.current)
+  useEffect(() => () => clearTimeout(leaving.current), [])
   return (
-    <div ref={ref} className={styles.ask} onPointerLeave={() => setAsking(false)}>
+    <div
+      ref={ref}
+      className={styles.ask}
+      onPointerEnter={stay}
+      onPointerLeave={() => {
+        stay()
+        leaving.current = setTimeout(() => setAsking(false), LEAVE_GRACE)
+      }}
+    >
       {asking && (
         // biome-ignore lint/a11y/useSemanticElements: 吹き出しは問いとボタンを束ねる箱で、入力Formのまとまり（fieldset）ではない
         <div className={styles.askBubble} role="group" aria-label={t("Remove?")}>

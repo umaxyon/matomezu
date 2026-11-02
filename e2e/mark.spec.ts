@@ -41,11 +41,17 @@ test("箱の右クリックの「マーク」で 6 つの種類を選ぶスタ�
   await bird.click()
   const ask = page.getByRole("group", { name: "外す？" })
   await expect(ask).toBeVisible()
-  await ask.getByRole("button", { name: "はい" }).click()
+  // 鳥から「はい」へ、ポインタを少しずつ動かしても吹き出しは消えない
+  const yes = page.getByRole("button", { name: "はい" })
+  const y = (await yes.boundingBox())!
+  await page.mouse.move(y.x + y.width / 2, y.y + y.height / 2, { steps: 20 })
+  await expect(ask).toBeVisible()
+  await page.mouse.down()
+  await page.mouse.up()
   await expect(bird).toHaveCount(0)
 })
 
-test("1 つの箱のマークは 1 つで、別の種類を選ぶと置き換わる。びっくりマークは右上の角に出て、ほかを押すと「外す？」が隠れる", async ({
+test("1 つの箱のマークは 1 つで、別の種類を選ぶと置き換わる。びっくりマークは右上の角に出て、ほかを押すかポインタが離れると「外す？」が隠れる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -65,6 +71,11 @@ test("1 つの箱のマークは 1 つで、別の種類を選ぶと置き換わ
   await page.mouse.click(10, 400)
   await expect(ask).toHaveCount(0)
   await expect(alert).toHaveCount(1)
+  // ポインタが離れたまま少し経っても隠れる
+  await alert.click()
+  await expect(ask).toBeVisible()
+  await page.mouse.move(10, 400)
+  await expect(ask).toHaveCount(0)
 })
 
 test("種類を選ぶスタンドは Esc で付けずに閉じる", async ({ page }) => {
