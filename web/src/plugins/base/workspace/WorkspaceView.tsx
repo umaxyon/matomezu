@@ -5,7 +5,7 @@
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
 // ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（割合の計算と収め方は workspace の側）。
 // 列の右に右サイドパネルを置く。開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）
-import { type CSSProperties, type PointerEvent, useLayoutEffect, useRef, useState } from "react"
+import { type CSSProperties, type PointerEvent, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
@@ -26,6 +26,7 @@ export function WorkspaceView() {
   useLayoutEffect(() => setScrollbar(scrollbarWidth()), [])
   const split = ids.length === 2
   const panel = useRightSidePanelStage()
+  const sliding = useSliding(panel)
   const grow = (stage: string, i: number) => (panel !== null ? (stage === panel ? 1 : 0) : i === 0 ? share : 1 - share)
   const drag = (e: PointerEvent<HTMLElement>) => {
     if (e.type === "pointerdown") {
@@ -38,7 +39,7 @@ export function WorkspaceView() {
   return (
     <main
       ref={ref}
-      className={`${styles.workspace} ${styles[direction] ?? ""}`}
+      className={`${styles.workspace} ${styles[direction] ?? ""} ${sliding ? styles.sliding : ""}`}
       style={{ ["--scrollbar-w" as string]: `${scrollbar}px` } as CSSProperties}
     >
       {ids.map((stage, i) => (
@@ -76,6 +77,21 @@ export function WorkspaceView() {
     </main>
   )
 }
+
+// 右サイドパネルを開いたステージが替わってから、列の幅を動かし終えるまで true
+function useSliding(panel: string | null): boolean {
+  const [sliding, setSliding] = useState(false)
+  const last = useRef(panel)
+  useEffect(() => {
+    if (last.current === panel) return
+    last.current = panel
+    setSliding(true)
+    const timer = setTimeout(() => setSliding(false), SLIDE_MS)
+    return () => clearTimeout(timer)
+  }, [panel])
+  return sliding
+}
+const SLIDE_MS = 300 // 列の幅を動かす時間（CSS の 0.25 秒）より少し長く
 
 // この画面で、縦のスクロールバーが取る幅（px。幅を取らずに重ねて出す環境では 0）
 function scrollbarWidth(): number {

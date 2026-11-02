@@ -14,13 +14,16 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  transition: flex-grow 0.25s ease; /* 右サイドパネルを開け閉めするときは、列の幅を動かす（動きを減らす設定では動かさない） */
+}
+/* 右サイドパネルを開け閉めする間だけ、列の幅を動かす（分割や境目のドラッグでは動かさない。動きを減らす設定でも動かさない） */
+.sliding > .column {
+  transition: flex-grow 0.25s ease;
 }
 .column + .column {
   border-left: 1px solid var(--skin-border);
 }
 @media (prefers-reduced-motion: reduce) {
-  .column {
+  .sliding > .column {
     transition: none;
   }
 }
