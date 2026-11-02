@@ -55,7 +55,7 @@ test("コメントの絵を押すと、窓の右から 320px の右サイドパ�
   expect(await widths(page)).toEqual(split)
 })
 
-test("外を押すと閉じる。ハンドツールの間は閉じない。開いている間に別のコメントを押すと、閉じるだけ。たたんだ絵を押してもたたんだまま", async ({
+test("外を押すと閉じる。ハンドツールの間は閉じない。ステージで押しても Esc で閉じる。開いている間に別のコメントを押すと、閉じるだけ。たたんだ絵を押してもたたんだまま", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -82,6 +82,12 @@ test("外を押すと閉じる。ハンドツールの間は閉じない。開�
   await tool("ハンドツール")
   await expect(panel(page)).toContainText("二つ目")
   await page.mouse.click(paper.x + 40, paper.y + 400)
+  await expect(panel(page)).toContainText("二つ目")
+  // フォーカスが右サイドパネルの外にあっても、Esc で閉じる（置こうとしている物が無ければ）
+  expect(await panel(page).evaluate(e => e.contains(document.activeElement))).toBe(false)
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+  await icons.nth(1).click()
   await expect(panel(page)).toContainText("二つ目")
   await tool("選択ツール")
   await expect(panel(page)).toContainText("二つ目")
@@ -127,4 +133,18 @@ test("開いたステージのページが替わるか、分けると閉じる�
   await bubble.getByRole("button", { name: "コメントを開く" }).focus()
   await page.keyboard.press("Enter")
   await expect(panel(page)).toContainText("見てほしい")
+})
+
+test("窓が右サイドパネルの幅より狭ければ、右サイドパネルが窓の幅でステージを覆う。閉じれば戻る", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto("/")
+  await foldedComment(page, 200, "一", "見てほしい")
+  await page.setViewportSize({ width: 300, height: 700 })
+  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await expect(panel(page)).toContainText("見てほしい")
+  expect(Math.round((await panel(page).boundingBox())!.width)).toBe(300)
+  expect(await widths(page)).toEqual([0])
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+  expect(await widths(page)).toEqual([300])
 })

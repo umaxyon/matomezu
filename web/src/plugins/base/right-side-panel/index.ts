@@ -4,7 +4,7 @@ import { kit } from "../kit"
 import { RIGHT_SIDE_PANEL } from "./slots"
 import { panelIn, withPanel } from "./state"
 
-// 開いている右サイドパネルを閉じる（Esc。右サイドパネルの中にフォーカスがあるとき）
+// 開いている右サイドパネルを閉じる（Esc。右サイドパネルの中にフォーカスがあるときと、ステージで Esc が使われなかったとき（置こうとしている物の取り消しが先））
 export const RIGHT_SIDE_PANEL_CLOSE = kit.defineCommand({
   id: "right-side-panel-close",
   title: "Close the right side panel",
@@ -18,5 +18,11 @@ export const RIGHT_SIDE_PANEL_KEYS = [
     key: "Escape",
     command: RIGHT_SIDE_PANEL_CLOSE.id,
     scope: RIGHT_SIDE_PANEL,
+  }),
+  kit.defineKey({
+    id: "right-side-panel-close-escape-global",
+    key: "Escape",
+    command: RIGHT_SIDE_PANEL_CLOSE.id,
+    scope: "global",
   }),
 ]

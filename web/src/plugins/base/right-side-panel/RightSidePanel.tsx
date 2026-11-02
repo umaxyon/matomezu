@@ -1,4 +1,4 @@
-// 右サイドパネルの入れ物: ステージの列の右に、窓の上から下まで出す。幅は開いている中身のウィジェットの定義の rightSidePanel（無ければ既定の幅）で、
+// 右サイドパネルの入れ物: ステージの列の右に、窓の上から下まで出す。幅は開いている中身のウィジェットの定義の rightSidePanel（無ければ既定の幅。窓より広ければ窓の幅で、ステージを覆う）で、
 // 開け閉めのときは幅を動かす（動きを減らす設定では動かさない）。見出しに閉じるボタンを置き、中身は、配置がスロットに置いたウィジェットのうち開いている 1 つだけを描く。
 // 窓に 1 つだけで、ほかのステージでも開いていれば、カレントでない方を閉じる。開いたら中にフォーカスを入れ、Esc は右サイドパネルのキーの範囲で閉じる。
 // 外を左ボタンで押したら閉じる（ステージの道具がずらす道具のときと、ダイアログ・メニュー・トースト・ツールバーを押したときは閉じない。右ボタンはメニューと道具のアイコンを出すので閉じない）。
@@ -20,7 +20,7 @@ import styles from "./RightSidePanel.module.css"
 import { RIGHT_SIDE_PANEL } from "./slots"
 import { type RightSidePanelOpen, stillOn } from "./state"
 
-const WIDTH = 320 // 中身のウィジェットが幅を書いていないときの幅（px）
+const WIDTH = 480 // 中身のウィジェットが幅を書いていないときの幅（px。PC のブラウザの窓をいちばん狭くしても入る幅）
 
 // 押しても右サイドパネルを閉じない所（ダイアログ・メニュー・トースト・道具を替えるツールバー）
 const KEEPS = "[role=dialog], [role=menu], [role=status], [role=alert], [role=toolbar]"
@@ -32,7 +32,7 @@ export function RightSidePanel() {
   const found = useOpenedRightSidePanel()
   const opened = found && placed.includes(found.open.widget) ? found : null
   const widget = useUiCatalog().widgets.get(opened?.open.widget ?? "")
-  const width = opened ? (widget?.rightSidePanel?.width ?? WIDTH) : 0
+  const width = opened ? `min(${widget?.rightSidePanel?.width ?? WIDTH}px, 100vw)` : 0
   const ref = useRef<HTMLElement>(null)
   const close = useCloseRightSidePanel()
   const read = useReadState()
@@ -80,7 +80,7 @@ export function RightSidePanel() {
   )
 }
 
-function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: number }) {
+function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: string | number }) {
   const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
   const close = useCloseRightSidePanel()

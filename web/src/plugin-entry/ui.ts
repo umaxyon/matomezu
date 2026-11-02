@@ -1,4 +1,4 @@
-// プラグイン API の入口 matomezu/ui: プラグイン API の見た目の側（plugin-api/ui）の名前と、base の見た目の部品（ダイアログの枠と入力・色・テーマキー・本文の装飾と本文の塊・利用者の設定の画面・画面の骨組み・紙に描いたつなぐもののミニマップの絵）を外に出す
+// プラグイン API の入口 matomezu/ui: プラグイン API の見た目の側（plugin-api/ui）の名前と、base の見た目の部品（ダイアログの枠と入力・色・テーマキー・本文の装飾と本文の塊・利用者の設定の画面・画面の骨組み・紙に描いたつなぐもののミニマップの絵・右サイドパネルの開け閉め）を外に出す
 
 export * from "../plugin-api/ui"
 export {
@@ -21,11 +21,13 @@ export {
   type PaperValue,
   Problem,
   pairClass,
+  RIGHT_SIDE_PANEL,
   RichBar,
   RichBody,
   RichInput,
   type RichInputHandle,
   RichText,
+  type RightSidePanelOpen,
   rowClass,
   Section,
   SelectButton,
@@ -41,8 +43,11 @@ export {
   useBodyGrips,
   useBookOf,
   useBookTheme,
+  useCloseRightSidePanel,
   useDrawnMinimap,
+  useOpenRightSidePanel,
   usePaperControls,
+  useRightSidePanel,
   useSwatches,
   useThemeVars,
 } from "../plugins/base/ui"
