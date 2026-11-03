@@ -118,8 +118,9 @@ function useFollowSelection(stage: string | null) {
   const anchors = opened?.open.anchors
   // biome-ignore lint/correctness/useExhaustiveDependencies: 開いたときに一度だけ（付いた先が替わるたびではない）
   useEffect(() => {
-    if (!stage || shown === synced.current) return
+    if (shown === synced.current) return
     synced.current = shown
+    if (!stage) return
     if (shown && anchors) select(stage, anchors)
   }, [stage, shown, select])
   const pressing = useRef(false)
