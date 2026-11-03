@@ -144,3 +144,26 @@ test("Tab キーは、利用者の設定の項目で選んだ字を書く（既�
   })
   expect(text()).toBe("  a\t")
 })
+
+test("日本語の変換を続けて確定した物も、間を空けなければ 1 つの画面の履歴の段", async () => {
+  const { text, field, undos, settle } = setup()
+  at(0)
+  const word = (value: string, ms: number) => {
+    at(ms)
+    fireEvent.compositionStart(field())
+    act(() => {
+      fireEvent.change(field(), { target: { value, selectionStart: value.length, selectionEnd: value.length } })
+    })
+    fireEvent.select(field())
+    act(() => {
+      fireEvent.compositionEnd(field())
+    })
+    fireEvent.select(field())
+  }
+  word("あ", 0)
+  await settle()
+  word("あい", 300)
+  await settle()
+  expect(text()).toBe("あい")
+  expect(undos()).toBe(1)
+})

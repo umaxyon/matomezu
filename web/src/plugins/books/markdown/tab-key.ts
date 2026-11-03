@@ -2,13 +2,13 @@
 import { z } from "zod"
 import { kit } from "./kit"
 
-const TAB_KEY_CHOICES = ["tab", "spaces-2", "spaces-4"] as const
-export type TabKeyChoice = (typeof TAB_KEY_CHOICES)[number]
+const TabKeyChoice = z.enum(["tab", "spaces-2", "spaces-4"])
+type TabKeyChoice = z.infer<typeof TabKeyChoice>
 
 export const TAB_KEY = kit.defineSetting({
   id: "tab-key",
   title: "Tab key in the source",
-  schema: z.enum(TAB_KEY_CHOICES),
+  schema: TabKeyChoice,
   default: "tab",
   optionTitles: {
     tab: kit.message("Tab character"),
@@ -20,4 +20,7 @@ export const TAB_KEY = kit.defineSetting({
 const WRITES: Record<TabKeyChoice, string> = { tab: "\t", "spaces-2": "  ", "spaces-4": "    " }
 
 // 選んだ物で書く字（形に合わない値なら Tab 文字）
-export const tabKeyText = (choice: unknown): string => WRITES[choice as TabKeyChoice] ?? WRITES.tab
+export function tabKeyText(choice: unknown): string {
+  const parsed = TabKeyChoice.safeParse(choice)
+  return WRITES[parsed.success ? parsed.data : "tab"]
+}

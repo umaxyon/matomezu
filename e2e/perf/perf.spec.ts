@@ -2,7 +2,7 @@
 // - 描き方: 箱 100・200・300 と線のブックを置き（JSON を PUT）、開くまで・パン（ホイール）・箱のドラッグ・〇から線を引く・左右に同じブックを開いてのパンを測る。
 //   ツリー（節 100・200・300）とディレクトリ構成図（中身 100・200・300）も、開くまで・パン・左右でのパンを測る
 // - アクション: AI の入口から item-place と line-connect を 300 まで重ね、1 回の perform の時間を 100 ずつに分けて測る
-// - マークダウン: 原文 1000・3000・5000 行のページを開き、ソースのペインの末尾に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
+// - マークダウン: 原文 1000・3000・5000 行のページを開き、ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { expect, type Page, test } from "@playwright/test"
@@ -251,6 +251,12 @@ for (const n of MARKDOWN_LINES) {
     await page.keyboard.type(TYPED)
     await page.waitForTimeout(200)
     const typed = measured(await stopRecording(page, since))
+    // 先頭に書くと、後ろの全部のブロックの原文の中の位置がずれる
+    await page.keyboard.press("ControlOrMeta+Home")
+    since = await startRecording(page)
+    await page.keyboard.type(TYPED)
+    await page.waitForTimeout(200)
+    const typedAtTop = measured(await stopRecording(page, since))
     await page.keyboard.press("ControlOrMeta+Home")
     const source = (await page.getByRole("region", { name: "ソース" }).boundingBox())!
     await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
@@ -264,7 +270,7 @@ for (const n of MARKDOWN_LINES) {
       .evaluate(el => (el.closest("[class*=scroll]") as HTMLElement).scrollTop)
     expect(followed).toBeGreaterThan(0)
     await page.close()
-    results.markdown.push({ book: `原文 ${n} 行`, openMs, typing: typed, scroll: scrolled })
+    results.markdown.push({ book: `原文 ${n} 行`, openMs, typing: typed, typingAtTop: typedAtTop, scroll: scrolled })
   })
 }
 
@@ -335,9 +341,10 @@ test.afterAll(({ browserName }) => {
     console.log(`\nマークダウン（書くのは ${[...TYPED].length} 字を 1 字ずつ、スクロールはホイール ${PAN_STEPS} 回）`)
     console.table(
       results.markdown.flatMap(d => {
-        const r = d as { book: string; openMs: number; typing: M; scroll: M }
+        const r = d as { book: string; openMs: number; typing: M; typingAtTop: M; scroll: M }
         return [
-          ["書く", r.typing, r.openMs],
+          ["末尾に書く", r.typing, r.openMs],
+          ["先頭に書く", r.typingAtTop, null],
           ["スクロール", r.scroll, null],
         ].map(([what, m, openMs]) => ({
           ブック: r.book,

@@ -1,7 +1,15 @@
 // ソースのペインで書いた原文の送り方（markdown の source-edit.ts）・スクロールの付いて行き方（scroll-sync.ts）・Tab キーで書く字（tab-key.ts）
 import { expect, test } from "bun:test"
 import { followScroll, sourcePieces } from "../../web/src/plugins/books/markdown/scroll-sync"
-import { followCaret, sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
+import {
+  caretMoved,
+  followCaret,
+  PAUSED,
+  planWrite,
+  sourceEdit,
+  WRITING_PAUSE_MS,
+  wrote,
+} from "../../web/src/plugins/books/markdown/source-edit"
 import { tabKeyText } from "../../web/src/plugins/books/markdown/tab-key"
 
 test("変わった所を、原文の中でちょうど 1 か所になるまで前後に広げた find と replace にする", () => {
@@ -75,4 +83,15 @@ test("Tab キーで書く字は、Tab 文字か半角スペース 2 つ・4 つ�
   expect(tabKeyText("spaces-2")).toBe("  ")
   expect(tabKeyText("spaces-4")).toBe("    ")
   expect(tabKeyText(undefined)).toBe("\t")
+})
+
+test("続けて書いているのは、前に送ってから WRITING_PAUSE_MS より短く、書く所が送ったあとの所のままの間", () => {
+  const w = wrote(1000, 3)
+  expect(planWrite("ab", "abc", "ab", w, 1000 + WRITING_PAUSE_MS - 1)).toMatchObject({ kind: "send", continues: true })
+  expect(planWrite("ab", "abc", "ab", w, 1000 + WRITING_PAUSE_MS)).toMatchObject({ kind: "send", continues: false })
+  expect(planWrite("ab", "abc", "ab", PAUSED, 1000)).toMatchObject({ kind: "send", continues: false })
+  expect(planWrite("ab", "ab", "ab", w, 1000)).toEqual({ kind: "same" })
+  expect(caretMoved(w, 3, 3)).toBe(w)
+  expect(caretMoved(w, 1, 1)).toEqual(PAUSED)
+  expect(caretMoved(w, 3, 4)).toEqual(PAUSED)
 })

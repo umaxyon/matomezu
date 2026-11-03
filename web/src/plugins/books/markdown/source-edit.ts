@@ -1,6 +1,7 @@
 // ソースのペインで書いた原文を、ページの原文に送る形（page-update の fields）: 書く前の原文 base から書いた原文 draft への変わった所を、
 // 送る先の原文 target の中でちょうど 1 か所になるまで前後の字を足した find と、その replace にする（ほかの変更と重なっても、変わった所だけを置き換える）。
-// 字はサロゲートペアの途中で切らない。原文が空なら丸ごと（text）。広げても 1 か所にならなければ送れない（conflict）
+// 字はサロゲートペアの途中で切らない。原文が空なら丸ごと（text）。広げても 1 か所にならなければ送れない（conflict）。
+// 続けて書いた物は 1 つの画面の履歴の段にまとめる（書いている間 Writing）。間が WRITING_PAUSE_MS 空く・書く所を動かす・テキストFormから出る・送れない・ほかから原文が変わると、次は別の画面の履歴の段
 import { onlyPlace } from "./page-fields"
 
 export type SourceFields = { text: string } | { find: string; replace: string }
@@ -57,3 +58,30 @@ export function followCaret(before: string, after: string, at: number): number {
   if (at >= changed.end) return at + after.length - before.length
   return changed.draftEnd
 }
+
+// 続けて書いた物を 1 つの画面の履歴の段にまとめる、書く間の長さの上限（ミリ秒）
+export const WRITING_PAUSE_MS = 1000
+
+// 続けて書いているか: 最後に送った時と、そのあとの書く所
+export type Writing = { kind: "paused" } | { kind: "writing"; at: number; caret: number }
+export const PAUSED: Writing = { kind: "paused" }
+
+// 書いた物 draft を、いま now に送る形と、前に送った画面の履歴の段に続けるか（base・latest は sourceEdit と同じ）
+export type WritePlan =
+  | { kind: "same" }
+  | { kind: "send"; fields: SourceFields; continues: boolean }
+  | { kind: "conflict" }
+
+export function planWrite(base: string, draft: string, latest: string, writing: Writing, now: number): WritePlan {
+  const edit = sourceEdit(base, draft, latest)
+  if (edit.kind !== "send") return edit
+  const continues = writing.kind === "writing" && now - writing.at < WRITING_PAUSE_MS
+  return { kind: "send", fields: edit.fields, continues }
+}
+
+// 送ったあと: 時 now と、書く所 caret を覚える
+export const wrote = (now: number, caret: number): Writing => ({ kind: "writing", at: now, caret })
+
+// 書く所（選んだ範囲 start〜end）が、送ったあとの所から動いたら、続けない
+export const caretMoved = (writing: Writing, start: number, end: number): Writing =>
+  writing.kind === "writing" && (start !== writing.caret || end !== writing.caret) ? PAUSED : writing

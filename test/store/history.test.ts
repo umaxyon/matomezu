@@ -162,8 +162,9 @@ test("continueStep のあとに同じ処理で行ったアクションは、そ�
   expect(historyOf(store)?.undo).toHaveLength(0)
 })
 
-test("continueStep で足すのは、最後に画面の履歴に入れた画面の履歴の段だけ。元に戻したあとや、ほかのブックの段のあとは、別の画面の履歴の段になる", async () => {
+test("continueStep で足すのは、そのブックに最後に入れた画面の履歴の段だけ。元に戻したあとは別の画面の履歴の段になり、ほかのブックの段が挟まっても足す", async () => {
   const store = ready()
+  const captions = () => bookOf(store).pages[0]!.items!.map(i => (i.props as { caption?: string }).caption)
   place(store, 40, "A")
   await settled()
   place(store, 200, "B")
@@ -175,8 +176,10 @@ test("continueStep で足すのは、最後に画面の履歴に入れた画面�
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(2)
   store.actions.command("s1", "@matomezu/base:undo")
-  expect(bookOf(store).pages[0]!.items!.map(i => (i.props as { caption?: string }).caption)).toEqual(["A"])
-  // ほかのブックの段のあとは、b1 の最後の画面の履歴の段に足さない
+  expect(captions()).toEqual(["A"])
+  // ほかのブックの段が挟まっても、b1 に最後に入れた画面の履歴の段に足す
+  place(store, 360, "D")
+  await settled()
   store.actions.perform(
     "@matomezu/paper:item-place",
     { page: "p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
@@ -184,9 +187,34 @@ test("continueStep で足すのは、最後に画面の履歴に入れた画面�
   )
   await settled()
   store.actions.continueStep("b1")
-  place(store, 520, "D")
+  place(store, 520, "E")
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(2)
+  store.actions.command("s1", "@matomezu/base:undo")
+  expect(captions()).toEqual(["A"])
+})
+
+test("いくつものブックを変えた画面の履歴の段にも、どちらのブックからも continueStep で足せる", async () => {
+  const store = ready()
+  const placeIn = (book: string, x: number) =>
+    store.actions.perform(
+      "@matomezu/paper:item-place",
+      {
+        page: book === "b1" ? bookOf(store).pages[0]!.id : "p1",
+        item: BOX,
+        at: { x, y: 40 },
+        props: { caption: "箱" },
+      },
+      { book },
+    )
+  placeIn("b1", 40)
+  placeIn("b2", 40)
+  await settled()
+  store.actions.continueStep("b2")
+  placeIn("b1", 200)
+  await settled()
+  expect(historyOf(store)?.undo).toHaveLength(1)
+  expect(Object.keys(historyOf(store, "b2")!.undo[0]!.books)).toEqual(["b1", "b2"])
 })
 
 test("いくつものブックを変えた画面の履歴の段は、途中のブックが断られたら、置き直したブックも元に戻し、画面の履歴の段は残る", async () => {

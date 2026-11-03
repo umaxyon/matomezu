@@ -147,7 +147,7 @@ export interface Actions {
   // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
   moveHistory(book: string, from: "undo" | "redo"): void
   // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
-  // 足すのは、最後に画面の履歴に入れた画面の履歴の段がそのブックの最後の物のときだけ（元に戻す・やり直すのあとや、ほかのブックの段のあとは足さずに、別の画面の履歴の段になる）。
+  // 足すのは、そのブックに最後に入れた画面の履歴の段が、そのブックの最後の物のときだけ（元に戻す・やり直すのあとは足さずに、別の画面の履歴の段になる）。
   // 足したあと何も変わらなければ（足した物を書かずに消したなど）、その画面の履歴の段ごと無くなる
   continueStep(book: string): void
 }
@@ -329,21 +329,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 開いている画面の履歴の段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 つの画面の履歴の段にまとめ、処理が終わったら
   // 画面の履歴に入れる（入れた画面の履歴の段が変えたブックの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
   let open: { at: string; books: Record<string, { before: Book; after: Book }>; continued?: true } | null = null
-  // 最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで行き来したら無し。続けられるのはこれだけ）
-  let closed: HistoryStep | null = null
+  // ブックごとの、最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで動かしたら消す。continueStep で続けられるのはこれだけ）
+  let lastPut: Record<string, HistoryStep> = {}
   const closeStep = () => {
     if (!open) return
     const { at, books, continued } = open
     const step: HistoryStep = { at, books }
     open = null
-    closed = null
     // 続けた画面の履歴の段で何も変わらなかった（足した物を書かずに消したなど）なら入れない
     if (continued && Object.values(books).every(b => JSON.stringify(b.before) === JSON.stringify(b.after))) return
     const history = { ...getState().history }
     for (const id of Object.keys(step.books))
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
     setState({ history })
-    closed = step
+    lastPut = { ...lastPut, ...Object.fromEntries(Object.keys(step.books).map(id => [id, step])) }
   }
   const record = (before: Book, after: Book, at: string) => {
     if (!open) {
@@ -523,7 +522,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       closeStep()
       const { history } = getState()
       const step = history[book]?.undo.at(-1)
-      if (!step || step !== closed) return
+      if (!step || step !== lastPut[book]) return
       const next = { ...history }
       for (const id of Object.keys(step.books)) {
         const was = next[id] ?? NO_HISTORY
@@ -539,7 +538,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { history } = getState()
       const step = (history[book] ?? NO_HISTORY)[from].at(-1)
       if (!step) return
-      closed = null
+      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !(id in step.books)))
       const next = { ...history }
       for (const id of Object.keys(step.books)) {
         const was = next[id] ?? NO_HISTORY
