@@ -2,8 +2,9 @@
 // （ホイールで行の並びがスクロールしている間は紙をずらさない。base のステージが決める）。外から行を見せるよう頼まれたら（Revealable）、その行を行の並びのスクロールの見える所へ動かす（reveal.ts）。
 // 行の並びと高さは size.ts の listLayout のとおりに描く。
 // 行をダブルクリックすると行の編集、右クリックすると行のメニュー（row-context）。チェックリストなら、行の左のチェックを押すだけで入れ切りする。
-// 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（行を押すとリストを選ぶだけで、
-// リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
+// 行を押すと行を選び（Mod なら、このリストの行だけを選んでいれば足す・外す。ほかの物を選んでいれば、リストを押したことにして紙へ渡す）、行の並びに焦点を入れる（選んだ行への Delete を受ける）。
+// 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（リストを選んで動かすのは見出しと枠をつかんだとき。
+// 行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
 // 行を押して少し動かすと行のドラッグになり（押しただけ・ダブルクリック・チェックは行のドラッグにならない）、行のカードの写しがポインタに付いてきて、
 // 落とす所の行と行の間に線が出る。チェック済みの行を寄せて見せているリストでは、チェック済みの行は動かせない。リストの行の並びの上か下の端へ寄せると、その向きへスクロールする（edge-scroll.ts）。つかんだ行は元の所では隠し（場所は空けたまま）、同じリストのほかの行を薄くする（アイテムのドラッグと同じ見せ方）。
 // 写し（ゴースト）はゴーストエリアに描くので、行の所のテーマと色の変数を写し取って当てる。
@@ -27,12 +28,13 @@ import {
   useMessages,
   useStage,
 } from "../../../plugin-api/ui"
-import { RichText, useAnchorRef, useRevealable, useThemeVars } from "../../base/ui"
+import { toggledSelection } from "../../base"
+import { modPressed, RichText, useAnchorRef, useRevealable, useThemeVars } from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
 import styles from "./ListView.module.css"
-import { LIST, type ListRow, ROW_CONTEXT } from "./list"
+import { LIST, LIST_ROWS_SCOPE, type ListRow, ROW_CONTEXT } from "./list"
 import { listPaintVars } from "./paint"
 import { rowScroll } from "./reveal"
 import { canCarry, dropPlace, shownOrder } from "./rows"
@@ -198,8 +200,15 @@ export function ListView({
     onPointerDown: (e: PointerEvent<HTMLLIElement>) => {
       // 紙をずらす道具（ハンドなど）の間は行を運ばず、押したことを紙へ渡す（紙をずらす）
       if (e.button !== 0 || pans) return
+      // Mod なら、このリストの行だけを選んでいれば行を足す・外す。ほかの物を選んでいれば、リストを押したことにして紙へ渡す（行はリストに置き換わる）
+      if (modPressed(e)) {
+        if (!rowsOnly(selection)) return
+        e.stopPropagation()
+        select(stage, toggledSelection(selection, row.id))
+        return
+      }
       e.stopPropagation()
-      select(stage, [id])
+      select(stage, [row.id])
       if (!moveRow.enabled || !canCarry({ props }, row)) return
       carry.current = {
         pointer: e.pointerId,
@@ -229,6 +238,9 @@ export function ListView({
   })
   const { select } = useActions()
   const at = useStage(stage)
+  const selection = at?.selection ?? []
+  // 選択 ids が、このリストの行だけか（何も選んでいなければ、そうとする）
+  const rowsOnly = (ids: readonly string[]) => ids.every(s => rows.some(r => r.id === s))
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
   const pans = at?.pans === true
   const stretch = useRef<Stretch | null>(null)
@@ -246,7 +258,7 @@ export function ListView({
       e.stopPropagation()
       e.currentTarget.setPointerCapture(e.pointerId)
       stretch.current = { pointer: e.pointerId, row, height, start: e.clientY }
-      select(stage, [id])
+      select(stage, [row])
     },
     onPointerMove: (e: PointerEvent<HTMLDivElement>) => {
       const st = stretch.current
@@ -277,6 +289,8 @@ export function ListView({
             data-list-rows={id}
             data-gather={props.checklist ? props.checkedOrder : "none"}
             data-carrying={carried !== null}
+            data-key-scope={LIST_ROWS_SCOPE}
+            tabIndex={-1}
             aria-label={t("Rows of {name}", { name: props.caption })}
           >
             {shownOrder({ props }, rows).map(i => {
@@ -289,6 +303,7 @@ export function ListView({
                   className={styles.row}
                   data-row={row.id}
                   data-checked={row.props.checked === true}
+                  data-selected={selection.includes(row.id)}
                   data-order={i}
                   data-done={props.checklist && props.checkedGray && row.props.checked === true}
                   data-carried={carried !== null && carry.current?.row.id === row.id}

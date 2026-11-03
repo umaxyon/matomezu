@@ -7,7 +7,13 @@ import { amongSelected, onlySelected, toggledSelection } from "../../web/src/plu
 import { anchorsFor } from "../../web/src/plugins/base/context-menu/anchor-targets"
 import { linesOf } from "../../web/src/plugins/items/line/placed"
 import { movableTogether } from "../../web/src/plugins/paper/placing/items"
-import { pressSelection, sameLevel, sweptItems, sweptSelection } from "../../web/src/plugins/paper/placing/selection"
+import {
+  lifted,
+  pressSelection,
+  sameLevel,
+  sweptItems,
+  sweptSelection,
+} from "../../web/src/plugins/paper/placing/selection"
 import { isShown } from "../../web/src/store/commands"
 import { CORE_CATALOG, newStore } from "../support"
 
@@ -159,4 +165,47 @@ test("範囲のドラッグ: 少しでもかかったページの形と、両端
   expect(sweptItems(catalog, page(store), { x: 930, y: 170, w: 10, h: 10 })).toEqual(["n6"])
   expect(sweptSelection(["n3"], ["n1", "n3"], true)).toEqual(["n3", "n1"])
   expect(sweptSelection(["n3"], ["n1"], false)).toEqual(["n1"])
+})
+
+// ページ p1 にリストを置いて、行を 2 つ足した store
+function withList(store: Store) {
+  const list = (
+    store.actions.perform(
+      "@matomezu/paper:item-place",
+      { page: "p1", item: "@matomezu/list:shape-list", at: { x: 400, y: 40 } },
+      { book: "b1" },
+    ) as { result: { item: string } }
+  ).result.item
+  const row = (caption: string) =>
+    (
+      store.actions.perform("@matomezu/list:row-add", { page: "p1", list, props: { caption } }, { book: "b1" }) as {
+        result: { row: string }
+      }
+    ).result.row
+  return { list, rows: [row("一"), row("二")] as [string, string] }
+}
+
+test("リストの行を選んでいるときに、ほかの物を Mod+クリックすると、行はそのリストに置き換わる（範囲のドラッグの Mod も同じ。行を選べるのは同じリストの行どうし）", () => {
+  const store = ready()
+  const box = (place(store, 40, 40) as { result: { item: string } }).result.item
+  const { list, rows } = withList(store)
+  const p = page(store)
+  expect(pressSelection(p, [rows[0], rows[1]], box, true).now).toEqual([list, box])
+  expect(pressSelection(p, [rows[0]], list, true).now).toEqual([list])
+  expect(lifted(p, [rows[0], box, rows[1]])).toEqual([list, box])
+  expect(lifted(p, [box, list])).toEqual([box, list])
+})
+
+test("選んでいる行を消すコマンド: 1 つのリストの行だけを選んでいれば、その行を消して選択を外す。ほかの物が混じっていれば出さない", () => {
+  const store = ready()
+  const box = (place(store, 40, 40) as { result: { item: string } }).result.item
+  const { list, rows } = withList(store)
+  const DELETE_ROWS = "@matomezu/list:list-delete-rows"
+  store.actions.select("s1", [rows[0], box])
+  expect(store.actions.command("s1", DELETE_ROWS)).toBe(false)
+  store.actions.select("s1", [rows[1]])
+  expect(store.actions.command("s1", DELETE_ROWS)).toBe(true)
+  const shown = page(store).items?.find(i => i.id === list) as { children?: { id: string }[] }
+  expect(shown.children?.map(r => r.id)).toEqual([rows[0]])
+  expect(selection(store)).toEqual([])
 })
