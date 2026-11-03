@@ -45,7 +45,6 @@ export const DRAWING = kit.defineBookType({
   },
   items: {
     allowed: ITEMS,
-    defaults: ITEMS,
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
 

@@ -305,7 +305,6 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
             ...t,
             items: {
               allowed: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list"],
-              defaults: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list"],
             },
             settings: {},
           }

@@ -80,7 +80,6 @@ export const FLOWCHART = kit.defineBookType({
   },
   items: {
     allowed: ITEMS,
-    defaults: ITEMS,
     // 分岐（ひし形）から出る線は、キャプションの候補に Yes / No を出す
     options: {
       // 流れが右へのブックでは、台形を反時計回りに 90 度回して描く（上が狭い台形は左が狭く、下が狭い台形は右が狭くなる）
