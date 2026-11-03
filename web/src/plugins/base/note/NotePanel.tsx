@@ -24,7 +24,7 @@ export function NotePanel({ stage }: StageSlotProps) {
   if (!note) return null
   const props = note.props as NoteProps
   // 文が外で変わったら、テキストFormを新しい文で始め直す
-  return <NoteEditor key={props.text} stage={stage} id={note.id} props={props} />
+  return <NoteEditor key={`${note.id}:${props.text}`} stage={stage} id={note.id} props={props} />
 }
 
 function NoteEditor({ stage, id, props }: { stage: string; id: string; props: NoteProps }) {

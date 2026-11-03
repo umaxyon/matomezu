@@ -26,13 +26,21 @@ export const NOTE = kit.defineAnnotation({
   awaits: p => p.readAt === undefined,
 })
 
+// id の伝言（無いか、伝言でなければ undefined）
+const findNote = (annotations: readonly Annotation[], id: string) =>
+  annotations.find(a => a.id === id && a.annotation === NOTE.id)
+
+// id の伝言の中身（無いか、伝言でなければ undefined）
+const noteIn = (annotations: readonly Annotation[], id: string) =>
+  findNote(annotations, id)?.props as NoteProps | undefined
+
 // id の伝言を change で変えた並び（無いか、伝言でなければ null。change が null を返しても断る）
 function changeNote(
   annotations: readonly Annotation[],
   id: string,
   change: (props: NoteProps) => NoteProps | null,
 ): Annotation[] | null {
-  const found = annotations.find(a => a.id === id && a.annotation === NOTE.id)
+  const found = findNote(annotations, id)
   if (!found) return null
   const props = change(found.props as NoteProps)
   return props ? annotations.map(a => (a === found ? { ...found, props } : a)) : null
@@ -106,8 +114,7 @@ export const NOTE_READ = kit.defineAction({
   target: "annotations",
   args: ID_ARGS,
   run: ({ book, annotations }, args, ctx) => {
-    const found = annotations.find(a => a.id === args.note && a.annotation === NOTE.id)
-    const props = found?.props as NoteProps | undefined
+    const props = noteIn(annotations, args.note)
     if (!props || props.readAt) return null
     const next = props.removeOnRead
       ? withoutNote(annotations, args.note)
