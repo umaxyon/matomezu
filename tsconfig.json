@@ -12,7 +12,10 @@
     "noUnusedParameters": true,
     "isolatedModules": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "decode-named-character-reference": ["./node_modules/decode-named-character-reference/index.js"]
+    }
   },
   "include": ["web/src", "test", "e2e", "playwright.config.ts", "playwright.perf.config.ts"],
   "exclude": ["test/added-plugins", "test/type-checks"]

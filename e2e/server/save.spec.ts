@@ -298,3 +298,33 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
     })
     .toEqual([undefined, undefined])
 })
+
+test("AI がマークダウンのページの原文を page-update で変えると、プレビューの見出しが変わる", async ({ page }) => {
+  const ai = { Authorization: `Bearer ${aiToken()}` }
+  const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { result } = await perform({
+    action: "@matomezu/base:book-create",
+    args: { type: "@matomezu/markdown:markdown", title: "AI のメモ" },
+  })
+  const on = { book: result.book }
+  const added = await perform({
+    action: "@matomezu/base:page-add",
+    args: { title: "1", fields: { text: "# 最初" } },
+    on,
+  })
+  await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book } })
+  const preview = page.getByRole("region", { name: "プレビュー" })
+  await expect(preview.getByRole("heading", { level: 1 })).toHaveText("最初")
+  const updated = await perform({
+    action: "@matomezu/base:page-update",
+    args: { page: added.result.page, fields: { find: "最初", replace: "AI の見出し" } },
+    on,
+  })
+  expect(updated).toMatchObject({ ok: true })
+  await expect(preview.getByRole("heading", { level: 1 })).toHaveText("AI の見出し")
+})

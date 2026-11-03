@@ -53,8 +53,13 @@ const pluginRoot = (rel: string) => {
   return parts.slice(0, parts[1] === "books" || parts[1] === "items" ? 3 : 2).join("/")
 }
 // base は土台を直に読む（プラグイン API の部品を作る側）。プラグイン API は読まない（plugin-api が base を読まないのと合わせて、輪を作らない）
+// zod のほかの外のライブラリは、ライブラリごとに決めた 1 つのファイルだけが読む（mdast は型だけ。@types/mdast）
+const LIBRARY_READERS: Record<string, readonly string[]> = {
+  "plugins/base/markdown/parse.ts": ["mdast", "mdast-util-from-markdown", "mdast-util-gfm", "micromark-extension-gfm"],
+}
 const baseAllowed = (rel: string) => (t: string) =>
-  isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod"
+  (isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod") ||
+  (LIBRARY_READERS[rel]?.includes(t) ?? false)
 // base 以外のビルトインプラグインは、プラグイン API と zod だけ（見た目は plugin-api/ui と React も）。状態は plugin-api/ui のフックで読む
 const apiAllowed = (rel: string) => (t: string) =>
   t === "plugin-api" ||

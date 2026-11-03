@@ -26,8 +26,9 @@
 - 入口（`plugin-entry`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない
 - 例外は `plugin-modules`。`plugin-entry` を読んでよいのは `plugin-modules` だけで、`plugin-modules` を読んでよいのはホストのエンジン（`engine/engine.ts`）と画面の入口（`main.tsx`）だけ
 - 向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の部品を出し直すのは `plugin-entry`）
-- プラグインのファイルは役割で見る。見た目（`.tsx` と `ui.ts`）は `ui` と同じものを読んでよく、ほかは `core`・`store`・zod だけ
-- 上の行は base だけ。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・React も読み、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ。状態は `plugin-api/ui` のフック（plugins の「プラグインどうしの関係」）で読む。base はプラグイン API を読まない
+- プラグインのファイルは役割で見る。見た目（`.tsx` と `ui.ts`）は `ui` と同じものを読んでよく、ほかは `core`・`store`・zod と、Markdown を読むライブラリ（mdast-util-from-markdown・mdast-util-gfm・micromark-extension-gfm）だけ
+- zod のほかの外のライブラリは、ライブラリごとに決めた 1 つのファイルだけが読み、その型をプラグイン API に出さない（matomezu の形に移して出す）
+- 上の 2 行は base だけ。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・React も読み、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ。状態は `plugin-api/ui` のフック（plugins の「プラグインどうしの関係」）で読む。base はプラグイン API を読まない
 - 見た目でないファイルは、見た目を読まない
 - これらは `test/rules.test.ts` が見張る
 

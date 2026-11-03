@@ -286,6 +286,37 @@ func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
 	}
 }
 
+// 追加プラグインは、ホストのエンジンの中でも matomezu の parseMarkdown で Markdown の原文を読める（名前の付いた文字の参照も、DOM なしで戻す）
+func TestAnAddedPluginReadsMarkdownInTheEngine(t *testing.T) {
+	e := newEngine(t)
+	b := &plugin.Bundle{Dir: "reader", Manifest: plugin.Manifest{ID: "reader", Engine: "index.ts"}, Engine: `
+var m = globalThis.__matomezuModules["matomezu"];
+module.exports.default = {
+  id: "reader",
+  messages: { id: "reader:messages", messages: { "reader:read": { en: "Read" } } },
+  actions: [{
+    id: "reader:read", title: "reader:read", aiDescription: "", target: "book", attach: { books: true },
+    args: m.z.strictObject({ text: m.z.string() }),
+    run: function (b, args) {
+      var doc = m.parseMarkdown(args.text);
+      var h = doc.blocks[0];
+      return { next: b, result: { kinds: doc.blocks.map(function (x) { return x.kind }), heading: h.children[0].value, footnotes: doc.footnotes.length } }
+    }
+  }]
+}`}
+	if _, err := e.Use([]*plugin.Bundle{b}); err != nil {
+		t.Fatal(err)
+	}
+	args, _ := json.Marshal(map[string]string{"text": "# A &amp; &copy;\n\n| a |\n|-|\n| x |\n\nn[^1]\n\n[^1]: f\n"})
+	out, err := e.Perform(Input{Action: "reader:read", Args: args, On: &On{Book: "b1"}, Lang: "en", Books: []json.RawMessage{json.RawMessage(book)}})
+	if err != nil || !out.OK {
+		t.Fatalf("Perform = %+v, %v", out, err)
+	}
+	if got, want := string(out.Result), `{"kinds":["heading","table","paragraph"],"heading":"A & ©","footnotes":1}`; got != want {
+		t.Fatalf("result = %s; want %s", got, want)
+	}
+}
+
 // 新しい組で MCP 公開ツールの actions が返す物を作る所（アクションの describeArgs）が投げたら、組み直しは失敗し、定義も機能台帳も前のまま
 func TestKeepsTheCatalogWhenTheAICatalogCannotBeMade(t *testing.T) {
 	e := newEngine(t)
