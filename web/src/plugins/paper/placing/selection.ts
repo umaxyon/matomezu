@@ -1,4 +1,5 @@
 // 紙のビューの選択の決まり: Mod+クリックで足す・外す、選んでいる物の 1 つを修飾なしで押して動かさずに離したら、その 1 つに選び直す。
+// 内包の階層の違う形を一緒に選ぼうとしたら、どれも同じ階層になるよう、深い形の代わりにその祖先を選ぶ（一緒に動かせるように）。
 // 選択の道具で何も無い所からドラッグした範囲（sweep）では、範囲にかかったページの形と、両端がどちらもその形のつなぐものを選ぶ
 import { type CoreCatalog, connectorsOf, findShape, type ItemPage, type Point, type Rect } from "../../../plugin-api"
 import { rectsOf } from "../../base"
@@ -10,16 +11,32 @@ export interface Press {
   release: readonly string[] | null
 }
 
-// 選択 selection で物 id を押したときの選び方（mod は Mod を押しているか）
-export function pressSelection(selection: readonly string[], id: string, mod: boolean): Press {
+// ページ page の選択 selection で物 id を押したときの選び方（mod は Mod を押しているか）
+export function pressSelection(page: ItemPage, selection: readonly string[], id: string, mod: boolean): Press {
   const has = selection.includes(id)
   if (mod && has) return { now: selection, drag: selection, release: selection.filter(s => s !== id) }
   if (mod) {
-    const now = [...selection, id]
+    const now = sameLevel(page, [...selection, id])
     return { now, drag: now, release: null }
   }
   if (has) return { now: selection, drag: selection, release: selection.length > 1 ? [id] : null }
   return { now: [id], drag: [id], release: null }
+}
+
+// 選んだ物 ids の形を、どれも同じ階層にしたもの: 形ごとの祖先の並び（ページの形から親まで）の、どの形にも共通の所の 1 つ下の階層へ、
+// 深い形をその祖先に置き換える（同じ形は 1 つにまとめる）。つなぐものはそのまま。同じ階層なら同じ値
+export function sameLevel(page: ItemPage, ids: readonly string[]): readonly string[] {
+  const ancestors = (id: string): string[] => {
+    const parent = findShape(page, id)?.parent ?? null
+    return parent === null ? [] : [...ancestors(parent), parent]
+  }
+  const chains = new Map(ids.filter(id => findShape(page, id) !== undefined).map(id => [id, ancestors(id)]))
+  const all = [...chains.values()]
+  let depth = 0
+  while (all.length > 0 && all.every(c => c.length > depth && c[depth] === all[0]?.[depth])) depth++
+  const lifted = ids.map(id => chains.get(id)?.[depth] ?? id)
+  const kept = [...new Set(lifted)]
+  return kept.length === ids.length && kept.every((id, i) => id === ids[i]) ? ids : kept
 }
 
 // 選んだ物 ids のうち、ドラッグで動かす形（選択に混じったつなぐものは動かさず、両端の形に付いてくる）

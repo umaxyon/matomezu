@@ -18,6 +18,7 @@ import { createPortal } from "react-dom"
 import type { Rect, Size } from "../../../core/geom"
 import { useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
+import { stageElement } from "./stage-element"
 import { type StandSide, standAt, unionRect } from "./stand-place"
 import { ZOOM_MS } from "./useZoomMotion"
 
@@ -68,6 +69,14 @@ const ANCHOR_ATTR = "data-anchor"
 // 要素 el か、その外側で一番近い、アンカーの付いた物の id（無ければ undefined）
 export function anchorOf(el: Element | null): string | undefined {
   return el?.closest(`[${ANCHOR_ATTR}]`)?.getAttribute(ANCHOR_ATTR) ?? undefined
+}
+
+// ステージ stage の表示領域（ステージのビューの要素）と、その中で id のアンカーが付いた要素（どちらか無ければ null。
+// アンカーの表はステージの中にあるので、ステージの外の物は、付けた属性で探す）
+export function anchorElementIn(stage: string, id: string): { view: Element; el: Element } | null {
+  const view = stageElement(stage)
+  const el = view?.querySelector(`[${ANCHOR_ATTR}="${CSS.escape(id)}"]`)
+  return view && el ? { view, el } : null
 }
 
 interface StandContext {
