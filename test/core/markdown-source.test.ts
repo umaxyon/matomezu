@@ -78,10 +78,11 @@ test("ソースの原文をブロックの始まりで切る（最初は 0 か�
   ])
 })
 
-test("Tab キーで書く字は、Tab 文字か半角スペース 2 つ・4 つ（形に合わなければ Tab 文字）", () => {
-  expect(tabKeyText("tab")).toBe("\t")
-  expect(tabKeyText("spaces-2")).toBe("  ")
-  expect(tabKeyText("spaces-4")).toBe("    ")
+test("Tab キーで書く字は、Tab 文字か、覚えている数の半角スペース（形に合わなければ Tab 文字）", () => {
+  expect(tabKeyText({ writes: "tab", spaces: 2 })).toBe("\t")
+  expect(tabKeyText({ writes: "spaces", spaces: 2 })).toBe("  ")
+  expect(tabKeyText({ writes: "spaces", spaces: 4 })).toBe("    ")
+  expect(tabKeyText("spaces-2")).toBe("\t")
   expect(tabKeyText(undefined)).toBe("\t")
 })
 

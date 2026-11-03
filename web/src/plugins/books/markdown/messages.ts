@@ -11,8 +11,8 @@ export const MARKDOWN_MESSAGES = defineMessages({
   "No pages": { en: "No pages", ja: "ページがありません" },
   "Create page": { en: "Create page", ja: "ページを作る" },
   Panes: { en: "Panes", ja: "ペイン" },
-  "Tab key in the source": { en: "Tab key in the source", ja: "ソースの Tab キー" },
-  "Tab character": { en: "Tab character", ja: "Tab 文字" },
-  "2 spaces": { en: "2 spaces", ja: "半角スペース 2 つ" },
-  "4 spaces": { en: "4 spaces", ja: "半角スペース 4 つ" },
+  "Tab key": { en: "Tab key", ja: "Tabキー" },
+  "Number of spaces": { en: "Number of spaces", ja: "半角スペースの数" },
+  Spaces: { en: "Spaces", ja: "半角スペース" },
+  Tab: { en: "Tab", ja: "Tab" },
 })

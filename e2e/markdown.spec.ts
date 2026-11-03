@@ -54,7 +54,7 @@ test("紙を置かずに、ソースとプレビューを左右に並べて開�
   expect(bottom.y).toBeGreaterThan(top.y) // 上下
 })
 
-test("ソースのペインに書くと描いた文書が変わる。Tab キーは Tab 文字を書き、続けて書いた物を Mod+Z で元に戻し、Mod+Shift+Z でやり直す", async ({
+test("ソースのペインに書くと描いた文書が変わる（読むのは Web Worker）。Tab キーは Tab 文字を書き、続けて書いた物を Mod+Z で元に戻し、Mod+Shift+Z でやり直す", async ({
   page,
 }) => {
   await markdownBook(page)
@@ -62,6 +62,8 @@ test("ソースのペインに書くと描いた文書が変わる。Tab キー�
   await field().click()
   await page.keyboard.type("# 見出し")
   await expect(pane(page, "プレビュー").getByRole("heading", { name: "見出し" })).toBeVisible()
+  // 書いたあとの原文は、画面とは別の処理の流れ（Web Worker）で読む
+  await expect(pane(page, "プレビュー").locator("article")).toHaveAttribute("data-markdown-parse", "worker")
   await page.keyboard.press("Enter")
   await page.keyboard.press("Tab")
   await page.keyboard.type("本文")

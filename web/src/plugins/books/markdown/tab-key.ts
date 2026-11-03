@@ -1,26 +1,24 @@
-// ソースのペインで Tab キーを押したときに書く字（利用者の設定の項目）: Tab 文字か、半角スペース 2 つ・4 つ
+// ソースのペインで Tab キーを押したときに書く字（利用者の設定の項目）: Tab 文字か、半角スペース（2 つか 4 つ）。
+// Tab 文字を選んでいる間も、半角スペースの数は覚えておく（半角スペースに戻したときに使う）
 import { z } from "zod"
 import { kit } from "./kit"
 
-const TabKeyChoice = z.enum(["tab", "spaces-2", "spaces-4"])
-type TabKeyChoice = z.infer<typeof TabKeyChoice>
+const TabKeySchema = z.strictObject({
+  writes: z.enum(["tab", "spaces"]), // 書く物
+  spaces: z.union([z.literal(2), z.literal(4)]), // 半角スペースの数
+})
+export type TabKey = z.infer<typeof TabKeySchema>
+export const TAB_KEY_SPACES = [2, 4] as const
 
 export const TAB_KEY = kit.defineSetting({
   id: "tab-key",
-  title: "Tab key in the source",
-  schema: TabKeyChoice,
-  default: "tab",
-  optionTitles: {
-    tab: kit.message("Tab character"),
-    "spaces-2": kit.message("2 spaces"),
-    "spaces-4": kit.message("4 spaces"),
-  },
+  title: "Tab key",
+  schema: TabKeySchema,
+  default: { writes: "tab", spaces: 4 },
 })
 
-const WRITES: Record<TabKeyChoice, string> = { tab: "\t", "spaces-2": "  ", "spaces-4": "    " }
-
 // 選んだ物で書く字（形に合わない値なら Tab 文字）
-export function tabKeyText(choice: unknown): string {
-  const parsed = TabKeyChoice.safeParse(choice)
-  return WRITES[parsed.success ? parsed.data : "tab"]
+export function tabKeyText(value: unknown): string {
+  const parsed = TabKeySchema.safeParse(value)
+  return parsed.success && parsed.data.writes === "spaces" ? " ".repeat(parsed.data.spaces) : "\t"
 }

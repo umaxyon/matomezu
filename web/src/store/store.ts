@@ -15,6 +15,7 @@ import { type BookHistory, HISTORY_LIMIT, type HistoryStep, NO_HISTORY } from ".
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
+import { sameData } from "../core/same"
 import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
 import {
@@ -249,7 +250,7 @@ function sameAs(next: Library, now: Record<string, Book>): Record<string, Book> 
   const kept: Record<string, Book> = {}
   for (const [id, b] of Object.entries(next)) {
     const old = now[id]
-    kept[id] = old && old !== b && JSON.stringify(old) === JSON.stringify(b) ? old : b
+    kept[id] = old && old !== b && sameData(old, b) ? old : b
   }
   const same =
     Object.keys(kept).length === Object.keys(now).length && Object.entries(kept).every(([id, b]) => now[id] === b)
@@ -337,7 +338,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const step: HistoryStep = { at, books }
     open = null
     // 続けた画面の履歴の段で何も変わらなかった（足した物を書かずに消したなど）なら入れない
-    if (continued && Object.values(books).every(b => JSON.stringify(b.before) === JSON.stringify(b.after))) return
+    if (continued && Object.values(books).every(b => sameData(b.before, b.after))) return
     const history = { ...getState().history }
     for (const id of Object.keys(step.books))
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }

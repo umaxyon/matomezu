@@ -27,7 +27,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `rm -rf e2e/.dist && bun build web/index.html --outdir e2e/.dist --production && bun scripts/fonts.ts copy e2e/.dist/fonts && bun scripts/serve.ts ${port} e2e/.dist`,
+      command: `rm -rf e2e/.dist && bun build web/index.html web/src/plugins/books/markdown/markdown-parse-worker.ts --outdir e2e/.dist --entry-naming '[name].[ext]' --production && bun scripts/fonts.ts copy e2e/.dist/fonts && bun scripts/serve.ts ${port} e2e/.dist`,
       url: `http://localhost:${port}`,
       reuseExistingServer: false,
     },

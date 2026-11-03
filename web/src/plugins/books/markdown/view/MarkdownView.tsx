@@ -2,9 +2,9 @@
 // 並べ方はステージごとの画面の状態（panes.ts）: 左右か上下に 2 つ並べるか、1 つだけ見せて上辺のペインのタブ（ソース・プレビュー）で切り替える。並べている間は、ペインごとに上辺にそのペインのタブを出す。
 // ペインのタブの右クリックで、ペインの分割のメニュー（pane-context。右クリックしたペインを受け取る）を開く。
 // ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
-// 原文を読み直して描くのは、書くのを待たせないよう後回しにする（React の遅らせた値）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
+// 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（use-parsed.ts）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
-import { type MouseEvent, type RefObject, useDeferredValue, useMemo, useRef, useState } from "react"
+import { type MouseEvent, type RefObject, useRef, useState } from "react"
 import {
   type BookViewProps,
   useBook,
@@ -16,7 +16,7 @@ import {
   useShownPage,
   useStageState,
 } from "../../../../plugin-api/ui"
-import { type MarkdownDocument, paperSize, parseMarkdown } from "../../../base"
+import { type MarkdownDocument, paperSize } from "../../../base"
 import { useResize } from "../../../base/ui"
 import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
@@ -26,6 +26,7 @@ import { shrinkTo } from "../shrink"
 import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 import { SourcePane } from "./SourcePane"
+import { type ParsedBy, useParsed } from "./use-parsed"
 
 const TITLES = { source: "Source", rendered: "Preview" } as const
 
@@ -40,8 +41,7 @@ export function MarkdownView({ stage }: BookViewProps) {
   const source = useRef<HTMLDivElement>(null)
   const rendered = useRef<HTMLDivElement>(null)
   const text = page && "text" in page && typeof page.text === "string" ? page.text : ""
-  const read = useDeferredValue(text)
-  const document = useMemo(() => parseMarkdown(read), [read])
+  const { document, by } = useParsed(text)
   if (!page || !book) return <NoPages stage={stage} />
   const width = paperSize(catalog, page)?.w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
@@ -90,7 +90,7 @@ export function MarkdownView({ stage }: BookViewProps) {
                 onScroll={follow}
               />
             ) : (
-              <Rendered document={document} width={width} scrollRef={rendered} />
+              <Rendered document={document} by={by} width={width} scrollRef={rendered} />
             )}
           </section>
         ))}
@@ -104,10 +104,12 @@ export function MarkdownView({ stage }: BookViewProps) {
 // 縮めても紙の色がペインの下まで届くよう、縮める前の高さを倍率で割って伸ばす
 function Rendered({
   document,
+  by,
   width,
   scrollRef: ref,
 }: {
   document: MarkdownDocument
+  by: ParsedBy // どちらで読んだか（data-markdown-parse に書く）
   width: number | undefined
   scrollRef: RefObject<HTMLDivElement | null>
 }) {
@@ -119,7 +121,11 @@ function Rendered({
   const zoom = width === undefined ? 1 : shrinkTo(room, width)
   return (
     <div ref={ref} className={`${styles.scroll} ${styles.rendered}`}>
-      <article className={styles.document} style={width ? { width, zoom, minHeight: `${100 / zoom}%` } : undefined}>
+      <article
+        data-markdown-parse={by}
+        className={styles.document}
+        style={width ? { width, zoom, minHeight: `${100 / zoom}%` } : undefined}
+      >
         <MarkdownDocumentView document={document} />
       </article>
     </div>

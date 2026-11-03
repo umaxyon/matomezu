@@ -2,7 +2,16 @@
 // 追加プラグインを結ぶなら bun run dev --plugin <開発者プロジェクトのフォルダ>（変えたら起動し直すか、POST /api/plugins で入れ替える）。
 // 常駐の matomezu 保管庫フォルダは .dev-home（利用者が使っている matomezu 保管庫フォルダに触らない）。Go のコードを変えたら起動し直す
 const [port = "5300", ...extra] = process.argv.slice(2)
-const build = ["bun", "build", "web/index.html", "--outdir", "web/dist"]
+const build = [
+  "bun",
+  "build",
+  "web/index.html",
+  "web/src/plugins/books/markdown/markdown-parse-worker.ts",
+  "--outdir",
+  "web/dist",
+  "--entry-naming",
+  "[name].[ext]",
+]
 const exe = ".dev-home/matomezu"
 
 const built = await Bun.spawn(["go", "build", "-o", exe, "./cmd/matomezu"], { stdout: "inherit", stderr: "inherit" })
