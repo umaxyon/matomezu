@@ -1,6 +1,6 @@
 // Revealable: 中に物を描くビューが、外から「この id の物を見えるようにして」と頼まれる口。中の物をどう見せるか（中のスクロールなど）は、実装する側だけが知る。
-// 実装は、見せ方を変える要素に useRevealable の ref を付けて名乗り出る。頼む側（右サイドパネルなど）は実装を知らず、物の要素を囲む Revealable に内側から外側へ頼むだけ。
-// 見せ方は画面の上の見え方だけを変え、ブックのデータは変えない。reveal から返ったときには、物の位置が決まっていること
+// 実装は、見え方を変える要素に useRevealable の ref を付けて名乗り出る。頼む側（右サイドパネルなど）は実装を知らず、物の要素を囲む Revealable に内側から外側へ頼むだけ。
+// reveal は画面の上の見え方だけを変え、ブックのデータは変えない。reveal から返ったときには、物の位置が決まっていること
 import { useCallback, useRef } from "react"
 
 export interface Revealable {
@@ -11,7 +11,7 @@ export interface Revealable {
 const REVEALABLE_ATTR = "data-revealable"
 const registered = new WeakMap<Element, { current: Revealable }>()
 
-// revealable を名乗り出る ref を返す（見せ方を変える要素に付ける。描き直しで実装が替わっても、付け直さない）
+// revealable を名乗り出る ref を返す（見え方を変える要素に付ける。描き直しで実装が替わっても、付け直さない）
 export function useRevealable(revealable: Revealable): (el: Element | null) => void {
   const latest = useRef(revealable)
   latest.current = revealable
