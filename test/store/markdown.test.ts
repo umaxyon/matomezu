@@ -49,6 +49,29 @@ test("原文はページのフィールド text（無ければ空の文書）。
   expect(book().pages[0]!.text).toBe("# 見出し")
 })
 
+test("page-update の find・replace は、原文にちょうど 1 か所ある find を替える", () => {
+  const { store, id, book } = markdownStore()
+  const page = book().pages[0]!.id
+  const update = (fields: Record<string, unknown>) =>
+    store.actions.perform("@matomezu/base:page-update", { page, fields }, { book: id })
+  expect(update({ text: "# 見出し\n本文" }).ok).toBe(true)
+  expect(update({ find: "本文", replace: "直した本文" }).ok).toBe(true)
+  expect(book().pages[0]!.text).toBe("# 見出し\n直した本文")
+})
+
+test("find が無い・2 か所以上（重なりも数える）・text と一緒なら断る", () => {
+  const { store, id, book } = markdownStore()
+  const page = book().pages[0]!.id
+  const update = (fields: Record<string, unknown>) =>
+    store.actions.perform("@matomezu/base:page-update", { page, fields }, { book: id })
+  expect(update({ find: "a", replace: "b" }).ok).toBe(false) // 原文が無いページ
+  expect(update({ text: "aaa" }).ok).toBe(true)
+  expect(update({ find: "x", replace: "b" }).ok).toBe(false)
+  expect(update({ find: "aa", replace: "b" }).ok).toBe(false)
+  expect(update({ text: "aab", find: "b", replace: "c" }).ok).toBe(false)
+  expect(book().pages[0]!.text).toBe("aaa")
+})
+
 test("ペインの並べ方: 何も無ければ左右に並べる。分割を閉じると、右クリックしたペインを閉じてもう一方を残す", () => {
   expect(paneLayoutOf(undefined)).toEqual({ split: "row" })
   expect(paneLayoutOf({ split: "column" })).toEqual({ split: "column" })

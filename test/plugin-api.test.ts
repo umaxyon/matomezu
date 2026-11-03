@@ -93,6 +93,7 @@ test("matomezu が出す名前", () => {
     "pagedOf",
     "paperOf",
     "paperSize",
+    "parseMarkdown",
     "parseRich",
     "placeChild",
     "placeItem",

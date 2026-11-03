@@ -35,6 +35,9 @@ test("紙を置かずに、ソースとプレビューを左右に並べて開�
   const source = (await pane(page, "ソース").boundingBox())!
   const preview = (await pane(page, "プレビュー").boundingBox())!
   expect(preview.x).toBeGreaterThan(source.x) // 左右
+  // 紙（A4）より狭いペインでは、紙の幅のまま縮めて収める（横にはみ出さない）
+  const article = (await pane(page, "プレビュー").locator("article").boundingBox())!
+  expect(article.width).toBeLessThanOrEqual(preview.width)
 
   await pane(page, "ソース").getByRole("tab", { name: "ソース" }).click({ button: "right" })
   await page.getByRole("menuitem", { name: "分割を閉じる" }).click()
