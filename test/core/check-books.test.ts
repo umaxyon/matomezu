@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { checkBooks } from "../../web/src/core/book"
 import { warningText } from "../../web/src/core/warnings"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 
 test("読めるブックと、読めないブックの warning（タイプが無い W004・形に合わない W005・決まりを守らない W006）に分ける", () => {

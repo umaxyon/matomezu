@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN } from "../../web/src/plugins"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { isActive, isShown } from "../../web/src/store/commands"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin } from "../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../web/src/store/store"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, sequence } from "../support"
 
 describe("コマンドを出すかは、呼んだ場所の様子で決まる", () => {

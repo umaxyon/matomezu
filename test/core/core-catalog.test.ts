@@ -11,7 +11,7 @@ import { perform } from "../../web/src/core/perform"
 import { resolveTokens, tokenDefsOf } from "../../web/src/core/theme"
 import { bookTokens } from "../../web/src/plugins/base/book-look/look"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 describe("機能台帳", () => {

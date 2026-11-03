@@ -8,12 +8,12 @@ import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { MASTER } from "../../web/src/plugins/books/master/master"
 import { MASTER_VIEW_MESSAGES } from "../../web/src/plugins/books/master/view/messages"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { type AnyPluginUi, definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { SAMPLE_BOOKS } from "../sample-books"
 
 afterEach(cleanup)
 

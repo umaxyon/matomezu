@@ -67,10 +67,10 @@ const apiAllowed = (rel: string) => (t: string) =>
   t === "zod" ||
   (isView(rel) && ["plugin-api/ui", "react", "react-dom"].includes(t))
 
-// web/src の直下は、architecture の表のクレートと、直下に置くファイル（画面の入口・見本のブック・CSS の型の宣言）だけ。
+// web/src の直下は、architecture の表のクレートと、直下に置くファイル（画面の入口・CSS の型の宣言）だけ。
 // 表に無いクレートは「依存の向き」が見ないので、足したら表と ALLOWED（か入口の見張り）を決める
 const CRATES = [...Object.keys(ALLOWED), "plugins", "plugin-entry", "testing", "plugin-modules"]
-const ROOT_FILES = ["main.tsx", "sample-books.ts", "css.d.ts"]
+const ROOT_FILES = ["main.tsx", "css.d.ts"]
 test("外のライブラリを読むファイルは、そのライブラリの型を書き出す物に出さない（matomezu の形に移して出す）", () => {
   const bad = Object.keys(LIBRARY_READERS).flatMap(rel => {
     const text = sources.find(f => f.rel === rel)!.text

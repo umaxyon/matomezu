@@ -1,9 +1,9 @@
-// メモリに持つホストクライアント（ホストがいないときの代わり）: 残したものは読み直すと消える。テストと、サーバーなしで開いたときに使う。
+// メモリに持つホストクライアント（テストでホストの代わりに使う）: 残したものは読み直すと消える。
 // アクションは画面の中で済み、変わったブック（ゴミ箱のブックも）と設定をそのまま覚え、ゴミ箱から消したブックは忘れる（persist）
-import type { Book } from "../core/schema/book"
-import type { Settings } from "../core/settings"
-import type { HostClient } from "./client"
-import { persist } from "./persist"
+import type { Book } from "../../web/src/core/schema/book"
+import type { Settings } from "../../web/src/core/settings"
+import type { HostClient } from "../../web/src/host-client/client"
+import { persist } from "../../web/src/host-client/persist"
 
 export interface MemoryClient extends HostClient {
   books: ReadonlyMap<string, Book> // 残したブック（最初に渡したものも）

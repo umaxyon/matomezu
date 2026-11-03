@@ -71,7 +71,7 @@ export interface MatomezuState {
   // ブックの id → 触れた（開いたか書いた）時刻（ISO 8601 の UTC）。ホストが知らせたもの（receive）で、無ければ空
   touched: Readonly<Record<string, string>>
   trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
-  offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる。サーバーなしなら false）
+  offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
   // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのブックを変えたら、その全部のブックに同じ画面の履歴の段が入る
   history: Readonly<Record<string, BookHistory>>
   // ステージの id → プラグインの id → そのプラグインが持つ、そのステージの画面の状態（中身の形はプラグインが決め、土台は読まない）

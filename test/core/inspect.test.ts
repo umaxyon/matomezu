@@ -5,7 +5,7 @@ import { deniedBy, inspect } from "../../web/src/core/inspect"
 import { shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const drawing = SAMPLE_BOOKS[0]!

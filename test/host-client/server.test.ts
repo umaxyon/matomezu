@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { type Events, NoServer, OFFLINE_MS, serverClient } from "../../web/src/host-client/server"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
 
 // 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る。perform はアクションを送られたときの答え（null は送れない）、
