@@ -220,21 +220,26 @@ export function ActionButton({
   )
 }
 
-// セレクトFormとボタンをつなげたコンポーネント: 選んだ値でボタンの動きをする（例: [最大行 ▾](にそろえる)）。label はセレクトFormの名前
+// セレクトFormとボタンをつなげたコンポーネント: 選んだ値でボタンの動きをする（例: [最大行 ▾](にそろえる)）。label はセレクトFormの名前。
+// ボタンはいくつでもつなげられ、選ぶ物の切り替えに使うときは、押してあるか（pressed）を見せる（例: [2 ▾](半角スペース)(Tab)）
+export type SelectButtonPart = {
+  label: string // ボタンの名前
+  pressed?: boolean // 押してあるか（切り替えに使うときだけ書く）
+  onClick: () => void
+}
+
 export function SelectButton<V extends string>({
   label,
   value,
   options,
-  button,
+  buttons,
   onChange,
-  onClick,
 }: {
   label: string
   value: V
   options: readonly { value: V; label: string }[]
-  button: string // ボタンの名前
+  buttons: readonly SelectButtonPart[]
   onChange: (value: V) => void
-  onClick: () => void
 }) {
   return (
     <span className={styles.selectButton}>
@@ -245,9 +250,12 @@ export function SelectButton<V extends string>({
           </option>
         ))}
       </select>
-      <button type="button" onClick={onClick}>
-        {button}
-      </button>
+      {buttons.map((b, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: ボタンは並びが変わらず、名前が同じこともある
+        <button key={i} type="button" aria-pressed={b.pressed} onClick={b.onClick}>
+          {b.label}
+        </button>
+      ))}
     </span>
   )
 }

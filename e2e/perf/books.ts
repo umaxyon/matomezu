@@ -95,3 +95,18 @@ export function dirBook(id: string, n: number) {
     ],
   }
 }
+
+// マークダウンの 1 ページに、lines 行の原文（20 行ごとに見出し、段落とリストを交互に）
+export function markdownBook(id: string, lines: number) {
+  const text = Array.from({ length: lines }, (_, i) => {
+    if (i % 20 === 0) return `## 見出し ${i / 20 + 1}`
+    if (i % 20 === 1 || i % 5 === 0) return ""
+    return i % 40 < 20 ? `本文の行 ${i + 1}。**太字** と \`code\` を含む。` : `- 項目 ${i + 1}`
+  }).join("\n")
+  return {
+    type: "@matomezu/markdown:markdown",
+    id,
+    title: `原文 ${lines} 行`,
+    pages: [{ id: PAGE, title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait", text }],
+  }
+}

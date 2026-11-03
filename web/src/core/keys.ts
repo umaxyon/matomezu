@@ -3,6 +3,7 @@
 // 修飾キーの順は Mod・Ctrl・Meta・Alt・Shift にそろえ、1 文字のキーは大文字、空白は Space で書く（比べるのは、そろえた書き方どうし）。
 // 名前の付いたキー（Delete・Escape・ArrowLeft など）は、ブラウザのキーの名前（KeyboardEvent.key）の書き方のまま書く
 import { z } from "zod"
+import { sameData } from "./same"
 
 const MODIFIERS = ["Mod", "Ctrl", "Meta", "Alt", "Shift"] as const
 type Modifier = (typeof MODIFIERS)[number]
@@ -83,7 +84,7 @@ export function sameBinding(a: KeyBinding, b: KeyBinding): boolean {
     normalizeKey(a.key) === normalizeKey(b.key) &&
     a.command === b.command &&
     a.scope === b.scope &&
-    JSON.stringify(a.args) === JSON.stringify(b.args)
+    sameData(a.args, b.args)
   )
 }
 

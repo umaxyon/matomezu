@@ -220,6 +220,24 @@ test("d と f ですぐ下に兄弟のフォルダとファイルを足して書
   expect(row(selectedRow()!).textContent).toBe("go.mod") // すぐ上の行
 })
 
+test("足して名前を書いた物は 1 つの画面の履歴の段で、元に戻すと行ごと消える", async () => {
+  const { store, perform } = setup()
+  const ids = addProject(perform)
+  await act(() => Promise.resolve())
+  fireEvent.pointerDown(row(ids.a), { button: 0 })
+  press("d")
+  await act(() => Promise.resolve())
+  const input = within(paper()).getByRole("textbox", { name: "名前" })
+  writeRich(input, "lib")
+  fireEvent.keyDown(input, { key: "Enter" })
+  await act(() => Promise.resolve())
+  expect(rowNames()).toEqual(["proj", "src", "a.ts", "lib", "README.md"])
+  act(() => {
+    store.actions.command("s1", "@matomezu/base:undo")
+  })
+  expect(rowNames()).toEqual(["proj", "src", "a.ts", "README.md"])
+})
+
 test("＋はフォルダの行なら中の末尾に（閉じていれば開く）、ファイルの行ならすぐ下に足して書き始める", () => {
   const { perform } = setup()
   const ids = addProject(perform)

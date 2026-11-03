@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render } from "@testing-library/react"
 import { parseMarkdown } from "../../web/src/plugins/base"
+import { blockKeys } from "../../web/src/plugins/books/markdown/block-keys"
 import { linkTarget } from "../../web/src/plugins/books/markdown/link-target"
 import { shrinkTo } from "../../web/src/plugins/books/markdown/shrink"
 import { MarkdownDocumentView } from "../../web/src/plugins/books/markdown/view/MarkdownDocumentView"
@@ -74,4 +75,20 @@ test("縮める倍率は、ペインが紙より狭いときだけ 1 より小�
   expect(shrinkTo(400, 800)).toBe(0.5)
   expect(shrinkTo(1000, 800)).toBe(1)
   expect(shrinkTo(0, 800)).toBe(1)
+})
+
+test("いちばん外のブロックの名前は、原文の中の位置によらず中身と、同じ中身の何番目か", () => {
+  const a = blockKeys(parseMarkdown("x\n\ny\n\nx\n").blocks)
+  const b = blockKeys(parseMarkdown("new\n\nx\n\ny\n\nx\n").blocks)
+  expect(new Set(a).size).toBe(3)
+  expect(b.slice(1)).toEqual(a)
+})
+
+test("上にブロックを足しても、中身の同じブロックは描き直さず、同じ要素のまま", () => {
+  const view = render(<MarkdownDocumentView document={parseMarkdown("# A\n\nbody\n")} />)
+  const before = view.container.querySelector("p")
+  view.rerender(<MarkdownDocumentView document={parseMarkdown("new\n\n# A\n\nbody\n")} />)
+  const ps = view.container.querySelectorAll("p")
+  expect(ps).toHaveLength(2)
+  expect(ps[1]).toBe(before!)
 })

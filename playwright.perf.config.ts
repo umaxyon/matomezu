@@ -19,7 +19,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `rm -rf e2e/.perf-dist && bun build web/index.html --outdir e2e/.perf-dist --production && bun scripts/fonts.ts copy e2e/.perf-dist/fonts && bun scripts/serve.ts ${port} e2e/.perf-dist`,
+      command: `rm -rf e2e/.perf-dist && bun scripts/web-build.ts e2e/.perf-dist --production && bun scripts/fonts.ts copy e2e/.perf-dist/fonts && bun scripts/serve.ts ${port} e2e/.perf-dist`,
       url: `http://localhost:${port}`,
       reuseExistingServer: false,
     },

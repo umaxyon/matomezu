@@ -4,7 +4,7 @@ import { z } from "zod"
 import { type PageFieldsWay, pageFieldsWay } from "../../base"
 
 // 原文 text の中の find の位置（ちょうど 1 か所でなければ null）
-function onlyPlace(text: string, find: string): number | null {
+export function onlyPlace(text: string, find: string): number | null {
   const at = text.indexOf(find)
   return at < 0 || text.indexOf(find, at + 1) >= 0 ? null : at
 }
