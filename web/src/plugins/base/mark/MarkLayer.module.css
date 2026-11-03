@@ -54,8 +54,8 @@
 [data-away="true"] .alert {
   background: color-mix(in srgb, var(--skin-danger) 55%, transparent);
 }
-/* 縁の印（付けた物が画面の外にある間の鳥。絵は MarkLayer が鳥ごとに決める）: 少し薄く描く */
-.sign {
+/* マークポインタ（付けた物が見える所の外にある間の鳥。絵は MarkLayer が鳥ごとに決める）: 少し薄く描く */
+.pointer {
   position: absolute;
   width: 24px;
   height: 24px;

@@ -35,14 +35,26 @@ export function standAt(anchor: Rect, size: Size, area: Size, side: StandSide): 
   }
 }
 
-// アンカーの四角 anchor の上の辺が、置ける範囲（大きさ area。左上が 0,0）の外にあるか（辺が範囲と重ならなければ外）
-export function topEdgeOut(anchor: Rect, area: Size): boolean {
-  return anchor.y < 0 || anchor.y > area.h || anchor.x + anchor.w < 0 || anchor.x > area.w
+// アンカーの四角 anchor の上の辺が、見える所 seen の外にあるか（辺が見える所と重ならなければ外）
+export function topEdgeOut(anchor: Rect, seen: Rect): boolean {
+  return anchor.y < seen.y || anchor.y > seen.y + seen.h || anchor.x + anchor.w < seen.x || anchor.x > seen.x + seen.w
 }
 
-// 点 p を、置ける範囲の端から pad だけ内側に収めた点
-export function pointInto(p: Point, area: Size, pad: number): Point {
-  return { x: clamp(p.x, pad, area.w - pad), y: clamp(p.y, pad, area.h - pad) }
+// 点 p を、四角 box の端から pad だけ内側に収めた点
+export function pointInto(p: Point, box: Rect, pad: number): Point {
+  return { x: clamp(p.x, box.x + pad, box.x + box.w - pad), y: clamp(p.y, box.y + pad, box.y + box.h - pad) }
+}
+
+// 四角 a と b の重なり（重ならなければ、幅か高さが 0 の四角）
+export function intersectRect(a: Rect, b: Rect): Rect {
+  const x = Math.max(a.x, b.x)
+  const y = Math.max(a.y, b.y)
+  return {
+    x,
+    y,
+    w: Math.max(0, Math.min(a.x + a.w, b.x + b.w) - x),
+    h: Math.max(0, Math.min(a.y + a.h, b.y + b.h) - y),
+  }
 }
 
 // アンカーの四角 anchor を見せるのに、紙をずらす量: 真ん中を置ける範囲の真ん中へ。範囲より大きい向きは、端から pad の所に上の辺（左の辺）をそろえる

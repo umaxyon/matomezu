@@ -3,8 +3,8 @@
 // どちらも押すと「外す？」の小さな吹き出しを出し、「はい」で外す。ポインタが離れるか、ほかを押すと隠す。
 // マークの種類を選ぶスタンド（commands.ts の MARK_PICKER）が開いていれば、付ける先のそばに 6 つの種類の絵を並べ、押した種類を付ける。
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない。
-// 付けた物の上の辺が画面（スタンドのレイヤー）の外に出たら、鳥は縁の印（鳥の顔の丸い絵）に替わって画面の縁を歩き、びっくりマークは縁に寄って薄くなる。
-// 縁の印を押すと、紙をずらして付けた物を見せる
+// 付けた物の上の辺が見える所（画面と、物を囲むリストの行の並びなど）の外に出たら、鳥はマークポインタ（鳥の顔の丸い絵）に替わって
+// 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
 import { useMessages } from "../../../ui/i18n"
@@ -34,10 +34,10 @@ import styles from "./MarkLayer.module.css"
 const SIZE = 48 // 鳥の大きさ（画面の px）
 const PICK_SIZE = 40 // 種類を選ぶスタンドの鳥の大きさ
 const FRONT = 4 // 正面を向いたコマ
-const SIGN = 24 // 縁の印の大きさ
+const SIGN = 24 // マークポインタの大きさ
 const ALERT = 18 // びっくりマークの丸の大きさ
 
-// 鳥ごとの縁の印の絵
+// 鳥ごとのマークポインタの絵
 const SIGNS: Record<Bird, string> = {
   tsunagidori: tsunagidoriSign,
   inko: inkoSign,
@@ -85,15 +85,7 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
   if (kind === "alert")
     return (
       <Stand anchor={anchor} side="corner" edgePinned label={t("Mark")}>
-        <PinnedAlert>
-          <RemoveAsk onRemove={remove}>
-            {toggle => (
-              <button type="button" className={styles.alert} aria-label={title} onClick={toggle}>
-                !
-              </button>
-            )}
-          </RemoveAsk>
-        </PinnedAlert>
+        <PinnedAlert title={title} onRemove={remove} />
       </Stand>
     )
   return (
@@ -103,8 +95,9 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
   )
 }
 
-// びっくりマーク: 付けた物の上の辺が画面の外なら、丸を画面の縁に寄せて薄く描く
-function PinnedAlert({ children }: { children: React.ReactNode }) {
+// びっくりマーク: 押すと「外す？」を出す。付けた物の上の辺が見える所の外なら、丸を縁に寄せて薄く描き、押すと付けた物を見せる
+function PinnedAlert({ title, onRemove }: { title: string; onRemove: () => void }) {
+  const t = useMessages(kit)
   const away = useStandAway()
   const at = away?.pin({ x: ALERT / 2, y: ALERT / 2 }, ALERT / 2 + STAND_MARGIN)
   return (
@@ -116,7 +109,26 @@ function PinnedAlert({ children }: { children: React.ReactNode }) {
           : undefined
       }
     >
-      {children}
+      {away ? (
+        <button
+          type="button"
+          className={styles.alert}
+          aria-label={t("Show {name}", { name: title })}
+          title={t("Show {name}", { name: title })}
+          onClick={away.show}
+          data-mark-pointer
+        >
+          !
+        </button>
+      ) : (
+        <RemoveAsk onRemove={onRemove}>
+          {toggle => (
+            <button type="button" className={styles.alert} aria-label={title} onClick={toggle}>
+              !
+            </button>
+          )}
+        </RemoveAsk>
+      )}
     </div>
   )
 }
@@ -177,7 +189,7 @@ function RemoveAsk({
 }
 
 // 物の上の辺を歩く鳥。歩く所の幅は物の幅で、鳥は真ん中寄りの、鳥の幅の 2 倍ほどを往復する
-// 付けた物の上の辺が画面の外なら、鳥の代わりに縁の印を、鳥の足元を画面の縁に寄せた所に描く（歩く動きのまま縁を動く）
+// 付けた物の上の辺が見える所の外なら、鳥の代わりにマークポインタを、鳥の足元を見える所の縁に寄せた所に描く（歩く動きのまま縁を動く）
 function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title: string; onRemove: () => void }) {
   const t = useMessages(kit)
   const away = useStandAway()
@@ -228,12 +240,12 @@ function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title
       <div ref={area} className={styles.walk} data-mark-walk>
         <button
           type="button"
-          className={styles.sign}
+          className={styles.pointer}
           aria-label={t("Show {name}", { name: title })}
           title={t("Show {name}", { name: title })}
           onClick={away.show}
           style={{ left: at.x - SIGN / 2, top: at.y - SIGN / 2, backgroundImage: `url(${SIGNS[bird]})` }}
-          data-edge-sign
+          data-mark-pointer
         />
       </div>
     )
