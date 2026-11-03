@@ -87,6 +87,8 @@ import {
   PAPER_RESIZE,
   placeAt,
   pressSelection,
+  shapesIn,
+  sweptBox,
   sweptItems,
   sweptSelection,
   trackDrag,
@@ -144,7 +146,7 @@ export function PaperView({ stage: id }: BookViewProps) {
     const a = toPaperAt(sw.start)
     const b = toPaperAt(at)
     if (!a || !b) return
-    const r = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) }
+    const r = sweptBox(a, b)
     setBox(r)
     select(id, sweptSelection(sw.base, sweptItems(catalog, page, r), sw.mod))
   }
@@ -211,7 +213,11 @@ function Content({
       <Items stage={stage} localOf={localOf} />
       {pointer && <Ghost stage={stage} pointer={pointer} />}
       {box && (
-        <div data-sweep className={styles.sweep} style={{ left: box.x, top: box.y, width: box.w, height: box.h }} />
+        <div
+          data-select-sweep
+          className={styles.sweep}
+          style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+        />
       )}
     </PaperFrame>
   )
@@ -300,13 +306,12 @@ function PageItems({
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
     if (e.button !== 0 || pans || stage.placing !== null) return
     const reparenting = stage.tool === REPARENT_TOOL.id
-    // 付け替えは押した形 1 つだけを動かす。選択の道具は Mod で足す・外す（base の pressed）
+    // 付け替えは押した形 1 つだけを動かす。選択の道具は Mod で足す・外す（placing/selection.ts の pressSelection）
     const press = reparenting
       ? { now: [id], drag: [id], release: null }
       : pressSelection(stage.selection, id, modPressed(e))
     select(stage.id, press.now)
-    // 動かすのは形だけ（選択に混じったつなぐものは、両端の形に付いてくる）
-    const items = press.drag.filter(i => findShape(page, i) !== undefined)
+    const items = shapesIn(page, press.drag)
     // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
     const movable =
       (reparenting ? reparent.enabled : move.enabled) && book !== null && movableTogether(catalog, book, page, items)

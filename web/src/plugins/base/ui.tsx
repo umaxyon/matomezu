@@ -58,7 +58,6 @@ export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useCloseRightSidePanel, useOpenRightSidePanel, useRightSidePanel } from "./right-side-panel/hooks"
 export { RIGHT_SIDE_PANEL } from "./right-side-panel/slots"
 export type { RightSidePanelOpen } from "./right-side-panel/state"
-export { modPressed } from "./select/ui"
 export { UserSettings } from "./settings/ui"
 export {
   BodyField,
