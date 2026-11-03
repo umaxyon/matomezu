@@ -384,3 +384,41 @@ test("行の追加と編集のダイアログで、行のキャプションと�
   await expect(caption).toHaveCSS("text-align", "right")
   await expect(body.locator("..")).toHaveCSS("text-align", "center")
 })
+
+test("行を押すと行だけを選び（行に選択枠）、見出しを押すとリストを選ぶ。Ctrl+クリックで同じリストの行を足し、ほかの物を Ctrl+クリックすると行はリストに置き換わる。選んだ行は Delete で消える", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const list = await addList(page, "買い物")
+  for (const caption of ["牛乳", "卵", "パン"]) await addRow(page, list, caption)
+  const rows = list.getByRole("listitem")
+  await rows.nth(0).click()
+  await expect(rows.nth(0)).toHaveAttribute("data-selected", "true")
+  await expect(list).toHaveAttribute("data-selected", "false")
+  await page.keyboard.down("Control")
+  await rows.nth(2).click()
+  await page.keyboard.up("Control")
+  await expect(rows.nth(0)).toHaveAttribute("data-selected", "true")
+  await expect(rows.nth(2)).toHaveAttribute("data-selected", "true")
+  // 選んだ行は Delete で消え、選択も外れる
+  await page.keyboard.press("Delete")
+  await expect(rows).toHaveText(["卵"])
+  // 見出しを押すとリストを選ぶ
+  await list.getByText("買い物").click()
+  await expect(list).toHaveAttribute("data-selected", "true")
+  // 行を選んで箱を Ctrl+クリックすると、リストと箱を選ぶ
+  await (await footerMenuTool(page, "箱")).click()
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  await page.mouse.click(paper.x + 700, paper.y + 450)
+  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
+  await dialog.getByRole("button", { name: "追加" }).click()
+  await expect(dialog).toBeHidden()
+  const box = page.locator("[data-item]").filter({ hasNotText: "買い物" })
+  await rows.nth(0).click()
+  await page.keyboard.down("Control")
+  await box.click()
+  await page.keyboard.up("Control")
+  await expect(rows.nth(0)).toHaveAttribute("data-selected", "false")
+  await expect(list).toHaveAttribute("data-selected", "true")
+  await expect(box).toHaveAttribute("data-selected", "true")
+})

@@ -72,6 +72,7 @@
   margin: 0;
   padding: 8px 8px 0;
   list-style: none;
+  outline: none; /* 行を押すと焦点が入る（選んだ行へのキーを受けるため）が、枠は選んだ行に出す */
 }
 /* 行: 台紙の上の 1 枚のカード（下に隙間 6px、中の余白は上下 8px・左右 12px） */
 .row {
@@ -82,6 +83,11 @@
   box-sizing: border-box;
   margin-bottom: 6px;
   padding: 8px 12px;
+}
+/* 選んでいる行（色はアイテムの選択枠と同じ） */
+.row[data-selected="true"] {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 1px;
 }
 /* チェック済みの行を薄く（グレーアウト） */
 .row[data-done="true"] {

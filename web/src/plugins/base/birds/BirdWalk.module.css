@@ -1,0 +1,50 @@
+/* 鳥が歩く所（物の上の辺に乗る。幅は物の幅）。鳥は足元を下の辺に合わせて描く */
+.walk {
+  position: relative;
+  height: 48px;
+  pointer-events: none;
+}
+/* 鳥の足元（大きさは持たず、絵はここから置く） */
+.foot {
+  position: absolute;
+  top: 100%;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+/* 物の裏にいる間: 上の辺より下を隠す */
+.behind {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 200px;
+  overflow: hidden;
+}
+.behind > .foot {
+  top: 200px;
+}
+/* 絵の 1 コマ（コマと位置は frameStyle が決める） */
+.bird {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  pointer-events: auto;
+}
+/* 鳥の顔の丸い絵（付けた物が見える所の外にある間の鳥）: 少し薄く描く */
+.pointer {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: transparent;
+  background-size: 24px 24px;
+  opacity: 0.85;
+  cursor: pointer;
+  pointer-events: auto;
+}

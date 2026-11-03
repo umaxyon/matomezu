@@ -80,6 +80,7 @@ import {
   type Came,
   dragging,
   dropTarget,
+  lifted,
   movableTogether,
   PAPER_EDIT,
   PAPER_MOVE,
@@ -168,7 +169,12 @@ export function PaperView({ stage: id }: BookViewProps) {
     const mod = modPressed(e)
     if (!mod) select(id, [])
     if (stage?.tool !== "@matomezu/base:select") return
-    sweep.current = { pointer: e.pointerId, start: local(e, ref.current), base: mod ? stage.selection : [], mod }
+    sweep.current = {
+      pointer: e.pointerId,
+      start: local(e, ref.current),
+      base: mod && page ? lifted(page, stage.selection) : [],
+      mod,
+    }
   }
   if (!stage) return null
 

@@ -150,10 +150,16 @@ describe("右の長押しのミニマップの置き場所", () => {
   test("ミニマップのボタンは、並びの外側の真ん中のアイコンの隣", () => {
     const at = { x: 600, y: 400 }
     const row = pickerSlots(at, 3, view)
-    const mid = row.slots[1]!
+    const mid = row.slots[0]!
     expect(mapSlot(row, at)).toEqual({ x: mid.x, y: mid.y - 46 })
     const low = pickerSlots({ x: 600, y: 20 }, 3, view) // 上に入らなければ下に並び、ボタンはさらに下
-    expect(mapSlot(low, { x: 600, y: 20 }).y).toBeGreaterThan(low.slots[1]!.y)
+    expect(mapSlot(low, { x: 600, y: 20 }).y).toBeGreaterThan(low.slots[0]!.y)
+  })
+  test("組の初めの道具は並びの真ん中、ほかは組の順で残りの所", () => {
+    const xs = pickerSlots({ x: 600, y: 400 }, 3, view).slots.map(s => s.x)
+    expect(xs[1]! < xs[0]! && xs[0]! < xs[2]!).toBe(true)
+    const ys = pickerSlots({ x: 1190, y: 400 }, 4, view).slots.map(s => s.y)
+    expect(ys[1]! < ys[0]! && ys[0]! < ys[2]! && ys[2]! < ys[3]!).toBe(true)
   })
   test("アイコンが偶数なら、ボタンは真ん中の 2 つの間", () => {
     const at = { x: 600, y: 400 }

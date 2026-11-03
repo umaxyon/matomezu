@@ -4,6 +4,7 @@
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
 import { freshId } from "../../../core/ids"
+import type { Bird } from "../birds"
 import { kit } from "../kit"
 
 // マークの種類。title は画面で見せる名前（文言の鍵）、ai は AI に伝える呼び方（利用者が旗の色や鳥の色・名前で呼ぶので、どれも書く）
@@ -14,10 +15,8 @@ export const MARK_KINDS = [
   { id: "suzume", title: "Sparrow", ai: "suzume: a brown bird (sparrow) with a yellow flag" },
   { id: "fukurou", title: "Owl", ai: "fukurou: an indigo blue bird (owl) with a blue flag" },
   { id: "alert", title: "Alert", ai: "alert: a red dot with an exclamation mark" },
-] as const
+] as const satisfies readonly { id: Bird | "alert"; title: string; ai: string }[] // 鳥の種類は、マスコットの鳥（birds/）の id
 export type MarkKind = (typeof MARK_KINDS)[number]["id"]
-// 鳥のマークの種類（alert のほか）
-export type Bird = Exclude<MarkKind, "alert">
 
 const KINDS = MARK_KINDS.map(k => k.id) as [MarkKind, ...MarkKind[]]
 

@@ -1,6 +1,9 @@
 // アンカーとスタンド: ビューは、id を持つ物（アイテム・リストの行・節・ディレクトリの行など）を描く要素に、その id のアンカーを付ける（useAnchorRef）。
 // スタンド（Stand）は、アンカーの id を指して、その物のそばに立つ。スタンドはスタンドのレイヤー（スロット book-layers）に描かれ、
 // 倍率では大きさを変えない。パン・倍率・リストのスクロールで物が動けば、付いて動く。
+// 置ける範囲（スタンドのレイヤー）に入らなければ、範囲の中へ寄せる。edgePinned のスタンドは、アンカーの上の辺が見える所（範囲と、アンカーを囲む
+// Revealable（リストの行の並びなど）の重なり）の外に出たら寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
+// （囲む物の中のスクロールと、紙をずらしてアンカーを真ん中へ）関数を受け取る。
 // アンカーの表（id → 要素）はステージごとに 1 つで、ステージのビューが渡す。ブックのデータにも画面の状態にも入れず、描いている間だけ持つ
 import {
   createContext,
@@ -15,11 +18,24 @@ import {
   useSyncExternalStore,
 } from "react"
 import { createPortal } from "react-dom"
-import type { Rect, Size } from "../../../core/geom"
+import type { Point, Rect, Size } from "../../../core/geom"
+import { useActions } from "../../../ui/store-context"
 import { useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
+import { glidePan } from "./glide-pan"
+import { revealAround, revealablesAround } from "./revealable"
 import { stageElement } from "./stage-element"
-import { type StandSide, standAt, unionRect } from "./stand-place"
+import {
+  intersectRect,
+  pointInto,
+  revealShift,
+  STAND_MARGIN,
+  type StandSide,
+  standAt,
+  standBeside,
+  topEdgeOut,
+  unionRect,
+} from "./stand-place"
 import { ZOOM_MS } from "./useZoomMotion"
 
 // ステージのアンカーの表: id → 要素と、変わったときに知らせる先
@@ -108,24 +124,40 @@ export function StandLayer() {
   return <div ref={setLayer} className={styles.layer} data-stand-layer />
 }
 
+// edgePinned のスタンドのアンカーの上の辺が、見える所の外に出ている間に、中の物が受け取る物
+export interface StandAway {
+  // スタンドの中の点 p（スタンドの左上から）を、アンカーを囲む Revealable の端から、続けて置ける範囲の端から、pad（既定はスタンドと端のすき間）の
+  // 内側に寄せた点（スタンドの左上から）。囲む物が範囲の中にあればその物の縁に、外に出ていれば範囲の縁に来る
+  pin(p: Point, pad?: number): Point
+  // アンカーを見せる: 物を囲む Revealable に頼んでから、紙をずらしてアンカーを表示領域の真ん中へ動かす（倍率は変えない。紙の端で、ずらせる所まで）
+  show(): void
+}
+const AwayContext = createContext<StandAway | null>(null)
+
+// スタンドの中で、アンカーの上の辺が見える所の外に出ていれば StandAway（edgePinned でないか、外に出ていなければ null）
+export const useStandAway = (): StandAway | null => useContext(AwayContext)
+
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
-// span なら、幅をアンカーの幅（画面の上の幅）にそろえる
+// span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く
 export function Stand({
   anchor,
   side = "below",
   span = false,
+  edgePinned = false,
   label,
   children,
 }: {
   anchor: string | readonly string[]
   side?: StandSide
   span?: boolean
+  edgePinned?: boolean
   label?: string
   children: ReactNode
 }) {
   const ctx = useContext(Context)
+  const { panStageBy } = useActions()
   const ids = useMemo(() => (typeof anchor === "string" ? [anchor] : anchor), [anchor])
-  const rect = useAnchorRect(ctx, ids)
+  const measured = useAnchorRect(ctx, ids, edgePinned)
   const ref = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState<Size | null>(null)
   useLayoutEffect(() => {
@@ -140,9 +172,42 @@ export function Stand({
     observer.observe(el)
     return () => observer.disconnect()
   })
-  if (!ctx?.layer || !rect) return null
+  if (!ctx?.layer || !measured) return null
+  const { rect, clip } = measured
   const area = { w: ctx.layer.clientWidth, h: ctx.layer.clientHeight }
-  const at = size ? standAt(rect, size, area, side) : { x: rect.x, y: rect.y + rect.h }
+  const whole = { x: 0, y: 0, ...area }
+  const out = edgePinned && topEdgeOut(rect, clip ? intersectRect(clip, whole) : whole)
+  const at = !size
+    ? { x: rect.x, y: rect.y + rect.h }
+    : out
+      ? standBeside(rect, size, side)
+      : standAt(rect, size, area, side)
+  const stage = ctx.stage
+  const away: StandAway | null = out
+    ? {
+        pin: (p, pad = STAND_MARGIN) => {
+          const inStand = { x: at.x + p.x, y: at.y + p.y }
+          const pinned = pointInto(clip ? pointInto(inStand, clip, pad) : inStand, whole, pad)
+          return { x: pinned.x - at.x, y: pinned.y - at.y }
+        },
+        show: () => {
+          const layer = ctx.layer
+          const view = stageElement(stage)
+          if (!layer || !view) return
+          for (const id of ids) {
+            const el = ctx.anchors.element(id)
+            if (el) revealAround(el, view, id)
+          }
+          const now = measureIn(
+            layer,
+            ids.map(id => ctx.anchors.element(id)),
+          )?.rect
+          if (!now) return
+          const by = revealShift(now, area)
+          glidePan((dx, dy) => panStageBy(stage, dx, dy), by.x, by.y)
+        },
+      }
+    : null
   return createPortal(
     // biome-ignore lint/a11y/useSemanticElements: スタンドは中身を束ねる箱で、入力Formのまとまり（fieldset）ではない
     <div
@@ -159,38 +224,34 @@ export function Stand({
       onWheel={stop}
       onKeyDown={stop}
     >
-      {children}
+      <AwayContext.Provider value={away}>{children}</AwayContext.Provider>
     </div>,
     ctx.layer,
   )
 }
 
-// アンカーの要素の四角（スタンドのレイヤーの左上から）。パン・倍率・大きさ・スクロールで動けば測り直す
-function useAnchorRect(ctx: StandContext | null, ids: readonly string[]): Rect | null {
+// アンカーの要素の四角と、clipped なら囲む Revealable の見える所（どちらもスタンドのレイヤーの左上から）。パン・倍率・大きさ・スクロールで動けば測り直す
+function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped: boolean): Measured | null {
   const stage = useStage(ctx?.stage ?? "")
   const pan = useStagePan(ctx?.stage ?? "")
   const version = useSyncExternalStore(ctx?.anchors.subscribe ?? noSubscribe, ctx?.anchors.snapshot ?? zero)
   const [tick, setTick] = useState(0)
-  const measure = useCallback((): Rect | null => {
+  const measure = useCallback((): Measured | null => {
     if (!ctx?.layer) return null
-    const els = ids.map(id => ctx.anchors.element(id)).filter((e): e is Element => e !== undefined)
-    if (els.length === 0) return null
-    const base = ctx.layer.getBoundingClientRect()
-    return unionRect(
-      els.map(el => {
-        const r = el.getBoundingClientRect()
-        return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height }
-      }),
+    return measureIn(
+      ctx.layer,
+      ids.map(id => ctx.anchors.element(id)),
+      clipped ? (stageElement(ctx.stage) ?? undefined) : undefined,
     )
-  }, [ctx, ids])
-  const [rect, setRect] = useState<Rect | null>(null)
+  }, [ctx, ids, clipped])
+  const [measured, setMeasured] = useState<Measured | null>(null)
   // パン・倍率・アンカーが替わったとき、紙が動き終えるまで（なめらかに移す間も）コマごとに測る
   // biome-ignore lint/correctness/useExhaustiveDependencies: パン・倍率・アンカーの表・スクロールが変わるたびに測り直す
   useLayoutEffect(() => {
     let frame = 0
     const until = performance.now() + ZOOM_MS + 50
     const step = () => {
-      setRect(prev => same(prev, measure()))
+      setMeasured(prev => same(prev, measure()))
       if (performance.now() < until) frame = requestAnimationFrame(step)
     }
     step()
@@ -206,12 +267,36 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[]): Rect |
       window.removeEventListener("resize", again)
     }
   }, [])
-  return rect
+  return measured
+}
+
+// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲む Revealable の見える所（clip。測らないか、囲む物が無ければ null）
+interface Measured {
+  rect: Rect
+  clip: Rect | null
+}
+
+// 要素 elements（描かれていない物は undefined）をまとめて囲む四角（layer の左上から。どれも無ければ null）。
+// outer を渡せば、要素を囲む Revealable（outer の内側だけ。中の物の見え方を自分で変える物）の四角を重ねて、要素ごとの見える所をまとめた物も測る
+function measureIn(layer: Element, elements: readonly (Element | undefined)[], outer?: Element): Measured | null {
+  const els = elements.filter((e): e is Element => e !== undefined)
+  if (els.length === 0) return null
+  const base = layer.getBoundingClientRect()
+  const local = (r: DOMRect): Rect => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height })
+  const rect = unionRect(els.map(el => local(el.getBoundingClientRect())))
+  if (!outer) return { rect, clip: null }
+  const clips = els.flatMap(el => {
+    const boxes = revealablesAround(el, outer).map(at => local(at.getBoundingClientRect()))
+    return boxes.length > 0 ? [boxes.reduce(intersectRect)] : []
+  })
+  return { rect, clip: clips.length === els.length ? unionRect(clips) : null }
 }
 
 // スタンドの中の操作は、スタンドを描いたビュー（React の上の物）に渡さない
 const stop = (e: { stopPropagation(): void }) => e.stopPropagation()
 const noSubscribe = () => () => {}
 const zero = () => 0
-const same = (a: Rect | null, b: Rect | null): Rect | null =>
-  a && b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h ? a : b
+const sameRect = (a: Rect | null, b: Rect | null) =>
+  a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)
+const same = (a: Measured | null, b: Measured | null): Measured | null =>
+  a && b && sameRect(a.rect, b.rect) && sameRect(a.clip, b.clip) ? a : b

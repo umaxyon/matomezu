@@ -2,7 +2,7 @@
 
 import { isMac } from "../../../ui/keys"
 
-export { Stand, useAnchorRef } from "./anchors"
+export { Stand, type StandAway, useAnchorRef, useStandAway } from "./anchors"
 export { ChoiceSetting } from "./ChoiceSetting"
 export { LockToggle } from "./LockToggle"
 export { PageProblemsView, usePageProblems } from "./PageProblems"
