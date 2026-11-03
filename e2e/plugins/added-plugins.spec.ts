@@ -64,7 +64,7 @@ test("追加プラグインの形の道具を使うと、その形の追加の�
   await expect(page.getByRole("dialog", { name: "判断の追加" })).toBeVisible()
 })
 
-// AI と CLI の入口の合言葉（常駐のアプリのフォルダはポートごと。scripts/e2e-server.ts）
+// AI と CLI の入口の合言葉（常駐の matomezu 保管庫フォルダはポートごと。scripts/e2e-server.ts）
 const ai = () => ({
   Authorization: `Bearer ${JSON.parse(readFileSync(`e2e/.home-${new URL(test.info().project.use.baseURL ?? "").port}/server.json`, "utf8")).token}`,
 })

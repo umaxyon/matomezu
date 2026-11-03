@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { footerMenuTool } from "../footer-menu"
 
-// 1 つの常駐（空のアプリのフォルダ）を順に使う
+// 1 つの常駐（空の matomezu 保管庫フォルダ）を順に使う
 test.describe.configure({ mode: "serial" })
 
 // 常駐に置いてあるもの
@@ -11,7 +11,7 @@ const data = async (page: Page) => (await page.request.get("/api/data")).json()
 // 置いてあるブック id のデータ（無ければ undefined）
 const bookIn = async (page: Page, id: string): Promise<{ trashed?: string } | undefined> =>
   (await data(page)).books.find((b: { id: string }) => b.id === id)?.book
-// AI の入口の合言葉（常駐のアプリのフォルダはポートごと。scripts/e2e-server.ts）
+// AI の入口の合言葉（常駐の matomezu 保管庫フォルダはポートごと。scripts/e2e-server.ts）
 const aiToken = (): string =>
   JSON.parse(readFileSync(`e2e/.home-${new URL(test.info().project.use.baseURL ?? "").port}/server.json`, "utf8")).token
 

@@ -1,6 +1,6 @@
-// 実際のブラウザのテスト用の常駐（テストの用意の入口を入れる、ビルドタグ e2e の実行ファイル）: 画面のビルドを配るサーバー（wait の URL）が答えるまで待ち、空のアプリのフォルダで matomezu serve を立てる。
+// 実際のブラウザのテスト用の常駐（テストの用意の入口を入れる、ビルドタグ e2e の実行ファイル）: 画面のビルドを配るサーバー（wait の URL）が答えるまで待ち、空の matomezu 保管庫フォルダで matomezu serve を立てる。
 // bun scripts/e2e-server.ts <ポート> <画面のフォルダ> <待つ URL> [serve に渡す引数（--plugin <フォルダ> など）]
-// アプリのフォルダと実行ファイルはポートごとに分ける（いくつかの常駐を同時に立てる）
+// matomezu 保管庫フォルダと実行ファイルはポートごとに分ける（いくつかの常駐を同時に立てる）
 import { rmSync } from "node:fs"
 
 const [port, web, wait, ...extra] = process.argv.slice(2) as [string, string, string, ...string[]]

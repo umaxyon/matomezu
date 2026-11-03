@@ -10,7 +10,7 @@
 | アイテム（`ItemDef`） | 名詞。データに残り、画面に置かれるもの（箱・ひし形・線など） | `core/def/item.ts` |
 | アクション（`ActionDef`） | 動詞。データを変える唯一の入口 | `core/def/action.ts` |
 | テーマ（`ThemeDef`） | ブックの中身の見た目 | `core/def/theme.ts` |
-| スキン（`SkinDef`） | アプリの枠の見た目（利用者の設定で選ぶ） | `core/def/skin.ts` |
+| スキン（`SkinDef`） | matomezu 外観枠の色や形（利用者の設定で選ぶ） | `core/def/skin.ts` |
 | 紙（`PaperDef`） | ページに置く紙の大きさ | `core/def/paper.ts` |
 | 文字の色（`TextColorDef`） | 本文の一部に付ける、意味の役割の色（成功・注意など）。色を持つ | `core/def/text-color.ts` |
 | 設定の項目（`SettingDef`） | ブックやページ、または利用者の設定に持たせる 1 つの値（線の既定の通り方・言語など） | `core/def/setting.ts` |

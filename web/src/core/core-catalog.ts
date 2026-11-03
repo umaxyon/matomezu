@@ -31,7 +31,7 @@ export type { ActionId, BookTypeId, ItemId, PaperId, SettingId, SkinId, ThemeId 
 // アイテムの、置いたものが持つ項目の型
 export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
 
-// core 台帳の定義の種類の、定義の型（スキンはアプリの枠の見た目で、利用者の設定で選ぶ）
+// core 台帳の定義の種類の、定義の型（スキンは matomezu 外観枠の色や形で、利用者の設定で選ぶ）
 declare module "./catalog" {
   interface PartDefTable {
     bookTypes: BookTypeDef

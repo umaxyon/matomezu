@@ -49,7 +49,7 @@
 
 - `definePluginUi(plugin, { presentationViews, items, connectors, settingViews, userSettingViews, dialogViews, widgets, commandIcons, toolIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ブックの設定の項目・ダイアログ・道具に、ビューやアイコンが無いと型の誤り。利用者の設定の項目のビュー（`userSettingViews`）は書かなくてよい
 - 差し替えられるのはビュー（ブック・ダイアログ・ウィジェット）だけで、`overrides` に書く。アクションやブックのタイプなど中身は差し替えない
-- 画面の配置（スロットにどのウィジェットを置くか、メニューの中身）は配置（`defineLayout`）に書く。matomezu/testing でアプリを組むときは、配置は丸ごと替え、差分を重ねて混ぜない
+- 画面の配置（スロットにどのウィジェットを置くか、メニューの中身）は配置（`defineLayout`）に書く。matomezu/testing で matomezu を組むときは、配置は丸ごと替え、差分を重ねて混ぜない
 - 配置が名指したウィジェット・コマンド・スロット・メニューのうち、持ち主のプラグイン（id の頭）が組み込まれていない物は、その行だけ飛ばし、warning を残す。持ち主が組み込まれているのに無い物は error。画面の warning は `useLayoutWarnings` で読む
 - 追加プラグインは、置いてほしい所を定義に書く: ウィジェットは `place`（置けるスロットのうち 1 つと、並びの中ですぐ前に置く `before` か、すぐ後ろに置く `after` のどちらか 1 つのウィジェットの id）、コマンドは `place`（入れるメニュー・右クリックのメニュー・配置の `anchorMenu`）。動いている matomezu の画面は、既定の配置に取り込んだ順に足す。位置を書かなければ末尾に足す。名指せるのは並びにあるウィジェットだけで、名指したウィジェットが並びに無いか、両方書いてあれば置かず、warning を残す。並べ替えは利用者がする
 - ブックの見た目の重なりは、スロット `@matomezu/base:book-layers` に置くウィジェット（レイヤー）で描く。並べた順に下から重ねる。紙の座標で描くレイヤーは `PaperFrame` の中に描く
