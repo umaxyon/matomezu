@@ -70,7 +70,7 @@ test("設定の区分は画面の作りが決まっていないことを書き�
     within(master)
       .getAllByRole("heading", { level: 3 })
       .map(h => h.textContent),
-  ).toEqual(["@ex/s"])
+  ).toEqual(["@matomezu/markdown", "@ex/s"])
   // 入力Form を作れない形の項目は出さない
   expect(within(master).queryByText("一覧")).toBeNull()
 })

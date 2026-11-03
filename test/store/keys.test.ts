@@ -79,6 +79,8 @@ test("範囲は狭いものから引き、メニューとダイアログが開�
     "global",
   ])
   expect(keyScopes({ menu: false, dialog: true }, [], "b:view")).toEqual(["dialog"])
+  // テキストFormが名乗った範囲だけで引くときは、ほかの範囲を見ない
+  expect(keyScopes({ menu: false, dialog: false }, ["a:field"], "b:view", "named")).toEqual(["a:field"])
   const table = keyTable(
     [
       def("D", "app:thing", "@matomezu/base", true, "global"),

@@ -52,7 +52,7 @@ import {
 import { type CommandArgs, type CommandId, commandContext, commandDef, commandOwner, isEnabled } from "./commands"
 import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
-import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
+import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type Assembled, assemble, type Plugin } from "./plugin"
 
 export type { Settings } from "../core/settings"
@@ -109,8 +109,9 @@ export interface Actions {
   previewDialog(preview: DialogPreview | null): void
   submitDialog(): void // 開いているダイアログに、決めるように頼む（枠が中身の form を送る）
   // 押したキー（そろえた書き方）を、開いているメニュー・ダイアログ・カレントのステージの範囲で引き、当たったコマンドを行う。
-  // 当たった範囲より外は見ない（当たったコマンドが押せなくても）。scopes は押した所の要素が名乗ったプラグインの範囲。行ったか返す
-  pressKey(key: string, scopes?: readonly string[]): boolean
+  // 当たった範囲より外は見ない（当たったコマンドが押せなくても）。scopes は押した所の要素が名乗ったプラグインの範囲。
+  // reach が "named" なら scopes だけを引く（テキストFormが自分で名乗った範囲）。行ったか返す
+  pressKey(key: string, scopes?: readonly string[], reach?: KeyReach): boolean
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
   openContextMenu(stage: string, id: string, target: unknown, at: Point): void
   closeContextMenu(): void
@@ -146,6 +147,7 @@ export interface Actions {
   // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
   moveHistory(book: string, from: "undo" | "redo"): void
   // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
+  // 足すのは、最後に画面の履歴に入れた画面の履歴の段がそのブックの最後の物のときだけ（元に戻す・やり直すのあとや、ほかのブックの段のあとは足さずに、別の画面の履歴の段になる）。
   // 足したあと何も変わらなければ（足した物を書かずに消したなど）、その画面の履歴の段ごと無くなる
   continueStep(book: string): void
 }
@@ -327,17 +329,21 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 開いている画面の履歴の段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 つの画面の履歴の段にまとめ、処理が終わったら
   // 画面の履歴に入れる（入れた画面の履歴の段が変えたブックの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
   let open: { at: string; books: Record<string, { before: Book; after: Book }>; continued?: true } | null = null
+  // 最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで行き来したら無し。続けられるのはこれだけ）
+  let closed: HistoryStep | null = null
   const closeStep = () => {
     if (!open) return
     const { at, books, continued } = open
     const step: HistoryStep = { at, books }
     open = null
+    closed = null
     // 続けた画面の履歴の段で何も変わらなかった（足した物を書かずに消したなど）なら入れない
     if (continued && Object.values(books).every(b => JSON.stringify(b.before) === JSON.stringify(b.after))) return
     const history = { ...getState().history }
     for (const id of Object.keys(step.books))
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
     setState({ history })
+    closed = step
   }
   const record = (before: Book, after: Book, at: string) => {
     if (!open) {
@@ -446,7 +452,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { dialog } = getState()
       if (dialog) setState({ dialog: { ...dialog, submitted: dialog.submitted + 1 } })
     },
-    pressKey: (key, scopes) => {
+    pressKey: (key, scopes, reach) => {
       const { contextMenu, dialog, workspace, settings } = getState()
       const table = keysFor(settings)
       const picker = workspace.stages.find(s => s.picker !== null)?.id
@@ -455,7 +461,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const type = workspace.stages.find(s => s.id === stage)?.opened?.type
       const presentation = type && catalog.bookTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
-      for (const scope of keyScopes({ menu, dialog: dialog !== null }, scopes, shown)) {
+      for (const scope of keyScopes({ menu, dialog: dialog !== null }, scopes, shown, reach)) {
         const hit = findKey(table, scope, key)
         if (!hit) continue
         const { command, args } = hit.binding
@@ -517,7 +523,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       closeStep()
       const { history } = getState()
       const step = history[book]?.undo.at(-1)
-      if (!step) return
+      if (!step || step !== closed) return
       const next = { ...history }
       for (const id of Object.keys(step.books)) {
         const was = next[id] ?? NO_HISTORY
@@ -533,6 +539,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { history } = getState()
       const step = (history[book] ?? NO_HISTORY)[from].at(-1)
       if (!step) return
+      closed = null
       const next = { ...history }
       for (const id of Object.keys(step.books)) {
         const was = next[id] ?? NO_HISTORY

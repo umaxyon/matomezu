@@ -6,11 +6,13 @@ import { growOf } from "../../web/src/plugins/base"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { paneLayoutOf } from "../../web/src/plugins/books/markdown/panes"
+import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
 import { isShown } from "../../web/src/store/commands"
+import type { DoneAction as Done } from "../../web/src/store/store"
 import { newStore } from "../support"
 
-const markdownStore = () => {
-  const store = newStore()
+const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
+  const store = newStore(options)
   createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
   addPageIn(store, "s1", { title: "ページ 1" })
   const id = store.state.getState().workspace.stages[0]!.opened!.book
@@ -115,4 +117,25 @@ test("ページを切り替えても、紙を変えても、ステージに紙�
   expect(state.getState().workspace.stages[0]!.opened).toMatchObject({ page: first, paper: null })
   for (const c of ["@matomezu/base:zoom-in", "@matomezu/base:tool-picker"] as const)
     expect(isShown(store, state.getState(), "s1", c)).toBe(false)
+})
+
+test("ソースのペインで書いた所は、ホストで AI の変更のあとに行い直しても、重ならなければ残り、重なって 1 か所にならなければ落ちる", () => {
+  const done: Done[] = []
+  const { store, id, book } = markdownStore({ observe: d => done.push(d) })
+  const page = book().pages[0]!.id
+  const write = (from: string, to: string) => {
+    const edit = sourceEdit(from, to, from)
+    if (edit.kind !== "send") throw new Error(edit.kind)
+    return store.actions.perform("@matomezu/base:page-update", { page, fields: edit.fields }, { book: id })
+  }
+  store.actions.perform("@matomezu/base:page-update", { page, fields: { text: "# T\n\nfoo\n" } }, { book: id })
+  const confirmed = (text: string) => ({ ...book(), pages: [{ ...book().pages[0]!, text }] })
+  // AI が先頭に行を足したホストのブックに、foo の後ろへ書いた物を行い直す
+  write("# T\n\nfoo\n", "# T\n\nfoo bar\n")
+  store.receive({ books: [confirmed("AI\n# T\n\nfoo\n")], settings: {} }, [done.at(-1)!])
+  expect(book().pages[0]!.text).toBe("AI\n# T\n\nfoo bar\n")
+  // AI が foo を消したなら、書いた物は行えずに落ちる
+  write("AI\n# T\n\nfoo bar\n", "AI\n# T\n\nfoo bar!\n")
+  store.receive({ books: [confirmed("AI\n# T\n\n")], settings: {} }, [done.at(-1)!])
+  expect(book().pages[0]!.text).toBe("AI\n# T\n\n")
 })

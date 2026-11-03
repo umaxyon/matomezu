@@ -91,7 +91,7 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 func TestAISettings(t *testing.T) {
 	e := newEngine(t)
 	got, err := e.AISettings(json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja","@gone/x:y":1,"@matomezu/base:skin":"nothing"}`))
-	if err != nil || string(got) != `{"@matomezu/base:lang":"matomezu:ja","@matomezu/base:skin":"auto","@matomezu/base:keys":{"added":[],"removed":[]},"@matomezu/base:text-colors":{}}` {
+	if err != nil || string(got) != `{"@matomezu/base:lang":"matomezu:ja","@matomezu/base:skin":"auto","@matomezu/base:keys":{"added":[],"removed":[]},"@matomezu/base:text-colors":{},"@matomezu/markdown:tab-key":"tab"}` {
 		t.Fatalf("ai settings = %s, %v", got, err)
 	}
 	if got, err := e.AISettings(nil); err != nil || !strings.Contains(string(got), `"@matomezu/base:skin":"auto"`) {

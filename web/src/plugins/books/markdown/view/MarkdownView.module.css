@@ -61,13 +61,35 @@
 .rendered {
   scrollbar-gutter: stable;
 }
+/* ソースのペイン: 見えない写し（pre）が高さを決め、テキストFormをその上に重ねる。どちらも同じ字の並びにする */
+.sourceBox {
+  position: relative;
+  min-height: 100%;
+}
 .source {
+  box-sizing: border-box;
   margin: 0;
   padding: 12px 16px;
   font-family: ui-monospace, monospace;
   font-size: 13px;
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.sourceCopy {
+  visibility: hidden;
+}
+.sourceField {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
 }
 /* 描いた文書: 紙の幅で、枠を付けずに紙の色の面に（下へいくらでも伸びる） */
 .document {

@@ -1,14 +1,18 @@
 // 描いた文書: ページの原文を読んだ形（MarkdownDocument）を、ブロックの順に描き、脚注を最後にまとめる。ステージもストアも読まない。
-// リンクと画像は link-target.ts が選んだ物だけを開き・描く。# のリンクは、location を変えずに、この文書の中の飛ぶ先へスクロールする
-import type { MouseEvent, ReactNode } from "react"
+// リンクと画像は link-target.ts が選んだ物だけを開き・描く。# のリンクは、location を変えずに、この文書の中の飛ぶ先へスクロールする。
+// いちばん外のブロックには、原文の中の始まりの位置を data-markdown-block に書く（ソースのペインのスクロールに付いて行くときの目印）
+import { type MouseEvent, memo, type ReactNode } from "react"
 import type { MarkdownBlock, MarkdownDocument, MarkdownInline, MarkdownTableCell } from "../../../base"
 import { drawsImage, footnoteFragment, footnoteRefFragment, linkTarget } from "../link-target"
 import styles from "./MarkdownDocumentView.module.css"
 
-export function MarkdownDocumentView({ document }: { document: MarkdownDocument }) {
+// 同じ文書なら描き直さない
+export const MarkdownDocumentView = memo(function MarkdownDocumentView({ document }: { document: MarkdownDocument }) {
   return (
     <div className={styles.body} data-markdown-document>
-      <Blocks blocks={document.blocks} />
+      {document.blocks.map(b => (
+        <Block key={b.range.start} block={b} start={b.range.start} />
+      ))}
       {document.footnotes.length > 0 && (
         <section className={styles.footnotes}>
           <ol>
@@ -29,7 +33,7 @@ export function MarkdownDocumentView({ document }: { document: MarkdownDocument 
       )}
     </div>
   )
-}
+})
 
 // フラグメント name の飛ぶ先（data-markdown-fragment）を、押したリンクのある文書の中から探してスクロールする（同じページを 2 つのペインに出すことがあるので、文書の根で絞る）
 function jumpTo(e: MouseEvent<HTMLAnchorElement>, name: string) {
@@ -45,25 +49,27 @@ function Blocks({ blocks }: { blocks: readonly MarkdownBlock[] }) {
   return blocks.map(b => <Block key={b.range.start} block={b} />)
 }
 
-function Block({ block }: { block: MarkdownBlock }): ReactNode {
+// start は、いちばん外のブロックの原文の中の始まりの位置（中のブロックには書かない）
+function Block({ block, start }: { block: MarkdownBlock; start?: number }): ReactNode {
+  const at = start === undefined ? {} : { "data-markdown-block": start }
   switch (block.kind) {
     case "paragraph":
       return (
-        <p>
+        <p {...at}>
           <Inlines inlines={block.children} />
         </p>
       )
     case "heading": {
       const H = `h${block.depth}` as const
       return (
-        <H data-markdown-fragment={block.fragment}>
+        <H {...at} data-markdown-fragment={block.fragment}>
           <Inlines inlines={block.children} />
         </H>
       )
     }
     case "blockquote":
       return (
-        <blockquote>
+        <blockquote {...at}>
           <Blocks blocks={block.children} />
         </blockquote>
       )
@@ -78,24 +84,30 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
       ))
       const spread = block.spread ? undefined : styles.tight
       return block.ordered ? (
-        <ol className={spread} start={block.start}>
+        <ol {...at} className={spread} start={block.start}>
           {items}
         </ol>
       ) : (
-        <ul className={spread}>{items}</ul>
+        <ul {...at} className={spread}>
+          {items}
+        </ul>
       )
     }
     case "code":
       return (
-        <pre className={styles.code}>
+        <pre {...at} className={styles.code}>
           <code>{block.value}</code>
         </pre>
       )
     case "thematicBreak":
-      return <hr />
+      return <hr {...at} />
     // 生の HTML は、改行を保った文字で見せる
     case "html":
-      return <pre className={styles.html}>{block.value}</pre>
+      return (
+        <pre {...at} className={styles.html}>
+          {block.value}
+        </pre>
+      )
     case "table": {
       const cell = (c: MarkdownTableCell, i: number, Tag: "th" | "td") => {
         const align = block.align[i] ?? "none"
@@ -106,7 +118,7 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
         )
       }
       return (
-        <div className={styles.table}>
+        <div {...at} className={styles.table}>
           <table>
             <thead>
               <tr>{block.head.map((c, i) => cell(c, i, "th"))}</tr>
