@@ -76,7 +76,7 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
           <Blocks blocks={item.children} />
         </li>
       ))
-      const spread = block.spread ? styles.spread : styles.tight
+      const spread = block.spread ? undefined : styles.tight
       return block.ordered ? (
         <ol className={spread} start={block.start}>
           {items}

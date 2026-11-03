@@ -44,7 +44,7 @@
 .body blockquote {
   padding: 0 1em;
   border-left: 3px solid var(--theme-line);
-  color: var(--skin-text-muted);
+  color: var(--theme-hint);
 }
 .body ul,
 .body ol {
@@ -102,7 +102,7 @@
   border: 1px solid var(--theme-line);
 }
 .body a {
-  color: var(--skin-accent);
+  color: var(--theme-accent);
 }
 /* 開かないリンク（行き先を選ばなかった物） */
 .deadLink {
@@ -115,7 +115,7 @@
 .imageAlt {
   padding: 0 0.3em;
   border: 1px dashed var(--theme-line);
-  color: var(--skin-text-muted);
+  color: var(--theme-hint);
 }
 .footnotes {
   margin-top: 2em;
