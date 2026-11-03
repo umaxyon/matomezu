@@ -14,7 +14,7 @@ export const MASTER = kit.defineBookType({
   single: true,
   book: {},
   pages: null,
-  items: { allowed: [], defaults: [] },
+  items: { allowed: [] },
   // ブックの一覧と設定を変えるアクションを足し、名前の入力Formを出さないので book-update を外す
   actions: {
     add: [

@@ -112,7 +112,6 @@ export const BOARD = kit.defineBookType({
   },
   items: {
     allowed: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
-    defaults: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
   theme: MINT.id,

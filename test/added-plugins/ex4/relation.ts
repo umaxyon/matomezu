@@ -48,7 +48,6 @@ export const MAP = kit.defineBookType({
   },
   items: {
     allowed: [kit.name("relation"), "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
-    defaults: [kit.name("relation"), "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },
   actions: {},
   theme: "@matomezu/base:standard",

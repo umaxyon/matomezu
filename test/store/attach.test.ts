@@ -54,7 +54,7 @@ const NOTE = notes.defineBookType({
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
   },
-  items: { allowed: [], defaults: [] },
+  items: { allowed: [] },
   actions: { add: ["@matomezu/base:page-add"], without: ["@matomezu/list:row-add"] },
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",

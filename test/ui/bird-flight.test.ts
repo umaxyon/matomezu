@@ -1,6 +1,6 @@
 // 鳥のマークの動き（birdPose）: 付けたときだけ飛んでくるか顔を出し、降りたあとは「付けたときの動き無し」と同じに、上の辺を往復して歩く
 import { expect, test } from "bun:test"
-import { type Arrival, birdPose, GAITS } from "../../web/src/plugins/base/mark/flight"
+import { type Arrival, birdPose, GAITS } from "../../web/src/plugins/base/birds/flight"
 
 const SIZE = 48
 const RANGE = 200

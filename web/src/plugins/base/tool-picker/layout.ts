@@ -1,5 +1,6 @@
 // 道具のアイコンの置き方（画面の px）。基本はポインタの上に横並び、上端で入らなければ下。
-// 左右の端で横に入らなければ縦並びにして、右端ならポインタの左（left）、左端なら右（right）
+// 左右の端で横に入らなければ縦並びにして、右端ならポインタの左（left）、左端なら右（right）。
+// 組の初めの道具（ブックを開いたときの道具）は並びの真ん中（偶数なら真ん中の前の方）に置き、ほかは組の順で残りの所に置く
 import type { Point, Rect, Size } from "../../../core/geom"
 
 export const ICON = 40 // アイコンの大きさ
@@ -12,7 +13,7 @@ const PASS_DIST = 40 // ポインタから見てアイコンの向こう側へ�
 export type Lay = "row" | "left" | "right"
 
 export interface PickerLayout {
-  slots: Point[] // アイコンの左上
+  slots: Point[] // アイコンの左上（組の順）
   lay: Lay
 }
 
@@ -24,19 +25,28 @@ export function pickerSlots(at: Point, n: number, view: Size): PickerLayout {
   if (lay !== "row") {
     const x = lay === "left" ? at.x - AWAY - ICON : at.x + AWAY
     const top = clamp(at.y - span / 2, MARGIN, view.h - span - MARGIN)
-    return { lay, slots: Array.from({ length: n }, (_, i) => ({ x, y: top + i * (ICON + GAP) })) }
+    return { lay, slots: firstInMiddle(Array.from({ length: n }, (_, i) => ({ x, y: top + i * (ICON + GAP) }))) }
   }
   const above = at.y - AWAY - 2 * ICON - GAP >= MARGIN
   const y = above ? at.y - AWAY - ICON : at.y + AWAY
   const left = at.x - span / 2
-  return { lay, slots: Array.from({ length: n }, (_, i) => ({ x: left + i * (ICON + GAP), y })) }
+  return { lay, slots: firstInMiddle(Array.from({ length: n }, (_, i) => ({ x: left + i * (ICON + GAP), y }))) }
+}
+
+// 並んだ所 places を、組の順に置き直す: 初めの道具に真ん中の所、ほかの道具に残りの所を並びの順で
+function firstInMiddle(places: Point[]): Point[] {
+  const mid = Math.floor((places.length - 1) / 2)
+  const middle = places[mid]
+  return middle ? [middle, ...places.filter((_, i) => i !== mid)] : places
 }
 
 // ミニマップのボタンの左上: 並びの外側（ポインタと反対の側）の、並びの真ん中（アイコンが偶数なら、真ん中の 2 つの間）。上の並びは、もう 1 段分入るときだけなので収まる
 export function mapSlot(layout: PickerLayout, at: Point): Point {
-  const first = layout.slots[0] ?? at
-  const last = layout.slots[layout.slots.length - 1] ?? at
-  const mid = { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 }
+  const xs = layout.slots.map(s => s.x)
+  const ys = layout.slots.map(s => s.y)
+  const mid = layout.slots.length
+    ? { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 }
+    : at
   if (layout.lay === "left") return { x: mid.x - ICON - GAP, y: mid.y }
   if (layout.lay === "right") return { x: mid.x + ICON + GAP, y: mid.y }
   return { x: mid.x, y: mid.y < at.y ? mid.y - ICON - GAP : mid.y + ICON + GAP }

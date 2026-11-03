@@ -57,7 +57,7 @@ export const DIR = kit.defineBookType({
     fields: { root: DirFolderSchema },
     dialogs: { add: NEW_DIR_PAGE_DIALOG.id },
   },
-  items: { allowed: [], defaults: [] },
+  items: { allowed: [] },
   actions: {}, // 使うアクションは、見せ方について来る
   theme: "@matomezu/base:standard",
   presentation: DIR_PRESENTATION.id,
