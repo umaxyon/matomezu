@@ -64,6 +64,7 @@ export {
   grownArea,
   growOf,
   inPaper,
+  itemMinimapMarks,
   itemSize,
   keepApart,
   knownTheme,

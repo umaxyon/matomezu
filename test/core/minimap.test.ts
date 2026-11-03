@@ -187,7 +187,7 @@ test("その場に出したミニマップは、枠から 80px より離れる�
   expect(leftBox(box, "row", at, { x: 390, y: 150 })).toBe(true)
 })
 
-test("アイテムを置かないツリーのページは、タイプの minimap が節を四角で、線を両端を結ぶ線で描く", () => {
+test("アイテムを置かないツリーのページは、見せ方の minimap が節を四角で、線を両端を結ぶ線で描く", () => {
   const tree = {
     id: "p1",
     title: "",
@@ -202,4 +202,25 @@ test("アイテムを置かないツリーのページは、タイプの minimap
     tree,
   )
   expect(marks.map(m => m.kind)).toEqual(["polyline", "rect", "rect"])
+})
+
+// 箱 1 つのページを、タイプ type のブックで描いた絵
+const oneBox = (type: string) => {
+  const box = { id: "a", item: "@matomezu/box:shape-nest-box", x: 100, y: 100, w: 100, h: 60, props: {} }
+  const page = {
+    id: "p1",
+    title: "",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape",
+    items: [box],
+  } as unknown as ItemPage
+  return minimapMarks(CORE_CATALOG, { id: "b1", type, pages: [page] } as unknown as Book, page)
+}
+
+test("紙の見せ方は、置いたアイテムを描く", () => {
+  expect(oneBox("@matomezu/drawing:drawing")).toEqual([{ kind: "rect", x: 100, y: 100, w: 100, h: 60 }])
+})
+
+test("minimap の無い見せ方（マークダウン）は、何も描かない", () => {
+  expect(oneBox("@matomezu/markdown:markdown")).toEqual([])
 })

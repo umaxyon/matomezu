@@ -1,7 +1,7 @@
-// ミニマップに描く、ページのアイテムの絵（紙の座標）: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
+// ミニマップに描くページの絵（紙の座標）: ブックのタイプの見せ方の minimap が決める（無ければ何も描かない）。
+// 置いたアイテムで描く見せ方（紙など）は itemMinimapMarks を使う: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
 // つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角。
-// つなぐものは、紙が描いた絵（drawn.tsx）があればそれを使う。
-// アイテムを置かずに自分の見せ方で描くタイプ（ツリーなど）は、ブックのタイプの minimap がページの絵を決める
+// つなぐものは、紙が描いた絵（drawn.tsx）があればそれを使う
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import type { Point, Rect } from "../../../core/geom"
@@ -22,15 +22,9 @@ export type MinimapMark =
 
 // ミニマップが読む、定義オブジェクトのメソッド（定義オブジェクトの拡張ポイントに書き足す）
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
-    // ページ page に描く絵（紙の座標。page で効いている設定の値は setting で読む。grow はページの増やす向きで、可変ページでなければ undefined）。
-    // 無ければ、置いたアイテムの絵
-    minimap?(
-      catalog: CoreCatalog,
-      page: ItemPage,
-      setting: SettingReader,
-      grow: GrowSides | undefined,
-    ): readonly MinimapMark[]
+  interface PresentationExtras {
+    // ページ page に描く絵（紙の座標。無ければ何も描かない）
+    minimap?(catalog: CoreCatalog, page: ItemPage, on: MinimapOn): readonly MinimapMark[]
   }
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     // ミニマップに描く絵（rect は置いた形の四角。紙の座標）。無ければ、その四角を描く
@@ -42,6 +36,14 @@ declare module "../../../core/catalog" {
   }
 }
 
+// 見せ方の minimap が受ける、ページの様子: page で効いている設定の値を読む setting、ページの増やす向き grow（可変ページでなければ undefined）、
+// 紙が描いたつなぐものの絵 drawn（種類の id ごと。無ければ undefined）
+interface MinimapOn {
+  readonly setting: SettingReader
+  readonly grow: GrowSides | undefined
+  readonly drawn: (item: string) => readonly MinimapMark[] | undefined
+}
+
 const rectMark = (r: Rect): MinimapMark => ({ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h })
 
 // ブック book のページ page の絵。drawn は、紙が描いたつなぐものの絵（種類の id ごと。無ければ定義の minimap で作る）
@@ -51,17 +53,13 @@ export function minimapMarks(
   page: ItemPage,
   drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
 ): readonly MinimapMark[] {
-  const own = bookType(catalog, book.type).minimap
-  const setting = settingsAt(catalog, book, page)
-  return own ? own(catalog, page, setting, growOf(catalog, book, page)) : itemMarks(catalog, page, setting, drawn)
+  const minimap = catalog.presentations.get(bookType(catalog, book.type).presentation)?.minimap
+  if (!minimap) return []
+  return minimap(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), drawn })
 }
 
-function itemMarks(
-  catalog: CoreCatalog,
-  page: ItemPage,
-  setting: SettingReader,
-  drawn: (item: string) => readonly MinimapMark[] | undefined,
-): MinimapMark[] {
+// 置いたアイテムの絵（見せ方の minimap に、そのまま書ける）
+export function itemMinimapMarks(catalog: CoreCatalog, page: ItemPage, { setting, drawn }: MinimapOn): MinimapMark[] {
   const rects = rectsOf(catalog, page)
   const areas = portAreasOf(catalog, page, rects)
   const marks: MinimapMark[] = []
