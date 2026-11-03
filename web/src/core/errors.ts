@@ -8,7 +8,6 @@ export const ERRORS = {
   E005: "bookType {id}: default paper {paper} is not allowed",
   E007: "bookType {id}: create must return a book of the schema",
   E008: "bookType {id}: unknown {kind} {ref}",
-  E009: "bookType {id}: default {kind} {ref} is not allowed",
   E010: "bookType {id}: unknown theme {theme}",
   E011: "{owner}: token {token} is declared twice",
   E012: "{owner}: token {token} falls back to unknown {fallback}",

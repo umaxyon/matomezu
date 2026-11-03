@@ -35,9 +35,7 @@ const list = { id: "n2", x: 200, y: 10, item: "@matomezu/list:shape-list", props
 
 describe("組み立てたブックの形", () => {
   test("ページに置けるのは、タイプが選んだアイテムだけ", () => {
-    const boxesOnly = buildCoreCatalog(
-      withDrawing({ items: { allowed: ["@matomezu/box:shape-nest-box"], defaults: ["@matomezu/box:shape-nest-box"] } }),
-    )
+    const boxesOnly = buildCoreCatalog(withDrawing({ items: { allowed: ["@matomezu/box:shape-nest-box"] } }))
     expect(restoreBooks(CORE_CATALOG, [book([page([box, list])])])).toHaveLength(1)
     expect(restoreBooks(boxesOnly, [book([page([box, list])])])).toHaveLength(0)
     expect(restoreBooks(boxesOnly, [book([page([box])])])).toHaveLength(1)

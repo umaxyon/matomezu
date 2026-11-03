@@ -65,7 +65,7 @@ export const TREE = kit.defineBookType({
     fields: { root: TreeRootSchema },
     dialogs: { add: NEW_TREE_PAGE_DIALOG.id, settings: TREE_PAGE_SETTINGS_DIALOG.id },
   },
-  items: { allowed: [], defaults: [] },
+  items: { allowed: [] },
   actions: {}, // 使うアクションは、見せ方・ページについて来る
   theme: "@matomezu/base:standard",
   presentation: TREE_PRESENTATION.id,

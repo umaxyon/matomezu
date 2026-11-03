@@ -102,9 +102,9 @@ export function createBook(catalog: CoreCatalog, type: string, init: NewBook): B
   return def.create(init) as Book
 }
 
-// ブックで使えるアイテム（タイプの既定。置ける・引けるのはこの中だけ）
+// ブックで使えるアイテム（タイプの候補。データに置ける・引けるのはこの中だけ）
 export function bookItems(catalog: CoreCatalog, book: Pick<Book, "type">): readonly string[] {
-  return bookType(catalog, book.type).items.defaults
+  return bookType(catalog, book.type).items.allowed
 }
 
 // ページを末尾に足す。id は newId から振る（ブックのほかのページと重ならない）

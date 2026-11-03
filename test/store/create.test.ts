@@ -21,7 +21,7 @@ const NOTE = defineBookType({
   single: false,
   create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,
-  items: { allowed: [], defaults: [] },
+  items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
@@ -59,7 +59,7 @@ const LEAF = defineBookType({
     // core/catalog.ts に書き足していないダイアログは、型では名指せないので言い張る
     dialogs: { add: "notes:leaf-new" as never, settings: "notes:leaf-settings" as never },
   },
-  items: { allowed: [], defaults: [] },
+  items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/master:master",

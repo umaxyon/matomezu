@@ -66,7 +66,6 @@ export const FLOW = kit.defineBookType({
   },
   items: {
     allowed: [DIAMOND.id, "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
-    defaults: [DIAMOND.id, "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る（自分の判断のアクションも、ひし形について来る）
   theme: "@matomezu/base:standard",

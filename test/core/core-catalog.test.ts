@@ -302,7 +302,7 @@ describe("機能台帳ごとに別の世界", () => {
     single: false,
     create: init => ({ type: "notes" as const, ...init }),
     pages: null,
-    items: { allowed: [], defaults: [] },
+    items: { allowed: [] },
     actions: {},
     theme: "@matomezu/base:standard",
     presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
@@ -345,7 +345,7 @@ describe("機能台帳ごとに別の世界", () => {
 
 test("ブックのタイプのテーマキーは、データに置けるアイテム（allowed）のテーマキーと、その持ち主のプラグインが持つテーマキーを含む", () => {
   const base = CORE_CATALOG.bookTypes.get("@matomezu/drawing:drawing")!
-  // 形をデータに置けるが、道具箱には出さない（defaults に無い）タイプ。形のテーマキーはプラグインが持つ
+  // 形を置けるタイプ。形のテーマキーはプラグインが持つ
   const drawing = {
     ...base,
     items: { ...base.items, allowed: [...base.items.allowed, "@matomezu/shape:shape-rounded"] },
@@ -365,7 +365,7 @@ test("プラグインが持つテーマキーを、アイテムでも宣言し�
 test("タイプが allowed に無いアイテムへ指定を渡したら E029", () => {
   const flowchart = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/flowchart:flowchart")!
   const without = flowchart.items.allowed.filter(id => id !== "@matomezu/line:connector-line")
-  const bad = { ...flowchart, items: { ...flowchart.items, allowed: without, defaults: without } }
+  const bad = { ...flowchart, items: { ...flowchart.items, allowed: without } }
   const parts = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === flowchart ? bad : t)) }
   expect(checkCoreCatalog(parts).map(p => p.code)).toEqual(["E029"])
 })
