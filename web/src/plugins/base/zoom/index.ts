@@ -7,6 +7,7 @@ import type { Point } from "../../../core/geom"
 import { areaOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN } from "../../../core/viewport"
 import { type CommandContext, workspaceOf } from "../../../store/commands/def"
+import type { Actions } from "../../../store/store"
 import { kit } from "../kit"
 
 export const ZOOM_MIN = 0.3
@@ -39,12 +40,11 @@ export function fitView(stage: Stage): Stage {
   return panBy(zoomed, pan.x - zoomed.pan.x, pan.y - zoomed.pan.y)
 }
 
+// ステージの見え方（倍率とずらす量）
+export type ViewAt = Pick<Stage, "zoom" | "pan">
+
 // ステージ stage を、見え方 target（倍率とずらす量）へ移す: 倍率を変えてから（ずらす量はストアと同じ zoomTo で決まる）、target のずらす量との差だけずらす
-export function moveView(
-  a: { zoomStage(id: string, zoom: number): void; panStageBy(id: string, dx: number, dy: number): void },
-  stage: Stage,
-  target: { zoom: number; pan: Point },
-): void {
+export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: Stage, target: ViewAt): void {
   const zoomed = zoomTo(stage, target.zoom)
   a.zoomStage(stage.id, target.zoom)
   a.panStageBy(stage.id, target.pan.x - zoomed.pan.x, target.pan.y - zoomed.pan.y)

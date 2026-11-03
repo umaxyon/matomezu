@@ -20,6 +20,7 @@ import { kit } from "../kit"
 import { MINIMAP } from "../minimap/icons"
 import { MinimapView } from "../minimap/MinimapView"
 import { unusableTools } from "../tool-switch/tools"
+import { stageElement } from "../utils/stage-element"
 import { ZoomBar } from "../zoom/ZoomBar"
 import { TOOL_SET } from "."
 import { ICON, leftBox, leftPicker, mapPlace, mapSlot, type PickerLayout, pickerSlots } from "./layout"
@@ -40,7 +41,6 @@ interface Press {
 }
 
 const typing = (el: Element | null) => !!el?.closest("input, textarea, select, [contenteditable]")
-const stageEl = (id: string) => document.querySelector(`[data-stage="${CSS.escape(id)}"]`)
 
 export function ToolPickerView() {
   const { openPicker, closeContextMenu } = useActions()
@@ -167,7 +167,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
     if (!stage) return null
     let at = asked
     if (!at) {
-      const r = stageEl(stage)?.getBoundingClientRect()
+      const r = stageElement(stage)?.getBoundingClientRect()
       const p = last.current
       const inside = r && p && p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom
       at = inside ? p : r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 0, y: 0 }

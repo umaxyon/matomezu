@@ -1,7 +1,7 @@
-// 右サイドパネルで開いた物を見せる見え方と、閉じたときに見え方を戻すかの覚え（state.ts・reveal.ts）。全体を収めるのと同じ移し方（moveView）
+// 右サイドパネルで開いた物を見せる見え方と中のスクロール、閉じたときに見え方を戻すかの覚え（state.ts・reveal.ts）。全体を収めるのと同じ移し方（moveView）
 import { expect, test } from "bun:test"
 import { newStage, openBook, panBy, placement, resize, type Stage, zoomTo } from "../../web/src/core/stage"
-import { revealView } from "../../web/src/plugins/base/right-side-panel/reveal"
+import { paperRectOf, revealView, scrollShift } from "../../web/src/plugins/base/right-side-panel/reveal"
 import {
   movedFrom,
   restoreIn,
@@ -26,23 +26,28 @@ const book = {
 }
 const stage = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
 
-test("開くと、開く前の見え方を覚え、物はまだ見せていない。閉じて戻す前に開き直しても、最初に開く前の見え方のまま", () => {
+test("開くと、開く前の見え方を覚え、物はまだ見せていない。閉じて戻す前に同じページで開き直しても、最初に開く前の見え方のまま", () => {
   const opened = withOpened({ commentDraft: 1 }, OPEN, PANNED)
   expect(restoreIn(opened)).toEqual({ before: { ...PANNED, book: "b1", page: "p1" }, shown: null, moved: false })
   const shown = withRestore(withPanel(opened, null), { shown: HOME, moved: true })
   const again = withOpened(shown, { ...OPEN, subject: "c2" }, HOME)
   expect(restoreIn(again)).toEqual({ before: { ...PANNED, book: "b1", page: "p1" }, shown: null, moved: false })
   expect(withoutRestore(withPanel(again, null))).toEqual({ commentDraft: 1 })
+  // ほかのページで開き直したら、そのとき開く前の見え方を覚え直す
+  const other = withOpened(shown, { ...OPEN, page: "p2" }, HOME)
+  expect(restoreIn(other)?.before).toEqual({ ...HOME, book: "b1", page: "p2" })
 })
 
-test("見せたあとに倍率かずらす量が変わったら、変えたことにする。見せる前は数えない", () => {
+test("見せたあとに倍率かずらす量が変わったら、変えたことにする。見せる前と、表示領域の大きさが変わって収め直されただけのときは数えない", () => {
+  const panned = panBy(stage, -300, -200)
   const restore = restoreIn(withOpened({}, OPEN, PANNED))!
-  expect(movedFrom(restore, HOME)).toBe(false)
-  const shown = { ...restore, shown: HOME }
-  expect(movedFrom(shown, HOME)).toBe(false)
-  expect(movedFrom(shown, { zoom: 1, pan: { x: 0, y: -5 } })).toBe(true)
-  expect(movedFrom(shown, { ...HOME, zoom: 1.1 })).toBe(true)
-  expect(movedFrom({ ...shown, moved: true }, HOME)).toBe(true)
+  expect(movedFrom(restore, panned)).toBe(false)
+  const shown = { ...restore, shown: { zoom: panned.zoom, pan: panned.pan } }
+  expect(movedFrom(shown, panned)).toBe(false)
+  expect(movedFrom(shown, resize(panned, { w: 900, h: 700 }))).toBe(false)
+  expect(movedFrom(shown, panBy(panned, 0, -5))).toBe(true)
+  expect(movedFrom(shown, zoomTo(panned, 1.1))).toBe(true)
+  expect(movedFrom({ ...shown, moved: true }, panned)).toBe(true)
 })
 
 test("閉じたら、変えていなければ開く前の見え方に戻す。変えたか、ほかのブックかページを開いていれば戻さない", () => {
@@ -96,4 +101,18 @@ test("見え方へ移すと、倍率もずらす量もその見え方になる�
   const target = revealView(now, { x: 800, y: 500, w: 40, h: 40 })
   moveView(actions, now, target)
   expect({ zoom: now.zoom, pan: now.pan }).toEqual(target)
+})
+
+test("表示領域の上で測った四角を、紙の上の四角に直す", () => {
+  const s = zoomTo(stage, 0.5)
+  const at = placement(s)!
+  expect(paperRectOf(s, { x: at.x + 50, y: at.y + 20, w: 30, h: 10 })).toEqual({ x: 100, y: 40, w: 60, h: 20 })
+})
+
+test("中のスクロールは、物が見える所に入るだけ動かす。前にはみ出すか入りきらなければ始まりに、後ろにはみ出せば終わりにそろえる（倍率の分を直す）", () => {
+  expect(scrollShift(10, 20, 100, 1)).toBe(0)
+  expect(scrollShift(-30, 20, 100, 1)).toBe(-30)
+  expect(scrollShift(90, 20, 100, 1)).toBe(10)
+  expect(scrollShift(50, 300, 100, 1)).toBe(50)
+  expect(scrollShift(180, 40, 100, 2)).toBe(10)
 })
