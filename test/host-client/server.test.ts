@@ -313,7 +313,7 @@ test("設定の知らせで設定を入れ替える", async () => {
 
 test("アノテーションの知らせで、そのブックのアノテーションを入れ替える（空の並びなら無くす）", async () => {
   const { store, emit } = await connected()
-  const list = [{ id: "c1", annotation: "@matomezu/base:comment", anchors: ["x"], props: {} }]
+  const list = [{ id: "c1", annotation: "@matomezu/base:note", anchors: ["x"], props: {} }]
   emit("annotations", { book: "b1", annotations: list })
   expect(store.state.getState().annotations).toEqual({ b1: list })
   emit("annotations", { book: "b1", annotations: [] })

@@ -130,7 +130,7 @@ describe("配置", () => {
       ...DEFAULT_LAYOUT,
       id: "typed",
       // @ts-expect-error tool-set は道具の id だけを取る
-      anchorMenu: ["@matomezu/base:comment-new", "@matomezu/base:stage-home", "@matomezu/base:tool-set"],
+      anchorMenu: ["@matomezu/base:note-new", "@matomezu/base:stage-home", "@matomezu/base:tool-set"],
     })
   })
 
@@ -335,7 +335,7 @@ describe("取り込んだプラグインの置き場所", () => {
       "q:under",
       "@matomezu/base:book-content",
       "@matomezu/base:stand-layer",
-      "@matomezu/base:comment-layer",
+      "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",
       "q:top",
     ])

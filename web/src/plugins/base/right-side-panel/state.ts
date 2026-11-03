@@ -7,7 +7,7 @@ import type { ViewAt } from "../zoom"
 
 export interface RightSidePanelOpen {
   widget: string // 出している中身（右サイドパネルのスロットに置いたウィジェットの id）
-  subject: string // 中身が見せている物の id（コメントなら、そのコメントの id）
+  subject: string // 中身が見せている物の id（伝言なら、その伝言の id）
   anchor: string // 見せている物が付いた先（ステージの物の id）
   book: string // 開いたときのブック
   page: string | null // 開いたときのページ

@@ -1,0 +1,46 @@
+/* 吹き出し: 決まった幅で文字を折り返し、上の辺をそろえて下へ伸びる。色はスキンの bubble だけ */
+.bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 180px;
+  padding: 8px;
+  border: 1px solid var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+}
+/* 付けた伝言の吹き出し（文の始めだけ。押すと右サイドパネルに出す） */
+.opens {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+/* たたんだ伝言の絵（物の右上の角） */
+.folded {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--skin-border);
+  border-radius: 50%;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  cursor: pointer;
+}
+.folded svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}

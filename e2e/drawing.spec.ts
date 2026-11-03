@@ -209,7 +209,7 @@ test("箱を右クリックすると選ばれ、設定・区切り線・削除�
   const second = items(page).filter({ hasText: "二" })
   await items(page).filter({ hasText: "一" }).click({ button: "right" })
   const menu = page.getByRole("menu")
-  await expect(menu.getByRole("menuitem")).toHaveText(["設定", "削除Delete", "コメント", "マーク"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["設定", "削除Delete", "AIに伝言", "AIに示す"])
   await expect(menu.getByRole("menuitem", { name: "削除" }).locator("kbd")).toHaveText("Delete")
   await expect(menu.locator("hr")).toHaveCount(2)
   await expect(items(page).filter({ hasText: "一" })).toHaveAttribute("data-selected", "true")
@@ -1006,7 +1006,7 @@ test("線をダブルクリックすると線の編集のダイアログが開�
   // 右クリックのメニューの「設定」でも開き、「線を消す」で消える
   await line.locator("polyline").last().dispatchEvent("contextmenu")
   const menu = page.getByRole("menu")
-  await expect(menu.getByRole("menuitem")).toHaveText(["設定", "削除Delete", "コメント", "マーク"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["設定", "削除Delete", "AIに伝言", "AIに示す"])
   await menu.getByRole("menuitem", { name: "設定" }).click()
   await dialog.getByRole("button", { name: "線を消す" }).click()
   await expect(dialog).toBeHidden()

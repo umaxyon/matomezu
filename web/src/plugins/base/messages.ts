@@ -2,7 +2,6 @@
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_NEW_MESSAGES } from "./book-new/messages"
 import { BOOK_OPEN_MESSAGES } from "./book-open/messages"
-import { COMMENT_MESSAGES } from "./comment/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
 import { HISTORY_MESSAGES } from "./history/messages"
@@ -11,6 +10,7 @@ import { LOCK_MESSAGES } from "./lock/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
 import { MARK_MESSAGES } from "./mark/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
+import { NOTE_MESSAGES } from "./note/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { RIGHT_SIDE_PANEL_MESSAGES } from "./right-side-panel/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
@@ -36,7 +36,7 @@ export const BASE_MESSAGES = {
   ...BOOK_NEW_MESSAGES,
   ...PAGE_MESSAGES,
   ...LOCK_MESSAGES,
-  ...COMMENT_MESSAGES,
+  ...NOTE_MESSAGES,
   ...MARK_MESSAGES,
   ...RIGHT_SIDE_PANEL_MESSAGES,
   ...SETTINGS_MESSAGES,

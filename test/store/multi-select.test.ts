@@ -49,7 +49,7 @@ test("押したときの選び方: Mod なら足す（選んでいる物は、�
   expect(amongSelected(["a", "b"], "c")).toBe(false)
 })
 
-test("コメント・マークの付ける先は選んでいる物全部で、押した物を最後にする（押した物のそばに出す）", () => {
+test("伝言・マークの付ける先は選んでいる物全部で、押した物を最後にする（押した物のそばに出す）", () => {
   expect(anchorsFor("a", ["a", "b", "c"])).toEqual(["b", "c", "a"])
   expect(anchorsFor("x", ["a", "b"])).toEqual(["x"])
 })

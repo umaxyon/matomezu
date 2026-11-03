@@ -13,7 +13,7 @@ import { CORE_CATALOG, newStore } from "../support"
 
 const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", pages: [] }
 
-test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。マスターは足すアクションと外す book-update・book-lock・book-unlock・コメント・マークで決まる", () => {
+test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。マスターは足すアクションと外す book-update・book-lock・book-unlock・伝言・マークで決まる", () => {
   const ids = actionsOf(CORE_CATALOG, drawing)
   for (const id of [
     "@matomezu/base:page-add",
@@ -21,7 +21,7 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
     "@matomezu/paper:item-place",
     "@matomezu/list:row-add",
     "@matomezu/line:line-connect",
-    "@matomezu/base:comment-add",
+    "@matomezu/base:note-add",
     "@matomezu/base:mark-add",
   ])
     expect(ids).toContain(id)

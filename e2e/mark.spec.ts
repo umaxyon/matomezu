@@ -16,7 +16,7 @@ async function addBox(page: Page, x: number, caption: string) {
 
 async function pickMark(page: Page, box: ReturnType<typeof items>, kind: string) {
   await box.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "マーク" }).click()
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
   const picker = page.getByRole("group", { name: "マークを付ける" })
   await expect(picker.getByRole("button")).toHaveCount(6)
   await picker.getByRole("button", { name: kind }).click()
@@ -24,7 +24,7 @@ async function pickMark(page: Page, box: ReturnType<typeof items>, kind: string)
 }
 
 // 飛んでくる・顔を出す動きは単体のテスト（mark-flight）が見る。ここは動きを減らす設定で、降りた所だけを見る
-test("箱の右クリックの「マーク」で 6 つの種類を選ぶスタンドが出て、選んだ鳥が箱の上の辺に乗る。押すと「外す？」が出て、はいで外れる", async ({
+test("箱の右クリックの「AIに示す」で 6 つの種類を選ぶスタンドが出て、選んだ鳥が箱の上の辺に乗る。押すと「外す？」が出て、はいで外れる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -83,7 +83,7 @@ test("種類を選ぶスタンドは Esc で付けずに閉じる", async ({ pag
   await addBox(page, 200, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "マーク" }).click()
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
   const picker = page.getByRole("group", { name: "マークを付ける" })
   await expect(picker.getByRole("button").first()).toBeFocused()
   await page.keyboard.press("Escape")

@@ -5,9 +5,9 @@ import { columnGrow, panelIn, pressCloses, stillOn, withPanel } from "../../web/
 const OPEN = { widget: "p:panel", subject: "c1", anchor: "a1", book: "b1", page: "p1" }
 
 test("開くと置き、閉じると消す。ほかの画面の状態は残す", () => {
-  const opened = withPanel({ commentDraft: { anchors: ["x"] } }, OPEN)
+  const opened = withPanel({ noteDraft: { anchors: ["x"] } }, OPEN)
   expect(panelIn(opened)).toEqual(OPEN)
-  expect(withPanel(opened, null)).toEqual({ commentDraft: { anchors: ["x"] } })
+  expect(withPanel(opened, null)).toEqual({ noteDraft: { anchors: ["x"] } })
   expect(panelIn(undefined)).toBeNull()
 })
 

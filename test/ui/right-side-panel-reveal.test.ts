@@ -27,12 +27,12 @@ const book = {
 const stage = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
 
 test("開くと、開く前の見え方を覚え、物はまだ見せていない。閉じて戻す前に同じページで開き直しても、最初に開く前の見え方と、変えたかはそのまま", () => {
-  const opened = withOpened({ commentDraft: 1 }, OPEN, PANNED)
+  const opened = withOpened({ noteDraft: 1 }, OPEN, PANNED)
   expect(restoreIn(opened)).toEqual({ before: { ...PANNED, book: "b1", page: "p1" }, shown: null, moved: false })
   const shown = withRestore(withPanel(opened, null), { shown: HOME, moved: true })
   const again = withOpened(shown, { ...OPEN, subject: "c2" }, HOME)
   expect(restoreIn(again)).toEqual({ before: { ...PANNED, book: "b1", page: "p1" }, shown: null, moved: true })
-  expect(withoutRestore(withPanel(again, null))).toEqual({ commentDraft: 1 })
+  expect(withoutRestore(withPanel(again, null))).toEqual({ noteDraft: 1 })
   // ほかのページで開き直したら、そのとき開く前の見え方を覚え直す
   const other = withOpened(shown, { ...OPEN, page: "p2" }, HOME)
   expect(restoreIn(other)?.before).toEqual({ ...HOME, book: "b1", page: "p2" })
