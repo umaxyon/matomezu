@@ -35,14 +35,15 @@ export interface RightSidePanelRestore {
 export const restoreIn = (state: unknown): RightSidePanelRestore | null =>
   (state as { rightSidePanelRestore?: RightSidePanelRestore } | undefined)?.rightSidePanelRestore ?? null
 
-// 右サイドパネルを open で開いたもの。開く前の見え方は now（閉じて戻す前に同じブックとページで開き直したときは、最初に開く前の見え方のまま）で、物はまだ見せていない
+// 右サイドパネルを open で開いたもの。開く前の見え方は now で、物はまだ見せていない。
+// 閉じて戻す前に同じブックとページで開き直したときは、最初に開く前の見え方と、それまでに変えたかをそのまま持つ（一度変えたら、開き直しても戻さない）
 export function withOpened(state: unknown, open: RightSidePanelOpen, now: ViewAt): Record<string, unknown> {
-  const kept = restoreIn(state)?.before
-  const before =
-    kept && kept.book === open.book && kept.page === open.page
-      ? kept
-      : { zoom: now.zoom, pan: now.pan, book: open.book, page: open.page }
-  return { ...withPanel(state, open), rightSidePanelRestore: { before, shown: null, moved: false } }
+  const kept = restoreIn(state)
+  const same = kept && kept.before.book === open.book && kept.before.page === open.page
+  const restore = same
+    ? { before: kept.before, shown: null, moved: kept.moved }
+    : { before: { zoom: now.zoom, pan: now.pan, book: open.book, page: open.page }, shown: null, moved: false }
+  return { ...withPanel(state, open), rightSidePanelRestore: restore }
 }
 
 // 戻すための覚えを、change で変えたもの（覚えが無ければそのまま）
