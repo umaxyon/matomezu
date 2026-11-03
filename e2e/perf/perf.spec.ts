@@ -2,10 +2,11 @@
 // - 描き方: 箱 100・200・300 と線のブックを置き（JSON を PUT）、開くまで・パン（ホイール）・箱のドラッグ・〇から線を引く・左右に同じブックを開いてのパンを測る。
 //   ツリー（節 100・200・300）とディレクトリ構成図（中身 100・200・300）も、開くまで・パン・左右でのパンを測る
 // - アクション: AI の入口から item-place と line-connect を 300 まで重ね、1 回の perform の時間を 100 ずつに分けて測る
+// - マークダウン: 原文 1000・3000・5000 行のページを開き、ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { expect, type Page, test } from "@playwright/test"
-import { BOX_SIZE, boxAt, dirBook, gridBook, PAGE, treeBook } from "./books"
+import { BOX_SIZE, boxAt, dirBook, gridBook, markdownBook, PAGE, treeBook } from "./books"
 import { awaitItems, installProbe, readyAt, startRecording, stopRecording } from "./probe"
 
 test.describe.configure({ mode: "serial" })
@@ -32,7 +33,14 @@ const measured = (rec: Recorded) => ({
   itemRedraws: rec.itemRedraws,
 })
 
-const results: { drawing: Record<string, unknown>[]; actions: Record<string, unknown>[] } = { drawing: [], actions: [] }
+const MARKDOWN_LINES = [1000, 3000, 5000]
+const TYPED = "書き足した字 abc def ghi" // ソースのペインに 1 字ずつ打つ字
+
+const results: {
+  drawing: Record<string, unknown>[]
+  actions: Record<string, unknown>[]
+  markdown: Record<string, unknown>[]
+} = { drawing: [], actions: [], markdown: [] }
 
 // 開いて、図の要素が want 個そろうまでの時間（ページを開き始めてから）
 async function open(page: Page, search: string, want: number) {
@@ -223,6 +231,49 @@ test("アクション: AI の入口から箱と線を 300 まで足す", async (
   }
 })
 
+for (const n of MARKDOWN_LINES) {
+  test(`マークダウン: 原文 ${n} 行`, async ({ browser, request }) => {
+    const id = `perf-markdown-${n}`
+    const put = await request.put(`/api/books-for-test/${id}`, { data: { book: markdownBook(id, n), base: 0 } })
+    expect(put.ok()).toBe(true)
+    const page = await browser.newPage()
+    await installProbe(page)
+    const started = Date.now()
+    await page.goto(`/${one(id)}`)
+    const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+    await expect(field).toHaveValue(/見出し/, { timeout: 60_000 })
+    await expect(page.getByRole("region", { name: "プレビュー" }).getByRole("heading").first()).toBeVisible()
+    const openMs = Date.now() - started
+    await page.waitForTimeout(500)
+    await field.click()
+    await page.keyboard.press("ControlOrMeta+End")
+    let since = await startRecording(page)
+    await page.keyboard.type(TYPED)
+    await page.waitForTimeout(200)
+    const typed = measured(await stopRecording(page, since))
+    // 先頭に書くと、後ろの全部のブロックの原文の中の位置がずれる
+    await page.keyboard.press("ControlOrMeta+Home")
+    since = await startRecording(page)
+    await page.keyboard.type(TYPED)
+    await page.waitForTimeout(200)
+    const typedAtTop = measured(await stopRecording(page, since))
+    await page.keyboard.press("ControlOrMeta+Home")
+    const source = (await page.getByRole("region", { name: "ソース" }).boundingBox())!
+    await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
+    since = await startRecording(page)
+    for (let i = 0; i < PAN_STEPS; i++) await page.mouse.wheel(0, 200)
+    await page.waitForTimeout(200)
+    const scrolled = measured(await stopRecording(page, since))
+    const followed = await page
+      .getByRole("region", { name: "プレビュー" })
+      .locator("[data-markdown-document]")
+      .evaluate(el => (el.closest("[class*=scroll]") as HTMLElement).scrollTop)
+    expect(followed).toBeGreaterThan(0)
+    await page.close()
+    results.markdown.push({ book: `原文 ${n} 行`, openMs, typing: typed, typingAtTop: typedAtTop, scroll: scrolled })
+  })
+}
+
 test.afterAll(({ browserName }) => {
   const sha = execSync("git rev-parse --short HEAD").toString().trim()
   const at = new Date().toISOString()
@@ -283,6 +334,27 @@ test.afterAll(({ browserName }) => {
       results.actions.map(a => {
         const r = a as { range: string; itemPlace: M["frame"]; lineConnect: M["frame"] }
         return { 何個目: r.range, "item-place": f(r.itemPlace), "line-connect": f(r.lineConnect) }
+      }),
+    )
+  }
+  if (results.markdown.length > 0) {
+    console.log(`\nマークダウン（書くのは ${[...TYPED].length} 字を 1 字ずつ、スクロールはホイール ${PAN_STEPS} 回）`)
+    console.table(
+      results.markdown.flatMap(d => {
+        const r = d as { book: string; openMs: number; typing: M; typingAtTop: M; scroll: M }
+        return [
+          ["末尾に書く", r.typing, r.openMs],
+          ["先頭に書く", r.typingAtTop, null],
+          ["スクロール", r.scroll, null],
+        ].map(([what, m, openMs]) => ({
+          ブック: r.book,
+          操作: what as string,
+          "開くまで ms": (openMs as number | null) ?? "",
+          "1コマ ms 平均/中央/95%/最大": f((m as M).frame),
+          "長い処理 回/ms": `${(m as M).longTasks.count}/${(m as M).longTasks.total}`,
+          コミット: (m as M).commits,
+          描き直したコンポーネント: (m as M).renders,
+        }))
       }),
     )
   }

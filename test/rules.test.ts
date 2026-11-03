@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, relative, resolve } from "node:path"
+import { WEB_ENTRIES } from "../scripts/web-build"
 import { CORE_CATALOG } from "./support"
 
 const ROOT = resolve(import.meta.dir, "..")
@@ -101,6 +102,19 @@ test("外のライブラリを読むファイルは、そのライブラリの�
       .map(st => `${rel}: ${st.split("\n")[0]}`)
   })
   expect(bad).toEqual([])
+})
+
+test("画面のビルドが別に組む Web Worker のファイルは base の中にあり、base がその出力の名前で引く。ほかのファイルは型だけ読む", () => {
+  const workers = WEB_ENTRIES.filter(e => e.endsWith(".ts")).map(e => relative(SRC, join(ROOT, e)))
+  for (const rel of workers) {
+    expect(existsSync(join(SRC, rel))).toBe(true)
+    expect(rel.startsWith("plugins/base/")).toBe(true)
+    const out = `${basename(rel, ".ts")}.js`
+    expect(sources.some(f => f.rel !== rel && f.text.includes(`"${out}"`))).toBe(true)
+    const name = `./${basename(rel, ".ts")}`
+    const readers = sources.filter(f => f.rel !== rel && f.text.includes(`"${name}"`))
+    expect(readers.filter(f => !new RegExp(`import type [^;]*"${name}"`).test(f.text)).map(f => f.rel)).toEqual([])
+  }
 })
 
 test("web/src の直下は、決めたクレートとファイルだけ", () => {

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun scripts/dev.ts 5300",
-    "build": "rm -rf web/dist && bun build web/index.html --outdir web/dist --production && bun scripts/fonts.ts copy web/dist/fonts",
+    "build": "rm -rf web/dist && bun scripts/web-build.ts web/dist --production && bun scripts/fonts.ts copy web/dist/fonts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p test/added-plugins/ex1 && tsc --noEmit -p test/added-plugins/ex2 && tsc --noEmit -p test/added-plugins/ex3 && tsc --noEmit -p test/added-plugins/ex4 && tsc --noEmit -p test/added-plugins/ex4/tsconfig.without-tests.json && tsc --noEmit -p test/added-plugins/ex5 && tsc --noEmit -p test/added-plugins/ex6-spec && tsc --noEmit -p test/added-plugins/ex6 && tsc --noEmit -p test/added-plugins/ex7 && tsc --noEmit -p test/type-checks/unowned-names",
     "test": "bun test",
     "e2e": "playwright test",

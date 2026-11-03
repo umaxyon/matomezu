@@ -1,5 +1,6 @@
 // ブックの変化: アクションの前と後のブックを比べ、変わったフィールド・ページ・アイテムを求める（認可ステップが行った後に見る）
 import type { Changes, PageChange } from "./def/permission"
+import { sameData } from "./same"
 import type { Book } from "./schema/book"
 
 type Fields = Readonly<Record<string, unknown>>
@@ -8,12 +9,10 @@ interface Page extends Fields {
   items?: readonly { id: string }[]
 }
 
-const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
-
 // 2 つの値で違うフィールド（skip は見ないフィールド）
 function changedFields(before: Fields, after: Fields, skip: string): string[] {
   const keys = new Set([...Object.keys(before), ...Object.keys(after)])
-  return [...keys].filter(k => k !== skip && !same(before[k], after[k]))
+  return [...keys].filter(k => k !== skip && !sameData(before[k], after[k]))
 }
 
 // 2 つの並びで、足した・消した・変わった要素の id
@@ -21,7 +20,7 @@ function changedIds(before: readonly { id: string }[], after: readonly { id: str
   const was = new Map(before.map(x => [x.id, x]))
   const now = new Map(after.map(x => [x.id, x]))
   const ids = new Set([...was.keys(), ...now.keys()])
-  return [...ids].filter(id => !same(was.get(id), now.get(id)))
+  return [...ids].filter(id => !sameData(was.get(id), now.get(id)))
 }
 
 const pagesOf = (book: Book): readonly Page[] => ("pages" in book ? (book.pages as readonly Page[]) : [])
@@ -45,6 +44,8 @@ export function changesOf(before: Book, after: Book | undefined): Changes {
   return {
     gone: false,
     fields: changedFields(before as Fields, after as Fields, "pages"),
-    pages: [...ids].filter(id => !same(was.get(id), now.get(id))).map(id => pageChange(id, was.get(id), now.get(id))),
+    pages: [...ids]
+      .filter(id => !sameData(was.get(id), now.get(id)))
+      .map(id => pageChange(id, was.get(id), now.get(id))),
   }
 }

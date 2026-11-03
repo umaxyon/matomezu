@@ -79,13 +79,18 @@ export function keysOf(table: KeyTable, command: string): KeyEntry[] {
   return table.active.filter(e => e.binding.command === command && findKey(table, e.binding.scope, e.binding.key) === e)
 }
 
+// キーを引く範囲の広さ: 名乗った範囲から外へ土台の範囲まで（outward）か、名乗った範囲だけ（named。テキストFormの中で押したキーを、そのテキストFormが名乗った範囲だけで引く）
+export type KeyReach = "outward" | "named"
+
 // 押したキーを引く範囲の並び（狭いものから）。右クリックのメニューとダイアログは開いている間ほかを止める。
 // scopes はプラグインの範囲（押した所の要素が名乗ったもの。狭いものから）、shown はカレントのステージの見せ方が名乗った範囲（ステージの範囲の前に探す）
 export function keyScopes(
   open: { menu: boolean; dialog: boolean },
   scopes: readonly string[] = [],
   shown?: string,
+  reach: KeyReach = "outward",
 ): string[] {
+  if (reach === "named") return [...scopes]
   if (open.menu) return [...scopes, "menu"]
   if (open.dialog) return [...scopes, "dialog"]
   return [...scopes, ...(shown && !scopes.includes(shown) ? [shown] : []), "stage", "global"]

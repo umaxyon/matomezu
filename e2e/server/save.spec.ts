@@ -304,7 +304,9 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
     .toEqual([undefined, undefined])
 })
 
-test("AI がマークダウンのページの原文を page-update で変えると、プレビューの見出しが変わる", async ({ page }) => {
+test("AI がマークダウンのページの原文を page-update で変えると、ソースとプレビューが変わる。ソースのペインで書き足した物は常駐に残り、読み直しても同じ", async ({
+  page,
+}) => {
   const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto("/")
@@ -332,4 +334,15 @@ test("AI がマークダウンのページの原文を page-update で変える�
   })
   expect(updated).toMatchObject({ ok: true })
   await expect(preview.getByRole("heading", { level: 1 })).toHaveText("AI の見出し")
+  const field = () => page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await expect(field()).toHaveValue("# AI の見出し")
+  await field().click()
+  await page.keyboard.press("ControlOrMeta+End")
+  await page.keyboard.type("\n\n本文")
+  const textOf = async () =>
+    ((await bookIn(page, result.book)) as { pages?: { text?: string }[] } | undefined)?.pages?.[0]?.text
+  await expect.poll(textOf).toBe("# AI の見出し\n\n本文")
+  await page.reload()
+  await expect(field()).toHaveValue("# AI の見出し\n\n本文")
+  await expect(page.getByRole("region", { name: "プレビュー" }).getByText("本文")).toBeVisible()
 })

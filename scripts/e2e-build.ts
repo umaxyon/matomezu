@@ -4,6 +4,7 @@
 import { rmSync, writeFileSync } from "node:fs"
 import { BODY_FONT, bodyPieces, TEXT_WIDTHS_FILE } from "../e2e/text-widths"
 import { textWidth } from "../web/src/plugins/base"
+import { webBuild } from "./web-build"
 
 const run = async (cmd: string[]) => {
   const code = await Bun.spawn(cmd, { stdout: "inherit", stderr: "inherit" }).exited
@@ -11,7 +12,7 @@ const run = async (cmd: string[]) => {
 }
 
 rmSync("e2e/.dist", { recursive: true, force: true })
-await run(["bun", "build", "web/index.html", "--outdir", "e2e/.dist", "--production"])
+await run(webBuild("e2e/.dist", "production"))
 await run(["bun", "scripts/fonts.ts", "copy", "e2e/.dist/fonts"])
 await run(["go", "build", "-tags", "e2e", "-o", "e2e/.matomezu", "./cmd/matomezu"])
 writeFileSync(TEXT_WIDTHS_FILE, JSON.stringify(Object.fromEntries(bodyPieces().map(t => [t, textWidth(t, BODY_FONT)]))))
