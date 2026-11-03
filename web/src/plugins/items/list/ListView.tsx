@@ -205,8 +205,7 @@ export function ListView({
         selection,
         rows.map(r => r.id),
         row.id,
-        mod,
-        followed,
+        { mod, followed },
       )
       if (next === "list") return
       e.stopPropagation()

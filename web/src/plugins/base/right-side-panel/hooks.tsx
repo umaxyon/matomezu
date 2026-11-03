@@ -5,7 +5,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { panelIn, type RightSidePanelOpen, withOpened, withPanel } from "./state"
+import { panelIn, type RightSidePanelOpen, withOpened, withoutAnchor, withPanel } from "./state"
 
 export const SLIDE_MS = 250 // 開け閉めでステージの列と右サイドパネルの幅を動かす時間（CSS の変数 --right-side-panel-slide で渡す）
 
@@ -33,15 +33,14 @@ export const useRightSidePanel = (stage: string): RightSidePanelOpen | null =>
   useMatomezuState(s => panelIn(s.stageStates[stage]?.[kit.id]))
 
 // 右サイドパネルを開く関数: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
-// 選択に従う中身なら、先にステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない
+// 選択に従う中身なら、入れ物が開いたときにステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない
 export function useOpenRightSidePanel(): (
   stage: string,
   open: Pick<RightSidePanelOpen, "widget" | "subject" | "anchors" | "current">,
 ) => void {
   const read = useReadState()
   const set = useSetStageState(kit)
-  const { focusStage, select } = useActions()
-  const widgets = useUiCatalog().widgets
+  const { focusStage } = useActions()
   const pressClosed = useContext(PressClosedContext)
   return useCallback(
     (stage, open) => {
@@ -50,11 +49,10 @@ export function useOpenRightSidePanel(): (
       const now = workspace.stages.find(s => s.id === stage)
       const opened = now?.opened
       if (!now || !opened) return
-      if (widgets.get(open.widget)?.rightSidePanel?.followsSelection) select(stage, open.anchors)
       set(stage, withOpened(stageStates[stage]?.[kit.id], { ...open, book: opened.book, page: opened.page }, now))
       focusStage(stage)
     },
-    [read, set, focusStage, select, widgets, pressClosed],
+    [read, set, focusStage, pressClosed],
   )
 }
 
@@ -64,6 +62,29 @@ export function useSelectionFollowed(stage: string): boolean {
   const open = useRightSidePanel(stage)
   const widgets = useUiCatalog().widgets
   return !!open && !!widgets.get(open.widget)?.rightSidePanel?.followsSelection
+}
+
+// 選択に従う中身で、ステージ stage の付いた先から anchor を外す関数: 選択からも外し、カレントは一つ前の物へ（state.ts の withoutAnchor）。残りが無ければ閉じる
+export function useTakeOffAnchor(): (stage: string, anchor: string) => void {
+  const read = useReadState()
+  const set = useSetStageState(kit)
+  const { select } = useActions()
+  const close = useCloseRightSidePanel()
+  return useCallback(
+    (stage, anchor) => {
+      const now = read().stageStates[stage]?.[kit.id]
+      const open = panelIn(now)
+      if (!open) return
+      const next = withoutAnchor(open, anchor)
+      if (next.anchors.length === 0) {
+        close(stage)
+        return
+      }
+      set(stage, withPanel(now, next))
+      select(stage, next.anchors)
+    },
+    [read, set, select, close],
+  )
 }
 
 // ステージ stage の右サイドパネルのカレントを、付いた先の 1 つ anchor にする関数（付いた先の並びも、ステージの選択も変えない）

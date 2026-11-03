@@ -44,6 +44,20 @@ export interface RightSidePanelRestore {
   moved: boolean
 }
 
+// 付いた先から id を外したもの: カレントは、外した物がカレントなら一つ前の物（無ければ残りの最初）。残りが無ければ anchors は空
+export function withoutAnchor(open: RightSidePanelOpen, id: string): RightSidePanelOpen {
+  const at = open.anchors.indexOf(id)
+  if (at < 0) return open
+  const anchors = open.anchors.filter(a => a !== id)
+  const current = open.current !== id ? open.current : (open.anchors[at - 1] ?? anchors[0] ?? open.current)
+  return { ...open, anchors, current }
+}
+
+// 選択に従う中身で、ポインタを離したあとに閉じるか: 押し始めが開いたステージの中（pressedInStage）で、合わせた付いた先が空のとき。
+// 右サイドパネルの中を押したときや、AI が物を消して空になったときは閉じない
+export const closesOnRelease = (release: { pressedInStage: boolean; anchors: readonly string[] }): boolean =>
+  release.pressedInStage && release.anchors.length === 0
+
 // 見せた物: 付いた先の並びとカレント
 export interface Seen {
   anchors: readonly string[]

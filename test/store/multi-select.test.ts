@@ -41,12 +41,20 @@ const move = (store: Store, items: string[], by: { x: number; y: number }) =>
   store.actions.perform("@matomezu/paper:item-move", { page: "p1", items, by }, { book: "b1" })
 
 test("押したときの選び方: Mod なら足す（選んでいる物は、動かさずに離したときに外す）。修飾なしで選んでいる物を押したら、離したときにその 1 つへ選び直す", () => {
-  expect(pressSelection(EMPTY, [], "a", false)).toEqual({ now: ["a"], drag: ["a"], release: null })
-  expect(pressSelection(EMPTY, ["a"], "b", true)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: null })
-  expect(pressSelection(EMPTY, ["a", "b"], "a", true)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: ["b"] })
-  expect(pressSelection(EMPTY, ["a", "b"], "b", false)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: ["b"] })
-  expect(pressSelection(EMPTY, ["a"], "a", false).release).toBeNull()
-  expect(pressSelection(EMPTY, ["a", "b"], "c", false)).toEqual({ now: ["c"], drag: ["c"], release: null })
+  expect(pressSelection(EMPTY, [], "a", { mod: false })).toEqual({ now: ["a"], drag: ["a"], release: null })
+  expect(pressSelection(EMPTY, ["a"], "b", { mod: true })).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: null })
+  expect(pressSelection(EMPTY, ["a", "b"], "a", { mod: true })).toEqual({
+    now: ["a", "b"],
+    drag: ["a", "b"],
+    release: ["b"],
+  })
+  expect(pressSelection(EMPTY, ["a", "b"], "b", { mod: false })).toEqual({
+    now: ["a", "b"],
+    drag: ["a", "b"],
+    release: ["b"],
+  })
+  expect(pressSelection(EMPTY, ["a"], "a", { mod: false }).release).toBeNull()
+  expect(pressSelection(EMPTY, ["a", "b"], "c", { mod: false })).toEqual({ now: ["c"], drag: ["c"], release: null })
   expect(toggledSelection(["a", "b"], "a")).toEqual(["b"])
   expect(toggledSelection(["a"], "b")).toEqual(["a", "b"])
   expect(onlySelected(["a"], "a")).toBe(true)
@@ -100,7 +108,7 @@ test("内包の階層の違う形を一緒に選ぶと、深い形の代わり�
   expect(sameLevel(page(store), ["n3", "n4"])).toEqual(["n1", "n2"])
   expect(sameLevel(page(store), ["n1", "n3"])).toEqual(["n1"])
   expect(sameLevel(page(store), ["n3", "n6"])).toEqual(["n3", "n6"])
-  expect(pressSelection(page(store), ["n3"], "n2", true).now).toEqual(["n1", "n2"])
+  expect(pressSelection(page(store), ["n3"], "n2", { mod: true }).now).toEqual(["n1", "n2"])
 })
 
 test("一緒に動かせるのは、ページの形どうしか、同じ親の子どうし", () => {
@@ -191,8 +199,8 @@ test("リストの行を選んでいるときに、ほかの物を Mod+クリッ
   const box = (place(store, 40, 40) as { result: { item: string } }).result.item
   const { list, rows } = withList(store)
   const p = page(store)
-  expect(pressSelection(p, [rows[0], rows[1]], box, true).now).toEqual([list, box])
-  expect(pressSelection(p, [rows[0]], list, true).now).toEqual([list])
+  expect(pressSelection(p, [rows[0], rows[1]], box, { mod: true }).now).toEqual([list, box])
+  expect(pressSelection(p, [rows[0]], list, { mod: true }).now).toEqual([list])
   expect(lifted(p, [rows[0], box, rows[1]])).toEqual([list, box])
   expect(lifted(p, [box, list])).toEqual([box, list])
 })
@@ -212,11 +220,11 @@ test("選んでいる行を消すコマンド: 1 つのリストの行だけを�
 })
 
 test("リストの行を押したときの選び方（rowPress）: 修飾なしなら行だけ。Mod なら、このリストの行だけを選んでいれば足す・外し、ほかの物を選んでいればリストを押したことにする。行を選んでいる間、紙の「削除」は出さない", () => {
-  expect(rowPress(["x"], ["a", "b"], "a", false)).toEqual(["a"])
-  expect(rowPress([], ["a", "b"], "a", true)).toEqual(["a"])
-  expect(rowPress(["a"], ["a", "b"], "b", true)).toEqual(["a", "b"])
-  expect(rowPress(["a", "b"], ["a", "b"], "a", true)).toEqual(["b"])
-  expect(rowPress(["box"], ["a", "b"], "a", true)).toBe("list")
+  expect(rowPress(["x"], ["a", "b"], "a", { mod: false })).toEqual(["a"])
+  expect(rowPress([], ["a", "b"], "a", { mod: true })).toEqual(["a"])
+  expect(rowPress(["a"], ["a", "b"], "b", { mod: true })).toEqual(["a", "b"])
+  expect(rowPress(["a", "b"], ["a", "b"], "a", { mod: true })).toEqual(["b"])
+  expect(rowPress(["box"], ["a", "b"], "a", { mod: true })).toBe("list")
   const store = ready()
   const { rows } = withList(store)
   store.actions.select("s1", [rows[0]])
@@ -228,9 +236,13 @@ test("選択に従う右サイドパネルを開いている間（followed）は
   const box = (place(store, 40, 40) as { result: { item: string } }).result.item
   const { list, rows } = withList(store)
   const p = page(store)
-  expect(pressSelection(p, [rows[0]], box, true, true)).toEqual({ now: [rows[0], box], drag: [], release: null })
-  expect(pressSelection(p, [rows[0], box], box, true, true).now).toEqual([rows[0]])
-  expect(pressSelection(p, [rows[0], box], list, false, true).now).toEqual([list])
-  expect(rowPress([box], rows, rows[1], true, true)).toEqual([box, rows[1]])
-  expect(rowPress([box], rows, rows[1], true)).toBe("list")
+  expect(pressSelection(p, [rows[0]], box, { mod: true, followed: true })).toEqual({
+    now: [rows[0], box],
+    drag: [],
+    release: null,
+  })
+  expect(pressSelection(p, [rows[0], box], box, { mod: true, followed: true }).now).toEqual([rows[0]])
+  expect(pressSelection(p, [rows[0], box], list, { mod: false, followed: true }).now).toEqual([list])
+  expect(rowPress([box], rows, rows[1], { mod: true, followed: true })).toEqual([box, rows[1]])
+  expect(rowPress([box], rows, rows[1], { mod: true })).toBe("list")
 })

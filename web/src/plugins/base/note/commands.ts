@@ -7,7 +7,7 @@ import { NOTE_ADD } from "."
 import { NEW_NOTE, NOTE_PANEL_ID } from "./panel-id"
 
 // 押した物 anchor から書き始める: 付ける先は、押した物が選んでいる物のうちなら選んでいる物の全部（押した物を最後に）、でなければ押した物だけ。
-// 伝言の中身は選択に従うので、先に選択を付ける先にしてから開く（カレントは押した物）
+// 伝言の中身は選択に従うので、開くと右サイドパネルが選択を付ける先にする（カレントは押した物）
 export const NOTE_NEW = kit.defineCommand({
   id: "note-new",
   title: "Note to AI",
@@ -17,7 +17,6 @@ export const NOTE_NEW = kit.defineCommand({
     const opened = now?.opened
     if (!now || !opened) return
     const anchors = anchorsFor(anchor, ctx.stage.selection)
-    a.select(ctx.stage.id, anchors)
     a.updateStageState(state =>
       withOpened(
         state,

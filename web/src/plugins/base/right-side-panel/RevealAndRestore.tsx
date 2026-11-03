@@ -43,7 +43,7 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
     const before = stageOf(stage)
     if (!before) return
     const rect = anchorsRect(stage, how === "anchors" ? anchors : [current], before)
-    const zoom = how === "current" ? "keep" : anchors.length > 1 ? "fit" : "one"
+    const zoom = how === "current" ? "keep" : anchors.length > 1 ? "fit" : "actual"
     if (rect) moveView(actions, before, revealView(before, rect, zoom))
     const after = stageOf(stage) ?? before
     update(stage, now => withRestore(now, { shown: { zoom: after.zoom, pan: after.pan }, seen: { anchors, current } }))

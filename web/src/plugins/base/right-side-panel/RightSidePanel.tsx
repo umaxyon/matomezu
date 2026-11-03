@@ -4,7 +4,7 @@
 // 外を左ボタンで押したら閉じる（ステージの道具がずらす道具のときと、ダイアログ・メニュー・トースト・ツールバーを押したときは閉じない。右ボタンはメニューと道具のアイコンを出すので閉じない）。
 // 開いたステージで開いているブックかページが替わったとき、分けたり分けるのをやめたりしたときも閉じる。
 // 選択に従う中身（ウィジェットの定義の rightSidePanel.followsSelection）を出している間は、開いたステージの中を押しても閉じず、付いた先をステージの選択に合わせる
-// （ポインタを押している間は、離してから。state.ts の followSelection）。ポインタを離したあとに付いた先が空なら閉じる（AI が物を消すなど、押さずに空になったときは閉じない）
+// （ポインタを押している間は、離してから。state.ts の followSelection）。開いたステージの中を押して離したあとに付いた先が空なら閉じる（AI が物を消すなど、押さずに空になったときは閉じない）
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { toolOf } from "../../../core/workspace"
 import { useMessages } from "../../../ui/i18n"
@@ -21,7 +21,15 @@ import {
 } from "./hooks"
 import styles from "./RightSidePanel.module.css"
 import { RIGHT_SIDE_PANEL } from "./slots"
-import { followSelection, panelIn, pressCloses, type RightSidePanelOpen, stillOn, withPanel } from "./state"
+import {
+  closesOnRelease,
+  followSelection,
+  panelIn,
+  pressCloses,
+  type RightSidePanelOpen,
+  stillOn,
+  withPanel,
+} from "./state"
 
 const WIDTH = 480 // 中身のウィジェットが幅を書いていないときの幅（px。PC のブラウザの窓をいちばん狭くしても入る幅）
 
@@ -88,28 +96,42 @@ export function RightSidePanel() {
   )
 }
 
-// 選択に従う中身を出しているステージ stage（無ければ null）で、付いた先をステージの選択に合わせる。ポインタを押している間は合わせず、離してから合わせ、
-// そのとき付いた先が空なら閉じる（離したあとの click で選択を変える物もあるので、click のあとに見る）。閉じたら（従う中身でなくなったら）選択を外す
+// 選択に従う中身を出しているステージ stage（無ければ null）で、付いた先をステージの選択に合わせる。開いたとき（中身か見せる物が替わったとき）は、先に選択を付いた先にする。
+// ポインタを押している間は合わせず、離してから合わせ、そのとき閉じるかを決める（state.ts の closesOnRelease。離したあとの click で選択を変える物もあるので、click のあとに見る）。
+// 閉じたら（従う中身でなくなったら）選択を外す
 function useFollowSelection(stage: string | null) {
   const read = useReadState()
   const { select } = useActions()
+  const set = useSetStageState(kit)
+  const close = useCloseRightSidePanel()
+  const opened = useOpenedRightSidePanel()
+  const selection = useStage(stage ?? "")?.selection
   const following = useRef<string | null>(null)
   useEffect(() => {
     const was = following.current
     following.current = stage
     if (was && was !== stage) select(was, [])
   }, [stage, select])
-  const set = useSetStageState(kit)
-  const close = useCloseRightSidePanel()
-  const selection = useStage(stage ?? "")?.selection
+  // 開いたとき: 選択を付いた先にする
+  const shown = stage && opened ? `${stage} ${opened.open.widget} ${opened.open.subject}` : null
+  const synced = useRef<string | null>(null)
+  const anchors = opened?.open.anchors
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 開いたときに一度だけ（付いた先が替わるたびではない）
+  useEffect(() => {
+    if (!stage || shown === synced.current) return
+    synced.current = shown
+    if (shown && anchors) select(stage, anchors)
+  }, [stage, shown, select])
   const pressing = useRef(false)
+  const pressedInStage = useRef(false)
   const [released, setReleased] = useState(0)
   const checked = useRef(released)
   useEffect(() => {
     if (!stage) return
     let timer: ReturnType<typeof setTimeout> | undefined
-    const down = () => {
+    const down = (e: PointerEvent) => {
       pressing.current = true
+      pressedInStage.current = e.target instanceof Node && (stageElement(stage)?.contains(e.target) ?? false)
     }
     const up = () => {
       pressing.current = false
@@ -126,17 +148,20 @@ function useFollowSelection(stage: string | null) {
       document.removeEventListener("pointercancel", up, true)
     }
   }, [stage])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 選択が変わるたびに合わせる（値はストアから今のものを読む）
   useEffect(() => {
-    if (!stage || pressing.current) return
+    if (!stage || pressing.current || shown !== synced.current) return
     const now = read().stageStates[stage]?.[kit.id]
     const open = panelIn(now)
     if (!open) return
-    const next = followSelection(open, selection ?? [])
+    // 開いたときに選択を変えたばかりのこともあるので、選択はストアから今の値を読む
+    const current = read().workspace.stages.find(s => s.id === stage)?.selection ?? []
+    const next = followSelection(open, current)
     const release = checked.current !== released
     checked.current = released
-    if (release && next.anchors.length === 0) close(stage)
+    if (release && closesOnRelease({ pressedInStage: pressedInStage.current, anchors: next.anchors })) close(stage)
     else if (next !== open) set(stage, withPanel(now, next))
-  }, [stage, selection, released, read, set, close])
+  }, [stage, shown, selection, released, read, set, close])
 }
 
 function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: string | number }) {

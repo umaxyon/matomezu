@@ -2,17 +2,16 @@
 // 鳥は付ける先が替わるたびに割り当て直し（birds/assign.ts）、新しい鳥は画面の外から、外れた物の鳥は足された物へ飛んで移り、余った鳥と閉じたときの鳥は飛び去る。
 // 物の上の辺が見える所の外に出たら、鳥の顔の丸い絵を縁に出す（押すとその物を見せる）。
 // 鳥を押すと、その物をカレントにして（右サイドパネルが真ん中へ見せる）「外す？」を出し、「はい」で付ける先から外す（カレントは一つ前の鳥の物へ）。
-// 付ける先が 0 になれば、右サイドパネルが閉じる
+// 付ける先が 0 になれば閉じる（right-side-panel の useTakeOffAnchor）
 import { useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { useActions } from "../../../ui/store-context"
 import type { Bird } from "../birds"
 import { assignBirds } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { LEAVE } from "../birds/flight"
 import { RemoveAsk } from "../birds/RemoveAsk"
 import { kit } from "../kit"
-import { useRightSidePanel, useSetRightSidePanelCurrent } from "../right-side-panel/hooks"
+import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
 import { anchorElementIn, Stand } from "../utils/anchors"
 import { NOTE_PANEL_ID } from "./panel-id"
 
@@ -51,27 +50,17 @@ export function NoteBirds({ stage }: { stage: string }) {
     <>
       {shown.map(s => (
         <Stand key={`${s.anchor}:${s.bird}`} anchor={s.anchor} side="edge" span edgePinned>
-          <NoteBird stage={stage} shown={s} anchors={anchors} onGone={() => gone(s)} />
+          <NoteBird stage={stage} shown={s} onGone={() => gone(s)} />
         </Stand>
       ))}
     </>
   )
 }
 
-function NoteBird({
-  stage,
-  shown,
-  anchors,
-  onGone,
-}: {
-  stage: string
-  shown: Shown
-  anchors: readonly string[]
-  onGone: () => void
-}) {
+function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGone: () => void }) {
   const t = useMessages(kit)
-  const { select } = useActions()
   const setCurrent = useSetRightSidePanelCurrent()
+  const takeOff = useTakeOffAnchor()
   const [origin] = useState(() => (shown.from ? (anchorElementIn(stage, shown.from)?.el ?? null) : null))
   const [asking, setAsking] = useState(false)
   // 物が消えて描かれなくなっても、飛び去りが終わる頃に消す
@@ -80,13 +69,7 @@ function NoteBird({
     const timer = setTimeout(onGone, LEAVE * 1000 + 500)
     return () => clearTimeout(timer)
   }, [shown.leaving, onGone])
-  const remove = () => {
-    const at = anchors.indexOf(shown.anchor)
-    const rest = anchors.filter(a => a !== shown.anchor)
-    select(stage, rest)
-    const before = anchors[at - 1] ?? rest[0]
-    if (before) setCurrent(stage, before)
-  }
+  const remove = () => takeOff(stage, shown.anchor)
   const title = t("Note")
   return (
     <BirdWalk

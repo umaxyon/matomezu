@@ -1,12 +1,14 @@
 // 右サイドパネルの持ち方: base のステージの画面の状態の rightSidePanel に持ち、ほかの物は残す。開いたときのブックかページから替われば閉じる
 import { expect, test } from "bun:test"
 import {
+  closesOnRelease,
   columnGrow,
   followSelection,
   panelIn,
   pressCloses,
   revealFor,
   stillOn,
+  withoutAnchor,
   withPanel,
 } from "../../web/src/plugins/base/right-side-panel/state"
 
@@ -59,4 +61,19 @@ test("見せ直し: 付いた先が替われば全部を収め、カレントだ
   expect(revealFor({ anchors: ["a", "b"], current: "b" }, { anchors: ["a", "b"], current: "a" })).toBe("current")
   expect(revealFor({ anchors: ["a", "b"], current: "b" }, { anchors: ["a", "b"], current: "b" })).toBe("none")
   expect(revealFor({ anchors: ["a"], current: "a" }, { anchors: [], current: "a" })).toBe("none")
+})
+
+test("付いた先から外すと、外した物がカレントなら一つ前の物（無ければ残りの最初）がカレントになる", () => {
+  const open = { ...OPEN, anchors: ["a", "b", "c"], current: "b" }
+  expect(withoutAnchor(open, "b")).toMatchObject({ anchors: ["a", "c"], current: "a" })
+  expect(withoutAnchor(open, "c")).toMatchObject({ anchors: ["a", "b"], current: "b" })
+  expect(withoutAnchor({ ...open, current: "a" }, "a")).toMatchObject({ anchors: ["b", "c"], current: "b" })
+  expect(withoutAnchor({ ...open, anchors: ["a"], current: "a" }, "a")).toMatchObject({ anchors: [] })
+  expect(withoutAnchor(open, "x")).toBe(open)
+})
+
+test("離したあとに閉じるのは、開いたステージの中を押して、付いた先が空になったときだけ（右サイドパネルの中を押したときや、AI が消して空になったときは閉じない）", () => {
+  expect(closesOnRelease({ pressedInStage: true, anchors: [] })).toBe(true)
+  expect(closesOnRelease({ pressedInStage: false, anchors: [] })).toBe(false)
+  expect(closesOnRelease({ pressedInStage: true, anchors: ["a"] })).toBe(false)
 })

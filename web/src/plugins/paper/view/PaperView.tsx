@@ -318,7 +318,7 @@ function PageItems({
     // 付け替えは押した形 1 つだけを動かす。選択の道具は Mod で足す・外す（placing/selection.ts の pressSelection）
     const press = reparenting
       ? { now: [id], drag: [id], release: null }
-      : pressSelection(page, stage.selection, id, modPressed(e), followed)
+      : pressSelection(page, stage.selection, id, { mod: modPressed(e), followed })
     select(stage.id, press.now)
     if (followed) return
     const items = shapesIn(page, press.drag)

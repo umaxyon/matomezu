@@ -14,8 +14,7 @@ export function rowPress(
   selection: readonly string[],
   rows: readonly string[],
   row: string,
-  mod: boolean,
-  followed = false,
+  { mod, followed = false }: { mod: boolean; followed?: boolean },
 ): readonly string[] | "list" {
   if (!mod) return [row]
   if (!followed && !selection.every(id => rows.includes(id))) return "list"

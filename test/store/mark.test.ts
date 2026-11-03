@@ -98,23 +98,20 @@ test("マスターにはマークを付けられない（タイプが種類を�
   ).toBe(false)
 })
 
-test("右クリックのコマンドは、base のステージの画面の状態に付ける先を置く（伝言は、右サイドパネルを開いて選択を付ける先にする）。選んでいる物の 1 つを押すと、選んでいる物の全部に付ける", () => {
+test("右クリックのコマンドは、base のステージの画面の状態に付ける先を置く（伝言は、右サイドパネルの付いた先。選択を合わせるのは右サイドパネルの入れ物）。選んでいる物の 1 つを押すと、選んでいる物の全部に付ける", () => {
   const { store, a, b } = ready()
   const base = () => store.state.getState().stageStates.s1?.["@matomezu/base"]
   expect(store.actions.command("s1", "@matomezu/base:mark-new", a)).toBe(true)
   expect(MARK_PICKER.read(base())).toEqual({ anchors: [a] })
   store.actions.select("s1", [b, a])
-  const selection = () => store.state.getState().workspace.stages[0]?.selection
   store.actions.command("s1", "@matomezu/base:note-new", a)
   expect(panelIn(base())).toMatchObject({ subject: NEW_NOTE, anchors: [b, a], current: a })
-  expect(selection()).toEqual([b, a])
   expect(MARK_PICKER.read(base())).toEqual({ anchors: [a] })
   store.actions.command("s1", "@matomezu/base:note-new", b)
   expect(panelIn(base())).toMatchObject({ anchors: [a, b], current: b })
   store.actions.select("s1", [b])
   store.actions.command("s1", "@matomezu/base:note-new", a)
   expect(panelIn(base())).toMatchObject({ anchors: [a], current: a })
-  expect(selection()).toEqual([a])
 })
 
 test("マスターでは、右クリックの「AIに伝言」「AIに示す」を出さない", () => {

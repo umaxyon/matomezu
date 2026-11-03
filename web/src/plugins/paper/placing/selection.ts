@@ -27,8 +27,7 @@ export function pressSelection(
   page: ItemPage,
   selection: readonly string[],
   id: string,
-  mod: boolean,
-  followed = false,
+  { mod, followed = false }: { mod: boolean; followed?: boolean },
 ): Press {
   const has = selection.includes(id)
   if (followed) {

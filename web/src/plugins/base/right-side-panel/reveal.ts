@@ -8,12 +8,12 @@ import { fitZoom, type ViewAt } from "../zoom"
 // 物の周りに残す表示領域の余白（px）。マークポインタのずらし（スタンドと端のすき間 STAND_MARGIN）より広く取り、見せた物が表示領域の端に付かないようにする
 const PAD = 24
 
-// 見せるときの倍率: one は 100%、fit は四角が入る倍率（100% まで）、keep は今の倍率のまま
-export type RevealZoom = "one" | "fit" | "keep"
+// 見せるときの倍率: actual は 100%、fit は四角が入る倍率（100% まで）、keep は今の倍率のまま
+export type RevealZoom = "actual" | "fit" | "keep"
 
 // ステージ stage で、紙の上の四角 rect を見せる見え方（紙か表示領域が無ければ、今の見え方）。倍率は zoom で決め、
 // 四角の真ん中を動かさずに変えてから、真ん中へずらす（紙の端で、ずらせる所まで）
-export function revealView(stage: Stage, rect: Rect, zoom: RevealZoom = "one"): ViewAt {
+export function revealView(stage: Stage, rect: Rect, zoom: RevealZoom = "actual"): ViewAt {
   const at = placement(stage)
   const view = stage.view
   if (!at || !view) return { zoom: stage.zoom, pan: stage.pan }
