@@ -16,7 +16,11 @@ import { TREE_TOOLS } from "./tools"
 export const TREE_KEYS_SCOPE = kit.name("tree")
 
 // ツリーの見せ方: 紙の上に、根から伸びる木を描く。カレントのステージがこれで描いている間は、ツリーのキーの範囲を探す
-export const TREE_PRESENTATION = kit.definePresentation({ id: "tree", keyScope: TREE_KEYS_SCOPE })
+export const TREE_PRESENTATION = kit.definePresentation({
+  id: "tree",
+  keyScope: TREE_KEYS_SCOPE,
+  minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
+})
 
 // ツリーのページの設定のダイアログ（根のダイアログを兼ねる。ページ名・伸びる向き・節の大きさ・根のキャプションと本文と、本文を描くか）
 export const TREE_PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({ id: "page-settings" })
@@ -49,7 +53,6 @@ export const TREE = kit.defineBookType({
   // 木が紙に入らないページは問題（base のページ・ブックのアクションは書かない）
   pageProblem: (catalog, page, setting, grow) =>
     treeFits(catalog, page, setting, grow) ? null : { message: kit.message("Does not fit on the paper") },
-  minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
   // 可変ページは、根のある側を固定して残りの向きへ増やす（中央なら 4 つとも。base の拡張ポイント）
   grow: { sides: setting => growSidesOf(setting(GROW)) },
   pages: {
