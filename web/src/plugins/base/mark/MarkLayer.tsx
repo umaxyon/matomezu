@@ -1,59 +1,28 @@
 // マークのレイヤー（ウィジェット mark-layer）: 開いているブックのマークを、付けた物の最後の 1 つのそばにスタンドで出す。
-// 鳥のマークは物の上の辺を歩き（付けたときだけ、飛んでくるか物の裏から顔を出す。flight.ts）、びっくりマークは物の右上の角に止まる。
+// 鳥のマークは物の上の辺を歩き（付けたときだけ、飛んでくるか物の裏から顔を出す。birds/）、びっくりマークは物の右上の角に止まる。
 // どちらも押すと「外す？」の小さな吹き出しを出し、「はい」で外す。ポインタが離れるか、ほかを押すと隠す。
 // マークの種類を選ぶスタンド（commands.ts の MARK_PICKER）が開いていれば、付ける先のそばに 6 つの種類の絵を並べ、押した種類を付ける。
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない。
 // 付けた物の上の辺が見える所（画面と、物を囲む Revealable〈リストの行の並びなど〉の重なり）の外に出たら、鳥はマークポインタ（鳥の顔の丸い絵）に替わって
 // 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
-import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react"
-import type { Point } from "../../../core/geom"
+import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
+import type { Bird } from "../birds"
+import { BirdWalk, birdClass, FRONT, frameStyle } from "../birds/BirdWalk"
+import type { Arrival } from "../birds/flight"
 import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
-import bunchoPointer from "../images/bird-marks/buncho.png"
-import fukurouPointer from "../images/bird-marks/fukurou.png"
-import inkoPointer from "../images/bird-marks/inko.png"
-import suzumePointer from "../images/bird-marks/suzume.png"
-import tsunagidoriPointer from "../images/bird-marks/tsunagidori.png"
-import buncho from "../images/birds/buncho.png"
-import fukurou from "../images/birds/fukurou.png"
-import inko from "../images/birds/inko.png"
-import suzume from "../images/birds/suzume.png"
-import tsunagidori from "../images/birds/tsunagidori.png"
 import { kit } from "../kit"
 import { Stand, useStandAway } from "../utils/anchors"
 import { STAND_MARGIN } from "../utils/stand-place"
 import type { StageSlotProps } from "../workspace/ui"
-import { type Bird, MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
+import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import { MARK_PICKER } from "./commands"
-import { type Arrival, birdPose, GAITS, type Gait } from "./flight"
-import { SHEETS, type Sheet } from "./frames"
 import styles from "./MarkLayer.module.css"
 
-const SIZE = 48 // 鳥の大きさ（画面の px）
 const PICK_SIZE = 40 // 種類を選ぶスタンドの鳥の大きさ
-const FRONT = 4 // 正面を向いたコマ
-const POINTER = 24 // マークポインタの大きさ
 const ALERT = 18 // びっくりマークの丸の大きさ
-
-// 鳥ごとのマークポインタの絵
-const POINTERS: Record<Bird, string> = {
-  tsunagidori: tsunagidoriPointer,
-  inko: inkoPointer,
-  buncho: bunchoPointer,
-  suzume: suzumePointer,
-  fukurou: fukurouPointer,
-}
-
-// 鳥ごとの絵・コマの切り出し・歩き方
-const BIRDS: Record<Bird, { image: string; sheet: Sheet; gait: Gait }> = {
-  tsunagidori: { image: tsunagidori, sheet: SHEETS.tsunagidori, gait: GAITS.tsunagidori },
-  inko: { image: inko, sheet: SHEETS.inko, gait: GAITS.inko },
-  buncho: { image: buncho, sheet: SHEETS.buncho, gait: GAITS.buncho },
-  suzume: { image: suzume, sheet: SHEETS.suzume, gait: GAITS.suzume },
-  fukurou: { image: fukurou, sheet: SHEETS.fukurou, gait: GAITS.fukurou },
-}
 
 // この画面で付けたばかりのマーク（最初に描くときだけ、飛んでくるか顔を出す）
 const arriving = new Set<string>()
@@ -90,7 +59,7 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
     )
   return (
     <Stand anchor={anchor} side="edge" span edgePinned label={t("Mark")}>
-      <BirdWalk id={id} bird={kind} title={title} onRemove={remove} />
+      <MarkBird id={id} bird={kind} title={title} onRemove={remove} />
     </Stand>
   )
 }
@@ -139,10 +108,12 @@ const LEAVE_GRACE = 400 // ポインタが離れてから「外す？」を隠�
 function RemoveAsk({
   onRemove,
   onAsking,
+  onBird = false,
   children,
 }: {
   onRemove: () => void
   onAsking?: (asking: boolean) => void
+  onBird?: boolean // 鳥の足元に置く（吹き出しを鳥の上に出す）
   children: (toggle: () => void) => React.ReactNode
 }) {
   const t = useMessages(kit)
@@ -167,7 +138,7 @@ function RemoveAsk({
   return (
     <div
       ref={ref}
-      className={styles.ask}
+      className={onBird ? `${styles.ask} ${styles.onBird}` : styles.ask}
       onPointerEnter={stay}
       onPointerLeave={() => {
         stay()
@@ -188,143 +159,23 @@ function RemoveAsk({
   )
 }
 
-// 物の上の辺を歩く鳥。歩く所の幅は物の幅で、鳥は真ん中寄りの、鳥の幅の 2 倍ほどを往復する
-// 付けた物の上の辺が見える所の外なら、鳥の代わりにマークポインタを、鳥の足元を見える所の縁に寄せた所に描く（歩く動きのまま縁を動く）
-function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title: string; onRemove: () => void }) {
+// 鳥のマーク: 物の上の辺を歩き、押すと「外す？」を出す（出している間は止まる）。この画面で付けたばかりなら、飛んでくるか顔を出す
+function MarkBird({ id, bird, title, onRemove }: { id: string; bird: Bird; title: string; onRemove: () => void }) {
   const t = useMessages(kit)
-  const away = useStandAway()
-  const area = useRef<HTMLDivElement>(null)
   const [arrival] = useState<Arrival>(() => {
     if (!arriving.delete(id)) return "none"
     return Math.random() < 0.5 ? "fly" : "peek"
   })
-  const [from, setFrom] = useState<Point>({ x: 0, y: 0 })
-  const [time, setTime] = useState(0)
-  const [width, setWidth] = useState(0)
-  const paused = useRef(false)
-  const still = useReducedMotion()
-  const { sheet, gait } = BIRDS[bird]
-  const scale = SIZE / sheet.cell
-  const range = Math.max(0, Math.min(2 * sheet.bodyWidth * scale, width - SIZE - 12))
-  // 歩く所の幅を測る。飛んでくるなら、飛んでくる所を画面（ステージ）の外に決める
-  useEffect(() => {
-    const el = area.current
-    if (!el) return
-    const measure = () => setWidth(el.clientWidth)
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    if (arrival === "fly") setFrom(offscreen(el))
-    return () => observer.disconnect()
-  }, [arrival])
-  useEffect(() => {
-    if (still) return
-    let frame = 0
-    let last: number | null = null
-    const tick = (now: number) => {
-      const dt = last === null ? 0 : Math.min(0.1, (now - last) / 1000)
-      if (dt > 0 && !paused.current) setTime(t => t + dt)
-      last = now
-      frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [still])
-  const pose = still
-    ? { frame: FRONT, x: range, lift: 0, from: { x: 0, y: 0 }, right: false, rotation: 0, behind: false }
-    : birdPose(time, arrival, gait, SIZE, range, from)
-  const left = (width - range) / 2 + pose.x
-  if (away) {
-    const at = away.pin({ x: left, y: SIZE }, POINTER / 2 + STAND_MARGIN)
-    return (
-      <div ref={area} className={styles.walk} data-mark-walk>
-        <button
-          type="button"
-          className={styles.pointer}
-          aria-label={t("Show {name}", { name: title })}
-          title={t("Show {name}", { name: title })}
-          onClick={away.show}
-          style={{ left: at.x - POINTER / 2, top: at.y - POINTER / 2, backgroundImage: `url(${POINTERS[bird]})` }}
-          data-mark-pointer
-        />
-      </div>
-    )
-  }
-  const body = (
-    <div
-      className={styles.foot}
-      style={{
-        left,
-        transform: `translate(${pose.from.x.toString()}px, ${(pose.from.y + pose.lift).toString()}px) rotate(${pose.rotation.toString()}rad)`,
-      }}
-    >
-      <RemoveAsk
-        onRemove={onRemove}
-        onAsking={a => {
-          paused.current = a
-        }}
-      >
-        {toggle => (
-          <button
-            type="button"
-            className={styles.bird}
-            aria-label={title}
-            onClick={toggle}
-            style={frameStyle(bird, pose.frame, SIZE, pose.right)}
-          />
-        )}
-      </RemoveAsk>
-    </div>
-  )
+  const [asking, setAsking] = useState(false)
   return (
-    <div ref={area} className={styles.walk} data-mark-walk>
-      {pose.behind ? <div className={styles.behind}>{body}</div> : body}
-    </div>
+    <BirdWalk bird={bird} arrival={arrival} paused={asking} awayLabel={t("Show {name}", { name: title })}>
+      {style => (
+        <RemoveAsk onRemove={onRemove} onAsking={setAsking} onBird>
+          {toggle => <button type="button" className={birdClass} aria-label={title} onClick={toggle} style={style} />}
+        </RemoveAsk>
+      )}
+    </BirdWalk>
   )
-}
-
-// 鳥の絵の 1 コマを、足元を原点に描く形（size は鳥の大きさ。flip なら足元で左右を返す）
-function frameStyle(bird: Bird, index: number, size: number, flip = false): CSSProperties {
-  const { sheet, image } = BIRDS[bird]
-  const [x, y, w, h, anchorX, groundY, clip] = sheet.frames[index] ?? sheet.frames[FRONT] ?? [0, 0, 0, 0, 0, 0, []]
-  const s = size / sheet.cell
-  const points: string[] = []
-  for (let i = 0; i + 1 < clip.length; i += 2)
-    points.push(`${((clip[i] ?? 0) * s).toString()}px ${((clip[i + 1] ?? 0) * s).toString()}px`)
-  return {
-    left: -anchorX * s,
-    top: -(groundY + 1) * s,
-    width: w * s,
-    height: h * s,
-    backgroundImage: `url(${image})`,
-    backgroundSize: `${(sheet.size * s).toString()}px`,
-    backgroundPosition: `${(-x * s).toString()}px ${(-y * s).toString()}px`,
-    ...(points.length > 0 ? { clipPath: `polygon(${points.join(", ")})` } : {}),
-    ...(flip ? { transform: "scaleX(-1)", transformOrigin: `${(anchorX * s).toString()}px 0` } : {}),
-  }
-}
-
-// 歩く所の右端の足元から見た、ステージ（スタンドのレイヤー）の外の、どこか 1 点（左・右・上のどれか）
-function offscreen(el: HTMLElement): Point {
-  const layer = el.closest("[data-stand-layer]") ?? document.body
-  const box = layer.getBoundingClientRect()
-  const at = el.getBoundingClientRect()
-  const foot = { x: at.right, y: at.bottom }
-  const pad = SIZE * 2
-  const side = Math.floor(Math.random() * 3)
-  const along = Math.random()
-  const target =
-    side === 0
-      ? { x: box.left - pad, y: box.top + along * box.height * 0.6 }
-      : side === 1
-        ? { x: box.right + pad, y: box.top + along * box.height * 0.6 }
-        : { x: box.left + along * box.width, y: box.top - pad }
-  return { x: target.x - foot.x, y: target.y - foot.y }
-}
-
-function useReducedMotion(): boolean {
-  const [reduced] = useState(() => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false)
-  return reduced
 }
 
 // マークの種類を選ぶスタンド: 6 つの種類の絵を並べ、押した種類を付ける。Esc か、ほかを押すと付けずに閉じる
@@ -381,7 +232,7 @@ function PickerStand({ stage, picker }: { stage: string; picker: AnchorTargets }
               <span className={styles.alert}>!</span>
             ) : (
               <span className={styles.pickBird}>
-                <span className={styles.bird} style={frameStyle(k.id, FRONT, PICK_SIZE)} />
+                <span className={`${birdClass} ${styles.pickFrame}`} style={frameStyle(k.id, FRONT, PICK_SIZE)} />
               </span>
             )}
           </button>
