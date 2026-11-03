@@ -5,7 +5,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { panelIn, type RightSidePanelOpen, withPanel } from "./state"
+import { panelIn, type RightSidePanelOpen, withOpened, withPanel } from "./state"
 
 export const SLIDE_MS = 250 // 開け閉めでステージの列と右サイドパネルの幅を動かす時間（CSS の変数 --right-side-panel-slide で渡す）
 
@@ -32,7 +32,7 @@ export const useStagesWithRightSidePanel = (): readonly string[] =>
 export const useRightSidePanel = (stage: string): RightSidePanelOpen | null =>
   useMatomezuState(s => panelIn(s.stageStates[stage]?.[kit.id]))
 
-// 右サイドパネルを開く関数: ステージ stage で、中身 widget に物 subject（付いた先は anchor）を見せる。右サイドパネルを閉じたのと同じ押しなら開かない
+// 右サイドパネルを開く関数: ステージ stage で、中身 widget に物 subject（付いた先は anchor）を見せる（閉じたら戻すため、開く前の見え方も覚える）。右サイドパネルを閉じたのと同じ押しなら開かない
 export function useOpenRightSidePanel(): (
   stage: string,
   open: Pick<RightSidePanelOpen, "widget" | "subject" | "anchor">,
@@ -45,9 +45,10 @@ export function useOpenRightSidePanel(): (
     (stage, open) => {
       if (pressClosed.current) return
       const { workspace, stageStates } = read()
-      const opened = workspace.stages.find(s => s.id === stage)?.opened
-      if (!opened) return
-      set(stage, withPanel(stageStates[stage]?.[kit.id], { ...open, book: opened.book, page: opened.page }))
+      const now = workspace.stages.find(s => s.id === stage)
+      const opened = now?.opened
+      if (!now || !opened) return
+      set(stage, withOpened(stageStates[stage]?.[kit.id], { ...open, book: opened.book, page: opened.page }, now))
       focusStage(stage)
     },
     [read, set, focusStage, pressClosed],

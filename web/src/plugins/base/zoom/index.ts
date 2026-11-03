@@ -7,6 +7,7 @@ import type { Point } from "../../../core/geom"
 import { areaOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN } from "../../../core/viewport"
 import { type CommandContext, workspaceOf } from "../../../store/commands/def"
+import type { Actions } from "../../../store/store"
 import { kit } from "../kit"
 
 export const ZOOM_MIN = 0.3
@@ -37,6 +38,16 @@ export function fitView(stage: Stage): Stage {
   const zoomed = zoomTo(stage, zoom)
   const pan = { x: view.w / 2 - MARGIN - (paper.w * zoom) / 2, y: view.h / 2 - MARGIN - (paper.h * zoom) / 2 }
   return panBy(zoomed, pan.x - zoomed.pan.x, pan.y - zoomed.pan.y)
+}
+
+// ステージの見え方（倍率とずらす量）
+export type ViewAt = Pick<Stage, "zoom" | "pan">
+
+// ステージ stage を、見え方 target（倍率とずらす量）へ移す: 倍率を変えてから（ずらす量はストアと同じ zoomTo で決まる）、target のずらす量との差だけずらす
+export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: Stage, target: ViewAt): void {
+  const zoomed = zoomTo(stage, target.zoom)
+  a.zoomStage(stage.id, target.zoom)
+  a.panStageBy(stage.id, target.pan.x - zoomed.pan.x, target.pan.y - zoomed.pan.y)
 }
 
 // 呼ばれたステージの中の状態（表示領域の大きさとずらす量）
@@ -85,12 +96,7 @@ export const ZOOM_FIT = kit.defineCommand({
   title: "Fit the page",
   run: (ctx, a) => {
     const stage = stageOf(ctx)
-    if (!stage) return
-    // 倍率を変えてから（ずらす量はストアと同じ zoomTo で決まる）、紙が真ん中に来るまでずらす
-    const fit = fitView(stage)
-    const zoomed = zoomTo(stage, fit.zoom)
-    a.zoomStage(ctx.stage.id, fit.zoom)
-    a.panStageBy(ctx.stage.id, fit.pan.x - zoomed.pan.x, fit.pan.y - zoomed.pan.y)
+    if (stage) moveView(a, stage, fitView(stage))
   },
   when: ctx => paperOf(ctx.stage) !== null,
   enabled: ctx => {

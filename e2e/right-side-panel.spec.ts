@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test"
 import { footerMenuTool } from "./footer-menu"
+import { addList, addRow } from "./list"
 import { fromMenu } from "./stage-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
@@ -147,4 +148,103 @@ test("窓が右サイドパネルの幅より狭ければ、右サイドパネ�
   await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
   expect(await widths(page)).toEqual([300])
+})
+
+const paperBox = async (page: Page) => {
+  const b = (await page.getByRole("img", { name: "紙" }).first().boundingBox())!
+  return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width) }
+}
+
+// 紙が止まっているか（少し間を置いて 2 回測り、同じなら止まっている）
+async function steady(page: Page) {
+  const a = await paperBox(page)
+  await page.waitForTimeout(50)
+  const b = await paperBox(page)
+  return a.x === b.x && a.y === b.y && a.w === b.w
+}
+
+// 紙の上で Ctrl+ホイールを回して小さくする
+async function zoomOut(page: Page) {
+  const p = (await page.getByRole("img", { name: "紙" }).first().boundingBox())!
+  await page.mouse.move(p.x + 40, p.y + 40)
+  await page.keyboard.down("Control")
+  await page.mouse.wheel(0, 400)
+  await page.keyboard.up("Control")
+}
+
+test("開くと倍率を 100% にして、付けた物を見せる。閉じれば開く前の見え方に戻る", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto("/")
+  const full = (await paperBox(page)).w
+  await foldedComment(page, 1000, "端", "見てほしい")
+  await zoomOut(page)
+  await expect.poll(async () => (await paperBox(page)).w).toBeLessThan(full * 0.7)
+  const before = await paperBox(page)
+  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await expect(panel(page)).toContainText("見てほしい")
+  await expect.poll(async () => (await paperBox(page)).w).toBe(full)
+  // 付けた物は、ステージの見えている所に入っている
+  const stage = (await page.locator("[data-stage]").first().boundingBox())!
+  const item = (await items(page).filter({ hasText: "端" }).boundingBox())!
+  expect(item.x).toBeGreaterThanOrEqual(stage.x)
+  expect(item.x + item.width).toBeLessThanOrEqual(stage.x + stage.width)
+  expect(item.y).toBeGreaterThanOrEqual(stage.y)
+  expect(item.y + item.height).toBeLessThanOrEqual(stage.y + stage.height)
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+  await expect.poll(() => paperBox(page)).toEqual(before)
+})
+
+test("開いている間に紙をずらすか倍率を変えたら、閉じても戻さない", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto("/")
+  const full = (await paperBox(page)).w
+  await foldedComment(page, 1000, "端", "見てほしい")
+  await zoomOut(page)
+  await expect.poll(async () => (await paperBox(page)).w).toBeLessThan(full * 0.7)
+  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await expect.poll(async () => (await paperBox(page)).w).toBe(full)
+  // ホイールで紙をずらす
+  const shown = await paperBox(page)
+  const stage = (await page.locator("[data-stage]").first().boundingBox())!
+  await page.mouse.move(stage.x + 40, stage.y + stage.height - 40)
+  await page.mouse.wheel(-120, 0)
+  await expect.poll(async () => (await paperBox(page)).x).not.toBe(shown.x)
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+  // 倍率は 100% のまま（ずらす量は、広がった表示領域に収め直される）。戻すなら閉じ終えたときなので、紙が止まってから見る
+  await expect.poll(() => steady(page)).toBe(true)
+  expect((await paperBox(page)).w).toBe(full)
+})
+
+test("リストの中のスクロールの奥の行を開くと、リストもスクロールしてその行を見せる。閉じてもリストのスクロールは戻さない", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto("/")
+  const list = await addList(page, "多い")
+  for (const n of [1, 2, 3, 4, 5]) await addRow(page, list, `行 ${n}`)
+  const rows = list.locator("ul").locator("..")
+  const last = list.getByRole("listitem").last()
+  await last.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "コメント" }).click()
+  const draft = page.getByRole("group", { name: "コメントを付ける" })
+  await draft.getByLabel("コメント", { exact: true }).fill("奥の行")
+  await draft.getByRole("button", { name: "付ける" }).click()
+  await page.getByRole("group", { name: "コメント", exact: true }).getByRole("button", { name: "たたむ" }).click()
+  await rows.evaluate(el => {
+    el.scrollTop = 0
+  })
+  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await expect(panel(page)).toContainText("奥の行")
+  await expect.poll(() => rows.evaluate(el => el.scrollTop)).toBeGreaterThan(0)
+  const box = (await rows.boundingBox())!
+  const row = (await last.boundingBox())!
+  expect(row.y).toBeGreaterThanOrEqual(box.y - 1)
+  expect(row.y + row.height).toBeLessThanOrEqual(box.y + box.height + 1)
+  const scrolled = await rows.evaluate(el => el.scrollTop)
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+  await expect.poll(() => steady(page)).toBe(true)
+  expect(await rows.evaluate(el => el.scrollTop)).toBe(scrolled)
 })
