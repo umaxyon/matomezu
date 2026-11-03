@@ -39,7 +39,7 @@ test("候補にあって既定に無いアイテムは、置けて線も使え�
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
   expect(createBookIn(instance, "s1", { title: "見本", type: "notes:picky" as never })).toBe(true)
   const id = Object.keys(instance.state.getState().books).find(b => b !== "@matomezu/master:master") as string
-  const book = { type: "notes:picky" }
+  const book = { type: "notes:picky" } as never
   expect(bookItems(catalog, book)).toEqual(DRAWING.items.allowed)
   expect(usesLines(catalog, book)).toBe(true)
   const shown = instance.state.getState().books[id] as never
