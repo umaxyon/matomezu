@@ -18,7 +18,7 @@
 | 道具（`ToolDef`） | ステージでポインタが何をするか（選択・ハンドなど） | `core/def/tool.ts` |
 | 道具の組（`ToolSetDef`） | ステージで切り替える道具の並び | `core/def/tool.ts` |
 | 認可ステップ（`PermissionDef`） | アクションを、ブックのある所で行うのを止める（ロックなど）。止めるだけで、許すことはしない | `core/def/permission.ts` |
-| アノテーション（`AnnotationDef`） | ブックの物に id で結び付き、ブックのデータとは別に残る物の種類（コメントなど） | `core/def/annotation.ts` |
+| アノテーション（`AnnotationDef`） | ブックの物に id で結び付き、ブックのデータとは別に残る物の種類（伝言など） | `core/def/annotation.ts` |
 | コマンド（`CommandDef`） | 画面の入口（ボタン・メニュー・キーから呼ぶ） | `store/commands/def.ts` |
 | ダイアログ（`DialogDef`） | 開くダイアログの id | `store/dialogs.ts` |
 | 文言の組（`MessageSetDef`） | プラグイン 1 つの、画面に出す文と訳（id は `<プラグインの id>:messages`） | `core/i18n/messages.ts` |
