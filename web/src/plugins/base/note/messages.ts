@@ -16,5 +16,10 @@ export const NOTE_MESSAGES = defineMessages({
   Save: { en: "Save", ja: "保存" },
   Remove: { en: "Remove", ja: "消す" },
   Add: { en: "Add", ja: "付ける" },
+  "Things the note is on": { en: "Things the note is on", ja: "伝言を付ける先" },
+  "A thing the note was on was removed": {
+    en: "A thing the note was on was removed",
+    ja: "付ける先の物が消されました",
+  },
   "The note was refused": { en: "The note was refused", ja: "伝言を変えられませんでした" },
 })

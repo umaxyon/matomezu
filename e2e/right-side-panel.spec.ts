@@ -1,10 +1,10 @@
 import { expect, type Page, test } from "@playwright/test"
 import { footerMenuTool } from "./footer-menu"
 import { addList, addRow } from "./list"
+import { panel, writeNote } from "./note"
 import { fromMenu } from "./stage-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
-const panel = (page: Page) => page.getByRole("complementary", { name: "右サイドパネル" })
 // 隠した列も数えるので、役割ではなく名前で探す
 const stages = (page: Page) => page.locator('[aria-label="ステージ"]')
 
@@ -17,11 +17,7 @@ async function foldedNote(page: Page, x: number, caption: string, text: string) 
   await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
   await dialog.getByRole("button", { name: "追加" }).click()
   await expect(dialog).toBeHidden()
-  await items(page).filter({ hasText: caption }).click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  const draft = page.getByRole("group", { name: "伝言を付ける" })
-  await draft.getByLabel("伝言", { exact: true }).fill(text)
-  await draft.getByRole("button", { name: "付ける" }).click()
+  await writeNote(page, items(page).filter({ hasText: caption }), text)
   await foldNote(page, text)
 }
 
@@ -234,11 +230,7 @@ test("リストの中のスクロールの奥の行を開くと、リストも�
   for (const n of [1, 2, 3, 4, 5]) await addRow(page, list, `行 ${n}`)
   const rows = list.locator("ul").locator("..")
   const last = list.getByRole("listitem").last()
-  await last.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  const draft = page.getByRole("group", { name: "伝言を付ける" })
-  await draft.getByLabel("伝言", { exact: true }).fill("奥の行")
-  await draft.getByRole("button", { name: "付ける" }).click()
+  await writeNote(page, last, "奥の行")
   await foldNote(page, "奥の行")
   await rows.evaluate(el => {
     el.scrollTop = 0

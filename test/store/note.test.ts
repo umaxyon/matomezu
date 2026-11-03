@@ -149,3 +149,17 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
   expect(ai(REMOVE, { note: id })).toEqual(refused)
   expect(ai(READ, { note: id }).ok).toBe(true)
 })
+
+test("付ける先を変えられる（吹き出しは最後の物のそば）。付ける先だけ変えても既読のまま。ブックに無い物には変えられない", () => {
+  const { store, a, b, notes } = ready()
+  store.actions.perform(ADD, { anchors: [a], text: "見て", removeOnRead: false }, ON)
+  const id = notes()[0]!.id
+  store.actions.perform(READ, { note: id }, ON)
+  expect(store.actions.perform(UPDATE, { note: id, anchors: [a] }, ON).ok).toBe(false)
+  expect(store.actions.perform(UPDATE, { note: id, anchors: [b, a] }, ON).ok).toBe(true)
+  expect(notes()[0]).toMatchObject({ anchors: [b, a], props: { readAt: expect.any(String) } })
+  expect(store.actions.perform(UPDATE, { note: id, anchors: ["nothing"] }, ON).ok).toBe(false)
+  expect(store.actions.perform(UPDATE, { note: id, text: "直した", anchors: [b] }, ON).ok).toBe(true)
+  expect(notes()[0]).toMatchObject({ anchors: [b], props: { text: "直した" } })
+  expect((notes()[0]!.props as { readAt?: string }).readAt).toBeUndefined()
+})

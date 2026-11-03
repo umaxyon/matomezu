@@ -6,3 +6,32 @@
   font-size: 12px;
   line-height: 1.5;
 }
+/* 付ける先の名前のバッジの並び（折り返す） */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+/* 付ける先の名前のバッジ（カレントは色違い） */
+.badge {
+  padding: 1px 8px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 10px;
+  background: var(--skin-surface-muted);
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.badge[aria-pressed="true"] {
+  border-color: var(--skin-accent);
+  background: var(--skin-accent);
+  color: var(--skin-on-accent);
+}
+/* 付ける先の物が消されたときの知らせ */
+.lost {
+  margin: 0;
+  color: var(--skin-danger);
+  font-size: 11px;
+}
