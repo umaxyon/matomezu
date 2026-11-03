@@ -8,7 +8,7 @@ import { hasPages, type PagedBook } from "./book"
 import type { ItemId } from "./catalog"
 import type { BookTypeId, CoreCatalog } from "./core-catalog"
 import type { Point, Size } from "./geom"
-import { type ResolvedPaper, resolvePaper } from "./paper"
+import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
 import type { Book, Page } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
@@ -24,6 +24,12 @@ export interface Opened {
   area?: Size
   shift?: Point
   origin?: Point
+}
+
+// ページ page の紙を、ステージに置く紙に決める（タイプ type の見せ方が紙を置かなければ null）
+function stagePaper(catalog: CoreCatalog, type: BookTypeId, page: PaperChoice): ResolvedPaper | null {
+  const presentation = catalog.presentations.get(catalog.bookTypes.get(type)?.presentation ?? "")
+  return presentation?.paper === false ? null : resolvePaper(catalog, page)
 }
 
 // ページの中身をずらした量（印刷区画の数。ずらしていなければ持たない）
@@ -76,7 +82,7 @@ function leave(stage: Stage): Stage {
   return { ...stage, placing: null, selection: NONE, editing: false, picker: null }
 }
 
-// ステージに出す紙の大きさ（ページを開いていないか、描けない紙なら null）
+// ステージに出す紙の大きさ（ページを開いていないか、描けない紙か、見せ方が紙を置かないなら null）
 export function paperOf(stage: Pick<Stage, "opened">): Size | null {
   const paper = stage.opened?.paper
   return paper && paper.status !== "unshowable" ? paper.size : null
@@ -141,7 +147,7 @@ export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage 
     type: book.type,
     book: book.id,
     page: first?.id ?? null,
-    paper: first ? resolvePaper(catalog, first) : null,
+    paper: first ? stagePaper(catalog, book.type, first) : null,
     ...shiftOf(first),
   }
   return settle(leave({ ...stage, opened }), HOME)
@@ -152,7 +158,7 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, pa
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found || o.page === page) return stage
-  const opened = { type: o.type, book: o.book, page, paper: resolvePaper(catalog, found), ...shiftOf(found) }
+  const opened = { type: o.type, book: o.book, page, paper: stagePaper(catalog, o.type, found), ...shiftOf(found) }
   return settle(leave({ ...stage, opened }), HOME)
 }
 
@@ -166,7 +172,7 @@ export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, befor
   if (!o || o.book !== book.id || !hasPages(book)) return stage
   const found = book.pages.find(p => p.id === o.page) ?? neighbourOf(book, o.page, before)
   const page = found?.id ?? null
-  const paper = found ? resolvePaper(catalog, found) : null
+  const paper = found ? stagePaper(catalog, o.type, found) : null
   if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) {
     const was = o.shift ?? HOME
     const now = found?.shift ?? HOME

@@ -152,10 +152,11 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
 	var c struct {
 		BookTypes []struct {
-			ID        string   `json:"id"`
-			Creatable bool     `json:"creatable"`
-			Pages     bool     `json:"pages"`
-			Items     []string `json:"items"`
+			ID        string          `json:"id"`
+			Creatable bool            `json:"creatable"`
+			Pages     bool            `json:"pages"`
+			Grows     json.RawMessage `json:"grows"`
+			Items     []string        `json:"items"`
 		} `json:"bookTypes"`
 		Items []struct {
 			ID   string `json:"id"`
@@ -166,8 +167,15 @@ func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
 		t.Fatal(err)
 	}
 	types := map[string]string{}
+	grows := map[string]string{}
 	for _, b := range c.BookTypes {
 		types[b.ID] = fmt.Sprint(b.Creatable, " ", b.Pages, " ", strings.Join(b.Items, ","))
+		grows[b.ID] = string(b.Grows)
+	}
+	// 利用者が選ぶ向きの一覧・タイプが決める・いつも可変ページ・作れない
+	if grows["@matomezu/drawing:drawing"] != `["right-down","right","down","all"]` || grows["@matomezu/tree:tree"] != `"by-type"` ||
+		grows["@matomezu/markdown:markdown"] != `"always"` || grows["@matomezu/master:master"] != `"none"` {
+		t.Fatalf("grows = %v", grows)
 	}
 	kinds := map[string]string{}
 	for _, i := range c.Items {

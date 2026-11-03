@@ -2,6 +2,7 @@
 // ページの絵（base/minimap/marks.ts と、形・線の定義の minimap）
 import { describe, expect, test } from "bun:test"
 import type { ItemPage } from "../../web/src/core/placed"
+import type { Book } from "../../web/src/core/schema/book"
 import { closePicker, newStage, openBook, openPicker, resize, showPickerMap } from "../../web/src/core/stage"
 import { fitScale, grabAt, panFor, seenRect } from "../../web/src/plugins/base/minimap/geometry"
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
@@ -76,11 +77,12 @@ describe("ページの絵", () => {
     orientation: "landscape",
     items,
   })
-  const setting = () => undefined
+  // タイプ type のブックの 1 枚だけのページ page の絵
+  const marksOf = (type: string, page: ItemPage) =>
+    minimapMarks(CORE_CATALOG, { id: "b1", type, pages: [page] } as unknown as Book, page)
 
   test("線を先に（下に）、形をあとに描く。形は定義の輪郭、定義の無い形は置いた四角", () => {
-    const marks = minimapMarks(
-      CORE_CATALOG,
+    const marks = marksOf(
       "@matomezu/drawing:drawing",
       page([
         { id: "a", item: "@matomezu/shape:shape-diamond", x: 100, y: 100, w: 120, h: 60, props: { caption: "" } },
@@ -89,7 +91,6 @@ describe("ページの絵", () => {
         { id: "l", item: "@matomezu/line:connector-line", from: "a", to: "b", props: { route: "straight" } },
         { id: "z", item: "@other:gone", x: 600, y: 300, w: 40, h: 30, props: {} },
       ] as ItemPage["items"]),
-      setting,
     )
     expect(marks.map(m => m.kind)).toEqual(["polyline", "polygon", "rect", "ellipse", "rect"])
     expect(marks[1]).toEqual({
@@ -115,8 +116,7 @@ describe("ページの絵", () => {
   })
 
   test("横向きの台形は、回した輪郭で描く", () => {
-    const [up, turned] = minimapMarks(
-      CORE_CATALOG,
+    const [up, turned] = marksOf(
       "@matomezu/drawing:drawing",
       page([
         {
@@ -138,7 +138,6 @@ describe("ページの絵", () => {
           props: { caption: "", captionAlign: "center", turned: true },
         },
       ] as ItemPage["items"]),
-      setting,
     )
     expect(up?.kind).toBe("polygon")
     expect(turned?.kind).toBe("polygon")
@@ -197,6 +196,10 @@ test("アイテムを置かないツリーのページは、タイプの minimap
     items: [],
     root: { id: "r", caption: "根", children: [{ id: "a", caption: "子" }] },
   } as ItemPage
-  const marks = minimapMarks(CORE_CATALOG, "@matomezu/tree:tree", tree, () => undefined)
+  const marks = minimapMarks(
+    CORE_CATALOG,
+    { id: "b1", type: "@matomezu/tree:tree", pages: [tree] } as unknown as Book,
+    tree,
+  )
   expect(marks.map(m => m.kind)).toEqual(["polyline", "rect", "rect"])
 })

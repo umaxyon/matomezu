@@ -3,7 +3,7 @@
 // ページのフィールド root を書き換える。書き換えた行が紙に入らなければ断る。ディレクトリ構成図の見せ方について来る
 import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
-import { ColorSchema, contentIdMaker } from "../../base"
+import { ColorSchema, contentIdMaker, growOf } from "../../base"
 import { addEntries, buildPaths, changeEntry, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
 import { type DirFolder, DirFolderSchema, descriptionText, giveIds, NewEntrySchema } from "./entry"
 import { dirFits } from "./fit"
@@ -21,7 +21,7 @@ function dirOf(book: PagedBook, page: string, catalog: CoreCatalog) {
     root: root.data,
     put: (next: DirFolder) => {
       const written = { ...found, root: next }
-      return dirFits(catalog, written, next) ? putPage(book, written) : null
+      return dirFits(catalog, written, growOf(catalog, book, written), next) ? putPage(book, written) : null
     },
   }
 }
