@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
+import { BODY, coreWidthOf } from "./text-widths"
 
 const items = (page: Page) => page.locator("[data-item]")
 
@@ -250,9 +251,6 @@ test("キーは割り当ての表で効く: 本文のテキストFormの Enter �
   await expect(items(page)).toHaveCount(1)
 })
 
-const BODY =
-  "matomezu は図を描く道具です。「箱」の本文は、幅に合わせて折り返し、高さに収まらない分は切ります。Noto Sans JP で描きます。"
-
 // 本文を入れた箱を置き、選んだままにする
 async function addBodyBox(page: Page) {
   await (await footerMenuTool(page, "箱")).click()
@@ -273,7 +271,6 @@ async function zoomOf(page: Page) {
 test("本文は折り返した行ごとに描き（置いたときは 5 行まで）、描いた字の幅は core の計算（フォントの表）と 1px 未満で合う", async ({
   page,
 }) => {
-  const { textWidth } = await import("../web/src/plugins/base/text/text")
   await page.goto("/")
   await addBodyBox(page)
   await page.evaluate(() => document.fonts.ready)
@@ -291,7 +288,9 @@ test("本文は折り返した行ごとに描き（置いたときは 5 行ま�
   expect(BODY.replace(/ /g, "").startsWith(shown.replace(/ /g, ""))).toBe(true)
   expect(await page.evaluate(() => document.fonts.check('13px "Noto Sans JP"'))).toBe(true)
   for (const d of drawn) {
-    expect(Math.abs(d.width / zoom - textWidth(d.text, { size: 13, weight: 400 }))).toBeLessThan(1)
+    const core = coreWidthOf(d.text)
+    expect(core, d.text).toBeDefined()
+    expect(Math.abs(d.width / zoom - core!)).toBeLessThan(1)
   }
 })
 

@@ -605,6 +605,18 @@ test("拡張ポイントへの書き足しは、base は短い名前、ほかの
   expect(bad).toEqual([])
 })
 
+test("e2e は web/src を読まない（画面とホストの外から確かめる）", () => {
+  const offenders = filesUnder(join(ROOT, "e2e"))
+    .map(path => ({ path, text: readFileSync(path, "utf8") }))
+    .flatMap(f =>
+      [...f.text.matchAll(/(?:from\s*|import\(\s*|import\s+)["']([^"']+)["']/g)]
+        .map(m => m[1]!)
+        .filter(s => s.startsWith(".") && resolve(dirname(f.path), s).startsWith(`${SRC}/`))
+        .map(s => `${relative(ROOT, f.path)}: ${s}`),
+    )
+  expect(offenders).toEqual([])
+})
+
 // テストの用意の手段（名前が ForTest で終わる物と、Go のビルドタグ e2e）は、テスト（test/・e2e/・e2e の常駐を作るスクリプト）の外から使わない
 describe("テストの用意の手段", () => {
   const goUnder = (dir: string): string[] =>
