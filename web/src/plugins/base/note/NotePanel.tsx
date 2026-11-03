@@ -1,4 +1,4 @@
-// 伝言の右サイドパネルの中身（ウィジェット note-panel）: 右サイドパネルが見せている伝言の文を入力欄で出し、変えたら保存する（保存せずに閉じたら変えない）。
+// 伝言の右サイドパネルの中身（ウィジェット note-panel）: 右サイドパネルが見せている伝言の文をテキストFormで出し、変えたら保存する（保存せずに閉じたら変えない）。
 // 「伝わったら自動で消す」・吹き出しを出すか（たたむ）・消すは、押したときに変える。
 // その伝言が無くなったら（AI が読んで消えたなど）、黙って右サイドパネルを閉じる
 import { useEffect, useState } from "react"
@@ -23,7 +23,7 @@ export function NotePanel({ stage }: StageSlotProps) {
   }, [gone, close, stage])
   if (!note) return null
   const props = note.props as NoteProps
-  // 文が外で変わったら、入力欄を新しい文で始め直す
+  // 文が外で変わったら、テキストFormを新しい文で始め直す
   return <NoteEditor key={props.text} stage={stage} id={note.id} props={props} />
 }
 
