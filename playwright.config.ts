@@ -1,5 +1,5 @@
 // 実際のブラウザでのテスト。bun run e2e。本番向けにビルドした画面（e2e/.dist）を、
-// サーバーなしの画面は scripts/serve.ts で、常駐を通す画面（e2e/server/）は matomezu serve（空のアプリのフォルダ）で、
+// サーバーなしの画面は scripts/serve.ts で、常駐を通す画面（e2e/server/）は matomezu serve（空の matomezu 保管庫フォルダ）で、
 // 追加プラグインを取り込む画面（e2e/plugins/）は見本のプラグインのフォルダを結んだ matomezu serve で配る
 import { defineConfig, devices } from "@playwright/test"
 

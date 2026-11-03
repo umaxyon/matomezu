@@ -1,4 +1,4 @@
-// Package home は matomezu のアプリのフォルダ（利用者ごとに 1 つ）を扱う。
+// Package home は matomezu 保管庫フォルダ（利用者ごとに 1 つ）を扱う。
 //
 // フォルダには、常駐が 1 つだけ立つための鍵（server.lock）と、立っている常駐のつなぎ方（server.json）を置く。
 // 図のデータもこのフォルダに置く。
@@ -18,7 +18,7 @@ import (
 	"github.com/gofrs/flock"
 )
 
-// EnvHome はアプリのフォルダを指定する環境変数。テストと開発で、利用者のフォルダに触らないために使う
+// EnvHome は matomezu 保管庫フォルダを指定する環境変数。テストと開発で、利用者が使っている matomezu 保管庫フォルダに触らないために使う
 const EnvHome = "MATOMEZU_HOME"
 
 const (
@@ -26,7 +26,7 @@ const (
 	serverName = "server.json"
 )
 
-// Dir はアプリのフォルダの場所。EnvHome があればそれ、無ければ OS ごとのデータの置き場所の下の matomezu
+// Dir は matomezu 保管庫フォルダの場所。EnvHome があればそれ、無ければ OS ごとのデータの置き場所の下の matomezu
 func Dir() (string, error) {
 	if d := os.Getenv(EnvHome); d != "" {
 		return filepath.Abs(d)
@@ -54,7 +54,7 @@ func Dir() (string, error) {
 	return filepath.Join(h, ".local", "share", "matomezu"), nil
 }
 
-// Home は、作った（あれば開いた）アプリのフォルダ
+// Home は、作った（あれば開いた）matomezu 保管庫フォルダ
 type Home struct {
 	Dir string
 }

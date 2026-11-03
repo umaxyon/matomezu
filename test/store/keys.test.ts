@@ -67,7 +67,7 @@ test("キーを変えるのは、既定の行を外して新しい行を足す�
   expect(table.dropped).toMatchObject([{ reason: "removed", entry: { binding: { key: "Delete" } } }])
 })
 
-test("範囲は狭いものから引き、メニューとダイアログが開いている間はほかを見ない。アプリ全体の行がステージで隠れるかを返す", () => {
+test("範囲は狭いものから引き、メニューとダイアログが開いている間はほかを見ない。global の範囲のキーが、ステージの範囲のキーに隠れるかを返す", () => {
   expect(keyScopes({ menu: false, dialog: false }, ["a:panel"])).toEqual(["a:panel", "stage", "global"])
   expect(keyScopes({ menu: false, dialog: true })).toEqual(["dialog"])
   expect(keyScopes({ menu: true, dialog: true })).toEqual(["menu"])

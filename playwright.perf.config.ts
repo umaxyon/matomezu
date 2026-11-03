@@ -1,5 +1,5 @@
 // 速さを測る実際のブラウザのテスト。bun run e2e:perf。普段の e2e（playwright.config.ts）とは分け、合否ではなく数値を出す。
-// 本番向けにビルドした画面（e2e/.perf-dist）を常駐（matomezu serve、空のアプリのフォルダ）が配る。数値は端末の表と e2e/.perf/ の JSON に出す
+// 本番向けにビルドした画面（e2e/.perf-dist）を常駐（matomezu serve、空の matomezu 保管庫フォルダ）が配る。数値は端末の表と e2e/.perf/ の JSON に出す
 import { defineConfig, devices } from "@playwright/test"
 
 const port = 5311
