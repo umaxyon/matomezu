@@ -70,6 +70,14 @@ export function anchorOf(el: Element | null): string | undefined {
   return el?.closest(`[${ANCHOR_ATTR}]`)?.getAttribute(ANCHOR_ATTR) ?? undefined
 }
 
+// ステージ stage の表示領域（ステージのビューの要素）と、その中で id のアンカーが付いた要素（どちらか無ければ null。
+// アンカーの表はステージの中にあるので、ステージの外の物は、付けた属性で探す）
+export function anchorElementIn(stage: string, id: string): { view: Element; el: Element } | null {
+  const view = document.querySelector(`[data-stage="${CSS.escape(stage)}"]`)
+  const el = view?.querySelector(`[${ANCHOR_ATTR}="${CSS.escape(id)}"]`)
+  return view && el ? { view, el } : null
+}
+
 interface StandContext {
   stage: string
   anchors: Anchors

@@ -4,7 +4,8 @@
 // 右上の角は、ステージの中身が縦にスクロールするとき右端に出るスクロールバーに重ならないよう、スクロールバーの幅（この画面で測った値）だけ内側に浮かべる。
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
 // ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（割合の計算と収め方は workspace の側）。
-// 列の右に右サイドパネルを置く。開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）
+// 列の右に右サイドパネルを置く。開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）。
+// 開いた物を見せ、閉じたら見え方を戻すのは、幅を動かし終えてから（RevealAndRestore）
 import { type CSSProperties, type PointerEvent, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { Slot } from "../../../ui/Slot"
@@ -15,6 +16,7 @@ import {
   useOpenedRightSidePanel,
   useRightSidePanelSliding,
 } from "../right-side-panel/hooks"
+import { RevealAndRestore } from "../right-side-panel/RevealAndRestore"
 import { RightSidePanel } from "../right-side-panel/RightSidePanel"
 import { columnGrow } from "../right-side-panel/state"
 import { BottomHoverContext } from "./bottom-hover"
@@ -86,6 +88,7 @@ export function WorkspaceView() {
           </div>
         ))}
         <RightSidePanel />
+        <RevealAndRestore sliding={sliding} />
       </PressClosedContext.Provider>
     </main>
   )

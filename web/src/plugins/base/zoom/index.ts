@@ -39,6 +39,17 @@ export function fitView(stage: Stage): Stage {
   return panBy(zoomed, pan.x - zoomed.pan.x, pan.y - zoomed.pan.y)
 }
 
+// ステージ stage を、見え方 target（倍率とずらす量）へ移す: 倍率を変えてから（ずらす量はストアと同じ zoomTo で決まる）、target のずらす量との差だけずらす
+export function moveView(
+  a: { zoomStage(id: string, zoom: number): void; panStageBy(id: string, dx: number, dy: number): void },
+  stage: Stage,
+  target: { zoom: number; pan: Point },
+): void {
+  const zoomed = zoomTo(stage, target.zoom)
+  a.zoomStage(stage.id, target.zoom)
+  a.panStageBy(stage.id, target.pan.x - zoomed.pan.x, target.pan.y - zoomed.pan.y)
+}
+
 // 呼ばれたステージの中の状態（表示領域の大きさとずらす量）
 const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
 
@@ -85,12 +96,7 @@ export const ZOOM_FIT = kit.defineCommand({
   title: "Fit the page",
   run: (ctx, a) => {
     const stage = stageOf(ctx)
-    if (!stage) return
-    // 倍率を変えてから（ずらす量はストアと同じ zoomTo で決まる）、紙が真ん中に来るまでずらす
-    const fit = fitView(stage)
-    const zoomed = zoomTo(stage, fit.zoom)
-    a.zoomStage(ctx.stage.id, fit.zoom)
-    a.panStageBy(ctx.stage.id, fit.pan.x - zoomed.pan.x, fit.pan.y - zoomed.pan.y)
+    if (stage) moveView(a, stage, fitView(stage))
   },
   when: ctx => paperOf(ctx.stage) !== null,
   enabled: ctx => {
