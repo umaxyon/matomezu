@@ -54,6 +54,7 @@ import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
 import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type Assembled, assemble, type Plugin } from "./plugin"
+import { worldOf } from "./world"
 
 export type { Settings } from "../core/settings"
 
@@ -352,10 +353,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     args: unknown,
     on?: { book: string },
   ): { ok: true; result: unknown; next: Partial<MatomezuState> } | Refused | { ok: false; reason: "no-book" } => {
-    const { books, trash, workspace, settings, annotations } = getState()
+    const { books, workspace, annotations } = getState()
     const ids: string[] = []
     const c = ctx()
-    const done = performIn({ books: { ...books, ...trash }, settings, annotations }, id, args, on, {
+    const done = performIn(worldOf(getState()), id, args, on, {
       ...c,
       newId: () => {
         const made = c.newId()

@@ -18,6 +18,7 @@ export interface PermissionQuery {
 // 行う前と後のブックの変化（core が比べて求める）
 export interface Changes {
   gone: boolean // ブックが一覧から無くなった
+  added: boolean // ブックが一覧に新しく増えた（fields は増えたブックのフィールド全部、pages はどのページも足した）
   fields: readonly string[] // 変わったブックのフィールド（pages を除く）
   pages: readonly PageChange[] // 足した・消した・変わったページ
 }
@@ -29,10 +30,10 @@ export interface PageChange {
   items: readonly string[] // 足した・消した・変わったアイテム（ページに直に置いたもの。子の形の変化は、それを持つアイテムの変化）
 }
 
-// 行った後の確かめ: アクション action の前のブック before、後のブック after（無ければ一覧から無くなった）と、その変化
+// 行った後の確かめ: アクション action の前のブック before（無ければ一覧に新しく増えた）、後のブック after（無ければ一覧から無くなった）と、その変化
 export interface PermissionCheck {
   action: ActionDef
-  before: Book
+  before: Book | undefined
   after: Book | undefined
   changes: Changes
   by?: ActionContext["by"]

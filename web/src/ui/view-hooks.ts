@@ -9,7 +9,7 @@ import { isOnBook, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { deniedBy, inspect } from "../core/inspect"
-import type { ArgsOf } from "../core/perform"
+import { type ArgsOf, type Permitted, permittedIn } from "../core/perform"
 import {
   findShape,
   type ItemPage,
@@ -24,6 +24,7 @@ import { toPaper } from "../core/stage"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
 import type { Performed } from "../store/store"
+import { worldOf } from "../store/world"
 import type { UiCatalog } from "./plugin"
 import {
   useActions,
@@ -124,6 +125,22 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   })
   return answer === "" ? { ok: true } : { ok: false, permission: answer === "-" ? null : answer }
 }
+
+// アクション action を引数 args で、行うときと同じ形（ブックかアノテーションが対象なら on のブック）で行えるか（認可ステップも見る。答えは useAllowed と同じ形）。
+// どのブックに問うかは、アクションの許可の範囲（permissionScope）と引数、ブックが対象なら on で決まるので、ステージが開いていないブックにも問える。
+// 引数がまだ決まらない所（ドラッグを始める前など）では、useAllowed で問う
+export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, on?: { book: string }): Allowed {
+  const catalog = useCatalog().core
+  const home = useHome()
+  const answer = useMatomezuState(s => {
+    return answerText(permittedIn(worldOf(s), action, args, on, { catalog, home }))
+  })
+  return answer === "" ? { ok: true } : { ok: false, permission: answer === "-" ? null : answer }
+}
+
+// 行う前の問いの答えを文字にする（"" は使える、"-" はタイプなどで使えない、ほかは止めた認可ステップの id。変わったときだけ描き直すため）
+const answerText = (done: Permitted | { ok: false; reason: string }): string =>
+  done.ok ? "" : done.reason === "denied" && "permission" in done ? done.permission : "-"
 
 // そのステージ（読むだけ。無いステージなら null）。紙をずらしただけでは描き直さない
 export function useStage(stage: string): StageView | null {

@@ -1,6 +1,7 @@
 // 画面の履歴（Undo・Redo）: 戻す・やり直すコマンドと、画面の履歴の段が変えた所を置き直すアクション（book-revert）。履歴は store が、利用者が画面で
 // 行ったアクションから作る（AI の変更は入らない。ロックの掛け外しのように history: false のアクションも入らない）。
-// 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す
+// 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す。
+// 戻す・やり直すコマンドは、その画面の履歴の段が変えたどれかのブック（開いていないブックも）で置き直しを行えなければ、押せなくする
 import { z } from "zod"
 import type { HistoryStep } from "../../../core/history"
 import type { CommandContext } from "../../../store/commands/def"
@@ -74,6 +75,15 @@ function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
   a.moveHistory(opened.book, from)
 }
 
+// 画面の履歴の段 step を、from の向きに置き直せるか（変えたどのブックにも、今、置き直しのアクションを行える）
+function restorable(ctx: CommandContext, step: HistoryStep | undefined, from: "undo" | "redo"): boolean {
+  if (!step) return false
+  return Object.entries(step.books).every(([book, { before, after }]) => {
+    const [was, to] = from === "undo" ? [after, before] : [before, after]
+    return ctx.allowedOn(HISTORY_RESTORE.id, restoreArgs(was, to), { book })
+  })
+}
+
 export const UNDO = kit.defineCommand({
   id: "undo",
   title: "Undo",
@@ -81,7 +91,7 @@ export const UNDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "undo"),
   when: ctx => ctx.book !== null,
-  enabled: ctx => ctx.bookHistory.undo.length > 0,
+  enabled: ctx => restorable(ctx, ctx.bookHistory.undo.at(-1), "undo"),
 })
 
 export const REDO = kit.defineCommand({
@@ -91,7 +101,7 @@ export const REDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "redo"),
   when: ctx => ctx.book !== null,
-  enabled: ctx => ctx.bookHistory.redo.length > 0,
+  enabled: ctx => restorable(ctx, ctx.bookHistory.redo.at(-1), "redo"),
 })
 
 export const HISTORY_KEYS = [

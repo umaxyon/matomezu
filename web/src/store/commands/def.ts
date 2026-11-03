@@ -41,6 +41,8 @@ export interface CommandContext {
   bookHistory: BookHistory // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
   stageState: unknown // コマンドを持つプラグイン（id の頭）が持つ、そのステージの画面の状態（無ければ undefined。変えるのは run が受け取る updateStageState）
+  // アクション action を引数 args で、行うときと同じ形（ブックかアノテーションが対象なら on のブック。開いていないブックも）で今行えるか（認可ステップも見る。見た目の useAllowedOn と同じ答え）
+  allowedOn(action: string, args: unknown, on?: { book: string }): boolean
 }
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）

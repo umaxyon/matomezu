@@ -31,6 +31,7 @@ export const BOOK_CREATE = kit.defineAction({
     "Create a book. type is one of the book types that are creatable (bookTypes in actions); settings are its book settings, the ones its type has. Returns the new book's id.",
   title: "New book",
   target: "library",
+  permissionScope: { create: "type" },
   args: ARGS,
   // AI には、作れるタイプの id を選ぶ形で見せる
   describeArgs: catalog => {

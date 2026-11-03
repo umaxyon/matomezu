@@ -25,6 +25,7 @@ export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"
 export {
   type Allowed,
   useAllowed,
+  useAllowedOn,
   useBook,
   useCoreCatalog,
   useItem,

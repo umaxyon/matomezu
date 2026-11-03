@@ -200,6 +200,7 @@ test("matomezu/ui が出す名前", () => {
     "useActions",
     "useAligns",
     "useAllowed",
+    "useAllowedOn",
     "useAnchorRef",
     "useBodyGrips",
     "useBook",
@@ -290,6 +291,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
   expect(
     names(commandContext(store.catalog.core, null, store.state.getState(), "s1", "@matomezu/base:stage-split")!),
   ).toEqual([
+    "allowedOn",
     "book",
     "bookHistory",
     "catalog",

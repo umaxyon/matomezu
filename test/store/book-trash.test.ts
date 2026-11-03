@@ -1,10 +1,12 @@
 // ゴミ箱: book-trash はブックに入れた時刻を付けて一覧から外し（開いていたステージは何も開かない）、book-restore は戻し、
 // book-purge と trash-empty はゴミ箱から消す。1 冊だけのタイプ・ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
 import { expect, test } from "bun:test"
+import { permittedIn } from "../../web/src/core/perform"
 import { memoryClient } from "../../web/src/host-client/memory"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
+import { worldOf } from "../../web/src/store/world"
 import { newStore } from "../support"
 
 const NOW = "2026-10-29T01:00:00.000Z"
@@ -43,6 +45,20 @@ test("ロック中のブックと、ロック中のページを持つブック�
   actions.perform("@matomezu/base:page-unlock", { page }, { book: "b1" })
   actions.perform("@matomezu/base:book-lock", {}, { book: "b1" })
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
+    ok: false,
+    reason: "denied",
+    permission: "@matomezu/base:lock",
+  })
+})
+
+test("ロック中のページを持つブックのゴミ箱入れは、行う前の問いでも止める（ブックの全部を変えるので、どのページのロックも効く）", () => {
+  const store = newStore()
+  addPageIn(store, "s1", { title: "ページ 2" })
+  const page = (store.state.getState().books.b1 as { pages: readonly { id: string }[] }).pages[1]?.id as string
+  store.actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
+  const world = worldOf(store.state.getState())
+  const ctx = { catalog: store.catalog.core, home: store.home }
+  expect(permittedIn(world, "@matomezu/base:book-trash", { book: "b1" }, undefined, ctx)).toEqual({
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",

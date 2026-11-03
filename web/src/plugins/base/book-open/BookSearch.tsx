@@ -3,29 +3,30 @@
 // 読めないブック（プラグインが無いなど）も名前で絞り込んで後ろに並べ、押せない行として開けない理由を添える。
 // 読めるが一部のプラグインが無いブックは、名前の横に印を付ける。
 // 並びは触れた（開いたか書いた）時刻の新しい順で、右の列にその時刻を「〜前」で出す（時刻を知らないブックは出さない）。
-// onTrash を渡すと、ゴミ箱に入れられるブック（canTrash）の行にポインタを乗せている間、ゴミ箱のボタンを出す（入れられない行も同じ幅を空け、時刻の列をそろえる）
+// onTrash を渡すと、ゴミ箱に入れられるブック（ゴミ箱に入れる物で、アクション book-trash を行える）の行にポインタを乗せている間、ゴミ箱のボタンを出す
+// （入れられない行も同じ幅を空け、時刻の列をそろえる）
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { Book } from "../../../core/schema/book"
 import type { Warning } from "../../../core/warnings"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useAllowedOn } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
 import { matchesQuery, searchBooks } from "./book-search"
 import { bookTitle } from "./book-title"
+import { BOOK_TRASH, trashKind } from "./book-trash"
 import { TrashIcon } from "./TrashIcon"
 
 export function BookSearch({
   onSelect,
   onTrash,
-  canTrash = () => false,
   autoFocus = false,
 }: {
   onSelect: (book: string) => void
   onTrash?: (book: string) => void
-  canTrash?: (book: Book) => boolean
   autoFocus?: boolean
 }) {
   const books = useMatomezuState(useShallow(s => Object.values(s.books)))
@@ -114,21 +115,7 @@ export function BookSearch({
                 )}
               </span>
               {touched[b.id] !== undefined && <span className={styles.when}>{elapsed(touched[b.id] as string)}</span>}
-              {onTrash && !canTrash(b) && <span className={styles.trash} />}
-              {onTrash && canTrash(b) && (
-                <button
-                  type="button"
-                  className={styles.trash}
-                  aria-label={t("Move to trash")}
-                  title={t("Move to trash")}
-                  onClick={e => {
-                    e.stopPropagation()
-                    onTrash(b.id)
-                  }}
-                >
-                  <TrashIcon />
-                </button>
-              )}
+              {onTrash && <TrashButton book={b} onTrash={onTrash} />}
             </div>
           ))}
           {broken.map(n => (
@@ -148,5 +135,27 @@ export function BookSearch({
         {found.length === 0 && broken.length === 0 && <p className={styles.empty}>{t("No matching books")}</p>}
       </div>
     </div>
+  )
+}
+
+// 行のゴミ箱のボタン: ゴミ箱に入れられなければ、同じ幅を空けるだけ
+function TrashButton({ book, onTrash }: { book: Book; onTrash: (book: string) => void }) {
+  const t = useMessages(kit)
+  const catalog = useCatalog().core
+  const allowed = useAllowedOn(BOOK_TRASH.id, { book: book.id }).ok
+  if (!allowed || !trashKind(catalog, book)) return <span className={styles.trash} />
+  return (
+    <button
+      type="button"
+      className={styles.trash}
+      aria-label={t("Move to trash")}
+      title={t("Move to trash")}
+      onClick={e => {
+        e.stopPropagation()
+        onTrash(book.id)
+      }}
+    >
+      <TrashIcon />
+    </button>
   )
 }

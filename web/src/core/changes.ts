@@ -37,13 +37,21 @@ function pageChange(id: string, before: Page | undefined, after: Page | undefine
   }
 }
 
-export function changesOf(before: Book, after: Book | undefined): Changes {
-  if (!after) return { gone: true, fields: [], pages: [] }
+export function changesOf(before: Book | undefined, after: Book | undefined): Changes {
+  if (!after) return { gone: true, added: false, fields: [], pages: [] }
+  if (!before)
+    return {
+      gone: false,
+      added: true,
+      fields: Object.keys(after).filter(k => k !== "pages"),
+      pages: pagesOf(after).map(p => pageChange(p.id, undefined, p)),
+    }
   const was = new Map(pagesOf(before).map(p => [p.id, p]))
   const now = new Map(pagesOf(after).map(p => [p.id, p]))
   const ids = new Set([...was.keys(), ...now.keys()])
   return {
     gone: false,
+    added: false,
     fields: changedFields(before as Fields, after as Fields, "pages"),
     pages: [...ids].filter(id => !same(was.get(id), now.get(id))).map(id => pageChange(id, was.get(id), now.get(id))),
   }

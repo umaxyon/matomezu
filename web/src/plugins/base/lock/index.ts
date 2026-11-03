@@ -95,10 +95,12 @@ export const LOCK = kit.definePermission({
   title: "Locked",
   aiDescription:
     "the book or a page it would change is locked; nothing in it can be changed until it is unlocked, and only the user can unlock it, so ask the user in the chat",
-  // 変える所が分からないアクションは、ページのロックでは止めない（行った後の keeps が止める）。アノテーションは図の中身ではないので止めない
+  // 変える所が分からないアクションは、ページのロックでは止めない（行った後の keeps が止める）。ページを含むブックの全部を変えるなら、どれかのページがロック中で止める。
+  // アノテーションは図の中身ではないので止めない
   denies: ({ action, book, where }) => {
     if (action.target === "annotations") return false
     if (book.locked) return !BOOK_SWITCHES.includes(action.id)
+    if (where?.allPages) return pagesOf(book).some(p => p.locked)
     const page = where?.page
     const locked = page !== undefined && pagesOf(book).some(p => p.id === page && p.locked)
     return locked && !PAGE_SWITCHES.includes(action.id)
@@ -106,6 +108,7 @@ export const LOCK = kit.definePermission({
   // ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
   // ブックごとゴミ箱にも入れない。ロックを外せるのは利用者だけ
   keeps: ({ before, after, changes, by }) => {
+    if (!before) return true // 新しく増えたブックは、ロックを掛けて作ってもよい
     const locked = pagesOf(before).filter(p => p.locked)
     if (!before.locked && locked.length === 0) return true
     if (changes.gone || changes.fields.includes("trashed")) return false
