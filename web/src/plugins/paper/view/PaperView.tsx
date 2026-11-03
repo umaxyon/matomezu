@@ -2,8 +2,10 @@
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、紙のメニュー（paper-context）を開く。
 // アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（paper-place。紙からはみ出す所では薄く出し、置かない）。
-// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに paper-move）。ドラッグ中は、動かすアイテムを少し透かしてポインタに付け、
-// ほかのアイテムは薄くして動かさない。アイテム 1 つなら、通り道（items.ts の trackDrag）を覚え、正面から半分入った相手をその場で入れ替えて描く（dragging）。ダブルクリックで中身を編集する（paper-edit）。何も無い所を押すと選択を外す。
+// 選択の道具で何も無い所からドラッグすると、四角にかかったページの形と、両端がその形の線を選ぶ（Mod なら選択に足す。placing/selection.ts の sweptItems）。
+// 選択の道具では、アイテムを押すと選び、Mod を押していれば選択に足す・外す（外すのは動かさずに離したとき。placing/selection.ts の pressSelection）。選んでいる物の 1 つを押して動かさずに離すと、その 1 つに選び直す。
+// ドラッグで選んでいる形を動かす（離したときに paper-move。つなぐものは動かさず、親の違う形が混じっていれば動かさない）。ドラッグ中は、動かすアイテムを少し透かしてポインタに付け、
+// ほかのアイテムは薄くして動かさない。アイテム 1 つなら、通り道（items.ts の trackDrag）を覚え、正面から半分入った相手をその場で入れ替えて描く（dragging）。ダブルクリックで、その 1 つを選んで中身を編集する（paper-edit）。何も無い所を押すと選択を外す。
 // アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（item-context）を開く。
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに paper-resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
@@ -58,25 +60,54 @@ import {
   useToPaper,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { type Edges, fitsPaper, growOf, itemSize, minSize, placedSize, resizedBy, roomOf, shownRects } from "../../base"
-import { PaperFrame, useAnchorRef } from "../../base/ui"
+import {
+  type Edges,
+  growOf,
+  inPaper,
+  itemSize,
+  minSize,
+  onlySelected,
+  placedSize,
+  resizedBy,
+  roomOf,
+  shapeDefOf,
+  shownRects,
+} from "../../base"
+import { modPressed, PaperFrame, useAnchorRef } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
   type Came,
   dragging,
   dropTarget,
+  movableTogether,
   PAPER_EDIT,
   PAPER_MOVE,
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
   placeAt,
+  pressSelection,
+  shapesIn,
+  sweptBox,
+  sweptItems,
+  sweptSelection,
   trackDrag,
 } from "../placing"
 import { settledDraft } from "../placing/draft"
 import { REPARENT_TOOL } from "../tools"
 import styles from "./PaperView.module.css"
+
+// 範囲のドラッグ: ポインタと、押した位置（紙のビューの左上から）、押す前の選択と、Mod を押していたか
+interface Sweep {
+  pointer: number
+  start: Point
+  base: readonly string[]
+  mod: boolean
+}
+
+// 範囲のドラッグを始めるまでに動かす量（画面の px）
+const SWEEP_START = 3
 
 // 要素の左上から見たポインタの位置
 const local = (e: PointerEvent<Element>, el: Element): Point => {
@@ -94,16 +125,50 @@ export function PaperView({ stage: id }: BookViewProps) {
   const placing = stage?.placing != null
   const pans = stage?.pans === true
   const localOf = useCallback((e: PointerEvent<Element>) => ref.current && local(e, ref.current), [])
+  const catalog = useCoreCatalog()
+  const page = usePage(id)
+  const toPaperAt = useToPaper(id)
+  const sweep = useRef<Sweep | null>(null)
+  const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
+    const sw = sweep.current
+    if (sw?.pointer !== e.pointerId || !ref.current || !page) return
+    // つかむ前に外で離していたら終える
+    if (e.buttons === 0) {
+      endSweep(e)
+      return
+    }
+    const at = local(e, ref.current)
+    if (!box && Math.hypot(at.x - sw.start.x, at.y - sw.start.y) < SWEEP_START) return
+    // ポインタをつかむのは範囲のドラッグになってから（押しただけなら、紙の上のボタンなどへのクリックはそのまま届く）
+    if (!box) e.currentTarget.setPointerCapture(e.pointerId)
+    const a = toPaperAt(sw.start)
+    const b = toPaperAt(at)
+    if (!a || !b) return
+    const r = sweptBox(a, b)
+    setBox(r)
+    select(id, sweptSelection(sw.base, sweptItems(catalog, page, r), sw.mod))
+  }
+  const endSweep = (e: PointerEvent<HTMLDivElement>) => {
+    if (sweep.current?.pointer !== e.pointerId) return
+    sweep.current = null
+    setBox(null)
   }
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || !ref.current) return
     if (placing) {
       e.preventDefault() // 置いて開いたダイアログから、押した続きで焦点を移さない
       place.run(local(e, ref.current))
-    } else if (!pans && !(e.target as Element).closest("[data-item]")) select(id, [])
+      return
+    }
+    if (pans || (e.target as Element).closest("[data-item]")) return
+    // 何も無い所を押すと選択を外す（Mod なら選択はそのまま）。選択の道具なら、そこから範囲のドラッグを始める
+    const mod = modPressed(e)
+    if (!mod) select(id, [])
+    if (stage?.tool !== "@matomezu/base:select") return
+    sweep.current = { pointer: e.pointerId, start: local(e, ref.current), base: mod ? stage.selection : [], mod }
   }
   if (!stage) return null
 
@@ -117,8 +182,10 @@ export function PaperView({ stage: id }: BookViewProps) {
       onPointerMove={onPointerMove}
       onPointerLeave={() => setPointer(null)}
       onPointerDown={onPointerDown}
+      onPointerUp={endSweep}
+      onPointerCancel={endSweep}
     >
-      <Content stage={stage} pointer={placing ? pointer : null} localOf={localOf} />
+      <Content stage={stage} pointer={placing ? pointer : null} box={box} localOf={localOf} />
     </div>
   )
 }
@@ -126,7 +193,17 @@ export function PaperView({ stage: id }: BookViewProps) {
 // localOf はポインタの位置を、紙のビューの左上から見た位置にする
 type LocalOf = (e: PointerEvent<Element>) => Point | null
 
-function Content({ stage, pointer, localOf }: { stage: StageView; pointer: Point | null; localOf: LocalOf }) {
+function Content({
+  stage,
+  pointer,
+  box,
+  localOf,
+}: {
+  stage: StageView
+  pointer: Point | null
+  box: Rect | null
+  localOf: LocalOf
+}) {
   const t = useMessages(kit)
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
@@ -136,6 +213,13 @@ function Content({ stage, pointer, localOf }: { stage: StageView; pointer: Point
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
       <Items stage={stage} localOf={localOf} />
       {pointer && <Ghost stage={stage} pointer={pointer} />}
+      {box && (
+        <div
+          data-select-sweep
+          className={styles.sweep}
+          style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+        />
+      )}
     </PaperFrame>
   )
 }
@@ -149,6 +233,9 @@ interface Drag {
   prev: Point
   swapped: boolean // このドラッグで入れ替えが起きたか（起きたら、動かす形の線は留まらずに一番よい形を追う）
   reparent: boolean // 付け替えの道具のドラッグか（入れ替えずに、離した所の下の形の中へ入れる）
+  movable: boolean // 動かせるか（動かせなければ、押して離したときの選び直しだけをする）
+  release: readonly string[] | null // 動かさずに離したときの選択（変えなければ null）
+  travelled: boolean // ポインタが動いたか
 }
 
 // 大きさを変えているドラッグ: つかんだ辺と、押したときのポインタの位置
@@ -220,11 +307,16 @@ function PageItems({
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
     if (e.button !== 0 || pans || stage.placing !== null) return
     const reparenting = stage.tool === REPARENT_TOOL.id
-    // 付け替えは押した形 1 つだけを動かす
-    const items = !reparenting && stage.selection.includes(id) ? stage.selection : [id]
-    select(stage.id, items)
-    // 動かせないとき（認可ステップが止めるなど、コマンドを押せない）は選ぶだけ
-    if (!(reparenting ? reparent.enabled : move.enabled)) return
+    // 付け替えは押した形 1 つだけを動かす。選択の道具は Mod で足す・外す（placing/selection.ts の pressSelection）
+    const press = reparenting
+      ? { now: [id], drag: [id], release: null }
+      : pressSelection(page, stage.selection, id, modPressed(e))
+    select(stage.id, press.now)
+    const items = shapesIn(page, press.drag)
+    // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
+    const movable =
+      (reparenting ? reparent.enabled : move.enabled) && book !== null && movableTogether(catalog, book, page, items)
+    if (!movable && press.release === null) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = {
       pointer: e.pointerId,
@@ -234,12 +326,17 @@ function PageItems({
       prev: { x: 0, y: 0 },
       swapped: false,
       reparent: reparenting,
+      movable,
+      release: press.release,
+      travelled: false,
     }
   }
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current
     if (d?.pointer !== e.pointerId) return
     const screen = { x: e.clientX - d.start.x, y: e.clientY - d.start.y }
+    if (screen.x !== 0 || screen.y !== 0) d.travelled = true
+    if (!d.movable) return
     const by = toPaperDelta(stage, screen)
     if (d.reparent) {
       const at = localOf(e)
@@ -266,7 +363,8 @@ function PageItems({
     setMoved(null)
     setTarget(undefined)
     settled.current = new Set(d.items)
-    if (!drop || !moved || (moved.x === 0 && moved.y === 0)) return
+    if (drop && !d.travelled && d.release) select(stage.id, d.release)
+    if (!drop || !d.movable || !moved || (moved.x === 0 && moved.y === 0)) return
     if (d.reparent) reparent.run({ item: d.items[0] as string, parent: target ?? null, by: moved })
     else move.run({ items: d.items, by: moved, came: d.came })
   }
@@ -312,7 +410,7 @@ function PageItems({
     return to ? { ...item, ...to } : item
   }
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
-  const single = stage.selection.length === 1 && !pans && stage.placing === null
+  const selectable = !pans && stage.placing === null
   // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）
   const shapes = shapesOf(page).map(item => ({ item: shown(item), shift: shiftOf(item) }))
   const scene: ShapeScene = {
@@ -327,7 +425,7 @@ function PageItems({
     reordered: d?.swapped ?? false,
     released: settled.current,
     busy: dragged.length > 0 || resizing !== null,
-    selectable: !pans && stage.placing === null,
+    selectable,
     hover,
     localOf,
   }
@@ -354,7 +452,9 @@ function PageItems({
         const shape = shown(c as PlacedShape)
         return render(shape, shiftOf(shape))
       })}
-      stretchable={single && stage.selection[0] === item.id && minSize(catalog, item) !== null && resize.enabled}
+      stretchable={
+        selectable && onlySelected(stage.selection, item.id) && minSize(catalog, item) !== null && resize.enabled
+      }
       onStretch={{
         down: (e, edges) => startStretch(e, item.id, edges),
         move: moveStretch,
@@ -371,7 +471,9 @@ function PageItems({
       onPointerUp={e => endDrag(e, true)}
       onPointerCancel={e => endDrag(e, false)}
       onDoubleClick={() => {
-        if (!pans && stage.placing === null) edit.run({ item: item.id })
+        if (pans || stage.placing !== null) return
+        select(stage.id, [item.id])
+        edit.run({ item: item.id })
       }}
       onContextMenu={e => {
         if (stage.placing !== null) return
@@ -393,8 +495,7 @@ function PageItems({
 
 // 形のビューに渡す中身: 形の定義の content に宣言したフィールドの名前 → その値
 function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<string, unknown>> {
-  const def = catalog.items.get(item.item)
-  const fields = def?.kind === "shape" ? Object.keys(def.content ?? {}) : []
+  const fields = Object.keys(shapeDefOf(catalog, item.item)?.content ?? {})
   return Object.fromEntries(fields.map(k => [k, (item as Record<string, unknown>)[k]]))
 }
 
@@ -493,8 +594,8 @@ function Item({
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
   const tokens = useTokenScope(item.item) // そのアイテムのプラグインのテーマキー（--<名前>）
   // 幅だけを変えられる形（@matomezu/paper:stretch）は、左右の辺だけをつかめる
-  const def = catalog.items.get(item.item)
-  const grips = def?.kind === "shape" && def[kit.name("stretch")] === "width" ? GRIPS.filter(g => !g.edges.y) : GRIPS
+  const grips =
+    shapeDefOf(catalog, item.item)?.[kit.name("stretch")] === "width" ? GRIPS.filter(g => !g.edges.y) : GRIPS
   return (
     <div
       ref={anchor(item.id)}
@@ -559,7 +660,7 @@ function Ghost({ stage, pointer }: { stage: StageView; pointer: Point }) {
   return (
     <div
       className={styles.ghost}
-      data-fits={fitsPaper(at, size, paper)}
+      data-fits={inPaper({ ...at, ...size }, paper)}
       style={{ left: at.x, top: at.y, width: size.w, height: size.h }}
     />
   )

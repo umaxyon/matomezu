@@ -10,6 +10,7 @@ import { followLocation } from "./host-client/location"
 import { memoryClient } from "./host-client/memory"
 import { openClient } from "./host-client/open"
 import { UI_MODULES } from "./plugin-modules/ui"
+import { MASTER } from "./plugins/books/master"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
@@ -25,7 +26,7 @@ loadFonts()
 const { client, loaded: saved } = await openClient(() => memoryClient(SAMPLE_BOOKS))
 const store = createMatomezu({
   plugins: BUILTIN_UI,
-  home: "@matomezu/master:master",
+  home: MASTER.id,
   savedBooks: saved.books,
   settings: saved.settings,
   lang: navigator.languages,

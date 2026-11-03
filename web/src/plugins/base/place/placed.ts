@@ -1,10 +1,11 @@
 // 置いた形の大きさ・四角・つながる範囲と、つなぐものの間隔と整え（base の置く計算が使う。ほかのプラグインも使う）。
 // 形とつなぐものの定義オブジェクトに、ここで読むフィールドとメソッドを書き足す（定義オブジェクトの拡張ポイント）
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { ConnectorData, ConnectorItemDef, ShapeData, ShapeItemDef } from "../../../core/def/item"
+import type { ConnectorData, ShapeData, ShapeItemDef } from "../../../core/def/item"
 import type { Point, Rect, Size } from "../../../core/geom"
 import {
-  connectorsOf,
+  byConnector,
+  connectorDef,
   type ItemPage,
   isShape,
   type PlacedConnector,
@@ -51,13 +52,10 @@ declare module "../../../core/catalog" {
 // 機能台帳に無いアイテム（プラグインを外したなど）の形の大きさ（データに w・h が無いとき）
 export const UNKNOWN_SIZE: Size = { w: 64, h: 64 }
 
-const shapeDef = (catalog: CoreCatalog, item: string): ShapeItemDef | null => {
+// 置いた形の定義（表に無い形は null）
+export function shapeDefOf(catalog: CoreCatalog, item: string): ShapeItemDef | null {
   const def = catalog.items.get(item)
   return def?.kind === "shape" ? def : null
-}
-const connectorDef = (catalog: CoreCatalog, item: string): ConnectorItemDef | null => {
-  const def = catalog.items.get(item)
-  return def?.kind === "connector" ? def : null
 }
 
 // 子の形を持つ形の、右と下の端から子までの間（下は、形が childBottom で変えられる）
@@ -67,7 +65,7 @@ export const NEST_PADDING = 8
 // 子の形を持つ形は、自分の大きさ（w・h は下限）と、子がみな入る大きさの大きい方
 export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
   if (!catalog.items.has(item.item)) return { w: item.w ?? UNKNOWN_SIZE.w, h: item.h ?? UNKNOWN_SIZE.h }
-  const def = shapeDef(catalog, item.item)
+  const def = shapeDefOf(catalog, item.item)
   if (!def) return null
   const own = def.sizeOf?.(item as ShapeData) ?? { w: item.w ?? def.size.w, h: item.h ?? def.size.h }
   if (!def.capabilities.includes("nests") || !item.shapes) return own
@@ -104,7 +102,7 @@ export function allRectsOf(catalog: CoreCatalog, page: ItemPage): Map<string, Re
 
 // 置いた形 item のつなぎ口（形の定義の portsOf があればそれ、無ければ ports）
 function portsOf(catalog: CoreCatalog, item: PlacedShape): Ports | undefined {
-  const def = shapeDef(catalog, item.item)
+  const def = shapeDefOf(catalog, item.item)
   return def?.portsOf ? def.portsOf(item as ShapeData) : def?.ports
 }
 
@@ -139,16 +137,6 @@ export function portAreasOf(
     })
   }
   return areas
-}
-
-// つなぐものを種類ごとに分ける（表に無いものは入れない）
-function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorItemDef, PlacedConnector[]][] {
-  const groups = new Map<string, PlacedConnector[]>()
-  for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
-  return [...groups].flatMap(([id, list]) => {
-    const def = connectorDef(catalog, id)
-    return def ? [[def, list] as [ConnectorItemDef, PlacedConnector[]]] : []
-  })
 }
 
 // ページの、2 つの形の組の間隔の下限: base に、つなぐものの定義の間隔（gaps）を順に重ねる

@@ -169,28 +169,26 @@ export function axesOk(a: AxesDraft, d: Draft): boolean {
   return a.view !== "scatter" || isNumber(a.x)
 }
 
-// 確定のときに item-update に渡す項目（列と行の位置を、data-set が返した列と行の id に直す）。外した軸は null で消す。
+// 確定のときに data-set の props に渡す軸（列と行は、data-set に渡す列と行の位置のまま）。外した軸は null で消す。
 // 円と散布図の値は 1 つ目だけ
-export function axesProps(a: AxesDraft, columnIds: readonly string[], rowIds: readonly string[]) {
-  const id = (i: number | null) => (i === null ? null : (columnIds[i] ?? null))
+export function axesProps(a: AxesDraft) {
   const one = a.view === "pie" || a.view === "scatter"
-  const series = (one ? a.values.slice(0, 1) : a.values).flatMap((i, j) => {
-    const column = id(i)
+  const values = one ? a.values.slice(0, 1) : a.values
+  const series = values.map((column, j) => {
     const chart = a.charts[j]
-    return column === null ? [] : [{ column, ...(chart ? { chart } : {}) }]
+    return { column, ...(chart ? { chart } : {}) }
   })
-  const values = series.map(s => s.column)
   return {
     view: a.view,
-    x: id(a.x),
+    x: a.x,
     series,
-    label: a.view === "scatter" ? id(a.label) : null,
+    label: a.view === "scatter" ? a.label : null,
     bar: a.bar,
     sort: a.sort,
-    sortBy: values.includes(id(a.sortBy) ?? "") ? id(a.sortBy) : null,
+    sortBy: a.sortBy !== null && values.includes(a.sortBy) ? a.sortBy : null,
     crowd: a.crowd,
     skip: a.skip,
-    picked: a.skip === "picked" ? a.picked.flatMap(i => (rowIds[i] ? [rowIds[i]] : [])) : null,
+    picked: a.skip === "picked" ? a.picked : null,
   }
 }
 
@@ -212,7 +210,7 @@ export function toggleValue(a: AxesDraft, col: number): AxesDraft {
 export const axesForText = (a: AxesDraft, col: number): AxesDraft => (a.values.includes(col) ? toggleValue(a, col) : a)
 
 // 見た目を view にした軸。グラフで、軸が無いか見た目に合わない（散布図の X が文字の列）なら、既定の列を選び直す
-// （x は 1 列目、散布図なら値でない最初の数の列。値は x でない最初の数の列。axes.ts の settleAxes と同じ既定）
+// （x は 1 列目、散布図なら値でない最初の数の列。値は x でない最初の数の列。x も値も無いときは、axes.ts の settleAxes と同じ既定）
 export function withView(a: AxesDraft, d: Draft, view: DataViewKind): AxesDraft {
   const next = { ...a, view }
   if (view === "table") return next

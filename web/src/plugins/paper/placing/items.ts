@@ -6,10 +6,20 @@ import {
   type ItemPage,
   type PagedBook,
   type Point,
+  putPage,
   type Rect,
   walkShapes,
 } from "../../../plugin-api"
-import { commitChildren, frameAround, gapOf, placedAt, placedSize, toData, withPage } from "../../base"
+import {
+  commitChildren,
+  followConnectors,
+  frameAround,
+  gapOf,
+  placedAt,
+  placedSize,
+  toData,
+  withPage,
+} from "../../base"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
@@ -43,6 +53,12 @@ export function dragging(
   return frame && toData(frame, dragRects(frame.rects, id, by, came, frame.paper, gapOf(catalog, page)))
 }
 
+// ページのアイテム ids を一緒に動かせるか: どれも形で、同じ Frame の形（ページの形どうしか、同じ親の子どうし）
+export function movableTogether(catalog: CoreCatalog, book: Book, page: ItemPage, ids: readonly string[]): boolean {
+  const frame = ids[0] !== undefined ? frameAround(catalog, book, page, ids[0]) : null
+  return frame !== null && ids.every(id => frame.rects.has(id))
+}
+
 // ページのアイテム ids（どれも同じ Frame の形）を by だけ動かす（drag.ts。1 つなら入れ替え・向こう側へ寄せる・手前へ戻す、何個かならまとめて手前へ戻す）。
 // came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いページ・無いアイテム・収まらないなら null
 export function moveItems(
@@ -64,9 +80,16 @@ export function moveItems(
       ? dropRects(frame.rects, ids[0] as string, by, came, frame.paper, gap)
       : dropManyRects(frame.rects, new Set(ids), by, frame.paper, gap)
   if (!after) return null
-  return frame.parent === null
-    ? withPage(catalog, book, { ...page, items: placedAt(catalog, page, after) })
-    : commitChildren(catalog, book, pageId, { ...frame, parent: frame.parent }, after)
+  // 両端の形が同じだけ動いたつなぐもの（線の手直しなど）も一緒にずらす（大きさの変わった形は、動いたとは見ない）
+  const moved = new Map<string, Point>()
+  for (const [id, r] of after) {
+    const was = frame.rects.get(id)
+    if (was && was.w === r.w && was.h === r.h && (was.x !== r.x || was.y !== r.y))
+      moved.set(id, { x: r.x - was.x, y: r.y - was.y })
+  }
+  const followed = followConnectors(catalog, page, moved)
+  if (frame.parent === null) return withPage(catalog, book, { ...followed, items: placedAt(catalog, followed, after) })
+  return commitChildren(catalog, putPage(book, followed), pageId, { ...frame, parent: frame.parent }, after)
 }
 
 // 付け替えの道具で形 id を落とす先: 紙の上の点 at の下で一番内側の、子を持てる形の id（id と、その子孫は除く）。無ければ null（ページ）

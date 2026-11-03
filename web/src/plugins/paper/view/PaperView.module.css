@@ -158,6 +158,14 @@
   border-radius: 6px;
   pointer-events: none;
 }
+/* 範囲のドラッグの四角: スキンの強調色の淡い地を透かし、強調色の細い枠 */
+.sweep {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--skin-accent);
+  background: color-mix(in srgb, var(--skin-accent-subtle) 60%, transparent);
+  pointer-events: none;
+}
 .ghost[data-fits="false"] {
   opacity: 0.35;
 }

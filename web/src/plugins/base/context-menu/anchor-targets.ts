@@ -15,9 +15,9 @@ export interface AnchorTargetState {
   start(ctx: CommandContext, actions: CommandActions, anchor: string): void
 }
 
-// 付ける先: 押した物が選んでいる物のうちなら、選んでいる物の全部（選んだ順。出す物は最後に選んだ物のそばに出す）、でなければ押した物だけ
+// 付ける先: 押した物が選んでいる物のうちなら、選んでいる物の全部（押した物を最後にして、出す物は押した物のそばに出す）、でなければ押した物だけ
 export function anchorsFor(clicked: string, selection: readonly string[]): readonly string[] {
-  return selection.includes(clicked) ? selection : [clicked]
+  return selection.includes(clicked) ? [...selection.filter(s => s !== clicked), clicked] : [clicked]
 }
 
 // 鍵 key に付ける先を持つ画面の状態

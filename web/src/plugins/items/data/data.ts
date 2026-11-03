@@ -14,6 +14,14 @@ import { TableSchema } from "./table"
 // 見た目: 表（table）・棒（bar）・折れ線（line）・円（pie）・散布図（scatter）
 export const DATA_VIEWS = ["table", "bar", "line", "pie", "scatter"] as const
 export type DataViewKind = (typeof DATA_VIEWS)[number]
+// 見た目の名前（文言の鍵。ダイアログの選択肢と、グラフの読み上げ）
+export const DATA_VIEW_TITLES = {
+  table: "Table",
+  bar: "Bar chart",
+  line: "Line chart",
+  pie: "Pie chart",
+  scatter: "Scatter chart",
+} as const satisfies Record<DataViewKind, string>
 
 // 棒と折れ線を重ねるときの、系列ごとの描き方
 export const SERIES_CHARTS = ["bar", "line"] as const

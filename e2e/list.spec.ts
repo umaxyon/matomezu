@@ -1,26 +1,6 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, test } from "@playwright/test"
 import { footerMenuTool } from "./footer-menu"
-
-// リストを置こうとして紙の (x, y) で押し、追加のダイアログでキャプションを入れて追加する
-async function addList(page: Page, caption: string) {
-  await (await footerMenuTool(page, "リスト")).click()
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  await page.mouse.click(paper.x + 120, paper.y + 120)
-  const dialog = page.getByRole("dialog", { name: "リストの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
-  return page.locator("[data-item]", { hasText: caption })
-}
-
-async function addRow(page: Page, list: ReturnType<Page["locator"]>, caption: string, body = "") {
-  await list.getByRole("button", { name: "行の追加" }).click()
-  const dialog = page.getByRole("dialog", { name: "行の追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
-  if (body) await dialog.getByLabel("本文", { exact: true }).fill(body)
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
-}
+import { addList, addRow } from "./list"
 
 test("ツールボックスのリストで置くと、キャプションの見出しと「＋」の行だけのリストが出る。「＋」で行を足し、ダブルクリックで行を変え、右クリックや編集のダイアログの「行を削除」で消す", async ({
   page,
@@ -89,7 +69,7 @@ test("チェックリストにすると行の左にチェックが出て、押�
   await expect(list.getByRole("checkbox")).toHaveCount(0)
 })
 
-test("行がリストの高さを超えるとリストの中でスクロールし、そのホイールで紙はずれない。行を交互に色分けできる", async ({
+test("行がリストの高さを超えるとリストの中でスクロールし、そのホイールで紙はずれない。端に着いたら、手を止めて次に回したときから紙がずれる。行を交互に色分けできる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -104,6 +84,22 @@ test("行がリストの高さを超えるとリストの中でスクロール�
   await page.mouse.wheel(0, 200)
   await expect.poll(() => rows.evaluate(el => el.scrollTop)).toBeGreaterThan(0)
   expect(await paper.boundingBox()).toEqual(before)
+  // 下の端に着いたあと、手を止めて下へ回すと紙が上へずれる
+  await rows.evaluate(el => {
+    el.scrollTop = el.scrollHeight
+  })
+  await page.waitForTimeout(400)
+  await page.mouse.wheel(0, 100)
+  await expect.poll(async () => (await paper.boundingBox())!.y).toBeLessThan(before!.y)
+  // 上の端で上へ回しても、紙がずれる（手を止めてから）
+  await rows.evaluate(el => {
+    el.scrollTop = 0
+  })
+  await page.waitForTimeout(400)
+  const moved = (await paper.boundingBox())!.y
+  await page.mouse.wheel(0, -50)
+  await expect.poll(async () => (await paper.boundingBox())!.y).toBeGreaterThan(moved)
+  expect(await rows.evaluate(el => el.scrollTop)).toBe(0)
   // 行を交互に色分け
   await list.getByText("多い").dblclick()
   const dialog = page.getByRole("dialog", { name: "リストの編集" })

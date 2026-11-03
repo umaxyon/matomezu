@@ -2,6 +2,8 @@
 // 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
 // 紙をずらす道具（pans）の間は、ステージの中のどこでもポインタを手にする（中のアイテムのカーソルより強い。ドラッグ中は握った手）。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
+// ホイールは、ポインタの下にその向きへまだスクロールできる物（リストの行の並び・データの表など）があればその物が受け、紙はずらさない。一続きの回しは始めに決めた物が受け、
+// 中の物が端に着いたら、手を止めて次に回したときから紙をずらす（wheel-chain.ts）。
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
 // コマンドが出ているステージならブラウザの拡大は止める）
 import {
@@ -34,6 +36,7 @@ import { useResize } from "../utils/useResize"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
 import styles from "./StageView.module.css"
+import { scrollsInside, type WheelLatch, wheelTaker } from "./wheel-chain"
 
 // ドラッグ中のポインタと、前に知らせた位置
 interface Drag {
@@ -60,17 +63,30 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
   useResize(ref, view => resizeStage(id, view))
-  const wheel = useRef(wheelZoom)
-  wheel.current = wheelZoom
-  // Ctrl+ホイールの拡大縮小（ブラウザの拡大を止めるため、受け身でない受け取りで付ける）
+  const wheel = useRef({ zoom: wheelZoom, keepsPan: keepsPan(catalog, tool) })
+  wheel.current = { zoom: wheelZoom, keepsPan: keepsPan(catalog, tool) }
+  const latch = useRef<WheelLatch | null>(null) // 一続きの回しで決めた、ホイールを受ける物
+  // ホイールを受ける物を決める（ブラウザの拡大と、紙をずらす回しで中の物がスクロールするのを止めるため、受け身でない受け取りで付ける）。
+  // 紙をずらすのは React の onWheel（中のビューやスタンドが止めたホイールでは紙をずらさない）
   useEffect(() => {
     const el = ref.current
     if (!el) return
     const onWheel = (e: globalThis.WheelEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || !wheel.current.shown) return
-      e.preventDefault()
-      const r = el.getBoundingClientRect()
-      wheel.current.run({ delta: e.deltaY, at: { x: e.clientX - r.left, y: e.clientY - r.top } })
+      const w = wheel.current
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl+ホイールの拡大縮小
+        if (!w.zoom.shown) return
+        e.preventDefault()
+        const r = el.getBoundingClientRect()
+        w.zoom.run({ delta: e.deltaY, at: { x: e.clientX - r.left, y: e.clientY - r.top } })
+        return
+      }
+      if (w.keepsPan) return
+      const dx = e.shiftKey ? e.deltaY : e.deltaX
+      const dy = e.shiftKey ? e.deltaX : e.deltaY
+      const taker = wheelTaker(latch.current, e.timeStamp, scrollsInside(e.target, el, dx, dy))
+      latch.current = { taker, at: e.timeStamp }
+      if (taker === "stage") e.preventDefault()
     }
     el.addEventListener("wheel", onWheel, { passive: false })
     return () => el.removeEventListener("wheel", onWheel)
@@ -98,7 +114,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     setDragging(false)
   }
   const onWheel = (e: WheelEvent<HTMLElement>) => {
-    if (e.ctrlKey || e.metaKey || keepsPan(catalog, tool)) return
+    if (e.ctrlKey || e.metaKey || keepsPan(catalog, tool) || latch.current?.taker !== "stage") return
     const dx = e.shiftKey ? e.deltaY : e.deltaX
     const dy = e.shiftKey ? e.deltaX : e.deltaY
     panStageBy(id, -dx, -dy)

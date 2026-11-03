@@ -1,10 +1,9 @@
 // ラインビュー（線のつなぐもののビュー。ui/connector.ts）: 形の並びを包み、形より手前に線を描く。
 // 線は描いている形の四角（下書き・ドラッグでずらした所も）から道筋を決めて描く（drawn.ts の drawLines）。自由な端は前に描いた辺に留まる（sticky.ts）。
-// 選択の道具で線を押すと線を選び、ダブルクリックで線の編集のダイアログ（line-edit）、右クリックで線を選んで線のメニュー（line-context）を開く。
+// 選択の道具で線を押すと線を選び（Mod を押していれば選択に足す・外す）、ダブルクリックで線の編集のダイアログ（line-edit）、右クリックで線を選んで線のメニュー（line-context）を開く。
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
 // 形にポインタを乗せると四辺に〇を出し（PortOverlay）、〇から引くドラッグ（useLinkDrag.ts）の間は、引ける相手と引き始めた形のほかを薄くする
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
-import type { PlacedConnector } from "../../../plugin-api"
 import {
   ShapeMarksProvider,
   type ShapeScene,
@@ -14,8 +13,8 @@ import {
   useCoreCatalog,
   useShownBook,
 } from "../../../plugin-api/ui"
-import { type PortArea, portAreasOf } from "../../base"
-import { useDrawnMinimap } from "../../base/ui"
+import { type PortArea, portAreasOf, toggledSelection } from "../../base"
+import { modPressed, useDrawnMinimap } from "../../base/ui"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { DrawnLinesView } from "./DrawnLinesView"
@@ -24,7 +23,7 @@ import type { Rect } from "./geom"
 import { elbowAt, LINE } from "./line"
 import { LINE_CONTEXT } from "./menu"
 import { LinkPreview, Ports } from "./PortsView"
-import type { PlacedLine } from "./placed"
+import { linesOf } from "./placed"
 import type { EndMemory, Side } from "./route"
 import { memoryOf, stickyMemory } from "./sticky"
 import { useLineEdit } from "./useLineEdit"
@@ -38,9 +37,6 @@ interface Linking {
   portsOf(id: string): readonly Side[]
 }
 const LinkingContext = createContext<Linking | null>(null)
-
-const linesIn = (scene: ShapeScene): PlacedLine[] =>
-  (scene.page.items ?? []).filter((i): i is PlacedConnector & PlacedLine => i.item === LINE.id)
 
 export function LineView({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, localOf } = scene
@@ -61,12 +57,14 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const drawnRects = useRef<ReadonlyMap<string, Rect>>(new Map())
   // 離したあとに付け替えを見る線: 離したばかりの形につながる線
   const settle = new Set(
-    linesIn(scene)
+    linesOf(scene.page)
       .filter(l => scene.released.has(l.from) || scene.released.has(l.to))
       .map(l => l.id),
   )
   // ダイアログの下書きは、見せ方が渡すページ（下書きを重ねたページ）にもう入っている。じかに直しているドラッグの線は、その途中の項目で描く
-  const drafted = linesIn(scene).map(l => (lineDrag.draft?.id === l.id ? { ...l, props: lineDrag.draft.props } : l))
+  const drafted = linesOf(scene.page).map(l =>
+    lineDrag.draft?.id === l.id ? { ...l, props: lineDrag.draft.props } : l,
+  )
   const memory = stickyMemory({
     lines: drafted,
     memo: memo.current,
@@ -132,10 +130,12 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
           selectable={selectable}
           onPointerDown={(e, id) => {
             if (e.button !== 0 || !selectable) return
-            if (!stage.selection.includes(id)) select(stage.id, [id])
+            select(stage.id, modPressed(e) ? toggledSelection(stage.selection, id) : [id])
           }}
           onDoubleClick={id => {
-            if (selectable) lineEdit.run({ item: id })
+            if (!selectable) return
+            select(stage.id, [id])
+            lineEdit.run({ item: id })
           }}
           onContextMenu={(e, id) => {
             if (stage.placing !== null) return
@@ -152,7 +152,12 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
             },
             caption: (e, id) => {
               if (e.button !== 0 || !selectable) return
-              if (!stage.selection.includes(id)) select(stage.id, [id])
+              // Mod なら選択に足す・外すだけで、キャプションは動かさない
+              if (modPressed(e)) {
+                select(stage.id, toggledSelection(stage.selection, id))
+                return
+              }
+              select(stage.id, [id])
               lineDrag.startCaption(e, id)
             },
             move: e => lineDrag.move(e, lineScene),

@@ -38,27 +38,13 @@ export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: str
   const placed = useItem(stage, args.page, args.item, DATA.id)
   const perform = usePerform(stage)
   if (!placed) return null
-  // 見た目と文字の項目を書いてから表を入れ替え（表の見た目なら、大きさが表と文字に合う）、data-set が返した列と行の id で軸を書く（1 回の操作）
+  // 表と一緒に、見た目・文字・軸を書く（表の見た目なら、大きさが表と文字に合う。軸は列と行の位置で書く）
   const save = (d: Draft, a: AxesDraft, text: DataTextDraft) => {
     const set = draftArgs(d)
     if (!set) return false
-    const at = { page: args.page, item: args.item }
-    const before = { view: placed.props.view, ...textDraftOf(placed.props) }
-    const lookOk = perform("@matomezu/paper:item-update", { ...at, props: { view: a.view, ...text } }).ok
-    const done = lookOk ? perform(DATA_SET.id, { ...at, ...set }) : null
-    const axesOk =
-      done?.ok === true &&
-      perform("@matomezu/paper:item-update", {
-        ...at,
-        props: axesProps(a, done.result.columns, done.result.rows),
-      }).ok
-    if (axesOk) {
-      onClose()
-      return true
-    }
-    // 途中で断られたら、変えた見た目と文字を戻す（表と軸は、断られたアクションでは変わっていない）
-    if (lookOk) perform("@matomezu/paper:item-update", { ...at, props: before })
-    return false
+    const done = perform(DATA_SET.id, { page: args.page, item: args.item, ...set, props: { ...text, ...axesProps(a) } })
+    if (done.ok) onClose()
+    return done.ok
   }
   return (
     <DataDialog

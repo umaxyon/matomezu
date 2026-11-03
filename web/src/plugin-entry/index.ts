@@ -66,7 +66,7 @@ export {
   createBookIn,
   evenGap,
   extentOf,
-  fitsPaper,
+  followConnectors,
   frameAround,
   frameOf,
   gapOf,
