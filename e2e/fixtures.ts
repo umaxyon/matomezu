@@ -23,7 +23,7 @@ export const aiAuth = () => ({
   Authorization: `Bearer ${JSON.parse(readFileSync(`${homeOf(test.info().workerIndex)}/server.json`, "utf8")).token}`,
 })
 
-// ワーカーごとの選び値（playwright.config.ts の use で渡す）
+// ワーカーごとの Playwright の option（playwright.config.ts の use で渡す）
 export type HostOptions = { hostArgs: string[] }
 
 export const test = base.extend<{ books: readonly object[]; reset: undefined }, HostOptions & { host: Host }>({
