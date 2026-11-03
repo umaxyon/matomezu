@@ -2,20 +2,28 @@
 // 鳥のマークは物の上の辺を歩き（付けたときだけ、飛んでくるか物の裏から顔を出す。flight.ts）、びっくりマークは物の右上の角に止まる。
 // どちらも押すと「外す？」の小さな吹き出しを出し、「はい」で外す。ポインタが離れるか、ほかを押すと隠す。
 // マークの種類を選ぶスタンド（commands.ts の MARK_PICKER）が開いていれば、付ける先のそばに 6 つの種類の絵を並べ、押した種類を付ける。
-// 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない
+// 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない。
+// 付けた物の上の辺が見える所（画面と、物を囲む Revealable〈リストの行の並びなど〉の重なり）の外に出たら、鳥はマークポインタ（鳥の顔の丸い絵）に替わって
+// 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
 import { useMessages } from "../../../ui/i18n"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
+import bunchoPointer from "../images/bird-marks/buncho.png"
+import fukurouPointer from "../images/bird-marks/fukurou.png"
+import inkoPointer from "../images/bird-marks/inko.png"
+import suzumePointer from "../images/bird-marks/suzume.png"
+import tsunagidoriPointer from "../images/bird-marks/tsunagidori.png"
 import buncho from "../images/birds/buncho.png"
 import fukurou from "../images/birds/fukurou.png"
 import inko from "../images/birds/inko.png"
 import suzume from "../images/birds/suzume.png"
 import tsunagidori from "../images/birds/tsunagidori.png"
 import { kit } from "../kit"
-import { Stand } from "../utils/anchors"
+import { Stand, useStandAway } from "../utils/anchors"
+import { STAND_MARGIN } from "../utils/stand-place"
 import type { StageSlotProps } from "../workspace/ui"
 import { type Bird, MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import { MARK_PICKER } from "./commands"
@@ -26,6 +34,17 @@ import styles from "./MarkLayer.module.css"
 const SIZE = 48 // 鳥の大きさ（画面の px）
 const PICK_SIZE = 40 // 種類を選ぶスタンドの鳥の大きさ
 const FRONT = 4 // 正面を向いたコマ
+const POINTER = 24 // マークポインタの大きさ
+const ALERT = 18 // びっくりマークの丸の大きさ
+
+// 鳥ごとのマークポインタの絵
+const POINTERS: Record<Bird, string> = {
+  tsunagidori: tsunagidoriPointer,
+  inko: inkoPointer,
+  buncho: bunchoPointer,
+  suzume: suzumePointer,
+  fukurou: fukurouPointer,
+}
 
 // 鳥ごとの絵・コマの切り出し・歩き方
 const BIRDS: Record<Bird, { image: string; sheet: Sheet; gait: Gait }> = {
@@ -65,20 +84,52 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
   const title = t(MARK_KINDS.find(k => k.id === kind)?.title ?? "Mark")
   if (kind === "alert")
     return (
-      <Stand anchor={anchor} side="corner" label={t("Mark")}>
-        <RemoveAsk onRemove={remove}>
+      <Stand anchor={anchor} side="corner" edgePinned label={t("Mark")}>
+        <PinnedAlert title={title} onRemove={remove} />
+      </Stand>
+    )
+  return (
+    <Stand anchor={anchor} side="edge" span edgePinned label={t("Mark")}>
+      <BirdWalk id={id} bird={kind} title={title} onRemove={remove} />
+    </Stand>
+  )
+}
+
+// びっくりマーク: 押すと「外す？」を出す。付けた物の上の辺が見える所の外なら、丸を縁に寄せて薄く描き、押すと付けた物を見せる
+function PinnedAlert({ title, onRemove }: { title: string; onRemove: () => void }) {
+  const t = useMessages(kit)
+  const away = useStandAway()
+  const at = away?.pin({ x: ALERT / 2, y: ALERT / 2 }, ALERT / 2 + STAND_MARGIN)
+  return (
+    <div
+      data-away={away !== null}
+      style={
+        at
+          ? { transform: `translate(${(at.x - ALERT / 2).toString()}px, ${(at.y - ALERT / 2).toString()}px)` }
+          : undefined
+      }
+    >
+      {away ? (
+        <button
+          type="button"
+          className={styles.alert}
+          aria-label={t("Show {name}", { name: title })}
+          title={t("Show {name}", { name: title })}
+          onClick={away.show}
+          data-mark-pointer
+        >
+          !
+        </button>
+      ) : (
+        <RemoveAsk onRemove={onRemove}>
           {toggle => (
             <button type="button" className={styles.alert} aria-label={title} onClick={toggle}>
               !
             </button>
           )}
         </RemoveAsk>
-      </Stand>
-    )
-  return (
-    <Stand anchor={anchor} side="edge" span label={t("Mark")}>
-      <BirdWalk id={id} bird={kind} title={title} onRemove={remove} />
-    </Stand>
+      )}
+    </div>
   )
 }
 
@@ -138,7 +189,10 @@ function RemoveAsk({
 }
 
 // 物の上の辺を歩く鳥。歩く所の幅は物の幅で、鳥は真ん中寄りの、鳥の幅の 2 倍ほどを往復する
+// 付けた物の上の辺が見える所の外なら、鳥の代わりにマークポインタを、鳥の足元を見える所の縁に寄せた所に描く（歩く動きのまま縁を動く）
 function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title: string; onRemove: () => void }) {
+  const t = useMessages(kit)
+  const away = useStandAway()
   const area = useRef<HTMLDivElement>(null)
   const [arrival] = useState<Arrival>(() => {
     if (!arriving.delete(id)) return "none"
@@ -180,6 +234,22 @@ function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title
     ? { frame: FRONT, x: range, lift: 0, from: { x: 0, y: 0 }, right: false, rotation: 0, behind: false }
     : birdPose(time, arrival, gait, SIZE, range, from)
   const left = (width - range) / 2 + pose.x
+  if (away) {
+    const at = away.pin({ x: left, y: SIZE }, POINTER / 2 + STAND_MARGIN)
+    return (
+      <div ref={area} className={styles.walk} data-mark-walk>
+        <button
+          type="button"
+          className={styles.pointer}
+          aria-label={t("Show {name}", { name: title })}
+          title={t("Show {name}", { name: title })}
+          onClick={away.show}
+          style={{ left: at.x - POINTER / 2, top: at.y - POINTER / 2, backgroundImage: `url(${POINTERS[bird]})` }}
+          data-mark-pointer
+        />
+      </div>
+    )
+  }
   const body = (
     <div
       className={styles.foot}
