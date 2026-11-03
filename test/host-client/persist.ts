@@ -1,7 +1,7 @@
-// インスタンスの状態の変わり目を残す先に渡す: 変わったブック（ゴミ箱のブックも）・無くなったブックと設定を渡す（画面の状態は渡さない）。止める関数を返す
-import type { Book } from "../core/schema/book"
-import type { Settings } from "../core/settings"
-import type { MatomezuInstance } from "../store/store"
+// インスタンスの状態の変わり目を残す先に渡す（テストのメモリのホストクライアント memory.ts が使う）: 変わったブック（ゴミ箱のブックも）・無くなったブックと設定を渡す（画面の状態は渡さない）。止める関数を返す
+import type { Book } from "../../web/src/core/schema/book"
+import type { Settings } from "../../web/src/core/settings"
+import type { MatomezuInstance } from "../../web/src/store/store"
 
 export interface Keeper {
   saveBook(book: Book): void

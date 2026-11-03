@@ -3,7 +3,7 @@
 import type { Book } from "../../web/src/core/schema/book"
 import type { Settings } from "../../web/src/core/settings"
 import type { HostClient } from "../../web/src/host-client/client"
-import { persist } from "../../web/src/host-client/persist"
+import { persist } from "./persist"
 
 export interface MemoryClient extends HostClient {
   books: ReadonlyMap<string, Book> // 残したブック（最初に渡したものも）
