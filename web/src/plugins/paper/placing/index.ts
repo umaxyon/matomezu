@@ -9,7 +9,9 @@ export {
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
+  PAPER_SELECT_ALL,
   placeAt,
 } from "./commands"
 export { type Came, DIRS, type Dir } from "./drag"
-export { dragging, dropTarget, trackDrag } from "./items"
+export { dragging, dropTarget, movableTogether, trackDrag } from "./items"
+export { type Press, pressSelection, sweptItems, sweptSelection } from "./selection"

@@ -72,6 +72,7 @@ export {
   alignPadding,
   extentOf,
   fitsPaper,
+  followConnectors,
   gapOf,
   growOf,
   itemSize,
@@ -97,6 +98,7 @@ export type { PortArea, Ports } from "./place/placed"
 export { NEST_PADDING, placedSize, portAreasOf, rectsOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
+export { amongSelected, onlySelected, toggledSelection } from "./select/selection"
 export {
   BOOK_TEXT_COLORS,
   clampRich,

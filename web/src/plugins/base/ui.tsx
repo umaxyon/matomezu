@@ -55,6 +55,7 @@ export {
 export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
 export { useDrawnMinimap } from "./minimap/drawn"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
+export { modPressed } from "./select/ui"
 export { UserSettings } from "./settings/ui"
 export {
   BodyField,

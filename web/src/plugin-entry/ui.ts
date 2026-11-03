@@ -18,6 +18,7 @@ export {
   Form,
   InheritChoices,
   inlineClass,
+  modPressed,
   type PaperValue,
   Problem,
   pairClass,

@@ -18,6 +18,7 @@ import {
   pageItemsOf,
   replaceShape,
   shapesOf,
+  walkShapes,
 } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { type PageContext, type SettingReader, settingsAt } from "../book-settings"
@@ -309,21 +310,58 @@ export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, page: P, 
   const ky = into.y === undefined ? 0 : into.y - Math.floor(Math.min(...rects.map(r => r.y)) / paper.h)
   if (kx === 0 && ky === 0) return page
   const d = { x: kx * paper.w, y: ky * paper.h }
-  const areas = portAreasOf(catalog, page)
-  const groups = new Map<string, PlacedConnector[]>()
-  for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
-  const shifted = new Map<string, PlacedConnector>()
-  for (const [id, list] of groups) {
-    const def = catalog.items.get(id)
-    if (def?.kind !== "connector" || !def.shift) continue
-    for (const c of def.shift(list as ConnectorData[], areas, d)) shifted.set(c.id, c as PlacedConnector)
-  }
+  const shifted = shiftedConnectors(catalog, page, () => d)
   const items = pageItemsOf(page).map(i =>
     isShape(i) ? { ...i, x: i.x + d.x, y: i.y + d.y } : (shifted.get(i.id) ?? i),
   )
   const total = { x: (page.shift?.x ?? 0) + kx, y: (page.shift?.y ?? 0) + ky }
   const moved = { ...page, items }
   return setField(moved, ["orientation", "grows"], "shift", total.x === 0 && total.y === 0 ? undefined : total)
+}
+
+// ページ page のつなぐもののうち、by が量を返すものを、定義の shift で位置を持つ物ごとその量だけずらした物（id → ずらした物）。
+// 定義に shift の無い種類と、by が null を返すものは入れない
+function shiftedConnectors(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  by: (c: PlacedConnector) => Point | null,
+): Map<string, PlacedConnector> {
+  const groups = new Map<string, { d: Point; list: PlacedConnector[] }>() // 種類と量 → つなぐもの
+  for (const c of connectorsOf(page)) {
+    const d = by(c)
+    if (!d) continue
+    const key = `${c.item} ${d.x},${d.y}`
+    groups.set(key, { d, list: [...(groups.get(key)?.list ?? []), c] })
+  }
+  const shifted = new Map<string, PlacedConnector>()
+  if (groups.size === 0) return shifted
+  const areas = portAreasOf(catalog, page)
+  for (const { d, list } of groups.values()) {
+    const def = catalog.items.get((list[0] as PlacedConnector).item)
+    if (def?.kind !== "connector" || !def.shift) continue
+    for (const c of def.shift(list as ConnectorData[], areas, d)) shifted.set(c.id, c as PlacedConnector)
+  }
+  return shifted
+}
+
+// 形を動かす前のページ page で、形ごとに動く量 moved（形の id → 紙の上の量。子の形は親の量で動く）を受けたときの、つなぐもの:
+// 両端の形が同じだけ動くつなぐものは、定義の shift で位置を持つ物（線の手直しなど）も一緒にずらす。片方だけ・違う量で動くものはそのまま
+export function followConnectors<P extends ItemPage>(
+  catalog: CoreCatalog,
+  page: P,
+  moved: ReadonlyMap<string, Point>,
+): P {
+  const by = new Map<string, Point>()
+  for (const { shape, parent } of walkShapes(page)) {
+    const d = moved.get(shape.id) ?? (parent === null ? undefined : by.get(parent))
+    if (d) by.set(shape.id, d)
+  }
+  const shifted = shiftedConnectors(catalog, page, c => {
+    const a = by.get(c.from)
+    const b = by.get(c.to)
+    return a && b && a.x === b.x && a.y === b.y && (a.x !== 0 || a.y !== 0) ? a : null
+  })
+  return shifted.size === 0 ? page : { ...page, items: pageItemsOf(page).map(i => shifted.get(i.id) ?? i) }
 }
 
 // 可変ページの中身を、増やす向き sides に合わせてずらしたページ: 左（上）へ増やすなら左（上）に空きの印刷区画を 1 つ持たせ、

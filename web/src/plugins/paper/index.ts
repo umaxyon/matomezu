@@ -1,4 +1,4 @@
-// 紙のプラグイン: 紙の見せ方（ページごとの紙の上に形を置く）と紙の道具の組と、形を置く・動かす・大きさを変える・中身を変える・消すアクションとコマンドとそのキー。
+// 紙のプラグイン: 紙の見せ方（ページごとの紙の上に形を置く）と紙の道具の組と、形を置く・動かす・大きさを変える・中身を変える・消すアクションとコマンド、全部を選ぶコマンドとそれらのキー。
 // 置ける形とつなぐものは、ブックのタイプが選んだアイテムで、紙はそれを名指さない（アイテムの定義と、そのビューの口で扱う）
 import { defineBuiltin } from "../../plugin-api/builtin"
 import { kit } from "./kit"
@@ -17,6 +17,7 @@ import {
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
+  PAPER_SELECT_ALL,
 } from "./placing"
 import { PAPER_TOOLS, REPARENT_TOOL } from "./tools"
 
@@ -26,7 +27,7 @@ export const PAPER_PLUGIN = defineBuiltin(
     tools: [REPARENT_TOOL],
     toolSets: [PAPER_TOOLS],
     actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE, ITEM_REPARENT],
-    commands: [PAPER_PLACE, PAPER_MOVE, PAPER_REPARENT, PAPER_RESIZE, PAPER_EDIT, PAPER_DELETE],
+    commands: [PAPER_PLACE, PAPER_MOVE, PAPER_REPARENT, PAPER_RESIZE, PAPER_EDIT, PAPER_DELETE, PAPER_SELECT_ALL],
     keys: ITEM_KEYS,
   }),
 )
@@ -57,5 +58,6 @@ declare module "../../core/catalog" {
     "@matomezu/paper:paper-resize": typeof PAPER_RESIZE
     "@matomezu/paper:paper-edit": typeof PAPER_EDIT
     "@matomezu/paper:paper-delete": typeof PAPER_DELETE
+    "@matomezu/paper:paper-select-all": typeof PAPER_SELECT_ALL
   }
 }

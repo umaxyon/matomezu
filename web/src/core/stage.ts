@@ -4,6 +4,7 @@
 // ずらす量は、いつも範囲に収めた値で持つ（収めるのはここの操作だけで、描く側は直さない）。
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
+import { anchorIds } from "./annotation"
 import { hasPages, type PagedBook } from "./book"
 import type { ItemId } from "./catalog"
 import type { BookTypeId, CoreCatalog } from "./core-catalog"
@@ -160,8 +161,18 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, pa
 // 無くなっていれば隣のページ（変わる前のブック before で後ろにあったページ、無ければ前のページ。before が無ければ最初のページ。ページが無ければ開かない）。
 // ページが変わったときだけ、ずらす量を最初の位置に戻し、選択を捨てる。同じページで紙も同じまま中身をずらした（ページの shift が変わった）なら、
 // 中身が画面の同じ所に見えるよう、ずらした分だけパンを合わせ、見せ方が知らせた広さもその分だけ先に変える（知らせ直す前に範囲に収め直して打ち消さないように）。
+// 選択からは、ブックに無くなった物（AI やほかの画面が消した物、Undo で無くなった物）を外す。
 // そのブックを開いていなければ、同じ値を返す
 export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
+  const next = followOpened(catalog, stage, book, before)
+  if (next.selection.length === 0 || next.opened?.book !== book.id) return next
+  const ids = anchorIds(book)
+  const kept = next.selection.filter(id => ids.has(id))
+  if (kept.length === next.selection.length) return next
+  return kept.length === 0 ? { ...next, selection: NONE, editing: false } : { ...next, selection: kept }
+}
+
+function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const o = stage.opened
   if (!o || o.book !== book.id || !hasPages(book)) return stage
   const found = book.pages.find(p => p.id === o.page) ?? neighbourOf(book, o.page, before)
