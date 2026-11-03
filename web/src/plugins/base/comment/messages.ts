@@ -13,6 +13,7 @@ export const COMMENT_MESSAGES = defineMessages({
   "Reply…": { en: "Reply…", ja: "返事を書く…" },
   Reply: { en: "Reply", ja: "返す" },
   Fold: { en: "Fold", ja: "たたむ" },
+  "Show bubble": { en: "Show bubble", ja: "吹き出しを出す" },
   Remove: { en: "Remove", ja: "消す" },
   Add: { en: "Add", ja: "付ける" },
   You: { en: "You", ja: "あなた" },

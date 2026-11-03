@@ -50,10 +50,6 @@ function typeActions(catalog: CoreCatalog, type: string): readonly string[] {
 // ブックで使えるアクション
 export const actionsOf = (catalog: CoreCatalog, book: Book): readonly string[] => typeActions(catalog, book.type)
 
-// ホームのブックで使えるアクション（ホームが無ければ無い）。ホームは 1 冊だけのタイプで、ブックの id はタイプの id
-export const homeActions = (catalog: CoreCatalog, home: string | null): readonly string[] =>
-  home === null ? [] : typeActions(catalog, home)
-
 // ブックが、データの形の外の決まり（アイテムどうしの関係）を守っているか: タイプの決まりと、どのページもつなぐものの定義の決まり
 export function holds(catalog: CoreCatalog, book: Book): boolean {
   if (!(bookType(catalog, book.type).holds?.(book, catalog) ?? true)) return false

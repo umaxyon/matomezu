@@ -475,7 +475,7 @@ export function removeItems<B extends PagedBook>(
 }
 
 // ページの形 id の、一番上の祖先（ページの形）の id。ページの形なら自分。無ければ null
-export function rootOf(page: ItemPage, id: string): string | null {
+function rootOf(page: ItemPage, id: string): string | null {
   const found = findShape(page, id)
   if (!found) return null
   return found.parent === null ? id : rootOf(page, found.parent)

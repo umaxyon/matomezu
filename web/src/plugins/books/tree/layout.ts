@@ -8,6 +8,7 @@
 // 折り返すは N 字の幅で折り返した行、最大で固定は N 字の幅まで（超えた分は … で切る）
 import type { Point } from "../../../plugin-api"
 import {
+  blockBodyHeight,
   clampRich,
   type GrowSides,
   parseRich,
@@ -173,7 +174,7 @@ export function rootBox(
   const widest = Math.max(...body.map(l => richWidth(l, BODY_FONT)))
   return {
     w: Math.max(head.w, Math.ceil(Math.min(max, widest)) + TEXT_LOOK.padX * 2),
-    h: head.h + TEXT_LOOK.line * body.length + TEXT_LOOK.ruleGap * 2 + 1,
+    h: head.h + blockBodyHeight(body.length, true), // キャプションの下に、区切り線と本文
     lines: head.lines,
     body,
   }

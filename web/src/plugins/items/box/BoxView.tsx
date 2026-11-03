@@ -12,7 +12,7 @@ import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"
 import { type BOX, BOX_TOKENS } from "./box"
 import { paintVars } from "./paint"
-import { BODY_LEAST, BOX_LOOK, innerWidth, vAlignOf } from "./size"
+import { boxTextArea, vAlignOf } from "./size"
 
 type BoxProps = ItemProps<typeof BOX.id>
 
@@ -33,9 +33,7 @@ export function BoxView({ props, size, hasChildren, id, stage }: ItemViewProps<B
       >
         <TextBlockView
           props={props}
-          inner={innerWidth(size.w)}
-          least={BODY_LEAST}
-          maxH={size.h - 2 * (BOX_LOOK.border + BOX_LOOK.padY)}
+          {...boxTextArea(size)}
           stage={stage}
           grips={grips}
           lineColor="var(--box-line)"

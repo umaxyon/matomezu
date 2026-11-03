@@ -2,17 +2,13 @@ import { expect, test } from "bun:test"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { resolveTokens } from "../../web/src/core/theme"
-import { bodySides } from "../../web/src/plugins/base/text/block"
-import { plainOf } from "../../web/src/plugins/base/text/rich"
+import { textBlock } from "../../web/src/plugins/base/text/block"
 import { textWidth } from "../../web/src/plugins/base/text/text"
 import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
 import {
   BOX_LOOK,
   BOX_MIN,
-  bodyColumn,
-  bodyMinWidth,
-  bodyWidthAfter,
-  boxLayout,
+  boxTextArea,
   placedHeight,
   placedWidth,
   vAlignOf,
@@ -46,21 +42,13 @@ const place = (
     { book: "b1" },
   )
 
-test("本文は高さに収まる行の数だけ出し、収まらない分は最後の行の終わりに … を付けて切る", () => {
-  const all = boxLayout(box(LONG), { w: 160, h: 2000 }).body.map(plainOf)
-  expect(all.join("")).toBe(LONG)
-  const three = boxLayout(box(LONG), { w: 160, h: heightOf(3) })
-  expect(three.body).toHaveLength(3)
-  expect(plainOf(three.body[2]!)).toMatch(/…$/)
-  expect(boxLayout(box(LONG), { w: 160, h: heightOf(3) + 17 }).body).toHaveLength(3)
-  expect(boxLayout(box("一\n二"), { w: 160, h: heightOf(3) }).body.map(plainOf)).toEqual(["一", "二"])
-})
-
-test("本文が 1 行も出ない高さなら、区切り線も出さない。一番低い高さはキャプション 1 行ぶん", () => {
-  expect(boxLayout(box(LONG), { w: 160, h: heightOf(1) - 1 })).toMatchObject({ body: [], rule: false })
-  expect(boxLayout(box(LONG), { w: 160, h: heightOf(1) })).toMatchObject({ rule: true })
-  expect(boxLayout(box(LONG, false), { w: 160, h: heightOf(1, false) })).toMatchObject({ rule: false })
-  expect(boxLayout(box(LONG, false), { w: 160, h: heightOf(1, false) }).body).toHaveLength(1)
+test("文字の塊は箱の上下の枠と余白の内側に収め、本文を n 行出す高さの箱で n 行出す。一番低い高さはキャプション 1 行ぶん", () => {
+  const lines = (h: number) => {
+    const { inner, least, maxH } = boxTextArea({ w: 160, h })
+    return textBlock(box(LONG), inner, least, maxH).body.length
+  }
+  expect(lines(heightOf(3))).toBe(3)
+  expect(lines(heightOf(1) - 1)).toBe(0)
   expect(BOX_MIN.h).toBe(heightOf(0, false))
 })
 
@@ -228,36 +216,4 @@ test("縦の位置は書いていなければ自動（本文も子も無けれ�
   expect(vAlignOf({ body: "本文", vAlign: "bottom" }, false)).toBe("bottom")
   expect(vAlignOf({ body: "", vAlign: "middle" }, true)).toBe("top")
   expect(vAlignOf({ body: "", vAlign: "bottom" }, true)).toBe("bottom")
-})
-
-test("本文の幅を書けば、その幅の列で折り返す。列はキャプションの寄せに倣い、キャプションの幅より狭くも、箱の中より広くもならない", () => {
-  const inner = 160 - 2 * (BOX_LOOK.border + BOX_LOOK.padX)
-  const at = (captionAlign: "left" | "center" | "right", bodyWidth?: number) =>
-    bodyColumn({ ...box(LONG), captionAlign, bodyWidth }, 160)
-  expect(at("center")).toEqual({ x: 0, w: inner })
-  expect(at("left", 80)).toEqual({ x: 0, w: 80 })
-  expect(at("center", 80)).toEqual({ x: (inner - 80) / 2, w: 80 })
-  expect(at("right", 80)).toEqual({ x: inner - 80, w: 80 })
-  expect(at("left", 999).w).toBe(inner)
-  expect(at("left", 1).w).toBe(bodyMinWidth(box(LONG)))
-  expect(bodyMinWidth({ ...box(LONG), caption: "" })).toBe(BOX_MIN.w - 2 * (BOX_LOOK.border + BOX_LOOK.padX))
-  expect(bodyMinWidth({ ...box(LONG), caption: "とても長いキャプションです" })).toBe(
-    Math.ceil(textWidth("とても長いキャプションです", BOX_LOOK.caption)),
-  )
-  const wide = boxLayout(box(LONG), { w: 160, h: heightOf(100) }).body.length
-  expect(boxLayout({ ...box(LONG), bodyWidth: 80 }, { w: 160, h: heightOf(100) }).body.length).toBeGreaterThan(wide)
-})
-
-test("本文の列の端を動かすと、中央寄せは両側が同じだけ、左寄せは右の端、右寄せは左の端だけが動く。箱の中いっぱいなら幅を消す", () => {
-  const inner = 160 - 2 * (BOX_LOOK.border + BOX_LOOK.padX)
-  const of = (captionAlign: "left" | "center" | "right") => ({ ...box(LONG), captionAlign })
-  expect(bodySides(of("center"))).toEqual(["left", "right"])
-  expect(bodySides(of("left"))).toEqual(["right"])
-  expect(bodySides(of("right"))).toEqual(["left"])
-  expect(bodyWidthAfter(of("center"), 160, "right", -10)).toBe(inner - 20)
-  expect(bodyWidthAfter(of("center"), 160, "left", 10)).toBe(inner - 20)
-  expect(bodyWidthAfter(of("left"), 160, "right", -10)).toBe(inner - 10)
-  expect(bodyWidthAfter(of("right"), 160, "left", 10)).toBe(inner - 10)
-  expect(bodyWidthAfter(of("left"), 160, "right", -999)).toBe(bodyMinWidth(of("left")))
-  expect(bodyWidthAfter({ ...of("left"), bodyWidth: 80 }, 160, "right", 999)).toBeNull()
 })

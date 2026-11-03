@@ -13,7 +13,11 @@ import {
   textOf,
 } from "../../web/src/plugins/base/text/edit"
 import { clampRich, parseRich, plainOf, textColorRef, wrapRich } from "../../web/src/plugins/base/text/rich"
-import { type TextColorValues as TextColors, textColorsOf } from "../../web/src/plugins/base/text/text-colors"
+import {
+  type TextColorValues as TextColors,
+  textColorsOf,
+  withTextColor,
+} from "../../web/src/plugins/base/text/text-colors"
 import { CORE_CATALOG, newStore } from "../support"
 
 const W = "@matomezu/base:warn"
@@ -147,4 +151,11 @@ test("見る人の文字の色は利用者の設定の項目 text-colors で、�
   const restored = restoreSettings({ "@matomezu/base:text-colors": { a: 1 } })
   expect(restored).toEqual({ "@matomezu/base:text-colors": { a: 1 } })
   expect(userSetting(CORE_CATALOG, restored, "@matomezu/base:text-colors")).toEqual({})
+})
+
+test("文字の色の上書きの 1 色を変えると、ほかの色の上書きは残り、消して 1 つも残らなければ値ごと消す", () => {
+  expect(withTextColor(undefined, W, "#123456")).toEqual({ [W]: "#123456" })
+  expect(withTextColor({ [W]: "#123456", x: "#000000" }, W, "#abcdef")).toEqual({ [W]: "#abcdef", x: "#000000" })
+  expect(withTextColor({ [W]: "#123456", x: "#000000" }, W, undefined)).toEqual({ x: "#000000" })
+  expect(withTextColor({ [W]: "#123456" }, W, undefined)).toBeUndefined()
 })

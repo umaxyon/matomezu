@@ -1,11 +1,11 @@
-// 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。ドロワーの元に戻す・やり直すのボタンも同じで、押してもドロワーは下がらない
+// 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない
 import { expect, type Page, test } from "@playwright/test"
-import { drawerTool } from "./drawer"
+import { footerMenuTool } from "./footer-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
 
 async function placeBox(page: Page, caption: string) {
-  await (await drawerTool(page, "箱")).click()
+  await (await footerMenuTool(page, "箱")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 200, paper.y + 150)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -28,14 +28,14 @@ test("置いた箱を Ctrl+Z で元に戻すと消え、Ctrl+Shift+Z と Ctrl+Y 
   await expect(items(page)).toHaveText("戻す箱")
 })
 
-test("ドロワーの元に戻す・やり直すのボタンで戻し、やり直せる。押してもドロワーは下がらず、続けて押せる", async ({
+test("フッタメニューの元に戻す・やり直すのボタンで戻し、やり直せる。押してもフッタメニューは下がらず、続けて押せる", async ({
   page,
 }) => {
   await page.goto("/")
   await placeBox(page, "1")
   await placeBox(page, "2")
   await expect(items(page)).toHaveCount(2)
-  await drawerTool(page, "箱")
+  await footerMenuTool(page, "箱")
   const undo = page.getByRole("button", { name: "元に戻す" })
   const redo = page.getByRole("button", { name: "やり直す" })
   await expect(redo).toBeDisabled()

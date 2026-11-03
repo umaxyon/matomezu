@@ -6,13 +6,13 @@ import type { Annotation } from "../../../core/annotation"
 import { freshId } from "../../../core/ids"
 import { kit } from "../kit"
 
-// マークの種類。title は画面で見せる名前（文言の鍵）、ai は AI に伝える呼び方（利用者が色や鳥の名前で呼ぶので、両方を書く）
+// マークの種類。title は画面で見せる名前（文言の鍵）、ai は AI に伝える呼び方（利用者が旗の色や鳥の色・名前で呼ぶので、どれも書く）
 export const MARK_KINDS = [
-  { id: "tsunagidori", title: "Tsunagidori", ai: "tsunagidori: a green bird (petrel)" },
-  { id: "inko", title: "Parakeet", ai: "inko: a plum purple bird (parakeet)" },
-  { id: "buncho", title: "Java sparrow", ai: "buncho: a charcoal gray bird (Java sparrow)" },
-  { id: "suzume", title: "Sparrow", ai: "suzume: a brown bird (sparrow)" },
-  { id: "fukurou", title: "Owl", ai: "fukurou: an indigo blue bird (owl)" },
+  { id: "tsunagidori", title: "Tsunagidori", ai: "tsunagidori: a green bird (petrel) with a green flag" },
+  { id: "inko", title: "Parakeet", ai: "inko: a plum purple bird (parakeet) with a red flag" },
+  { id: "buncho", title: "Java sparrow", ai: "buncho: a charcoal gray bird (Java sparrow) with a white flag" },
+  { id: "suzume", title: "Sparrow", ai: "suzume: a brown bird (sparrow) with a yellow flag" },
+  { id: "fukurou", title: "Owl", ai: "fukurou: an indigo blue bird (owl) with a blue flag" },
   { id: "alert", title: "Alert", ai: "alert: a red dot with an exclamation mark" },
 ] as const
 export type MarkKind = (typeof MARK_KINDS)[number]["id"]
@@ -30,7 +30,7 @@ export type MarkProps = z.output<typeof MarkSchema>
 export const MARK = kit.defineAnnotation({
   id: "mark",
   title: "Mark",
-  aiDescription: `A mark the user put on things in a book (anchors), with no text: the user points at them, and may call them by the mark's kind, color or bird in the talk ("the green bird"). kind is one of: ${MARK_KINDS.map(k => k.ai).join("; ")}. readAt is when AI read it (none: unread): mark it read with mark-read. Once the talk about it is done, remove it with mark-remove.`,
+  aiDescription: `A mark the user put on things in a book (anchors), with no text: the user points at them, and may call them by the mark's kind, its flag's color, the bird's color or the bird in the talk ("the yellow flag", "the green bird"). kind is one of: ${MARK_KINDS.map(k => k.ai).join("; ")}. readAt is when AI read it (none: unread): mark it read with mark-read. Once the talk about it is done, remove it with mark-remove.`,
   props: MarkSchema,
   // 読まれていないもの
   awaits: p => p.readAt === undefined,

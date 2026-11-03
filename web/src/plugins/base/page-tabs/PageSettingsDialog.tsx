@@ -7,8 +7,8 @@ import { useEffect, useId, useState } from "react"
 import { pagedOf, putPage, withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
-import { useAllowed, usePerform } from "../../../ui/view-hooks"
+import { useActions } from "../../../ui/store-context"
+import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
@@ -25,10 +25,7 @@ import { PAGE_UPDATE } from "./page-update"
 export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
   const form = useId()
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    return o ? pagedOf(s.books[o.book]) : undefined
-  })
+  const book = pagedOf(useBook(stage)) // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
   const page = book?.pages.find(p => p.id === args.page)
   const [title, setTitle] = useState(page?.title ?? "")
   const [locked, setLocked] = useState(page?.locked === true)

@@ -10,9 +10,8 @@ import { toolSetOf } from "../../../core/tools"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { themeVars } from "../../../ui/theme-vars"
-import { useShownPage, useStage } from "../../../ui/view-hooks"
-import { bookTokens } from "../book-look/look"
+import { useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
+import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { kit } from "../kit"
 import { keepsPan, panningTool } from "../tool-switch/tools"
 import { ZOOM_WHEEL } from "../zoom"
@@ -37,17 +36,14 @@ export function MinimapView({
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === id)?.opened
-    return o ? s.books[o.book] : undefined
-  })
+  const book = useShownBook(id) // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
   const page = useShownPage(id)
   const held = keepsPan(catalog, useStage(id)?.tool ?? null)
   const { panStageBy, focusStage, setTool } = useActions()
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
-  const vars = useMemo(() => (book ? themeVars(bookTokens(catalog, book)) : undefined), [catalog, book])
+  const vars = useBookThemeVars(id)
   const drawn = useDrawnTable(id)
   const marks = useMemo(
     () => (book && page ? minimapMarks(catalog, book, page, item => drawnOn(drawn, item, page.id)) : []),

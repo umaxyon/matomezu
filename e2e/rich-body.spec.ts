@@ -1,6 +1,6 @@
 // 本文の装飾（base の RichBody・RichInput・RichText）: 本文の入力Form は装飾を見たまま書き、上のボックスで選んだ範囲を太字・文字の色にし、箱に装飾して描く
 import { expect, type Page, test } from "@playwright/test"
-import { drawerTool } from "./drawer"
+import { footerMenuTool } from "./footer-menu"
 import { selectText } from "./rich"
 
 async function onPaper(page: Page, x: number, y: number) {
@@ -12,7 +12,7 @@ test("本文の上のボックスで、選んだ範囲を太字と注意の色�
   page,
 }) => {
   await page.goto("/")
-  await (await drawerTool(page, "箱")).click()
+  await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -38,7 +38,7 @@ test("範囲を囲んだ色の中で色なしを押すと色が外れ、太字�
   page,
 }) => {
   await page.goto("/")
-  await (await drawerTool(page, "箱")).click()
+  await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -63,7 +63,7 @@ test("範囲を囲んだ色の中で色なしを押すと色が外れ、太字�
 
 test("記号の字を打てばそのまま字として残り、箱でも装飾にならない。元に戻すで書く前に戻る", async ({ page }) => {
   await page.goto("/")
-  await (await drawerTool(page, "箱")).click()
+  await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -81,7 +81,7 @@ test("記号の字を打てばそのまま字として残り、箱でも装飾�
 
 test("行の編集で書いた本文は、確定の前からリストの行に重ねて見せ、キャンセルでは元に戻る", async ({ page }) => {
   await page.goto("/")
-  await (await drawerTool(page, "リスト")).click()
+  await (await footerMenuTool(page, "リスト")).click()
   const at = await onPaper(page, 120, 120)
   await page.mouse.click(at.x, at.y)
   const add = page.getByRole("dialog", { name: "リストの追加" })
@@ -106,7 +106,7 @@ test("行の編集で書いた本文は、確定の前からリストの行に�
 
 test("マスターの設定で文字の色を自分用に変えると、図面の本文のその色が変わる", async ({ page }) => {
   await page.goto("/")
-  await (await drawerTool(page, "箱")).click()
+  await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const add = page.getByRole("dialog", { name: "ボックスの追加" })

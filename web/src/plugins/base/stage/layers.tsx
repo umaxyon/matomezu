@@ -17,7 +17,7 @@ export function PaperLayer({ stage: id }: StageSlotProps) {
   return <PaperFrame stage={stage} className={styles.paper} aria-hidden="true" data-paper-surface />
 }
 
-// 可変ページの、印刷区画の境目の破線（見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。ドロワーのボタンで隠せる）
+// 可変ページの、印刷区画の境目の破線（見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。フッタメニューのボタンで隠せる）
 export function PrintAreaLayer({ stage: id }: StageSlotProps) {
   const stage = useStage(id)
   const paper = stage && paperOf(stage)

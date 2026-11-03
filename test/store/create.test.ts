@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
-import { isMatomezuError, problemText } from "../../web/src/core/errors"
+import { type MatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import { BUILTIN } from "../../web/src/plugins"
 import { BASE, createBookIn } from "../../web/src/plugins/base"
@@ -120,7 +120,8 @@ describe("インスタンスを組み立てる", () => {
       commands: [defineCommand({ id: "nameless:run", title: "無い名前" as never, run: () => {}, when: () => true })],
     })
     const e = thrown(() => createMatomezu({ plugins: [...BUILTIN, nameless], partial: true }))
-    expect(isMatomezuError(e) && e.details.map(problemText)).toEqual([
+    expect(e).toMatchObject({ name: "MatomezuError" })
+    expect((e as MatomezuError).details.map(problemText)).toEqual([
       "E018 command nameless:run: title 無い名前 is not in the messages",
     ])
   })
@@ -142,8 +143,8 @@ describe("インスタンスを組み立てる", () => {
   test("同じ id のコマンドやダイアログを 2 つのプラグインが持てば作らない", () => {
     const again = definePlugin({ id: "notes", dialogs: [defineDialog({ id: "notes:shot" })] })
     const e = thrown(() => createMatomezu({ plugins: [...BUILTIN, notes, again], partial: true }))
-    expect(isMatomezuError(e) && e.code).toBe("E016")
-    expect(isMatomezuError(e) && e.details.map(d => d.code)).toEqual(["E001"])
+    expect(e).toMatchObject({ name: "MatomezuError", code: "E016", details: [{ code: "E001" }] })
+    expect((e as MatomezuError).details).toHaveLength(1)
   })
 
   test("形が名指すダイアログは、追加なら ShapeAddArgs、編集なら ShapeEditArgs を受けるものでなければ型の誤り", () => {
@@ -200,7 +201,8 @@ describe("インスタンスを組み立てる", () => {
   test("ブックのタイプが名指すページのダイアログが無ければ E031 で作らない", () => {
     const plugin = definePlugin({ id: "notes", bookTypes: [LEAF] })
     const e = thrown(() => createMatomezu({ plugins: [...BUILTIN, plugin], partial: true }))
-    expect(isMatomezuError(e) && e.details.map(problemText)).toEqual([
+    expect(e).toMatchObject({ name: "MatomezuError" })
+    expect((e as MatomezuError).details.map(problemText)).toEqual([
       "E031 bookType notes:leaf: unknown dialog notes:leaf-new",
       "E031 bookType notes:leaf: unknown dialog notes:leaf-settings",
     ])

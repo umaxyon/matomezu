@@ -116,10 +116,6 @@ export function matomezuError(p: Problem, details: readonly Problem[] = []): Mat
   return Object.assign(new Error(lines.join("\n")), { name: "MatomezuError", code: p.code, details })
 }
 
-export function isMatomezuError(e: unknown): e is MatomezuError {
-  return e instanceof Error && e.name === "MatomezuError" && typeof (e as { code?: unknown }).code === "string"
-}
-
 // その場で投げる
 export function fail<C extends ErrorCode>(code: C, ...params: ParamsArg<C>): never {
   throw matomezuError(problem(code, ...params))

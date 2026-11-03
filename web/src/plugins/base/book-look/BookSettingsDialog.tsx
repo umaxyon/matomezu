@@ -7,8 +7,8 @@ import { useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
-import { useAllowed, usePerform } from "../../../ui/view-hooks"
+import { useActions } from "../../../ui/store-context"
+import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -22,10 +22,7 @@ import { BOOK_UPDATE } from "."
 export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
   const form = useId()
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    return o ? s.books[o.book] : undefined
-  })
+  const book = useBook(stage) ?? undefined // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
   const { previewDialog } = useActions()
   const perform = usePerform(stage)
   const [title, setTitle] = useState(book?.title ?? "")

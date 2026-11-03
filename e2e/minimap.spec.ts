@@ -1,12 +1,13 @@
-// ミニマップ（base/minimap）: 下の行に乗ると上がるドロワーのものと、右ボタンの長押しのアイコンから出すもの。
+// ミニマップ（base/minimap）: 下の行に乗ると上がるフッタメニューのものと、右ボタンの長押しのアイコンから出すもの。
 // 見えている範囲の四角をドラッグすると、紙がついて動く
 import { expect, type Page, test } from "@playwright/test"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })
-const seen = (page: Page, where: "drawer" | "picker") => page.locator(`[data-minimap=${where}] [data-minimap-seen]`)
+const seen = (page: Page, where: "footer-menu" | "picker") =>
+  page.locator(`[data-minimap=${where}] [data-minimap-seen]`)
 
-// 下の行に乗せて、ドロワーを上げる
-async function drawer(page: Page) {
+// 下の行に乗せて、フッタメニューを上げる
+async function footerMenu(page: Page) {
   const tabs = (await page.getByRole("tablist").first().boundingBox())!
   await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
   await expect(page.locator('button[aria-haspopup="menu"]').first()).toHaveAttribute("aria-expanded", "true")
@@ -15,14 +16,14 @@ async function drawer(page: Page) {
 // Ctrl+ホイールを 100 回したときの倍率（回した量に合わせて滑らかに変える。base/zoom の wheelZoom）
 const WHEEL_100 = 1.16
 
-test("ドロワーの行の左端に拡大縮小、その真上にミニマップが出る。四角をドラッグすると紙が動き、ドロワーから出ても下がらない", async ({
+test("フッタメニューの行の左端に拡大縮小、その真上にミニマップが出る。四角をドラッグすると紙が動き、フッタメニューから出ても下がらない", async ({
   page,
 }) => {
   await page.goto("/")
   await expect(paper(page)).toBeVisible()
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await drawer(page)
-  const map = page.locator("[data-minimap=drawer]")
+  await footerMenu(page)
+  const map = page.locator("[data-minimap=footer-menu]")
   await expect(map.getByRole("img", { name: "ミニマップ" })).toBeVisible()
   // ミニマップは拡大縮小の真上に、同じ幅で付いている
   const zoom = (await page.getByTitle("倍率").first().boundingBox())!
@@ -30,9 +31,9 @@ test("ドロワーの行の左端に拡大縮小、その真上にミニマッ�
   expect(zoom.y).toBeGreaterThan(m.y + m.height - 2)
   expect(zoom.x).toBeLessThan(m.x + m.width)
   const before = (await paper(page).boundingBox())!.y
-  // 四角をつかんで、ドロワーの外（紙の上）まで動かしても下がらない
-  await seen(page, "drawer").hover() // 上がり終えるまで待つ
-  const box = (await seen(page, "drawer").boundingBox())!
+  // 四角をつかんで、フッタメニューの外（紙の上）まで動かしても下がらない
+  await seen(page, "footer-menu").hover() // 上がり終えるまで待つ
+  const box = (await seen(page, "footer-menu").boundingBox())!
   await page.mouse.down()
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 15, { steps: 5 })
   await expect.poll(async () => (await paper(page).boundingBox())!.y).toBeLessThan(before - 20)
@@ -44,14 +45,14 @@ test("ドロワーの行の左端に拡大縮小、その真上にミニマッ�
   await expect(trigger).toHaveAttribute("aria-expanded", "false")
 })
 
-test("ドロワーの拡大縮小で倍率が変わる", async ({ page }) => {
+test("フッタメニューの拡大縮小で倍率が変わる", async ({ page }) => {
   await page.goto("/")
   await expect(paper(page)).toBeVisible()
-  await drawer(page)
+  await footerMenu(page)
   const level = page.getByTitle("倍率").first()
   await expect(level).toHaveText("100%")
   await page.getByRole("button", { name: "拡大" }).first().click()
-  await drawer(page)
+  await footerMenu(page)
   await expect(level).toHaveText("110%")
 })
 
@@ -165,15 +166,15 @@ test("拡大縮小はなめらかに移り、途中でもポインタの下の�
   await expect(paper(page)).not.toHaveCSS("transition-duration", "0.2s")
 })
 
-test("ドロワーの拡大縮小の帯とミニマップの上でホイールを回すと（Ctrl 無しでも）、倍率が滑らかに変わり、ページはスクロールしない。紙の上のホイールは紙をずらす", async ({
+test("フッタメニューの拡大縮小の帯とミニマップの上でホイールを回すと（Ctrl 無しでも）、倍率が滑らかに変わり、ページはスクロールしない。紙の上のホイールは紙をずらす", async ({
   page,
 }) => {
   await page.goto("/")
   await expect(paper(page)).toBeVisible()
-  await drawer(page)
+  await footerMenu(page)
   const level = page.getByTitle("倍率").first()
   await expect(level).toHaveText("100%")
-  // ドロワーが上がりきる（帯が動かなくなる）まで待つ
+  // フッタメニューが上がりきる（帯が動かなくなる）まで待つ
   let last = Number.NaN
   await expect
     .poll(async () => {
@@ -191,7 +192,7 @@ test("ドロワーの拡大縮小の帯とミニマップの上でホイール�
   await expect(level).toHaveText("100%")
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
   // ミニマップの上のホイールも拡大縮小する
-  const map = (await page.locator("[data-minimap=drawer]").boundingBox())!
+  const map = (await page.locator("[data-minimap=footer-menu]").boundingBox())!
   await page.mouse.move(map.x + map.width / 2, map.y + map.height / 2)
   await page.mouse.wheel(0, -100)
   await expect(level).toHaveText(`${Math.round(WHEEL_100 * 100)}%`)
@@ -202,6 +203,6 @@ test("ドロワーの拡大縮小の帯とミニマップの上でホイール�
   await page.mouse.move(p.x + 300, p.y + 200)
   await page.mouse.wheel(0, 200)
   await expect.poll(async () => (await paper(page).boundingBox())!.y).toBeLessThan(p.y - 20)
-  await drawer(page)
+  await footerMenu(page)
   await expect(level).toHaveText("100%")
 })
