@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
 import { addList, addRow } from "./list"
 

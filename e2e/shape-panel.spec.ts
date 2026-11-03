@@ -1,6 +1,6 @@
 // シェイプパネル（base のツールボックス）: フッタメニューの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く。
 // 図面のパネルにはシェイプ（@matomezu/art）が並ぶ
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })

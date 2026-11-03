@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
 
 // グラフの動きで棒や点の大きさが変わる間に測らないよう、OS の動きを減らす設定で開く（動きを確かめるテストは除く）

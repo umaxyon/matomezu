@@ -1,19 +1,21 @@
-import { readFileSync } from "node:fs"
-import { expect, type Page, test } from "@playwright/test"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { E2E_BOOKS } from "../books"
+import { aiAuth, expect, type Page, test } from "../fixtures"
 import { footerMenuTool } from "../footer-menu"
 
-// 1 つの常駐（空の matomezu 保管庫フォルダ）を順に使う
-test.describe.configure({ mode: "serial" })
+// 常駐を空にして始め、テストごとに使うブックを置く
+test.use({ books: [] })
+
+// 図面のブック（A4 横のページ p1 が 1 つ）
+const E2E_1 = { ...E2E_BOOKS[0]!, id: "e2e-1" }
 
 // 常駐に置いてあるもの
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
 // 置いてあるブック id のデータ（無ければ undefined）
 const bookIn = async (page: Page, id: string): Promise<{ trashed?: string } | undefined> =>
   (await data(page)).books.find((b: { id: string }) => b.id === id)?.book
-// AI の入口の合言葉（常駐の matomezu 保管庫フォルダはポートごと。scripts/e2e-server.ts）
-const aiToken = (): string =>
-  JSON.parse(readFileSync(`e2e/.home-${new URL(test.info().project.use.baseURL ?? "").port}/server.json`, "utf8")).token
+// ブックを常駐に置く（テストの用意の口）
+const put = async <B extends { id: string }>(page: Page, book: B) =>
+  expect((await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })).ok()).toBe(true)
 
 test("初めて開くと、ブックを持たずにマスターを出す", async ({ page }) => {
   await page.goto("/")
@@ -31,9 +33,8 @@ test("マスターで変えた設定は常駐に残り、読み直しても同�
 })
 
 test("置いた箱は少し待って常駐に残り、読み直しても同じ所にある", async ({ page }) => {
-  const book = { ...SAMPLE_BOOKS[0]!, id: "e2e-1" }
-  const put = await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })
-  expect(put.ok()).toBe(true)
+  const book = E2E_1
+  await put(page, book)
   await page.goto("/")
   await (await footerMenuTool(page, "箱")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
@@ -52,12 +53,22 @@ test("置いた箱は少し待って常駐に残り、読み直しても同じ�
 test("1 つの窓で置いた箱は、同じブックを開いているほかの窓にもすぐ出る。ほかの窓で動かすと、元の窓でも動く", async ({
   browser,
 }) => {
-  // 前のテストで置いたブック（e2e-1。箱が 1 つ）を、どちらの窓も最初に開く
+  // 箱が 1 つのブック e2e-1 を、どちらの窓も最初に開く
   const a = await browser.newPage()
   const b = await browser.newPage()
+  const box = {
+    id: "k1",
+    x: 40,
+    y: 40,
+    item: "@matomezu/box:shape-nest-box",
+    w: 100,
+    h: 64,
+    props: { caption: "残る箱" },
+  }
+  await put(a, { ...E2E_1, pages: [{ ...E2E_1.pages[0]!, items: [box] }] })
   for (const page of [a, b]) {
     await page.goto("/")
-    await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", SAMPLE_BOOKS[0]!.title)
+    await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", E2E_1.title)
     await expect(page.locator("[data-item]")).toHaveCount(1)
   }
   await (await footerMenuTool(a, "箱")).click()
@@ -69,23 +80,23 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
   const shared = (page: typeof a) => page.locator("[data-item]", { hasText: "共有の箱" })
   await expect(shared(b)).toBeVisible()
   const before = (await shared(a).boundingBox())!
-  const box = (await shared(b).boundingBox())!
-  await b.mouse.move(box.x + 20, box.y + 20)
+  const at = (await shared(b).boundingBox())!
+  await b.mouse.move(at.x + 20, at.y + 20)
   await b.mouse.down()
-  await b.mouse.move(box.x + 80, box.y + 60, { steps: 4 })
+  await b.mouse.move(at.x + 80, at.y + 60, { steps: 4 })
   await b.mouse.up()
   await expect.poll(async () => (await shared(a).boundingBox())!.x).toBeGreaterThan(before.x + 40)
-  // 開いた窓を閉じる（残すと、あとのテストで AI の view と show がこの窓を選ぶ）
+  // 開いた窓を閉じる（残すと、同じワーカーのあとのテストで AI の view と show がこの窓を選ぶ）
   await a.close()
   await b.close()
 })
 
 test("AI の入口からは、最後にフォーカスした窓が見ているものが分かり、AI が置いた箱はすぐ窓に出る", async ({ page }) => {
-  const token = aiToken()
-  const ai = { Authorization: `Bearer ${token}` }
+  const ai = aiAuth()
+  await put(page, E2E_1)
   await page.goto("/")
   await page.bringToFront()
-  await expect(page.locator("[data-item]").first()).toBeVisible()
+  await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toMatchObject({ book: "e2e-1", page: "p1" })
@@ -102,8 +113,8 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
 })
 
 test("AI が show で頼むと、最後にフォーカスした窓が、分けたステージでそのブックを開く", async ({ page }) => {
-  const token = aiToken()
-  const ai = { Authorization: `Bearer ${token}` }
+  const ai = aiAuth()
+  await put(page, E2E_1)
   await page.goto("/")
   await page.bringToFront()
   await expect
@@ -157,10 +168,9 @@ const LINE_BOOK = {
 test("線は箱より手前に描かれ、選択の道具で押すと選ばれ、Delete と右クリックのメニューで消せる。箱を消すと、つながる線も消える", async ({
   page,
 }) => {
-  const token = aiToken()
-  const ai = { Authorization: `Bearer ${token}` }
-  const put = await page.request.put(`/api/books-for-test/${LINE_BOOK.id}`, { data: { book: LINE_BOOK, base: 0 } })
-  expect(put.ok()).toBe(true)
+  const ai = aiAuth()
+  await put(page, E2E_1)
+  await put(page, LINE_BOOK)
   await page.goto("/")
   await page.bringToFront()
   // 前のテストの窓ではなく、開いたばかりのこの窓に届くように、この窓にフォーカスを知らせる（すでに前にある窓は focus が起きない）
@@ -207,9 +217,8 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
 test("開いているブックとページは URL に入り、読み直しても同じものが開く（戻る・進むは host-client/location.test.ts）", async ({
   page,
 }) => {
-  const book = { ...SAMPLE_BOOKS[1]!, id: "e2e-url" }
-  const put = await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })
-  expect(put.ok()).toBe(true)
+  const book = { ...E2E_BOOKS[1]!, id: "e2e-url" }
+  await put(page, book)
   await page.goto(`/?b0=${book.id}&p0=p1&v0=1,0,0&c=0&r=0.5`)
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   await page.reload()
@@ -220,14 +229,8 @@ test("開いているブックとページは URL に入り、読み直しても
 test("ブックを開くダイアログで、行のゴミ箱のボタンでゴミ箱に入れ、ゴミ箱の一覧から戻す・消すができる。ロック中のブックにはボタンが出ない", async ({
   page,
 }) => {
-  const base = SAMPLE_BOOKS[0]!
-  for (const [id, title, locked] of [
-    ["e2e-trash", "捨てるブック", false],
-    ["e2e-locked", "鍵のブック", true],
-  ] as const) {
-    const book = { ...base, id, title, ...(locked ? { locked: true } : {}) }
-    expect((await page.request.put(`/api/books-for-test/${id}`, { data: { book, base: 0 } })).ok()).toBe(true)
-  }
+  await put(page, { ...E2E_1, id: "e2e-trash", title: "捨てるブック" })
+  await put(page, { ...E2E_1, id: "e2e-locked", title: "鍵のブック", locked: true })
   await page.goto("/")
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   const openDialog = async () => {
@@ -262,11 +265,13 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
 test("ロック中のブックの名前とページタブに鍵が出る。鍵は押せず、ブックとページは設定のダイアログの見出しの鍵で外す（ロック中は項目を押せない）", async ({
   page,
 }) => {
-  // 前のテストで置いたロック中のブック（e2e-locked）の最初のページにもロックを掛ける
-  const have = (await data(page)).books.find((b: { id: string }) => b.id === "e2e-locked")
-  const pages = have.book.pages.map((p: object, i: number) => (i === 0 ? { ...p, locked: true } : p))
-  await page.request.put("/api/books-for-test/e2e-locked", {
-    data: { book: { ...have.book, pages }, base: have.version },
+  // ブックと、その最初のページにロックを掛ける
+  await put(page, {
+    ...E2E_1,
+    id: "e2e-locked",
+    title: "鍵のブック",
+    locked: true,
+    pages: [{ ...E2E_1.pages[0]!, locked: true }],
   })
   await page.goto("/?b0=e2e-locked")
   await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(2)
@@ -300,7 +305,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
 })
 
 test("AI がマークダウンのページの原文を page-update で変えると、プレビューの見出しが変わる", async ({ page }) => {
-  const ai = { Authorization: `Bearer ${aiToken()}` }
+  const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto("/")
   await page.bringToFront()

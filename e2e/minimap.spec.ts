@@ -1,6 +1,6 @@
 // ミニマップ（base/minimap）: 下の行に乗ると上がるフッタメニューのものと、右ボタンの長押しのアイコンから出すもの。
 // 見えている範囲の四角をドラッグすると、紙がついて動く
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 const seen = (page: Page, where: "footer-menu" | "picker") =>

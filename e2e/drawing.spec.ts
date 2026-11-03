@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
 
 const items = (page: Page) => page.locator("[data-item]")

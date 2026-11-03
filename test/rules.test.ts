@@ -652,8 +652,17 @@ describe("テストの用意の手段", () => {
 
   test("ビルドタグ e2e を付けて組むのは、e2e の常駐を作るスクリプトだけ", () => {
     const scripts = filesUnder(join(ROOT, "scripts")).map(p => relative(ROOT, p))
-    const places = [...scripts, "package.json", ...readdirSync(ROOT).filter(f => /^playwright.*\.ts$/.test(f))]
-    expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8")))).toEqual(["scripts/e2e-server.ts"])
+    const tests = filesUnder(join(ROOT, "e2e")).map(p => relative(ROOT, p))
+    const places = [
+      ...scripts,
+      ...tests,
+      "package.json",
+      ...readdirSync(ROOT).filter(f => /^playwright.*\.ts$/.test(f)),
+    ]
+    expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8"))).sort()).toEqual([
+      "scripts/e2e-build.ts",
+      "scripts/e2e-server.ts",
+    ])
   })
 
   test("e2e のファイルと、同じクレートの Go のテストのファイルの両方にある関数は、同じ中身にする（go test はタグを付けずに流す）", () => {

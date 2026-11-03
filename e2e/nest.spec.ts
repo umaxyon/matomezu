@@ -1,5 +1,5 @@
 // 内包: 付け替えの道具のドラッグで、箱を内包ボックスの中へ入れ、外へ出す
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
 
 // キャプションの文字を含む形のうち、一番内側の形（親は子の文字も含むので、並びの最後）
