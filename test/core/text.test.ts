@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { clampLines, type Font, textWidth, wrap } from "../../web/src/plugins/base/text/text"
+import { clampChars, clampLines, type Font, textWidth, wrap } from "../../web/src/plugins/base/text/text"
 
 const F: Font = { size: 10, weight: 400 }
 const B: Font = { size: 10, weight: 700 }
@@ -65,4 +65,12 @@ test("最大の行数を超えたら、最後の行を … を足して幅に収
   expect(clampLines(lines, 2, em(5), F)).toEqual(["あいうえお", "かきくけ…"])
   expect(clampLines(lines, 5, em(5), F)).toEqual(lines)
   expect(clampLines(["あいう", "えお"], 1, em(5), F)).toEqual(["あいう…"])
+})
+
+test("clampChars は max 字までに切って … を足す。ちょうどなら切らず、改行は空白に、字はコードポイントで数える", () => {
+  expect(clampChars("一二三四五", 5)).toBe("一二三四五")
+  expect(clampChars("一二三四五六", 5)).toBe("一二三四五…")
+  expect(clampChars("一行目\n二行目", 10)).toBe("一行目 二行目")
+  expect(clampChars("𠮷𠮷𠮷", 2)).toBe("𠮷𠮷…")
+  expect(clampChars("ab   cd", 3)).toBe("ab…")
 })

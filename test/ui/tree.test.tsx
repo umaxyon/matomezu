@@ -520,7 +520,7 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
     within(menu)
       .getAllByRole("menuitem")
       .map(m => m.textContent),
-  ).toEqual(["キャプションを書くF2", "節の色", "節の大きさ", "削除Delete", "コメント", "マーク"]) // キーを添える
+  ).toEqual(["キャプションを書くF2", "節の色", "節の大きさ", "削除Delete", "AIに伝言", "AIに示す"]) // キーを添える
   fireEvent.click(within(menu).getByRole("menuitem", { name: /^削除/ }))
   expect(kids()).toEqual([a])
   expect(selected()).toBe(a)

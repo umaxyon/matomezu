@@ -3,8 +3,8 @@ import { expect, test } from "bun:test"
 import { type Annotation, annotationsForAi } from "../../web/src/core/annotation"
 import { performIn } from "../../web/src/core/perform"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { COMMENT_DRAFT } from "../../web/src/plugins/base/comment/commands"
 import { MARK_PICKER } from "../../web/src/plugins/base/mark/commands"
+import { NOTE_DRAFT } from "../../web/src/plugins/base/note/commands"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { isShown } from "../../web/src/store/commands"
 import { CORE_CATALOG, newStore } from "../support"
@@ -103,17 +103,17 @@ test("右クリックのコマンドは、base のステージの画面の状態
   expect(store.actions.command("s1", "@matomezu/base:mark-new", a)).toBe(true)
   expect(MARK_PICKER.read(base())).toEqual({ anchors: [a] })
   store.actions.select("s1", [b, a])
-  store.actions.command("s1", "@matomezu/base:comment-new", a)
-  expect(COMMENT_DRAFT.read(base())).toEqual({ anchors: [b, a] })
+  store.actions.command("s1", "@matomezu/base:note-new", a)
+  expect(NOTE_DRAFT.read(base())).toEqual({ anchors: [b, a] })
   expect(MARK_PICKER.read(base())).toEqual({ anchors: [a] })
-  store.actions.command("s1", "@matomezu/base:comment-new", "x")
-  expect(COMMENT_DRAFT.read(base())).toEqual({ anchors: ["x"] })
+  store.actions.command("s1", "@matomezu/base:note-new", "x")
+  expect(NOTE_DRAFT.read(base())).toEqual({ anchors: ["x"] })
 })
 
-test("マスターでは、右クリックの「コメント」「マーク」を出さない", () => {
+test("マスターでは、右クリックの「AIに伝言」「AIに示す」を出さない", () => {
   const { store } = ready()
   const shown = () =>
-    ["@matomezu/base:comment-new", "@matomezu/base:mark-new"].map(id =>
+    ["@matomezu/base:note-new", "@matomezu/base:mark-new"].map(id =>
       isShown(store, store.state.getState(), "s1", id as never),
     )
   expect(shown()).toEqual([true, true])

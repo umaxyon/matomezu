@@ -5,8 +5,6 @@ import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { CREATE_SETTINGS_CHECK } from "./book-new/book-create"
 import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRASH_EMPTY } from "./book-open"
-import { COMMENT, COMMENT_ADD, COMMENT_READ, COMMENT_REMOVE, COMMENT_REPLY, COMMENT_UPDATE } from "./comment"
-import { COMMENT_NEW } from "./comment/commands"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
@@ -26,6 +24,8 @@ import {
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
 import { MARK_NEW } from "./mark/commands"
+import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_UPDATE } from "./note"
+import { NOTE_NEW } from "./note/commands"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
@@ -155,11 +155,10 @@ export const BASE = defineBuiltin(
       TRASH_EMPTY,
       SETTINGS_SET,
       HISTORY_RESTORE,
-      COMMENT_ADD,
-      COMMENT_REPLY,
-      COMMENT_READ,
-      COMMENT_UPDATE,
-      COMMENT_REMOVE,
+      NOTE_ADD,
+      NOTE_UPDATE,
+      NOTE_READ,
+      NOTE_REMOVE,
       MARK_ADD,
       MARK_READ,
       MARK_REMOVE,
@@ -172,7 +171,7 @@ export const BASE = defineBuiltin(
     skins: [DARK, LIGHT, MATOMEZU_LIGHT_SKIN, MATOMEZU_DARK_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
-    annotations: [COMMENT, MARK],
+    annotations: [NOTE, MARK],
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK, THEME_TEXT_COLORS_CHECK],
     normalizeSteps: [VARIABLE_PAGES],
     commands: [
@@ -201,7 +200,7 @@ export const BASE = defineBuiltin(
       SETTINGS_SET_COMMAND,
       UNDO,
       REDO,
-      COMMENT_NEW,
+      NOTE_NEW,
       MARK_NEW,
       RIGHT_SIDE_PANEL_CLOSE,
     ],
@@ -247,11 +246,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:trash-empty": typeof TRASH_EMPTY
     "@matomezu/base:settings-set": typeof SETTINGS_SET
     "@matomezu/base:book-revert": typeof HISTORY_RESTORE
-    "@matomezu/base:comment-add": typeof COMMENT_ADD
-    "@matomezu/base:comment-reply": typeof COMMENT_REPLY
-    "@matomezu/base:comment-read": typeof COMMENT_READ
-    "@matomezu/base:comment-update": typeof COMMENT_UPDATE
-    "@matomezu/base:comment-remove": typeof COMMENT_REMOVE
+    "@matomezu/base:note-add": typeof NOTE_ADD
+    "@matomezu/base:note-update": typeof NOTE_UPDATE
+    "@matomezu/base:note-read": typeof NOTE_READ
+    "@matomezu/base:note-remove": typeof NOTE_REMOVE
     "@matomezu/base:mark-add": typeof MARK_ADD
     "@matomezu/base:mark-read": typeof MARK_READ
     "@matomezu/base:mark-remove": typeof MARK_REMOVE
@@ -266,7 +264,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:lock": typeof LOCK
   }
   interface AnnotationTable {
-    "@matomezu/base:comment": typeof COMMENT
+    "@matomezu/base:note": typeof NOTE
     "@matomezu/base:mark": typeof MARK
   }
   interface ToolTable {
@@ -318,7 +316,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS
     "@matomezu/base:settings-set": typeof SETTINGS_SET_COMMAND
-    "@matomezu/base:comment-new": typeof COMMENT_NEW
+    "@matomezu/base:note-new": typeof NOTE_NEW
     "@matomezu/base:mark-new": typeof MARK_NEW
     "@matomezu/base:right-side-panel-close": typeof RIGHT_SIDE_PANEL_CLOSE
   }

@@ -171,6 +171,12 @@ export function wrap(text: string, width: number, font: Font): string[] {
 
 export const ELLIPSIS = "…"
 
+// 文を max 字までにする（改行は空白にし、超えたら max 字で切って … を足す。字はコードポイントで数える）
+export function clampChars(text: string, max: number): string {
+  const chars = [...text.replace(/\s*\n\s*/g, " ").trim()]
+  return chars.length <= max ? chars.join("") : trimEnd(chars.slice(0, max).join("")) + ELLIPSIS
+}
+
 // 行を max 行までにする。超えたら最後の行を、… を足して幅 width に収まるまで縮める
 export function clampLines(lines: readonly string[], max: number, width: number, font: Font): string[] {
   if (lines.length <= max) return [...lines]

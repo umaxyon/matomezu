@@ -15,23 +15,26 @@ async function addBox(page: Page, x: number, caption: string) {
   await expect(dialog).toBeHidden()
 }
 
-test("箱の右クリックの「コメント」で、箱の右にコメントの下書きの吹き出しが開き、書いて付けると吹き出しで出る。たたむと右上にコメントの絵が出て、押すと右サイドパネルに出る。消すと無くなる", async ({
+const panel = (page: Page) => page.getByRole("complementary", { name: "右サイドパネル" })
+
+test("箱の右クリックの「AIに伝言」で、箱の右に伝言の下書きの吹き出しが開き、書いて付けると文の始めだけの吹き出しで出る。押すと右サイドパネルに出て、文を直して保存できる。消すと無くなる", async ({
   page,
 }) => {
   await page.goto("/")
   await addBox(page, 200, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "コメント" }).click()
-  const draft = page.getByRole("group", { name: "コメントを付ける" })
-  const text = draft.getByLabel("コメント", { exact: true })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  const draft = page.getByRole("group", { name: "伝言を付ける" })
+  const text = draft.getByLabel("伝言", { exact: true })
   await expect(text).toBeFocused()
+  await expect(draft.getByLabel("伝わったら自動で消す")).toBeChecked()
   // 幅は決まった幅で、上の辺を箱にそろえ、書いた分だけ下へ伸びる
   const b = (await box.boundingBox())!
   const before = (await draft.boundingBox())!
   expect(Math.round(before.y)).toBe(Math.round(b.y))
   expect(before.x).toBeGreaterThan(b.x + b.width)
-  await text.fill("ここを直して\n二行目\n三行目")
+  await text.fill("ここを直してほしい、二行目まで読んでから\n三行目")
   const after = (await draft.boundingBox())!
   expect(Math.round(after.y)).toBe(Math.round(before.y))
   expect(after.height).toBeGreaterThan(before.height)
@@ -39,32 +42,31 @@ test("箱の右クリックの「コメント」で、箱の右にコメント�
   await draft.getByRole("button", { name: "付ける" }).click()
   await expect(draft).toHaveCount(0)
 
-  const bubble = page.getByRole("group", { name: "コメント", exact: true })
-  await expect(bubble).toContainText("ここを直して")
-  await bubble.getByLabel("返す", { exact: true }).fill("まだです")
-  await bubble.getByRole("button", { name: "返す" }).click()
-  await expect(bubble).toContainText("まだです")
-
-  await bubble.getByRole("button", { name: "たたむ" }).click()
-  const mark = page.getByRole("button", { name: "コメントを開く" })
-  await expect(mark).toBeVisible()
-  await mark.click()
-  const panel = page.getByRole("complementary", { name: "右サイドパネル" })
-  await expect(panel).toContainText("まだです")
-  await panel.getByRole("button", { name: "消す" }).click()
+  // 吹き出しは文の始めの 20 字と …
+  const bubble = page.getByRole("button", { name: "伝言を開く" })
+  await expect(bubble).toHaveText("ここを直してほしい、二行目まで読んでから…")
+  await bubble.click()
+  const field = panel(page).getByLabel("伝言", { exact: true })
+  await expect(field).toHaveValue("ここを直してほしい、二行目まで読んでから\n三行目")
+  const save = panel(page).getByRole("button", { name: "保存" })
+  await expect(save).toBeDisabled()
+  await field.fill("短く")
+  await save.click()
+  await expect(bubble).toHaveText("短く")
+  await panel(page).getByRole("button", { name: "消す" }).click()
   await expect(stands(page)).toHaveCount(0)
-  await expect(panel).toHaveCount(0)
+  await expect(panel(page)).toHaveCount(0)
 })
 
-test("コメントの下書きは Esc で付けずに閉じる。文が無ければ付けられない", async ({ page }) => {
+test("伝言の下書きは Esc で付けずに閉じる。文が無ければ付けられない", async ({ page }) => {
   await page.goto("/")
   await addBox(page, 200, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "コメント" }).click()
-  const draft = page.getByRole("group", { name: "コメントを付ける" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  const draft = page.getByRole("group", { name: "伝言を付ける" })
   await expect(draft.getByRole("button", { name: "付ける" })).toBeDisabled()
-  await draft.getByLabel("コメント", { exact: true }).press("Escape")
+  await draft.getByLabel("伝言", { exact: true }).press("Escape")
   await expect(draft).toHaveCount(0)
   await expect(items(page)).toHaveCount(1)
 })

@@ -8,8 +8,8 @@ const panel = (page: Page) => page.getByRole("complementary", { name: "右サイ
 // 隠した列も数えるので、役割ではなく名前で探す
 const stages = (page: Page) => page.locator('[aria-label="ステージ"]')
 
-// 紙の (x, 150) に箱を置き、コメントを付けてたたむ
-async function foldedComment(page: Page, x: number, caption: string, text: string) {
+// 紙の (x, 150) に箱を置き、伝言を付けてたたむ
+async function foldedNote(page: Page, x: number, caption: string, text: string) {
   await (await footerMenuTool(page, "箱")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).first().boundingBox())!
   await page.mouse.click(paper.x + x, paper.y + 150)
@@ -18,11 +18,19 @@ async function foldedComment(page: Page, x: number, caption: string, text: strin
   await dialog.getByRole("button", { name: "追加" }).click()
   await expect(dialog).toBeHidden()
   await items(page).filter({ hasText: caption }).click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "コメント" }).click()
-  const draft = page.getByRole("group", { name: "コメントを付ける" })
-  await draft.getByLabel("コメント", { exact: true }).fill(text)
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  const draft = page.getByRole("group", { name: "伝言を付ける" })
+  await draft.getByLabel("伝言", { exact: true }).fill(text)
   await draft.getByRole("button", { name: "付ける" }).click()
-  await page.getByRole("group", { name: "コメント", exact: true }).getByRole("button", { name: "たたむ" }).click()
+  await foldNote(page, text)
+}
+
+// 吹き出しに文 text を出している伝言を、右サイドパネルでたたんで閉じる
+async function foldNote(page: Page, text: string) {
+  await page.getByRole("button", { name: "伝言を開く" }).filter({ hasText: text }).click()
+  await panel(page).getByRole("button", { name: "たたむ" }).click()
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
 }
 
 const widths = async (page: Page) => {
@@ -30,16 +38,16 @@ const widths = async (page: Page) => {
   return boxes.map(Math.round)
 }
 
-test("コメントの絵を押すと、窓の右から 320px の右サイドパネルが出て、分けていればそのステージを窓いっぱいに広げ、もう片方の幅は 0。Esc か閉じるボタンで閉じると、分けた幅に戻る", async ({
+test("伝言の絵を押すと、窓の右から 320px の右サイドパネルが出て、分けていればそのステージを窓いっぱいに広げ、もう片方の幅は 0。Esc か閉じるボタンで閉じると、分けた幅に戻る", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
-  await foldedComment(page, 200, "一", "見てほしい")
+  await foldedNote(page, 200, "一", "見てほしい")
   await (await fromMenu(page, "画面を分割")).click()
   const split = await widths(page)
   expect(split[1]).toBeGreaterThan(100)
-  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await page.getByRole("button", { name: "伝言を開く" }).click()
   await expect(panel(page)).toContainText("見てほしい")
   expect(Math.round((await panel(page).boundingBox())!.width)).toBe(320)
   const viewport = page.viewportSize()!
@@ -50,20 +58,20 @@ test("コメントの絵を押すと、窓の右から 320px の右サイドパ�
   await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
   expect(await widths(page)).toEqual(split)
-  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await page.getByRole("button", { name: "伝言を開く" }).click()
   await panel(page).getByRole("button", { name: "右サイドパネルを閉じる" }).click()
   await expect(panel(page)).toHaveCount(0)
   expect(await widths(page)).toEqual(split)
 })
 
-test("外を押すと閉じる。ハンドツールの間は閉じない。ステージで押しても Esc で閉じる。開いている間に別のコメントを押すと、閉じるだけ。たたんだ絵を押してもたたんだまま", async ({
+test("外を押すと閉じる。ハンドツールの間は閉じない。ステージで押しても Esc で閉じる。開いている間に別の伝言を押すと、閉じるだけ。たたんだ絵を押してもたたんだまま", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
-  await foldedComment(page, 200, "一", "一つ目")
-  await foldedComment(page, 500, "二", "二つ目")
-  const icons = page.getByRole("button", { name: "コメントを開く" })
+  await foldedNote(page, 200, "一", "一つ目")
+  await foldedNote(page, 500, "二", "二つ目")
+  const icons = page.getByRole("button", { name: "伝言を開く" })
   await icons.first().click()
   await expect(panel(page)).toContainText("一つ目")
   await expect(icons).toHaveCount(2)
@@ -98,13 +106,13 @@ test("外を押すと閉じる。ハンドツールの間は閉じない。ス�
   await expect(icons).toHaveCount(2)
 })
 
-test("開いたステージのページが替わるか、分けると閉じる。中の「吹き出しを出す」で吹き出しに戻り、吹き出しの書き込みはキーでも右サイドパネルに出せる", async ({
+test("開いたステージのページが替わるか、分けると閉じる。中の「吹き出しを出す」で吹き出しに戻り、吹き出しはキーでも右サイドパネルに出せる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
-  await foldedComment(page, 200, "一", "見てほしい")
-  const icon = page.getByRole("button", { name: "コメントを開く" })
+  await foldedNote(page, 200, "一", "見てほしい")
+  const icon = page.getByRole("button", { name: "伝言を開く" })
   // ハンドツールの間は外を押しても閉じないので、ページや分割で閉じるかだけを見られる
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.move(paper.x + 40, paper.y + 500)
@@ -127,11 +135,11 @@ test("開いたステージのページが替わるか、分けると閉じる�
   // 吹き出しに戻す
   await icon.click()
   await panel(page).getByRole("button", { name: "吹き出しを出す" }).click()
-  const bubble = page.getByRole("group", { name: "コメント", exact: true })
+  const bubble = page.getByRole("group", { name: "伝言", exact: true })
   await expect(bubble).toContainText("見てほしい")
   await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
-  await bubble.getByRole("button", { name: "コメントを開く" }).focus()
+  await bubble.getByRole("button", { name: "伝言を開く" }).focus()
   await page.keyboard.press("Enter")
   await expect(panel(page)).toContainText("見てほしい")
 })
@@ -139,9 +147,9 @@ test("開いたステージのページが替わるか、分けると閉じる�
 test("窓が右サイドパネルの幅より狭ければ、右サイドパネルが窓の幅でステージを覆う。閉じれば戻る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
-  await foldedComment(page, 200, "一", "見てほしい")
+  await foldedNote(page, 200, "一", "見てほしい")
   await page.setViewportSize({ width: 300, height: 700 })
-  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await page.getByRole("button", { name: "伝言を開く" }).click()
   await expect(panel(page)).toContainText("見てほしい")
   expect(Math.round((await panel(page).boundingBox())!.width)).toBe(300)
   expect(await widths(page)).toEqual([0])
@@ -176,11 +184,11 @@ test("開くと倍率を 100% にして、付けた物を見せる。閉じれ�
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
   const full = (await paperBox(page)).w
-  await foldedComment(page, 1000, "端", "見てほしい")
+  await foldedNote(page, 1000, "端", "見てほしい")
   await zoomOut(page)
   await expect.poll(async () => (await paperBox(page)).w).toBeLessThan(full * 0.7)
   const before = await paperBox(page)
-  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await page.getByRole("button", { name: "伝言を開く" }).click()
   await expect(panel(page)).toContainText("見てほしい")
   await expect.poll(async () => (await paperBox(page)).w).toBe(full)
   // 付けた物は、ステージの見えている所に入っている
@@ -199,10 +207,10 @@ test("開いている間に紙をずらすか倍率を変えたら、閉じて�
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
   const full = (await paperBox(page)).w
-  await foldedComment(page, 1000, "端", "見てほしい")
+  await foldedNote(page, 1000, "端", "見てほしい")
   await zoomOut(page)
   await expect.poll(async () => (await paperBox(page)).w).toBeLessThan(full * 0.7)
-  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await page.getByRole("button", { name: "伝言を開く" }).click()
   await expect.poll(async () => (await paperBox(page)).w).toBe(full)
   // ホイールで紙をずらす
   const shown = await paperBox(page)
@@ -227,15 +235,15 @@ test("リストの中のスクロールの奥の行を開くと、リストも�
   const rows = list.locator("ul").locator("..")
   const last = list.getByRole("listitem").last()
   await last.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "コメント" }).click()
-  const draft = page.getByRole("group", { name: "コメントを付ける" })
-  await draft.getByLabel("コメント", { exact: true }).fill("奥の行")
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  const draft = page.getByRole("group", { name: "伝言を付ける" })
+  await draft.getByLabel("伝言", { exact: true }).fill("奥の行")
   await draft.getByRole("button", { name: "付ける" }).click()
-  await page.getByRole("group", { name: "コメント", exact: true }).getByRole("button", { name: "たたむ" }).click()
+  await foldNote(page, "奥の行")
   await rows.evaluate(el => {
     el.scrollTop = 0
   })
-  await page.getByRole("button", { name: "コメントを開く" }).click()
+  await page.getByRole("button", { name: "伝言を開く" }).click()
   await expect(panel(page)).toContainText("奥の行")
   await expect.poll(() => rows.evaluate(el => el.scrollTop)).toBeGreaterThan(0)
   const box = (await rows.boundingBox())!

@@ -50,7 +50,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-area-layer",
       "@matomezu/base:book-content",
       "@matomezu/base:stand-layer",
-      "@matomezu/base:comment-layer",
+      "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",
     ],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
@@ -59,7 +59,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:footer-menu-history": ["@matomezu/base:history-buttons"],
     "@matomezu/base:footer-menu-basics": ["@matomezu/base:stage-menu-buttons", "@matomezu/base:print-area-toggle"],
     "@matomezu/base:footer-menu-book-tools": ["@matomezu/base:toolbox"],
-    "@matomezu/base:right-side-panel": ["@matomezu/base:comment-thread"],
+    "@matomezu/base:right-side-panel": ["@matomezu/base:note-panel"],
   },
   menus: {
     "@matomezu/base:stage-menu": [
@@ -70,7 +70,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
   },
   // 押した物にアンカーがあれば、どの右クリックのメニューにも末尾に出す
-  anchorMenu: ["@matomezu/base:comment-new", "@matomezu/base:mark-new"],
+  anchorMenu: ["@matomezu/base:note-new", "@matomezu/base:mark-new"],
   // 紙（何も無い所）の右クリックのメニューは、一番上にページ全体を収める・初めの位置に戻す・画面の分割（分割中は、右クリックしたステージを閉じる）を置き、区切り線で分ける
   contextMenus: {
     "@matomezu/paper:paper-context": [

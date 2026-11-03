@@ -1,4 +1,4 @@
-// アノテーションのレイヤー（コメント・マーク）が共通に使うフック
+// アノテーションのレイヤー（伝言・マーク）が共通に使うフック
 import { useMemo } from "react"
 import type { Annotation } from "../../core/annotation"
 import { useActions, useMatomezuState } from "../../ui/store-context"

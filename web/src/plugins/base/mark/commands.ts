@@ -8,7 +8,7 @@ export const MARK_PICKER = anchorTargetState("markPicker")
 
 export const MARK_NEW = kit.defineCommand({
   id: "mark-new",
-  title: "Mark",
+  title: "Show to AI",
   performs: [MARK_ADD.id],
   run: MARK_PICKER.start,
   when: ctx => ctx.book !== null,

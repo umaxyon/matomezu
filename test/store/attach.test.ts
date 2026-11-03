@@ -21,7 +21,7 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
     "@matomezu/paper:item-place",
     "@matomezu/list:row-add",
     "@matomezu/line:line-connect",
-    "@matomezu/base:comment-add",
+    "@matomezu/base:note-add",
     "@matomezu/base:mark-add",
   ])
     expect(ids).toContain(id)
