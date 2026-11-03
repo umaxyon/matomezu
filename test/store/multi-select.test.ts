@@ -1,15 +1,18 @@
 // 複数選択（D84）: Mod+クリックの選び方（placing/selection.ts）、ブックが変わったら無くなった物を選択から外す（core の followBook）、全部を選ぶ・まとめて消すコマンド、
 // 複数を選んだ右クリックのメニュー、両端の形を一緒に動かした線の手直し（base の followConnectors）
 import { expect, test } from "bun:test"
-import { shapesOf } from "../../web/src/core/placed"
+import { type ItemPage, shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { amongSelected, onlySelected, toggledSelection } from "../../web/src/plugins/base"
 import { anchorsFor } from "../../web/src/plugins/base/context-menu/anchor-targets"
 import { linesOf } from "../../web/src/plugins/items/line/placed"
 import { movableTogether } from "../../web/src/plugins/paper/placing/items"
-import { pressSelection, sweptItems, sweptSelection } from "../../web/src/plugins/paper/placing/selection"
+import { pressSelection, sameLevel, sweptItems, sweptSelection } from "../../web/src/plugins/paper/placing/selection"
 import { isShown } from "../../web/src/store/commands"
 import { CORE_CATALOG, newStore } from "../support"
+
+// 形の無いページ（押した物がどれも形でないときの選び方を見る）
+const EMPTY = { id: "p0", items: [] } as unknown as ItemPage
 
 function ready() {
   const store = newStore()
@@ -31,12 +34,12 @@ const move = (store: Store, items: string[], by: { x: number; y: number }) =>
   store.actions.perform("@matomezu/paper:item-move", { page: "p1", items, by }, { book: "b1" })
 
 test("押したときの選び方: Mod なら足す（選んでいる物は、動かさずに離したときに外す）。修飾なしで選んでいる物を押したら、離したときにその 1 つへ選び直す", () => {
-  expect(pressSelection([], "a", false)).toEqual({ now: ["a"], drag: ["a"], release: null })
-  expect(pressSelection(["a"], "b", true)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: null })
-  expect(pressSelection(["a", "b"], "a", true)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: ["b"] })
-  expect(pressSelection(["a", "b"], "b", false)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: ["b"] })
-  expect(pressSelection(["a"], "a", false).release).toBeNull()
-  expect(pressSelection(["a", "b"], "c", false)).toEqual({ now: ["c"], drag: ["c"], release: null })
+  expect(pressSelection(EMPTY, [], "a", false)).toEqual({ now: ["a"], drag: ["a"], release: null })
+  expect(pressSelection(EMPTY, ["a"], "b", true)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: null })
+  expect(pressSelection(EMPTY, ["a", "b"], "a", true)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: ["b"] })
+  expect(pressSelection(EMPTY, ["a", "b"], "b", false)).toEqual({ now: ["a", "b"], drag: ["a", "b"], release: ["b"] })
+  expect(pressSelection(EMPTY, ["a"], "a", false).release).toBeNull()
+  expect(pressSelection(EMPTY, ["a", "b"], "c", false)).toEqual({ now: ["c"], drag: ["c"], release: null })
   expect(toggledSelection(["a", "b"], "a")).toEqual(["b"])
   expect(toggledSelection(["a"], "b")).toEqual(["a", "b"])
   expect(onlySelected(["a"], "a")).toBe(true)
@@ -75,6 +78,22 @@ test("全部を選ぶ: ページの形と、両端がどちらもページの形
   connect(store, "n3", "n2")
   expect(store.actions.command("s1", "@matomezu/paper:paper-select-all")).toBe(true)
   expect(selection(store)).toEqual(["n1", "n2", "n4"])
+})
+
+test("内包の階層の違う形を一緒に選ぶと、深い形の代わりに、同じ階層の祖先を選ぶ", () => {
+  const store = ready()
+  place(store, 100, 100, undefined, { w: 300, h: 200 }) // n1
+  place(store, 600, 100, undefined, { w: 300, h: 200 }) // n2
+  place(store, 20, 60, "n1") // n3 は n1 の子
+  place(store, 20, 60, "n2") // n4 は n2 の子
+  place(store, 160, 60, "n1") // n5 は n1 の子
+  connect(store, "n1", "n2") // n6
+  expect(sameLevel(page(store), ["n3", "n5"])).toEqual(["n3", "n5"])
+  expect(sameLevel(page(store), ["n3", "n2"])).toEqual(["n1", "n2"])
+  expect(sameLevel(page(store), ["n3", "n4"])).toEqual(["n1", "n2"])
+  expect(sameLevel(page(store), ["n1", "n3"])).toEqual(["n1"])
+  expect(sameLevel(page(store), ["n3", "n6"])).toEqual(["n3", "n6"])
+  expect(pressSelection(page(store), ["n3"], "n2", true).now).toEqual(["n1", "n2"])
 })
 
 test("一緒に動かせるのは、ページの形どうしか、同じ親の子どうし", () => {

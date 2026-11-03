@@ -310,7 +310,7 @@ function PageItems({
     // 付け替えは押した形 1 つだけを動かす。選択の道具は Mod で足す・外す（placing/selection.ts の pressSelection）
     const press = reparenting
       ? { now: [id], drag: [id], release: null }
-      : pressSelection(stage.selection, id, modPressed(e))
+      : pressSelection(page, stage.selection, id, modPressed(e))
     select(stage.id, press.now)
     const items = shapesIn(page, press.drag)
     // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
