@@ -4,7 +4,7 @@
 // 入りきらなければ間を飛ばす（等間隔・値の多い順・選んだ行だけ）。縦のグラフでは 45 度に傾けられ、傾けても入らなければ間を飛ばす。
 // どの文字も、使える長さに収まらなければ … で切る。
 // 文字の幅は base の text で計算する。画面（ChartView）はこの値のとおりに描く
-import type { Size } from "../../../plugin-api"
+import type { Rect, Size } from "../../../plugin-api"
 import { type Font, textWidth } from "../../base"
 import type { DataProps } from "./data"
 import { niceTicks, tickText } from "./scale"
@@ -26,13 +26,6 @@ export const CHART_LOOK = {
 } as const
 
 const L = CHART_LOOK
-
-export interface Rect {
-  x: number
-  y: number
-  w: number
-  h: number
-}
 
 // 項目 1 つ（横軸の文字。shown なら描く。text は入る幅まで切った文字）
 export interface Category {

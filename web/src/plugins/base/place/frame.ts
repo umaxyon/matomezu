@@ -7,7 +7,7 @@ import type { Point, Rect, Size } from "../../../core/geom"
 import { findShape, type ItemPage, type PlacedShape } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { gapOf, replaceShapePushing, roomOf } from "./items"
-import { NEST_PADDING, placedSize, rectsOf } from "./placed"
+import { NEST_PADDING, placedSize, rectsOf, shapeDefOf } from "./placed"
 import { inPaper, newClash, planPlace, pushFrom } from "./push"
 
 // 子の領域の大きさ（右と下へ限りが無い）
@@ -22,8 +22,7 @@ export interface Frame {
 
 // 子の形を持つ形の、子の領域の左上（形の左上から）
 export function childOrigin(catalog: CoreCatalog, shape: PlacedShape): Point {
-  const def = catalog.items.get(shape.item)
-  return (def?.kind === "shape" && def.childOrigin?.(shape as ShapeData)) || { x: NEST_PADDING, y: NEST_PADDING }
+  return shapeDefOf(catalog, shape.item)?.childOrigin?.(shape as ShapeData) ?? { x: NEST_PADDING, y: NEST_PADDING }
 }
 
 // 親の子の四角（子の領域の左上から）

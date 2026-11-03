@@ -5,17 +5,9 @@
 import { useMessages } from "../../../plugin-api/ui"
 import { controlClass, Field } from "../../base/ui"
 import styles from "./DataDialog.module.css"
-import { DATA_VIEWS, type DataViewKind } from "./data"
+import { DATA_VIEW_TITLES, DATA_VIEWS, type DataViewKind } from "./data"
 import { type AxesDraft, type Draft, toggleValue, withView } from "./draft"
 import { kit } from "./kit"
-
-const VIEW_TITLES = {
-  table: "Table",
-  bar: "Bar chart",
-  line: "Line chart",
-  pie: "Pie chart",
-  scatter: "Scatter chart",
-} as const
 
 // 列の位置の select の値（選んでいなければ空）
 const indexValue = (i: number | null) => (i === null ? "" : String(i))
@@ -50,7 +42,7 @@ export function AxesFields({
           >
             {DATA_VIEWS.map(v => (
               <option key={v} value={v}>
-                {t(VIEW_TITLES[v])}
+                {t(DATA_VIEW_TITLES[v])}
               </option>
             ))}
           </select>

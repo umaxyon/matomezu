@@ -60,7 +60,7 @@ export type PlacedConnector = Exclude<PlacedItem, { x: number }>
 // アイテムを置くページ（ページの形に、置いたアイテムの並び。重ねの順）
 export type ItemPage = Page & { items?: readonly PlacedItem[] }
 
-const connectorDef = (catalog: CoreCatalog, item: string): ConnectorItemDef | null => {
+export const connectorDef = (catalog: CoreCatalog, item: string): ConnectorItemDef | null => {
   const def = catalog.items.get(item)
   return def?.kind === "connector" ? def : null
 }
@@ -127,7 +127,7 @@ function replaceIn<T extends { id: string }>(
 }
 
 // つなぐものを種類ごとに分ける（表に無いものは入れない）
-function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorItemDef, PlacedConnector[]][] {
+export function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorItemDef, PlacedConnector[]][] {
   const groups = new Map<string, PlacedConnector[]>()
   for (const c of connectorsOf(page)) {
     const list = groups.get(c.item)

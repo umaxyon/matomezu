@@ -139,7 +139,7 @@ test("散布図: 行ごとに点を打ち、X が数の列でなければ描か�
   expect(scatterLayout(TABLE, props({ view: "scatter", x: "m", series: [{ column: "g" }] }), SIZE)).toBeNull()
 })
 
-test("ダイアログの軸の下書き: 見た目を変えると合わない軸を選び直し、列を消すと軸を詰め、確定で列の id に直す", () => {
+test("ダイアログの軸の下書き: 見た目を変えると合わない軸を選び直し、列を消すと軸を詰め、確定では列の位置のまま data-set に渡す", () => {
   const draft = { columns: TABLE.columns, rows: [] }
   let a = toAxesDraft(props({ view: "table" }), TABLE)
   a = withView(a, draft, "pie")
@@ -151,15 +151,15 @@ test("ダイアログの軸の下書き: 見た目を変えると合わない軸
   a = toggleValue(a, 2)
   expect(a.values).toEqual([1, 2])
   expect(axesWithout(a, 1)).toMatchObject({ x: 1, values: [1] })
-  expect(axesProps({ ...a, sortBy: 2 }, ["m", "s", "g"], [])).toMatchObject({
+  expect(axesProps({ ...a, sortBy: 2 })).toMatchObject({
     view: "bar",
-    x: "g",
-    series: [{ column: "s" }, { column: "g" }],
-    sortBy: "g",
+    x: 2,
+    series: [{ column: 1 }, { column: 2 }],
+    sortBy: 2,
     label: null,
   })
-  // 円と散布図の値は 1 つ目だけ
-  expect(axesProps({ ...a, view: "pie" }, ["m", "s", "g"], []).series).toEqual([{ column: "s" }])
+  // 円と散布図の値は 1 つ目だけ（並べる値が外れた値なら消す）
+  expect(axesProps({ ...a, view: "pie", sortBy: 2 })).toMatchObject({ series: [{ column: 1 }], sortBy: null })
 })
 
 test("吹き出し: 棒と折れ線は項目の名前と全部の系列の値、円は割合と値、散布図は X と Y", () => {

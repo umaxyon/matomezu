@@ -1,8 +1,8 @@
 // 散布図の寸法: x の列を横、1 つ目の系列を縦の値にして、行ごとに点を打つ。どちらの軸も値の範囲に合わせたきりのよい目盛り。
 // 点は半径 4px で、地の色の 2px の輪を付ける。点のラベル（label の列）は描かず、ポインタを乗せたときに出す
-import type { Size } from "../../../plugin-api"
+import type { Rect, Size } from "../../../plugin-api"
 import { textWidth } from "../../base"
-import { CHART_LOOK, type Rect, type Tick } from "./cartesian"
+import { CHART_LOOK, type Tick } from "./cartesian"
 import type { DataProps } from "./data"
 import { niceTicks, tickText } from "./scale"
 import { cellText } from "./size"

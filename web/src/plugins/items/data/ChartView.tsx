@@ -17,7 +17,7 @@ import type { Size } from "../../../plugin-api"
 import { useMessages } from "../../../plugin-api/ui"
 import styles from "./ChartView.module.css"
 import { barPath, type CartesianLayout, CHART_LOOK, cartesianLayout } from "./cartesian"
-import type { DataProps } from "./data"
+import { DATA_VIEW_TITLES, type DataProps } from "./data"
 import { kit } from "./kit"
 import { LabelGrip } from "./LabelGrip"
 import { type ChartMotions, chartMotions, cssPx, type MotionTrigger } from "./motion"
@@ -27,14 +27,6 @@ import type { Table } from "./table"
 import { cartesianTip, pieTip, scatterTip, seriesNames, type TipContent } from "./tips"
 
 const L = CHART_LOOK
-// グラフの名前（読み上げ）
-const CHART_TITLES = {
-  table: "Table",
-  bar: "Bar chart",
-  line: "Line chart",
-  pie: "Pie chart",
-  scatter: "Scatter chart",
-} as const
 const color = (i: number) => `var(--data-series-${(i % 8) + 1})`
 
 // テーマキーから読む描き方: 印ごとの動き方と、棒の先の角の丸み（px）
@@ -125,7 +117,7 @@ export function ChartView({
         height={size.h}
         viewBox={`0 0 ${size.w} ${size.h}`}
         role="img"
-        aria-label={t(CHART_TITLES[props.view])}
+        aria-label={t(DATA_VIEW_TITLES[props.view])}
       >
         {body}
       </svg>

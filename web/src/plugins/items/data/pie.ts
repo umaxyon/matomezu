@@ -1,9 +1,9 @@
 // 円グラフの寸法: x の列をラベルに、1 つ目の系列の値を扇の大きさにする。12 時から右回りに、項目の並べ方（sort）の順に描く。
 // 扇は 9 つ以上なら、大きい 7 つを残し、ほかを「その他」にまとめる（色は系列の色の 8 つまで）。
 // 値に負の数があるか、合計が 0 なら描かない。凡例は横に余裕があれば右に、無ければ下に、色の印とラベルと割合を並べる
-import type { Size } from "../../../plugin-api"
+import type { Rect, Size } from "../../../plugin-api"
 import { textWidth } from "../../base"
-import { CHART_LOOK, fitText, type Rect, rowOrder } from "./cartesian"
+import { CHART_LOOK, fitText, rowOrder } from "./cartesian"
 import type { DataProps } from "./data"
 import { formatNumber } from "./scale"
 import { cellText } from "./size"
