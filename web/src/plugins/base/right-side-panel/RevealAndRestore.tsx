@@ -7,7 +7,7 @@ import { useShallow } from "zustand/react/shallow"
 import type { Rect } from "../../../core/geom"
 import type { Stage } from "../../../core/stage"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useSetStageState } from "../../../ui/view-hooks"
+import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorElementIn } from "../utils/anchors"
 import { moveView } from "../zoom"
@@ -19,17 +19,18 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   const found = useOpenedRightSidePanel()
   const stage = found?.stage ?? null
   const anchor = found?.open.anchor ?? null
-  const restore = useMatomezuState(s => (stage ? restoreIn(s.stageStates[stage]?.[kit.id]) : null))
+  const restore = restoreIn(useStageState(stage ?? "", kit))
   const kept = useMatomezuState(
     useShallow(s => s.workspace.stages.map(st => st.id).filter(id => restoreIn(s.stageStates[id]?.[kit.id]))),
   )
   const now = useMatomezuState(s => (stage ? s.workspace.stages.find(st => st.id === stage) : undefined))
   const read = useReadState()
+  const readOwn = useReadStageState(kit)
   const set = useSetStageState(kit)
   const actions = useActions()
   const update = useCallback(
-    (id: string, change: (now: unknown) => unknown) => set(id, change(read().stageStates[id]?.[kit.id])),
-    [read, set],
+    (id: string, change: (now: unknown) => unknown) => set(id, change(readOwn(id))),
+    [readOwn, set],
   )
   const stageOf = useCallback((id: string) => read().workspace.stages.find(s => s.id === id), [read])
   // 見せる（まだ見せていなければ）
@@ -53,12 +54,12 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
     for (const id of kept) {
       if (id === stage) continue
       const now = stageOf(id)
-      const record = restoreIn(read().stageStates[id]?.[kit.id])
-      const to = now && record && stage === null ? restoreTo(record, now) : null
+      const record = restoreIn(readOwn(id))
+      const to = now && record ? restoreTo(record, now, stage !== null) : null
       if (now && to) moveView(actions, now, to)
       update(id, withoutRestore)
     }
-  }, [sliding, kept, stage, stageOf, read, actions, update])
+  }, [sliding, kept, stage, stageOf, readOwn, actions, update])
   return null
 }
 

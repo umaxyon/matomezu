@@ -50,10 +50,11 @@ test("見せたあとに倍率かずらす量が変わったら、変えたこ�
   expect(movedFrom({ ...shown, moved: true }, panned)).toBe(true)
 })
 
-test("閉じたら、変えていなければ開く前の見え方に戻す。変えたか、ほかのブックかページを開いていれば戻さない", () => {
+test("閉じたら、変えていなければ開く前の見え方に戻す。変えたか、ほかのブックかページを開いているか、別のステージで開いていれば戻さない", () => {
   const restore = { ...restoreIn(withOpened({}, OPEN, PANNED))!, shown: HOME }
   const on = { opened: { book: "b1", page: "p1" } as never }
   expect(restoreTo(restore, on)).toEqual(PANNED)
+  expect(restoreTo(restore, on, true)).toBeNull()
   expect(restoreTo({ ...restore, moved: true }, on)).toBeNull()
   expect(restoreTo(restore, { opened: { book: "b1", page: "p2" } as never })).toBeNull()
   expect(restoreTo(restore, { opened: null })).toBeNull()

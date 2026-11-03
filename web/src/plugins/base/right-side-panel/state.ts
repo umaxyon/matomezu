@@ -58,8 +58,7 @@ export function withoutRestore(state: unknown): Record<string, unknown> {
   return rest
 }
 
-export const sameView = (a: ViewAt, b: ViewAt): boolean =>
-  a.zoom === b.zoom && a.pan.x === b.pan.x && a.pan.y === b.pan.y
+const sameView = (a: ViewAt, b: ViewAt): boolean => a.zoom === b.zoom && a.pan.x === b.pan.x && a.pan.y === b.pan.y
 
 // 開いている間のステージ now で、倍率かずらす量を変えたことになるか。物を見せる前と、表示領域の大きさが変わってずらす量が収め直されただけのときは数えない
 // （見せた見え方を今の表示領域で収め直したものと比べる。幅を動かし終えたあとに表示領域の大きさが届くことがあるため）
@@ -75,9 +74,17 @@ export function movedFrom(
   return !sameView({ zoom: shown.zoom, pan }, now)
 }
 
-// 閉じて幅を動かし終えたときに戻す見え方（開いている間に変えたか、開く前と違うブックかページを開いていれば戻さず null）
-export const restoreTo = (restore: RightSidePanelRestore, stage: Pick<Stage, "opened">): ViewAt | null =>
-  restore.moved || stage.opened?.book !== restore.before.book || (stage.opened?.page ?? null) !== restore.before.page
+// 閉じて幅を動かし終えたときに戻す見え方（開いている間に変えたか、開く前と違うブックかページを開いているか、
+// 別のステージで右サイドパネルを開いている（elsewhere）なら戻さず null）
+export const restoreTo = (
+  restore: RightSidePanelRestore,
+  stage: Pick<Stage, "opened">,
+  elsewhere = false,
+): ViewAt | null =>
+  elsewhere ||
+  restore.moved ||
+  stage.opened?.book !== restore.before.book ||
+  (stage.opened?.page ?? null) !== restore.before.page
     ? null
     : { zoom: restore.before.zoom, pan: restore.before.pan }
 
