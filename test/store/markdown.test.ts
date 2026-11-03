@@ -25,7 +25,7 @@ test("マークダウンのページを開いたステージには紙を置か�
   expect(store.state.getState().workspace.stages[0]!.opened).toMatchObject({ page: page.id, paper: null })
 })
 
-test("どのページもいつも下へ増やす可変ページ。page-add・page-update で可変ページにする・やめるは断る（false はそのまま）", () => {
+test("どのページもいつも下へ増やす可変ページ。page-add・page-update で grows を付けるのは断る（false は何も変えない）", () => {
   const { store, id, book } = markdownStore()
   const { perform } = store.actions
   const page = book().pages[0]!

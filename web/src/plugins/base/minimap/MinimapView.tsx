@@ -13,7 +13,6 @@ import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-cont
 import { themeVars } from "../../../ui/theme-vars"
 import { useShownPage, useStage } from "../../../ui/view-hooks"
 import { bookTokens } from "../book-look/look"
-import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
 import { keepsPan, panningTool } from "../tool-switch/tools"
 import { ZOOM_WHEEL } from "../zoom"
@@ -51,10 +50,7 @@ export function MinimapView({
   const vars = useMemo(() => (book ? themeVars(bookTokens(catalog, book)) : undefined), [catalog, book])
   const drawn = useDrawnTable(id)
   const marks = useMemo(
-    () =>
-      book && page
-        ? minimapMarks(catalog, book.type, page, settingsAt(catalog, book, page), item => drawnOn(drawn, item, page.id))
-        : [],
+    () => (book && page ? minimapMarks(catalog, book, page, item => drawnOn(drawn, item, page.id)) : []),
     [catalog, book, page, drawn],
   )
   const wheel = useCommand(id, ZOOM_WHEEL.id)
