@@ -47,8 +47,8 @@ export const TREE = kit.defineBookType({
   createSettings: [kit.name("grow")], // ブックを作るダイアログで、伸びる向きを聞く
   pageFieldsInput, // 根は作るときに子ごと受けて id を振り、直すときは根のキャプション・本文・本文を描くか・色だけ
   // 木が紙に入らないページは問題（base のページ・ブックのアクションは書かない）
-  pageProblem: (catalog, page, setting) =>
-    treeFits(catalog, page, setting) ? null : { message: kit.message("Does not fit on the paper") },
+  pageProblem: (catalog, page, setting, grow) =>
+    treeFits(catalog, page, setting, grow) ? null : { message: kit.message("Does not fit on the paper") },
   minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
   // 可変ページは、根のある側を固定して残りの向きへ増やす（中央なら 4 つとも。base の拡張ポイント）
   grow: { sides: setting => growSidesOf(setting(GROW)) },

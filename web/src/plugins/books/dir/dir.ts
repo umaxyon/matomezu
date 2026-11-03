@@ -40,8 +40,8 @@ export const DIR = kit.defineBookType({
   addPagesFromTabs: true,
   pageFieldsInput, // 根は作るときに中身ごと受けて id を振る。直すときは受けない（中身はディレクトリ構成図のアクションで替える）
   // 行が紙に入らないページは問題
-  pageProblem: (catalog, page) =>
-    dirFits(catalog, page) ? null : { message: kit.message("Does not fit on the paper") },
+  pageProblem: (catalog, page, _setting, grow) =>
+    dirFits(catalog, page, grow) ? null : { message: kit.message("Does not fit on the paper") },
   minimap: dirMinimap, // ミニマップには、行を四角で、罫線を線で描く
   grow: { sides: () => ({ up: false, down: true, left: false, right: true }) }, // 可変ページは、根のある左上を固定して右と下へ増やす（base の拡張ポイント）
   pages: {

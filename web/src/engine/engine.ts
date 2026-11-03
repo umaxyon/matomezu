@@ -145,9 +145,10 @@ function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly B
 }
 // MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・利用者の設定の項目（利用者だけが変える項目は除く）・テーマ・代表色を絞って書き出したもの。
 // args・props・設定の項目の schema は JSON Schema。名前は英語
-// ブックのタイプのページの grows に書ける値（aiCatalog）
-const growsOf = (rule: GrowRule | undefined): readonly string[] | true | null =>
-  !rule ? null : "choices" in rule ? rule.choices : true
+// ブックのタイプのページの可変ページの決め方（aiCatalog）: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、
+// どのページもいつも可変ページの always、可変ページを作れない none
+const growsOf = (rule: GrowRule | undefined): readonly string[] | "by-type" | "always" | "none" =>
+  !rule ? "none" : "always" in rule ? "always" : "choices" in rule ? rule.choices : "by-type"
 
 function aiCatalog(of: Assembled = assembled) {
   const catalog = of.catalog.core
@@ -167,8 +168,7 @@ function aiCatalog(of: Assembled = assembled) {
       title: en(t.title),
       creatable: !t.single, // book-create で作れるか（1 冊だけのタイプは作れない）
       pages: t.pages !== null,
-      // ページの grows に書ける値: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決めるなら true、可変ページを作れなければ null
-      grows: t.pages ? growsOf(t.grow) : null,
+      grows: t.pages ? growsOf(t.grow) : "none", // 可変ページの決め方
       items: t.items.allowed, // ページに置けるアイテム
     })),
     items: [...catalog.items.values()].map(i => ({

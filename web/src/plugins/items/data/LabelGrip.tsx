@@ -1,9 +1,10 @@
-// 項目の文字の領域のつまみ: 選んでいる間（紙をずらす道具の間は除く）、描く所と項目の文字の領域の境に出す。
+// 項目の文字の領域のつまみ: 1 つだけ選んでいる間（紙をずらす道具の間は除く）、描く所と項目の文字の領域の境に出す。
 // 縦の棒なら上下に、横の棒なら左右にドラッグして領域の大きさを変え、ドラッグの間は onDrag でその大きさを渡して描き直させる。
 // 離したらアクション item-update で labelSize を書く。書き換えが止められていれば出さない
 import { type PointerEvent, useRef } from "react"
 import { type Size, toPaperDelta } from "../../../plugin-api"
 import { useAllowed, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
+import { onlySelected } from "../../base"
 import styles from "./ChartView.module.css"
 import { type CartesianLayout, CHART_LOOK, labelAreaOf, labelSizeAfter } from "./cartesian"
 import { kit } from "./kit"
@@ -28,7 +29,7 @@ export function LabelGrip({
   const allowed = useAllowed(stage, "@matomezu/paper:item-update", { page, items: [id] }).ok
   // つかんだポインタと、つかんだ所と、つかんだときの領域の大きさ
   const grab = useRef<{ pointer: number; x: number; y: number; start: number } | null>(null)
-  if (!allowed || at === null || at.pans || !at.selection.includes(id)) return null
+  if (!allowed || at === null || at.pans || !onlySelected(at.selection, id)) return null
   // つかんだときの大きさを、つかんだ所から動かした量だけ広げた大きさ（縦の棒なら上へ、横の棒なら右へ動かすと広がる）
   const sizeAt = (e: PointerEvent, g: { x: number; y: number; start: number }) => {
     const d = toPaperDelta(at, { x: e.clientX - g.x, y: e.clientY - g.y })

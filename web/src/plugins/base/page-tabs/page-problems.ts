@@ -7,6 +7,8 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { type SettingReader, settingsAt } from "../book-settings"
+import type { GrowSides } from "../place/grow"
+import { growOf } from "../place/items"
 
 export interface PageProblem {
   message?: MessageKey
@@ -14,8 +16,14 @@ export interface PageProblem {
 
 declare module "../../../core/catalog" {
   interface BookTypeExtras {
-    // page で効いている設定の値は setting で読む（ブックとページの設定の項目を、ページ → ブック → 既定の順に）
-    pageProblem?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): PageProblem | null
+    // page で効いている設定の値は setting で読む（ブックとページの設定の項目を、ページ → ブック → 既定の順に）。
+    // grow はページの増やす向き（可変ページでなければ undefined。place/items の growOf）
+    pageProblem?(
+      catalog: CoreCatalog,
+      page: ItemPage,
+      setting: SettingReader,
+      grow: GrowSides | undefined,
+    ): PageProblem | null
   }
 }
 
@@ -29,7 +37,7 @@ export function pageProblems(
   if (!check || !hasPages(book)) return []
   return book.pages.flatMap(page => {
     if (pages && !pages.includes(page.id)) return []
-    const problem = check(catalog, page, settingsAt(catalog, book, page))
+    const problem = check(catalog, page, settingsAt(catalog, book, page), growOf(catalog, book, page))
     return problem ? [{ page, problem }] : []
   })
 }

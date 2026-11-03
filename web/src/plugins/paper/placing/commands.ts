@@ -3,13 +3,15 @@
 import {
   areaOf,
   type CommandContext,
+  connectorsOf,
   findShape,
   type Point,
   pagedOf,
   shapeDialogs,
+  shapesOf,
   toPaperDelta,
 } from "../../../plugin-api"
-import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
+import { amongSelected, type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import type { Came } from "./drag"
@@ -52,10 +54,12 @@ export const PAPER_PLACE = kit.defineCommand({
   when: ctx => onDrawingPage(ctx) && ctx.stage.placing !== null,
 })
 
-// 右クリックされた形が編集のダイアログを持つか（右クリックのメニューが開いていなければ、呼んだ所が形を選んでいる）
+// 右クリックされた形が編集のダイアログを持つか（右クリックのメニューが開いていなければ、呼んだ所が形を選んでいる）。
+// いくつか選んでいて、その中の物を右クリックしたなら、メニューは選んだ物全部に向けるので出さない
 function editable(ctx: CommandContext): boolean {
   const target = ctx.contextMenu?.target as { item?: string } | undefined
   if (target?.item === undefined) return true
+  if (amongSelected(ctx.stage.selection, target.item)) return false
   const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
   const placed = page && findShape(page, target.item)?.shape
   const def = placed && shapeDefOf(ctx.catalog, placed.item)
@@ -83,7 +87,7 @@ export const PAPER_EDIT = kit.defineCommand({
   when: ctx => onDrawingPage(ctx) && editable(ctx),
 })
 
-// 選んでいるアイテムを消し、選択を外す（選んでいなければ出さない）
+// 選んでいるアイテムを全部消し、選択を外す（選んでいなければ出さない）
 export const PAPER_DELETE = kit.defineCommand({
   id: "paper-delete",
   performs: [ITEM_REMOVE.id],
@@ -96,6 +100,20 @@ export const PAPER_DELETE = kit.defineCommand({
     if (done.ok) a.select(id, [])
   },
   when: ctx => onDrawingPage(ctx) && ctx.stage.selection.length > 0,
+})
+
+// 開いているページの、ページの形（子の形は除く）と、両端がどちらもページの形のつなぐものを全部選ぶ
+export const PAPER_SELECT_ALL = kit.defineCommand({
+  id: "paper-select-all",
+  title: "Select all",
+  run: (ctx, a) => {
+    const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+    if (!page) return
+    const shapes = new Set(shapesOf(page).map(s => s.id))
+    const connectors = connectorsOf(page).filter(c => shapes.has(c.from) && shapes.has(c.to))
+    a.select(ctx.stage.id, [...shapes, ...connectors.map(c => c.id)])
+  },
+  when: onDrawingPage,
 })
 
 // アイテムを、画面の上で動いた量だけ動かす（came はドラッグの通り道で覚えた、相手ごとの先端が来た向き）。収まらなければ動かさない
@@ -157,8 +175,9 @@ export const PAPER_RESIZE = kit.defineCommand({
   when: onDrawingPage,
 })
 
-// 選んでいるアイテムを消すキー（Mac の delete キーは Backspace として届く）
+// 選んでいるアイテムを消すキー（Mac の delete キーは Backspace として届く）と、全部を選ぶキー
 export const ITEM_KEYS = [
   kit.defineKey({ id: "paper-delete-delete", key: "Delete", command: PAPER_DELETE.id, scope: "stage" }),
   kit.defineKey({ id: "paper-delete-backspace", key: "Backspace", command: PAPER_DELETE.id, scope: "stage" }),
+  kit.defineKey({ id: "paper-select-all-mod-a", key: "Mod+A", command: PAPER_SELECT_ALL.id, scope: "stage" }),
 ]

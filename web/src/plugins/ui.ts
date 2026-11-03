@@ -4,6 +4,7 @@ import { BASE_UI } from "./base/ui"
 import { DIR_UI } from "./books/dir/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
 import { FLOWCHART_UI } from "./books/flowchart/ui"
+import { MARKDOWN_UI } from "./books/markdown/ui"
 import { MASTER_UI } from "./books/master/ui"
 import { TREE_UI } from "./books/tree/ui"
 import { ART_UI } from "./items/art/ui"
@@ -28,6 +29,7 @@ export const BUILTIN_UI = [
   FLOWCHART_UI,
   TREE_UI,
   DIR_UI,
+  MARKDOWN_UI,
 ] as const
 
 // 既定の配置（今の画面の形）。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
@@ -106,6 +108,11 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/base:page-settings",
       "@matomezu/base:book-settings",
+    ],
+    "@matomezu/markdown:pane-context": [
+      "@matomezu/markdown:pane-split-row",
+      "@matomezu/markdown:pane-split-column",
+      "@matomezu/markdown:pane-unsplit",
     ],
     "@matomezu/tree:node-context": [
       "@matomezu/tree:node-edit",

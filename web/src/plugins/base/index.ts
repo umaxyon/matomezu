@@ -73,6 +73,7 @@ export {
   alignPadding,
   extentOf,
   fitsPaper,
+  followConnectors,
   gapOf,
   growOf,
   itemSize,

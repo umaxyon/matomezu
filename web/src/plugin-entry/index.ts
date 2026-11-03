@@ -58,6 +58,7 @@ export {
   evenGap,
   extentOf,
   fitsPaper,
+  followConnectors,
   frameAround,
   frameOf,
   gapOf,
