@@ -3,7 +3,7 @@
 // bun scripts/e2e-build.ts（e2e/global-setup.ts が呼ぶ）
 import { rmSync, writeFileSync } from "node:fs"
 import { BODY_FONT, bodyPieces, TEXT_WIDTHS_FILE } from "../e2e/text-widths"
-import { textWidth } from "../web/src/plugins/base/text/text"
+import { textWidth } from "../web/src/plugins/base"
 
 const run = async (cmd: string[]) => {
   const code = await Bun.spawn(cmd, { stdout: "inherit", stderr: "inherit" }).exited
