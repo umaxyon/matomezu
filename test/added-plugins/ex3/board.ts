@@ -60,7 +60,7 @@ export const MINT = kit.defineTheme({
   tokens: { "star-fill": "#ffd34d" },
 })
 
-// 夜のスキン（アプリの枠の見た目。ブックの中身には効かない）
+// 夜のスキン（matomezu 外観枠の色や形。ブックの中身には効かない）
 export const NIGHT = kit.defineSkin({
   id: "night",
   title: "night",
