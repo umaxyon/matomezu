@@ -1,6 +1,6 @@
 // Markdown の原文を読む（CommonMark と GFM: 表・打ち消し線・タスクのリスト・脚注・URL のリンク）。外のライブラリ（mdast-util-from-markdown・mdast-util-gfm・micromark-extension-gfm）を読むのはこのファイルだけで、
 // 読んだ木（mdast）は外に出さず、ページの原文を読んだ形（MarkdownDocument）に移して返す。
-// 参照の形のリンクと画像は、ここで定義を引いて、ふつうのリンクと画像にする（定義は返さない）。生の HTML は文字のまま。
+// 参照の形のリンクと画像は、ここで定義を引いて、ふつうのリンクと画像にする（定義は返さない）。生の HTML は、ブロックは html、文中は文字にする。
 // 脚注は、最初に参照した順に 1 から番号を振る。同じ脚注の参照は同じ番号で、参照の無い定義は落とす
 import type * as Mdast from "mdast"
 import { fromMarkdown } from "mdast-util-from-markdown"
@@ -38,16 +38,20 @@ export interface MarkdownTableCell {
   range: MarkdownRange
 }
 
-// 段落・見出しなどのブロック。見出しの anchor は、文中の #… のリンクで飛ぶ先の名前（GitHub と同じ作り方）
+// 段落・見出しなどのブロック。見出しの fragment は、文中の #… のリンクで飛ぶ先のフラグメント（GitHub と同じ作り方）。生の HTML は html で、中身は文字のまま
 export type MarkdownBlock = { range: MarkdownRange } & (
   | { kind: "paragraph"; children: MarkdownInline[] }
-  | { kind: "heading"; depth: 1 | 2 | 3 | 4 | 5 | 6; anchor: string; children: MarkdownInline[] }
+  | { kind: "heading"; depth: 1 | 2 | 3 | 4 | 5 | 6; fragment: string; children: MarkdownInline[] }
   | { kind: "blockquote"; children: MarkdownBlock[] }
-  // 番号付きのリストだけ start を持つ。spread は項目の間を空けるか
-  | { kind: "list"; start?: number; spread: boolean; items: MarkdownListItem[] }
+  // 番号付きのリスト（ordered）は始まりの番号 start を持つ。spread は項目の間を空けるか
+  | ({ kind: "list"; spread: boolean; items: MarkdownListItem[] } & (
+      | { ordered: true; start: number }
+      | { ordered: false }
+    ))
   | { kind: "code"; lang?: string; value: string }
   | { kind: "thematicBreak" }
   | { kind: "table"; align: MarkdownAlign[]; head: MarkdownTableCell[]; body: MarkdownTableCell[][] }
+  | { kind: "html"; value: string }
 )
 
 // 脚注の定義（number は参照の番号）
@@ -71,7 +75,7 @@ interface Reading {
   definitions: Definitions
   notes: ReadonlyMap<string, Mdast.FootnoteDefinition>
   numbers: Map<string, number>
-  anchors: Map<string, number>
+  fragments: Map<string, number>
 }
 
 export function parseMarkdown(text: string): MarkdownDocument {
@@ -79,7 +83,7 @@ export function parseMarkdown(text: string): MarkdownDocument {
   const definitions = new Map<string, Mdast.Definition>()
   const notes = new Map<string, Mdast.FootnoteDefinition>()
   collect(root, definitions, notes)
-  const r: Reading = { text, definitions, notes, numbers: new Map(), anchors: new Map() }
+  const r: Reading = { text, definitions, notes, numbers: new Map(), fragments: new Map() }
   const blocks = blocksOf(r, root.children)
   // 脚注の中の参照も番号を振る（読む間に足した番号も、続けて読む）
   const footnotes: MarkdownFootnote[] = []
@@ -127,14 +131,14 @@ function blockOf(r: Reading, node: Mdast.RootContent): MarkdownBlock | undefined
       return { kind: "paragraph", children: inlinesOf(r, node.children), range }
     case "heading": {
       const children = inlinesOf(r, node.children)
-      return { kind: "heading", depth: node.depth, anchor: anchorOf(r, children), children, range }
+      return { kind: "heading", depth: node.depth, fragment: fragmentOf(r, children), children, range }
     }
     case "blockquote":
       return { kind: "blockquote", children: blocksOf(r, node.children), range }
     case "list":
       return {
         kind: "list",
-        ...(node.ordered ? { start: node.start ?? 1 } : {}),
+        ...(node.ordered ? { ordered: true, start: node.start ?? 1 } : { ordered: false }),
         spread: node.spread ?? false,
         items: node.children.map(item => ({
           check: item.checked === true ? "checked" : item.checked === false ? "unchecked" : "none",
@@ -159,9 +163,8 @@ function blockOf(r: Reading, node: Mdast.RootContent): MarkdownBlock | undefined
         range,
       }
     }
-    // 生の HTML は文字のまま
     case "html":
-      return { kind: "paragraph", children: [{ kind: "text", value: node.value, range }], range }
+      return { kind: "html", value: node.value, range }
     default:
       // 定義（参照の形と脚注）は返さない
       return undefined
@@ -220,13 +223,13 @@ const plainText = (inlines: readonly MarkdownInline[]): string =>
     .map(i => ("value" in i ? i.value : "children" in i ? plainText(i.children) : i.kind === "image" ? i.alt : ""))
     .join("")
 
-// 見出しの名前: 小文字にし、文字・数字・空白・- と _ のほかを除き、空白を - にする。同じ名前の 2 つ目からは -1・-2 を付ける
-function anchorOf(r: Reading, children: readonly MarkdownInline[]): string {
+// 見出しのフラグメント: 小文字にし、文字・数字・空白・- と _ のほかを除き、空白を - にする。同じフラグメントの 2 つ目からは -1・-2 を付ける
+function fragmentOf(r: Reading, children: readonly MarkdownInline[]): string {
   const base = plainText(children)
     .toLowerCase()
     .replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, "")
     .replace(/ /g, "-")
-  const seen = r.anchors.get(base) ?? 0
-  r.anchors.set(base, seen + 1)
+  const seen = r.fragments.get(base) ?? 0
+  r.fragments.set(base, seen + 1)
   return seen === 0 ? base : `${base}-${seen}`
 }

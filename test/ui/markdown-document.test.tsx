@@ -17,7 +17,7 @@ test("見出し・リスト・表・脚注を描く", () => {
   expect(c.querySelector<HTMLInputElement>("li input[type=checkbox]")?.checked).toBe(true)
   expect(c.querySelector("th")?.textContent).toBe("h")
   expect(c.querySelector("sup a")?.textContent).toBe("1")
-  expect(c.querySelector('[data-markdown-target="fn:1"]')?.textContent).toContain("note")
+  expect(c.querySelector('[data-markdown-fragment="fn:1"]')?.textContent).toContain("note")
 })
 
 test("http・https・mailto のリンクは新しいタブで開き、ほかの行き先は開かない", () => {
@@ -39,8 +39,8 @@ test("画像は原文に埋め込んだ物だけを描き、外の画像は説�
 test("# のリンクは、location を変えずに、文書の中の見出しへスクロールする", () => {
   const c = draw("[go](#second-part)\n\n# First\n\n# Second Part\n")
   const scrolled: string[] = []
-  for (const h of c.querySelectorAll<HTMLElement>("[data-markdown-target]"))
-    h.scrollIntoView = () => void scrolled.push(h.getAttribute("data-markdown-target")!)
+  for (const h of c.querySelectorAll<HTMLElement>("[data-markdown-fragment]"))
+    h.scrollIntoView = () => void scrolled.push(h.getAttribute("data-markdown-fragment")!)
   const before = location.hash
   fireEvent.click(c.querySelector("a")!)
   expect(scrolled).toEqual(["second-part"])
@@ -50,15 +50,21 @@ test("# のリンクは、location を変えずに、文書の中の見出しへ
 test("見出し「fn 1」があっても、脚注の参照は脚注へ飛ぶ", () => {
   const c = draw("# fn 1\n\nn[^a]\n\n[^a]: note\n")
   const scrolled: string[] = []
-  for (const el of c.querySelectorAll<HTMLElement>("[data-markdown-target]"))
+  for (const el of c.querySelectorAll<HTMLElement>("[data-markdown-fragment]"))
     el.scrollIntoView = () => void scrolled.push(el.tagName)
   fireEvent.click(c.querySelector("sup a")!)
   expect(scrolled).toEqual(["LI"])
 })
 
-test("行き先: # は名前の %xx を戻し、http・https・mailto だけを開く", () => {
-  expect(linkTarget("#%E8%A6%8B")).toEqual({ kind: "anchor", anchor: "見" })
-  expect(linkTarget("#%E8")).toEqual({ kind: "anchor", anchor: "%E8" })
+test("生の HTML は、描かずに改行を保った文字で見せる", () => {
+  const c = draw("<div>\n<b>a</b>\n</div>\n")
+  expect(c.querySelector("b")).toBeNull()
+  expect(c.querySelector("pre")?.textContent).toBe("<div>\n<b>a</b>\n</div>")
+})
+
+test("行き先: # はフラグメントの %xx を戻し、http・https・mailto だけを開く", () => {
+  expect(linkTarget("#%E8%A6%8B")).toEqual({ kind: "fragment", fragment: "見" })
+  expect(linkTarget("#%E8")).toEqual({ kind: "fragment", fragment: "%E8" })
   expect(linkTarget("HTTPS://x.test")).toEqual({ kind: "open", url: "HTTPS://x.test" })
   expect(linkTarget("data:text/html,x")).toEqual({ kind: "none" })
   expect(linkTarget("")).toEqual({ kind: "none" })

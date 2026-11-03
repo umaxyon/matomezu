@@ -2,7 +2,7 @@
 // リンクと画像は link-target.ts が選んだ物だけを開き・描く。# のリンクは、location を変えずに、この文書の中の飛ぶ先へスクロールする
 import type { MouseEvent, ReactNode } from "react"
 import type { MarkdownBlock, MarkdownDocument, MarkdownInline, MarkdownTableCell } from "../../../base"
-import { drawsImage, footnoteAnchor, footnoteRefAnchor, linkTarget } from "../link-target"
+import { drawsImage, footnoteFragment, footnoteRefFragment, linkTarget } from "../link-target"
 import styles from "./MarkdownDocumentView.module.css"
 
 export function MarkdownDocumentView({ document }: { document: MarkdownDocument }) {
@@ -13,12 +13,12 @@ export function MarkdownDocumentView({ document }: { document: MarkdownDocument 
         <section className={styles.footnotes}>
           <ol>
             {document.footnotes.map(f => (
-              <li key={f.number} value={f.number} data-markdown-target={footnoteAnchor(f.number)}>
+              <li key={f.number} value={f.number} data-markdown-fragment={footnoteFragment(f.number)}>
                 <Blocks blocks={f.children} />
                 <a
-                  href={`#${footnoteRefAnchor(f.number)}`}
+                  href={`#${footnoteRefFragment(f.number)}`}
                   className={styles.backref}
-                  onClick={e => jumpTo(e, footnoteRefAnchor(f.number))}
+                  onClick={e => jumpTo(e, footnoteRefFragment(f.number))}
                 >
                   ↩
                 </a>
@@ -31,12 +31,12 @@ export function MarkdownDocumentView({ document }: { document: MarkdownDocument 
   )
 }
 
-// 飛ぶ先 name（data-markdown-target）を、押したリンクのある文書の中から探してスクロールする（同じページを 2 つのペインに出すことがあるので、文書の根で絞る）
+// フラグメント name の飛ぶ先（data-markdown-fragment）を、押したリンクのある文書の中から探してスクロールする（同じページを 2 つのペインに出すことがあるので、文書の根で絞る）
 function jumpTo(e: MouseEvent<HTMLAnchorElement>, name: string) {
   e.preventDefault()
   const root = e.currentTarget.closest("[data-markdown-document]")
-  const found = [...(root?.querySelectorAll("[data-markdown-target]") ?? [])].find(
-    el => el.getAttribute("data-markdown-target") === name,
+  const found = [...(root?.querySelectorAll("[data-markdown-fragment]") ?? [])].find(
+    el => el.getAttribute("data-markdown-fragment") === name,
   )
   found?.scrollIntoView({ block: "start" })
 }
@@ -56,7 +56,7 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
     case "heading": {
       const H = `h${block.depth}` as const
       return (
-        <H data-markdown-target={block.anchor}>
+        <H data-markdown-fragment={block.fragment}>
           <Inlines inlines={block.children} />
         </H>
       )
@@ -77,12 +77,12 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
         </li>
       ))
       const spread = block.spread ? styles.spread : styles.tight
-      return block.start === undefined ? (
-        <ul className={spread}>{items}</ul>
-      ) : (
+      return block.ordered ? (
         <ol className={spread} start={block.start}>
           {items}
         </ol>
+      ) : (
+        <ul className={spread}>{items}</ul>
       )
     }
     case "code":
@@ -93,6 +93,9 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
       )
     case "thematicBreak":
       return <hr />
+    // 生の HTML は、改行を保った文字で見せる
+    case "html":
+      return <pre className={styles.html}>{block.value}</pre>
     case "table": {
       const cell = (c: MarkdownTableCell, i: number, Tag: "th" | "td") => {
         const align = block.align[i] ?? "none"
@@ -159,9 +162,9 @@ function Inline({ inline }: { inline: MarkdownInline }): ReactNode {
             {children}
           </a>
         )
-      if (target.kind === "anchor")
+      if (target.kind === "fragment")
         return (
-          <a href={inline.url} title={inline.title} onClick={e => jumpTo(e, target.anchor)}>
+          <a href={inline.url} title={inline.title} onClick={e => jumpTo(e, target.fragment)}>
             {children}
           </a>
         )
@@ -177,8 +180,8 @@ function Inline({ inline }: { inline: MarkdownInline }): ReactNode {
       )
     case "footnoteReference":
       return (
-        <sup data-markdown-target={footnoteRefAnchor(inline.number)}>
-          <a href={`#${footnoteAnchor(inline.number)}`} onClick={e => jumpTo(e, footnoteAnchor(inline.number))}>
+        <sup data-markdown-fragment={footnoteRefFragment(inline.number)}>
+          <a href={`#${footnoteFragment(inline.number)}`} onClick={e => jumpTo(e, footnoteFragment(inline.number))}>
             {inline.number}
           </a>
         </sup>

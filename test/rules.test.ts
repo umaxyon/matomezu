@@ -53,7 +53,7 @@ const pluginRoot = (rel: string) => {
   return parts.slice(0, parts[1] === "books" || parts[1] === "items" ? 3 : 2).join("/")
 }
 // base は土台を直に読む（プラグイン API の部品を作る側）。プラグイン API は読まない（plugin-api が base を読まないのと合わせて、輪を作らない）
-// zod のほかの外のライブラリは、ライブラリごとに決めた 1 つのファイルだけが読む（mdast は型だけ。@types/mdast）
+// 土台の表で読んでよい物のほかの外のライブラリは、ライブラリごとに決めた 1 つのファイルだけが読む（mdast は型だけ。@types/mdast）
 const LIBRARY_READERS: Record<string, readonly string[]> = {
   "plugins/base/markdown/parse.ts": ["mdast", "mdast-util-from-markdown", "mdast-util-gfm", "micromark-extension-gfm"],
 }
@@ -71,6 +71,38 @@ const apiAllowed = (rel: string) => (t: string) =>
 // 表に無いクレートは「依存の向き」が見ないので、足したら表と ALLOWED（か入口の見張り）を決める
 const CRATES = [...Object.keys(ALLOWED), "plugins", "plugin-entry", "testing", "plugin-modules"]
 const ROOT_FILES = ["main.tsx", "sample-books.ts", "css.d.ts"]
+test("外のライブラリを読むファイルは、そのライブラリの型を書き出す物に出さない（matomezu の形に移して出す）", () => {
+  const bad = Object.keys(LIBRARY_READERS).flatMap(rel => {
+    const text = sources.find(f => f.rel === rel)!.text
+    // そのライブラリから読み込んだ名前（import type * as X・import { a, b }）
+    const names = [
+      ...text.matchAll(/^import\s+(?:type\s+)?(?:\*\s+as\s+(\w+)|\{([^}]*)\})\s+from\s+["']([^"']+)["']/gm),
+    ]
+      .filter(m => LIBRARY_READERS[rel]!.includes(m[3]!))
+      .flatMap(m =>
+        m[1]
+          ? [m[1]]
+          : m[2]!.split(",").map(
+              n =>
+                n
+                  .trim()
+                  .split(/\s+as\s+/)
+                  .pop()!,
+            ),
+      )
+      .filter(n => n !== "")
+    // 一番外の文（行の頭で始まる所ごと）のうち、書き出す物。関数は中身を除いた形（引数と返す型）だけを見る
+    const exported = text
+      .split(/\n(?=\S)/)
+      .filter(st => st.startsWith("export"))
+      .map(st => (st.startsWith("export function") ? st.slice(0, st.indexOf("{\n")) : st))
+    return exported
+      .filter(st => /\bimport\(/.test(st) || names.some(n => new RegExp(`\\b${n}\\b`).test(st)))
+      .map(st => `${rel}: ${st.split("\n")[0]}`)
+  })
+  expect(bad).toEqual([])
+})
+
 test("web/src の直下は、決めたクレートとファイルだけ", () => {
   expect(readdirSync(SRC).sort()).toEqual([...CRATES, ...ROOT_FILES].sort())
 })

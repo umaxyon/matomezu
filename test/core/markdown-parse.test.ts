@@ -47,8 +47,9 @@ test("リストは番号付きかと、項目のチェックと、項目の間�
     spread: false,
     items: [{ check: "unchecked" }, { check: "checked" }, { check: "none" }],
   })
+  expect(only("- a\n- b\n")).toMatchObject({ kind: "list", ordered: false })
   expect(only("- a\n- b\n")).not.toHaveProperty("start")
-  expect(only("3. a\n\n4. b\n")).toMatchObject({ kind: "list", start: 3, spread: true })
+  expect(only("3. a\n\n4. b\n")).toMatchObject({ kind: "list", ordered: true, start: 3, spread: true })
 })
 
 test("表は見出しの行と本文の行と、列の寄せを持つ", () => {
@@ -85,11 +86,8 @@ test("URL だけの文もリンクになる", () => {
   expect(inlines(only("see https://x.test now"))[1]).toMatchObject({ kind: "link", url: "https://x.test" })
 })
 
-test("生の HTML は文字のまま", () => {
-  expect(only("<div>a</div>\n")).toMatchObject({
-    kind: "paragraph",
-    children: [{ kind: "text", value: "<div>a</div>" }],
-  })
+test("生の HTML は、ブロックは html で中身は文字のまま、文中は文字", () => {
+  expect(only("<div>\na\n</div>\n")).toMatchObject({ kind: "html", value: "<div>\na\n</div>" })
   expect(inlines(only("a <b>c</b>"))[1]).toMatchObject({ kind: "text", value: "<b>" })
 })
 
@@ -119,9 +117,9 @@ test("脚注の中の参照にも、続けて番号を振る", () => {
   expect(doc.footnotes.map(f => f.number)).toEqual([1, 2])
 })
 
-test("見出しの名前は GitHub と同じ作り方で、同じ名前の 2 つ目からは番号を付ける", () => {
+test("見出しのフラグメントは GitHub と同じ作り方で、同じフラグメントの 2 つ目からは番号を付ける", () => {
   const names = blocks("# Hello, World!\n\n## Hello, World!\n\n## 日本語 の 見出し\n").map(b =>
-    b.kind === "heading" ? b.anchor : "",
+    b.kind === "heading" ? b.fragment : "",
   )
   expect(names).toEqual(["hello-world", "hello-world-1", "日本語-の-見出し"])
 })
