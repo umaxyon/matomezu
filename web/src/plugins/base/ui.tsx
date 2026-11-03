@@ -55,7 +55,13 @@ export {
 export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
 export { useDrawnMinimap } from "./minimap/drawn"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
-export { useCloseRightSidePanel, useOpenRightSidePanel, useRightSidePanel } from "./right-side-panel/hooks"
+export {
+  useCloseRightSidePanel,
+  useOpenRightSidePanel,
+  useRightSidePanel,
+  useSelectionFollowed,
+  useSetRightSidePanelCurrent,
+} from "./right-side-panel/hooks"
 export { RIGHT_SIDE_PANEL } from "./right-side-panel/slots"
 export type { RightSidePanelOpen } from "./right-side-panel/state"
 export { UserSettings } from "./settings/ui"
@@ -121,8 +127,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:right-side-panel": StageSlotProps
   }
   interface WidgetExtras {
-    // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）
-    rightSidePanel?: { width: number }
+    // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）と、
+    // ステージの選択に従うか（followsSelection。従う中身を出している間は、付いた先がステージの選択になり、開いたステージの中を押しても閉じない）
+    rightSidePanel?: { width: number; followsSelection?: boolean }
   }
   interface WidgetTable {
     "@matomezu/base:workspace": typeof WORKSPACE

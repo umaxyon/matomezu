@@ -222,3 +222,15 @@ test("リストの行を押したときの選び方（rowPress）: 修飾なし�
   store.actions.select("s1", [rows[0]])
   expect(isShown(store, store.state.getState(), "s1", "@matomezu/paper:paper-delete")).toBe(false)
 })
+
+test("選択に従う右サイドパネルを開いている間（followed）は、行と外の物・親と子を置き換えずに混ぜて選び、押しても動かさない", () => {
+  const store = ready()
+  const box = (place(store, 40, 40) as { result: { item: string } }).result.item
+  const { list, rows } = withList(store)
+  const p = page(store)
+  expect(pressSelection(p, [rows[0]], box, true, true)).toEqual({ now: [rows[0], box], drag: [], release: null })
+  expect(pressSelection(p, [rows[0], box], box, true, true).now).toEqual([rows[0]])
+  expect(pressSelection(p, [rows[0], box], list, false, true).now).toEqual([list])
+  expect(rowPress([box], rows, rows[1], true, true)).toEqual([box, rows[1]])
+  expect(rowPress([box], rows, rows[1], true)).toBe("list")
+})

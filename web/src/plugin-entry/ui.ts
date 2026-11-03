@@ -48,6 +48,8 @@ export {
   useOpenRightSidePanel,
   usePaperControls,
   useRightSidePanel,
+  useSelectionFollowed,
+  useSetRightSidePanelCurrent,
   useSwatches,
   useThemeVars,
 } from "../plugins/base/ui"

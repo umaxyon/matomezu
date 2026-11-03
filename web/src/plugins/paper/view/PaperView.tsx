@@ -73,7 +73,7 @@ import {
   shapeDefOf,
   shownRects,
 } from "../../base"
-import { modPressed, PaperFrame, useAnchorRef } from "../../base/ui"
+import { modPressed, PaperFrame, useAnchorRef, useSelectionFollowed } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
@@ -130,6 +130,7 @@ export function PaperView({ stage: id }: BookViewProps) {
   const page = usePage(id)
   const toPaperAt = useToPaper(id)
   const sweep = useRef<Sweep | null>(null)
+  const followed = useSelectionFollowed(id)
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -172,7 +173,7 @@ export function PaperView({ stage: id }: BookViewProps) {
     sweep.current = {
       pointer: e.pointerId,
       start: local(e, ref.current),
-      base: mod && page ? lifted(page, stage.selection) : [],
+      base: !mod ? [] : followed || !page ? stage.selection : lifted(page, stage.selection),
       mod,
     }
   }
@@ -278,6 +279,7 @@ function PageItems({
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
   const book = useBook(stage.id)
+  const followed = useSelectionFollowed(stage.id)
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
   const room = useMemo(
     () => (book && growOf(catalog, book, page) ? roomOf(catalog, book, page) : null),
@@ -316,8 +318,9 @@ function PageItems({
     // 付け替えは押した形 1 つだけを動かす。選択の道具は Mod で足す・外す（placing/selection.ts の pressSelection）
     const press = reparenting
       ? { now: [id], drag: [id], release: null }
-      : pressSelection(page, stage.selection, id, modPressed(e))
+      : pressSelection(page, stage.selection, id, modPressed(e), followed)
     select(stage.id, press.now)
+    if (followed) return
     const items = shapesIn(page, press.drag)
     // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
     const movable =

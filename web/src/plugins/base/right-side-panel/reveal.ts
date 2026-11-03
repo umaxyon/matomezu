@@ -8,14 +8,18 @@ import { fitZoom, type ViewAt } from "../zoom"
 // 物の周りに残す表示領域の余白（px）。マークポインタのずらし（スタンドと端のすき間 STAND_MARGIN）より広く取り、見せた物が表示領域の端に付かないようにする
 const PAD = 24
 
-// ステージ stage で、紙の上の四角 rect を見せる見え方（紙か表示領域が無ければ、今の見え方）。fit なら四角が入る倍率（100% まで）、でなければ 100%。
-// 倍率は四角の真ん中を動かさずに変えてから、真ん中へずらす（紙の端で、ずらせる所まで）
-export function revealView(stage: Stage, rect: Rect, fit = false): ViewAt {
+// 見せるときの倍率: one は 100%、fit は四角が入る倍率（100% まで）、keep は今の倍率のまま
+export type RevealZoom = "one" | "fit" | "keep"
+
+// ステージ stage で、紙の上の四角 rect を見せる見え方（紙か表示領域が無ければ、今の見え方）。倍率は zoom で決め、
+// 四角の真ん中を動かさずに変えてから、真ん中へずらす（紙の端で、ずらせる所まで）
+export function revealView(stage: Stage, rect: Rect, zoom: RevealZoom = "one"): ViewAt {
   const at = placement(stage)
   const view = stage.view
   if (!at || !view) return { zoom: stage.zoom, pan: stage.pan }
   const center = { x: at.x + (rect.x + rect.w / 2) * at.zoom, y: at.y + (rect.y + rect.h / 2) * at.zoom }
-  const zoomed = zoomTo(stage, fit ? fitZoom(rect, view, PAD, 1) : 1, center)
+  const to = zoom === "fit" ? fitZoom(rect, view, PAD, 1) : zoom === "keep" ? stage.zoom : 1
+  const zoomed = zoomTo(stage, to, center)
   const now = placement(zoomed) ?? at
   const shown = {
     x: now.x + rect.x * now.zoom,

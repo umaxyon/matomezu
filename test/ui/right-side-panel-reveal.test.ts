@@ -15,7 +15,7 @@ import {
 import { fitView, moveView, ZOOM_MIN } from "../../web/src/plugins/base/zoom"
 import { CORE_CATALOG } from "../support"
 
-const OPEN = { widget: "p:panel", subject: "c1", anchor: "a1", book: "b1", page: "p1" }
+const OPEN = { widget: "p:panel", subject: "c1", anchors: ["a1"], current: "a1", book: "b1", page: "p1" }
 const HOME = { zoom: 1, pan: { x: 0, y: 0 } }
 const PANNED = { zoom: 0.8, pan: { x: -40, y: -10 } }
 
@@ -28,12 +28,22 @@ const book = {
 const stage = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
 
 test("開くと、開く前の見え方を覚え、物はまだ見せていない。閉じて戻す前に同じページで開き直しても、最初に開く前の見え方と、変えたかはそのまま", () => {
-  const opened = withOpened({ noteDraft: 1 }, OPEN, PANNED)
-  expect(restoreIn(opened)).toEqual({ before: { ...PANNED, book: "b1", page: "p1" }, shown: null, moved: false })
+  const opened = withOpened({ other: 1 }, OPEN, PANNED)
+  expect(restoreIn(opened)).toEqual({
+    before: { ...PANNED, book: "b1", page: "p1" },
+    shown: null,
+    seen: null,
+    moved: false,
+  })
   const shown = withRestore(withPanel(opened, null), { shown: HOME, moved: true })
   const again = withOpened(shown, { ...OPEN, subject: "c2" }, HOME)
-  expect(restoreIn(again)).toEqual({ before: { ...PANNED, book: "b1", page: "p1" }, shown: null, moved: true })
-  expect(withoutRestore(withPanel(again, null))).toEqual({ noteDraft: 1 })
+  expect(restoreIn(again)).toEqual({
+    before: { ...PANNED, book: "b1", page: "p1" },
+    shown: null,
+    seen: null,
+    moved: true,
+  })
+  expect(withoutRestore(withPanel(again, null))).toEqual({ other: 1 })
   // ほかのページで開き直したら、そのとき開く前の見え方を覚え直す
   const other = withOpened(shown, { ...OPEN, page: "p2" }, HOME)
   expect(restoreIn(other)?.before).toEqual({ ...HOME, book: "b1", page: "p2" })
@@ -83,11 +93,11 @@ test("1 つの物を見せる見え方は倍率 100% で、物の真ん中を表
 
 test("いくつかの物を囲む四角は、余白を残して入る倍率（100% が上限、ZOOM_MIN が下限）にして真ん中へ動かす", () => {
   const wide = { x: 200, y: 300, w: 704, h: 100 }
-  const fitted = revealView(stage, wide, true)
+  const fitted = revealView(stage, wide, "fit")
   expect(fitted.zoom).toBe(0.5)
   expect(middleOn(stage, fitted, wide)).toEqual({ x: 200, y: 150 })
-  expect(revealView(stage, { x: 900, y: 500, w: 60, h: 40 }, true).zoom).toBe(1)
-  expect(revealView(stage, { x: 0, y: 0, w: 5000, h: 100 }, true).zoom).toBe(ZOOM_MIN)
+  expect(revealView(stage, { x: 900, y: 500, w: 60, h: 40 }, "fit").zoom).toBe(1)
+  expect(revealView(stage, { x: 0, y: 0, w: 5000, h: 100 }, "fit").zoom).toBe(ZOOM_MIN)
 })
 
 test("見え方へ移すと、倍率もずらす量もその見え方になる（全体を収めるのも同じ移し方）", () => {

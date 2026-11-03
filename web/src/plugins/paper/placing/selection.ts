@@ -1,6 +1,7 @@
 // 紙のビューの選択の決まり: Mod+クリックで足す・外す、選んでいる物の 1 つを修飾なしで押して動かさずに離したら、その 1 つに選び直す。
 // 内包の階層の違う形を一緒に選ぼうとしたら、どれも同じ階層になるよう、深い形の代わりにその祖先を選ぶ（一緒に動かせるように）。
 // 形の中の物（リストの行など）を選んでいるときに、ほかの物を Mod+クリックしたら、形の中の物はそれを持つ形に置き換える（形の中の物を選べるのは、同じ形の中の物どうしだけ）。
+// 選択に従う右サイドパネル（伝言を書いている間など）を開いている間は、選択は付いた先を選ぶ物なので、置き換えずに混ぜて選び、押しても動かさない。
 // 選択の道具で何も無い所からドラッグした範囲（sweep）では、範囲にかかったページの形と、両端がどちらもその形のつなぐものを選ぶ
 import {
   type CoreCatalog,
@@ -20,9 +21,20 @@ export interface Press {
   release: readonly string[] | null
 }
 
-// ページ page の選択 selection で物 id を押したときの選び方（mod は Mod を押しているか）
-export function pressSelection(page: ItemPage, selection: readonly string[], id: string, mod: boolean): Press {
+// ページ page の選択 selection で物 id を押したときの選び方（mod は Mod を押しているか）。
+// followed（選択に従う右サイドパネルを開いている間。選択は付いた先を選ぶ物）なら、階層の違う物も混ぜて選び（置き換えない）、押しても動かさない
+export function pressSelection(
+  page: ItemPage,
+  selection: readonly string[],
+  id: string,
+  mod: boolean,
+  followed = false,
+): Press {
   const has = selection.includes(id)
+  if (followed) {
+    const now = !mod ? [id] : has ? selection.filter(s => s !== id) : [...selection, id]
+    return { now, drag: [], release: null }
+  }
   if (mod && has) return { now: selection, drag: selection, release: selection.filter(s => s !== id) }
   if (mod) {
     const now = sameLevel(page, lifted(page, [...selection, id]))

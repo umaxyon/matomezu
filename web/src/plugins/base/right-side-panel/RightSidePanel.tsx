@@ -2,13 +2,16 @@
 // 開け閉めのときは幅を動かす（動きを減らす設定では動かさない）。見出しに閉じるボタンを置き、中身は、配置がスロットに置いたウィジェットのうち開いている 1 つだけを描く。
 // 窓に 1 つだけで、ほかのステージでも開いていれば、カレントでない方を閉じる。開いたら中にフォーカスを入れ、Esc は右サイドパネルのキーの範囲で閉じる。
 // 外を左ボタンで押したら閉じる（ステージの道具がずらす道具のときと、ダイアログ・メニュー・トースト・ツールバーを押したときは閉じない。右ボタンはメニューと道具のアイコンを出すので閉じない）。
-// 開いたステージで開いているブックかページが替わったとき、分けたり分けるのをやめたりしたときも閉じる
-import { type ReactNode, useContext, useEffect, useRef } from "react"
+// 開いたステージで開いているブックかページが替わったとき、分けたり分けるのをやめたりしたときも閉じる。
+// 選択に従う中身（ウィジェットの定義の rightSidePanel.followsSelection）を出している間は、開いたステージの中を押しても閉じず、付いた先をステージの選択に合わせる
+// （ポインタを押している間は、離してから。state.ts の followSelection）。ポインタを離したあとに付いた先が空なら閉じる（AI が物を消すなど、押さずに空になったときは閉じない）
+import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { toolOf } from "../../../core/workspace"
 import { useMessages } from "../../../ui/i18n"
-import { useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
+import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useCoreCatalog, useSetStageState, useStage, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { stageElement } from "../utils/stage-element"
 import type { StageSlotProps } from "../workspace/ui"
 import {
   PressClosedContext,
@@ -18,7 +21,7 @@ import {
 } from "./hooks"
 import styles from "./RightSidePanel.module.css"
 import { RIGHT_SIDE_PANEL } from "./slots"
-import { pressCloses, type RightSidePanelOpen, stillOn } from "./state"
+import { followSelection, panelIn, pressCloses, type RightSidePanelOpen, stillOn, withPanel } from "./state"
 
 const WIDTH = 480 // 中身のウィジェットが幅を書いていないときの幅（px。PC のブラウザの窓をいちばん狭くしても入る幅）
 
@@ -45,6 +48,8 @@ export function RightSidePanel() {
   }, [all, found?.stage, close])
   // 押すたびに、この押しで閉じたかを決める（決め方は state.ts の pressCloses）
   const stage = opened?.stage ?? null
+  const followed = !!widget?.rightSidePanel?.followsSelection
+  useFollowSelection(followed ? stage : null)
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       pressClosed.current = false
@@ -54,13 +59,14 @@ export function RightSidePanel() {
       const tool = toolOf(catalog, s.workspace, stage, s.books)
       const inside = ref.current?.contains(target) ?? false
       const pans = !!tool && !!catalog.tools.get(tool)?.pans
-      if (!pressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS), pans })) return
+      const inStage = followed && (stageElement(stage)?.contains(target) ?? false)
+      if (!pressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS), pans, followed: inStage })) return
       pressClosed.current = true
       close(stage)
     }
     document.addEventListener("pointerdown", onPointerDown, true)
     return () => document.removeEventListener("pointerdown", onPointerDown, true)
-  }, [stage, read, catalog, close, pressClosed])
+  }, [stage, followed, read, catalog, close, pressClosed])
   return (
     <aside
       ref={ref}
@@ -82,14 +88,67 @@ export function RightSidePanel() {
   )
 }
 
+// 選択に従う中身を出しているステージ stage（無ければ null）で、付いた先をステージの選択に合わせる。ポインタを押している間は合わせず、離してから合わせ、
+// そのとき付いた先が空なら閉じる（離したあとの click で選択を変える物もあるので、click のあとに見る）。閉じたら（従う中身でなくなったら）選択を外す
+function useFollowSelection(stage: string | null) {
+  const read = useReadState()
+  const { select } = useActions()
+  const following = useRef<string | null>(null)
+  useEffect(() => {
+    const was = following.current
+    following.current = stage
+    if (was && was !== stage) select(was, [])
+  }, [stage, select])
+  const set = useSetStageState(kit)
+  const close = useCloseRightSidePanel()
+  const selection = useStage(stage ?? "")?.selection
+  const pressing = useRef(false)
+  const [released, setReleased] = useState(0)
+  const checked = useRef(released)
+  useEffect(() => {
+    if (!stage) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const down = () => {
+      pressing.current = true
+    }
+    const up = () => {
+      pressing.current = false
+      clearTimeout(timer)
+      timer = setTimeout(() => setReleased(n => n + 1), 0)
+    }
+    document.addEventListener("pointerdown", down, true)
+    document.addEventListener("pointerup", up, true)
+    document.addEventListener("pointercancel", up, true)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener("pointerdown", down, true)
+      document.removeEventListener("pointerup", up, true)
+      document.removeEventListener("pointercancel", up, true)
+    }
+  }, [stage])
+  useEffect(() => {
+    if (!stage || pressing.current) return
+    const now = read().stageStates[stage]?.[kit.id]
+    const open = panelIn(now)
+    if (!open) return
+    const next = followSelection(open, selection ?? [])
+    const release = checked.current !== released
+    checked.current = released
+    if (release && next.anchors.length === 0) close(stage)
+    else if (next !== open) set(stage, withPanel(now, next))
+  }, [stage, selection, released, read, set, close])
+}
+
 function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: string | number }) {
   const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
   const close = useCloseRightSidePanel()
   const view = useStage(stage)
   const stages = useMatomezuState(s => s.workspace.stages.length)
-  // 開いたら中にフォーカスを入れる（Esc を右サイドパネルのキーの範囲で受けるため）
-  useEffect(() => ref.current?.focus({ preventScroll: true }), [])
+  // 開いたら中にフォーカスを入れる（Esc を右サイドパネルのキーの範囲で受けるため。中の物がもう取っていれば、そのまま）
+  useEffect(() => {
+    if (!ref.current?.contains(document.activeElement)) ref.current?.focus({ preventScroll: true })
+  }, [])
   // 開いたときのブックかページから替わったか、ステージの数が変わったら閉じる
   const first = useRef(stages)
   const moved = !!view && !stillOn(open, view)

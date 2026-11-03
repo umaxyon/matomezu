@@ -27,17 +27,28 @@ export function NoteLayer({ stage }: StageSlotProps) {
   return (
     <>
       {notes.map(n => (
-        <NoteStand key={n.id} stage={stage} id={n.id} anchor={n.anchors.at(-1) ?? ""} props={n.props as NoteProps} />
+        <NoteStand key={n.id} stage={stage} id={n.id} anchors={n.anchors} props={n.props as NoteProps} />
       ))}
       {draft && <DraftStand key={draft.anchors.join(" ")} stage={stage} draft={draft} />}
     </>
   )
 }
 
-function NoteStand({ stage, id, anchor, props }: { stage: string; id: string; anchor: string; props: NoteProps }) {
+function NoteStand({
+  stage,
+  id,
+  anchors,
+  props,
+}: {
+  stage: string
+  id: string
+  anchors: readonly string[]
+  props: NoteProps
+}) {
   const t = useMessages(kit)
   const openPanel = useOpenRightSidePanel()
-  const open = () => openPanel(stage, { widget: NOTE_PANEL_ID, subject: id, anchor })
+  const anchor = anchors.at(-1) ?? ""
+  const open = () => openPanel(stage, { widget: NOTE_PANEL_ID, subject: id, anchors, current: anchor })
   if (props.bubble)
     return (
       <Stand anchor={anchor} side="right" label={t("Note")}>
