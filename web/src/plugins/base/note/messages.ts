@@ -21,5 +21,6 @@ export const NOTE_MESSAGES = defineMessages({
     en: "A thing the note was on was removed",
     ja: "付ける先の物が消されました",
   },
+  "Bird of the note": { en: "Bird of the note", ja: "伝言の鳥" },
   "The note was refused": { en: "The note was refused", ja: "伝言を変えられませんでした" },
 })

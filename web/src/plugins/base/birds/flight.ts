@@ -1,5 +1,5 @@
 // 鳥の動き: 時刻 t（秒）の姿（どのコマを、歩く所のどこに、どの向きで出すか）を返す純粋な計算。
-// 出たときだけ、画面の外から飛んでくる（fly）か、物の裏から顔を出してキョロキョロしてから上の辺へ飛び乗る（peek）。そのあとは上の辺を往復して歩き、
+// 出たときだけ、画面の外か別の物の上から飛んでくる（fly）か、物の裏から顔を出してキョロキョロしてから上の辺へ飛び乗る（peek）。そのあとは上の辺を往復して歩き、
 // 端ごとに立ち止まってその鳥の仕草をする
 import type { Point } from "../../../core/geom"
 import type { Bird } from "."
@@ -33,6 +33,7 @@ export interface Pose {
 }
 
 const FLY = 2.1 // 飛んでくる秒
+export const LEAVE = 1.2 // 飛び去る秒
 const LAND = 0.4 // 着地の秒
 const PEEK = 4 // 顔を出してから着地するまでの秒
 
@@ -116,4 +117,18 @@ export function birdPose(t: number, arrival: Arrival, g: Gait, size: number, ran
     return walking(t - PEEK, g, size, range)
   }
   return walking(t, g, size, range)
+}
+
+// 飛び去る姿: 飛び立った時の姿 start から、t 秒（LEAVE まで）で to（足元からのずれ。画面の外）へ羽ばたいて飛ぶ
+export function leavingPose(t: number, start: Pose, to: Point): Pose {
+  const along = ease(t / LEAVE)
+  return {
+    ...start,
+    frame: Math.floor(t / 0.16) % 2,
+    lift: 0,
+    from: { x: to.x * along, y: to.y * along },
+    right: to.x > 0,
+    rotation: 0,
+    behind: false,
+  }
 }
