@@ -41,7 +41,7 @@ type cli struct {
 	Start       startCmd       `cmd:"" help:"Start the server in the background unless it is running, and print its URL."`
 	Stop        stopCmd        `cmd:"" help:"Stop the background server."`
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
-	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's comments) that wait for AI's answer, for an AI's hook. Prints nothing when there are none or the server is not running."`
+	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, for an AI's hook. Prints nothing when there are none or the server is not running."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 
@@ -237,7 +237,7 @@ func (c *annotationsCmd) Run() error {
 	if json.Unmarshal(out, &got) != nil || len(got.Awaiting) == 0 {
 		return nil
 	}
-	fmt.Printf("matomezu: %d annotation(s), such as the user's comments, wait for your answer. "+
+	fmt.Printf("matomezu: %d annotation(s), such as the user's notes and marks, wait for your answer. "+
 		"Answer each as its kind says (see actions); read_page shows what it stands on.\n", len(got.Awaiting))
 	for _, a := range got.Awaiting {
 		fmt.Printf("- book %q (%s): %s\n", a.Title, a.Book, a.Annotation)

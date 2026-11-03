@@ -21,19 +21,19 @@ const book = {
   ],
 } as unknown as Book
 
-const comment = (id: string, props: unknown): Annotation => ({
+const note = (id: string, props: unknown): Annotation => ({
   id,
-  annotation: "@matomezu/base:comment",
+  annotation: "@matomezu/base:note",
   anchors: ["a"],
   props,
 })
-const GOOD = comment("c1", { ask: "reply", bubble: true, posts: [{ by: "user", text: "x", at: "t" }] })
-const BAD = comment("c2", { ask: "later" })
+const GOOD = note("c1", { text: "x", bubble: true, removeOnRead: true })
+const BAD = note("c2", { ask: "later" })
 const GONE: Annotation = { id: "c3", annotation: "@ex/notes:sticky", anchors: ["a"], props: {} }
 
 test("種類が機能台帳に無い物は W018、形が合わない物は W019 になる（データには手を付けない）", () => {
   expect(checkAnnotations(CORE_CATALOG, book, [GOOD, BAD, GONE]).map(warningText)).toEqual([
-    "W019 @matomezu/base: book d (D): annotation c2 does not fit @matomezu/base:comment (kept as it is, not used)",
+    "W019 @matomezu/base: book d (D): annotation c2 does not fit @matomezu/base:note (kept as it is, not used)",
     "W018 @ex/notes: book d (D): annotation c3 is a @ex/notes:sticky, which is not in the catalog (kept as it is, not used)",
   ])
 })
@@ -42,8 +42,8 @@ test("効かないアノテーションがあっても、ほかのアノテー�
   const world = { books: { d: book }, settings: {}, annotations: { d: [GOOD, BAD, GONE] } }
   const done = performIn(
     world,
-    "@matomezu/base:comment-remove",
-    { comment: "c1" },
+    "@matomezu/base:note-remove",
+    { note: "c1" },
     { book: "d" },
     {
       catalog: CORE_CATALOG,
@@ -67,10 +67,10 @@ test("prune は無くなった物をアンカーから外し、全部無くな�
 })
 
 test("AI に見せるアノテーションは、結び付く物の最後のあるページと、AI の応えを待っているか（種類の awaits。形が合わない物と種類の無い物は待たない）を添える", () => {
-  const read = comment("c4", { ask: "reply", bubble: true, posts: [{ by: "user", text: "x", at: "t" }], readAt: "t" })
-  const point = comment("c5", { ask: "point", bubble: false, posts: [{ by: "user", text: "見て", at: "t" }] })
+  const read = note("c4", { text: "x", bubble: true, removeOnRead: false, readAt: "t" })
+  const unread = note("c5", { text: "見て", bubble: false, removeOnRead: false })
   expect(
-    annotationsForAi(CORE_CATALOG, book, [GOOD, read, point, BAD, GONE]).map(a => [a.id, a.page, a.awaits]),
+    annotationsForAi(CORE_CATALOG, book, [GOOD, read, unread, BAD, GONE]).map(a => [a.id, a.page, a.awaits]),
   ).toEqual([
     ["c1", "p", true],
     ["c4", "p", false],

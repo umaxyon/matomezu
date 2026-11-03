@@ -1,0 +1,55 @@
+/* 伝言の文を書く所（下書きの吹き出しと右サイドパネル）の部品 */
+.text {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 24px;
+  padding: 4px 6px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 4px;
+  background: var(--skin-surface-muted);
+  color: var(--skin-text);
+  font: inherit;
+  resize: none;
+  overflow: hidden;
+}
+/* 「伝わったら自動で消す」 */
+.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.button,
+.primary,
+.danger {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--skin-btn);
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.button:hover {
+  background: var(--skin-btn-hover);
+}
+.primary {
+  background: var(--skin-accent);
+  color: var(--skin-on-accent);
+}
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.danger {
+  border-color: var(--skin-danger);
+  background: transparent;
+  color: var(--skin-danger);
+}

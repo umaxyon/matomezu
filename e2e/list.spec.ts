@@ -21,7 +21,7 @@ test("ツールボックスのリストで置くと、キャプションの見�
   // 行の右クリックで行のメニュー
   await list.getByRole("listitem").first().click({ button: "right" })
   const menu = page.getByRole("menu")
-  await expect(menu.getByRole("menuitem")).toHaveText(["行の編集", "行を削除", "コメント", "マーク"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["行の編集", "行を削除", "AIに伝言", "AIに示す"])
   await menu.getByRole("menuitem", { name: "行を削除" }).click()
   await expect(list.getByRole("listitem")).toHaveText(["卵6 個"])
   // 編集のダイアログの「行を削除」は、確かめずに行を消して閉じる。追加のダイアログには無い

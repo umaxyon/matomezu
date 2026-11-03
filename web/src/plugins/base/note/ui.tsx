@@ -1,0 +1,18 @@
+// 伝言の見た目のウィジェット: ブックのレイヤーに置き、開いているブックの伝言と下書きをスタンドで出す。右サイドパネルには伝言の文を出す
+import { defineWidget } from "../../../ui/layout"
+import { kit } from "../kit"
+import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
+import { BOOK_LAYERS } from "../workspace/slots"
+import { NoteLayer } from "./NoteLayer"
+import { NotePanel } from "./NotePanel"
+import { NOTE_PANEL_ID } from "./panel-id"
+
+export const NOTE_LAYER = defineWidget({ id: kit.name("note-layer"), slots: [BOOK_LAYERS], view: NoteLayer })
+
+// 伝言の右サイドパネルの中身（幅は 320px で固定）
+export const NOTE_PANEL = defineWidget({
+  id: NOTE_PANEL_ID,
+  slots: [RIGHT_SIDE_PANEL],
+  rightSidePanel: { width: 320 },
+  view: NotePanel,
+})
