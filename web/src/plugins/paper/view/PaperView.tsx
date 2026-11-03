@@ -62,14 +62,15 @@ import {
 } from "../../../plugin-api/ui"
 import {
   type Edges,
-  fitsPaper,
   growOf,
+  inPaper,
   itemSize,
   minSize,
   onlySelected,
   placedSize,
   resizedBy,
   roomOf,
+  shapeDefOf,
   shownRects,
 } from "../../base"
 import { modPressed, PaperFrame, useAnchorRef } from "../../base/ui"
@@ -494,8 +495,7 @@ function PageItems({
 
 // 形のビューに渡す中身: 形の定義の content に宣言したフィールドの名前 → その値
 function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<string, unknown>> {
-  const def = catalog.items.get(item.item)
-  const fields = def?.kind === "shape" ? Object.keys(def.content ?? {}) : []
+  const fields = Object.keys(shapeDefOf(catalog, item.item)?.content ?? {})
   return Object.fromEntries(fields.map(k => [k, (item as Record<string, unknown>)[k]]))
 }
 
@@ -594,8 +594,8 @@ function Item({
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
   const tokens = useTokenScope(item.item) // そのアイテムのプラグインのテーマキー（--<名前>）
   // 幅だけを変えられる形（@matomezu/paper:stretch）は、左右の辺だけをつかめる
-  const def = catalog.items.get(item.item)
-  const grips = def?.kind === "shape" && def[kit.name("stretch")] === "width" ? GRIPS.filter(g => !g.edges.y) : GRIPS
+  const grips =
+    shapeDefOf(catalog, item.item)?.[kit.name("stretch")] === "width" ? GRIPS.filter(g => !g.edges.y) : GRIPS
   return (
     <div
       ref={anchor(item.id)}
@@ -660,7 +660,7 @@ function Ghost({ stage, pointer }: { stage: StageView; pointer: Point }) {
   return (
     <div
       className={styles.ghost}
-      data-fits={fitsPaper(at, size, paper)}
+      data-fits={inPaper({ ...at, ...size }, paper)}
       style={{ left: at.x, top: at.y, width: size.w, height: size.h }}
     />
   )

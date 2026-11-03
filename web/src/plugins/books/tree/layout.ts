@@ -6,7 +6,7 @@
 // 長い方へ伸びる枝（横長の紙なら左右）を、重ならない所まで根から離す。それで紙から出るなら、入る限り木全体を余裕のある側へずらす。
 // 節の大きさは、節の大きさの選び方（節の size、無ければページで効いている選び方 size.ts）で決める: 伸びるはキャプション 1 行の幅、
 // 折り返すは N 字の幅で折り返した行、最大で固定は N 字の幅まで（超えた分は … で切る）
-import type { Point } from "../../../plugin-api"
+import type { Point, Rect } from "../../../plugin-api"
 import {
   blockBodyHeight,
   clampRich,
@@ -47,8 +47,6 @@ export interface TreeLayout {
   fits: boolean // どの節も紙に収まるか
   origin: Point // 可変ページで、木全体を右・下へずらした印刷区画の数（可変ページでなければ 0）
 }
-
-type Rect = { x: number; y: number; w: number; h: number }
 
 // キャプションの字（標準は普通の太さ。**…** で囲んだ所が太字）
 const FONT = { size: TEXT_LOOK.caption.size, weight: 400 } as const

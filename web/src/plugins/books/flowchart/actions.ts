@@ -194,7 +194,8 @@ export const PAGE_ALIGN = kit.defineAction({
   },
 })
 
-const onPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
+// ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
+const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
 
 // 自動で整列の確認のダイアログ（ページ page を整える）
 export const PAGE_ALIGN_DIALOG = kit.defineDialogWith<{ page: string }>()({ id: "page-align" })
@@ -209,5 +210,5 @@ export const PAGE_ALIGN_COMMAND = kit.defineCommand({
     const page = ctx.stage.opened?.page
     if (page) a.openDialog(ctx.stage.id, PAGE_ALIGN_DIALOG.id, { page })
   },
-  when: onPage,
+  when: onOpenedPage,
 })

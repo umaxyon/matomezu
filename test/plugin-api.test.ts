@@ -69,7 +69,6 @@ test("matomezu が出す名前", () => {
     "evenGap",
     "extentOf",
     "findShape",
-    "fitsPaper",
     "followConnectors",
     "frameAround",
     "frameOf",

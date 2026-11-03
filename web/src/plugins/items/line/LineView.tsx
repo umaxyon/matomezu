@@ -4,7 +4,6 @@
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
 // 形にポインタを乗せると四辺に〇を出し（PortOverlay）、〇から引くドラッグ（useLinkDrag.ts）の間は、引ける相手と引き始めた形のほかを薄くする
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
-import type { PlacedConnector } from "../../../plugin-api"
 import {
   ShapeMarksProvider,
   type ShapeScene,
@@ -24,7 +23,7 @@ import type { Rect } from "./geom"
 import { elbowAt, LINE } from "./line"
 import { LINE_CONTEXT } from "./menu"
 import { LinkPreview, Ports } from "./PortsView"
-import type { PlacedLine } from "./placed"
+import { linesOf } from "./placed"
 import type { EndMemory, Side } from "./route"
 import { memoryOf, stickyMemory } from "./sticky"
 import { useLineEdit } from "./useLineEdit"
@@ -38,9 +37,6 @@ interface Linking {
   portsOf(id: string): readonly Side[]
 }
 const LinkingContext = createContext<Linking | null>(null)
-
-const linesIn = (scene: ShapeScene): PlacedLine[] =>
-  (scene.page.items ?? []).filter((i): i is PlacedConnector & PlacedLine => i.item === LINE.id)
 
 export function LineView({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, localOf } = scene
@@ -61,12 +57,14 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const drawnRects = useRef<ReadonlyMap<string, Rect>>(new Map())
   // 離したあとに付け替えを見る線: 離したばかりの形につながる線
   const settle = new Set(
-    linesIn(scene)
+    linesOf(scene.page)
       .filter(l => scene.released.has(l.from) || scene.released.has(l.to))
       .map(l => l.id),
   )
   // ダイアログの下書きは、見せ方が渡すページ（下書きを重ねたページ）にもう入っている。じかに直しているドラッグの線は、その途中の項目で描く
-  const drafted = linesIn(scene).map(l => (lineDrag.draft?.id === l.id ? { ...l, props: lineDrag.draft.props } : l))
+  const drafted = linesOf(scene.page).map(l =>
+    lineDrag.draft?.id === l.id ? { ...l, props: lineDrag.draft.props } : l,
+  )
   const memory = stickyMemory({
     lines: drafted,
     memo: memo.current,
