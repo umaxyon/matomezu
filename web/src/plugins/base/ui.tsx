@@ -53,7 +53,7 @@ export {
   SwitchPanel,
 } from "./dialog-host/FormParts"
 export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
-export { type ParsedBy, useMarkdownDocument } from "./markdown/ui"
+export { useMarkdownDocument } from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/drawn"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useCloseRightSidePanel, useOpenRightSidePanel, useRightSidePanel } from "./right-side-panel/hooks"

@@ -44,16 +44,13 @@ afterEach(() => {
 })
 
 function Probe({ text, of }: { text: string; of: string }) {
-  const { document, by } = useMarkdownDocument(text, of)
-  const first = document.blocks[0]
-  return <p data-by={by}>{first && "children" in first ? JSON.stringify(first.children.map(c => c.kind)) : ""}</p>
+  const first = useMarkdownDocument(text, of).blocks[0]
+  return <p>{first && "children" in first ? JSON.stringify(first.children.map(c => c.kind)) : ""}</p>
 }
 const shown = (c: HTMLElement) => c.querySelector("p")?.textContent
-const heading = (c: HTMLElement) => c.querySelector("p")?.getAttribute("data-by")
 
 test("開いたときはその場で読み、変更は Worker に頼む。返る前に 2 回変えたら、返ってから最後の物だけを頼む", () => {
   const view = render(<Probe text="a" of="p1" />)
-  expect(heading(view.container)).toBe("worker")
   expect(shown(view.container)).toBe('["text"]')
   view.rerender(<Probe text="**b**" of="p1" />)
   view.rerender(<Probe text="*c*" of="p1" />)
@@ -80,10 +77,11 @@ test("読む物が替わったら、返りを待たずにその場で読む。�
 
 test("Worker を読み込めなければ、それからはその場で読む", () => {
   const view = render(<Probe text="a" of="p1" />)
-  act(() => made.at(-1)!.fail())
-  expect(heading(view.container)).toBe("here")
+  const w = made.at(-1)!
+  act(() => w.fail())
   view.rerender(<Probe text="**b**" of="p1" />)
   expect(shown(view.container)).toBe('["strong"]')
+  expect(w.posted).toEqual([])
 })
 
 test("StrictMode で付け直しても、1 つの変更に頼むのは 1 回で、返った物を使う", () => {

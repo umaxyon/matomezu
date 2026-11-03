@@ -63,7 +63,7 @@ test("ソースのペインに書くと描いた文書が変わる（読むの�
   await page.keyboard.type("# 見出し")
   await expect(pane(page, "プレビュー").getByRole("heading", { name: "見出し" })).toBeVisible()
   // 書いたあとの原文は、画面とは別の処理の流れ（Web Worker）で読む
-  await expect(pane(page, "プレビュー").locator("article")).toHaveAttribute("data-markdown-parse", "worker")
+  expect(page.workers().map(w => new URL(w.url()).pathname)).toContain("/markdown-parse-worker.js")
   await page.keyboard.press("Enter")
   await page.keyboard.press("Tab")
   await page.keyboard.type("本文")

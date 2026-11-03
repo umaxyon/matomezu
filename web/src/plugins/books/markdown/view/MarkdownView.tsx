@@ -17,7 +17,7 @@ import {
   useStageState,
 } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, paperSize } from "../../../base"
-import { type ParsedBy, useMarkdownDocument, useResize } from "../../../base/ui"
+import { useMarkdownDocument, useResize } from "../../../base/ui"
 import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
 import { PANES, type Pane, paneLayoutOf } from "../panes"
@@ -40,7 +40,7 @@ export function MarkdownView({ stage }: BookViewProps) {
   const source = useRef<HTMLDivElement>(null)
   const rendered = useRef<HTMLDivElement>(null)
   const text = page && "text" in page && typeof page.text === "string" ? page.text : ""
-  const { document, by } = useMarkdownDocument(text, page?.id ?? "")
+  const document = useMarkdownDocument(text, page?.id ?? "")
   if (!page || !book) return <NoPages stage={stage} />
   const width = paperSize(catalog, page)?.w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
@@ -93,7 +93,7 @@ export function MarkdownView({ stage }: BookViewProps) {
                 onScroll={follow}
               />
             ) : (
-              <Rendered document={document} by={by} width={width} scrollRef={rendered} />
+              <Rendered document={document} width={width} scrollRef={rendered} />
             )}
           </section>
         ))}
@@ -107,12 +107,10 @@ export function MarkdownView({ stage }: BookViewProps) {
 // 縮めても紙の色がペインの下まで届くよう、縮める前の高さを倍率で割って伸ばす
 function Rendered({
   document,
-  by,
   width,
   scrollRef: ref,
 }: {
   document: MarkdownDocument
-  by: ParsedBy // どちらで読んだか（data-markdown-parse に書く）
   width: number | undefined
   scrollRef: RefObject<HTMLDivElement | null>
 }) {
@@ -124,11 +122,7 @@ function Rendered({
   const zoom = width === undefined ? 1 : shrinkTo(room, width)
   return (
     <div ref={ref} className={`${styles.scroll} ${styles.rendered}`}>
-      <article
-        data-markdown-parse={by}
-        className={styles.document}
-        style={width ? { width, zoom, minHeight: `${100 / zoom}%` } : undefined}
-      >
+      <article className={styles.document} style={width ? { width, zoom, minHeight: `${100 / zoom}%` } : undefined}>
         <MarkdownDocumentView document={document} />
       </article>
     </div>

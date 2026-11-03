@@ -1,12 +1,12 @@
 // Markdown の原文を読んだ物（MarkdownDocument）を返すフック: 開いたとき・読む物（of。ページなど）が替わったときはその場で読み、
 // そのあとの変更は Web Worker（markdown-parse-worker.ts）で読む（書くのを待たせない）。読んでいる間は前に読んだ物を返す。
 // 頼むのは 1 つずつで、返る前に変わった原文は、返ってから最後の物だけを頼む。外したあとに返った物は使わない。
-// Worker を使えない（無い・読み込めない。file:// で開いたときなど）なら、その場で読む（React の遅らせた値で、書くのを先にする）。どちらで読んでいるかも返す
+// Worker を使えない（無い・読み込めない。file:// で開いたときなど）なら、その場で読む（React の遅らせた値で、書くのを先にする）
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type { ParseReply, ParseRequest } from "./markdown-parse-worker"
 import { type MarkdownDocument, parseMarkdown } from "./parse"
 
-export type ParsedBy = "worker" | "here"
+type ParsedBy = "worker" | "here"
 
 // 画面のビルドが出す Worker のファイル（scripts/web-build.ts）
 const WORKER_FILE = "markdown-parse-worker.js"
@@ -43,7 +43,7 @@ function worker(): Worker | "none" {
 
 type Read = { of: string; text: string; document: MarkdownDocument }
 
-export function useMarkdownDocument(text: string, of: string): { document: MarkdownDocument; by: ParsedBy } {
+export function useMarkdownDocument(text: string, of: string): MarkdownDocument {
   const [by, setBy] = useState<ParsedBy>(() => (worker() === "none" ? "here" : "worker"))
   const [read, setRead] = useState<Read>(() => ({ of, text, document: parseMarkdown(text) }))
   // 読む物が替わったら、その場で読み直す
@@ -80,5 +80,5 @@ export function useMarkdownDocument(text: string, of: string): { document: Markd
     asked.current = id
     w.postMessage({ id, text } satisfies ParseRequest)
   }, [by, text, now])
-  return { document: by === "here" ? here : now.document, by }
+  return by === "here" ? here : now.document
 }

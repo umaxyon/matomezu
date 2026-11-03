@@ -19,7 +19,6 @@ export {
   InheritChoices,
   inlineClass,
   type PaperValue,
-  type ParsedBy,
   Problem,
   pairClass,
   RIGHT_SIDE_PANEL,
