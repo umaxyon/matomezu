@@ -224,6 +224,7 @@ test("matomezu/ui が出す名前", () => {
     "usePerform",
     "useReadStageState",
     "useResize",
+    "useRevealable",
     "useRightSidePanel",
     "useSetStageState",
     "useSettingControls",

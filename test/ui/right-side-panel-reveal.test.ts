@@ -1,7 +1,7 @@
-// 右サイドパネルで開いた物を見せる見え方と中のスクロール、閉じたときに見え方を戻すかの覚え（state.ts・reveal.ts）。全体を収めるのと同じ移し方（moveView）
+// 右サイドパネルで開いた物を見せる見え方、閉じたときに見え方を戻すかの覚え（state.ts・reveal.ts）。全体を収めるのと同じ移し方（moveView）
 import { expect, test } from "bun:test"
 import { newStage, openBook, panBy, placement, resize, type Stage, zoomTo } from "../../web/src/core/stage"
-import { paperRectOf, revealView, scrollShift } from "../../web/src/plugins/base/right-side-panel/reveal"
+import { paperRectOf, revealView } from "../../web/src/plugins/base/right-side-panel/reveal"
 import {
   movedFrom,
   restoreIn,
@@ -108,12 +108,4 @@ test("表示領域の上で測った四角を、紙の上の四角に直す", ()
   const s = zoomTo(stage, 0.5)
   const at = placement(s)!
   expect(paperRectOf(s, { x: at.x + 50, y: at.y + 20, w: 30, h: 10 })).toEqual({ x: 100, y: 40, w: 60, h: 20 })
-})
-
-test("中のスクロールは、物が見える所に入るだけ動かす。前にはみ出すか入りきらなければ始まりに、後ろにはみ出せば終わりにそろえる（倍率の分を直す）", () => {
-  expect(scrollShift(10, 20, 100, 1)).toBe(0)
-  expect(scrollShift(-30, 20, 100, 1)).toBe(-30)
-  expect(scrollShift(90, 20, 100, 1)).toBe(10)
-  expect(scrollShift(50, 300, 100, 1)).toBe(50)
-  expect(scrollShift(180, 40, 100, 2)).toBe(10)
 })
