@@ -13,6 +13,7 @@ export function GrowingText({
   placeholder,
   label,
   autoFocus,
+  readOnly,
 }: {
   value: string
   onChange: (v: string) => void
@@ -21,6 +22,7 @@ export function GrowingText({
   placeholder: string
   label: string
   autoFocus?: boolean
+  readOnly?: boolean
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: 文が変わるたびに高さを測り直す
@@ -55,6 +57,7 @@ export function GrowingText({
       ref={ref}
       className={styles.text}
       rows={1}
+      readOnly={readOnly}
       value={value}
       placeholder={placeholder}
       aria-label={label}
@@ -65,11 +68,19 @@ export function GrowingText({
 }
 
 // 「伝わったら自動で消す」のチェックボックス
-export function RemoveOnRead({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+export function RemoveOnRead({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+}) {
   const t = useMessages(kit)
   return (
     <label className={styles.check}>
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
       {t("Remove once read")}
     </label>
   )

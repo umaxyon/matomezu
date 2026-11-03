@@ -1,8 +1,9 @@
 // 伝言の右サイドパネルの中身（ウィジェット note-panel）: 右サイドパネルが見せている伝言の文をテキストFormで出し、変えたら保存する（保存せずに閉じたら変えない）。
-// 「伝わったら自動で消す」・吹き出しを出すか（たたむ）・消すは、押したときに変える。
+// 「伝わったら自動で消す」・吹き出しを出すか（たたむ）・消すは、押したときに変える。変えられなければ（認可ステップが止めたなど）、どれも始められない。
 // その伝言が無くなったら（AI が読んで消えたなど）、黙って右サイドパネルを閉じる
 import { useEffect, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
+import { useAllowed } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
@@ -30,15 +31,25 @@ export function NotePanel({ stage }: StageSlotProps) {
 function NoteEditor({ stage, id, props }: { stage: string; id: string; props: NoteProps }) {
   const t = useMessages(kit)
   const run = usePerformOrToast(stage, "The note was refused")
+  const updatable = useAllowed(stage, NOTE_UPDATE.id).ok
+  const removable = useAllowed(stage, NOTE_REMOVE.id).ok
   const [text, setText] = useState(props.text)
-  const changed = text.trim() !== "" && text !== props.text
+  const changed = updatable && text.trim() !== "" && text !== props.text
   const save = () => {
     if (changed) run(NOTE_UPDATE.id, { note: id, text })
   }
   return (
     <div className={styles.panel}>
-      <GrowingText value={text} onChange={setText} placeholder={t("Note…")} onSubmit={save} label={t("Note")} />
+      <GrowingText
+        value={text}
+        onChange={setText}
+        placeholder={t("Note…")}
+        onSubmit={save}
+        label={t("Note")}
+        readOnly={!updatable}
+      />
       <RemoveOnRead
+        disabled={!updatable}
         checked={props.removeOnRead}
         onChange={removeOnRead => run(NOTE_UPDATE.id, { note: id, removeOnRead })}
       />
@@ -49,11 +60,17 @@ function NoteEditor({ stage, id, props }: { stage: string; id: string; props: No
         <button
           type="button"
           className={form.button}
+          disabled={!updatable}
           onClick={() => run(NOTE_UPDATE.id, { note: id, bubble: !props.bubble })}
         >
           {t(props.bubble ? "Fold" : "Show bubble")}
         </button>
-        <button type="button" className={form.danger} onClick={() => run(NOTE_REMOVE.id, { note: id })}>
+        <button
+          type="button"
+          className={form.danger}
+          disabled={!removable}
+          onClick={() => run(NOTE_REMOVE.id, { note: id })}
+        >
           {t("Remove")}
         </button>
       </div>
