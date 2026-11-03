@@ -167,6 +167,75 @@ test("表の見た目なら、data-set は表が全部見える大きさに合�
   expect(at(store, "n1")).toMatchObject({ w: before.w, h: before.h })
 })
 
+// 表と一緒に、見た目・文字・軸を書く（軸の列と選んだ行は、columns・rows の位置）
+const SALES = {
+  columns: [...MONTHS.columns, { name: "利益", type: "number" }],
+  rows: [{ cells: ["1月", 12, 3] }, { cells: ["2月", 30, 8] }],
+}
+
+test("data-set の props は、見た目・文字・軸を表と一緒に変え、位置で書いた列と行を振った id に直す", () => {
+  const store = ready()
+  place(store)
+  const done = set(store, {
+    ...SALES,
+    props: {
+      view: "bar",
+      caption: "売上",
+      textAt: "bottom",
+      x: 0,
+      series: [{ column: 1 }, { column: 2, chart: "line" }],
+      sortBy: 2,
+      skip: "picked",
+      picked: [1],
+    },
+  } as never)
+  expect(done.ok).toBe(true)
+  const { columns, rows } = (done as unknown as { result: { columns: string[]; rows: string[] } }).result
+  expect(at(store, "n1").props).toMatchObject({
+    view: "bar",
+    caption: "売上",
+    textAt: "bottom",
+    x: columns[0],
+    series: [{ column: columns[1] }, { column: columns[2], chart: "line" }],
+    sortBy: columns[2],
+    skip: "picked",
+    picked: [rows[1]],
+  })
+  // null は消す（書かなかった項目はそのまま）
+  expect(set(store, { ...SALES, props: { sortBy: null, picked: null } } as never).ok).toBe(true)
+  const props = at(store, "n1").props as Record<string, unknown>
+  expect(props.sortBy).toBeUndefined()
+  expect(props.picked).toBeUndefined()
+  expect(props).toMatchObject({ view: "bar", caption: "売上" })
+})
+
+test("data-set の props が無い位置を書いたか、項目の形に合わなければ断り、表も項目も変えない", () => {
+  const store = ready()
+  place(store)
+  set(store, MONTHS)
+  const before = at(store, "n1")
+  expect(set(store, { ...MONTHS, props: { view: "bar", x: 2 } } as never).ok).toBe(false)
+  expect(set(store, { ...MONTHS, props: { series: [{ column: 5 }] } } as never).ok).toBe(false)
+  expect(set(store, { ...MONTHS, props: { skip: "picked", picked: [2] } } as never).ok).toBe(false)
+  expect(set(store, { ...MONTHS, props: { view: "map" } } as never).ok).toBe(false)
+  // 列の無い表（No Data に戻す）では、どの位置も無い
+  expect(set(store, { columns: [], rows: [], props: { x: 0 } } as never).ok).toBe(false)
+  expect(at(store, "n1")).toEqual(before)
+})
+
+test("編集のダイアログの確定（表と見た目と軸の data-set 1 回）は、元に戻す 1 回で、表を入れる前に戻る", async () => {
+  const store = ready()
+  place(store)
+  await Promise.resolve()
+  const before = at(store, "n1")
+  expect(
+    set(store, { ...SALES, props: { view: "line", caption: "売上", x: 0, series: [{ column: 1 }] } } as never).ok,
+  ).toBe(true)
+  await Promise.resolve()
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(at(store, "n1")).toEqual(before)
+})
+
 test("下書き: 足した数の列のセルは 0、数でない文字のセルがあれば確定できず、文字の列を数の列にできるのはどのセルも数のときだけ", () => {
   let d = toDraft(undefined)
   d = addColumn(d, "月")

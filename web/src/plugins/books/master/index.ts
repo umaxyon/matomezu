@@ -5,7 +5,7 @@ import { defineBuiltin } from "../../../plugin-api/builtin"
 import { kit } from "./kit"
 import { MASTER, MASTER_PRESENTATION } from "./master"
 
-export { MASTER_BOOK } from "./master"
+export { MASTER, MASTER_BOOK } from "./master"
 
 export const MASTER_PLUGIN = defineBuiltin(
   kit.plugin({

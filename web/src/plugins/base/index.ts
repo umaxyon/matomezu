@@ -72,7 +72,6 @@ export {
   adaptPage,
   alignPadding,
   extentOf,
-  fitsPaper,
   gapOf,
   growOf,
   itemSize,
@@ -88,14 +87,13 @@ export {
   replaceShapePushing,
   resizedBy,
   roomOf,
-  shapeDefOf,
   shownRects,
   unpinPage,
   widenForCaption,
   withPage,
 } from "./place/items"
 export type { PortArea, Ports } from "./place/placed"
-export { NEST_PADDING, placedSize, portAreasOf, rectsOf } from "./place/placed"
+export { NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export {

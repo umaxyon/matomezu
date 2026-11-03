@@ -9,13 +9,14 @@ import {
   shapeDialogs,
   toPaperDelta,
 } from "../../../plugin-api"
-import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
+import { type Edges, inPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import type { Came } from "./drag"
 import { PLACE_OFFSET } from "./items"
 
-const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
+// ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
+const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
 export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
@@ -35,7 +36,8 @@ export const PAPER_PLACE = kit.defineCommand({
     const page = stage.opened?.page
     const size = stage.placing && itemSize(ctx.catalog, stage.placing)
     const paper = areaOf(stage)
-    if (!at || !page || !stage.placing || !stage.opened || !size || !paper || !fitsPaper(at, size, paper)) return
+    if (!at || !page || !stage.placing || !stage.opened || !size || !paper || !inPaper({ ...at, ...size }, paper))
+      return
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く）
     const def = shapeDefOf(ctx.catalog, stage.placing)
     const dialog = def && shapeDialogs(def).add
@@ -49,7 +51,7 @@ export const PAPER_PLACE = kit.defineCommand({
     a.stopPlacing(stage.id)
     a.select(stage.id, [done.result.item])
   },
-  when: ctx => onDrawingPage(ctx) && ctx.stage.placing !== null,
+  when: ctx => onOpenedPage(ctx) && ctx.stage.placing !== null,
 })
 
 // 右クリックされた形が編集のダイアログを持つか（右クリックのメニューが開いていなければ、呼んだ所が形を選んでいる）
@@ -80,7 +82,7 @@ export const PAPER_EDIT = kit.defineCommand({
     a.openDialog(ctx.stage.id, dialog, { page, item })
   },
   // 右クリックのメニューでは、編集のダイアログを持つ形のときだけ出す
-  when: ctx => onDrawingPage(ctx) && editable(ctx),
+  when: ctx => onOpenedPage(ctx) && editable(ctx),
 })
 
 // 選んでいるアイテムを消し、選択を外す（選んでいなければ出さない）
@@ -95,7 +97,7 @@ export const PAPER_DELETE = kit.defineCommand({
     const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
     if (done.ok) a.select(id, [])
   },
-  when: ctx => onDrawingPage(ctx) && ctx.stage.selection.length > 0,
+  when: ctx => onOpenedPage(ctx) && ctx.stage.selection.length > 0,
 })
 
 // アイテムを、画面の上で動いた量だけ動かす（came はドラッグの通り道で覚えた、相手ごとの先端が来た向き）。収まらなければ動かさない
@@ -111,7 +113,7 @@ export const PAPER_MOVE = kit.defineCommand({
     const came = args.came && { came: { ...args.came } }
     a.perform(ITEM_MOVE.id, { page: opened.page, items: [...args.items], by, ...came }, { book: opened.book })
   },
-  when: onDrawingPage,
+  when: onOpenedPage,
 })
 
 // 付け替えの道具のドラッグを離したとき: 形 item を、画面の上で動いた量 by だけ動かした所で、形 parent の中へ入れる（null はページへ出す）。
@@ -135,7 +137,7 @@ export const PAPER_REPARENT = kit.defineCommand({
     const at = { x: found.at.x + by.x, y: found.at.y + by.y }
     a.perform(ITEM_REPARENT.id, { page: opened.page, item: args.item, parent: args.parent, at }, on)
   },
-  when: onDrawingPage,
+  when: onOpenedPage,
 })
 
 // アイテムの辺（角なら 2 つの辺）をつかんで、画面の上で動いた量だけ大きさを変える（items.ts の resizedBy）
@@ -154,7 +156,7 @@ export const PAPER_RESIZE = kit.defineCommand({
     const to = resizedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
     if (to) a.perform(ITEM_RESIZE.id, { page: opened.page, item: placed.id, ...to }, { book: opened.book })
   },
-  when: onDrawingPage,
+  when: onOpenedPage,
 })
 
 // 選んでいるアイテムを消すキー（Mac の delete キーは Backspace として届く）

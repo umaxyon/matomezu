@@ -3,12 +3,12 @@
 // 形が変わったあとは、ページのつなぐものの決まりで整える（placed.ts の tidyConnectors）
 import { type PagedBook, putPage } from "../../../core/book"
 import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
-import type { ConnectorData, ShapeData, ShapeItemDef } from "../../../core/def/item"
+import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
 import { resolvePaper } from "../../../core/paper"
 import {
-  connectorsOf,
+  byConnector,
   findShape,
   type ItemPage,
   isShape,
@@ -24,7 +24,15 @@ import { type PageContext, type SettingReader, settingsAt } from "../book-settin
 import { setField } from "../fields"
 import { contentIdMaker } from "../utils/ids"
 import { GROW_CHOICE_SIDES, type GrowSides, grownArea } from "./grow"
-import { connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, tidyConnectors as tidyItems } from "./placed"
+import {
+  connectorGaps,
+  type PortArea,
+  placedSize,
+  portAreasOf,
+  rectsOf,
+  shapeDefOf,
+  tidyConnectors as tidyItems,
+} from "./placed"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
 // 形の仲間の名前（familyTitle）が文言の表にあるか（組み立てのときの確かめ）
@@ -92,12 +100,6 @@ declare module "../../../core/catalog" {
   }
 }
 
-// 置いた形の定義（表に無い形は null）
-export function shapeDefOf(catalog: CoreCatalog, item: string): ShapeItemDef | null {
-  const def = catalog.items.get(item)
-  return def?.kind === "shape" ? def : null
-}
-
 // ページの、2 つの形の組の間隔の下限（線でつながった組は広い。つなぐものの定義が決める）
 export const gapOf = (catalog: CoreCatalog, page: ItemPage): Gap => connectorGaps(catalog, page, evenGap)
 
@@ -112,8 +114,7 @@ export function nextItemId(book: PagedBook, newId: () => string): string {
 
 // 置く前のアイテムの大きさ（定義の大きさ。表に無いアイテムと、大きさを持たないアイテムは null）
 export function itemSize(catalog: CoreCatalog, item: string): Size | null {
-  const def = catalog.items.get(item)
-  return def?.kind === "shape" ? def.size : null
+  return shapeDefOf(catalog, item)?.size ?? null
 }
 
 // 大きさを変えられるアイテムの、一番小さい大きさ（変えられないアイテムは null）
@@ -172,8 +173,7 @@ export function widenForCaption(
   before: PlacedShape,
   next: PlacedShape,
 ): PlacedShape {
-  const def = catalog.items.get(next.item)
-  const prop = def?.kind === "shape" ? def.captionProp : undefined
+  const prop = shapeDefOf(catalog, next.item)?.captionProp
   if (prop === undefined) return next
   const caption = (p: PlacedShape) => (p.props as Record<string, unknown>)[prop]
   if (caption(next) === caption(before)) return next
@@ -196,16 +196,10 @@ export function widenForCaption(
 
 // 形の個別のテーマ（定義の themeProp が名指す項目）が表にあるか（themeProp の無い形と、値が無いときは true）
 export function knownTheme(catalog: CoreCatalog, item: PlacedShape): boolean {
-  const def = catalog.items.get(item.item)
-  const prop = def?.kind === "shape" ? def.themeProp : undefined
+  const prop = shapeDefOf(catalog, item.item)?.themeProp
   if (prop === undefined) return true
   const theme = (item.props as Record<string, unknown>)[prop]
   return theme === undefined || (typeof theme === "string" && catalog.themes.has(theme))
-}
-
-// 左上 at、大きさ size の四角が、紙からはみ出さないか
-export function fitsPaper(at: Point, size: Size, paper: Size): boolean {
-  return at.x >= 0 && at.y >= 0 && at.x + size.w <= paper.w && at.y + size.h <= paper.h
 }
 
 // ページの紙の大きさ（描けない紙なら null）
@@ -268,11 +262,8 @@ export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingR
   const rects = rectsOf(catalog, page)
   const boxes: Rect[] = [...rects.values()]
   const areas = portAreasOf(catalog, page, rects)
-  const groups = new Map<string, PlacedConnector[]>()
-  for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
-  for (const [id, list] of groups) {
-    const def = catalog.items.get(id)
-    const b = def?.kind === "connector" ? def.bounds?.(list as ConnectorData[], areas, setting) : null
+  for (const [def, list] of byConnector(catalog, page)) {
+    const b = def.bounds?.(list as ConnectorData[], areas, setting)
     if (b) boxes.push(b)
   }
   if (boxes.length === 0) return null
@@ -288,9 +279,8 @@ export function adaptPage<P extends ItemPage>(catalog: CoreCatalog, page: P, con
   let changed = false
   const items = pageItemsOf(page).map(i => {
     if (!isShape(i)) return i
-    const def = catalog.items.get(i.item)
-    const next =
-      def?.kind === "shape" && def.adapt ? (def.adapt(i, options?.[i.item], context.setting) as PlacedShape) : i
+    const def = shapeDefOf(catalog, i.item)
+    const next = def?.adapt ? (def.adapt(i, options?.[i.item], context.setting) as PlacedShape) : i
     if (next !== i) changed = true
     return next
   })
@@ -310,12 +300,9 @@ export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, page: P, 
   if (kx === 0 && ky === 0) return page
   const d = { x: kx * paper.w, y: ky * paper.h }
   const areas = portAreasOf(catalog, page)
-  const groups = new Map<string, PlacedConnector[]>()
-  for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
   const shifted = new Map<string, PlacedConnector>()
-  for (const [id, list] of groups) {
-    const def = catalog.items.get(id)
-    if (def?.kind !== "connector" || !def.shift) continue
+  for (const [def, list] of byConnector(catalog, page)) {
+    if (!def.shift) continue
     for (const c of def.shift(list as ConnectorData[], areas, d)) shifted.set(c.id, c as PlacedConnector)
   }
   const items = pageItemsOf(page).map(i =>
@@ -341,12 +328,9 @@ export function paddedFor<P extends ItemPage>(
 // 形を並べ直したページ（整列など）: つなぐものに、定義の固定の外し（unpin）を種類ごとにかける（前の並びに合わせて手で決めた形を外す）。
 // 変わらなければそのまま
 export function unpinPage<P extends ItemPage>(catalog: CoreCatalog, page: P): P {
-  const groups = new Map<string, PlacedConnector[]>()
-  for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
   const unpinned = new Map<string, PlacedConnector>()
-  for (const [id, list] of groups) {
-    const def = catalog.items.get(id)
-    if (def?.kind !== "connector" || !def.unpin) continue
+  for (const [def, list] of byConnector(catalog, page)) {
+    if (!def.unpin) continue
     for (const c of def.unpin(list as ConnectorData[])) unpinned.set(c.id, c as PlacedConnector)
   }
   if (unpinned.size === 0) return page
