@@ -22,8 +22,18 @@ import { useActions } from "../../../ui/store-context"
 import { useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
+import { revealAround } from "./revealable"
 import { stageElement } from "./stage-element"
-import { pointInto, type StandSide, standAt, standBeside, topOut, unionRect } from "./stand-place"
+import {
+  pointInto,
+  revealShift,
+  STAND_MARGIN,
+  type StandSide,
+  standAt,
+  standBeside,
+  topEdgeOut,
+  unionRect,
+} from "./stand-place"
 import { ZOOM_MS } from "./useZoomMotion"
 
 // ステージのアンカーの表: id → 要素と、変わったときに知らせる先
@@ -114,8 +124,8 @@ export function StandLayer() {
 
 // edgePinned のスタンドのアンカーの上の辺が、置ける範囲の外に出ている間に、中の物が受け取る物
 export interface StandAway {
-  pin(p: Point, pad: number): Point // スタンドの中の点 p（スタンドの左上から）を、置ける範囲の端から pad の内側に寄せた点（スタンドの左上から）
-  show(): void // 紙をずらして、アンカーを表示領域の真ん中へ動かす（倍率は変えない）
+  pin(p: Point, pad?: number): Point // スタンドの中の点 p（スタンドの左上から）を、置ける範囲の端から pad（既定はスタンドと端のすき間）の内側に寄せた点（スタンドの左上から）
+  show(): void // アンカーを見せる: 物を囲む Revealable に頼んでから、紙をずらしてアンカーを表示領域の真ん中へ動かす（倍率は変えない）
 }
 const AwayContext = createContext<StandAway | null>(null)
 
@@ -159,7 +169,7 @@ export function Stand({
   })
   if (!ctx?.layer || !rect) return null
   const area = { w: ctx.layer.clientWidth, h: ctx.layer.clientHeight }
-  const out = edgePinned && topOut(rect, area)
+  const out = edgePinned && topEdgeOut(rect, area)
   const at = !size
     ? { x: rect.x, y: rect.y + rect.h }
     : out
@@ -168,16 +178,26 @@ export function Stand({
   const stage = ctx.stage
   const away: StandAway | null = out
     ? {
-        pin: (p, pad) => {
+        pin: (p, pad = STAND_MARGIN) => {
           const pinned = pointInto({ x: at.x + p.x, y: at.y + p.y }, area, pad)
           return { x: pinned.x - at.x, y: pinned.y - at.y }
         },
-        show: () =>
-          glidePan(
-            (dx, dy) => panStageBy(stage, dx, dy),
-            area.w / 2 - (rect.x + rect.w / 2),
-            area.h / 2 - (rect.y + rect.h / 2),
-          ),
+        show: () => {
+          const layer = ctx.layer
+          const view = stageElement(stage)
+          if (!layer || !view) return
+          for (const id of ids) {
+            const el = ctx.anchors.element(id)
+            if (el) revealAround(el, view, id)
+          }
+          const now = measureIn(
+            layer,
+            ids.map(id => ctx.anchors.element(id)),
+          )
+          if (!now) return
+          const by = revealShift(now, area)
+          glidePan((dx, dy) => panStageBy(stage, dx, dy), by.x, by.y)
+        },
       }
     : null
   return createPortal(
@@ -210,14 +230,9 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[]): Rect |
   const [tick, setTick] = useState(0)
   const measure = useCallback((): Rect | null => {
     if (!ctx?.layer) return null
-    const els = ids.map(id => ctx.anchors.element(id)).filter((e): e is Element => e !== undefined)
-    if (els.length === 0) return null
-    const base = ctx.layer.getBoundingClientRect()
-    return unionRect(
-      els.map(el => {
-        const r = el.getBoundingClientRect()
-        return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height }
-      }),
+    return measureIn(
+      ctx.layer,
+      ids.map(id => ctx.anchors.element(id)),
     )
   }, [ctx, ids])
   const [rect, setRect] = useState<Rect | null>(null)
@@ -244,6 +259,19 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[]): Rect |
     }
   }, [])
   return rect
+}
+
+// 要素 elements（描かれていない物は undefined）をまとめて囲む四角（layer の左上から。どれも無ければ null）
+function measureIn(layer: Element, elements: readonly (Element | undefined)[]): Rect | null {
+  const els = elements.filter((e): e is Element => e !== undefined)
+  if (els.length === 0) return null
+  const base = layer.getBoundingClientRect()
+  return unionRect(
+    els.map(el => {
+      const r = el.getBoundingClientRect()
+      return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height }
+    }),
+  )
 }
 
 // スタンドの中の操作は、スタンドを描いたビュー（React の上の物）に渡さない

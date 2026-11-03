@@ -23,6 +23,7 @@ import suzume from "../images/birds/suzume.png"
 import tsunagidori from "../images/birds/tsunagidori.png"
 import { kit } from "../kit"
 import { Stand, useStandAway } from "../utils/anchors"
+import { STAND_MARGIN } from "../utils/stand-place"
 import type { StageSlotProps } from "../workspace/ui"
 import { type Bird, MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import { MARK_PICKER } from "./commands"
@@ -34,7 +35,6 @@ const SIZE = 48 // 鳥の大きさ（画面の px）
 const PICK_SIZE = 40 // 種類を選ぶスタンドの鳥の大きさ
 const FRONT = 4 // 正面を向いたコマ
 const SIGN = 24 // 縁の印の大きさ
-const EDGE_PAD = 4 // 縁の印・びっくりマークと画面の縁とのすき間
 const ALERT = 18 // びっくりマークの丸の大きさ
 
 // 鳥ごとの縁の印の絵
@@ -106,7 +106,7 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
 // びっくりマーク: 付けた物の上の辺が画面の外なら、丸を画面の縁に寄せて薄く描く
 function PinnedAlert({ children }: { children: React.ReactNode }) {
   const away = useStandAway()
-  const at = away?.pin({ x: ALERT / 2, y: ALERT / 2 }, ALERT / 2 + EDGE_PAD)
+  const at = away?.pin({ x: ALERT / 2, y: ALERT / 2 }, ALERT / 2 + STAND_MARGIN)
   return (
     <div
       data-away={away !== null}
@@ -223,7 +223,7 @@ function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title
     : birdPose(time, arrival, gait, SIZE, range, from)
   const left = (width - range) / 2 + pose.x
   if (away) {
-    const at = away.pin({ x: left, y: SIZE }, SIGN / 2 + EDGE_PAD)
+    const at = away.pin({ x: left, y: SIZE }, SIGN / 2 + STAND_MARGIN)
     return (
       <div ref={area} className={styles.walk} data-mark-walk>
         <button
