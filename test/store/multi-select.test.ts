@@ -6,6 +6,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { amongSelected, onlySelected, toggledSelection } from "../../web/src/plugins/base"
 import { anchorsFor } from "../../web/src/plugins/base/context-menu/anchor-targets"
 import { linesOf } from "../../web/src/plugins/items/line/placed"
+import { rowPress } from "../../web/src/plugins/items/list/rows"
 import { movableTogether } from "../../web/src/plugins/paper/placing/items"
 import {
   lifted,
@@ -208,4 +209,16 @@ test("選んでいる行を消すコマンド: 1 つのリストの行だけを�
   const shown = page(store).items?.find(i => i.id === list) as { children?: { id: string }[] }
   expect(shown.children?.map(r => r.id)).toEqual([rows[0]])
   expect(selection(store)).toEqual([])
+})
+
+test("リストの行を押したときの選び方（rowPress）: 修飾なしなら行だけ。Mod なら、このリストの行だけを選んでいれば足す・外し、ほかの物を選んでいればリストを押したことにする。行を選んでいる間、紙の「削除」は出さない", () => {
+  expect(rowPress(["x"], ["a", "b"], "a", false)).toEqual(["a"])
+  expect(rowPress([], ["a", "b"], "a", true)).toEqual(["a"])
+  expect(rowPress(["a"], ["a", "b"], "b", true)).toEqual(["a", "b"])
+  expect(rowPress(["a", "b"], ["a", "b"], "a", true)).toEqual(["b"])
+  expect(rowPress(["box"], ["a", "b"], "a", true)).toBe("list")
+  const store = ready()
+  const { rows } = withList(store)
+  store.actions.select("s1", [rows[0]])
+  expect(isShown(store, store.state.getState(), "s1", "@matomezu/paper:paper-delete")).toBe(false)
 })

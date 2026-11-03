@@ -1,5 +1,5 @@
 // 鳥を描く所: 物の上の辺を歩く鳥（BirdWalk）と、鳥の絵の 1 コマ（frameStyle）。スタンドの中に置く。
-// 物の上の辺が見える所の外に出たら（edgePinned のスタンドの useStandAway）、鳥の代わりにマークポインタ（鳥の顔の丸い絵）を、
+// 物の上の辺が見える所の外に出たら（edgePinned のスタンドの useStandAway）、鳥の代わりに鳥の顔の丸い絵（マークならマークポインタ）を、
 // 鳥の足元を見える所の縁に寄せた所に描き（歩く動きのまま縁を動く）、押すと付けた物を見せる。
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react"
@@ -23,9 +23,9 @@ import tsunagidori from "./images/birds/tsunagidori.png"
 
 export const BIRD_SIZE = 48 // 歩く鳥の大きさ（画面の px）
 export const FRONT = 4 // 正面を向いたコマ
-const POINTER = 24 // マークポインタの大きさ
+const POINTER = 24 // 鳥の顔の丸い絵の大きさ
 
-// 鳥ごとのマークポインタの絵
+// 鳥ごとの顔の丸い絵
 const POINTERS: Record<Bird, string> = {
   tsunagidori: tsunagidoriPointer,
   inko: inkoPointer,
@@ -47,7 +47,7 @@ const BIRDS: Record<Bird, { image: string; sheet: Sheet; gait: Gait }> = {
 export const birdClass = styles.bird
 
 // 物の上の辺を歩く鳥。歩く所の幅は物の幅で、鳥は真ん中寄りの、鳥の幅の 2 倍ほどを往復する。arrival は最初に描くときの出方。
-// children は鳥のコマを描く物（足元から置く見た目 style を受け取る）。paused の間は動きを止める。awayLabel はマークポインタの名前
+// children は鳥のコマを描く物（足元から置く見た目 style を受け取る）。paused の間は動きを止める。awayLabel は鳥の顔の丸い絵の名前
 export function BirdWalk({
   bird,
   arrival,
@@ -103,7 +103,7 @@ export function BirdWalk({
   if (away) {
     const at = away.pin({ x: left, y: BIRD_SIZE }, POINTER / 2 + STAND_MARGIN)
     return (
-      <div ref={area} className={styles.walk} data-mark-walk>
+      <div ref={area} className={styles.walk} data-bird-walk>
         <button
           type="button"
           className={styles.pointer}
@@ -111,7 +111,7 @@ export function BirdWalk({
           title={awayLabel}
           onClick={away.show}
           style={{ left: at.x - POINTER / 2, top: at.y - POINTER / 2, backgroundImage: `url(${POINTERS[bird]})` }}
-          data-mark-pointer
+          data-bird-pointer
         />
       </div>
     )
@@ -128,7 +128,7 @@ export function BirdWalk({
     </div>
   )
   return (
-    <div ref={area} className={styles.walk} data-mark-walk>
+    <div ref={area} className={styles.walk} data-bird-walk>
       {pose.behind ? <div className={styles.behind}>{body}</div> : body}
     </div>
   )

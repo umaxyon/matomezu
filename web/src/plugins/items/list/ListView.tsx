@@ -28,7 +28,6 @@ import {
   useMessages,
   useStage,
 } from "../../../plugin-api/ui"
-import { toggledSelection } from "../../base"
 import { modPressed, RichText, useAnchorRef, useRevealable, useThemeVars } from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
@@ -37,7 +36,7 @@ import styles from "./ListView.module.css"
 import { LIST, LIST_ROWS_SCOPE, type ListRow, ROW_CONTEXT } from "./list"
 import { listPaintVars } from "./paint"
 import { rowScroll } from "./reveal"
-import { canCarry, dropPlace, shownOrder } from "./rows"
+import { canCarry, dropPlace, rowPress, shownOrder } from "./rows"
 import { linesFor, listLayout, type RowLayout, rowHeight } from "./size"
 
 // リストを描くテーマキー
@@ -200,15 +199,18 @@ export function ListView({
     onPointerDown: (e: PointerEvent<HTMLLIElement>) => {
       // 紙をずらす道具（ハンドなど）の間は行を運ばず、押したことを紙へ渡す（紙をずらす）
       if (e.button !== 0 || pans) return
-      // Mod なら、このリストの行だけを選んでいれば行を足す・外す。ほかの物を選んでいれば、リストを押したことにして紙へ渡す（行はリストに置き換わる）
-      if (modPressed(e)) {
-        if (!rowsOnly(selection)) return
-        e.stopPropagation()
-        select(stage, toggledSelection(selection, row.id))
-        return
-      }
+      // 選び方は rows.ts の rowPress。ほかの物を Mod で選んでいれば、リストを押したことにして紙へ渡す（行はリストに置き換わる）
+      const mod = modPressed(e)
+      const next = rowPress(
+        selection,
+        rows.map(r => r.id),
+        row.id,
+        mod,
+      )
+      if (next === "list") return
       e.stopPropagation()
-      select(stage, [row.id])
+      select(stage, next)
+      if (mod) return
       if (!moveRow.enabled || !canCarry({ props }, row)) return
       carry.current = {
         pointer: e.pointerId,
@@ -239,8 +241,6 @@ export function ListView({
   const { select } = useActions()
   const at = useStage(stage)
   const selection = at?.selection ?? []
-  // 選択 ids が、このリストの行だけか（何も選んでいなければ、そうとする）
-  const rowsOnly = (ids: readonly string[]) => ids.every(s => rows.some(r => r.id === s))
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
   const pans = at?.pans === true
   const stretch = useRef<Stretch | null>(null)

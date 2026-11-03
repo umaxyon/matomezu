@@ -89,7 +89,16 @@ export const PAPER_EDIT = kit.defineCommand({
   when: ctx => onOpenedPage(ctx) && editable(ctx),
 })
 
-// 選んでいるアイテムを全部消し、選択を外す（選んでいなければ出さない）
+// 選んでいる物が、開いているページのアイテム（どの深さの形も、つなぐものも）だけか（リストの行など、形の中の物が混じれば、ほかのコマンドの物）
+function itemsSelected(ctx: CommandContext): boolean {
+  const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+  const { selection } = ctx.stage
+  if (!page || selection.length === 0) return false
+  const connectors = new Set(connectorsOf(page).map(c => c.id))
+  return selection.every(id => connectors.has(id) || findShape(page, id) !== undefined)
+}
+
+// 選んでいるアイテムを全部消し、選択を外す（アイテムだけを選んでいるときに出す）
 export const PAPER_DELETE = kit.defineCommand({
   id: "paper-delete",
   performs: [ITEM_REMOVE.id],
@@ -101,7 +110,7 @@ export const PAPER_DELETE = kit.defineCommand({
     const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
     if (done.ok) a.select(id, [])
   },
-  when: ctx => onOpenedPage(ctx) && ctx.stage.selection.length > 0,
+  when: itemsSelected,
 })
 
 // 開いているページの、ページの形（子の形は除く）と、両端がどちらもページの形のつなぐものを全部選ぶ

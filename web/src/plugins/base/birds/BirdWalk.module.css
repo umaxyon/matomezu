@@ -34,7 +34,7 @@
   cursor: pointer;
   pointer-events: auto;
 }
-/* マークポインタ（付けた物が見える所の外にある間の鳥）: 少し薄く描く */
+/* 鳥の顔の丸い絵（付けた物が見える所の外にある間の鳥）: 少し薄く描く */
 .pointer {
   position: absolute;
   width: 24px;

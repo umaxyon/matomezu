@@ -84,12 +84,12 @@
   margin-bottom: 6px;
   padding: 8px 12px;
 }
-/* チェック済みの行を薄く（グレーアウト） */
 /* 選んでいる行（色はアイテムの選択枠と同じ） */
 .row[data-selected="true"] {
   outline: 2px solid var(--theme-accent);
   outline-offset: 1px;
 }
+/* チェック済みの行を薄く（グレーアウト） */
 .row[data-done="true"] {
   opacity: 0.45;
 }
