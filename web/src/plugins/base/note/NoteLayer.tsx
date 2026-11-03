@@ -14,7 +14,7 @@ import { Stand } from "../utils/anchors"
 import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, NOTE_ADD, type NoteProps } from "."
 import { NOTE_DRAFT } from "./commands"
-import { GrowingText, RemoveOnRead } from "./NoteForm"
+import { GrowingText } from "./NoteForm"
 import form from "./NoteForm.module.css"
 import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
@@ -55,16 +55,15 @@ function NoteStand({ stage, id, anchor, props }: { stage: string; id: string; an
   )
 }
 
-// 伝言の下書きの吹き出し: 文と「伝わったら自動で消す」を選び、付ける。Esc かキャンセルで、付けずに閉じる
+// 伝言の下書きの吹き出し: 文を書いて付ける（伝わったら自動で消す）。Esc かキャンセルで、付けずに閉じる
 function DraftStand({ stage, draft }: { stage: string; draft: AnchorTargets }) {
   const t = useMessages(kit)
   const run = usePerformOrToast(stage, "The note was refused")
   const [text, setText] = useState("")
-  const [removeOnRead, setRemoveOnRead] = useState(true)
   const setDraft = useSetAnchorTargets(NOTE_DRAFT)
   const end = () => setDraft(stage, null)
   const add = () => {
-    if (text.trim() !== "" && run(NOTE_ADD.id, { anchors: [...draft.anchors], text, removeOnRead })) end()
+    if (text.trim() !== "" && run(NOTE_ADD.id, { anchors: [...draft.anchors], text })) end()
   }
   return (
     <Stand anchor={draft.anchors.at(-1) ?? ""} side="right" label={t("Add note")}>
@@ -78,7 +77,6 @@ function DraftStand({ stage, draft }: { stage: string; draft: AnchorTargets }) {
           label={t("Note")}
           autoFocus
         />
-        <RemoveOnRead checked={removeOnRead} onChange={setRemoveOnRead} />
         <div className={form.buttons}>
           <button type="button" className={form.primary} disabled={text.trim() === ""} onClick={add}>
             {t("Add")}

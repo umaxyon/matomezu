@@ -28,7 +28,6 @@ test("箱の右クリックの「AIに伝言」で、箱の右に伝言の下書
   const draft = page.getByRole("group", { name: "伝言を付ける" })
   const text = draft.getByLabel("伝言", { exact: true })
   await expect(text).toBeFocused()
-  await expect(draft.getByLabel("伝わったら自動で消す")).toBeChecked()
   // 幅は決まった幅で、上の辺を箱にそろえ、書いた分だけ下へ伸びる
   const b = (await box.boundingBox())!
   const before = (await draft.boundingBox())!
