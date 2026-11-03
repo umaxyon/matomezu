@@ -14,4 +14,13 @@ export {
 } from "./commands"
 export { type Came, DIRS, type Dir } from "./drag"
 export { dragging, dropTarget, movableTogether, trackDrag } from "./items"
-export { type Press, pressSelection, sameLevel, shapesIn, sweptBox, sweptItems, sweptSelection } from "./selection"
+export {
+  lifted,
+  type Press,
+  pressSelection,
+  sameLevel,
+  shapesIn,
+  sweptBox,
+  sweptItems,
+  sweptSelection,
+} from "./selection"

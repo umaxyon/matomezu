@@ -113,12 +113,12 @@ test("押したキーは、当たった範囲のコマンドを行い、押せ�
 
 test("利用者のキーの変更は利用者の設定の項目 @matomezu/base:keys に入れ、表に効く", () => {
   const store = newStore()
-  store.actions.perform(
+  const placed = store.actions.perform(
     "@matomezu/paper:item-place",
     { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
     { book: "b1" },
   )
-  store.actions.select("s1", ["b1"])
+  store.actions.select("s1", [placed.ok ? (placed.result as { item: string }).item : ""])
   const done = store.actions.perform("@matomezu/base:settings-set", {
     values: {
       "@matomezu/base:keys": {

@@ -1,8 +1,8 @@
-// リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
-import { type CommandContext, type Point, toPaperDelta } from "../../../plugin-api"
+// リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す（選んでいる行を Delete で消すのも）、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
+import { type CommandContext, type ItemPage, type Point, pagedOf, toPaperDelta, walkShapes } from "../../../plugin-api"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
-import { ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
+import { LIST, LIST_ROWS_SCOPE, type ListRow, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 import { linesFor } from "./size"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
@@ -45,6 +45,37 @@ export const LIST_DELETE_ROW = kit.defineCommand({
     if (opened?.page) a.perform(ROW_REMOVE.id, { page: opened.page, list, rows: [row] }, { book: opened.book })
   },
   when: onOpenedPage,
+})
+
+// 選んでいる物が、開いているページの 1 つのリストの行だけなら、そのリストと行（でなければ null）
+function selectedRows(ctx: CommandContext): { page: string; list: string; rows: readonly string[] } | null {
+  const { opened, selection } = ctx.stage
+  const page = pagedOf(ctx.book)?.pages.find(p => p.id === opened?.page)
+  if (!page || selection.length === 0) return null
+  const list = walkLists(page).find(l => selection.every(id => l.rows.includes(id)))
+  return list ? { page: page.id, list: list.id, rows: selection } : null
+}
+
+// ページのリスト（どの深さも）と、その行の id
+const walkLists = (page: ItemPage) =>
+  walkShapes(page).flatMap(({ shape }) =>
+    shape.item === LIST.id ? [{ id: shape.id, rows: ((shape.children ?? []) as ListRow[]).map(r => r.id) }] : [],
+  )
+
+// 選んでいる行を消し、選択を外す（選んでいる物が 1 つのリストの行だけのとき。行の並びのキーの範囲の Delete）
+export const LIST_DELETE_ROWS = kit.defineCommand({
+  id: "list-delete-rows",
+  performs: [ROW_REMOVE.id],
+  permissionScope: "opened-page",
+  title: "Delete rows",
+  run: (ctx, a) => {
+    const found = selectedRows(ctx)
+    const book = ctx.stage.opened?.book
+    if (!found || !book) return
+    const done = a.perform(ROW_REMOVE.id, { page: found.page, list: found.list, rows: [...found.rows] }, { book })
+    if (done.ok) a.select(ctx.stage.id, [])
+  },
+  when: ctx => selectedRows(ctx) !== null,
 })
 
 // 行のチェックを入れる・外す
@@ -93,3 +124,14 @@ export const LIST_MOVE_ROW = kit.defineCommand({
   },
   when: onOpenedPage,
 })
+
+// 選んでいる行を消すキー（Mac の delete キーは Backspace として届く）
+export const LIST_KEYS = [
+  kit.defineKey({ id: "list-delete-rows-delete", key: "Delete", command: LIST_DELETE_ROWS.id, scope: LIST_ROWS_SCOPE }),
+  kit.defineKey({
+    id: "list-delete-rows-backspace",
+    key: "Backspace",
+    command: LIST_DELETE_ROWS.id,
+    scope: LIST_ROWS_SCOPE,
+  }),
+]

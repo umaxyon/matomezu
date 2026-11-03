@@ -28,7 +28,7 @@ export const YARD = kit.defineBookType({
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   },
-  items: { allowed: [kit.name("crate")], defaults: [kit.name("crate")] },
+  items: { allowed: [kit.name("crate")] },
   actions: {},
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",

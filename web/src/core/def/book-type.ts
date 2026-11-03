@@ -7,17 +7,12 @@ import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
 import type { TokenDef } from "./theme"
 
-// 使えるものの規定。allowed はデータに置ける物（候補）、defaults はそのうちツールボックスに出す物
-export interface Choice {
-  allowed: readonly string[]
-  defaults: readonly string[]
-}
-
 // タイプが選んだアイテムに渡す指定（アイテムの id → 指定。指定の形は、アイテムを作ったプラグインが ItemOptionTable に書き足して決める）
 export type ItemOptions = { readonly [K in keyof ItemOptionTable]?: ItemOptionTable[K] }
 
-// 使えるアイテムの規定と、アイテムへの指定（渡せるのは allowed のアイテムだけ）
-export interface ItemChoice extends Choice {
+// 使えるアイテム（allowed。データに置け、画面からも AI からも置ける物）と、アイテムへの指定（渡せるのは allowed のアイテムだけ）
+export interface ItemChoice {
+  allowed: readonly string[]
   options?: ItemOptions
 }
 

@@ -5,7 +5,7 @@ import type { Point, Rect, Size } from "../../../core/geom"
 export type StandSide = "below" | "above" | "right" | "left" | "corner" | "edge"
 
 const GAP = 6 // アンカーとのすき間
-const MARGIN = 4 // 置ける範囲の端とのすき間
+export const STAND_MARGIN = 4 // 置ける範囲の端とのすき間
 
 const OPPOSITE: Record<StandSide, StandSide> = {
   below: "above",
@@ -19,16 +19,53 @@ const OPPOSITE: Record<StandSide, StandSide> = {
 // アンカーの四角 anchor の side に、大きさ size のスタンドを置く左上（area は置ける範囲の大きさ。左上が 0,0）
 export function standAt(anchor: Rect, size: Size, area: Size, side: StandSide): Point {
   const fits = (s: StandSide) => {
-    const p = besides(anchor, size, s)
-    return p.x >= MARGIN && p.y >= MARGIN && p.x + size.w <= area.w - MARGIN && p.y + size.h <= area.h - MARGIN
+    const p = standBeside(anchor, size, s)
+    return (
+      p.x >= STAND_MARGIN &&
+      p.y >= STAND_MARGIN &&
+      p.x + size.w <= area.w - STAND_MARGIN &&
+      p.y + size.h <= area.h - STAND_MARGIN
+    )
   }
   const chosen = fits(side) || !fits(OPPOSITE[side]) ? side : OPPOSITE[side]
-  const p = besides(anchor, size, chosen)
-  return { x: clamp(p.x, MARGIN, area.w - MARGIN - size.w), y: clamp(p.y, MARGIN, area.h - MARGIN - size.h) }
+  const p = standBeside(anchor, size, chosen)
+  return {
+    x: clamp(p.x, STAND_MARGIN, area.w - STAND_MARGIN - size.w),
+    y: clamp(p.y, STAND_MARGIN, area.h - STAND_MARGIN - size.h),
+  }
 }
 
-// 上下に立てるときは左端をそろえ、左右に立てるときは上端をそろえる。角に立てるときは、真ん中を右上の角に置く。辺に乗せるときは左端をそろえる
-function besides(a: Rect, size: Size, side: StandSide): Point {
+// アンカーの四角 anchor の上の辺が、見える所 seen の外にあるか（辺が見える所と重ならなければ外）
+export function topEdgeOut(anchor: Rect, seen: Rect): boolean {
+  return anchor.y < seen.y || anchor.y > seen.y + seen.h || anchor.x + anchor.w < seen.x || anchor.x > seen.x + seen.w
+}
+
+// 点 p を、四角 box の端から pad だけ内側に収めた点
+export function pointInto(p: Point, box: Rect, pad: number): Point {
+  return { x: clamp(p.x, box.x + pad, box.x + box.w - pad), y: clamp(p.y, box.y + pad, box.y + box.h - pad) }
+}
+
+// 四角 a と b の重なり（重ならなければ、幅か高さが 0 の四角）
+export function intersectRect(a: Rect, b: Rect): Rect {
+  const x = Math.max(a.x, b.x)
+  const y = Math.max(a.y, b.y)
+  return {
+    x,
+    y,
+    w: Math.max(0, Math.min(a.x + a.w, b.x + b.w) - x),
+    h: Math.max(0, Math.min(a.y + a.h, b.y + b.h) - y),
+  }
+}
+
+// アンカーの四角 anchor を見せるのに、紙をずらす量: 真ん中を置ける範囲の真ん中へ。範囲より大きい向きは、端から pad の所に上の辺（左の辺）をそろえる
+export function revealShift(anchor: Rect, area: Size, pad = STAND_MARGIN): Point {
+  const along = (start: number, size: number, view: number) =>
+    size > view - 2 * pad ? pad - start : view / 2 - (start + size / 2)
+  return { x: along(anchor.x, anchor.w, area.w), y: along(anchor.y, anchor.h, area.h) }
+}
+
+// アンカーの side に立てる左上（置ける範囲に収めない）: 上下に立てるときは左端をそろえ、左右に立てるときは上端をそろえる。角に立てるときは、真ん中を右上の角に置く。辺に乗せるときは左端をそろえる
+export function standBeside(a: Rect, size: Size, side: StandSide): Point {
   switch (side) {
     case "below":
       return { x: a.x, y: a.y + a.h + GAP }

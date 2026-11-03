@@ -238,6 +238,7 @@ test("matomezu/ui が出す名前", () => {
     "useStageArea",
     "useStagePan",
     "useStageState",
+    "useStandAway",
     "useSwatches",
     "useT",
     "useThemeVars",

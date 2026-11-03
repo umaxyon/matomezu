@@ -34,7 +34,7 @@ export const MARKDOWN = kit.defineBookType({
     },
     fields: { text: z.string().describe("The page's document, in Markdown").optional() }, // 無ければ空の文書
   },
-  items: { allowed: [], defaults: [] },
+  items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
   presentation: MARKDOWN_PRESENTATION.id,

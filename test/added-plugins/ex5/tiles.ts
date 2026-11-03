@@ -87,7 +87,6 @@ export const SHELF = kit.defineBookType({
   },
   items: {
     allowed: [kit.name("tiles"), "@matomezu/box:shape-box"],
-    defaults: [kit.name("tiles"), "@matomezu/box:shape-box"],
   },
   actions: {},
   theme: "@matomezu/base:standard",

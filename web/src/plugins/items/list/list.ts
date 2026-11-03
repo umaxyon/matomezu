@@ -26,6 +26,9 @@ export const ROW_ITEM = "list.row" as const
 export const ListRowSchema = z.strictObject({ id: z.string().min(1), item: z.literal(ROW_ITEM), props: RowPropsSchema })
 export type ListRow = z.infer<typeof ListRowSchema>
 
+// リストの行の並びのキーの範囲（行を押すと行の並びに焦点が入り、選んだ行へのキーはここで受ける）
+export const LIST_ROWS_SCOPE = kit.name("rows")
+
 // リストの塗りのテーマキー（行のカードの地。色の見本の「なし」もこの色）
 export const LIST_FILL = { id: kit.name("list-fill"), fallback: "fill" } as const
 

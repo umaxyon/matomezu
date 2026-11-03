@@ -65,7 +65,7 @@ const SHEET = defineBookType({
       perPage: false,
     },
   },
-  items: { allowed: [], defaults: [] },
+  items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる

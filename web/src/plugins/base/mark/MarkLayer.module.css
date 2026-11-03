@@ -1,39 +1,3 @@
-/* 鳥が歩く所（物の上の辺に乗る。幅は物の幅）。鳥は足元を下の辺に合わせて描く */
-.walk {
-  position: relative;
-  height: 48px;
-  pointer-events: none;
-}
-/* 鳥の足元（大きさは持たず、絵と吹き出しはここから置く） */
-.foot {
-  position: absolute;
-  top: 100%;
-  width: 0;
-  height: 0;
-  transform-origin: 0 0;
-}
-/* 物の裏にいる間: 上の辺より下を隠す */
-.behind {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 200px;
-  overflow: hidden;
-}
-.behind > .foot {
-  top: 200px;
-}
-/* 絵の 1 コマ（コマと位置は MarkLayer の frameStyle が決める） */
-.bird {
-  position: absolute;
-  padding: 0;
-  border: 0;
-  background-color: transparent;
-  background-repeat: no-repeat;
-  cursor: pointer;
-  pointer-events: auto;
-}
 /* びっくりマークの丸（物の右上の角） */
 .alert {
   display: grid;
@@ -49,6 +13,10 @@
   font: 700 12px / 1 sans-serif;
   cursor: pointer;
   pointer-events: auto;
+}
+/* 付けた物が画面の外にある間のびっくりマーク: 色を薄くする */
+[data-away="true"] .alert {
+  background: color-mix(in srgb, var(--skin-danger) 55%, transparent);
 }
 /* 押すと「外す？」を出す所（吹き出しは押した物の上に出す） */
 .ask {
@@ -73,7 +41,8 @@
   transform: translateX(-50%);
   pointer-events: auto;
 }
-.foot .askBubble {
+/* 鳥の足元に置いたとき: 吹き出しを鳥の上に出す */
+.onBird .askBubble {
   bottom: 48px;
   left: 0;
 }
@@ -117,7 +86,7 @@
   width: 40px;
   height: 40px;
 }
-.pickBird > .bird {
+.pickFrame {
   margin-left: 20px;
   margin-top: 40px;
   pointer-events: none;

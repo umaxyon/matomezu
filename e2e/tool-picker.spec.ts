@@ -25,8 +25,8 @@ test("紙の上で右ボタンを長押しすると、ポインタの近くに�
   const buttons = picker(page).getByRole("button")
   await expect(buttons).toHaveCount(4) // 道具 3 つとミニマップ
   await expect(picker(page).getByRole("button", { name: "選択ツール" })).toHaveAttribute("aria-pressed", "true")
-  // 道具の組の並び（選択・付け替え・ハンド）で、横並びでポインタの上（真ん中が付け替え）
-  const middle = (await picker(page).getByRole("button", { name: "付け替えツール" }).boundingBox())!
+  // 横並びでポインタの上。組の初めの道具（選択）が真ん中で、付け替え・ハンドが左右
+  const middle = (await picker(page).getByRole("button", { name: "選択ツール" }).boundingBox())!
   expect(middle.y + middle.height).toBeLessThan(at.y)
   expect(Math.abs(middle.x + middle.width / 2 - at.x)).toBeLessThan(30)
   await picker(page).getByRole("button", { name: "ハンドツール" }).click()

@@ -13,6 +13,7 @@ export const LIST_MESSAGES = defineMessages({
   "Add row": { en: "Add row", ja: "行の追加" },
   "Edit row": { en: "Edit row", ja: "行の編集" },
   "Delete row": { en: "Delete row", ja: "行を削除" },
+  "Delete rows": { en: "Delete rows", ja: "選んだ行を削除" },
   "Update row": { en: "Update row", ja: "行を変える" },
   "Remove rows": { en: "Remove rows", ja: "行を消す" },
   "Check row": { en: "Check row", ja: "行をチェックする" },
