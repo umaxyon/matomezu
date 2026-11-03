@@ -1,6 +1,7 @@
-// ツールボックス: ブックで置けるアイテム（タイプの items.allowed）のうち、定義の toolbox で出すもの（並びはその順）。
+// ツールボックス: ブックで置けるアイテム（bookItems）のうち、定義の toolbox で出すもの（並びはその順）。
 // ボタンで出すものと、シェイプパネル（「形」のボタン 1 つから開く格子）に並べるものがある。どこにどう出すか（上の行・フッタメニューなど）はビューと配置が決める
-import { bookType, type CoreCatalog, type ItemId } from "../../../core/core-catalog"
+import { bookItems } from "../../../core/book"
+import type { CoreCatalog, ItemId } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import type { Book } from "../../../core/schema/book"
 
@@ -16,7 +17,7 @@ declare module "../../../core/catalog" {
 }
 
 const placedBy = (catalog: CoreCatalog, book: Book, how: true | "panel"): readonly ItemId[] =>
-  bookType(catalog, book.type).items.allowed.filter((id): id is ItemId => catalog.items.get(id)?.toolbox === how)
+  bookItems(catalog, book).filter((id): id is ItemId => catalog.items.get(id)?.toolbox === how)
 
 // ボタンで出すアイテム
 export const toolboxOf = (catalog: CoreCatalog, book: Book): readonly ItemId[] => placedBy(catalog, book, true)
