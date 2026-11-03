@@ -11,9 +11,12 @@
     "e2e:perf": "playwright test -c playwright.perf.config.ts",
     "lint": "biome check",
     "format": "biome check --write",
-    "build:engine": "bun build web/src/engine/engine.ts --target browser --format iife --minify --outfile internal/engine/engine.js"
+    "build:engine": "bun build web/src/engine/engine.ts --target browser --format iife --production --outfile internal/engine/engine.js"
   },
   "dependencies": {
+    "mdast-util-from-markdown": "^2.1.0",
+    "mdast-util-gfm": "^3.1.0",
+    "micromark-extension-gfm": "^3.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7",
@@ -27,6 +30,7 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/bun": "^1.4.4",
+    "@types/mdast": "^4.0.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "fontkit": "^2.0.4",

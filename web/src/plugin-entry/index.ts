@@ -8,7 +8,7 @@ export * from "../plugin-api"
 // 追加プラグインのプロジェクトがビルトインのファイルを読まなくても、ビルトインの id と型が引ける）
 import type {} from "../plugins"
 
-// base の入口の名前（置く計算・文字・ブックの設定の項目・紙と、base が拡張ポイントに書き足した物の型。ビルトインプラグインは plugins/base から読む）
+// base の入口の名前（置く計算・文字・Markdown を読む・ブックの設定の項目・紙と、base が拡張ポイントに書き足した物の型。ビルトインプラグインは plugins/base から読む）
 export type {
   Axis,
   BlockProps,
@@ -20,6 +20,15 @@ export type {
   GrowFrom,
   GrowRule,
   GrowSides,
+  MarkdownAlign,
+  MarkdownBlock,
+  MarkdownCheck,
+  MarkdownDocument,
+  MarkdownFootnote,
+  MarkdownInline,
+  MarkdownListItem,
+  MarkdownRange,
+  MarkdownTableCell,
   MinimapMark,
   PageContext,
   PageFieldsWay,
@@ -64,6 +73,7 @@ export {
   grownArea,
   growOf,
   inPaper,
+  itemMinimapMarks,
   itemSize,
   keepApart,
   knownTheme,
@@ -77,6 +87,7 @@ export {
   pageContext,
   pageFieldsWay,
   paperSize,
+  parseMarkdown,
   parseRich,
   placeChild,
   placedAt,

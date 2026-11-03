@@ -1,9 +1,10 @@
 // マークダウンのブック: ページ 1 つが文書 1 つで、原文はページのフィールド text に Markdown の文字列のまま持つ。紙に置けるアイテムは無い。
 // 見せ方（markdown）はステージに紙を置かず、ビューが原文と描いた文書のペインを並べて、ふつうにスクロールする。ページは紙を持ち（印刷で紙に切るときの幅と高さ）、
-// どのページもいつも可変ページで、下へ増やす。新しいページとページの設定のダイアログは base の物。道具は持たない。見た目（テーマと紙の色）は base の設定の項目で変えられる
+// どのページもいつも可変ページで、下へ増やす。新しいページとページの設定のダイアログは base の物。原文は base の page-update で、丸ごとか 1 か所の置き換えで変える。道具は持たない。見た目（テーマと紙の色）は base の設定の項目で変えられる
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
+import { pageFieldsInput } from "./page-fields"
 
 // マークダウンの見せ方: ステージに紙を置かない
 export const MARKDOWN_PRESENTATION = kit.definePresentation({ id: "markdown", paper: false })
@@ -19,6 +20,7 @@ export const MARKDOWN = kit.defineBookType({
   single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
+  pageFieldsInput, // 直すときは、原文を丸ごとか、1 か所だけ置き換えて受ける
   grow: { always: { up: false, down: true, left: false, right: false } }, // いつも可変ページで、下へ増やす（base の拡張ポイント）
   pages: {
     paper: {

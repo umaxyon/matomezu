@@ -1,14 +1,13 @@
 // ディレクトリ構成図のページのミニマップの絵: 行を並べ（layout.ts）、罫線を線で、行を四角で描く（紙の座標。描けない紙と根の無いページは描かない）
 import type { CoreCatalog, ItemPage } from "../../../plugin-api"
-import { type GrowSides, type MinimapMark, paperSize, type SettingReader } from "../../base"
+import { type GrowSides, type MinimapMark, paperSize } from "../../base"
 import { DirFolderSchema } from "./entry"
 import { layoutDir } from "./layout"
 
 export function dirMinimap(
   catalog: CoreCatalog,
   page: ItemPage,
-  _setting: SettingReader,
-  grow: GrowSides | undefined,
+  { grow }: { grow: GrowSides | undefined },
 ): MinimapMark[] {
   const root = DirFolderSchema.safeParse("root" in page ? page.root : undefined)
   const paper = paperSize(catalog, page)

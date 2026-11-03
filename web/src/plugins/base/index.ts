@@ -48,8 +48,21 @@ export { createBookIn } from "./book-new/create-book"
 export type { PageContext, SettingReader } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
 export { PAPER_IDS } from "./looks"
+// Markdown の原文を読む（ほかのプラグインが使う。追加プラグインには matomezu から出す）
+export {
+  type MarkdownAlign,
+  type MarkdownBlock,
+  type MarkdownCheck,
+  type MarkdownDocument,
+  type MarkdownFootnote,
+  type MarkdownInline,
+  type MarkdownListItem,
+  type MarkdownRange,
+  type MarkdownTableCell,
+  parseMarkdown,
+} from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
-export type { MinimapMark } from "./minimap/marks"
+export { itemMinimapMarks, type MinimapMark } from "./minimap/marks"
 export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
 export type { PageProblem } from "./page-tabs/page-problems"
