@@ -7,12 +7,11 @@ import { TreeRootSchema } from "./node"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 
-// setting は、そのページで効いている設定の値を読む関数。grow はページの増やす向き（可変ページでなければ undefined）
+// 見せ方の minimap。setting は、そのページで効いている設定の値を読む関数。grow はページの増やす向き（可変ページでなければ undefined）
 export function treeMinimap(
   catalog: CoreCatalog,
   page: ItemPage,
-  setting: SettingReader,
-  grow: GrowSides | undefined,
+  { setting, grow }: { setting: SettingReader; grow: GrowSides | undefined },
 ): MinimapMark[] {
   const root = TreeRootSchema.safeParse("root" in page ? page.root : undefined)
   const paper = paperSize(catalog, page)

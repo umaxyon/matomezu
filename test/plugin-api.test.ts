@@ -79,6 +79,7 @@ test("matomezu が出す名前", () => {
     "inPaper",
     "isLight",
     "isPaletteName",
+    "itemMinimapMarks",
     "itemSize",
     "keepApart",
     "knownTheme",

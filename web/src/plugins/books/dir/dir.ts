@@ -14,7 +14,11 @@ import { DIR_TOOLS } from "./tools"
 export const DIR_KEYS_SCOPE = kit.name("dir")
 
 // ディレクトリ構成図の見せ方: 紙の上に、根のフォルダから下の中身を並べて描く。カレントのステージがこれで描いている間は、自分のキーの範囲を探す
-export const DIR_PRESENTATION = kit.definePresentation({ id: "dir", keyScope: DIR_KEYS_SCOPE })
+export const DIR_PRESENTATION = kit.definePresentation({
+  id: "dir",
+  keyScope: DIR_KEYS_SCOPE,
+  minimap: dirMinimap, // ミニマップには、行を四角で、罫線を線で描く
+})
 
 // ディレクトリ構成図のページを作るダイアログ（ページ名・根のフォルダの名前）
 export const NEW_DIR_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
@@ -42,7 +46,6 @@ export const DIR = kit.defineBookType({
   // 行が紙に入らないページは問題
   pageProblem: (catalog, page, _setting, grow) =>
     dirFits(catalog, page, grow) ? null : { message: kit.message("Does not fit on the paper") },
-  minimap: dirMinimap, // ミニマップには、行を四角で、罫線を線で描く
   grow: { sides: () => ({ up: false, down: true, left: false, right: true }) }, // 可変ページは、根のある左上を固定して右と下へ増やす（base の拡張ポイント）
   pages: {
     paper: {
