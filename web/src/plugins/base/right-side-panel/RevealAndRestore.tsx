@@ -1,5 +1,5 @@
 // 右サイドパネルで開いた物を見せ、閉じたら見え方を戻す（窓に 1 つで、右サイドパネルの入れ物と並べて置く。描く物は無い）。
-// 開いて幅を動かし終えたら（同じステージで開き直したときは、すぐ）、倍率を 100% にして物が見えるまでずらす（reveal.ts）。物を囲むビューが Revealable を名乗り出ていれば、先にそれに見えるようにと頼む（リストの中のスクロールなど。これは戻さない）。
+// 開いて幅を動かし終えたら（同じステージで開き直したときは、すぐ）、倍率を 100% にして物を真ん中へずらす（reveal.ts）。物を囲むビューが Revealable を名乗り出ていれば、先にそれに見えるようにと頼む（リストの中のスクロールなど。これは戻さない）。
 // 開いている間に倍率かずらす量を変えたかを覚えておき、閉じて幅を動かし終えたら、変えていなければ開く前の見え方に戻す（覚え方は state.ts）。
 // 別のステージで開き直したときは、前のステージは戻さない。表示領域の大きさが変わってずらす量が収め直されただけなら、変えたことにはしない
 import { useCallback, useEffect } from "react"
@@ -9,8 +9,7 @@ import type { Stage } from "../../../core/stage"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { anchorElementIn } from "../utils/anchors"
-import { revealAround } from "../utils/revealable"
+import { anchorElementIn, revealedRect } from "../utils/anchors"
 import { moveView } from "../zoom"
 import { useOpenedRightSidePanel } from "./hooks"
 import { paperRectOf, revealView } from "./reveal"
@@ -67,9 +66,6 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
 // ステージ stage の、アンカー anchor の物の四角（紙の上で。描かれていなければ null）。先に、物を囲む Revealable に見えるようにと頼む（リストの中のスクロールなど）
 function anchorRect(stage: string, anchor: string, now: Stage): Rect | null {
   const found = anchorElementIn(stage, anchor)
-  if (!found) return null
-  revealAround(found.el, found.view, anchor)
-  const base = found.view.getBoundingClientRect()
-  const r = found.el.getBoundingClientRect()
-  return paperRectOf(now, { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height })
+  const rect = found && revealedRect(found.view, found.view, [{ el: found.el, id: anchor }])
+  return rect && paperRectOf(now, rect)
 }

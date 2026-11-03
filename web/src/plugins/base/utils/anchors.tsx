@@ -194,14 +194,11 @@ export function Stand({
           const layer = ctx.layer
           const view = stageElement(stage)
           if (!layer || !view) return
-          for (const id of ids) {
+          const found = ids.flatMap(id => {
             const el = ctx.anchors.element(id)
-            if (el) revealAround(el, view, id)
-          }
-          const now = measureIn(
-            layer,
-            ids.map(id => ctx.anchors.element(id)),
-          )?.rect
+            return el ? [{ el, id }] : []
+          })
+          const now = revealedRect(layer, view, found)
           if (!now) return
           const by = revealShift(now, area)
           glidePan((dx, dy) => panStageBy(stage, dx, dy), by.x, by.y)
@@ -227,6 +224,17 @@ export function Stand({
       <AwayContext.Provider value={away}>{children}</AwayContext.Provider>
     </div>,
     ctx.layer,
+  )
+}
+
+// 物の要素 found（要素とアンカーの id）を、ステージの表示領域 view の中で囲む Revealable に見えるようにと頼んでから、まとめて囲む四角（base の左上から。無ければ null）
+export function revealedRect(base: Element, view: Element, found: readonly { el: Element; id: string }[]): Rect | null {
+  for (const { el, id } of found) revealAround(el, view, id)
+  return (
+    measureIn(
+      base,
+      found.map(f => f.el),
+    )?.rect ?? null
   )
 }
 
