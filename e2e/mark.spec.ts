@@ -89,3 +89,35 @@ test("種類を選ぶスタンドは Esc で付けずに閉じる", async ({ pag
   await page.keyboard.press("Escape")
   await expect(picker).toHaveCount(0)
 })
+
+test("箱の上の辺が画面の外に出ると、鳥は画面の縁の印（鳥の顔の丸）に替わる。押すと紙がずれて箱が見え、鳥に戻る。びっくりマークは縁に寄って残る", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.setViewportSize({ width: 900, height: 480 })
+  await page.goto("/")
+  await addBox(page, 200, "一")
+  await addBox(page, 500, "二")
+  await pickMark(page, items(page).filter({ hasText: "一" }), "インコ")
+  await pickMark(page, items(page).filter({ hasText: "二" }), "びっくりマーク")
+  const bird = page.getByRole("button", { name: "インコ", exact: true })
+  await expect(bird).toHaveCount(1)
+  const stage = (await page.locator("[data-stage]").boundingBox())!
+  // 紙を上へずらして、箱を画面の上の外へ出す
+  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height - 20)
+  await page.mouse.wheel(0, 300)
+  const sign = page.getByRole("button", { name: "インコを見せる" })
+  await expect(sign).toHaveCount(1)
+  await expect(bird).toHaveCount(0)
+  const s = (await sign.boundingBox())!
+  expect(s.width).toBe(24)
+  expect(Math.abs(s.y - stage.y - 4)).toBeLessThan(2) // 画面の上の縁に付く
+  // びっくりマークも上の縁に寄って残る
+  const alert = (await page.getByRole("button", { name: "びっくりマーク" }).boundingBox())!
+  expect(Math.abs(alert.y - stage.y - 4)).toBeLessThan(2)
+  await sign.click()
+  await expect(bird).toHaveCount(1)
+  await expect(sign).toHaveCount(0)
+  const box = (await items(page).filter({ hasText: "一" }).boundingBox())!
+  expect(box.y).toBeGreaterThan(stage.y)
+})

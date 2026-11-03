@@ -1,6 +1,6 @@
-// スタンドの置き場所（plugins/base/utils/stand-place.ts）: アンカーのどちら側に立て、入らなければどこへ回すか
+// スタンドの置き場所（plugins/base/utils/stand-place.ts）: アンカーのどちら側に立て、入らなければどこへ回すか。上の辺が外に出たか・点を範囲に収める
 import { describe, expect, test } from "bun:test"
-import { standAt, unionRect } from "../../web/src/plugins/base/utils/stand-place"
+import { pointInto, standAt, topOut, unionRect } from "../../web/src/plugins/base/utils/stand-place"
 
 const area = { w: 400, h: 300 }
 const size = { w: 100, h: 40 }
@@ -30,5 +30,22 @@ describe("スタンドの置き場所", () => {
         { x: 100, y: 5, w: 20, h: 20 },
       ]),
     ).toEqual({ x: 10, y: 5, w: 110, h: 45 })
+  })
+})
+
+describe("画面の外に出たアンカー", () => {
+  test("上の辺が置ける範囲と重ならなければ外（物の一部が見えていても、上の辺が外なら外）", () => {
+    expect(topOut({ x: 50, y: 50, w: 80, h: 30 }, area)).toBe(false)
+    expect(topOut({ x: 50, y: -10, w: 80, h: 30 }, area)).toBe(true)
+    expect(topOut({ x: 50, y: 310, w: 80, h: 30 }, area)).toBe(true)
+    expect(topOut({ x: -100, y: 50, w: 80, h: 30 }, area)).toBe(true)
+    expect(topOut({ x: -40, y: 50, w: 80, h: 30 }, area)).toBe(false) // 上の辺の一部が見えている
+    expect(topOut({ x: 420, y: 50, w: 80, h: 30 }, area)).toBe(true)
+  })
+  test("点を、置ける範囲の端から pad の内側に収める（範囲の中ならそのまま）", () => {
+    expect(pointInto({ x: 100, y: 100 }, area, 16)).toEqual({ x: 100, y: 100 })
+    expect(pointInto({ x: -50, y: 100 }, area, 16)).toEqual({ x: 16, y: 100 })
+    expect(pointInto({ x: 500, y: -20 }, area, 16)).toEqual({ x: 384, y: 16 })
+    expect(pointInto({ x: 100, y: 900 }, area, 16)).toEqual({ x: 100, y: 284 })
   })
 })

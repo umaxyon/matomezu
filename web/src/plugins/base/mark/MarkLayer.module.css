@@ -50,6 +50,24 @@
   cursor: pointer;
   pointer-events: auto;
 }
+/* 付けた物が画面の外にある間のびっくりマーク: 色を薄くする */
+[data-away="true"] .alert {
+  background: color-mix(in srgb, var(--skin-danger) 55%, transparent);
+}
+/* 縁の印（付けた物が画面の外にある間の鳥。絵は MarkLayer が鳥ごとに決める）: 少し薄く描く */
+.sign {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: transparent;
+  background-size: 24px 24px;
+  opacity: 0.85;
+  cursor: pointer;
+  pointer-events: auto;
+}
 /* 押すと「外す？」を出す所（吹き出しは押した物の上に出す） */
 .ask {
   position: relative;

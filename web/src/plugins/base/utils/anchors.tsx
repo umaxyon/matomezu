@@ -1,6 +1,8 @@
 // アンカーとスタンド: ビューは、id を持つ物（アイテム・リストの行・節・ディレクトリの行など）を描く要素に、その id のアンカーを付ける（useAnchorRef）。
 // スタンド（Stand）は、アンカーの id を指して、その物のそばに立つ。スタンドはスタンドのレイヤー（スロット book-layers）に描かれ、
 // 倍率では大きさを変えない。パン・倍率・リストのスクロールで物が動けば、付いて動く。
+// 置ける範囲（スタンドのレイヤー）に入らなければ、範囲の中へ寄せる。edgePinned のスタンドは、アンカーの上の辺が範囲の外に出たら寄せずに付いて行き、
+// 中の物は useStandAway で、縁に寄せる点と、その物を見せる（紙をずらしてアンカーを真ん中へ）関数を受け取る。
 // アンカーの表（id → 要素）はステージごとに 1 つで、ステージのビューが渡す。ブックのデータにも画面の状態にも入れず、描いている間だけ持つ
 import {
   createContext,
@@ -15,11 +17,13 @@ import {
   useSyncExternalStore,
 } from "react"
 import { createPortal } from "react-dom"
-import type { Rect, Size } from "../../../core/geom"
+import type { Point, Rect, Size } from "../../../core/geom"
+import { useActions } from "../../../ui/store-context"
 import { useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
+import { glidePan } from "./glide-pan"
 import { stageElement } from "./stage-element"
-import { type StandSide, standAt, unionRect } from "./stand-place"
+import { pointInto, type StandSide, standAt, standBeside, topOut, unionRect } from "./stand-place"
 import { ZOOM_MS } from "./useZoomMotion"
 
 // ステージのアンカーの表: id → 要素と、変わったときに知らせる先
@@ -108,22 +112,35 @@ export function StandLayer() {
   return <div ref={setLayer} className={styles.layer} data-stand-layer />
 }
 
+// edgePinned のスタンドのアンカーの上の辺が、置ける範囲の外に出ている間に、中の物が受け取る物
+export interface StandAway {
+  pin(p: Point, pad: number): Point // スタンドの中の点 p（スタンドの左上から）を、置ける範囲の端から pad の内側に寄せた点（スタンドの左上から）
+  show(): void // 紙をずらして、アンカーを表示領域の真ん中へ動かす（倍率は変えない）
+}
+const AwayContext = createContext<StandAway | null>(null)
+
+// スタンドの中で、アンカーの上の辺が範囲の外に出ていれば StandAway（edgePinned でないか、外に出ていなければ null）
+export const useStandAway = (): StandAway | null => useContext(AwayContext)
+
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
-// span なら、幅をアンカーの幅（画面の上の幅）にそろえる
+// span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が外に出たとき、範囲の中へ寄せずに付いて行く
 export function Stand({
   anchor,
   side = "below",
   span = false,
+  edgePinned = false,
   label,
   children,
 }: {
   anchor: string | readonly string[]
   side?: StandSide
   span?: boolean
+  edgePinned?: boolean
   label?: string
   children: ReactNode
 }) {
   const ctx = useContext(Context)
+  const { panStageBy } = useActions()
   const ids = useMemo(() => (typeof anchor === "string" ? [anchor] : anchor), [anchor])
   const rect = useAnchorRect(ctx, ids)
   const ref = useRef<HTMLDivElement>(null)
@@ -142,7 +159,27 @@ export function Stand({
   })
   if (!ctx?.layer || !rect) return null
   const area = { w: ctx.layer.clientWidth, h: ctx.layer.clientHeight }
-  const at = size ? standAt(rect, size, area, side) : { x: rect.x, y: rect.y + rect.h }
+  const out = edgePinned && topOut(rect, area)
+  const at = !size
+    ? { x: rect.x, y: rect.y + rect.h }
+    : out
+      ? standBeside(rect, size, side)
+      : standAt(rect, size, area, side)
+  const stage = ctx.stage
+  const away: StandAway | null = out
+    ? {
+        pin: (p, pad) => {
+          const pinned = pointInto({ x: at.x + p.x, y: at.y + p.y }, area, pad)
+          return { x: pinned.x - at.x, y: pinned.y - at.y }
+        },
+        show: () =>
+          glidePan(
+            (dx, dy) => panStageBy(stage, dx, dy),
+            area.w / 2 - (rect.x + rect.w / 2),
+            area.h / 2 - (rect.y + rect.h / 2),
+          ),
+      }
+    : null
   return createPortal(
     // biome-ignore lint/a11y/useSemanticElements: スタンドは中身を束ねる箱で、入力Formのまとまり（fieldset）ではない
     <div
@@ -159,7 +196,7 @@ export function Stand({
       onWheel={stop}
       onKeyDown={stop}
     >
-      {children}
+      <AwayContext.Provider value={away}>{children}</AwayContext.Provider>
     </div>,
     ctx.layer,
   )
