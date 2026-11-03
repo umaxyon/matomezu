@@ -1,4 +1,4 @@
-/* 並べた枠の外へ出る物（下の行の後ろに隠したドロワーなど）は切り、画面をスクロールさせない */
+/* 並べた枠の外へ出る物（下の行の後ろに隠したフッタメニューなど）は切り、画面をスクロールさせない */
 .workspace {
   flex: 1;
   min-height: 0;
@@ -15,8 +15,22 @@
   display: flex;
   flex-direction: column;
 }
+/* 右サイドパネルを開け閉めする間だけ、列の幅を動かす（分割や境目のドラッグでは動かさない。動きを減らす設定でも動かさない） */
+.sliding > .column {
+  transition: flex-grow var(--right-side-panel-slide) ease;
+}
 .column + .column {
   border-left: 1px solid var(--skin-border);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sliding > .column {
+    transition: none;
+  }
+}
+/* 右サイドパネルを開いている間の、もう片方の列（幅 0） */
+.column[data-hidden="true"] {
+  overflow: hidden;
+  border-left-width: 0;
 }
 /* 列の境目をつかむ所（境目の線をまたぐ細い帯。色はつかんでいる間だけ付ける） */
 .divider {

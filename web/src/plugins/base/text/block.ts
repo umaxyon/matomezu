@@ -7,8 +7,20 @@ import { clampRich, type RichLine, wrapRich } from "./rich"
 
 const L = TEXT_LOOK
 // キャプション 1 行の高さと、区切り線とその上下の間の高さ
-export const BLOCK_CAPTION = L.line
-export const BLOCK_RULE = 2 * L.ruleGap + 1
+const BLOCK_CAPTION = L.line
+const BLOCK_RULE = 2 * L.ruleGap + 1
+
+// キャプションの下の、区切り線（rule なら）と本文 lines 行の高さ（本文が 0 行なら区切り線も出さないので 0）。
+// キャプションと本文を持つ形が、本文の行数から高さを決めるときに使う
+export const blockBodyHeight = (lines: number, rule: boolean): number =>
+  lines > 0 ? (rule ? BLOCK_RULE : 0) + lines * L.line : 0
+
+// キャプションの下の高さ height に一番近い本文の行数（0 から。blockBodyHeight の逆。区切り線の半分より低ければ 0）
+export function blockBodyLines(height: number, rule: boolean): number {
+  const line = rule ? BLOCK_RULE : 0
+  if (height < line / 2) return 0
+  return Math.max(0, Math.round((height - line) / L.line))
+}
 
 // 文字の塊の項目
 export interface BlockProps {
@@ -68,16 +80,15 @@ export const bodySides = (props: Pick<BlockProps, "captionAlign">): readonly ("l
 export function textBlock(props: BlockProps, inner: number, least: number, maxH: number): TextBlock {
   const column = bodyColumn(props, inner, least)
   if (props.body === "") return { body: [], rule: false, column, height: BLOCK_CAPTION }
-  const rule = props.rule ? BLOCK_RULE : 0
-  const fits = Math.floor((maxH - BLOCK_CAPTION - rule) / L.line)
+  const fits = Math.floor((maxH - BLOCK_CAPTION - (props.rule ? BLOCK_RULE : 0)) / L.line)
   if (fits <= 0) return { body: [], rule: false, column, height: BLOCK_CAPTION }
   const body = clampRich(wrapRich(props.body, column.w, L.body), fits, column.w, L.body)
-  return { body, rule: props.rule, column, height: BLOCK_CAPTION + rule + body.length * L.line }
+  return { body, rule: props.rule, column, height: BLOCK_CAPTION + blockBodyHeight(body.length, props.rule) }
 }
 
-// 本文を全部出したときの文字の塊の高さ（中の幅 inner で折り返す）
-export function textBlockHeight(props: BlockProps, inner: number, least: number): number {
+// 本文を全部出したとき（maxLines があれば、本文をその行数までにしたとき）の文字の塊の高さ（中の幅 inner で折り返す）
+export function textBlockHeight(props: BlockProps, inner: number, least: number, maxLines = Infinity): number {
   if (props.body === "") return BLOCK_CAPTION
   const lines = wrapRich(props.body, bodyColumn(props, inner, least).w, L.body).length
-  return BLOCK_CAPTION + (props.rule ? BLOCK_RULE : 0) + lines * L.line
+  return BLOCK_CAPTION + blockBodyHeight(Math.min(lines, maxLines), props.rule)
 }

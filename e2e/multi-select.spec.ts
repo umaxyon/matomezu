@@ -1,6 +1,6 @@
 // 図面の複数選択（D84）: Mod+クリックで選択に足す・外し、選択の道具で何も無い所からドラッグした四角で選ぶ。選んだ物はまとめて消え、まとめて動く
 import { expect, type Page, test } from "@playwright/test"
-import { drawerTool } from "./drawer"
+import { footerMenuTool } from "./footer-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
 
@@ -12,7 +12,7 @@ async function onPaper(page: Page, x: number, y: number) {
 
 // 紙の (x, y) に箱を置く
 async function addBox(page: Page, x: number, y: number) {
-  await (await drawerTool(page, "箱")).click()
+  await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, x, y)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })

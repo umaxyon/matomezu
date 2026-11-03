@@ -33,7 +33,7 @@ function renderScreen(options: Omit<StoreOptions, "plugins"> = {}) {
 
 const stages = () => screen.getAllByRole("region", { name: "ステージ" })
 
-// i 番目のステージの下の行のブックの名前のボタンを押してドロワーを出し、その中のボタンを返す（閉じたドロワーのボタンは見えない）
+// i 番目のステージの下の行のブックの名前のボタンを押してフッタメニューを出し、その中のボタンを返す（閉じたフッタメニューのボタンは見えない）
 function fromMenu(name: string, i = 0): HTMLElement {
   const triggers = [...document.querySelectorAll<HTMLElement>('button[aria-haspopup="menu"]')]
   const trigger = triggers[i]!
@@ -41,11 +41,11 @@ function fromMenu(name: string, i = 0): HTMLElement {
   return within(trigger.parentElement?.nextElementSibling as HTMLElement).getByRole("button", { name })
 }
 
-test("ステージに紙が 1 枚あり、下の行のドロワーにツールボックス（箱・リスト・データと、シェイプパネルを開く「形」）がある", () => {
+test("ステージに紙が 1 枚あり、下の行のフッタメニューにツールボックス（箱・リスト・データと、シェイプパネルを開く「形」）がある", () => {
   renderScreen()
   expect(stages()).toHaveLength(1)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
-  // ドロワーは閉じているので、読み上げには出ていない
+  // フッタメニューは閉じているので、読み上げには出ていない
   expect(screen.queryByRole("toolbar", { name: "ツール" })).toBeNull()
   const tools = screen.getByRole("toolbar", { name: "ツール", hidden: true })
   expect(
@@ -192,7 +192,13 @@ test("マスターで新しいブックを作ると、そのステージでペ�
   fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
   const dialog = screen.getByRole("dialog", { name: "新しいブック" })
   const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
-  expect([...type.options].map(o => o.textContent)).toEqual(["図面", "フローチャート", "ツリー", "ディレクトリ構成図"])
+  expect([...type.options].map(o => o.textContent)).toEqual([
+    "図面",
+    "フローチャート",
+    "ツリー",
+    "ディレクトリ構成図",
+    "マークダウン",
+  ])
   expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
   fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "新しい図" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))

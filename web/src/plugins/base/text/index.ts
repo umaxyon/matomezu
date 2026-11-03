@@ -17,5 +17,4 @@ export {
   textColorsOf,
   textColorVars,
   USER_TEXT_COLORS,
-  withTextColor,
 } from "./text-colors"

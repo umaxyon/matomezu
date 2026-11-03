@@ -6,7 +6,10 @@ import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import type { Point, Rect } from "../../../core/geom"
 import { connectorsOf, type ItemPage, type PlacedConnector, shapesOf } from "../../../core/placed"
-import type { SettingReader } from "../book-settings"
+import type { Book } from "../../../core/schema/book"
+import { type SettingReader, settingsAt } from "../book-settings"
+import type { GrowSides } from "../place/grow"
+import { growOf } from "../place/items"
 import { type PortArea, portAreasOf, rectsOf } from "../place/placed"
 
 // ミニマップに描く簡単な絵 1 つ（紙の座標）。色と線の太さはミニマップが決める。
@@ -20,8 +23,14 @@ export type MinimapMark =
 // ミニマップが読む、定義オブジェクトのメソッド（定義オブジェクトの拡張ポイントに書き足す）
 declare module "../../../core/catalog" {
   interface BookTypeExtras {
-    // ページ page に描く絵（紙の座標。page で効いている設定の値は setting で読む）。無ければ、置いたアイテムの絵
-    minimap?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): readonly MinimapMark[]
+    // ページ page に描く絵（紙の座標。page で効いている設定の値は setting で読む。grow はページの増やす向きで、可変ページでなければ undefined）。
+    // 無ければ、置いたアイテムの絵
+    minimap?(
+      catalog: CoreCatalog,
+      page: ItemPage,
+      setting: SettingReader,
+      grow: GrowSides | undefined,
+    ): readonly MinimapMark[]
   }
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     // ミニマップに描く絵（rect は置いた形の四角。紙の座標）。無ければ、その四角を描く
@@ -35,16 +44,16 @@ declare module "../../../core/catalog" {
 
 const rectMark = (r: Rect): MinimapMark => ({ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h })
 
-// タイプ type のブックのページ page の絵。drawn は、紙が描いたつなぐものの絵（種類の id ごと。無ければ定義の minimap で作る）
+// ブック book のページ page の絵。drawn は、紙が描いたつなぐものの絵（種類の id ごと。無ければ定義の minimap で作る）
 export function minimapMarks(
   catalog: CoreCatalog,
-  type: string,
+  book: Book,
   page: ItemPage,
-  setting: SettingReader,
   drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
 ): readonly MinimapMark[] {
-  const own = bookType(catalog, type).minimap
-  return own ? own(catalog, page, setting) : itemMarks(catalog, page, setting, drawn)
+  const own = bookType(catalog, book.type).minimap
+  const setting = settingsAt(catalog, book, page)
+  return own ? own(catalog, page, setting, growOf(catalog, book, page)) : itemMarks(catalog, page, setting, drawn)
 }
 
 function itemMarks(

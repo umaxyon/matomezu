@@ -37,7 +37,7 @@ function flowchart() {
   return { store, on: { book: id }, book, page }
 }
 
-test("フローチャートのツールボックス（下の行のドロワー）には箱と「形」のボタンが並び、「形」で開くパネルに 8 つの形と 15 のシェイプが並ぶ。形を押すとパネルを閉じてその形を置こうとする", () => {
+test("フローチャートのツールボックス（下の行のフッタメニュー）には箱と「形」のボタンが並び、「形」で開くパネルに 8 つの形と 15 のシェイプが並ぶ。形を押すとパネルを閉じてその形を置こうとする", () => {
   const { store } = flowchart()
   expect(screen.getByRole("button", { name: "箱", hidden: true })).toBeTruthy()
   expect(screen.queryByRole("button", { name: "角丸", hidden: true })).toBeNull()

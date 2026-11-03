@@ -44,10 +44,16 @@ export const USER_TEXT_COLORS = kit.defineSetting({
   default: {},
 })
 
-// 利用者の上書き own の、文字の色 id を color にした値（null は上書きを消す）。項目の値は丸ごと置き換わるので、ほかの色の上書きも残す
-export function withTextColor(own: TextColorValues, id: string, color: string | null): TextColorValues {
-  const { [id]: _, ...rest } = own
-  return color === null ? rest : { ...rest, [id]: color }
+// 文字の色の上書き own（ブックか利用者の設定の項目の値。無ければ undefined）の、文字の色 id を color にした値（undefined は上書きを消す）。
+// 項目の値は丸ごと置き換わるので、ほかの色の上書きも残す。上書きが 1 つも残らなければ undefined（項目の値を消す）
+export function withTextColor(
+  own: TextColorValues | undefined,
+  id: string,
+  color: string | undefined,
+): TextColorValues | undefined {
+  const { [id]: _, ...rest } = own ?? {}
+  const next = color === undefined ? rest : { ...rest, [id]: color }
+  return Object.keys(next).length > 0 ? next : undefined
 }
 
 // 文字の色の値を置く CSS 変数の名前（ステージがブックの要素に置く。id の英数字と - のほかは _ と 16 進にする）

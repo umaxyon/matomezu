@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
-import { isMatomezuError, problemText } from "../../web/src/core/errors"
+import { problemText } from "../../web/src/core/errors"
 import { type Warning, warning, warningText } from "../../web/src/core/warnings"
 import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -37,7 +37,7 @@ const TABS_ON_TOP = defineLayout({
     ...DEFAULT_LAYOUT.slots,
     "@matomezu/base:stage-top": ["@matomezu/base:toolbox", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],
-    "@matomezu/base:drawer-book-tools": [],
+    "@matomezu/base:footer-menu-book-tools": [],
   },
 })
 
@@ -77,10 +77,11 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:book-layers is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-bottom is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-corner is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:drawer-map is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:drawer-history is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:drawer-basics is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:drawer-book-tools is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:footer-menu-map is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:footer-menu-history is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:footer-menu-basics is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:footer-menu-book-tools is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
     ])
     // 中身を書かなければ、ステージの無い画面にできる
@@ -99,7 +100,10 @@ describe("配置", () => {
       id: "mine",
       slots: { ...DEFAULT_LAYOUT.slots, root: ["w:workspace", "@matomezu/base:dialog-host"] },
     }
-    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
+    // 右サイドパネルを開けない骨組みなら、その中身を書いた配置は error
+    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual(["E211"])
+    const { "@matomezu/base:right-side-panel": _, ...slots } = layout.slots
+    expect(checkLayout({ ...layout, slots } as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
   })
 
   test("右クリックのメニューのインスタンスに無いコマンドと、どのコンポーネントも開かないメニューは error", () => {
@@ -151,7 +155,7 @@ describe("配置", () => {
     } catch (e) {
       thrown = e
     }
-    expect(isMatomezuError(thrown) && thrown.code).toBe("E210")
+    expect(thrown).toMatchObject({ name: "MatomezuError", code: "E210" })
   })
 
   test("配置の型: 置けないスロット・知らないウィジェット・引数の要るコマンドは型の誤り（行わない）", () => {

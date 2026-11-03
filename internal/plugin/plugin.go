@@ -22,10 +22,12 @@ const ManifestFile = "matomezu.json"
 
 // Manifest は、コードを動かす前に読むプラグインの説明
 type Manifest struct {
-	ID        string `json:"id"`                  // プラグインの id（engine の default の id と同じ）
-	Engine    string `json:"engine"`              // ホストのエンジンで動かす入口（フォルダからのパス）
-	UI        string `json:"ui"`                  // 画面で読む入口（フォルダからのパス）
-	PluginAPI string `json:"pluginApi,omitempty"` // 作ったときのプラグイン API の版
+	ID     string `json:"id"`     // プラグインの id（engine の default の id と同じ）
+	Engine string `json:"engine"` // ホストのエンジンで動かす入口（フォルダからのパス）
+	UI     string `json:"ui"`     // 画面で読む入口（フォルダからのパス）
+	// 【ユーザー指示】作ったときのプラグイン API の版。プラグインを配ったあと、本体の版と合うかを確かめるためのフィールドで、外の作り手が書く約束（matomezu.json の形）の一部。
+	// 比べる相手のプラグイン API の版と、合わないときの扱いはまだ決めておらず、ホストは読むだけで比べない。使う所が無くても、要らない物として消さない
+	PluginAPI string `json:"pluginApi,omitempty"`
 }
 
 // Bundle は変換した追加プラグイン 1 つ

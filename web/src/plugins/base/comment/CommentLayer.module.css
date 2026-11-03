@@ -25,6 +25,16 @@
 .posts:empty {
   display: none;
 }
+/* 吹き出しの中の書き込みの並び（押すと右サイドパネルに出す） */
+.opens {
+  cursor: pointer;
+}
+/* 右サイドパネルの中のコメント */
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .post {
   margin: 0;
   white-space: pre-wrap;

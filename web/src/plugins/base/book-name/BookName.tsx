@@ -1,29 +1,27 @@
 // ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前を出す。
 // ロック中のブックは名前の左に鍵を出す（印だけ。外すのはブックの設定のダイアログ）。
-// 乗せるか押すと、下の行の真上に、行の幅いっぱいのドロワーが下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
-// 下の行から離れると下がる（ドロワーは下の行の中に描くので、ドロワーに乗っている間も下の行に乗っている）。
-// ドロワーには、左から地図・履歴・基本・ブックの道具の 4 つのスロット（drawer.ts の DRAWER_SLOTS）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
-// 中のウィジェットは、項目を選んだらドロワーを下げられる（drawer-context.tsx）
+// 乗せるか押すと、下の行の真上に、行の幅いっぱいのフッタメニューが下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
+// 下の行から離れると下がる（フッタメニューは下の行の中に描くので、フッタメニューに乗っている間も下の行に乗っている）。
+// フッタメニューには、左から地図・履歴・基本・ブックの道具の 4 つのスロット（footer-menu.ts の FOOTER_MENU_SLOTS）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
+// 中のウィジェットは、項目を選んだらフッタメニューを下げられる（footer-menu-context.tsx）
 import { useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useBook } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { useBottomHover } from "../workspace/bottom-hover"
 import styles from "./BookName.module.css"
-import { DRAWER_SLOTS } from "./drawer"
-import { DrawerContext } from "./drawer-context"
+import { FOOTER_MENU_SLOTS } from "./footer-menu"
+import { FooterMenuContext } from "./footer-menu-context"
 
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
 
 export function BookName({ stage }: { stage: string }) {
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    return o ? s.books[o.book] : undefined
-  })
+  const book = useBook(stage) ?? undefined
   const lang = useMatomezuState(s => s.lang)
   const current = useMatomezuState(s => s.workspace.current === stage)
   const t = useMessages(kit)
@@ -81,7 +79,7 @@ export function BookName({ stage }: { stage: string }) {
           </span>
         )}
       </div>
-      <Drawer
+      <FooterMenu
         stage={stage}
         open={open}
         own={own}
@@ -94,8 +92,8 @@ export function BookName({ stage }: { stage: string }) {
   )
 }
 
-// 下から上がるドロワー。閉じている間は見えず、押せず、読み上げにも出ない。own は下の行の外に置かれたときの、乗ったかを見る受け取り
-function Drawer({
+// 下から上がるフッタメニュー。閉じている間は見えず、押せず、読み上げにも出ない。own は下の行の外に置かれたときの、乗ったかを見る受け取り
+function FooterMenu({
   stage,
   open,
   own,
@@ -107,16 +105,16 @@ function Drawer({
   onPick: () => void
 }) {
   return (
-    <div className={styles.drawer} data-open={open} aria-hidden={!open} inert={!open} {...own}>
-      <DrawerContext.Provider value={onPick}>
+    <div className={styles.footerMenu} data-open={open} aria-hidden={!open} inert={!open} {...own}>
+      <FooterMenuContext.Provider value={onPick}>
         <div className={styles.row}>
-          {DRAWER_SLOTS.map(name => (
+          {FOOTER_MENU_SLOTS.map(name => (
             <div key={name} className={styles.part}>
               <Slot name={name} props={{ stage }} />
             </div>
           ))}
         </div>
-      </DrawerContext.Provider>
+      </FooterMenuContext.Provider>
     </div>
   )
 }

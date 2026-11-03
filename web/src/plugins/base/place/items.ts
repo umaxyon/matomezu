@@ -216,9 +216,10 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
 }
 
 // ブック book のページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
-// タイプが決めるタイプは、そのページで効いている設定の値から
+// タイプが決めるタイプは、そのページで効いている設定の値から。いつも可変ページのタイプは、どのページもタイプの向き
 export function growOf(catalog: CoreCatalog, book: Book, page: ItemPage): GrowSides | undefined {
   const rule = catalog.bookTypes.get(book.type)?.grow
+  if (rule && "always" in rule) return rule.always
   if (!page.grows || !rule) return undefined
   if ("sides" in rule) return rule.sides(settingsAt(catalog, book, page))
   const chosen = page.grows === true || !rule.choices.includes(page.grows) ? rule.choices[0] : page.grows
@@ -512,7 +513,7 @@ export function removeItems<B extends PagedBook>(
 }
 
 // ページの形 id の、一番上の祖先（ページの形）の id。ページの形なら自分。無ければ null
-export function rootOf(page: ItemPage, id: string): string | null {
+function rootOf(page: ItemPage, id: string): string | null {
   const found = findShape(page, id)
   if (!found) return null
   return found.parent === null ? id : rootOf(page, found.parent)

@@ -4,6 +4,7 @@ import { BASE_UI } from "./base/ui"
 import { DIR_UI } from "./books/dir/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
 import { FLOWCHART_UI } from "./books/flowchart/ui"
+import { MARKDOWN_UI } from "./books/markdown/ui"
 import { MASTER_UI } from "./books/master/ui"
 import { TREE_UI } from "./books/tree/ui"
 import { ART_UI } from "./items/art/ui"
@@ -28,6 +29,7 @@ export const BUILTIN_UI = [
   FLOWCHART_UI,
   TREE_UI,
   DIR_UI,
+  MARKDOWN_UI,
 ] as const
 
 // 既定の配置（今の画面の形）。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
@@ -53,10 +55,11 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
-    "@matomezu/base:drawer-map": ["@matomezu/base:drawer-minimap"],
-    "@matomezu/base:drawer-history": ["@matomezu/base:history-buttons"],
-    "@matomezu/base:drawer-basics": ["@matomezu/base:stage-menu-buttons", "@matomezu/base:print-area-toggle"],
-    "@matomezu/base:drawer-book-tools": ["@matomezu/base:toolbox"],
+    "@matomezu/base:footer-menu-map": ["@matomezu/base:footer-menu-minimap"],
+    "@matomezu/base:footer-menu-history": ["@matomezu/base:history-buttons"],
+    "@matomezu/base:footer-menu-basics": ["@matomezu/base:stage-menu-buttons", "@matomezu/base:print-area-toggle"],
+    "@matomezu/base:footer-menu-book-tools": ["@matomezu/base:toolbox"],
+    "@matomezu/base:right-side-panel": ["@matomezu/base:comment-thread"],
   },
   menus: {
     "@matomezu/base:stage-menu": [
@@ -105,6 +108,11 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/base:page-settings",
       "@matomezu/base:book-settings",
+    ],
+    "@matomezu/markdown:pane-context": [
+      "@matomezu/markdown:pane-split-row",
+      "@matomezu/markdown:pane-split-column",
+      "@matomezu/markdown:pane-unsplit",
     ],
     "@matomezu/tree:node-context": [
       "@matomezu/tree:node-edit",

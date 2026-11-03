@@ -4,7 +4,16 @@
 // 持たない行はそろえる: 行数を持たない行の本文の折り返した行数のうち一番多い数と PLACE_LINES の小さい方（本文の無い行も同じ高さ）。収まらない本文は … で切る。
 // 文字の幅と折り返しは base の text で計算するので、画面でも常駐でも同じ行になる。画面（ListView）はこの値のとおりに描く
 import type { Size } from "../../../plugin-api"
-import { captionTextWidth, clampRich, PLACE_LINES, type RichLine, TEXT_LOOK, wrapRich } from "../../base"
+import {
+  blockBodyHeight,
+  blockBodyLines,
+  captionTextWidth,
+  clampRich,
+  PLACE_LINES,
+  type RichLine,
+  TEXT_LOOK,
+  wrapRich,
+} from "../../base"
 import type { ListRow } from "./list"
 
 // リストの見た目の寸法（px。どのテーマでも同じ）。ListView.module.css と同じ値にする。文字の寸法は形で共通（base の TEXT_LOOK）
@@ -25,7 +34,6 @@ export const LIST_LOOK = {
 
 const L = LIST_LOOK
 const HEAD = 2 * L.padY + L.line + 1 // 見出し（キャプション 1 行）と、その下の線
-const RULE = 2 * L.ruleGap + 1
 const EMPTY_ROW = 2 * L.rowPadY + L.line // 本文を出さない行のカード（キャプション 1 行）
 
 export const LIST_SIZE: Size = { w: 240, h: 2 * L.border + HEAD + L.inset + 3 * (EMPTY_ROW + L.gap) + L.add } // 置いたときの幅の下限と、置いたときの高さ（行 3 つぶんの空き）
@@ -40,14 +48,11 @@ export interface RowLayout {
 
 export const MAX_ROW_LINES = 50 // 行に持たせる行数の上限
 
-// 本文を lines 行分見せる行のカードの高さ
-export const rowHeight = (lines: number): number => EMPTY_ROW + (lines > 0 ? RULE + lines * L.line : 0)
+// 本文を lines 行分見せる行のカードの高さ（本文を見せるなら区切り線の高さも取る。base の文字の塊）
+export const rowHeight = (lines: number): number => EMPTY_ROW + blockBodyHeight(lines, true)
 
 // 行の高さ height に一番近い行数（0 から MAX_ROW_LINES）。ドラッグで高さを変えるとき
-export function linesFor(height: number): number {
-  const lines = Math.round((height - EMPTY_ROW - RULE) / L.line)
-  return Math.min(MAX_ROW_LINES, Math.max(0, height < EMPTY_ROW + RULE / 2 ? 0 : lines))
-}
+export const linesFor = (height: number): number => Math.min(MAX_ROW_LINES, blockBodyLines(height - EMPTY_ROW, true))
 
 // 行の行数の書き換え（そろえるボタンと AI の row-lines）: 決めた行数（全部の行が同じ高さ）、"max"（全部の行を本文の一番長い行が全部見える行数に）、
 // "fit"（行ごとに、その行の本文が全部見える行数に。高さは行ごとに違う）、null（行数を消し、行数を持たない行の決まりでそろえる）

@@ -1,11 +1,11 @@
 import { expect, type Page, test } from "@playwright/test"
-import { drawerTool } from "./drawer"
+import { footerMenuTool } from "./footer-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
 
 // 紙の (x, 150) に箱を置く
 async function addBox(page: Page, x: number, caption: string) {
-  await (await drawerTool(page, "箱")).click()
+  await (await footerMenuTool(page, "箱")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + x, paper.y + 150)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })

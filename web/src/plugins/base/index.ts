@@ -31,6 +31,7 @@ import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
+import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
 import { KEYS, LANG, OPTION_TITLES_CHECK, SETTINGS_SET, SETTINGS_SET_COMMAND, SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
@@ -114,6 +115,8 @@ export {
 export {
   type BlockProps,
   type BodyColumn,
+  blockBodyHeight,
+  blockBodyLines,
   bodyColumn,
   bodyMinWidth,
   bodyWidthAfter,
@@ -203,9 +206,18 @@ export const BASE = defineBuiltin(
       REDO,
       COMMENT_NEW,
       MARK_NEW,
+      RIGHT_SIDE_PANEL_CLOSE,
     ],
     dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG, NEW_BOOK_DIALOG],
-    keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...ZOOM_KEYS, ...DIALOG_KEYS, ...MENU_KEYS, ...HISTORY_KEYS],
+    keys: [
+      ...TOOLBOX_KEYS,
+      ...TOOL_PICKER_KEYS,
+      ...ZOOM_KEYS,
+      ...DIALOG_KEYS,
+      ...MENU_KEYS,
+      ...HISTORY_KEYS,
+      ...RIGHT_SIDE_PANEL_KEYS,
+    ],
   }),
 )
 
@@ -311,6 +323,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:settings-set": typeof SETTINGS_SET_COMMAND
     "@matomezu/base:comment-new": typeof COMMENT_NEW
     "@matomezu/base:mark-new": typeof MARK_NEW
+    "@matomezu/base:right-side-panel-close": typeof RIGHT_SIDE_PANEL_CLOSE
+  }
+  interface KeyScopeTable {
+    "@matomezu/base:right-side-panel": true // 右サイドパネルの中にフォーカスがある間のキー
   }
   interface DialogTable {
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG

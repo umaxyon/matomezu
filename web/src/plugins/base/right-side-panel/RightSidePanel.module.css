@@ -1,0 +1,58 @@
+/* 右サイドパネル（ステージの列の右。窓の上から下まで。出た分だけステージの列を狭める） */
+.panel {
+  flex: none;
+  position: relative;
+  overflow: hidden;
+  border-left: 1px solid var(--skin-border);
+  background: var(--skin-surface-raised);
+  transition: width var(--right-side-panel-slide) ease;
+}
+.panel[aria-hidden="true"] {
+  border-left-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    transition: none;
+  }
+}
+/* 中身（幅は決まった幅で、開け閉めの間は入れ物が切る） */
+.opened {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  outline: none;
+}
+.head {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px;
+}
+.close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--skin-text-muted);
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--skin-btn-hover);
+}
+.close svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
