@@ -8,6 +8,7 @@ import styles from "./TabKeySetting.module.css"
 
 export function TabKeySetting({ label, value, onChange }: UserSettingControlProps<TabKey>) {
   const t = useMessages(kit)
+  // 値は、無いか形に合わなければ既定にしてから渡される（型の上では、無いこともある）
   const now = value ?? TAB_KEY.default
   return (
     <div className={styles.row}>
@@ -21,7 +22,7 @@ export function TabKeySetting({ label, value, onChange }: UserSettingControlProp
         others={[
           { label: t("Tab"), pressed: now.writes === "tab", onClick: () => onChange({ ...now, writes: "tab" }) },
         ]}
-        onChange={v => onChange({ ...now, spaces: Number(v) === 2 ? 2 : 4 })}
+        onChange={v => onChange({ ...now, spaces: TAB_KEY_SPACES.find(n => String(n) === v) ?? now.spaces })}
         onClick={() => onChange({ ...now, writes: "spaces" })}
       />
     </div>

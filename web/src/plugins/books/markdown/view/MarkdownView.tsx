@@ -2,7 +2,7 @@
 // 並べ方はステージごとの画面の状態（panes.ts）: 左右か上下に 2 つ並べるか、1 つだけ見せて上辺のペインのタブ（ソース・プレビュー）で切り替える。並べている間は、ペインごとに上辺にそのペインのタブを出す。
 // ペインのタブの右クリックで、ペインの分割のメニュー（pane-context。右クリックしたペインを受け取る）を開く。
 // ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
-// 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（use-parsed.ts）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
+// 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（use-parsed.tsx）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
 import { type MouseEvent, type RefObject, useRef, useState } from "react"
 import {
@@ -47,7 +47,11 @@ export function MarkdownView({ stage }: BookViewProps) {
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
   const follow = () => {
     const [from, to] = [source.current, rendered.current]
-    if (from && to) to.scrollTop = followScroll(marksOf(from), marksOf(to), from.scrollTop)
+    if (!from || !to) return
+    // ソースの目印は原文の中の始まりの位置を持ち、描いた文書の目印は並びの順に文書のブロックに当たる
+    const written = marksOf(from, mark => Number(mark.getAttribute("data-markdown-block")))
+    const drawn = marksOf(to, (_, i) => document.blocks[i]?.range.start ?? -1)
+    to.scrollTop = followScroll(written, drawn, from.scrollTop)
   }
   const shown = layout.split === null ? [layout.shown] : PANES
   const tab = (pane: Pane, onClick?: () => void) => (
@@ -132,12 +136,13 @@ function Rendered({
   )
 }
 
-// スクロールするペイン el の、ブロックの目印（data-markdown-block）ごとの上端と、いちばん下までのスクロールの量（縮めた倍率も含めて、見えている位置で測る）
-function marksOf(el: HTMLElement): PaneMarks {
+// スクロールするペイン el の、ブロックの目印（data-markdown-block）ごとの上端と、いちばん下までのスクロールの量（縮めた倍率も含めて、見えている位置で測る）。
+// startOf は、目印（並びの i 番目）が当たるブロックの、原文の中の始まりの位置
+function marksOf(el: HTMLElement, startOf: (mark: Element, i: number) => number): PaneMarks {
   const top = el.getBoundingClientRect().top - el.scrollTop
   const blocks = new Map<number, number>()
-  for (const mark of el.querySelectorAll("[data-markdown-block]"))
-    blocks.set(Number(mark.getAttribute("data-markdown-block")), mark.getBoundingClientRect().top - top)
+  for (const [i, mark] of [...el.querySelectorAll("[data-markdown-block]")].entries())
+    blocks.set(startOf(mark, i), mark.getBoundingClientRect().top - top)
   return { blocks, end: el.scrollHeight - el.clientHeight }
 }
 

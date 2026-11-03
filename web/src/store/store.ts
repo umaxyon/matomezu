@@ -577,15 +577,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const split = splitTrash(library)
       const books = sameAs(split.books, now.books)
       const trash = sameAs(split.trash, now.trash)
-      if (JSON.stringify(settings) === JSON.stringify(now.settings)) settings = now.settings
-      if (JSON.stringify(annotations) === JSON.stringify(now.annotations)) annotations = now.annotations
-      const unreadable =
-        JSON.stringify(found.warnings) === JSON.stringify(now.unreadable) ? now.unreadable : found.warnings
-      const partial = JSON.stringify(found.partial) === JSON.stringify(now.partial) ? now.partial : found.partial
-      const touched =
-        world.touched === undefined || JSON.stringify(world.touched) === JSON.stringify(now.touched)
-          ? now.touched
-          : world.touched
+      if (sameData(settings, now.settings)) settings = now.settings
+      if (sameData(annotations, now.annotations)) annotations = now.annotations
+      const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
+      const partial = sameData(found.partial, now.partial) ? now.partial : found.partial
+      const touched = world.touched === undefined || sameData(world.touched, now.touched) ? now.touched : world.touched
       commit({
         ...(touched === now.touched ? {} : { touched }),
         ...(trash === now.trash ? {} : { trash }),
@@ -598,7 +594,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     locate: address => {
       const now = getState()
-      if (JSON.stringify(addressOf(now.workspace)) === JSON.stringify(address)) return
+      if (sameData(addressOf(now.workspace), address)) return
       const workspace = placeAt(catalog, now.books, now.workspace, address)
       if (workspace !== now.workspace) commit({ workspace })
     },

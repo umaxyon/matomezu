@@ -21,6 +21,7 @@ import {
 import { deniedBy, inspect } from "./inspect"
 import type { Library } from "./library"
 import { type ItemPage, pageHolds } from "./placed"
+import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
 
@@ -242,6 +243,6 @@ export function performIn(
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
   const next = done.next as Settings
-  const same = JSON.stringify(next) === JSON.stringify(world.settings)
+  const same = sameData(next, world.settings)
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
 }

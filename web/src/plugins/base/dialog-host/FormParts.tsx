@@ -252,8 +252,9 @@ export function SelectButton<V extends string>({
           </option>
         ))}
       </select>
-      {[{ label: button, pressed, onClick }, ...others].map(b => (
-        <button key={b.label} type="button" aria-pressed={b.pressed} onClick={b.onClick}>
+      {[{ label: button, pressed, onClick }, ...others].map((b, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: ボタンは並びが変わらず、名前が同じこともある
+        <button key={i} type="button" aria-pressed={b.pressed} onClick={b.onClick}>
           {b.label}
         </button>
       ))}

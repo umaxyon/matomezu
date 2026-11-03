@@ -1,17 +1,20 @@
 // 描いた文書: ページの原文を読んだ形（MarkdownDocument）を、ブロックの順に描き、脚注を最後にまとめる。ステージもストアも読まない。
 // リンクと画像は link-target.ts が選んだ物だけを開き・描く。# のリンクは、location を変えずに、この文書の中の飛ぶ先へスクロールする。
-// いちばん外のブロックには、原文の中の始まりの位置を data-markdown-block に書く（ソースのペインのスクロールに付いて行くときの目印）
+// いちばん外のブロックには data-markdown-block を付ける（ソースのペインのスクロールに付いて行くときの目印。何番目のブロックかは並びで決まる）。
+// いちばん外のブロックは、中身が変わったものだけを描き直す（block-keys.ts）
 import { type MouseEvent, memo, type ReactNode } from "react"
 import type { MarkdownBlock, MarkdownDocument, MarkdownInline, MarkdownTableCell } from "../../../base"
+import { blockKeys } from "../block-keys"
 import { drawsImage, footnoteFragment, footnoteRefFragment, linkTarget } from "../link-target"
 import styles from "./MarkdownDocumentView.module.css"
 
 // 同じ文書なら描き直さない
 export const MarkdownDocumentView = memo(function MarkdownDocumentView({ document }: { document: MarkdownDocument }) {
+  const keys = blockKeys(document.blocks)
   return (
     <div className={styles.body} data-markdown-document>
-      {document.blocks.map(b => (
-        <Block key={b.range.start} block={b} start={b.range.start} />
+      {document.blocks.map((b, i) => (
+        <TopBlock key={keys[i]} name={keys[i] ?? ""} block={b} />
       ))}
       {document.footnotes.length > 0 && (
         <section className={styles.footnotes}>
@@ -49,9 +52,17 @@ function Blocks({ blocks }: { blocks: readonly MarkdownBlock[] }) {
   return blocks.map(b => <Block key={b.range.start} block={b} />)
 }
 
-// start は、いちばん外のブロックの原文の中の始まりの位置（中のブロックには書かない）
-function Block({ block, start }: { block: MarkdownBlock; start?: number }): ReactNode {
-  const at = start === undefined ? {} : { "data-markdown-block": start }
+// いちばん外のブロック: 名前（中身）が同じなら描き直さない
+const TopBlock = memo(
+  function TopBlock({ block }: { name: string; block: MarkdownBlock }) {
+    return <Block block={block} place="top" />
+  },
+  (a, b) => a.name === b.name,
+)
+
+// place は、いちばん外のブロックか、ほかのブロックの中か
+function Block({ block, place = "inside" }: { block: MarkdownBlock; place?: "top" | "inside" }): ReactNode {
+  const at = place === "top" ? { "data-markdown-block": "" } : {}
   switch (block.kind) {
     case "paragraph":
       return (
