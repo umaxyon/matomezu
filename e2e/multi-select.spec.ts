@@ -58,7 +58,9 @@ test("Ctrl+クリックで箱を選択に足し、もう一度で外す。選ん
   await expect(items(page)).toHaveCount(1)
 })
 
-test("選択の道具で何も無い所からドラッグすると四角が出て、かかった箱が選ばれる。選んだ箱はまとめて動く。Ctrl を押した範囲のドラッグは選択に足す", async ({ page }) => {
+test("選択の道具で何も無い所からドラッグすると四角が出て、かかった箱が選ばれる。選んだ箱はまとめて動く。Ctrl を押した範囲のドラッグは選択に足す", async ({
+  page,
+}) => {
   await threeBoxes(page)
   const [a, b] = [(await items(page).nth(0).boundingBox())!, (await items(page).nth(1).boundingBox())!]
   const from = await onPaper(page, 60, 100)

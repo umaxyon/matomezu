@@ -132,8 +132,15 @@ export function PaperView({ stage: id }: BookViewProps) {
     if (placing && ref.current) setPointer(local(e, ref.current))
     const sw = sweep.current
     if (sw?.pointer !== e.pointerId || !ref.current || !page) return
+    // つかむ前に外で離していたら終える
+    if (e.buttons === 0) {
+      endSweep(e)
+      return
+    }
     const at = local(e, ref.current)
     if (!box && Math.hypot(at.x - sw.start.x, at.y - sw.start.y) < SWEEP_START) return
+    // ポインタをつかむのは範囲のドラッグになってから（押しただけなら、紙の上のボタンなどへのクリックはそのまま届く）
+    if (!box) e.currentTarget.setPointerCapture(e.pointerId)
     const a = toPaperAt(sw.start)
     const b = toPaperAt(at)
     if (!a || !b) return
@@ -158,7 +165,6 @@ export function PaperView({ stage: id }: BookViewProps) {
     const mod = modPressed(e)
     if (!mod) select(id, [])
     if (stage?.tool !== "@matomezu/base:select") return
-    e.currentTarget.setPointerCapture(e.pointerId)
     sweep.current = { pointer: e.pointerId, start: local(e, ref.current), base: mod ? stage.selection : [], mod }
   }
   if (!stage) return null
