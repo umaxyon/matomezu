@@ -17,7 +17,7 @@ import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
 import { matchesQuery, searchBooks } from "./book-search"
 import { bookTitle } from "./book-title"
-import { BOOK_TRASH, trashKind } from "./book-trash"
+import { BOOK_TRASH, isTrashCandidate } from "./book-trash"
 import { TrashIcon } from "./TrashIcon"
 
 export function BookSearch({
@@ -143,7 +143,7 @@ function TrashButton({ book, onTrash }: { book: Book; onTrash: (book: string) =>
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const allowed = useAllowedOn(BOOK_TRASH.id, { book: book.id }).ok
-  if (!allowed || !trashKind(catalog, book)) return <span className={styles.trash} />
+  if (!allowed || !isTrashCandidate(catalog, book)) return <span className={styles.trash} />
   return (
     <button
       type="button"

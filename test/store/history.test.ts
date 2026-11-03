@@ -1,9 +1,14 @@
 // 画面の履歴: 利用者が画面で行ったアクションを、同じ処理の中のものは 1 つの画面の履歴の段にまとめて、ブックごとに覚える。元に戻す（undo）は画面の履歴の段が変えた所を前の値に、
 // やり直す（redo）は後の値に置き直す（book-revert を同じ道で送る）。ロックの掛け外しは覚えない。新しい画面の履歴の段を入れると、そのブックのやり直せる画面の履歴の段は消える
 import { expect, test } from "bun:test"
+import { defineMessages } from "../../web/src/core/i18n/messages"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { BUILTIN } from "../../web/src/plugins"
+import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { isEnabled } from "../../web/src/store/commands"
-import { newStore } from "../support"
+import { createMatomezu } from "../../web/src/store/create"
+import { pluginKit } from "../../web/src/store/kit"
+import { newStore, sequence } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 type Drawing = BookOf<"@matomezu/drawing:drawing">
@@ -181,6 +186,50 @@ test("いくつものブックを変えた画面の履歴の段は、開いて�
   expect(itemsOf(store)).toHaveLength(1)
   expect((bookOf(store, "b2").pages[0]?.items ?? []).length).toBe(1)
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
+})
+
+test("いくつものブックを変えた画面の履歴の段は、押せても途中のブックが行った後の確かめで断られたら、置き直したブックも元に戻し、トーストで知らせ、画面の履歴の段は残る", async () => {
+  const kit = pluginKit("@ex/keep-b2", defineMessages({ keep: { en: "Keep b2", ja: "b2 を残す" } }))
+  const store = createMatomezu({
+    plugins: [
+      ...BUILTIN,
+      kit.plugin({
+        permissions: [
+          kit.definePermission({
+            id: "keep",
+            title: "keep",
+            aiDescription: "b2 is not put back",
+            denies: () => false,
+            keeps: ({ action, before }) => !(action.id === "@matomezu/base:book-revert" && before?.id === "b2"),
+          }),
+        ],
+      }),
+    ],
+    home: "@matomezu/master:master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    newId: sequence(),
+    partial: true,
+  })
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
+  const boxes = (book: string) => ((store.state.getState().books[book] as Drawing).pages[0]?.items ?? []).length
+  const placeIn = (book: string) =>
+    store.actions.perform(
+      "@matomezu/paper:item-place",
+      { page: "p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+      { book },
+    )
+  placeIn("b1")
+  placeIn("b2")
+  await settled()
+  const history = () => store.state.getState().history.b1
+  expect(Object.keys(history()!.undo[0]!.books)).toEqual(["b1", "b2"])
+  expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:undo")).toBe(true)
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(boxes("b1")).toBe(1)
+  expect(boxes("b2")).toBe(1)
+  expect(history()).toMatchObject({ undo: [{}], redo: [] })
 })
 
 test("上下左右へ増やす可変ページで、左の空きへ置いて中身をずらした段を元に戻すと、ずらした量（shift）も前に戻る", async () => {

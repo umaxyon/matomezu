@@ -3,9 +3,8 @@
 // タイプが作るときに聞く設定の項目（createSettings）を選んでいれば、そのタイプを選んだときに項目を開いて見せ（アコーディオン）、決めた値も一緒に渡す
 import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { creatableTypes, createBook } from "../../../core/book"
+import { createBook } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
-import { permittedIn } from "../../../core/perform"
 import { worldOf } from "../../../store/world"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -15,7 +14,7 @@ import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { type SettingsPatch, useSettingControls } from "../utils/SettingControls"
-import { BOOK_CREATE } from "./book-create"
+import { typesToCreate } from "./book-create"
 import { createBookIn } from "./create-book"
 import styles from "./NewBookDialog.module.css"
 
@@ -34,13 +33,7 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const [title, setTitle] = useState("")
   const catalog = useCoreCatalog()
   const home = useHome()
-  const types = useMatomezuState(
-    useShallow(s =>
-      creatableTypes(catalog).filter(
-        type => permittedIn(worldOf(s), BOOK_CREATE.id, { title: "-", type }, undefined, { catalog, home }).ok,
-      ),
-    ),
-  )
+  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, home })))
   const [type, setType] = useState(types[0] ?? "")
   const [settings, setSettings] = useState<SettingsPatch>({})
   const asks = type ? (bookType(catalog, type).createSettings ?? []) : []

@@ -7,7 +7,8 @@ import type { MessageKey } from "../i18n/i18n"
 import type { Book } from "../schema/book"
 import type { ActionContext, ActionDef, Where } from "./action"
 
-// 行う前の問い: どこに対して・誰が行うか。book はアクションが変えるブック、where はその中の所（分からなければ無い）
+// 行う前の問い: どこに対して・誰が行うか。book はアクションが変えるブック、where はその中の所（分からなければ無い）。
+// 一覧が対象のアクションは、変えるブックごとに問う。作るブックは、そのタイプで作る空のブックで問う（その id と名前は問うためだけの物で、頼らない）
 export interface PermissionQuery {
   action: ActionDef
   book: Book

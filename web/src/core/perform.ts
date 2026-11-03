@@ -104,13 +104,13 @@ function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after:
   return null
 }
 
+// 行う前の問いに要る文脈（機能台帳・ホーム・誰が行うか）
+export type PermitContext = Pick<ActionContext, "catalog" | "home" | "by">
+
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可の範囲で引数から出した変える項目の id も渡す。
 // 認可ステップに渡すのは、ブックが対象ならそのブックと、アクションの許可の範囲（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
 // 一覧が対象なら、許可の範囲で引数から出した変えるブックごとに、そのブックとその中の所（作るブックは、そのタイプで作る空のブック）を渡し、どれかで止められれば止める。
 // 一覧の許可の範囲が "unknown" なら、認可ステップは行った後の keeps だけで見る
-// 行う前の問いに要る文脈（機能台帳・ホーム・誰が行うか）
-export type PermitContext = Pick<ActionContext, "catalog" | "home" | "by">
-
 function permits(
   ctx: PermitContext,
   action: ActionDef,
@@ -265,8 +265,8 @@ export function performIn(
     ctx: ActionContext,
   ) => ReturnType<typeof perform>
   if (target === "book" || target === "annotations") {
-    const book = world.books[on?.book ?? ""]
-    if (!book || book.trashed !== undefined) return { ok: false, reason: "no-book" }
+    const book = bookIn(world, on)
+    if (!book) return { ok: false, reason: "no-book" }
     const annotations = world.annotations[book.id] ?? []
     if (target === "annotations") {
       const done = loose({ book, annotations }, id, args, ctx)
@@ -302,6 +302,12 @@ export function performIn(
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
 }
 
+// ブックかアノテーションが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
+function bookIn(world: World, on: { book: string } | undefined): Book | null {
+  const book = world.books[on?.book ?? ""]
+  return book && book.trashed === undefined ? book : null
+}
+
 // world でアクション id を引数 args で行えるかを、行う前に問う（対象の選び方は performIn と同じ。run は回さない）
 export function permittedIn(
   world: World,
@@ -312,8 +318,8 @@ export function permittedIn(
 ): Permitted | Refused | { ok: false; reason: "no-book" } {
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   if (target === "book" || target === "annotations") {
-    const book = world.books[on?.book ?? ""]
-    if (!book || book.trashed !== undefined) return { ok: false, reason: "no-book" }
+    const book = bookIn(world, on)
+    if (!book) return { ok: false, reason: "no-book" }
     const subject = target === "book" ? book : { book, annotations: world.annotations[book.id] ?? [] }
     return permitted(subject, id, args, ctx)
   }

@@ -6,6 +6,7 @@ import { creatableTypes, createBook } from "../../../core/book"
 import type { BookTypeId, SingleBookTypeId } from "../../../core/catalog"
 import { bookType, type CatalogCheck } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
+import { type PermitContext, permittedIn, type World } from "../../../core/perform"
 import { withBookSettings } from "../book-look"
 import { settingsArgs } from "../book-settings"
 import { kit } from "../kit"
@@ -55,4 +56,11 @@ export const CREATE_SETTINGS_CHECK: CatalogCheck = catalog =>
     (t.createSettings ?? []).flatMap(setting =>
       (bookType(catalog, t.id).settings?.book ?? []).includes(setting) ? [] : [problem("E035", { id: t.id, setting })],
     ),
+  )
+
+// world で今作れるタイプ: 作れるタイプのうち、book-create を行えるもの（認可ステップがタイプごとに止めることもある）。
+// 問うのは引数の形を通すためで、名前はタイプの判断に関わらないので、問うためだけの名前で問う
+export const typesToCreate = (world: World, ctx: PermitContext): string[] =>
+  creatableTypes(ctx.catalog).filter(
+    type => permittedIn(world, BOOK_CREATE.id, { title: "-", type }, undefined, ctx).ok,
   )

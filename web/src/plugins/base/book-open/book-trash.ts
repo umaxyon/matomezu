@@ -9,7 +9,7 @@ import { setField } from "../fields"
 import { kit } from "../kit"
 
 // ゴミ箱に入れる物か: まだ入れていない、1 冊だけのタイプでないブック（行えるかは、ほかに認可ステップなどが決める）
-export const trashKind = (catalog: CoreCatalog, book: Book): boolean =>
+export const isTrashCandidate = (catalog: CoreCatalog, book: Book): boolean =>
   book.trashed === undefined && !bookType(catalog, book.type).single
 
 // ゴミ箱のブックを、入れた時刻の新しい順に
@@ -37,7 +37,7 @@ export const BOOK_TRASH = kit.defineAction({
   args: z.strictObject({ book: z.string().min(1) }),
   run: (library, args, ctx) => {
     const book = library[args.book]
-    if (!book || !trashKind(ctx.catalog, book)) return null
+    if (!book || !isTrashCandidate(ctx.catalog, book)) return null
     return { next: markTrashed(library, args.book, ctx.now), result: {} }
   },
 })
