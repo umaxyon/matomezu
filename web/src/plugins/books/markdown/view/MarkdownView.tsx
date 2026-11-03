@@ -2,7 +2,7 @@
 // 並べ方はステージごとの画面の状態（panes.ts）: 左右か上下に 2 つ並べるか、1 つだけ見せて上辺のペインのタブ（ソース・プレビュー）で切り替える。並べている間は、ペインごとに上辺にそのペインのタブを出す。
 // ペインのタブの右クリックで、ペインの分割のメニュー（pane-context。右クリックしたペインを受け取る）を開く。
 // ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
-// 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（use-parsed.tsx）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
+// 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（base の useMarkdownDocument）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
 import { type MouseEvent, type RefObject, useRef, useState } from "react"
 import {
@@ -17,7 +17,7 @@ import {
   useStageState,
 } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, paperSize } from "../../../base"
-import { useResize } from "../../../base/ui"
+import { type ParsedBy, useMarkdownDocument, useResize } from "../../../base/ui"
 import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
 import { PANES, type Pane, paneLayoutOf } from "../panes"
@@ -26,7 +26,6 @@ import { shrinkTo } from "../shrink"
 import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 import { SourcePane } from "./SourcePane"
-import { type ParsedBy, useParsed } from "./use-parsed"
 
 const TITLES = { source: "Source", rendered: "Preview" } as const
 
@@ -41,7 +40,7 @@ export function MarkdownView({ stage }: BookViewProps) {
   const source = useRef<HTMLDivElement>(null)
   const rendered = useRef<HTMLDivElement>(null)
   const text = page && "text" in page && typeof page.text === "string" ? page.text : ""
-  const { document, by } = useParsed(text)
+  const { document, by } = useMarkdownDocument(text, page?.id ?? "")
   if (!page || !book) return <NoPages stage={stage} />
   const width = paperSize(catalog, page)?.w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）

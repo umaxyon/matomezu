@@ -221,27 +221,25 @@ export function ActionButton({
 }
 
 // セレクトFormとボタンをつなげたコンポーネント: 選んだ値でボタンの動きをする（例: [最大行 ▾](にそろえる)）。label はセレクトFormの名前。
-// 選ぶ物の切り替えに使うときは、ボタンが押してあるか（pressed）を見せ、後ろにほかのボタン（others）をつなげられる（例: [2 ▾](半角スペース)(Tab)）
-export type SelectButtonPart = { label: string; pressed?: boolean; onClick: () => void }
+// ボタンはいくつでもつなげられ、選ぶ物の切り替えに使うときは、押してあるか（pressed）を見せる（例: [2 ▾](半角スペース)(Tab)）
+export type SelectButtonPart = {
+  label: string // ボタンの名前
+  pressed?: boolean // 押してあるか（切り替えに使うときだけ書く）
+  onClick: () => void
+}
 
 export function SelectButton<V extends string>({
   label,
   value,
   options,
-  button,
-  pressed,
-  others = [],
+  buttons,
   onChange,
-  onClick,
 }: {
   label: string
   value: V
   options: readonly { value: V; label: string }[]
-  button: string // ボタンの名前
-  pressed?: boolean // ボタンが押してあるか（切り替えに使うとき）
-  others?: readonly SelectButtonPart[] // ボタンの後ろにつなげるボタン
+  buttons: readonly SelectButtonPart[]
   onChange: (value: V) => void
-  onClick: () => void
 }) {
   return (
     <span className={styles.selectButton}>
@@ -252,7 +250,7 @@ export function SelectButton<V extends string>({
           </option>
         ))}
       </select>
-      {[{ label: button, pressed, onClick }, ...others].map((b, i) => (
+      {buttons.map((b, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: ボタンは並びが変わらず、名前が同じこともある
         <button key={i} type="button" aria-pressed={b.pressed} onClick={b.onClick}>
           {b.label}

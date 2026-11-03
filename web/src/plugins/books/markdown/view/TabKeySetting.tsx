@@ -17,13 +17,15 @@ export function TabKeySetting({ label, value, onChange }: UserSettingControlProp
         label={t("Number of spaces")}
         value={String(now.spaces)}
         options={TAB_KEY_SPACES.map(n => ({ value: String(n), label: String(n) }))}
-        button={t("Spaces")}
-        pressed={now.writes === "spaces"}
-        others={[
+        buttons={[
+          {
+            label: t("Spaces"),
+            pressed: now.writes === "spaces",
+            onClick: () => onChange({ ...now, writes: "spaces" }),
+          },
           { label: t("Tab"), pressed: now.writes === "tab", onClick: () => onChange({ ...now, writes: "tab" }) },
         ]}
         onChange={v => onChange({ ...now, spaces: TAB_KEY_SPACES.find(n => String(n) === v) ?? now.spaces })}
-        onClick={() => onChange({ ...now, writes: "spaces" })}
       />
     </div>
   )
