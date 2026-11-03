@@ -29,9 +29,15 @@ export function useRevealable(revealable: Revealable): (el: Element | null) => v
   }, [])
 }
 
+// 要素 el を囲む、名乗り出た要素（outer の内側だけ。内側から外側の順）
+export function revealablesAround(el: Element, outer: Element): Element[] {
+  const found: Element[] = []
+  for (let at = nextRevealable(el); at && at !== outer && outer.contains(at); at = nextRevealable(at)) found.push(at)
+  return found
+}
+const nextRevealable = (at: Element) => at.parentElement?.closest(`[${REVEALABLE_ATTR}]`) ?? null
+
 // 要素 el を囲む Revealable（outer の内側だけ）に、内側から外側の順で、id の物を見えるようにと頼む
 export function revealAround(el: Element, outer: Element, id: string): void {
-  const next = (at: Element) => at.parentElement?.closest(`[${REVEALABLE_ATTR}]`) ?? null
-  for (let at = next(el); at && at !== outer && outer.contains(at); at = next(at))
-    registered.get(at)?.current.reveal(id)
+  for (const at of revealablesAround(el, outer)) registered.get(at)?.current.reveal(id)
 }

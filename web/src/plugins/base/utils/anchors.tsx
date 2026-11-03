@@ -2,7 +2,7 @@
 // スタンド（Stand）は、アンカーの id を指して、その物のそばに立つ。スタンドはスタンドのレイヤー（スロット book-layers）に描かれ、
 // 倍率では大きさを変えない。パン・倍率・リストのスクロールで物が動けば、付いて動く。
 // 置ける範囲（スタンドのレイヤー）に入らなければ、範囲の中へ寄せる。edgePinned のスタンドは、アンカーの上の辺が見える所（範囲と、アンカーを囲む
-// スクロールする物（リストの行の並びなど）の重なり）の外に出たら寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
+// Revealable（リストの行の並びなど）の重なり）の外に出たら寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
 // （囲む物の中のスクロールと、紙をずらしてアンカーを真ん中へ）関数を受け取る。
 // アンカーの表（id → 要素）はステージごとに 1 つで、ステージのビューが渡す。ブックのデータにも画面の状態にも入れず、描いている間だけ持つ
 import {
@@ -23,7 +23,7 @@ import { useActions } from "../../../ui/store-context"
 import { useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
-import { revealAround } from "./revealable"
+import { revealAround, revealablesAround } from "./revealable"
 import { stageElement } from "./stage-element"
 import {
   intersectRect,
@@ -126,7 +126,7 @@ export function StandLayer() {
 
 // edgePinned のスタンドのアンカーの上の辺が、見える所の外に出ている間に、中の物が受け取る物
 export interface StandAway {
-  // スタンドの中の点 p（スタンドの左上から）を、アンカーを囲むスクロールする物の端から、続けて置ける範囲の端から、pad（既定はスタンドと端のすき間）の
+  // スタンドの中の点 p（スタンドの左上から）を、アンカーを囲む Revealable の端から、続けて置ける範囲の端から、pad（既定はスタンドと端のすき間）の
   // 内側に寄せた点（スタンドの左上から）。囲む物が範囲の中にあればその物の縁に、外に出ていれば範囲の縁に来る
   pin(p: Point, pad?: number): Point
   // アンカーを見せる: 物を囲む Revealable に頼んでから、紙をずらしてアンカーを表示領域の真ん中へ動かす（倍率は変えない。紙の端で、ずらせる所まで）
@@ -230,7 +230,7 @@ export function Stand({
   )
 }
 
-// アンカーの要素の四角と、clipped なら囲むスクロールする物の見える所（どちらもスタンドのレイヤーの左上から）。パン・倍率・大きさ・スクロールで動けば測り直す
+// アンカーの要素の四角と、clipped なら囲む Revealable の見える所（どちらもスタンドのレイヤーの左上から）。パン・倍率・大きさ・スクロールで動けば測り直す
 function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped: boolean): Measured | null {
   const stage = useStage(ctx?.stage ?? "")
   const pan = useStagePan(ctx?.stage ?? "")
@@ -270,14 +270,14 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
   return measured
 }
 
-// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲むスクロールする物の見える所（clip。測らないか、囲む物が無ければ null）
+// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲む Revealable の見える所（clip。測らないか、囲む物が無ければ null）
 interface Measured {
   rect: Rect
   clip: Rect | null
 }
 
 // 要素 elements（描かれていない物は undefined）をまとめて囲む四角（layer の左上から。どれも無ければ null）。
-// outer を渡せば、要素から outer の手前までの祖先のうちスクロールする物（overflow が auto か scroll）の見える所を重ねて、要素ごとの見える所をまとめた物も測る
+// outer を渡せば、要素を囲む Revealable（outer の内側だけ。中の物の見え方を自分で変える物）の四角を重ねて、要素ごとの見える所をまとめた物も測る
 function measureIn(layer: Element, elements: readonly (Element | undefined)[], outer?: Element): Measured | null {
   const els = elements.filter((e): e is Element => e !== undefined)
   if (els.length === 0) return null
@@ -286,18 +286,11 @@ function measureIn(layer: Element, elements: readonly (Element | undefined)[], o
   const rect = unionRect(els.map(el => local(el.getBoundingClientRect())))
   if (!outer) return { rect, clip: null }
   const clips = els.flatMap(el => {
-    let clip: Rect | null = null
-    for (let at = el.parentElement; at && at !== outer; at = at.parentElement) {
-      const style = getComputedStyle(at)
-      if (!scrolls(style.overflowX) && !scrolls(style.overflowY)) continue
-      const seen = local(at.getBoundingClientRect())
-      clip = clip ? intersectRect(clip, seen) : seen
-    }
-    return clip ? [clip] : []
+    const boxes = revealablesAround(el, outer).map(at => local(at.getBoundingClientRect()))
+    return boxes.length > 0 ? [boxes.reduce(intersectRect)] : []
   })
   return { rect, clip: clips.length === els.length ? unionRect(clips) : null }
 }
-const scrolls = (overflow: string) => overflow === "auto" || overflow === "scroll"
 
 // スタンドの中の操作は、スタンドを描いたビュー（React の上の物）に渡さない
 const stop = (e: { stopPropagation(): void }) => e.stopPropagation()

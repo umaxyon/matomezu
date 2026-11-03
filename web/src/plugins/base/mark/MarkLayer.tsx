@@ -3,7 +3,7 @@
 // どちらも押すと「外す？」の小さな吹き出しを出し、「はい」で外す。ポインタが離れるか、ほかを押すと隠す。
 // マークの種類を選ぶスタンド（commands.ts の MARK_PICKER）が開いていれば、付ける先のそばに 6 つの種類の絵を並べ、押した種類を付ける。
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない。
-// 付けた物の上の辺が見える所（画面と、物を囲むリストの行の並びなど）の外に出たら、鳥はマークポインタ（鳥の顔の丸い絵）に替わって
+// 付けた物の上の辺が見える所（画面と、物を囲む Revealable〈リストの行の並びなど〉の重なり）の外に出たら、鳥はマークポインタ（鳥の顔の丸い絵）に替わって
 // 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
@@ -11,11 +11,11 @@ import { useMessages } from "../../../ui/i18n"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
-import bunchoSign from "../images/bird-marks/buncho.png"
-import fukurouSign from "../images/bird-marks/fukurou.png"
-import inkoSign from "../images/bird-marks/inko.png"
-import suzumeSign from "../images/bird-marks/suzume.png"
-import tsunagidoriSign from "../images/bird-marks/tsunagidori.png"
+import bunchoPointer from "../images/bird-marks/buncho.png"
+import fukurouPointer from "../images/bird-marks/fukurou.png"
+import inkoPointer from "../images/bird-marks/inko.png"
+import suzumePointer from "../images/bird-marks/suzume.png"
+import tsunagidoriPointer from "../images/bird-marks/tsunagidori.png"
 import buncho from "../images/birds/buncho.png"
 import fukurou from "../images/birds/fukurou.png"
 import inko from "../images/birds/inko.png"
@@ -34,16 +34,16 @@ import styles from "./MarkLayer.module.css"
 const SIZE = 48 // 鳥の大きさ（画面の px）
 const PICK_SIZE = 40 // 種類を選ぶスタンドの鳥の大きさ
 const FRONT = 4 // 正面を向いたコマ
-const SIGN = 24 // マークポインタの大きさ
+const POINTER = 24 // マークポインタの大きさ
 const ALERT = 18 // びっくりマークの丸の大きさ
 
 // 鳥ごとのマークポインタの絵
-const SIGNS: Record<Bird, string> = {
-  tsunagidori: tsunagidoriSign,
-  inko: inkoSign,
-  buncho: bunchoSign,
-  suzume: suzumeSign,
-  fukurou: fukurouSign,
+const POINTERS: Record<Bird, string> = {
+  tsunagidori: tsunagidoriPointer,
+  inko: inkoPointer,
+  buncho: bunchoPointer,
+  suzume: suzumePointer,
+  fukurou: fukurouPointer,
 }
 
 // 鳥ごとの絵・コマの切り出し・歩き方
@@ -235,7 +235,7 @@ function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title
     : birdPose(time, arrival, gait, SIZE, range, from)
   const left = (width - range) / 2 + pose.x
   if (away) {
-    const at = away.pin({ x: left, y: SIZE }, SIGN / 2 + STAND_MARGIN)
+    const at = away.pin({ x: left, y: SIZE }, POINTER / 2 + STAND_MARGIN)
     return (
       <div ref={area} className={styles.walk} data-mark-walk>
         <button
@@ -244,7 +244,7 @@ function BirdWalk({ id, bird, title, onRemove }: { id: string; bird: Bird; title
           aria-label={t("Show {name}", { name: title })}
           title={t("Show {name}", { name: title })}
           onClick={away.show}
-          style={{ left: at.x - SIGN / 2, top: at.y - SIGN / 2, backgroundImage: `url(${SIGNS[bird]})` }}
+          style={{ left: at.x - POINTER / 2, top: at.y - POINTER / 2, backgroundImage: `url(${POINTERS[bird]})` }}
           data-mark-pointer
         />
       </div>
