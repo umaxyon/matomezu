@@ -1,5 +1,5 @@
 // リストのアイテムのビュー: 上にキャプションの見出し、その下に行を並べ、最後に行を足す「＋」の行。行がリストの高さを超えたら、行の所だけをスクロールする
-// （スクロールできるときのホイールは紙に渡さない）。外から行を見せるよう頼まれたら（Revealable）、その行を行の並びのスクロールの見える所へ動かす（reveal.ts）。
+// （ホイールで行の並びがスクロールしている間は紙をずらさない。base のステージが決める）。外から行を見せるよう頼まれたら（Revealable）、その行を行の並びのスクロールの見える所へ動かす（reveal.ts）。
 // 行の並びと高さは size.ts の listLayout のとおりに描く。
 // 行をダブルクリックすると行の編集、右クリックすると行のメニュー（row-context）。チェックリストなら、行の左のチェックを押すだけで入れ切りする。
 // 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（行を押すとリストを選ぶだけで、
@@ -271,14 +271,7 @@ export function ListView({
         <div className={styles.head} data-align={props.captionAlign}>
           {props.caption}
         </div>
-        <div
-          ref={rowsRef}
-          className={styles.rows}
-          onWheel={e => {
-            const el = e.currentTarget
-            if (el.scrollHeight > el.clientHeight) e.stopPropagation()
-          }}
-        >
+        <div ref={rowsRef} className={styles.rows}>
           <ul
             className={styles.items}
             data-list-rows={id}
