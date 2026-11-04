@@ -311,7 +311,7 @@ func (o Options) warnings(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	ok, err := o.Hub.SetScreenWarnings(req.Client, req.Warnings)
+	ok, err := o.Hub.SetWindowWarnings(req.Client, req.Warnings)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

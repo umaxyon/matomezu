@@ -79,7 +79,7 @@ type Hub struct {
 	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
 	annotationWarnings []string
 	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
-	screenWarnings map[string][]string
+	windowWarnings map[string][]string
 	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
 	performed      map[string]Performed // 最近行ったアクションの番号（Perform の Key）→ その結果
 	performedOrder []string             // performed の番号を行った順に（古いものから忘れる）
@@ -103,7 +103,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -389,7 +389,7 @@ func (h *Hub) Leave(c *client) {
 	defer h.mu.Unlock()
 	if _, ok := h.clients[c.id]; ok {
 		delete(h.clients, c.id)
-		delete(h.screenWarnings, c.id)
+		delete(h.windowWarnings, c.id)
 		close(c.ch)
 	}
 }
@@ -571,7 +571,7 @@ func (h *Hub) CloseAll() {
 	defer h.mu.Unlock()
 	for id, c := range h.clients {
 		delete(h.clients, id)
-		delete(h.screenWarnings, id)
+		delete(h.windowWarnings, id)
 		close(c.ch)
 	}
 }
