@@ -3,6 +3,9 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const TOOL_PICKER_MESSAGES = defineMessages({
   "Set tool": { en: "Set tool", ja: "ツールを選ぶ" },
-  "Tool picker hold time (ms)": { en: "Tool picker hold time (ms)", ja: "ツールの切り替えを出す長押しの時間（ミリ秒）" },
+  "Tool picker hold time (ms)": {
+    en: "Tool picker hold time (ms)",
+    ja: "ツールの切り替えを出す長押しの時間（ミリ秒）",
+  },
   "Tool picker": { en: "Tool picker", ja: "ツールの切り替え" },
 })
