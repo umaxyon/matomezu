@@ -1,8 +1,7 @@
 // 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
-
-const items = (page: Page) => page.locator("[data-item]")
+import { items } from "./helpers/paper"
 
 async function placeBox(page: Page, caption: string) {
   await (await footerMenuTool(page, "箱")).click()

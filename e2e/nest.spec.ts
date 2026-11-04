@@ -1,20 +1,9 @@
 // 内包: 付け替えの道具のドラッグで、箱を内包ボックスの中へ入れ、外へ出す
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
+import { addBox } from "./helpers/paper"
 
 // キャプションの文字を含む形のうち、一番内側の形（親は子の文字も含むので、並びの最後）
 const item = (page: Page, caption: string) => page.locator("[data-item]").filter({ hasText: caption }).last()
-
-// 箱を置こうとして紙の左上から (x, y) で押し、開いた追加のダイアログでキャプションを入れて追加する
-async function addBox(page: Page, x: number, y: number, caption: string) {
-  await (await footerMenuTool(page, "箱")).click()
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  await page.mouse.click(paper.x + x, paper.y + y)
-  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
-}
 
 // 形の左上の近くをつかんで、(dx, dy) だけドラッグする。離す前に、入る先の枠の出た形を返す
 async function drag(page: Page, caption: string, dx: number, dy: number) {
