@@ -17,7 +17,7 @@ import {
   type WheelEvent,
 } from "react"
 import type { BookTypeId } from "../../../core/core-catalog"
-import { paperOf, type Stage } from "../../../core/stage"
+import { paperOf } from "../../../core/stage"
 import { toolDef } from "../../../core/tools"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -46,11 +46,11 @@ interface Drag {
 }
 
 export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
-  const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
+  const stage = useStage(id) // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => s.workspace.current === id)
   const book = useBook(id)
   const catalog = useCatalog().core
-  const tool = useStage(id)?.tool ?? null
+  const tool = stage?.tool ?? null
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
   // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）
   const theme = useBookThemeVars(id)
@@ -139,7 +139,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       onWheel={onWheel}
     >
       {stage.opened && book ? (
-        <BookContent stage={stage} type={stage.opened.type} vars={vars} />
+        <BookContent stage={id} type={stage.opened.type} vars={vars} />
       ) : (
         <div className={styles.empty}>
           <p className={styles.prompt}>{t("Select a book")}</p>
@@ -151,12 +151,12 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 })
 
 // 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表はレイヤーみんなで使う）
-function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
+function BookContent({ stage, type, vars }: { stage: string; type: BookTypeId; vars: CSSProperties | undefined }) {
   const tokens = useTokenScope(type) // ブックのタイプのプラグインのテーマキー（--<名前>）
   return (
     <div className={styles.book} style={{ ...vars, ...tokens }}>
-      <AnchorsProvider stage={stage.id}>
-        <Slot name={BOOK_LAYERS} props={{ stage: stage.id }} />
+      <AnchorsProvider stage={stage}>
+        <Slot name={BOOK_LAYERS} props={{ stage }} />
       </AnchorsProvider>
     </div>
   )
