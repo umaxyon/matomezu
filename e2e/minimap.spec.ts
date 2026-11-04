@@ -64,9 +64,9 @@ test("右ボタンの長押しのアイコンのミニマップを押すと、�
   const at = { x: p.x + 400, y: p.y + 300 }
   await page.mouse.move(at.x, at.y)
   await page.mouse.down({ button: "right" })
-  await page.waitForTimeout(350)
-  await page.mouse.up({ button: "right" })
   const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
+  await expect(picker).toBeVisible()
+  await page.mouse.up({ button: "right" })
   await picker.getByRole("button", { name: "ミニマップ" }).click()
   await expect(page.locator("[data-minimap=picker]")).toBeVisible()
   // 道具のアイコンは消え、ミニマップの下の拡大縮小の帯のボタンだけ
@@ -96,9 +96,10 @@ test("右ボタンの長押しのミニマップの下の帯で拡大縮小す�
   const p = (await paper(page).boundingBox())!
   await page.mouse.move(p.x + 400, p.y + 300)
   await page.mouse.down({ button: "right" })
-  await page.waitForTimeout(350)
+  const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
+  await expect(picker).toBeVisible()
   await page.mouse.up({ button: "right" })
-  await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name: "ミニマップ" }).click()
+  await picker.getByRole("button", { name: "ミニマップ" }).click()
   const map = page.locator("[data-minimap=picker]")
   const level = map.getByTitle("倍率")
   const width = async () => (await paper(page).boundingBox())!.width
@@ -155,14 +156,24 @@ test("拡大縮小はなめらかに移り、途中でもポインタの下の�
   await page.keyboard.down("Control")
   await page.mouse.wheel(0, -100)
   await page.keyboard.up("Control")
-  await page.waitForTimeout(60)
+  // 移りの途中（200ms の半ば）で止めて見る
+  const transitions = () => paper(page).evaluate(el => el.getAnimations().length)
+  await expect.poll(transitions).toBeGreaterThan(0)
+  await paper(page).evaluate(el => {
+    for (const a of el.getAnimations()) {
+      a.pause()
+      a.currentTime = 100
+    }
+  })
   const mid = (await paper(page).boundingBox())!
   expect(mid.width).toBeGreaterThan(p.width + 1)
   expect(mid.width).toBeLessThan(p.width * WHEEL_100 - 1)
   const k = mid.width / p.width
   expect(at.x - mid.x).toBeCloseTo((at.x - p.x) * k, 0)
+  await paper(page).evaluate(el => {
+    for (const a of el.getAnimations()) a.play()
+  })
   await expect.poll(async () => (await paper(page).boundingBox())!.width).toBeCloseTo(p.width * WHEEL_100, 0)
-  await page.waitForTimeout(250)
   await expect(paper(page)).not.toHaveCSS("transition-duration", "0.2s")
 })
 

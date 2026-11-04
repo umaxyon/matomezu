@@ -10,7 +10,7 @@ async function paperPoint(page: Page, x: number, y: number) {
 async function longPress(page: Page, at: { x: number; y: number }) {
   await page.mouse.move(at.x, at.y)
   await page.mouse.down({ button: "right" })
-  await page.waitForTimeout(350)
+  await expect(picker(page)).toBeVisible()
 }
 
 test("紙の上で右ボタンを長押しすると、ポインタの近くに道具のアイコンが出て、右クリックのメニューは出ない。ハンドを押すとハンドになる", async ({
@@ -37,6 +37,7 @@ test("紙の上で右ボタンを長押しすると、ポインタの近くに�
 test("短い右クリックはメニューを出す。押している間に動けば長押しにならず、離したときにメニューが出る", async ({
   page,
 }) => {
+  await page.clock.install()
   await page.goto("/")
   const at = await paperPoint(page, 400, 300)
   await page.mouse.click(at.x, at.y, { button: "right" })
@@ -45,7 +46,8 @@ test("短い右クリックはメニューを出す。押している間に動�
   await page.mouse.move(at.x, at.y)
   await page.mouse.down({ button: "right" })
   await page.mouse.move(at.x + 20, at.y, { steps: 3 })
-  await page.waitForTimeout(350)
+  // 長押しの時間が過ぎても出ない
+  await page.clock.runFor(1000)
   await expect(picker(page)).toHaveCount(0)
   await page.mouse.up({ button: "right" })
   await expect(page.getByRole("menu")).toBeVisible()
