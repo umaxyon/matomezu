@@ -388,10 +388,15 @@ func (h *Hub) Leave(c *client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.clients[c.id]; ok {
-		delete(h.clients, c.id)
-		delete(h.screenWarnings, c.id)
-		close(c.ch)
+		h.drop(c)
 	}
+}
+
+// drop は窓を外す: 知らせの通り道を閉じ、その窓が知らせた warning も消す（h.mu を持って呼ぶ）
+func (h *Hub) drop(c *client) {
+	delete(h.clients, c.id)
+	delete(h.screenWarnings, c.id)
+	close(c.ch)
 }
 
 // SetView は、画面が見ているものと、利用者が直している物 editLocks（ブックの id → 物の id の並び）を覚える（seq が受けたものより古ければ覚えない）。
@@ -569,10 +574,8 @@ func (h *Hub) AICatalog() json.RawMessage {
 func (h *Hub) CloseAll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for id, c := range h.clients {
-		delete(h.clients, id)
-		delete(h.screenWarnings, id)
-		close(c.ch)
+	for _, c := range h.clients {
+		h.drop(c)
 	}
 }
 
@@ -589,7 +592,6 @@ func (h *Hub) send(c *client, name string, v any) {
 	select {
 	case c.ch <- event{name, data}:
 	default:
-		delete(h.clients, c.id)
-		close(c.ch)
+		h.drop(c)
 	}
 }
