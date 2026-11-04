@@ -9,15 +9,15 @@ export const rowsOf = (list: PlacedList): readonly ListRow[] => list.children ??
 
 // 選択 selection のときに、このリストの行 row を押した後の選択（rows はこのリストの行の id。mod は Mod を押しているか）。
 // 修飾なしなら row だけ。Mod なら、このリストの行だけを選んでいれば（何も選んでいなくても）足す・外す。ほかの物を選んでいれば "list"
-// （リストを押したことにして紙へ渡し、紙が行をリストに置き換える）
+// （リストを押したことにして紙へ渡し、紙が行をリストに置き換える）。followed（選択に従う右サイドパネルを開いている間）なら、ほかの物を選んでいても足す・外す
 export function rowPress(
   selection: readonly string[],
   rows: readonly string[],
   row: string,
-  mod: boolean,
+  { mod, followed = false }: { mod: boolean; followed?: boolean },
 ): readonly string[] | "list" {
   if (!mod) return [row]
-  if (!selection.every(id => rows.includes(id))) return "list"
+  if (!followed && !selection.every(id => rows.includes(id))) return "list"
   return selection.includes(row) ? selection.filter(id => id !== row) : [...selection, row]
 }
 

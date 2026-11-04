@@ -18,43 +18,6 @@
 [data-away="true"] .alert {
   background: color-mix(in srgb, var(--skin-danger) 55%, transparent);
 }
-/* 押すと「外す？」を出す所（吹き出しは押した物の上に出す） */
-.ask {
-  position: relative;
-}
-.askBubble {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  border: 1px solid var(--skin-border);
-  border-radius: 6px;
-  background: var(--skin-bubble);
-  box-shadow: var(--skin-shadow-2);
-  color: var(--skin-text);
-  font-size: 11px;
-  white-space: nowrap;
-  transform: translateX(-50%);
-  pointer-events: auto;
-}
-/* 鳥の足元に置いたとき: 吹き出しを鳥の上に出す */
-.onBird .askBubble {
-  bottom: 48px;
-  left: 0;
-}
-.yes {
-  padding: 1px 8px;
-  border: 1px solid var(--skin-danger);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--skin-danger);
-  font: inherit;
-  cursor: pointer;
-}
 /* マークの種類を選ぶスタンド（6 つの種類の絵を横に並べる） */
 .picker {
   display: flex;

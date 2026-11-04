@@ -1,7 +1,7 @@
 // シェイプパネル（base のツールボックス）: フッタメニューの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く。
 // 図面のパネルにはシェイプ（@matomezu/art）が並ぶ
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
+import { footerMenuTool } from "./helpers/footer-menu"
 import { paper } from "./helpers/paper"
 
 async function flowchartBook(page: Page) {

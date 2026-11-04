@@ -2,3 +2,6 @@
 import { kit } from "../kit"
 
 export const NOTE_PANEL_ID = kit.name("note-panel")
+
+// 右サイドパネルの subject に置く、まだ付けていない伝言（新しく書いている）を表す値（伝言の id とぶつからないよう、頭を付ける）
+export const NEW_NOTE = kit.name("new-note")

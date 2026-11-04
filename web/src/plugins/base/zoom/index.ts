@@ -3,7 +3,7 @@
 // 拡大縮小の帯の上のホイールは ZoomBar が、回した量と位置をそのまま渡す）。
 // 拡大・縮小は、表示領域の中の点 at の下の紙の点を動かさない（null なら表示領域の真ん中。Ctrl+ホイールはポインタの下を渡す）。
 // 開いたときの見え方（倍率 100%・最初の位置）に戻すコマンド（キーの既定は Home）と、ページの紙全体を表示領域に収めるコマンド（ZOOM_MIN より小さくはしない）
-import type { Point } from "../../../core/geom"
+import type { Point, Size } from "../../../core/geom"
 import { areaOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN } from "../../../core/viewport"
 import { type CommandContext, workspaceOf } from "../../../store/commands/def"
@@ -29,12 +29,18 @@ export function stepZoom(zoom: number, dir: 1 | -1): number {
 // Ctrl+ホイールで回した量 delta（下へ回すと正）をかけた倍率
 export const wheelZoom = (zoom: number, delta: number): number => clampZoom(zoom * Math.exp(-delta * WHEEL_RATE))
 
+// 大きさ size（倍率 1 の px）の物が、表示領域 view に周りへ pad の余白を残して入る倍率（ZOOM_MIN～max。1% 単位）
+export const fitZoom = (size: Size, view: Size, pad: number, max = ZOOM_MAX): number =>
+  Math.round(
+    Math.min(max, Math.max(ZOOM_MIN, Math.min((view.w - 2 * pad) / size.w, (view.h - 2 * pad) / size.h))) * 100,
+  ) / 100
+
 // ページの紙全体（可変ページは、見せ方が知らせた広さ全体）を表示領域に収めた見え方: 収まる倍率（ZOOM_MIN～ZOOM_MAX）にして、紙を真ん中に置く。紙か表示領域が無ければそのまま
 export function fitView(stage: Stage): Stage {
   const paper = areaOf(stage)
   const view = stage.view
   if (!paper || !view) return stage
-  const zoom = clampZoom(Math.min((view.w - 2 * FIT_PAD) / paper.w, (view.h - 2 * FIT_PAD) / paper.h))
+  const zoom = fitZoom(paper, view, FIT_PAD)
   const zoomed = zoomTo(stage, zoom)
   const pan = { x: view.w / 2 - MARGIN - (paper.w * zoom) / 2, y: view.h / 2 - MARGIN - (paper.h * zoom) / 2 }
   return panBy(zoomed, pan.x - zoomed.pan.x, pan.y - zoomed.pan.y)

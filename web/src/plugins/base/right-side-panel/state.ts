@@ -8,9 +8,20 @@ import type { ViewAt } from "../zoom"
 export interface RightSidePanelOpen {
   widget: string // 出している中身（右サイドパネルのスロットに置いたウィジェットの id）
   subject: string // 中身が見せている物の id（伝言なら、その伝言の id）
-  anchor: string // 見せている物が付いた先（ステージの物の id）
+  anchors: readonly string[] // 見せている物が付いた先（ステージの物の id の並び。選択に従う中身なら、ステージの選択に合わせる）
+  current: string // anchors のうち、いま見せている 1 つ（カレント。anchors が空の間は、最後にカレントだった物）
   book: string // 開いたときのブック
   page: string | null // 開いたときのページ
+}
+
+// 選択に従う中身の open を、ステージの選択 selection に合わせたもの（同じなら同じ値）。
+// カレントは、新しく足された物の最後。足されていなければ今のカレント（選択に残っていれば）、無ければ選択の最後
+export function followSelection(open: RightSidePanelOpen, selection: readonly string[]): RightSidePanelOpen {
+  const same = selection.length === open.anchors.length && selection.every((id, i) => open.anchors[i] === id)
+  if (same) return open
+  const added = selection.filter(id => !open.anchors.includes(id))
+  const current = added.at(-1) ?? (selection.includes(open.current) ? open.current : (selection.at(-1) ?? open.current))
+  return { ...open, anchors: [...selection], current }
 }
 
 // base のステージの画面の状態 state の、右サイドパネル（開いていなければ null）
@@ -29,7 +40,41 @@ export function withPanel(state: unknown, open: RightSidePanelOpen | null): Reco
 export interface RightSidePanelRestore {
   before: ViewAt & { book: string; page: string | null }
   shown: ViewAt | null
+  seen: Seen | null // 最後に見せたときの付いた先とカレント（まだ見せていなければ null）
   moved: boolean
+}
+
+// 付いた先から id を外したもの: カレントは、外した物がカレントなら一つ前の物（無ければ残りの最初）。残りが無ければ anchors は空
+export function withoutAnchor(open: RightSidePanelOpen, id: string): RightSidePanelOpen {
+  const at = open.anchors.indexOf(id)
+  if (at < 0) return open
+  const anchors = open.anchors.filter(a => a !== id)
+  const current = open.current !== id ? open.current : (open.anchors[at - 1] ?? anchors[0] ?? open.current)
+  return { ...open, anchors, current }
+}
+
+// 選択に従う中身を出している間に、付いた先にする物 id を、選択 selection で押したときの選択（Mod なら足す・外す。修飾なしなら id だけ）
+export const pointedSelection = (selection: readonly string[], id: string, mod: boolean): string[] =>
+  !mod ? [id] : selection.includes(id) ? selection.filter(a => a !== id) : [...selection, id]
+
+// 選択に従う中身で、ポインタを離したあとに閉じるか: 押し始めが開いたステージの中（pressedInStage）で、合わせた付いた先が空のとき。
+// 右サイドパネルの中を押したときや、AI が物を消して空になったときは閉じない
+export const closesOnRelease = (release: { pressedInStage: boolean; anchors: readonly string[] }): boolean =>
+  release.pressedInStage && release.anchors.length === 0
+
+// 見せた物: 付いた先の並びとカレント
+export interface Seen {
+  anchors: readonly string[]
+  current: string
+}
+
+// 付いた先とカレントが open になったとき、どう見せ直すか: 付いた先が替われば、全部を囲む四角を収める（1 つなら 100%）。
+// カレントだけが替われば、倍率はそのままでカレントを真ん中へ。どちらも同じなら見せ直さない
+export function revealFor(seen: Seen | null, open: Seen): "anchors" | "current" | "none" {
+  if (open.anchors.length === 0) return "none"
+  if (!seen || seen.anchors.length !== open.anchors.length || seen.anchors.some((id, i) => open.anchors[i] !== id))
+    return "anchors"
+  return seen.current === open.current ? "none" : "current"
 }
 
 export const restoreIn = (state: unknown): RightSidePanelRestore | null =>
@@ -41,8 +86,13 @@ export function withOpened(state: unknown, open: RightSidePanelOpen, now: ViewAt
   const kept = restoreIn(state)
   const same = kept && kept.before.book === open.book && kept.before.page === open.page
   const restore = same
-    ? { before: kept.before, shown: null, moved: kept.moved }
-    : { before: { zoom: now.zoom, pan: now.pan, book: open.book, page: open.page }, shown: null, moved: false }
+    ? { before: kept.before, shown: null, seen: null, moved: kept.moved }
+    : {
+        before: { zoom: now.zoom, pan: now.pan, book: open.book, page: open.page },
+        shown: null,
+        seen: null,
+        moved: false,
+      }
   return { ...withPanel(state, open), rightSidePanelRestore: restore }
 }
 
@@ -97,6 +147,12 @@ export const stillOn = (open: RightSidePanelOpen, stage: Pick<Stage, "opened">):
 export const columnGrow = (stage: string, i: number, panel: string | null, share: number): number =>
   panel !== null ? (stage === panel ? 1 : 0) : i === 0 ? share : 1 - share
 
-// 押しで右サイドパネルを閉じるか: 左ボタンで、右サイドパネルの外の、閉じない所（ダイアログ・メニューなど）でもない所を、ずらす道具でない間に押したとき
-export const pressCloses = (press: { button: number; inside: boolean; kept: boolean; pans: boolean }): boolean =>
-  press.button === 0 && !press.inside && !press.kept && !press.pans
+// 押しで右サイドパネルを閉じるか: 左ボタンで、右サイドパネルの外の、閉じない所（ダイアログ・メニューなど）でもない所を、ずらす道具でない間に押したとき。
+// 選択に従う中身を出している間の、開いたステージの中の押し（followed）では閉じない（選択が変わるだけ。離したあとに選択が空なら閉じる）
+export const pressCloses = (press: {
+  button: number
+  inside: boolean
+  kept: boolean
+  pans: boolean
+  followed: boolean
+}): boolean => press.button === 0 && !press.inside && !press.kept && !press.pans && !press.followed

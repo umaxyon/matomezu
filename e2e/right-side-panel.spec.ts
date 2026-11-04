@@ -1,10 +1,11 @@
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
-import { addList, addRow } from "./list"
-import { fromMenu } from "./stage-menu"
+import { footerMenuTool } from "./helpers/footer-menu"
+import { afterFrames } from "./helpers/frames"
+import { addList, addRow } from "./helpers/list"
+import { panel, writeNote } from "./helpers/note"
+import { fromMenu } from "./helpers/stage-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
-const panel = (page: Page) => page.getByRole("complementary", { name: "右サイドパネル" })
 // 隠した列も数えるので、役割ではなく名前で探す
 const stages = (page: Page) => page.locator('[aria-label="ステージ"]')
 
@@ -17,11 +18,7 @@ async function foldedNote(page: Page, x: number, caption: string, text: string) 
   await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
   await dialog.getByRole("button", { name: "追加" }).click()
   await expect(dialog).toBeHidden()
-  await items(page).filter({ hasText: caption }).click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  const draft = page.getByRole("group", { name: "伝言を付ける" })
-  await draft.getByLabel("伝言", { exact: true }).fill(text)
-  await draft.getByRole("button", { name: "付ける" }).click()
+  await writeNote(page, items(page).filter({ hasText: caption }), text)
   await foldNote(page, text)
 }
 
@@ -64,7 +61,7 @@ test("伝言の絵を押すと、窓の右から 320px の右サイドパネル�
   expect(await widths(page)).toEqual(split)
 })
 
-test("外を押すと閉じる。ハンドツールの間は閉じない。ステージで押しても Esc で閉じる。開いている間に別の伝言を押すと、閉じるだけ。たたんだ絵を押してもたたんだまま", async ({
+test("外を押すと閉じる。ハンドツールの間は閉じない。ステージで押しても Esc で閉じる。開いている間に別の伝言を押すと、その物が付ける先になる（開いた伝言のまま）。たたんだ絵を押してもたたんだまま", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -76,6 +73,9 @@ test("外を押すと閉じる。ハンドツールの間は閉じない。ス�
   await expect(panel(page)).toContainText("一つ目")
   await expect(icons).toHaveCount(2)
   await icons.nth(1).click()
+  await expect(panel(page)).toContainText("一つ目")
+  await expect(panel(page).getByRole("button", { name: "二", exact: true })).toHaveAttribute("aria-pressed", "true")
+  await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
   await icons.nth(1).click()
   await expect(panel(page)).toContainText("二つ目")
@@ -84,9 +84,10 @@ test("外を押すと閉じる。ハンドツールの間は閉じない。ス�
   const tool = async (name: string) => {
     await page.mouse.move(paper.x + 40, paper.y + 500)
     await page.mouse.down({ button: "right" })
-    await page.waitForTimeout(350)
+    const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
+    await expect(picker).toBeVisible()
     await page.mouse.up({ button: "right" })
-    await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name }).click()
+    await picker.getByRole("button", { name }).click()
   }
   await tool("ハンドツール")
   await expect(panel(page)).toContainText("二つ目")
@@ -117,9 +118,10 @@ test("開いたステージのページが替わるか、分けると閉じる�
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.move(paper.x + 40, paper.y + 500)
   await page.mouse.down({ button: "right" })
-  await page.waitForTimeout(350)
+  const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
+  await expect(picker).toBeVisible()
   await page.mouse.up({ button: "right" })
-  await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name: "ハンドツール" }).click()
+  await picker.getByRole("button", { name: "ハンドツール" }).click()
   await icon.click()
   await expect(panel(page)).toContainText("見てほしい")
   await page.getByRole("button", { name: "ページを足す" }).click()
@@ -163,10 +165,10 @@ const paperBox = async (page: Page) => {
   return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width) }
 }
 
-// 紙が止まっているか（少し間を置いて 2 回測り、同じなら止まっている）
+// 紙が止まっているか（2 コマ描くのを挟んで 2 回測り、同じなら止まっている）
 async function steady(page: Page) {
   const a = await paperBox(page)
-  await page.waitForTimeout(50)
+  await afterFrames(page)
   const b = await paperBox(page)
   return a.x === b.x && a.y === b.y && a.w === b.w
 }
@@ -234,11 +236,7 @@ test("リストの中のスクロールの奥の行を開くと、リストも�
   for (const n of [1, 2, 3, 4, 5]) await addRow(page, list, `行 ${n}`)
   const rows = list.locator("ul").locator("..")
   const last = list.getByRole("listitem").last()
-  await last.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  const draft = page.getByRole("group", { name: "伝言を付ける" })
-  await draft.getByLabel("伝言", { exact: true }).fill("奥の行")
-  await draft.getByRole("button", { name: "付ける" }).click()
+  await writeNote(page, last, "奥の行")
   await foldNote(page, "奥の行")
   await rows.evaluate(el => {
     el.scrollTop = 0

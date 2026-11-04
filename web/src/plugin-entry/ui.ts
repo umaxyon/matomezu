@@ -45,10 +45,12 @@ export {
   useBookTheme,
   useCloseRightSidePanel,
   useDrawnMinimap,
+  useFollowsSelection,
   useMarkdownDocument,
   useOpenRightSidePanel,
   usePaperControls,
   useRightSidePanel,
+  useSetRightSidePanelCurrent,
   useSwatches,
   useThemeVars,
 } from "../plugins/base/ui"

@@ -2,8 +2,8 @@
 import { expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
 import { paper } from "./helpers/paper"
-import { selectText } from "./rich"
-import { fromMenu } from "./stage-menu"
+import { selectText } from "./helpers/rich"
+import { fromMenu } from "./helpers/stage-menu"
 
 // マスターでツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければブック継承）
 async function treeBook(page: Page, grow?: string) {
@@ -208,6 +208,28 @@ test("節をドラッグして、ほかの節の子にも、兄弟の間にも�
   const b2 = await center("子 B")
   expect(Math.abs(b2.y - a2.y)).toBeLessThan(2) // 同じ段
   expect(b2.x).toBeLessThan(a2.x) // 前
+})
+
+test("伝言を書いている間は、節を押して動かしてもドラッグにならない", async ({ page }) => {
+  await treeBook(page)
+  const paperEl = paper(page)
+  await page.keyboard.press("Home")
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("子 A")
+  await page.keyboard.press("Enter")
+  const node = paperEl.locator("[data-node]", { hasText: "子 A" })
+  await settled(page)
+  await node.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  await expect(page.getByRole("complementary", { name: "右サイドパネル" })).toBeVisible()
+  await settled(page)
+  const b = (await node.boundingBox())!
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(b.x + b.width / 2 - 40, b.y + b.height / 2 + 30, { steps: 5 })
+  await afterFrames(page)
+  await expect(paperEl.locator("[data-dragging=true]")).toHaveCount(0)
+  await page.mouse.up()
 })
 
 test("節のドラッグの間は 100% に戻り、ステージの端へ寄せると紙がずれる。落とすと編集の倍率に戻る", async ({ page }) => {
