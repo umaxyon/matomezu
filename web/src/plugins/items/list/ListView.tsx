@@ -28,7 +28,7 @@ import {
   useMessages,
   useStage,
 } from "../../../plugin-api/ui"
-import { modPressed, RichText, useAnchorRef, useRevealable, useSelectionFollowed, useThemeVars } from "../../base/ui"
+import { modPressed, RichText, useAnchorRef, useFollowsSelection, useRevealable, useThemeVars } from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
@@ -242,7 +242,7 @@ export function ListView({
   const { select } = useActions()
   const at = useStage(stage)
   const selection = at?.selection ?? []
-  const followed = useSelectionFollowed(stage)
+  const followed = useFollowsSelection(stage)
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
   const pans = at?.pans === true
   const stretch = useRef<Stretch | null>(null)

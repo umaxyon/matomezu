@@ -58,9 +58,9 @@ export { useDrawnMinimap } from "./minimap/drawn"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export {
   useCloseRightSidePanel,
+  useFollowsSelection,
   useOpenRightSidePanel,
   useRightSidePanel,
-  useSelectionFollowed,
   useSetRightSidePanelCurrent,
 } from "./right-side-panel/hooks"
 export { RIGHT_SIDE_PANEL } from "./right-side-panel/slots"

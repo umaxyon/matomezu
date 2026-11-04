@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
-import { panel } from "./note"
+import { panel, writeNote } from "./note"
 
 const items = (page: Page) => page.locator("[data-item]")
 const stands = (page: Page) => page.locator("[data-stand]")
@@ -151,4 +151,32 @@ test("書いている間は付ける先に鳥が出て、付ける先を足す�
   await page.getByRole("group", { name: "外す？" }).getByRole("button", { name: "はい" }).click()
   await expect(panel(page)).toHaveCount(0)
   await expect(birds).toHaveCount(0)
+})
+
+test("書いている間に別の伝言の吹き出しを押すと、吹き出しの物を押したのと同じに付ける先が替わり、書きかけは残る。Ctrl+クリックなら足す", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBox(page, 100, "一")
+  await addBox(page, 400, "二")
+  const one = items(page).filter({ hasText: "一" })
+  const two = items(page).filter({ hasText: "二" })
+  await writeNote(page, one, "前の伝言")
+  await two.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  const text = panel(page).getByLabel("伝言", { exact: true })
+  await text.fill("書きかけ")
+  const badge = (name: string) => panel(page).getByRole("button", { name, exact: true })
+  const bubble = page.getByRole("button", { name: "伝言を開く" })
+  await bubble.click()
+  await expect(badge("一")).toHaveAttribute("aria-pressed", "true")
+  await expect(badge("二")).toHaveCount(0)
+  await expect(text).toHaveValue("書きかけ")
+  await two.click()
+  await page.keyboard.down("Control")
+  await bubble.click()
+  await page.keyboard.up("Control")
+  await expect(badge("一")).toHaveAttribute("aria-pressed", "true")
+  await expect(badge("二")).toHaveCount(1)
+  await expect(text).toHaveValue("書きかけ")
 })

@@ -37,6 +37,7 @@ import {
   RichText,
   useAnchorRef,
   useBookTheme,
+  useFollowsSelection,
   usePaperDrag,
   useResize,
   useSwatches,
@@ -146,7 +147,9 @@ const Tree = memo(function Tree({
   const anchor = useAnchorRef() // 節にアンカーを付ける（そばにスタンドを立てられる）
   // 変更を始めてよいか（動かす・書き換える・足す。認可ステップが止めていれば始めない）
   const where = page ? { page: page.id } : undefined
-  const movable = useAllowed(stage.id, NODE_MOVE.id, where).ok
+  // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
+  const follows = useFollowsSelection(stage.id)
+  const movable = useAllowed(stage.id, NODE_MOVE.id, where).ok && !follows
   const editable = useAllowed(stage.id, NODE_UPDATE.id, where).ok
   const addable = useAllowed(stage.id, NODE_ADD.id, where).ok
   // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、認可ステップが止めたのでなければ、断られるのは紙に入らないとき）

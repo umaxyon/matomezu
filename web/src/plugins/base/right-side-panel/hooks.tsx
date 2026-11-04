@@ -58,7 +58,7 @@ export function useOpenRightSidePanel(): (
 
 // ステージ stage で、選択に従う右サイドパネルの中身が開いているか（開いている間は、選択は付いた先を選ぶ物になる。
 // 紙のビューなどは、この間は階層の違う物も混ぜて選ばせ、押しても物を動かさない）
-export function useSelectionFollowed(stage: string): boolean {
+export function useFollowsSelection(stage: string): boolean {
   const open = useRightSidePanel(stage)
   const widgets = useUiCatalog().widgets
   return !!open && !!widgets.get(open.widget)?.rightSidePanel?.followsSelection

@@ -73,7 +73,7 @@ import {
   shapeDefOf,
   shownRects,
 } from "../../base"
-import { modPressed, PaperFrame, useAnchorRef, useSelectionFollowed } from "../../base/ui"
+import { modPressed, PaperFrame, useAnchorRef, useFollowsSelection } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
@@ -130,7 +130,7 @@ export function PaperView({ stage: id }: BookViewProps) {
   const page = usePage(id)
   const toPaperAt = useToPaper(id)
   const sweep = useRef<Sweep | null>(null)
-  const followed = useSelectionFollowed(id)
+  const followed = useFollowsSelection(id)
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -279,7 +279,7 @@ function PageItems({
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
   const book = useBook(stage.id)
-  const followed = useSelectionFollowed(stage.id)
+  const followed = useFollowsSelection(stage.id)
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
   const room = useMemo(
     () => (book && growOf(catalog, book, page) ? roomOf(catalog, book, page) : null),
