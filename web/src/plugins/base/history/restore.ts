@@ -1,6 +1,6 @@
 // 画面の履歴の段の置き直し: 画面の履歴の段が変えた所（ブックのフィールド・ページ・最上位のアイテム）だけを、前か後の値に置き直す。置き直す値（RestoreArgs）は画面の履歴の段だけから決まり、
 // 今のブックの上で行う（その間にほかで変わった所は、画面の履歴の段が変えた所に重なれば上書きし、重ならなければ残す）
-import { hasPages, type PagedBook, putPage, removePage } from "../../../core/book"
+import { hasPages, type PagedBook, pagesOf, putPage, removePage } from "../../../core/book"
 import { changesOf } from "../../../core/changes"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
@@ -32,7 +32,9 @@ interface Page extends Fields {
   id: string
   items?: readonly ({ id: string } & Fields)[]
 }
-const pagesOf = (book: Book): readonly Page[] => ("pages" in book ? (book.pages as readonly Page[]) : [])
+
+// 置き直しは、ページとアイテムをどのフィールドも同じに扱う（タイプごとのページの形は見ない）
+const pagesIn = (book: Book): readonly Page[] => pagesOf(book)
 
 function fieldsPatch(to: Fields, fields: readonly string[]): FieldsPatch {
   const set: Record<string, unknown> = {}
@@ -56,13 +58,13 @@ export function orderPatch(from: readonly { id: string }[], to: readonly { id: s
 // ブック from を、to と違う所だけ to に置き直す値
 export function restoreArgs(from: Book, to: Book): RestoreArgs {
   const changes = changesOf(from, to)
-  const toPages = pagesOf(to)
+  const toPages = pagesIn(to)
   const pages = changes.pages.map((c): PagePatch => {
     const index = toPages.findIndex(p => p.id === c.id)
     const page = toPages[index]
     if (c.change !== "changed" || !page) return { id: c.id, index, page: page ?? null }
     const items = page.items ?? []
-    const order = orderPatch(pagesOf(from).find(p => p.id === c.id)?.items ?? [], items)
+    const order = orderPatch(pagesIn(from).find(p => p.id === c.id)?.items ?? [], items)
     return {
       id: c.id,
       ...(order ? { order } : {}),
@@ -73,7 +75,7 @@ export function restoreArgs(from: Book, to: Book): RestoreArgs {
       }),
     }
   })
-  const order = orderPatch(pagesOf(from), toPages)
+  const order = orderPatch(pagesIn(from), toPages)
   return { fields: fieldsPatch(to as Fields, changes.fields), pages, ...(order ? { order } : {}) }
 }
 

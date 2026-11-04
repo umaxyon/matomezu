@@ -14,7 +14,7 @@ import { keepApart, nextItemId, portAreasOf } from "../../base"
 import { connectable } from "./connect"
 import { kit } from "./kit"
 import { elbowAt, LINE, LinePatchSchema, usesLines } from "./line"
-import { canConnect, linesOf, type PlacedLine, tidyLines } from "./placed"
+import { canConnect, linesOf, type PlacedLine, patchedProps, tidyLines } from "./placed"
 
 // 置いた線のデータの形
 const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLine>
@@ -101,8 +101,7 @@ export const LINE_UPDATE = kit.defineAction({
     const page = book.pages.find(p => p.id === args.page)
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now) return null
-    const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
-    const line = PlacedLineSchema.safeParse({ ...now, props })
+    const line = PlacedLineSchema.safeParse({ ...now, props: patchedProps(now.props, args.props) })
     if (!line.success) return null
     if (args.props.via != null && !viaDrawn(ctx.catalog, book, page, line.data)) return null
     const next = withLine(ctx.catalog, book, page, tidied(ctx.catalog, book, page, line.data))

@@ -1,7 +1,7 @@
 // ロック: ブックとページに掛ける「変えない」印（locked は土台のフィールド）。ロック中は利用者も AI も中身を変えられず、ゴミ箱へも入れられない（止めるのは認可ステップ LOCK）。
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
-import { hasPages, putPage } from "../../../core/book"
+import { hasPages, pagesOf, putPage } from "../../../core/book"
 import type { PermissionCheck } from "../../../core/def/permission"
 import type { Book } from "../../../core/schema/book"
 import { setField } from "../fields"
@@ -79,8 +79,6 @@ export const PAGE_UNLOCK = kit.defineAction({
     return next ? { next, result: {} } : null
   },
 })
-
-const pagesOf = (book: Book): readonly { id: string; locked?: true }[] => (hasPages(book) ? book.pages : [])
 
 // ロック中のブックで行えるのはブックのロックの掛け外しだけ、ロック中のページに対して行えるのはそのページのロックの掛け外しだけ
 const BOOK_SWITCHES: readonly string[] = [BOOK_LOCK.id, BOOK_UNLOCK.id]

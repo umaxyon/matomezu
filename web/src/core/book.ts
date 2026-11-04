@@ -89,6 +89,9 @@ export function hasPages(book: Book): book is PagedBook {
 export const pagedOf = (book: Book | null | undefined): PagedBook | undefined =>
   book && hasPages(book) ? book : undefined
 
+// ブックのページの並び（ページを持たなければ空）
+export const pagesOf = (book: Book): readonly Page[] => pagedOf(book)?.pages ?? []
+
 // 表の、何冊も作れるタイプの id（表の順）
 export function creatableTypes(catalog: CoreCatalog): string[] {
   return catalog.parts.bookTypes.filter(t => !t.single).map(t => t.id)
