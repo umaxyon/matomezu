@@ -127,6 +127,7 @@ export {
   type BodyColumn,
   blockBodyHeight,
   blockBodyLines,
+  blockLabel,
   bodyColumn,
   bodyMinWidth,
   bodyWidthAfter,

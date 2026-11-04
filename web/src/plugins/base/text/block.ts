@@ -32,6 +32,10 @@ export interface BlockProps {
   bodyWidth?: number | undefined
 }
 
+// 文字の塊の名前（物の名前を出す所が使う。base の labelOf）: キャプション、空白だけなら本文の最初の空でない行（どちらも無ければ空）
+export const blockLabel = (props: Pick<BlockProps, "caption" | "body">): string =>
+  props.caption.trim() !== "" ? props.caption : (props.body.split("\n").find(l => l.trim() !== "") ?? "")
+
 // 本文の列: 中の左からの位置と幅
 export interface BodyColumn {
   x: number

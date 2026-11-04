@@ -4,7 +4,7 @@
 // 置くときは、置く所を覚えて追加のダイアログ（box-add）を開き、中身を決めてから置く。中身は編集のダイアログ（box-edit）で変える
 import { z } from "zod"
 import type { ShapeAddArgs, ShapeEditArgs } from "../../../plugin-api"
-import { ColorSchema, NEST_PADDING, textProps } from "../../base"
+import { blockLabel, ColorSchema, NEST_PADDING, textProps } from "../../base"
 import { kit } from "./kit"
 import { BOX_MIN, BOX_SIZE, headHeight, placedHeight, placedWidth, VALIGNS } from "./size"
 
@@ -71,6 +71,9 @@ const BOX_BASE = {
     return { w, h: box.h ?? placedHeight(box.props, w) }
   },
   captionWidth: (box: { props: z.output<typeof BoxPropsSchema> }) => placedWidth(box.props),
+  // 名前はキャプション、無ければ本文の最初の行（base の labelOf）
+  labelOf: (box: { id: string; props: z.output<typeof BoxPropsSchema> }, id: string) =>
+    id === box.id ? blockLabel(box.props) : null,
   tokens: [],
 } as const
 

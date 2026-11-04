@@ -9,7 +9,7 @@
 // 置くときは追加のダイアログ（list-add）、設定は編集のダイアログ（list-edit）。行は行の追加（row-add）・編集（row-edit）のダイアログで中身を決める
 import { z } from "zod"
 import type { ShapeAddArgs, ShapeEditArgs } from "../../../plugin-api"
-import { AlignSchema, ColorSchema, textProps } from "../../base"
+import { AlignSchema, blockLabel, ColorSchema, textProps } from "../../base"
 import { kit } from "./kit"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, MAX_ROW_LINES, placedListWidth } from "./size"
 
@@ -63,6 +63,12 @@ export const LIST = kit.defineShape({
   min: LIST_MIN,
   sizeOf: list => ({ w: list.w ?? placedListWidth(list.props.caption), h: list.h ?? LIST_SIZE.h }),
   captionWidth: list => listCaptionWidth(list.props.caption),
+  // 名前は、リストそのものならキャプション、行なら行のキャプションか本文の最初の行（base の labelOf）
+  labelOf: (list, id) => {
+    if (id === list.id) return list.props.caption
+    const row = list.children?.find(r => r.id === id)
+    return row ? blockLabel(row.props) : null
+  },
   "@matomezu/paper:settle": settleChecks,
   dialogs: { add: LIST_ADD_DIALOG.id, edit: LIST_EDIT_DIALOG.id },
   props: z

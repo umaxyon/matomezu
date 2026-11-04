@@ -4,6 +4,7 @@
 import { z } from "zod"
 import type { PageSettingsArgs } from "../../../plugin-api"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
+import { nodeOf } from "./edit"
 import { treeFits } from "./fit"
 import { GROW, growSidesOf } from "./grow"
 import { kit } from "./kit"
@@ -55,6 +56,12 @@ export const TREE = kit.defineBookType({
     treeFits(catalog, page, setting, grow) ? null : { message: kit.message("Does not fit on the paper") },
   // 可変ページは、根のある側を固定して残りの向きへ増やす（中央なら 4 つとも。base の拡張ポイント）
   grow: { sides: setting => growSidesOf(setting(GROW)) },
+  // 節の名前はキャプション（base の labelOf）
+  labelOf: (page, id) => {
+    const root = TreeRootSchema.safeParse("root" in page ? page.root : undefined).data
+    if (!root) return null
+    return root.id === id ? root.caption : (nodeOf(root, id)?.caption ?? null)
+  },
   pages: {
     paper: {
       allowed: PAPER_IDS,

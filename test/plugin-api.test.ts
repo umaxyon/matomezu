@@ -40,6 +40,7 @@ test("matomezu が出す名前", () => {
     "areaOf",
     "blockBodyHeight",
     "blockBodyLines",
+    "blockLabel",
     "bodyColumn",
     "bodyMinWidth",
     "bodyText",

@@ -53,6 +53,7 @@ export {
   BOOK_THEME,
   blockBodyHeight,
   blockBodyLines,
+  blockLabel,
   bodyColumn,
   bodyMinWidth,
   bodyText,

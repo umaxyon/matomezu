@@ -4,8 +4,27 @@
 // ロック中のブックにも付けられる（ロックはアノテーションを止めない）
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
+import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { freshId } from "../../../core/ids"
+import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
+
+// 物の名前を返すメソッド（伝言の付ける先の名前に出す。引くのは labels.ts）（定義オブジェクトの拡張ポイントに書き足す）。名前は本文と同じ書き方でよい（装飾は引く側が外す）。
+// 自分の物でなければ null、自分の物でも名前が無ければ空の文字列を返す（空なら、引く側は種類の名前を出す）
+declare module "../../../core/catalog" {
+  interface BookTypeExtras {
+    // ページ page の中の物 id の名前（形として置いた物は、形の定義が受ける）
+    labelOf?(page: ItemPage, id: string): string | null
+  }
+  interface ShapeItemExtras<D extends ShapeData = ShapeData> {
+    // 置いた形 item そのもの（id が item.id）か、その中の物 id の名前。無ければ、形そのものはキャプション（captionProp）
+    labelOf?(item: D, id: string): string | null
+  }
+  interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
+    // つないだ線など line の名前
+    labelOf?(line: D): string | null
+  }
+}
 
 const TEXT = z.string().min(1).max(2000)
 

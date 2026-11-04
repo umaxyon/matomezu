@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from "react"
 import { anchorIds } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
-import { useAllowed, useBook, useCoreCatalog } from "../../../ui/view-hooks"
+import { useAllowed, useBook } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useCloseRightSidePanel, useRightSidePanel, useSetRightSidePanelCurrent } from "../right-side-panel/hooks"
@@ -16,7 +16,7 @@ import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
-import { anchorLabel } from "./labels"
+import { useAnchorName } from "./anchor-name"
 import { GrowingText, RemoveOnRead } from "./NoteForm"
 import form from "./NoteForm.module.css"
 import styles from "./NotePanel.module.css"
@@ -64,29 +64,29 @@ const ordered = (open: RightSidePanelOpen): string[] =>
 // 付ける先の名前のバッジ: カレントは色違い。押すとその物をカレントにする。名前は BADGE_CHARS 字で切り、全体はツールチップで見せる
 function Badges({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
   const t = useMessages(kit)
-  const catalog = useCoreCatalog()
-  const book = useBook(stage)
-  const setCurrent = useSetRightSidePanelCurrent()
   return (
     // biome-ignore lint/a11y/useSemanticElements: バッジを束ねる並びで、入力Formのまとまり（fieldset）ではない
     <div className={styles.badges} role="group" aria-label={t("Things the note is on")}>
-      {open.anchors.map(id => {
-        const label = anchorLabel(catalog, book, id)
-        const name = !label ? id : "text" in label ? label.text : t(label.title as Parameters<typeof t>[0])
-        return (
-          <button
-            key={id}
-            type="button"
-            className={styles.badge}
-            aria-pressed={id === open.current}
-            title={name}
-            onClick={() => setCurrent(stage, id)}
-          >
-            {clampChars(name, BADGE_CHARS)}
-          </button>
-        )
-      })}
+      {open.anchors.map(id => (
+        <Badge key={id} stage={stage} id={id} current={id === open.current} />
+      ))}
     </div>
+  )
+}
+
+function Badge({ stage, id, current }: { stage: string; id: string; current: boolean }) {
+  const setCurrent = useSetRightSidePanelCurrent()
+  const name = useAnchorName(stage, id)
+  return (
+    <button
+      type="button"
+      className={styles.badge}
+      aria-pressed={current}
+      title={name}
+      onClick={() => setCurrent(stage, id)}
+    >
+      {clampChars(name, BADGE_CHARS)}
+    </button>
   )
 }
 
