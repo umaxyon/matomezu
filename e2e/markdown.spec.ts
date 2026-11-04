@@ -1,5 +1,5 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。ペインのタブの右クリックで分割を閉じ・並べ直す
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 
 async function fromMenu(page: Page, name: string) {
   const trigger = page.locator('button[aria-haspopup="menu"]').first()

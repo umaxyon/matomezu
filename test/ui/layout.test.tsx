@@ -4,7 +4,6 @@ import { problemText } from "../../web/src/core/errors"
 import { type Warning, warning, warningText } from "../../web/src/core/warnings"
 import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
@@ -21,6 +20,7 @@ import {
 import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider, shownLayout, useLayoutWarnings } from "../../web/src/ui/store-context"
+import { SAMPLE_BOOKS } from "../sample-books"
 
 afterEach(cleanup)
 

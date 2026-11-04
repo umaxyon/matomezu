@@ -2,11 +2,11 @@
 // book-purge と trash-empty はゴミ箱から消す。1 冊だけのタイプ・ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
 import { expect, test } from "bun:test"
 import { permittedIn } from "../../web/src/core/perform"
-import { memoryClient } from "../../web/src/host-client/memory"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { worldOf } from "../../web/src/store/world"
+import { memoryClient } from "../host-client/memory"
 import { newStore } from "../support"
 
 const NOW = "2026-10-29T01:00:00.000Z"

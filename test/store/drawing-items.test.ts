@@ -7,10 +7,10 @@ import { BUILTIN } from "../../web/src/plugins"
 import { addPageIn } from "../../web/src/plugins/base"
 import { NEST_BOX } from "../../web/src/plugins/items/box/box"
 import { PLACE_OFFSET } from "../../web/src/plugins/paper/placing/items"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { isShown } from "../../web/src/store/commands"
 import type { Plugin } from "../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../web/src/store/store"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, sequence } from "../support"
 
 // 紙の上の点 at に箱の左上が来るポインタの位置（表示領域の左上から）

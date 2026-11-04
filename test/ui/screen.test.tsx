@@ -3,13 +3,13 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { StrictMode } from "react"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import type { StoreOptions } from "../../web/src/store/store"
 import { definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { SAMPLE_BOOKS } from "../sample-books"
 
 const SKIN = "@matomezu/base:skin"
 

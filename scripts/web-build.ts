@@ -1,6 +1,6 @@
 // 画面のビルドのコマンド: 画面（web/index.html）と、base が画面とは別の処理の流れで使う Web Worker の入口を、out に組む。
 // Worker の出力は入口の名前のまま（markdown-parse-worker.js。base の use-markdown-document.tsx が名前で引く）。
-// package.json の build・scripts/dev.ts・playwright の設定が使う。bun scripts/web-build.ts <out> [--production] でも組める
+// package.json の build・scripts/dev.ts・e2e（scripts/e2e-build.ts と速さを測る playwright の設定）が使う。bun scripts/web-build.ts <out> [--production] でも組める
 export const WEB_ENTRIES = ["web/index.html", "web/src/plugins/base/markdown/markdown-parse-worker.ts"]
 
 export const webBuild = (out: string, mode: "production" | "development") => [

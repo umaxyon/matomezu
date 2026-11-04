@@ -68,10 +68,10 @@ const apiAllowed = (rel: string) => (t: string) =>
   t === "zod" ||
   (isView(rel) && ["plugin-api/ui", "react", "react-dom"].includes(t))
 
-// web/src の直下は、architecture の表のクレートと、直下に置くファイル（画面の入口・見本のブック・CSS の型の宣言）だけ。
+// web/src の直下は、architecture の表のクレートと、直下に置くファイル（画面の入口・CSS の型の宣言）だけ。
 // 表に無いクレートは「依存の向き」が見ないので、足したら表と ALLOWED（か入口の見張り）を決める
 const CRATES = [...Object.keys(ALLOWED), "plugins", "plugin-entry", "testing", "plugin-modules"]
-const ROOT_FILES = ["main.tsx", "sample-books.ts", "css.d.ts"]
+const ROOT_FILES = ["main.tsx", "css.d.ts"]
 test("外のライブラリを読むファイルは、そのライブラリの型を書き出す物に出さない（matomezu の形に移して出す）", () => {
   const bad = Object.keys(LIBRARY_READERS).flatMap(rel => {
     const text = sources.find(f => f.rel === rel)!.text
@@ -619,6 +619,18 @@ test("拡張ポイントへの書き足しは、base は短い名前、ほかの
   expect(bad).toEqual([])
 })
 
+test("e2e は web/src を読まない（画面とホストの外から確かめる）", () => {
+  const offenders = filesUnder(join(ROOT, "e2e"))
+    .map(path => ({ path, text: readFileSync(path, "utf8") }))
+    .flatMap(f =>
+      [...f.text.matchAll(/(?:from\s*|import\(\s*|import\s+)["']([^"']+)["']/g)]
+        .map(m => m[1]!)
+        .filter(s => s.startsWith(".") && resolve(dirname(f.path), s).startsWith(`${SRC}/`))
+        .map(s => `${relative(ROOT, f.path)}: ${s}`),
+    )
+  expect(offenders).toEqual([])
+})
+
 // テストの用意の手段（名前が ForTest で終わる物と、Go のビルドタグ e2e）は、テスト（test/・e2e/・e2e の常駐を作るスクリプト）の外から使わない
 describe("テストの用意の手段", () => {
   const goUnder = (dir: string): string[] =>
@@ -666,8 +678,17 @@ describe("テストの用意の手段", () => {
 
   test("ビルドタグ e2e を付けて組むのは、e2e の常駐を作るスクリプトだけ", () => {
     const scripts = filesUnder(join(ROOT, "scripts")).map(p => relative(ROOT, p))
-    const places = [...scripts, "package.json", ...readdirSync(ROOT).filter(f => /^playwright.*\.ts$/.test(f))]
-    expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8")))).toEqual(["scripts/e2e-server.ts"])
+    const tests = filesUnder(join(ROOT, "e2e")).map(p => relative(ROOT, p))
+    const places = [
+      ...scripts,
+      ...tests,
+      "package.json",
+      ...readdirSync(ROOT).filter(f => /^playwright.*\.ts$/.test(f)),
+    ]
+    expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8"))).sort()).toEqual([
+      "scripts/e2e-build.ts",
+      "scripts/e2e-server.ts",
+    ])
   })
 
   test("e2e のファイルと、同じクレートの Go のテストのファイルの両方にある関数は、同じ中身にする（go test はタグを付けずに流す）", () => {

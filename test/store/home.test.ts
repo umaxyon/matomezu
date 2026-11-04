@@ -3,10 +3,10 @@ import { checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { MASTER } from "../../web/src/plugins/books/master/master"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { warningsOf } from "../../web/src/store/plugin"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { BUILTIN_PARTS, newStore } from "../support"
 
 describe("ホーム", () => {

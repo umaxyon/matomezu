@@ -4,9 +4,9 @@ import { act, cleanup, render } from "@testing-library/react"
 import { paperOf } from "../../web/src/core/stage"
 import { PrintAreaLayer } from "../../web/src/plugins/base/stage/layers"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { SAMPLE_BOOKS } from "../sample-books"
 
 afterEach(cleanup)
 
