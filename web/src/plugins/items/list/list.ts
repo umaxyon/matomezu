@@ -63,9 +63,8 @@ export const LIST = kit.defineShape({
   min: LIST_MIN,
   sizeOf: list => ({ w: list.w ?? placedListWidth(list.props.caption), h: list.h ?? LIST_SIZE.h }),
   captionWidth: list => listCaptionWidth(list.props.caption),
-  // 名前は、リストそのものならキャプション、行なら行のキャプションか本文の最初の行（base の labelOf）
+  // 行の名前は、行のキャプションか本文の最初の行（base の labelOf。リストそのものはキャプション）
   labelOf: (list, id) => {
-    if (id === list.id) return list.props.caption
     const row = list.children?.find(r => r.id === id)
     return row ? blockLabel(row.props) : null
   },

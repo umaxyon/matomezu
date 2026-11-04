@@ -396,7 +396,7 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
   await expect(panel).toContainText("付ける先の物が消されました")
 })
 
-test("付けた伝言を右サイドパネルで開いている間は、AI が読んだと知らせても断られ（being-edited）、付いた物も消せない。閉じると読める", async ({
+test("付けた伝言を右サイドパネルで開いている間は、AI が読んだと知らせても断られ（being-edited）、閉じると読める", async ({
   page,
 }) => {
   const ai = aiAuth()
@@ -440,16 +440,14 @@ test("付けた伝言を右サイドパネルで開いている間は、AI が�
   // 開いた伝言のロックが常駐に届くのを待つ
   const locked = page.waitForResponse(
     r =>
-      r.url().endsWith("/api/view") && (r.request().postData() ?? "").includes(`"locks":{"${result.book}":["${id}"]}`),
+      r.url().endsWith("/api/view") &&
+      (r.request().postData() ?? "").includes(`"editLocks":{"${result.book}":["${id}"]}`),
   )
   await page.getByRole("button", { name: "伝言を開く" }).click()
   await expect(panel.getByLabel("伝言", { exact: true })).toHaveValue("見てほしい")
   await locked
   const read = () => perform({ action: "@matomezu/base:note-read", args: { note: id }, on })
   expect(await read()).toMatchObject({ ok: false, reason: "being-edited" })
-  expect(
-    await perform({ action: "@matomezu/paper:item-remove", args: { page: added.result.page, items: [box] }, on }),
-  ).toMatchObject({ ok: false, reason: "being-edited" })
   await page.keyboard.press("Escape")
   await expect(panel).toHaveCount(0)
   await expect.poll(async () => (await read()).ok).toBe(true)

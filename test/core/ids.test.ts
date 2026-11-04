@@ -1,7 +1,7 @@
-// アクションの中で振る id（core/ids.ts の idMaker と、base の utils/ids.ts）: ブックの全部のページの中身の、どの深さの id とも重ならず、続けて振った id どうしも重ならない
+// アクションの中で振る id（core/ids.ts の idMaker と、base の utils/ids.ts）: ブックの全部のページの中身の、どの深さの id とも重ならず、続けて振った id どうしも重ならない。changedIn は、前後の値で物が変わったか
 import { expect, test } from "bun:test"
 import type { PagedBook } from "../../web/src/core/book"
-import { idMaker, idsIn } from "../../web/src/core/ids"
+import { changedIn, idMaker, idsIn } from "../../web/src/core/ids"
 import { contentIdMaker } from "../../web/src/plugins/base/utils/ids"
 
 // 決めた並びの値を返す newId（尽きたら同じ値を返し続ける）
@@ -40,4 +40,16 @@ test("contentIdMaker は、ほかのページのアイテムの中身やペー�
   const make = contentIdMaker(book, seq("i1", "row1", "n1", "n2", "p1", "z"))
   expect(make()).toBe("p1")
   expect(make()).toBe("z")
+})
+
+test("changedIn は、前にあった物のうち、変わったか無くなった物（中の物が変わっても変わったとする）", () => {
+  const before = {
+    items: [
+      { id: "a", props: { x: 1 }, children: [{ id: "r", x: 1 }] },
+      { id: "b", x: 1 },
+    ],
+  }
+  const after = { items: [{ id: "a", props: { x: 1 }, children: [{ id: "r", x: 2 }] }] }
+  expect(changedIn(before, after, ["a", "r", "b", "z"])).toEqual(["a", "r", "b"])
+  expect(changedIn(before, before, ["a", "r", "b"])).toEqual([])
 })

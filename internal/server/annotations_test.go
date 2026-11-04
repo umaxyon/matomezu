@@ -120,7 +120,7 @@ func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
 	a := listen(t, s.URL)
 	next(t, a)
 	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"book":"b1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"locks":{"b1":["c1"]},"seq":1}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["c1"]},"seq":1}`, nil)
 	read := `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"book":"b1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", read, ai); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("note-read while editing = %s", got)

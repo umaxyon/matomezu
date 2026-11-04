@@ -1,7 +1,7 @@
-// 物の名前（base/note/labels.ts の anchorLabel と、定義の labelOf）: ブックのタイプ → 形 → キャプション → つなぐもの → 種類の名前の順に引き、装飾は外す
+// 物の名前（base/label/labels.ts の anchorLabel と、定義の labelOf）: ブックのタイプ → 形 → キャプション → つなぐもの → 種類の名前の順に引き、装飾は外す
 import { expect, test } from "bun:test"
 import type { Book } from "../../web/src/core/schema/book"
-import { anchorLabel } from "../../web/src/plugins/base/note/labels"
+import { anchorLabel } from "../../web/src/plugins/base/label/labels"
 import { CORE_CATALOG } from "../support"
 
 const drawing = (items: readonly unknown[]): Book =>

@@ -13,9 +13,9 @@
 //	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "result"} を返す。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 画面が見つけた warning（その画面の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
-//	POST /api/view        {"client", "view", "locks", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、利用者が直している物（locks。
+//	POST /api/view        {"client", "view", "editLocks", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
 //	                      ブックの id → 物の id の並び。AI のアクションがそれを変えるか消すなら断る。editlock.go）と、その画面がフォーカスされたか。
-//	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view と locks は捨てる（届く順が入れ替わるため）  … 画面から
+//	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view と editLocks は捨てる（届く順が入れ替わるため）  … 画面から
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
@@ -287,16 +287,16 @@ func (o Options) perform(w http.ResponseWriter, r *http.Request) {
 
 func (o Options) view(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Client  string              `json:"client"`
-		View    json.RawMessage     `json:"view"`
-		Focused bool                `json:"focused"`
-		Seq     int64               `json:"seq"`   // 窓ごとに増やす番号（古い番号の見ているものは捨てる）
-		Locks   map[string][]string `json:"locks"` // 利用者が直している物（ブックの id → 物の id の並び。editlock.go）
+		Client    string              `json:"client"`
+		View      json.RawMessage     `json:"view"`
+		Focused   bool                `json:"focused"`
+		Seq       int64               `json:"seq"`       // 窓ごとに増やす番号（古い番号の見ているものは捨てる）
+		EditLocks map[string][]string `json:"editLocks"` // 利用者が直している物（ブックの id → 物の id の並び。editlock.go）
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if !o.Hub.SetView(req.Client, req.View, req.Locks, req.Focused, req.Seq) {
+	if !o.Hub.SetView(req.Client, req.View, req.EditLocks, req.Focused, req.Seq) {
 		http.Error(w, "unknown client", http.StatusNotFound)
 		return
 	}

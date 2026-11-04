@@ -47,12 +47,12 @@ export const DIR = kit.defineBookType({
   // 行が紙に入らないページは問題
   pageProblem: (catalog, page, _setting, grow) =>
     dirFits(catalog, page, grow) ? null : { message: kit.message("Does not fit on the paper") },
-  grow: { sides: () => ({ up: false, down: true, left: false, right: true }) },
+  grow: { sides: () => ({ up: false, down: true, left: false, right: true }) }, // 可変ページは、根のある左上を固定して右と下へ増やす（base の拡張ポイント）
   // 行の名前は、ファイルやフォルダの名前（base の labelOf）
   labelOf: (page, id) => {
     const root = DirFolderSchema.safeParse("root" in page ? page.root : undefined).data
     return root ? (entryOf(root, id)?.name ?? null) : null
-  }, // 可変ページは、根のある左上を固定して右と下へ増やす（base の拡張ポイント）
+  },
   pages: {
     paper: {
       allowed: PAPER_IDS,

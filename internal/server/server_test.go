@@ -982,14 +982,14 @@ func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
 	b := listen(t, s.URL)
 	next(t, b)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"focused":true,"seq":1}`, nil)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+window+`,"locks":{"b1":["`+k1+`"]},"seq":1}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+window+`,"editLocks":{"b1":["`+k1+`"]},"seq":1}`, nil)
 	update := func(item, caption string) string {
 		return `{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"` + item + `","props":{"caption":"` + caption + `"}},"on":{"book":"b1"}}`
 	}
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), ai); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai update of a locked thing = %s", got)
 	}
-	remove := `{"action":"@matomezu/paper:item-remove","args":{"page":"p1","items":["`+k1+`"]},"on":{"book":"b1"}}`
+	remove := `{"action":"@matomezu/paper:item-remove","args":{"page":"p1","items":["` + k1 + `"]},"on":{"book":"b1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai remove of a locked thing = %s", got)
 	}
@@ -999,7 +999,7 @@ func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k2, "AI"), ai); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ai update of another thing = %s", got)
 	}
-	user := `{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"`+k1+`","props":{"caption":"人"}},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
+	user := `{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"` + k1 + `","props":{"caption":"人"}},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
 	if _, got := send(t, "POST", s.URL+"/api/perform", user, nil); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("user update of a locked thing = %s", got)
 	}
@@ -1026,8 +1026,8 @@ func TestEditLocksGoWithTheWindow(t *testing.T) {
 	sc := bufio.NewScanner(res.Body)
 	for sc.Scan() && !strings.HasPrefix(sc.Text(), "data: ") {
 	}
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"locks":{"b1":["`+k1+`"]},"seq":1}`, nil)
-	remove := `{"action":"@matomezu/paper:item-remove","args":{"page":"p1","items":["`+k1+`"]},"on":{"book":"b1"}}`
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["`+k1+`"]},"seq":1}`, nil)
+	remove := `{"action":"@matomezu/paper:item-remove","args":{"page":"p1","items":["` + k1 + `"]},"on":{"book":"b1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai remove while locked = %s", got)
 	}
@@ -1048,15 +1048,67 @@ func TestEditLocksGoWithTheWindow(t *testing.T) {
 // placeBox は、ブック b1 のページ p1 の (x, 10) に、AI がキャプション caption の箱を置き、その id を返す
 func placeBox(t *testing.T, url string, x int, caption string) string {
 	t.Helper()
-	req := fmt.Sprintf(`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":%d,"y":10},"props":{"caption":%q}},"on":{"book":"b1"}}`, x, caption)
+	return resultField(t, url, fmt.Sprintf(`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":%d,"y":10},"props":{"caption":%q}},"on":{"book":"b1"}}`, x, caption), "item")
+}
+
+// ロックはその物だけを見る: リストの行をロックすると、AI はその行を変えられないが、兄弟の行とリストのキャプションは変えられる
+func TestEditLocksSeeOnlyTheLockedThing(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	place := `{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/list:shape-list","at":{"x":10,"y":10},"props":{"caption":"L"}},"on":{"book":"b1"}}`
+	list := resultField(t, s.URL, place, "item")
+	row := func(caption string) string {
+		return resultField(t, s.URL, `{"action":"@matomezu/list:row-add","args":{"page":"p1","list":"`+list+`","props":{"caption":"`+caption+`"}},"on":{"book":"b1"}}`, "row")
+	}
+	r1 := row("一")
+	r2 := row("二")
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["`+r1+`"]},"seq":1}`, nil)
+	update := func(r string) string {
+		return `{"action":"@matomezu/list:row-update","args":{"page":"p1","list":"` + list + `","row":"` + r + `","props":{"caption":"AI"}},"on":{"book":"b1"}}`
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(r1), ai); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("ai update of the locked row = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(r2), ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ai update of a sibling row = %s", got)
+	}
+	caption := `{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"` + list + `","props":{"caption":"AI"}},"on":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", caption, ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ai update of the list's caption = %s", got)
+	}
+}
+
+// 置いたときのままの書き方（読み直すと既定が足される）のブックでも、ロックしていない物を AI が変えれば通る
+func TestEditLocksIgnoreDefaultsFilledOnRead(t *testing.T) {
+	s := newServer(t, nil)
+	book := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+		`{"id":"k1","item":"@matomezu/box:shape-nest-box","x":10,"y":10,"props":{"caption":"一"}},` +
+		`{"id":"k2","item":"@matomezu/box:shape-nest-box","x":300,"y":10,"props":{"caption":"二"}}]}]}`
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["k1"]},"seq":1}`, nil)
+	update := `{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"k2","props":{"caption":"AI"}},"on":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update, ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ai update of an unlocked thing = %s", got)
+	}
+}
+
+// resultField は、AI がアクション req を行い、結果のフィールド name の値を返す
+func resultField(t *testing.T, url, req, name string) string {
+	t.Helper()
 	_, got := send(t, "POST", url+"/api/ai/perform", req, ai)
 	var done struct {
-		Result struct {
-			Item string `json:"item"`
-		} `json:"result"`
+		Result map[string]any `json:"result"`
 	}
-	if json.Unmarshal([]byte(got), &done) != nil || done.Result.Item == "" {
-		t.Fatalf("place = %s", got)
+	if json.Unmarshal([]byte(got), &done) != nil {
+		t.Fatalf("%s = %s", req, got)
 	}
-	return done.Result.Item
+	v, _ := done.Result[name].(string)
+	if v == "" {
+		t.Fatalf("%s = %s", req, got)
+	}
+	return v
 }

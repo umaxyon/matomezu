@@ -9,6 +9,8 @@ import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
 import { kit } from "./kit"
+// 拡張ポイントに書き足したメソッド labelOf の型（label/index.ts の declare module）
+import type {} from "./label"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import {
   DARK,

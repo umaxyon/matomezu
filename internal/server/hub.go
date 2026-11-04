@@ -49,13 +49,13 @@ type event struct {
 }
 
 type client struct {
-	id      string
-	ch      chan event
-	view    json.RawMessage     // 画面が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
-	focused int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
-	viewSeq int64               // 受けた見ているものの番号（画面が知らせるたびに増やす。古い番号の知らせは捨てる）
-	shown   []string            // いまその画面に出ているブック（touched.go。新しく出たブックだけを「開いた」とする）
-	locks   map[string][]string // 利用者がその画面で直している物（ブックの id → 物の id の並び。editlock.go）
+	id        string
+	ch        chan event
+	view      json.RawMessage     // 画面が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
+	focused   int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
+	viewSeq   int64               // 受けた見ているものの番号（画面が知らせるたびに増やす。古い番号の知らせは捨てる）
+	shown     []string            // いまその画面に出ているブック（touched.go。新しく出たブックだけを「開いた」とする）
+	editLocks map[string][]string // 利用者がその画面で直している物（ブックの id → 物の id の並び。editlock.go）
 }
 
 // Hub は世界と画面をまとめる
@@ -282,13 +282,16 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			in.Annotations[id] = list
 		}
 	}
+	if p.By == "ai" {
+		in.Watched = h.watched()
+	}
 	out, err := h.engine.Perform(in)
 	if err != nil {
 		return Performed{}, err
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Result: out.Result, Notice: out.Notice}
 	// AI のアクションは、利用者が直している物を変えも消しもしない（AI はあとでやり直す）
-	if out.OK && p.By == "ai" && h.touchesLocked(out) {
+	if out.OK && p.By == "ai" && len(out.Touched) > 0 {
 		done = Performed{OK: false, Reason: "being-edited"}
 		out.OK = false
 	}
@@ -391,9 +394,9 @@ func (h *Hub) Leave(c *client) {
 	}
 }
 
-// SetView は、画面が見ているものと、利用者が直している物 locks（ブックの id → 物の id の並び）を覚える（seq が受けたものより古ければ覚えない）。
+// SetView は、画面が見ているものと、利用者が直している物 editLocks（ブックの id → 物の id の並び）を覚える（seq が受けたものより古ければ覚えない）。
 // focused なら、その画面がいちばん新しくフォーカスされた画面になる
-func (h *Hub) SetView(clientID string, view json.RawMessage, locks map[string][]string, focused bool, seq int64) bool {
+func (h *Hub) SetView(clientID string, view json.RawMessage, editLocks map[string][]string, focused bool, seq int64) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	c, ok := h.clients[clientID]
@@ -406,7 +409,7 @@ func (h *Hub) SetView(clientID string, view json.RawMessage, locks map[string][]
 		c.viewSeq = seq
 	}
 	if !stale {
-		c.locks = locks
+		c.editLocks = editLocks
 	}
 	if len(view) > 0 && !stale {
 		c.view = view
