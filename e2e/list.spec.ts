@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
+import { afterFrames } from "./frames"
 import { addList, addRow } from "./list"
 
 test("ツールボックスのリストで置くと、キャプションの見出しと「＋」の行だけのリストが出る。「＋」で行を足し、ダブルクリックで行を変え、右クリックや編集のダイアログの「行を削除」で消す", async ({
@@ -72,6 +73,7 @@ test("チェックリストにすると行の左にチェックが出て、押�
 test("行がリストの高さを超えるとリストの中でスクロールし、そのホイールで紙はずれない。端に着いたら、手を止めて次に回したときから紙がずれる。行を交互に色分けできる", async ({
   page,
 }) => {
+  await page.clock.install()
   await page.goto("/")
   const list = await addList(page, "多い")
   for (const n of [1, 2, 3, 4, 5]) await addRow(page, list, `行 ${n}`)
@@ -88,14 +90,14 @@ test("行がリストの高さを超えるとリストの中でスクロール�
   await rows.evaluate(el => {
     el.scrollTop = el.scrollHeight
   })
-  await page.waitForTimeout(400)
+  await page.clock.runFor(400)
   await page.mouse.wheel(0, 100)
   await expect.poll(async () => (await paper.boundingBox())!.y).toBeLessThan(before!.y)
   // 上の端で上へ回しても、紙がずれる（手を止めてから）
   await rows.evaluate(el => {
     el.scrollTop = 0
   })
-  await page.waitForTimeout(400)
+  await page.clock.runFor(400)
   const moved = (await paper.boundingBox())!.y
   await page.mouse.wheel(0, -50)
   await expect.poll(async () => (await paper.boundingBox())!.y).toBeGreaterThan(moved)
@@ -262,9 +264,10 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   // ハンドツールの間は行を運ばず、紙がずれる
   await page.mouse.move(paper.x + 400, paper.y + 600)
   await page.mouse.down({ button: "right" })
-  await page.waitForTimeout(350)
+  const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
+  await expect(picker).toBeVisible()
   await page.mouse.up({ button: "right" })
-  await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name: "ハンドツール" }).click()
+  await picker.getByRole("button", { name: "ハンドツール" }).click()
   const before = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   const two = (await rows(first).nth(1).boundingBox())!
   await drag({ x: two.x + 40, y: two.y + 10 }, { x: two.x + 40, y: two.y - 60 }, async () => {
@@ -282,9 +285,9 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   const panned = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   expect(Math.round(panned.y - after.y)).toBe(42)
   // ダブルクリックでも、行の編集もリストの設定も開かない
-  // （開くなら描き直しの後なので、少し待ってから無いことを見る）
+  // （開くなら描き直しの後なので、描き直してから無いことを見る）
   await rows(first).nth(0).dblclick()
-  await page.waitForTimeout(300)
+  await afterFrames(page)
   await expect(page.getByRole("dialog")).toHaveCount(0)
 })
 

@@ -1,5 +1,6 @@
 // ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
 import { expect, type Page, test } from "./fixtures"
+import { afterFrames } from "./frames"
 import { selectText } from "./rich"
 import { fromMenu } from "./stage-menu"
 
@@ -53,7 +54,7 @@ test("ツリーの道具は編集とハンド。編集の間は、ホイール�
   await page.mouse.down()
   await page.mouse.move(x, y - 80, { steps: 5 })
   await page.mouse.up()
-  await page.waitForTimeout(100)
+  await afterFrames(page)
   expect((await paperAt(page)).y).toBe(before.y)
   await tool.click()
   await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()

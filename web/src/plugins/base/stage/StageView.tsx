@@ -84,8 +84,9 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       if (w.keepsPan) return
       const dx = e.shiftKey ? e.deltaY : e.deltaX
       const dy = e.shiftKey ? e.deltaX : e.deltaY
-      const taker = wheelTaker(latch.current, e.timeStamp, scrollsInside(e.target, el, dx, dy))
-      latch.current = { taker, at: e.timeStamp }
+      const at = performance.now()
+      const taker = wheelTaker(latch.current, at, scrollsInside(e.target, el, dx, dy))
+      latch.current = { taker, at }
       if (taker === "stage") e.preventDefault()
     }
     el.addEventListener("wheel", onWheel, { passive: false })
