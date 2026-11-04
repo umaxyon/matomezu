@@ -1,6 +1,6 @@
 package server
 
-// 利用者が直している物: 画面は、利用者が直している物（伝言など）の id を、ブックごとに常駐に知らせる（POST /api/view の editLocks）。
+// 編集ロック: 画面は、利用者が直している物（伝言など）の id を、ブックごとに常駐に知らせる（POST /api/view の editLocks）。
 // AI のアクションが、どこかの窓が知らせた物を変えるか消すなら、何も変えずに断る（being-edited）。利用者のアクションは断らない。
 // 変わったかはエンジンが比べ（engine.Input の Watched と、Output の Touched）、ここは窓の知らせをまとめるだけ。窓が離れたら、その窓の分は消える
 

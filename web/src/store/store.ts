@@ -78,11 +78,11 @@ export interface MatomezuState {
   history: Readonly<Record<string, BookHistory>>
   // ステージの id → プラグインの id → そのプラグインが持つ、そのステージの画面の状態（中身の形はプラグインが決め、土台は読まない）
   stageStates: Readonly<Record<string, Readonly<Record<string, unknown>>>>
-  // 編集前のロック: 掛けた所の鍵 → 利用者が直している物（ブックの id と物の id）。ホストクライアントが常駐に知らせ、常駐はそれを変える AI のアクションを断る
+  // 編集ロック: 掛けた所の鍵 → 利用者が直している物（ブックの id と物の id）。ホストクライアントが常駐に知らせ、常駐はそれを変える AI のアクションを断る
   editLocks: Readonly<Record<string, EditLock>>
 }
 
-// 編集前のロックの 1 つ: ブック book の物 ids（伝言など。ブックの中の物やアノテーションの id）
+// 編集ロックの 1 つ: ブック book の物 ids（伝言など。ブックの中の物やアノテーションの id）
 export interface EditLock {
   book: string
   ids: readonly string[]
@@ -202,7 +202,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // プラグイン owner（プラグインの id）が持つ、ステージ stage の画面の状態を value にする（undefined なら消す）。無いステージには置かない。
   // プラグインは、自分の kit を渡すフック useSetStageState を通して、自分の置き場だけを変える（プラグインに渡す actions には入れない）
   setStageState(stage: string, owner: string, value: unknown): void
-  // 鍵 key の編集前のロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
+  // 鍵 key の編集ロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
   setEditLock(key: string, lock: EditLock | null): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
   // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と error を返す
