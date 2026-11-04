@@ -26,7 +26,7 @@ func TestAWindowCutForAFullBufferTakesItsWarnings(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := h.Join()
-	if ok, err := h.SetScreenWarnings(c.id, json.RawMessage(`[{"code":"W011","plugin":"acme","params":{"reason":"E301"}}]`)); !ok || err != nil {
+	if ok, err := h.SetWindowWarnings(c.id, json.RawMessage(`[{"code":"W011","plugin":"acme","params":{"reason":"E301"}}]`)); !ok || err != nil {
 		t.Fatalf("set = %v %v", ok, err)
 	}
 	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W011 acme") {

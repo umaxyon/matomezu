@@ -879,7 +879,7 @@ func TestListsAWarningForAPartlyKnownBook(t *testing.T) {
 	}
 }
 
-func TestScreenWarningsAreGatheredForAI(t *testing.T) {
+func TestWindowWarningsAreGatheredForAI(t *testing.T) {
 	s := newServer(t, nil)
 	a, b := listen(t, s.URL), listen(t, s.URL)
 	next(t, a)

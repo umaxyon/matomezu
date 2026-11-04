@@ -41,17 +41,17 @@ test("何も動いていなければ、記憶のある線は全部留まる。�
   expect(ids(stickyMemory(scene({ memo: new Map([["ab", mem]]) })))).toEqual(["ab"])
 })
 
-test("A1: 動かしている形の線は留まる。A2・A3: 形の並びが変わったら、動かしている形の線は留まらない", () => {
+test("動かしている形の線は留まる。形の並びが変わったら、動かしている形の線は留まらない", () => {
   const moving = new Map([...rects, ["a", r(150)]])
   expect(ids(stickyMemory(scene({ rects: moving, dragged: ["a"] })))).toEqual(["ab", "bc"])
   expect(ids(stickyMemory(scene({ rects: moving, dragged: ["a"], reordered: true })))).toEqual(["bc"])
 })
 
-test("A5: つかんでいる形の動きでずれて描いている形の線は留まらない", () => {
+test("つかんでいる形の動きでずれて描いている形の線は留まらない", () => {
   expect(ids(stickyMemory(scene({ dragged: ["a"], displaced: ["c"] })))).toEqual(["ab"])
 })
 
-test("D1: つかむほかで動いた・大きさが変わった形の線は留まらない。A4: 離したあとに付け替えを見る線は、形が動いていても記憶を渡す", () => {
+test("つかむほかで動いた・大きさが変わった形の線は留まらない。離したあとに付け替えを見る線は、形が動いていても記憶を渡す", () => {
   const movedC = new Map([...rects, ["c", r(720)]])
   expect(ids(stickyMemory(scene({ rects: movedC })))).toEqual(["ab"])
   const resizedB = new Map([...rects, ["b", { ...r(400), w: 140 }]])

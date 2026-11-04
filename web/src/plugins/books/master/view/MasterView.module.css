@@ -32,6 +32,10 @@
   font-weight: 600;
   color: var(--theme-hint);
 }
+.note {
+  margin: 0;
+  color: var(--theme-hint);
+}
 .button {
   padding: 6px 14px;
   border: 0;
