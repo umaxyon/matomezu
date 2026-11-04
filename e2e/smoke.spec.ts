@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures"
-import { fromMenu } from "./stage-menu"
+import { fromMenu } from "./helpers/stage-menu"
 
 test("下の行のどこに乗せても、ブックの名前のメニューがせり上がり、下の行から離れると下がる", async ({ page }) => {
   await page.goto("/")

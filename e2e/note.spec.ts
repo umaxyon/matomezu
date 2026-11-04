@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
-import { panel, writeNote } from "./note"
+import { footerMenuTool } from "./helpers/footer-menu"
+import { panel, writeNote } from "./helpers/note"
 
 const items = (page: Page) => page.locator("[data-item]")
 const stands = (page: Page) => page.locator("[data-stand]")

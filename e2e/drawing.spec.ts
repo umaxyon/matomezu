@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
+import { footerMenuTool } from "./helpers/footer-menu"
 import { addBox, confirmBox, items, onPaper } from "./helpers/paper"
 import { BODY, coreWidthOf } from "./text-widths"
 

@@ -2,7 +2,7 @@ import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { aiAuth, expect, type Page, test } from "../fixtures"
-import { footerMenuTool } from "../footer-menu"
+import { footerMenuTool } from "../helpers/footer-menu"
 
 // 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが足して外す
 
