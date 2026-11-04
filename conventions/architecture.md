@@ -30,6 +30,7 @@
 - 表と上の行で読んでよい物（zod・React・zustand）のほかに読んでよい外のライブラリは、Markdown を読むライブラリ（mdast-util-from-markdown・mdast-util-gfm・micromark-extension-gfm と、その型の mdast）だけ。ライブラリごとに決めた 1 つのファイルだけが読み、その型をプラグイン API に出さない（matomezu の形に移して出す）
 - 上の 2 行は base だけ。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・React も読み、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ。状態は `plugin-api/ui` のフック（plugins の「プラグインどうしの関係」）で読む。base はプラグイン API を読まない
 - 見た目でないファイルは、見た目を読まない
+- `web/src` のファイルどうしも、値で読む輪を作らない（型だけ読むのは除く）
 - これらは `test/rules.test.ts` が見張る
 
 ## Go のパッケージ
