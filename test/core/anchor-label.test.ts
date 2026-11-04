@@ -1,4 +1,4 @@
-// 物の名前（base/label/labels.ts の anchorLabel と、定義の labelOf）: ブックのタイプ → 形 → キャプション → つなぐもの → 種類の名前の順に引き、装飾は外す
+// 物の名前（base/label/labels.ts の anchorLabel と、定義の labelOf）: id を持つ物（いちばん内側の形 → つなぐもの → ページ）の定義から引き、空なら種類の名前。装飾は外す
 import { expect, test } from "bun:test"
 import type { Book } from "../../web/src/core/schema/book"
 import { anchorLabel } from "../../web/src/plugins/base/label/labels"
@@ -23,6 +23,20 @@ test("箱はキャプション、無ければ本文の最初の行。どちら�
   expect(label(book, "b")).toEqual({ text: "本文の行" })
   expect(label(book, "c")).toEqual({ title: "@matomezu/box:Box" })
   expect(label(book, "x")).toBeNull()
+})
+
+test("入れ子の形は、id を持ついちばん内側の形の名前", () => {
+  const box = (id: string, caption: string, shapes: readonly unknown[] = []) => ({
+    id,
+    item: "@matomezu/box:shape-nest-box",
+    x: 0,
+    y: 0,
+    props: { caption, body: "" },
+    shapes,
+  })
+  const book = drawing([box("outer", "外", [box("inner", "内")])])
+  expect(label(book, "outer")).toEqual({ text: "外" })
+  expect(label(book, "inner")).toEqual({ text: "内" })
 })
 
 test("リストはキャプション、行は行のキャプションか本文。線はキャプション、無ければ種類の名前。キャプションの項目しか無い形はキャプション", () => {

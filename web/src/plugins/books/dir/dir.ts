@@ -51,7 +51,7 @@ export const DIR = kit.defineBookType({
   // 行の名前は、ファイルやフォルダの名前（base の labelOf）
   labelOf: (page, id) => {
     const root = dirRootOf(page)
-    return root ? (entryOf(root, id)?.name ?? null) : null
+    return (root && entryOf(root, id)?.name) ?? ""
   },
   pages: {
     paper: {

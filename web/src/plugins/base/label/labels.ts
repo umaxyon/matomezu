@@ -1,8 +1,9 @@
-// 物の名前（伝言の右サイドパネルのバッジや、鳥の名前に出す。画面に出す名前は anchor-name.tsx）: ブックの中の物 id の名前を、定義オブジェクトの labelOf（書き足すのは index.ts）から引く。
-// 引く順は、ブックのタイプの labelOf（ページの中の物。ツリーの節など）→ 形の labelOf（形そのものか、その中の物。リストの行など）→
-// 形そのものならキャプション（定義の captionProp の項目）→ つなぐものの labelOf → 物の種類の名前（文言の鍵）。本文の装飾は外す
+// 物の名前（伝言の右サイドパネルのバッジや、鳥の名前に出す。画面に出す名前は anchor-name.tsx）: ブックの中の物 id の名前を、その id を持つ物の定義オブジェクトの labelOf（書き足すのは index.ts）から引く。
+// id を持つ物は、id を中に持ついちばん内側の形（形そのものか、リストの行など形の中の物）→ つなぐもの → ページ（ツリーの節など。ブックのタイプが受ける）の順に探す。
+// 形が labelOf を書かなければ、形そのものはキャプション（定義の captionProp の項目）。名前が空なら、id を持つ物の種類の名前（文言の鍵）。本文の装飾は外す
 import { pagedOf } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { idsIn } from "../../../core/ids"
 import { connectorsOf, walkShapes } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { shapeDefOf } from "../place/placed"
@@ -20,27 +21,25 @@ function plain(text: string | null | undefined): { text: string } | null {
 // ブック book の物 id の名前（ブックに無ければ null）
 export function anchorLabel(catalog: CoreCatalog, book: Book | null, id: string): AnchorLabel | null {
   if (!book) return null
-  const ofPage = bookType(catalog, book.type).labelOf
+  const type = bookType(catalog, book.type)
   for (const page of pagedOf(book)?.pages ?? []) {
-    const own = ofPage?.(page, id)
-    if (own != null) return plain(own) ?? { title: bookType(catalog, book.type).title }
-    for (const { shape } of walkShapes(page)) {
+    // 中の形は別に歩くので、形の中の物から外す
+    const shape = walkShapes(page).find(({ shape }) => idsIn({ ...shape, shapes: undefined }).includes(id))?.shape
+    if (shape) {
       const def = shapeDefOf(catalog, shape.item)
-      const named = def?.labelOf?.(shape, id) ?? null
-      const title = { title: def?.title ?? shape.item }
-      if (named !== null) return plain(named) ?? title
-      if (shape.id !== id) continue
-      const caption = def?.captionProp
-        ? (shape.props as Record<string, unknown> | undefined)?.[def.captionProp]
-        : undefined
-      return plain(typeof caption === "string" ? caption : null) ?? title
+      const caption =
+        shape.id === id && def?.captionProp
+          ? (shape.props as Record<string, unknown> | undefined)?.[def.captionProp]
+          : undefined
+      const name = def?.labelOf ? def.labelOf(shape, id) : typeof caption === "string" ? caption : ""
+      return plain(name) ?? { title: def?.title ?? shape.item }
     }
     const line = connectorsOf(page).find(c => c.id === id)
     if (line) {
       const def = catalog.items.get(line.item)
-      const named = def?.kind === "connector" ? (def.labelOf?.(line) ?? null) : null
-      return plain(named) ?? { title: def?.title ?? line.item }
+      return plain(def?.kind === "connector" ? def.labelOf?.(line) : null) ?? { title: def?.title ?? line.item }
     }
+    if (idsIn(page).includes(id)) return plain(type.labelOf?.(page, id)) ?? { title: type.title }
   }
   return null
 }

@@ -72,8 +72,7 @@ const BOX_BASE = {
   },
   captionWidth: (box: { props: z.output<typeof BoxPropsSchema> }) => placedWidth(box.props),
   // 名前はキャプション、無ければ本文の最初の行（base の labelOf）
-  labelOf: (box: { id: string; props: z.output<typeof BoxPropsSchema> }, id: string) =>
-    id === box.id ? blockLabel(box.props) : null,
+  labelOf: (box: { props: z.output<typeof BoxPropsSchema> }) => blockLabel(box.props),
   tokens: [],
 } as const
 

@@ -66,7 +66,7 @@ export const LIST = kit.defineShape({
   // 行の名前は、行のキャプションか本文の最初の行（base の labelOf。リストそのものはキャプション）
   labelOf: (list, id) => {
     const row = list.children?.find(r => r.id === id)
-    return row ? blockLabel(row.props) : null
+    return row ? blockLabel(row.props) : list.props.caption
   },
   "@matomezu/paper:settle": settleChecks,
   dialogs: { add: LIST_ADD_DIALOG.id, edit: LIST_EDIT_DIALOG.id },

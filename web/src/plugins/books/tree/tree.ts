@@ -59,8 +59,7 @@ export const TREE = kit.defineBookType({
   // 節の名前はキャプション（base の labelOf）
   labelOf: (page, id) => {
     const root = treeRootOf(page)
-    if (!root) return null
-    return root.id === id ? root.caption : (nodeOf(root, id)?.caption ?? null)
+    return (root?.id === id ? root.caption : root && nodeOf(root, id)?.caption) ?? ""
   },
   pages: {
     paper: {
