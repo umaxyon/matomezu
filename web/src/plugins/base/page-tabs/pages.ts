@@ -46,7 +46,7 @@ export function paperChoicesFor(catalog: CoreCatalog, book: PagedBook, page: str
 // ブックのタイプのページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
 export function canGrow(catalog: CoreCatalog, book: PagedBook): boolean {
   const rule = bookType(catalog, book.type).grow
-  return pagesRule(catalog, book) !== undefined && rule !== undefined && !("always" in rule)
+  return rule !== undefined && !("always" in rule)
 }
 
 // ブックのタイプで利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空

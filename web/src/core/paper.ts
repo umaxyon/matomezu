@@ -23,7 +23,7 @@ export interface PaperChoice {
 // unshowable は表のどの紙にも中身が入らず、描けないもの
 export type ResolvedPaper = { status: "known" | "unknown"; size: Size } | { status: "unshowable" }
 
-export function oriented(size: Size, orientation: Orientation): Size {
+function oriented(size: Size, orientation: Orientation): Size {
   const [short, long] = size.w <= size.h ? [size.w, size.h] : [size.h, size.w]
   return orientation === "portrait" ? { w: short, h: long } : { w: long, h: short }
 }

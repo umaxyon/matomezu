@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { panelOf, toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
-import { ART_ITEMS, DB, PERSON } from "../../web/src/plugins/items/art/art"
+import { ARTS, DB, PERSON } from "../../web/src/plugins/items/art/art"
 import { PICTURES } from "../../web/src/plugins/items/art/pictures"
 import { ART_LOOK, artHeight, minWidth } from "../../web/src/plugins/items/art/size"
 import { CORE_CATALOG, newStore } from "../support"
@@ -34,8 +34,8 @@ test("図面のツールボックスは箱とリストとデータのボタン�
     "@matomezu/list:shape-list",
     "@matomezu/data:shape-data",
   ])
-  expect(panelOf(CORE_CATALOG, book(store))).toEqual(ART_ITEMS)
-  expect(ART_ITEMS).toHaveLength(15)
+  expect(panelOf(CORE_CATALOG, book(store))).toEqual(ARTS.map(a => a.item.id))
+  expect(ARTS).toHaveLength(15)
 })
 
 test("シェイプの高さは、絵と、幅で折り返したキャプションの行から決まる。置いたときの幅はキャプションが 1 行で見える幅（上限 160px）", () => {

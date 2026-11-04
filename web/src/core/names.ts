@@ -7,7 +7,7 @@ export const NAME = /^[a-z][a-z0-9-]*$/
 // プラグイン P の名前 N の本当の id
 export type Owned<P extends string, N extends string> = `${P}:${N}`
 
-export const isName = (name: string): boolean => NAME.test(name)
+const isName = (name: string): boolean => NAME.test(name)
 
 // 名前に頭を付ける（名前が決まりの字でなければ error）
 export function owned<const P extends string, const N extends string>(plugin: P, name: N): Owned<P, N> {
