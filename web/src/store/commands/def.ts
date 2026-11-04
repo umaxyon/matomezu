@@ -15,7 +15,7 @@ import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
 import type { Actions, Settings } from "../store"
 
-// コマンドの許可の範囲: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいるアイテム。
+// コマンドの許可の範囲: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // 言葉で言えなければ、呼ばれた場所の様子から所を返す関数
 export type CommandScope = "book" | "opened-page" | "selection" | ((ctx: CommandContext) => Where)
 
@@ -26,7 +26,7 @@ export function commandScopeOf(scope: CommandScope | undefined, ctx: CommandCont
   if (typeof scope === "function") return scope(ctx)
   const page = ctx.stage.opened?.page ?? undefined
   const on = page ? { page } : {}
-  return scope === "opened-page" ? on : { ...on, items: ctx.stage.selection }
+  return scope === "opened-page" ? on : { ...on, ids: ctx.stage.selection }
 }
 
 // コマンドが受け取る、呼ばれた場所の様子
