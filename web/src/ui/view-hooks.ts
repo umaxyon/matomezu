@@ -111,14 +111,14 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   const home = useHome()
   const settings = where && "settings" in where ? where.settings.join("\n") : undefined
   const place = where && !("settings" in where) ? where : undefined
-  const items = place?.items?.join("\n")
+  const ids = place?.ids?.join("\n")
   const answer = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     const book = o ? s.books[o.book] : undefined
     const page = place?.page ?? o?.page ?? undefined
-    const at = { ...(page ? { page } : {}), ...(items ? { items: items.split("\n") } : {}) }
-    const ids = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
-    const done = inspect(catalog, { ...actionQuery(catalog, action, book, at), ...ids }, { home })
+    const at = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
+    const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
+    const done = inspect(catalog, { ...actionQuery(catalog, action, book, at), ...changed }, { home })
     return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
   return allowedOf(answer)

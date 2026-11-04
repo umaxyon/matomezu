@@ -88,10 +88,10 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): b
   )
 }
 
-// ブックの中の所: page はページの id、items はそのページのアイテムの id、allPages はページを含むブックの全部（どのページも変える）
+// ブックの中の所: page はページの id、ids はそのページの中の id を持つ物（アイテム・形の中身・ページのフィールドの中の物）の id、allPages はページを含むブックの全部（どのページも変える）
 export interface Where {
   page?: string
-  items?: readonly string[]
+  ids?: readonly string[]
   allPages?: true
 }
 
@@ -179,7 +179,7 @@ export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): W
   const page = id(scope.page)
   const item = id(scope.item)
   const items = scope.items !== undefined && Array.isArray(a[scope.items]) ? (a[scope.items] as string[]) : undefined
-  return { ...(page ? { page } : {}), ...(item ? { items: [item] } : items ? { items } : {}) }
+  return { ...(page ? { page } : {}), ...(item ? { ids: [item] } : items ? { ids: items } : {}) }
 }
 
 // 利用者の設定の許可の範囲から、引数 args で変える項目の id を出す

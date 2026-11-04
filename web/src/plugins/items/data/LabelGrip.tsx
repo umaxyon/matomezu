@@ -26,7 +26,7 @@ export function LabelGrip({
   const at = useStage(stage)
   const page = at?.opened?.page ?? undefined
   const perform = usePerform(stage)
-  const allowed = useAllowed(stage, "@matomezu/paper:item-update", { page, items: [id] }).ok
+  const allowed = useAllowed(stage, "@matomezu/paper:item-update", { page, ids: [id] }).ok
   // つかんだポインタと、つかんだ所と、つかんだときの領域の大きさ
   const grab = useRef<{ pointer: number; x: number; y: number; start: number } | null>(null)
   if (!allowed || at === null || at.pans || !onlySelected(at.selection, id)) return null

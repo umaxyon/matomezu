@@ -7,7 +7,7 @@ test("コマンドの許可の範囲: 言葉ごとに、呼ばれた場所の様
   const ctx = () => ({ stage: { opened: { page: "p1" }, selection: ["a"] } }) as unknown as CommandContext
   expect(commandScopeOf("book", ctx())).toEqual({})
   expect(commandScopeOf("opened-page", ctx())).toEqual({ page: "p1" })
-  expect(commandScopeOf("selection", ctx())).toEqual({ page: "p1", items: ["a"] })
+  expect(commandScopeOf("selection", ctx())).toEqual({ page: "p1", ids: ["a"] })
   expect(commandScopeOf(undefined, ctx())).toBeUndefined()
 })
 
