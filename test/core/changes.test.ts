@@ -26,6 +26,7 @@ test("変わったブックのフィールドと、ページごとに変わっ�
   })
   expect(changesOf(before, after)).toEqual({
     gone: false,
+    added: false,
     fields: ["title"],
     pages: [
       { id: "p1", change: "changed", fields: ["locked"], items: ["a", "b", "c"] },
@@ -36,6 +37,15 @@ test("変わったブックのフィールドと、ページごとに変わっ�
 })
 
 test("同じなら何も変わらず、後が無ければ一覧から無くなった", () => {
-  expect(changesOf(book({}), book({}))).toEqual({ gone: false, fields: [], pages: [] })
-  expect(changesOf(book({}), undefined)).toEqual({ gone: true, fields: [], pages: [] })
+  expect(changesOf(book({}), book({}))).toEqual({ gone: false, added: false, fields: [], pages: [] })
+  expect(changesOf(book({}), undefined)).toEqual({ gone: true, added: false, fields: [], pages: [] })
+})
+
+test("前が無ければ一覧に新しく増えた: フィールドはどれも変わり、どのページも足した", () => {
+  expect(changesOf(undefined, book({ title: "x", pages: [{ id: "p1", title: "1", items: [{ id: "a" }] }] }))).toEqual({
+    gone: false,
+    added: true,
+    fields: expect.arrayContaining(["title"]),
+    pages: [{ id: "p1", change: "added", fields: [], items: ["a"] }],
+  })
 })

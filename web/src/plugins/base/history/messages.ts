@@ -7,4 +7,6 @@ export const HISTORY_MESSAGES = defineMessages({
   "Undo or redo": { en: "Undo or redo", ja: "元に戻す・やり直す" },
   "Could not undo": { en: "Could not undo", ja: "元に戻せません" },
   "Could not redo": { en: "Could not redo", ja: "やり直せません" },
+  '{reason}: "{book}"': { en: '{reason}: "{book}"', ja: "「{book}」が{reason}" },
+  "{reason}: a related book": { en: "{reason}: a related book", ja: "関連ブックが{reason}" },
 })

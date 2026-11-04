@@ -9,7 +9,7 @@ import { isOnBook, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { deniedBy, inspect } from "../core/inspect"
-import type { ArgsOf } from "../core/perform"
+import { type ArgsOf, type Permitted, permittedIn } from "../core/perform"
 import {
   findShape,
   type ItemPage,
@@ -24,6 +24,7 @@ import { toPaper } from "../core/stage"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
 import type { Performed } from "../store/store"
+import { worldOf } from "../store/world"
 import type { UiCatalog } from "./plugin"
 import {
   useActions,
@@ -111,7 +112,6 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   const settings = where && "settings" in where ? where.settings.join("\n") : undefined
   const place = where && !("settings" in where) ? where : undefined
   const items = place?.items?.join("\n")
-  // 答えを文字にして比べ、変わったときだけ描き直す（"" は使える、"-" はタイプなどで使えない、ほかは止めた認可ステップの id）
   const answer = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     const onBook = isOnBook(catalog.actions.get(action)?.target)
@@ -120,9 +120,28 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
     const at = { ...(page ? { page } : {}), ...(items ? { items: items.split("\n") } : {}) }
     const ids = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
     const done = inspect(catalog, { kind: "action", action, book, ...(book ? { where: at } : {}), ...ids }, { home })
-    return done.value === true ? "" : (deniedBy(done) ?? "-")
+    return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
-  return answer === "" ? { ok: true } : { ok: false, permission: answer === "-" ? null : answer }
+  return allowedOf(answer)
+}
+
+// 答えは文字にして比べ、変わったときだけ描き直す（OK は使える、NOT_ALLOWED はタイプなどで使えない、ほかは止めた認可ステップの id）
+const OK = ""
+const NOT_ALLOWED = "-"
+const allowedOf = (answer: string): Allowed =>
+  answer === OK ? { ok: true } : { ok: false, permission: answer === NOT_ALLOWED ? null : answer }
+
+// アクション action を引数 args で、行うときと同じ形（ブックかアノテーションが対象なら on のブック）で行えるか（認可ステップも見る。答えは useAllowed と同じ形）。
+// どのブックに問うかは、アクションの許可の範囲（permissionScope）と引数、ブックが対象なら on で決まるので、ステージが開いていないブックにも問える。
+// 引数がまだ決まらない所（ドラッグを始める前など）では、useAllowed で問う
+export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, on?: { book: string }): Allowed {
+  const catalog = useCatalog().core
+  const home = useHome()
+  const answer = useMatomezuState(s => {
+    const done: Permitted | { ok: false; reason: string } = permittedIn(worldOf(s), action, args, on, { catalog, home })
+    return done.ok ? OK : done.reason === "denied" && "permission" in done ? done.permission : NOT_ALLOWED
+  })
+  return allowedOf(answer)
 }
 
 // そのステージ（読むだけ。無いステージなら null）。紙をずらしただけでは描き直さない

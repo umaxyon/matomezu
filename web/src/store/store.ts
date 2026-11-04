@@ -55,6 +55,7 @@ import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
 import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type Assembled, assemble, type Plugin } from "./plugin"
+import { worldOf } from "./world"
 
 export type { Settings } from "../core/settings"
 
@@ -80,12 +81,13 @@ export interface MatomezuState {
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、success はうまくいったことを知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
-// （時間では消えず、出した側か見る人が消す）。文言は鍵で持ち、画面が今の言語で出す
+// （時間では消えず、出した側か見る人が消す）。文言は鍵で持ち、画面が今の言語で出す。何が起きたかを message に、原因を detail に分けて書ける
 export interface Toast {
   id: string
   kind: "info" | "success" | "warn" | "error"
   message: MessageKey
   params?: Params
+  detail?: { message: MessageKey; params?: Params } // 2 行目に出す文言（断った原因など）
 }
 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
@@ -358,10 +360,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     args: unknown,
     on?: { book: string },
   ): { ok: true; result: unknown; next: Partial<MatomezuState> } | Refused | { ok: false; reason: "no-book" } => {
-    const { books, trash, workspace, settings, annotations } = getState()
+    const { books, workspace, annotations } = getState()
     const ids: string[] = []
     const c = ctx()
-    const done = performIn({ books: { ...books, ...trash }, settings, annotations }, id, args, on, {
+    const done = performIn(worldOf(getState()), id, args, on, {
       ...c,
       newId: () => {
         const made = c.newId()

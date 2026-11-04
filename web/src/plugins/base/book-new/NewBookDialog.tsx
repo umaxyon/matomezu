@@ -1,16 +1,20 @@
 // ブックを作るダイアログ: 名前とタイプを決めて作り（アクション book-create）、そのステージで開く。
+// 選べるタイプは、作れるタイプのうちアクション book-create を行えるもの（追加プラグインの認可ステップがタイプごとに止めることもある）。
 // タイプが作るときに聞く設定の項目（createSettings）を選んでいれば、そのタイプを選んだときに項目を開いて見せ（アコーディオン）、決めた値も一緒に渡す
 import { useEffect, useMemo, useState } from "react"
-import { creatableTypes, createBook } from "../../../core/book"
+import { useShallow } from "zustand/react/shallow"
+import { createBook } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
+import { worldOf } from "../../../store/world"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useInstance } from "../../../ui/store-context"
+import { useHome, useInstance, useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { type SettingsPatch, useSettingControls } from "../utils/SettingControls"
+import { typesToCreate } from "./book-create"
 import { createBookIn } from "./create-book"
 import styles from "./NewBookDialog.module.css"
 
@@ -28,7 +32,8 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const t = useMessages(kit)
   const [title, setTitle] = useState("")
   const catalog = useCoreCatalog()
-  const types = creatableTypes(catalog)
+  const home = useHome()
+  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, home })))
   const [type, setType] = useState(types[0] ?? "")
   const [settings, setSettings] = useState<SettingsPatch>({})
   const asks = type ? (bookType(catalog, type).createSettings ?? []) : []

@@ -200,6 +200,7 @@ test("matomezu/ui が出す名前", () => {
     "useActions",
     "useAligns",
     "useAllowed",
+    "useAllowedOn",
     "useAnchorRef",
     "useBodyGrips",
     "useBook",
