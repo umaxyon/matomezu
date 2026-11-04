@@ -16,7 +16,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-// 追加プラグインの見本（core/catalog.ts には書き足さないので、インスタンスは partial で作る）
+// テストのプラグイン（型の core/catalog.ts は書き足さないので、インスタンスは partial で作る）
 const NOTE_LOOK = definePresentation({ id: "notes:note" })
 const NOTE = defineBookType({
   id: "notes:note",
