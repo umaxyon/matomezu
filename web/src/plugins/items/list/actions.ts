@@ -1,7 +1,6 @@
 // リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える・動かす（並べ替えと、同じページの別のリストへ）。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 
 import { z } from "zod"
-import { hasPages } from "../../../plugin-api"
 import { nextItemId, textNew, textPatch } from "../../base"
 import { kit } from "./kit"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "./list"
@@ -33,7 +32,6 @@ export const ROW_ADD = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "list" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     const props = RowPropsSchema.safeParse(args.props ?? {})
     if (!found || !props.success) return null
@@ -59,7 +57,6 @@ export const ROW_UPDATE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
-    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     const now = found && rowsOf(found.list).find(r => r.id === args.row)
     if (!found || !now) return null
@@ -85,7 +82,6 @@ export const ROW_REMOVE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
-    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     const rows = found ? rowsOf(found.list) : []
     if (!found || !args.rows.every(id => rows.some(r => r.id === id))) return null
@@ -110,7 +106,6 @@ export const ROW_CHECK = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
-    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     if (!found?.list.props.checklist || !rowsOf(found.list).some(r => r.id === args.row)) return null
     const children = rowsOf(found.list).map(r =>
@@ -137,7 +132,6 @@ export const ROW_LINES = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
-    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     const rows = found ? rowsOf(found.list) : []
     if (!found || !(args.rows ?? []).every(id => rows.some(r => r.id === id))) return null
@@ -163,7 +157,6 @@ export const ROW_MOVE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
-    if (!hasPages(book)) return null
     const from = findList(book, args.page, args.list)
     const moving = from && rowsOf(from.list).find(r => r.id === args.row)
     if (!from || !moving || args.before === args.row) return null
