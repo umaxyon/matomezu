@@ -134,3 +134,38 @@ func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
 		t.Fatalf("note-read after closing = %s", got)
 	}
 }
+
+// ブックを消すと、そのブックの効かないアノテーションの warning も一覧から外れる
+func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	if _, _, err := store.PutBook("b1", json.RawMessage(boxed), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutAnnotations("b1", json.RawMessage(`[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}}]`)); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W018") {
+		t.Fatalf("warnings before = %s", got)
+	}
+	h.mu.Lock()
+	err = h.remove("b1", "", 0)
+	h.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W018") {
+		t.Fatalf("warnings after removing the book = %s", got)
+	}
+}
