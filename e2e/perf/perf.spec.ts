@@ -4,10 +4,13 @@
 // - アクション: AI の入口から item-place と line-connect を 300 まで重ね、1 回の perform の時間を 100 ずつに分けて測る
 // - マークダウン: 原文 1000・3000・5000 行のページを開き、ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { expect, type Page, test } from "@playwright/test"
+import { mkdirSync, writeFileSync } from "node:fs"
+import { aiAuth, expect, type Page, test } from "../fixtures"
 import { BOX_SIZE, boxAt, dirBook, gridBook, markdownBook, PAGE, treeBook } from "./books"
 import { awaitItems, installProbe, readyAt, startRecording, stopRecording } from "./probe"
+
+// 測るブックだけを置く（見本のブックは置かない）
+test.use({ books: [] })
 
 test.describe.configure({ mode: "serial" })
 
@@ -170,9 +173,7 @@ for (const o of OTHERS)
   }
 
 test("アクション: AI の入口から箱と線を 300 まで足す", async ({ page, request }) => {
-  const port = new URL(test.info().project.use.baseURL ?? "").port
-  const token = JSON.parse(readFileSync(`e2e/.home-${port}/server.json`, "utf8")).token
-  const headers = { Authorization: `Bearer ${token}` }
+  const headers = aiAuth()
   await page.goto("/")
   const perform = async (body: Record<string, unknown>) => {
     const start = performance.now()

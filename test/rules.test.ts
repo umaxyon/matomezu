@@ -712,7 +712,6 @@ describe("テストの用意の手段", () => {
     ]
     expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8"))).sort()).toEqual([
       "scripts/e2e-build.ts",
-      "scripts/e2e-server.ts",
     ])
   })
 
