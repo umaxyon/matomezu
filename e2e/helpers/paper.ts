@@ -1,6 +1,6 @@
 // 紙と、紙に置いた物を扱う e2e の補助
 import { expect, type Page } from "@playwright/test"
-import { footerMenuTool } from "../footer-menu"
+import { footerMenuTool } from "./footer-menu"
 
 export const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 

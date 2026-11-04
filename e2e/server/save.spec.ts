@@ -1,6 +1,6 @@
 import { E2E_BOOKS } from "../books"
 import { aiAuth, expect, type Page, test } from "../fixtures"
-import { footerMenuTool } from "../footer-menu"
+import { footerMenuTool } from "../helpers/footer-menu"
 
 // 常駐を空にして始め、テストごとに使うブックを置く
 test.use({ books: [] })

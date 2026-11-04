@@ -1,6 +1,6 @@
 // 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
+import { footerMenuTool } from "./helpers/footer-menu"
 import { items } from "./helpers/paper"
 
 async function placeBox(page: Page, caption: string) {

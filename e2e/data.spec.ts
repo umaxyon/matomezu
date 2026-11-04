@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
+import { footerMenuTool } from "./helpers/footer-menu"
 
 // グラフの動きで棒や点の大きさが変わる間に測らないよう、OS の動きを減らす設定で開く（動きを確かめるテストは除く）
 test.use({ reducedMotion: "reduce" })
