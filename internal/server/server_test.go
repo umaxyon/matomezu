@@ -969,3 +969,94 @@ func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
 		t.Fatalf("shown again = %v; was %v", got, first)
 	}
 }
+
+// AI は、どこかの窓で利用者が直している物（locks）を変えも消しもできない（being-edited。中の物が変わっても断る）。
+// ほかの物は変えられ、利用者は変えられる。窓が離れたら解ける
+func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	k1 := placeBox(t, s.URL, 10, "一")
+	k2 := placeBox(t, s.URL, 300, "二")
+	a := listen(t, s.URL)
+	next(t, a)
+	b := listen(t, s.URL)
+	next(t, b)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"focused":true,"seq":1}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+window+`,"locks":{"b1":["`+k1+`"]},"seq":1}`, nil)
+	update := func(item, caption string) string {
+		return `{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"` + item + `","props":{"caption":"` + caption + `"}},"on":{"book":"b1"}}`
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), ai); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("ai update of a locked thing = %s", got)
+	}
+	remove := `{"action":"@matomezu/paper:item-remove","args":{"page":"p1","items":["`+k1+`"]},"on":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("ai remove of a locked thing = %s", got)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"caption":"一"`) {
+		t.Fatalf("the locked thing changed: %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k2, "AI"), ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ai update of another thing = %s", got)
+	}
+	user := `{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"`+k1+`","props":{"caption":"人"}},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
+	if _, got := send(t, "POST", s.URL+"/api/perform", user, nil); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("user update of a locked thing = %s", got)
+	}
+	// 古い番号の知らせではロックは変わらない。新しい番号で外せば通る
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+window+`,"seq":1}`, nil)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), ai); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("ai update after a stale view = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+window+`,"seq":2}`, nil)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ai update after unlocking = %s", got)
+	}
+}
+
+// 窓が離れたら、その窓のロックは解ける
+func TestEditLocksGoWithTheWindow(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	k1 := placeBox(t, s.URL, 10, "一")
+	res, err := http.Get(s.URL + "/api/events")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sc := bufio.NewScanner(res.Body)
+	for sc.Scan() && !strings.HasPrefix(sc.Text(), "data: ") {
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"locks":{"b1":["`+k1+`"]},"seq":1}`, nil)
+	remove := `{"action":"@matomezu/paper:item-remove","args":{"page":"p1","items":["`+k1+`"]},"on":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("ai remove while locked = %s", got)
+	}
+	res.Body.Close()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai)
+		if strings.HasPrefix(got, `{"ok":true`) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("ai remove after the window left = %s", got)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// placeBox は、ブック b1 のページ p1 の (x, 10) に、AI がキャプション caption の箱を置き、その id を返す
+func placeBox(t *testing.T, url string, x int, caption string) string {
+	t.Helper()
+	req := fmt.Sprintf(`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":%d,"y":10},"props":{"caption":%q}},"on":{"book":"b1"}}`, x, caption)
+	_, got := send(t, "POST", url+"/api/ai/perform", req, ai)
+	var done struct {
+		Result struct {
+			Item string `json:"item"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(got), &done) != nil || done.Result.Item == "" {
+		t.Fatalf("place = %s", got)
+	}
+	return done.Result.Item
+}

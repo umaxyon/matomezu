@@ -102,6 +102,16 @@ export function viewOf(state: MatomezuState) {
   }
 }
 
+// 利用者が直している物（編集前のロック）を、ブックの id → 物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
+export function locksOf(state: MatomezuState): Record<string, string[]> {
+  const locks: Record<string, string[]> = {}
+  for (const { book, ids } of Object.values(state.editLocks)) {
+    const now = locks[book] ?? []
+    locks[book] = [...now, ...ids.filter(id => !now.includes(id))]
+  }
+  return locks
+}
+
 const ShowSchema = z.object({
   book: z.string(),
   page: z.string().optional(),
@@ -371,16 +381,18 @@ export function serverClient(net: Net = browserNet): ServerClient {
       show()
       let told = ""
       let viewSeq = 0 // 知らせの番号（届く順が入れ替わっても、常駐が古い方を捨てられるように増やす）
+      // 見ているものと、利用者が直している物（どちらかが変わったときと、フォーカスされたときに知らせる）
       const tell = (focused: boolean) => {
-        const view = JSON.stringify(viewOf(next.state.getState()))
-        if (view === told && !focused) return
-        told = view
+        const state = next.state.getState()
+        const now = JSON.stringify({ view: viewOf(state), locks: locksOf(state) })
+        if (now === told && !focused) return
+        told = now
         viewSeq += 1
         void net
           .fetch("api/view", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ client, view: JSON.parse(view), focused, seq: viewSeq }),
+            body: JSON.stringify({ client, ...JSON.parse(now), focused, seq: viewSeq }),
           })
           .catch(() => {})
       }

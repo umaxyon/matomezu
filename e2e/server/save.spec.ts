@@ -395,3 +395,63 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
   await expect(text).toHaveValue("書きかけ")
   await expect(panel).toContainText("付ける先の物が消されました")
 })
+
+test("付けた伝言を右サイドパネルで開いている間は、AI が読んだと知らせても断られ（being-edited）、付いた物も消せない。閉じると読める", async ({
+  page,
+}) => {
+  const ai = aiAuth()
+  const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { result } = await perform({
+    action: "@matomezu/base:book-create",
+    args: { type: "@matomezu/drawing:drawing", title: "直している伝言" },
+  })
+  const on = { book: result.book }
+  const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })
+  const placed = await perform({
+    action: "@matomezu/paper:item-place",
+    args: {
+      page: added.result.page,
+      item: "@matomezu/box:shape-nest-box",
+      at: { x: 100, y: 100 },
+      props: { caption: "一" },
+    },
+    on,
+  })
+  const box = placed.result.item as string
+  await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book } })
+  const panel = page.getByRole("complementary", { name: "右サイドパネル" })
+  await page.locator(`[data-item="${box}"]`).click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  await panel.getByLabel("伝言", { exact: true }).fill("見てほしい")
+  await panel.getByRole("button", { name: "付ける" }).click()
+  await expect(panel).toHaveCount(0)
+  const note = async () =>
+    (
+      (await (await page.request.get(`/api/ai/books/${result.book}`, { headers: ai })).json()).annotations as {
+        id: string
+      }[]
+    )[0]?.id
+  const id = await note()
+  // 開いた伝言のロックが常駐に届くのを待つ
+  const locked = page.waitForResponse(
+    r =>
+      r.url().endsWith("/api/view") && (r.request().postData() ?? "").includes(`"locks":{"${result.book}":["${id}"]}`),
+  )
+  await page.getByRole("button", { name: "伝言を開く" }).click()
+  await expect(panel.getByLabel("伝言", { exact: true })).toHaveValue("見てほしい")
+  await locked
+  const read = () => perform({ action: "@matomezu/base:note-read", args: { note: id }, on })
+  expect(await read()).toMatchObject({ ok: false, reason: "being-edited" })
+  expect(
+    await perform({ action: "@matomezu/paper:item-remove", args: { page: added.result.page, items: [box] }, on }),
+  ).toMatchObject({ ok: false, reason: "being-edited" })
+  await page.keyboard.press("Escape")
+  await expect(panel).toHaveCount(0)
+  await expect.poll(async () => (await read()).ok).toBe(true)
+  await expect.poll(note).toBeUndefined()
+})

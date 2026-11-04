@@ -352,14 +352,28 @@ test("窓が見ているものと、窓がフォーカスされたことを、�
     stages: [{ id: "s1", book: "b1", page: "p1" }],
     canSplit: true,
   })
-  expect(s.sent).toEqual([{ url: "api/view", client: "c1", view: view([]), focused: true, seq: 1 }])
+  expect(s.sent).toEqual([{ url: "api/view", client: "c1", view: view([]), locks: {}, focused: true, seq: 1 }])
   s.store.actions.select("s1", ["x"])
   s.store.actions.resizeStage("s1", { w: 100, h: 100 })
   s.focus()
   expect(s.sent.slice(1)).toEqual([
-    { url: "api/view", client: "c1", view: view(["x"]), focused: false, seq: 2 },
-    { url: "api/view", client: "c1", view: view(["x"]), focused: true, seq: 3 },
+    { url: "api/view", client: "c1", view: view(["x"]), locks: {}, focused: false, seq: 2 },
+    { url: "api/view", client: "c1", view: view(["x"]), locks: {}, focused: true, seq: 3 },
   ])
+})
+
+test("利用者が直している物（編集前のロック）を、ブックごとにまとめて見ているものと一緒に知らせる。まとめた物が変わったときだけ知らせ、全部外したら空で知らせる", async () => {
+  const s = await connected()
+  s.store.setEditLock("a", { book: "b1", ids: ["n1"] })
+  s.store.setEditLock("b", { book: "b1", ids: ["n1", "n2"] })
+  expect(s.sent.at(-1)).toMatchObject({ locks: { b1: ["n1", "n2"] }, seq: 3 })
+  s.store.setEditLock("a", { book: "b1", ids: ["n1"] })
+  expect(s.sent).toHaveLength(3)
+  // 外しても、まとめた物が変わらなければ知らせない
+  s.store.setEditLock("a", null)
+  expect(s.sent).toHaveLength(3)
+  s.store.setEditLock("b", null)
+  expect(s.sent.at(-1)).toMatchObject({ locks: {}, seq: 4 })
 })
 
 test("分けた窓は、ステージごとに見ているものを知らせ、もう分けられない", async () => {

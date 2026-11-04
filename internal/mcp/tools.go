@@ -225,6 +225,8 @@ func refusalText(reason, detail string) string {
 		return "unreadable: the book cannot be read now (" + detail + "); it cannot be changed until that is fixed (see list_books)"
 	case reason == "open-on-screen":
 		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
+	case reason == "being-edited":
+		return "being-edited: the user is editing what this would change or remove (such as a note open on the screen), so nothing was changed; do it again later"
 	case detail != "":
 		return reason + ": " + detail
 	default:

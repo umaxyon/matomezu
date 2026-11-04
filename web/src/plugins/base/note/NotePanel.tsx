@@ -4,7 +4,7 @@
 // どちらも付ける先はカレントを最後に並べて渡し、吹き出しはカレントに出る。付けるか保存したら閉じる（閉じたら選択を外すのは右サイドパネル）。
 // 書いている間に付ける先の物がブックから消えたら（AI が消したなど）、閉じずにテキストFormの上に知らせ、書きかけはそのまま残す（付ける先が無い間は付けられない）。
 // 「伝わったら自動で消す」・吹き出しを出すか（たたむ）・消すは、付けた伝言では押したときに変える。変えられなければ（認可ステップが止めたなど）、どれも始められない。
-// 付けた伝言が無くなったら（AI が読んで消えたなど）、黙って右サイドパネルを閉じる
+// 付けた伝言は、開いている間ロックする（編集前のロック。AI が変えも消しもしない）。付けた伝言が無くなったら（利用者がほかの窓で消したなど）、黙って右サイドパネルを閉じる
 import { useEffect, useRef, useState } from "react"
 import { anchorIds } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
@@ -14,6 +14,7 @@ import { kit } from "../kit"
 import { useCloseRightSidePanel, useRightSidePanel, useSetRightSidePanelCurrent } from "../right-side-panel/hooks"
 import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
+import { useEditLock } from "../utils/useEditLock"
 import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
 import { useAnchorName } from "./anchor-name"
@@ -160,6 +161,8 @@ function NoteEditor({
   const updatable = useAllowed(stage, NOTE_UPDATE.id).ok
   const removable = useAllowed(stage, NOTE_REMOVE.id).ok
   const [text, setText] = useState(props.text)
+  // 開いている間は、この伝言を AI が変えも消しもしない（読んだと知らせるのも。付いた物を消して伝言が変わるのも）
+  useEditLock(open.book, [id])
   const next = ordered(open)
   const moved = next.length !== anchors.length || next.some((a, i) => anchors[i] !== a)
   const textChanged = text.trim() !== "" && text !== props.text

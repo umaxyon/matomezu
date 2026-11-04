@@ -212,6 +212,7 @@ test("matomezu/ui が出す名前", () => {
     "useContextMenu",
     "useCoreCatalog",
     "useDrawnMinimap",
+    "useEditLock",
     "useElapsed",
     "useFollowsSelection",
     "useItem",
