@@ -4,7 +4,7 @@
 
 import type { ActionId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
-import { type ActionContext, type ActionDef, attachedTo } from "./def/action"
+import { type ActionContext, type ActionDef, attachedTo, isOnBook, type Where } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { PermissionQuery } from "./def/permission"
 import type { KeyBinding } from "./keys"
@@ -49,13 +49,20 @@ export function inspect(catalog: CoreCatalog, query: Query, ctx?: Pick<ActionCon
   return action(catalog, query, ctx?.home ?? null)
 }
 
+// アクション action を、開いているブック book の所 where で使えるかの問い。ブックとアノテーションが対象のアクションだけ book と where を渡す
+// （ほかの対象は、ホームのタイプで決まる）
+export function actionQuery(catalog: CoreCatalog, action: string, book: Book | undefined, where?: Where): Query {
+  const onBook = book !== undefined && isOnBook(catalog.actions.get(action)?.target)
+  return { kind: "action", action, ...(onBook ? { book, ...(where ? { where } : {}) } : {}) }
+}
+
 const decide = <V>(steps: Step<V>[]): Inspected<V> => {
   const hit = steps.find(s => s.value !== null)
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }
 
 // タイプ type でアクションを使えるかのステップ: タイプが外す（without）→ タイプが足す（add）→ アクションの付く先（attach）
-export function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
+function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
   return [
     {
       from: { source: "bookType", id: type.id, field: "actions.without" },
@@ -68,6 +75,9 @@ export function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
     { from: { source: "action", id: def.id, field: "attach", bookType: type.id }, value: attachedTo(def, type) },
   ]
 }
+
+// タイプ type でアクションを使えるか（typeSteps で決まる答え）
+export const typeAllows = (def: ActionDef, type: BookTypeDef): boolean => decide(typeSteps(def, type)).value === true
 
 // 認可ステップ: 表の並びで、止めるなら false（許すことはしないので、ほかは null）
 function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean>[] {

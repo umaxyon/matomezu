@@ -14,7 +14,6 @@ import {
   type AnyLibraryScope,
   type AnyPermissionScope,
   type AnySettingsScope,
-  allowedIn,
   libraryScopeOf,
   pagedOnly,
   type Subjects,
@@ -22,7 +21,7 @@ import {
   settingsScopeOf,
   type Where,
 } from "./def/action"
-import { deniedBy, type Inspected, inspect } from "./inspect"
+import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -48,7 +47,7 @@ export type Performed<Id extends ActionId> = { ok: true; next: SubjectOf<Id>; re
 // タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
 function typeActions(catalog: CoreCatalog, type: string): readonly string[] {
   const t = bookType(catalog, type)
-  return [...catalog.actions.values()].filter(a => allowedIn(a, t)).map(a => a.id)
+  return [...catalog.actions.values()].filter(a => typeAllows(a, t)).map(a => a.id)
 }
 
 // ブックで使えるアクション

@@ -8,7 +8,7 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { isOnBook, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
-import { deniedBy, inspect } from "../core/inspect"
+import { actionQuery, deniedBy, inspect } from "../core/inspect"
 import { type ArgsOf, type Permitted, permittedIn } from "../core/perform"
 import {
   findShape,
@@ -114,12 +114,11 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   const items = place?.items?.join("\n")
   const answer = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    const onBook = isOnBook(catalog.actions.get(action)?.target)
-    const book = onBook && o ? s.books[o.book] : undefined
+    const book = o ? s.books[o.book] : undefined
     const page = place?.page ?? o?.page ?? undefined
     const at = { ...(page ? { page } : {}), ...(items ? { items: items.split("\n") } : {}) }
     const ids = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
-    const done = inspect(catalog, { kind: "action", action, book, ...(book ? { where: at } : {}), ...ids }, { home })
+    const done = inspect(catalog, { ...actionQuery(catalog, action, book, at), ...ids }, { home })
     return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
   return allowedOf(answer)

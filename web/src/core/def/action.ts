@@ -3,7 +3,7 @@
 import type { z } from "zod"
 import type { BookAnnotations } from "../annotation"
 import type { PagedBook } from "../book"
-import type { ActionExtras, ActionId } from "../catalog"
+import type { ActionExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
@@ -86,12 +86,6 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): b
     (a.presentations?.includes(type.presentation) ?? false) ||
     (a.annotations?.some(id => !type.annotations?.without?.includes(id as never)) ?? false)
   )
-}
-
-// タイプ type でアクションを使えるか: タイプが外していなければ、タイプが足したか、付く先が当てはまるか（core/inspect.ts のステップと同じ決まり）
-export function allowedIn(def: Pick<ActionDef, "id" | "attach">, type: BookTypeDef): boolean {
-  if (type.actions.without?.includes(def.id as ActionId)) return false
-  return (type.actions.add?.includes(def.id as ActionId) ?? false) || attachedTo(def, type)
 }
 
 // ブックの中の所: page はページの id、items はそのページのアイテムの id、allPages はページを含むブックの全部（どのページも変える）
