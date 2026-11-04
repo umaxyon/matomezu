@@ -84,6 +84,15 @@ describe("機能台帳", () => {
     expect(checkCoreCatalog(more)).toEqual([])
     const untitled = { ...BUILTIN_PARTS, messages: [] }
     expect(checkCoreCatalog(untitled).map(p => p.code)).toContain("E018")
+    // 題名を持つどの種類の定義も見る（アノテーションの種類も）
+    const note = BUILTIN_PARTS.annotations[0]!
+    const nameless = {
+      ...BUILTIN_PARTS,
+      annotations: [...BUILTIN_PARTS.annotations, { ...note, id: "test:sticky", title: "無い名前" as never }],
+    }
+    expect(checkCoreCatalog(nameless).map(problemText)).toEqual([
+      "E018 annotation test:sticky: title 無い名前 is not in the messages",
+    ])
   })
 
   test("言語パックは言語を足し、どのプラグインの文言にも訳を足す。パックの訳がプラグインの訳に勝つ", () => {

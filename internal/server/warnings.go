@@ -11,9 +11,9 @@ import (
 	"slices"
 )
 
-// SetScreenWarnings は窓 clientID が見つけた warning（{code, plugin, params} の並び）を、その窓の分として入れ替える。
+// SetWindowWarnings は窓 clientID が見つけた warning（{code, plugin, params} の並び）を、その窓の分として入れ替える。
 // 文はエンジンが warning の表から作り（表に無い番号は捨てる）、前に無かった 1 行をログに書く。知らない窓なら false
-func (h *Hub) SetScreenWarnings(clientID string, warnings json.RawMessage) (bool, error) {
+func (h *Hub) SetWindowWarnings(clientID string, warnings json.RawMessage) (bool, error) {
 	lines, err := h.engine.WarningLines(warnings)
 	if err != nil {
 		return false, err
@@ -23,13 +23,13 @@ func (h *Hub) SetScreenWarnings(clientID string, warnings json.RawMessage) (bool
 	if _, ok := h.clients[clientID]; !ok {
 		return false, nil
 	}
-	before := h.screenWarnings[clientID]
+	before := h.windowWarnings[clientID]
 	for _, l := range lines {
 		if !slices.Contains(before, l) {
 			fmt.Fprintln(os.Stderr, "warning:", l)
 		}
 	}
-	h.screenWarnings[clientID] = lines
+	h.windowWarnings[clientID] = lines
 	return true, nil
 }
 
@@ -44,13 +44,13 @@ func (h *Hub) Warnings() []string {
 		}
 	}
 	out = append(out, h.annotationWarnings...)
-	ids := make([]string, 0, len(h.screenWarnings))
-	for id := range h.screenWarnings {
+	ids := make([]string, 0, len(h.windowWarnings))
+	for id := range h.windowWarnings {
 		ids = append(ids, id)
 	}
 	slices.Sort(ids)
 	for _, id := range ids {
-		for _, l := range h.screenWarnings[id] {
+		for _, l := range h.windowWarnings[id] {
 			if !slices.Contains(out, l) {
 				out = append(out, l)
 			}

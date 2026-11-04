@@ -154,7 +154,7 @@ describe("アクションの入口", () => {
       // @ts-expect-error ブックが対象のアクションには宛先が要る
       actions.perform("@matomezu/base:page-add", { title: "x" })
       // @ts-expect-error 設定のアクションに宛先は渡さない
-      actions.perform("@matomezu/base:settings-lang", { lang: "en" }, { book: "b1" })
+      actions.perform("@matomezu/base:settings-set", { values: { "@matomezu/base:lang": "en" } }, { book: "b1" })
       // @ts-expect-error 引数の型が違う
       actions.perform("@matomezu/base:page-add", { title: 1 }, { book: "b1" })
     }
