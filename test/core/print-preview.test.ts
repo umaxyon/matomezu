@@ -13,7 +13,9 @@ import {
   stageBlocks,
   zoomTo,
 } from "../../web/src/core/stage"
+import { MARGIN } from "../../web/src/core/viewport"
 import { arrangeSheets } from "../../web/src/plugins/base/print-preview/sheets"
+import { fitSideView, ZOOM_MAX } from "../../web/src/plugins/base/zoom"
 import { CORE_CATALOG } from "../support"
 
 const book = {
@@ -44,6 +46,16 @@ describe("ステージの印刷プレビュー", () => {
     expect(extentOf(shown)).toEqual(area)
     const moved = panBy(shown, 0, -100)
     expect(setPreviewArea(moved, { w: 1200, h: 3200 }).pan).toEqual(moved.pan)
+  })
+
+  test("幅に合わせると、幅が余白 24px を残して入る倍率にし、横は真ん中、縦は始めを余白の所に置く。高さに合わせるときは向きを入れ替える。倍率は下限から上限まで", () => {
+    const shown = setPreviewArea(opened, area)
+    const wide = fitSideView(resize(shown, { w: 1000, h: 300 }), "width")
+    expect(wide.zoom).toBe(0.79) // (1000 - 48) / 1200
+    expect(wide.pan.y + MARGIN).toBe(24)
+    const tall = fitSideView(resize(shown, { w: 400, h: 300 }), "height")
+    expect(tall.zoom).toBe(0.3) // (300 - 48) / 3000 は下限より小さい
+    expect(fitSideView(setPreviewArea(opened, { w: 100, h: 100 }), "width").zoom).toBe(ZOOM_MAX)
   })
 
   test("印刷プレビューの間は、選ぶ・その場の編集を始めない", () => {

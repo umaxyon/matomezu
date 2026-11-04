@@ -3,6 +3,8 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const PRINT_PREVIEW_MESSAGES = defineMessages({
   "Print preview": { en: "Print preview", ja: "印刷プレビュー" },
+  "Fit to width": { en: "Fit to width", ja: "幅に合わせる" },
+  "Fit to height": { en: "Fit to height", ja: "高さに合わせる" },
   "Change print preview": { en: "Change print preview", ja: "印刷プレビューを変える" },
   "Arrange sheets": { en: "Arrange sheets", ja: "紙を並べる向き" },
   Vertical: { en: "Vertical", ja: "縦" },

@@ -1,8 +1,9 @@
-// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、拡大縮小の帯（フッタを隠すので、ここに出す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）。
+// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、拡大縮小の帯（フッタを隠すので、ここに出す。幅か高さに合わせるボタンを足す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）。
 // 項目を変えるとすぐに print-preview-update で変える。ブックがロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
 import { useEffect, useState } from "react"
 import { previewing as isPreviewing } from "../../../core/stage"
+import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useBook, usePerform } from "../../../ui/view-hooks"
@@ -13,8 +14,8 @@ import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
 import { LockToggle } from "../utils/LockToggle"
 import type { StageSlotProps } from "../workspace/ui"
-import { ZoomBar } from "../zoom/ZoomBar"
-import { PRINT_PREVIEW_UPDATE } from "."
+import { ZoomBar, ZoomButton } from "../zoom/ZoomBar"
+import { fitSide, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
 import styles from "./PrintPreviewPanel.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
 
@@ -45,7 +46,7 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>
-      <ZoomBar stage={stage} />
+      <ZoomBar stage={stage} fits={<FitButton stage={stage} />} />
       <div className={styles.tools}>
         <LockToggle
           locked={locked}
@@ -87,4 +88,18 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
       )}
     </div>
   )
+}
+
+// 並べる向きと交わる辺を合わせるボタン（縦に並べるなら幅に合わせる ⟷、横なら高さに合わせる ↕）
+function FitButton({ stage }: { stage: string }) {
+  const catalog = useCatalog().core
+  const book = useBook(stage)
+  const fit = useCommand(stage, PRINT_PREVIEW_FIT.id)
+  const width = fitSide(catalog, book ?? null) === "width"
+  const icon = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d={width ? "M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3" : "M12 4v16M9 7l3-3 3 3M9 17l3 3 3-3"} />
+    </svg>
+  )
+  return <ZoomButton command={{ ...fit, title: kit.message(width ? "Fit to width" : "Fit to height") }} icon={icon} />
 }

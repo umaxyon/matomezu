@@ -1,5 +1,5 @@
 // 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描く（中身はまだ描かない）。
-// 並べた広さはステージに知らせ（初めは全体を収める）、ずらす量と倍率は編集と同じくステージが持つ。
+// 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
 // 初めから出ていなければ（URL から印刷プレビューで開いたとき）、出す
@@ -14,7 +14,7 @@ import { kit } from "../kit"
 import { useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { withPanel } from "../right-side-panel/state"
 import { useZoomMotion } from "../utils/useZoomMotion"
-import { ZOOM_FIT } from "../zoom"
+import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets } from "./book-sheets"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
@@ -36,9 +36,9 @@ export function PrintPreviewView({ stage }: { stage: Stage }) {
     if (layout) setPreviewArea(stage.id, layout.size)
   }, [layout, stage.id, setPreviewArea])
   const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
-  // 初めは、並べた印刷区画の全体を収める（ページ全体を収めると同じ）。右サイドパネルが出て表示領域が狭まり終えてから収め、
-  // そのあと表示領域の大きさが変わっても、倍率を変えていなければ収め直す
-  const fit = useCommand(stage.id, ZOOM_FIT.id)
+  // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、
+  // そのあと表示領域の大きさが変わっても、倍率を変えていなければ合わせ直す
+  const fit = useCommand(stage.id, PRINT_PREVIEW_FIT.id)
   const fitRef = useRef(fit)
   fitRef.current = fit
   const sliding = useRightSidePanelSliding(shown ? stage.id : null)

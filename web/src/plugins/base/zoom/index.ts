@@ -49,6 +49,21 @@ export function fitView(stage: Stage): Stage {
   return panBy(zoomed, pan.x - zoomed.pan.x, pan.y - zoomed.pan.y)
 }
 
+// 描く広さの片方の辺 side（width は幅、height は高さ）を表示領域に収めた見え方: その辺が周りに FIT_PAD の余白を残して入る倍率（ZOOM_MIN～ZOOM_MAX）にして、
+// その向きは真ん中に、もう片方の向きは始め（左か上）を余白の所に置く（印刷プレビューの、並べる向きと交わる向きに合わせる）。広さか表示領域が無ければそのまま
+export function fitSideView(stage: Stage, side: "width" | "height"): Stage {
+  const area = extentOf(stage)
+  const view = stage.view
+  if (!area || !view) return stage
+  const k = side === "width" ? "w" : "h"
+  const zoom = clampZoom((view[k] - 2 * FIT_PAD) / area[k])
+  const zoomed = zoomTo(stage, zoom)
+  const centered = { x: view.w / 2 - MARGIN - (area.w * zoom) / 2, y: view.h / 2 - MARGIN - (area.h * zoom) / 2 }
+  const start = FIT_PAD - MARGIN
+  const pan = side === "width" ? { x: centered.x, y: start } : { x: start, y: centered.y }
+  return panBy(zoomed, pan.x - zoomed.pan.x, pan.y - zoomed.pan.y)
+}
+
 // ステージの見え方（倍率とずらす量）
 export type ViewAt = Pick<Stage, "zoom" | "pan">
 
@@ -60,7 +75,7 @@ export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: St
 }
 
 // 呼ばれたステージの中の状態（表示領域の大きさとずらす量）
-const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
+export const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
 
 export const ZOOM_IN = kit.defineCommand({
   id: "zoom-in",

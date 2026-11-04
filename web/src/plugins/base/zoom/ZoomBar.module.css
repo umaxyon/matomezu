@@ -37,6 +37,11 @@
 .fit {
   margin-right: auto;
 }
+/* 収めるの右に足したボタンの組（右の組との間を空ける） */
+.fits {
+  display: flex;
+  margin-right: auto;
+}
 .level {
   min-width: 32px;
   text-align: center;

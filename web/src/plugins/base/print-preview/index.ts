@@ -4,8 +4,13 @@
 // 設定（settings.ts）を変えるのはアクション print-preview-update だけで、印刷プレビューの間も行え、画面の履歴（Undo）には入れない
 import { z } from "zod"
 import { hasPages } from "../../../core/book"
+import type { CoreCatalog } from "../../../core/core-catalog"
+import type { Book } from "../../../core/schema/book"
+import type { CommandContext } from "../../../store/commands/def"
 import { withBookSettings } from "../book-look"
+import { settingValue } from "../book-settings"
 import { kit } from "../kit"
+import { fitSideView, moveView, stageOf } from "../zoom"
 import {
   PRINT_PREVIEW_BOOK_NAME,
   PRINT_PREVIEW_FLOW,
@@ -49,6 +54,27 @@ export const PRINT_PREVIEW_UPDATE = kit.defineAction({
 })
 
 // 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）。右サイドパネルは印刷プレビューのビューが開く
+// 印刷プレビューで、並べる向きと交わる辺（縦に並べるなら幅、横なら高さ）を表示領域に合わせる（開いたときもこの見え方。もうこの見え方なら押せない）
+export const PRINT_PREVIEW_FIT = kit.defineCommand({
+  id: "print-preview-fit",
+  title: "Fit to width",
+  run: (ctx, a) => {
+    const stage = stageOf(ctx)
+    if (stage) moveView(a, stage, fitSideView(stage, sideOf(ctx)))
+  },
+  when: ctx => ctx.stage.mode === "print-preview",
+  enabled: ctx => {
+    const stage = stageOf(ctx)
+    return stage !== undefined && fitSideView(stage, sideOf(ctx)) !== stage
+  },
+})
+
+// 印刷プレビューで合わせる辺（縦に並べるなら幅、横に並べるなら高さ）
+export function fitSide(catalog: CoreCatalog, book: Book | null): "width" | "height" {
+  return book && settingValue(catalog, book, null, PRINT_PREVIEW_FLOW) === "row" ? "height" : "width"
+}
+const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book)
+
 export const PRINT_PREVIEW_OPEN = kit.defineCommand({
   id: "print-preview-open",
   title: "Print preview",

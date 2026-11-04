@@ -10,8 +10,8 @@ import { ZOOM_FIT, ZOOM_IN, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "."
 import { ZOOM_ICONS } from "./icons"
 import styles from "./ZoomBar.module.css"
 
-// className は帯に足す見た目（置く所に合わせた余白など）
-export function ZoomBar({ stage, className }: { stage: string; className?: string }) {
+// className は帯に足す見た目（置く所に合わせた余白など）。fits は、ページ全体を収めるの右に足すボタン（置く所だけの合わせ方）
+export function ZoomBar({ stage, className, fits }: { stage: string; className?: string; fits?: ReactNode }) {
   const t = useMessages(kit)
   const zoom = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.zoom ?? 1)
   const reset = useCommand(stage, ZOOM_RESET.id)
@@ -41,11 +41,12 @@ export function ZoomBar({ stage, className }: { stage: string; className?: strin
       className={className ? `${styles.bar} ${className}` : styles.bar}
       onPointerDown={e => e.stopPropagation()}
     >
-      <Button command={reset} icon={ZOOM_ICONS[ZOOM_RESET.id]} />
-      <Button command={fit} icon={ZOOM_ICONS[ZOOM_FIT.id]} className={styles.fit} />
-      <Button command={{ ...out, run: () => out.run(null) }} icon={ZOOM_ICONS[ZOOM_OUT.id]} />
+      <ZoomButton command={reset} icon={ZOOM_ICONS[ZOOM_RESET.id]} />
+      <ZoomButton command={fit} icon={ZOOM_ICONS[ZOOM_FIT.id]} className={fits ? undefined : styles.fit} />
+      {fits && <span className={styles.fits}>{fits}</span>}
+      <ZoomButton command={{ ...out, run: () => out.run(null) }} icon={ZOOM_ICONS[ZOOM_OUT.id]} />
       <span className={styles.level} title={t("Zoom")}>{`${Math.round(zoom * 100)}%`}</span>
-      <Button command={{ ...zin, run: () => zin.run(null) }} icon={ZOOM_ICONS[ZOOM_IN.id]} />
+      <ZoomButton command={{ ...zin, run: () => zin.run(null) }} icon={ZOOM_ICONS[ZOOM_IN.id]} />
     </div>
   )
 }
@@ -57,7 +58,7 @@ interface Command {
   run(): void
 }
 
-function Button({ command, icon, className }: { command: Command; icon: ReactNode; className?: string }) {
+export function ZoomButton({ command, icon, className }: { command: Command; icon: ReactNode; className?: string }) {
   const t = useMessages(kit)
   if (!command.shown) return null
   return (

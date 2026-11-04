@@ -20,7 +20,7 @@ async function openPreview(page: Page) {
   await expect(preview(page)).toBeVisible()
 }
 
-test("印刷プレビューを開くと全ページの印刷区画を並べ、ページのタブを隠す。初めは全体を収め、元に戻すは効かず、Esc で閉じると編集に戻る", async ({
+test("印刷プレビューを開くと全ページの印刷区画を並べ、ページのタブを隠す。初めは幅に合わせ、元に戻すは効かず、Esc で閉じると編集に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -31,12 +31,12 @@ test("印刷プレビューを開くと全ページの印刷区画を並べ、�
   await expect(sheets(page)).toHaveCount(2)
   await expect(panel(page)).toContainText("印刷プレビュー")
   await expect(page.getByRole("tablist")).toHaveCount(0)
-  // 初めは全体を収め、並べた印刷区画がどれも表示領域に入る（右サイドパネルの帯の「ページ全体を収める」は押した状態）
-  await expect(panel(page).getByRole("button", { name: "ページ全体を収める" })).toBeDisabled()
+  // 初めは幅に合わせ（右サイドパネルの帯の「幅に合わせる」は押した状態）、1 枚目の紙の幅がステージの幅から余白を除いた幅になる
+  await expect(panel(page).getByRole("button", { name: "幅に合わせる" })).toBeDisabled()
   const stage = (await page.locator("[data-stage]").boundingBox())!
   await expect(async () => {
-    const last = (await sheets(page).last().boundingBox())!
-    expect(last.y + last.height).toBeLessThanOrEqual(stage.y + stage.height)
+    const first = (await sheets(page).first().boundingBox())!
+    expect(Math.abs(first.width - (stage.width - 48))).toBeLessThan(stage.width * 0.01 + 1)
   }).toPass()
   await page.keyboard.press("Control+z")
   await page.keyboard.press("Escape")
