@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
+import { afterFrames } from "./helpers/frames"
 import { addList, addRow } from "./list"
 import { panel, writeNote } from "./note"
 import { fromMenu } from "./stage-menu"
@@ -83,9 +84,10 @@ test("外を押すと閉じる。ハンドツールの間は閉じない。ス�
   const tool = async (name: string) => {
     await page.mouse.move(paper.x + 40, paper.y + 500)
     await page.mouse.down({ button: "right" })
-    await page.waitForTimeout(350)
+    const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
+    await expect(picker).toBeVisible()
     await page.mouse.up({ button: "right" })
-    await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name }).click()
+    await picker.getByRole("button", { name }).click()
   }
   await tool("ハンドツール")
   await expect(panel(page)).toContainText("二つ目")
@@ -116,9 +118,10 @@ test("開いたステージのページが替わるか、分けると閉じる�
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.move(paper.x + 40, paper.y + 500)
   await page.mouse.down({ button: "right" })
-  await page.waitForTimeout(350)
+  const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
+  await expect(picker).toBeVisible()
   await page.mouse.up({ button: "right" })
-  await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name: "ハンドツール" }).click()
+  await picker.getByRole("button", { name: "ハンドツール" }).click()
   await icon.click()
   await expect(panel(page)).toContainText("見てほしい")
   await page.getByRole("button", { name: "ページを足す" }).click()
@@ -162,10 +165,10 @@ const paperBox = async (page: Page) => {
   return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width) }
 }
 
-// 紙が止まっているか（少し間を置いて 2 回測り、同じなら止まっている）
+// 紙が止まっているか（2 コマ描くのを挟んで 2 回測り、同じなら止まっている）
 async function steady(page: Page) {
   const a = await paperBox(page)
-  await page.waitForTimeout(50)
+  await afterFrames(page)
   const b = await paperBox(page)
   return a.x === b.x && a.y === b.y && a.w === b.w
 }
