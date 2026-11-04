@@ -48,6 +48,7 @@ import {
   type RichInputHandle,
   RichText,
   useAnchorRef,
+  useFollowsSelection,
   usePaperDrag,
 } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
@@ -125,7 +126,9 @@ const Rows = memo(function Rows({
   const editor = useRef<RichInputHandle>(null)
   const drag = usePaperDrag(stage, area)
   const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
-  const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok // ドラッグで動かし始められるか
+  // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
+  const follows = useFollowsSelection(stage.id)
+  const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
   const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
   const growing = book && page ? growOf(catalog, book, page) : undefined // ページの増やす向き

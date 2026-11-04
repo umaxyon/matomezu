@@ -346,3 +346,52 @@ test("AI がマークダウンのページの原文を page-update で変える�
   await expect(field()).toHaveValue("# AI の見出し\n\n本文")
   await expect(page.getByRole("region", { name: "プレビュー" }).getByText("本文")).toBeVisible()
 })
+
+test("伝言を書いている間に AI が付ける先の物を消すと、右サイドパネルは閉じずに知らせ、書きかけは残る（付ける先が無い間は付けられない）", async ({
+  page,
+}) => {
+  const ai = aiAuth()
+  const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { result } = await perform({
+    action: "@matomezu/base:book-create",
+    args: { type: "@matomezu/drawing:drawing", title: "伝言の消える先" },
+  })
+  const on = { book: result.book }
+  const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })
+  const place = async (x: number, caption: string) =>
+    (
+      await perform({
+        action: "@matomezu/paper:item-place",
+        args: { page: added.result.page, item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props: { caption } },
+        on,
+      })
+    ).result.item as string
+  const one = await place(100, "一")
+  const two = await place(400, "二")
+  await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book } })
+  const panel = page.getByRole("complementary", { name: "右サイドパネル" })
+  await page.locator(`[data-item="${one}"]`).click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  await page.keyboard.down("Control")
+  await page.locator(`[data-item="${two}"]`).click()
+  await page.keyboard.up("Control")
+  const text = panel.getByLabel("伝言", { exact: true })
+  await text.fill("書きかけ")
+  const remove = (item: string) =>
+    perform({ action: "@matomezu/paper:item-remove", args: { page: added.result.page, items: [item] }, on })
+  expect(await remove(two)).toMatchObject({ ok: true })
+  await expect(panel.getByRole("status")).toHaveText("付ける先の物が消されました")
+  await expect(panel.getByRole("button", { name: "二", exact: true })).toHaveCount(0)
+  expect(await remove(one)).toMatchObject({ ok: true })
+  await expect(panel.getByRole("button", { name: "一", exact: true })).toHaveCount(0)
+  await expect(panel.getByRole("button", { name: "付ける" })).toBeDisabled()
+  // 右サイドパネルの中を押しても閉じない
+  await text.click()
+  await expect(text).toHaveValue("書きかけ")
+  await expect(panel).toContainText("付ける先の物が消されました")
+})

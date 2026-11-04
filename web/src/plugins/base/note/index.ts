@@ -83,25 +83,33 @@ export const NOTE_UPDATE = kit.defineAction({
   id: "note-update",
   attach: { annotations: [NOTE.id] },
   aiDescription:
-    "Change a note's text, whether it shows a bubble, or whether it is removed once read (only the user). Changing the text makes it unread again. Refused if nothing changes.",
+    "Change a note's text, the things it is on (anchors; the bubble stands by the last), whether it shows a bubble, or whether it is removed once read (only the user). Changing the text makes it unread again. Refused if nothing changes.",
   title: "Change note",
   target: "annotations",
   userOnly: true,
   args: z.strictObject({
     note: z.string().min(1),
     text: TEXT.optional(),
+    anchors: z.array(z.string().min(1)).min(1).optional(),
     bubble: z.boolean().optional(),
     removeOnRead: z.boolean().optional(),
   }),
-  run: ({ book, annotations }, { note, ...change }) => {
+  run: ({ book, annotations }, { note, anchors, ...change }) => {
+    const found = findNote(annotations, note)
+    const moved = anchors ? [...new Set(anchors)] : found?.anchors
+    const sameAnchors =
+      !!found && !!moved && moved.length === found.anchors.length && moved.every((id, i) => found.anchors[i] === id)
     const next = changeNote(annotations, note, p => {
       const changed = { ...p, ...change }
-      if (changed.text === p.text && changed.bubble === p.bubble && changed.removeOnRead === p.removeOnRead) return null
+      const same = changed.text === p.text && changed.bubble === p.bubble && changed.removeOnRead === p.removeOnRead
+      if (same) return sameAnchors ? null : p
       if (changed.text === p.text) return changed
       const { readAt: _, ...unread } = changed
       return unread
     })
-    return next ? { next: { book, annotations: next }, result: {} } : null
+    const placed =
+      next && moved ? next.map(a => (a.id === note && a.annotation === NOTE.id ? { ...a, anchors: moved } : a)) : next
+    return placed ? { next: { book, annotations: placed }, result: {} } : null
   },
 })
 
