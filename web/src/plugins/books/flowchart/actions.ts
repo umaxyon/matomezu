@@ -93,12 +93,10 @@ export function alignedRects(
     // チャートごとの並べた形（流れが下へのときの四角）と、線を含めた外枠
     const laid = charts.map(ids => {
       const members = new Set(ids)
-      const links = connectorsOf(page)
-        .filter(c => members.has(c.from) && members.has(c.to))
-        .map(c => ({ from: c.from, to: c.to }))
+      const connectors = connectorsOf(page).filter(c => members.has(c.from) && members.has(c.to))
       const at = alignFlow(
         ids.map(id => item.get(id) as FlowItem),
-        links,
+        connectors.map(c => ({ from: c.from, to: c.to })),
         { centerX: 0, top: 0, ...gap },
       )
       const placed = new Map(
@@ -111,10 +109,7 @@ export function alignedRects(
       const real = new Map([...placed].map(([id, r]) => [id, turn(r, dir)]))
       const alone = unpinPage(catalog, {
         ...page,
-        items: placedAt(catalog, page, real).filter(i => {
-          const ends = i as { from?: string; to?: string }
-          return members.has(i.id) || (ends.from !== undefined && members.has(ends.from) && members.has(ends.to ?? ""))
-        }),
+        items: placedAt(catalog, page, real).filter(i => members.has(i.id) || connectors.some(c => c.id === i.id)),
       })
       const ext = extentOf(catalog, alone, setting)
       return { placed, ext: turn(ext ?? { x: 0, y: 0, w: 0, h: 0 }, dir) }
