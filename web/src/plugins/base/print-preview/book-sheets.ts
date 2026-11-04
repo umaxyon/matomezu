@@ -7,7 +7,7 @@ import { settingValue } from "../book-settings"
 import { pageArea, paperSize } from "../place/items"
 import { filledSheets, sheetKey } from "./filled"
 import { PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
-import { arrangeSheets, type PageSheets, type SheetLayout } from "./sheets"
+import { arrangeSheets, type PageSheets, pickedSheets, type SheetLayout } from "./sheets"
 
 // ブック book の各ページの印刷区画（描けない紙のページは並べない）。数は、形の位置を持つページなら中身が入るだけ（base の pageArea）、
 // ほかは 1 つ
@@ -30,22 +30,26 @@ export function bookSheets(catalog: CoreCatalog, book: Book): SheetLayout {
   })
 }
 
-// ブック book のページ page で、印刷する印刷区画の鍵（columns 列 × rows 行に区切ったうち。印刷プレビューに並べる物と同じ。
-// 書く画面が、ほかの区画を暗くするのに使う。判定できないタイプなら null）
-export function printedSheets(
+// ブック book のページ page を columns 列 × rows 行に区切ったうち、印刷しない印刷区画（印刷プレビューに並べない物。書く画面が暗くする。
+// 判定できないタイプなら空）
+export function unprintedSheets(
   catalog: CoreCatalog,
   book: Book,
   page: ItemPage,
   columns: number,
   rows: number,
-): ReadonlySet<string> | null {
+): { column: number; row: number }[] {
   const paper = paperSize(catalog, page)
   const filled = filledSheets(catalog, book, page)
-  if (!paper || !filled) return null
-  const { sheets } = arrangeSheets([{ page: page.id, paper, columns, rows }], {
-    flow: "column",
-    order: settingValue(catalog, book, null, PRINT_PREVIEW_ORDER),
-    shown: (_, column, row) => filled.has(sheetKey(column, row)),
-  })
-  return new Set(sheets.map(s => sheetKey(s.column, s.row)))
+  if (!paper || !filled) return []
+  const order = settingValue(catalog, book, null, PRINT_PREVIEW_ORDER)
+  const printed = new Set(
+    pickedSheets({ page: page.id, paper, columns, rows }, order, (_, column, row) =>
+      filled.has(sheetKey(column, row)),
+    ).map(c => sheetKey(c.column, c.row)),
+  )
+  return Array.from({ length: columns * rows }, (_, i) => ({
+    column: i % columns,
+    row: Math.floor(i / columns),
+  })).filter(c => !printed.has(sheetKey(c.column, c.row)))
 }

@@ -8,7 +8,7 @@ import { areaOf, paperOf } from "../../../core/stage"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useBook, usePage, useStage } from "../../../ui/view-hooks"
 import { printAreaLines } from "../place/grow"
-import { printedSheets } from "../print-preview/book-sheets"
+import { unprintedSheets } from "../print-preview/book-sheets"
 import { sheetKey } from "../print-preview/filled"
 import { PaperFrame } from "../utils/PaperFrame"
 import type { StageSlotProps } from "../workspace/ui"
@@ -21,7 +21,7 @@ export function PaperLayer({ stage: id }: StageSlotProps) {
   return <PaperFrame stage={stage} className={styles.paper} aria-hidden="true" data-paper-surface />
 }
 
-// 可変ページの、印刷区画の境目の破線と、印刷しない印刷区画（何も載っていない区画。印刷プレビューに並べない物と同じ）の薄い影
+// 可変ページの、印刷区画の境目の破線と、印刷しない印刷区画（何も載っていない印刷区画。印刷プレビューに並べない物と同じ）の薄い影
 // （見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。フッタメニューのボタンで、線と影を一緒に隠せる）
 export function PrintAreaLayer({ stage: id }: StageSlotProps) {
   const stage = useStage(id)
@@ -34,17 +34,12 @@ export function PrintAreaLayer({ stage: id }: StageSlotProps) {
   const lines = paper && area && !hidden ? printAreaLines(paper, area) : null
   const columns = lines?.columns ?? 0
   const rows = lines?.rows ?? 0
-  const printed = useMemo(
-    () => (columns > 0 && book && page ? printedSheets(catalog, book, page, columns, rows) : null),
+  const unprinted = useMemo(
+    () => (columns > 0 && book && page ? unprintedSheets(catalog, book, page, columns, rows) : []),
     [catalog, book, page, columns, rows],
   )
   if (!stage || !area || !paper || !lines) return null
   const { xs, ys } = lines
-  const unprinted = printed
-    ? Array.from({ length: columns * rows }, (_, i) => ({ column: i % columns, row: Math.floor(i / columns) })).filter(
-        c => !printed.has(sheetKey(c.column, c.row)),
-      )
-    : []
   return (
     <PaperFrame stage={stage} className={styles.printAreas} aria-hidden="true" data-print-areas={`${columns}x${rows}`}>
       <svg width={area.w} height={area.h} className={styles.printAreaLines} aria-hidden="true">

@@ -19,7 +19,7 @@
 
 /* 印刷しない印刷区画（何も載っていない区画）の薄い影 */
 .printAreaLines .unprinted {
-  fill: color-mix(in srgb, var(--theme-paper-line) 30%, transparent);
+  fill: var(--theme-paper-line);
   stroke: none;
 }
 

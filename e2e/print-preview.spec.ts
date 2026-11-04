@@ -99,7 +99,7 @@ test("可変ページの何も載っていない印刷区画は、書く画面�
   await dialog.getByRole("switch", { name: "可変ページにする" }).click()
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()
-  // 中身の区画と、右・下の空きで 2×2。箱のある区画のほかの 3 つが暗い
+  // 中身の印刷区画と、右・下の空きで 2×2。箱のある印刷区画のほかの 3 つが暗い
   await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "2x2")
   await expect(page.locator("[data-unprinted]")).toHaveCount(3)
   await openPreview(page)
