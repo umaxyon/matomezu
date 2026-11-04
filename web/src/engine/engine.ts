@@ -4,7 +4,14 @@
 // 追加プラグインが借りる実物（plugin-modules）は、読み込んだときに globalThis.__matomezuModules に置く（変換した JS はここから取り出す）
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
-import { type Annotations, annotationsForAi, checkAnnotations, restoreAnnotations, unexpired } from "../core/annotation"
+import {
+  type Annotations,
+  annotationsForAi,
+  checkAnnotations,
+  restoreAnnotations,
+  talkActions,
+  unexpired,
+} from "../core/annotation"
 import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -274,11 +281,7 @@ function aiCatalog(of: Assembled = assembled) {
 
 // 利用者が AI に話しかけたときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
-  JSON.stringify(
-    [...assembled.catalog.core.actions.values()]
-      .filter(a => a.runsWhenUserTalks && a.target === "annotations")
-      .map(a => a.id),
-  )
+  JSON.stringify(talkActions(assembled.catalog.core))
 
 // アノテーションの並びから、期限（種類の expiresAt）が時点 now より前の物を除く（kept の id の物は除かない。利用者が直している物）。常駐が時間で消す
 ;(

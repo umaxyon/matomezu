@@ -147,3 +147,7 @@ export function unexpired(
   })
   return live.length === annotations.length ? annotations : live
 }
+
+// 利用者が AI に話しかけたときに行うアクション（アクションの定義が runsWhenUserTalks で名乗る、アノテーションが対象の物）の id
+export const talkActions = (catalog: CoreCatalog): string[] =>
+  [...catalog.actions.values()].filter(a => a.runsWhenUserTalks && a.target === "annotations").map(a => a.id)

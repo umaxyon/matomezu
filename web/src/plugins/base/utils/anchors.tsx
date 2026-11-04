@@ -222,7 +222,6 @@ export function Stand({
   )
 }
 
-// 物の要素 found（要素とアンカーの id）を、ステージの表示領域 view の中で囲む Revealable に見えるようにと頼んでから、まとめて囲む四角（base の左上から。無ければ null）
 // ステージのアンカーの表 ctx で、アンカー ids の物を見せる: 物を囲む Revealable に頼んでから、紙をなめらかにずらして物を表示領域の真ん中へ動かす
 // （倍率は変えない。紙の端で、ずらせる所まで）。どれも描かれていなければ何もせず false
 function showAnchors(
@@ -257,6 +256,7 @@ function RevealRequested({ ctx }: { ctx: StandContext }) {
   return null
 }
 
+// 物の要素 found（要素とアンカーの id）を、ステージの表示領域 view の中で囲む Revealable に見えるようにと頼んでから、まとめて囲む四角（base の左上から。無ければ null）
 export function revealedRect(base: Element, view: Element, found: readonly { el: Element; id: string }[]): Rect | null {
   for (const { el, id } of found) revealAround(el, view, id)
   return (
