@@ -5,10 +5,10 @@ import { creatableTypes } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN } from "../../web/src/plugins"
 import { typesToCreate } from "../../web/src/plugins/base/book-new/book-create"
-import { SAMPLE_BOOKS } from "../sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { worldOf } from "../../web/src/store/world"
+import { SAMPLE_BOOKS } from "../sample-books"
 
 test("keeps だけを書いた認可ステップでも、そのタイプのブックを作るのを止められる。ほかのタイプは作れる", () => {
   const kit = pluginKit("@ex/no-tree", defineMessages({ noTree: { en: "No tree", ja: "ツリーは作らない" } }))
