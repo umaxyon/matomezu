@@ -426,6 +426,51 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
   })
 })
 
+test("認可ステップがゴミ箱のブックの戻す・消すを止めていれば、ゴミ箱の一覧のその行のボタンは押せない。行えるほうの行は押せる", () => {
+  const kit = pluginKit("@ex/keep", defineMessages({ keep: { en: "Keep", ja: "残す" } }))
+  const keep = definePluginUi(
+    kit.plugin({
+      permissions: [
+        kit.definePermission({
+          id: "keep",
+          title: "keep",
+          aiDescription: "this book stays in the trash",
+          denies: ({ action, book }) =>
+            ["@matomezu/base:book-restore", "@matomezu/base:book-purge"].includes(action.id) &&
+            book.title === "API の一覧",
+        }),
+      ],
+    }),
+    {},
+  )
+  const store = createMatomezu({
+    home: "@matomezu/master:master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    plugins: [...BUILTIN_UI, keep],
+    partial: true,
+  })
+  const books = Object.values(store.state.getState().books)
+  for (const title of ["API の一覧", "データの形"])
+    expect(
+      store.actions.perform("@matomezu/base:book-trash", { book: books.find(b => b.title === title)!.id }).ok,
+    ).toBe(true)
+  render(
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
+      <Screen />
+    </MatomezuProvider>,
+  )
+  fireEvent.click(fromMenu("ブックを開く"))
+  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
+  fireEvent.click(within(dialog).getByRole("radio", { name: "ゴミ箱" }))
+  const row = (title: string) => within(dialog).getByText(title).closest("li") as HTMLElement
+  const button = (title: string, name: string) => within(row(title)).getByRole("button", { name }) as HTMLButtonElement
+  expect(button("API の一覧", "戻す").disabled).toBe(true)
+  expect(button("API の一覧", "削除").disabled).toBe(true)
+  expect(button("データの形", "戻す").disabled).toBe(false)
+  expect(button("データの形", "削除").disabled).toBe(false)
+})
+
 test("右クリックのメニューは、外を押すか Escape で閉じる", () => {
   renderScreen()
   const paper = screen.getByRole("img", { name: "紙" })
