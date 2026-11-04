@@ -3,7 +3,7 @@ import type { CoreCatalog, ItemPage } from "../../../plugin-api"
 import { type GrowSides, type MinimapMark, paperSize, type SettingReader } from "../../base"
 import { GROW } from "./grow"
 import { layoutTree } from "./layout"
-import { TreeRootSchema } from "./node"
+import { treeRootOf } from "./node"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 
@@ -13,12 +13,12 @@ export function treeMinimap(
   page: ItemPage,
   { setting, grow }: { setting: SettingReader; grow: GrowSides | undefined },
 ): MinimapMark[] {
-  const root = TreeRootSchema.safeParse("root" in page ? page.root : undefined)
+  const root = treeRootOf(page)
   const paper = paperSize(catalog, page)
-  if (!root.success || !paper) return []
+  if (!root || !paper) return []
   const size = setting(NODE_SIZE)
   const shape = setting(NODE_SHAPE)
-  const laid = layoutTree(root.data, setting(GROW), paper, size, shape, grow)
+  const laid = layoutTree(root, setting(GROW), paper, size, shape, grow)
   return [
     ...laid.lines.map((l): MinimapMark => ({ kind: "polyline", points: [l.from, l.to] })),
     ...laid.nodes.map((n): MinimapMark => ({ kind: "rect", x: n.x, y: n.y, w: n.w, h: n.h, rx: 2 })),

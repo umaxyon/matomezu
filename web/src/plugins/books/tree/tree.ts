@@ -9,7 +9,7 @@ import { treeFits } from "./fit"
 import { GROW, growSidesOf } from "./grow"
 import { kit } from "./kit"
 import { treeMinimap } from "./minimap"
-import { TreeRootSchema } from "./node"
+import { TreeRootSchema, treeRootOf } from "./node"
 import { pageFieldsInput } from "./page-fields"
 import { TREE_TOOLS } from "./tools"
 
@@ -58,7 +58,7 @@ export const TREE = kit.defineBookType({
   grow: { sides: setting => growSidesOf(setting(GROW)) },
   // 節の名前はキャプション（base の labelOf）
   labelOf: (page, id) => {
-    const root = TreeRootSchema.safeParse("root" in page ? page.root : undefined).data
+    const root = treeRootOf(page)
     if (!root) return null
     return root.id === id ? root.caption : (nodeOf(root, id)?.caption ?? null)
   },

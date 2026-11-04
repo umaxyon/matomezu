@@ -56,7 +56,7 @@ import { ADDED_EDIT, FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../c
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
 import { dropAt, subtreeIds } from "../drag"
 import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from "../edit"
-import { type DirFolder, DirFolderSchema } from "../entry"
+import { type DirFolder, dirRootOf } from "../entry"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, laidBottom, laidRight, layoutDir, nameLeft } from "../layout"
 import { NOTES } from "../notes"
@@ -129,22 +129,20 @@ const Rows = memo(function Rows({
   // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
   const follows = useFollowsSelection(stage.id)
   const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
-  const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
+  const root = dirRootOf(page)
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
   const growing = book && page ? growOf(catalog, book, page) : undefined // ページの増やす向き
   const variable = growing !== undefined
   const wide =
-    variable && root.success && book && page
-      ? layoutDir(root.data, paper, settingValue(catalog, book, page, NOTES), true)
-      : null
+    variable && root && book && page ? layoutDir(root, paper, settingValue(catalog, book, page, NOTES), true) : null
   useStageArea(
     stage.id,
     growing && wide
       ? grownArea(paper, growing, { x: 0, y: 0, w: laidRight(wide), h: laidBottom(wide.rows) }, true).size
       : null,
   )
-  if (!page || !root.success) return null
-  const dir = root.data
+  if (!page || !root) return null
+  const dir = root
   const usingPencil = stage.tool === PENCIL_TOOL.id
   const selected = selectedIn(dir, stage.selection)
   const writing = usingPencil && (stage.editing === true || stage.editing === ADDED_EDIT)

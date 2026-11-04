@@ -8,7 +8,7 @@ import { ColorSchema, contentIdMaker, growOf, pageContext } from "../../base"
 import { addNodes, changeNode, moveNode, nodeOf, removeNode } from "./edit"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
-import { giveIds, NewNodeSchema, SIDE_NAMES, type TreeRoot, TreeRootSchema } from "./node"
+import { giveIds, NewNodeSchema, SIDE_NAMES, type TreeRoot, treeRootOf } from "./node"
 import { NODE_SIZES } from "./size"
 
 const ON_TREES = { presentations: [kit.name("tree")] }
@@ -16,11 +16,10 @@ const ON_TREES = { presentations: [kit.name("tree")] }
 // ページ page の根と、根を替えたブックを作る関数（ツリーのページでなければ null）
 function treeOf(book: PagedBook, page: string, catalog: CoreCatalog) {
   const found = book.pages.find(p => p.id === page)
-  if (!found || !("root" in found)) return null
-  const root = TreeRootSchema.safeParse(found.root)
-  if (!root.success) return null
+  const root = treeRootOf(found)
+  if (!found || !root) return null
   return {
-    root: root.data,
+    root,
     put: (next: TreeRoot) => {
       const written = { ...found, root: next }
       const fits = treeFits(

@@ -22,7 +22,7 @@ import {
 import { ENTRY_UPDATE } from "./actions"
 import { FILE_COLOR, FOLDER_COLOR } from "./dir"
 import { entryOf } from "./edit"
-import { DirFolderSchema } from "./entry"
+import { dirRootOf } from "./entry"
 import { kit } from "./kit"
 
 export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page: string; entry: string }>) {
@@ -30,8 +30,8 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
   const form = useId()
   const book = pagedOf(useBook(stage))
   const page = book?.pages.find(p => p.id === args.page)
-  const root = DirFolderSchema.safeParse(page && "root" in page ? page.root : undefined)
-  const entry = root.success ? entryOf(root.data, args.entry) : null
+  const root = dirRootOf(page)
+  const entry = root ? entryOf(root, args.entry) : null
   const perform = usePerform(stage)
   const swatches = useSwatches(useBookTheme(book?.id), entry?.kind === "file" ? FILE_COLOR : FOLDER_COLOR)
   const [name, setName] = useState(entry?.name ?? "")

@@ -63,7 +63,7 @@ import { GROW } from "../grow"
 import { kit } from "../kit"
 import { editorWidth, type LaidNode, laidExtent, layoutTree } from "../layout"
 import { LINE_SHAPE, treePath } from "../line-shape"
-import { TreeRootSchema } from "../node"
+import { treeRootOf } from "../node"
 import { NODE_SHAPE } from "../shape"
 import { NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
@@ -156,10 +156,10 @@ const Tree = memo(function Tree({
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
-  const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
+  const root = treeRootOf(page)
   const grow = settingValue(catalog, book ?? null, page ?? null, GROW)
   const usingEdit = stage.tool === EDIT_TOOL.id
-  const selected = root.success ? selectedIn(root.data, stage.selection) : null
+  const selected = root ? selectedIn(root, stage.selection) : null
   const swatches = useSwatches(useBookTheme(book?.id), NODE_FILL) // 節の色のスタンドに並べる色
   const picking = usingEdit && stage.editing === NODE_COLOR_PICK && selected !== null // 節の色を選んでいる
   const writing = usingEdit && stage.editing && !picking && selected !== null
@@ -173,7 +173,7 @@ const Tree = memo(function Tree({
     end: () => zoomStage(stage.id, toolZoom(true)),
   })
   const text = writing && draft?.node === selected ? draft.text : null
-  const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
+  const shown = root && selected && text !== null ? withCaption(root, selected, text) : root
   const size = settingValue(catalog, book ?? null, page ?? null, NODE_SIZE)
   const shape = settingValue(catalog, book ?? null, page ?? null, NODE_SHAPE)
   const lineShape = settingValue(catalog, book ?? null, page ?? null, LINE_SHAPE)
@@ -189,8 +189,8 @@ const Tree = memo(function Tree({
   const at = laid?.nodes.find(n => n.id === selected)
   useCentered(stage, usingEdit && !drag.state ? at : undefined, view, panStageBy)
   useToolZoom(stage.id, usingEdit, zoomStage)
-  if (!book || !page || !root.success || !laid || !selected) return null
-  const tree = root.data
+  if (!book || !page || !root || !laid || !selected) return null
+  const tree = root
   const pageId = page.id
 
   // その場の編集を終える（commit なら書いた字を確定する。することは edit.ts の editEnd が決める）

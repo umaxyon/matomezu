@@ -4,7 +4,7 @@
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
 import { entryOf } from "./edit"
-import { DirFolderSchema } from "./entry"
+import { DirFolderSchema, dirRootOf } from "./entry"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 import { dirMinimap } from "./minimap"
@@ -50,7 +50,7 @@ export const DIR = kit.defineBookType({
   grow: { sides: () => ({ up: false, down: true, left: false, right: true }) }, // 可変ページは、根のある左上を固定して右と下へ増やす（base の拡張ポイント）
   // 行の名前は、ファイルやフォルダの名前（base の labelOf）
   labelOf: (page, id) => {
-    const root = DirFolderSchema.safeParse("root" in page ? page.root : undefined).data
+    const root = dirRootOf(page)
     return root ? (entryOf(root, id)?.name ?? null) : null
   },
   pages: {
