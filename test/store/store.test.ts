@@ -174,6 +174,10 @@ test("トーストは出した順に積み、id で消す（もう無い id な�
   actions.dismissToast(a)
   actions.dismissToast(a)
   expect(state.getState().toasts.map(t => t.id)).toEqual([b])
+  // マーキーは info と success だけ（型で止める）
+  actions.showToast({ kind: "info", form: "marquee", message: "@matomezu/flowchart:Auto align" })
+  // @ts-expect-error 断りの知らせはマーキーにできない
+  actions.showToast({ kind: "warn", form: "marquee", message: "@matomezu/flowchart:Auto align" })
 })
 
 test("プラグインが持つステージの画面の状態は、プラグインの id ごとに置き、undefined で消える。無いステージには置かず、ステージを閉じれば消える", () => {

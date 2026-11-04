@@ -11,7 +11,7 @@ import type { StageSlotProps } from "../workspace/ui"
 import { useLeftDrawer, useLeftDrawerTabs, useSetLeftDrawer } from "./hooks"
 import styles from "./LeftDrawer.module.css"
 import { LEFT_DRAWER } from "./slots"
-import { drawerPressCloses } from "./state"
+import { leftDrawerPressCloses } from "./state"
 
 // 押しても左ドロワーを閉じない所（ダイアログ・メニュー・トースト・左ドロワーを開くボタン）
 const KEEPS = "[role=dialog], [role=menu], [role=status], [role=alert], [data-left-drawer-opener]"
@@ -44,7 +44,7 @@ function Opened({ stage, tab, tabs }: { stage: string; tab: string; tabs: readon
       const target = e.target instanceof Element ? e.target : null
       if (!target) return
       const inside = ref.current?.contains(target) ?? false
-      if (drawerPressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS) })) set(stage, null)
+      if (leftDrawerPressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS) })) set(stage, null)
     }
     document.addEventListener("pointerdown", onPointerDown, true)
     return () => document.removeEventListener("pointerdown", onPointerDown, true)

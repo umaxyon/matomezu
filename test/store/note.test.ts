@@ -1,7 +1,9 @@
 // 伝言（base のアノテーションの種類）: ブックのデータとは別に持ち、付ける・変える・消すのは利用者だけで、AI は読んだと知らせるだけ。
 // ロック中のブックにも付けられ、画面の履歴に入らず、アンカーの物が全部無くなると消える
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import type { Annotation } from "../../web/src/core/annotation"
+import { defineAction } from "../../web/src/core/def/action"
 import { performIn } from "../../web/src/core/perform"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
@@ -178,4 +180,27 @@ test("話しかけたとき（note-talked）は、読まれていて会話の時
   expect(store.actions.perform(TALKED, {}, ON).ok).toBe(false)
   expect(store.actions.perform(UPDATE, { note: read, text: "直した" }, ON).ok).toBe(true)
   expect(props()[0]).toBeUndefined()
+})
+
+test("話しかけたときに行うアクションは、アノテーションが対象のアクションだけが名乗れる（型で止める）", () => {
+  const talks = defineAction({
+    id: "@x/t:talk",
+    title: "@matomezu/base:Note",
+    aiDescription: "t",
+    target: "annotations",
+    runsWhenUserTalks: true,
+    args: z.strictObject({}),
+    run: () => null,
+  })
+  expect(talks.runsWhenUserTalks).toBe(true)
+  defineAction({
+    id: "@x/t:book",
+    title: "@matomezu/base:Note",
+    aiDescription: "t",
+    target: "book",
+    // @ts-expect-error ブックが対象のアクションは、話しかけたときに行えない
+    runsWhenUserTalks: true,
+    args: z.strictObject({}),
+    run: () => null,
+  })
 })

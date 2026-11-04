@@ -171,8 +171,8 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	}
 }
 
-// 利用者が話しかけると（Talked）、読まれた伝言に会話の時点が付き、そこから伝言期限（既定 2 時間）が過ぎると、時間で消える（Expire）。
-// まだ読まれていない伝言には付かず、消えない。窓で利用者が直している伝言は、期限が過ぎても消さない
+// 利用者が話しかけると（Talked）、読まれた伝言に会話の時点が付き、期限が過ぎたら時間で消え（Expire）、保存からも消える。
+// 窓で利用者が直している伝言は、期限が過ぎても消さない（期限の境目は core の unexpired のテストが見る）
 func TestTalkStartsNoteExpiry(t *testing.T) {
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
@@ -216,23 +216,17 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 	if got := ids(); got != "c1:2026-11-05T01:00:00.000Z c2:" {
 		t.Fatalf("after talking = %s", got)
 	}
-	if err := h.Expire(talked.Add(119 * time.Minute)); err != nil {
-		t.Fatal(err)
-	}
-	if got := ids(); got != "c1:2026-11-05T01:00:00.000Z c2:" {
-		t.Fatalf("before the expiry = %s", got)
-	}
 	// 窓で直している間は消さない
 	c := h.Join()
 	h.SetView(c.id, json.RawMessage(`{}`), map[string][]string{"b1": {"c1"}}, true, 1)
-	if err := h.Expire(talked.Add(121 * time.Minute)); err != nil {
+	if err := h.Expire(talked.Add(3 * time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	if got := ids(); got != "c1:2026-11-05T01:00:00.000Z c2:" {
 		t.Fatalf("while editing = %s", got)
 	}
 	h.Leave(c)
-	if err := h.Expire(talked.Add(121 * time.Minute)); err != nil {
+	if err := h.Expire(talked.Add(3 * time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	if got := ids(); got != "c2:" {

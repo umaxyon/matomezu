@@ -16,17 +16,12 @@ import { MARK, MARK_REMOVE, type MarkProps } from "../mark"
 import { NOTE, NOTE_REMOVE, type NoteProps } from "../note"
 import { BUBBLE_CHARS, NoteIcon } from "../note/NoteLayer"
 import { NOTE_PANEL_ID } from "../note/panel-id"
-import { anchorsRect } from "../right-side-panel/anchors-rect"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
-import { revealView } from "../right-side-panel/reveal"
 import { clampChars } from "../text/text"
+import { useRequestReveal } from "../utils/reveal-request"
 import type { StageSlotProps } from "../workspace/ui"
-import { moveView } from "../zoom"
 import styles from "./NoteList.module.css"
 import { addedAtOf, listedPages, shownTime } from "./rows"
-
-// 押した物を描くまで待つ、いちばん多いコマ数（ほかのページを開いたあと）
-const WAIT_FRAMES = 30
 
 export function NoteList({ stage }: StageSlotProps) {
   const t = useMessages(kit)
@@ -106,6 +101,7 @@ function useGo(stage: string): (a: AiAnnotation) => void {
   const actions = useActions()
   const setDrawer = useSetLeftDrawer()
   const openPanel = useOpenRightSidePanel()
+  const reveal = useRequestReveal()
   return a => {
     setDrawer(stage, null)
     const opened = read().workspace.stages.find(s => s.id === stage)?.opened
@@ -114,14 +110,7 @@ function useGo(stage: string): (a: AiAnnotation) => void {
       openPanel(stage, { widget: NOTE_PANEL_ID, subject: a.id, anchors: a.anchors, current: a.anchors.at(-1) ?? "" })
       return
     }
-    // ほかのページを開いたら、付けた物が描かれるまで待ってから見せる
-    let frames = 0
-    const reveal = () => {
-      const now = read().workspace.stages.find(s => s.id === stage)
-      const rect = now && anchorsRect(stage, a.anchors, now)
-      if (now && rect) moveView(actions, now, revealView(now, rect, "keep"))
-      else if (frames++ < WAIT_FRAMES) requestAnimationFrame(reveal)
-    }
-    requestAnimationFrame(reveal)
+    // 付けた物が描かれたら見せる（ほかのページを開いたあとは、描かれるのを待つ）
+    reveal(stage, a.anchors)
   }
 }

@@ -4,11 +4,11 @@ import { useActions, useLayout, useMatomezuState, useReadState } from "../../../
 import { useSetStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { LEFT_DRAWER } from "./slots"
-import { drawerIn, withDrawer } from "./state"
+import { leftDrawerIn, withLeftDrawer } from "./state"
 
 // ステージ stage で開いている左ドロワーのタブ（閉じていれば null）
 export const useLeftDrawer = (stage: string): string | null =>
-  useMatomezuState(s => drawerIn(s.stageStates[stage]?.[kit.id]))
+  useMatomezuState(s => leftDrawerIn(s.stageStates[stage]?.[kit.id]))
 
 // 配置が左ドロワーのスロットに置いたウィジェット（タブの並び）
 export const useLeftDrawerTabs = (): readonly string[] => useLayout().slots[LEFT_DRAWER] ?? []
@@ -20,7 +20,7 @@ export function useSetLeftDrawer(): (stage: string, tab: string | null) => void 
   const { focusStage } = useActions()
   return useCallback(
     (stage, tab) => {
-      set(stage, withDrawer(read().stageStates[stage]?.[kit.id], tab))
+      set(stage, withLeftDrawer(read().stageStates[stage]?.[kit.id], tab))
       if (tab) focusStage(stage)
     },
     [read, set, focusStage],

@@ -381,3 +381,12 @@ func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 		t.Fatalf("CheckBooks = %+v", found)
 	}
 }
+
+// 利用者が話しかけたときに行うアクションは、runsWhenUserTalks を名乗ったものだけ（ビルトインでは伝言の note-talked）
+func TestTalkActions(t *testing.T) {
+	e := newEngine(t)
+	ids, err := e.TalkActions()
+	if err != nil || len(ids) != 1 || ids[0] != "@matomezu/base:note-talked" {
+		t.Fatalf("talk actions = %v, %v", ids, err)
+	}
+}

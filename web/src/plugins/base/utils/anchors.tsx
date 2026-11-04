@@ -23,6 +23,7 @@ import { useActions } from "../../../ui/store-context"
 import { useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
+import { useClearRevealRequest, useRevealRequest } from "./reveal-request"
 import { revealAround, revealablesAround } from "./revealable"
 import { stageElement } from "./stage-element"
 import {
@@ -108,7 +109,12 @@ export function AnchorsProvider({ stage, children }: { stage: string; children: 
   const anchors = useMemo(newAnchors, [])
   const [layer, setLayer] = useState<HTMLDivElement | null>(null)
   const value = useMemo(() => ({ stage, anchors, layer, setLayer }), [stage, anchors, layer])
-  return <Context.Provider value={value}>{children}</Context.Provider>
+  return (
+    <Context.Provider value={value}>
+      {children}
+      <RevealRequested ctx={value} />
+    </Context.Provider>
+  )
 }
 
 // id のアンカーを付ける ref を返す関数（アンカーの表の外では何もしない）
@@ -182,7 +188,6 @@ export function Stand({
     : out
       ? standBeside(rect, size, side)
       : standAt(rect, size, area, side)
-  const stage = ctx.stage
   const away: StandAway | null = out
     ? {
         pin: (p, pad = STAND_MARGIN) => {
@@ -191,17 +196,7 @@ export function Stand({
           return { x: pinned.x - at.x, y: pinned.y - at.y }
         },
         show: () => {
-          const layer = ctx.layer
-          const view = stageElement(stage)
-          if (!layer || !view) return
-          const found = ids.flatMap(id => {
-            const el = ctx.anchors.element(id)
-            return el ? [{ el, id }] : []
-          })
-          const now = revealedRect(layer, view, found)
-          if (!now) return
-          const by = revealShift(now, area)
-          glidePan((dx, dy) => panStageBy(stage, dx, dy), by.x, by.y)
+          showAnchors(ctx, ids, panStageBy)
         },
       }
     : null
@@ -228,6 +223,40 @@ export function Stand({
 }
 
 // 物の要素 found（要素とアンカーの id）を、ステージの表示領域 view の中で囲む Revealable に見えるようにと頼んでから、まとめて囲む四角（base の左上から。無ければ null）
+// ステージのアンカーの表 ctx で、アンカー ids の物を見せる: 物を囲む Revealable に頼んでから、紙をなめらかにずらして物を表示領域の真ん中へ動かす
+// （倍率は変えない。紙の端で、ずらせる所まで）。どれも描かれていなければ何もせず false
+function showAnchors(
+  ctx: StandContext,
+  ids: readonly string[],
+  panStageBy: (stage: string, dx: number, dy: number) => void,
+): boolean {
+  const layer = ctx.layer
+  const view = stageElement(ctx.stage)
+  if (!layer || !view) return false
+  const found = ids.flatMap(id => {
+    const el = ctx.anchors.element(id)
+    return el ? [{ el, id }] : []
+  })
+  const now = revealedRect(layer, view, found)
+  if (!now) return false
+  const by = revealShift(now, { w: layer.clientWidth, h: layer.clientHeight })
+  glidePan((dx, dy) => panStageBy(ctx.stage, dx, dy), by.x, by.y)
+  return true
+}
+
+// 見せてと頼まれた物（ステージの画面の状態の revealing。伝言一覧の行を押したときなど）を、描かれたら見せて、頼みを消す（ほかのページを開いたあとは、描かれるのを待つ）
+function RevealRequested({ ctx }: { ctx: StandContext }) {
+  const ids = useRevealRequest(ctx.stage)
+  const clear = useClearRevealRequest()
+  const { panStageBy } = useActions()
+  const version = useSyncExternalStore(ctx.anchors.subscribe, ctx.anchors.snapshot)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: アンカーが描かれるたび（version）に見直す
+  useEffect(() => {
+    if (ids && showAnchors(ctx, ids, panStageBy)) clear(ctx.stage)
+  }, [ids, ctx, panStageBy, clear, version])
+  return null
+}
+
 export function revealedRect(base: Element, view: Element, found: readonly { el: Element; id: string }[]): Rect | null {
   for (const { el, id } of found) revealAround(el, view, id)
   return (

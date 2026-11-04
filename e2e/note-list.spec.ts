@@ -87,3 +87,21 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   // 流し終えたら消える
   await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toHaveCount(0)
 })
+
+test("開いているブックが替わると、左ドロワーは閉じる", async ({ page }) => {
+  const ai = aiAuth()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const made = await (
+    await page.request.post("/api/ai/perform", {
+      headers: ai,
+      data: { action: "@matomezu/base:book-create", args: { type: "@matomezu/drawing:drawing", title: "ほかの" } },
+    })
+  ).json()
+  await openDrawer(page)
+  await page.request.post("/api/ai/show", { headers: ai, data: { book: made.result.book } })
+  await expect(drawer(page)).toHaveCount(0)
+})

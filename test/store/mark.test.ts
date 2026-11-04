@@ -58,15 +58,16 @@ test("1 つの物にマークは 1 つ: 付けると、その物のほかのマ�
   const { a, b, marks, add } = ready()
   add([a, b], "inko")
   add([a], "alert")
-  expect(marks().map(m => [(m.props as { kind: string }).kind, m.anchors])).toEqual([
-    ["inko", [b]],
-    ["alert", [a]],
+  expect(marks()).toMatchObject([
+    { props: { kind: "inko", addedAt: expect.any(String) }, anchors: [b] },
+    { props: { kind: "alert", addedAt: expect.any(String) }, anchors: [a] },
   ])
   add([b], "fukurou")
-  expect(marks().map(m => [(m.props as { kind: string }).kind, m.anchors])).toEqual([
-    ["alert", [a]],
-    ["fukurou", [b]],
+  expect(marks()).toMatchObject([
+    { props: { kind: "alert" }, anchors: [a] },
+    { props: { kind: "fukurou" }, anchors: [b] },
   ])
+  expect(marks()).toHaveLength(2)
 })
 
 test("AI はマークを付けられないが、読んだ印を付けて外せる。読まれるまで AI の応えを待つ", () => {

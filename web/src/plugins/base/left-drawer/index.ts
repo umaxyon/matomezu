@@ -2,14 +2,14 @@
 // 開け閉めの動きは入れ物が持ち、機能ごとに作らない
 import { kit } from "../kit"
 import { LEFT_DRAWER } from "./slots"
-import { drawerIn, withDrawer } from "./state"
+import { leftDrawerIn, withLeftDrawer } from "./state"
 
 // 開いている左ドロワーを閉じる（Esc。左ドロワーの中にフォーカスがあるとき）
 export const LEFT_DRAWER_CLOSE = kit.defineCommand({
   id: "left-drawer-close",
   title: "Close the left drawer",
-  run: (_ctx, a) => a.updateStageState(now => withDrawer(now, null)),
-  when: ctx => drawerIn(ctx.stageState) !== null,
+  run: (_ctx, a) => a.updateStageState(now => withLeftDrawer(now, null)),
+  when: ctx => leftDrawerIn(ctx.stageState) !== null,
 })
 
 export const LEFT_DRAWER_KEYS = [
