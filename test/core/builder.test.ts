@@ -218,6 +218,35 @@ test("テーマがデータの動き方のテーマキーに決まった言葉�
   ])
 })
 
+test("テーマが色でないテーマキーに明暗で違う値を書いたら W020 を残し（明暗で切り替えられるのは色だけ）、色のテーマキーと同じ値の明暗は見ない", () => {
+  const plugins = (BUILTIN as readonly Plugin[]).map(p =>
+    p.id === "@matomezu/base"
+      ? {
+          ...p,
+          themes: (p.themes ?? []).map(t =>
+            t.id === "@matomezu/base:simple"
+              ? {
+                  ...t,
+                  tokens: {
+                    ...t.tokens,
+                    "@matomezu/markdown:markdown-font-size": { light: "14px", dark: "16px" },
+                    "@matomezu/markdown:markdown-h1-size": { light: "2em", dark: "2em" },
+                    "@matomezu/markdown:markdown-link": { light: "#0969da", dark: "#4493f8" },
+                    "@matomezu/box:box-radius": { light: "8px", dark: "0px" },
+                  },
+                }
+              : t,
+          ),
+        }
+      : p,
+  )
+  const warnings = assemble(plugins).catalog.store.warnings.filter(w => w.code === "W020")
+  expect(warnings.map(w => [w.plugin, w.params.token, w.params.light, w.params.dark]).sort()).toEqual([
+    ["@matomezu/base", "@matomezu/box:box-radius", "8px", "0px"],
+    ["@matomezu/base", "@matomezu/markdown:markdown-font-size", "14px", "16px"],
+  ])
+})
+
 test("追加プラグインはノーマライズステップを持てない（E310）", () => {
   const step = { pageFields: [], normalize: (_before: unknown, after: never) => after }
   expect(() => assemble([...BUILTIN, { id: "extra", normalizeSteps: [step] }])).toThrow(/E310|only built-in/)

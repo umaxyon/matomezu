@@ -1,5 +1,5 @@
 // データのプラグイン: 中に 2 次元の表を持ち、表かグラフで見せるアイテム（データ）と、その表を入れ替えるアクション、テーマキーの値の確かめ
-import { defineBuiltin } from "../../../plugin-api/builtin"
+import { defineBuiltin, oneShadeCheck } from "../../../plugin-api/builtin"
 import { DATA_SET } from "./actions"
 import { DATA_TOKENS_CHECK } from "./check"
 import { DATA, DATA_EDIT_DIALOG, DATA_TOKENS } from "./data"
@@ -11,7 +11,26 @@ export const DATA_PLUGIN = defineBuiltin(
     actions: [DATA_SET],
     dialogs: [DATA_EDIT_DIALOG],
     tokens: DATA_TOKENS,
-    checks: [DATA_TOKENS_CHECK],
+    checks: [
+      DATA_TOKENS_CHECK,
+      oneShadeCheck(
+        [
+          "data-radius",
+          "data-shadow",
+          "data-bar-radius",
+          "data-line-width",
+          "data-dot-size",
+          "data-motion-draw",
+          "data-motion-data",
+          "data-motion-look",
+          "data-motion-ease",
+          "data-motion-bar",
+          "data-motion-line",
+          "data-motion-dot",
+          "data-motion-pie",
+        ].map(kit.name),
+      ),
+    ],
   }),
 )
 

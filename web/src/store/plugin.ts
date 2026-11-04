@@ -107,6 +107,19 @@ export const definePlugin = <const P extends Plugin>(
 export type { CatalogCheck }
 export { problem, warning }
 
+// 色でないテーマキー tokens（本当の id）に、明暗で違う値を書いたテーマを W020 にする確かめ（明暗で切り替えられるのは色だけ）。warning はテーマのプラグインのもの
+export const oneShadeCheck =
+  (tokens: readonly string[]): CatalogCheck =>
+  catalog =>
+    [...catalog.themes.values()].flatMap(t =>
+      tokens.flatMap(token => {
+        const set = t.tokens?.[token]
+        if (set === undefined || typeof set === "string" || set.light === undefined || set.dark === undefined) return []
+        if (set.light === set.dark) return []
+        return [warning("W020", t.id.split(":")[0] ?? "", { theme: t.id, token, light: set.light, dark: set.dark })]
+      }),
+    )
+
 // ビルトインプラグインの印: キーの割り当てで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")

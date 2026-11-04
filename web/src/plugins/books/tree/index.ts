@@ -1,7 +1,7 @@
 // ツリーのプラグイン: ツリーのブックのタイプと、その見せ方・伸びる向き・節の大きさ・節の形・線の形の設定の項目・ページを作るダイアログ・節の大きさと色のダイアログ・
 // 節のアクションとコマンド・道具の組（編集とハンド）。
 // テーマと紙の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（tree.ts・tools.ts）
-import { defineBuiltin } from "../../../plugin-api/builtin"
+import { defineBuiltin, oneShadeCheck } from "../../../plugin-api/builtin"
 import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import {
   NODE_ADD_CHILD,
@@ -24,6 +24,7 @@ import { NEW_TREE_PAGE_DIALOG, NODE_SIZE_DIALOG, TREE, TREE_PAGE_SETTINGS_DIALOG
 
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
+    checks: [oneShadeCheck(["tree-node-radius"].map(kit.name))], // 色でないテーマキーは明暗で違う値にできない
     bookTypes: [TREE],
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],

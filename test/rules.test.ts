@@ -175,6 +175,15 @@ test("ブックのタイプの名前で振る舞いを分けない（使える�
   expect(offenders).toEqual([])
 })
 
+test("テーマの値を引く（resolveTokens・bookTokens）のは、プラグインの見た目だけ（データを変える処理と並べ方の計算は、テーマで変わる値を使わない）", () => {
+  // base の book-look/look.ts は、ブックのテーマキーの値を引く関数そのものを書く所
+  const offenders = sources
+    .filter(f => crateOf(f.rel) === "plugins" && !isView(f.rel) && f.rel !== "plugins/base/book-look/look.ts")
+    .filter(f => /\b(?:resolveTokens|bookTokens)\(/.test(f.text))
+    .map(f => f.rel)
+  expect(offenders).toEqual([])
+})
+
 test("状態を変えるのは store の中だけ（画面は setState を使わない）", () => {
   const offenders = sources.filter(f => crateOf(f.rel) !== "store" && /\bsetState\b/.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])

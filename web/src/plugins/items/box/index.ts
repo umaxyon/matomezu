@@ -1,10 +1,11 @@
 // 箱のプラグイン: 箱のアイテム（キャプションと本文の四角）と内包ボックス（同じ見た目で子の形を持てる）と、その追加と編集のダイアログ
-import { defineBuiltin } from "../../../plugin-api/builtin"
+import { defineBuiltin, oneShadeCheck } from "../../../plugin-api/builtin"
 import { BOX, BOX_ADD_DIALOG, BOX_EDIT_DIALOG, BOX_TOKENS, NEST_BOX, NEST_BOX_ADD_DIALOG } from "./box"
 import { kit } from "./kit"
 
 export const BOX_PLUGIN = defineBuiltin(
   kit.plugin({
+    checks: [oneShadeCheck(["box-radius", "box-shadow", "box-fold"].map(kit.name))], // 色でないテーマキーは明暗で違う値にできない
     items: [BOX, NEST_BOX],
     dialogs: [BOX_ADD_DIALOG, BOX_EDIT_DIALOG, NEST_BOX_ADD_DIALOG],
     tokens: BOX_TOKENS,
