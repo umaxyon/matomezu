@@ -19,12 +19,9 @@ function previewing() {
   return store
 }
 
-test("印刷プレビューを開くと、右サイドパネルに印刷プレビューの中身を出す。印刷プレビューの間は、開くコマンドを出さない", () => {
+test("開くコマンドで印刷プレビューになる。印刷プレビューの間は、開くコマンドを出さない", () => {
   const store = previewing()
   expect(stageOf(store).mode.kind).toBe("print-preview")
-  expect(store.state.getState().stageStates.s1?.["@matomezu/base"]).toMatchObject({
-    rightSidePanel: { widget: "@matomezu/base:print-preview-panel", subject: "b1" },
-  })
   expect(isShown(store, store.state.getState(), "s1", "@matomezu/base:print-preview-open")).toBe(false)
 })
 

@@ -6,9 +6,11 @@
 import { type CSSProperties, useEffect, useMemo, useRef } from "react"
 import type { Stage } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
-import { useActions, useCatalog } from "../../../ui/store-context"
-import { useBook, useStagePan } from "../../../ui/view-hooks"
-import { useOpenRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
+import { useActions, useCatalog, useReadState } from "../../../ui/store-context"
+import { useBook, useSetStageState, useStagePan } from "../../../ui/view-hooks"
+import { kit } from "../kit"
+import { useRightSidePanel } from "../right-side-panel/hooks"
+import { withPanel } from "../right-side-panel/state"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { bookSheets } from "./book-sheets"
 import styles from "./PrintPreviewView.module.css"
@@ -29,15 +31,20 @@ export function PrintPreviewView({ stage }: { stage: Stage }) {
     setPreviewArea(stage.id, layout.size, first ? { x: first.x, y: first.y } : { x: 0, y: 0 })
   }, [layout, page, stage.id, setPreviewArea])
   const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
-  const openPanel = useOpenRightSidePanel()
+  const setStageState = useSetStageState(kit)
+  const read = useReadState()
   const seen = useRef(false) // 右サイドパネルに中身を出したか
-  const bookId = stage.opened?.book
+  const opened = stage.opened
   useEffect(() => {
     if (shown) seen.current = true
     else if (seen.current) closePrintPreview(stage.id)
-    else if (bookId)
-      openPanel(stage.id, { widget: PRINT_PREVIEW_PANEL_ID, subject: bookId, anchors: [], current: bookId })
-  }, [shown, stage.id, bookId, closePrintPreview, openPanel])
+    else if (opened) {
+      // 閉じたときに戻す見え方は印刷プレビューが持つので、右サイドパネルの戻しの覚えは書かない
+      const open = { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.book, anchors: [], current: opened.book }
+      const now = read().stageStates[stage.id]?.[kit.id]
+      setStageState(stage.id, withPanel(now, { ...open, book: opened.book, page: opened.page }))
+    }
+  }, [shown, stage.id, opened, closePrintPreview, read, setStageState])
   // ダブルクリックは、ずらすドラッグでステージがポインタをつかむので、ステージで受けて押した所の印刷区画を探す
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {

@@ -4,11 +4,10 @@ import { z } from "zod"
 import { withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
-import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
+import { type SettingGroup, settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../page-tabs/page-problems"
-import { PRINT_PREVIEW_SETTINGS } from "../print-preview/settings"
 import { BOOK_PAPER_COLOR } from "./look"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME, bookTheme, bookTokens } from "./look"
@@ -18,10 +17,15 @@ const ARGS = z.strictObject({
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだ項目（形はタイプが決める）
 })
 
-// ブック book に、ブックの設定の項目 settings（ブックのタイプが選んだ項目だけ。null は消す）を当てたブック。形に合わない・選んでいないタイプなら null。
+// ブック book に、ブックの設定の項目 settings（ブックのタイプが選んだ、組 group の項目だけ。null は消す）を当てたブック。形に合わない・選んでいないタイプなら null。
 // 紙の色は小文字にそろえ、ページを整え（settleBook）、問題の出るページがあれば断る（book-update と book-create が使う）
-export function withBookSettings(catalog: CoreCatalog, book: Book, settings: unknown): Book | null {
-  const patch = settingsPatchOf(catalog, book, "book")?.safeParse(settings)
+export function withBookSettings(
+  catalog: CoreCatalog,
+  book: Book,
+  settings: unknown,
+  group: SettingGroup = "general",
+): Book | null {
+  const patch = settingsPatchOf(catalog, book, "book", group)?.safeParse(settings)
   if (!patch?.success) return null
   const values = { ...(patch.data as Record<string, unknown>) }
   const paper = values[BOOK_PAPER_COLOR.id]
@@ -41,11 +45,10 @@ export const BOOK_UPDATE = kit.defineAction({
   target: "book",
   permissionScope: "book",
   args: ARGS,
-  describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "book", PRINT_PREVIEW_SETTINGS).optional() }),
+  describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "book").optional() }),
   run: (book, args, ctx) => {
     const next: Book = args.title === undefined ? book : { ...book, title: args.title }
     if (args.settings === undefined) return { next, result: null }
-    if (Object.keys(args.settings).some(id => (PRINT_PREVIEW_SETTINGS as readonly string[]).includes(id))) return null
     const settled = withBookSettings(ctx.catalog, next, args.settings)
     return settled && { next: settled, result: null }
   },

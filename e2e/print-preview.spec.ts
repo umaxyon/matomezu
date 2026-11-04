@@ -48,7 +48,7 @@ test("並べる向きを横にすると、印刷区画が横に並ぶ。読み�
   await openPreview(page)
   const [a, b] = [sheets(page).nth(0), sheets(page).nth(1)]
   expect((await b.boundingBox())!.y).toBeGreaterThan((await a.boundingBox())!.y)
-  await panel(page).getByRole("radio", { name: "横", exact: true }).click({ force: true })
+  await panel(page).getByTitle("横", { exact: true }).click()
   await expect(async () => {
     expect((await b.boundingBox())!.x).toBeGreaterThan((await a.boundingBox())!.x)
   }).toPass()
@@ -72,11 +72,11 @@ test("ロック中のブックで設定を変えると、書き換えてよい�
   await expect(unlock).toHaveAttribute("aria-pressed", "true")
   const across = panel(page).getByRole("radio", { name: "横", exact: true })
   const ask = page.getByRole("alertdialog", { name: "ロック中ですが書き換えてもいいですか？" })
-  await across.click({ force: true })
+  await panel(page).getByTitle("横", { exact: true }).click()
   await ask.getByRole("button", { name: "キャンセル" }).click()
   await expect(ask).toBeHidden()
   await expect(across).not.toBeChecked()
-  await across.click({ force: true })
+  await panel(page).getByTitle("横", { exact: true }).click()
   await ask.getByRole("button", { name: "確定" }).click()
   await expect(across).toBeChecked()
   await expect(unlock).toHaveAttribute("aria-pressed", "true")

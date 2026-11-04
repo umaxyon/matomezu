@@ -17,8 +17,7 @@ import {
   type WheelEvent,
 } from "react"
 import type { BookTypeId } from "../../../core/core-catalog"
-import { paperOf, type Stage } from "../../../core/stage"
-import { toolDef } from "../../../core/tools"
+import { paperOf, previewing, type Stage } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
@@ -51,11 +50,11 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const isCurrent = useMatomezuState(s => s.workspace.current === id)
   const book = useBook(id)
   const catalog = useCatalog().core
-  const tool = useStage(id)?.tool ?? null
-  const previewing = stage?.mode.kind === "print-preview"
-  // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
-  const pans = previewing || (tool !== null && toolDef(catalog, tool).pans === true)
-  const keeps = !previewing && keepsPan(catalog, tool) // 紙をずらさない道具か
+  const view = useStage(id)
+  const tool = view?.tool ?? null
+  const pans = view?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
+  const inPreview = !!stage && previewing(stage)
+  const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
   // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）
   const theme = useBookThemeVars(id)
   const colors = useTextColors(id)
@@ -97,7 +96,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     return () => el.removeEventListener("wheel", onWheel)
   }, [])
   if (!stage) return null
-  const hasPaper = previewing || paperOf(stage) !== null
+  const hasPaper = inPreview || paperOf(stage) !== null
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
@@ -160,7 +159,7 @@ function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; va
   const tokens = useTokenScope(type) // ブックのタイプのプラグインのテーマキー（--<名前>）
   return (
     <div className={styles.book} style={{ ...vars, ...tokens }}>
-      {stage.mode.kind === "print-preview" ? (
+      {previewing(stage) ? (
         <PrintPreviewView stage={stage} />
       ) : (
         <AnchorsProvider stage={stage.id}>

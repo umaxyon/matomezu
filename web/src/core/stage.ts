@@ -295,6 +295,7 @@ export function setPreviewArea(stage: Stage, area: Size, at: Point): Stage {
   if (mode.kind !== "print-preview") return stage
   if (mode.area && mode.area.w === area.w && mode.area.h === area.h) return stage
   const next = { ...stage, mode: { ...mode, area } }
+  // (0 - at.x) は、at が 0 のとき -0 にしないため（URL や比べる値に -0 を出さない）
   return settle(next, mode.area ? stage.pan : { x: (0 - at.x) * stage.zoom, y: (0 - at.y) * stage.zoom })
 }
 
