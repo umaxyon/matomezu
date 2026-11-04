@@ -1,4 +1,9 @@
 import { expect, test } from "bun:test"
+import type { PagedBook } from "../../web/src/core/book"
+import { paperSize } from "../../web/src/plugins/base/place/items"
+import { placedSize } from "../../web/src/plugins/base/place/placed"
+import { bookSheets } from "../../web/src/plugins/base/print-preview/book-sheets"
+import { filledSheets } from "../../web/src/plugins/base/print-preview/filled"
 import { isEnabled, isShown } from "../../web/src/store/commands"
 import { newStore } from "../support"
 
@@ -57,4 +62,30 @@ test("印刷プレビューの設定は print-preview-update で変え、画面�
   )
   expect(refused.ok).toBe(false)
   expect(bookOf(store).settings).toEqual({ "@matomezu/base:print-preview-flow": "row" })
+})
+
+test("印刷区画に載っているか: 形ははみ出しが半分より小さければ始めの区画、半分以上なら次の区画に載る。空の区画は印刷プレビューに並べない", async () => {
+  const store = newStore()
+  const done = store.actions.perform("@matomezu/base:page-update", { page: "p1", grows: "right-down" }, { book: "b1" })
+  expect(done.ok).toBe(true)
+  const place = (x: number, caption: string) =>
+    store.actions.perform(
+      "@matomezu/paper:item-place",
+      { page: "p1", item: BOX, at: { x, y: 40 }, props: { caption } },
+      { book: "b1" },
+    )
+  const book = () => store.state.getState().books.b1 as PagedBook
+  const filled = () => [...(filledSheets(store.catalog.core, book(), book().pages[0]!) ?? [])].sort()
+  const paperW = paperSize(store.catalog.core, book().pages[0]!)!.w
+  expect(place(40, "一").ok).toBe(true)
+  expect(filled()).toEqual(["0,0"])
+  // 区画 0 の右の端から少しだけはみ出す箱は区画 0 に、大きくはみ出す箱は区画 1 に載る
+  const box = (caption: string) =>
+    book().pages[0]!.items!.find(i => (i.props as { caption?: string }).caption === caption)!
+  const w = placedSize(store.catalog.core, box("一") as never)!.w
+  expect(place(paperW - w + 10, "少し").ok).toBe(true)
+  expect(filled()).toEqual(["0,0"])
+  expect(place(paperW - 10, "大きく").ok).toBe(true)
+  expect(filled()).toEqual(["0,0", "1,0"])
+  expect(bookSheets(store.catalog.core, book()).sheets.map(s => `${s.column},${s.row}`)).toEqual(["0,0", "1,0"])
 })

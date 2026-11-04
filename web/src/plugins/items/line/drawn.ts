@@ -240,6 +240,16 @@ export function linesBounds(
   return { x, y, w: Math.max(...pts.map(p => p.x)) - x, h: Math.max(...pts.map(p => p.y)) - y }
 }
 
+// 印刷区画に載っているかを決める線の点: 手で直した途中の区間（via）を持つ線の、両端を除いた点。引数は linesBounds と同じ
+export function linesPrintPoints(
+  lines: readonly ConnectorData[],
+  rects: ReadonlyMap<string, PortArea>,
+  elbow: boolean,
+): Point[] {
+  const handled = (lines as readonly PlacedLine[]).filter(l => l.props.via)
+  return drawLines(handled, rects, elbow).flatMap(d => d.points.slice(1, -1))
+}
+
 // ページの線のミニマップの絵: 線ごとの点の並びの折れ線（端の形とキャプションは描かない）。引数は linesBounds と同じ
 export function linesMinimap(
   lines: readonly ConnectorData[],
