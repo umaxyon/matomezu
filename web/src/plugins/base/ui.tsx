@@ -11,7 +11,7 @@ import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_DRAWER_BUTTON } from "./left-drawer/ui"
 import { MARK_LAYER } from "./mark/ui"
-import { NOTE_LAYER, NOTE_PANEL } from "./note/ui"
+import { NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE } from "./note/ui"
 import { NOTE_LIST } from "./note-list/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { PRINT_PREVIEW_BUTTON, PRINT_PREVIEW_PANEL, PRINT_PREVIEW_SETTING_VIEWS } from "./print-preview/ui"
@@ -109,6 +109,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_PREVIEW_PANEL,
     LEFT_DRAWER_BUTTON,
     NOTE_LIST,
+    NOTE_READ_NOTICE,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
@@ -161,6 +162,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
     "@matomezu/base:left-drawer-button": typeof LEFT_DRAWER_BUTTON
     "@matomezu/base:note-list": typeof NOTE_LIST
+    "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX

@@ -59,7 +59,9 @@ test("左ドロワーの伝言一覧に、伝言とマークが新しい順に�
   await expect(drawer(page)).toHaveCount(0)
 })
 
-test("AI が伝言を読むと、伝言一覧の行が既読になる", async ({ page }) => {
+test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言を読みました」と流れ、伝言一覧の行が既読になる", async ({
+  page,
+}) => {
   const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto("/")
@@ -80,5 +82,8 @@ test("AI が伝言を読むと、伝言一覧の行が既読になる", async ({
   expect(await perform({ action: "@matomezu/base:note-read", args: { note }, on: { book } })).toMatchObject({
     ok: true,
   })
+  await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toBeVisible()
   await expect(row).toContainText("既読")
+  // 流し終えたら消える
+  await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toHaveCount(0)
 })

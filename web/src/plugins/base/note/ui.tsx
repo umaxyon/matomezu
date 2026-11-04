@@ -6,6 +6,10 @@ import { BOOK_LAYERS } from "../workspace/slots"
 import { NoteLayer } from "./NoteLayer"
 import { NotePanel } from "./NotePanel"
 import { NOTE_PANEL_ID } from "./panel-id"
+import { ReadNotice } from "./ReadNotice"
+
+// 伝言が AI に読まれたら知らせる（根に置き、何も描かない）
+export const NOTE_READ_NOTICE = defineWidget({ id: kit.name("note-read-notice"), slots: ["root"], view: ReadNotice })
 
 export const NOTE_LAYER = defineWidget({ id: kit.name("note-layer"), slots: [BOOK_LAYERS], view: NoteLayer })
 

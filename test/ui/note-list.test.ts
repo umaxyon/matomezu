@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../web/src/core/annotation"
 import type { Book } from "../../web/src/core/schema/book"
+import { newlyRead } from "../../web/src/plugins/base/note/ReadNotice"
 import { listedPages, shownTime } from "../../web/src/plugins/base/note-list/rows"
 import { CORE_CATALOG } from "../support"
 
@@ -39,4 +40,12 @@ test("時刻は、同じ日なら時:分、ほかの日は月/日 時:分", () =
   expect(shownTime(new Date(2026, 10, 5, 9, 5).toISOString(), now)).toBe("9:05")
   expect(shownTime(new Date(2026, 10, 4, 23, 30).toISOString(), now)).toBe("11/4 23:30")
   expect(shownTime("x", now)).toBe("")
+})
+
+test("伝言が読まれた知らせは、前に未読だった伝言が読まれたときだけ", () => {
+  const unread = note("n1", "a", "t")
+  const read = { ...unread, props: { ...(unread.props as object), readAt: "u" } }
+  expect(newlyRead(new Set(["n1"]), { b1: [read] })).toBe(true)
+  expect(newlyRead(new Set(["n1"]), { b1: [unread] })).toBe(false)
+  expect(newlyRead(new Set(), { b1: [read] })).toBe(false)
 })

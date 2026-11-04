@@ -42,3 +42,67 @@
 .toast[data-kind="error"] {
   --mark: var(--skin-danger);
 }
+
+/* マーキー: 画面の上の真ん中に下りる決まった幅の帯。中の文を右から左へ一度流し、流し終えたら上へ引っ込む（全部で 3 秒） */
+.marquee {
+  --mark: var(--skin-info);
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 30;
+  width: 280px;
+  overflow: hidden;
+  padding: 6px 0;
+  border: 1px solid var(--skin-border);
+  border-top: 0;
+  border-bottom: 3px solid var(--mark);
+  border-radius: 0 0 8px 8px;
+  background: var(--skin-surface-raised);
+  box-shadow: var(--skin-shadow-3);
+  color: var(--skin-text);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  animation: marquee-drop 3s ease forwards;
+}
+.marquee[data-kind="success"] {
+  --mark: var(--skin-success);
+}
+.flow {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee-flow 2.4s linear 0.3s both;
+}
+@keyframes marquee-drop {
+  0% {
+    transform: translate(-50%, -100%);
+  }
+  10%,
+  90% {
+    transform: translate(-50%, 0);
+  }
+  100% {
+    transform: translate(-50%, -100%);
+  }
+}
+@keyframes marquee-flow {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    transform: translate(-50%, 0);
+    animation: marquee-still 2s step-end forwards;
+  }
+  .flow {
+    padding-left: 12px;
+    animation: none;
+  }
+}
+@keyframes marquee-still {
+  to {
+    visibility: hidden;
+  }
+}
