@@ -1,11 +1,10 @@
 // 物の名前（base/note/labels.ts の anchorLabel と、定義の labelOf）: ブックのタイプ → 形 → キャプション → つなぐもの → 種類の名前の順に引き、装飾は外す
 import { expect, test } from "bun:test"
-import type { ItemPage } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
 import { anchorLabel } from "../../web/src/plugins/base/note/labels"
 import { CORE_CATALOG } from "../support"
 
-const drawing = (items: unknown[]): Book =>
+const drawing = (items: readonly unknown[]): Book =>
   ({
     type: "@matomezu/drawing:drawing",
     id: "b1",
@@ -19,7 +18,7 @@ test("箱はキャプション、無ければ本文の最初の行。どちら�
     { id: "a", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: "**太い**見出し", body: "" } },
     { id: "b", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: " ", body: "\n本文の行\n次" } },
     { id: "c", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: "", body: "" } },
-  ] as ItemPage["items"])
+  ])
   expect(label(book, "a")).toEqual({ text: "太い見出し" })
   expect(label(book, "b")).toEqual({ text: "本文の行" })
   expect(label(book, "c")).toEqual({ title: "@matomezu/box:Box" })
@@ -44,7 +43,7 @@ test("リストはキャプション、行は行のキャプションか本文�
     { id: "d", item: "@matomezu/shape:shape-diamond", x: 0, y: 0, props: { caption: "分かれ道" } },
     { id: "n1", item: "@matomezu/line:connector-line", from: "l", to: "d", props: { caption: "行く" } },
     { id: "n2", item: "@matomezu/line:connector-line", from: "d", to: "l", props: {} },
-  ] as ItemPage["items"])
+  ])
   expect(label(book, "l")).toEqual({ text: "買う物" })
   expect(label(book, "r1")).toEqual({ text: "牛乳" })
   expect(label(book, "r2")).toEqual({ text: "パン" })
