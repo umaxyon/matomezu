@@ -38,9 +38,11 @@ export const HISTORY_RESTORE = kit.defineAction({
           id: Id,
           fields: FieldsPatch,
           items: z.array(z.strictObject({ id: Id, index: Index, item: Fields.nullable() })),
+          order: z.array(Id).optional(),
         }),
       ]),
     ),
+    order: z.array(Id).optional(),
   }),
   run: (book, args) => ({ next: applyRestore(book, args), result: {} }),
 })

@@ -27,6 +27,7 @@ import { MARK_NEW } from "./mark/commands"
 import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_UPDATE } from "./note"
 import { NOTE_NEW } from "./note/commands"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
+import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
@@ -155,6 +156,7 @@ export const BASE = defineBuiltin(
     actions: [
       PAGE_ADD,
       PAGE_UPDATE,
+      PAGE_MOVE,
       PAGE_REMOVE,
       PAGE_LOCK,
       PAGE_UNLOCK,
@@ -248,6 +250,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-add": typeof PAGE_ADD
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE
+    "@matomezu/base:page-move": typeof PAGE_MOVE
     "@matomezu/base:page-remove": typeof PAGE_REMOVE
     "@matomezu/base:page-lock": typeof PAGE_LOCK
     "@matomezu/base:page-unlock": typeof PAGE_UNLOCK
