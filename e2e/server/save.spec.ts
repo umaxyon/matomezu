@@ -1,6 +1,7 @@
 import { E2E_BOOKS } from "../books"
 import { aiAuth, expect, type Page, test } from "../fixtures"
-import { footerMenuTool } from "../helpers/footer-menu"
+import { addBox } from "../helpers/paper"
+import { fromMenu } from "../helpers/stage-menu"
 
 // 常駐を空にして始め、テストごとに使うブックを置く
 test.use({ books: [] })
@@ -36,12 +37,7 @@ test("置いた箱は少し待って常駐に残り、読み直しても同じ�
   const book = E2E_1
   await put(page, book)
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  await page.mouse.click(paper.x + 200, paper.y + 150)
-  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill("残る箱")
-  await dialog.getByRole("button", { name: "追加" }).click()
+  await addBox(page, 200, 150, "残る箱")
   await expect.poll(async () => (await data(page)).books.find((b: { id: string }) => b.id === book.id)?.version).toBe(2)
   const before = (await page.locator("[data-item]").boundingBox())!
   await page.reload()
@@ -71,12 +67,7 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
     await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", E2E_1.title)
     await expect(page.locator("[data-item]")).toHaveCount(1)
   }
-  await (await footerMenuTool(a, "箱")).click()
-  const paper = (await a.getByRole("img", { name: "紙" }).boundingBox())!
-  await a.mouse.click(paper.x + 500, paper.y + 300)
-  const dialog = a.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill("共有の箱")
-  await dialog.getByRole("button", { name: "追加" }).click()
+  await addBox(a, 500, 300, "共有の箱")
   const shared = (page: typeof a) => page.locator("[data-item]", { hasText: "共有の箱" })
   await expect(shared(b)).toBeVisible()
   const before = (await shared(a).boundingBox())!
@@ -232,10 +223,8 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
   await put(page, { ...E2E_1, id: "e2e-trash", title: "捨てるブック" })
   await put(page, { ...E2E_1, id: "e2e-locked", title: "鍵のブック", locked: true })
   await page.goto("/")
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
   const openDialog = async () => {
-    await trigger.hover()
-    await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ブックを開く" }).click()
+    await (await fromMenu(page, "ブックを開く")).click()
     return page.getByRole("dialog", { name: "ブックを開く" })
   }
   let dialog = await openDialog()

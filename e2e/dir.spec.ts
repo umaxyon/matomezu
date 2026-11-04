@@ -1,7 +1,7 @@
 // ディレクトリ構成図のブック（@matomezu/dir）: キーで中身を足して名前を書き、行をドラッグして付け替え、▸・▾ で開け閉めする
 import { expect, type Page, test } from "./fixtures"
+import { newBook } from "./helpers/master"
 import { paper } from "./helpers/paper"
-import { fromMenu } from "./helpers/stage-menu"
 
 const rows = (page: Page) => paper(page).locator("[data-entry]")
 const row = (page: Page, name: string) => rows(page).filter({ hasText: new RegExp(`^${name}$`) })
@@ -9,14 +9,7 @@ const row = (page: Page, name: string) => rows(page).filter({ hasText: new RegEx
 // マスターでディレクトリ構成図のブックを作り、根のフォルダ proj だけのページを作る
 async function dirBook(page: Page) {
   await page.goto("/")
-  await (await fromMenu(page, "ホーム")).click()
-  await page.getByRole("button", { name: "新しいブック" }).click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  await page.keyboard.type("構成")
-  await dialog.getByLabel("ブックのタイプ").selectOption({ label: "ディレクトリ構成図" })
-  await dialog.getByRole("button", { name: "作成" }).click()
-  await page.getByRole("button", { name: "ページを作る" }).click()
-  const add = page.getByRole("dialog", { name: "新しいページ" })
+  const add = await newBook(page, "構成", "ディレクトリ構成図")
   await add.getByLabel("根のフォルダの名前").fill("proj")
   await add.getByRole("button", { name: "作る" }).click()
   await expect(rows(page)).toHaveText(["proj"])

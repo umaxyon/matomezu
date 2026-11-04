@@ -1,5 +1,6 @@
 // スクロールバーが幅を取る環境（Windows など）での見た目。ヘッドレスのブラウザは既定でスクロールバーを隠すので、隠さずに起動する
 import { expect, test } from "./fixtures"
+import { fromMenu } from "./helpers/stage-menu"
 
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } })
 
@@ -8,9 +9,7 @@ test("分割した右のステージで中身が縦にスクロールしても�
 }) => {
   await page.setViewportSize({ width: 1280, height: 500 })
   await page.goto("/")
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "画面を分割" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   await right.getByRole("option", { name: "マスター" }).click()
   // マスターの画面は縦にスクロールし、右端にスクロールバーが出る

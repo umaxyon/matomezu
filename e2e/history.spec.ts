@@ -1,21 +1,12 @@
 // 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない
-import { expect, type Page, test } from "./fixtures"
+import { expect, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
-import { items } from "./helpers/paper"
-
-async function placeBox(page: Page, caption: string) {
-  await (await footerMenuTool(page, "箱")).click()
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  await page.mouse.click(paper.x + 200, paper.y + 150)
-  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
-}
+import { newBook } from "./helpers/master"
+import { addBox, items } from "./helpers/paper"
 
 test("置いた箱を Ctrl+Z で元に戻すと消え、Ctrl+Shift+Z と Ctrl+Y でやり直すと戻る", async ({ page }) => {
   await page.goto("/")
-  await placeBox(page, "戻す箱")
+  await addBox(page, 200, 150, "戻す箱")
   await expect(items(page)).toHaveCount(1)
   await page.keyboard.press("Control+z")
   await expect(items(page)).toHaveCount(0)
@@ -31,8 +22,8 @@ test("フッタメニューの元に戻す・やり直すのボタンで戻し�
   page,
 }) => {
   await page.goto("/")
-  await placeBox(page, "1")
-  await placeBox(page, "2")
+  await addBox(page, 200, 150, "1")
+  await addBox(page, 200, 150, "2")
   await expect(items(page)).toHaveCount(2)
   await footerMenuTool(page, "箱")
   const undo = page.getByRole("button", { name: "元に戻す" })
@@ -51,16 +42,7 @@ test("ツリーで＋で足して書いた節は、1 回の Ctrl+Z で消える�
   page,
 }) => {
   await page.goto("/")
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ホーム" }).click()
-  await page.getByRole("button", { name: "新しいブック" }).click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  await page.keyboard.type("木")
-  await dialog.getByLabel("ブックのタイプ").selectOption({ label: "ツリー" })
-  await dialog.getByRole("button", { name: "作成" }).click()
-  await page.getByRole("button", { name: "ページを作る" }).click()
-  const add = page.getByRole("dialog", { name: "新しいページ" })
+  const add = await newBook(page, "木", "ツリー")
   await add.getByLabel("根のキャプション").fill("根")
   await add.getByRole("button", { name: "作る" }).click()
   const paper = page.getByRole("img", { name: "紙" })

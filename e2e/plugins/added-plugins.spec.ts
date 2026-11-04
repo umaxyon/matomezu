@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { aiAuth, expect, type Page, test } from "../fixtures"
 import { footerMenuTool } from "../helpers/footer-menu"
+import { fromMenu } from "../helpers/stage-menu"
 
 // 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが自分で足し、テストが終われば外す
 
@@ -209,13 +210,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
 }) => {
   await link(page, "test/added-plugins/ex3")
   await page.goto("/")
-  await page.locator('button[aria-haspopup="menu"]').first().hover()
-  await page
-    .locator('button[aria-haspopup="menu"]')
-    .first()
-    .locator("xpath=../following-sibling::div[1]")
-    .getByRole("button", { name: "ホーム" })
-    .click()
+  await (await fromMenu(page, "ホーム")).click()
   await page.getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
   const types = dialog.getByLabel("ブックのタイプ")
