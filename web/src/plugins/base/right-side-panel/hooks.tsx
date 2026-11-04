@@ -33,23 +33,27 @@ export const useRightSidePanel = (stage: string): RightSidePanelOpen | null =>
   useMatomezuState(s => panelIn(s.stageStates[stage]?.[kit.id]))
 
 // 右サイドパネルを開く関数: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
-// 選択に従う中身なら、入れ物が開いたときにステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない
+// 選択に従う中身なら、入れ物が開いたときにステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない。
+// restore が none なら、閉じたときに見え方を戻さない（開く前の見え方を覚えない。戻す見え方を自分で持つ物。印刷プレビューなど）
 export function useOpenRightSidePanel(): (
   stage: string,
   open: Pick<RightSidePanelOpen, "widget" | "subject" | "anchors" | "current">,
+  restore?: "back" | "none",
 ) => void {
   const read = useReadState()
   const set = useSetStageState(kit)
   const { focusStage } = useActions()
   const pressClosed = useContext(PressClosedContext)
   return useCallback(
-    (stage, open) => {
+    (stage, open, restore = "back") => {
       if (pressClosed.current) return
       const { workspace, stageStates } = read()
       const now = workspace.stages.find(s => s.id === stage)
       const opened = now?.opened
       if (!now || !opened) return
-      set(stage, withOpened(stageStates[stage]?.[kit.id], { ...open, book: opened.book, page: opened.page }, now))
+      const state = stageStates[stage]?.[kit.id]
+      const panel = { ...open, book: opened.book, page: opened.page }
+      set(stage, restore === "back" ? withOpened(state, panel, now) : withPanel(state, panel))
       focusStage(stage)
     },
     [read, set, focusStage, pressClosed],

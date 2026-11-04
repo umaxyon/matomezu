@@ -53,7 +53,6 @@ export const PRINT_PREVIEW_UPDATE = kit.defineAction({
   },
 })
 
-// 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）。右サイドパネルは印刷プレビューのビューが開く
 // 印刷プレビューで、並べる向きと交わる辺（縦に並べるなら幅、横なら高さ）を表示領域に合わせる（開いたときもこの見え方。もうこの見え方なら押せない）
 export const PRINT_PREVIEW_FIT = kit.defineCommand({
   id: "print-preview-fit",
@@ -75,6 +74,7 @@ export function fitSide(catalog: CoreCatalog, book: Book | null): "width" | "hei
 }
 const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book)
 
+// 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）。右サイドパネルは印刷プレビューのビューが開く
 export const PRINT_PREVIEW_OPEN = kit.defineCommand({
   id: "print-preview-open",
   title: "Print preview",

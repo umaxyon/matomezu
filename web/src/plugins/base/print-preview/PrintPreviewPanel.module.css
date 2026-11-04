@@ -10,8 +10,12 @@
 .head {
   font-weight: bold;
 }
-/* 設定の項目の並び（パネルの幅に入らない選択肢は、名前の下へ折り返す） */
+/* 設定の項目の並び（パネルの幅に入らない選択肢は、名前の下へ折り返す。止められている間は fieldset ごと押せない） */
 .settings {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -22,6 +26,9 @@
 }
 /* ボタンの行（ロック） */
 .tools {
+  margin: 0;
+  padding: 0;
+  border: 0;
   display: flex;
   gap: 8px;
 }

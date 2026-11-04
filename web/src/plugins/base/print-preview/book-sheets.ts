@@ -8,7 +8,7 @@ import { PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
 import { arrangeSheets, type PageSheets, type SheetLayout } from "./sheets"
 
 // ブック book の各ページの印刷区画（描けない紙のページは並べない）。数は、形の位置を持つページなら中身が入るだけ（base の pageArea）、
-// ほかは 1 つ（位置をデータに持たない見せ方の数は、見せ方から受け取る形にする）
+// ほかは 1 つ
 export function pageSheetsOf(catalog: CoreCatalog, book: Book): PageSheets[] {
   return (pagedOf(book)?.pages ?? []).flatMap(page => {
     const paper = paperSize(catalog, page)

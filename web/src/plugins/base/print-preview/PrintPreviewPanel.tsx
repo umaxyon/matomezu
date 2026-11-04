@@ -6,11 +6,11 @@ import { previewing as isPreviewing } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useBook, usePerform } from "../../../ui/view-hooks"
+import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { ownSettings, settingDefs } from "../book-settings"
 import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
-import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
+import { BOOK_LOCK, BOOK_UNLOCK, LOCK } from "../lock"
 import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
 import { LockToggle } from "../utils/LockToggle"
 import type { StageSlotProps } from "../workspace/ui"
@@ -34,6 +34,10 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
     return !!st && isPreviewing(st)
   })
   const [confirming, setConfirming] = useState<Patch | null>(null)
+  // 変えられるか（ロックで止められるなら、確かめてから外して変えるので変えられる。ほかの認可ステップに止められるなら変えられない）
+  const changing = useAllowed(stage, PRINT_PREVIEW_UPDATE.id)
+  const blocked = !changing.ok && changing.permission !== null && changing.permission !== LOCK.id
+  const lockable = useAllowed(stage, book?.locked ? BOOK_UNLOCK.id : BOOK_LOCK.id).ok
   const mine = open?.widget === PRINT_PREVIEW_PANEL_ID
   useEffect(() => {
     if (mine && !previewing) close(stage)
@@ -47,14 +51,14 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>
       <ZoomBar stage={stage} fits={<FitButton stage={stage} />} />
-      <div className={styles.tools}>
+      <fieldset className={styles.tools} disabled={!lockable}>
         <LockToggle
           locked={locked}
           label={t(locked ? "Unlock book" : "Lock book")}
           onChange={on => perform(on ? BOOK_LOCK.id : BOOK_UNLOCK.id, {})}
         />
-      </div>
-      <div className={styles.settings}>
+      </fieldset>
+      <fieldset className={styles.settings} disabled={blocked}>
         {settingDefs(catalog, book.type, "book", "print-preview").map(def => {
           const id = def.id
           const Control = ui.settingViews.get(id)?.control
@@ -71,7 +75,7 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
             />
           )
         })}
-      </div>
+      </fieldset>
       {confirming && (
         <Confirm
           message={t("This book is locked. Change it anyway?")}

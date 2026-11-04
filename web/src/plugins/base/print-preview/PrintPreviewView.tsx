@@ -1,4 +1,4 @@
-// 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描く（中身はまだ描かない）。
+// 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描く（印刷区画の中身は描かない）。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
@@ -9,10 +9,8 @@ import { paperOrigin } from "../../../core/viewport"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
 import { useActions, useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useBook, useSetStageState, useStage, useStagePan } from "../../../ui/view-hooks"
-import { kit } from "../kit"
-import { useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
-import { withPanel } from "../right-side-panel/state"
+import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
+import { useOpenRightSidePanel, useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets } from "./book-sheets"
@@ -66,19 +64,16 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     fitRef.current.run()
     fitted.current = { zoom: zoomOf(read, id), size }
   }, [known, size, shown, sliding, id, read])
-  const setStageState = useSetStageState(kit)
+  const openPanel = useOpenRightSidePanel()
   const seen = useRef(false) // 右サイドパネルに中身を出したか
   const opened = stage?.opened ?? null
   useEffect(() => {
     if (shown) seen.current = true
     else if (seen.current) closePrintPreview(id)
-    else if (opened) {
-      // 閉じたときに戻す見え方は印刷プレビューが持つので、右サイドパネルの戻しの覚えは書かない
-      const open = { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.book, anchors: [], current: opened.book }
-      const now = read().stageStates[id]?.[kit.id]
-      setStageState(id, withPanel(now, { ...open, book: opened.book, page: opened.page }))
-    }
-  }, [shown, id, opened, closePrintPreview, read, setStageState])
+    // 閉じたときに戻す見え方は印刷プレビューが持つので、右サイドパネルの戻しは使わない
+    else if (opened)
+      openPanel(id, { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.book, anchors: [], current: opened.book }, "none")
+  }, [shown, id, opened, closePrintPreview, openPanel])
   // ダブルクリックは、ずらすドラッグでステージがポインタをつかむので、ステージで受けて押した所の印刷区画を探す
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
