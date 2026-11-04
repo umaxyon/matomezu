@@ -14,11 +14,13 @@ import { useKeyLabel } from "../../../ui/keys"
 import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
 import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
+import { useAnchorContextMenu } from "./anchor-context"
 import styles from "./ContextMenuHost.module.css"
 import { fitInside } from "./fit"
 import { pressedAnchor } from "./pressed-anchor"
 
 export function ContextMenuHost() {
+  useAnchorContextMenu()
   const menu = useMatomezuState(s => s.contextMenu)
   if (!menu) return null
   return <ContextMenu key={`${menu.id}:${menu.stage}:${menu.at.x}:${menu.at.y}`} menu={menu} />
