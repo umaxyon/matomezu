@@ -142,8 +142,7 @@ export interface Actions {
   // そのステージで印刷プレビューを開く・閉じる（閉じたら開く前の倍率とずらす量に戻す）
   openPrintPreview(id: string): void
   closePrintPreview(id: string): void
-  // 印刷プレビューで並べた広さ（見せ方が知らせる）と、並べた中の開いていたページの最初の印刷区画の左上 at（初めて知らせたとき、そこを見せる）
-  setPreviewArea(id: string, area: Size, at: Point): void
+  setPreviewArea(id: string, area: Size): void // 印刷プレビューで並べた広さ（見せ方が知らせる）
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
@@ -520,7 +519,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     resetStageView: id => withWorkspace(ws => mapStage(ws, id, resetView)),
     openPrintPreview: id => withWorkspace(ws => mapStage(ws, id, openPrintPreview)),
     closePrintPreview: id => withWorkspace(ws => mapStage(ws, id, closePrintPreview)),
-    setPreviewArea: (id, area, at) => withWorkspace(ws => mapStage(ws, id, s => setPreviewArea(s, area, at))),
+    setPreviewArea: (id, area) => withWorkspace(ws => mapStage(ws, id, s => setPreviewArea(s, area))),
     setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),
     togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),
     stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),

@@ -1,20 +1,27 @@
 // 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描く（中身はまだ描かない）。
-// 並べた広さはステージに知らせ（初めは開いていたページの最初の印刷区画を見せる）、ずらす量と倍率は編集と同じくステージが持つ。
+// 並べた広さはステージに知らせ（初めは全体を収める）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
 // 初めから出ていなければ（URL から印刷プレビューで開いたとき）、出す
 import { type CSSProperties, useEffect, useMemo, useRef } from "react"
-import type { Stage } from "../../../core/stage"
+import { extentOf as previewArea, type Stage } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
+import type { MatomezuState } from "../../../store/store"
+import { useCommand } from "../../../ui/commands"
 import { useActions, useCatalog, useReadState } from "../../../ui/store-context"
 import { useBook, useSetStageState, useStagePan } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { useRightSidePanel } from "../right-side-panel/hooks"
+import { useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { withPanel } from "../right-side-panel/state"
 import { useZoomMotion } from "../utils/useZoomMotion"
+import { ZOOM_FIT } from "../zoom"
 import { bookSheets } from "./book-sheets"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
+
+// ステージ stage の今の倍率（effect の中で読む）
+const zoomOf = (read: () => MatomezuState, stage: string): number | null =>
+  read().workspace.stages.find(st => st.id === stage)?.zoom ?? null
 
 export function PrintPreviewView({ stage }: { stage: Stage }) {
   const catalog = useCatalog().core
@@ -22,17 +29,30 @@ export function PrintPreviewView({ stage }: { stage: Stage }) {
   const pan = useStagePan(stage.id)
   const panel = useRightSidePanel(stage.id)
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
+  const read = useReadState()
   const layout = useMemo(() => (book ? bookSheets(catalog, book) : null), [catalog, book])
   const motion = useZoomMotion(stage.zoom, "")
-  const page = stage.opened?.page ?? null
   useEffect(() => {
-    if (!layout) return
-    const first = layout.sheets.find(s => s.page === page) ?? layout.sheets[0]
-    setPreviewArea(stage.id, layout.size, first ? { x: first.x, y: first.y } : { x: 0, y: 0 })
-  }, [layout, page, stage.id, setPreviewArea])
+    if (layout) setPreviewArea(stage.id, layout.size)
+  }, [layout, stage.id, setPreviewArea])
   const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
+  // 初めは、並べた印刷区画の全体を収める（ページ全体を収めると同じ）。右サイドパネルが出て表示領域が狭まり終えてから収め、
+  // そのあと表示領域の大きさが変わっても、倍率を変えていなければ収め直す
+  const fit = useCommand(stage.id, ZOOM_FIT.id)
+  const fitRef = useRef(fit)
+  fitRef.current = fit
+  const sliding = useRightSidePanelSliding(shown ? stage.id : null)
+  const fitted = useRef<{ zoom: number | null; size: string } | null>(null) // 収めたときの倍率と表示領域の大きさ
+  const known = previewArea(stage) !== null
+  const size = stage.view ? `${stage.view.w}x${stage.view.h}` : null
+  useEffect(() => {
+    if (!known || size === null || !shown || sliding) return
+    const last = fitted.current
+    if (last && (last.size === size || last.zoom !== zoomOf(read, stage.id))) return
+    fitRef.current.run()
+    fitted.current = { zoom: zoomOf(read, stage.id), size }
+  }, [known, size, shown, sliding, stage.id, read])
   const setStageState = useSetStageState(kit)
-  const read = useReadState()
   const seen = useRef(false) // 右サイドパネルに中身を出したか
   const opened = stage.opened
   useEffect(() => {

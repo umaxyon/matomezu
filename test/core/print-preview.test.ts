@@ -39,21 +39,20 @@ describe("ステージの印刷プレビュー", () => {
     expect(panBy(opened, -10, -10)).toBe(opened)
   })
 
-  test("初めて広さを知らせると、並べた中の点 at を表示領域の左上に見せる。広さが変わっても、ずらす量はそのまま", () => {
-    const shown = setPreviewArea(opened, area, { x: 0, y: 800 })
+  test("広さを知らせると、ずらす量をその範囲に収める。広さが変わっても、範囲の中ならずらす量はそのまま", () => {
+    const shown = setPreviewArea(opened, area)
     expect(extentOf(shown)).toEqual(area)
-    expect(shown.pan).toEqual({ x: 0, y: -800 * 1.25 })
-    const moved = panBy(shown, 0, 100)
-    expect(setPreviewArea(moved, { w: 1200, h: 3200 }, { x: 0, y: 0 }).pan).toEqual(moved.pan)
+    const moved = panBy(shown, 0, -100)
+    expect(setPreviewArea(moved, { w: 1200, h: 3200 }).pan).toEqual(moved.pan)
   })
 
   test("印刷プレビューの間は、選ぶ・その場の編集を始めない", () => {
-    const shown = setPreviewArea(opened, area, { x: 0, y: 0 })
+    const shown = setPreviewArea(opened, area)
     expect(select(shown, ["a"])).toBe(shown)
   })
 
   test("閉じると、開く前の倍率とずらす量に戻る。ページを開けば、そのページの編集になる", () => {
-    const shown = zoomTo(setPreviewArea(opened, area, { x: 0, y: 800 }), 0.5)
+    const shown = zoomTo(setPreviewArea(opened, area), 0.5)
     const closed = closePrintPreview(shown)
     expect(closed.mode.kind).toBe("edit")
     expect({ zoom: closed.zoom, pan: closed.pan }).toEqual({ zoom: editing.zoom, pan: editing.pan })

@@ -288,15 +288,12 @@ function edited(stage: Stage): Stage {
   return stage.mode.kind === "print-preview" ? { ...stage, mode: EDIT, zoom: stage.mode.back.zoom } : stage
 }
 
-// 印刷プレビューで並べた広さを area にする（見せ方が知らせる。印刷プレビューの間でなければ、同じ値を返す）。
-// 初めて知らせたときは、並べた中の点 at（開いていたページの最初の印刷区画の左上）が表示領域の左上に見えるようにずらす
-export function setPreviewArea(stage: Stage, area: Size, at: Point): Stage {
+// 印刷プレビューで並べた広さを area にする（見せ方が知らせる。印刷プレビューの間でなければ、同じ値を返す）。ずらす量は範囲に収め直す
+export function setPreviewArea(stage: Stage, area: Size): Stage {
   const mode = stage.mode
   if (mode.kind !== "print-preview") return stage
   if (mode.area && mode.area.w === area.w && mode.area.h === area.h) return stage
-  const next = { ...stage, mode: { ...mode, area } }
-  // (0 - at.x) は、at が 0 のとき -0 にしないため（URL や比べる値に -0 を出さない）
-  return settle(next, mode.area ? stage.pan : { x: (0 - at.x) * stage.zoom, y: (0 - at.y) * stage.zoom })
+  return settle({ ...stage, mode: { ...mode, area } }, stage.pan)
 }
 
 // アイテムを置こうとする。同じアイテムをもう一度選べば取り消す（道具を選択にするのは workspace.ts の togglePlacing）
