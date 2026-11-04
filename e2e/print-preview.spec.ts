@@ -20,7 +20,7 @@ async function openPreview(page: Page) {
   await expect(preview(page)).toBeVisible()
 }
 
-test("印刷プレビューを開くと全ページの印刷区画を並べ、ページのタブを隠す。元に戻すは効かず、Esc で閉じると編集に戻る", async ({
+test("印刷プレビューを開くと全ページの印刷区画を並べ、ページのタブを隠す。右サイドパネルの帯で全体を収められ、元に戻すは効かず、Esc で閉じると編集に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -31,6 +31,13 @@ test("印刷プレビューを開くと全ページの印刷区画を並べ、�
   await expect(sheets(page)).toHaveCount(2)
   await expect(panel(page)).toContainText("印刷プレビュー")
   await expect(page.getByRole("tablist")).toHaveCount(0)
+  // 右サイドパネルの拡大縮小の帯で全体を収めると、並べた印刷区画がどれも表示領域に入る
+  await panel(page).getByRole("button", { name: "ページ全体を収める" }).click()
+  const stage = (await page.locator("[data-stage]").boundingBox())!
+  await expect(async () => {
+    const last = (await sheets(page).last().boundingBox())!
+    expect(last.y + last.height).toBeLessThanOrEqual(stage.y + stage.height)
+  }).toPass()
   await page.keyboard.press("Control+z")
   await page.keyboard.press("Escape")
   await expect(preview(page)).toHaveCount(0)

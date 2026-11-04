@@ -1,4 +1,4 @@
-// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）。
+// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、拡大縮小の帯（フッタを隠すので、ここに出す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）。
 // 項目を変えるとすぐに print-preview-update で変える。ブックがロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
 import { useEffect, useState } from "react"
@@ -13,6 +13,7 @@ import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
 import { LockToggle } from "../utils/LockToggle"
 import type { StageSlotProps } from "../workspace/ui"
+import { ZoomBar } from "../zoom/ZoomBar"
 import { PRINT_PREVIEW_UPDATE } from "."
 import styles from "./PrintPreviewPanel.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
@@ -44,6 +45,7 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>
+      <ZoomBar stage={stage} />
       <div className={styles.tools}>
         <LockToggle
           locked={locked}
