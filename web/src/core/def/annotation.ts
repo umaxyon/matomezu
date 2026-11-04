@@ -12,6 +12,8 @@ export interface AnnotationDef<P extends z.ZodType = z.ZodType, Tt extends strin
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。何のための物で、AI がどう応えるか）
   props: P // 種類ごとの形
   awaits?(props: z.output<P>): boolean // AI の応えを待っているか（無ければ待たない。待っている物を AI に知らせる）
+  // 期限の時点（ISO の時刻。無ければ、期限は無い）。setting は利用者の設定の項目 id の値（無ければ既定）。期限の過ぎた物は残らない（core/annotation.ts の unexpired）
+  expiresAt?(props: z.output<P>, setting: (id: string) => unknown): string | null
 }
 
 export function defineAnnotation<const Id extends string, P extends z.ZodType>(

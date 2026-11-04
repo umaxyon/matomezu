@@ -42,6 +42,7 @@ type cli struct {
 	Stop        stopCmd        `cmd:"" help:"Stop the background server."`
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, for an AI's hook. Prints nothing when there are none or the server is not running."`
+	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook (the notes AI has read start their expiry). Prints nothing and does nothing when the server is not running."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 
@@ -78,6 +79,8 @@ type mcpCmd struct {
 }
 
 type annotationsCmd struct{}
+
+type talkedCmd struct{}
 
 type versionCmd struct{}
 
@@ -125,6 +128,14 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
+	// 期限の過ぎたアノテーションを、時間で消す
+	go func() {
+		for now := range time.Tick(server.ExpireEvery) {
+			if err := hub.Expire(now); err != nil {
+				fmt.Fprintln(os.Stderr, "expire:", err)
+			}
+		}
+	}()
 	// 変換・組み立てができない追加プラグインは外して立て、理由をログに残す（ほかのブックまで開けなくしない）
 	for _, dir := range c.Plugin {
 		if _, err := hub.LinkPlugin(dir); err != nil {
@@ -242,6 +253,21 @@ func (c *annotationsCmd) Run() error {
 	for _, a := range got.Awaiting {
 		fmt.Printf("- book %q (%s): %s\n", a.Title, a.Book, a.Annotation)
 	}
+	return nil
+}
+
+// Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが、annotations の前に呼ぶ）。
+// 常駐を立てず、立っていない・答えないときは何もしない（話しかけを止めない）
+func (c *talkedCmd) Run() error {
+	h, err := openHome()
+	if err != nil {
+		return nil
+	}
+	s, err := running(h)
+	if err != nil || s == nil {
+		return nil
+	}
+	_, _, _ = send(s, http.MethodPost, "api/ai/talked", []byte("{}"))
 	return nil
 }
 

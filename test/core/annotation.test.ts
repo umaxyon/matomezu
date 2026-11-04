@@ -1,6 +1,6 @@
 // アノテーション（core/annotation.ts）: 種類が無い・形が合わない物は、その 1 つだけ効かず warning になり、ほかのアノテーションは変えられる
 import { expect, test } from "bun:test"
-import { type Annotation, annotationsForAi, checkAnnotations, prune } from "../../web/src/core/annotation"
+import { type Annotation, annotationsForAi, checkAnnotations, prune, unexpired } from "../../web/src/core/annotation"
 import { performIn } from "../../web/src/core/perform"
 import type { Book } from "../../web/src/core/schema/book"
 import { warningText } from "../../web/src/core/warnings"
@@ -78,4 +78,20 @@ test("AI に見せるアノテーションは、結び付く物の最後のあ�
     ["c2", "p", false],
     ["c3", "p", false],
   ])
+})
+
+test("伝言は、会話の時点から伝言期限（利用者の設定。既定 2 時間）が過ぎると残らない。会話の時点の無い物と、直している物は残る", () => {
+  const talked = note("c6", {
+    text: "x",
+    bubble: true,
+    addedAt: "t",
+    readAt: "t",
+    talkedAt: "2026-11-05T00:00:00.000Z",
+  })
+  const quiet = note("c7", { text: "x", bubble: true, addedAt: "t", readAt: "t" })
+  const list = [talked, quiet]
+  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T01:59:00.000Z")).toBe(list)
+  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T02:01:00.000Z").map(a => a.id)).toEqual(["c7"])
+  expect(unexpired(CORE_CATALOG, list, { "@matomezu/base:note-expiry": "4" }, "2026-11-05T02:01:00.000Z")).toBe(list)
+  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T02:01:00.000Z", new Set(["c6"]))).toBe(list)
 })

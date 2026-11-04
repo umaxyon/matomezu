@@ -32,6 +32,7 @@ function ready() {
 const ADD = "@matomezu/base:note-add"
 const UPDATE = "@matomezu/base:note-update"
 const READ = "@matomezu/base:note-read"
+const TALKED = "@matomezu/base:note-talked"
 const REMOVE = "@matomezu/base:note-remove"
 
 test("伝言を付けると、ブックとは別に持ち、id を返す。吹き出しは既定で出す。文が空か空白だけなら付けない（文の無い印はマーク）", () => {
@@ -161,4 +162,20 @@ test("付ける先を変えられる（吹き出しは最後の物のそば）�
   expect(store.actions.perform(UPDATE, { note: id, text: "直した", anchors: [b] }, ON).ok).toBe(true)
   expect(notes()[0]).toMatchObject({ anchors: [b], props: { text: "直した" } })
   expect((notes()[0]!.props as { readAt?: string }).readAt).toBeUndefined()
+})
+
+test("話しかけたとき（note-talked）は、読まれていて会話の時点の無い伝言にだけ会話の時点を付ける。文を変えると会話の時点も外れる。AI は行えない", () => {
+  const { store, a, b, notes } = ready()
+  store.actions.perform(ADD, { anchors: [a], text: "読まれた" }, ON)
+  store.actions.perform(ADD, { anchors: [b], text: "まだ" }, ON)
+  const [read] = notes().map(n => n.id) as [string]
+  store.actions.perform(READ, { note: read }, ON)
+  expect(store.actions.perform(TALKED, {}, ON).ok).toBe(true)
+  const props = () => notes().map(n => (n.props as { talkedAt?: string }).talkedAt)
+  expect(props()[0]).toBeString()
+  expect(props()[1]).toBeUndefined()
+  // もう付いていれば、変える物が無いので断る
+  expect(store.actions.perform(TALKED, {}, ON).ok).toBe(false)
+  expect(store.actions.perform(UPDATE, { note: read, text: "直した" }, ON).ok).toBe(true)
+  expect(props()[0]).toBeUndefined()
 })

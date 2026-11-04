@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
 )
@@ -133,4 +134,13 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	writeJSON(w, map[string]any{"awaiting": out})
+}
+
+// aiTalked は、利用者が AI に話しかけたことを受ける（AI のフックが知らせる。{}）
+func (o Options) aiTalked(w http.ResponseWriter, _ *http.Request) {
+	if err := o.Hub.Talked(time.Now()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{})
 }

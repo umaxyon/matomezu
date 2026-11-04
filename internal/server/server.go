@@ -24,6 +24,7 @@
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations"}
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}]} AI の応えを待つアノテーションの全部
+//	POST /api/ai/talked      利用者が AI に話しかけた（AI のフックが知らせる）。話しかけたときに行うアクションを、アノテーションのあるブックごとに行う。{}
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
@@ -112,6 +113,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
 	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.auth(o.aiPage))
 	mux.Handle("GET /api/ai/awaiting", o.auth(o.aiAwaiting))
+	mux.Handle("POST /api/ai/talked", o.auth(o.aiTalked))
 	routesForTest(mux, o)
 	mux.Handle("GET /api/ai/settings", o.auth(func(w http.ResponseWriter, _ *http.Request) {
 		settings, err := o.Hub.AISettings()

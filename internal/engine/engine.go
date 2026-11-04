@@ -70,6 +70,8 @@ type Engine struct {
 	settings  func(string) string
 	notes     func(string) string
 	without   func(string, string) string
+	talk      func() string
+	live      func(string, string, string, string) string
 	forAI     func(string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
@@ -110,6 +112,12 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiAnnotations"), &e.forAI); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiAnnotations: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuTalkActions"), &e.talk); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuTalkActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuUnexpired"), &e.live); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuUnexpired: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -268,6 +276,49 @@ func (e *Engine) AnnotationsWithout(plugin string, list json.RawMessage) (out js
 		Changed     bool            `json:"changed"`
 	}
 	if err := json.Unmarshal([]byte(e.without(plugin, string(list))), &got); err != nil {
+		return nil, false, err
+	}
+	return got.Annotations, got.Changed, nil
+}
+
+// TalkActions は、利用者が AI に話しかけたときに、アノテーションのあるブックごとに行うアクションの id
+func (e *Engine) TalkActions() (ids []string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.talk()), &ids)
+	return ids, err
+}
+
+// AnnotationsUnexpired は、アノテーションの並び list から、期限（種類の expiresAt。利用者の設定 settings で決まる）が時点 now より前の物を除いた並びと、
+// 除いたかを返す。kept の id の物は除かない（利用者が直している物）
+func (e *Engine) AnnotationsUnexpired(list, settings json.RawMessage, now string, kept []string) (out json.RawMessage, changed bool, err error) {
+	if kept == nil {
+		kept = []string{}
+	}
+	k, err := json.Marshal(kept)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(settings) == 0 {
+		settings = json.RawMessage("{}")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got struct {
+		Annotations json.RawMessage `json:"annotations"`
+		Changed     bool            `json:"changed"`
+	}
+	if err := json.Unmarshal([]byte(e.live(string(list), string(settings), now, string(k))), &got); err != nil {
 		return nil, false, err
 	}
 	return got.Annotations, got.Changed, nil

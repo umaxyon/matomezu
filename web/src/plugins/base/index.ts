@@ -27,8 +27,9 @@ import {
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
 import { MARK_NEW } from "./mark/commands"
-import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_UPDATE } from "./note"
+import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_TALKED, NOTE_UPDATE } from "./note"
 import { NOTE_NEW } from "./note/commands"
+import { NOTE_EXPIRY } from "./note/expiry"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
@@ -189,6 +190,7 @@ export const BASE = defineBuiltin(
       NOTE_ADD,
       NOTE_UPDATE,
       NOTE_READ,
+      NOTE_TALKED,
       NOTE_REMOVE,
       MARK_ADD,
       MARK_READ,
@@ -204,7 +206,7 @@ export const BASE = defineBuiltin(
       PRINT_PREVIEW_PAGE_NUMBERS,
       PRINT_PREVIEW_BOOK_NAME,
     ],
-    userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS, TOOL_PICKER_HOLD],
+    userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS, TOOL_PICKER_HOLD, NOTE_EXPIRY],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
     textColors: TEXT_COLORS,
@@ -275,6 +277,7 @@ declare module "../../core/catalog" {
   interface UserSettingTable {
     "@matomezu/base:lang": typeof LANG
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
+    "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS
     "@matomezu/base:text-colors": typeof USER_TEXT_COLORS
@@ -299,6 +302,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-add": typeof NOTE_ADD
     "@matomezu/base:note-update": typeof NOTE_UPDATE
     "@matomezu/base:note-read": typeof NOTE_READ
+    "@matomezu/base:note-talked": typeof NOTE_TALKED
     "@matomezu/base:note-remove": typeof NOTE_REMOVE
     "@matomezu/base:mark-add": typeof MARK_ADD
     "@matomezu/base:mark-read": typeof MARK_READ

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
@@ -167,5 +168,77 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	}
 	if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W018") {
 		t.Fatalf("warnings after removing the book = %s", got)
+	}
+}
+
+// 利用者が話しかけると（Talked）、読まれた伝言に会話の時点が付き、そこから伝言期限（既定 2 時間）が過ぎると、時間で消える（Expire）。
+// まだ読まれていない伝言には付かず、消えない。窓で利用者が直している伝言は、期限が過ぎても消さない
+func TestTalkStartsNoteExpiry(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	if _, _, err := store.PutBook("b1", json.RawMessage(boxed), 0); err != nil {
+		t.Fatal(err)
+	}
+	const list = `[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z","readAt":"2026-11-05T00:01:00.000Z"}},` +
+		`{"id":"c2","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"y","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z"}}]`
+	if err := store.PutAnnotations("b1", json.RawMessage(list)); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	talked := time.Date(2026, 11, 5, 1, 0, 0, 0, time.UTC)
+	if err := h.Talked(talked); err != nil {
+		t.Fatal(err)
+	}
+	ids := func() string {
+		var got []struct {
+			ID    string `json:"id"`
+			Props struct {
+				TalkedAt string `json:"talkedAt"`
+			} `json:"props"`
+		}
+		_ = json.Unmarshal(h.annotations["b1"], &got)
+		out := []string{}
+		for _, a := range got {
+			out = append(out, a.ID+":"+a.Props.TalkedAt)
+		}
+		return strings.Join(out, " ")
+	}
+	if got := ids(); got != "c1:2026-11-05T01:00:00.000Z c2:" {
+		t.Fatalf("after talking = %s", got)
+	}
+	if err := h.Expire(talked.Add(119 * time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if got := ids(); got != "c1:2026-11-05T01:00:00.000Z c2:" {
+		t.Fatalf("before the expiry = %s", got)
+	}
+	// 窓で直している間は消さない
+	c := h.Join()
+	h.SetView(c.id, json.RawMessage(`{}`), map[string][]string{"b1": {"c1"}}, true, 1)
+	if err := h.Expire(talked.Add(121 * time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if got := ids(); got != "c1:2026-11-05T01:00:00.000Z c2:" {
+		t.Fatalf("while editing = %s", got)
+	}
+	h.Leave(c)
+	if err := h.Expire(talked.Add(121 * time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if got := ids(); got != "c2:" {
+		t.Fatalf("after the expiry = %s", got)
+	}
+	if kept, _ := store.Annotations(); strings.Contains(string(kept["b1"]), `"c1"`) {
+		t.Fatalf("stored = %s", kept["b1"])
 	}
 }

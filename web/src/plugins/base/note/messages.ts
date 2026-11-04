@@ -21,6 +21,8 @@ export const NOTE_MESSAGES = defineMessages({
     ja: "付ける先の物が消されました",
   },
   "Bird of the note": { en: "Bird of the note", ja: "伝言の鳥" },
+  "Note expiry (hours)": { en: "Note expiry (hours)", ja: "伝言期限（時間）" },
+  "Start note expiry": { en: "Start note expiry", ja: "伝言期限を数え始める" },
   "AI read the note": { en: "AI read the note", ja: "AIが伝言を読みました" },
   "The note was refused": { en: "The note was refused", ja: "伝言を変えられませんでした" },
 })

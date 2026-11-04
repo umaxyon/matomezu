@@ -1,10 +1,12 @@
 // アノテーション: ブックの物に結び付き、ブックのデータとは別に残る物（種類は core/def/annotation.ts）。ブックごとに並びで持つ。
-// 結び付く物（アンカー）は、ブックのページの中の id を持つ物（ページそのものは含まない）。アンカーの物が全部無くなったアノテーションは残らない
+// 結び付く物（アンカー）は、ブックのページの中の id を持つ物（ページそのものは含まない）。アンカーの物が全部無くなったアノテーションは残らない。
+// 種類の期限（expiresAt）の過ぎたアノテーションも残らない（消すのは常駐で、画面はそれまで出さない）
 import { z } from "zod"
 import { bookType, type CoreCatalog } from "./core-catalog"
 import { idsIn } from "./ids"
 import { splitId } from "./names"
 import type { Book } from "./schema/book"
+import { type Settings, userSetting } from "./settings"
 import { type Warning, warning } from "./warnings"
 
 export const AnnotationSchema = z.object({
@@ -125,3 +127,23 @@ export const restoreAllAnnotations = (saved: unknown): Annotations =>
         }),
       )
     : {}
+
+// 期限の過ぎていないアノテーション: 種類の期限（expiresAt）が時点 now より前の物を除く（kept の id の物は除かない。利用者が直している物など）。
+// 除く物が無ければ同じ並び。時点は ISO の時刻の文字列で比べる
+export function unexpired(
+  catalog: CoreCatalog,
+  annotations: readonly Annotation[],
+  settings: Settings,
+  now: string,
+  kept: ReadonlySet<string> = new Set(),
+): readonly Annotation[] {
+  const setting = (id: string) => userSetting(catalog, settings, id)
+  const live = annotations.filter(a => {
+    if (kept.has(a.id)) return true
+    const def = catalog.annotations.get(a.annotation)
+    const parsed = def?.expiresAt ? def.props.safeParse(a.props) : undefined
+    const at = parsed?.success ? def?.expiresAt?.(parsed.data, setting) : null
+    return !at || at > now
+  })
+  return live.length === annotations.length ? annotations : live
+}
