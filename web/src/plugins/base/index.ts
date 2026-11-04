@@ -69,6 +69,7 @@ export { itemMinimapMarks, type MinimapMark } from "./minimap/marks"
 export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
 export type { PageProblem } from "./page-tabs/page-problems"
+export { nextPageTitle } from "./page-tabs/pages"
 export type { Frame } from "./place/frame"
 export {
   CHILD_AREA,
