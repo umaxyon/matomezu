@@ -12,7 +12,7 @@ import {
   type Rect,
   walkShapes,
 } from "../../../plugin-api"
-import { rectsOf } from "../../base"
+import { rectsOf, toggledSelection } from "../../base"
 
 // 物 id を押したときの選び方: 押した時点の選択 now、ドラッグで動かす物 drag、動かさずに離したときの選択 release（変えなければ null）
 export interface Press {
@@ -31,8 +31,7 @@ export function pressSelection(
 ): Press {
   const has = selection.includes(id)
   if (followed) {
-    const now = !mod ? [id] : has ? selection.filter(s => s !== id) : [...selection, id]
-    return { now, drag: [], release: null }
+    return { now: mod ? toggledSelection(selection, id) : [id], drag: [], release: null }
   }
   if (mod && has) return { now: selection, drag: selection, release: selection.filter(s => s !== id) }
   if (mod) {

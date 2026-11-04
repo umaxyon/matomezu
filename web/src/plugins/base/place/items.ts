@@ -36,7 +36,7 @@ import {
   shapeDefOf,
   tidyConnectors as tidyItems,
 } from "./placed"
-import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
+import { apartWay, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
 // 形の仲間の名前（familyTitle）が文言の表にあるか（組み立てのときの確かめ）
 export const FAMILY_TITLE_CHECK: CatalogCheck = catalog =>
@@ -542,9 +542,8 @@ export function keepApart<B extends PagedBook>(
   const rb = before.get(b)
   const gap = gapOf(catalog, page)
   if (!ra || !rb || a === b || !tooClose(ra, rb, gap(a, b))) return book
-  const axis = apart(ra, rb, "x") >= apart(ra, rb, "y") ? "x" : "y"
+  const { axis, ahead } = apartWay(ra, rb)
   const len = axis === "x" ? "w" : "h"
-  const ahead = rb[axis] + rb[len] / 2 >= ra[axis] + ra[len] / 2
   const at = ahead ? ra[axis] + ra[len] + gap(a, b) : ra[axis] - gap(a, b) - rb[len]
   const after = pushFrom(before, b, { ...rb, [axis]: at }, paper, floorsOf(catalog, page), gap)
   if (!after || newClash(before, after, gap)) return null

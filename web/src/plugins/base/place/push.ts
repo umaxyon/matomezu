@@ -44,7 +44,7 @@ const centerAhead = (from: Rect, to: Rect, axis: Axis): boolean =>
   to[axis] + to[LEN[axis]] / 2 >= from[axis] + from[LEN[axis]] / 2
 
 // 変わる前の位置で離れていた方の向きに、遠ざける向きへ
-function apartWay(was: Rect, wasOther: Rect): Way {
+export function apartWay(was: Rect, wasOther: Rect): Way {
   const axis: Axis = apart(was, wasOther, "x") >= apart(was, wasOther, "y") ? "x" : "y"
   return { axis, ahead: centerAhead(was, wasOther, axis) }
 }
