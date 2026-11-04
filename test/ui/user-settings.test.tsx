@@ -8,12 +8,12 @@ import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { MASTER } from "../../web/src/plugins/books/master/master"
 import { MASTER_VIEW_MESSAGES } from "../../web/src/plugins/books/master/view/messages"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { type AnyPluginUi, definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { SAMPLE_BOOKS } from "../sample-books"
 
 afterEach(cleanup)
 
@@ -70,7 +70,7 @@ test("設定の区分は画面の作りが決まっていないことを書き�
     within(master)
       .getAllByRole("heading", { level: 3 })
       .map(h => h.textContent),
-  ).toEqual(["@ex/s"])
+  ).toEqual(["@matomezu/markdown", "@ex/s"])
   // 入力Form を作れない形の項目は出さない
   expect(within(master).queryByText("一覧")).toBeNull()
 })

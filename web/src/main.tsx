@@ -1,5 +1,5 @@
-// 画面の入口: ホストクライアント（ホストから開いていればホストに頼むもの、ファイルから開いていれば見本のブックを持つメモリ）から残したブックと設定を読み、ビルトインプラグインと見た目でインスタンスを作り、React の根に Screen を描く。行ったアクションと外の変化はホストクライアントを通してやり取りし、画面の場所は URL と行き来させる。
-// 常駐の URL から開いて常駐につながらないときは、メモリで始めずに、つながるまで待つ（起動の失敗なので画面には出さない）。
+// 画面の入口: ホストクライアント（ホストに頼むもの）から残したブックと設定を読み、ビルトインプラグインと見た目でインスタンスを作り、React の根に Screen を描く。行ったアクションと外の変化はホストクライアントを通してやり取りし、画面の場所は URL と行き来させる。
+// 常駐につながらないときは、つながるまで待つ（起動の失敗なので画面には出さない）。
 // ホストが足した追加プラグインも、ホストクライアントが読んだものをビルトインプラグインの後ろに足す。追加プラグインが借りる実物（plugin-modules）は、読む前に globalThis.__matomezuModules に置く
 
 import { StrictMode } from "react"
@@ -7,12 +7,10 @@ import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
 import { warning } from "./core/warnings"
 import { followLocation } from "./host-client/location"
-import { memoryClient } from "./host-client/memory"
 import { openClient } from "./host-client/open"
 import { UI_MODULES } from "./plugin-modules/ui"
 import { MASTER } from "./plugins/books/master"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
-import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
 import { loadFonts } from "./ui/fonts"
 import { placeAdded, placeAddedWithWarnings } from "./ui/layout"
@@ -23,7 +21,7 @@ import "./ui/skin.css"
 
 loadFonts()
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = UI_MODULES
-const { client, loaded: saved } = await openClient(() => memoryClient(SAMPLE_BOOKS))
+const { client, loaded: saved } = await openClient()
 const store = createMatomezu({
   plugins: BUILTIN_UI,
   home: MASTER.id,

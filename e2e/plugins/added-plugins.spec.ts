@@ -1,11 +1,10 @@
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
-import { expect, type Page, test } from "@playwright/test"
+import { aiAuth, expect, type Page, test } from "../fixtures"
 import { footerMenuTool } from "../footer-menu"
 
-// 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐を順に使う（途中で ex1・ex3 を足し、最後は 3 つを一緒に確かめる）
-test.describe.configure({ mode: "serial" })
+// 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが足して外す
 
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
 const flow = {
@@ -23,10 +22,11 @@ const flow = {
   ],
 }
 
+// どのテストも ex2 のフローのブック 1 冊で始める
+test.use({ books: [flow] })
+
 test("常駐が結んだ追加プラグインを画面に渡し、画面はその見た目の JS を読む", async ({ page }) => {
   expect((await data(page)).plugins).toEqual([{ id: "ex2", ui: "api/plugins/0/ui.js?v=1" }])
-  const put = await page.request.put(`/api/books-for-test/${flow.id}`, { data: { book: flow, base: 0 } })
-  expect(put.ok()).toBe(true)
   await page.goto("/")
   await expect(page.locator("[data-ex2-diamond]")).toHaveAccessibleName("判断")
   // ひし形はテーマキー ex2:diamond-fill の色で塗る（見た目では --diamond-fill。変数が無ければ黒になる）
@@ -64,10 +64,6 @@ test("追加プラグインの形の道具を使うと、その形の追加の�
   await expect(page.getByRole("dialog", { name: "判断の追加" })).toBeVisible()
 })
 
-// AI と CLI の入口の合言葉（常駐の matomezu 保管庫フォルダはポートごと。scripts/e2e-server.ts）
-const ai = () => ({
-  Authorization: `Bearer ${JSON.parse(readFileSync(`e2e/.home-${new URL(test.info().project.use.baseURL ?? "").port}/server.json`, "utf8")).token}`,
-})
 const loaded = (page: Page) =>
   page.evaluate(() =>
     performance
@@ -85,7 +81,7 @@ test("動いている常駐にプラグインを足すと、開いている画�
   const reloaded = () => page.waitForFunction(() => !("notReloaded" in window))
   await mark()
   const linked = await page.request.post("/api/plugins", {
-    headers: ai(),
+    headers: aiAuth(),
     data: { dir: resolve("test/added-plugins/ex3") },
   })
   expect(await linked.json()).toEqual({ ok: true, id: "ex3" })
@@ -95,7 +91,7 @@ test("動いている常駐にプラグインを足すと、開いている画�
   await expect.poll(() => loaded(page)).toEqual(["/api/plugins/0/ui.js", "/api/plugins/1/ui.js"])
 
   await mark()
-  const removed = await page.request.post("/api/plugins/remove", { headers: ai(), data: { id: "ex3" } })
+  const removed = await page.request.post("/api/plugins/remove", { headers: aiAuth(), data: { id: "ex3" } })
   expect(await removed.json()).toEqual({ ok: true })
   await reloaded()
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
@@ -115,15 +111,15 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
     if (m.type() === "error") errors.push(m.text())
   })
   await page.goto("/")
-  const linked = await page.request.post("/api/plugins", { headers: ai(), data: { dir } })
+  const linked = await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir } })
   expect(await linked.json()).toEqual({ ok: true, id: "ex3" })
   await expect.poll(() => errors.some(e => e.includes("plugin ex3 is not added"))).toBe(true)
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
   // 常駐のエンジンには入っているので AI は使えるが、画面には出ない。そのことを warning として、MCP 公開ツールの actions が返す物に添える
   await expect
-    .poll(async () => (await (await page.request.get("/api/ai/catalog", { headers: ai() })).json()).warnings)
+    .poll(async () => (await (await page.request.get("/api/ai/catalog", { headers: aiAuth() })).json()).warnings)
     .toEqual(expect.arrayContaining([expect.stringMatching(/^W011 ex3: /)]))
-  const removed = await page.request.post("/api/plugins/remove", { headers: ai(), data: { id: "ex3" } })
+  const removed = await page.request.post("/api/plugins/remove", { headers: aiAuth(), data: { id: "ex3" } })
   expect(await removed.json()).toEqual({ ok: true })
 })
 
@@ -133,20 +129,20 @@ test("取り込んだプラグインが置いてほしいと書いたウィジ�
   const mark = () => page.evaluate(() => Object.assign(window, { notReloaded: true }))
   await mark()
   const linked = await page.request.post("/api/plugins", {
-    headers: ai(),
+    headers: aiAuth(),
     data: { dir: resolve("test/added-plugins/ex1") },
   })
   expect(await linked.json()).toEqual({ ok: true, id: "ex1" })
   await page.waitForFunction(() => !("notReloaded" in window))
   await expect(page.getByRole("button", { name: "あいさつする" })).toBeVisible()
-  const removed = await page.request.post("/api/plugins/remove", { headers: ai(), data: { id: "ex1" } })
+  const removed = await page.request.post("/api/plugins/remove", { headers: aiAuth(), data: { id: "ex1" } })
   expect(await removed.json()).toEqual({ ok: true })
 })
 
 // ここからは ex1・ex3 も足した常駐で、作り手の違う見本を一緒に使う
 const link = async (page: Page, ...dirs: string[]) => {
   for (const dir of dirs) {
-    const linked = await page.request.post("/api/plugins", { headers: ai(), data: { dir: resolve(dir) } })
+    const linked = await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir: resolve(dir) } })
     expect((await linked.json()).ok).toBe(true)
   }
 }
@@ -171,11 +167,11 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
   page,
 }) => {
   await page.goto("/")
-  const catalog = await (await page.request.get("/api/ai/catalog", { headers: ai() })).json()
+  const catalog = await (await page.request.get("/api/ai/catalog", { headers: aiAuth() })).json()
   const answer = catalog.actions.find((a: { id: string }) => a.id === "ex2:diamond-answer")
   expect(answer.description).toContain("Answer a decision")
   const perform = async (body: object) =>
-    (await page.request.post("/api/ai/perform", { headers: ai(), data: body })).json()
+    (await page.request.post("/api/ai/perform", { headers: aiAuth(), data: body })).json()
   expect(
     await perform({
       action: "ex2:diamond-answer",
@@ -246,7 +242,7 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
   }
   expect((await page.request.put(`/api/books-for-test/${yard.id}`, { data: { book: yard, base: 0 } })).ok()).toBe(true)
   const perform = async (body: object) =>
-    (await page.request.post("/api/ai/perform", { headers: ai(), data: body })).json()
+    (await page.request.post("/api/ai/perform", { headers: aiAuth(), data: body })).json()
   expect(await perform({ action: "ex6:page-weight", args: { page: "p1" }, on: { book: yard.id } })).toMatchObject({
     ok: true,
     result: { weight: 7 },

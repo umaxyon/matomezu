@@ -339,6 +339,25 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	}
 }
 
+func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
+	s := newServer(t, nil)
+	book := func(id string) string {
+		return `{"type":"@matomezu/drawing:drawing","id":"` + id + `","title":"t","pages":[]}`
+	}
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book("b1")+`,"base":0}`, nil)
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`, nil)
+	if code, body := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[`+book("b3")+`,`+book("b2")+`]}`, nil); code != 200 {
+		t.Fatalf("reset = %d %s", code, body)
+	}
+	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"plugins":[],"settings":null,"touched":{}}`
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
+		t.Fatalf("data = %d %s", code, body)
+	}
+	if code, _ := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[{"title":"no id"}]}`, nil); code != 400 {
+		t.Fatalf("a book without an id = %d", code)
+	}
+}
+
 func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 	s := newServer(t, nil)
 	host := strings.TrimPrefix(s.URL, "http://")

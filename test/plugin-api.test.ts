@@ -214,6 +214,7 @@ test("matomezu/ui が出す名前", () => {
     "useItem",
     "useLatestPan",
     "useLayoutWarnings",
+    "useMarkdownDocument",
     "useMenu",
     "useMenuCommand",
     "useMessages",

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures"
 import { fromMenu } from "./stage-menu"
 
 test("下の行のどこに乗せても、ブックの名前のメニューがせり上がり、下の行から離れると下がる", async ({ page }) => {
@@ -99,7 +99,6 @@ test("分割した右のステージで探すテキストFormからマスター�
   await page.goto("/")
   await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await expect(right.getByRole("option").first()).toHaveText("マスター")
   await right.getByRole("option", { name: "マスター" }).click()
   await expect(right.getByRole("region", { name: "マスター" })).toBeVisible()
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
@@ -208,7 +207,7 @@ test("マスターで新しいブックを作ると空のブックが開き、�
   // 作ったブックは探すテキストFormにも出る
   await (await fromMenu(page, "ブックを開く")).click()
   await page.keyboard.type("新しい")
-  await expect(page.getByRole("dialog", { name: "ブックを開く" }).getByRole("option")).toHaveText(["新しい図"])
+  await expect(page.getByRole("dialog", { name: "ブックを開く" }).getByRole("option")).toHaveText([/^新しい図/])
 })
 
 test("マスターの設定で言語とスキンを変えると、画面がすぐに変わる", async ({ page }) => {

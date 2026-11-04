@@ -1,0 +1,10 @@
+/* 設定の画面のほかの項目と同じ並び（名前の幅をそろえる） */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.label {
+  width: 120px;
+  flex: none;
+}

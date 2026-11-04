@@ -3,10 +3,10 @@ import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
 import { findShape, type ItemPage } from "../../web/src/core/placed"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { useShownPage } from "../../web/src/ui/view-hooks"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { sequence } from "../support"
 
 afterEach(cleanup)

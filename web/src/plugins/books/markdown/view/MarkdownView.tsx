@@ -1,11 +1,13 @@
 // マークダウンのビュー（見せ方 markdown）: ブックのビューのレイヤー（book-content）が描く。ステージに紙は無く、ステージいっぱいにペインを並べ、ペインの中をふつうにスクロールする。
 // 並べ方はステージごとの画面の状態（panes.ts）: 左右か上下に 2 つ並べるか、1 つだけ見せて上辺のペインのタブ（ソース・プレビュー）で切り替える。並べている間は、ペインごとに上辺にそのペインのタブを出す。
 // ペインのタブの右クリックで、ペインの分割のメニュー（pane-context。右クリックしたペインを受け取る）を開く。
-// 描いた文書は、ページの原文を読んで（base の parseMarkdown）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
-// ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
-import { type MouseEvent, useMemo, useRef, useState } from "react"
+// ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
+// 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（base の useMarkdownDocument）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
+// ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
+import { type MouseEvent, type RefObject, useRef, useState } from "react"
 import {
   type BookViewProps,
+  useBook,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -14,14 +16,16 @@ import {
   useShownPage,
   useStageState,
 } from "../../../../plugin-api/ui"
-import { paperSize, parseMarkdown } from "../../../base"
-import { useResize } from "../../../base/ui"
+import { type MarkdownDocument, paperSize } from "../../../base"
+import { useMarkdownDocument, useResize } from "../../../base/ui"
 import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
 import { PANES, type Pane, paneLayoutOf } from "../panes"
+import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
 import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
+import { SourcePane } from "./SourcePane"
 
 const TITLES = { source: "Source", rendered: "Preview" } as const
 
@@ -29,12 +33,25 @@ export function MarkdownView({ stage }: BookViewProps) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const page = useShownPage(stage)
+  const book = useBook(stage)
   const layout = paneLayoutOf(useStageState(stage, kit))
   const setPanes = useSetStageState(kit)
   const openMenu = useContextMenu(stage, PANE_CONTEXT)
-  if (!page) return <NoPages stage={stage} />
-  const text = "text" in page && typeof page.text === "string" ? page.text : ""
+  const source = useRef<HTMLDivElement>(null)
+  const rendered = useRef<HTMLDivElement>(null)
+  const text = page && "text" in page && typeof page.text === "string" ? page.text : ""
+  const document = useMarkdownDocument(text, page?.id ?? "")
+  if (!page || !book) return <NoPages stage={stage} />
   const width = paperSize(catalog, page)?.w
+  // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
+  const follow = () => {
+    const [from, to] = [source.current, rendered.current]
+    if (!from || !to) return
+    // ソースの目印は原文の中の始まりの位置を持ち、描いた文書の目印は並びの順に文書のブロックに当たる
+    const written = marksOf(from, mark => Number(mark.getAttribute("data-markdown-block")))
+    const drawn = marksOf(to, (_, i) => document.blocks[i]?.range.start ?? -1)
+    to.scrollTop = followScroll(written, drawn, from.scrollTop)
+  }
   const shown = layout.split === null ? [layout.shown] : PANES
   const tab = (pane: Pane, onClick?: () => void) => (
     <button
@@ -65,11 +82,18 @@ export function MarkdownView({ stage }: BookViewProps) {
               </div>
             )}
             {pane === "source" ? (
-              <div className={styles.scroll}>
-                <pre className={styles.source}>{text}</pre>
-              </div>
+              <SourcePane
+                key={page.id}
+                stage={stage}
+                book={book.id}
+                page={page.id}
+                text={text}
+                document={document}
+                scrollRef={source}
+                onScroll={follow}
+              />
             ) : (
-              <Rendered text={text} width={width} />
+              <Rendered document={document} width={width} scrollRef={rendered} />
             )}
           </section>
         ))}
@@ -81,14 +105,20 @@ export function MarkdownView({ stage }: BookViewProps) {
 // 描いた文書のペインの中身: 紙の幅で描き、ペインが紙より狭いときだけ縮めて収める。
 // 幅は小数まで測って切り捨てる（clientWidth の四捨五入で 1px 未満はみ出し、横のスクロールバーが出ないように）。
 // 縮めても紙の色がペインの下まで届くよう、縮める前の高さを倍率で割って伸ばす
-function Rendered({ text, width }: { text: string; width: number | undefined }) {
-  const ref = useRef<HTMLDivElement>(null)
+function Rendered({
+  document,
+  width,
+  scrollRef: ref,
+}: {
+  document: MarkdownDocument
+  width: number | undefined
+  scrollRef: RefObject<HTMLDivElement | null>
+}) {
   const [room, setRoom] = useState(0)
   useResize(ref, () => {
     const el = ref.current
     if (el) setRoom(Math.floor(el.getBoundingClientRect().width - (el.offsetWidth - el.clientWidth)))
   })
-  const document = useMemo(() => parseMarkdown(text), [text])
   const zoom = width === undefined ? 1 : shrinkTo(room, width)
   return (
     <div ref={ref} className={`${styles.scroll} ${styles.rendered}`}>
@@ -97,6 +127,16 @@ function Rendered({ text, width }: { text: string; width: number | undefined }) 
       </article>
     </div>
   )
+}
+
+// スクロールするペイン el の、ブロックの目印（data-markdown-block）ごとの上端と、いちばん下までのスクロールの量（縮めた倍率も含めて、見えている位置で測る）。
+// startOf は、目印（並びの i 番目）が当たるブロックの、原文の中の始まりの位置
+function marksOf(el: HTMLElement, startOf: (mark: Element, i: number) => number): PaneMarks {
+  const top = el.getBoundingClientRect().top - el.scrollTop
+  const blocks = new Map<number, number>()
+  for (const [i, mark] of [...el.querySelectorAll("[data-markdown-block]")].entries())
+    blocks.set(startOf(mark, i), mark.getBoundingClientRect().top - top)
+  return { blocks, end: el.scrollHeight - el.clientHeight }
 }
 
 function NoPages({ stage }: { stage: string }) {

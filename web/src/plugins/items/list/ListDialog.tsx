@@ -312,9 +312,8 @@ function ListDialog({
                   { value: "max", label: t("Most lines") },
                   ...PICKS.map(n => ({ value: String(n), label: String(n) })),
                 ]}
-                button={t("Align")}
+                buttons={[{ label: t("Align"), onClick: () => setRowLines(pick) }]}
                 onChange={v => setPick(v === "max" ? "max" : Number(v))}
-                onClick={() => setRowLines(pick)}
               />
               <span className={dividerClass} aria-hidden="true" />
               <ActionButton onClick={() => setRowLines("fit")}>{t("Fit each row to its body")}</ActionButton>

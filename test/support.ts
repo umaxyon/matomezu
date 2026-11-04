@@ -1,8 +1,8 @@
 // テストで使う、ビルトインプラグインだけの表と store
 import { BUILTIN } from "../web/src/plugins"
-import { SAMPLE_BOOKS } from "../web/src/sample-books"
 import { assemble } from "../web/src/store/plugin"
 import { createMatomezuInstance, type StoreOptions } from "../web/src/store/store"
+import { SAMPLE_BOOKS } from "./sample-books"
 
 export const CORE_CATALOG = assemble(BUILTIN).catalog.core
 export const BUILTIN_PARTS = CORE_CATALOG.parts

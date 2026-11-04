@@ -9,6 +9,9 @@ import { pageFieldsInput } from "./page-fields"
 // マークダウンの見せ方: ステージに紙を置かない
 export const MARKDOWN_PRESENTATION = kit.definePresentation({ id: "markdown", paper: false })
 
+// ソースのペインのテキストFormが名乗るキーの範囲（その中で押したキーは、この範囲だけで引く）
+export const SOURCE_KEYS_SCOPE = kit.name("source")
+
 // ビューが開く右クリックのメニュー: ペインのタブ（右クリックしたペインを受け取る）（ui.tsx で core/catalog.ts に書き足す）
 export const PANE_CONTEXT = kit.name("pane-context")
 

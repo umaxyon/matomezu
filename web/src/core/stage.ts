@@ -10,6 +10,7 @@ import type { ItemId } from "./catalog"
 import type { BookTypeId, CoreCatalog } from "./core-catalog"
 import type { Point, Size } from "./geom"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
+import { sameData } from "./same"
 import type { Book, Page } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
@@ -184,7 +185,7 @@ function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: B
   const found = book.pages.find(p => p.id === o.page) ?? neighbourOf(book, o.page, before)
   const page = found?.id ?? null
   const paper = found ? stagePaper(catalog, o.type, found) : null
-  if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) {
+  if (page === o.page && sameData(paper, o.paper)) {
     const was = o.shift ?? HOME
     const now = found?.shift ?? HOME
     const sheet = paperOf(stage)

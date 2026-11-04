@@ -1,5 +1,5 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。ペインのタブの右クリックで分割を閉じ・並べ直す
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 
 async function fromMenu(page: Page, name: string) {
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
@@ -52,4 +52,24 @@ test("紙を置かずに、ソースとプレビューを左右に並べて開�
   const top = (await pane(page, "ソース").boundingBox())!
   const bottom = (await pane(page, "プレビュー").boundingBox())!
   expect(bottom.y).toBeGreaterThan(top.y) // 上下
+})
+
+test("ソースのペインに書くと描いた文書が変わる（読むのは Web Worker）。Tab キーは Tab 文字を書き、続けて書いた物を Mod+Z で元に戻し、Mod+Shift+Z でやり直す", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  const field = () => pane(page, "ソース").getByRole("textbox")
+  await field().click()
+  await page.keyboard.type("# 見出し")
+  await expect(pane(page, "プレビュー").getByRole("heading", { name: "見出し" })).toBeVisible()
+  // 書いたあとの原文は、画面とは別の処理の流れ（Web Worker）で読む
+  expect(page.workers().map(w => new URL(w.url()).pathname)).toContain("/markdown-parse-worker.js")
+  await page.keyboard.press("Enter")
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("本文")
+  await expect(field()).toHaveValue("# 見出し\n\t本文")
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(field()).toHaveValue("")
+  await page.keyboard.press("ControlOrMeta+Shift+z")
+  await expect(field()).toHaveValue("# 見出し\n\t本文")
 })

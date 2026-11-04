@@ -1,5 +1,5 @@
 // ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 import { selectText } from "./rich"
 import { fromMenu } from "./stage-menu"
 

@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
 import { addList, addRow } from "./list"
 import { panel, writeNote } from "./note"

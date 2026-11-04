@@ -45,6 +45,7 @@ export {
   useBookTheme,
   useCloseRightSidePanel,
   useDrawnMinimap,
+  useMarkdownDocument,
   useOpenRightSidePanel,
   usePaperControls,
   useRightSidePanel,
