@@ -89,6 +89,12 @@ describe("見た目のプラグイン", () => {
     expect(ui.dialogViews.get("@matomezu/base:book-open")).toBe(BASE_UI.ui.dialogViews["@matomezu/base:book-open"])
   })
 
+  test("見た目の表は、同じプラグインの配列なら組み直さず、別の配列なら組み直す", () => {
+    const plugins = [...BUILTIN_UI, notesUi]
+    expect(assembleUi(plugins)).toBe(assembleUi(plugins))
+    expect(assembleUi([...plugins])).not.toBe(assembleUi(plugins))
+  })
+
   test("コマンドのアイコンは自分のコマンドにだけ付けられる（ほかのプラグインのコマンドなら E307）", () => {
     const icons = definePluginUi(definePlugin({ id: "icons" }), {
       commandIcons: { "@matomezu/paper:paper-delete": <span /> },
