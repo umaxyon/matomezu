@@ -202,10 +202,6 @@ function mergeMessages(parts: CoreCatalogParts): Messages {
   return messages
 }
 
-// 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
-// タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの。
-// 道具の performs の、表に無いアクション（W012。その行だけ効かない）。warning は道具のプラグインのもの。
-// タイプの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）
 // 宣言されたテーマキーと、宣言した物（アイテムとブックのタイプは自分の id、プラグインのテーマキーはプラグインの id）
 const tokenDefs = (parts: CoreCatalogParts) => [
   ...[...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k }))),
@@ -225,6 +221,11 @@ const shadeWarnings = (parts: CoreCatalogParts): Warning[] => {
   )
 }
 
+// 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
+// タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの。
+// 道具の performs の、表に無いアクション（W012。その行だけ効かない）。warning は道具のプラグインのもの。
+// タイプの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）。
+// 明暗で同じ値だけのテーマキーに明暗で違う値を書いたテーマ（W020）
 function coreWarnings(parts: CoreCatalogParts): Warning[] {
   const actions = byId(parts.actions)
   const userSettings = byId(parts.userSettings)
