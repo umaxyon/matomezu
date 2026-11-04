@@ -1,4 +1,4 @@
-// Package engine は、画面と同じ core のアクションを常駐の中で行う。
+// Package engine は、画面と同じアクションを、ホストのエンジン（engine.js）で常駐の中で行う。
 //
 // engine.js は web/src/engine/engine.ts をまとめたもの（bun run build:engine。作り直して差分が無いことはテストが見張る）。
 // goja で動かす。goja の実行環境は同時に使えないので、1 つを鍵で守って順に使う。
@@ -59,7 +59,7 @@ type Output struct {
 	Touched     []string                   `json:"touched,omitempty"` // Watched の物のうち、変わったか無くなったもの
 }
 
-// Engine は読み込んだ core
+// Engine は読み込んだホストのエンジン（engine.js）
 type Engine struct {
 	mu        sync.Mutex
 	vm        *goja.Runtime
@@ -77,7 +77,7 @@ type Engine struct {
 	warnings  []string
 }
 
-// New は core を読み込む
+// New はホストのエンジン（engine.js）を読み込む
 func New() (*Engine, error) {
 	vm := goja.New()
 	if err := vm.Set("crypto", map[string]any{"randomUUID": randomUUID}); err != nil {
