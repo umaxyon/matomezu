@@ -1,12 +1,8 @@
 // 本文の装飾（base の RichBody・RichInput・RichText）: 本文の入力Form は装飾を見たまま書き、上のボックスで選んだ範囲を太字・文字の色にし、箱に装飾して描く
-import { expect, type Page, test } from "./fixtures"
+import { expect, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
+import { onPaper } from "./helpers/paper"
 import { selectText } from "./rich"
-
-async function onPaper(page: Page, x: number, y: number) {
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  return { x: paper.x + x, y: paper.y + y }
-}
 
 test("本文の上のボックスで、選んだ範囲を太字と注意の色にすると、記号は見せずに装飾して描き、箱でも太字・色で描く", async ({
   page,

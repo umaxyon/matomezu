@@ -1,23 +1,7 @@
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
+import { addBox, confirmBox, items, onPaper } from "./helpers/paper"
 import { BODY, coreWidthOf } from "./text-widths"
-
-const items = (page: Page) => page.locator("[data-item]")
-
-// 箱を置こうとして (x, y) で押し、開いた追加のダイアログでキャプションを入れて追加する
-async function addBox(page: Page, x: number, y: number, caption = "") {
-  await page.mouse.click(x, y)
-  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
-}
-
-// 紙の左上から (x, y) の画面の座標
-async function onPaper(page: Page, x: number, y: number) {
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  return { x: paper.x + x, y: paper.y + y }
-}
 
 test("箱のツールを押すとポインタに点線の箱が付き、紙の上で押して追加のダイアログで追加すると、そこに置かれて選ばれ、道具は選択に戻る", async ({
   page,
@@ -33,7 +17,8 @@ test("箱のツールを押すとポインタに点線の箱が付き、紙の�
   const g = (await ghost.boundingBox())!
   expect(Math.round(at.x - g.x)).toBe(16)
   expect(Math.round(at.y - g.y)).toBe(12)
-  await addBox(page, at.x, at.y, "見出し")
+  await page.mouse.click(at.x, at.y)
+  await confirmBox(page, "見出し")
   await expect(items(page)).toHaveCount(1)
   await expect(items(page)).toHaveAttribute("data-selected", "true")
   await expect(items(page)).toHaveText("見出し")
@@ -60,9 +45,7 @@ test("選択の道具で箱をドラッグすると動き、何も無い所を�
   page,
 }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const at = await onPaper(page, 200, 150)
-  await addBox(page, at.x, at.y)
+  await addBox(page, 200, 150)
   const box = items(page)
   const before = (await box.boundingBox())!
   await page.mouse.move(before.x + 20, before.y + 20)
@@ -93,9 +76,7 @@ test("選択の道具で箱をドラッグすると動き、何も無い所を�
 
 test("ハンドの道具の間は、紙の外でも箱の上でもポインタが手になり、押している間は握った手になる", async ({ page }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const at = await onPaper(page, 200, 150)
-  await addBox(page, at.x, at.y, "見出し")
+  await addBox(page, 200, 150, "見出し")
   const cursor = (selector: string) =>
     page
       .locator(selector)
@@ -156,9 +137,7 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
   page,
 }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const at = await onPaper(page, 200, 150)
-  await addBox(page, at.x, at.y, "前")
+  await addBox(page, 200, 150, "前")
   const box = items(page)
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
   await box.dblclick()
@@ -183,9 +162,7 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
 
 test("選んだ箱は Delete で消える。ダイアログの入力Formの中の Delete では消えない", async ({ page }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const at = await onPaper(page, 200, 150)
-  await addBox(page, at.x, at.y, "消す")
+  await addBox(page, 200, 150, "消す")
   await items(page).dblclick()
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
   await dialog.getByLabel("キャプション", { exact: true }).press("Delete")
@@ -203,9 +180,7 @@ test("箱を右クリックすると選ばれ、設定・区切り線・削除�
     [200, "一"],
     [450, "二"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, 150)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, 150, caption)
   }
   const second = items(page).filter({ hasText: "二" })
   await items(page).filter({ hasText: "一" }).click({ button: "right" })
@@ -355,9 +330,7 @@ test("置いた箱の幅はキャプションに合わせ、20 字までは切�
     [0, "あいうえおかきくけこさしすせそたちつてと", 100],
     [1, "あいうえおかきくけこさしすせそたちつてとなにぬねの", 200],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, 100, y)
-    await addBox(page, at.x, at.y, text)
+    await addBox(page, 100, y, text)
     await page.evaluate(() => document.fonts.ready)
     expect(await cut(i)).toBe(i === 1)
   }
@@ -371,9 +344,7 @@ test("置いた箱の幅はキャプションに合わせ、20 字までは切�
 
 test("編集でキャプションを長くすると、20 字が見える幅まで箱が右へ広がる", async ({ page }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const at = await onPaper(page, 100, 100)
-  await addBox(page, at.x, at.y, "短い")
+  await addBox(page, 100, 100, "短い")
   const box = page.locator("[data-item]")
   const before = (await box.boundingBox())!
   await box.dblclick()
@@ -620,9 +591,7 @@ test("「ページの設定」で紙を A3 にすると紙が大きくなる。�
   page,
 }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const right = await onPaper(page, 900, 120)
-  await addBox(page, right.x, right.y, "右")
+  await addBox(page, 900, 120, "右")
   const surface = page.locator("[data-paper-surface]")
   const before = (await surface.boundingBox())!
   const empty = await onPaper(page, 900, 600)
@@ -644,9 +613,7 @@ test("「ページの設定」で可変ページにして上下左右へ増や�
   page,
 }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const at = await onPaper(page, 200, 200)
-  await addBox(page, at.x, at.y, "元")
+  await addBox(page, 200, 200, "元")
   const origin = page.locator("[data-item]").filter({ hasText: "元" })
   const before = (await origin.boundingBox())!
   const empty = await onPaper(page, 900, 600)
@@ -690,9 +657,7 @@ test("箱の右の辺を右の箱へ向けて広げると、手を離したと�
     [120, "左"],
     [260, "右"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, 120)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, 120, caption)
   }
   const boxes = page.locator("[data-item]")
   const before = (await boxes.nth(1).boundingBox())!
@@ -715,9 +680,7 @@ test("ドラッグ中はほかの箱が薄くなって動かず、右の箱に�
     [120, "左"],
     [260, "右"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, 120)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, 120, caption)
   }
   const zoom = await zoomOf(page)
   const left = page.locator("[data-item]", { hasText: "左" })
@@ -761,9 +724,7 @@ test("箱を右へ広げて、押した右の箱が紙の右の端で詰まる�
     [120, "左"],
     [260, "右"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, 120)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, 120, caption)
   }
   const right = page.locator("[data-item]", { hasText: "右" })
   // 右の箱を広げて、紙の右の端の近くまで伸ばす
@@ -787,9 +748,7 @@ test("箱の大きさを変えるドラッグの間は、ほかの箱が薄く�
     [120, "左"],
     [260, "右"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, 120)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, 120, caption)
   }
   const left = page.locator("[data-item]", { hasText: "左" })
   const right = page.locator("[data-item]", { hasText: "右" })
@@ -812,9 +771,7 @@ test("選択の道具で、選んでいない箱にポインタを乗せると�
     [150, "始"],
     [550, "終"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, 150)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, 150, caption)
   }
   const empty = await onPaper(page, 600, 500)
   await page.mouse.click(empty.x, empty.y) // 選択を外す
@@ -866,9 +823,7 @@ test("選択の道具で、選んでいない箱にポインタを乗せると�
 
 test("〇から線を引いている途中にホイールで紙をずらしても、引いている線の先はポインタの所にある", async ({ page }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const at = await onPaper(page, 150, 150)
-  await addBox(page, at.x, at.y, "始")
+  await addBox(page, 150, 150, "始")
   const empty = await onPaper(page, 600, 500)
   await page.mouse.click(empty.x, empty.y) // 選択を外す
   const start = items(page).filter({ hasText: "始" })
@@ -897,9 +852,7 @@ test("〇から線を引いている途中にホイールで紙をずらして�
 
 test("〇から同じ箱へ戻して離すと、自分に戻る線が引かれる", async ({ page }) => {
   await page.goto("/")
-  await (await footerMenuTool(page, "箱")).click()
-  const at = await onPaper(page, 300, 250)
-  await addBox(page, at.x, at.y, "輪")
+  await addBox(page, 300, 250, "輪")
   const empty = await onPaper(page, 700, 600)
   await page.mouse.click(empty.x, empty.y)
   const box = items(page).filter({ hasText: "輪" })
@@ -934,9 +887,7 @@ test("ロック中のページでは、箱にポインタを乗せても線を�
     [150, "始"],
     [550, "終"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, 150)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, 150, caption)
   }
   const empty = await onPaper(page, 600, 500)
   await page.mouse.click(empty.x, empty.y)
@@ -980,9 +931,7 @@ test("線をダブルクリックすると線の編集のダイアログが開�
     [150, 150, "始"],
     [550, 350, "終"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, y)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, y, caption)
   }
   const empty = await onPaper(page, 900, 600)
   await page.mouse.click(empty.x, empty.y)
@@ -1020,9 +969,7 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
     [150, 150, "始"],
     [550, 350, "終"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, y)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, y, caption)
   }
   const empty = await onPaper(page, 900, 600)
   await page.mouse.click(empty.x, empty.y)
@@ -1051,9 +998,7 @@ test("選んだ線の両端に丸が出る。終点の丸を別の箱へ運ん�
     [550, 250, "終"],
     [550, 500, "先"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, y)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, y, caption)
   }
   const empty = await onPaper(page, 900, 650)
   await page.mouse.click(empty.x, empty.y)
@@ -1106,9 +1051,7 @@ test("箱をドラッグしている間、つながる線はその箱に付い�
     [150, 150, "始"],
     [500, 150, "終"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, y)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, y, caption)
   }
   const empty = await onPaper(page, 900, 650)
   await page.mouse.click(empty.x, empty.y)
@@ -1144,9 +1087,7 @@ test("線のキャプションを押すと線が選ばれ、ドラッグする�
     [150, 150, "始"],
     [550, 150, "終"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, y)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, y, caption)
   }
   const empty = await onPaper(page, 900, 650)
   await page.mouse.click(empty.x, empty.y)
@@ -1187,9 +1128,7 @@ test("線の色は、灰色を紙の色に 4 割混ぜた色。見る人の OS �
     [150, 150, "始"],
     [550, 150, "終"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, y)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, y, caption)
   }
   const empty = await onPaper(page, 900, 650)
   await page.mouse.click(empty.x, empty.y)
@@ -1216,9 +1155,7 @@ test("ブックの設定で線の既定の通り方を直線にすると、ペ�
     [150, 150, "始"],
     [550, 350, "終"],
   ] as const) {
-    await (await footerMenuTool(page, "箱")).click()
-    const at = await onPaper(page, x, y)
-    await addBox(page, at.x, at.y, caption)
+    await addBox(page, x, y, caption)
   }
   const empty = await onPaper(page, 900, 600)
   await page.mouse.click(empty.x, empty.y)

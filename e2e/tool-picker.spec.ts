@@ -1,11 +1,7 @@
 import { expect, type Page, test } from "./fixtures"
+import { onPaper } from "./helpers/paper"
 
 const picker = (page: Page) => page.getByRole("toolbar", { name: "ツールの切り替え" })
-
-async function paperPoint(page: Page, x: number, y: number) {
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  return { x: paper.x + x, y: paper.y + y }
-}
 
 async function longPress(page: Page, at: { x: number; y: number }) {
   await page.mouse.move(at.x, at.y)
@@ -17,7 +13,7 @@ test("紙の上で右ボタンを長押しすると、ポインタの近くに�
   page,
 }) => {
   await page.goto("/")
-  const at = await paperPoint(page, 400, 300)
+  const at = await onPaper(page, 400, 300)
   await longPress(page, at)
   await expect(picker(page)).toBeVisible()
   await page.mouse.up({ button: "right" })
@@ -39,7 +35,7 @@ test("短い右クリックはメニューを出す。押している間に動�
 }) => {
   await page.clock.install()
   await page.goto("/")
-  const at = await paperPoint(page, 400, 300)
+  const at = await onPaper(page, 400, 300)
   await page.mouse.click(at.x, at.y, { button: "right" })
   await expect(page.getByRole("menu")).toBeVisible()
   await page.keyboard.press("Escape")
@@ -57,7 +53,7 @@ test("付け替えを押すと付け替えになる。Escape・離れる・外�
   page,
 }) => {
   await page.goto("/")
-  const at = await paperPoint(page, 400, 300)
+  const at = await onPaper(page, 400, 300)
   await longPress(page, at)
   await page.mouse.up({ button: "right" })
   await picker(page).getByRole("button", { name: "付け替えツール" }).click()

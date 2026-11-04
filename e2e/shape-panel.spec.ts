@@ -2,8 +2,7 @@
 // 図面のパネルにはシェイプ（@matomezu/art）が並ぶ
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
-
-const paper = (page: Page) => page.getByRole("img", { name: "紙" })
+import { paper } from "./helpers/paper"
 
 async function flowchartBook(page: Page) {
   await page.goto("/")
