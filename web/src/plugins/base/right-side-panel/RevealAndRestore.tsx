@@ -4,16 +4,13 @@
 // 別のステージで開き直したときは、前のステージは戻さない。表示領域の大きさが変わってずらす量が収め直されただけなら、変えたことにはしない
 import { useCallback, useEffect } from "react"
 import { useShallow } from "zustand/react/shallow"
-import type { Rect } from "../../../core/geom"
-import type { Stage } from "../../../core/stage"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { anchorElementIn, revealedRect } from "../utils/anchors"
-import { stageElement } from "../utils/stage-element"
 import { moveView } from "../zoom"
+import { anchorsRect } from "./anchors-rect"
 import { useOpenedRightSidePanel } from "./hooks"
-import { paperRectOf, revealView } from "./reveal"
+import { revealView } from "./reveal"
 import { movedFrom, restoreIn, restoreTo, revealFor, withoutRestore, withRestore } from "./state"
 
 export function RevealAndRestore({ sliding }: { sliding: boolean }) {
@@ -66,16 +63,4 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
     }
   }, [sliding, kept, stage, stageOf, readOwn, actions, update])
   return null
-}
-
-// ステージ stage の、アンカー ids の物をまとめて囲む四角（紙の上で。どれも描かれていなければ null）。先に、物を囲む Revealable に見えるようにと頼む（リストの中のスクロールなど）
-function anchorsRect(stage: string, ids: readonly string[], now: Stage): Rect | null {
-  const view = stageElement(stage)
-  if (!view) return null
-  const found = ids.flatMap(id => {
-    const el = anchorElementIn(stage, id)?.el
-    return el ? [{ el, id }] : []
-  })
-  const rect = revealedRect(view, view, found)
-  return rect && paperRectOf(now, rect)
 }

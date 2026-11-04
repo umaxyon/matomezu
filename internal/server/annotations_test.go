@@ -90,7 +90,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"book":"b1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
-	const waiting = `{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true},"page":"p1","awaits":true}`
+	const waiting = `{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-02T00:00:00.000Z"},"page":"p1","awaits":true}`
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
 		t.Fatalf("read_book = %s", got)
 	}

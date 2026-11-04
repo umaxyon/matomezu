@@ -11,6 +11,7 @@ import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
 import { kit } from "./kit"
 // 拡張ポイントに書き足したメソッド labelOf の型（label/index.ts の declare module）
 import type {} from "./label"
+import { LEFT_DRAWER_CLOSE, LEFT_DRAWER_KEYS } from "./left-drawer"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import {
   DARK,
@@ -242,6 +243,7 @@ export const BASE = defineBuiltin(
       NOTE_NEW,
       MARK_NEW,
       RIGHT_SIDE_PANEL_CLOSE,
+      LEFT_DRAWER_CLOSE,
       PRINT_PREVIEW_OPEN,
       PRINT_PREVIEW_FIT,
     ],
@@ -254,6 +256,7 @@ export const BASE = defineBuiltin(
       ...MENU_KEYS,
       ...HISTORY_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
+      ...LEFT_DRAWER_KEYS,
     ],
   }),
 )
@@ -369,9 +372,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-new": typeof NOTE_NEW
     "@matomezu/base:mark-new": typeof MARK_NEW
     "@matomezu/base:right-side-panel-close": typeof RIGHT_SIDE_PANEL_CLOSE
+    "@matomezu/base:left-drawer-close": typeof LEFT_DRAWER_CLOSE
   }
   interface KeyScopeTable {
     "@matomezu/base:right-side-panel": true // 右サイドパネルの中にフォーカスがある間のキー
+    "@matomezu/base:left-drawer": true // 左ドロワーの中にフォーカスがある間のキー
   }
   interface DialogTable {
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG

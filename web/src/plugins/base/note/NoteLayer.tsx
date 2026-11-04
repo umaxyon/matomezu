@@ -24,7 +24,7 @@ import { NoteBirds } from "./NoteBirds"
 import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
 
-const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数
+export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数（伝言一覧の行も同じ）
 
 export function NoteLayer({ stage }: StageSlotProps) {
   const notes = useAnnotationsOf(stage, NOTE.id)
@@ -86,7 +86,8 @@ function NoteStand({
   )
 }
 
-function NoteIcon() {
+// 伝言の絵（たたんだ伝言と、伝言一覧の行に出す）
+export function NoteIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" />

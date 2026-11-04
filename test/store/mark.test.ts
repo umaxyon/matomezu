@@ -48,7 +48,7 @@ test("マークを付けると、種類を持ち、id を返す。知らない�
       id: done.ok ? (done.result as { mark: string }).mark : "",
       annotation: "@matomezu/base:mark",
       anchors: [a],
-      props: { kind: "suzume" },
+      props: { kind: "suzume", addedAt: expect.any(String) },
     },
   ])
   expect(add([a], "crow").ok).toBe(false)
@@ -58,14 +58,14 @@ test("1 つの物にマークは 1 つ: 付けると、その物のほかのマ�
   const { a, b, marks, add } = ready()
   add([a, b], "inko")
   add([a], "alert")
-  expect(marks().map(m => [m.props, m.anchors])).toEqual([
-    [{ kind: "inko" }, [b]],
-    [{ kind: "alert" }, [a]],
+  expect(marks().map(m => [(m.props as { kind: string }).kind, m.anchors])).toEqual([
+    ["inko", [b]],
+    ["alert", [a]],
   ])
   add([b], "fukurou")
-  expect(marks().map(m => [m.props, m.anchors])).toEqual([
-    [{ kind: "alert" }, [a]],
-    [{ kind: "fukurou" }, [b]],
+  expect(marks().map(m => [(m.props as { kind: string }).kind, m.anchors])).toEqual([
+    ["alert", [a]],
+    ["fukurou", [b]],
   ])
 })
 

@@ -22,6 +22,7 @@ const KINDS = MARK_KINDS.map(k => k.id) as [MarkKind, ...MarkKind[]]
 
 const MarkSchema = z.strictObject({
   kind: z.enum(KINDS),
+  addedAt: z.string(), // 付けた時点
   readAt: z.string().optional(), // AI が読んだ時点（無ければ未読）
 })
 export type MarkProps = z.output<typeof MarkSchema>
@@ -29,7 +30,7 @@ export type MarkProps = z.output<typeof MarkSchema>
 export const MARK = kit.defineAnnotation({
   id: "mark",
   title: "Mark",
-  aiDescription: `A mark the user put on things in a book (anchors), with no text: the user points at them, and may call them by the mark's kind, its flag's color, the bird's color or the bird in the talk ("the yellow flag", "the green bird"). kind is one of: ${MARK_KINDS.map(k => k.ai).join("; ")}. readAt is when AI read it (none: unread): mark it read with mark-read. Once the talk about it is done, remove it with mark-remove.`,
+  aiDescription: `A mark the user put on things in a book (anchors), with no text: the user points at them, and may call them by the mark's kind, its flag's color, the bird's color or the bird in the talk ("the yellow flag", "the green bird"). kind is one of: ${MARK_KINDS.map(k => k.ai).join("; ")}. addedAt is when the user put it on. readAt is when AI read it (none: unread): mark it read with mark-read. Once the talk about it is done, remove it with mark-remove.`,
   props: MarkSchema,
   // 読まれていないもの
   awaits: p => p.readAt === undefined,
@@ -60,7 +61,7 @@ export const MARK_ADD = kit.defineAction({
       ctx.newId,
       annotations.map(a => a.id),
     )
-    const props: MarkProps = { kind: args.kind }
+    const props: MarkProps = { kind: args.kind, addedAt: ctx.now }
     const mark: Annotation = { id, annotation: MARK.id, anchors, props }
     return { next: { book, annotations: [...kept, mark] }, result: { mark: id } }
   },

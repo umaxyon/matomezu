@@ -45,7 +45,7 @@ test("伝言を付けると、ブックとは別に持ち、id を返す。吹�
       id: done.ok ? (done.result as { note: string }).note : "",
       annotation: "@matomezu/base:note",
       anchors: [a, b],
-      props: { text: "見て", bubble: true },
+      props: { text: "見て", bubble: true, addedAt: expect.any(String) },
     },
   ])
   expect(store.actions.perform(ADD, { anchors: [a], text: "" }, ON).ok).toBe(false)

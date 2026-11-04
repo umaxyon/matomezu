@@ -17,6 +17,7 @@ const TEXT = NoteTextSchema
 const NoteSchema = z.strictObject({
   text: TEXT, // 伝える文
   bubble: z.boolean(), // 吹き出しを出すか（出さなければ、たたんだ伝言の絵だけ）
+  addedAt: z.string(), // 付けた時点
   readAt: z.string().optional(), // AI が読んだ時点（無ければ未読）
 })
 export type NoteProps = z.output<typeof NoteSchema>
@@ -25,7 +26,7 @@ export const NOTE = kit.defineAnnotation({
   id: "note",
   title: "Note",
   aiDescription:
-    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in, then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). readAt is when AI read it (none: unread; the user changing the text makes it unread again).",
+    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in, then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text makes it unread again).",
   props: NoteSchema,
   awaits: p => p.readAt === undefined,
 })
@@ -76,7 +77,7 @@ export const NOTE_ADD = kit.defineAction({
       ctx.newId,
       annotations.map(a => a.id),
     )
-    const props: NoteProps = { text: args.text, bubble: args.bubble ?? true }
+    const props: NoteProps = { text: args.text, bubble: args.bubble ?? true, addedAt: ctx.now }
     const note: Annotation = { id, annotation: NOTE.id, anchors: [...new Set(args.anchors)], props }
     return { next: { book, annotations: [...annotations, note] }, result: { note: id } }
   },

@@ -9,8 +9,10 @@ import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
+import { LEFT_DRAWER_BUTTON } from "./left-drawer/ui"
 import { MARK_LAYER } from "./mark/ui"
 import { NOTE_LAYER, NOTE_PANEL } from "./note/ui"
+import { NOTE_LIST } from "./note-list/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { PRINT_PREVIEW_BUTTON, PRINT_PREVIEW_PANEL, PRINT_PREVIEW_SETTING_VIEWS } from "./print-preview/ui"
 import { USER_SETTING_VIEWS } from "./settings/ui"
@@ -105,6 +107,8 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_AREA_TOGGLE,
     PRINT_PREVIEW_BUTTON,
     PRINT_PREVIEW_PANEL,
+    LEFT_DRAWER_BUTTON,
+    NOTE_LIST,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
@@ -130,11 +134,14 @@ declare module "../../core/catalog" {
     "@matomezu/base:footer-menu-basics": StageSlotProps
     "@matomezu/base:footer-menu-book-tools": StageSlotProps
     "@matomezu/base:right-side-panel": StageSlotProps
+    "@matomezu/base:left-drawer": StageSlotProps
   }
   interface WidgetExtras {
     // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）と、
     // ステージの選択に従うか（followsSelection。従う中身を出している間は、付いた先がステージの選択になり、開いたステージの中を押しても閉じない）
     rightSidePanel?: { width: number; followsSelection?: boolean }
+    // 左ドロワーのスロットに置くタブの名前（文言の鍵）
+    leftDrawer?: { title: MessageKey }
   }
   interface WidgetTable {
     "@matomezu/base:workspace": typeof WORKSPACE
@@ -152,6 +159,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark-layer": typeof MARK_LAYER
     "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
     "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
+    "@matomezu/base:left-drawer-button": typeof LEFT_DRAWER_BUTTON
+    "@matomezu/base:note-list": typeof NOTE_LIST
     "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX

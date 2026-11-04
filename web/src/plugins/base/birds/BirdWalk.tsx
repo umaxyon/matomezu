@@ -26,8 +26,8 @@ export const BIRD_SIZE = 48 // 歩く鳥の大きさ（画面の px）
 export const FRONT = 4 // 正面を向いたコマ
 const POINTER = 24 // 鳥の顔の丸い絵の大きさ
 
-// 鳥ごとの顔の丸い絵
-const POINTERS: Record<Bird, string> = {
+// 鳥ごとの顔の丸い絵（マークポインタと、伝言一覧の行の絵）
+export const BIRD_FACES: Record<Bird, string> = {
   tsunagidori: tsunagidoriPointer,
   inko: inkoPointer,
   buncho: bunchoPointer,
@@ -137,7 +137,7 @@ export function BirdWalk({
           aria-label={awayLabel}
           title={awayLabel}
           onClick={away.show}
-          style={{ left: at.x - POINTER / 2, top: at.y - POINTER / 2, backgroundImage: `url(${POINTERS[bird]})` }}
+          style={{ left: at.x - POINTER / 2, top: at.y - POINTER / 2, backgroundImage: `url(${BIRD_FACES[bird]})` }}
           data-bird-pointer
         />
       </div>

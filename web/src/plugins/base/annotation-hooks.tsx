@@ -8,12 +8,17 @@ import { refusalMessage } from "./utils/refusal"
 
 const NONE: readonly Annotation[] = []
 
-// ステージで開いているブックの、種類 annotation のアノテーション
-export function useAnnotationsOf(stage: string, annotation: string): readonly Annotation[] {
-  const all = useMatomezuState(s => {
+// ステージで開いているブックの、全部のアノテーション
+export function useAnnotationsIn(stage: string): readonly Annotation[] {
+  return useMatomezuState(s => {
     const book = s.workspace.stages.find(st => st.id === stage)?.opened?.book
     return (book && s.annotations[book]) || NONE
   })
+}
+
+// ステージで開いているブックの、種類 annotation のアノテーション
+export function useAnnotationsOf(stage: string, annotation: string): readonly Annotation[] {
+  const all = useAnnotationsIn(stage)
   return useMemo(() => all.filter(a => a.annotation === annotation), [all, annotation])
 }
 
