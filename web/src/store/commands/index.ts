@@ -7,11 +7,9 @@ import { fail } from "../../core/errors"
 import { NO_HISTORY } from "../../core/history"
 import { inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
-import { permittedIn } from "../../core/perform"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import type { MatomezuState } from "../store"
-import { worldOf } from "../world"
 import { type CommandContext, type CommandDef, commandScopeOf, withWorkspace } from "./def"
 
 export type { CommandId } from "../../core/catalog"
@@ -51,7 +49,6 @@ export function commandContext(
       contextMenu,
       bookHistory: (book && state.history[book.id]) || NO_HISTORY,
       stageState: state.stageStates[stageId]?.[commandOwner(command)],
-      allowedOn: (action, args, on) => permittedIn(worldOf(state), action, args, on, { catalog, home }).ok,
     },
     workspace,
   )

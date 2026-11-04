@@ -93,15 +93,14 @@ test("ロックの掛け外しは画面の履歴に入らない。ロック中�
   expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:undo")).toBe(true)
 })
 
-test("ロック中のページを変えた画面の履歴の段は、元に戻すコマンドを押せなくし、画面の履歴の段は残る", async () => {
+test("ロック中のページを変えた画面の履歴の段は、元に戻すとトーストで断り、画面の履歴の段は残る", async () => {
   const store = ready()
   place(store, 40)
   await settled()
   const page = bookOf(store).pages[0]!.id
   store.actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
-  expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:undo")).toBe(false)
-  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(false)
-  expect(itemsOf(store)).toHaveLength(1)
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn", message: "@matomezu/base:Locked" })
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
 })
 
@@ -223,7 +222,7 @@ test("いくつものブックを変えた画面の履歴の段にも、どち�
   expect(Object.keys(historyOf(store, "b2")!.undo[0]!.books)).toEqual(["b1", "b2"])
 })
 
-test("いくつものブックを変えた画面の履歴の段は、開いていないブックのページがロック中なら、元に戻すコマンドを押せなくし、どのブックも画面の履歴の段も残る", async () => {
+test("いくつものブックを変えた画面の履歴の段は、途中のブックが断られたら、置き直したブックも元に戻し、画面の履歴の段は残る", async () => {
   const store = ready()
   const placeIn = (book: string) =>
     store.actions.perform(
@@ -236,14 +235,14 @@ test("いくつものブックを変えた画面の履歴の段は、開いて�
   await settled()
   expect(Object.keys(historyOf(store)!.undo[0]!.books)).toEqual(["b1", "b2"])
   store.actions.perform("@matomezu/base:page-lock", { page: "p1" }, { book: "b2" })
-  expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:undo")).toBe(false)
-  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(false)
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn", message: "@matomezu/base:Locked" })
   expect(itemsOf(store)).toHaveLength(1)
   expect((bookOf(store, "b2").pages[0]?.items ?? []).length).toBe(1)
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
 })
 
-test("いくつものブックを変えた画面の履歴の段は、押せても途中のブックが行った後の確かめで断られたら、置き直したブックも元に戻し、トーストで知らせ、画面の履歴の段は残る", async () => {
+test("いくつものブックを変えた画面の履歴の段は、途中のブックが行った後の確かめで断られても、置き直したブックも元に戻し、トーストで知らせ、画面の履歴の段は残る", async () => {
   const kit = pluginKit("@ex/keep-b2", defineMessages({ keep: { en: "Keep b2", ja: "b2 を残す" } }))
   const store = createMatomezu({
     plugins: [
