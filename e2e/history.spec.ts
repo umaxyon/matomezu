@@ -80,3 +80,36 @@ test("ツリーで＋で足して書いた節は、1 回の Ctrl+Z で消える�
   await page.keyboard.press("Control+z")
   await expect(child).toHaveCount(0)
 })
+
+test("ページタブをドラッグして並べ替えられ、元に戻すで元の並びに、やり直すで動かした並びになる。タブの外で離すと動かさない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "ページを足す" }).click()
+  const dialog = page.getByRole("dialog", { name: "新しいページ" })
+  await page.keyboard.press("Enter")
+  await expect(dialog).toBeHidden()
+  const tabs = page.getByRole("tab")
+  await expect(tabs).toHaveText(["ページ 1", "ページ 2"])
+  const first = (await tabs.nth(0).boundingBox())!
+  const second = (await tabs.nth(1).boundingBox())!
+  const grab = { x: first.x + first.width / 2, y: first.y + first.height / 2 }
+  // タブの外（紙の真ん中）で離すと動かさない
+  await page.mouse.move(grab.x, grab.y)
+  await page.mouse.down()
+  await page.mouse.move(grab.x + 20, grab.y)
+  await page.mouse.move(400, 400)
+  await page.mouse.up()
+  await expect(tabs).toHaveText(["ページ 1", "ページ 2"])
+  // 2 枚目の右へ落とす
+  await page.mouse.move(grab.x, grab.y)
+  await page.mouse.down()
+  await page.mouse.move(grab.x + 20, grab.y)
+  await page.mouse.move(second.x + second.width - 4, grab.y)
+  await page.mouse.up()
+  await expect(tabs).toHaveText(["ページ 2", "ページ 1"])
+  await page.keyboard.press("Control+z")
+  await expect(tabs).toHaveText(["ページ 1", "ページ 2"])
+  await page.keyboard.press("Control+Shift+z")
+  await expect(tabs).toHaveText(["ページ 2", "ページ 1"])
+})

@@ -1,7 +1,9 @@
 // ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
 // 押したページをそのステージで開く（コマンド page-open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page-new。開くダイアログはタイプが決められる）。
 // ロック中のページのタブには鍵の印を出す（押せない。外すのはページの設定のダイアログ）。
-// タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする
+// タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする。
+// タブはドラッグで並べ替えられる（useTabDrag。アクション page-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
+import { useRef } from "react"
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
@@ -12,6 +14,7 @@ import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { PAGE_NEW, PAGE_OPEN } from "."
 import styles from "./PageTabs.module.css"
+import { useTabDrag } from "./useTabDrag"
 
 // ページタブの横に、ページを足すボタンを出すか（タイプが出すと決める。ページを作れるかはコマンド page-new が決める）
 function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
@@ -38,18 +41,38 @@ export function PageTabs({ stage }: { stage: string }) {
   const newPage = useCommand(stage, PAGE_NEW.id)
   const catalog = useCatalog().core
   const t = useMessages(kit)
+  const list = useRef<HTMLDivElement | null>(null)
+  const pages = book && hasPages(book) ? book.pages : []
+  const tabDrag = useTabDrag(
+    stage,
+    list,
+    pages.map(p => p.id),
+  )
   if (!book || !hasPages(book)) return <div className={styles.tabs} />
+  const { drag } = tabDrag
+  const grabbed = drag && book.pages.find(p => p.id === drag.id)
   return (
-    <div className={styles.tabs} role="tablist" aria-label={book.title} ref={sideways}>
+    <div
+      className={styles.tabs}
+      role="tablist"
+      aria-label={book.title}
+      ref={el => {
+        list.current = el
+        return sideways(el)
+      }}
+    >
       {book.pages.map(p => (
-        <span key={p.id} className={styles.slot}>
+        <span key={p.id} className={styles.slot} ref={tabDrag.slot(p.id)} data-carried={drag?.id === p.id}>
           <button
             type="button"
             role="tab"
             className={styles.tab}
             data-locked={p.locked === true}
             aria-selected={p.id === opened?.page}
-            onClick={() => openPage.run(p.id)}
+            onClick={() => {
+              if (!tabDrag.swallowClick()) openPage.run(p.id)
+            }}
+            {...tabDrag.handlers(p.id)}
           >
             {p.title}
           </button>
@@ -60,6 +83,12 @@ export function PageTabs({ stage }: { stage: string }) {
           )}
         </span>
       ))}
+      {tabDrag.bar !== null && <div className={styles.dropBar} style={{ left: tabDrag.bar }} />}
+      {drag && grabbed && (
+        <div className={styles.ghost} style={{ left: drag.x - drag.grab, top: drag.y - 12 }}>
+          {grabbed.title}
+        </div>
+      )}
       {addsFromTabs(catalog, book) && newPage.shown && (
         <button type="button" className={styles.add} aria-label={t("Add page")} onClick={() => newPage.run()}>
           <svg viewBox="0 0 16 16" aria-hidden="true">

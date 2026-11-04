@@ -1,5 +1,6 @@
 /* 下の行のタブ。開いているページのタブは、上のステージとつながって見える */
 .tabs {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -97,4 +98,39 @@
 .add:focus-visible {
   outline: 2px solid var(--skin-accent);
   outline-offset: -2px;
+}
+/* ドラッグ中: 掴んだタブは元の所で薄くし、落とす所に線を出し、写しをポインタに付ける。線は濃い線を白で縁取り、どの色の上でも見えるようにする */
+.slot[data-carried="true"] {
+  opacity: 0.35;
+}
+.dropBar {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 25px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: #1f1f1f;
+  box-shadow:
+    0 0 0 1.5px #ffffff,
+    0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.ghost {
+  position: fixed;
+  z-index: 40;
+  max-width: 200px;
+  height: 25px;
+  padding: 0 12px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: var(--skin-stage);
+  color: var(--skin-text);
+  line-height: 25px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.9;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+  pointer-events: none;
 }

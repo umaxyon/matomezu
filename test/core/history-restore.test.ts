@@ -40,3 +40,14 @@ test("画面の履歴の段の間にほかで変わった所は、画面の履�
     book({ title: "AI" }, [page("p", [item("a"), item("ai")])]),
   )
 })
+
+test("並び順だけの違いも置き直す。間に足した・消したページやアイテムは崩さない", () => {
+  const before = book({}, [page("p", [item("a"), item("b"), item("c")]), page("q", []), page("r", [])])
+  const after = book({}, [page("r", []), page("p", [item("c"), item("a"), item("b")]), page("q", [])])
+  expect(applyRestore(after, restoreArgs(after, before))).toEqual(before)
+  expect(applyRestore(before, restoreArgs(before, after))).toEqual(after)
+  const now = book({}, [page("r", []), page("n", []), page("p", [item("c"), item("a"), item("x"), item("b")])])
+  expect(applyRestore(now, restoreArgs(after, before))).toEqual(
+    book({}, [page("p", [item("a"), item("b"), item("x"), item("c")]), page("n", []), page("r", [])]),
+  )
+})
