@@ -6,6 +6,7 @@ import { defineMessages } from "../../web/src/core/i18n/messages"
 import { userSetting } from "../../web/src/core/settings"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { MASTER } from "../../web/src/plugins/books/master/master"
+import { MASTER_VIEW_MESSAGES } from "../../web/src/plugins/books/master/view/messages"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -59,8 +60,9 @@ function renderMaster(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX]) {
   return { store, value, master: screen.getByRole("region", { name: "マスター" }) }
 }
 
-test("設定の区分は、base の項目を見出しなしで先に、ほかのプラグインの項目をプラグインの id の見出しの下に並べる", () => {
+test("設定の区分は画面の作りが決まっていないことを書き添え、base の項目を見出しなしで先に、ほかのプラグインの項目をプラグインの id の見出しの下に並べる", () => {
   const { master } = renderMaster()
+  expect(within(master).getByText(MASTER_VIEW_MESSAGES["(The settings screen is provisional)"].ja)).toBeTruthy()
   expect(within(master).getByLabelText("言語")).toBeTruthy()
   expect(within(master).getByLabelText("スキン")).toBeTruthy()
   expect(within(master).getByText("（準備中）")).toBeTruthy()
