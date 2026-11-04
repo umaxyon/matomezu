@@ -1,5 +1,5 @@
 // 道具のアイコンのビュー（ウィジェット tool-picker）: 紙のあるステージで右ボタンを押し続けると、押している間はポインタの周りに輪が満ちていき、
-// LONG_PRESS_MS で、そのステージの道具の組の道具のアイコンをポインタのすぐ近くに並べて出す（core/stage.ts の picker）。
+// 利用者の設定の長押しの時間（hold.ts）で、そのステージの道具の組の道具のアイコンをポインタのすぐ近くに並べて出す（core/stage.ts の picker）。
 // 押し続けている間に MOVE_SLOP より動いたら取り消す。長押しで出したら、右クリックのメニューは出さない。Space（コマンド tool-picker）でも開く。
 // 出ている間は画面に薄い幕を掛けてほかの操作を止める。アイコンを押すとその道具にして閉じる。
 // アイコンの外を押す・閉じるキー（menu-close。既定は Escape と Space）・並びから離れる・窓の大きさが変わる・窓から焦点が外れると、何もせずに閉じる。
@@ -15,7 +15,7 @@ import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useStage } from "../../../ui/view-hooks"
+import { useStage, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { MINIMAP } from "../minimap/icons"
 import { MinimapView } from "../minimap/MinimapView"
@@ -23,10 +23,10 @@ import { unusableTools } from "../tool-switch/tools"
 import { stageElement } from "../utils/stage-element"
 import { ZoomBar } from "../zoom/ZoomBar"
 import { TOOL_SET } from "."
+import { holdMsOf, TOOL_PICKER_HOLD } from "./hold"
 import { ICON, leftBox, leftPicker, mapPlace, mapSlot, type PickerLayout, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
 
-export const LONG_PRESS_MS = 250 // 長押しの時間
 const MOVE_SLOP = 5 // 長押しを取り消さない動きの遊び（px）
 const RING_R = 14 // 押している間の輪の半径
 const RING_SHOW = 120 // 輪を出し始めるまで（ふつうの右クリックで輪がちらつかないように）
@@ -57,6 +57,9 @@ export function ToolPickerView() {
   )
   const pressableRef = useRef(pressable)
   pressableRef.current = pressable
+  const holdMs = holdMsOf(useUserSetting(TOOL_PICKER_HOLD.id))
+  const holdRef = useRef(holdMs)
+  holdRef.current = holdMs
 
   useEffect(() => {
     const end = () => {
@@ -78,7 +81,7 @@ export function ToolPickerView() {
         suppressContextMenu()
         closeContextMenu()
         openPicker(p.stage, p.at)
-      }, LONG_PRESS_MS)
+      }, holdRef.current)
       press.current = { stage, start: at, at, timer }
       setRing(at)
     }
@@ -108,14 +111,14 @@ export function ToolPickerView() {
 
   return (
     <>
-      {ring && <Ring at={ring} />}
+      {ring && <Ring at={ring} holdMs={holdMs} />}
       <Picker last={last} />
     </>
   )
 }
 
 // 押している間の輪（真上から満ちる）
-function Ring({ at }: { at: Point }) {
+function Ring({ at, holdMs }: { at: Point; holdMs: number }) {
   const size = RING_R * 2 + 6
   const len = 2 * Math.PI * RING_R
   return (
@@ -134,7 +137,7 @@ function Ring({ at }: { at: Point }) {
         style={{
           strokeDasharray: len,
           animationDelay: `${RING_SHOW}ms`,
-          animationDuration: `${LONG_PRESS_MS - RING_SHOW}ms`,
+          animationDuration: `${holdMs - RING_SHOW}ms`,
         }}
       />
     </svg>

@@ -39,6 +39,7 @@ import { KEYS, LANG, OPTION_TITLES_CHECK, SETTINGS_SET, SETTINGS_SET_COMMAND, SK
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
+import { TOOL_PICKER_HOLD } from "./tool-picker/hold"
 import { TOOL_NEXT } from "./tool-switch"
 import { HAND_TOOL, SELECT_TOOL } from "./tool-switch/tools"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
@@ -183,7 +184,7 @@ export const BASE = defineBuiltin(
       MARK_REMOVE,
     ],
     settings: [BOOK_THEME, BOOK_PAPER_COLOR, BOOK_TEXT_COLORS],
-    userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS],
+    userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS, TOOL_PICKER_HOLD],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
     textColors: TEXT_COLORS,
@@ -245,6 +246,7 @@ declare module "../../core/catalog" {
   }
   interface UserSettingTable {
     "@matomezu/base:lang": typeof LANG
+    "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS
     "@matomezu/base:text-colors": typeof USER_TEXT_COLORS
