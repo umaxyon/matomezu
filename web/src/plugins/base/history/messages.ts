@@ -8,4 +8,5 @@ export const HISTORY_MESSAGES = defineMessages({
   "Could not undo": { en: "Could not undo", ja: "元に戻せません" },
   "Could not redo": { en: "Could not redo", ja: "やり直せません" },
   '{reason}: "{book}"': { en: '{reason}: "{book}"', ja: "「{book}」が{reason}" },
+  "{reason}: a related book": { en: "{reason}: a related book", ja: "関連ブックが{reason}" },
 })
