@@ -72,7 +72,7 @@ export function useTabDrag(stage: string, list: RefObject<HTMLElement | null>, i
 
   return {
     drag,
-    // 掴んだタブの元の場所のしるし（薄くする）と、落とす所の線の位置（並びの中の左端の px。落とす所が無ければ null）
+    // 落とす所の線の位置（並びの中の左端の px。落とす所が無ければ null）
     bar: (() => {
       if (!drag || drag.index === null) return null
       const others = ids.filter(k => k !== drag.id).map(k => slots.current.get(k))
