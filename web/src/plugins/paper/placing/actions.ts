@@ -108,7 +108,7 @@ export const ITEM_PLACE = kit.defineAction({
   },
 })
 
-// アイテムを by だけ動かす（base/place/items.ts の moveItems。1 つなら正面の相手と入れ替え・手前へ戻す、何個かならまとめて手前へ戻す）。収まらなければ断る
+// アイテムを by だけ動かす（items.ts の moveItems。1 つなら正面の相手と入れ替え・手前へ戻す、何個かならまとめて手前へ戻す）。収まらなければ断る
 export const ITEM_MOVE = kit.defineAction({
   id: "item-move",
   attach: ON_PAPER,

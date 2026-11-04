@@ -299,8 +299,8 @@ type AnnotatedBook struct {
 	Annotations json.RawMessage `json:"annotations"`
 }
 
-// WarningLines は、画面が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする。
-// 表に無い番号・形の合わないものは捨てる（画面が作った文は使わない）
+// WarningLines は、窓が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする。
+// 表に無い番号・形の合わないものは捨てる（窓が作った文は使わない）
 func (e *Engine) WarningLines(warnings json.RawMessage) (out []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
