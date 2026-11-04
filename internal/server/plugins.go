@@ -73,22 +73,25 @@ func (h *Hub) dropAnnotationsOf(id string) error {
 
 // usePlugins はホストのエンジンを組み直し、窓に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) usePlugins(next []*plugin.Bundle) error {
+	before := h.engine.Warnings()
 	if _, err := h.engine.Use(next); err != nil {
 		return err
 	}
-	// warning は止めずに、常駐のログ（標準エラー）に書く。読めるブックも今のプラグインで確かめ直す
-	for _, n := range h.engine.Warnings() {
-		fmt.Fprintln(os.Stderr, "warning:", n)
-	}
-	if err := h.checkAnnotations(); err != nil {
-		fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
-	}
+	// 読めるブックを今のプラグインで確かめ直す。確かめ直せなければ、エンジンを前の組に戻す（h.plugins と warning の一覧は前のまま）
 	if err := h.checkBooks(h.order); err != nil {
-		// 確かめ直せなければ、エンジンを前の組に戻す（h.plugins は前のまま）
 		if _, back := h.engine.Use(h.plugins); back != nil {
 			fmt.Fprintln(os.Stderr, "engine: could not go back to the previous plugins:", back)
 		}
 		return err
+	}
+	if err := h.checkAnnotations(); err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
+	}
+	// 定義の warning は止めずに、新しく出たものだけ常駐のログ（標準エラー）に書く
+	for _, n := range h.engine.Warnings() {
+		if !slices.Contains(before, n) {
+			fmt.Fprintln(os.Stderr, "warning:", n)
+		}
 	}
 	h.plugins = next
 	h.pluginsVersion++
