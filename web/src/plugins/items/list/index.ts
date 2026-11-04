@@ -1,5 +1,5 @@
 // リストのプラグイン: リストのアイテム（見出しと行）と、行の操作のアクションとコマンド、リストと行の追加・編集のダイアログ
-import { defineBuiltin, oneShadeCheck } from "../../../plugin-api/builtin"
+import { defineBuiltin } from "../../../plugin-api/builtin"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import {
   LIST_ADD_ROW,
@@ -12,11 +12,10 @@ import {
   LIST_STRETCH_ROW,
 } from "./commands"
 import { kit } from "./kit"
-import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, LIST_NON_COLOR_TOKENS, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
+import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 
 export const LIST_PLUGIN = defineBuiltin(
   kit.plugin({
-    checks: [oneShadeCheck(LIST_NON_COLOR_TOKENS.map(t => kit.name(t.id)))], // 色でないテーマキーは明暗で違う値にできない
     items: [LIST],
     actions: [ROW_ADD, ROW_UPDATE, ROW_REMOVE, ROW_CHECK, ROW_LINES, ROW_MOVE],
     commands: [

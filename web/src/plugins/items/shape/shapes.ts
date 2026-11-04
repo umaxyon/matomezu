@@ -14,15 +14,11 @@ import { placedWidth, SHAPE_MIN } from "./size"
 
 export const SHAPE_FILL = { id: kit.name("shape-fill"), fallback: "fill" } as const
 // 8 つの形で共通のテーマキー（プラグインが持つ。形のアイテムは自分のテーマキーを持たない）
-// 色でないテーマキー（明暗で違う値にできない。プラグインの checks の oneShadeCheck が確かめる）
-export const SHAPE_NON_COLOR_TOKENS = [
-  { id: kit.name("shape-shadow"), value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // 影（CSS の filter の値）
-] as const
 export const SHAPE_TOKENS = [
   SHAPE_FILL,
   { id: kit.name("shape-line"), value: "#cdcdd6" }, // 輪郭の線
   { id: kit.name("shape-text"), fallback: "text" },
-  ...SHAPE_NON_COLOR_TOKENS,
+  { id: kit.name("shape-shadow"), value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))", shades: "one" }, // 影（CSS の filter の値）
 ] as const
 
 export const ShapePropsSchema = z.strictObject({

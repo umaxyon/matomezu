@@ -1,6 +1,6 @@
 // 形のプラグイン: キャプションを 1 行持つ 8 つの形（角丸・ひし形・平行四辺形とその逆・台形とその逆・六角形・円）と、その追加と編集のダイアログ。
 // 形は使われる所を知らない。使うかはブックのタイプが選ぶ
-import { defineBuiltin, oneShadeCheck } from "../../../plugin-api/builtin"
+import { defineBuiltin } from "../../../plugin-api/builtin"
 import { kit } from "./kit"
 import {
   type CIRCLE,
@@ -10,7 +10,6 @@ import {
   type PARALLELOGRAM_REVERSED,
   type ROUNDED,
   SHAPE_EDIT_DIALOG,
-  SHAPE_NON_COLOR_TOKENS,
   SHAPE_TOKENS,
   SHAPES,
   type ShapeOptions,
@@ -20,7 +19,6 @@ import {
 
 export const SHAPE_PLUGIN = defineBuiltin(
   kit.plugin({
-    checks: [oneShadeCheck(SHAPE_NON_COLOR_TOKENS.map(t => t.id))], // 色でないテーマキーは明暗で違う値にできない
     items: SHAPES.map(s => s.item),
     tokens: SHAPE_TOKENS,
     dialogs: [...SHAPES.map(s => s.add), SHAPE_EDIT_DIALOG],

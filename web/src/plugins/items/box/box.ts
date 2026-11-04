@@ -46,17 +46,13 @@ export const BoxPropsSchema = z
 export const NEST_BOX_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "nest-box-add" })
 
 // 箱と内包ボックスで共通のテーマキー（同じ見た目。プラグインが持ち、アイテムは自分のテーマキーを持たない）
-// 色でないテーマキー（明暗で違う値にできない。プラグインの checks の oneShadeCheck が確かめる）
-export const BOX_NON_COLOR_TOKENS = [
-  { id: kit.name("box-radius"), value: "8px" }, // 角の丸み
-  { id: kit.name("box-shadow"), value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // 影（CSS の filter の値。標準は薄い影）
-  { id: kit.name("box-fold"), value: "0px" }, // 右上の角を折り返す大きさ（付箋）
-] as const
 export const BOX_TOKENS = [
   BOX_FILL,
   { id: kit.name("box-line"), value: "#cdcdd6" }, // 枠線（標準は淡い灰色。テーマが上書きする）
   { id: kit.name("box-text"), fallback: "text" },
-  ...BOX_NON_COLOR_TOKENS,
+  { id: kit.name("box-radius"), value: "8px", shades: "one" }, // 角の丸み
+  { id: kit.name("box-shadow"), value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))", shades: "one" }, // 影（CSS の filter の値。標準は薄い影）
+  { id: kit.name("box-fold"), value: "0px", shades: "one" }, // 右上の角を折り返す大きさ（付箋）
 ] as const
 
 // 箱と内包ボックスに共通の定義。大きさは w・h（無ければキャプションの幅と、本文が 5 行まで見える高さ）

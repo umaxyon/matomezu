@@ -7,7 +7,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { settingValue } from "../../web/src/plugins/base/book-settings"
 import { LINE_ROUTE } from "../../web/src/plugins/items/line/line"
-import { assemble, type Plugin } from "../../web/src/store/plugin"
+import { assemble, type Plugin, warningsOf } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing")!
@@ -218,8 +218,27 @@ test("テーマがデータの動き方のテーマキーに決まった言葉�
   ])
 })
 
-test("テーマが色でないテーマキーに明暗で違う値を書いたら W020 を残し（明暗で切り替えられるのは色だけ）、色のテーマキーと同じ値の明暗は見ない", () => {
-  const plugins = (BUILTIN as readonly Plugin[]).map(p =>
+test("テーマが明暗で同じ値だけのテーマキー（shades: one）に明暗で違う値を書いたら W020 を残し（追加プラグインのテーマキーも）、色のテーマキーと同じ値の明暗は見ない", () => {
+  const simple = (BUILTIN as readonly Plugin[]).flatMap(p => p.themes ?? []).find(t => t.id === "@matomezu/base:simple")
+  if (simple === undefined) throw new Error("no simple theme")
+  const stars: Plugin = {
+    id: "@foo/stars",
+    tokens: [
+      { id: "@foo/stars:star-size", value: "4px", shades: "one" },
+      { id: "@foo/stars:star-fill", value: "#ffcc00" },
+    ],
+    themes: [
+      {
+        ...simple,
+        id: "@foo/stars:night",
+        tokens: {
+          "@foo/stars:star-size": { light: "4px", dark: "6px" },
+          "@foo/stars:star-fill": { light: "#ffcc00", dark: "#886600" },
+        },
+      },
+    ],
+  }
+  const plugins = [...(BUILTIN as readonly Plugin[]), stars].map(p =>
     p.id === "@matomezu/base"
       ? {
           ...p,
@@ -240,8 +259,9 @@ test("テーマが色でないテーマキーに明暗で違う値を書いた�
         }
       : p,
   )
-  const warnings = assemble(plugins).catalog.store.warnings.filter(w => w.code === "W020")
+  const warnings = warningsOf(assemble(plugins).catalog).filter(w => w.code === "W020")
   expect(warnings.map(w => [w.plugin, w.params.token, w.params.light, w.params.dark]).sort()).toEqual([
+    ["@foo/stars", "@foo/stars:star-size", "4px", "6px"],
     ["@matomezu/base", "@matomezu/box:box-radius", "8px", "0px"],
     ["@matomezu/base", "@matomezu/markdown:markdown-font-size", "14px", "16px"],
   ])

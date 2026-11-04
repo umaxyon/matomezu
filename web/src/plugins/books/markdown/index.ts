@@ -1,11 +1,10 @@
-// マークダウンのプラグイン: マークダウンのブックのタイプと、その見せ方（ステージに紙を置かない）・ペインの分割のコマンド・ソースのペインのキーと Tab キーの設定の項目、描いた文書のテーマキーの値の確かめ。
+// マークダウンのプラグイン: マークダウンのブックのタイプと、その見せ方（ステージに紙を置かない）・ペインの分割のコマンド・ソースのペインのキーと Tab キーの設定の項目。
 // テーマと紙の色の設定の項目、新しいページとページの設定のダイアログは base の物を使う
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PANE_SPLIT_COLUMN, PANE_SPLIT_ROW, PANE_UNSPLIT, SOURCE_KEYS } from "./commands"
 import { kit } from "./kit"
 import { MARKDOWN, MARKDOWN_PRESENTATION } from "./markdown"
 import { TAB_KEY } from "./tab-key"
-import { MARKDOWN_TOKENS_CHECK } from "./tokens"
 
 export const MARKDOWN_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -14,7 +13,6 @@ export const MARKDOWN_PLUGIN = defineBuiltin(
     commands: [PANE_SPLIT_ROW, PANE_SPLIT_COLUMN, PANE_UNSPLIT],
     keys: SOURCE_KEYS,
     userSettings: [TAB_KEY],
-    checks: [MARKDOWN_TOKENS_CHECK],
   }),
 )
 

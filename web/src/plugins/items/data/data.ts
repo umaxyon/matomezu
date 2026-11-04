@@ -138,29 +138,12 @@ const SERIES_COLORS = [
   { light: "#e34948", dark: "#e66767" },
 ] as const
 
-// 色でないテーマキー（明暗で違う値にできない。プラグインの checks の oneShadeCheck が確かめる）
-export const DATA_NON_COLOR_TOKENS = [
-  { id: kit.name("data-radius"), value: "8px" }, // 角の丸み
-  { id: kit.name("data-shadow"), value: "none" }, // 影（CSS の filter の値）
-  { id: kit.name("data-bar-radius"), value: "4px" }, // 棒の先の角の丸み（根元は丸めない）
-  { id: kit.name("data-line-width"), value: "2px" }, // 折れ線の太さ
-  { id: kit.name("data-dot-size"), value: "4px" }, // 点の半径
-  // 動き（motion.ts）: きっかけごとの長さ（0ms なら動かさない）と緩急、印ごとの動き方
-  { id: kit.name("data-motion-draw"), value: "600ms" }, // 初めて描いたとき
-  { id: kit.name("data-motion-data"), value: "600ms" }, // 表を入れ替えたとき
-  { id: kit.name("data-motion-look"), value: "600ms" }, // 見た目や軸を変えたとき
-  { id: kit.name("data-motion-ease"), value: "cubic-bezier(0.2, 0, 0, 1)" },
-  { id: kit.name("data-motion-bar"), value: "grow" }, // grow・fade・none
-  { id: kit.name("data-motion-line"), value: "draw" }, // draw・fade・none
-  { id: kit.name("data-motion-dot"), value: "pop" }, // pop・fade・none
-  { id: kit.name("data-motion-pie"), value: "sweep" }, // sweep・pop・fade・none
-] as const
-
 // データのテーマキー（プラグインが持ち、アイテムは自分のテーマキーを持たない）
 export const DATA_TOKENS = [
   { id: kit.name("data-fill"), fallback: "fill" }, // 地
   { id: kit.name("data-line"), value: "#cdcdd6" }, // 枠線と表の罫線
   { id: kit.name("data-text"), fallback: "text" }, // 文字
+  { id: kit.name("data-radius"), value: "8px", shades: "one" }, // 角の丸み
   { id: kit.name("data-empty"), value: "#a0a0ab" }, // 表の無い間の点線の枠と「No Data」の文字
   // グラフの系列の色（決まった順に使う。色覚の違いでも隣どうしが見分けられる並び）
   ...SERIES_COLORS.map((value, i) => ({ id: kit.name(`data-series-${i + 1}`), value })),
@@ -168,7 +151,19 @@ export const DATA_TOKENS = [
   { id: kit.name("data-grid"), value: { light: "#e6e6e1", dark: "#3a3a37" } }, // 目盛りの線
   { id: kit.name("data-zero"), fallback: "hint" }, // 値 0 の線
   { id: kit.name("data-head-fill"), value: "transparent" }, // 表の見出しの行の地
-  ...DATA_NON_COLOR_TOKENS,
+  { id: kit.name("data-shadow"), value: "none", shades: "one" }, // 影（CSS の filter の値）
+  { id: kit.name("data-bar-radius"), value: "4px", shades: "one" }, // 棒の先の角の丸み（根元は丸めない）
+  { id: kit.name("data-line-width"), value: "2px", shades: "one" }, // 折れ線の太さ
+  { id: kit.name("data-dot-size"), value: "4px", shades: "one" }, // 点の半径
+  // 動き（motion.ts）: きっかけごとの長さ（0ms なら動かさない）と緩急、印ごとの動き方
+  { id: kit.name("data-motion-draw"), value: "600ms", shades: "one" }, // 初めて描いたとき
+  { id: kit.name("data-motion-data"), value: "600ms", shades: "one" }, // 表を入れ替えたとき
+  { id: kit.name("data-motion-look"), value: "600ms", shades: "one" }, // 見た目や軸を変えたとき
+  { id: kit.name("data-motion-ease"), value: "cubic-bezier(0.2, 0, 0, 1)", shades: "one" },
+  { id: kit.name("data-motion-bar"), value: "grow", shades: "one" }, // grow・fade・none
+  { id: kit.name("data-motion-line"), value: "draw", shades: "one" }, // draw・fade・none
+  { id: kit.name("data-motion-dot"), value: "pop", shades: "one" }, // pop・fade・none
+  { id: kit.name("data-motion-pie"), value: "sweep", shades: "one" }, // sweep・pop・fade・none
 ] as const
 
 export const DATA = kit.defineShape({
