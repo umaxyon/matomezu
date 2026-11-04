@@ -10,6 +10,7 @@ import { ColorPicker } from "../dialog-host/ColorPicker"
 import { controlClass, Field, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { BOOK_PAPER_COLOR, bookTokens } from "./look"
+import { shadeOf, useDarkScheme } from "./use-dark-scheme"
 
 // 紙の色の見本（白・淡い灰・淡い黄・淡い緑・淡い青・濃い灰・濃い紺・濃い茶）
 const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"]
@@ -40,12 +41,14 @@ export function ThemeSetting({ label, value, book, onChange }: SettingControlPro
 
 export function PaperColorSetting({ label, value, book, onChange }: SettingControlProps<string>) {
   const catalog = useCatalog().core
+  const dark = useDarkScheme()
   // 「なし」のときの紙の色: 選んでいるテーマの紙の色
   const none = useMemo(() => {
     const settings = { ...(book as { settings?: Record<string, unknown> }).settings }
     delete settings[BOOK_PAPER_COLOR.id]
-    return bookTokens(catalog, { ...book, settings } as Book).paper?.light ?? "#ffffff"
-  }, [catalog, book])
+    const paper = bookTokens(catalog, { ...book, settings } as Book).paper
+    return paper ? shadeOf(paper, dark) : "#ffffff"
+  }, [catalog, book, dark])
   const swatches = PAPER_PRESETS.map(hex => ({ name: hex, hex, label: hex }))
   return (
     <div className={rowClass}>
