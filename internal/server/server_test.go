@@ -548,7 +548,7 @@ func TestSettingsActions(t *testing.T) {
 	}
 }
 
-// book-trash は一覧から外してゴミ箱に入れ（removed と trash を知らせる）、/api/data にはゴミ箱に出る。戻す・消すは画面の口から
+// book-trash はブックに trashed の時刻を付けて知らせ（AI の読む口からは外れる）、/api/data にはゴミ箱に入ったまま出る。book-restore で戻し、trash-empty で消す（removed を知らせる）
 func TestTrashABook(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)

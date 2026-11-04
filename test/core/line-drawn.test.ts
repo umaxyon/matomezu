@@ -1,4 +1,4 @@
-// ページの線を描く形（drawing/line/drawn.ts の drawLines）
+// ページの線を描く形（items/line/drawn.ts の drawLines）
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
 import { drawLines, newLineCache } from "../../web/src/plugins/items/line/drawn"

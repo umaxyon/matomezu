@@ -23,7 +23,7 @@ export interface ActionChoice {
 }
 
 // ページの決まり。
-// fields は、そのタイプのページが土台のフィールドのほかに持つフィールド（ツリーの根など。土台のフィールド id・title・paper・orientation・grows・items・settings とは別の名前）。
+// fields は、そのタイプのページが土台のフィールドのほかに持つフィールド（ツリーの根など。土台のフィールド id・title・paper・orientation・grows・shift・locked・items・settings とは別の名前）。
 // dialogs は、ページを作るダイアログ（add。値を受けない）とページの設定のダイアログ（settings。PageSettingsArgs を受ける）の id で、タイプが自分のものにする。
 // 無ければ、ページを受け持つプラグインの既定のダイアログを使う。受ける値が合うかは definePlugin が型で、あるかは組み立てが確かめる
 export interface PagesRule {

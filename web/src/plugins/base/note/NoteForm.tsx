@@ -1,4 +1,4 @@
-// 伝言を書く所の部品（下書きの吹き出しと右サイドパネルで使う）: 文のテキストForm と「伝わったら自動で消す」
+// 伝言を書く所の部品（右サイドパネルで使う）: 文のテキストForm と「伝わったら自動で消す」
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"

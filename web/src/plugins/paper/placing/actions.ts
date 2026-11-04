@@ -50,7 +50,7 @@ function parsePlaced(catalog: CoreCatalog, value: { item: string; [field: string
 }
 
 // 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定。テーマは表にあるものだけ）。
-// w・h は大きさを変えられるアイテムの幅と高さ（無ければ定義の幅と、箱は本文が 5 行まで見える高さ。データには決まった値を書く）
+// w・h は大きさを変えられるアイテムの幅と高さ（無ければ、そのアイテムの定義が決める大きさ。データには決まった値を書く）
 // 紙の上にアイテムを置くアクションは、紙の見せ方のタイプについて来る
 const ON_PAPER = { presentations: [kit.name("paper")] }
 
@@ -108,7 +108,7 @@ export const ITEM_PLACE = kit.defineAction({
   },
 })
 
-// アイテムを by だけ動かす（items.ts の moveItems。1 つなら正面の相手と入れ替え・手前へ戻す、何個かならまとめて手前へ戻す）。収まらなければ断る
+// アイテムを by だけ動かす（base/place/items.ts の moveItems。1 つなら正面の相手と入れ替え・手前へ戻す、何個かならまとめて手前へ戻す）。収まらなければ断る
 export const ITEM_MOVE = kit.defineAction({
   id: "item-move",
   attach: ON_PAPER,
@@ -172,7 +172,7 @@ export const ITEM_REPARENT = kit.defineAction({
 })
 
 // アイテムの項目を変える。props に書いた項目だけを変え、書かなかった項目はそのまま。null を書いた項目は消す（既定に戻す）。
-// 箱に当てるテーマ（theme）は表にあるものだけ。箱のキャプションが変わったら、20 字まで見える幅まで右へ広げ（items.ts の widenForCaption。狭めはしない）、
+// 形に当てるテーマ（theme）は表にあるものだけ。形のキャプションが変わったら、20 字まで見える幅まで右へ広げ（base/place/items.ts の widenForCaption。狭めはしない）、
 // 近づきすぎた相手を押す。押した相手が紙に収まらなければ、広げずに変える。項目の形に合わなければ断る
 export const ITEM_UPDATE = kit.defineAction({
   id: "item-update",
@@ -206,7 +206,7 @@ export const ITEM_UPDATE = kit.defineAction({
 })
 
 // アイテムの大きさを変える（大きさを変えられるアイテムだけ）。渡した値だけを変える。x・y を渡せば左上も動かす（左や上の辺をつかんで変えるとき）。
-// 近づきすぎた相手は、育った向きに押してどけ、押した列が紙からはみ出すなら、押された箱を縮めて収める（items.ts の replacePushing）。
+// 近づきすぎた相手は、育った向きに押してどけ、押した列が紙からはみ出すなら、押された形を縮めて収める（base/place/items.ts の replacePushing）。
 // 一番小さい大きさより小さい・紙からはみ出す・縮めても収まらないなら断る
 export const ITEM_RESIZE = kit.defineAction({
   id: "item-resize",

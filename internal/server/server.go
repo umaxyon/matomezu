@@ -10,7 +10,7 @@
 //	POST /api/plugins        {"dir"} 開発者プロジェクトのフォルダの追加プラグインを足す（同じ id なら入れ替える）。{"ok", "id"} か {"ok": false, "reason"}  … 要合言葉
 //	POST /api/plugins/remove {"id"} 追加プラグインを外す。{"ok"} か {"ok": false, "reason"}                     … 要合言葉
 //	GET  /api/events      SSE。世界の変わり目の知らせ（hub.go）                                    … 画面から
-//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "result"} を返す。
+//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 画面が見つけた warning（その画面の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/view        {"client", "view", "editLocks", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
@@ -25,8 +25,8 @@
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}]} AI の応えを待つアノテーションの全部
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
-//	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog）
-//	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "result"} を返す
+//	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
+//	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた画面にブックを出す（Hub.Show）。
 //	                         画面が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //

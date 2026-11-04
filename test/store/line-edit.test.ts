@@ -1,4 +1,4 @@
-// 線をじかに直す決まり（drawing/line/edit.ts）と、端のつなぎ替え（line-reconnect）
+// 線をじかに直す決まり（items/line/edit.ts）と、端のつなぎ替え（line-reconnect）
 
 import { expect, test } from "bun:test"
 import { shapesOf } from "../../web/src/core/placed"

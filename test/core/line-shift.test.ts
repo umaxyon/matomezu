@@ -1,4 +1,4 @@
-// 中身をずらしたときの線（line/shift.ts の shiftLines）: 手で直した途中の区間の位置（via）も、出る辺と交わる向きから x と y を交互にずらす
+// 中身をずらしたときの線（items/line/shift.ts の shiftLines）: 手で直した途中の区間の位置（via）も、出る辺と交わる向きから x と y を交互にずらす
 import { expect, test } from "bun:test"
 import type { PortArea } from "../../web/src/plugins/base"
 import { shiftLines } from "../../web/src/plugins/items/line/shift"
