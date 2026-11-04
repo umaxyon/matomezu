@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures"
 import { footerMenuTool } from "./footer-menu"
-import { afterFrames } from "./frames"
+import { afterFrames } from "./helpers/frames"
 import { addList, addRow } from "./list"
 
 test("ツールボックスのリストで置くと、キャプションの見出しと「＋」の行だけのリストが出る。「＋」で行を足し、ダブルクリックで行を変え、右クリックや編集のダイアログの「行を削除」で消す", async ({

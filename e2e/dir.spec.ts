@@ -1,8 +1,8 @@
 // ディレクトリ構成図のブック（@matomezu/dir）: キーで中身を足して名前を書き、行をドラッグして付け替え、▸・▾ で開け閉めする
 import { expect, type Page, test } from "./fixtures"
+import { paper } from "./helpers/paper"
 import { fromMenu } from "./stage-menu"
 
-const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 const rows = (page: Page) => paper(page).locator("[data-entry]")
 const row = (page: Page, name: string) => rows(page).filter({ hasText: new RegExp(`^${name}$`) })
 
