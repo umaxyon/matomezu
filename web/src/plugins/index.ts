@@ -4,7 +4,7 @@ import { DIR_PLUGIN } from "./books/dir"
 import { DRAWING_PLUGIN } from "./books/drawing"
 import { FLOWCHART_PLUGIN } from "./books/flowchart"
 import { MARKDOWN_PLUGIN } from "./books/markdown"
-import { MASTER_PLUGIN } from "./books/master"
+import { MASTER, MASTER_PLUGIN } from "./books/master"
 import { TREE_PLUGIN } from "./books/tree"
 import { ART_PLUGIN } from "./items/art"
 import { BOX_PLUGIN } from "./items/box"
@@ -30,3 +30,6 @@ export const BUILTIN = [
   DIR_PLUGIN,
   MARKDOWN_PLUGIN,
 ] as const
+
+// ビルトインのインスタンスの、ホームのタイプ（画面とエンジンが同じものを使う）
+export const BUILTIN_HOME = MASTER.id

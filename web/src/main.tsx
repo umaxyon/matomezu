@@ -9,7 +9,7 @@ import { warning } from "./core/warnings"
 import { followLocation } from "./host-client/location"
 import { openClient } from "./host-client/open"
 import { UI_MODULES } from "./plugin-modules/ui"
-import { MASTER } from "./plugins/books/master"
+import { BUILTIN_HOME } from "./plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { createMatomezu } from "./store/create"
 import { loadFonts } from "./ui/fonts"
@@ -24,7 +24,7 @@ loadFonts()
 const { client, loaded: saved } = await openClient()
 const store = createMatomezu({
   plugins: BUILTIN_UI,
-  home: MASTER.id,
+  home: BUILTIN_HOME,
   savedBooks: saved.books,
   settings: saved.settings,
   lang: navigator.languages,

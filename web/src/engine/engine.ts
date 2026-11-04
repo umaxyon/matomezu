@@ -16,19 +16,18 @@ import type { Book, Page } from "../core/schema/book"
 import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
-import { BUILTIN } from "../plugins"
+import { BUILTIN, BUILTIN_HOME } from "../plugins"
 import { type GrowRule, textColorRef } from "../plugins/base"
-import { MASTER } from "../plugins/books/master"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
-let assembled = assemble(BUILTIN, MASTER.id)
+let assembled = assemble(BUILTIN, BUILTIN_HOME)
 
 // 追加プラグインを足して組み直す。新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で投げれば、前の組み立てのまま）。
 // 返すのは JSON: warnings は warning の 1 行ずつ（常駐がログに書く）、ai は新しい組の MCP 公開ツールの actions が返す物
 function use(added: readonly Plugin[]): string {
-  const next = assemble([...BUILTIN, ...added], MASTER.id)
+  const next = assemble([...BUILTIN, ...added], BUILTIN_HOME)
   const ai = aiCatalog(next)
   assembled = next
   return JSON.stringify({ warnings: warningsOf(next.catalog).map(warningText), ai })
