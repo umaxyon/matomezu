@@ -6,7 +6,6 @@ import type { HistoryStep } from "../../../core/history"
 import type { CommandContext } from "../../../store/commands/def"
 import type { Actions } from "../../../store/store"
 import { kit } from "../kit"
-import { refusalMessage } from "../utils/refusal"
 import { applyRestore, type RestoreArgs, restoreArgs } from "./restore"
 
 const Fields = z.record(z.string(), z.unknown())
@@ -49,7 +48,7 @@ export const HISTORY_RESTORE = kit.defineAction({
 // 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとも残る最初のページ
 const pageOf = (args: RestoreArgs): string | undefined => args.pages.find(p => !("page" in p) || p.page !== null)?.id
 
-// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ、画面の履歴の段は動かさない。
+// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、画面の履歴の段は動かさない。
 // いくつものブックを変えた画面の履歴の段で途中のブックが断られたら、置き直したブックを元に戻す（どのブックも画面の履歴の段のとおりのまま）
 function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
   const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
@@ -62,8 +61,15 @@ function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
     const result = a.perform(HISTORY_RESTORE.id, args, { book })
     if (!result.ok) {
       for (const d of done.reverse()) a.perform(HISTORY_RESTORE.id, d.back, { book: d.book })
-      const fallback = from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo")
-      a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, result, fallback) })
+      const denied = result.reason === "denied" ? ctx.catalog.permissions.get(result.permission) : undefined
+      a.showToast({
+        kind: "warn",
+        message: from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo"),
+        detail: denied && {
+          message: kit.message('{reason}: "{book}"'),
+          params: { book: was.title, reason: { message: denied.title } },
+        },
+      })
       return
     }
     done.push({ book, args, back: restoreArgs(to, was) })

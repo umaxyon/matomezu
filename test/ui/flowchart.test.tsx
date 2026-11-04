@@ -342,6 +342,23 @@ test("トーストは画面の下に出て、押すと消える", () => {
   expect(screen.queryByRole("alert")).toBeNull()
 })
 
+test("トーストの原因（detail）は 2 行目に出す", () => {
+  const { store } = flowchart()
+  act(() => {
+    store.actions.showToast({
+      kind: "warn",
+      message: "@matomezu/base:Could not undo",
+      detail: {
+        message: '@matomezu/base:{reason}: "{book}"',
+        params: { book: "設計メモ", reason: { message: "@matomezu/base:Locked" } },
+      },
+    })
+  })
+  const toast = screen.getByRole("alert")
+  expect(toast.firstChild?.textContent).toBe("元に戻せません")
+  expect(toast.lastElementChild?.textContent).toBe("「設計メモ」がロック中")
+})
+
 // 開始の形と箱をつないだチャートを n 個置く（チャートどうしはつながない）
 function charts(f: ReturnType<typeof flowchart>, n: number) {
   const { store, on, page } = f

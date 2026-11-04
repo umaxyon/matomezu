@@ -4,14 +4,19 @@ import type { Lang, MessageKey, Translations } from "./messages"
 export type { Lang, MessageKey }
 export type Messages = ReadonlyMap<string, Translations>
 
-export type Params = Readonly<Record<string, string | number>>
+// 文言に埋める値。{ message } は、その鍵の文言を同じ言語で出して埋める（断った認可ステップの名前など）
+export type Params = Readonly<Record<string, string | number | { message: MessageKey }>>
 
 // 訳の無い言語と、表に無い鍵（core/catalog.ts に書き足したのに、そのプラグインを渡していないインスタンスなど）は、英語の鍵をそのまま出す
 export function translate(messages: Messages, lang: Lang, key: MessageKey, params: Params = {}): string {
   // 訳の無い言語では英語の文（プラグインの文言は必ず en を持つ。土台の鍵は英語の文そのもの）
   const t = messages.get(key)
   const text: string = t?.[lang] ?? t?.en ?? key
-  return text.replace(/\{(\w+)\}/g, (whole, name: string) => (name in params ? String(params[name]) : whole))
+  return text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    const value = params[name]
+    if (value === undefined) return whole
+    return typeof value === "object" ? translate(messages, lang, value.message) : String(value)
+  })
 }
 
 // 好む言語の並び（ブラウザの言語など。好む順）から、インスタンスにある最初の言語を選ぶ。地域の付いた id（ja-JP）は言語の部分で見る。無ければ英語

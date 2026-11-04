@@ -30,6 +30,9 @@
   cursor: pointer;
   pointer-events: auto;
 }
+.detail {
+  display: block;
+}
 .toast[data-kind="success"] {
   --mark: var(--skin-success);
 }

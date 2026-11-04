@@ -81,12 +81,13 @@ export interface MatomezuState {
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、success はうまくいったことを知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
-// （時間では消えず、出した側か見る人が消す）。文言は鍵で持ち、画面が今の言語で出す
+// （時間では消えず、出した側か見る人が消す）。文言は鍵で持ち、画面が今の言語で出す。何が起きたかを message に、原因を detail に分けて書ける
 export interface Toast {
   id: string
   kind: "info" | "success" | "warn" | "error"
   message: MessageKey
   params?: Params
+  detail?: { message: MessageKey; params?: Params } // 2 行目に出す文言（断った原因など）
 }
 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）

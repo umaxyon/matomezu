@@ -1,11 +1,19 @@
 import { expect, test } from "bun:test"
-import { detectLang, translate } from "../../web/src/core/i18n/i18n"
+import { detectLang, type Params, translate } from "../../web/src/core/i18n/i18n"
 import { CORE_CATALOG } from "../support"
 
 test("英語は鍵のまま、ほかの言語は表の訳を出し、{name} を値で置き換える", () => {
   expect(translate(CORE_CATALOG.messages, "en", "@matomezu/base:Page {n}", { n: 3 })).toBe("Page 3")
   expect(translate(CORE_CATALOG.messages, "ja", "@matomezu/base:Page {n}", { n: 3 })).toBe("ページ 3")
   expect(translate(CORE_CATALOG.messages, "ja", "@matomezu/base:Split screen")).toBe("画面を分割")
+})
+
+test("値が { message } なら、その鍵の文言を同じ言語で出して埋める", () => {
+  const params: Params = { book: "設計メモ", reason: { message: "@matomezu/base:Locked" } }
+  expect(translate(CORE_CATALOG.messages, "ja", '@matomezu/base:{reason}: "{book}"', params)).toBe(
+    "「設計メモ」がロック中",
+  )
+  expect(translate(CORE_CATALOG.messages, "en", '@matomezu/base:{reason}: "{book}"', params)).toBe('Locked: "設計メモ"')
 })
 
 test("訳の中の {name} は、英語の鍵と同じものを使う", () => {
