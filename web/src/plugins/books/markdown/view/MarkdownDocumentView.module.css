@@ -1,7 +1,9 @@
-/* 描いた文書の文字の見た目 */
+/* 描いた文書の文字の見た目（色・大きさ・字体・余白はマークダウンのテーマキー。tokens.ts） */
 .body {
-  font-size: 14px;
-  line-height: 1.7;
+  color: var(--markdown-text);
+  font-family: var(--markdown-font-family);
+  font-size: var(--markdown-font-size);
+  line-height: var(--markdown-line-height);
   overflow-wrap: anywhere;
 }
 .body > :first-child {
@@ -13,42 +15,47 @@
 .body h4,
 .body h5,
 .body h6 {
-  margin: 1.4em 0 0.6em;
-  line-height: 1.3;
+  margin: var(--markdown-heading-gap);
+  font-weight: var(--markdown-heading-weight);
+  line-height: var(--markdown-heading-line-height);
 }
 .body h1 {
-  font-size: 1.8em;
-  padding-bottom: 0.2em;
-  border-bottom: 1px solid var(--theme-line);
+  font-size: var(--markdown-h1-size);
+  padding-bottom: var(--markdown-heading-rule-gap);
+  border-bottom: 1px solid var(--markdown-rule);
 }
 .body h2 {
-  font-size: 1.45em;
-  padding-bottom: 0.2em;
-  border-bottom: 1px solid var(--theme-line);
+  font-size: var(--markdown-h2-size);
+  padding-bottom: var(--markdown-heading-rule-gap);
+  border-bottom: 1px solid var(--markdown-rule);
 }
 .body h3 {
-  font-size: 1.2em;
+  font-size: var(--markdown-h3-size);
 }
-.body h4,
-.body h5,
+.body h4 {
+  font-size: var(--markdown-h4-size);
+}
+.body h5 {
+  font-size: var(--markdown-h5-size);
+}
 .body h6 {
-  font-size: 1em;
+  font-size: var(--markdown-h6-size);
 }
 .body p,
 .body blockquote,
 .body ul,
 .body ol,
 .body pre {
-  margin: 0 0 0.9em;
+  margin: 0 0 var(--markdown-block-gap);
 }
 .body blockquote {
-  padding: 0 1em;
-  border-left: 3px solid var(--theme-line);
-  color: var(--theme-hint);
+  padding: var(--markdown-quote-padding);
+  border-left: var(--markdown-quote-width) solid var(--markdown-line);
+  color: var(--markdown-hint);
 }
 .body ul,
 .body ol {
-  padding-left: 1.8em;
+  padding-left: var(--markdown-list-indent);
 }
 /* 項目の間を空けないリストは、項目の中の段落の間も詰める */
 .tight > li > p {
@@ -57,19 +64,20 @@
 .task {
   list-style: none;
 }
+/* チェックは、リストの字下げの所に置く（字下げに合わせて動く） */
 .check {
-  margin: 0 0.4em 0 -1.4em;
+  margin: 0 0.4em 0 calc(0.4em - var(--markdown-list-indent));
   vertical-align: middle;
 }
 .task > p:first-of-type {
   display: inline;
 }
 .code {
-  padding: 10px 12px;
-  border-radius: 4px;
-  background: var(--theme-surface);
-  font-family: ui-monospace, monospace;
-  font-size: 13px;
+  padding: var(--markdown-code-padding);
+  border-radius: var(--markdown-code-radius);
+  background: var(--markdown-code-fill);
+  font-family: var(--markdown-code-font-family);
+  font-size: var(--markdown-code-font-size);
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -78,19 +86,19 @@
   white-space: pre-wrap;
 }
 .inlineCode {
-  padding: 0.1em 0.3em;
-  border-radius: 3px;
-  background: var(--theme-surface);
-  font-family: ui-monospace, monospace;
-  font-size: 0.92em;
+  padding: var(--markdown-inline-code-padding);
+  border-radius: var(--markdown-code-radius);
+  background: var(--markdown-code-fill);
+  font-family: var(--markdown-code-font-family);
+  font-size: var(--markdown-inline-code-size);
 }
 .body hr {
-  margin: 1.4em 0;
+  margin: var(--markdown-rule-gap);
   border: 0;
-  border-top: 1px solid var(--theme-line);
+  border-top: var(--markdown-rule-width) solid var(--markdown-rule);
 }
 .table {
-  margin: 0 0 0.9em;
+  margin: 0 0 var(--markdown-block-gap);
   overflow-x: auto;
 }
 .table table {
@@ -98,11 +106,11 @@
 }
 .table th,
 .table td {
-  padding: 4px 10px;
-  border: 1px solid var(--theme-line);
+  padding: var(--markdown-cell-padding);
+  border: 1px solid var(--markdown-line);
 }
 .body a {
-  color: var(--theme-accent);
+  color: var(--markdown-link);
 }
 /* 開かないリンク（行き先を選ばなかった物） */
 .deadLink {
@@ -114,14 +122,14 @@
 /* 読み込まない外の画像の代わりに、説明の文を描く */
 .imageAlt {
   padding: 0 0.3em;
-  border: 1px dashed var(--theme-line);
-  color: var(--theme-hint);
+  border: 1px dashed var(--markdown-line);
+  color: var(--markdown-hint);
 }
 .footnotes {
-  margin-top: 2em;
+  margin-top: var(--markdown-footnote-gap);
   padding-top: 0.6em;
-  border-top: 1px solid var(--theme-line);
-  font-size: 0.9em;
+  border-top: 1px solid var(--markdown-line);
+  font-size: var(--markdown-footnote-size);
 }
 .footnotes li > p {
   display: inline;

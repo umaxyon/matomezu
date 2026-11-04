@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "./fixtures"
+import { addList, addRow } from "./helpers/list"
 import { addBox, items } from "./helpers/paper"
-import { addList, addRow } from "./list"
 
 const right = (box: { x: number; width: number } | null) => (box ? box.x + box.width : Number.NaN)
 

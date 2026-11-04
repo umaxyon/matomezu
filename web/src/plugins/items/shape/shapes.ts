@@ -18,7 +18,7 @@ export const SHAPE_TOKENS = [
   SHAPE_FILL,
   { id: kit.name("shape-line"), value: "#cdcdd6" }, // 輪郭の線
   { id: kit.name("shape-text"), fallback: "text" },
-  { id: kit.name("shape-shadow"), value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // 影（CSS の filter の値）
+  { id: kit.name("shape-shadow"), value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))", shades: "one" }, // 影（CSS の filter の値）
 ] as const
 
 export const ShapePropsSchema = z.strictObject({

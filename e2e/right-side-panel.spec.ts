@@ -1,9 +1,9 @@
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
+import { footerMenuTool } from "./helpers/footer-menu"
 import { afterFrames } from "./helpers/frames"
-import { addList, addRow } from "./list"
-import { panel, writeNote } from "./note"
-import { fromMenu } from "./stage-menu"
+import { addList, addRow } from "./helpers/list"
+import { panel, writeNote } from "./helpers/note"
+import { fromMenu } from "./helpers/stage-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
 // 隠した列も数えるので、役割ではなく名前で探す

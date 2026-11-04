@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { existsSync } from "node:fs"
 import { Glob } from "bun"
 import { PALETTE } from "../../web/src/core/color"
 import { buildCoreCatalog } from "../../web/src/core/core-catalog"
@@ -84,15 +85,13 @@ test("ビルトインプラグインと画面の CSS とビューが書いた --
   expect(unknown).toEqual([])
 })
 
-// テーマキーの持ち主のビルトインプラグインのフォルダ
-const dirOf = (id: string) =>
-  ({
-    "@matomezu/box": "web/src/plugins/items/box",
-    "@matomezu/list": "web/src/plugins/items/list",
-    "@matomezu/line": "web/src/plugins/items/line",
-    "@matomezu/shape": "web/src/plugins/items/shape",
-    "@matomezu/data": "web/src/plugins/items/data",
-  })[id.split(":")[0]!] ?? "web/src/plugins/none"
+// テーマキーの持ち主のビルトインプラグインのフォルダ（アイテムかブックのプラグイン）。知らない持ち主なら落とす（見張る範囲から黙って抜けないように）
+const dirOf = (id: string) => {
+  const name = id.split(":")[0]!.replace(/^@matomezu\//, "")
+  const dir = ["items", "books"].map(kind => `web/src/plugins/${kind}/${name}`).find(d => existsSync(d))
+  if (!dir) throw new Error(`テーマキーの持ち主のフォルダが無い: ${id}`)
+  return `${dir}/`
+}
 
 test("色の候補に使うテーマキーの定義（ダイアログが持つ物）は長い id で宣言し、テーマが上書きした値を引ける", () => {
   for (const def of [LIST_FILL, NODE_FILL, FILE_COLOR, FOLDER_COLOR]) expect(def.id.startsWith("@matomezu/")).toBe(true)

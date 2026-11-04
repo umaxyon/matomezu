@@ -202,10 +202,30 @@ function mergeMessages(parts: CoreCatalogParts): Messages {
   return messages
 }
 
+// 宣言されたテーマキーと、宣言した物（アイテムとブックのタイプは自分の id、プラグインのテーマキーはプラグインの id）
+const tokenDefs = (parts: CoreCatalogParts) => [
+  ...[...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k }))),
+  ...parts.tokens.map(k => ({ owner: splitId(k.id).owner ?? k.id, ...k })),
+]
+
+// 明暗で同じ値だけのテーマキー（shades: "one"）に、明暗で違う値を書いたテーマ（warning はテーマのプラグインのもの）
+const shadeWarnings = (parts: CoreCatalogParts): Warning[] => {
+  const one = tokenDefs(parts).filter(d => "value" in d && d.shades === "one")
+  return parts.themes.flatMap(t =>
+    one.flatMap(({ id: token }) => {
+      const set = t.tokens?.[token]
+      if (set === undefined || typeof set === "string" || set.light === undefined || set.dark === undefined) return []
+      if (set.light === set.dark) return []
+      return [warning("W020", splitId(t.id).owner ?? "", { theme: t.id, token, light: set.light, dark: set.dark })]
+    }),
+  )
+}
+
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
 // タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの。
 // 道具の performs の、表に無いアクション（W012。その行だけ効かない）。warning は道具のプラグインのもの。
-// タイプの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）
+// タイプの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）。
+// 明暗で同じ値だけのテーマキーに明暗で違う値を書いたテーマ（W020）
 function coreWarnings(parts: CoreCatalogParts): Warning[] {
   const actions = byId(parts.actions)
   const userSettings = byId(parts.userSettings)
@@ -216,6 +236,7 @@ function coreWarnings(parts: CoreCatalogParts): Warning[] {
   )
   return [
     ...tools,
+    ...shadeWarnings(parts),
     ...parts.bookTypes.flatMap(t => {
       const plugin = splitId(t.id).owner ?? ""
       const attached = (id: string) => {
@@ -310,10 +331,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (s.tools.length === 0) problems.push(problem("E033", { id: s.id }))
     for (const tool of s.tools) if (!tools.has(tool)) problems.push(problem("E032", { id: s.id, tool }))
   }
-  const defs = [
-    ...[...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k }))),
-    ...parts.tokens.map(k => ({ owner: splitId(k.id).owner ?? k.id, ...k })),
-  ]
+  const defs = tokenDefs(parts)
   const declared = new Set<string>()
   for (const d of defs) {
     if (declared.has(d.id)) problems.push(problem("E011", { owner: d.owner, token: d.id }))

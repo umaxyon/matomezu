@@ -2,8 +2,8 @@
 import { expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
 import { paper } from "./helpers/paper"
-import { selectText } from "./rich"
-import { fromMenu } from "./stage-menu"
+import { selectText } from "./helpers/rich"
+import { fromMenu } from "./helpers/stage-menu"
 
 // マスターでツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければブック継承）
 async function treeBook(page: Page, grow?: string) {

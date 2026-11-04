@@ -80,7 +80,7 @@ export const TREE = kit.defineBookType({
     NODE_FILL,
     { id: "tree-node-line", value: "#cdcdd6" }, // 節の枠線（標準は淡い灰色。テーマが上書きする）
     { id: "tree-node-text", fallback: "text" },
-    { id: "tree-node-radius", value: "6px" }, // 節の角の丸み
+    { id: "tree-node-radius", value: "6px", shades: "one" }, // 節の角の丸み
     { id: "tree-line", fallback: "line" }, // 親から子への線
   ],
   tools: TREE_TOOLS.id,
