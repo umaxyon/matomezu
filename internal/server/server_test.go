@@ -1003,7 +1003,7 @@ func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/perform", user, nil); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("user update of a locked thing = %s", got)
 	}
-	// 古い番号の知らせではロックは変わらない。新しい番号で外せば通る
+	// 古い番号の知らせでは編集ロックは変わらない。新しい番号で外せば通る
 	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+window+`,"seq":1}`, nil)
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), ai); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai update after a stale view = %s", got)
@@ -1014,7 +1014,7 @@ func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
 	}
 }
 
-// 窓が離れたら、その窓のロックは解ける
+// 窓が離れたら、その窓の編集ロックは解ける
 func TestEditLocksGoWithTheWindow(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -1051,7 +1051,7 @@ func placeBox(t *testing.T, url string, x int, caption string) string {
 	return resultField(t, url, fmt.Sprintf(`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":%d,"y":10},"props":{"caption":%q}},"on":{"book":"b1"}}`, x, caption), "item")
 }
 
-// ロックはその物だけを見る: リストの行をロックすると、AI はその行を変えられないが、兄弟の行とリストのキャプションは変えられる
+// 編集ロックはその物だけを見る: リストの行に編集ロックを掛けると、AI はその行を変えられないが、兄弟の行とリストのキャプションは変えられる
 func TestEditLocksSeeOnlyTheLockedThing(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -1080,7 +1080,7 @@ func TestEditLocksSeeOnlyTheLockedThing(t *testing.T) {
 	}
 }
 
-// 置いたときのままの書き方（読み直すと既定が足される）のブックでも、ロックしていない物を AI が変えれば通る
+// 置いたときのままの書き方（読み直すと既定が足される）のブックでも、編集ロックを掛けていない物を AI が変えれば通る
 func TestEditLocksIgnoreDefaultsFilledOnRead(t *testing.T) {
 	s := newServer(t, nil)
 	book := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +

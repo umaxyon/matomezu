@@ -437,7 +437,7 @@ test("付けた伝言を右サイドパネルで開いている間は、AI が�
       }[]
     )[0]?.id
   const id = await note()
-  // 開いた伝言のロックが常駐に届くのを待つ
+  // 開いた伝言の編集ロックが常駐に届くのを待つ
   const locked = page.waitForResponse(
     r =>
       r.url().endsWith("/api/view") &&
