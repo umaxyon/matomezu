@@ -273,9 +273,9 @@ function aiCatalog(of: Assembled = assembled) {
     return JSON.stringify({ annotations: kept, changed: kept.length !== all.length })
   }
 
-// 画面が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする（常駐が集めてログと AI に出す）。
-// 表に無い番号・形の合わないものは捨てる（画面が作った文は使わない）
-const ScreenWarningSchema = z.object({
+// 窓が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする（常駐が集めてログと AI に出す）。
+// 表に無い番号・形の合わないものは捨てる（窓が作った文は使わない）
+const WindowWarningSchema = z.object({
   code: z.string(),
   plugin: z.string(),
   params: z.record(z.string(), z.string()),
@@ -283,7 +283,7 @@ const ScreenWarningSchema = z.object({
 ;(globalThis as { matomezuWarningLines?: (warnings: string) => string }).matomezuWarningLines = warnings => {
   const lines: string[] = []
   for (const raw of z.array(z.unknown()).catch([]).parse(JSON.parse(warnings))) {
-    const n = ScreenWarningSchema.safeParse(raw)
+    const n = WindowWarningSchema.safeParse(raw)
     if (n.success && n.data.code in WARNINGS)
       lines.push(warningText(warning(n.data.code as keyof typeof WARNINGS, n.data.plugin, n.data.params)))
   }
