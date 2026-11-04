@@ -53,6 +53,10 @@ export function withoutAnchor(open: RightSidePanelOpen, id: string): RightSidePa
   return { ...open, anchors, current }
 }
 
+// 選択に従う中身を出している間に、付いた先にする物 id を、選択 selection で押したときの選択（Mod なら足す・外す。修飾なしなら id だけ）
+export const pointedSelection = (selection: readonly string[], id: string, mod: boolean): string[] =>
+  !mod ? [id] : selection.includes(id) ? selection.filter(a => a !== id) : [...selection, id]
+
 // 選択に従う中身で、ポインタを離したあとに閉じるか: 押し始めが開いたステージの中（pressedInStage）で、合わせた付いた先が空のとき。
 // 右サイドパネルの中を押したときや、AI が物を消して空になったときは閉じない
 export const closesOnRelease = (release: { pressedInStage: boolean; anchors: readonly string[] }): boolean =>

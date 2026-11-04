@@ -5,6 +5,7 @@ import {
   columnGrow,
   followSelection,
   panelIn,
+  pointedSelection,
   pressCloses,
   revealFor,
   stillOn,
@@ -76,4 +77,10 @@ test("離したあとに閉じるのは、開いたステージの中を押し�
   expect(closesOnRelease({ pressedInStage: true, anchors: [] })).toBe(true)
   expect(closesOnRelease({ pressedInStage: false, anchors: [] })).toBe(false)
   expect(closesOnRelease({ pressedInStage: true, anchors: ["a"] })).toBe(false)
+})
+
+test("選択に従う中身を出している間に物を押すと、修飾なしならその物だけ、Mod なら足すか外す", () => {
+  expect(pointedSelection(["a", "b"], "c", false)).toEqual(["c"])
+  expect(pointedSelection(["a"], "b", true)).toEqual(["a", "b"])
+  expect(pointedSelection(["a", "b"], "a", true)).toEqual(["b"])
 })

@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import { BIRD_IDS } from "../../web/src/plugins/base/birds"
 import { assignBirds } from "../../web/src/plugins/base/birds/assign"
+import { birdsIn, withBirds } from "../../web/src/plugins/base/note/birds-state"
 
 const first = () => 0
 
@@ -24,4 +25,13 @@ test("残った物は同じ鳥のまま。外れた物の鳥は足された物�
   expect(fewer.birds).toEqual({ c: birds.b! })
   expect(fewer.left).toEqual([{ anchor: "a", bird: birds.a! }])
   expect(assignBirds(fewer.birds, [], first).left).toEqual([{ anchor: "c", bird: birds.b! }])
+})
+
+test("鳥の割り当ては base のステージの画面の状態の noteBirds に持ち、空にすれば消す（ほかの物は残す）", () => {
+  const state = { rightSidePanel: { widget: "w" } }
+  const set = withBirds(state, { a: "inko" })
+  expect(birdsIn(set)).toEqual({ a: "inko" })
+  expect(set.rightSidePanel).toEqual({ widget: "w" })
+  expect(withBirds(set, {})).toEqual(state)
+  expect(birdsIn(undefined)).toEqual({})
 })

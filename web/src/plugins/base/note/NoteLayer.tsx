@@ -14,6 +14,7 @@ import {
   useOpenRightSidePanel,
   useRightSidePanel,
 } from "../right-side-panel/hooks"
+import { pointedSelection } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { Stand } from "../utils/anchors"
 import { modPressed } from "../utils/ui"
@@ -59,9 +60,8 @@ function NoteStand({
   // 吹き出しの物を押したのと同じに選ぶ（Mod なら足す・外す）。物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）
   const pick = (e: MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.blur()
-    const mod = modPressed(e)
     const now = read().workspace.stages.find(s => s.id === stage)?.selection ?? []
-    select(stage, !mod ? [anchor] : now.includes(anchor) ? now.filter(a => a !== anchor) : [...now, anchor])
+    select(stage, pointedSelection(now, anchor, modPressed(e)))
   }
   const open = (e: MouseEvent<HTMLButtonElement>) =>
     follows
