@@ -1,5 +1,5 @@
 // トーストの置き場（ウィジェット toast-host）: store の出しているトースト（toasts）を、画面の下の真ん中に、古いものを上にして積む。
-// 種類ごとの出しておく時間（TOAST_MS）が過ぎるか、押すと消える
+// 原因（detail）は 2 行目に出す。種類ごとの出しておく時間（TOAST_MS）が過ぎるか、押すと消える
 import { useEffect } from "react"
 import type { Toast } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
@@ -45,6 +45,7 @@ function ToastView({ toast }: { toast: Toast }) {
       onClick={() => dismissToast(toast.id)}
     >
       {t(toast.message, toast.params)}
+      {toast.detail && <span className={styles.detail}>{t(toast.detail.message, toast.detail.params)}</span>}
     </button>
   )
 }

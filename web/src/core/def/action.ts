@@ -94,10 +94,11 @@ export function allowedIn(def: Pick<ActionDef, "id" | "attach">, type: BookTypeD
   return (type.actions.add?.includes(def.id as ActionId) ?? false) || attachedTo(def, type)
 }
 
-// ブックの中の所: page はページの id、items はそのページのアイテムの id
+// ブックの中の所: page はページの id、items はそのページのアイテムの id、allPages はページを含むブックの全部（どのページも変える）
 export interface Where {
   page?: string
   items?: readonly string[]
+  allPages?: true
 }
 
 // 引数の形 A のうち、値の型が V に当たる引数の名前
@@ -126,12 +127,53 @@ export type SettingsScope<A = unknown> =
 // 表に並べたアクションの、利用者の設定の許可の範囲（引数の形を問わない形）
 export type AnySettingsScope = { settings: string } | ((args: never) => readonly string[])
 
-// ブックが対象と利用者の設定が対象のアクションは、許可の範囲を必ず書く（defineAction の型が求める）
+// 一覧が対象のアクションの許可の範囲: どのブックを変えるかの宣言。認可ステップは、行う前に変えるブックごとに問う。
+// book・books には、ブックの id・ブックの id の並びが入っている引数の名前を書き、where に "all-pages" を書けば、そのブックのページを含む全部を変える。
+// create には、作るブックのタイプの id が入っている引数の名前を書く（認可ステップは、そのタイプで作る空のブックで問う）。
+// 引数の名前で言えなければ、引数から変えるブックを返す関数を書く。行う前に変えるブックが分からなければ "unknown"（行った後の確かめだけで止める）
+export type LibraryScope<A = unknown> =
+  | "unknown"
+  | { book: ArgsOfType<A, string>; where?: "all-pages" }
+  | { books: ArgsOfType<A, readonly string[]>; where?: "all-pages" }
+  | { create: ArgsOfType<A, string> }
+  | ((args: A) => LibraryTargets)
+
+// 一覧が対象のアクションが変えるブック: books は今あるブックの id と、その中の所、creates は作るブックのタイプの id
+export interface LibraryTargets {
+  books: readonly { book: string; where: Where }[]
+  creates: readonly string[]
+}
+
+// 表に並べたアクションの、一覧の許可の範囲（引数の形を問わない形）
+export type AnyLibraryScope =
+  | "unknown"
+  | { book: string; where?: "all-pages" }
+  | { books: string; where?: "all-pages" }
+  | { create: string }
+  | ((args: never) => LibraryTargets)
+
+// ブックが対象・一覧が対象・利用者の設定が対象のアクションは、許可の範囲を必ず書く（defineAction の型が求める）
 export type ScopeRequired<T extends ActionTarget, A> = T extends "book"
   ? { permissionScope: PermissionScope<A> }
-  : T extends "settings"
-    ? { permissionScope: SettingsScope<A> }
-    : unknown
+  : T extends "library"
+    ? { permissionScope: LibraryScope<A> }
+    : T extends "settings"
+      ? { permissionScope: SettingsScope<A> }
+      : unknown
+
+// 一覧の許可の範囲から、引数 args で変えるブック（"unknown" なら null）
+export function libraryScopeOf(scope: AnyLibraryScope | undefined, args: unknown): LibraryTargets | null {
+  if (scope === undefined || scope === "unknown") return null
+  if (typeof scope === "function") return (scope as (args: unknown) => LibraryTargets)(args)
+  const a = args as Record<string, unknown>
+  if ("create" in scope) {
+    const type = a[scope.create]
+    return { books: [], creates: typeof type === "string" ? [type] : [] }
+  }
+  const where: Where = scope.where === "all-pages" ? { allPages: true } : {}
+  const ids = "book" in scope ? [a[scope.book]] : Array.isArray(a[scope.books]) ? (a[scope.books] as unknown[]) : []
+  return { books: ids.flatMap(id => (typeof id === "string" ? [{ book: id, where }] : [])), creates: [] }
+}
 
 // 許可の範囲から、引数 args での所を出す
 export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): Where | undefined {
@@ -173,9 +215,9 @@ export interface ActionDef<
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
-  // 許可の範囲（ブックが対象と利用者の設定が対象のアクションは必ず書く。どちらの形かは target で決まる）。
-  // ブックでは、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
-  permissionScope?: AnyPermissionScope | AnySettingsScope
+  // 許可の範囲（ブックが対象・一覧が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
+  // ブックと一覧では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
+  permissionScope?: AnyPermissionScope | AnyLibraryScope | AnySettingsScope
   // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | null
 }

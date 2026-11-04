@@ -3,6 +3,7 @@
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
+import { creatableTypes, createBook } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { bookType, type CoreCatalog } from "./core-catalog"
@@ -10,15 +11,18 @@ import {
   type ActionContext,
   type ActionDef,
   type ActionTarget,
+  type AnyLibraryScope,
   type AnyPermissionScope,
   type AnySettingsScope,
   allowedIn,
+  libraryScopeOf,
   pagedOnly,
   type Subjects,
   scopeOf,
   settingsScopeOf,
+  type Where,
 } from "./def/action"
-import { deniedBy, inspect } from "./inspect"
+import { deniedBy, type Inspected, inspect } from "./inspect"
 import type { Library } from "./library"
 import { type ItemPage, pageHolds } from "./placed"
 import { sameData } from "./same"
@@ -75,7 +79,12 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
 }
 
 // アクションの結果が、認可ステップの守らせること（keeps）を守っているか。守っていなければ、守らせたステップの id
-function broken(ctx: ActionContext, action: ActionDef, before: Book, after: Book | undefined): string | null {
+function broken(
+  ctx: ActionContext,
+  action: ActionDef,
+  before: Book | undefined,
+  after: Book | undefined,
+): string | null {
   const changes = changesOf(before, after)
   const by = ctx.by ? { by: ctx.by } : {}
   for (const p of ctx.catalog.permissions.values())
@@ -83,24 +92,70 @@ function broken(ctx: ActionContext, action: ActionDef, before: Book, after: Book
   return null
 }
 
-// 一覧が対象のアクションの結果で、変わったブックのどれかが守っていなければ、守らせたステップの id
+// 一覧が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id
 function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after: Library): string | null {
   for (const b of Object.values(before)) {
     const id = b === after[b.id] ? null : broken(ctx, action, b, after[b.id])
     if (id) return id
   }
+  for (const b of Object.values(after)) {
+    const id = b.id in before ? null : broken(ctx, action, undefined, b)
+    if (id) return id
+  }
   return null
 }
 
+// 行う前の問いに要る文脈（機能台帳・ホーム・誰が行うか）
+export type PermitContext = Pick<ActionContext, "catalog" | "home" | "by">
+
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可の範囲で引数から出した変える項目の id も渡す。
-// 認可ステップに渡す所は、ブックが対象ならそのブックと、アクションの許可の範囲（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
-// 一覧が対象のアクションは変えるブックが前に分からないので、認可ステップは行った後の keeps だけで見る
+// 認可ステップに渡すのは、ブックが対象ならそのブックと、アクションの許可の範囲（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
+// 一覧が対象なら、許可の範囲で引数から出した変えるブックごとに、そのブックとその中の所（作るブックは、そのタイプで作る空のブック）を渡し、どれかで止められれば止める。
+// 一覧の許可の範囲が "unknown" なら、認可ステップは行った後の keeps だけで見る
 function permits(
-  ctx: ActionContext,
+  ctx: PermitContext,
   action: ActionDef,
   subject: Subjects[keyof Subjects],
   args: { success: true; data: unknown } | { success: false },
-): { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string } {
+): Permitted {
+  const settings =
+    args.success && action.target === "settings"
+      ? settingsScopeOf(action.permissionScope as AnySettingsScope, args.data)
+      : undefined
+  const asked = (book: Book | undefined, where: Where | undefined) =>
+    answerOf(
+      inspect(
+        ctx.catalog,
+        {
+          kind: "action",
+          action: action.id,
+          book,
+          ...(where ? { where } : {}),
+          ...(settings ? { settings } : {}),
+          ...(ctx.by ? { by: ctx.by } : {}),
+        },
+        ctx,
+      ),
+    )
+  if (action.target === "library") {
+    const targets = args.success ? libraryScopeOf(action.permissionScope as AnyLibraryScope, args.data) : null
+    const library = subject as Library
+    const books = (targets?.books ?? []).flatMap(t => {
+      const book = library[t.book]
+      return book ? [{ book, where: t.where }] : []
+    })
+    const creatable = creatableTypes(ctx.catalog)
+    const made = (targets?.creates ?? []).flatMap(type =>
+      creatable.includes(type as never) ? [{ book: createBook(ctx.catalog, type, NEW_BOOK), where: {} }] : [],
+    )
+    const asks = [...books, ...made]
+    if (asks.length === 0) return asked(undefined, undefined)
+    for (const a of asks) {
+      const answer = asked(a.book, a.where)
+      if (!answer.ok) return answer
+    }
+    return { ok: true }
+  }
   const book =
     action.target === "book"
       ? (subject as Book)
@@ -111,22 +166,16 @@ function permits(
     args.success && action.target === "book"
       ? scopeOf(action.permissionScope as AnyPermissionScope, args.data)
       : undefined
-  const settings =
-    args.success && action.target === "settings"
-      ? settingsScopeOf(action.permissionScope as AnySettingsScope, args.data)
-      : undefined
-  const answer = inspect(
-    ctx.catalog,
-    {
-      kind: "action",
-      action: action.id,
-      book,
-      ...(where ? { where } : {}),
-      ...(settings ? { settings } : {}),
-      ...(ctx.by ? { by: ctx.by } : {}),
-    },
-    ctx,
-  )
+  return asked(book, where)
+}
+
+// 作るブックを認可ステップに問うときの id と名前（問うためだけの物で、作るブックの中身はタイプが決める）
+const NEW_BOOK = { id: "new-book", title: "new book" }
+
+// 行う前の問いの答え: 使えるか、止めた理由
+export type Permitted = { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string }
+
+function answerOf(answer: Inspected<boolean>): Permitted {
   if (answer.value === true) return { ok: true }
   const permission = deniedBy(answer)
   if (permission) return { ok: false, reason: "denied", permission }
@@ -136,6 +185,13 @@ function permits(
   if (from?.source === "bookType" && from.field === "fixedUserSettings")
     return { ok: false, reason: "not-allowed", setting: from.setting, because: "fixed" }
   return { ok: false, reason: "not-allowed" }
+}
+
+// 対象 subject に、アクション id を引数 args で行えるかを、行う前に問う（perform の行う前の確かめと同じ答え。run は回さない）
+export function permitted(subject: unknown, id: string, args: unknown, ctx: PermitContext): Permitted | Refused {
+  const action: ActionDef | undefined = ctx.catalog.actions.get(id)
+  if (!action) return { ok: false, reason: "unknown" }
+  return permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
 }
 
 export function perform<Id extends ActionId>(
@@ -210,8 +266,8 @@ export function performIn(
     ctx: ActionContext,
   ) => ReturnType<typeof perform>
   if (target === "book" || target === "annotations") {
-    const book = world.books[on?.book ?? ""]
-    if (!book || book.trashed !== undefined) return { ok: false, reason: "no-book" }
+    const book = bookIn(world, on)
+    if (!book) return { ok: false, reason: "no-book" }
     const annotations = world.annotations[book.id] ?? []
     if (target === "annotations") {
       const done = loose({ book, annotations }, id, args, ctx)
@@ -245,4 +301,28 @@ export function performIn(
   const next = done.next as Settings
   const same = sameData(next, world.settings)
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
+}
+
+// ブックかアノテーションが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
+function bookIn(world: World, on: { book: string } | undefined): Book | null {
+  const book = world.books[on?.book ?? ""]
+  return book && book.trashed === undefined ? book : null
+}
+
+// world でアクション id を引数 args で行えるかを、行う前に問う（対象の選び方は performIn と同じ。run は回さない）
+export function permittedIn(
+  world: World,
+  id: string,
+  args: unknown,
+  on: { book: string } | undefined,
+  ctx: PermitContext,
+): Permitted | Refused | { ok: false; reason: "no-book" } {
+  const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
+  if (target === "book" || target === "annotations") {
+    const book = bookIn(world, on)
+    if (!book) return { ok: false, reason: "no-book" }
+    const subject = target === "book" ? book : { book, annotations: world.annotations[book.id] ?? [] }
+    return permitted(subject, id, args, ctx)
+  }
+  return permitted(target === "library" ? world.books : world.settings, id, args, ctx)
 }

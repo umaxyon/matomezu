@@ -372,6 +372,60 @@ test("認可ステップがページの削除を止めていれば、ページ�
   expect((screen.getByRole("button", { name: "ページを削除" }) as HTMLButtonElement).disabled).toBe(true)
 })
 
+test("認可ステップがあるブックのゴミ箱入れとあるタイプのブックの作成を止めていれば、ブックを開くダイアログのその行にゴミ箱のボタンが出ず、新しいブックのダイアログにそのタイプが出ない。行っても断る", () => {
+  const kit = pluginKit("@ex/keep", defineMessages({ keep: { en: "Keep", ja: "残す" } }))
+  const keep = definePluginUi(
+    kit.plugin({
+      permissions: [
+        kit.definePermission({
+          id: "keep",
+          title: "keep",
+          aiDescription: "this book stays, and no tree is made",
+          denies: ({ action, book }) =>
+            (action.id === "@matomezu/base:book-trash" && book.title === "API の一覧") ||
+            (action.id === "@matomezu/base:book-create" && book.type === "@matomezu/tree:tree"),
+        }),
+      ],
+    }),
+    {},
+  )
+  const store = createMatomezu({
+    home: "@matomezu/master:master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    plugins: [...BUILTIN_UI, keep],
+    partial: true,
+  })
+  render(
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
+      <Screen />
+    </MatomezuProvider>,
+  )
+  fireEvent.click(fromMenu("ブックを開く"))
+  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
+  const row = (title: string) => within(dialog).getByRole("option", { name: new RegExp(title) })
+  expect(within(row("API の一覧")).queryByRole("button", { name: "ゴミ箱に入れる" })).toBeNull()
+  expect(within(row("データの形")).getByRole("button", { name: "ゴミ箱に入れる" })).toBeTruthy()
+  const api = Object.values(store.state.getState().books).find(b => b.title === "API の一覧")!
+  expect(store.actions.perform("@matomezu/base:book-trash", { book: api.id })).toEqual({
+    ok: false,
+    reason: "denied",
+    permission: "@ex/keep:keep",
+  })
+  fireEvent.keyDown(dialog, { key: "Escape" })
+  fireEvent.click(fromMenu("ホーム"))
+  fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
+  const type = within(screen.getByRole("dialog", { name: "新しいブック" })).getByLabelText(
+    "ブックのタイプ",
+  ) as HTMLSelectElement
+  expect([...type.options].map(o => o.textContent)).not.toContain("ツリー")
+  expect(store.actions.perform("@matomezu/base:book-create", { title: "木", type: "@matomezu/tree:tree" })).toEqual({
+    ok: false,
+    reason: "denied",
+    permission: "@ex/keep:keep",
+  })
+})
+
 test("右クリックのメニューは、外を押すか Escape で閉じる", () => {
   renderScreen()
   const paper = screen.getByRole("img", { name: "紙" })
