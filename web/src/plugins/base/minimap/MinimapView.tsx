@@ -13,6 +13,7 @@ import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-cont
 import { useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { kit } from "../kit"
+import { TOOL_SET } from "../tool-picker"
 import { keepsPan, panningTool } from "../tool-switch/tools"
 import { ZOOM_WHEEL } from "../zoom"
 import { drawnOn, useDrawnTable } from "./drawn"
@@ -39,7 +40,8 @@ export function MinimapView({
   const book = useShownBook(id) // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
   const page = useShownPage(id)
   const held = keepsPan(catalog, useStage(id)?.tool ?? null)
-  const { panStageBy, focusStage, setTool } = useActions()
+  const { panStageBy, focusStage } = useActions()
+  const toolSet = useCommand(id, TOOL_SET.id)
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
@@ -91,7 +93,7 @@ export function MinimapView({
       const set = stage ? toolSetOf(catalog, stage) : null
       const hand = set ? panningTool(catalog, set) : null
       if (!hand) return
-      setTool(id, hand)
+      toolSet.run(hand)
     }
     const { to, grab: g } = grabAt(seen, at(e))
     if (to) lookAt(to)
