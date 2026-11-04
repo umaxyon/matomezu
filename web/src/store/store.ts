@@ -120,7 +120,7 @@ export interface Actions {
   previewDialog(preview: DialogPreview | null): void
   submitDialog(): void // 開いているダイアログに、決めるように頼む（枠が中身の form を送る）
   // 押したキー（そろえた書き方）を、開いているメニュー・ダイアログ・カレントのステージの範囲で引き、当たったコマンドを行う。
-  // 当たった範囲より外は見ない（当たったコマンドが押せなくても）。scopes は押した所の要素が名乗ったプラグインの範囲。
+  // 範囲は狭い方から順に引き、その場で使えるコマンドに当たった所で行う（使えない割り当ては無いものとして、次の範囲の同じキーを探す）。scopes は押した所の要素が名乗ったプラグインの範囲。
   // reach が "named" なら scopes だけを引く（テキストFormが自分で名乗った範囲）。行ったか返す
   pressKey(key: string, scopes?: readonly string[], reach?: KeyReach): boolean
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
@@ -134,7 +134,7 @@ export interface Actions {
   evenDivider(): void // 分けている境目を真ん中に戻す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
-  openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
+  openBook(stage: string, book: string): void // そのステージでブックを開き（ページを持つブックは最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
