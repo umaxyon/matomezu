@@ -8,15 +8,15 @@ import { bookType } from "../../../core/core-catalog"
 import { worldOf } from "../../../store/world"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useHome, useInstance, useMatomezuState } from "../../../ui/store-context"
+import { useHome, useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { type SettingsPatch, useSettingControls } from "../utils/SettingControls"
 import { typesToCreate } from "./book-create"
-import { createBookIn } from "./create-book"
 import styles from "./NewBookDialog.module.css"
+import { useCreateBook } from "./useCreateBook"
 
 export function NewBookDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
@@ -28,8 +28,8 @@ export function NewBookDialog({ stage, onClose }: DialogProps) {
 }
 
 function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
-  const instance = useInstance()
   const t = useMessages(kit)
+  const createAndOpen = useCreateBook(stage)
   const [title, setTitle] = useState("")
   const catalog = useCoreCatalog()
   const home = useHome()
@@ -44,7 +44,7 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
       onSubmit={() => {
         // 選べるタイプは動いている機能台帳から来る（core/catalog.ts に無い追加プラグインのタイプもある）ので、型を外して渡す
         const chosen = asks.length > 0 && Object.keys(settings).length > 0 ? { settings } : {}
-        if (createBookIn(instance, stage, { title, type: type as never, ...chosen })) onDone()
+        if (createAndOpen({ title, type: type as never, ...chosen })) onDone()
       }}
     >
       <Field label={t("Book name")}>

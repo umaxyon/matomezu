@@ -34,6 +34,15 @@ import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
+import {
+  PRINT_PREVIEW_BOOK_NAME,
+  PRINT_PREVIEW_FIT,
+  PRINT_PREVIEW_FLOW,
+  PRINT_PREVIEW_OPEN,
+  PRINT_PREVIEW_ORDER,
+  PRINT_PREVIEW_PAGE_NUMBERS,
+  PRINT_PREVIEW_UPDATE,
+} from "./print-preview"
 import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
 import { KEYS, LANG, OPTION_TITLES_CHECK, SETTINGS_SET, SETTINGS_SET_COMMAND, SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
@@ -114,6 +123,7 @@ export type { PortArea, Ports } from "./place/placed"
 export { NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
+export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 export {
   BOOK_TEXT_COLORS,
   clampRich,
@@ -181,8 +191,17 @@ export const BASE = defineBuiltin(
       MARK_ADD,
       MARK_READ,
       MARK_REMOVE,
+      PRINT_PREVIEW_UPDATE,
     ],
-    settings: [BOOK_THEME, BOOK_PAPER_COLOR, BOOK_TEXT_COLORS],
+    settings: [
+      BOOK_THEME,
+      BOOK_PAPER_COLOR,
+      BOOK_TEXT_COLORS,
+      PRINT_PREVIEW_FLOW,
+      PRINT_PREVIEW_ORDER,
+      PRINT_PREVIEW_PAGE_NUMBERS,
+      PRINT_PREVIEW_BOOK_NAME,
+    ],
     userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
@@ -222,6 +241,8 @@ export const BASE = defineBuiltin(
       NOTE_NEW,
       MARK_NEW,
       RIGHT_SIDE_PANEL_CLOSE,
+      PRINT_PREVIEW_OPEN,
+      PRINT_PREVIEW_FIT,
     ],
     dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG, NEW_BOOK_DIALOG],
     keys: [
@@ -242,6 +263,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-theme": typeof BOOK_THEME
     "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
     "@matomezu/base:book-text-colors": typeof BOOK_TEXT_COLORS
+    "@matomezu/base:print-preview-flow": typeof PRINT_PREVIEW_FLOW
+    "@matomezu/base:print-preview-order": typeof PRINT_PREVIEW_ORDER
+    "@matomezu/base:print-preview-page-numbers": typeof PRINT_PREVIEW_PAGE_NUMBERS
+    "@matomezu/base:print-preview-book-name": typeof PRINT_PREVIEW_BOOK_NAME
   }
   interface UserSettingTable {
     "@matomezu/base:lang": typeof LANG
@@ -273,6 +298,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark-add": typeof MARK_ADD
     "@matomezu/base:mark-read": typeof MARK_READ
     "@matomezu/base:mark-remove": typeof MARK_REMOVE
+    "@matomezu/base:print-preview-update": typeof PRINT_PREVIEW_UPDATE
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD
@@ -335,6 +361,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-open": typeof PAGE_OPEN
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS
+    "@matomezu/base:print-preview-open": typeof PRINT_PREVIEW_OPEN
+    "@matomezu/base:print-preview-fit": typeof PRINT_PREVIEW_FIT
     "@matomezu/base:settings-set": typeof SETTINGS_SET_COMMAND
     "@matomezu/base:note-new": typeof NOTE_NEW
     "@matomezu/base:mark-new": typeof MARK_NEW

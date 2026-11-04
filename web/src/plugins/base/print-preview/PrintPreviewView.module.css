@@ -1,0 +1,8 @@
+/* 並べた印刷区画（位置と大きさは並べ方が決める。中身は描かない） */
+.sheet {
+  position: absolute;
+  background: var(--theme-paper);
+  box-shadow:
+    0 0 0 1px var(--theme-paper-line),
+    0 6px 24px var(--theme-paper-shadow);
+}

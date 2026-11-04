@@ -1,4 +1,4 @@
-// 画面の場所: 見ているもの（workspace）のうち、読み直しても戻したいもの。ステージごとに開いているブックとページ・倍率・ずらす量、
+// 画面の場所: 見ているもの（workspace）のうち、読み直しても戻したいもの。ステージごとに開いているブックとページ・倍率・ずらす量・印刷プレビューの間か、
 // カレントのステージ、分けている境目の割合。選択・置こうとしているアイテム・道具は入れない（その場の操作の途中の状態のため）。
 // ホストがこれを外（ブラウザの URL など）に写し、外から戻すときに当てはめる。操作はデータを書き換えず、新しい値を返す
 
@@ -6,7 +6,7 @@ import { hasPages } from "./book"
 import type { CoreCatalog } from "./core-catalog"
 import type { Point } from "./geom"
 import type { Book } from "./schema/book"
-import { newStage, openBook, openPage, panBy, type Stage } from "./stage"
+import { newStage, openBook, openPage, openPrintPreview, panBy, type Stage, type StageMode } from "./stage"
 import { MAX_STAGES, MIN_SHARE, type Workspace } from "./workspace"
 
 export interface StagePlace {
@@ -14,6 +14,7 @@ export interface StagePlace {
   page: string | null // 開いているページの id
   zoom: number
   pan: Point
+  mode: StageMode["kind"]
 }
 
 export interface Address {
@@ -30,6 +31,7 @@ export function addressOf(ws: Workspace): Address {
       page: s.opened?.page ?? null,
       zoom: s.zoom,
       pan: s.pan,
+      mode: s.mode.kind,
     })),
     current: Math.max(
       0,
@@ -39,7 +41,7 @@ export function addressOf(ws: Workspace): Address {
   }
 }
 
-// 移動したか: ステージの数か、どれかのステージのブック・ページが違う（倍率・ずらす量・カレント・境目だけの違いは移動ではない）
+// 移動したか: ステージの数か、どれかのステージのブック・ページが違う（倍率・ずらす量・印刷プレビューの間か・カレント・境目だけの違いは移動ではない）
 export function moved(a: Address, b: Address): boolean {
   return (
     a.stages.length !== b.stages.length ||
@@ -47,7 +49,8 @@ export function moved(a: Address, b: Address): boolean {
   )
 }
 
-// ステージ stage に、場所 place を当てはめる（無いブック・ページは開かず、開けたものに倍率とずらす量を戻す）
+// ステージ stage に、場所 place を当てはめる（無いブック・ページは開かず、開けたものに倍率とずらす量を戻す）。
+// 印刷プレビューの間なら印刷プレビューを開く（ずらす量は、並べた広さを見せ方が知らせたときに決まる）
 function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, stage: Stage, place: StagePlace): Stage {
   const book = place.book === null ? undefined : books[place.book]
   // 表示領域の大きさ（URL には書かない）はステージのまま
@@ -57,7 +60,8 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
   if (place.page !== null && hasPages(book)) next = openPage(catalog, next, book, place.page)
   // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）
   const zoomed = { ...next, zoom: place.zoom }
-  return panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)
+  const panned = panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)
+  return place.mode === "print-preview" && hasPages(book) ? openPrintPreview(panned) : panned
 }
 
 // 見ているもの ws に場所 address を当てはめる。ステージは左から同じ番号のものを使い回し、足りなければ番号を振って足す

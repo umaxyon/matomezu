@@ -8,6 +8,7 @@
 // 開いた物を見せ、閉じたら見え方を戻すのは、幅を動かし終えてから（RevealAndRestore）
 import { type CSSProperties, type PointerEvent, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { previewing } from "../../../core/stage"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
 import {
@@ -75,16 +76,7 @@ export function WorkspaceView() {
                 onDoubleClick={() => evenDivider()}
               />
             )}
-            <div className={styles.top}>
-              <Slot name={STAGE_TOP} props={{ stage }} />
-            </div>
-            <div className={styles.cell}>
-              <Slot name={STAGE_BODY} props={{ stage }} />
-            </div>
-            <Bottom stage={stage} />
-            <div className={styles.corner}>
-              <Slot name={STAGE_CORNER} props={{ stage }} />
-            </div>
+            <StageColumn stage={stage} />
           </div>
         ))}
         <RightSidePanel />
@@ -102,6 +94,32 @@ function scrollbarWidth(): number {
   const width = probe.offsetWidth - probe.clientWidth
   probe.remove()
   return width
+}
+
+// ステージの列の中身。印刷プレビューの間は、ステージの中身のほか（上・下の行と角）を出さない（中身の操作の道具を出さないため）
+function StageColumn({ stage }: { stage: string }) {
+  const inPreview = useMatomezuState(s => {
+    const st = s.workspace.stages.find(st => st.id === stage)
+    return !!st && previewing(st)
+  })
+  return (
+    <>
+      {!inPreview && (
+        <div className={styles.top}>
+          <Slot name={STAGE_TOP} props={{ stage }} />
+        </div>
+      )}
+      <div className={styles.cell}>
+        <Slot name={STAGE_BODY} props={{ stage }} />
+      </div>
+      {!inPreview && <Bottom stage={stage} />}
+      {!inPreview && (
+        <div className={styles.corner}>
+          <Slot name={STAGE_CORNER} props={{ stage }} />
+        </div>
+      )}
+    </>
+  )
 }
 
 // 下の行。ポインタが乗っているかを中のウィジェットに渡す

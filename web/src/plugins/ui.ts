@@ -57,9 +57,13 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
     "@matomezu/base:footer-menu-map": ["@matomezu/base:footer-menu-minimap"],
     "@matomezu/base:footer-menu-history": ["@matomezu/base:history-buttons"],
-    "@matomezu/base:footer-menu-basics": ["@matomezu/base:stage-menu-buttons", "@matomezu/base:print-area-toggle"],
+    "@matomezu/base:footer-menu-basics": [
+      "@matomezu/base:stage-menu-buttons",
+      "@matomezu/base:print-area-toggle",
+      "@matomezu/base:print-preview-button",
+    ],
     "@matomezu/base:footer-menu-book-tools": ["@matomezu/base:toolbox"],
-    "@matomezu/base:right-side-panel": ["@matomezu/base:note-panel"],
+    "@matomezu/base:right-side-panel": ["@matomezu/base:note-panel", "@matomezu/base:print-preview-panel"],
   },
   menus: {
     "@matomezu/base:stage-menu": [

@@ -69,7 +69,7 @@ test("@matomezu/base:book-update・@matomezu/base:page-update は、ブックの
   expect(book().pages[0]!.settings?.["@matomezu/line:line-route"]).toBe("elbow")
 })
 
-test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）。タイプがいくつもあれば、そのどれか", () => {
+test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）。タイプがいくつもあれば、そのどれか。印刷プレビューの設定（別の組）は見せない", () => {
   const schema = z.toJSONSchema(settingsArgs(CORE_CATALOG, "book"), { io: "input" }) as {
     anyOf?: { description?: string; properties?: object }[]
   }

@@ -4,7 +4,7 @@
 // 拡大・縮小は、表示領域の中の点 at の下の紙の点を動かさない（null なら表示領域の真ん中。Ctrl+ホイールはポインタの下を渡す）。
 // 開いたときの見え方（倍率 100%・最初の位置）に戻すコマンド（キーの既定は Home）と、ページの紙全体を表示領域に収めるコマンド（ZOOM_MIN より小さくはしない）
 import type { Point, Size } from "../../../core/geom"
-import { areaOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
+import { extentOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN } from "../../../core/viewport"
 import { type CommandContext, workspaceOf } from "../../../store/commands/def"
 import type { Actions } from "../../../store/store"
@@ -35,14 +35,32 @@ export const fitZoom = (size: Size, view: Size, pad: number, max = ZOOM_MAX): nu
     Math.min(max, Math.max(ZOOM_MIN, Math.min((view.w - 2 * pad) / size.w, (view.h - 2 * pad) / size.h))) * 100,
   ) / 100
 
-// ページの紙全体（可変ページは、見せ方が知らせた広さ全体）を表示領域に収めた見え方: 収まる倍率（ZOOM_MIN～ZOOM_MAX）にして、紙を真ん中に置く。紙か表示領域が無ければそのまま
+// 倍率を変えられるステージか: 紙を置いているか、印刷プレビューの間（紙を置かない見せ方のブックでも、並べた印刷区画をずらし、倍率を変える）
+const zoomable = (ctx: CommandContext): boolean => paperOf(ctx.stage) !== null || ctx.stage.mode === "print-preview"
+
+// ページの紙全体（可変ページは、見せ方が知らせた広さ全体。印刷プレビューは並べた印刷区画の全体）を表示領域に収めた見え方: 収まる倍率（ZOOM_MIN～ZOOM_MAX）にして、紙を真ん中に置く。紙か表示領域が無ければそのまま
 export function fitView(stage: Stage): Stage {
-  const paper = areaOf(stage)
+  const paper = extentOf(stage)
   const view = stage.view
   if (!paper || !view) return stage
   const zoom = fitZoom(paper, view, FIT_PAD)
   const zoomed = zoomTo(stage, zoom)
   const pan = { x: view.w / 2 - MARGIN - (paper.w * zoom) / 2, y: view.h / 2 - MARGIN - (paper.h * zoom) / 2 }
+  return panBy(zoomed, pan.x - zoomed.pan.x, pan.y - zoomed.pan.y)
+}
+
+// 描く広さの片方の辺 side（width は幅、height は高さ）を表示領域に収めた見え方: その辺が周りに FIT_PAD の余白を残して入る倍率（ZOOM_MIN～ZOOM_MAX）にして、
+// その向きは真ん中に、もう片方の向きは始め（左か上）を余白の所に置く（印刷プレビューの、並べる向きと交わる向きに合わせる）。広さか表示領域が無ければそのまま
+export function fitSideView(stage: Stage, side: "width" | "height"): Stage {
+  const area = extentOf(stage)
+  const view = stage.view
+  if (!area || !view) return stage
+  const k = side === "width" ? "w" : "h"
+  const zoom = clampZoom((view[k] - 2 * FIT_PAD) / area[k])
+  const zoomed = zoomTo(stage, zoom)
+  const centered = { x: view.w / 2 - MARGIN - (area.w * zoom) / 2, y: view.h / 2 - MARGIN - (area.h * zoom) / 2 }
+  const start = FIT_PAD - MARGIN
+  const pan = side === "width" ? { x: centered.x, y: start } : { x: start, y: centered.y }
   return panBy(zoomed, pan.x - zoomed.pan.x, pan.y - zoomed.pan.y)
 }
 
@@ -57,13 +75,13 @@ export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: St
 }
 
 // 呼ばれたステージの中の状態（表示領域の大きさとずらす量）
-const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
+export const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
 
 export const ZOOM_IN = kit.defineCommand({
   id: "zoom-in",
   title: "Zoom in",
   run: (ctx, a, at: Point | null) => a.zoomStage(ctx.stage.id, stepZoom(ctx.stage.zoom, 1), at ?? undefined),
-  when: ctx => paperOf(ctx.stage) !== null,
+  when: zoomable,
   enabled: ctx => stepZoom(ctx.stage.zoom, 1) !== ctx.stage.zoom,
 })
 
@@ -71,7 +89,7 @@ export const ZOOM_OUT = kit.defineCommand({
   id: "zoom-out",
   title: "Zoom out",
   run: (ctx, a, at: Point | null) => a.zoomStage(ctx.stage.id, stepZoom(ctx.stage.zoom, -1), at ?? undefined),
-  when: ctx => paperOf(ctx.stage) !== null,
+  when: zoomable,
   enabled: ctx => stepZoom(ctx.stage.zoom, -1) !== ctx.stage.zoom,
 })
 
@@ -81,7 +99,7 @@ export const ZOOM_WHEEL = kit.defineCommand({
   title: "Zoom",
   run: (ctx, a, wheel: { delta: number; at?: Point }) =>
     a.zoomStage(ctx.stage.id, wheelZoom(ctx.stage.zoom, wheel.delta), wheel.at),
-  when: ctx => paperOf(ctx.stage) !== null,
+  when: zoomable,
 })
 
 // 開いたときの見え方に戻す（もうその見え方なら押せない）
@@ -89,7 +107,7 @@ export const ZOOM_RESET = kit.defineCommand({
   id: "zoom-reset",
   title: "Reset view",
   run: (ctx, a) => a.resetStageView(ctx.stage.id),
-  when: ctx => paperOf(ctx.stage) !== null,
+  when: zoomable,
   enabled: ctx => {
     const stage = stageOf(ctx)
     return stage !== undefined && resetView(stage) !== stage
@@ -104,7 +122,7 @@ export const ZOOM_FIT = kit.defineCommand({
     const stage = stageOf(ctx)
     if (stage) moveView(a, stage, fitView(stage))
   },
-  when: ctx => paperOf(ctx.stage) !== null,
+  when: zoomable,
   enabled: ctx => {
     const stage = stageOf(ctx)
     return stage !== undefined && fitView(stage) !== stage

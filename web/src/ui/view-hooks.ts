@@ -20,7 +20,7 @@ import {
 } from "../core/placed"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
-import { toPaper } from "../core/stage"
+import { stageBlocks, toPaper } from "../core/stage"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
 import type { Performed } from "../store/store"
@@ -113,7 +113,9 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   const place = where && !("settings" in where) ? where : undefined
   const ids = place?.ids?.join("\n")
   const answer = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
+    const st = s.workspace.stages.find(st => st.id === stage)
+    if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
+    const o = st?.opened
     const book = o ? s.books[o.book] : undefined
     const page = place?.page ?? o?.page ?? undefined
     const at = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
@@ -157,6 +159,7 @@ export function useStage(stage: string): StageView | null {
             selection: st.selection,
             editing: st.editing,
             placing: st.placing,
+            mode: st.mode,
           }
         : null
     }),
@@ -250,18 +253,21 @@ export function useUserSetting(id: string): unknown {
   return useMemo(() => userSetting(catalog, values, id), [catalog, values, id])
 }
 
-// そのステージが開いているブックにアクションを行う関数（ブックかアノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ
+// そのステージが開いているブックにアクションを行う関数（ブックかアノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
+// 印刷プレビューの間のステージからは、ブックを変えるアクションを行わず print-preview を返す（core/stage.ts の stageBlocks）
 export function usePerform(stage: string): <Id extends ActionId>(action: Id, args: ArgsOf<Id>) => Performed<Id> {
   const { perform } = useActions()
   const catalog = useCatalog().core
   const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
+  const mode = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.mode.kind ?? "edit")
   return useMemo(
     () =>
       <Id extends ActionId>(action: Id, args: ArgsOf<Id>): Performed<Id> => {
         const loose = perform as (id: string, args: unknown, on?: { book: string }) => Performed<Id>
+        if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
         if (!isOnBook(catalog.actions.get(action)?.target)) return loose(action, args)
         return book === undefined ? { ok: false, reason: "no-book" } : loose(action, args, { book })
       },
-    [perform, catalog, book],
+    [perform, catalog, book, mode],
   )
 }

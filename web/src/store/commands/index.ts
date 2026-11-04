@@ -6,6 +6,7 @@ import { fail } from "../../core/errors"
 import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
+import { stageBlocks } from "../../core/stage"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import type { MatomezuState } from "../store"
@@ -69,7 +70,8 @@ export function isShown(defs: Assembled, state: MatomezuState, stageId: string, 
   return ctx !== null && performable(def, ctx) && def.when(ctx)
 }
 
-// 行うアクションのどれかを、認可ステップが止めないか（行うアクションが無ければ止められない）。ブックが対象のアクションは、今のブックの許可の範囲の所で問う
+// 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。
+// ブックが対象のアクションは、今のブックの許可の範囲の所で問う
 function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
   const actions = def.performs ?? []
   const where = commandScopeOf(def.permissionScope, ctx)
@@ -77,6 +79,7 @@ function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
     actions.length === 0 ||
     actions.some(
       action =>
+        !stageBlocks(ctx.catalog, ctx.stage.mode, action) &&
         inspect(ctx.catalog, actionQuery(ctx.catalog, action, ctx.book ?? undefined, where), ctx).value === true,
     )
   )

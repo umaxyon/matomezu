@@ -183,8 +183,18 @@ interface LooseUi {
   }
 }
 
-// プラグインの見た目を 1 つの表にする。見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは error
+// プラグインの見た目を 1 つの表にする。見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは error。
+// 表はプラグインの配列ごとに覚え、同じ配列なら組み直さない（画面の入口と MatomezuProvider が同じインスタンスの plugins を渡す）
+const assembled = new WeakMap<readonly Plugin[], UiCatalog>()
 export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
+  const known = assembled.get(plugins)
+  if (known) return known
+  const ui = buildUi(plugins)
+  assembled.set(plugins, ui)
+  return ui
+}
+
+function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const presentationViews = new Map<string, BookViewDef>()
   const items = new Map<string, ItemUi>()
   const connectors = new Map<string, ConnectorUi>()

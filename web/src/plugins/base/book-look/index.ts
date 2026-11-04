@@ -4,7 +4,7 @@ import { z } from "zod"
 import { withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
-import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
+import { type SettingGroup, settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../page-tabs/page-problems"
@@ -17,10 +17,15 @@ const ARGS = z.strictObject({
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだ項目（形はタイプが決める）
 })
 
-// ブック book に、ブックの設定の項目 settings（ブックのタイプが選んだ項目だけ。null は消す）を当てたブック。形に合わない・選んでいないタイプなら null。
+// ブック book に、ブックの設定の項目 settings（ブックのタイプが選んだ、組 group の項目だけ。null は消す）を当てたブック。形に合わない・選んでいないタイプなら null。
 // 紙の色は小文字にそろえ、ページを整え（settleBook）、問題の出るページがあれば断る（book-update と book-create が使う）
-export function withBookSettings(catalog: CoreCatalog, book: Book, settings: unknown): Book | null {
-  const patch = settingsPatchOf(catalog, book, "book")?.safeParse(settings)
+export function withBookSettings(
+  catalog: CoreCatalog,
+  book: Book,
+  settings: unknown,
+  group: SettingGroup = "general",
+): Book | null {
+  const patch = settingsPatchOf(catalog, book, "book", group)?.safeParse(settings)
   if (!patch?.success) return null
   const values = { ...(patch.data as Record<string, unknown>) }
   const paper = values[BOOK_PAPER_COLOR.id]
@@ -30,12 +35,12 @@ export function withBookSettings(catalog: CoreCatalog, book: Book, settings: unk
 }
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
-// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す。テーマは表にあるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
+// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す。テーマは表にあるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
   attach: { books: true },
   aiDescription:
-    "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default).",
+    "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default). The print preview settings (@matomezu/base:print-preview-*) are changed by @matomezu/base:print-preview-update, not here (refused).",
   title: "Change book",
   target: "book",
   permissionScope: "book",
