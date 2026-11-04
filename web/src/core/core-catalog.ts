@@ -363,21 +363,10 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       packed.set(`${pack.lang}\n${key}`, text as string)
     }
   }
-  const named = [
-    ["bookType", parts.bookTypes],
-    ["item", parts.items],
-    ["action", parts.actions],
-    ["setting", parts.settings],
-    ["userSetting", parts.userSettings],
-    ["theme", parts.themes],
-    ["paper", parts.papers],
-    ["textColor", parts.textColors],
-    ["skin", parts.skins],
-    ["tool", parts.tools],
-    ["permission", parts.permissions],
-  ] as const
-  for (const [kind, defs] of named)
-    for (const d of defs as readonly { id: string; title: string }[])
-      if (!messages.has(d.title)) problems.push(problem("E018", { kind, id: d.id, title: d.title }))
+  // 題名を持つ定義の種類は、PARTS の一覧から決める
+  for (const k of partsOf("core"))
+    for (const d of parts[k] as readonly { id: string; title?: unknown }[])
+      if (typeof d.title === "string" && !messages.has(d.title))
+        problems.push(problem("E018", { kind: PARTS[k].label, id: d.id, title: d.title }))
   return problems
 }
