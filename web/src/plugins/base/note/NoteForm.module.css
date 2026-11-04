@@ -12,14 +12,6 @@
   resize: none;
   overflow: hidden;
 }
-/* 「伝わったら自動で消す」 */
-.check {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  cursor: pointer;
-}
 .buttons {
   display: flex;
   justify-content: flex-end;

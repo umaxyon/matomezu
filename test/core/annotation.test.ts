@@ -27,7 +27,7 @@ const note = (id: string, props: unknown): Annotation => ({
   anchors: ["a"],
   props,
 })
-const GOOD = note("c1", { text: "x", bubble: true, removeOnRead: true })
+const GOOD = note("c1", { text: "x", bubble: true })
 const BAD = note("c2", { ask: "later" })
 const GONE: Annotation = { id: "c3", annotation: "@ex/notes:sticky", anchors: ["a"], props: {} }
 
@@ -67,8 +67,8 @@ test("prune は無くなった物をアンカーから外し、全部無くな�
 })
 
 test("AI に見せるアノテーションは、結び付く物の最後のあるページと、AI の応えを待っているか（種類の awaits。形が合わない物と種類の無い物は待たない）を添える", () => {
-  const read = note("c4", { text: "x", bubble: true, removeOnRead: false, readAt: "t" })
-  const unread = note("c5", { text: "見て", bubble: false, removeOnRead: false })
+  const read = note("c4", { text: "x", bubble: true, readAt: "t" })
+  const unread = note("c5", { text: "見て", bubble: false })
   expect(
     annotationsForAi(CORE_CATALOG, book, [GOOD, read, unread, BAD, GONE]).map(a => [a.id, a.page, a.awaits]),
   ).toEqual([
