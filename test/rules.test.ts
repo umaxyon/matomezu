@@ -641,6 +641,21 @@ test("e2e は web/src を読まない（画面とホストの外から確かめ�
   expect(offenders).toEqual([])
 })
 
+// 決まった時間だけ待つ代わりに: 画面の様子が変わるのを待つ（expect・expect.poll）。起きないはずの事は、e2e/helpers/frames.ts の afterFrames の後で確かめる。
+// 時間で決まる動き（長押しなど）は page.clock で進める
+test("e2e は、決まった時間だけ待って先へ進まない（e2e/perf は除く）", () => {
+  // 常駐が答えるまで繰り返し問う間の待ち（先へ進むのは答えが来てから）
+  const retries: Record<string, number> = { "e2e/fixtures.ts": 1 }
+  const waits = filesUnder(join(ROOT, "e2e"))
+    .map(path => relative(ROOT, path))
+    .filter(rel => !rel.startsWith("e2e/perf/"))
+    .flatMap(rel => {
+      const n = [...readFileSync(join(ROOT, rel), "utf8").matchAll(/\bwaitForTimeout\(|\bsetTimeout\(/g)].length
+      return n > (retries[rel] ?? 0) ? [`${rel}: ${n}`] : []
+    })
+  expect(waits).toEqual([])
+})
+
 // テストの用意の手段（名前が ForTest で終わる物と、Go のビルドタグ e2e）は、テスト（test/・e2e/・e2e の常駐を作るスクリプト）の外から使わない
 describe("テストの用意の手段", () => {
   const goUnder = (dir: string): string[] =>

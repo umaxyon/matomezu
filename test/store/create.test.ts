@@ -12,7 +12,7 @@ import { defineDialog, defineDialogWith, type PageSettingsArgs } from "../../web
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions } from "../../web/src/store/store"
 
-// 追加プラグインの見本。core/catalog.ts には書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
+// テストのプラグイン。型（core/catalog.ts）は書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
 const NOTE = defineBookType({
   id: "notes:note",
   version: 1,
