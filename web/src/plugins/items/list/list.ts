@@ -84,18 +84,18 @@ export const LIST = kit.defineShape({
     LIST_FILL,
     { id: "list-text", fallback: "text" }, // 文字（チェックの印も）
     { id: "list-line", value: "#cdcdd6" }, // 区切り線と行のカードの縁の線の色
-    { id: "list-radius", value: "8px" }, // リストの角の丸み
-    { id: "list-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // リストの影（CSS の filter の値）
+    { id: "list-radius", value: "8px", shades: "one" }, // リストの角の丸み
+    { id: "list-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))", shades: "one" }, // リストの影（CSS の filter の値）
     { id: "list-frame-line", value: "#cdcdd6" }, // リストの外枠の線
     { id: "list-mount-tint", value: "#000000" }, // 台紙（リストの地）に混ぜる色
-    { id: "list-mount-mix", value: "5%" }, // 台紙に混ぜる割合（行のカードとの差）
+    { id: "list-mount-mix", value: "5%", shades: "one" }, // 台紙に混ぜる割合（行のカードとの差）
     { id: "list-head-tint", value: "#000000" }, // 見出しの帯に混ぜる色
-    { id: "list-head-mix", value: "0%" }, // 見出しの帯に混ぜる割合（0% なら帯なしで、台紙の上の文字）
-    { id: "list-head-ink", value: "0%" }, // 見出しの文字を白に寄せる割合（濃い帯の上の白い文字）
-    { id: "list-card-radius", value: "8px" }, // 行のカードの角の丸み
-    { id: "list-card-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // 行のカードの影（CSS の filter の値）
-    { id: "list-card-fold", value: "0px" }, // 行のカードの右上の折り返しの大きさ
-    { id: "list-card-line", value: "0%" }, // 行のカードの縁の線の濃さ（線の色の割合。0% なら線なし）
+    { id: "list-head-mix", value: "0%", shades: "one" }, // 見出しの帯に混ぜる割合（0% なら帯なしで、台紙の上の文字）
+    { id: "list-head-ink", value: "0%", shades: "one" }, // 見出しの文字を白に寄せる割合（濃い帯の上の白い文字）
+    { id: "list-card-radius", value: "8px", shades: "one" }, // 行のカードの角の丸み
+    { id: "list-card-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))", shades: "one" }, // 行のカードの影（CSS の filter の値）
+    { id: "list-card-fold", value: "0px", shades: "one" }, // 行のカードの右上の折り返しの大きさ
+    { id: "list-card-line", value: "0%", shades: "one" }, // 行のカードの縁の線の濃さ（線の色の割合。0% なら線なし）
   ],
 })
 
