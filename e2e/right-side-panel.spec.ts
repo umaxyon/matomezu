@@ -54,7 +54,7 @@ test("伝言の絵を押すと、窓の右から 320px の右サイドパネル�
   expect(await widths(page)).toEqual(split)
 })
 
-test("外を押すと閉じる。ハンドツールの間は閉じない。ステージで押しても Esc で閉じる。開いている間に別の伝言を押すと、その物が付ける先になる（開いた伝言のまま）。たたんだ絵を押してもたたんだまま", async ({
+test("外を押しても閉じない（伝言を出している間）。ステージで押しても Esc で閉じる。開いている間に別の伝言を押すと、その物が付ける先になる（開いた伝言のまま）。たたんだ絵を押してもたたんだまま", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -94,7 +94,10 @@ test("外を押すと閉じる。ハンドツールの間は閉じない。ス�
   await expect(panel(page)).toContainText("二つ目")
   await tool("選択ツール")
   await expect(panel(page)).toContainText("二つ目")
+  // 伝言を出している間は、選択ツールで紙の何も無い所を押しても閉じない（付ける先が外れるだけ）
   await page.mouse.click(paper.x + 40, paper.y + 400)
+  await expect(panel(page)).toContainText("二つ目")
+  await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
   // たたんだまま（押して開いても、吹き出しを出すかは変えない）
   await expect(icons).toHaveCount(2)

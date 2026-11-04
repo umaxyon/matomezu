@@ -44,7 +44,7 @@ test("箱の右クリックの「AIに伝言」で右サイドパネルが開き
   await expect(panel(page)).toHaveCount(0)
 })
 
-test("書いている間は、物を押すと付ける先が替わり、Ctrl+クリックで足す（押しても物は動かない）。バッジを押すとカレントが替わる。付けた伝言を開いて付ける先を変えて保存できる。何も無い所を押すと付けずに閉じ、選択も外れる", async ({
+test("書いている間は、物を押すと付ける先が替わり、Ctrl+クリックで足す（押しても物は動かない）。バッジを押すとカレントが替わる。付けた伝言を開いて付ける先を変えて保存できる。何も無い所を押すと付ける先と選択が外れるが、閉じない（書きかけは残る）", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -90,13 +90,17 @@ test("書いている間は、物を押すと付ける先が替わり、Ctrl+ク
   const o = (await one.boundingBox())!
   const moved = (await bubble.boundingBox())!
   expect(Math.abs(moved.x - (o.x + o.width))).toBeLessThan(40)
-  // 何も無い所を押すと、付けずに閉じる
+  // 何も無い所を押すと、付ける先と選択が外れるが閉じない。書きかけは残り、付ける先が無いので付けられない
   await two.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  await panel(page).getByRole("textbox").fill("書きかけ")
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 30, paper.y + 500)
-  await expect(panel(page)).toHaveCount(0)
   await expect(two).toHaveAttribute("data-selected", "false")
+  await expect(panel(page).getByRole("textbox")).toHaveValue("書きかけ")
+  await expect(panel(page).getByRole("button", { name: "付ける" })).toBeDisabled()
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
   await expect(bubble).toHaveCount(1)
 })
 

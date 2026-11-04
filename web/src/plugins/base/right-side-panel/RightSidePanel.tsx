@@ -11,7 +11,6 @@ import { useMessages } from "../../../ui/i18n"
 import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useCoreCatalog, useSetStageState, useStage, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { stageElement } from "../utils/stage-element"
 import type { StageSlotProps } from "../workspace/ui"
 import {
   PressClosedContext,
@@ -21,15 +20,7 @@ import {
 } from "./hooks"
 import styles from "./RightSidePanel.module.css"
 import { RIGHT_SIDE_PANEL } from "./slots"
-import {
-  closesOnRelease,
-  followSelection,
-  panelIn,
-  pressCloses,
-  type RightSidePanelOpen,
-  stillOn,
-  withPanel,
-} from "./state"
+import { followSelection, panelIn, pressCloses, type RightSidePanelOpen, stillOn, withPanel } from "./state"
 
 const WIDTH = 480 // 中身のウィジェットが幅を書いていないときの幅（px。PC のブラウザの窓をいちばん狭くしても入る幅）
 
@@ -67,8 +58,7 @@ export function RightSidePanel() {
       const tool = toolOf(catalog, s.workspace, stage, s.books)
       const inside = ref.current?.contains(target) ?? false
       const pans = !!tool && !!catalog.tools.get(tool)?.pans
-      const inStage = followed && (stageElement(stage)?.contains(target) ?? false)
-      if (!pressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS), pans, followed: inStage })) return
+      if (!pressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS), pans, followed })) return
       pressClosed.current = true
       close(stage)
     }
@@ -97,13 +87,12 @@ export function RightSidePanel() {
 }
 
 // 選択に従う中身を出しているステージ stage（無ければ null）で、付いた先をステージの選択に合わせる。開いたとき（中身か見せる物が替わったとき）は、先に選択を付いた先にする。
-// ポインタを押している間は合わせず、離してから合わせ、そのとき閉じるかを決める（state.ts の closesOnRelease。離したあとの click で選択を変える物もあるので、click のあとに見る）。
+// ポインタを押している間は合わせず、離してから合わせる（離したあとの click で選択を変える物もあるので、click のあとに見る）。選択が空になっても閉じない。
 // 閉じたら（従う中身でなくなったら）選択を外す
 function useFollowSelection(stage: string | null) {
   const read = useReadState()
   const { select } = useActions()
   const set = useSetStageState(kit)
-  const close = useCloseRightSidePanel()
   const opened = useOpenedRightSidePanel()
   const selection = useStage(stage ?? "")?.selection
   const following = useRef<string | null>(null)
@@ -124,15 +113,12 @@ function useFollowSelection(stage: string | null) {
     if (shown && anchors) select(stage, anchors)
   }, [stage, shown, select])
   const pressing = useRef(false)
-  const pressedInStage = useRef(false)
   const [released, setReleased] = useState(0)
-  const checked = useRef(released)
   useEffect(() => {
     if (!stage) return
     let timer: ReturnType<typeof setTimeout> | undefined
-    const down = (e: PointerEvent) => {
+    const down = () => {
       pressing.current = true
-      pressedInStage.current = e.target instanceof Node && (stageElement(stage)?.contains(e.target) ?? false)
     }
     const up = () => {
       pressing.current = false
@@ -158,11 +144,8 @@ function useFollowSelection(stage: string | null) {
     // 開いたときに選択を変えたばかりのこともあるので、選択はストアから今の値を読む
     const current = read().workspace.stages.find(s => s.id === stage)?.selection ?? []
     const next = followSelection(open, current)
-    const release = checked.current !== released
-    checked.current = released
-    if (release && closesOnRelease({ pressedInStage: pressedInStage.current, anchors: next.anchors })) close(stage)
-    else if (next !== open) set(stage, withPanel(now, next))
-  }, [stage, shown, selection, released, read, set, close])
+    if (next !== open) set(stage, withPanel(now, next))
+  }, [stage, shown, selection, released, read, set])
 }
 
 function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: string | number }) {

@@ -1,7 +1,6 @@
 // 右サイドパネルの持ち方: base のステージの画面の状態の rightSidePanel に持ち、ほかの物は残す。開いたときのブックかページから替われば閉じる
 import { expect, test } from "bun:test"
 import {
-  closesOnRelease,
   columnGrow,
   followSelection,
   panelIn,
@@ -36,7 +35,7 @@ test("開いている間は、開いたステージの列が 1・もう片方が
   expect(columnGrow("s2", 1, null, 0.3)).toBeCloseTo(0.7)
 })
 
-test("外を左ボタンで押したときだけ閉じる。中・閉じない所・ずらす道具の間・ほかのボタン・選択に従う中身の開いたステージの中では閉じない", () => {
+test("外を左ボタンで押したときだけ閉じる。中・閉じない所・ずらす道具の間・ほかのボタン・選択に従う中身を出している間は閉じない", () => {
   const out = { button: 0, inside: false, kept: false, pans: false, followed: false }
   expect(pressCloses(out)).toBe(true)
   expect(pressCloses({ ...out, button: 2 })).toBe(false)
@@ -71,12 +70,6 @@ test("付いた先から外すと、外した物がカレントなら一つ前�
   expect(withoutAnchor({ ...open, current: "a" }, "a")).toMatchObject({ anchors: ["b", "c"], current: "b" })
   expect(withoutAnchor({ ...open, anchors: ["a"], current: "a" }, "a")).toMatchObject({ anchors: [] })
   expect(withoutAnchor(open, "x")).toBe(open)
-})
-
-test("離したあとに閉じるのは、開いたステージの中を押して、付いた先が空になったときだけ（右サイドパネルの中を押したときや、AI が消して空になったときは閉じない）", () => {
-  expect(closesOnRelease({ pressedInStage: true, anchors: [] })).toBe(true)
-  expect(closesOnRelease({ pressedInStage: false, anchors: [] })).toBe(false)
-  expect(closesOnRelease({ pressedInStage: true, anchors: ["a"] })).toBe(false)
 })
 
 test("選択に従う中身を出している間に物を押すと、修飾なしならその物だけ、Mod なら足すか外す", () => {
