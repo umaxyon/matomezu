@@ -8,6 +8,7 @@ import { anchorIds } from "./annotation"
 import { hasPages, type PagedBook } from "./book"
 import type { ItemId } from "./catalog"
 import type { BookTypeId, CoreCatalog } from "./core-catalog"
+import { isOnBook } from "./def/action"
 import type { Point, Size } from "./geom"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
 import { sameData } from "./same"
@@ -37,9 +38,15 @@ function stagePaper(catalog: CoreCatalog, type: BookTypeId, page: PaperChoice): 
 // ページの中身をずらした量（印刷区画の数。ずらしていなければ持たない）
 const shiftOf = (page: Page | undefined): { shift?: Point } => (page?.shift ? { shift: page.shift } : {})
 
+// ステージの見え方: 開いたページを編集するか、印刷プレビュー（開いたブックの全ページの印刷区画を並べて、見るだけ）か。
+// 印刷プレビューの間、ずらす量と倍率は並べた広さ area（見せ方が知らせるまでは持たない）で決め、開く前の倍率とずらす量 back を閉じたときに戻す。
+// 開いたページはそのまま持つ（閉じたらそのページの編集に戻る）
+export type StageMode = { kind: "edit" } | { kind: "print-preview"; area?: Size; back: { zoom: number; pan: Point } }
+
 export interface Stage {
   id: string
   opened: Opened | null // 何も開いていなければ null
+  mode: StageMode
   zoom: number
   pan: Point // ずらす量（viewport.ts）
   view: Size | null // 表示領域の大きさ（測るまでは null）
@@ -63,11 +70,13 @@ export interface Placement {
 
 const HOME: Point = { x: 0, y: 0 }
 const NONE: readonly string[] = []
+const EDIT: StageMode = { kind: "edit" }
 
 export function newStage(id: string, opened: Opened | null = null): Stage {
   return {
     id,
     opened,
+    mode: EDIT,
     zoom: 1,
     pan: HOME,
     view: null,
@@ -96,6 +105,21 @@ export function areaOf(stage: Pick<Stage, "opened">): Size | null {
   return paper && (stage.opened?.area ?? paper)
 }
 
+// ずらす量の範囲・全体を収める倍率を決める広さ: 印刷プレビューの間は並べた広さ（知らせるまでは null）、ほかは areaOf
+export function extentOf(stage: Pick<Stage, "opened" | "mode">): Size | null {
+  return stage.mode.kind === "print-preview" ? (stage.opened && stage.mode.area) || null : areaOf(stage)
+}
+
+// 印刷プレビューの間か（間は、選ぶ・置く・その場の編集・道具のアイコンを始めず、ブックを変えるアクションを止める。stageBlocks）
+export const previewing = (stage: Pick<Stage, "mode">): boolean => stage.mode.kind === "print-preview"
+
+// 見え方が mode のステージから行うと止めるアクションか: 印刷プレビューの間の、ブックが対象のアクション（印刷プレビューの間も行う印
+// inPrintPreview のあるものを除く）。止めるのはそのステージから行う物だけで、AI やほかのステージは止めない
+export function stageBlocks(catalog: CoreCatalog, mode: StageMode["kind"], action: string): boolean {
+  const def = catalog.actions.get(action)
+  return mode === "print-preview" && isOnBook(def?.target) && def?.inPrintPreview !== "runs"
+}
+
 // 見せ方が描く広さを area に、描く中身をずらした量を origin にする（null なら紙 1 枚に戻し、ずらさない）。origin が変わったら、
 // 中身が画面の同じ所に見えるよう、変わった分だけパンを合わせる。ずらす量は範囲に収め直す
 export function setArea(stage: Stage, area: Size | null, origin: Point | null = null): Stage {
@@ -120,7 +144,7 @@ export function setArea(stage: Stage, area: Size | null, origin: Point | null = 
 
 // ずらす量を pan にして、範囲に収める
 function settle(stage: Stage, pan: Point): Stage {
-  const paper = areaOf(stage)
+  const paper = extentOf(stage)
   const next = stage.view && paper ? clampPan(stage.view, contentSize(paper, stage.zoom), pan) : pan
   if (next.x === stage.pan.x && next.y === stage.pan.y) return stage
   return { ...stage, pan: next }
@@ -133,16 +157,17 @@ export function resize(stage: Stage, view: Size): Stage {
 
 // 紙が無ければずらさない
 export function panBy(stage: Stage, dx: number, dy: number): Stage {
-  if (!paperOf(stage)) return stage
+  if (!extentOf(stage)) return stage
   return settle(stage, { x: stage.pan.x + dx, y: stage.pan.y + dy })
 }
 
-// ブックを開く（ページを持つなら最初のページ）。ずらす量は最初の位置に戻す。
+// ブックを開く（ページを持つなら最初のページ）。ずらす量は最初の位置に戻し、印刷プレビューは閉じる（開く前の倍率に戻す）。
 // ページを持たないブックがもう開いていれば、同じ値を返す
 export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
   if (!hasPages(book)) {
     if (stage.opened?.book === book.id) return stage
-    return settle(leave({ ...stage, opened: { type: book.type, book: book.id, page: null, paper: null } }), HOME)
+    const from = edited(stage)
+    return settle(leave({ ...from, opened: { type: book.type, book: book.id, page: null, paper: null } }), HOME)
   }
   const first = book.pages[0]
   const opened = {
@@ -152,16 +177,18 @@ export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage 
     paper: first ? stagePaper(catalog, book.type, first) : null,
     ...shiftOf(first),
   }
-  return settle(leave({ ...stage, opened }), HOME)
+  return settle(leave({ ...edited(stage), opened }), HOME)
 }
 
-// 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は最初の位置に戻す
+// 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は最初の位置に戻す。
+// 印刷プレビューの間なら閉じて、そのページの編集にする（開いていたページなら、閉じるのと同じ）
 export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, page: string): Stage {
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
-  if (!o || o.book !== book.id || !found || o.page === page) return stage
+  if (!o || o.book !== book.id || !found) return stage
+  if (o.page === page) return closePrintPreview(stage)
   const opened = { type: o.type, book: o.book, page, paper: stagePaper(catalog, o.type, found), ...shiftOf(found) }
-  return settle(leave({ ...stage, opened }), HOME)
+  return settle(leave({ ...edited(stage), opened }), HOME)
 }
 
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
@@ -222,7 +249,7 @@ function neighbourOf(book: PagedBook, page: string | null, before?: Book): Paged
 
 // 倍率を zoom にする。表示領域の中の点 at（無ければ真ん中）の下にある紙の点が動かないように、ずらす量を合わせる（紙が無ければ変えない）
 export function zoomTo(stage: Stage, zoom: number, at?: Point): Stage {
-  if (!paperOf(stage) || zoom === stage.zoom) return stage
+  if (!extentOf(stage) || zoom === stage.zoom) return stage
   const view = stage.view
   if (!view) return settle({ ...stage, zoom }, stage.pan)
   const p = at ?? { x: view.w / 2, y: view.h / 2 }
@@ -239,11 +266,39 @@ export function resetView(stage: Stage): Stage {
 
 // 何も開いていない状態にする（開いていたブックが無くなったときなど）
 export function closeBook(stage: Stage): Stage {
-  return stage.opened ? settle(leave({ ...stage, opened: null }), HOME) : stage
+  return stage.opened ? settle(leave({ ...edited(stage), opened: null }), HOME) : stage
+}
+
+// 印刷プレビューを開く（ブックを開いていて、編集の間だけ）。置こうとしているアイテム・選択・その場の編集・道具のアイコンは捨てる。
+// 並べた広さを見せ方が知らせるまで、ずらす量は収めない
+export function openPrintPreview(stage: Stage): Stage {
+  if (!stage.opened || previewing(stage)) return stage
+  return { ...leave(stage), mode: { kind: "print-preview", back: { zoom: stage.zoom, pan: stage.pan } } }
+}
+
+// 印刷プレビューを閉じ、開く前の倍率とずらす量に戻す（印刷プレビューの間でなければ、同じ値を返す）
+export function closePrintPreview(stage: Stage): Stage {
+  if (stage.mode.kind !== "print-preview") return stage
+  const { zoom, pan } = stage.mode.back
+  return settle({ ...stage, mode: EDIT, zoom }, pan)
+}
+
+// 編集の間のステージ（印刷プレビューの間なら閉じ、開く前の倍率にする。ずらす量は呼ぶ側が決める）
+function edited(stage: Stage): Stage {
+  return stage.mode.kind === "print-preview" ? { ...stage, mode: EDIT, zoom: stage.mode.back.zoom } : stage
+}
+
+// 印刷プレビューで並べた広さを area にする（見せ方が知らせる。印刷プレビューの間でなければ、同じ値を返す）。ずらす量は範囲に収め直す
+export function setPreviewArea(stage: Stage, area: Size): Stage {
+  const mode = stage.mode
+  if (mode.kind !== "print-preview") return stage
+  if (mode.area && mode.area.w === area.w && mode.area.h === area.h) return stage
+  return settle({ ...stage, mode: { ...mode, area } }, stage.pan)
 }
 
 // アイテムを置こうとする。同じアイテムをもう一度選べば取り消す（道具を選択にするのは workspace.ts の togglePlacing）
 export function togglePlacing(stage: Stage, item: ItemId): Stage {
+  if (previewing(stage)) return stage
   return { ...stage, placing: stage.placing === item ? null : item }
 }
 
@@ -253,7 +308,7 @@ export function stopPlacing(stage: Stage): Stage {
 
 // 道具のアイコンを開く（紙が無ければ開かない）・閉じる
 export function openPicker(stage: Stage, at: Point | null): Stage {
-  return paperOf(stage) ? { ...stage, picker: { at, map: false } } : stage
+  return paperOf(stage) && !previewing(stage) ? { ...stage, picker: { at, map: false } } : stage
 }
 
 // 開いている道具のアイコンを、ミニマップに替える（開いていなければ何もしない）
@@ -267,12 +322,14 @@ export function closePicker(stage: Stage): Stage {
 
 // 選ぶ物を替える（替われば、その場の編集は終える）
 export function select(stage: Stage, ids: readonly string[]): Stage {
+  if (previewing(stage)) return stage
   const same = ids.length === stage.selection.length && ids.every((id, i) => stage.selection[i] === id)
   return same ? stage : { ...stage, selection: ids.length === 0 ? NONE : [...ids], editing: false }
 }
 
 // 選んでいる物を、その場で編集し始める・終える（何も選んでいなければ始めない）
 export function setEditing(stage: Stage, editing: boolean | string): Stage {
+  if (previewing(stage)) return stage
   const next = stage.selection.length > 0 ? editing : false
   return next === stage.editing ? stage : { ...stage, editing: next }
 }

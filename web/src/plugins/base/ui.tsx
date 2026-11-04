@@ -12,6 +12,7 @@ import { HISTORY_ICONS } from "./history/icons"
 import { MARK_LAYER } from "./mark/ui"
 import { NOTE_LAYER, NOTE_PANEL } from "./note/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
+import { PRINT_PREVIEW_BUTTON, PRINT_PREVIEW_PANEL, PRINT_PREVIEW_SETTING_VIEWS } from "./print-preview/ui"
 import { USER_SETTING_VIEWS } from "./settings/ui"
 import {
   BOOK_CONTENT,
@@ -85,7 +86,7 @@ export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./worksp
 
 export const BASE_UI = definePluginUi(BASE, {
   dialogViews: { ...BOOK_OPEN_DIALOG_VIEWS, ...PAGE_DIALOG_VIEWS, ...BOOK_LOOK_DIALOG_VIEWS, ...BOOK_NEW_DIALOG_VIEWS },
-  settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS },
+  settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
     WORKSPACE,
@@ -102,6 +103,8 @@ export const BASE_UI = definePluginUi(BASE, {
     NOTE_PANEL,
     MARK_LAYER,
     PRINT_AREA_TOGGLE,
+    PRINT_PREVIEW_BUTTON,
+    PRINT_PREVIEW_PANEL,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
@@ -148,6 +151,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-panel": typeof NOTE_PANEL
     "@matomezu/base:mark-layer": typeof MARK_LAYER
     "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
+    "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
+    "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME

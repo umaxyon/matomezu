@@ -5,7 +5,7 @@ import { withSettings } from "../../../core/book"
 import type { Book } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { type SettingsOf, settingDefs, settingValue } from "../book-settings"
+import { ownSettings, type SettingsOf, settingDefs, settingValue } from "../book-settings"
 import { kit } from "../kit"
 
 // 変えた項目（項目の id → 値。消すなら null）
@@ -28,7 +28,7 @@ export function useSettingControls(
   const controls = defs.flatMap(def => {
     const view = ui.settingViews.get(def.id)
     if (!view || !book || !draft) return []
-    const own = (at as { settings?: Record<string, unknown> } | null | undefined)?.settings?.[def.id]
+    const own = ownSettings(at ?? null)[def.id]
     const value = def.id in patch ? (patch[def.id] ?? undefined) : own
     const inherited = of === "page" ? settingValue(catalog, book, null, def) : def.default
     const Control = view.control

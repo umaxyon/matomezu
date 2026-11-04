@@ -347,9 +347,10 @@ test("窓が見ているものと、窓がフォーカスされたことを、�
   const view = (selection: string[]) => ({
     book: "b1",
     page: "p1",
+    mode: "edit",
     selection,
     stage: "s1",
-    stages: [{ id: "s1", book: "b1", page: "p1" }],
+    stages: [{ id: "s1", book: "b1", page: "p1", mode: "edit" }],
     canSplit: true,
   })
   expect(s.sent).toEqual([{ url: "api/view", client: "c1", view: view([]), editLocks: {}, focused: true, seq: 1 }])
@@ -382,11 +383,12 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
   expect(s.sent.at(-1)?.view).toEqual({
     book: "b1",
     page: "p1",
+    mode: "edit",
     selection: [],
     stage: "s1",
     stages: [
-      { id: "s1", book: "b1", page: "p1" },
-      { id: "s2", book: null, page: null },
+      { id: "s1", book: "b1", page: "p1", mode: "edit" },
+      { id: "s2", book: null, page: null, mode: "edit" },
     ],
     canSplit: false,
   })
@@ -399,6 +401,13 @@ test("show が届いたら、言われたステージでブックを開き、カ
   const ws = s.store.state.getState().workspace
   expect(ws.current).toBe("s2")
   expect(ws.stages.map(st => st.opened?.book ?? null)).toEqual(["b1", "b1"])
+})
+
+test("show の mode が print-preview なら、印刷プレビューで開く", async () => {
+  const s = await connected()
+  s.emit("show", { book: "b1", mode: "print-preview" })
+  expect(s.store.state.getState().workspace.stages[0]?.mode.kind).toBe("print-preview")
+  expect(s.sent.at(-1)?.view).toMatchObject({ mode: "print-preview" })
 })
 
 test("show の split は、そのステージを分けて右にできたステージに開く", async () => {

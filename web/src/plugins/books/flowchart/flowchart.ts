@@ -1,7 +1,14 @@
 // フローチャートのブック: ページごとに紙を置き、紙の上に形（@matomezu/shape）・箱・線を置く。
 // 流れの向き（下へ・右へ）はブックとページの設定の項目で持つ（ページはブックを継承できる）。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
 import { z } from "zod"
-import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS, type SettingReader } from "../../base"
+import {
+  BOOK_PAPER_COLOR,
+  BOOK_TEXT_COLORS,
+  BOOK_THEME,
+  PAPER_IDS,
+  PRINT_PREVIEW_SETTINGS,
+  type SettingReader,
+} from "../../base"
 import { kit } from "./kit"
 import { FLOWCHART_TOOLS } from "./tools"
 
@@ -104,6 +111,7 @@ export const FLOWCHART = kit.defineBookType({
       "@matomezu/line:line-route",
       kit.name("flow-direction"),
       BOOK_TEXT_COLORS.id,
+      ...PRINT_PREVIEW_SETTINGS,
     ],
     page: ["@matomezu/line:line-route", kit.name("flow-direction")],
   },

@@ -12,12 +12,27 @@ import type { ItemPage } from "../../core/placed"
 import type { Book } from "../../core/schema/book"
 import { settingSchema } from "../../core/settings"
 import { tidyConnectors } from "./place/placed"
+import { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 
 export type SettingsOf = "book" | "page"
 
-// タイプが選んだ、ブックかページの設定の定義（選んだ順）
-export function settingDefs(catalog: CoreCatalog, type: string, of: SettingsOf): SettingDef[] {
-  return (bookType(catalog, type).settings?.[of] ?? []).map(id => catalog.settings.get(id) ?? fail("E113", { id }))
+// 設定の項目の組: print-preview は印刷プレビューの設定（アクション print-preview-update が変え、印刷プレビューの右サイドパネルに出す）、
+// general はそのほか（book-create・book-update・page-update が受け、設定のダイアログに並べる）
+export type SettingGroup = "general" | "print-preview"
+
+export const groupOf = (id: string): SettingGroup =>
+  (PRINT_PREVIEW_SETTINGS as readonly string[]).includes(id) ? "print-preview" : "general"
+
+// タイプが選んだ、ブックかページの設定の定義のうち、組 group の物（選んだ順）
+export function settingDefs(
+  catalog: CoreCatalog,
+  type: string,
+  of: SettingsOf,
+  group: SettingGroup = "general",
+): SettingDef[] {
+  return (bookType(catalog, type).settings?.[of] ?? [])
+    .filter(id => groupOf(id) === group)
+    .map(id => catalog.settings.get(id) ?? fail("E113", { id }))
 }
 
 // 選んだ項目を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。項目の id で渡す。値の形は機能台帳から組み立てた形か schema）
@@ -26,19 +41,24 @@ function settingsPatch(catalog: CoreCatalog, defs: readonly SettingDef[]): z.Zod
 }
 
 // ブックかページの settings のフィールド（無ければ空）
-const ownSettings = (target: object | null): Readonly<Record<string, unknown>> =>
+export const ownSettings = (target: object | null): Readonly<Record<string, unknown>> =>
   (target as { settings?: Record<string, unknown> } | null)?.settings ?? {}
 
-// ブックのタイプの、ブックかページの設定の項目を変えるときに渡す形（項目を選んでいなければ null）
-export function settingsPatchOf(catalog: CoreCatalog, book: Book, of: SettingsOf): z.ZodObject | null {
-  const defs = settingDefs(catalog, book.type, of)
+// ブックのタイプの、ブックかページの設定の項目（組 group の物）を変えるときに渡す形（項目を選んでいなければ null）
+export function settingsPatchOf(
+  catalog: CoreCatalog,
+  book: Book,
+  of: SettingsOf,
+  group: SettingGroup = "general",
+): z.ZodObject | null {
+  const defs = settingDefs(catalog, book.type, of, group)
   return defs.length > 0 ? settingsPatch(catalog, defs) : null
 }
 
-// AI に見せる settings の形: 項目を選んだタイプごとの形のどれか（説明にタイプの id）
-export function settingsArgs(catalog: CoreCatalog, of: SettingsOf): z.ZodType {
+// AI に見せる settings の形: 項目（組 group の物）を選んだタイプごとの形のどれか（説明にタイプの id）
+export function settingsArgs(catalog: CoreCatalog, of: SettingsOf, group: SettingGroup = "general"): z.ZodType {
   const each = [...catalog.bookTypes.values()].flatMap(t => {
-    const defs = settingDefs(catalog, t.id, of)
+    const defs = settingDefs(catalog, t.id, of, group)
     return defs.length > 0 ? [settingsPatch(catalog, defs).describe(`settings of ${t.id} books`)] : []
   })
   const [first, ...rest] = each

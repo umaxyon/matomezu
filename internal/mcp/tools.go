@@ -23,7 +23,7 @@ var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "a
 var readTools = []readTool{
 	{
 		"view",
-		"What the user is looking at now: the book, page and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. null when no window is open.",
+		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. null when no window is open.",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") },
 	},
@@ -111,6 +111,11 @@ var showSchema = map[string]any{
 		"page":  map[string]any{"type": "string", "description": "The page to show. Without it, the book opens as usual."},
 		"stage": map[string]any{"type": "string", "description": "The id of the stage to show it on (see view). Without it, the current stage."},
 		"split": map[string]any{"type": "boolean", "description": "Split that stage and show the book on the new stage at its right."},
+		"mode": map[string]any{
+			"type":        "string",
+			"enum":        []string{"edit", "print-preview"},
+			"description": "print-preview shows all its pages as the sheets they print on (a book with pages; the user only looks, nothing can be changed there). Without it, edit.",
+		},
 	},
 	"required":             []string{"book"},
 	"additionalProperties": false,

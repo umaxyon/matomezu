@@ -1,0 +1,34 @@
+/* 右サイドパネルの中の印刷プレビューの設定 */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+/* 見出し */
+.head {
+  font-weight: bold;
+}
+/* 設定の項目の並び（パネルの幅に入らない選択肢は、名前の下へ折り返す。止められている間は fieldset ごと押せない） */
+.settings {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings > div {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+/* ボタンの行（ロック） */
+.tools {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  gap: 8px;
+}
