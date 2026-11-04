@@ -75,16 +75,7 @@ export function WorkspaceView() {
                 onDoubleClick={() => evenDivider()}
               />
             )}
-            <div className={styles.top}>
-              <Slot name={STAGE_TOP} props={{ stage }} />
-            </div>
-            <div className={styles.cell}>
-              <Slot name={STAGE_BODY} props={{ stage }} />
-            </div>
-            <Bottom stage={stage} />
-            <div className={styles.corner}>
-              <Slot name={STAGE_CORNER} props={{ stage }} />
-            </div>
+            <StageColumn stage={stage} />
           </div>
         ))}
         <RightSidePanel />
@@ -102,6 +93,31 @@ function scrollbarWidth(): number {
   const width = probe.offsetWidth - probe.clientWidth
   probe.remove()
   return width
+}
+
+// ステージの列の中身。印刷プレビューの間は、ステージの中身のほか（上・下の行と角）を出さない（中身の操作の道具を出さないため）
+function StageColumn({ stage }: { stage: string }) {
+  const previewing = useMatomezuState(
+    s => s.workspace.stages.find(st => st.id === stage)?.mode.kind === "print-preview",
+  )
+  return (
+    <>
+      {!previewing && (
+        <div className={styles.top}>
+          <Slot name={STAGE_TOP} props={{ stage }} />
+        </div>
+      )}
+      <div className={styles.cell}>
+        <Slot name={STAGE_BODY} props={{ stage }} />
+      </div>
+      {!previewing && <Bottom stage={stage} />}
+      {!previewing && (
+        <div className={styles.corner}>
+          <Slot name={STAGE_CORNER} props={{ stage }} />
+        </div>
+      )}
+    </>
+  )
 }
 
 // 下の行。ポインタが乗っているかを中のウィジェットに渡す

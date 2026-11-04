@@ -487,6 +487,7 @@ type Show struct {
 	Page  string `json:"page,omitempty"`
 	Stage string `json:"stage,omitempty"`
 	Split bool   `json:"split,omitempty"`
+	Mode  string `json:"mode,omitempty"` // print-preview なら印刷プレビューで出す（画面がそのまま受ける）
 }
 
 // Show で出せなかった理由

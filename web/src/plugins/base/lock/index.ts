@@ -21,6 +21,7 @@ const PAGE_ARGS = z.strictObject({ page: z.string().min(1) })
 export const BOOK_LOCK = kit.defineAction({
   id: "book-lock",
   history: false,
+  inPrintPreview: "runs", // 印刷プレビューの右サイドパネルから掛け外す
   attach: { books: true },
   aiDescription: `Lock the book: while locked, nothing in it can be changed and it cannot be moved to the trash, by the user or by AI (denied by ${kit.name("lock")}). Only the user can unlock it. Refused if it is already locked.`,
   title: "Lock book",
@@ -36,6 +37,7 @@ export const BOOK_LOCK = kit.defineAction({
 export const BOOK_UNLOCK = kit.defineAction({
   id: "book-unlock",
   history: false,
+  inPrintPreview: "runs",
   attach: { books: true },
   userOnly: true,
   aiDescription: "Unlock the book (only the user can).",

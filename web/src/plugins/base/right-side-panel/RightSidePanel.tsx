@@ -66,7 +66,9 @@ export function RightSidePanel() {
       const s = read()
       const tool = toolOf(catalog, s.workspace, stage, s.books)
       const inside = ref.current?.contains(target) ?? false
-      const pans = !!tool && !!catalog.tools.get(tool)?.pans
+      // 紙をずらしているか（ずらす道具の間と、印刷プレビューの間）
+      const previewing = s.workspace.stages.find(st => st.id === stage)?.mode.kind === "print-preview"
+      const pans = previewing || (!!tool && !!catalog.tools.get(tool)?.pans)
       const inStage = followed && (stageElement(stage)?.contains(target) ?? false)
       if (!pressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS), pans, followed: inStage })) return
       pressClosed.current = true

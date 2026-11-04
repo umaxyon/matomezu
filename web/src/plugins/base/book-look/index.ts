@@ -8,6 +8,7 @@ import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../page-tabs/page-problems"
+import { PRINT_PREVIEW_SETTINGS } from "../print-preview/settings"
 import { BOOK_PAPER_COLOR } from "./look"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME, bookTheme, bookTokens } from "./look"
@@ -30,20 +31,21 @@ export function withBookSettings(catalog: CoreCatalog, book: Book, settings: unk
 }
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
-// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す。テーマは表にあるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
+// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す。テーマは表にあるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
   attach: { books: true },
   aiDescription:
-    "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default).",
+    "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default). The print preview settings (@matomezu/base:print-preview-*) are changed by @matomezu/base:print-preview-update, not here (refused).",
   title: "Change book",
   target: "book",
   permissionScope: "book",
   args: ARGS,
-  describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "book").optional() }),
+  describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "book", PRINT_PREVIEW_SETTINGS).optional() }),
   run: (book, args, ctx) => {
     const next: Book = args.title === undefined ? book : { ...book, title: args.title }
     if (args.settings === undefined) return { next, result: null }
+    if (Object.keys(args.settings).some(id => (PRINT_PREVIEW_SETTINGS as readonly string[]).includes(id))) return null
     const settled = withBookSettings(ctx.catalog, next, args.settings)
     return settled && { next: settled, result: null }
   },

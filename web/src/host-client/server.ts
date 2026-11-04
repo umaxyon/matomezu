@@ -11,6 +11,7 @@
 // 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）。
 // 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（組み立て直すため）
 import { z } from "zod"
+import { hasPages } from "../core/book"
 import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
@@ -86,10 +87,14 @@ interface Pending {
 
 const openedOf = (stage: Stage) => {
   const opened = stage.opened
-  return { book: opened?.book ?? null, page: opened && "page" in opened ? (opened.page ?? null) : null }
+  return {
+    book: opened?.book ?? null,
+    page: opened && "page" in opened ? (opened.page ?? null) : null,
+    mode: stage.mode.kind,
+  }
 }
 
-// 窓が見ているもの。book・page・selection はカレントのステージのもの（何も開いていなければ book は null）
+// 窓が見ているもの。book・page・mode（編集か印刷プレビューか）・selection はカレントのステージのもの（何も開いていなければ book は null）
 export function viewOf(state: MatomezuState) {
   const ws = state.workspace
   const stage = currentStage(ws)
@@ -107,9 +112,11 @@ const ShowSchema = z.object({
   page: z.string().optional(),
   stage: z.string().optional(),
   split: z.boolean().optional(),
+  mode: z.enum(["edit", "print-preview"]).optional(),
 })
 
-// 常駐が頼んだブックを出す。ステージが無ければカレント、split なら分けて右にできたステージに出す
+// 常駐が頼んだブックを出す。ステージが無ければカレント、split なら分けて右にできたステージに出す。
+// mode が print-preview なら、印刷プレビューで出す（ページを持つブックだけ）
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
   let stage = show.stage ?? state.getState().workspace.current
@@ -122,6 +129,8 @@ export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSche
   }
   actions.openBook(stage, show.book)
   if (show.page) actions.openPage(stage, show.page)
+  const book = state.getState().books[show.book]
+  if (show.mode === "print-preview" && book && hasPages(book)) actions.openPrintPreview(stage)
 }
 
 const DataSchema = z.object({

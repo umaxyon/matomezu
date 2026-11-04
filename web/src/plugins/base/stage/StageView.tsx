@@ -28,6 +28,7 @@ import { useBook, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
+import { PrintPreviewView } from "../print-preview/PrintPreviewView"
 import { textColorVars } from "../text"
 import { useTextColors } from "../text/use-text-colors"
 import { keepsPan } from "../tool-switch/tools"
@@ -51,7 +52,10 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const book = useBook(id)
   const catalog = useCatalog().core
   const tool = useStage(id)?.tool ?? null
-  const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
+  const previewing = stage?.mode.kind === "print-preview"
+  // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
+  const pans = previewing || (tool !== null && toolDef(catalog, tool).pans === true)
+  const keeps = !previewing && keepsPan(catalog, tool) // 紙をずらさない道具か
   // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）
   const theme = useBookThemeVars(id)
   const colors = useTextColors(id)
@@ -63,8 +67,8 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
   useResize(ref, view => resizeStage(id, view))
-  const wheel = useRef({ zoom: wheelZoom, keepsPan: keepsPan(catalog, tool) })
-  wheel.current = { zoom: wheelZoom, keepsPan: keepsPan(catalog, tool) }
+  const wheel = useRef({ zoom: wheelZoom, keepsPan: keeps })
+  wheel.current = { zoom: wheelZoom, keepsPan: keeps }
   const latch = useRef<WheelLatch | null>(null) // 一続きの回しで決めた、ホイールを受ける物
   // ホイールを受ける物を決める（ブラウザの拡大と、紙をずらす回しで中の物がスクロールするのを止めるため、受け身でない受け取りで付ける）。
   // 紙をずらすのは React の onWheel（中のビューやスタンドが止めたホイールでは紙をずらさない）
@@ -93,7 +97,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     return () => el.removeEventListener("wheel", onWheel)
   }, [])
   if (!stage) return null
-  const hasPaper = paperOf(stage) !== null
+  const hasPaper = previewing || paperOf(stage) !== null
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
@@ -115,7 +119,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     setDragging(false)
   }
   const onWheel = (e: WheelEvent<HTMLElement>) => {
-    if (e.ctrlKey || e.metaKey || keepsPan(catalog, tool) || latch.current?.taker !== "stage") return
+    if (e.ctrlKey || e.metaKey || keeps || latch.current?.taker !== "stage") return
     const dx = e.shiftKey ? e.deltaY : e.deltaX
     const dy = e.shiftKey ? e.deltaX : e.deltaY
     panStageBy(id, -dx, -dy)
@@ -150,14 +154,19 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   )
 })
 
-// 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表はレイヤーみんなで使う）
+// 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表はレイヤーみんなで使う）。
+// 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）
 function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
   const tokens = useTokenScope(type) // ブックのタイプのプラグインのテーマキー（--<名前>）
   return (
     <div className={styles.book} style={{ ...vars, ...tokens }}>
-      <AnchorsProvider stage={stage.id}>
-        <Slot name={BOOK_LAYERS} props={{ stage: stage.id }} />
-      </AnchorsProvider>
+      {stage.mode.kind === "print-preview" ? (
+        <PrintPreviewView stage={stage} />
+      ) : (
+        <AnchorsProvider stage={stage.id}>
+          <Slot name={BOOK_LAYERS} props={{ stage: stage.id }} />
+        </AnchorsProvider>
+      )}
     </div>
   )
 }

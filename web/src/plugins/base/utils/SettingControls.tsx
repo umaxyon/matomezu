@@ -7,6 +7,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { type SettingsOf, settingDefs, settingValue } from "../book-settings"
 import { kit } from "../kit"
+import { PRINT_PREVIEW_SETTINGS } from "../print-preview/settings"
 
 // 変えた項目（項目の id → 値。消すなら null）
 export type SettingsPatch = Readonly<Record<string, unknown>>
@@ -22,7 +23,10 @@ export function useSettingControls(
   const catalog = useCatalog().core
   const ui = useUiCatalog()
   const [patch, setPatch] = useState<SettingsPatch>({})
-  const defs = (book ? settingDefs(catalog, book.type, of) : []).filter(d => !only || only.includes(d.id))
+  // 印刷プレビューの設定の項目は並べない（印刷プレビューの右サイドパネルで変え、book-update は受けない）
+  const defs = (book ? settingDefs(catalog, book.type, of) : []).filter(
+    d => (!only || only.includes(d.id)) && !(PRINT_PREVIEW_SETTINGS as readonly string[]).includes(d.id),
+  )
   const at = of === "page" ? page : book
   const draft = book && of === "book" ? withSettings<Book>(book, patch) : book // 変えている項目を重ねたブック
   const controls = defs.flatMap(def => {

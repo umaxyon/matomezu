@@ -84,6 +84,7 @@ export {
   nextItemId,
   PAPER_IDS,
   PLACE_LINES,
+  PRINT_PREVIEW_SETTINGS,
   pageContext,
   pageFieldsWay,
   paperSize,

@@ -1,0 +1,44 @@
+/* 右サイドパネルの中の印刷プレビューの設定 */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+/* 見出し */
+.head {
+  font-weight: bold;
+}
+/* 設定の項目の並び（パネルの幅に入らない選択肢は、名前の下へ折り返す） */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings > div {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+/* ボタンの行（ロック） */
+.tools {
+  display: flex;
+  gap: 8px;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 6px;
+  background: var(--skin-surface-muted);
+  color: var(--skin-text);
+  cursor: pointer;
+}
+.button[aria-pressed="true"] {
+  border-color: var(--skin-accent);
+  color: var(--skin-accent);
+}

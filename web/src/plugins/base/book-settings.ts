@@ -35,10 +35,10 @@ export function settingsPatchOf(catalog: CoreCatalog, book: Book, of: SettingsOf
   return defs.length > 0 ? settingsPatch(catalog, defs) : null
 }
 
-// AI に見せる settings の形: 項目を選んだタイプごとの形のどれか（説明にタイプの id）
-export function settingsArgs(catalog: CoreCatalog, of: SettingsOf): z.ZodType {
+// AI に見せる settings の形: 項目を選んだタイプごとの形のどれか（説明にタイプの id。except の項目は除く。ほかのアクションが変える項目）
+export function settingsArgs(catalog: CoreCatalog, of: SettingsOf, except: readonly string[] = []): z.ZodType {
   const each = [...catalog.bookTypes.values()].flatMap(t => {
-    const defs = settingDefs(catalog, t.id, of)
+    const defs = settingDefs(catalog, t.id, of).filter(d => !except.includes(d.id))
     return defs.length > 0 ? [settingsPatch(catalog, defs).describe(`settings of ${t.id} books`)] : []
   })
   const [first, ...rest] = each

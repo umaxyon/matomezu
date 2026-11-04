@@ -17,6 +17,7 @@ import {
   openBook,
   openPage,
   type Stage,
+  type StageMode,
   setEditing,
   stopPlacing,
   togglePlacing as togglePlacingOn,
@@ -191,24 +192,27 @@ export function followLibrary(
 // 紙をずらす量（pan）は入れない（パンのたびに図を描き直さないため。読むのは matomezu/ui の useStagePan・useLatestPan）。
 // 表示領域の大きさ・道具のアイコンなど、中の状態は見せない（matomezu/ui の useStage）
 export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "selection" | "editing" | "placing"> & {
+  mode: StageMode["kind"] // 編集の間か、印刷プレビューの間か
   tool: ToolId | null
-  pans: boolean
+  pans: boolean // 紙をずらす道具か（印刷プレビューの間は、いつもずらす）
 }
 
 export function stageView(
   catalog: CoreCatalog,
-  stage: Pick<Stage, "id" | "opened" | "zoom" | "selection" | "editing" | "placing">,
+  stage: Pick<Stage, "id" | "opened" | "mode" | "zoom" | "selection" | "editing" | "placing">,
   tool: ToolId | null,
 ): StageView {
   const { id, opened, zoom, selection, editing, placing } = stage
+  const mode = stage.mode.kind
   return {
     id,
     opened,
+    mode,
     zoom,
     selection,
     editing,
     placing,
     tool,
-    pans: tool !== null && toolDef(catalog, tool).pans === true,
+    pans: mode === "print-preview" || (tool !== null && toolDef(catalog, tool).pans === true),
   }
 }

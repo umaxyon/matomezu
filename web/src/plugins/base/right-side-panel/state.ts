@@ -147,7 +147,7 @@ export const stillOn = (open: RightSidePanelOpen, stage: Pick<Stage, "opened">):
 export const columnGrow = (stage: string, i: number, panel: string | null, share: number): number =>
   panel !== null ? (stage === panel ? 1 : 0) : i === 0 ? share : 1 - share
 
-// 押しで右サイドパネルを閉じるか: 左ボタンで、右サイドパネルの外の、閉じない所（ダイアログ・メニューなど）でもない所を、ずらす道具でない間に押したとき。
+// 押しで右サイドパネルを閉じるか: 左ボタンで、右サイドパネルの外の、閉じない所（ダイアログ・メニューなど）でもない所を、紙をずらす間（ずらす道具・印刷プレビュー）でないときに押したとき。
 // 選択に従う中身を出している間の、開いたステージの中の押し（followed）では閉じない（選択が変わるだけ。離したあとに選択が空なら閉じる）
 export const pressCloses = (press: {
   button: number

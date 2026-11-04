@@ -20,14 +20,17 @@ import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
 import {
   closePicker,
+  closePrintPreview,
   openBook,
   openPicker,
+  openPrintPreview,
   panBy,
   resetView,
   resize,
   select,
   setArea,
   setEditing,
+  setPreviewArea,
   showPickerMap,
   stopPlacing,
   zoomTo,
@@ -93,11 +96,12 @@ export interface Toast {
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
 export type PerformArgs<Id extends ActionId> =
   TargetOf<Id> extends BookTarget ? [args: ArgsOf<Id>, on: { book: string }] : [args: ArgsOf<Id>]
-// 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は認可ステップが止めたとき（permission はそのステップの id）
+// 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は認可ステップが止めたとき（permission はそのステップの id）、
+// print-preview は印刷プレビューの間のステージから行おうとしたとき（ui の usePerform。core/stage.ts の stageBlocks）
 export type Performed<Id extends ActionId> =
   | { ok: true; result: ResultOf<Id> }
   | Refused
-  | { ok: false; reason: "no-book" }
+  | { ok: false; reason: "no-book" | "print-preview" }
 
 export interface Actions {
   // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも追加プラグインのアクションも、画面と AI から同じ入口を通る）。
@@ -135,6 +139,11 @@ export interface Actions {
   // そのステージの倍率を zoom にする（表示領域の中の点 at、無ければ真ん中の下の紙の点は動かさない）
   zoomStage(id: string, zoom: number, at?: Point): void
   resetStageView(id: string): void // そのステージを、開いたときの見え方（倍率 1・最初の位置）に戻す
+  // そのステージで印刷プレビューを開く・閉じる（閉じたら開く前の倍率とずらす量に戻す）
+  openPrintPreview(id: string): void
+  closePrintPreview(id: string): void
+  // 印刷プレビューで並べた広さ（見せ方が知らせる）と、並べた中の開いていたページの最初の印刷区画の左上 at（初めて知らせたとき、そこを見せる）
+  setPreviewArea(id: string, area: Size, at: Point): void
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
@@ -509,6 +518,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
     zoomStage: (id, zoom, at) => withWorkspace(ws => mapStage(ws, id, s => zoomTo(s, zoom, at))),
     resetStageView: id => withWorkspace(ws => mapStage(ws, id, resetView)),
+    openPrintPreview: id => withWorkspace(ws => mapStage(ws, id, openPrintPreview)),
+    closePrintPreview: id => withWorkspace(ws => mapStage(ws, id, closePrintPreview)),
+    setPreviewArea: (id, area, at) => withWorkspace(ws => mapStage(ws, id, s => setPreviewArea(s, area, at))),
     setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),
     togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),
     stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),

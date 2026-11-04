@@ -3,7 +3,7 @@
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。根の本文は太字と文字の色で装飾できる
 import { z } from "zod"
 import type { PageSettingsArgs } from "../../../plugin-api"
-import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
+import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
 import { treeFits } from "./fit"
 import { GROW, growSidesOf } from "./grow"
 import { kit } from "./kit"
@@ -86,6 +86,7 @@ export const TREE = kit.defineBookType({
       kit.name("node-shape"),
       kit.name("line-shape"),
       BOOK_TEXT_COLORS.id,
+      ...PRINT_PREVIEW_SETTINGS,
     ],
     page: [kit.name("grow"), kit.name("node-size"), kit.name("node-shape"), kit.name("line-shape")],
   },

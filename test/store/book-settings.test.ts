@@ -4,6 +4,7 @@ import { z } from "zod"
 import { withSettings } from "../../web/src/core/book"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { settingsArgs, settingsPatchOf } from "../../web/src/plugins/base/book-settings"
+import { PRINT_PREVIEW_SETTINGS } from "../../web/src/plugins/base/print-preview/settings"
 import { CORE_CATALOG, newStore } from "../support"
 
 test("選んだ項目を、変えるときに渡す形にする: どれも書かなくてよく、null は消す。選んでいない項目は受け付けない", () => {
@@ -69,8 +70,8 @@ test("@matomezu/base:book-update・@matomezu/base:page-update は、ブックの
   expect(book().pages[0]!.settings?.["@matomezu/line:line-route"]).toBe("elbow")
 })
 
-test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）。タイプがいくつもあれば、そのどれか", () => {
-  const schema = z.toJSONSchema(settingsArgs(CORE_CATALOG, "book"), { io: "input" }) as {
+test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）。タイプがいくつもあれば、そのどれか。除く項目（book-update では印刷プレビューの設定）は見せない", () => {
+  const schema = z.toJSONSchema(settingsArgs(CORE_CATALOG, "book", PRINT_PREVIEW_SETTINGS), { io: "input" }) as {
     anyOf?: { description?: string; properties?: object }[]
   }
   const byType = Object.fromEntries((schema.anyOf ?? []).map(s => [s.description, Object.keys(s.properties ?? {})]))

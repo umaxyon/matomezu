@@ -12,6 +12,7 @@ import { MARK_MESSAGES } from "./mark/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
+import { PRINT_PREVIEW_MESSAGES } from "./print-preview/messages"
 import { RIGHT_SIDE_PANEL_MESSAGES } from "./right-side-panel/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
 import { STAGE_MESSAGES } from "./stage/messages"
@@ -36,6 +37,7 @@ export const BASE_MESSAGES = {
   ...BOOK_NEW_MESSAGES,
   ...PAGE_MESSAGES,
   ...LOCK_MESSAGES,
+  ...PRINT_PREVIEW_MESSAGES,
   ...NOTE_MESSAGES,
   ...MARK_MESSAGES,
   ...RIGHT_SIDE_PANEL_MESSAGES,

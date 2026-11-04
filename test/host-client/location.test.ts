@@ -47,17 +47,17 @@ function fakePlace(start = "") {
   }
 }
 
-test("URL の形: ステージごとにブック・ページ・倍率とずらす量、続けてカレントと境目。読み戻すと同じ場所", () => {
+test("URL の形: ステージごとにブック・ページ・倍率とずらす量・印刷プレビューの間か、続けてカレントと境目。読み戻すと同じ場所", () => {
   const address = {
     stages: [
-      { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 } },
-      { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 } },
+      { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, mode: "print-preview" as const },
+      { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, mode: "edit" as const },
     ],
     current: 1,
     share: 0.4,
   }
   const search = searchOf(address)
-  expect(decodeURIComponent(search)).toBe("?b0=b1&p0=p1&v0=1,0,0&b1=&v1=1.25,12.5,-3&c=1&r=0.4")
+  expect(decodeURIComponent(search)).toBe("?b0=b1&p0=p1&v0=1,0,0&m0=print-preview&b1=&v1=1.25,12.5,-3&c=1&r=0.4")
   expect(parseSearch(search)).toEqual(address)
   // id に : や / が入っていても読み戻せる（1 冊だけのタイプのブックの id など）
   const master = { ...address, stages: [{ ...address.stages[0]!, book: "@matomezu/master:master", page: null }] }
