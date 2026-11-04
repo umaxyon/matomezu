@@ -197,5 +197,3 @@ function PickerStand({ stage, picker }: { stage: string; picker: AnchorTargets }
     </Stand>
   )
 }
-
-// マークのアクションを、そのステージのブックに行う。断られたらトーストで知らせ、false を、行えたら結果を返す

@@ -68,7 +68,7 @@ func resetForTest(o Options) http.HandlerFunc {
 	}
 }
 
-// putBookForTest はブックを丸ごと置き、画面に知らせる（置いてある版が base のときだけ書く）。アクションを通さない
+// putBookForTest はブックを丸ごと置き、窓に知らせる（置いてある版が base のときだけ書く）。アクションを通さない
 func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64, *storage.Book, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -90,7 +90,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64
 	return version, nil, nil
 }
 
-// resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定も消す。つないでいる画面と追加プラグインはそのまま。画面には知らせないので、テストは開き直す）
+// resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定も消す。つないでいる窓と追加プラグインはそのまま。窓には知らせないので、テストは開き直す）
 func (h *Hub) resetForTest(books []json.RawMessage) error {
 	ids := make([]string, len(books))
 	for i, body := range books {

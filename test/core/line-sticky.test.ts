@@ -1,4 +1,4 @@
-// 前の辺に留まる線の選び方（drawing/line/sticky.ts）と、線の編集のダイアログで変える項目（edit.ts の linePatch）
+// 前の辺に留まる線の選び方（items/line/sticky.ts）と、線の編集のダイアログで変える項目（edit.ts の linePatch）
 import { expect, test } from "bun:test"
 import type { Rect } from "../../web/src/core/geom"
 import { linePatch } from "../../web/src/plugins/items/line/edit"

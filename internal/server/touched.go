@@ -2,7 +2,7 @@ package server
 
 // ブックに触れた時刻: ブックの id ごとの、開いたか書いた時刻の新しい方（画面がブックを選ぶ一覧の並びと「〜前」に使う）。
 // 開いたのは、窓が見ているものを知らせたときに、その窓に新しく出たブック（前の知らせに無かったもの。出したままのブックは開き直さない）。
-// 書いたのは、ブックを置いたとき。置き場所に残し、変わったら画面に知らせる（touched）
+// 書いたのは、ブックを置いたとき。置き場所に残し、変わったら窓に知らせる（touched）
 
 import (
 	"encoding/json"
@@ -17,7 +17,7 @@ import (
 // stamp は今の時刻（置き場所と同じ、桁の決まった形。文字のまま比べられる）
 func stamp() string { return storage.Stamp(time.Now()) }
 
-// touch はブック id に触れた時刻を at にして、画面に知らせる（h.mu を持って呼ぶ）
+// touch はブック id に触れた時刻を at にして、窓に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) touch(id, at string) {
 	if h.touched[id] >= at {
 		return

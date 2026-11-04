@@ -1,4 +1,4 @@
-// 箱の文字のフォント Noto Sans JP（@fontsource/noto-sans-jp。字の範囲ごとに分けた woff2）を画面に配り、字の幅の表を作る（OVERHAUL 4.12）。
+// 箱の文字のフォント Noto Sans JP（@fontsource/noto-sans-jp。字の範囲ごとに分けた woff2）を画面に配り、字の幅の表を作る。
 //   bun scripts/fonts.ts copy <dir>  ふつう（400）と太字（700）の woff2 と、それを読む noto-sans-jp.css を <dir> に置く
 //   bun scripts/fonts.ts widths [<file>]  字の幅の表（無ければ web/src/plugins/base/text/noto-sans-jp.ts）を、配る woff2 から作り直す
 // 幅は配るファイルそのものから読むので、測る字と描く字が同じになる

@@ -1,4 +1,4 @@
-// 線の道筋（drawing/line/route.ts）を、画面を作らずに確かめる
+// 線の道筋（items/line/route.ts）を、画面を作らずに確かめる
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
 import { nearestAt, pointAt, type Rect } from "../../web/src/plugins/items/line/geom"

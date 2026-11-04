@@ -372,7 +372,7 @@ describe("取り込んだプラグインの置き場所", () => {
 
 describe("組み込まれていないプラグインの物", () => {
   const LINE_CONTEXT = "@matomezu/line:line-context"
-  test("持ち主のプラグインが無い物は除いて warning W010 にし、持ち主がいるのに無い物は今どおり error", () => {
+  test("持ち主のプラグインが無い物は除いて warning W010 にし、持ち主がいるのに無い物は error", () => {
     const present = new Set(BUILTIN_UI.filter(ui => ui.id !== "@matomezu/line").map(ui => ui.id))
     const { layout, warnings } = skipAbsent(DEFAULT_LAYOUT, present)
     expect(warnings.map(n => [n.code, n.plugin, n.params.kind, n.params.id])).toEqual([

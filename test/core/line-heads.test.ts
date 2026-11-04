@@ -1,4 +1,4 @@
-// 線の端の形（drawing/line/heads.ts）
+// 線の端の形（items/line/heads.ts）
 import { expect, test } from "bun:test"
 import { HEADS, headDraw } from "../../web/src/plugins/items/line/heads"
 

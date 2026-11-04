@@ -2,7 +2,7 @@ package server
 
 // 追加プラグインは、動いている途中でも足す・入れ替える・外すことができる。
 // 変えるたびに、ホストのエンジンをビルトインプラグインと全部の追加プラグインで組み直し（アクションとは鍵 mu で順に）、
-// 画面に plugins を知らせる（画面は読み直す）。組み直せなければ前のまま。
+// 窓に plugins を知らせる（窓は読み直す）。組み直せなければ前のまま。
 
 import (
 	"fmt"
@@ -71,7 +71,7 @@ func (h *Hub) dropAnnotationsOf(id string) error {
 	return h.checkAnnotations()
 }
 
-// usePlugins はホストのエンジンを組み直し、画面に知らせる（h.mu を持って呼ぶ）
+// usePlugins はホストのエンジンを組み直し、窓に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	if _, err := h.engine.Use(next); err != nil {
 		return err

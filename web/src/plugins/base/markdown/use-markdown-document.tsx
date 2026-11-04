@@ -1,7 +1,7 @@
 // Markdown の原文を読んだ物（MarkdownDocument）を返すフック: 開いたとき・読む物（of。ページなど）が替わったときはその場で読み、
 // そのあとの変更は Web Worker（markdown-parse-worker.ts）で読む（書くのを待たせない）。読んでいる間は前に読んだ物を返す。
 // 頼むのは 1 つずつで、返る前に変わった原文は、返ってから最後の物だけを頼む。外したあとに返った物は使わない。
-// Worker を使えない（無い・読み込めない。file:// で開いたときなど）なら、その場で読む（React の遅らせた値で、書くのを先にする）
+// Worker を使えない（無い・読み込めない）なら、その場で読む（React の遅らせた値で、書くのを先にする）
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type { ParseReply, ParseRequest } from "./markdown-parse-worker"
 import { type MarkdownDocument, parseMarkdown } from "./parse"

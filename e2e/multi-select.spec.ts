@@ -1,4 +1,4 @@
-// 図面の複数選択（D84）: Mod+クリックで選択に足す・外し、選択の道具で何も無い所からドラッグした四角で選ぶ。選んだ物はまとめて消え、まとめて動く
+// 図面の複数選択: Mod+クリックで選択に足す・外し、選択の道具で何も無い所からドラッグした四角で選ぶ。選んだ物はまとめて消え、まとめて動く
 import { expect, type Page, test } from "./fixtures"
 import { addBox, items, onPaper } from "./helpers/paper"
 

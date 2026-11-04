@@ -1,4 +1,4 @@
-// 伝言の見た目のウィジェット: ブックのレイヤーに置き、開いているブックの伝言と下書きをスタンドで出す。右サイドパネルには伝言の文を出す
+// 伝言の見た目のウィジェット: ブックのレイヤーに置き、開いているブックの伝言をスタンドで出す。右サイドパネルには伝言の文を出す
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"

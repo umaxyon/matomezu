@@ -1,4 +1,4 @@
-// 自分に戻る線の形（drawing/line/selfloop.ts）
+// 自分に戻る線の形（items/line/selfloop.ts）
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
 import { type Corner, cornerAt, nearestCorner, selfLoop } from "../../web/src/plugins/items/line/selfloop"
