@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "./fixtures"
 import { onPaper } from "./helpers/paper"
+import { fromMenu } from "./helpers/stage-menu"
 
 const picker = (page: Page) => page.getByRole("toolbar", { name: "ツールの切り替え" })
 
@@ -86,9 +87,7 @@ test("付け替えを押すと付け替えになる。Escape・離れる・外�
 
 test("分けて別の図面を開いても、道具は左右で同じ。左でハンドにすると右もハンドになる", async ({ page }) => {
   await page.goto("/")
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "画面を分割" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
   const stages = page.getByRole("region", { name: "ステージ" })
   const input = stages.nth(1).getByRole("combobox", { name: "ブックを探す" })
   await input.click()

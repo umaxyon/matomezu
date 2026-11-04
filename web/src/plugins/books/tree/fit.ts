@@ -3,7 +3,7 @@ import type { CoreCatalog, ItemPage } from "../../../plugin-api"
 import { type GrowSides, paperSize, type SettingReader } from "../../base"
 import { GROW } from "./grow"
 import { layoutTree } from "./layout"
-import { type TreeRoot, TreeRootSchema } from "./node"
+import { type TreeRoot, treeRootOf } from "./node"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 
@@ -15,7 +15,7 @@ export function treeFits(
   grow: GrowSides | undefined,
   root?: TreeRoot,
 ): boolean {
-  const found = root ?? TreeRootSchema.safeParse("root" in page ? page.root : undefined).data
+  const found = root ?? treeRootOf(page)
   const paper = paperSize(catalog, page)
   if (!paper) return true
   if (!found) return false

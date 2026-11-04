@@ -61,6 +61,7 @@ export const LINE = kit.defineConnector({
   version: 1,
   title: "Line",
   capabilities: [],
+  labelOf: line => line.props.caption ?? "", // 名前はキャプション（base の labelOf）
   toolbox: false,
   props: z.strictObject(optional(lineFields())),
   gaps: (lines, base) => {

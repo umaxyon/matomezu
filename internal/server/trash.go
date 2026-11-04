@@ -6,6 +6,8 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"slices"
 )
 
@@ -45,11 +47,18 @@ func (h *Hub) remove(id, client string, seq int64) error {
 	if err := h.store.DeleteBook(id); err != nil {
 		return err
 	}
+	_, annotated := h.annotations[id]
 	delete(h.books, id)
 	delete(h.annotations, id)
 	delete(h.bookWarnings, id)
 	delete(h.touched, id)
 	h.order = slices.DeleteFunc(h.order, func(x string) bool { return x == id })
+	// 消したブックのアノテーションの warning も一覧から外す
+	if annotated {
+		if err := h.checkAnnotations(); err != nil {
+			fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
+		}
+	}
 	h.broadcast("removed", map[string]any{"book": id, "client": client, "seq": seq})
 	return nil
 }

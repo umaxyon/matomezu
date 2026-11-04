@@ -89,6 +89,3 @@ export const ARTS = [
   HOUSE,
   FAMILY,
 ] as const
-
-// シェイプのアイテムの id（ツールボックスに並べる順）
-export const ART_ITEMS = ARTS.map(a => a.item.id)

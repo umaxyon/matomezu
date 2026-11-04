@@ -1,23 +1,11 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。ペインのタブの右クリックで分割を閉じ・並べ直す
 import { expect, type Page, test } from "./fixtures"
-
-async function fromMenu(page: Page, name: string) {
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  return trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name })
-}
+import { newBook } from "./helpers/master"
 
 // マスターでマークダウンのブックを作り、ページを 1 つ作る
 async function markdownBook(page: Page) {
   await page.goto("/")
-  await (await fromMenu(page, "ホーム")).click()
-  await page.getByRole("button", { name: "新しいブック" }).click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  await page.keyboard.type("メモ")
-  await dialog.getByLabel("ブックのタイプ").selectOption({ label: "マークダウン" })
-  await dialog.getByRole("button", { name: "作成" }).click()
-  await page.getByRole("button", { name: "ページを作る" }).click()
-  const add = page.getByRole("dialog", { name: "新しいページ" })
+  const add = await newBook(page, "メモ", "マークダウン")
   await expect(add.getByText("可変ページ")).toHaveCount(0) // いつも可変ページなので選ばせない
   await add.getByRole("button", { name: "作成" }).click()
 }

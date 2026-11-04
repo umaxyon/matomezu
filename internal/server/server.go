@@ -10,24 +10,25 @@
 //	POST /api/plugins        {"dir"} 開発者プロジェクトのフォルダの追加プラグインを足す（同じ id なら入れ替える）。{"ok", "id"} か {"ok": false, "reason"}  … 要合言葉
 //	POST /api/plugins/remove {"id"} 追加プラグインを外す。{"ok"} か {"ok": false, "reason"}                     … 要合言葉
 //	GET  /api/events      SSE。世界の変わり目の知らせ（hub.go）                                    … 画面から
-//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "result"} を返す。
+//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
-//	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 画面が見つけた warning（その画面の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
-//	POST /api/view        {"client", "view", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか。
-//	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view は捨てる（届く順が入れ替わるため）  … 画面から
+//	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 窓が見つけた warning（その窓の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
+//	POST /api/view        {"client", "view", "editLocks", "focused", "seq"} 窓のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
+//	                      ブックの id → 物の id の並び。AI のアクションがそれを変えるか消すなら断る。editlock.go）と、その窓がフォーカスされたか。
+//	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view と editLocks は捨てる（届く順が入れ替わるため）  … 画面から
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
-//	GET  /api/ai/view        最後にフォーカスされた画面が見ているもの（{"book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション）
+//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション）
 //	GET  /api/ai/books       {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations"}
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}]} AI の応えを待つアノテーションの全部
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
-//	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog）
-//	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "result"} を返す
-//	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた画面にブックを出す（Hub.Show）。
-//	                         画面が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
+//	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
+//	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
+//	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
+//	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
 // 合言葉は Authorization: Bearer <token> で渡す（server.json の token。常駐ごとに作る）。
 // 「画面から」の入口は、この常駐の画面からの頼みだけを受ける（sameOrigin。ほかのサイトに開かれたページから書かせない）。
@@ -64,14 +65,14 @@ type Options struct {
 	Hub     *Hub
 	URL     string        // 画面の URL
 	Open    func() error  // 画面をブラウザで開く（無ければ開かない）
-	Wait    time.Duration // ブラウザで開いた画面がつながるのを待つ長さ（0 なら windowWait）
+	Wait    time.Duration // ブラウザで開いた窓がつながるのを待つ長さ（0 なら windowWait）
 	Latest  time.Duration // 最後にフォーカスされた窓が見ているものを知らせるのを待つ上限（0 なら latestWait）
 }
 
-// windowWait は、ブラウザで開いた画面がつながるのを待つ既定の長さ
+// windowWait は、ブラウザで開いた窓がつながるのを待つ既定の長さ
 const windowWait = 20 * time.Second
 
-// latestWait は、最後にフォーカスされた窓が見ているものを知らせるのを待つ既定の上限（ふつうは数十ミリ秒で届く。画面が固まったときのため）
+// latestWait は、最後にフォーカスされた窓が見ているものを知らせるのを待つ既定の上限（ふつうは数十ミリ秒で届く。窓が固まったときのため）
 const latestWait = 3 * time.Second
 
 // waitLatest は、AI に答える前に、最後にフォーカスされた窓が見ているものを知らせるのを待つ（開いた直後の窓を飛ばして、前の窓を選ばないため）
@@ -286,15 +287,16 @@ func (o Options) perform(w http.ResponseWriter, r *http.Request) {
 
 func (o Options) view(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Client  string          `json:"client"`
-		View    json.RawMessage `json:"view"`
-		Focused bool            `json:"focused"`
-		Seq     int64           `json:"seq"` // 窓ごとに増やす番号（古い番号の見ているものは捨てる）
+		Client    string              `json:"client"`
+		View      json.RawMessage     `json:"view"`
+		Focused   bool                `json:"focused"`
+		Seq       int64               `json:"seq"`       // 窓ごとに増やす番号（古い番号の見ているものは捨てる）
+		EditLocks map[string][]string `json:"editLocks"` // 利用者が直している物（ブックの id → 物の id の並び。editlock.go）
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if !o.Hub.SetView(req.Client, req.View, req.Focused, req.Seq) {
+	if !o.Hub.SetView(req.Client, req.View, req.EditLocks, req.Focused, req.Seq) {
 		http.Error(w, "unknown client", http.StatusNotFound)
 		return
 	}
@@ -309,7 +311,7 @@ func (o Options) warnings(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	ok, err := o.Hub.SetScreenWarnings(req.Client, req.Warnings)
+	ok, err := o.Hub.SetWindowWarnings(req.Client, req.Warnings)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

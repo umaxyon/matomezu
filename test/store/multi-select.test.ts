@@ -1,4 +1,4 @@
-// 複数選択（D84）: Mod+クリックの選び方（placing/selection.ts）、ブックが変わったら無くなった物を選択から外す（core の followBook）、全部を選ぶ・まとめて消すコマンド、
+// 複数選択: Mod+クリックの選び方（placing/selection.ts）、ブックが変わったら無くなった物を選択から外す（core の followBook）、全部を選ぶ・まとめて消すコマンド、
 // 複数を選んだ右クリックのメニュー、両端の形を一緒に動かした線の手直し（base の followConnectors）
 import { expect, test } from "bun:test"
 import { type ItemPage, shapesOf } from "../../web/src/core/placed"

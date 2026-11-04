@@ -4,19 +4,14 @@
 
 import type { ActionId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
-import { type ActionContext, type ActionDef, attachedTo } from "./def/action"
+import { type ActionContext, type ActionDef, attachedTo, isOnBook, type Where } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { PermissionQuery } from "./def/permission"
-import type { ThemeToken } from "./def/theme"
-import { THEME_TOKENS } from "./def/theme"
 import type { KeyBinding } from "./keys"
 import type { Book } from "./schema/book"
-import { type Shades, shades, tokenDefsOf } from "./theme"
 
 // ステップの出どころ
 export type Source =
-  | { source: "theme"; id: string; field: "tokens" | "base"; key: string } // テーマの上書き・共通のテーマキー
-  | { source: "token"; id: string } // テーマキーの宣言に書いた値
   | { source: "catalog"; table: "actions"; id: string } // 表にその定義があるか
   | { source: "bookType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
   | { source: "action"; id: string; field: "attach"; bookType: string } // アクションの付く先が、そのタイプに当てはまるか
@@ -46,19 +41,19 @@ export interface Inspected<V> {
 }
 
 export type Query =
-  | { kind: "token"; book: Book; token: string } // ブックを描くテーマキーの値
   // アクションを使えるか。book はアクションが変えるブック（ブックが対象のアクションは、そのブック）、where はその中の所（分からなければ無い）、by は誰が行うか。
   // 認可ステップは book があるときだけ見る。settings は、利用者の設定が対象のアクションで変える項目の id（項目ごとに見る）
-  | ({ kind: "action"; action: string; book?: Book; settings?: readonly string[] } & Pick<
-      PermissionQuery,
-      "where" | "by"
-    >)
+  { kind: "action"; action: string; book?: Book; settings?: readonly string[] } & Pick<PermissionQuery, "where" | "by">
 
-type Answer<Q extends Query> = Q extends { kind: "token" } ? Inspected<Shades> : Inspected<boolean>
+export function inspect(catalog: CoreCatalog, query: Query, ctx?: Pick<ActionContext, "home">): Inspected<boolean> {
+  return action(catalog, query, ctx?.home ?? null)
+}
 
-export function inspect<Q extends Query>(catalog: CoreCatalog, query: Q, ctx?: Pick<ActionContext, "home">): Answer<Q> {
-  const answer = query.kind === "token" ? token(catalog, query) : action(catalog, query, ctx?.home ?? null)
-  return answer as Answer<Q>
+// アクション action を、開いているブック book の所 where で使えるかの問い。ブックとアノテーションが対象のアクションだけ book と where を渡す
+// （ほかの対象は、ホームのタイプで決まる）
+export function actionQuery(catalog: CoreCatalog, action: string, book: Book | undefined, where?: Where): Query {
+  const onBook = book !== undefined && isOnBook(catalog.actions.get(action)?.target)
+  return { kind: "action", action, ...(onBook ? { book, ...(where ? { where } : {}) } : {}) }
 }
 
 const decide = <V>(steps: Step<V>[]): Inspected<V> => {
@@ -66,30 +61,8 @@ const decide = <V>(steps: Step<V>[]): Inspected<V> => {
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }
 
-// テーマの値（明暗ごとの色）: 宣言されたテーマキーは テーマの上書き → 宣言の既定の共通のテーマキー、共通のテーマキーはテーマの値。どちらでもないテーマキーは値が無い
-function token(catalog: CoreCatalog, q: { book: Book; token: string }): Inspected<Shades> {
-  const type = bookType(catalog, q.book.type)
-  const theme = catalog.themes.get(type.theme)
-  if (!theme) return decide([])
-  const base = (key: ThemeToken): Step<Shades> => ({
-    from: { source: "theme", id: theme.id, field: "base", key },
-    value: shades(theme.base[key]),
-  })
-  if ((THEME_TOKENS as readonly string[]).includes(q.token)) return decide([base(q.token as ThemeToken)])
-  const def = tokenDefsOf(catalog, type).find(d => d.id === q.token)
-  if (!def) return decide([])
-  const own = theme.tokens?.[def.id]
-  return decide([
-    {
-      from: { source: "theme", id: theme.id, field: "tokens", key: def.id },
-      value: own === undefined ? null : shades(own),
-    },
-    "fallback" in def ? base(def.fallback) : { from: { source: "token", id: def.id }, value: shades(def.value) },
-  ])
-}
-
 // タイプ type でアクションを使えるかのステップ: タイプが外す（without）→ タイプが足す（add）→ アクションの付く先（attach）
-export function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
+function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
   return [
     {
       from: { source: "bookType", id: type.id, field: "actions.without" },
@@ -102,6 +75,9 @@ export function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
     { from: { source: "action", id: def.id, field: "attach", bookType: type.id }, value: attachedTo(def, type) },
   ]
 }
+
+// タイプ type でアクションを使えるか（typeSteps で決まる答え）
+export const typeAllows = (def: ActionDef, type: BookTypeDef): boolean => decide(typeSteps(def, type)).value === true
 
 // 認可ステップ: 表の並びで、止めるなら false（許すことはしないので、ほかは null）
 function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean>[] {

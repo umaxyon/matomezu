@@ -1,5 +1,5 @@
 // プラグインの見た目が使うフック（matomezu/ui）: matomezu が渡すステージの id から、約束のものだけを引く。状態を丸ごとは見せない。
-// データはブック・ページ・アイテム、ステージは読むだけの StageView、ほかに機能台帳と利用者の設定。データを変えるのは usePerform（アクション）だけ
+// データはブック・ページ・アイテム、ステージは読むだけの StageView（プラグインが持つ画面の状態は useStageState・useSetStageState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pagedOf, withSettings } from "../core/book"
@@ -8,7 +8,7 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { isOnBook, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
-import { deniedBy, inspect } from "../core/inspect"
+import { actionQuery, deniedBy, inspect } from "../core/inspect"
 import { type ArgsOf, type Permitted, permittedIn } from "../core/perform"
 import {
   findShape,
@@ -111,17 +111,16 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   const home = useHome()
   const settings = where && "settings" in where ? where.settings.join("\n") : undefined
   const place = where && !("settings" in where) ? where : undefined
-  const items = place?.items?.join("\n")
+  const ids = place?.ids?.join("\n")
   const answer = useMatomezuState(s => {
     const st = s.workspace.stages.find(st => st.id === stage)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
-    const onBook = isOnBook(catalog.actions.get(action)?.target)
-    const book = onBook && o ? s.books[o.book] : undefined
+    const book = o ? s.books[o.book] : undefined
     const page = place?.page ?? o?.page ?? undefined
-    const at = { ...(page ? { page } : {}), ...(items ? { items: items.split("\n") } : {}) }
-    const ids = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
-    const done = inspect(catalog, { kind: "action", action, book, ...(book ? { where: at } : {}), ...ids }, { home })
+    const at = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
+    const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
+    const done = inspect(catalog, { ...actionQuery(catalog, action, book, at), ...changed }, { home })
     return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
   return allowedOf(answer)

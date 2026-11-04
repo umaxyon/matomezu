@@ -3,6 +3,7 @@ import { expect, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { onPaper } from "./helpers/paper"
 import { selectText } from "./helpers/rich"
+import { fromMenu } from "./helpers/stage-menu"
 
 test("本文の上のボックスで、選んだ範囲を太字と注意の色にすると、記号は見せずに装飾して描き、箱でも太字・色で描く", async ({
   page,
@@ -113,9 +114,7 @@ test("マスターの設定で文字の色を自分用に変えると、図面�
   await add.getByRole("button", { name: "追加" }).click()
   const span = page.locator("[data-item] [data-line] span").first()
   await expect(span).toHaveCSS("color", "rgb(217, 119, 6)")
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ホーム" }).click()
+  await (await fromMenu(page, "ホーム")).click()
   const master = page.getByRole("region", { name: "マスター" })
   await master.getByRole("button", { name: "注意" }).click()
   const picker = page.getByRole("dialog", { name: "色を選ぶ" })

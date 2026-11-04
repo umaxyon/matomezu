@@ -26,22 +26,22 @@ import {
   useSettingControls,
 } from "../../base/ui"
 import { kit } from "./kit"
-import { TreeRootSchema } from "./node"
+import { treeRootOf } from "./node"
 
 export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<PageSettingsArgs>) {
   const t = useMessages(kit)
   const form = useId()
   const book = pagedOf(useBook(stage))
   const page = book?.pages.find(p => p.id === args.page)
-  const root = TreeRootSchema.safeParse(page && "root" in page ? page.root : undefined)
+  const root = treeRootOf(page)
   const perform = usePerform(stage)
   const { previewDialog } = useActions()
   const [title, setTitle] = useState(page?.title ?? "")
   const settings = useSettingControls(book, "page", page ?? null)
   const paper = usePaperControls(book, page ?? null)
-  const [caption, setCaption] = useState(root.success ? root.data.caption : "")
-  const [body, setBody] = useState(root.success ? (root.data.body ?? "") : "")
-  const [showBody, setShowBody] = useState(root.success && root.data.showBody === true)
+  const [caption, setCaption] = useState(root ? root.caption : "")
+  const [body, setBody] = useState(root ? (root.body ?? "") : "")
+  const [showBody, setShowBody] = useState(root?.showBody === true)
   const [confirming, setConfirming] = useState(false)
   const [locked, setLocked] = useState(page?.locked === true)
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
@@ -56,15 +56,15 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
   }, [changed, bookId, pageId, settings.patch, previewDialog])
   // 選んでいる値（設定の項目の下書きと、書いている根）を重ねたページで、ページの問題（木が紙に入らないなど）を確かめる
   const draft =
-    book && page && root.success
+    book && page && root
       ? (() => {
-          const { body: _body, showBody: _show, ...rest } = root.data
+          const { body: _body, showBody: _show, ...rest } = root
           const draftRoot = { ...rest, caption, ...(body ? { body } : {}), ...(showBody ? { showBody } : {}) }
           return putPage(book, withSettings({ ...paper.draft(page), root: draftRoot }, settings.patch))
         })()
       : undefined
   const problems = [...usePageProblems(draft, pageId ? [pageId] : []), ...paper.problems]
-  if (!book || !page || !root.success) return null
+  if (!book || !page || !root) return null
   const ready = title.trim() !== "" && problems.length === 0
   const submit = () => {
     const done = changeWithLock(

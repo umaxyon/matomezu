@@ -1,58 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { buildCoreCatalog } from "../../web/src/core/core-catalog"
-import { defineTheme } from "../../web/src/core/def/theme"
 import { deniedBy, inspect } from "../../web/src/core/inspect"
-import { shades } from "../../web/src/core/theme"
-import { STANDARD } from "../../web/src/plugins/base/looks/standard"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
+import { CORE_CATALOG } from "../support"
 
 const drawing = SAMPLE_BOOKS[0]!
-
-describe("inspect: テーマの値", () => {
-  test("宣言されたテーマキーは、テーマが上書きしなければ既定の共通のテーマキーで決まり、見たステップを順に返す", () => {
-    expect(inspect(CORE_CATALOG, { kind: "token", book: drawing, token: "@matomezu/box:box-fill" })).toEqual({
-      value: shades(STANDARD.base.fill),
-      decidedBy: { source: "theme", id: "@matomezu/base:standard", field: "base", key: "fill" },
-      steps: [
-        {
-          from: { source: "theme", id: "@matomezu/base:standard", field: "tokens", key: "@matomezu/box:box-fill" },
-          value: null,
-        },
-        {
-          from: { source: "theme", id: "@matomezu/base:standard", field: "base", key: "fill" },
-          value: shades(STANDARD.base.fill),
-        },
-      ],
-    })
-  })
-
-  test("テーマが上書きしたテーマキーは、上書きで決まる。後のステップも並べる", () => {
-    const yellow = defineTheme({ ...STANDARD, tokens: { "@matomezu/box:box-fill": "#fff3c4" } })
-    const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, themes: [yellow] })
-    const got = inspect(catalog, { kind: "token", book: drawing, token: "@matomezu/box:box-fill" })
-    expect(got.value).toEqual({ light: "#fff3c4", dark: "#fff3c4" })
-    expect(got.decidedBy).toEqual({
-      source: "theme",
-      id: "@matomezu/base:standard",
-      field: "tokens",
-      key: "@matomezu/box:box-fill",
-    })
-    expect(got.steps).toHaveLength(2)
-  })
-
-  test("共通のテーマキーはテーマの値。どれでもないテーマキーは値が無い", () => {
-    expect(inspect(CORE_CATALOG, { kind: "token", book: drawing, token: "paper" }).value).toEqual(
-      shades(STANDARD.base.paper),
-    )
-    expect(inspect(CORE_CATALOG, { kind: "token", book: drawing, token: "nope" })).toEqual({
-      value: null,
-      decidedBy: null,
-      steps: [],
-    })
-  })
-})
 
 describe("inspect: アクションの許可", () => {
   test("認可ステップが止めれば、そのステップで決まる（ロック中のブック・ページに対して。ページは where で渡したときだけ見る）", () => {

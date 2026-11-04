@@ -9,7 +9,7 @@ import { refusalMessage } from "../../base"
 import { ENTRY_ADD, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT } from "./actions"
 import { DIR_KEYS_SCOPE, ENTRY_SETTINGS_DIALOG } from "./dir"
 import { type AddAt, addAfter, addInto, afterRemove, entryOf, type Order, parentOf, rowFrom, selectedIn } from "./edit"
-import { DirFolderSchema, type Kind } from "./entry"
+import { dirRootOf, type Kind } from "./entry"
 import { kit } from "./kit"
 import { PENCIL_TOOL } from "./tools"
 
@@ -17,9 +17,9 @@ import { PENCIL_TOOL } from "./tools"
 export function dirAt(ctx: CommandContext) {
   const book = pagedOf(ctx.book)
   const page = book?.pages.find(p => p.id === ctx.stage.opened?.page)
-  const root = DirFolderSchema.safeParse(page && "root" in page ? page.root : undefined)
-  if (!book || !page || !root.success) return null
-  return { book, page, root: root.data }
+  const root = dirRootOf(page)
+  if (!book || !page || !root) return null
+  return { book, page, root }
 }
 
 // フォルダ folder を開け閉めする（開いていれば閉じ、閉じていれば開く）。開くと紙に入らず断られたら、トーストで知らせる

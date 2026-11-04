@@ -111,3 +111,61 @@ func TestAIReadsAnnotations(t *testing.T) {
 		t.Fatalf("awaiting after read = %s", got)
 	}
 }
+
+// 利用者が窓で開いて直している伝言は、AI が読んだと知らせても変わらず（being-edited）、付いた物を消しても伝言ごと残る。閉じたら読める
+func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
+	ai := map[string]string{"Authorization": "Bearer secret"}
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"book":"b1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["c1"]},"seq":1}`, nil)
+	read := `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", read, ai); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("note-read while editing = %s", got)
+	}
+	remove := `{"action":"@matomezu/paper:item-remove","args":{"page":"p1","items":["a"]},"on":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("removing the noted thing while editing = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"seq":2}`, nil)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", read, ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("note-read after closing = %s", got)
+	}
+}
+
+// ブックを消すと、そのブックの効かないアノテーションの warning も一覧から外れる
+func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	if _, _, err := store.PutBook("b1", json.RawMessage(boxed), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutAnnotations("b1", json.RawMessage(`[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}}]`)); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W018") {
+		t.Fatalf("warnings before = %s", got)
+	}
+	h.mu.Lock()
+	err = h.remove("b1", "", 0)
+	h.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W018") {
+		t.Fatalf("warnings after removing the book = %s", got)
+	}
+}

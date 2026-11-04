@@ -20,6 +20,8 @@ export const BOOK_OPEN_MESSAGES = defineMessages({
   Trash: { en: "Trash", ja: "ゴミ箱" },
   "Trash {count}": { en: "Trash {count}", ja: "ゴミ箱 {count}" },
   Restore: { en: "Restore", ja: "戻す" },
+  "Could not restore": { en: "Could not restore", ja: "戻せません" },
+  "Could not delete": { en: "Could not delete", ja: "消せません" },
   "Empty trash": { en: "Empty trash", ja: "ゴミ箱を空にする" },
   "The trash is empty": { en: "The trash is empty", ja: "ゴミ箱は空です" },
   "The book will be deleted for good": { en: "The book will be deleted for good", ja: "ブックが完全に消えます" },

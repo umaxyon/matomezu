@@ -100,14 +100,14 @@ test("箱の上の辺が画面の外に出ると、鳥はマークポインタ�
     await page.mouse.wheel(0, 300)
   }
   await away()
-  const pointer = page.getByRole("button", { name: "インコを見せる" })
+  const pointer = page.getByRole("button", { name: "一を見せる" })
   await expect(pointer).toHaveCount(1)
   await expect(bird).toHaveCount(0)
   const s = (await pointer.boundingBox())!
   expect(s.width).toBe(24)
   expect(Math.abs(s.y - stage.y - 4)).toBeLessThan(2) // 画面の上の縁に付く
   // びっくりマークも上の縁に寄って残る
-  const alertPointer = page.getByRole("button", { name: "びっくりマークを見せる" })
+  const alertPointer = page.getByRole("button", { name: "二を見せる" })
   const a = (await alertPointer.boundingBox())!
   expect(Math.abs(a.y - stage.y - 4)).toBeLessThan(2)
   await pointer.click()
@@ -135,7 +135,7 @@ test("リストの中のスクロールで行の上の辺が隠れると、鳥�
   const last = list.getByRole("listitem").last()
   await pickMark(page, last, "文鳥")
   const bird = page.getByRole("button", { name: "文鳥", exact: true })
-  const pointer = page.getByRole("button", { name: "文鳥を見せる" })
+  const pointer = page.getByRole("button", { name: "行 5を見せる" })
   await expect(bird).toHaveCount(1)
   // 行の並びを上へ戻して、印を付けた行をリストの下に隠す
   await rows.evaluate(el => {

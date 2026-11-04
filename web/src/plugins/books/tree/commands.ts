@@ -7,7 +7,7 @@ import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { ADDED_EDIT, type Arrow, addArgs, afterRemove, keyPlus, moveFrom, NODE_COLOR_PICK, selectedIn } from "./edit"
 import { GROW } from "./grow"
 import { kit } from "./kit"
-import { TreeRootSchema } from "./node"
+import { treeRootOf } from "./node"
 import { EDIT_TOOL } from "./tools"
 import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./tree"
 
@@ -15,9 +15,9 @@ import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./
 function treeAt(ctx: CommandContext) {
   const book = pagedOf(ctx.book)
   const page = book?.pages.find(p => p.id === ctx.stage.opened?.page)
-  const root = TreeRootSchema.safeParse(page && "root" in page ? page.root : undefined)
-  if (!book || !page || !root.success) return null
-  return { book, page, root: root.data, grow: settingValue(ctx.catalog, book, page, GROW) }
+  const root = treeRootOf(page)
+  if (!book || !page || !root) return null
+  return { book, page, root, grow: settingValue(ctx.catalog, book, page, GROW) }
 }
 
 const editingTree = (ctx: CommandContext) => ctx.stage.tool === EDIT_TOOL.id && ctx.stage.opened?.page != null

@@ -1,10 +1,11 @@
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { aiAuth, expect, type Page, test } from "../fixtures"
 import { footerMenuTool } from "../helpers/footer-menu"
+import { fromMenu } from "../helpers/stage-menu"
 
-// 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが足して外す
+// 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが自分で足し、テストが終われば外す
 
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
 const flow = {
@@ -24,6 +25,17 @@ const flow = {
 
 // どのテストも ex2 のフローのブック 1 冊で始める
 test.use({ books: [flow] })
+
+// テストが作った一時フォルダ
+const temps: string[] = []
+
+// テストが足した追加プラグインは、テストが終われば外す（常駐を空にする用意の口は、追加プラグインを残すため）。一時フォルダも消す
+test.afterEach(async ({ request }) => {
+  for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true })
+  const { plugins } = await (await request.get("/api/data")).json()
+  for (const { id } of plugins as { id: string }[])
+    if (id !== "ex2") await request.post("/api/plugins/remove", { headers: aiAuth(), data: { id } })
+})
 
 test("常駐が結んだ追加プラグインを画面に渡し、画面はその見た目の JS を読む", async ({ page }) => {
   expect((await data(page)).plugins).toEqual([{ id: "ex2", ui: "api/plugins/0/ui.js?v=1" }])
@@ -103,6 +115,7 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
 }) => {
   // 星のビューを結んでいない ex3（ホストのエンジンでは組み立てられ、画面の見た目の組み立てで食い違う）
   const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
+  temps.push(dir)
   cpSync(resolve("test/added-plugins/ex3"), dir, { recursive: true })
   const ui = join(dir, "ui.tsx")
   writeFileSync(ui, readFileSync(ui, "utf8").replace(`items: { [STAR.id]: { view: StarView, icon: STAR_ICON } },`, ""))
@@ -139,7 +152,7 @@ test("取り込んだプラグインが置いてほしいと書いたウィジ�
   expect(await removed.json()).toEqual({ ok: true })
 })
 
-// ここからは ex1・ex3 も足した常駐で、作り手の違う見本を一緒に使う
+// 作り手の違う見本を一緒に使うテストは、使う見本を自分で足す
 const link = async (page: Page, ...dirs: string[]) => {
   for (const dir of dirs) {
     const linked = await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir: resolve(dir) } })
@@ -166,10 +179,12 @@ test("3 つを読ませると、作り手の違うプラグインのボタンが
 test("AI は actions で追加プラグインのアクションを読み、perform で行える。形は選んだタイプのブックにだけ置ける", async ({
   page,
 }) => {
+  await link(page, "test/added-plugins/ex3")
   await page.goto("/")
   const catalog = await (await page.request.get("/api/ai/catalog", { headers: aiAuth() })).json()
   const answer = catalog.actions.find((a: { id: string }) => a.id === "ex2:diamond-answer")
   expect(answer.description).toContain("Answer a decision")
+  expect(catalog.items.map((i: { id: string }) => i.id)).toContain("ex3:star")
   const perform = async (body: object) =>
     (await page.request.post("/api/ai/perform", { headers: aiAuth(), data: body })).json()
   expect(
@@ -187,20 +202,15 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
       args: { page: "p1", item: "ex3:star", at: { x: 300, y: 300 } },
       on: { book: flow.id },
     }),
-  ).toMatchObject({ ok: false })
+  ).toMatchObject({ ok: false, reason: "refused" })
 })
 
 test("新しいブックのダイアログに追加プラグインのタイプが並び、ex3 のボードは自分の紙で始まって、保存して読み直せる", async ({
   page,
 }) => {
+  await link(page, "test/added-plugins/ex3")
   await page.goto("/")
-  await page.locator('button[aria-haspopup="menu"]').first().hover()
-  await page
-    .locator('button[aria-haspopup="menu"]')
-    .first()
-    .locator("xpath=../following-sibling::div[1]")
-    .getByRole("button", { name: "ホーム" })
-    .click()
+  await (await fromMenu(page, "ホーム")).click()
   await page.getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
   const types = dialog.getByLabel("ブックのタイプ")

@@ -92,3 +92,48 @@ test("コマンドは、行うアクションが今のブックで使えなけ�
   expect(shown("@matomezu/base:page-new")).toBe(false)
   expect(shown("@matomezu/base:settings-set")).toBe(true)
 })
+
+// 線を置けないタイプが線のアクションを足していても、線の入った結果はブックの形に合わないので断る（線のアクションの run は、線を使うタイプかを確かめない）
+const boards = pluginKit("boards", { Board: { en: "Board" } })
+const BOARD = boards.defineBookType({
+  id: "board",
+  version: 1,
+  title: "Board",
+  schema: z.strictObject({ id: z.string() }),
+  single: false,
+  create: init => ({ ...init, pages: [] }),
+  addPagesFromTabs: true,
+  pages: {
+    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+  },
+  items: { allowed: ["@matomezu/box:shape-nest-box"] },
+  actions: { add: ["@matomezu/line:line-connect"] },
+  theme: "@matomezu/base:standard",
+  presentation: "@matomezu/paper:paper",
+  tokens: [],
+})
+
+test("線を置けないタイプが line-connect を足していても、線を引くのは断る", () => {
+  const instance = createMatomezu({
+    plugins: [...BUILTIN, definePlugin(boards.plugin({ bookTypes: [BOARD] }))],
+    partial: true,
+    home: "@matomezu/master:master",
+  })
+  expect(createBookIn(instance, "s1", { title: "B", type: "boards:board" as never })).toBe(true)
+  const id = instance.state.getState().workspace.stages[0]!.opened!.book
+  expect(instance.actions.perform("@matomezu/base:page-add", { title: "P" }, { book: id }).ok).toBe(true)
+  const p = instance.state.getState().workspace.stages[0]!.opened!.page!
+  const place = (x: number) =>
+    instance.actions.perform(
+      "@matomezu/paper:item-place",
+      { page: p, item: "@matomezu/box:shape-nest-box", at: { x, y: 40 }, props: { caption: "箱" } },
+      { book: id },
+    )
+  const a = place(40)
+  const b = place(400)
+  expect(a.ok && b.ok).toBe(true)
+  const from = a.ok ? (a.result as { item: string }).item : ""
+  const to = b.ok ? (b.result as { item: string }).item : ""
+  const done = instance.actions.perform("@matomezu/line:line-connect", { page: p, from, to }, { book: id })
+  expect(done).toEqual({ ok: false, reason: "refused" })
+})

@@ -8,7 +8,7 @@ import { ColorSchema, contentIdMaker, growOf, pageContext } from "../../base"
 import { addNodes, changeNode, moveNode, nodeOf, removeNode } from "./edit"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
-import { giveIds, NewNodeSchema, SIDE_NAMES, type TreeRoot, TreeRootSchema } from "./node"
+import { giveIds, NewNodeSchema, SIDE_NAMES, type TreeRoot, treeRootOf } from "./node"
 import { NODE_SIZES } from "./size"
 
 const ON_TREES = { presentations: [kit.name("tree")] }
@@ -16,11 +16,10 @@ const ON_TREES = { presentations: [kit.name("tree")] }
 // ページ page の根と、根を替えたブックを作る関数（ツリーのページでなければ null）
 function treeOf(book: PagedBook, page: string, catalog: CoreCatalog) {
   const found = book.pages.find(p => p.id === page)
-  if (!found || !("root" in found)) return null
-  const root = TreeRootSchema.safeParse(found.root)
-  if (!root.success) return null
+  const root = treeRootOf(found)
+  if (!found || !root) return null
   return {
-    root: root.data,
+    root,
     put: (next: TreeRoot) => {
       const written = { ...found, root: next }
       const fits = treeFits(
@@ -65,7 +64,7 @@ export const NODE_UPDATE = kit.defineAction({
   id: "node-update",
   attach: ON_TREES,
   aiDescription:
-    "Change a child node of a tree page: its caption, its size (how it is sized; null follows the page's @matomezu/tree:node-size) and its color (a palette name or #rrggbb; null for the theme's fill). Only what is given changes. Returns nothing. Refused for the root (change it with @matomezu/base:page-update), a node not in the page, or when the tree would not fit on the paper.",
+    "Change a child node of a tree page: its caption, its size (how it is sized; null follows the page's @matomezu/tree:node-size) and its color (a palette name or #rrggbb; null for the theme's fill). Only what is given changes. Returns nothing. Refused for the root (its caption, body and color are the page's field root: change them with @matomezu/base:page-update; the root's id is still the parent for @matomezu/tree:node-add and @matomezu/tree:node-move), a node not in the page, or when the tree would not fit on the paper.",
   title: "Update node",
   target: "book",
   args: z.strictObject({

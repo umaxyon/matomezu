@@ -3,14 +3,13 @@ import { useState } from "react"
 import { hasPages, type PagedBook } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useCatalog, useInstance, useMatomezuState } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { addPageIn } from "./add-page"
 import { usePaperControls } from "./PaperControls"
 import { nextPageTitle } from "./pages"
+import { useAddPage } from "./useAddPage"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
@@ -24,18 +23,16 @@ export function NewPageDialog({ stage, onClose }: DialogProps) {
 }
 
 function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; onDone: () => void }) {
-  const instance = useInstance()
-  const lang = useMatomezuState(s => s.lang)
   const t = useMessages(kit)
-  const catalog = useCatalog().core
-  const [title, setTitle] = useState(() => nextPageTitle(catalog, book, lang))
+  const addPage = useAddPage(stage)
+  const [title, setTitle] = useState(() => nextPageTitle(book, t))
   const paper = usePaperControls(book, null)
   return (
     <Form
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        if (addPageIn(instance, stage, { title, ...paper.patch })) onDone()
+        if (addPage({ title, ...paper.patch })) onDone()
       }}
     >
       <Field label={t("Page name")}>

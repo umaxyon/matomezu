@@ -3,7 +3,7 @@
 // （本文と色の null は消す）、子には触れない
 import { z } from "zod"
 import { BODY_MAX, ColorSchema, type PageFieldsWay, pageFieldsWay } from "../../base"
-import { giveIds, NewNodeSchema, TreeRootSchema } from "./node"
+import { giveIds, NewNodeSchema, treeRootOf } from "./node"
 
 const ADD_ROOT = z
   .strictObject({
@@ -24,7 +24,9 @@ const UPDATE_ROOT = z
     showBody: z.boolean().optional(),
     color: ColorSchema.nullable().optional(),
   })
-  .describe("Only what is given changes (null removes the body or the color). Children do not change here")
+  .describe(
+    "The root's caption, body (drawn on the paper when showBody is true) and color change here; only what is given changes (null removes the body or the color). Child nodes change with @matomezu/tree:node-update, not here",
+  )
 
 export const pageFieldsInput: { add: PageFieldsWay; update: PageFieldsWay } = {
   add: pageFieldsWay({
@@ -41,10 +43,10 @@ export const pageFieldsInput: { add: PageFieldsWay; update: PageFieldsWay } = {
     args: z.strictObject({ root: UPDATE_ROOT.optional() }),
     write: (page, input) => {
       const patch = input.root
-      const old = TreeRootSchema.safeParse(page.root)
-      if (!old.success) return null
+      const old = treeRootOf(page)
+      if (!old) return null
       if (!patch) return { fields: {} }
-      const { body, color, showBody, ...rest } = old.data
+      const { body, color, showBody, ...rest } = old
       const nextShow = patch.showBody ?? showBody
       const nextBody = patch.body === null ? undefined : (patch.body ?? body)
       const nextColor = patch.color === null ? undefined : (patch.color ?? color)
@@ -52,7 +54,7 @@ export const pageFieldsInput: { add: PageFieldsWay; update: PageFieldsWay } = {
         fields: {
           root: {
             ...rest,
-            caption: patch.caption ?? old.data.caption,
+            caption: patch.caption ?? old.caption,
             ...(nextBody === undefined ? {} : { body: nextBody }),
             ...(nextColor === undefined ? {} : { color: nextColor }),
             ...(nextShow ? { showBody: true } : {}),

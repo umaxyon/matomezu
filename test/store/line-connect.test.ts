@@ -1,4 +1,4 @@
-// 形の〇から線を引くときの決まり（drawing/line/connect.ts）
+// 形の〇から線を引くときの決まり（items/line/connect.ts）
 
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"

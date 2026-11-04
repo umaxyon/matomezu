@@ -1,4 +1,4 @@
-// 線のキャプションの札の置き方（drawing/line/caption.ts）
+// 線のキャプションの札の置き方（items/line/caption.ts）
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
 import { CAPTION_BOX_H, captionBox, clampCaptionOffset } from "../../web/src/plugins/items/line/caption"

@@ -474,6 +474,62 @@ test("core のモジュールで、プラグインとプラグイン API しか�
   expect(pluginsOnly).toEqual([])
 })
 
+// 値で読む先（web/src のファイル）。型だけの読み込み（import type・export type・名前が全部 type 付きの import）は数えず、
+// export * from・export { x } from・副作用だけの import は値に数える
+function valueReadsOf(file: { path: string; text: string }): string[] {
+  const reads = [
+    ...file.text.matchAll(/^(import|export)\s+([^"';]*?)\s*from\s*["']([^"']+)["']|^import\s*["']([^"']+)["']/gm),
+  ].flatMap(m => {
+    const spec = (m[3] ?? m[4])!
+    const clause = m[2]?.trim() ?? ""
+    const named = /^\{([^}]*)\}$/.exec(clause)?.[1]
+    const names =
+      named
+        ?.split(",")
+        .map(n => n.trim())
+        .filter(n => n !== "") ?? []
+    const typeOnly =
+      /^type\b/.test(clause) || (m[1] === "import" && names.length > 0 && names.every(n => /^type\b/.test(n)))
+    return typeOnly || !spec.startsWith(".") || spec.endsWith(".css") ? [] : [resolve(dirname(file.path), spec)]
+  })
+  return reads.flatMap(p => {
+    const found = [`${p}.ts`, `${p}.tsx`, join(p, "index.ts"), join(p, "index.tsx")].find(f => existsSync(f))
+    return found ? [relative(SRC, found)] : []
+  })
+}
+
+test("web/src のファイルどうしは、値で読む輪を作らない（型だけ読むのは除く）", () => {
+  const graph = new Map(sources.map(f => [f.rel, valueReadsOf(f)]))
+  // 強連結成分（Tarjan）で、2 つ以上のファイルの輪と、自分を読むファイルを探す
+  const index = new Map<string, number>()
+  const low = new Map<string, number>()
+  const stack: string[] = []
+  const onStack = new Set<string>()
+  const rings: string[][] = []
+  const visit = (v: string) => {
+    index.set(v, index.size)
+    low.set(v, index.get(v)!)
+    stack.push(v)
+    onStack.add(v)
+    for (const w of graph.get(v) ?? []) {
+      if (!index.has(w)) {
+        visit(w)
+        low.set(v, Math.min(low.get(v)!, low.get(w)!))
+      } else if (onStack.has(w)) low.set(v, Math.min(low.get(v)!, index.get(w)!))
+    }
+    if (low.get(v) !== index.get(v)) return
+    const ring: string[] = []
+    for (let w = stack.pop()!; ; w = stack.pop()!) {
+      onStack.delete(w)
+      ring.push(w)
+      if (w === v) break
+    }
+    if (ring.length > 1 || graph.get(v)?.includes(v)) rings.push(ring.sort())
+  }
+  for (const v of graph.keys()) if (!index.has(v)) visit(v)
+  expect(rings).toEqual([])
+})
+
 // ページを替えるのは土台の putPage だけ。プラグイン（ビルトインと見本）はブックを { ...book, pages } で組み直さない（新しいブックを作る create の pages: [] は除く）
 test("プラグインはブックのページを { ...book, pages } で組み直さない（putPage を使う）", () => {
   const rebuild = /\.\.\.\s*\w+\s*,\s*pages\s*(?:[,}]|:(?!\s*\[\s*\]))/
@@ -712,7 +768,6 @@ describe("テストの用意の手段", () => {
     ]
     expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8"))).sort()).toEqual([
       "scripts/e2e-build.ts",
-      "scripts/e2e-server.ts",
     ])
   })
 

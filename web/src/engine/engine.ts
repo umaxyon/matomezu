@@ -9,25 +9,25 @@ import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { detectLang, translate } from "../core/i18n/i18n"
+import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
 import { type PerformedIn, performIn } from "../core/perform"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
-import { BUILTIN } from "../plugins"
+import { BUILTIN, BUILTIN_HOME } from "../plugins"
 import { type GrowRule, textColorRef } from "../plugins/base"
-import { MASTER } from "../plugins/books/master"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
-let assembled = assemble(BUILTIN, MASTER.id)
+let assembled = assemble(BUILTIN, BUILTIN_HOME)
 
 // 追加プラグインを足して組み直す。新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で投げれば、前の組み立てのまま）。
 // 返すのは JSON: warnings は warning の 1 行ずつ（常駐がログに書く）、ai は新しい組の MCP 公開ツールの actions が返す物
 function use(added: readonly Plugin[]): string {
-  const next = assemble([...BUILTIN, ...added], MASTER.id)
+  const next = assemble([...BUILTIN, ...added], BUILTIN_HOME)
   const ai = aiCatalog(next)
   assembled = next
   return JSON.stringify({ warnings: warningsOf(next.catalog).map(warningText), ai })
@@ -45,9 +45,11 @@ interface Input {
   settings: unknown
   annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
+  watched?: Readonly<Record<string, readonly string[]>> // 変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
 }
 
 // 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）。
+// touched は、受けた watched の物のうち、変わったか無くなったもの（ブックの中の物とアノテーションの id。無ければ書かない）。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
   | {
@@ -58,6 +60,7 @@ type Output =
       settings?: unknown
       annotations?: Annotations
       notice?: string
+      touched?: string[]
     }
   | { ok: false; reason: string; permission?: string; detail?: string }
 
@@ -113,6 +116,11 @@ function perform(input: Input): Output {
   const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
   const removed = next ? Object.keys(books).filter(id => !(id in next)) : []
   const notice = shiftNotice(books, changed)
+  const touched = Object.entries(input.watched ?? {}).flatMap(([id, watched]) => {
+    const book = removed.includes(id) ? undefined : (changed.find(b => b.id === id) ?? books[id])
+    const list = done.annotations && id in done.annotations ? done.annotations[id] : annotations[id]
+    return changedIn({ book: books[id], annotations: annotations[id] }, { book, annotations: list }, watched)
+  })
   return {
     ok: true,
     result: done.result,
@@ -121,6 +129,7 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(notice ? { notice } : {}),
+    ...(touched.length > 0 ? { touched } : {}),
   }
 }
 
@@ -263,9 +272,9 @@ function aiCatalog(of: Assembled = assembled) {
     return JSON.stringify({ annotations: kept, changed: kept.length !== all.length })
   }
 
-// 画面が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする（常駐が集めてログと AI に出す）。
-// 表に無い番号・形の合わないものは捨てる（画面が作った文は使わない）
-const ScreenWarningSchema = z.object({
+// 窓が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする（常駐が集めてログと AI に出す）。
+// 表に無い番号・形の合わないものは捨てる（窓が作った文は使わない）
+const WindowWarningSchema = z.object({
   code: z.string(),
   plugin: z.string(),
   params: z.record(z.string(), z.string()),
@@ -273,7 +282,7 @@ const ScreenWarningSchema = z.object({
 ;(globalThis as { matomezuWarningLines?: (warnings: string) => string }).matomezuWarningLines = warnings => {
   const lines: string[] = []
   for (const raw of z.array(z.unknown()).catch([]).parse(JSON.parse(warnings))) {
-    const n = ScreenWarningSchema.safeParse(raw)
+    const n = WindowWarningSchema.safeParse(raw)
     if (n.success && n.data.code in WARNINGS)
       lines.push(warningText(warning(n.data.code as keyof typeof WARNINGS, n.data.plugin, n.data.params)))
   }

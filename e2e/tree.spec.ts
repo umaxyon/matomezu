@@ -1,21 +1,14 @@
 // ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
 import { expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
-import { paper } from "./helpers/paper"
+import { newBook } from "./helpers/master"
+import { paper, settled } from "./helpers/paper"
 import { selectText } from "./helpers/rich"
-import { fromMenu } from "./helpers/stage-menu"
 
 // マスターでツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければブック継承）
 async function treeBook(page: Page, grow?: string) {
   await page.goto("/")
-  await (await fromMenu(page, "ホーム")).click()
-  await page.getByRole("button", { name: "新しいブック" }).click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  await page.keyboard.type("木")
-  await dialog.getByLabel("ブックのタイプ").selectOption({ label: "ツリー" })
-  await dialog.getByRole("button", { name: "作成" }).click()
-  await page.getByRole("button", { name: "ページを作る" }).click()
-  const add = page.getByRole("dialog", { name: "新しいページ" })
+  const add = await newBook(page, "木", "ツリー")
   if (grow) await add.getByRole("radio", { name: grow }).check({ force: true })
   await add.getByLabel("根のキャプション").fill("根")
   await add.getByRole("button", { name: "作る" }).click()
@@ -23,19 +16,6 @@ async function treeBook(page: Page, grow?: string) {
 }
 
 const paperAt = async (page: Page) => (await paper(page).boundingBox())!
-
-// 選んだ節を真ん中へ持ってくる紙の動きが止まるのを待つ
-async function settled(page: Page) {
-  let last = ""
-  await expect
-    .poll(async () => {
-      const now = JSON.stringify(await paperAt(page))
-      const same = now === last
-      last = now
-      return same
-    })
-    .toBe(true)
-}
 
 test("ツリーの道具は編集とハンド。編集の間は、ホイールでも紙のドラッグでも紙が動かず、ハンドにすると動く", async ({
   page,

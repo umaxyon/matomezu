@@ -5,11 +5,12 @@ import { PALETTE } from "../../../core/color"
 import type { TokenDef } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
-import { resolveTokens } from "../../../core/theme"
+import { resolveTokens, type Shades } from "../../../core/theme"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { bookTheme } from "../book-look/look"
+import { shadeOf, useDarkScheme } from "../book-look/use-dark-scheme"
 import { kit } from "../kit"
 import type { Align } from "../text/fields"
 
@@ -50,17 +51,19 @@ export function useBookTheme(book: string | undefined) {
 export function useSwatches(looks: string | undefined, fill: TokenDef) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
+  const dark = useDarkScheme()
   return useMemo(() => {
     if (!looks || !catalog.themes.has(looks)) return null
     const tokens = resolveTokens(catalog, looks, [fill])
+    const shown = (shades: Shades | undefined) => (shades ? shadeOf(shades, dark) : "#ffffff")
     // 役割の名前は出さない（意味を利用者に押し付けない）
     const palette = PALETTE.map((name, i) => ({
       name,
-      hex: tokens[`palette.${name}`]?.light ?? "#ffffff",
+      hex: shown(tokens[`palette.${name}`]),
       label: t("Theme color {n}", { n: i + 1 }),
     }))
-    return { palette, none: tokens[fill.id]?.light ?? "#ffffff" }
-  }, [catalog, looks, fill, t])
+    return { palette, none: shown(tokens[fill.id]) }
+  }, [catalog, looks, fill, t, dark])
 }
 
 // 形に当てたテーマ theme の、テーマキー defs の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）

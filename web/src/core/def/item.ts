@@ -74,7 +74,6 @@ export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt ex
 
 // 表に入れるときの型（関数はメソッドの形なので、置いたデータの型の決まった定義も入る）
 export type ItemDef = ShapeItemDef | ConnectorItemDef
-export type ItemKind = ItemDef["kind"]
 
 // 項目の形 P と中身のフィールド C から、置いたデータの型
 type ContentOf<C> = { [K in keyof C]?: C[K] extends z.ZodType ? z.output<C[K]> : never }

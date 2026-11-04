@@ -51,6 +51,10 @@ export const TreeRootSchema = z.strictObject({
 })
 export type TreeRoot = z.infer<typeof TreeRootSchema>
 
+// ページ page の根の節（無いか形が合わなければ undefined）
+export const treeRootOf = (page: object | null | undefined): TreeRoot | undefined =>
+  TreeRootSchema.safeParse(page && "root" in page ? page.root : undefined).data
+
 // 足すときに受ける節（id は書かない）
 export interface NewNode {
   caption: string

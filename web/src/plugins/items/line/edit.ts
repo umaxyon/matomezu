@@ -7,7 +7,7 @@ import { alignedEndsOf, type DrawnLine, routeInputOf } from "./drawn"
 import { leftNormalAt, nearestAt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"
 import type { LineRoute } from "./line"
-import type { PlacedLine } from "./placed"
+import { type PlacedLine, patchedProps } from "./placed"
 import { fixedAts, perimeterAt, simplifyVia } from "./route"
 import { perimeter } from "./selfloop"
 
@@ -152,8 +152,7 @@ export function linePatch(
   if (choice.once.has("via")) patch.via = null
   if (choice.once.has("caption")) Object.assign(patch, { captionAt: null, captionOffset: null })
   if (choice.once.has("align")) {
-    const props = Object.fromEntries(Object.entries({ ...p, ...patch }).filter(([, v]) => v !== null))
-    const ends = alignedEndsOf({ ...line, props: { ...props, via: undefined } }, rects, elbow, lines)
+    const ends = alignedEndsOf({ ...line, props: { ...patchedProps(p, patch), via: undefined } }, rects, elbow, lines)
     if (ends) Object.assign(patch, ends, { via: null })
   }
   return patch

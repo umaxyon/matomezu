@@ -4,12 +4,12 @@
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
 // 初めから出ていなければ（URL から印刷プレビューで開いたとき）、出す
 import { type CSSProperties, useEffect, useMemo, useRef } from "react"
-import { extentOf as previewArea, type Stage } from "../../../core/stage"
+import { extentOf as previewArea } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
-import { useActions, useCatalog, useReadState } from "../../../ui/store-context"
-import { useBook, useSetStageState, useStagePan } from "../../../ui/view-hooks"
+import { useActions, useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useBook, useSetStageState, useStage, useStagePan } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { withPanel } from "../right-side-panel/state"
@@ -23,48 +23,62 @@ import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
 const zoomOf = (read: () => MatomezuState, stage: string): number | null =>
   read().workspace.stages.find(st => st.id === stage)?.zoom ?? null
 
-export function PrintPreviewView({ stage }: { stage: Stage }) {
+// ステージ id の、ずらす量の範囲を決める広さを知らせたか（並べた広さ）と、表示領域の大きさ（"幅x高さ"。測る前は null）
+function useExtent(id: string): { known: boolean; size: string | null } {
+  const known = useMatomezuState(s => {
+    const st = s.workspace.stages.find(st => st.id === id)
+    return !!st && previewArea(st) !== null
+  })
+  const size = useMatomezuState(s => {
+    const view = s.workspace.stages.find(st => st.id === id)?.view
+    return view ? `${view.w}x${view.h}` : null
+  })
+  return { known, size }
+}
+
+export function PrintPreviewView({ stage: id }: { stage: string }) {
+  const stage = useStage(id) // パンの量を読まない（ずらす量は useStagePan だけが読む）
   const catalog = useCatalog().core
-  const book = useBook(stage.id)
-  const pan = useStagePan(stage.id)
-  const panel = useRightSidePanel(stage.id)
+  const book = useBook(id)
+  const pan = useStagePan(id)
+  const panel = useRightSidePanel(id)
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
   const read = useReadState()
   const layout = useMemo(() => (book ? bookSheets(catalog, book) : null), [catalog, book])
-  const motion = useZoomMotion(stage.zoom, "")
+  const zoom = stage?.zoom ?? 1
+  const motion = useZoomMotion(zoom, "")
   useEffect(() => {
-    if (layout) setPreviewArea(stage.id, layout.size)
-  }, [layout, stage.id, setPreviewArea])
+    if (layout) setPreviewArea(id, layout.size)
+  }, [layout, id, setPreviewArea])
   const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
   // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、
   // そのあと表示領域の大きさが変わっても、倍率を変えていなければ合わせ直す
-  const fit = useCommand(stage.id, PRINT_PREVIEW_FIT.id)
+  const fit = useCommand(id, PRINT_PREVIEW_FIT.id)
   const fitRef = useRef(fit)
   fitRef.current = fit
-  const sliding = useRightSidePanelSliding(shown ? stage.id : null)
+  const sliding = useRightSidePanelSliding(shown ? id : null)
   const fitted = useRef<{ zoom: number | null; size: string } | null>(null) // 収めたときの倍率と表示領域の大きさ
-  const known = previewArea(stage) !== null
-  const size = stage.view ? `${stage.view.w}x${stage.view.h}` : null
+  const { known, size } = useExtent(id)
   useEffect(() => {
     if (!known || size === null || !shown || sliding) return
     const last = fitted.current
-    if (last && (last.size === size || last.zoom !== zoomOf(read, stage.id))) return
+    if (last && (last.size === size || last.zoom !== zoomOf(read, id))) return
     fitRef.current.run()
-    fitted.current = { zoom: zoomOf(read, stage.id), size }
-  }, [known, size, shown, sliding, stage.id, read])
+    fitted.current = { zoom: zoomOf(read, id), size }
+  }, [known, size, shown, sliding, id, read])
   const setStageState = useSetStageState(kit)
   const seen = useRef(false) // 右サイドパネルに中身を出したか
-  const opened = stage.opened
+  const opened = stage?.opened ?? null
   useEffect(() => {
     if (shown) seen.current = true
-    else if (seen.current) closePrintPreview(stage.id)
+    else if (seen.current) closePrintPreview(id)
     else if (opened) {
       // 閉じたときに戻す見え方は印刷プレビューが持つので、右サイドパネルの戻しの覚えは書かない
       const open = { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.book, anchors: [], current: opened.book }
-      const now = read().stageStates[stage.id]?.[kit.id]
-      setStageState(stage.id, withPanel(now, { ...open, book: opened.book, page: opened.page }))
+      const now = read().stageStates[id]?.[kit.id]
+      setStageState(id, withPanel(now, { ...open, book: opened.book, page: opened.page }))
     }
-  }, [shown, stage.id, opened, closePrintPreview, read, setStageState])
+  }, [shown, id, opened, closePrintPreview, read, setStageState])
   // ダブルクリックは、ずらすドラッグでステージがポインタをつかむので、ステージで受けて押した所の印刷区画を探す
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -76,11 +90,11 @@ export function PrintPreviewView({ stage }: { stage: Stage }) {
         .elementsFromPoint(clientX, clientY)
         .find(x => x instanceof HTMLElement && x.dataset.sheetPage)
       const sheetPage = hit instanceof HTMLElement ? hit.dataset.sheetPage : undefined
-      if (sheetPage) openPage(stage.id, sheetPage)
+      if (sheetPage) openPage(id, sheetPage)
     }
     el.addEventListener("dblclick", onDoubleClick)
     return () => el.removeEventListener("dblclick", onDoubleClick)
-  }, [stage.id, openPage])
+  }, [id, openPage])
   if (!layout || !pan) return null
   const origin = paperOrigin(pan)
   return (
@@ -97,7 +111,7 @@ export function PrintPreviewView({ stage }: { stage: Stage }) {
           transformOrigin: "0 0",
           width: layout.size.w,
           height: layout.size.h,
-          transform: `translate(${origin.x}px, ${origin.y}px) scale(${stage.zoom})`,
+          transform: `translate(${origin.x}px, ${origin.y}px) scale(${zoom})`,
           transition: motion,
         } as CSSProperties
       }

@@ -3,6 +3,7 @@
 // 窓に 1 つだけで、ブックのデータにも URL にも入れない
 import { areaOf, type Stage } from "../../../core/stage"
 import { clampPan, contentSize } from "../../../core/viewport"
+import { toggledSelection } from "../utils/selection"
 import type { ViewAt } from "../zoom"
 
 export interface RightSidePanelOpen {
@@ -54,8 +55,8 @@ export function withoutAnchor(open: RightSidePanelOpen, id: string): RightSidePa
 }
 
 // 選択に従う中身を出している間に、付いた先にする物 id を、選択 selection で押したときの選択（Mod なら足す・外す。修飾なしなら id だけ）
-export const pointedSelection = (selection: readonly string[], id: string, mod: boolean): string[] =>
-  !mod ? [id] : selection.includes(id) ? selection.filter(a => a !== id) : [...selection, id]
+export const pointedSelection = (selection: readonly string[], id: string, mod: boolean): readonly string[] =>
+  mod ? toggledSelection(selection, id) : [id]
 
 // 選択に従う中身で、ポインタを離したあとに閉じるか: 押し始めが開いたステージの中（pressedInStage）で、合わせた付いた先が空のとき。
 // 右サイドパネルの中を押したときや、AI が物を消して空になったときは閉じない

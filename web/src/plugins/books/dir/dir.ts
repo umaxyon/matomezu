@@ -3,7 +3,8 @@
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
-import { DirFolderSchema } from "./entry"
+import { entryOf } from "./edit"
+import { DirFolderSchema, dirRootOf } from "./entry"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 import { dirMinimap } from "./minimap"
@@ -47,6 +48,11 @@ export const DIR = kit.defineBookType({
   pageProblem: (catalog, page, _setting, grow) =>
     dirFits(catalog, page, grow) ? null : { message: kit.message("Does not fit on the paper") },
   grow: { sides: () => ({ up: false, down: true, left: false, right: true }) }, // 可変ページは、根のある左上を固定して右と下へ増やす（base の拡張ポイント）
+  // 行の名前は、ファイルやフォルダの名前（base の labelOf）
+  labelOf: (page, id) => {
+    const root = dirRootOf(page)
+    return (root && entryOf(root, id)?.name) ?? ""
+  },
   pages: {
     paper: {
       allowed: PAPER_IDS,

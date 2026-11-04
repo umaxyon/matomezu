@@ -17,7 +17,7 @@ import {
   type WheelEvent,
 } from "react"
 import type { BookTypeId } from "../../../core/core-catalog"
-import { paperOf, previewing, type Stage } from "../../../core/stage"
+import { paperOf } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
@@ -46,14 +46,13 @@ interface Drag {
 }
 
 export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
-  const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
+  const stage = useStage(id) // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => s.workspace.current === id)
   const book = useBook(id)
   const catalog = useCatalog().core
-  const view = useStage(id)
-  const tool = view?.tool ?? null
-  const pans = view?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
-  const inPreview = !!stage && previewing(stage)
+  const tool = stage?.tool ?? null
+  const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
+  const inPreview = stage?.mode === "print-preview"
   const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
   // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）
   const theme = useBookThemeVars(id)
@@ -142,7 +141,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       onWheel={onWheel}
     >
       {stage.opened && book ? (
-        <BookContent stage={stage} type={stage.opened.type} vars={vars} />
+        <BookContent stage={id} type={stage.opened.type} vars={vars} previewing={inPreview} />
       ) : (
         <div className={styles.empty}>
           <p className={styles.prompt}>{t("Select a book")}</p>
@@ -155,15 +154,25 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 
 // 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表はレイヤーみんなで使う）。
 // 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）
-function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
+function BookContent({
+  stage,
+  type,
+  vars,
+  previewing,
+}: {
+  stage: string
+  type: BookTypeId
+  vars: CSSProperties | undefined
+  previewing: boolean
+}) {
   const tokens = useTokenScope(type) // ブックのタイプのプラグインのテーマキー（--<名前>）
   return (
     <div className={styles.book} style={{ ...vars, ...tokens }}>
-      {previewing(stage) ? (
+      {previewing ? (
         <PrintPreviewView stage={stage} />
       ) : (
-        <AnchorsProvider stage={stage.id}>
-          <Slot name={BOOK_LAYERS} props={{ stage: stage.id }} />
+        <AnchorsProvider stage={stage}>
+          <Slot name={BOOK_LAYERS} props={{ stage }} />
         </AnchorsProvider>
       )}
     </div>

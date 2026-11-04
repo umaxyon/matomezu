@@ -4,10 +4,9 @@
 
 import type { ToolId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
-import { isOnBook } from "./def/action"
 import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail } from "./errors"
-import { deniedBy, inspect } from "./inspect"
+import { actionQuery, deniedBy, inspect } from "./inspect"
 import type { Book } from "./schema/book"
 import type { Stage } from "./stage"
 
@@ -38,11 +37,9 @@ export function toolIn(catalog: CoreCatalog, tools: Tools, set: string): ToolId 
 export function toolUsable(catalog: CoreCatalog, tool: string, book: Book | null, page: string | null): boolean {
   const performs = toolDef(catalog, tool).performs ?? []
   if (!book || performs.length === 0) return true
-  const where = page ? { where: { page } } : {}
-  return performs.some(action => {
-    const onBook = isOnBook(catalog.actions.get(action)?.target)
-    return deniedBy(inspect(catalog, { kind: "action", action, ...(onBook ? { book, ...where } : {}) })) === null
-  })
+  return performs.some(
+    action => deniedBy(inspect(catalog, actionQuery(catalog, action, book, page ? { page } : undefined))) === null,
+  )
 }
 
 // 組の回す順で次の道具（usable が使えないとする道具は飛ばす。どれも使えなければ今の道具）

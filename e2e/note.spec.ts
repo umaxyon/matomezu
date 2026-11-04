@@ -1,26 +1,14 @@
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./helpers/footer-menu"
 import { panel, writeNote } from "./helpers/note"
+import { addBox, items } from "./helpers/paper"
 
-const items = (page: Page) => page.locator("[data-item]")
 const stands = (page: Page) => page.locator("[data-stand]")
-
-// 紙の (x, 150) に箱を置く
-async function addBox(page: Page, x: number, caption: string) {
-  await (await footerMenuTool(page, "箱")).click()
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  await page.mouse.click(paper.x + x, paper.y + 150)
-  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
-}
 
 test("箱の右クリックの「AIに伝言」で右サイドパネルが開き、書いて付けると文の始めだけの吹き出しで出る。押すと右サイドパネルに出て、文を直して保存できる。消すと無くなる", async ({
   page,
 }) => {
   await page.goto("/")
-  await addBox(page, 200, "一")
+  await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
@@ -61,8 +49,8 @@ test("書いている間は、物を押すと付ける先が替わり、Ctrl+ク
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
-  await addBox(page, 100, "一")
-  await addBox(page, 400, "二")
+  await addBox(page, 100, 150, "一")
+  await addBox(page, 400, 150, "二")
   const one = items(page).filter({ hasText: "一" })
   const two = items(page).filter({ hasText: "二" })
   await one.click({ button: "right" })
@@ -114,7 +102,7 @@ test("書いている間は、物を押すと付ける先が替わり、Ctrl+ク
 
 test("書いている間は Esc で付けずに閉じる", async ({ page }) => {
   await page.goto("/")
-  await addBox(page, 200, "一")
+  await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
@@ -129,8 +117,8 @@ test("書いている間は付ける先に鳥が出て、付ける先を足す�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
-  await addBox(page, 100, "一")
-  await addBox(page, 400, "二")
+  await addBox(page, 100, 150, "一")
+  await addBox(page, 400, 150, "二")
   const one = items(page).filter({ hasText: "一" })
   const two = items(page).filter({ hasText: "二" })
   await one.click({ button: "right" })
@@ -157,8 +145,8 @@ test("書いている間に別の伝言の吹き出しを押すと、吹き出�
   page,
 }) => {
   await page.goto("/")
-  await addBox(page, 100, "一")
-  await addBox(page, 400, "二")
+  await addBox(page, 100, 150, "一")
+  await addBox(page, 400, 150, "二")
   const one = items(page).filter({ hasText: "一" })
   const two = items(page).filter({ hasText: "二" })
   await writeNote(page, one, "前の伝言")

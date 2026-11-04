@@ -1,4 +1,5 @@
 // ブックの変化: アクションの前と後のブックを比べ、変わったフィールド・ページ・アイテムを求める（認可ステップが行った後に見る）
+import { pagesOf } from "./book"
 import type { Changes, PageChange } from "./def/permission"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -22,8 +23,6 @@ function changedIds(before: readonly { id: string }[], after: readonly { id: str
   const ids = new Set([...was.keys(), ...now.keys()])
   return [...ids].filter(id => !sameData(was.get(id), now.get(id)))
 }
-
-const pagesOf = (book: Book): readonly Page[] => ("pages" in book ? (book.pages as readonly Page[]) : [])
 
 function pageChange(id: string, before: Page | undefined, after: Page | undefined): PageChange {
   if (!before) return { id, change: "added", fields: [], items: (after?.items ?? []).map(i => i.id) }

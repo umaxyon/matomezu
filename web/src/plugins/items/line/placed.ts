@@ -96,3 +96,7 @@ export function linesHold(lines: readonly LineLike[], connectable: (id: string) 
   }
   return true
 }
+
+// 線の props に、直す値 patch を重ねたもの（null の項目は消す）
+export const patchedProps = (props: Readonly<Record<string, unknown>>, patch: Readonly<Record<string, unknown>>) =>
+  Object.fromEntries(Object.entries({ ...props, ...patch }).filter(([, v]) => v !== null))

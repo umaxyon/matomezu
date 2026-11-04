@@ -32,7 +32,7 @@ export const BUILTIN_UI = [
   MARKDOWN_UI,
 ] as const
 
-// 既定の配置（今の画面の形）。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
+// 既定の配置。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
 export const DEFAULT_LAYOUT = defineLayout({
   id: "default",
   slots: {

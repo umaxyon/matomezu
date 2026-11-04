@@ -1,8 +1,7 @@
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./helpers/footer-menu"
-import { afterFrames } from "./helpers/frames"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
+import { addBox, settled } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
@@ -11,13 +10,7 @@ const stages = (page: Page) => page.locator('[aria-label="ステージ"]')
 
 // 紙の (x, 150) に箱を置き、伝言を付けてたたむ
 async function foldedNote(page: Page, x: number, caption: string, text: string) {
-  await (await footerMenuTool(page, "箱")).click()
-  const paper = (await page.getByRole("img", { name: "紙" }).first().boundingBox())!
-  await page.mouse.click(paper.x + x, paper.y + 150)
-  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
+  await addBox(page, x, 150, caption)
   await writeNote(page, items(page).filter({ hasText: caption }), text)
   await foldNote(page, text)
 }
@@ -165,14 +158,6 @@ const paperBox = async (page: Page) => {
   return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width) }
 }
 
-// 紙が止まっているか（2 コマ描くのを挟んで 2 回測り、同じなら止まっている）
-async function steady(page: Page) {
-  const a = await paperBox(page)
-  await afterFrames(page)
-  const b = await paperBox(page)
-  return a.x === b.x && a.y === b.y && a.w === b.w
-}
-
 // 紙の上で Ctrl+ホイールを回して小さくする
 async function zoomOut(page: Page) {
   const p = (await page.getByRole("img", { name: "紙" }).first().boundingBox())!
@@ -223,7 +208,7 @@ test("開いている間に紙をずらすか倍率を変えたら、閉じて�
   await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
   // 倍率は 100% のまま（ずらす量は、広がった表示領域に収め直される）。戻すなら閉じ終えたときなので、紙が止まってから見る
-  await expect.poll(() => steady(page)).toBe(true)
+  await settled(page)
   expect((await paperBox(page)).w).toBe(full)
 })
 
@@ -251,6 +236,6 @@ test("リストの中のスクロールの奥の行を開くと、リストも�
   const scrolled = await rows.evaluate(el => el.scrollTop)
   await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
-  await expect.poll(() => steady(page)).toBe(true)
+  await settled(page)
   expect(await rows.evaluate(el => el.scrollTop)).toBe(scrolled)
 })

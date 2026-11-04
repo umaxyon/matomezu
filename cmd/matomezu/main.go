@@ -323,15 +323,7 @@ func (a *httpAPI) do(method, path string, body []byte) (json.RawMessage, error) 
 // send は 1 度だけ呼ぶ。stale は、つなぎ方が古いかもしれない（401 か、つなげなかった）とき。
 // 送ったあとに答えが来なかったときは、常駐がもう行ったかもしれないので stale にしない
 func send(s *home.Server, method, path string, body []byte) (out json.RawMessage, stale bool, err error) {
-	req, err := http.NewRequest(method, s.URL+path, bytes.NewReader(body))
-	if err != nil {
-		return nil, false, err
-	}
-	req.Header.Set("Authorization", "Bearer "+s.Token)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	res, err := (&http.Client{Timeout: 60 * time.Second}).Do(req)
+	res, err := request(s, method, path, body, 60*time.Second)
 	if err != nil {
 		var op *net.OpError
 		return nil, errors.As(err, &op) && op.Op == "dial", fmt.Errorf("the matomezu server did not answer: %w", err)
@@ -389,14 +381,9 @@ func (versionCmd) Run() error {
 	return nil
 }
 
-// call は合言葉を付けて常駐の API を呼ぶ
+// call は合言葉を付けて常駐の API を本文なしで呼ぶ（答えは 3 秒だけ待つ）
 func call(s *home.Server, method, path string) (*http.Response, error) {
-	req, err := http.NewRequest(method, s.URL+path, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+s.Token)
-	res, err := (&http.Client{Timeout: 3 * time.Second}).Do(req)
+	res, err := request(s, method, path, nil, 3*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -405,4 +392,17 @@ func call(s *home.Server, method, path string) (*http.Response, error) {
 		return nil, fmt.Errorf("%s %s: %s", method, path, res.Status)
 	}
 	return res, nil
+}
+
+// request は合言葉を付けて常駐の API を 1 度呼ぶ（body があれば JSON で送る。答えは timeout だけ待つ）
+func request(s *home.Server, method, path string, body []byte, timeout time.Duration) (*http.Response, error) {
+	req, err := http.NewRequest(method, s.URL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+s.Token)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	return (&http.Client{Timeout: timeout}).Do(req)
 }

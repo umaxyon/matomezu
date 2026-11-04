@@ -109,6 +109,12 @@ func TestPerformingAnAction(t *testing.T) {
 			t.Fatalf("refused call = %v", r)
 		}
 	}
+	// AI への知らせは、結果の次の行に添える
+	api.answer = `{"ok":true,"result":{"item":"k2"},"notice":"The contents of a variable page were shifted"}`
+	got = talk(t, api, `{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"perform","arguments":{"action":"x.y","args":{}}}}`)
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || r["content"].([]any)[0].(map[string]any)["text"] != "{\"item\":\"k2\"}\nThe contents of a variable page were shifted" {
+		t.Fatalf("call with a notice = %v", r)
+	}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"perform","arguments":{"args":{}}}}`)
 	if r := got[0]["result"].(map[string]any); r["isError"] != true {
 		t.Fatalf("perform without action = %v", r)

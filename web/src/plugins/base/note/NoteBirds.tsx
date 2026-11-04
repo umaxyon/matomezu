@@ -12,6 +12,7 @@ import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { LEAVE } from "../birds/flight"
 import { RemoveAsk } from "../birds/RemoveAsk"
 import { kit } from "../kit"
+import { useAnchorName } from "../label/anchor-name"
 import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
 import { anchorElementIn, Stand } from "../utils/anchors"
 import { birdsIn, withBirds } from "./birds-state"
@@ -74,7 +75,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
     return () => clearTimeout(timer)
   }, [shown.leaving, onGone])
   const remove = () => takeOff(stage, shown.anchor)
-  const title = t("Note")
+  const name = useAnchorName(stage, shown.anchor)
   return (
     <BirdWalk
       bird={shown.bird}
@@ -83,7 +84,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
       paused={asking}
       leaving={shown.leaving}
       onGone={onGone}
-      awayLabel={t("Show {name}", { name: title })}
+      awayLabel={t("Show {name}", { name })}
     >
       {style =>
         shown.leaving ? (

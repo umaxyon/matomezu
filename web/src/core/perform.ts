@@ -3,7 +3,7 @@
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
-import { creatableTypes, createBook } from "./book"
+import { creatableTypes, createBook, holds } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { bookType, type CoreCatalog } from "./core-catalog"
@@ -14,7 +14,6 @@ import {
   type AnyLibraryScope,
   type AnyPermissionScope,
   type AnySettingsScope,
-  allowedIn,
   libraryScopeOf,
   pagedOnly,
   type Subjects,
@@ -22,9 +21,8 @@ import {
   settingsScopeOf,
   type Where,
 } from "./def/action"
-import { deniedBy, type Inspected, inspect } from "./inspect"
+import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
-import { type ItemPage, pageHolds } from "./placed"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
@@ -49,17 +47,11 @@ export type Performed<Id extends ActionId> = { ok: true; next: SubjectOf<Id>; re
 // タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
 function typeActions(catalog: CoreCatalog, type: string): readonly string[] {
   const t = bookType(catalog, type)
-  return [...catalog.actions.values()].filter(a => allowedIn(a, t)).map(a => a.id)
+  return [...catalog.actions.values()].filter(a => typeAllows(a, t)).map(a => a.id)
 }
 
 // ブックで使えるアクション
 export const actionsOf = (catalog: CoreCatalog, book: Book): readonly string[] => typeActions(catalog, book.type)
-
-// ブックが、データの形の外の決まり（アイテムどうしの関係）を守っているか: タイプの決まりと、どのページもつなぐものの定義の決まり
-export function holds(catalog: CoreCatalog, book: Book): boolean {
-  if (!(bookType(catalog, book.type).holds?.(book, catalog) ?? true)) return false
-  return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
-}
 
 // アクションが返したブック after を、ノーマライズステップ（core/def/normalize-step.ts）を順にかけて整えたもの。
 // run がステップだけが書くページのフィールドを変えていたら（前の状態に戻すアクションを除く）、または整えられなければ null

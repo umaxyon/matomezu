@@ -7,6 +7,6 @@ import { onlySelected } from "../utils/selection"
 export function useBodyGrips(stage: string, id: string, action: ActionId): boolean {
   const at = useStage(stage)
   const page = at?.opened?.page ?? undefined
-  const allowed = useAllowed(stage, action, { page, items: [id] }).ok
+  const allowed = useAllowed(stage, action, { page, ids: [id] }).ok
   return allowed && at !== null && !at.pans && onlySelected(at.selection, id)
 }

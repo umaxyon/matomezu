@@ -3,7 +3,7 @@
 // （紙をずらさない道具の間に押すと、組の紙をずらす道具に替えてから動かす。組にそれが無ければ動かさない）。
 // ミニマップの上でホイールを回すと、回した量をコマンド zoom-wheel に渡して、表示領域の真ん中を動かさずに拡大縮小する（ページはスクロールさせない）。
 // 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）。className は枠の見た目を替える（無ければ浮かぶ枠）
-import { memo, type PointerEvent, type ReactNode, useCallback, useMemo, useRef } from "react"
+import { memo, type PointerEvent, type ReactNode, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { areaOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
@@ -13,8 +13,9 @@ import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-cont
 import { useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { kit } from "../kit"
+import { TOOL_SET } from "../tool-picker"
 import { keepsPan, panningTool } from "../tool-switch/tools"
-import { ZOOM_WHEEL } from "../zoom"
+import { useZoomWheel } from "../zoom/useZoomWheel"
 import { drawnOn, useDrawnTable } from "./drawn"
 import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
@@ -39,7 +40,8 @@ export function MinimapView({
   const book = useShownBook(id) // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
   const page = useShownPage(id)
   const held = keepsPan(catalog, useStage(id)?.tool ?? null)
-  const { panStageBy, focusStage, setTool } = useActions()
+  const { panStageBy, focusStage } = useActions()
+  const toolSet = useCommand(id, TOOL_SET.id)
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
@@ -49,21 +51,7 @@ export function MinimapView({
     () => (book && page ? minimapMarks(catalog, book, page, item => drawnOn(drawn, item, page.id)) : []),
     [catalog, book, page, drawn],
   )
-  const wheel = useCommand(id, ZOOM_WHEEL.id)
-  const wheelRef = useRef(wheel)
-  wheelRef.current = wheel
-  // ページのスクロールを止めるため、受け身でない受け取りで付ける（描かれたときに付く）
-  const attachWheel = useCallback((el: HTMLDivElement | null) => {
-    if (!el) return
-    const onWheel = (e: WheelEvent) => {
-      if (!wheelRef.current.shown) return
-      e.preventDefault()
-      e.stopPropagation()
-      wheelRef.current.run({ delta: e.deltaY })
-    }
-    el.addEventListener("wheel", onWheel, { passive: false })
-    return () => el.removeEventListener("wheel", onWheel)
-  }, [])
+  const attachWheel = useZoomWheel(id)
   const paper = stage ? areaOf(stage) : null
   if (!stage || !book || !paper) return null
   const scale = fitScale(paper, width, height)
@@ -91,7 +79,7 @@ export function MinimapView({
       const set = stage ? toolSetOf(catalog, stage) : null
       const hand = set ? panningTool(catalog, set) : null
       if (!hand) return
-      setTool(id, hand)
+      toolSet.run(hand)
     }
     const { to, grab: g } = grabAt(seen, at(e))
     if (to) lookAt(to)

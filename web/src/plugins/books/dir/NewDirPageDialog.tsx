@@ -1,24 +1,21 @@
-// ディレクトリ構成図のページを作るダイアログ: ページ名と根のフォルダの名前を決めて、そのステージのブックに足し（base のアクション page-add。根はページのフィールド root）、
+// ディレクトリ構成図のページを作るダイアログ: ページ名（初めは base の nextPageTitle）と根のフォルダの名前を決めて、そのステージのブックに足し（base の useAddPage。アクション page-add。根はページのフィールド root）、
 // そのページを開く。根のフォルダの名前の初めの値はページ名と同じ。紙と紙の向きはブックのタイプの既定
 import { useState } from "react"
 import { pagedOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useBook, useMessages, usePerform } from "../../../plugin-api/ui"
-import { controlClass, Dialog, Field, Form } from "../../base/ui"
+import { type DialogProps, useBook, useMessages } from "../../../plugin-api/ui"
+import { nextPageTitle } from "../../base"
+import { controlClass, Dialog, Field, Form, useAddPage } from "../../base/ui"
 import { kit } from "./kit"
 
 export function NewDirPageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
   const book = pagedOf(useBook(stage))
-  const perform = usePerform(stage)
-  const { openPage } = useActions()
-  const [title, setTitle] = useState(() => t("Page {n}", { n: (book?.pages.length ?? 0) + 1 }))
+  const addPage = useAddPage(stage)
+  const [title, setTitle] = useState(() => (book ? nextPageTitle(book, t) : ""))
   const [name, setName] = useState<string | null>(null) // null はページ名と同じ
   if (!book) return null
   const create = () => {
-    const done = perform("@matomezu/base:page-add", { title, fields: { root: { name: name ?? title } } })
-    if (!done.ok) return
-    openPage(stage, done.result.page)
-    onClose()
+    if (addPage({ title, fields: { root: { name: name ?? title } } })) onClose()
   }
   return (
     <Dialog title={t("New page")} onClose={onClose}>

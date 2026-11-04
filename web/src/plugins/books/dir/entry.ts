@@ -65,6 +65,10 @@ export const DirFolderSchema: z.ZodType<DirFolder> = z.strictObject({
   },
 })
 
+// ページ page の根のフォルダ（無いか形が合わなければ undefined）
+export const dirRootOf = (page: object | null | undefined): DirFolder | undefined =>
+  DirFolderSchema.safeParse(page && "root" in page ? page.root : undefined).data
+
 // 足すときに受ける中身（id は書かない。閉じているかと中身はフォルダだけ）
 export type NewEntry =
   | { kind: "file"; name: string; description?: string; color?: string }

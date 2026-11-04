@@ -2,10 +2,9 @@
 
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
-import { isOnBook } from "../../core/def/action"
 import { fail } from "../../core/errors"
 import { NO_HISTORY } from "../../core/history"
-import { inspect, withoutPermissions } from "../../core/inspect"
+import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { stageBlocks } from "../../core/stage"
 import { stageView, toolOf } from "../../core/workspace"
@@ -59,7 +58,7 @@ export function commandContext(
 function performable(def: CommandDef<never>, ctx: CommandContext): boolean {
   return (def.performs ?? []).every(
     action =>
-      withoutPermissions(inspect(ctx.catalog, { kind: "action", action, book: ctx.book ?? undefined }, ctx)).value ===
+      withoutPermissions(inspect(ctx.catalog, actionQuery(ctx.catalog, action, ctx.book ?? undefined), ctx)).value ===
       true,
   )
 }
@@ -78,15 +77,11 @@ function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
   const where = commandScopeOf(def.permissionScope, ctx)
   return (
     actions.length === 0 ||
-    actions.some(action => {
-      if (stageBlocks(ctx.catalog, ctx.stage.mode, action)) return false
-      const onBook = isOnBook(ctx.catalog.actions.get(action)?.target)
-      const book = onBook ? (ctx.book ?? undefined) : undefined
-      return (
-        inspect(ctx.catalog, { kind: "action", action, book, ...(onBook && where ? { where } : {}) }, ctx).value ===
-        true
-      )
-    })
+    actions.some(
+      action =>
+        !stageBlocks(ctx.catalog, ctx.stage.mode, action) &&
+        inspect(ctx.catalog, actionQuery(ctx.catalog, action, ctx.book ?? undefined, where), ctx).value === true,
+    )
   )
 }
 

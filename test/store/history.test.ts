@@ -124,6 +124,20 @@ test("ページを消した画面の履歴の段を元に戻すと、同じ id �
   expect(store.state.getState().workspace.stages[0]?.opened?.page).toBe(pages[0])
 })
 
+test("ページを動かした画面の履歴の段を元に戻すと元の並びに、やり直すと動かした並びになる", async () => {
+  const store = ready()
+  store.actions.perform("@matomezu/base:page-add", { title: "2 枚目" }, { book: "b1" })
+  await settled()
+  const ids = bookOf(store).pages.map(p => p.id)
+  store.actions.perform("@matomezu/base:page-move", { page: ids[0]!, index: 1 }, { book: "b1" })
+  await settled()
+  expect(bookOf(store).pages.map(p => p.id)).toEqual([ids[1]!, ids[0]!])
+  store.actions.command("s1", "@matomezu/base:undo")
+  expect(bookOf(store).pages.map(p => p.id)).toEqual(ids)
+  store.actions.command("s1", "@matomezu/base:redo")
+  expect(bookOf(store).pages.map(p => p.id)).toEqual([ids[1]!, ids[0]!])
+})
+
 test("ブックの名前を変えた画面の履歴の段を戻すと、前の名前に戻る", async () => {
   const store = ready()
   const title = bookOf(store).title

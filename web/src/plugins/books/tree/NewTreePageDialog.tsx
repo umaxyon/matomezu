@@ -1,11 +1,11 @@
-// ツリーのページを作るダイアログ: ページ名・伸びる向き・根のキャプションを決めて、そのステージのブックに足し（base のアクション page-add。
+// ツリーのページを作るダイアログ: ページ名（初めは base の nextPageTitle）・伸びる向き・根のキャプションを決めて、そのステージのブックに足し（base の useAddPage。アクション page-add。
 // 伸びる向きはページの設定の項目、根はページのフィールド root）、そのページを開く。伸びる向きの初めの値は「ブック継承」で、そのままならページに書かない
 // （あとでブックの向きを変えると、ページもそれに従う）。紙と紙の向きはブックのタイプの既定
 import { useState } from "react"
 import { pagedOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"
-import { settingValue } from "../../base"
-import { controlClass, Dialog, Field, Form, InheritChoices } from "../../base/ui"
+import { type DialogProps, useBook, useCoreCatalog, useMessages } from "../../../plugin-api/ui"
+import { nextPageTitle, settingValue } from "../../base"
+import { controlClass, Dialog, Field, Form, InheritChoices, useAddPage } from "../../base/ui"
 import { GROW_NAMES, useGrowOptions } from "./GrowSetting"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
@@ -13,24 +13,21 @@ import { kit } from "./kit"
 export function NewTreePageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
   const book = pagedOf(useBook(stage))
-  const perform = usePerform(stage)
-  const { openPage } = useActions()
+  const addPage = useAddPage(stage)
   const options = useGrowOptions()
   const catalog = useCoreCatalog()
-  const [title, setTitle] = useState(() => t("Page {n}", { n: (book?.pages.length ?? 0) + 1 }))
+  const [title, setTitle] = useState(() => (book ? nextPageTitle(book, t) : ""))
   const [grow, setGrow] = useState<Grow | undefined>(undefined) // undefined はブック継承
   const [caption, setCaption] = useState("")
   if (!book) return null
   const inherited = settingValue(catalog, book, null, GROW)
   const create = () => {
-    const done = perform("@matomezu/base:page-add", {
+    const added = addPage({
       title,
       ...(grow ? { settings: { [GROW.id]: grow } } : {}),
       fields: { root: { caption } },
     })
-    if (!done.ok) return
-    openPage(stage, done.result.page)
-    onClose()
+    if (added) onClose()
   }
   return (
     <Dialog title={t("New page")} onClose={onClose}>

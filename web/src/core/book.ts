@@ -6,8 +6,7 @@ import { fail } from "./errors"
 import { freshId } from "./ids"
 import { splitId } from "./names"
 import type { PaperChoice } from "./paper"
-import { holds } from "./perform"
-import { type ItemPage, walkShapes } from "./placed"
+import { type ItemPage, pageHolds, walkShapes } from "./placed"
 import type { Book, Page } from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
@@ -90,6 +89,9 @@ export function hasPages(book: Book): book is PagedBook {
 export const pagedOf = (book: Book | null | undefined): PagedBook | undefined =>
   book && hasPages(book) ? book : undefined
 
+// ブックのページの並び（ページを持たなければ空）
+export const pagesOf = (book: Book): readonly Page[] => pagedOf(book)?.pages ?? []
+
 // 表の、何冊も作れるタイプの id（表の順）
 export function creatableTypes(catalog: CoreCatalog): string[] {
   return catalog.parts.bookTypes.filter(t => !t.single).map(t => t.id)
@@ -133,4 +135,10 @@ export function withSettings<T extends object>(target: T, patch: Readonly<Record
   }
   const { settings: _old, ...rest } = target as T & { settings?: unknown }
   return (Object.keys(settings).length > 0 ? { ...rest, settings } : rest) as T
+}
+
+// ブックが、データの形の外の決まり（アイテムどうしの関係）を守っているか: タイプの決まりと、どのページもつなぐものの定義の決まり
+export function holds(catalog: CoreCatalog, book: Book): boolean {
+  if (!(bookType(catalog, book.type).holds?.(book, catalog) ?? true)) return false
+  return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }

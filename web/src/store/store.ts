@@ -81,6 +81,14 @@ export interface MatomezuState {
   history: Readonly<Record<string, BookHistory>>
   // ステージの id → プラグインの id → そのプラグインが持つ、そのステージの画面の状態（中身の形はプラグインが決め、土台は読まない）
   stageStates: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  // 編集ロック: 掛けた所の鍵 → 利用者が直している物（ブックの id と物の id）。ホストクライアントが常駐に知らせ、常駐はそれを変える AI のアクションを断る
+  editLocks: Readonly<Record<string, EditLock>>
+}
+
+// 編集ロックの 1 つ: ブック book の物 ids（伝言など。ブックの中の物やアノテーションの id）
+export interface EditLock {
+  book: string
+  ids: readonly string[]
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、success はうまくいったことを知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
@@ -116,7 +124,7 @@ export interface Actions {
   previewDialog(preview: DialogPreview | null): void
   submitDialog(): void // 開いているダイアログに、決めるように頼む（枠が中身の form を送る）
   // 押したキー（そろえた書き方）を、開いているメニュー・ダイアログ・カレントのステージの範囲で引き、当たったコマンドを行う。
-  // 当たった範囲より外は見ない（当たったコマンドが押せなくても）。scopes は押した所の要素が名乗ったプラグインの範囲。
+  // 範囲は狭い方から順に引き、その場で使えるコマンドに当たった所で行う（使えない割り当ては無いものとして、次の範囲の同じキーを探す）。scopes は押した所の要素が名乗ったプラグインの範囲。
   // reach が "named" なら scopes だけを引く（テキストFormが自分で名乗った範囲）。行ったか返す
   pressKey(key: string, scopes?: readonly string[], reach?: KeyReach): boolean
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
@@ -130,7 +138,7 @@ export interface Actions {
   evenDivider(): void // 分けている境目を真ん中に戻す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
-  openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
+  openBook(stage: string, book: string): void // そのステージでブックを開き（ページを持つブックは最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
@@ -202,6 +210,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // プラグイン owner（プラグインの id）が持つ、ステージ stage の画面の状態を value にする（undefined なら消す）。無いステージには置かない。
   // プラグインは、自分の kit を渡すフック useSetStageState を通して、自分の置き場だけを変える（プラグインに渡す actions には入れない）
   setStageState(stage: string, owner: string, value: unknown): void
+  // 鍵 key の編集ロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
+  setEditLock(key: string, lock: EditLock | null): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
   // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と error を返す
   use(
@@ -238,6 +248,7 @@ function initialState(
     offline: false,
     history: {},
     stageStates: {},
+    editLocks: {},
   }
 }
 
@@ -612,6 +623,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (workspace !== now.workspace) commit({ workspace })
     },
     setStageState,
+    setEditLock: (key, lock) => {
+      const { [key]: now, ...rest } = getState().editLocks
+      if (!lock) {
+        if (now) setState({ editLocks: rest })
+      } else if (!now || now.book !== lock.book || !sameData(now.ids, lock.ids))
+        setState({ editLocks: { ...rest, [key]: lock } })
+    },
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })
     },

@@ -5,7 +5,7 @@ import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
 import { ColorSchema, contentIdMaker, growOf } from "../../base"
 import { addEntries, buildPaths, changeEntry, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
-import { type DirFolder, DirFolderSchema, descriptionText, giveIds, NewEntrySchema } from "./entry"
+import { type DirFolder, descriptionText, dirRootOf, giveIds, NewEntrySchema } from "./entry"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 
@@ -14,11 +14,10 @@ const ON_DIRS = { presentations: [kit.name("dir")] }
 // ページ page の根と、根を替えたブックを作る関数（ディレクトリ構成図のページでなければ null）
 function dirOf(book: PagedBook, page: string, catalog: CoreCatalog) {
   const found = book.pages.find(p => p.id === page)
-  if (!found || !("root" in found)) return null
-  const root = DirFolderSchema.safeParse(found.root)
-  if (!root.success) return null
+  const root = dirRootOf(found)
+  if (!found || !root) return null
   return {
-    root: root.data,
+    root,
     put: (next: DirFolder) => {
       const written = { ...found, root: next }
       return dirFits(catalog, written, growOf(catalog, book, written), next) ? putPage(book, written) : null

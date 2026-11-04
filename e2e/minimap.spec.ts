@@ -1,7 +1,7 @@
 // ミニマップ（base/minimap）: 下の行に乗ると上がるフッタメニューのものと、右ボタンの長押しのアイコンから出すもの。
 // 見えている範囲の四角をドラッグすると、紙がついて動く
 import { expect, type Page, test } from "./fixtures"
-import { paper } from "./helpers/paper"
+import { paper, settled } from "./helpers/paper"
 
 const seen = (page: Page, where: "footer-menu" | "picker") =>
   page.locator(`[data-minimap=${where}] [data-minimap-seen]`)
@@ -186,15 +186,7 @@ test("フッタメニューの拡大縮小の帯とミニマップの上でホ�
   const level = page.getByTitle("倍率").first()
   await expect(level).toHaveText("100%")
   // フッタメニューが上がりきる（帯が動かなくなる）まで待つ
-  let last = Number.NaN
-  await expect
-    .poll(async () => {
-      const y = (await level.boundingBox())!.y
-      const still = y === last
-      last = y
-      return still
-    })
-    .toBe(true)
+  await settled(page, level)
   const bar = (await level.boundingBox())!
   await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2)
   await page.mouse.wheel(0, -100)

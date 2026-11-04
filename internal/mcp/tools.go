@@ -101,7 +101,7 @@ var performSchema = map[string]any{
 }
 
 const performDescription = "Perform an action listed by actions, as the user would on the screen: the change appears at once on screens showing that book. " +
-	"Returns the action's result (such as the id of what it made), or why it was refused."
+	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused."
 
 // showSchema は show の受ける形
 var showSchema = map[string]any{
@@ -179,12 +179,17 @@ func perform(api API, args map[string]any) (string, bool) {
 		Reason string          `json:"reason"`
 		Detail string          `json:"detail"`
 		Result json.RawMessage `json:"result"`
+		Notice string          `json:"notice"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
 	}
 	if !done.OK {
 		return refusalText(done.Reason, done.Detail), true
+	}
+	// 知らせは結果の次の行に添える
+	if done.Notice != "" {
+		return string(done.Result) + "\n" + done.Notice, false
 	}
 	return string(done.Result), false
 }
@@ -230,6 +235,8 @@ func refusalText(reason, detail string) string {
 		return "unreadable: the book cannot be read now (" + detail + "); it cannot be changed until that is fixed (see list_books)"
 	case reason == "open-on-screen":
 		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
+	case reason == "being-edited":
+		return "being-edited: the user is editing what this would change or remove (such as a note open on the screen), so nothing was changed; do it again later"
 	case detail != "":
 		return reason + ": " + detail
 	default:

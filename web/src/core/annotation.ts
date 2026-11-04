@@ -49,7 +49,7 @@ export function prune(annotations: readonly Annotation[], book: Book): readonly 
 }
 
 // タイプ type のブックで、種類 id のアノテーションを使えるか（種類が機能台帳にあり、タイプが外していない）
-export const annotationAllowed = (catalog: CoreCatalog, type: string, id: string): boolean =>
+const annotationAllowed = (catalog: CoreCatalog, type: string, id: string): boolean =>
   catalog.annotations.has(id) && !(bookType(catalog, type).annotations?.without?.includes(id as never) ?? false)
 
 // 1 つのアノテーションが決まりを守っているか: 形が合い、ブックのタイプが種類を使え、種類の形に合い、アンカーがどれもブックにある

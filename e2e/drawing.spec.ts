@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
-import { addBox, confirmBox, items, onPaper } from "./helpers/paper"
+import { addBox, confirmBox, items, onPaper, zoomOf } from "./helpers/paper"
+import { fromMenu } from "./helpers/stage-menu"
 import { BODY, coreWidthOf } from "./text-widths"
 
 test("箱のツールを押すとポインタに点線の箱が付き、紙の上で押して追加のダイアログで追加すると、そこに置かれて選ばれ、道具は選択に戻る", async ({
@@ -236,11 +237,6 @@ async function addBodyBox(page: Page) {
   await dialog.getByLabel("本文", { exact: true }).fill(BODY)
   await dialog.getByRole("button", { name: "追加" }).click()
   await expect(dialog).toBeHidden()
-}
-
-// 紙の上の 1px が画面の何 px か
-async function zoomOf(page: Page) {
-  return (await page.getByRole("img", { name: "紙" }).boundingBox())!.width / 1123
 }
 
 test("本文は折り返した行ごとに描き（置いたときは 5 行まで）、描いた字の幅は core の計算（フォントの表）と 1px 未満で合う", async ({
@@ -554,8 +550,7 @@ test("ブックの名前のボタンのメニューからブックの設定を�
 }) => {
   await page.goto("/")
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ブックの設定" }).click()
+  await (await fromMenu(page, "ブックの設定")).click()
   const dialog = page.getByRole("dialog", { name: "ブックの設定" })
   const name = dialog.getByLabel("ブックの名前")
   await expect(name).toHaveValue("まとめ図の構想")
@@ -841,7 +836,7 @@ test("〇から線を引いている途中にホイールで紙をずらして�
   await page.mouse.move(to.x + 1, to.y, { steps: 1 })
   // 線の先（紙の上）を画面の上に直すと、ポインタの所
   const p = (await paper.boundingBox())!
-  const zoom = p.width / (await paper.evaluate(el => (el as HTMLElement).offsetWidth))
+  const zoom = await zoomOf(page)
   const tip = page.locator("svg line").last()
   const x2 = Number(await tip.getAttribute("x2"))
   const y2 = Number(await tip.getAttribute("y2"))
@@ -899,7 +894,7 @@ test("ロック中のページでは、箱にポインタを乗せても線を�
     .split(" ")
     .map(p => p.split(",").map(Number))
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  const zoom = paper.width / Number(await page.getByRole("img", { name: "紙" }).evaluate(el => el.clientWidth))
+  const zoom = await zoomOf(page)
   const onLine = {
     x: paper.x + ((pts[0]![0]! + pts[1]![0]!) / 2) * zoom,
     y: paper.y + ((pts[0]![1]! + pts[1]![1]!) / 2) * zoom,
@@ -1010,7 +1005,7 @@ test("選んだ線の両端に丸が出る。終点の丸を別の箱へ運ん�
   const before = await pointsOf()
   const mid = before[1]!
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  const zoom = paper.width / Number(await page.getByRole("img", { name: "紙" }).evaluate(el => el.clientWidth))
+  const zoom = await zoomOf(page)
   const screen = ([x, y]: number[]) => ({ x: paper.x + x! * zoom, y: paper.y + y! * zoom })
   const onLine = screen([(before[0]![0]! + mid[0]!) / 2, (before[0]![1]! + mid[1]!) / 2])
   await page.mouse.click(onLine.x, onLine.y)
@@ -1061,7 +1056,7 @@ test("箱をドラッグしている間、つながる線はその箱に付い�
   const end = items(page).filter({ hasText: "終" })
   const b = (await end.boundingBox())!
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  const zoom = paper.width / Number(await page.getByRole("img", { name: "紙" }).evaluate(el => el.clientWidth))
+  const zoom = await zoomOf(page)
   await page.mouse.move(b.x + 30, b.y + 20)
   await page.mouse.down()
   await page.mouse.move(b.x + 30, b.y + 220, { steps: 8 })

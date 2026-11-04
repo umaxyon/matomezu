@@ -39,6 +39,7 @@ export {
   TextBlockView,
   type TextDraft,
   UserSettings,
+  useAddPage,
   useAligns,
   useBodyGrips,
   useBookOf,

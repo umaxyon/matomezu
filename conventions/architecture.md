@@ -30,6 +30,7 @@
 - 表と上の行で読んでよい物（zod・React・zustand）のほかに読んでよい外のライブラリは、Markdown を読むライブラリ（mdast-util-from-markdown・mdast-util-gfm・micromark-extension-gfm と、その型の mdast）だけ。ライブラリごとに決めた 1 つのファイルだけが読み、その型をプラグイン API に出さない（matomezu の形に移して出す）
 - 上の 2 行は base だけ。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・React も読み、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ。状態は `plugin-api/ui` のフック（plugins の「プラグインどうしの関係」）で読む。base はプラグイン API を読まない
 - 見た目でないファイルは、見た目を読まない
+- `web/src` のファイルどうしも、値で読む輪を作らない（型だけ読むのは除く）
 - これらは `test/rules.test.ts` が見張る
 
 ## Go のパッケージ
@@ -63,6 +64,7 @@
 - ホストは、つながっている窓ごとに、見ているものとフォーカスの順を覚える。AI の `view` と `show` は、見ているものを知らせた窓のうち最後にフォーカスされた窓に向ける。最後にフォーカスされた窓（開いた直後の窓など）がまだ知らせていなければ、上限の時間まで知らせを待つ。ホストは、届く順が入れ替わった古い知らせを捨てる
 - ゴミ箱のブックとそのアノテーションは、AI の MCP 公開ツール（`list_books`・`read_book`・`read_page`・`view` が添える、AI の応えを待つ物・`show`）と CLI の `annotations` に出さない
 - どこかの窓に出ているブックを、AI はゴミ箱に入れられない（`open-on-screen` で断り、何も変えない。AI は利用者に聞く）
+- どこかの窓で利用者が直している物（編集ロック）を、AI のアクションは変えも消しもしない（`being-edited` で断り、何も変えない）。利用者のアクションは止めない
 
 ## error
 

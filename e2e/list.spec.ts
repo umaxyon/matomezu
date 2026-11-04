@@ -2,6 +2,7 @@ import { expect, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { afterFrames } from "./helpers/frames"
 import { addList, addRow } from "./helpers/list"
+import { addBox, zoomOf } from "./helpers/paper"
 
 test("ツールボックスのリストで置くと、キャプションの見出しと「＋」の行だけのリストが出る。「＋」で行を足し、ダブルクリックで行を変え、右クリックや編集のダイアログの「行を削除」で消す", async ({
   page,
@@ -125,10 +126,7 @@ test("行の下の端をドラッグすると、その行の高さが 1 行刻�
   await addRow(page, list, "二", "本文")
   const rows = list.getByRole("listitem")
   const height = async (i: number) => (await rows.nth(i).boundingBox())!.height
-  const zoom = await page.evaluate(() => {
-    const p = document.querySelector('[role="img"]') as HTMLElement
-    return p.getBoundingClientRect().width / p.offsetWidth
-  })
+  const zoom = await zoomOf(page)
   const start = await height(0)
   expect(await height(1)).toBe(start)
   // 1 つめの行の下の端を、2 行ぶん下へ
@@ -410,12 +408,7 @@ test("行を押すと行だけを選び（行に選択枠）、見出しを押�
   await list.getByText("買い物").click()
   await expect(list).toHaveAttribute("data-selected", "true")
   // 行を選んで箱を Ctrl+クリックすると、リストと箱を選ぶ
-  await (await footerMenuTool(page, "箱")).click()
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  await page.mouse.click(paper.x + 700, paper.y + 450)
-  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
+  await addBox(page, 700, 450)
   const box = page.locator("[data-item]").filter({ hasNotText: "買い物" })
   await rows.nth(0).click()
   await page.keyboard.down("Control")

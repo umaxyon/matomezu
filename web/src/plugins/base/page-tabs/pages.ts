@@ -4,7 +4,7 @@ import { hasPages, type PagedBook, putPage } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import { fail } from "../../../core/errors"
-import { type Lang, translate } from "../../../core/i18n/i18n"
+import type { MessageKey, Params } from "../../../core/i18n/i18n"
 import type { PaperChoice, PaperRule } from "../../../core/paper"
 import type { Book, Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
@@ -46,7 +46,7 @@ export function paperChoicesFor(catalog: CoreCatalog, book: PagedBook, page: str
 // ブックのタイプのページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
 export function canGrow(catalog: CoreCatalog, book: PagedBook): boolean {
   const rule = bookType(catalog, book.type).grow
-  return pagesRule(catalog, book) !== undefined && rule !== undefined && !("always" in rule)
+  return rule !== undefined && !("always" in rule)
 }
 
 // ブックのタイプで利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
@@ -98,9 +98,9 @@ export function defaultPaper(catalog: CoreCatalog, book: PagedBook): PaperChoice
   }
 }
 
-// 次のページの題名の案
-export function nextPageTitle(catalog: CoreCatalog, book: PagedBook, lang: Lang): string {
-  return translate(catalog.messages, lang, kit.message("Page {n}"), { n: book.pages.length + 1 })
+// 次のページの題名の案（t は見た目の t()。今の言語で引く）
+export function nextPageTitle(book: PagedBook, t: (key: MessageKey, params?: Params) => string): string {
+  return t(kit.message("Page {n}"), { n: book.pages.length + 1 })
 }
 
 // ブック book のページ page の形が、ページの広さに収まるか（可変ページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）

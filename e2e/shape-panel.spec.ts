@@ -2,20 +2,13 @@
 // 図面のパネルにはシェイプ（@matomezu/art）が並ぶ
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
+import { newBook } from "./helpers/master"
 import { paper } from "./helpers/paper"
 
 async function flowchartBook(page: Page) {
   await page.goto("/")
-  const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ホーム" }).click()
-  await page.getByRole("button", { name: "新しいブック" }).click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  await page.keyboard.type("流れ")
-  await dialog.getByLabel("ブックのタイプ").selectOption({ label: "フローチャート" })
-  await dialog.getByRole("button", { name: "作成" }).click()
-  await page.getByRole("button", { name: "ページを作る" }).click()
-  await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
+  const add = await newBook(page, "流れ", "フローチャート")
+  await add.getByRole("button", { name: "作成" }).click()
   await expect(paper(page)).toBeVisible()
 }
 

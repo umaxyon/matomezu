@@ -15,6 +15,7 @@ import { RemoveAsk } from "../birds/RemoveAsk"
 import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
 import { kit } from "../kit"
+import { useAnchorName } from "../label/anchor-name"
 import { Stand, useStandAway } from "../utils/anchors"
 import { STAND_MARGIN } from "../utils/stand-place"
 import type { StageSlotProps } from "../workspace/ui"
@@ -52,22 +53,22 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
   const run = usePerformOrToast(stage, "The mark was refused")
   const remove = () => run(MARK_REMOVE.id, { mark: id })
   const title = t(MARK_KINDS.find(k => k.id === kind)?.title ?? "Mark")
+  const awayLabel = t("Show {name}", { name: useAnchorName(stage, anchor) })
   if (kind === "alert")
     return (
       <Stand anchor={anchor} side="corner" edgePinned label={t("Mark")}>
-        <PinnedAlert title={title} onRemove={remove} />
+        <PinnedAlert title={title} awayLabel={awayLabel} onRemove={remove} />
       </Stand>
     )
   return (
     <Stand anchor={anchor} side="edge" span edgePinned label={t("Mark")}>
-      <MarkBird id={id} bird={kind} title={title} onRemove={remove} />
+      <MarkBird id={id} bird={kind} title={title} awayLabel={awayLabel} onRemove={remove} />
     </Stand>
   )
 }
 
 // びっくりマーク: 押すと「外す？」を出す。付けた物の上の辺が見える所の外なら、丸を縁に寄せて薄く描き、押すと付けた物を見せる
-function PinnedAlert({ title, onRemove }: { title: string; onRemove: () => void }) {
-  const t = useMessages(kit)
+function PinnedAlert({ title, awayLabel, onRemove }: { title: string; awayLabel: string; onRemove: () => void }) {
   const away = useStandAway()
   const at = away?.pin({ x: ALERT / 2, y: ALERT / 2 }, ALERT / 2 + STAND_MARGIN)
   return (
@@ -83,8 +84,8 @@ function PinnedAlert({ title, onRemove }: { title: string; onRemove: () => void 
         <button
           type="button"
           className={styles.alert}
-          aria-label={t("Show {name}", { name: title })}
-          title={t("Show {name}", { name: title })}
+          aria-label={awayLabel}
+          title={awayLabel}
           onClick={away.show}
           data-mark-pointer
         >
@@ -104,15 +105,26 @@ function PinnedAlert({ title, onRemove }: { title: string; onRemove: () => void 
 }
 
 // 鳥のマーク: 物の上の辺を歩き、押すと「外す？」を出す（出している間は止まる）。この画面で付けたばかりなら、飛んでくるか顔を出す
-function MarkBird({ id, bird, title, onRemove }: { id: string; bird: Bird; title: string; onRemove: () => void }) {
-  const t = useMessages(kit)
+function MarkBird({
+  id,
+  bird,
+  title,
+  awayLabel,
+  onRemove,
+}: {
+  id: string
+  bird: Bird
+  title: string
+  awayLabel: string
+  onRemove: () => void
+}) {
   const [arrival] = useState<Arrival>(() => {
     if (!arriving.delete(id)) return "none"
     return Math.random() < 0.5 ? "fly" : "peek"
   })
   const [asking, setAsking] = useState(false)
   return (
-    <BirdWalk bird={bird} arrival={arrival} paused={asking} awayLabel={t("Show {name}", { name: title })}>
+    <BirdWalk bird={bird} arrival={arrival} paused={asking} awayLabel={awayLabel}>
       {style => (
         <RemoveAsk onRemove={onRemove} onAsking={setAsking} onBird>
           {toggle => <button type="button" className={birdClass} aria-label={title} onClick={toggle} style={style} />}
@@ -185,5 +197,3 @@ function PickerStand({ stage, picker }: { stage: string; picker: AnchorTargets }
     </Stand>
   )
 }
-
-// マークのアクションを、そのステージのブックに行う。断られたらトーストで知らせ、false を、行えたら結果を返す

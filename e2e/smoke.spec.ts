@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures"
-import { fromMenu } from "./helpers/stage-menu"
+import { fromMenu, menuOf } from "./helpers/stage-menu"
 
 test("下の行のどこに乗せても、ブックの名前のメニューがせり上がり、下の行から離れると下がる", async ({ page }) => {
   await page.goto("/")
@@ -9,7 +9,7 @@ test("下の行のどこに乗せても、ブックの名前のメニューが�
   await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
   await expect(trigger).toHaveAttribute("aria-expanded", "true")
   // 下の行からメニューへ動いても下がらず、メニューのボタンを押せる
-  const open = trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ブックを開く" })
+  const open = menuOf(trigger).getByRole("button", { name: "ブックを開く" })
   await open.hover()
   await expect(trigger).toHaveAttribute("aria-expanded", "true")
   // 紙の真ん中へ離れると下がる
@@ -223,7 +223,7 @@ test("マスターの設定で言語とスキンを変えると、画面がす�
 test("ブックの名前のボタンにマウスを乗せるとメニューがせり上がり、離れると下がる。押しても出る", async ({ page }) => {
   await page.goto("/")
   const trigger = page.getByRole("button", { name: "まとめ図の構想" })
-  const menu = trigger.locator("xpath=../following-sibling::div[1]")
+  const menu = menuOf(trigger)
   await expect(menu).toBeHidden()
   await trigger.hover()
   await expect(menu).toBeVisible()

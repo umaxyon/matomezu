@@ -4,7 +4,6 @@ import { z } from "zod"
 import {
   type CoreCatalog,
   connectorSchema,
-  hasPages,
   type ItemPage,
   type PagedBook,
   pageItemsOf,
@@ -13,8 +12,8 @@ import {
 import { keepApart, nextItemId, portAreasOf } from "../../base"
 import { connectable } from "./connect"
 import { kit } from "./kit"
-import { elbowAt, LINE, LinePatchSchema, usesLines } from "./line"
-import { canConnect, linesOf, type PlacedLine, tidyLines } from "./placed"
+import { elbowAt, LINE, LinePatchSchema } from "./line"
+import { canConnect, linesOf, type PlacedLine, patchedProps, tidyLines } from "./placed"
 
 // 置いた線のデータの形
 const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLine>
@@ -62,7 +61,6 @@ export const LINE_CONNECT = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!hasPages(book) || !usesLines(ctx.catalog, book)) return null
     const page = book.pages.find(p => p.id === args.page)
     if (!page || !connectable(ctx.catalog, page, args.from) || !connectable(ctx.catalog, page, args.to)) return null
     if (!canConnect(linesOf(page), args.from, args.to)) return null
@@ -97,12 +95,10 @@ export const LINE_UPDATE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "line" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now) return null
-    const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
-    const line = PlacedLineSchema.safeParse({ ...now, props })
+    const line = PlacedLineSchema.safeParse({ ...now, props: patchedProps(now.props, args.props) })
     if (!line.success) return null
     if (args.props.via != null && !viaDrawn(ctx.catalog, book, page, line.data)) return null
     const next = withLine(ctx.catalog, book, page, tidied(ctx.catalog, book, page, line.data))
@@ -130,7 +126,6 @@ export const LINE_RECONNECT = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "line" },
   run: (book, args, ctx) => {
-    if (!hasPages(book) || !usesLines(ctx.catalog, book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now || now[args.end] === args.item || !connectable(ctx.catalog, page, args.item)) return null

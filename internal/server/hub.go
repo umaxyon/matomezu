@@ -1,19 +1,19 @@
 package server
 
-// Hub は常駐が持つ今の世界（ブックと設定とアノテーション）と、つながっている画面。
+// Hub は常駐が持つ今の世界（ブックと設定とアノテーション）と、つながっている窓。
 //
-// アクションは 1 つずつ順に行い（鍵 mu）、変わったものを置き場所に書いてから、つながっている全部の画面に同じ順で知らせる。
-// 画面は自分で先に行ったアクションを、知らせ（client と seq）で確かめる。
+// アクションは 1 つずつ順に行い（鍵 mu）、変わったものを置き場所に書いてから、つながっている全部の窓に同じ順で知らせる。
+// 窓は自分で先に行ったアクションを、知らせ（client と seq）で確かめる。
 //
 // /api/events のイベント（data は JSON）:
 //
-//	hello     {"client"} この接続の id。画面はアクションにこの id と、自分で振った順の番号 seq を添えて送る
-//	book      {"book", "version", "client", "seq"} ブックが変わった・足された（client と seq は変えたアクションのもの。画面の外からなら空）
+//	hello     {"client"} この接続の id。窓はアクションにこの id と、自分で振った順の番号 seq を添えて送る
+//	book      {"book", "version", "client", "seq"} ブックが変わった・足された（client と seq は変えたアクションのもの。窓の外からなら空）
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
-//	ack       {"seq", "ok", "reason"} 送った画面にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations のあとに届く
-//	show      {"book", "page", "stage", "split"} 最後にフォーカスされた画面にだけ。そのブックを出す（Show）
-//	plugins   {"version"} 追加プラグインが変わった（plugins.go）。画面は読み直す
+//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations のあとに届く
+//	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
+//	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 
@@ -31,10 +31,10 @@ import (
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// 画面へ知らせを貯めておける数。超えた画面は切る（つなぎ直して読み直す）
+// 窓へ知らせを貯めておける数。超えた窓は切る（つなぎ直して読み直す）
 const clientBuffer = 256
 
-// 覚えておく、行ったアクションの番号（key）の数。画面は答えが届かなかったアクションを同じ番号で送り直すので、同じ番号は二度行わない
+// 覚えておく、行ったアクションの番号（key）の数。窓は答えが届かなかったアクションを同じ番号で送り直すので、同じ番号は二度行わない
 const performedKeys = 1024
 
 type entry struct {
@@ -49,15 +49,16 @@ type event struct {
 }
 
 type client struct {
-	id      string
-	ch      chan event
-	view    json.RawMessage // 画面が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
-	focused int64           // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
-	viewSeq int64           // 受けた見ているものの番号（画面が知らせるたびに増やす。古い番号の知らせは捨てる）
-	shown   []string        // いまその画面に出ているブック（touched.go。新しく出たブックだけを「開いた」とする）
+	id        string
+	ch        chan event
+	view      json.RawMessage     // 窓が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
+	focused   int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
+	viewSeq   int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
+	shown     []string            // いまその窓に出ているブック（touched.go。新しく出たブックだけを「開いた」とする）
+	editLocks map[string][]string // 利用者がその窓で直している物（ブックの id → 物の id の並び。editlock.go）
 }
 
-// Hub は世界と画面をまとめる
+// Hub は世界と窓をまとめる
 type Hub struct {
 	mu             sync.Mutex
 	store          storage.Storage
@@ -69,7 +70,7 @@ type Hub struct {
 	clients        map[string]*client
 	next           int
 	ticks          int64            // フォーカスの順を振る数
-	viewed         chan struct{}    // 画面が見ているものを知らせたら閉じて、作り直す（WaitWindow）
+	viewed         chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
 	plugins        []*plugin.Bundle // 足した追加プラグイン（plugins.go）
 	pluginsVersion int64            // 追加プラグインが変わるたびに進む
 	// warning のあるブックの id → その warning（読めない W004〜W006・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
@@ -77,8 +78,8 @@ type Hub struct {
 	bookWarnings map[string]engine.BookWarning
 	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
 	annotationWarnings []string
-	// 画面が見つけて知らせた warning（画面のつながりの id → warning の 1 行ずつ。warnings.go）。画面が離れたら消す
-	screenWarnings map[string][]string
+	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
+	windowWarnings map[string][]string
 	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
 	performed      map[string]Performed // 最近行ったアクションの番号（Perform の Key）→ その結果
 	performedOrder []string             // performed の番号を行った順に（古いものから忘れる）
@@ -102,7 +103,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -231,8 +232,8 @@ func (h *Hub) AIBooks() []storage.Book {
 	return books
 }
 
-// Perform の頼み。Client と Seq は送った画面とその番号（画面の外からなら空）。
-// Key は画面がアクションごとに振る一意の番号（つなぎ直しても変えない）。同じ番号のアクションは二度行わない
+// Perform の頼み。Client と Seq は送った窓とその番号（窓の外からなら空）。
+// Key は窓がアクションごとに振る一意の番号（つなぎ直しても変えない）。同じ番号のアクションは二度行わない
 type Perform struct {
 	Action string          `json:"action"`
 	Args   json.RawMessage `json:"args"`
@@ -243,7 +244,7 @@ type Perform struct {
 	Client string          `json:"client,omitempty"`
 	Seq    int64           `json:"seq,omitempty"`
 	Key    string          `json:"key,omitempty"`
-	By     string          `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。画面からは受けない）
+	By     string          `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
 }
 
 // Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
@@ -281,11 +282,19 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			in.Annotations[id] = list
 		}
 	}
+	if p.By == "ai" {
+		in.Watched = h.watched()
+	}
 	out, err := h.engine.Perform(in)
 	if err != nil {
 		return Performed{}, err
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Result: out.Result, Notice: out.Notice}
+	// AI のアクションは、利用者が直している物を変えも消しもしない（AI はあとでやり直す）
+	if out.OK && p.By == "ai" && len(out.Touched) > 0 {
+		done = Performed{OK: false, Reason: "being-edited"}
+		out.OK = false
+	}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
 	if out.OK && p.By == "ai" && h.trashesShown(out.Books) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
@@ -320,7 +329,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	return done, nil
 }
 
-// ack は、アクションを送った画面に行い終えたことを知らせる（h.mu を持って呼ぶ）
+// ack は、アクションを送った窓に行い終えたことを知らせる（h.mu を持って呼ぶ）
 func (h *Hub) ack(p Perform, done Performed) {
 	if c, ok := h.clients[p.Client]; ok {
 		h.send(c, "ack", map[string]any{"seq": p.Seq, "ok": done.OK, "reason": done.Reason})
@@ -362,7 +371,7 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 	return h.checkBooks([]string{head.ID})
 }
 
-// Join は画面をつなぎ、知らせの通り道を返す。最初の知らせは hello
+// Join は窓をつなぎ、知らせの通り道を返す。最初の知らせは hello
 func (h *Hub) Join() *client {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -374,19 +383,25 @@ func (h *Hub) Join() *client {
 	return c
 }
 
-// Leave は画面を外す
+// Leave は窓を外す
 func (h *Hub) Leave(c *client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.clients[c.id]; ok {
-		delete(h.clients, c.id)
-		delete(h.screenWarnings, c.id)
-		close(c.ch)
+		h.drop(c)
 	}
 }
 
-// SetView は、画面が見ているものを覚える（seq が受けたものより古ければ覚えない）。focused なら、その画面がいちばん新しくフォーカスされた画面になる
-func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool, seq int64) bool {
+// drop は窓を外す: 知らせの通り道を閉じ、その窓が知らせた warning も消す（h.mu を持って呼ぶ）
+func (h *Hub) drop(c *client) {
+	delete(h.clients, c.id)
+	delete(h.windowWarnings, c.id)
+	close(c.ch)
+}
+
+// SetView は、窓が見ているものと、利用者が直している物 editLocks（ブックの id → 物の id の並び）を覚える（seq が受けたものより古ければ覚えない）。
+// focused なら、その窓がいちばん新しくフォーカスされた窓になる
+func (h *Hub) SetView(clientID string, view json.RawMessage, editLocks map[string][]string, focused bool, seq int64) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	c, ok := h.clients[clientID]
@@ -397,6 +412,9 @@ func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool, seq i
 	stale := seq > 0 && seq <= c.viewSeq
 	if seq > c.viewSeq {
 		c.viewSeq = seq
+	}
+	if !stale {
+		c.editLocks = editLocks
 	}
 	if len(view) > 0 && !stale {
 		c.view = view
@@ -411,7 +429,7 @@ func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool, seq i
 	return true
 }
 
-// View は、最後にフォーカスされた画面が見ているもの（つながっている画面が無い・まだ知らせが無ければ nil）
+// View は、最後にフォーカスされた窓が見ているもの（つながっている窓が無い・まだ知らせが無ければ nil）
 func (h *Hub) View() json.RawMessage {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -421,7 +439,7 @@ func (h *Hub) View() json.RawMessage {
 	return nil
 }
 
-// window は、見ているものを知らせた画面のうち、最後にフォーカスされたもの（無ければ nil。h.mu を持って呼ぶ）
+// window は、見ているものを知らせた窓のうち、最後にフォーカスされたもの（無ければ nil。h.mu を持って呼ぶ）
 func (h *Hub) window() *client {
 	var last *client
 	for _, c := range h.clients {
@@ -432,7 +450,7 @@ func (h *Hub) window() *client {
 	return last
 }
 
-// WaitWindow は、見ているものを知らせた画面ができるまで d だけ待ち、できたか返す
+// WaitWindow は、見ているものを知らせた窓ができるまで d だけ待ち、できたか返す
 func (h *Hub) WaitWindow(d time.Duration) bool {
 	deadline := time.After(d)
 	for {
@@ -493,13 +511,13 @@ type Show struct {
 // Show で出せなかった理由
 var (
 	ErrNoBook   = errors.New("no-book")   // そのブックが無い
-	ErrNoWindow = errors.New("no-window") // 画面がつながっていない
-	ErrNoStage  = errors.New("no-stage")  // 画面にそのステージが無い
-	ErrNoSplit  = errors.New("no-split")  // 画面がもう分けられない
+	ErrNoWindow = errors.New("no-window") // 窓がつながっていない
+	ErrNoStage  = errors.New("no-stage")  // 窓にそのステージが無い
+	ErrNoSplit  = errors.New("no-split")  // 窓がもう分けられない
 )
 
-// Show は、最後にフォーカスされた画面に、ブックを出すように知らせる。
-// ステージと分けられるかは、その画面が知らせた見ているもの（stages・canSplit）で確かめる
+// Show は、最後にフォーカスされた窓に、ブックを出すように知らせる。
+// ステージと分けられるかは、その窓が知らせた見ているもの（stages・canSplit）で確かめる
 func (h *Hub) Show(s Show) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -553,31 +571,28 @@ func (h *Hub) AICatalog() json.RawMessage {
 	return withWarnings(h.engine.AICatalog(), h.Warnings())
 }
 
-// CloseAll は全部の画面を外す（常駐を止めるとき。知らせの通り道を閉じると、画面とのつながりが終わる）
+// CloseAll は全部の窓を外す（常駐を止めるとき。知らせの通り道を閉じると、窓とのつながりが終わる）
 func (h *Hub) CloseAll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for id, c := range h.clients {
-		delete(h.clients, id)
-		delete(h.screenWarnings, id)
-		close(c.ch)
+	for _, c := range h.clients {
+		h.drop(c)
 	}
 }
 
-// broadcast は全部の画面に知らせる（h.mu を持って呼ぶ）
+// broadcast は全部の窓に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) broadcast(name string, v any) {
 	for _, c := range h.clients {
 		h.send(c, name, v)
 	}
 }
 
-// send は 1 つの画面に知らせる。貯まりきった画面は切る（h.mu を持って呼ぶ）
+// send は 1 つの窓に知らせる。貯まりきった窓は切る（h.mu を持って呼ぶ）
 func (h *Hub) send(c *client, name string, v any) {
 	data, _ := json.Marshal(v)
 	select {
 	case c.ch <- event{name, data}:
 	default:
-		delete(h.clients, c.id)
-		close(c.ch)
+		h.drop(c)
 	}
 }
