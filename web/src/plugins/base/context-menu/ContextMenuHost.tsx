@@ -28,7 +28,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const { closeContextMenu } = useActions()
   const items = useContextMenuItems(menu.stage, menu.id as ContextMenuId)
   const t = useMessages(kit)
-  const [anchor] = useState(pressedAnchor) // 開いたときの、押した物のアンカー
+  const [anchor] = useState(() => pressedAnchor(menu.at)) // 開いたときの、押した物のアンカー
   const shown = useAnchorMenuItems(menu.stage)
   const anchored = anchor === undefined ? [] : shown
   const empty = items.every(i => i === SEPARATOR) && anchored.length === 0

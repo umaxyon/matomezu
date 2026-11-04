@@ -17,7 +17,7 @@ import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { useEditLock } from "../utils/useEditLock"
 import type { StageSlotProps } from "../workspace/ui"
-import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
+import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
 import { GrowingText, RemoveOnRead } from "./NoteForm"
 import form from "./NoteForm.module.css"
 import styles from "./NotePanel.module.css"
@@ -117,7 +117,7 @@ function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
   const addable = useAllowed(stage, NOTE_ADD.id).ok
   const [text, setText] = useState("")
   const [removeOnRead, setRemoveOnRead] = useState(true)
-  const ready = addable && text.trim() !== "" && open.anchors.length > 0
+  const ready = addable && NoteTextSchema.safeParse(text).success && open.anchors.length > 0
   const add = () => {
     if (ready && run(NOTE_ADD.id, { anchors: ordered(open), text, removeOnRead })) close(stage)
   }
@@ -165,7 +165,7 @@ function NoteEditor({
   useEditLock(open.book, [id])
   const next = ordered(open)
   const moved = next.length !== anchors.length || next.some((a, i) => anchors[i] !== a)
-  const textChanged = text.trim() !== "" && text !== props.text
+  const textChanged = NoteTextSchema.safeParse(text).success && text !== props.text
   const changed = updatable && next.length > 0 && (textChanged || moved)
   const save = () => {
     if (!changed) return

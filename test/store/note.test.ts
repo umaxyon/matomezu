@@ -34,7 +34,7 @@ const UPDATE = "@matomezu/base:note-update"
 const READ = "@matomezu/base:note-read"
 const REMOVE = "@matomezu/base:note-remove"
 
-test("伝言を付けると、ブックとは別に持ち、id を返す。吹き出しと「伝わったら消す」は既定で付く。文が空なら付けない（文の無い印はマーク）", () => {
+test("伝言を付けると、ブックとは別に持ち、id を返す。吹き出しと「伝わったら消す」は既定で付く。文が空か空白だけなら付けない（文の無い印はマーク）", () => {
   const { store, a, b, notes } = ready()
   const before = store.state.getState().books.b1
   const done = store.actions.perform(ADD, { anchors: [a, b], text: "見て" }, ON)
@@ -49,6 +49,7 @@ test("伝言を付けると、ブックとは別に持ち、id を返す。吹�
     },
   ])
   expect(store.actions.perform(ADD, { anchors: [a], text: "" }, ON).ok).toBe(false)
+  expect(store.actions.perform(ADD, { anchors: [a], text: " \n " }, ON).ok).toBe(false)
 })
 
 test("ブックに無い物や、ページそのものには伝言を付けられない", () => {

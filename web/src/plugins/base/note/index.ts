@@ -7,7 +7,12 @@ import type { Annotation } from "../../../core/annotation"
 import { freshId } from "../../../core/ids"
 import { kit } from "../kit"
 
-const TEXT = z.string().min(1).max(2000)
+// 伝える文（空白だけの文は書かない。画面の「付ける」「保存」も、これで押せるかを決める）
+export const NoteTextSchema = z
+  .string()
+  .max(2000)
+  .refine(s => s.trim() !== "")
+const TEXT = NoteTextSchema
 
 const NoteSchema = z.strictObject({
   text: TEXT, // 伝える文
