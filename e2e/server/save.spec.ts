@@ -350,7 +350,7 @@ test("AI がマークダウンのページの原文を page-update で変える�
 test("伝言を書いている間に AI が付ける先の物を消すと、右サイドパネルは閉じずに知らせ、書きかけは残る（付ける先が無い間は付けられない）", async ({
   page,
 }) => {
-  const ai = { Authorization: `Bearer ${aiToken()}` }
+  const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto("/")
   await page.bringToFront()
