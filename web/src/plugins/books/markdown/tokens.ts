@@ -4,7 +4,7 @@ import { oneShadeCheck } from "../../../plugin-api/builtin"
 import { kit } from "./kit"
 
 // 色でないテーマキー（明暗で別の値を書けない。書いたテーマは組み立てで warning）
-const SIZES = [
+export const MARKDOWN_NON_COLOR_TOKENS = [
   { id: "markdown-font-family", value: "var(--skin-font)" }, // 本文の字体
   { id: "markdown-font-size", value: "14px" },
   { id: "markdown-line-height", value: "1.7" },
@@ -17,12 +17,16 @@ const SIZES = [
   { id: "markdown-heading-weight", value: "bold" },
   { id: "markdown-heading-line-height", value: "1.3" },
   { id: "markdown-heading-gap", value: "1.4em 0 0.6em" }, // 見出しの上下の空き（margin）
+  { id: "markdown-heading-rule-gap", value: "0.2em" }, // 見出し 1・2 の字と下線の間
   { id: "markdown-block-gap", value: "0.9em" }, // 段落・リスト・引用・コード・表の下の空き
   { id: "markdown-list-indent", value: "1.8em" },
   { id: "markdown-quote-width", value: "3px" }, // 引用の縦線の太さ
   { id: "markdown-quote-padding", value: "0 1em" },
   { id: "markdown-cell-padding", value: "4px 10px" }, // 表のセルの内側の空き
   { id: "markdown-rule-width", value: "1px" }, // 区切り線の太さ（見出しの下線は含めない）
+  { id: "markdown-rule-gap", value: "1.4em 0" }, // 区切り線の上下の空き（margin）
+  { id: "markdown-footnote-size", value: "0.9em" }, // 脚注の字の大きさ
+  { id: "markdown-footnote-gap", value: "2em" }, // 本文と脚注の間
   { id: "markdown-code-font-family", value: "ui-monospace, monospace" },
   { id: "markdown-code-font-size", value: "13px" }, // コードの塊の字の大きさ
   { id: "markdown-code-padding", value: "10px 12px" }, // コードの塊の内側の空き
@@ -38,7 +42,7 @@ export const MARKDOWN_TOKENS = [
   { id: "markdown-line", fallback: "line" }, // 表の罫・引用の縦線・脚注の線・画像の代わりの枠
   { id: "markdown-link", fallback: "accent" },
   { id: "markdown-code-fill", fallback: "surface" }, // コードの塊と文中のコードの地
-  ...SIZES,
+  ...MARKDOWN_NON_COLOR_TOKENS,
 ] as const
 
-export const MARKDOWN_TOKENS_CHECK = oneShadeCheck(SIZES.map(t => kit.name(t.id)))
+export const MARKDOWN_TOKENS_CHECK = oneShadeCheck(MARKDOWN_NON_COLOR_TOKENS.map(t => kit.name(t.id)))

@@ -40,6 +40,11 @@ export const NODE_SIZE_DIALOG = kit.defineDialogWith<{ page: string; node: strin
 // 節の塗りのテーマキー（無ければテーマの塗り。節の色を選ぶときの「なし」の色）
 export const NODE_FILL = { id: kit.name("tree-node-fill"), fallback: "fill" } as const
 
+// 色でないテーマキー（明暗で違う値にできない。プラグインの checks の oneShadeCheck が確かめる）
+export const TREE_NON_COLOR_TOKENS = [
+  { id: "tree-node-radius", value: "6px" }, // 節の角の丸み
+] as const
+
 export const TREE = kit.defineBookType({
   id: "tree",
   version: 1,
@@ -73,7 +78,7 @@ export const TREE = kit.defineBookType({
     NODE_FILL,
     { id: "tree-node-line", value: "#cdcdd6" }, // 節の枠線（標準は淡い灰色。テーマが上書きする）
     { id: "tree-node-text", fallback: "text" },
-    { id: "tree-node-radius", value: "6px" }, // 節の角の丸み
+    ...TREE_NON_COLOR_TOKENS,
     { id: "tree-line", fallback: "line" }, // 親から子への線
   ],
   tools: TREE_TOOLS.id,

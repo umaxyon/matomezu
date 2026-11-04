@@ -12,25 +12,11 @@ import {
   LIST_STRETCH_ROW,
 } from "./commands"
 import { kit } from "./kit"
-import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
+import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, LIST_NON_COLOR_TOKENS, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 
 export const LIST_PLUGIN = defineBuiltin(
   kit.plugin({
-    checks: [
-      oneShadeCheck(
-        [
-          "list-radius",
-          "list-shadow",
-          "list-mount-mix",
-          "list-head-mix",
-          "list-head-ink",
-          "list-card-radius",
-          "list-card-shadow",
-          "list-card-fold",
-          "list-card-line",
-        ].map(kit.name),
-      ),
-    ], // 色でないテーマキーは明暗で違う値にできない
+    checks: [oneShadeCheck(LIST_NON_COLOR_TOKENS.map(t => kit.name(t.id)))], // 色でないテーマキーは明暗で違う値にできない
     items: [LIST],
     actions: [ROW_ADD, ROW_UPDATE, ROW_REMOVE, ROW_CHECK, ROW_LINES, ROW_MOVE],
     commands: [

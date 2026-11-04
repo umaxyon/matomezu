@@ -21,12 +21,12 @@
 }
 .body h1 {
   font-size: var(--markdown-h1-size);
-  padding-bottom: 0.2em;
+  padding-bottom: var(--markdown-heading-rule-gap);
   border-bottom: 1px solid var(--markdown-rule);
 }
 .body h2 {
   font-size: var(--markdown-h2-size);
-  padding-bottom: 0.2em;
+  padding-bottom: var(--markdown-heading-rule-gap);
   border-bottom: 1px solid var(--markdown-rule);
 }
 .body h3 {
@@ -64,8 +64,9 @@
 .task {
   list-style: none;
 }
+/* チェックは、リストの字下げの所に置く（字下げに合わせて動く） */
 .check {
-  margin: 0 0.4em 0 -1.4em;
+  margin: 0 0.4em 0 calc(0.4em - var(--markdown-list-indent));
   vertical-align: middle;
 }
 .task > p:first-of-type {
@@ -92,7 +93,7 @@
   font-size: var(--markdown-inline-code-size);
 }
 .body hr {
-  margin: 1.4em 0;
+  margin: var(--markdown-rule-gap);
   border: 0;
   border-top: var(--markdown-rule-width) solid var(--markdown-rule);
 }
@@ -125,10 +126,10 @@
   color: var(--markdown-hint);
 }
 .footnotes {
-  margin-top: 2em;
+  margin-top: var(--markdown-footnote-gap);
   padding-top: 0.6em;
   border-top: 1px solid var(--markdown-line);
-  font-size: 0.9em;
+  font-size: var(--markdown-footnote-size);
 }
 .footnotes li > p {
   display: inline;

@@ -138,19 +138,9 @@ const SERIES_COLORS = [
   { light: "#e34948", dark: "#e66767" },
 ] as const
 
-// データのテーマキー（プラグインが持ち、アイテムは自分のテーマキーを持たない）
-export const DATA_TOKENS = [
-  { id: kit.name("data-fill"), fallback: "fill" }, // 地
-  { id: kit.name("data-line"), value: "#cdcdd6" }, // 枠線と表の罫線
-  { id: kit.name("data-text"), fallback: "text" }, // 文字
+// 色でないテーマキー（明暗で違う値にできない。プラグインの checks の oneShadeCheck が確かめる）
+export const DATA_NON_COLOR_TOKENS = [
   { id: kit.name("data-radius"), value: "8px" }, // 角の丸み
-  { id: kit.name("data-empty"), value: "#a0a0ab" }, // 表の無い間の点線の枠と「No Data」の文字
-  // グラフの系列の色（決まった順に使う。色覚の違いでも隣どうしが見分けられる並び）
-  ...SERIES_COLORS.map((value, i) => ({ id: kit.name(`data-series-${i + 1}`), value })),
-  { id: kit.name("data-axis"), fallback: "hint" }, // 軸と凡例の文字
-  { id: kit.name("data-grid"), value: { light: "#e6e6e1", dark: "#3a3a37" } }, // 目盛りの線
-  { id: kit.name("data-zero"), fallback: "hint" }, // 値 0 の線
-  { id: kit.name("data-head-fill"), value: "transparent" }, // 表の見出しの行の地
   { id: kit.name("data-shadow"), value: "none" }, // 影（CSS の filter の値）
   { id: kit.name("data-bar-radius"), value: "4px" }, // 棒の先の角の丸み（根元は丸めない）
   { id: kit.name("data-line-width"), value: "2px" }, // 折れ線の太さ
@@ -164,6 +154,21 @@ export const DATA_TOKENS = [
   { id: kit.name("data-motion-line"), value: "draw" }, // draw・fade・none
   { id: kit.name("data-motion-dot"), value: "pop" }, // pop・fade・none
   { id: kit.name("data-motion-pie"), value: "sweep" }, // sweep・pop・fade・none
+] as const
+
+// データのテーマキー（プラグインが持ち、アイテムは自分のテーマキーを持たない）
+export const DATA_TOKENS = [
+  { id: kit.name("data-fill"), fallback: "fill" }, // 地
+  { id: kit.name("data-line"), value: "#cdcdd6" }, // 枠線と表の罫線
+  { id: kit.name("data-text"), fallback: "text" }, // 文字
+  { id: kit.name("data-empty"), value: "#a0a0ab" }, // 表の無い間の点線の枠と「No Data」の文字
+  // グラフの系列の色（決まった順に使う。色覚の違いでも隣どうしが見分けられる並び）
+  ...SERIES_COLORS.map((value, i) => ({ id: kit.name(`data-series-${i + 1}`), value })),
+  { id: kit.name("data-axis"), fallback: "hint" }, // 軸と凡例の文字
+  { id: kit.name("data-grid"), value: { light: "#e6e6e1", dark: "#3a3a37" } }, // 目盛りの線
+  { id: kit.name("data-zero"), fallback: "hint" }, // 値 0 の線
+  { id: kit.name("data-head-fill"), value: "transparent" }, // 表の見出しの行の地
+  ...DATA_NON_COLOR_TOKENS,
 ] as const
 
 export const DATA = kit.defineShape({

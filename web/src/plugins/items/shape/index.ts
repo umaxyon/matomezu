@@ -10,6 +10,7 @@ import {
   type PARALLELOGRAM_REVERSED,
   type ROUNDED,
   SHAPE_EDIT_DIALOG,
+  SHAPE_NON_COLOR_TOKENS,
   SHAPE_TOKENS,
   SHAPES,
   type ShapeOptions,
@@ -19,7 +20,7 @@ import {
 
 export const SHAPE_PLUGIN = defineBuiltin(
   kit.plugin({
-    checks: [oneShadeCheck(["shape-shadow"].map(kit.name))], // 色でないテーマキーは明暗で違う値にできない
+    checks: [oneShadeCheck(SHAPE_NON_COLOR_TOKENS.map(t => t.id))], // 色でないテーマキーは明暗で違う値にできない
     items: SHAPES.map(s => s.item),
     tokens: SHAPE_TOKENS,
     dialogs: [...SHAPES.map(s => s.add), SHAPE_EDIT_DIALOG],

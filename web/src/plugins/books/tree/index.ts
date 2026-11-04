@@ -20,11 +20,18 @@ import { LINE_SHAPE } from "./line-shape"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 import { EDIT_TOOL, TREE_TOOLS } from "./tools"
-import { NEW_TREE_PAGE_DIALOG, NODE_SIZE_DIALOG, TREE, TREE_PAGE_SETTINGS_DIALOG, TREE_PRESENTATION } from "./tree"
+import {
+  NEW_TREE_PAGE_DIALOG,
+  NODE_SIZE_DIALOG,
+  TREE,
+  TREE_NON_COLOR_TOKENS,
+  TREE_PAGE_SETTINGS_DIALOG,
+  TREE_PRESENTATION,
+} from "./tree"
 
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
-    checks: [oneShadeCheck(["tree-node-radius"].map(kit.name))], // 色でないテーマキーは明暗で違う値にできない
+    checks: [oneShadeCheck(TREE_NON_COLOR_TOKENS.map(t => kit.name(t.id)))], // 色でないテーマキーは明暗で違う値にできない
     bookTypes: [TREE],
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],
