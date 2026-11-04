@@ -1,6 +1,7 @@
 // 伝言: 利用者がブックの物に付けて AI に伝える文の、アノテーションの種類（core/def/annotation.ts）。付ける・変える・消すのは利用者だけ（userOnly）で、AI は読んだと知らせるだけ。
 // 返事は書かない。文の無い印はマーク（mark/）。
-// AI が読んだかは readAt（AI が読んだ時点）で持ち、利用者が文を変えると未読に戻る。// ロック中のブックにも付けられる（ロックはアノテーションを止めない）
+// AI が読んだかは readAt（AI が読んだ時点）で持ち、利用者が文を変えると未読に戻る。
+// ロック中のブックにも付けられる（ロックはアノテーションを止めない）
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
 import { freshId } from "../../../core/ids"
