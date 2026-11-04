@@ -1,20 +1,8 @@
 import { expect, type Page, test } from "./fixtures"
-import { footerMenuTool } from "./footer-menu"
+import { addBox, items } from "./helpers/paper"
 import { addList, addRow } from "./list"
 
-const items = (page: Page) => page.locator("[data-item]")
 const right = (box: { x: number; width: number } | null) => (box ? box.x + box.width : Number.NaN)
-
-// 紙の (x, 150) に箱を置く
-async function addBox(page: Page, x: number, caption: string) {
-  await (await footerMenuTool(page, "箱")).click()
-  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  await page.mouse.click(paper.x + x, paper.y + 150)
-  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
-  await dialog.getByRole("button", { name: "追加" }).click()
-  await expect(dialog).toBeHidden()
-}
 
 async function pickMark(page: Page, box: ReturnType<typeof items>, kind: string) {
   await box.click({ button: "right" })
@@ -31,7 +19,7 @@ test("箱の右クリックの「AIに示す」で 6 つの種類を選ぶスタ
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
-  await addBox(page, 200, "一")
+  await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await pickMark(page, box, "ツナギドリ")
   const bird = page.getByRole("button", { name: "ツナギドリ" })
@@ -57,7 +45,7 @@ test("1 つの箱のマークは 1 つで、別の種類を選ぶと置き換わ
   page,
 }) => {
   await page.goto("/")
-  await addBox(page, 200, "一")
+  await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await pickMark(page, box, "フクロウ")
   await pickMark(page, box, "びっくりマーク")
@@ -82,7 +70,7 @@ test("1 つの箱のマークは 1 つで、別の種類を選ぶと置き換わ
 
 test("種類を選ぶスタンドは Esc で付けずに閉じる", async ({ page }) => {
   await page.goto("/")
-  await addBox(page, 200, "一")
+  await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
@@ -98,8 +86,8 @@ test("箱の上の辺が画面の外に出ると、鳥はマークポインタ�
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ width: 900, height: 480 })
   await page.goto("/")
-  await addBox(page, 200, "一")
-  await addBox(page, 500, "二")
+  await addBox(page, 200, 150, "一")
+  await addBox(page, 500, 150, "二")
   await pickMark(page, items(page).filter({ hasText: "一" }), "インコ")
   await pickMark(page, items(page).filter({ hasText: "二" }), "びっくりマーク")
   const bird = page.getByRole("button", { name: "インコ", exact: true })
