@@ -64,7 +64,7 @@ export const NODE_UPDATE = kit.defineAction({
   id: "node-update",
   attach: ON_TREES,
   aiDescription:
-    "Change a child node of a tree page: its caption, its size (how it is sized; null follows the page's @matomezu/tree:node-size) and its color (a palette name or #rrggbb; null for the theme's fill). Only what is given changes. Returns nothing. Refused for the root (change it with @matomezu/base:page-update), a node not in the page, or when the tree would not fit on the paper.",
+    "Change a child node of a tree page: its caption, its size (how it is sized; null follows the page's @matomezu/tree:node-size) and its color (a palette name or #rrggbb; null for the theme's fill). Only what is given changes. Returns nothing. Refused for the root (its caption, body and color are the page's field root: change them with @matomezu/base:page-update; the root's id is still the parent for @matomezu/tree:node-add and @matomezu/tree:node-move), a node not in the page, or when the tree would not fit on the paper.",
   title: "Update node",
   target: "book",
   args: z.strictObject({

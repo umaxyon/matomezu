@@ -1,14 +1,14 @@
 // 節の色のスタンド: 色を選んでいる間（その場の編集 NODE_COLOR_PICK）、選んでいる節のすぐ下に立ち、ブックのテーマの代表色・「なし」（テーマの塗り）・好きな色を出す。
 // 代表色と「なし」は押すとすぐ塗って閉じる。好きな色は選んでいる間はビューに持ち、スタンドを閉じるときに塗る。
-// 子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）で塗る。塗れなければ（ロックなど）色は押せない形で出す。
+// 子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）で塗る（useNodeWrite）。塗れなければ（ロックなど）色は押せない形で出す。
 // 断られたら、トーストで知らせる。外を押すと閉じ（好きな色を選んでいれば塗る）、Esc は塗らずに閉じる
 import { useEffect, useRef, useState } from "react"
-import { useActions, useAllowed, useCoreCatalog, useMessages, usePerform } from "../../../../plugin-api/ui"
+import { useActions, useCoreCatalog, useMessages } from "../../../../plugin-api/ui"
 import { refusalMessage } from "../../../base"
 import { ColorPicker, Stand, type Swatch } from "../../../base/ui"
-import { NODE_UPDATE } from "../actions"
 import { kit } from "../kit"
 import styles from "./NodeColorStand.module.css"
+import { useNodeWrite } from "./useNodeWrite"
 
 export function NodeColorStand({
   stage,
@@ -27,18 +27,14 @@ export function NodeColorStand({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const perform = usePerform(stage)
   const { setEditing, showToast } = useActions()
-  const allowed = useAllowed(stage, isRoot ? "@matomezu/base:page-update" : NODE_UPDATE.id, { page }).ok
+  const { allowed, write } = useNodeWrite(stage, page, isRoot)
   const [picked, setPicked] = useState<{ color: string | undefined } | null>(null) // 好きな色で選んでいる色（閉じるときに塗る）
   const ref = useRef<HTMLDivElement>(null)
   const pending = useRef(picked)
   pending.current = picked
 
-  const paint = (next: string | undefined) =>
-    isRoot
-      ? perform("@matomezu/base:page-update", { page, fields: { root: { color: next ?? null } } })
-      : perform(NODE_UPDATE.id, { page, node, color: next ?? null })
+  const paint = (next: string | undefined) => write(page, node, { color: next ?? null })
   const choose = (next: string | undefined) => {
     const done = paint(next)
     if (!done.ok)

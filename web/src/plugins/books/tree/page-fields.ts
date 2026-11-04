@@ -24,7 +24,9 @@ const UPDATE_ROOT = z
     showBody: z.boolean().optional(),
     color: ColorSchema.nullable().optional(),
   })
-  .describe("Only what is given changes (null removes the body or the color). Children do not change here")
+  .describe(
+    "The root's caption, body (drawn on the paper when showBody is true) and color change here; only what is given changes (null removes the body or the color). Child nodes change with @matomezu/tree:node-update, not here",
+  )
 
 export const pageFieldsInput: { add: PageFieldsWay; update: PageFieldsWay } = {
   add: pageFieldsWay({

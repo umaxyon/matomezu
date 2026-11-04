@@ -211,7 +211,7 @@ test("AI に見せる fields は、作るときは id の無い入れ子の子�
   expect(add).toContain("children")
   expect(add).not.toContain('"id"')
   const update = JSON.stringify(z.toJSONSchema(fieldsArgs(store.catalog.core, "update"), { io: "input" }))
-  expect(update).toContain("Children do not change here")
+  expect(update).toContain("Child nodes change with @matomezu/tree:node-update")
   expect(update).not.toContain("children")
 })
 
