@@ -43,6 +43,11 @@ export interface Done<T extends ActionTarget, R> {
   result: R
 }
 
+// run が断るときに、断った訳を添える値（AI への説明に載る英語の 1 文。ぶつかった相手や、代わりに入る所など）。訳を添えずに断るなら null を返す
+export interface Declined {
+  declined: string
+}
+
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）
 // 付く先: items はそのアイテムを置けるタイプ、presentations はその見せ方のタイプ、pages はページを持つタイプ、books はどのタイプも、
 // annotations はそのアノテーションの種類を使えるタイプ
@@ -217,7 +222,7 @@ export interface ActionDef<
   // ブックと一覧では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
   permissionScope?: AnyPermissionScope | AnyLibraryScope | AnySettingsScope
   // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
-  run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | null
+  run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | Declined | null
 }
 
 // target から run の対象の型を、args の形から引数の型を決め、id は書いた文字のまま残す

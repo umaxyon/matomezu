@@ -5,10 +5,10 @@
 // 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
 // キャプション・区切り線・本文は base の文字の領域の入力Formのコンポーネント（CaptionField・DividerField・BodyField）。
 // 置けない（紙からはみ出す・止められたなど）ときは閉じずに理由を出す。
-// 追加は開いたときに覚えた所に箱を置いて（アクション item-place）選び、編集は箱の項目を書き換える（アクション item-update）
+// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して箱を置き選び、編集は箱の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
+import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -42,7 +42,7 @@ const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "cent
 
 // 追加のダイアログ: 置くアイテム item（箱か内包ボックス）を、中身を決めてから置く
 const addDialog = (item: typeof BOX.id | typeof NEST_BOX.id) =>
-  function AddDialog(props: DialogProps<{ page: string; at: Point }>) {
+  function AddDialog(props: DialogProps<ShapeAddArgs>) {
     return <AddBox {...props} item={item} />
   }
 
@@ -54,14 +54,14 @@ function AddBox({
   args,
   onClose,
   item,
-}: DialogProps<{ page: string; at: Point }> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
+}: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
   const { select } = useActions()
   const perform = usePerform(stage)
   const add = (props: BoxProps) => {
     if (!book) return { reason: "no-book" }
-    const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
+    const done = perform("@matomezu/paper:item-place", { ...args, item, props })
     if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()

@@ -3,17 +3,22 @@
 import {
   type Book,
   type CoreCatalog,
+  findShape,
   type ItemPage,
   type PagedBook,
   type Point,
   putPage,
   type Rect,
+  type Size,
   walkShapes,
 } from "../../../plugin-api"
 import {
+  allRectsOf,
   commitChildren,
   followConnectors,
   frameAround,
+  frameOf,
+  freeSpotIn,
   gapOf,
   placedAt,
   placedSize,
@@ -104,4 +109,37 @@ export function dropTarget(catalog: CoreCatalog, page: ItemPage, id: string, at:
     if (size && at.x >= p.x && at.y >= p.y && at.x < p.x + size.w && at.y < p.y + size.h) target = shape.id
   }
   return target
+}
+
+// 紙の上の点 at の下で一番内側の形（子の形も）の id。無ければ null
+function shapeAt(catalog: CoreCatalog, page: ItemPage, at: Point): string | null {
+  let found: string | null = null
+  for (const [id, r] of allRectsOf(catalog, page))
+    if (at.x >= r.x && at.y >= r.y && at.x < r.x + r.w && at.y < r.y + r.h) found = id
+  return found
+}
+
+// 置く道具で、ポインタの点 pointer（紙の上）の所に、左上 at（紙の上）・大きさ size の形を置くときの置き先。
+// 点の下の一番内側の形が子を持てる形なら、その中の at（子の領域へは item-place が寄せる）。子を持てない形（リスト・シェイプなど）なら、
+// その形の親（ページか形）の中の空き（base の freeSpotIn）。点の下に形が無ければ、ページの at。返す at は、親があれば親の左上から（item-place と同じ）。
+// 紙で空きが無ければ null
+export function placeTarget(
+  catalog: CoreCatalog,
+  book: Book,
+  page: ItemPage,
+  pointer: Point,
+  at: Point,
+  size: Size,
+): { parent: string | null; at: Point } | null {
+  const id = shapeAt(catalog, page, pointer)
+  const under = id === null ? undefined : findShape(page, id)
+  if (!under) return { parent: null, at }
+  const nests = catalog.items.get(under.shape.item)?.capabilities.includes("nests")
+  const parent = nests ? under.shape.id : under.parent
+  const origin = parent === null ? { x: 0, y: 0 } : findShape(page, parent)?.at
+  if (!origin) return null
+  if (nests) return { parent, at: { x: at.x - origin.x, y: at.y - origin.y } }
+  const frame = frameOf(catalog, book, page, parent)
+  const spot = frame && freeSpotIn(frame, size)
+  return spot && frame ? { parent, at: { x: spot.x + frame.origin.x, y: spot.y + frame.origin.y } } : null
 }

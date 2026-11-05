@@ -13,7 +13,7 @@ export {
   placeAt,
 } from "./commands"
 export { type Came, DIRS, type Dir } from "./drag"
-export { dragging, dropTarget, movableTogether, trackDrag } from "./items"
+export { dragging, dropTarget, movableTogether, placeTarget, trackDrag } from "./items"
 export {
   lifted,
   type Press,

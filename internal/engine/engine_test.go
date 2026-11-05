@@ -38,7 +38,7 @@ func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
 	if err != nil || !out.OK {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
-	if string(out.Result) != `{"item":"abc123"}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-nest-box"`) {
+	if string(out.Result) != `{"item":"abc123","at":{"x":10,"y":20}}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-nest-box"`) {
 		t.Fatalf("out = %s %s", out.Result, out.Books)
 	}
 	again, _ := e.Perform(place("abc-123"))
@@ -49,7 +49,7 @@ func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
 
 func TestMakesIdsWhenNoneAreGiven(t *testing.T) {
 	out, err := newEngine(t).Perform(place())
-	if err != nil || !out.OK || !regexp.MustCompile(`^\{"item":"[0-9a-f]{10}"\}$`).Match(out.Result) {
+	if err != nil || !out.OK || !regexp.MustCompile(`^\{"item":"[0-9a-f]{10}","at":\{"x":10,"y":20\}\}$`).Match(out.Result) {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
 }
@@ -66,6 +66,21 @@ func TestRefusals(t *testing.T) {
 		if err != nil || out.OK || out.Reason != want {
 			t.Errorf("%s: %+v, %v", want, out, err)
 		}
+	}
+}
+
+// アクションが断った訳を添えたら（ほかの形を動かす所に置くなど）、AI への説明はその訳
+func TestARefusalCarriesTheActionsReason(t *testing.T) {
+	e := newEngine(t)
+	first, err := e.Perform(place("a1"))
+	if err != nil || !first.OK {
+		t.Fatalf("Perform = %+v, %v", first, err)
+	}
+	in := place("a2")
+	in.Books = first.Books
+	out, err := e.Perform(in)
+	if err != nil || out.OK || out.Reason != "refused" || !strings.HasPrefix(out.Detail, "it would move a1; a1 can hold children") {
+		t.Fatalf("Perform on a1 = %+v, %v", out, err)
 	}
 }
 

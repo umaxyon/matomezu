@@ -5,10 +5,10 @@
 // 編集には「行の高さ」（どれも高さの書き換え。決まりではない）: 「中身が見える高さにそろえる」は行ごとにその行の本文が全部見える高さに（行ごとに違う）、
 // 「行にそろえる」は選んだ行数（「最大行」なら本文の一番長い行が全部見える行数）に、本文の量によらず全部の行を同じ高さにする。
 // これも下書きで見せ、確定で行の行数を書き換える（row-lines）。
-// 追加は開いたときに覚えた所にリストを置いて（item-place）選び、編集はリストの項目を書き換える（item-update）
+// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのまま item-place に渡してリストを置き選び、編集はリストの項目を書き換える（item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
+import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -59,14 +59,14 @@ const EMPTY: ListProps = {
   checkedOrder: "none",
 }
 
-export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
+export function AddListDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
   const { select } = useActions()
   const perform = usePerform(stage)
   const add = (props: ListProps) => {
     if (!book) return { reason: "no-book" }
-    const done = perform("@matomezu/paper:item-place", { page: args.page, item: LIST.id, at: args.at, props })
+    const done = perform("@matomezu/paper:item-place", { ...args, item: LIST.id, props })
     if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()

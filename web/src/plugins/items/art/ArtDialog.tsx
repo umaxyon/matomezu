@@ -1,9 +1,9 @@
 // シェイプのダイアログ: 追加と編集で同じ並び（キャプション・色）。絵は聞かない（置く絵はツールボックスで決まっている）。
 // 色は色を選ぶポップアップで、ブックのテーマの代表色か、好きな色を選ぶ。編集では、選んだ色を決める前から絵に重ねて見せる（ダイアログの下書き）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
-// 追加は開いたときに覚えた所に絵を置いて（アクション item-place）選び、編集は絵の項目を書き換える（アクション item-update）
+// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して絵を置き選び、編集は絵の項目を書き換える（アクション item-update）
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
+import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -26,14 +26,14 @@ type ArtProps = ItemProps<typeof PERSON.item.id>
 
 // 絵 item を置く追加のダイアログ
 export function addArtDialog(item: string) {
-  return function AddArtDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
+  return function AddArtDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf(stage)
     const bookTheme = useBookTheme(book)
     const { select } = useActions()
     const perform = usePerform(stage)
     const add = (props: ArtProps) => {
       if (!book) return { reason: "no-book" }
-      const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
+      const done = perform("@matomezu/paper:item-place", { ...args, item, props })
       if (!done.ok) return done
       select(stage, [done.result.item])
       onClose()

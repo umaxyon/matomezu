@@ -98,7 +98,7 @@ test("アイテムの id は振った値から作り、ブックのどのペー�
     { page: "p2", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
     { book: "b1" },
   )
-  expect(done).toEqual({ ok: true, result: { item: "y" } })
+  expect(done).toEqual({ ok: true, result: { item: "y", at: { x: 0, y: 0 } } })
 })
 
 test("ブックで使えないアイテムは置けない", () => {

@@ -100,6 +100,7 @@ export {
   commitChildren,
   frameAround,
   frameOf,
+  freeSpotIn,
   placeChild,
   replaceChild,
   settleChildren,
@@ -134,7 +135,7 @@ export {
   withPage,
 } from "./place/items"
 export type { PortArea, Ports } from "./place/placed"
-export { NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
+export { allRectsOf, NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export type { PrintSheets } from "./print-preview"

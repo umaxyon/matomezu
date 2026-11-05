@@ -2,10 +2,10 @@
 // 色は色を選ぶポップアップで、ブックのテーマの代表色か、好きな色を選ぶ。
 // 編集では、選んだ寄せ・色を決める前から形に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
-// 追加は開いたときに覚えた所に形を置いて（アクション item-place）選び、編集は形の項目を書き換える（アクション item-update）
+// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して形を置き選び、編集は形の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
+import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -42,7 +42,7 @@ const EMPTY: ShapeProps = { caption: "", captionAlign: "center" }
 
 // 形 item を置く追加のダイアログ。回せる形（turnable）は、ブックのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
 export function addShapeDialog(item: string, turnable = false) {
-  return function AddShapeDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
+  return function AddShapeDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf(stage)
     const bookTheme = useBookTheme(book)
     const catalog = useCoreCatalog()
@@ -52,7 +52,7 @@ export function addShapeDialog(item: string, turnable = false) {
     const perform = usePerform(stage)
     const add = (props: ShapeProps) => {
       if (!book) return { reason: "no-book" }
-      const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
+      const done = perform("@matomezu/paper:item-place", { ...args, item, props })
       if (!done.ok) return done
       select(stage, [done.result.item])
       onClose()

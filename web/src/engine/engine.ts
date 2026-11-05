@@ -97,6 +97,7 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
         : `the home book's type keeps the setting ${done.setting} fixed`
     return { ok: false, reason: done.reason, detail }
   }
+  if ("detail" in done && done.detail !== undefined) return { ok: false, reason: done.reason, detail: done.detail }
   return { ok: false, reason: done.reason, detail: AI_REFUSALS[done.reason] }
 }
 

@@ -39,10 +39,13 @@ export interface ConnectorData<P = unknown> {
   props: P
 }
 
-// 形の追加のダイアログに渡す値: 置くページと、置こうとした左上（紙の上の px）
+// 形の追加のダイアログに渡す値: 置く所。ダイアログは中身を決めたら、この値をそのまま置くアクション（紙のプラグインの item-place）に渡す。
+// page は置くページ、at は左上（紙の上の px。parent があれば親の左上から）、parent は入れる親の形、crowd はほかの形とぶつかるときの扱い（item-place と同じ）
 export interface ShapeAddArgs {
   page: string
   at: Point
+  parent?: string
+  crowd?: "refuse" | "push"
 }
 // 形の編集のダイアログに渡す値: ページと、置いた形の id
 export interface ShapeEditArgs {

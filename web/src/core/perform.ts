@@ -34,12 +34,13 @@ export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
 
-// denied は認可ステップが止めたこと（permission はそのステップの id）。not-allowed で止めたのが利用者の設定の項目ごとのステップなら、
+// denied は認可ステップが止めたこと（permission はそのステップの id）。refused の detail は、run が添えた断った訳（def/action.ts の Declined）。not-allowed で止めたのが利用者の設定の項目ごとのステップなら、
 // setting にその項目の id、because に理由（user-only は利用者だけが変える項目、fixed はホームのタイプが変えさせない項目）
 export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
 export type NotAllowed = { ok: false; reason: "not-allowed"; setting?: string; because?: "user-only" | "fixed" }
 export type Refused =
-  | { ok: false; reason: Exclude<Refusal, "not-allowed"> }
+  | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
+  | { ok: false; reason: "refused"; detail?: string }
   | NotAllowed
   | { ok: false; reason: "denied"; permission: string }
 export type Performed<Id extends ActionId> = { ok: true; next: SubjectOf<Id>; result: ResultOf<Id> } | Refused
@@ -202,6 +203,7 @@ export function perform<Id extends ActionId>(
   if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
   const ran = action.run(subject as never, parsed.data, ctx)
   if (!ran) return { ok: false, reason: "refused" }
+  if ("declined" in ran) return { ok: false, reason: "refused", detail: ran.declined }
   const next = action.target === "book" ? normalized(ctx.catalog, action, subject as Book, ran.next as Book) : ran.next
   if (!next) return { ok: false, reason: "refused" }
   const done = { ...ran, next }

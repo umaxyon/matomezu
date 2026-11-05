@@ -254,7 +254,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if json.Unmarshal([]byte(read), &book) != nil || len(book.Book.Pages) == 0 {
 		t.Fatalf("book = %s", read)
 	}
-	place := `{"action":"@matomezu/paper:item-place","args":{"page":"` + book.Book.Pages[0].ID + `","item":"ex2:diamond","at":{"x":40,"y":40},"props":{"caption":"D"}},"on":{"book":"` + created.Result.Book + `"}}`
+	place := `{"action":"@matomezu/paper:item-place","args":{"page":"` + book.Book.Pages[0].ID + `","item":"ex2:diamond","at":{"x":40,"y":40},"props":{"caption":"D"},"crowd":"push"},"on":{"book":"` + created.Result.Book + `"}}`
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place = %s", got)
 	}
@@ -466,7 +466,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	next(t, b)
 	code, body := send(t, "POST", s.URL+"/api/perform",
 		`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}},"on":{"book":"b1"},"lang":"ja","ids":["k1"],"client":"c1","seq":7}`, nil)
-	if code != 200 || body != `{"ok":true,"result":{"item":"k1"}}` {
+	if code != 200 || body != `{"ok":true,"result":{"item":"k1","at":{"x":1,"y":2}}}` {
 		t.Fatalf("perform = %d %s", code, body)
 	}
 	for name, lines := range map[string]<-chan string{"a": a, "b": b} {
