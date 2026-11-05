@@ -30,7 +30,7 @@ export const itemAiPlaced = (catalog: CoreCatalog, _book: Book, page: ItemPage):
   [...allRectsOf(catalog, page)].map(([id, r]) => ({ id, x: r.x, y: r.y, w: r.w, h: r.h }))
 
 // ブック book のページごとの、描いた位置と大きさ（ページの id ごと）。見せ方が aiPlaced を持たないか、ページの無いブックなら null
-export function placedForAi(catalog: CoreCatalog, book: Book): Record<string, readonly AiPlaced[]> | null {
+export function aiPlacedOf(catalog: CoreCatalog, book: Book): Record<string, readonly AiPlaced[]> | null {
   const aiPlaced = catalog.presentations.get(bookType(catalog, book.type).presentation)?.aiPlaced
   if (!aiPlaced || !hasPages(book)) return null
   return Object.fromEntries((book.pages as readonly ItemPage[]).map(p => [p.id, aiPlaced(catalog, book, p)]))

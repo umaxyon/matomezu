@@ -24,7 +24,7 @@ import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/sett
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_HOME } from "../plugins"
-import { type GrowRule, placedForAi, textColorRef } from "../plugins/base"
+import { aiPlacedOf, type GrowRule, textColorRef } from "../plugins/base"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
@@ -272,11 +272,11 @@ function aiCatalog(of: Assembled = assembled) {
   return JSON.stringify(out)
 }
 
-// ブックのページごとの、形の描いた位置と大きさ（base の placedForAi。AI の read_book・read_page に添える）。読めないブックか、見せ方が答えなければ null
+// ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_book・read_page に添える）。読めないブックか、見せ方が答えなければ null
 ;(globalThis as { matomezuAiPlaced?: (book: string) => string }).matomezuAiPlaced = book => {
   const catalog = assembled.catalog.core
   const [read] = restoreBooks(catalog, [JSON.parse(book)])
-  return JSON.stringify(read ? placedForAi(catalog, read) : null)
+  return JSON.stringify(read ? aiPlacedOf(catalog, read) : null)
 }
 
 // アノテーションの並びから、プラグイン plugin が足した種類（種類の id の持ち主が plugin）の物を除く（利用者がプラグインを外したときに常駐が消す）
