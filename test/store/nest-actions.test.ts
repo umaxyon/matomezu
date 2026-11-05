@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { findShape, type ItemPage, walkShapes } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { childOrigin } from "../../web/src/plugins/base/place/frame"
-import { floorsOf, roomOf } from "../../web/src/plugins/base/place/items"
+import { floorsOf, resizedBy, roomOf } from "../../web/src/plugins/base/place/items"
 import { allRectsOf, NEST_PADDING, placedSize, portAreasOf } from "../../web/src/plugins/base/place/placed"
 import { targetsFrom } from "../../web/src/plugins/items/line/connect"
 import { routeInputOf } from "../../web/src/plugins/items/line/drawn"
@@ -304,4 +304,13 @@ test("内包ボックスは、子が入る大きさまでは縮めて押せる�
 test("縮めてよい下限は、子を持つ形では子が入る大きさ（キャプションの幅より広くても）", () => {
   const { store, big } = besideEdge(360, 748)
   expect(floorsOf(CORE_CATALOG, page(store)).get(big)).toMatchObject({ w: 648 })
+})
+
+test("内包ボックスの辺をつまんで縮めると、子がみな入る大きさで止まる（左の辺も。描く大きさとつまんだ大きさがそろう）", () => {
+  const { store, big, paper } = besideEdge(360, 748)
+  const shape = at(store, big)!.shape
+  expect(resizedBy(CORE_CATALOG, shape, { x: "right" }, { x: -400, y: 0 }, paper)).toMatchObject({ x: 360, w: 648 })
+  expect(resizedBy(CORE_CATALOG, shape, { x: "left" }, { x: 400, y: 0 }, paper)).toMatchObject({ x: 460, w: 648 })
+  const tall = resizedBy(CORE_CATALOG, shape, { y: "bottom" }, { x: 0, y: -400 }, paper)!
+  expect(tall.h).toBe(placedSize(CORE_CATALOG, shape as never)!.h)
 })

@@ -158,7 +158,7 @@ export interface Edges {
 }
 
 // 辺をつかんで、紙の上で by だけ動かしたときの左上と大きさ。つかんでいない辺はそのまま。
-// 一番小さい大きさより小さくせず、紙の外へは広げない（変えられないアイテムは null）
+// 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは null）
 export function resizedBy(
   catalog: CoreCatalog,
   item: PlacedShape,
@@ -166,9 +166,11 @@ export function resizedBy(
   by: Point,
   paper: Size,
 ): { x: number; y: number; w: number; h: number } | null {
-  const min = minSize(catalog, item)
+  const own = minSize(catalog, item)
   const size = placedSize(catalog, item)
-  if (!min || !size) return null
+  if (!own || !size) return null
+  const children = childrenSize(catalog, item)
+  const min = children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
   const span = (start: number, len: number, d: number, side: "start" | "end" | undefined, lo: number, max: number) => {
     if (side === "end") return { at: start, len: Math.min(Math.max(len + d, lo), max - start) }
     if (side !== "start") return { at: start, len }
