@@ -35,7 +35,7 @@ var readTools = []readTool{
 	},
 	{
 		"read_book",
-		"Read a whole book (its pages and the items on them), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). To read one page, use read_page.",
+		"Read a whole book (its pages and the items on them), its version, placed (for a book drawn on paper, per page id, where each shape is drawn: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). To read one page, use read_page.",
 		map[string]any{
 			"type":                 "object",
 			"properties":           map[string]any{"book": map[string]any{"type": "string", "description": "The book's id."}},
@@ -49,7 +49,7 @@ var readTools = []readTool{
 	},
 	{
 		"read_page",
-		"Read one page of a book (the page and the items on it), the book's version, and the annotations (such as the user's notes and marks) standing on things of that page.",
+		"Read one page of a book (the page and the items on it), the book's version, placed (for a page drawn on paper, where each shape is drawn: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page.",
 		map[string]any{
 			"type": "object",
 			"properties": map[string]any{

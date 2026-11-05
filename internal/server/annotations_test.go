@@ -84,7 +84,7 @@ func TestDroppingAPluginsAnnotations(t *testing.T) {
 	}
 }
 
-// AI の読む口: read_book・read_page はアノテーションを、立つ物のページと AI の応えを待っているかを添えて返し、
+// AI の読む口: read_book・read_page は形の描いた位置と大きさ（placed）と、アノテーションを、立つ物のページと AI の応えを待っているかを添えて返し、
 // list_books は待つ数を、awaiting は待つ物の全部を返す。AI が既読にすると待たなくなる
 func TestAIReadsAnnotations(t *testing.T) {
 	s := newServer(t, nil)
@@ -97,6 +97,13 @@ func TestAIReadsAnnotations(t *testing.T) {
 	}
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"id":"b1","page":{"id":"p1"`) {
 		t.Fatalf("read_page = %s", got)
+	}
+	// 形の描いた位置と大きさ（placed）も添える
+	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"placed":{"p1":[{"id":"a","x":40,"y":40,"w":64,"h":64}]}`) {
+		t.Fatalf("read_book placed = %s", got)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1", "", ai); !strings.HasSuffix(got, `"placed":[{"id":"a","x":40,"y":40,"w":64,"h":64}],"version":1}`) {
+		t.Fatalf("read_page placed = %s", got)
 	}
 	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1/pages/nothing", "", ai); code != 404 {
 		t.Fatalf("read_page of no page = %d", code)

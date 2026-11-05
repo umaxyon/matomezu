@@ -84,6 +84,32 @@ func TestARefusalCarriesTheActionsReason(t *testing.T) {
 	}
 }
 
+// AI に見せる描いた位置と大きさ: w・h を書いていない箱は定義の大きさ、子で大きく描く内包ボックスは子が入る大きさで、子は紙の上の位置
+func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
+	e := newEngine(t)
+	const drawn = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+		`{"id":"a","x":10,"y":20,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"},"shapes":[` +
+		`{"id":"c","x":8,"y":40,"item":"@matomezu/box:shape-nest-box","w":300,"h":100,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"}}]}]}]}`
+	out, err := e.AIPlaced(json.RawMessage(drawn))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string][]struct {
+		ID         string
+		X, Y, W, H float64
+	}
+	if err := json.Unmarshal(out, &got); err != nil || len(got["p1"]) != 2 {
+		t.Fatalf("AIPlaced = %s, %v", out, err)
+	}
+	a, c := got["p1"][0], got["p1"][1]
+	if a.ID != "a" || a.X != 10 || a.Y != 20 || a.W != 8+300+8 || a.H < 40+100 || c.ID != "c" || c.X != 18 || c.Y != 60 || c.W != 300 {
+		t.Fatalf("placed = %+v", got)
+	}
+	if none, _ := e.AIPlaced(json.RawMessage(`{"type":"nope","id":"x"}`)); string(none) != "null" {
+		t.Fatalf("AIPlaced of an unreadable book = %s", none)
+	}
+}
+
 func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
 	out, err := e.Perform(Input{

@@ -93,6 +93,7 @@ export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
 export type { PageProblem } from "./page-tabs/page-problems"
 export { nextPageTitle } from "./page-tabs/pages"
+export { type AiPlaced, itemAiPlaced, placedForAi } from "./place/ai-placed"
 export type { Frame } from "./place/frame"
 export {
   CHILD_AREA,
