@@ -8,7 +8,7 @@
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
 }
-/* 印刷区画 1 つ（1 ページ。紙ちょうどの大きさで、はみ出した所は切る） */
+/* 印刷区画 1 つ（紙 1 枚。紙ちょうどの大きさで、はみ出した所は切る） */
 .page {
   position: relative;
   overflow: hidden;

@@ -323,7 +323,7 @@ test("印刷プレビューの右端のスクロールバーは、つまみの�
   await expect(page.locator('[data-preview-scrollbar="x"]')).toHaveCount(0)
 })
 
-test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 枚 1 ページで刷る（刷るときは画面を隠す）。編集の画面の Ctrl+P は印刷プレビューを開く。ページ番号とブック名は設定で入れる", async ({
+test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙 1 枚に刷る（刷るときは画面を隠す）。編集の画面の Ctrl+P は印刷プレビューを開く。ページ番号とブック名は設定で入れる", async ({
   page,
 }) => {
   // ブラウザの印刷ダイアログは開かず、頼まれた回数を数える
@@ -350,7 +350,7 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 枚 1 ペー
   await panel(page).getByRole("button", { name: "印刷", exact: true }).click()
   await page.keyboard.press("ControlOrMeta+p")
   await expect(async () => expect(await printed()).toBe(2)).toPass()
-  // 刷る物は 1 枚 1 ページ（紙の大きさの名前付きの @page。既定の紙は A4 横）。刷るときは画面を隠し、刷る物だけを出す
+  // 刷る物は印刷区画 1 つが紙 1 枚（紙の大きさの名前付きの @page。既定の紙は A4 横）。刷るときは画面を隠し、刷る物だけを出す
   const output = page.locator("[data-print-output]")
   await expect(output).toHaveAttribute("data-print-output", "2")
   await expect(output.locator("[data-print-page]").first()).toHaveAttribute("data-print-page", "sheet-1123x794")
@@ -359,7 +359,7 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 枚 1 ペー
   await expect(page.locator("#root")).toBeHidden()
   await expect(output).toBeVisible()
   await expect(output.getByText("刷る箱")).toBeVisible()
-  // PDF にすると、印刷区画 1 枚が 1 ページで、紙は A4 横（1123×794 px を pt にした 842×596）
+  // PDF にすると、印刷区画 1 つが紙 1 枚で、紙は A4 横（1123×794 px を pt にした 842×596）
   const pdf = (await page.pdf({ preferCSSPageSize: true })).toString("latin1")
   expect(pdf.match(/\/Type\s*\/Page\b/g)?.length).toBe(2)
   const boxes = [...pdf.matchAll(/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/g)].map(m =>

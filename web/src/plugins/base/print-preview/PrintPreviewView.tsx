@@ -264,9 +264,10 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
           </div>
         ))}
       </div>
-      {shown && ready && (
+      {shown && ready && opened && (
         <PrintOutput
           stage={id}
+          type={opened.type}
           book={book}
           Sheet={Sheet}
           sheets={layout.sheets.map(s => ({
