@@ -1,6 +1,8 @@
 // 内包: 付け替えの道具のドラッグで、箱を内包ボックスの中へ入れ、外へ出す
 import { expect, type Page, test } from "./fixtures"
-import { addBox } from "./helpers/paper"
+import { footerMenuTool } from "./helpers/footer-menu"
+import { addList } from "./helpers/list"
+import { addBox, confirmBox } from "./helpers/paper"
 
 // キャプションの文字を含む形のうち、一番内側の形（親は子の文字も含むので、並びの最後）
 const item = (page: Page, caption: string) => page.locator("[data-item]").filter({ hasText: caption }).last()
@@ -130,4 +132,34 @@ test("編集のダイアログで縦の位置の「下」を押すと、決め�
   await expect(dialog).toBeHidden()
   await expect.poll(childTop).toBe(before)
   expect(await captionTop()).toBeLessThan(await childTop())
+})
+
+test("箱の道具で内包ボックスの上へ持っていくと入る先に枠が出て、押すとその中に置く", async ({ page }) => {
+  await page.goto("/")
+  await addBox(page, 100, 100, "親")
+  const parent = (await item(page, "親").boundingBox())!
+  await (await footerMenuTool(page, "箱")).click()
+  await page.mouse.move(parent.x + parent.width / 2, parent.y + parent.height / 2)
+  await expect(page.locator('[data-drop-target="true"]')).toHaveCount(1)
+  await expect(item(page, "親")).toHaveAttribute("data-drop-target", "true")
+  await page.mouse.click(parent.x + parent.width / 2, parent.y + parent.height / 2)
+  await confirmBox(page, "子")
+  await expect(item(page, "親").locator("[data-item]")).toHaveCount(1)
+  await expect(page.locator('[data-drop-target="true"]')).toHaveCount(0)
+})
+
+test("箱の道具でリストの上で押すと、リストは動かさずに、同じ親（ページ）の空きに置く", async ({ page }) => {
+  await page.goto("/")
+  const list = await addList(page, "L")
+  const before = (await list.boundingBox())!
+  await (await footerMenuTool(page, "箱")).click()
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
+  await expect(page.locator('[data-drop-target="true"]')).toHaveCount(0)
+  await page.mouse.click(before.x + before.width / 2, before.y + before.height / 2)
+  await confirmBox(page, "横")
+  const after = (await list.boundingBox())!
+  expect(after).toEqual(before)
+  const box = (await item(page, "横").boundingBox())!
+  const apart = box.x >= after.x + after.width || box.y >= after.y + after.height || box.x + box.width <= after.x
+  expect(apart).toBe(true)
 })
