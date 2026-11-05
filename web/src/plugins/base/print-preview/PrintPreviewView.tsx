@@ -21,9 +21,9 @@ import { kit } from "../kit"
 import { useOpenRightSidePanel, useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
-import { bookSheets } from "./book-sheets"
+import { bookCrossings, bookSheets } from "./book-sheets"
 import styles from "./PrintPreviewView.module.css"
-import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
+import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
 import { PrintingContext } from "./printing"
 
 // 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: 描いているステージ（印刷プレビューの間）・ブック・ページと、
@@ -97,13 +97,25 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const openPanel = useOpenRightSidePanel()
   const seen = useRef(false) // 右サイドパネルに中身を出したか
   const opened = stage?.opened ?? null
+  // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば（AI が印刷プレビューで開いた・開いている間に AI が動かした）、
+  // 印刷プレビューを閉じて、それを知らせる右サイドパネルを開く（フッタメニューのボタンと同じ）
+  const crossing = useMemo(
+    () => !!book && bookCrossings(catalog, book).some(c => c.crossing.length > 0),
+    [catalog, book],
+  )
   useEffect(() => {
+    if (!crossing || !opened) return
+    closePrintPreview(id)
+    openPanel(id, printCheckOpen(opened.book))
+  }, [crossing, id, opened, closePrintPreview, openPanel])
+  useEffect(() => {
+    if (crossing) return
     if (shown) seen.current = true
     else if (seen.current) closePrintPreview(id)
     // 閉じたときに戻す見え方は印刷プレビューが持つので、右サイドパネルの戻しは使わない
     else if (opened)
       openPanel(id, { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.book, anchors: [], current: opened.book }, "none")
-  }, [shown, id, opened, closePrintPreview, openPanel])
+  }, [crossing, shown, id, opened, closePrintPreview, openPanel])
   // ダブルクリックは、ずらすドラッグでステージがポインタをつかむので、ステージで受けて押した所の印刷区画を探す
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {

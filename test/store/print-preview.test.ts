@@ -192,7 +192,7 @@ test("印刷区画より大きい形は、またいでも直せないので、�
   expect(store.state.getState().workspace.stages[0]!.mode.kind).toBe("print-preview")
 })
 
-test("印刷のときの改ページ: ツリーとディレクトリ構成図の節・行は、どれも 1 つの印刷区画に入り、線の端は節に付いたまま、区切り線は最後の行まで伸びる", () => {
+test("印刷のときの改ページ: ツリーとディレクトリ構成図の節・行は、どれも 1 つの印刷区画に入り、線の端は節に付いたまま、区切り線は最後の行まで伸びる。書く画面の数え方は改ページの前", () => {
   const store = newStore()
   const paper = { paper: "@matomezu/base:a4", orientation: "landscape" as const, grows: true as const }
   const size = paperSize(store.catalog.core, { ...paper, id: "p", title: "" } as never)!
@@ -227,6 +227,10 @@ test("印刷のときの改ページ: ツリーとディレクトリ構成図の
   expect(laidDir.rows.every(inOne)).toBe(true)
   const last = Math.max(...laidDir.rows.map(r => r.y + r.h))
   expect(laidDir.divider?.to.y).toBeGreaterThanOrEqual(last)
+  // 書く画面の暗くする印刷区画は、改ページの前の並べ方で数える（印刷の並べ方より印刷区画が増えない）
+  const printed = sheetsOfPage(store.catalog.core, dir as never, dirPage as never)!
+  const screen = sheetsOfPage(store.catalog.core, dir as never, dirPage as never, "screen")!
+  expect(screen.rows).toBeLessThanOrEqual(printed.rows)
 })
 
 test("並べ方が自動のタイプ（フローチャート）は、またいだ形を調べない", () => {

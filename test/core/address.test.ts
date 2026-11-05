@@ -6,7 +6,7 @@ import { newStore } from "../support"
 test("場所は、ステージごとのブック・ページ・倍率・ずらす量と、カレントと境目の割合", () => {
   const { state } = newStore()
   expect(addressOf(state.getState().workspace)).toEqual({
-    stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, mode: "edit" as const }],
+    stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 } }],
     current: 0,
     share: 0.5,
   })
@@ -17,8 +17,8 @@ test("場所を当てはめると、そのとおりにステージを開いて�
   const { catalog, state } = store
   const ws = placeAt(catalog.core, state.getState().books, state.getState().workspace, {
     stages: [
-      { book: "b3", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, mode: "edit" as const },
-      { book: "nothing", page: null, zoom: 1, pan: { x: 0, y: 0 }, mode: "edit" as const },
+      { book: "b3", page: "p1", zoom: 1, pan: { x: 0, y: 0 } },
+      { book: "nothing", page: null, zoom: 1, pan: { x: 0, y: 0 } },
     ],
     current: 1,
     share: 0.99,
@@ -33,19 +33,17 @@ test("場所を当てはめると、そのとおりにステージを開いて�
 
 test("移動は、ステージの数か、ブック・ページが変わったとき（倍率・ずらす量・カレント・境目だけは移動ではない）", () => {
   const a = {
-    stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, mode: "edit" as const }],
+    stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 } }],
     current: 0,
     share: 0.5,
   }
   expect(moved(a, { ...a, share: 0.3, current: 0 })).toBe(false)
-  expect(moved(a, { ...a, stages: [{ ...a.stages[0]!, zoom: 2, pan: { x: 10, y: 0 }, mode: "edit" as const }] })).toBe(
-    false,
-  )
+  expect(moved(a, { ...a, stages: [{ ...a.stages[0]!, zoom: 2, pan: { x: 10, y: 0 } }] })).toBe(false)
   expect(moved(a, { ...a, stages: [{ ...a.stages[0]!, book: "b2" }] })).toBe(true)
   expect(
     moved(a, {
       ...a,
-      stages: [...a.stages, { book: null, page: null, zoom: 1, pan: { x: 0, y: 0 }, mode: "edit" as const }],
+      stages: [...a.stages, { book: null, page: null, zoom: 1, pan: { x: 0, y: 0 } }],
     }),
   ).toBe(true)
 })

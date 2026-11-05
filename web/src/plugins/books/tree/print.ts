@@ -9,6 +9,7 @@ import {
   paperSize,
   printSheetsOf,
   type SettingReader,
+  type SheetPurpose,
 } from "../../base"
 import { GROW } from "./grow"
 import { laidExtent, layoutTree, MARGIN, type TreeLayout } from "./layout"
@@ -68,9 +69,9 @@ export function printLaid(
 export function treePrintSheets(
   catalog: CoreCatalog,
   page: ItemPage,
-  on: { setting: SettingReader; grow: GrowSides | undefined },
+  on: { setting: SettingReader; grow: GrowSides | undefined; purpose: SheetPurpose },
 ): PrintSheets {
-  const laid = printLaid(catalog, page, on)
+  const laid = on.purpose === "print" ? printLaid(catalog, page, on) : laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
   if (!laid || !paper) return { columns: 1, rows: 1, filled: new Set() }
   return printSheetsOf(paper, laid.nodes, on.grow, laidExtent(laid.nodes))

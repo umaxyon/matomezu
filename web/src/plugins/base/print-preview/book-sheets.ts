@@ -5,20 +5,22 @@ import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsAt, settingValue } from "../book-settings"
 import { growOf, pageArea, paperSize } from "../place/items"
-import type { PrintSheets } from "."
+import type { PrintSheets, SheetPurpose } from "."
 import { crossingShapes, filledSheets, sheetKey } from "./filled"
 import { PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
 import { arrangeSheets, type PageSheets, type SheetLayout } from "./sheets"
 
-// ページ page の印刷区画: 見せ方の printSheets があればそれ、無ければ形の位置から（中身が入るだけ並べた数。base の pageArea と filledSheets。
+// ページ page の印刷区画（purpose は数える物。印刷に並べる並べ方か、書く画面の並べ方か）: 見せ方の printSheets があればそれ、無ければ形の位置から（中身が入るだけ並べた数。base の pageArea と filledSheets。
 // 載っている印刷区画を判定できないタイプは filled が null で、どの印刷区画も載っているとして扱う）
 export function sheetsOfPage(
   catalog: CoreCatalog,
   book: Book,
   page: ItemPage,
+  purpose: SheetPurpose = "print",
 ): (Omit<PrintSheets, "filled"> & { filled: ReadonlySet<string> | null }) | null {
   const own = catalog.presentations.get(bookType(catalog, book.type).presentation)?.printSheets
-  if (own) return own(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page) })
+  if (own)
+    return own(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), purpose })
   const area = pageArea(catalog, book, page)
   return area && { columns: area.columns, rows: area.rows, filled: filledSheets(catalog, book, page) }
 }
@@ -57,8 +59,8 @@ export function bookSheets(catalog: CoreCatalog, book: Book): SheetLayout {
   })
 }
 
-// ブック book のページ page を columns 列 × rows 行に区切ったうち、印刷しない印刷区画（印刷プレビューに並べない物。書く画面が暗くする。
-// 判定できないタイプなら空）
+// ブック book のページ page を columns 列 × rows 行に区切ったうち、書く画面の並べ方で何も載っていない印刷区画（書く画面が暗くする。
+// 改ページなど印刷のときだけの並べ直しの前で数えるので、画面に見える物と合う。判定できないタイプなら空）
 export function unprintedSheets(
   catalog: CoreCatalog,
   book: Book,
@@ -66,7 +68,7 @@ export function unprintedSheets(
   columns: number,
   rows: number,
 ): { column: number; row: number }[] {
-  const filled = sheetsOfPage(catalog, book, page)?.filled
+  const filled = sheetsOfPage(catalog, book, page, "screen")?.filled
   if (!filled) return []
   return Array.from({ length: columns * rows }, (_, i) => ({
     column: i % columns,

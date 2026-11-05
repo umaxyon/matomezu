@@ -47,7 +47,7 @@ test("印刷プレビューを開くと、中身のあるページの印刷区�
   await expect(items(page)).toHaveText("残る箱")
 })
 
-test("並べる向きを横にすると、印刷区画が横に並ぶ。読み直しても印刷プレビューのまま開き、印刷区画のダブルクリックでそのページの編集に戻る", async ({
+test("並べる向きを横にすると、印刷区画が横に並ぶ。印刷区画のダブルクリックでそのページの編集に戻る。印刷プレビューは URL に入れず、読み直すと編集の画面", async ({
   page,
 }) => {
   await page.goto("/")
@@ -62,13 +62,14 @@ test("並べる向きを横にすると、印刷区画が横に並ぶ。読み�
   await expect(async () => {
     expect((await b.boundingBox())!.x).toBeGreaterThan((await a.boundingBox())!.x)
   }).toPass()
-  await expect(page).toHaveURL(/m0=print-preview/)
-  await page.reload()
-  await expect(sheets(page)).toHaveCount(2)
-  await expect(panel(page)).toContainText("印刷プレビュー")
   await sheets(page).nth(0).dblclick()
   await expect(preview(page)).toHaveCount(0)
   await expect(page.getByRole("tab").first()).toHaveAttribute("aria-selected", "true")
+  await openPreview(page)
+  await expect(page).not.toHaveURL(/m0=/)
+  await page.reload()
+  await expect(page.getByRole("tab")).toHaveCount(2)
+  await expect(preview(page)).toHaveCount(0)
 })
 
 test("ロック中のブックで設定を変えると、書き換えてよいかを聞き、よければ変えてロックを掛け直す。やめれば変えない", async ({

@@ -39,6 +39,7 @@ export type {
   RichLine,
   Run,
   SettingReader,
+  SheetPurpose,
   TextBlock,
   Weight,
 } from "../plugins/base"
