@@ -5,10 +5,10 @@
 // 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
 // キャプション・区切り線・本文は base の文字の領域の入力Formのコンポーネント（CaptionField・DividerField・BodyField）。
 // 置けない（紙からはみ出す・止められたなど）ときは閉じずに理由を出す。
-// 追加は開いたときに覚えた所に箱を置いて（アクション item-place）選び、編集は箱の項目を書き換える（アクション item-update）
+// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して箱を置き（ほかの形は画面と同じに押す）、置いた箱を選ぶ。編集は箱の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
+import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -31,7 +31,11 @@ import {
 } from "../../base/ui"
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
 import { kit } from "./kit"
+
 import { VALIGNS, type VAlign } from "./size"
+
+// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
+const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
 
 type BoxProps = ItemProps<typeof BOX.id>
 
@@ -42,7 +46,7 @@ const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "cent
 
 // 追加のダイアログ: 置くアイテム item（箱か内包ボックス）を、中身を決めてから置く
 const addDialog = (item: typeof BOX.id | typeof NEST_BOX.id) =>
-  function AddDialog(props: DialogProps<{ page: string; at: Point }>) {
+  function AddDialog(props: DialogProps<ShapeAddArgs>) {
     return <AddBox {...props} item={item} />
   }
 
@@ -54,14 +58,14 @@ function AddBox({
   args,
   onClose,
   item,
-}: DialogProps<{ page: string; at: Point }> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
+}: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
   const { select } = useActions()
   const perform = usePerform(stage)
   const add = (props: BoxProps) => {
     if (!book) return { reason: "no-book" }
-    const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
+    const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
     if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()
@@ -140,7 +144,7 @@ function BoxDialog({
   start: BoxProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: BoxProps) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
+  onSubmit: (props: BoxProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
   onPreview?: (look: Look | null) => void // 本文・寄せ・テーマ・色を変えた（元の値に戻せば null。無ければ見せない）
   onClose: () => void
   hasChildren?: boolean // 子を持つ内包ボックスか（縦の位置の真ん中を押せなくする）
@@ -202,7 +206,14 @@ function BoxDialog({
             ...(theme ? { theme } : {}),
             ...(color ? { color } : {}),
           })
-          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+          setRefused(
+            no &&
+              refusalMessage(
+                catalog,
+                no,
+                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+              ),
+          )
         }}
       >
         <CaptionField

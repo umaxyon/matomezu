@@ -95,6 +95,7 @@ export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
 export type { PageProblem } from "./page-tabs/page-problems"
 export { nextPageTitle } from "./page-tabs/pages"
+export { type AiPlaced, aiPlacedOf, itemAiPlaced } from "./place/ai-placed"
 export type { Frame } from "./place/frame"
 export {
   CHILD_AREA,
@@ -102,6 +103,7 @@ export {
   commitChildren,
   frameAround,
   frameOf,
+  freeSpotIn,
   placeChild,
   replaceChild,
   settleChildren,
@@ -136,7 +138,7 @@ export {
   withPage,
 } from "./place/items"
 export type { PortArea, Ports } from "./place/placed"
-export { NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
+export { allRectsOf, NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export type { PrintSheets, SheetPurpose } from "./print-preview"

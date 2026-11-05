@@ -11,4 +11,6 @@ export const PLACING_MESSAGES = defineMessages({
   Delete: { en: "Delete", ja: "削除" },
   "Select all": { en: "Select all", ja: "すべて選択" },
   Settings: { en: "Settings", ja: "設定" },
+  "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に収まりません" },
+  "No free spot": { en: "No free spot", ja: "空きがありません" },
 })

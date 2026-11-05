@@ -19,7 +19,7 @@ const at = (store: Store, id: string) => shapesOf(book(store).pages[0]!).find(i 
 const place = (store: Store, item: string, props: Record<string, unknown>) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item, at: { x: 100, y: 100 }, props },
+    { page: "p1", item, at: { x: 100, y: 100 }, props, crowd: "push" },
     { book: "b1" },
   )
 const resize = (store: Store, item: string, size: { w?: number; h?: number; y?: number }) =>

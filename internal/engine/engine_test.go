@@ -38,7 +38,7 @@ func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
 	if err != nil || !out.OK {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
-	if string(out.Result) != `{"item":"abc123"}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-nest-box"`) {
+	if string(out.Result) != `{"item":"abc123","at":{"x":10,"y":20}}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-nest-box"`) {
 		t.Fatalf("out = %s %s", out.Result, out.Books)
 	}
 	again, _ := e.Perform(place("abc-123"))
@@ -49,7 +49,7 @@ func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
 
 func TestMakesIdsWhenNoneAreGiven(t *testing.T) {
 	out, err := newEngine(t).Perform(place())
-	if err != nil || !out.OK || !regexp.MustCompile(`^\{"item":"[0-9a-f]{10}"\}$`).Match(out.Result) {
+	if err != nil || !out.OK || !regexp.MustCompile(`^\{"item":"[0-9a-f]{10}","at":\{"x":10,"y":20\}\}$`).Match(out.Result) {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
 }
@@ -66,6 +66,47 @@ func TestRefusals(t *testing.T) {
 		if err != nil || out.OK || out.Reason != want {
 			t.Errorf("%s: %+v, %v", want, out, err)
 		}
+	}
+}
+
+// アクションが断った訳を添えたら（ほかの形を動かす所に置くなど）、AI への説明はその訳
+func TestARefusalCarriesTheActionsReason(t *testing.T) {
+	e := newEngine(t)
+	first, err := e.Perform(place("a1"))
+	if err != nil || !first.OK {
+		t.Fatalf("Perform = %+v, %v", first, err)
+	}
+	in := place("a2")
+	in.Books = first.Books
+	out, err := e.Perform(in)
+	if err != nil || out.OK || out.Reason != "refused" || !strings.HasPrefix(out.Detail, "it would move a1; a1 can hold children") {
+		t.Fatalf("Perform on a1 = %+v, %v", out, err)
+	}
+}
+
+// AI に見せる描いた位置と大きさ: w・h を書いていない箱は定義の大きさ、子で大きく描く内包ボックスは子が入る大きさで、子は紙の上の位置
+func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
+	e := newEngine(t)
+	const drawn = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+		`{"id":"a","x":10,"y":20,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"},"shapes":[` +
+		`{"id":"c","x":8,"y":40,"item":"@matomezu/box:shape-nest-box","w":300,"h":100,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"}}]}]}]}`
+	out, err := e.AIPlaced(json.RawMessage(drawn))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string][]struct {
+		ID         string
+		X, Y, W, H float64
+	}
+	if err := json.Unmarshal(out, &got); err != nil || len(got["p1"]) != 2 {
+		t.Fatalf("AIPlaced = %s, %v", out, err)
+	}
+	a, c := got["p1"][0], got["p1"][1]
+	if a.ID != "a" || a.X != 10 || a.Y != 20 || a.W != 8+300+8 || a.H < 40+100 || c.ID != "c" || c.X != 18 || c.Y != 60 || c.W != 300 {
+		t.Fatalf("placed = %+v", got)
+	}
+	if none, _ := e.AIPlaced(json.RawMessage(`{"type":"nope","id":"x"}`)); string(none) != "null" {
+		t.Fatalf("AIPlaced of an unreadable book = %s", none)
 	}
 }
 

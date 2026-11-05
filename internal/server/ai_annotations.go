@@ -51,6 +51,11 @@ func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) 
 	return out, nil
 }
 
+// AIPlaced は、ブック（本文）のページの id ごとの、形の描いた位置と大きさ（engine.AIPlaced。見せ方が答えなければ null）
+func (h *Hub) AIPlaced(book json.RawMessage) (json.RawMessage, error) {
+	return h.engine.AIPlaced(book)
+}
+
 // pick は、並びのうち keep が真の物（読めない物は除く）
 func pick(list []json.RawMessage, keep func(aiAnnotation) bool) []json.RawMessage {
 	out := []json.RawMessage{}
@@ -77,7 +82,8 @@ func (o Options) annotationsOf(book string) ([]json.RawMessage, error) {
 	return []json.RawMessage{}, nil
 }
 
-// aiPage は、ブックの 1 ページ（{"id", "page", "version", "annotations"}。annotations はそのページの物に立つもの）
+// aiPage は、ブックの 1 ページ（{"id", "page", "version", "annotations", "placed"}。annotations はそのページの物に立つもの、
+// placed はそのページの形の描いた位置と大きさ。見せ方が答えなければ null）
 func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	b := o.Hub.Book(r.PathValue("id"))
 	if b == nil {
@@ -108,7 +114,18 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	onPage := pick(list, func(a aiAnnotation) bool { return a.Page != nil && *a.Page == want })
-	writeJSON(w, map[string]any{"id": b.ID, "page": page, "version": b.Version, "annotations": onPage})
+	all, err := o.Hub.AIPlaced(b.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var byPage map[string]json.RawMessage
+	_ = json.Unmarshal(all, &byPage)
+	placed := byPage[want]
+	if placed == nil {
+		placed = json.RawMessage("null")
+	}
+	writeJSON(w, map[string]any{"id": b.ID, "page": page, "version": b.Version, "annotations": onPage, "placed": placed})
 }
 
 // aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation"}]}。ブックを置いた順）

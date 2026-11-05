@@ -93,7 +93,7 @@ const itemsOf = (store: ReturnType<typeof newStore>) =>
 const place = (store: ReturnType<typeof newStore>) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
     { book: "b1" },
   )
 // 常駐が知らせる、アイテムを足した b1

@@ -62,22 +62,29 @@ export function shapeDefOf(catalog: CoreCatalog, item: string): ShapeItemDef | n
 export const NEST_PADDING = 8
 
 // 置いた形の大きさ（機能台帳に無いアイテムは、データの w・h か UNKNOWN_SIZE。形でないアイテムは null）。
-// 子の形を持つ形は、自分の大きさ（w・h は下限）と、子がみな入る大きさの大きい方
+// 子の形を持つ形は、自分の大きさ（w・h は下限）と、子がみな入る大きさ（childrenSize）の大きい方
 export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
   if (!catalog.items.has(item.item)) return { w: item.w ?? UNKNOWN_SIZE.w, h: item.h ?? UNKNOWN_SIZE.h }
   const def = shapeDefOf(catalog, item.item)
   if (!def) return null
   const own = def.sizeOf?.(item as ShapeData) ?? { w: item.w ?? def.size.w, h: item.h ?? def.size.h }
-  if (!def.capabilities.includes("nests") || !item.shapes) return own
+  const children = childrenSize(catalog, item)
+  return children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
+}
+
+// 子の形を持つ形の、子がみな入る大きさ（子の右と下に間を取る。子を持たない形は null）。縮めても、これより小さくは描かない
+export function childrenSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
+  const def = shapeDefOf(catalog, item.item)
+  if (!def?.capabilities.includes("nests") || !item.shapes) return null
   const bottom = def.childBottom?.(item as ShapeData) ?? NEST_PADDING
-  return item.shapes.reduce((size, child) => {
-    const c = placedSize(catalog, child as PlacedShape)
-    if (!c) return size
-    return {
-      w: Math.max(size.w, child.x + c.w + NEST_PADDING),
-      h: Math.max(size.h, child.y + c.h + bottom),
-    }
-  }, own)
+  return item.shapes.reduce<Size>(
+    (size, child) => {
+      const c = placedSize(catalog, child as PlacedShape)
+      if (!c) return size
+      return { w: Math.max(size.w, child.x + c.w + NEST_PADDING), h: Math.max(size.h, child.y + c.h + bottom) }
+    },
+    { w: 0, h: 0 },
+  )
 }
 
 // ページの形の四角（大きさの分からない形は入れない。子の形は入れない）

@@ -74,7 +74,7 @@ test("印刷区画に載っているか: 形は掛かっている印刷区画の
   const place = (x: number, caption: string) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item: BOX, at: { x, y: 40 }, props: { caption } },
+      { page: "p1", item: BOX, at: { x, y: 40 }, props: { caption }, crowd: "push" },
       { book: "b1" },
     )
   const book = () => store.state.getState().books.b1 as PagedBook

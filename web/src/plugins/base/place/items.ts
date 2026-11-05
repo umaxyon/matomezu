@@ -28,6 +28,7 @@ import { setField } from "../fields"
 import { contentIdMaker } from "../utils/ids"
 import { GROW_CHOICE_SIDES, type GrowSides, grownArea } from "./grow"
 import {
+  childrenSize,
   connectorGaps,
   type PortArea,
   placedSize,
@@ -36,7 +37,18 @@ import {
   shapeDefOf,
   tidyConnectors as tidyItems,
 } from "./placed"
-import { apartWay, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
+import {
+  apartWay,
+  evenGap,
+  type Floors,
+  type Gap,
+  inPaper,
+  newClash,
+  planPlace,
+  pushFrom,
+  type Rect,
+  tooClose,
+} from "./push"
 
 // 形の仲間の名前（familyTitle）が文言の表にあるか（組み立てのときの確かめ）
 export const FAMILY_TITLE_CHECK: CatalogCheck = catalog =>
@@ -146,7 +158,7 @@ export interface Edges {
 }
 
 // 辺をつかんで、紙の上で by だけ動かしたときの左上と大きさ。つかんでいない辺はそのまま。
-// 一番小さい大きさより小さくせず、紙の外へは広げない（変えられないアイテムは null）
+// 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは null）
 export function resizedBy(
   catalog: CoreCatalog,
   item: PlacedShape,
@@ -154,9 +166,11 @@ export function resizedBy(
   by: Point,
   paper: Size,
 ): { x: number; y: number; w: number; h: number } | null {
-  const min = minSize(catalog, item)
+  const own = minSize(catalog, item)
   const size = placedSize(catalog, item)
-  if (!min || !size) return null
+  if (!own || !size) return null
+  const children = childrenSize(catalog, item)
+  const min = children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
   const span = (start: number, len: number, d: number, side: "start" | "end" | undefined, lo: number, max: number) => {
     if (side === "end") return { at: start, len: Math.min(Math.max(len + d, lo), max - start) }
     if (side !== "start") return { at: start, len }
@@ -262,6 +276,23 @@ export function roomOf(catalog: CoreCatalog, book: Book, page: ItemPage): Size |
 // ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
 export function withPage<B extends PagedBook>(catalog: CoreCatalog, book: B, page: ItemPage): B {
   return putPage(book, tidyPage(catalog, book, page))
+}
+
+// 押したあとのページ next に替える（withPage）。ただし、紙 paper の中にあった形と新しく置いた形が、描く大きさ（placedSize）で紙からはみ出すなら null。
+// 押す計画の四角と描く大きさがずれても（子を持つ形は子より小さく描けないなど）、紙の外へは書かない。前から紙の外にある形は問わない
+function pushedPage<B extends PagedBook>(
+  catalog: CoreCatalog,
+  book: B,
+  page: ItemPage,
+  next: ItemPage,
+  paper: Size,
+): B | null {
+  const was = rectsOf(catalog, page)
+  for (const [id, r] of rectsOf(catalog, next)) {
+    const old = was.get(id)
+    if ((!old || inPaper(old, paper)) && !inPaper(r, paper)) return null
+  }
+  return withPage(catalog, book, next)
 }
 
 // ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ null。
@@ -405,7 +436,7 @@ export function placeItem<B extends PagedBook>(
     floorsOf(catalog, page),
     gapOf(catalog, page),
   )
-  return after && withPage(catalog, book, { ...page, items: [...placedAt(catalog, page, after), item] })
+  return after && pushedPage(catalog, book, page, { ...page, items: [...placedAt(catalog, page, after), item] }, paper)
 }
 
 // 描いている形の四角（紙の上）: 形ごとの左上と大きさに、ドラッグでずらして描く量（shift）を足したもの（大きさの分からない形は入れない）。
@@ -430,16 +461,17 @@ export function shownRects(
 }
 
 // 編集で縮めてよい下限（紙に収める）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行。
-// 文字を縦に置く形はキャプションが全部見える高さ）。
+// 文字を縦に置く形はキャプションが全部見える高さ）。子を持つ形は、子がみな入る大きさより小さくしない（placed.ts の childrenSize）。
 // 今それより小さければ今の大きさ
 export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
   const floors = new Map<string, Size>()
   for (const i of shapesOf(page)) {
     const size = placedSize(catalog, i)
     if (!size) continue
+    const children = childrenSize(catalog, i) ?? { w: 0, h: 0 }
     floors.set(i.id, {
-      w: Math.min(size.w, captionWidth(catalog, i)),
-      h: Math.min(size.h, captionHeight(catalog, i) ?? (minSize(catalog, i) ?? size).h),
+      w: Math.min(size.w, Math.max(children.w, captionWidth(catalog, i))),
+      h: Math.min(size.h, Math.max(children.h, captionHeight(catalog, i) ?? (minSize(catalog, i) ?? size).h)),
     })
   }
   return floors
@@ -470,7 +502,7 @@ export function replacePushing<B extends PagedBook>(
   )
   if (!after || newClash(before, after, gap)) return null
   const items = placedAt(catalog, page, after).map(i => (i.id === next.id ? next : i))
-  return withPage(catalog, book, { ...page, items })
+  return pushedPage(catalog, book, page, { ...page, items }, paper)
 }
 
 // ページのアイテムのうち、形の左上と大きさを四角 rects にしたもの（rects に無い形・変わらない形と線はそのまま。縮めた形は w・h を書く）
@@ -551,5 +583,5 @@ export function keepApart<B extends PagedBook>(
   const at = ahead ? ra[axis] + ra[len] + gap(a, b) : ra[axis] - gap(a, b) - rb[len]
   const after = pushFrom(before, b, { ...rb, [axis]: at }, paper, floorsOf(catalog, page), gap)
   if (!after || newClash(before, after, gap)) return null
-  return withPage(catalog, book, { ...page, items: placedAt(catalog, page, after) })
+  return pushedPage(catalog, book, page, { ...page, items: placedAt(catalog, page, after) }, paper)
 }

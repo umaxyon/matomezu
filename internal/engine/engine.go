@@ -73,6 +73,7 @@ type Engine struct {
 	talk      func() string
 	live      func(string, string, string, string) string
 	forAI     func(string) string
+	placed    func(string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
@@ -112,6 +113,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiAnnotations"), &e.forAI); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiAnnotations: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiPlaced"), &e.placed); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiPlaced: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuTalkActions"), &e.talk); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuTalkActions: %w", err)
@@ -342,6 +346,19 @@ func (e *Engine) AIAnnotations(pairs []AnnotatedBook) (out []json.RawMessage, er
 		return nil, err
 	}
 	return out, nil
+}
+
+// AIPlaced は、ブックのページの id ごとの、形の描いた位置と大きさ（{id, x, y, w, h} の並び。紙の上の左上から）を返す。
+// 見せ方が答えないブック・読めないブックなら null（JSON の null）
+func (e *Engine) AIPlaced(book json.RawMessage) (out json.RawMessage, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return json.RawMessage(e.placed(string(book))), nil
 }
 
 // AnnotatedBook はブックとそのアノテーションの並び（CheckAnnotations・AIAnnotations に渡す）

@@ -2,11 +2,12 @@
 import { expect, test } from "bun:test"
 import { findShape, type ItemPage, walkShapes } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { childOrigin } from "../../web/src/plugins/base/place/frame"
-import { NEST_PADDING, placedSize, portAreasOf } from "../../web/src/plugins/base/place/placed"
+import { childOrigin, frameOf, freeSpotIn } from "../../web/src/plugins/base/place/frame"
+import { floorsOf, resizedBy, roomOf } from "../../web/src/plugins/base/place/items"
+import { allRectsOf, NEST_PADDING, placedSize, portAreasOf } from "../../web/src/plugins/base/place/placed"
 import { targetsFrom } from "../../web/src/plugins/items/line/connect"
 import { routeInputOf } from "../../web/src/plugins/items/line/drawn"
-import { dropTarget } from "../../web/src/plugins/paper/placing/items"
+import { dropTarget, placeTarget, placingShape } from "../../web/src/plugins/paper/placing/items"
 import { CORE_CATALOG, newStore } from "../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
@@ -54,7 +55,7 @@ test("重なる所に置いた子は、紙と同じに兄弟を右へ押す（�
   const store = newStore()
   const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
   const b = place(store, { at: { x: 20, y: 60 }, parent: a, w: 100, h: 60 })!
-  place(store, { at: { x: 30, y: 60 }, parent: a, w: 100, h: 60 })
+  place(store, { at: { x: 30, y: 60 }, parent: a, w: 100, h: 60, crowd: "push" })
   expect(at(store, b)!.shape.x).toBeGreaterThanOrEqual(30 + 100 + 8)
   expect(at(store, b)!.shape).toMatchObject({ w: 100, h: 60 })
 })
@@ -63,7 +64,7 @@ test("子が入るよう親が育ち、近づきすぎたページの形を押�
   const store = newStore()
   const a = place(store, { at: { x: 0, y: 0 } })!
   const d = place(store, { at: { x: 220, y: 0 } })!
-  place(store, { at: { x: 150, y: 60 }, parent: a, w: 120, h: 40 })
+  place(store, { at: { x: 150, y: 60 }, parent: a, w: 120, h: 40, crowd: "push" })
   const right = 150 + 120 + NEST_PADDING
   expect(at(store, d)!.at.x).toBeGreaterThanOrEqual(right + 8)
 })
@@ -77,7 +78,7 @@ test("子は親の中で動かし、子の領域より左や上には動かさ�
   expect(at(store, b)?.shape).toMatchObject({ x: 20, y: 160 })
   expect(run(store, "@matomezu/paper:item-move", { items: [b], by: { x: -100, y: 0 } }).ok).toBe(false)
   run(store, "@matomezu/paper:item-move", { items: [b], by: { x: 0, y: -100 } })
-  expect(run(store, "@matomezu/paper:item-move", { items: [b], by: { x: 60, y: 0 } }).ok).toBe(true)
+  expect(run(store, "@matomezu/paper:item-move", { items: [b], by: { x: 60, y: 0 }, crowd: "push" }).ok).toBe(true)
   expect(at(store, c)!.shape.x).toBeLessThan(at(store, b)!.shape.x)
   expect(run(store, "@matomezu/paper:item-move", { items: [a, b], by: { x: 1, y: 0 } }).ok).toBe(false)
 })
@@ -254,4 +255,212 @@ test("内包ボックスの中のリストにも、行のアクションが効�
   expect(run(store, "@matomezu/list:row-remove", { list: l, rows: [milk] }).ok).toBe(true)
   expect(rows().map(r => r.props.caption)).toEqual(["卵 6 個"])
   expect(at(store, l)?.parent).toBe(a)
+})
+
+// 紙の右端の近くに、子が 2 つ入った内包ボックス big（子の高さ 600 で、下へは押せない。描く幅は子が入る 648）を左端 x に置いたストア。
+// own は内包ボックス自分の幅（w）。paper は紙の大きさ
+function besideEdge(x = 460, own = 200) {
+  const store = newStore()
+  const big = place(store, { at: { x, y: 40 }, w: own, h: 100 })!
+  place(store, { at: { x: 20, y: 40 }, parent: big, w: 300, h: 600 })
+  place(store, { at: { x: 340, y: 40 }, parent: big, w: 300, h: 600 })
+  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const paper = roomOf(CORE_CATALOG, book, page(store))!
+  return { store, big, paper }
+}
+// ページのどの形も（子の形も、描く大きさで）紙の中か
+const allInPaper = (store: ReturnType<typeof newStore>, paper: { w: number; h: number }) =>
+  [...allRectsOf(CORE_CATALOG, page(store)).values()].every(
+    r => r.x >= 0 && r.y >= 0 && r.x + r.w <= paper.w && r.y + r.h <= paper.h,
+  )
+const width = (store: ReturnType<typeof newStore>, id: string) =>
+  placedSize(CORE_CATALOG, at(store, id)!.shape as never)!.w
+
+test("押した列を縮めて収めるとき、内包ボックスは子が入る大きさより小さくしない。入らなければ断り、紙の外へ押し出さない", () => {
+  // 置いて押す（右へも下へも押せず、縮めても子が入らない）
+  const { store, big, paper } = besideEdge()
+  const was = JSON.stringify(page(store))
+  expect(place(store, { at: { x: 380, y: 60 }, crowd: "push" })).toBeNull()
+  expect(JSON.stringify(page(store))).toBe(was)
+  // 大きさを変えて押す
+  const small = place(store, { at: { x: 40, y: 40 }, w: 64, h: 64 })!
+  expect(run(store, "@matomezu/paper:item-resize", { item: small, w: 440 }).ok).toBe(false)
+  // 線でつないで、組の間隔まで離す（線でつなぐ前は 8 空き、つなぐと 32 要る）
+  const near = place(store, { at: { x: 460 - 8 - 72, y: 40 }, w: 72, h: 64 })!
+  expect(run(store, "@matomezu/line:line-connect", { from: near, to: big }).ok).toBe(false)
+  expect(at(store, big)!.at.x).toBe(460)
+  expect(allInPaper(store, paper)).toBe(true)
+})
+
+test("内包ボックスは、子が入る大きさまでは縮めて押せる（描く大きさも紙の中）", () => {
+  // 自分の幅が 748（子が入る幅 648 より 100 広い）。右端は 1108 で、下へは押せず、右へ押すと 33 はみ出す分を縮めて収める
+  const { store, big, paper } = besideEdge(360, 748)
+  expect(place(store, { at: { x: 300, y: 60 }, w: 100, h: 100, crowd: "push" })).not.toBeNull()
+  expect(at(store, big)!.at.x).toBe(408)
+  expect(width(store, big)).toBeGreaterThanOrEqual(648)
+  expect(allInPaper(store, paper)).toBe(true)
+  // 縮めてよい下限は、キャプションの幅より広くても、子が入る大きさ
+  expect(floorsOf(CORE_CATALOG, page(store)).get(big)).toMatchObject({ w: 648 })
+})
+
+test("内包ボックスの辺をつまんで縮めると、子がみな入る大きさで止まる（左の辺も。描く大きさとつまんだ大きさがそろう）", () => {
+  const { store, big, paper } = besideEdge(360, 748)
+  const shape = at(store, big)!.shape
+  expect(resizedBy(CORE_CATALOG, shape, { x: "right" }, { x: -400, y: 0 }, paper)).toMatchObject({ x: 360, w: 648 })
+  expect(resizedBy(CORE_CATALOG, shape, { x: "left" }, { x: 400, y: 0 }, paper)).toMatchObject({ x: 460, w: 648 })
+  const tall = resizedBy(CORE_CATALOG, shape, { y: "bottom" }, { x: 0, y: -400 }, paper)!
+  expect(tall.h).toBe(placedSize(CORE_CATALOG, shape as never)!.h)
+})
+
+const drawing = (store: ReturnType<typeof newStore>) =>
+  store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+
+test("置く先: 点の下に形が無ければページのその所、子を持てる形の上ならその中（親の左上から）、子を持てない形の上ならその親の中の空き", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 100, y: 100 }, w: 400, h: 300 })!
+  const l = place(store, { item: LIST, at: { x: 0, y: 0 }, parent: a, w: 160, h: 100 })!
+  const top = place(store, { item: LIST, at: { x: 700, y: 100 }, w: 160, h: 100 })!
+  const size = { w: 120, h: 60 }
+  const shape = { ...placingShape(CORE_CATALOG, NEST)!, ...size }
+  const target = (pointer: { x: number; y: number }) =>
+    placeTarget(CORE_CATALOG, drawing(store), page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
+  expect(target({ x: 40, y: 40 })).toEqual({
+    parent: null,
+    at: { x: 24, y: 28 },
+    free: false,
+    shown: { x: 24, y: 28 },
+    fits: true,
+  })
+  expect(target({ x: 400, y: 300 })).toEqual({
+    parent: a,
+    at: { x: 284, y: 188 },
+    free: false,
+    shown: { x: 384, y: 288 },
+    fits: true,
+  })
+  // 内包ボックスのキャプションの所: 影は、item-place が寄せる子の領域の上の端に描く
+  expect(target({ x: 400, y: 105 })?.shown).toEqual({ x: 384, y: 100 + O.y })
+  // ページの紙の右下の端（何も無い所）: 置くとはみ出すので置けない
+  expect(target({ x: 1120, y: 790 })?.fits).toBe(false)
+  // 内包ボックスの中のリスト（子の領域の左上）の上: 子の領域の格子で、リストの右の目（目の幅はリストの幅 160 と間隔）
+  const inList = at(store, l)!.at
+  expect(target({ x: inList.x + 10, y: inList.y + 10 })).toEqual({
+    parent: a,
+    at: { x: O.x + 160 + 8, y: O.y },
+    free: true,
+    shown: { x: 100 + O.x + 160 + 8, y: 100 + O.y },
+    fits: true,
+  })
+  // ページのリストの上: ページの左上から格子で、内包ボックスとリストに近づかない目
+  const spot = target({ x: 710, y: 110 })!
+  expect(spot.parent).toBeNull()
+  const placed = place(store, { at: spot.at, w: size.w, h: size.h })!
+  expect(at(store, placed)!.at).toEqual(spot.at)
+  expect(at(store, a)!.at).toEqual({ x: 100, y: 100 })
+  expect(at(store, top)!.at).toEqual({ x: 700, y: 100 })
+})
+
+test("空きの格子: 子の領域では必ず見つかり（行が下へ増える）、紙で入る目が無ければ null", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
+  for (const x of [0, 108]) place(store, { at: { x: O.x + x, y: O.y }, parent: a, w: 100, h: 60 })
+  const frame = frameOf(CORE_CATALOG, drawing(store), page(store), a)!
+  // 兄弟 2 つと置く形で 3 つ: 列は 2、空いた目は 2 行目の左
+  expect(freeSpotIn(frame, { w: 100, h: 60 })).toEqual({ x: 0, y: 68 })
+  const paper = frameOf(CORE_CATALOG, drawing(store), page(store), null)!
+  expect(freeSpotIn(paper, { w: paper.paper.w, h: paper.paper.h })).toBeNull()
+})
+
+test("座標を渡さずに置くと、親（無ければページ）の中の空きに置き、置いた所を返す", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
+  const first = run(store, "@matomezu/paper:item-place", { item: NEST, w: 100, h: 60 })
+  expect(first).toMatchObject({ ok: true, result: { at: { x: 400 + 8, y: 0 } } })
+  const child = run(store, "@matomezu/paper:item-place", { item: NEST, parent: a, w: 100, h: 60 })
+  expect(child).toMatchObject({ ok: true, result: { at: O } })
+  expect(at(store, (child as { result: { item: string } }).result.item)?.parent).toBe(a)
+})
+
+test("押し方を渡さずに、ほかの形を動かす所へ置く・動かす・付け替えると断り、動かす形と空きを添える。何も変えない。push なら押して動かす", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
+  const b = place(store, { at: { x: 500, y: 0 }, w: 100, h: 60 })!
+  const d = place(store, { at: { x: 0, y: 0 }, parent: a, w: 80, h: 40 })!
+  const was = JSON.stringify(page(store))
+  const detail = (done: object) => (done as { detail?: string }).detail ?? ""
+  // 置く: 内包ボックス a にかかる。a は子を持てるので、中へ入れる parent を添える
+  const placed = run(store, "@matomezu/paper:item-place", { item: NEST, at: { x: 380, y: 0 }, w: 100, h: 60 })
+  expect(placed).toMatchObject({ ok: false, reason: "refused" })
+  expect(detail(placed)).toStartWith(`it would move ${a}`)
+  expect(detail(placed)).toContain(`pass parent "${a}" to put it inside`)
+  expect(detail(placed)).toContain("a free spot there: at")
+  // 動かす: b を a の手前まで動かすと、言われた所に着かない（ドラッグなら手前で止まる）
+  const moved = run(store, "@matomezu/paper:item-move", { items: [b], by: { x: -150, y: 0 } })
+  expect(detail(moved)).toContain(`${b} would stop short of where asked`)
+  // 付け替え: a の子 d を、ページの b の所へ出すと b を押す
+  const out = run(store, "@matomezu/paper:item-reparent", { item: d, parent: null, at: { x: 500, y: 0 } })
+  expect(detail(out)).toStartWith(`it would move ${b}`)
+  expect(JSON.stringify(page(store))).toBe(was)
+  expect(run(store, "@matomezu/paper:item-move", { items: [b], by: { x: -150, y: 0 }, crowd: "push" }).ok).toBe(true)
+  const pushed = run(store, "@matomezu/paper:item-reparent", {
+    item: d,
+    parent: null,
+    at: { x: 600, y: 200 },
+    crowd: "push",
+  })
+  expect(pushed.ok).toBe(true)
+})
+
+test("押し方を渡さずに親の中へ置くと、親が育ってページの形を押すなら、その形を添えて断る。添える空きと、座標を渡さないときに選ぶ空きは、何も動かさない所", () => {
+  // 幅 200 の内包ボックス a の中に子 c が 1 つ。格子の次の目（c の右）に置くと a が右へ育ち、右隣のページの形 d を押す。その次の目（c の下）は押さない
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 200, h: 200 })!
+  place(store, { at: { x: 0, y: 0 }, parent: a, w: 100, h: 60 })
+  const d = place(store, { at: { x: 208, y: 0 }, w: 100, h: 60 })!
+  const refused = run(store, "@matomezu/paper:item-place", {
+    item: NEST,
+    parent: a,
+    at: { x: O.x + 108, y: O.y },
+    w: 100,
+    h: 60,
+  })
+  const detail = (refused as { detail?: string }).detail ?? ""
+  expect(detail).toStartWith(`it would move ${d}`)
+  const below = { x: O.x, y: O.y + 68 }
+  expect(detail).toContain(`a free spot there: at ${JSON.stringify(below)}`)
+  const free = run(store, "@matomezu/paper:item-place", { item: NEST, parent: a, w: 100, h: 60 })
+  expect(free).toMatchObject({ ok: true, result: { at: below } })
+  expect(at(store, d)!.at).toEqual({ x: 208, y: 0 })
+})
+
+test("押し方を渡さずに動かすと、正面の形と入れ替わるなら、その形を添えて断る", () => {
+  const store = newStore()
+  const b = place(store, { at: { x: 0, y: 0 }, w: 100, h: 60 })!
+  const c = place(store, { at: { x: 108, y: 0 }, w: 100, h: 60 })!
+  const moved = run(store, "@matomezu/paper:item-move", { items: [b], by: { x: 100, y: 0 } })
+  expect((moved as { detail?: string }).detail).toStartWith(`it would move ${c}`)
+  expect(run(store, "@matomezu/paper:item-move", { items: [b], by: { x: 100, y: 0 }, crowd: "push" }).ok).toBe(true)
+  expect(at(store, c)!.at.x).toBeLessThan(at(store, b)!.at.x)
+})
+
+test("座標を渡さずに置くとき、紙に空きが無ければ断る", () => {
+  const store = newStore()
+  place(store, { at: { x: 500, y: 300 }, w: 100, h: 60 })
+  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const paper = roomOf(CORE_CATALOG, book, page(store))!
+  const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: paper.w, h: paper.h })
+  expect((done as { detail?: string }).detail).toStartWith("there is no free spot for it")
+  // 画面が知らせ方を変えられるよう、断りの種類も添える
+  expect(done).toMatchObject({ ok: false, reason: "refused", kind: "@matomezu/paper:no-free-spot" })
+})
+
+test("置く先の置けるか: 内包ボックスの中でも、置くと箱が育って紙からはみ出す所なら置けない", () => {
+  const store = newStore()
+  // 紙（高さ 794）の下の近くの内包ボックス（下の端は 750）
+  const a = place(store, { at: { x: 0, y: 600 }, w: 400, h: 150 })!
+  const shape = { ...placingShape(CORE_CATALOG, NEST)!, w: 120, h: 60 }
+  const target = (pointer: { x: number; y: number }) =>
+    placeTarget(CORE_CATALOG, drawing(store), page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
+  expect(target({ x: 40, y: 660 })).toMatchObject({ parent: a, fits: true })
+  expect(target({ x: 40, y: 740 })).toMatchObject({ parent: a, fits: false })
 })

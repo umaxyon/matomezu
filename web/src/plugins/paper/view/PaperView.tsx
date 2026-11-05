@@ -1,7 +1,8 @@
 // 紙のビュー（見せ方 paper）: ブックのビューのレイヤー（book-content）が描く。紙の枠（PaperFrame。紙の面は下のレイヤーが描く）の中に、開いたページのアイテムを置く。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、紙のメニュー（paper-context）を開く。
-// アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（paper-place。紙からはみ出す所では薄く出し、置かない）。
+// アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すと置く（paper-place。紙からはみ出す所では薄く出し、置かない）。
+// ポインタが子を持てる形の上なら、その中へ入る（入る先の形を、付け替えの道具の落とす先と同じに示す。placing/items.ts の placeTarget）。
 // 選択の道具で何も無い所からドラッグすると、四角にかかったページの形と、両端がその形の線を選ぶ（Mod なら選択に足す。placing/selection.ts の sweptItems）。
 // 選択の道具では、アイテムを押すと選び、Mod を押していれば選択に足す・外す（外すのは動かさずに離したとき。placing/selection.ts の pressSelection）。選んでいる物の 1 つを押して動かさずに離すと、その 1 つに選び直す。
 // ドラッグで選んでいる形を動かす（離したときに paper-move。つなぐものは動かさず、親の違う形が混じっていれば動かさない）。ドラッグ中は、動かすアイテムを少し透かしてポインタに付け、
@@ -36,7 +37,6 @@ import {
   type Rect,
   type StageView,
   shapesOf,
-  toPaper,
   toPaperDelta,
 } from "../../../plugin-api"
 import {
@@ -55,7 +55,6 @@ import {
   useShownPage,
   useStage,
   useStageArea,
-  useStagePan,
   useTokenScope,
   useToPaper,
   useUiCatalog,
@@ -63,8 +62,6 @@ import {
 import {
   type Edges,
   growOf,
-  inPaper,
-  itemSize,
   minSize,
   onlySelected,
   placedSize,
@@ -87,7 +84,6 @@ import {
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
-  placeAt,
   pressSelection,
   shapesIn,
   sweptBox,
@@ -98,6 +94,7 @@ import {
 import { settledDraft } from "../placing/draft"
 import { REPARENT_TOOL } from "../tools"
 import styles from "./PaperView.module.css"
+import { type Placing, usePlaceTarget } from "./use-place-target"
 
 // 範囲のドラッグ: ポインタと、押した位置（紙のビューの左上から）、押す前の選択と、Mod を押していたか
 interface Sweep {
@@ -131,6 +128,7 @@ export function PaperView({ stage: id }: BookViewProps) {
   const toPaperAt = useToPaper(id)
   const sweep = useRef<Sweep | null>(null)
   const followed = useFollowsSelection(id)
+  const placed = usePlaceTarget(id, placing ? pointer : null) // 置こうとしている間の、押すと置く所
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -192,7 +190,7 @@ export function PaperView({ stage: id }: BookViewProps) {
       onPointerUp={endSweep}
       onPointerCancel={endSweep}
     >
-      <Content stage={stage} pointer={placing ? pointer : null} box={box} localOf={localOf} />
+      <Content stage={stage} pointer={placing ? pointer : null} placed={placed} box={box} localOf={localOf} />
     </div>
   )
 }
@@ -203,11 +201,13 @@ type LocalOf = (e: PointerEvent<Element>) => Point | null
 function Content({
   stage,
   pointer,
+  placed,
   box,
   localOf,
 }: {
   stage: StageView
   pointer: Point | null
+  placed: Placing | null // 置こうとしている間の、押すと置く所（use-place-target.tsx）
   box: Rect | null
   localOf: LocalOf
 }) {
@@ -218,8 +218,8 @@ function Content({
   return (
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
-      <Items stage={stage} localOf={localOf} />
-      {pointer && <Ghost stage={stage} pointer={pointer} />}
+      <Items stage={stage} into={placed?.target?.parent ?? null} localOf={localOf} />
+      {pointer && placed && <Ghost placed={placed} />}
       {box && (
         <div
           data-select-sweep
@@ -255,13 +255,23 @@ interface Stretch {
 
 // 開いたページのアイテム（ページが無ければ何も描かない）
 // 動かす計算は残っているページで、描くのは下書きを重ねたページで行う。
-// stage と localOf が変わらなければ描き直さない（紙をずらしただけでは描き直さない）
-const Items = memo(function Items({ stage, localOf }: { stage: StageView; localOf: LocalOf }) {
+// stage・into・localOf が変わらなければ描き直さない（紙をずらしただけでは描き直さない）。into は置こうとしている間の、押すと入る先の形
+const Items = memo(function Items({
+  stage,
+  into,
+  localOf,
+}: {
+  stage: StageView
+  into: string | null
+  localOf: LocalOf
+}) {
   const catalog = useCoreCatalog()
   const page = usePage(stage.id)
   const draft = useShownPage(stage.id)
   const shownPage = useMemo(() => (page && draft ? settledDraft(catalog, page, draft) : null), [catalog, page, draft])
-  return page && shownPage ? <PageItems stage={stage} page={page} shownPage={shownPage} localOf={localOf} /> : null
+  return page && shownPage ? (
+    <PageItems stage={stage} page={page} shownPage={shownPage} into={into} localOf={localOf} />
+  ) : null
 })
 
 // ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューで包む
@@ -269,11 +279,13 @@ function PageItems({
   stage,
   page,
   shownPage,
+  into,
   localOf,
 }: {
   stage: StageView
   page: ItemPage
   shownPage: ItemPage
+  into: string | null
   localOf: LocalOf
 }) {
   const catalog = useCoreCatalog()
@@ -471,7 +483,7 @@ function PageItems({
         cancel: e => endStretch(e, false),
       }}
       selected={stage.selection.includes(item.id)}
-      dropTarget={target === item.id}
+      dropTarget={target === item.id || into === item.id}
       shift={shift}
       dragged={dragged}
       resizing={resizing}
@@ -523,7 +535,7 @@ interface ItemProps {
     cancel(e: PointerEvent<HTMLDivElement>): void
   }
   selected: boolean
-  dropTarget: boolean // 付け替えの道具のドラッグで、離すと入る先か
+  dropTarget: boolean // 付け替えの道具のドラッグで離すと入る先か、置こうとしている間に押すと入る先か
   shift: Point | null // ドラッグ中にずらして描く量（紙の上）
   dragged: readonly string[] // ドラッグで動かしているアイテム
   resizing: string | null // 大きさを変えているアイテム
@@ -658,18 +670,14 @@ function Item({
   )
 }
 
-// 置こうとしているアイテムの点線の箱。紙からはみ出す所では薄く出す
-function Ghost({ stage, pointer }: { stage: StageView; pointer: Point }) {
-  const catalog = useCoreCatalog()
-  const pan = useStagePan(stage.id)
-  const at = pan && placeAt(p => toPaper({ ...stage, pan }, p), pointer)
-  const size = stage.placing ? itemSize(catalog, stage.placing) : null
-  const paper = areaOf(stage)
-  if (!at || !size || !paper) return null
+// 置こうとしているアイテムの点線の箱。押すと置く所（箱の中に寄せた所・空き）に描き、置けない所（ページの紙からはみ出す・空きが無い）では薄く出す
+function Ghost({ placed }: { placed: Placing }) {
+  const { target, size } = placed
+  const at = target?.shown ?? placed.at
   return (
     <div
       className={styles.ghost}
-      data-fits={inPaper({ ...at, ...size }, paper)}
+      data-fits={target?.fits === true}
       style={{ left: at.x, top: at.y, width: size.w, height: size.h }}
     />
   )

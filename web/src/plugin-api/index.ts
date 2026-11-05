@@ -24,7 +24,7 @@ export type {
 export { HEX, isLight, isPaletteName, PALETTE } from "../core/color"
 export type { CoreCatalog, ItemProps } from "../core/core-catalog"
 export { bookType } from "../core/core-catalog"
-export type { ActionDef } from "../core/def/action"
+export type { ActionDef, Declined } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { BookTypeDef } from "../core/def/book-type"
 export type {

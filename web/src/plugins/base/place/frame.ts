@@ -8,7 +8,7 @@ import { findShape, type ItemPage, type PlacedShape } from "../../../core/placed
 import type { Book } from "../../../core/schema/book"
 import { gapOf, replaceShapePushing, roomOf } from "./items"
 import { NEST_PADDING, placedSize, rectsOf, shapeDefOf } from "./placed"
-import { inPaper, newClash, planPlace, pushFrom } from "./push"
+import { GAP, inPaper, newClash, planPlace, pushFrom, tooClose } from "./push"
 
 // 子の領域の大きさ（右と下へ限りが無い）
 export const CHILD_AREA: Size = { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY }
@@ -126,4 +126,27 @@ export function replaceChild<B extends PagedBook>(
   const after = pushFrom(frame.rects, next.id, rect, frame.paper, undefined, gap)
   if (!after || newClash(frame.rects, after, gap)) return null
   return commitChildren(catalog, book, pageId, { ...frame, parent: frame.parent }, after, [next])
+}
+
+// Frame の中で、大きさ size の形を置ける空き（Frame の左上から）。格子で探す: 目の大きさは、兄弟と置く形の一番大きい幅・高さに間隔（GAP）を足したもの、
+// 列の数は兄弟と置く形の数の平方根（切り上げ。限りのある Frame は入る数まで）。子の領域の左上から左→右・上→下に目を当て、兄弟に近づきすぎず、
+// fits が通す最初の目（fits は呼ぶ側の確かめ。置いてもほかの形を動かさないかなど）。子の領域は右と下へ限りが無い（親が育つ）。入る目が無ければ null
+export function freeSpotIn(frame: Frame, size: Size, fits: (at: Point) => boolean = () => true): Point | null {
+  const sibs = [...frame.rects.values()]
+  const cw = Math.max(size.w, ...sibs.map(r => r.w)) + GAP
+  const ch = Math.max(size.h, ...sibs.map(r => r.h)) + GAP
+  let cols = Math.max(1, Math.ceil(Math.sqrt(sibs.length + 1)))
+  if (Number.isFinite(frame.paper.w)) cols = Math.max(1, Math.min(cols, Math.floor((frame.paper.w + GAP) / cw)))
+  // 当てる目の数の上限（兄弟 1 つが近づきすぎる目は 4 つまでなので、兄弟の 4 倍より多く当てれば、近づかない目はどこかにある）
+  const rows = 4 * sibs.length + 2
+  for (let i = 0; i < rows * cols; i++) {
+    const at = { x: (i % cols) * cw, y: Math.floor(i / cols) * ch }
+    const rect = { ...at, ...size }
+    if (!inPaper(rect, frame.paper)) {
+      if (at.y + size.h > frame.paper.h) return null
+      continue
+    }
+    if (!sibs.some(r => tooClose(rect, r, GAP)) && fits(at)) return at
+  }
+  return null
 }

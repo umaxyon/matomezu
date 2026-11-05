@@ -5,10 +5,10 @@
 // 編集には「行の高さ」（どれも高さの書き換え。決まりではない）: 「中身が見える高さにそろえる」は行ごとにその行の本文が全部見える高さに（行ごとに違う）、
 // 「行にそろえる」は選んだ行数（「最大行」なら本文の一番長い行が全部見える行数）に、本文の量によらず全部の行を同じ高さにする。
 // これも下書きで見せ、確定で行の行数を書き換える（row-lines）。
-// 追加は開いたときに覚えた所にリストを置いて（item-place）選び、編集はリストの項目を書き換える（item-update）
+// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのまま item-place に渡してリストを置き（ほかの形は画面と同じに押す）、置いたリストを選ぶ。編集はリストの項目を書き換える（item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
+import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -33,9 +33,13 @@ import {
 } from "../../base/ui"
 import { ROW_LINES } from "./actions"
 import { kit } from "./kit"
+
 import { LIST, LIST_FILL, type ListRow } from "./list"
 import { withRowLines } from "./rows"
 import type { RowsLines } from "./size"
+
+// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
+const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
 
 // ダイアログの高さ（全部の入力Formが出たときの高さ。チェックリストなどで入力Formが増えても大きさを変えない）
 const DIALOG_HEIGHT = 480
@@ -59,14 +63,14 @@ const EMPTY: ListProps = {
   checkedOrder: "none",
 }
 
-export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
+export function AddListDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
   const { select } = useActions()
   const perform = usePerform(stage)
   const add = (props: ListProps) => {
     if (!book) return { reason: "no-book" }
-    const done = perform("@matomezu/paper:item-place", { page: args.page, item: LIST.id, at: args.at, props })
+    const done = perform("@matomezu/paper:item-place", { ...args, item: LIST.id, props, crowd: "push" })
     if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()
@@ -153,7 +157,7 @@ function ListDialog({
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
   bookTheme: string | undefined
   ready: boolean
-  onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
+  onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
   onPreview?: (look: Look | null, rowLines?: RowsLines) => void // テーマ・色・チェックリスト・行の色分け・行の高さを選んだ（元の値に戻せば null）
   onClose: () => void
 }) {
@@ -235,7 +239,14 @@ function ListDialog({
             },
             rowLines,
           )
-          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+          setRefused(
+            no &&
+              refusalMessage(
+                catalog,
+                no,
+                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+              ),
+          )
         }}
       >
         <CaptionField text={head} onChange={setHead} />

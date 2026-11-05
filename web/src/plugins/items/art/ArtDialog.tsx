@@ -1,9 +1,9 @@
 // シェイプのダイアログ: 追加と編集で同じ並び（キャプション・色）。絵は聞かない（置く絵はツールボックスで決まっている）。
 // 色は色を選ぶポップアップで、ブックのテーマの代表色か、好きな色を選ぶ。編集では、選んだ色を決める前から絵に重ねて見せる（ダイアログの下書き）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
-// 追加は開いたときに覚えた所に絵を置いて（アクション item-place）選び、編集は絵の項目を書き換える（アクション item-update）
+// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して絵を置き（ほかの形は画面と同じに押す）、置いた絵を選ぶ。編集は絵の項目を書き換える（アクション item-update）
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
+import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -22,18 +22,21 @@ import {
 import { ART_FILL, type PERSON } from "./art"
 import { kit } from "./kit"
 
+// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
+const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
+
 type ArtProps = ItemProps<typeof PERSON.item.id>
 
 // 絵 item を置く追加のダイアログ
 export function addArtDialog(item: string) {
-  return function AddArtDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
+  return function AddArtDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf(stage)
     const bookTheme = useBookTheme(book)
     const { select } = useActions()
     const perform = usePerform(stage)
     const add = (props: ArtProps) => {
       if (!book) return { reason: "no-book" }
-      const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
+      const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
       if (!done.ok) return done
       select(stage, [done.result.item])
       onClose()
@@ -105,7 +108,7 @@ function ArtDialog({
   start: ArtProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: ArtProps) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
+  onSubmit: (props: ArtProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
   onPreview?: (color: ArtProps["color"] | null) => void // 色を選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
@@ -138,7 +141,14 @@ function ArtDialog({
         ready={ready}
         onSubmit={() => {
           const no = onSubmit({ caption, ...(color ? { color } : {}) })
-          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+          setRefused(
+            no &&
+              refusalMessage(
+                catalog,
+                no,
+                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+              ),
+          )
         }}
       >
         <Field label={t("Caption")}>
