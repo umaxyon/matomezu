@@ -58,6 +58,7 @@ export { useMarkdownDocument } from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/drawn"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
+export type { PrintSheetProps } from "./print-preview/PrintPreviewView"
 export {
   useCloseRightSidePanel,
   useFollowsSelection,

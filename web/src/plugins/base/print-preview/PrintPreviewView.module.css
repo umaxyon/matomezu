@@ -1,6 +1,7 @@
-/* 並べた印刷区画（位置と大きさは並べ方が決める。中身は描かない） */
+/* 並べた印刷区画（位置と大きさは並べ方が決める。中身は紙 1 枚のビューが描き、はみ出した所は切る） */
 .sheet {
   position: absolute;
+  overflow: hidden;
   background: var(--theme-paper);
   box-shadow:
     0 0 0 1px var(--theme-paper-line),

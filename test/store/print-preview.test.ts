@@ -3,7 +3,7 @@ import type { PagedBook } from "../../web/src/core/book"
 import { paperSize } from "../../web/src/plugins/base/place/items"
 import { placedSize } from "../../web/src/plugins/base/place/placed"
 import { bookSheets } from "../../web/src/plugins/base/print-preview/book-sheets"
-import { filledSheets, sheetsOfShape } from "../../web/src/plugins/base/print-preview/filled"
+import { filledSheets, sheetsOfShape, snapShift } from "../../web/src/plugins/base/print-preview/filled"
 import { isEnabled, isShown } from "../../web/src/store/commands"
 import { newStore } from "../support"
 
@@ -139,4 +139,13 @@ test("アイテムの位置をデータに持たないタイプ（ツリーな�
   }
   expect(filledSheets(store.catalog.core, tree as never, tree.pages[0]!)).toBeNull()
   expect(bookSheets(store.catalog.core, tree as never).sheets).toHaveLength(1)
+})
+
+test("寄せ: 形を載る印刷区画の中へ寄せる量。はみ出していなければ、また印刷区画より大きければ寄せない", () => {
+  const paper = { w: 1000, h: 800 }
+  expect(snapShift({ x: 100, y: 100, w: 100, h: 64 }, paper)).toBeNull()
+  // 右へ 30 はみ出す（半分より小さい）なら、左へ 30 戻す。下へ 40 はみ出す（半分以上）なら、下の印刷区画へ 24 押し込む
+  expect(snapShift({ x: 930, y: 100, w: 100, h: 64 }, paper)).toEqual({ x: -30, y: 0 })
+  expect(snapShift({ x: 100, y: 776, w: 100, h: 64 }, paper)).toEqual({ x: 0, y: 24 })
+  expect(snapShift({ x: 50, y: 100, w: 1200, h: 64 }, paper)).toBeNull()
 })

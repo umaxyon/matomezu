@@ -110,6 +110,7 @@ export {
   settleChildren,
   shapeDefOf,
   shownRects,
+  snapShift,
   TEXT_LOOK,
   textBlock,
   textBlockHeight,

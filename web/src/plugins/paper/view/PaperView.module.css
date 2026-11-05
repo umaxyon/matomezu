@@ -169,3 +169,8 @@
 .ghost[data-fits="false"] {
   opacity: 0.35;
 }
+/* 紙 1 枚のビューの中身の置き場（印刷区画の左上が原点になるよう、ページの原点をずらす。位置は紙 1 枚のビューが決める） */
+.sheet {
+  position: absolute;
+  pointer-events: none;
+}

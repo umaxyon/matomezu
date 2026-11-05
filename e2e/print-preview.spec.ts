@@ -105,3 +105,29 @@ test("可変ページの何も載っていない印刷区画は、書く画面�
   await openPreview(page)
   await expect(sheets(page)).toHaveCount(1)
 })
+
+test("印刷プレビューの紙に、ページの形と線を描く（見るだけで、形に編集の印は付けない）", async ({ page }) => {
+  await page.goto("/")
+  await addBox(page, 200, 200, "左")
+  await addBox(page, 600, 200, "右")
+  // 左の箱の右の〇から、右の箱へ線を引く
+  const empty = await onPaper(page, 600, 500)
+  await page.mouse.click(empty.x, empty.y)
+  const start = items(page).filter({ hasText: "左" })
+  const s = (await start.boundingBox())!
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  const r = (await start.locator('[data-port="r"]').boundingBox())!
+  const e = (await items(page).filter({ hasText: "右" }).boundingBox())!
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(e.x + 10, e.y + e.height / 2, { steps: 5 })
+  await page.mouse.up()
+  await expect(page.locator("[data-item]:not([data-shape])")).toHaveCount(1)
+  await openPreview(page)
+  const sheet = sheets(page).first()
+  await expect(sheet).toContainText("左")
+  await expect(sheet).toContainText("右")
+  await expect(sheet.locator("polyline")).not.toHaveCount(0)
+  // 紙の中の形には、e2e や操作が探す印（data-shape）を付けない
+  await expect(sheet.locator("[data-shape]")).toHaveCount(0)
+})
