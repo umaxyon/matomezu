@@ -1,4 +1,4 @@
-/* 並べた印刷区画（位置と大きさは並べ方が決める。中身は紙 1 枚のビューが描き、はみ出した所は切る） */
+/* 並べた印刷区画（位置と大きさは並べ方が決める。中身は印刷区画 1 つのビューが描き、はみ出した所は切る） */
 .sheet {
   position: absolute;
   overflow: hidden;
@@ -6,4 +6,9 @@
   box-shadow:
     0 0 0 1px var(--theme-paper-line),
     0 6px 24px var(--theme-paper-shadow);
+}
+/* 印刷区画の中で、ページの原点をずらす所（位置は印刷区画の列と行で決まる） */
+.origin {
+  position: absolute;
+  pointer-events: none;
 }

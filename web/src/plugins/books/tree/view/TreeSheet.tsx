@@ -1,9 +1,9 @@
-// ツリーの紙 1 枚のビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの木を、書く画面と同じ並べ方（print.ts の laidPage）で、
-// 見るだけで描く。木を丸ごと描いて、受け取った印刷区画の左上が原点になるようにずらす（はみ出した所は外の印刷区画の枠が切る）。
+// ツリーの印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの木を、書く画面と同じ並べ方（print.ts の laidPage）で、
+// 見るだけで、ページの原点で描く。
 // 入力を受けず、＋や選んだ印、e2e や操作が探す印（data-node など）も付けない
 
 import { useCoreCatalog } from "../../../../plugin-api/ui"
-import { growOf, pageContext, settingValue } from "../../../base"
+import { growOf, pageContext } from "../../../base"
 import type { PrintSheetProps } from "../../../base/ui"
 import { LINE_SHAPE, treePath } from "../line-shape"
 import { treeRootOf } from "../node"
@@ -13,18 +13,16 @@ import { nodePaint } from "./paint"
 import { NodeText } from "./TreeView"
 import styles from "./TreeView.module.css"
 
-export function TreeSheet({ book, page, column, row, paper }: PrintSheetProps) {
+export function TreeSheet({ book, page, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
-  const laid = laidPage(catalog, page, {
-    setting: pageContext(catalog, book, page).setting,
-    grow: growOf(catalog, book, page),
-  })
+  const setting = pageContext(catalog, book, page).setting
+  const laid = laidPage(catalog, page, { setting, grow: growOf(catalog, book, page) })
   const root = treeRootOf(page)
   if (!laid || !root) return null
-  const lineShape = settingValue(catalog, book, page, LINE_SHAPE)
-  const shape = settingValue(catalog, book, page, NODE_SHAPE)
+  const lineShape = setting(LINE_SHAPE)
+  const shape = setting(NODE_SHAPE)
   return (
-    <div className={styles.sheet} style={{ left: -column * paper.w, top: -row * paper.h }}>
+    <>
       <svg className={styles.lines} width={paper.w} height={paper.h} aria-hidden="true">
         {laid.lines.map(l => (
           <path key={`${l.from.x},${l.from.y}-${l.to.x},${l.to.y}`} d={treePath(l, lineShape)} />
@@ -41,6 +39,6 @@ export function TreeSheet({ book, page, column, row, paper }: PrintSheetProps) {
           <NodeText node={n} />
         </div>
       ))}
-    </div>
+    </>
   )
 }

@@ -40,7 +40,7 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { colorPaint, grownArea, growOf, refusalMessage, settingValue } from "../../../base"
+import { colorPaint, growOf, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
   PaperFrame,
   RichBar,
@@ -58,8 +58,9 @@ import { dropAt, subtreeIds } from "../drag"
 import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from "../edit"
 import { type DirFolder, dirRootOf } from "../entry"
 import { kit } from "../kit"
-import { editorWidth, ICON, type LaidRow, laidBottom, laidRight, layoutDir, nameLeft } from "../layout"
+import { editorWidth, ICON, type LaidRow, layoutDir, nameLeft } from "../layout"
 import { NOTES } from "../notes"
+import { laidArea, laidPage } from "../print"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
 
@@ -133,14 +134,12 @@ const Rows = memo(function Rows({
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
   const growing = book && page ? growOf(catalog, book, page) : undefined // ページの増やす向き
   const variable = growing !== undefined
+  // 印刷と同じ並べ方（print.ts の laidPage）で並べた広さ
   const wide =
-    variable && root && book && page ? layoutDir(root, paper, settingValue(catalog, book, page, NOTES), true) : null
-  useStageArea(
-    stage.id,
-    growing && wide
-      ? grownArea(paper, growing, { x: 0, y: 0, w: laidRight(wide), h: laidBottom(wide.rows) }, true).size
-      : null,
-  )
+    growing && book && page
+      ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing })
+      : null
+  useStageArea(stage.id, growing && wide ? laidArea(paper, growing, wide, true).size : null)
   if (!page || !root) return null
   const dir = root
   const usingPencil = stage.tool === PENCIL_TOOL.id

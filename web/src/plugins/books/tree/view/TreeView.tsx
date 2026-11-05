@@ -28,7 +28,7 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { grownArea, growOf, refusalMessage, settingValue } from "../../../base"
+import { growOf, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
   PaperFrame,
   RichBar,
@@ -61,11 +61,11 @@ import {
 } from "../edit"
 import { GROW } from "../grow"
 import { kit } from "../kit"
-import { editorWidth, type LaidNode, laidExtent, layoutTree } from "../layout"
+import { editorWidth, type LaidNode } from "../layout"
 import { LINE_SHAPE, treePath } from "../line-shape"
 import { treeRootOf } from "../node"
+import { laidArea, laidPage } from "../print"
 import { NODE_SHAPE } from "../shape"
-import { NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, NODE_FILL, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
 import { NodeColorStand } from "./NodeColorStand"
@@ -176,18 +176,17 @@ const Tree = memo(function Tree({
   })
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root && selected && text !== null ? withCaption(root, selected, text) : root
-  const size = settingValue(catalog, book ?? null, page ?? null, NODE_SIZE)
   const shape = settingValue(catalog, book ?? null, page ?? null, NODE_SHAPE)
   const lineShape = settingValue(catalog, book ?? null, page ?? null, LINE_SHAPE)
   // ページの増やす向き（可変ページでなければ undefined）
   const growing = book && page ? growOf(catalog, book, page) : undefined
-  const laid = shown ? layoutTree(shown, grow, paper, size, shape, growing) : null
+  // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた木を並べる
+  const laid =
+    book && page && shown
+      ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing }, shown)
+      : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
-  useStageArea(
-    stage.id,
-    laid && growing ? grownArea(paper, growing, laidExtent(laid.nodes), true).size : null,
-    laid?.origin ?? null,
-  )
+  useStageArea(stage.id, laid && growing ? laidArea(paper, growing, laid, true).size : null, laid?.origin ?? null)
   const at = laid?.nodes.find(n => n.id === selected)
   useCentered(stage, usingEdit && !drag.state ? at : undefined, view, panStageBy)
   useToolZoom(stage.id, usingEdit, zoomStage)

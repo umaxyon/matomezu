@@ -1,5 +1,5 @@
 // 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描き、
-// 中身はブックのタイプの見せ方の紙 1 枚のビュー（printSheet）で描く（無ければ白紙）。
+// 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙）。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
@@ -21,10 +21,11 @@ import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets } from "./book-sheets"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
+import { PrintingContext } from "./printing"
 
-// 紙 1 枚のビュー（ブックのビューの定義の printSheet）が受け取る物: 描いているステージ（印刷プレビューの間）・ブック・ページと、
-// そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはその印刷区画の中身を、印刷区画の左上を
-// 原点に描く（はみ出した所は切る）。入力は受けない
+// 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: 描いているステージ（印刷プレビューの間）・ブック・ページと、
+// そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
+// （印刷区画の左上が原点になるようずらし、はみ出した所を切るのは印刷プレビュー）。描く物を、その印刷区画に載る物に絞ってよい。入力は受けない
 export interface PrintSheetProps {
   stage: string
   book: Book
@@ -36,7 +37,7 @@ export interface PrintSheetProps {
 
 declare module "../../../core/catalog" {
   interface BookViewExtras {
-    // 印刷プレビューと印刷で、紙 1 枚分（印刷区画 1 つ）の中身を描くビュー。無ければ白紙
+    // 印刷プレビューと印刷で、印刷区画 1 つの中身を描くビュー。無ければ白紙
     printSheet?: ComponentType<PrintSheetProps>
   }
 }
@@ -148,14 +149,19 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
           data-sheet-page={s.page}
         >
           {Sheet && pageOf(s.page) && (
-            <Sheet
-              stage={id}
-              book={book as Book}
-              page={pageOf(s.page) as Page}
-              column={s.column}
-              row={s.row}
-              paper={{ w: s.w, h: s.h }}
-            />
+            // 印刷区画の左上が原点になるよう、ページの原点をずらす（はみ出した所は印刷区画の枠が切る）
+            <div className={styles.origin} style={{ left: -s.column * s.w, top: -s.row * s.h }}>
+              <PrintingContext.Provider value={true}>
+                <Sheet
+                  stage={id}
+                  book={book as Book}
+                  page={pageOf(s.page) as Page}
+                  column={s.column}
+                  row={s.row}
+                  paper={{ w: s.w, h: s.h }}
+                />
+              </PrintingContext.Provider>
+            </div>
           )}
         </div>
       ))}

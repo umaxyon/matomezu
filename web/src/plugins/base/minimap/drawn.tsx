@@ -1,10 +1,10 @@
 // 紙に描いたつなぐもののミニマップの絵（base が持つステージの画面の状態。つなぐものの種類の id ごと）。
 // つなぐもののビューは描くたびに、描いた形からミニマップの絵を作って useDrawnMinimap で置く。ミニマップは置いた絵があればそれを描き、
 // 無ければ（まだ描いていない・別のページを描いた絵）定義の minimap で作る
-import { useLayoutEffect, useRef } from "react"
-import { useMatomezuState } from "../../../ui/store-context"
+import { useLayoutEffect } from "react"
 import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { usePrinting } from "../print-preview/printing"
 import type { MinimapMark } from "./marks"
 
 // 種類の id → 描いたページの id と絵
@@ -25,14 +25,11 @@ const sameMarks = (a: readonly MinimapMark[], b: readonly MinimapMark[]): boolea
 
 // つなぐもの item のビューが、ステージ stage のページ page に描いた絵 marks を置く（null なら置き直さない。形を動かしている間など）。
 // 前と同じ絵なら置き直さない。ビューが消えたら絵も消す。置いた絵は購読しない（置くたびにビューが描き直されないように）。
-// 印刷プレビューの間に描いたビュー（紙 1 枚ずつ、寄せた位置で描く）は、置きも消しもしない（編集のミニマップの絵を上書きしないように）
+// 印刷区画の中で描いたビュー（印刷区画ごとに、寄せた位置で描く）は、置きも消しもしない（編集のミニマップの絵を上書きしないように）
 export function useDrawnMinimap(stage: string, item: string, page: string, marks: readonly MinimapMark[] | null) {
   const setStageState = useSetStageState(kit)
   const read = useReadStageState(kit)
-  const previewing = useMatomezuState(
-    s => s.workspace.stages.find(st => st.id === stage)?.mode.kind === "print-preview",
-  )
-  const printing = useRef(previewing).current // 描き始めたときに印刷プレビューの間だったか
+  const printing = usePrinting() // 印刷区画の中で描いているか
   useLayoutEffect(() => {
     if (!marks || printing) return
     const state = (read(stage) ?? {}) as Record<string, unknown>

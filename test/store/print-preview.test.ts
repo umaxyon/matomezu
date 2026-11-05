@@ -156,3 +156,25 @@ test("寄せ: 形を載る印刷区画の中へ寄せる量。はみ出してい
   expect(snapShift({ x: 100, y: 776, w: 100, h: 64 }, paper)).toEqual({ x: 0, y: 24 })
   expect(snapShift({ x: 50, y: 100, w: 1200, h: 64 }, paper)).toBeNull()
 })
+
+test("可変ページのツリーとディレクトリ構成図で中身があふれると、printSheets は書く画面と同じ並べ方で増えた印刷区画を数え、中身の載る印刷区画を返す", () => {
+  const store = newStore()
+  const paper = { paper: "@matomezu/base:a4", orientation: "landscape" as const, grows: true as const }
+  const children = Array.from({ length: 40 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` }))
+  const treePage = { id: "p1", title: "1", ...paper, root: { id: "r", caption: "根", children } }
+  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [treePage] }
+  const t = sheetsOfPage(store.catalog.core, tree as never, treePage)!
+  expect(t.columns * t.rows).toBeGreaterThan(1)
+  expect(t.filled?.size).toBeGreaterThan(1)
+  const files = Array.from({ length: 80 }, (_, i) => ({ id: `f${i}`, kind: "file" as const, name: `file${i}.ts` }))
+  const dirPage = {
+    id: "p1",
+    title: "1",
+    ...paper,
+    root: { id: "r", kind: "folder" as const, name: "proj", children: files },
+  }
+  const dir = { type: "@matomezu/dir:dir" as const, id: "d1", title: "構成", pages: [dirPage] }
+  const d = sheetsOfPage(store.catalog.core, dir as never, dirPage)!
+  expect(d.rows).toBeGreaterThan(1)
+  expect(d.filled?.has("0,1")).toBe(true)
+})

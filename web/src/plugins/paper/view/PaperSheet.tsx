@@ -1,6 +1,6 @@
-// 紙の見せ方の紙 1 枚のビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの形とつなぐものを、見るだけで描く。
+// 紙の見せ方の印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの形とつなぐものを、見るだけで描く。
 // ページの直下の形は、載る印刷区画の中へ寄せて描き（base の snapShift。子は親について行く）、つなぐものは寄せた形の位置で引き直す。
-// ページを丸ごと描いて、受け取った印刷区画の左上が原点になるようにずらす（はみ出した所は外の印刷区画の枠が切る）。
+// 描く形は、受け取った印刷区画に載る物だけ（つなぐものは、全部の形の位置で引く）。ページの原点で描く。
 // 入力を受けず、形にはアンカーも、e2e や操作が探す印（data-item など）も付けない（同じ形が印刷区画の数だけ描かれるため）
 import type { ReactNode } from "react"
 import { bookItems, type CoreCatalog, type ItemPage, type PlacedShape, type Point, shapesOf } from "../../../plugin-api"
@@ -13,7 +13,7 @@ import {
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { placedSize, shapeDefOf, shownRects, snapShift } from "../../base"
+import { placedSize, shapeDefOf, sheetsOfShape, shownRects, snapShift } from "../../base"
 import type { PrintSheetProps } from "../../base/ui"
 import styles from "./PaperView.module.css"
 
@@ -47,20 +47,25 @@ export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintS
     const view = ui.connectors.get(c)?.view
     return view ? [{ id: c, View: view }] : []
   })
-  const items = shapes.map(({ item, shift }) => (
-    <SheetItem key={item.id} catalog={catalog} stage={id} zoom={stage.zoom} item={item} shift={shift} />
-  ))
-  return (
-    <div className={styles.sheet} style={{ left: -column * paper.w, top: -row * paper.h }}>
-      {connectors.reduceRight<ReactNode>(
-        (inner, { id: c, View }) => (
-          <TokenScope key={c} def={c}>
-            <View scene={scene}>{inner}</View>
-          </TokenScope>
-        ),
-        items,
-      )}
-    </div>
+  // この印刷区画に載る形だけを描く
+  const here = (item: PlacedShape) => {
+    const size = placedSize(catalog, item)
+    return (
+      !!size && sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).some(c => c.column === column && c.row === row)
+    )
+  }
+  const items = shapes
+    .filter(({ item }) => here(item))
+    .map(({ item, shift }) => (
+      <SheetItem key={item.id} catalog={catalog} stage={id} zoom={stage.zoom} item={item} shift={shift} />
+    ))
+  return connectors.reduceRight<ReactNode>(
+    (inner, { id: c, View }) => (
+      <TokenScope key={c} def={c}>
+        <View scene={scene}>{inner}</View>
+      </TokenScope>
+    ),
+    items,
   )
 }
 
