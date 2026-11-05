@@ -1,9 +1,9 @@
 // 紙の見せ方の印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの形とつなぐものを、見るだけで描く。
-// ページの直下の形は、載る印刷区画の中へ寄せて描き（base の snapShift。子は親について行く）、つなぐものは寄せた形の位置で引き直す。
+// ページの直下の形は、載る印刷区画の中へ寄せて描き（base の sheetShapes。子は親について行く）、つなぐものは寄せた形の位置で引き直す。
 // 描く形は、受け取った印刷区画に載る物だけ（つなぐものは、全部の形の位置で引く）。ページの原点で描く。
 // 入力を受けず、形にはアンカーも、e2e や操作が探す印（data-item など）も付けない（同じ形が印刷区画の数だけ描かれるため）
 import type { ReactNode } from "react"
-import { bookItems, type CoreCatalog, type ItemPage, type PlacedShape, type Point, shapesOf } from "../../../plugin-api"
+import { bookItems, type CoreCatalog, type ItemPage, type PlacedShape, type Point } from "../../../plugin-api"
 import {
   type ItemViewProps,
   type ShapeScene,
@@ -13,7 +13,7 @@ import {
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { placedSize, shapeDefOf, sheetsOfShape, shownRects, snapShift } from "../../base"
+import { placedSize, shapeDefOf, sheetShapes, shownRects } from "../../base"
 import type { PrintSheetProps } from "../../base/ui"
 import styles from "./PaperView.module.css"
 
@@ -26,10 +26,7 @@ export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintS
   const stage = useStage(id)
   if (!stage) return null
   const itemPage = page as ItemPage
-  const shapes = shapesOf(itemPage).map(item => {
-    const size = placedSize(catalog, item)
-    return { item, shift: size ? snapShift({ x: item.x, y: item.y, ...size }, paper) : null }
-  })
+  const { shapes, here } = sheetShapes(catalog, itemPage, paper, column, row)
   const scene: ShapeScene = {
     stage,
     page: itemPage,
@@ -48,17 +45,9 @@ export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintS
     return view ? [{ id: c, View: view }] : []
   })
   // この印刷区画に載る形だけを描く
-  const here = (item: PlacedShape) => {
-    const size = placedSize(catalog, item)
-    return (
-      !!size && sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).some(c => c.column === column && c.row === row)
-    )
-  }
-  const items = shapes
-    .filter(({ item }) => here(item))
-    .map(({ item, shift }) => (
-      <SheetItem key={item.id} catalog={catalog} stage={id} zoom={stage.zoom} item={item} shift={shift} />
-    ))
+  const items = here.map(({ item, shift }) => (
+    <SheetItem key={item.id} catalog={catalog} stage={id} zoom={stage.zoom} item={item} shift={shift} />
+  ))
   return connectors.reduceRight<ReactNode>(
     (inner, { id: c, View }) => (
       <TokenScope key={c} def={c}>

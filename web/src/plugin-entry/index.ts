@@ -111,6 +111,7 @@ export {
   settingValue,
   settleChildren,
   shapeDefOf,
+  sheetShapes,
   sheetsOfShape,
   shownRects,
   snapShift,

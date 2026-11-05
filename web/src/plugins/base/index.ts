@@ -134,7 +134,7 @@ export { NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./pl
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export type { PrintSheets } from "./print-preview"
-export { printSheetsOf, sheetsOfShape, snapShift } from "./print-preview/filled"
+export { printSheetsOf, sheetShapes, sheetsOfShape, snapShift } from "./print-preview/filled"
 export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 export {
   BOOK_TEXT_COLORS,

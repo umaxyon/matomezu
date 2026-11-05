@@ -8,12 +8,12 @@
 import { bookItems } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point, Rect, Size } from "../../../core/geom"
-import { byConnector, type ItemPage } from "../../../core/placed"
+import { byConnector, type ItemPage, type PlacedShape, shapesOf } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { type GrowSides, grownArea } from "../place/grow"
 import { paperSize } from "../place/items"
-import { portAreasOf, rectsOf } from "../place/placed"
+import { placedSize, portAreasOf, rectsOf } from "../place/placed"
 import type { PrintSheets } from "."
 
 // 印刷区画の鍵（列,行）
@@ -60,6 +60,27 @@ export function printSheetsOf(
   if (!grow) return { columns: 1, rows: 1, filled }
   const { columns, rows } = grownArea(paper, grow, extent, false)
   return { columns, rows, filled }
+}
+
+// ページ page を紙の大きさ paper で区切ったうち、column 列目・row 行目の印刷区画を描くときの形: ページの直下の形全部と、それぞれを
+// 載る印刷区画の中へ寄せる量（shapes。つなぐものは全部の形の位置で引く）と、そのうちこの印刷区画に載る形（here）
+export function sheetShapes(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  paper: Size,
+  column: number,
+  row: number,
+): { shapes: { item: PlacedShape; shift: Point | null }[]; here: { item: PlacedShape; shift: Point | null }[] } {
+  const placed = shapesOf(page).map(item => {
+    const size = placedSize(catalog, item)
+    const rect = size && { x: item.x, y: item.y, ...size }
+    return { item, rect, shift: rect ? snapShift(rect, paper) : null }
+  })
+  const on = (rect: Rect | null) => !!rect && sheetsOfShape(rect, paper).some(c => c.column === column && c.row === row)
+  return {
+    shapes: placed.map(({ item, shift }) => ({ item, shift })),
+    here: placed.filter(({ rect }) => on(rect)).map(({ item, shift }) => ({ item, shift })),
+  }
 }
 
 // ブック book のページ page で、何かが載っている印刷区画の鍵（判定できないタイプなら null）
