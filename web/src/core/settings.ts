@@ -43,7 +43,7 @@ export function skinOf(catalog: CoreCatalog, settings: Settings): string {
   return typeof skin === "string" ? skin : "auto"
 }
 
-// キーの割り当ての、利用者の変更: role が keys の項目の値。無ければ変更なし
+// キーバインドの、利用者の変更: role が keys の項目の値。無ければ変更なし
 export function keyChangesOf(catalog: CoreCatalog, settings: Settings): KeyChanges {
   const parsed = KeyChangesSchema.safeParse(byRole(catalog, settings, "keys"))
   return parsed.success ? parsed.data : NO_KEY_CHANGES

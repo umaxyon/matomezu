@@ -49,6 +49,7 @@ test("matomezu が出す名前", () => {
     "bodyWidthAfter",
     "bookItems",
     "bookType",
+    "breakShift",
     "captionTextWidth",
     "changeWithLock",
     "childOrigin",
@@ -132,7 +133,6 @@ test("matomezu が出す名前", () => {
     "sheetShapes",
     "sheetsOfShape",
     "shownRects",
-    "snapShift",
     "textBlock",
     "textBlockHeight",
     "textColorId",
@@ -158,7 +158,7 @@ test("matomezu が出す名前", () => {
   ])
 })
 
-test("ビルトインの印（defineBuiltin）は外に出さない（追加プラグインがキーの割り当てでビルトインとして扱われないように）", () => {
+test("ビルトインの印（defineBuiltin）は外に出さない（追加プラグインがキーバインドでビルトインとして扱われないように）", () => {
   expect("defineBuiltin" in api).toBe(false)
 })
 
@@ -178,7 +178,7 @@ test("matomezu/ui が出す名前", () => {
     "Field",
     "Form",
     "InheritChoices",
-    "LEFT_DRAWER",
+    "LEFT_SIDE_PANEL",
     "LockToggle",
     "PageProblemsView",
     "PaperFrame",
@@ -202,7 +202,7 @@ test("matomezu/ui が出す名前", () => {
     "controlClass",
     "defineAnnotationIcon",
     "defineLayout",
-    "defineLeftDrawerTab",
+    "defineLeftSidePanelTab",
     "definePluginUi",
     "defineWidget",
     "defineWorkspace",
@@ -222,7 +222,7 @@ test("matomezu/ui が出す名前", () => {
     "useBook",
     "useBookOf",
     "useBookTheme",
-    "useCloseLeftDrawer",
+    "useCloseLeftSidePanel",
     "useCloseRightSidePanel",
     "useCommand",
     "useContextMenu",
@@ -234,12 +234,12 @@ test("matomezu/ui が出す名前", () => {
     "useItem",
     "useLatestPan",
     "useLayoutWarnings",
-    "useLeftDrawer",
+    "useLeftSidePanel",
     "useMarkdownDocument",
     "useMenu",
     "useMenuCommand",
     "useMessages",
-    "useOpenLeftDrawer",
+    "useOpenLeftSidePanel",
     "useOpenRightSidePanel",
     "usePage",
     "usePageProblems",

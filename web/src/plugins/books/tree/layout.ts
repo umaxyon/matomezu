@@ -43,7 +43,7 @@ export interface LaidNode {
 
 export interface TreeLayout {
   nodes: LaidNode[]
-  lines: { from: Point; to: Point; side: Side }[] // 親から子への線（side はその枝の伸びる向き）
+  lines: { from: Point; to: Point; side: Side; parent: string; child: string }[] // 親から子への線（side はその枝の伸びる向き。親と子の節の id）
   fits: boolean // どの節も紙に収まるか
   origin: Point // 可変ページで、木全体を右・下へずらした印刷区画の数（可変ページでなければ 0）
 }
@@ -111,7 +111,7 @@ function measure(node: TreeNode, side: Side, size: NodeSize): Measured {
 // 四角 parent の side の辺から、子の並び kids を伸ばした節と線（parent 自身は含めない）。extra は、最初の段だけ parent から余分に離す長さ。
 // 節の形が下線で左右へ伸びる枝は、線を子の節の下の辺（下線）の端につなぐ（根から出る線は、根の辺の真ん中から）
 function branch(
-  parent: Rect,
+  parent: Rect & { id: string },
   kids: readonly TreeNode[],
   side: Side,
   look: { size: NodeSize; shape: NodeShape },
@@ -136,22 +136,22 @@ function branch(
     const b = toPaper(at + m.main, across + m.cross)
     return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) }
   }
-  const place = (n: Measured, at: number, start: number, from: Point) => {
+  const place = (n: Measured, at: number, start: number, from: Point, owner: string) => {
     const across = start + (n.span - n.cross) / 2
     const color = n.color ? { color: n.color } : {}
     out.nodes.push({ id: n.id, caption: n.caption, lines: n.lines, ...color, ...rectOf(at, across, n) })
     const join = onLine ? n.cross : n.cross / 2
-    out.lines.push({ from, to: toPaper(at, across + join), side })
+    out.lines.push({ from, to: toPaper(at, across + join), side, parent: owner, child: n.id })
     const tip = toPaper(at + n.main, across + join)
     let next = start + (n.span - spanOf(n.children, side)) / 2
     for (const c of n.children) {
-      place(c, at + n.main + LEVEL, next, tip)
+      place(c, at + n.main + LEVEL, next, tip, n.id)
       next += c.span + gapOf(side)
     }
   }
   let next = -spanOf(measured, side) / 2
   for (const m of measured) {
-    place(m, LEVEL + extra, next, toPaper(0, 0))
+    place(m, LEVEL + extra, next, toPaper(0, 0), parent.id)
     next += m.span + gapOf(side)
   }
 }
@@ -233,9 +233,9 @@ function shiftBy(out: TreeLayout, dx: number, dy: number) {
     n.y += dy
   }
   out.lines = out.lines.map(l => ({
+    ...l,
     from: { x: l.from.x + dx, y: l.from.y + dy },
     to: { x: l.to.x + dx, y: l.to.y + dy },
-    side: l.side,
   }))
 }
 
@@ -252,11 +252,10 @@ export function layoutTree(
 ): TreeLayout {
   const look = { size, shape }
   const box = rootBox(root, size)
-  const r = rootRect(box, grow, paper)
+  const r = { ...rootRect(box, grow, paper), id: root.id }
   const out: TreeLayout = {
     nodes: [
       {
-        id: root.id,
         caption: root.caption,
         lines: box.lines,
         ...(box.body ? { body: box.body } : {}),

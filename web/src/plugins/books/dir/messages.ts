@@ -12,6 +12,8 @@ export const DIR_MESSAGES = defineMessages({
   "Open or close folder": { en: "Open or close folder", ja: "フォルダを開閉" },
   "Sort folder": { en: "Sort folder", ja: "フォルダを並べ替える" },
   "Move selection": { en: "Move selection", ja: "選ぶ行を替える" },
+  "Move selection up": { en: "Move selection up", ja: "選ぶ行を上へ" },
+  "Move selection down": { en: "Move selection down", ja: "選ぶ行を下へ" },
   "Close or select parent": { en: "Close or select parent", ja: "閉じるか親を選ぶ" },
   "Open folder": { en: "Open folder", ja: "フォルダを開く" },
   "Select root": { en: "Select root", ja: "根を選ぶ" },

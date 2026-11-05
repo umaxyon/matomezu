@@ -9,13 +9,19 @@ import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
-import { LEFT_DRAWER_BUTTON } from "./left-drawer/ui"
+import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
 import { MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE } from "./note/ui"
 import type { AnnotationIconProps } from "./note-list/slots"
 import { NOTE_LIST } from "./note-list/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
-import { PRINT_PREVIEW_BUTTON, PRINT_PREVIEW_PANEL, PRINT_PREVIEW_SETTING_VIEWS } from "./print-preview/ui"
+import {
+  PRINT_CHECK_PANEL,
+  PRINT_PREVIEW_BUTTON,
+  PRINT_PREVIEW_PANEL,
+  PRINT_PREVIEW_SCROLLBARS,
+  PRINT_PREVIEW_SETTING_VIEWS,
+} from "./print-preview/ui"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
 import {
   BOOK_CONTENT,
@@ -57,16 +63,16 @@ export {
   SwitchPanel,
 } from "./dialog-host/FormParts"
 export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
-export { useCloseLeftDrawer, useLeftDrawer, useOpenLeftDrawer } from "./left-drawer/hooks"
-export { LEFT_DRAWER } from "./left-drawer/slots"
-export { defineLeftDrawerTab } from "./left-drawer/ui"
+export { useCloseLeftSidePanel, useLeftSidePanel, useOpenLeftSidePanel } from "./left-side-panel/hooks"
+export { LEFT_SIDE_PANEL } from "./left-side-panel/slots"
+export { defineLeftSidePanelTab } from "./left-side-panel/ui"
 export { useMarkdownDocument } from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/drawn"
 export { ANNOTATION_ICON, type AnnotationIconProps } from "./note-list/slots"
 export { defineAnnotationIcon } from "./note-list/ui"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
-export type { PrintSheetProps } from "./print-preview/PrintPreviewView"
+export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
 export {
   useCloseRightSidePanel,
   useFollowsSelection,
@@ -120,7 +126,9 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_AREA_TOGGLE,
     PRINT_PREVIEW_BUTTON,
     PRINT_PREVIEW_PANEL,
-    LEFT_DRAWER_BUTTON,
+    PRINT_CHECK_PANEL,
+    PRINT_PREVIEW_SCROLLBARS,
+    LEFT_SIDE_PANEL_BUTTON,
     NOTE_LIST,
     NOTE_READ_NOTICE,
     NOTE_ICON,
@@ -150,15 +158,15 @@ declare module "../../core/catalog" {
     "@matomezu/base:footer-menu-basics": StageSlotProps
     "@matomezu/base:footer-menu-book-tools": StageSlotProps
     "@matomezu/base:right-side-panel": StageSlotProps
-    "@matomezu/base:left-drawer": StageSlotProps
+    "@matomezu/base:left-side-panel": StageSlotProps
     "@matomezu/base:annotation-icon": AnnotationIconProps
   }
   interface WidgetExtras {
     // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）と、
     // ステージの選択に従うか（followsSelection。従う中身を出している間は、付いた先がステージの選択になり、開いたステージの中を押しても閉じない）
     rightSidePanel?: { width: number; followsSelection?: boolean }
-    // 左ドロワーのスロットに置くタブの名前（文言の鍵）
-    leftDrawer?: { title: MessageKey }
+    // 左サイドパネルのスロットに置くタブの名前（文言の鍵）
+    leftSidePanel?: { title: MessageKey }
     // 伝言一覧の行の絵のスロットに置く物が描く、アノテーションの種類の id
     annotationIcon?: { annotation: string }
   }
@@ -178,12 +186,14 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark-layer": typeof MARK_LAYER
     "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
     "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
-    "@matomezu/base:left-drawer-button": typeof LEFT_DRAWER_BUTTON
+    "@matomezu/base:left-side-panel-button": typeof LEFT_SIDE_PANEL_BUTTON
     "@matomezu/base:note-list": typeof NOTE_LIST
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON
     "@matomezu/base:mark-icon": typeof MARK_ICON
     "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL
+    "@matomezu/base:print-check-panel": typeof PRINT_CHECK_PANEL
+    "@matomezu/base:print-preview-scrollbars": typeof PRINT_PREVIEW_SCROLLBARS
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME

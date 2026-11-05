@@ -2,7 +2,7 @@
 // 開いたときは URL の場所を当てはめ（store の locate）、見ているものが変わったら URL に書く。移動（ステージの数か、ブック・ページが変わった）
 // ならブラウザの履歴に積み（pushState）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。ブラウザの戻る・進む（popstate）は、
 // その URL の場所を当てはめる。
-// URL の形: ステージごとに b0（ブックの id。何も開いていなければ空）・p0（ページの id。無ければ書かない）・v0（倍率,横,縦）・m0（印刷プレビューの間だけ print-preview）、
+// URL の形: ステージごとに b0（ブックの id。何も開いていなければ空）・p0（ページの id。無ければ書かない）・v0（倍率,横,縦）、
 // 続けて b1・p1・v1 …、c（カレントの番号）・r（境目の割合）。id にどの文字が入っても読み戻せるように、ステージの値ごとに分けて書く
 import { type Address, addressOf, moved, type StagePlace } from "../core/address"
 import type { MatomezuInstance } from "../store/store"
@@ -42,7 +42,6 @@ export function searchOf(address: Address): string {
     q.set(`b${i}`, s.book ?? "")
     if (s.page !== null) q.set(`p${i}`, s.page)
     q.set(`v${i}`, `${round(s.zoom)},${round(s.pan.x)},${round(s.pan.y)}`)
-    if (s.mode !== "edit") q.set(`m${i}`, s.mode)
   })
   q.set("c", String(address.current))
   q.set("r", String(round(address.share)))
@@ -64,7 +63,6 @@ export function parseSearch(search: string): Address | null {
       page: q.get(`p${i}`) || null,
       zoom: num(zoom, 1),
       pan: { x: num(x, 0), y: num(y, 0) },
-      mode: q.get(`m${i}`) === "print-preview" ? "print-preview" : "edit",
     })
   }
   if (stages.length === 0) return null

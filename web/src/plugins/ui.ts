@@ -45,7 +45,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:tool-picker",
     ],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
-    "@matomezu/base:stage-body": ["@matomezu/base:book-view"],
+    "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
     "@matomezu/base:book-layers": [
       "@matomezu/base:paper-layer",
       "@matomezu/base:print-area-layer",
@@ -62,11 +62,15 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:stage-menu-buttons",
       "@matomezu/base:print-area-toggle",
       "@matomezu/base:print-preview-button",
-      "@matomezu/base:left-drawer-button",
+      "@matomezu/base:left-side-panel-button",
     ],
     "@matomezu/base:footer-menu-book-tools": ["@matomezu/base:toolbox"],
-    "@matomezu/base:right-side-panel": ["@matomezu/base:note-panel", "@matomezu/base:print-preview-panel"],
-    "@matomezu/base:left-drawer": ["@matomezu/base:note-list"],
+    "@matomezu/base:right-side-panel": [
+      "@matomezu/base:note-panel",
+      "@matomezu/base:print-preview-panel",
+      "@matomezu/base:print-check-panel",
+    ],
+    "@matomezu/base:left-side-panel": ["@matomezu/base:note-list"],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
   },
   menus: {

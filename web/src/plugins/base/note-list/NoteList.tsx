@@ -1,6 +1,6 @@
-// 伝言一覧（ウィジェット note-list。左ドロワーのタブ）: 開いているブックの伝言とマークを、ページごとに、付けた時点の新しい順に並べる（並べ方は rows.ts）。
+// 伝言一覧（ウィジェット note-list。左サイドパネルのタブ）: 開いているブックの伝言とマークを、ページごとに、付けた時点の新しい順に並べる（並べ方は rows.ts）。
 // 行の出し方は種類が答える（定義の listed。listed.ts）: 左に種類の絵（スロット annotation-icon のウィジェット）、文（無ければ付けた物の名前。吹き出しと同じ字数まで）、付けた時刻。
-// AI が読んだ物は薄くして「既読」。行を押すと左ドロワーを閉じ、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
+// AI が読んだ物は薄くして「既読」。行を押すと左サイドパネルを閉じ、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
 // 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
 import { type ReactNode, useMemo, useState } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
@@ -11,7 +11,7 @@ import { useAllowed, useBook, useCoreCatalog, useUiCatalog } from "../../../ui/v
 import { useAnnotationsIn, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { useSetLeftDrawer } from "../left-drawer/hooks"
+import { useSetLeftSidePanel } from "../left-side-panel/hooks"
 import { BUBBLE_CHARS } from "../note/NoteLayer"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
 import { clampChars } from "../text/text"
@@ -113,16 +113,16 @@ function Icon({ stage, annotation: a }: { stage: string; annotation: Annotation 
   )
 }
 
-// 行を押したときの動き: 左ドロワーを閉じ、ほかのページならそのページを開いてから、種類が右サイドパネルの中身 panel を答えていればそこで開き、
+// 行を押したときの動き: 左サイドパネルを閉じ、ほかのページならそのページを開いてから、種類が右サイドパネルの中身 panel を答えていればそこで開き、
 // 無ければ付けた物を倍率そのままで見せる
 function useGo(stage: string): (a: AiAnnotation, panel: string | undefined) => void {
   const read = useReadState()
   const actions = useActions()
-  const setDrawer = useSetLeftDrawer()
+  const setLeftSidePanel = useSetLeftSidePanel()
   const openPanel = useOpenRightSidePanel()
   const reveal = useRequestReveal()
   return (a, panel) => {
-    setDrawer(stage, null)
+    setLeftSidePanel(stage, null)
     const opened = read().workspace.stages.find(s => s.id === stage)?.opened
     if (a.page && opened?.page !== a.page) actions.openPage(stage, a.page)
     if (panel) {

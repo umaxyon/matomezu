@@ -1,4 +1,4 @@
-// ツリーの印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの木を、書く画面と同じ並べ方（print.ts の laidPage）で、
+// ツリーの印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの木を、書く画面と同じ並べ方（print.ts の printLaid。可変ページでは境目をまたぐ節を次の印刷区画へ送る）で、
 // 見るだけで、ページの原点で描く。
 // 入力を受けず、＋や選んだ印、e2e や操作が探す印（data-node など）も付けない
 
@@ -7,7 +7,7 @@ import { growOf, pageContext } from "../../../base"
 import type { PrintSheetProps } from "../../../base/ui"
 import { LINE_SHAPE, treePath } from "../line-shape"
 import { treeRootOf } from "../node"
-import { laidPage } from "../print"
+import { printLaid } from "../print"
 import { NODE_SHAPE } from "../shape"
 import { nodePaint } from "./paint"
 import { NodeText } from "./TreeView"
@@ -16,7 +16,7 @@ import styles from "./TreeView.module.css"
 export function TreeSheet({ book, page, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const setting = pageContext(catalog, book, page).setting
-  const laid = laidPage(catalog, page, { setting, grow: growOf(catalog, book, page) })
+  const laid = printLaid(catalog, page, { setting, grow: growOf(catalog, book, page) })
   const root = treeRootOf(page)
   if (!laid || !root) return null
   const lineShape = setting(LINE_SHAPE)

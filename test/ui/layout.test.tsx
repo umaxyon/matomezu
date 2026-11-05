@@ -82,7 +82,7 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:footer-menu-basics is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:footer-menu-book-tools is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:left-drawer is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:left-side-panel is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:annotation-icon is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
     ])
@@ -102,7 +102,7 @@ describe("配置", () => {
       id: "mine",
       slots: { ...DEFAULT_LAYOUT.slots, root: ["w:workspace", "@matomezu/base:dialog-host"] },
     }
-    // 右サイドパネルと左ドロワーを開けない骨組みなら、その中身（左ドロワーのタブが開ける行の絵も）を書いた配置は error
+    // 右サイドパネルと左サイドパネルを開けない骨組みなら、その中身（左サイドパネルのタブが開ける行の絵も）を書いた配置は error
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual([
       "E211",
       "E211",
@@ -110,7 +110,7 @@ describe("配置", () => {
     ])
     const {
       "@matomezu/base:right-side-panel": _,
-      "@matomezu/base:left-drawer": __,
+      "@matomezu/base:left-side-panel": __,
       "@matomezu/base:annotation-icon": ___,
       ...slots
     } = layout.slots

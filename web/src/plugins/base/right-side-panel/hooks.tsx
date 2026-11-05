@@ -7,7 +7,7 @@ import { useSetStageState, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { panelIn, type RightSidePanelOpen, withOpened, withoutAnchor, withPanel } from "./state"
 
-export const SLIDE_MS = 250 // 開け閉めでステージの列と右サイドパネルの幅を動かす時間（CSS の変数 --right-side-panel-slide で渡す）
+export const SLIDE_MS = 250 // 開け閉めでステージの列とサイドパネル（右と左）の幅を動かす時間（CSS の変数 --side-panel-slide で渡す）
 
 // 今の押しで右サイドパネルを閉じたか（入れ物が押すたびに決める。閉じたのと同じ押しの click で、押した物がまた開かないように）
 export const PressClosedContext = createContext<{ current: boolean }>({ current: false })
@@ -119,9 +119,9 @@ export function useCloseRightSidePanel(): (stage: string) => void {
   )
 }
 
-// 右サイドパネルを開いたステージが替わってから、幅を動かし終えるまで true（替わったのと同じ描き方で true にし、列の幅と一緒に動きを付ける）。
+// サイドパネル（右か左）を開いたステージが替わってから、幅を動かし終えるまで true（替わったのと同じ描き方で true にし、列の幅と一緒に動きを付ける）。
 // 動き終わりの合図は、これが false に戻ること（動きを減らす設定では、すぐ戻る）
-export function useRightSidePanelSliding(stage: string | null): boolean {
+export function useSidePanelSliding(stage: string | null): boolean {
   const [settled, setSettled] = useState(stage)
   useEffect(() => {
     if (settled === stage) return

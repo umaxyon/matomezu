@@ -114,8 +114,8 @@ export function InheritChoices<V extends string>({
   return <Choices<V | ""> label={label} value={value ?? ""} options={all} onChange={v => onChange(v || undefined)} />
 }
 
-// 入力Formを並べた form。決めるボタンか、決めるキー（キーの割り当ての dialog-submit）で onSubmit。ready でなければ送らない。
-// 1 行のテキストFormの Enter でブラウザが送る動き（暗黙の送信）は止める（Enter はキーの割り当てが受ける）。
+// 入力Formを並べた form。決めるボタンか、決めるキー（キーバインドの dialog-submit）で onSubmit。ready でなければ送らない。
+// 1 行のテキストFormの Enter でブラウザが送る動き（暗黙の送信）は止める（Enter はキーバインドが受ける）。
 // submit があれば最後の行の右に決めるボタンを置き、無ければ置かない（見出しの行に ActionButton で置くときは、id をその form に渡す）
 export function Form({
   id,

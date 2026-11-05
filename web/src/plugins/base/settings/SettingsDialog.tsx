@@ -6,7 +6,7 @@ import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { SettingsScreen } from "./SettingsScreen"
 
-export function SettingsDialog({ onClose }: DialogProps) {
+export function SettingsDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
   return (
     <Dialog
@@ -16,7 +16,7 @@ export function SettingsDialog({ onClose }: DialogProps) {
       onClose={onClose}
       actions={<ActionButton onClick={onClose}>{t("Close")}</ActionButton>}
     >
-      <SettingsScreen />
+      <SettingsScreen stage={stage} />
     </Dialog>
   )
 }

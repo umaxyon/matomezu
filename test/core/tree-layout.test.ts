@@ -49,6 +49,8 @@ test("下へ伸びる木: 子は親の下に、兄弟は左右に並び、親は
     from: { x: r.x + r.w / 2, y: r.y + r.h },
     to: { x: a.x + a.w / 2, y: a.y },
     side: "down",
+    parent: "r",
+    child: "a",
   })
   expect(l.fits).toBe(true)
 })
@@ -189,6 +191,8 @@ test("節の形が下線で左右へ伸びる枝は、線を子の節の下の�
     from: { x: r.x + r.w, y: r.y + r.h / 2 },
     to: { x: a.x, y: a.y + a.h },
     side: "right",
+    parent: "r",
+    child: "a",
   })
   expect(box.lines[0]!.to.y).toBe(a.y + a.h / 2)
   expect(layoutTree(tree, "down", PAPER, "fixed-20", "underline").lines).toEqual(

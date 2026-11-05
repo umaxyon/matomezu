@@ -1,5 +1,5 @@
 // 印刷プレビュー: フッタメニューのボタンで開くと、ブックの全ページの印刷区画を並べ、右サイドパネルに設定を出す。間はブックを変えるキー（元に戻す）が効かない。ロック中は変える前に聞く。
-// 右サイドパネルを閉じる（Esc）と編集に戻り、読み直しても印刷プレビューのまま開く。印刷区画をダブルクリックすると、そのページの編集に戻る
+// 右サイドパネルを閉じる（Esc）か読み直すと編集に戻る。印刷区画をダブルクリックすると、そのページの編集に戻る。右端にスクロールバーを出す
 import { expect, type Page, test } from "./fixtures"
 import { newBook } from "./helpers/master"
 import { panel } from "./helpers/note"
@@ -47,7 +47,7 @@ test("印刷プレビューを開くと、中身のあるページの印刷区�
   await expect(items(page)).toHaveText("残る箱")
 })
 
-test("並べる向きを横にすると、印刷区画が横に並ぶ。読み直しても印刷プレビューのまま開き、印刷区画のダブルクリックでそのページの編集に戻る", async ({
+test("並べる向きを横にすると、印刷区画が横に並ぶ。印刷区画のダブルクリックでそのページの編集に戻る。印刷プレビューは URL に入れず、読み直すと編集の画面", async ({
   page,
 }) => {
   await page.goto("/")
@@ -62,13 +62,14 @@ test("並べる向きを横にすると、印刷区画が横に並ぶ。読み�
   await expect(async () => {
     expect((await b.boundingBox())!.x).toBeGreaterThan((await a.boundingBox())!.x)
   }).toPass()
-  await expect(page).toHaveURL(/m0=print-preview/)
-  await page.reload()
-  await expect(sheets(page)).toHaveCount(2)
-  await expect(panel(page)).toContainText("印刷プレビュー")
   await sheets(page).nth(0).dblclick()
   await expect(preview(page)).toHaveCount(0)
   await expect(page.getByRole("tab").first()).toHaveAttribute("aria-selected", "true")
+  await openPreview(page)
+  await expect(page).not.toHaveURL(/m0=/)
+  await page.reload()
+  await expect(page.getByRole("tab")).toHaveCount(2)
+  await expect(preview(page)).toHaveCount(0)
 })
 
 test("ロック中のブックで設定を変えると、書き換えてよいかを聞き、よければ変えてロックを掛け直す。やめれば変えない", async ({
@@ -158,4 +159,164 @@ test("印刷できるものが何も無いブックでは、紙を並べず、�
   await openPreview(page)
   await expect(sheets(page)).toHaveCount(0)
   await expect(page.getByText("印刷できるものはありません")).toBeVisible()
+})
+
+test("可変ページで印刷区画の境目をまたいだ箱があると、印刷プレビューを開かず、直してほしいと知らせてその箱のバッジを並べる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const empty = await onPaper(page, 600, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByRole("switch", { name: "可変ページにする" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  // 1 つ目の印刷区画の右の端（A4 横は幅 1123）をまたぐ箱
+  await addBox(page, 1090, 200, "跨ぐ")
+  await openPreview(page)
+  await expect(panel(page)).toContainText("印刷区画をまたいだボックスを直してください")
+  await expect(panel(page).getByRole("button", { name: "跨ぐ" })).toBeVisible()
+  await expect(preview(page)).toHaveCount(0)
+  await expect(page.getByRole("tab")).toHaveCount(1) // 印刷プレビューにならず、編集のまま
+})
+
+test("マークダウンは、紙の高さでブロックの境目ごとに切って印刷区画に並べる（原文が空なら並べない）", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const add = await newBook(page, "メモ", "マークダウン")
+  await add.getByRole("button", { name: "作成" }).click()
+  await expect(add).toBeHidden()
+  await openPreview(page)
+  await expect(page.getByText("印刷できるものはありません")).toBeVisible()
+  await page.keyboard.press("Escape")
+  const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await field.click()
+  // 段落 60 個（A4 縦の 1 枚には入らない）
+  await page.keyboard.insertText(Array.from({ length: 60 }, (_, i) => `段落 ${i + 1}`).join("\n\n"))
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("段落 60")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(1)).toPass()
+  // 1 枚目は原文の頭から、最後の紙は途中のブロックから始まり、「段落 60」は最後の紙の中に見える（1 枚目の外）
+  await expect(sheets(page).first().locator("[data-markdown-from]")).toHaveAttribute("data-markdown-from", "0")
+  const lastFrom = Number(await sheets(page).last().locator("[data-markdown-from]").getAttribute("data-markdown-from"))
+  expect(lastFrom).toBeGreaterThan(0)
+  // 各紙は自分に掛かるブロックだけを描く: 最後の紙に「段落 60」があり、1 枚目には無い
+  await expect(sheets(page).last().getByText("段落 60", { exact: true })).toBeVisible()
+  await expect(sheets(page).first().getByText("段落 60", { exact: true })).toHaveCount(0)
+})
+
+test("マークダウンの長い段落は、紙の高さに入る所で行の途中から次の紙に続ける", async ({ page }) => {
+  await page.goto("/")
+  const add = await newBook(page, "長文", "マークダウン")
+  await add.getByRole("button", { name: "作成" }).click()
+  await expect(add).toBeHidden()
+  const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await field.click()
+  // 1 つの段落（改行を「  」で終える行を重ねて、A4 縦の 1 枚に入らない高さにする）
+  await page.keyboard.insertText(Array.from({ length: 80 }, (_, i) => `行 ${i + 1}  `).join("\n"))
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("行 80")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(1)).toPass()
+  // どの紙も同じ段落（原文の頭のブロック）の続きで、最後の行は最後の紙に見える
+  await expect(sheets(page).last().locator("[data-markdown-from]")).toHaveAttribute("data-markdown-from", "0")
+  // どの「行 N」も、字の四角がまるごと入る紙がちょうど 1 枚ある（切れ目の行が切れていない・2 枚に重ねて出ていない）
+  const counts = await page.evaluate(() => {
+    // 見えるのは、紙ごとに切った所の枠（data-markdown-from）の中だけ（枠の外の字は、紙の余白の所でも隠れている）
+    const sheets = [...document.querySelectorAll("[data-markdown-from]")].map(s => s.getBoundingClientRect())
+    const seen = new Map<string, number>()
+    for (const el of document.querySelectorAll("[data-markdown-from]")) {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        for (const m of (n.textContent ?? "").matchAll(/行 \d+/g)) {
+          const range = document.createRange()
+          range.setStart(n, m.index ?? 0)
+          range.setEnd(n, (m.index ?? 0) + m[0].length)
+          const r = range.getBoundingClientRect()
+          const whole = sheets.some(b => r.top >= b.top - 0.5 && r.bottom <= b.bottom + 0.5 && r.height > 0)
+          const box = el.getBoundingClientRect()
+          if (whole && r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5) seen.set(m[0], (seen.get(m[0]) ?? 0) + 1)
+        }
+      }
+    }
+    return Object.fromEntries(seen)
+  })
+  expect([...Array.from({ length: 80 }, (_, i) => counts[`行 ${i + 1}`])]).toEqual(Array(80).fill(1))
+})
+
+// 幅 300・高さ h の画像（data: の URL。描く画像）
+const tallImage = (h: number) =>
+  `![画像](data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="${h}"><rect width="300" height="${h}" fill="#888"/></svg>`).toString("base64")})`
+
+test("マークダウンの画像は、紙の残りに半分以上入れば縮めて今の紙に入れ、紙より高い画像は紙の高さに縮める", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const add = await newBook(page, "画像", "マークダウン")
+  await add.getByRole("button", { name: "作成" }).click()
+  await expect(add).toBeHidden()
+  const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await field.click()
+  const lines = Array.from({ length: 20 }, (_, i) => `前 ${i + 1}  `).join("\n")
+  await page.keyboard.insertText(`${lines}\n\n${tallImage(800)}\n\n後ろ\n\n${tallImage(3000)}`)
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("後ろ")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBe(2)).toPass()
+  const box = async (i: number) => (await sheets(page).nth(i).boundingBox())!
+  const within = (r: { y: number; height: number }, b: { y: number; height: number }) =>
+    r.y >= b.y - 0.5 && r.y + r.height <= b.y + b.height + 0.5
+  // 1 枚目に縮めた画像。2 枚目の頭に「後ろ」と、紙の高さより小さく縮めた画像（紙の高さに縮めたあと、残りに半分以上入るので残りの高さへ）
+  const first = (await sheets(page).nth(0).locator("img").boundingBox())!
+  expect(within(first, await box(0))).toBe(true)
+  const after = (await sheets(page).nth(1).getByText("後ろ", { exact: true }).boundingBox())!
+  expect(within(after, await box(1))).toBe(true)
+  const big = (await sheets(page).nth(1).locator("img").boundingBox())!
+  expect(within(big, await box(1))).toBe(true)
+})
+
+test("印刷プレビューの右端のスクロールバーは、つまみのドラッグと溝を押すので紙をずらし、ホイールでずらすとつまみが付いて動く", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const add = await newBook(page, "長いメモ", "マークダウン")
+  await add.getByRole("button", { name: "作成" }).click()
+  await expect(add).toBeHidden()
+  const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await field.click()
+  await page.keyboard.insertText(Array.from({ length: 120 }, (_, i) => `段落 ${i + 1}`).join("\n\n"))
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("段落 120")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(2)).toPass()
+  // 右サイドパネルが滑り込み、幅に合わせ終わるまで待つ
+  await expect(panel(page).getByRole("button", { name: "幅に合わせる" })).toBeDisabled()
+  const bar = page.locator('[data-preview-scrollbar="y"]')
+  const thumb = bar.locator("div")
+  await expect(bar).toBeVisible()
+  const top = async () => (await sheets(page).first().boundingBox())?.y ?? 0
+  const thumbTop = async () => (await thumb.boundingBox())?.y ?? 0
+  // つまみを下へドラッグすると、紙が上へずれる
+  const before = await top()
+  const t = await thumb.boundingBox()
+  if (!t) throw new Error("つまみが無い")
+  await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2 + 60, { steps: 4 })
+  await page.mouse.up()
+  await expect(async () => expect(await top()).toBeLessThan(before - 60)).toPass()
+  // 溝のいちばん下を押すと、いちばん下まで移る（つまみが溝の下端に付く）
+  const b = await bar.boundingBox()
+  if (!b) throw new Error("溝が無い")
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height - 2)
+  await expect(async () => {
+    const now = await thumb.boundingBox()
+    expect((now?.y ?? 0) + (now?.height ?? 0)).toBeGreaterThan(b.y + b.height - 1.5)
+  }).toPass()
+  // ホイールで上へずらすと、つまみも上へ動く
+  const low = await thumbTop()
+  await page.mouse.move(b.x - 200, b.y + b.height / 2)
+  await page.mouse.wheel(0, -400)
+  await expect(async () => expect(await thumbTop()).toBeLessThan(low)).toPass()
+  // 幅に合わせて並べたので、印刷区画は横にはみ出さず、横のバーは出さない
+  await expect(page.locator('[data-preview-scrollbar="x"]')).toHaveCount(0)
 })

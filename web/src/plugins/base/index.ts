@@ -1,4 +1,4 @@
-// base（ほかのプラグインが読んでよいプラグイン）: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・利用者の設定（言語・スキン・キーの割り当て・文字の色）・標準のテーマ・スキン（ダーク・ライト）と、そのキーの既定の割り当て。
+// base（ほかのプラグインが読んでよいプラグイン）: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・利用者の設定（言語・スキン・キーバインド・文字の色）・標準のテーマ・スキン（ダーク・ライト）と、その既定のキーバインド。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
@@ -11,7 +11,7 @@ import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
 import { kit } from "./kit"
 // 拡張ポイントに書き足したメソッド labelOf の型（label/index.ts の declare module）
 import type {} from "./label"
-import { LEFT_DRAWER_CLOSE, LEFT_DRAWER_KEYS } from "./left-drawer"
+import { LEFT_SIDE_PANEL_CLOSE, LEFT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEYS } from "./left-side-panel"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import {
   DARK,
@@ -47,7 +47,7 @@ import {
   PRINT_PREVIEW_PAGE_NUMBERS,
   PRINT_PREVIEW_UPDATE,
 } from "./print-preview"
-import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
+import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEY_SCOPE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
 import {
   KEYS,
   LANG,
@@ -139,8 +139,9 @@ export type { PortArea, Ports } from "./place/placed"
 export { allRectsOf, NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
-export type { PrintSheets } from "./print-preview"
-export { printSheetsOf, sheetShapes, sheetsOfShape, snapShift } from "./print-preview/filled"
+export type { PrintSheets, SheetPurpose } from "./print-preview"
+export { breakShift } from "./print-preview/breaks"
+export { printSheetsOf, sheetShapes, sheetsOfShape } from "./print-preview/filled"
 export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 export {
   BOOK_TEXT_COLORS,
@@ -261,7 +262,7 @@ export const BASE = defineBuiltin(
       NOTE_NEW,
       MARK_NEW,
       RIGHT_SIDE_PANEL_CLOSE,
-      LEFT_DRAWER_CLOSE,
+      LEFT_SIDE_PANEL_CLOSE,
       PRINT_PREVIEW_OPEN,
       PRINT_PREVIEW_FIT,
     ],
@@ -273,6 +274,7 @@ export const BASE = defineBuiltin(
       NEW_BOOK_DIALOG,
       SETTINGS_DIALOG,
     ],
+    keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE],
     keys: [
       ...TOOLBOX_KEYS,
       ...TOOL_PICKER_KEYS,
@@ -281,7 +283,7 @@ export const BASE = defineBuiltin(
       ...MENU_KEYS,
       ...HISTORY_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
-      ...LEFT_DRAWER_KEYS,
+      ...LEFT_SIDE_PANEL_KEYS,
     ],
   }),
 )
@@ -400,11 +402,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-new": typeof NOTE_NEW
     "@matomezu/base:mark-new": typeof MARK_NEW
     "@matomezu/base:right-side-panel-close": typeof RIGHT_SIDE_PANEL_CLOSE
-    "@matomezu/base:left-drawer-close": typeof LEFT_DRAWER_CLOSE
+    "@matomezu/base:left-side-panel-close": typeof LEFT_SIDE_PANEL_CLOSE
   }
   interface KeyScopeTable {
-    "@matomezu/base:right-side-panel": true // 右サイドパネルの中にフォーカスがある間のキー
-    "@matomezu/base:left-drawer": true // 左ドロワーの中にフォーカスがある間のキー
+    "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_KEY_SCOPE // 右サイドパネルの中にフォーカスがある間のキー
+    "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_KEY_SCOPE // 左サイドパネルの中にフォーカスがある間のキー
   }
   interface DialogTable {
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG

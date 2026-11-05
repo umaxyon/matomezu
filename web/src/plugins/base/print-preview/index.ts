@@ -8,11 +8,15 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import type { CommandContext } from "../../../store/commands/def"
+import { workspaceOf } from "../../../store/commands/def"
 import { withBookSettings } from "../book-look"
 import { type SettingReader, settingValue } from "../book-settings"
 import { kit } from "../kit"
 import type { GrowSides } from "../place/grow"
+import { withOpened } from "../right-side-panel/state"
 import { fitSideView, moveView, stageOf } from "../zoom"
+import { hasCrossing } from "./book-sheets"
+import { printCheckOpen } from "./panel-id"
 import {
   PRINT_PREVIEW_BOOK_NAME,
   PRINT_PREVIEW_FLOW,
@@ -23,6 +27,9 @@ import {
   ShownSchema,
 } from "./settings"
 
+// 印刷区画を数える物: print は印刷プレビューと印刷に並べる並べ方、screen は書く画面の並べ方
+export type SheetPurpose = "print" | "screen"
+
 // ページの印刷区画: 紙の大きさで区切った columns 列 × rows 行と、何かが載っている印刷区画の鍵（作るのは filled.ts の printSheetsOf）
 export interface PrintSheets {
   columns: number
@@ -31,14 +38,20 @@ export interface PrintSheets {
 }
 
 declare module "../../../core/catalog" {
+  interface BookTypeExtras {
+    // 印刷区画の境目をまたぐ形の扱い: ask なら、印刷プレビューを開く前に直してもらう（利用者が手で形を置くタイプ）。
+    // 無ければ、またいだまま紙の境目で切れて刷る（並べ方が自動のタイプ）。印刷区画より大きい形は、どちらでも切れて刷る
+    printCrossing?: "ask"
+  }
   interface PresentationExtras {
-    // ページ page の印刷区画（印刷プレビューと印刷、書く画面の印刷しない印刷区画の影が使う）。並べ方を描くときに決める見せ方（ツリーなど）が、
-    // ビューがステージに知らせる広さと同じ座標で返す。setting はそのページで効いている設定の値、grow は増やす向き（可変ページでなければ undefined）。
+    // ページ page の印刷区画。並べ方を描くときに決める見せ方（ツリーなど）が、ビューがステージに知らせる広さと同じ座標で返す。
+    // setting はそのページで効いている設定の値、grow は増やす向き（可変ページでなければ undefined）。purpose は数える物: print は印刷プレビューと
+    // 印刷に並べる並べ方（改ページなど印刷のときだけの並べ直しのあと）、screen は書く画面の並べ方（何も載っていない印刷区画を暗くするのに使う）。
     // 無ければ、形の位置から決める（base の pageArea と filledSheets）
     printSheets?(
       catalog: CoreCatalog,
       page: ItemPage,
-      on: { setting: SettingReader; grow: GrowSides | undefined },
+      on: { setting: SettingReader; grow: GrowSides | undefined; purpose: SheetPurpose },
     ): PrintSheets
   }
 }
@@ -96,10 +109,21 @@ export function fitSide(catalog: CoreCatalog, book: Book | null): "width" | "hei
 }
 const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book)
 
-// 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）。右サイドパネルは印刷プレビューのビューが開く
+// 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）。右サイドパネルは印刷プレビューのビューが開く。
+// 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば、印刷プレビューは開かず、それを知らせる右サイドパネルを開く
 export const PRINT_PREVIEW_OPEN = kit.defineCommand({
   id: "print-preview-open",
   title: "Print preview",
-  run: (ctx, a) => a.openPrintPreview(ctx.stage.id),
+  run: (ctx, a) => {
+    const book = ctx.book
+    const now = workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
+    const opened = now?.opened
+    if (book && now && opened && hasCrossing(ctx.catalog, book)) {
+      const open = { ...printCheckOpen(book.id), book: opened.book, page: opened.page }
+      a.updateStageState(state => withOpened(state, open, now))
+      return
+    }
+    a.openPrintPreview(ctx.stage.id)
+  },
   when: ctx => ctx.book !== null && hasPages(ctx.book) && ctx.stage.mode === "edit",
 })

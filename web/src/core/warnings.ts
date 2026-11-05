@@ -10,7 +10,6 @@ export const WARNINGS = {
   W006: "book {book} ({title}): it breaks the rules of its type {type}",
   W007: "book {book} ({title}): it has {missing}, not in the catalog (kept as they are)",
   W008: "key {key} in {scope} for {command}: a builtin plugin's key is there (not used)",
-  W009: "key {key} in {scope} for {command}: another added plugin {other} has the same key (neither is used)",
   W010: "layout {layout}: {kind} {id} is skipped, as its plugin is not there",
   W011: "the screen did not add it ({reason}); its actions still work on the host, but nothing it draws is shown",
   W012: "tool {tool}: performs {action}, which is not in the catalog",
@@ -22,6 +21,7 @@ export const WARNINGS = {
   W018: "book {book} ({title}): annotation {id} is a {annotation}, which is not in the catalog (kept as it is, not used)",
   W019: "book {book} ({title}): annotation {id} does not fit {annotation} (kept as it is, not used)",
   W020: "theme {theme}: token {token} is {light} when light and {dark} when dark, but only colors can differ (it does not work)",
+  W021: "key {key} in {scope} for {command}: added plugin {other}'s key is there first (not used)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

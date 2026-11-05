@@ -39,6 +39,7 @@ export type {
   RichLine,
   Run,
   SettingReader,
+  SheetPurpose,
   TextBlock,
   Weight,
 } from "../plugins/base"
@@ -60,6 +61,7 @@ export {
   bodyMinWidth,
   bodyText,
   bodyWidthAfter,
+  breakShift,
   CHILD_AREA,
   captionTextWidth,
   childOrigin,
@@ -118,7 +120,6 @@ export {
   sheetShapes,
   sheetsOfShape,
   shownRects,
-  snapShift,
   TEXT_LOOK,
   textBlock,
   textBlockHeight,

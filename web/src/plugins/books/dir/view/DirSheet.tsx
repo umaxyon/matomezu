@@ -1,16 +1,16 @@
 // ディレクトリ構成図の印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの行と罫線と説明を、書く画面と同じ並べ方
-// （print.ts の laidPage）で、見るだけで、ページの原点で描く。
+// （print.ts の printLaid。可変ページでは境目をまたぐ行を次の印刷区画へ送る）で、見るだけで、ページの原点で描く。
 // 入力を受けず、開け閉めのボタンや選んだ印、e2e や操作が探す印（data-entry など）も付けない
 import { useCoreCatalog } from "../../../../plugin-api/ui"
 import { growOf, pageContext } from "../../../base"
 import { type PrintSheetProps, RichText } from "../../../base/ui"
-import { laidPage } from "../print"
+import { printLaid } from "../print"
 import { paint, RowFace } from "./DirView"
 import styles from "./DirView.module.css"
 
 export function DirSheet({ book, page, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
-  const laid = laidPage(catalog, page, {
+  const laid = printLaid(catalog, page, {
     setting: pageContext(catalog, book, page).setting,
     grow: growOf(catalog, book, page),
   })

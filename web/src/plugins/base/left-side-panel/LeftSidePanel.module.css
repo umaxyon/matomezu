@@ -1,28 +1,26 @@
-/* 左ドロワー（ステージの列の左に被せる。下の行の上まで） */
-.drawer {
-  position: absolute;
-  top: 0;
-  bottom: 30px;
-  left: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  width: min(320px, 100%);
+/* 左サイドパネル（ステージの列の左。窓の上から下まで。出た分だけステージの列を狭める。幅の動きは右サイドパネルと同じ） */
+.panel {
+  flex: none;
+  position: relative;
+  overflow: hidden;
   border-right: 1px solid var(--skin-border);
   background: var(--skin-surface-raised);
-  box-shadow: var(--skin-shadow-2);
-  outline: none;
-  animation: slide-in 200ms ease;
+  transition: width var(--side-panel-slide) ease;
 }
-@keyframes slide-in {
-  from {
-    transform: translateX(-100%);
-  }
+.panel[aria-hidden="true"] {
+  border-right-width: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .drawer {
-    animation: none;
+  .panel {
+    transition: none;
   }
+}
+/* 中身（幅は決まった幅で、開け閉めの間は入れ物が切る） */
+.opened {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  outline: none;
 }
 .head {
   flex: none;

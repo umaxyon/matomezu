@@ -7,6 +7,7 @@ export const MARKDOWN_TOKENS = [
   { id: "markdown-line", fallback: "line" }, // 表の罫・引用の縦線・脚注の線・画像の代わりの枠
   { id: "markdown-link", fallback: "accent" },
   { id: "markdown-code-fill", fallback: "surface" }, // コードの塊と文中のコードの地
+  { id: "markdown-page-padding", value: "24px 32px", shades: "one" }, // 紙の辺と文書の間（書く画面の描いた文書と、印刷の印刷区画ごと）
   { id: "markdown-font-family", value: '"Noto Sans JP", sans-serif', shades: "one" }, // 本文の字体
   { id: "markdown-font-size", value: "14px", shades: "one" },
   { id: "markdown-line-height", value: "1.7", shades: "one" },

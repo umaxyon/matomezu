@@ -1,4 +1,5 @@
-// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、拡大縮小の帯（フッタを隠すので、ここに出す。幅か高さに合わせるボタンを足す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）。
+// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、拡大縮小の帯（フッタを隠すので、ここに出す。幅か高さに合わせるボタンを足す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）、
+// 印刷区画より大きくて紙の境目で切れる形のバッジ（押すとその形のページの編集へ）。
 // 項目を変えるとすぐに print-preview-update で変える。ブックがロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
 import { useEffect, useState } from "react"
@@ -16,8 +17,10 @@ import { LockToggle } from "../utils/LockToggle"
 import type { StageSlotProps } from "../workspace/ui"
 import { ZoomBar, ZoomButton } from "../zoom/ZoomBar"
 import { fitSide, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
+import { bookCrossings } from "./book-sheets"
 import styles from "./PrintPreviewPanel.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
+import { ShapeBadges } from "./ShapeBadges"
 
 type Patch = Readonly<Record<string, string | null>>
 
@@ -47,6 +50,8 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
   const update = (patch: Patch) => perform(PRINT_PREVIEW_UPDATE.id, { settings: patch })
   const change = (patch: Patch) => (locked ? setConfirming(patch) : update(patch))
   const own = ownSettings(book)
+  // 印刷区画より大きく、紙の境目で切れる形（押すとその形のページの編集へ）
+  const oversized = bookCrossings(catalog, book).flatMap(f => f.oversized.map(id => ({ page: f.page, id })))
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>
@@ -76,6 +81,12 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
           )
         })}
       </fieldset>
+      {oversized.length > 0 && (
+        <>
+          <p className={styles.note}>{t("Larger than a print area, so cut at the sheet edges")}</p>
+          <ShapeBadges stage={stage} shapes={oversized} label="Boxes larger than a print area" />
+        </>
+      )}
       {confirming && (
         <Confirm
           message={t("This book is locked. Change it anyway?")}

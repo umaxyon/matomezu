@@ -1,0 +1,43 @@
+/* 印刷プレビューのスクロールバーの溝（縦は右端、横は下端。ステージの中に重ねる） */
+.track {
+  position: absolute;
+  z-index: 1;
+  background: color-mix(in srgb, var(--skin-surface) 60%, transparent);
+}
+.track[data-along="y"] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+}
+.track[data-along="x"] {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+}
+/* 両方のバーを出すときは、右下の角を空ける */
+.track[data-along="y"][data-corner="true"] {
+  bottom: 10px;
+}
+.track[data-along="x"][data-corner="true"] {
+  right: 10px;
+}
+/* つまみ（位置と長さは見えている所で決まる） */
+.thumb {
+  position: absolute;
+  border-radius: 5px;
+  background: var(--skin-border-strong);
+  cursor: grab;
+}
+.track[data-along="y"] .thumb {
+  left: 2px;
+  right: 2px;
+}
+.track[data-along="x"] .thumb {
+  top: 2px;
+  bottom: 2px;
+}
+.thumb:active {
+  cursor: grabbing;
+}

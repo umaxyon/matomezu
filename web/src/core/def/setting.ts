@@ -7,7 +7,7 @@ import type { SettingExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 
-// 土台が読む利用者の設定の項目の role: lang は言語（値は言語パックの id）、skin はスキン（スキンの id か "auto"）、keys はキーの割り当ての、利用者の変更
+// 土台が読む利用者の設定の項目の role: lang は言語（値は言語パックの id）、skin はスキン（スキンの id か "auto"）、keys はキーバインドの、利用者の変更
 export type SettingRole = "lang" | "skin" | "keys"
 
 export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> extends SettingExtras {

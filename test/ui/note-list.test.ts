@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../web/src/core/annotation"
 import type { Book } from "../../web/src/core/schema/book"
-import { defineLeftDrawerTab } from "../../web/src/plugins/base/left-drawer/ui"
+import { defineLeftSidePanelTab } from "../../web/src/plugins/base/left-side-panel/ui"
 import { newlyRead } from "../../web/src/plugins/base/note/ReadNotice"
 import { listedPages, shownTime } from "../../web/src/plugins/base/note-list/rows"
 import { defineAnnotationIcon } from "../../web/src/plugins/base/note-list/ui"
@@ -52,16 +52,21 @@ test("伝言が読まれた知らせは、前に未読だった伝言が読ま�
   expect(newlyRead(new Set(), { b1: [read] })).toBe(false)
 })
 
-test("左ドロワーのタブと行の絵は、追加プラグインなら place で置いてほしいと書ける（true なら末尾、before・after ならその前・後ろ）", () => {
-  const tab = defineLeftDrawerTab({ id: "@x/t:tab", title: "@matomezu/base:Note list", place: true, view: () => null })
-  expect(tab.place).toEqual({ slot: "@matomezu/base:left-drawer" })
-  const after = defineLeftDrawerTab({
+test("左サイドパネルのタブと行の絵は、追加プラグインなら place で置いてほしいと書ける（true なら末尾、before・after ならその前・後ろ）", () => {
+  const tab = defineLeftSidePanelTab({
+    id: "@x/t:tab",
+    title: "@matomezu/base:Note list",
+    place: true,
+    view: () => null,
+  })
+  expect(tab.place).toEqual({ slot: "@matomezu/base:left-side-panel" })
+  const after = defineLeftSidePanelTab({
     id: "@x/t:tab2",
     title: "@matomezu/base:Note list",
     place: { after: "@matomezu/base:note-list" },
     view: () => null,
   })
-  expect(after.place).toEqual({ slot: "@matomezu/base:left-drawer", after: "@matomezu/base:note-list" })
+  expect(after.place).toEqual({ slot: "@matomezu/base:left-side-panel", after: "@matomezu/base:note-list" })
   const icon = defineAnnotationIcon({ id: "@x/t:icon", annotation: "@x/t:sticky", place: true, view: () => null })
   expect(icon.place).toEqual({ slot: "@matomezu/base:annotation-icon" })
   expect(defineAnnotationIcon({ id: "@x/t:icon2", annotation: "@x/t:sticky", view: () => null }).place).toBeUndefined()
