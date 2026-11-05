@@ -32,10 +32,10 @@ import {
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
 import { kit } from "./kit"
 
+import { VALIGNS, type VAlign } from "./size"
+
 // 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
 const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
-
-import { VALIGNS, type VAlign } from "./size"
 
 type BoxProps = ItemProps<typeof BOX.id>
 

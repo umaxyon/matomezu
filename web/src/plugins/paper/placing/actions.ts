@@ -44,8 +44,8 @@ declare module "../../../core/catalog" {
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
-// item-place が空きを探して見つからなかった断りの種類（Declined の kind。追加のダイアログが「空きがありません」を出す）
-export const NO_FREE_SPOT = kit.name("no-free-spot")
+// item-place が空きを探して見つからなかった断りの種類（Declined の kind）
+const NO_FREE_SPOT = kit.name("no-free-spot")
 
 // ほかの形とぶつかるときの扱い: refuse は断る（ほかの形を動かさない。既定）、push は押してどける（画面の置く・動かす）
 const CrowdSchema = z.enum(["refuse", "push"]).optional()

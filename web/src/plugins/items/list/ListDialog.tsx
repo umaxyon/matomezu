@@ -34,12 +34,12 @@ import {
 import { ROW_LINES } from "./actions"
 import { kit } from "./kit"
 
-// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
-const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
-
 import { LIST, LIST_FILL, type ListRow } from "./list"
 import { withRowLines } from "./rows"
 import type { RowsLines } from "./size"
+
+// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
+const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
 
 // ダイアログの高さ（全部の入力Formが出たときの高さ。チェックリストなどで入力Formが増えても大きさを変えない）
 const DIALOG_HEIGHT = 480
