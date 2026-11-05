@@ -20,8 +20,10 @@ import {
   frameOf,
   freeSpotIn,
   gapOf,
+  inPaper,
   placedAt,
   placedSize,
+  roomOf,
   toData,
   withPage,
 } from "../../base"
@@ -146,12 +148,13 @@ export function freeAt(
 
 // 置く道具の置き先: 入れる親 parent（null はページ）と、左上 at（item-place と同じく、親があれば親の左上から）。
 // free なら空きに置く（at は、置く物の定義の大きさで探した空き。置くときは at を渡さず、中身を決めた大きさで item-place が探し直す）。
-// shown は、置く所の紙の上の左上（点線の影を描く所）
+// shown は、置く所の紙の上の左上（点線の影を描く所）。fits は、そこに置けるか（ページに置くなら紙からはみ出さないか。親の中と空きは置ける）
 export interface PlaceTarget {
   parent: string | null
   at: Point
   free: boolean
   shown: Point
+  fits: boolean
 }
 
 // 置く道具で、ポインタの点 pointer（紙の上）の所に、左上 at（紙の上）・大きさ size の形を置くときの置き先。
@@ -166,15 +169,18 @@ export function placeTarget(
   size: Size,
 ): PlaceTarget | null {
   const under = innermostAt(catalog, page, pointer)
-  if (!under) return { parent: null, at, free: false, shown: at }
+  if (!under) {
+    const room = roomOf(catalog, book, page)
+    return { parent: null, at, free: false, shown: at, fits: room !== null && inPaper({ ...at, ...size }, room) }
+  }
   if (nests(catalog, under.shape.item)) {
     const inner = { x: at.x - under.at.x, y: at.y - under.at.y }
     const origin = childOrigin(catalog, under.shape)
     const shown = { x: under.at.x + Math.max(inner.x, origin.x), y: under.at.y + Math.max(inner.y, origin.y) }
-    return { parent: under.shape.id, at: inner, free: false, shown }
+    return { parent: under.shape.id, at: inner, free: false, shown, fits: true }
   }
   const spot = freeAt(catalog, book, page, under.parent, size)
   const base = under.parent === null ? { x: 0, y: 0 } : walkShapes(page).find(s => s.shape.id === under.parent)?.at
   if (!spot || !base) return null
-  return { parent: under.parent, at: spot, free: true, shown: { x: base.x + spot.x, y: base.y + spot.y } }
+  return { parent: under.parent, at: spot, free: true, shown: { x: base.x + spot.x, y: base.y + spot.y }, fits: true }
 }

@@ -323,15 +323,24 @@ test("置く先: 点の下に形が無ければページのその所、子を持
   const size = { w: 120, h: 60 }
   const target = (pointer: { x: number; y: number }) =>
     placeTarget(CORE_CATALOG, drawing(store), page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, size)
-  expect(target({ x: 40, y: 40 })).toEqual({ parent: null, at: { x: 24, y: 28 }, free: false, shown: { x: 24, y: 28 } })
+  expect(target({ x: 40, y: 40 })).toEqual({
+    parent: null,
+    at: { x: 24, y: 28 },
+    free: false,
+    shown: { x: 24, y: 28 },
+    fits: true,
+  })
   expect(target({ x: 400, y: 300 })).toEqual({
     parent: a,
     at: { x: 284, y: 188 },
     free: false,
     shown: { x: 384, y: 288 },
+    fits: true,
   })
   // 内包ボックスのキャプションの所: 影は、item-place が寄せる子の領域の上の端に描く
   expect(target({ x: 400, y: 105 })?.shown).toEqual({ x: 384, y: 100 + O.y })
+  // ページの紙の右下の端（何も無い所）: 置くとはみ出すので置けない
+  expect(target({ x: 1120, y: 790 })?.fits).toBe(false)
   // 内包ボックスの中のリスト（子の領域の左上）の上: 子の領域の格子で、リストの右の目（目の幅はリストの幅 160 と間隔）
   const inList = at(store, l)!.at
   expect(target({ x: inList.x + 10, y: inList.y + 10 })).toEqual({
@@ -339,6 +348,7 @@ test("置く先: 点の下に形が無ければページのその所、子を持
     at: { x: O.x + 160 + 8, y: O.y },
     free: true,
     shown: { x: 100 + O.x + 160 + 8, y: 100 + O.y },
+    fits: true,
   })
   // ページのリストの上: ページの左上から格子で、内包ボックスとリストに近づかない目
   const spot = target({ x: 710, y: 110 })!

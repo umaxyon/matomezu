@@ -161,7 +161,7 @@ export const ITEM_PLACE = kit.defineAction({
         parent === null
           ? placeItem(ctx.catalog, book, args.page, { ...item, ...at })
           : placeChild(ctx.catalog, book, args.page, parent, item, at)
-      const placed = next && (next.pages.find(p => p.id === args.page) as ItemPage | undefined)
+      const placed = next?.pages.find(p => p.id === args.page)
       const found = placed && findShape(placed, item.id)?.shape
       return next && placed && found
         ? { next, found, moved: movedShapes(ctx.catalog, page, placed, new Set(), grows) }
@@ -202,8 +202,9 @@ export const ITEM_MOVE = kit.defineAction({
     if (!hasPages(book)) return null
     const next = moveItems(ctx.catalog, book, args.page, args.items, args.by, args.came)
     if (!next || args.crowd === "push") return next && { next, result: {} }
-    const page = book.pages.find(p => p.id === args.page) as ItemPage
-    const moved = next.pages.find(p => p.id === args.page) as ItemPage
+    const page = book.pages.find(p => p.id === args.page)
+    const moved = next.pages.find(p => p.id === args.page)
+    if (!page || !moved) return null
     const before = allRectsOf(ctx.catalog, page)
     const after = allRectsOf(ctx.catalog, moved)
     const free = new Set(args.items.flatMap(id => [...subtreeOf(page, id)]))
@@ -267,7 +268,7 @@ export const ITEM_REPARENT = kit.defineAction({
             y: where.y - origin.y,
           })
         : placeItem(ctx.catalog, without, args.page, { ...shape, ...where })
-      const after = next && (next.pages.find(p => p.id === args.page) as ItemPage | undefined)
+      const after = next?.pages.find(p => p.id === args.page)
       return next && after ? { next, moved: movedShapes(ctx.catalog, page, after, free, grows) } : null
     }
     const tried = tryAt(args.at ?? found.at)

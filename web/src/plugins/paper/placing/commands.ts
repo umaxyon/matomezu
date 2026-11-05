@@ -12,7 +12,7 @@ import {
   shapesOf,
   toPaperDelta,
 } from "../../../plugin-api"
-import { amongSelected, type Edges, inPaper, itemSize, refusalMessage, resizedBy, shapeDefOf } from "../../base"
+import { amongSelected, type Edges, itemSize, refusalMessage, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import type { Came } from "./drag"
@@ -53,7 +53,7 @@ export const PAPER_PLACE = kit.defineCommand({
       a.showToast({ kind: "warn", message: kit.message("No free spot") })
       return
     }
-    if (target.parent === null && !inPaper({ ...target.shown, ...size }, paper)) return
+    if (!target.fits) return
     // 空きに置くなら座標を渡さず、中身を決めた大きさで item-place が空きを選ぶ
     const where: ShapeAddArgs = {
       page: page.id,

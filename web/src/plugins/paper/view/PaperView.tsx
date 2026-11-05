@@ -62,7 +62,6 @@ import {
 import {
   type Edges,
   growOf,
-  inPaper,
   minSize,
   onlySelected,
   placedSize,
@@ -220,7 +219,7 @@ function Content({
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
       <Items stage={stage} into={placed?.target?.parent ?? null} localOf={localOf} />
-      {pointer && placed && <Ghost stage={stage} placed={placed} />}
+      {pointer && placed && <Ghost placed={placed} />}
       {box && (
         <div
           data-select-sweep
@@ -672,13 +671,15 @@ function Item({
 }
 
 // 置こうとしているアイテムの点線の箱。押すと置く所（箱の中に寄せた所・空き）に描き、置けない所（ページの紙からはみ出す・空きが無い）では薄く出す
-function Ghost({ stage, placed }: { stage: StageView; placed: Placing }) {
-  const paper = areaOf(stage)
+function Ghost({ placed }: { placed: Placing }) {
   const { target, size } = placed
   const at = target?.shown ?? placed.at
-  const fits = target !== null && (target.parent !== null || (paper !== null && inPaper({ ...at, ...size }, paper)))
   return (
-    <div className={styles.ghost} data-fits={fits} style={{ left: at.x, top: at.y, width: size.w, height: size.h }} />
+    <div
+      className={styles.ghost}
+      data-fits={target?.fits === true}
+      style={{ left: at.x, top: at.y, width: size.w, height: size.h }}
+    />
   )
 }
 
