@@ -299,10 +299,7 @@ test("内包ボックスは、子が入る大きさまでは縮めて押せる�
   expect(at(store, big)!.at.x).toBe(408)
   expect(width(store, big)).toBeGreaterThanOrEqual(648)
   expect(allInPaper(store, paper)).toBe(true)
-})
-
-test("縮めてよい下限は、子を持つ形では子が入る大きさ（キャプションの幅より広くても）", () => {
-  const { store, big } = besideEdge(360, 748)
+  // 縮めてよい下限は、キャプションの幅より広くても、子が入る大きさ
   expect(floorsOf(CORE_CATALOG, page(store)).get(big)).toMatchObject({ w: 648 })
 })
 
@@ -389,4 +386,45 @@ test("押し方を渡さずに、ほかの形を動かす所へ置く・動か�
     crowd: "push",
   })
   expect(pushed.ok).toBe(true)
+})
+
+test("押し方を渡さずに親の中へ置くと、親が育ってページの形を押すなら、その形を添えて断る。添える空きと、座標を渡さないときに選ぶ空きは、何も動かさない所", () => {
+  // 幅 200 の内包ボックス a の中に子 c が 1 つ。格子の次の目（c の右）に置くと a が右へ育ち、右隣のページの形 d を押す。その次の目（c の下）は押さない
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 200, h: 200 })!
+  place(store, { at: { x: 0, y: 0 }, parent: a, w: 100, h: 60 })
+  const d = place(store, { at: { x: 208, y: 0 }, w: 100, h: 60 })!
+  const refused = run(store, "@matomezu/paper:item-place", {
+    item: NEST,
+    parent: a,
+    at: { x: O.x + 108, y: O.y },
+    w: 100,
+    h: 60,
+  })
+  const detail = (refused as { detail?: string }).detail ?? ""
+  expect(detail).toStartWith(`it would move ${d}`)
+  const below = { x: O.x, y: O.y + 68 }
+  expect(detail).toContain(`a free spot there: at ${JSON.stringify(below)}`)
+  const free = run(store, "@matomezu/paper:item-place", { item: NEST, parent: a, w: 100, h: 60 })
+  expect(free).toMatchObject({ ok: true, result: { at: below } })
+  expect(at(store, d)!.at).toEqual({ x: 208, y: 0 })
+})
+
+test("押し方を渡さずに動かすと、正面の形と入れ替わるなら、その形を添えて断る", () => {
+  const store = newStore()
+  const b = place(store, { at: { x: 0, y: 0 }, w: 100, h: 60 })!
+  const c = place(store, { at: { x: 108, y: 0 }, w: 100, h: 60 })!
+  const moved = run(store, "@matomezu/paper:item-move", { items: [b], by: { x: 100, y: 0 } })
+  expect((moved as { detail?: string }).detail).toStartWith(`it would move ${c}`)
+  expect(run(store, "@matomezu/paper:item-move", { items: [b], by: { x: 100, y: 0 }, crowd: "push" }).ok).toBe(true)
+  expect(at(store, c)!.at.x).toBeLessThan(at(store, b)!.at.x)
+})
+
+test("座標を渡さずに置くとき、紙に空きが無ければ断る", () => {
+  const store = newStore()
+  place(store, { at: { x: 500, y: 300 }, w: 100, h: 60 })
+  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const paper = roomOf(CORE_CATALOG, book, page(store))!
+  const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: paper.w, h: paper.h })
+  expect((done as { detail?: string }).detail).toStartWith("there is no free spot for it")
 })

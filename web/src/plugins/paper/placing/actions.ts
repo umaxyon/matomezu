@@ -2,7 +2,6 @@
 
 import { z } from "zod"
 import {
-  type Book,
   bookItems,
   type CoreCatalog,
   type Declined,
@@ -14,14 +13,10 @@ import {
   putPage,
   replaceShape,
   type ShapeData,
-  type Size,
   shapeSchema,
-  walkShapes,
 } from "../../../plugin-api"
 import {
   allRectsOf,
-  frameOf,
-  freeSpotIn,
   knownTheme,
   nextItemId,
   placeChild,
@@ -36,7 +31,7 @@ import {
 } from "../../base"
 import { kit } from "../kit"
 import { DIRS } from "./drag"
-import { moveItems } from "./items"
+import { freeAt, moveItems, subtreeOf } from "./items"
 
 // 項目を変えたあとに形が中身を整えるメソッド（定義オブジェクトの拡張ポイントに、紙のプラグインの id を頭に付けて書き足す）。
 // before は変える前の形。無ければそのまま
@@ -61,20 +56,6 @@ function ancestorsOf(page: ItemPage, id: string): string[] {
   return parent ? [parent, ...ancestorsOf(page, parent)] : []
 }
 
-// 形 id と、その子孫
-function subtreeOf(page: ItemPage, id: string): Set<string> {
-  const own = new Set([id])
-  for (const { shape, parent } of walkShapes(page)) if (parent !== null && own.has(parent)) own.add(shape.id)
-  return own
-}
-
-// 形 size を、形 parent（null はページ）の中に置ける空きの左上（item-place の at と同じく、親があれば親の左上から）。無ければ null
-function freeAt(catalog: CoreCatalog, book: Book, page: ItemPage, parent: string | null, size: Size): Point | null {
-  const frame = frameOf(catalog, book, page, parent)
-  const spot = frame && freeSpotIn(frame, size)
-  return spot && frame ? { x: spot.x + frame.origin.x, y: spot.y + frame.origin.y } : null
-}
-
 // ページ page を next に変えたとき、紙の上で動いた・大きさの変わった形（free は問わない形、grows は大きさだけ変わってよい形）
 function movedShapes(
   catalog: CoreCatalog,
@@ -92,24 +73,20 @@ function movedShapes(
   })
 }
 
-// crowd が refuse のとき、ほかの形を動かすなら断った訳（動かす形と、そのうち子を持てる形へ入れる parent、parent の中の空き）。動かさなければ null
-function crowded(
-  catalog: CoreCatalog,
-  book: Book,
-  page: ItemPage,
-  next: ItemPage,
-  around: { free: ReadonlySet<string>; grows: ReadonlySet<string>; parent: string | null; size: Size },
-): Declined | null {
-  const moved = movedShapes(catalog, page, next, around.free, around.grows)
-  if (moved.length === 0) return null
+// 断りに添える、空きの知らせ（spot は、そこへ置けばほかの形を動かさない空き。無ければ crowd "push" を案内する）
+const spotText = (spot: Point | null): string =>
+  spot
+    ? `; a free spot there: at ${JSON.stringify(spot)}`
+    : '; there is no free spot there (crowd "push" pushes the others)'
+
+// ほかの形を動かす moved を断った訳（そのうち子を持てる形へ入れる parent と、空きの知らせ）
+function crowded(catalog: CoreCatalog, page: ItemPage, moved: readonly string[], spot: Point | null): Declined {
   const nests = moved.filter(id => {
     const shape = findShape(page, id)?.shape
     return shape && catalog.items.get(shape.item)?.capabilities.includes("nests")
   })
   const into = nests.map(id => `; ${id} can hold children: pass parent "${id}" to put it inside`).join("")
-  const spot = freeAt(catalog, book, page, around.parent, around.size)
-  const free = spot ? `; a free spot there: at ${JSON.stringify(spot)}` : "; there is no free spot there"
-  return { declined: `it would move ${moved.join(", ")}${into}${free}` }
+  return { declined: `it would move ${moved.join(", ")}${into}${spotText(spot)}` }
 }
 
 // 置いた形のデータとして確かめる（形の定義の項目と中身の形。表に無い形は通らない）
@@ -176,21 +153,32 @@ export const ITEM_PLACE = kit.defineAction({
     const sized = item && placedSize(ctx.catalog, item)
     if (!item || !sized || !knownTheme(ctx.catalog, item)) return null
     const parent = args.parent ?? null
-    const at = args.at ?? freeAt(ctx.catalog, book, page, parent, sized)
-    if (!at) return { declined: "there is no free spot for it" }
-    const next =
-      parent === null
-        ? placeItem(ctx.catalog, book, args.page, { ...item, ...at })
-        : placeChild(ctx.catalog, book, args.page, parent, item, at)
-    const placed = next && (next.pages.find(p => p.id === args.page) as ItemPage | undefined)
-    const found = placed && findShape(placed, item.id)?.shape
-    if (!next || !placed || !found) return null
-    if (args.crowd !== "push") {
-      const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
-      const no = crowded(ctx.catalog, book, page, placed, { free: new Set(), grows, parent, size: sized })
-      if (no) return no
+    const push = args.crowd === "push"
+    const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
+    // at に置いたブックと、置いた形と、動いたほかの形
+    const tryAt = (at: Point) => {
+      const next =
+        parent === null
+          ? placeItem(ctx.catalog, book, args.page, { ...item, ...at })
+          : placeChild(ctx.catalog, book, args.page, parent, item, at)
+      const placed = next && (next.pages.find(p => p.id === args.page) as ItemPage | undefined)
+      const found = placed && findShape(placed, item.id)?.shape
+      return next && placed && found
+        ? { next, found, moved: movedShapes(ctx.catalog, page, placed, new Set(), grows) }
+        : null
     }
-    return { next, result: { item: item.id, at: { x: found.x, y: found.y } } }
+    // 置けて、refuse ならほかの形を動かさない空き
+    const calm = (at: Point) => {
+      const tried = tryAt(at)
+      return tried !== null && (push || tried.moved.length === 0)
+    }
+    const at = args.at ?? freeAt(ctx.catalog, book, page, parent, sized, calm)
+    if (!at) return { declined: `there is no free spot for it${push ? "" : ' (crowd "push" pushes the others)'}` }
+    const tried = tryAt(at)
+    if (!tried) return null
+    if (!push && tried.moved.length > 0)
+      return crowded(ctx.catalog, page, tried.moved, freeAt(ctx.catalog, book, page, parent, sized, calm))
+    return { next: tried.next, result: { item: item.id, at: { x: tried.found.x, y: tried.found.y } } }
   },
 })
 
@@ -262,26 +250,34 @@ export const ITEM_REPARENT = kit.defineAction({
     const without = out && putPage(book, out)
     if (!out || !without) return null
     const shape = found.shape
-    const where = args.at ?? found.at
     // 入れる先は抜いたあとのページで探す（自分か自分の子孫の中へは、見つからないので断る）
     const into = args.parent === null ? null : findShape(out, args.parent)
     if (args.parent !== null && !into) return null
-    const next = into
-      ? placeChild(ctx.catalog, without, args.page, into.shape.id, shape, {
-          x: where.x - into.at.x,
-          y: where.y - into.at.y,
-        })
-      : placeItem(ctx.catalog, without, args.page, { ...shape, ...where })
-    if (!next || args.crowd === "push") return next && { next, result: {} }
-    const size = placedSize(ctx.catalog, shape)
-    const after = next.pages.find(p => p.id === args.page) as ItemPage
+    const origin = into?.at ?? { x: 0, y: 0 }
+    const free = subtreeOf(page, args.item)
     const grows = new Set([
       ...ancestorsOf(page, args.item),
       ...(into ? [into.shape.id, ...ancestorsOf(out, into.shape.id)] : []),
     ])
-    const free = subtreeOf(page, args.item)
-    const no = size && crowded(ctx.catalog, book, page, after, { free, grows, parent: args.parent, size })
-    return no || { next, result: {} }
+    // 紙の上の where へ移したブックと、動いたほかの形
+    const tryAt = (where: Point) => {
+      const next = into
+        ? placeChild(ctx.catalog, without, args.page, into.shape.id, shape, {
+            x: where.x - origin.x,
+            y: where.y - origin.y,
+          })
+        : placeItem(ctx.catalog, without, args.page, { ...shape, ...where })
+      const after = next && (next.pages.find(p => p.id === args.page) as ItemPage | undefined)
+      return next && after ? { next, moved: movedShapes(ctx.catalog, page, after, free, grows) } : null
+    }
+    const tried = tryAt(args.at ?? found.at)
+    if (!tried) return null
+    if (args.crowd === "push" || tried.moved.length === 0) return { next: tried.next, result: {} }
+    // 添える空き（入れる先の中の、ほかの形を動かさない所。紙の上の位置）
+    const size = placedSize(ctx.catalog, shape)
+    const calm = (at: Point) => tryAt({ x: at.x + origin.x, y: at.y + origin.y })?.moved.length === 0
+    const spot = size && freeAt(ctx.catalog, without, out, args.parent, size, calm)
+    return crowded(ctx.catalog, page, tried.moved, spot ? { x: spot.x + origin.x, y: spot.y + origin.y } : null)
   },
 })
 

@@ -3,17 +3,16 @@
 import {
   type Book,
   type CoreCatalog,
-  findShape,
   type ItemPage,
   type PagedBook,
   type Point,
   putPage,
   type Rect,
+  type ShapeOnPage,
   type Size,
   walkShapes,
 } from "../../../plugin-api"
 import {
-  allRectsOf,
   commitChildren,
   followConnectors,
   frameAround,
@@ -97,32 +96,57 @@ export function moveItems(
   return commitChildren(catalog, putPage(book, followed), pageId, { ...frame, parent: frame.parent }, after)
 }
 
-// 付け替えの道具で形 id を落とす先: 紙の上の点 at の下で一番内側の、子を持てる形の id（id と、その子孫は除く）。無ければ null（ページ）
-export function dropTarget(catalog: CoreCatalog, page: ItemPage, id: string, at: Point): string | null {
-  const shapes = walkShapes(page)
+// 形 id と、その子孫の id
+export function subtreeOf(page: ItemPage, id: string): Set<string> {
   const own = new Set([id])
-  for (const s of shapes) if (s.parent !== null && own.has(s.parent)) own.add(s.shape.id)
-  let target: string | null = null
-  for (const { shape, at: p } of shapes) {
-    if (own.has(shape.id) || !catalog.items.get(shape.item)?.capabilities.includes("nests")) continue
-    const size = placedSize(catalog, shape)
-    if (size && at.x >= p.x && at.y >= p.y && at.x < p.x + size.w && at.y < p.y + size.h) target = shape.id
-  }
-  return target
+  for (const { shape, parent } of walkShapes(page)) if (parent !== null && own.has(parent)) own.add(shape.id)
+  return own
 }
 
-// 紙の上の点 at の下で一番内側の形（子の形も）の id。無ければ null
-function shapeAt(catalog: CoreCatalog, page: ItemPage, at: Point): string | null {
-  let found: string | null = null
-  for (const [id, r] of allRectsOf(catalog, page))
-    if (at.x >= r.x && at.y >= r.y && at.x < r.x + r.w && at.y < r.y + r.h) found = id
+// 紙の上の点 at の下で一番内側の形のうち、accept が通す物（子の形も）。無ければ null
+function innermostAt(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  at: Point,
+  accept: (shape: ShapeOnPage) => boolean = () => true,
+): ShapeOnPage | null {
+  let found: ShapeOnPage | null = null
+  for (const s of walkShapes(page)) {
+    const size = accept(s) ? placedSize(catalog, s.shape) : null
+    if (size && at.x >= s.at.x && at.y >= s.at.y && at.x < s.at.x + size.w && at.y < s.at.y + size.h) found = s
+  }
   return found
+}
+
+const nests = (catalog: CoreCatalog, item: string) => catalog.items.get(item)?.capabilities.includes("nests") === true
+
+// 付け替えの道具で形 id を落とす先: 紙の上の点 at の下で一番内側の、子を持てる形の id（id と、その子孫は除く）。無ければ null（ページ）
+export function dropTarget(catalog: CoreCatalog, page: ItemPage, id: string, at: Point): string | null {
+  const own = subtreeOf(page, id)
+  return innermostAt(catalog, page, at, s => !own.has(s.shape.id) && nests(catalog, s.shape.item))?.shape.id ?? null
+}
+
+// 大きさ size の形を、形 parent（null はページ）の中に置ける空きの左上（item-place の at と同じく、親があれば親の左上から）。
+// 空きは base の freeSpotIn の格子で、fits が通す目（Frame の左上からでなく、この at で受ける）。無ければ null
+export function freeAt(
+  catalog: CoreCatalog,
+  book: Book,
+  page: ItemPage,
+  parent: string | null,
+  size: Size,
+  fits: (at: Point) => boolean = () => true,
+): Point | null {
+  const frame = frameOf(catalog, book, page, parent)
+  if (!frame) return null
+  const at = (spot: Point) => ({ x: spot.x + frame.origin.x, y: spot.y + frame.origin.y })
+  const spot = freeSpotIn(frame, size, s => fits(at(s)))
+  return spot && at(spot)
 }
 
 // 置く道具で、ポインタの点 pointer（紙の上）の所に、左上 at（紙の上）・大きさ size の形を置くときの置き先。
 // 点の下の一番内側の形が子を持てる形なら、その中の at（子の領域へは item-place が寄せる）。子を持てない形（リスト・シェイプなど）なら、
-// その形の親（ページか形）の中の空き（base の freeSpotIn）。点の下に形が無ければ、ページの at。返す at は、親があれば親の左上から（item-place と同じ）。
-// 紙で空きが無ければ null
+// その形の親（ページか形）の中の空き（freeAt）。点の下に形が無ければ、ページの at。返す at は、親があれば親の左上から（item-place と同じ）。
+// 空きが無ければ null
 export function placeTarget(
   catalog: CoreCatalog,
   book: Book,
@@ -131,15 +155,10 @@ export function placeTarget(
   at: Point,
   size: Size,
 ): { parent: string | null; at: Point } | null {
-  const id = shapeAt(catalog, page, pointer)
-  const under = id === null ? undefined : findShape(page, id)
+  const under = innermostAt(catalog, page, pointer)
   if (!under) return { parent: null, at }
-  const nests = catalog.items.get(under.shape.item)?.capabilities.includes("nests")
-  const parent = nests ? under.shape.id : under.parent
-  const origin = parent === null ? { x: 0, y: 0 } : findShape(page, parent)?.at
-  if (!origin) return null
-  if (nests) return { parent, at: { x: at.x - origin.x, y: at.y - origin.y } }
-  const frame = frameOf(catalog, book, page, parent)
-  const spot = frame && freeSpotIn(frame, size)
-  return spot && frame ? { parent, at: { x: spot.x + frame.origin.x, y: spot.y + frame.origin.y } } : null
+  if (nests(catalog, under.shape.item))
+    return { parent: under.shape.id, at: { x: at.x - under.at.x, y: at.y - under.at.y } }
+  const spot = freeAt(catalog, book, page, under.parent, size)
+  return spot && { parent: under.parent, at: spot }
 }
