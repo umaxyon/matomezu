@@ -450,6 +450,8 @@ test("座標を渡さずに置くとき、紙に空きが無ければ断る", ()
   const paper = roomOf(CORE_CATALOG, book, page(store))!
   const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: paper.w, h: paper.h })
   expect((done as { detail?: string }).detail).toStartWith("there is no free spot for it")
+  // 画面が知らせ方を変えられるよう、断りの種類も添える
+  expect(done).toMatchObject({ ok: false, reason: "refused", kind: "@matomezu/paper:no-free-spot" })
 })
 
 test("置く先の置けるか: 内包ボックスの中でも、置くと箱が育って紙からはみ出す所なら置けない", () => {

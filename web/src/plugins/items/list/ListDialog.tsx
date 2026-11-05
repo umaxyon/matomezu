@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
-import { NO_FREE_SPOT, refusalMessage } from "../../base"
+import { refusalMessage } from "../../base"
 import {
   ActionButton,
   CaptionField,
@@ -33,6 +33,10 @@ import {
 } from "../../base/ui"
 import { ROW_LINES } from "./actions"
 import { kit } from "./kit"
+
+// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
+const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
+
 import { LIST, LIST_FILL, type ListRow } from "./list"
 import { withRowLines } from "./rows"
 import type { RowsLines } from "./size"
@@ -67,8 +71,7 @@ export function AddListDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs
   const add = (props: ListProps) => {
     if (!book) return { reason: "no-book" }
     const done = perform("@matomezu/paper:item-place", { ...args, item: LIST.id, props, crowd: "push" })
-    // 座標を渡さずに（空きに）置いて断られたなら、空きが無かった
-    if (!done.ok) return args.at === undefined && done.reason === "refused" ? { reason: NO_FREE_SPOT } : done
+    if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()
     return null
@@ -154,7 +157,7 @@ function ListDialog({
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
   bookTheme: string | undefined
   ready: boolean
-  onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
+  onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
   onPreview?: (look: Look | null, rowLines?: RowsLines) => void // テーマ・色・チェックリスト・行の色分け・行の高さを選んだ（元の値に戻せば null）
   onClose: () => void
 }) {
@@ -241,7 +244,7 @@ function ListDialog({
               refusalMessage(
                 catalog,
                 no,
-                kit.message(no.reason === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
               ),
           )
         }}

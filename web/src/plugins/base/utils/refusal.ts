@@ -11,6 +11,3 @@ export function refusalMessage(
   const denied = done.reason === "denied" && done.permission ? catalog.permissions.get(done.permission) : undefined
   return denied ? denied.title : fallback
 }
-
-// 追加のダイアログが、座標を渡さずに（空きに）置いて断られたときの断りの理由（空きが無かった）
-export const NO_FREE_SPOT = "no-free-spot"

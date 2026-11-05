@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
-import { NO_FREE_SPOT, refusalMessage } from "../../base"
+import { refusalMessage } from "../../base"
 import {
   ActionButton,
   ColorPicker,
@@ -22,6 +22,9 @@ import {
 import { ART_FILL, type PERSON } from "./art"
 import { kit } from "./kit"
 
+// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
+const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
+
 type ArtProps = ItemProps<typeof PERSON.item.id>
 
 // 絵 item を置く追加のダイアログ
@@ -34,8 +37,7 @@ export function addArtDialog(item: string) {
     const add = (props: ArtProps) => {
       if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
-      // 座標を渡さずに（空きに）置いて断られたなら、空きが無かった
-      if (!done.ok) return args.at === undefined && done.reason === "refused" ? { reason: NO_FREE_SPOT } : done
+      if (!done.ok) return done
       select(stage, [done.result.item])
       onClose()
       return null
@@ -106,7 +108,7 @@ function ArtDialog({
   start: ArtProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: ArtProps) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
+  onSubmit: (props: ArtProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
   onPreview?: (color: ArtProps["color"] | null) => void // 色を選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
@@ -144,7 +146,7 @@ function ArtDialog({
               refusalMessage(
                 catalog,
                 no,
-                kit.message(no.reason === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
               ),
           )
         }}

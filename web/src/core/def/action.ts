@@ -43,9 +43,11 @@ export interface Done<T extends ActionTarget, R> {
   result: R
 }
 
-// run が断るときに、断った訳を添える値（AI への説明に載る英語の 1 文。ぶつかった相手や、代わりに入る所など）。訳を添えずに断るなら null を返す
+// run が断るときに、断った理由を添える値。declined は AI への説明に載る英語の文（ぶつかった相手や、代わりに入る所など。画面には出さない）。
+// kind は断りの種類（プラグインの id の名前空間を付けた名前）。画面が種類で知らせ方を変えるときに書く。理由を添えずに断るなら null を返す
 export interface Declined {
   declined: string
+  kind?: string
 }
 
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）

@@ -15,7 +15,7 @@ import {
   useMessages,
   usePerform,
 } from "../../../plugin-api/ui"
-import { NO_FREE_SPOT, refusalMessage } from "../../base"
+import { refusalMessage } from "../../base"
 import {
   ActionButton,
   CaptionField,
@@ -31,6 +31,9 @@ import {
 } from "../../base/ui"
 import { kit } from "./kit"
 import { type ROUNDED, SHAPE_FILL, startTurned, TURNABLE } from "./shapes"
+
+// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
+const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
 
 // 形の項目（回せる形は向き turned も持つ）
 type ShapeProps = ItemProps<typeof ROUNDED.item.id> & { turned?: boolean }
@@ -53,8 +56,7 @@ export function addShapeDialog(item: string, turnable = false) {
     const add = (props: ShapeProps) => {
       if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
-      // 座標を渡さずに（空きに）置いて断られたなら、空きが無かった
-      if (!done.ok) return args.at === undefined && done.reason === "refused" ? { reason: NO_FREE_SPOT } : done
+      if (!done.ok) return done
       select(stage, [done.result.item])
       onClose()
       return null
@@ -126,7 +128,7 @@ function ShapeDialog({
   start: ShapeProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: ShapeProps) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
+  onSubmit: (props: ShapeProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
   onPreview?: (look: Look | null) => void // 寄せ・色を選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
@@ -172,7 +174,7 @@ function ShapeDialog({
               refusalMessage(
                 catalog,
                 no,
-                kit.message(no.reason === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
               ),
           )
         }}

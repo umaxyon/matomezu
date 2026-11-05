@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
-import { NO_FREE_SPOT, refusalMessage } from "../../base"
+import { refusalMessage } from "../../base"
 import {
   ActionButton,
   BodyField,
@@ -31,6 +31,10 @@ import {
 } from "../../base/ui"
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
 import { kit } from "./kit"
+
+// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
+const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
+
 import { VALIGNS, type VAlign } from "./size"
 
 type BoxProps = ItemProps<typeof BOX.id>
@@ -62,8 +66,7 @@ function AddBox({
   const add = (props: BoxProps) => {
     if (!book) return { reason: "no-book" }
     const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
-    // 座標を渡さずに（空きに）置いて断られたなら、空きが無かった
-    if (!done.ok) return args.at === undefined && done.reason === "refused" ? { reason: NO_FREE_SPOT } : done
+    if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()
     return null
@@ -141,7 +144,7 @@ function BoxDialog({
   start: BoxProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: BoxProps) => { reason: string; permission?: string } | null // 断られたわけ（決められたら null）
+  onSubmit: (props: BoxProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
   onPreview?: (look: Look | null) => void // 本文・寄せ・テーマ・色を変えた（元の値に戻せば null。無ければ見せない）
   onClose: () => void
   hasChildren?: boolean // 子を持つ内包ボックスか（縦の位置の真ん中を押せなくする）
@@ -208,7 +211,7 @@ function BoxDialog({
               refusalMessage(
                 catalog,
                 no,
-                kit.message(no.reason === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
               ),
           )
         }}

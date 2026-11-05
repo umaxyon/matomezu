@@ -44,6 +44,9 @@ declare module "../../../core/catalog" {
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
+// item-place が空きを探して見つからなかった断りの種類（Declined の kind。追加のダイアログが「空きがありません」を出す）
+export const NO_FREE_SPOT = kit.name("no-free-spot")
+
 // ほかの形とぶつかるときの扱い: refuse は断る（ほかの形を動かさない。既定）、push は押してどける（画面の置く・動かす）
 const CrowdSchema = z.enum(["refuse", "push"]).optional()
 const CROWD_AI =
@@ -165,7 +168,11 @@ export const ITEM_PLACE = kit.defineAction({
       return tried !== null && (push || tried.moved.length === 0)
     }
     const at = args.at ?? freeAt(ctx.catalog, book, page, parent, sized, calm)
-    if (!at) return { declined: `there is no free spot for it${push ? "" : ' (crowd "push" pushes the others)'}` }
+    if (!at)
+      return {
+        declined: `there is no free spot for it${push ? "" : ' (crowd "push" pushes the others)'}`,
+        kind: NO_FREE_SPOT,
+      }
     const tried = tryAt(at)
     if (!tried) return null
     if (!push && tried.moved.length > 0)
