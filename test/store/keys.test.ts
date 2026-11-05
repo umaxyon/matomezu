@@ -16,21 +16,26 @@ const def = (key: string, command: string, plugin: string, builtin = false, scop
   builtin,
 })
 
-test("勝つ順は 利用者 > ビルトインプラグイン > 追加プラグイン。追加の既定はビルトインとぶつかれば使わず、追加どうしでぶつかればどちらも使わない", () => {
+test("同じ範囲・同じキーは捨てずに 利用者 → ビルトインプラグイン → 追加プラグインの id の順に並べ、先頭の行だけが効く", () => {
   const defaults = [
+    def("D", "b:dup", "b"),
     def("Delete", "@matomezu/paper:paper-delete", "@matomezu/paper", true),
     def("Delete", "a:del", "a"),
     def("D", "a:dup", "a"),
-    def("D", "b:dup", "b"),
     def("E", "b:edit", "b"),
   ]
   const table = keyTable(defaults, NO_KEY_CHANGES)
-  expect(table.active.map(e => e.binding.command)).toEqual(["@matomezu/paper:paper-delete", "b:edit"])
-  expect(table.dropped.map(d => [d.entry.binding.command, d.reason])).toEqual([
-    ["a:del", "builtin"],
-    ["a:dup", "plugins"],
-    ["b:dup", "plugins"],
+  // 追加プラグインは読み込んだ順でなく id の順（a が b より先）。同じプラグインの中は書いた順
+  expect(table.active.map(e => e.binding.command)).toEqual([
+    "@matomezu/paper:paper-delete",
+    "a:del",
+    "a:dup",
+    "b:dup",
+    "b:edit",
   ])
+  expect(table.dropped).toEqual([])
+  expect(inspectKey(table, { scope: "stage", key: "Delete" }).value).toBe("@matomezu/paper:paper-delete")
+  expect(inspectKey(table, { scope: "stage", key: "D" }).value).toBe("a:dup")
   // 利用者が足した行はビルトインプラグインに勝ち、後に足したものが先
   const user = keyTable(defaults, {
     added: [
@@ -47,7 +52,7 @@ test("勝つ順は 利用者 > ビルトインプラグイン > 追加プラグ�
     ["x:two", expect.objectContaining({ from: "user" })],
     ["x:one", expect.objectContaining({ from: "user" })],
     ["@matomezu/paper:paper-delete", expect.objectContaining({ from: "builtin" })],
-    [null, expect.objectContaining({ from: "plugin", plugin: "a", dropped: "builtin" })],
+    ["a:del", expect.objectContaining({ from: "plugin", plugin: "a" })],
   ])
 })
 
@@ -156,7 +161,7 @@ test("組み立ては、読めないキー・無いコマンド・追加プラ�
   expect(thrown(make([{ id: "k:a", key: "Delete", command: "k:own", scope: "stage" }]))).toBeNull()
 })
 
-test("追加プラグインの既定のキーがビルトインに負けたら W008、ほかの追加プラグインとぶつかったら W009 の warning を残す（どちらもその行は使わない）", () => {
+test("追加プラグインの既定のキーバインドがビルトインの行に負けたら W008、id の順で先の追加プラグインの行に負けたら W021 の warning を残す（負けた行は効かない）", () => {
   const command = (id: string) =>
     defineCommand({ id, title: "@matomezu/master:Master", run: () => {}, when: () => true })
   // id を引数で作るので、頭の確かめの型は外して渡す（組み立ての確かめは実行時に通る）
@@ -172,8 +177,7 @@ test("追加プラグインの既定のキーがビルトインに負けたら W
   })
   expect(warningsOf(instance.catalog).map(warningText)).toEqual([
     "W008 a: key Delete in stage for a:own: a builtin plugin's key is there (not used)",
-    "W009 b: key K in stage for b:own: another added plugin c has the same key (neither is used)",
-    "W009 c: key K in stage for c:own: another added plugin b has the same key (neither is used)",
+    "W021 c: key K in stage for c:own: added plugin b's key is there first (not used)",
   ])
 })
 

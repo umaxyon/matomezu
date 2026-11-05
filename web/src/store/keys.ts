@@ -1,6 +1,6 @@
 // キーの割り当て: プラグインの既定と利用者の変更から、効いている割り当ての表を作り、押したキーをコマンドに引く。
-// 勝つ順は 利用者 > ビルトインプラグイン > 追加プラグイン。ぶつかるのは同じ範囲・同じキーのときだけで、範囲が違えば狭いほうが勝つ（引く側が決める）。
-// 追加プラグインの既定は、ビルトインプラグインの既定とぶつかれば使わず、追加プラグインどうしでぶつかれば、どちらも使わない（利用者が自分で割り当てる）
+// 同じ範囲・同じキーのキーバインドは捨てずに並べ（利用者 → ビルトインプラグイン → 追加プラグインの id の順）、効くのは先頭の 1 つだけ（先勝ち）。
+// 範囲が違えば狭いほうが先（引く側が決める）
 
 import type { CommandId, KeyExtras, KeyScopeId } from "../core/catalog"
 import type { Inspected, Source, Step } from "../core/inspect"
@@ -30,18 +30,16 @@ export interface KeyEntry {
   plugin: string | null // 既定の行を書いたプラグイン（利用者の行は null）
 }
 
-// 使わなかった既定の行と、その理由（利用者が外した・ビルトインプラグインとぶつかった・追加プラグインどうしでぶつかった）
+// 使わなかった既定の行と、その理由（利用者が外した）
 export interface DroppedKey {
   entry: KeyEntry
-  reason: "removed" | "builtin" | "plugins"
+  reason: "removed"
 }
 
 export interface KeyTable {
-  active: readonly KeyEntry[] // 勝つ順（利用者の行は後に足したものが先）
+  active: readonly KeyEntry[] // 先の順（利用者の行は後に足したものが先）。同じ範囲・同じキーなら、先頭の行だけが効く
   dropped: readonly DroppedKey[]
 }
-
-const at = (b: KeyBinding) => `${b.scope}\u0000${b.key}`
 
 // 既定と利用者の変更から、表を作る。利用者の行で読めないキーのものは使わない
 export function keyTable(defaults: readonly DefaultKey[], changes: KeyChanges): KeyTable {
@@ -51,25 +49,23 @@ export function keyTable(defaults: readonly DefaultKey[], changes: KeyChanges): 
       return key ? [{ binding: { ...b, key }, from: "user" as const, plugin: null }] : []
     })
     .reverse()
-  const builtinAt = new Set(defaults.filter(d => d.builtin).map(d => at(d.binding)))
-  const pluginsAt = new Map<string, Set<string>>()
-  for (const d of defaults.filter(d => !d.builtin))
-    pluginsAt.set(at(d.binding), (pluginsAt.get(at(d.binding)) ?? new Set()).add(d.plugin))
   const builtin: KeyEntry[] = []
   const plugin: KeyEntry[] = []
   const dropped: DroppedKey[] = []
   for (const d of defaults) {
     const entry: KeyEntry = { binding: d.binding, from: d.builtin ? "builtin" : "plugin", plugin: d.plugin }
     if (changes.removed.some(r => sameBinding(r, d.binding))) dropped.push({ entry, reason: "removed" })
-    else if (d.builtin) builtin.push(entry)
-    else if (builtinAt.has(at(d.binding))) dropped.push({ entry, reason: "builtin" })
-    else if ((pluginsAt.get(at(d.binding))?.size ?? 0) > 1) dropped.push({ entry, reason: "plugins" })
-    else plugin.push(entry)
+    else (d.builtin ? builtin : plugin).push(entry)
   }
-  return { active: [...user, ...builtin, ...plugin], dropped }
+  // 追加プラグインは id の順（読み込んだ順は環境で変わるため）。同じプラグインの中は書いた順
+  const byPlugin = plugin
+    .map((e, i) => ({ e, i }))
+    .sort((a, b) => (a.e.plugin ?? "").localeCompare(b.e.plugin ?? "") || a.i - b.i)
+    .map(x => x.e)
+  return { active: [...user, ...builtin, ...byPlugin], dropped }
 }
 
-// その範囲で、そのキー（そろえた書き方）に勝つ行
+// その範囲で、そのキー（そろえた書き方）の先頭の行（効く行）
 export function findKey(table: KeyTable, scope: string, key: string): KeyEntry | undefined {
   return table.active.find(e => e.binding.scope === scope && e.binding.key === key)
 }

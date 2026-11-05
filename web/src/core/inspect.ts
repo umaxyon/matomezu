@@ -26,7 +26,7 @@ export type Source =
       from: "user" | "builtin" | "plugin"
       plugin: string | null
       binding: KeyBinding
-      dropped?: "removed" | "builtin" | "plugins"
+      dropped?: "removed"
     }
 
 export interface Step<V> {
