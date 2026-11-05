@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
 import { FOOTER_MENU_SLOTS } from "../book-name/footer-menu"
 import { kit } from "../kit"
-import { LEFT_DRAWER } from "../left-drawer/slots"
+import { LEFT_SIDE_PANEL } from "../left-side-panel/slots"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
 import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import { WorkspaceView } from "./WorkspaceView"
@@ -20,10 +20,10 @@ export const STAGE_BASE_SLOTS = [STAGE_TOP, STAGE_BODY, STAGE_BOTTOM, STAGE_CORN
 export const defineWorkspace = <const Id extends string>(def: { id: Id; view: () => ReactNode }) =>
   defineWidget({ id: def.id, slots: ["root"], opens: STAGE_BASE_SLOTS, view: def.view })
 
-// base の骨組みは、ベーススロットのほかに、ステージの列の右に右サイドパネルのスロットと、列の左に被せる左ドロワーのスロットも開ける
+// base の骨組みは、ベーススロットのほかに、ステージの列の右に右サイドパネルのスロットと、列の左に被せる左サイドパネルのスロットも開ける
 export const WORKSPACE = defineWidget({
   id: kit.name("workspace"),
   slots: ["root"],
-  opens: [...STAGE_BASE_SLOTS, RIGHT_SIDE_PANEL, LEFT_DRAWER],
+  opens: [...STAGE_BASE_SLOTS, RIGHT_SIDE_PANEL, LEFT_SIDE_PANEL],
   view: WorkspaceView,
 })

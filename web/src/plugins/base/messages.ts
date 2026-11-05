@@ -6,7 +6,7 @@ import { MENU_MESSAGES } from "./context-menu/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
 import { HISTORY_MESSAGES } from "./history/messages"
 import { ITEM_PARTS_MESSAGES } from "./item-parts/messages"
-import { LEFT_DRAWER_MESSAGES } from "./left-drawer/messages"
+import { LEFT_SIDE_PANEL_MESSAGES } from "./left-side-panel/messages"
 import { LOCK_MESSAGES } from "./lock/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
 import { MARK_MESSAGES } from "./mark/messages"
@@ -43,7 +43,7 @@ export const BASE_MESSAGES = {
   ...NOTE_MESSAGES,
   ...MARK_MESSAGES,
   ...RIGHT_SIDE_PANEL_MESSAGES,
-  ...LEFT_DRAWER_MESSAGES,
+  ...LEFT_SIDE_PANEL_MESSAGES,
   ...NOTE_LIST_MESSAGES,
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,
