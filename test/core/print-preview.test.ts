@@ -17,7 +17,7 @@ import { MARGIN } from "../../web/src/core/viewport"
 import { breakShift } from "../../web/src/plugins/base/print-preview/breaks"
 import { arrangeSheets } from "../../web/src/plugins/base/print-preview/sheets"
 import { fitSideView, ZOOM_MAX } from "../../web/src/plugins/base/zoom"
-import { cutSheets } from "../../web/src/plugins/books/markdown/print"
+import { cutSheets, isImageBlock, lineBreaks } from "../../web/src/plugins/books/markdown/print"
 import { CORE_CATALOG } from "../support"
 
 const book = {
@@ -170,6 +170,40 @@ describe("改ページ（breakShift）", () => {
   })
 })
 
+describe("マークダウンの印刷の決まり（isImageBlock・lineBreaks）", () => {
+  const image = (url = "data:image/png;base64,AA==") => ({
+    kind: "image" as const,
+    url,
+    alt: "",
+    range: { start: 0, end: 0 },
+  })
+  const text = (value: string) => ({ kind: "text" as const, value, range: { start: 0, end: 0 } })
+  const paragraph = (children: unknown[]) => ({ kind: "paragraph", children, range: { start: 0, end: 0 } }) as never
+
+  test("画像の決まりで切るのは、描く画像が 1 つだけで、ほかは空白と改行だけの段落", () => {
+    expect(isImageBlock(paragraph([image()]))).toBe(true)
+    expect(isImageBlock(paragraph([image(), text(" ")]))).toBe(true)
+    expect(isImageBlock(paragraph([image(), image()]))).toBe(false) // 2 つ以上は行で分ける
+    expect(isImageBlock(paragraph([image(), text("説明")]))).toBe(false)
+    expect(isImageBlock(paragraph([image("https://example.com/a.png")]))).toBe(false) // 描かない画像
+  })
+
+  test("切ってよい所は、どの四角にもまたがれていない四角の下端（切り上げ）", () => {
+    // 字の行 0〜20・20〜40 と、20〜60 にまたがる画像の箱: 40 は画像にまたがれるので切らない
+    expect(
+      lineBreaks(
+        [
+          { top: 0, bottom: 20.2 },
+          { top: 20.2, bottom: 40 },
+          { top: 25, bottom: 60 },
+          { top: 60, bottom: 80 },
+        ],
+        80,
+      ),
+    ).toEqual([21, 60])
+  })
+})
+
 describe("マークダウンを紙の高さで切る（cutSheets）", () => {
   const block = (
     top: number,
@@ -219,16 +253,37 @@ describe("マークダウンを紙の高さで切る（cutSheets）", () => {
     ])
   })
 
-  test("入らない画像は、残りに半分以上入れば残りの高さまで縮め、入らなければ次の枠へ送る。枠より高い画像は枠の高さまで縮める", () => {
-    expect(cutSheets([block(0, 40), block(50, 120, "image")], 100).shrinks).toEqual([{ block: 1, height: 50 }])
+  test("入らない画像は、残りに半分以上入れば残りの高さまで縮め、入らなければ次の枠へ送る。枠より高い画像は枠の高さまで縮める。縮めても文書の最後まで切る", () => {
+    // 50〜120 の画像は残り 50 に半分以上入るので 50 に縮め、後ろの 130〜170 は 20 上がって 110〜150 になり、次の枠へ
+    expect(cutSheets([block(0, 40), block(50, 120, "image"), block(130, 170)], 100)).toEqual({
+      cuts: [
+        { start: 0, end: 100, from: 0 },
+        { start: 110, end: 150, from: 130 },
+      ],
+      shrinks: [{ block: 1, height: 50 }],
+    })
     expect(spans([block(0, 60), block(70, 160, "image")], 100)).toEqual([
       [0, 60],
       [70, 160],
     ])
-    expect(cutSheets([block(0, 40), block(50, 300, "image")], 100)).toEqual({
-      cuts: [{ start: 0, end: 40, from: 0 }],
+    // 枠より高い画像は次の枠の頭で枠の高さに縮め、後ろのブロックは縮めた分だけ上げて続ける
+    expect(cutSheets([block(0, 40), block(50, 300, "image"), block(310, 340)], 100)).toEqual({
+      cuts: [
+        { start: 0, end: 40, from: 0 },
+        { start: 50, end: 150, from: 50 },
+        { start: 160, end: 190, from: 310 },
+      ],
       shrinks: [{ block: 1, height: 100 }],
     })
+  })
+
+  test("見出しの次が行で分けられる段落なら、見出しは送らず、段落の頭の行と同じ枠に残る", () => {
+    expect(
+      spans([block(0, 40), block(50, 70, "heading"), block(80, 200, "other", [100, 120, 140, 160, 180])], 100),
+    ).toEqual([
+      [0, 100],
+      [100, 200],
+    ])
   })
 
   test("枠より高いブロックは、枠 1 つに 1 つだけ置く。ブロックが無ければ切らない", () => {

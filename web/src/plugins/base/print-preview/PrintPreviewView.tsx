@@ -133,10 +133,11 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const layout = useMemo(() => (book ? bookSheets(catalog, book, measured) : null), [catalog, book, measured])
   const zoom = stage?.zoom ?? 1
   const motion = useZoomMotion(zoom, "")
-  // 並べた広さを知らせる（並べる物がまだ無い間は知らせない。測っている途中の 0 の広さで、初めの幅に合わせるのを済ませないように）
+  // 並べた広さを知らせる（測っている途中と、並べる物が無い間は知らせない。途中の広さで、初めの幅に合わせるのを済ませないように）
+  const pending = [...measured.values()].includes("pending")
   useEffect(() => {
-    if (layout && layout.sheets.length > 0) setPreviewArea(id, layout.size)
-  }, [layout, id, setPreviewArea])
+    if (layout && !pending && layout.sheets.length > 0) setPreviewArea(id, layout.size)
+  }, [layout, pending, id, setPreviewArea])
   const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
   // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、
   // そのあと表示領域の大きさが変わっても、倍率を変えていなければ合わせ直す
@@ -205,7 +206,6 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
       </PrintingContext.Provider>
     </div>
   )
-  const pending = [...measured.values()].includes("pending")
   if (layout.sheets.length === 0)
     return (
       <>

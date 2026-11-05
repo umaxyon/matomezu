@@ -7,7 +7,7 @@
 import { memo, useLayoutEffect, useMemo, useRef } from "react"
 import { type MarkdownDocument, parseMarkdown } from "../../../base"
 import type { PrintMeasureProps, PrintSheetProps } from "../../../base/ui"
-import { cutSheets, type MeasuredBlock, pageText, type SheetCut } from "../print"
+import { cutSheets, isImageBlock, lineBreaks, type MeasuredBlock, pageText, type SheetCut } from "../print"
 import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 
@@ -16,6 +16,7 @@ import styles from "./MarkdownView.module.css"
 interface MarkdownMeasured {
   cuts: readonly SheetCut[]
   top: number
+  blocks: readonly (readonly [number, number])[] // 縮めたあとの、ブロックごとの上端と下端（脚注は最後に 1 つ。印刷区画のビューが掛かるブロックだけを描く）
   shrinks: readonly (readonly [number, number])[]
   zooms: readonly (readonly [number, number])[]
 }
@@ -23,20 +24,38 @@ interface MarkdownMeasured {
 // いちばん外のブロックの要素（data-markdown-block の印の順。文書のブロックの順に当たる）
 const blockElements = (el: HTMLElement): HTMLElement[] => [...el.querySelectorAll<HTMLElement>("[data-markdown-block]")]
 
-// 描いた文書 el の縮め: 紙の幅に入らないブロックを幅に合わせて縮め（zooms）、画像を高さまで縮める（shrinks）。前の縮めは消してからかける
-function applyShrinks(el: HTMLElement, zooms: ReadonlyMap<number, number>, shrinks: ReadonlyMap<number, number>) {
-  for (const [i, b] of blockElements(el).entries()) {
+// 描いた文書 el の縮め: 紙の幅に入らないブロックを幅に合わせて縮め（zooms）、画像を高さまで縮める（shrinks）。前の縮めは消してからかける。
+// first は、el のいちばん外のブロックの 1 つ目が文書の何番目のブロックか（文書の一部だけを描いたとき）
+function applyShrinks(
+  el: HTMLElement,
+  zooms: ReadonlyMap<number, number>,
+  shrinks: ReadonlyMap<number, number>,
+  first = 0,
+) {
+  for (const [at, b] of blockElements(el).entries()) {
+    const i = first + at
     b.style.zoom = zooms.has(i) ? String(zooms.get(i)) : ""
     for (const img of b.querySelectorAll("img")) img.style.maxHeight = shrinks.has(i) ? `${shrinks.get(i)}px` : ""
   }
 }
 
 // 紙の幅に入らないブロックの縮める倍率（中身の幅に入る倍率）
+// （ブロックの中のスクロールする入れ物（表など）も見て、はみ出しのいちばん大きい物で決める。縮めると中の幅が広がり直すことがあるので、かけてもう一度確かめる）
 function wideZooms(el: HTMLElement): Map<number, number> {
   const zooms = new Map<number, number>()
+  const over = (b: HTMLElement) =>
+    Math.min(
+      1,
+      ...[b, ...b.querySelectorAll<HTMLElement>("*")].map(c =>
+        c.scrollWidth > c.clientWidth + 1 ? c.clientWidth / c.scrollWidth : 1,
+      ),
+    )
   for (const [i, b] of blockElements(el).entries()) {
-    const wide = Math.max(b.scrollWidth, ...[...b.children].map(c => (c as HTMLElement).scrollWidth))
-    if (wide > b.clientWidth + 1) zooms.set(i, b.clientWidth / wide)
+    const z = over(b)
+    if (z >= 1) continue
+    b.style.zoom = String(z)
+    const again = over(b)
+    zooms.set(i, z * again)
   }
   return zooms
 }
@@ -59,24 +78,18 @@ function documentOf(book: string, page: string, text: string): MarkdownDocument 
 function measureBlocks(el: HTMLElement, document: MarkdownDocument, top: number, end: number): MeasuredBlock[] {
   const base = el.getBoundingClientRect().top + top
   const at = (b: HTMLElement) => b.getBoundingClientRect().top - base
+  // 字の行と中の要素の箱（表の行・セル・画像など）の四角から、どれにもまたがれていない下端（print.ts の lineBreaks）
   const breaksOf = (b: HTMLElement, bottom: number): number[] => {
-    const rows = b.querySelectorAll("tr")
-    const rects =
-      rows.length > 0
-        ? [...rows].map(r => r.getBoundingClientRect())
-        : (() => {
-            const range = window.document.createRange()
-            range.selectNodeContents(b)
-            return [...range.getClientRects()]
-          })()
-    const ends = new Set(rects.map(r => Math.round(r.bottom - base)).filter(y => y < bottom - 1))
-    return [...ends].sort((a, b) => a - b)
+    const range = window.document.createRange()
+    range.selectNodeContents(b)
+    const rects = [...range.getClientRects()].map(r => ({ top: r.top - base, bottom: r.bottom - base }))
+    return lineBreaks(rects, bottom)
   }
   const blocks: MeasuredBlock[] = blockElements(el).map((b, i) => {
     const y = at(b)
     const bottom = y + b.getBoundingClientRect().height
-    const image = b.querySelector("img") !== null && (b.textContent ?? "").trim() === ""
-    const kind = document.blocks[i]?.kind === "heading" ? "heading" : image ? "image" : "other"
+    const block = document.blocks[i]
+    const kind = block?.kind === "heading" ? "heading" : block && isImageBlock(block) ? "image" : "other"
     return {
       top: y,
       bottom,
@@ -116,11 +129,18 @@ export const MarkdownMeasure = memo(function MarkdownMeasure({ book, page, paper
       applyShrinks(el, zooms, shrinks)
       let cut = cutSheets(measureBlocks(el, document, top, text.length), paper.h - top - bottom)
       for (let round = 0; round < SHRINK_ROUNDS && cut.shrinks.length > 0; round++) {
-        for (const s of cut.shrinks) shrinks.set(s.block, s.height)
+        // 縮めるのはブロックの高さなので、画像の高さには、ブロックと画像の高さの差（字の行の隙間）を引いて直す
+        for (const s of cut.shrinks) {
+          const b = blockElements(el)[s.block]
+          const img = b?.querySelector("img")
+          const gap = b && img ? b.getBoundingClientRect().height - img.getBoundingClientRect().height : 0
+          shrinks.set(s.block, Math.max(1, s.height - gap))
+        }
         applyShrinks(el, zooms, shrinks)
         cut = cutSheets(measureBlocks(el, document, top, text.length), paper.h - top - bottom)
       }
-      const data: MarkdownMeasured = { cuts: cut.cuts, top, shrinks: [...shrinks], zooms: [...zooms] }
+      const placed = measureBlocks(el, document, top, text.length).map(b => [b.top, b.bottom] as const)
+      const data: MarkdownMeasured = { cuts: cut.cuts, top, blocks: placed, shrinks: [...shrinks], zooms: [...zooms] }
       latest.current({ rows: cut.cuts.length, data })
     }
     measure()
@@ -141,13 +161,26 @@ export function MarkdownSheet({ book, page, row, paper, measured }: PrintSheetPr
   const document = useMemo(() => documentOf(book.id, page.id, text), [book.id, page.id, text])
   const data = measured as MarkdownMeasured | undefined
   const cut = data?.cuts[row]
+  // この印刷区画に掛かるブロックだけ（脚注は文書の最後のブロックの次に数える）
+  const shown = useMemo(() => {
+    if (!data || !cut) return null
+    const on = data.blocks.flatMap(([top, bottom], i) => (bottom > cut.start && top < cut.end ? [i] : []))
+    const first = on[0]
+    if (first === undefined) return null
+    const last = on[on.length - 1] as number
+    const part: MarkdownDocument = {
+      blocks: document.blocks.slice(first, last + 1),
+      footnotes: last >= document.blocks.length ? document.footnotes : [],
+    }
+    return { first, part, top: (data.blocks[first] as readonly [number, number])[0] }
+  }, [data, cut, document])
   // 測ったときと同じ縮めをかける（でないと、切った所と描いた位置がずれる）
   const ref = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
-    if (ref.current && data) applyShrinks(ref.current, new Map(data.zooms), new Map(data.shrinks))
-  })
-  if (!data || !cut) return null
-  // 印刷区画 row の所: 上の余白の下から、切った所の高さだけを見せ、その中に文書を切った所の上端が来るようにずらして描く
+    if (ref.current && data && shown) applyShrinks(ref.current, new Map(data.zooms), new Map(data.shrinks), shown.first)
+  }, [data, shown])
+  if (!data || !cut || !shown) return null
+  // 印刷区画 row の所: 上の余白の下から、切った所の高さだけを見せ、その中に、掛かるブロックを測った位置（切った所の上端から）に描く
   return (
     <div
       className={styles.sheetClip}
@@ -156,10 +189,10 @@ export function MarkdownSheet({ book, page, row, paper, measured }: PrintSheetPr
     >
       <article
         ref={ref}
-        className={`${styles.document} ${styles.printed}`}
-        style={{ width: paper.w, top: -cut.start - data.top }}
+        className={`${styles.document} ${styles.printed} ${styles.part}`}
+        style={{ width: paper.w, top: shown.top - cut.start }}
       >
-        <MarkdownDocumentView document={document} />
+        <MarkdownDocumentView document={shown.part} />
       </article>
     </div>
   )

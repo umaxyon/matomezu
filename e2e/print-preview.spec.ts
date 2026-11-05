@@ -202,14 +202,9 @@ test("マークダウンは、紙の高さでブロックの境目ごとに切�
   await expect(sheets(page).first().locator("[data-markdown-from]")).toHaveAttribute("data-markdown-from", "0")
   const lastFrom = Number(await sheets(page).last().locator("[data-markdown-from]").getAttribute("data-markdown-from"))
   expect(lastFrom).toBeGreaterThan(0)
-  const inside = async (i: "first" | "last") => {
-    const sheet = i === "first" ? sheets(page).first() : sheets(page).last()
-    const box = (await sheet.boundingBox())!
-    const text = (await sheet.getByText("段落 60", { exact: true }).boundingBox())!
-    return text.y >= box.y && text.y + text.height <= box.y + box.height
-  }
-  expect(await inside("last")).toBe(true)
-  expect(await inside("first")).toBe(false)
+  // 各紙は自分に掛かるブロックだけを描く: 最後の紙に「段落 60」があり、1 枚目には無い
+  await expect(sheets(page).last().getByText("段落 60", { exact: true })).toBeVisible()
+  await expect(sheets(page).first().getByText("段落 60", { exact: true })).toHaveCount(0)
 })
 
 test("マークダウンの長い段落は、紙の高さに入る所で行の途中から次の紙に続ける", async ({ page }) => {
@@ -226,22 +221,56 @@ test("マークダウンの長い段落は、紙の高さに入る所で行の�
   await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(1)).toPass()
   // どの紙も同じ段落（原文の頭のブロック）の続きで、最後の行は最後の紙に見える
   await expect(sheets(page).last().locator("[data-markdown-from]")).toHaveAttribute("data-markdown-from", "0")
-  // 「行 80」の字そのものの四角（段落の要素は文書の長さだけあるので、字の範囲で測る）が、最後の紙の中にある
-  const inside = await sheets(page)
-    .last()
-    .evaluate(sheet => {
-      const walker = document.createTreeWalker(sheet, NodeFilter.SHOW_TEXT)
+  // どの「行 N」も、字の四角がまるごと入る紙がちょうど 1 枚ある（切れ目の行が切れていない・2 枚に重ねて出ていない）
+  const counts = await page.evaluate(() => {
+    // 見えるのは、紙ごとに切った所の枠（data-markdown-from）の中だけ（枠の外の字は、紙の余白の所でも隠れている）
+    const sheets = [...document.querySelectorAll("[data-markdown-from]")].map(s => s.getBoundingClientRect())
+    const seen = new Map<string, number>()
+    for (const el of document.querySelectorAll("[data-markdown-from]")) {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
       for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-        const at = n.textContent?.indexOf("行 80") ?? -1
-        if (at < 0) continue
-        const range = document.createRange()
-        range.setStart(n, at)
-        range.setEnd(n, at + 4)
-        const r = range.getBoundingClientRect()
-        const box = sheet.getBoundingClientRect()
-        return r.top >= box.top && r.bottom <= box.bottom
+        for (const m of (n.textContent ?? "").matchAll(/行 \d+/g)) {
+          const range = document.createRange()
+          range.setStart(n, m.index ?? 0)
+          range.setEnd(n, (m.index ?? 0) + m[0].length)
+          const r = range.getBoundingClientRect()
+          const whole = sheets.some(b => r.top >= b.top - 0.5 && r.bottom <= b.bottom + 0.5 && r.height > 0)
+          const box = el.getBoundingClientRect()
+          if (whole && r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5) seen.set(m[0], (seen.get(m[0]) ?? 0) + 1)
+        }
       }
-      return false
-    })
-  expect(inside).toBe(true)
+    }
+    return Object.fromEntries(seen)
+  })
+  expect([...Array.from({ length: 80 }, (_, i) => counts[`行 ${i + 1}`])]).toEqual(Array(80).fill(1))
+})
+
+// 幅 300・高さ h の画像（data: の URL。描く画像）
+const tallImage = (h: number) =>
+  `![画像](data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="${h}"><rect width="300" height="${h}" fill="#888"/></svg>`).toString("base64")})`
+
+test("マークダウンの画像は、紙の残りに半分以上入れば縮めて今の紙に入れ、紙より高い画像は紙の高さに縮める", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const add = await newBook(page, "画像", "マークダウン")
+  await add.getByRole("button", { name: "作成" }).click()
+  await expect(add).toBeHidden()
+  const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await field.click()
+  const lines = Array.from({ length: 20 }, (_, i) => `前 ${i + 1}  `).join("\n")
+  await page.keyboard.insertText(`${lines}\n\n${tallImage(800)}\n\n後ろ\n\n${tallImage(3000)}`)
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("後ろ")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBe(2)).toPass()
+  const box = async (i: number) => (await sheets(page).nth(i).boundingBox())!
+  const within = (r: { y: number; height: number }, b: { y: number; height: number }) =>
+    r.y >= b.y - 0.5 && r.y + r.height <= b.y + b.height + 0.5
+  // 1 枚目に縮めた画像。2 枚目の頭に「後ろ」と、紙の高さより小さく縮めた画像（紙の高さに縮めたあと、残りに半分以上入るので残りの高さへ）
+  const first = (await sheets(page).nth(0).locator("img").boundingBox())!
+  expect(within(first, await box(0))).toBe(true)
+  const after = (await sheets(page).nth(1).getByText("後ろ", { exact: true }).boundingBox())!
+  expect(within(after, await box(1))).toBe(true)
+  const big = (await sheets(page).nth(1).locator("img").boundingBox())!
+  expect(within(big, await box(1))).toBe(true)
 })

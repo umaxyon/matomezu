@@ -141,3 +141,8 @@
   position: absolute;
   left: 0;
 }
+/* 印刷区画のビューが描く文書の一部（1 つ目のブロックを、測った位置に置く。上と下の余白は印刷区画の枠が持つ） */
+.part {
+  padding-top: 0;
+  padding-bottom: 0;
+}
