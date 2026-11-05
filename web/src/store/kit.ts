@@ -175,8 +175,8 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: Omit<KeyScopeDef, "id" | "title"> & { id: Id; title: keyof M & string },
   ): KeyScopeDef & { id: Owned<P, Id> }
 
-  // キーの既定の割り当て 1 つ（command はコマンドの本当の id。args はそのコマンドの引数の型）
-  defineKey<const K extends KeyDef>(def: K): Omit<K, "id"> & { id: Owned<P, K["id"]> }
+  // キーの既定のキーバインド 1 つ（command はコマンドの本当の id。args はそのコマンドの引数の型。title は自分の文言の短い鍵）
+  defineKey<const K extends KeyDef>(def: K & { title?: keyof M & string }): Omit<K, "id"> & { id: Owned<P, K["id"]> }
 
   // 言語パック: id は言語から付ける（「プラグインの id:言語」）
   defineLanguagePack<const L extends Omit<LanguagePackDef, "id">>(def: L): L & { id: Owned<P, L["lang"]> }
@@ -244,7 +244,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineDialog: place,
     defineDialogWith: () => place,
     defineKeyScope: place,
-    defineKey: (def: { id: string }) => ({ ...def, id: owned(plugin, def.id) }),
+    defineKey: place,
     defineLanguagePack: (def: { lang: string }) => ({ ...def, id: owned(plugin, def.lang) }),
   }
   return kit as unknown as PluginKit<P, M>

@@ -206,6 +206,9 @@ export function assemble(
     ...commands
       .filter(c => !catalog.messages.has(c.title))
       .map(c => problem("E018", { kind: "command", id: c.id, title: c.title })),
+    ...(plugins.flatMap(p => p.keys ?? []) as readonly { id: string; title?: string }[])
+      .filter(k => k.title !== undefined && !catalog.messages.has(k.title))
+      .map(k => problem("E018", { kind: "key", id: k.id, title: k.title ?? "" })),
     ...keyScopes
       .filter(s => !catalog.messages.has(s.title))
       .map(s => problem("E018", { kind: "keyScope", id: s.id, title: s.title })),
@@ -247,8 +250,14 @@ function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>):
       else if (!isBuiltin(p) && !own.has(k.command))
         problems.push(problem("E302", { plugin: p.id, key: k.key, command: k.command }))
       else {
-        const { id, ...binding } = k
-        keys.push({ id, binding: { ...binding, key }, plugin: p.id, builtin: isBuiltin(p) })
+        const { id, title, ...binding } = k
+        keys.push({
+          id,
+          ...(title ? { title } : {}),
+          binding: { ...binding, key },
+          plugin: p.id,
+          builtin: isBuiltin(p),
+        })
       }
     }
   }
