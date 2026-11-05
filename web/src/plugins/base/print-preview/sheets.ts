@@ -49,15 +49,21 @@ function cellsOf(p: PageSheets, order: SheetOrder): { column: number; row: numbe
   })
 }
 
+// ページ p の印刷区画のうち、並べる物（数える順 order。shown が外した物は除き、どれも外れたら最初の 1 つを白紙として残す）
+export function pickedSheets(
+  p: PageSheets,
+  order: SheetOrder,
+  shown?: ArrangeOptions["shown"],
+): { column: number; row: number }[] {
+  const cells = cellsOf(p, order)
+  const kept = shown ? cells.filter(c => shown(p.page, c.column, c.row)) : cells
+  return kept.length > 0 ? kept : cells.slice(0, 1)
+}
+
 // ページ pages の印刷区画を並べる。並べる向きと交わる向きは、いちばん大きい紙に合わせて真ん中にそろえる
 export function arrangeSheets(pages: readonly PageSheets[], options: ArrangeOptions): SheetLayout {
   const { flow, order, gap = SHEET_GAP, shown } = options
-  const picked = pages.flatMap(p => {
-    const cells = cellsOf(p, order)
-    const kept = shown ? cells.filter(c => shown(p.page, c.column, c.row)) : cells
-    const chosen = kept.length > 0 ? kept : cells.slice(0, 1)
-    return chosen.map(c => ({ page: p.page, paper: p.paper, ...c }))
-  })
+  const picked = pages.flatMap(p => pickedSheets(p, order, shown).map(c => ({ page: p.page, paper: p.paper, ...c })))
   const across = Math.max(0, ...picked.map(s => (flow === "column" ? s.paper.w : s.paper.h)))
   let along = 0
   const sheets = picked.map((s, index) => {

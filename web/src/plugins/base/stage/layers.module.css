@@ -17,6 +17,12 @@
   overflow: visible;
 }
 
+/* 印刷しない印刷区画（何も載っていない印刷区画）の薄い影 */
+.printAreaLines .unprinted {
+  fill: var(--theme-paper-line);
+  stroke: none;
+}
+
 .printAreaLines line {
   stroke: var(--theme-paper-line);
   stroke-width: 1;

@@ -2,7 +2,7 @@
 // 右サイドパネルを閉じる（Esc）と編集に戻り、読み直しても印刷プレビューのまま開く。印刷区画をダブルクリックすると、そのページの編集に戻る
 import { expect, type Page, test } from "./fixtures"
 import { panel } from "./helpers/note"
-import { addBox, items } from "./helpers/paper"
+import { addBox, items, onPaper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
 const preview = (page: Page) => page.locator("[data-print-preview]")
@@ -87,4 +87,21 @@ test("ロック中のブックで設定を変えると、書き換えてよい�
   await ask.getByRole("button", { name: "確定" }).click()
   await expect(across).toBeChecked()
   await expect(unlock).toHaveAttribute("aria-pressed", "true")
+})
+
+test("可変ページの何も載っていない印刷区画は、書く画面で薄く暗くし、印刷プレビューには並べない", async ({ page }) => {
+  await page.goto("/")
+  await addBox(page, 200, 200, "一")
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByRole("switch", { name: "可変ページにする" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  // 中身の印刷区画と、右・下の空きで 2×2。箱のある印刷区画のほかの 3 つが暗い
+  await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "2x2")
+  await expect(page.locator("[data-unprinted]")).toHaveCount(3)
+  await openPreview(page)
+  await expect(sheets(page)).toHaveCount(1)
 })
