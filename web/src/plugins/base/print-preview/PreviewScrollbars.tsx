@@ -1,4 +1,4 @@
-// 印刷プレビューのスクロールバー: ステージの右端に縦、並べた印刷区画が幅からはみ出しているときだけ下端に横のバーを出し、並べた印刷区画のどこを見ているかをつまみで示す
+// 印刷プレビューのスクロールバー: 並べた印刷区画が表示領域からはみ出している向きだけ、ステージの右端に縦・下端に横のバーを出し、並べた印刷区画のどこを見ているかをつまみで示す
 // （つまみの長さは見えている割合。決まりは scrollbar.ts）。つまみをドラッグするとずらし、溝を押すとそこへ移る。広さはステージが印刷プレビューに
 // 知らせた広さ（extentOf）で、ずらす量を範囲に収めるのもステージ（パンと同じ）
 import { type PointerEvent, useRef } from "react"
@@ -10,12 +10,14 @@ import { panForDrag, panForTrack, type ScrollAxis, shownBars, thumbOf } from "./
 
 type Along = "x" | "y"
 
+const BAR = 10 // バーの太さ（px。PreviewScrollbars.module.css と同じ）。両方のバーを出すときは、溝をこの分だけ短くして右下の角を空ける
+
 export function PreviewScrollbars({ stage }: { stage: string }) {
   const st = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage) ?? null)
   const area = st ? extentOf(st) : null
   if (!st || !area || !st.view) return null
   const content = contentSize(area, st.zoom)
-  const shown = shownBars(area, st.zoom, st.view, content)
+  const shown = shownBars(area, st.zoom, st.view)
   const axes: Record<Along, ScrollAxis> = {
     x: { content: content.w, view: st.view.w, pan: st.pan.x },
     y: { content: content.h, view: st.view.h, pan: st.pan.y },
@@ -35,7 +37,7 @@ function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; 
   const read = useReadState()
   const track = useRef<HTMLDivElement>(null)
   const drag = useRef<{ pointer: number; at: number; start: number } | null>(null)
-  const lengthOf = (el: HTMLElement) => (along === "y" ? el.clientHeight : el.clientWidth)
+  const length = axis.view - (corner ? BAR : 0) // 溝の長さ
   const at = (e: PointerEvent) => (along === "y" ? e.clientY : e.clientX)
   // ずらす量を target にする（今のずらす量との差をステージに渡す）
   const panTo = (target: number) => {
@@ -51,7 +53,7 @@ function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; 
     const el = track.current
     if (e.button !== 0 || !el || e.target !== el) return
     const box = el.getBoundingClientRect()
-    panTo(panForTrack(axis, lengthOf(el), at(e) - (along === "y" ? box.top : box.left)))
+    panTo(panForTrack(axis, length, at(e) - (along === "y" ? box.top : box.left)))
   }
   const onThumb = (e: PointerEvent<HTMLDivElement>) => {
     e.stopPropagation()
@@ -62,18 +64,17 @@ function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; 
   }
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current
-    const el = track.current
-    if (d?.pointer !== e.pointerId || !el) return
-    panTo(panForDrag(axis, lengthOf(el), d.start, at(e) - d.at))
+    if (d?.pointer !== e.pointerId) return
+    panTo(panForDrag(axis, length, d.start, at(e) - d.at))
   }
   const end = (e: PointerEvent<HTMLDivElement>) => {
     if (drag.current?.pointer === e.pointerId) drag.current = null
   }
-  const { offset, length } = thumbOf(axis)
+  const thumb = thumbOf(axis, length)
   const place =
     along === "y"
-      ? { top: `${offset * 100}%`, height: `${length * 100}%` }
-      : { left: `${offset * 100}%`, width: `${length * 100}%` }
+      ? { top: `${thumb.offset * 100}%`, height: `${thumb.length * 100}%` }
+      : { left: `${thumb.offset * 100}%`, width: `${thumb.length * 100}%` }
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: スクロールバーはポインタで動かす（キーでずらすのはステージ）
     <div

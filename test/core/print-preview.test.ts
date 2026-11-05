@@ -15,7 +15,13 @@ import {
 } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
 import { breakShift } from "../../web/src/plugins/base/print-preview/breaks"
-import { panForDrag, panForTrack, shownBars, thumbOf } from "../../web/src/plugins/base/print-preview/scrollbar"
+import {
+  panForDrag,
+  panForTrack,
+  shownBars,
+  THUMB_MIN,
+  thumbOf,
+} from "../../web/src/plugins/base/print-preview/scrollbar"
 import { arrangeSheets } from "../../web/src/plugins/base/print-preview/sheets"
 import { fitSideView, ZOOM_MAX } from "../../web/src/plugins/base/zoom"
 import { CORE_CATALOG } from "../support"
@@ -171,28 +177,32 @@ describe("改ページ（breakShift）", () => {
 })
 
 describe("印刷プレビューのスクロールバー（scrollbar.ts）", () => {
-  const axis = { content: 1000, view: 250, pan: -500 }
-  test("つまみの位置と長さは、見えている所の割合", () => {
-    expect(thumbOf(axis)).toEqual({ offset: 0.5, length: 0.25 })
-    expect(thumbOf({ content: 100, view: 200, pan: 0 }).length).toBe(1)
+  // 中身 1000・表示領域 250 でずらせる長さは 750、溝 400（つまみ 100、動ける長さ 300）
+  const axis = { content: 1000, view: 250, pan: -375 }
+  test("つまみの長さは見えている割合で、位置はずらした割合を溝の残りに割り振る", () => {
+    expect(thumbOf(axis, 400)).toEqual({ offset: 0.375, length: 0.25 })
+    expect(thumbOf({ content: 1000, view: 250, pan: -750 }, 400).offset).toBe(0.75)
+  })
+  test("つまみは 24px より短くしない（位置は溝の残りの長さで割り振る）", () => {
+    const long = { content: 52000, view: 700, pan: -51300 }
+    const t = thumbOf(long, 600)
+    expect(t.length * 600).toBe(THUMB_MIN)
+    expect(t.offset + t.length).toBeCloseTo(1)
   })
   test("溝を押すと、そこがつまみの真ん中になるずらす量を目指す", () => {
-    // 長さ 400 の溝の 100（4 分の 1）を押す: つまみ（長さ 0.25）の真ん中が 0.25 に来る → 頭は 0.125
-    expect(panForTrack(axis, 400, 100)).toBe(-125)
+    // 溝の 150 を押す: つまみ（100）の頭が 100 → 動ける長さ 300 の 3 分の 1 → ずらす量は 750 の 3 分の 1
+    expect(panForTrack(axis, 400, 150)).toBe(-250)
   })
   test("ドラッグは押した時点からの量で決め、端で止まってもポインタとつまみがずれない", () => {
-    expect(panForDrag(axis, 400, -500, 40)).toBe(-600)
-    // 端を越えて引いてから戻しても、押した所に戻れば押したときのずらす量
-    expect(panForDrag(axis, 400, -500, 0)).toBe(-500)
+    expect(panForDrag(axis, 400, -375, 30)).toBe(-450)
+    expect(panForDrag(axis, 400, -375, 0)).toBe(-375)
   })
-  test("縦は中身がはみ出せば出し、横は並べた印刷区画そのものが幅を超えるときだけ出す", () => {
+  test("並べた印刷区画そのものがはみ出す向きだけバーを出す（余白の分だけずらせるときは出さない）", () => {
     const area = { w: 800, h: 3000 }
     const view = { w: 900, h: 700 }
-    const content = contentSize(area, 1)
-    // 幅は余白の分だけはみ出すが、印刷区画は入る
-    expect(content.w).toBeGreaterThan(view.w)
-    expect(shownBars(area, 1, view, content)).toEqual({ x: false, y: true })
-    // 拡大すると印刷区画が幅を超える
-    expect(shownBars(area, 1.5, view, contentSize(area, 1.5))).toEqual({ x: true, y: true })
+    expect(contentSize(area, 1).w).toBeGreaterThan(view.w)
+    expect(shownBars(area, 1, view)).toEqual({ x: false, y: true })
+    expect(shownBars(area, 1.5, view)).toEqual({ x: true, y: true })
+    expect(shownBars({ w: 800, h: 650 }, 1, view)).toEqual({ x: false, y: false })
   })
 })
