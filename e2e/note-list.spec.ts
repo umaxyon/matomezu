@@ -12,7 +12,7 @@ async function openDrawer(page: Page) {
   await expect(drawer(page)).toBeVisible()
 }
 
-test("左ドロワーの伝言一覧に、伝言とマークが新しい順に並ぶ。伝言の行を押すと閉じて右サイドパネルに出る。マークの行は物へ移るだけ。取消で消える。Esc で閉じる", async ({
+test("左ドロワーの伝言一覧に、伝言とマークが新しい順に並ぶ。伝言の行を押すと閉じて右サイドパネルに出る。マークの行は物へ移るだけ。取消は確かめてから消える。Esc で閉じる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -51,7 +51,13 @@ test("左ドロワーの伝言一覧に、伝言とマークが新しい順に�
 
   // 取消で消える。外を押すと閉じる
   await openDrawer(page)
+  // 取消は確かめてから消す（やめるなら消さない）
   await drawer(page).getByRole("button", { name: "一つ目を見てを取り消す" }).click()
+  const ask = drawer(page).getByRole("group", { name: "取り消しますか？" })
+  await ask.getByRole("button", { name: "やめる" }).click()
+  await expect(rows).toHaveCount(2)
+  await drawer(page).getByRole("button", { name: "一つ目を見てを取り消す" }).click()
+  await ask.getByRole("button", { name: "取消" }).click()
   await expect(rows).toHaveCount(1)
   await expect(page.getByRole("button", { name: "伝言を開く" })).toHaveCount(0)
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!

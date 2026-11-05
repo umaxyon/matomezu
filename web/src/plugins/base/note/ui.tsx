@@ -1,9 +1,12 @@
 // 伝言の見た目のウィジェット: ブックのレイヤーに置き、開いているブックの伝言をスタンドで出す。右サイドパネルには伝言の文を出す
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
+import { defineAnnotationIcon } from "../note-list/ui"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
 import { BOOK_LAYERS } from "../workspace/slots"
-import { NoteLayer } from "./NoteLayer"
+import { NOTE } from "."
+import { NoteIcon, NoteLayer } from "./NoteLayer"
+import styles from "./NoteLayer.module.css"
 import { NotePanel } from "./NotePanel"
 import { NOTE_PANEL_ID } from "./panel-id"
 import { ReadNotice } from "./ReadNotice"
@@ -19,4 +22,15 @@ export const NOTE_PANEL = defineWidget({
   slots: [RIGHT_SIDE_PANEL],
   rightSidePanel: { width: 320, followsSelection: true },
   view: NotePanel,
+})
+
+// 伝言一覧の行の絵（伝言の絵）
+export const NOTE_ICON = defineAnnotationIcon({
+  id: kit.name("note-icon"),
+  annotation: NOTE.id,
+  view: () => (
+    <span className={styles.listed}>
+      <NoteIcon />
+    </span>
+  ),
 })

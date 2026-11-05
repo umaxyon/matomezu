@@ -57,3 +57,22 @@
 .pick .alert {
   pointer-events: none;
 }
+
+/* 伝言一覧の行の絵: 鳥の顔と、びっくりマーク */
+.listedFace {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-size: cover;
+}
+.listedAlert {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--skin-danger);
+  color: var(--skin-on-accent);
+  font: 700 11px / 1 sans-serif;
+}

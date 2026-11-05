@@ -20,7 +20,7 @@ import {
 import { createPortal } from "react-dom"
 import type { Point, Rect, Size } from "../../../core/geom"
 import { useActions } from "../../../ui/store-context"
-import { useStage, useStagePan } from "../../../ui/view-hooks"
+import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
 import { useClearRevealRequest, useRevealRequest } from "./reveal-request"
@@ -128,6 +128,23 @@ export function useAnchorRef(): (id: string) => (el: Element | null) => void {
 export function StandLayer() {
   const setLayer = useContext(Context)?.setLayer
   return <div ref={setLayer} className={styles.layer} data-stand-layer />
+}
+
+// アンカー anchor の物に重ねる枠（スタンドのレイヤーに描き、ポインタは通す）。物が動けば付いて動く。見た目は className が決める。アンカーが描かれていなければ出さない
+export function AnchorFrame({ anchor, className }: { anchor: string; className: string | undefined }) {
+  const ctx = useContext(Context)
+  const ids = useMemo(() => [anchor], [anchor])
+  const measured = useAnchorRect(ctx, ids, false)
+  if (!ctx?.layer || !measured) return null
+  const { rect } = measured
+  return createPortal(
+    <div
+      className={className}
+      style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+      data-anchor-frame
+    />,
+    ctx.layer,
+  )
 }
 
 // edgePinned のスタンドのアンカーの上の辺が、見える所の外に出ている間に、中の物が受け取る物
@@ -282,8 +299,10 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
     )
   }, [ctx, ids, clipped])
   const [measured, setMeasured] = useState<Measured | null>(null)
-  // パン・倍率・アンカーが替わったとき、紙が動き終えるまで（なめらかに移す間も）コマごとに測る
-  // biome-ignore lint/correctness/useExhaustiveDependencies: パン・倍率・アンカーの表・スクロールが変わるたびに測り直す
+  // 開いているブックのデータ（物の位置や大きさが変わる）
+  const book = useBook(ctx?.stage ?? "")
+  // パン・倍率・アンカー・ブックのデータが替わったとき、紙が動き終えるまで（なめらかに移す間も）コマごとに測る
+  // biome-ignore lint/correctness/useExhaustiveDependencies: パン・倍率・アンカーの表・ブックのデータ・スクロールが変わるたびに測り直す
   useLayoutEffect(() => {
     let frame = 0
     const until = performance.now() + ZOOM_MS + 50
@@ -293,7 +312,7 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
     }
     step()
     return () => cancelAnimationFrame(frame)
-  }, [measure, pan, stage?.zoom, version, tick])
+  }, [measure, pan, stage?.zoom, version, tick, book])
   // 中のスクロール（リストなど）と、表示領域の大きさの変化
   useEffect(() => {
     const again = () => setTick(n => n + 1)
@@ -304,6 +323,17 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
       window.removeEventListener("resize", again)
     }
   }, [])
+  // アンカーの物の大きさの変化（リストの大きさを変えて行の幅が変わったなど）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: アンカーの表が変わるたびに見張り直す
+  useEffect(() => {
+    if (!ctx || typeof ResizeObserver === "undefined") return
+    const watch = new ResizeObserver(() => setTick(n => n + 1))
+    for (const id of ids) {
+      const el = ctx.anchors.element(id)
+      if (el) watch.observe(el)
+    }
+    return () => watch.disconnect()
+  }, [ctx, ids, version])
   return measured
 }
 

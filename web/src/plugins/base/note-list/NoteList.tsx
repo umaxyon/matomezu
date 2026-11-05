@@ -1,27 +1,25 @@
 // 伝言一覧（ウィジェット note-list。左ドロワーのタブ）: 開いているブックの伝言とマークを、ページごとに、付けた時点の新しい順に並べる（並べ方は rows.ts）。
-// 行の左に、伝言は伝言の絵、マークは鳥の顔（びっくりマークは !）を置き、伝言は吹き出しと同じ字数の文、マークは付けた物の名前を出す。AI が読んだ物は薄くして「既読」。
-// 行を押すと左ドロワーを閉じ、ほかのページならそのページを開いてから、伝言は右サイドパネルで開き（吹き出しを押したのと同じ）、マークは倍率そのままで付けた物を真ん中に見せる。
-// 「取消」で、その伝言かマークを消す
-import { useMemo } from "react"
-import type { AiAnnotation } from "../../../core/annotation"
+// 行の出し方は種類が答える（定義の listed。listed.ts）: 左に種類の絵（スロット annotation-icon のウィジェット）、文（無ければ付けた物の名前。吹き出しと同じ字数まで）、付けた時刻。
+// AI が読んだ物は薄くして「既読」。行を押すと左ドロワーを閉じ、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
+// 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
+import { type ReactNode, useMemo, useState } from "react"
+import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useReadState } from "../../../ui/store-context"
-import { useBook, useCoreCatalog } from "../../../ui/view-hooks"
+import { useActions, useLayout, useReadState } from "../../../ui/store-context"
+import { useBook, useCoreCatalog, useUiCatalog } from "../../../ui/view-hooks"
 import { useAnnotationsIn, usePerformOrToast } from "../annotation-hooks"
-import { BIRD_FACES } from "../birds/BirdWalk"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useSetLeftDrawer } from "../left-drawer/hooks"
-import { MARK, MARK_REMOVE, type MarkProps } from "../mark"
-import { NOTE, NOTE_REMOVE, type NoteProps } from "../note"
-import { BUBBLE_CHARS, NoteIcon } from "../note/NoteLayer"
-import { NOTE_PANEL_ID } from "../note/panel-id"
+import { BUBBLE_CHARS } from "../note/NoteLayer"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
 import { clampChars } from "../text/text"
 import { useRequestReveal } from "../utils/reveal-request"
 import type { StageSlotProps } from "../workspace/ui"
+import { listedOf } from "./listed"
 import styles from "./NoteList.module.css"
-import { addedAtOf, listedPages, shownTime } from "./rows"
+import { listedPages, shownTime } from "./rows"
+import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
 
 export function NoteList({ stage }: StageSlotProps) {
   const t = useMessages(kit)
@@ -51,63 +49,80 @@ function Row({ stage, annotation: a, now }: { stage: string; annotation: AiAnnot
   const t = useMessages(kit)
   const go = useGo(stage)
   const run = usePerformOrToast(stage, "Could not withdraw")
+  const catalog = useCoreCatalog()
   const name = useAnchorName(stage, a.anchors.at(-1) ?? "")
-  const at = addedAtOf(a)
-  const isNote = a.annotation === NOTE.id
-  const isMark = a.annotation === MARK.id
-  const text = isNote ? clampChars((a.props as NoteProps).text, BUBBLE_CHARS) : name
-  const remove = isNote ? NOTE_REMOVE.id : isMark ? MARK_REMOVE.id : null
+  const listed = listedOf(catalog, a)
+  const at = listed?.def.addedAt(listed.props as never) ?? null
+  const text = clampChars(listed?.def.text?.(listed.props as never) ?? name, BUBBLE_CHARS)
+  const withdraw = listed?.def.withdraw
+  const [asking, setAsking] = useState(false)
   return (
     <li className={styles.row} data-read={!a.awaits}>
-      <button type="button" className={styles.open} onClick={() => go(a)}>
-        <Icon annotation={a} />
+      <button type="button" className={styles.open} onClick={() => go(a, listed?.def.panel)}>
+        <Icon stage={stage} annotation={a} />
         <span className={styles.text}>{text}</span>
         {!a.awaits && <span className={styles.read}>{t("Read by AI")}</span>}
         {at && <time className={styles.time}>{shownTime(at, now)}</time>}
       </button>
-      {remove && (
-        <button
-          type="button"
-          className={styles.withdraw}
-          aria-label={t("Withdraw {name}", { name: text })}
-          onClick={() => run(remove, isNote ? { note: a.id } : { mark: a.id })}
-        >
-          {t("Withdraw")}
-        </button>
-      )}
+      {withdraw &&
+        (asking ? (
+          // biome-ignore lint/a11y/useSemanticElements: 確かめの 2 つのボタンを束ねる箱で、入力Formのまとまり（fieldset）ではない
+          <span className={styles.ask} role="group" aria-label={t("Withdraw?")}>
+            <button
+              type="button"
+              className={styles.yes}
+              onClick={() => {
+                setAsking(false)
+                run(withdraw.action, withdraw.args(a.id))
+              }}
+            >
+              {t("Withdraw")}
+            </button>
+            <button type="button" className={styles.withdraw} onClick={() => setAsking(false)}>
+              {t("Keep")}
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={styles.withdraw}
+            aria-label={t("Withdraw {name}", { name: text })}
+            onClick={() => setAsking(true)}
+          >
+            {t("Withdraw")}
+          </button>
+        ))}
     </li>
   )
 }
 
-// 行の左の絵: 伝言は伝言の絵、鳥のマークは鳥の顔、びっくりマークは !、ほかの種類は点
-function Icon({ annotation: a }: { annotation: AiAnnotation }) {
-  if (a.annotation === NOTE.id)
-    return (
-      <span className={styles.note}>
-        <NoteIcon />
-      </span>
-    )
-  if (a.annotation === MARK.id) {
-    const kind = (a.props as MarkProps).kind
-    if (kind === "alert") return <span className={styles.alert}>!</span>
-    return <span className={styles.face} style={{ backgroundImage: `url(${BIRD_FACES[kind]})` }} />
-  }
-  return <span className={styles.dot} />
+// 行の左の絵: 種類ごとに、スロット annotation-icon に置いたウィジェットのうち、その種類の物が描く（無ければ点）
+function Icon({ stage, annotation: a }: { stage: string; annotation: Annotation }) {
+  const placed: readonly string[] = useLayout().slots[ANNOTATION_ICON] ?? []
+  const widgets = useUiCatalog().widgets
+  const id = placed.find(w => widgets.get(w)?.annotationIcon?.annotation === a.annotation)
+  const View = id ? (widgets.get(id)?.view as ((props: AnnotationIconProps) => ReactNode) | undefined) : undefined
+  return (
+    <span className={styles.icon}>
+      {View ? <View stage={stage} annotation={a} /> : <span className={styles.dot} />}
+    </span>
+  )
 }
 
-// 行を押したときの動き: 左ドロワーを閉じ、ほかのページならそのページを開いてから、伝言は右サイドパネルで開き、マークなどは付けた物を倍率そのままで見せる
-function useGo(stage: string): (a: AiAnnotation) => void {
+// 行を押したときの動き: 左ドロワーを閉じ、ほかのページならそのページを開いてから、種類が右サイドパネルの中身 panel を答えていればそこで開き、
+// 無ければ付けた物を倍率そのままで見せる
+function useGo(stage: string): (a: AiAnnotation, panel: string | undefined) => void {
   const read = useReadState()
   const actions = useActions()
   const setDrawer = useSetLeftDrawer()
   const openPanel = useOpenRightSidePanel()
   const reveal = useRequestReveal()
-  return a => {
+  return (a, panel) => {
     setDrawer(stage, null)
     const opened = read().workspace.stages.find(s => s.id === stage)?.opened
     if (a.page && opened?.page !== a.page) actions.openPage(stage, a.page)
-    if (a.annotation === NOTE.id) {
-      openPanel(stage, { widget: NOTE_PANEL_ID, subject: a.id, anchors: a.anchors, current: a.anchors.at(-1) ?? "" })
+    if (panel) {
+      openPanel(stage, { widget: panel, subject: a.id, anchors: a.anchors, current: a.anchors.at(-1) ?? "" })
       return
     }
     // 付けた物が描かれたら見せる（ほかのページを開いたあとは、描かれるのを待つ）

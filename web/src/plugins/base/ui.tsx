@@ -10,8 +10,9 @@ import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_DRAWER_BUTTON } from "./left-drawer/ui"
-import { MARK_LAYER } from "./mark/ui"
-import { NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE } from "./note/ui"
+import { MARK_ICON, MARK_LAYER } from "./mark/ui"
+import { NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE } from "./note/ui"
+import type { AnnotationIconProps } from "./note-list/slots"
 import { NOTE_LIST } from "./note-list/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { PRINT_PREVIEW_BUTTON, PRINT_PREVIEW_PANEL, PRINT_PREVIEW_SETTING_VIEWS } from "./print-preview/ui"
@@ -56,8 +57,13 @@ export {
   SwitchPanel,
 } from "./dialog-host/FormParts"
 export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
+export { useCloseLeftDrawer, useLeftDrawer, useOpenLeftDrawer } from "./left-drawer/hooks"
+export { LEFT_DRAWER } from "./left-drawer/slots"
+export { defineLeftDrawerTab } from "./left-drawer/ui"
 export { useMarkdownDocument } from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/drawn"
+export { ANNOTATION_ICON, type AnnotationIconProps } from "./note-list/slots"
+export { defineAnnotationIcon } from "./note-list/ui"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
 export {
@@ -110,6 +116,8 @@ export const BASE_UI = definePluginUi(BASE, {
     LEFT_DRAWER_BUTTON,
     NOTE_LIST,
     NOTE_READ_NOTICE,
+    NOTE_ICON,
+    MARK_ICON,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
@@ -136,6 +144,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:footer-menu-book-tools": StageSlotProps
     "@matomezu/base:right-side-panel": StageSlotProps
     "@matomezu/base:left-drawer": StageSlotProps
+    "@matomezu/base:annotation-icon": AnnotationIconProps
   }
   interface WidgetExtras {
     // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）と、
@@ -143,6 +152,8 @@ declare module "../../core/catalog" {
     rightSidePanel?: { width: number; followsSelection?: boolean }
     // 左ドロワーのスロットに置くタブの名前（文言の鍵）
     leftDrawer?: { title: MessageKey }
+    // 伝言一覧の行の絵のスロットに置く物が描く、アノテーションの種類の id
+    annotationIcon?: { annotation: string }
   }
   interface WidgetTable {
     "@matomezu/base:workspace": typeof WORKSPACE
@@ -163,6 +174,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:left-drawer-button": typeof LEFT_DRAWER_BUTTON
     "@matomezu/base:note-list": typeof NOTE_LIST
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
+    "@matomezu/base:note-icon": typeof NOTE_ICON
+    "@matomezu/base:mark-icon": typeof MARK_ICON
     "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX

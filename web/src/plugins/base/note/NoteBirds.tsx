@@ -2,7 +2,8 @@
 // 鳥は付ける先が替わるたびに割り当て直し（birds/assign.ts。割り当ては base のステージの画面の状態に持つ。birds-state.ts）、新しい鳥は画面の外から、外れた物の鳥は足された物へ飛んで移り、余った鳥と閉じたときの鳥は飛び去る。
 // 物の上の辺が見える所の外に出たら、鳥の顔の丸い絵を縁に出す（押すとその物を見せる）。
 // 鳥を押すと、その物をカレントにして（右サイドパネルが真ん中へ見せる）「外す？」を出し、「はい」で付ける先から外す（カレントは一つ前の鳥の物へ）。
-// 付ける先が 0 になれば閉じる（right-side-panel の useTakeOffAnchor）
+// 付ける先が 0 になれば閉じる（right-side-panel の useTakeOffAnchor）。
+// 付ける先がいくつかあるときは、カレントの物に明るい色の枠を重ねて、どれがカレントかを示す
 import { useEffect, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { useReadStageState, useSetStageState } from "../../../ui/view-hooks"
@@ -14,8 +15,9 @@ import { RemoveAsk } from "../birds/RemoveAsk"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
-import { anchorElementIn, Stand } from "../utils/anchors"
+import { AnchorFrame, anchorElementIn, Stand } from "../utils/anchors"
 import { birdsIn, withBirds } from "./birds-state"
+import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
 
 const NONE: readonly string[] = []
@@ -51,8 +53,10 @@ export function NoteBirds({ stage }: { stage: string }) {
     ])
   }, [key])
   const gone = (s: Shown) => setShown(now => now.filter(x => x !== s))
+  const current = open?.widget === NOTE_PANEL_ID && anchors.length > 1 ? (open.current ?? null) : null
   return (
     <>
+      {current && <AnchorFrame anchor={current} className={styles.current} />}
       {shown.map(s => (
         <Stand key={`${s.anchor}:${s.bird}`} anchor={s.anchor} side="edge" span edgePinned>
           <NoteBird stage={stage} shown={s} onGone={() => gone(s)} />

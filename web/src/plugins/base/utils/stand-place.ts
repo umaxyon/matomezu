@@ -57,11 +57,15 @@ export function intersectRect(a: Rect, b: Rect): Rect {
   }
 }
 
-// アンカーの四角 anchor を見せるのに、紙をずらす量: 真ん中を置ける範囲の真ん中へ。範囲より大きい向きは、端から pad の所に上の辺（左の辺）をそろえる
-export function revealShift(anchor: Rect, area: Size, pad = STAND_MARGIN): Point {
+// 見せる物の上に残す余白: 物の上の辺に乗せるスタンド（伝言やマークの鳥。高さ 48px）が、表示領域の上で切れないように
+export const EDGE_STAND_ROOM = 52
+
+// アンカーの四角 anchor を見せるのに、紙をずらす量: 上の辺の上に above の余白を足した四角の真ん中を、置ける範囲の真ん中へ。
+// 範囲より大きい向きは、端から pad の所に上の辺（左の辺。上は余白を足した所）をそろえる
+export function revealShift(anchor: Rect, area: Size, pad = STAND_MARGIN, above = EDGE_STAND_ROOM): Point {
   const along = (start: number, size: number, view: number) =>
     size > view - 2 * pad ? pad - start : view / 2 - (start + size / 2)
-  return { x: along(anchor.x, anchor.w, area.w), y: along(anchor.y, anchor.h, area.h) }
+  return { x: along(anchor.x, anchor.w, area.w), y: along(anchor.y - above, anchor.h + above, area.h) }
 }
 
 // アンカーの side に立てる左上（置ける範囲に収めない）: 上下に立てるときは左端をそろえ、左右に立てるときは上端をそろえる。角に立てるときは、真ん中を右上の角に置く。辺に乗せるときは左端をそろえる

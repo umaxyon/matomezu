@@ -50,10 +50,12 @@ describe("画面の外に出たアンカー", () => {
     expect(topEdgeOut({ x: -40, y: 50, w: 80, h: 30 }, box)).toBe(false) // 上の辺の一部が見えている
     expect(topEdgeOut({ x: 420, y: 50, w: 80, h: 30 }, box)).toBe(true)
   })
-  test("見せるときのずらす量: 真ん中を範囲の真ん中へ。範囲より大きい向きは、端から 4px の所に上の辺（左の辺）をそろえる", () => {
-    expect(revealShift({ x: 50, y: -200, w: 80, h: 40 }, area)).toEqual({ x: 110, y: 330 })
-    expect(revealShift({ x: 500, y: 100, w: 80, h: 40 }, area)).toEqual({ x: -340, y: 30 })
-    expect(revealShift({ x: 50, y: -200, w: 80, h: 500 }, area)).toEqual({ x: 110, y: 204 })
+  test("見せるときのずらす量: 上に辺のスタンド（鳥）の分の余白 52px を足した四角の真ん中を、範囲の真ん中へ。範囲より大きい向きは、端から 4px の所に上の辺（左の辺。上は余白を足した所）をそろえる", () => {
+    expect(revealShift({ x: 50, y: -200, w: 80, h: 40 }, area)).toEqual({ x: 110, y: 356 })
+    expect(revealShift({ x: 500, y: 100, w: 80, h: 40 }, area)).toEqual({ x: -340, y: 56 })
+    expect(revealShift({ x: 50, y: -200, w: 80, h: 500 }, area)).toEqual({ x: 110, y: 256 })
+    // 余白を足さなければ、物の四角だけで決める
+    expect(revealShift({ x: 50, y: -200, w: 80, h: 500 }, area, 4, 0)).toEqual({ x: 110, y: 204 })
   })
   test("点を、置ける範囲の端から pad の内側に収める（範囲の中ならそのまま）", () => {
     expect(pointInto({ x: 100, y: 100 }, box, 16)).toEqual({ x: 100, y: 100 })

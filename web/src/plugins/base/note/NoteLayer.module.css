@@ -44,3 +44,23 @@
   stroke-width: 1.5;
   stroke-linejoin: round;
 }
+
+/* 伝言一覧の行の絵 */
+.listed svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: var(--skin-surface);
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+/* 付ける先がいくつかあるときの、カレントの物に重ねる枠（選択の枠より明るく、太い） */
+.current {
+  position: absolute;
+  outline: 3px solid color-mix(in srgb, var(--skin-accent) 55%, white);
+  outline-offset: 4px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--skin-accent) 25%, transparent);
+  pointer-events: none;
+}

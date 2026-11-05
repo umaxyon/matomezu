@@ -1,9 +1,11 @@
-// プラグイン API の入口 matomezu/ui: プラグイン API の見た目の側（plugin-api/ui）の名前と、base の見た目の部品（ダイアログの枠と入力・色・テーマキー・本文の装飾と本文の塊・利用者の設定の画面・画面の骨組み・紙に描いたつなぐもののミニマップの絵・右サイドパネルの開け閉め）を外に出す
+// プラグイン API の入口 matomezu/ui: プラグイン API の見た目の側（plugin-api/ui）の名前と、base の見た目の部品（ダイアログの枠と入力・色・テーマキー・本文の装飾と本文の塊・利用者の設定の画面・画面の骨組み・紙に描いたつなぐもののミニマップの絵・右サイドパネルと左ドロワーの開け閉め・伝言一覧の行の絵）を外に出す
 
 export * from "../plugin-api/ui"
 export {
   ActionButton,
   ALIGN_ICONS,
+  ANNOTATION_ICON,
+  type AnnotationIconProps,
   BodyField,
   CaptionField,
   Choices,
@@ -12,12 +14,15 @@ export {
   controlClass,
   Dialog,
   DividerField,
+  defineAnnotationIcon,
+  defineLeftDrawerTab,
   defineWorkspace,
   dividerClass,
   Field,
   Form,
   InheritChoices,
   inlineClass,
+  LEFT_DRAWER,
   type PaperValue,
   Problem,
   pairClass,
@@ -44,10 +49,13 @@ export {
   useBodyGrips,
   useBookOf,
   useBookTheme,
+  useCloseLeftDrawer,
   useCloseRightSidePanel,
   useDrawnMinimap,
   useFollowsSelection,
+  useLeftDrawer,
   useMarkdownDocument,
+  useOpenLeftDrawer,
   useOpenRightSidePanel,
   usePaperControls,
   useRightSidePanel,

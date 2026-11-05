@@ -12,6 +12,7 @@ import {
   withPanel,
   withRestore,
 } from "../../web/src/plugins/base/right-side-panel/state"
+import { EDGE_STAND_ROOM } from "../../web/src/plugins/base/utils/stand-place"
 import { fitView, moveView, ZOOM_MIN } from "../../web/src/plugins/base/zoom"
 import { CORE_CATALOG } from "../support"
 
@@ -83,19 +84,22 @@ const middleOn = (s: Stage, view: { zoom: number; pan: { x: number; y: number } 
   return { x: at.x + (r.w * view.zoom) / 2, y: at.y + (r.h * view.zoom) / 2 }
 }
 
-test("1 つの物を見せる見え方は倍率 100% で、物の真ん中を表示領域の真ん中へ動かす", () => {
+// 見せる物の上には、辺に乗せるスタンド（鳥）の余白 EDGE_STAND_ROOM を足すので、物の真ん中は表示領域の真ん中より余白の半分だけ下に来る
+const BELOW = EDGE_STAND_ROOM / 2
+
+test("1 つの物を見せる見え方は倍率 100% で、物の上に鳥の余白を足した四角の真ん中を表示領域の真ん中へ動かす", () => {
   const far = { x: 900, y: 500, w: 60, h: 40 }
   const zoomed = zoomTo(stage, 0.6)
   const view = revealView(zoomed, far)
   expect(view.zoom).toBe(1)
-  expect(middleOn(zoomed, view, far)).toEqual({ x: 200, y: 150 })
+  expect(middleOn(zoomed, view, far)).toEqual({ x: 200, y: 150 + BELOW })
 })
 
-test("いくつかの物を囲む四角は、余白を残して入る倍率（100% が上限、ZOOM_MIN が下限）にして真ん中へ動かす", () => {
+test("いくつかの物を囲む四角は、余白を残して入る倍率（100% が上限、ZOOM_MIN が下限）にして、鳥の余白を足した四角の真ん中へ動かす", () => {
   const wide = { x: 200, y: 300, w: 704, h: 100 }
   const fitted = revealView(stage, wide, "fit")
   expect(fitted.zoom).toBe(0.5)
-  expect(middleOn(stage, fitted, wide)).toEqual({ x: 200, y: 150 })
+  expect(middleOn(stage, fitted, wide)).toEqual({ x: 200, y: 150 + BELOW })
   expect(revealView(stage, { x: 900, y: 500, w: 60, h: 40 }, "fit").zoom).toBe(1)
   expect(revealView(stage, { x: 0, y: 0, w: 5000, h: 100 }, "fit").zoom).toBe(ZOOM_MIN)
 })

@@ -29,10 +29,17 @@ export const NOTE = kit.defineAnnotation({
   id: "note",
   title: "Note",
   aiDescription:
-    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in, then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text makes it unread again). talkedAt is when the user talked to AI after it was read; the note is removed when the user's note expiry (hours) has passed since then.",
+    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in, then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text makes it unread again). talkedAt is when the user talked to AI after it was read; the note is removed when the user's note expiry has passed since then (unless it is set to never).",
   props: NoteSchema,
   awaits: p => p.readAt === undefined,
   expiresAt: (p, setting) => (p.talkedAt ? expiryFrom(p.talkedAt, setting(NOTE_EXPIRY.id)) : null),
+  // 伝言一覧では文を出し、取消で消し、押すと右サイドパネルで開く
+  listed: {
+    addedAt: (p: NoteProps) => p.addedAt,
+    text: (p: NoteProps) => p.text,
+    withdraw: { action: kit.name("note-remove"), args: id => ({ note: id }) },
+    panel: kit.name("note-panel"),
+  },
 })
 
 // id の伝言（無いか、伝言でなければ undefined）

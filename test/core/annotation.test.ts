@@ -80,7 +80,7 @@ test("AI に見せるアノテーションは、結び付く物の最後のあ�
   ])
 })
 
-test("伝言は、会話の時点から伝言期限（利用者の設定。既定 2 時間）が過ぎると残らない。会話の時点の無い物と、直している物は残る", () => {
+test("伝言は、会話の時点から伝言期限（利用者の設定。既定 60 分）が過ぎると残らない。消さないの設定、会話の時点の無い物、直している物は残る", () => {
   const talked = note("c6", {
     text: "x",
     bubble: true,
@@ -90,8 +90,13 @@ test("伝言は、会話の時点から伝言期限（利用者の設定。既�
   })
   const quiet = note("c7", { text: "x", bubble: true, addedAt: "t", readAt: "t" })
   const list = [talked, quiet]
-  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T01:59:00.000Z")).toBe(list)
-  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T02:01:00.000Z").map(a => a.id)).toEqual(["c7"])
-  expect(unexpired(CORE_CATALOG, list, { "@matomezu/base:note-expiry": "4" }, "2026-11-05T02:01:00.000Z")).toBe(list)
-  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T02:01:00.000Z", new Set(["c6"]))).toBe(list)
+  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T00:59:00.000Z")).toBe(list)
+  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T01:01:00.000Z").map(a => a.id)).toEqual(["c7"])
+  expect(unexpired(CORE_CATALOG, list, { "@matomezu/base:note-expiry": "never" }, "2026-11-06T00:00:00.000Z")).toBe(
+    list,
+  )
+  expect(unexpired(CORE_CATALOG, list, {}, "2026-11-05T01:01:00.000Z", new Set(["c6"]))).toBe(list)
+  expect(
+    unexpired(CORE_CATALOG, list, { "@matomezu/base:note-expiry": "0" }, "2026-11-05T00:00:01.000Z").map(a => a.id),
+  ).toEqual(["c7"])
 })

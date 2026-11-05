@@ -26,3 +26,12 @@ export function useSetLeftDrawer(): (stage: string, tab: string | null) => void 
     [read, set, focusStage],
   )
 }
+
+// ステージ stage の左ドロワーで、タブ tab（左ドロワーのスロットに置いたウィジェットの id）を開く関数
+export const useOpenLeftDrawer = (): ((stage: string, tab: string) => void) => useSetLeftDrawer()
+
+// ステージ stage の左ドロワーを閉じる関数
+export function useCloseLeftDrawer(): (stage: string) => void {
+  const set = useSetLeftDrawer()
+  return useCallback((stage: string) => set(stage, null), [set])
+}

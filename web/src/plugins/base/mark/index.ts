@@ -34,6 +34,11 @@ export const MARK = kit.defineAnnotation({
   props: MarkSchema,
   // 読まれていないもの
   awaits: p => p.readAt === undefined,
+  // 伝言一覧では付けた物の名前を出し、取消で外す
+  listed: {
+    addedAt: (p: MarkProps) => p.addedAt,
+    withdraw: { action: kit.name("mark-remove"), args: id => ({ mark: id }) },
+  },
 })
 
 const ID_ARGS = z.strictObject({ mark: z.string().min(1) })

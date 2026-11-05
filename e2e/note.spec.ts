@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "./fixtures"
+import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
 import { addBox, items } from "./helpers/paper"
 
@@ -167,4 +168,72 @@ test("書いている間に別の伝言の吹き出しを押すと、吹き出�
   await expect(badge("一")).toHaveAttribute("aria-pressed", "true")
   await expect(badge("二")).toHaveCount(1)
   await expect(text).toHaveValue("書きかけ")
+})
+
+test("表示領域より高いリストを付ける先にすると、リストの上の辺に乗る鳥が切れない所まで見せる", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto("/")
+  const list = await addList(page, "多い")
+  for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) await addRow(page, list, `行 ${n}`)
+  await page.setViewportSize({ width: 1200, height: 230 })
+  await list.getByRole("listitem").nth(6).click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  await expect(panel(page)).toBeVisible()
+  // 見出しを押すと付ける先がリストになり、鳥はリストの上の辺に移る
+  await list.getByText("多い").first().click()
+  const bird = page.getByRole("button", { name: "伝言の鳥" })
+  await expect
+    .poll(async () => {
+      const b = await bird.boundingBox()
+      const l = await list.boundingBox()
+      return !!b && !!l && b.y >= 0 && Math.abs(b.y + b.height - l.y) < 4
+    })
+    .toBe(true)
+})
+
+test("付ける先がいくつかあるときは、カレントの物に明るい枠が重なる（1 つなら出さない）。カレントを替えると枠も移る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBox(page, 200, 150, "一")
+  await addBox(page, 500, 150, "二")
+  const one = items(page).filter({ hasText: "一" })
+  const two = items(page).filter({ hasText: "二" })
+  await one.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  const frame = page.locator("[data-anchor-frame]")
+  await expect(frame).toHaveCount(0)
+  await two.click({ modifiers: ["ControlOrMeta"] })
+  await expect(frame).toHaveCount(1)
+  const near = async (thing: typeof one) => {
+    const f = (await frame.boundingBox())!
+    const t = (await thing.boundingBox())!
+    return Math.abs(f.x - t.x) < 4 && Math.abs(f.y - t.y) < 4
+  }
+  await expect.poll(() => near(two)).toBe(true)
+  await panel(page).getByRole("button", { name: "一", exact: true }).click()
+  await expect.poll(() => near(one)).toBe(true)
+})
+
+test("リストの行に付けた伝言の吹き出しは、リストの幅を変えると行の右に付いて動く", async ({ page }) => {
+  await page.goto("/")
+  const list = await addList(page, "多い")
+  await addRow(page, list, "行 1")
+  await writeNote(page, list.getByRole("listitem").first(), "見て")
+  const bubble = page.getByRole("button", { name: "伝言を開く" })
+  const row = list.getByRole("listitem").first()
+  const beside = async () => {
+    const b = (await bubble.boundingBox())!
+    const r = (await row.boundingBox())!
+    return b.x - (r.x + r.width)
+  }
+  const gap = await beside()
+  await list.getByText("多い").first().click()
+  const grip = (await list.locator('[data-grip="right"]').boundingBox())!
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(grip.x + grip.width / 2 + 120, grip.y + grip.height / 2, { steps: 5 })
+  await page.mouse.up()
+  await expect.poll(async () => (await row.boundingBox())!.width).toBeGreaterThan(200)
+  await expect.poll(async () => Math.abs((await beside()) - gap)).toBeLessThan(2)
 })
