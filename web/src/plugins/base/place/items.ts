@@ -95,9 +95,10 @@ declare module "../../../core/catalog" {
     // 形をつながる範囲 areas の所に置いて描いたときの、つなぐもの全部の外枠（紙の座標。描くものが無ければ null）。
     // setting はそのページで効いている設定の値。並べるアクションが、形とつなぐものを合わせた広さを測るのに使う（extentOf）
     bounds?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: SettingReader): Rect | null
-    // 印刷区画に載っているかを決める、つなぐものの点（利用者が手で決めた所を表す点。線では、手で直した区間の角。両端は形が持つので入れない。
-    // print-preview/filled.ts）。引数は bounds と同じ。無ければ、つなぐものはどの印刷区画にも載らない（形の印刷区画だけで決まる）
-    printPoints?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: SettingReader): Point[]
+    // どの印刷区画に属するか（載っているか）を決める、つなぐものの点（紙の上の座標 { x, y } の並び。ページのつなぐもの全部の分を 1 つに並べる）。
+    // 利用者が手で決めた所を表す点で、線では、手で直した区間の折れ目がこれに当たる（手で直していない線は返さない）。両端は形が持つので入れない
+    // （print-preview/filled.ts）。引数は bounds と同じ。無ければ、つなぐものはどの印刷区画にも載らない（形の印刷区画だけで決まる）
+    printBelongingPoints?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: SettingReader): Point[]
   }
   interface BookTypeExtras {
     // 中身（キャプション）で形の大きさが変わるときに、横と縦で保つ所。setting はそのページで効いている設定の値（設定で変えてよい）。

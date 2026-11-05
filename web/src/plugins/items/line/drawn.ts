@@ -240,8 +240,8 @@ export function linesBounds(
   return { x, y, w: Math.max(...pts.map(p => p.x)) - x, h: Math.max(...pts.map(p => p.y)) - y }
 }
 
-// 印刷区画に載っているかを決める線の点: 手で直した途中の区間（via）を持つ線の、両端を除いた点。引数は linesBounds と同じ
-export function linesPrintPoints(
+// どの印刷区画に属するかを決める線の点: 手で直した区間（via）を持つ線の折れ目（描いた点から両端を除いた物）。引数は linesBounds と同じ
+export function linesBelongingPoints(
   lines: readonly ConnectorData[],
   rects: ReadonlyMap<string, PortArea>,
   elbow: boolean,

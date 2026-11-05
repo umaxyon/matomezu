@@ -1,7 +1,7 @@
 // 印刷区画に何かが載っているか（書く画面で何も載っていない印刷区画を暗くし、印刷プレビューでは並べない。両方がこの判定を使う）。
 // 形が載る印刷区画は 1 つで、縦と横それぞれ、形の始めがある印刷区画から形の半分以上がはみ出していれば次の印刷区画（sheetsOfShape）。
 // 印刷区画より大きい形は、掛かっている印刷区画のどれにも載る。
-// つなぐもの（線など）は、手で決めた所を表す点（定義の printPoints）がある印刷区画に載る（両端は形の印刷区画に載るので数えない。
+// つなぐもの（線など）は、手で決めた所を表す点（定義の printBelongingPoints。線では手で直した区間の折れ目）がある印刷区画に載る（両端は形の印刷区画に載るので数えない。
 // 通り抜けるだけの印刷区画には載らない）。判定できるのは、アイテムの位置をデータに持つタイプ（置けるアイテムのあるタイプ）だけ。
 // ほかのタイプは null（どの印刷区画も載っているとして扱う）
 import { bookItems } from "../../../core/book"
@@ -42,7 +42,7 @@ export function filledSheets(catalog: CoreCatalog, book: Book, page: ItemPage): 
   const areas = portAreasOf(catalog, page, rects)
   const setting = settingsAt(catalog, book, page)
   for (const [def, list] of byConnector(catalog, page))
-    for (const p of def.printPoints?.(list, areas, setting) ?? [])
+    for (const p of def.printBelongingPoints?.(list, areas, setting) ?? [])
       filled.add(sheetKey(Math.max(0, Math.floor(p.x / paper.w)), Math.max(0, Math.floor(p.y / paper.h))))
   return filled
 }
