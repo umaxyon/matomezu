@@ -5,7 +5,7 @@
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
 // 初めから出ていなければ（URL から印刷プレビューで開いたとき）、出す
-import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } from "react"
+import { type ComponentType, type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { pagedOf } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
@@ -18,6 +18,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { paperSize } from "../place/items"
 import { useOpenRightSidePanel, useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
@@ -36,12 +37,32 @@ export interface PrintSheetProps {
   column: number
   row: number
   paper: Size
+  measured?: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測る見せ方だけ）
+}
+
+// 測るだけのビュー（ブックのビューの定義の printMeasure）が受け取る物: 描いているステージ・ブック・ページと、紙の大きさ paper、測った結果を知らせる report。
+// ページの中身を見えない所に描いて測り、印刷区画の数（rows。1 列に並べる）と、各印刷区画のビューに渡すデータ（data。印刷区画 1 つのビューの
+// measured に届く）を知らせる。測り直すたびに知らせてよい（同じ結果なら並べ直さない）。入力は受けない
+export interface PrintMeasureProps {
+  stage: string
+  book: Book
+  page: Page
+  paper: Size
+  report(measured: PrintMeasured): void
+}
+
+export interface PrintMeasured {
+  rows: number
+  data: unknown
 }
 
 declare module "../../../core/catalog" {
   interface BookViewExtras {
     // 印刷プレビューと印刷で、印刷区画 1 つの中身を描くビュー。無ければ白紙
     printSheet?: ComponentType<PrintSheetProps>
+    // 印刷区画の数と切り方を、描いて測ってから決める見せ方（マークダウンなど）が、ページごとに測るだけのビュー。印刷プレビューが見えない所に
+    // ページ 1 つに 1 回描き、測り終えるまで、そのページの印刷区画は並べない
+    printMeasure?: ComponentType<PrintMeasureProps>
   }
 }
 
@@ -72,7 +93,24 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const panel = useRightSidePanel(id)
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
   const read = useReadState()
-  const layout = useMemo(() => (book ? bookSheets(catalog, book) : null), [catalog, book])
+  // 測る見せ方のページの、測った結果（ページの id → 結果。同じ結果なら置き直さない）
+  const [measures, setMeasures] = useState<ReadonlyMap<string, PrintMeasured>>(new Map())
+  const report = useCallback(
+    (page: string, m: PrintMeasured) =>
+      setMeasures(prev => {
+        const was = prev.get(page)
+        if (was && was.rows === m.rows && JSON.stringify(was.data) === JSON.stringify(m.data)) return prev
+        return new Map(prev).set(page, m)
+      }),
+    [],
+  )
+  const Measure = book ? views.get(bookType(catalog, book.type).presentation)?.printMeasure : undefined
+  const pages = useMemo(() => (book && pagedOf(book)?.pages) || [], [book])
+  const measured = useMemo(
+    () => new Map(Measure ? pages.map(p => [p.id, measures.get(p.id)?.rows ?? ("pending" as const)]) : []),
+    [Measure, pages, measures],
+  )
+  const layout = useMemo(() => (book ? bookSheets(catalog, book, measured) : null), [catalog, book, measured])
   const zoom = stage?.zoom ?? 1
   const motion = useZoomMotion(zoom, "")
   useEffect(() => {
@@ -133,55 +171,78 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     return () => el.removeEventListener("dblclick", onDoubleClick)
   }, [id, openPage])
   if (!layout || !pan || !book) return null
-  if (layout.sheets.length === 0) return <p className={styles.nothing}>{t("Nothing to print")}</p>
   const Sheet = views.get(bookType(catalog, book.type).presentation)?.printSheet
-  const pages = pagedOf(book)?.pages ?? []
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   const origin = paperOrigin(pan)
-  return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューを出さないだけ（印刷プレビューにメニューは無い）
-    <div
-      ref={ref}
-      data-print-preview={layout.sheets.length}
-      onContextMenu={e => e.preventDefault()}
-      style={
-        {
-          position: "absolute",
-          left: 0,
-          top: 0,
-          transformOrigin: "0 0",
-          width: layout.size.w,
-          height: layout.size.h,
-          transform: `translate(${origin.x}px, ${origin.y}px) scale(${zoom})`,
-          transition: motion,
-        } as CSSProperties
-      }
-    >
-      {layout.sheets.map(s => (
-        <div
-          key={`${s.page}:${s.column}:${s.row}`}
-          className={styles.sheet}
-          style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
-          data-sheet={s.index}
-          data-sheet-page={s.page}
-        >
-          {Sheet && pageOf(s.page) && (
-            // 印刷区画の左上が原点になるよう、ページの原点をずらす（はみ出した所は印刷区画の枠が切る）
-            <div className={styles.origin} style={{ left: -s.column * s.w, top: -s.row * s.h }}>
-              <PrintingContext.Provider value={true}>
-                <Sheet
-                  stage={id}
-                  book={book as Book}
-                  page={pageOf(s.page) as Page}
-                  column={s.column}
-                  row={s.row}
-                  paper={{ w: s.w, h: s.h }}
-                />
-              </PrintingContext.Provider>
-            </div>
-          )}
-        </div>
-      ))}
+  // 測るだけのビュー（見えない所に、倍率をかけずに描く）
+  const measuring = Measure && (
+    <div className={styles.measure} aria-hidden="true">
+      <PrintingContext.Provider value={true}>
+        {pages.flatMap(p => {
+          const size = paperSize(catalog, p)
+          return size
+            ? [<Measure key={p.id} stage={id} book={book} page={p} paper={size} report={m => report(p.id, m)} />]
+            : []
+        })}
+      </PrintingContext.Provider>
     </div>
+  )
+  const pending = [...measured.values()].includes("pending")
+  if (layout.sheets.length === 0)
+    return (
+      <>
+        {measuring}
+        {!pending && <p className={styles.nothing}>{t("Nothing to print")}</p>}
+      </>
+    )
+  return (
+    <>
+      {measuring}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューを出さないだけ（印刷プレビューにメニューは無い） */}
+      <div
+        ref={ref}
+        data-print-preview={layout.sheets.length}
+        onContextMenu={e => e.preventDefault()}
+        style={
+          {
+            position: "absolute",
+            left: 0,
+            top: 0,
+            transformOrigin: "0 0",
+            width: layout.size.w,
+            height: layout.size.h,
+            transform: `translate(${origin.x}px, ${origin.y}px) scale(${zoom})`,
+            transition: motion,
+          } as CSSProperties
+        }
+      >
+        {layout.sheets.map(s => (
+          <div
+            key={`${s.page}:${s.column}:${s.row}`}
+            className={styles.sheet}
+            style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
+            data-sheet={s.index}
+            data-sheet-page={s.page}
+          >
+            {Sheet && pageOf(s.page) && (
+              // 印刷区画の左上が原点になるよう、ページの原点をずらす（はみ出した所は印刷区画の枠が切る）
+              <div className={styles.origin} style={{ left: -s.column * s.w, top: -s.row * s.h }}>
+                <PrintingContext.Provider value={true}>
+                  <Sheet
+                    stage={id}
+                    book={book as Book}
+                    page={pageOf(s.page) as Page}
+                    column={s.column}
+                    row={s.row}
+                    paper={{ w: s.w, h: s.h }}
+                    {...(measures.has(s.page) ? { measured: measures.get(s.page)?.data } : {})}
+                  />
+                </PrintingContext.Provider>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
   )
 }

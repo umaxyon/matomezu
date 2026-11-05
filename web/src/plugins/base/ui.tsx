@@ -71,7 +71,7 @@ export { ANNOTATION_ICON, type AnnotationIconProps } from "./note-list/slots"
 export { defineAnnotationIcon } from "./note-list/ui"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
-export type { PrintSheetProps } from "./print-preview/PrintPreviewView"
+export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
 export {
   useCloseRightSidePanel,
   useFollowsSelection,

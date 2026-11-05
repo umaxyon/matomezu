@@ -24,3 +24,11 @@
   font-size: 14px;
   pointer-events: none;
 }
+/* 測るだけのビューを描く所（見えず、倍率もかけない） */
+.measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}

@@ -17,6 +17,7 @@ import { MARGIN } from "../../web/src/core/viewport"
 import { breakShift } from "../../web/src/plugins/base/print-preview/breaks"
 import { arrangeSheets } from "../../web/src/plugins/base/print-preview/sheets"
 import { fitSideView, ZOOM_MAX } from "../../web/src/plugins/base/zoom"
+import { cutSheets } from "../../web/src/plugins/books/markdown/print"
 import { CORE_CATALOG } from "../support"
 
 const book = {
@@ -166,5 +167,40 @@ describe("改ページ（breakShift）", () => {
     )
     // 80→110（30）、170+30=200 は境目ちょうどで、またがない。250 は 95 > 100 - 10 なので送らない
     expect([dy(80), dy(170), dy(250)]).toEqual([30, 30, 30])
+  })
+})
+
+describe("マークダウンを紙の高さで切る（cutSheets）", () => {
+  const block = (top: number, bottom: number, kind: "heading" | "other" = "other", from = top) => ({
+    top,
+    bottom,
+    kind,
+    from,
+  })
+
+  test("入る所まで並べ、入らないブロックから次の枠にする（次の枠はそのブロックの上端から）", () => {
+    const cuts = cutSheets([block(0, 40), block(50, 90), block(100, 140), block(150, 190)], 100)
+    expect(cuts.map(c => [c.start, c.end])).toEqual([
+      [0, 90],
+      [100, 190],
+    ])
+  })
+
+  test("見出しは枠の一番下に残さず、次のブロックと一緒に次の枠へ送る", () => {
+    const cuts = cutSheets([block(0, 40), block(50, 70, "heading"), block(80, 130)], 100)
+    expect(cuts.map(c => [c.start, c.end])).toEqual([
+      [0, 40],
+      [50, 130],
+    ])
+  })
+
+  test("枠より高いブロックは、枠 1 つに 1 つだけ置く。ブロックが無ければ切らない", () => {
+    const cuts = cutSheets([block(0, 40), block(50, 300), block(310, 340)], 100)
+    expect(cuts.map(c => [c.start, c.end])).toEqual([
+      [0, 40],
+      [50, 300],
+      [310, 340],
+    ])
+    expect(cutSheets([], 100)).toEqual([])
   })
 })

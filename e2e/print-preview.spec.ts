@@ -180,3 +180,24 @@ test("可変ページで印刷区画の境目をまたいだ箱があると、�
   await expect(preview(page)).toHaveCount(0)
   await expect(page.getByRole("tab")).toHaveCount(1) // 印刷プレビューにならず、編集のまま
 })
+
+test("マークダウンは、紙の高さでブロックの境目ごとに切って印刷区画に並べる（原文が空なら並べない）", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const add = await newBook(page, "メモ", "マークダウン")
+  await add.getByRole("button", { name: "作成" }).click()
+  await expect(add).toBeHidden()
+  await openPreview(page)
+  await expect(page.getByText("印刷できるものはありません")).toBeVisible()
+  await page.keyboard.press("Escape")
+  const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await field.click()
+  // 段落 60 個（A4 縦の 1 枚には入らない）
+  await page.keyboard.insertText(Array.from({ length: 60 }, (_, i) => `段落 ${i + 1}`).join("\n\n"))
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("段落 60")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(1)).toPass()
+  await expect(sheets(page).first()).toContainText("段落 1")
+  await expect(sheets(page).last()).toContainText("段落 60")
+})

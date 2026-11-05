@@ -96,7 +96,7 @@
   box-sizing: border-box;
   min-height: 100%;
   margin: 0 auto;
-  padding: 24px 32px;
+  padding: var(--markdown-page-padding);
   background: var(--theme-paper);
 }
 .empty {
@@ -125,4 +125,19 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+}
+/* 印刷の文書（測るビューと印刷区画のビュー）: 中のブロックの位置を、文書の上端から測れるようにする */
+.printed {
+  position: relative;
+  min-height: 0;
+}
+/* 印刷区画 1 つのビューの、切った所だけを見せる枠（位置と大きさはビューが決める） */
+.sheetClip {
+  position: absolute;
+  left: 0;
+  overflow: hidden;
+}
+.sheetClip > .printed {
+  position: absolute;
+  left: 0;
 }
