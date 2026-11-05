@@ -22,7 +22,7 @@ import { paperSize } from "../place/items"
 import { useOpenRightSidePanel, useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
-import { bookCrossings, bookSheets } from "./book-sheets"
+import { bookSheets, hasCrossing } from "./book-sheets"
 import { PreviewScrollbars } from "./PreviewScrollbars"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
@@ -105,13 +105,15 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
       }),
     [],
   )
-  // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない）
-  const reporters = useRef(new Map<string, (m: PrintMeasured) => void>())
+  // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ブックが替われば作り直す）
+  const bookId = book?.id
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ブックが替わったら表を空にする
+  const reporters = useMemo(() => new Map<string, (m: PrintMeasured) => void>(), [bookId])
   const reporterOf = (page: string) => {
-    const was = reporters.current.get(page)
+    const was = reporters.get(page)
     if (was) return was
     const made = (m: PrintMeasured) => report(page, m)
-    reporters.current.set(page, made)
+    reporters.set(page, made)
     return made
   }
   const Measure = book ? views.get(bookType(catalog, book.type).presentation)?.printMeasure : undefined
@@ -160,10 +162,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const opened = stage?.opened ?? null
   // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば（AI が印刷プレビューで開いた・開いている間に AI が動かした）、
   // 印刷プレビューを閉じて、それを知らせる右サイドパネルを開く（フッタメニューのボタンと同じ）
-  const crossing = useMemo(
-    () => !!book && bookCrossings(catalog, book).some(c => c.crossing.length > 0),
-    [catalog, book],
-  )
+  const crossing = useMemo(() => !!book && hasCrossing(catalog, book), [catalog, book])
   useEffect(() => {
     if (!crossing || !opened) return
     closePrintPreview(id)
@@ -217,7 +216,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   return (
     <>
       {measuringViews}
-      <PreviewScrollbars stage={id} area={layout.size} />
+      <PreviewScrollbars stage={id} />
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューを出さないだけ（印刷プレビューにメニューは無い） */}
       <div
         ref={ref}

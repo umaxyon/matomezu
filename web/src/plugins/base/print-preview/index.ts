@@ -15,7 +15,7 @@ import { kit } from "../kit"
 import type { GrowSides } from "../place/grow"
 import { withOpened } from "../right-side-panel/state"
 import { fitSideView, moveView, stageOf } from "../zoom"
-import { bookCrossings } from "./book-sheets"
+import { hasCrossing } from "./book-sheets"
 import { printCheckOpen } from "./panel-id"
 import {
   PRINT_PREVIEW_BOOK_NAME,
@@ -118,7 +118,7 @@ export const PRINT_PREVIEW_OPEN = kit.defineCommand({
     const book = ctx.book
     const now = workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
     const opened = now?.opened
-    if (book && now && opened && bookCrossings(ctx.catalog, book).some(c => c.crossing.length > 0)) {
+    if (book && now && opened && hasCrossing(ctx.catalog, book)) {
       const open = { ...printCheckOpen(book.id), book: opened.book, page: opened.page }
       a.updateStageState(state => withOpened(state, open, now))
       return

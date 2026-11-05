@@ -56,6 +56,10 @@ export function bookCrossings(
   })
 }
 
+// ブック book に、印刷区画の境目をまたぐ形があるか（あれば印刷プレビューを開かず、直してもらう）
+export const hasCrossing = (catalog: CoreCatalog, book: Book): boolean =>
+  bookCrossings(catalog, book).some(c => c.crossing.length > 0)
+
 // ブック book を、印刷プレビューの設定の項目のとおりに並べる（何も載っていない印刷区画は並べない。何も載っていないページは並べない）。
 // measured にあるページは測った数だけ並べる（測った印刷区画には、どれも何か載っている）
 export function bookSheets(catalog: CoreCatalog, book: Book, measured: MeasuredSheets = new Map()): SheetLayout {
