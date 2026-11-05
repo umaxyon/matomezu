@@ -26,10 +26,10 @@
   cursor: pointer;
 }
 .section:hover {
-  background: var(--skin-surface-hover);
+  background: var(--skin-btn-hover);
 }
 .section[aria-selected="true"] {
-  background: var(--skin-surface-selected);
+  background: var(--skin-accent-subtle);
   font-weight: 600;
 }
 .panel {
