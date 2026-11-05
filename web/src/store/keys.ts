@@ -9,15 +9,14 @@ import { sameData } from "../core/same"
 import type { CommandArgs } from "./commands"
 
 // プラグインが書く既定のキーバインド 1 つ（kit.defineKey で書き、id と題名に頭が付く）。コマンドの引数の型が、args の型になる（引数の無いコマンドには書かない）。
-// title は、args で分かれるキーバインドを設定画面で見分ける題名（無ければコマンドの題名）
+// title は、設定画面で行を見分ける題名（無ければコマンドの題名）。args を書くキーバインドは、同じコマンドを args で分けるので title が要る
 export type KeyDef = {
   [C in CommandId]: {
     id: string
     key: string
     command: C
     scope: KeyScopeId
-    title?: string
-  } & (CommandArgs<C> extends [] ? { args?: undefined } : { args: CommandArgs<C>[0] }) &
+  } & (CommandArgs<C> extends [] ? { args?: undefined; title?: string } : { args: CommandArgs<C>[0]; title: string }) &
     KeyExtras
 }[CommandId]
 
