@@ -1,8 +1,8 @@
-// 伝言一覧のウィジェット（左ドロワーのタブ）と、行の絵のスロット annotation-icon（種類ごとに、defineAnnotationIcon で作ったウィジェットを置く）
+// 伝言一覧のウィジェット（左サイドパネルのタブ）と、行の絵のスロット annotation-icon（種類ごとに、defineAnnotationIcon で作ったウィジェットを置く）
 import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
-import { defineLeftDrawerTab, type PlaceInSlot, placeIn } from "../left-drawer/ui"
+import { defineLeftSidePanelTab, type PlaceInSlot, placeIn } from "../left-side-panel/ui"
 import { NoteList } from "./NoteList"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
 
@@ -22,7 +22,7 @@ export const defineAnnotationIcon = <const Id extends string>(def: {
     view: def.view,
   })
 
-export const NOTE_LIST = defineLeftDrawerTab({
+export const NOTE_LIST = defineLeftSidePanelTab({
   id: kit.name("note-list"),
   title: kit.message("Note list"),
   opens: [ANNOTATION_ICON],
