@@ -1,13 +1,12 @@
 // 印刷区画に何かが載っているか（書く画面で何も載っていない印刷区画を暗くし、印刷プレビューでは並べない。両方がこの判定を使う）。
-// 形が載る印刷区画は 1 つで、縦と横それぞれ、形の始めがある印刷区画から形の半分以上がはみ出していれば次の印刷区画（sheetsOfShape）。
-// プレビューと印刷では、形をその印刷区画の中へ寄せて描く（snapShift）。
-// 印刷区画より大きい形は、掛かっている印刷区画のどれにも載る。
+// 形は、掛かっている印刷区画のどれにも載る（sheetsOfShape。またいだ形は、プレビューと印刷では紙の境目で切れる）。
+// 利用者が手で置く図のタイプは、またいだ形を印刷プレビューの前に直してもらう（crossingShapes。印刷区画より大きい形は直せないので、切れてよい）。
 // つなぐもの（線など）は、手で決めた所を表す点（定義の printBelongingPoints。線では手で直した区間の折れ目）がある印刷区画に載る（両端は形の印刷区画に載るので数えない。
 // 通り抜けるだけの印刷区画には載らない）。判定できるのは、アイテムの位置をデータに持つタイプ（置けるアイテムのあるタイプ）だけ。
 // ほかのタイプは null（どの印刷区画も載っているとして扱う）
 import { bookItems } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { Point, Rect, Size } from "../../../core/geom"
+import type { Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage, type PlacedShape, shapesOf } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
@@ -19,33 +18,35 @@ import type { PrintSheets } from "."
 // 印刷区画の鍵（列,行）
 export const sheetKey = (column: number, row: number): string => `${column},${row}`
 
-// 長さ len の印刷区画を並べた向きで、始め at・長さ size の形が載る印刷区画の番号
+// 長さ len の印刷区画を並べた向きで、始め at・長さ size の形が掛かる印刷区画の番号（端がちょうど境目なら、次の印刷区画には掛からない）
 function cellsAlong(at: number, size: number, len: number): number[] {
   const first = Math.max(0, Math.floor(at / len))
-  if (size > len) {
-    const last = Math.max(first, Math.ceil((at + size) / len) - 1)
-    return Array.from({ length: last - first + 1 }, (_, i) => first + i)
-  }
-  const over = at + size - (first + 1) * len
-  return [over * 2 >= size ? first + 1 : first]
+  const last = Math.max(first, Math.ceil((at + size) / len - 1e-9) - 1)
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i)
 }
 
-// 四角 r の形が載る印刷区画（紙の大きさ paper で区切ったうちの列と行。印刷区画より大きければ掛かる印刷区画の全部）
+// 四角 r の形が載る印刷区画（紙の大きさ paper で区切ったうちの、掛かっている印刷区画の列と行）
 export function sheetsOfShape(r: Rect, paper: Size): { column: number; row: number }[] {
   return cellsAlong(r.x, r.w, paper.w).flatMap(column => cellsAlong(r.y, r.h, paper.h).map(row => ({ column, row })))
 }
 
-// 四角 r の形を、載る印刷区画の中へ寄せる量（プレビューと印刷のときだけ。データは変えない）。はみ出していなければ、
-// また印刷区画より大きく寄せられなければ null
-export function snapShift(r: Rect, paper: Size): Point | null {
-  const sheets = sheetsOfShape(r, paper)
-  const sheet = sheets.length === 1 ? sheets[0] : undefined
-  if (!sheet) return null
-  const into = (at: number, size: number, start: number, len: number) =>
-    at < start ? start - at : at + size > start + len ? start + len - (at + size) : 0
-  const x = into(r.x, r.w, sheet.column * paper.w, paper.w)
-  const y = into(r.y, r.h, sheet.row * paper.h, paper.h)
-  return x === 0 && y === 0 ? null : { x, y }
+// ページ page の直下の形のうち、印刷区画の境目をまたぐ形の id（crossing。動かせば 1 つの印刷区画に入る）と、
+// 印刷区画より大きくて、どこへ動かしてもまたぐ形の id（oversized）
+export function crossingShapes(
+  catalog: CoreCatalog,
+  page: ItemPage,
+): { crossing: readonly string[]; oversized: readonly string[] } {
+  const paper = paperSize(catalog, page)
+  const crossing: string[] = []
+  const oversized: string[] = []
+  if (!paper) return { crossing, oversized }
+  for (const item of shapesOf(page)) {
+    const size = placedSize(catalog, item)
+    if (!size || sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).length < 2) continue
+    if (size.w > paper.w || size.h > paper.h) oversized.push(item.id)
+    else crossing.push(item.id)
+  }
+  return { crossing, oversized }
 }
 
 // 中身の四角 rects（紙の座標）を並べたページの印刷区画（見せ方の printSheets が返す形）: 可変ページ（増やす向き grow）なら、中身の外枠 extent が
@@ -62,25 +63,23 @@ export function printSheetsOf(
   return { columns, rows, filled }
 }
 
-// ページ page を紙の大きさ paper で区切ったうち、column 列目・row 行目の印刷区画を描くときの形: ページの直下の形全部と、それぞれを
-// 載る印刷区画の中へ寄せる量（shapes。つなぐものは全部の形の位置で引く）と、そのうちこの印刷区画に載る形（here）
+// ページ page を紙の大きさ paper で区切ったうち、column 列目・row 行目の印刷区画を描くときの形: ページの直下の形全部（shapes。つなぐものは
+// 全部の形の位置で引く）と、そのうちこの印刷区画に掛かる形（here）
 export function sheetShapes(
   catalog: CoreCatalog,
   page: ItemPage,
   paper: Size,
   column: number,
   row: number,
-): { shapes: { item: PlacedShape; shift: Point | null }[]; here: { item: PlacedShape; shift: Point | null }[] } {
-  const placed = shapesOf(page).map(item => {
+): { shapes: readonly PlacedShape[]; here: readonly PlacedShape[] } {
+  const shapes = shapesOf(page)
+  const on = (item: PlacedShape) => {
     const size = placedSize(catalog, item)
-    const rect = size && { x: item.x, y: item.y, ...size }
-    return { item, rect, shift: rect ? snapShift(rect, paper) : null }
-  })
-  const on = (rect: Rect | null) => !!rect && sheetsOfShape(rect, paper).some(c => c.column === column && c.row === row)
-  return {
-    shapes: placed.map(({ item, shift }) => ({ item, shift })),
-    here: placed.filter(({ rect }) => on(rect)).map(({ item, shift }) => ({ item, shift })),
+    return (
+      !!size && sheetsOfShape({ x: item.x, y: item.y, ...size }, paper).some(c => c.column === column && c.row === row)
+    )
   }
+  return { shapes, here: shapes.filter(on) }
 }
 
 // ブック book のページ page で、何かが載っている印刷区画の鍵（判定できないタイプなら null）

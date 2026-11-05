@@ -159,3 +159,23 @@ test("印刷できるものが何も無いブックでは、紙を並べず、�
   await expect(sheets(page)).toHaveCount(0)
   await expect(page.getByText("印刷できるものはありません")).toBeVisible()
 })
+
+test("可変ページで印刷区画の境目をまたいだ箱があると、印刷プレビューを開かず、直してほしいと知らせてその箱のバッジを並べる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const empty = await onPaper(page, 600, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByRole("switch", { name: "可変ページにする" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  // 1 つ目の印刷区画の右の端（A4 横は幅 1123）をまたぐ箱
+  await addBox(page, 1090, 200, "跨ぐ")
+  await openPreview(page)
+  await expect(panel(page)).toContainText("印刷区画をまたいだボックスを直してください")
+  await expect(panel(page).getByRole("button", { name: "跨ぐ" })).toBeVisible()
+  await expect(preview(page)).toHaveCount(0)
+  await expect(page.getByRole("tab")).toHaveCount(1) // 印刷プレビューにならず、編集のまま
+})

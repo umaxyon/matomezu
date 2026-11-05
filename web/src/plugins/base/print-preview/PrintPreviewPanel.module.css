@@ -32,3 +32,40 @@
   display: flex;
   gap: 8px;
 }
+/* 知らせの文（直してほしいこと）と、添える文 */
+.message {
+  margin: 0;
+  color: var(--skin-text);
+}
+.note {
+  margin: 0;
+  color: var(--skin-text-muted);
+}
+/* 印刷プレビューを開くボタン */
+.action {
+  align-self: flex-start;
+  padding: 4px 12px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 6px;
+  background: var(--skin-surface-muted);
+  color: var(--skin-text);
+  font: inherit;
+  cursor: pointer;
+}
+/* 形の名前のバッジの並び（折り返す） */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.badge {
+  padding: 1px 8px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 10px;
+  background: var(--skin-surface-muted);
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}

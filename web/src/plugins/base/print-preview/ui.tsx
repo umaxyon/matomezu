@@ -8,9 +8,10 @@ import { kit } from "../kit"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
 import { ChoiceSetting } from "../utils/ChoiceSetting"
 import { STAGE_SLOTS } from "../workspace/ui"
+import { PrintCheckPanel } from "./PrintCheckPanel"
 import { PrintPreviewButton } from "./PrintPreviewButton"
 import { PrintPreviewPanel } from "./PrintPreviewPanel"
-import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
+import { PRINT_CHECK_PANEL_ID, PRINT_PREVIEW_PANEL_ID } from "./panel-id"
 import { ShownSetting } from "./ShownSetting"
 import {
   PRINT_PREVIEW_BOOK_NAME,
@@ -50,6 +51,14 @@ export const PRINT_PREVIEW_BUTTON = defineWidget({
   id: kit.name("print-preview-button"),
   slots: STAGE_SLOTS,
   view: PrintPreviewButton,
+})
+
+// 印刷の前のチェックの右サイドパネルの中身（幅は 280px で固定。選択には従わない）
+export const PRINT_CHECK_PANEL = defineWidget({
+  id: PRINT_CHECK_PANEL_ID,
+  slots: [RIGHT_SIDE_PANEL],
+  rightSidePanel: { width: 280 },
+  view: PrintCheckPanel,
 })
 
 // 印刷プレビューの右サイドパネルの中身（幅は 280px で固定。選択には従わない）

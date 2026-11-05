@@ -1,9 +1,8 @@
 // 紙の見せ方の印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの形とつなぐものを、見るだけで描く。
-// ページの直下の形は、載る印刷区画の中へ寄せて描き（base の sheetShapes。子は親について行く）、つなぐものは寄せた形の位置で引き直す。
-// 描く形は、受け取った印刷区画に載る物だけ（つなぐものは、全部の形の位置で引く）。ページの原点で描く。
+// 描く形は、受け取った印刷区画に掛かる物だけ（base の sheetShapes。つなぐものは、全部の形の位置で引く）。ページの原点で描く。
 // 入力を受けず、形にはアンカーも、e2e や操作が探す印（data-item など）も付けない（同じ形が印刷区画の数だけ描かれるため）
 import type { ReactNode } from "react"
-import { bookItems, type CoreCatalog, type ItemPage, type PlacedShape, type Point } from "../../../plugin-api"
+import { bookItems, type CoreCatalog, type ItemPage, type PlacedShape } from "../../../plugin-api"
 import {
   type ItemViewProps,
   type ShapeScene,
@@ -30,7 +29,10 @@ export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintS
   const scene: ShapeScene = {
     stage,
     page: itemPage,
-    rects: shownRects(catalog, shapes),
+    rects: shownRects(
+      catalog,
+      shapes.map(item => ({ item, shift: null })),
+    ),
     dragged: NONE,
     displaced: NONE,
     reordered: false,
@@ -44,10 +46,8 @@ export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintS
     const view = ui.connectors.get(c)?.view
     return view ? [{ id: c, View: view }] : []
   })
-  // この印刷区画に載る形だけを描く
-  const items = here.map(({ item, shift }) => (
-    <SheetItem key={item.id} catalog={catalog} stage={id} zoom={stage.zoom} item={item} shift={shift} />
-  ))
+  // この印刷区画に掛かる形だけを描く（またいだ形は、紙の境目で切れる）
+  const items = here.map(item => <SheetItem key={item.id} catalog={catalog} stage={id} zoom={stage.zoom} item={item} />)
   return connectors.reduceRight<ReactNode>(
     (inner, { id: c, View }) => (
       <TokenScope key={c} def={c}>
@@ -64,13 +64,11 @@ function SheetItem({
   stage,
   zoom,
   item,
-  shift,
 }: {
   catalog: CoreCatalog
   stage: string
   zoom: number
   item: PlacedShape
-  shift: Point | null
 }) {
   const ui = useUiCatalog().items.get(item.item)
   const tokens = useTokenScope(item.item)
@@ -87,7 +85,6 @@ function SheetItem({
         top: item.y,
         width: size?.w,
         height: size?.h,
-        transform: shift ? `translate(${shift.x}px, ${shift.y}px)` : undefined,
         ...tokens,
       }}
     >
@@ -105,7 +102,7 @@ function SheetItem({
         <div className={styles.unknownItem} />
       )}
       {((item.shapes ?? []) as PlacedShape[]).map(c => (
-        <SheetItem key={c.id} catalog={catalog} stage={stage} zoom={zoom} item={c} shift={null} />
+        <SheetItem key={c.id} catalog={catalog} stage={stage} zoom={zoom} item={c} />
       ))}
     </div>
   )

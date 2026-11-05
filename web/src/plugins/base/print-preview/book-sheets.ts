@@ -6,7 +6,7 @@ import type { Book } from "../../../core/schema/book"
 import { settingsAt, settingValue } from "../book-settings"
 import { growOf, pageArea, paperSize } from "../place/items"
 import type { PrintSheets } from "."
-import { filledSheets, sheetKey } from "./filled"
+import { crossingShapes, filledSheets, sheetKey } from "./filled"
 import { PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
 import { arrangeSheets, type PageSheets, type SheetLayout } from "./sheets"
 
@@ -29,6 +29,20 @@ export function pageSheetsOf(catalog: CoreCatalog, book: Book): PageSheets[] {
     const paper = paperSize(catalog, page)
     const sheets = paper && sheetsOfPage(catalog, book, page)
     return paper && sheets ? [{ page: page.id, paper, columns: sheets.columns, rows: sheets.rows }] : []
+  })
+}
+
+// ブック book の可変ページで、印刷区画の境目をまたぐ形（ページの id と、またぐ形・印刷区画より大きい形の id。どちらも無いページは入れない）。
+// 調べるのは、またいだ形を直してもらうタイプ（ブックのタイプの printCrossing が ask）だけ
+export function bookCrossings(
+  catalog: CoreCatalog,
+  book: Book,
+): { page: string; crossing: readonly string[]; oversized: readonly string[] }[] {
+  if (bookType(catalog, book.type).printCrossing !== "ask") return []
+  return (pagedOf(book)?.pages ?? []).flatMap(page => {
+    if (!growOf(catalog, book, page)) return []
+    const found = crossingShapes(catalog, page)
+    return found.crossing.length + found.oversized.length > 0 ? [{ page: page.id, ...found }] : []
   })
 }
 

@@ -53,6 +53,7 @@ export const DRAWING = kit.defineBookType({
   tokens: [],
   tools: "@matomezu/paper:paper",
   // テーマ・紙の色・線の既定の通り方（ページは線の既定の通り方を持たなければブックの既定を継ぐ）
+  printCrossing: "ask", // 形は利用者が手で置くので、印刷区画をまたいだ形は印刷プレビューの前に直してもらう
   settings: {
     book: [
       BOOK_THEME.id,
