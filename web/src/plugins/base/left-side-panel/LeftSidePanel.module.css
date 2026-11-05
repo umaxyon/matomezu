@@ -5,7 +5,7 @@
   overflow: hidden;
   border-right: 1px solid var(--skin-border);
   background: var(--skin-surface-raised);
-  transition: width var(--right-side-panel-slide) ease;
+  transition: width var(--side-panel-slide) ease;
 }
 .panel[aria-hidden="true"] {
   border-right-width: 0;

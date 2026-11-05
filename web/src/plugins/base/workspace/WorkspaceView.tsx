@@ -19,7 +19,7 @@ import {
   SLIDE_MS,
   useCloseRightSidePanel,
   useOpenedRightSidePanel,
-  useRightSidePanelSliding,
+  useSidePanelSliding,
 } from "../right-side-panel/hooks"
 import { RevealAndRestore } from "../right-side-panel/RevealAndRestore"
 import { RightSidePanel } from "../right-side-panel/RightSidePanel"
@@ -49,7 +49,7 @@ export function WorkspaceView() {
     if (panel === left) closeRight(right)
     else closeLeft(left)
   }, [right, left, panel, closeRight, closeLeft])
-  const sliding = useRightSidePanelSliding(panel)
+  const sliding = useSidePanelSliding(panel)
   const pressClosed = useRef(false)
   const drag = (e: PointerEvent<HTMLElement>) => {
     if (e.type === "pointerdown") {
@@ -66,7 +66,7 @@ export function WorkspaceView() {
       style={
         {
           ["--scrollbar-w" as string]: `${scrollbar}px`,
-          ["--right-side-panel-slide" as string]: `${SLIDE_MS}ms`,
+          ["--side-panel-slide" as string]: `${SLIDE_MS}ms`,
         } as CSSProperties
       }
     >

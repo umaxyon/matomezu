@@ -118,11 +118,11 @@ function Icon({ stage, annotation: a }: { stage: string; annotation: Annotation 
 function useGo(stage: string): (a: AiAnnotation, panel: string | undefined) => void {
   const read = useReadState()
   const actions = useActions()
-  const setDrawer = useSetLeftSidePanel()
+  const setLeftSidePanel = useSetLeftSidePanel()
   const openPanel = useOpenRightSidePanel()
   const reveal = useRequestReveal()
   return (a, panel) => {
-    setDrawer(stage, null)
+    setLeftSidePanel(stage, null)
     const opened = read().workspace.stages.find(s => s.id === stage)?.opened
     if (a.page && opened?.page !== a.page) actions.openPage(stage, a.page)
     if (panel) {

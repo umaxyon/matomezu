@@ -17,7 +17,7 @@
 }
 /* 右サイドパネルを開け閉めする間だけ、列の幅を動かす（分割や境目のドラッグでは動かさない。動きを減らす設定でも動かさない） */
 .sliding > .column {
-  transition: flex-grow var(--right-side-panel-slide) ease;
+  transition: flex-grow var(--side-panel-slide) ease;
 }
 .column + .column {
   border-left: 1px solid var(--skin-border);

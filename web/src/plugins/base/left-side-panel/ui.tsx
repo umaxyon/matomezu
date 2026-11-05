@@ -1,4 +1,4 @@
-// 左サイドパネルのウィジェット: 開くボタン（フッタメニューに置く）と、タブを作る関数。入れ物はステージの列が描く（workspace/WorkspaceView.tsx）
+// 左サイドパネルのウィジェット: 開くボタン（フッタメニューに置く）と、タブを作る関数。入れ物は骨組み（workspace/WorkspaceView.tsx）が窓に 1 つ描く
 import type { ReactNode } from "react"
 import type { SlotId } from "../../../core/catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"

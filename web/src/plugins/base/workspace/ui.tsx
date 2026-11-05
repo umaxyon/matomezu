@@ -20,7 +20,7 @@ export const STAGE_BASE_SLOTS = [STAGE_TOP, STAGE_BODY, STAGE_BOTTOM, STAGE_CORN
 export const defineWorkspace = <const Id extends string>(def: { id: Id; view: () => ReactNode }) =>
   defineWidget({ id: def.id, slots: ["root"], opens: STAGE_BASE_SLOTS, view: def.view })
 
-// base の骨組みは、ベーススロットのほかに、ステージの列の右に右サイドパネルのスロットと、列の左に被せる左サイドパネルのスロットも開ける
+// base の骨組みは、ベーススロットのほかに、ステージの列の右に右サイドパネルのスロットと、列の左に左サイドパネルのスロットも開ける
 export const WORKSPACE = defineWidget({
   id: kit.name("workspace"),
   slots: ["root"],
