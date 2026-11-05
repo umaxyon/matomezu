@@ -1,6 +1,7 @@
 // 印刷プレビュー: フッタメニューのボタンで開くと、ブックの全ページの印刷区画を並べ、右サイドパネルに設定を出す。間はブックを変えるキー（元に戻す）が効かない。ロック中は変える前に聞く。
 // 右サイドパネルを閉じる（Esc）と編集に戻り、読み直しても印刷プレビューのまま開く。印刷区画をダブルクリックすると、そのページの編集に戻る
 import { expect, type Page, test } from "./fixtures"
+import { newBook } from "./helpers/master"
 import { panel } from "./helpers/note"
 import { addBox, items, onPaper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -15,12 +16,13 @@ async function addPage(page: Page) {
   await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
 }
 
+// 印刷プレビューを開き、右サイドパネルに中身が出るまで待つ
 async function openPreview(page: Page) {
   await (await fromMenu(page, "印刷プレビュー")).click()
-  await expect(preview(page)).toBeVisible()
+  await expect(panel(page)).toContainText("印刷プレビュー")
 }
 
-test("印刷プレビューを開くと全ページの印刷区画を並べ、ページのタブを隠す。初めは幅に合わせ、元に戻すは効かず、Esc で閉じると編集に戻る", async ({
+test("印刷プレビューを開くと、中身のあるページの印刷区画を並べ（何も載っていないページは並べない）、ページのタブを隠す。初めは幅に合わせ、元に戻すは効かず、Esc で閉じると編集に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -28,8 +30,7 @@ test("印刷プレビューを開くと全ページの印刷区画を並べ、�
   await addPage(page)
   await expect(page.getByRole("tab")).toHaveCount(2)
   await openPreview(page)
-  await expect(sheets(page)).toHaveCount(2)
-  await expect(panel(page)).toContainText("印刷プレビュー")
+  await expect(sheets(page)).toHaveCount(1)
   await expect(page.getByRole("tablist")).toHaveCount(0)
   // 初めは幅に合わせ（右サイドパネルの帯の「幅に合わせる」は押した状態）、1 枚目の紙の幅がステージの幅から余白を除いた幅になる
   await expect(panel(page).getByRole("button", { name: "幅に合わせる" })).toBeDisabled()
@@ -50,8 +51,10 @@ test("並べる向きを横にすると、印刷区画が横に並ぶ。読み�
   page,
 }) => {
   await page.goto("/")
+  await addBox(page, 200, 150, "一")
   await addPage(page)
   await expect(page.getByRole("tab")).toHaveCount(2)
+  await addBox(page, 200, 150, "二")
   await openPreview(page)
   const [a, b] = [sheets(page).nth(0), sheets(page).nth(1)]
   expect((await b.boundingBox())!.y).toBeGreaterThan((await a.boundingBox())!.y)
@@ -104,4 +107,55 @@ test("可変ページの何も載っていない印刷区画は、書く画面�
   await expect(page.locator("[data-unprinted]")).toHaveCount(3)
   await openPreview(page)
   await expect(sheets(page)).toHaveCount(1)
+})
+
+test("印刷プレビューの紙に、ページの形と線を描く（見るだけで、形に編集の印は付けない）", async ({ page }) => {
+  await page.goto("/")
+  await addBox(page, 200, 200, "左")
+  await addBox(page, 600, 200, "右")
+  // 左の箱の右の〇から、右の箱へ線を引く
+  const empty = await onPaper(page, 600, 500)
+  await page.mouse.click(empty.x, empty.y)
+  const start = items(page).filter({ hasText: "左" })
+  const s = (await start.boundingBox())!
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  const r = (await start.locator('[data-port="r"]').boundingBox())!
+  const e = (await items(page).filter({ hasText: "右" }).boundingBox())!
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(e.x + 10, e.y + e.height / 2, { steps: 5 })
+  await page.mouse.up()
+  await expect(page.locator("[data-item]:not([data-shape])")).toHaveCount(1)
+  await openPreview(page)
+  const sheet = sheets(page).first()
+  await expect(sheet).toContainText("左")
+  await expect(sheet).toContainText("右")
+  await expect(sheet.locator("polyline")).not.toHaveCount(0)
+  // 紙の中の形には、e2e や操作が探す印（data-shape）を付けない
+  await expect(sheet.locator("[data-shape]")).toHaveCount(0)
+})
+
+test("ツリーとディレクトリ構成図も、印刷プレビューの紙に中身を描く", async ({ page }) => {
+  await page.goto("/")
+  const tree = await newBook(page, "木", "ツリー")
+  await tree.getByLabel("根のキャプション").fill("根っこ")
+  await tree.getByRole("button", { name: "作る" }).click()
+  await expect(tree).toBeHidden()
+  await openPreview(page)
+  await expect(sheets(page).first()).toContainText("根っこ")
+  await page.keyboard.press("Escape")
+  await expect(preview(page)).toHaveCount(0)
+  const dir = await newBook(page, "構成", "ディレクトリ構成図")
+  await dir.getByLabel("根のフォルダの名前").fill("proj")
+  await dir.getByRole("button", { name: "作る" }).click()
+  await expect(dir).toBeHidden()
+  await openPreview(page)
+  await expect(sheets(page).first()).toContainText("proj")
+})
+
+test("印刷できるものが何も無いブックでは、紙を並べず、印刷できるものが無いと知らせる", async ({ page }) => {
+  await page.goto("/")
+  await openPreview(page)
+  await expect(sheets(page)).toHaveCount(0)
+  await expect(page.getByText("印刷できるものはありません")).toBeVisible()
 })

@@ -1,21 +1,49 @@
-// 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描く（印刷区画の中身は描かない）。
+// 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描き、
+// 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙）。何も載っていない印刷区画とページは並べず、
+// 並べる物が 1 つも無ければ、表示領域の真ん中に印刷できるものが無いと知らせる。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
 // 初めから出ていなければ（URL から印刷プレビューで開いたとき）、出す
-import { type CSSProperties, useEffect, useMemo, useRef } from "react"
+import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } from "react"
+import { pagedOf } from "../../../core/book"
+import { bookType } from "../../../core/core-catalog"
+import type { Size } from "../../../core/geom"
+import type { Book, Page } from "../../../core/schema/book"
 import { extentOf as previewArea } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
-import { useActions, useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useMessages } from "../../../ui/i18n"
+import { useActions, useCatalog, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
+import { kit } from "../kit"
 import { useOpenRightSidePanel, useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets } from "./book-sheets"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
+import { PrintingContext } from "./printing"
+
+// 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: 描いているステージ（印刷プレビューの間）・ブック・ページと、
+// そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
+// （印刷区画の左上が原点になるようずらし、はみ出した所を切るのは印刷プレビュー）。描く物を、その印刷区画に載る物に絞ってよい。入力は受けない
+export interface PrintSheetProps {
+  stage: string
+  book: Book
+  page: Page
+  column: number
+  row: number
+  paper: Size
+}
+
+declare module "../../../core/catalog" {
+  interface BookViewExtras {
+    // 印刷プレビューと印刷で、印刷区画 1 つの中身を描くビュー。無ければ白紙
+    printSheet?: ComponentType<PrintSheetProps>
+  }
+}
 
 // ステージ stage の今の倍率（effect の中で読む）
 const zoomOf = (read: () => MatomezuState, stage: string): number | null =>
@@ -36,7 +64,9 @@ function useExtent(id: string): { known: boolean; size: string | null } {
 
 export function PrintPreviewView({ stage: id }: { stage: string }) {
   const stage = useStage(id) // パンの量を読まない（ずらす量は useStagePan だけが読む）
+  const t = useMessages(kit)
   const catalog = useCatalog().core
+  const views = useUiCatalog().presentationViews
   const book = useBook(id)
   const pan = useStagePan(id)
   const panel = useRightSidePanel(id)
@@ -90,7 +120,11 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     el.addEventListener("dblclick", onDoubleClick)
     return () => el.removeEventListener("dblclick", onDoubleClick)
   }, [id, openPage])
-  if (!layout || !pan) return null
+  if (!layout || !pan || !book) return null
+  if (layout.sheets.length === 0) return <p className={styles.nothing}>{t("Nothing to print")}</p>
+  const Sheet = views.get(bookType(catalog, book.type).presentation)?.printSheet
+  const pages = pagedOf(book)?.pages ?? []
+  const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   const origin = paperOrigin(pan)
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューを出さないだけ（印刷プレビューにメニューは無い）
@@ -118,7 +152,23 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
           style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
           data-sheet={s.index}
           data-sheet-page={s.page}
-        />
+        >
+          {Sheet && pageOf(s.page) && (
+            // 印刷区画の左上が原点になるよう、ページの原点をずらす（はみ出した所は印刷区画の枠が切る）
+            <div className={styles.origin} style={{ left: -s.column * s.w, top: -s.row * s.h }}>
+              <PrintingContext.Provider value={true}>
+                <Sheet
+                  stage={id}
+                  book={book as Book}
+                  page={pageOf(s.page) as Page}
+                  column={s.column}
+                  row={s.row}
+                  paper={{ w: s.w, h: s.h }}
+                />
+              </PrintingContext.Provider>
+            </div>
+          )}
+        </div>
       ))}
     </div>
   )

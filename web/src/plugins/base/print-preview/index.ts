@@ -5,11 +5,13 @@
 import { z } from "zod"
 import { hasPages } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
+import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import type { CommandContext } from "../../../store/commands/def"
 import { withBookSettings } from "../book-look"
-import { settingValue } from "../book-settings"
+import { type SettingReader, settingValue } from "../book-settings"
 import { kit } from "../kit"
+import type { GrowSides } from "../place/grow"
 import { fitSideView, moveView, stageOf } from "../zoom"
 import {
   PRINT_PREVIEW_BOOK_NAME,
@@ -20,6 +22,26 @@ import {
   SheetOrderSchema,
   ShownSchema,
 } from "./settings"
+
+// ページの印刷区画: 紙の大きさで区切った columns 列 × rows 行と、何かが載っている印刷区画の鍵（作るのは filled.ts の printSheetsOf）
+export interface PrintSheets {
+  columns: number
+  rows: number
+  filled: ReadonlySet<string>
+}
+
+declare module "../../../core/catalog" {
+  interface PresentationExtras {
+    // ページ page の印刷区画（印刷プレビューと印刷、書く画面の印刷しない印刷区画の影が使う）。並べ方を描くときに決める見せ方（ツリーなど）が、
+    // ビューがステージに知らせる広さと同じ座標で返す。setting はそのページで効いている設定の値、grow は増やす向き（可変ページでなければ undefined）。
+    // 無ければ、形の位置から決める（base の pageArea と filledSheets）
+    printSheets?(
+      catalog: CoreCatalog,
+      page: ItemPage,
+      on: { setting: SettingReader; grow: GrowSides | undefined },
+    ): PrintSheets
+  }
+}
 
 export {
   PRINT_PREVIEW_BOOK_NAME,

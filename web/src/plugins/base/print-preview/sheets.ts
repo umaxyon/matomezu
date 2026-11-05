@@ -1,6 +1,6 @@
 // 印刷プレビューの並べ方: ブックの全ページの印刷区画を、ページの順に 1 列（縦）か 1 行（横）に並べる（プレビューと印刷で共有する純粋な関数）。
 // 1 ページの印刷区画の数（列と行）は見せ方から受け取る。可変ページでないページは 1 つ。shown が外した印刷区画は並べない
-// （ページの印刷区画がどれも外れたら、白紙として最初の 1 つを並べる）
+// （ページの印刷区画がどれも外れたら、そのページは並べない）
 import type { Size } from "../../../core/geom"
 import type { SheetFlow, SheetOrder } from "./settings"
 
@@ -49,21 +49,14 @@ function cellsOf(p: PageSheets, order: SheetOrder): { column: number; row: numbe
   })
 }
 
-// ページ p の印刷区画のうち、並べる物（数える順 order。shown が外した物は除き、どれも外れたら最初の 1 つを白紙として残す）
-export function pickedSheets(
-  p: PageSheets,
-  order: SheetOrder,
-  shown?: ArrangeOptions["shown"],
-): { column: number; row: number }[] {
-  const cells = cellsOf(p, order)
-  const kept = shown ? cells.filter(c => shown(p.page, c.column, c.row)) : cells
-  return kept.length > 0 ? kept : cells.slice(0, 1)
-}
-
 // ページ pages の印刷区画を並べる。並べる向きと交わる向きは、いちばん大きい紙に合わせて真ん中にそろえる
 export function arrangeSheets(pages: readonly PageSheets[], options: ArrangeOptions): SheetLayout {
   const { flow, order, gap = SHEET_GAP, shown } = options
-  const picked = pages.flatMap(p => pickedSheets(p, order, shown).map(c => ({ page: p.page, paper: p.paper, ...c })))
+  const picked = pages.flatMap(p =>
+    cellsOf(p, order)
+      .filter(c => !shown || shown(p.page, c.column, c.row))
+      .map(c => ({ page: p.page, paper: p.paper, ...c })),
+  )
   const across = Math.max(0, ...picked.map(s => (flow === "column" ? s.paper.w : s.paper.h)))
   let along = 0
   const sheets = picked.map((s, index) => {

@@ -11,6 +11,7 @@ import { kit } from "./kit"
 import { treeMinimap } from "./minimap"
 import { TreeRootSchema, treeRootOf } from "./node"
 import { pageFieldsInput } from "./page-fields"
+import { treePrintSheets } from "./print"
 import { TREE_TOOLS } from "./tools"
 
 // ツリーのキーの範囲（ツリーの見せ方で描いている間に探す）
@@ -21,6 +22,7 @@ export const TREE_PRESENTATION = kit.definePresentation({
   id: "tree",
   keyScope: TREE_KEYS_SCOPE,
   minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
+  printSheets: treePrintSheets, // 印刷区画は、木を並べて節が入るだけ
 })
 
 // ツリーのページの設定のダイアログ（根のダイアログを兼ねる。ページ名・伸びる向き・節の大きさ・根のキャプションと本文と、本文を描くか）

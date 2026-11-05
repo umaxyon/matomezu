@@ -48,7 +48,16 @@ import {
   PRINT_PREVIEW_UPDATE,
 } from "./print-preview"
 import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
-import { KEYS, LANG, OPTION_TITLES_CHECK, SETTINGS_SET, SETTINGS_SET_COMMAND, SKIN } from "./settings"
+import {
+  KEYS,
+  LANG,
+  OPTION_TITLES_CHECK,
+  SETTINGS_DIALOG,
+  SETTINGS_OPEN,
+  SETTINGS_SET,
+  SETTINGS_SET_COMMAND,
+  SKIN,
+} from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
@@ -128,6 +137,8 @@ export type { PortArea, Ports } from "./place/placed"
 export { NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
+export type { PrintSheets } from "./print-preview"
+export { printSheetsOf, sheetShapes, sheetsOfShape, snapShift } from "./print-preview/filled"
 export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 export {
   BOOK_TEXT_COLORS,
@@ -242,6 +253,7 @@ export const BASE = defineBuiltin(
       PAGE_SETTINGS,
       BOOK_SETTINGS,
       SETTINGS_SET_COMMAND,
+      SETTINGS_OPEN,
       UNDO,
       REDO,
       NOTE_NEW,
@@ -251,7 +263,14 @@ export const BASE = defineBuiltin(
       PRINT_PREVIEW_OPEN,
       PRINT_PREVIEW_FIT,
     ],
-    dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG, NEW_BOOK_DIALOG],
+    dialogs: [
+      OPEN_BOOK_DIALOG,
+      NEW_PAGE_DIALOG,
+      PAGE_SETTINGS_DIALOG,
+      BOOK_SETTINGS_DIALOG,
+      NEW_BOOK_DIALOG,
+      SETTINGS_DIALOG,
+    ],
     keys: [
       ...TOOLBOX_KEYS,
       ...TOOL_PICKER_KEYS,
@@ -375,6 +394,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-preview-open": typeof PRINT_PREVIEW_OPEN
     "@matomezu/base:print-preview-fit": typeof PRINT_PREVIEW_FIT
     "@matomezu/base:settings-set": typeof SETTINGS_SET_COMMAND
+    "@matomezu/base:settings-open": typeof SETTINGS_OPEN
     "@matomezu/base:note-new": typeof NOTE_NEW
     "@matomezu/base:mark-new": typeof MARK_NEW
     "@matomezu/base:right-side-panel-close": typeof RIGHT_SIDE_PANEL_CLOSE
@@ -390,5 +410,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS_DIALOG
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS_DIALOG
+    "@matomezu/base:settings": typeof SETTINGS_DIALOG
   }
 }

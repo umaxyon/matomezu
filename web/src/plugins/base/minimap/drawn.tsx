@@ -4,6 +4,7 @@
 import { useLayoutEffect } from "react"
 import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { usePrinting } from "../print-preview/printing"
 import type { MinimapMark } from "./marks"
 
 // 種類の id → 描いたページの id と絵
@@ -23,12 +24,14 @@ const sameMarks = (a: readonly MinimapMark[], b: readonly MinimapMark[]): boolea
   a.length === b.length && a.every((m, i) => samePoints(m, b[i] as MinimapMark))
 
 // つなぐもの item のビューが、ステージ stage のページ page に描いた絵 marks を置く（null なら置き直さない。形を動かしている間など）。
-// 前と同じ絵なら置き直さない。ビューが消えたら絵も消す。置いた絵は購読しない（置くたびにビューが描き直されないように）
+// 前と同じ絵なら置き直さない。ビューが消えたら絵も消す。置いた絵は購読しない（置くたびにビューが描き直されないように）。
+// 印刷区画の中で描いたビュー（印刷区画ごとに、寄せた位置で描く）は、置きも消しもしない（編集のミニマップの絵を上書きしないように）
 export function useDrawnMinimap(stage: string, item: string, page: string, marks: readonly MinimapMark[] | null) {
   const setStageState = useSetStageState(kit)
   const read = useReadStageState(kit)
+  const printing = usePrinting() // 印刷区画の中で描いているか
   useLayoutEffect(() => {
-    if (!marks) return
+    if (!marks || printing) return
     const state = (read(stage) ?? {}) as Record<string, unknown>
     const table = tableOf(state)
     const now = table[item]
@@ -37,11 +40,12 @@ export function useDrawnMinimap(stage: string, item: string, page: string, marks
   })
   useLayoutEffect(
     () => () => {
+      if (printing) return
       const state = (read(stage) ?? {}) as Record<string, unknown>
       const { [item]: _, ...rest } = tableOf(state)
       setStageState(stage, { ...state, drawn: rest })
     },
-    [read, setStageState, stage, item],
+    [read, setStageState, stage, item, printing],
   )
 }
 

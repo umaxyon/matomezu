@@ -9,6 +9,7 @@ import { dirFits } from "./fit"
 import { kit } from "./kit"
 import { dirMinimap } from "./minimap"
 import { pageFieldsInput } from "./page-fields"
+import { dirPrintSheets } from "./print"
 import { DIR_TOOLS } from "./tools"
 
 // ディレクトリ構成図のキーの範囲（この見せ方で描いている間に探す）
@@ -19,6 +20,7 @@ export const DIR_PRESENTATION = kit.definePresentation({
   id: "dir",
   keyScope: DIR_KEYS_SCOPE,
   minimap: dirMinimap, // ミニマップには、行を四角で、罫線を線で描く
+  printSheets: dirPrintSheets, // 印刷区画は、行と説明が入るだけ
 })
 
 // ディレクトリ構成図のページを作るダイアログ（ページ名・根のフォルダの名前）

@@ -16,7 +16,7 @@ import type { AnnotationIconProps } from "./note-list/slots"
 import { NOTE_LIST } from "./note-list/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { PRINT_PREVIEW_BUTTON, PRINT_PREVIEW_PANEL, PRINT_PREVIEW_SETTING_VIEWS } from "./print-preview/ui"
-import { USER_SETTING_VIEWS } from "./settings/ui"
+import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
 import {
   BOOK_CONTENT,
   BOOK_VIEW,
@@ -66,6 +66,7 @@ export { ANNOTATION_ICON, type AnnotationIconProps } from "./note-list/slots"
 export { defineAnnotationIcon } from "./note-list/ui"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
+export type { PrintSheetProps } from "./print-preview/PrintPreviewView"
 export {
   useCloseRightSidePanel,
   useFollowsSelection,
@@ -93,7 +94,13 @@ export * from "./utils/ui"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {
-  dialogViews: { ...BOOK_OPEN_DIALOG_VIEWS, ...PAGE_DIALOG_VIEWS, ...BOOK_LOOK_DIALOG_VIEWS, ...BOOK_NEW_DIALOG_VIEWS },
+  dialogViews: {
+    ...BOOK_OPEN_DIALOG_VIEWS,
+    ...PAGE_DIALOG_VIEWS,
+    ...BOOK_LOOK_DIALOG_VIEWS,
+    ...BOOK_NEW_DIALOG_VIEWS,
+    ...SETTINGS_DIALOG_VIEWS,
+  },
   settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
