@@ -45,7 +45,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:tool-picker",
     ],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
-    "@matomezu/base:stage-body": ["@matomezu/base:book-view"],
+    "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
     "@matomezu/base:book-layers": [
       "@matomezu/base:paper-layer",
       "@matomezu/base:print-area-layer",

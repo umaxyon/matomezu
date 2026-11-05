@@ -1,8 +1,8 @@
-// 印刷プレビューのスクロールバー: 並べた印刷区画が表示領域からはみ出している向きだけ、ステージの右端に縦・下端に横のバーを出し、並べた印刷区画のどこを見ているかをつまみで示す
+// 印刷プレビューのスクロールバー（ウィジェット print-preview-scrollbars。印刷プレビューの間だけ出す）: 並べた印刷区画が表示領域からはみ出している向きだけ、ステージの右端に縦・下端に横のバーを出し、並べた印刷区画のどこを見ているかをつまみで示す
 // （つまみの長さは見えている割合。決まりは scrollbar.ts）。つまみをドラッグするとずらし、溝を押すとそこへ移る。広さはステージが印刷プレビューに
 // 知らせた広さ（extentOf）で、ずらす量を範囲に収めるのもステージ（パンと同じ）
 import { type PointerEvent, useRef } from "react"
-import { extentOf } from "../../../core/stage"
+import { extentOf, previewing } from "../../../core/stage"
 import { contentSize } from "../../../core/viewport"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import styles from "./PreviewScrollbars.module.css"
@@ -15,7 +15,7 @@ const BAR = 10 // バーの太さ（px。PreviewScrollbars.module.css と同じ�
 export function PreviewScrollbars({ stage }: { stage: string }) {
   const st = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage) ?? null)
   const area = st ? extentOf(st) : null
-  if (!st || !area || !st.view) return null
+  if (!st || !previewing(st) || !area || !st.view) return null
   const content = contentSize(area, st.zoom)
   const shown = shownBars(area, st.zoom, st.view)
   const axes: Record<Along, ScrollAxis> = {
@@ -46,9 +46,8 @@ function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; 
     const by = target - now[along]
     panStageBy(stage, along === "x" ? by : 0, along === "y" ? by : 0)
   }
-  // 押したらステージをカレントにする（ステージの手のひらのドラッグには渡さない。字の選択を始めないよう、溝で mousedown の既定の動きを止める）
+  // 押したらステージをカレントにする（字の選択を始めないよう、溝で mousedown の既定の動きを止める）
   const onTrack = (e: PointerEvent<HTMLDivElement>) => {
-    e.stopPropagation()
     focusStage(stage)
     const el = track.current
     if (e.button !== 0 || !el || e.target !== el) return
@@ -56,7 +55,6 @@ function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; 
     panTo(panForTrack(axis, length, at(e) - (along === "y" ? box.top : box.left)))
   }
   const onThumb = (e: PointerEvent<HTMLDivElement>) => {
-    e.stopPropagation()
     focusStage(stage)
     if (e.button !== 0) return
     e.currentTarget.setPointerCapture(e.pointerId)

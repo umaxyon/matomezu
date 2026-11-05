@@ -19,6 +19,7 @@ import {
   PRINT_CHECK_PANEL,
   PRINT_PREVIEW_BUTTON,
   PRINT_PREVIEW_PANEL,
+  PRINT_PREVIEW_SCROLLBARS,
   PRINT_PREVIEW_SETTING_VIEWS,
 } from "./print-preview/ui"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
@@ -126,6 +127,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_PREVIEW_BUTTON,
     PRINT_PREVIEW_PANEL,
     PRINT_CHECK_PANEL,
+    PRINT_PREVIEW_SCROLLBARS,
     LEFT_SIDE_PANEL_BUTTON,
     NOTE_LIST,
     NOTE_READ_NOTICE,
@@ -191,6 +193,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark-icon": typeof MARK_ICON
     "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL
     "@matomezu/base:print-check-panel": typeof PRINT_CHECK_PANEL
+    "@matomezu/base:print-preview-scrollbars": typeof PRINT_PREVIEW_SCROLLBARS
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME

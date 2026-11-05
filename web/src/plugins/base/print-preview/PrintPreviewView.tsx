@@ -2,10 +2,10 @@
 // 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙）。何も載っていない印刷区画とページは並べず、
 // 並べる物が 1 つも無ければ、表示領域の真ん中に印刷できるものが無いと知らせる。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
-// 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。右端と下端にスクロールバーを出す（PreviewScrollbars）。印刷区画をダブルクリックすると、そのページの編集に戻る。
+// 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
-// 初めから出ていなければ（URL から印刷プレビューで開いたとき）、出す
-import { type ComponentType, type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react"
+// 初めから出ていなければ（AI が印刷プレビューで開いたときなど）、出す
+import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } from "react"
 import { pagedOf } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
@@ -23,7 +23,7 @@ import { useOpenRightSidePanel, useRightSidePanel, useSidePanelSliding } from ".
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets, hasCrossing } from "./book-sheets"
-import { PreviewScrollbars } from "./PreviewScrollbars"
+import { useMeasures, useReportMeasure } from "./measures"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
 import { PrintingContext } from "./printing"
@@ -94,21 +94,13 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const panel = useRightSidePanel(id)
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
   const read = useReadState()
-  // 測る見せ方のページの、測った結果（ページの id → 結果。同じ結果なら置き直さない）
-  const [measures, setMeasures] = useState<ReadonlyMap<string, PrintMeasured>>(new Map())
-  const report = useCallback(
-    (page: string, m: PrintMeasured) =>
-      setMeasures(prev => {
-        const was = prev.get(page)
-        if (was && was.rows === m.rows && JSON.stringify(was.data) === JSON.stringify(m.data)) return prev
-        return new Map(prev).set(page, m)
-      }),
-    [],
-  )
-  // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ブックが替われば作り直す）
+  // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージの画面の状態。measures.ts）
   const bookId = book?.id
-  // biome-ignore lint/correctness/useExhaustiveDependencies: ブックが替わったら表を空にする
-  const reporters = useMemo(() => new Map<string, (m: PrintMeasured) => void>(), [bookId])
+  const measures = useMeasures(id, bookId)
+  const report = useReportMeasure(id, bookId)
+  // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ブックが替われば作り直す）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 知らせる先（ブック）が替わったら表を空にする
+  const reporters = useMemo(() => new Map<string, (m: PrintMeasured) => void>(), [report])
   const reporterOf = (page: string) => {
     const was = reporters.get(page)
     if (was) return was
@@ -130,7 +122,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     [Measure, pages, catalog],
   )
   const measured = useMemo(
-    () => new Map(measuring.map(({ page }) => [page.id, measures.get(page.id)?.rows ?? ("pending" as const)])),
+    () => new Map(measuring.map(({ page }) => [page.id, measures[page.id]?.rows ?? ("pending" as const)])),
     [measuring, measures],
   )
   const layout = useMemo(() => (book ? bookSheets(catalog, book, measured) : null), [catalog, book, measured])
@@ -216,7 +208,6 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   return (
     <>
       {measuringViews}
-      <PreviewScrollbars stage={id} />
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューを出さないだけ（印刷プレビューにメニューは無い） */}
       <div
         ref={ref}
@@ -254,7 +245,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
                     column={s.column}
                     row={s.row}
                     paper={{ w: s.w, h: s.h }}
-                    {...(measures.has(s.page) ? { measured: measures.get(s.page)?.data } : {})}
+                    {...(measures[s.page] ? { measured: measures[s.page]?.data } : {})}
                   />
                 </PrintingContext.Provider>
               </div>

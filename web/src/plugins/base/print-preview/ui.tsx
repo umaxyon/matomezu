@@ -1,4 +1,4 @@
-// 印刷プレビューの見た目: 設定の項目のビュー、フッタメニューの開くボタン、右サイドパネルの中身
+// 印刷プレビューの見た目: 設定の項目のビュー、フッタメニューの開くボタン、右サイドパネルの中身、ステージに浮かべるスクロールバー
 
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
@@ -7,7 +7,9 @@ import { ChoiceText } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
 import { ChoiceSetting } from "../utils/ChoiceSetting"
+import { STAGE_BODY } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
+import { PreviewScrollbars } from "./PreviewScrollbars"
 import { PrintCheckPanel } from "./PrintCheckPanel"
 import { PrintPreviewButton } from "./PrintPreviewButton"
 import { PrintPreviewPanel } from "./PrintPreviewPanel"
@@ -51,6 +53,13 @@ export const PRINT_PREVIEW_BUTTON = defineWidget({
   id: kit.name("print-preview-button"),
   slots: STAGE_SLOTS,
   view: PrintPreviewButton,
+})
+
+// 印刷プレビューのスクロールバー（ステージの枠に浮かべる。印刷プレビューの間だけ出す）
+export const PRINT_PREVIEW_SCROLLBARS = defineWidget({
+  id: kit.name("print-preview-scrollbars"),
+  slots: [STAGE_BODY],
+  view: PreviewScrollbars,
 })
 
 // 印刷の前のチェックの右サイドパネルの中身（幅は 280px で固定。選択には従わない）
