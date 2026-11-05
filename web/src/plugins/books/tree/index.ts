@@ -20,7 +20,14 @@ import { LINE_SHAPE } from "./line-shape"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 import { EDIT_TOOL, TREE_TOOLS } from "./tools"
-import { NEW_TREE_PAGE_DIALOG, NODE_SIZE_DIALOG, TREE, TREE_PAGE_SETTINGS_DIALOG, TREE_PRESENTATION } from "./tree"
+import {
+  NEW_TREE_PAGE_DIALOG,
+  NODE_SIZE_DIALOG,
+  TREE,
+  TREE_KEY_SCOPE,
+  TREE_PAGE_SETTINGS_DIALOG,
+  TREE_PRESENTATION,
+} from "./tree"
 
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -40,6 +47,7 @@ export const TREE_PLUGIN = defineBuiltin(
       NODE_DELETE,
     ],
     keys: TREE_KEYS,
+    keyScopes: [TREE_KEY_SCOPE],
     tools: [EDIT_TOOL],
     toolSets: [TREE_TOOLS],
   }),
@@ -75,7 +83,7 @@ declare module "../../../core/catalog" {
     "@matomezu/tree:node-color-edit": typeof NODE_COLOR_EDIT
   }
   interface KeyScopeTable {
-    "@matomezu/tree:tree": true // ツリーの見せ方で描いている間のキー
+    "@matomezu/tree:tree": typeof TREE_KEY_SCOPE // ツリーの見せ方で描いている間のキー
   }
   interface ToolTable {
     "@matomezu/tree:edit": typeof EDIT_TOOL

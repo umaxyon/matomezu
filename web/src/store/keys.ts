@@ -1,23 +1,46 @@
-// キーの割り当て: プラグインの既定と利用者の変更から、効いている割り当ての表を作り、押したキーをコマンドに引く。
-// 勝つ順は 利用者 > ビルトインプラグイン > 追加プラグイン。ぶつかるのは同じ範囲・同じキーのときだけで、範囲が違えば狭いほうが勝つ（引く側が決める）。
-// 追加プラグインの既定は、ビルトインプラグインの既定とぶつかれば使わず、追加プラグインどうしでぶつかれば、どちらも使わない（利用者が自分で割り当てる）
+// キーバインド: プラグインの既定と利用者の変更から、効いているキーバインドの表を作り、押したキーをコマンドに引く。
+// 同じ範囲・同じキーのキーバインドは並べ（利用者 → ビルトインプラグイン → 追加プラグインの id の順）、効くのは先頭の 1 つだけ（先勝ち）。
+// 範囲が違えば狭いほうが先（引く側が決める）
 
-import type { CommandId, KeyExtras, KeyScopeId } from "../core/catalog"
+import type { BaseKeyScope, CommandId, KeyExtras, KeyScopeExtras, KeyScopeId, MessageKey } from "../core/catalog"
 import type { Inspected, Source, Step } from "../core/inspect"
 import { type KeyBinding, type KeyChanges, normalizeKey, sameBinding } from "../core/keys"
+import { sameData } from "../core/same"
 import type { CommandArgs } from "./commands"
 
-// プラグインが書く既定の割り当て 1 つ（kit.defineKey で書き、id に頭が付く）。コマンドの引数の型が、args の型になる（引数の無いコマンドには書かない）
+// プラグインが書く既定のキーバインド 1 つ（kit.defineKey で書き、id と題名に頭が付く）。コマンドの引数の型が、args の型になる（引数の無いコマンドには書かない）。
+// title は、args で分かれるキーバインドを設定画面で見分ける題名（無ければコマンドの題名）
 export type KeyDef = {
-  [C in CommandId]: { id: string; key: string; command: C; scope: KeyScopeId } & (CommandArgs<C> extends []
-    ? { args?: undefined }
-    : { args: CommandArgs<C>[0] }) &
+  [C in CommandId]: {
+    id: string
+    key: string
+    command: C
+    scope: KeyScopeId
+    title?: string
+  } & (CommandArgs<C> extends [] ? { args?: undefined } : { args: CommandArgs<C>[0] }) &
     KeyExtras
 }[CommandId]
 
+// プラグインのキーの範囲: id と、画面に出す題名（設定画面の見出しなど。kit.defineKeyScope で書き、id と題名に頭が付く）
+export interface KeyScopeDef extends KeyScopeExtras {
+  id: string
+  title: string
+}
+
+export const defineKeyScope = <const Id extends string>(def: KeyScopeDef & { id: Id }): KeyScopeDef & { id: Id } => def
+
+// 土台のキーの範囲の題名
+export const BASE_KEY_SCOPE_TITLES: Readonly<Record<BaseKeyScope, MessageKey>> = {
+  global: "Whole screen",
+  stage: "Stage",
+  dialog: "While a dialog is open",
+  menu: "While a menu is open",
+}
+
 // 既定の 1 行と、それを書いたプラグイン（キーはそろえた書き方）
 export interface DefaultKey {
-  id: string // 既定の割り当ての id（KeyDef の id）
+  id: string // 既定のキーバインドの id（KeyDef の id）
+  title?: string // 設定画面で見分ける題名（KeyDef の title）
   binding: KeyBinding
   plugin: string
   builtin: boolean
@@ -30,18 +53,16 @@ export interface KeyEntry {
   plugin: string | null // 既定の行を書いたプラグイン（利用者の行は null）
 }
 
-// 使わなかった既定の行と、その理由（利用者が外した・ビルトインプラグインとぶつかった・追加プラグインどうしでぶつかった）
+// 使わなかった既定の行と、その理由（利用者が外した）
 export interface DroppedKey {
   entry: KeyEntry
-  reason: "removed" | "builtin" | "plugins"
+  reason: "removed"
 }
 
 export interface KeyTable {
-  active: readonly KeyEntry[] // 勝つ順（利用者の行は後に足したものが先）
+  active: readonly KeyEntry[] // 先の順（利用者の行は後に足したものが先）。同じ範囲・同じキーなら、先頭の行だけが効く
   dropped: readonly DroppedKey[]
 }
-
-const at = (b: KeyBinding) => `${b.scope}\u0000${b.key}`
 
 // 既定と利用者の変更から、表を作る。利用者の行で読めないキーのものは使わない
 export function keyTable(defaults: readonly DefaultKey[], changes: KeyChanges): KeyTable {
@@ -51,25 +72,23 @@ export function keyTable(defaults: readonly DefaultKey[], changes: KeyChanges): 
       return key ? [{ binding: { ...b, key }, from: "user" as const, plugin: null }] : []
     })
     .reverse()
-  const builtinAt = new Set(defaults.filter(d => d.builtin).map(d => at(d.binding)))
-  const pluginsAt = new Map<string, Set<string>>()
-  for (const d of defaults.filter(d => !d.builtin))
-    pluginsAt.set(at(d.binding), (pluginsAt.get(at(d.binding)) ?? new Set()).add(d.plugin))
   const builtin: KeyEntry[] = []
   const plugin: KeyEntry[] = []
   const dropped: DroppedKey[] = []
   for (const d of defaults) {
     const entry: KeyEntry = { binding: d.binding, from: d.builtin ? "builtin" : "plugin", plugin: d.plugin }
     if (changes.removed.some(r => sameBinding(r, d.binding))) dropped.push({ entry, reason: "removed" })
-    else if (d.builtin) builtin.push(entry)
-    else if (builtinAt.has(at(d.binding))) dropped.push({ entry, reason: "builtin" })
-    else if ((pluginsAt.get(at(d.binding))?.size ?? 0) > 1) dropped.push({ entry, reason: "plugins" })
-    else plugin.push(entry)
+    else (d.builtin ? builtin : plugin).push(entry)
   }
-  return { active: [...user, ...builtin, ...plugin], dropped }
+  // 追加プラグインは id の順（読み込んだ順は環境で変わるため）。同じプラグインの中は書いた順
+  const byPlugin = plugin
+    .map((e, i) => ({ e, i }))
+    .sort((a, b) => (a.e.plugin ?? "").localeCompare(b.e.plugin ?? "") || a.i - b.i)
+    .map(x => x.e)
+  return { active: [...user, ...builtin, ...byPlugin], dropped }
 }
 
-// その範囲で、そのキー（そろえた書き方）に勝つ行
+// その範囲で、そのキー（そろえた書き方）の先頭の行（効く行）
 export function findKey(table: KeyTable, scope: string, key: string): KeyEntry | undefined {
   return table.active.find(e => e.binding.scope === scope && e.binding.key === key)
 }
@@ -123,4 +142,65 @@ export function shadowedKeys(table: KeyTable): { entry: KeyEntry; by: KeyEntry }
     const by = findKey(table, "stage", e.binding.key)
     return by ? [{ entry: e, by }] : []
   })
+}
+
+// 設定画面の 1 行: 範囲 scope で、コマンド command を args の値で呼ぶキーバインドの並び（args で分かれるキーバインドは別の行）
+export interface KeyRow {
+  scope: string
+  command: string
+  args?: unknown
+  title?: string // 既定のキーバインドの題名（無ければコマンドの題名で出す）
+  keys: readonly { entry: KeyEntry; first: KeyEntry }[] // 表の順。first は同じ範囲・同じキーで効いている行（entry と違えば、entry は効いていない）
+  changed: boolean // 利用者が足したか外したキーバインドがある
+}
+
+type RowKey = Pick<KeyBinding, "scope" | "command" | "args">
+const inRow = (b: KeyBinding, row: RowKey) =>
+  b.scope === row.scope && b.command === row.command && sameData(b.args, row.args)
+
+// 既定と利用者の変更から、設定画面の行を作る（並びは既定の順、利用者だけが足した行はその後）
+export function keyRows(defaults: readonly DefaultKey[], changes: KeyChanges): KeyRow[] {
+  const table = keyTable(defaults, changes)
+  const rows: { key: RowKey; title?: string }[] = []
+  const add = (b: KeyBinding, title?: string) => {
+    if (!rows.some(r => inRow(b, r.key)))
+      rows.push({
+        key: { scope: b.scope, command: b.command, ...(b.args === undefined ? {} : { args: b.args }) },
+        title,
+      })
+  }
+  for (const d of defaults) add(d.binding, d.title)
+  for (const b of changes.added) add(b)
+  return rows.map(({ key, title }) => ({
+    ...key,
+    ...(title ? { title } : {}),
+    keys: table.active
+      .filter(e => inRow(e.binding, key))
+      .map(entry => ({ entry, first: findKey(table, entry.binding.scope, entry.binding.key) ?? entry })),
+    changed: [...changes.added, ...changes.removed].some(b => inRow(b, key)),
+  }))
+}
+
+// 利用者の変更に、キーバインド b を足した変更（外した既定なら外したのを取り消し、無ければ足した行に加える。読めないキーは足さない）
+export function withKeyAdded(changes: KeyChanges, b: KeyBinding): KeyChanges {
+  const key = normalizeKey(b.key)
+  if (!key) return changes
+  const binding = { ...b, key }
+  if (changes.removed.some(r => sameBinding(r, binding)))
+    return { ...changes, removed: changes.removed.filter(r => !sameBinding(r, binding)) }
+  if (changes.added.some(a => sameBinding(a, binding))) return changes
+  return { ...changes, added: [...changes.added, binding] }
+}
+
+// 利用者の変更から、キーバインド b を外した変更（利用者が足した行なら取り除き、既定なら外した行に加える）
+export function withKeyRemoved(changes: KeyChanges, b: KeyBinding): KeyChanges {
+  if (changes.added.some(a => sameBinding(a, b)))
+    return { ...changes, added: changes.added.filter(a => !sameBinding(a, b)) }
+  if (changes.removed.some(r => sameBinding(r, b))) return changes
+  return { ...changes, removed: [...changes.removed, b] }
+}
+
+// 行 row を既定に戻した変更（その行の、足した行と外した行を取り除く）
+export function withRowReset(changes: KeyChanges, row: RowKey): KeyChanges {
+  return { added: changes.added.filter(b => !inRow(b, row)), removed: changes.removed.filter(b => !inRow(b, row)) }
 }

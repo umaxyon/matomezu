@@ -1,4 +1,4 @@
-// 土台が読む利用者の設定の項目のビュー: 言語（言語パックの名前）・スキン（スキンの名前と自動）・キーの割り当て（準備中と出す）
+// 土台が読む利用者の設定の項目のビュー: 言語（言語パックの名前）・スキン（スキンの名前と自動）・キーバインド（準備中と出す）
 import { useMessages } from "../../../ui/i18n"
 import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"

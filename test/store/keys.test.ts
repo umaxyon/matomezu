@@ -1,11 +1,25 @@
 import { expect, test } from "bun:test"
 import type { MatomezuError } from "../../web/src/core/errors"
+import { defineMessages } from "../../web/src/core/i18n/messages"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
-import { type DefaultKey, inspectKey, keyScopes, keysOf, keyTable, shadowedKeys } from "../../web/src/store/keys"
+import {
+  BASE_KEY_SCOPE_TITLES,
+  type DefaultKey,
+  inspectKey,
+  keyRows,
+  keyScopes,
+  keysOf,
+  keyTable,
+  shadowedKeys,
+  withKeyAdded,
+  withKeyRemoved,
+  withRowReset,
+} from "../../web/src/store/keys"
+import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
 import { newStore } from "../support"
 
@@ -16,21 +30,26 @@ const def = (key: string, command: string, plugin: string, builtin = false, scop
   builtin,
 })
 
-test("勝つ順は 利用者 > ビルトインプラグイン > 追加プラグイン。追加の既定はビルトインとぶつかれば使わず、追加どうしでぶつかればどちらも使わない", () => {
+test("同じ範囲・同じキーは 利用者 → ビルトインプラグイン → 追加プラグインの id の順に並べ、先頭の行だけが効く", () => {
   const defaults = [
+    def("D", "b:dup", "b"),
     def("Delete", "@matomezu/paper:paper-delete", "@matomezu/paper", true),
     def("Delete", "a:del", "a"),
     def("D", "a:dup", "a"),
-    def("D", "b:dup", "b"),
     def("E", "b:edit", "b"),
   ]
   const table = keyTable(defaults, NO_KEY_CHANGES)
-  expect(table.active.map(e => e.binding.command)).toEqual(["@matomezu/paper:paper-delete", "b:edit"])
-  expect(table.dropped.map(d => [d.entry.binding.command, d.reason])).toEqual([
-    ["a:del", "builtin"],
-    ["a:dup", "plugins"],
-    ["b:dup", "plugins"],
+  // 追加プラグインは読み込んだ順でなく id の順（a が b より先）。同じプラグインの中は書いた順
+  expect(table.active.map(e => e.binding.command)).toEqual([
+    "@matomezu/paper:paper-delete",
+    "a:del",
+    "a:dup",
+    "b:dup",
+    "b:edit",
   ])
+  expect(table.dropped).toEqual([])
+  expect(inspectKey(table, { scope: "stage", key: "Delete" }).value).toBe("@matomezu/paper:paper-delete")
+  expect(inspectKey(table, { scope: "stage", key: "D" }).value).toBe("a:dup")
   // 利用者が足した行はビルトインプラグインに勝ち、後に足したものが先
   const user = keyTable(defaults, {
     added: [
@@ -47,7 +66,7 @@ test("勝つ順は 利用者 > ビルトインプラグイン > 追加プラグ�
     ["x:two", expect.objectContaining({ from: "user" })],
     ["x:one", expect.objectContaining({ from: "user" })],
     ["@matomezu/paper:paper-delete", expect.objectContaining({ from: "builtin" })],
-    [null, expect.objectContaining({ from: "plugin", plugin: "a", dropped: "builtin" })],
+    ["a:del", expect.objectContaining({ from: "plugin", plugin: "a" })],
   ])
 })
 
@@ -156,7 +175,7 @@ test("組み立ては、読めないキー・無いコマンド・追加プラ�
   expect(thrown(make([{ id: "k:a", key: "Delete", command: "k:own", scope: "stage" }]))).toBeNull()
 })
 
-test("追加プラグインの既定のキーがビルトインに負けたら W008、ほかの追加プラグインとぶつかったら W009 の warning を残す（どちらもその行は使わない）", () => {
+test("追加プラグインの既定のキーバインドがビルトインの行に負けたら W008、id の順で先の追加プラグインの行に負けたら W021 の warning を残す（負けた行は効かない）", () => {
   const command = (id: string) =>
     defineCommand({ id, title: "@matomezu/master:Master", run: () => {}, when: () => true })
   // id を引数で作るので、頭の確かめの型は外して渡す（組み立ての確かめは実行時に通る）
@@ -172,8 +191,7 @@ test("追加プラグインの既定のキーがビルトインに負けたら W
   })
   expect(warningsOf(instance.catalog).map(warningText)).toEqual([
     "W008 a: key Delete in stage for a:own: a builtin plugin's key is there (not used)",
-    "W009 b: key K in stage for b:own: another added plugin c has the same key (neither is used)",
-    "W009 c: key K in stage for c:own: another added plugin b has the same key (neither is used)",
+    "W021 c: key K in stage for c:own: added plugin b's key is there first (not used)",
   ])
 })
 
@@ -187,4 +205,66 @@ test("既定の割り当ては id で機能台帳に並び、同じ id は error
   const instance = createMatomezu({ plugins: [...BUILTIN, plugin([one])], partial: true })
   expect(instance.catalog.store.keys.get("k:a")?.binding).toEqual({ key: "K", command: "k:own", scope: "stage" })
   expect(instance.catalog.store.keys.get("@matomezu/paper:paper-delete-delete")?.binding.key).toBe("Delete")
+})
+
+test("キーの範囲は定義（KeyScopeDef）で機能台帳に並び、題名を持つ。kit が id と題名に頭を付け、同じ id は error。土台の範囲の題名は土台が持つ", () => {
+  const kit = pluginKit("k", defineMessages({ Panel: { en: "Panel", ja: "パネル" } }))
+  const scope = kit.defineKeyScope({ id: "panel", title: "Panel" })
+  expect(scope).toEqual({ id: "k:panel", title: "k:Panel" })
+  const make = (scopes: readonly unknown[]) => () =>
+    createMatomezu({ plugins: [...BUILTIN, kit.plugin({ keyScopes: scopes as never })], partial: true })
+  const instance = make([scope])()
+  expect(instance.catalog.store.keyScopes.get("k:panel")?.title).toBe("k:Panel")
+  expect(instance.catalog.store.keyScopes.get("@matomezu/tree:tree")?.title).toBe("@matomezu/tree:Tree")
+  expect(thrown(make([scope, scope]))).toEqual(["E001"])
+  expect(Object.keys(BASE_KEY_SCOPE_TITLES)).toEqual(["global", "stage", "dialog", "menu"])
+})
+
+test("設定画面の行は 範囲・コマンド・args ごと。効いていない行は first が別の行。足す・外す・行を既定に戻すは利用者の変更を作り直す", () => {
+  const defaults = [
+    def("Z", "a:undo", "@matomezu/a", true),
+    def("Y", "a:redo", "@matomezu/a", true),
+    {
+      ...def("ArrowUp", "t:move", "t"),
+      binding: { key: "ArrowUp", command: "t:move", scope: "stage", args: { to: "up" } },
+      title: "t:Up",
+    },
+    {
+      ...def("ArrowDown", "t:move", "t"),
+      binding: { key: "ArrowDown", command: "t:move", scope: "stage", args: { to: "down" } },
+    },
+    def("Z", "p:other", "p"),
+  ]
+  const rows = keyRows(defaults, NO_KEY_CHANGES)
+  expect(rows.map(r => [r.command, r.args, r.title])).toEqual([
+    ["a:undo", undefined, undefined],
+    ["a:redo", undefined, undefined],
+    ["t:move", { to: "up" }, "t:Up"],
+    ["t:move", { to: "down" }, undefined],
+    ["p:other", undefined, undefined],
+  ])
+  // p:other の Z は、ビルトインの a:undo が先なので効いていない
+  const other = rows[4]!.keys[0]!
+  expect(other.first.binding.command).toBe("a:undo")
+  expect(rows[0]!.keys[0]!.first).toBe(rows[0]!.keys[0]!.entry)
+
+  const undoZ = { key: "Z", command: "a:undo", scope: "stage" }
+  // 既定を外すと外した行に、利用者の行を足すと足した行に入る。足し直すと外したのを取り消す
+  const removed = withKeyRemoved(NO_KEY_CHANGES, undoZ)
+  expect(removed).toEqual({ added: [], removed: [undoZ] })
+  expect(withKeyAdded(removed, undoZ)).toEqual(NO_KEY_CHANGES)
+  const added = withKeyAdded(removed, { key: "mod+u", command: "a:undo", scope: "stage" })
+  expect(added.added).toEqual([{ key: "Mod+U", command: "a:undo", scope: "stage" }])
+  expect(keyRows(defaults, added)[0]).toMatchObject({ changed: true })
+  expect(withKeyRemoved(added, { key: "Mod+U", command: "a:undo", scope: "stage" }).added).toEqual([])
+  // 行を既定に戻すと、その行の変更だけが消える（args で分かれる行も、その args の行だけ）
+  const moved = withKeyAdded(added, { key: "K", command: "t:move", scope: "stage", args: { to: "up" } })
+  expect(withRowReset(moved, { scope: "stage", command: "a:undo" })).toEqual({
+    added: [{ key: "K", command: "t:move", scope: "stage", args: { to: "up" } }],
+    removed: [],
+  })
+  expect(withRowReset(moved, { scope: "stage", command: "t:move", args: { to: "down" } })).toEqual(moved)
+  // 利用者の行は先なので、ぶつかったビルトインの行が効かなくなる
+  const taken = keyRows(defaults, withKeyAdded(NO_KEY_CHANGES, { key: "Y", command: "a:undo", scope: "stage" }))
+  expect(taken[1]!.keys[0]!.first.binding.command).toBe("a:undo")
 })

@@ -5,7 +5,6 @@
 import type {
   CapabilityTable,
   ContextMenuTable,
-  KeyScopeTable,
   MenuTable,
   MessageTable,
   Part,
@@ -37,7 +36,6 @@ type Unowned<P, Table, Base extends string, Kind extends string> =
       : `${Kind}:${N & string}`
     : never
 type NameGaps<P> =
-  | Unowned<P, KeyScopeTable, "global" | "stage" | "dialog" | "menu", "keyScope">
   | Unowned<P, SlotTable, "root", "slot">
   | Unowned<P, MenuTable, never, "menu">
   | Unowned<P, ContextMenuTable, never, "contextMenu">

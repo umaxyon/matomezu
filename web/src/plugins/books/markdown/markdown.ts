@@ -11,7 +11,8 @@ import { MARKDOWN_TOKENS } from "./tokens"
 export const MARKDOWN_PRESENTATION = kit.definePresentation({ id: "markdown", paper: false })
 
 // ソースのペインのテキストFormが名乗るキーの範囲（その中で押したキーは、この範囲だけで引く）
-export const SOURCE_KEYS_SCOPE = kit.name("source")
+export const SOURCE_KEY_SCOPE = kit.defineKeyScope({ id: "source", title: "Source" })
+export const SOURCE_KEYS_SCOPE = SOURCE_KEY_SCOPE.id
 
 // ビューが開く右クリックのメニュー: ペインのタブ（右クリックしたペインを受け取る）（ui.tsx で core/catalog.ts に書き足す）
 export const PANE_CONTEXT = kit.name("pane-context")

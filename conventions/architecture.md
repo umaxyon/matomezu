@@ -12,7 +12,7 @@
 | `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）と外の世界（通信・保存・URL・クリップボード）に頼む口 | `core`・`store`・`host-client`・zod |
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`（ビルトインの一覧と、各プラグインの入口だけ）・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
-| `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーの割り当てでビルトインを先に扱う）と、組み立てのときの確かめ（`checks`）を書く `CatalogCheck`・`problem`・`warning`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
+| `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーバインドでビルトインを先に扱う）と、組み立てのときの確かめ（`checks`）を書く `CatalogCheck`・`problem`・`warning`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
 | `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（base の入口の名前を、一つずつ書いて出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
 | `testing` | テストで組む入口（`matomezu/testing`） | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
 | `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`index.ts` はホストのエンジン用、`ui.ts` は画面用） | `plugin-entry`・React |
@@ -78,7 +78,7 @@
 - warning は、その組み合わせ（プラグイン・ブック・配置）である間ずっと成り立つ問題に使う。画面で見つかっても常駐で見つかっても、そうした問題は warning に落とす。一度きりの出来事（アクションを断られた・通信が切れた・描くときの例外）は warning にしない（断りはトーストかダイアログ、error は E、調べるための記録はログ）
 - 止めるほどではない間違い（その物だけ効かない）は、error にせず warning にする。warning は `core/warnings.ts` の表に番号（W と 3 桁）と文を書き、どのプラグインの warning かを添えて、組み立てが機能台帳に集める
 - 番号の決まりと文は error と同じ（変えない・使い回さない・開発者向けの英語で画面には出さない）
-- 追加プラグインの既定のキーが、ビルトインプラグインのキー（同じ範囲の同じキー）に負けたとき、ほかの追加プラグインのキーとぶつかって両方使わなかったときは、warning にする
+- 追加プラグインの既定のキーバインドが、同じ範囲・同じキーのほかのプラグインのキーバインドに負けて効かないときは、warning にする（利用者のキーバインドに負けたときは warning にしない）
 - 常駐は読み込んだときに warning をログに書く。ビルトインプラグインは warning を出さない（テストが見張る）
 - 読めないブック（タイプが無い・形に合わない・アイテムどうしの決まりを守らない）も warning にする。warning にはブックの id と名前を添え、どのプラグインの warning かはタイプの持ち主。確かめる関数は core に 1 つだけ置き、画面もホストも使う
 - ホストは問題の一覧（定義の warning と読めないブック）をメモリに持つ。起動したときとプラグインが変わったときに全部のブックを、ブックが保存されたときにその 1 冊を確かめ直す（読めるかは今のプラグインで決まる値なので、DB には残さない）。ログに書き、AI の `list_books` は読めないブックに理由を添える。AI が読めないブックにアクションを行うと、「無い」（`no-book`）でなく `unreadable` とその理由で断る

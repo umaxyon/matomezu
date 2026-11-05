@@ -24,10 +24,11 @@
 | 文言の組（`MessageSetDef`） | プラグイン 1 つの、画面に出す文と訳（id は `<プラグインの id>:messages`） | `core/i18n/messages.ts` |
 | 言語パック（`LanguagePackDef`） | 言語 1 つの名前と、どのプラグインの文言にも足せる訳（id は `<プラグインの id>:<言語>`） | `core/i18n/messages.ts` |
 | テーマキー（`TokenDef`） | テーマの値の名前と既定 | `core/def/theme.ts` |
-| キーの既定の割り当て（`KeyDef`） | キーとコマンドの組 1 つ | `store/keys.ts` |
+| 既定のキーバインド（`KeyDef`） | キーとコマンドの組 1 つ | `store/keys.ts` |
+| キーの範囲（`KeyScopeDef`） | キーバインドが効く場面の名前と、画面に出す題名 | `store/keys.ts` |
 
-- 定義の種類（文言の組・言語パック・テーマキー・キーの既定の割り当てを除く上の表）の一覧は `core/catalog.ts` の `PARTS`（フィールドの名前・入る台帳・error の文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その台帳のクレートが `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインのフィールド（`PluginParts`）・core 台帳と store 台帳・id の頭と重なりの検査は、この一覧から作る。種類ごとに意味の違う見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く（種類が抜けると型の誤り。書いたフィールドと関数があることはテストが確かめる）
-- 文言の組・言語パック・テーマキー・キーの既定の割り当ては、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとブックのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作り、土台の文言の組と言語の id の頭は `matomezu`（`matomezu:messages`・`matomezu:en`・`matomezu:ja`）
+- 定義の種類（文言の組・言語パック・テーマキー・既定のキーバインドを除く上の表）の一覧は `core/catalog.ts` の `PARTS`（フィールドの名前・入る台帳・error の文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その台帳のクレートが `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインのフィールド（`PluginParts`）・core 台帳と store 台帳・id の頭と重なりの検査は、この一覧から作る。種類ごとに意味の違う見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く（種類が抜けると型の誤り。書いたフィールドと関数があることはテストが確かめる）
+- 文言の組・言語パック・テーマキー・既定のキーバインドは、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとブックのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作り、土台の文言の組と言語の id の頭は `matomezu`（`matomezu:messages`・`matomezu:en`・`matomezu:ja`）
 - 定義は `defineX()` で書く。React を使わない（描き方はプラグインの見た目で結ぶ）
 
 - core 台帳は定義の組から作り、作ったあとは変えない。作るときに表どうしの参照を確かめ、食い違えば作らない
@@ -36,7 +37,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う
@@ -99,7 +100,7 @@
 - 機能台帳に無い設定の項目（プラグインを外したなど）は、使わずにデータに残し、設定のダイアログに出さない。機能台帳にあってタイプが選んでいない項目は読めない（warning にする）
 - 名前は id の 1 つだけ（`field` は持たない）。変える鍵もデータに残す鍵も設定の id で、データはブックとページの `settings` というフィールドの中に入れる（例: `settings: { "@matomezu/line:line-route": "elbow" }`）
 - 利用者の設定の項目は、プラグインの `userSettings` に置く。1 つの id を、ブックの設定の項目と利用者の設定の項目の両方には使わない。利用者の設定も、機能台帳に無い項目を使わずに残す
-- 土台は、自分が読む利用者の設定の項目（言語・スキン・キーの割り当て）を、id でなく `role` で引く。`role` を持てるのはビルトインプラグインの項目だけで、1 つの `role` は 1 つの項目だけが持つ。言語パック・スキン・キーを足すプラグインは `role` を書かない（足した物は、その項目の選択肢になる）
+- 土台は、自分が読む利用者の設定の項目（言語・スキン・キーバインド）を、id でなく `role` で引く。`role` を持てるのはビルトインプラグインの項目だけで、1 つの `role` は 1 つの項目だけが持つ。言語パック・スキン・キーバインドを足すプラグインは `role` を書かない（足した物は、その項目の選択肢になる）
 - 利用者の設定の項目ごとに、変えるアクションを作らない（変えるのは base のアクション 1 つ）
 
 ## アクション
@@ -117,7 +118,7 @@
 - `attach` に `pages` か `items` を書いたアクションの `run` には、ページを持つブックの型（`PagedBook`）で渡す（`books`・`presentations`・`annotations` も書いたら `Book` のまま）。`perform` はページの無いブックには断る。プラグインは言い張り（`as`）を書かない
 - ブックが対象のアクションは、ブックのどこを変えるかを許可の範囲（`permissionScope`）に書く（無ければ型の誤り）。`"book"`（ページもアイテムも変えない）か、所を表す自分の引数の名前（`{ page, item, items }`）。名前で言えなければ、引数から所を返す関数。利用者の設定が対象のアクションも、変える項目を許可の範囲に書く（項目の id を鍵に持つ自分の引数の名前か、引数から項目の id を返す関数）
 - 一覧（`library`）が対象のアクションも、変えるブックを許可の範囲に書く（無ければ型の誤り）。`{ book: 自分の引数の名前 }`（ブックの id）か `{ books: … }`（id の並び）で、ブックのページを含む全部を変えるなら `where: "all-pages"`（書かなければページもアイテムも変えない）。作るなら `{ create: … }`（タイプの id）。名前で言えなければ、引数から変えるブックと作るタイプを返す関数。行う前に変えるブックが分からなければ `"unknown"`
-- アクションを行うコマンドは、行うアクションを `performs` に書く。どれかが今のブック（ブックかアノテーションが対象でなければホームのタイプ）で使えなければ、土台はそのコマンドを出さない（メニュー・右クリックのメニュー・ツールボックス・キーのどれからも）。どれも認可ステップに止められるなら、土台はそのコマンドを出したまま押せなくする。`when` は、出すコマンドの中で決める。キーは、今使えるコマンドの割り当てのうち、狭い範囲から先に見つかった物が効く（使えない割り当ては無いものとして、次の範囲の同じキーを探す。使える物が無ければ何もしない）。テキストForm の中で、テキストForm に任せるキー（Escape と 1 行のテキストForm の Enter のほか）を効かせるには、テキストForm の要素が名乗った範囲に割り当てる（ほかの範囲の割り当ては効かない）
+- アクションを行うコマンドは、行うアクションを `performs` に書く。どれかが今のブック（ブックかアノテーションが対象でなければホームのタイプ）で使えなければ、土台はそのコマンドを出さない（メニュー・右クリックのメニュー・ツールボックス・キーのどれからも）。どれも認可ステップに止められるなら、土台はそのコマンドを出したまま押せなくする。`when` は、出すコマンドの中で決める。キーは、今使えるコマンドのキーバインドのうち、狭い範囲から先に見つかった物が効く。同じ範囲・同じキーのキーバインドは捨てずに並べ（利用者 → ビルトインプラグイン → 追加プラグインの id の順）、効くのはその先頭の 1 つだけ。先頭がその場で使えなければ、同じ範囲のほかの物は見ずに次の範囲の同じキーを探す（使える物が無ければ何もしない）。テキストForm の中で、テキストForm に任せるキー（Escape と 1 行のテキストForm の Enter のほか）を効かせるには、テキストForm の要素が名乗った範囲にキーバインドを置く（ほかの範囲のキーバインドは効かない）
 - ブックが対象のアクションを行うコマンドは、許可の範囲（`permissionScope`）を書く（無ければ型の誤り）。`"book"`・`"opened-page"`（開いているページ）・`"selection"`（選んでいる物。形の中身やページのフィールドの中の物も含む）か、呼ばれた場所の様子から所を返す関数
 - ブックが対象のアクションのうち、図の内容でなくブックの扱いを変える物（ロックの掛け外しなど）には `history: false` を書く。書いたアクションは画面の履歴に入らない
 - 利用者が AI に話しかけたときに行うアクションは、アクションの定義が `runsWhenUserTalks` で名乗る（アノテーションが対象のアクションだけ。引数は受けない）。matomezu が利用者として、アノテーションのあるブックごとに行う
@@ -174,8 +175,8 @@
 - 1 つのインスタンスの中で、種類ごとに一意。データに残る id は、ほかのマシンやほかの人の matomezu でも同じものを指す
 - プラグインが足す物の id は `<プラグインの id>:<名前>`（例: `@foo/stars:star`・`@matomezu/box:shape-box`）。ビルトインプラグインも同じ。定義の種類・テーマキー・ウィジェット・スロット・キーの範囲・メニュー・右クリックのメニュー・能力・その場の編集の名前のどれも
 - 名前に使える字は英小文字・数字・`-` だけで、先頭は英小文字（kebab-case）。プラグインの id（npm のパッケージ名）は `:` を含まないので、区切りを見誤らない
-- `:` の無い名前は土台の言葉（スロットの `root`、キーの範囲の `stage`・`dialog`・`menu`・`global`、土台のテーマキーの `accent` など）。土台の文言の組と言語パックの id だけは `matomezu:<名前>`（`matomezu:messages`・`matomezu:en`）
-- キーの範囲・スロット・メニュー・右クリックのメニュー・能力の名前は、`core/catalog.ts`（`KeyScopeTable`・`SlotTable`・`MenuTable`・`ContextMenuTable`・`CapabilityTable`）に書き足して作る。土台の言葉のほかは `<プラグインの id>:<名前>` で、渡したプラグインの id で始まるかを `createMatomezu` の型が確かめる
+- `:` の無い名前は土台の言葉（スロットの `root`、キーの範囲の `stage`・`dialog`・`menu`・`global`、土台のテーマキーの `accent` など）。土台のキーの範囲は、題名も土台が持つ（土台の文言）。土台の文言の組と言語パックの id だけは `matomezu:<名前>`（`matomezu:messages`・`matomezu:en`）
+- スロット・メニュー・右クリックのメニュー・能力の名前は、`core/catalog.ts`（`SlotTable`・`MenuTable`・`ContextMenuTable`・`CapabilityTable`）に書き足して作る。土台の言葉のほかは `<プラグインの id>:<名前>` で、渡したプラグインの id で始まるかを `createMatomezu` の型が確かめる
 - プラグインは自分の物を短い名前で定義する。プラグイン API の `pluginKit(プラグインの id, 文言)` が返す定義の関数（`kit.defineShape` など）が頭を付け、返した定義の id は長い形（型も）。自分の物は返した定義（`STAR.id`）か `kit.name(名前)` で名指し、ほかのプラグインの物は長い id で書く
 - その場の編集の名前（`setEditing` に渡す名前）は、表に書き足さず `kit.name(名前)` で作る。ただの文字を渡さない
 - ブックのタイプの `schema` に `type` は書かず、`create` の返すブックにも書かない。1 冊だけのタイプの `book` には `type`・`id` を書かない（`kit.defineBookType` が本当の id で足す）

@@ -129,7 +129,7 @@ export interface Actions {
   previewDialog(preview: DialogPreview | null): void
   submitDialog(): void // 開いているダイアログに、決めるように頼む（枠が中身の form を送る）
   // 押したキー（そろえた書き方）を、開いているメニュー・ダイアログ・カレントのステージの範囲で引き、当たったコマンドを行う。
-  // 範囲は狭い方から順に引き、その場で使えるコマンドに当たった所で行う（使えない割り当ては無いものとして、次の範囲の同じキーを探す）。scopes は押した所の要素が名乗ったプラグインの範囲。
+  // 範囲は狭い方から順に引き、その場で使えるコマンドに当たった所で行う（使えないキーバインドは無いものとして、次の範囲の同じキーを探す）。scopes は押した所の要素が名乗ったプラグインの範囲。
   // reach が "named" なら scopes だけを引く（テキストFormが自分で名乗った範囲）。行ったか返す
   pressKey(key: string, scopes?: readonly string[], reach?: KeyReach): boolean
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
@@ -210,7 +210,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   locate(address: Address): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setOffline(offline: boolean): void
-  // 今の利用者の設定でのキーの割り当ての表（作り直すのは利用者の変更が変わったときだけ。画面がキーの名前を出すのに使う）
+  // 今の利用者の設定でのキーバインドの表（作り直すのは利用者の変更が変わったときだけ。画面がキーの名前を出すのに使う）
   keys(): KeyTable
   // プラグイン owner（プラグインの id）が持つ、ステージ stage の画面の状態を value にする（undefined なら消す）。無いステージには置かない。
   // プラグインは、自分の kit を渡すフック useSetStageState を通して、自分の置き場だけを変える（プラグインに渡す actions には入れない）
@@ -341,7 +341,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     return { books, warnings, partial }
   }
-  // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
+  // キーバインドの表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { settings: Settings; table: KeyTable } | null = null
   const keysFor = (settings: Settings): KeyTable => {
     if (keyCache?.settings !== settings)

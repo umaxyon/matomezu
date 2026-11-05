@@ -12,6 +12,9 @@ export const LEFT_DRAWER_CLOSE = kit.defineCommand({
   when: ctx => leftDrawerIn(ctx.stageState) !== null,
 })
 
+// 左ドロワーの中にフォーカスがある間のキーの範囲（名前はスロットと同じ）
+export const LEFT_DRAWER_KEY_SCOPE = kit.defineKeyScope({ id: "left-drawer", title: "Left drawer" })
+
 export const LEFT_DRAWER_KEYS = [
   kit.defineKey({ id: "left-drawer-close-escape", key: "Escape", command: LEFT_DRAWER_CLOSE.id, scope: LEFT_DRAWER }),
 ]
