@@ -4,9 +4,10 @@
 // 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
 import { type ReactNode, useMemo, useState } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
+import type { ActionId } from "../../../core/catalog"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useLayout, useReadState } from "../../../ui/store-context"
-import { useBook, useCoreCatalog, useUiCatalog } from "../../../ui/view-hooks"
+import { useAllowed, useBook, useCoreCatalog, useUiCatalog } from "../../../ui/view-hooks"
 import { useAnnotationsIn, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -55,6 +56,8 @@ function Row({ stage, annotation: a, now }: { stage: string; annotation: AiAnnot
   const at = listed?.def.addedAt(listed.props as never) ?? null
   const text = clampChars(listed?.def.text?.(listed.props as never) ?? name, BUBBLE_CHARS)
   const withdraw = listed?.def.withdraw
+  // 取消のアクションを行えなければ（認可ステップが止めたなど）、取消を押せなくする
+  const withdrawable = useAllowed(stage, (withdraw?.action ?? "") as ActionId).ok
   const [asking, setAsking] = useState(false)
   return (
     <li className={styles.row} data-read={!a.awaits}>
@@ -87,6 +90,7 @@ function Row({ stage, annotation: a, now }: { stage: string; annotation: AiAnnot
             type="button"
             className={styles.withdraw}
             aria-label={t("Withdraw {name}", { name: text })}
+            disabled={!withdrawable}
             onClick={() => setAsking(true)}
           >
             {t("Withdraw")}

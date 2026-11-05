@@ -110,3 +110,7 @@
   font-size: 10px;
   cursor: pointer;
 }
+.withdraw:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
