@@ -176,6 +176,7 @@ export const TREE_KEYS = [
   kit.defineKey({ id: "node-add-sibling-enter", key: "Enter", command: NODE_ADD_SIBLING.id, scope: TREE_KEYS_SCOPE }),
   kit.defineKey({
     id: "node-select-up",
+    title: "Move selection up",
     key: "ArrowUp",
     command: NODE_SELECT_MOVE.id,
     args: { to: "up" },
@@ -183,6 +184,7 @@ export const TREE_KEYS = [
   }),
   kit.defineKey({
     id: "node-select-down",
+    title: "Move selection down",
     key: "ArrowDown",
     command: NODE_SELECT_MOVE.id,
     args: { to: "down" },
@@ -190,6 +192,7 @@ export const TREE_KEYS = [
   }),
   kit.defineKey({
     id: "node-select-left",
+    title: "Move selection left",
     key: "ArrowLeft",
     command: NODE_SELECT_MOVE.id,
     args: { to: "left" },
@@ -197,6 +200,7 @@ export const TREE_KEYS = [
   }),
   kit.defineKey({
     id: "node-select-right",
+    title: "Move selection right",
     key: "ArrowRight",
     command: NODE_SELECT_MOVE.id,
     args: { to: "right" },

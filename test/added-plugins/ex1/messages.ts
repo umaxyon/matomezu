@@ -5,6 +5,7 @@ export const EX1_MESSAGES = defineMessages({
   sayHello: { en: "Say hello", ja: "あいさつする" },
   helloName: { en: "Hello, {name}", ja: "こんにちは、{name}" },
   switchLanguage: { en: "Switch language", ja: "言語を切り替える" },
+  switchToJapanese: { en: "Switch to Japanese", ja: "日本語に切り替える" },
   inspectItem: { en: "Inspect item", ja: "アイテムを調べる" },
   itemId: { en: "Item {id}", ja: "アイテム {id}" },
   pageSettings: { en: "Page settings by ex1", ja: "ex1 のページの設定" },

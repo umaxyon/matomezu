@@ -103,7 +103,7 @@ test("組み立ては、名前の字と、テーマキーの名前が土台の C
   })
 })
 
-test("文言の組・言語パック・キーの既定の割り当ても id を持つ（文言の組は「プラグインの id:messages」、言語パックは「プラグインの id:言語」）", () => {
+test("文言の組・言語パック・既定のキーバインドも id を持つ（文言の組は「プラグインの id:messages」、言語パックは「プラグインの id:言語」）", () => {
   expect(kit.plugin({}).messages.id).toBe("@foo/stars:messages")
   expect(kit.plugin({}).messages.messages).toEqual(kit.messages)
   const fr = kit.defineLanguagePack({

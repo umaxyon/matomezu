@@ -19,7 +19,7 @@ import { useActions, useCatalog, useMatomezuState, useReadState, useUiCatalog } 
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { paperSize } from "../place/items"
-import { useOpenRightSidePanel, useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
+import { useOpenRightSidePanel, useRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets, hasCrossing } from "./book-sheets"
@@ -147,7 +147,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const fit = useCommand(id, PRINT_PREVIEW_FIT.id)
   const fitRef = useRef(fit)
   fitRef.current = fit
-  const sliding = useRightSidePanelSliding(shown ? id : null)
+  const sliding = useSidePanelSliding(shown ? id : null)
   const fitted = useRef<{ zoom: number | null; size: string } | null>(null) // 収めたときの倍率と表示領域の大きさ
   const { known, size } = useExtent(id)
   useEffect(() => {

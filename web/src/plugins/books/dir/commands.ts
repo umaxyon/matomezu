@@ -285,6 +285,7 @@ export const ENTRY_DELETE = kit.defineCommand({
 export const DIR_KEYS = [
   kit.defineKey({
     id: "entry-select-up",
+    title: "Move selection up",
     key: "ArrowUp",
     command: ENTRY_SELECT_MOVE.id,
     args: { to: "up" },
@@ -292,6 +293,7 @@ export const DIR_KEYS = [
   }),
   kit.defineKey({
     id: "entry-select-down",
+    title: "Move selection down",
     key: "ArrowDown",
     command: ENTRY_SELECT_MOVE.id,
     args: { to: "down" },

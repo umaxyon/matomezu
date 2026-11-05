@@ -12,7 +12,7 @@ import {
   LIST_STRETCH_ROW,
 } from "./commands"
 import { kit } from "./kit"
-import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
+import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, LIST_ROWS_KEY_SCOPE, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 
 export const LIST_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -28,6 +28,7 @@ export const LIST_PLUGIN = defineBuiltin(
       LIST_MOVE_ROW,
     ],
     keys: LIST_KEYS,
+    keyScopes: [LIST_ROWS_KEY_SCOPE],
     dialogs: [LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG],
   }),
 )
@@ -55,7 +56,7 @@ declare module "../../../core/catalog" {
     "@matomezu/list:list-move-row": typeof LIST_MOVE_ROW
   }
   interface KeyScopeTable {
-    "@matomezu/list:rows": true // 行の並び（行を押すと焦点が入る）のキー
+    "@matomezu/list:rows": typeof LIST_ROWS_KEY_SCOPE // 行の並び（行を押すと焦点が入る）のキー
   }
   interface DialogTable {
     "@matomezu/list:list-add": typeof LIST_ADD_DIALOG

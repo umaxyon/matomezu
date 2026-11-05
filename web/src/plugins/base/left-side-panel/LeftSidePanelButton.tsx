@@ -1,25 +1,25 @@
-// 左ドロワーを開くボタン（ウィジェット left-drawer-button。フッタメニューに置く）。押すと最初のタブを開き、開いていれば閉じる。タブが無ければ出さない
+// 左サイドパネルを開くボタン（ウィジェット left-side-panel-button。フッタメニューに置く）。押すと最初のタブを開き、開いていれば閉じる。タブが無ければ出さない
 import { useMessages } from "../../../ui/i18n"
 import styles from "../book-name/StageMenuButtons.module.css"
 import { kit } from "../kit"
 import type { StageSlotProps } from "../workspace/ui"
-import { useLeftDrawer, useLeftDrawerTabs, useSetLeftDrawer } from "./hooks"
+import { useLeftSidePanel, useLeftSidePanelTabs, useSetLeftSidePanel } from "./hooks"
 
-export function LeftDrawerButton({ stage }: StageSlotProps) {
+export function LeftSidePanelButton({ stage }: StageSlotProps) {
   const t = useMessages(kit)
-  const tabs = useLeftDrawerTabs()
-  const open = useLeftDrawer(stage)
-  const set = useSetLeftDrawer()
+  const tabs = useLeftSidePanelTabs()
+  const open = useLeftSidePanel(stage)
+  const set = useSetLeftSidePanel()
   const first = tabs[0]
   if (!first) return null
   return (
     <button
       type="button"
       className={styles.item}
-      aria-label={t("Open the left drawer")}
-      title={t("Open the left drawer")}
+      aria-label={t("Open the left side panel")}
+      title={t("Open the left side panel")}
       aria-pressed={open !== null}
-      data-left-drawer-opener
+      data-left-side-panel-opener
       onClick={() => set(stage, open === null ? first : null)}
     >
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">

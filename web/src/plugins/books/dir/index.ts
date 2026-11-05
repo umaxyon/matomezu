@@ -20,7 +20,7 @@ import {
   FOLDER_SORT_DESC,
   FOLDER_TOGGLE,
 } from "./commands"
-import { DIR, DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
+import { DIR, DIR_KEY_SCOPE, DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
 import { kit } from "./kit"
 import { NOTES } from "./notes"
 import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
@@ -50,6 +50,7 @@ export const DIR_PLUGIN = defineBuiltin(
       ENTRY_DELETE,
     ],
     keys: DIR_KEYS,
+    keyScopes: [DIR_KEY_SCOPE],
     tools: [PENCIL_TOOL],
     toolSets: [DIR_TOOLS],
   }),
@@ -92,7 +93,7 @@ declare module "../../../core/catalog" {
     "@matomezu/dir:entry-delete": typeof ENTRY_DELETE
   }
   interface KeyScopeTable {
-    "@matomezu/dir:dir": true // ディレクトリ構成図の見せ方で描いている間のキー
+    "@matomezu/dir:dir": typeof DIR_KEY_SCOPE // ディレクトリ構成図の見せ方で描いている間のキー
   }
   interface ToolTable {
     "@matomezu/dir:pencil": typeof PENCIL_TOOL

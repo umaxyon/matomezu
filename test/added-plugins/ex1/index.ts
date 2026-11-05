@@ -53,7 +53,14 @@ export const INSPECT = kit.defineCommand({
 // 既定のキー。結べるのは自分のコマンドだけで、引数のあるコマンドには args に決まった値を書く
 export const EX1_KEYS = [
   kit.defineKey({ id: "hello-key", key: "Mod+Shift+H", command: HELLO.id, scope: "stage" }),
-  kit.defineKey({ id: "lang-ja-key", key: "Mod+Shift+J", command: SWITCH_LANG.id, scope: "global", args: "ja" }),
+  kit.defineKey({
+    id: "lang-ja-key",
+    key: "Mod+Shift+J",
+    command: SWITCH_LANG.id,
+    scope: "global",
+    args: "ja",
+    title: "switchToJapanese",
+  }),
 ]
 
 export const EX1 = definePlugin(

@@ -14,7 +14,16 @@ instance.actions.command("s1", "ex1:nope")
 // @ts-expect-error 型を書き足した ex1 を渡し忘れた
 createMatomezu({ plugins: BUILTIN_UI, home: "master" })
 // @ts-expect-error 引数の型が違う既定のキー
-kit.defineKey({ id: "bad-key", key: "Mod+K", command: "ex1:lang", scope: "global", args: "de" })
+kit.defineKey({
+  id: "bad-key",
+  key: "Mod+K",
+  command: "ex1:lang",
+  scope: "global",
+  args: "de",
+  title: "switchToJapanese",
+})
+// @ts-expect-error args を書いたキーバインドに題名が無い（設定画面で、同じコマンドのほかの行と見分けられない）
+kit.defineKey({ id: "no-title-key", key: "Mod+K", command: "ex1:lang", scope: "global", args: "ja" })
 kit.defineCommand({
   id: "arg",
   title: "sayHello",

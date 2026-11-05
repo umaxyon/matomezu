@@ -1,4 +1,4 @@
-// プラグイン: 1 つの部品の定義の組（定義の種類は core/catalog.ts の PARTS と、store の物（コマンド・ダイアログ・キーの既定の割り当てなど））。React を使わない部分だけを持つ。
+// プラグイン: 1 つの部品の定義の組（定義の種類は core/catalog.ts の PARTS と、store の物（コマンド・ダイアログ・既定のキーバインドなど））。React を使わない部分だけを持つ。
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
 import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
@@ -15,21 +15,22 @@ import { type AutoSkin, autoSkin } from "../core/skin"
 import { type Warning, warning } from "../core/warnings"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef, DialogTaking, PageSettingsArgs } from "./dialogs"
-import { type DefaultKey, type KeyDef, keyTable } from "./keys"
+import { type DefaultKey, findKey, type KeyDef, type KeyScopeDef, keyTable } from "./keys"
 
 // store 台帳の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
 declare module "../core/catalog" {
   interface PartDefTable {
     commands: CommandDef<never>
     dialogs: DialogDef<unknown>
+    keyScopes: KeyScopeDef
   }
 }
 
-// プラグインが持つ定義: 定義の種類ごとの並び（core/catalog.ts の PARTS）と、文言・言語・キーの既定の割り当て
+// プラグインが持つ定義: 定義の種類ごとの並び（core/catalog.ts の PARTS）と、文言・言語・既定のキーバインド
 export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } & {
   messages?: MessageSetDef // このプラグインの文言（defineMessages で書いて pluginKit に渡し、core/catalog.ts の MessageTable に書き足す）
   languages?: readonly LanguagePackDef[] // 持ち込む言語（kit.defineLanguagePack。ほかのプラグインの文言の訳も持てる）
-  keys?: readonly KeyDef[] // キーの既定の割り当て（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
+  keys?: readonly KeyDef[] // 既定のキーバインド（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
   checks?: readonly CatalogCheck[] // 組み立てのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E308 で止める）
   normalizeSteps?: readonly NormalizeStep[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E310 で止める）
@@ -107,7 +108,7 @@ export const definePlugin = <const P extends Plugin>(
 export type { CatalogCheck }
 export { problem, warning }
 
-// ビルトインプラグインの印: キーの割り当てで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
+// ビルトインプラグインの印: キーバインドで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")
 export function defineBuiltin<const P extends Plugin>(
@@ -117,11 +118,12 @@ export function defineBuiltin<const P extends Plugin>(
 }
 export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
 
-// store 台帳: コマンド・ダイアログ・キーの既定の割り当て
+// store 台帳: コマンド・ダイアログ・キーの範囲・キーの既定のキーバインド
 export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
-  keys: ReadonlyMap<string, DefaultKey> // キーの既定の割り当て（id → 割り当て。キーはそろえた書き方）
+  keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名は store/keys.ts の BASE_KEY_SCOPE_TITLES）
+  keys: ReadonlyMap<string, DefaultKey> // キーの既定のキーバインド（id → キーバインド。キーはそろえた書き方）
   warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
 }
 
@@ -168,6 +170,7 @@ export function assemble(
   const all = <K extends Part>(kind: K) => plugins.flatMap(p => (p[kind] ?? []) as readonly PartDefTable[K][])
   const commands = all("commands")
   const dialogs = all("dialogs")
+  const keyScopes = all("keyScopes")
   // core 台帳の種類の重なりは buildCoreCatalog が確かめる
   const problems = [
     ...partsOf("store").flatMap(k =>
@@ -203,6 +206,12 @@ export function assemble(
     ...commands
       .filter(c => !catalog.messages.has(c.title))
       .map(c => problem("E018", { kind: "command", id: c.id, title: c.title })),
+    ...(plugins.flatMap(p => p.keys ?? []) as readonly { id: string; title?: string }[])
+      .filter(k => k.title !== undefined && !catalog.messages.has(k.title))
+      .map(k => problem("E018", { kind: "key", id: k.id, title: k.title ?? "" })),
+    ...keyScopes
+      .filter(s => !catalog.messages.has(s.title))
+      .map(s => problem("E018", { kind: "keyScope", id: s.id, title: s.title })),
     ...checked.filter((c): c is Problem => !c.code.startsWith("W")),
   ]
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
@@ -214,6 +223,7 @@ export function assemble(
       store: {
         commands: new Map(commands.map(c => [c.id, c])),
         dialogs: new Map(dialogs.map(d => [d.id, d])),
+        keyScopes: new Map(keyScopes.map(s => [s.id, s])),
         keys: new Map(keys.map(k => [k.id, k])),
         warnings: [
           ...performsWarnings(plugins, catalog),
@@ -227,7 +237,7 @@ export function assemble(
   }
 }
 
-// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは error
+// プラグインの既定のキーバインドを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは error
 function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>): DefaultKey[] {
   const keys: DefaultKey[] = []
   const problems = []
@@ -240,8 +250,14 @@ function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>):
       else if (!isBuiltin(p) && !own.has(k.command))
         problems.push(problem("E302", { plugin: p.id, key: k.key, command: k.command }))
       else {
-        const { id, ...binding } = k
-        keys.push({ id, binding: { ...binding, key }, plugin: p.id, builtin: isBuiltin(p) })
+        const { id, title, ...binding } = k
+        keys.push({
+          id,
+          ...(title ? { title } : {}),
+          binding: { ...binding, key },
+          plugin: p.id,
+          builtin: isBuiltin(p),
+        })
       }
     }
   }
@@ -266,18 +282,20 @@ function performsWarnings(plugins: readonly Plugin[], catalog: CoreCatalog): War
   )
 }
 
-// 追加プラグインの既定のキーで使わない行: ビルトインプラグインのキーがある（W008）・ほかの追加プラグインと同じキー（W009。両方使わない）
-// どの行を使わないかは、キーの割り当ての表（keyTable）と同じ決まりで決める
+// 追加プラグインの既定のキーバインドで、同じ範囲・同じキーの先の行に負けて効かない行: ビルトインプラグインの行が先（W008）・
+// id の順で先の追加プラグインの行が先（W021）。利用者の変更は入れずに見る（利用者の行に負けるのは warning にしない）
 function keyWarnings(keys: readonly DefaultKey[]): Warning[] {
-  return keyTable(keys, { added: [], removed: [] }).dropped.flatMap(({ entry, reason }) => {
-    const { binding, plugin } = entry
-    if (plugin === null) return []
+  const table = keyTable(keys, { added: [], removed: [] })
+  return table.active.flatMap(entry => {
+    const { binding, plugin, from } = entry
+    const first = findKey(table, binding.scope, binding.key)
+    if (from !== "plugin" || plugin === null || !first || first === entry) return []
     const params = { key: binding.key, scope: binding.scope, command: binding.command }
-    if (reason === "builtin") return [warning("W008", plugin, params)]
-    const other = keys.find(
-      o => !o.builtin && o.plugin !== plugin && o.binding.scope === binding.scope && o.binding.key === binding.key,
-    )
-    return reason === "plugins" && other ? [warning("W009", plugin, { ...params, other: other.plugin })] : []
+    return [
+      first.from === "builtin"
+        ? warning("W008", plugin, params)
+        : warning("W021", plugin, { ...params, other: first.plugin ?? "" }),
+    ]
   })
 }
 

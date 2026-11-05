@@ -34,14 +34,11 @@ export interface CapabilityTable {
   nests: true
 }
 
-// キーの範囲（割り当てが効く所）→ true。土台は global（ダイアログもメニューも開いていないとき、ステージに結び付かない画面全体のキー）・stage（カレントのステージ）・dialog・menu（開いているメニュー: 右クリックのメニューと道具のアイコン）。
-// プラグインは自分の id を頭に付けた範囲を書き足し、自分のウィジェットの要素に data-key-scope で名乗らせる
-export interface KeyScopeTable {
-  global: true
-  stage: true
-  dialog: true
-  menu: true
-}
+// 土台のキーの範囲（キーバインドが効く所）: global（ダイアログもメニューも開いていないとき、ステージに結び付かない画面全体のキー）・stage（カレントのステージ）・
+// dialog・menu（開いているメニュー: 右クリックのメニューと道具のアイコン）。題名は土台が持つ（store/keys.ts）
+export type BaseKeyScope = "global" | "stage" | "dialog" | "menu"
+// プラグインのキーの範囲の id → 定義（KeyScopeDef）。プラグインは自分の id を頭に付けた範囲を定義して書き足し、自分のウィジェットの要素に data-key-scope で名乗らせる
+export interface KeyScopeTable {}
 
 // 画面の配置の分。スロットは「id → そこに置くウィジェットが受け取る値」。スロットを描くウィジェットを持つプラグインが、そのスロットを書き足す
 export interface SlotTable {
@@ -71,6 +68,7 @@ export const PARTS = {
   skins: { catalog: "core", label: "skin" },
   commands: { catalog: "store", label: "command" },
   dialogs: { catalog: "store", label: "dialog" },
+  keyScopes: { catalog: "store", label: "keyScope" },
 } as const
 export type Part = keyof typeof PARTS
 export type CorePart = { [K in Part]: (typeof PARTS)[K]["catalog"] extends "core" ? K : never }[Part]
@@ -96,6 +94,7 @@ export interface PartTables {
   skins: SkinTable
   commands: CommandTable
   dialogs: DialogTable
+  keyScopes: KeyScopeTable
 }
 // 種類ごとの定義の型。その台帳のクレートが書き足す（ここは空。書き足し忘れは、種類ごとに引く所 PartDefTable[Part] が型の誤りになる）
 export interface PartDefTable {}
@@ -118,7 +117,7 @@ export type ToolSetId = keyof ToolSetTable & string
 export type PermissionId = keyof PermissionTable & string
 export type MessageKey = keyof MessageTable & string
 export type CommandId = keyof CommandTable & string
-export type KeyScopeId = keyof KeyScopeTable & string
+export type KeyScopeId = BaseKeyScope | (keyof KeyScopeTable & string)
 export type DialogId = keyof DialogTable & string
 export type SlotId = keyof SlotTable & string
 export type WidgetId = keyof WidgetTable & string
@@ -157,6 +156,7 @@ export interface LanguagePackExtras {}
 export interface CommandExtras {}
 export interface DialogExtras {}
 export interface KeyExtras {}
+export interface KeyScopeExtras {}
 export interface WidgetExtras {}
 export interface LayoutExtras {}
 export interface BookViewExtras {}

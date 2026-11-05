@@ -26,7 +26,7 @@ import type { LanguagePackDef, MessageMap } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
 import type { CommandDef, CommandPlace, CommandScopeRequired } from "./commands/def"
 import type { DialogDef } from "./dialogs"
-import type { KeyDef } from "./keys"
+import type { KeyDef, KeyScopeDef } from "./keys"
 import type { PluginParts } from "./plugin"
 
 // 頭を付けた文言の表
@@ -170,8 +170,13 @@ export interface PluginKit<P extends string, M extends MessageMap> {
 
   defineDialog<const Id extends string>(def: { id: Id }): DialogDef & { id: Owned<P, Id> }
 
-  // キーの既定の割り当て 1 つ（command はコマンドの本当の id。args はそのコマンドの引数の型）
-  defineKey<const K extends KeyDef>(def: K): Omit<K, "id"> & { id: Owned<P, K["id"]> }
+  // キーの範囲（title は自分の文言の短い鍵）
+  defineKeyScope<const Id extends string>(
+    def: Omit<KeyScopeDef, "id" | "title"> & { id: Id; title: keyof M & string },
+  ): KeyScopeDef & { id: Owned<P, Id> }
+
+  // キーの既定のキーバインド 1 つ（command はコマンドの本当の id。args はそのコマンドの引数の型。title は自分の文言の短い鍵）
+  defineKey<const K extends KeyDef>(def: K & { title?: keyof M & string }): Omit<K, "id"> & { id: Owned<P, K["id"]> }
 
   // 言語パック: id は言語から付ける（「プラグインの id:言語」）
   defineLanguagePack<const L extends Omit<LanguagePackDef, "id">>(def: L): L & { id: Owned<P, L["lang"]> }
@@ -238,7 +243,8 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineCommand: place,
     defineDialog: place,
     defineDialogWith: () => place,
-    defineKey: (def: { id: string }) => ({ ...def, id: owned(plugin, def.id) }),
+    defineKeyScope: place,
+    defineKey: place,
     defineLanguagePack: (def: { lang: string }) => ({ ...def, id: owned(plugin, def.lang) }),
   }
   return kit as unknown as PluginKit<P, M>

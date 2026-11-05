@@ -1,4 +1,4 @@
-// 利用者の設定の項目のうち、土台が読むもの: 言語・スキン・キーの割り当ての、利用者の変更（role で引かれる）。と、言語の項目で選んでいるパックと、設定の画面が値の形から作る入力Form を求める関数
+// 利用者の設定の項目のうち、土台が読むもの: 言語・スキン・キーバインドの、利用者の変更（role で引かれる）。と、言語の項目で選んでいるパックと、設定の画面が値の形から作る入力Form を求める関数
 import { z } from "zod"
 import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
 import type { SettingDef } from "../../../core/def/setting"
@@ -34,7 +34,7 @@ export const SKIN = kit.defineSetting({
   describe: catalog => z.enum(["auto", ...catalog.skins.keys()]),
 })
 
-// キーの割り当ての、利用者の変更（足した行・外した既定の行）。今のインスタンスに無いコマンドの行も残す（プラグインを戻せばまた効く）
+// キーバインドの、利用者の変更（足した行・外した既定の行）。今のインスタンスに無いコマンドの行も残す（プラグインを戻せばまた効く）
 export const KEYS = kit.defineSetting({
   id: "keys",
   title: "Shortcut keys",
