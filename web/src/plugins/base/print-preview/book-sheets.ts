@@ -33,11 +33,12 @@ export type MeasuredSheets = ReadonlyMap<string, number | "pending">
 export function pageSheetsOf(catalog: CoreCatalog, book: Book, measured: MeasuredSheets = new Map()): PageSheets[] {
   return (pagedOf(book)?.pages ?? []).flatMap(page => {
     const paper = paperSize(catalog, page)
-    const sheets = paper && sheetsOfPage(catalog, book, page)
-    if (!paper || !sheets) return []
+    if (!paper) return []
+    // 測るページは測った数（測っている途中と、測って何も無ければ並べない）
     const rows = measured.get(page.id)
-    if (rows === "pending" || rows === 0) return []
-    return [{ page: page.id, paper, columns: rows === undefined ? sheets.columns : 1, rows: rows ?? sheets.rows }]
+    if (rows !== undefined) return rows === "pending" || rows === 0 ? [] : [{ page: page.id, paper, columns: 1, rows }]
+    const sheets = sheetsOfPage(catalog, book, page)
+    return sheets ? [{ page: page.id, paper, columns: sheets.columns, rows: sheets.rows }] : []
   })
 }
 
@@ -56,18 +57,16 @@ export function bookCrossings(
 }
 
 // ブック book を、印刷プレビューの設定の項目のとおりに並べる（何も載っていない印刷区画は並べない。何も載っていないページは並べない）。
-// measured にあるページは測った数だけ並べ、何か載っていれば（見せ方の printSheets の filled が空でなければ）どれも載っているとする
+// measured にあるページは測った数だけ並べる（測った印刷区画には、どれも何か載っている）
 export function bookSheets(catalog: CoreCatalog, book: Book, measured: MeasuredSheets = new Map()): SheetLayout {
   const pages = pagedOf(book)?.pages ?? []
-  const filled = new Map(pages.map(p => [p.id, sheetsOfPage(catalog, book, p)?.filled ?? null]))
+  const filled = new Map(
+    pages.filter(p => !measured.has(p.id)).map(p => [p.id, sheetsOfPage(catalog, book, p)?.filled ?? null]),
+  )
   return arrangeSheets(pageSheetsOf(catalog, book, measured), {
     flow: settingValue(catalog, book, null, PRINT_PREVIEW_FLOW),
     order: settingValue(catalog, book, null, PRINT_PREVIEW_ORDER),
-    shown: (page, column, row) => {
-      const own = filled.get(page)
-      if (measured.has(page)) return own === null || own === undefined || own.size > 0
-      return own?.has(sheetKey(column, row)) ?? true
-    },
+    shown: (page, column, row) => measured.has(page) || (filled.get(page)?.has(sheetKey(column, row)) ?? true),
   })
 }
 

@@ -1,16 +1,9 @@
-// マークダウンのページの印刷: 原文が空なら何も載っていない（印刷プレビューに並べない）。印刷区画の数と切る位置は、描いて測ってから決める
-// （view/MarkdownPrint.tsx。切る位置の計算はここの cutSheets）
-import type { CoreCatalog, ItemPage } from "../../../plugin-api"
-import type { PrintSheets } from "../../base"
+// マークダウンのページの印刷: 印刷区画の数と切る位置は、描いて測ってから決める（view/MarkdownPrint.tsx。切る位置の計算はここの cutSheets。
+// 原文が空ならブロックが無く、印刷区画も無い）
 
 // ページの原文（無ければ空）
 export const pageText = (page: object | null | undefined): string =>
   page && "text" in page && typeof page.text === "string" ? page.text : ""
-
-// 見せ方の printSheets: 数は測るまで 1 つ。原文が空なら何も載っていない
-export function markdownPrintSheets(_catalog: CoreCatalog, page: ItemPage): PrintSheets {
-  return { columns: 1, rows: 1, filled: new Set(pageText(page).trim() === "" ? [] : ["0,0"]) }
-}
 
 // 測った文書のブロック 1 つ: 流し込む枠の中身の上端からの位置 top・bottom（px）と種類（見出しは次のブロックと離さない）、
 // 原文の中の始まりの位置 from

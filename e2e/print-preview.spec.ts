@@ -198,6 +198,16 @@ test("マークダウンは、紙の高さでブロックの境目ごとに切�
   await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("段落 60")
   await openPreview(page)
   await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(1)).toPass()
-  await expect(sheets(page).first()).toContainText("段落 1")
-  await expect(sheets(page).last()).toContainText("段落 60")
+  // 1 枚目は原文の頭から、最後の紙は途中のブロックから始まり、「段落 60」は最後の紙の中に見える（1 枚目の外）
+  await expect(sheets(page).first().locator("[data-markdown-from]")).toHaveAttribute("data-markdown-from", "0")
+  const lastFrom = Number(await sheets(page).last().locator("[data-markdown-from]").getAttribute("data-markdown-from"))
+  expect(lastFrom).toBeGreaterThan(0)
+  const inside = async (i: "first" | "last") => {
+    const sheet = i === "first" ? sheets(page).first() : sheets(page).last()
+    const box = (await sheet.boundingBox())!
+    const text = (await sheet.getByText("段落 60", { exact: true }).boundingBox())!
+    return text.y >= box.y && text.y + text.height <= box.y + box.height
+  }
+  expect(await inside("last")).toBe(true)
+  expect(await inside("first")).toBe(false)
 })

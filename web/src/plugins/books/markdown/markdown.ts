@@ -6,15 +6,11 @@ import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
 import { kit } from "./kit"
 import { pageFieldsInput } from "./page-fields"
-import { markdownPrintSheets } from "./print"
 import { MARKDOWN_TOKENS } from "./tokens"
 
 // マークダウンの見せ方: ステージに紙を置かない
-export const MARKDOWN_PRESENTATION = kit.definePresentation({
-  id: "markdown",
-  paper: false,
-  printSheets: markdownPrintSheets, // 原文が空なら何も載っていない。数は描いて測ってから（ブックのビューの printMeasure）
-})
+// 印刷区画の数と切り方は、描いて測ってから決める（ブックのビューの printMeasure。view/MarkdownPrint.tsx）
+export const MARKDOWN_PRESENTATION = kit.definePresentation({ id: "markdown", paper: false })
 
 // ソースのペインのテキストFormが名乗るキーの範囲（その中で押したキーは、この範囲だけで引く）
 export const SOURCE_KEYS_SCOPE = kit.name("source")

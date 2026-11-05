@@ -104,11 +104,31 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
       }),
     [],
   )
+  // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない）
+  const reporters = useRef(new Map<string, (m: PrintMeasured) => void>())
+  const reporterOf = (page: string) => {
+    const was = reporters.current.get(page)
+    if (was) return was
+    const made = (m: PrintMeasured) => report(page, m)
+    reporters.current.set(page, made)
+    return made
+  }
   const Measure = book ? views.get(bookType(catalog, book.type).presentation)?.printMeasure : undefined
   const pages = useMemo(() => (book && pagedOf(book)?.pages) || [], [book])
+  // 測るページ（紙のあるページ）と、その紙の大きさ
+  const measuring = useMemo(
+    () =>
+      Measure
+        ? pages.flatMap(p => {
+            const paper = paperSize(catalog, p)
+            return paper ? [{ page: p, paper }] : []
+          })
+        : [],
+    [Measure, pages, catalog],
+  )
   const measured = useMemo(
-    () => new Map(Measure ? pages.map(p => [p.id, measures.get(p.id)?.rows ?? ("pending" as const)]) : []),
-    [Measure, pages, measures],
+    () => new Map(measuring.map(({ page }) => [page.id, measures.get(page.id)?.rows ?? ("pending" as const)])),
+    [measuring, measures],
   )
   const layout = useMemo(() => (book ? bookSheets(catalog, book, measured) : null), [catalog, book, measured])
   const zoom = stage?.zoom ?? 1
@@ -175,15 +195,12 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   const origin = paperOrigin(pan)
   // 測るだけのビュー（見えない所に、倍率をかけずに描く）
-  const measuring = Measure && (
+  const measuringViews = Measure && (
     <div className={styles.measure} aria-hidden="true">
       <PrintingContext.Provider value={true}>
-        {pages.flatMap(p => {
-          const size = paperSize(catalog, p)
-          return size
-            ? [<Measure key={p.id} stage={id} book={book} page={p} paper={size} report={m => report(p.id, m)} />]
-            : []
-        })}
+        {measuring.map(({ page: p, paper }) => (
+          <Measure key={p.id} stage={id} book={book} page={p} paper={paper} report={reporterOf(p.id)} />
+        ))}
       </PrintingContext.Provider>
     </div>
   )
@@ -191,13 +208,13 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   if (layout.sheets.length === 0)
     return (
       <>
-        {measuring}
+        {measuringViews}
         {!pending && <p className={styles.nothing}>{t("Nothing to print")}</p>}
       </>
     )
   return (
     <>
-      {measuring}
+      {measuringViews}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューを出さないだけ（印刷プレビューにメニューは無い） */}
       <div
         ref={ref}

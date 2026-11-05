@@ -192,6 +192,18 @@ describe("マークダウンを紙の高さで切る（cutSheets）", () => {
       [0, 40],
       [50, 130],
     ])
+    // 見出しが続くとき（h1 の次に h2）は、どちらも送る
+    const chained = cutSheets([block(0, 40), block(45, 60, "heading"), block(62, 75, "heading"), block(80, 130)], 100)
+    expect(chained.map(c => [c.start, c.end])).toEqual([
+      [0, 40],
+      [45, 130],
+    ])
+    // 枠の頭の見出しの次が入らないときは、見出しは送らない（送ると空の枠ができる）
+    const lead = cutSheets([block(0, 20, "heading"), block(30, 200)], 100)
+    expect(lead.map(c => [c.start, c.end])).toEqual([
+      [0, 20],
+      [30, 200],
+    ])
   })
 
   test("枠より高いブロックは、枠 1 つに 1 つだけ置く。ブロックが無ければ切らない", () => {

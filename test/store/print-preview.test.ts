@@ -243,3 +243,25 @@ test("並べ方が自動のタイプ（フローチャート）は、またい�
   }
   expect(bookCrossings(store.catalog.core, flow as never)).toEqual([])
 })
+
+test("測るページ（measured）は測った数だけ 1 列に並べ、測っている途中と、測って 0 のページは並べない。測らないページは前のまま", () => {
+  const store = newStore()
+  const pages = ["a", "b", "c", "d"].map(id => ({
+    id,
+    title: id,
+    paper: "@matomezu/base:a4",
+    orientation: "landscape" as const,
+    items: [],
+  }))
+  const book = { type: "@matomezu/drawing:drawing" as const, id: "x", title: "x", pages }
+  pages[3]!.items = [{ id: "n1", item: BOX, x: 40, y: 40, w: 100, h: 64, props: {} }] as never
+  const measured = new Map<string, number | "pending">([
+    ["a", 3],
+    ["b", "pending"],
+    ["c", 0],
+  ])
+  const cells = bookSheets(store.catalog.core, book as never, measured).sheets.map(
+    s => `${s.page}:${s.column},${s.row}`,
+  )
+  expect(cells).toEqual(["a:0,0", "a:0,1", "a:0,2", "d:0,0"])
+})
