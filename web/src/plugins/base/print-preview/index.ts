@@ -23,11 +23,11 @@ import {
   ShownSchema,
 } from "./settings"
 
-// ページの印刷区画: 紙の大きさで区切った columns 列 × rows 行と、何かが載っている印刷区画の鍵（filled.ts の sheetKey。判定できなければ null）
+// ページの印刷区画: 紙の大きさで区切った columns 列 × rows 行と、何かが載っている印刷区画の鍵（作るのは filled.ts の printSheetsOf）
 export interface PrintSheets {
   columns: number
   rows: number
-  filled: ReadonlySet<string> | null
+  filled: ReadonlySet<string>
 }
 
 declare module "../../../core/catalog" {

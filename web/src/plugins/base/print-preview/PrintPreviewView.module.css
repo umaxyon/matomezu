@@ -12,3 +12,15 @@
   position: absolute;
   pointer-events: none;
 }
+/* 並べる印刷区画が 1 つも無いときの知らせ（表示領域の真ん中） */
+.nothing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--skin-text-muted);
+  font-size: 14px;
+  pointer-events: none;
+}

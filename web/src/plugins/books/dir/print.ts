@@ -1,15 +1,7 @@
 // ディレクトリ構成図のページの印刷: 行と説明を並べ（layout.ts。ビューと同じ並べ方と座標）、可変ページなら行と説明が入るだけ並べた印刷区画の数と、
 // 行と説明が載る印刷区画を返す（見せ方の printSheets）。罫線は行から決まるので数えない
 import type { CoreCatalog, ItemPage, Rect, Size } from "../../../plugin-api"
-import {
-  type GrowSides,
-  grownArea,
-  type PrintSheets,
-  paperSize,
-  type SettingReader,
-  sheetKey,
-  sheetsOfShape,
-} from "../../base"
+import { type GrowSides, grownArea, type PrintSheets, paperSize, printSheetsOf, type SettingReader } from "../../base"
 import { dirRootOf } from "./entry"
 import { type DirLayout, laidBottom, laidRight, layoutDir } from "./layout"
 import { NOTES } from "./notes"
@@ -27,7 +19,10 @@ export function laidPage(
 
 // 可変ページで、並べた行と説明 laid が入るだけ印刷区画を並べた数と広さ（spare なら、増やす向きに空きの印刷区画を足す。書く画面がステージに知らせる広さ）
 export const laidArea = (paper: Size, grow: GrowSides, laid: DirLayout, spare: boolean) =>
-  grownArea(paper, grow, { x: 0, y: 0, w: laidRight(laid), h: laidBottom(laid.rows) }, spare)
+  grownArea(paper, grow, laidExtentOf(laid), spare)
+
+// 並べた行と説明 laid の外枠（左上は紙の原点）
+const laidExtentOf = (laid: DirLayout): Rect => ({ x: 0, y: 0, w: laidRight(laid), h: laidBottom(laid.rows) })
 
 export function dirPrintSheets(
   catalog: CoreCatalog,
@@ -36,14 +31,11 @@ export function dirPrintSheets(
 ): PrintSheets {
   const laid = laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
-  if (!laid || !paper) return { columns: 1, rows: 1, filled: null }
+  if (!laid || !paper) return { columns: 1, rows: 1, filled: new Set() }
   const notes = laid.notes
   const rects: Rect[] = [
     ...laid.rows,
     ...(notes ? laid.rows.filter(r => r.note).map(r => ({ x: notes.x, y: r.y, w: notes.w, h: r.h })) : []),
   ]
-  const filled = new Set(rects.flatMap(r => sheetsOfShape(r, paper).map(c => sheetKey(c.column, c.row))))
-  if (!on.grow) return { columns: 1, rows: 1, filled }
-  const { columns, rows } = laidArea(paper, on.grow, laid, false)
-  return { columns, rows, filled }
+  return printSheetsOf(paper, rects, on.grow, laidExtentOf(laid))
 }

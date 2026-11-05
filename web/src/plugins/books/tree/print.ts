@@ -1,15 +1,7 @@
 // ツリーのページの印刷: 木を並べ（layout.ts。ビューと同じ並べ方と座標）、可変ページなら節が入るだけ並べた印刷区画の数と、節が載る印刷区画を返す（見せ方の printSheets）。
 // 線は節から決まるので数えない
 import type { CoreCatalog, ItemPage, Size } from "../../../plugin-api"
-import {
-  type GrowSides,
-  grownArea,
-  type PrintSheets,
-  paperSize,
-  type SettingReader,
-  sheetKey,
-  sheetsOfShape,
-} from "../../base"
+import { type GrowSides, grownArea, type PrintSheets, paperSize, printSheetsOf, type SettingReader } from "../../base"
 import { GROW } from "./grow"
 import { laidExtent, layoutTree, type TreeLayout } from "./layout"
 import { type TreeRoot, treeRootOf } from "./node"
@@ -39,9 +31,6 @@ export function treePrintSheets(
 ): PrintSheets {
   const laid = laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
-  if (!laid || !paper) return { columns: 1, rows: 1, filled: null }
-  const filled = new Set(laid.nodes.flatMap(n => sheetsOfShape(n, paper).map(c => sheetKey(c.column, c.row))))
-  if (!on.grow) return { columns: 1, rows: 1, filled }
-  const { columns, rows } = laidArea(paper, on.grow, laid, false)
-  return { columns, rows, filled }
+  if (!laid || !paper) return { columns: 1, rows: 1, filled: new Set() }
+  return printSheetsOf(paper, laid.nodes, on.grow, laidExtent(laid.nodes))
 }

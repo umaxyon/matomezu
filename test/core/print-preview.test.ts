@@ -124,13 +124,13 @@ describe("印刷区画の並べ方", () => {
     expect(layout.size).toEqual({ w: 1300, h: 200 })
   })
 
-  test("外した印刷区画は並べず、ページの印刷区画がどれも外れたら最初の 1 つを白紙として並べる", () => {
+  test("外した印刷区画は並べず、ページの印刷区画がどれも外れたら、そのページは並べない", () => {
     const layout = arrangeSheets(pages, {
       flow: "column",
       order: "across",
       shown: (page, column, row) => page === "p1" && column === 1 && row === 1,
     })
-    expect(cells(layout)).toEqual(["p1:11", "p2:00"])
+    expect(cells(layout)).toEqual(["p1:11"])
   })
 
   test("ページが無ければ、何も並べない", () => {

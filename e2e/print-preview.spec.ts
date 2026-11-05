@@ -16,12 +16,13 @@ async function addPage(page: Page) {
   await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
 }
 
+// 印刷プレビューを開き、右サイドパネルに中身が出るまで待つ
 async function openPreview(page: Page) {
   await (await fromMenu(page, "印刷プレビュー")).click()
-  await expect(preview(page)).toBeVisible()
+  await expect(panel(page)).toContainText("印刷プレビュー")
 }
 
-test("印刷プレビューを開くと全ページの印刷区画を並べ、ページのタブを隠す。初めは幅に合わせ、元に戻すは効かず、Esc で閉じると編集に戻る", async ({
+test("印刷プレビューを開くと、中身のあるページの印刷区画を並べ（何も載っていないページは並べない）、ページのタブを隠す。初めは幅に合わせ、元に戻すは効かず、Esc で閉じると編集に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -29,8 +30,7 @@ test("印刷プレビューを開くと全ページの印刷区画を並べ、�
   await addPage(page)
   await expect(page.getByRole("tab")).toHaveCount(2)
   await openPreview(page)
-  await expect(sheets(page)).toHaveCount(2)
-  await expect(panel(page)).toContainText("印刷プレビュー")
+  await expect(sheets(page)).toHaveCount(1)
   await expect(page.getByRole("tablist")).toHaveCount(0)
   // 初めは幅に合わせ（右サイドパネルの帯の「幅に合わせる」は押した状態）、1 枚目の紙の幅がステージの幅から余白を除いた幅になる
   await expect(panel(page).getByRole("button", { name: "幅に合わせる" })).toBeDisabled()
@@ -51,8 +51,10 @@ test("並べる向きを横にすると、印刷区画が横に並ぶ。読み�
   page,
 }) => {
   await page.goto("/")
+  await addBox(page, 200, 150, "一")
   await addPage(page)
   await expect(page.getByRole("tab")).toHaveCount(2)
+  await addBox(page, 200, 150, "二")
   await openPreview(page)
   const [a, b] = [sheets(page).nth(0), sheets(page).nth(1)]
   expect((await b.boundingBox())!.y).toBeGreaterThan((await a.boundingBox())!.y)
@@ -149,4 +151,11 @@ test("ツリーとディレクトリ構成図も、印刷プレビューの紙�
   await expect(dir).toBeHidden()
   await openPreview(page)
   await expect(sheets(page).first()).toContainText("proj")
+})
+
+test("印刷できるものが何も無いブックでは、紙を並べず、印刷できるものが無いと知らせる", async ({ page }) => {
+  await page.goto("/")
+  await openPreview(page)
+  await expect(sheets(page)).toHaveCount(0)
+  await expect(page.getByText("印刷できるものはありません")).toBeVisible()
 })

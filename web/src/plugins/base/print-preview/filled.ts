@@ -11,8 +11,10 @@ import type { Point, Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
+import { type GrowSides, grownArea } from "../place/grow"
 import { paperSize } from "../place/items"
 import { portAreasOf, rectsOf } from "../place/placed"
+import type { PrintSheets } from "."
 
 // 印刷区画の鍵（列,行）
 export const sheetKey = (column: number, row: number): string => `${column},${row}`
@@ -44,6 +46,20 @@ export function snapShift(r: Rect, paper: Size): Point | null {
   const x = into(r.x, r.w, sheet.column * paper.w, paper.w)
   const y = into(r.y, r.h, sheet.row * paper.h, paper.h)
   return x === 0 && y === 0 ? null : { x, y }
+}
+
+// 中身の四角 rects（紙の座標）を並べたページの印刷区画（見せ方の printSheets が返す形）: 可変ページ（増やす向き grow）なら、中身の外枠 extent が
+// 入るだけ印刷区画を並べた数、そうでなければ 1 つ。中身の四角が載る印刷区画（形と同じ決まり。sheetsOfShape）を、載っている印刷区画にする
+export function printSheetsOf(
+  paper: Size,
+  rects: readonly Rect[],
+  grow: GrowSides | undefined,
+  extent: Rect | null,
+): PrintSheets {
+  const filled = new Set(rects.flatMap(r => sheetsOfShape(r, paper).map(c => sheetKey(c.column, c.row))))
+  if (!grow) return { columns: 1, rows: 1, filled }
+  const { columns, rows } = grownArea(paper, grow, extent, false)
+  return { columns, rows, filled }
 }
 
 // ブック book のページ page で、何かが載っている印刷区画の鍵（判定できないタイプなら null）

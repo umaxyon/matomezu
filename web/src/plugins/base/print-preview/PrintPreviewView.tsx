@@ -1,5 +1,6 @@
 // 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描き、
-// 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙）。
+// 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙）。何も載っていない印刷区画とページは並べず、
+// 並べる物が 1 つも無ければ、表示領域の真ん中に印刷できるものが無いと知らせる。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
@@ -13,8 +14,10 @@ import { extentOf as previewArea } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
+import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
+import { kit } from "../kit"
 import { useOpenRightSidePanel, useRightSidePanel, useRightSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
@@ -61,6 +64,7 @@ function useExtent(id: string): { known: boolean; size: string | null } {
 
 export function PrintPreviewView({ stage: id }: { stage: string }) {
   const stage = useStage(id) // パンの量を読まない（ずらす量は useStagePan だけが読む）
+  const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
   const book = useBook(id)
@@ -117,6 +121,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     return () => el.removeEventListener("dblclick", onDoubleClick)
   }, [id, openPage])
   if (!layout || !pan || !book) return null
+  if (layout.sheets.length === 0) return <p className={styles.nothing}>{t("Nothing to print")}</p>
   const Sheet = views.get(bookType(catalog, book.type).presentation)?.printSheet
   const pages = pagedOf(book)?.pages ?? []
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
