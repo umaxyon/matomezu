@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
-import { refusalMessage } from "../../base"
+import { NO_FREE_SPOT, refusalMessage } from "../../base"
 import {
   ActionButton,
   ColorPicker,
@@ -34,7 +34,8 @@ export function addArtDialog(item: string) {
     const add = (props: ArtProps) => {
       if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
-      if (!done.ok) return done
+      // 座標を渡さずに（空きに）置いて断られたなら、空きが無かった
+      if (!done.ok) return args.at === undefined && done.reason === "refused" ? { reason: NO_FREE_SPOT } : done
       select(stage, [done.result.item])
       onClose()
       return null
@@ -138,7 +139,14 @@ function ArtDialog({
         ready={ready}
         onSubmit={() => {
           const no = onSubmit({ caption, ...(color ? { color } : {}) })
-          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+          setRefused(
+            no &&
+              refusalMessage(
+                catalog,
+                no,
+                kit.message(no.reason === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+              ),
+          )
         }}
       >
         <Field label={t("Caption")}>

@@ -5,11 +5,13 @@ import {
   type CoreCatalog,
   type ItemPage,
   type PagedBook,
+  type PlacedShape,
   type Point,
   putPage,
   type Rect,
   type ShapeOnPage,
   type Size,
+  shapeSchema,
   walkShapes,
 } from "../../../plugin-api"
 import {
@@ -20,10 +22,11 @@ import {
   frameOf,
   freeSpotIn,
   gapOf,
-  inPaper,
+  placeChild,
   placedAt,
   placedSize,
-  roomOf,
+  placeItem,
+  shapeDefOf,
   toData,
   withPage,
 } from "../../base"
@@ -146,6 +149,22 @@ export function freeAt(
   return spot && at(spot)
 }
 
+// 置いた形のデータとして確かめる（形の定義の項目と中身の形。表に無い形は通らない）
+export function parsePlaced(
+  catalog: CoreCatalog,
+  value: { item: string; [field: string]: unknown },
+): PlacedShape | null {
+  const def = shapeDefOf(catalog, value.item)
+  const parsed = def && shapeSchema(def).safeParse(value)
+  return parsed?.success ? (parsed.data as PlacedShape) : null
+}
+
+// 置こうとしている物 item を、項目を既定にして置いた形（置けるかを試すための形。ページには書かないので、id は置いた物と重なってもよい）。置けない物なら null
+export function placingShape(catalog: CoreCatalog, item: string): PlacedShape | null {
+  const props = catalog.items.get(item)?.props.safeParse({})
+  return props?.success ? parsePlaced(catalog, { id: "placing", item, x: 0, y: 0, props: props.data }) : null
+}
+
 // 置く道具の置き先: 入れる親 parent（null はページ）と、左上 at（item-place と同じく、親があれば親の左上から）。
 // free なら空きに置く（at は、置く物の定義の大きさで探した空き。置くときは at を渡さず、中身を決めた大きさで item-place が探し直す）。
 // shown は、置く所の紙の上の左上（点線の影を描く所）。fits は、そこに置けるか（ページに置くなら紙からはみ出さないか。親の中と空きは置ける）
@@ -157,27 +176,31 @@ export interface PlaceTarget {
   fits: boolean
 }
 
-// 置く道具で、ポインタの点 pointer（紙の上）の所に、左上 at（紙の上）・大きさ size の形を置くときの置き先。
+// 置く道具で、ポインタの点 pointer（紙の上）の所に、左上 at（紙の上）で形 shape（placingShape）を置くときの置き先。
 // 点の下の一番内側の形が子を持てる形なら、その中の at（子の領域より左や上なら、item-place と同じく子の領域の左上へ寄せた所に影を描く）。
-// 子を持てない形（リスト・シェイプなど）なら、その形の親（ページか形）の中の空き（freeAt）。点の下に形が無ければ、ページの at。空きが無ければ null
+// 子を持てない形（リスト・シェイプなど）なら、その形の親（ページか形）の中の空き（freeAt）。点の下に形が無ければ、ページの at。空きが無ければ null。
+// 置けるか（fits）は、画面と同じに押して置いてみて決める（親が育って紙からはみ出すなら置けない）
 export function placeTarget(
   catalog: CoreCatalog,
-  book: Book,
+  book: PagedBook,
   page: ItemPage,
   pointer: Point,
   at: Point,
-  size: Size,
+  shape: PlacedShape,
 ): PlaceTarget | null {
+  const size = placedSize(catalog, shape)
+  if (!size) return null
   const under = innermostAt(catalog, page, pointer)
   if (!under) {
-    const room = roomOf(catalog, book, page)
-    return { parent: null, at, free: false, shown: at, fits: room !== null && inPaper({ ...at, ...size }, room) }
+    const fits = placeItem(catalog, book, page.id, { ...shape, ...at }) !== null
+    return { parent: null, at, free: false, shown: at, fits }
   }
   if (nests(catalog, under.shape.item)) {
     const inner = { x: at.x - under.at.x, y: at.y - under.at.y }
     const origin = childOrigin(catalog, under.shape)
     const shown = { x: under.at.x + Math.max(inner.x, origin.x), y: under.at.y + Math.max(inner.y, origin.y) }
-    return { parent: under.shape.id, at: inner, free: false, shown, fits: true }
+    const fits = placeChild(catalog, book, page.id, under.shape.id, shape, inner) !== null
+    return { parent: under.shape.id, at: inner, free: false, shown, fits }
   }
   const spot = freeAt(catalog, book, page, under.parent, size)
   const base = under.parent === null ? { x: 0, y: 0 } : walkShapes(page).find(s => s.shape.id === under.parent)?.at

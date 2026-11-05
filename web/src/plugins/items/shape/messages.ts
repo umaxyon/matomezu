@@ -18,4 +18,5 @@ export const SHAPE_MESSAGES = defineMessages({
   Add: { en: "Add", ja: "追加" },
   OK: { en: "OK", ja: "確定" },
   "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に収まりません" },
+  "No free spot": { en: "No free spot", ja: "空きがありません" },
 })

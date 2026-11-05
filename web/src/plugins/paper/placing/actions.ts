@@ -13,7 +13,6 @@ import {
   putPage,
   replaceShape,
   type ShapeData,
-  shapeSchema,
 } from "../../../plugin-api"
 import {
   allRectsOf,
@@ -31,7 +30,7 @@ import {
 } from "../../base"
 import { kit } from "../kit"
 import { DIRS } from "./drag"
-import { freeAt, moveItems, subtreeOf } from "./items"
+import { freeAt, moveItems, parsePlaced, subtreeOf } from "./items"
 
 // 項目を変えたあとに形が中身を整えるメソッド（定義オブジェクトの拡張ポイントに、紙のプラグインの id を頭に付けて書き足す）。
 // before は変える前の形。無ければそのまま
@@ -87,13 +86,6 @@ function crowded(catalog: CoreCatalog, page: ItemPage, moved: readonly string[],
   })
   const into = nests.map(id => `; ${id} can hold children: pass parent "${id}" to put it inside`).join("")
   return { declined: `it would move ${moved.join(", ")}${into}${spotText(spot)}` }
-}
-
-// 置いた形のデータとして確かめる（形の定義の項目と中身の形。表に無い形は通らない）
-function parsePlaced(catalog: CoreCatalog, value: { item: string; [field: string]: unknown }): PlacedShape | null {
-  const def = shapeDefOf(catalog, value.item)
-  const parsed = def && shapeSchema(def).safeParse(value)
-  return parsed?.success ? (parsed.data as PlacedShape) : null
 }
 
 // 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定。テーマは表にあるものだけ）。

@@ -15,7 +15,7 @@ import {
   useMessages,
   usePerform,
 } from "../../../plugin-api/ui"
-import { refusalMessage } from "../../base"
+import { NO_FREE_SPOT, refusalMessage } from "../../base"
 import {
   ActionButton,
   CaptionField,
@@ -53,7 +53,8 @@ export function addShapeDialog(item: string, turnable = false) {
     const add = (props: ShapeProps) => {
       if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
-      if (!done.ok) return done
+      // 座標を渡さずに（空きに）置いて断られたなら、空きが無かった
+      if (!done.ok) return args.at === undefined && done.reason === "refused" ? { reason: NO_FREE_SPOT } : done
       select(stage, [done.result.item])
       onClose()
       return null
@@ -166,7 +167,14 @@ function ShapeDialog({
             ...(color ? { color } : {}),
             ...(turned === undefined ? {} : { turned }),
           })
-          setRefused(no && refusalMessage(catalog, no, kit.message("Does not fit on the paper")))
+          setRefused(
+            no &&
+              refusalMessage(
+                catalog,
+                no,
+                kit.message(no.reason === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
+              ),
+          )
         }}
       >
         <CaptionField text={head} onChange={setHead} />

@@ -12,11 +12,11 @@ import {
   shapesOf,
   toPaperDelta,
 } from "../../../plugin-api"
-import { amongSelected, type Edges, itemSize, refusalMessage, resizedBy, shapeDefOf } from "../../base"
+import { amongSelected, type Edges, refusalMessage, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import type { Came } from "./drag"
-import { PLACE_OFFSET, placeTarget } from "./items"
+import { PLACE_OFFSET, placeTarget, placingShape } from "./items"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
 const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
@@ -40,10 +40,9 @@ export const PAPER_PLACE = kit.defineCommand({
     const point = ctx.toPaper(pointer)
     const book = pagedOf(ctx.book)
     const page = book?.pages.find(p => p.id === stage.opened?.page)
-    const size = stage.placing && itemSize(ctx.catalog, stage.placing)
-    const paper = areaOf(stage)
-    if (!at || !point || !book || !page || !stage.placing || !stage.opened || !size || !paper) return
-    const target = placeTarget(ctx.catalog, book, page, point, at, size)
+    const shape = stage.placing && placingShape(ctx.catalog, stage.placing)
+    if (!at || !point || !book || !page || !stage.placing || !stage.opened || !shape) return
+    const target = placeTarget(ctx.catalog, book, page, point, at, shape)
     const warn = (done: { reason: string; permission?: string }) =>
       a.showToast({
         kind: "warn",

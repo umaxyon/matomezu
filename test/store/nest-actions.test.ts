@@ -7,7 +7,7 @@ import { floorsOf, resizedBy, roomOf } from "../../web/src/plugins/base/place/it
 import { allRectsOf, NEST_PADDING, placedSize, portAreasOf } from "../../web/src/plugins/base/place/placed"
 import { targetsFrom } from "../../web/src/plugins/items/line/connect"
 import { routeInputOf } from "../../web/src/plugins/items/line/drawn"
-import { dropTarget, placeTarget } from "../../web/src/plugins/paper/placing/items"
+import { dropTarget, placeTarget, placingShape } from "../../web/src/plugins/paper/placing/items"
 import { CORE_CATALOG, newStore } from "../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
@@ -321,8 +321,9 @@ test("置く先: 点の下に形が無ければページのその所、子を持
   const l = place(store, { item: LIST, at: { x: 0, y: 0 }, parent: a, w: 160, h: 100 })!
   const top = place(store, { item: LIST, at: { x: 700, y: 100 }, w: 160, h: 100 })!
   const size = { w: 120, h: 60 }
+  const shape = { ...placingShape(CORE_CATALOG, NEST)!, ...size }
   const target = (pointer: { x: number; y: number }) =>
-    placeTarget(CORE_CATALOG, drawing(store), page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, size)
+    placeTarget(CORE_CATALOG, drawing(store), page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
   expect(target({ x: 40, y: 40 })).toEqual({
     parent: null,
     at: { x: 24, y: 28 },
@@ -449,4 +450,15 @@ test("座標を渡さずに置くとき、紙に空きが無ければ断る", ()
   const paper = roomOf(CORE_CATALOG, book, page(store))!
   const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: paper.w, h: paper.h })
   expect((done as { detail?: string }).detail).toStartWith("there is no free spot for it")
+})
+
+test("置く先の置けるか: 内包ボックスの中でも、置くと箱が育って紙からはみ出す所なら置けない", () => {
+  const store = newStore()
+  // 紙（高さ 794）の下の近くの内包ボックス（下の端は 750）
+  const a = place(store, { at: { x: 0, y: 600 }, w: 400, h: 150 })!
+  const shape = { ...placingShape(CORE_CATALOG, NEST)!, w: 120, h: 60 }
+  const target = (pointer: { x: number; y: number }) =>
+    placeTarget(CORE_CATALOG, drawing(store), page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
+  expect(target({ x: 40, y: 660 })).toMatchObject({ parent: a, fits: true })
+  expect(target({ x: 40, y: 740 })).toMatchObject({ parent: a, fits: false })
 })

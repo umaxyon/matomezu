@@ -27,6 +27,7 @@ test("matomezu が出す名前", () => {
     "HEX",
     "LEN",
     "NEST_PADDING",
+    "NO_FREE_SPOT",
     "PALETTE",
     "PAPER_IDS",
     "PLACE_LINES",
