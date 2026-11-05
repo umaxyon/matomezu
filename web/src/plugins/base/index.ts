@@ -124,7 +124,8 @@ export type { PortArea, Ports } from "./place/placed"
 export { NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
-export { snapShift } from "./print-preview/filled"
+export type { PrintSheets } from "./print-preview"
+export { sheetKey, sheetsOfShape, snapShift } from "./print-preview/filled"
 export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 export {
   BOOK_TEXT_COLORS,

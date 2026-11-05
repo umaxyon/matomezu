@@ -471,7 +471,7 @@ const EDITOR_INSET = 6
 const PLUS_GAP = 2
 
 // 中身の色（color）を塗る CSS 変数: アイコンの色（--dir-icon）を上書きする。代表色の名前は、ブックのテーマの代表色のテーマキーを指す
-const paint = (color: string | undefined): CSSProperties | undefined =>
+export const paint = (color: string | undefined): CSSProperties | undefined =>
   color === undefined ? undefined : ({ "--dir-icon": colorPaint(color).fill } as CSSProperties)
 
 function Row({
@@ -537,7 +537,7 @@ function Row({
 }
 
 // 行の中身: アイコンと、その右の名前
-function RowFace({ row: r }: { row: LaidRow }) {
+export function RowFace({ row: r }: { row: LaidRow }) {
   return (
     <>
       <span className={styles.icon} style={{ width: ICON, height: ICON }}>

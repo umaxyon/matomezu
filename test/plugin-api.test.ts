@@ -124,6 +124,8 @@ test("matomezu が出す名前", () => {
     "shapeDialogs",
     "shapeSchema",
     "shapesOf",
+    "sheetKey",
+    "sheetsOfShape",
     "shownRects",
     "snapShift",
     "textBlock",

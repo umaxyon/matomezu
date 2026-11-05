@@ -379,7 +379,7 @@ const Tree = memo(function Tree({
 })
 
 // 節のキャプションと、根の本文（描くときだけ）
-function NodeText({ node: n }: { node: LaidNode }) {
+export function NodeText({ node: n }: { node: LaidNode }) {
   return (
     <>
       {n.lines.map((line, i) => (

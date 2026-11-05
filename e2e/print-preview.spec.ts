@@ -1,6 +1,7 @@
 // 印刷プレビュー: フッタメニューのボタンで開くと、ブックの全ページの印刷区画を並べ、右サイドパネルに設定を出す。間はブックを変えるキー（元に戻す）が効かない。ロック中は変える前に聞く。
 // 右サイドパネルを閉じる（Esc）と編集に戻り、読み直しても印刷プレビューのまま開く。印刷区画をダブルクリックすると、そのページの編集に戻る
 import { expect, type Page, test } from "./fixtures"
+import { newBook } from "./helpers/master"
 import { panel } from "./helpers/note"
 import { addBox, items, onPaper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -130,4 +131,22 @@ test("印刷プレビューの紙に、ページの形と線を描く（見る�
   await expect(sheet.locator("polyline")).not.toHaveCount(0)
   // 紙の中の形には、e2e や操作が探す印（data-shape）を付けない
   await expect(sheet.locator("[data-shape]")).toHaveCount(0)
+})
+
+test("ツリーとディレクトリ構成図も、印刷プレビューの紙に中身を描く", async ({ page }) => {
+  await page.goto("/")
+  const tree = await newBook(page, "木", "ツリー")
+  await tree.getByLabel("根のキャプション").fill("根っこ")
+  await tree.getByRole("button", { name: "作る" }).click()
+  await expect(tree).toBeHidden()
+  await openPreview(page)
+  await expect(sheets(page).first()).toContainText("根っこ")
+  await page.keyboard.press("Escape")
+  await expect(preview(page)).toHaveCount(0)
+  const dir = await newBook(page, "構成", "ディレクトリ構成図")
+  await dir.getByLabel("根のフォルダの名前").fill("proj")
+  await dir.getByRole("button", { name: "作る" }).click()
+  await expect(dir).toBeHidden()
+  await openPreview(page)
+  await expect(sheets(page).first()).toContainText("proj")
 })

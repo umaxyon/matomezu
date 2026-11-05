@@ -3,10 +3,12 @@
 import type { BookViewDef } from "../../../../plugin-api/ui"
 import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, TREE_CONTEXT } from "../tree"
+import { TreeSheet } from "./TreeSheet"
 import { TreeView } from "./TreeView"
 
 export const TREE_VIEW = {
   view: TreeView,
+  printSheet: TreeSheet,
   contextMenus: [TREE_CONTEXT, NODE_CONTEXT],
   motion: stage => (stage.tool === EDIT_TOOL.id ? (stage.selection[0] ?? "") : ""),
 } as const satisfies BookViewDef

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import type { PagedBook } from "../../web/src/core/book"
 import { paperSize } from "../../web/src/plugins/base/place/items"
 import { placedSize } from "../../web/src/plugins/base/place/placed"
-import { bookSheets } from "../../web/src/plugins/base/print-preview/book-sheets"
+import { bookSheets, sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { filledSheets, sheetsOfShape, snapShift } from "../../web/src/plugins/base/print-preview/filled"
 import { isEnabled, isShown } from "../../web/src/store/commands"
 import { newStore } from "../support"
@@ -129,15 +129,22 @@ test("印刷区画に載っているか: 手で直した線の角がある印刷
   expect(sheetsOfShape({ x: 50, y: paper.h - 34, w: 100, h: 64 }, paper)).toEqual([{ column: 0, row: 0 }])
 })
 
-test("アイテムの位置をデータに持たないタイプ（ツリーなど）は判定せず、どの印刷区画も並べる", () => {
+test("ツリーのように並べ方を描くときに決めるタイプは、見せ方の printSheets が印刷区画と載っている印刷区画を返す（形の位置からは判定しない）", () => {
   const store = newStore()
-  const tree = {
-    type: "@matomezu/tree:tree" as const,
-    id: "t1",
-    title: "木",
-    pages: [{ id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
+  const page = {
+    id: "p1",
+    title: "1",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape" as const,
+    root: { id: "r", caption: "根", children: [] },
   }
-  expect(filledSheets(store.catalog.core, tree as never, tree.pages[0]!)).toBeNull()
+  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] }
+  expect(filledSheets(store.catalog.core, tree as never, page)).toBeNull()
+  expect(sheetsOfPage(store.catalog.core, tree as never, page)).toEqual({
+    columns: 1,
+    rows: 1,
+    filled: new Set(["0,0"]),
+  })
   expect(bookSheets(store.catalog.core, tree as never).sheets).toHaveLength(1)
 })
 
