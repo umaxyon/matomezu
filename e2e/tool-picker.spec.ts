@@ -102,3 +102,25 @@ test("分けて別の図面を開いても、道具は左右で同じ。左で�
   await expect(stages.nth(1)).toHaveAttribute("data-tool", "@matomezu/base:hand")
   await expect(page.getByRole("button", { name: "ハンドツール" })).toHaveCount(2)
 })
+
+test("設定で長押しの時間を 500 ミリ秒にすると、300 ミリ秒では道具のアイコンが出ず、500 ミリ秒を過ぎると出る", async ({
+  page,
+}) => {
+  await page.clock.install()
+  await page.goto("/")
+  await (await fromMenu(page, "ホーム")).click()
+  await page.getByLabel("ツールの切り替えを出す長押しの時間（ミリ秒）").selectOption("500")
+  await expect(page.getByLabel("ツールの切り替えを出す長押しの時間（ミリ秒）")).toHaveValue("500")
+  await (await fromMenu(page, "画面を分割")).click()
+  const input = page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("combobox", { name: "ブックを探す" })
+  await input.click()
+  await input.pressSequentially("振り返り")
+  await input.press("Enter")
+  const at = await onPaper(page, 400, 300)
+  await page.mouse.move(at.x, at.y)
+  await page.mouse.down({ button: "right" })
+  await page.clock.runFor(350)
+  await expect(picker(page)).toHaveCount(0)
+  await page.clock.runFor(200)
+  await expect(picker(page)).toBeVisible()
+})

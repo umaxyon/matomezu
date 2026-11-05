@@ -39,8 +39,19 @@ export function useContextMenu<M extends ContextMenuId>(
   stage: string,
   id: M,
 ): (e: MouseEvent, target: ContextMenuTable[M]) => void {
+  const open = useOpenContextMenu()
+  return (e, target) => open(e, stage, id, target)
+}
+
+// 右クリック e で、ステージ stage にメニュー id を開く口（useContextMenu と同じ。開くステージが、右クリックを受けたときに決まる所で使う）
+export function useOpenContextMenu(): <M extends ContextMenuId>(
+  e: Pick<MouseEvent, "preventDefault" | "stopPropagation" | "clientX" | "clientY">,
+  stage: string,
+  id: M,
+  target: ContextMenuTable[M],
+) => void {
   const { openContextMenu } = useActions()
-  return (e, target) => {
+  return (e, stage, id, target) => {
     e.preventDefault()
     e.stopPropagation()
     if (press.suppressed) return

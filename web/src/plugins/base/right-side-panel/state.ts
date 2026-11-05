@@ -58,11 +58,6 @@ export function withoutAnchor(open: RightSidePanelOpen, id: string): RightSidePa
 export const pointedSelection = (selection: readonly string[], id: string, mod: boolean): readonly string[] =>
   mod ? toggledSelection(selection, id) : [id]
 
-// 選択に従う中身で、ポインタを離したあとに閉じるか: 押し始めが開いたステージの中（pressedInStage）で、合わせた付いた先が空のとき。
-// 右サイドパネルの中を押したときや、AI が物を消して空になったときは閉じない
-export const closesOnRelease = (release: { pressedInStage: boolean; anchors: readonly string[] }): boolean =>
-  release.pressedInStage && release.anchors.length === 0
-
 // 見せた物: 付いた先の並びとカレント
 export interface Seen {
   anchors: readonly string[]
@@ -149,7 +144,7 @@ export const columnGrow = (stage: string, i: number, panel: string | null, share
   panel !== null ? (stage === panel ? 1 : 0) : i === 0 ? share : 1 - share
 
 // 押しで右サイドパネルを閉じるか: 左ボタンで、右サイドパネルの外の、閉じない所（ダイアログ・メニューなど）でもない所を、紙をずらす間（ずらす道具・印刷プレビュー）でないときに押したとき。
-// 選択に従う中身を出している間の、開いたステージの中の押し（followed）では閉じない（選択が変わるだけ。離したあとに選択が空なら閉じる）
+// 選択に従う中身を出している間（followed）は、どこを押しても閉じない（選択が変わるだけ。付いた先が空になっても開いたまま。閉じるのは利用者が閉じたとき）
 export const pressCloses = (press: {
   button: number
   inside: boolean

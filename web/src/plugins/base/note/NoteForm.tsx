@@ -1,7 +1,5 @@
-// 伝言を書く所の部品（右サイドパネルで使う）: 文のテキストForm と「伝わったら自動で消す」
+// 伝言を書く所の部品（右サイドパネルで使う）: 文のテキストForm
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef } from "react"
-import { useMessages } from "../../../ui/i18n"
-import { kit } from "../kit"
 import styles from "./NoteForm.module.css"
 
 // 文のテキストForm: 幅は置いた所の幅で折り返し、書いた分だけ下へ伸びる。Ctrl（Mac は Cmd）+Enter で送り、Esc で onEscape を呼ぶ
@@ -64,24 +62,5 @@ export function GrowingText({
       onChange={e => onChange(e.target.value)}
       onKeyDown={onKeyDown}
     />
-  )
-}
-
-// 「伝わったら自動で消す」のチェックボックス
-export function RemoveOnRead({
-  checked,
-  onChange,
-  disabled,
-}: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  disabled?: boolean
-}) {
-  const t = useMessages(kit)
-  return (
-    <label className={styles.check}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
-      {t("Remove once read")}
-    </label>
   )
 }

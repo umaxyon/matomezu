@@ -34,7 +34,7 @@ const UPDATE = "@matomezu/base:note-update"
 const READ = "@matomezu/base:note-read"
 const REMOVE = "@matomezu/base:note-remove"
 
-test("伝言を付けると、ブックとは別に持ち、id を返す。吹き出しと「伝わったら消す」は既定で付く。文が空なら付けない（文の無い印はマーク）", () => {
+test("伝言を付けると、ブックとは別に持ち、id を返す。吹き出しは既定で出す。文が空か空白だけなら付けない（文の無い印はマーク）", () => {
   const { store, a, b, notes } = ready()
   const before = store.state.getState().books.b1
   const done = store.actions.perform(ADD, { anchors: [a, b], text: "見て" }, ON)
@@ -45,10 +45,11 @@ test("伝言を付けると、ブックとは別に持ち、id を返す。吹�
       id: done.ok ? (done.result as { note: string }).note : "",
       annotation: "@matomezu/base:note",
       anchors: [a, b],
-      props: { text: "見て", bubble: true, removeOnRead: true },
+      props: { text: "見て", bubble: true },
     },
   ])
   expect(store.actions.perform(ADD, { anchors: [a], text: "" }, ON).ok).toBe(false)
+  expect(store.actions.perform(ADD, { anchors: [a], text: " \n " }, ON).ok).toBe(false)
 })
 
 test("ブックに無い物や、ページそのものには伝言を付けられない", () => {
@@ -94,21 +95,19 @@ test("アンカーの物を消すとアンカーから外れ、全部消える�
   expect(notes()).toEqual([])
 })
 
-test("AI が読んだと知らせると、「伝わったら消す」なら消え、そうでなければ既読になる。既読のものは既読にできない", () => {
+test("AI が読んだと知らせると既読になり、伝言は残る。既読のものは既読にできない", () => {
   const { store, a, notes } = ready()
-  store.actions.perform(ADD, { anchors: [a], text: "消えて" }, ON)
-  store.actions.perform(ADD, { anchors: [a], text: "残って", removeOnRead: false }, ON)
-  const [gone, kept] = notes().map(n => n.id) as [string, string]
-  expect(store.actions.perform(READ, { note: gone }, ON).ok).toBe(true)
-  expect(notes().map(n => n.id)).toEqual([kept])
-  expect(store.actions.perform(READ, { note: kept }, ON).ok).toBe(true)
+  store.actions.perform(ADD, { anchors: [a], text: "読んで" }, ON)
+  const id = notes()[0]!.id
+  expect(store.actions.perform(READ, { note: id }, ON).ok).toBe(true)
+  expect(notes().map(n => n.id)).toEqual([id])
   expect((notes()[0]!.props as { readAt?: string }).readAt).toBeString()
-  expect(store.actions.perform(READ, { note: kept }, ON).ok).toBe(false)
+  expect(store.actions.perform(READ, { note: id }, ON).ok).toBe(false)
 })
 
-test("文を変えると未読に戻る。吹き出しや「伝わったら消す」だけを変えても既読のまま。何も変わらなければ断る", () => {
+test("文を変えると未読に戻る。吹き出しだけを変えても既読のまま。何も変わらなければ断る", () => {
   const { store, a, notes } = ready()
-  store.actions.perform(ADD, { anchors: [a], text: "直して", removeOnRead: false }, ON)
+  store.actions.perform(ADD, { anchors: [a], text: "直して" }, ON)
   const id = notes()[0]!.id
   const props = () => notes()[0]!.props as { text: string; bubble: boolean; readAt?: string }
   store.actions.perform(READ, { note: id }, ON)
@@ -137,7 +136,7 @@ test("ブックを消すと、そのブックの伝言も消える", () => {
 
 test("AI は伝言を付け・変え・消せない（利用者だけ）が、読んだと知らせられる", () => {
   const { store, a, notes } = ready()
-  store.actions.perform(ADD, { anchors: [a], text: "x", removeOnRead: false }, ON)
+  store.actions.perform(ADD, { anchors: [a], text: "x" }, ON)
   const id = notes()[0]!.id
   const s = store.state.getState()
   const world = { books: s.books, settings: s.settings, annotations: s.annotations }
@@ -152,7 +151,7 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
 
 test("付ける先を変えられる（吹き出しは最後の物のそば）。付ける先だけ変えても既読のまま。ブックに無い物には変えられない", () => {
   const { store, a, b, notes } = ready()
-  store.actions.perform(ADD, { anchors: [a], text: "見て", removeOnRead: false }, ON)
+  store.actions.perform(ADD, { anchors: [a], text: "見て" }, ON)
   const id = notes()[0]!.id
   store.actions.perform(READ, { note: id }, ON)
   expect(store.actions.perform(UPDATE, { note: id, anchors: [a] }, ON).ok).toBe(false)

@@ -1,10 +1,10 @@
 // 伝言の右サイドパネルの中身（ウィジェット note-panel）: ステージの選択に従い、選んだ物が付ける先になる（右サイドパネルの anchors。カレントは current）。
 // 上に付ける先の名前のバッジを並べ（カレントは色違い）、押すとその物をカレントにする（右サイドパネルが、倍率はそのままで真ん中へ見せる）。
-// 新しく書く（subject が NEW_NOTE）なら、文と「伝わったら自動で消す」を書いて「付ける」。付けた伝言なら、文を直すか付ける先を変えて「保存」。
+// 新しく書く（subject が NEW_NOTE）なら、文を書いて「付ける」。付けた伝言なら、文を直すか付ける先を変えて「保存」。
 // どちらも付ける先はカレントを最後に並べて渡し、吹き出しはカレントに出る。付けるか保存したら閉じる（閉じたら選択を外すのは右サイドパネル）。
 // 書いている間に付ける先の物がブックから消えたら（AI が消したなど）、閉じずにテキストFormの上に知らせ、書きかけはそのまま残す（付ける先が無い間は付けられない）。
-// 「伝わったら自動で消す」・吹き出しを出すか（たたむ）・消すは、付けた伝言では押したときに変える。変えられなければ（認可ステップが止めたなど）、どれも始められない。
-// 付けた伝言は、開いている間、編集ロックを掛ける（AI が変えも消しもしない）。付けた伝言が無くなったら（利用者がほかの窓で消したなど）、黙って右サイドパネルを閉じる
+// 吹き出しを出すか（たたむ）・消すは、付けた伝言では押したときに変える。変えられなければ（認可ステップが止めたなど）、どれも始められない。
+// 付けた伝言は、文か付ける先を変えてから、保存するか閉じるまで編集ロックを掛ける（AI が変えも消しもしない。開いて見ているだけなら掛けない）。付けた伝言が無くなったら（利用者がほかの窓で消したなど）、黙って右サイドパネルを閉じる
 import { useEffect, useRef, useState } from "react"
 import { anchorIds } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
@@ -17,8 +17,8 @@ import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { useEditLock } from "../utils/useEditLock"
 import type { StageSlotProps } from "../workspace/ui"
-import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
-import { GrowingText, RemoveOnRead } from "./NoteForm"
+import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
+import { GrowingText } from "./NoteForm"
 import form from "./NoteForm.module.css"
 import styles from "./NotePanel.module.css"
 import { NEW_NOTE } from "./panel-id"
@@ -109,17 +109,16 @@ function Lost({ stage, anchors }: { stage: string; anchors: readonly string[] })
   ) : null
 }
 
-// 新しく書く伝言: 文と「伝わったら自動で消す」を書いて「付ける」（付ける先が無い間は付けられない）
+// 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）
 function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
   const t = useMessages(kit)
   const run = usePerformOrToast(stage, "The note was refused")
   const close = useCloseRightSidePanel()
   const addable = useAllowed(stage, NOTE_ADD.id).ok
   const [text, setText] = useState("")
-  const [removeOnRead, setRemoveOnRead] = useState(true)
-  const ready = addable && text.trim() !== "" && open.anchors.length > 0
+  const ready = addable && NoteTextSchema.safeParse(text).success && open.anchors.length > 0
   const add = () => {
-    if (ready && run(NOTE_ADD.id, { anchors: ordered(open), text, removeOnRead })) close(stage)
+    if (ready && run(NOTE_ADD.id, { anchors: ordered(open), text })) close(stage)
   }
   return (
     <>
@@ -131,7 +130,6 @@ function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
         label={t("Note")}
         autoFocus
       />
-      <RemoveOnRead checked={removeOnRead} onChange={setRemoveOnRead} />
       <div className={form.buttons}>
         <button type="button" className={form.primary} disabled={!ready} onClick={add}>
           {t("Add")}
@@ -141,7 +139,7 @@ function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
   )
 }
 
-// 付けた伝言: 文を直すか付ける先を変えて「保存」。「伝わったら自動で消す」・たたむ・消すは、押したときに変える
+// 付けた伝言: 文を直すか付ける先を変えて「保存」。たたむ・消すは、押したときに変える
 function NoteEditor({
   stage,
   id,
@@ -161,11 +159,16 @@ function NoteEditor({
   const updatable = useAllowed(stage, NOTE_UPDATE.id).ok
   const removable = useAllowed(stage, NOTE_REMOVE.id).ok
   const [text, setText] = useState(props.text)
-  // 開いている間は、この伝言を AI が変えも消しもしない（読んだと知らせるのも。付いた物を消して伝言が変わるのも）
-  useEditLock(open.book, [id])
   const next = ordered(open)
   const moved = next.length !== anchors.length || next.some((a, i) => anchors[i] !== a)
-  const textChanged = text.trim() !== "" && text !== props.text
+  // 文か付ける先を一度変えたら、閉じるまで、この伝言を AI が変えも消しもしない（読んだと知らせるのも。付いた物を消して伝言が変わるのも）
+  const [edited, setEdited] = useState(false)
+  const editing = text !== props.text || moved
+  useEffect(() => {
+    if (editing) setEdited(true)
+  }, [editing])
+  useEditLock(open.book, edited || editing ? [id] : [])
+  const textChanged = NoteTextSchema.safeParse(text).success && text !== props.text
   const changed = updatable && next.length > 0 && (textChanged || moved)
   const save = () => {
     if (!changed) return
@@ -185,11 +188,6 @@ function NoteEditor({
         onSubmit={save}
         label={t("Note")}
         readOnly={!updatable}
-      />
-      <RemoveOnRead
-        disabled={!updatable}
-        checked={props.removeOnRead}
-        onChange={removeOnRead => run(NOTE_UPDATE.id, { note: id, removeOnRead })}
       />
       <div className={form.buttons}>
         <button type="button" className={form.primary} disabled={!changed} onClick={save}>

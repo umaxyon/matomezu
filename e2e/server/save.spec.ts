@@ -385,7 +385,7 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
   await expect(panel).toContainText("付ける先の物が消されました")
 })
 
-test("付けた伝言を右サイドパネルで開いている間は、AI が読んだと知らせても断られ（being-edited）、閉じると読める", async ({
+test("付けた伝言を右サイドパネルで開いて文を直している間は、AI が読んだと知らせても断られ（being-edited）、閉じると読める", async ({
   page,
 }) => {
   const ai = aiAuth()
@@ -426,7 +426,7 @@ test("付けた伝言を右サイドパネルで開いている間は、AI が�
       }[]
     )[0]?.id
   const id = await note()
-  // 開いた伝言の編集ロックが常駐に届くのを待つ
+  // 文を直した伝言の編集ロックが常駐に届くのを待つ
   const locked = page.waitForResponse(
     r =>
       r.url().endsWith("/api/view") &&
@@ -434,11 +434,13 @@ test("付けた伝言を右サイドパネルで開いている間は、AI が�
   )
   await page.getByRole("button", { name: "伝言を開く" }).click()
   await expect(panel.getByLabel("伝言", { exact: true })).toHaveValue("見てほしい")
+  await panel.getByLabel("伝言", { exact: true }).fill("見てほしい所")
   await locked
   const read = () => perform({ action: "@matomezu/base:note-read", args: { note: id }, on })
   expect(await read()).toMatchObject({ ok: false, reason: "being-edited" })
   await page.keyboard.press("Escape")
   await expect(panel).toHaveCount(0)
   await expect.poll(async () => (await read()).ok).toBe(true)
-  await expect.poll(note).toBeUndefined()
+  // 読んだ伝言は既読になって残る
+  expect(await note()).toBe(id)
 })

@@ -14,11 +14,13 @@ import { useKeyLabel } from "../../../ui/keys"
 import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
 import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
+import { useAnchorContextMenu } from "./anchor-context"
 import styles from "./ContextMenuHost.module.css"
 import { fitInside } from "./fit"
 import { pressedAnchor } from "./pressed-anchor"
 
 export function ContextMenuHost() {
+  useAnchorContextMenu()
   const menu = useMatomezuState(s => s.contextMenu)
   if (!menu) return null
   return <ContextMenu key={`${menu.id}:${menu.stage}:${menu.at.x}:${menu.at.y}`} menu={menu} />
@@ -28,7 +30,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const { closeContextMenu } = useActions()
   const items = useContextMenuItems(menu.stage, menu.id as ContextMenuId)
   const t = useMessages(kit)
-  const [anchor] = useState(pressedAnchor) // 開いたときの、押した物のアンカー
+  const [anchor] = useState(() => pressedAnchor(menu.at)) // 開いたときの、押した物のアンカー
   const shown = useAnchorMenuItems(menu.stage)
   const anchored = anchor === undefined ? [] : shown
   const empty = items.every(i => i === SEPARATOR) && anchored.length === 0
