@@ -5,6 +5,7 @@ import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { MASTER } from "../../web/src/plugins/books/master/master"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
+import type { AnyPluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { SAMPLE_BOOKS } from "../sample-books"
@@ -33,8 +34,8 @@ test("マスターの「設定を開く」で設定画面が開き、項目を�
 })
 
 // マスターから設定画面を開き、ショートカットキーの欄にする
-function openKeys() {
-  const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
+function openKeys(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
+  const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins })
   store.actions.openBook("s1", MASTER_BOOK.id)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
@@ -96,4 +97,17 @@ test("同じ範囲のほかの行が使うキーは、付ける前に確かめ�
   expect(keys().added).toEqual([{ key: "Home", command: "@matomezu/base:undo", scope: "stage" }])
   fireEvent.change(screen.getByRole("searchbox", { name: "ショートカットキーを探す" }), { target: { value: "Home" } })
   expect(stageScope().getByText(/Home は効いていません（「元に戻す」が先に使っています）/)).toBeTruthy()
+})
+
+test("ホームのタイプがキーバインドの項目を変えさせなければ、外す・足す・全部を既定に戻すを押せない", () => {
+  const fixed = { ...MASTER, fixedUserSettings: ["@matomezu/base:keys"] }
+  const [base, master, ...rest] = BUILTIN_UI
+  const { stageScope } = openKeys([base, { ...master, bookTypes: [fixed] } as AnyPluginUi, ...rest])
+  expect((stageScope().getByRole("button", { name: "「元に戻す」にキーを足す" }) as HTMLButtonElement).disabled).toBe(
+    true,
+  )
+  expect(
+    (stageScope().getByRole("button", { name: "「元に戻す」から Ctrl+Z を外す" }) as HTMLButtonElement).disabled,
+  ).toBe(true)
+  expect((screen.getByRole("button", { name: "全部を既定に戻す" }) as HTMLButtonElement).disabled).toBe(true)
 })

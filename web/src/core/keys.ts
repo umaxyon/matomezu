@@ -1,4 +1,4 @@
-// キー: 押したキーの書き方と、割り当て（キー → コマンド）の形・利用者の変更。
+// キー: 押したキーの書き方と、キーバインド（キー → コマンド）の形・利用者の変更。
 // 書き方は「修飾キー+キー」（例: Mod+Shift+K・Delete・Escape）。Mod は Mac では Cmd（Meta）、ほかでは Ctrl。
 // 修飾キーの順は Mod・Ctrl・Meta・Alt・Shift にそろえ、1 文字のキーは大文字、空白は Space で書く（比べるのは、そろえた書き方どうし）。
 // 名前の付いたキー（Delete・Escape・ArrowLeft など）は、ブラウザのキーの名前（KeyboardEvent.key）の書き方のまま書く
@@ -60,7 +60,7 @@ export function keyLabel(key: string, mac: boolean): string {
   return mac ? parts.map(p => MAC[p] ?? p).join("") : parts.map(p => (p === "Mod" ? "Ctrl" : p)).join("+")
 }
 
-// 割り当ての 1 行: キーをどの範囲で押したら、どのコマンドを呼ぶか（args はコマンドに渡す決まった値）
+// キーバインドの 1 行: キーをどの範囲で押したら、どのコマンドを呼ぶか（args はコマンドに渡す決まった値）
 export const KeyBindingSchema = z.strictObject({
   key: z.string().min(1),
   command: z.string().min(1),

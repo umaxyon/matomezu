@@ -34,6 +34,6 @@ export const PART_UI = {
   keyScopes: { views: [], define: ["defineKeyScope"] },
 } as const satisfies Record<Part, PartUi>
 
-// 定義の種類（PARTS）に入らない定義オブジェクトを書く関数の名前（キーの既定の割り当て・言語パック。プラグインの keys・languages に渡す。見た目は無い）。
+// 定義の種類（PARTS）に入らない定義オブジェクトを書く関数の名前（既定のキーバインド・言語パック。プラグインの keys・languages に渡す。見た目は無い）。
 // PARTS に入れると、id を core/catalog.ts に 1 つずつ書き足す決まりがかかるので入れない。kit の関数の書き忘れを test/ui/part-ui.test.ts が見るためだけの一覧
 export const NON_PART_DEFINES = ["defineKey", "defineLanguagePack"] as const satisfies readonly DefineName[]

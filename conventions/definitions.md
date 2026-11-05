@@ -24,11 +24,11 @@
 | 文言の組（`MessageSetDef`） | プラグイン 1 つの、画面に出す文と訳（id は `<プラグインの id>:messages`） | `core/i18n/messages.ts` |
 | 言語パック（`LanguagePackDef`） | 言語 1 つの名前と、どのプラグインの文言にも足せる訳（id は `<プラグインの id>:<言語>`） | `core/i18n/messages.ts` |
 | テーマキー（`TokenDef`） | テーマの値の名前と既定 | `core/def/theme.ts` |
-| キーの既定のキーバインド（`KeyDef`） | キーとコマンドの組 1 つ | `store/keys.ts` |
+| 既定のキーバインド（`KeyDef`） | キーとコマンドの組 1 つ | `store/keys.ts` |
 | キーの範囲（`KeyScopeDef`） | キーバインドが効く場面の名前と、画面に出す題名 | `store/keys.ts` |
 
-- 定義の種類（文言の組・言語パック・テーマキー・キーの既定のキーバインドを除く上の表）の一覧は `core/catalog.ts` の `PARTS`（フィールドの名前・入る台帳・error の文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その台帳のクレートが `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインのフィールド（`PluginParts`）・core 台帳と store 台帳・id の頭と重なりの検査は、この一覧から作る。種類ごとに意味の違う見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く（種類が抜けると型の誤り。書いたフィールドと関数があることはテストが確かめる）
-- 文言の組・言語パック・テーマキー・キーの既定のキーバインドは、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとブックのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作り、土台の文言の組と言語の id の頭は `matomezu`（`matomezu:messages`・`matomezu:en`・`matomezu:ja`）
+- 定義の種類（文言の組・言語パック・テーマキー・既定のキーバインドを除く上の表）の一覧は `core/catalog.ts` の `PARTS`（フィールドの名前・入る台帳・error の文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その台帳のクレートが `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインのフィールド（`PluginParts`）・core 台帳と store 台帳・id の頭と重なりの検査は、この一覧から作る。種類ごとに意味の違う見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く（種類が抜けると型の誤り。書いたフィールドと関数があることはテストが確かめる）
+- 文言の組・言語パック・テーマキー・既定のキーバインドは、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとブックのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作り、土台の文言の組と言語の id の頭は `matomezu`（`matomezu:messages`・`matomezu:en`・`matomezu:ja`）
 - 定義は `defineX()` で書く。React を使わない（描き方はプラグインの見た目で結ぶ）
 
 - core 台帳は定義の組から作り、作ったあとは変えない。作るときに表どうしの参照を確かめ、食い違えば作らない
@@ -100,7 +100,7 @@
 - 機能台帳に無い設定の項目（プラグインを外したなど）は、使わずにデータに残し、設定のダイアログに出さない。機能台帳にあってタイプが選んでいない項目は読めない（warning にする）
 - 名前は id の 1 つだけ（`field` は持たない）。変える鍵もデータに残す鍵も設定の id で、データはブックとページの `settings` というフィールドの中に入れる（例: `settings: { "@matomezu/line:line-route": "elbow" }`）
 - 利用者の設定の項目は、プラグインの `userSettings` に置く。1 つの id を、ブックの設定の項目と利用者の設定の項目の両方には使わない。利用者の設定も、機能台帳に無い項目を使わずに残す
-- 土台は、自分が読む利用者の設定の項目（言語・スキン・キーバインド）を、id でなく `role` で引く。`role` を持てるのはビルトインプラグインの項目だけで、1 つの `role` は 1 つの項目だけが持つ。言語パック・スキン・キーを足すプラグインは `role` を書かない（足した物は、その項目の選択肢になる）
+- 土台は、自分が読む利用者の設定の項目（言語・スキン・キーバインド）を、id でなく `role` で引く。`role` を持てるのはビルトインプラグインの項目だけで、1 つの `role` は 1 つの項目だけが持つ。言語パック・スキン・キーバインドを足すプラグインは `role` を書かない（足した物は、その項目の選択肢になる）
 - 利用者の設定の項目ごとに、変えるアクションを作らない（変えるのは base のアクション 1 つ）
 
 ## アクション

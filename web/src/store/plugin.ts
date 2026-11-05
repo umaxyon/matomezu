@@ -1,4 +1,4 @@
-// プラグイン: 1 つの部品の定義の組（定義の種類は core/catalog.ts の PARTS と、store の物（コマンド・ダイアログ・キーの既定の割り当てなど））。React を使わない部分だけを持つ。
+// プラグイン: 1 つの部品の定義の組（定義の種類は core/catalog.ts の PARTS と、store の物（コマンド・ダイアログ・既定のキーバインドなど））。React を使わない部分だけを持つ。
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
 import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
@@ -26,11 +26,11 @@ declare module "../core/catalog" {
   }
 }
 
-// プラグインが持つ定義: 定義の種類ごとの並び（core/catalog.ts の PARTS）と、文言・言語・キーの既定の割り当て
+// プラグインが持つ定義: 定義の種類ごとの並び（core/catalog.ts の PARTS）と、文言・言語・既定のキーバインド
 export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } & {
   messages?: MessageSetDef // このプラグインの文言（defineMessages で書いて pluginKit に渡し、core/catalog.ts の MessageTable に書き足す）
   languages?: readonly LanguagePackDef[] // 持ち込む言語（kit.defineLanguagePack。ほかのプラグインの文言の訳も持てる）
-  keys?: readonly KeyDef[] // キーの既定の割り当て（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
+  keys?: readonly KeyDef[] // 既定のキーバインド（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
   checks?: readonly CatalogCheck[] // 組み立てのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E308 で止める）
   normalizeSteps?: readonly NormalizeStep[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E310 で止める）
@@ -108,7 +108,7 @@ export const definePlugin = <const P extends Plugin>(
 export type { CatalogCheck }
 export { problem, warning }
 
-// ビルトインプラグインの印: キーの割り当てで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
+// ビルトインプラグインの印: キーバインドで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")
 export function defineBuiltin<const P extends Plugin>(
@@ -237,7 +237,7 @@ export function assemble(
   }
 }
 
-// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは error
+// プラグインの既定のキーバインドを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは error
 function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>): DefaultKey[] {
   const keys: DefaultKey[] = []
   const problems = []

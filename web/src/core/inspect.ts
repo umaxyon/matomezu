@@ -20,7 +20,7 @@ export type Source =
   | { source: "bookType"; id: string; field: "fixedUserSettings"; setting: string } // ホームのタイプが変えさせない利用者の設定の項目
   | { source: "home"; id: null } // ホームが無い（一覧と設定のアクションは使えない）
   | { source: "permission"; id: string } // 認可ステップが止めた（core/def/permission.ts）
-  // キーの割り当ての行（誰の行か・書いたプラグイン・使わなかった理由。store/keys.ts の inspectKey）
+  // キーバインドの行（誰の行か・書いたプラグイン・使わなかった理由。store/keys.ts の inspectKey）
   | {
       source: "key"
       from: "user" | "builtin" | "plugin"

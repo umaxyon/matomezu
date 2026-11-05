@@ -1,8 +1,8 @@
 // 設定画面のキーバインドの欄（画面ではショートカットキー）: 上にインクリメンタルサーチ、その下のスクロールする枠に、範囲の題名の見出しごとに行を並べる。
 // 行は範囲・コマンド・args ごと（store/keys.ts の keyRows）で、キーを札で出し、× で外し、+ で押したキーを覚えて足す。
 // 足すキーを同じ範囲のほかの行が使っていれば、付ける前に確かめる（利用者の行が先になり、向こうは効かなくなる）。
-// ほかの行が先に使っていて効いていないキーは、行の下に添える。変えた行は既定に戻せ、見出しで全部を既定に戻せる（確かめてから）。
-// 変えるとコマンド settings-set でキーバインドの項目を書く（コマンドが押せなければ、どれも押せない）
+// ほかの行が先に使っていて効いていないキーは、行の下に添える。変えた行は既定に戻せ、探す入力Form の横のボタンで全部を既定に戻せる（確かめてから）。
+// 変えるとコマンド settings-set でキーバインドの項目を書く（コマンドが押せないか、ホームのタイプがこの項目を変えさせなければ、どれも押せない）
 import { type KeyboardEvent, useState } from "react"
 import type { BaseKeyScope } from "../../../core/catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
@@ -19,10 +19,11 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { isMac } from "../../../ui/keys"
 import { useCatalog } from "../../../ui/store-context"
-import { useUserSetting } from "../../../ui/view-hooks"
+import { useAllowed, useUserSetting } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { SETTINGS_SET } from "./actions"
 import { SETTINGS_SET_COMMAND } from "./commands"
 import styles from "./KeysPane.module.css"
 import { KEYS } from "./user-settings"
@@ -38,6 +39,8 @@ export function KeysPane({ stage }: { stage: string }) {
   const catalog = useCatalog()
   const mac = isMac()
   const set = useCommand(stage, SETTINGS_SET_COMMAND.id)
+  // 書けるか: コマンドが押せ、ホームのタイプがキーバインドの項目を変えさせないのでもない
+  const writable = useAllowed(stage, SETTINGS_SET.id, { settings: [KEYS.id] }).ok && set.enabled
   const changes = (useUserSetting(KEYS.id) as KeyChanges | undefined) ?? NO_KEY_CHANGES
   const [query, setQuery] = useState("")
   const [capture, setCapture] = useState<Capture | null>(null)
@@ -97,7 +100,7 @@ export function KeysPane({ stage }: { stage: string }) {
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
-        <ActionButton disabled={!set.enabled} onClick={() => setResetting(true)}>
+        <ActionButton disabled={!writable} onClick={() => setResetting(true)}>
           {t("Reset all")}
         </ActionButton>
       </div>
@@ -125,7 +128,7 @@ export function KeysPane({ stage }: { stage: string }) {
                                 key: label(entry.binding.key),
                                 command: title,
                               })}
-                              disabled={!set.enabled}
+                              disabled={!writable}
                               onClick={() => write(withKeyRemoved(changes, entry.binding))}
                             >
                               ×
@@ -151,7 +154,7 @@ export function KeysPane({ stage }: { stage: string }) {
                             type="button"
                             className={styles.add}
                             aria-label={t("Add a key to {command}", { command: title })}
-                            disabled={!set.enabled || capture !== null}
+                            disabled={!writable || capture !== null}
                             onClick={() => setCapture({ row: rowId(row) })}
                           >
                             +
@@ -159,7 +162,7 @@ export function KeysPane({ stage }: { stage: string }) {
                         )}
                       </span>
                       {row.changed && (
-                        <ActionButton disabled={!set.enabled} onClick={() => write(withRowReset(changes, row))}>
+                        <ActionButton disabled={!writable} onClick={() => write(withRowReset(changes, row))}>
                           {t("Reset")}
                         </ActionButton>
                       )}

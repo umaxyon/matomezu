@@ -30,7 +30,7 @@ const def = (key: string, command: string, plugin: string, builtin = false, scop
   builtin,
 })
 
-test("同じ範囲・同じキーは捨てずに 利用者 → ビルトインプラグイン → 追加プラグインの id の順に並べ、先頭の行だけが効く", () => {
+test("同じ範囲・同じキーは 利用者 → ビルトインプラグイン → 追加プラグインの id の順に並べ、先頭の行だけが効く", () => {
   const defaults = [
     def("D", "b:dup", "b"),
     def("Delete", "@matomezu/paper:paper-delete", "@matomezu/paper", true),
