@@ -1,5 +1,5 @@
 // 印刷プレビュー: フッタメニューのボタンで開くと、ブックの全ページの印刷区画を並べ、右サイドパネルに設定を出す。間はブックを変えるキー（元に戻す）が効かない。ロック中は変える前に聞く。
-// 右サイドパネルを閉じる（Esc）と編集に戻り、読み直しても印刷プレビューのまま開く。印刷区画をダブルクリックすると、そのページの編集に戻る
+// 右サイドパネルを閉じる（Esc）か読み直すと編集に戻る。印刷区画をダブルクリックすると、そのページの編集に戻る。右端にスクロールバーを出す
 import { expect, type Page, test } from "./fixtures"
 import { newBook } from "./helpers/master"
 import { panel } from "./helpers/note"
@@ -273,4 +273,50 @@ test("マークダウンの画像は、紙の残りに半分以上入れば縮�
   expect(within(after, await box(1))).toBe(true)
   const big = (await sheets(page).nth(1).locator("img").boundingBox())!
   expect(within(big, await box(1))).toBe(true)
+})
+
+test("印刷プレビューの右端のスクロールバーは、つまみのドラッグと溝を押すので紙をずらし、ホイールでずらすとつまみが付いて動く", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const add = await newBook(page, "長いメモ", "マークダウン")
+  await add.getByRole("button", { name: "作成" }).click()
+  await expect(add).toBeHidden()
+  const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await field.click()
+  await page.keyboard.insertText(Array.from({ length: 120 }, (_, i) => `段落 ${i + 1}`).join("\n\n"))
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("段落 120")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(2)).toPass()
+  // 右サイドパネルが滑り込み、幅に合わせ終わるまで待つ
+  await expect(panel(page).getByRole("button", { name: "幅に合わせる" })).toBeDisabled()
+  const bar = page.locator('[data-preview-scrollbar="y"]')
+  const thumb = bar.locator("div")
+  await expect(bar).toBeVisible()
+  const top = async () => (await sheets(page).first().boundingBox())?.y ?? 0
+  const thumbTop = async () => (await thumb.boundingBox())?.y ?? 0
+  // つまみを下へドラッグすると、紙が上へずれる
+  const before = await top()
+  const t = await thumb.boundingBox()
+  if (!t) throw new Error("つまみが無い")
+  await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2 + 60, { steps: 4 })
+  await page.mouse.up()
+  await expect(async () => expect(await top()).toBeLessThan(before - 60)).toPass()
+  // 溝のいちばん下を押すと、いちばん下まで移る（つまみが溝の下端に付く）
+  const b = await bar.boundingBox()
+  if (!b) throw new Error("溝が無い")
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height - 2)
+  await expect(async () => {
+    const now = await thumb.boundingBox()
+    expect((now?.y ?? 0) + (now?.height ?? 0)).toBeGreaterThan(b.y + b.height - 1.5)
+  }).toPass()
+  // ホイールで上へずらすと、つまみも上へ動く
+  const low = await thumbTop()
+  await page.mouse.move(b.x - 200, b.y + b.height / 2)
+  await page.mouse.wheel(0, -400)
+  await expect(async () => expect(await thumbTop()).toBeLessThan(low)).toPass()
+  // 幅に合わせて並べたので、印刷区画は横にはみ出さず、横のバーは出さない
+  await expect(page.locator('[data-preview-scrollbar="x"]')).toHaveCount(0)
 })

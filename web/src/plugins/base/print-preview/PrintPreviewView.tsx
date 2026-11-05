@@ -2,7 +2,7 @@
 // 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙）。何も載っていない印刷区画とページは並べず、
 // 並べる物が 1 つも無ければ、表示領域の真ん中に印刷できるものが無いと知らせる。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
-// 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
+// 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。右端と下端にスクロールバーを出す（PreviewScrollbars）。印刷区画をダブルクリックすると、そのページの編集に戻る。
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
 // 初めから出ていなければ（URL から印刷プレビューで開いたとき）、出す
 import { type ComponentType, type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -23,6 +23,7 @@ import { useOpenRightSidePanel, useRightSidePanel, useRightSidePanelSliding } fr
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { bookCrossings, bookSheets } from "./book-sheets"
+import { PreviewScrollbars } from "./PreviewScrollbars"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
 import { PrintingContext } from "./printing"
@@ -216,6 +217,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   return (
     <>
       {measuringViews}
+      <PreviewScrollbars stage={id} area={layout.size} />
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューを出さないだけ（印刷プレビューにメニューは無い） */}
       <div
         ref={ref}
