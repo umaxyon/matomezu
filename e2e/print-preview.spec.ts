@@ -211,3 +211,37 @@ test("マークダウンは、紙の高さでブロックの境目ごとに切�
   expect(await inside("last")).toBe(true)
   expect(await inside("first")).toBe(false)
 })
+
+test("マークダウンの長い段落は、紙の高さに入る所で行の途中から次の紙に続ける", async ({ page }) => {
+  await page.goto("/")
+  const add = await newBook(page, "長文", "マークダウン")
+  await add.getByRole("button", { name: "作成" }).click()
+  await expect(add).toBeHidden()
+  const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+  await field.click()
+  // 1 つの段落（改行を「  」で終える行を重ねて、A4 縦の 1 枚に入らない高さにする）
+  await page.keyboard.insertText(Array.from({ length: 80 }, (_, i) => `行 ${i + 1}  `).join("\n"))
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("行 80")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(1)).toPass()
+  // どの紙も同じ段落（原文の頭のブロック）の続きで、最後の行は最後の紙に見える
+  await expect(sheets(page).last().locator("[data-markdown-from]")).toHaveAttribute("data-markdown-from", "0")
+  // 「行 80」の字そのものの四角（段落の要素は文書の長さだけあるので、字の範囲で測る）が、最後の紙の中にある
+  const inside = await sheets(page)
+    .last()
+    .evaluate(sheet => {
+      const walker = document.createTreeWalker(sheet, NodeFilter.SHOW_TEXT)
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const at = n.textContent?.indexOf("行 80") ?? -1
+        if (at < 0) continue
+        const range = document.createRange()
+        range.setStart(n, at)
+        range.setEnd(n, at + 4)
+        const r = range.getBoundingClientRect()
+        const box = sheet.getBoundingClientRect()
+        return r.top >= box.top && r.bottom <= box.bottom
+      }
+      return false
+    })
+  expect(inside).toBe(true)
+})

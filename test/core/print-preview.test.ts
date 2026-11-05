@@ -171,48 +171,73 @@ describe("改ページ（breakShift）", () => {
 })
 
 describe("マークダウンを紙の高さで切る（cutSheets）", () => {
-  const block = (top: number, bottom: number, kind: "heading" | "other" = "other", from = top) => ({
-    top,
-    bottom,
-    kind,
-    from,
-  })
+  const block = (
+    top: number,
+    bottom: number,
+    kind: "heading" | "image" | "other" = "other",
+    breaks: number[] = [],
+    from = top,
+  ) => ({ top, bottom, kind, breaks, from })
+  const spans = (blocks: ReturnType<typeof block>[], height: number) =>
+    cutSheets(blocks, height).cuts.map(c => [c.start, c.end])
 
   test("入る所まで並べ、入らないブロックから次の枠にする（次の枠はそのブロックの上端から）", () => {
-    const cuts = cutSheets([block(0, 40), block(50, 90), block(100, 140), block(150, 190)], 100)
-    expect(cuts.map(c => [c.start, c.end])).toEqual([
+    const cuts = spans([block(0, 40), block(50, 90), block(100, 140), block(150, 190)], 100)
+    expect(cuts).toEqual([
       [0, 90],
       [100, 190],
     ])
   })
 
   test("見出しは枠の一番下に残さず、次のブロックと一緒に次の枠へ送る", () => {
-    const cuts = cutSheets([block(0, 40), block(50, 70, "heading"), block(80, 130)], 100)
-    expect(cuts.map(c => [c.start, c.end])).toEqual([
+    const cuts = spans([block(0, 40), block(50, 70, "heading"), block(80, 130)], 100)
+    expect(cuts).toEqual([
       [0, 40],
       [50, 130],
     ])
     // 見出しが続くとき（h1 の次に h2）は、どちらも送る
-    const chained = cutSheets([block(0, 40), block(45, 60, "heading"), block(62, 75, "heading"), block(80, 130)], 100)
-    expect(chained.map(c => [c.start, c.end])).toEqual([
+    const chained = spans([block(0, 40), block(45, 60, "heading"), block(62, 75, "heading"), block(80, 130)], 100)
+    expect(chained).toEqual([
       [0, 40],
       [45, 130],
     ])
     // 枠の頭の見出しの次が入らないときは、見出しは送らない（送ると空の枠ができる）
-    const lead = cutSheets([block(0, 20, "heading"), block(30, 200)], 100)
-    expect(lead.map(c => [c.start, c.end])).toEqual([
+    const lead = spans([block(0, 20, "heading"), block(30, 200)], 100)
+    expect(lead).toEqual([
       [0, 20],
       [30, 200],
     ])
   })
 
+  test("行で分けられる物は、入る一番下の切ってよい所で切り、続きを次の枠の頭にする", () => {
+    // 50〜250 の段落の行の下端が 70・90・…・250。枠 100 なら 1 枚目は 0〜90、2 枚目は 90〜190、3 枚目は 190〜250
+    const lines = [70, 90, 110, 130, 150, 170, 190, 210, 230, 250]
+    expect(spans([block(0, 40), block(50, 250, "other", lines)], 100)).toEqual([
+      [0, 90],
+      [90, 190],
+      [190, 250],
+    ])
+  })
+
+  test("入らない画像は、残りに半分以上入れば残りの高さまで縮め、入らなければ次の枠へ送る。枠より高い画像は枠の高さまで縮める", () => {
+    expect(cutSheets([block(0, 40), block(50, 120, "image")], 100).shrinks).toEqual([{ block: 1, height: 50 }])
+    expect(spans([block(0, 60), block(70, 160, "image")], 100)).toEqual([
+      [0, 60],
+      [70, 160],
+    ])
+    expect(cutSheets([block(0, 40), block(50, 300, "image")], 100)).toEqual({
+      cuts: [{ start: 0, end: 40, from: 0 }],
+      shrinks: [{ block: 1, height: 100 }],
+    })
+  })
+
   test("枠より高いブロックは、枠 1 つに 1 つだけ置く。ブロックが無ければ切らない", () => {
-    const cuts = cutSheets([block(0, 40), block(50, 300), block(310, 340)], 100)
-    expect(cuts.map(c => [c.start, c.end])).toEqual([
+    const cuts = spans([block(0, 40), block(50, 300), block(310, 340)], 100)
+    expect(cuts).toEqual([
       [0, 40],
       [50, 300],
       [310, 340],
     ])
-    expect(cutSheets([], 100)).toEqual([])
+    expect(cutSheets([], 100)).toEqual({ cuts: [], shrinks: [] })
   })
 })
