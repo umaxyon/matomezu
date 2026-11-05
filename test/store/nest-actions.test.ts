@@ -3,7 +3,8 @@ import { expect, test } from "bun:test"
 import { findShape, type ItemPage, walkShapes } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { childOrigin } from "../../web/src/plugins/base/place/frame"
-import { NEST_PADDING, placedSize, portAreasOf } from "../../web/src/plugins/base/place/placed"
+import { floorsOf, roomOf } from "../../web/src/plugins/base/place/items"
+import { allRectsOf, NEST_PADDING, placedSize, portAreasOf } from "../../web/src/plugins/base/place/placed"
 import { targetsFrom } from "../../web/src/plugins/items/line/connect"
 import { routeInputOf } from "../../web/src/plugins/items/line/drawn"
 import { dropTarget } from "../../web/src/plugins/paper/placing/items"
@@ -254,4 +255,53 @@ test("内包ボックスの中のリストにも、行のアクションが効�
   expect(run(store, "@matomezu/list:row-remove", { list: l, rows: [milk] }).ok).toBe(true)
   expect(rows().map(r => r.props.caption)).toEqual(["卵 6 個"])
   expect(at(store, l)?.parent).toBe(a)
+})
+
+// 紙の右端の近くに、子が 2 つ入った内包ボックス big（子の高さ 600 で、下へは押せない。描く幅は子が入る 648）を左端 x に置いたストア。
+// own は内包ボックス自分の幅（w）。paper は紙の大きさ
+function besideEdge(x = 460, own = 200) {
+  const store = newStore()
+  const big = place(store, { at: { x, y: 40 }, w: own, h: 100 })!
+  place(store, { at: { x: 20, y: 40 }, parent: big, w: 300, h: 600 })
+  place(store, { at: { x: 340, y: 40 }, parent: big, w: 300, h: 600 })
+  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const paper = roomOf(CORE_CATALOG, book, page(store))!
+  return { store, big, paper }
+}
+// ページのどの形も（子の形も、描く大きさで）紙の中か
+const allInPaper = (store: ReturnType<typeof newStore>, paper: { w: number; h: number }) =>
+  [...allRectsOf(CORE_CATALOG, page(store)).values()].every(
+    r => r.x >= 0 && r.y >= 0 && r.x + r.w <= paper.w && r.y + r.h <= paper.h,
+  )
+const width = (store: ReturnType<typeof newStore>, id: string) =>
+  placedSize(CORE_CATALOG, at(store, id)!.shape as never)!.w
+
+test("押した列を縮めて収めるとき、内包ボックスは子が入る大きさより小さくしない。入らなければ断り、紙の外へ押し出さない", () => {
+  // 置いて押す（右へも下へも押せず、縮めても子が入らない）
+  const { store, big, paper } = besideEdge()
+  const was = JSON.stringify(page(store))
+  expect(place(store, { at: { x: 380, y: 60 } })).toBeNull()
+  expect(JSON.stringify(page(store))).toBe(was)
+  // 大きさを変えて押す
+  const small = place(store, { at: { x: 40, y: 40 }, w: 64, h: 64 })!
+  expect(run(store, "@matomezu/paper:item-resize", { item: small, w: 440 }).ok).toBe(false)
+  // 線でつないで、組の間隔まで離す（今は 8 空き、線でつなぐと 32 要る）
+  const near = place(store, { at: { x: 460 - 8 - 72, y: 40 }, w: 72, h: 64 })!
+  expect(run(store, "@matomezu/line:line-connect", { from: near, to: big }).ok).toBe(false)
+  expect(at(store, big)!.at.x).toBe(460)
+  expect(allInPaper(store, paper)).toBe(true)
+})
+
+test("内包ボックスは、子が入る大きさまでは縮めて押せる（描く大きさも紙の中）", () => {
+  // 自分の幅が 748（子が入る幅 648 より 100 広い）。右端は 1108 で、下へは押せず、右へ押すと 33 はみ出す分を縮めて収める
+  const { store, big, paper } = besideEdge(360, 748)
+  expect(place(store, { at: { x: 300, y: 60 }, w: 100, h: 100 })).not.toBeNull()
+  expect(at(store, big)!.at.x).toBe(408)
+  expect(width(store, big)).toBeGreaterThanOrEqual(648)
+  expect(allInPaper(store, paper)).toBe(true)
+})
+
+test("縮めてよい下限は、子を持つ形では子が入る大きさ（キャプションの幅より広くても）", () => {
+  const { store, big } = besideEdge(360, 748)
+  expect(floorsOf(CORE_CATALOG, page(store)).get(big)).toMatchObject({ w: 648 })
 })
