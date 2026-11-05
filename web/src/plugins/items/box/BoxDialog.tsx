@@ -5,7 +5,7 @@
 // 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
 // キャプション・区切り線・本文は base の文字の領域の入力Formのコンポーネント（CaptionField・DividerField・BodyField）。
 // 置けない（紙からはみ出す・止められたなど）ときは閉じずに理由を出す。
-// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して箱を置き選び、編集は箱の項目を書き換える（アクション item-update）
+// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して箱を置き（ほかの形は画面と同じに押す）、置いた箱を選ぶ。編集は箱の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
@@ -61,7 +61,7 @@ function AddBox({
   const perform = usePerform(stage)
   const add = (props: BoxProps) => {
     if (!book) return { reason: "no-book" }
-    const done = perform("@matomezu/paper:item-place", { ...args, item, props })
+    const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
     if (!done.ok) return done
     select(stage, [done.result.item])
     onClose()

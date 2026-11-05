@@ -285,7 +285,7 @@ test("押した列を縮めて収めるとき、内包ボックスは子が入�
   // 大きさを変えて押す
   const small = place(store, { at: { x: 40, y: 40 }, w: 64, h: 64 })!
   expect(run(store, "@matomezu/paper:item-resize", { item: small, w: 440 }).ok).toBe(false)
-  // 線でつないで、組の間隔まで離す（今は 8 空き、線でつなぐと 32 要る）
+  // 線でつないで、組の間隔まで離す（線でつなぐ前は 8 空き、つなぐと 32 要る）
   const near = place(store, { at: { x: 460 - 8 - 72, y: 40 }, w: 72, h: 64 })!
   expect(run(store, "@matomezu/line:line-connect", { from: near, to: big }).ok).toBe(false)
   expect(at(store, big)!.at.x).toBe(460)
@@ -361,7 +361,7 @@ test("座標を渡さずに置くと、親（無ければページ）の中の�
   expect(at(store, (child as { result: { item: string } }).result.item)?.parent).toBe(a)
 })
 
-test("押し方を渡さずに、ほかの形を動かす所へ置く・動かす・付け替えると断り、動かす形と空きを添える。何も変えない。push なら今どおり", () => {
+test("押し方を渡さずに、ほかの形を動かす所へ置く・動かす・付け替えると断り、動かす形と空きを添える。何も変えない。push なら押して動かす", () => {
   const store = newStore()
   const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
   const b = place(store, { at: { x: 500, y: 0 }, w: 100, h: 60 })!

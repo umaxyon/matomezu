@@ -27,7 +27,7 @@ export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): 
 }
 
 // 置こうとしているアイテムを、ポインタの所に置く（置く先は items.ts の placeTarget: 子を持てる形の上ならその中、子を持てない形の上ならその親の中の空き）。
-// ほかの形とぶつかれば押す（crowd: push）。置けたら置くのをやめ、置いたアイテムを選ぶ。ページのはみ出す所なら何もしない。空きが無い・置けないならトーストで知らせる。
+// ほかの形とぶつかれば押す（crowd: push。追加のダイアログも同じに渡す）。置けたら置くのをやめ、置いたアイテムを選ぶ。ページのはみ出す所なら何もしない。空きが無い・置けないならトーストで知らせる。
 // 追加のダイアログのあるアイテム（箱・リスト）は、置くのをやめて追加のダイアログを開き（置く所を ShapeAddArgs で渡す）、中身を決めてから置く
 export const PAPER_PLACE = kit.defineCommand({
   id: "paper-place",
@@ -58,7 +58,6 @@ export const PAPER_PLACE = kit.defineCommand({
       page: page.id,
       at: target.at,
       ...(target.parent === null ? {} : { parent: target.parent }),
-      crowd: "push",
     }
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く）
     const def = shapeDefOf(ctx.catalog, stage.placing)
@@ -68,7 +67,7 @@ export const PAPER_PLACE = kit.defineCommand({
       a.openDialog(stage.id, dialog, where)
       return
     }
-    const done = a.perform(ITEM_PLACE.id, { ...where, item: stage.placing }, { book: stage.opened.book })
+    const done = a.perform(ITEM_PLACE.id, { ...where, item: stage.placing, crowd: "push" }, { book: stage.opened.book })
     if (!done.ok) {
       warn(done)
       return
