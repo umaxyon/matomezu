@@ -52,11 +52,16 @@ export function printLaid(
     paper.h,
     MARGIN,
   )
-  const moved = (p: Point): Point => ({ x: p.x + dx(p.x), y: p.y + dy(p.y) })
+  // 線の端は、つないでいる節と同じだけ送る（端の点の位置で決めると、ほかの節の改ページの分だけ節から離れることがある）
+  const shifts = new Map(laid.nodes.map(n => [n.id, { x: dx(n.x), y: dy(n.y) }]))
+  const moved = (p: Point, node: string): Point => {
+    const d = shifts.get(node) ?? { x: 0, y: 0 }
+    return { x: p.x + d.x, y: p.y + d.y }
+  }
   return {
     ...laid,
     nodes: laid.nodes.map(n => ({ ...n, x: n.x + dx(n.x), y: n.y + dy(n.y) })),
-    lines: laid.lines.map(l => ({ ...l, from: moved(l.from), to: moved(l.to) })),
+    lines: laid.lines.map(l => ({ ...l, from: moved(l.from, l.parent), to: moved(l.to, l.child) })),
   }
 }
 

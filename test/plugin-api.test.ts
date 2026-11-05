@@ -63,7 +63,6 @@ test("matomezu が出す名前", () => {
     "creatableTypes",
     "createBook",
     "createBookIn",
-    "crossingShapes",
     "defineMessages",
     "definePlugin",
     "edgePanner",

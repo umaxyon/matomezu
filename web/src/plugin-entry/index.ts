@@ -67,7 +67,6 @@ export {
   clampRich,
   commitChildren,
   createBookIn,
-  crossingShapes,
   evenGap,
   extentOf,
   followConnectors,

@@ -16,7 +16,7 @@ import type { GrowSides } from "../place/grow"
 import { withOpened } from "../right-side-panel/state"
 import { fitSideView, moveView, stageOf } from "../zoom"
 import { bookCrossings } from "./book-sheets"
-import { PRINT_CHECK_PANEL_ID } from "./panel-id"
+import { printCheckOpen } from "./panel-id"
 import {
   PRINT_PREVIEW_BOOK_NAME,
   PRINT_PREVIEW_FLOW,
@@ -115,8 +115,8 @@ export const PRINT_PREVIEW_OPEN = kit.defineCommand({
     const now = workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
     const opened = now?.opened
     if (book && now && opened && bookCrossings(ctx.catalog, book).some(c => c.crossing.length > 0)) {
-      const open = { widget: PRINT_CHECK_PANEL_ID, subject: book.id, anchors: [], current: book.id }
-      a.updateStageState(state => withOpened(state, { ...open, book: opened.book, page: opened.page }, now))
+      const open = { ...printCheckOpen(book.id), book: opened.book, page: opened.page }
+      a.updateStageState(state => withOpened(state, open, now))
       return
     }
     a.openPrintPreview(ctx.stage.id)

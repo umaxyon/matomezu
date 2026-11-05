@@ -48,10 +48,14 @@ export function printLaid(
     MARGIN,
   )
   const moved = (p: Point): Point => ({ x: p.x, y: p.y + dy(p.y) })
+  const rows = laid.rows.map(r => ({ ...r, y: r.y + dy(r.y), toggle: r.toggle && moved(r.toggle) }))
+  // 説明の列との区切り線は、送ったあとの一番下の行まで伸ばす
+  const bottom = Math.max(...rows.map(r => r.y + r.h), laid.divider?.to.y ?? 0)
   return {
     ...laid,
-    rows: laid.rows.map(r => ({ ...r, y: r.y + dy(r.y), toggle: r.toggle && moved(r.toggle) })),
+    rows,
     lines: laid.lines.map(l => ({ from: moved(l.from), to: moved(l.to) })),
+    divider: laid.divider && { from: laid.divider.from, to: { x: laid.divider.to.x, y: bottom } },
   }
 }
 

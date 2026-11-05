@@ -11,7 +11,7 @@ import type { StageSlotProps } from "../workspace/ui"
 import { PRINT_PREVIEW_OPEN } from "."
 import { bookCrossings } from "./book-sheets"
 import styles from "./PrintPreviewPanel.module.css"
-import { PRINT_CHECK_PANEL_ID } from "./panel-id"
+import { PRINT_CHECK_PANEL_ID, printCheckOpen } from "./panel-id"
 import { ShapeBadges } from "./ShapeBadges"
 
 export function PrintCheckPanel({ stage }: StageSlotProps) {
@@ -26,7 +26,7 @@ export function PrintCheckPanel({ stage }: StageSlotProps) {
   const crossing = found.flatMap(f => f.crossing.map(id => ({ page: f.page, id })))
   const oversized = found.flatMap(f => f.oversized.map(id => ({ page: f.page, id })))
   // ほかのページの形へ移ると右サイドパネルは閉じるので、開き直す
-  const keep = () => reopen(stage, { widget: PRINT_CHECK_PANEL_ID, subject: book.id, anchors: [], current: book.id })
+  const keep = () => reopen(stage, printCheckOpen(book.id))
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>
