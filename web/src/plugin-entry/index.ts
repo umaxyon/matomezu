@@ -59,6 +59,7 @@ export {
   bodyMinWidth,
   bodyText,
   bodyWidthAfter,
+  breakShift,
   CHILD_AREA,
   captionTextWidth,
   childOrigin,

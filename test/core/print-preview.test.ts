@@ -14,6 +14,7 @@ import {
   zoomTo,
 } from "../../web/src/core/stage"
 import { MARGIN } from "../../web/src/core/viewport"
+import { breakShift } from "../../web/src/plugins/base/print-preview/breaks"
 import { arrangeSheets } from "../../web/src/plugins/base/print-preview/sheets"
 import { fitSideView, ZOOM_MAX } from "../../web/src/plugins/base/zoom"
 import { CORE_CATALOG } from "../support"
@@ -135,5 +136,35 @@ describe("印刷区画の並べ方", () => {
 
   test("ページが無ければ、何も並べない", () => {
     expect(arrangeSheets([], { flow: "column", order: "across" })).toEqual({ sheets: [], size: { w: 0, h: 0 } })
+  })
+})
+
+describe("改ページ（breakShift）", () => {
+  test("印刷区画の境目をまたぐ物と、それより先の物を、次の印刷区画の頭（余白の下）まで送る。またがない物は送らない", () => {
+    // 長さ 100 の印刷区画、余白 10。20〜50 は送らず、80〜120 は境目をまたぐので 110 へ（30 送る）、そのあとの 130 も 30 送る
+    const dy = breakShift(
+      [
+        { at: 20, size: 30 },
+        { at: 80, size: 40 },
+        { at: 130, size: 30 },
+      ],
+      100,
+      10,
+    )
+    expect([dy(20), dy(80), dy(130)]).toEqual([0, 30, 30])
+  })
+
+  test("送ったあとにまた境目をまたげば、さらに送る。印刷区画より長い物は送らない", () => {
+    const dy = breakShift(
+      [
+        { at: 80, size: 40 },
+        { at: 170, size: 40 },
+        { at: 250, size: 95 },
+      ],
+      100,
+      10,
+    )
+    // 80→110（30）、170+30=200 は境目ちょうどで、またがない。250 は 95 > 100 - 10 なので送らない
+    expect([dy(80), dy(170), dy(250)]).toEqual([30, 30, 30])
   })
 })

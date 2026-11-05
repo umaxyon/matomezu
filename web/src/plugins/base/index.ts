@@ -138,6 +138,7 @@ export { NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./pl
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export type { PrintSheets } from "./print-preview"
+export { breakShift } from "./print-preview/breaks"
 export { crossingShapes, printSheetsOf, sheetShapes, sheetsOfShape } from "./print-preview/filled"
 export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 export {

@@ -48,6 +48,7 @@ test("matomezu が出す名前", () => {
     "bodyWidthAfter",
     "bookItems",
     "bookType",
+    "breakShift",
     "captionTextWidth",
     "changeWithLock",
     "childOrigin",
