@@ -32,3 +32,25 @@
   visibility: hidden;
   pointer-events: none;
 }
+/* 印刷区画に重ねるブック名（左上）とページ番号（下の真ん中）。中身の上に小さく描く */
+.bookName,
+.pageNumber {
+  position: absolute;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--theme-hint);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.bookName {
+  left: 12px;
+  top: 10px;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pageNumber {
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+}

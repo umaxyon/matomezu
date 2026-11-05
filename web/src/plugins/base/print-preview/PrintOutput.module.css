@@ -1,0 +1,25 @@
+/* 刷る物の入れ物: 画面では見えず（測る物が 0 を測らないよう、display: none にはしない）、刷るときだけ紙の流れに出す */
+.output {
+  position: fixed;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+/* 印刷区画 1 つ（1 ページ。紙ちょうどの大きさで、はみ出した所は切る） */
+.page {
+  position: relative;
+  overflow: hidden;
+  background: var(--theme-paper);
+}
+.page + .page {
+  break-before: page;
+}
+@media print {
+  .output {
+    position: static;
+    visibility: visible;
+  }
+}

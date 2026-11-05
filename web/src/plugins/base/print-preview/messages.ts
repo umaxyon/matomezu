@@ -3,6 +3,7 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const PRINT_PREVIEW_MESSAGES = defineMessages({
   "Print preview": { en: "Print preview", ja: "印刷プレビュー" },
+  Print: { en: "Print", ja: "印刷" },
   "Fit to width": { en: "Fit to width", ja: "幅に合わせる" },
   "Nothing to print": { en: "Nothing to print", ja: "印刷できるものはありません" },
   "Fix the boxes that cross print areas": {

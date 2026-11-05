@@ -10,6 +10,25 @@
 .head {
   font-weight: bold;
 }
+/* 印刷のボタン（見出しの下に横いっぱいの幅で。下の拡大縮小の帯との間は広めに空ける） */
+.print {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--skin-accent);
+  color: var(--skin-on-accent);
+  font: inherit;
+  cursor: pointer;
+}
+.print:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 /* 設定の項目の並び（パネルの幅に入らない選択肢は、名前の下へ折り返す。止められている間は fieldset ごと押せない） */
 .settings {
   margin: 0;

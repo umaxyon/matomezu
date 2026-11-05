@@ -15,6 +15,7 @@ import {
 } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
 import { breakShift } from "../../web/src/plugins/base/print-preview/breaks"
+import { pageNameOf, pageRules, sheetLabels } from "../../web/src/plugins/base/print-preview/print-pages"
 import {
   panForDrag,
   panForTrack,
@@ -204,5 +205,22 @@ describe("印刷プレビューのスクロールバー（scrollbar.ts）", () =
     expect(shownBars(area, 1, view)).toEqual({ x: false, y: true })
     expect(shownBars(area, 1.5, view)).toEqual({ x: true, y: true })
     expect(shownBars({ w: 800, h: 650 }, 1, view)).toEqual({ x: false, y: false })
+  })
+})
+
+describe("刷るときの紙（print-pages.ts）", () => {
+  test("印刷区画の大きさごとに、紙ちょうどで余白 0 の名前付きの @page を 1 つずつ作る（同じ大きさはまとめる）", () => {
+    const a4 = { w: 794, h: 1123 }
+    const a3Landscape = { w: 1587, h: 1123 }
+    expect(pageNameOf(a4)).toBe("sheet-794x1123")
+    expect(pageRules([a4, a3Landscape, a4]).split("\n")).toEqual([
+      "@page sheet-794x1123 { size: 794px 1123px; margin: 0; }",
+      "@page sheet-1587x1123 { size: 1587px 1123px; margin: 0; }",
+    ])
+  })
+  test("ページ番号は刷る紙全体の通し番号で、入れない設定なら出さない", () => {
+    const both = { pageNumbers: true, bookName: true }
+    expect(sheetLabels(2, 12, both, "メモ")).toEqual({ number: "3 / 12", book: "メモ" })
+    expect(sheetLabels(0, 1, { pageNumbers: false, bookName: false }, "メモ")).toEqual({ number: null, book: null })
   })
 })

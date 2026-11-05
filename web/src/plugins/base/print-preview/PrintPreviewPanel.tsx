@@ -1,4 +1,4 @@
-// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、拡大縮小の帯（フッタを隠すので、ここに出す。幅か高さに合わせるボタンを足す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）、
+// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、印刷のボタン（測っている途中と、並べる物が無い間は押せない）、拡大縮小の帯（フッタを隠すので、ここに出す。幅か高さに合わせるボタンを足す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）、
 // 印刷区画より大きくて紙の境目で切れる形のバッジ（押すとその形のページの編集へ）。
 // 項目を変えるとすぐに print-preview-update で変える。ブックがロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
@@ -16,7 +16,7 @@ import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/h
 import { LockToggle } from "../utils/LockToggle"
 import type { StageSlotProps } from "../workspace/ui"
 import { ZoomBar, ZoomButton } from "../zoom/ZoomBar"
-import { fitSide, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
+import { fitSide, PRINT, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
 import { bookCrossings } from "./book-sheets"
 import styles from "./PrintPreviewPanel.module.css"
 import { PRINT_PREVIEW_PANEL_ID } from "./panel-id"
@@ -55,6 +55,7 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>
+      <PrintButton stage={stage} />
       <ZoomBar stage={stage} fits={<FitButton stage={stage} />} />
       <fieldset className={styles.tools} disabled={!lockable}>
         <LockToggle
@@ -117,4 +118,21 @@ function FitButton({ stage }: { stage: string }) {
     </svg>
   )
   return <ZoomButton command={{ ...fit, title: kit.message(width ? "Fit to width" : "Fit to height") }} icon={icon} />
+}
+
+// 印刷のボタン（見出しの下に、横いっぱいの幅で）
+function PrintButton({ stage }: { stage: string }) {
+  const t = useMessages(kit)
+  const print = useCommand(stage, PRINT.id)
+  if (!print.shown) return null
+  return (
+    <button type="button" className={styles.print} disabled={!print.enabled} onClick={() => print.run()}>
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M7 9V3h10v6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="3" y="9" width="18" height="8" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="7" y="14" width="10" height="7" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+      {t("Print")}
+    </button>
+  )
 }

@@ -1,0 +1,63 @@
+// 刷る物: 印刷プレビューで並べた印刷区画を、倍率 1 で 1 枚ずつ 1 ページに描く（印刷プレビューのビューが、刷れる間だけ置く）。
+// 画面では見えず、刷るときだけ画面のほかの物を隠してこれを出す。紙は印刷区画の大きさの名前付きの @page で、余白 0（print-pages.ts）。
+// ステージの中は倍率とずらしと切り取りが掛かり改ページが効かないので、body の直下に描き、ブックのテーマの値を包み直す
+import type { ComponentType } from "react"
+import { createPortal } from "react-dom"
+import type { BookTypeId } from "../../../core/core-catalog"
+import type { Book, Page } from "../../../core/schema/book"
+import { useBookLookStyle } from "../book-look/use-book-look-style"
+import styles from "./PrintOutput.module.css"
+import type { PrintSheetProps } from "./PrintPreviewView"
+import { pageNameOf, pageRules } from "./print-pages"
+import { type SheetAt, SheetFrame } from "./SheetFrame"
+
+// 刷るときは、画面（#root）を隠し、刷る物だけを紙の流れに出す
+const PRINT_CSS = `@media print {
+  html, body { height: auto !important; background: none !important; }
+  #root { display: none !important; }
+}`
+
+export interface OutputSheet extends SheetAt {
+  key: string
+  page: Page | undefined
+  measured: unknown
+  labels: { number: string | null; book: string | null }
+}
+
+export function PrintOutput({
+  stage,
+  book,
+  Sheet,
+  sheets,
+}: {
+  stage: string
+  book: Book
+  Sheet: ComponentType<PrintSheetProps> | undefined
+  sheets: readonly OutputSheet[]
+}) {
+  const style = useBookLookStyle(stage, book.type as BookTypeId)
+  return createPortal(
+    <div className={styles.output} style={style} data-print-output={sheets.length} aria-hidden="true">
+      <style>{`${PRINT_CSS}\n${pageRules(sheets)}`}</style>
+      {sheets.map(s => (
+        <div
+          key={s.key}
+          className={styles.page}
+          style={{ width: s.w, height: s.h, page: pageNameOf(s) }}
+          data-print-page={pageNameOf(s)}
+        >
+          <SheetFrame
+            stage={stage}
+            book={book}
+            page={s.page}
+            sheet={s}
+            Sheet={Sheet}
+            measured={s.measured}
+            labels={s.labels}
+          />
+        </div>
+      ))}
+    </div>,
+    document.body,
+  )
+}

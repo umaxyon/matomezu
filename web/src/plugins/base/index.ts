@@ -39,6 +39,8 @@ import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import {
+  PRINT,
+  PRINT_KEYS,
   PRINT_PREVIEW_BOOK_NAME,
   PRINT_PREVIEW_FIT,
   PRINT_PREVIEW_FLOW,
@@ -263,6 +265,7 @@ export const BASE = defineBuiltin(
       LEFT_SIDE_PANEL_CLOSE,
       PRINT_PREVIEW_OPEN,
       PRINT_PREVIEW_FIT,
+      PRINT,
     ],
     dialogs: [
       OPEN_BOOK_DIALOG,
@@ -282,6 +285,7 @@ export const BASE = defineBuiltin(
       ...HISTORY_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
+      ...PRINT_KEYS,
     ],
   }),
 )
@@ -395,6 +399,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS
     "@matomezu/base:print-preview-open": typeof PRINT_PREVIEW_OPEN
     "@matomezu/base:print-preview-fit": typeof PRINT_PREVIEW_FIT
+    "@matomezu/base:print": typeof PRINT
     "@matomezu/base:settings-set": typeof SETTINGS_SET_COMMAND
     "@matomezu/base:settings-open": typeof SETTINGS_OPEN
     "@matomezu/base:note-new": typeof NOTE_NEW

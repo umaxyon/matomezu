@@ -8,6 +8,7 @@ import { fail } from "./core/errors"
 import { warning } from "./core/warnings"
 import { followLocation } from "./host-client/location"
 import { openClient } from "./host-client/open"
+import { followPrint } from "./host-client/print"
 import { UI_MODULES } from "./plugin-modules/ui"
 import { BUILTIN_HOME } from "./plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
@@ -48,6 +49,8 @@ client.reportWarnings([...screenWarnings, ...shownLayout(layout, store.plugins, 
 client.connect(store)
 // 画面の場所を URL と行き来させる（読み直しても同じ所が開き、ブラウザの戻る・進むで移動を戻る）
 followLocation(store)
+// 画面が頼んだら、ブラウザの印刷ダイアログで刷る
+followPrint(store)
 const root = document.getElementById("root")
 if (!root) fail("E202")
 
