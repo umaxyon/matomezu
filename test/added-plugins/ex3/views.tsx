@@ -1,5 +1,5 @@
 // 星のビュー・ダイアログ、方眼のコンポーネント、ミントにするボタン
-import type { z } from "matomezu"
+import type { ShapeAddArgs, z } from "matomezu"
 import {
   Dialog,
   type DialogProps,
@@ -38,7 +38,7 @@ export const STAR_ICON = (
   </svg>
 )
 
-export function AddStarDialog({ onClose }: DialogProps<{ page: string; at: { x: number; y: number } }>) {
+export function AddStarDialog({ onClose }: DialogProps<ShapeAddArgs>) {
   const t = useMessages(kit)
   return (
     <Dialog title={t("addStar")} onClose={onClose}>

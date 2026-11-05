@@ -1,5 +1,5 @@
 // 判断のひし形のビュー・追加と編集のダイアログ・流れの向きのコンポーネント
-import type { z } from "matomezu"
+import type { ShapeAddArgs, z } from "matomezu"
 import {
   Dialog,
   type DialogProps,
@@ -35,21 +35,13 @@ export const DIAMOND_ICON = (
   </svg>
 )
 
-export function AddDiamondDialog({
-  stage,
-  args,
-  onClose,
-}: DialogProps<{ page: string; at: { x: number; y: number } }>) {
+export function AddDiamondDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
   const t = useMessages(kit)
   const perform = usePerform(stage)
   const [caption, setCaption] = useState("")
   const add = () => {
-    const done = perform("@matomezu/paper:item-place", {
-      page: args.page,
-      item: DIAMOND.id,
-      at: args.at,
-      props: { caption },
-    })
+    // 置く所はそのまま渡し、画面で置くので、ほかの形は押してどける
+    const done = perform("@matomezu/paper:item-place", { ...args, item: DIAMOND.id, props: { caption }, crowd: "push" })
     if (done.ok) onClose()
   }
   return (

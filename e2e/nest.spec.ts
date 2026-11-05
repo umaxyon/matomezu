@@ -141,6 +141,7 @@ test("箱の道具で内包ボックスの上へ持っていくと入る先に�
   await (await footerMenuTool(page, "箱")).click()
   await page.mouse.move(parent.x + parent.width / 2, parent.y + parent.height / 2)
   await expect(page.locator('[data-drop-target="true"]')).toHaveCount(1)
+  await expect(page.locator("[data-fits]")).toHaveAttribute("data-fits", "true")
   await expect(item(page, "親")).toHaveAttribute("data-drop-target", "true")
   await page.mouse.click(parent.x + parent.width / 2, parent.y + parent.height / 2)
   await confirmBox(page, "子")
@@ -148,18 +149,24 @@ test("箱の道具で内包ボックスの上へ持っていくと入る先に�
   await expect(page.locator('[data-drop-target="true"]')).toHaveCount(0)
 })
 
-test("箱の道具でリストの上で押すと、リストは動かさずに、同じ親（ページ）の空きに置く", async ({ page }) => {
+test("箱の道具でリストの上で押すと、リストは動かさずに、同じ親（ページ）の空きに置く。点線の影はその空きに出る", async ({
+  page,
+}) => {
   await page.goto("/")
   const list = await addList(page, "L")
   const before = (await list.boundingBox())!
   await (await footerMenuTool(page, "箱")).click()
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
   await expect(page.locator('[data-drop-target="true"]')).toHaveCount(0)
+  // 点線の影は、ポインタの所ではなく、置く空きに出る
+  const ghost = (await page.locator("[data-fits]").boundingBox())!
   await page.mouse.click(before.x + before.width / 2, before.y + before.height / 2)
   await confirmBox(page, "横")
   const after = (await list.boundingBox())!
   expect(after).toEqual(before)
   const box = (await item(page, "横").boundingBox())!
+  expect(Math.round(box.x)).toBe(Math.round(ghost.x))
+  expect(Math.round(box.y)).toBe(Math.round(ghost.y))
   const apart = box.x >= after.x + after.width || box.y >= after.y + after.height || box.x + box.width <= after.x
   expect(apart).toBe(true)
 })

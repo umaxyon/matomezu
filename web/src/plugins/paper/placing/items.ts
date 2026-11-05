@@ -13,6 +13,7 @@ import {
   walkShapes,
 } from "../../../plugin-api"
 import {
+  childOrigin,
   commitChildren,
   followConnectors,
   frameAround,
@@ -143,10 +144,19 @@ export function freeAt(
   return spot && at(spot)
 }
 
+// 置く道具の置き先: 入れる親 parent（null はページ）と、左上 at（item-place と同じく、親があれば親の左上から）。
+// free なら空きに置く（at は、置く物の定義の大きさで探した空き。置くときは at を渡さず、中身を決めた大きさで item-place が探し直す）。
+// shown は、置く所の紙の上の左上（点線の影を描く所）
+export interface PlaceTarget {
+  parent: string | null
+  at: Point
+  free: boolean
+  shown: Point
+}
+
 // 置く道具で、ポインタの点 pointer（紙の上）の所に、左上 at（紙の上）・大きさ size の形を置くときの置き先。
-// 点の下の一番内側の形が子を持てる形なら、その中の at（子の領域へは item-place が寄せる）。子を持てない形（リスト・シェイプなど）なら、
-// その形の親（ページか形）の中の空き（freeAt）。点の下に形が無ければ、ページの at。返す at は、親があれば親の左上から（item-place と同じ）。
-// 空きが無ければ null
+// 点の下の一番内側の形が子を持てる形なら、その中の at（子の領域より左や上なら、item-place と同じく子の領域の左上へ寄せた所に影を描く）。
+// 子を持てない形（リスト・シェイプなど）なら、その形の親（ページか形）の中の空き（freeAt）。点の下に形が無ければ、ページの at。空きが無ければ null
 export function placeTarget(
   catalog: CoreCatalog,
   book: Book,
@@ -154,11 +164,17 @@ export function placeTarget(
   pointer: Point,
   at: Point,
   size: Size,
-): { parent: string | null; at: Point } | null {
+): PlaceTarget | null {
   const under = innermostAt(catalog, page, pointer)
-  if (!under) return { parent: null, at }
-  if (nests(catalog, under.shape.item))
-    return { parent: under.shape.id, at: { x: at.x - under.at.x, y: at.y - under.at.y } }
+  if (!under) return { parent: null, at, free: false, shown: at }
+  if (nests(catalog, under.shape.item)) {
+    const inner = { x: at.x - under.at.x, y: at.y - under.at.y }
+    const origin = childOrigin(catalog, under.shape)
+    const shown = { x: under.at.x + Math.max(inner.x, origin.x), y: under.at.y + Math.max(inner.y, origin.y) }
+    return { parent: under.shape.id, at: inner, free: false, shown }
+  }
   const spot = freeAt(catalog, book, page, under.parent, size)
-  return spot && { parent: under.parent, at: spot }
+  const base = under.parent === null ? { x: 0, y: 0 } : walkShapes(page).find(s => s.shape.id === under.parent)?.at
+  if (!spot || !base) return null
+  return { parent: under.parent, at: spot, free: true, shown: { x: base.x + spot.x, y: base.y + spot.y } }
 }

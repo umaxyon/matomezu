@@ -27,7 +27,7 @@ export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): 
 }
 
 // 置こうとしているアイテムを、ポインタの所に置く（置く先は items.ts の placeTarget: 子を持てる形の上ならその中、子を持てない形の上ならその親の中の空き）。
-// ほかの形とぶつかれば押す（crowd: push。追加のダイアログも同じに渡す）。置けたら置くのをやめ、置いたアイテムを選ぶ。ページのはみ出す所なら何もしない。空きが無い・置けないならトーストで知らせる。
+// ほかの形とぶつかれば押す（crowd: push。追加のダイアログも同じに渡す）。置けたら置くのをやめ、置いたアイテムを選ぶ。ページのはみ出す所なら何もしない。空きが無い・置けないならトーストで知らせる（空きが無いのと、紙に収まらないのは別の文）。
 // 追加のダイアログのあるアイテム（箱・リスト）は、置くのをやめて追加のダイアログを開き（置く所を ShapeAddArgs で渡す）、中身を決めてから置く
 export const PAPER_PLACE = kit.defineCommand({
   id: "paper-place",
@@ -50,13 +50,14 @@ export const PAPER_PLACE = kit.defineCommand({
         message: refusalMessage(ctx.catalog, done, kit.message("Does not fit on the paper")),
       })
     if (!target) {
-      warn({ reason: "refused" })
+      a.showToast({ kind: "warn", message: kit.message("No free spot") })
       return
     }
-    if (target.parent === null && !inPaper({ ...target.at, ...size }, paper)) return
+    if (target.parent === null && !inPaper({ ...target.shown, ...size }, paper)) return
+    // 空きに置くなら座標を渡さず、中身を決めた大きさで item-place が空きを選ぶ
     const where: ShapeAddArgs = {
       page: page.id,
-      at: target.at,
+      ...(target.free ? {} : { at: target.at }),
       ...(target.parent === null ? {} : { parent: target.parent }),
     }
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く）

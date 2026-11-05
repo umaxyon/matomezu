@@ -37,7 +37,6 @@ import {
   type Rect,
   type StageView,
   shapesOf,
-  toPaper,
   toPaperDelta,
 } from "../../../plugin-api"
 import {
@@ -56,7 +55,6 @@ import {
   useShownPage,
   useStage,
   useStageArea,
-  useStagePan,
   useTokenScope,
   useToPaper,
   useUiCatalog,
@@ -65,7 +63,6 @@ import {
   type Edges,
   growOf,
   inPaper,
-  itemSize,
   minSize,
   onlySelected,
   placedSize,
@@ -88,8 +85,6 @@ import {
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
-  placeAt,
-  placeTarget,
   pressSelection,
   shapesIn,
   sweptBox,
@@ -100,6 +95,7 @@ import {
 import { settledDraft } from "../placing/draft"
 import { REPARENT_TOOL } from "../tools"
 import styles from "./PaperView.module.css"
+import { type Placing, usePlaceTarget } from "./use-place-target"
 
 // 範囲のドラッグ: ポインタと、押した位置（紙のビューの左上から）、押す前の選択と、Mod を押していたか
 interface Sweep {
@@ -133,15 +129,7 @@ export function PaperView({ stage: id }: BookViewProps) {
   const toPaperAt = useToPaper(id)
   const sweep = useRef<Sweep | null>(null)
   const followed = useFollowsSelection(id)
-  const book = useBook(id)
-  // 置こうとしている間の、押すと入る先の形（placing/items.ts の placeTarget。ページに置くなら null）
-  const into = useMemo(() => {
-    const at = pointer && placeAt(toPaperAt, pointer)
-    const point = pointer && toPaperAt(pointer)
-    const size = stage?.placing ? itemSize(catalog, stage.placing) : null
-    if (!at || !point || !size || !book || !page) return null
-    return placeTarget(catalog, book, page, point, at, size)?.parent ?? null
-  }, [pointer, toPaperAt, stage?.placing, catalog, book, page])
+  const placed = usePlaceTarget(id, placing ? pointer : null) // 置こうとしている間の、押すと置く所
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -203,13 +191,7 @@ export function PaperView({ stage: id }: BookViewProps) {
       onPointerUp={endSweep}
       onPointerCancel={endSweep}
     >
-      <Content
-        stage={stage}
-        pointer={placing ? pointer : null}
-        into={placing ? into : null}
-        box={box}
-        localOf={localOf}
-      />
+      <Content stage={stage} pointer={placing ? pointer : null} placed={placed} box={box} localOf={localOf} />
     </div>
   )
 }
@@ -220,13 +202,13 @@ type LocalOf = (e: PointerEvent<Element>) => Point | null
 function Content({
   stage,
   pointer,
-  into,
+  placed,
   box,
   localOf,
 }: {
   stage: StageView
   pointer: Point | null
-  into: string | null // 置こうとしている間の、押すと入る先の形
+  placed: Placing | null // 置こうとしている間の、押すと置く所（use-place-target.tsx）
   box: Rect | null
   localOf: LocalOf
 }) {
@@ -237,8 +219,8 @@ function Content({
   return (
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
-      <Items stage={stage} into={into} localOf={localOf} />
-      {pointer && <Ghost stage={stage} pointer={pointer} />}
+      <Items stage={stage} into={placed?.target?.parent ?? null} localOf={localOf} />
+      {pointer && placed && <Ghost stage={stage} placed={placed} />}
       {box && (
         <div
           data-select-sweep
@@ -689,20 +671,14 @@ function Item({
   )
 }
 
-// 置こうとしているアイテムの点線の箱。紙からはみ出す所では薄く出す
-function Ghost({ stage, pointer }: { stage: StageView; pointer: Point }) {
-  const catalog = useCoreCatalog()
-  const pan = useStagePan(stage.id)
-  const at = pan && placeAt(p => toPaper({ ...stage, pan }, p), pointer)
-  const size = stage.placing ? itemSize(catalog, stage.placing) : null
+// 置こうとしているアイテムの点線の箱。押すと置く所（箱の中に寄せた所・空き）に描き、置けない所（ページの紙からはみ出す・空きが無い）では薄く出す
+function Ghost({ stage, placed }: { stage: StageView; placed: Placing }) {
   const paper = areaOf(stage)
-  if (!at || !size || !paper) return null
+  const { target, size } = placed
+  const at = target?.shown ?? placed.at
+  const fits = target !== null && (target.parent !== null || (paper !== null && inPaper({ ...at, ...size }, paper)))
   return (
-    <div
-      className={styles.ghost}
-      data-fits={inPaper({ ...at, ...size }, paper)}
-      style={{ left: at.x, top: at.y, width: size.w, height: size.h }}
-    />
+    <div className={styles.ghost} data-fits={fits} style={{ left: at.x, top: at.y, width: size.w, height: size.h }} />
   )
 }
 

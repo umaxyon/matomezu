@@ -39,10 +39,11 @@ export interface ConnectorData<P = unknown> {
   props: P
 }
 
-// 形の追加のダイアログに渡す値: 置く所。page は置くページ、at は左上（紙の上の px。parent があれば親の左上から）、parent は入れる親の形
+// 形の追加のダイアログに渡す値: 置く所。page は置くページ、at は左上（紙の上の px。parent があれば親の左上から。無ければ、中身を決めた大きさで空きに置く）、
+// parent は入れる親の形
 export interface ShapeAddArgs {
   page: string
-  at: Point
+  at?: Point
   parent?: string
 }
 // 形の編集のダイアログに渡す値: ページと、置いた形の id
