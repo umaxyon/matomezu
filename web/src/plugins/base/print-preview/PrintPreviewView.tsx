@@ -94,7 +94,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const panel = useRightSidePanel(id)
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
   const read = useReadState()
-  // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージの画面の状態。measures.ts）
+  // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージの画面の状態。measures.tsx）
   const bookId = book?.id
   const measures = useMeasures(id, bookId)
   const report = useReportMeasure(id, bookId)
