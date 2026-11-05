@@ -15,13 +15,14 @@ import { type AutoSkin, autoSkin } from "../core/skin"
 import { type Warning, warning } from "../core/warnings"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef, DialogTaking, PageSettingsArgs } from "./dialogs"
-import { type DefaultKey, findKey, type KeyDef, keyTable } from "./keys"
+import { type DefaultKey, findKey, type KeyDef, type KeyScopeDef, keyTable } from "./keys"
 
 // store 台帳の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
 declare module "../core/catalog" {
   interface PartDefTable {
     commands: CommandDef<never>
     dialogs: DialogDef<unknown>
+    keyScopes: KeyScopeDef
   }
 }
 
@@ -117,11 +118,12 @@ export function defineBuiltin<const P extends Plugin>(
 }
 export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
 
-// store 台帳: コマンド・ダイアログ・キーの既定の割り当て
+// store 台帳: コマンド・ダイアログ・キーの範囲・キーの既定のキーバインド
 export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
-  keys: ReadonlyMap<string, DefaultKey> // キーの既定の割り当て（id → 割り当て。キーはそろえた書き方）
+  keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名は store/keys.ts の BASE_KEY_SCOPE_TITLES）
+  keys: ReadonlyMap<string, DefaultKey> // キーの既定のキーバインド（id → キーバインド。キーはそろえた書き方）
   warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
 }
 
@@ -168,6 +170,7 @@ export function assemble(
   const all = <K extends Part>(kind: K) => plugins.flatMap(p => (p[kind] ?? []) as readonly PartDefTable[K][])
   const commands = all("commands")
   const dialogs = all("dialogs")
+  const keyScopes = all("keyScopes")
   // core 台帳の種類の重なりは buildCoreCatalog が確かめる
   const problems = [
     ...partsOf("store").flatMap(k =>
@@ -203,6 +206,9 @@ export function assemble(
     ...commands
       .filter(c => !catalog.messages.has(c.title))
       .map(c => problem("E018", { kind: "command", id: c.id, title: c.title })),
+    ...keyScopes
+      .filter(s => !catalog.messages.has(s.title))
+      .map(s => problem("E018", { kind: "keyScope", id: s.id, title: s.title })),
     ...checked.filter((c): c is Problem => !c.code.startsWith("W")),
   ]
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
@@ -214,6 +220,7 @@ export function assemble(
       store: {
         commands: new Map(commands.map(c => [c.id, c])),
         dialogs: new Map(dialogs.map(d => [d.id, d])),
+        keyScopes: new Map(keyScopes.map(s => [s.id, s])),
         keys: new Map(keys.map(k => [k.id, k])),
         warnings: [
           ...performsWarnings(plugins, catalog),

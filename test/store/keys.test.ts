@@ -1,11 +1,21 @@
 import { expect, test } from "bun:test"
 import type { MatomezuError } from "../../web/src/core/errors"
+import { defineMessages } from "../../web/src/core/i18n/messages"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
-import { type DefaultKey, inspectKey, keyScopes, keysOf, keyTable, shadowedKeys } from "../../web/src/store/keys"
+import {
+  BASE_KEY_SCOPE_TITLES,
+  type DefaultKey,
+  inspectKey,
+  keyScopes,
+  keysOf,
+  keyTable,
+  shadowedKeys,
+} from "../../web/src/store/keys"
+import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
 import { newStore } from "../support"
 
@@ -191,4 +201,17 @@ test("既定の割り当ては id で機能台帳に並び、同じ id は error
   const instance = createMatomezu({ plugins: [...BUILTIN, plugin([one])], partial: true })
   expect(instance.catalog.store.keys.get("k:a")?.binding).toEqual({ key: "K", command: "k:own", scope: "stage" })
   expect(instance.catalog.store.keys.get("@matomezu/paper:paper-delete-delete")?.binding.key).toBe("Delete")
+})
+
+test("キーの範囲は定義（KeyScopeDef）で機能台帳に並び、題名を持つ。kit が id と題名に頭を付け、同じ id は error。土台の範囲の題名は土台が持つ", () => {
+  const kit = pluginKit("k", defineMessages({ Panel: { en: "Panel", ja: "パネル" } }))
+  const scope = kit.defineKeyScope({ id: "panel", title: "Panel" })
+  expect(scope).toEqual({ id: "k:panel", title: "k:Panel" })
+  const make = (scopes: readonly unknown[]) => () =>
+    createMatomezu({ plugins: [...BUILTIN, kit.plugin({ keyScopes: scopes as never })], partial: true })
+  const instance = make([scope])()
+  expect(instance.catalog.store.keyScopes.get("k:panel")?.title).toBe("k:Panel")
+  expect(instance.catalog.store.keyScopes.get("@matomezu/tree:tree")?.title).toBe("@matomezu/tree:Tree")
+  expect(thrown(make([scope, scope]))).toEqual(["E001"])
+  expect(Object.keys(BASE_KEY_SCOPE_TITLES)).toEqual(["global", "stage", "dialog", "menu"])
 })

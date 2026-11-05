@@ -1,4 +1,4 @@
-// 設定画面: マスターのボタンから設定画面のダイアログを開き、左の項目（全体・キーバインド）を押すと右の欄が切り替わる
+// 設定画面: マスターのボタンから設定画面のダイアログを開き、左の項目（全体・ショートカットキー）を押すと右の欄が切り替わる
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
@@ -24,10 +24,10 @@ test("マスターの「設定を開く」で設定画面が開き、項目を�
   const tab = (name: string) => screen.getByRole("tab", { name })
   expect(tab("全体").getAttribute("aria-selected")).toBe("true")
   expect(screen.getByRole("tabpanel", { name: "全体" })).toBeTruthy()
-  fireEvent.click(tab("キーバインド"))
-  expect(tab("キーバインド").getAttribute("aria-selected")).toBe("true")
+  fireEvent.click(tab("ショートカットキー"))
+  expect(tab("ショートカットキー").getAttribute("aria-selected")).toBe("true")
   expect(tab("全体").getAttribute("aria-selected")).toBe("false")
-  expect(screen.getByRole("tabpanel", { name: "キーバインド" })).toBeTruthy()
+  expect(screen.getByRole("tabpanel", { name: "ショートカットキー" })).toBeTruthy()
   fireEvent.click(screen.getByRole("button", { name: "閉じる" }))
   expect(dialog.isConnected).toBe(false)
 })

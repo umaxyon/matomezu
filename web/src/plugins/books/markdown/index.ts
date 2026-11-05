@@ -3,7 +3,7 @@
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PANE_SPLIT_COLUMN, PANE_SPLIT_ROW, PANE_UNSPLIT, SOURCE_KEYS } from "./commands"
 import { kit } from "./kit"
-import { MARKDOWN, MARKDOWN_PRESENTATION } from "./markdown"
+import { MARKDOWN, MARKDOWN_PRESENTATION, SOURCE_KEY_SCOPE } from "./markdown"
 import { TAB_KEY } from "./tab-key"
 
 export const MARKDOWN_PLUGIN = defineBuiltin(
@@ -12,6 +12,7 @@ export const MARKDOWN_PLUGIN = defineBuiltin(
     presentations: [MARKDOWN_PRESENTATION],
     commands: [PANE_SPLIT_ROW, PANE_SPLIT_COLUMN, PANE_UNSPLIT],
     keys: SOURCE_KEYS,
+    keyScopes: [SOURCE_KEY_SCOPE],
     userSettings: [TAB_KEY],
   }),
 )
@@ -32,7 +33,7 @@ declare module "../../../core/catalog" {
     "@matomezu/markdown:tab-key": typeof TAB_KEY
   }
   interface KeyScopeTable {
-    "@matomezu/markdown:source": true // ソースのペインのテキストFormの中のキー
+    "@matomezu/markdown:source": typeof SOURCE_KEY_SCOPE // ソースのペインのテキストFormの中のキー
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

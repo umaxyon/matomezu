@@ -11,7 +11,7 @@ import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
 import { kit } from "./kit"
 // 拡張ポイントに書き足したメソッド labelOf の型（label/index.ts の declare module）
 import type {} from "./label"
-import { LEFT_DRAWER_CLOSE, LEFT_DRAWER_KEYS } from "./left-drawer"
+import { LEFT_DRAWER_CLOSE, LEFT_DRAWER_KEY_SCOPE, LEFT_DRAWER_KEYS } from "./left-drawer"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import {
   DARK,
@@ -47,7 +47,7 @@ import {
   PRINT_PREVIEW_PAGE_NUMBERS,
   PRINT_PREVIEW_UPDATE,
 } from "./print-preview"
-import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
+import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEY_SCOPE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
 import {
   KEYS,
   LANG,
@@ -271,6 +271,7 @@ export const BASE = defineBuiltin(
       NEW_BOOK_DIALOG,
       SETTINGS_DIALOG,
     ],
+    keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_DRAWER_KEY_SCOPE],
     keys: [
       ...TOOLBOX_KEYS,
       ...TOOL_PICKER_KEYS,
@@ -401,8 +402,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:left-drawer-close": typeof LEFT_DRAWER_CLOSE
   }
   interface KeyScopeTable {
-    "@matomezu/base:right-side-panel": true // 右サイドパネルの中にフォーカスがある間のキー
-    "@matomezu/base:left-drawer": true // 左ドロワーの中にフォーカスがある間のキー
+    "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_KEY_SCOPE // 右サイドパネルの中にフォーカスがある間のキー
+    "@matomezu/base:left-drawer": typeof LEFT_DRAWER_KEY_SCOPE // 左ドロワーの中にフォーカスがある間のキー
   }
   interface DialogTable {
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG

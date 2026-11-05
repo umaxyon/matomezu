@@ -26,7 +26,7 @@ import type { LanguagePackDef, MessageMap } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
 import type { CommandDef, CommandPlace, CommandScopeRequired } from "./commands/def"
 import type { DialogDef } from "./dialogs"
-import type { KeyDef } from "./keys"
+import type { KeyDef, KeyScopeDef } from "./keys"
 import type { PluginParts } from "./plugin"
 
 // 頭を付けた文言の表
@@ -170,6 +170,11 @@ export interface PluginKit<P extends string, M extends MessageMap> {
 
   defineDialog<const Id extends string>(def: { id: Id }): DialogDef & { id: Owned<P, Id> }
 
+  // キーの範囲（title は自分の文言の短い鍵）
+  defineKeyScope<const Id extends string>(
+    def: Omit<KeyScopeDef, "id" | "title"> & { id: Id; title: keyof M & string },
+  ): KeyScopeDef & { id: Owned<P, Id> }
+
   // キーの既定の割り当て 1 つ（command はコマンドの本当の id。args はそのコマンドの引数の型）
   defineKey<const K extends KeyDef>(def: K): Omit<K, "id"> & { id: Owned<P, K["id"]> }
 
@@ -238,6 +243,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineCommand: place,
     defineDialog: place,
     defineDialogWith: () => place,
+    defineKeyScope: place,
     defineKey: (def: { id: string }) => ({ ...def, id: owned(plugin, def.id) }),
     defineLanguagePack: (def: { lang: string }) => ({ ...def, id: owned(plugin, def.lang) }),
   }

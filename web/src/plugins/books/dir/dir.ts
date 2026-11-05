@@ -13,7 +13,8 @@ import { dirPrintSheets } from "./print"
 import { DIR_TOOLS } from "./tools"
 
 // ディレクトリ構成図のキーの範囲（この見せ方で描いている間に探す）
-export const DIR_KEYS_SCOPE = kit.name("dir")
+export const DIR_KEY_SCOPE = kit.defineKeyScope({ id: "dir", title: "Directory" })
+export const DIR_KEYS_SCOPE = DIR_KEY_SCOPE.id
 
 // ディレクトリ構成図の見せ方: 紙の上に、根のフォルダから下の中身を並べて描く。カレントのステージがこれで描いている間は、自分のキーの範囲を探す
 export const DIR_PRESENTATION = kit.definePresentation({

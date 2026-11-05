@@ -38,6 +38,11 @@ export const LANGUAGES: readonly LanguagePackDef[] = [
 // 土台（core・store・ui）が使う文言
 export const MESSAGES = defineMessages({
   "An edit could not be saved": { ja: "編集を反映できませんでした" },
+  // 土台のキーの範囲の題名（store/keys.ts）
+  "Whole screen": { ja: "画面全体" },
+  Stage: { ja: "ステージ" },
+  "While a dialog is open": { ja: "ダイアログが開いている間" },
+  "While a menu is open": { ja: "メニューが開いている間" },
 })
 
 // 土台の文言の組

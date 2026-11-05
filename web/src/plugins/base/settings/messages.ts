@@ -11,5 +11,4 @@ export const SETTINGS_MESSAGES = defineMessages({
   "Open settings": { en: "Open settings", ja: "設定を開く" },
   General: { en: "General", ja: "全体" },
   Close: { en: "Close", ja: "閉じる" },
-  "Key bindings": { en: "Key bindings", ja: "キーバインド" },
 })

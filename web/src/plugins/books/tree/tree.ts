@@ -15,7 +15,8 @@ import { treePrintSheets } from "./print"
 import { TREE_TOOLS } from "./tools"
 
 // ツリーのキーの範囲（ツリーの見せ方で描いている間に探す）
-export const TREE_KEYS_SCOPE = kit.name("tree")
+export const TREE_KEY_SCOPE = kit.defineKeyScope({ id: "tree", title: "Tree" })
+export const TREE_KEYS_SCOPE = TREE_KEY_SCOPE.id
 
 // ツリーの見せ方: 紙の上に、根から伸びる木を描く。カレントのステージがこれで描いている間は、ツリーのキーの範囲を探す
 export const TREE_PRESENTATION = kit.definePresentation({

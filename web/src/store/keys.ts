@@ -2,7 +2,7 @@
 // 同じ範囲・同じキーのキーバインドは捨てずに並べ（利用者 → ビルトインプラグイン → 追加プラグインの id の順）、効くのは先頭の 1 つだけ（先勝ち）。
 // 範囲が違えば狭いほうが先（引く側が決める）
 
-import type { CommandId, KeyExtras, KeyScopeId } from "../core/catalog"
+import type { BaseKeyScope, CommandId, KeyExtras, KeyScopeExtras, KeyScopeId, MessageKey } from "../core/catalog"
 import type { Inspected, Source, Step } from "../core/inspect"
 import { type KeyBinding, type KeyChanges, normalizeKey, sameBinding } from "../core/keys"
 import type { CommandArgs } from "./commands"
@@ -14,6 +14,22 @@ export type KeyDef = {
     : { args: CommandArgs<C>[0] }) &
     KeyExtras
 }[CommandId]
+
+// プラグインのキーの範囲: id と、画面に出す題名（設定画面の見出しなど。kit.defineKeyScope で書き、id と題名に頭が付く）
+export interface KeyScopeDef extends KeyScopeExtras {
+  id: string
+  title: string
+}
+
+export const defineKeyScope = <const Id extends string>(def: KeyScopeDef & { id: Id }): KeyScopeDef & { id: Id } => def
+
+// 土台のキーの範囲の題名
+export const BASE_KEY_SCOPE_TITLES: Readonly<Record<BaseKeyScope, MessageKey>> = {
+  global: "Whole screen",
+  stage: "Stage",
+  dialog: "While a dialog is open",
+  menu: "While a menu is open",
+}
 
 // 既定の 1 行と、それを書いたプラグイン（キーはそろえた書き方）
 export interface DefaultKey {
