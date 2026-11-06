@@ -5,17 +5,19 @@ import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
 import { KeysPane } from "./KeysPane"
 import styles from "./SettingsScreen.module.css"
-import { SETTINGS_SECTIONS } from "./settings-screen"
+import { SETTINGS_SECTIONS, type SettingsSectionId } from "./settings-screen"
 import { UserSettings } from "./UserSettings"
 
 // 項目の id ごとの、右に出す中身
-const PANES: Readonly<Record<string, ComponentType<{ stage: string }>>> = { general: UserSettings, keys: KeysPane }
+const PANES: Readonly<Record<SettingsSectionId, ComponentType<{ stage: string }>>> = {
+  general: UserSettings,
+  keys: KeysPane,
+}
 
 export function SettingsScreen({ stage }: { stage: string }) {
   const t = useMessages(kit)
-  const [current, setCurrent] = useState(SETTINGS_SECTIONS[0]?.id)
+  const [current, setCurrent] = useState<SettingsSectionId>(SETTINGS_SECTIONS[0].id)
   const shown = SETTINGS_SECTIONS.find(s => s.id === current)
-  const Pane = shown && PANES[shown.id]
   const base = useId()
   const tabId = (section: string) => `${base}-tab-${section}`
   const panelId = `${base}-panel`
@@ -40,9 +42,15 @@ export function SettingsScreen({ stage }: { stage: string }) {
       {shown && (
         <section id={panelId} role="tabpanel" aria-labelledby={tabId(shown.id)} className={styles.panel}>
           <h3 className={styles.title}>{t(shown.title)}</h3>
-          {Pane && <Pane stage={stage} />}
+          <SectionPane section={shown.id} stage={stage} />
         </section>
       )}
     </div>
   )
+}
+
+// 項目の中身（項目の id で PANES から引く）
+function SectionPane({ section, stage }: { section: SettingsSectionId; stage: string }) {
+  const Pane = PANES[section]
+  return <Pane stage={stage} />
 }

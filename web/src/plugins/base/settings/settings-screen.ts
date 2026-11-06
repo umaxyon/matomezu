@@ -9,10 +9,13 @@ export interface SettingsSection {
   title: MessageKey
 }
 
-export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
+export const SETTINGS_SECTIONS = [
   { id: "general", title: kit.message("General") },
   { id: "keys", title: kit.message("Shortcut keys") },
-]
+] as const satisfies readonly SettingsSection[]
+
+// 設定画面の項目の id
+export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]["id"]
 
 export const SETTINGS_DIALOG = kit.defineDialog({ id: "settings" })
 
