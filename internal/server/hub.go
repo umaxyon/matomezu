@@ -434,15 +434,17 @@ func (h *Hub) Join() *client {
 	h.ticks++
 	c := &client{id: fmt.Sprintf("c%d", h.next), ch: make(chan event, clientBuffer), focused: h.ticks}
 	h.clients[c.id] = c
+	fmt.Fprintln(os.Stderr, stamp(), "window", c.id, "joined")
 	h.send(c, "hello", map[string]any{"client": c.id})
 	return c
 }
 
-// Leave は窓を外す
+// Leave は窓を外す（窓が自分で閉じたか、つながりが切れた）。窓が加わる・外れる・切られるたびに、時刻と窓の id を常駐のログに書く
 func (h *Hub) Leave(c *client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.clients[c.id]; ok {
+		fmt.Fprintln(os.Stderr, stamp(), "window", c.id, "left")
 		h.drop(c)
 	}
 }
@@ -648,6 +650,7 @@ func (h *Hub) send(c *client, name string, v any) {
 	select {
 	case c.ch <- event{name, data}:
 	default:
+		fmt.Fprintln(os.Stderr, stamp(), "window", c.id, "is cut off: too many events waiting")
 		h.drop(c)
 	}
 }

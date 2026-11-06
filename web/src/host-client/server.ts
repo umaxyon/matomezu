@@ -3,7 +3,7 @@
 // 画面は、常駐が決めた世界（確かめた世界）の上で、まだ確かめられていない自分のアクションを行い直したものを出す（store の receive）。
 // 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。
 // アクションは 1 つずつ順に送る。届かなかったもの（送れなかった・常駐が 5xx を返した）は消さずに送り直し、つなぎ直したら、確かめられていないものを全部
-// 新しいつながりで送り直す。常駐が同じアクションを二度行わないように、アクションごとに一意の番号（key）を振り、送り直しても変えない。
+// 新しいつながりで送り直す（つながりは窓の中で振る番号で見分ける。常駐の窓の id は、常駐を起動し直すと前と同じ物がまた振られる）。常駐が同じアクションを二度行わないように、アクションごとに一意の番号（key）を振り、送り直しても変えない。
 // 送り直しても届かなかったものだけを外してトーストで知らせる。つながりが OFFLINE_MS より長く切れたままなら store に知らせる（setOffline）。
 // つながっていない間も画面の編集は止めず、つながったらまとめて送る。
 // 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
@@ -76,12 +76,12 @@ const RETRY_MS = 2000 // 届かなかったアクションを送り直すまで
 const MAX_TRIES = 3 // 常駐が 5xx を返したアクションを送る回数（超えたら外す）
 export const OFFLINE_MS = 10_000 // つながりがこれより長く切れたままなら、切れていると見せる
 
-// まだ確かめられていない自分のアクション。sentTo は送り届けたつながりの id（まだなら空）、tries は常駐が 5xx を返した回数
+// まだ確かめられていない自分のアクション。sentTo は送り届けたつながりの番号（まだなら 0）、tries は常駐が 5xx を返した回数
 interface Pending {
   seq: number
   key: string
   done: DoneAction
-  sentTo: string
+  sentTo: number
   tries: number
 }
 
@@ -174,6 +174,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: Pending[] = []
   let client = ""
+  let link = 0 // 今のつながりの番号（hello のたびに増やす）
   let online = false // 知らせにつながっているか
   let sending = false // 送っている途中か（1 つずつ順に送る）
   let retry: (() => void) | null = null // 送り直しの待ち（取り消す関数）
@@ -221,9 +222,10 @@ export function serverClient(net: Net = browserNet): ServerClient {
     sending = true
     try {
       for (;;) {
-        const next = pending.find(p => p.sentTo !== client)
+        const next = pending.find(p => p.sentTo !== link)
         if (!online || !next) return
         const to = client
+        const via = link
         const res = await net
           .fetch("api/perform", {
             method: "POST",
@@ -238,7 +240,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
           return
         }
         if (res.ok) {
-          next.sentTo = to // 送っている間につなぎ直したなら、前のつながりの答えは届かないので、新しいつながりで送り直す
+          next.sentTo = via // 送っている間につなぎ直したなら、前のつながりの答えは届かないので、新しいつながりで送り直す
           continue
         }
         next.tries += 1
@@ -253,15 +255,31 @@ export function serverClient(net: Net = browserNet): ServerClient {
       sending = false
     }
   }
+  // 読んでいる間に知らせで変わった・消えたブックの id（読むごとに 1 つ）
+  const reading = new Set<Set<string>>()
+  const changed = (id: string) => {
+    for (const ids of reading) ids.add(id)
+  }
   const read = async () => {
-    const res = await net.fetch("api/data").catch(() => null)
-    if (!res || res.status === 404) throw new NoServer()
-    if (!res.ok) fail("E401", { status: `${res.status}` })
-    const data = DataSchema.parse(await res.json())
-    // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
+    const during = new Set<string>()
+    reading.add(during)
+    try {
+      const res = await net.fetch("api/data").catch(() => null)
+      if (!res || res.status === 404) throw new NoServer()
+      if (!res.ok) fail("E401", { status: `${res.status}` })
+      take(DataSchema.parse(await res.json()), during)
+    } finally {
+      reading.delete(during)
+    }
+  }
+  // 読んだ世界を入れる。読んでいる間に届いた知らせの方が新しければ、そちらを残す（during はその間に知らせで変わった・消えたブック）
+  const take = (data: z.infer<typeof DataSchema>, during: ReadonlySet<string>) => {
+    const have = new Set(data.books.map(b => b.id))
+    for (const id of [...confirmed.keys()]) if (!have.has(id) && !during.has(id)) confirmed.delete(id)
     for (const b of data.books) {
-      const have = confirmed.get(b.id)
-      if (!have || have.version < b.version) confirmed.set(b.id, { book: b.book, version: b.version })
+      const now = confirmed.get(b.id)
+      if (during.has(b.id) && !now) continue
+      if (!now || now.version < b.version) confirmed.set(b.id, { book: b.book, version: b.version })
     }
     settings = data.settings ?? undefined
     annotations = data.annotations ?? {}
@@ -270,6 +288,22 @@ export function serverClient(net: Net = browserNet): ServerClient {
     // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
     for (const [id, at] of Object.entries(data.touched ?? {}))
       if ((touched[id] ?? "") < at) touched = { ...touched, [id]: at }
+  }
+  // つなぎ直したときに読み直し、読み直した世界の上に、まだ確かめられていないアクションを出して送り直す。
+  // 読めなければ送り直しは先に済ませ、同じつながりのうちは少し待って読み直す（読めるまで、知らせで変わった物のほかは古いまま）
+  const reread = (at: number) => {
+    void read().then(
+      () => {
+        show()
+        void pump()
+      },
+      e => {
+        console.warn("could not read the server again:", e)
+        show()
+        void pump()
+        if (at === link) net.later(() => at === link && reread(at), RETRY_MS)
+      },
+    )
   }
 
   // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
@@ -291,6 +325,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       })
       source.on("hello", data => {
         client = HelloSchema.parse(JSON.parse(data)).client
+        link += 1
         online = true
         if (first) {
           first = false
@@ -304,23 +339,20 @@ export function serverClient(net: Net = browserNet): ServerClient {
         instance?.setOffline(false)
         if (pending.length > 0) console.info(`reconnected: sending ${pending.length} actions again`)
         tellWarnings()
-        void read()
-          .catch(() => {})
-          .then(() => {
-            show()
-            void pump()
-          })
+        reread(link)
       })
       source.on("book", data => {
         const e = BookSchema.parse(JSON.parse(data))
         const have = confirmed.get(e.book.id)
         if (!have || have.version < e.version) confirmed.set(e.book.id, { book: e.book, version: e.version })
+        changed(e.book.id)
         settle(e)
         show()
       })
       source.on("removed", data => {
         const e = RemovedSchema.parse(JSON.parse(data))
         confirmed.delete(e.book)
+        changed(e.book)
         settle(e)
         show()
       })
@@ -389,7 +421,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
     },
     observe: done => {
       seq += 1
-      pending.push({ seq, key: net.newKey(), done, sentTo: "", tries: 0 })
+      pending.push({ seq, key: net.newKey(), done, sentTo: 0, tries: 0 })
       void pump()
     },
     reportWarnings: list => {

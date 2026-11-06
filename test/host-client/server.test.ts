@@ -5,10 +5,14 @@ import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
 
 // 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る。perform はアクションを送られたときの答え（null は送れない）、
-// 待ち（later）は tick で進める
+// read は読まれたときの答えの status、data は読まれたときに返す世界。待ち（later）は tick で進める
 function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: null }) {
   const sent: Record<string, unknown>[] = []
-  const answer: { perform: () => number | null } = { perform: () => 200 }
+  const answer: { perform: () => number | null; read: () => number; data: unknown } = {
+    perform: () => 200,
+    read: () => 200,
+    data,
+  }
   let timers: { run: () => void; ms: number }[] = []
   let keys = 0
   const listeners = new Map<string, (data: string) => void>()
@@ -33,7 +37,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
         if (status === null) throw new TypeError("Failed to fetch")
         return new Response("{}", { status })
       }
-      return new Response(JSON.stringify(data))
+      return new Response(JSON.stringify(answer.data), { status: url === "api/data" ? answer.read() : 200 })
     },
     events: () => events,
     focused: () => true,
@@ -238,6 +242,50 @@ test("つなぎ直したら（2 度目の hello）、読み直した世界の上
   ])
   s.emit("ack", { seq: 1, ok: true })
   expect(s.host.pending()).toEqual([])
+})
+
+test("常駐を起動し直して、つなぎ直した窓の id が前と同じでも、答えの来なかったアクションを送り直す", async () => {
+  const s = await connected()
+  place(s.store)
+  await flush()
+  s.fail()
+  s.emit("hello", { client: "c1" })
+  await flush()
+  expect(s.performs().map(p => [p.client, p.seq, p.key])).toEqual([
+    ["c1", 1, "k1"],
+    ["c1", 1, "k1"],
+  ])
+})
+
+test("つなぎ直したときに読めなければ、少し待って読み直し、その間に変わったブックも出す", async () => {
+  const s = await connected()
+  s.fail()
+  s.answer.read = () => 500
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.reads()).toBe(2)
+  expect(itemsOf(s.store)).toEqual([])
+  s.answer.read = () => 200
+  s.answer.data = { books: [{ id: "b1", book: b1With("later"), version: 5 }], settings: null }
+  s.tick()
+  await flush()
+  expect(s.reads()).toBe(3)
+  expect(itemsOf(s.store)).toEqual(["later"])
+})
+
+test("つなぎ直して読み直すと、常駐に無くなったブックは消える。読んでいる間に届いたブックは残す", async () => {
+  const s = await connected()
+  s.answer.data = { books: [], settings: null }
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect("b1" in s.store.state.getState().books).toBe(false)
+  s.emit("book", { book: b1With("x"), version: 7 })
+  s.fail()
+  s.emit("hello", { client: "c3" })
+  s.emit("book", { book: b1With("y"), version: 8 })
+  await flush()
+  expect(itemsOf(s.store)).toEqual(["y"])
 })
 
 test("送れなかったアクションは消さず、切れている間の編集とまとめて、つながったら順に送る", async () => {
