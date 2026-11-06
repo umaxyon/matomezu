@@ -1,7 +1,6 @@
 import { aiAuth, expect, type Page, test } from "./fixtures"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
-import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, items } from "./helpers/paper"
 
 const stands = (page: Page) => page.locator("[data-stand]")
@@ -284,11 +283,10 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   await expect(bubble).toHaveCount(0) // チェックの丸も、縁に寄せて残さない
 })
 
-test("同じ物に既読の伝言が 2 つ以上あれば、チェックを 2 つ重ねて 1 つにまとめ、押すと右サイドパネルに新しい順に並ぶ。古い伝言の別の場所のバッジで、その物が見える", async ({
+test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にまとまり、乗せると広がる吹き出しから 1 つずつ選べる。右サイドパネルがほかの伝言を出している間は、伝言は薄く押せない。びっくりマークは吹き出しの上に「外す？」を出す", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.setViewportSize({ width: 900, height: 480 })
   const ai = aiAuth()
   await page.goto("/")
   await page.bringToFront()
@@ -296,83 +294,7 @@ test("同じ物に既読の伝言が 2 つ以上あれば、チェックを 2 �
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
   const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
-  await addBox(page, 200, 150, "二")
-  await addBox(page, 420, 150, "遠く")
-  const two = items(page).filter({ hasText: "二" })
-  const far = items(page).filter({ hasText: "遠く" })
-  // 古い伝言は遠くと二に（二をカレントにして、チェックは二に出る）、新しい伝言は二だけに
-  await two.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  await page.keyboard.down("Control")
-  await far.click()
-  await page.keyboard.up("Control")
-  await panel(page).getByRole("button", { name: "二", exact: true }).click()
-  await panel(page).getByLabel("伝言", { exact: true }).fill("古い")
-  await panel(page).getByRole("button", { name: "付ける" }).click()
-  await expect(panel(page)).toHaveCount(0)
-  const readAll = async () => {
-    const notes = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as {
-      id: string
-      props: { readAt?: string }
-    }[]
-    for (const n of notes.filter(n => !n.props.readAt))
-      await page.request.post("/api/ai/perform", {
-        headers: ai,
-        data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { book } },
-      })
-  }
-  await readAll()
-  const checks = page.locator("[data-read-count]")
-  await expect(checks).toHaveAttribute("data-read-count", "one")
-  await writeNote(page, two, "新しい")
-  await readAll()
-  await expect(checks).toHaveCount(1)
-  await expect(checks).toHaveAttribute("data-read-count", "many")
-  await checks.click()
-  const notes = panel(page).locator("[data-note]")
-  await expect(notes).toHaveCount(2)
-  await expect(notes.nth(0).getByLabel("伝言", { exact: true })).toHaveValue("新しい")
-  await expect(notes.nth(1).getByLabel("伝言", { exact: true })).toHaveValue("古い")
-  await expect(notes.nth(0).getByRole("button", { name: "再送" })).toBeVisible()
-  // 紙をずらして遠くの箱を画面の外へ出し、古い伝言の「遠く」のバッジで、遠くの箱が画面に入る
-  const stage = (await page.locator("[data-stage]").boundingBox())!
-  const inside = async () => {
-    const b = (await far.boundingBox())!
-    return (
-      b.x > stage.x && b.x + b.width < stage.x + stage.width && b.y > stage.y && b.y + b.height < stage.y + stage.height
-    )
-  }
-  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height - 20)
-  await page.mouse.wheel(0, 300)
-  await expect.poll(inside).toBe(false)
-  await notes.nth(1).getByRole("button", { name: "遠く", exact: true }).click()
-  await expect
-    .poll(async () => {
-      const b = (await far.boundingBox())!
-      return (
-        b.x > stage.x &&
-        b.x + b.width < stage.x + stage.width &&
-        b.y > stage.y &&
-        b.y + b.height < stage.y + stage.height
-      )
-    })
-    .toBe(true)
-})
-
-test("送信トレイから古い既読の伝言を開くと、同じ物の既読の伝言が並び、その伝言までスクロールする（ほかの伝言が変わっても引き戻さない）。開いた伝言を消すと、次に新しい伝言で開いたまま。たたんだ伝言の絵はチェックと重ならない。再送すると閉じる", async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.setViewportSize({ width: 900, height: 480 })
-  const ai = aiAuth()
-  await page.goto("/")
-  await page.bringToFront()
-  await expect
-    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
-    .toHaveProperty("stage")
-  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
-  await addBox(page, 200, 150, "二")
-  await addBox(page, 200, 320, "別")
+  await addBox(page, 200, 200, "二")
   const two = items(page).filter({ hasText: "二" })
   const readAll = async () => {
     const notes = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as {
@@ -385,65 +307,52 @@ test("送信トレイから古い既読の伝言を開くと、同じ物の既�
         data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { book } },
       })
   }
+  // 1 つだけなら、まとめずにその絵（既読のチェック）
   await writeNote(page, two, "古い")
   await readAll()
-  // 新しい伝言は長くして、右サイドパネルに 2 つが収まらないようにする
-  await writeNote(page, two, Array.from({ length: 16 }, (_, i) => `新しい ${i + 1}`).join("\n"))
+  await expect(page.locator("[data-read]")).toHaveCount(1)
+  await expect(page.locator("[data-corner-count]")).toHaveCount(0)
+  // 既読の伝言をもう 1 つ、たたんだ未読の伝言、びっくりマークを足すと 4 つ
+  await writeNote(page, two, "新しい")
   await readAll()
-  // 二のチェック（角のスタンドは、伝言を付けた物の順に並ぶ）
-  const checks = page.locator("[data-read-count]")
-  const check = checks.first()
-  await expect(check).toHaveAttribute("data-read-count", "many")
-  // 別の箱には、まだ読まれていない伝言
-  await writeNote(page, items(page).filter({ hasText: "別" }), "別の")
-
-  // 送信トレイの古い伝言の行（いちばん下）を押すと、2 つ並び、古い伝言が付ける先のバッジを持ち、そこまでスクロールしている
-  await openOutbox(page)
-  await leftPanel(page).getByRole("listitem").nth(2).getByRole("button").first().click()
-  const notes = panel(page).locator("[data-note]")
-  await expect(notes).toHaveCount(2)
-  await expect(notes.nth(1).getByLabel("伝言", { exact: true })).toHaveValue("古い")
-  await expect(notes.nth(1).getByRole("button", { name: "二", exact: true })).toHaveAttribute("aria-pressed", "true")
-  const body = panel(page).locator("[data-right-side-panel-body]")
-  const scrolled = () => body.evaluate(el => el.scrollTop)
-  await expect.poll(scrolled).toBeGreaterThan(0)
-  await expect(notes.nth(1)).toBeInViewport()
-  // 上へ戻してから、AI が別の箱の伝言を読んでも（並びが描き直されても）、古い伝言へ引き戻さない
-  await body.evaluate(el => {
-    el.scrollTop = 0
-  })
-  await readAll()
-  await expect(checks).toHaveCount(2)
-  expect(await scrolled()).toBe(0)
-  await page.keyboard.press("Escape")
-  await expect(panel(page)).toHaveCount(0)
-
-  // チェックから開いて最新の伝言を消すと、古い伝言で開いたまま。チェックは 1 つに戻る
-  await check.click()
-  await expect(notes).toHaveCount(2)
-  await notes.nth(0).getByRole("button", { name: "消す" }).click()
-  await expect(notes).toHaveCount(1)
-  await expect(notes.nth(0).getByLabel("伝言", { exact: true })).toHaveValue("古い")
-  await expect(check).toHaveAttribute("data-read-count", "one")
-  await page.keyboard.press("Escape")
-  await expect(panel(page)).toHaveCount(0)
-
-  // 未読の伝言をたたむと、絵はチェックと重ならずに並ぶ
   await writeNote(page, two, "たたむ")
-  await page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])")).first().click()
+  await page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])")).click()
   await panel(page).getByRole("button", { name: "たたむ" }).click()
   await page.keyboard.press("Escape")
-  await expect(panel(page)).toHaveCount(0)
-  const folded = page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])"))
-  await expect(folded).toHaveCount(1)
-  const f = (await folded.boundingBox())!
-  const c = (await check.boundingBox())!
-  expect(f.x + f.width <= c.x || c.x + c.width <= f.x || f.y + f.height <= c.y || c.y + c.height <= f.y).toBe(true)
+  await two.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
+  await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "びっくりマーク" }).click()
+  const stack = page.getByRole("button", { name: "角の 4 件を見る" })
+  await expect(stack).toBeVisible()
+  await expect(page.locator("[data-read]")).toHaveCount(0)
 
-  // 既読の伝言の文を直して再送すると、右サイドパネルは閉じ、伝言は未読に戻る（チェックから外れる）
-  await check.click()
-  await notes.nth(0).getByLabel("伝言", { exact: true }).fill("古いを直した")
-  await notes.nth(0).getByRole("button", { name: "再送" }).click()
+  // 乗せると吹き出しが広がり、びっくりマーク・たたんだ伝言・既読の伝言（新しい順）と並ぶ
+  await stack.hover()
+  const bubble = page.getByRole("group", { name: "角の物" })
+  await expect(bubble.getByRole("button")).toHaveCount(4)
+  await expect(bubble.getByRole("button").nth(0)).toHaveAccessibleName("びっくりマーク")
+  await expect(bubble.getByRole("button").nth(1)).not.toHaveAttribute("data-read")
+  await expect(bubble.locator("[data-read]")).toHaveCount(2)
+  // 古い既読の伝言を選ぶと、右サイドパネルにその伝言だけが出る
+  await bubble.locator("[data-read]").nth(1).click()
+  await expect(panel(page).getByLabel("伝言", { exact: true })).toHaveValue("古い")
+  // 開いている間は、ほかの伝言は薄く押せない（開いている伝言とマークは押せる）
+  await stack.hover()
+  await expect(bubble.locator("[data-read]").nth(0)).toBeDisabled()
+  await expect(bubble.locator("[data-read]").nth(1)).toBeEnabled()
+  await expect(bubble.getByRole("button").nth(1)).toBeDisabled()
+  await expect(bubble.getByRole("button").nth(0)).toBeEnabled()
+  await page.keyboard.press("Escape")
+  await expect(bubble).toHaveCount(0)
+  await panel(page).getByRole("button", { name: "右サイドパネルを閉じる" }).click()
   await expect(panel(page)).toHaveCount(0)
-  await expect(checks).toHaveCount(1)
+
+  // びっくりマークを押すと、吹き出しの上に「外す？」が出て、はいで外れる（3 つになる）
+  await stack.hover()
+  await bubble.getByRole("button", { name: "びっくりマーク" }).click()
+  const ask = page.getByRole("group", { name: "外す？" })
+  await expect(ask).toBeVisible()
+  expect((await ask.boundingBox())!.y).toBeLessThan((await bubble.boundingBox())!.y)
+  await ask.getByRole("button", { name: "はい" }).click()
+  await expect(page.getByRole("button", { name: "角の 3 件を見る" })).toBeVisible()
 })

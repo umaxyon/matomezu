@@ -22,15 +22,13 @@
   overflow-wrap: anywhere;
   cursor: pointer;
 }
-/* 物の右上の角の並び（たたんだ伝言の絵を左から、既読のチェックを右に） */
-.corner {
-  display: flex;
-  align-items: center;
-}
 /* たたんだ伝言の絵（物の右上の角） */
 .folded {
   display: grid;
   place-items: center;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 1px solid var(--skin-border);
   border-radius: 50%;
@@ -128,39 +126,13 @@
   box-shadow: var(--skin-shadow-2);
   cursor: pointer;
 }
-/* 同じ物に出す既読の伝言が 2 つ以上: 緑の丸のチェックを 2 つ、右上へずらして重ねる */
-.readChecks {
-  position: relative;
-  width: 28px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
+/* 右サイドパネルがほかの物を出している間の、角の絵とチェック（薄くして押せない） */
+.folded:disabled,
+.readCheck:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
-.readCheckBack,
-.readCheckFront {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--skin-success);
-  box-shadow: var(--skin-shadow-2);
-}
-.readCheckBack {
-  top: 0;
-  right: 0;
-  opacity: 0.75;
-}
-.readCheckFront {
-  bottom: 0;
-  left: 0;
-  outline: 2px solid var(--skin-surface);
-}
-.readCheck svg,
-.readCheckFront svg {
+.readCheck svg {
   width: 14px;
   height: 14px;
   fill: none;

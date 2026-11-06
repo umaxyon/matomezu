@@ -6,16 +6,6 @@
   font-size: 12px;
   line-height: 1.5;
 }
-/* 伝言ごと（並べたとき、2 つ目からは上に区切りの線） */
-.note {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.note + .note {
-  padding-top: 10px;
-  border-top: 1px solid var(--skin-border);
-}
 /* 付ける先の名前のバッジの並び（折り返す） */
 .badges {
   display: flex;

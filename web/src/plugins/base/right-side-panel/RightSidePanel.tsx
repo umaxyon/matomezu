@@ -13,7 +13,6 @@ import { useCoreCatalog, useSetStageState, useStage, useUiCatalog } from "../../
 import { kit } from "../kit"
 import type { StageSlotProps } from "../workspace/ui"
 import {
-  BodyContext,
   PressClosedContext,
   useCloseRightSidePanel,
   useOpenedRightSidePanel,
@@ -153,7 +152,6 @@ function useFollowSelection(stage: string | null) {
 function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: string | number }) {
   const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
-  const body = useRef<HTMLDivElement>(null)
   const close = useCloseRightSidePanel()
   const view = useStage(stage)
   const stages = useMatomezuState(s => s.workspace.stages.length)
@@ -181,10 +179,8 @@ function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpe
           </svg>
         </button>
       </div>
-      <div ref={body} className={styles.body} data-right-side-panel-body>
-        <BodyContext.Provider value={body}>
-          <Content stage={stage} widget={open.widget} />
-        </BodyContext.Provider>
+      <div className={styles.body}>
+        <Content stage={stage} widget={open.widget} />
       </div>
     </div>
   )

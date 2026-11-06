@@ -4,6 +4,7 @@ import { isMac } from "../../../ui/keys"
 
 export { Stand, type StandAway, useAnchorRef, useStandAway } from "./anchors"
 export { ChoiceSetting } from "./ChoiceSetting"
+export { CornerItem } from "./corner"
 export { LockToggle } from "./LockToggle"
 export { PageProblemsView, usePageProblems } from "./PageProblems"
 export { PaperFrame } from "./PaperFrame"

@@ -173,6 +173,7 @@ test("matomezu/ui が出す名前", () => {
     "Choices",
     "ColorPicker",
     "Confirm",
+    "CornerItem",
     "Dialog",
     "DividerField",
     "Field",

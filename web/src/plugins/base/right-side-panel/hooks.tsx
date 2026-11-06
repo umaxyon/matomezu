@@ -1,6 +1,6 @@
 // 右サイドパネルを開け閉めするフック（持ち方は state.ts）。窓に 1 つだけで、守るのは入れ物（RightSidePanel）。
 // 開くのは、ステージに置いてそのステージをカレントにするだけ（ほかのステージで開いていた物は、入れ物が閉じる）
-import { createContext, type RefObject, useCallback, useContext, useEffect, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState, useUiCatalog } from "../../../ui/view-hooks"
@@ -11,21 +11,6 @@ export const SLIDE_MS = 250 // 開け閉めでステージの列とサイドパ�
 
 // 今の押しで右サイドパネルを閉じたか（入れ物が押すたびに決める。閉じたのと同じ押しの click で、押した物がまた開かないように）
 export const PressClosedContext = createContext<{ current: boolean }>({ current: false })
-
-// 中身をスクロールする入れ物（入れ物 RightSidePanel が渡す）
-export const BodyContext = createContext<RefObject<HTMLDivElement | null>>({ current: null })
-
-// 右サイドパネルの中身の要素 el が上の端に来るまで、中身の入れ物だけをスクロールする関数（ステージなど、ほかの入れ物は動かさない）
-export function useScrollRightSidePanelTo(): (el: HTMLElement) => void {
-  const body = useContext(BodyContext)
-  return useCallback(
-    el => {
-      const box = body.current
-      if (box) box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top
-    },
-    [body],
-  )
-}
 
 // 右サイドパネルを開いているステージ（カレントのステージで開いていればそれ。どこも開いていなければ null）と、開いている物
 export function useOpenedRightSidePanel(): { stage: string; open: RightSidePanelOpen } | null {
@@ -116,24 +101,6 @@ export function useSetRightSidePanelCurrent(): (stage: string, anchor: string) =
       const open = panelIn(now)
       if (open?.anchors.includes(anchor) && open.current !== anchor)
         set(stage, withPanel(now, { ...open, current: anchor }))
-    },
-    [read, set],
-  )
-}
-
-// ステージ stage の右サイドパネルが見せる物を、同じ中身のまま subject（付いた先 anchors、カレント current）に替える関数
-// （開いていなければ何もしない。閉じたときに戻す見え方の覚えは、そのまま持つ。入れ物は subject ごとに描き直すので、中身のスクロールとフォーカスは始めからになる）
-export function useReplaceRightSidePanelSubject(): (
-  stage: string,
-  open: Pick<RightSidePanelOpen, "subject" | "anchors" | "current">,
-) => void {
-  const read = useReadState()
-  const set = useSetStageState(kit)
-  return useCallback(
-    (stage, change) => {
-      const now = read().stageStates[stage]?.[kit.id]
-      const open = panelIn(now)
-      if (open) set(stage, withPanel(now, { ...open, ...change }))
     },
     [read, set],
   )
