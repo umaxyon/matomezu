@@ -126,11 +126,7 @@ func Handler(o Options) http.Handler {
 		_, _ = w.Write(settings)
 	}))
 	mux.Handle("GET /api/ai/mail", o.auth(func(w http.ResponseWriter, _ *http.Request) {
-		mailbox := o.Hub.Mailbox()
-		if mailbox == nil {
-			mailbox = json.RawMessage("[]")
-		}
-		writeJSON(w, map[string]any{"mailbox": mailbox})
+		writeJSON(w, map[string]any{"mailbox": o.Hub.Mailbox()})
 	}))
 	mux.Handle("GET /api/ai/catalog", o.auth(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -199,11 +195,7 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 			plugins[i].CSS = fmt.Sprintf("api/plugins/%d/ui.css?v=%d", i, v)
 		}
 	}
-	mailbox := o.Hub.Mailbox()
-	if mailbox == nil {
-		mailbox = json.RawMessage("[]")
-	}
-	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": mailbox, "plugins": plugins, "touched": o.Hub.Touched()})
+	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": o.Hub.Mailbox(), "plugins": plugins, "touched": o.Hub.Touched()})
 }
 
 func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {

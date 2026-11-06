@@ -7,7 +7,7 @@ import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorElementIn } from "../utils/anchors"
 import { MAIL_VISITED } from "."
-import { useMailAction, useMailbox } from "./hooks"
+import { useMailbox } from "./hooks"
 import { shownOf } from "./shown"
 
 const CHECK_MS = 1000 // 行き先が出たかを見直す間隔
@@ -37,7 +37,7 @@ export function MailWatch() {
 // 行き先を見たかの見張り
 function useVisited() {
   const read = useReadState()
-  const act = useMailAction()
+  const { perform } = useActions()
   const waiting = useMatomezuState(s => s.mailbox.some(m => m.to && !m.visitedAt))
   useEffect(() => {
     if (!waiting) return
@@ -51,13 +51,13 @@ function useVisited() {
           if (!o || o.book !== to.book || (to.page && o.page !== to.page)) return false
           return !to.ids || to.ids.some(id => onScreen(st.id, id))
         })
-        if (shown) act(MAIL_VISITED.id, m.id)
+        if (shown) perform(MAIL_VISITED.id, { mail: m.id })
       }
     }
     check()
     const timer = setInterval(check, CHECK_MS)
     return () => clearInterval(timer)
-  }, [waiting, read, act])
+  }, [waiting, read, perform])
 }
 
 // ステージ stage で、物 id が表示領域に入っているか

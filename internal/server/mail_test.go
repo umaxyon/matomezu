@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// AI が手紙を送ると、利用者の郵便箱に 1 通だけ届き（窓がいくつあっても）、画面の読む口（/api/data）と AI の読む口（/api/ai/mail）に出る。
-// 起動し直しても残る（保存は SQLite）。見た・消すは利用者だけ
+// AI が手紙を送ると、利用者の郵便箱に 1 通だけ届き、画面の読む口（/api/data）と AI の読む口（/api/ai/mail）に出る。
+// 画面から利用者が見たと知らせると、AI の読む口に見た時点が出る（AI に断る所は store のテストが見る）
 func TestAISendsMail(t *testing.T) {
 	s := newServer(t, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
@@ -21,9 +21,6 @@ func TestAISendsMail(t *testing.T) {
 	}
 	id := got[strings.Index(got, `"id":"`)+6:]
 	id = id[:strings.Index(id, `"`)]
-	if _, refused := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-seen","args":{"mail":"`+id+`"}}`, ai); !strings.Contains(refused, `"ok":false`) {
-		t.Fatalf("ai seen = %s", refused)
-	}
 	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:mail-seen","args":{"mail":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`, nil)
 	if _, got := send(t, "GET", s.URL+"/api/ai/mail", "", ai); !strings.Contains(got, `"seenAt":"2026-11-06T00:00:00.000Z"`) {
 		t.Fatalf("ai mail after seen = %s", got)

@@ -2,7 +2,7 @@
 // 行の出し方は種類が答える（定義の listed。listed.ts）: 左に種類の絵（スロット annotation-icon のウィジェット）、文（無ければ付けた物の名前。吹き出しと同じ字数まで）、付けた時刻。
 // AI が読んだ物は薄くして「既読」。行を押すと左サイドパネルを閉じ、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
 // 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
-import { type ReactNode, useMemo, useState } from "react"
+import { type ReactNode, useMemo } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import type { ActionId } from "../../../core/catalog"
 import { useMessages } from "../../../ui/i18n"
@@ -12,6 +12,9 @@ import { useAnnotationsIn, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useSetLeftSidePanel } from "../left-side-panel/hooks"
+import rows from "../left-side-panel/PanelRows.module.css"
+import { shownTime } from "../left-side-panel/time"
+import { Withdraw } from "../left-side-panel/Withdraw"
 import { BUBBLE_CHARS } from "../note/NoteLayer"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
 import { clampChars } from "../text/text"
@@ -19,7 +22,7 @@ import { useRequestReveal } from "../utils/reveal-request"
 import type { StageSlotProps } from "../workspace/ui"
 import { listedOf } from "./listed"
 import styles from "./Outbox.module.css"
-import { listedPages, shownTime } from "./rows"
+import { listedPages } from "./rows"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
 
 export function Outbox({ stage }: StageSlotProps) {
@@ -28,14 +31,14 @@ export function Outbox({ stage }: StageSlotProps) {
   const book = useBook(stage)
   const annotations = useAnnotationsIn(stage)
   const pages = useMemo(() => (book ? listedPages(catalog, book, annotations) : []), [catalog, book, annotations])
-  if (pages.length === 0) return <p className={styles.empty}>{t("No notes")}</p>
+  if (pages.length === 0) return <p className={rows.empty}>{t("No notes")}</p>
   const now = new Date()
   return (
-    <div className={styles.list}>
+    <div className={rows.list}>
       {pages.map(p => (
         <section key={p.page ?? ""} aria-label={p.page ? p.title : t("Elsewhere")}>
           <h3 className={styles.page}>{p.page ? p.title : t("Elsewhere")}</h3>
-          <ul className={styles.rows}>
+          <ul className={rows.rows}>
             {p.rows.map(a => (
               <Row key={a.id} stage={stage} annotation={a} now={now} />
             ))}
@@ -58,44 +61,17 @@ function Row({ stage, annotation: a, now }: { stage: string; annotation: AiAnnot
   const withdraw = listed?.def.withdraw
   // 取消のアクションを行えなければ（認可ステップが止めたなど）、取消を押せなくする
   const withdrawable = useAllowed(stage, (withdraw?.action ?? "") as ActionId).ok
-  const [asking, setAsking] = useState(false)
   return (
-    <li className={styles.row} data-read={!a.awaits}>
-      <button type="button" className={styles.open} onClick={() => go(a, listed?.def.panel)}>
+    <li className={rows.row} data-read={!a.awaits}>
+      <button type="button" className={rows.open} onClick={() => go(a, listed?.def.panel)}>
         <Icon stage={stage} annotation={a} />
-        <span className={styles.text}>{text}</span>
+        <span className={rows.text}>{text}</span>
         {!a.awaits && <span className={styles.read}>{t("Read by AI")}</span>}
-        {at && <time className={styles.time}>{shownTime(at, now)}</time>}
+        {at && <time className={rows.time}>{shownTime(at, now)}</time>}
       </button>
-      {withdraw &&
-        (asking ? (
-          // biome-ignore lint/a11y/useSemanticElements: 確かめの 2 つのボタンを束ねる箱で、入力Formのまとまり（fieldset）ではない
-          <span className={styles.ask} role="group" aria-label={t("Withdraw?")}>
-            <button
-              type="button"
-              className={styles.yes}
-              onClick={() => {
-                setAsking(false)
-                run(withdraw.action, withdraw.args(a.id))
-              }}
-            >
-              {t("Withdraw")}
-            </button>
-            <button type="button" className={styles.withdraw} onClick={() => setAsking(false)}>
-              {t("Keep")}
-            </button>
-          </span>
-        ) : (
-          <button
-            type="button"
-            className={styles.withdraw}
-            aria-label={t("Withdraw {name}", { name: text })}
-            disabled={!withdrawable}
-            onClick={() => setAsking(true)}
-          >
-            {t("Withdraw")}
-          </button>
-        ))}
+      {withdraw && (
+        <Withdraw name={text} allowed={withdrawable} onWithdraw={() => run(withdraw.action, withdraw.args(a.id))} />
+      )}
     </li>
   )
 }

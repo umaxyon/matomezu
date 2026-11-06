@@ -225,10 +225,13 @@ func (h *Hub) Data() ([]storage.Book, json.RawMessage, map[string]json.RawMessag
 	return books, h.settings, annotations
 }
 
-// Mailbox は利用者の郵便箱（郵便の並び。無ければ nil）
+// Mailbox は利用者の郵便箱（郵便の並び。届いていなければ空の並び）
 func (h *Hub) Mailbox() json.RawMessage {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.mailbox == nil {
+		return json.RawMessage("[]")
+	}
 	return h.mailbox
 }
 

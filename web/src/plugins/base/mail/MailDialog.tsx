@@ -11,7 +11,6 @@ import { kit } from "../kit"
 import { useCloseLeftSidePanel } from "../left-side-panel/hooks"
 import { useRequestReveal } from "../utils/reveal-request"
 import { MAIL_SEEN, MAIL_VISITED } from "."
-import { useMailAction } from "./hooks"
 import own from "./Mail.module.css"
 import { placeExists } from "./place"
 import { shownOf } from "./shown"
@@ -21,7 +20,6 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const catalog = useCoreCatalog()
   const mail = useMatomezuState(s => s.mailbox.find(m => m.id === args.mail) ?? null)
   const books = useMatomezuState(s => s.books)
-  const act = useMailAction()
   const read = useReadState()
   const actions = useActions()
   const closeLeft = useCloseLeftSidePanel()
@@ -29,8 +27,8 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const seen = !!mail?.seenAt
   // 開いたら見たことにする
   useEffect(() => {
-    if (mail && !seen) act(MAIL_SEEN.id, mail.id)
-  }, [mail, seen, act])
+    if (mail && !seen) actions.perform(MAIL_SEEN.id, { mail: mail.id })
+  }, [mail, seen, actions])
   if (!mail) return null
   const shown = shownOf(catalog, mail)
   const exists = placeExists(mail, books)
@@ -43,7 +41,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     if (opened?.book !== to.book) actions.openBook(stage, to.book)
     if (to.page) actions.openPage(stage, to.page)
     if (to.ids) reveal(stage, to.ids)
-    act(MAIL_VISITED.id, mail.id)
+    actions.perform(MAIL_VISITED.id, { mail: mail.id })
   }
   return (
     <Dialog

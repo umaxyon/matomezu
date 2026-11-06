@@ -5,10 +5,5 @@ export const OUTBOX_MESSAGES = defineMessages({
   Outbox: { en: "Outbox", ja: "送信トレイ" },
   "No notes": { en: "No notes or marks", ja: "伝言もマークもありません" },
   "Read by AI": { en: "Read", ja: "既読" },
-  Withdraw: { en: "Withdraw", ja: "取消" },
-  "Withdraw?": { en: "Withdraw?", ja: "取り消しますか？" },
-  Keep: { en: "Keep", ja: "やめる" },
-  "Withdraw {name}": { en: "Withdraw {name}", ja: "{name}を取り消す" },
   Elsewhere: { en: "Elsewhere", ja: "ほか" },
-  "Could not withdraw": { en: "Could not withdraw", ja: "取り消せませんでした" },
 })
