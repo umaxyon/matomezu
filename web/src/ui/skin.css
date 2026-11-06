@@ -8,6 +8,18 @@ body,
   margin: 0;
   height: 100%;
 }
+/* 刷る物: body の直下に印 data-print-only の付いた物があれば、刷るときはそれだけを出し、画面（#root）もほかの body の直下の物も隠す
+   （印の付いた物が無ければ、画面をそのまま刷る） */
+@media print {
+  html:has(> body > [data-print-only]),
+  body:has(> [data-print-only]) {
+    height: auto;
+    background: none;
+  }
+  body:has(> [data-print-only]) > :not([data-print-only]) {
+    display: none;
+  }
+}
 body {
   background: var(--skin-stage);
   color: var(--skin-text);

@@ -359,6 +359,12 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙
   await expect(page.locator("#root")).toBeHidden()
   await expect(output).toBeVisible()
   await expect(output.getByText("刷る箱")).toBeVisible()
+  // body の直下にほかの物（画面の部品が置く物など）があっても、刷るときは隠し、空の紙を足さない
+  await page.evaluate(() => {
+    const extra = document.createElement("div")
+    extra.textContent = "画面の部品"
+    document.body.prepend(extra)
+  })
   // PDF にすると、印刷区画 1 つが紙 1 枚で、紙は A4 横（1123×794 px を pt にした 842×596）
   const pdf = (await page.pdf({ preferCSSPageSize: true })).toString("latin1")
   expect(pdf.match(/\/Type\s*\/Page\b/g)?.length).toBe(2)

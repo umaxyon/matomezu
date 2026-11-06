@@ -1,5 +1,5 @@
 // 刷る物: 印刷プレビューで並べた印刷区画を、倍率 1 で、印刷区画 1 つを紙 1 枚に描く（印刷プレビューのビューが、刷れる間だけ置く）。
-// 画面では見えず、刷るときだけ画面のほかの物を隠してこれを出す。紙は印刷区画の大きさの名前付きの @page で、余白 0（print-pages.ts）。
+// 画面では見えず、刷るときだけこれを出す（印 data-print-only を付け、画面を隠すのは土台の skin.css）。紙は印刷区画の大きさの名前付きの @page で、余白 0（print-pages.ts）。
 // ステージの中は倍率とずらしと切り取りが掛かり改ページが効かないので、body の直下に描き、ブックのテーマの値を包み直す
 import type { ComponentType } from "react"
 import { createPortal } from "react-dom"
@@ -10,12 +10,6 @@ import styles from "./PrintOutput.module.css"
 import type { PrintSheetProps } from "./PrintPreviewView"
 import { pageNameOf, pageRules } from "./print-pages"
 import { type SheetAt, SheetFrame } from "./SheetFrame"
-
-// 刷るときは、画面（#root）を隠し、刷る物だけを紙の流れに出す
-const PRINT_CSS = `@media print {
-  html, body { height: auto !important; background: none !important; }
-  #root { display: none !important; }
-}`
 
 export interface OutputSheet extends SheetAt {
   key: string
@@ -39,8 +33,8 @@ export function PrintOutput({
 }) {
   const style = useBookLookStyle(stage, type)
   return createPortal(
-    <div className={styles.output} style={style} data-print-output={sheets.length} aria-hidden="true">
-      <style>{`${PRINT_CSS}\n${pageRules(sheets)}`}</style>
+    <div className={styles.output} style={style} data-print-output={sheets.length} data-print-only aria-hidden="true">
+      <style>{pageRules(sheets)}</style>
       {sheets.map(s => (
         <div
           key={s.key}
