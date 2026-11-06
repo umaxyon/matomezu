@@ -22,6 +22,8 @@ export const WARNINGS = {
   W019: "book {book} ({title}): annotation {id} does not fit {annotation} (kept as it is, not used)",
   W020: "theme {theme}: token {token} is {light} when light and {dark} when dark, but only colors can differ (it does not work)",
   W021: "key {key} in {scope} for {command}: added plugin {other}'s key is there first (not used)",
+  W022: "mail {id} is a {mail}, which is not in the catalog (kept as it is, shown as mail)",
+  W023: "mail {id} does not fit {mail} (kept as it is, shown as mail)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

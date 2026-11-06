@@ -1,5 +1,5 @@
 // 郵便の見張り（ウィジェット mail-watch。根に置き、何も描かない）:
-// - 郵便が届いたのを見たら、フォーカスのある窓でマーキー「郵便が届きました: 題」を出す（読み込んだときからあった郵便では出さない）
+// - 郵便が届いたのを見たら、フォーカスのある窓か、最後にフォーカスされた窓（常駐が知らせる）でマーキー「郵便が届きました: 題」を出す（読み込んだときからあった郵便では出さない）
 // - 行き先のある、まだ行き先を見ていない郵便の行き先が、どれかのステージに出たら（そのブックのそのページを開き、物があればその物が表示領域に入ったら）、行き先を見たことにする
 import { useEffect, useRef } from "react"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -16,20 +16,21 @@ export function MailWatch() {
   const mailbox = useMailbox()
   const catalog = useCoreCatalog()
   const { showToast } = useActions()
+  const read = useReadState()
   const before = useRef<Set<string> | null>(null)
   useEffect(() => {
     const ids = new Set(mailbox.map(m => m.id))
     const came = before.current ? mailbox.filter(m => !before.current?.has(m.id) && !m.seenAt) : []
     before.current = ids
     const last = came.at(-1)
-    if (last && document.hasFocus())
+    if (last && (document.hasFocus() || read().lastWindow))
       showToast({
         kind: "info",
         form: "marquee",
         message: kit.message("Mail arrived: {title}"),
         params: { title: shownOf(catalog, last)?.title ?? "" },
       })
-  }, [mailbox, catalog, showToast])
+  }, [mailbox, catalog, showToast, read])
   useVisited()
   return null
 }

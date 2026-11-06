@@ -79,6 +79,7 @@ export interface MatomezuState {
   touched: Readonly<Record<string, string>>
   trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
+  lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐の郵便箱の知らせに添えられた値で入れる）
   // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのブックを変えたら、その全部のブックに同じ画面の履歴の段が入る
   history: Readonly<Record<string, BookHistory>>
   // ステージの id → プラグインの id → そのプラグインが持つ、そのステージの画面の状態（中身の形はプラグインが決め、土台は読まない）
@@ -213,6 +214,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   locate(address: Address): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setOffline(offline: boolean): void
+  // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setLastWindow(last: boolean): void
   // 今の利用者の設定でのキーバインドの表（作り直すのは利用者の変更が変わったときだけ。画面がキーの名前を出すのに使う）
   keys(): KeyTable
   // プラグイン owner（プラグインの id）が持つ、ステージ stage の画面の状態を value にする（undefined なら消す）。無いステージには置かない。
@@ -255,6 +258,7 @@ function initialState(
     touched: {},
     trash: { ...trash },
     offline: false,
+    lastWindow: false,
     history: {},
     stageStates: {},
     editLocks: {},
@@ -646,6 +650,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })
+    },
+    setLastWindow: last => {
+      if (getState().lastWindow !== last) setState({ lastWindow: last })
     },
     keys: () => keysFor(getState().settings),
     use: (added, check) => {

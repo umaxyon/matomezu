@@ -362,7 +362,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark": typeof MARK
   }
   interface MailTable {
-    "@matomezu/base:mail-letter": typeof MAIL_LETTER
+    "@matomezu/base:letter": typeof MAIL_LETTER
   }
   interface ToolTable {
     "@matomezu/base:select": typeof SELECT_TOOL

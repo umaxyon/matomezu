@@ -3,6 +3,8 @@
 // 既読は 2 つ: 郵便そのものを見た時点 seenAt と、郵便が示した物（行き先）を見た時点 visitedAt
 import { z } from "zod"
 import type { CoreCatalog } from "./core-catalog"
+import { splitId } from "./names"
+import { type Warning, warning } from "./warnings"
 
 export const MailSchema = z.object({
   id: z.string().min(1),
@@ -36,5 +38,18 @@ export function mailboxSettles(catalog: CoreCatalog, before: Mailbox, after: Mai
     if (!MailSchema.safeParse(m).success) return false
     const def = catalog.mails.get(m.mail)
     return !!def && def.props.safeParse(m.props).success
+  })
+}
+
+// 郵便箱の効かない郵便（種類が機能台帳に無い W022・形が合わない W023）の warning。データには手を付けない（画面は題を「郵便」として出す）
+export function checkMailbox(catalog: CoreCatalog, mailbox: Mailbox): Warning[] {
+  return mailbox.flatMap(m => {
+    const kind = typeof m.mail === "string" ? m.mail : ""
+    const owner = splitId(kind).owner ?? ""
+    const def = catalog.mails.get(kind)
+    if (!def) return [warning("W022", owner, { id: String(m.id), mail: kind })]
+    return MailSchema.safeParse(m).success && def.props.safeParse(m.props).success
+      ? []
+      : [warning("W023", owner, { id: String(m.id), mail: kind })]
   })
 }

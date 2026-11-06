@@ -24,7 +24,7 @@ test("手紙を送ると郵便箱の末尾に届き、id を返す。送り手�
   expect(mails()).toEqual([
     {
       id: done.ok ? (done.result as { mail: string }).mail : "",
-      mail: "@matomezu/base:mail-letter",
+      mail: "@matomezu/base:letter",
       from: "D64 郵便",
       sentAt: expect.any(String),
       to: { book: "b1", page: "p1" },
@@ -73,4 +73,19 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
   expect(ai(SEEN, { mail: id })).toEqual(refused)
   expect(ai(VISITED, { mail: id })).toEqual(refused)
   expect(ai(REMOVE, { mail: id })).toEqual(refused)
+})
+
+test("郵便箱は 200 通まで。超えたら、見た郵便のうち古い物から消え、見ていない郵便しか無ければ古い物から消える", () => {
+  const { store, mails, send } = ready()
+  for (let i = 0; i < 200; i++) send({ from: "a", title: `t${i}` })
+  const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean }
+  const fifth = mails()[5]!.id
+  perform(SEEN, { mail: fifth })
+  send({ from: "a", title: "t200" })
+  expect(mails()).toHaveLength(200)
+  expect(mails().some(m => m.id === fifth)).toBe(false)
+  expect(mails()[0]!.props).toEqual({ title: "t0", body: "" })
+  send({ from: "a", title: "t201" })
+  expect(mails()).toHaveLength(200)
+  expect(mails()[0]!.props).toEqual({ title: "t1", body: "" })
 })

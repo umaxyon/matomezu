@@ -159,7 +159,7 @@ const AckSchema = z.object({ seq: z.number().int() })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
 const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
-const MailboxSchema = z.object({ mailbox: z.unknown(), ...Mark })
+const MailboxSchema = z.object({ mailbox: z.unknown(), window: z.string().optional(), ...Mark })
 
 export interface ServerClient extends HostClient {
   pending(): readonly DoneAction[] // まだ確かめられていない自分のアクション
@@ -341,6 +341,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       source.on("mailbox", data => {
         const e = MailboxSchema.parse(JSON.parse(data))
         mailbox = e.mailbox
+        instance?.setLastWindow(e.window === client)
         settle(e)
         show()
       })

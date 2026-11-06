@@ -2,13 +2,14 @@
 // 行を押すと郵便のダイアログを開く（本文はダイアログで見せ、そこで見たことになる）。「取消」は確かめてから、その郵便を消す（消せなければ押せず、断られたらトースト）
 import type { Mail } from "../../../core/mail"
 import { useMessages } from "../../../ui/i18n"
+import { useActions } from "../../../ui/store-context"
 import { useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
-import { usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import styles from "../left-side-panel/PanelRows.module.css"
 import { shownTime } from "../left-side-panel/time"
 import { Withdraw } from "../left-side-panel/Withdraw"
 import { clampChars } from "../text/text"
+import { refusalMessage } from "../utils/refusal"
 import type { StageSlotProps } from "../workspace/ui"
 import { MAIL_REMOVE } from "."
 import { useMailbox, useOpenMail } from "./hooks"
@@ -35,7 +36,12 @@ function Row({ stage, mail: m, now }: { stage: string; mail: Mail; now: Date }) 
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const open = useOpenMail()
-  const run = usePerformOrToast(stage, "Could not withdraw")
+  const { perform, showToast } = useActions()
+  // 郵便箱が対象のアクションなので、ステージのブックに付けずに行う。断られたらトーストに出す
+  const remove = () => {
+    const done = perform(MAIL_REMOVE.id, { mail: m.id })
+    if (!done.ok) showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Could not withdraw")) })
+  }
   // 消せなければ（認可ステップが止めたなど）、取消を押せなくする
   const removable = useAllowedOn(MAIL_REMOVE.id, { mail: m.id }).ok
   const title = clampChars(shownOf(catalog, m)?.title ?? t("Mail"), TITLE_CHARS)
@@ -49,7 +55,7 @@ function Row({ stage, mail: m, now }: { stage: string; mail: Mail; now: Date }) 
         </span>
         <time className={styles.time}>{shownTime(m.sentAt, now)}</time>
       </button>
-      <Withdraw name={title} allowed={removable} onWithdraw={() => run(MAIL_REMOVE.id, { mail: m.id })} />
+      <Withdraw name={title} allowed={removable} onWithdraw={remove} />
     </li>
   )
 }

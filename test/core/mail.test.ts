@@ -1,10 +1,10 @@
 // 郵便箱のアクションの結果の確かめ（core/mail.ts の mailboxSettles）: 新しく入った・変わった郵便は、形に合い、種類が機能台帳にあって props がその形に合うものだけ。
 // 前からあった郵便は、効かなくなっていても（種類を外したなど）そのまま通す
 import { expect, test } from "bun:test"
-import { type Mail, mailboxSettles } from "../../web/src/core/mail"
+import { checkMailbox, type Mail, mailboxSettles } from "../../web/src/core/mail"
 import { CORE_CATALOG } from "../support"
 
-const letter = (id: string, props: unknown, mail = "@matomezu/base:mail-letter"): Mail => ({
+const letter = (id: string, props: unknown, mail = "@matomezu/base:letter"): Mail => ({
   id,
   mail,
   from: "a",
@@ -23,4 +23,12 @@ test("新しい郵便は、種類が機能台帳にあり、props がその形�
 test("前からあった郵便は、効かなくなっていても確かめ直さない", () => {
   const old = letter("m1", { title: "題", body: "" }, "@ex/x:gone")
   expect(mailboxSettles(CORE_CATALOG, [old], [old, letter("m2", { title: "次", body: "" })])).toBe(true)
+})
+
+test("郵便箱の効かない郵便は warning にする（種類が無いのは W022、形が合わないのは W023）。データには手を付けない", () => {
+  const list = [letter("m1", { title: "題", body: "" }), letter("m2", {}, "@ex/x:gone"), letter("m3", { title: "" })]
+  expect(checkMailbox(CORE_CATALOG, list).map(w => [w.code, w.params.id])).toEqual([
+    ["W022", "m2"],
+    ["W023", "m3"],
+  ])
 })

@@ -17,7 +17,7 @@ import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
-import { type Mailbox, restoreMailbox } from "../core/mail"
+import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
 import { splitId } from "../core/names"
 import { type PerformedIn, performIn } from "../core/perform"
 import type { Book, Page } from "../core/schema/book"
@@ -215,6 +215,13 @@ function aiCatalog(of: Assembled = assembled) {
       description: a.aiDescription,
       props: z.toJSONSchema(a.props, { io: "input", unrepresentable: "any" }),
     })),
+    // 郵便の種類（read_mail の郵便の mail は、この id）
+    mails: [...catalog.mails.values()].map(m => ({
+      id: m.id,
+      title: en(m.title),
+      description: m.aiDescription,
+      props: z.toJSONSchema(m.props, { io: "input", unrepresentable: "any" }),
+    })),
     themes: [...catalog.themes.values()].map(th => ({ id: th.id, title: en(th.title) })),
     // 言語パック（言語の項目の値は、この id）とスキン
     languages: [...catalog.languagePacks.values()].map(p => ({ id: p.id, lang: p.lang, name: p.name })),
@@ -264,6 +271,10 @@ function aiCatalog(of: Assembled = assembled) {
   })
   return JSON.stringify(lines)
 }
+
+// 残した郵便箱を今の機能台帳で確かめ、効かない郵便（種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
+;(globalThis as { matomezuCheckMailbox?: (list: string) => string }).matomezuCheckMailbox = list =>
+  JSON.stringify(checkMailbox(assembled.catalog.core, restoreMailbox(JSON.parse(list))).map(warningText))
 
 // ブックとそのアノテーションの並びごとに、AI に見せる並び（annotationsForAi。結び付く物の最後のあるページと、AI の応えを待っているか）を返す。
 // 読めないブックのアノテーションは、ページが分からず待たないものとして返す
