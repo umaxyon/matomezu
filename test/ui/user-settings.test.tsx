@@ -5,7 +5,7 @@ import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { userSetting } from "../../web/src/core/settings"
 import { SETTINGS_DIALOG } from "../../web/src/plugins/base/settings"
-import { defineSettingsSection } from "../../web/src/plugins/base/ui"
+import { defineSettingsCategory } from "../../web/src/plugins/base/ui"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { MASTER } from "../../web/src/plugins/books/master/master"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -76,7 +76,7 @@ test("マスターの設定の区分は、設定画面を開くボタンだけ�
   expect(within(master).queryByLabelText("言語")).toBeNull()
 })
 
-test("「全体」は base の項目を見出しなしで先に、ほかの項目が並べていないプラグインの項目をプラグインの id の見出しの下に並べる（マークダウンの項目は「マークダウン」に並べるので出さない）。ショートカットキーの行は出さない（設定画面のショートカットキーで変える）", () => {
+test("「全体」は base の項目を見出しなしで先に、どの設定カテゴリも並べていないプラグインの項目をプラグインの id の見出しの下に並べる（マークダウンの項目は「マークダウン」に並べるので出さない）。ショートカットキーの行は出さない（設定画面のショートカットキーで変える）", () => {
   const { general } = renderGeneral()
   expect(within(general).getByLabelText("言語")).toBeTruthy()
   expect(within(general).getByLabelText("スキン")).toBeTruthy()
@@ -135,7 +135,7 @@ test("ホームのタイプが変えさせない項目は、灰色で押せな�
   expect((within(view).getByLabelText("言語") as HTMLSelectElement).closest("fieldset")?.disabled).toBe(false)
 })
 
-test("設定画面の左の一覧は、配置が置いた項目を並べる（全体・マークダウン・ショートカットキー）。「マークダウン」は Tab キーとソースのペインの見た目の項目を並べ、行番号は既定で入り", () => {
+test("設定画面の左の一覧は、配置が置いた設定カテゴリを並べる（全体・マークダウン・ショートカットキー）。「マークダウン」は Tab キーとソースのペインの見た目の項目を並べ、行番号は既定で入り", () => {
   renderGeneral()
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["全体", "マークダウン", "ショートカットキー"])
   fireEvent.click(screen.getByRole("tab", { name: "マークダウン" }))
@@ -151,8 +151,8 @@ test("設定画面の左の一覧は、配置が置いた項目を並べる（�
   )
 })
 
-test("追加プラグインは設定画面の項目を足せる（置いてほしい所の後ろに並び、名指した項目は「全体」から外れる）", () => {
-  const section = defineSettingsSection({
+test("追加プラグインは設定カテゴリを足せる（置いてほしい所の後ろに並び、名指した項目は「全体」から外れる）", () => {
+  const section = defineSettingsCategory({
     id: "@ex/s:settings",
     title: kit.message("mode") as never, // 試しのプラグインは文言の表に書き足していない
     settings: ["@ex/s:mode", "@ex/s:on"],

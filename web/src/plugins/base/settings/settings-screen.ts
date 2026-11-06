@@ -1,9 +1,9 @@
-// 設定画面: 左に並べる項目を置くスロット（項目はそこに置くウィジェット。sections.tsx）と、設定画面を開くダイアログ・コマンド。
+// 設定画面: 左に並べる設定カテゴリを置くスロット（設定カテゴリはそこに置くウィジェット。categories.tsx）と、設定画面を開くダイアログ・コマンド。
 // 画面の中身はダイアログとは別の部品（SettingsScreen.tsx）で、ほかの置き場（ブックのビューなど）にもそのまま置ける
 import { kit } from "../kit"
 
-// 設定画面の項目のスロット（設定画面を開いたステージを渡す）
-export const SETTINGS_SECTIONS = kit.name("settings-sections")
+// 設定カテゴリのスロット（設定画面を開いたステージを渡す）
+export const SETTINGS_CATEGORIES = kit.name("settings-categories")
 
 export const SETTINGS_DIALOG = kit.defineDialog({ id: "settings" })
 

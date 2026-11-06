@@ -217,7 +217,7 @@ test("matomezu/ui が出す名前", () => {
     "defineLayout",
     "defineLeftSidePanelTab",
     "definePluginUi",
-    "defineSettingsSection",
+    "defineSettingsCategory",
     "defineWidget",
     "defineWorkspace",
     "dividerClass",
