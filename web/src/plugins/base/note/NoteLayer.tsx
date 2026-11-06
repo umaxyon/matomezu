@@ -35,7 +35,7 @@ import { type CornerNotes, cornerNotesByAnchor } from "./read-groups"
 
 export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数（送信トレイの行も同じ）
 const POINTER = 24 // マークポインタの丸の大きさ（マークと同じ）
-const FOLDED = 22 // たたんだ伝言の絵の丸の大きさ
+const FOLDED = 22 // たたんだ伝言の絵の丸の大きさ（マークポインタの真ん中を決めるので、CSS ではなくここで決める）
 const CORNER_GAP = 2 // 角に並べる絵とチェックのすき間
 const TAIL_W = 14 // 吹き出しの尾の幅と高さ（尾の先は左下）
 const TAIL_H = 16
@@ -87,7 +87,7 @@ function CornerStand({ stage, anchor, corner }: { stage: string; anchor: string;
   const t = useMessages(kit)
   return (
     <Stand anchor={anchor} side="corner" edgePinned label={t("Note")}>
-      <div className={styles.corner}>
+      <div className={styles.corner} style={{ gap: CORNER_GAP }}>
         {corner.folded.map((n, i) => (
           <FoldedNote key={n.id} stage={stage} note={n} at={i} />
         ))}
@@ -177,10 +177,16 @@ function FoldedNote({ stage, note, at }: { stage: string; note: Annotation; at: 
   const t = useMessages(kit)
   const anchor = note.anchors.at(-1) ?? ""
   const open = useOpenNote(stage, note.id, note.anchors, [note.id])
-  const center = { x: at * (FOLDED + CORNER_GAP) + FOLDED / 2, y: POINTER / 2 }
+  const center = { x: at * (FOLDED + CORNER_GAP) + FOLDED / 2, y: FOLDED / 2 }
   return (
     <Away pointer={<NotePointer stage={stage} anchor={anchor} center={center} />}>
-      <button type="button" className={styles.folded} aria-label={t("Open note")} onClick={open}>
+      <button
+        type="button"
+        className={styles.folded}
+        style={{ width: FOLDED, height: FOLDED }}
+        aria-label={t("Open note")}
+        onClick={open}
+      >
         <NoteIcon />
       </button>
     </Away>

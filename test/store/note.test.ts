@@ -7,7 +7,7 @@ import { defineAction } from "../../web/src/core/def/action"
 import { performIn } from "../../web/src/core/perform"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { expiryOutlook } from "../../web/src/plugins/base/note/expiry"
-import { cornerNotesByAnchor, readNotesByAnchor } from "../../web/src/plugins/base/note/read-groups"
+import { cornerNotesByAnchor, nextReadNote, readNotesByAnchor } from "../../web/src/plugins/base/note/read-groups"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG, newStore } from "../support"
 
@@ -262,9 +262,29 @@ test("物の右上の角には、たたんだ未読の伝言と既読の伝言�
     note("b1", "y", "bubble"),
     note("f2", "x", "folded"),
     note("f3", "z", "folded"),
+    note("r2", "w", "read"),
   ])
-  expect([...corners.keys()]).toEqual(["x", "z"])
+  expect([...corners.keys()]).toEqual(["x", "z", "w"])
   expect(corners.get("x")?.folded.map(n => n.id)).toEqual(["f1", "f2"])
   expect(corners.get("x")?.read.map(n => n.id)).toEqual(["r1"])
   expect(corners.get("z")).toMatchObject({ read: [] })
+  expect(corners.get("w")?.folded).toEqual([])
+  expect(corners.get("w")?.read.map(n => n.id)).toEqual(["r2"])
+})
+
+test("開いていた既読の伝言が無くなったら、残った中で同じ物にチェックを出すいちばん新しい既読の伝言を開く（無ければ無い）", () => {
+  const note = (id: string, anchors: string[], addedAt: string, read = true): Annotation =>
+    ({
+      id,
+      annotation: "@matomezu/base:note",
+      anchors,
+      props: { text: id, bubble: true, addedAt, ...(read ? { readAt: addedAt } : {}) },
+    }) as unknown as Annotation
+  const left = [
+    note("old", ["x"], "2026-11-06T01:00:00.000Z"),
+    note("mid", ["y", "x"], "2026-11-06T02:00:00.000Z"),
+    note("unread", ["x"], "2026-11-06T04:00:00.000Z", false),
+  ]
+  expect(nextReadNote(left, "x")?.id).toBe("mid")
+  expect(nextReadNote(left, "y")).toBeUndefined()
 })

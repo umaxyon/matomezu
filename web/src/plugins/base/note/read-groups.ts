@@ -22,6 +22,10 @@ export function readNotesByAnchor(notes: readonly Annotation[]): ReadonlyMap<str
   return new Map([...groups].map(([anchor, group]) => [anchor, group.sort(newest).map(g => g.note)]))
 }
 
+// 開いていた既読の伝言が無くなったとき、代わりに開く伝言: 残った伝言 notes のうち、物 anchor にチェックを出すいちばん新しい既読の伝言（無ければ undefined）
+export const nextReadNote = (notes: readonly Annotation[], anchor: string): Annotation | undefined =>
+  readNotesByAnchor(notes).get(anchor)?.[0]
+
 // 物の右上の角に出す物: たたんだ未読の伝言（アノテーションの並びの順）と、既読の伝言（新しい順。無ければ空）
 export interface CornerNotes {
   folded: readonly Annotation[]

@@ -20,6 +20,7 @@ import {
   useCloseRightSidePanel,
   useReplaceRightSidePanelSubject,
   useRightSidePanel,
+  useScrollRightSidePanelTo,
   useSetRightSidePanelCurrent,
 } from "../right-side-panel/hooks"
 import type { RightSidePanelOpen } from "../right-side-panel/state"
@@ -33,7 +34,7 @@ import { GrowingText } from "./NoteForm"
 import form from "./NoteForm.module.css"
 import styles from "./NotePanel.module.css"
 import { NEW_NOTE } from "./panel-id"
-import { readNotesByAnchor } from "./read-groups"
+import { nextReadNote, readNotesByAnchor } from "./read-groups"
 
 const BADGE_CHARS = 10 // バッジに出す、名前の始めの字数
 
@@ -44,12 +45,14 @@ export function NotePanel({ stage }: StageSlotProps) {
   const replace = useReplaceRightSidePanelSubject()
   const note = open ? notes.find(n => n.id === open.subject) : undefined
   const gone = !!open && open.subject !== NEW_NOTE && !note
-  // 開いた既読の伝言のチェックを出す物（その伝言が無くなったら、同じ物の次に新しい既読の伝言を開く）
+  // 開いた既読の伝言のチェックを出す物（その伝言が無くなったら、同じ物の次に新しい既読の伝言を開く。消えたことを見る effect より前に覚える）
   const readAnchor = useRef<string | null>(null)
-  if (note) readAnchor.current = (note.props as NoteProps).readAt !== undefined ? (note.anchors.at(-1) ?? null) : null
+  useEffect(() => {
+    if (note) readAnchor.current = (note.props as NoteProps).readAt !== undefined ? (note.anchors.at(-1) ?? null) : null
+  }, [note])
   useEffect(() => {
     if (!gone) return
-    const next = readAnchor.current === null ? undefined : readNotesByAnchor(notes).get(readAnchor.current)?.[0]
+    const next = readAnchor.current === null ? undefined : nextReadNote(notes, readAnchor.current)
     if (next) replace(stage, { subject: next.id, anchors: next.anchors, current: next.anchors.at(-1) ?? "" })
     else close(stage)
   }, [gone, notes, replace, close, stage])
@@ -93,12 +96,17 @@ function NoteEditors({
         : [note],
     [note, notes, anchor],
   )
-  // 開いた伝言が並びの途中なら、そこまでスクロールする（送信トレイから古い伝言を開いたときなど）
+  // 開いた伝言が並びの途中なら、開いた伝言ごとに 1 回だけ、そこまでスクロールする（送信トレイから古い伝言を開いたときなど。
+  // ほかの伝言が変わって並びが描き直されても、読んでいる所から引き戻さない）
   const subject = useRef<HTMLDivElement>(null)
+  const scrolled = useRef<string | null>(null)
+  const scrollTo = useScrollRightSidePanelTo()
   useEffect(() => {
     const el = subject.current
-    if (el && group[0]?.id !== note.id) scrollTo(el)
-  }, [note.id, group])
+    if (!el || scrolled.current === note.id) return
+    scrolled.current = note.id
+    if (group[0]?.id !== note.id) scrollTo(el)
+  }, [note.id, group, scrollTo])
   return (
     <>
       {group.map(n =>
@@ -131,13 +139,6 @@ function NoteEditors({
       )}
     </>
   )
-}
-
-// el をスクロールする入れ物（右サイドパネルの中身の入れ物）の上の端まで、その入れ物をスクロールする（ステージなど、ほかの入れ物は動かさない）
-function scrollTo(el: HTMLElement) {
-  let box = el.parentElement
-  while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement
-  if (box) box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top
 }
 
 // 付ける先の名前のバッジ: カレントは色違い。押すとその物をカレントにする。名前は BADGE_CHARS 字で切り、全体はツールチップで見せる

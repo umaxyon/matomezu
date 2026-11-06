@@ -26,14 +26,11 @@
 .corner {
   display: flex;
   align-items: center;
-  gap: 2px;
 }
 /* たたんだ伝言の絵（物の右上の角） */
 .folded {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
   padding: 0;
   border: 1px solid var(--skin-border);
   border-radius: 50%;
