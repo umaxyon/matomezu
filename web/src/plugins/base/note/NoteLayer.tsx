@@ -23,7 +23,7 @@ import {
 import { pointedSelection } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { Stand, useStandAway, useStandFacing } from "../utils/anchors"
-import { CornerItem, useInCornerBubble } from "../utils/corner"
+import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import { standFacing } from "../utils/stand-place"
 import { modPressed } from "../utils/ui"
@@ -93,7 +93,7 @@ function ReadNote({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const { open, busy } = useOpenNote(stage, id, anchors)
   return (
-    <CornerItem anchor={anchors.at(-1) ?? ""} order={READ_ORDER} at={props.addedAt} look={<ReadCheckLook />}>
+    <AtCorner anchor={anchors.at(-1) ?? ""} order={READ_ORDER} at={props.addedAt} look={<ReadCheckLook />}>
       <CornerNoteButton
         className={styles.readCheck}
         label={t("Open note")}
@@ -105,7 +105,7 @@ function ReadNote({ stage, id, anchors, props }: NoteViewProps) {
       >
         <ReadCheckIcon />
       </CornerNoteButton>
-    </CornerItem>
+    </AtCorner>
   )
 }
 
@@ -143,7 +143,7 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
   const anchor = anchors.at(-1) ?? ""
   const { open, busy } = useOpenNote(stage, id, anchors)
   return (
-    <CornerItem
+    <AtCorner
       anchor={anchor}
       order={FOLDED_ORDER}
       at={props.addedAt}
@@ -160,7 +160,7 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
       >
         <NoteIcon />
       </CornerNoteButton>
-    </CornerItem>
+    </AtCorner>
   )
 }
 
@@ -185,8 +185,8 @@ function CornerNoteButton({
   onClick: (e: MouseEvent<HTMLButtonElement>) => void
   children: ReactNode
 }) {
-  const inBubble = useInCornerBubble()
-  const off = busy && inBubble
+  const bubble = useAtCornerBubble()
+  const off = busy && bubble !== "none"
   return (
     <button
       type="button"

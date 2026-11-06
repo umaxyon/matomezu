@@ -1,7 +1,7 @@
 // 物の右上の角に出す物（たたんだ伝言・既読の伝言・びっくりマークなど。追加プラグインの物も）: 種類をまたいで、物ごとに 1 つの角のスタンドにまとめる。
-// 角に出す物は CornerItem で、物・並べる順・まとめた絵に使う絵・縁の印（マークポインタ）を登録し、押す物（children）は角のスタンドの中の場所へ描く。
+// 角に出す物は AtCorner で、物・並べる順・まとめた絵に使う絵・縁の印（マークポインタ）を登録し、押す物（children）は角のスタンドの中の場所へ描く。
 // 1 つだけなら、その押す物をそのまま角に出す。2 つ以上なら、並びの先頭の 2 つの絵を重ねたまとめた絵を出し、ポインタを乗せる（押す・キーでも）と、
-// 角から上へ（入らなければ下へ）小さな吹き出しが広がり、押す物を横 1 列に並べて 1 つずつ選ばせる。ポインタが離れて少し経つか、Esc か、ほかを押すと閉じる。
+// 角から上へ（入らなければ下へ）、右端を角にそろえて左へ小さな吹き出しが広がり、押す物を横 1 列に並べて 1 つずつ選ばせる。ポインタが離れて少し経つか、Esc か、ほかを押すと閉じる。
 // 並べる順は、order の小さい物が先、同じ order なら at（ISO 8601 の時点）の新しい物が先、同じなら後に登録した物が先。
 // 物が見える所の外にある間は、並びの先頭の、縁の印を持つ物の印だけを出す（無ければ何も出さない）。
 // 登録の表はステージごとに 1 つで、ステージのビューが CornersProvider で渡す。描いている間だけ持つ
@@ -96,15 +96,17 @@ export function CornersProvider({ children }: { children: ReactNode }) {
   )
 }
 
-// 吹き出しの中に描かれているか（CornerItem の children の中で読む）
-const InBubbleContext = createContext(false)
-export const useInCornerBubble = (): boolean => useContext(InBubbleContext)
+// 押す物を描いている所: 角に 1 つだけ（"none"）か、物の上へ広げた吹き出しの中（"above"）か、下へ広げた吹き出しの中（"below"）か（AtCorner の children の中で読む）
+export type AtCornerBubble = "none" | "above" | "below"
+const BubbleContext = createContext<AtCornerBubble>("none")
+export const useAtCornerBubble = (): AtCornerBubble => useContext(BubbleContext)
+const isBubble = (v: string | undefined): v is AtCornerBubble => v === "above" || v === "below"
 
 // 物 anchor の右上の角に出す物: order と at で並べ、まとめた絵には look を重ね、物が見える所の外にある間は pointer を縁に出す。
 // children は押す物で、角のスタンドの中（1 つだけなら角、2 つ以上なら広げた吹き出しの中）に描く（描く場所が無い間は描かない）。
 // look と pointer は角のスタンドの木で描くので、スタンドの useStandAway が効き（pointer に StandPointer が使える）、呼んだ側のコンテキストは見えない。
-// children は呼んだ側の木からポータルで描くので、呼んだ側のコンテキストが見え、useStandAway・useStandFacing は null。吹き出しの中かは useInCornerBubble
-export function CornerItem({
+// children は呼んだ側の木からポータルで描くので、呼んだ側のコンテキストが見え、useStandAway・useStandFacing は null。吹き出しの中か（上か下か）は useAtCornerBubble
+export function AtCorner({
   anchor,
   order,
   at,
@@ -145,7 +147,9 @@ export function CornerItem({
       onWheel={stop}
       onKeyDown={stop}
     >
-      <InBubbleContext.Provider value={slot.dataset.cornerSlot === "bubble"}>{children}</InBubbleContext.Provider>
+      <BubbleContext.Provider value={isBubble(slot.dataset.cornerSlot) ? slot.dataset.cornerSlot : "none"}>
+        {children}
+      </BubbleContext.Provider>
     </div>,
     slot,
   )
@@ -267,8 +271,14 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
           role="group"
           aria-label={t("Things at the corner")}
         >
+          {/* 上か下かが替わったら場所を作り直し、押す物が描き直されて読み直す */}
           {group.map(g => (
-            <div key={g.id} ref={corners.slotRef(g.id)} className={styles.slot} data-corner-slot="bubble" />
+            <div
+              key={`${g.id}-${below ? "below" : "above"}`}
+              ref={corners.slotRef(g.id)}
+              className={styles.slot}
+              data-corner-slot={below ? "below" : "above"}
+            />
           ))}
         </div>
       )}

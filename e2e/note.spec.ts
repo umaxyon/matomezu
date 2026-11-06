@@ -326,10 +326,12 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await expect(stack).toBeVisible()
   await expect(page.locator("[data-read]")).toHaveCount(0)
 
-  // 乗せると吹き出しが広がり、びっくりマーク・たたんだ伝言・既読の伝言（新しい順）と並ぶ
+  // 乗せると吹き出しが、右端を角にそろえて左へ広がり、びっくりマーク・たたんだ伝言・既読の伝言（新しい順）と並ぶ
   await stack.hover()
   const bubble = page.getByRole("group", { name: "角の物" })
   await expect(bubble.getByRole("button")).toHaveCount(4)
+  const right = (b: { x: number; width: number }) => b.x + b.width
+  expect(Math.abs(right((await bubble.boundingBox())!) - right((await stack.boundingBox())!))).toBeLessThan(1)
 
   await expect(bubble.getByRole("button").nth(0)).toHaveAccessibleName("びっくりマーク")
   await expect(bubble.getByRole("button").nth(1)).not.toHaveAttribute("data-read")
@@ -358,7 +360,7 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await expect(page.getByRole("button", { name: "角の 3 件を見る" })).toBeVisible()
 })
 
-test("角のまとめた絵は、押しても Enter でも開き、離れて少し経つか、ほかを押すと閉じる。上に入れば上に広がる。物が画面の外の間は縁の印が 1 つだけで、戻ると乗せて開く", async ({
+test("角のまとめた絵は、押しても Enter でも開き、離れて少し経つか、ほかを押すと閉じる。上に入れば上に、入らなければ下に広がる（「外す？」も下）。物が画面の外の間は縁の印が 1 つだけで、戻ると乗せて開く", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -411,6 +413,12 @@ test("角のまとめた絵は、押しても Enter でも開き、離れて少�
   await upper.hover()
   await expect(bubble).toBeVisible()
   expect((await bubble.boundingBox())!.y).toBeGreaterThan((await upper.boundingBox())!.y)
+  // 下に広がったときは、びっくりマークの「外す？」も吹き出しの下に出る
+  await bubble.getByRole("button", { name: "びっくりマーク" }).click()
+  const ask = page.getByRole("group", { name: "外す？" })
+  await expect(ask).toBeVisible()
+  const b = (await bubble.boundingBox())!
+  expect((await ask.boundingBox())!.y).toBeGreaterThan(b.y + b.height / 2)
   await page.mouse.move(paper.x + 600, paper.y + 420)
   await expect(bubble).toHaveCount(0)
 

@@ -40,12 +40,11 @@
   border-radius: 50%;
   outline: 2px solid var(--skin-surface);
 }
-/* 吹き出し: 角から上へ広がり、押す物を横 1 列に並べる（上に入らなければ下へ） */
+/* 吹き出し: 角から上へ、右端を角にそろえて左へ広がり、押す物を横 1 列に並べる（上に入らなければ下へ） */
 .bubble {
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
   display: flex;
   align-items: center;
   gap: 4px;

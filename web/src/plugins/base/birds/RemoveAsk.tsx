@@ -11,11 +11,13 @@ export function RemoveAsk({
   onRemove,
   onAsking,
   onBird = false,
+  below = false,
   children,
 }: {
   onRemove: () => void
   onAsking?: (asking: boolean) => void
   onBird?: boolean // 鳥の足元に置く（吹き出しを鳥の上に出す）
+  below?: boolean // 吹き出しを押す物の下に出す（角の吹き出しが下へ広がったとき）
   children: (toggle: () => void) => React.ReactNode
 }) {
   const t = useMessages(kit)
@@ -40,7 +42,7 @@ export function RemoveAsk({
   return (
     <div
       ref={ref}
-      className={onBird ? `${styles.ask} ${styles.onBird}` : styles.ask}
+      className={onBird ? `${styles.ask} ${styles.onBird}` : below ? `${styles.ask} ${styles.below}` : styles.ask}
       onPointerEnter={stay}
       onPointerLeave={() => {
         stay()

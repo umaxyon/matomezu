@@ -18,7 +18,7 @@ import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-ancho
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { Stand } from "../utils/anchors"
-import { CornerItem } from "../utils/corner"
+import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import type { StageSlotProps } from "../workspace/ui"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
@@ -72,7 +72,7 @@ function MarkStand({
   const awayLabel = t("Show {name}", { name: useAnchorName(stage, anchor) })
   if (kind === "alert")
     return (
-      <CornerItem
+      <AtCorner
         anchor={anchor}
         order={ALERT_ORDER}
         at={addedAt}
@@ -84,7 +84,7 @@ function MarkStand({
         }
       >
         <PinnedAlert title={title} onRemove={remove} />
-      </CornerItem>
+      </AtCorner>
     )
   return (
     <Stand anchor={anchor} side="edge" span edgePinned label={t("Mark")}>
@@ -93,11 +93,12 @@ function MarkStand({
   )
 }
 
-// びっくりマーク: 押すと「外す？」を出す（角の吹き出しの中なら、その上に重ねて出す）
+// びっくりマーク: 押すと「外す？」を出す（角の吹き出しの中なら、吹き出しの広がった向きに重ねて出す）
 function PinnedAlert({ title, onRemove }: { title: string; onRemove: () => void }) {
+  const below = useAtCornerBubble() === "below"
   return (
     <div data-away="false">
-      <RemoveAsk onRemove={onRemove}>
+      <RemoveAsk onRemove={onRemove} below={below}>
         {toggle => (
           <button type="button" className={styles.alert} aria-label={title} onClick={toggle}>
             !
