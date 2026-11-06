@@ -142,7 +142,7 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
   store.actions.perform(ADD, { anchors: [a], text: "x" }, ON)
   const id = notes()[0]!.id
   const s = store.state.getState()
-  const world = { books: s.books, settings: s.settings, annotations: s.annotations }
+  const world = { books: s.books, settings: s.settings, annotations: s.annotations, mailbox: [] }
   const ctx = { catalog: CORE_CATALOG, home: null, lang: "en" as const, newId: () => "n", now: "t", by: "ai" as const }
   const ai = (action: string, args: unknown) => performIn(world, action, args, ON, ctx)
   const refused = { ok: false, reason: "not-allowed" } as const

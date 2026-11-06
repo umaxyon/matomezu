@@ -9,6 +9,7 @@ import { ITEM_PARTS_MESSAGES } from "./item-parts/messages"
 import { LEFT_SIDE_PANEL_MESSAGES } from "./left-side-panel/messages"
 import { LOCK_MESSAGES } from "./lock/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
+import { MAIL_MESSAGES } from "./mail/messages"
 import { MARK_MESSAGES } from "./mark/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
@@ -44,6 +45,7 @@ export const BASE_MESSAGES = {
   ...MARK_MESSAGES,
   ...RIGHT_SIDE_PANEL_MESSAGES,
   ...LEFT_SIDE_PANEL_MESSAGES,
+  ...MAIL_MESSAGES,
   ...OUTBOX_MESSAGES,
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,

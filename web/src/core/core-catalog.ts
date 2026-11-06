@@ -9,6 +9,7 @@ import { type ActionDef, attachedTo } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
+import type { MailDef } from "./def/mail"
 import type { NormalizeStep } from "./def/normalize-step"
 import type { PaperDef } from "./def/paper"
 import type { PermissionDef } from "./def/permission"
@@ -48,6 +49,7 @@ declare module "./catalog" {
     toolSets: ToolSetDef
     permissions: PermissionDef
     annotations: AnnotationDef
+    mails: MailDef
   }
 }
 

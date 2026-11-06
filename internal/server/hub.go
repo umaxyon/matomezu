@@ -11,7 +11,8 @@ package server
 //	book      {"book", "version", "client", "seq"} ブックが変わった・足された（client と seq は変えたアクションのもの。窓の外からなら空）
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
-//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations のあとに届く
+//	mailbox   {"mailbox", "client", "seq"} 郵便箱が変わった（郵便が届いた・既読になった・消えた）
+//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・mailbox のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
@@ -67,6 +68,7 @@ type Hub struct {
 	order          []string // 置いた順のブックの id（GET /api/data の並び）
 	settings       json.RawMessage
 	annotations    map[string]json.RawMessage // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
+	mailbox        json.RawMessage            // 利用者の郵便箱（郵便の並び。無ければ nil）
 	clients        map[string]*client
 	next           int
 	ticks          int64            // フォーカスの順を振る数
@@ -103,7 +105,11 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
+	mailbox, err := store.Mailbox(user)
+	if err != nil {
+		return nil, err
+	}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -219,6 +225,13 @@ func (h *Hub) Data() ([]storage.Book, json.RawMessage, map[string]json.RawMessag
 	return books, h.settings, annotations
 }
 
+// Mailbox は利用者の郵便箱（郵便の並び。無ければ nil）
+func (h *Hub) Mailbox() json.RawMessage {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.mailbox
+}
+
 // AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、置いた順に返す
 func (h *Hub) AIBooks() []storage.Book {
 	h.mu.Lock()
@@ -265,7 +278,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, By: p.By}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, By: p.By}
 	in.Annotations = map[string]json.RawMessage{}
 	if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {
@@ -317,6 +330,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			}
 			h.settings = out.Settings
 			h.broadcast("settings", map[string]any{"settings": out.Settings, "client": p.Client, "seq": p.Seq})
+		}
+		if len(out.Mailbox) > 0 {
+			if err := h.store.PutMailbox(user, out.Mailbox); err != nil {
+				return Performed{}, err
+			}
+			h.mailbox = out.Mailbox
+			h.broadcast("mailbox", map[string]any{"mailbox": out.Mailbox, "client": p.Client, "seq": p.Seq})
 		}
 		for book, body := range out.Annotations {
 			if err := h.putAnnotations(book, body, p.Client, p.Seq); err != nil {

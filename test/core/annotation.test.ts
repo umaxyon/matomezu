@@ -39,7 +39,7 @@ test("種類が機能台帳に無い物は W018、形が合わない物は W019 
 })
 
 test("効かないアノテーションがあっても、ほかのアノテーションは変えられ、効かない物はそのまま残る", () => {
-  const world = { books: { d: book }, settings: {}, annotations: { d: [GOOD, BAD, GONE] } }
+  const world = { books: { d: book }, settings: {}, annotations: { d: [GOOD, BAD, GONE] }, mailbox: [] }
   const done = performIn(
     world,
     "@matomezu/base:note-remove",

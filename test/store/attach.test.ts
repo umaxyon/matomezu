@@ -34,6 +34,10 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
     "@matomezu/base:trash-empty",
     "@matomezu/base:settings-set",
     "@matomezu/base:book-revert",
+    "@matomezu/base:mail-send",
+    "@matomezu/base:mail-seen",
+    "@matomezu/base:mail-visited",
+    "@matomezu/base:mail-remove",
   ])
 })
 

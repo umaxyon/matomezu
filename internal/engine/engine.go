@@ -32,7 +32,8 @@ type Input struct {
 	Settings json.RawMessage   `json:"settings"`
 	// Annotations は要るブックのアノテーション（ブックの id → 並び。宛先のブックのか、一覧のアクションなら全部）
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
-	By          string                     `json:"by,omitempty"` // 頼んだのが AI なら "ai"（空なら利用者）
+	Mailbox     json.RawMessage            `json:"mailbox,omitempty"` // 利用者の郵便箱
+	By          string                     `json:"by,omitempty"`      // 頼んだのが AI なら "ai"（空なら利用者）
 	// Watched は、変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
 	Watched map[string][]string `json:"watched,omitempty"`
 }
@@ -55,6 +56,7 @@ type Output struct {
 	Removed     []string                   `json:"removed,omitempty"`
 	Settings    json.RawMessage            `json:"settings,omitempty"`
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
+	Mailbox     json.RawMessage            `json:"mailbox,omitempty"` // 変わった郵便箱
 	Notice      string                     `json:"notice,omitempty"`  // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	Touched     []string                   `json:"touched,omitempty"` // Watched の物のうち、変わったか無くなったもの
 }

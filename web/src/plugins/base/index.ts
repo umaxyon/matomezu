@@ -25,6 +25,9 @@ import {
   STICKY,
 } from "./looks"
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
+import { MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./mail"
+// 拡張ポイントに書き足したフィールド shown の型（mail/shown.ts の declare module）
+import type {} from "./mail/shown"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
 import { MARK_NEW } from "./mark/commands"
 import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_TALKED, NOTE_UPDATE } from "./note"
@@ -208,6 +211,10 @@ export const BASE = defineBuiltin(
       NOTE_READ,
       NOTE_TALKED,
       NOTE_REMOVE,
+      MAIL_SEND,
+      MAIL_SEEN,
+      MAIL_VISITED,
+      MAIL_REMOVE,
       MARK_ADD,
       MARK_READ,
       MARK_REMOVE,
@@ -230,6 +237,7 @@ export const BASE = defineBuiltin(
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
     annotations: [NOTE, MARK],
+    mails: [MAIL_LETTER],
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK, THEME_TEXT_COLORS_CHECK],
     normalizeSteps: [VARIABLE_PAGES],
     commands: [
@@ -329,6 +337,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-read": typeof NOTE_READ
     "@matomezu/base:note-talked": typeof NOTE_TALKED
     "@matomezu/base:note-remove": typeof NOTE_REMOVE
+    "@matomezu/base:mail-send": typeof MAIL_SEND
+    "@matomezu/base:mail-seen": typeof MAIL_SEEN
+    "@matomezu/base:mail-visited": typeof MAIL_VISITED
+    "@matomezu/base:mail-remove": typeof MAIL_REMOVE
     "@matomezu/base:mark-add": typeof MARK_ADD
     "@matomezu/base:mark-read": typeof MARK_READ
     "@matomezu/base:mark-remove": typeof MARK_REMOVE
@@ -346,6 +358,9 @@ declare module "../../core/catalog" {
   interface AnnotationTable {
     "@matomezu/base:note": typeof NOTE
     "@matomezu/base:mark": typeof MARK
+  }
+  interface MailTable {
+    "@matomezu/base:mail-letter": typeof MAIL_LETTER
   }
   interface ToolTable {
     "@matomezu/base:select": typeof SELECT_TOOL

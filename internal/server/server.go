@@ -3,8 +3,8 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "annotations": {id: [...]}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}} 置いてあるブック（ゴミ箱のブックも）と設定、
-//	                      ブックごとのアノテーション、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
+//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "annotations": {id: [...]}, "mailbox": [...], "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}} 置いてあるブック（ゴミ箱のブックも）と設定、
+//	                      ブックごとのアノテーション、郵便箱、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
 //	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS（道には ?v= で追加プラグインの版を付けて配る）  … 画面から
 //	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
 //	POST /api/plugins        {"dir"} 開発者プロジェクトのフォルダの追加プラグインを足す（同じ id なら入れ替える）。{"ok", "id"} か {"ok": false, "reason"}  … 要合言葉
@@ -26,6 +26,7 @@
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}]} AI の応えを待つアノテーションの全部
 //	POST /api/ai/talked      利用者が AI に話しかけた（AI のフックが知らせる）。話しかけたときに行うアクションを、アノテーションのあるブックごとに行う。{}
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
+//	GET  /api/ai/mail        {"mailbox": [...]} 利用者の郵便箱（届いた順。郵便ごとに見た時点 seenAt と行き先を見た時点 visitedAt）
 //	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
@@ -124,6 +125,13 @@ func Handler(o Options) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(settings)
 	}))
+	mux.Handle("GET /api/ai/mail", o.auth(func(w http.ResponseWriter, _ *http.Request) {
+		mailbox := o.Hub.Mailbox()
+		if mailbox == nil {
+			mailbox = json.RawMessage("[]")
+		}
+		writeJSON(w, map[string]any{"mailbox": mailbox})
+	}))
 	mux.Handle("GET /api/ai/catalog", o.auth(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(o.Hub.AICatalog())
@@ -191,7 +199,11 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 			plugins[i].CSS = fmt.Sprintf("api/plugins/%d/ui.css?v=%d", i, v)
 		}
 	}
-	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "plugins": plugins, "touched": o.Hub.Touched()})
+	mailbox := o.Hub.Mailbox()
+	if mailbox == nil {
+		mailbox = json.RawMessage("[]")
+	}
+	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": mailbox, "plugins": plugins, "touched": o.Hub.Touched()})
 }
 
 func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {

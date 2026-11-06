@@ -14,6 +14,7 @@ import type { Point, Size } from "../core/geom"
 import { type BookHistory, HISTORY_LIMIT, type HistoryStep, NO_HISTORY } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
+import { type Mailbox, restoreMailbox } from "../core/mail"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import { sameData } from "../core/same"
 import type { Book } from "../core/schema/book"
@@ -69,6 +70,7 @@ export interface MatomezuState {
   workspace: Workspace
   settings: Settings
   annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
+  mailbox: Mailbox // 利用者の郵便箱（core/mail.ts。届いた順）
   lang: Lang // 今の言語（設定の言語の項目が選んだ言語パックの言語。選んでいない・使えなければ、インスタンスを作ったときに決めた言語）
   dialog: OpenedDialog | null
   contextMenu: OpenedContextMenu | null
@@ -201,6 +203,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       books: readonly unknown[]
       settings: unknown
       annotations?: unknown
+      mailbox?: unknown
       touched?: Readonly<Record<string, string>>
     },
     replay: readonly DoneAction[],
@@ -244,6 +247,7 @@ function initialState(
     workspace: newWorkspace(catalog, first),
     settings,
     annotations: {},
+    mailbox: [],
     lang,
     dialog: null,
     contextMenu: null,
@@ -415,6 +419,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.lang = langOf(catalog, done.settings, fallback)
     }
     if (done.annotations) next.annotations = withAnnotations(annotations, done.annotations)
+    if (done.mailbox) next.mailbox = done.mailbox
     return { ok: true, result: done.result, next }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージの画面の状態は消す
@@ -587,9 +592,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let library: Library = Object.fromEntries([...singleBooks(catalog), ...found.books].map(b => [b.id, b]))
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)
+      let mailbox = world.mailbox === undefined ? getState().mailbox : restoreMailbox(world.mailbox)
       for (const done of replay) {
         const ids = [...done.ids]
-        const next = performIn({ books: library, settings, annotations }, done.action, done.args, done.on, {
+        const next = performIn({ books: library, settings, annotations, mailbox }, done.action, done.args, done.on, {
           catalog,
           home,
           lang: done.lang,
@@ -600,6 +606,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (next.book) library = { ...library, [next.book.id]: next.book }
         if (next.books) library = next.books
         if (next.settings) settings = next.settings
+        if (next.mailbox) mailbox = next.mailbox
         annotations = withAnnotations(annotations, next.annotations)
       }
       const now = getState()
@@ -608,6 +615,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const trash = sameAs(split.trash, now.trash)
       if (sameData(settings, now.settings)) settings = now.settings
       if (sameData(annotations, now.annotations)) annotations = now.annotations
+      if (sameData(mailbox, now.mailbox)) mailbox = now.mailbox
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
       const partial = sameData(found.partial, now.partial) ? now.partial : found.partial
       const touched = world.touched === undefined || sameData(world.touched, now.touched) ? now.touched : world.touched
@@ -617,6 +625,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(books === now.books ? {} : { books, workspace: followLibrary(catalog, now.workspace, books, now.books) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
+        ...(mailbox === now.mailbox ? {} : { mailbox }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
       })

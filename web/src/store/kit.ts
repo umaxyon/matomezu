@@ -14,6 +14,7 @@ import {
   withTypeField,
 } from "../core/def/book-type"
 import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
+import type { MailDef } from "../core/def/mail"
 import type { PaperDef } from "../core/def/paper"
 import type { PermissionDef } from "../core/def/permission"
 import type { PresentationDef } from "../core/def/presentation"
@@ -135,6 +136,10 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: AnnotationDef<Pr, keyof M & string> & { id: Id },
   ): Omit<AnnotationDef<Pr>, "id"> & { id: Owned<P, Id> }
 
+  defineMail<const Id extends string, Pr extends MailDef["props"]>(
+    def: MailDef<Pr, keyof M & string> & { id: Id },
+  ): Omit<MailDef<Pr>, "id"> & { id: Owned<P, Id> }
+
   // ブックのタイプ: データの type（と 1 冊だけのタイプのブックの id）は本当の id。schema に type は書かず、ここで足す
   defineBookType<
     const Id extends string,
@@ -224,6 +229,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineToolSet: place,
     definePermission: place,
     defineAnnotation: place,
+    defineMail: place,
     defineBookType: (def: { id: string; schema: BookSchema; book?: object; create?(init: NewBook): object }) => {
       const id = owned(plugin, def.id)
       const placed = { ...place(def), schema: withTypeField(def.schema, id) }

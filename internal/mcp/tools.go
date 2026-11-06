@@ -72,6 +72,13 @@ var readTools = []readTool{
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
 	},
 	{
+		"read_mail",
+		"Read the user's mailbox: the letters sent to the user, oldest first (id, from, sentAt, to: the place it points at, props: title and body). " +
+			"seenAt is when the user opened the letter (none: not yet), visitedAt is when the user saw the place it points at (none: not yet). Send a letter with the action mail-send.",
+		noArgs,
+		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/mail") },
+	},
+	{
 		"actions",
 		"List what can be done now (it changes when plugins are added or removed): the actions (id, target, title, description, and args as JSON Schema) to call with perform, " +
 			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the language packs (the language setting takes a pack id), the skins, and the user settings with their schemas. " +
