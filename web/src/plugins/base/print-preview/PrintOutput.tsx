@@ -8,14 +8,14 @@ import type { Book, Page } from "../../../core/schema/book"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import styles from "./PrintOutput.module.css"
 import type { PrintSheetProps } from "./PrintPreviewView"
-import { pageNameOf, pageRules } from "./print-pages"
+import { pageNameOf, pageRules, type SheetLabels } from "./print-pages"
 import { type SheetAt, SheetFrame } from "./SheetFrame"
 
 export interface OutputSheet extends SheetAt {
   key: string
   page: Page | undefined
   measured: unknown
-  labels: { number: string | null; book: string | null }
+  labels: SheetLabels
 }
 
 export function PrintOutput({

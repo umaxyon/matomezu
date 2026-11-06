@@ -50,6 +50,7 @@ import {
   PRINT_PREVIEW_FLOW,
   PRINT_PREVIEW_OPEN,
   PRINT_PREVIEW_ORDER,
+  PRINT_PREVIEW_PAGE_NAME,
   PRINT_PREVIEW_PAGE_NUMBERS,
   PRINT_PREVIEW_UPDATE,
 } from "./print-preview"
@@ -231,6 +232,7 @@ export const BASE = defineBuiltin(
       PRINT_PREVIEW_ORDER,
       PRINT_PREVIEW_PAGE_NUMBERS,
       PRINT_PREVIEW_BOOK_NAME,
+      PRINT_PREVIEW_PAGE_NAME,
     ],
     userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS, TOOL_PICKER_HOLD, NOTE_EXPIRY],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
@@ -312,6 +314,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-preview-order": typeof PRINT_PREVIEW_ORDER
     "@matomezu/base:print-preview-page-numbers": typeof PRINT_PREVIEW_PAGE_NUMBERS
     "@matomezu/base:print-preview-book-name": typeof PRINT_PREVIEW_BOOK_NAME
+    "@matomezu/base:print-preview-page-name": typeof PRINT_PREVIEW_PAGE_NAME
   }
   interface UserSettingTable {
     "@matomezu/base:lang": typeof LANG

@@ -33,7 +33,7 @@ import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
 import { sheetLabels } from "./print-pages"
 import { PrintingContext } from "./printing"
 import { SheetFrame } from "./SheetFrame"
-import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NUMBERS } from "./settings"
+import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_PAGE_NUMBERS } from "./settings"
 
 // 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: 描いているステージ（印刷プレビューの間）・ブック・ページと、
 // そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
@@ -199,12 +199,17 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   if (!layout || !pan || !book) return null
   const Sheet = views.get(bookType(catalog, book.type).presentation)?.printSheet
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
-  // ブック名とページ番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
+  // ブック名・ページ名とページ番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {
     pageNumbers: settingValue(catalog, book, null, PRINT_PREVIEW_PAGE_NUMBERS) === "shown",
     bookName: settingValue(catalog, book, null, PRINT_PREVIEW_BOOK_NAME) === "shown",
+    pageName: settingValue(catalog, book, null, PRINT_PREVIEW_PAGE_NAME) === "shown",
   }
-  const labelsOf = (index: number) => sheetLabels(index, layout.sheets.length, shows, bookTitle(catalog, book, lang))
+  const labelsOf = (s: { index: number; page: string }) =>
+    sheetLabels(s.index, layout.sheets.length, shows, {
+      book: bookTitle(catalog, book, lang),
+      page: pageOf(s.page)?.title ?? "",
+    })
   const origin = paperOrigin(pan)
   // 測るだけのビュー（見えない所に、倍率をかけずに描く）
   const measuringViews = Measure && (
@@ -259,7 +264,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
               sheet={s}
               Sheet={Sheet}
               measured={measures[s.page]?.data}
-              labels={labelsOf(s.index)}
+              labels={labelsOf(s)}
             />
           </div>
         ))}
@@ -275,7 +280,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
             key: keyOf(s),
             page: pageOf(s.page),
             measured: measures[s.page]?.data,
-            labels: labelsOf(s.index),
+            labels: labelsOf(s),
           }))}
         />
       )}

@@ -332,7 +332,7 @@ test("印刷プレビューの右端のスクロールバーは、つまみの�
   await expect(page.locator('[data-preview-scrollbar="x"]')).toHaveCount(0)
 })
 
-test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙 1 枚に刷る（刷るときは画面を隠す）。編集の画面の Ctrl+P は印刷プレビューを開く。ページ番号とブック名は設定で入れる", async ({
+test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙 1 枚に刷る（刷るときは画面を隠す）。編集の画面の Ctrl+P は印刷プレビューを開く。ページ番号・ブック名・ページ名は設定で入れる", async ({
   page,
 }) => {
   // ブラウザの印刷ダイアログは開かず、頼まれた回数を数える
@@ -390,4 +390,21 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙
   await panel(page).getByRole("switch", { name: "ページ番号を入れる" }).click()
   await expect(sheets(page).last().locator("[data-sheet-number]")).toHaveText("2 / 2")
   await expect(output.locator("[data-sheet-number]").last()).toHaveText("2 / 2")
+  // ブック名とページ名を入れると左上に出し、両方なら「ブック名 - ページ名」
+  const title = sheets(page).last().locator("[data-sheet-title]")
+  const bookSwitch = panel(page).getByRole("switch", { name: "ブック名を入れる" })
+  const pageSwitch = panel(page).getByRole("switch", { name: "ページ名を入れる" })
+  await expect(title).toHaveCount(0)
+  await bookSwitch.click()
+  await expect(title).toHaveCount(1)
+  const bookName = (await title.textContent()) ?? ""
+  await pageSwitch.click()
+  await expect(pageSwitch).toBeChecked()
+  await bookSwitch.click()
+  await expect(bookSwitch).not.toBeChecked()
+  await expect(title).not.toHaveText(bookName)
+  const pageName = (await title.textContent()) ?? ""
+  await bookSwitch.click()
+  await expect(title).toHaveText(`${bookName} - ${pageName}`)
+  await expect(output.locator("[data-sheet-title]").last()).toHaveText(`${bookName} - ${pageName}`)
 })

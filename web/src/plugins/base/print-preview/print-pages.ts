@@ -13,15 +13,21 @@ export function pageRules(sizes: readonly Size[]): string {
     .join("\n")
 }
 
-// 印刷区画の左上と下の真ん中に入れる、ブック名とページ番号（入れないなら null）。番号は刷る紙全体の通し番号（index は 0 から）
+// 印刷区画の左上に入れる名前と、下の真ん中に入れるページ番号（入れないなら null）。名前は、ブック名とページ名の入れる物を「 - 」でつなぐ
+// （名前の無いページはブック名だけ）。番号は刷る紙全体の通し番号（index は 0 から）
 export function sheetLabels(
   index: number,
   total: number,
-  shows: { pageNumbers: boolean; bookName: boolean },
-  bookName: string,
-): { number: string | null; book: string | null } {
+  shows: { pageNumbers: boolean; bookName: boolean; pageName: boolean },
+  names: { book: string; page: string },
+): SheetLabels {
+  const title = [shows.bookName ? names.book : "", shows.pageName ? names.page : ""].filter(n => n !== "").join(" - ")
   return {
     number: shows.pageNumbers ? `${index + 1} / ${total}` : null,
-    book: shows.bookName ? bookName : null,
+    title: title === "" ? null : title,
   }
+}
+export interface SheetLabels {
+  number: string | null
+  title: string | null
 }

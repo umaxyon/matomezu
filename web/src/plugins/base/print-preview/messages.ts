@@ -27,6 +27,7 @@ export const PRINT_PREVIEW_MESSAGES = defineMessages({
   "Down first": { en: "Down first", ja: "縦に進むのが先" },
   "Print page numbers": { en: "Print page numbers", ja: "ページ番号を入れる" },
   "Print the book name": { en: "Print the book name", ja: "ブック名を入れる" },
+  "Print the page name": { en: "Print the page name", ja: "ページ名を入れる" },
   "This book is locked. Change it anyway?": {
     en: "This book is locked. Change it anyway?",
     ja: "ロック中ですが書き換えてもいいですか？",

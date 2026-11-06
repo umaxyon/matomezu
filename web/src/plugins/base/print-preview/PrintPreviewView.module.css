@@ -32,8 +32,8 @@
   visibility: hidden;
   pointer-events: none;
 }
-/* 印刷区画に重ねるブック名（左上）とページ番号（下の真ん中）。中身の上に小さく描く */
-.bookName,
+/* 印刷区画に重ねる名前（ブック名とページ名。左上）とページ番号（下の真ん中）。中身の上に小さく描く */
+.title,
 .pageNumber {
   position: absolute;
   font-size: 10px;
@@ -42,7 +42,7 @@
   white-space: nowrap;
   pointer-events: none;
 }
-.bookName {
+.title {
   left: 12px;
   top: 10px;
   max-width: calc(100% - 24px);

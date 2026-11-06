@@ -19,6 +19,7 @@ import {
   PRINT_PREVIEW_BOOK_NAME,
   PRINT_PREVIEW_FLOW,
   PRINT_PREVIEW_ORDER,
+  PRINT_PREVIEW_PAGE_NAME,
   PRINT_PREVIEW_PAGE_NUMBERS,
   type SheetFlow,
   type SheetOrder,
@@ -47,6 +48,7 @@ export const PRINT_PREVIEW_SETTING_VIEWS = {
   [PRINT_PREVIEW_ORDER.id]: { control: OrderSetting },
   [PRINT_PREVIEW_PAGE_NUMBERS.id]: { control: ShownSetting },
   [PRINT_PREVIEW_BOOK_NAME.id]: { control: ShownSetting },
+  [PRINT_PREVIEW_PAGE_NAME.id]: { control: ShownSetting },
 }
 
 export const PRINT_PREVIEW_BUTTON = defineWidget({

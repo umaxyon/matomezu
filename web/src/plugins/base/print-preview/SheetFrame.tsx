@@ -4,6 +4,7 @@ import type { ComponentType } from "react"
 import type { Book, Page } from "../../../core/schema/book"
 import type { PrintSheetProps } from "./PrintPreviewView"
 import styles from "./PrintPreviewView.module.css"
+import type { SheetLabels } from "./print-pages"
 import { PrintingContext } from "./printing"
 
 export interface SheetAt {
@@ -28,7 +29,7 @@ export function SheetFrame({
   sheet: SheetAt
   Sheet: ComponentType<PrintSheetProps> | undefined
   measured: unknown
-  labels: { number: string | null; book: string | null }
+  labels: SheetLabels
 }) {
   return (
     <>
@@ -48,9 +49,9 @@ export function SheetFrame({
           </PrintingContext.Provider>
         </div>
       )}
-      {labels.book !== null && (
-        <span className={styles.bookName} data-sheet-book-name>
-          {labels.book}
+      {labels.title !== null && (
+        <span className={styles.title} data-sheet-title>
+          {labels.title}
         </span>
       )}
       {labels.number !== null && (
