@@ -1,5 +1,5 @@
 // 印刷区画 1 つの中身: ページの原点を印刷区画の左上にずらして、ブックのタイプの印刷区画 1 つのビュー（printSheet）で描き、
-// ブック名（左上）とページ番号（下の真ん中）を中身の上に重ねる。印刷プレビューの画面と、刷る物の両方が使う（外の枠は使う側が置く）
+// 名前（ブック名とページ名。左上）とページ番号（下の真ん中）を中身の上に重ねる。印刷プレビューの画面と、刷る物の両方が使う（外の枠は使う側が置く）
 import type { ComponentType } from "react"
 import type { Book, Page } from "../../../core/schema/book"
 import type { PrintSheetProps } from "./PrintPreviewView"

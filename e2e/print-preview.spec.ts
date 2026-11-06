@@ -1,6 +1,7 @@
 // 印刷プレビュー: フッタメニューのボタンで開くと、ブックの全ページの印刷区画を並べ、右サイドパネルに設定を出す。間はブックを変えるキー（元に戻す）が効かない。ロック中は変える前に聞く。
 // 右サイドパネルを閉じる（Esc）か読み直すと編集に戻る。印刷区画をダブルクリックすると、そのページの編集に戻る。右端にスクロールバーを出す
 import { expect, type Page, test } from "./fixtures"
+import { afterFrames } from "./helpers/frames"
 import { newBook } from "./helpers/master"
 import { panel } from "./helpers/note"
 import { addBox, items, onPaper } from "./helpers/paper"
@@ -208,8 +209,7 @@ test("マークダウンは、紙の高さでブロックの境目ごとに切�
   // 刷るときは画面ごと隠れるが、測り直さず、並べた印刷区画をそのまま紙にする
   const count = await sheets(page).count()
   await page.emulateMedia({ media: "print" })
-  // 隠れたことの知らせ（ResizeObserver）と描き直しが済むまで、2 コマ待つ
-  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
+  await afterFrames(page)
   await expect(page.locator("[data-print-output]")).toHaveAttribute("data-print-output", String(count))
   const pdf = (await page.pdf({ preferCSSPageSize: true })).toString("latin1")
   expect(pdf.match(/\/Type\s*\/Page\b/g)?.length).toBe(count)
@@ -368,10 +368,10 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙
   await expect(page.locator("#root")).toBeHidden()
   await expect(output).toBeVisible()
   await expect(output.getByText("刷る箱")).toBeVisible()
-  // body の直下にほかの物（画面の部品が置く物など）があっても、刷るときは隠し、空の紙を足さない
+  // body の直下にほかの物（ほかのコンポーネントが body に描く物など）があっても、刷るときは隠し、空の紙を足さない
   await page.evaluate(() => {
     const extra = document.createElement("div")
-    extra.textContent = "画面の部品"
+    extra.textContent = "ほかのコンポーネント"
     document.body.prepend(extra)
   })
   // PDF にすると、印刷区画 1 つが紙 1 枚で、紙は A4 横（1123×794 px を pt にした 842×596）
