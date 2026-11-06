@@ -4,6 +4,7 @@ import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
 import { useSettings } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { SettingRow } from "./SettingRow"
 import styles from "./UserSettings.module.css"
 import { shownLanguagePack } from "./user-settings"
 
@@ -11,8 +12,7 @@ export function LangSetting({ label, onChange }: UserSettingControlProps<string>
   const catalog = useCatalog().core
   const { lang, values } = useSettings()
   return (
-    <label className={styles.row}>
-      <span className={styles.label}>{label}</span>
+    <SettingRow label={label} as="label">
       <select
         className={styles.control}
         value={shownLanguagePack(catalog, values, lang)}
@@ -24,7 +24,7 @@ export function LangSetting({ label, onChange }: UserSettingControlProps<string>
           </option>
         ))}
       </select>
-    </label>
+    </SettingRow>
   )
 }
 
@@ -32,8 +32,7 @@ export function SkinSetting({ label, value, onChange }: UserSettingControlProps<
   const t = useMessages(kit)
   const catalog = useCatalog().core
   return (
-    <label className={styles.row}>
-      <span className={styles.label}>{label}</span>
+    <SettingRow label={label} as="label">
       <select className={styles.control} value={value} onChange={e => onChange(e.target.value)}>
         <option value="auto">{t("Auto")}</option>
         {[...catalog.skins.values()].map(s => (
@@ -42,6 +41,6 @@ export function SkinSetting({ label, value, onChange }: UserSettingControlProps<
           </option>
         ))}
       </select>
-    </label>
+    </SettingRow>
   )
 }

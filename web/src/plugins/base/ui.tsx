@@ -23,6 +23,7 @@ import {
   PRINT_PREVIEW_SCROLLBARS,
   PRINT_PREVIEW_SETTING_VIEWS,
 } from "./print-preview/ui"
+import { GENERAL_SECTION, KEYS_SECTION, type SettingsSectionProps } from "./settings/sections"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
 import {
   BOOK_CONTENT,
@@ -83,6 +84,8 @@ export {
 } from "./right-side-panel/hooks"
 export { RIGHT_SIDE_PANEL } from "./right-side-panel/slots"
 export type { RightSidePanelOpen } from "./right-side-panel/state"
+export { SettingRow } from "./settings/SettingRow"
+export { defineSettingsSection, type SettingsSectionProps } from "./settings/sections"
 export { UserSettings } from "./settings/ui"
 export {
   BodyField,
@@ -147,6 +150,8 @@ export const BASE_UI = definePluginUi(BASE, {
     STAGE_MENU_BUTTONS,
     PAGE_TABS,
     CLOSE_BUTTON,
+    GENERAL_SECTION,
+    KEYS_SECTION,
   ],
   commandIcons: { ...STAGE_ICONS, ...ZOOM_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS, ...HISTORY_ICONS },
   toolIcons: TOOL_ICONS,
@@ -165,6 +170,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:footer-menu-book-tools": StageSlotProps
     "@matomezu/base:right-side-panel": StageSlotProps
     "@matomezu/base:left-side-panel": StageSlotProps
+    "@matomezu/base:settings-sections": SettingsSectionProps
     "@matomezu/base:annotation-icon": AnnotationIconProps
   }
   interface WidgetExtras {
@@ -173,6 +179,8 @@ declare module "../../core/catalog" {
     rightSidePanel?: { width: number; followsSelection?: boolean }
     // 左サイドパネルのスロットに置くタブの名前（文言の鍵）と、開くボタンとタブに出す数（未読など）を読むフック（無ければ出さない）
     leftSidePanel?: { title: MessageKey; useCount?: () => number }
+    // 設定画面の項目のスロットに置く物の、左の一覧に出す題名（文言の鍵）と、並べる利用者の設定の項目の id（無ければ中身はウィジェットのビューが描く）
+    settingsSection?: { title: MessageKey; settings?: readonly string[] }
     // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id
     annotationIcon?: { annotation: string }
   }
@@ -212,6 +220,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:stage-menu-buttons": typeof STAGE_MENU_BUTTONS
     "@matomezu/base:page-tabs": typeof PAGE_TABS
     "@matomezu/base:close-button": typeof CLOSE_BUTTON
+    "@matomezu/base:settings-general": typeof GENERAL_SECTION
+    "@matomezu/base:settings-keys": typeof KEYS_SECTION
   }
   interface MenuTable {
     "@matomezu/base:stage-menu": true

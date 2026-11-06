@@ -126,7 +126,7 @@ test("ページを変えられない間（ロック中）は、テキストForm�
   expect(field().readOnly).toBe(true)
 })
 
-test("Tab キーは、利用者の設定の項目で選んだ字を書く（既定は Tab 文字）。設定画面の「全体」の「Tabキー」で、半角スペースと数・Tab を切り替える", async () => {
+test("Tab キーは、利用者の設定の項目で選んだ字を書く（既定は Tab 文字）。設定画面の「マークダウン」の「Tabキー」で、半角スペースと数・Tab を切り替える", async () => {
   const { store, text, field, type, settle } = setup()
   type("a")
   await settle()
@@ -147,7 +147,7 @@ test("Tab キーは、利用者の設定の項目で選んだ字を書く（既�
   expect(text()).toBe("  a\t")
 })
 
-test("設定画面の「全体」の「Tabキー」: 押している方を見せ、Tab を選んでいる間に選び替えた数は、半角スペースに戻したときに使う", () => {
+test("設定画面の「マークダウン」の「Tabキー」: 押している方を見せ、Tab を選んでいる間に選び替えた数は、半角スペースに戻したときに使う", () => {
   const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI, partial: true })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
@@ -156,7 +156,8 @@ test("設定画面の「全体」の「Tabキー」: 押している方を見せ
   )
   const value = () => store.state.getState().settings["@matomezu/markdown:tab-key"]
   fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
-  const general = screen.getByRole("tabpanel", { name: "全体" })
+  fireEvent.click(screen.getByRole("tab", { name: "マークダウン" }))
+  const general = screen.getByRole("tabpanel", { name: "マークダウン" })
   const spaces = within(general).getByRole("button", { name: "半角スペース" })
   const tab = within(general).getByRole("button", { name: "Tab" })
   expect(tab.getAttribute("aria-pressed")).toBe("true")

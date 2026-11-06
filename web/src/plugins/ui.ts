@@ -74,6 +74,11 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-check-panel",
     ],
     "@matomezu/base:left-side-panel": ["@matomezu/base:mailbox", "@matomezu/base:outbox"],
+    "@matomezu/base:settings-sections": [
+      "@matomezu/base:settings-general",
+      "@matomezu/markdown:settings",
+      "@matomezu/base:settings-keys",
+    ],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
   },
   menus: {

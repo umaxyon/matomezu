@@ -1,4 +1,6 @@
-// 利用者の設定の並び: 機能台帳の利用者の設定の項目を、プラグインごとに並べる（base の項目が先で見出しなし、ほかは見出しにプラグインの id）。
+// 利用者の設定の並び: settings を渡せばその項目だけを、その順に見出しなしで並べる（設定画面のプラグインの項目）。渡さなければ、機能台帳の利用者の設定の項目のうち、
+// 設定画面のほかの項目（配置がスロット settings-sections に置いたウィジェットの settingsSection.settings）が名指していない物を、プラグインごとに並べる
+// （base の項目が先で見出しなし、ほかは見出しにプラグインの id）。
 // 項目のビューがあればそれを、無ければ値の形から作った入力Form（真偽はスイッチ、選択肢はセレクトForm、数と文字はテキストForm）を出し、どちらも作れない項目は出さない。
 // 変えるとコマンド settings-set を呼ぶ。コマンドが押せないときと、アクション settings-set がその項目で使えないとき（ホームのタイプが変えさせない項目）は、灰色で押せない
 import { type ReactNode, useState } from "react"
@@ -8,40 +10,48 @@ import { splitId } from "../../../core/names"
 import { userSetting } from "../../../core/settings"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useCatalog, useLayout, useUiCatalog } from "../../../ui/store-context"
 import { useAllowed, useSettings } from "../../../ui/view-hooks"
 import { Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { SETTINGS_SET } from "./actions"
 import { SETTINGS_SET_COMMAND } from "./commands"
+import { SettingRow } from "./SettingRow"
+import { SETTINGS_SECTIONS } from "./settings-screen"
 import styles from "./UserSettings.module.css"
 import { type AutoInput, autoInputOf } from "./user-settings"
 
-export function UserSettings({ stage }: { stage: string }) {
+export function UserSettings({ stage, settings }: { stage: string; settings?: readonly string[] | undefined }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().userSettingViews
   const { values } = useSettings()
   const set = useCommand(stage, SETTINGS_SET_COMMAND.id)
+  const widgets = useUiCatalog().widgets
+  const claimed = new Set(
+    (useLayout().slots[SETTINGS_SECTIONS] ?? []).flatMap(id => widgets.get(id)?.settingsSection?.settings ?? []),
+  )
+  const defs = settings
+    ? settings.flatMap(id => catalog.userSettings.get(id) ?? [])
+    : [...catalog.userSettings.values()].filter(def => !claimed.has(def.id))
   const groups = new Map<string, ReactNode[]>()
-  for (const def of catalog.userSettings.values()) {
+  for (const def of defs) {
     const label = t(def.title)
     const value = userSetting(catalog, values, def.id)
     const onChange = (v: unknown) => set.run({ [def.id]: v === undefined ? null : v })
     const View = views.get(def.id)?.control
     const input = View ? null : autoInputOf(catalog, def)
     if (!View && !input) continue
-    const owner = splitId(def.id).owner ?? ""
+    const owner = settings ? kit.id : (splitId(def.id).owner ?? "") // 項目を名指して並べるなら、見出しを付けない
     groups.set(owner, [
       ...(groups.get(owner) ?? []),
       <SettingItem key={def.id} stage={stage} id={def.id} enabled={set.enabled}>
         {View ? (
           <View label={label} value={value} onChange={onChange} />
         ) : (
-          <div className={styles.row}>
-            <span className={styles.label}>{label}</span>
+          <SettingRow label={label}>
             {input && <AutoControl input={input} def={def} label={label} value={value} onChange={onChange} />}
-          </div>
+          </SettingRow>
         )}
       </SettingItem>,
     ])
