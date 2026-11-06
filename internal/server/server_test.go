@@ -1112,3 +1112,41 @@ func resultField(t *testing.T, url, req, name string) string {
 	}
 	return v
 }
+
+func TestWriteLog(t *testing.T) {
+	var out strings.Builder
+	lines := []logLine{{At: "t0", Text: "dropped"}}
+	for i := 0; i < maxLogLines-1; i++ {
+		lines = append(lines, logLine{At: "t1", Text: "kept"})
+	}
+	lines = append(lines, logLine{At: "t2", Text: "lost the\nconnection " + strings.Repeat("x", maxLogText)})
+	writeLog(&out, "c1", lines)
+	got := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+	// 多すぎる分は古い方を捨て、改行は空白にし、長い行は切る
+	if len(got) != maxLogLines || strings.Contains(out.String(), "dropped") {
+		t.Fatalf("lines = %d: %s", len(got), out.String())
+	}
+	last := got[len(got)-1]
+	if !strings.Contains(last, "window c1 at t2: lost the connection x") || !strings.HasSuffix(last, "x…") {
+		t.Fatalf("last = %q", last)
+	}
+}
+
+func TestWindowLog(t *testing.T) {
+	s := newServer(t, nil)
+	if code, _ := send(t, "POST", s.URL+"/api/log", `{"client":"c1","lines":[{"at":"t","text":"hi"}]}`, nil); code != 200 {
+		t.Fatalf("code = %d", code)
+	}
+}
+
+// 知らせが無いあいだも、窓に見える keep の知らせを送る（窓はこれが届かなければ、つながりが黙って切れたとみてつなぎ直す）
+func TestEventsKeep(t *testing.T) {
+	s := newServerWith(t, Options{Keep: 10 * time.Millisecond})
+	lines := listen(t, s.URL)
+	if l := next(t, lines); !strings.HasPrefix(l, "hello ") {
+		t.Fatalf("first = %q", l)
+	}
+	if l := next(t, lines); l != "keep {}" {
+		t.Fatalf("second = %q", l)
+	}
+}
