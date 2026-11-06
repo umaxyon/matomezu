@@ -17,6 +17,7 @@ package server
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
+//	keep      {} keepAlive ごとに送る。窓はこれも届かなければ、つながりが黙って切れたとみてつなぎ直す
 
 import (
 	"encoding/json"

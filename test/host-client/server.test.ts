@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { type Events, NoServer, OFFLINE_MS, serverClient } from "../../web/src/host-client/server"
+import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
 
 // 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る。perform はアクションを送られたときの答え（null は送れない）、
-// read は読まれたときの答えの status、log はログを送られたときの答えの status、data は読まれたときに返す世界。待ち（later）は tick で進める
+// read は読まれたときの答えの status、log はログを送られたときの答えの status、data は読まれたときに返す世界。待ち（later）は tick で進める。
+// 知らせのつながりは、つなぐたびに新しく作り（opened は作った数、closed は閉じた数）、emit と fail は最後に作ったつながりに送る
 function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: null }) {
   const sent: Record<string, unknown>[] = []
   const answer: { perform: () => number | null; read: () => number; log: () => number; data: unknown } = {
@@ -16,17 +17,26 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   }
   let timers: { run: () => void; ms: number }[] = []
   let keys = 0
-  const listeners = new Map<string, (data: string) => void>()
+  let listeners = new Map<string, (data: string) => void>()
   let onError = () => {}
+  let opened = 0
+  let closed = 0
   let reads = 0
   let focus = () => {}
   let reloads = 0
-  const events: Events = {
-    on: (name, l) => listeners.set(name, l),
-    onError: l => {
-      onError = l
-    },
-    close: () => {},
+  const events = (): Events => {
+    const mine = new Map<string, (data: string) => void>()
+    listeners = mine
+    opened++
+    return {
+      on: (name, l) => mine.set(name, l),
+      onError: l => {
+        if (listeners === mine) onError = l
+      },
+      close: () => {
+        closed++
+      },
+    }
   }
   const host = serverClient({
     fetch: async (url, init) => {
@@ -41,7 +51,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
       const status = url === "api/data" ? answer.read() : url === "api/log" ? answer.log() : 200
       return new Response(JSON.stringify(answer.data), { status })
     },
-    events: () => events,
+    events,
     focused: () => true,
     onFocus: l => {
       focus = l
@@ -62,8 +72,8 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     newKey: () => `k${++keys}`,
   })
   const emit = (name: string, v: unknown) => listeners.get(name)?.(JSON.stringify(v))
-  // ms 以下の待ちを全部進める
-  const tick = (ms = Number.POSITIVE_INFINITY) => {
+  // ms 以下の待ちを全部進める（黙って切れたとみる QUIET_MS の待ちは、言われたときだけ）
+  const tick = (ms = QUIET_MS - 1) => {
     const due = timers.filter(t => t.ms <= ms)
     timers = timers.filter(t => t.ms > ms)
     for (const t of due) t.run()
@@ -82,6 +92,9 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     tick,
     fail: () => onError(),
     reads: () => reads,
+    opened: () => opened,
+    closed: () => closed,
+    waiting: (ms: number) => timers.filter(t => t.ms === ms).length,
     focus: () => focus(),
     reloads: () => reloads,
   }
@@ -536,4 +549,34 @@ test("常駐のログに送れない（5xx）行は、つなぎ直したとき�
     ["c2", "reconnected as c2 (was c1): sending 0 actions again"],
     ["c2", "kept book b1 v3; the server has v1"],
   ])
+})
+
+test("知らせが QUIET_MS 届かなければ、黙って切れたとみて閉じてつなぎ直し、読み直してアクションを送り直す", async () => {
+  const s = await connected()
+  s.answer.perform = () => null
+  place(s.store)
+  await flush()
+  s.answer.perform = () => 200
+  s.answer.data = { books: [{ id: "b1", book: b1With("ai"), version: 2 }], settings: null }
+  s.tick(QUIET_MS)
+  expect([s.opened(), s.closed()]).toEqual([2, 1])
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.reads()).toBe(2)
+  expect(itemsOf(s.store)).toEqual(["ai", "n1"])
+  expect(s.performs().map(p => p.client)).toEqual(["c1", "c2"])
+  expect(s.logged().map(l => l[1])).toEqual([
+    "no event for 60s; connecting again",
+    "reconnected as c2 (was c1): sending 1 actions again",
+    "took book b1 v2; the window had v1",
+  ])
+})
+
+test("keep などの知らせが届くたびに、黙って切れたとみるまでの待ちを始め直す", async () => {
+  const s = await connected()
+  expect(s.waiting(QUIET_MS)).toBe(1)
+  s.emit("keep", {})
+  s.emit("keep", {})
+  expect(s.waiting(QUIET_MS)).toBe(1)
+  expect(s.opened()).toBe(1)
 })

@@ -87,7 +87,7 @@ func (o Options) waitLatest() {
 	o.Hub.WaitLatest(d)
 }
 
-// 知らせが無いあいだ、つながりを保つために送る間隔
+// つながりを保ち、窓につながっていると見せるために keep を送る間隔
 const keepAlive = 25 * time.Second
 
 // Handler は常駐の入口をまとめた http.Handler
@@ -272,7 +272,7 @@ func (o Options) events(w http.ResponseWriter, r *http.Request) {
 			}
 			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.name, ev.data)
 		case <-tick.C:
-			fmt.Fprint(w, ": keep\n\n")
+			fmt.Fprint(w, "event: keep\ndata: {}\n\n")
 		case <-r.Context().Done():
 			return
 		}

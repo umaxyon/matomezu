@@ -6,6 +6,7 @@
 // 新しいつながりで送り直す（つながりは窓の中で振る番号で見分ける。常駐の窓の id は、常駐を起動し直すと前と同じ物がまた振られる）。常駐が同じアクションを二度行わないように、アクションごとに一意の番号（key）を振り、送り直しても変えない。
 // 送り直しても届かなかったものだけを外してトーストで知らせる。つながりが OFFLINE_MS より長く切れたままなら store に知らせる（setOffline）。
 // つながっていない間も画面の編集は止めず、つながったらまとめて送る。
+// つなぎ直しはブラウザに任せるが、スリープなどで黙って切れたつながりはブラウザが気づかないので、知らせ（常駐が 25 秒ごとに送る keep も）が QUIET_MS 届かなければ、自分で閉じてつなぎ直す。
 // 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
 // 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く。
 // 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）。
@@ -76,6 +77,7 @@ const browserNet: Net = {
 const RETRY_MS = 2000 // 届かなかったアクションを送り直すまで
 const MAX_TRIES = 3 // 常駐が 5xx を返したアクションを送る回数（超えたら外す）
 export const OFFLINE_MS = 10_000 // つながりがこれより長く切れたままなら、切れていると見せる
+export const QUIET_MS = 60_000 // 知らせ（keep も）がこれより長く届かなければ、つながりが黙って切れたとみてつなぎ直す（常駐は 25 秒ごとに keep を送る）
 const MAX_LOG_LINES = 50 // 常駐に送れずに溜めておく、ログの行の数（超えたら古い方を捨てる。常駐が一度に受ける行の数と同じ）
 
 // まだ確かめられていない自分のアクション。sentTo は送り届けたつながりの番号（まだなら 0）、tries は常駐が 5xx を返した回数
@@ -340,97 +342,127 @@ export function serverClient(net: Net = browserNet): ServerClient {
     )
   }
 
-  // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
-  const listen = () =>
-    new Promise<void>((resolve, reject) => {
-      const source = net.events("api/events")
-      events = source
-      let first = true
-      source.onError(() => {
-        if (first) {
-          source.close()
-          reject(new NoServer())
-          return
-        }
-        // つなぎ直しはブラウザに任せる（つながると hello が来る）。長く切れたままなら、切れていると見せる
-        const was = online
-        online = false
-        if (was) logLine("lost the connection to the server")
-        offlineTimer ??= net.later(() => instance?.setOffline(true), OFFLINE_MS)
+  // つながりが切れた。長く切れたままなら、切れていると見せる
+  const lost = (why: string) => {
+    const was = online
+    online = false
+    if (was) logLine(why)
+    offlineTimer ??= net.later(() => instance?.setOffline(true), OFFLINE_MS)
+  }
+  let quiet: (() => void) | null = null // 黙って切れたとみるまでの待ち（取り消す関数）
+  // 知らせが届くたびに待ち直す。QUIET_MS 何も届かなければ、つながりが黙って切れたとみて、閉じてつなぎ直す（つながると hello が来る）
+  const awake = (source: Events) => {
+    quiet?.()
+    quiet = net.later(() => {
+      quiet = null
+      if (events !== source) return
+      lost(`no event for ${QUIET_MS / 1000}s; connecting again`)
+      source.close()
+      attach(net.events("api/events"), null)
+    }, QUIET_MS)
+  }
+  // 知らせを受ける処理を source に付ける。first はつながって最初の hello を待つ間だけの約束（hello で果たし、つながらなければ NoServer で断る）
+  const attach = (source: Events, first: { resolve: () => void; reject: (e: unknown) => void } | null) => {
+    events = source
+    const on = (name: string, listener: (data: string) => void) =>
+      source.on(name, data => {
+        if (events !== source) return
+        awake(source)
+        listener(data)
       })
-      source.on("hello", data => {
-        const was = client
-        client = HelloSchema.parse(JSON.parse(data)).client
-        link += 1
-        online = true
-        if (first) {
-          first = false
-          resolve()
-          return
-        }
-        // つなぎ直した: 読み直した世界の上に、まだ確かめられていないアクションを出し、新しいつながりで全部送り直す（送ったものの答えは前のつながりに届くので）。
-        // warning は新しいつながりで知らせ直す
-        offlineTimer?.()
-        offlineTimer = null
-        instance?.setOffline(false)
-        logLine(`reconnected as ${client} (was ${was}): sending ${pending.length} actions again`)
-        tellWarnings()
-        tellLog()
-        reread(link)
-      })
-      source.on("book", data => {
-        const e = BookSchema.parse(JSON.parse(data))
-        const have = confirmed.get(e.book.id)
-        if (!have || have.version < e.version) confirmed.set(e.book.id, { book: e.book, version: e.version })
-        else if (have.version > e.version)
-          logLine(`kept book ${e.book.id} v${have.version}; the notice had v${e.version}`)
-        changed(e.book.id)
-        settle(e)
-        show()
-      })
-      source.on("removed", data => {
-        const e = RemovedSchema.parse(JSON.parse(data))
-        confirmed.delete(e.book)
-        changed(e.book)
-        settle(e)
-        show()
-      })
-      source.on("settings", data => {
-        const e = SettingsSchema.parse(JSON.parse(data))
-        settings = e.settings
-        settle(e)
-        show()
-      })
-      source.on("annotations", data => {
-        const e = AnnotationsSchema.parse(JSON.parse(data))
-        const { [e.book]: _, ...rest } = annotations
-        annotations =
-          Array.isArray(e.annotations) && e.annotations.length === 0 ? rest : { ...rest, [e.book]: e.annotations }
-        settle(e)
-        show()
-      })
-      source.on("mailbox", data => {
-        const e = MailboxSchema.parse(JSON.parse(data))
-        mailbox = e.mailbox
-        instance?.setLastWindow(e.window === client)
-        settle(e)
-        show()
-      })
-      source.on("show", data => {
-        if (instance) showIn(instance, ShowSchema.parse(JSON.parse(data)))
-      })
-      source.on("touched", data => {
-        const e = TouchedSchema.parse(JSON.parse(data))
-        if ((touched[e.book] ?? "") >= e.at) return
-        touched = { ...touched, [e.book]: e.at }
-        show()
-      })
-      source.on("plugins", () => net.reload())
-      source.on("ack", data => {
-        settle({ client, seq: AckSchema.parse(JSON.parse(data)).seq })
-        show()
-      })
+    if (!first) awake(source)
+    source.onError(() => {
+      if (events !== source) return
+      if (first) {
+        source.close()
+        first.reject(new NoServer())
+        return
+      }
+      // つなぎ直しはブラウザに任せる（つながると hello が来る）
+      lost("lost the connection to the server")
     })
+    on("hello", data => {
+      const was = client
+      client = HelloSchema.parse(JSON.parse(data)).client
+      link += 1
+      online = true
+      if (first) {
+        first.resolve()
+        first = null
+        return
+      }
+      // つなぎ直した: 読み直した世界の上に、まだ確かめられていないアクションを出し、新しいつながりで全部送り直す（送ったものの答えは前のつながりに届くので）。
+      // warning は新しいつながりで知らせ直す
+      offlineTimer?.()
+      offlineTimer = null
+      instance?.setOffline(false)
+      logLine(`reconnected as ${client} (was ${was}): sending ${pending.length} actions again`)
+      tellWarnings()
+      tellLog()
+      reread(link)
+    })
+    on("book", data => {
+      const e = BookSchema.parse(JSON.parse(data))
+      const have = confirmed.get(e.book.id)
+      if (!have || have.version < e.version) confirmed.set(e.book.id, { book: e.book, version: e.version })
+      else if (have.version > e.version)
+        logLine(`kept book ${e.book.id} v${have.version}; the notice had v${e.version}`)
+      changed(e.book.id)
+      settle(e)
+      show()
+    })
+    on("removed", data => {
+      const e = RemovedSchema.parse(JSON.parse(data))
+      confirmed.delete(e.book)
+      changed(e.book)
+      settle(e)
+      show()
+    })
+    on("settings", data => {
+      const e = SettingsSchema.parse(JSON.parse(data))
+      settings = e.settings
+      settle(e)
+      show()
+    })
+    on("annotations", data => {
+      const e = AnnotationsSchema.parse(JSON.parse(data))
+      const { [e.book]: _, ...rest } = annotations
+      annotations =
+        Array.isArray(e.annotations) && e.annotations.length === 0 ? rest : { ...rest, [e.book]: e.annotations }
+      settle(e)
+      show()
+    })
+    on("mailbox", data => {
+      const e = MailboxSchema.parse(JSON.parse(data))
+      mailbox = e.mailbox
+      instance?.setLastWindow(e.window === client)
+      settle(e)
+      show()
+    })
+    on("show", data => {
+      if (instance) showIn(instance, ShowSchema.parse(JSON.parse(data)))
+    })
+    on("touched", data => {
+      const e = TouchedSchema.parse(JSON.parse(data))
+      if ((touched[e.book] ?? "") >= e.at) return
+      touched = { ...touched, [e.book]: e.at }
+      show()
+    })
+    on("keep", () => {})
+    on("plugins", () => net.reload())
+    on("ack", data => {
+      settle({ client, seq: AckSchema.parse(JSON.parse(data)).seq })
+      show()
+    })
+  }
+  // 知らせのつながりを閉じ、見張りを止める
+  const close = () => {
+    quiet?.()
+    quiet = null
+    events?.close()
+  }
+  // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
+  const listen = () => new Promise<void>((resolve, reject) => attach(net.events("api/events"), { resolve, reject }))
 
   return {
     pending: () => pending.map(p => p.done),
@@ -438,7 +470,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       await listen()
       // 知らせにはつながったが読めなかったら、つながりを閉じる（読み直すときは新しく作る）
       await read().catch(e => {
-        events?.close()
+        close()
         throw e
       })
       // 1 つが読み込めなくても、ほかのプラグインとブックは読む（読み込めた物だけ CSS も足す）
@@ -494,7 +526,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         stopView()
         stopFocus()
         instance = null
-        events?.close()
+        close()
       }
     },
   }
