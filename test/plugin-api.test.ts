@@ -364,6 +364,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "perform",
     "pressKey",
     "previewDialog",
+    "requestPrint",
     "resetStageView",
     "resizeStage",
     "select",

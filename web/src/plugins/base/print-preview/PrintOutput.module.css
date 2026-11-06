@@ -1,0 +1,28 @@
+/* 刷る物の入れ物: 画面では見えず、中身も並べない（並べるのは中の物が大きさを問うたときだけ。display: none だと 0 を返すので使わない）。刷るときだけ紙の流れに出す */
+.output {
+  position: fixed;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+  /* 画面では中身を並べない（設定を変えるたびに、見えない紙の全部を並べ直さないよう） */
+  content-visibility: hidden;
+}
+/* 印刷区画 1 つ（紙 1 枚。紙ちょうどの大きさで、はみ出した所は切る） */
+.page {
+  position: relative;
+  overflow: hidden;
+  background: var(--theme-paper);
+}
+.page + .page {
+  break-before: page;
+}
+@media print {
+  .output {
+    position: static;
+    visibility: visible;
+    content-visibility: visible;
+  }
+}

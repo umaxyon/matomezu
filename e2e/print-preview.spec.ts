@@ -1,6 +1,7 @@
 // 印刷プレビュー: フッタメニューのボタンで開くと、ブックの全ページの印刷区画を並べ、右サイドパネルに設定を出す。間はブックを変えるキー（元に戻す）が効かない。ロック中は変える前に聞く。
 // 右サイドパネルを閉じる（Esc）か読み直すと編集に戻る。印刷区画をダブルクリックすると、そのページの編集に戻る。右端にスクロールバーを出す
 import { expect, type Page, test } from "./fixtures"
+import { afterFrames } from "./helpers/frames"
 import { newBook } from "./helpers/master"
 import { panel } from "./helpers/note"
 import { addBox, items, onPaper } from "./helpers/paper"
@@ -205,6 +206,14 @@ test("マークダウンは、紙の高さでブロックの境目ごとに切�
   // 各紙は自分に掛かるブロックだけを描く: 最後の紙に「段落 60」があり、1 枚目には無い
   await expect(sheets(page).last().getByText("段落 60", { exact: true })).toBeVisible()
   await expect(sheets(page).first().getByText("段落 60", { exact: true })).toHaveCount(0)
+  // 刷るときは画面ごと隠れるが、測り直さず、並べた印刷区画をそのまま紙にする
+  const count = await sheets(page).count()
+  await page.emulateMedia({ media: "print" })
+  await afterFrames(page)
+  await expect(page.locator("[data-print-output]")).toHaveAttribute("data-print-output", String(count))
+  const pdf = (await page.pdf({ preferCSSPageSize: true })).toString("latin1")
+  expect(pdf.match(/\/Type\s*\/Page\b/g)?.length).toBe(count)
+  await page.emulateMedia({ media: "screen" })
 })
 
 test("マークダウンの長い段落は、紙の高さに入る所で行の途中から次の紙に続ける", async ({ page }) => {
@@ -224,9 +233,11 @@ test("マークダウンの長い段落は、紙の高さに入る所で行の�
   // どの「行 N」も、字の四角がまるごと入る紙がちょうど 1 枚ある（切れ目の行が切れていない・2 枚に重ねて出ていない）
   const counts = await page.evaluate(() => {
     // 見えるのは、紙ごとに切った所の枠（data-markdown-from）の中だけ（枠の外の字は、紙の余白の所でも隠れている）
-    const sheets = [...document.querySelectorAll("[data-markdown-from]")].map(s => s.getBoundingClientRect())
+    const sheets = [...document.querySelectorAll("[data-print-preview] [data-markdown-from]")].map(s =>
+      s.getBoundingClientRect(),
+    )
     const seen = new Map<string, number>()
-    for (const el of document.querySelectorAll("[data-markdown-from]")) {
+    for (const el of document.querySelectorAll("[data-print-preview] [data-markdown-from]")) {
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
       for (let n = walker.nextNode(); n; n = walker.nextNode()) {
         for (const m of (n.textContent ?? "").matchAll(/行 \d+/g)) {
@@ -319,4 +330,81 @@ test("印刷プレビューの右端のスクロールバーは、つまみの�
   await expect(async () => expect(await thumbTop()).toBeLessThan(low)).toPass()
   // 幅に合わせて並べたので、印刷区画は横にはみ出さず、横のバーは出さない
   await expect(page.locator('[data-preview-scrollbar="x"]')).toHaveCount(0)
+})
+
+test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙 1 枚に刷る（刷るときは画面を隠す）。編集の画面の Ctrl+P は印刷プレビューを開く。ページ番号・ブック名・ページ名は設定で入れる", async ({
+  page,
+}) => {
+  // ブラウザの印刷ダイアログは開かず、頼まれた回数を数える
+  await page.addInitScript(() => {
+    const w = window as unknown as { printed: number; print: () => void }
+    w.printed = 0
+    w.print = () => {
+      w.printed++
+    }
+  })
+  const printed = () => page.evaluate(() => (window as unknown as { printed: number }).printed)
+  await page.goto("/")
+  await addBox(page, 200, 150, "刷る箱")
+  await addPage(page)
+  await page.getByRole("tab").last().click()
+  await addBox(page, 300, 200, "2 枚目の箱")
+  // 編集の画面で Ctrl+P を押すと、刷らずに印刷プレビューを開く
+  await page.locator("[data-stage]").click({ position: { x: 5, y: 5 } })
+  await page.keyboard.press("ControlOrMeta+p")
+  await expect(panel(page)).toContainText("印刷プレビュー")
+  await expect(sheets(page)).toHaveCount(2)
+  expect(await printed()).toBe(0)
+  // 印刷のボタンと、印刷プレビューの間の Ctrl+P で刷る
+  await panel(page).getByRole("button", { name: "印刷", exact: true }).click()
+  await page.keyboard.press("ControlOrMeta+p")
+  await expect(async () => expect(await printed()).toBe(2)).toPass()
+  // 刷る物は印刷区画 1 つが紙 1 枚（紙の大きさの名前付きの @page。既定の紙は A4 横）。刷るときは画面を隠し、刷る物だけを出す
+  const output = page.locator("[data-print-output]")
+  await expect(output).toHaveAttribute("data-print-output", "2")
+  await expect(output.locator("[data-print-page]").first()).toHaveAttribute("data-print-page", "sheet-1123x794")
+  await expect(output).toBeHidden()
+  await page.emulateMedia({ media: "print" })
+  await expect(page.locator("#root")).toBeHidden()
+  await expect(output).toBeVisible()
+  await expect(output.getByText("刷る箱")).toBeVisible()
+  // body の直下にほかの物（ほかのコンポーネントが body に描く物など）があっても、刷るときは隠し、空の紙を足さない
+  await page.evaluate(() => {
+    const extra = document.createElement("div")
+    extra.textContent = "ほかのコンポーネント"
+    document.body.prepend(extra)
+  })
+  // PDF にすると、印刷区画 1 つが紙 1 枚で、紙は A4 横（1123×794 px を pt にした 842×596）
+  const pdf = (await page.pdf({ preferCSSPageSize: true })).toString("latin1")
+  expect(pdf.match(/\/Type\s*\/Page\b/g)?.length).toBe(2)
+  const boxes = [...pdf.matchAll(/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/g)].map(m =>
+    [m[1], m[2]].map(n => Math.round(Number(n))),
+  )
+  expect(boxes).toEqual([
+    [842, 596],
+    [842, 596],
+  ])
+  await page.emulateMedia({ media: "screen" })
+  // ページ番号とブック名を入れると、印刷プレビューにも刷る物にも出る（番号は通し）
+  await expect(page.locator("[data-sheet-number]")).toHaveCount(0)
+  await panel(page).getByRole("switch", { name: "ページ番号を入れる" }).click()
+  await expect(sheets(page).last().locator("[data-sheet-number]")).toHaveText("2 / 2")
+  await expect(output.locator("[data-sheet-number]").last()).toHaveText("2 / 2")
+  // ブック名とページ名を入れると左上に出し、両方なら「ブック名 - ページ名」
+  const title = sheets(page).last().locator("[data-sheet-title]")
+  const bookSwitch = panel(page).getByRole("switch", { name: "ブック名を入れる" })
+  const pageSwitch = panel(page).getByRole("switch", { name: "ページ名を入れる" })
+  await expect(title).toHaveCount(0)
+  await bookSwitch.click()
+  await expect(title).toHaveCount(1)
+  const bookName = (await title.textContent()) ?? ""
+  await pageSwitch.click()
+  await expect(pageSwitch).toBeChecked()
+  await bookSwitch.click()
+  await expect(bookSwitch).not.toBeChecked()
+  await expect(title).not.toHaveText(bookName)
+  const pageName = (await title.textContent()) ?? ""
+  await bookSwitch.click()
+  await expect(title).toHaveText(`${bookName} - ${pageName}`)
+  await expect(output.locator("[data-sheet-title]").last()).toHaveText(`${bookName} - ${pageName}`)
 })

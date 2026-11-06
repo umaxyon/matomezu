@@ -3,6 +3,7 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const PRINT_PREVIEW_MESSAGES = defineMessages({
   "Print preview": { en: "Print preview", ja: "印刷プレビュー" },
+  Print: { en: "Print", ja: "印刷" },
   "Fit to width": { en: "Fit to width", ja: "幅に合わせる" },
   "Nothing to print": { en: "Nothing to print", ja: "印刷できるものはありません" },
   "Fix the boxes that cross print areas": {
@@ -26,6 +27,7 @@ export const PRINT_PREVIEW_MESSAGES = defineMessages({
   "Down first": { en: "Down first", ja: "縦に進むのが先" },
   "Print page numbers": { en: "Print page numbers", ja: "ページ番号を入れる" },
   "Print the book name": { en: "Print the book name", ja: "ブック名を入れる" },
+  "Print the page name": { en: "Print the page name", ja: "ページ名を入れる" },
   "This book is locked. Change it anyway?": {
     en: "This book is locked. Change it anyway?",
     ja: "ロック中ですが書き換えてもいいですか？",

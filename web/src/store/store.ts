@@ -86,6 +86,8 @@ export interface MatomezuState {
   stageStates: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   // 編集ロック: 掛けた所の鍵 → 利用者が直している物（ブックの id と物の id）。ホストクライアントが常駐に知らせ、常駐はそれを変える AI のアクションを断る
   editLocks: Readonly<Record<string, EditLock>>
+  // 印刷を頼んだ回数（requestPrint で増える。ホストクライアントが、増えたら画面を刷る）
+  printRequests: number
 }
 
 // 編集ロックの 1 つ: ブック book の物 ids（伝言など。ブックの中の物やアノテーションの id）
@@ -159,6 +161,7 @@ export interface Actions {
   openPrintPreview(id: string): void
   closePrintPreview(id: string): void
   setPreviewArea(id: string, area: Size): void // 印刷プレビューで並べた広さ（見せ方が知らせる）
+  requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
@@ -262,6 +265,7 @@ function initialState(
     history: {},
     stageStates: {},
     editLocks: {},
+    printRequests: 0,
   }
 }
 
@@ -544,6 +548,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     resetStageView: id => withWorkspace(ws => mapStage(ws, id, resetView)),
     openPrintPreview: id => withWorkspace(ws => mapStage(ws, id, openPrintPreview)),
     closePrintPreview: id => withWorkspace(ws => mapStage(ws, id, closePrintPreview)),
+    requestPrint: () => setState({ printRequests: getState().printRequests + 1 }),
     setPreviewArea: (id, area) => withWorkspace(ws => mapStage(ws, id, s => setPreviewArea(s, area))),
     setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),
     togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),

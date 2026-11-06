@@ -6,30 +6,18 @@
 // 中の物が端に着いたら、手を止めて次に回したときから紙をずらす（wheel-chain.ts）。
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
 // コマンドが出ているステージならブラウザの拡大は止める）
-import {
-  type CSSProperties,
-  memo,
-  type PointerEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type WheelEvent,
-} from "react"
+import { memo, type PointerEvent, useEffect, useRef, useState, type WheelEvent } from "react"
 import type { BookTypeId } from "../../../core/core-catalog"
 import { paperOf } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useTokenScope } from "../../../ui/theme-vars"
 import { useBook, useStage } from "../../../ui/view-hooks"
-import { useBookThemeVars } from "../book-look/use-book-theme-vars"
+import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
 import { PrintPreviewView } from "../print-preview/PrintPreviewView"
-import { textColorVars } from "../text"
-import { useTextColors } from "../text/use-text-colors"
 import { keepsPan } from "../tool-switch/tools"
 import { AnchorsProvider } from "../utils/anchors"
 import { useResize } from "../utils/useResize"
@@ -54,10 +42,6 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
   const inPreview = stage?.mode === "print-preview"
   const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
-  // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）
-  const theme = useBookThemeVars(id)
-  const colors = useTextColors(id)
-  const vars = useMemo(() => (colors ? { ...theme, ...textColorVars(colors) } : undefined), [theme, colors])
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const wheelZoom = useCommand(id, ZOOM_WHEEL.id)
   const t = useMessages(kit)
@@ -141,7 +125,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       onWheel={onWheel}
     >
       {stage.opened && book ? (
-        <BookContent stage={id} type={stage.opened.type} vars={vars} previewing={inPreview} />
+        <BookContent stage={id} type={stage.opened.type} previewing={inPreview} />
       ) : (
         <div className={styles.empty}>
           <p className={styles.prompt}>{t("Select a book")}</p>
@@ -154,20 +138,10 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 
 // 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表はレイヤーみんなで使う）。
 // 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）
-function BookContent({
-  stage,
-  type,
-  vars,
-  previewing,
-}: {
-  stage: string
-  type: BookTypeId
-  vars: CSSProperties | undefined
-  previewing: boolean
-}) {
-  const tokens = useTokenScope(type) // ブックのタイプのプラグインのテーマキー（--<名前>）
+function BookContent({ stage, type, previewing }: { stage: string; type: BookTypeId; previewing: boolean }) {
+  const style = useBookLookStyle(stage, type) // ブックのテーマの値・文字の色の値・タイプのプラグインのテーマキー
   return (
-    <div className={styles.book} style={{ ...vars, ...tokens }}>
+    <div className={styles.book} style={style}>
       {previewing ? (
         <PrintPreviewView stage={stage} />
       ) : (

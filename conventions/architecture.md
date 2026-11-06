@@ -9,7 +9,7 @@
 | `core` | データの形・定義の型・core 台帳・純粋な関数。React も状態も持たない | `core`・zod |
 | `store` | 状態（Zustand）・コマンド・ダイアログの表・プラグインの組み立て | `core`・`store`・zustand |
 | `ui` | 画面の根と、プラグインが使う画面の口。画面に出る物は置かない | `core`・`store`・`ui`・React・zustand |
-| `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）と外の世界（通信・保存・URL・クリップボード）に頼む口 | `core`・`store`・`host-client`・zod |
+| `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）と外の世界（通信・保存・URL・クリップボード・印刷）に頼む口 | `core`・`store`・`host-client`・zod |
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`（ビルトインの一覧と、各プラグインの入口だけ）・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
 | `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーバインドでビルトインを先に扱う）と、組み立てのときの確かめ（`checks`）を書く `CatalogCheck`・`problem`・`warning`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |

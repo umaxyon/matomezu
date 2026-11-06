@@ -217,9 +217,9 @@ test("型の書き足し（declare module）は core/catalog.ts そのもの（�
   expect(bad).toEqual([])
 })
 
-test("外の世界（通信・保存・URL・クリップボード）に触るのはホストクライアントだけ", () => {
+test("外の世界（通信・保存・URL・クリップボード・印刷）に触るのはホストクライアントだけ", () => {
   const host =
-    /\bfetch\(|\blocalStorage\b|\bsessionStorage\b|\blocation\.|\bhistory\.|navigator\.clipboard|\bEventSource\b|\bWebSocket\b/
+    /\bfetch\(|\blocalStorage\b|\bsessionStorage\b|\blocation\.|\bhistory\.|navigator\.clipboard|\bEventSource\b|\bWebSocket\b|\bwindow\.print\b/
   const offenders = sources.filter(f => crateOf(f.rel) !== "host-client" && host.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])
 })

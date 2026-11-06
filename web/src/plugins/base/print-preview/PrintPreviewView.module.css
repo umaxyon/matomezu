@@ -2,6 +2,9 @@
 .sheet {
   position: absolute;
   overflow: hidden;
+  /* 大きさは並べ方が決めるので、中は紙ごとに閉じて並べ、表示領域の外の紙は描かない（紙が多いときに、変えた紙だけを並べ直すよう） */
+  contain: strict;
+  content-visibility: auto;
   background: var(--theme-paper);
   box-shadow:
     0 0 0 1px var(--theme-paper-line),
@@ -31,4 +34,26 @@
   top: 0;
   visibility: hidden;
   pointer-events: none;
+}
+/* 印刷区画に重ねる名前（ブック名とページ名。左上）とページ番号（下の真ん中）。中身の上に小さく描く */
+.title,
+.pageNumber {
+  position: absolute;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--theme-hint);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.title {
+  left: 12px;
+  top: 10px;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pageNumber {
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
 }
