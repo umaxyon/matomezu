@@ -6,6 +6,7 @@ import type { Annotation } from "../../web/src/core/annotation"
 import { defineAction } from "../../web/src/core/def/action"
 import { performIn } from "../../web/src/core/perform"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { expiryOutlook } from "../../web/src/plugins/base/note/expiry"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG, newStore } from "../support"
 
@@ -203,4 +204,19 @@ test("話しかけたときに行うアクションは、アノテーション�
     args: z.strictObject({}),
     run: () => null,
   })
+})
+
+test("読まれた伝言が消えるまでの見込み: 話しかけるまでは設定の時間、数え始めたら残り（切り上げ、過ぎたら 0）。読まれていない・消さない設定は無い", () => {
+  const now = new Date("2026-11-06T10:00:00.000Z")
+  expect(expiryOutlook({}, "60", now)).toBeNull()
+  expect(expiryOutlook({ readAt: "2026-11-06T09:00:00.000Z" }, "never", now)).toBeNull()
+  expect(expiryOutlook({ readAt: "2026-11-06T09:00:00.000Z" }, "480", now)).toEqual({
+    kind: "after-talk",
+    minutes: 480,
+  })
+  const talked = { readAt: "2026-11-06T09:00:00.000Z", talkedAt: "2026-11-06T09:30:30.000Z" }
+  expect(expiryOutlook(talked, "60", now)).toEqual({ kind: "left", minutes: 31 })
+  expect(expiryOutlook(talked, "15", now)).toEqual({ kind: "left", minutes: 0 })
+  // 形に合わない設定は既定（60 分）
+  expect(expiryOutlook(talked, "bad", now)).toEqual({ kind: "left", minutes: 31 })
 })

@@ -35,6 +35,20 @@ export function standAt(anchor: Rect, size: Size, area: Size, side: StandSide): 
   }
 }
 
+// 置いたスタンド（左上 at・大きさ size）から見た、アンカーの四角 anchor の向き（左か右）と、スタンドの中で指す高さ y（スタンドの上から）。
+// 高さは、アンカーの下の辺とスタンドの下の辺の高い方から inset だけ上（スタンドの上から min より下）。吹き出しの尾をアンカーへ向けるのに使う
+export function standFacing(
+  anchor: Rect,
+  at: Point,
+  size: Size,
+  inset: number,
+  min: number,
+): { side: "left" | "right"; y: number } {
+  const side = anchor.x + anchor.w / 2 < at.x + size.w / 2 ? "left" : "right"
+  const bottom = Math.min(anchor.y + anchor.h, at.y + size.h) - at.y - inset
+  return { side, y: clamp(bottom, min, Math.max(min, size.h - inset)) }
+}
+
 // アンカーの四角 anchor の上の辺が、見える所 seen の外にあるか（辺が見える所と重ならなければ外）
 export function topEdgeOut(anchor: Rect, seen: Rect): boolean {
   return anchor.y < seen.y || anchor.y > seen.y + seen.h || anchor.x + anchor.w < seen.x || anchor.x > seen.x + seen.w

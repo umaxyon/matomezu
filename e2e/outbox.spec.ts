@@ -72,7 +72,7 @@ test("左サイドパネルの送信トレイに、伝言とマークが新し�
   await expect(leftPanel(page)).toHaveCount(0)
 })
 
-test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言を読みました」と流れ、送信トレイの行が既読になり、吹き出しに緑のチェックが付く", async ({
+test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言を読みました」と流れ、送信トレイの行が既読になり、吹き出しが緑の丸のチェックに替わる", async ({
   page,
 }) => {
   const ai = aiAuth()
@@ -90,7 +90,8 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   await expect(row).toContainText("読んで")
   await expect(row).not.toContainText("既読")
   const bubble = page.getByRole("button", { name: "伝言を開く" })
-  await expect(bubble).toHaveAttribute("data-read", "false")
+  await expect(bubble).toHaveText("読んで")
+  await expect(bubble).not.toHaveAttribute("data-read", "true")
   const note = (
     (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as { id: string }[]
   )[0]!.id
@@ -99,9 +100,10 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   })
   await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toBeVisible()
   await expect(row).toContainText("既読")
-  // 吹き出しにも、読んだ印の緑のチェックが付く
+  // 吹き出しは、読んだ印の緑の丸のチェックに替わる（文は出さない）
   await expect(bubble).toHaveAttribute("data-read", "true")
   await expect(bubble.locator("[data-read-check]")).toBeVisible()
+  await expect(bubble).toHaveText("")
   // 流し終えたら消える
   await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toHaveCount(0)
 })

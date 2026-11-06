@@ -157,6 +157,14 @@ export interface StandAway {
 }
 const AwayContext = createContext<StandAway | null>(null)
 
+// スタンドを置いた所から見たアンカーの四角（スタンドの左上から）と、スタンドの大きさ。中の物が、アンカーの方を指すのに使う（吹き出しの尾など。測り終えるまで null）
+export interface StandFacing {
+  anchor: Rect
+  size: Size
+}
+const FacingContext = createContext<StandFacing | null>(null)
+export const useStandFacing = (): StandFacing | null => useContext(FacingContext)
+
 // スタンドの中で、アンカーの上の辺が見える所の外に出ていれば StandAway（edgePinned でないか、外に出ていなければ null）
 export const useStandAway = (): StandAway | null => useContext(AwayContext)
 
@@ -205,6 +213,7 @@ export function Stand({
     : out
       ? standBeside(rect, size, side)
       : standAt(rect, size, area, side)
+  const facing = size ? { anchor: { x: rect.x - at.x, y: rect.y - at.y, w: rect.w, h: rect.h }, size } : null
   const away: StandAway | null = out
     ? {
         pin: (p, pad = STAND_MARGIN) => {
@@ -233,7 +242,9 @@ export function Stand({
       onWheel={stop}
       onKeyDown={stop}
     >
-      <AwayContext.Provider value={away}>{children}</AwayContext.Provider>
+      <AwayContext.Provider value={away}>
+        <FacingContext.Provider value={facing}>{children}</FacingContext.Provider>
+      </AwayContext.Provider>
     </div>,
     ctx.layer,
   )

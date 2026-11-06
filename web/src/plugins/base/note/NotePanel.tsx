@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from "react"
 import { anchorIds } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
-import { useAllowed, useBook } from "../../../ui/view-hooks"
+import { useAllowed, useBook, useUserSetting } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -18,6 +18,7 @@ import { clampChars } from "../text/text"
 import { useEditLock } from "../utils/useEditLock"
 import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
+import { expiryOutlook, NOTE_EXPIRY } from "./expiry"
 import { GrowingText } from "./NoteForm"
 import form from "./NoteForm.module.css"
 import styles from "./NotePanel.module.css"
@@ -189,18 +190,21 @@ function NoteEditor({
         label={t("Note")}
         readOnly={!updatable}
       />
+      <ExpiryNote props={props} />
       <div className={form.buttons}>
         <button type="button" className={form.primary} disabled={!changed} onClick={save}>
           {t("Save")}
         </button>
-        <button
-          type="button"
-          className={form.button}
-          disabled={!updatable}
-          onClick={() => run(NOTE_UPDATE.id, { note: id, bubble: !props.bubble })}
-        >
-          {t(props.bubble ? "Fold" : "Show bubble")}
-        </button>
+        {props.readAt === undefined && (
+          <button
+            type="button"
+            className={form.button}
+            disabled={!updatable}
+            onClick={() => run(NOTE_UPDATE.id, { note: id, bubble: !props.bubble })}
+          >
+            {t(props.bubble ? "Fold" : "Show bubble")}
+          </button>
+        )}
         <button
           type="button"
           className={form.danger}
@@ -211,5 +215,37 @@ function NoteEditor({
         </button>
       </div>
     </>
+  )
+}
+
+// 読まれた伝言が消えるまでの見込み（まだ話しかけていなければ、話しかけてからの時間。数え始めたら残り。1 分ごとに減らす。消さない設定なら出さない）
+function ExpiryNote({ props }: { props: NoteProps }) {
+  const t = useMessages(kit)
+  const choice = useUserSetting(NOTE_EXPIRY.id)
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30_000)
+    return () => clearInterval(timer)
+  }, [])
+  const outlook = expiryOutlook(props, choice, now)
+  if (!outlook) return null
+  const time = (minutes: number) => {
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    if (h === 0) return t("{n} min", { n: m })
+    return m === 0 ? t("{h} h", { h }) : t("{h} h {m} min", { h, m })
+  }
+  const text =
+    outlook.kind === "after-talk"
+      ? outlook.minutes === 0
+        ? t("Removed as soon as you talk to AI")
+        : t("Removed {time} after you talk to AI", { time: time(outlook.minutes) })
+      : outlook.minutes === 0
+        ? t("Read by AI. Removed soon")
+        : t("Read by AI. Removed in {time}", { time: time(outlook.minutes) })
+  return (
+    <p className={styles.expiry} data-note-expiry>
+      {text}
+    </p>
   )
 }

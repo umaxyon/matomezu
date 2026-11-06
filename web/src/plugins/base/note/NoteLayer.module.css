@@ -65,26 +65,69 @@
   pointer-events: none;
 }
 
-/* AI が読んだ伝言の印（吹き出しとたたんだ絵の右上に重ねる緑の丸のチェック） */
-.bubble,
-.folded {
+/* 吹き出しの尾（吹き出しの物の側に出し、右なら左右を返す。地は吹き出しと同じで、縁は外側の曲線だけ） */
+.bubble {
   position: relative;
 }
-.readCheck {
+.tail {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  left: -13px;
+  overflow: visible;
+  pointer-events: none;
+}
+.tail[data-side="right"] {
+  left: auto;
+  right: -13px;
+  transform: scaleX(-1);
+}
+.tailFill {
+  fill: var(--skin-bubble);
+}
+.tailEdge {
+  fill: none;
+  stroke: var(--skin-border);
+  stroke-width: 1;
+}
+
+/* 読まれていない伝言のマークポインタ（付けた物が見える所の外にある間、縁に出す丸。中に伝言の絵） */
+.pointer {
   display: grid;
   place-items: center;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--skin-border);
+  border-radius: 50%;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  cursor: pointer;
+}
+.pointer svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* AI が読んだ伝言（物の右上の角の緑の丸のチェック。押すと右サイドパネルに出す） */
+.readCheck {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--skin-success);
-  box-shadow: var(--skin-shadow-1);
+  box-shadow: var(--skin-shadow-2);
+  cursor: pointer;
 }
 .readCheck svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   fill: none;
   stroke: var(--skin-on-accent);
   stroke-width: 1.8;

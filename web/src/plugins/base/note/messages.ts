@@ -31,6 +31,19 @@ export const NOTE_MESSAGES = defineMessages({
   Never: { en: "Never", ja: "消さない" },
   "Start note expiry": { en: "Start note expiry", ja: "伝言期限を数え始める" },
   "Read by AI": { en: "Read by AI", ja: "AI が読みました" },
+  "{n} min": { en: "{n} min", ja: "{n} 分" },
+  "{h} h": { en: "{h} h", ja: "{h} 時間" },
+  "{h} h {m} min": { en: "{h} h {m} min", ja: "{h} 時間 {m} 分" },
+  "Removed {time} after you talk to AI": {
+    en: "Removed {time} after you talk to AI",
+    ja: "AI に話しかけてから {time}で消えます",
+  },
+  "Removed as soon as you talk to AI": {
+    en: "Removed as soon as you talk to AI",
+    ja: "AI に話しかけるとすぐ消えます",
+  },
+  "Read by AI. Removed in {time}": { en: "Read by AI. Removed in {time}", ja: "AI既読です。あと {time}で消えます" },
+  "Read by AI. Removed soon": { en: "Read by AI. Removed soon", ja: "AI既読です。まもなく消えます" },
   "AI read the note": { en: "AI read the note", ja: "AIが伝言を読みました" },
   "The note was refused": { en: "The note was refused", ja: "伝言を変えられませんでした" },
 })

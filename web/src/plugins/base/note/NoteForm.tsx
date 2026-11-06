@@ -2,7 +2,7 @@
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef } from "react"
 import styles from "./NoteForm.module.css"
 
-// 文のテキストForm: 幅は置いた所の幅で折り返し、書いた分だけ下へ伸びる。Ctrl（Mac は Cmd）+Enter で送り、Esc で onEscape を呼ぶ
+// 文のテキストForm: 幅は置いた所の幅で折り返し、4 行の高さから、書いた分だけ下へ伸びる。Ctrl（Mac は Cmd）+Enter で送り、Esc で onEscape を呼ぶ
 export function GrowingText({
   value,
   onChange,
@@ -54,7 +54,7 @@ export function GrowingText({
     <textarea
       ref={ref}
       className={styles.text}
-      rows={1}
+      rows={4}
       readOnly={readOnly}
       value={value}
       placeholder={placeholder}

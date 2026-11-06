@@ -28,3 +28,22 @@ export function expiryFrom(talkedAt: string, choice: unknown): string | null {
   const ms = Date.parse(talkedAt) + Number(value) * 60_000
   return Number.isNaN(ms) ? null : new Date(ms).toISOString()
 }
+
+// 読まれた伝言 props が消えるまでの、右サイドパネルに出す見込み: まだ話しかけていない（話しかけてから minutes 分で消える）・数え始めた（時点 now から
+// あと minutes 分。1 分未満は切り上げ、過ぎていれば 0）。読まれていない・消さない設定なら null
+export type ExpiryOutlook = { kind: "after-talk"; minutes: number } | { kind: "left"; minutes: number }
+
+export function expiryOutlook(
+  props: { readAt?: string; talkedAt?: string },
+  choice: unknown,
+  now: Date,
+): ExpiryOutlook | null {
+  if (props.readAt === undefined) return null
+  const parsed = NOTE_EXPIRY.schema.safeParse(choice)
+  const value = parsed.success ? parsed.data : NOTE_EXPIRY.default
+  if (value === "never") return null
+  if (props.talkedAt === undefined) return { kind: "after-talk", minutes: Number(value) }
+  const at = expiryFrom(props.talkedAt, value)
+  if (at === null) return null
+  return { kind: "left", minutes: Math.max(0, Math.ceil((Date.parse(at) - now.getTime()) / 60_000)) }
+}

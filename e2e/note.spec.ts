@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "./fixtures"
+import { aiAuth, expect, type Page, test } from "./fixtures"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
 import { addBox, items } from "./helpers/paper"
@@ -236,4 +236,49 @@ test("リストの行に付けた伝言の吹き出しは、リストの幅を�
   await page.mouse.up()
   await expect.poll(async () => (await row.boundingBox())!.width).toBeGreaterThan(200)
   await expect.poll(async () => Math.abs((await beside()) - gap)).toBeLessThan(2)
+})
+
+test("読まれていない伝言は、箱の上の辺が画面の外に出ると、吹き出しが縁のマークポインタ（丸の中に伝言の絵）に替わり、押すと箱が見えて吹き出しに戻る。AI が読んだ伝言は縁に出ない", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.setViewportSize({ width: 900, height: 480 })
+  const ai = aiAuth()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  await addBox(page, 200, 150, "一")
+  await writeNote(page, items(page).filter({ hasText: "一" }), "読んで")
+  const bubble = page.getByRole("button", { name: "伝言を開く" })
+  await expect(bubble).toHaveText("読んで")
+  const stage = (await page.locator("[data-stage]").boundingBox())!
+  const away = async () => {
+    await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height - 20)
+    await page.mouse.wheel(0, 300)
+  }
+  await away()
+  const pointer = page.getByRole("button", { name: "一を見せる" })
+  await expect(pointer).toHaveCount(1)
+  await expect(bubble).toHaveCount(0)
+  const s = (await pointer.boundingBox())!
+  expect(s.width).toBe(24)
+  expect(Math.abs(s.y - stage.y - 4)).toBeLessThan(2) // 画面の上の縁に付く
+  await pointer.click()
+  await expect(bubble).toHaveText("読んで")
+  await expect(pointer).toHaveCount(0)
+  // AI が読むと緑の丸のチェックに替わり、画面の外に出ても縁に出ない
+  const note = (
+    (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as { id: string }[]
+  )[0]!.id
+  await page.request.post("/api/ai/perform", {
+    headers: ai,
+    data: { action: "@matomezu/base:note-read", args: { note }, on: { book } },
+  })
+  await expect(bubble).toHaveAttribute("data-read", "true")
+  await away()
+  await expect(page.getByRole("button", { name: "一を見せる" })).toHaveCount(0)
+  await expect(bubble).toHaveCount(0) // チェックの丸も、縁に寄せて残さない
 })

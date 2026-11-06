@@ -17,7 +17,7 @@ import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-ancho
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { Stand, useStandAway } from "../utils/anchors"
-import { STAND_MARGIN } from "../utils/stand-place"
+import { StandPointer } from "../utils/StandPointer"
 import type { StageSlotProps } from "../workspace/ui"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import { MARK_PICKER } from "./commands"
@@ -70,36 +70,21 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
 // びっくりマーク: 押すと「外す？」を出す。付けた物の上の辺が見える所の外なら、丸を縁に寄せて薄く描き、押すと付けた物を見せる
 function PinnedAlert({ title, awayLabel, onRemove }: { title: string; awayLabel: string; onRemove: () => void }) {
   const away = useStandAway()
-  const at = away?.pin({ x: ALERT / 2, y: ALERT / 2 }, ALERT / 2 + STAND_MARGIN)
+  if (away)
+    return (
+      <StandPointer center={{ x: ALERT / 2, y: ALERT / 2 }} size={ALERT} label={awayLabel} className={styles.alert}>
+        !
+      </StandPointer>
+    )
   return (
-    <div
-      data-away={away !== null}
-      style={
-        at
-          ? { transform: `translate(${(at.x - ALERT / 2).toString()}px, ${(at.y - ALERT / 2).toString()}px)` }
-          : undefined
-      }
-    >
-      {away ? (
-        <button
-          type="button"
-          className={styles.alert}
-          aria-label={awayLabel}
-          title={awayLabel}
-          onClick={away.show}
-          data-mark-pointer
-        >
-          !
-        </button>
-      ) : (
-        <RemoveAsk onRemove={onRemove}>
-          {toggle => (
-            <button type="button" className={styles.alert} aria-label={title} onClick={toggle}>
-              !
-            </button>
-          )}
-        </RemoveAsk>
-      )}
+    <div data-away="false">
+      <RemoveAsk onRemove={onRemove}>
+        {toggle => (
+          <button type="button" className={styles.alert} aria-label={title} onClick={toggle}>
+            !
+          </button>
+        )}
+      </RemoveAsk>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   pointInto,
   revealShift,
   standAt,
+  standFacing,
   topEdgeOut,
   unionRect,
 } from "../../web/src/plugins/base/utils/stand-place"
@@ -79,4 +80,15 @@ describe("画面の外に出たアンカー", () => {
     })
     expect(intersectRect({ x: 0, y: 0, w: 100, h: 100 }, { x: 200, y: 0, w: 10, h: 10 })).toMatchObject({ w: 0 })
   })
+})
+
+test("吹き出しの尾: アンカーのある側（左か右）と、アンカーとスタンドの下の辺の高い方から inset 上の高さ（min より下）", () => {
+  const size = { w: 160, h: 60 }
+  // 物の右に立った（物はスタンドの左）。物が高ければ、スタンドの下の辺から
+  expect(standFacing({ x: -100, y: 0, w: 94, h: 96 }, { x: 0, y: 0 }, size, 6, 20)).toEqual({ side: "left", y: 54 })
+  // 左へ返った（物はスタンドの右）
+  expect(standFacing({ x: 166, y: 0, w: 94, h: 96 }, { x: 0, y: 0 }, size, 6, 20)).toEqual({ side: "right", y: 54 })
+  // 物が低ければ、物の下の辺から（min より上には上げない）
+  expect(standFacing({ x: -100, y: 0, w: 94, h: 36 }, { x: 0, y: 0 }, size, 6, 20)).toEqual({ side: "left", y: 30 })
+  expect(standFacing({ x: -100, y: 0, w: 94, h: 10 }, { x: 0, y: 0 }, size, 6, 20)).toEqual({ side: "left", y: 20 })
 })
