@@ -1,5 +1,5 @@
 // 郵便: AI が手紙を送ると、フォーカスのある窓にマーキーが流れ、画面の上からしおりがぶら下がる。左サイドパネルを開くボタンと郵便箱のタブに未読の数が出る。
-// しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、下の行の「開く」などで行き先へ移る（行き先を見たことになる）。指す物には鳥が来て枠が光る。
+// しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、下の行の「開く」などで行き先へ移る（行き先を見たことになる）。行き先の物には鳥が来て枠が光る。
 // 行き先が無ければ「行き先がありません」と「閉じる」だけ
 import { aiAuth, expect, type Page, test } from "./fixtures"
 import { addBox, items } from "./helpers/paper"
@@ -61,7 +61,7 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
   const b = (await items(page).filter({ hasText: "遠く" }).boundingBox())!
   expect(b.x).toBeGreaterThan(stage.x)
   expect(b.x + b.width).toBeLessThan(stage.x + stage.width)
-  // 指す物に鳥が来て、指す物それぞれの枠が光り、鳥が去ると枠も消える
+  // 行き先の物に鳥が来て、行き先の物それぞれの枠が光り、鳥が去ると枠も消える
   await expect(page.locator("[data-mail-bird]")).toBeVisible()
   await expect(page.locator("[data-anchor-frame]")).toHaveCount(2)
   await expect(page.locator("[data-mail-bird]")).toHaveCount(0, { timeout: 10_000 })

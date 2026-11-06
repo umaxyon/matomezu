@@ -348,7 +348,7 @@ describe("取り込んだプラグインの置き場所", () => {
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",
-      "@matomezu/base:mail-pointing",
+      "@matomezu/base:mail-layer",
       "q:top",
     ])
     expect(checkLayout(layout, assembleUi([...BUILTIN_UI, layers]), commands)).toEqual([])

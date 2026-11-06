@@ -137,7 +137,7 @@ export function leavingPose(t: number, start: Pose, to: Point): Pose {
   }
 }
 
-// 立ち寄る鳥（郵便が指す物に連れてくる鳥など）: 飛んできて降り（VISIT_ARRIVE 秒）、その鳥の仕草のコマを、その鳥の歩みの速さ（1 コマ step 秒）で 1 回ずつ見せ、
+// 立ち寄る鳥（郵便の行き先の物に連れてくる鳥など）: 飛んできて降り（VISIT_ARRIVE 秒）、その鳥の仕草のコマを、その鳥の歩みの速さ（1 コマ step 秒）で 1 回ずつ見せ、
 // あとは正面を向いて止まる。visitLength(g) 秒で立ち寄り終える（飛び去らせるのは呼ぶ側）
 export const VISIT_ARRIVE = FLY + LAND
 export const visitLength = (g: Gait) => VISIT_ARRIVE + 4 * g.step

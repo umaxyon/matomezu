@@ -1,5 +1,5 @@
 // 郵便のダイアログ: 題・送り手・届いた時刻・本文を見せ、開いたら見たことにする（mail-seen）。下の行に、行き先を開くボタンを画面の分割の状態で並べる（open-choices.ts）。
-// 開くと、ダイアログと左サイドパネルを閉じてそのステージで行き先のブック・ページを開き、指す物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（pointing.tsx）。
+// 開くと、ダイアログと左サイドパネルを閉じてそのステージで行き先のブック・ページを開き、行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（visit.tsx）。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 import { type FormEvent, useEffect, useId, useRef } from "react"
 import { useMessages } from "../../../ui/i18n"
@@ -12,10 +12,10 @@ import { kit } from "../kit"
 import { useCloseLeftSidePanel } from "../left-side-panel/hooks"
 import { useRequestReveal } from "../utils/reveal-request"
 import { MAIL_SEEN, MAIL_VISITED } from "."
+import { useSetBirdVisit } from "./bird-visit"
 import own from "./Mail.module.css"
 import { type OpenChoice, openChoices, openStageOf } from "./open-choices"
 import { placeExists } from "./place"
-import { useSetPointing } from "./pointing"
 import { shownOf } from "./shown"
 
 const CHOICE_TITLES = {
@@ -25,7 +25,7 @@ const CHOICE_TITLES = {
   right: "Open on the right",
 } as const satisfies Record<OpenChoice, string>
 
-let visits = 0 // 指す物を開いた回の番号（pointing.tsx の visit）
+let visits = 0 // 行き先の物を開いた回の番号（bird-visit.tsx の seq）
 
 export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string }>) {
   const t = useMessages(kit)
@@ -39,7 +39,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const actions = useActions()
   const closeLeft = useCloseLeftSidePanel()
   const reveal = useRequestReveal()
-  const point = useSetPointing()
+  const bringBird = useSetBirdVisit()
   const seen = !!mail?.seenAt
   // 開いたら見たことにする
   useEffect(() => {
@@ -64,7 +64,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     if (to.page) actions.openPage(target, to.page)
     if (to.ids && to.ids.length > 0) {
       reveal(target, to.ids)
-      point(target, { mail: mail.id, visit: ++visits, book: to.book, page: to.page ?? null, ids: to.ids })
+      bringBird(target, { mail: mail.id, seq: ++visits, book: to.book, page: to.page ?? null, ids: to.ids })
     }
     actions.perform(MAIL_VISITED.id, { mail: mail.id })
   }

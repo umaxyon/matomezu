@@ -10,7 +10,7 @@ import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
-import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_POINTING, MAIL_WATCH, MAILBOX_TAB } from "./mail/ui"
+import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_LAYER, MAIL_WATCH, MAILBOX_TAB } from "./mail/ui"
 import { MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE } from "./note/ui"
 import type { AnnotationIconProps } from "./outbox/slots"
@@ -135,7 +135,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MAILBOX_TAB,
     MAIL_BOOKMARKS,
     MAIL_WATCH,
-    MAIL_POINTING,
+    MAIL_LAYER,
     NOTE_READ_NOTICE,
     NOTE_ICON,
     MARK_ICON,
@@ -197,7 +197,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mailbox": typeof MAILBOX_TAB
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
-    "@matomezu/base:mail-pointing": typeof MAIL_POINTING
+    "@matomezu/base:mail-layer": typeof MAIL_LAYER
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON
     "@matomezu/base:mark-icon": typeof MARK_ICON

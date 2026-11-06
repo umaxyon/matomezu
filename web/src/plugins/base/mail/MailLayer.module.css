@@ -1,5 +1,5 @@
-/* 郵便が指す物の枠: 明るい色で点滅させる（動きを減らす設定では点滅させずに出すだけ） */
-.pointed {
+/* 郵便の行き先の物の枠: 明るい色で点滅させる（動きを減らす設定では点滅させずに出すだけ） */
+.place {
   position: absolute;
   outline: 3px solid color-mix(in srgb, var(--skin-accent) 55%, white);
   outline-offset: 4px;
