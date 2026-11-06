@@ -7,7 +7,7 @@ import { kit } from "../kit"
 import { nullableItem } from "../utils/stage-item"
 
 export interface BirdVisit {
-  mail: string // 指している郵便の id
+  mail: string // 行き先を開いた郵便の id
   seq: number // 開いた回ごとに増える番号（同じ郵便をもう一度開いたら、鳥を連れてき直す）
   book: string
   page: string | null
@@ -18,7 +18,7 @@ const BIRD_VISIT = nullableItem<BirdVisit>("mailBirdVisit")
 const birdVisitIn = BIRD_VISIT.read
 const withBirdVisit = BIRD_VISIT.write
 
-// ステージ stage で、郵便が指している物（無ければ null）
+// ステージ stage で、鳥を連れてきている郵便の行き先の物（無ければ null）
 export const useBirdVisit = (stage: string): BirdVisit | null =>
   useMatomezuState(s => birdVisitIn(s.stageStates[stage]?.[kit.id]))
 

@@ -17,7 +17,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pointed {
+  .place {
     animation: none;
   }
 }
