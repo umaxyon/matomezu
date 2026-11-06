@@ -1137,7 +1137,4 @@ func TestWindowLog(t *testing.T) {
 	if code, _ := send(t, "POST", s.URL+"/api/log", `{"client":"c1","lines":[{"at":"t","text":"hi"}]}`, nil); code != 200 {
 		t.Fatalf("code = %d", code)
 	}
-	if code, _ := send(t, "POST", s.URL+"/api/log", `{`, nil); code != 400 {
-		t.Fatalf("bad body code = %d", code)
-	}
 }

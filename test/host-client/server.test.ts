@@ -266,7 +266,7 @@ test("常駐を起動し直して、つなぎ直した窓の id が前と同じ�
 test("つなぎ直したときに読めなければ、少し待って読み直し、その間に変わったブックも出す", async () => {
   const s = await connected()
   s.fail()
-  s.answer.read = () => 500
+  s.answer.read = () => 404
   s.emit("hello", { client: "c2" })
   await flush()
   expect(s.reads()).toBe(2)
@@ -277,6 +277,12 @@ test("つなぎ直したときに読めなければ、少し待って読み直�
   await flush()
   expect(s.reads()).toBe(3)
   expect(itemsOf(s.store)).toEqual(["later"])
+  expect(s.logged().map(l => l[1])).toEqual([
+    "lost the connection to the server",
+    "reconnected as c2 (was c1): sending 0 actions again",
+    "could not read the server again: NoServer",
+    "took book b1 v5; the window had v1",
+  ])
 })
 
 test("つなぎ直して読み直すと、常駐に無くなったブックは消える。読んでいる間に届いたブックは残す", async () => {
@@ -286,6 +292,7 @@ test("つなぎ直して読み直すと、常駐に無くなったブックは�
   s.emit("hello", { client: "c2" })
   await flush()
   expect("b1" in s.store.state.getState().books).toBe(false)
+  expect(s.logged().map(l => l[1])).toContain("removed book b1; the server does not have it")
   s.emit("book", { book: b1With("x"), version: 7 })
   s.fail()
   s.emit("hello", { client: "c3" })
@@ -510,30 +517,23 @@ test("切れている間に書き残した事は、つなぎ直してから新�
   ])
 })
 
-test("常駐のログに送れなければ、次に送るときに一緒に送る", async () => {
+test("常駐のログに送れない（5xx）行は、つなぎ直したときに一緒に送る。4xx なら捨てる。読み直した版が画面の版より古ければ画面の版を残す", async () => {
   const s = await connected()
-  s.answer.log = () => 500
+  s.answer.log = () => 400
   s.emit("book", { book: b1With("x"), version: 3 })
+  s.emit("book", { book: b1With("x"), version: 1 })
+  s.answer.log = () => 500
   s.emit("book", { book: b1With("old"), version: 2 })
   await flush()
   s.answer.log = () => 200
   s.fail()
   s.emit("hello", { client: "c2" })
   await flush()
-  expect(s.logged().slice(1)).toEqual([
+  expect(itemsOf(s.store)).toEqual(["x"])
+  expect(s.logged().slice(2)).toEqual([
     ["c2", "kept book b1 v3; the notice had v2"],
     ["c2", "lost the connection to the server"],
     ["c2", "reconnected as c2 (was c1): sending 0 actions again"],
     ["c2", "kept book b1 v3; the server has v1"],
   ])
-})
-
-test("読み直した版が画面の持つ版より古ければ、画面の版を残して常駐のログに書き残す", async () => {
-  const s = await connected()
-  s.emit("book", { book: b1With("x"), version: 3 })
-  s.fail()
-  s.emit("hello", { client: "c2" })
-  await flush()
-  expect(itemsOf(s.store)).toEqual(["x"])
-  expect(s.logged().map(l => l[1])).toContain("kept book b1 v3; the server has v1")
 })

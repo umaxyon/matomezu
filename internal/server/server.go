@@ -331,7 +331,7 @@ func (o Options) warnings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{})
 }
 
-// 窓が一度に書き残せる行の数と、1 行の長さ（ほかの物で常駐のログが埋まらないように、超えた分は捨てる）
+// 窓が一度に書き残せる行の数と、1 行の長さ（窓が送る行で常駐のログが埋まらないように、超えた分は捨てる。行の数は画面が溜める上限 MAX_LOG_LINES と同じ）
 const (
 	maxLogLines = 50
 	maxLogText  = 500

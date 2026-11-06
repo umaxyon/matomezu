@@ -76,7 +76,7 @@ const browserNet: Net = {
 const RETRY_MS = 2000 // 届かなかったアクションを送り直すまで
 const MAX_TRIES = 3 // 常駐が 5xx を返したアクションを送る回数（超えたら外す）
 export const OFFLINE_MS = 10_000 // つながりがこれより長く切れたままなら、切れていると見せる
-const MAX_NOTES = 50 // 常駐に送れずにためておく、書き残す事の数（超えたら古い方を捨てる）
+const MAX_LOG_LINES = 50 // 常駐に送れずに溜めておく、ログの行の数（超えたら古い方を捨てる。常駐が一度に受ける行の数と同じ）
 
 // まだ確かめられていない自分のアクション。sentTo は送り届けたつながりの番号（まだなら 0）、tries は常駐が 5xx を返した回数
 interface Pending {
@@ -192,13 +192,14 @@ export function serverClient(net: Net = browserNet): ServerClient {
       })
       .catch(() => {})
   }
-  let notes: { at: string; text: string }[] = [] // 常駐のログにまだ送っていない、書き残す事
-  const tellNotes = () => {
-    if (!online || !client || notes.length === 0) return
-    const lines = notes
-    notes = []
+  let logLines: { at: string; text: string }[] = [] // 常駐のログにまだ送っていない行
+  // 溜めた行を常駐のログに送る。送れなかった・常駐が 5xx を返したら戻して、次に送るときに一緒に送る（4xx なら捨てる）
+  const tellLog = () => {
+    if (!online || !client || logLines.length === 0) return
+    const lines = logLines
+    logLines = []
     const back = () => {
-      notes = [...lines, ...notes].slice(-MAX_NOTES)
+      logLines = [...lines, ...logLines].slice(-MAX_LOG_LINES)
     }
     void net
       .fetch("api/log", {
@@ -206,13 +207,16 @@ export function serverClient(net: Net = browserNet): ServerClient {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ client, lines }),
       })
-      .then(res => res.ok || back(), back)
+      .then(res => res.status >= 500 && back(), back)
   }
-  // 画面のコンソールに出し、常駐のログにも書き残す
-  const note = (text: string, ...more: unknown[]) => {
+  // 画面のコンソールに出し、常駐のログにも書き残す（Error は名前と文、ほかの物は型の名前で書く）
+  const logLine = (text: string, ...more: unknown[]) => {
     console.warn(text, ...more)
-    notes = [...notes, { at: new Date().toISOString(), text: [text, ...more.map(String)].join(" ") }].slice(-MAX_NOTES)
-    tellNotes()
+    const words = more.map(m =>
+      m instanceof Error ? `${m.name}: ${m.message}` : typeof m === "object" && m ? m.constructor.name : String(m),
+    )
+    logLines = [...logLines, { at: new Date().toISOString(), text: [text, ...words].join(" ") }].slice(-MAX_LOG_LINES)
+    tellLog()
   }
   let seq = 0
   let instance: MatomezuInstance | null = null
@@ -228,7 +232,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   }
   // 送り直しても届かなかったアクションを外し、トーストで知らせる
   const drop = (p: Pending, why: string) => {
-    note(`action ${p.done.action} is not saved:`, why)
+    logLine(`action ${p.done.action} is not saved:`, why)
     pending = pending.filter(q => q !== p)
     show()
     instance?.actions.showToast({ kind: "warn", message: "An edit could not be saved" })
@@ -299,12 +303,17 @@ export function serverClient(net: Net = browserNet): ServerClient {
   // 読んだ世界を入れる。読んでいる間に届いた知らせの方が新しければ、そちらを残す（during はその間に知らせで変わった・消えたブック）
   const take = (data: z.infer<typeof DataSchema>, during: ReadonlySet<string>) => {
     const have = new Set(data.books.map(b => b.id))
-    for (const id of [...confirmed.keys()]) if (!have.has(id) && !during.has(id)) confirmed.delete(id)
+    for (const id of [...confirmed.keys()])
+      if (!have.has(id) && !during.has(id)) {
+        confirmed.delete(id)
+        logLine(`removed book ${id}; the server does not have it`)
+      }
     for (const b of data.books) {
       const now = confirmed.get(b.id)
       if (during.has(b.id) && !now) continue
+      if (now && now.version < b.version) logLine(`took book ${b.id} v${b.version}; the window had v${now.version}`)
       if (!now || now.version < b.version) confirmed.set(b.id, { book: b.book, version: b.version })
-      else if (now.version > b.version) note(`kept book ${b.id} v${now.version}; the server has v${b.version}`)
+      else if (now.version > b.version) logLine(`kept book ${b.id} v${now.version}; the server has v${b.version}`)
     }
     settings = data.settings ?? undefined
     annotations = data.annotations ?? {}
@@ -323,7 +332,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         void pump()
       },
       e => {
-        note("could not read the server again:", e)
+        logLine("could not read the server again:", e)
         show()
         void pump()
         if (at === link) net.later(() => at === link && reread(at), RETRY_MS)
@@ -346,7 +355,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         // つなぎ直しはブラウザに任せる（つながると hello が来る）。長く切れたままなら、切れていると見せる
         const was = online
         online = false
-        if (was) note("lost the connection to the server")
+        if (was) logLine("lost the connection to the server")
         offlineTimer ??= net.later(() => instance?.setOffline(true), OFFLINE_MS)
       })
       source.on("hello", data => {
@@ -364,15 +373,17 @@ export function serverClient(net: Net = browserNet): ServerClient {
         offlineTimer?.()
         offlineTimer = null
         instance?.setOffline(false)
-        note(`reconnected as ${client} (was ${was}): sending ${pending.length} actions again`)
+        logLine(`reconnected as ${client} (was ${was}): sending ${pending.length} actions again`)
         tellWarnings()
+        tellLog()
         reread(link)
       })
       source.on("book", data => {
         const e = BookSchema.parse(JSON.parse(data))
         const have = confirmed.get(e.book.id)
         if (!have || have.version < e.version) confirmed.set(e.book.id, { book: e.book, version: e.version })
-        else if (have.version > e.version) note(`kept book ${e.book.id} v${have.version}; the notice had v${e.version}`)
+        else if (have.version > e.version)
+          logLine(`kept book ${e.book.id} v${have.version}; the notice had v${e.version}`)
         changed(e.book.id)
         settle(e)
         show()
