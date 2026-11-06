@@ -261,3 +261,26 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
   await page.goto(`/?b0=${yard.id}&p0=p1`)
   await expect(page.locator("[data-ex7-crate]")).toHaveCount(2)
 })
+
+test("ex8 を読ませると、自分の見せ方のビューが開いたページのカードを描き、印刷プレビューは印刷区画 1 つのビュー（printSheet）でページごとに紙を描く", async ({
+  page,
+}) => {
+  await link(page, "test/added-plugins/ex8")
+  const deck = {
+    type: "ex8:deck",
+    id: "deck-1",
+    title: "単語帳",
+    pages: [
+      { id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "portrait", cards: ["りんご", "みかん"] },
+      { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "portrait", cards: ["ぶどう"] },
+    ],
+  }
+  expect((await page.request.put(`/api/books-for-test/${deck.id}`, { data: { book: deck, base: 0 } })).ok()).toBe(true)
+  await page.goto(`/?b0=${deck.id}&p0=p1`)
+  await expect(page.locator("[data-ex8-deck] [data-ex8-card]")).toHaveText(["りんご", "みかん"])
+  await (await fromMenu(page, "印刷プレビュー")).click()
+  const sheets = page.locator("[data-sheet]")
+  await expect(sheets).toHaveCount(2)
+  await expect(sheets.nth(0).locator("[data-ex8-card]")).toHaveText(["りんご", "みかん"])
+  await expect(sheets.nth(1).locator("[data-ex8-card]")).toHaveText(["ぶどう"])
+})

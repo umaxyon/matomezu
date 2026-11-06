@@ -1,4 +1,4 @@
-// プラグイン API の入口 matomezu/ui: プラグイン API の見た目の側（plugin-api/ui）の名前と、base の見た目の部品（ダイアログの枠と入力・色・テーマキー・本文の装飾と本文の塊・利用者の設定の画面・画面の骨組み・紙に描いたつなぐもののミニマップの絵・右サイドパネルと左サイドパネルの開け閉め・送信トレイの行の絵）を外に出す
+// プラグイン API の入口 matomezu/ui: プラグイン API の見た目の側（plugin-api/ui）の名前と、base の見た目の部品（ダイアログの枠と入力・色・テーマキー・本文の装飾と本文の塊・利用者の設定の画面・画面の骨組み・紙に描いたつなぐもののミニマップの絵・右サイドパネルと左サイドパネルの開け閉め・送信トレイの行の絵・印刷プレビューで描くビューが受け取る物）を外に出す
 
 export * from "../plugin-api/ui"
 export {
@@ -24,6 +24,9 @@ export {
   inlineClass,
   LEFT_SIDE_PANEL,
   type PaperValue,
+  type PrintMeasured,
+  type PrintMeasureProps,
+  type PrintSheetProps,
   Problem,
   pairClass,
   RIGHT_SIDE_PANEL,
