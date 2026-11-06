@@ -92,6 +92,7 @@ function Opened({
         <div className={styles.tabs} role="tablist">
           {tabs.map(id => {
             const title = widgets.get(id)?.leftSidePanel?.title
+            const useCount = widgets.get(id)?.leftSidePanel?.useCount
             return (
               <button
                 key={id}
@@ -102,6 +103,7 @@ function Opened({
                 onClick={() => set(stage, id)}
               >
                 {title ? tr(title) : id}
+                {useCount && <TabCount use={useCount} />}
               </button>
             )
           })}
@@ -128,4 +130,10 @@ function Opened({
 function Content({ stage, widget }: { stage: string; widget: string }) {
   const View = useUiCatalog().widgets.get(widget)?.view as ((props: StageSlotProps) => ReactNode) | undefined
   return View ? <View stage={stage} /> : null
+}
+
+// タブに出す数（未読など。0 なら出さない）
+function TabCount({ use }: { use: () => number }) {
+  const n = use()
+  return n > 0 ? <span className={styles.tabCount}>{n > 99 ? "99+" : n}</span> : null
 }

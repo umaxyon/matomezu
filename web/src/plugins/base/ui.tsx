@@ -10,6 +10,7 @@ import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
+import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_WATCH, MAILBOX_TAB } from "./mail/ui"
 import { MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE } from "./note/ui"
 import type { AnnotationIconProps } from "./outbox/slots"
@@ -106,6 +107,7 @@ export const BASE_UI = definePluginUi(BASE, {
     ...BOOK_LOOK_DIALOG_VIEWS,
     ...BOOK_NEW_DIALOG_VIEWS,
     ...SETTINGS_DIALOG_VIEWS,
+    ...MAIL_DIALOG_VIEWS,
   },
   settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
   userSettingViews: USER_SETTING_VIEWS,
@@ -130,6 +132,9 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_PREVIEW_SCROLLBARS,
     LEFT_SIDE_PANEL_BUTTON,
     OUTBOX,
+    MAILBOX_TAB,
+    MAIL_BOOKMARKS,
+    MAIL_WATCH,
     NOTE_READ_NOTICE,
     NOTE_ICON,
     MARK_ICON,
@@ -165,8 +170,8 @@ declare module "../../core/catalog" {
     // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）と、
     // ステージの選択に従うか（followsSelection。従う中身を出している間は、付いた先がステージの選択になり、開いたステージの中を押しても閉じない）
     rightSidePanel?: { width: number; followsSelection?: boolean }
-    // 左サイドパネルのスロットに置くタブの名前（文言の鍵）
-    leftSidePanel?: { title: MessageKey }
+    // 左サイドパネルのスロットに置くタブの名前（文言の鍵）と、開くボタンとタブに出す数（未読など）を読むフック（無ければ出さない）
+    leftSidePanel?: { title: MessageKey; useCount?: () => number }
     // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id
     annotationIcon?: { annotation: string }
   }
@@ -188,6 +193,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
     "@matomezu/base:left-side-panel-button": typeof LEFT_SIDE_PANEL_BUTTON
     "@matomezu/base:outbox": typeof OUTBOX
+    "@matomezu/base:mailbox": typeof MAILBOX_TAB
+    "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
+    "@matomezu/base:mail-watch": typeof MAIL_WATCH
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON
     "@matomezu/base:mark-icon": typeof MARK_ICON

@@ -77,3 +77,32 @@
   min-height: 0;
   overflow: auto;
 }
+
+/* 開くボタンの角に出す数（未読など） */
+.count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--skin-danger);
+  color: var(--skin-on-accent);
+  font: 700 9px / 14px sans-serif;
+  text-align: center;
+  pointer-events: none;
+}
+.opener {
+  position: relative;
+}
+/* タブに出す数（未読など） */
+.tabCount {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 7px;
+  background: var(--skin-danger);
+  color: var(--skin-on-accent);
+  font-size: 10px;
+  font-weight: 700;
+}

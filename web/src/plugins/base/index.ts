@@ -26,6 +26,7 @@ import {
 } from "./looks"
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./mail"
+import { MAIL_DIALOG } from "./mail/dialogs"
 // 拡張ポイントに書き足したフィールド shown の型（mail/shown.ts の declare module）
 import type {} from "./mail/shown"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
@@ -281,6 +282,7 @@ export const BASE = defineBuiltin(
       BOOK_SETTINGS_DIALOG,
       NEW_BOOK_DIALOG,
       SETTINGS_DIALOG,
+      MAIL_DIALOG,
     ],
     keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE],
     keys: [
@@ -424,6 +426,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_KEY_SCOPE // 左サイドパネルの中にフォーカスがある間のキー
   }
   interface DialogTable {
+    "@matomezu/base:mail": typeof MAIL_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
