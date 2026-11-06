@@ -1,8 +1,8 @@
-// 伝言一覧の文言
+// 送信トレイの文言
 import { defineMessages } from "../../../core/i18n/messages"
 
-export const NOTE_LIST_MESSAGES = defineMessages({
-  "Note list": { en: "Notes", ja: "伝言一覧" },
+export const OUTBOX_MESSAGES = defineMessages({
+  Outbox: { en: "Outbox", ja: "送信トレイ" },
   "No notes": { en: "No notes or marks", ja: "伝言もマークもありません" },
   "Read by AI": { en: "Read", ja: "既読" },
   Withdraw: { en: "Withdraw", ja: "取消" },

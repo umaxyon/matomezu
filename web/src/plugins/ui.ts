@@ -70,7 +70,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-preview-panel",
       "@matomezu/base:print-check-panel",
     ],
-    "@matomezu/base:left-side-panel": ["@matomezu/base:note-list"],
+    "@matomezu/base:left-side-panel": ["@matomezu/base:outbox"],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
   },
   menus: {

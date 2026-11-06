@@ -1,4 +1,4 @@
-// 伝言一覧の並び: 開いているブックのアノテーション（伝言・マークなど）を、結び付く物の最後のあるページごとに、ブックのページの順で分け、
+// 送信トレイの並び: 開いているブックのアノテーション（伝言・マークなど）を、結び付く物の最後のあるページごとに、ブックのページの順で分け、
 // ページの中は付けた時点（種類の listed が答える）の新しい順に並べる。付けた時点を答えない種類の物は、その後ろに並びの順で。ページの見つからない物は最後のまとまり
 import { type AiAnnotation, type Annotation, annotationsForAi } from "../../../core/annotation"
 import type { CoreCatalog } from "../../../core/core-catalog"

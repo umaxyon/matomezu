@@ -1,4 +1,4 @@
-// 伝言一覧（ウィジェット note-list。左サイドパネルのタブ）: 開いているブックの伝言とマークを、ページごとに、付けた時点の新しい順に並べる（並べ方は rows.ts）。
+// 送信トレイ（ウィジェット outbox。左サイドパネルのタブ）: 開いているブックの伝言とマークを、ページごとに、付けた時点の新しい順に並べる（並べ方は rows.ts）。
 // 行の出し方は種類が答える（定義の listed。listed.ts）: 左に種類の絵（スロット annotation-icon のウィジェット）、文（無ければ付けた物の名前。吹き出しと同じ字数まで）、付けた時刻。
 // AI が読んだ物は薄くして「既読」。行を押すと左サイドパネルを閉じ、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
 // 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
@@ -18,11 +18,11 @@ import { clampChars } from "../text/text"
 import { useRequestReveal } from "../utils/reveal-request"
 import type { StageSlotProps } from "../workspace/ui"
 import { listedOf } from "./listed"
-import styles from "./NoteList.module.css"
+import styles from "./Outbox.module.css"
 import { listedPages, shownTime } from "./rows"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
 
-export function NoteList({ stage }: StageSlotProps) {
+export function Outbox({ stage }: StageSlotProps) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const book = useBook(stage)

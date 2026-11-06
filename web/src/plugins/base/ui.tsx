@@ -12,8 +12,8 @@ import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
 import { MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE } from "./note/ui"
-import type { AnnotationIconProps } from "./note-list/slots"
-import { NOTE_LIST } from "./note-list/ui"
+import type { AnnotationIconProps } from "./outbox/slots"
+import { OUTBOX } from "./outbox/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import {
   PRINT_CHECK_PANEL,
@@ -68,8 +68,8 @@ export { LEFT_SIDE_PANEL } from "./left-side-panel/slots"
 export { defineLeftSidePanelTab } from "./left-side-panel/ui"
 export { useMarkdownDocument } from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/drawn"
-export { ANNOTATION_ICON, type AnnotationIconProps } from "./note-list/slots"
-export { defineAnnotationIcon } from "./note-list/ui"
+export { ANNOTATION_ICON, type AnnotationIconProps } from "./outbox/slots"
+export { defineAnnotationIcon } from "./outbox/ui"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
@@ -129,7 +129,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_CHECK_PANEL,
     PRINT_PREVIEW_SCROLLBARS,
     LEFT_SIDE_PANEL_BUTTON,
-    NOTE_LIST,
+    OUTBOX,
     NOTE_READ_NOTICE,
     NOTE_ICON,
     MARK_ICON,
@@ -167,7 +167,7 @@ declare module "../../core/catalog" {
     rightSidePanel?: { width: number; followsSelection?: boolean }
     // 左サイドパネルのスロットに置くタブの名前（文言の鍵）
     leftSidePanel?: { title: MessageKey }
-    // 伝言一覧の行の絵のスロットに置く物が描く、アノテーションの種類の id
+    // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id
     annotationIcon?: { annotation: string }
   }
   interface WidgetTable {
@@ -187,7 +187,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
     "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
     "@matomezu/base:left-side-panel-button": typeof LEFT_SIDE_PANEL_BUTTON
-    "@matomezu/base:note-list": typeof NOTE_LIST
+    "@matomezu/base:outbox": typeof OUTBOX
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON
     "@matomezu/base:mark-icon": typeof MARK_ICON

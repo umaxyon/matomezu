@@ -30,8 +30,8 @@ import { MARK_NEW } from "./mark/commands"
 import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_TALKED, NOTE_UPDATE } from "./note"
 import { NOTE_NEW } from "./note/commands"
 import { NOTE_EXPIRY } from "./note/expiry"
-// 拡張ポイントに書き足したフィールド listed の型（note-list/listed.ts の declare module）
-import type {} from "./note-list/listed"
+// 拡張ポイントに書き足したフィールド listed の型（outbox/listed.ts の declare module）
+import type {} from "./outbox/listed"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"

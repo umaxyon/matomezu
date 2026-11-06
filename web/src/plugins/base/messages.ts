@@ -12,7 +12,7 @@ import { LOOKS_MESSAGES } from "./looks/messages"
 import { MARK_MESSAGES } from "./mark/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
-import { NOTE_LIST_MESSAGES } from "./note-list/messages"
+import { OUTBOX_MESSAGES } from "./outbox/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { PRINT_PREVIEW_MESSAGES } from "./print-preview/messages"
 import { RIGHT_SIDE_PANEL_MESSAGES } from "./right-side-panel/messages"
@@ -44,7 +44,7 @@ export const BASE_MESSAGES = {
   ...MARK_MESSAGES,
   ...RIGHT_SIDE_PANEL_MESSAGES,
   ...LEFT_SIDE_PANEL_MESSAGES,
-  ...NOTE_LIST_MESSAGES,
+  ...OUTBOX_MESSAGES,
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,
   ...ITEM_PARTS_MESSAGES,

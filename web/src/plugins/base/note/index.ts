@@ -33,7 +33,7 @@ export const NOTE = kit.defineAnnotation({
   props: NoteSchema,
   awaits: p => p.readAt === undefined,
   expiresAt: (p, setting) => (p.talkedAt ? expiryFrom(p.talkedAt, setting(NOTE_EXPIRY.id)) : null),
-  // 伝言一覧では文を出し、取消で消し、押すと右サイドパネルで開く
+  // 送信トレイでは文を出し、取消で消し、押すと右サイドパネルで開く
   listed: {
     addedAt: (p: NoteProps) => p.addedAt,
     text: (p: NoteProps) => p.text,

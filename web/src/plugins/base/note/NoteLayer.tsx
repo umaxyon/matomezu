@@ -1,5 +1,5 @@
 // 伝言のレイヤー（ウィジェット note-layer）: 開いているブックの伝言を、付けた物の最後の 1 つのそばにスタンドで出す。
-// 吹き出しを出す伝言は物の右に、文の始め（BUBBLE_CHARS 字）だけの吹き出しを、たたんだ伝言は物の右上の角に伝言の絵を出す。
+// 吹き出しを出す伝言は物の右に、文の始め（BUBBLE_CHARS 字）だけの吹き出しを、たたんだ伝言は物の右上の角に伝言の絵を出す。AI が読んだ伝言は、吹き出しか絵の右上に緑の丸のチェックを重ねる。
 // 吹き出しか絵を押すと、右サイドパネルにその伝言を出す（付けた先を選び、吹き出しの物をカレントにする。吹き出しを出すかのデータは変えない）。
 // 選択に従う右サイドパネルの中身（書いている伝言など）を出している間は、吹き出しの物を押したのと同じにする（選ぶ。Mod なら足す・外す。書きかけを生かす）。右サイドパネルがほかの物を出している間に押したら、閉じるだけ。
 // 吹き出しの色はスキンの bubble だけで、物や伝言の様子では変えない。右サイドパネルが伝言を出している間は、付ける先に鳥を出す（NoteBirds）
@@ -24,7 +24,7 @@ import { NoteBirds } from "./NoteBirds"
 import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
 
-export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数（伝言一覧の行も同じ）
+export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数（送信トレイの行も同じ）
 
 export function NoteLayer({ stage }: StageSlotProps) {
   const notes = useAnnotationsOf(stage, NOTE.id)
@@ -72,21 +72,47 @@ function NoteStand({
   if (props.bubble)
     return (
       <Stand anchor={anchor} side="right" label={t("Note")}>
-        <button type="button" className={`${styles.bubble} ${styles.opens}`} aria-label={t("Open note")} onClick={open}>
+        <button
+          type="button"
+          className={`${styles.bubble} ${styles.opens}`}
+          aria-label={t("Open note")}
+          data-read={props.readAt !== undefined}
+          onClick={open}
+        >
           {clampChars(props.text, BUBBLE_CHARS)}
+          {props.readAt !== undefined && <ReadCheck />}
         </button>
       </Stand>
     )
   return (
     <Stand anchor={anchor} side="corner" label={t("Note")}>
-      <button type="button" className={styles.folded} aria-label={t("Open note")} onClick={open}>
+      <button
+        type="button"
+        className={styles.folded}
+        aria-label={t("Open note")}
+        data-read={props.readAt !== undefined}
+        onClick={open}
+      >
         <NoteIcon />
+        {props.readAt !== undefined && <ReadCheck />}
       </button>
     </Stand>
   )
 }
 
-// 伝言の絵（たたんだ伝言と、伝言一覧の行に出す）
+// AI が読んだ伝言の印（吹き出しとたたんだ絵の右上の、緑の丸のチェック）
+function ReadCheck() {
+  const t = useMessages(kit)
+  return (
+    <span className={styles.readCheck} title={t("Read by AI")} data-read-check>
+      <svg viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M3 6.2l2 2 4-4.4" />
+      </svg>
+    </span>
+  )
+}
+
+// 伝言の絵（たたんだ伝言と、送信トレイの行に出す）
 export function NoteIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
