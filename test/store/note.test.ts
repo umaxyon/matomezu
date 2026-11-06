@@ -7,6 +7,7 @@ import { defineAction } from "../../web/src/core/def/action"
 import { performIn } from "../../web/src/core/perform"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { expiryOutlook } from "../../web/src/plugins/base/note/expiry"
+import { readNotesByAnchor } from "../../web/src/plugins/base/note/read-groups"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG, newStore } from "../support"
 
@@ -219,4 +220,24 @@ test("読まれた伝言が消えるまでの見込み: 話しかけるまでは
   expect(expiryOutlook(talked, "15", now)).toEqual({ kind: "left", minutes: 0 })
   // 形に合わない設定は既定（60 分）
   expect(expiryOutlook(talked, "bad", now)).toEqual({ kind: "left", minutes: 31 })
+})
+
+test("既読の伝言は、チェックを出す物（付けた物の最後）ごとに新しい順にまとめる。未読は入らず、付けた時点が同じなら後ろの物が新しい", () => {
+  const note = (id: string, anchors: string[], addedAt: string, read = true): Annotation =>
+    ({
+      id,
+      annotation: "@matomezu/base:note",
+      anchors,
+      props: { text: id, bubble: true, addedAt, ...(read ? { readAt: addedAt } : {}) },
+    }) as unknown as Annotation
+  const groups = readNotesByAnchor([
+    note("old", ["x"], "2026-11-06T01:00:00.000Z"),
+    note("new", ["y", "x"], "2026-11-06T03:00:00.000Z"),
+    note("unread", ["x"], "2026-11-06T04:00:00.000Z", false),
+    note("other", ["y"], "2026-11-06T02:00:00.000Z"),
+    note("same", ["x"], "2026-11-06T01:00:00.000Z"),
+  ])
+  expect([...groups.keys()]).toEqual(["x", "y"])
+  expect(groups.get("x")?.map(n => n.id)).toEqual(["new", "same", "old"])
+  expect(groups.get("y")?.map(n => n.id)).toEqual(["other"])
 })

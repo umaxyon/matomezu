@@ -12,7 +12,7 @@ export const NOTE_MESSAGES = defineMessages({
   "Note…": { en: "Note…", ja: "AI に伝えることを書く…" },
   Fold: { en: "Fold", ja: "たたむ" },
   "Show bubble": { en: "Show bubble", ja: "吹き出しを出す" },
-  Save: { en: "Save", ja: "保存" },
+  Resend: { en: "Resend", ja: "再送" },
   Remove: { en: "Remove", ja: "消す" },
   Add: { en: "Add", ja: "付ける" },
   "Things the note is on": { en: "Things the note is on", ja: "伝言を付ける先" },

@@ -5,7 +5,7 @@ import { addBox, items } from "./helpers/paper"
 
 const stands = (page: Page) => page.locator("[data-stand]")
 
-test("箱の右クリックの「AIに伝言」で右サイドパネルが開き、書いて付けると文の始めだけの吹き出しで出る。押すと右サイドパネルに出て、文を直して保存できる。消すと無くなる", async ({
+test("箱の右クリックの「AIに伝言」で右サイドパネルが開き、書いて付けると文の始めだけの吹き出しで出る。押すと右サイドパネルに出て、文を直して再送できる。消すと無くなる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -29,7 +29,7 @@ test("箱の右クリックの「AIに伝言」で右サイドパネルが開き
   await bubble.click()
   const field = panel(page).getByLabel("伝言", { exact: true })
   await expect(field).toHaveValue("ここを直してほしい、二行目まで読んでから\n三行目")
-  const save = panel(page).getByRole("button", { name: "保存" })
+  const save = panel(page).getByRole("button", { name: "再送" })
   await expect(save).toBeDisabled()
   await field.fill("短く")
   await save.click()
@@ -41,7 +41,7 @@ test("箱の右クリックの「AIに伝言」で右サイドパネルが開き
   await expect(panel(page)).toHaveCount(0)
 })
 
-test("書いている間は、物を押すと付ける先が替わり、Ctrl+クリックで足す（押しても物は動かない）。バッジを押すとカレントが替わる。付けた伝言を開いて付ける先を変えて保存できる。何も無い所を押すと付ける先と選択が外れるが、閉じない（書きかけは残る）", async ({
+test("書いている間は、物を押すと付ける先が替わり、Ctrl+クリックで足す（押しても物は動かない）。バッジを押すとカレントが替わる。付けた伝言を開いて付ける先を変えて再送できる。何も無い所を押すと付ける先と選択が外れるが、閉じない（書きかけは残る）", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -77,12 +77,12 @@ test("書いている間は、物を押すと付ける先が替わり、Ctrl+ク
   const b = (await bubble.boundingBox())!
   const t = (await two.boundingBox())!
   expect(b.x).toBeGreaterThan(t.x + t.width - 1)
-  // 付けた伝言を開くと、付けた先を選んだ状態になる。一だけにして保存すると、吹き出しは一のそばへ
+  // 付けた伝言を開くと、付けた先を選んだ状態になる。一だけにして再送すると、吹き出しは一のそばへ
   await bubble.click()
   await expect(badge("一")).toBeVisible()
   await one.click()
   await expect(badge("二")).toHaveCount(0)
-  await panel(page).getByRole("button", { name: "保存" }).click()
+  await panel(page).getByRole("button", { name: "再送" }).click()
   await expect(panel(page)).toHaveCount(0)
   const o = (await one.boundingBox())!
   const moved = (await bubble.boundingBox())!
@@ -281,4 +281,79 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   await away()
   await expect(page.getByRole("button", { name: "一を見せる" })).toHaveCount(0)
   await expect(bubble).toHaveCount(0) // チェックの丸も、縁に寄せて残さない
+})
+
+test("同じ物に既読の伝言が 2 つ以上あれば、チェックを 2 つ重ねて 1 つにまとめ、押すと右サイドパネルに新しい順に並ぶ。古い伝言の別の場所のバッジで、その物が見える", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.setViewportSize({ width: 900, height: 480 })
+  const ai = aiAuth()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  await addBox(page, 200, 150, "二")
+  await addBox(page, 420, 150, "遠く")
+  const two = items(page).filter({ hasText: "二" })
+  const far = items(page).filter({ hasText: "遠く" })
+  // 古い伝言は遠くと二に（二をカレントにして、チェックは二に出る）、新しい伝言は二だけに
+  await two.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
+  await page.keyboard.down("Control")
+  await far.click()
+  await page.keyboard.up("Control")
+  await panel(page).getByRole("button", { name: "二", exact: true }).click()
+  await panel(page).getByLabel("伝言", { exact: true }).fill("古い")
+  await panel(page).getByRole("button", { name: "付ける" }).click()
+  await expect(panel(page)).toHaveCount(0)
+  const readAll = async () => {
+    const notes = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as {
+      id: string
+      props: { readAt?: string }
+    }[]
+    for (const n of notes.filter(n => !n.props.readAt))
+      await page.request.post("/api/ai/perform", {
+        headers: ai,
+        data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { book } },
+      })
+  }
+  await readAll()
+  const checks = page.locator("[data-read-count]")
+  await expect(checks).toHaveAttribute("data-read-count", "one")
+  await writeNote(page, two, "新しい")
+  await readAll()
+  await expect(checks).toHaveCount(1)
+  await expect(checks).toHaveAttribute("data-read-count", "many")
+  await checks.click()
+  const notes = panel(page).locator("[data-note]")
+  await expect(notes).toHaveCount(2)
+  await expect(notes.nth(0).getByLabel("伝言", { exact: true })).toHaveValue("新しい")
+  await expect(notes.nth(1).getByLabel("伝言", { exact: true })).toHaveValue("古い")
+  await expect(notes.nth(0).getByRole("button", { name: "再送" })).toBeVisible()
+  // 紙をずらして遠くの箱を画面の外へ出し、古い伝言の「遠く」のバッジで、遠くの箱が画面に入る
+  const stage = (await page.locator("[data-stage]").boundingBox())!
+  const inside = async () => {
+    const b = (await far.boundingBox())!
+    return (
+      b.x > stage.x && b.x + b.width < stage.x + stage.width && b.y > stage.y && b.y + b.height < stage.y + stage.height
+    )
+  }
+  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height - 20)
+  await page.mouse.wheel(0, 300)
+  await expect.poll(inside).toBe(false)
+  await notes.nth(1).getByRole("button", { name: "遠く", exact: true }).click()
+  await expect
+    .poll(async () => {
+      const b = (await far.boundingBox())!
+      return (
+        b.x > stage.x &&
+        b.x + b.width < stage.x + stage.width &&
+        b.y > stage.y &&
+        b.y + b.height < stage.y + stage.height
+      )
+    })
+    .toBe(true)
 })

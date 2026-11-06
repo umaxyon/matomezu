@@ -9,7 +9,7 @@ import { freshId } from "../../../core/ids"
 import { kit } from "../kit"
 import { expiryFrom, NOTE_EXPIRY } from "./expiry"
 
-// 伝える文（空白だけの文は書かない。画面の「付ける」「保存」も、これで押せるかを決める）
+// 伝える文（空白だけの文は書かない。画面の「付ける」「再送」も、これで押せるかを決める）
 export const NoteTextSchema = z
   .string()
   .max(2000)

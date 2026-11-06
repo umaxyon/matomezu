@@ -1,11 +1,13 @@
 // 伝言のレイヤー（ウィジェット note-layer）: 開いているブックの伝言を、付けた物の最後の 1 つのそばにスタンドで出す。
 // 吹き出しを出す伝言は物の右に、文の始め（BUBBLE_CHARS 字）だけの吹き出しを、物の方へ曲がる尾を付けて出し、たたんだ伝言は物の右上の角に伝言の絵を出す。
-// AI が読んだ伝言は、吹き出しも絵も出さず、物の右上の角に緑の丸のチェックを出す（吹き出しを出すかのデータは変えない）。
+// AI が読んだ伝言は、吹き出しも絵も出さず、物の右上の角に緑の丸のチェックを出す（吹き出しを出すかのデータは変えない）。同じ物に出す既読の伝言は 1 つのチェックにまとめ
+// （read-groups.ts）、2 つ以上なら 2 つ重ねたチェックを出す。押すと、いちばん新しい伝言で右サイドパネルを開く（右サイドパネルが、まとめた伝言を新しい順に並べる）。
 // 読まれていない伝言は、付けた物の上の辺が見える所の外に出たら、吹き出しか絵の代わりにマークポインタ（丸の中に伝言の絵）を縁に出し、押すと付けた物を見せる。読まれた伝言は縁に出さない。
 // 吹き出しか絵を押すと、右サイドパネルにその伝言を出す（付けた先を選び、吹き出しの物をカレントにする。吹き出しを出すかのデータは変えない）。
 // 選択に従う右サイドパネルの中身（書いている伝言など）を出している間は、吹き出しの物を押したのと同じにする（選ぶ。Mod なら足す・外す。書きかけを生かす）。右サイドパネルがほかの物を出している間に押したら、閉じるだけ。
 // 吹き出しの色はスキンの bubble だけで、物や伝言の様子では変えない。右サイドパネルが伝言を出している間は、付ける先に鳥を出す（NoteBirds）
-import type { MouseEvent, ReactNode } from "react"
+import { type MouseEvent, type ReactNode, useMemo } from "react"
+import type { Annotation } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useReadState } from "../../../ui/store-context"
 import { useAnnotationsOf } from "../annotation-hooks"
@@ -28,6 +30,7 @@ import { NOTE, type NoteProps } from "."
 import { NoteBirds } from "./NoteBirds"
 import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
+import { readNotesByAnchor } from "./read-groups"
 
 export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数（送信トレイの行も同じ）
 const POINTER = 24 // マークポインタの丸の大きさ（マークと同じ）
@@ -36,13 +39,82 @@ const TAIL_H = 16
 
 export function NoteLayer({ stage }: StageSlotProps) {
   const notes = useAnnotationsOf(stage, NOTE.id)
+  const read = useMemo(() => readNotesByAnchor(notes), [notes])
   return (
     <>
-      {notes.map(n => (
-        <NoteStand key={n.id} stage={stage} id={n.id} anchors={n.anchors} props={n.props as NoteProps} />
+      {notes
+        .filter(n => (n.props as NoteProps).readAt === undefined)
+        .map(n => (
+          <NoteStand key={n.id} stage={stage} id={n.id} anchors={n.anchors} props={n.props as NoteProps} />
+        ))}
+      {[...read].map(([anchor, group]) => (
+        <ReadStand key={anchor} stage={stage} anchor={anchor} notes={group} />
       ))}
       <NoteBirds stage={stage} />
     </>
+  )
+}
+
+// 伝言の吹き出し・絵・チェックを押したとき: 選択に従う中身を出している間は、物を押したのと同じに選ぶ（Mod なら足す・外す）。
+// 右サイドパネルがほかの物（ids に無い伝言など）を出している間は閉じるだけ。そうでなければ、伝言 note（付けた先 anchors、チェックを出す物 anchor）で開く
+function useOpenNote(stage: string, note: string, anchors: readonly string[], ids: readonly string[]) {
+  const openPanel = useOpenRightSidePanel()
+  const closePanel = useCloseRightSidePanel()
+  const shown = useRightSidePanel(stage)
+  const follows = useFollowsSelection(stage)
+  const read = useReadState()
+  const { select } = useActions()
+  const anchor = anchors.at(-1) ?? ""
+  // 物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）
+  const pick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.blur()
+    const now = read().workspace.stages.find(s => s.id === stage)?.selection ?? []
+    select(stage, pointedSelection(now, anchor, modPressed(e)))
+  }
+  return (e: MouseEvent<HTMLButtonElement>) =>
+    follows
+      ? pick(e)
+      : shown && !ids.includes(shown.subject)
+        ? closePanel(stage)
+        : openPanel(stage, { widget: NOTE_PANEL_ID, subject: note, anchors, current: anchor })
+}
+
+// 同じ物に出す既読の伝言（新しい順）のチェック: 1 つなら 1 つの、2 つ以上なら 2 つ重ねたチェック
+function ReadStand({ stage, anchor, notes }: { stage: string; anchor: string; notes: readonly Annotation[] }) {
+  const t = useMessages(kit)
+  const newest = notes[0] as Annotation
+  const open = useOpenNote(
+    stage,
+    newest.id,
+    newest.anchors,
+    notes.map(n => n.id),
+  )
+  const many = notes.length > 1
+  return (
+    <Stand anchor={anchor} side="corner" edgePinned label={t("Note")}>
+      <Away pointer={null}>
+        <button
+          type="button"
+          className={many ? styles.readChecks : styles.readCheck}
+          aria-label={t("Open note")}
+          title={t("Read by AI")}
+          data-read="true"
+          data-read-count={many ? "many" : "one"}
+          onClick={open}
+        >
+          {many ? (
+            <>
+              <span className={styles.readCheckBack} />
+              <span className={styles.readCheckFront}>
+                <ReadCheckIcon />
+              </span>
+            </>
+          ) : (
+            <ReadCheckIcon />
+          )}
+        </button>
+      </Away>
+    </Stand>
   )
 }
 
@@ -58,43 +130,9 @@ function NoteStand({
   props: NoteProps
 }) {
   const t = useMessages(kit)
-  const openPanel = useOpenRightSidePanel()
-  const closePanel = useCloseRightSidePanel()
-  const shown = useRightSidePanel(stage)
-  const follows = useFollowsSelection(stage)
-  const read = useReadState()
-  const { select } = useActions()
   const anchor = anchors.at(-1) ?? ""
-  // 吹き出しの物を押したのと同じに選ぶ（Mod なら足す・外す）。物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）
-  const pick = (e: MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.blur()
-    const now = read().workspace.stages.find(s => s.id === stage)?.selection ?? []
-    select(stage, pointedSelection(now, anchor, modPressed(e)))
-  }
-  const open = (e: MouseEvent<HTMLButtonElement>) =>
-    follows
-      ? pick(e)
-      : shown && shown.subject !== id
-        ? closePanel(stage)
-        : openPanel(stage, { widget: NOTE_PANEL_ID, subject: id, anchors, current: anchor })
+  const open = useOpenNote(stage, id, anchors, [id])
   const awayLabel = t("Show {name}", { name: useAnchorName(stage, anchor) })
-  if (props.readAt !== undefined)
-    return (
-      <Stand anchor={anchor} side="corner" edgePinned label={t("Note")}>
-        <Away pointer={null}>
-          <button
-            type="button"
-            className={styles.readCheck}
-            aria-label={t("Open note")}
-            title={t("Read by AI")}
-            data-read="true"
-            onClick={open}
-          >
-            <ReadCheckIcon />
-          </button>
-        </Away>
-      </Stand>
-    )
   const pointer = (
     <StandPointer
       center={{ x: POINTER / 2, y: POINTER / 2 }}
