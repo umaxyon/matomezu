@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test"
 import { detectLang, type Params, translate } from "../../web/src/core/i18n/i18n"
+import { defineMessages } from "../../web/src/core/i18n/messages"
+import { joinMessages } from "../../web/src/plugins/base/utils/join-messages"
 import { CORE_CATALOG } from "../support"
 
 test("英語は鍵のまま、ほかの言語は表の訳を出し、{name} を値で置き換える", () => {
@@ -36,4 +38,18 @@ test("好む言語の並びから、インスタンスにある最初の言語�
   expect(detectLang(["fr", "ja"], langs)).toBe("ja")
   expect(detectLang(["fr"], langs)).toBe("en")
   expect(detectLang([], langs)).toBe("en")
+})
+
+test("フォルダごとの表を joinMessages で 1 つにする。同じ訳の重なりは通し、同じ鍵に違う訳を書くと型の誤り", () => {
+  const a = defineMessages({
+    Create: { en: "Create", ja: "作成" },
+    "Read by AI": { en: "Read by AI", ja: "AI が読みました" },
+  })
+  const b = defineMessages({ Create: { en: "Create", ja: "作成" }, Read: { en: "Read", ja: "既読" } })
+  const joined = joinMessages(a, b)
+  joined.Read.ja satisfies "既読"
+  expect(Object.keys(joined)).toEqual(["Create", "Read by AI", "Read"])
+  const c = defineMessages({ "Read by AI": { en: "Read", ja: "既読" } })
+  // @ts-expect-error 同じ鍵 "Read by AI" に違う訳
+  joinMessages(a, c)
 })

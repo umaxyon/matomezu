@@ -88,6 +88,7 @@ test("matomezu が出す名前", () => {
     "itemAiPlaced",
     "itemMinimapMarks",
     "itemSize",
+    "joinMessages",
     "keepApart",
     "knownTheme",
     "minSize",

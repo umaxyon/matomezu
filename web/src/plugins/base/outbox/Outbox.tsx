@@ -66,7 +66,7 @@ function Row({ stage, annotation: a, now }: { stage: string; annotation: AiAnnot
       <button type="button" className={rows.open} onClick={() => go(a, listed?.def.panel)}>
         <Icon stage={stage} annotation={a} />
         <span className={rows.text}>{text}</span>
-        {!a.awaits && <span className={styles.read}>{t("Read by AI")}</span>}
+        {!a.awaits && <span className={styles.read}>{t("Read")}</span>}
         {at && <time className={rows.time}>{shownTime(at, now)}</time>}
       </button>
       {withdraw && (
