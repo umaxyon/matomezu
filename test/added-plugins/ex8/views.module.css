@@ -1,0 +1,24 @@
+/* カードの並び（ビューの中も、印刷区画 1 つの中も同じ）。色はブックのテーマの変数で付ける */
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 24px;
+  list-style: none;
+}
+.card {
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  padding: 16px 24px;
+  color: var(--theme-text);
+}
+/* 見せ方のビュー: 紙を置かないので、描く広さとスクロールを自分で持つ */
+.deck {
+  height: 100%;
+  overflow: auto;
+}
+.empty {
+  padding: 24px;
+  color: var(--theme-hint);
+}
