@@ -32,6 +32,9 @@ export interface Pose {
   behind: boolean // 物の裏にいる（上の辺より下を隠す）
 }
 
+export const FRONT = 4 // 正面を向いたコマ
+const GESTURE = 12 // 仕草の最初のコマ（仕草は 4 コマ）
+
 const FLY = 2.1 // 飛んでくる秒
 export const LEAVE = 1.2 // 飛び去る秒
 const LAND = 0.4 // 着地の秒
@@ -44,8 +47,9 @@ const ease = (x: number) => {
 }
 const NO_SHIFT: Point = { x: 0, y: 0 }
 
+// 仕草の 4 コマを、それぞれ 2 回ずつの間で見せる
 const gestureFrame = (t: number, duration: number) =>
-  [12, 12, 13, 13, 14, 14, 15, 15][Math.min(7, Math.floor(clamp(t / duration) * 8))] ?? 12
+  GESTURE + Math.floor(Math.min(7, Math.floor(clamp(t / duration) * 8)) / 2)
 
 // 降りたあと。range は往復する幅、size は鳥の大きさ（px）。最初は右端から左へ歩く
 function walking(t: number, g: Gait, size: number, range: number): Pose {
@@ -97,7 +101,7 @@ export function birdPose(t: number, arrival: Arrival, g: Gait, size: number, ran
     return walking(t - (FLY + LAND), g, size, range)
   }
   if (arrival === "peek") {
-    if (t < 0.35) return { ...still, frame: 4, lift: size, behind: true }
+    if (t < 0.35) return { ...still, frame: FRONT, lift: size, behind: true }
     if (t < 0.55) return { ...still, frame: 4, lift: size * (1 - 0.65 * ease((t - 0.35) / 0.2)), behind: true }
     if (t < 2.6) {
       const look = [4, 5, 4, 6, 4][Math.min(4, Math.floor((t - 0.55) / 0.41))] ?? 4
@@ -142,7 +146,7 @@ export function visitPose(t: number, g: Gait, size: number, range: number, from:
   if (t < VISIT_ARRIVE) return birdPose(t, "fly", g, size, range, from)
   const local = t - VISIT_ARRIVE
   return {
-    frame: local < 4 * g.step ? 12 + Math.floor(local / g.step) : 4,
+    frame: local < 4 * g.step ? GESTURE + Math.floor(local / g.step) : FRONT,
     x: range,
     lift: 0,
     from: NO_SHIFT,

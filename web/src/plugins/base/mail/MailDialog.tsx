@@ -1,5 +1,5 @@
 // 郵便のダイアログ: 題・送り手・届いた時刻・本文を見せ、開いたら見たことにする（mail-seen）。下の行に、行き先を開くボタンを画面の分割の状態で並べる（open-choices.ts）。
-// 開くと、ダイアログと左サイドパネルを閉じてそのステージで行き先のブック・ページを開き、指す物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（pointing.ts）。
+// 開くと、ダイアログと左サイドパネルを閉じてそのステージで行き先のブック・ページを開き、指す物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（pointing.tsx）。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 import { type FormEvent, useEffect, useId, useRef } from "react"
 import { useMessages } from "../../../ui/i18n"
@@ -25,6 +25,8 @@ const CHOICE_TITLES = {
   right: "Open on the right",
 } as const satisfies Record<OpenChoice, string>
 
+let visits = 0 // 指す物を開いた回の番号（pointing.tsx の visit）
+
 export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string }>) {
   const t = useMessages(kit)
   const form = useId()
@@ -43,7 +45,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   useEffect(() => {
     if (mail && !seen) actions.perform(MAIL_SEEN.id, { mail: mail.id })
   }, [mail, seen, actions])
-  // 決めるボタンに焦点を当てる（ダイアログは、開いたときに最初のボタンに焦点を当てるため）
+  // 決めるボタンに焦点を当てる（入力Form の無いダイアログでは、ブラウザが開いたときに最初のボタン〈キャンセル〉に焦点を当てるため）
   useEffect(() => {
     buttons.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus()
   }, [])
@@ -62,7 +64,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     if (to.page) actions.openPage(target, to.page)
     if (to.ids && to.ids.length > 0) {
       reveal(target, to.ids)
-      point(target, { mail: mail.id, book: to.book, page: to.page ?? null, ids: to.ids })
+      point(target, { mail: mail.id, visit: ++visits, book: to.book, page: to.page ?? null, ids: to.ids })
     }
     actions.perform(MAIL_VISITED.id, { mail: mail.id })
   }

@@ -32,10 +32,12 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
   await page.emulateMedia({ reducedMotion: "reduce" })
   const book = await ready(page)
   await addBox(page, 900, 600, "遠く")
+  await addBox(page, 700, 600, "隣")
   const box = (await items(page).filter({ hasText: "遠く" }).getAttribute("data-item"))!
+  const next = (await items(page).filter({ hasText: "隣" }).getAttribute("data-item"))!
   await perform(page, {
     action: "@matomezu/base:mail-send",
-    args: { from: "D64", title: "見てください", body: "箱を直しました", to: { book, ids: [box] } },
+    args: { from: "D64", title: "見てください", body: "箱を直しました", to: { book, ids: [box, next] } },
   })
   await expect(page.getByRole("status").filter({ hasText: "郵便が届きました: 見てください" })).toBeVisible()
   const bookmark = page.getByRole("button", { name: "見てください" })
@@ -59,9 +61,9 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
   const b = (await items(page).filter({ hasText: "遠く" }).boundingBox())!
   expect(b.x).toBeGreaterThan(stage.x)
   expect(b.x + b.width).toBeLessThan(stage.x + stage.width)
-  // 指す物に鳥が来て枠が光り、鳥が去ると枠も消える
+  // 指す物に鳥が来て、指す物それぞれの枠が光り、鳥が去ると枠も消える
   await expect(page.locator("[data-mail-bird]")).toBeVisible()
-  await expect(page.locator("[data-anchor-frame]")).toBeVisible()
+  await expect(page.locator("[data-anchor-frame]")).toHaveCount(2)
   await expect(page.locator("[data-mail-bird]")).toHaveCount(0, { timeout: 10_000 })
   await expect(page.locator("[data-anchor-frame]")).toHaveCount(0)
 })
@@ -72,12 +74,17 @@ test("1 画面で「分割で開く」は、右に分けたステージで行き
   await page.emulateMedia({ reducedMotion: "reduce" })
   const book = await ready(page)
   await addBox(page, 300, 300, "右の箱")
-  await perform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "右へ", to: { book } } })
+  const box = (await items(page).filter({ hasText: "右の箱" }).getAttribute("data-item"))!
+  await perform(page, {
+    action: "@matomezu/base:mail-send",
+    args: { from: "a", title: "右へ", to: { book, ids: [box] } },
+  })
   await page.getByRole("button", { name: "右へ" }).click()
   await page.getByRole("dialog", { name: "右へ" }).getByRole("button", { name: "分割で開く" }).click()
   const stages = page.locator("[data-stage]")
   await expect(stages).toHaveCount(2)
   await expect(stages.nth(1).locator("[data-item]").filter({ hasText: "右の箱" })).toBeVisible()
+  await expect(stages.nth(1).locator("[data-mail-bird]")).toBeVisible()
   await page.goBack()
   await expect(stages).toHaveCount(1)
 })
@@ -86,10 +93,14 @@ test("2 画面なら「左に開く」「右に開く」で、Enter はダイア
   await page.emulateMedia({ reducedMotion: "reduce" })
   const book = await ready(page)
   await addBox(page, 300, 300, "二つの箱")
+  const box = (await items(page).filter({ hasText: "二つの箱" }).getAttribute("data-item"))!
   await page.goto(`/?b0=${book}&v0=1,0,0&b1=&v1=1,0,0&c=1&r=0.5`)
   const stages = page.locator("[data-stage]")
   await expect(stages).toHaveCount(2)
-  await perform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "二つ", to: { book } } })
+  await perform(page, {
+    action: "@matomezu/base:mail-send",
+    args: { from: "a", title: "二つ", to: { book, ids: [box] } },
+  })
   await page.getByRole("button", { name: "二つ" }).click()
   const dialog = page.getByRole("dialog", { name: "二つ" })
   await expect(dialog.getByRole("button")).toHaveText(["キャンセル", "左に開く", "右に開く"])
@@ -97,6 +108,7 @@ test("2 画面なら「左に開く」「右に開く」で、Enter はダイア
   await page.keyboard.press("Enter")
   await expect(dialog).toHaveCount(0)
   await expect(stages.nth(1).locator("[data-item]").filter({ hasText: "二つの箱" })).toBeVisible()
+  await expect(stages.nth(1).locator("[data-mail-bird]")).toBeVisible()
 })
 
 test("未読が 3 通まではしおりを 1 通に 1 つずつ、4 通になると 1 つにまとめて数を付け、押すと郵便箱が開く。郵便箱の行を押すとダイアログが開き、取消は確かめてから消す", async ({

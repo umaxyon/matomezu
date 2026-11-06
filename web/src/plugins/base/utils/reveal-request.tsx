@@ -5,14 +5,11 @@ import { useShallow } from "zustand/react/shallow"
 import { useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { nullableItem } from "./stage-item"
 
-const revealingIn = (state: unknown): readonly string[] | null =>
-  (state as { revealing?: readonly string[] } | undefined)?.revealing ?? null
-
-function withRevealing(state: unknown, ids: readonly string[] | null): Record<string, unknown> {
-  const { revealing: _, ...rest } = (state as Record<string, unknown> | undefined) ?? {}
-  return ids ? { ...rest, revealing: ids } : rest
-}
+const REVEALING = nullableItem<readonly string[]>("revealing")
+const revealingIn = REVEALING.read
+const withRevealing = REVEALING.write
 
 // ステージ stage で見せてと頼まれている物（無ければ null）
 export const useRevealRequest = (stage: string): readonly string[] | null =>

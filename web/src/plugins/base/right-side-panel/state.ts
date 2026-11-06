@@ -4,6 +4,7 @@
 import { areaOf, type Stage } from "../../../core/stage"
 import { clampPan, contentSize } from "../../../core/viewport"
 import { toggledSelection } from "../utils/selection"
+import { nullableItem } from "../utils/stage-item"
 import type { ViewAt } from "../zoom"
 
 export interface RightSidePanelOpen {
@@ -25,15 +26,13 @@ export function followSelection(open: RightSidePanelOpen, selection: readonly st
   return { ...open, anchors: [...selection], current }
 }
 
+const PANEL = nullableItem<RightSidePanelOpen>("rightSidePanel")
+
 // base のステージの画面の状態 state の、右サイドパネル（開いていなければ null）
-export const panelIn = (state: unknown): RightSidePanelOpen | null =>
-  (state as { rightSidePanel?: RightSidePanelOpen } | undefined)?.rightSidePanel ?? null
+export const panelIn = PANEL.read
 
 // base のステージの画面の状態 state の、右サイドパネルを open にしたもの（null なら閉じる）
-export function withPanel(state: unknown, open: RightSidePanelOpen | null): Record<string, unknown> {
-  const { rightSidePanel: _, ...rest } = (state as Record<string, unknown> | undefined) ?? {}
-  return open ? { ...rest, rightSidePanel: open } : rest
-}
+export const withPanel = PANEL.write
 
 // 閉じたときに見え方を戻すための覚え: 開く前の見え方とそのブックとページ、開いて物を見せた見え方（まだ見せていなければ null）、
 // 開いている間に倍率かずらす量を変えたか（ページを替えれば閉じ、restoreTo が戻さない）。base のステージの画面の状態の rightSidePanelRestore に持ち、
@@ -73,8 +72,9 @@ export function revealFor(seen: Seen | null, open: Seen): "anchors" | "current" 
   return seen.current === open.current ? "none" : "current"
 }
 
-export const restoreIn = (state: unknown): RightSidePanelRestore | null =>
-  (state as { rightSidePanelRestore?: RightSidePanelRestore } | undefined)?.rightSidePanelRestore ?? null
+const RESTORE = nullableItem<RightSidePanelRestore>("rightSidePanelRestore")
+
+export const restoreIn = RESTORE.read
 
 // 右サイドパネルを open で開いたもの。開く前の見え方は now で、物はまだ見せていない。
 // 閉じて戻す前に同じブックとページで開き直したときは、最初に開く前の見え方と、それまでに変えたかをそのまま持つ（一度変えたら、開き直しても戻さない）
@@ -89,21 +89,19 @@ export function withOpened(state: unknown, open: RightSidePanelOpen, now: ViewAt
         seen: null,
         moved: false,
       }
-  return { ...withPanel(state, open), rightSidePanelRestore: restore }
+  return RESTORE.write(withPanel(state, open), restore)
 }
 
 // 戻すための覚えを、change で変えたもの（覚えが無ければそのまま）
 export function withRestore(state: unknown, change: Partial<RightSidePanelRestore>): Record<string, unknown> {
-  const now = (state as Record<string, unknown> | undefined) ?? {}
   const restore = restoreIn(state)
-  return restore ? { ...now, rightSidePanelRestore: { ...restore, ...change } } : now
+  return restore
+    ? RESTORE.write(state, { ...restore, ...change })
+    : ((state as Record<string, unknown> | undefined) ?? {})
 }
 
 // 戻すための覚えを消したもの
-export function withoutRestore(state: unknown): Record<string, unknown> {
-  const { rightSidePanelRestore: _, ...rest } = (state as Record<string, unknown> | undefined) ?? {}
-  return rest
-}
+export const withoutRestore = (state: unknown): Record<string, unknown> => RESTORE.write(state, null)
 
 const sameView = (a: ViewAt, b: ViewAt): boolean => a.zoom === b.zoom && a.pan.x === b.pan.x && a.pan.y === b.pan.y
 

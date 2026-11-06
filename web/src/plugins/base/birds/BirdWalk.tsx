@@ -13,6 +13,7 @@ import styles from "./BirdWalk.module.css"
 import {
   type Arrival,
   birdPose,
+  FRONT,
   GAITS,
   type Gait,
   LEAVE,
@@ -35,7 +36,8 @@ import suzume from "./images/birds/suzume.png"
 import tsunagidori from "./images/birds/tsunagidori.png"
 
 export const BIRD_SIZE = 48 // 歩く鳥の大きさ（画面の px）
-export const FRONT = 4 // 正面を向いたコマ
+export { FRONT }
+
 const POINTER = 24 // 鳥の顔の丸い絵の大きさ
 
 // 鳥ごとの顔の丸い絵（マークポインタと、送信トレイの行の絵）
@@ -61,9 +63,14 @@ export const birdClass = styles.bird
 
 // 物の上の辺を歩く鳥。歩く所の幅は物の幅で、鳥は真ん中寄りの、鳥の幅の 2 倍ほどを往復する。arrival は最初に描くときの出方。
 // children は鳥のコマを描く物（足元から置く見た目 style を受け取る）。paused の間は動きを止める。awayLabel は鳥の顔の丸い絵の名前
+// 歩くなら出方 arrival を受け、立ち寄るなら（visit）出方は受けない（いつも飛んでくる）
+type Motion =
+  | { visit?: false; arrival: Arrival; onArrived?: never }
+  | { visit: true; arrival?: never; onArrived?: () => void }
+
 export function BirdWalk({
   bird,
-  arrival,
+  arrival = "fly",
   origin,
   paused = false,
   leaving = false,
@@ -72,14 +79,11 @@ export function BirdWalk({
   onGone,
   awayLabel,
   children,
-}: {
+}: Motion & {
   bird: Bird
-  arrival: Arrival
   origin?: Element | null
   paused?: boolean
   leaving?: boolean
-  visit?: boolean
-  onArrived?: () => void
   onGone?: () => void
   awayLabel: string
   children: (style: CSSProperties) => ReactNode

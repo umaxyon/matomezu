@@ -8,6 +8,10 @@ export interface Assigned {
   left: readonly { anchor: string; bird: Bird }[] // 飛び去る鳥と、その鳥がいた物
 }
 
+// 鳥の並び pool から、random（0 以上 1 未満の数を返す）で 1 羽を選ぶ（pool は空でない）
+export const pickBird = (pool: readonly Bird[], random: () => number): Bird =>
+  pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))] as Bird
+
 // 前の割り当て prev から、付ける先 anchors の割り当て（random は 0 以上 1 未満の数を返す）
 export function assignBirds(
   prev: Readonly<Record<string, Bird>>,
@@ -29,7 +33,7 @@ export function assignBirds(
     const shown = new Set(Object.values(birds))
     const free = BIRD_IDS.filter(b => !shown.has(b))
     const pool = free.length > 0 ? free : BIRD_IDS
-    birds[id] = pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))] as Bird
+    birds[id] = pickBird(pool, random)
   }
   return { birds, moved, left: gone.map(anchor => ({ anchor, bird: prev[anchor] as Bird })) }
 }

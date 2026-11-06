@@ -72,7 +72,7 @@ test("開いたときは URL の場所を当てはめる（読み直しても同
   expect(store.state.getState().workspace.stages[0]!.opened?.book).toBe("b3")
 })
 
-// 同じ処理（同期の 1 回の流れ）が終わるのを待つ
+// 同じ同期の処理が終わるのを待つ
 const settled = () => Promise.resolve()
 
 test("ブック・ページの移動と分割はブラウザの履歴に積み、境目などは待ってまとめて書き換える。戻るとその場所に戻り、ブラウザの履歴には積まない", async () => {
@@ -97,7 +97,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   expect(f.pushed).toHaveLength(2)
 })
 
-test("同じ処理の中の移動（分割してブックとページを開く）は、ブラウザの履歴に 1 段だけ積む", async () => {
+test("同じ処理の中の移動（分割してブックとページを開く）は、ブラウザの履歴に 1 つだけ積む", async () => {
   const store = newStore()
   const f = fakePlace()
   followLocation(store, f.place)
