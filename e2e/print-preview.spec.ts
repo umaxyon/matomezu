@@ -133,8 +133,10 @@ test("印刷プレビューの紙に、ページの形と線を描く（見る�
   await expect(sheet).toContainText("左")
   await expect(sheet).toContainText("右")
   await expect(sheet.locator("polyline")).not.toHaveCount(0)
-  // 紙の中の形には、e2e や操作が探す印（data-shape）を付けない
+  // 紙の中の形には、e2e や操作が探す印（data-shape）も、アンカー（data-anchor）も付けない（印刷プレビューにも刷る物にも）
   await expect(sheet.locator("[data-shape]")).toHaveCount(0)
+  await expect(sheets(page).locator("[data-anchor]")).toHaveCount(0)
+  await expect(page.locator("[data-print-output] [data-anchor]")).toHaveCount(0)
 })
 
 test("ツリーとディレクトリ構成図も、印刷プレビューの紙に中身を描く", async ({ page }) => {
@@ -332,7 +334,7 @@ test("印刷プレビューの右端のスクロールバーは、つまみの�
   await expect(page.locator('[data-preview-scrollbar="x"]')).toHaveCount(0)
 })
 
-test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙 1 枚に刷る（刷るときは画面を隠す）。編集の画面の Ctrl+P は印刷プレビューを開く。ページ番号・ブック名・ページ名は設定で入れる", async ({
+test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙 1 枚に刷る（刷るときは画面を隠す）。編集の画面の Ctrl+P は印刷プレビューを開く。印刷区画の番号・ブック名・ページ名は設定で入れる", async ({
   page,
 }) => {
   // ブラウザの印刷ダイアログは開かず、頼まれた回数を数える
@@ -362,7 +364,7 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙
   // 刷る物は印刷区画 1 つが紙 1 枚（紙の大きさの名前付きの @page。既定の紙は A4 横）。刷るときは画面を隠し、刷る物だけを出す
   const output = page.locator("[data-print-output]")
   await expect(output).toHaveAttribute("data-print-output", "2")
-  await expect(output.locator("[data-print-page]").first()).toHaveAttribute("data-print-page", "sheet-1123x794")
+  await expect(output.locator("[data-print-sheet]").first()).toHaveAttribute("data-print-sheet", "sheet-1123x794")
   await expect(output).toBeHidden()
   await page.emulateMedia({ media: "print" })
   await expect(page.locator("#root")).toBeHidden()
@@ -385,7 +387,7 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙
     [842, 596],
   ])
   await page.emulateMedia({ media: "screen" })
-  // ページ番号とブック名を入れると、印刷プレビューにも刷る物にも出る（番号は通し）
+  // 印刷区画の番号とブック名を入れると、印刷プレビューにも刷る物にも出る（番号は通し）
   await expect(page.locator("[data-sheet-number]")).toHaveCount(0)
   await panel(page).getByRole("switch", { name: "ページ番号を入れる" }).click()
   await expect(sheets(page).last().locator("[data-sheet-number]")).toHaveText("2 / 2")

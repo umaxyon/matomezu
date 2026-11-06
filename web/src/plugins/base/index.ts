@@ -51,7 +51,7 @@ import {
   PRINT_PREVIEW_OPEN,
   PRINT_PREVIEW_ORDER,
   PRINT_PREVIEW_PAGE_NAME,
-  PRINT_PREVIEW_PAGE_NUMBERS,
+  PRINT_PREVIEW_SHEET_NUMBERS,
   PRINT_PREVIEW_UPDATE,
 } from "./print-preview"
 import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEY_SCOPE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
@@ -230,7 +230,7 @@ export const BASE = defineBuiltin(
       BOOK_TEXT_COLORS,
       PRINT_PREVIEW_FLOW,
       PRINT_PREVIEW_ORDER,
-      PRINT_PREVIEW_PAGE_NUMBERS,
+      PRINT_PREVIEW_SHEET_NUMBERS,
       PRINT_PREVIEW_BOOK_NAME,
       PRINT_PREVIEW_PAGE_NAME,
     ],
@@ -312,7 +312,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-text-colors": typeof BOOK_TEXT_COLORS
     "@matomezu/base:print-preview-flow": typeof PRINT_PREVIEW_FLOW
     "@matomezu/base:print-preview-order": typeof PRINT_PREVIEW_ORDER
-    "@matomezu/base:print-preview-page-numbers": typeof PRINT_PREVIEW_PAGE_NUMBERS
+    "@matomezu/base:print-preview-sheet-numbers": typeof PRINT_PREVIEW_SHEET_NUMBERS
     "@matomezu/base:print-preview-book-name": typeof PRINT_PREVIEW_BOOK_NAME
     "@matomezu/base:print-preview-page-name": typeof PRINT_PREVIEW_PAGE_NAME
   }

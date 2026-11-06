@@ -35,9 +35,9 @@
   visibility: hidden;
   pointer-events: none;
 }
-/* 印刷区画に重ねる名前（ブック名とページ名。左上）とページ番号（下の真ん中）。中身の上に小さく描く */
+/* 印刷区画に重ねる名前（ブック名とページ名。左上）と印刷区画の番号（下の真ん中）。中身の上に小さく描く */
 .title,
-.pageNumber {
+.sheetNumber {
   position: absolute;
   font-size: 10px;
   line-height: 1;
@@ -52,7 +52,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.pageNumber {
+.sheetNumber {
   left: 50%;
   bottom: 10px;
   transform: translateX(-50%);

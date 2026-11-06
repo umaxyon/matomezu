@@ -23,7 +23,7 @@ import {
   PRINT_PREVIEW_FLOW,
   PRINT_PREVIEW_ORDER,
   PRINT_PREVIEW_PAGE_NAME,
-  PRINT_PREVIEW_PAGE_NUMBERS,
+  PRINT_PREVIEW_SHEET_NUMBERS,
   SheetFlowSchema,
   SheetOrderSchema,
   ShownSchema,
@@ -63,14 +63,14 @@ export {
   PRINT_PREVIEW_FLOW,
   PRINT_PREVIEW_ORDER,
   PRINT_PREVIEW_PAGE_NAME,
-  PRINT_PREVIEW_PAGE_NUMBERS,
   PRINT_PREVIEW_SETTINGS,
+  PRINT_PREVIEW_SHEET_NUMBERS,
 } from "./settings"
 
 const SETTINGS = z.strictObject({
   [PRINT_PREVIEW_FLOW.id]: SheetFlowSchema.nullable().optional(),
   [PRINT_PREVIEW_ORDER.id]: SheetOrderSchema.nullable().optional(),
-  [PRINT_PREVIEW_PAGE_NUMBERS.id]: ShownSchema.nullable().optional(),
+  [PRINT_PREVIEW_SHEET_NUMBERS.id]: ShownSchema.nullable().optional(),
   [PRINT_PREVIEW_BOOK_NAME.id]: ShownSchema.nullable().optional(),
   [PRINT_PREVIEW_PAGE_NAME.id]: ShownSchema.nullable().optional(),
 })
@@ -81,7 +81,7 @@ export const PRINT_PREVIEW_UPDATE = kit.defineAction({
   history: false,
   inPrintPreview: "runs",
   attach: { pages: true },
-  aiDescription: `Change how the print preview arranges a book's print areas (the book types with pages): ${PRINT_PREVIEW_FLOW.id} column (top to bottom, the default) or row (left to right); ${PRINT_PREVIEW_ORDER.id}, the order of a variable page's print areas, across (left to right, then the next row; the default) or down (top to bottom, then the next column); ${PRINT_PREVIEW_PAGE_NUMBERS.id}, ${PRINT_PREVIEW_BOOK_NAME.id} and ${PRINT_PREVIEW_PAGE_NAME.id}, shown or hidden (the default) on each sheet (with both names, "book - page" at the top left). Only what is given changes; null goes back to the default. The user's undo does not take it back.`,
+  aiDescription: `Change how the print preview arranges a book's print areas (the book types with pages): ${PRINT_PREVIEW_FLOW.id} column (top to bottom, the default) or row (left to right); ${PRINT_PREVIEW_ORDER.id}, the order of a variable page's print areas, across (left to right, then the next row; the default) or down (top to bottom, then the next column); ${PRINT_PREVIEW_SHEET_NUMBERS.id}, ${PRINT_PREVIEW_BOOK_NAME.id} and ${PRINT_PREVIEW_PAGE_NAME.id}, shown or hidden (the default) on each sheet (with both names, "book - page" at the top left). Only what is given changes; null goes back to the default. The user's undo does not take it back.`,
   title: "Change print preview",
   target: "book",
   permissionScope: "book",

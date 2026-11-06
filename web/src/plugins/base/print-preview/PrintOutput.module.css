@@ -11,15 +11,24 @@
   content-visibility: hidden;
 }
 /* 印刷区画 1 つ（紙 1 枚。紙ちょうどの大きさで、はみ出した所は切る） */
-.page {
+.sheet {
   position: relative;
   overflow: hidden;
   background: var(--theme-paper);
 }
-.page + .page {
+.sheet + .sheet {
   break-before: page;
 }
+/* 刷るときは、刷る物の入れ物だけを出し、画面（#root）もほかの body の直下の物も隠す */
 @media print {
+  :global(html):has(> body > .output),
+  :global(body):has(> .output) {
+    height: auto;
+    background: none;
+  }
+  :global(body):has(> .output) > :not(.output) {
+    display: none;
+  }
   .output {
     position: static;
     visibility: visible;

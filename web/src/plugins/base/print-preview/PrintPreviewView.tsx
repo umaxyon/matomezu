@@ -1,5 +1,5 @@
 // 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描き、
-// 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙。設定で、ブック名・ページ名とページ番号を重ねる。SheetFrame）。何も載っていない印刷区画とページは並べず、
+// 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙。設定で、ブック名・ページ名と印刷区画の番号を重ねる。SheetFrame）。何も載っていない印刷区画とページは並べず、
 // 並べる物が 1 つも無ければ、表示領域の真ん中に印刷できるものが無いと知らせる。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
@@ -31,9 +31,9 @@ import { PrintOutput } from "./PrintOutput"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
 import { sheetLabels } from "./print-pages"
-import { PrintingContext } from "./printing"
+import { Printing } from "./printing"
 import { SheetFrame } from "./SheetFrame"
-import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_PAGE_NUMBERS } from "./settings"
+import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_SHEET_NUMBERS } from "./settings"
 
 // 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: 描いているステージ（印刷プレビューの間）・ブック・ページと、
 // そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
@@ -109,10 +109,15 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ブックが替われば作り直す）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 知らせる先（ブック）が替わったら表を空にする
   const reporters = useMemo(() => new Map<string, (m: PrintMeasured) => void>(), [report])
+  // 測るだけのビューの入れ物。描かれていない間（刷るときは画面ごと隠れる）に届いた知らせは、0 を測っているので受けない
+  const measureBox = useRef<HTMLDivElement>(null)
   const reporterOf = (page: string) => {
     const was = reporters.get(page)
     if (was) return was
-    const made = (m: PrintMeasured) => report(page, m)
+    const made = (m: PrintMeasured) => {
+      if (measureBox.current?.getClientRects().length === 0) return
+      report(page, m)
+    }
     reporters.set(page, made)
     return made
   }
@@ -199,9 +204,9 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   if (!layout || !pan || !book) return null
   const Sheet = views.get(bookType(catalog, book.type).presentation)?.printSheet
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
-  // ブック名・ページ名とページ番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
+  // ブック名・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {
-    pageNumbers: settingValue(catalog, book, null, PRINT_PREVIEW_PAGE_NUMBERS) === "shown",
+    sheetNumbers: settingValue(catalog, book, null, PRINT_PREVIEW_SHEET_NUMBERS) === "shown",
     bookName: settingValue(catalog, book, null, PRINT_PREVIEW_BOOK_NAME) === "shown",
     pageName: settingValue(catalog, book, null, PRINT_PREVIEW_PAGE_NAME) === "shown",
   }
@@ -213,12 +218,12 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const origin = paperOrigin(pan)
   // 測るだけのビュー（見えない所に、倍率をかけずに描く）
   const measuringViews = Measure && (
-    <div className={styles.measure} aria-hidden="true">
-      <PrintingContext.Provider value={true}>
+    <div ref={measureBox} className={styles.measure} aria-hidden="true">
+      <Printing>
         {measuring.map(({ page: p, paper }) => (
           <Measure key={p.id} stage={id} book={book} page={p} paper={paper} report={reporterOf(p.id)} />
         ))}
-      </PrintingContext.Provider>
+      </Printing>
     </div>
   )
   if (layout.sheets.length === 0)

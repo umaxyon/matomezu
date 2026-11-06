@@ -1,5 +1,5 @@
 // 印刷プレビューの見せ方の設定の項目（ブックの設定。ページを持つタイプが settings.book に選ぶ。変えるのは print-preview-update だけ）:
-// 印刷区画を並べる向き・可変ページの印刷区画を数える順・紙にページ番号とブック名とページ名を入れるか
+// 印刷区画を並べる向き・可変ページの印刷区画を数える順・紙に印刷区画の番号とブック名とページ名を入れるか
 import { z } from "zod"
 import { kit } from "../kit"
 
@@ -28,8 +28,8 @@ export const PRINT_PREVIEW_ORDER = kit.defineSetting({
   default: "across",
 })
 
-export const PRINT_PREVIEW_PAGE_NUMBERS = kit.defineSetting({
-  id: "print-preview-page-numbers",
+export const PRINT_PREVIEW_SHEET_NUMBERS = kit.defineSetting({
+  id: "print-preview-sheet-numbers",
   title: "Print page numbers",
   schema: ShownSchema,
   default: "hidden",
@@ -53,7 +53,7 @@ export const PRINT_PREVIEW_PAGE_NAME = kit.defineSetting({
 export const PRINT_PREVIEW_SETTINGS = [
   PRINT_PREVIEW_FLOW.id,
   PRINT_PREVIEW_ORDER.id,
-  PRINT_PREVIEW_PAGE_NUMBERS.id,
+  PRINT_PREVIEW_SHEET_NUMBERS.id,
   PRINT_PREVIEW_BOOK_NAME.id,
   PRINT_PREVIEW_PAGE_NAME.id,
 ] as const

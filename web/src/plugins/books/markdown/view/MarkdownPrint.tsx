@@ -3,7 +3,7 @@
 // 余白はテーマキー markdown-page-padding）ごとに切る（print.ts の cutSheets）。切った所の並びを知らせ、印刷区画 1 つのビューが受け取って、
 // その所だけを描く。長い段落・リスト・表・コードは行の途中で切り、紙の幅に入らないブロックは幅に合わせて縮め、入らない画像は残りの高さまで
 // 縮めるか次の紙へ送る（print.ts の cutSheets）。測り直すのは、文書か紙が替わったときと、描いた文書の大きさが変わったとき（テーマ・字体・画像の
-// 読み込みで）だけ（同じ結果なら印刷プレビューは並べ直さない）。描かれていない間（刷るときは画面ごと隠れる）は測らない
+// 読み込みで）だけ（同じ結果なら印刷プレビューは並べ直さない）
 import { memo, useLayoutEffect, useMemo, useRef } from "react"
 import { type MarkdownDocument, parseMarkdown } from "../../../base"
 import type { PrintMeasureProps, PrintSheetProps } from "../../../base/ui"
@@ -119,8 +119,6 @@ export const MarkdownMeasure = memo(function MarkdownMeasure({ book, page, paper
     const el = ref.current
     if (!el) return
     const measure = () => {
-      // 描かれていない間（刷るときは画面ごと隠れる）は 0 を測るので、測らずに前の結果のままにする
-      if (el.offsetWidth === 0 && el.offsetHeight === 0) return
       const style = getComputedStyle(el)
       const top = Number.parseFloat(style.paddingTop) || 0
       const bottom = Number.parseFloat(style.paddingBottom) || 0

@@ -20,7 +20,7 @@ import {
   PRINT_PREVIEW_FLOW,
   PRINT_PREVIEW_ORDER,
   PRINT_PREVIEW_PAGE_NAME,
-  PRINT_PREVIEW_PAGE_NUMBERS,
+  PRINT_PREVIEW_SHEET_NUMBERS,
   type SheetFlow,
   type SheetOrder,
 } from "./settings"
@@ -46,7 +46,7 @@ function OrderSetting(props: SettingControlProps<SheetOrder>) {
 export const PRINT_PREVIEW_SETTING_VIEWS = {
   [PRINT_PREVIEW_FLOW.id]: { control: FlowSetting },
   [PRINT_PREVIEW_ORDER.id]: { control: OrderSetting },
-  [PRINT_PREVIEW_PAGE_NUMBERS.id]: { control: ShownSetting },
+  [PRINT_PREVIEW_SHEET_NUMBERS.id]: { control: ShownSetting },
   [PRINT_PREVIEW_BOOK_NAME.id]: { control: ShownSetting },
   [PRINT_PREVIEW_PAGE_NAME.id]: { control: ShownSetting },
 }

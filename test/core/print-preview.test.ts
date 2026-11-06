@@ -218,18 +218,18 @@ describe("刷るときの紙（print-pages.ts）", () => {
       "@page sheet-1587x1123 { size: 1587px 1123px; margin: 0; }",
     ])
   })
-  test("ページ番号は刷る紙全体の通し番号で、入れない設定なら出さない", () => {
+  test("印刷区画の番号は刷る紙全体の通しで、入れない設定なら出さない", () => {
     const names = { book: "メモ", page: "1 章" }
-    const all = { pageNumbers: true, bookName: true, pageName: true }
+    const all = { sheetNumbers: true, bookName: true, pageName: true }
     expect(sheetLabels(2, 12, all, names)).toEqual({ number: "3 / 12", title: "メモ - 1 章" })
-    const none = { pageNumbers: false, bookName: false, pageName: false }
+    const none = { sheetNumbers: false, bookName: false, pageName: false }
     expect(sheetLabels(0, 1, none, names)).toEqual({ number: null, title: null })
   })
   test("名前はブック名とページ名の入れる物だけを「 - 」でつなぎ、名前の無いページはブック名だけ", () => {
     const names = { book: "メモ", page: "1 章" }
-    expect(sheetLabels(0, 1, { pageNumbers: false, bookName: true, pageName: false }, names).title).toBe("メモ")
-    expect(sheetLabels(0, 1, { pageNumbers: false, bookName: false, pageName: true }, names).title).toBe("1 章")
-    const both = { pageNumbers: false, bookName: true, pageName: true }
+    expect(sheetLabels(0, 1, { sheetNumbers: false, bookName: true, pageName: false }, names).title).toBe("メモ")
+    expect(sheetLabels(0, 1, { sheetNumbers: false, bookName: false, pageName: true }, names).title).toBe("1 章")
+    const both = { sheetNumbers: false, bookName: true, pageName: true }
     expect(sheetLabels(0, 1, both, { book: "メモ", page: "" }).title).toBe("メモ")
   })
 })
