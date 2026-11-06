@@ -16,6 +16,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     data,
   }
   let timers: { run: () => void; ms: number }[] = []
+  const made = new Map<number, number>() // 待ちの長さ → 作った数
   let keys = 0
   let listeners = new Map<string, (data: string) => void>()
   let onError = () => {}
@@ -63,6 +64,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
       reloads++
     },
     later: (run, ms) => {
+      made.set(ms, (made.get(ms) ?? 0) + 1)
       const timer = { run, ms }
       timers.push(timer)
       return () => {
@@ -95,6 +97,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     opened: () => opened,
     closed: () => closed,
     waiting: (ms: number) => timers.filter(t => t.ms === ms).length,
+    scheduled: (ms: number) => made.get(ms) ?? 0,
     focus: () => focus(),
     reloads: () => reloads,
   }
@@ -108,8 +111,8 @@ async function connected(server = fakeServer()) {
   server.emit("hello", { client: "c1" })
   const saved = await loading
   const store = newStore({ books: [], savedBooks: saved.books, observe: d => server.host.observe(d) })
-  server.host.connect(store)
-  return { ...server, store }
+  const stop = server.host.connect(store)
+  return { ...server, store, stop }
 }
 const itemsOf = (store: ReturnType<typeof newStore>) =>
   (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!.items?.map(i => i.id) ?? []
@@ -560,6 +563,9 @@ test("知らせが QUIET_MS 届かなければ、黙って切れたとみて閉�
   s.answer.data = { books: [{ id: "b1", book: b1With("ai"), version: 2 }], settings: null }
   s.tick(QUIET_MS)
   expect([s.opened(), s.closed()]).toEqual([2, 1])
+  // つなぎ直したつながりが hello を返さなければ、また閉じてつなぎ直す（ログは 1 度だけ）
+  s.tick(QUIET_MS)
+  expect([s.opened(), s.closed()]).toEqual([3, 2])
   s.emit("hello", { client: "c2" })
   await flush()
   expect(s.reads()).toBe(2)
@@ -574,9 +580,20 @@ test("知らせが QUIET_MS 届かなければ、黙って切れたとみて閉�
 
 test("keep などの知らせが届くたびに、黙って切れたとみるまでの待ちを始め直す", async () => {
   const s = await connected()
-  expect(s.waiting(QUIET_MS)).toBe(1)
+  expect([s.scheduled(QUIET_MS), s.waiting(QUIET_MS)]).toEqual([1, 1])
   s.emit("keep", {})
   s.emit("keep", {})
-  expect(s.waiting(QUIET_MS)).toBe(1)
+  expect([s.scheduled(QUIET_MS), s.waiting(QUIET_MS)]).toEqual([3, 1])
   expect(s.opened()).toBe(1)
+  // 止めると見張りも止まる
+  s.stop()
+  expect(s.waiting(QUIET_MS)).toBe(0)
+})
+
+test("つなぎ直したら、見ているものを新しいつながりの id で知らせ直す", async () => {
+  const s = await connected()
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.sent.filter(x => x.url === "api/view").map(x => x.client)).toEqual(["c1", "c2"])
 })

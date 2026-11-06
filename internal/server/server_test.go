@@ -1138,3 +1138,15 @@ func TestWindowLog(t *testing.T) {
 		t.Fatalf("code = %d", code)
 	}
 }
+
+// 知らせが無いあいだも、窓に見える keep の知らせを送る（窓はこれが届かなければ、つながりが黙って切れたとみてつなぎ直す）
+func TestEventsKeep(t *testing.T) {
+	s := newServerWith(t, Options{Keep: 10 * time.Millisecond})
+	lines := listen(t, s.URL)
+	if l := next(t, lines); !strings.HasPrefix(l, "hello ") {
+		t.Fatalf("first = %q", l)
+	}
+	if l := next(t, lines); l != "keep {}" {
+		t.Fatalf("second = %q", l)
+	}
+}

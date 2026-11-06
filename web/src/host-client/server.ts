@@ -6,7 +6,7 @@
 // 新しいつながりで送り直す（つながりは窓の中で振る番号で見分ける。常駐の窓の id は、常駐を起動し直すと前と同じ物がまた振られる）。常駐が同じアクションを二度行わないように、アクションごとに一意の番号（key）を振り、送り直しても変えない。
 // 送り直しても届かなかったものだけを外してトーストで知らせる。つながりが OFFLINE_MS より長く切れたままなら store に知らせる（setOffline）。
 // つながっていない間も画面の編集は止めず、つながったらまとめて送る。
-// つなぎ直しはブラウザに任せるが、スリープなどで黙って切れたつながりはブラウザが気づかないので、知らせ（常駐が 25 秒ごとに送る keep も）が QUIET_MS 届かなければ、自分で閉じてつなぎ直す。
+// つなぎ直しはブラウザに任せるが、スリープなどで黙って切れたつながりはブラウザが気づかないので、知らせ（常駐が送る keep も）が QUIET_MS 届かなければ、自分で閉じてつなぎ直す。
 // 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
 // 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く。
 // 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）。
@@ -220,6 +220,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
     logLines = [...logLines, { at: new Date().toISOString(), text: [text, ...words].join(" ") }].slice(-MAX_LOG_LINES)
     tellLog()
   }
+  let retell: (() => void) | null = null // 見ているものを知らせ直す（connect で作る。常駐は窓の見ているものをつながりごとに持つので、つなぎ直したら知らせ直す）
   let seq = 0
   let instance: MatomezuInstance | null = null
   let events: Events | null = null
@@ -349,12 +350,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
     if (was) logLine(why)
     offlineTimer ??= net.later(() => instance?.setOffline(true), OFFLINE_MS)
   }
-  let quiet: (() => void) | null = null // 黙って切れたとみるまでの待ち（取り消す関数）
+  let quietTimer: (() => void) | null = null // 黙って切れたとみるまでの待ち（取り消す関数）
   // 知らせが届くたびに待ち直す。QUIET_MS 何も届かなければ、つながりが黙って切れたとみて、閉じてつなぎ直す（つながると hello が来る）
-  const awake = (source: Events) => {
-    quiet?.()
-    quiet = net.later(() => {
-      quiet = null
+  const heard = (source: Events) => {
+    quietTimer?.()
+    quietTimer = net.later(() => {
+      quietTimer = null
       if (events !== source) return
       lost(`no event for ${QUIET_MS / 1000}s; connecting again`)
       source.close()
@@ -367,10 +368,10 @@ export function serverClient(net: Net = browserNet): ServerClient {
     const on = (name: string, listener: (data: string) => void) =>
       source.on(name, data => {
         if (events !== source) return
-        awake(source)
+        heard(source)
         listener(data)
       })
-    if (!first) awake(source)
+    if (!first) heard(source)
     source.onError(() => {
       if (events !== source) return
       if (first) {
@@ -392,13 +393,14 @@ export function serverClient(net: Net = browserNet): ServerClient {
         return
       }
       // つなぎ直した: 読み直した世界の上に、まだ確かめられていないアクションを出し、新しいつながりで全部送り直す（送ったものの答えは前のつながりに届くので）。
-      // warning は新しいつながりで知らせ直す
+      // warning と見ているものは新しいつながりで知らせ直す
       offlineTimer?.()
       offlineTimer = null
       instance?.setOffline(false)
       logLine(`reconnected as ${client} (was ${was}): sending ${pending.length} actions again`)
       tellWarnings()
       tellLog()
+      retell?.()
       reread(link)
     })
     on("book", data => {
@@ -448,7 +450,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       touched = { ...touched, [e.book]: e.at }
       show()
     })
-    on("keep", () => {})
+    on("keep", () => {}) // 待ちを始め直すためだけに受ける
     on("plugins", () => net.reload())
     on("ack", data => {
       settle({ client, seq: AckSchema.parse(JSON.parse(data)).seq })
@@ -456,9 +458,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
     })
   }
   // 知らせのつながりを閉じ、見張りを止める
-  const close = () => {
-    quiet?.()
-    quiet = null
+  const closeEvents = () => {
+    quietTimer?.()
+    quietTimer = null
     events?.close()
   }
   // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
@@ -470,7 +472,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       await listen()
       // 知らせにはつながったが読めなかったら、つながりを閉じる（読み直すときは新しく作る）
       await read().catch(e => {
-        close()
+        closeEvents()
         throw e
       })
       // 1 つが読み込めなくても、ほかのプラグインとブックは読む（読み込めた物だけ CSS も足す）
@@ -520,13 +522,18 @@ export function serverClient(net: Net = browserNet): ServerClient {
           .catch(() => {})
       }
       tell(net.focused())
+      retell = () => {
+        told = ""
+        tell(net.focused())
+      }
       const stopView = next.state.subscribe(() => tell(false))
       const stopFocus = net.onFocus(() => tell(true))
       return () => {
         stopView()
         stopFocus()
         instance = null
-        close()
+        retell = null
+        closeEvents()
       }
     },
   }

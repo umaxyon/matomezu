@@ -70,6 +70,7 @@ type Options struct {
 	Open    func() error  // 画面をブラウザで開く（無ければ開かない）
 	Wait    time.Duration // ブラウザで開いた窓がつながるのを待つ長さ（0 なら windowWait）
 	Latest  time.Duration // 最後にフォーカスされた窓が見ているものを知らせるのを待つ上限（0 なら latestWait）
+	Keep    time.Duration // 窓に keep を送る間隔（0 なら keepAlive）
 }
 
 // windowWait は、ブラウザで開いた窓がつながるのを待つ既定の長さ
@@ -262,7 +263,11 @@ func (o Options) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	c := o.Hub.Join()
 	defer o.Hub.Leave(c)
-	tick := time.NewTicker(keepAlive)
+	every := o.Keep
+	if every == 0 {
+		every = keepAlive
+	}
+	tick := time.NewTicker(every)
 	defer tick.Stop()
 	for {
 		select {
