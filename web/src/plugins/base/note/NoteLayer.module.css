@@ -126,9 +126,9 @@
   box-shadow: var(--skin-shadow-2);
   cursor: pointer;
 }
-/* 右サイドパネルがほかの物を出している間の、角の絵とチェック（薄くして押せない） */
-.folded:disabled,
-.readCheck:disabled {
+/* 右サイドパネルがほかの物を出している間の、角の吹き出しの中の絵とチェック（薄くして押せない） */
+.folded[aria-disabled="true"],
+.readCheck[aria-disabled="true"] {
   opacity: 0.4;
   cursor: default;
 }

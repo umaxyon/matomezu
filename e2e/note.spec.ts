@@ -330,6 +330,7 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await stack.hover()
   const bubble = page.getByRole("group", { name: "角の物" })
   await expect(bubble.getByRole("button")).toHaveCount(4)
+
   await expect(bubble.getByRole("button").nth(0)).toHaveAccessibleName("びっくりマーク")
   await expect(bubble.getByRole("button").nth(1)).not.toHaveAttribute("data-read")
   await expect(bubble.locator("[data-read]")).toHaveCount(2)
@@ -355,4 +356,72 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   expect((await ask.boundingBox())!.y).toBeLessThan((await bubble.boundingBox())!.y)
   await ask.getByRole("button", { name: "はい" }).click()
   await expect(page.getByRole("button", { name: "角の 3 件を見る" })).toBeVisible()
+})
+
+test("角のまとめた絵は、押しても Enter でも開き、離れて少し経つか、ほかを押すと閉じる。上に入れば上に広がる。物が画面の外の間は縁の印が 1 つだけで、戻ると乗せて開く", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.setViewportSize({ width: 900, height: 480 })
+  await page.goto("/")
+  await addBox(page, 200, 40, "上")
+  await addBox(page, 200, 300, "下")
+  const fold = async (name: string) => {
+    const box = items(page).filter({ hasText: name })
+    await writeNote(page, box, `${name}の伝言`)
+    await page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])")).last().click()
+    await panel(page).getByRole("button", { name: "たたむ" }).click()
+    await page.keyboard.press("Escape")
+    await expect(panel(page)).toHaveCount(0)
+    await box.click({ button: "right" })
+    await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
+    await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "びっくりマーク" }).click()
+  }
+  await fold("上")
+  await fold("下")
+  const stacks = page.getByRole("button", { name: "角の 2 件を見る" })
+  await expect(stacks).toHaveCount(2)
+  const bubble = page.getByRole("group", { name: "角の物" })
+  const lower = stacks.nth(1)
+
+  // 押すと開き（乗せて開いていても閉じない）、ほかを押すと閉じる。下の物は上に広がる
+  await lower.click()
+  await expect(bubble).toBeVisible()
+  expect((await bubble.boundingBox())!.y).toBeLessThan((await lower.boundingBox())!.y)
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  await page.mouse.click(paper.x + 600, paper.y + 420)
+  await expect(bubble).toHaveCount(0)
+  // Enter でも開く。離れて少し経つと閉じる
+  await lower.focus()
+  await page.keyboard.press("Enter")
+  await expect(bubble).toBeVisible()
+  await lower.hover()
+  await page.mouse.move(paper.x + 600, paper.y + 420)
+  await expect(bubble).toBeVisible()
+  await expect(bubble).toHaveCount(0)
+
+  // 上の箱の上の辺を画面の上の端の近くまで寄せると、上に入らないので下に広がる
+  const stage = (await page.locator("[data-stage]").boundingBox())!
+  const upperBox = items(page).filter({ hasText: "上" })
+  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height - 20)
+  for (let i = 0; i < 40 && (await upperBox.boundingBox())!.y - stage.y > 20; i++) await page.mouse.wheel(0, 10)
+  await expect.poll(async () => (await upperBox.boundingBox())!.y - stage.y).toBeLessThan(21)
+  expect((await upperBox.boundingBox())!.y).toBeGreaterThan(stage.y)
+  const upper = stacks.first()
+  await upper.hover()
+  await expect(bubble).toBeVisible()
+  expect((await bubble.boundingBox())!.y).toBeGreaterThan((await upper.boundingBox())!.y)
+  await page.mouse.move(paper.x + 600, paper.y + 420)
+  await expect(bubble).toHaveCount(0)
+
+  // 上の箱が画面の外に出ると、縁の印は 1 つだけ（たたんだ伝言とびっくりマークの両方が印を持つ）。押して戻すと、乗せて開く
+  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height - 20)
+  await page.mouse.wheel(0, 60)
+  const pointer = page.getByRole("button", { name: "上を見せる" })
+  await expect(pointer).toHaveCount(1)
+  await expect(page.getByRole("button", { name: "下を見せる" })).toHaveCount(0)
+  await pointer.click()
+  await expect(pointer).toHaveCount(0)
+  await stacks.first().hover()
+  await expect(bubble).toBeVisible()
 })

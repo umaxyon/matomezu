@@ -232,6 +232,7 @@ test("matomezu/ui が出す名前", () => {
     "useEditLock",
     "useElapsed",
     "useFollowsSelection",
+    "useInCornerBubble",
     "useItem",
     "useLatestPan",
     "useLayoutWarnings",

@@ -29,7 +29,6 @@ type CornerEntry = Entry<ReactNode>
 type PlacedCorner = Placed<ReactNode>
 
 const LEAVE_GRACE = 400 // ポインタが離れてから吹き出しを閉じるまでの ms（吹き出しへ移る間に閉じないように）
-const ROOM = 48 // 吹き出しを上に出すのに、角の上に要る高さ（無ければ下に出す）
 
 // ステージの角に出す物の表: 登録と、押す物を描く場所（角のスタンドの中の要素）
 interface Corners {
@@ -39,7 +38,6 @@ interface Corners {
   slotRef(id: string): (el: HTMLElement | null) => void // id ごとに同じ関数なので、付け直しで描き直さない
   slot(id: string): HTMLElement | null
   subscribe(listener: () => void): () => void
-  snapshot(): number // 変わるたびに増える数
 }
 
 function newCorners(): Corners {
@@ -47,10 +45,8 @@ function newCorners(): Corners {
   const slots = new Map<string, HTMLElement>()
   const refs = new Map<string, (el: HTMLElement | null) => void>()
   const listeners = new Set<() => void>()
-  let version = 0
   let seq = 0
   const changed = () => {
-    version++
     for (const l of listeners) l()
   }
   return {
@@ -84,7 +80,6 @@ function newCorners(): Corners {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
-    snapshot: () => version,
   }
 }
 
@@ -101,8 +96,14 @@ export function CornersProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// 吹き出しの中に描かれているか（CornerItem の children の中で読む）
+const InBubbleContext = createContext(false)
+export const useInCornerBubble = (): boolean => useContext(InBubbleContext)
+
 // 物 anchor の右上の角に出す物: order と at で並べ、まとめた絵には look を重ね、物が見える所の外にある間は pointer を縁に出す。
-// children は押す物で、角のスタンドの中（1 つだけなら角、2 つ以上なら広げた吹き出しの中）に描く（描く場所が無い間は描かない）
+// children は押す物で、角のスタンドの中（1 つだけなら角、2 つ以上なら広げた吹き出しの中）に描く（描く場所が無い間は描かない）。
+// look と pointer は角のスタンドの木で描くので、スタンドの useStandAway が効き（pointer に StandPointer が使える）、呼んだ側のコンテキストは見えない。
+// children は呼んだ側の木からポータルで描くので、呼んだ側のコンテキストが見え、useStandAway・useStandFacing は null。吹き出しの中かは useInCornerBubble
 export function CornerItem({
   anchor,
   order,
@@ -144,7 +145,7 @@ export function CornerItem({
       onWheel={stop}
       onKeyDown={stop}
     >
-      {children}
+      <InBubbleContext.Provider value={slot.dataset.cornerSlot === "bubble"}>{children}</InBubbleContext.Provider>
     </div>,
     slot,
   )
@@ -169,34 +170,49 @@ function CornerStands({ corners }: { corners: Corners }) {
   )
 }
 
-// 1 つの物の角: 物が見える所の外なら先頭の縁の印、1 つなら押す物の場所、2 つ以上ならまとめた絵と、開いている間の吹き出し
+// 1 つの物の角: 物が見える所の外なら先頭の縁の印、1 つなら押す物の場所、2 つ以上ならまとめた絵と、開いている間の吹き出し。
+// 吹き出しは上に出し、上に入らなければ（その上に重ねる「外す？」などの分も見て、吹き出しの高さをもう 1 つ分）下に出す
 function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCorner[] }) {
   const t = useMessages(kit)
   const away = useStandAway()
   const [open, setOpen] = useState(false)
   const [below, setBelow] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const bubble = useRef<HTMLDivElement>(null)
   const leaving = useRef<ReturnType<typeof setTimeout>>(undefined)
   const many = group.length > 1
   const show = useCallback(() => {
     clearTimeout(leaving.current)
-    const el = ref.current
-    const layer = el?.closest("[data-stand-layer]")
-    if (el && layer) setBelow(el.getBoundingClientRect().top - layer.getBoundingClientRect().top < ROOM)
     setOpen(true)
   }, [])
   const hide = useCallback(() => {
     clearTimeout(leaving.current)
     setOpen(false)
+    setBelow(false)
   }, [])
-  // ポインタの出入りは要素の並びで見る（吹き出しの中の押す物は、別のレイヤーの React の木から描かれるため）
+  // 縁の印に替わったときと、1 つに減ったときは閉じる
+  useEffect(() => {
+    if (away || !many) hide()
+  }, [away, many, hide])
+  useLayoutEffect(() => {
+    const el = bubble.current
+    const layer = el?.closest("[data-stand-layer]")
+    if (!open || below || !el || !layer) return
+    const box = el.getBoundingClientRect()
+    if (box.top - layer.getBoundingClientRect().top < box.height) setBelow(true)
+  }, [open, below])
+  // ポインタの出入りは要素の並びで見る（吹き出しの中の押す物は、別のレイヤーの React の木から描かれるため）。
+  // 乗せて開くのはマウスとペンだけ（タッチは押して開く）
   useEffect(() => {
     const el = ref.current
-    if (!el || !many) return
-    const enter = () => show()
+    if (!el || !many || away) return
+    const enter = (e: PointerEvent) => {
+      if (e.pointerType === "mouse" || e.pointerType === "pen") show()
+      else clearTimeout(leaving.current)
+    }
     const leave = () => {
       clearTimeout(leaving.current)
-      leaving.current = setTimeout(() => setOpen(false), LEAVE_GRACE)
+      leaving.current = setTimeout(hide, LEAVE_GRACE)
     }
     el.addEventListener("pointerenter", enter)
     el.addEventListener("pointerleave", leave)
@@ -205,7 +221,7 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
       el.removeEventListener("pointerleave", leave)
       clearTimeout(leaving.current)
     }
-  }, [many, show])
+  }, [many, away, show, hide])
   // 開いている間に、ほかを押すか Esc なら閉じる（Esc は吹き出しを閉じるだけにし、右サイドパネルなどへは渡さない）
   useEffect(() => {
     if (!open) return
@@ -228,7 +244,7 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
   if (away) return <>{group.find(g => g.entry.pointer)?.entry.pointer ?? null}</>
   if (!many) {
     const only = group[0] as PlacedCorner
-    return <div ref={corners.slotRef(only.id)} className={styles.single} />
+    return <div ref={corners.slotRef(only.id)} className={styles.single} data-corner-slot="single" />
   }
   const [front, back] = group as [PlacedCorner, PlacedCorner]
   return (
@@ -238,7 +254,7 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
         className={styles.stack}
         aria-label={t("Show the {n} things at the corner", { n: group.length })}
         aria-expanded={open}
-        onClick={() => (open ? hide() : show())}
+        onClick={show}
       >
         <span className={styles.back}>{back.entry.look}</span>
         <span className={styles.front}>{front.entry.look}</span>
@@ -246,12 +262,13 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
       {open && (
         // biome-ignore lint/a11y/useSemanticElements: 吹き出しは押す物を並べる箱で、入力Formのまとまり（fieldset）ではない
         <div
+          ref={bubble}
           className={below ? `${styles.bubble} ${styles.below}` : styles.bubble}
           role="group"
           aria-label={t("Things at the corner")}
         >
           {group.map(g => (
-            <div key={g.id} ref={corners.slotRef(g.id)} className={styles.slot} />
+            <div key={g.id} ref={corners.slotRef(g.id)} className={styles.slot} data-corner-slot="bubble" />
           ))}
         </div>
       )}

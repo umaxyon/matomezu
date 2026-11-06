@@ -30,7 +30,6 @@ export const NOTE_MESSAGES = defineMessages({
   "8 hours": { en: "8 hours", ja: "8時間" },
   Never: { en: "Never", ja: "消さない" },
   "Start note expiry": { en: "Start note expiry", ja: "伝言期限を数え始める" },
-  "Read by AI": { en: "Read by AI", ja: "AI が読みました" },
   "{n} min": { en: "{n} min", ja: "{n} 分" },
   "{h} h": { en: "{h} h", ja: "{h} 時間" },
   "{h} h {m} min": { en: "{h} h {m} min", ja: "{h} 時間 {m} 分" },
