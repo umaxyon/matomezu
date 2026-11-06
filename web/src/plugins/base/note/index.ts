@@ -1,6 +1,6 @@
 // 伝言: 利用者がブックの物に付けて AI に伝える文の、アノテーションの種類（core/def/annotation.ts）。付ける・変える・消すのは利用者だけ（userOnly）で、AI は読んだと知らせるだけ。
 // 返事は書かない。文の無い印はマーク（mark/）。
-// AI が読んだかは readAt（AI が読んだ時点）で持ち、利用者が文を変えると未読に戻る。
+// AI が読んだかは readAt（AI が読んだ時点）で持ち、利用者が文か付ける先を変えると未読に戻る。
 // 読まれたあと、利用者が AI に話しかけると会話の時点 talkedAt を持ち、そこから伝言期限（利用者の設定 note-expiry）が過ぎると消える。
 // ロック中のブックにも付けられる（ロックはアノテーションを止めない）
 import { z } from "zod"
@@ -29,7 +29,7 @@ export const NOTE = kit.defineAnnotation({
   id: "note",
   title: "Note",
   aiDescription:
-    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in, then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text makes it unread again). talkedAt is when the user talked to AI after it was read; the note is removed when the user's note expiry has passed since then (unless it is set to never).",
+    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in, then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text or the things it is on makes it unread again). talkedAt is when the user talked to AI after it was read; the note is removed when the user's note expiry has passed since then (unless it is set to never).",
   props: NoteSchema,
   awaits: p => p.readAt === undefined,
   expiresAt: (p, setting) => (p.talkedAt ? expiryFrom(p.talkedAt, setting(NOTE_EXPIRY.id)) : null),
@@ -98,7 +98,7 @@ export const NOTE_UPDATE = kit.defineAction({
   id: "note-update",
   attach: { annotations: [NOTE.id] },
   aiDescription:
-    "Change a note's text, the things it is on (anchors; the bubble stands by the last), or whether it shows a bubble (only the user). Changing the text makes it unread again. Refused if nothing changes.",
+    "Change a note's text, the things it is on (anchors; the bubble stands by the last), or whether it shows a bubble (only the user). Changing the text or the things it is on makes it unread again. Refused if nothing changes.",
   title: "Change note",
   target: "annotations",
   userOnly: true,
@@ -115,9 +115,8 @@ export const NOTE_UPDATE = kit.defineAction({
       !!found && !!moved && moved.length === found.anchors.length && moved.every((id, i) => found.anchors[i] === id)
     const next = changeNote(annotations, note, p => {
       const changed = { ...p, ...change }
-      const same = changed.text === p.text && changed.bubble === p.bubble
-      if (same) return sameAnchors ? null : p
-      if (changed.text === p.text) return changed
+      const sameText = changed.text === p.text
+      if (sameText && sameAnchors) return changed.bubble === p.bubble ? null : changed
       const { readAt: _, talkedAt: __, ...unread } = changed
       return unread
     })

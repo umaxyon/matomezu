@@ -106,6 +106,24 @@ export function useSetRightSidePanelCurrent(): (stage: string, anchor: string) =
   )
 }
 
+// ステージ stage の右サイドパネルが見せる物を、同じ中身のまま subject（付いた先 anchors、カレント current）に替える関数
+// （開いていなければ何もしない。閉じたときに戻す見え方の覚えは、そのまま持つ）
+export function useReplaceRightSidePanelSubject(): (
+  stage: string,
+  open: Pick<RightSidePanelOpen, "subject" | "anchors" | "current">,
+) => void {
+  const read = useReadState()
+  const set = useSetStageState(kit)
+  return useCallback(
+    (stage, change) => {
+      const now = read().stageStates[stage]?.[kit.id]
+      const open = panelIn(now)
+      if (open) set(stage, withPanel(now, { ...open, ...change }))
+    },
+    [read, set],
+  )
+}
+
 // ステージ stage の右サイドパネルを閉じる関数
 export function useCloseRightSidePanel(): (stage: string) => void {
   const read = useReadState()

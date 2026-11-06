@@ -2,11 +2,12 @@
 // 上に付ける先の名前のバッジを並べ（カレントは色違い）、押すとその物をカレントにする（右サイドパネルが、倍率はそのままで真ん中へ見せる）。
 // 新しく書く（subject が NEW_NOTE）なら、文を書いて「付ける」。付けた伝言なら、文を直すか付ける先を変えて「再送」。
 // どちらも付ける先はカレントを最後に並べて渡し、吹き出しはカレントに出る。付けるか再送したら閉じる（閉じたら選択を外すのは右サイドパネル）。
-// 既読の伝言なら、同じ物にチェックを出す既読の伝言（read-groups.ts）を、伝言ごと（バッジ・テキストForm・消えるまでの見込み・ボタン）に線で区切って新しい順に並べる。
-// 付ける先・カレント・鳥は subject の伝言だけが持ち、ほかの伝言のバッジは押すとその物を見せるだけ（付ける先は変えない）。
+// 既読の伝言なら、同じ物にチェックを出す既読の伝言（read-groups.ts）を、伝言ごと（バッジ・テキストForm・消えるまでの見込み・ボタン）に線で区切って新しい順に並べ、
+// subject の伝言が途中にあれば、そこまでスクロールする。付ける先・カレント・鳥は subject の伝言だけが持ち、ほかの伝言のバッジは押すとその物を見せるだけ（付ける先は変えない）。
+// subject の既読の伝言が無くなったら（消した・期限で消えたなど）、同じ物の次に新しい既読の伝言を subject にして開いたままにする（無ければ閉じる）。
 // 書いている間に付ける先の物がブックから消えたら（AI が消したなど）、閉じずにテキストFormの上に知らせ、書きかけはそのまま残す（付ける先が無い間は付けられない）。
 // 吹き出しを出すか（たたむ）・消すは、付けた伝言では押したときに変える。変えられなければ（認可ステップが止めたなど）、どれも始められない。
-// 付けた伝言は、文か付ける先を変えてから、再送するか閉じるまで編集ロックを掛ける（AI が変えも消しもしない。開いて見ているだけなら掛けない）。付けた伝言が無くなったら（利用者がほかの窓で消したなど）、黙って右サイドパネルを閉じる
+// 付けた伝言は、文か付ける先を変えてから、再送するか閉じるまで編集ロックを掛ける（AI が変えも消しもしない。開いて見ているだけなら掛けない）。付けた伝言が無くなり、同じ物に既読の伝言が残っていなければ（利用者がほかの窓で消したなど）、黙って右サイドパネルを閉じる
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { Annotation } from "../../../core/annotation"
 import { anchorIds } from "../../../core/annotation"
@@ -15,7 +16,12 @@ import { useAllowed, useBook, useUserSetting } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { useCloseRightSidePanel, useRightSidePanel, useSetRightSidePanelCurrent } from "../right-side-panel/hooks"
+import {
+  useCloseRightSidePanel,
+  useReplaceRightSidePanelSubject,
+  useRightSidePanel,
+  useSetRightSidePanelCurrent,
+} from "../right-side-panel/hooks"
 import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { useRequestReveal } from "../utils/reveal-request"
@@ -35,11 +41,18 @@ export function NotePanel({ stage }: StageSlotProps) {
   const open = useRightSidePanel(stage)
   const notes = useAnnotationsOf(stage, NOTE.id)
   const close = useCloseRightSidePanel()
+  const replace = useReplaceRightSidePanelSubject()
   const note = open ? notes.find(n => n.id === open.subject) : undefined
   const gone = !!open && open.subject !== NEW_NOTE && !note
+  // 開いた既読の伝言のチェックを出す物（その伝言が無くなったら、同じ物の次に新しい既読の伝言を開く）
+  const readAnchor = useRef<string | null>(null)
+  if (note) readAnchor.current = (note.props as NoteProps).readAt !== undefined ? (note.anchors.at(-1) ?? null) : null
   useEffect(() => {
-    if (gone) close(stage)
-  }, [gone, close, stage])
+    if (!gone) return
+    const next = readAnchor.current === null ? undefined : readNotesByAnchor(notes).get(readAnchor.current)?.[0]
+    if (next) replace(stage, { subject: next.id, anchors: next.anchors, current: next.anchors.at(-1) ?? "" })
+    else close(stage)
+  }, [gone, notes, replace, close, stage])
   if (!open || (open.subject !== NEW_NOTE && !note)) return null
   return (
     <div className={styles.panel}>
@@ -80,12 +93,18 @@ function NoteEditors({
         : [note],
     [note, notes, anchor],
   )
+  // 開いた伝言が並びの途中なら、そこまでスクロールする（送信トレイから古い伝言を開いたときなど）
+  const subject = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = subject.current
+    if (el && group[0]?.id !== note.id) scrollTo(el)
+  }, [note.id, group])
   return (
     <>
       {group.map(n =>
         // 文が外で変わったら、テキストFormを新しい文で始め直す
         n.id === note.id ? (
-          <div key={`${n.id}:${(n.props as NoteProps).text}`} className={styles.note} data-note={n.id}>
+          <div ref={subject} key={`${n.id}:${(n.props as NoteProps).text}`} className={styles.note} data-note={n.id}>
             {group.length > 1 && <Badges stage={stage} open={open} />}
             <NoteEditor
               stage={stage}
@@ -112,6 +131,13 @@ function NoteEditors({
       )}
     </>
   )
+}
+
+// el をスクロールする入れ物（右サイドパネルの中身の入れ物）の上の端まで、その入れ物をスクロールする（ステージなど、ほかの入れ物は動かさない）
+function scrollTo(el: HTMLElement) {
+  let box = el.parentElement
+  while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement
+  if (box) box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top
 }
 
 // 付ける先の名前のバッジ: カレントは色違い。押すとその物をカレントにする。名前は BADGE_CHARS 字で切り、全体はツールチップで見せる

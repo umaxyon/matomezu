@@ -1,6 +1,7 @@
 import { aiAuth, expect, type Page, test } from "./fixtures"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
+import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, items } from "./helpers/paper"
 
 const stands = (page: Page) => page.locator("[data-stand]")
@@ -356,4 +357,78 @@ test("同じ物に既読の伝言が 2 つ以上あれば、チェックを 2 �
       )
     })
     .toBe(true)
+})
+
+test("送信トレイから古い既読の伝言を開くと、同じ物の既読の伝言が並び、その伝言までスクロールする。開いた伝言を消すと、次に新しい伝言で開いたまま。たたんだ伝言の絵はチェックと重ならない", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.setViewportSize({ width: 900, height: 480 })
+  const ai = aiAuth()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  await addBox(page, 200, 150, "二")
+  const two = items(page).filter({ hasText: "二" })
+  const readAll = async () => {
+    const notes = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as {
+      id: string
+      props: { readAt?: string }
+    }[]
+    for (const n of notes.filter(n => !n.props.readAt))
+      await page.request.post("/api/ai/perform", {
+        headers: ai,
+        data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { book } },
+      })
+  }
+  await writeNote(page, two, "古い")
+  await readAll()
+  // 新しい伝言は長くして、右サイドパネルに 2 つが収まらないようにする
+  await writeNote(page, two, Array.from({ length: 16 }, (_, i) => `新しい ${i + 1}`).join("\n"))
+  await readAll()
+  const checks = page.locator("[data-read-count]")
+  await expect(checks).toHaveAttribute("data-read-count", "many")
+
+  // 送信トレイの古い伝言の行（下）を押すと、2 つ並び、古い伝言が付ける先のバッジを持ち、そこまでスクロールしている
+  await openOutbox(page)
+  await leftPanel(page).getByRole("listitem").nth(1).getByRole("button").first().click()
+  const notes = panel(page).locator("[data-note]")
+  await expect(notes).toHaveCount(2)
+  await expect(notes.nth(1).getByLabel("伝言", { exact: true })).toHaveValue("古い")
+  await expect(notes.nth(1).getByRole("button", { name: "二", exact: true })).toHaveAttribute("aria-pressed", "true")
+  const scrolled = () =>
+    notes.nth(1).evaluate(el => {
+      let box = el.parentElement
+      while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement
+      return box?.scrollTop ?? 0
+    })
+  await expect.poll(scrolled).toBeGreaterThan(0)
+  await expect(notes.nth(1)).toBeInViewport()
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+
+  // チェックから開いて最新の伝言を消すと、古い伝言で開いたまま。チェックは 1 つに戻る
+  await checks.click()
+  await expect(notes).toHaveCount(2)
+  await notes.nth(0).getByRole("button", { name: "消す" }).click()
+  await expect(notes).toHaveCount(1)
+  await expect(notes.nth(0).getByLabel("伝言", { exact: true })).toHaveValue("古い")
+  await expect(checks).toHaveAttribute("data-read-count", "one")
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+
+  // 未読の伝言をたたむと、絵はチェックと重ならずに並ぶ
+  await writeNote(page, two, "たたむ")
+  await page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])")).first().click()
+  await panel(page).getByRole("button", { name: "たたむ" }).click()
+  await page.keyboard.press("Escape")
+  await expect(panel(page)).toHaveCount(0)
+  const folded = page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])"))
+  await expect(folded).toHaveCount(1)
+  const f = (await folded.boundingBox())!
+  const c = (await checks.boundingBox())!
+  expect(f.x + f.width <= c.x || c.x + c.width <= f.x || f.y + f.height <= c.y || c.y + c.height <= f.y).toBe(true)
 })

@@ -2,6 +2,7 @@
 // 吹き出しを出す伝言は物の右に、文の始め（BUBBLE_CHARS 字）だけの吹き出しを、物の方へ曲がる尾を付けて出し、たたんだ伝言は物の右上の角に伝言の絵を出す。
 // AI が読んだ伝言は、吹き出しも絵も出さず、物の右上の角に緑の丸のチェックを出す（吹き出しを出すかのデータは変えない）。同じ物に出す既読の伝言は 1 つのチェックにまとめ
 // （read-groups.ts）、2 つ以上なら 2 つ重ねたチェックを出す。押すと、いちばん新しい伝言で右サイドパネルを開く（右サイドパネルが、まとめた伝言を新しい順に並べる）。
+// 同じ物の角に出す、たたんだ伝言の絵と既読のチェックは、重ならないように 1 つのスタンドに横に並べる（絵が左、チェックが右）。
 // 読まれていない伝言は、付けた物の上の辺が見える所の外に出たら、吹き出しか絵の代わりにマークポインタ（丸の中に伝言の絵）を縁に出し、押すと付けた物を見せる。読まれた伝言は縁に出さない。
 // 吹き出しか絵を押すと、右サイドパネルにその伝言を出す（付けた先を選び、吹き出しの物をカレントにする。吹き出しを出すかのデータは変えない）。
 // 選択に従う右サイドパネルの中身（書いている伝言など）を出している間は、吹き出しの物を押したのと同じにする（選ぶ。Mod なら足す・外す。書きかけを生かす）。右サイドパネルがほかの物を出している間に押したら、閉じるだけ。
@@ -30,25 +31,27 @@ import { NOTE, type NoteProps } from "."
 import { NoteBirds } from "./NoteBirds"
 import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
-import { readNotesByAnchor } from "./read-groups"
+import { type CornerNotes, cornerNotesByAnchor } from "./read-groups"
 
 export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数（送信トレイの行も同じ）
 const POINTER = 24 // マークポインタの丸の大きさ（マークと同じ）
+const FOLDED = 22 // たたんだ伝言の絵の丸の大きさ
+const CORNER_GAP = 2 // 角に並べる絵とチェックのすき間
 const TAIL_W = 14 // 吹き出しの尾の幅と高さ（尾の先は左下）
 const TAIL_H = 16
 
 export function NoteLayer({ stage }: StageSlotProps) {
   const notes = useAnnotationsOf(stage, NOTE.id)
-  const read = useMemo(() => readNotesByAnchor(notes), [notes])
+  const corners = useMemo(() => cornerNotesByAnchor(notes), [notes])
   return (
     <>
       {notes
-        .filter(n => (n.props as NoteProps).readAt === undefined)
+        .filter(n => (n.props as NoteProps).readAt === undefined && (n.props as NoteProps).bubble)
         .map(n => (
-          <NoteStand key={n.id} stage={stage} id={n.id} anchors={n.anchors} props={n.props as NoteProps} />
+          <BubbleStand key={n.id} stage={stage} id={n.id} anchors={n.anchors} props={n.props as NoteProps} />
         ))}
-      {[...read].map(([anchor, group]) => (
-        <ReadStand key={anchor} stage={stage} anchor={anchor} notes={group} />
+      {[...corners].map(([anchor, corner]) => (
+        <CornerStand key={anchor} stage={stage} anchor={anchor} corner={corner} />
       ))}
       <NoteBirds stage={stage} />
     </>
@@ -79,8 +82,23 @@ function useOpenNote(stage: string, note: string, anchors: readonly string[], id
         : openPanel(stage, { widget: NOTE_PANEL_ID, subject: note, anchors, current: anchor })
 }
 
+// 物 anchor の右上の角のスタンド: たたんだ伝言の絵を左から並べ、既読の伝言があれば右にチェック
+function CornerStand({ stage, anchor, corner }: { stage: string; anchor: string; corner: CornerNotes }) {
+  const t = useMessages(kit)
+  return (
+    <Stand anchor={anchor} side="corner" edgePinned label={t("Note")}>
+      <div className={styles.corner}>
+        {corner.folded.map((n, i) => (
+          <FoldedNote key={n.id} stage={stage} note={n} at={i} />
+        ))}
+        {corner.read.length > 0 && <ReadChecks stage={stage} notes={corner.read} />}
+      </div>
+    </Stand>
+  )
+}
+
 // 同じ物に出す既読の伝言（新しい順）のチェック: 1 つなら 1 つの、2 つ以上なら 2 つ重ねたチェック
-function ReadStand({ stage, anchor, notes }: { stage: string; anchor: string; notes: readonly Annotation[] }) {
+function ReadChecks({ stage, notes }: { stage: string; notes: readonly Annotation[] }) {
   const t = useMessages(kit)
   const newest = notes[0] as Annotation
   const open = useOpenNote(
@@ -91,34 +109,44 @@ function ReadStand({ stage, anchor, notes }: { stage: string; anchor: string; no
   )
   const many = notes.length > 1
   return (
-    <Stand anchor={anchor} side="corner" edgePinned label={t("Note")}>
-      <Away pointer={null}>
-        <button
-          type="button"
-          className={many ? styles.readChecks : styles.readCheck}
-          aria-label={t("Open note")}
-          title={t("Read by AI")}
-          data-read="true"
-          data-read-count={many ? "many" : "one"}
-          onClick={open}
-        >
-          {many ? (
-            <>
-              <span className={styles.readCheckBack} />
-              <span className={styles.readCheckFront}>
-                <ReadCheckIcon />
-              </span>
-            </>
-          ) : (
-            <ReadCheckIcon />
-          )}
-        </button>
-      </Away>
-    </Stand>
+    <Away pointer={null}>
+      <button
+        type="button"
+        className={many ? styles.readChecks : styles.readCheck}
+        aria-label={t("Open note")}
+        title={t("Read by AI")}
+        data-read="true"
+        data-read-count={many ? "many" : "one"}
+        onClick={open}
+      >
+        {many ? (
+          <>
+            <span className={styles.readCheckBack} />
+            <span className={styles.readCheckFront}>
+              <ReadCheckIcon />
+            </span>
+          </>
+        ) : (
+          <ReadCheckIcon />
+        )}
+      </button>
+    </Away>
   )
 }
 
-function NoteStand({
+// 読まれていない伝言の、付けた物が見える所の外にある間のマークポインタ（丸の中に伝言の絵。center はスタンドの中の丸の真ん中）
+function NotePointer({ stage, anchor, center }: { stage: string; anchor: string; center: { x: number; y: number } }) {
+  const t = useMessages(kit)
+  const label = t("Show {name}", { name: useAnchorName(stage, anchor) })
+  return (
+    <StandPointer center={center} size={POINTER} label={label} className={styles.pointer}>
+      <NoteIcon />
+    </StandPointer>
+  )
+}
+
+// 吹き出しを出す、読まれていない伝言（物の右）
+function BubbleStand({
   stage,
   id,
   anchors,
@@ -132,41 +160,30 @@ function NoteStand({
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
   const open = useOpenNote(stage, id, anchors, [id])
-  const awayLabel = t("Show {name}", { name: useAnchorName(stage, anchor) })
-  const pointer = (
-    <StandPointer
-      center={{ x: POINTER / 2, y: POINTER / 2 }}
-      size={POINTER}
-      label={awayLabel}
-      className={styles.pointer}
-    >
-      <NoteIcon />
-    </StandPointer>
-  )
-  if (props.bubble)
-    return (
-      <Stand anchor={anchor} side="right" edgePinned label={t("Note")}>
-        <Away pointer={pointer}>
-          <button
-            type="button"
-            className={`${styles.bubble} ${styles.opens}`}
-            aria-label={t("Open note")}
-            onClick={open}
-          >
-            {clampChars(props.text, BUBBLE_CHARS)}
-            <BubbleTail />
-          </button>
-        </Away>
-      </Stand>
-    )
   return (
-    <Stand anchor={anchor} side="corner" edgePinned label={t("Note")}>
-      <Away pointer={pointer}>
-        <button type="button" className={styles.folded} aria-label={t("Open note")} onClick={open}>
-          <NoteIcon />
+    <Stand anchor={anchor} side="right" edgePinned label={t("Note")}>
+      <Away pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}>
+        <button type="button" className={`${styles.bubble} ${styles.opens}`} aria-label={t("Open note")} onClick={open}>
+          {clampChars(props.text, BUBBLE_CHARS)}
+          <BubbleTail />
         </button>
       </Away>
     </Stand>
+  )
+}
+
+// たたんだ、読まれていない伝言の絵（角の並びの at 番目）
+function FoldedNote({ stage, note, at }: { stage: string; note: Annotation; at: number }) {
+  const t = useMessages(kit)
+  const anchor = note.anchors.at(-1) ?? ""
+  const open = useOpenNote(stage, note.id, note.anchors, [note.id])
+  const center = { x: at * (FOLDED + CORNER_GAP) + FOLDED / 2, y: POINTER / 2 }
+  return (
+    <Away pointer={<NotePointer stage={stage} anchor={anchor} center={center} />}>
+      <button type="button" className={styles.folded} aria-label={t("Open note")} onClick={open}>
+        <NoteIcon />
+      </button>
+    </Away>
   )
 }
 

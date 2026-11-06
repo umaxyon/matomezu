@@ -7,7 +7,7 @@ import { defineAction } from "../../web/src/core/def/action"
 import { performIn } from "../../web/src/core/perform"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { expiryOutlook } from "../../web/src/plugins/base/note/expiry"
-import { readNotesByAnchor } from "../../web/src/plugins/base/note/read-groups"
+import { cornerNotesByAnchor, readNotesByAnchor } from "../../web/src/plugins/base/note/read-groups"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG, newStore } from "../support"
 
@@ -154,14 +154,15 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
   expect(ai(READ, { note: id }).ok).toBe(true)
 })
 
-test("付ける先を変えられる（吹き出しは最後の物のそば）。付ける先だけ変えても既読のまま。ブックに無い物には変えられない", () => {
+test("付ける先を変えられる（吹き出しは最後の物のそば）。付ける先だけ変えても未読に戻る。ブックに無い物には変えられない", () => {
   const { store, a, b, notes } = ready()
   store.actions.perform(ADD, { anchors: [a], text: "見て" }, ON)
   const id = notes()[0]!.id
   store.actions.perform(READ, { note: id }, ON)
   expect(store.actions.perform(UPDATE, { note: id, anchors: [a] }, ON).ok).toBe(false)
   expect(store.actions.perform(UPDATE, { note: id, anchors: [b, a] }, ON).ok).toBe(true)
-  expect(notes()[0]).toMatchObject({ anchors: [b, a], props: { readAt: expect.any(String) } })
+  expect(notes()[0]!.anchors).toEqual([b, a])
+  expect((notes()[0]!.props as { readAt?: string }).readAt).toBeUndefined()
   expect(store.actions.perform(UPDATE, { note: id, anchors: ["nothing"] }, ON).ok).toBe(false)
   expect(store.actions.perform(UPDATE, { note: id, text: "直した", anchors: [b] }, ON).ok).toBe(true)
   expect(notes()[0]).toMatchObject({ anchors: [b], props: { text: "直した" } })
@@ -240,4 +241,30 @@ test("既読の伝言は、チェックを出す物（付けた物の最後）�
   expect([...groups.keys()]).toEqual(["x", "y"])
   expect(groups.get("x")?.map(n => n.id)).toEqual(["new", "same", "old"])
   expect(groups.get("y")?.map(n => n.id)).toEqual(["other"])
+})
+
+test("物の右上の角には、たたんだ未読の伝言と既読の伝言を、物ごとに 1 つの並びにまとめる。吹き出しを出す未読の伝言は入らない", () => {
+  const note = (id: string, anchor: string, kind: "read" | "folded" | "bubble"): Annotation =>
+    ({
+      id,
+      annotation: "@matomezu/base:note",
+      anchors: [anchor],
+      props: {
+        text: id,
+        bubble: kind !== "folded",
+        addedAt: "2026-11-06T01:00:00.000Z",
+        ...(kind === "read" ? { readAt: "2026-11-06T02:00:00.000Z" } : {}),
+      },
+    }) as unknown as Annotation
+  const corners = cornerNotesByAnchor([
+    note("f1", "x", "folded"),
+    note("r1", "x", "read"),
+    note("b1", "y", "bubble"),
+    note("f2", "x", "folded"),
+    note("f3", "z", "folded"),
+  ])
+  expect([...corners.keys()]).toEqual(["x", "z"])
+  expect(corners.get("x")?.folded.map(n => n.id)).toEqual(["f1", "f2"])
+  expect(corners.get("x")?.read.map(n => n.id)).toEqual(["r1"])
+  expect(corners.get("z")).toMatchObject({ read: [] })
 })

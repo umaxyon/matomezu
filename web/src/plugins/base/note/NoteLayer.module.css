@@ -22,6 +22,12 @@
   overflow-wrap: anywhere;
   cursor: pointer;
 }
+/* 物の右上の角の並び（たたんだ伝言の絵を左から、既読のチェックを右に） */
+.corner {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
 /* たたんだ伝言の絵（物の右上の角） */
 .folded {
   display: grid;
