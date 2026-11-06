@@ -50,6 +50,7 @@
 ## 見た目と差し替え
 
 - `definePluginUi(plugin, { presentationViews, items, connectors, settingViews, userSettingViews, dialogViews, widgets, commandIcons, toolIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ブックの設定の項目・ダイアログ・道具に、ビューやアイコンが無いと型の誤り。利用者の設定の項目のビュー（`userSettingViews`）は書かなくてよい
+- 利用者の設定の項目のビュー（`userSettingViews`）は、行を base の `SettingRow` で作る（名前の幅などを写さない）
 - 差し替えられるのはビュー（ブック・ダイアログ・ウィジェット）だけで、`overrides` に書く。アクションやブックのタイプなど中身は差し替えない
 - 画面の配置（スロットにどのウィジェットを置くか、メニューの中身）は配置（`defineLayout`）に書く。matomezu/testing で matomezu を組むときは、配置は丸ごと替え、差分を重ねて混ぜない
 - 配置が名指したウィジェット・コマンド・スロット・メニューのうち、持ち主のプラグイン（id の頭）が組み込まれていない物は、その行だけ飛ばし、warning を残す。持ち主が組み込まれているのに無い物は error。画面の warning は `useLayoutWarnings` で読む
@@ -68,6 +69,7 @@
 - ステージの上に浮かぶスロットは、上の行（`@matomezu/base:stage-top`。左上）と右上の角（`@matomezu/base:stage-corner`）。そこに置いたウィジェットはスロットが浮かべるので、自分で位置を決めない。ほかに、ステージの枠を基準に位置を決めて浮かべるウィジェットは、スロット `@matomezu/base:stage-body` に `@matomezu/base:book-view` と並べて置く。ブックの中身のビューの中には置かない。紙の座標で描く物はレイヤーにする。ポインタの所に出す物（道具のアイコンなど）は画面の座標で位置を決めるので、`root` に置く
 - 右サイドパネルに出す物は、スロット `@matomezu/base:right-side-panel` に置くウィジェットにし、幅はそのウィジェットの定義の `rightSidePanel` に書く。開け閉めはプラグイン API の右サイドパネルのフック（`useOpenRightSidePanel` など）でし、自分で開け閉めや幅の動きを作らない
 - 左サイドパネルに出す物は、スロット `@matomezu/base:left-side-panel` に置くタブのウィジェットにし、`defineLeftSidePanelTab` で作る（タブの名前が要る。追加プラグインは `place` で置いてほしいと書く）。開け閉めはプラグイン API の左サイドパネルのフック（`useOpenLeftSidePanel` など）でし、自分で作らない
+- 設定画面に設定カテゴリを足すときは、スロット `@matomezu/base:settings-categories` に置くウィジェットにし、`defineSettingsCategory` で作る（追加プラグインは `place` で置いてほしいと書く）。配置に置いた設定カテゴリのどれも名指していない利用者の設定の項目は、base の「全体」に並ぶ
 - 右サイドパネルが選択に従う中身を出している間（`useFollowsSelection`）、物を押して選ぶビューは、押しても選ぶだけにし、ドラッグで動かさない。Mod で足す・外すときは、階層の違う物も、持ち主の形に置き換えずにそのまま選ぶ
 
 ## 見本
