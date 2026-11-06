@@ -1,0 +1,27 @@
+/* コーナーステータスの並び: コーナーステータスごとの行に、名前と前へ・後ろへのボタン */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  gap: 6px;
+}
+.name {
+  flex: 1;
+  min-width: 0;
+}
+.move {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--skin-border);
+  border-radius: 4px;
+  background: var(--skin-surface);
+  color: var(--skin-text);
+  cursor: pointer;
+}
+.move:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

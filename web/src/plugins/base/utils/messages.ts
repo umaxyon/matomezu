@@ -20,4 +20,7 @@ export const CORNER_MESSAGES = defineMessages({
   Corner: { en: "Corner", ja: "角" },
   "Things at the corner": { en: "Things at the corner", ja: "角の物" },
   "Show the {n} things at the corner": { en: "Show the {n} things at the corner", ja: "角の {n} 件を見る" },
+  "Corner status order": { en: "Corner status order", ja: "コーナーステータスの並び" },
+  "Move {name} up": { en: "Move {name} up", ja: "{name}を前へ" },
+  "Move {name} down": { en: "Move {name} down", ja: "{name}を後ろへ" },
 })

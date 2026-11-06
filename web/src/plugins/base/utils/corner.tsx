@@ -1,8 +1,9 @@
-// 物の右上の角に出す物（たたんだ伝言・既読の伝言・びっくりマークなど。追加プラグインの物も）: 種類をまたいで、物ごとに 1 つの角のスタンドにまとめる。
-// 角に出す物は AtCorner で、物・並べる順・まとめた絵に使う絵・縁の印（マークポインタ）を登録し、押す物（children）は角のスタンドの中の場所へ描く。
+// 物の右上の角に出すコーナーステータス（たたんだ伝言・既読の伝言・びっくりマークなど。追加プラグインの物も）: 物ごとに 1 つの角のスタンドにまとめる。
+// コーナーステータスは、スロット corner-statuses に置くウィジェット（defineCornerStatus）で名乗り、まとめた絵に重ねる絵を描く。並びは、利用者の設定（corner-order.ts）とスロットの並びで決まる。
+// 角に出す物は AtCorner で、物・コーナーステータス・縁の印（マークポインタ）を登録し、押す物（children）は角のスタンドの中の場所へ描く。
 // 1 つだけなら、その押す物をそのまま角に出す。2 つ以上なら、並びの先頭の 2 つの絵を重ねたまとめた絵を出し、ポインタを乗せる（押す・キーでも）と、
 // 角から上へ（入らなければ下へ）、右端を角にそろえて左へ小さな吹き出しが広がり、押す物を横 1 列に並べて 1 つずつ選ばせる。ポインタが離れて少し経つか、Esc か、ほかを押すと閉じる。
-// 並べる順は、order の小さい物が先、同じ order なら at（ISO 8601 の時点）の新しい物が先、同じなら後に登録した物が先。
+// 並べる順は、コーナーステータスの並びで先の物が先、同じコーナーステータスなら at（ISO 8601 の時点）の新しい物が先、同じなら後に登録した物が先。
 // 物が見える所の外にある間は、並びの先頭の、縁の印を持つ物の印だけを出す（無ければ何も出さない）。
 // 登録の表はステージごとに 1 つで、ステージのビューが CornersProvider で渡す。描いている間だけ持つ
 import {
@@ -19,14 +20,63 @@ import {
   useSyncExternalStore,
 } from "react"
 import { createPortal } from "react-dom"
+import type { MessageKey } from "../../../core/i18n/i18n"
+import { userSetting } from "../../../core/settings"
 import { useMessages } from "../../../ui/i18n"
+import { defineWidget } from "../../../ui/layout"
+import { useCatalog, useLayout, useUiCatalog } from "../../../ui/store-context"
+import { useSettings } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { Stand, useStandAway } from "./anchors"
+import { type PlaceInSlot, placeIn } from "../left-side-panel/ui"
+import { StandAt, useStandAway } from "./anchors"
 import styles from "./corner.module.css"
-import { cornersByAnchor, type CornerEntry as Entry, type PlacedCorner as Placed } from "./corner-order"
+import {
+  CORNER_STATUS_ORDER,
+  cornersByAnchor,
+  type CornerEntry as Entry,
+  type PlacedCorner as Placed,
+  statusOrder,
+} from "./corner-order"
 
 type CornerEntry = Entry<ReactNode>
 type PlacedCorner = Placed<ReactNode>
+
+// コーナーステータスのスロットの名前（base の ui.tsx で、core/catalog.ts の表に書き足す）。置いたウィジェットは、まとめた絵に重ねる絵を描く（20px 四方に収める）
+export const CORNER_STATUSES = kit.name("corner-statuses")
+export type CornerStatusProps = Record<string, never>
+
+// コーナーステータスのウィジェット: 名前 title（文言の鍵。設定画面の「コーナーステータスの並び」に出す）と、まとめた絵に重ねる、押せない絵 view。
+// 既定の並びは、スロット corner-statuses の並び。place は、追加プラグインが既定の配置に足してほしいとき（true なら末尾、before・after ならそのコーナーステータスの前・後ろ）
+export const defineCornerStatus = <const Id extends string>(def: {
+  id: Id
+  title: MessageKey
+  place?: PlaceInSlot
+  view: () => ReactNode
+}) =>
+  defineWidget({
+    id: def.id,
+    slots: [CORNER_STATUSES],
+    ...(def.place ? { place: placeIn(CORNER_STATUSES, def.place) } : {}),
+    cornerStatus: { title: def.title },
+    view: def.view,
+  })
+
+// コーナーステータスの並び（利用者の設定のあとに、そこに無い物をスロットの並びで）と、利用者の設定の値
+export function useCornerStatuses(): {
+  statuses: readonly string[]
+  chosen: readonly string[]
+  placed: readonly string[]
+} {
+  const placed: readonly string[] = useLayout().slots[CORNER_STATUSES] ?? []
+  const catalog = useCatalog().core
+  const { values } = useSettings()
+  const raw = userSetting(catalog, values, CORNER_STATUS_ORDER.id)
+  return useMemo(() => {
+    const parsed = CORNER_STATUS_ORDER.schema.safeParse(raw)
+    const chosen = parsed.success ? parsed.data : CORNER_STATUS_ORDER.default
+    return { statuses: statusOrder(chosen, placed), chosen, placed }
+  }, [raw, placed])
+}
 
 const LEAVE_GRACE = 400 // ポインタが離れてから吹き出しを閉じるまでの ms（吹き出しへ移る間に閉じないように）
 
@@ -102,22 +152,20 @@ const BubbleContext = createContext<AtCornerBubble>("none")
 export const useAtCornerBubble = (): AtCornerBubble => useContext(BubbleContext)
 const isBubble = (v: string | undefined): v is AtCornerBubble => v === "above" || v === "below"
 
-// 物 anchor の右上の角に出す物: order と at で並べ、まとめた絵には look を重ね、物が見える所の外にある間は pointer を縁に出す。
+// 物 anchor の右上の角に出す物: コーナーステータス status（defineCornerStatus の id）と at で並べ、まとめた絵にはコーナーステータスの絵を重ね、物が見える所の外にある間は pointer を縁に出す。
 // children は押す物で、角のスタンドの中（1 つだけなら角、2 つ以上なら広げた吹き出しの中）に描く（描く場所が無い間は描かない）。
-// look と pointer は角のスタンドの木で描くので、スタンドの useStandAway が効き（pointer に StandPointer が使える）、呼んだ側のコンテキストは見えない。
+// pointer は角のスタンドの木で描くので、スタンドの useStandAway が効き（pointer に StandPointer が使える）、呼んだ側のコンテキストは見えない。
 // children は呼んだ側の木からポータルで描くので、呼んだ側のコンテキストが見え、useStandAway・useStandFacing は null。吹き出しの中か（上か下か）は useAtCornerBubble
 export function AtCorner({
   anchor,
-  order,
+  status,
   at,
-  look,
   pointer = null,
   children,
 }: {
   anchor: string
-  order: number
+  status: string
   at: string
-  look: ReactNode
   pointer?: ReactNode | null
   children: ReactNode
 }) {
@@ -125,7 +173,7 @@ export function AtCorner({
   const id = useId()
   // 絵は描くたびに作り直されるので、描くたびに登録し直す（角のスタンドだけが描き直る）
   useLayoutEffect(() => {
-    corners?.set(id, { anchor, order, at, look, pointer })
+    corners?.set(id, { anchor, status, at, pointer })
   })
   useEffect(() => () => corners?.remove(id), [corners, id])
   const slot = useSyncExternalStore(
@@ -162,13 +210,14 @@ const stop = (e: { stopPropagation(): void }) => e.stopPropagation()
 function CornerStands({ corners }: { corners: Corners }) {
   const t = useMessages(kit)
   const entries = useSyncExternalStore(corners.subscribe, corners.entries, corners.entries)
-  const groups = useMemo(() => cornersByAnchor(entries), [entries])
+  const { statuses } = useCornerStatuses()
+  const groups = useMemo(() => cornersByAnchor(entries, statuses), [entries, statuses])
   return (
     <>
       {[...groups].map(([anchor, group]) => (
-        <Stand key={anchor} anchor={anchor} side="corner" edgePinned label={t("Corner")}>
+        <StandAt key={anchor} anchor={anchor} side="corner" edgePinned label={t("Corner")}>
           <Corner corners={corners} group={group} />
-        </Stand>
+        </StandAt>
       ))}
     </>
   )
@@ -260,8 +309,12 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
         aria-expanded={open}
         onClick={show}
       >
-        <span className={styles.back}>{back.entry.look}</span>
-        <span className={styles.front}>{front.entry.look}</span>
+        <span className={styles.back}>
+          <StatusLook status={back.entry.status} />
+        </span>
+        <span className={styles.front}>
+          <StatusLook status={front.entry.status} />
+        </span>
       </button>
       {open && (
         // biome-ignore lint/a11y/useSemanticElements: 吹き出しは押す物を並べる箱で、入力Formのまとまり（fieldset）ではない
@@ -284,4 +337,11 @@ function Corner({ corners, group }: { corners: Corners; group: readonly PlacedCo
       )}
     </div>
   )
+}
+
+// コーナーステータス status のウィジェットが描く絵（スロットに置いていなければ何も描かない）
+function StatusLook({ status }: { status: string }) {
+  const placed: readonly string[] = useLayout().slots[CORNER_STATUSES] ?? []
+  const View = useUiCatalog().widgets.get(status)?.view as (() => ReactNode) | undefined
+  return placed.includes(status) && View ? <View /> : null
 }

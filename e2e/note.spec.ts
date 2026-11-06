@@ -2,6 +2,7 @@ import { aiAuth, expect, type Page, test } from "./fixtures"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
 import { addBox, items } from "./helpers/paper"
+import { openGeneral, settingsDialog } from "./helpers/settings"
 
 const stands = (page: Page) => page.locator("[data-stand]")
 
@@ -432,4 +433,51 @@ test("角のまとめた絵は、押しても Enter でも開き、離れて少�
   await expect(pointer).toHaveCount(0)
   await stacks.first().hover()
   await expect(bubble).toBeVisible()
+})
+
+test("設定画面の「コーナーステータスの並び」で、角に出す物の種類を前へ・後ろへ入れ替えると、角の吹き出しの並びもその順になる", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const ai = aiAuth()
+  await page.goto("/")
+  const general = await openGeneral(page)
+  const order = general.getByRole("group", { name: "コーナーステータスの並び" })
+  const names = order.getByRole("listitem").locator(":scope > span")
+  await expect(names).toHaveText(["びっくりマーク", "たたんだ伝言", "既読の伝言"])
+  await expect(order.getByRole("button", { name: "びっくりマークを前へ" })).toBeDisabled()
+  await order.getByRole("button", { name: "既読の伝言を前へ" }).click()
+  await order.getByRole("button", { name: "既読の伝言を前へ" }).click()
+  await expect(names).toHaveText(["既読の伝言", "びっくりマーク", "たたんだ伝言"])
+  await order.getByRole("button", { name: "たたんだ伝言を前へ" }).click()
+  await expect(names).toHaveText(["既読の伝言", "たたんだ伝言", "びっくりマーク"])
+  await settingsDialog(page).getByRole("button", { name: "閉じる" }).click()
+
+  // 既読の伝言とびっくりマークを付けると、既読の伝言が先に並ぶ
+  await page.goto("/")
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  await addBox(page, 200, 200, "並")
+  const box = items(page).filter({ hasText: "並" })
+  await writeNote(page, box, "読む")
+  const notes = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as {
+    id: string
+  }[]
+  for (const n of notes)
+    await page.request.post("/api/ai/perform", {
+      headers: ai,
+      data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { book } },
+    })
+  await box.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
+  await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "びっくりマーク" }).click()
+  const stack = page.getByRole("button", { name: "角の 2 件を見る" })
+  await stack.hover()
+  const bubble = page.getByRole("group", { name: "角の物" })
+  await expect(bubble.getByRole("button").nth(0)).toHaveAttribute("data-read", "true")
+  await expect(bubble.getByRole("button").nth(1)).toHaveAccessibleName("びっくりマーク")
+  // 既読の伝言のツールチップは「AI既読: 」と文の始め
+  await expect(bubble.getByRole("button").nth(0)).toHaveAttribute("title", "AI既読: 読む")
 })

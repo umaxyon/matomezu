@@ -1,13 +1,15 @@
 // スタンドの置き場所: アンカーの四角のどちら側に、どれだけ離して立てるか。入らなければ反対の側へ回し、置ける範囲（スタンドのレイヤー）の中に収める
 import type { Point, Rect, Size } from "../../../core/geom"
 
-// corner は右上の角に重ね、edge は上の辺に（すき間を空けずに）乗せる
-export type StandSide = "below" | "above" | "right" | "left" | "corner" | "edge"
+// corner は右上の角に重ね、edge は上の辺に（すき間を空けずに）乗せる。corner は角のスタンド（corner.tsx）だけが使う
+export type StandPlace = "below" | "above" | "right" | "left" | "corner" | "edge"
+// プラグイン API の Stand に書ける側（角はコーナーステータスで出す）
+export type StandSide = Exclude<StandPlace, "corner">
 
 const GAP = 6 // アンカーとのすき間
 export const STAND_MARGIN = 4 // 置ける範囲の端とのすき間
 
-const OPPOSITE: Record<StandSide, StandSide> = {
+const OPPOSITE: Record<StandPlace, StandPlace> = {
   below: "above",
   above: "below",
   right: "left",
@@ -17,8 +19,8 @@ const OPPOSITE: Record<StandSide, StandSide> = {
 }
 
 // アンカーの四角 anchor の side に、大きさ size のスタンドを置く左上（area は置ける範囲の大きさ。左上が 0,0）
-export function standAt(anchor: Rect, size: Size, area: Size, side: StandSide): Point {
-  const fits = (s: StandSide) => {
+export function standAt(anchor: Rect, size: Size, area: Size, side: StandPlace): Point {
+  const fits = (s: StandPlace) => {
     const p = standBeside(anchor, size, s)
     return (
       p.x >= STAND_MARGIN &&
@@ -83,7 +85,7 @@ export function revealShift(anchor: Rect, area: Size, pad = STAND_MARGIN, above 
 }
 
 // アンカーの side に立てる左上（置ける範囲に収めない）: 上下に立てるときは左端をそろえ、左右に立てるときは上端をそろえる。角に立てるときは、真ん中を右上の角に置く。辺に乗せるときは左端をそろえる
-export function standBeside(a: Rect, size: Size, side: StandSide): Point {
+export function standBeside(a: Rect, size: Size, side: StandPlace): Point {
   switch (side) {
     case "below":
       return { x: a.x, y: a.y + a.h + GAP }

@@ -43,6 +43,9 @@ export const NOTE_MESSAGES = defineMessages({
   },
   "Read by AI. Removed in {time}": { en: "Read by AI. Removed in {time}", ja: "AI既読です。あと {time}で消えます" },
   "Read by AI. Removed soon": { en: "Read by AI. Removed soon", ja: "AI既読です。まもなく消えます" },
+  "Folded notes": { en: "Folded notes", ja: "たたんだ伝言" },
+  "Read notes": { en: "Read notes", ja: "既読の伝言" },
+  "Read by AI: {text}": { en: "Read by AI: {text}", ja: "AI既読: {text}" },
   "AI read the note": { en: "AI read the note", ja: "AIが伝言を読みました" },
   "The note was refused": { en: "The note was refused", ja: "伝言を変えられませんでした" },
 })

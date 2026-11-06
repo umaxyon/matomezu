@@ -23,7 +23,7 @@ import {
 import { pointedSelection } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { Stand, useStandAway, useStandFacing } from "../utils/anchors"
-import { AtCorner, useAtCornerBubble } from "../utils/corner"
+import { AtCorner } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import { standFacing } from "../utils/stand-place"
 import { modPressed } from "../utils/ui"
@@ -31,12 +31,10 @@ import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, type NoteProps } from "."
 import { NoteBirds } from "./NoteBirds"
 import styles from "./NoteLayer.module.css"
-import { NEW_NOTE, NOTE_PANEL_ID } from "./panel-id"
+import { FOLDED_NOTE_STATUS_ID, NEW_NOTE, NOTE_PANEL_ID, READ_NOTE_STATUS_ID } from "./panel-id"
 
 export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数（送信トレイの行も同じ）
 const POINTER = 24 // マークポインタの丸の大きさ（マークと同じ）
-const FOLDED_ORDER = 10 // 角の並びの順（マークの 0 の後に、たたんだ伝言、既読の伝言）
-const READ_ORDER = 20
 const TAIL_W = 14 // 吹き出しの尾の幅と高さ（尾の先は左下）
 const TAIL_H = 16
 
@@ -56,7 +54,7 @@ export function NoteLayer({ stage }: StageSlotProps) {
 
 // 伝言の吹き出し・絵・チェックを押したとき: 選択に従う中身を出している間は、物を押したのと同じに選ぶ（Mod なら足す・外す）。
 // 右サイドパネルがほかの物を出している間は閉じるだけ。そうでなければ、伝言 note（付けた先 anchors、吹き出しの物は最後）で開く。
-// busy は、右サイドパネルが、新しく書いている伝言でもこの伝言でもない物を出しているか（角の吹き出しの中の絵とチェックは、その間は薄くして押せない）
+// busy は、右サイドパネルが、新しく書いている伝言でもこの伝言でもない物を出しているか（角の絵とチェックは、その間は薄くして押せない）
 function useOpenNote(stage: string, note: string, anchors: readonly string[]) {
   const openPanel = useOpenRightSidePanel()
   const closePanel = useCloseRightSidePanel()
@@ -88,16 +86,16 @@ interface NoteViewProps {
   props: NoteProps
 }
 
-// AI が読んだ伝言: 物の右上の角に、緑の丸のチェック（角の並びでは、たたんだ伝言の後）
+// AI が読んだ伝言: 物の右上の角に、緑の丸のチェック
 function ReadNote({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const { open, busy } = useOpenNote(stage, id, anchors)
   return (
-    <AtCorner anchor={anchors.at(-1) ?? ""} order={READ_ORDER} at={props.addedAt} look={<ReadCheckLook />}>
+    <AtCorner anchor={anchors.at(-1) ?? ""} status={READ_NOTE_STATUS_ID} at={props.addedAt}>
       <CornerNoteButton
         className={styles.readCheck}
         label={t("Open note")}
-        title={clampChars(props.text, BUBBLE_CHARS)}
+        title={t("Read by AI: {text}", { text: clampChars(props.text, BUBBLE_CHARS) })}
         id={id}
         read
         busy={busy}
@@ -137,7 +135,7 @@ function BubbleStand({ stage, id, anchors, props }: NoteViewProps) {
   )
 }
 
-// たたんだ、読まれていない伝言: 物の右上の角に伝言の絵（角の並びでは、マークの後）
+// たたんだ、読まれていない伝言: 物の右上の角に伝言の絵
 function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
@@ -145,9 +143,8 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
   return (
     <AtCorner
       anchor={anchor}
-      order={FOLDED_ORDER}
+      status={FOLDED_NOTE_STATUS_ID}
       at={props.addedAt}
-      look={<FoldedLook />}
       pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}
     >
       <CornerNoteButton
@@ -164,7 +161,7 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
   )
 }
 
-// 角に出す伝言の押す物: 吹き出しの中で、右サイドパネルがほかの物を出している間（busy）は、薄くして押しても何もしない
+// 角に出す伝言の押す物: 右サイドパネルがほかの伝言を出している間（busy）は、薄くして押しても何もしない（付ける先を替えるときは、物を押す）
 // （disabled にしないのは、ポインタの出入りの知らせを受け、ツールチップも出すため）
 function CornerNoteButton({
   className,
@@ -185,8 +182,7 @@ function CornerNoteButton({
   onClick: (e: MouseEvent<HTMLButtonElement>) => void
   children: ReactNode
 }) {
-  const bubble = useAtCornerBubble()
-  const off = busy && bubble !== "none"
+  const off = busy
   return (
     <button
       type="button"
@@ -203,15 +199,15 @@ function CornerNoteButton({
   )
 }
 
-// まとめた絵に重ねる、たたんだ伝言の絵と既読のチェック（押せない）
-function FoldedLook() {
+// コーナーステータスの絵（まとめた絵に重ねる。押せない）: たたんだ伝言の絵と既読のチェック
+export function FoldedLook() {
   return (
     <span className={styles.folded}>
       <NoteIcon />
     </span>
   )
 }
-function ReadCheckLook() {
+export function ReadCheckLook() {
   return (
     <span className={styles.readCheck}>
       <ReadCheckIcon />

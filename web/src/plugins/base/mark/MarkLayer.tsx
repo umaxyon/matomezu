@@ -27,7 +27,6 @@ import styles from "./MarkLayer.module.css"
 
 const PICK_SIZE = 40 // 種類を選ぶスタンドの鳥の大きさ
 const ALERT = 18 // びっくりマークの丸の大きさ
-const ALERT_ORDER = 0 // 角の並びの順（角に出す物の先頭）
 
 // この画面で付けたばかりのマーク（最初に描くときだけ、飛んでくるか顔を出す）
 const arriving = new Set<string>()
@@ -74,9 +73,8 @@ function MarkStand({
     return (
       <AtCorner
         anchor={anchor}
-        order={ALERT_ORDER}
+        status={ALERT_STATUS_ID}
         at={addedAt}
-        look={<span className={styles.alert}>!</span>}
         pointer={
           <StandPointer center={{ x: ALERT / 2, y: ALERT / 2 }} size={ALERT} label={awayLabel} className={styles.alert}>
             !
@@ -91,6 +89,12 @@ function MarkStand({
       <MarkBird id={id} bird={kind} title={title} awayLabel={awayLabel} onRemove={remove} />
     </Stand>
   )
+}
+
+// コーナーステータスのびっくりマーク（スロット corner-statuses に置くウィジェット）の id と、まとめた絵に重ねる絵
+export const ALERT_STATUS_ID = kit.name("alert-status")
+export function AlertLook() {
+  return <span className={styles.alert}>!</span>
 }
 
 // びっくりマーク: 押すと「外す？」を出す（角の吹き出しの中なら、吹き出しの広がった向きに重ねて出す）
