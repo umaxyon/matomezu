@@ -1,5 +1,5 @@
 // 紙のプラグインの文言（各フォルダの文言を集めたもの）
-import { joinMessages } from "../../plugin-api"
+import { joinMessages } from "../base"
 import { PLACING_MESSAGES } from "./placing/messages"
 import { PAPER_TOOL_MESSAGES } from "./tools/messages"
 import { PAPER_VIEW_MESSAGES } from "./view/messages"

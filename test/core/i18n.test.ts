@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { detectLang, type Params, translate } from "../../web/src/core/i18n/i18n"
-import { defineMessages, joinMessages } from "../../web/src/core/i18n/messages"
+import { defineMessages } from "../../web/src/core/i18n/messages"
+import { joinMessages } from "../../web/src/plugins/base/utils/join-messages"
 import { CORE_CATALOG } from "../support"
 
 test("英語は鍵のまま、ほかの言語は表の訳を出し、{name} を値で置き換える", () => {

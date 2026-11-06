@@ -1,5 +1,4 @@
 // base の文言（各フォルダの文言を集めたもの）
-import { joinMessages } from "../../core/i18n/messages"
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_NEW_MESSAGES } from "./book-new/messages"
 import { BOOK_OPEN_MESSAGES } from "./book-open/messages"
@@ -24,6 +23,7 @@ import { TEXT_MESSAGES } from "./text/messages"
 import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
+import { joinMessages } from "./utils/join-messages"
 import { CHOICE_SETTING_MESSAGES, ELAPSED_MESSAGES } from "./utils/messages"
 import { ZOOM_MESSAGES } from "./zoom/messages"
 
