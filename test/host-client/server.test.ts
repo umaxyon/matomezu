@@ -5,12 +5,13 @@ import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
 
 // 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る。perform はアクションを送られたときの答え（null は送れない）、
-// read は読まれたときの答えの status、data は読まれたときに返す世界。待ち（later）は tick で進める
+// read は読まれたときの答えの status、log はログを送られたときの答えの status、data は読まれたときに返す世界。待ち（later）は tick で進める
 function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: null }) {
   const sent: Record<string, unknown>[] = []
-  const answer: { perform: () => number | null; read: () => number; data: unknown } = {
+  const answer: { perform: () => number | null; read: () => number; log: () => number; data: unknown } = {
     perform: () => 200,
     read: () => 200,
+    log: () => 200,
     data,
   }
   let timers: { run: () => void; ms: number }[] = []
@@ -29,7 +30,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   }
   const host = serverClient({
     fetch: async (url, init) => {
-      if (url === "api/perform" || url === "api/view" || url === "api/warnings")
+      if (url === "api/perform" || url === "api/view" || url === "api/warnings" || url === "api/log")
         sent.push({ url, ...JSON.parse(String(init?.body)) })
       if (url === "api/data") reads++
       if (url === "api/perform") {
@@ -37,7 +38,8 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
         if (status === null) throw new TypeError("Failed to fetch")
         return new Response("{}", { status })
       }
-      return new Response(JSON.stringify(answer.data), { status: url === "api/data" ? answer.read() : 200 })
+      const status = url === "api/data" ? answer.read() : url === "api/log" ? answer.log() : 200
+      return new Response(JSON.stringify(answer.data), { status })
     },
     events: () => events,
     focused: () => true,
@@ -67,11 +69,15 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     for (const t of due) t.run()
   }
   const performs = () => sent.filter(x => x.url === "api/perform")
+  // 常駐のログに送った行（窓の id と文）
+  const logged = () =>
+    sent.filter(x => x.url === "api/log").flatMap(x => (x.lines as { text: string }[]).map(l => [x.client, l.text]))
   return {
     host,
     sent,
     answer,
     performs,
+    logged,
     emit,
     tick,
     fail: () => onError(),
@@ -490,4 +496,44 @@ test("ブックに触れた時刻は、読んだ一覧と touched の知らせ�
   emit("touched", { book: "master", at: "2026-10-27T02:00:00Z" })
   emit("touched", { book: "b1", at: "2026-10-27T00:00:00Z" })
   expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z", master: "2026-10-27T02:00:00Z" })
+})
+
+test("切れている間に書き残した事は、つなぎ直してから新しいつながりの id で常駐のログに送る", async () => {
+  const s = await connected()
+  s.fail()
+  expect(s.logged()).toEqual([])
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.logged()).toEqual([
+    ["c2", "lost the connection to the server"],
+    ["c2", "reconnected as c2 (was c1): sending 0 actions again"],
+  ])
+})
+
+test("常駐のログに送れなければ、次に送るときに一緒に送る", async () => {
+  const s = await connected()
+  s.answer.log = () => 500
+  s.emit("book", { book: b1With("x"), version: 3 })
+  s.emit("book", { book: b1With("old"), version: 2 })
+  await flush()
+  s.answer.log = () => 200
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.logged().slice(1)).toEqual([
+    ["c2", "kept book b1 v3; the notice had v2"],
+    ["c2", "lost the connection to the server"],
+    ["c2", "reconnected as c2 (was c1): sending 0 actions again"],
+    ["c2", "kept book b1 v3; the server has v1"],
+  ])
+})
+
+test("読み直した版が画面の持つ版より古ければ、画面の版を残して常駐のログに書き残す", async () => {
+  const s = await connected()
+  s.emit("book", { book: b1With("x"), version: 3 })
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(itemsOf(s.store)).toEqual(["x"])
+  expect(s.logged().map(l => l[1])).toContain("kept book b1 v3; the server has v1")
 })

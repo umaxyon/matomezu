@@ -9,7 +9,8 @@
 // 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
 // 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く。
 // 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）。
-// 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（組み立て直すため）
+// 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（組み立て直すため）。
+// つながりが切れた・読み直せなかった・古い版を捨てたなどは、常駐のログにも書き残す（POST /api/log。切れている間の分は、つながってから送る）
 import { z } from "zod"
 import { hasPages } from "../core/book"
 import { fail } from "../core/errors"
@@ -75,6 +76,7 @@ const browserNet: Net = {
 const RETRY_MS = 2000 // 届かなかったアクションを送り直すまで
 const MAX_TRIES = 3 // 常駐が 5xx を返したアクションを送る回数（超えたら外す）
 export const OFFLINE_MS = 10_000 // つながりがこれより長く切れたままなら、切れていると見せる
+const MAX_NOTES = 50 // 常駐に送れずにためておく、書き残す事の数（超えたら古い方を捨てる）
 
 // まだ確かめられていない自分のアクション。sentTo は送り届けたつながりの番号（まだなら 0）、tries は常駐が 5xx を返した回数
 interface Pending {
@@ -190,6 +192,28 @@ export function serverClient(net: Net = browserNet): ServerClient {
       })
       .catch(() => {})
   }
+  let notes: { at: string; text: string }[] = [] // 常駐のログにまだ送っていない、書き残す事
+  const tellNotes = () => {
+    if (!online || !client || notes.length === 0) return
+    const lines = notes
+    notes = []
+    const back = () => {
+      notes = [...lines, ...notes].slice(-MAX_NOTES)
+    }
+    void net
+      .fetch("api/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client, lines }),
+      })
+      .then(res => res.ok || back(), back)
+  }
+  // 画面のコンソールに出し、常駐のログにも書き残す
+  const note = (text: string, ...more: unknown[]) => {
+    console.warn(text, ...more)
+    notes = [...notes, { at: new Date().toISOString(), text: [text, ...more.map(String)].join(" ") }].slice(-MAX_NOTES)
+    tellNotes()
+  }
   let seq = 0
   let instance: MatomezuInstance | null = null
   let events: Events | null = null
@@ -204,7 +228,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   }
   // 送り直しても届かなかったアクションを外し、トーストで知らせる
   const drop = (p: Pending, why: string) => {
-    console.warn(`action ${p.done.action} is not saved:`, why)
+    note(`action ${p.done.action} is not saved:`, why)
     pending = pending.filter(q => q !== p)
     show()
     instance?.actions.showToast({ kind: "warn", message: "An edit could not be saved" })
@@ -280,6 +304,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       const now = confirmed.get(b.id)
       if (during.has(b.id) && !now) continue
       if (!now || now.version < b.version) confirmed.set(b.id, { book: b.book, version: b.version })
+      else if (now.version > b.version) note(`kept book ${b.id} v${now.version}; the server has v${b.version}`)
     }
     settings = data.settings ?? undefined
     annotations = data.annotations ?? {}
@@ -298,7 +323,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         void pump()
       },
       e => {
-        console.warn("could not read the server again:", e)
+        note("could not read the server again:", e)
         show()
         void pump()
         if (at === link) net.later(() => at === link && reread(at), RETRY_MS)
@@ -319,11 +344,13 @@ export function serverClient(net: Net = browserNet): ServerClient {
           return
         }
         // つなぎ直しはブラウザに任せる（つながると hello が来る）。長く切れたままなら、切れていると見せる
-        if (online) console.info("lost the connection to the server")
+        const was = online
         online = false
+        if (was) note("lost the connection to the server")
         offlineTimer ??= net.later(() => instance?.setOffline(true), OFFLINE_MS)
       })
       source.on("hello", data => {
+        const was = client
         client = HelloSchema.parse(JSON.parse(data)).client
         link += 1
         online = true
@@ -337,7 +364,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         offlineTimer?.()
         offlineTimer = null
         instance?.setOffline(false)
-        if (pending.length > 0) console.info(`reconnected: sending ${pending.length} actions again`)
+        note(`reconnected as ${client} (was ${was}): sending ${pending.length} actions again`)
         tellWarnings()
         reread(link)
       })
@@ -345,6 +372,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         const e = BookSchema.parse(JSON.parse(data))
         const have = confirmed.get(e.book.id)
         if (!have || have.version < e.version) confirmed.set(e.book.id, { book: e.book, version: e.version })
+        else if (have.version > e.version) note(`kept book ${e.book.id} v${have.version}; the notice had v${e.version}`)
         changed(e.book.id)
         settle(e)
         show()
