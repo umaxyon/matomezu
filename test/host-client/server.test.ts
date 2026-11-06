@@ -17,6 +17,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   }
   let timers: { run: () => void; ms: number }[] = []
   const made = new Map<number, number>() // 待ちの長さ → 作った数
+  let clock = 0 // 壁時計（待ちとは別に、pass で進める。スリープの間に待ちが進まないのを真似る）
   let keys = 0
   let listeners = new Map<string, (data: string) => void>()
   let onError = () => {}
@@ -72,6 +73,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
       }
     },
     newKey: () => `k${++keys}`,
+    now: () => clock,
   })
   const emit = (name: string, v: unknown) => listeners.get(name)?.(JSON.stringify(v))
   // ms 以下の待ちを全部進める（黙って切れたとみる QUIET_MS の待ちは、言われたときだけ）
@@ -98,6 +100,9 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     closed: () => closed,
     waiting: (ms: number) => timers.filter(t => t.ms === ms).length,
     scheduled: (ms: number) => made.get(ms) ?? 0,
+    pass: (ms: number) => {
+      clock += ms
+    },
     focus: () => focus(),
     reloads: () => reloads,
   }
@@ -176,6 +181,7 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
     reload: () => {},
     later: () => () => {},
     newKey: () => "k",
+    now: () => 0,
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
@@ -410,6 +416,7 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
     reload: () => {},
     later: () => () => {},
     newKey: () => "k",
+    now: () => 0,
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
@@ -596,4 +603,23 @@ test("つなぎ直したら、見ているものを新しいつながりの id �
   s.emit("hello", { client: "c2" })
   await flush()
   expect(s.sent.filter(x => x.url === "api/view").map(x => x.client)).toEqual(["c1", "c2"])
+})
+
+test("フォーカスされたとき、壁時計で QUIET_MS 何も届いていなければ、待ちを待たずにつなぎ直す", async () => {
+  const s = await connected()
+  s.pass(QUIET_MS - 1)
+  s.focus()
+  expect(s.opened()).toBe(1)
+  s.emit("keep", {})
+  s.pass(QUIET_MS)
+  s.focus()
+  expect([s.opened(), s.closed()]).toEqual([2, 1])
+  expect(s.logged().map(l => l[1])).toEqual([])
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.reads()).toBe(2)
+  expect(s.logged().map(l => l[1])).toEqual([
+    "no event for 60s by the clock; connecting again",
+    "reconnected as c2 (was c1): sending 0 actions again",
+  ])
 })

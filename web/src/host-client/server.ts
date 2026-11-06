@@ -7,6 +7,7 @@
 // 送り直しても届かなかったものだけを外してトーストで知らせる。つながりが OFFLINE_MS より長く切れたままなら store に知らせる（setOffline）。
 // つながっていない間も画面の編集は止めず、つながったらまとめて送る。
 // つなぎ直しはブラウザに任せるが、スリープなどで黙って切れたつながりはブラウザが気づかないので、知らせ（常駐が送る keep も）が QUIET_MS 届かなければ、自分で閉じてつなぎ直す。
+// スリープの間は待ちが進まないことがあるので、窓がフォーカスされたときにも、壁時計で QUIET_MS 過ぎていれば、すぐつなぎ直す。
 // 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
 // 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く。
 // 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）。
@@ -35,6 +36,7 @@ export interface Net {
   reload(): void // 画面を読み直す
   later(run: () => void, ms: number): () => void // ms 後に run を呼ぶ。取り消す関数を返す
   newKey(): string // アクションの一意の番号
+  now(): number // 壁時計の時刻（ミリ秒。スリープの間も進む）
 }
 export interface Events {
   on(name: string, listener: (data: string) => void): void
@@ -72,6 +74,7 @@ const browserNet: Net = {
     return () => clearTimeout(timer)
   },
   newKey: () => crypto.randomUUID(),
+  now: () => Date.now(),
 }
 
 const RETRY_MS = 2000 // 届かなかったアクションを送り直すまで
@@ -350,17 +353,27 @@ export function serverClient(net: Net = browserNet): ServerClient {
     if (was) logLine(why)
     offlineTimer ??= net.later(() => instance?.setOffline(true), OFFLINE_MS)
   }
-  let quietTimer: (() => void) | null = null // 黙って切れたとみるまでの待ち（取り消す関数）
-  // 知らせが届くたびに待ち直す。QUIET_MS 何も届かなければ、つながりが黙って切れたとみて、閉じてつなぎ直す（つながると hello が来る）
-  const heard = (source: Events) => {
+  let quietTimer: (() => void) | null = null // 黙って切れたとみるまでの待ち（取り消す関数。見張っていなければ null）
+  let heardAt = 0 // 最後に知らせが届いた（つなぎ直し始めた）壁時計の時刻
+  // 黙って切れたとみて、閉じてつなぎ直す（つながると hello が来る）
+  const reconnect = (source: Events, why: string) => {
+    if (events !== source) return
     quietTimer?.()
-    quietTimer = net.later(() => {
-      quietTimer = null
-      if (events !== source) return
-      lost(`no event for ${QUIET_MS / 1000}s; connecting again`)
-      source.close()
-      attach(net.events("api/events"), null)
-    }, QUIET_MS)
+    quietTimer = null
+    lost(why)
+    source.close()
+    attach(net.events("api/events"), null)
+  }
+  // 知らせが届くたびに待ち直す。QUIET_MS 何も届かなければ、つなぎ直す
+  const heard = (source: Events) => {
+    heardAt = net.now()
+    quietTimer?.()
+    quietTimer = net.later(() => reconnect(source, `no event for ${QUIET_MS / 1000}s; connecting again`), QUIET_MS)
+  }
+  // 見張っている間に、壁時計で QUIET_MS 何も届いていなければ、待ちを待たずにつなぎ直す（スリープ明けにフォーカスされたとき）
+  const checkQuiet = () => {
+    if (quietTimer && events && net.now() - heardAt >= QUIET_MS)
+      reconnect(events, `no event for ${Math.round((net.now() - heardAt) / 1000)}s by the clock; connecting again`)
   }
   // 知らせを受ける処理を source に付ける。first はつながって最初の hello を待つ間だけの約束（hello で果たし、つながらなければ NoServer で断る）
   const attach = (source: Events, first: { resolve: () => void; reject: (e: unknown) => void } | null) => {
@@ -527,7 +540,10 @@ export function serverClient(net: Net = browserNet): ServerClient {
         tell(net.focused())
       }
       const stopView = next.state.subscribe(() => tell(false))
-      const stopFocus = net.onFocus(() => tell(true))
+      const stopFocus = net.onFocus(() => {
+        checkQuiet()
+        tell(true)
+      })
       return () => {
         stopView()
         stopFocus()
