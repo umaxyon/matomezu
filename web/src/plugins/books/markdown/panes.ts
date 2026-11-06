@@ -1,5 +1,5 @@
 // マークダウンのビューのペイン（見せ方のビューの中を分けた、1 つの見る所）: 原文を見せるソースのペインと、描いた文書を見せるペイン。
-// 並べ方は、ステージごとの画面の状態（このプラグインの置き場）に持つ。左右（row）か上下（column）に 2 つ並べるか、1 つだけ（one）見せて上辺のペインのタブで切り替える。
+// 並べ方は、ステージごとの画面の状態（このプラグインの置き場）に持つ。左右（row）か上下（column）に 2 つ並べるか、1 つだけ見せる（shown）。
 // 置き場に何も無ければ、ソースを左・描いた文書を右に並べる
 export const PANES = ["source", "rendered"] as const
 export type Pane = (typeof PANES)[number]
@@ -16,8 +16,8 @@ export function paneLayoutOf(state: unknown): PaneLayout {
   return DEFAULT
 }
 
-// 分割をやめ、閉じたペイン closed でない方を残す（ステージを閉じるのと同じ）
-export const unsplit = (closed: Pane): PaneLayout => ({
-  split: null,
-  shown: closed === "source" ? "rendered" : "source",
-})
+// 2 つの並べ方が同じか
+export function sameLayout(a: PaneLayout, b: PaneLayout): boolean {
+  if (a.split === null && b.split === null) return a.shown === b.shown
+  return a.split === b.split
+}

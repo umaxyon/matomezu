@@ -7,7 +7,7 @@ import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { paneLayoutOf } from "../../web/src/plugins/books/markdown/panes"
 import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
-import { isShown } from "../../web/src/store/commands"
+import { isActive, isShown } from "../../web/src/store/commands"
 import type { DoneAction as Done } from "../../web/src/store/store"
 import { newStore } from "../support"
 
@@ -74,35 +74,48 @@ test("find が無い・2 か所以上（重なりも数える）・text と一�
   expect(book().pages[0]!.text).toBe("aaa")
 })
 
-test("ペインの並べ方: 何も無ければ左右に並べる。分割を閉じると、右クリックしたペインを閉じてもう一方を残す", () => {
+test("ペインの並べ方: 何も無ければ左右に並べる。形に合わなければ左右", () => {
   expect(paneLayoutOf(undefined)).toEqual({ split: "row" })
   expect(paneLayoutOf({ split: "column" })).toEqual({ split: "column" })
   expect(paneLayoutOf({ split: null, shown: "rendered" })).toEqual({ split: null, shown: "rendered" })
   expect(paneLayoutOf({ split: "diagonal" })).toEqual({ split: "row" })
 })
 
-test("並べている間は「分割を閉じる」だけ、1 つだけ見せている間は縦分割・横分割だけを出す。並べ方はそのステージだけに効く", () => {
+const LAYOUT_COMMANDS = [
+  "@matomezu/markdown:pane-show-source",
+  "@matomezu/markdown:pane-split-row",
+  "@matomezu/markdown:pane-split-column",
+  "@matomezu/markdown:pane-show-rendered",
+] as const
+
+test("並べ方の 4 つのコマンドは、押すとその並べ方にし、今の並べ方のコマンドだけが押した状態。並べ方はそのステージだけに効く", () => {
   const { store } = markdownStore()
   const { state, actions } = store
-  const shown = (stage: string) =>
-    (
-      [
-        "@matomezu/markdown:pane-split-row",
-        "@matomezu/markdown:pane-split-column",
-        "@matomezu/markdown:pane-unsplit",
-      ] as const
-    ).filter(c => isShown(store, state.getState(), stage, c))
-  expect(shown("s1")).toEqual(["@matomezu/markdown:pane-unsplit"])
-  actions.command("s1", "@matomezu/markdown:pane-unsplit", { pane: "rendered" })
+  const active = (stage: string) => LAYOUT_COMMANDS.filter(c => isActive(store, state.getState(), stage, c))
+  expect(active("s1")).toEqual(["@matomezu/markdown:pane-split-row"])
+  actions.command("s1", "@matomezu/markdown:pane-show-source")
   expect(state.getState().stageStates.s1?.["@matomezu/markdown"]).toEqual({ split: null, shown: "source" })
-  expect(shown("s1")).toEqual(["@matomezu/markdown:pane-split-row", "@matomezu/markdown:pane-split-column"])
+  expect(active("s1")).toEqual(["@matomezu/markdown:pane-show-source"])
+  actions.command("s1", "@matomezu/markdown:pane-show-rendered")
+  expect(active("s1")).toEqual(["@matomezu/markdown:pane-show-rendered"])
   actions.command("s1", "@matomezu/markdown:pane-split-column")
   expect(paneLayoutOf(state.getState().stageStates.s1?.["@matomezu/markdown"])).toEqual({ split: "column" })
+  expect(active("s1")).toEqual(["@matomezu/markdown:pane-split-column"])
 })
 
-test("ほかのタイプのブックでは、ペインの分割のコマンドを出さない", () => {
+test("ページの設定の項目を持たないタイプでも、ページの設定のコマンドを出し、base のページの設定のダイアログを開く（名前・紙・削除を変えられる）", () => {
+  const { store, book } = markdownStore()
+  expect(isShown(store, store.state.getState(), "s1", "@matomezu/base:page-settings")).toBe(true)
+  expect(store.actions.command("s1", "@matomezu/base:page-settings")).toBe(true)
+  expect(store.state.getState().dialog).toMatchObject({
+    id: "@matomezu/base:page-settings",
+    args: { page: book().pages[0]!.id },
+  })
+})
+
+test("ほかのタイプのブックでは、ペインの並べ方のコマンドを出さない", () => {
   const store = newStore()
-  expect(isShown(store, store.state.getState(), "s1", "@matomezu/markdown:pane-unsplit")).toBe(false)
+  expect(LAYOUT_COMMANDS.filter(c => isShown(store, store.state.getState(), "s1", c))).toEqual([])
 })
 
 test("ページを切り替えても、紙を変えても、ステージに紙を置かない。紙で決まる倍率・道具のアイコンのコマンドは出さない", () => {

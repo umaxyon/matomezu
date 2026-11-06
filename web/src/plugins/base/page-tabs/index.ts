@@ -5,7 +5,6 @@ import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
-import { settingDefs } from "../book-settings"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import { PAGE_ADD } from "./page-add"
@@ -54,7 +53,7 @@ export const PAGE_OPEN = kit.defineCommand({
 })
 
 // 開いているページの設定のダイアログを開く（ブックのタイプが page-update を使えるブックだけ。
-// base のダイアログなら、ページの設定の項目を選んでいるタイプだけ）
+// base のダイアログは、ページの設定の項目が無いタイプでも、名前・紙・ロック・削除を持つ）
 export const PAGE_SETTINGS = kit.defineCommand({
   id: "page-settings",
   performs: [PAGE_UPDATE.id, PAGE_LOCK.id, PAGE_UNLOCK.id],
@@ -64,9 +63,5 @@ export const PAGE_SETTINGS = kit.defineCommand({
     const page = ctx.stage.opened?.page
     if (page && ctx.book) a.openDialog(ctx.stage.id, pageDialog(ctx.catalog, ctx.book, "settings"), { page })
   },
-  when: ctx =>
-    ctx.book !== null &&
-    ctx.stage.opened?.page != null &&
-    (pageDialog(ctx.catalog, ctx.book, "settings") !== PAGE_SETTINGS_DIALOG.id ||
-      settingDefs(ctx.catalog, ctx.book.type, "page").length > 0),
+  when: ctx => ctx.book !== null && ctx.stage.opened?.page != null,
 })

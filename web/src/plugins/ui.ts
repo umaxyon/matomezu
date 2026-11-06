@@ -125,9 +125,11 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:book-settings",
     ],
     "@matomezu/markdown:pane-context": [
-      "@matomezu/markdown:pane-split-row",
-      "@matomezu/markdown:pane-split-column",
-      "@matomezu/markdown:pane-unsplit",
+      "@matomezu/base:stage-split",
+      "@matomezu/base:stage-close",
+      "-",
+      "@matomezu/base:page-settings",
+      "@matomezu/base:book-settings",
     ],
     "@matomezu/tree:node-context": [
       "@matomezu/tree:node-edit",

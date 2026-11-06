@@ -60,7 +60,13 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
       locked,
       () => perform(PAGE_LOCK.id, { page: page.id }).ok,
       () => perform(PAGE_UNLOCK.id, { page: page.id }).ok,
-      () => perform(PAGE_UPDATE.id, { page: page.id, title, settings: settings.patch, ...paper.patch }).ok,
+      () =>
+        perform(PAGE_UPDATE.id, {
+          page: page.id,
+          title,
+          ...(changed ? { settings: settings.patch } : {}), // ページの設定の項目を持たないタイプは settings を受けない
+          ...paper.patch,
+        }).ok,
     )
     if (done) onClose()
   }

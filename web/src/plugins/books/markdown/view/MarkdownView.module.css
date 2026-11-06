@@ -1,4 +1,4 @@
-/* ステージいっぱいの入れ物（上辺のペインのタブと、ペインを並べる所） */
+/* ステージいっぱいの入れ物（上の行と、ペインを並べる所） */
 .markdown {
   position: absolute;
   inset: 0;
@@ -30,25 +30,42 @@
 .markdown[data-split="column"] .pane + .pane {
   border-top: 1px solid var(--theme-line);
 }
-.tabs {
+/* 上の行: いつも出し、右端に並べ方のボタン */
+.bar {
   display: flex;
-  gap: 2px;
-  padding: 4px 8px 0;
+  justify-content: flex-end;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--theme-line);
 }
-.tab {
-  padding: 4px 12px;
+.layouts {
+  display: flex;
+  gap: 2px;
+}
+.layout {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: 4px;
   background: none;
   color: var(--skin-text-muted);
-  font: inherit;
-  font-size: 12px;
   cursor: pointer;
 }
-.tab[aria-selected="true"] {
-  border-bottom-color: var(--skin-accent);
-  color: var(--theme-text);
+.layout:hover {
+  background: var(--skin-btn-hover);
+}
+.layout[aria-pressed="true"] {
+  background: var(--skin-surface-strong);
+  color: var(--skin-accent);
+}
+/* 並べている間の、ペインごとの名前の見出し */
+.heading {
+  padding: 3px 12px;
+  border-bottom: 1px solid var(--theme-line);
+  color: var(--skin-text-muted);
+  font-size: 11px;
 }
 /* ペインの中のスクロール */
 .scroll {
