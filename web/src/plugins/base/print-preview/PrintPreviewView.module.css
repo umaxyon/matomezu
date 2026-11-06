@@ -2,6 +2,9 @@
 .sheet {
   position: absolute;
   overflow: hidden;
+  /* 大きさは並べ方が決めるので、中は紙ごとに閉じて並べ、表示領域の外の紙は描かない（紙が多いときに、変えた紙だけを並べ直すよう） */
+  contain: strict;
+  content-visibility: auto;
   background: var(--theme-paper);
   box-shadow:
     0 0 0 1px var(--theme-paper-line),

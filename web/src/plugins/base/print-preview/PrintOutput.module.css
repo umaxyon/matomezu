@@ -7,6 +7,8 @@
   pointer-events: none;
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
+  /* 画面では中身を並べない（設定を変えるたびに、見えない紙の全部を並べ直さないよう） */
+  content-visibility: hidden;
 }
 /* 印刷区画 1 つ（紙 1 枚。紙ちょうどの大きさで、はみ出した所は切る） */
 .page {
@@ -21,5 +23,6 @@
   .output {
     position: static;
     visibility: visible;
+    content-visibility: visible;
   }
 }
