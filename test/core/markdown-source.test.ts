@@ -1,6 +1,6 @@
 // ソースのペインで書いた原文の送り方（markdown の source-edit.ts）・スクロールの付いて行き方（scroll-sync.ts）・Tab キーで書く字（tab-key.ts）
 import { expect, test } from "bun:test"
-import { followScroll, sourcePieces } from "../../web/src/plugins/books/markdown/scroll-sync"
+import { blankRuns, followScroll, sourceLines } from "../../web/src/plugins/books/markdown/scroll-sync"
 import {
   caretMoved,
   followCaret,
@@ -67,15 +67,35 @@ test("スクロール: 片方に無いブロック・いちばん下より先の
   expect(followScroll(marks(100, [1, 50], [2, 60]), marks(100, [1, 50], [2, 20]), 60)).toBe(60)
 })
 
-test("ソースの原文をブロックの始まりで切る（最初は 0 から。原文の外の位置は使わない）", () => {
-  expect(sourcePieces("ab\n\ncd", [0, 4])).toEqual([
-    { start: 0, text: "ab\n\n" },
-    { start: 4, text: "cd" },
+test("ソースの原文を行に分け、行の中をブロックの始まりで切る（行の番号は 1 から。原文の外の位置は使わない。最後の改行の後ろも 1 行）", () => {
+  expect(sourceLines("ab\n\ncd", [0, 4])).toEqual([
+    { n: 1, start: 0, pieces: [{ start: 0, text: "ab", block: true }] },
+    { n: 2, start: 3, pieces: [{ start: 3, text: "", block: false }] },
+    { n: 3, start: 4, pieces: [{ start: 4, text: "cd", block: true }] },
   ])
-  expect(sourcePieces("\nab", [1, 9])).toEqual([
-    { start: 0, text: "\n" },
-    { start: 1, text: "ab" },
+  expect(sourceLines("\nab\n", [1, 9])).toEqual([
+    { n: 1, start: 0, pieces: [{ start: 0, text: "", block: true }] },
+    { n: 2, start: 1, pieces: [{ start: 1, text: "ab", block: true }] },
+    { n: 3, start: 4, pieces: [{ start: 4, text: "", block: false }] },
   ])
+  // 行の途中で始まるブロックは、そこで切る
+  expect(sourceLines("a b", [2])[0]!.pieces).toEqual([
+    { start: 0, text: "a ", block: true },
+    { start: 2, text: "b", block: true },
+  ])
+})
+
+test("空白の印: 半角スペース・全角スペース・Tab を 1 字ずつに分け、ほかの字は続けたまま", () => {
+  expect(blankRuns("a  b\u3000\tcd")).toEqual([
+    { text: "a", blank: null },
+    { text: " ", blank: "space" },
+    { text: " ", blank: "space" },
+    { text: "b", blank: null },
+    { text: "\u3000", blank: "wide" },
+    { text: "\t", blank: "tab" },
+    { text: "cd", blank: null },
+  ])
+  expect(blankRuns("")).toEqual([])
 })
 
 test("Tab キーで書く字は、Tab 文字か、覚えている数の半角スペース（形に合わなければ Tab 文字）", () => {

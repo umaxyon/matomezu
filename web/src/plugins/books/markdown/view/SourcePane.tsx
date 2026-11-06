@@ -2,9 +2,12 @@
 // 続けて書いた物は 1 つの画面の履歴の段にまとめる（いつ切るかは source-edit.ts。日本語の変換中は、書く所の動きを見ない）。
 // ほかから原文が変わったら（AI・元に戻す・送れなかったなど）、書いている物をページの原文にし、書く所をずらして保つ。日本語の変換中は送らず、変換が終わってから送る・合わせる。
 // 行えなければ（ロック中など）書けない。Tab キーは利用者の設定の項目（tab-key.ts）の字を書く。元に戻す・やり直すのキーは、このテキストFormが名乗るキーの範囲で base のコマンドに渡し、テキストForm自身の元に戻すは使わない。
-// テキストFormは、同じ原文を同じ字の並びで写した物（ブロックごとに切った、見えない写し）に重ね、写しの高さで伸ばす（ペインがスクロールする。ブロックの上端は写しで測る）
+// テキストFormは、同じ原文を同じ字の並びで写した物（行ごとに分け、行の中をブロックごとに切った、見えない写し）に重ね、写しの高さで伸ばす（ペインがスクロールする。ブロックの上端は写しで測る）。
+// 利用者の設定で、写しの上に印を描く（字は足さない）: 左の列の行番号、カーソルのある行の下線（折り返した行は最後の見た目の行の下）、空白（半角・全角・Tab）の印
 import {
   type ChangeEvent,
+  type CSSProperties,
+  Fragment,
   type KeyboardEvent,
   type RefObject,
   useEffect,
@@ -16,8 +19,9 @@ import {
 import { useActions, useAllowed, usePerform, useUserSetting } from "../../../../plugin-api/ui"
 import type { MarkdownDocument } from "../../../base"
 import { SOURCE_KEYS_SCOPE } from "../markdown"
-import { sourcePieces } from "../scroll-sync"
+import { blankRuns, sourceLines } from "../scroll-sync"
 import { caretMoved, followCaret, PAUSED, planWrite, type Writing, wrote } from "../source-edit"
+import { CURRENT_LINE, LINE_NUMBERS, SHOW_WHITESPACE } from "../source-look"
 import { TAB_KEY, tabKeyText } from "../tab-key"
 import styles from "./MarkdownView.module.css"
 
@@ -36,6 +40,10 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
   const { continueStep } = useActions()
   const allowed = useAllowed(stage, "@matomezu/base:page-update", { page })
   const tab = tabKeyText(useUserSetting(TAB_KEY.id))
+  const numbered = useUserSetting(LINE_NUMBERS.id) === true
+  const underlined = useUserSetting(CURRENT_LINE.id) === true
+  const blanks = useUserSetting(SHOW_WHITESPACE.id) === true
+  const [caretLine, setCaretLine] = useState<number | null>(null) // 書く所のある行の番号（テキストFormにフォーカスがある間）
   const [draft, setDraft] = useState(text)
   const field = useRef<HTMLTextAreaElement>(null)
   const base = useRef(text) // 書いている物の元にした、ページの原文
@@ -96,6 +104,7 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
   const onSelect = () => {
     const el = field.current
     if (el && !composing.current) writing.current = caretMoved(writing.current, el.selectionStart, el.selectionEnd)
+    if (el) setCaretLine(lineAt(el.value, el.selectionStart))
   }
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== "Tab" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return
@@ -116,25 +125,53 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
     return () => el?.removeEventListener("beforeinput", stop)
   }, [])
 
-  const pieces = useMemo(
+  const lines = useMemo(
     () =>
-      sourcePieces(
+      sourceLines(
         draft,
         document.blocks.map(b => b.range.start),
       ),
     [draft, document],
   )
+  const look = { "--source-gutter": numbered ? `${String(lines.length).length + 2}ch` : "0px" } as CSSProperties
+  const shown = (text: string) =>
+    blanks
+      ? blankRuns(text).map((r, i) =>
+          r.blank ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 字の並びの中の位置で区別する
+            <span key={i} className={styles.blank} data-blank={r.blank}>
+              {r.text}
+            </span>
+          ) : (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 字の並びの中の位置で区別する
+            <Fragment key={i}>{r.text}</Fragment>
+          ),
+        )
+      : text
   return (
     <div ref={scrollRef} className={styles.scroll} onScroll={onScroll}>
-      <div className={styles.sourceBox}>
+      <div className={styles.sourceBox} style={look} data-line-numbers={numbered}>
         <pre className={`${styles.source} ${styles.sourceCopy}`} aria-hidden>
-          {pieces.map(p => (
-            <span key={p.start} data-markdown-block={p.start}>
-              {p.text}
-            </span>
+          {lines.map(line => (
+            <div
+              key={line.start}
+              className={styles.line}
+              data-line={line.n}
+              data-current={underlined && line.n === caretLine ? true : undefined}
+            >
+              {line.pieces.map(p =>
+                p.block ? (
+                  <span key={p.start} data-markdown-block={p.start}>
+                    {shown(p.text)}
+                  </span>
+                ) : (
+                  <Fragment key={p.start}>{shown(p.text)}</Fragment>
+                ),
+              )}
+              {/* 空の行も、テキストFormと同じ高さにする（幅の無い字） */}
+              {line.pieces.every(p => p.text === "") && "\u200b"}
+            </div>
           ))}
-          {/* 最後の改行の後ろの行も、テキストFormと同じ高さにする（幅の無い字） */}
-          {"\u200b"}
         </pre>
         <textarea
           ref={field}
@@ -146,8 +183,10 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
           onChange={onChange}
           onSelect={onSelect}
           onKeyDown={onKeyDown}
+          onFocus={e => setCaretLine(lineAt(e.currentTarget.value, e.currentTarget.selectionStart))}
           onBlur={() => {
             writing.current = PAUSED
+            setCaretLine(null)
           }}
           onCompositionStart={() => {
             composing.current = true
@@ -162,3 +201,6 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
     </div>
   )
 }
+
+// 原文 text の位置 at がある行の番号（1 から）
+const lineAt = (text: string, at: number): number => text.slice(0, at).split("\n").length
