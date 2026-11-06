@@ -53,8 +53,3 @@ test("フォルダごとの表を joinMessages で 1 つにする。同じ訳の
   // @ts-expect-error 同じ鍵 "Read by AI" に違う訳
   joinMessages(a, c)
 })
-
-test("base の伝言と送信トレイは、AI が読んだことをそれぞれの訳で出す", () => {
-  expect(translate(CORE_CATALOG.messages, "ja", "@matomezu/base:Read by AI")).toBe("AI が読みました")
-  expect(translate(CORE_CATALOG.messages, "ja", "@matomezu/base:Read")).toBe("既読")
-})

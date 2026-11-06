@@ -159,6 +159,14 @@ test("matomezu が出す名前", () => {
   ])
 })
 
+test("matomezu/ui の Stand は角（side の corner）に立てられない（角に出す物はコーナーステータスで出す）", () => {
+  type Side = NonNullable<Parameters<typeof ui.Stand>[0]["side"]>
+  // @ts-expect-error 角は Stand の side に書けない
+  const corner: Side = "corner"
+  const edge: Side = "edge"
+  expect([String(corner), String(edge)]).toEqual(["corner", "edge"])
+})
+
 test("ビルトインの印（defineBuiltin）は外に出さない（追加プラグインがキーバインドでビルトインとして扱われないように）", () => {
   expect("defineBuiltin" in api).toBe(false)
 })
@@ -168,7 +176,9 @@ test("matomezu/ui が出す名前", () => {
     "ALIGN_ICONS",
     "ANNOTATION_ICON",
     "ActionButton",
+    "AtCorner",
     "BodyField",
+    "CORNER_STATUSES",
     "CaptionField",
     "ChoiceSetting",
     "Choices",
@@ -202,6 +212,7 @@ test("matomezu/ui が出す名前", () => {
     "UserSettings",
     "controlClass",
     "defineAnnotationIcon",
+    "defineCornerStatus",
     "defineLayout",
     "defineLeftSidePanelTab",
     "definePluginUi",
@@ -219,6 +230,7 @@ test("matomezu/ui が出す名前", () => {
     "useAllowed",
     "useAllowedOn",
     "useAnchorRef",
+    "useAtCornerBubble",
     "useBodyGrips",
     "useBook",
     "useBookOf",

@@ -21,6 +21,11 @@
   transform: translateX(-50%);
   pointer-events: auto;
 }
+/* 押す物の下に出すとき */
+.below .askBubble {
+  top: 100%;
+  bottom: auto;
+}
 /* 鳥の足元に置いたとき: 吹き出しを鳥の上に出す */
 .onBird .askBubble {
   bottom: 48px;
