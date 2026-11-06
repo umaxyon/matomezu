@@ -1,5 +1,6 @@
 // 郵便: AI が手紙を送ると、フォーカスのある窓にマーキーが流れ、画面の上からしおりがぶら下がる。左サイドパネルを開くボタンと郵便箱のタブに未読の数が出る。
-// しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、「移動」で行き先へ移る（行き先を見たことになる）。行き先が無ければ「行き先がありません」
+// しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、下の行の「開く」などで行き先へ移る（行き先を見たことになる）。指す物には鳥が来て枠が光る。
+// 行き先が無ければ「行き先がありません」と「閉じる」だけ
 import { aiAuth, expect, type Page, test } from "./fixtures"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -25,7 +26,7 @@ async function ready(page: Page): Promise<string> {
   return ((await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }).book
 }
 
-test("AI が手紙を送るとマーキーとしおりが出て、未読の数が出る。しおりを押すとダイアログで本文が見え、移動で行き先の箱を見せる。AI はどちらも見たと知れる", async ({
+test("AI が手紙を送るとマーキーとしおりが出て、未読の数が出る。しおりを押すとダイアログで本文が見え、開くで行き先の箱を見せ、鳥と光る枠が来て去る。AI はどちらも見たと知れる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -49,13 +50,53 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
   // 見たことになり、しおりは消える
   await expect.poll(async () => !!(await mailbox(page))[0]?.seenAt).toBe(true)
   await expect(bookmark).toHaveCount(0)
-  await dialog.getByRole("button", { name: "移動" }).click()
+  // 1 画面なら、キャンセル・開く・分割で開く
+  await expect(dialog.getByRole("button")).toHaveText(["キャンセル", "開く", "分割で開く"])
+  await dialog.getByRole("button", { name: "開く", exact: true }).click()
   await expect(dialog).toHaveCount(0)
   await expect.poll(async () => !!(await mailbox(page))[0]?.visitedAt).toBe(true)
   const stage = (await page.locator("[data-stage]").boundingBox())!
   const b = (await items(page).filter({ hasText: "遠く" }).boundingBox())!
   expect(b.x).toBeGreaterThan(stage.x)
   expect(b.x + b.width).toBeLessThan(stage.x + stage.width)
+  // 指す物に鳥が来て枠が光り、鳥が去ると枠も消える
+  await expect(page.locator("[data-mail-bird]")).toBeVisible()
+  await expect(page.locator("[data-anchor-frame]")).toBeVisible()
+  await expect(page.locator("[data-mail-bird]")).toHaveCount(0, { timeout: 10_000 })
+  await expect(page.locator("[data-anchor-frame]")).toHaveCount(0)
+})
+
+test("1 画面で「分割で開く」は、右に分けたステージで行き先を開き、ブラウザの戻る 1 回で分ける前に戻る", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const book = await ready(page)
+  await addBox(page, 300, 300, "右の箱")
+  await perform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "右へ", to: { book } } })
+  await page.getByRole("button", { name: "右へ" }).click()
+  await page.getByRole("dialog", { name: "右へ" }).getByRole("button", { name: "分割で開く" }).click()
+  const stages = page.locator("[data-stage]")
+  await expect(stages).toHaveCount(2)
+  await expect(stages.nth(1).locator("[data-item]").filter({ hasText: "右の箱" })).toBeVisible()
+  await page.goBack()
+  await expect(stages).toHaveCount(1)
+})
+
+test("2 画面なら「左に開く」「右に開く」で、Enter はダイアログを出したステージの側で開く", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const book = await ready(page)
+  await addBox(page, 300, 300, "二つの箱")
+  await page.goto(`/?b0=${book}&v0=1,0,0&b1=&v1=1,0,0&c=1&r=0.5`)
+  const stages = page.locator("[data-stage]")
+  await expect(stages).toHaveCount(2)
+  await perform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "二つ", to: { book } } })
+  await page.getByRole("button", { name: "二つ" }).click()
+  const dialog = page.getByRole("dialog", { name: "二つ" })
+  await expect(dialog.getByRole("button")).toHaveText(["キャンセル", "左に開く", "右に開く"])
+  // カレントは右のステージなので、Enter は右に開く
+  await page.keyboard.press("Enter")
+  await expect(dialog).toHaveCount(0)
+  await expect(stages.nth(1).locator("[data-item]").filter({ hasText: "二つの箱" })).toBeVisible()
 })
 
 test("未読が 3 通まではしおりを 1 通に 1 つずつ、4 通になると 1 つにまとめて数を付け、押すと郵便箱が開く。郵便箱の行を押すとダイアログが開き、取消は確かめてから消す", async ({
@@ -85,7 +126,7 @@ test("未読が 3 通まではしおりを 1 通に 1 つずつ、4 通になる
   await expect(rows).toHaveCount(3)
 })
 
-test("行き先の無くなった手紙は、ダイアログに「行き先がありません」と出て、移動は出ない", async ({ page }) => {
+test("行き先の無くなった手紙は、ダイアログに「行き先がありません」と出て、ボタンは閉じるだけ", async ({ page }) => {
   const book = await ready(page)
   await perform(page, {
     action: "@matomezu/base:mail-send",
@@ -94,10 +135,12 @@ test("行き先の無くなった手紙は、ダイアログに「行き先が�
   await page.getByRole("button", { name: "消えた所" }).click()
   const dialog = page.getByRole("dialog", { name: "消えた所" })
   await expect(dialog).toContainText("行き先がありません")
-  await expect(dialog.getByRole("button", { name: "移動" })).toHaveCount(0)
+  await expect(dialog.getByRole("button")).toHaveText(["閉じる"])
+  await page.keyboard.press("Enter")
+  await expect(dialog).toHaveCount(0)
 })
 
-test("移動を使わなくても、行き先が画面に出ていれば行き先を見たことになる（郵便そのものは見ていないまま）", async ({
+test("開くを使わなくても、行き先が画面に出ていれば行き先を見たことになる（郵便そのものは見ていないまま）", async ({
   page,
 }) => {
   const book = await ready(page)

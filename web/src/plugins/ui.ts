@@ -55,6 +55,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",
+      "@matomezu/base:mail-pointing",
     ],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],

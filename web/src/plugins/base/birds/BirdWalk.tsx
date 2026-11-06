@@ -1,15 +1,27 @@
 // 鳥を描く所: 物の上の辺を歩く鳥（BirdWalk）と、鳥の絵の 1 コマ（frameStyle）。スタンドの中に置く。
 // 物の上の辺が見える所の外に出たら（edgePinned のスタンドの useStandAway）、鳥の代わりに鳥の顔の丸い絵（マークならマークポインタ）を、
 // 鳥の足元を見える所の縁に寄せた所に描き（歩く動きのまま縁を動く）、押すと付けた物を見せる。
-// leaving になったら画面の外へ飛び去り、飛び去り終えたら onGone を呼ぶ。
-// 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かず、飛び去るときはすぐ消える
+// leaving になったら画面の外へ飛び去り、飛び去り終えたら onGone を呼ぶ。visit なら歩かずに立ち寄り（flight.ts の visitPose）、降りたら onArrived を呼び、
+// 立ち寄り終えたら自分で飛び去る。
+// 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かず、飛び去るときはすぐ消える（立ち寄るなら、立ち寄る間だけ出す）
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
 import { useStandAway } from "../utils/anchors"
 import { STAND_MARGIN } from "../utils/stand-place"
 import type { Bird } from "."
 import styles from "./BirdWalk.module.css"
-import { type Arrival, birdPose, GAITS, type Gait, LEAVE, leavingPose, type Pose } from "./flight"
+import {
+  type Arrival,
+  birdPose,
+  GAITS,
+  type Gait,
+  LEAVE,
+  leavingPose,
+  type Pose,
+  VISIT_ARRIVE,
+  visitLength,
+  visitPose,
+} from "./flight"
 import { SHEETS, type Sheet } from "./frames"
 import bunchoPointer from "./images/bird-marks/buncho.png"
 import fukurouPointer from "./images/bird-marks/fukurou.png"
@@ -55,6 +67,8 @@ export function BirdWalk({
   origin,
   paused = false,
   leaving = false,
+  visit = false,
+  onArrived,
   onGone,
   awayLabel,
   children,
@@ -64,6 +78,8 @@ export function BirdWalk({
   origin?: Element | null
   paused?: boolean
   leaving?: boolean
+  visit?: boolean
+  onArrived?: () => void
   onGone?: () => void
   awayLabel: string
   children: (style: CSSProperties) => ReactNode
@@ -106,20 +122,35 @@ export function BirdWalk({
   }, [still])
   const walking: Pose = still
     ? { frame: FRONT, x: range, lift: 0, from: { x: 0, y: 0 }, right: false, rotation: 0, behind: false }
-    : birdPose(time, arrival, gait, BIRD_SIZE, range, from)
+    : visit
+      ? visitPose(time, gait, BIRD_SIZE, range, from)
+      : birdPose(time, arrival, gait, BIRD_SIZE, range, from)
+  const arrived = visit && (still || time >= VISIT_ARRIVE)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 降りたときに一度だけ
+  useEffect(() => {
+    if (arrived) onArrived?.()
+  }, [arrived])
+  // 動きを減らす設定で立ち寄るなら、立ち寄る間だけ出す
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 出たときに一度だけ
+  useEffect(() => {
+    if (!visit || !still) return
+    const timer = setTimeout(() => onGone?.(), visitLength(gait) * 1000)
+    return () => clearTimeout(timer)
+  }, [])
+  const visited = visit && !still && time >= visitLength(gait)
   // 飛び去る: leaving になった時刻と姿と、飛んでいく先を覚える
   const [leave, setLeave] = useState<{ at: number; start: Pose; to: Point } | null>(null)
   const latest = useRef({ time, pose: walking })
   latest.current = { time, pose: walking }
-  // biome-ignore lint/correctness/useExhaustiveDependencies: leaving になったときに一度だけ
+  // biome-ignore lint/correctness/useExhaustiveDependencies: leaving になったとき（立ち寄り終えたとき）に一度だけ
   useEffect(() => {
-    if (!leaving || !area.current) return
+    if (!(leaving || visited) || !area.current) return
     if (still) {
       onGone?.()
       return
     }
     setLeave({ at: latest.current.time, start: latest.current.pose, to: offscreen(area.current) })
-  }, [leaving])
+  }, [leaving || visited])
   const gone = leave !== null && time - leave.at >= LEAVE
   // biome-ignore lint/correctness/useExhaustiveDependencies: 飛び去り終えたときに一度だけ
   useEffect(() => {

@@ -1,7 +1,7 @@
 // ブラウザの URL と画面の場所（core/address.ts）の行き来（ルーターは入れない。開いている場所は store が持ち、URL はそれを映す）。
 // 開いたときは URL の場所を当てはめ（store の locate）、見ているものが変わったら URL に書く。移動（ステージの数か、ブック・ページが変わった）
-// ならブラウザの履歴に積み（pushState）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。ブラウザの戻る・進む（popstate）は、
-// その URL の場所を当てはめる。
+// ならブラウザの履歴に積み（pushState）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。同じ処理（同期の 1 回の流れ）の中の
+// 変わりは、終わってから 1 つにまとめて書く（分割してブックとページを開いても、履歴は 1 段）。ブラウザの戻る・進む（popstate）は、その URL の場所を当てはめる。
 // URL の形: ステージごとに b0（ブックの id。何も開いていなければ空）・p0（ページの id。無ければ書かない）・v0（倍率,横,縦）、
 // 続けて b1・p1・v1 …、c（カレントの番号）・r（境目の割合）。id にどの文字が入っても読み戻せるように、ステージの値ごとに分けて書く
 import { type Address, addressOf, moved, type StagePlace } from "../core/address"
@@ -77,9 +77,12 @@ export function followLocation(instance: Pick<MatomezuInstance, "state" | "locat
   place.replace(searchOf(shown))
   let pending: (() => void) | null = null // まとめて書き換えるのを待っている書き換え（取り消す関数）
   let popping = false // 戻る・進むの場所を当てはめている間（URL に書き戻さない）
-  const stopState = instance.state.subscribe(state => {
-    if (popping) return
-    const now = addressOf(state.workspace)
+  let queued = false // 処理が終わってから書くのを待っている
+  let stopped = false
+  const write = () => {
+    queued = false
+    if (stopped || popping) return
+    const now = addressOf(instance.state.getState().workspace)
     const search = searchOf(now)
     if (search === searchOf(shown)) return
     pending?.()
@@ -87,6 +90,11 @@ export function followLocation(instance: Pick<MatomezuInstance, "state" | "locat
     if (moved(shown, now)) place.push(search)
     else pending = place.later(() => place.replace(search))
     shown = now
+  }
+  const stopState = instance.state.subscribe(() => {
+    if (popping || queued) return
+    queued = true
+    queueMicrotask(write)
   })
   // 戻る・進む: その URL の場所を当てはめ、今の場所として覚える（書き戻さない）
   const stopPop = place.onPop(() => {
@@ -100,6 +108,7 @@ export function followLocation(instance: Pick<MatomezuInstance, "state" | "locat
     shown = addressOf(instance.state.getState().workspace)
   })
   return () => {
+    stopped = true
     pending?.()
     stopState()
     stopPop()

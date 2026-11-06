@@ -72,15 +72,21 @@ test("開いたときは URL の場所を当てはめる（読み直しても同
   expect(store.state.getState().workspace.stages[0]!.opened?.book).toBe("b3")
 })
 
-test("ブック・ページの移動と分割はブラウザの履歴に積み、境目などは待ってまとめて書き換える。戻るとその場所に戻り、ブラウザの履歴には積まない", () => {
+// 同じ処理（同期の 1 回の流れ）が終わるのを待つ
+const settled = () => Promise.resolve()
+
+test("ブック・ページの移動と分割はブラウザの履歴に積み、境目などは待ってまとめて書き換える。戻るとその場所に戻り、ブラウザの履歴には積まない", async () => {
   const store = newStore()
   const f = fakePlace()
   followLocation(store, f.place)
   store.actions.openBook("s1", "b2")
+  await settled()
   expect(f.pushed.map(s => parseSearch(s)?.stages[0]?.book)).toEqual(["b2"])
   store.actions.split("s1")
+  await settled()
   expect(f.pushed).toHaveLength(2)
   store.actions.moveDivider(300, 1000)
+  await settled()
   expect(f.pushed).toHaveLength(2)
   f.flush()
   expect(parseSearch(f.replaced.at(-1)!)?.share).toBe(0.3)
@@ -89,4 +95,17 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   const ws = store.state.getState().workspace
   expect(ws.stages.map(s => s.opened?.book)).toEqual(["b2"])
   expect(f.pushed).toHaveLength(2)
+})
+
+test("同じ処理の中の移動（分割してブックとページを開く）は、ブラウザの履歴に 1 段だけ積む", async () => {
+  const store = newStore()
+  const f = fakePlace()
+  followLocation(store, f.place)
+  store.actions.split("s1")
+  const right = store.state.getState().workspace.stages[1]!.id
+  store.actions.openBook(right, "b3")
+  store.actions.openPage(right, "p1")
+  await settled()
+  expect(f.pushed).toHaveLength(1)
+  expect(parseSearch(f.pushed[0]!)?.stages.map(s => s.book)).toEqual(["b1", "b3"])
 })

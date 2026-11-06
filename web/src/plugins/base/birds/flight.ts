@@ -132,3 +132,22 @@ export function leavingPose(t: number, start: Pose, to: Point): Pose {
     behind: false,
   }
 }
+
+// 立ち寄る鳥（郵便が指す物に連れてくる鳥など）: 飛んできて降り（VISIT_ARRIVE 秒）、その鳥の仕草のコマを、その鳥の歩みの速さ（1 コマ step 秒）で 1 回ずつ見せ、
+// あとは正面を向いて止まる。visitLength(g) 秒で立ち寄り終える（飛び去らせるのは呼ぶ側）
+export const VISIT_ARRIVE = FLY + LAND
+export const visitLength = (g: Gait) => VISIT_ARRIVE + 4 * g.step
+
+export function visitPose(t: number, g: Gait, size: number, range: number, from: Point): Pose {
+  if (t < VISIT_ARRIVE) return birdPose(t, "fly", g, size, range, from)
+  const local = t - VISIT_ARRIVE
+  return {
+    frame: local < 4 * g.step ? 12 + Math.floor(local / g.step) : 4,
+    x: range,
+    lift: 0,
+    from: NO_SHIFT,
+    right: false,
+    rotation: 0,
+    behind: false,
+  }
+}

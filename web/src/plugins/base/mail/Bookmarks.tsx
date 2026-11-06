@@ -1,18 +1,25 @@
 // しおり（ウィジェット mail-bookmarks。根に置く）: まだ見ていない郵便を、画面の上の右寄りから、しおりのようにぶら下げる（マーキーは消えるが、しおりは見るまで残る）。
-// 3 通までは 1 通に 1 つずつ、色を変えて新しい順に並べ、押すとその郵便のダイアログを開く。3 通を超えたら 1 つにまとめて数を付け、押すと郵便箱（左サイドパネルの郵便箱のタブ）を開く
+// しおりは細く、郵便の絵だけを描く（題はボタンの名前）。3 通までは 1 通に 1 つずつ、色を変えて新しい順に並べ、押すとその郵便のダイアログを開く。3 通を超えたら 1 つにまとめて数を付け、押すと郵便箱（左サイドパネルの郵便箱のタブ）を開く
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
+import { icon } from "../icon"
 import { kit } from "../kit"
 import { useOpenLeftSidePanel } from "../left-side-panel/hooks"
-import { clampChars } from "../text/text"
 import styles from "./Bookmarks.module.css"
 import { useMailbox, useOpenMail } from "./hooks"
 import { shownOf } from "./shown"
 import { MAILBOX_TAB_ID } from "./tab-id"
 
 const MAX_EACH = 3 // 1 通に 1 つずつぶら下げる、いちばん多い数
-const TITLE_CHARS = 10 // しおりに出す題の字数
+
+// 郵便の絵（封筒）
+const LETTER_ICON = icon(
+  <>
+    <rect x="3" y="6" width="18" height="12" rx="1.5" />
+    <path d="M3.5 7l8.5 6.5 8.5-6.5" />
+  </>,
+)
 
 export function MailBookmarks() {
   const t = useMessages(kit)
@@ -32,7 +39,7 @@ export function MailBookmarks() {
           aria-label={t("{n} unread mail", { n: unread.length })}
           onClick={() => openPanel(stage, MAILBOX_TAB_ID)}
         >
-          {t("Mail")}
+          {LETTER_ICON}
           <span className={styles.count}>{unread.length}</span>
         </button>
       </div>
@@ -45,10 +52,11 @@ export function MailBookmarks() {
           type="button"
           className={styles.bookmark}
           data-tone={i}
+          aria-label={shownOf(catalog, m)?.title ?? t("Mail")}
           title={shownOf(catalog, m)?.title}
           onClick={() => open(stage, m.id)}
         >
-          {clampChars(shownOf(catalog, m)?.title ?? t("Mail"), TITLE_CHARS)}
+          {LETTER_ICON}
         </button>
       ))}
     </div>

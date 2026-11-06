@@ -1,12 +1,14 @@
-// 郵便の見た目のウィジェット: 郵便箱（左サイドパネルの最初のタブ）、しおりと見張り（根に置く）。郵便のダイアログ
+// 郵便の見た目のウィジェット: 郵便箱（左サイドパネルの最初のタブ）、しおりと見張り（根に置く）、指す物のレイヤー（ブックのレイヤー）。郵便のダイアログ
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { defineLeftSidePanelTab } from "../left-side-panel/ui"
+import { BOOK_LAYERS } from "../workspace/slots"
 import { MailBookmarks } from "./Bookmarks"
 import { MAIL_DIALOG } from "./dialogs"
 import { useUnreadMail } from "./hooks"
 import { MailboxView } from "./Mailbox"
 import { MailDialog } from "./MailDialog"
+import { MailPointing } from "./MailPointing"
 import { MailWatch } from "./MailWatch"
 import { MAILBOX_TAB_ID } from "./tab-id"
 
@@ -23,3 +25,5 @@ export const MAIL_BOOKMARKS = defineWidget({ id: kit.name("mail-bookmarks"), slo
 export const MAIL_WATCH = defineWidget({ id: kit.name("mail-watch"), slots: ["root"], view: MailWatch })
 
 export const MAIL_DIALOG_VIEWS = { [MAIL_DIALOG.id]: MailDialog }
+
+export const MAIL_POINTING = defineWidget({ id: kit.name("mail-pointing"), slots: [BOOK_LAYERS], view: MailPointing })

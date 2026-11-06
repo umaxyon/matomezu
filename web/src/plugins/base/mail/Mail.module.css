@@ -29,3 +29,10 @@
   color: var(--skin-danger);
   font-size: 12px;
 }
+/* 郵便のダイアログの下の行のボタン */
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
