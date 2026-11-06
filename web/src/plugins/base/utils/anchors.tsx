@@ -260,7 +260,7 @@ function showAnchors(
   return true
 }
 
-// 見せてと頼まれた物（ステージの画面の状態の revealing。伝言一覧の行を押したときなど）を、描かれたら見せて、頼みを消す（ほかのページを開いたあとは、描かれるのを待つ）
+// 見せてと頼まれた物（ステージの画面の状態の revealing。送信トレイの行を押したときなど）を、描かれたら見せて、頼みを消す（ほかのページを開いたあとは、描かれるのを待つ）
 function RevealRequested({ ctx }: { ctx: StandContext }) {
   const ids = useRevealRequest(ctx.stage)
   const clear = useClearRevealRequest()

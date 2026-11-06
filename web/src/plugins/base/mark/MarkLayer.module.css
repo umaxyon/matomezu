@@ -58,7 +58,7 @@
   pointer-events: none;
 }
 
-/* 伝言一覧の行の絵: 鳥の顔と、びっくりマーク */
+/* 送信トレイの行の絵: 鳥の顔と、びっくりマーク */
 .listedFace {
   display: block;
   width: 20px;

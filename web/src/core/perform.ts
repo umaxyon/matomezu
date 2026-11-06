@@ -23,6 +23,7 @@ import {
 } from "./def/action"
 import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
+import { type Mailbox, mailboxSettles } from "./mail"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
@@ -226,20 +227,34 @@ export function perform<Id extends ActionId>(
     const next = (done.next as unknown as BookAnnotations).annotations
     if (!annotationsSettle(ctx.catalog, pair.book, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
+  if (
+    action.target === "mailbox" &&
+    !mailboxSettles(ctx.catalog, subject as unknown as Mailbox, done.next as unknown as Mailbox)
+  )
+    return { ok: false, reason: "refused" }
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }
 
-// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーション
+// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、郵便箱
 export interface World {
   books: Library
   settings: Settings
   annotations: Annotations
+  mailbox: Mailbox
 }
 
 // performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧、
 // annotations はアノテーションが変わったブックの id → 新しい並び。アノテーションが対象のアクションのほか、ブックの物が消えたときと、ブックが一覧から無くなったときにも変わる）
 export type PerformedIn =
-  | { ok: true; result: unknown; book?: Book; books?: Library; settings?: Settings; annotations?: Annotations }
+  | {
+      ok: true
+      result: unknown
+      book?: Book
+      books?: Library
+      settings?: Settings
+      annotations?: Annotations
+      mailbox?: Mailbox
+    }
   | Refused
   | { ok: false; reason: "no-book" }
 
@@ -291,6 +306,12 @@ export function performIn(
       ? { ok: true, result: done.result, books }
       : { ok: true, result: done.result, books, annotations: Object.fromEntries(gone.map(b => [b, []])) }
   }
+  if (target === "mailbox") {
+    const done = loose(world.mailbox, id, args, ctx)
+    if (!done.ok) return done
+    const next = done.next as unknown as Mailbox
+    return next === world.mailbox ? { ok: true, result: done.result } : { ok: true, result: done.result, mailbox: next }
+  }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
   const next = done.next as Settings
@@ -319,5 +340,10 @@ export function permittedIn(
     const subject = target === "book" ? book : { book, annotations: world.annotations[book.id] ?? [] }
     return permitted(subject, id, args, ctx)
   }
-  return permitted(target === "library" ? world.books : world.settings, id, args, ctx)
+  return permitted(
+    target === "library" ? world.books : target === "mailbox" ? world.mailbox : world.settings,
+    id,
+    args,
+    ctx,
+  )
 }

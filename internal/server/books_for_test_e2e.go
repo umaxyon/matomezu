@@ -90,7 +90,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64
 	return version, nil, nil
 }
 
-// resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定も消す。つないでいる窓と追加プラグインはそのまま。窓には知らせないので、テストは開き直す）
+// resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定・郵便箱も消す。つないでいる窓と追加プラグインはそのまま。窓には知らせないので、テストは開き直す）
 func (h *Hub) resetForTest(books []json.RawMessage) error {
 	ids := make([]string, len(books))
 	for i, body := range books {
@@ -112,9 +112,13 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	if err := h.store.PutSettings(user, json.RawMessage("null")); err != nil {
 		return err
 	}
+	if err := h.store.PutMailbox(user, json.RawMessage("[]")); err != nil {
+		return err
+	}
 	h.books = map[string]entry{}
 	h.order = nil
 	h.settings = nil
+	h.mailbox = nil
 	h.annotations = map[string]json.RawMessage{}
 	h.touched = map[string]string{}
 	h.performed = map[string]Performed{}

@@ -17,6 +17,7 @@ import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
+import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
 import { splitId } from "../core/names"
 import { type PerformedIn, performIn } from "../core/perform"
 import type { Book, Page } from "../core/schema/book"
@@ -51,11 +52,12 @@ interface Input {
   books?: unknown[]
   settings: unknown
   annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
+  mailbox?: unknown // 利用者の郵便箱（郵便箱が対象のアクションのとき）
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
   watched?: Readonly<Record<string, readonly string[]>> // 変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
 }
 
-// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）。
+// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱。
 // touched は、受けた watched の物のうち、変わったか無くなったもの（ブックの中の物とアノテーションの id。無ければ書かない）。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
@@ -66,6 +68,7 @@ type Output =
       removed: string[]
       settings?: unknown
       annotations?: Annotations
+      mailbox?: Mailbox
       notice?: string
       touched?: string[]
     }
@@ -111,7 +114,8 @@ function perform(input: Input): Output {
   const annotations = Object.fromEntries(
     Object.entries(input.annotations ?? {}).map(([book, list]) => [book, restoreAnnotations(list)]),
   )
-  const done = performIn({ books, settings, annotations }, input.action, input.args, input.on, {
+  const mailbox = restoreMailbox(input.mailbox)
+  const done = performIn({ books, settings, annotations, mailbox }, input.action, input.args, input.on, {
     catalog,
     home,
     lang,
@@ -136,6 +140,7 @@ function perform(input: Input): Output {
     removed,
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
+    ...(done.mailbox ? { mailbox: done.mailbox } : {}),
     ...(notice ? { notice } : {}),
     ...(touched.length > 0 ? { touched } : {}),
   }
@@ -210,6 +215,13 @@ function aiCatalog(of: Assembled = assembled) {
       description: a.aiDescription,
       props: z.toJSONSchema(a.props, { io: "input", unrepresentable: "any" }),
     })),
+    // 郵便の種類（read_mail の郵便の mail は、この id）
+    mails: [...catalog.mails.values()].map(m => ({
+      id: m.id,
+      title: en(m.title),
+      description: m.aiDescription,
+      props: z.toJSONSchema(m.props, { io: "input", unrepresentable: "any" }),
+    })),
     themes: [...catalog.themes.values()].map(th => ({ id: th.id, title: en(th.title) })),
     // 言語パック（言語の項目の値は、この id）とスキン
     languages: [...catalog.languagePacks.values()].map(p => ({ id: p.id, lang: p.lang, name: p.name })),
@@ -259,6 +271,10 @@ function aiCatalog(of: Assembled = assembled) {
   })
   return JSON.stringify(lines)
 }
+
+// 残した郵便箱を今の機能台帳で確かめ、効かない郵便（種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
+;(globalThis as { matomezuCheckMailbox?: (list: string) => string }).matomezuCheckMailbox = list =>
+  JSON.stringify(checkMailbox(assembled.catalog.core, restoreMailbox(JSON.parse(list))).map(warningText))
 
 // ブックとそのアノテーションの並びごとに、AI に見せる並び（annotationsForAi。結び付く物の最後のあるページと、AI の応えを待っているか）を返す。
 // 読めないブックのアノテーションは、ページが分からず待たないものとして返す

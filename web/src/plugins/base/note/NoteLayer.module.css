@@ -45,7 +45,7 @@
   stroke-linejoin: round;
 }
 
-/* 伝言一覧の行の絵 */
+/* 送信トレイの行の絵 */
 .listed svg {
   display: block;
   width: 16px;
@@ -63,4 +63,31 @@
   border-radius: 2px;
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--skin-accent) 25%, transparent);
   pointer-events: none;
+}
+
+/* AI が読んだ伝言の印（吹き出しとたたんだ絵の右上に重ねる緑の丸のチェック） */
+.bubble,
+.folded {
+  position: relative;
+}
+.readCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--skin-success);
+  box-shadow: var(--skin-shadow-1);
+}
+.readCheck svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--skin-on-accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }

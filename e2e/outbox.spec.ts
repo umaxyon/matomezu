@@ -1,4 +1,4 @@
-// 伝言一覧: フッタメニューのボタンで左サイドパネルを開くと、開いているブックの伝言とマークがページごとに、新しい順に並ぶ。
+// 送信トレイ: フッタメニューのボタンで左サイドパネルを開くと、開いているブックの伝言とマークがページごとに、新しい順に並ぶ。
 // 伝言の行を押すと左サイドパネルが閉じて、その伝言が右サイドパネルに出る。マークの行は付けた物へ移るだけ。取消で消える。AI が読むと既読になる
 import { aiAuth, expect, type Page, test } from "./fixtures"
 import { panel, writeNote } from "./helpers/note"
@@ -12,7 +12,14 @@ async function openLeftPanel(page: Page) {
   await expect(leftPanel(page)).toBeVisible()
 }
 
-test("左サイドパネルの伝言一覧に、伝言とマークが新しい順に並ぶ。伝言の行を押すと閉じて右サイドパネルに出る。マークの行は物へ移るだけ。取消は確かめてから消える。Esc で閉じる", async ({
+// 左サイドパネルを開いて、送信トレイのタブにする（最初に開くのは郵便箱のタブ）
+async function openOutbox(page: Page) {
+  await openLeftPanel(page)
+  await expect(leftPanel(page).getByRole("tab", { name: "郵便箱" })).toHaveAttribute("aria-selected", "true")
+  await leftPanel(page).getByRole("tab", { name: "送信トレイ" }).click()
+}
+
+test("左サイドパネルの送信トレイに、伝言とマークが新しい順に並ぶ。伝言の行を押すと閉じて右サイドパネルに出る。マークの行は物へ移るだけ。取消は確かめてから消える。Esc で閉じる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -25,8 +32,8 @@ test("左サイドパネルの伝言一覧に、伝言とマークが新しい�
   await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
   await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "インコ" }).click()
 
-  await openLeftPanel(page)
-  await expect(leftPanel(page).getByRole("tab", { name: "伝言一覧" })).toHaveAttribute("aria-selected", "true")
+  await openOutbox(page)
+  await expect(leftPanel(page).getByRole("tab", { name: "送信トレイ" })).toHaveAttribute("aria-selected", "true")
   const rows = leftPanel(page).getByRole("listitem")
   // 新しい順（後から付けたマークが上）。マークは付けた物の名前を出す
   await expect(rows).toHaveCount(2)
@@ -36,7 +43,7 @@ test("左サイドパネルの伝言一覧に、伝言とマークが新しい�
   await expect(leftPanel(page)).toHaveCount(0)
 
   // 伝言の行を押すと、左サイドパネルが閉じて右サイドパネルに出る
-  await openLeftPanel(page)
+  await openOutbox(page)
   await rows.nth(1).getByRole("button").first().click()
   await expect(leftPanel(page)).toHaveCount(0)
   await expect(panel(page).getByLabel("伝言", { exact: true })).toHaveValue("一つ目を見て")
@@ -44,13 +51,13 @@ test("左サイドパネルの伝言一覧に、伝言とマークが新しい�
   await expect(panel(page)).toHaveCount(0)
 
   // マークの行を押すと、左サイドパネルが閉じるだけ（右サイドパネルは出ない）
-  await openLeftPanel(page)
+  await openOutbox(page)
   await rows.nth(0).getByRole("button").first().click()
   await expect(leftPanel(page)).toHaveCount(0)
   await expect(panel(page)).toHaveCount(0)
 
   // 取消で消える。外を押すと閉じる
-  await openLeftPanel(page)
+  await openOutbox(page)
   // 取消は確かめてから消す（やめるなら消さない）
   await leftPanel(page).getByRole("button", { name: "一つ目を見てを取り消す" }).click()
   const ask = leftPanel(page).getByRole("group", { name: "取り消しますか？" })
@@ -65,7 +72,7 @@ test("左サイドパネルの伝言一覧に、伝言とマークが新しい�
   await expect(leftPanel(page)).toHaveCount(0)
 })
 
-test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言を読みました」と流れ、伝言一覧の行が既読になる", async ({
+test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言を読みました」と流れ、送信トレイの行が既読になり、吹き出しに緑のチェックが付く", async ({
   page,
 }) => {
   const ai = aiAuth()
@@ -78,10 +85,12 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
   await addBox(page, 200, 150, "一")
   await writeNote(page, items(page).filter({ hasText: "一" }), "読んで")
-  await openLeftPanel(page)
+  await openOutbox(page)
   const row = leftPanel(page).getByRole("listitem")
   await expect(row).toContainText("読んで")
   await expect(row).not.toContainText("既読")
+  const bubble = page.getByRole("button", { name: "伝言を開く" })
+  await expect(bubble).toHaveAttribute("data-read", "false")
   const note = (
     (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as { id: string }[]
   )[0]!.id
@@ -90,6 +99,9 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   })
   await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toBeVisible()
   await expect(row).toContainText("既読")
+  // 吹き出しにも、読んだ印の緑のチェックが付く
+  await expect(bubble).toHaveAttribute("data-read", "true")
+  await expect(bubble.locator("[data-read-check]")).toBeVisible()
   // 流し終えたら消える
   await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toHaveCount(0)
 })
@@ -107,7 +119,7 @@ test("開いているブックが替わると、左サイドパネルは閉じ�
       data: { action: "@matomezu/base:book-create", args: { type: "@matomezu/drawing:drawing", title: "ほかの" } },
     })
   ).json()
-  await openLeftPanel(page)
+  await openOutbox(page)
   await page.request.post("/api/ai/show", { headers: ai, data: { book: made.result.book } })
   await expect(leftPanel(page)).toHaveCount(0)
 })

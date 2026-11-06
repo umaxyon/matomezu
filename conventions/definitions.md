@@ -19,6 +19,7 @@
 | 道具の組（`ToolSetDef`） | ステージで切り替える道具の並び | `core/def/tool.ts` |
 | 認可ステップ（`PermissionDef`） | アクションを、ブックのある所で行うのを止める（ロックなど）。止めるだけで、許すことはしない | `core/def/permission.ts` |
 | アノテーション（`AnnotationDef`） | ブックの物に id で結び付き、ブックのデータとは別に残る物の種類（伝言など） | `core/def/annotation.ts` |
+| 郵便（`MailDef`） | 送り手が利用者に宛てて送る物の種類（手紙など） | `core/def/mail.ts` |
 | コマンド（`CommandDef`） | 画面の入口（ボタン・メニュー・キーから呼ぶ） | `store/commands/def.ts` |
 | ダイアログ（`DialogDef`） | 開くダイアログの id | `store/dialogs.ts` |
 | 文言の組（`MessageSetDef`） | プラグイン 1 つの、画面に出す文と訳（id は `<プラグインの id>:messages`） | `core/i18n/messages.ts` |
@@ -37,7 +38,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う
@@ -105,12 +106,12 @@
 
 ## アクション
 
-- 対象（`library`・`book`・`settings`・`annotations`）を宣言する
+- 対象（`library`・`book`・`settings`・`annotations`・`mailbox`）を宣言する
 - `run` は新しい値と結果を返す純粋な関数。対象に合わなければ null を返して断る。断った理由を AI に伝えるときは、null の代わりに `Declined` を返す（理由は AI だけに見せ、画面には出さない）。画面が断りの種類で知らせ方を変えるときは、`Declined` に種類（プラグインの id の名前空間を付けた名前）を添え、画面はその種類で文言を選ぶ。引数の形は Zod
 - 通すのは `perform`（使えるか（認可ステップを含む）→ 引数の形 → run → ノーマライズステップ（ブックが対象のアクションだけ）→ 認可ステップが行った後に確かめる → 関係の決まり）
 - ノーマライズステップは、ビルトインプラグインだけが持てる。ノーマライズステップが書くページのフィールド（可変ページの `shift`）は、アクションの run が書かない（書けば perform が断る）
 - 形を並べ直すアクションは、base の `unpinPage` をかける
-- `library` と `settings` のアクションを許すかは、ホームのブックのタイプが決める。ホームのタイプは、利用者の設定の項目のうち変えさせない物を id で選べる（`fixedUserSettings`。利用者にも AI にも）
+- `library`・`settings`・`mailbox` のアクションを許すかは、ホームのブックのタイプが決める。ホームのタイプは、利用者の設定の項目のうち変えさせない物を id で選べる（`fixedUserSettings`。利用者にも AI にも）
 - ブックを作るアクション `book-create` は base が持つ。どのホームのタイプも `actions.add` で選べる
 - 同じ入力なら同じ結果を返す。使うのは文脈（`ActionContext`）の物だけで、時刻や乱数を直に使わない。新しい id は `ctx.newId()` で振る
 - 時刻は `ctx.now`（UTC の時点を ISO 8601 の文字で。最初に行った所が 1 回だけ決め、行い直しでも同じ値）。アクションの定義が時刻や乱数を直に使っていないことを `test/rules.test.ts` が見張る
@@ -145,11 +146,20 @@
 - 例外として、利用者が常駐からプラグインを外したときは、そのプラグインの種類のアノテーションを消す（図の中身ではなく、外したプラグインの物を残しても使い道が無いため）。プラグインを入れずに起動したときは消さない
 - AI の応えを待つかは、種類の定義の `awaits` が決める。待つ物を数えて AI に知らせるのは matomezu で、種類は数えない・知らせない
 - 種類は期限を持てる（`expiresAt`。今の時刻を見ず、時点を返す）。期限の過ぎたアノテーションは残らず、画面にも出さない。利用者が直している物（編集ロック）は残す
-- 伝言一覧での出し方（付けた時点・行の文・取消のアクション・押したときに開く右サイドパネルの中身）は、種類の定義の `listed`（base が拡張ポイントに書き足したフィールド。書かなくてよい）が答える。行の絵は、見た目の側でスロット `@matomezu/base:annotation-icon` に置くウィジェット（`defineAnnotationIcon`）が描く
+- 送信トレイでの出し方（付けた時点・行の文・取消のアクション・押したときに開く右サイドパネルの中身）は、種類の定義の `listed`（base が拡張ポイントに書き足したフィールド。書かなくてよい）が答える。行の絵は、見た目の側でスロット `@matomezu/base:annotation-icon` に置くウィジェット（`defineAnnotationIcon`）が描く
+
+## 郵便
+
+- 種類は、プラグインが定義（`MailDef`）で足す。郵便箱は利用者に 1 つ
+- 郵便の行き先は、送るときには確かめない。開くときに無ければ、無いと見せる
+- 既読は 2 つ。利用者が郵便を見た時点（`seenAt`）と、行き先を見た時点（`visitedAt`）。どちらも利用者のアクションだけが付ける
+- 種類が機能台帳に無い・形が合わない郵便は、データに残して warning にする
+- 郵便を画面に出すときの題と本文は、種類の定義の `shown`（base が拡張ポイントに書き足したフィールド。書かなくてよい）が答える
+- 郵便の種類の AI 向けの説明は、種類の定義の `aiDescription` に書く
 
 ## AI に見せる
 
-- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションの一覧（id・引数の JSON Schema・AI 向けの説明）とアイテム・アノテーションの種類・テーマ・代表色・文字の色・言語・スキンを返す `actions`（今の warning も。architecture の「warning」）と、アクションを行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_page`・`read_settings`）と `show`。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
+- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションの一覧（id・引数の JSON Schema・AI 向けの説明）とアイテム・アノテーションの種類・郵便の種類・テーマ・代表色・文字の色・言語・スキンを返す `actions`（今の warning も。architecture の「warning」）と、アクションを行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_page`・`read_settings`・`read_mail`）と `show`。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
 - AI の `read_book`・`read_page` には、ページの形を描いた位置と大きさを、見せ方の定義の `aiPlaced`（base が拡張ポイントに書き足したメソッド。書かなくてよい）が答えて添える。書かなければ添えない
 - アクションは全部 AI に見せる（利用者の設定のアクションも。行えるかは画面と同じく、ホームのブックのタイプが決める）。ただし、利用者だけが行うアクション（`userOnly`）は見せず、AI が頼んでも断る。利用者の設定の項目の `userOnly` も同じく、AI に見せず（AI が読む設定にも出さない）、AI が変えようとしても断る
 - MCP で AI に見せるもの（アクション・アイテム・タイプの名前、アクションの説明、断った理由の文）は英語に固定し、利用者の言語に合わせない。名前は英語の文言（`en`）で引く

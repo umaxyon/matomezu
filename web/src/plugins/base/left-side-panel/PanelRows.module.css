@@ -1,4 +1,4 @@
-/* 伝言一覧 */
+/* 左サイドパネルのタブの一覧の行（送信トレイと郵便箱が共に使う）: 行・押す所・文・時刻・取消とその確かめ */
 .list {
   padding: 6px 0 12px;
 }
@@ -6,12 +6,6 @@
   margin: 16px 12px;
   color: var(--skin-text-muted);
   font-size: 12px;
-}
-.page {
-  margin: 8px 12px 4px;
-  color: var(--skin-text-muted);
-  font-size: 11px;
-  font-weight: 600;
 }
 .rows {
   margin: 0;
@@ -53,10 +47,6 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.read {
-  flex: none;
-  font-size: 10px;
-}
 .time {
   flex: none;
   color: var(--skin-text-muted);
@@ -77,22 +67,6 @@
 .withdraw:hover {
   color: var(--skin-danger);
   border-color: var(--skin-danger);
-}
-/* 行の絵の置き場（20px 四方。中は種類のウィジェットが描く） */
-.icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-}
-.dot::before {
-  content: "";
-  display: block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
 }
 /* 取消の確かめ */
 .ask {

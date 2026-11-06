@@ -42,6 +42,8 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:menu-host",
       "@matomezu/base:toast-host",
       "@matomezu/base:note-read-notice",
+      "@matomezu/base:mail-bookmarks",
+      "@matomezu/base:mail-watch",
       "@matomezu/base:tool-picker",
     ],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
@@ -70,7 +72,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-preview-panel",
       "@matomezu/base:print-check-panel",
     ],
-    "@matomezu/base:left-side-panel": ["@matomezu/base:note-list"],
+    "@matomezu/base:left-side-panel": ["@matomezu/base:mailbox", "@matomezu/base:outbox"],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
   },
   menus: {

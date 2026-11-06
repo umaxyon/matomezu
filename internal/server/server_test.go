@@ -317,7 +317,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"annotations":{},"books":[],"plugins":[],"settings":null,"touched":{}}` {
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"annotations":{},"books":[],"mailbox":[],"plugins":[],"settings":null,"touched":{}}` {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
@@ -333,7 +333,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"plugins":[],"settings":null,"touched":{"b1":"`
+	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"mailbox":[],"plugins":[],"settings":null,"touched":{"b1":"`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -349,7 +349,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 	if code, body := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[`+book("b3")+`,`+book("b2")+`]}`, nil); code != 200 {
 		t.Fatalf("reset = %d %s", code, body)
 	}
-	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"plugins":[],"settings":null,"touched":{}}`
+	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"mailbox":[],"plugins":[],"settings":null,"touched":{}}`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
 		t.Fatalf("data = %d %s", code, body)
 	}

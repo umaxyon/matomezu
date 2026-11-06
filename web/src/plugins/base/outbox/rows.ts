@@ -1,4 +1,4 @@
-// 伝言一覧の並び: 開いているブックのアノテーション（伝言・マークなど）を、結び付く物の最後のあるページごとに、ブックのページの順で分け、
+// 送信トレイの並び: 開いているブックのアノテーション（伝言・マークなど）を、結び付く物の最後のあるページごとに、ブックのページの順で分け、
 // ページの中は付けた時点（種類の listed が答える）の新しい順に並べる。付けた時点を答えない種類の物は、その後ろに並びの順で。ページの見つからない物は最後のまとまり
 import { type AiAnnotation, type Annotation, annotationsForAi } from "../../../core/annotation"
 import type { CoreCatalog } from "../../../core/core-catalog"
@@ -25,14 +25,4 @@ export function listedPages(catalog: CoreCatalog, book: Book, annotations: reado
   })
   const lost = all.filter(a => a.page === null || !pages.some(p => p.id === a.page))
   return lost.length > 0 ? [...listed, { page: null, title: "", rows: newest(lost) }] : listed
-}
-
-// 付けた時点 at（ISO の時刻）を、今 now から見た短い形にする: 同じ日なら「時:分」、ほかは「月/日 時:分」（その環境の時刻で）
-export function shownTime(at: string, now: Date): string {
-  const d = new Date(at)
-  if (Number.isNaN(d.getTime())) return ""
-  const hm = `${d.getHours().toString()}:${d.getMinutes().toString().padStart(2, "0")}`
-  const sameDay =
-    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
-  return sameDay ? hm : `${(d.getMonth() + 1).toString()}/${d.getDate().toString()} ${hm}`
 }

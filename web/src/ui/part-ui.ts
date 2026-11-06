@@ -25,6 +25,7 @@ export const PART_UI = {
   toolSets: { views: [], define: ["defineToolSet"] },
   permissions: { views: [], define: ["definePermission"] },
   annotations: { views: [], define: ["defineAnnotation"] },
+  mails: { views: [], define: ["defineMail"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
   textColors: { views: [], define: ["defineTextColor"] },

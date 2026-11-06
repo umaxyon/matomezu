@@ -7,18 +7,20 @@ import type { ActionExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
+import type { Mailbox } from "../mail"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
 import type { BookTypeDef } from "./book-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはホームのブックのタイプが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
-// 使えるかは book と同じくそのブックのタイプが決める
+// 使えるかは book と同じくそのブックのタイプが決める。mailbox は利用者に 1 つの郵便箱（core/mail.ts）で、使えるかは library・settings と同じくホームのブックのタイプが決める
 export interface Subjects {
   library: Library
   book: Book
   settings: Settings
   annotations: BookAnnotations
+  mailbox: Mailbox
 }
 
 export type ActionTarget = keyof Subjects

@@ -1,0 +1,27 @@
+/* 送信トレイだけの物: ページの見出し・既読の印・行の絵 */
+.page {
+  margin: 8px 12px 4px;
+  color: var(--skin-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.read {
+  flex: none;
+  font-size: 10px;
+}
+/* 行の絵の置き場（20px 四方。中は種類のウィジェットが描く） */
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+.dot::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}

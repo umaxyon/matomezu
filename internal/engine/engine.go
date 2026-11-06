@@ -32,7 +32,8 @@ type Input struct {
 	Settings json.RawMessage   `json:"settings"`
 	// Annotations は要るブックのアノテーション（ブックの id → 並び。宛先のブックのか、一覧のアクションなら全部）
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
-	By          string                     `json:"by,omitempty"` // 頼んだのが AI なら "ai"（空なら利用者）
+	Mailbox     json.RawMessage            `json:"mailbox,omitempty"` // 利用者の郵便箱
+	By          string                     `json:"by,omitempty"`      // 頼んだのが AI なら "ai"（空なら利用者）
 	// Watched は、変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
 	Watched map[string][]string `json:"watched,omitempty"`
 }
@@ -55,6 +56,7 @@ type Output struct {
 	Removed     []string                   `json:"removed,omitempty"`
 	Settings    json.RawMessage            `json:"settings,omitempty"`
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
+	Mailbox     json.RawMessage            `json:"mailbox,omitempty"` // 変わった郵便箱
 	Notice      string                     `json:"notice,omitempty"`  // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	Touched     []string                   `json:"touched,omitempty"` // Watched の物のうち、変わったか無くなったもの
 }
@@ -72,6 +74,7 @@ type Engine struct {
 	without   func(string, string) string
 	talk      func() string
 	live      func(string, string, string, string) string
+	mails     func(string) string
 	forAI     func(string) string
 	placed    func(string) string
 	use       goja.Callable
@@ -122,6 +125,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuUnexpired"), &e.live); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuUnexpired: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuCheckMailbox"), &e.mails); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuCheckMailbox: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -283,6 +289,19 @@ func (e *Engine) AnnotationsWithout(plugin string, list json.RawMessage) (out js
 		return nil, false, err
 	}
 	return got.Annotations, got.Changed, nil
+}
+
+// CheckMailbox は郵便箱 list を今の機能台帳で確かめ、効かない郵便（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）
+func (e *Engine) CheckMailbox(list json.RawMessage) (out []string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.mails(string(list))), &out)
+	return out, err
 }
 
 // TalkActions は、利用者が AI に話しかけたときに、アノテーションのあるブックごとに行うアクションの id

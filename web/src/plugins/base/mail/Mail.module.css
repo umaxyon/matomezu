@@ -1,0 +1,31 @@
+/* 郵便箱の行: まだ見ていない印（点）と送り手 */
+.unread {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.unread[data-unread="true"] {
+  background: var(--skin-accent);
+}
+.from {
+  margin-right: 6px;
+  color: var(--skin-text-muted);
+  font-size: 11px;
+}
+/* 郵便のダイアログ */
+.meta {
+  margin: 0 0 8px;
+  color: var(--skin-text-muted);
+  font-size: 12px;
+}
+.body {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.gone {
+  margin: 0;
+  color: var(--skin-danger);
+  font-size: 12px;
+}

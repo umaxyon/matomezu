@@ -22,6 +22,7 @@ export const defineLeftSidePanelTab = <const Id extends string>(def: {
   title: MessageKey
   opens?: readonly SlotId[]
   place?: PlaceInSlot
+  useCount?: () => number // 開くボタンとタブに出す数（未読など）を読むフック
   view: (props: StageSlotProps) => ReactNode
 }) =>
   defineWidget({
@@ -29,7 +30,7 @@ export const defineLeftSidePanelTab = <const Id extends string>(def: {
     slots: [LEFT_SIDE_PANEL],
     ...(def.opens ? { opens: def.opens } : {}),
     ...(def.place ? { place: placeIn(LEFT_SIDE_PANEL, def.place) } : {}),
-    leftSidePanel: { title: def.title },
+    leftSidePanel: { title: def.title, ...(def.useCount ? { useCount: def.useCount } : {}) },
     view: def.view,
   })
 
