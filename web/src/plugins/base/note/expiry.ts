@@ -31,6 +31,12 @@ export function expiryFrom(talkedAt: string, choice: unknown): string | null {
 
 // 読まれた伝言 props が消えるまでの、右サイドパネルに出す見込み: まだ話しかけていない（話しかけてから minutes 分で消える）・数え始めた（時点 now から
 // あと minutes 分。1 分未満は切り上げ、過ぎていれば 0）。読まれていない・消さない設定なら null
+// 分の数を、時間と分に分ける（画面に「2 時間 10 分」と出すため）
+export const hoursAndMinutes = (minutes: number): { h: number; m: number } => ({
+  h: Math.floor(minutes / 60),
+  m: minutes % 60,
+})
+
 export type ExpiryOutlook = { kind: "after-talk"; minutes: number } | { kind: "left"; minutes: number }
 
 export function expiryOutlook(

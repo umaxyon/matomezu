@@ -18,7 +18,7 @@ import { clampChars } from "../text/text"
 import { useEditLock } from "../utils/useEditLock"
 import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
-import { expiryOutlook, NOTE_EXPIRY } from "./expiry"
+import { expiryOutlook, hoursAndMinutes, NOTE_EXPIRY } from "./expiry"
 import { GrowingText } from "./NoteForm"
 import form from "./NoteForm.module.css"
 import styles from "./NotePanel.module.css"
@@ -218,7 +218,7 @@ function NoteEditor({
   )
 }
 
-// 読まれた伝言が消えるまでの見込み（まだ話しかけていなければ、話しかけてからの時間。数え始めたら残り。1 分ごとに減らす。消さない設定なら出さない）
+// 読まれた伝言が消えるまでの見込み（まだ話しかけていなければ、話しかけてからの時間。数え始めたら残りで、30 秒ごとに見直す。消さない設定なら出さない）
 function ExpiryNote({ props }: { props: NoteProps }) {
   const t = useMessages(kit)
   const choice = useUserSetting(NOTE_EXPIRY.id)
@@ -230,8 +230,7 @@ function ExpiryNote({ props }: { props: NoteProps }) {
   const outlook = expiryOutlook(props, choice, now)
   if (!outlook) return null
   const time = (minutes: number) => {
-    const h = Math.floor(minutes / 60)
-    const m = minutes % 60
+    const { h, m } = hoursAndMinutes(minutes)
     if (h === 0) return t("{n} min", { n: m })
     return m === 0 ? t("{h} h", { h }) : t("{h} h {m} min", { h, m })
   }

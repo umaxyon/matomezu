@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "./fixtures"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
+import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, settled } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -229,7 +230,9 @@ test("リストの中のスクロールの奥の行を開くと、リストも�
   await rows.evaluate(el => {
     el.scrollTop = 0
   })
-  await page.getByRole("button", { name: "伝言を開く" }).click()
+  // 行がリストの中のスクロールの外なので、たたんだ伝言はリストの縁のマークポインタ。送信トレイから開く
+  await openOutbox(page)
+  await leftPanel(page).getByRole("listitem").filter({ hasText: "奥の行" }).click()
   await expect(panel(page)).toContainText("奥の行")
   await expect.poll(() => rows.evaluate(el => el.scrollTop)).toBeGreaterThan(0)
   const box = (await rows.boundingBox())!

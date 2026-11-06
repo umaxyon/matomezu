@@ -1,23 +1,10 @@
 // 送信トレイ: フッタメニューのボタンで左サイドパネルを開くと、開いているブックの伝言とマークがページごとに、新しい順に並ぶ。
 // 伝言の行を押すと左サイドパネルが閉じて、その伝言が右サイドパネルに出る。マークの行は付けた物へ移るだけ。取消で消える。AI が読むと既読になる
-import { aiAuth, expect, type Page, test } from "./fixtures"
+import { aiAuth, expect, test } from "./fixtures"
 import { panel, writeNote } from "./helpers/note"
+import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
-
-const leftPanel = (page: Page) => page.getByRole("complementary", { name: "左サイドパネル" })
-
-async function openLeftPanel(page: Page) {
-  await (await fromMenu(page, "左サイドパネルを開く")).click()
-  await expect(leftPanel(page)).toBeVisible()
-}
-
-// 左サイドパネルを開いて、送信トレイのタブにする（最初に開くのは郵便箱のタブ）
-async function openOutbox(page: Page) {
-  await openLeftPanel(page)
-  await expect(leftPanel(page).getByRole("tab", { name: "郵便箱" })).toHaveAttribute("aria-selected", "true")
-  await leftPanel(page).getByRole("tab", { name: "送信トレイ" }).click()
-}
 
 test("左サイドパネルの送信トレイに、伝言とマークが新しい順に並ぶ。伝言の行を押すと閉じて右サイドパネルに出る。マークの行は物へ移るだけ。取消は確かめてから消える。Esc で閉じる", async ({
   page,
