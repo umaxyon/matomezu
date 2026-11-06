@@ -205,6 +205,15 @@ test("マークダウンは、紙の高さでブロックの境目ごとに切�
   // 各紙は自分に掛かるブロックだけを描く: 最後の紙に「段落 60」があり、1 枚目には無い
   await expect(sheets(page).last().getByText("段落 60", { exact: true })).toBeVisible()
   await expect(sheets(page).first().getByText("段落 60", { exact: true })).toHaveCount(0)
+  // 刷るときは画面ごと隠れるが、測り直さず、並べた印刷区画をそのまま紙にする
+  const count = await sheets(page).count()
+  await page.emulateMedia({ media: "print" })
+  // 隠れたことの知らせ（ResizeObserver）と描き直しが済むまで、2 コマ待つ
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
+  await expect(page.locator("[data-print-output]")).toHaveAttribute("data-print-output", String(count))
+  const pdf = (await page.pdf({ preferCSSPageSize: true })).toString("latin1")
+  expect(pdf.match(/\/Type\s*\/Page\b/g)?.length).toBe(count)
+  await page.emulateMedia({ media: "screen" })
 })
 
 test("マークダウンの長い段落は、紙の高さに入る所で行の途中から次の紙に続ける", async ({ page }) => {
