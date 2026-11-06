@@ -1,31 +1,48 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { type Events, NoServer, OFFLINE_MS, serverClient } from "../../web/src/host-client/server"
+import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
 
 // 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る。perform はアクションを送られたときの答え（null は送れない）、
-// 待ち（later）は tick で進める
+// read は読まれたときの答えの status、log はログを送られたときの答えの status、data は読まれたときに返す世界。待ち（later）は tick で進める。
+// 知らせのつながりは、つなぐたびに新しく作り（opened は作った数、closed は閉じた数）、emit と fail は最後に作ったつながりに送る
 function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: null }) {
   const sent: Record<string, unknown>[] = []
-  const answer: { perform: () => number | null } = { perform: () => 200 }
+  const answer: { perform: () => number | null; read: () => number; log: () => number; data: unknown } = {
+    perform: () => 200,
+    read: () => 200,
+    log: () => 200,
+    data,
+  }
   let timers: { run: () => void; ms: number }[] = []
+  const made = new Map<number, number>() // 待ちの長さ → 作った数
+  let clock = 0 // 壁時計（待ちとは別に、pass で進める。スリープの間に待ちが進まないのを真似る）
   let keys = 0
-  const listeners = new Map<string, (data: string) => void>()
+  let listeners = new Map<string, (data: string) => void>()
   let onError = () => {}
+  let opened = 0
+  let closed = 0
   let reads = 0
   let focus = () => {}
   let reloads = 0
-  const events: Events = {
-    on: (name, l) => listeners.set(name, l),
-    onError: l => {
-      onError = l
-    },
-    close: () => {},
+  const events = (): Events => {
+    const mine = new Map<string, (data: string) => void>()
+    listeners = mine
+    opened++
+    return {
+      on: (name, l) => mine.set(name, l),
+      onError: l => {
+        if (listeners === mine) onError = l
+      },
+      close: () => {
+        closed++
+      },
+    }
   }
   const host = serverClient({
     fetch: async (url, init) => {
-      if (url === "api/perform" || url === "api/view" || url === "api/warnings")
+      if (url === "api/perform" || url === "api/view" || url === "api/warnings" || url === "api/log")
         sent.push({ url, ...JSON.parse(String(init?.body)) })
       if (url === "api/data") reads++
       if (url === "api/perform") {
@@ -33,9 +50,10 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
         if (status === null) throw new TypeError("Failed to fetch")
         return new Response("{}", { status })
       }
-      return new Response(JSON.stringify(data))
+      const status = url === "api/data" ? answer.read() : url === "api/log" ? answer.log() : 200
+      return new Response(JSON.stringify(answer.data), { status })
     },
-    events: () => events,
+    events,
     focused: () => true,
     onFocus: l => {
       focus = l
@@ -47,6 +65,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
       reloads++
     },
     later: (run, ms) => {
+      made.set(ms, (made.get(ms) ?? 0) + 1)
       const timer = { run, ms }
       timers.push(timer)
       return () => {
@@ -54,24 +73,36 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
       }
     },
     newKey: () => `k${++keys}`,
+    now: () => clock,
   })
   const emit = (name: string, v: unknown) => listeners.get(name)?.(JSON.stringify(v))
-  // ms 以下の待ちを全部進める
-  const tick = (ms = Number.POSITIVE_INFINITY) => {
+  // ms 以下の待ちを全部進める（黙って切れたとみる QUIET_MS の待ちは、言われたときだけ）
+  const tick = (ms = QUIET_MS - 1) => {
     const due = timers.filter(t => t.ms <= ms)
     timers = timers.filter(t => t.ms > ms)
     for (const t of due) t.run()
   }
   const performs = () => sent.filter(x => x.url === "api/perform")
+  // 常駐のログに送った行（窓の id と文）
+  const logged = () =>
+    sent.filter(x => x.url === "api/log").flatMap(x => (x.lines as { text: string }[]).map(l => [x.client, l.text]))
   return {
     host,
     sent,
     answer,
     performs,
+    logged,
     emit,
     tick,
     fail: () => onError(),
     reads: () => reads,
+    opened: () => opened,
+    closed: () => closed,
+    waiting: (ms: number) => timers.filter(t => t.ms === ms).length,
+    scheduled: (ms: number) => made.get(ms) ?? 0,
+    pass: (ms: number) => {
+      clock += ms
+    },
     focus: () => focus(),
     reloads: () => reloads,
   }
@@ -85,8 +116,8 @@ async function connected(server = fakeServer()) {
   server.emit("hello", { client: "c1" })
   const saved = await loading
   const store = newStore({ books: [], savedBooks: saved.books, observe: d => server.host.observe(d) })
-  server.host.connect(store)
-  return { ...server, store }
+  const stop = server.host.connect(store)
+  return { ...server, store, stop }
 }
 const itemsOf = (store: ReturnType<typeof newStore>) =>
   (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!.items?.map(i => i.id) ?? []
@@ -150,6 +181,7 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
     reload: () => {},
     later: () => () => {},
     newKey: () => "k",
+    now: () => 0,
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
@@ -238,6 +270,57 @@ test("つなぎ直したら（2 度目の hello）、読み直した世界の上
   ])
   s.emit("ack", { seq: 1, ok: true })
   expect(s.host.pending()).toEqual([])
+})
+
+test("常駐を起動し直して、つなぎ直した窓の id が前と同じでも、答えの来なかったアクションを送り直す", async () => {
+  const s = await connected()
+  place(s.store)
+  await flush()
+  s.fail()
+  s.emit("hello", { client: "c1" })
+  await flush()
+  expect(s.performs().map(p => [p.client, p.seq, p.key])).toEqual([
+    ["c1", 1, "k1"],
+    ["c1", 1, "k1"],
+  ])
+})
+
+test("つなぎ直したときに読めなければ、少し待って読み直し、その間に変わったブックも出す", async () => {
+  const s = await connected()
+  s.fail()
+  s.answer.read = () => 404
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.reads()).toBe(2)
+  expect(itemsOf(s.store)).toEqual([])
+  s.answer.read = () => 200
+  s.answer.data = { books: [{ id: "b1", book: b1With("later"), version: 5 }], settings: null }
+  s.tick()
+  await flush()
+  expect(s.reads()).toBe(3)
+  expect(itemsOf(s.store)).toEqual(["later"])
+  expect(s.logged().map(l => l[1])).toEqual([
+    "lost the connection to the server",
+    "reconnected as c2 (was c1): sending 0 actions again",
+    "could not read the server again: NoServer",
+    "took book b1 v5; the window had v1",
+  ])
+})
+
+test("つなぎ直して読み直すと、常駐に無くなったブックは消える。読んでいる間に届いたブックは残す", async () => {
+  const s = await connected()
+  s.answer.data = { books: [], settings: null }
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect("b1" in s.store.state.getState().books).toBe(false)
+  expect(s.logged().map(l => l[1])).toContain("removed book b1; the server does not have it")
+  s.emit("book", { book: b1With("x"), version: 7 })
+  s.fail()
+  s.emit("hello", { client: "c3" })
+  s.emit("book", { book: b1With("y"), version: 8 })
+  await flush()
+  expect(itemsOf(s.store)).toEqual(["y"])
 })
 
 test("送れなかったアクションは消さず、切れている間の編集とまとめて、つながったら順に送る", async () => {
@@ -333,6 +416,7 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
     reload: () => {},
     later: () => () => {},
     newKey: () => "k",
+    now: () => 0,
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
@@ -442,4 +526,100 @@ test("ブックに触れた時刻は、読んだ一覧と touched の知らせ�
   emit("touched", { book: "master", at: "2026-10-27T02:00:00Z" })
   emit("touched", { book: "b1", at: "2026-10-27T00:00:00Z" })
   expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z", master: "2026-10-27T02:00:00Z" })
+})
+
+test("切れている間に書き残した事は、つなぎ直してから新しいつながりの id で常駐のログに送る", async () => {
+  const s = await connected()
+  s.fail()
+  expect(s.logged()).toEqual([])
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.logged()).toEqual([
+    ["c2", "lost the connection to the server"],
+    ["c2", "reconnected as c2 (was c1): sending 0 actions again"],
+  ])
+})
+
+test("常駐のログに送れない（5xx）行は、つなぎ直したときに一緒に送る。4xx なら捨てる。読み直した版が画面の版より古ければ画面の版を残す", async () => {
+  const s = await connected()
+  s.answer.log = () => 400
+  s.emit("book", { book: b1With("x"), version: 3 })
+  s.emit("book", { book: b1With("x"), version: 1 })
+  s.answer.log = () => 500
+  s.emit("book", { book: b1With("old"), version: 2 })
+  await flush()
+  s.answer.log = () => 200
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(itemsOf(s.store)).toEqual(["x"])
+  expect(s.logged().slice(2)).toEqual([
+    ["c2", "kept book b1 v3; the notice had v2"],
+    ["c2", "lost the connection to the server"],
+    ["c2", "reconnected as c2 (was c1): sending 0 actions again"],
+    ["c2", "kept book b1 v3; the server has v1"],
+  ])
+})
+
+test("知らせが QUIET_MS 届かなければ、黙って切れたとみて閉じてつなぎ直し、読み直してアクションを送り直す", async () => {
+  const s = await connected()
+  s.answer.perform = () => null
+  place(s.store)
+  await flush()
+  s.answer.perform = () => 200
+  s.answer.data = { books: [{ id: "b1", book: b1With("ai"), version: 2 }], settings: null }
+  s.tick(QUIET_MS)
+  expect([s.opened(), s.closed()]).toEqual([2, 1])
+  // つなぎ直したつながりが hello を返さなければ、また閉じてつなぎ直す（ログは 1 度だけ）
+  s.tick(QUIET_MS)
+  expect([s.opened(), s.closed()]).toEqual([3, 2])
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.reads()).toBe(2)
+  expect(itemsOf(s.store)).toEqual(["ai", "n1"])
+  expect(s.performs().map(p => p.client)).toEqual(["c1", "c2"])
+  expect(s.logged().map(l => l[1])).toEqual([
+    "no event for 60s; connecting again",
+    "reconnected as c2 (was c1): sending 1 actions again",
+    "took book b1 v2; the window had v1",
+  ])
+})
+
+test("keep などの知らせが届くたびに、黙って切れたとみるまでの待ちを始め直す", async () => {
+  const s = await connected()
+  expect([s.scheduled(QUIET_MS), s.waiting(QUIET_MS)]).toEqual([1, 1])
+  s.emit("keep", {})
+  s.emit("keep", {})
+  expect([s.scheduled(QUIET_MS), s.waiting(QUIET_MS)]).toEqual([3, 1])
+  expect(s.opened()).toBe(1)
+  // 止めると見張りも止まる
+  s.stop()
+  expect(s.waiting(QUIET_MS)).toBe(0)
+})
+
+test("つなぎ直したら、見ているものを新しいつながりの id で知らせ直す", async () => {
+  const s = await connected()
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.sent.filter(x => x.url === "api/view").map(x => x.client)).toEqual(["c1", "c2"])
+})
+
+test("フォーカスされたとき、壁時計で QUIET_MS 何も届いていなければ、待ちを待たずにつなぎ直す", async () => {
+  const s = await connected()
+  s.pass(QUIET_MS - 1)
+  s.focus()
+  expect(s.opened()).toBe(1)
+  s.emit("keep", {})
+  s.pass(QUIET_MS)
+  s.focus()
+  expect([s.opened(), s.closed()]).toEqual([2, 1])
+  expect(s.logged().map(l => l[1])).toEqual([])
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.reads()).toBe(2)
+  expect(s.logged().map(l => l[1])).toEqual([
+    "no event for 60s by the clock; connecting again",
+    "reconnected as c2 (was c1): sending 0 actions again",
+  ])
 })
