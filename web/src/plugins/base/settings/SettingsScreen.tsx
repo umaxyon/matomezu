@@ -1,4 +1,4 @@
-// 設定画面の中身: 左に項目の一覧（SETTINGS_SECTIONS）、右に選んだ項目の欄（全体は利用者の設定の並び、ショートカットキーはキーバインドの欄）。押した項目に右の欄が切り替わる（選んでいる項目は画面の中で持つ）。
+// 設定画面の中身: 左に項目の一覧（SETTINGS_SECTIONS）、右に選んだ項目の中身（全体は利用者の設定の並び、ショートカットキーはキーバインドの一覧）。押した項目に右の中身が切り替わる（選んでいる項目は画面の中で持つ）。
 // ダイアログに頼らないので、ほかの置き場にもそのまま置ける（要素の id は置いた所ごとに振る）。設定を書くコマンドは stage で行う
 import { type ComponentType, useId, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
@@ -8,7 +8,7 @@ import styles from "./SettingsScreen.module.css"
 import { SETTINGS_SECTIONS } from "./settings-screen"
 import { UserSettings } from "./UserSettings"
 
-// 項目の id ごとの、右の欄の中身
+// 項目の id ごとの、右に出す中身
 const PANES: Readonly<Record<string, ComponentType<{ stage: string }>>> = { general: UserSettings, keys: KeysPane }
 
 export function SettingsScreen({ stage }: { stage: string }) {

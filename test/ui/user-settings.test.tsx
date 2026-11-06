@@ -48,7 +48,7 @@ const EX = definePluginUi(
   {},
 )
 
-// book のブックを開いたステージで、設定画面を開いて「全体」の欄を返す（マスターなら「設定を開く」のボタンで、ほかのブックならダイアログを開く操作で）
+// book のブックを開いたステージで、設定画面を開いて「全体」の中身（tabpanel）を返す（マスターなら「設定を開く」のボタンで、ほかのブックならダイアログを開く操作で）
 function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], book: string = MASTER_BOOK.id) {
   const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins })
   store.actions.openBook("s1", book)
@@ -76,7 +76,7 @@ test("マスターの設定の区分は、設定画面を開くボタンだけ�
   expect(within(master).queryByLabelText("言語")).toBeNull()
 })
 
-test("「全体」は base の項目を見出しなしで先に、ほかのプラグインの項目をプラグインの id の見出しの下に並べる。ショートカットキーの行は出さない（ショートカットキーの欄で変える）", () => {
+test("「全体」は base の項目を見出しなしで先に、ほかのプラグインの項目をプラグインの id の見出しの下に並べる。ショートカットキーの行は出さない（設定画面のショートカットキーで変える）", () => {
   const { general } = renderGeneral()
   expect(within(general).getByLabelText("言語")).toBeTruthy()
   expect(within(general).getByLabelText("スキン")).toBeTruthy()

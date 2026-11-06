@@ -35,7 +35,7 @@ export const SKIN = kit.defineSetting({
 })
 
 // キーバインドの、利用者の変更（足した行・外した既定の行）。今のインスタンスに無いコマンドの行も残す（プラグインを戻せばまた効く）。
-// 変えるのは設定画面のショートカットキーの欄（KeysPane）なので、項目のビューを持たず、利用者の設定の並び（UserSettings）には出ない
+// 変えるのは設定画面のショートカットキー（KeysPane）なので、項目のビューを持たない。値の形からも入力Formを作れないので、利用者の設定の並び（UserSettings）には出ない
 export const KEYS = kit.defineSetting({
   id: "keys",
   title: "Shortcut keys",
