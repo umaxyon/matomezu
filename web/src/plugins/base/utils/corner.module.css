@@ -12,12 +12,12 @@
 .corner {
   position: relative;
 }
-/* まとめた絵: 先頭の 2 つの絵を、右上へずらして重ねる */
+/* まとめた絵: 先頭の 2 つの絵を、1 つのときより小さくし、右上へずらして重ねる（後ろの絵はさらに小さく、少し暗く） */
 .stack {
   position: relative;
   display: block;
-  width: 28px;
-  height: 26px;
+  width: 24px;
+  height: 22px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -32,13 +32,15 @@
 .back {
   top: 0;
   right: 0;
-  opacity: 0.75;
+  transform: scale(0.68);
+  transform-origin: top right;
+  filter: brightness(0.8);
 }
 .front {
   bottom: 0;
   left: 0;
-  border-radius: 50%;
-  outline: 2px solid var(--skin-surface);
+  transform: scale(0.82);
+  transform-origin: bottom left;
 }
 /* 吹き出し: 角から上へ、右端を角にそろえて左へ広がり、押す物を横 1 列に並べる（上に入らなければ下へ） */
 .bubble {
