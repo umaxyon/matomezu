@@ -48,7 +48,7 @@ export function UserSettings({ stage }: { stage: string }) {
   }
   return [...groups].map(([owner, rows]) => (
     <div key={owner}>
-      {owner !== kit.id && <h3 className={styles.heading}>{owner}</h3>}
+      {owner !== kit.id && <h4 className={styles.heading}>{owner}</h4>}
       {rows}
     </div>
   ))

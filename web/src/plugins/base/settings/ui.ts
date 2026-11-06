@@ -3,8 +3,8 @@ import { TextColorsSetting } from "../text/TextColorsSetting"
 import { USER_TEXT_COLORS } from "../text/text-colors"
 import { SettingsDialog } from "./SettingsDialog"
 import { SETTINGS_DIALOG } from "./settings-screen"
-import { KEYS, LANG, SKIN } from "./user-settings"
-import { KeysSetting, LangSetting, SkinSetting } from "./views"
+import { LANG, SKIN } from "./user-settings"
+import { LangSetting, SkinSetting } from "./views"
 
 export { UserSettings } from "./UserSettings"
 
@@ -13,6 +13,5 @@ export const SETTINGS_DIALOG_VIEWS = { [SETTINGS_DIALOG.id]: SettingsDialog }
 export const USER_SETTING_VIEWS = {
   [LANG.id]: { control: LangSetting },
   [SKIN.id]: { control: SkinSetting },
-  [KEYS.id]: { control: KeysSetting },
   [USER_TEXT_COLORS.id]: { control: TextColorsSetting },
 }

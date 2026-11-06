@@ -214,11 +214,12 @@ test("マスターで新しいブックを作ると、そのステージでペ�
   expect(screen.getByRole("img", { name: "紙" })).toBeTruthy()
 })
 
-test("マスターの設定で言語とスキンを変える", () => {
+test("設定画面の「全体」で言語とスキンを変える", () => {
   renderScreen()
   fireEvent.click(fromMenu("ホーム"))
+  fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
   fireEvent.change(screen.getByLabelText("言語"), { target: { value: "matomezu:en" } })
-  expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy()
+  expect(screen.getByRole("tab", { name: "General" })).toBeTruthy()
   fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "@matomezu/base:light" } })
   expect(document.documentElement.dataset.skin).toBe("@matomezu/base:light")
 })

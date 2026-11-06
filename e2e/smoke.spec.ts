@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures"
+import { openGeneral } from "./helpers/settings"
 import { fromMenu, menuOf } from "./helpers/stage-menu"
 
 test("下の行のどこに乗せても、ブックの名前のメニューがせり上がり、下の行から離れると下がる", async ({ page }) => {
@@ -103,6 +104,19 @@ test("分割した右のステージで探すテキストFormからマスター�
   await expect(right.getByRole("region", { name: "マスター" })).toBeVisible()
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
   await expect(await fromMenu(page, "ホーム", 1)).toHaveAttribute("aria-pressed", "true")
+})
+
+test("分割した右のステージ（ブックを開いていない）の「新しいブック」で作ると、右のステージにそのブックが開く", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await (await fromMenu(page, "画面を分割")).click()
+  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
+  await right.getByRole("button", { name: "新しいブック" }).click()
+  await page.keyboard.type("右で作った図")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("dialog", { name: "新しいブック" })).toBeHidden()
+  await expect(page.getByRole("tablist").nth(1)).toHaveAttribute("aria-label", "右で作った図")
 })
 
 test("分割した右のステージを閉じると、左のステージが画面全体に広がる", async ({ page }) => {
@@ -210,13 +224,13 @@ test("マスターで新しいブックを作ると空のブックが開き、�
   await expect(page.getByRole("dialog", { name: "ブックを開く" }).getByRole("option")).toHaveText([/^新しい図/])
 })
 
-test("マスターの設定で言語とスキンを変えると、画面がすぐに変わる", async ({ page }) => {
+test("設定画面の「全体」で言語とスキンを変えると、画面がすぐに変わる", async ({ page }) => {
   await page.goto("/")
-  await (await fromMenu(page, "ホーム")).click()
-  await page.getByLabel("スキン").selectOption("@matomezu/base:light")
+  const general = await openGeneral(page)
+  await general.getByLabel("スキン").selectOption("@matomezu/base:light")
   await expect(page.locator("html")).toHaveAttribute("data-skin", "@matomezu/base:light")
-  await page.getByLabel("言語").selectOption("matomezu:en")
-  await expect(page.getByRole("button", { name: "New book" })).toBeVisible()
+  await general.getByLabel("言語").selectOption("matomezu:en")
+  await expect(page.getByRole("tab", { name: "General" })).toBeVisible()
   await expect(page.locator("html")).toHaveAttribute("lang", "en")
 })
 

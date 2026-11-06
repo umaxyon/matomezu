@@ -1,5 +1,5 @@
 // ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、レイヤー（スロット book-layers。
-// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
+// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを作るボタン（コマンド book-new）とブックを探すコンポーネントを真ん中に出す。
 // 紙をずらす道具（pans）の間は、ステージの中のどこでもポインタを手にする（中のアイテムのカーソルより強い。ドラッグ中は握った手）。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
 // ホイールは、ポインタの下にその向きへまだスクロールできる物（リストの行の並び・データの表など）があればその物が受け、紙はずらさない。一続きの回しは始めに決めた物が受け、
@@ -15,6 +15,7 @@ import { Slot } from "../../../ui/Slot"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBook, useStage } from "../../../ui/view-hooks"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
+import { BOOK_NEW } from "../book-new"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
 import { PrintPreviewView } from "../print-preview/PrintPreviewView"
@@ -127,14 +128,30 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       {stage.opened && book ? (
         <BookContent stage={id} type={stage.opened.type} previewing={inPreview} />
       ) : (
-        <div className={styles.empty}>
-          <p className={styles.prompt}>{t("Select a book")}</p>
-          <BookSearch onSelect={book => openBook(id, book)} />
-        </div>
+        <EmptyStage stage={id} onSelect={book => openBook(id, book)} />
       )}
     </section>
   )
 })
+
+// 何も開いていないステージの中身: ブックを作るボタンと、ブックを探すコンポーネント
+function EmptyStage({ stage, onSelect }: { stage: string; onSelect: (book: string) => void }) {
+  const t = useMessages(kit)
+  const newBook = useCommand(stage, BOOK_NEW.id)
+  return (
+    <div className={styles.empty}>
+      {newBook.shown && (
+        <div>
+          <button type="button" className={styles.newBook} disabled={!newBook.enabled} onClick={() => newBook.run()}>
+            {t(newBook.title)}
+          </button>
+        </div>
+      )}
+      <p className={styles.prompt}>{t("Select a book")}</p>
+      <BookSearch onSelect={onSelect} />
+    </div>
+  )
+}
 
 // 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表はレイヤーみんなで使う）。
 // 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）

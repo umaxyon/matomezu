@@ -1,12 +1,12 @@
-// マスターの設定の区分: 利用者の設定の項目を、項目のビューか値の形から作った入力Form で並べる（base の UserSettings）
+// 設定画面の「全体」: 利用者の設定の項目を、項目のビューか値の形から作った入力Form で並べる（base の UserSettings）。マスターには設定画面を開くボタンだけを置く
 import { afterEach, expect, test } from "bun:test"
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { userSetting } from "../../web/src/core/settings"
+import { SETTINGS_DIALOG } from "../../web/src/plugins/base/settings"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { MASTER } from "../../web/src/plugins/books/master/master"
-import { MASTER_VIEW_MESSAGES } from "../../web/src/plugins/books/master/view/messages"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -48,42 +48,63 @@ const EX = definePluginUi(
   {},
 )
 
-function renderMaster(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX]) {
+// book のブックを開いたステージで、設定画面を開いて「全体」の欄を返す（マスターなら「設定を開く」のボタンで、ほかのブックならダイアログを開く操作で）
+function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], book: string = MASTER_BOOK.id) {
   const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins })
+  store.actions.openBook("s1", book)
+  render(
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
+      <Screen />
+    </MatomezuProvider>,
+  )
+  if (book === MASTER_BOOK.id) fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
+  else act(() => store.actions.openDialog("s1", SETTINGS_DIALOG.id))
+  const value = (id: string) => userSetting(store.catalog.core, store.state.getState().settings, `@ex/s:${id}`)
+  return { store, value, general: screen.getByRole("tabpanel", { name: "全体" }) }
+}
+
+test("マスターの設定の区分は、設定画面を開くボタンだけで、項目を並べない", () => {
+  const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
   store.actions.openBook("s1", MASTER_BOOK.id)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
     </MatomezuProvider>,
   )
-  const value = (id: string) => userSetting(store.catalog.core, store.state.getState().settings, `@ex/s:${id}`)
-  return { store, value, master: screen.getByRole("region", { name: "マスター" }) }
-}
+  const master = screen.getByRole("region", { name: "マスター" })
+  expect(within(master).getByRole("button", { name: "設定を開く" })).toBeTruthy()
+  expect(within(master).queryByLabelText("言語")).toBeNull()
+})
 
-test("設定の区分は画面の作りが決まっていないことを書き添え、base の項目を見出しなしで先に、ほかのプラグインの項目をプラグインの id の見出しの下に並べる", () => {
-  const { master } = renderMaster()
-  expect(within(master).getByText(MASTER_VIEW_MESSAGES["(The settings screen is provisional)"].ja)).toBeTruthy()
-  expect(within(master).getByLabelText("言語")).toBeTruthy()
-  expect(within(master).getByLabelText("スキン")).toBeTruthy()
-  expect(within(master).getByText("（準備中）")).toBeTruthy()
+test("「全体」は base の項目を見出しなしで先に、ほかのプラグインの項目をプラグインの id の見出しの下に並べる。ショートカットキーの行は出さない（ショートカットキーの欄で変える）", () => {
+  const { general } = renderGeneral()
+  expect(within(general).getByLabelText("言語")).toBeTruthy()
+  expect(within(general).getByLabelText("スキン")).toBeTruthy()
+  expect(within(general).queryByText("ショートカットキー")).toBeNull()
   expect(
-    within(master)
-      .getAllByRole("heading", { level: 3 })
+    within(general)
+      .getAllByRole("heading", { level: 4 })
       .map(h => h.textContent),
   ).toEqual(["@matomezu/markdown", "@ex/s"])
   // 入力Form を作れない形の項目は出さない
-  expect(within(master).queryByText("一覧")).toBeNull()
+  expect(within(general).queryByText("一覧")).toBeNull()
+})
+
+test("マスターでないブックのステージで開いた設定画面でも、「全体」の項目を変えられる（許すかはホームのタイプが決める）", () => {
+  const { general, value } = renderGeneral(undefined, SAMPLE_BOOKS[0]!.id)
+  fireEvent.click(within(general).getByRole("switch", { name: "入り" }))
+  expect(value("on")).toBe(true)
 })
 
 test("値の形から入力Form を作る: 真偽はスイッチ、選択肢はセレクトForm（名前があれば名前）、数と文字はテキストForm で離れたときに変え、空にすれば既定に戻す", () => {
-  const { master, value } = renderMaster()
-  fireEvent.click(within(master).getByRole("switch", { name: "入り" }))
+  const { general, value } = renderGeneral()
+  fireEvent.click(within(general).getByRole("switch", { name: "入り" }))
   expect(value("on")).toBe(true)
-  const mode = within(master).getByLabelText("モード") as HTMLSelectElement
+  const mode = within(general).getByLabelText("モード") as HTMLSelectElement
   expect([...mode.options].map(o => o.textContent)).toEqual(["速い", "slow"])
   fireEvent.change(mode, { target: { value: "fast" } })
   expect(value("mode")).toBe("fast")
-  const size = within(master).getByLabelText("大きさ") as HTMLInputElement
+  const size = within(general).getByLabelText("大きさ") as HTMLInputElement
   fireEvent.change(size, { target: { value: "5" } })
   expect(value("size")).toBe(3)
   fireEvent.blur(size)
@@ -93,7 +114,7 @@ test("値の形から入力Form を作る: 真偽はスイッチ、選択肢は�
   fireEvent.keyDown(size, { key: "Enter" })
   expect(value("size")).toBe(5)
   expect(size.value).toBe("5")
-  const nick = within(master).getByLabelText("呼び名") as HTMLInputElement
+  const nick = within(general).getByLabelText("呼び名") as HTMLInputElement
   fireEvent.change(nick, { target: { value: "b" } })
   fireEvent.blur(nick)
   expect(value("nick")).toBe("b")
@@ -105,7 +126,7 @@ test("値の形から入力Form を作る: 真偽はスイッチ、選択肢は�
 test("ホームのタイプが変えさせない項目は、灰色で押せない", () => {
   const fixed = { ...MASTER, fixedUserSettings: ["@matomezu/base:skin", "@ex/s:on"] }
   const [base, master, ...rest] = BUILTIN_UI
-  const { master: view } = renderMaster([base, { ...master, bookTypes: [fixed] } as AnyPluginUi, ...rest, EX])
+  const { general: view } = renderGeneral([base, { ...master, bookTypes: [fixed] } as AnyPluginUi, ...rest, EX])
   expect((within(view).getByLabelText("スキン") as HTMLSelectElement).closest("fieldset")?.disabled).toBe(true)
   expect((within(view).getByRole("switch", { name: "入り" }) as HTMLButtonElement).closest("fieldset")?.disabled).toBe(
     true,
