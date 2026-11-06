@@ -152,13 +152,13 @@ test("設定画面の左の一覧は、配置が置いた設定カテゴリを�
 })
 
 test("追加プラグインは設定カテゴリを足せる（置いてほしい所の後ろに並び、名指した項目は「全体」から外れる）", () => {
-  const section = defineSettingsCategory({
+  const category = defineSettingsCategory({
     id: "@ex/s:settings",
     title: kit.message("mode") as never, // 試しのプラグインは文言の表に書き足していない
     settings: ["@ex/s:mode", "@ex/s:on"],
     place: { after: "@matomezu/base:settings-general" },
   })
-  const { general } = renderGeneral([...BUILTIN_UI, definePluginUi(EX_PLUGIN, { widgets: [section] })])
+  const { general } = renderGeneral([...BUILTIN_UI, definePluginUi(EX_PLUGIN, { widgets: [category] })])
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual([
     "全体",
     "モード",

@@ -11,20 +11,20 @@ import { SETTINGS_CATEGORIES } from "./settings-screen"
 export function SettingsScreen({ stage }: { stage: string }) {
   const t = useT() // 題名はほかのプラグインの文言の鍵でもある
   const widgets = useUiCatalog().widgets
-  const sections = (useLayout().slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => {
+  const categories = (useLayout().slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => {
     const def = widgets.get(id)
     const View = def?.view as ((props: SettingsCategoryProps) => ReactNode) | undefined
     return def?.settingsCategory && View ? [{ id, title: def.settingsCategory.title, View }] : []
   })
   const [current, setCurrent] = useState<string | undefined>(undefined)
-  const shown = sections.find(s => s.id === current) ?? sections[0]
+  const shown = categories.find(s => s.id === current) ?? categories[0]
   const base = useId()
-  const tabId = (section: string) => `${base}-tab-${section}`
+  const tabId = (category: string) => `${base}-tab-${category}`
   const panelId = `${base}-panel`
   return (
     <div className={styles.screen}>
-      <div className={styles.sections} role="tablist" aria-orientation="vertical">
-        {sections.map(s => (
+      <div className={styles.categories} role="tablist" aria-orientation="vertical">
+        {categories.map(s => (
           <button
             key={s.id}
             type="button"
@@ -32,7 +32,7 @@ export function SettingsScreen({ stage }: { stage: string }) {
             id={tabId(s.id)}
             aria-selected={s.id === shown?.id}
             aria-controls={panelId}
-            className={styles.section}
+            className={styles.category}
             onClick={() => setCurrent(s.id)}
           >
             {t(s.title)}

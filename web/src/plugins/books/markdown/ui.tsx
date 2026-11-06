@@ -10,7 +10,7 @@ import { PANE_LAYOUT_ICONS } from "./view/pane-icons"
 import { TabKeySetting } from "./view/TabKeySetting"
 import { MARKDOWN_VIEW } from "./view/ui"
 
-// 設定画面の「マークダウン」の項目: Tab キーとソースのペインの見た目
+// 設定カテゴリ「マークダウン」: Tab キーとソースのペインの見た目
 export const MARKDOWN_SETTINGS_CATEGORY = defineSettingsCategory({
   id: kit.name("settings"),
   title: kit.message("Markdown"),

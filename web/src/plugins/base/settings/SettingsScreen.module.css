@@ -1,4 +1,4 @@
-/* 設定画面: 左に設定カテゴリの一覧、右に選んだ設定カテゴリの中身（右の欄だけがスクロールする） */
+/* 設定画面: 左に設定カテゴリの一覧、右に選んだ設定カテゴリの中身（右の中身だけがスクロールする） */
 .screen {
   display: flex;
   gap: 16px;
@@ -6,7 +6,7 @@
   min-height: 0;
   font-size: 13px;
 }
-.sections {
+.categories {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -15,7 +15,7 @@
   padding-right: 12px;
   border-right: 1px solid var(--skin-border);
 }
-.section {
+.category {
   padding: 6px 10px;
   border: 0;
   border-radius: 6px;
@@ -25,10 +25,10 @@
   text-align: left;
   cursor: pointer;
 }
-.section:hover {
+.category:hover {
   background: var(--skin-btn-hover);
 }
-.section[aria-selected="true"] {
+.category[aria-selected="true"] {
   background: var(--skin-accent-subtle);
   font-weight: 600;
 }
