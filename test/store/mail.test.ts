@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import type { Mail } from "../../web/src/core/mail"
 import { performIn } from "../../web/src/core/perform"
+import { placeShown } from "../../web/src/plugins/base/mail/visited"
 import { CORE_CATALOG, newStore } from "../support"
 
 const SEND = "@matomezu/base:mail-send"
@@ -88,4 +89,23 @@ test("郵便箱は 200 通まで。超えたら、見た郵便のうち古い物
   send({ from: "a", title: "t201" })
   expect(mails()).toHaveLength(200)
   expect(mails()[0]!.props).toEqual({ title: "t1", body: "" })
+})
+
+test("行き先が出ているか: そのブックのそのページを開いていて、物があればその物が表示領域に入っている", () => {
+  const m = (to: Mail["to"]): Mail => ({
+    id: "m",
+    mail: "@matomezu/base:letter",
+    from: "a",
+    sentAt: "t",
+    props: {},
+    ...(to ? { to } : {}),
+  })
+  const stages = [{ id: "s1", book: "b1", page: "p1" }]
+  const none = () => false
+  const shows = (_stage: string, id: string) => id === "x"
+  expect(placeShown(m({ book: "b1" }), stages, none)).toBe(true)
+  expect(placeShown(m({ book: "b1", page: "p2" }), stages, none)).toBe(false)
+  expect(placeShown(m({ book: "b1", page: "p1", ids: ["y"] }), stages, shows)).toBe(false)
+  expect(placeShown(m({ book: "b1", page: "p1", ids: ["y", "x"] }), stages, shows)).toBe(true)
+  expect(placeShown(m(undefined), stages, none)).toBe(false)
 })

@@ -9,6 +9,7 @@ import { anchorElementIn } from "../utils/anchors"
 import { MAIL_VISITED } from "."
 import { useMailbox } from "./hooks"
 import { shownOf } from "./shown"
+import { placeShown } from "./visited"
 
 const CHECK_MS = 1000 // 行き先が出たかを見直す間隔
 
@@ -45,13 +46,11 @@ function useVisited() {
     const check = () => {
       const s = read()
       for (const m of s.mailbox) {
-        const to = m.to
-        if (!to || m.visitedAt) continue
-        const shown = s.workspace.stages.some(st => {
-          const o = st.opened
-          if (!o || o.book !== to.book || (to.page && o.page !== to.page)) return false
-          return !to.ids || to.ids.some(id => onScreen(st.id, id))
-        })
+        if (!m.to || m.visitedAt) continue
+        const stages = s.workspace.stages.flatMap(st =>
+          st.opened ? [{ id: st.id, book: st.opened.book, page: st.opened.page }] : [],
+        )
+        const shown = placeShown(m, stages, onScreen)
         if (shown) perform(MAIL_VISITED.id, { mail: m.id })
       }
     }

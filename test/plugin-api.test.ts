@@ -328,7 +328,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
   ])
 })
 
-test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグインの置き場を変える updateStageState（インスタンスだけが持つ receive・locate・setOffline・setStageState は渡さない）", () => {
+test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグインの置き場を変える updateStageState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setStageState は渡さない）", () => {
   const store = newStore()
   const def = commandDef(store, "@matomezu/base:mark-new")
   const run = def.run
