@@ -1,6 +1,7 @@
 import { E2E_BOOKS } from "../books"
 import { aiAuth, expect, type Page, test } from "../fixtures"
 import { addBox } from "../helpers/paper"
+import { openGeneral } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
 
 // 常駐を空にして始め、テストごとに使うブックを置く
@@ -24,13 +25,12 @@ test("初めて開くと、ブックを持たずにマスターを出す", async
   expect((await data(page)).books).toEqual([])
 })
 
-test("マスターで変えた設定は常駐に残り、読み直しても同じ", async ({ page }) => {
+test("設定画面で変えた設定は常駐に残り、読み直しても同じ", async ({ page }) => {
   await page.goto("/")
-  const skin = page.getByRole("region", { name: "マスター" }).getByLabel("スキン")
-  await skin.selectOption("@matomezu/base:dark")
+  await (await openGeneral(page)).getByLabel("スキン").selectOption("@matomezu/base:dark")
   await expect.poll(async () => (await data(page)).settings?.["@matomezu/base:skin"]).toBe("@matomezu/base:dark")
   await page.reload()
-  await expect(page.getByRole("region", { name: "マスター" }).getByLabel("スキン")).toHaveValue("@matomezu/base:dark")
+  await expect((await openGeneral(page)).getByLabel("スキン")).toHaveValue("@matomezu/base:dark")
 })
 
 test("置いた箱は少し待って常駐に残り、読み直しても同じ所にある", async ({ page }) => {

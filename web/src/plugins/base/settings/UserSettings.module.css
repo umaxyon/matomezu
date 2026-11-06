@@ -13,7 +13,7 @@
   margin: 16px 0 10px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--theme-hint);
+  color: var(--skin-text-muted);
 }
 .row {
   display: flex;
@@ -28,16 +28,13 @@
   flex: 1;
   min-width: 0;
   padding: 5px 8px;
-  border: 1px solid var(--theme-line);
+  border: 1px solid var(--skin-border);
   border-radius: 6px;
-  background: var(--theme-paper);
-  color: var(--theme-text);
+  background: var(--skin-surface);
+  color: var(--skin-text);
   font: inherit;
 }
 .control:focus-visible {
-  outline: 2px solid var(--theme-accent);
+  outline: 2px solid var(--skin-accent);
   outline-offset: 1px;
-}
-.hint {
-  color: var(--theme-hint);
 }

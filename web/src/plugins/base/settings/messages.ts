@@ -7,7 +7,6 @@ export const SETTINGS_MESSAGES = defineMessages({
   "Shortcut keys": { en: "Shortcut keys", ja: "ショートカットキー" },
   Settings: { en: "Settings", ja: "設定" },
   Auto: { en: "Auto", ja: "自動" },
-  "(Coming soon)": { en: "(Coming soon)", ja: "（準備中）" },
   "Open settings": { en: "Open settings", ja: "設定を開く" },
   General: { en: "General", ja: "全体" },
   Close: { en: "Close", ja: "閉じる" },

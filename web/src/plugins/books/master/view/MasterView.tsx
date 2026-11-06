@@ -1,7 +1,6 @@
 // マスターのブックのビュー: ブックの一覧や設定などを集める、紙の無いただの画面。見た目はテーマで描く。
-// ブックを作るボタンと、設定画面を開くボタン、利用者の設定の並び（base の UserSettings）を置く。どれもコマンド（book-new・settings-open・settings-set）を呼ぶ
+// ブックを作るボタンと、設定画面を開くボタンを置く。どちらもコマンド（book-new・settings-open）を呼ぶ
 import { type BookViewProps, useCommand, useMessages } from "../../../../plugin-api/ui"
-import { UserSettings } from "../../../base/ui"
 import { kit } from "../kit"
 import styles from "./MasterView.module.css"
 
@@ -26,7 +25,7 @@ export function MasterView({ stage }: BookViewProps) {
   )
 }
 
-// 設定の区分: 設定画面を開くボタンと、利用者の設定の項目を並べ、設定画面の作りが決まっていないことを伝える文言を書き添える
+// 設定の区分: 設定画面を開くボタン
 function Settings({ stage }: { stage: string }) {
   const t = useMessages(kit)
   const open = useCommand(stage, "@matomezu/base:settings-open")
@@ -40,8 +39,6 @@ function Settings({ stage }: { stage: string }) {
           </button>
         </div>
       )}
-      <p className={styles.note}>{t("(The settings screen is provisional)")}</p>
-      <UserSettings stage={stage} />
     </div>
   )
 }

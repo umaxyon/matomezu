@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { onPaper } from "./helpers/paper"
 import { selectText } from "./helpers/rich"
-import { fromMenu } from "./helpers/stage-menu"
+import { openGeneral, settingsDialog } from "./helpers/settings"
 
 test("本文の上のボックスで、選んだ範囲を太字と注意の色にすると、記号は見せずに装飾して描き、箱でも太字・色で描く", async ({
   page,
@@ -101,7 +101,7 @@ test("行の編集で書いた本文は、確定の前からリストの行に�
   await expect(list.getByRole("listitem").first()).toHaveText("会議")
 })
 
-test("マスターの設定で文字の色を自分用に変えると、図面の本文のその色が変わる", async ({ page }) => {
+test("設定画面の「全体」で文字の色を自分用に変えると、図面の本文のその色が変わる", async ({ page }) => {
   await page.goto("/")
   await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
@@ -114,13 +114,12 @@ test("マスターの設定で文字の色を自分用に変えると、図面�
   await add.getByRole("button", { name: "追加" }).click()
   const span = page.locator("[data-item] [data-line] span").first()
   await expect(span).toHaveCSS("color", "rgb(217, 119, 6)")
-  await (await fromMenu(page, "ホーム")).click()
-  const master = page.getByRole("region", { name: "マスター" })
-  await master.getByRole("button", { name: "注意" }).click()
+  await (await openGeneral(page)).getByRole("button", { name: "注意" }).click()
   const picker = page.getByRole("dialog", { name: "色を選ぶ" })
   await picker.getByLabel("色の値（#rrggbb）").fill("#7c3aed")
   await picker.getByLabel("色の値（#rrggbb）").press("Enter")
   await page.keyboard.press("Escape")
+  await settingsDialog(page).getByRole("button", { name: "閉じる" }).click()
   await page.goBack()
   await expect(span).toHaveCSS("color", "rgb(124, 58, 237)")
 })

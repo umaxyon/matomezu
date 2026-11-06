@@ -47,3 +47,22 @@
   font-size: 14px;
   color: var(--skin-text);
 }
+/* ブックを作るボタン（マスターの「新しいブック」と同じ形） */
+.newBook {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--skin-accent);
+  color: var(--skin-on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.newBook:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.newBook:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
+}

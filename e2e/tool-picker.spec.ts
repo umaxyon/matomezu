@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "./fixtures"
 import { onPaper } from "./helpers/paper"
+import { openGeneral, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
 const picker = (page: Page) => page.getByRole("toolbar", { name: "ツールの切り替え" })
@@ -108,9 +109,10 @@ test("設定で長押しの時間を 500 ミリ秒にすると、300 ミリ秒�
 }) => {
   await page.clock.install()
   await page.goto("/")
-  await (await fromMenu(page, "ホーム")).click()
-  await page.getByLabel("ツールの切り替えを出す長押しの時間（ミリ秒）").selectOption("500")
-  await expect(page.getByLabel("ツールの切り替えを出す長押しの時間（ミリ秒）")).toHaveValue("500")
+  const general = await openGeneral(page)
+  await general.getByLabel("ツールの切り替えを出す長押しの時間（ミリ秒）").selectOption("500")
+  await expect(general.getByLabel("ツールの切り替えを出す長押しの時間（ミリ秒）")).toHaveValue("500")
+  await settingsDialog(page).getByRole("button", { name: "閉じる" }).click()
   await (await fromMenu(page, "画面を分割")).click()
   const input = page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("combobox", { name: "ブックを探す" })
   await input.click()

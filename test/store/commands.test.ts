@@ -21,7 +21,7 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
     expect(shown()).toEqual(["@matomezu/base:stage-unsplit", "@matomezu/base:stage-close"])
   })
 
-  test("ブックを作るのはマスター、ページを作るのはページを足せるブックを開いているときだけ", () => {
+  test("ブックを作るのはマスターを開いているときとブックを開いていないステージ、ページを作るのはページを足せるブックを開いているときだけ", () => {
     const store = newStore()
     const { state, actions } = store
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:book-new")).toBe(false)
@@ -29,6 +29,11 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
     actions.command("s1", "@matomezu/base:stage-home")
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:book-new")).toBe(true)
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:page-new")).toBe(false)
+    // 分割した右のステージは、ブックを開いていない
+    actions.split("s1")
+    const right = state.getState().workspace.stages[1]!.id
+    expect(isShown(store, state.getState(), right, "@matomezu/base:book-new")).toBe(true)
+    expect(isShown(store, state.getState(), right, "@matomezu/base:page-new")).toBe(false)
   })
 
   test("無いステージからは、どのコマンドも出さない", () => {
