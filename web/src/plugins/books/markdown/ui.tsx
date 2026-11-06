@@ -15,7 +15,6 @@ export const MARKDOWN_SETTINGS_SECTION = defineSettingsSection({
   id: kit.name("settings"),
   title: kit.message("Markdown"),
   settings: [TAB_KEY.id, ...SOURCE_LOOK_SETTINGS.map(s => s.id)],
-  place: { after: "@matomezu/base:settings-general" },
 })
 
 export const MARKDOWN_UI = definePluginUi(MARKDOWN_PLUGIN, {
