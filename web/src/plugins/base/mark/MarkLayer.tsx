@@ -1,5 +1,6 @@
 // マークのレイヤー（ウィジェット mark-layer）: 開いているブックのマークを、付けた物の最後の 1 つのそばにスタンドで出す。
-// 鳥のマークは物の上の辺を歩き（付けたときだけ、飛んでくるか物の裏から顔を出す。birds/）、びっくりマークは物の右上の角に止まる。
+// 鳥のマークは物の上の辺を歩き（付けたときだけ、飛んでくるか物の裏から顔を出す。birds/）、びっくりマークは物の右上の角に止まる
+// （角に出すほかの物〈伝言など〉と一緒に角のスタンドにまとまり、並びの先頭に来る。utils/corner.tsx）。
 // どちらも押すと「外す？」の小さな吹き出しを出し、「はい」で外す。ポインタが離れるか、ほかを押すと隠す。
 // マークの種類を選ぶスタンド（commands.ts の MARK_PICKER）が開いていれば、付ける先のそばに 6 つの種類の絵を並べ、押した種類を付ける。
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない。
@@ -16,7 +17,8 @@ import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { Stand, useStandAway } from "../utils/anchors"
+import { Stand } from "../utils/anchors"
+import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import type { StageSlotProps } from "../workspace/ui"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
@@ -41,6 +43,7 @@ export function MarkLayer({ stage }: StageSlotProps) {
           id={m.id}
           anchor={m.anchors.at(-1) ?? ""}
           kind={(m.props as MarkProps).kind}
+          addedAt={(m.props as MarkProps).addedAt}
         />
       ))}
       {picker && <PickerStand key={picker.anchors.join(" ")} stage={stage} picker={picker} />}
@@ -48,7 +51,19 @@ export function MarkLayer({ stage }: StageSlotProps) {
   )
 }
 
-function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anchor: string; kind: MarkKind }) {
+function MarkStand({
+  stage,
+  id,
+  anchor,
+  kind,
+  addedAt,
+}: {
+  stage: string
+  id: string
+  anchor: string
+  kind: MarkKind
+  addedAt: string
+}) {
   const t = useMessages(kit)
   const run = usePerformOrToast(stage, "The mark was refused")
   const remove = () => run(MARK_REMOVE.id, { mark: id })
@@ -56,9 +71,18 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
   const awayLabel = t("Show {name}", { name: useAnchorName(stage, anchor) })
   if (kind === "alert")
     return (
-      <Stand anchor={anchor} side="corner" edgePinned label={t("Mark")}>
-        <PinnedAlert title={title} awayLabel={awayLabel} onRemove={remove} />
-      </Stand>
+      <AtCorner
+        anchor={anchor}
+        status={ALERT_STATUS_ID}
+        at={addedAt}
+        pointer={
+          <StandPointer center={{ x: ALERT / 2, y: ALERT / 2 }} size={ALERT} label={awayLabel} className={styles.alert}>
+            !
+          </StandPointer>
+        }
+      >
+        <PinnedAlert title={title} onRemove={remove} />
+      </AtCorner>
     )
   return (
     <Stand anchor={anchor} side="edge" span edgePinned label={t("Mark")}>
@@ -67,18 +91,18 @@ function MarkStand({ stage, id, anchor, kind }: { stage: string; id: string; anc
   )
 }
 
-// びっくりマーク: 押すと「外す？」を出す。付けた物の上の辺が見える所の外なら、丸を縁に寄せて薄く描き、押すと付けた物を見せる
-function PinnedAlert({ title, awayLabel, onRemove }: { title: string; awayLabel: string; onRemove: () => void }) {
-  const away = useStandAway()
-  if (away)
-    return (
-      <StandPointer center={{ x: ALERT / 2, y: ALERT / 2 }} size={ALERT} label={awayLabel} className={styles.alert}>
-        !
-      </StandPointer>
-    )
+// コーナーステータスのびっくりマーク（スロット corner-statuses に置くウィジェット）の id と、まとめた絵に重ねる絵
+export const ALERT_STATUS_ID = kit.name("alert-status")
+export function AlertLook() {
+  return <span className={styles.alert}>!</span>
+}
+
+// びっくりマーク: 押すと「外す？」を出す（角の吹き出しの中なら、吹き出しの広がった向きに重ねて出す）
+function PinnedAlert({ title, onRemove }: { title: string; onRemove: () => void }) {
+  const below = useAtCornerBubble() === "below"
   return (
     <div data-away="false">
-      <RemoveAsk onRemove={onRemove}>
+      <RemoveAsk onRemove={onRemove} below={below}>
         {toggle => (
           <button type="button" className={styles.alert} aria-label={title} onClick={toggle}>
             !

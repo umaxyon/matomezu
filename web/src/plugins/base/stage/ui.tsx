@@ -2,6 +2,7 @@
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { StandLayer } from "../utils/anchors"
+import { CORNER_STATUSES } from "../utils/corner"
 import { BOOK_LAYERS, STAGE_BODY } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
 import { CloseButton } from "./CloseButton"
@@ -13,7 +14,7 @@ import { StageView } from "./StageView"
 export const BOOK_VIEW = defineWidget({
   id: kit.name("book-view"),
   slots: [STAGE_BODY],
-  opens: [BOOK_LAYERS],
+  opens: [BOOK_LAYERS, CORNER_STATUSES],
   view: StageView,
 })
 export const PAPER_LAYER = defineWidget({ id: kit.name("paper-layer"), slots: [BOOK_LAYERS], view: PaperLayer })

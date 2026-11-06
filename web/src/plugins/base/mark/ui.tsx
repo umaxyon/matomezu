@@ -3,9 +3,10 @@ import { defineWidget } from "../../../ui/layout"
 import { BIRD_FACES } from "../birds/BirdWalk"
 import { kit } from "../kit"
 import { defineAnnotationIcon } from "../outbox/ui"
+import { defineCornerStatus } from "../utils/corner"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { MARK, type MarkProps } from "."
-import { MarkLayer } from "./MarkLayer"
+import { ALERT_STATUS_ID, AlertLook, MarkLayer } from "./MarkLayer"
 import styles from "./MarkLayer.module.css"
 
 export const MARK_LAYER = defineWidget({ id: kit.name("mark-layer"), slots: [BOOK_LAYERS], view: MarkLayer })
@@ -23,3 +24,6 @@ export const MARK_ICON = defineAnnotationIcon({
     )
   },
 })
+
+// コーナーステータス: びっくりマーク
+export const ALERT_STATUS = defineCornerStatus({ id: ALERT_STATUS_ID, title: kit.message("Alert"), view: AlertLook })

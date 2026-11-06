@@ -55,7 +55,7 @@ test("伝言の絵を押すと、窓の右から 320px の右サイドパネル�
   expect(await widths(page)).toEqual(split)
 })
 
-test("外を押しても閉じない（伝言を出している間）。ステージで押しても Esc で閉じる。開いている間に別の伝言を押すと、その物が付ける先になる（開いた伝言のまま）。たたんだ絵を押してもたたんだまま", async ({
+test("外を押しても閉じない（伝言を出している間）。ステージで押しても Esc で閉じる。開いている間は、別の伝言のたたんだ絵は薄く押せず、物を押すとその物が付ける先になる（開いた伝言のまま）。たたんだ絵を押してもたたんだまま", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -66,7 +66,11 @@ test("外を押しても閉じない（伝言を出している間）。ステ�
   await icons.first().click()
   await expect(panel(page)).toContainText("一つ目")
   await expect(icons).toHaveCount(2)
-  await icons.nth(1).click()
+  await expect(icons.nth(1)).toBeDisabled()
+  await icons.nth(1).click({ force: true })
+  await expect(panel(page)).toContainText("一つ目")
+  await expect(panel(page).getByRole("button", { name: "二", exact: true })).toHaveCount(0)
+  await items(page).filter({ hasText: "二" }).click()
   await expect(panel(page)).toContainText("一つ目")
   await expect(panel(page).getByRole("button", { name: "二", exact: true })).toHaveAttribute("aria-pressed", "true")
   await page.keyboard.press("Escape")

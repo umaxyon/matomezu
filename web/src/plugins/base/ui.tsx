@@ -11,8 +11,8 @@ import { DIALOG_HOST } from "./dialog-host/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
 import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_LAYER, MAIL_WATCH, MAILBOX_TAB } from "./mail/ui"
-import { MARK_ICON, MARK_LAYER } from "./mark/ui"
-import { NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE } from "./note/ui"
+import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
+import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
 import type { AnnotationIconProps } from "./outbox/slots"
 import { OUTBOX } from "./outbox/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
@@ -41,6 +41,7 @@ import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
 import { TOOL_ICONS } from "./tool-switch/icons"
 import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
+import type { CornerStatusProps } from "./utils/corner"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
@@ -142,6 +143,9 @@ export const BASE_UI = definePluginUi(BASE, {
     NOTE_READ_NOTICE,
     NOTE_ICON,
     MARK_ICON,
+    ALERT_STATUS,
+    FOLDED_NOTE_STATUS,
+    READ_NOTE_STATUS,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
@@ -172,6 +176,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:left-side-panel": StageSlotProps
     "@matomezu/base:settings-sections": SettingsSectionProps
     "@matomezu/base:annotation-icon": AnnotationIconProps
+    "@matomezu/base:corner-statuses": CornerStatusProps
   }
   interface WidgetExtras {
     // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）と、
@@ -183,6 +188,8 @@ declare module "../../core/catalog" {
     settingsSection?: { title: MessageKey; settings?: readonly string[] }
     // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id
     annotationIcon?: { annotation: string }
+    // コーナーステータスのスロットに置く物の名前（文言の鍵。設定画面の「コーナーステータスの並び」に出す）
+    cornerStatus?: { title: MessageKey }
   }
   interface WidgetTable {
     "@matomezu/base:workspace": typeof WORKSPACE
@@ -209,6 +216,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON
     "@matomezu/base:mark-icon": typeof MARK_ICON
+    "@matomezu/base:alert-status": typeof ALERT_STATUS
+    "@matomezu/base:folded-note-status": typeof FOLDED_NOTE_STATUS
+    "@matomezu/base:read-note-status": typeof READ_NOTE_STATUS
     "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL
     "@matomezu/base:print-check-panel": typeof PRINT_CHECK_PANEL
     "@matomezu/base:print-preview-scrollbars": typeof PRINT_PREVIEW_SCROLLBARS

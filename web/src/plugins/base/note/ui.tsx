@@ -3,12 +3,13 @@ import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { defineAnnotationIcon } from "../outbox/ui"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
+import { defineCornerStatus } from "../utils/corner"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { NOTE } from "."
-import { NoteIcon, NoteLayer } from "./NoteLayer"
+import { FoldedLook, NoteIcon, NoteLayer, ReadCheckLook } from "./NoteLayer"
 import styles from "./NoteLayer.module.css"
 import { NotePanel } from "./NotePanel"
-import { NOTE_PANEL_ID } from "./panel-id"
+import { FOLDED_NOTE_STATUS_ID, NOTE_PANEL_ID, READ_NOTE_STATUS_ID } from "./panel-id"
 import { ReadNotice } from "./ReadNotice"
 
 // 伝言が AI に読まれたら知らせる（根に置き、何も描かない）
@@ -33,4 +34,16 @@ export const NOTE_ICON = defineAnnotationIcon({
       <NoteIcon />
     </span>
   ),
+})
+
+// コーナーステータス: たたんだ伝言と、既読の伝言
+export const FOLDED_NOTE_STATUS = defineCornerStatus({
+  id: FOLDED_NOTE_STATUS_ID,
+  title: kit.message("Folded notes"),
+  view: FoldedLook,
+})
+export const READ_NOTE_STATUS = defineCornerStatus({
+  id: READ_NOTE_STATUS_ID,
+  title: kit.message("Read notes"),
+  view: ReadCheckLook,
 })

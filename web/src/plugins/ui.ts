@@ -80,6 +80,11 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:settings-keys",
     ],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
+    "@matomezu/base:corner-statuses": [
+      "@matomezu/base:alert-status",
+      "@matomezu/base:folded-note-status",
+      "@matomezu/base:read-note-status",
+    ],
   },
   menus: {
     "@matomezu/base:stage-menu": [

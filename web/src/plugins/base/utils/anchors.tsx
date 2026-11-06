@@ -31,6 +31,7 @@ import {
   pointInto,
   revealShift,
   STAND_MARGIN,
+  type StandPlace,
   type StandSide,
   standAt,
   standBeside,
@@ -169,22 +170,26 @@ export const useStandFacing = (): StandFacing | null => useContext(FacingContext
 export const useStandAway = (): StandAway | null => useContext(AwayContext)
 
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
-// span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く
-export function Stand({
+// span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く。
+// プラグイン API の Stand は角（corner）に立てられない（角はコーナーステータスで出す）。角に立てるのは base の角のスタンドだけで、StandAt を使う
+export const Stand: (props: StandProps & { side?: StandSide }) => ReactNode = props => <StandAt {...props} />
+
+interface StandProps {
+  anchor: string | readonly string[]
+  span?: boolean
+  edgePinned?: boolean
+  label?: string
+  children: ReactNode
+}
+
+export function StandAt({
   anchor,
   side = "below",
   span = false,
   edgePinned = false,
   label,
   children,
-}: {
-  anchor: string | readonly string[]
-  side?: StandSide
-  span?: boolean
-  edgePinned?: boolean
-  label?: string
-  children: ReactNode
-}) {
+}: StandProps & { side?: StandPlace }) {
   const ctx = useContext(Context)
   const { panStageBy } = useActions()
   const ids = useMemo(() => (typeof anchor === "string" ? [anchor] : anchor), [anchor])

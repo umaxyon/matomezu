@@ -21,6 +21,7 @@ import { kit } from "../kit"
 import { PrintPreviewView } from "../print-preview/PrintPreviewView"
 import { keepsPan } from "../tool-switch/tools"
 import { AnchorsProvider } from "../utils/anchors"
+import { CornersProvider } from "../utils/corner"
 import { useResize } from "../utils/useResize"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
@@ -153,7 +154,7 @@ function EmptyStage({ stage, onSelect }: { stage: string; onSelect: (book: strin
   )
 }
 
-// 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表はレイヤーみんなで使う）。
+// 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表と、物の角に出す物の表はレイヤーみんなで使う）。
 // 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）
 function BookContent({ stage, type, previewing }: { stage: string; type: BookTypeId; previewing: boolean }) {
   const style = useBookLookStyle(stage, type) // ブックのテーマの値・文字の色の値・タイプのプラグインのテーマキー
@@ -163,7 +164,9 @@ function BookContent({ stage, type, previewing }: { stage: string; type: BookTyp
         <PrintPreviewView stage={stage} />
       ) : (
         <AnchorsProvider stage={stage}>
-          <Slot name={BOOK_LAYERS} props={{ stage }} />
+          <CornersProvider>
+            <Slot name={BOOK_LAYERS} props={{ stage }} />
+          </CornersProvider>
         </AnchorsProvider>
       )}
     </div>

@@ -84,6 +84,7 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:left-side-panel is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:annotation-icon is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:corner-statuses is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
     ])
     // 中身を書かなければ、ステージの無い画面にできる

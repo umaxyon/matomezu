@@ -132,7 +132,7 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 func TestAISettings(t *testing.T) {
 	e := newEngine(t)
 	got, err := e.AISettings(json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja","@gone/x:y":1,"@matomezu/base:skin":"nothing"}`))
-	if err != nil || string(got) != `{"@matomezu/base:lang":"matomezu:ja","@matomezu/base:skin":"auto","@matomezu/base:keys":{"added":[],"removed":[]},"@matomezu/base:text-colors":{},"@matomezu/base:tool-picker-hold":"250","@matomezu/base:note-expiry":"60","@matomezu/markdown:tab-key":{"writes":"tab","spaces":4},"@matomezu/markdown:line-numbers":true,"@matomezu/markdown:current-line":false,"@matomezu/markdown:show-whitespace":false}` {
+	if err != nil || string(got) != `{"@matomezu/base:lang":"matomezu:ja","@matomezu/base:skin":"auto","@matomezu/base:keys":{"added":[],"removed":[]},"@matomezu/base:text-colors":{},"@matomezu/base:tool-picker-hold":"250","@matomezu/base:note-expiry":"60","@matomezu/base:corner-status-order":[],"@matomezu/markdown:tab-key":{"writes":"tab","spaces":4},"@matomezu/markdown:line-numbers":true,"@matomezu/markdown:current-line":false,"@matomezu/markdown:show-whitespace":false}` {
 		t.Fatalf("ai settings = %s, %v", got, err)
 	}
 	if got, err := e.AISettings(nil); err != nil || !strings.Contains(string(got), `"@matomezu/base:skin":"auto"`) {
