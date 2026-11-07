@@ -11,7 +11,7 @@ import { PANE_LAYOUT_ICONS } from "./view/pane-icons"
 import { TabKeySetting } from "./view/TabKeySetting"
 import { MARKDOWN_VIEW } from "./view/ui"
 
-// 設定カテゴリ「マークダウン」: Tab キーとソースのペインの見た目と、描いた文書の段落の中の改行の見せ方
+// 設定カテゴリ「マークダウン」: Tab キーとソースのペインの見た目と、描いた文書の段落の中の改行 1 つ
 export const MARKDOWN_SETTINGS_CATEGORY = defineSettingsCategory({
   id: kit.name("settings"),
   title: kit.message("Markdown"),

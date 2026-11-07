@@ -2,7 +2,7 @@
 // 測るだけのビューは、文書を紙の幅で見えない所に描き、いちばん外のブロックの上端と下端を測って、紙の中身の高さ（紙の高さ − 上下の余白。
 // 余白はテーマキー markdown-page-padding）ごとに切る（print.ts の cutSheets）。切った所の並びを知らせ、印刷区画 1 つのビューが受け取って、
 // その所だけを描く。長い段落・リスト・表・コードは行の途中で切り、紙の幅に入らないブロックは幅に合わせて縮め、入らない画像は残りの高さまで
-// 縮めるか次の紙へ送る（print.ts の cutSheets）。測り直すのは、文書か紙か段落の中の改行の見せ方（soft-break.ts）が替わったときと、描いた文書の大きさが変わったとき（テーマ・字体・画像の
+// 縮めるか次の紙へ送る（print.ts の cutSheets）。測り直すのは、文書か紙か段落の中の改行の設定（soft-break.ts）が替わったときと、描いた文書の大きさが変わったとき（テーマ・字体・画像の
 // 読み込みで）だけ（同じ結果なら印刷プレビューは並べ直さない）
 import { memo, useLayoutEffect, useMemo, useRef } from "react"
 import { useUserSetting } from "../../../../plugin-api/ui"
@@ -118,7 +118,7 @@ export const MarkdownMeasure = memo(function MarkdownMeasure({ book, page, paper
   const ref = useRef<HTMLElement>(null)
   const latest = useRef(report)
   latest.current = report
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 段落の中の改行の見せ方が替わると、行の数が変わるので測り直す（見せ方は CSS で、ここでは読まない）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 段落の中の改行の設定が替わると、行の数が変わるので測り直す（設定は CSS が受け、ここでは読まない）
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
@@ -163,7 +163,7 @@ export const MarkdownMeasure = memo(function MarkdownMeasure({ book, page, paper
 export function MarkdownSheet({ book, page, row, paper, measured }: PrintSheetProps) {
   const text = pageText(page)
   const document = useMemo(() => documentOf(book.id, page.id, text), [book.id, page.id, text])
-  const softBreak = softBreakOf(useUserSetting(SOFT_BREAK.id)) // 測ったときと同じ見せ方で描く
+  const softBreak = softBreakOf(useUserSetting(SOFT_BREAK.id)) // 測ったときと同じ設定で描く
   const data = measured as MarkdownMeasured | undefined
   const cut = data?.cuts[row]
   // この印刷区画に掛かるブロックだけ（脚注は文書の最後のブロックの次に数える）

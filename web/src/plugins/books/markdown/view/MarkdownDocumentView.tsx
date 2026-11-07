@@ -1,7 +1,7 @@
 // 描いた文書: ページの原文を読んだ形（MarkdownDocument）を、ブロックの順に描き、脚注を最後にまとめる。ステージもストアも読まない。
 // リンクと画像は link-target.ts が選んだ物だけを開き・描く。# のリンクは、location を変えずに、この文書の中の飛ぶ先へスクロールする。
 // いちばん外のブロックには data-markdown-block を付ける（ソースのペインのスクロールに付いて行くときの目印。何番目のブロックかは並びで決まる）。
-// いちばん外のブロックは、中身が変わったものだけを描き直す（block-keys.ts）。段落の中の改行 1 つの見せ方（softBreak）は、描き直さずに見た目（CSS）で変える
+// いちばん外のブロックは、中身が変わったものだけを描き直す（block-keys.ts）。段落の中の改行 1 つを改行にするか空白にするか（softBreak）は、描き直さずに見た目（CSS）で変える
 import { type MouseEvent, memo, type ReactNode } from "react"
 import type { MarkdownBlock, MarkdownDocument, MarkdownInline, MarkdownTableCell } from "../../../base"
 import { blockKeys } from "../block-keys"
