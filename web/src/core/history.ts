@@ -28,11 +28,21 @@ export function insertStep(was: BookHistory, step: HistoryStep): BookHistory {
   return { ...was, undo: [...was.undo.slice(0, i), step, ...was.undo.slice(i)].slice(-HISTORY_LIMIT) }
 }
 
-// 物が見えているかを答える関数（見せ方のビューが知らせる）: ブック book のページ page の、最上位のアイテム item が、見える所にあるか
+// 物が見えているかを答える関数（土台が、見せ方の seen とステージの表示領域から作る）: ブック book のページ page の物 item（最上位のアイテムか子の形）が、見える所にあるか
 export type SeenTest = (page: string, item: string, book: Book) => boolean
 
+// アイテムの Patch p（id は item）が変えた物の id: そのアイテムのフィールドを変えたならそのアイテム、子の形（shapes）を変えたならその子（子の中も同じ）
+function changedIds(item: string, p: Patch): string[] {
+  if (!("fields" in p)) return [item]
+  const own = Object.keys(p.fields).some(k => k !== "shapes") ? [item] : []
+  const shapes = p.fields.shapes
+  const children = shapes && "list" in shapes ? shapes.list.flatMap(q => changedIds(q.id, q.patch)) : []
+  return own.length + children.length > 0 ? [...own, ...children] : [item]
+}
+
 // まだ見ていない変更（ブックを before から after にした Patch made）が、そのブックのページ page（ページを持たなければ null）を開いているステージで見えたか（どれか 1 つが見えたら全体）。
-// ブックやページのフィールドの変更は、開いていれば見えたとする。アイテムは seen に前と後のブックで聞き（消えた物は前の場所）、seen が無ければ見えたとする
+// ブックやページのフィールドの変更は、開いていれば見えたとする。アイテムは、変えた物（子の形を変えたならその子）を seen に前と後のブックで聞き（消えた物は前の場所）、
+// seen が無ければ見えたとする
 export function changeSeen(
   made: Patch,
   change: { before: Book; after: Book },
@@ -47,5 +57,7 @@ export function changeSeen(
   if (!("fields" in q.patch) || Object.keys(q.patch.fields).some(k => k !== "items")) return true
   const items = q.patch.fields.items
   if (!items || !("list" in items) || items.list.length === 0 || !seen) return true
-  return items.list.some(i => seen(page, i.id, change.after) || seen(page, i.id, change.before))
+  return items.list
+    .flatMap(i => changedIds(i.id, i.patch))
+    .some(id => seen(page, id, change.after) || seen(page, id, change.before))
 }

@@ -1,6 +1,6 @@
 // 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない。
 // 画面に見えた AI の変更は、画面の履歴に時刻の位置で入り、新しい方から戻る
-import { aiAuth, expect, test } from "./fixtures"
+import { aiAuth, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { newBook } from "./helpers/master"
 import { addBox, items } from "./helpers/paper"
@@ -97,6 +97,41 @@ test("ページタブをドラッグして並べ替えられ、元に戻すで�
   await expect(tabs).toHaveText(["ページ 2", "ページ 1"])
 })
 
+// 窓を前に出し、AI が見る今のブックとページ（AI の口で読む）
+async function aiReady(page: Page) {
+  const ai = aiAuth()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
+  // AI が箱の名前を書き換える（箱は、ページに最初に置いた物）
+  const rename = async (caption: string) => {
+    const read = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()) as {
+      book: { pages: { id: string; items: { id: string }[] }[] }
+    }
+    const item = read.book.pages.find(p => p.id === shown)!.items[0]!.id
+    await page.request.post("/api/ai/perform", {
+      headers: ai,
+      data: { action: "@matomezu/paper:item-update", args: { page: shown, item, props: { caption } }, on: { book } },
+    })
+  }
+  const undone = async () =>
+    ((await (await page.request.get("/api/ai/awaiting", { headers: ai })).json()) as { undone: unknown[] }).undone
+  return { rename, undone }
+}
+
+// 表示領域を下へずらして、紙の上の方の箱を見える所の外に出す・戻す
+async function scroll(page: Page, dy: number) {
+  const stage = (await page.locator("[data-stage]").boundingBox())!
+  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height / 2)
+  await page.mouse.wheel(0, dy)
+}
+
 test("見えている箱を AI が書き換えたら、Ctrl+Z はまず AI の変更を戻し、次に自分の操作を戻す", async ({ page }) => {
   const ai = aiAuth()
   await page.goto("/")
@@ -127,4 +162,44 @@ test("見えている箱を AI が書き換えたら、Ctrl+Z はまず AI の�
   await expect(items(page)).toHaveText("自分")
   await page.keyboard.press("Control+z")
   await expect(items(page)).toHaveCount(0)
+})
+
+test("見える所の外で AI が書き換えた箱は、見えるまで Ctrl+Z で戻らず、ずらして見えたら AI の変更から戻る", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 900, height: 480 })
+  const { rename, undone } = await aiReady(page)
+  await addBox(page, 200, 150, "自分")
+  await addBox(page, 500, 150, "二つめ")
+  await expect(items(page)).toHaveCount(2)
+  await scroll(page, 800)
+  await rename("AI")
+  await expect(items(page).first()).toHaveText("AI")
+  // まだ見ていないので、戻るのは自分の 2 つめの箱
+  await page.keyboard.press("Control+z")
+  await expect(items(page)).toHaveCount(1)
+  await expect(items(page)).toHaveText("AI")
+  await page.keyboard.press("Control+Shift+z")
+  await expect(items(page)).toHaveCount(2)
+  // 見える所に戻すと、AI の変更が先に戻る
+  await scroll(page, -800)
+  await page.keyboard.press("Control+z")
+  await expect(items(page).first()).toHaveText("自分")
+  await expect(items(page)).toHaveCount(2)
+  expect(await undone()).toEqual([])
+})
+
+test("見える所の外で AI が書き換えた箱を、見る前に Ctrl+Z で消したら、AI に「見られる前に消えた」と渡る", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 900, height: 480 })
+  const { rename, undone } = await aiReady(page)
+  await addBox(page, 200, 150, "自分")
+  await expect(items(page)).toHaveText("自分")
+  await scroll(page, 800)
+  await rename("AI")
+  await expect(items(page)).toHaveText("AI")
+  await page.keyboard.press("Control+z")
+  await expect(items(page)).toHaveCount(0)
+  await expect.poll(async () => (await undone()).length).toBe(1)
 })

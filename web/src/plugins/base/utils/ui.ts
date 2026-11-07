@@ -2,7 +2,6 @@
 
 import { isMac } from "../../../ui/keys"
 
-export type { SeenTest } from "../../../core/history"
 export { Stand, type StandAway, useAnchorRef, useStandAway } from "./anchors"
 export { ChoiceSetting } from "./ChoiceSetting"
 export { AtCorner, CORNER_STATUSES, type CornerStatusProps, defineCornerStatus, useAtCornerBubble } from "./corner"
@@ -16,7 +15,6 @@ export { useEditLock } from "./useEditLock"
 export { useElapsed } from "./useElapsed"
 export { type PaperDrag, type PaperDragWays, usePaperDrag } from "./usePaperDrag"
 export { useResize } from "./useResize"
-export { useSeen } from "./useSeen"
 export { useZoomMotion } from "./useZoomMotion"
 
 // 選択に足す・外すクリックの修飾キー Mod（Mac は Cmd、ほかは Ctrl。キーの書き方の Mod と同じ）を押しているか

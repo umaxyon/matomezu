@@ -42,6 +42,9 @@ const renamed = (book: Drawing, i: number, caption: string): Drawing =>
       k === 0 ? { ...p, items: p.items?.map((x, j) => (j === i ? { ...x, props: { ...x.props, caption } } : x)) } : p,
     ),
   }) as Drawing
+// ステージの表示領域を、紙の左上の角の外の小さな所にする（どの形の頭も見えない）・元の広さに戻す
+const hide = (store: Store) => store.actions.resizeStage("s1", { w: 1, h: 1 })
+const show = (store: Store) => store.actions.resizeStage("s1", { w: 1400, h: 1000 })
 const captions = (store: Store) =>
   (bookOf(store).pages[0]?.items ?? []).map(x => (x.props as { caption?: string }).caption)
 
@@ -62,8 +65,7 @@ test("開いているページの AI の変更は、すぐ画面の履歴に入�
 
 test("見える所に無い物の変更は溜めておき、見えたら時刻の位置に差し込む。やり直せる画面の履歴の段は消さない", async () => {
   const store = ready(sequence())
-  let shown = false
-  store.setSeenTest("s1", () => shown)
+  hide(store)
   place(store, "1")
   await settled()
   confirm(store)
@@ -73,8 +75,7 @@ test("見える所に無い物の変更は溜めておき、見えたら時刻�
   await settled()
   store.actions.command("s1", "@matomezu/base:undo")
   expect(historyOf(store)?.redo).toHaveLength(1)
-  shown = true
-  store.setSeenTest("s1", () => shown)
+  show(store)
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user", "ai"])
   expect(historyOf(store)?.redo).toHaveLength(1)
 })
@@ -96,14 +97,14 @@ test("開いていないページの変更は、そのページを開いたら�
 
 test("戻すが上書きした、まだ見ていない変更は捨てる（あとで見えても差し込まない）。ほかの所の変更は残る", async () => {
   const store = ready(sequence())
-  store.setSeenTest("s1", () => false)
+  hide(store)
   place(store, "自分")
   await settled()
   confirm(store)
   const last = (bookOf(store).pages[0]?.items?.length ?? 0) - 1
   foreign(store, renamed(bookOf(store), last, "AI"))
   store.actions.command("s1", "@matomezu/base:undo")
-  store.setSeenTest("s1", () => true)
+  show(store)
   expect(historyOf(store)?.undo ?? []).toEqual([])
 })
 
@@ -119,7 +120,7 @@ test("常駐が自分で行った変更と、画面の履歴に入れないア�
 test("AI の変更が見えたら seen を、見られる前に戻すが上書きしたら、AI が書いた所と値を添えて lost を知らせる。ほかの窓の変更は知らせない", async () => {
   const told: AIChangeOutcome[] = []
   const store = ready(sequence(), c => told.push(c))
-  store.setSeenTest("s1", () => false)
+  hide(store)
   place(store, "自分")
   await settled()
   confirm(store)
@@ -127,7 +128,7 @@ test("AI の変更が見えたら seen を、見られる前に戻すが上書�
   const item = bookOf(store).pages[0]!.items![last]!.id
   foreign(store, renamed(bookOf(store), last, "AI"), "ai", "5")
   store.actions.command("s1", "@matomezu/base:undo")
-  store.setSeenTest("s1", () => true)
+  show(store)
   // ブックのフィールドの変更は、ブックを開いていればすぐ見えた（ほかの窓の物は知らせない）
   foreign(store, { ...bookOf(store), title: "窓の題" }, "window", "6")
   foreign(store, { ...bookOf(store), title: "AI の題" }, "ai", "7")
@@ -141,7 +142,7 @@ test("AI の変更が見えたら seen を、見られる前に戻すが上書�
 test("戻すが消したのでなく、ふつうの操作のあとに戻して AI の値に戻ったなら、捨てずに知らせない", async () => {
   const told: AIChangeOutcome[] = []
   const store = ready(sequence(), c => told.push(c))
-  store.setSeenTest("s1", () => false)
+  hide(store)
   place(store, "自分")
   await settled()
   confirm(store)
@@ -154,7 +155,7 @@ test("戻すが消したのでなく、ふつうの操作のあとに戻して A
   store.actions.command("s1", "@matomezu/base:undo")
   expect(captions(store).at(-1)).toBe("AI")
   expect(told).toEqual([])
-  store.setSeenTest("s1", () => true)
+  show(store)
   expect(told).toEqual([{ book: "b1", act: "5", outcome: "seen" }])
 })
 
@@ -167,4 +168,23 @@ test("窓が見えていない間は、見えたとしない。見えるよう�
   visible = true
   store.checkSeen()
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["ai"])
+})
+
+test("AI の 1 回の操作が何冊も変えたら、見えたブックの画面の履歴にだけ、そのブックの分が入る", () => {
+  const store = ready(sequence())
+  let world = { b1: bookOf(store), b2: store.state.getState().books.b2 as Drawing }
+  store.receive({ books: Object.values(world), settings: {} }, [])
+  const change = (book: Drawing) => {
+    world = { ...world, [book.id]: book }
+    store.receive({ books: Object.values(world), settings: {} }, [], {
+      book: book.id,
+      by: "ai",
+      act: "9",
+      action: "@matomezu/base:book-update",
+    })
+  }
+  change({ ...world.b2, title: "AI" })
+  change({ ...world.b1, title: "AI" })
+  expect(historyOf(store)?.undo.map(s => Object.keys(s.books))).toEqual([["b1"]])
+  expect(store.state.getState().history.b2).toBeUndefined()
 })

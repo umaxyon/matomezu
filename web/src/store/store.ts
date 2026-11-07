@@ -37,6 +37,7 @@ import {
   panBy,
   resetView,
   resize,
+  type Stage,
   select,
   setArea,
   setEditing,
@@ -44,6 +45,7 @@ import {
   setStart,
   showPickerMap,
   stopPlacing,
+  toPaper,
   zoomTo,
 } from "../core/stage"
 import type { Warning } from "../core/warnings"
@@ -228,9 +230,6 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
     replay: readonly DoneAction[],
     change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string },
   ): void
-  // ステージ stage のビューが、物が見えているかを答える関数 test を知らせる（null なら外す。見えた、まだ見ていない画面の履歴の段を差し込む）。
-  // base のフック useSeen を通して使う（プラグインに渡す actions には入れない）
-  setSeenTest(stage: string, test: SeenTest | null): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントと画面の入口だけが使う）
   checkSeen(): void
   // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
@@ -415,63 +414,62 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setState({ history })
     lastPut = { ...lastPut, ...Object.fromEntries(Object.keys(step.books).map(id => [id, step])) }
   }
-  // まだ見ていない、AI とほかの窓の画面の履歴の段（古い順）。act は常駐が 1 回の perform に振った印（同じ印の変更は 1 つの画面の履歴の段にまとめる）。
-  // made はブックごとの、変えた所（前から後への Patch。見えたかと、戻されたかを見るたびに求め直さない）
-  type Unseen = { step: HistoryStep; act: string; made: Readonly<Record<string, Patch>> }
+  // まだ見ていない、AI とほかの窓の変更（古い順。ブックごとに 1 つの画面の履歴の段で、見えたらそのブックの画面の履歴に入る）。act は常駐が 1 回の perform に振った印。
+  // book は変えたブック、made はその変えた所（前から後への Patch。見えたかと、戻されたかを見るたびに求め直さない）
+  type Unseen = { step: HistoryStep; act: string; book: string; made: Patch }
   let unseen: Unseen[] = []
-  // ステージごとの、物が見えているかを答える関数（ビューが知らせる。無いステージでは、開いているページの変更は見えたとする）
-  const seenTests = new Map<string, SeenTest>()
   // 確かめた世界の、最後に知っているブック（よその変更の前の値）
   let known: Library = {}
+  // ステージ st で物が見えているかの答え（見せ方の seen と、ステージの表示領域の紙の上の四角から。見せ方が答えなければ undefined。
+  // 印刷プレビューの間と、表示領域を測るまでは、どの物も見えていない）
+  const seenTestOf = (st: Stage): SeenTest | undefined => {
+    const opened = st.opened
+    const def = opened && catalog.presentations.get(catalog.bookTypes.get(opened.type)?.presentation ?? "")
+    if (!def?.seen) return undefined
+    const a = st.view && toPaper(st, { x: 0, y: 0 })
+    const b = st.view && toPaper(st, { x: st.view.w, y: st.view.h })
+    const shown = st.mode.kind === "edit" && a && b ? { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y } : null
+    return (page, item, book) => {
+      const p = shown && hasPages(book) ? book.pages.find(x => x.id === page) : undefined
+      return !!p && !!shown && !!def.seen?.(catalog, p, item, shown)
+    }
+  }
   const seenIn = (u: Unseen) =>
-    getState().workspace.stages.some(st => {
-      const book = st.opened?.book ?? ""
-      const made = u.made[book]
-      const change = u.step.books[book]
-      return !!st.opened && !!made && !!change && changeSeen(made, change, st.opened.page, seenTests.get(st.id))
-    })
-  // まだ見ていない画面の履歴の段のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
+    getState().workspace.stages.some(
+      st =>
+        st.opened?.book === u.book &&
+        changeSeen(u.made, u.step.books[u.book] as HistoryStep["books"][string], st.opened.page, seenTestOf(st)),
+    )
+  // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
     if (unseen.length === 0 || options.visible?.() === false) return
     const now = unseen.filter(seenIn)
     if (now.length === 0) return
     unseen = unseen.filter(u => !now.includes(u))
     const history = { ...getState().history }
-    for (const { step, act } of now)
-      for (const book of Object.keys(step.books)) {
-        history[book] = insertStep(history[book] ?? NO_HISTORY, step)
-        if (step.by === "ai") options.aiChange?.({ book, act, outcome: "seen" })
-      }
+    for (const { step, act, book } of now) {
+      history[book] = insertStep(history[book] ?? NO_HISTORY, step)
+      if (step.by === "ai") options.aiChange?.({ book, act, outcome: "seen" })
+    }
     setState({ history })
   }
-  // この窓の利用者の、画面の履歴に入れない変更（ブックを before から after にした）が、まだ見ていない変更が書いた値を消したら、そのブックの分を捨てる
+  // この窓の利用者の、画面の履歴に入れない変更（ブックを before から after にした）が、まだ見ていない変更が書いた値を消したら、それを捨てる
   // （あとで見えても差し込まない。AI の物は、消えた所と値を知らせる）。画面の履歴に入れる操作が上書きした物は捨てない（その画面の履歴の段の前に値が残り、見えたら差し込まれ、戻せば戻る）
   const dropOverwritten = (before: Book, after: Book) => {
-    const id = after.id
-    unseen = unseen.flatMap(u => {
-      const made = u.made[id]
-      const lost = made ? undoneIn(made, before, after) : []
-      if (lost.length === 0) return [u]
-      if (u.step.by === "ai") options.aiChange?.({ book: id, act: u.act, outcome: "lost", lost })
-      const { [id]: _, ...books } = u.step.books
-      const { [id]: __, ...rest } = u.made
-      return Object.keys(books).length > 0 ? [{ ...u, step: { ...u.step, books }, made: rest }] : []
+    unseen = unseen.filter(u => {
+      const lost = u.book === after.id ? undoneIn(u.made, before, after) : []
+      if (lost.length > 0 && u.step.by === "ai") options.aiChange?.({ book: u.book, act: u.act, outcome: "lost", lost })
+      return lost.length === 0
     })
   }
-  // よその変更 change（ブック book を、確かめた世界で before から after にした）を、まだ見ていない画面の履歴の段に足す
+  // よその変更 change（ブックを、確かめた世界で before から after にした）を、まだ見ていない変更に足す（ブックごとに HISTORY_LIMIT まで。古い物から捨てる）
   const addUnseen = (change: { by: "ai" | "window"; act: string }, before: Book, after: Book) => {
     const made = patchOf(before, after)
     if (!made) return
-    const same = unseen.find(u => u.act === change.act && u.step.by === change.by && !(after.id in u.step.books))
-    if (same) {
-      const step: HistoryStep = { ...same.step, books: { ...same.step.books, [after.id]: { before, after } } }
-      unseen = unseen.map(u => (u === same ? { step, act: change.act, made: { ...u.made, [after.id]: made } } : u))
-    } else {
-      const step: HistoryStep = { at: clock(), by: change.by, books: { [after.id]: { before, after } } }
-      const mine = unseen.filter(u => after.id in u.step.books)
-      const over = mine.length >= HISTORY_LIMIT ? mine[0] : undefined
-      unseen = [...unseen.filter(u => u !== over), { step, act: change.act, made: { [after.id]: made } }]
-    }
+    const step: HistoryStep = { at: clock(), by: change.by, books: { [after.id]: { before, after } } }
+    const mine = unseen.filter(u => u.book === after.id)
+    const over = mine.length >= HISTORY_LIMIT ? mine[0] : undefined
+    unseen = [...unseen.filter(u => u !== over), { step, act: change.act, book: after.id, made }]
   }
   const record = (before: Book, after: Book, at: string) => {
     if (!open) {
@@ -738,11 +736,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
       })
-      checkSeen()
-    },
-    setSeenTest: (stage, test) => {
-      if (test) seenTests.set(stage, test)
-      else seenTests.delete(stage)
       checkSeen()
     },
     checkSeen,

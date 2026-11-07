@@ -265,7 +265,6 @@ test("matomezu/ui が出す名前", () => {
     "useResize",
     "useRevealable",
     "useRightSidePanel",
-    "useSeen",
     "useSetRightSidePanelCurrent",
     "useSetStageState",
     "useSettingControls",

@@ -94,7 +94,6 @@ import {
 import { settledDraft } from "../placing/draft"
 import { REPARENT_TOOL } from "../tools"
 import styles from "./PaperView.module.css"
-import { usePaperSeen } from "./seen"
 import { type Placing, usePlaceTarget } from "./use-place-target"
 
 // 範囲のドラッグ: ポインタと、押した位置（紙のビューの左上から）、押す前の選択と、Mod を押していたか
@@ -130,7 +129,6 @@ export function PaperView({ stage: id }: BookViewProps) {
   const sweep = useRef<Sweep | null>(null)
   const followed = useFollowsSelection(id)
   const placed = usePlaceTarget(id, placing ? pointer : null) // 置こうとしている間の、押すと置く所
-  usePaperSeen(id, ref) // AI とほかの窓のまだ見ていない変更の物が、見える所にあるか
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
