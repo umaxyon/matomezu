@@ -43,7 +43,6 @@ import {
   setEditing,
   setPreviewArea,
   setStart,
-  showPickerMap,
   stopPlacing,
   toPaper,
   zoomTo,
@@ -186,7 +185,6 @@ export interface Actions {
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
   closePicker(): void
-  showPickerMap(stage: string): void // そのステージで開いている道具のアイコンを、ミニマップに替える
   // ブック book の画面の履歴の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
   // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
   moveHistory(book: string, from: "undo" | "redo"): void
@@ -654,7 +652,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         return mapStage(closed, id, s => openPicker(s, at))
       }),
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
-    showPickerMap: id => withWorkspace(ws => mapStage(ws, id, showPickerMap)),
     continueStep: book => {
       closeStep()
       const { history } = getState()

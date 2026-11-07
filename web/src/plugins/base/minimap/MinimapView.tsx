@@ -2,8 +2,8 @@
 // 四角をドラッグすると、ステージの見る所がついて動く。四角の外を押すと、そこが真ん中に来るように飛んでから、そのままドラッグできる
 // （紙をずらさない道具の間に押すと、組の紙をずらす道具に替えてから動かす。組にそれが無ければ動かさない）。
 // ミニマップの上でホイールを回すと、回した量をコマンド zoom-wheel に渡して、表示領域の真ん中を動かさずに拡大縮小する（ページはスクロールさせない）。
-// 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）。className は枠の見た目を替える（無ければ浮かぶ枠）
-import { memo, type PointerEvent, type ReactNode, useMemo, useRef } from "react"
+// 紙の色と絵の色はブックのテーマの値で描く。className は枠の見た目を替える（無ければ浮かぶ枠）
+import { memo, type PointerEvent, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { areaOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
@@ -26,13 +26,11 @@ export function MinimapView({
   width,
   height,
   className,
-  children,
 }: {
   stage: string
   width: number
   height: number
   className?: string
-  children?: ReactNode
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
@@ -126,7 +124,6 @@ export function MinimapView({
           />
         )}
       </svg>
-      {children}
     </div>
   )
 }

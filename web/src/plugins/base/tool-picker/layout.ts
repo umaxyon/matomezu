@@ -1,13 +1,15 @@
 // 道具のアイコンの置き方（画面の px）。基本はポインタの上に横並び、上端で入らなければ下。
 // 左右の端で横に入らなければ縦並びにして、右端ならポインタの左（left）、左端なら右（right）。
-// 組の初めの道具（ブックを開いたときの道具）は並びの真ん中（偶数なら真ん中の前の方）に置き、ほかは組の順で残りの所に置く
+// 組の初めの道具（ブックを開いたときの道具）は並びの真ん中（偶数なら真ん中の前の方）に置き、ほかは組の順で残りの所に置く。
+// ミニマップ（大きさ map）は並びの外側（ポインタと反対の側）に並びと一緒に置く。上に並べるのは、ミニマップまで入るときだけ。
+// 上にも下にも（縦並びなら外側の横に）入らなければ、ミニマップは出さず、アイコンだけを並べる
 import type { Point, Rect, Size } from "../../../core/geom"
 
 export const ICON = 40 // アイコンの大きさ
 const GAP = 6 // アイコンの間
 const AWAY = 16 // ポインタからの離れ
 const MARGIN = 6 // 画面の端との間
-const LEAVE_DIST = 80 // アイコンの並び（ミニマップなら、その枠）からこれより離れたら、押さずに閉じる
+const LEAVE_DIST = 80 // アイコンの並びとミニマップを合わせた枠からこれより離れたら、押さずに閉じる
 const PASS_DIST = 40 // ポインタから見てアイコンの向こう側へ、これより通り過ぎたら閉じる
 
 export type Lay = "row" | "left" | "right"
@@ -15,22 +17,34 @@ export type Lay = "row" | "left" | "right"
 export interface PickerLayout {
   slots: Point[] // アイコンの左上（組の順）
   lay: Lay
+  map: Rect | null // ミニマップの枠（入らなければ null）
 }
 
-// n 個のアイコンを at の近くに置く。上に並べるのは、もう 1 段分（アイコン 1 つと間）入るときだけ
-export function pickerSlots(at: Point, n: number, view: Size): PickerLayout {
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, hi))
+
+// n 個のアイコンと、大きさ map のミニマップを at の近くに置く
+export function pickerSlots(at: Point, n: number, map: Size, view: Size): PickerLayout {
   const span = n * ICON + (n - 1) * GAP
-  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, hi))
   const lay: Lay = at.x + span / 2 > view.w - MARGIN ? "left" : at.x - span / 2 < MARGIN ? "right" : "row"
   if (lay !== "row") {
     const x = lay === "left" ? at.x - AWAY - ICON : at.x + AWAY
     const top = clamp(at.y - span / 2, MARGIN, view.h - span - MARGIN)
-    return { lay, slots: firstInMiddle(Array.from({ length: n }, (_, i) => ({ x, y: top + i * (ICON + GAP) }))) }
+    const slots = firstInMiddle(Array.from({ length: n }, (_, i) => ({ x, y: top + i * (ICON + GAP) })))
+    const mx = lay === "left" ? x - GAP - map.w : x + ICON + GAP
+    const fits = mx >= MARGIN && mx + map.w <= view.w - MARGIN && map.h <= view.h - 2 * MARGIN
+    const my = clamp(top + span / 2 - map.h / 2, MARGIN, view.h - map.h - MARGIN)
+    return { lay, slots, map: fits ? { x: mx, y: my, ...map } : null }
   }
-  const above = at.y - AWAY - 2 * ICON - GAP >= MARGIN
-  const y = above ? at.y - AWAY - ICON : at.y + AWAY
   const left = at.x - span / 2
-  return { lay, slots: firstInMiddle(Array.from({ length: n }, (_, i) => ({ x: left + i * (ICON + GAP), y }))) }
+  const row = (y: number) => firstInMiddle(Array.from({ length: n }, (_, i) => ({ x: left + i * (ICON + GAP), y })))
+  const mx = clamp(at.x - map.w / 2, MARGIN, view.w - map.w - MARGIN)
+  const up = at.y - AWAY - ICON
+  if (up - GAP - map.h >= MARGIN) return { lay, slots: row(up), map: { x: mx, y: up - GAP - map.h, ...map } }
+  const down = at.y + AWAY
+  if (down + ICON + GAP + map.h <= view.h - MARGIN)
+    return { lay, slots: row(down), map: { x: mx, y: down + ICON + GAP, ...map } }
+  // ミニマップが入らない: アイコンを上に並べるのは、もう 1 段分（アイコン 1 つと間）入るときだけ
+  return { lay, slots: row(up - ICON - GAP >= MARGIN ? up : down), map: null }
 }
 
 // 並んだ所 places を、組の順に置き直す: 初めの道具に真ん中の所、ほかの道具に残りの所を並びの順で
@@ -40,49 +54,17 @@ function firstInMiddle(places: Point[]): Point[] {
   return middle ? [middle, ...places.filter((_, i) => i !== mid)] : places
 }
 
-// ミニマップのボタンの左上: 並びの外側（ポインタと反対の側）の、並びの真ん中（アイコンが偶数なら、真ん中の 2 つの間）。上の並びは、もう 1 段分入るときだけなので収まる
-export function mapSlot(layout: PickerLayout, at: Point): Point {
-  const xs = layout.slots.map(s => s.x)
-  const ys = layout.slots.map(s => s.y)
-  const mid = layout.slots.length
-    ? { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 }
-    : at
-  if (layout.lay === "left") return { x: mid.x - ICON - GAP, y: mid.y }
-  if (layout.lay === "right") return { x: mid.x + ICON + GAP, y: mid.y }
-  return { x: mid.x, y: mid.y < at.y ? mid.y - ICON - GAP : mid.y + ICON + GAP }
-}
-
-// その場に出すミニマップ（大きさ size）の左上: 並び layout があった所に、ポインタ at と反対の側へ広げて置き、画面 view からはみ出すなら内へ寄せる
-export function mapPlace(layout: PickerLayout, at: Point, size: Size, view: Size): Point {
-  const xs = layout.slots.map(s => s.x)
-  const ys = layout.slots.map(s => s.y)
-  const x0 = Math.min(...xs)
-  const y0 = Math.min(...ys)
-  const x1 = Math.max(...xs) + ICON
-  const y1 = Math.max(...ys) + ICON
-  const cx = (x0 + x1) / 2
-  const cy = (y0 + y1) / 2
-  const p =
-    layout.lay === "left"
-      ? { x: x1 - size.w, y: cy - size.h / 2 }
-      : layout.lay === "right"
-        ? { x: x0, y: cy - size.h / 2 }
-        : { x: cx - size.w / 2, y: y1 <= at.y ? y1 - size.h : y0 }
-  const clamp = (v: number, len: number, room: number) => Math.max(MARGIN, Math.min(v, room - len - MARGIN))
-  return { x: clamp(p.x, size.w, view.w), y: clamp(p.y, size.h, view.h) }
-}
-
-// ポインタ p がアイコンの並びから離れたか（並びから LEAVE_DIST より遠いか、ポインタから見て向こう側へ PASS_DIST より通り過ぎたか）
+// ポインタ p がアイコンの並びとミニマップから離れたか（合わせた枠から LEAVE_DIST より遠いか、ポインタから見て向こう側へ PASS_DIST より通り過ぎたか）
 export function leftPicker(layout: PickerLayout, at: Point, p: Point): boolean {
-  const xs = layout.slots.map(s => s.x)
-  const ys = layout.slots.map(s => s.y)
-  const box = { x: Math.min(...xs), y: Math.min(...ys), w: 0, h: 0 }
-  box.w = Math.max(...xs) + ICON - box.x
-  box.h = Math.max(...ys) + ICON - box.y
-  return leftBox(box, layout.lay, at, p)
+  const boxes = [...layout.slots.map(s => ({ x: s.x, y: s.y, w: ICON, h: ICON })), ...(layout.map ? [layout.map] : [])]
+  const x = Math.min(...boxes.map(b => b.x))
+  const y = Math.min(...boxes.map(b => b.y))
+  const w = Math.max(...boxes.map(b => b.x + b.w)) - x
+  const h = Math.max(...boxes.map(b => b.y + b.h)) - y
+  return leftBox({ x, y, w, h }, layout.lay, at, p)
 }
 
-// ポインタ p が四角 box（アイコンの並びか、その場に出したミニマップ。並べ方 lay で、ポインタ at から広げた物）から離れたか
+// ポインタ p が四角 box（並べ方 lay で、ポインタ at から広げた物）から離れたか
 export function leftBox(box: Rect, lay: Lay, at: Point, p: Point): boolean {
   const x0 = box.x
   const y0 = box.y

@@ -81,7 +81,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-/* 乗ったアイコンの名前（位置は並べ方で変える） */
+/* 乗ったアイコンの名前（アイコンから見てポインタの側に出す） */
 .tip {
   position: fixed;
   padding: 3px 8px;
@@ -94,17 +94,35 @@
   line-height: 1.4;
   white-space: nowrap;
   pointer-events: none;
+  z-index: 1;
 }
-.tip[data-lay="row"] {
-  transform: translate(-50%, calc(-100% + var(--below, 0) * 100%));
+.tip[data-side="above"] {
+  transform: translate(-50%, -100%);
 }
-.tip[data-lay="left"] {
+.tip[data-side="below"] {
+  transform: translate(-50%, 0);
+}
+.tip[data-side="left"] {
   transform: translate(-100%, -50%);
 }
-.tip[data-lay="right"] {
+.tip[data-side="right"] {
   transform: translate(0, -50%);
 }
-/* その場に出すミニマップ（位置は測ってから決める） */
+/* ミニマップの台: 絵の枠と、その下に拡大縮小の帯。大きさは ToolPickerView.tsx の MAP_CARD（内側の余白 6px・線 1px・帯の上の間 6px と高さ 20px） */
 .map {
   position: fixed;
+  box-sizing: border-box;
+  padding: 6px;
+  border: 1px solid var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-surface-raised);
+  box-shadow: var(--skin-shadow-2);
+}
+.mapView {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--map-w);
+  height: var(--map-h);
+  line-height: 0;
 }

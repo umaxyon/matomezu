@@ -2,6 +2,9 @@
 import type { Point, Rect, Size } from "../../../core/geom"
 import { MARGIN } from "../../../core/viewport"
 
+// フッタメニューと右ボタンの長押しに出すミニマップの絵の枠（px）。紙の形によらずこの大きさで、紙は縦長でも横長でもこの中に収めて真ん中に描く
+export const MINIMAP_SIZE = { w: 156, h: 110 }
+
 // ステージの表示領域 view で見えている紙の範囲（紙の座標。紙の外は切る。見えていなければ null）
 export function seenRect(paper: Size, view: Size, pan: Point, zoom: number): Rect | null {
   const x0 = Math.max(0, -(pan.x + MARGIN) / zoom)

@@ -55,8 +55,8 @@ export interface Stage {
   // 選んでいる物を、今その場で編集中か（選びが替わる・開くものが変わる・道具を替えると終わる）。
   // 何をしているかをプラグインが名前で分けるときは、その名前（種類を選ぶなど。true は名前を分けない編集）
   editing: boolean | string
-  // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める。map ならアイコンの代わりにミニマップを出している）
-  picker: { at: Point | null; map: boolean } | null
+  // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める）
+  picker: { at: Point | null } | null
   // 初めの位置で表示領域の左上に置く紙の点（中身の載った印刷区画の左上。ビューが知らせる。開くたびに捨て、知らせるまでは null で紙の左上）
   start: Point | null
   // 開いてから、まだ利用者もコマンドも見え方を動かしておらず、初めの位置に合わせ終えていないか（start と広さが届いたら合わせて下ろす）
@@ -353,12 +353,7 @@ export function stopPlacing(stage: Stage): Stage {
 
 // 道具のアイコンを開く（紙が無ければ開かない）・閉じる
 export function openPicker(stage: Stage, at: Point | null): Stage {
-  return paperOf(stage) && !previewing(stage) ? { ...stage, picker: { at, map: false } } : stage
-}
-
-// 開いている道具のアイコンを、ミニマップに替える（開いていなければ何もしない）
-export function showPickerMap(stage: Stage): Stage {
-  return stage.picker && !stage.picker.map ? { ...stage, picker: { ...stage.picker, map: true } } : stage
+  return paperOf(stage) && !previewing(stage) ? { ...stage, picker: { at } } : stage
 }
 
 export function closePicker(stage: Stage): Stage {

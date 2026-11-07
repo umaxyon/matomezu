@@ -1,37 +1,11 @@
-// ミニマップ: 道具のアイコンからの開閉（core/stage.ts の showPickerMap）・紙の範囲の計算（base/minimap/geometry.ts）・
+// ミニマップ: 紙の範囲の計算（base/minimap/geometry.ts）・
 // ページの絵（base/minimap/marks.ts と、形・線の定義の minimap）
 import { describe, expect, test } from "bun:test"
 import type { ItemPage } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
-import { closePicker, newStage, openBook, openPicker, resize, showPickerMap } from "../../web/src/core/stage"
 import { fitScale, grabAt, panFor, seenRect } from "../../web/src/plugins/base/minimap/geometry"
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
-import { leftBox, mapPlace, mapSlot, pickerSlots } from "../../web/src/plugins/base/tool-picker/layout"
 import { CORE_CATALOG } from "../support"
-
-const paged = {
-  type: "@matomezu/drawing:drawing" as const,
-  id: "b1",
-  title: "見本",
-  pages: [
-    { id: "p1", title: "大きい", paper: "@matomezu/base:a4", orientation: "landscape" as const },
-    { id: "p2", title: "小さい", paper: "@matomezu/base:a5", orientation: "landscape" as const },
-  ],
-}
-const opened = openBook(CORE_CATALOG, newStage("s1"), paged)
-const small = resize(opened, { w: 400, h: 300 }) // 紙（A4 横）が収まらない
-
-describe("開閉", () => {
-  test("道具のアイコンをミニマップに替える（開いていなければ何もしない）。閉じればアイコンも消える", () => {
-    expect(showPickerMap(small)).toBe(small)
-    const picked = openPicker(small, { x: 10, y: 20 })
-    expect(picked.picker).toEqual({ at: { x: 10, y: 20 }, map: false })
-    const map = showPickerMap(picked)
-    expect(map.picker).toEqual({ at: { x: 10, y: 20 }, map: true })
-    expect(showPickerMap(map)).toBe(map)
-    expect(closePicker(map).picker).toBeNull()
-  })
-})
 
 describe("紙の範囲の計算", () => {
   const paper = { w: 1000, h: 800 }
@@ -143,54 +117,6 @@ describe("ページの絵", () => {
     expect(turned?.kind).toBe("polygon")
     expect(up).not.toEqual(turned)
   })
-})
-
-describe("右の長押しのミニマップの置き場所", () => {
-  const view = { w: 1200, h: 800 }
-  test("ミニマップのボタンは、並びの外側の真ん中のアイコンの隣", () => {
-    const at = { x: 600, y: 400 }
-    const row = pickerSlots(at, 3, view)
-    const mid = row.slots[0]!
-    expect(mapSlot(row, at)).toEqual({ x: mid.x, y: mid.y - 46 })
-    const low = pickerSlots({ x: 600, y: 20 }, 3, view) // 上に入らなければ下に並び、ボタンはさらに下
-    expect(mapSlot(low, { x: 600, y: 20 }).y).toBeGreaterThan(low.slots[0]!.y)
-  })
-  test("組の初めの道具は並びの真ん中、ほかは組の順で残りの所", () => {
-    const xs = pickerSlots({ x: 600, y: 400 }, 3, view).slots.map(s => s.x)
-    expect(xs[1]! < xs[0]! && xs[0]! < xs[2]!).toBe(true)
-    const ys = pickerSlots({ x: 1190, y: 400 }, 4, view).slots.map(s => s.y)
-    expect(ys[1]! < ys[0]! && ys[0]! < ys[2]! && ys[2]! < ys[3]!).toBe(true)
-  })
-  test("アイコンが偶数なら、ボタンは真ん中の 2 つの間", () => {
-    const at = { x: 600, y: 400 }
-    const two = pickerSlots(at, 2, view)
-    expect(mapSlot(two, at).x).toBe((two.slots[0]!.x + two.slots[1]!.x) / 2)
-    const edge = { x: 1190, y: 400 }
-    const left = pickerSlots(edge, 2, view)
-    expect(mapSlot(left, edge).y).toBe((left.slots[0]!.y + left.slots[1]!.y) / 2)
-  })
-  test("並びがあった所から、ポインタと反対の側へ広げ、画面からはみ出すなら内へ寄せる", () => {
-    const at = { x: 600, y: 400 }
-    const row = pickerSlots(at, 3, view)
-    const size = { w: 250, h: 200 }
-    const p = mapPlace(row, at, size, view)
-    expect(p.y + size.h).toBe(Math.max(...row.slots.map(s => s.y)) + 40) // 下の辺を並びの下の辺にそろえ、上へ広げる
-    expect(p.x + size.w / 2).toBeCloseTo(at.x, 0)
-    const edge = { x: 1190, y: 400 }
-    const left = pickerSlots(edge, 3, view)
-    expect(mapPlace(left, edge, size, view).x + size.w).toBeLessThanOrEqual(view.w - 6)
-  })
-})
-
-test("その場に出したミニマップは、枠から 80px より離れるか、ポインタから見て向こう側へ 40px より通り過ぎると離れた", () => {
-  const box = { x: 100, y: 100, w: 200, h: 150 } // ポインタ (200, 300) の上に広げた
-  const at = { x: 200, y: 300 }
-  expect(leftBox(box, "row", at, { x: 150, y: 150 })).toBe(false)
-  expect(leftBox(box, "row", at, { x: 200, y: 320 })).toBe(false)
-  expect(leftBox(box, "row", at, { x: 200, y: 340 })).toBe(true)
-  expect(leftBox(box, "row", at, { x: 200, y: 59 })).toBe(true)
-  expect(leftBox(box, "row", at, { x: 370, y: 150 })).toBe(false)
-  expect(leftBox(box, "row", at, { x: 390, y: 150 })).toBe(true)
 })
 
 test("アイテムを置かないツリーのページは、見せ方の minimap が節を四角で、線を両端を結ぶ線で描く", () => {
