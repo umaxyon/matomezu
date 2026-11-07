@@ -1,5 +1,6 @@
 // 線に付けた鳥の動き: 線の形（スタンドの左上から測った点の並び）から、線の上を歩くか、線の周りを飛ぶかを決め、鳥の足元の位置と傾きを返す純粋な計算。
-// 点が 2 つだけ（途中の点が一直線上なら省く）で、横から WALK_TILT 以内の傾きなら歩く（足元は線の上で、体を線の傾きに合わせる）。折れ線・縦・急な斜めなら、線の長さの真ん中の周りを周回する
+// 横から WALK_TILT 以内の傾きで、鳥が歩ける長さのある区間があれば、その一番長い区間の上を歩く（足元は線の上で、体を線の傾きに合わせる）。折れ線も、そういう区間があれば歩く。
+// 無ければ（縦・急な斜めだけ、横の区間が短い）、線の長さの真ん中の周りを周回する
 import type { Point } from "../../../core/geom"
 
 export const WALK_TILT = (10 * Math.PI) / 180 // 歩ける線の、横からの傾きの上限
@@ -29,16 +30,19 @@ export function simplified(path: readonly Point[]): Point[] {
   return out
 }
 
-// 線の動き: 歩くなら、歩く線の左の端 from と右の端 to
-export function lineMotion(path: readonly Point[]): LineMotion {
+// 線の動き: 歩くなら、歩く区間の左の端 from と右の端 to。minLength は歩く区間の長さの下限
+export function lineMotion(path: readonly Point[], minLength = 0): LineMotion {
   const pts = simplified(path)
-  const a = pts[0]
-  const b = pts[1]
-  if (pts.length !== 2 || !a || !b) return { kind: "orbit" }
-  const [from, to] = a.x <= b.x ? [a, b] : [b, a]
-  return Math.abs(Math.atan2(to.y - from.y, to.x - from.x)) <= WALK_TILT
-    ? { kind: "walk", from, to }
-    : { kind: "orbit" }
+  let best: { from: Point; to: Point; length: number } | null = null
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1] as Point
+    const b = pts[i] as Point
+    const [from, to] = a.x <= b.x ? [a, b] : [b, a]
+    const length = Math.hypot(to.x - from.x, to.y - from.y)
+    if (length < minLength || Math.abs(Math.atan2(to.y - from.y, to.x - from.x)) > WALK_TILT) continue
+    if (!best || length > best.length) best = { from, to, length }
+  }
+  return best ? { kind: "walk", from: best.from, to: best.to } : { kind: "orbit" }
 }
 
 export interface Place {
@@ -139,8 +143,8 @@ export interface Footing {
   tilt: number // 線の向きに合わせる体の傾き（ラジアン。周回では 0）
 }
 
-// 鳥の足元の、スタンドの左上から測った位置と傾き。still なら線の真ん中に線の向きで立つ。歩くなら、歩く幅 range を線の真ん中に置いて、左の端から x 進んだ点。
-// 周回なら、線の真ん中から hover だけ離れた体の中心の下にある足元（体を rotation だけ傾けたときの、大きさ scale 倍の足元）
+// 鳥の足元の、スタンドの左上から測った位置と傾き。歩くなら、歩く区間の真ん中に歩く幅 range を置いて、左の端から x 進んだ点（still なら区間の真ん中）。
+// still で周回する線なら、線の真ん中に線の向きで立つ。周回なら、線の真ん中から hover だけ離れた体の中心の下にある足元（体を rotation だけ傾けたときの、大きさ scale 倍の足元）
 export function footing(
   path: readonly Point[],
   motion: LineMotion,
@@ -148,11 +152,13 @@ export function footing(
   range: number,
   still: boolean,
 ): Footing {
-  if (still || motion.kind === "walk") {
-    const place =
-      still || motion.kind !== "walk"
-        ? middleOf(path)
-        : onSegment(motion.from, motion.to, (lengthOf([motion.from, motion.to]) - range) / 2 + pose.x)
+  if (motion.kind === "walk") {
+    const length = lengthOf([motion.from, motion.to])
+    const place = onSegment(motion.from, motion.to, still ? length / 2 : (length - range) / 2 + pose.x)
+    return { x: place.x, y: place.y, tilt: place.angle }
+  }
+  if (still) {
+    const place = middleOf(path)
     return { x: place.x, y: place.y, tilt: place.angle }
   }
   const middle = middleOf(path)

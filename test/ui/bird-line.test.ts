@@ -24,12 +24,19 @@ test("途中の点が一直線上なら省いて、横向きの直線として�
   expect(lineMotion([P(0, 0), P(50, 0), P(100, 0)]).kind).toBe("walk")
 })
 
-test("傾きが 10° を超える線、縦の線、折れ線は周回する", () => {
+test("傾きが 10° を超える線と、縦の線は周回する。折れ線は、歩ける横の区間があればその一番長い区間を歩く", () => {
   expect(lineMotion([P(0, 0), P(100, 20)]).kind).toBe("orbit")
   expect(lineMotion([P(0, 0), P(100, 17)]).kind).toBe("walk")
   expect(lineMotion([P(0, 0), P(0, 100)]).kind).toBe("orbit")
-  expect(lineMotion([P(0, 0), P(100, 0), P(100, 60)]).kind).toBe("orbit")
-  expect(lineMotion([P(0, 0), P(100, 0), P(0, 0)]).kind).toBe("orbit")
+  expect(lineMotion([P(0, 0), P(100, 0), P(100, 60)])).toEqual({ kind: "walk", from: P(0, 0), to: P(100, 0) })
+  expect(lineMotion([P(0, 0), P(0, 50), P(300, 50), P(300, 200), P(380, 200)])).toEqual({
+    kind: "walk",
+    from: P(0, 50),
+    to: P(300, 50),
+  })
+  expect(lineMotion([P(0, 0), P(0, 50), P(50, 50), P(50, 200)]).kind).toBe("walk")
+  expect(lineMotion([P(0, 0), P(0, 50), P(50, 50), P(50, 200)], 96).kind).toBe("orbit")
+  expect(lineMotion([P(0, 0), P(100, 50), P(0, 100)]).kind).toBe("orbit")
 })
 
 test("歩く足元: 歩く幅を線の真ん中に置き、その左端から x 進んだ線の上の点。傾きは線に合う", () => {
@@ -45,7 +52,9 @@ test("歩く足元: 歩く幅を線の真ん中に置き、その左端から x 
   expect(Math.hypot(end.x, end.y)).toBeCloseTo((length - 100) / 2 + 100, 5)
 })
 
-test("動きを減らすときは、どの線でも真ん中に線の向きで立つ。縦の線は π/2", () => {
+test("動きを減らすときは、歩く線なら歩く区間の真ん中に、周回する線なら線の真ん中に線の向きで立つ。縦の線は π/2", () => {
+  const elbow = [P(0, 0), P(100, 0), P(100, 60)]
+  expect(footing(elbow, lineMotion(elbow), { x: 0, rotation: 0 }, 0, true)).toEqual({ x: 50, y: 0, tilt: 0 })
   const vertical = [P(10, 0), P(10, 100)]
   const at = footing(vertical, lineMotion(vertical), { x: 0, rotation: 0 }, 0, true)
   expect(at).toEqual({ x: 10, y: 50, tilt: Math.PI / 2 })
