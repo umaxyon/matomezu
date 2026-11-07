@@ -44,6 +44,10 @@ func (h *Hub) Talked(now time.Time) error {
 		return err
 	}
 	h.mu.Lock()
+	if err := h.forgetToldAIChanges(); err != nil {
+		h.mu.Unlock()
+		return err
+	}
 	books := make([]string, 0, len(h.annotations))
 	for book := range h.annotations {
 		books = append(books, book)

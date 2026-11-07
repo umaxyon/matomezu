@@ -1,5 +1,5 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。上の行のボタンで並べ方を変え、右クリックでページの設定を開く
-import { expect, type Page, test } from "./fixtures"
+import { aiAuth, expect, type Page, test } from "./fixtures"
 import { newBook } from "./helpers/master"
 import { openGeneral, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
@@ -150,4 +150,40 @@ test("描いた文書は、段落の中の改行 1 つを既定で改行にし�
   await select.selectOption({ label: "空白にする（GFM方式）" })
   await page.keyboard.press("Escape")
   await expect.poll(lines).toBe(1)
+})
+
+test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけが戻り、その間に AI が書いた行は残る", async ({ page }) => {
+  const ai = aiAuth()
+  await markdownBook(page)
+  const field = () => pane(page, "ソース").getByRole("textbox")
+  await field().click()
+  await page.keyboard.type("# 見出し")
+  await expect(field()).toHaveValue("# 見出し")
+  const view = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
+  // 書いた物が常駐に届いてから、AI が書く
+  const text = async () => {
+    const got = (await (await page.request.get(`/api/ai/books/${view.book}`, { headers: ai })).json()) as {
+      book: { pages: { id: string; text?: string }[] }
+    }
+    return got.book.pages.find(p => p.id === view.page)?.text
+  }
+  await expect.poll(text).toBe("# 見出し")
+  await page.request.post("/api/ai/perform", {
+    headers: ai,
+    data: {
+      action: "@matomezu/base:page-update",
+      args: { page: view.page, fields: { find: "# 見出し", replace: "AI の行\n# 見出し" } },
+      on: { book: view.book },
+    },
+  })
+  await expect(field()).toHaveValue("AI の行\n# 見出し")
+  await field().click()
+  await page.keyboard.press("End")
+  await page.keyboard.type("を足す")
+  await expect(field()).toHaveValue("AI の行\n# 見出しを足す")
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(field()).toHaveValue("AI の行\n# 見出し")
 })

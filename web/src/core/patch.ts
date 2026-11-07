@@ -217,3 +217,15 @@ export function overlaps(first: Patch, then: Patch): boolean {
   }
   return true
 }
+
+// Patch が書いた所と値の並び（AI などに見せる形）: at はフィールドの名前と id の並びの id をたどった道（/ で区切る）。
+// value は入れた値、removed は外した物、lines は足した・書き換えた行（行ごとの違いのとき）
+export type Written = { at: string } & ({ value: unknown } | { removed: true } | { lines: readonly string[] })
+export function writtenBy(p: Patch, at = ""): Written[] {
+  if ("set" in p) return [{ at, value: p.set }]
+  if ("absent" in p) return [{ at, removed: true }]
+  if ("fields" in p) return Object.entries(p.fields).flatMap(([k, q]) => writtenBy(q, at ? `${at}/${k}` : k))
+  if ("list" in p) return p.list.flatMap(q => writtenBy(q.patch, `${at}/${q.id}`))
+  const lines = hunksOf(p.text.from.split("\n"), p.text.to.split("\n")).flatMap(h => h.lines)
+  return [{ at, lines }]
+}

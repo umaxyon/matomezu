@@ -1,5 +1,6 @@
-// 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない
-import { expect, test } from "./fixtures"
+// 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない。
+// 画面に見えた AI の変更は、画面の履歴に時刻の位置で入り、新しい方から戻る
+import { aiAuth, expect, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { newBook } from "./helpers/master"
 import { addBox, items } from "./helpers/paper"
@@ -94,4 +95,36 @@ test("ページタブをドラッグして並べ替えられ、元に戻すで�
   await expect(tabs).toHaveText(["ページ 1", "ページ 2"])
   await page.keyboard.press("Control+Shift+z")
   await expect(tabs).toHaveText(["ページ 2", "ページ 1"])
+})
+
+test("見えている箱を AI が書き換えたら、Ctrl+Z はまず AI の変更を戻し、次に自分の操作を戻す", async ({ page }) => {
+  const ai = aiAuth()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
+  await addBox(page, 200, 150, "自分")
+  await expect(items(page)).toHaveText("自分")
+  const read = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()) as {
+    book: { pages: { id: string; items: { id: string }[] }[] }
+  }
+  const item = read.book.pages.find(p => p.id === shown)!.items[0]!.id
+  await page.request.post("/api/ai/perform", {
+    headers: ai,
+    data: {
+      action: "@matomezu/paper:item-update",
+      args: { page: shown, item, props: { caption: "AI" } },
+      on: { book },
+    },
+  })
+  await expect(items(page)).toHaveText("AI")
+  await page.keyboard.press("Control+z")
+  await expect(items(page)).toHaveText("自分")
+  await page.keyboard.press("Control+z")
+  await expect(items(page)).toHaveCount(0)
 })

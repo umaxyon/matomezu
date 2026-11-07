@@ -19,7 +19,7 @@ import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { currentStage, MAX_STAGES } from "../core/workspace"
-import type { DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
+import type { AIChangeOutcome, DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
 import type { HostClient, Loaded } from "./client"
 
 // 常駐が答えなかった（常駐から開いていない）
@@ -202,6 +202,25 @@ export function serverClient(net: Net = browserNet): ServerClient {
         body: JSON.stringify({ client, warnings }),
       })
       .catch(() => {})
+  }
+  let aiChanges: AIChangeOutcome[] = [] // 常駐にまだ送っていない、AI の変更を見た・見られる前に消えたこと
+  // 溜めた物を 1 つずつ常駐に送る。送れなかった・常駐が 5xx を返したら戻して、次に送るときに送る（4xx なら捨てる。一度きりの出来事なので、送れないまま捨てない）
+  const tellAIChanges = async () => {
+    while (online && client && aiChanges.length > 0) {
+      const [next, ...rest] = aiChanges as [AIChangeOutcome, ...AIChangeOutcome[]]
+      aiChanges = rest
+      const res = await net
+        .fetch("api/ai-changes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ client, ...next, act: Number(next.act) }),
+        })
+        .catch(() => null)
+      if (!res || res.status >= 500) {
+        aiChanges = [next, ...aiChanges]
+        return
+      }
+    }
   }
   let logLines: { at: string; text: string }[] = [] // 常駐のログにまだ送っていない行
   // 溜めた行を常駐のログに送る。送れなかった・常駐が 5xx を返したら戻して、次に送るときに一緒に送る（4xx なら捨てる）
@@ -421,6 +440,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       logLine(`reconnected as ${client} (was ${was}): sending ${pending.length} actions again`)
       tellWarnings()
       tellLog()
+      void tellAIChanges()
       retell?.()
       reread(link)
     })
@@ -522,6 +542,10 @@ export function serverClient(net: Net = browserNet): ServerClient {
     reportWarnings: list => {
       warnings = list
       tellWarnings()
+    },
+    reportAIChange: change => {
+      aiChanges = [...aiChanges, change]
+      void tellAIChanges()
     },
     connect: next => {
       instance = next

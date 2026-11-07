@@ -111,11 +111,11 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"version":1,"awaiting":1}`) {
 		t.Fatalf("list_books = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"book":"b1","title":"T","annotation":`+waiting+`}]}` {
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"book":"b1","title":"T","annotation":`+waiting+`}],"undone":[]}` {
 		t.Fatalf("awaiting = %s", got)
 	}
 	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"book":"b1"}}`, ai)
-	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[]}` {
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[],"undone":[]}` {
 		t.Fatalf("awaiting after read = %s", got)
 	}
 }

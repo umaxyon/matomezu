@@ -24,6 +24,7 @@ import {
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
 import { type Mailbox, restoreMailbox } from "../core/mail"
+import { patchOf, type Written, writtenBy } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import { sameData } from "../core/same"
 import type { Book } from "../core/schema/book"
@@ -284,6 +285,11 @@ function initialState(
   }
 }
 
+// まだ見ていない AI の変更（act は常駐の book の知らせの印）が、この窓で見えた（seen）か、見られる前に消えた（lost。消えた所と AI が書いた値）
+export type AIChangeOutcome =
+  | { book: string; act: string; outcome: "seen" }
+  | { book: string; act: string; outcome: "lost"; lost: readonly Written[] }
+
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
   plugins: Ps
   home?: SingleBookTypeId // ホームのブック（1 冊だけのタイプ）。最初に開くブックと「ホームを開く」の行き先で、ブックの一覧のアクションを許すかはこのタイプが決める
@@ -296,6 +302,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
+  aiChange?: (change: AIChangeOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に戻す・やり直すで消えたときに知らせる
 }
 
 // 知らされた一覧 next を、今の一覧 now に寄せる: 中身の同じブックは前の値を使い（描き直しと、保存の知らせを減らす）、全部同じなら now を返す
@@ -409,6 +416,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 確かめた世界の、最後に知っているブック（よその変更の前の値）
   let known: Library = {}
   // まだ見ていない画面の履歴の段のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む
+  const tellSeen = (u: { step: HistoryStep; act: string }) => {
+    if (u.step.by === "ai")
+      for (const book of Object.keys(u.step.books)) options.aiChange?.({ book, act: u.act, outcome: "seen" })
+  }
   const checkSeen = () => {
     if (unseen.length === 0) return
     const { stages } = getState().workspace
@@ -417,6 +428,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     )
     if (now.length === 0) return
     unseen = unseen.filter(u => !now.includes(u))
+    for (const u of now) tellSeen(u)
     const history = { ...getState().history }
     for (const { step } of now)
       for (const id of Object.keys(step.books)) history[id] = insertStep(history[id] ?? NO_HISTORY, step)
@@ -425,7 +437,16 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // この窓の利用者の、画面の履歴に入れない変更（ブックを before から after にした）が上書きした、まだ見ていない画面の履歴の段を捨てる（あとで見えても差し込まない）。
   // 画面の履歴に入れる操作が上書きした物は捨てない（その画面の履歴の段の前に値が残り、見えたら差し込まれ、戻せば戻る）
   const dropOverwritten = (before: Book, after: Book) => {
-    unseen = unseen.filter(u => !stepOverwritten(u.step, before, after))
+    const lost = unseen.filter(u => stepOverwritten(u.step, before, after))
+    if (lost.length === 0) return
+    unseen = unseen.filter(u => !lost.includes(u))
+    for (const u of lost) {
+      if (u.step.by !== "ai") continue
+      for (const [book, b] of Object.entries(u.step.books)) {
+        const made = patchOf(b.before, b.after)
+        if (made) options.aiChange?.({ book, act: u.act, outcome: "lost", lost: writtenBy(made) })
+      }
+    }
   }
   // よその変更 change（ブック book を、確かめた世界で before から after にした）を、まだ見ていない画面の履歴の段に足す
   const addUnseen = (change: { by: "ai" | "window"; act: string }, before: Book, after: Book) => {
