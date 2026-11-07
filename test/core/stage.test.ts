@@ -13,6 +13,7 @@ import {
   select,
   setArea,
   setEditing,
+  setStart,
   toPaper,
   zoomTo,
 } from "../../web/src/core/stage"
@@ -117,6 +118,7 @@ describe("stage", () => {
       book: "b9",
       page: "p4",
       paper: { status: "known", size: { w: 1123, h: 794 } },
+      starting: true,
     })
     expect(opened.pan).toEqual({ x: 0, y: 0 })
   })
@@ -216,4 +218,33 @@ test("位置をデータに持たない見せ方が、描く中身をずらし�
   // 同じ広さとずらした量なら同じ値。紙 1 枚に戻せば、ずらした量も無くなる
   expect(setArea(moved, { w: sheet.w * 4, h: sheet.h * 2 }, { x: 2, y: 0 })).toBe(moved)
   expect(setArea(moved, null).opened?.origin).toBeUndefined()
+})
+
+test("開いたばかりのページは、知らせた初めの位置（start）を表示領域の左上に置く。紙の左上でなければ広さが届くまで待ち、動かしたあとや開き直すまでは合わせない", () => {
+  const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
+  const book = { type: "@matomezu/drawing:drawing" as const, id: "b1", title: "見本", pages: [page] }
+  const view = { w: 400, h: 300 }
+  const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), view)
+  const sheet = paperOf(opened)!
+  const area = { w: sheet.w * 3, h: sheet.h * 2 }
+  const start = { x: sheet.w, y: sheet.h }
+  // 初めの位置が先に届いても、広さが届くまでは動かさない
+  const early = setStart(opened, start)
+  expect([early.pan, early.opened?.starting]).toEqual([{ x: 0, y: 0 }, true])
+  const reached = setArea(early, area)
+  expect([reached.pan, reached.opened?.starting]).toEqual([{ x: -sheet.w, y: -sheet.h }, undefined])
+  // 広さが先でも同じ所
+  expect(setStart(setArea(opened, area), start).pan).toEqual(reached.pan)
+  // 合わせたあとは、知らせが変わっても動かさない。戻せば、今の初めの位置へ
+  const later = setStart(panBy(reached, 100, 100), { x: sheet.w * 2, y: 0 })
+  expect(later.pan).toEqual({ x: -sheet.w + 100, y: -sheet.h + 100 })
+  expect(resetView(later).pan).toEqual({ x: -sheet.w * 2, y: 0 })
+  // 合わせる前に動かせば、合わせない
+  const panned = panBy(opened, -10, -10)
+  expect(setStart(setArea(panned, area), start).pan).toEqual({ x: -10, y: -10 })
+  // 紙の左上なら、広さを待たずに印を消す
+  expect(setStart(opened, { x: 0, y: 0 }).opened?.starting).toBeUndefined()
+  // 開き直せば、また合わせる
+  const reopened = openBook(CORE_CATALOG, { ...newStage("s1"), view }, book)
+  expect(setStart(setArea(reopened, area), start).pan).toEqual(reached.pan)
 })

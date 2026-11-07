@@ -7,7 +7,7 @@ import { hasPages } from "./book"
 import type { CoreCatalog } from "./core-catalog"
 import type { Point } from "./geom"
 import type { Book } from "./schema/book"
-import { newStage, openBook, openPage, panBy, type Stage } from "./stage"
+import { newStage, openBook, openPage, panBy, type Stage, stopStart } from "./stage"
 import { MAX_STAGES, MIN_SHARE, type Workspace } from "./workspace"
 
 export interface StagePlace {
@@ -54,8 +54,8 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
   if (!book) return fresh
   let next = openBook(catalog, fresh, book)
   if (place.page !== null && hasPages(book)) next = openPage(catalog, next, book, place.page)
-  // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）
-  const zoomed = { ...next, zoom: place.zoom }
+  // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）。初めの位置には合わせない（場所のずらす量が 0 のときも）
+  const zoomed = { ...stopStart(next), zoom: place.zoom }
   return panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)
 }
 
@@ -77,4 +77,10 @@ export function placeAt(
   const current = stages[Math.min(Math.max(0, address.current), stages.length - 1)] as Stage
   const share = Math.min(1 - MIN_SHARE, Math.max(MIN_SHARE, address.share))
   return { ...ws, stages, current: current.id, issued, arrangement: { ...ws.arrangement, share } }
+}
+
+// 場所が今のままで当てはめを省くときの見ているもの ws: 当てはめたときと同じく、どのステージも初めの位置に合わせない（変わらなければ ws のまま）
+export function keepPlace(ws: Workspace): Workspace {
+  const stages = ws.stages.map(stopStart)
+  return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }

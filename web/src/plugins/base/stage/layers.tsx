@@ -1,14 +1,14 @@
 // ステージのレイヤー（スロット book-layers に置くウィジェット）: 紙の白い面を描くレイヤーと、印刷区画の区切りの線を描くレイヤーと、開いたブックをそのタイプが選んだ見せ方のビューで描くレイヤー。
 // 紙の面と区切りの線は紙の座標の枠（PaperFrame）に描き、ポインタは受けない（上のレイヤーとステージが受ける）。ページが無い・紙を出せないときは描かない（知らせはブックのビューが出す）
 
-import { useMemo } from "react"
+import { useLayoutEffect, useMemo } from "react"
 import { bookType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
 import { areaOf, paperOf } from "../../../core/stage"
-import { useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useBook, usePage, useStage } from "../../../ui/view-hooks"
 import { printAreaLines } from "../place/grow"
-import { unprintedSheets } from "../print-preview/book-sheets"
+import { startOf, unprintedSheets } from "../print-preview/book-sheets"
 import { sheetKey } from "../print-preview/filled"
 import { PaperFrame } from "../utils/PaperFrame"
 import type { StageSlotProps } from "../workspace/ui"
@@ -22,7 +22,8 @@ export function PaperLayer({ stage: id }: StageSlotProps) {
 }
 
 // 可変ページの、印刷区画の境目の破線と、印刷しない印刷区画（何も載っていない印刷区画。印刷プレビューに並べない物と同じ）の薄い影
-// （見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。フッタメニューのボタンで、線と影を一緒に隠せる）
+// （見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。フッタメニューのボタンで、線と影を一緒に隠せる）。
+// 初めの位置（暗くしない所の左上）も、ここからステージに知らせる
 export function PrintAreaLayer({ stage: id }: StageSlotProps) {
   const stage = useStage(id)
   const book = useBook(id)
@@ -38,6 +39,7 @@ export function PrintAreaLayer({ stage: id }: StageSlotProps) {
     () => (columns > 0 && book && page ? unprintedSheets(catalog, book, page, columns, rows) : []),
     [catalog, book, page, columns, rows],
   )
+  useStartReport(id)
   if (!stage || !area || !paper || !lines) return null
   const { xs, ys } = lines
   return (
@@ -63,6 +65,21 @@ export function PrintAreaLayer({ stage: id }: StageSlotProps) {
       </svg>
     </PaperFrame>
   )
+}
+
+// ステージに、初めの位置で表示領域の左上に置く紙の点（startOf。暗くしない印刷区画の左上）を知らせる。開くページか紙が変わるたびに知らせ直す
+function useStartReport(id: string) {
+  const { setStageStart } = useActions()
+  const catalog = useCatalog().core
+  const book = useBook(id)
+  const page = usePage(id)
+  const sheet = useStage(id)?.opened?.paper
+  const start = useMemo(() => (book && page ? startOf(catalog, book, page) : null), [catalog, book, page])
+  const x = start?.x
+  const y = start?.y
+  useLayoutEffect(() => {
+    if (x !== undefined && y !== undefined && sheet) setStageStart(id, { x, y })
+  }, [setStageStart, id, x, y, sheet])
 }
 
 export function BookContentLayer({ stage: id }: StageSlotProps) {
