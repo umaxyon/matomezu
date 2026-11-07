@@ -46,7 +46,9 @@ test("紙を置かずに、ソースとプレビューを左右に並べて開�
   expect(bottom.y).toBeGreaterThan(top.y) // 上下
 })
 
-test("並べ方のボタンは上の行の左端に並び、画面を分割して出たステージの閉じるボタン（右上）と重ならない", async ({ page }) => {
+test("並べ方のボタンは上の行の左端に並び、画面を分割して出たステージの閉じるボタン（右上）と重ならない", async ({
+  page,
+}) => {
   await markdownBook(page)
   await (await fromMenu(page, "画面を分割")).click()
   const stage = page.locator("[data-stage]").first()
@@ -120,4 +122,32 @@ test("ソースのエディタは既定で行番号を出し、設定画面の�
   const overflow = await field.evaluate(el => el.scrollHeight - el.clientHeight)
   expect(overflow).toBeLessThanOrEqual(1)
   await source.screenshot({ path: "e2e/.results/markdown-source-look.png" })
+})
+
+test("描いた文書は、段落の中の改行 1 つを既定で改行にし、設定画面の「マークダウン」で空白（GFM のとおり）に変えられる", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  await pane(page, "ソース").getByRole("textbox").click()
+  await page.keyboard.type("一行目\n二行目")
+  const paragraph = pane(page, "プレビュー").locator("p")
+  await expect(paragraph).toContainText("二行目")
+  // 段落が何行に描かれているか（字の四角の上端が何通りあるか。ペインを縮めて描いても変わらない）
+  const lines = () =>
+    paragraph.evaluate(el => {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      return new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size
+    })
+  await expect.poll(lines).toBe(2)
+  // 右に分けたステージでマスターから設定画面を開き、左のマークダウンを開いたまま変える
+  await (await fromMenu(page, "画面を分割")).click()
+  await (await fromMenu(page, "ホーム", 1)).click()
+  await page.getByRole("region", { name: "マスター" }).getByRole("button", { name: "設定を開く" }).click()
+  await settingsDialog(page).getByRole("tab", { name: "マークダウン" }).click()
+  const select = settingsDialog(page).getByLabel("段落の中の改行")
+  await expect(select).toHaveValue("line-break")
+  await select.selectOption({ label: "空白にする（GFM方式）" })
+  await page.keyboard.press("Escape")
+  await expect.poll(lines).toBe(1)
 })

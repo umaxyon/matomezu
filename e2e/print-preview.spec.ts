@@ -256,6 +256,15 @@ test("マークダウンの長い段落は、紙の高さに入る所で行の�
     return Object.fromEntries(seen)
   })
   expect([...Array.from({ length: 80 }, (_, i) => counts[`行 ${i + 1}`])]).toEqual(Array(80).fill(1))
+  // 段落の中の改行 1 つも、描いた文書と同じく（既定で）改行にして測る（空白にすれば 1 枚に入る長さ）
+  await page.keyboard.press("Escape")
+  await field.click()
+  await page.keyboard.press("ControlOrMeta+a")
+  await page.keyboard.insertText(Array.from({ length: 80 }, (_, i) => `行 ${i + 1}`).join("\n"))
+  await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("行 80")
+  await openPreview(page)
+  await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(1)).toPass()
+  await expect(sheets(page).last().getByText("行 80")).toBeVisible()
 })
 
 // 幅 300・高さ h の画像（data: の URL。描く画像）

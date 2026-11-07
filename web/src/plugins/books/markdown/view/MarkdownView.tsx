@@ -1,8 +1,8 @@
 // マークダウンのビュー（見せ方 markdown）: ブックのビューのレイヤー（book-content）が描く。ステージに紙は無く、ステージいっぱいにペインを並べ、ペインの中をふつうにスクロールする。
-// 並べ方はステージごとの画面の状態（panes.ts）: 左右か上下に 2 つ並べるか、1 つだけ見せる。いつも出る上の行の右端に、並べ方の 4 つのボタン（ソースだけ・左右・上下・
+// 並べ方はステージごとの画面の状態（panes.ts）: 左右か上下に 2 つ並べるか、1 つだけ見せる。いつも出る上の行の左端に、並べ方の 4 つのボタン（ソースだけ・左右・上下・
 // プレビューだけ。コマンド）を並べ、並べている間は、ペインごとに上辺にペインの名前の見出しを出す。
 // 上の行・見出し・プレビューのペインの右クリックで、メニュー（pane-context。ページの設定・ブックの設定など）を開く。ソースのペインでは、文字の右クリックのままにする。
-// ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
+// ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、段落の中の改行 1 つを利用者の設定の項目のとおりに見せ（soft-break.ts）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
 // 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（base の useMarkdownDocument）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
 import { type MouseEvent, type RefObject, useRef, useState } from "react"
@@ -16,6 +16,7 @@ import {
   useShownPage,
   useStageState,
   useUiCatalog,
+  useUserSetting,
 } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, paperSize } from "../../../base"
 import { useMarkdownDocument, useResize } from "../../../base/ui"
@@ -25,6 +26,7 @@ import { PANE_CONTEXT } from "../markdown"
 import { PANES, paneLayoutOf } from "../panes"
 import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
+import { SOFT_BREAK, softBreakOf } from "../soft-break"
 import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 import { SourcePane } from "./SourcePane"
@@ -111,11 +113,12 @@ function Rendered({
     if (el) setRoom(Math.floor(el.getBoundingClientRect().width - (el.offsetWidth - el.clientWidth)))
   })
   const zoom = width === undefined ? 1 : shrinkTo(room, width)
+  const softBreak = softBreakOf(useUserSetting(SOFT_BREAK.id))
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける
     <div ref={ref} className={`${styles.scroll} ${styles.rendered}`} onContextMenu={onContextMenu}>
       <article className={styles.document} style={width ? { width, zoom, minHeight: `${100 / zoom}%` } : undefined}>
-        <MarkdownDocumentView document={document} />
+        <MarkdownDocumentView document={document} softBreak={softBreak} />
       </article>
     </div>
   )

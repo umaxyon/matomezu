@@ -6,6 +6,10 @@
   line-height: var(--markdown-line-height);
   overflow-wrap: anywhere;
 }
+/* 段落の中の改行 1 つを改行にする（コードブロックと生の HTML は、別に書いたとおりに見せる） */
+.body[data-soft-break="line-break"] {
+  white-space: pre-line;
+}
 .body > :first-child {
   margin-top: 0;
 }

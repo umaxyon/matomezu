@@ -5,11 +5,13 @@ import { parseMarkdown } from "../../web/src/plugins/base"
 import { blockKeys } from "../../web/src/plugins/books/markdown/block-keys"
 import { linkTarget } from "../../web/src/plugins/books/markdown/link-target"
 import { shrinkTo } from "../../web/src/plugins/books/markdown/shrink"
+import { type SoftBreak, softBreakOf } from "../../web/src/plugins/books/markdown/soft-break"
 import { MarkdownDocumentView } from "../../web/src/plugins/books/markdown/view/MarkdownDocumentView"
 
 afterEach(cleanup)
 
-const draw = (text: string) => render(<MarkdownDocumentView document={parseMarkdown(text)} />).container
+const draw = (text: string, softBreak: SoftBreak = "line-break") =>
+  render(<MarkdownDocumentView document={parseMarkdown(text)} softBreak={softBreak} />).container
 
 test("見出し・リスト・表・脚注を描く", () => {
   const c = draw("# T\n\n- [x] done\n- b\n\n| h |\n|-|\n| v |\n\nn[^a]\n\n[^a]: note\n")
@@ -85,10 +87,21 @@ test("いちばん外のブロックの名前は、原文の中の位置によ�
 })
 
 test("上にブロックを足しても、中身の同じブロックは描き直さず、同じ要素のまま", () => {
-  const view = render(<MarkdownDocumentView document={parseMarkdown("# A\n\nbody\n")} />)
+  const view = render(<MarkdownDocumentView document={parseMarkdown("# A\n\nbody\n")} softBreak="line-break" />)
   const before = view.container.querySelector("p")
-  view.rerender(<MarkdownDocumentView document={parseMarkdown("new\n\n# A\n\nbody\n")} />)
+  view.rerender(<MarkdownDocumentView document={parseMarkdown("new\n\n# A\n\nbody\n")} softBreak="line-break" />)
   const ps = view.container.querySelectorAll("p")
   expect(ps).toHaveLength(2)
   expect(ps[1]).toBe(before!)
+})
+
+test("段落の中の改行 1 つの見せ方は、文書の外の要素の印で分ける（改行にするときは CSS で改行を残す）。原文の文字はそのままで、行末の空白 2 つの改行はいつも <br>。形に合わない設定の値は「改行にする」", () => {
+  for (const softBreak of ["line-break", "space"] as const) {
+    const c = draw("一行目\n二行目  \n三行目\n", softBreak)
+    expect(c.querySelector("[data-markdown-document]")?.getAttribute("data-soft-break")).toBe(softBreak)
+    expect(c.querySelector("p")?.textContent).toBe("一行目\n二行目三行目")
+    expect(c.querySelectorAll("p br")).toHaveLength(1)
+  }
+  expect(softBreakOf("space")).toBe("space")
+  expect(softBreakOf(true)).toBe("line-break")
 })
