@@ -29,6 +29,7 @@ const NOTE = defineBookType({
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: NOTE_LOOK.id,
   tokens: [],
 })

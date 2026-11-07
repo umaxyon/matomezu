@@ -12,13 +12,14 @@ const THEME = "@matomezu/base:book-theme"
 const PAPER = "@matomezu/base:book-paper-color"
 const look = (settings: Record<string, unknown>) => ({ settings })
 
-test("ブックのテーマと紙の色は base の設定の項目で、@matomezu/base:book-update の settings で変える。渡さない項目はそのまま、null で消す。表に無いテーマ・色の値でないものは断る", () => {
+test("ブックのテーマと紙の色は base の設定の項目で、@matomezu/base:book-update の settings で変える。渡さない項目はそのまま、null で消す。表に無いテーマ・タイプが使えないテーマ・色の値でないものは断る", () => {
   const store = newStore()
   expect(update(store, look({ [THEME]: "@matomezu/base:sticky", [PAPER]: "#FEFCE8" })).ok).toBe(true)
   expect(book(store).settings).toEqual({ [THEME]: "@matomezu/base:sticky", [PAPER]: "#fefce8" })
   expect(update(store, look({ [PAPER]: null })).ok).toBe(true)
   expect(book(store).settings).toEqual({ [THEME]: "@matomezu/base:sticky" })
   expect(update(store, look({ [THEME]: "nope" })).ok).toBe(false)
+  expect(update(store, look({ [THEME]: "@matomezu/markdown:github-like" })).ok).toBe(false) // 図のブックは文書のテーマを選べない
   expect(update(store, look({ [PAPER]: "yellow" })).ok).toBe(false)
   expect(update(store, look({ [THEME]: null })).ok).toBe(true)
   expect("settings" in book(store)).toBe(false)
@@ -26,7 +27,7 @@ test("ブックのテーマと紙の色は base の設定の項目で、@matomez
   expect(update(store, { theme: "@matomezu/base:sticky" }).ok).toBe(false)
 })
 
-test("ブックのテーマは、テーマの項目（無いか表に無ければブックのタイプのテーマ）。紙の色は紙のテーマキーを上書きする。箱のテーマキーもブックのテーマで決まる", () => {
+test("ブックのテーマは、テーマの項目（無いか、表に無いか、タイプが選べなければブックのタイプの既定のテーマ）。紙の色は紙のテーマキーを上書きする。箱のテーマキーもブックのテーマで決まる", () => {
   const store = newStore()
   const catalog = store.catalog.core
   expect(bookTheme(catalog, book(store))).toBe("@matomezu/base:standard")
@@ -38,6 +39,9 @@ test("ブックのテーマは、テーマの項目（無いか表に無けれ�
   update(store, look({ [PAPER]: "#0f172a" }))
   expect(bookTokens(catalog, book(store)).paper).toEqual({ light: "#0f172a", dark: "#0f172a" })
   expect(bookTheme(catalog, { ...book(store), settings: { [THEME]: "nope" } })).toBe("@matomezu/base:standard")
+  // データに残った、タイプが使えないテーマも使わない（データは消さない）
+  const doc = { ...book(store), settings: { [THEME]: "@matomezu/markdown:github-like" } }
+  expect(bookTheme(catalog, doc)).toBe("@matomezu/base:standard")
 })
 
 test("ダイアログの下書きは、アイテムを指さなければブックそのものの下書き", () => {

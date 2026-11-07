@@ -10,6 +10,7 @@ import type {
   Part,
   PartTables,
   SlotTable,
+  ThemeTypeTable,
 } from "../core/catalog"
 import type { MESSAGES } from "../core/i18n/messages"
 import type { IdsOf, Plugin } from "./plugin"
@@ -27,7 +28,7 @@ type Provided<P> = keyof typeof MESSAGES | MessageKeysOf<P>
 type MessageGaps<P> =
   | `messages:${Exclude<keyof MessageTable, Provided<P>> & string}`
   | `messages:${Exclude<MessageKeysOf<P>, keyof MessageTable> & string}`
-// core/catalog.ts に書き足すだけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー・能力）のうち、土台の言葉でも、渡したプラグインの id と : で始まる名前でもないもの
+// core/catalog.ts に書き足すだけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー・能力・テーマタイプ）のうち、土台の言葉でも、渡したプラグインの id と : で始まる名前でもないもの
 type PluginIdOf<P> = P extends { id: infer I extends string } ? I : never
 type Unowned<P, Table, Base extends string, Kind extends string> =
   Exclude<keyof Table & string, Base> extends infer N
@@ -40,6 +41,7 @@ type NameGaps<P> =
   | Unowned<P, MenuTable, never, "menu">
   | Unowned<P, ContextMenuTable, never, "contextMenu">
   | Unowned<P, CapabilityTable, "connectable" | "resizable" | "nests", "capability">
+  | Unowned<P, ThemeTypeTable, never, "themeType">
 // 合わない id を、渡す値に要る項目の名前にする（型の誤りの文に id がそのまま並ぶ）
 type Check<P> = [Gaps<P> | MessageGaps<P> | NameGaps<P>] extends [never]
   ? unknown

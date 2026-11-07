@@ -19,7 +19,7 @@ export const SETTINGS_SET = kit.defineAction({
         Object.fromEntries(
           [...catalog.userSettings.values()]
             .filter(d => !d.userOnly)
-            .map(d => [d.id, settingSchema(catalog, d).nullable().optional()]),
+            .map(d => [d.id, settingSchema(catalog, d, "user").nullable().optional()]),
         ),
       ),
     }),
@@ -33,7 +33,7 @@ export const SETTINGS_SET = kit.defineAction({
         delete next[id]
         continue
       }
-      const parsed = settingSchema(ctx.catalog, def).safeParse(value)
+      const parsed = settingSchema(ctx.catalog, def, "user").safeParse(value)
       if (!parsed.success) return null
       next[id] = parsed.data
     }

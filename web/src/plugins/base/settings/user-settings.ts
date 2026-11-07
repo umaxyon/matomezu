@@ -59,7 +59,7 @@ export type AutoInput =
   | { kind: "text" }
 
 export function autoInputOf(catalog: CoreCatalog, def: SettingDef): AutoInput | null {
-  const schema = settingSchema(catalog, def)
+  const schema = settingSchema(catalog, def, "user")
   if (schema instanceof z.ZodBoolean) return { kind: "switch" }
   if (schema instanceof z.ZodEnum) return { kind: "select", options: schema.options.map(String) }
   if (schema instanceof z.ZodNumber) return { kind: "number" }

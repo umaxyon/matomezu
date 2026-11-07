@@ -29,6 +29,7 @@ import {
   SwitchPanel,
   useBookOf,
   useBookTheme,
+  useBookThemes,
   useSwatches,
 } from "../../base/ui"
 import { ROW_LINES } from "./actions"
@@ -82,6 +83,7 @@ export function AddListDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs
       submit={kit.message("Add")}
       start={EMPTY}
       checked={false}
+      book={book}
       bookTheme={bookTheme}
       ready={book !== undefined}
       onSubmit={add}
@@ -115,7 +117,12 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
     const done = perform("@matomezu/paper:item-update", {
       page: args.page,
       item: args.item,
-      props: { ...props, theme: props.theme ?? null, color: props.color ?? null },
+      props: {
+        ...props,
+        // テーマは変えたときだけ送る（使えないテーマが残っていても、ほかの項目は直せる）
+        ...(props.theme === found.props.theme ? {} : { theme: props.theme ?? null }),
+        color: props.color ?? null,
+      },
     })
     if (done.ok && rowLines !== undefined && rows.length > 0)
       perform(ROW_LINES.id, { page: args.page, list: args.item, lines: rowLines })
@@ -129,6 +136,7 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
       start={found.props}
       checked={rows.some(r => r.props.checked === true)}
       hasRows={rows.length > 0}
+      book={book}
       bookTheme={bookTheme}
       ready
       onSubmit={update}
@@ -144,6 +152,7 @@ function ListDialog({
   start,
   checked,
   hasRows = false,
+  book,
   bookTheme,
   ready,
   onSubmit,
@@ -155,6 +164,7 @@ function ListDialog({
   start: ListProps
   checked: boolean // チェックの入った行があるか（チェックリストを切るときに確かめる）
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
+  book: string | undefined // 開いているブックの id（使えるテーマを決める）
   bookTheme: string | undefined
   ready: boolean
   onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
@@ -166,7 +176,10 @@ function ListDialog({
   const catalog = useCoreCatalog()
   const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
   const { caption, captionAlign } = head
-  const [theme, setTheme] = useState(start.theme ?? "")
+  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
+  // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
+  const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
+  const [theme, setTheme] = useState(startTheme)
   const [color, setColor] = useState(start.color)
   const [checklist, setChecklist] = useState(start.checklist)
   const [zebra, setZebra] = useState(start.zebra)
@@ -179,7 +192,7 @@ function ListDialog({
   const swatches = useSwatches(theme || bookTheme, LIST_FILL)
   const changed =
     captionAlign !== start.captionAlign ||
-    theme !== (start.theme ?? "") ||
+    theme !== startTheme ||
     color !== start.color ||
     checklist !== start.checklist ||
     zebra !== start.zebra ||
@@ -234,7 +247,7 @@ function ListDialog({
               zebra,
               checkedGray,
               checkedOrder,
-              ...(theme ? { theme } : {}),
+              ...(theme === startTheme ? (start.theme ? { theme: start.theme } : {}) : theme ? { theme } : {}),
               ...(color ? { color } : {}),
             },
             rowLines,
@@ -255,7 +268,7 @@ function ListDialog({
             <span>{t("Theme")}</span>
             <select className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
               <option value="">{t("Book's theme")}</option>
-              {[...catalog.themes.values()].map(th => (
+              {themes.map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}
                 </option>

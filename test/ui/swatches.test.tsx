@@ -32,6 +32,7 @@ const standard = createMatomezu({ plugins: BUILTIN_UI }).catalog.core.themes.get
 const DUSK = kit.defineTheme({
   id: "dusk",
   title: "dusk",
+  themeTypes: "all",
   base: standard.base,
   palette: { ...standard.palette, primary: { light: "#3366cc", dark: "#99bbff" } },
   tokens: { "@matomezu/box:box-fill": { light: "#ffffff", dark: "#202020" } },

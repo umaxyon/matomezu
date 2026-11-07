@@ -1,7 +1,7 @@
 // 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ・色。キャプションと本文の名前の右に、左・中央・右の寄せ）。
 // キャプションの寄せの隣に、キャプションと本文の塊の縦の位置（上・真ん中・下）。押している物をもう一度押すと自動（どれも押していない）に戻す。
 // 子を持つ内包ボックスでは、真ん中は押せない（子がある間は上として描くため）。
-// テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
+// テーマは「ブックのテーマ」（箱に当てない）か、ブックのタイプが使えるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
 // 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
 // キャプション・区切り線・本文は base の文字の領域の入力Formのコンポーネント（CaptionField・DividerField・BodyField）。
 // 置けない（紙からはみ出す・止められたなど）ときは閉じずに理由を出す。
@@ -27,6 +27,7 @@ import {
   type TextDraft,
   useBookOf,
   useBookTheme,
+  useBookThemes,
   useSwatches,
 } from "../../base/ui"
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
@@ -77,6 +78,7 @@ function AddBox({
       title={kit.message("Add box")}
       submit={kit.message("Add")}
       start={EMPTY}
+      book={book}
       bookTheme={bookTheme}
       ready={book !== undefined}
       onSubmit={add}
@@ -105,7 +107,13 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
     const done = perform("@matomezu/paper:item-update", {
       page: args.page,
       item: args.item,
-      props: { ...props, vAlign: props.vAlign ?? null, theme: props.theme ?? null, color: props.color ?? null },
+      props: {
+        ...props,
+        vAlign: props.vAlign ?? null,
+        // テーマは変えたときだけ送る（使えないテーマが残っていても、ほかの項目は直せる）
+        ...(props.theme === start.theme ? {} : { theme: props.theme ?? null }),
+        color: props.color ?? null,
+      },
     })
     if (done.ok) onClose()
     return done.ok ? null : done
@@ -117,6 +125,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
       submit={kit.message("OK")}
       start={start}
       hasChildren={hasChildren}
+      book={book}
       bookTheme={bookTheme}
       ready
       onSubmit={update}
@@ -131,6 +140,7 @@ function BoxDialog({
   title,
   submit,
   start,
+  book,
   bookTheme,
   ready,
   onSubmit,
@@ -142,6 +152,7 @@ function BoxDialog({
   title: MessageKey
   submit: MessageKey
   start: BoxProps
+  book: string | undefined // 開いているブックの id（使えるテーマを決める）
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
   onSubmit: (props: BoxProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
@@ -160,7 +171,10 @@ function BoxDialog({
   })
   const { body, captionAlign, bodyAlign } = text
   const [vAlign, setVAlign] = useState(start.vAlign)
-  const [theme, setTheme] = useState(start.theme ?? "")
+  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
+  // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
+  const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
+  const [theme, setTheme] = useState(startTheme)
   const [color, setColor] = useState(start.color)
   const catalog = useCoreCatalog()
   // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
@@ -171,7 +185,7 @@ function BoxDialog({
     captionAlign !== start.captionAlign ||
     bodyAlign !== start.bodyAlign ||
     vAlign !== start.vAlign ||
-    theme !== (start.theme ?? "") ||
+    theme !== startTheme ||
     color !== start.color
   useEffect(() => {
     onPreview?.(changed ? { body, captionAlign, bodyAlign, vAlign, theme: theme || undefined, color } : null)
@@ -203,7 +217,7 @@ function BoxDialog({
           const no = onSubmit({
             ...text,
             ...(vAlign ? { vAlign } : {}),
-            ...(theme ? { theme } : {}),
+            ...(theme === startTheme ? (start.theme ? { theme: start.theme } : {}) : theme ? { theme } : {}),
             ...(color ? { color } : {}),
           })
           setRefused(
@@ -235,7 +249,7 @@ function BoxDialog({
           {id => (
             <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
               <option value="">{t("Book's theme")}</option>
-              {[...catalog.themes.values()].map(th => (
+              {themes.map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}
                 </option>
