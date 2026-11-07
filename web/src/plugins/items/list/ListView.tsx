@@ -392,7 +392,7 @@ function RowFace({ row, look }: { row: ListRow; look: RowLayout | undefined }) {
         </div>
         {look?.rule && <hr className={styles.rule} />}
         {look && look.body.length > 0 && (
-          <div data-align={row.props.bodyAlign}>
+          <div data-align={row.props.bodyAlign} style={{ width: look.width }}>
             {look.body.map((line, n) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
               <div key={n} className={styles.line}>

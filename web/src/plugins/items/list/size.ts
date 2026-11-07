@@ -43,6 +43,7 @@ export interface RowLayout {
   lines: number // 本文を見せる行数
   height: number // 行のカードの高さ（下の隙間は含まない）
   body: RichLine[] // 描く本文の行（装飾の区切りの並び。行数で切る。本文が無ければ空）
+  width: number // 本文を折り返した幅（画面は本文をこの幅で描く。縦のスクロールバーが場所を取っても、狭めない）
   rule: boolean // 区切り線を引くか
 }
 
@@ -95,6 +96,7 @@ export function listLayout(rows: readonly ListRow[], w: number, checklist: boole
       height: rowHeight(lines),
       body: body.length > 0 && lines > 0 ? clampRich(body, lines, inner, TEXT_LOOK.body) : [],
       rule: r.props.rule && body.length > 0 && lines > 0,
+      width: inner,
     }
   })
 }

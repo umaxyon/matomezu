@@ -1,5 +1,5 @@
 // スクロールバーが幅を取る環境（Windows など）での見た目。ヘッドレスのブラウザは既定でスクロールバーを隠すので、隠さずに起動する
-import { expect, test } from "./fixtures"
+import { aiAuth, expect, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } })
@@ -33,4 +33,58 @@ test("分割した右のステージで中身が縦にスクロールしても�
   expect(area.bar).toBeGreaterThan(0)
   const close = (await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).boundingBox())!
   expect(close.x + close.width).toBeLessThanOrEqual(area.right)
+})
+
+test("リストの行が収まらず縦のスクロールバーが出ても、本文の右端の字は切れない。右寄せの本文の右端はそろう", async ({
+  page,
+}) => {
+  const ai = aiAuth()
+  await page.setViewportSize({ width: 1600, height: 1000 })
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
+  const perform = async (action: string, args: object) =>
+    (await page.request.post("/api/ai/perform", { headers: ai, data: { action, args, on: { book } } })).json()
+  const placed = await perform("@matomezu/paper:item-place", {
+    page: shown,
+    item: "@matomezu/list:shape-list",
+    at: { x: 12, y: 12 },
+    w: 588, // 字の置き場が 546px（全角の字 13px のちょうど 42 字）になる幅
+    h: 150,
+    props: { caption: "切れない" },
+  })
+  const list = placed.result.item as string
+  // 字の置き場ちょうどまで字が並ぶ本文（全角の字は表の幅どおりなので、折り返しの計算と描いた幅が合う）
+  const body = "あ".repeat(120)
+  for (const bodyAlign of ["left", "right"])
+    await perform("@matomezu/list:row-add", { page: shown, list, props: { caption: bodyAlign, body, bodyAlign } })
+  await perform("@matomezu/list:row-lines", { page: shown, list, lines: "fit" })
+  const measured = await page.locator("[data-item]").evaluate((item: HTMLElement) => {
+    const rows = [...item.querySelectorAll<HTMLElement>("*")].find(e => getComputedStyle(e).overflowY === "auto")!
+    const lines = [...item.querySelectorAll<HTMLElement>("[data-align] > div")]
+    return {
+      scrollbar: rows.offsetWidth - rows.clientWidth,
+      lines: lines.map(line => {
+        const range = document.createRange()
+        range.selectNodeContents(line)
+        const text = range.getBoundingClientRect()
+        // 切る物（overflow が visible でない入れ物）の、見えている右端
+        let clip = rows.getBoundingClientRect().right - (rows.offsetWidth - rows.clientWidth)
+        for (let e = line.parentElement; e && e !== rows; e = e.parentElement)
+          if (getComputedStyle(e).overflowX !== "visible") clip = Math.min(clip, e.getBoundingClientRect().right)
+        return { right: text.right, clip, align: line.parentElement?.dataset.align ?? "" }
+      }),
+    }
+  })
+  expect(measured.scrollbar).toBeGreaterThan(0)
+  for (const l of measured.lines) expect(l.right).toBeLessThanOrEqual(l.clip + 0.5)
+  const rights = measured.lines.filter(l => l.align === "right").map(l => Math.round(l.right))
+  expect(rights.length).toBeGreaterThan(1)
+  expect(new Set(rights).size).toBe(1)
 })

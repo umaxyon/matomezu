@@ -63,6 +63,7 @@
 .rows {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden; /* 本文が行の右の余白より大きくはみ出しても、横にはスクロールさせない */
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent;
@@ -123,11 +124,12 @@
   height: var(--list-card-fold);
   background: linear-gradient(to bottom left, transparent 50%, color-mix(in srgb, var(--row-fill), #000 14%) 50%);
 }
+/* 字の置き場。本文は折り返した幅（size.ts の RowLayout の width）で描き、行の並びに縦のスクロールバーが出て狭くなっても切らずに、
+   行のカードの右の余白へはみ出させる（スクロールバーが場所を取る環境で、右端の字が切れないように。キャプションは … で切る） */
 .text {
   position: relative;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
 }
 .caption {
   overflow: hidden;
