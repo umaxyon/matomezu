@@ -1,7 +1,10 @@
-// 画面の履歴の段の置き直し: restoreArgs は 2 つのブックの違う所（フィールド・ページ・最上位のアイテム）だけを、片方の値にする値を作り、applyRestore が今のブックの上で行う
+// 画面の履歴の段の置き直し: patchOf は 2 つのブックの違う所（フィールドごと・id の並びは id ごと）だけを、片方の値にする値を作り、applyRestore が今のブックの上で行う
 import { expect, test } from "bun:test"
+import { type Patch, patchOf } from "../../web/src/core/patch"
 import type { Book } from "../../web/src/core/schema/book"
-import { applyRestore, restoreArgs } from "../../web/src/plugins/base/history/restore"
+import { applyRestore } from "../../web/src/plugins/base/history/restore"
+
+const restoreArgs = (from: Book, to: Book) => patchOf(from, to) as Patch
 
 const item = (id: string, caption = id) => ({ id, item: "x", x: 0, y: 0, props: { caption } })
 const book = (fields: Record<string, unknown>, pages: unknown[]) =>

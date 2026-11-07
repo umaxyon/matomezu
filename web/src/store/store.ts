@@ -11,7 +11,16 @@ import type { ActionContext, BookTarget } from "../core/def/action"
 import { fail } from "../core/errors"
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
-import { type BookHistory, HISTORY_LIMIT, type HistoryStep, NO_HISTORY } from "../core/history"
+import {
+  type BookHistory,
+  HISTORY_LIMIT,
+  type HistoryStep,
+  insertStep,
+  NO_HISTORY,
+  type SeenTest,
+  stepOverwritten,
+  stepSeen,
+} from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
 import { type Mailbox, restoreMailbox } from "../core/mail"
@@ -201,6 +210,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   actions: Actions
   // 外で決まったブックと設定（常駐が知らせたもの）に入れ替え、まだ確かめられていない自分のアクション replay をその上で行い直す。
   // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
+  // change は、この知らせが、この窓のでない変更でブック book を変えたこと（by は変えた物。host は常駐が自分で行った物で、画面の履歴に入れない。
+  // act は常駐が 1 回の perform に振った印）。AI とほかの窓の変更は、まだ見ていない画面の履歴の段にし、見えたら画面の履歴に差し込む。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(
     world: {
@@ -211,7 +222,11 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       touched?: Readonly<Record<string, string>>
     },
     replay: readonly DoneAction[],
+    change?: { book: string; by: "ai" | "window" | "host"; act: string },
   ): void
+  // ステージ stage のビューが、物が見えているかを答える関数 test を知らせる（null なら外す。見えた、まだ見ていない画面の履歴の段を差し込む）。
+  // base のフック useSeen を通して使う（プラグインに渡す actions には入れない）
+  setSeenTest(stage: string, test: SeenTest | null): void
   // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
   // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）
   locate(address: Address): void
@@ -326,6 +341,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 状態は書き換えさせない（前の状態と変わらない所を共有しているので、その場で書き換えると前の状態まで変わる）。入れるたびに変わった所を凍らせる
   const store = createStore<MatomezuState>()(() => deepFreeze(initial))
   store.subscribe(deepFreeze)
+  // ステージで開いている物が替わったら、まだ見ていない画面の履歴の段が見えたかを確かめ直す（下で作る checkSeen）
+  store.subscribe((now, was) => {
+    if (now.workspace !== was.workspace) checkSeen()
+  })
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, home, lang: getState().lang, newId, now: clock() })
   // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）
@@ -373,7 +392,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const closeStep = () => {
     if (!open) return
     const { at, books, continued } = open
-    const step: HistoryStep = { at, books }
+    const step: HistoryStep = { at, by: "user", books }
     open = null
     // 続けた画面の履歴の段で何も変わらなかった（足した物を書かずに消したなど）なら入れない
     if (continued && Object.values(books).every(b => sameData(b.before, b.after))) return
@@ -382,6 +401,44 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
     setState({ history })
     lastPut = { ...lastPut, ...Object.fromEntries(Object.keys(step.books).map(id => [id, step])) }
+  }
+  // まだ見ていない、AI とほかの窓の画面の履歴の段（古い順）。act は常駐が 1 回の perform に振った印（同じ印の変更は 1 つの画面の履歴の段にまとめる）
+  let unseen: { step: HistoryStep; act: string }[] = []
+  // ステージごとの、物が見えているかを答える関数（ビューが知らせる。無いステージでは、開いているページの変更は見えたとする）
+  const seenTests = new Map<string, SeenTest>()
+  // 確かめた世界の、最後に知っているブック（よその変更の前の値）
+  let known: Library = {}
+  // まだ見ていない画面の履歴の段のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む
+  const checkSeen = () => {
+    if (unseen.length === 0) return
+    const { stages } = getState().workspace
+    const now = unseen.filter(u =>
+      stages.some(st => st.opened && stepSeen(u.step, st.opened.book, st.opened.page, seenTests.get(st.id))),
+    )
+    if (now.length === 0) return
+    unseen = unseen.filter(u => !now.includes(u))
+    const history = { ...getState().history }
+    for (const { step } of now)
+      for (const id of Object.keys(step.books)) history[id] = insertStep(history[id] ?? NO_HISTORY, step)
+    setState({ history })
+  }
+  // この窓の利用者の、画面の履歴に入れない変更（ブックを before から after にした）が上書きした、まだ見ていない画面の履歴の段を捨てる（あとで見えても差し込まない）。
+  // 画面の履歴に入れる操作が上書きした物は捨てない（その画面の履歴の段の前に値が残り、見えたら差し込まれ、戻せば戻る）
+  const dropOverwritten = (before: Book, after: Book) => {
+    unseen = unseen.filter(u => !stepOverwritten(u.step, before, after))
+  }
+  // よその変更 change（ブック book を、確かめた世界で before から after にした）を、まだ見ていない画面の履歴の段に足す
+  const addUnseen = (change: { by: "ai" | "window"; act: string }, before: Book, after: Book) => {
+    const same = unseen.find(u => u.act === change.act && u.step.by === change.by && !(after.id in u.step.books))
+    if (same) {
+      const step: HistoryStep = { ...same.step, books: { ...same.step.books, [after.id]: { before, after } } }
+      unseen = unseen.map(u => (u === same ? { step, act: change.act } : u))
+    } else {
+      const step: HistoryStep = { at: clock(), by: change.by, books: { [after.id]: { before, after } } }
+      const mine = unseen.filter(u => after.id in u.step.books)
+      const over = mine.length >= HISTORY_LIMIT ? mine[0] : undefined
+      unseen = [...unseen.filter(u => u !== over), { step, act: change.act }]
+    }
   }
   const record = (before: Book, after: Book, at: string) => {
     if (!open) {
@@ -412,7 +469,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const next: Partial<MatomezuState> = {}
     if (done.book) {
       const before = books[done.book.id]
-      if (before && catalog.actions.get(id)?.history !== false) record(before, done.book, c.now)
+      const recorded = catalog.actions.get(id)?.history !== false
+      if (before && recorded) record(before, done.book, c.now)
+      // 画面の履歴に入れないアクション（戻す・やり直すなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
+      if (before && !recorded) dropOverwritten(before, done.book)
       next.books = { ...books, [done.book.id]: done.book }
       next.workspace = followBook(catalog, workspace, done.book, books[done.book.id])
     }
@@ -596,9 +656,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     plugins,
     state: store,
     actions,
-    receive: (world, replay) => {
+    receive: (world, replay, change) => {
       const found = restore(world.books)
       let library: Library = Object.fromEntries([...singleBooks(catalog), ...found.books].map(b => [b.id, b]))
+      const was = known[change?.book ?? ""]
+      const to = library[change?.book ?? ""]
+      if (change && change.by !== "host" && was && to && !sameData(was, to))
+        addUnseen({ by: change.by, act: change.act }, was, to)
+      known = library
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)
       let mailbox = world.mailbox === undefined ? getState().mailbox : restoreMailbox(world.mailbox)
@@ -638,6 +703,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
       })
+      checkSeen()
+    },
+    setSeenTest: (stage, test) => {
+      if (test) seenTests.set(stage, test)
+      else seenTests.delete(stage)
+      checkSeen()
     },
     locate: address => {
       const now = getState()
@@ -682,6 +753,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       keyCache = null
       fallback = startLang(catalog, options.lang)
       Object.assign(instance, next, { plugins: [...plugins, ...used] })
+      unseen = []
+      known = {}
       const { settings } = getState()
       const again = checkBooks(catalog, options.savedBooks ?? [])
       setState(

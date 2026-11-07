@@ -8,7 +8,8 @@ package server
 // /api/events のイベント（data は JSON）:
 //
 //	hello     {"client"} この接続の id。窓はアクションにこの id と、自分で振った順の番号 seq を添えて送る
-//	book      {"book", "version", "client", "seq"} ブックが変わった・足された（client と seq は変えたアクションのもの。窓の外からなら空）
+//	book      {"book", "version", "client", "seq", "by", "act"} ブックが変わった・足された（client と seq は変えたアクションのもの。窓の外からなら空。
+//	          by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印で、同じ Perform が変えたブックは同じ act）
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
 //	mailbox   {"mailbox", "window", "client", "seq"} 郵便箱が変わった（郵便が届いた・既読になった・消えた）。window は最後にフォーカスされた窓
@@ -88,6 +89,7 @@ type Hub struct {
 	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
 	performed      map[string]Performed // 最近行ったアクションの番号（Perform の Key）→ その結果
 	performedOrder []string             // performed の番号を行った順に（古いものから忘れる）
+	acts           int64                // 行ったアクションの数（book の知らせの act。1 回の Perform が変えたブックに同じ印を付ける）
 }
 
 // NewHub は置き場所から世界を読む
@@ -342,8 +344,15 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		out.OK = false
 	}
 	if out.OK {
+		h.acts++
+		by := "host"
+		if p.By == "ai" {
+			by = "ai"
+		} else if p.Client != "" {
+			by = "window"
+		}
 		for _, body := range out.Books {
-			if err := h.putBook(body, p.Client, p.Seq); err != nil {
+			if err := h.putBook(body, p.Client, p.Seq, by, h.acts); err != nil {
 				return Performed{}, err
 			}
 		}
@@ -405,8 +414,9 @@ func (h *Hub) remember(key string, done Performed) {
 	}
 }
 
-// putBook は、アクションが変えたブックを今の版の上に書いて知らせる（h.mu を持って呼ぶ）
-func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
+// putBook は、アクションが変えたブックを今の版の上に書いて知らせる（h.mu を持って呼ぶ）。
+// 知らせの by は頼んだ物（"ai"・窓なら "window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印（窓が、よその変更を画面の履歴の段にまとめるのに使う）
+func (h *Hub) putBook(body json.RawMessage, client string, seq int64, by string, act int64) error {
 	var head struct {
 		ID string `json:"id"`
 	}
@@ -422,7 +432,7 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 		h.order = append(h.order, head.ID)
 	}
 	h.books[head.ID] = entry{body, version, trashed(body)}
-	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq})
+	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq, "by": by, "act": act})
 	h.touch(head.ID, stamp())
 	return h.checkBooks([]string{head.ID})
 }

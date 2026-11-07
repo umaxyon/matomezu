@@ -471,7 +471,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	}
 	for name, lines := range map[string]<-chan string{"a": a, "b": b} {
 		got := next(t, lines)
-		if !strings.HasPrefix(got, `book {"book":{`) || !strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `"client":"c1","seq":7,"version":2}`) {
+		if !strings.HasPrefix(got, `book {"act":1,"book":{`) || !strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `"by":"window","client":"c1","seq":7,"version":2}`) {
 			t.Fatalf("%s book = %s", name, got)
 		}
 	}

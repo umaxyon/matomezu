@@ -1,17 +1,12 @@
 // 画面の履歴（Undo・Redo）: 戻す・やり直すコマンドと、画面の履歴の段が変えた所を置き直すアクション（book-revert）。履歴は store が、利用者が画面で
-// 行ったアクションから作る（AI の変更は入らない。ロックの掛け外しのように history: false のアクションも入らない）。
+// 行ったアクションと、その窓で見えた AI とほかの窓の変更から作る（ロックの掛け外しのように history: false のアクションは入らない）。
 // 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す
-import { z } from "zod"
 import type { HistoryStep } from "../../../core/history"
+import { type Patch, patchOf } from "../../../core/patch"
 import type { CommandContext } from "../../../store/commands/def"
 import type { Actions } from "../../../store/store"
 import { kit } from "../kit"
-import { applyRestore, type RestoreArgs, restoreArgs } from "./restore"
-
-const Fields = z.record(z.string(), z.unknown())
-const FieldsPatch = z.strictObject({ set: Fields, unset: z.array(z.string()) })
-const Id = z.string().min(1)
-const Index = z.number().int()
+import { applyRestore, PatchSchema, restoredPages } from "./restore"
 
 export const HISTORY_RESTORE = kit.defineAction({
   id: "book-revert",
@@ -22,33 +17,17 @@ export const HISTORY_RESTORE = kit.defineAction({
   title: "Undo or redo",
   target: "book",
   // 変えるページが 1 つならそのページとアイテム。いくつもなら所は言えず、ページのロックは行った後の keeps が止める
-  permissionScope: (args: RestoreArgs) =>
-    args.pages.length === 1 && args.pages[0]
-      ? {
-          page: args.pages[0].id,
-          ...("items" in args.pages[0] ? { items: args.pages[0].items.map(i => i.id) } : {}),
-        }
-      : {},
-  args: z.strictObject({
-    fields: FieldsPatch,
-    pages: z.array(
-      z.union([
-        z.strictObject({ id: Id, index: Index, page: Fields.nullable() }),
-        z.strictObject({
-          id: Id,
-          fields: FieldsPatch,
-          items: z.array(z.strictObject({ id: Id, index: Index, item: Fields.nullable() })),
-          order: z.array(Id).optional(),
-        }),
-      ]),
-    ),
-    order: z.array(Id).optional(),
-  }),
+  permissionScope: (args: Patch) => {
+    const pages = restoredPages(args)
+    const page = pages.length === 1 ? pages[0] : undefined
+    return page ? { page: page.id, ...(page.items ? { items: [...page.items] } : {}) } : {}
+  },
+  args: PatchSchema,
   run: (book, args) => ({ next: applyRestore(book, args), result: {} }),
 })
 
 // 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとも残る最初のページ
-const pageOf = (args: RestoreArgs): string | undefined => args.pages.find(p => !("page" in p) || p.page !== null)?.id
+const pageOf = (args: Patch): string | undefined => restoredPages(args).find(p => !p.gone)?.id
 
 // 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前（名前が空なら「関連ブック」）と認可ステップの名前）、画面の履歴の段は動かさない。
 // いくつものブックを変えた画面の履歴の段で途中のブックが断られたら、置き直したブックを元に戻す（どのブックも画面の履歴の段のとおりのまま）
@@ -56,10 +35,11 @@ function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
   const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
   const opened = ctx.stage.opened
   if (!step || !opened) return
-  const done: { book: string; args: RestoreArgs; back: RestoreArgs }[] = []
+  const done: { book: string; args: Patch; back: Patch }[] = []
   for (const [book, { before, after }] of Object.entries(step.books)) {
     const [was, to] = from === "undo" ? [after, before] : [before, after]
-    const args = restoreArgs(was, to)
+    const args = patchOf(was, to)
+    if (!args) continue
     const result = a.perform(HISTORY_RESTORE.id, args, { book })
     if (!result.ok) {
       for (const d of done.reverse()) a.perform(HISTORY_RESTORE.id, d.back, { book: d.book })
@@ -74,7 +54,7 @@ function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
       })
       return
     }
-    done.push({ book, args, back: restoreArgs(to, was) })
+    done.push({ book, args, back: patchOf(to, was) as Patch })
   }
   const shown = done.find(d => d.book === opened.book)
   const page = shown && pageOf(shown.args)
