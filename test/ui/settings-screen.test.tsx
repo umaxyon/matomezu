@@ -12,7 +12,7 @@ import { SAMPLE_BOOKS } from "../sample-books"
 
 afterEach(cleanup)
 
-test("マスターの「設定を開く」で設定画面が開き、項目を押すと右の欄がその項目になり、閉じるで閉じる", () => {
+test("フッタメニューの「設定を開く」で設定画面が開き、項目を押すと右の欄がその項目になり、閉じるで閉じる", () => {
   const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
   store.actions.openBook("s1", MASTER_BOOK.id)
   render(
@@ -20,7 +20,7 @@ test("マスターの「設定を開く」で設定画面が開き、項目を�
       <Screen />
     </MatomezuProvider>,
   )
-  fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
+  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
   const dialog = screen.getByRole("dialog", { name: "設定" })
   const tab = (name: string) => screen.getByRole("tab", { name })
   expect(tab("全体").getAttribute("aria-selected")).toBe("true")
@@ -42,7 +42,7 @@ function openKeys(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
       <Screen />
     </MatomezuProvider>,
   )
-  fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
+  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
   fireEvent.click(screen.getByRole("tab", { name: "ショートカットキー" }))
   const keys = () => store.state.getState().settings["@matomezu/base:keys"] as { added: unknown[]; removed: unknown[] }
   const dialog = within(screen.getByRole("dialog", { name: "設定" }))

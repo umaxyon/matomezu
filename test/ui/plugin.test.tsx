@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { act, cleanup, render, screen } from "@testing-library/react"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
@@ -78,7 +78,7 @@ describe("見た目のプラグイン", () => {
     })
     expect(screen.getByText("note view")).toBeTruthy()
     act(() => instance.actions.command("s1", "@matomezu/base:stage-home"))
-    fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
+    act(() => instance.actions.openDialog("s1", "@matomezu/base:book-new"))
     expect(screen.getByRole("button", { name: "my new book" })).toBeTruthy()
   })
 
