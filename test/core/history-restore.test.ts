@@ -1,7 +1,11 @@
-// 画面の履歴の段の置き直し: restoreArgs は 2 つのブックの違う所（フィールド・ページ・最上位のアイテム）だけを、片方の値にする値を作り、applyRestore が今のブックの上で行う
+// 画面の履歴の段の置き直し（base の book-revert）: patchOf が 2 つのブックの違う所だけを片方の値にする値を作り、applyRestore が今のブックの上で行う。
+// 置き直すページと最上位のアイテム（restoredPages）が、認可の所（permissionScope）と、置き直したあとに開くページを決める
+// （値の置き直しそのものは core/patch.test.ts）
 import { expect, test } from "bun:test"
+import { type Patch, patchOf } from "../../web/src/core/patch"
 import type { Book } from "../../web/src/core/schema/book"
-import { applyRestore, restoreArgs } from "../../web/src/plugins/base/history/restore"
+import { HISTORY_RESTORE } from "../../web/src/plugins/base/history"
+import { applyRestore, restoredPages } from "../../web/src/plugins/base/history/restore"
 
 const item = (id: string, caption = id) => ({ id, item: "x", x: 0, y: 0, props: { caption } })
 const book = (fields: Record<string, unknown>, pages: unknown[]) =>
@@ -12,42 +16,30 @@ const page = (id: string, items: unknown[], fields: Record<string, unknown> = {}
   ...fields,
   items,
 })
+const patch = (from: Book, to: Book) => patchOf(from, to) as Patch
 
-test("無くなったフィールドは外し、変わったフィールドは前の値にする", () => {
-  const before = book({ locked: true }, [])
-  const after = book({ title: "別" }, [])
-  expect(applyRestore(after, restoreArgs(after, before))).toEqual(before)
+test("ブックのフィールド・ページ・アイテムを、前の値に戻し、後の値にやり直す", () => {
+  const before = book({ locked: true }, [page("p", [item("a"), item("b")]), page("q", [])])
+  const after = book({ title: "別" }, [page("p", [item("a", "A"), item("c")]), page("r", [])])
+  expect(applyRestore(after, patch(after, before))).toEqual(before)
+  expect(applyRestore(before, patch(before, after))).toEqual(after)
 })
 
-test("消したアイテムは元の並びの所に、足したアイテムは外し、変えたアイテムは前の値にする", () => {
-  const before = book({}, [page("p", [item("a"), item("b"), item("c")])])
-  const after = book({}, [page("p", [item("a", "A"), item("c"), item("d")])])
-  expect(applyRestore(after, restoreArgs(after, before))).toEqual(before)
-  expect(applyRestore(before, restoreArgs(before, after))).toEqual(after)
+test("置き直すページと最上位のアイテム: ページの中だけを変えたならそのアイテム、ページを足した・消したなら丸ごと", () => {
+  const before = book({}, [page("p", [item("a"), item("b")]), page("q", [])])
+  const after = book({}, [page("p", [item("a", "A"), item("b")]), page("r", [])])
+  expect(restoredPages(patch(after, before))).toEqual([
+    { id: "r", gone: true, items: undefined },
+    { id: "p", gone: false, items: ["a"] },
+    { id: "q", gone: false, items: undefined },
+  ])
 })
 
-test("消したページは元の並びの所に戻し、足したページは外す。ページのフィールドも前の値にする", () => {
-  const before = book({}, [page("p", []), page("q", [item("a")], { locked: true })])
-  const after = book({}, [page("q", [item("a")]), page("r", [])])
-  expect(applyRestore(after, restoreArgs(after, before))).toEqual(before)
-})
-
-test("画面の履歴の段の間にほかで変わった所は、画面の履歴の段が変えた所でなければ残す。画面の履歴の段が変えたページが無くなっていれば飛ばす", () => {
+test("認可の所は、置き直すページが 1 つならそのページとアイテム、いくつもなら言わない", () => {
+  const scope = HISTORY_RESTORE.permissionScope as (args: Patch) => unknown
   const before = book({}, [page("p", [item("a")]), page("q", [item("x")])])
-  const after = book({}, [page("p", [item("a", "A")]), page("q", [item("x", "X")])])
-  const now = book({ title: "AI" }, [page("p", [item("a", "A"), item("ai")])])
-  expect(applyRestore(now, restoreArgs(after, before))).toEqual(
-    book({ title: "AI" }, [page("p", [item("a"), item("ai")])]),
-  )
-})
-
-test("並び順だけの違いも置き直す。間に足した・消したページやアイテムは崩さない", () => {
-  const before = book({}, [page("p", [item("a"), item("b"), item("c")]), page("q", []), page("r", [])])
-  const after = book({}, [page("r", []), page("p", [item("c"), item("a"), item("b")]), page("q", [])])
-  expect(applyRestore(after, restoreArgs(after, before))).toEqual(before)
-  expect(applyRestore(before, restoreArgs(before, after))).toEqual(after)
-  const now = book({}, [page("r", []), page("n", []), page("p", [item("c"), item("a"), item("x"), item("b")])])
-  expect(applyRestore(now, restoreArgs(after, before))).toEqual(
-    book({}, [page("p", [item("a"), item("b"), item("x"), item("c")]), page("n", []), page("r", [])]),
-  )
+  const one = book({}, [page("p", [item("a", "A")]), page("q", [item("x")])])
+  const two = book({}, [page("p", [item("a", "A")]), page("q", [item("x", "X")])])
+  expect(scope(patch(one, before))).toEqual({ page: "p", items: ["a"] })
+  expect(scope(patch(two, before))).toEqual({})
 })

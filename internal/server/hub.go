@@ -8,7 +8,8 @@ package server
 // /api/events のイベント（data は JSON）:
 //
 //	hello     {"client"} この接続の id。窓はアクションにこの id と、自分で振った順の番号 seq を添えて送る
-//	book      {"book", "version", "client", "seq"} ブックが変わった・足された（client と seq は変えたアクションのもの。窓の外からなら空）
+//	book      {"book", "version", "client", "seq", "by", "act", "action"} ブックが変わった・足された（client と seq は変えたアクションのもの。窓の外からなら空。
+//	          by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印で、同じ Perform が変えたブックは同じ act。action は行ったアクションの id）
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
 //	mailbox   {"mailbox", "window", "client", "seq"} 郵便箱が変わった（郵便が届いた・既読になった・消えた）。window は最後にフォーカスされた窓
@@ -25,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -85,9 +87,12 @@ type Hub struct {
 	mailWarnings []string
 	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
 	windowWarnings map[string][]string
-	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
-	performed      map[string]Performed // 最近行ったアクションの番号（Perform の Key）→ その結果
-	performedOrder []string             // performed の番号を行った順に（古いものから忘れる）
+	touched        map[string]string         // ブックの id → 触れた時刻（touched.go）
+	performed      map[string]Performed      // 最近行ったアクションの番号（Perform の Key）→ その結果
+	performedOrder []string                  // performed の番号を行った順に（古いものから忘れる）
+	acts           int64                     // 行ったアクションの数（book の知らせの act の後ろ。1 回の Perform が変えたブックに同じ印を付ける）
+	actPrefix      string                    // book の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
+	aiEditTickets  map[string][]AIEditTicket // ブックの id → AI 編集チケット（ai_edit_tickets.go。1 つも無いブックは持たない）
 }
 
 // NewHub は置き場所から世界を読む
@@ -112,7 +117,19 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
+	stored, err := store.AIEditTickets()
+	if err != nil {
+		return nil, err
+	}
+	aiEditTickets := map[string][]AIEditTicket{}
+	for id, body := range stored {
+		var list []AIEditTicket
+		if err := json.Unmarshal(body, &list); err != nil {
+			return nil, fmt.Errorf("the AI edit tickets of book %s cannot be read: %w", id, err)
+		}
+		aiEditTickets[id] = list
+	}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -342,9 +359,23 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		out.OK = false
 	}
 	if out.OK {
+		h.acts++
+		act := h.actPrefix + "-" + strconv.FormatInt(h.acts, 10)
+		by := "host"
+		if p.By == "ai" {
+			by = "ai"
+		} else if p.Client != "" {
+			by = "window"
+		}
 		for _, body := range out.Books {
-			if err := h.putBook(body, p.Client, p.Seq); err != nil {
+			id, err := h.putBook(body, p.Client, p.Seq, by, act, p.Action)
+			if err != nil {
 				return Performed{}, err
+			}
+			if by == "ai" {
+				if err := h.recordAIEditTicket(id, act, h.books[id].version, stamp()); err != nil {
+					return Performed{}, err
+				}
 			}
 		}
 		for _, id := range out.Removed {
@@ -405,26 +436,27 @@ func (h *Hub) remember(key string, done Performed) {
 	}
 }
 
-// putBook は、アクションが変えたブックを今の版の上に書いて知らせる（h.mu を持って呼ぶ）
-func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
+// putBook は、アクションが変えたブックを今の版の上に書いて知らせる（h.mu を持って呼ぶ）。
+// 知らせの by は頼んだ物（"ai"・窓なら "window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印（窓が、よその変更を画面の履歴の段にまとめるのに使う）、action は行ったアクションの id
+func (h *Hub) putBook(body json.RawMessage, client string, seq int64, by string, act string, action string) (string, error) {
 	var head struct {
 		ID string `json:"id"`
 	}
 	if err := json.Unmarshal(body, &head); err != nil || head.ID == "" {
-		return fmt.Errorf("the engine gave a book without an id: %s", body)
+		return "", fmt.Errorf("the engine gave a book without an id: %s", body)
 	}
 	have, ok := h.books[head.ID]
 	version, _, err := h.store.PutBook(head.ID, body, have.version)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if !ok {
 		h.order = append(h.order, head.ID)
 	}
 	h.books[head.ID] = entry{body, version, trashed(body)}
-	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq})
+	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq, "by": by, "act": act, "action": action})
 	h.touch(head.ID, stamp())
-	return h.checkBooks([]string{head.ID})
+	return head.ID, h.checkBooks([]string{head.ID})
 }
 
 // Join は窓をつなぎ、知らせの通り道を返す。最初の知らせは hello

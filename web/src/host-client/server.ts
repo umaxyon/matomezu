@@ -19,7 +19,7 @@ import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { currentStage, MAX_STAGES } from "../core/workspace"
-import type { DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
+import type { AIEditTicketOutcome, DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
 import type { HostClient, Loaded } from "./client"
 
 // 常駐が答えなかった（常駐から開いていない）
@@ -31,6 +31,8 @@ export interface Net {
   events(url: string): Events
   focused(): boolean // 窓がフォーカスされているか
   onFocus(listener: () => void): () => void // 窓がフォーカスされたら呼ぶ。止める関数を返す
+  visible(): boolean // 窓が見えているか（裏のタブでないか）
+  onVisible(listener: () => void): () => void // 窓が見えるようになったら呼ぶ。止める関数を返す
   importModule(url: string): Promise<{ default?: unknown }> // ES モジュールを読む
   addStyle(url: string): void // CSS を読む
   reload(): void // 画面を読み直す
@@ -60,6 +62,12 @@ const browserNet: Net = {
   onFocus: listener => {
     window.addEventListener("focus", listener)
     return () => window.removeEventListener("focus", listener)
+  },
+  visible: () => document.visibilityState !== "hidden",
+  onVisible: listener => {
+    const changed = () => document.visibilityState !== "hidden" && listener()
+    document.addEventListener("visibilitychange", changed)
+    return () => document.removeEventListener("visibilitychange", changed)
   },
   importModule: url => import(new URL(url, document.baseURI).href),
   addStyle: url => {
@@ -160,7 +168,14 @@ const DataSchema = z.object({
 })
 const HelloSchema = z.object({ client: z.string() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
-const BookSchema = z.object({ book: z.object({ id: z.string() }).loose(), version: z.number().int(), ...Mark })
+const BookSchema = z.object({
+  book: z.object({ id: z.string() }).loose(),
+  version: z.number().int(),
+  by: z.enum(["ai", "window", "host"]).optional(),
+  act: z.string().optional(),
+  action: z.string().optional(),
+  ...Mark,
+})
 const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
 const AckSchema = z.object({ seq: z.number().int() })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
@@ -197,6 +212,25 @@ export function serverClient(net: Net = browserNet): ServerClient {
       })
       .catch(() => {})
   }
+  let aiEditTickets: AIEditTicketOutcome[] = [] // 常駐にまだ送っていない、AI の変更を見た・見られる前に消えたこと
+  // 溜めた物を 1 つずつ常駐に送る。送れなかった・常駐が 5xx を返したら戻して、次に送るときに送る（4xx なら捨てる。一度きりの出来事なので、送れないまま捨てない）
+  const tellAIEditTickets = async () => {
+    while (online && client && aiEditTickets.length > 0) {
+      const [next, ...rest] = aiEditTickets as [AIEditTicketOutcome, ...AIEditTicketOutcome[]]
+      aiEditTickets = rest
+      const res = await net
+        .fetch("api/ai-edit-tickets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        })
+        .catch(() => null)
+      if (!res || res.status >= 500) {
+        aiEditTickets = [next, ...aiEditTickets]
+        return
+      }
+    }
+  }
   let logLines: { at: string; text: string }[] = [] // 常駐のログにまだ送っていない行
   // 溜めた行を常駐のログに送る。送れなかった・常駐が 5xx を返したら戻して、次に送るときに一緒に送る（4xx なら捨てる）
   const tellLog = () => {
@@ -228,10 +262,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let instance: MatomezuInstance | null = null
   let events: Events | null = null
 
-  const show = () =>
+  // change は、この窓のでない変更の知らせのとき（その変更を、まだ見ていない画面の履歴の段にする）
+  const show = (change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string }) =>
     instance?.receive(
       { books: [...confirmed.values()].map(e => e.book), settings, annotations, mailbox, touched },
       pending.map(p => p.done),
+      change,
     )
   const settle = (mark: { client?: string; seq?: number }) => {
     if (mark.client === client && mark.seq !== undefined) pending = pending.filter(p => p.seq > (mark.seq as number))
@@ -413,6 +449,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       logLine(`reconnected as ${client} (was ${was}): sending ${pending.length} actions again`)
       tellWarnings()
       tellLog()
+      void tellAIEditTickets()
       retell?.()
       reread(link)
     })
@@ -424,7 +461,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
         logLine(`kept book ${e.book.id} v${have.version}; the notice had v${e.version}`)
       changed(e.book.id)
       settle(e)
-      show()
+      const act = e.act
+      const foreign = e.client !== client && e.by !== undefined && act !== undefined
+      show(foreign ? { book: e.book.id, by: e.by as "ai" | "window" | "host", act, action: e.action ?? "" } : undefined)
     })
     on("removed", data => {
       const e = RemovedSchema.parse(JSON.parse(data))
@@ -514,6 +553,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
       warnings = list
       tellWarnings()
     },
+    visible: () => net.visible(),
+    reportAIEditTicket: change => {
+      aiEditTickets = [...aiEditTickets, change]
+      void tellAIEditTickets()
+    },
     connect: next => {
       instance = next
       show()
@@ -544,9 +588,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
         checkQuiet()
         tell(true)
       })
+      // 裏のタブから前に出たら、まだ見ていない変更が見えたかを確かめ直す
+      const stopVisible = net.onVisible(() => next.checkSeen())
       return () => {
         stopView()
         stopFocus()
+        stopVisible()
         instance = null
         retell = null
         closeEvents()

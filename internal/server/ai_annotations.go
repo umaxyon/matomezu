@@ -128,7 +128,8 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"id": b.ID, "page": page, "version": b.Version, "annotations": onPage, "placed": placed})
 }
 
-// aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation"}]}。ブックを置いた順）
+// aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation"}]}。ブックを置いた順）と、
+// 見られる前に利用者が戻した AI の変更の全部（"undone"。ai_edit_tickets.go の TellUndone）
 func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 	all, err := o.Hub.AIAnnotations(nil)
 	if err != nil {
@@ -150,7 +151,12 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 			out = append(out, item{Book: b.ID, Title: head.Title, Annotation: a})
 		}
 	}
-	writeJSON(w, map[string]any{"awaiting": out})
+	undone, err := o.Hub.TellUndone()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"awaiting": out, "undone": undone})
 }
 
 // aiTalked は、利用者が AI に話しかけたことを受ける（AI のフックが知らせる。{}）

@@ -41,7 +41,7 @@ type cli struct {
 	Start       startCmd       `cmd:"" help:"Start the server in the background unless it is running, and print its URL."`
 	Stop        stopCmd        `cmd:"" help:"Stop the background server."`
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
-	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, for an AI's hook. Prints nothing when there are none or the server is not running."`
+	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, and AI's changes the user undid before seeing them, for an AI's hook. Prints nothing when there are none or the server is not running."`
 	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook (the notes AI has read start their expiry). Prints nothing and does nothing when the server is not running."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
@@ -223,7 +223,7 @@ func (c *mcpCmd) Run() error {
 	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version)
 }
 
-// Run は、AI の応えを待つアノテーションを、AI に読ませる短い文で書き出す（AI のフックが、利用者の話しかけに添える）。
+// Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、利用者の話しかけに添える）。
 // 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（話しかけを止めない）
 func (c *annotationsCmd) Run() error {
 	h, err := openHome()
@@ -244,14 +244,29 @@ func (c *annotationsCmd) Run() error {
 			Title      string          `json:"title"`
 			Annotation json.RawMessage `json:"annotation"`
 		} `json:"awaiting"`
+		Undone []struct {
+			Book  string          `json:"book"`
+			Title string          `json:"title"`
+			At    string          `json:"at"`
+			Lost  json.RawMessage `json:"lost"`
+		} `json:"undone"`
 	}
-	if json.Unmarshal(out, &got) != nil || len(got.Awaiting) == 0 {
+	if json.Unmarshal(out, &got) != nil {
 		return nil
 	}
-	fmt.Printf("matomezu: %d annotation(s), such as the user's notes and marks, wait for your answer. "+
-		"Answer each as its kind says (see actions); read_page shows what it stands on.\n", len(got.Awaiting))
-	for _, a := range got.Awaiting {
-		fmt.Printf("- book %q (%s): %s\n", a.Title, a.Book, a.Annotation)
+	if len(got.Awaiting) > 0 {
+		fmt.Printf("matomezu: %d annotation(s), such as the user's notes and marks, wait for your answer. "+
+			"Answer each as its kind says (see actions); read_page shows what it stands on.\n", len(got.Awaiting))
+		for _, a := range got.Awaiting {
+			fmt.Printf("- book %q (%s): %s\n", a.Title, a.Book, a.Annotation)
+		}
+	}
+	if len(got.Undone) > 0 {
+		fmt.Printf("matomezu: %d change(s) you made were undone by the user before they saw them. "+
+			"Do not redo them on your own; ask the user if they are still needed. lost is what was put back and the values you had written.\n", len(got.Undone))
+		for _, u := range got.Undone {
+			fmt.Printf("- book %q (%s) at %s: %s\n", u.Title, u.Book, u.At, u.Lost)
+		}
 	}
 	return nil
 }

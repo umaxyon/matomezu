@@ -45,6 +45,12 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// ブックごとの、AI 編集チケットの並び（まだ見られていない物と、見られる前に消えた物。ブックのデータとは別に持ち、ブックの版は進めない）
+	`CREATE TABLE ai_edit_tickets (
+		book TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
 }
 
 type sqliteStorage struct {
@@ -194,6 +200,9 @@ func (s *sqliteStorage) DeleteBook(id string) error {
 	if _, err := tx.Exec(`DELETE FROM annotations WHERE book = ?`, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(`DELETE FROM ai_edit_tickets WHERE book = ?`, id); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -220,6 +229,33 @@ func (s *sqliteStorage) PutAnnotations(book string, body json.RawMessage) error 
 		return err
 	}
 	_, err := s.db.Exec(`INSERT INTO annotations (book, body, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(book) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, book, string(body), now())
+	return err
+}
+
+func (s *sqliteStorage) AIEditTickets() (map[string]json.RawMessage, error) {
+	rows, err := s.db.Query(`SELECT book, body FROM ai_edit_tickets`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	all := map[string]json.RawMessage{}
+	for rows.Next() {
+		var book, body string
+		if err := rows.Scan(&book, &body); err != nil {
+			return nil, err
+		}
+		all[book] = json.RawMessage(body)
+	}
+	return all, rows.Err()
+}
+
+func (s *sqliteStorage) PutAIEditTickets(book string, body json.RawMessage) error {
+	if empty(body) {
+		_, err := s.db.Exec(`DELETE FROM ai_edit_tickets WHERE book = ?`, book)
+		return err
+	}
+	_, err := s.db.Exec(`INSERT INTO ai_edit_tickets (book, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(book) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, book, string(body), now())
 	return err
 }
