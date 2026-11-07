@@ -51,6 +51,12 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// 利用者ごとの参加者の表（参加者の並び。要求が届いた順）
+	`CREATE TABLE participants (
+		user TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
 }
 
 type sqliteStorage struct {
@@ -298,6 +304,24 @@ func (s *sqliteStorage) Mailbox(user string) (json.RawMessage, error) {
 
 func (s *sqliteStorage) PutMailbox(user string, body json.RawMessage) error {
 	_, err := s.db.Exec(`INSERT INTO mailbox (user, body, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	return err
+}
+
+func (s *sqliteStorage) Participants(user string) (json.RawMessage, error) {
+	var body string
+	err := s.db.QueryRow(`SELECT body FROM participants WHERE user = ?`, user).Scan(&body)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(body), nil
+}
+
+func (s *sqliteStorage) PutParticipants(user string, body json.RawMessage) error {
+	_, err := s.db.Exec(`INSERT INTO participants (user, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
 	return err
 }

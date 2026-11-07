@@ -24,6 +24,7 @@ import {
 import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { type Mailbox, mailboxSettles } from "./mail"
+import { type Participants, participantsSettle } from "./participant"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
@@ -232,15 +233,21 @@ export function perform<Id extends ActionId>(
     !mailboxSettles(ctx.catalog, subject as unknown as Mailbox, done.next as unknown as Mailbox)
   )
     return { ok: false, reason: "refused" }
+  if (
+    action.target === "participants" &&
+    !participantsSettle(subject as unknown as Participants, done.next as unknown as Participants)
+  )
+    return { ok: false, reason: "refused" }
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }
 
-// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、郵便箱
+// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、郵便箱と、参加者の表
 export interface World {
   books: Library
   settings: Settings
   annotations: Annotations
   mailbox: Mailbox
+  participants: Participants
 }
 
 // performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧、
@@ -254,6 +261,7 @@ export type PerformedIn =
       settings?: Settings
       annotations?: Annotations
       mailbox?: Mailbox
+      participants?: Participants
     }
   | Refused
   | { ok: false; reason: "no-book" }
@@ -312,6 +320,14 @@ export function performIn(
     const next = done.next as unknown as Mailbox
     return next === world.mailbox ? { ok: true, result: done.result } : { ok: true, result: done.result, mailbox: next }
   }
+  if (target === "participants") {
+    const done = loose(world.participants, id, args, ctx)
+    if (!done.ok) return done
+    const next = done.next as unknown as Participants
+    return next === world.participants
+      ? { ok: true, result: done.result }
+      : { ok: true, result: done.result, participants: next }
+  }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
   const next = done.next as Settings
@@ -341,7 +357,13 @@ export function permittedIn(
     return permitted(subject, id, args, ctx)
   }
   return permitted(
-    target === "library" ? world.books : target === "mailbox" ? world.mailbox : world.settings,
+    target === "library"
+      ? world.books
+      : target === "mailbox"
+        ? world.mailbox
+        : target === "participants"
+          ? world.participants
+          : world.settings,
     id,
     args,
     ctx,

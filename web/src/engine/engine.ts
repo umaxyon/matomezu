@@ -19,6 +19,7 @@ import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
 import { splitId } from "../core/names"
+import { type Participants, restoreParticipants } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
@@ -53,11 +54,12 @@ interface Input {
   settings: unknown
   annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
   mailbox?: unknown // 利用者の郵便箱（郵便箱が対象のアクションのとき）
+  participants?: unknown // 利用者の参加者の表（参加者の表が対象のアクションのとき）
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
   watched?: Readonly<Record<string, readonly string[]>> // 変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
 }
 
-// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱。
+// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱、participants は変わった参加者の表。
 // touched は、受けた watched の物のうち、変わったか無くなったもの（ブックの中の物とアノテーションの id。無ければ書かない）。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
@@ -69,6 +71,7 @@ type Output =
       settings?: unknown
       annotations?: Annotations
       mailbox?: Mailbox
+      participants?: Participants
       notice?: string
       touched?: string[]
     }
@@ -115,7 +118,8 @@ function perform(input: Input): Output {
     Object.entries(input.annotations ?? {}).map(([book, list]) => [book, restoreAnnotations(list)]),
   )
   const mailbox = restoreMailbox(input.mailbox)
-  const done = performIn({ books, settings, annotations, mailbox }, input.action, input.args, input.on, {
+  const participants = restoreParticipants(input.participants)
+  const done = performIn({ books, settings, annotations, mailbox, participants }, input.action, input.args, input.on, {
     catalog,
     home,
     lang,
@@ -141,6 +145,7 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(done.mailbox ? { mailbox: done.mailbox } : {}),
+    ...(done.participants ? { participants: done.participants } : {}),
     ...(notice ? { notice } : {}),
     ...(touched.length > 0 ? { touched } : {}),
   }

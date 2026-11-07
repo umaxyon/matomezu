@@ -62,7 +62,13 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
     now: "2026-10-29T00:00:00.000Z",
     ...(by ? { by } : {}),
   })
-  let world = { books: state.getState().books, settings: state.getState().settings, annotations: {}, mailbox: [] }
+  let world = {
+    books: state.getState().books,
+    settings: state.getState().settings,
+    annotations: {},
+    mailbox: [],
+    participants: [],
+  }
   const run = (id: string, by?: "ai"): PerformedIn => {
     const done = performIn(world, id, {}, { book: "b1" }, ctx(by))
     if (done.ok && done.book) world = { ...world, books: { ...world.books, [done.book.id]: done.book } }

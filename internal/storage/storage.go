@@ -34,6 +34,9 @@ type Storage interface {
 	// Mailbox は利用者の郵便箱（郵便の並び。無ければ nil）
 	Mailbox(user string) (json.RawMessage, error)
 	PutMailbox(user string, body json.RawMessage) error
+	// Participants は利用者の参加者の表（参加者の並び。無ければ nil）
+	Participants(user string) (json.RawMessage, error)
+	PutParticipants(user string, body json.RawMessage) error
 	// Annotations はブックの id ごとのアノテーションの並び（JSON のまま。1 つも無いブックは無い）
 	Annotations() (map[string]json.RawMessage, error)
 	// PutAnnotations はブック book のアノテーションの並びを body にする（空の並びなら消す）

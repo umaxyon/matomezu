@@ -59,7 +59,13 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
   send({ from: "a", title: "x" })
   const id = mails()[0]!.id
   const s = store.state.getState()
-  const world = { books: s.books, settings: s.settings, annotations: s.annotations, mailbox: s.mailbox }
+  const world = {
+    books: s.books,
+    settings: s.settings,
+    annotations: s.annotations,
+    mailbox: s.mailbox,
+    participants: s.participants,
+  }
   const ctx = {
     catalog: CORE_CATALOG,
     home: "@matomezu/master:master" as never,

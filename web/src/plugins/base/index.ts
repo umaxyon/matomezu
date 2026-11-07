@@ -28,6 +28,7 @@ import {
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./mail"
 import { MAIL_DIALOG } from "./mail/dialogs"
+import { MAIL_JOIN_REQUEST, MAIL_JOIN_REQUEST_SEND } from "./mail/join-request"
 // 拡張ポイントに書き足したフィールド shown の型（mail/shown.ts の declare module）
 import type {} from "./mail/shown"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
@@ -42,6 +43,7 @@ import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
+import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE, PARTICIPANT_REQUEST } from "./participant"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import {
   PRINT,
@@ -226,6 +228,10 @@ export const BASE = defineBuiltin(
       MARK_READ,
       MARK_REMOVE,
       PRINT_PREVIEW_UPDATE,
+      PARTICIPANT_REQUEST,
+      PARTICIPANT_ACCEPT,
+      PARTICIPANT_DECLINE,
+      MAIL_JOIN_REQUEST_SEND,
     ],
     settings: [
       BOOK_THEME,
@@ -245,7 +251,7 @@ export const BASE = defineBuiltin(
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
     annotations: [NOTE, MARK],
-    mails: [MAIL_LETTER],
+    mails: [MAIL_LETTER, MAIL_JOIN_REQUEST],
     checks: [
       PROP_NAMES_CHECK,
       FAMILY_TITLE_CHECK,
@@ -365,6 +371,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark-read": typeof MARK_READ
     "@matomezu/base:mark-remove": typeof MARK_REMOVE
     "@matomezu/base:print-preview-update": typeof PRINT_PREVIEW_UPDATE
+    "@matomezu/base:participant-request": typeof PARTICIPANT_REQUEST
+    "@matomezu/base:participant-accept": typeof PARTICIPANT_ACCEPT
+    "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
+    "@matomezu/base:mail-join-request": typeof MAIL_JOIN_REQUEST_SEND
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD
@@ -381,6 +391,7 @@ declare module "../../core/catalog" {
   }
   interface MailTable {
     "@matomezu/base:letter": typeof MAIL_LETTER
+    "@matomezu/base:join-request": typeof MAIL_JOIN_REQUEST
   }
   interface ToolTable {
     "@matomezu/base:select": typeof SELECT_TOOL

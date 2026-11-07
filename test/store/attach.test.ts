@@ -38,6 +38,10 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
     "@matomezu/base:mail-seen",
     "@matomezu/base:mail-visited",
     "@matomezu/base:mail-remove",
+    "@matomezu/base:participant-request",
+    "@matomezu/base:participant-accept",
+    "@matomezu/base:participant-decline",
+    "@matomezu/base:mail-join-request",
   ])
 })
 

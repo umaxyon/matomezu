@@ -184,3 +184,28 @@ func TestTrashedAtMovesIntoTheBook(t *testing.T) {
 		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
 	}
 }
+
+// 参加者の表は利用者ごとに持ち、書き直せて、開き直しても残る
+func TestParticipantsPerUser(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	s := open(t, path)
+	if got, err := s.Participants("u1"); err != nil || got != nil {
+		t.Fatalf("empty participants = %s, %v", got, err)
+	}
+	for user, body := range map[string]string{"u1": `[{"id":"p1"}]`, "u2": `[]`} {
+		if err := s.PutParticipants(user, json.RawMessage(body)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.PutParticipants("u1", json.RawMessage(`[{"id":"p1"},{"id":"p2"}]`)); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s = open(t, path)
+	if got, _ := s.Participants("u1"); string(got) != `[{"id":"p1"},{"id":"p2"}]` {
+		t.Fatalf("u1 = %s", got)
+	}
+	if got, _ := s.Participants("u2"); string(got) != `[]` {
+		t.Fatalf("u2 = %s", got)
+	}
+}

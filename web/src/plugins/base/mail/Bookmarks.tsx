@@ -48,12 +48,12 @@ export function MailBookmarks() {
   return (
     <div className={styles.bookmarks}>
       {[...unread].reverse().map((m, i) => (
-        <Tip key={m.id} text={shownOf(catalog, m)?.title ?? t("Mail")}>
+        <Tip key={m.id} text={shownOf(catalog, m, t)?.title ?? t("Mail")}>
           <button
             type="button"
             className={styles.bookmark}
             data-tone={i}
-            aria-label={shownOf(catalog, m)?.title ?? t("Mail")}
+            aria-label={shownOf(catalog, m, t)?.title ?? t("Mail")}
             onClick={() => open(stage, m.id)}
           >
             {LETTER_ICON}

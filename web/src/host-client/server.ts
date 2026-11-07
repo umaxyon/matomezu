@@ -163,6 +163,7 @@ const DataSchema = z.object({
   settings: z.unknown(),
   annotations: z.record(z.string(), z.unknown()).optional(),
   mailbox: z.unknown().optional(),
+  participants: z.unknown().optional(),
   plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
   touched: z.record(z.string(), z.string()).optional(),
 })
@@ -181,6 +182,7 @@ const AckSchema = z.object({ seq: z.number().int() })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
 const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
+const ParticipantsSchema = z.object({ participants: z.unknown(), ...Mark })
 const MailboxSchema = z.object({ mailbox: z.unknown(), window: z.string().optional(), ...Mark })
 
 export interface ServerClient extends HostClient {
@@ -192,6 +194,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let settings: unknown
   let annotations: Record<string, unknown> = {} // ブックの id → アノテーションの並び
   let mailbox: unknown = [] // 利用者の郵便箱
+  let participants: unknown = [] // 利用者の参加者の表
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: Pending[] = []
@@ -265,7 +268,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   // change は、この窓のでない変更の知らせのとき（その変更を、まだ見ていない画面の履歴の段にする）
   const show = (change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string }) =>
     instance?.receive(
-      { books: [...confirmed.values()].map(e => e.book), settings, annotations, mailbox, touched },
+      { books: [...confirmed.values()].map(e => e.book), settings, annotations, mailbox, participants, touched },
       pending.map(p => p.done),
       change,
     )
@@ -360,6 +363,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
     settings = data.settings ?? undefined
     annotations = data.annotations ?? {}
     mailbox = data.mailbox ?? []
+    participants = data.participants ?? []
     plugins = data.plugins ?? []
     // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
     for (const [id, at] of Object.entries(data.touched ?? {}))
@@ -490,6 +494,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
       const e = MailboxSchema.parse(JSON.parse(data))
       mailbox = e.mailbox
       instance?.setLastWindow(e.window === client)
+      settle(e)
+      show()
+    })
+    on("participants", data => {
+      const e = ParticipantsSchema.parse(JSON.parse(data))
+      participants = e.participants
       settle(e)
       show()
     })

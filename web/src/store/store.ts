@@ -23,6 +23,7 @@ import {
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
 import { type Mailbox, restoreMailbox } from "../core/mail"
+import { type Participants, restoreParticipants } from "../core/participant"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import { sameData } from "../core/same"
@@ -83,6 +84,7 @@ export interface MatomezuState {
   settings: Settings
   annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
   mailbox: Mailbox // 利用者の郵便箱（core/mail.ts。届いた順）
+  participants: Participants // 利用者の参加者の表（core/participant.ts。要求が届いた順）
   lang: Lang // 今の言語（設定の言語の項目が選んだ言語パックの言語。選んでいない・使えなければ、インスタンスを作ったときに決めた言語）
   dialog: OpenedDialog | null
   contextMenu: OpenedContextMenu | null
@@ -224,6 +226,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       settings: unknown
       annotations?: unknown
       mailbox?: unknown
+      participants?: unknown
       touched?: Readonly<Record<string, string>>
     },
     replay: readonly DoneAction[],
@@ -275,6 +278,7 @@ function initialState(
     settings,
     annotations: {},
     mailbox: [],
+    participants: [],
     lang,
     dialog: null,
     contextMenu: null,
@@ -521,6 +525,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     if (done.annotations) next.annotations = withAnnotations(annotations, done.annotations)
     if (done.mailbox) next.mailbox = done.mailbox
+    if (done.participants) next.participants = done.participants
     return { ok: true, result: done.result, next }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージの画面の状態は消す
@@ -707,20 +712,29 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)
       let mailbox = world.mailbox === undefined ? getState().mailbox : restoreMailbox(world.mailbox)
+      let participants =
+        world.participants === undefined ? getState().participants : restoreParticipants(world.participants)
       for (const done of replay) {
         const ids = [...done.ids]
-        const next = performIn({ books: library, settings, annotations, mailbox }, done.action, done.args, done.on, {
-          catalog,
-          home,
-          lang: done.lang,
-          newId: () => ids.shift() ?? newId(),
-          now: done.now,
-        })
+        const next = performIn(
+          { books: library, settings, annotations, mailbox, participants },
+          done.action,
+          done.args,
+          done.on,
+          {
+            catalog,
+            home,
+            lang: done.lang,
+            newId: () => ids.shift() ?? newId(),
+            now: done.now,
+          },
+        )
         if (!next.ok) continue
         if (next.book) library = { ...library, [next.book.id]: next.book }
         if (next.books) library = next.books
         if (next.settings) settings = next.settings
         if (next.mailbox) mailbox = next.mailbox
+        if (next.participants) participants = next.participants
         annotations = withAnnotations(annotations, next.annotations)
       }
       const now = getState()
@@ -730,6 +744,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (sameData(settings, now.settings)) settings = now.settings
       if (sameData(annotations, now.annotations)) annotations = now.annotations
       if (sameData(mailbox, now.mailbox)) mailbox = now.mailbox
+      if (sameData(participants, now.participants)) participants = now.participants
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
       const partial = sameData(found.partial, now.partial) ? now.partial : found.partial
       const touched = world.touched === undefined || sameData(world.touched, now.touched) ? now.touched : world.touched
@@ -740,6 +755,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(mailbox === now.mailbox ? {} : { mailbox }),
+        ...(participants === now.participants ? {} : { participants }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
       })

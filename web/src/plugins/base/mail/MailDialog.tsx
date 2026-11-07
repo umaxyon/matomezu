@@ -50,7 +50,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     buttons.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus()
   }, [])
   if (!mail) return null
-  const shown = shownOf(catalog, mail)
+  const shown = shownOf(catalog, mail, t)
   const exists = placeExists(mail, books)
   const to = exists ? mail.to : undefined
   const open = (choice: OpenChoice) => {

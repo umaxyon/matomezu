@@ -15,6 +15,7 @@ import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
 import { OUTBOX_MESSAGES } from "./outbox/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
+import { PARTICIPANT_MESSAGES } from "./participant/messages"
 import { PRINT_PREVIEW_MESSAGES } from "./print-preview/messages"
 import { RIGHT_SIDE_PANEL_MESSAGES } from "./right-side-panel/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
@@ -47,6 +48,7 @@ export const BASE_MESSAGES = joinMessages(
   RIGHT_SIDE_PANEL_MESSAGES,
   LEFT_SIDE_PANEL_MESSAGES,
   MAIL_MESSAGES,
+  PARTICIPANT_MESSAGES,
   OUTBOX_MESSAGES,
   SETTINGS_MESSAGES,
   LOOKS_MESSAGES,
