@@ -67,19 +67,20 @@ export function PrintAreaLayer({ stage: id }: StageSlotProps) {
   )
 }
 
-// ステージに、初めの位置で表示領域の左上に置く紙の点（startOf。暗くしない印刷区画の左上）を知らせる。開くページか紙が変わるたびに知らせ直す
+// ステージに、初めの位置で表示領域の左上に置く紙の点（startOf。暗くしない印刷区画の左上）を知らせる。
+// ステージは開くたびに知らされた点を捨てるので、開いているもの（opened）が替わるたびにも知らせ直す（同じ点なら、ステージは変わらない）
 function useStartReport(id: string) {
   const { setStageStart } = useActions()
   const catalog = useCatalog().core
   const book = useBook(id)
   const page = usePage(id)
-  const sheet = useStage(id)?.opened?.paper
+  const opened = useStage(id)?.opened
   const start = useMemo(() => (book && page ? startOf(catalog, book, page) : null), [catalog, book, page])
   const x = start?.x
   const y = start?.y
   useLayoutEffect(() => {
-    if (x !== undefined && y !== undefined && sheet) setStageStart(id, { x, y })
-  }, [setStageStart, id, x, y, sheet])
+    if (x !== undefined && y !== undefined && opened?.paper) setStageStart(id, { x, y })
+  }, [setStageStart, id, x, y, opened])
 }
 
 export function BookContentLayer({ stage: id }: StageSlotProps) {

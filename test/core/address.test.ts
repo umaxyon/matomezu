@@ -67,10 +67,10 @@ test("今と同じ場所を当てはめる（読み直しで URL が開いた直
   const store = newStore()
   const { state, actions } = store
   actions.resizeStage("s1", { w: 400, h: 300 })
-  expect(state.getState().workspace.stages[0]!.opened?.starting).toBe(true)
+  expect(state.getState().workspace.stages[0]!.starting).toBe(true)
   store.locate(addressOf(state.getState().workspace))
   const stage = state.getState().workspace.stages[0]!
-  expect(stage.opened?.starting).toBeUndefined()
+  expect(stage.starting).toBe(false)
   const sheet = paperOf(stage)!
   actions.setStageArea("s1", { w: sheet.w * 2, h: sheet.h })
   actions.setStageStart("s1", { x: sheet.w, y: 0 })

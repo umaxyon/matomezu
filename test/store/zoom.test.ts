@@ -106,12 +106,11 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   actions.setStageStart("s1", start)
   expect(stage().pan).toEqual({ x: -sheet.w, y: -sheet.h })
   expect(enabled()).toBe(false)
-  // 動かしてから戻すと、同じ所へ戻る
+  // 動かすと押せ、押すと押せなくなる（戻る所は core の resetView）
   actions.panStageBy("s1", 300, 200)
-  actions.command("s1", "@matomezu/base:zoom-in", null)
   expect(enabled()).toBe(true)
   actions.command("s1", "@matomezu/base:zoom-reset")
-  expect([stage().zoom, stage().pan]).toEqual([1, { x: -sheet.w, y: -sheet.h }])
+  expect(enabled()).toBe(false)
 })
 
 test("ツリーの可変ページも、左へ増やす向きなら左の印刷区画が空きで、初めの位置はその右の印刷区画の左上", () => {

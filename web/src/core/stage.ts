@@ -18,9 +18,7 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 // 開いているブック。ブックのタイプと、開いたページの紙を写して持つ（開くときに決まる）。
 // area は、見せ方が描く広さ（可変ページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない。
 // shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）。
-// origin は、位置をデータに持たない見せ方が、描く中身を右・下へずらした量（印刷区画の数。見せ方が広さと一緒に知らせる。変わったらパンを合わせる）。
-// start は、初めの位置で表示領域の左上に置く紙の点（中身の載った印刷区画の左上。base が知らせる。知らせるまでは紙の左上）。
-// starting は、開いてから、まだ利用者もコマンドも見え方を動かしておらず、初めの位置に合わせ終えていない印（start と広さが届いたら合わせて消す）
+// origin は、位置をデータに持たない見せ方が、描く中身を右・下へずらした量（印刷区画の数。見せ方が広さと一緒に知らせる。変わったらパンを合わせる）
 export interface Opened {
   type: BookTypeId
   book: string // ブックの id
@@ -29,8 +27,6 @@ export interface Opened {
   area?: Size
   shift?: Point
   origin?: Point
-  start?: Point
-  starting?: true
 }
 
 // ページ page の紙を、ステージに置く紙に決める（タイプ type の見せ方が紙を置かなければ null）
@@ -61,6 +57,10 @@ export interface Stage {
   editing: boolean | string
   // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める。map ならアイコンの代わりにミニマップを出している）
   picker: { at: Point | null; map: boolean } | null
+  // 初めの位置で表示領域の左上に置く紙の点（中身の載った印刷区画の左上。ビューが知らせる。開くたびに捨て、知らせるまでは null で紙の左上）
+  start: Point | null
+  // 開いてから、まだ利用者もコマンドも見え方を動かしておらず、初めの位置に合わせ終えていないか（start と広さが届いたら合わせて下ろす）
+  starting: boolean
 }
 
 // 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ（可変ページは、見せ方が知らせた広さ。areaOf）
@@ -73,7 +73,6 @@ export interface Placement {
 }
 
 const HOME: Point = { x: 0, y: 0 }
-const STARTING = { starting: true } as const
 const NONE: readonly string[] = []
 const EDIT: StageMode = { kind: "edit" }
 
@@ -89,6 +88,8 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
     selection: NONE,
     editing: false,
     picker: null,
+    start: null,
+    starting: false,
   }
 }
 
@@ -147,44 +148,42 @@ export function setArea(stage: Stage, area: Size | null, origin: Point | null = 
   return reachStart(settle({ ...stage, opened }, { x: stage.pan.x - dx, y: stage.pan.y - dy }))
 }
 
-// 初めの位置で表示領域の左上に置く紙の点を start にする（base が知らせる）。開いたばかりなら、初めの位置に合わせる
+// 初めの位置で表示領域の左上に置く紙の点を start にする（ビューが知らせる）。開いたばかりなら、初めの位置に合わせる
 export function setStart(stage: Stage, start: Point): Stage {
-  const o = stage.opened
-  if (!o || (o.start && o.start.x === start.x && o.start.y === start.y)) return stage
-  return reachStart({ ...stage, opened: { ...o, start } })
+  const was = stage.start
+  if (!stage.opened || (was && was.x === start.x && was.y === start.y)) return stage
+  return reachStart({ ...stage, start })
 }
 
 // 倍率 zoom で、start が表示領域の左上に来るずらす量（知らせる前は紙の左上）
 function startPan(stage: Stage, zoom: number): Point {
-  const s = stage.opened?.start ?? HOME
+  const s = stage.start ?? HOME
   return { x: 0 - s.x * zoom, y: 0 - s.y * zoom }
 }
 
-// 開いたばかり（starting）で start が届いていれば、初めの位置に合わせて印を消す。紙の左上でない start は、見せ方の広さが届くまで待つ
+// 開いたばかり（starting）で start が届いていれば、初めの位置に合わせて印を下ろす。紙の左上でない start は、見せ方の広さが届くまで待つ
 // （届く前は紙 1 枚の範囲に収めてしまう）
 function reachStart(stage: Stage): Stage {
-  const o = stage.opened
-  const s = o?.start
-  if (!o?.starting || !s) return stage
-  if ((s.x !== 0 || s.y !== 0) && !o.area) return stage
-  return settle({ ...stage, opened: settled(o) }, startPan(stage, stage.zoom))
+  const s = stage.start
+  if (!stage.starting || !s) return stage
+  if ((s.x !== 0 || s.y !== 0) && !stage.opened?.area) return stage
+  return settle(stopStart(stage), startPan(stage, stage.zoom))
 }
 
-// 初めの位置に合わせる印を消した開いているもの
-function settled(o: Opened): Opened {
-  const { starting: _, ...rest } = o
-  return rest
-}
-
-// ずらす量を pan にして範囲に収める。見え方が変われば、利用者やコマンドが動かしたので、初めの位置に合わせる印を消す
-function moved(stage: Stage, pan: Point): Stage {
+// ずらす量を pan にして範囲に収める。見え方が変われば、利用者やコマンドが動かしたので、初めの位置に合わせる印を下ろす
+function moveTo(stage: Stage, pan: Point): Stage {
   const next = settle(stage, pan)
   return next === stage ? stage : stopStart(next)
 }
 
-// 利用者やコマンドが見え方を動かした（URL の場所を当てはめたときも）: 初めの位置に合わせる印を消す
+// 利用者やコマンドが見え方を動かした（URL の場所を当てはめたときも）: 初めの位置に合わせる印を下ろす
 export function stopStart(stage: Stage): Stage {
-  return stage.opened?.starting ? { ...stage, opened: settled(stage.opened) } : stage
+  return stage.starting ? { ...stage, starting: false } : stage
+}
+
+// ページを開いたステージ: 知らされた初めの位置を捨て、紙を置くなら初めの位置に合わせる印を立てる
+function opening(stage: Stage, opened: Opened): Stage {
+  return { ...stage, opened, start: null, starting: opened.paper !== null }
 }
 
 // ずらす量を pan にして、範囲に収める
@@ -203,7 +202,7 @@ export function resize(stage: Stage, view: Size): Stage {
 // 紙が無ければずらさない
 export function panBy(stage: Stage, dx: number, dy: number): Stage {
   if (!extentOf(stage)) return stage
-  return moved(stage, { x: stage.pan.x + dx, y: stage.pan.y + dy })
+  return moveTo(stage, { x: stage.pan.x + dx, y: stage.pan.y + dy })
 }
 
 // ブックを開く（ページを持つなら最初のページ）。ずらす量は紙の左上に戻し（初めの位置 start が届いたらそこへ合わせる。starting）、印刷プレビューは閉じる（開く前の倍率に戻す）。
@@ -212,7 +211,7 @@ export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage 
   if (!hasPages(book)) {
     if (stage.opened?.book === book.id) return stage
     const from = edited(stage)
-    return settle(leave({ ...from, opened: { type: book.type, book: book.id, page: null, paper: null } }), HOME)
+    return settle(leave(opening(from, { type: book.type, book: book.id, page: null, paper: null })), HOME)
   }
   const first = book.pages[0]
   const opened = {
@@ -221,9 +220,8 @@ export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage 
     page: first?.id ?? null,
     paper: first ? stagePaper(catalog, book.type, first) : null,
     ...shiftOf(first),
-    ...(first ? STARTING : {}),
   }
-  return settle(leave({ ...edited(stage), opened }), HOME)
+  return settle(leave(opening(edited(stage), opened)), HOME)
 }
 
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は紙の左上に戻す（初めの位置が届いたらそこへ合わせる）。
@@ -233,15 +231,8 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, pa
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found) return stage
   if (o.page === page) return closePrintPreview(stage)
-  const opened = {
-    type: o.type,
-    book: o.book,
-    page,
-    paper: stagePaper(catalog, o.type, found),
-    ...shiftOf(found),
-    ...STARTING,
-  }
-  return settle(leave({ ...edited(stage), opened }), HOME)
+  const opened = { type: o.type, book: o.book, page, paper: stagePaper(catalog, o.type, found), ...shiftOf(found) }
+  return settle(leave(opening(edited(stage), opened)), HOME)
 }
 
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
@@ -283,8 +274,7 @@ function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: B
   }
   // 紙が変われば、見せ方が知らせた広さは捨てる（知らせ直すまで紙 1 枚）
   const opened = { type: o.type, book: o.book, page, paper, ...shiftOf(found) }
-  if (page === o.page) return settle({ ...stage, opened: o.starting ? { ...opened, ...STARTING } : opened }, stage.pan)
-  return settle(leave({ ...stage, opened: page === null ? opened : { ...opened, ...STARTING } }), HOME)
+  return page === o.page ? settle({ ...stage, opened }, stage.pan) : settle(leave(opening(stage, opened)), HOME)
 }
 
 // 無くなったページ page の隣: 変わる前のブックで後ろにあった残りのページ、無ければ前にあった残りのページ（分からなければ最初のページ）
@@ -305,23 +295,23 @@ function neighbourOf(book: PagedBook, page: string | null, before?: Book): Paged
 export function zoomTo(stage: Stage, zoom: number, at?: Point): Stage {
   if (!extentOf(stage) || zoom === stage.zoom) return stage
   const view = stage.view
-  if (!view) return moved({ ...stage, zoom }, stage.pan)
+  if (!view) return moveTo({ ...stage, zoom }, stage.pan)
   const p = at ?? { x: view.w / 2, y: view.h / 2 }
   const origin = paperOrigin(stage.pan)
   const k = zoom / stage.zoom
   const pan = { x: stage.pan.x + (p.x - origin.x) * (1 - k), y: stage.pan.y + (p.y - origin.y) * (1 - k) }
-  return moved({ ...stage, zoom }, pan)
+  return moveTo({ ...stage, zoom }, pan)
 }
 
 // 開いたときの見え方に戻す: 倍率 1 で、start（中身の載った印刷区画の左上）を表示領域の左上に置く。印刷プレビューの間は、並べた広さの左上
 export function resetView(stage: Stage): Stage {
   const pan = previewing(stage) ? HOME : startPan(stage, 1)
-  return stage.zoom === 1 ? moved(stage, pan) : moved({ ...stage, zoom: 1 }, pan)
+  return stage.zoom === 1 ? moveTo(stage, pan) : moveTo({ ...stage, zoom: 1 }, pan)
 }
 
 // 何も開いていない状態にする（開いていたブックが無くなったときなど）
 export function closeBook(stage: Stage): Stage {
-  return stage.opened ? settle(leave({ ...edited(stage), opened: null }), HOME) : stage
+  return stage.opened ? settle(leave({ ...edited(stage), opened: null, start: null, starting: false }), HOME) : stage
 }
 
 // 印刷プレビューを開く（ブックを開いていて、編集の間だけ）。置こうとしているアイテム・選択・その場の編集・道具のアイコンは捨てる。
