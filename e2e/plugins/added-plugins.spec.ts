@@ -210,8 +210,8 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
 }) => {
   await link(page, "test/added-plugins/ex3")
   await page.goto("/")
-  await (await fromMenu(page, "ホーム")).click()
-  await page.getByRole("button", { name: "新しいブック" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
+  await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
   const types = dialog.getByLabel("ブックのタイプ")
   await expect(types.locator("option")).toContainText(["フロー", "ボード"])
@@ -219,6 +219,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await page.keyboard.type("星のボード")
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()
+  await page.getByRole("button", { name: "ステージを閉じる" }).first().click()
   await page.getByRole("button", { name: "ページを作る" }).click()
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()

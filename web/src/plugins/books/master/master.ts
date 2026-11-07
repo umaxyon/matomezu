@@ -1,9 +1,9 @@
-// マスターのブック: ブックの一覧や設定などを集める、紙もページも無い画面。名前はタイプの名前で呼ぶ（題名を持たない）。
+// マスターのブック: タイトルだけの、紙もページも無い画面。名前はタイプの名前で呼ぶ（題名を持たない）。
 // インスタンスのホームにすると、ブックの一覧と設定を変えるアクション（book-create・settings-set など）を許すかは、このタイプが決める
 import { z } from "zod"
 import { kit } from "./kit"
 
-// マスターの見せ方: ブックの一覧などを並べる画面
+// マスターの見せ方: タイトルだけの画面
 export const MASTER_PRESENTATION = kit.definePresentation({ id: "master" })
 
 export const MASTER = kit.defineBookType({
