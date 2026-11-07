@@ -35,20 +35,20 @@ func hubAt(t *testing.T, path string) (*Hub, *httptest.Server) {
 	return hub, s
 }
 
-// acts は、ブック b1 の AI の変更の記録の act の並び
+// acts は、ブック b1 の AI 編集チケットの act の並び
 func acts(h *Hub) []string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	out := []string{}
-	for _, c := range h.aiChanges["b1"] {
+	for _, c := range h.aiEditTickets["b1"] {
 		out = append(out, c.Act)
 	}
 	return out
 }
 
-// AI の変更の記録: AI のアクションが変えたブックに 1 つ残り、窓が見たら消え、見られる前に消えたら AI のフックに渡り、次に話しかけたら消える。
+// AI 編集チケット: AI のアクションが変えたブックに 1 つ残り、窓が見たら消え、見られる前に消えたら AI のフックに渡り、次に話しかけたら消える。
 // 常駐を起動し直しても残り、起動し直したあとの act は前の物と重ならない
-func TestAIChangesUndoneBeforeSeen(t *testing.T) {
+func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	hub, s := hubAt(t, path)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
@@ -68,7 +68,7 @@ func TestAIChangesUndoneBeforeSeen(t *testing.T) {
 	}
 	settle := func(s *httptest.Server, act, outcome string) {
 		body, _ := json.Marshal(map[string]any{"book": "b1", "act": act, "outcome": outcome, "lost": []any{map[string]any{"at": "title", "value": "AI"}}})
-		send(t, "POST", s.URL+"/api/ai-changes", string(body), nil)
+		send(t, "POST", s.URL+"/api/ai-edit-tickets", string(body), nil)
 	}
 	// 1 つめは見えた、2 つめは見られる前に戻された。見えた物には、あとから消えたと知らされても変えない
 	settle(s, a[0], "seen")
@@ -92,7 +92,7 @@ func TestAIChangesUndoneBeforeSeen(t *testing.T) {
 	if g := got(s2); !strings.HasSuffix(g, `"undone":[]}`) {
 		t.Fatalf("awaiting after talked = %s", g)
 	}
-	if code, _ := send(t, "POST", s2.URL+"/api/ai-changes", `{"book":"b1","act":"x","outcome":"other"}`, nil); code != 400 {
+	if code, _ := send(t, "POST", s2.URL+"/api/ai-edit-tickets", `{"book":"b1","act":"x","outcome":"other"}`, nil); code != 400 {
 		t.Fatalf("bad outcome = %d", code)
 	}
 }

@@ -129,7 +129,7 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation"}]}。ブックを置いた順）と、
-// 見られる前に利用者が戻した AI の変更の全部（"undone"。ai_changes.go の TellUndone）
+// 見られる前に利用者が戻した AI の変更の全部（"undone"。ai_edit_tickets.go の TellUndone）
 func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 	all, err := o.Hub.AIAnnotations(nil)
 	if err != nil {

@@ -45,8 +45,8 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
-	// ブックごとの、AI の変更の記録の並び（まだ見られていない物と、見られる前に消えた物。ブックのデータとは別に持ち、ブックの版は進めない）
-	`CREATE TABLE ai_changes (
+	// ブックごとの、AI 編集チケットの並び（まだ見られていない物と、見られる前に消えた物。ブックのデータとは別に持ち、ブックの版は進めない）
+	`CREATE TABLE ai_edit_tickets (
 		book TEXT PRIMARY KEY,
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
@@ -200,7 +200,7 @@ func (s *sqliteStorage) DeleteBook(id string) error {
 	if _, err := tx.Exec(`DELETE FROM annotations WHERE book = ?`, id); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`DELETE FROM ai_changes WHERE book = ?`, id); err != nil {
+	if _, err := tx.Exec(`DELETE FROM ai_edit_tickets WHERE book = ?`, id); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -233,8 +233,8 @@ func (s *sqliteStorage) PutAnnotations(book string, body json.RawMessage) error 
 	return err
 }
 
-func (s *sqliteStorage) AIChanges() (map[string]json.RawMessage, error) {
-	rows, err := s.db.Query(`SELECT book, body FROM ai_changes`)
+func (s *sqliteStorage) AIEditTickets() (map[string]json.RawMessage, error) {
+	rows, err := s.db.Query(`SELECT book, body FROM ai_edit_tickets`)
 	if err != nil {
 		return nil, err
 	}
@@ -250,12 +250,12 @@ func (s *sqliteStorage) AIChanges() (map[string]json.RawMessage, error) {
 	return all, rows.Err()
 }
 
-func (s *sqliteStorage) PutAIChanges(book string, body json.RawMessage) error {
+func (s *sqliteStorage) PutAIEditTickets(book string, body json.RawMessage) error {
 	if empty(body) {
-		_, err := s.db.Exec(`DELETE FROM ai_changes WHERE book = ?`, book)
+		_, err := s.db.Exec(`DELETE FROM ai_edit_tickets WHERE book = ?`, book)
 		return err
 	}
-	_, err := s.db.Exec(`INSERT INTO ai_changes (book, body, updated_at) VALUES (?, ?, ?)
+	_, err := s.db.Exec(`INSERT INTO ai_edit_tickets (book, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(book) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, book, string(body), now())
 	return err
 }

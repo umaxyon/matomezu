@@ -30,7 +30,7 @@ const store = createMatomezu({
   settings: saved.settings,
   lang: navigator.languages,
   observe: done => client.observe(done),
-  aiChange: change => client.reportAIChange(change),
+  aiEditTicket: change => client.reportAIEditTicket(change),
   visible: () => document.visibilityState !== "hidden",
 })
 // 裏のタブから前に出たら、まだ見ていない変更が見えたかを確かめ直す

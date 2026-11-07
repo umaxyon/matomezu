@@ -50,7 +50,7 @@ func (h *Hub) remove(id, client string, seq int64) error {
 	_, annotated := h.annotations[id]
 	delete(h.books, id)
 	delete(h.annotations, id)
-	delete(h.aiChanges, id)
+	delete(h.aiEditTickets, id)
 	delete(h.bookWarnings, id)
 	delete(h.touched, id)
 	h.order = slices.DeleteFunc(h.order, func(x string) bool { return x == id })

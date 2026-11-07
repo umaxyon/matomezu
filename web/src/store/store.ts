@@ -290,7 +290,7 @@ function initialState(
 }
 
 // まだ見ていない AI の変更（act は常駐の book の知らせの印）が、この窓で見えた（seen）か、見られる前に消えた（lost。消えた所と AI が書いた値）
-export type AIChangeOutcome =
+export type AIEditTicketOutcome =
   | { book: string; act: string; outcome: "seen" }
   | { book: string; act: string; outcome: "lost"; lost: readonly Written[] }
 
@@ -306,7 +306,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
-  aiChange?: (change: AIChangeOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に戻す・やり直すで消えたときに知らせる
+  aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に戻す・やり直すで消えたときに知らせる
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
 }
 
@@ -449,7 +449,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const history = { ...getState().history }
     for (const { step, act, book } of now) {
       history[book] = insertStep(history[book] ?? NO_HISTORY, step)
-      if (step.by === "ai") options.aiChange?.({ book, act, outcome: "seen" })
+      if (step.by === "ai") options.aiEditTicket?.({ book, act, outcome: "seen" })
     }
     setState({ history })
   }
@@ -458,7 +458,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const dropOverwritten = (before: Book, after: Book) => {
     unseen = unseen.filter(u => {
       const lost = u.book === after.id ? undoneIn(u.made, before, after) : []
-      if (lost.length > 0 && u.step.by === "ai") options.aiChange?.({ book: u.book, act: u.act, outcome: "lost", lost })
+      if (lost.length > 0 && u.step.by === "ai")
+        options.aiEditTicket?.({ book: u.book, act: u.act, outcome: "lost", lost })
       return lost.length === 0
     })
   }

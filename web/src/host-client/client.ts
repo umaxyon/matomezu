@@ -1,7 +1,7 @@
 // ホストクライアント: 画面がホスト（常駐サーバー）と外の世界に頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
 // 実装は常駐に頼むもの（server.ts）。テストはメモリに持つもの（test/host-client/memory.ts）を使う
 import type { Warning } from "../core/warnings"
-import type { AIChangeOutcome, DoneAction, MatomezuInstance } from "../store/store"
+import type { AIEditTicketOutcome, DoneAction, MatomezuInstance } from "../store/store"
 
 // 起動のときに読むもの
 export interface Loaded {
@@ -18,6 +18,6 @@ export interface HostClient {
   // 画面が見つけた warning（配置の W010・外した追加プラグインの W011 など）をホストに知らせる。前に知らせたものと入れ替え、
   // つなぎ直すたびに知らせ直す（ホストは窓ごとに持ち、ほかの warning と集めてログと AI に出す）
   reportWarnings(warnings: readonly Warning[]): void
-  // まだ見ていない AI の変更が、この窓で見えたか、見られる前に消えたこと（createMatomezu の aiChange に渡す）。ホストは AI の変更ごとに残し、消えた物を AI に渡す
-  reportAIChange(change: AIChangeOutcome): void
+  // まだ見ていない AI の変更が、この窓で見えたか、見られる前に消えたこと（createMatomezu の aiEditTicket に渡す）。ホストは AI の変更ごとに残し、消えた物を AI に渡す
+  reportAIEditTicket(change: AIEditTicketOutcome): void
 }

@@ -3,7 +3,7 @@
 // ビューが物の見え方を知らせなければ、開いているページの変更は見えたとする。戻す・やり直すが上書きした、まだ見ていない変更は捨てる
 import { expect, test } from "bun:test"
 import type { Book, BookOf } from "../../web/src/core/schema/book"
-import type { AIChangeOutcome } from "../../web/src/store/store"
+import type { AIEditTicketOutcome } from "../../web/src/store/store"
 import { newStore, sequence } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
@@ -14,8 +14,8 @@ const historyOf = (store: Store) => store.state.getState().history.b1
 const settled = () => Promise.resolve()
 
 // 常駐に確かめられた世界（この窓の変更が確かめられたあと）。最初の知らせで、よその変更の前の値になる
-function ready(clock?: () => string, aiChange?: (c: AIChangeOutcome) => void) {
-  const store = newStore({ ...(clock ? { now: clock } : {}), ...(aiChange ? { aiChange } : {}) })
+function ready(clock?: () => string, aiEditTicket?: (c: AIEditTicketOutcome) => void) {
+  const store = newStore({ ...(clock ? { now: clock } : {}), ...(aiEditTicket ? { aiEditTicket } : {}) })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.receive({ books: [bookOf(store)], settings: {} }, [])
   return store
@@ -118,7 +118,7 @@ test("常駐が自分で行った変更と、画面の履歴に入れないア�
 })
 
 test("AI の変更が見えたら seen を、見られる前に戻すが上書きしたら、AI が書いた所と値を添えて lost を知らせる。ほかの窓の変更は知らせない", async () => {
-  const told: AIChangeOutcome[] = []
+  const told: AIEditTicketOutcome[] = []
   const store = ready(sequence(), c => told.push(c))
   hide(store)
   place(store, "自分")
@@ -140,7 +140,7 @@ test("AI の変更が見えたら seen を、見られる前に戻すが上書�
 })
 
 test("戻すが消したのでなく、ふつうの操作のあとに戻して AI の値に戻ったなら、捨てずに知らせない", async () => {
-  const told: AIChangeOutcome[] = []
+  const told: AIEditTicketOutcome[] = []
   const store = ready(sequence(), c => told.push(c))
   hide(store)
   place(store, "自分")

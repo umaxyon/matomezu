@@ -44,7 +44,7 @@ func (h *Hub) Talked(now time.Time) error {
 		return err
 	}
 	h.mu.Lock()
-	if err := h.forgetToldAIChanges(); err != nil {
+	if err := h.forgetToldAIEditTickets(); err != nil {
 		h.mu.Unlock()
 		return err
 	}

@@ -23,7 +23,7 @@ var ErrConflict = errors.New("the book was changed by someone else")
 type Storage interface {
 	// Books は置いてある全部のブック（ゴミ箱のブックも）
 	Books() ([]Book, error)
-	// DeleteBook はブック id と、それを開いた時刻と、そのアノテーションと AI の変更の記録を消す（戻せない）
+	// DeleteBook はブック id と、それを開いた時刻と、そのアノテーションと AI 編集チケットを消す（戻せない）
 	DeleteBook(id string) error
 	// PutBook は、置いてある版が base のときだけ body で書き換え、新しい版を返す。base が 0 なら、まだ無いときだけ足す。
 	// 違えば ErrConflict と、置いてあるブック
@@ -38,10 +38,10 @@ type Storage interface {
 	Annotations() (map[string]json.RawMessage, error)
 	// PutAnnotations はブック book のアノテーションの並びを body にする（空の並びなら消す）
 	PutAnnotations(book string, body json.RawMessage) error
-	// AIChanges はブックの id ごとの、AI の変更の記録の並び（JSON のまま。1 つも無いブックは無い）
-	AIChanges() (map[string]json.RawMessage, error)
-	// PutAIChanges はブック book の AI の変更の記録の並びを body にする（空の並びなら消す）
-	PutAIChanges(book string, body json.RawMessage) error
+	// AIEditTickets はブックの id ごとの、AI 編集チケットの並び（JSON のまま。1 つも無いブックは無い）
+	AIEditTickets() (map[string]json.RawMessage, error)
+	// PutAIEditTickets はブック book の AI 編集チケットの並びを body にする（空の並びなら消す）
+	PutAIEditTickets(book string, body json.RawMessage) error
 	// Touched はブックの id ごとの、開いたか書いた時刻の新しい方（Stamp の形）。開いた時刻は、DB に無いブック（1 冊だけのタイプのブック）にも残る
 	Touched() (map[string]string, error)
 	// Open は、ブック id を開いた時刻を at にする

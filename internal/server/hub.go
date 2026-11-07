@@ -92,7 +92,7 @@ type Hub struct {
 	performedOrder []string              // performed の番号を行った順に（古いものから忘れる）
 	acts           int64                 // 行ったアクションの数（book の知らせの act の後ろ。1 回の Perform が変えたブックに同じ印を付ける）
 	actPrefix      string                // book の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
-	aiChanges      map[string][]AIChange // ブックの id → AI の変更の記録（ai_changes.go。1 つも無いブックは持たない）
+	aiEditTickets      map[string][]AIEditTicket // ブックの id → AI 編集チケット（ai_edit_tickets.go。1 つも無いブックは持たない）
 }
 
 // NewHub は置き場所から世界を読む
@@ -117,19 +117,19 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	stored, err := store.AIChanges()
+	stored, err := store.AIEditTickets()
 	if err != nil {
 		return nil, err
 	}
-	aiChanges := map[string][]AIChange{}
+	aiEditTickets := map[string][]AIEditTicket{}
 	for id, body := range stored {
-		var list []AIChange
+		var list []AIEditTicket
 		if err := json.Unmarshal(body, &list); err != nil {
 			return nil, fmt.Errorf("the AI changes of book %s cannot be read: %w", id, err)
 		}
-		aiChanges[id] = list
+		aiEditTickets[id] = list
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiChanges: aiChanges, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -373,7 +373,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 				return Performed{}, err
 			}
 			if by == "ai" {
-				if err := h.recordAIChange(id, act, h.books[id].version, stamp()); err != nil {
+				if err := h.recordAIEditTicket(id, act, h.books[id].version, stamp()); err != nil {
 					return Performed{}, err
 				}
 			}
