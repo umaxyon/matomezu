@@ -213,6 +213,7 @@ test("matomezu/ui が出す名前", () => {
     "Switch",
     "SwitchPanel",
     "TextBlockView",
+    "Tip",
     "TokenScope",
     "UserSettings",
     "controlClass",

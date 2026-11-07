@@ -160,3 +160,21 @@ test("開くを使わなくても、行き先が画面に出ていれば行き�
   await expect.poll(async () => !!(await mailbox(page))[0]?.visitedAt).toBe(true)
   expect((await mailbox(page))[0]?.seenAt).toBeUndefined()
 })
+
+test("しおりに乗せると、待たずに自前の吹き出しで題が出て、離すと消える（標準の title は使わない）", async ({
+  page,
+}) => {
+  await ready(page)
+  await perform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "吹き出しの題" } })
+  const bookmark = page.getByRole("button", { name: "吹き出しの題" })
+  await expect(bookmark).toBeVisible()
+  await expect(bookmark).not.toHaveAttribute("title", /.+/)
+  const tip = page.getByText("吹き出しの題", { exact: true })
+  await expect(tip).toBeHidden()
+  await bookmark.hover()
+  await expect(tip).toBeVisible({ timeout: 300 })
+  const [b, t] = [await bookmark.boundingBox(), await tip.boundingBox()]
+  expect(t!.y).toBeGreaterThan(b!.y + b!.height)
+  await page.mouse.move(10, 400)
+  await expect(tip).toBeHidden()
+})

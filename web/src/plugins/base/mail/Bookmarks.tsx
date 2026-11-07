@@ -6,6 +6,7 @@ import { useCoreCatalog } from "../../../ui/view-hooks"
 import { icon } from "../icon"
 import { kit } from "../kit"
 import { useOpenLeftSidePanel } from "../left-side-panel/hooks"
+import { Tip } from "../utils/Tip"
 import styles from "./Bookmarks.module.css"
 import { useMailbox, useOpenMail } from "./hooks"
 import { shownOf } from "./shown"
@@ -47,17 +48,17 @@ export function MailBookmarks() {
   return (
     <div className={styles.bookmarks}>
       {[...unread].reverse().map((m, i) => (
-        <button
-          key={m.id}
-          type="button"
-          className={styles.bookmark}
-          data-tone={i}
-          aria-label={shownOf(catalog, m)?.title ?? t("Mail")}
-          title={shownOf(catalog, m)?.title}
-          onClick={() => open(stage, m.id)}
-        >
-          {LETTER_ICON}
-        </button>
+        <Tip key={m.id} text={shownOf(catalog, m)?.title ?? t("Mail")}>
+          <button
+            type="button"
+            className={styles.bookmark}
+            data-tone={i}
+            aria-label={shownOf(catalog, m)?.title ?? t("Mail")}
+            onClick={() => open(stage, m.id)}
+          >
+            {LETTER_ICON}
+          </button>
+        </Tip>
       ))}
     </div>
   )
