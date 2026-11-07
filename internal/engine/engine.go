@@ -75,6 +75,7 @@ type Engine struct {
 	notes     func(string) string
 	without   func(string, string) string
 	talk      func() string
+	join      func() string
 	live      func(string, string, string, string) string
 	mails     func(string) string
 	forAI     func(string) string
@@ -124,6 +125,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuTalkActions"), &e.talk); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuTalkActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuJoinActions"), &e.join); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuJoinActions: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuUnexpired"), &e.live); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuUnexpired: %w", err)
@@ -316,6 +320,25 @@ func (e *Engine) TalkActions() (ids []string, err error) {
 		}
 	}()
 	err = json.Unmarshal([]byte(e.talk()), &ids)
+	return ids, err
+}
+
+// JoinActions は、AI が参加を頼むときに行うアクションの id（参加者を作る Participant と、利用者に知らせる Notice）
+type JoinActions struct {
+	Participant string `json:"participant"`
+	Notice      string `json:"notice"`
+}
+
+// JoinActions は、AI が参加を頼むときに行うアクション。アクションの定義が役を名乗る（Go はアクションの id を知らない）
+func (e *Engine) JoinActions() (ids *JoinActions, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.join()), &ids)
 	return ids, err
 }
 

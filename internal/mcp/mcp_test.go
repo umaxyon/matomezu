@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
 
 // fakeAPI は常駐の代わり。posts に送られたものを覚え、perform には answer を返す
 type fakeAPI struct {
-	posts  []string
-	answer string
+	posts   []string
+	answer  string
+	sent    []string    // 呼び出しごとに添えた参加の id
+	replied http.Header // 返事に付けるヘッダ
 }
 
 const aiCatalogJSON = `{"actions":[
@@ -20,27 +24,29 @@ const aiCatalogJSON = `{"actions":[
  {"id":"@matomezu/base:settings-set","target":"settings","args":{"type":"object"}}],
  "items":[{"id":"@matomezu/box:shape-box","title":"Box","size":{"w":160,"h":96},"props":{"properties":{"caption":{"type":"string"}}}}]}`
 
-func (f *fakeAPI) Get(path string) (json.RawMessage, error) {
+func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.Header, error) {
+	f.sent = append(f.sent, header.Get("X-Matomezu-Participant"))
 	switch path {
 	case "api/ai/catalog":
-		return json.RawMessage(aiCatalogJSON), nil
+		return json.RawMessage(aiCatalogJSON), f.replied, nil
 	case "api/ai/view":
-		return json.RawMessage(`{"book":"b1","page":"p1","selection":[]}`), nil
+		return json.RawMessage(`{"book":"b1","page":"p1","selection":[]}`), f.replied, nil
 	}
-	return nil, errors.New("404 " + path)
+	return nil, nil, errors.New("404 " + path)
 }
 
-func (f *fakeAPI) Post(path string, body any) (json.RawMessage, error) {
+func (f *fakeAPI) Post(path string, body any, header http.Header) (json.RawMessage, http.Header, error) {
+	f.sent = append(f.sent, header.Get("X-Matomezu-Participant"))
 	b, _ := json.Marshal(body)
 	f.posts = append(f.posts, path+" "+string(b))
-	return json.RawMessage(f.answer), nil
+	return json.RawMessage(f.answer), f.replied, nil
 }
 
 // talk は頼みを 1 行ずつ送り、答えを返す
 func talk(t *testing.T, api API, lines ...string) []map[string]any {
 	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1"); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux"); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -79,7 +85,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_settings,read_mail,actions,show,perform" {
+	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_settings,read_mail,actions,show,perform,join" {
 		t.Fatalf("tools = %v", names)
 	}
 }
@@ -149,5 +155,48 @@ func TestShowTool(t *testing.T) {
 	api.answer = `{"ok":false,"reason":"no-book"}`
 	if got, failed := text(api); !strings.HasPrefix(got, "no-book: there is no book with that id") || !failed {
 		t.Fatalf("show without the book = %s %v", got, failed)
+	}
+}
+
+func textOf(a map[string]any) string {
+	return a["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
+}
+
+// join は AI の名前（clientInfo の名前と版）・環境・_meta のセッション id を MCP が埋めて頼み、返った参加の id を以後の呼び出し全部に添える
+func TestJoinFillsWhoAndAttachesTheParticipantToLaterCalls(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
+	got := talk(t, api,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInfo":{"name":"codex","version":"0.5"}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"join","arguments":{"model":"gpt-5","link":"L1","sessionName":"s"},"_meta":{"sessionId":"S1"}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"view","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"perform","arguments":{"action":"a.b","args":{}}}}`,
+	)
+	if api.posts[0] != `api/ai/join {"ai":"codex 0.5","env":"wsl-linux","link":"L1","model":"gpt-5","sessionId":"S1","sessionName":"s"}` {
+		t.Fatalf("posted = %v", api.posts)
+	}
+	if textOf(got[1]) != `{"participant":"p7"}` {
+		t.Fatalf("join = %v", got[1])
+	}
+	if strings.Join(api.sent, ",") != ",p7,p7" { // join のときはまだ無く、以後は全部に付く
+		t.Fatalf("sent = %q", api.sent)
+	}
+	// 弾かれたら理由を返し、参加の id は持たない
+	api = &fakeAPI{answer: `{"ok":false,"reason":"already-participating","detail":"participant p1 is already joined"}`}
+	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L"}}}`)
+	if r := got[0]["result"].(map[string]any); r["isError"] != true || textOf(got[0]) != "already-participating: participant p1 is already joined" {
+		t.Fatalf("refused join = %v", got[0])
+	}
+}
+
+// 返事のヘッダの知らせは、読むツールにも perform にも、本文の末尾に足す
+func TestNoticeHeaderIsAddedToEveryTool(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"result":{"item":"k1"}}`, replied: http.Header{"X-Matomezu-Notice": {url.QueryEscape("You joined matomezu. Workroom name: ひよこ")}}}
+	got := talk(t, api,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"perform","arguments":{"action":"a.b","args":{}}}}`,
+	)
+	const notice = "\nYou joined matomezu. Workroom name: ひよこ"
+	if textOf(got[0]) != `{"book":"b1","page":"p1","selection":[]}`+notice || textOf(got[1]) != `{"item":"k1"}`+notice {
+		t.Fatalf("answers = %v", got)
 	}
 }

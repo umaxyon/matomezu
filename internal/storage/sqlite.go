@@ -57,6 +57,12 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// 利用者ごとの、参加者の帳簿（参加者の id ごとのセッション id と、参加を伝えたかの印）
+	`CREATE TABLE participant_notes (
+		user TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
 }
 
 type sqliteStorage struct {
@@ -322,6 +328,24 @@ func (s *sqliteStorage) Participants(user string) (json.RawMessage, error) {
 
 func (s *sqliteStorage) PutParticipants(user string, body json.RawMessage) error {
 	_, err := s.db.Exec(`INSERT INTO participants (user, body, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	return err
+}
+
+func (s *sqliteStorage) ParticipantNotes(user string) (json.RawMessage, error) {
+	var body string
+	err := s.db.QueryRow(`SELECT body FROM participant_notes WHERE user = ?`, user).Scan(&body)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(body), nil
+}
+
+func (s *sqliteStorage) PutParticipantNotes(user string, body json.RawMessage) error {
+	_, err := s.db.Exec(`INSERT INTO participant_notes (user, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
 	return err
 }

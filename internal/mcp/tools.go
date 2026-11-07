@@ -15,7 +15,7 @@ type readTool struct {
 	name        string
 	description string
 	schema      map[string]any
-	call        func(api API, args map[string]any) (json.RawMessage, error)
+	call        func(api caller, args map[string]any) (json.RawMessage, error)
 }
 
 var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
@@ -25,13 +25,13 @@ var readTools = []readTool{
 		"view",
 		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. null when no window is open.",
 		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") },
+		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") },
 	},
 	{
 		"list_books",
 		"List the books: id, type, title, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/books") },
+		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/books") },
 	},
 	{
 		"read_book",
@@ -42,7 +42,7 @@ var readTools = []readTool{
 			"required":             []string{"book"},
 			"additionalProperties": false,
 		},
-		func(api API, args map[string]any) (json.RawMessage, error) {
+		func(api caller, args map[string]any) (json.RawMessage, error) {
 			id, _ := args["book"].(string)
 			return api.Get("api/ai/books/" + url.PathEscape(id)) // 1 冊だけのブックの id は / を含む
 		},
@@ -59,7 +59,7 @@ var readTools = []readTool{
 			"required":             []string{"book", "page"},
 			"additionalProperties": false,
 		},
-		func(api API, args map[string]any) (json.RawMessage, error) {
+		func(api caller, args map[string]any) (json.RawMessage, error) {
 			book, _ := args["book"].(string)
 			page, _ := args["page"].(string)
 			return api.Get("api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page))
@@ -69,14 +69,14 @@ var readTools = []readTool{
 		"read_settings",
 		"Read the user's settings: the value of each setting in actions, keyed by the setting's id (a setting the user has not changed has its default, or is left out when it has none).",
 		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
+		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
 	},
 	{
 		"read_mail",
 		"Read the user's mailbox: the letters sent to the user, oldest first (id, from, sentAt, to: the place it points at, props: title and body). " +
 			"seenAt is when the user opened the letter (none: not yet), visitedAt is when the user saw the place it points at (none: not yet). Send a letter with the action mail-send.",
 		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/mail") },
+		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/mail") },
 	},
 	{
 		"actions",
@@ -85,7 +85,7 @@ var readTools = []readTool{
 			"warnings (only when there are some) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",
 		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
+		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
 	},
 }
 
@@ -131,7 +131,7 @@ var showSchema = map[string]any{
 const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
-// listTools は MCP 公開ツールの一覧（読む MCP 公開ツール・show・perform）。追加プラグインを足しても変わらない
+// listTools は MCP 公開ツールの一覧（読む MCP 公開ツール・show・perform・join）。追加プラグインを足しても変わらない
 func listTools() []map[string]any {
 	tools := []map[string]any{}
 	for _, t := range readTools {
@@ -140,12 +140,25 @@ func listTools() []map[string]any {
 	tools = append(tools,
 		map[string]any{"name": "show", "description": showDescription, "inputSchema": showSchema},
 		map[string]any{"name": "perform", "description": performDescription, "inputSchema": performSchema},
+		map[string]any{"name": "join", "description": joinDescription, "inputSchema": joinSchema},
 	)
 	return tools
 }
 
-// callTool は MCP 公開ツールを呼び、AI に返す文と、失敗したかを返す
-func callTool(api API, name string, raw json.RawMessage) (string, bool) {
+// callTool は MCP 公開ツールを呼び、AI に返す文と、失敗したかを返す。
+// 常駐の返事に AI への知らせ（参加しましたなど）があれば、どの MCP 公開ツールでも文の末尾に足す
+func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
+	c.notice = ""
+	text, failed := dispatch(c, name, raw)
+	if c.notice != "" {
+		text += "\n" + c.notice
+		c.notice = ""
+	}
+	return text, failed
+}
+
+func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
+	var api caller = c
 	args := map[string]any{}
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &args); err != nil {
@@ -167,10 +180,13 @@ func callTool(api API, name string, raw json.RawMessage) (string, bool) {
 	if name == "perform" {
 		return perform(api, args)
 	}
+	if name == "join" {
+		return join(c, args)
+	}
 	return "unknown tool: " + name, true
 }
 
-func perform(api API, args map[string]any) (string, bool) {
+func perform(api caller, args map[string]any) (string, bool) {
 	if _, ok := args["action"].(string); !ok {
 		return "perform needs action (an action's id, see actions)", true
 	}
@@ -201,7 +217,7 @@ func perform(api API, args map[string]any) (string, bool) {
 	return string(done.Result), false
 }
 
-func show(api API, args map[string]any) (string, bool) {
+func show(api caller, args map[string]any) (string, bool) {
 	out, err := api.Post("api/ai/show", args)
 	if err != nil {
 		return err.Error(), true
@@ -249,4 +265,52 @@ func refusalText(reason, detail string) string {
 	default:
 		return reason + ": it could not be done here (read_book to check)"
 	}
+}
+
+// joinSchema は join の受ける形。AI の名前と環境は MCP が埋めるので受けない
+var joinSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"model":       map[string]any{"type": "string", "description": "The name of the model you are, such as claude-opus-4 or gpt-5."},
+		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
+		"link":        map[string]any{"type": "string", "description": "A one-time passphrase: a new uuid you make for this session. Use the same link when you ask again."},
+	},
+	"required":             []string{"model", "link"},
+	"additionalProperties": false,
+}
+
+const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. " +
+	"After you join, a notice with your workroom name comes with a later answer. Call it once per session."
+
+// join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を以後の呼び出し全部に添える
+func join(c *conn, args map[string]any) (string, bool) {
+	model, _ := args["model"].(string)
+	link, _ := args["link"].(string)
+	if model == "" || link == "" {
+		return "join needs model and link (a new uuid you make for this session)", true
+	}
+	sessionName, _ := args["sessionName"].(string)
+	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link}
+	if c.sessionID != "" {
+		body["sessionId"] = c.sessionID
+	}
+	out, err := c.Post("api/ai/join", body)
+	if err != nil {
+		return err.Error(), true
+	}
+	var done struct {
+		OK          bool   `json:"ok"`
+		Participant string `json:"participant"`
+		Reason      string `json:"reason"`
+		Detail      string `json:"detail"`
+	}
+	if err := json.Unmarshal(out, &done); err != nil {
+		return string(out), true
+	}
+	if !done.OK {
+		return refusalText(done.Reason, done.Detail), true
+	}
+	c.participant = done.Participant
+	reply, _ := json.Marshal(map[string]string{"participant": done.Participant})
+	return string(reply), false
 }

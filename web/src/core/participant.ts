@@ -2,6 +2,7 @@
 // 状態は requested（要求が届いて、利用者が受け入れていない）か joined（受け入れた）。ワークルームの名前・鳥・配色は受け入れたときに決まる。
 // link は使い捨ての合言葉で、画面には出さない（同じ link の要求は 1 つの参加者にまとまる）
 import { z } from "zod"
+import type { CoreCatalog } from "./core-catalog"
 
 export const ParticipantSchema = z.object({
   id: z.string().min(1),
@@ -30,4 +31,13 @@ export const restoreParticipants = (saved: unknown): Participants =>
 export function participantsSettle(before: Participants, after: Participants): boolean {
   const kept = new Set(before)
   return after.every(p => kept.has(p) || ParticipantSchema.safeParse(p).success)
+}
+
+// AI が参加を頼むときに行うアクション（アクションの定義が runsWhenAIJoins で名乗る物）の id。役が揃っていなければ null
+export function joinActions(catalog: CoreCatalog): { participant: string; notice: string } | null {
+  const roles = new Map<string, string>()
+  for (const a of catalog.actions.values()) if (a.runsWhenAIJoins) roles.set(a.runsWhenAIJoins, a.id)
+  const participant = roles.get("make-participant")
+  const notice = roles.get("notify-user")
+  return participant && notice ? { participant, notice } : null
 }

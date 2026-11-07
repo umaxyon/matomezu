@@ -32,6 +32,7 @@
 //	GET  /api/ai/mail        {"mailbox": [...]} 利用者の郵便箱（届いた順。郵便ごとに見た時点 seenAt と行き先を見た時点 visitedAt）
 //	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
+//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
@@ -115,14 +116,14 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/warnings", sameOrigin(o.warnings))
 	mux.Handle("POST /api/log", sameOrigin(o.windowLog))
 	mux.Handle("POST /api/ai-edit-tickets", sameOrigin(o.aiEditTicket))
-	mux.Handle("GET /api/ai/view", o.auth(o.aiView))
-	mux.Handle("GET /api/ai/books", o.auth(o.aiBooks))
-	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
-	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.auth(o.aiPage))
-	mux.Handle("GET /api/ai/awaiting", o.auth(o.aiAwaiting))
-	mux.Handle("POST /api/ai/talked", o.auth(o.aiTalked))
+	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
+	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
+	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
+	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.ai(o.aiPage))
+	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
+	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	routesForTest(mux, o)
-	mux.Handle("GET /api/ai/settings", o.auth(func(w http.ResponseWriter, _ *http.Request) {
+	mux.Handle("GET /api/ai/settings", o.ai(func(w http.ResponseWriter, _ *http.Request) {
 		settings, err := o.Hub.AISettings()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -131,15 +132,16 @@ func Handler(o Options) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(settings)
 	}))
-	mux.Handle("GET /api/ai/mail", o.auth(func(w http.ResponseWriter, _ *http.Request) {
+	mux.Handle("GET /api/ai/mail", o.ai(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"mailbox": o.Hub.Mailbox()})
 	}))
-	mux.Handle("GET /api/ai/catalog", o.auth(func(w http.ResponseWriter, _ *http.Request) {
+	mux.Handle("GET /api/ai/catalog", o.ai(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(o.Hub.AICatalog())
 	}))
-	mux.Handle("POST /api/ai/perform", o.auth(o.aiPerform))
-	mux.Handle("POST /api/ai/show", o.auth(o.aiShow))
+	mux.Handle("POST /api/ai/perform", o.ai(o.aiPerform))
+	mux.Handle("POST /api/ai/show", o.ai(o.aiShow))
+	mux.Handle("POST /api/ai/join", o.ai(o.aiJoin))
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux

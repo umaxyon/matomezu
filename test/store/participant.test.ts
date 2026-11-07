@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import { translate } from "../../web/src/core/i18n/i18n"
 import type { Mail } from "../../web/src/core/mail"
-import type { Participant } from "../../web/src/core/participant"
+import { joinActions, type Participant } from "../../web/src/core/participant"
 import { performIn } from "../../web/src/core/perform"
 import { type MailT, shownOf } from "../../web/src/plugins/base/mail/shown"
 import { CORE_CATALOG, newStore } from "../support"
@@ -171,4 +171,8 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
   expect(mails()).toHaveLength(1)
   expect(perform(JOIN_MAIL, { ...args, participant: "p2" }).ok).toBe(true)
   expect(mails()).toHaveLength(2)
+})
+
+test("AI が参加を頼むときに行うアクションは、定義が役を名乗る", () => {
+  expect(joinActions(CORE_CATALOG)).toEqual({ participant: REQUEST, notice: JOIN_MAIL })
 })

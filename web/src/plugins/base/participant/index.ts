@@ -36,6 +36,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) are required; sessionName (the name of the original session) is optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again changes nothing and returns the same participant. Returns the participant's id.",
   title: "Request to participate",
   target: "participants",
+  runsWhenAIJoins: "make-participant",
   args: z.strictObject({
     ai: z.string().trim().min(1).max(40),
     model: z.string().trim().min(1).max(80),

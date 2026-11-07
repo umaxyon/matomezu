@@ -218,6 +218,9 @@ export interface ActionDef<
   history?: false // 画面の履歴（Undo）に入れない（図の内容でなくブックの扱いを変えるアクション。ロックの掛け外しなど）
   // 利用者が AI に話しかけたときに、matomezu がアノテーションのあるブックごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
+  // AI が参加を頼むとき（MCP の join）に、matomezu が AI として行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
+  // "notify-user" は利用者に知らせる郵便を送る（参加者の id などを受ける）。役ごとに 1 つのアクションだけが名乗る。make-participant は参加者の表、notify-user は郵便箱が対象のアクションだけが書ける
+  runsWhenAIJoins?: T extends "participants" ? "make-participant" : T extends "mailbox" ? "notify-user" : never
   // "runs" なら、印刷プレビューの間のステージからも行える（印刷プレビューの見せ方の設定を変えるアクションなど。無ければ、ブックが対象なら止める。core/stage.ts の stageBlocks）
   inPrintPreview?: "runs"
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）

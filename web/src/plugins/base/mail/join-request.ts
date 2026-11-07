@@ -39,6 +39,7 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
     "Tell the user's mailbox that a participant asked to join (done after participant-request; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env and sessionName (optional) are the participant's. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
   title: "Send a join request",
   target: "mailbox",
+  runsWhenAIJoins: "notify-user",
   args: z.strictObject({
     from: z.string().trim().min(1).max(40),
     participant: z.string().min(1),

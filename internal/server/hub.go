@@ -65,21 +65,23 @@ type client struct {
 
 // Hub は世界と窓をまとめる
 type Hub struct {
-	mu             sync.Mutex
-	store          storage.Storage
-	engine         *engine.Engine
-	books          map[string]entry
-	order          []string // 置いた順のブックの id（GET /api/data の並び）
-	settings       json.RawMessage
-	annotations    map[string]json.RawMessage // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
-	mailbox        json.RawMessage            // 利用者の郵便箱（郵便の並び。無ければ nil）
-	participants   json.RawMessage            // 利用者の参加者の表（参加者の並び。無ければ nil）
-	clients        map[string]*client
-	next           int
-	ticks          int64            // フォーカスの順を振る数
-	viewed         chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
-	plugins        []*plugin.Bundle // 足した追加プラグイン（plugins.go）
-	pluginsVersion int64            // 追加プラグインが変わるたびに進む
+	mu               sync.Mutex
+	store            storage.Storage
+	engine           *engine.Engine
+	books            map[string]entry
+	order            []string // 置いた順のブックの id（GET /api/data の並び）
+	settings         json.RawMessage
+	annotations      map[string]json.RawMessage // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
+	mailbox          json.RawMessage            // 利用者の郵便箱（郵便の並び。無ければ nil）
+	participants     json.RawMessage            // 利用者の参加者の表（参加者の並び。無ければ nil）
+	participantNotes map[string]participantNote // 参加者の id → 帳簿（join.go）
+	joinMu           sync.Mutex                 // 参加の頼みを 1 つずつ受ける（join.go）
+	clients          map[string]*client
+	next             int
+	ticks            int64            // フォーカスの順を振る数
+	viewed           chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
+	plugins          []*plugin.Bundle // 足した追加プラグイン（plugins.go）
+	pluginsVersion   int64            // 追加プラグインが変わるたびに進む
 	// warning のあるブックの id → その warning（読めない W004〜W006・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookWarnings map[string]engine.BookWarning
@@ -123,6 +125,16 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
+	noteBody, err := store.ParticipantNotes(user)
+	if err != nil {
+		return nil, err
+	}
+	notes := map[string]participantNote{}
+	if noteBody != nil {
+		if err := json.Unmarshal(noteBody, &notes); err != nil {
+			return nil, err
+		}
+	}
 	stored, err := store.AIEditTickets()
 	if err != nil {
 		return nil, err
@@ -135,7 +147,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		}
 		aiEditTickets[id] = list
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, participants: participants, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, participants: participants, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)

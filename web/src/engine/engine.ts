@@ -19,7 +19,7 @@ import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
 import { splitId } from "../core/names"
-import { type Participants, restoreParticipants } from "../core/participant"
+import { joinActions, type Participants, restoreParticipants } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
@@ -312,6 +312,10 @@ function aiCatalog(of: Assembled = assembled) {
 // 利用者が AI に話しかけたときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
+
+// AI が参加を頼むときに行うアクション（runsWhenAIJoins）の id（役 participant と notice。役が揃わなければ null。常駐が MCP の join で行う）
+;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
+  JSON.stringify(joinActions(assembled.catalog.core))
 
 // アノテーションの並びから、期限（種類の expiresAt）が時点 now より前の物を除く（kept の id の物は除かない。利用者が直している物）。常駐が時間で消す
 ;(
