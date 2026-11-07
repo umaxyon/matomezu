@@ -1,5 +1,5 @@
 // 並べた 2 つの境目をつかむ所: ポインタで掴んで動かすと、並べた枠 frame の始め（左右に並べたなら左、上下なら上）からポインタまでの長さと、枠の長さを onMove に渡す。
-// ダブルクリックで onReset（真ん中に戻すなど）。割合の計算と収め方は使う側（データの側）が持つ。ステージの列の境目と、マークダウンのペインの境目が使う
+// ダブルクリックで onReset（真ん中に戻すなど）。割合の計算と収め方は使う側（データの側）が持つ
 import type { HTMLAttributes, PointerEvent, RefObject } from "react"
 import styles from "./SplitHandle.module.css"
 

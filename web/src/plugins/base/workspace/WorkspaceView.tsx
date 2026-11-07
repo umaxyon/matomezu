@@ -24,8 +24,8 @@ import {
 import { RevealAndRestore } from "../right-side-panel/RevealAndRestore"
 import { RightSidePanel } from "../right-side-panel/RightSidePanel"
 import { columnGrow } from "../right-side-panel/state"
+import { SplitHandle } from "../utils/SplitHandle"
 import { BottomHoverContext } from "./bottom-hover"
-import { SplitHandle } from "./SplitHandle"
 import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import styles from "./WorkspaceView.module.css"
 

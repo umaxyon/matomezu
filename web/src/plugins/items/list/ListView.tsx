@@ -45,8 +45,6 @@ const LOOK_TOKENS = LIST.tokens
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
 
-// 行のドラッグを始めるまでに動かす量（画面の px）
-
 // 行のドラッグ: 押した行と位置、動かし始めたか、写しの見た目
 interface Carry {
   pointer: number

@@ -111,7 +111,6 @@ export {
   useBodyGrips,
 } from "./text/ui"
 export * from "./utils/ui"
-export { SplitHandle } from "./workspace/SplitHandle"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {

@@ -120,6 +120,19 @@ test("並べ方は画面の場所に入り、場所を当てはめると戻る�
   expect(state.getState().stageStates.s1?.[MD]).toBeUndefined()
 })
 
+test("ステージの数と並べ方が同時に変わる場所を当てはめても、残るステージに並べ方が入り、消えたステージの置き場は無くなる", () => {
+  const { store } = markdownStore()
+  const { state, actions } = store
+  actions.split("s1")
+  const right = state.getState().workspace.stages[1]!.id
+  store.setStageState(right, MD, { mode: "rendered-only", first: "source", share: 0.4 })
+  const two = store.address()
+  store.locate({ ...two, stages: [two.stages[1]!], current: 0 })
+  expect(state.getState().workspace.stages.map(s => s.id)).toEqual(["s1"])
+  expect(state.getState().stageStates.s1?.[MD]).toEqual({ mode: "rendered-only", first: "source", share: 0.4 })
+  expect(state.getState().stageStates[right]).toBeUndefined()
+})
+
 const LAYOUT_COMMANDS = [
   "@matomezu/markdown:pane-show-source",
   "@matomezu/markdown:pane-split-row",

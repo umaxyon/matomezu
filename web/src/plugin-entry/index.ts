@@ -72,7 +72,6 @@ export {
   createBookIn,
   DIAGRAM_THEME_TYPE,
   DOCUMENT_THEME_TYPE,
-  DRAG_START,
   evenGap,
   extentOf,
   followConnectors,

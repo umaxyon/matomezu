@@ -8,10 +8,8 @@ import { toPaper } from "../../../core/stage"
 import type { StageView } from "../../../core/workspace"
 import { useActions } from "../../../ui/store-context"
 import { useStagePan, useToPaper } from "../../../ui/view-hooks"
-import { DRAG_START } from "../drag"
+import { DRAG_START } from "./drag"
 import { edgePanner } from "./edge-pan"
-
-// ドラッグを始めるまでに動かす長さ（画面の px）
 
 export interface PaperDrag {
   id: string // 押した物

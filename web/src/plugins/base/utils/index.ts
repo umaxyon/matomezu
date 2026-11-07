@@ -2,6 +2,7 @@
 // ここに置かない base の物は出ない。見た目の物（フックなど）は ui.ts に書き出す（matomezu/ui から出る）
 
 export { ColorSchema, colorPaint } from "./color"
+export { DRAG_START } from "./drag"
 export { edgePanner, edgeScroll } from "./edge-pan"
 export { EDGE_MAX, EDGE_ZONE, edgeSpeed } from "./edge-speed"
 export { type Elapsed, elapsedOf } from "./elapsed"

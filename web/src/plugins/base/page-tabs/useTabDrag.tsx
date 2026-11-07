@@ -2,8 +2,7 @@
 // タブの並びの外で離したら取り消す。並びが横にあふれていれば、端へ寄せている間スクロールする。始める前に page-move を行えるか問い、行えなければ始めない
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react"
 import { useAllowed, usePerform } from "../../../ui/view-hooks"
-import { DRAG_START } from "../drag"
-import { edgePanner } from "../utils"
+import { DRAG_START, edgePanner } from "../utils"
 import { PAGE_MOVE } from "./page-move"
 import { dropIndex, within } from "./tab-drop"
 
