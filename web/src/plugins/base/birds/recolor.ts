@@ -34,3 +34,27 @@ export function recolor(
   }
   return out
 }
+
+// 丸い顔の絵に色を塗る。fixed は固定色の部分（RGBA）、mask の R・G・B は外羽・内羽・旗の部分の透明度（0〜255）。
+// どの部分も重ならず、透明度は足して 255 以下。色は、透明度で重みを付けて混ぜ、足した透明度を絵の透明度にする
+export function recolorFace(
+  fixed: Uint8ClampedArray,
+  mask: Uint8ClampedArray,
+  colors: BirdColors,
+): Uint8ClampedArray<ArrayBuffer> {
+  const targets = [parseHex(colors.feather), parseHex(colors.inner), parseHex(colors.flag)]
+  const out = new Uint8ClampedArray(fixed.length)
+  for (let i = 0; i < fixed.length; i += 4) {
+    const own = fixed[i + 3] as number
+    const weights = [mask[i] as number, mask[i + 1] as number, mask[i + 2] as number]
+    const alpha = own + weights.reduce((a, b) => a + b, 0)
+    if (alpha === 0) continue
+    for (let c = 0; c < 3; c++) {
+      let sum = (fixed[i + c] as number) * own
+      for (let k = 0; k < 3; k++) sum += ((targets[k] as Rgb)[c] as number) * (weights[k] as number)
+      out[i + c] = sum / alpha
+    }
+    out[i + 3] = alpha
+  }
+  return out
+}

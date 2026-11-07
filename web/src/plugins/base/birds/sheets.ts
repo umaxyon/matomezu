@@ -8,6 +8,7 @@ export const COLUMNS = 4
 export const SHEET_SIZE = FRAME * COLUMNS
 export const ANCHOR_X = 75
 export const GROUND_Y = 127
+export const FACE_SIZE = 48 // 顔の丸い絵の一辺（px）
 export const CELL = 104.5 // 鳥の大きさの基準になる幅（表示の倍率は、これを鳥の大きさに合わせる）
 
 // 鳥ごとの、歩くコマの鳥の旗まで入れた幅（歩く距離を決める）

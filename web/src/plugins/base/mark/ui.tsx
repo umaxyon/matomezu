@@ -1,6 +1,7 @@
 // マークの見た目のウィジェット: ブックのレイヤーに置き、開いているブックのマークと、マークの種類を選ぶ所をスタンドで出す
 import { defineWidget } from "../../../ui/layout"
-import { BIRD_FACES } from "../birds/BirdWalk"
+import type { Bird } from "../birds"
+import { useBirdFace } from "../birds/use-bird-sheet"
 import { kit } from "../kit"
 import { defineAnnotationIcon } from "../outbox/ui"
 import { defineCornerStatus } from "../utils/corner"
@@ -17,13 +18,15 @@ export const MARK_ICON = defineAnnotationIcon({
   annotation: MARK.id,
   view: ({ annotation }) => {
     const kind = (annotation.props as MarkProps).kind
-    return kind === "alert" ? (
-      <span className={styles.listedAlert}>!</span>
-    ) : (
-      <span className={styles.listedFace} style={{ backgroundImage: `url(${BIRD_FACES[kind]})` }} />
-    )
+    return kind === "alert" ? <span className={styles.listedAlert}>!</span> : <ListedFace bird={kind} />
   },
 })
+
+// 送信トレイの行の鳥の顔（色を塗り終わるまでは丸だけ）
+function ListedFace({ bird }: { bird: Bird }) {
+  const face = useBirdFace(bird)
+  return <span className={styles.listedFace} style={face ? { backgroundImage: `url(${face})` } : {}} />
+}
 
 // コーナーステータス: びっくりマーク
 export const ALERT_STATUS = defineCornerStatus({ id: ALERT_STATUS_ID, title: kit.message("Alert"), view: AlertLook })

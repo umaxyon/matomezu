@@ -23,28 +23,14 @@ import {
   visitLength,
   visitPose,
 } from "./flight"
-import bunchoPointer from "./images/bird-marks/buncho.png"
-import fukurouPointer from "./images/bird-marks/fukurou.png"
-import inkoPointer from "./images/bird-marks/inko.png"
-import suzumePointer from "./images/bird-marks/suzume.png"
-import tsunagidoriPointer from "./images/bird-marks/tsunagidori.png"
 import { type Footing, footing, lengthOf, lineMotion } from "./line"
 import { ANCHOR_X, BODY_WIDTH, CELL, COLUMNS, FRAME, GROUND_Y, SHEET_SIZE } from "./sheets"
-import { useBirdSheet } from "./use-bird-sheet"
+import { useBirdFace, useBirdSheet } from "./use-bird-sheet"
 
 export const BIRD_SIZE = 48 // 歩く鳥の大きさ（画面の px）
 export { FRONT }
 
 const POINTER = 24 // 鳥の顔の丸い絵の大きさ
-
-// 鳥ごとの顔の丸い絵（マークポインタと、送信トレイの行の絵）
-export const BIRD_FACES: Record<Bird, string> = {
-  tsunagidori: tsunagidoriPointer,
-  inko: inkoPointer,
-  buncho: bunchoPointer,
-  suzume: suzumePointer,
-  fukurou: fukurouPointer,
-}
 
 // 鳥の絵の 1 コマを描く物の見た目（押せる物にするなら button に付ける）
 export const birdClass = styles.bird
@@ -75,6 +61,7 @@ type WalkProps = Motion & {
 
 function Walker({
   bird,
+  palette,
   sheet: sheetUrl,
   arrival = "fly",
   origin,
@@ -87,6 +74,7 @@ function Walker({
   children,
 }: WalkProps & { sheet: string }) {
   const away = useStandAway()
+  const face = useBirdFace(bird, palette)
   const area = useRef<HTMLDivElement>(null)
   const [from, setFrom] = useState<Point>({ x: 0, y: 0 })
   const [time, setTime] = useState(0)
@@ -189,7 +177,11 @@ function Walker({
           aria-label={awayLabel}
           title={awayLabel}
           onClick={away.show}
-          style={{ left: at.x - POINTER / 2, top: at.y - POINTER / 2, backgroundImage: `url(${BIRD_FACES[bird]})` }}
+          style={{
+            left: at.x - POINTER / 2,
+            top: at.y - POINTER / 2,
+            ...(face ? { backgroundImage: `url(${face})` } : {}),
+          }}
           data-bird-pointer
         />
       </div>

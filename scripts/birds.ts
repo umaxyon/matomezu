@@ -1,10 +1,13 @@
 // 鳥の素材（色を変えられるマスク付きのスプライト）を、画面に配る大きさに縮めて書き出す。
-// 使い方: bun scripts/birds.ts <素材のフォルダ>（sprites.json と img/ がある所）
-// 素材は鳥ごとに 4 枚（陰影の neutral と、外羽・内羽・旗のマスク）で、1 コマ 448 四角が 4x4。
+// 使い方: bun scripts/birds.ts <素材のフォルダ>（sprites/ と marks/ がある所）
+// 歩く鳥（sprites/）: 素材は鳥ごとに 4 枚（陰影の neutral と、外羽・内羽・旗のマスク）で、1 コマ 448 四角が 4x4。
 // これを 1/3 に縮め（コマ 150 四角、シート 600 四角）、次の 2 枚にして web/src/plugins/base/birds/images/sheets/ に置く。
 //   {id}.png      陰影と固定色（RGBA。縮めるときは透明度で重みを付けて混ぜる）
 //   {id}-mask.png 外羽・内羽・旗の割合（R・G・B。0〜255 が 0〜1。3 つは重ならず、足して 1 以下）
 // 足元を縮小後の整数の位置に置くため、元の絵を右と下に 1px ずらして 450 四角にしてから縮める（anchorX は 75、groundY は 127）
+// 丸い顔（marks/）: 48px の絵を、images/faces/ に次の 2 枚にして置く（鳥の顔の丸い絵。ポインタと送信トレイの行）
+//   {id}.png      固定色の部分（RGBA）
+//   {id}-mask.png 外羽・内羽・旗の部分の透明度（R・G・B）。固定色と 3 つを足して 255 以下
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
@@ -121,8 +124,9 @@ interface SheetInfo {
   frames: { index: number; bounds: { w: number } }[]
 }
 
-const root = resolve(process.argv[2] ?? "")
 if (!process.argv[2]) throw new Error("使い方: bun scripts/birds.ts <素材のフォルダ>")
+const showcase = resolve(process.argv[2])
+const root = join(showcase, "sprites")
 const sprites = JSON.parse(readFileSync(join(root, "sprites.json"), "utf8")) as { sheets: SheetInfo[] }
 const outDir = resolve(import.meta.dir, "../web/src/plugins/base/birds/images/sheets")
 mkdirSync(outDir, { recursive: true })
@@ -165,4 +169,19 @@ for (const sheet of sprites.sheets) {
   writeFileSync(join(outDir, `${sheet.id}-mask.png`), encode(SIZE, SIZE, 3, weight))
   const walk = sheet.frames.filter(f => f.index >= 8 && f.index <= 11).map(f => f.bounds.w / FACTOR)
   console.log(sheet.id, "歩くコマの鳥の幅（旗まで）", Math.max(...walk).toFixed(2))
+}
+
+const FACE = 48
+const facesDir = resolve(import.meta.dir, "../web/src/plugins/base/birds/images/faces")
+mkdirSync(facesDir, { recursive: true })
+for (const { id } of sprites.sheets) {
+  const layer = (name: string) => decode(join(showcase, "marks/img", String(FACE), `${id}-${name}.png`))
+  const fixed = layer("fixed")
+  const parts = ["feather", "inner", "flag"].map(layer)
+  const weight = new Uint8Array(FACE * FACE * 3)
+  for (let p = 0; p < FACE * FACE; p++)
+    for (let m = 0; m < 3; m++) weight[p * 3 + m] = (parts[m] as Raster).data[p * 4 + 3] as number
+  writeFileSync(join(facesDir, `${id}.png`), encode(FACE, FACE, 4, fixed.data))
+  writeFileSync(join(facesDir, `${id}-mask.png`), encode(FACE, FACE, 3, weight))
+  console.log(id, "丸い顔", FACE)
 }

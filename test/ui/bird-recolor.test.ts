@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { BIRD_IDS } from "../../web/src/plugins/base/birds"
 import { BIRD_ORIGINAL, BIRD_PALETTES, birdColors } from "../../web/src/plugins/base/birds/colors"
-import { parseHex, recolor } from "../../web/src/plugins/base/birds/recolor"
+import { parseHex, recolor, recolorFace } from "../../web/src/plugins/base/birds/recolor"
 
 const COLORS = { feather: "#FF0000", inner: "#00FF00", flag: "#0000FF" }
 const px = (a: Uint8ClampedArray, i: number) => [...a.slice(i * 4, i * 4 + 4)]
@@ -34,17 +34,27 @@ test("内羽と旗はそれぞれ別の色。割合が半分の画素は元の�
   expect(mixed[0]).toBeLessThan(60)
 })
 
+test("丸い顔: 固定色と 3 つの部分を透明度で重みを付けて混ぜ、透明度は足した値", () => {
+  const fixed = new Uint8ClampedArray([10, 20, 30, 255, 0, 0, 0, 0, 100, 100, 100, 128, 0, 0, 0, 0])
+  const mask = new Uint8ClampedArray([0, 0, 0, 255, 255, 0, 0, 255, 0, 127, 0, 255, 0, 0, 0, 255])
+  const out = recolorFace(fixed, mask, COLORS)
+  expect(px(out, 0)).toEqual([10, 20, 30, 255])
+  expect(px(out, 1)).toEqual([255, 0, 0, 255])
+  expect(px(out, 2)).toEqual([50, 177, 50, 255])
+  expect(px(out, 3)).toEqual([0, 0, 0, 0])
+})
+
 test("色は #RRGGBB から 3 つの値にする", () => {
   expect(parseHex("#0a1B2c")).toEqual([10, 27, 44])
 })
 
-test("鳥の配色: 20 個、id は重ならない。指定が無いか知らない id は元の配色", () => {
+test("鳥の配色: 20 個、id は重ならない。5 羽それぞれに元の配色があり、指定が無いか知らない id ではそれになる", () => {
   expect(BIRD_PALETTES).toHaveLength(20)
   expect(new Set(BIRD_PALETTES.map(p => p.id)).size).toBe(20)
   for (const bird of BIRD_IDS) {
     expect(birdColors(bird)).toEqual(BIRD_ORIGINAL[bird])
     expect(birdColors(bird, "nothing")).toEqual(BIRD_ORIGINAL[bird])
-    expect(birdColors(bird, "blue")).toEqual(BIRD_PALETTES.find(p => p.id === "blue")?.colors as never)
+    expect(birdColors(bird, "navy")).toEqual(BIRD_PALETTES.find(p => p.id === "navy")?.colors as never)
     for (const c of Object.values(BIRD_ORIGINAL[bird])) parseHex(c)
   }
   for (const p of BIRD_PALETTES) for (const c of Object.values(p.colors)) parseHex(c)
