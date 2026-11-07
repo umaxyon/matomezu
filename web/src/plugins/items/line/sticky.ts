@@ -21,7 +21,7 @@ const sameRect = (a: Rect | undefined, b: Rect | undefined) =>
 
 // 記憶を渡す線と、その記憶:
 // - 動かしている形の線は留まる。形の並びが変わったら、そのつかみの終わりまで留まらない
-// - つかんでいる形の動きでずれた形の線と、つかむほかで動いた・大きさが変わった形の線（押された・AI が動かした）は留まらない
+// - つかんでいる形の動きでずれた形の線と、つかむほかで動いた・大きさが変わった形の線（押された・AI が動かした・利用者が大きさを変えている）は留まらない（大きさを変えている間は、そのつど一番よい形にする）
 // - 離したあとに付け替えを見る線（settle）は、形が動いていても記憶を渡す（留まるかは描く側が LOOSEN_BENDS で決める）
 export function stickyMemory(s: StickyScene): Map<string, EndMemory> {
   const movedElse = (id: string) => !s.dragged.includes(id) && !sameRect(s.before.get(id), s.rects.get(id))
