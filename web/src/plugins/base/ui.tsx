@@ -66,7 +66,15 @@ export {
   Switch,
   SwitchPanel,
 } from "./dialog-host/FormParts"
-export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
+export {
+  ALIGN_ICONS,
+  useAligns,
+  useBookOf,
+  useBookTheme,
+  useBookThemes,
+  useSwatches,
+  useThemeVars,
+} from "./item-parts/parts"
 export { useCloseLeftSidePanel, useLeftSidePanel, useOpenLeftSidePanel } from "./left-side-panel/hooks"
 export { LEFT_SIDE_PANEL } from "./left-side-panel/slots"
 export { defineLeftSidePanelTab } from "./left-side-panel/ui"

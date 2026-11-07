@@ -25,7 +25,7 @@ import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/sett
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_HOME } from "../plugins"
-import { aiPlacedOf, type GrowRule, textColorRef } from "../plugins/base"
+import { aiPlacedOf, type GrowRule, textColorRef, themesFor } from "../plugins/base"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
@@ -192,6 +192,7 @@ function aiCatalog(of: Assembled = assembled) {
       pages: t.pages !== null,
       grows: t.pages ? growsOf(t.grow) : "none", // 可変ページの決め方
       items: t.items.allowed, // ページに置けるアイテム
+      themes: themesFor(catalog, t.id).map(th => th.id), // そのタイプのブックと中の形に当てられるテーマ（テーマタイプの重なりは、ここで計算して出す）
     })),
     items: [...catalog.items.values()].map(i => ({
       id: i.id,
@@ -206,7 +207,7 @@ function aiCatalog(of: Assembled = assembled) {
       .map(d => ({
         id: d.id,
         title: en(d.title),
-        schema: z.toJSONSchema(settingSchema(catalog, d), { io: "input", unrepresentable: "any" }),
+        schema: z.toJSONSchema(settingSchema(catalog, d, "user"), { io: "input", unrepresentable: "any" }),
       })),
     // アノテーションの種類（read_book・read_page の annotations と view の awaiting の annotation は、この id）
     annotations: [...catalog.annotations.values()].map(a => ({

@@ -90,6 +90,7 @@ export const SHELF = kit.defineBookType({
   },
   actions: {},
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: kit.name("shelf-tools"),

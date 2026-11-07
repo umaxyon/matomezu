@@ -69,6 +69,7 @@ export const FLOW = kit.defineBookType({
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る（自分の判断のアクションも、ひし形について来る）
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",

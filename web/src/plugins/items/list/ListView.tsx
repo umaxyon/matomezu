@@ -169,7 +169,7 @@ export function ListView({
   const catalog = useCoreCatalog()
   const rows: readonly ListRow[] = content.children ?? []
   const theme = props.theme
-  const vars = useThemeVars(theme, LOOK_TOKENS)
+  const vars = useThemeVars(stage, theme, LOOK_TOKENS)
   const add = useCommand(stage, LIST_ADD_ROW.id)
   const edit = useCommand(stage, LIST_EDIT_ROW.id)
   const check = useCommand(stage, LIST_CHECK.id)

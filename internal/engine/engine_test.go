@@ -198,6 +198,7 @@ func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
 			Pages     bool            `json:"pages"`
 			Grows     json.RawMessage `json:"grows"`
 			Items     []string        `json:"items"`
+			Themes    []string        `json:"themes"`
 		} `json:"bookTypes"`
 		Items []struct {
 			ID   string `json:"id"`
@@ -209,9 +210,17 @@ func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
 	}
 	types := map[string]string{}
 	grows := map[string]string{}
+	themes := map[string]string{}
 	for _, b := range c.BookTypes {
 		types[b.ID] = fmt.Sprint(b.Creatable, " ", b.Pages, " ", strings.Join(b.Items, ","))
 		grows[b.ID] = string(b.Grows)
+		themes[b.ID] = strings.Join(b.Themes, ",")
+	}
+	// タイプごとに使えるテーマ（テーマタイプの重なりは engine が計算して出す）
+	if themes["@matomezu/drawing:drawing"] != "@matomezu/base:standard,@matomezu/base:sticky,@matomezu/base:simple,@matomezu/base:matomezu" ||
+		themes["@matomezu/markdown:markdown"] != "@matomezu/base:standard,@matomezu/markdown:github-like" ||
+		themes["@matomezu/master:master"] != "@matomezu/base:standard" {
+		t.Fatalf("themes = %v", themes)
 	}
 	// 利用者が選ぶ向きの一覧・タイプが決める・いつも可変ページ・作れない
 	if grows["@matomezu/drawing:drawing"] != `["right-down","right","down","all"]` || grows["@matomezu/tree:tree"] != `"by-type"` ||

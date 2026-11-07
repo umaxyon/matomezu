@@ -55,6 +55,7 @@ export {
   useBodyGrips,
   useBookOf,
   useBookTheme,
+  useBookThemes,
   useCloseLeftSidePanel,
   useCloseRightSidePanel,
   useDrawnMinimap,

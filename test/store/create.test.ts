@@ -24,6 +24,7 @@ const NOTE = defineBookType({
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],
 })
@@ -62,6 +63,7 @@ const LEAF = defineBookType({
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/master:master",
   tokens: [],
 })

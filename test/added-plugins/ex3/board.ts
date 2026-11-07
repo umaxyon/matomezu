@@ -35,9 +35,11 @@ export const GRID = kit.defineSetting({
   default: false,
 })
 
+// 図のテーマタイプのテーマ（作り手の違うタイプの、図のブックにも使える）
 export const MINT = kit.defineTheme({
   id: "mint",
   title: "mint",
+  themeTypes: ["@matomezu/base:diagram"],
   base: {
     surface: "#eef7f3",
     paper: "#fbfffd",
@@ -115,6 +117,7 @@ export const BOARD = kit.defineBookType({
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
   theme: MINT.id,
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",

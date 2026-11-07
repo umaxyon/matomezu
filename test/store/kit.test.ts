@@ -31,6 +31,7 @@ test("テーマが上書きするテーマキーは、: が無ければ自分の
   const theme = kit.defineTheme({
     id: "night",
     title: "Star",
+    themeTypes: "all",
     base: {} as never,
     palette: {} as never,
     tokens: { "star-fill": "#ffd34d", "@matomezu/box:box-fill": "#000000" },
@@ -50,6 +51,7 @@ test("ブックのタイプは schema に type を書かず、データの type�
     items: { allowed: [] },
     actions: {},
     theme: "@matomezu/base:standard",
+    themeTypes: ["@matomezu/base:diagram"],
     presentation: "@matomezu/paper:paper",
     tokens: [],
   })
@@ -66,6 +68,7 @@ test("ブックのタイプは schema に type を書かず、データの type�
     items: { allowed: [] },
     actions: {},
     theme: "@matomezu/base:standard",
+    themeTypes: ["@matomezu/base:diagram"],
     presentation: "@matomezu/paper:paper",
     tokens: [],
   })

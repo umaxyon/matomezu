@@ -2,6 +2,7 @@
 // テーマと紙の色の設定の項目、新しいページとページの設定のダイアログは base の物を使う
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PANE_LAYOUT_COMMANDS, SOURCE_KEYS } from "./commands"
+import { GITHUB_LIKE } from "./github-like"
 import { kit } from "./kit"
 import { MARKDOWN, MARKDOWN_PRESENTATION, SOURCE_KEY_SCOPE } from "./markdown"
 import { SOFT_BREAK } from "./soft-break"
@@ -16,6 +17,7 @@ export const MARKDOWN_PLUGIN = defineBuiltin(
     keys: SOURCE_KEYS,
     keyScopes: [SOURCE_KEY_SCOPE],
     userSettings: [TAB_KEY, ...SOURCE_LOOK_SETTINGS, SOFT_BREAK],
+    themes: [GITHUB_LIKE],
   }),
 )
 
@@ -38,6 +40,9 @@ declare module "../../../core/catalog" {
     "@matomezu/markdown:current-line": typeof CURRENT_LINE
     "@matomezu/markdown:show-whitespace": typeof SHOW_WHITESPACE
     "@matomezu/markdown:soft-break": typeof SOFT_BREAK
+  }
+  interface ThemeTable {
+    "@matomezu/markdown:github-like": typeof GITHUB_LIKE
   }
   interface KeyScopeTable {
     "@matomezu/markdown:source": typeof SOURCE_KEY_SCOPE // ソースのペインのテキストFormの中のキー

@@ -173,11 +173,13 @@ test("寄せの項目は既定でキャプションが中央、本文が左。�
   expect(update({ bodyAlign: "justify" }).ok).toBe(false)
 })
 
-test("箱にテーマを当てられる。表に無いテーマは断る。テーマの箱のテーマキーは、宣言の値かテーマの上書きで決まる", () => {
+test("箱にテーマを当てられる。表に無いテーマと、ブックのタイプが使えないテーマは断る。テーマの箱のテーマキーは、宣言の値かテーマの上書きで決まる", () => {
   const store = ready()
   expect(place(store, { caption: "付箋", theme: "@matomezu/base:sticky" }).ok).toBe(true)
   expect(items(store)[0]!.props).toMatchObject({ theme: "@matomezu/base:sticky" })
   expect(place(store, { caption: "無い", theme: "nope" }, { x: 400, y: 100 }).ok).toBe(false)
+  // 文書のテーマタイプのテーマは、図のブックの箱には当てられない
+  expect(place(store, { caption: "文書", theme: "@matomezu/markdown:github-like" }, { x: 400, y: 100 }).ok).toBe(false)
   const update = (props: Record<string, unknown>) =>
     store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
   expect(update({ theme: "@matomezu/base:simple" }).ok).toBe(true)
@@ -216,4 +218,20 @@ test("縦の位置は書いていなければ自動（本文も子も無けれ�
   expect(vAlignOf({ body: "本文", vAlign: "bottom" }, false)).toBe("bottom")
   expect(vAlignOf({ body: "", vAlign: "middle" }, true)).toBe("top")
   expect(vAlignOf({ body: "", vAlign: "bottom" }, true)).toBe("bottom")
+})
+
+test("ブックのタイプが使えないテーマが残った箱も、テーマに触れない直しはでき、残ったテーマはデータに残る。そのテーマを渡して直すのは断る", () => {
+  const first = ready()
+  expect(place(first, { caption: "付箋", theme: "@matomezu/base:sticky" }).ok).toBe(true)
+  // 図のブックが使えないテーマが残ったブックを読み込む（テーマタイプが後で変わったときなど）
+  const books = JSON.parse(JSON.stringify(first.state.getState().books))
+  books.b1.pages[0].items[0].props.theme = "@matomezu/markdown:github-like"
+  const store = newStore({ books: Object.values(books) })
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
+  const update = (props: Record<string, unknown>) =>
+    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
+  expect(update({ caption: "直した" }).ok).toBe(true)
+  expect(items(store)[0]!.props).toMatchObject({ caption: "直した", theme: "@matomezu/markdown:github-like" })
+  expect(update({ theme: "@matomezu/markdown:github-like" }).ok).toBe(false)
+  expect(update({ theme: null }).ok).toBe(true)
 })

@@ -35,12 +35,12 @@ export function withBookSettings(
 }
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
-// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す。テーマは表にあるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
+// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す。テーマはブックのタイプが使えるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
   attach: { books: true },
   aiDescription:
-    "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default). The print preview settings (@matomezu/base:print-preview-*) are changed by @matomezu/base:print-preview-update, not here (refused).",
+    "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes its book type lists in actions, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default). The print preview settings (@matomezu/base:print-preview-*) are changed by @matomezu/base:print-preview-update, not here (refused).",
   title: "Change book",
   target: "book",
   permissionScope: "book",

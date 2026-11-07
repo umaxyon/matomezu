@@ -35,6 +35,8 @@ export const ERRORS = {
   E036: "setting {id}: only a user setting may have {field}",
   E037: "userSetting {id}: role {role} is held by {other} too",
   E038: "theme {id}: textColors has {color} for {textColor}, which is not #rrggbb",
+  E039: "bookType {id}: default theme {theme} is not one of the themes for its theme types",
+  E040: "{kind} {id}: theme types must be {expected}",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",

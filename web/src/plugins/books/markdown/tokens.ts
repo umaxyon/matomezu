@@ -3,10 +3,13 @@
 export const MARKDOWN_TOKENS = [
   { id: "markdown-text", fallback: "text" }, // 文書の字
   { id: "markdown-hint", fallback: "hint" }, // 引用の字・読み込まない画像の代わりの説明
-  { id: "markdown-rule", fallback: "line" }, // 見出しの下線・区切り線
+  { id: "markdown-rule", fallback: "line" }, // 区切り線
+  { id: "markdown-heading-rule", fallback: "line" }, // 見出し 1・2 の下線
   { id: "markdown-line", fallback: "line" }, // 表の罫・引用の縦線・脚注の線・画像の代わりの枠
   { id: "markdown-link", fallback: "accent" },
-  { id: "markdown-code-fill", fallback: "surface" }, // コードの塊と文中のコードの地
+  { id: "markdown-code-fill", fallback: "surface" }, // コードの塊の地
+  { id: "markdown-inline-code-fill", fallback: "surface" }, // 文中のコードの地
+  { id: "markdown-table-stripe", value: "transparent" }, // 表の偶数の行の地
   { id: "markdown-page-padding", value: "24px 32px", shades: "one" }, // 紙の辺と文書の間（書く画面の描いた文書と、印刷の印刷区画ごと）
   { id: "markdown-font-family", value: '"Noto Sans JP", sans-serif', shades: "one" }, // 本文の字体
   { id: "markdown-font-size", value: "14px", shades: "one" },
@@ -26,6 +29,8 @@ export const MARKDOWN_TOKENS = [
   { id: "markdown-quote-width", value: "3px", shades: "one" }, // 引用の縦線の太さ
   { id: "markdown-quote-padding", value: "0 1em", shades: "one" },
   { id: "markdown-cell-padding", value: "4px 10px", shades: "one" }, // 表のセルの内側の空き
+  { id: "markdown-table-head-weight", value: "bold", shades: "one" }, // 表の見出しのセルの字の太さ
+  { id: "markdown-link-decoration", value: "underline", shades: "one" }, // リンクの下線（none で引かない）
   { id: "markdown-rule-width", value: "1px", shades: "one" }, // 区切り線の太さ（見出しの下線は含めない）
   { id: "markdown-rule-gap", value: "1.4em 0", shades: "one" }, // 区切り線の上下の空き（margin）
   { id: "markdown-footnote-size", value: "0.9em", shades: "one" }, // 脚注の字の大きさ

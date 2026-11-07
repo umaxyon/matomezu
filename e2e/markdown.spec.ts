@@ -185,3 +185,21 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
   await page.keyboard.press("ControlOrMeta+z")
   await expect(field()).toHaveValue("AI の行\n# 見出し")
 })
+
+test("ブックの設定のテーマは、マークダウンのブックが選べるテーマ（標準と GitHub 風）だけを並べ、GitHub 風にすると描いた文書の字が大きくなる", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  await pane(page, "ソース").getByRole("textbox").click()
+  await page.keyboard.type("本文")
+  const paragraph = pane(page, "プレビュー").locator("p")
+  await expect(paragraph).toContainText("本文")
+  await (await fromMenu(page, "ブックの設定")).click()
+  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  const theme = dialog.getByLabel("テーマ")
+  await expect(theme.locator("option")).toHaveText(["標準", "GitHub 風"])
+  await theme.selectOption({ label: "GitHub 風" })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(paragraph).toHaveCSS("font-size", "16px")
+})

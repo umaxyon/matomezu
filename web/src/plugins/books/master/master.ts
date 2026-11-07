@@ -35,6 +35,7 @@ export const MASTER = kit.defineBookType({
   annotations: { without: ["@matomezu/base:note", "@matomezu/base:mark"] },
 
   theme: "@matomezu/base:standard",
+  themeTypes: [], // 使えるテーマのテーマタイプ
   presentation: MASTER_PRESENTATION.id,
   tokens: [],
 })

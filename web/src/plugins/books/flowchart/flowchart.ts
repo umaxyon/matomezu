@@ -5,6 +5,7 @@ import {
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
+  DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
   type SettingReader,
@@ -99,6 +100,7 @@ export const FLOWCHART = kit.defineBookType({
   },
   actions: { add: [kit.name("page-align")] }, // ほかに使うアクションは、選んだアイテム・見せ方・ページについて来る
   theme: "@matomezu/base:standard",
+  themeTypes: [DIAGRAM_THEME_TYPE], // 使えるテーマのテーマタイプ
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: FLOWCHART_TOOLS.id,
