@@ -230,7 +230,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
     replay: readonly DoneAction[],
     change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string },
   ): void
-  // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントと画面の入口だけが使う）
+  // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
   // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
   // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）

@@ -31,6 +31,8 @@ export interface Net {
   events(url: string): Events
   focused(): boolean // 窓がフォーカスされているか
   onFocus(listener: () => void): () => void // 窓がフォーカスされたら呼ぶ。止める関数を返す
+  visible(): boolean // 窓が見えているか（裏のタブでないか）
+  onVisible(listener: () => void): () => void // 窓が見えるようになったら呼ぶ。止める関数を返す
   importModule(url: string): Promise<{ default?: unknown }> // ES モジュールを読む
   addStyle(url: string): void // CSS を読む
   reload(): void // 画面を読み直す
@@ -60,6 +62,12 @@ const browserNet: Net = {
   onFocus: listener => {
     window.addEventListener("focus", listener)
     return () => window.removeEventListener("focus", listener)
+  },
+  visible: () => document.visibilityState !== "hidden",
+  onVisible: listener => {
+    const changed = () => document.visibilityState !== "hidden" && listener()
+    document.addEventListener("visibilitychange", changed)
+    return () => document.removeEventListener("visibilitychange", changed)
   },
   importModule: url => import(new URL(url, document.baseURI).href),
   addStyle: url => {
@@ -545,6 +553,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       warnings = list
       tellWarnings()
     },
+    visible: () => net.visible(),
     reportAIEditTicket: change => {
       aiEditTickets = [...aiEditTickets, change]
       void tellAIEditTickets()
@@ -579,9 +588,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
         checkQuiet()
         tell(true)
       })
+      // 裏のタブから前に出たら、まだ見ていない変更が見えたかを確かめ直す
+      const stopVisible = net.onVisible(() => next.checkSeen())
       return () => {
         stopView()
         stopFocus()
+        stopVisible()
         instance = null
         retell = null
         closeEvents()

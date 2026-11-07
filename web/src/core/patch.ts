@@ -233,21 +233,13 @@ export function undoneIn(made: Patch, before: unknown, after: unknown, at = ""):
     : []
 }
 
-// Patch が書いた所と値の並び（AI などに見せる形）: at はフィールドの名前と id の並びの id をたどった道（/ で区切る）。
+// 書いた所と値の並び（AI などに見せる形。undoneIn が返す）: at はフィールドの名前と id の並びの id をたどった道（/ で区切る）。
 // value は入れた値、removed は外した物、lines は足した・書き換えた行と removedLines は消した行（行ごとの違いのとき）
 export type Written = { at: string } & (
   | { value: unknown }
   | { removed: true }
   | { lines: readonly string[]; removedLines?: readonly string[] }
 )
-export function writtenBy(p: Patch, at = ""): Written[] {
-  if ("set" in p) return [{ at, value: p.set }]
-  if ("absent" in p) return [{ at, removed: true }]
-  if ("fields" in p) return Object.entries(p.fields).flatMap(([k, q]) => writtenBy(q, at ? `${at}/${k}` : k))
-  if ("list" in p) return p.list.flatMap(q => writtenBy(q.patch, `${at}/${q.id}`))
-  const { lines, removedLines } = linesOf(p.text.from.split("\n"), p.text.to.split("\n"))
-  return [{ at, lines, ...(removedLines.length > 0 ? { removedLines } : {}) }]
-}
 
 // 行の並び from を to にした違いの、足した・書き換えた行と、消した行
 function linesOf(from: readonly string[], to: readonly string[]): { lines: string[]; removedLines: string[] } {

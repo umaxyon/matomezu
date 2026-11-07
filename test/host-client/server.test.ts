@@ -55,6 +55,8 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     },
     events,
     focused: () => true,
+    visible: () => true,
+    onVisible: () => () => {},
     onFocus: l => {
       focus = l
       return () => {}
@@ -172,6 +174,8 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
     events: () => ({ on: (name, l) => listeners.set(name, l), onError: () => {}, close: () => {} }),
     focused: () => false,
     onFocus: () => () => {},
+    visible: () => true,
+    onVisible: () => () => {},
     importModule: async url => {
       imported.push(url)
       if (url === "api/plugins/2/ui.js") throw new Error("broken")
@@ -411,6 +415,8 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
     events: () => ({ on: (name, l) => listeners.set(name, l), onError: () => {}, close: () => {} }),
     focused: () => false,
     onFocus: () => () => {},
+    visible: () => true,
+    onVisible: () => () => {},
     importModule: async () => ({}),
     addStyle: () => {},
     reload: () => {},

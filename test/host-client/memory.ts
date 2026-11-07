@@ -19,6 +19,7 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
     observe: () => {},
     reportWarnings: () => {}, // ホストがいないので、知らせる先が無い（warning は画面の中で見る）
     reportAIEditTicket: () => {}, // ホストがいないので、AI もいない
+    visible: () => true,
     connect: instance =>
       persist(instance, {
         saveBook: book => {

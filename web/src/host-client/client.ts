@@ -20,4 +20,5 @@ export interface HostClient {
   reportWarnings(warnings: readonly Warning[]): void
   // まだ見ていない AI の変更が、この窓で見えたか、見られる前に消えたこと（createMatomezu の aiEditTicket に渡す）。ホストは AI の変更ごとに残し、消えた物を AI に渡す
   reportAIEditTicket(change: AIEditTicketOutcome): void
+  visible(): boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。createMatomezu の visible に渡す）
 }

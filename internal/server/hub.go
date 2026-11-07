@@ -125,7 +125,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	for id, body := range stored {
 		var list []AIEditTicket
 		if err := json.Unmarshal(body, &list); err != nil {
-			return nil, fmt.Errorf("the AI changes of book %s cannot be read: %w", id, err)
+			return nil, fmt.Errorf("the AI edit tickets of book %s cannot be read: %w", id, err)
 		}
 		aiEditTickets[id] = list
 	}
