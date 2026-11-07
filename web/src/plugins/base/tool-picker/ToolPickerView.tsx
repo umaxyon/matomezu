@@ -3,13 +3,13 @@
 // 押し続けている間に MOVE_SLOP より動いたら取り消す。長押しで出したら、右クリックのメニューは出さない。Space（コマンド tool-picker）でも開く。
 // 出ている間は画面に薄い幕を掛けてほかの操作を止める。アイコンを押すとその道具にして閉じる。
 // アイコンの外を押す・閉じるキー（menu-close。既定は Escape と Space）・並びから離れる・窓の大きさが変わる・窓から焦点が外れると、何もせずに閉じる。
-// アイコンはポインタの位置から回りながら広がり、乗ると名前を出す。並びの外側の真ん中にはミニマップのボタンがあり、押すとアイコンを消して、
-// その場所にミニマップ（base/minimap の MinimapView）と、その下に拡大縮小の帯（base/zoom の ZoomBar）を、ポインタと反対の側へ広げて出す（紙が収まっていても出す）。閉じ方はアイコンと同じで、
-// 離れたかはミニマップの枠から測る（ボタンを押している間は、離れても閉じない。四角をドラッグするため）。押し続けの途中の様子・最後のポインタの位置・その場に出したミニマップの置き場所と枠だけはビューに持つ
-import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+// アイコンはポインタの位置から回りながら広がり、乗るとポインタの側に名前を出す。並びの外側（ポインタと反対の側）には、ミニマップ（base/minimap の MinimapView）と、
+// その下に拡大縮小の帯（base/zoom の ZoomBar）を一緒に出し、少し遅れて浮かび上がらせる（紙が収まっていても出す。入らなければ出さない。置き方は layout.ts）。
+// 離れたかはアイコンとミニマップを合わせた枠から測る（ボタンを押している間は、離れても閉じない。四角をドラッグするため）。押し続けの途中の様子と最後のポインタの位置だけはビューに持つ
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ToolId } from "../../../core/catalog"
-import type { Point, Rect } from "../../../core/geom"
+import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { suppressContextMenu } from "../../../ui/context-menu"
@@ -17,20 +17,21 @@ import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useStage, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { MINIMAP } from "../minimap/icons"
+import { MINIMAP_SIZE } from "../minimap/geometry"
 import { MinimapView } from "../minimap/MinimapView"
 import { unusableTools } from "../tool-switch/tools"
 import { stageElement } from "../utils/stage-element"
 import { ZoomBar } from "../zoom/ZoomBar"
 import { TOOL_SET } from "."
 import { holdMsOf, TOOL_PICKER_HOLD } from "./hold"
-import { ICON, leftBox, leftPicker, mapPlace, mapSlot, type PickerLayout, pickerSlots } from "./layout"
+import { ICON, type Lay, leftPicker, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
 
 const MOVE_SLOP = 5 // 長押しを取り消さない動きの遊び（px）
 const RING_R = 14 // 押している間の輪の半径
 const RING_SHOW = 120 // 輪を出し始めるまで（ふつうの右クリックで輪がちらつかないように）
-const MAP_SIZE = 240 // その場に出すミニマップの、紙を収める大きさ（px）
+// ミニマップの台の大きさ: 絵の枠に、台の内側の余白（6px）と線（1px）、拡大縮小の帯（上の間 6px と高さ 20px）を足す（ToolPickerView.module.css の .map と合わせる）
+const MAP_CARD = { w: MINIMAP_SIZE.w + 14, h: MINIMAP_SIZE.h + 14 + 26 }
 
 // 右ボタンの押し続け
 interface Press {
@@ -157,14 +158,12 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const unusable = useMatomezuState(s =>
     opened ? unusableTools(catalog, s.workspace, opened.id, s.books).join("\n") : "",
   ).split("\n")
-  const { command, closePicker, showPickerMap } = useActions()
+  const { command, closePicker } = useActions()
   const [hover, setHover] = useState<number | null>(null)
-  const [mapBox, setMapBox] = useState<Rect | null>(null) // その場に出したミニマップの枠（置いてから決まる）
-  if (!opened?.picker?.map && mapBox !== null) setMapBox(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
+  const mapRef = useRef<HTMLDivElement>(null)
   const stage = opened?.id
   const asked = opened?.picker?.at ?? null
-  const map = opened?.picker?.map ?? false
   // biome-ignore lint/correctness/useExhaustiveDependencies: 出す所と並べ方は、開いたときに 1 度だけ決める
   const placed = useMemo(() => {
     if (!stage) return null
@@ -175,21 +174,14 @@ function Picker({ last }: { last: { current: Point | null } }) {
       const inside = r && p && p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom
       at = inside ? p : r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 0, y: 0 }
     }
-    const layout = pickerSlots(at, picks.length, { w: window.innerWidth, h: window.innerHeight })
-    const mapAt = mapSlot(layout, at)
-    // 離れたかは、ミニマップのボタンも含めた並びで見る
-    return { at, layout, mapAt, all: { ...layout, slots: [...layout.slots, mapAt] } }
+    return { at, layout: pickerSlots(at, picks.length, MAP_CARD, { w: window.innerWidth, h: window.innerHeight }) }
   }, [stage])
 
   useEffect(() => {
     if (!placed) return
     const onMove = (e: PointerEvent) => {
       if (e.buttons !== 0) return
-      const p = { x: e.clientX, y: e.clientY }
-      const left = map
-        ? mapBox !== null && leftBox(mapBox, placed.layout.lay, placed.at, p)
-        : leftPicker(placed.all, placed.at, p)
-      if (left) closePicker()
+      if (leftPicker(placed.layout, placed.at, { x: e.clientX, y: e.clientY })) closePicker()
     }
     const onWheel = (e: WheelEvent) => e.preventDefault()
     window.addEventListener("pointermove", onMove)
@@ -202,13 +194,13 @@ function Picker({ last }: { last: { current: Point | null } }) {
       window.removeEventListener("resize", closePicker)
       window.removeEventListener("blur", closePicker)
     }
-  }, [placed, map, mapBox, closePicker])
+  }, [placed, closePicker])
 
-  // ポインタの位置から、回りながら定位置へ広がる
+  // アイコンはポインタの位置から、回りながら定位置へ広がる。ミニマップは、アイコンが広がり終わる頃に浮かび上がる
   useLayoutEffect(() => {
     if (!placed) return
     buttons.current.forEach((el, i) => {
-      const slot = placed.all.slots[i]
+      const slot = placed.layout.slots[i]
       if (!el || !slot || typeof el.animate !== "function") return
       const dx = placed.at.x - (slot.x + ICON / 2)
       const dy = placed.at.y - (slot.y + ICON / 2)
@@ -220,6 +212,20 @@ function Picker({ last }: { last: { current: Point | null } }) {
         { duration: 200, delay: i * 35, easing: "cubic-bezier(0.2, 0.8, 0.3, 1.1)", fill: "backwards" },
       )
     })
+    const map = mapRef.current
+    if (map && typeof map.animate === "function")
+      map.animate(
+        [
+          { transform: "scale(0.96)", opacity: 0 },
+          { transform: "none", opacity: 1 },
+        ],
+        {
+          duration: 160,
+          delay: 120,
+          easing: "ease-out",
+          fill: "backwards",
+        },
+      )
   }, [placed])
 
   if (!opened || !placed) return null
@@ -228,9 +234,8 @@ function Picker({ last }: { last: { current: Point | null } }) {
     closePicker()
     if (tool !== current) command(opened.id, TOOL_SET.id, tool)
   }
-  const tip = hover === null ? null : (placed.all.slots[hover] ?? null)
+  const tip = hover === null ? null : (layout.slots[hover] ?? null)
   const hovered = hover === null ? undefined : picks[hover]
-  const tipName = hovered ? t(toolDef(catalog, hovered).title) : t("Minimap")
   return (
     <div
       className={styles.overlay}
@@ -242,96 +247,78 @@ function Picker({ last }: { last: { current: Point | null } }) {
         closePicker()
       }}
     >
-      {map && <PickerMap stage={opened.id} at={placed.at} layout={placed.all} onPlaced={setMapBox} />}
-      {!map &&
-        picks.map((tool, i) => {
-          const slot = layout.slots[i]
-          if (!slot) return null
-          return (
-            <button
-              key={tool}
-              ref={el => {
-                buttons.current[i] = el
-              }}
-              type="button"
-              className={styles.button}
-              aria-label={t(toolDef(catalog, tool).title)}
-              aria-pressed={current === tool}
-              disabled={unusable.includes(tool)}
-              style={{ left: slot.x, top: slot.y, width: ICON, height: ICON }}
-              onClick={() => pick(tool)}
-              onPointerMove={() => setHover(i)}
-              onPointerLeave={() => setHover(null)}
-            >
-              {toolIcons.get(tool)}
-            </button>
-          )
-        })}
-      {!map && (
-        <button
-          ref={el => {
-            buttons.current[picks.length] = el
+      {picks.map((tool, i) => {
+        const slot = layout.slots[i]
+        if (!slot) return null
+        return (
+          <button
+            key={tool}
+            ref={el => {
+              buttons.current[i] = el
+            }}
+            type="button"
+            className={styles.button}
+            aria-label={t(toolDef(catalog, tool).title)}
+            aria-pressed={current === tool}
+            disabled={unusable.includes(tool)}
+            style={{ left: slot.x, top: slot.y, width: ICON, height: ICON }}
+            onClick={() => pick(tool)}
+            onPointerMove={() => setHover(i)}
+            onPointerLeave={() => setHover(null)}
+          >
+            {toolIcons.get(tool)}
+          </button>
+        )
+      })}
+      {layout.map && (
+        <div
+          ref={mapRef}
+          className={styles.map}
+          data-minimap="picker"
+          style={{
+            left: layout.map.x,
+            top: layout.map.y,
+            width: layout.map.w,
+            height: layout.map.h,
+            ["--map-w" as string]: `${MINIMAP_SIZE.w}px`,
+            ["--map-h" as string]: `${MINIMAP_SIZE.h}px`,
           }}
-          type="button"
-          className={styles.button}
-          aria-label={t("Minimap")}
-          style={{ left: placed.mapAt.x, top: placed.mapAt.y, width: ICON, height: ICON }}
-          onClick={() => {
-            setHover(null)
-            showPickerMap(opened.id)
-          }}
-          onPointerMove={() => setHover(picks.length)}
-          onPointerLeave={() => setHover(null)}
         >
-          {MINIMAP}
-        </button>
+          <MinimapView stage={opened.id} width={MINIMAP_SIZE.w} height={MINIMAP_SIZE.h} className={styles.mapView} />
+          <ZoomBar stage={opened.id} />
+        </div>
       )}
-      {!map && tip && hover !== null && (
-        <div className={styles.tip} data-lay={layout.lay} style={tipPlace(layout.lay, tip)}>
-          {tipName}
+      {tip && hovered && (
+        <div
+          className={styles.tip}
+          data-side={tipSide(layout.lay, tip, placed.at)}
+          style={tipPlace(layout.lay, tip, placed.at)}
+        >
+          {t(toolDef(catalog, hovered).title)}
         </div>
       )}
     </div>
   )
 }
 
-// 名前の位置: 横並びならアイコンの上（入らなければ下）、縦並びならポインタと反対の側
-function tipPlace(lay: "row" | "left" | "right", slot: Point) {
-  const g = 6
-  if (lay === "left") return { left: slot.x - g, top: slot.y + ICON / 2 }
-  if (lay === "right") return { left: slot.x + ICON + g, top: slot.y + ICON / 2 }
-  const above = slot.y - g - 24 >= 6
-  return { left: slot.x + ICON / 2, top: above ? slot.y - g : slot.y + ICON + g, ["--below" as string]: above ? 0 : 1 }
+// 名前を出す側: アイコンから見てポインタ at のある側（横並びなら上か下、縦並びなら左か右）
+function tipSide(lay: Lay, slot: Point, at: Point): "above" | "below" | "left" | "right" {
+  if (lay === "left") return "right"
+  if (lay === "right") return "left"
+  return slot.y < at.y ? "below" : "above"
 }
 
-// その場に出すミニマップ: アイコンの並び layout があった所に、ポインタ at と反対の側へ広げて置く（layout.ts の mapPlace。大きさは描いてから測る）
-// 置いた枠を onPlaced で知らせる
-function PickerMap({
-  stage,
-  at,
-  layout,
-  onPlaced,
-}: {
-  stage: string
-  at: Point
-  layout: PickerLayout
-  onPlaced: (box: Rect) => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [place, setPlace] = useState<CSSProperties>({ visibility: "hidden" })
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const size = { w: el.offsetWidth, h: el.offsetHeight }
-    const p = mapPlace(layout, at, size, { w: window.innerWidth, h: window.innerHeight })
-    setPlace({ left: p.x, top: p.y })
-    onPlaced({ ...p, ...size })
-  }, [layout, at, onPlaced])
-  return (
-    <div ref={ref} className={styles.map} style={place} data-minimap="picker">
-      <MinimapView stage={stage} width={MAP_SIZE} height={MAP_SIZE}>
-        <ZoomBar stage={stage} />
-      </MinimapView>
-    </div>
-  )
+// 名前の位置（出す側の、アイコンの辺の真ん中から間を空けた所）
+function tipPlace(lay: Lay, slot: Point, at: Point) {
+  const g = 6
+  switch (tipSide(lay, slot, at)) {
+    case "right":
+      return { left: slot.x + ICON + g, top: slot.y + ICON / 2 }
+    case "left":
+      return { left: slot.x - g, top: slot.y + ICON / 2 }
+    case "below":
+      return { left: slot.x + ICON / 2, top: slot.y + ICON + g }
+    case "above":
+      return { left: slot.x + ICON / 2, top: slot.y - g }
+  }
 }

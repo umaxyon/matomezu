@@ -19,13 +19,27 @@ test("紙の上で右ボタンを長押しすると、ポインタの近くに�
   await expect(picker(page)).toBeVisible()
   await page.mouse.up({ button: "right" })
   await expect(page.getByRole("menu")).toHaveCount(0)
-  const buttons = picker(page).getByRole("button")
-  await expect(buttons).toHaveCount(4) // 道具 3 つとミニマップ
+  await expect(picker(page).locator(":scope > button")).toHaveCount(3) // 道具 3 つ（ミニマップのボタンは無い）
   await expect(picker(page).getByRole("button", { name: "選択ツール" })).toHaveAttribute("aria-pressed", "true")
   // 横並びでポインタの上。組の初めの道具（選択）が真ん中で、付け替え・ハンドが左右
   const middle = (await picker(page).getByRole("button", { name: "選択ツール" }).boundingBox())!
   expect(middle.y + middle.height).toBeLessThan(at.y)
   expect(Math.abs(middle.x + middle.width / 2 - at.x)).toBeLessThan(30)
+  // ミニマップは最初から、並びの上（ポインタと反対の側）に出ている
+  const map = (await picker(page).locator("[data-minimap=picker]").boundingBox())!
+  expect(map.y + map.height).toBeLessThan(middle.y)
+  // 乗った道具の名前は、アイコンとポインタの間に出る（ミニマップに重ならない）
+  await page.mouse.move(middle.x + middle.width / 2, middle.y + middle.height / 2)
+  const tip = picker(page).getByText("選択ツール", { exact: true })
+  await expect(tip).toBeVisible()
+  const icon = picker(page).getByRole("button", { name: "選択ツール" })
+  await expect
+    .poll(async () => {
+      const b = (await icon.boundingBox())!
+      return (await tip.boundingBox())!.y - (b.y + b.height)
+    })
+    .toBeGreaterThanOrEqual(0)
+  expect((await tip.boundingBox())!.y).toBeLessThan(at.y)
   await picker(page).getByRole("button", { name: "ハンドツール" }).click()
   await expect(picker(page)).toHaveCount(0)
   await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()

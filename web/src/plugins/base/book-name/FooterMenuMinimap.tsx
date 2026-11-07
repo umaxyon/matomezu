@@ -3,12 +3,10 @@
 import type { CSSProperties } from "react"
 import { paperOf } from "../../../core/stage"
 import { useMatomezuState } from "../../../ui/store-context"
+import { MINIMAP_SIZE as MAP } from "../minimap/geometry"
 import { MinimapView } from "../minimap/MinimapView"
 import { ZoomBar } from "../zoom/ZoomBar"
 import styles from "./FooterMenuMinimap.module.css"
-
-// ミニマップの絵の枠（px）。紙の形によらずこの大きさで、紙は縦長でも横長でもこの中に収めて真ん中に描く
-const MAP = { w: 156, h: 110 }
 
 export function FooterMenuMinimap({ stage }: { stage: string }) {
   const hasPaper = useMatomezuState(s => {

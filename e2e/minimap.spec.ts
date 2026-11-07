@@ -56,7 +56,7 @@ test("フッタメニューの拡大縮小で倍率が変わる", async ({ page 
   await expect(level).toHaveText("110%")
 })
 
-test("右ボタンの長押しのアイコンのミニマップを押すと、アイコンの代わりにその場にミニマップが出る。ドラッグで紙が動き、ミニマップから離れると閉じる", async ({
+test("右ボタンの長押しで、道具のアイコンと一緒にミニマップが出る。ドラッグで紙が動き、アイコンとミニマップから離れると閉じる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -67,11 +67,9 @@ test("右ボタンの長押しのアイコンのミニマップを押すと、�
   const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
   await expect(picker).toBeVisible()
   await page.mouse.up({ button: "right" })
-  await picker.getByRole("button", { name: "ミニマップ" }).click()
   await expect(page.locator("[data-minimap=picker]")).toBeVisible()
-  // 道具のアイコンは消え、ミニマップの下の拡大縮小の帯のボタンだけ
-  await expect(picker.getByRole("button")).toHaveText(["", "", "", ""])
-  await expect(picker.getByRole("button", { name: "ハンドツール" })).toHaveCount(0)
+  await expect(picker.getByRole("button", { name: "ハンドツール" })).toBeVisible()
+  await expect(picker.getByRole("button", { name: "ミニマップ" })).toHaveCount(0)
   const before = (await paper(page).boundingBox())!.y
   // ドラッグしている間は、ミニマップの外へ出ても閉じない
   const box = (await seen(page, "picker").boundingBox())!
@@ -99,7 +97,6 @@ test("右ボタンの長押しのミニマップの下の帯で拡大縮小す�
   const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
   await expect(picker).toBeVisible()
   await page.mouse.up({ button: "right" })
-  await picker.getByRole("button", { name: "ミニマップ" }).click()
   const map = page.locator("[data-minimap=picker]")
   const level = map.getByTitle("倍率")
   const width = async () => (await paper(page).boundingBox())!.width
