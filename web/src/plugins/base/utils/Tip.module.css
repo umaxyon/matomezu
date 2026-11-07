@@ -19,15 +19,19 @@
   color: var(--skin-text);
   font-size: 12px;
   line-height: 1.5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   visibility: hidden;
   pointer-events: none;
 }
 .tip:hover .bubble,
 .tip:has(:focus-visible) .bubble {
   visibility: visible;
+}
+/* 文字: 長い題は 1 行で省略する（尾をはみ出して描くので、省略は吹き出しでなく文字の箱で行う） */
+.text {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 /* 尾: 押す物の真下から上へ向く（地は吹き出しと同じで、縁は上の 2 辺だけ） */
 .bubble::before {

@@ -8,7 +8,7 @@ export function Tip({ text, children }: { text: string; children: ReactNode }) {
     <span className={styles.tip}>
       {children}
       <span className={styles.bubble} aria-hidden="true">
-        {text}
+        <span className={styles.text}>{text}</span>
       </span>
     </span>
   )
