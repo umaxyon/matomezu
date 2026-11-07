@@ -1,0 +1,44 @@
+/* 押す物を包む箱（乗せるか、キーボードで選ぶと吹き出しを出す） */
+.tip {
+  position: relative;
+  display: flex;
+}
+/* 吹き出し: 押す物の下に、右端をそろえて出す。流れの外なので押す物の大きさを変えず、ポインタも受けない */
+.bubble {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  max-width: 180px;
+  padding: 4px 8px;
+  border: 1px solid var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  visibility: hidden;
+  pointer-events: none;
+}
+.tip:hover .bubble,
+.tip:has(:focus-visible) .bubble {
+  visibility: visible;
+}
+/* 尾: 押す物の真下から上へ向く（地は吹き出しと同じで、縁は上の 2 辺だけ） */
+.bubble::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 9px;
+  width: 9px;
+  height: 9px;
+  border-top: 1px solid var(--skin-border);
+  border-left: 1px solid var(--skin-border);
+  background: var(--skin-bubble);
+  transform: rotate(45deg);
+}
