@@ -100,7 +100,7 @@ export const FLOWCHART = kit.defineBookType({
   },
   actions: { add: [kit.name("page-align")] }, // ほかに使うアクションは、選んだアイテム・見せ方・ページについて来る
   theme: "@matomezu/base:standard",
-  themeTypes: [DIAGRAM_THEMES], // 選べるテーマのテーマタイプ
+  themeTypes: [DIAGRAM_THEMES], // 使えるテーマのテーマタイプ
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: FLOWCHART_TOOLS.id,

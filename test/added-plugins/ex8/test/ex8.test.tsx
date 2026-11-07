@@ -1,7 +1,7 @@
 // ex8（自分の見せ方を持つ）で、見せ方のビューが開いたページのカードを描き、ページのフィールド cards を base の page-update で変えると描き直すのを確かめる
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { addPageIn, createBookIn } from "matomezu"
+import { addPageIn, createBookIn, themeFits, themesFor } from "matomezu"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
 import EX8_UI from "../ui"
 
@@ -33,4 +33,11 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
     ).toBe(true)
   })
   expect([...document.querySelectorAll("[data-ex8-card]")].map(c => c.textContent)).toEqual(["りんご", "みかん"])
+})
+
+test("自分で足したテーマタイプのテーマ（黒板）は、それを使う単語帳のブックでだけ使え、図面のブックでは使えない", () => {
+  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX8_UI], home: "@matomezu/master:master", lang: "ja" })
+  const catalog = instance.catalog.core
+  expect(themesFor(catalog, "ex8:deck").map(t => t.id)).toEqual(["@matomezu/base:standard", "ex8:chalk"])
+  expect(themeFits(catalog, "@matomezu/drawing:drawing", "ex8:chalk")).toBe(false)
 })

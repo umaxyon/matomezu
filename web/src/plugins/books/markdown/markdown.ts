@@ -41,7 +41,7 @@ export const MARKDOWN = kit.defineBookType({
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
-  themeTypes: [DOCUMENT_THEMES], // 選べるテーマのテーマタイプ
+  themeTypes: [DOCUMENT_THEMES], // 使えるテーマのテーマタイプ
   presentation: MARKDOWN_PRESENTATION.id,
   tokens: MARKDOWN_TOKENS, // 描いた文書の見た目（tokens.ts）
   settings: {

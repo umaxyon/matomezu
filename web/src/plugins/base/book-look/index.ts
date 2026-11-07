@@ -35,7 +35,7 @@ export function withBookSettings(
 }
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
-// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す。テーマは表にあるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
+// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す。テーマはブックのタイプが使えるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
   attach: { books: true },

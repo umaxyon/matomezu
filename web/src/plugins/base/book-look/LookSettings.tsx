@@ -1,5 +1,5 @@
 // テーマと紙の色の設定のコンポーネント（設定の項目 book-theme・book-paper-color のビュー）。
-// テーマはブックのタイプが選べるテーマから選ぶ（theme-types.ts。ブックのタイプの既定のテーマを選べば値を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）
+// テーマはブックのタイプが使えるテーマから選ぶ（theme-types.ts。ブックのタイプの既定のテーマを選べば値を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）
 import { useMemo } from "react"
 import { bookType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"

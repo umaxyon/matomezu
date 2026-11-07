@@ -84,7 +84,7 @@ export const TREE = kit.defineBookType({
   items: { allowed: [] },
   actions: {}, // 使うアクションは、見せ方・ページについて来る
   theme: "@matomezu/base:standard",
-  themeTypes: [DIAGRAM_THEMES], // 選べるテーマのテーマタイプ
+  themeTypes: [DIAGRAM_THEMES], // 使えるテーマのテーマタイプ
   presentation: TREE_PRESENTATION.id,
   tokens: [
     NODE_FILL,

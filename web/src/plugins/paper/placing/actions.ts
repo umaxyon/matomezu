@@ -91,7 +91,7 @@ function crowded(catalog: CoreCatalog, page: ItemPage, moved: readonly string[],
   return { declined: `it would move ${moved.join(", ")}${into}${spotText(spot)}` }
 }
 
-// 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定。テーマは表にあるものだけ）。
+// 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定。テーマはブックのタイプが使えるものだけ。base の book-look/theme-types.ts）。
 // w・h は大きさを変えられるアイテムの幅と高さ（無ければ、そのアイテムの定義が決める大きさ。データには決まった値を書く）
 // 紙の上にアイテムを置くアクションは、紙の見せ方のタイプについて来る
 const ON_PAPER = { presentations: [kit.name("paper")] }
@@ -119,7 +119,7 @@ export const ITEM_PLACE = kit.defineAction({
   aiDescription:
     "Place an item on a page with its top-left at at (in paper pixels). With parent (the id of a shape that can hold children), the item becomes the parent's last child and at is from the parent's top-left; it goes in the parent's child area below its caption and body (moved there if at is left of or above it), and the parent grows to hold its children. Without at, it goes in the first free spot of the parent (or of the page): a grid from the top-left, left to right, then down. w and h set the size of an item that can be resized; without them it takes its own default size (see its props). Coming within 8 pixels of another shape (shapes joined by some connectors keep further apart; see those connectors' actions) would move it: " +
     CROWD_AI +
-    " Pushed shapes go right, or else down, or else shrink as they are pushed; a parent that grows pushes the page's shapes the same way. It is refused if it does not fit on the paper (on a variable page, the papers it has plus a blank one each way it grows; see page-add). Returns the new item's id and its at. To see where shapes are drawn (their size as drawn), read_page. The items, their props and sizes, the themes and the colors are in actions.",
+    " Pushed shapes go right, or else down, or else shrink as they are pushed; a parent that grows pushes the page's shapes the same way. It is refused if it does not fit on the paper (on a variable page, the papers it has plus a blank one each way it grows; see page-add). Returns the new item's id and its at. To see where shapes are drawn (their size as drawn), read_page. The items, their props and sizes, the themes and the colors are in actions; a theme must be one its book type lists (bookTypes[].themes in actions).",
   title: "Place item",
   target: "book",
   args: z.strictObject({
@@ -282,7 +282,7 @@ export const ITEM_REPARENT = kit.defineAction({
 })
 
 // アイテムの項目を変える。props に書いた項目だけを変え、書かなかった項目はそのまま。null を書いた項目は消す（既定に戻す）。
-// 形に当てるテーマ（theme）は表にあるものだけ。形のキャプションが変わったら、20 字まで見える幅まで右へ広げ（base/place/items.ts の widenForCaption。狭めはしない）、
+// 形に当てるテーマ（theme）はブックのタイプが使えるものだけ。形のキャプションが変わったら、20 字まで見える幅まで右へ広げ（base/place/items.ts の widenForCaption。狭めはしない）、
 // 近づきすぎた相手を押す。押した相手が紙に収まらなければ、広げずに変える。項目の形に合わなければ断る
 export const ITEM_UPDATE = kit.defineAction({
   id: "item-update",

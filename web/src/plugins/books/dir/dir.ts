@@ -76,7 +76,7 @@ export const DIR = kit.defineBookType({
   items: { allowed: [] },
   actions: {}, // 使うアクションは、見せ方について来る
   theme: "@matomezu/base:standard",
-  themeTypes: [DIAGRAM_THEMES], // 選べるテーマのテーマタイプ
+  themeTypes: [DIAGRAM_THEMES], // 使えるテーマのテーマタイプ
   presentation: DIR_PRESENTATION.id,
   tokens: [
     FOLDER_COLOR,

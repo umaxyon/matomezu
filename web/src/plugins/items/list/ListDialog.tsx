@@ -159,7 +159,7 @@ function ListDialog({
   start: ListProps
   checked: boolean // チェックの入った行があるか（チェックリストを切るときに確かめる）
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
-  book: string | undefined // 開いているブックの id（選べるテーマを決める）
+  book: string | undefined // 開いているブックの id（使えるテーマを決める）
   bookTheme: string | undefined
   ready: boolean
   onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
@@ -182,7 +182,7 @@ function ListDialog({
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
   const [pick, setPick] = useState<number | "max">("max")
   const swatches = useSwatches(theme || bookTheme, LIST_FILL)
-  const themes = useBookThemes(book) // ブックのタイプが選べるテーマ
+  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
   const changed =
     captionAlign !== start.captionAlign ||
     theme !== (start.theme ?? "") ||

@@ -9,7 +9,7 @@ import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { themeFits, themesFor } from "./theme-types"
 
-// ブックのテーマ（テーマの id。変えるときはブックのタイプが選べるテーマのどれかで、残っていても選べなければ使わない。theme-types.ts）
+// ブックのテーマ（テーマの id。変えるときはブックのタイプが使えるテーマのどれかで、残っていても使えなければ使わない。theme-types.ts）
 export const BOOK_THEME = kit.defineSetting({
   id: "book-theme",
   title: "Theme",
@@ -27,7 +27,7 @@ export const BOOK_PAPER_COLOR = kit.defineSetting({
   schema: z.string().regex(HEX),
 })
 
-// ブックのテーマの id: ブックのテーマの項目（タイプが選べなければ使わない）か、ブックのタイプの既定のテーマ
+// ブックのテーマの id: ブックのテーマの項目（タイプが使えなければ使わない）か、ブックのタイプの既定のテーマ
 export function bookTheme(catalog: CoreCatalog, book: Book): string {
   const own = settingValue(catalog, book, null, BOOK_THEME)
   return own !== undefined && themeFits(catalog, book.type, own) ? own : bookType(catalog, book.type).theme

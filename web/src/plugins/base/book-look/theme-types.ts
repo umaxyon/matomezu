@@ -1,8 +1,8 @@
 // テーマタイプ: テーマがどのブックのタイプ向けか（図・文書など）。テーマは向くテーマタイプを書き（どのタイプにも向くテーマは "all"）、ブックのタイプは使うテーマタイプを書く。
-// タイプのブックと、その中の形に選べるテーマは、"all" のテーマと、テーマタイプが 1 つでも重なるテーマ（themesFor）。選べないテーマは選ばせず（ダイアログ）、アクションは断り、
+// タイプのブックと、その中の形に使えるテーマは、"all" のテーマと、テーマタイプが 1 つでも重なるテーマ（themesFor）。使えないテーマは選ばせず（ダイアログ）、アクションは断り、
 // データに残っていても使わない（表に無いテーマと同じく、タイプの既定のテーマかブックのテーマで描く。データは消さない）
 
-import type { ThemeType } from "../../../core/catalog"
+import type { ThemeTypeTable } from "../../../core/catalog"
 import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
 import type { ThemeDef } from "../../../core/def/theme"
 import { problem } from "../../../core/errors"
@@ -21,6 +21,8 @@ declare module "../../../core/catalog" {
   }
 }
 
+export type ThemeType = keyof ThemeTypeTable & string
+
 export const DIAGRAM_THEMES = kit.name("diagram") satisfies ThemeType
 export const DOCUMENT_THEMES = kit.name("document") satisfies ThemeType
 
@@ -28,7 +30,7 @@ export const DOCUMENT_THEMES = kit.name("document") satisfies ThemeType
 const fits = (theme: ThemeDef, types: readonly string[]) =>
   theme.types === "all" || (Array.isArray(theme.types) && theme.types.some(t => types.includes(t)))
 
-// ブックのタイプ type のブックと、その中の形に選べるテーマ（機能台帳の順。表に無いタイプなら "all" のテーマだけ）
+// ブックのタイプ type のブックと、その中の形に使えるテーマ（機能台帳の順。表に無いタイプなら "all" のテーマだけ）
 export function themesFor(catalog: CoreCatalog, type: string): ThemeDef[] {
   const types = catalog.bookTypes.get(type)?.themeTypes ?? []
   return [...catalog.themes.values()].filter(t => fits(t, types))
@@ -42,7 +44,7 @@ export function themeFits(catalog: CoreCatalog, type: string, theme: string): bo
 
 const isTypes = (v: unknown): v is readonly string[] => Array.isArray(v) && v.every(t => typeof t === "string")
 
-// テーマとブックのタイプがテーマタイプを書いているか（E040。型の無い書き方の追加プラグイン向け）と、タイプの既定のテーマが選べるか（E039）。組み立てのときの確かめ
+// テーマとブックのタイプがテーマタイプを書いているか（E040。型の無い書き方の追加プラグイン向け）と、タイプの既定のテーマが使えるか（E039）。組み立てのときの確かめ
 export const THEME_TYPES_CHECK: CatalogCheck = catalog => [
   ...[...catalog.themes.values()].flatMap(t =>
     t.types === "all" || isTypes(t.types)

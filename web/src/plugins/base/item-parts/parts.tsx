@@ -1,4 +1,4 @@
-// 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（開いているブック・ブックのテーマ・選べるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
+// 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（開いているブック・ブックのテーマ・使えるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
 // 形に当てたテーマの値を CSS 変数にするフック
 import { useMemo } from "react"
 import { PALETTE } from "../../../core/color"
@@ -39,7 +39,7 @@ export function useAligns() {
 export const useBookOf = (stage: string) =>
   useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
 
-// ブック book（id）のタイプが、ブックと中の形に選べるテーマ（book-look/theme-types.ts。ブックが無ければ空）
+// ブック book（id）のタイプが、ブックと中の形に使えるテーマ（book-look/theme-types.ts。ブックが無ければ空）
 export function useBookThemes(book: string | undefined): ThemeDef[] {
   const catalog = useCatalog().core
   const type = useMatomezuState(s => (book ? s.books[book]?.type : undefined))
@@ -75,7 +75,7 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
 }
 
 // ステージ stage で開いているブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
-// （当てていないか、ブックのタイプが選べないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
+// （当てていないか、ブックのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
 export function useThemeVars(stage: string, theme: string | undefined, defs: readonly TokenDef[]) {
   const catalog = useCatalog().core
   const type = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.type)

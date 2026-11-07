@@ -12,7 +12,7 @@ const THEME = "@matomezu/base:book-theme"
 const PAPER = "@matomezu/base:book-paper-color"
 const look = (settings: Record<string, unknown>) => ({ settings })
 
-test("ブックのテーマと紙の色は base の設定の項目で、@matomezu/base:book-update の settings で変える。渡さない項目はそのまま、null で消す。表に無いテーマ・タイプが選べないテーマ・色の値でないものは断る", () => {
+test("ブックのテーマと紙の色は base の設定の項目で、@matomezu/base:book-update の settings で変える。渡さない項目はそのまま、null で消す。表に無いテーマ・タイプが使えないテーマ・色の値でないものは断る", () => {
   const store = newStore()
   expect(update(store, look({ [THEME]: "@matomezu/base:sticky", [PAPER]: "#FEFCE8" })).ok).toBe(true)
   expect(book(store).settings).toEqual({ [THEME]: "@matomezu/base:sticky", [PAPER]: "#fefce8" })
@@ -39,7 +39,7 @@ test("ブックのテーマは、テーマの項目（無いか、表に無い�
   update(store, look({ [PAPER]: "#0f172a" }))
   expect(bookTokens(catalog, book(store)).paper).toEqual({ light: "#0f172a", dark: "#0f172a" })
   expect(bookTheme(catalog, { ...book(store), settings: { [THEME]: "nope" } })).toBe("@matomezu/base:standard")
-  // データに残った、タイプが選べないテーマも使わない（データは消さない）
+  // データに残った、タイプが使えないテーマも使わない（データは消さない）
   const doc = { ...book(store), settings: { [THEME]: "@matomezu/markdown:github-like" } }
   expect(bookTheme(catalog, doc)).toBe("@matomezu/base:standard")
 })
