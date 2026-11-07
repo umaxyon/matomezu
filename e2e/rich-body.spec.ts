@@ -120,6 +120,5 @@ test("設定画面の「全体」で文字の色を自分用に変えると、�
   await picker.getByLabel("色の値（#rrggbb）").press("Enter")
   await page.keyboard.press("Escape")
   await settingsDialog(page).getByRole("button", { name: "閉じる" }).click()
-  await page.goBack()
   await expect(span).toHaveCSS("color", "rgb(124, 58, 237)")
 })

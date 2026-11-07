@@ -1,4 +1,4 @@
-// マスターのブックのビュー: ブックの一覧と、利用者の設定
+// マスターのブックのビュー: タイトルだけの画面
 import type { BookViewDef } from "../../../../plugin-api/ui"
 import { MasterView } from "./MasterView"
 

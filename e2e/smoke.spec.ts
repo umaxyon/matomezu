@@ -203,15 +203,16 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   expect(bar.x).toBeLessThan(stage.x + 180)
 })
 
-test("マスターで新しいブックを作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({ page }) => {
+test("右のステージの新しいブックで作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({ page }) => {
   await page.goto("/")
-  await (await fromMenu(page, "ホーム")).click()
-  await page.getByRole("button", { name: "新しいブック" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
+  await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
   await expect(dialog.getByRole("button", { name: "作成" })).toBeDisabled()
   await page.keyboard.type("新しい図")
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()
+  await page.getByRole("button", { name: "ステージを閉じる" }).first().click()
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "新しい図")
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(0)
   await page.getByRole("button", { name: "ページを作る" }).click()
