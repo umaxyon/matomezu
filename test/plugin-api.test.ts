@@ -387,6 +387,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "setEditing",
     "setPreviewArea",
     "setStageArea",
+    "setStageStart",
     "setTool",
     "showPickerMap",
     "showToast",

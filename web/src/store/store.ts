@@ -2,7 +2,7 @@
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
 
 import { createStore, type StoreApi } from "zustand/vanilla"
-import { type Address, addressOf, placeAt } from "../core/address"
+import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { checkBooks, hasPages, singleBooks } from "../core/book"
 import type { ActionId, DialogId, ItemId, MessageKey, SingleBookTypeId, SkinId, ToolId } from "../core/catalog"
@@ -42,6 +42,7 @@ import {
   setArea,
   setEditing,
   setPreviewArea,
+  setStart,
   showPickerMap,
   stopPlacing,
   zoomTo,
@@ -163,10 +164,12 @@ export interface Actions {
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
   setStageArea(id: string, area: Size | null, origin?: Point | null): void
+  // 初めの位置で表示領域の左上に置く紙の点（中身の載った印刷区画の左上。開いたばかりなら、そこへ合わせる）
+  setStageStart(id: string, start: Point): void
   panStageBy(id: string, dx: number, dy: number): void
   // そのステージの倍率を zoom にする（表示領域の中の点 at、無ければ真ん中の下の紙の点は動かさない）
   zoomStage(id: string, zoom: number, at?: Point): void
-  resetStageView(id: string): void // そのステージを、開いたときの見え方（倍率 1・最初の位置）に戻す
+  resetStageView(id: string): void // そのステージを、開いたときの見え方（倍率 1・初めの位置）に戻す
   // そのステージで印刷プレビューを開く・閉じる（閉じたら開く前の倍率とずらす量に戻す）
   openPrintPreview(id: string): void
   closePrintPreview(id: string): void
@@ -625,6 +628,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     setStageArea: (id, area, origin) => withWorkspace(ws => mapStage(ws, id, s => setArea(s, area, origin))),
+    setStageStart: (id, start) => withWorkspace(ws => mapStage(ws, id, s => setStart(s, start))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
     zoomStage: (id, zoom, at) => withWorkspace(ws => mapStage(ws, id, s => zoomTo(s, zoom, at))),
     resetStageView: id => withWorkspace(ws => mapStage(ws, id, resetView)),
@@ -735,8 +739,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     locate: address => {
       const now = getState()
-      if (sameData(addressOf(now.workspace), address)) return
-      const workspace = placeAt(catalog, now.books, now.workspace, address)
+      const workspace = sameData(addressOf(now.workspace), address)
+        ? keepPlace(now.workspace)
+        : placeAt(catalog, now.books, now.workspace, address)
       if (workspace !== now.workspace) commit({ workspace })
     },
     setStageState,
