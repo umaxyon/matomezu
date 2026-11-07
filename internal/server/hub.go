@@ -87,12 +87,12 @@ type Hub struct {
 	mailWarnings []string
 	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
 	windowWarnings map[string][]string
-	touched        map[string]string     // ブックの id → 触れた時刻（touched.go）
-	performed      map[string]Performed  // 最近行ったアクションの番号（Perform の Key）→ その結果
-	performedOrder []string              // performed の番号を行った順に（古いものから忘れる）
-	acts           int64                 // 行ったアクションの数（book の知らせの act の後ろ。1 回の Perform が変えたブックに同じ印を付ける）
-	actPrefix      string                // book の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
-	aiEditTickets      map[string][]AIEditTicket // ブックの id → AI 編集チケット（ai_edit_tickets.go。1 つも無いブックは持たない）
+	touched        map[string]string         // ブックの id → 触れた時刻（touched.go）
+	performed      map[string]Performed      // 最近行ったアクションの番号（Perform の Key）→ その結果
+	performedOrder []string                  // performed の番号を行った順に（古いものから忘れる）
+	acts           int64                     // 行ったアクションの数（book の知らせの act の後ろ。1 回の Perform が変えたブックに同じ印を付ける）
+	actPrefix      string                    // book の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
+	aiEditTickets  map[string][]AIEditTicket // ブックの id → AI 編集チケット（ai_edit_tickets.go。1 つも無いブックは持たない）
 }
 
 // NewHub は置き場所から世界を読む
