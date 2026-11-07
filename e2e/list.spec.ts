@@ -418,3 +418,28 @@ test("行を押すと行だけを選び（行に選択枠）、見出しを押�
   await expect(list).toHaveAttribute("data-selected", "true")
   await expect(box).toHaveAttribute("data-selected", "true")
 })
+
+test("行の並びと下辺の間に余白があり、そこを押すとリストが選ばれて、そのまま下のつまみで広げられる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const list = await addList(page, "買い物")
+  for (const caption of ["牛乳", "卵", "パン", "米", "茶"]) await addRow(page, list, caption)
+  const zoom = await zoomOf(page)
+  await page.mouse.click(0, 0)
+  await expect(list).toHaveAttribute("data-selected", "false")
+  const box = (await list.boundingBox())!
+  // 並びは下辺の手前で終わる（余白が 2px 以上ある）
+  const pane = (await list.locator("ul").locator("..").boundingBox())!
+  expect((box.y + box.height - (pane.y + pane.height)) / zoom).toBeGreaterThan(2)
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height - 3 * zoom)
+  await expect(list).toHaveAttribute("data-selected", "true")
+  const grip = (await list.locator('[data-grip="bottom"]').boundingBox())!
+  const x = grip.x + grip.width / 2
+  const y = grip.y + grip.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x, y + 60 * zoom, { steps: 5 })
+  await page.mouse.up()
+  await expect.poll(async () => (await list.boundingBox())!.height).toBeGreaterThan(box.height + 40 * zoom)
+})

@@ -65,6 +65,7 @@
   min-height: 0;
   overflow-x: hidden; /* 本文が行の右の余白より大きくはみ出しても、横にはスクロールさせない */
   overflow-y: auto;
+  margin-bottom: 4px; /* 下辺との間の余白（size.ts の LIST_LOOK.bottom） */
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent;
 }

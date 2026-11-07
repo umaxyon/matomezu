@@ -30,14 +30,15 @@ export const LIST_LOOK = {
   check: 14, // チェックの印の大きさ
   checkGap: 8, // チェックの印と行の文字の間
   add: 32, // 「＋」の行の高さ（上下 4px の空きと、24px のボタン）
+  bottom: 4, // 行の並びと下辺の間の余白（押すとリストが選ばれ、下のつまみで広げられる）
 } as const
 
 const L = LIST_LOOK
 const HEAD = 2 * L.padY + L.line + 1 // 見出し（キャプション 1 行）と、その下の線
 const EMPTY_ROW = 2 * L.rowPadY + L.line // 本文を出さない行のカード（キャプション 1 行）
 
-export const LIST_SIZE: Size = { w: 240, h: 2 * L.border + HEAD + L.inset + 3 * (EMPTY_ROW + L.gap) + L.add } // 置いたときの幅の下限と、置いたときの高さ（行 3 つぶんの空き）
-export const LIST_MIN: Size = { w: 64, h: 2 * L.border + HEAD + L.inset + L.add } // 一番狭い幅と、一番低い高さ（見出しと「＋」の行）
+export const LIST_SIZE: Size = { w: 240, h: 2 * L.border + HEAD + L.inset + 3 * (EMPTY_ROW + L.gap) + L.add + L.bottom } // 置いたときの幅の下限と、置いたときの高さ（行 3 つぶんの空き）
+export const LIST_MIN: Size = { w: 64, h: 2 * L.border + HEAD + L.inset + L.add + L.bottom } // 一番狭い幅と、一番低い高さ（見出しと「＋」の行）
 
 export interface RowLayout {
   lines: number // 本文を見せる行数
