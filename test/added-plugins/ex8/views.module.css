@@ -13,6 +13,9 @@
   padding: 16px 24px;
   color: var(--theme-text);
 }
+.card[data-picked="true"] {
+  border-color: var(--theme-accent);
+}
 /* 見せ方のビュー: 紙を置かないので、描く広さとスクロールを自分で持つ */
 .deck {
   height: 100%;

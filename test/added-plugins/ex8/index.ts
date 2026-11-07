@@ -1,9 +1,12 @@
-// ex8: 自分の見せ方（definePresentation）と、自分のテーマタイプ（単語帳）とそのテーマ（黒板）を持つ追加プラグイン。見せ方のビューと、印刷プレビューで印刷区画 1 つを描くビュー（printSheet）を結ぶ（ui.tsx）
+// ex8: 自分の見せ方（definePresentation）と、自分のテーマタイプ（単語帳）とそのテーマ（黒板）を持つ追加プラグイン。見せ方のビューと、印刷プレビューで印刷区画 1 つを描くビュー（printSheet）を結ぶ（ui.tsx）。
+// ビューの並べ方（ステージごとの画面の状態）のうち一部を画面の場所に入れ、読み直しても戻す（placedState）
 import { definePlugin } from "matomezu"
-import { CARDS, CHALK, DECK } from "./deck"
+import { CARDS, CHALK, DECK, DECK_PLACED } from "./deck"
 import { kit } from "./kit"
 
-export const EX8 = definePlugin(kit.plugin({ bookTypes: [DECK], presentations: [CARDS], themes: [CHALK] }))
+export const EX8 = definePlugin(
+  kit.plugin({ bookTypes: [DECK], presentations: [CARDS], themes: [CHALK], placedState: DECK_PLACED }),
+)
 
 export default EX8
 

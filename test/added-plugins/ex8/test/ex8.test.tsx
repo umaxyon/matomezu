@@ -21,7 +21,7 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
   act(() => {
     expect(addPageIn(instance, "s1", { title: "1" })).toBe(true)
   })
-  expect(document.querySelector("[data-ex8-deck]")?.textContent).toBe("カードがありません")
+  expect(document.querySelector("[data-ex8-deck] p")?.textContent).toBe("カードがありません")
   const page = (instance.state.getState().books[book] as unknown as { pages: { id: string }[] }).pages[0]!.id
   act(() => {
     expect(
@@ -40,4 +40,40 @@ test("自分で足したテーマタイプのテーマ（黒板）は、それ�
   const catalog = instance.catalog.core
   expect(themesFor(catalog, "ex8:deck").map(t => t.id)).toEqual(["@matomezu/base:standard", "ex8:chalk"])
   expect(themeFits(catalog, "@matomezu/drawing:drawing", "ex8:chalk")).toBe(false)
+})
+
+test("カードの並べ方は画面の場所に入り（読み直しても戻る）、押して選んだカードは入らない", () => {
+  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX8_UI], home: "@matomezu/master:master", lang: "ja" })
+  render(
+    <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
+      <Screen />
+    </MatomezuProvider>,
+  )
+  act(() => {
+    createBookIn(instance, "s1", { title: "単語帳", type: "ex8:deck" })
+    addPageIn(instance, "s1", { title: "1" })
+  })
+  const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const page = (instance.state.getState().books[book] as unknown as { pages: { id: string }[] }).pages[0]!.id
+  act(() => {
+    instance.actions.perform(
+      "@matomezu/base:page-update",
+      { page, fields: { cards: ["みかん", "りんご", "いちご"] } },
+      { book },
+    )
+  })
+  const words = () => [...document.querySelectorAll("[data-ex8-card]")].map(c => c.textContent)
+  act(() => (document.querySelector("[data-ex8-deck] button") as HTMLButtonElement).click())
+  expect(words()).toEqual(["いちご", "みかん", "りんご"])
+  act(() => {
+    document.querySelectorAll("[data-ex8-card]")[1]!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
+  })
+  const placed = instance.address()
+  expect(placed.stages[0]!.states).toEqual({ ex8: "sorted" })
+  // 並べ方の無い場所を当てはめると書いた順に戻り、選んだカードはそのまま
+  act(() => instance.locate({ ...placed, stages: [{ ...placed.stages[0]!, states: {} }] }))
+  expect(words()).toEqual(["みかん", "りんご", "いちご"])
+  expect(document.querySelectorAll("[data-ex8-card]")[1]!.getAttribute("data-picked")).toBe("true")
+  act(() => instance.locate(placed))
+  expect(words()).toEqual(["いちご", "みかん", "りんご"])
 })
