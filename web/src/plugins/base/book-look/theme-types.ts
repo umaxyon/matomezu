@@ -14,7 +14,7 @@ declare module "../../../core/catalog" {
     "@matomezu/base:document": true // 文書（マークダウンなど、文を書くブック）
   }
   interface ThemeExtras {
-    types: "all" | readonly ThemeType[] // 向くテーマタイプ（"all" はどのタイプにも向く）
+    themeTypes: "all" | readonly ThemeType[] // 向くテーマタイプ（"all" はどのタイプにも向く）
   }
   interface BookTypeExtras {
     themeTypes: readonly ThemeType[] // 使うテーマタイプ（空なら "all" のテーマだけ）
@@ -23,12 +23,12 @@ declare module "../../../core/catalog" {
 
 export type ThemeType = keyof ThemeTypeTable & string
 
-export const DIAGRAM_THEMES = kit.name("diagram") satisfies ThemeType
-export const DOCUMENT_THEMES = kit.name("document") satisfies ThemeType
+export const DIAGRAM_THEME_TYPE = kit.name("diagram") satisfies ThemeType
+export const DOCUMENT_THEME_TYPE = kit.name("document") satisfies ThemeType
 
 // テーマ theme が、テーマタイプ types を使うタイプに向くか
 const fits = (theme: ThemeDef, types: readonly string[]) =>
-  theme.types === "all" || (Array.isArray(theme.types) && theme.types.some(t => types.includes(t)))
+  theme.themeTypes === "all" || (Array.isArray(theme.themeTypes) && theme.themeTypes.some(t => types.includes(t)))
 
 // ブックのタイプ type のブックと、その中の形に使えるテーマ（機能台帳の順。表に無いタイプなら "all" のテーマだけ）
 export function themesFor(catalog: CoreCatalog, type: string): ThemeDef[] {
@@ -47,7 +47,7 @@ const isTypes = (v: unknown): v is readonly string[] => Array.isArray(v) && v.ev
 // テーマとブックのタイプがテーマタイプを書いているか（E040。型の無い書き方の追加プラグイン向け）と、タイプの既定のテーマが使えるか（E039）。組み立てのときの確かめ
 export const THEME_TYPES_CHECK: CatalogCheck = catalog => [
   ...[...catalog.themes.values()].flatMap(t =>
-    t.types === "all" || isTypes(t.types)
+    t.themeTypes === "all" || isTypes(t.themeTypes)
       ? []
       : [problem("E040", { kind: "theme", id: t.id, expected: '"all" or a list of theme type ids' })],
   ),

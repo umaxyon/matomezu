@@ -31,7 +31,7 @@ test("テーマが上書きするテーマキーは、: が無ければ自分の
   const theme = kit.defineTheme({
     id: "night",
     title: "Star",
-    types: "all",
+    themeTypes: "all",
     base: {} as never,
     palette: {} as never,
     tokens: { "star-fill": "#ffd34d", "@matomezu/box:box-fill": "#000000" },

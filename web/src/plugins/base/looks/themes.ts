@@ -1,4 +1,4 @@
-import { DIAGRAM_THEMES } from "../book-look/theme-types"
+import { DIAGRAM_THEME_TYPE } from "../book-look/theme-types"
 import { kit } from "../kit"
 // 標準のテーマの組の付箋紙とシンプル。ブックにも箱 1 つにも当てられる（箱に当てたときは、箱のテーマキーだけが効く）。
 // アイテムのテーマキー（箱・リスト・線など）も上書きする（インスタンスに無いアイテムのテーマキーは使われない）
@@ -7,7 +7,7 @@ import { kit } from "../kit"
 export const STICKY = kit.defineTheme({
   id: "sticky",
   title: "Sticky notes",
-  types: [DIAGRAM_THEMES],
+  themeTypes: [DIAGRAM_THEME_TYPE],
   base: {
     surface: "#e9e4d8",
     paper: "#f4efe4",
@@ -63,7 +63,7 @@ export const STICKY = kit.defineTheme({
 export const SIMPLE = kit.defineTheme({
   id: "simple",
   title: "Simple",
-  types: [DIAGRAM_THEMES],
+  themeTypes: [DIAGRAM_THEME_TYPE],
   base: {
     surface: "#f2f2f2",
     paper: "#ffffff",

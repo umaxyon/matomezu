@@ -7,7 +7,7 @@ import {
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
-  DIAGRAM_THEMES,
+  DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
 } from "../../base"
@@ -84,7 +84,7 @@ export const TREE = kit.defineBookType({
   items: { allowed: [] },
   actions: {}, // 使うアクションは、見せ方・ページについて来る
   theme: "@matomezu/base:standard",
-  themeTypes: [DIAGRAM_THEMES], // 使えるテーマのテーマタイプ
+  themeTypes: [DIAGRAM_THEME_TYPE], // 使えるテーマのテーマタイプ
   presentation: TREE_PRESENTATION.id,
   tokens: [
     NODE_FILL,

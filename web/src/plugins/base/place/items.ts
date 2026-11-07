@@ -217,7 +217,7 @@ export function widenForCaption(
 }
 
 // 形の個別のテーマ（定義の themeProp が名指す項目）を、ブックのタイプ type のブックで使えるか（book-look/theme-types.ts。themeProp の無い形と、値が無いときは true）
-export function knownTheme(catalog: CoreCatalog, type: string, item: PlacedShape): boolean {
+export function shapeThemeFits(catalog: CoreCatalog, type: string, item: { item: string; props: object }): boolean {
   const prop = shapeDefOf(catalog, item.item)?.themeProp
   if (prop === undefined) return true
   const theme = (item.props as Record<string, unknown>)[prop]

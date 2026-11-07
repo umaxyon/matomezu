@@ -117,7 +117,12 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
     const done = perform("@matomezu/paper:item-update", {
       page: args.page,
       item: args.item,
-      props: { ...props, theme: props.theme ?? null, color: props.color ?? null },
+      props: {
+        ...props,
+        // テーマは変えたときだけ送る（使えないテーマが残っていても、ほかの項目は直せる）
+        ...(props.theme === found.props.theme ? {} : { theme: props.theme ?? null }),
+        color: props.color ?? null,
+      },
     })
     if (done.ok && rowLines !== undefined && rows.length > 0)
       perform(ROW_LINES.id, { page: args.page, list: args.item, lines: rowLines })
@@ -171,7 +176,10 @@ function ListDialog({
   const catalog = useCoreCatalog()
   const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
   const { caption, captionAlign } = head
-  const [theme, setTheme] = useState(start.theme ?? "")
+  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
+  // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
+  const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
+  const [theme, setTheme] = useState(startTheme)
   const [color, setColor] = useState(start.color)
   const [checklist, setChecklist] = useState(start.checklist)
   const [zebra, setZebra] = useState(start.zebra)
@@ -182,10 +190,9 @@ function ListDialog({
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
   const [pick, setPick] = useState<number | "max">("max")
   const swatches = useSwatches(theme || bookTheme, LIST_FILL)
-  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
   const changed =
     captionAlign !== start.captionAlign ||
-    theme !== (start.theme ?? "") ||
+    theme !== startTheme ||
     color !== start.color ||
     checklist !== start.checklist ||
     zebra !== start.zebra ||
@@ -240,7 +247,7 @@ function ListDialog({
               zebra,
               checkedGray,
               checkedOrder,
-              ...(theme ? { theme } : {}),
+              ...(theme === startTheme ? (start.theme ? { theme: start.theme } : {}) : theme ? { theme } : {}),
               ...(color ? { color } : {}),
             },
             rowLines,

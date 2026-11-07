@@ -1,4 +1,4 @@
-import { DIAGRAM_THEMES } from "../book-look/theme-types"
+import { DIAGRAM_THEME_TYPE } from "../book-look/theme-types"
 import { kit } from "../kit"
 import { TEXT_ERROR, TEXT_INFO, TEXT_SUCCESS, TEXT_WARN } from "../text/colors"
 import { DARK } from "./dark"
@@ -23,7 +23,7 @@ const CREAM_LINE = "#e3dbd2"
 export const MATOMEZU_THEME = kit.defineTheme({
   id: "matomezu",
   title: "matomezu",
-  types: [DIAGRAM_THEMES],
+  themeTypes: [DIAGRAM_THEME_TYPE],
   base: {
     surface: CREAM,
     paper: "#ffffff",

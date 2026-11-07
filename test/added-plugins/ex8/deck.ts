@@ -10,7 +10,7 @@ export const CARD_THEMES = kit.name("cards")
 export const CHALK = kit.defineTheme({
   id: "chalk",
   title: "chalk",
-  types: [CARD_THEMES],
+  themeTypes: [CARD_THEMES],
   base: {
     surface: "#1f3b2d",
     paper: "#2b4c3a",

@@ -39,7 +39,7 @@ export const GRID = kit.defineSetting({
 export const MINT = kit.defineTheme({
   id: "mint",
   title: "mint",
-  types: ["@matomezu/base:diagram"],
+  themeTypes: ["@matomezu/base:diagram"],
   base: {
     surface: "#eef7f3",
     paper: "#fbfffd",

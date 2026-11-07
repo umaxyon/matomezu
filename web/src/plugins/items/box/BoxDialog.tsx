@@ -107,7 +107,13 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
     const done = perform("@matomezu/paper:item-update", {
       page: args.page,
       item: args.item,
-      props: { ...props, vAlign: props.vAlign ?? null, theme: props.theme ?? null, color: props.color ?? null },
+      props: {
+        ...props,
+        vAlign: props.vAlign ?? null,
+        // テーマは変えたときだけ送る（使えないテーマが残っていても、ほかの項目は直せる）
+        ...(props.theme === start.theme ? {} : { theme: props.theme ?? null }),
+        color: props.color ?? null,
+      },
     })
     if (done.ok) onClose()
     return done.ok ? null : done
@@ -165,19 +171,21 @@ function BoxDialog({
   })
   const { body, captionAlign, bodyAlign } = text
   const [vAlign, setVAlign] = useState(start.vAlign)
-  const [theme, setTheme] = useState(start.theme ?? "")
+  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
+  // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
+  const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
+  const [theme, setTheme] = useState(startTheme)
   const [color, setColor] = useState(start.color)
   const catalog = useCoreCatalog()
   // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
   const looks = theme || bookTheme
   const swatches = useSwatches(looks, BOX_FILL)
-  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
   const changed =
     body !== start.body ||
     captionAlign !== start.captionAlign ||
     bodyAlign !== start.bodyAlign ||
     vAlign !== start.vAlign ||
-    theme !== (start.theme ?? "") ||
+    theme !== startTheme ||
     color !== start.color
   useEffect(() => {
     onPreview?.(changed ? { body, captionAlign, bodyAlign, vAlign, theme: theme || undefined, color } : null)
@@ -209,7 +217,7 @@ function BoxDialog({
           const no = onSubmit({
             ...text,
             ...(vAlign ? { vAlign } : {}),
-            ...(theme ? { theme } : {}),
+            ...(theme === startTheme ? (start.theme ? { theme: start.theme } : {}) : theme ? { theme } : {}),
             ...(color ? { color } : {}),
           })
           setRefused(

@@ -53,7 +53,7 @@ test("タイプの既定のテーマが、そのタイプの使えるテーマ�
       p.id === "@matomezu/markdown"
         ? {
             ...p,
-            themes: (p.themes ?? []).map(t => ({ ...t, types: undefined as never })),
+            themes: (p.themes ?? []).map(t => ({ ...t, themeTypes: undefined as never })),
             bookTypes: (p.bookTypes ?? []).map(t => ({ ...t, themeTypes: undefined as never })),
           }
         : p,

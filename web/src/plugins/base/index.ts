@@ -79,7 +79,7 @@ import { CORNER_STATUS_ORDER } from "./utils/corner-order"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
-export { DIAGRAM_THEMES, DOCUMENT_THEMES, themeFits, themesFor } from "./book-look/theme-types"
+export { DIAGRAM_THEME_TYPE, DOCUMENT_THEME_TYPE, themeFits, themesFor } from "./book-look/theme-types"
 export { createBookIn } from "./book-new/create-book"
 export type { PageContext, SettingReader } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
@@ -129,7 +129,6 @@ export {
   growOf,
   itemSize,
   keepApart,
-  knownTheme,
   minSize,
   nextItemId,
   paperSize,
@@ -140,6 +139,7 @@ export {
   replaceShapePushing,
   resizedBy,
   roomOf,
+  shapeThemeFits,
   shownRects,
   unpinPage,
   widenForCaption,

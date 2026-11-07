@@ -1,6 +1,6 @@
 // GitHub 風のテーマ: GitHub の Markdown の見た目に似せた、文章向けのテーマ（似せた見た目の名前で、GitHub の物でも提携でもない。ロゴは使わない）。
 // 明るい白の地と暗い地の両方を持つ。マークダウンのテーマキーで、字の大きさ・見出し・表・コード・リンクの見た目を寄せる
-import { DOCUMENT_THEMES } from "../../base"
+import { DOCUMENT_THEME_TYPE } from "../../base"
 import { kit } from "./kit"
 
 const md = (name: string) => kit.name(`markdown-${name}`)
@@ -8,7 +8,7 @@ const md = (name: string) => kit.name(`markdown-${name}`)
 export const GITHUB_LIKE = kit.defineTheme({
   id: "github-like",
   title: "GitHub-like",
-  types: [DOCUMENT_THEMES],
+  themeTypes: [DOCUMENT_THEME_TYPE],
   base: {
     surface: { light: "#f6f8fa", dark: "#010409" },
     paper: { light: "#ffffff", dark: "#0d1117" },

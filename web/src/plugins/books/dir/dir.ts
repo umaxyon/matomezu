@@ -6,7 +6,7 @@ import {
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
-  DIAGRAM_THEMES,
+  DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
 } from "../../base"
@@ -76,7 +76,7 @@ export const DIR = kit.defineBookType({
   items: { allowed: [] },
   actions: {}, // 使うアクションは、見せ方について来る
   theme: "@matomezu/base:standard",
-  themeTypes: [DIAGRAM_THEMES], // 使えるテーマのテーマタイプ
+  themeTypes: [DIAGRAM_THEME_TYPE], // 使えるテーマのテーマタイプ
   presentation: DIR_PRESENTATION.id,
   tokens: [
     FOLDER_COLOR,

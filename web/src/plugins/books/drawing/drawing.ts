@@ -4,7 +4,7 @@ import {
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
-  DIAGRAM_THEMES,
+  DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
 } from "../../base"
@@ -56,7 +56,7 @@ export const DRAWING = kit.defineBookType({
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
 
   theme: "@matomezu/base:standard",
-  themeTypes: [DIAGRAM_THEMES], // 使えるテーマのテーマタイプ
+  themeTypes: [DIAGRAM_THEME_TYPE], // 使えるテーマのテーマタイプ
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",

@@ -4,7 +4,7 @@ import { kit } from "../kit"
 export const STANDARD = kit.defineTheme({
   id: "standard",
   title: "Standard",
-  types: "all", // どのブックのタイプにも向く
+  themeTypes: "all", // どのブックのタイプにも向く
   base: {
     surface: "#f6f6f8",
     paper: "#ffffff",
