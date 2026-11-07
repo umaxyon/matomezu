@@ -28,7 +28,7 @@ export function DataItemView({
   id,
 }: ItemViewProps<DataProps, { readonly table?: Table }>) {
   const t = useMessages(kit)
-  const vars = useThemeVars(props.theme, DATA_TOKENS)
+  const vars = useThemeVars(stage, props.theme, DATA_TOKENS)
   const at = useStage(stage)
   const page = at?.opened?.page ?? undefined
   const perform = usePerform(stage)

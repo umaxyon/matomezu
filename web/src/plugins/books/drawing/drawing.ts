@@ -1,6 +1,13 @@
 // 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
 import { z } from "zod"
-import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
+import {
+  BOOK_PAPER_COLOR,
+  BOOK_TEXT_COLORS,
+  BOOK_THEME,
+  DIAGRAM_THEMES,
+  PAPER_IDS,
+  PRINT_PREVIEW_SETTINGS,
+} from "../../base"
 import { kit } from "./kit"
 
 // ツールボックスに出す順: 内包ボックス・リスト・データ・シェイプ（シェイプパネルに並ぶ）、線
@@ -49,6 +56,7 @@ export const DRAWING = kit.defineBookType({
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
 
   theme: "@matomezu/base:standard",
+  themeTypes: [DIAGRAM_THEMES], // 選べるテーマのテーマタイプ
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",

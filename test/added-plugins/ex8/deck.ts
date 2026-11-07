@@ -21,6 +21,7 @@ export const DECK = kit.defineBookType({
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: CARDS.id,
   tokens: [],
   settings: { book: [BOOK_THEME.id, ...PRINT_PREVIEW_SETTINGS], page: [] },

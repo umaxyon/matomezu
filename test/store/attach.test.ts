@@ -61,6 +61,7 @@ const NOTE = notes.defineBookType({
   items: { allowed: [] },
   actions: { add: ["@matomezu/base:page-add"], without: ["@matomezu/list:row-add"] },
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper",
   tokens: [],
 })
@@ -113,6 +114,7 @@ const BOARD = boards.defineBookType({
   items: { allowed: ["@matomezu/box:shape-nest-box"] },
   actions: { add: ["@matomezu/line:line-connect"] },
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper",
   tokens: [],
 })

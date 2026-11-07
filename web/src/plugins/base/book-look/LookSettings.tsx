@@ -1,5 +1,5 @@
 // テーマと紙の色の設定のコンポーネント（設定の項目 book-theme・book-paper-color のビュー）。
-// テーマは表のテーマから選ぶ（ブックのタイプのテーマを選べば値を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）
+// テーマはブックのタイプが選べるテーマから選ぶ（theme-types.ts。ブックのタイプの既定のテーマを選べば値を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）
 import { useMemo } from "react"
 import { bookType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
@@ -10,6 +10,7 @@ import { ColorPicker } from "../dialog-host/ColorPicker"
 import { controlClass, Field, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { BOOK_PAPER_COLOR, bookTokens } from "./look"
+import { themeFits, themesFor } from "./theme-types"
 import { shadeOf, useDarkScheme } from "./use-dark-scheme"
 
 // 紙の色の見本（白・淡い灰・淡い黄・淡い緑・淡い青・濃い灰・濃い紺・濃い茶）
@@ -25,10 +26,10 @@ export function ThemeSetting({ label, value, book, onChange }: SettingControlPro
         <select
           id={id}
           className={controlClass}
-          value={value !== undefined && catalog.themes.has(value) ? value : typeTheme}
+          value={value !== undefined && themeFits(catalog, book.type, value) ? value : typeTheme}
           onChange={e => onChange(e.target.value === typeTheme ? undefined : e.target.value)}
         >
-          {[...catalog.themes.values()].map(th => (
+          {themesFor(catalog, book.type).map(th => (
             <option key={th.id} value={th.id}>
               {t(th.title)}
             </option>

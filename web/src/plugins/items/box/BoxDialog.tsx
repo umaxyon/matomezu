@@ -27,6 +27,7 @@ import {
   type TextDraft,
   useBookOf,
   useBookTheme,
+  useBookThemes,
   useSwatches,
 } from "../../base/ui"
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
@@ -166,6 +167,7 @@ function BoxDialog({
   // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
   const looks = theme || bookTheme
   const swatches = useSwatches(looks, BOX_FILL)
+  const themes = useBookThemes(useBookOf(stage)) // ブックのタイプが選べるテーマ
   const changed =
     body !== start.body ||
     captionAlign !== start.captionAlign ||
@@ -235,7 +237,7 @@ function BoxDialog({
           {id => (
             <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
               <option value="">{t("Book's theme")}</option>
-              {[...catalog.themes.values()].map(th => (
+              {themes.map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}
                 </option>

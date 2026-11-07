@@ -16,11 +16,15 @@ export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string =
   schema: S // 値の形
   default?: z.output<S> // どこにも値が無いときの値
   // 値の形を、機能台帳から組み立てる（入れてある言語パックのどれかなど）。無ければ schema。変えるときに受け付けるか（ブックの設定も利用者の設定も）と、利用者の設定で読んだ値を使うかは、この形で決める。
+  // of は、どのタイプのブック（ページ）の項目として組み立てるか（ブックのテーマならタイプが選べるテーマだけ）か、利用者の設定の項目か。
   // ブック（ページ）のデータを読むときの形は schema（機能台帳の物が減っても、ブックは読める）
-  describe?(catalog: CoreCatalog): z.ZodType
+  describe?(catalog: CoreCatalog, of: SettingOwner): z.ZodType
   userOnly?: true // 利用者の設定の項目で、利用者だけが変える（AI には断り、AI が読む設定にも出さない）
   role?: SettingRole // 土台が読む利用者の設定の項目（ビルトインプラグインの利用者の設定の項目だけが持ち、1 つの role は 1 つの項目だけ）
 }
+
+// 設定の項目を持つ所: ブックのタイプ bookType のブックかページか、利用者の設定（user）
+export type SettingOwner = { bookType: string } | "user"
 
 // 既定を持つ設定の項目の定義（どこにも値が無くても、読めば既定の値がある）
 export type DefaultedSettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> = SettingDef<S, Tt> & {

@@ -18,6 +18,7 @@ const NOTE = defineBookType({
   items: { allowed: [] },
   actions: { add: ["notes:rename" as never] },
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/master:master",
   tokens: [],
 })

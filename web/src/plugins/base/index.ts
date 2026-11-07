@@ -2,6 +2,7 @@
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
+import { THEME_TYPES_CHECK } from "./book-look/theme-types"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { CREATE_SETTINGS_CHECK } from "./book-new/book-create"
 import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRASH_EMPTY } from "./book-open"
@@ -78,6 +79,7 @@ import { CORNER_STATUS_ORDER } from "./utils/corner-order"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
+export { DIAGRAM_THEMES, DOCUMENT_THEMES, themeFits, themesFor } from "./book-look/theme-types"
 export { createBookIn } from "./book-new/create-book"
 export type { PageContext, SettingReader } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
@@ -244,7 +246,14 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [NOTE, MARK],
     mails: [MAIL_LETTER],
-    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, OPTION_TITLES_CHECK, THEME_TEXT_COLORS_CHECK],
+    checks: [
+      PROP_NAMES_CHECK,
+      FAMILY_TITLE_CHECK,
+      CREATE_SETTINGS_CHECK,
+      OPTION_TITLES_CHECK,
+      THEME_TEXT_COLORS_CHECK,
+      THEME_TYPES_CHECK,
+    ],
     normalizeSteps: [VARIABLE_PAGES],
     commands: [
       BOOK_NEW,

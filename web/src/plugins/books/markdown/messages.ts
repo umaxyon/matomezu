@@ -3,6 +3,7 @@ import { defineMessages } from "../../../plugin-api"
 
 export const MARKDOWN_MESSAGES = defineMessages({
   Markdown: { en: "Markdown", ja: "マークダウン" },
+  "GitHub-like": { en: "GitHub-like", ja: "GitHub 風" },
   Source: { en: "Source", ja: "ソース" },
   Preview: { en: "Preview", ja: "プレビュー" },
   "Source only": { en: "Source only", ja: "ソースだけ" },

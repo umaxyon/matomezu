@@ -18,7 +18,7 @@ type BoxProps = ItemProps<typeof BOX.id>
 
 export function BoxView({ props, size, hasChildren, id, stage }: ItemViewProps<BoxProps>) {
   const theme = props.theme
-  const vars = useThemeVars(theme, BOX_TOKENS)
+  const vars = useThemeVars(stage, theme, BOX_TOKENS)
   const at = useStage(stage)
   const page = at?.opened?.page ?? undefined
   const perform = usePerform(stage)

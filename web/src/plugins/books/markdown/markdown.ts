@@ -3,7 +3,7 @@
 // どのページもいつも可変ページで、下へ増やす。新しいページとページの設定のダイアログは base の物。原文は base の page-update で、丸ごとか 1 か所の置き換えで変える。道具は持たない。見た目（テーマと紙の色）は base の設定の項目で変えられ、描いた文書の色・字の大きさ・余白はテーマで差し替える（tokens.ts）
 
 import { z } from "zod"
-import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
+import { BOOK_PAPER_COLOR, BOOK_THEME, DOCUMENT_THEMES, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
 import { kit } from "./kit"
 import { pageFieldsInput } from "./page-fields"
 import { MARKDOWN_TOKENS } from "./tokens"
@@ -41,6 +41,7 @@ export const MARKDOWN = kit.defineBookType({
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
+  themeTypes: [DOCUMENT_THEMES], // 選べるテーマのテーマタイプ
   presentation: MARKDOWN_PRESENTATION.id,
   tokens: MARKDOWN_TOKENS, // 描いた文書の見た目（tokens.ts）
   settings: {

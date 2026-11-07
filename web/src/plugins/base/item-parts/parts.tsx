@@ -1,8 +1,8 @@
-// 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（開いているブック・ブックのテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
+// 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（開いているブック・ブックのテーマ・選べるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
 // 形に当てたテーマの値を CSS 変数にするフック
 import { useMemo } from "react"
 import { PALETTE } from "../../../core/color"
-import type { TokenDef } from "../../../core/def/theme"
+import type { ThemeDef, TokenDef } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import { resolveTokens, type Shades } from "../../../core/theme"
@@ -10,6 +10,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { bookTheme } from "../book-look/look"
+import { themeFits, themesFor } from "../book-look/theme-types"
 import { shadeOf, useDarkScheme } from "../book-look/use-dark-scheme"
 import { kit } from "../kit"
 import type { Align } from "../text/fields"
@@ -37,6 +38,13 @@ export function useAligns() {
 // 開いたステージで開いているブックの id
 export const useBookOf = (stage: string) =>
   useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
+
+// ブック book（id）のタイプが、ブックと中の形に選べるテーマ（book-look/theme-types.ts。ブックが無ければ空）
+export function useBookThemes(book: string | undefined): ThemeDef[] {
+  const catalog = useCatalog().core
+  const type = useMatomezuState(s => (book ? s.books[book]?.type : undefined))
+  return useMemo(() => (type === undefined ? [] : themesFor(catalog, type)), [catalog, type])
+}
 
 // ブックのテーマの id
 export function useBookTheme(book: string | undefined) {
@@ -66,13 +74,15 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
   }, [catalog, looks, fill, t, dark])
 }
 
-// 形に当てたテーマ theme の、テーマキー defs の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）
-export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]) {
+// ステージ stage で開いているブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
+// （当てていないか、ブックのタイプが選べないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
+export function useThemeVars(stage: string, theme: string | undefined, defs: readonly TokenDef[]) {
   const catalog = useCatalog().core
+  const type = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.type)
   return useMemo(() => {
-    if (!theme || !catalog.themes.has(theme)) return undefined
+    if (!theme || type === undefined || !themeFits(catalog, type, theme)) return undefined
     const owners = new Set(defs.map(d => splitId(d.id).owner))
     const [owner] = owners // テーマキーの持ち主（アイテムのプラグイン）は 1 つ
     return themeVars(resolveTokens(catalog, theme, defs), owners.size === 1 && owner ? owner : undefined)
-  }, [catalog, theme, defs])
+  }, [catalog, type, theme, defs])
 }

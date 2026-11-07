@@ -29,6 +29,7 @@ import {
   SwitchPanel,
   useBookOf,
   useBookTheme,
+  useBookThemes,
   useSwatches,
 } from "../../base/ui"
 import { ROW_LINES } from "./actions"
@@ -82,6 +83,7 @@ export function AddListDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs
       submit={kit.message("Add")}
       start={EMPTY}
       checked={false}
+      book={book}
       bookTheme={bookTheme}
       ready={book !== undefined}
       onSubmit={add}
@@ -129,6 +131,7 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
       start={found.props}
       checked={rows.some(r => r.props.checked === true)}
       hasRows={rows.length > 0}
+      book={book}
       bookTheme={bookTheme}
       ready
       onSubmit={update}
@@ -144,6 +147,7 @@ function ListDialog({
   start,
   checked,
   hasRows = false,
+  book,
   bookTheme,
   ready,
   onSubmit,
@@ -155,6 +159,7 @@ function ListDialog({
   start: ListProps
   checked: boolean // チェックの入った行があるか（チェックリストを切るときに確かめる）
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
+  book: string | undefined // 開いているブックの id（選べるテーマを決める）
   bookTheme: string | undefined
   ready: boolean
   onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
@@ -177,6 +182,7 @@ function ListDialog({
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
   const [pick, setPick] = useState<number | "max">("max")
   const swatches = useSwatches(theme || bookTheme, LIST_FILL)
+  const themes = useBookThemes(book) // ブックのタイプが選べるテーマ
   const changed =
     captionAlign !== start.captionAlign ||
     theme !== (start.theme ?? "") ||
@@ -255,7 +261,7 @@ function ListDialog({
             <span>{t("Theme")}</span>
             <select className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
               <option value="">{t("Book's theme")}</option>
-              {[...catalog.themes.values()].map(th => (
+              {themes.map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}
                 </option>

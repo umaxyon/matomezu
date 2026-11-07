@@ -23,6 +23,7 @@ import {
   walkShapes,
 } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
+import { themeFits } from "../book-look/theme-types"
 import { type PageContext, type SettingReader, settingsAt } from "../book-settings"
 import { setField } from "../fields"
 import { contentIdMaker } from "../utils/ids"
@@ -215,12 +216,12 @@ export function widenForCaption(
   return { ...next, x: x.at, y: y.at, w: x.len, h: y.len }
 }
 
-// 形の個別のテーマ（定義の themeProp が名指す項目）が表にあるか（themeProp の無い形と、値が無いときは true）
-export function knownTheme(catalog: CoreCatalog, item: PlacedShape): boolean {
+// 形の個別のテーマ（定義の themeProp が名指す項目）を、ブックのタイプ type のブックで使えるか（book-look/theme-types.ts。themeProp の無い形と、値が無いときは true）
+export function knownTheme(catalog: CoreCatalog, type: string, item: PlacedShape): boolean {
   const prop = shapeDefOf(catalog, item.item)?.themeProp
   if (prop === undefined) return true
   const theme = (item.props as Record<string, unknown>)[prop]
-  return theme === undefined || (typeof theme === "string" && catalog.themes.has(theme))
+  return theme === undefined || (typeof theme === "string" && themeFits(catalog, type, theme))
 }
 
 // ページの紙の大きさ（描けない紙なら null）

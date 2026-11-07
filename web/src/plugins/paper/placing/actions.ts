@@ -146,7 +146,7 @@ export const ITEM_PLACE = kit.defineAction({
     const size = placedSize(ctx.catalog, draft)
     const item = resizable && size ? parsePlaced(ctx.catalog, { ...draft, w: size.w, h: args.h ?? size.h }) : draft
     const sized = item && placedSize(ctx.catalog, item)
-    if (!item || !sized || !knownTheme(ctx.catalog, item)) return null
+    if (!item || !sized || !knownTheme(ctx.catalog, book.type, item)) return null
     const parent = args.parent ?? null
     const push = args.crowd === "push"
     const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
@@ -304,7 +304,7 @@ export const ITEM_UPDATE = kit.defineAction({
     if (!now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const parsed = parsePlaced(ctx.catalog, { ...now, props })
-    if (!parsed || !page || !knownTheme(ctx.catalog, parsed)) return null
+    if (!parsed || !page || !knownTheme(ctx.catalog, book.type, parsed)) return null
     const item =
       (shapeDefOf(ctx.catalog, parsed.item)?.[kit.name("settle")]?.(parsed, now) as PlacedShape | undefined) ?? parsed
     const wide = widenForCaption(ctx.catalog, book, page, now, item)

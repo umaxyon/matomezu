@@ -31,6 +31,7 @@ export const YARD = kit.defineBookType({
   items: { allowed: [kit.name("crate")] },
   actions: {},
   theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",

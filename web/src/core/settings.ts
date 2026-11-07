@@ -2,7 +2,7 @@
 // 項目はプラグインの userSettings が持つ（core/def/setting.ts）。機能台帳に無い項目・今の形に合わない値も捨てずに残し（プラグインを戻せばまた効く）、読むときに形に合わなければ既定を使う
 import { z } from "zod"
 import type { CoreCatalog } from "./core-catalog"
-import type { SettingDef, SettingRole } from "./def/setting"
+import type { SettingDef, SettingOwner, SettingRole } from "./def/setting"
 import type { Lang } from "./i18n/i18n"
 import { type KeyChanges, KeyChangesSchema, NO_KEY_CHANGES } from "./keys"
 
@@ -15,14 +15,15 @@ export function restoreSettings(saved: unknown): Settings {
   return parsed.success ? parsed.data : NO_SETTINGS
 }
 
-// 項目の値の形（機能台帳から組み立てた形か、schema）
-export const settingSchema = (catalog: CoreCatalog, def: SettingDef): z.ZodType => def.describe?.(catalog) ?? def.schema
+// 項目の値の形（of の項目として機能台帳から組み立てた形か、schema）
+export const settingSchema = (catalog: CoreCatalog, def: SettingDef, of: SettingOwner): z.ZodType =>
+  def.describe?.(catalog, of) ?? def.schema
 
 // 利用者の設定の項目 id の値。値が無いか形に合わなければ既定（既定も無い・機能台帳に無い項目なら undefined）
 export function userSetting(catalog: CoreCatalog, settings: Settings, id: string): unknown {
   const def = catalog.userSettings.get(id)
   if (!def) return undefined
-  const parsed = id in settings ? settingSchema(catalog, def).safeParse(settings[id]) : undefined
+  const parsed = id in settings ? settingSchema(catalog, def, "user").safeParse(settings[id]) : undefined
   return parsed?.success ? parsed.data : def.default
 }
 

@@ -1,0 +1,65 @@
+// GitHub 風のテーマ: GitHub の Markdown の見た目に似せた、文章向けのテーマ（似せた見た目の名前で、GitHub の物でも提携でもない。ロゴは使わない）。
+// 明るい白の地と暗い地の両方を持つ。マークダウンのテーマキーで、字の大きさ・見出し・表・コード・リンクの見た目を寄せる
+import { DOCUMENT_THEMES } from "../../base"
+import { kit } from "./kit"
+
+const md = (name: string) => kit.name(`markdown-${name}`)
+
+export const GITHUB_LIKE = kit.defineTheme({
+  id: "github-like",
+  title: "GitHub-like",
+  types: [DOCUMENT_THEMES],
+  base: {
+    surface: { light: "#f6f8fa", dark: "#010409" },
+    paper: { light: "#ffffff", dark: "#0d1117" },
+    "paper-line": { light: "rgba(31, 35, 40, 0.15)", dark: "rgba(240, 246, 252, 0.1)" },
+    "paper-shadow": { light: "rgba(31, 35, 40, 0.12)", dark: "rgba(1, 4, 9, 0.6)" },
+    text: { light: "#1f2328", dark: "#f0f6fc" },
+    hint: { light: "#59636e", dark: "#9198a1" },
+    line: { light: "#d1d9e0", dark: "#3d444d" },
+    fill: { light: "#ffffff", dark: "#0d1117" },
+    accent: { light: "#0969da", dark: "#4493f8" },
+  },
+  palette: {
+    primary: { light: "#0969da", dark: "#4493f8" },
+    secondary: { light: "#8250df", dark: "#ab7df8" },
+    success: { light: "#1a7f37", dark: "#3fb950" },
+    warn: { light: "#9a6700", dark: "#d29922" },
+    danger: { light: "#d1242f", dark: "#f85149" },
+    muted: { light: "#59636e", dark: "#9198a1" },
+  },
+  tokens: {
+    [md("heading-rule")]: { light: "#d1d9e0b3", dark: "#3d444db3" },
+    [md("code-fill")]: { light: "#f6f8fa", dark: "#151b23" },
+    [md("inline-code-fill")]: { light: "#818b981f", dark: "#656c7633" },
+    [md("table-stripe")]: { light: "#f6f8fa", dark: "#151b23" },
+    [md("font-family")]: '-apple-system, "Segoe UI", "Noto Sans", Helvetica, Arial, "Noto Sans JP", sans-serif',
+    [md("font-size")]: "16px",
+    [md("line-height")]: "1.5",
+    [md("h1-size")]: "2em",
+    [md("h2-size")]: "1.5em",
+    [md("h3-size")]: "1.25em",
+    [md("h4-size")]: "1em",
+    [md("h5-size")]: "0.875em",
+    [md("h6-size")]: "0.85em",
+    [md("heading-weight")]: "600",
+    [md("heading-line-height")]: "1.25",
+    [md("heading-gap")]: "24px 0 16px",
+    [md("heading-rule-gap")]: "0.3em",
+    [md("block-gap")]: "16px",
+    [md("list-indent")]: "2em",
+    [md("quote-width")]: "0.25em",
+    [md("quote-padding")]: "0 1em",
+    [md("cell-padding")]: "6px 13px",
+    [md("table-head-weight")]: "600",
+    [md("rule-width")]: "0.25em",
+    [md("rule-gap")]: "24px 0",
+    [md("code-font-family")]: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+    [md("code-font-size")]: "85%",
+    [md("code-padding")]: "16px",
+    [md("code-radius")]: "6px",
+    [md("inline-code-size")]: "85%",
+    [md("inline-code-padding")]: "0.2em 0.4em",
+    [md("link-decoration")]: "none",
+  },
+})
