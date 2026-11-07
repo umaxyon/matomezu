@@ -212,7 +212,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 外で決まったブックと設定（常駐が知らせたもの）に入れ替え、まだ確かめられていない自分のアクション replay をその上で行い直す。
   // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
   // change は、この知らせが、この窓のでない変更でブック book を変えたこと（by は変えた物。host は常駐が自分で行った物で、画面の履歴に入れない。
-  // act は常駐が 1 回の perform に振った印）。AI とほかの窓の変更は、まだ見ていない画面の履歴の段にし、見えたら画面の履歴に差し込む。
+  // act は常駐が 1 回の perform に振った印、action は行ったアクションの id）。AI とほかの窓の変更は、まだ見ていない画面の履歴の段にし、見えたら画面の履歴に差し込む
+  // （history: false のアクションの変更は入れない）。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(
     world: {
@@ -223,7 +224,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       touched?: Readonly<Record<string, string>>
     },
     replay: readonly DoneAction[],
-    change?: { book: string; by: "ai" | "window" | "host"; act: string },
+    change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string },
   ): void
   // ステージ stage のビューが、物が見えているかを答える関数 test を知らせる（null なら外す。見えた、まだ見ていない画面の履歴の段を差し込む）。
   // base のフック useSeen を通して使う（プラグインに渡す actions には入れない）
@@ -682,8 +683,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let library: Library = Object.fromEntries([...singleBooks(catalog), ...found.books].map(b => [b.id, b]))
       const was = known[change?.book ?? ""]
       const to = library[change?.book ?? ""]
-      if (change && change.by !== "host" && was && to && !sameData(was, to))
-        addUnseen({ by: change.by, act: change.act }, was, to)
+      const by = change?.by === "host" ? undefined : change?.by
+      const recorded = change && by && catalog.actions.get(change.action)?.history !== false
+      if (change && by && recorded && was && to && !sameData(was, to)) addUnseen({ by, act: change.act }, was, to)
       known = library
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)

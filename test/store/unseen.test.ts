@@ -28,8 +28,13 @@ const place = (store: Store, caption: string, x = 40) =>
   )
 const confirm = (store: Store) => store.receive({ books: [bookOf(store)], settings: {} }, [])
 // よその変更: 確かめた世界のブックを change で変えたものが届く
-const foreign = (store: Store, book: Book, by: "ai" | "window" | "host" = "ai", act = "1") =>
-  store.receive({ books: [book], settings: {} }, [], { book: book.id, by, act })
+const foreign = (
+  store: Store,
+  book: Book,
+  by: "ai" | "window" | "host" = "ai",
+  act = "1",
+  action = "@matomezu/paper:item-update",
+) => store.receive({ books: [book], settings: {} }, [], { book: book.id, by, act, action })
 const renamed = (book: Drawing, i: number, caption: string): Drawing =>
   ({
     ...book,
@@ -102,9 +107,10 @@ test("戻すが上書きした、まだ見ていない変更は捨てる（あ�
   expect(historyOf(store)?.undo ?? []).toEqual([])
 })
 
-test("常駐が自分で行った変更は画面の履歴に入れない。ほかの窓の変更は AI の変更と同じに扱う", () => {
+test("常駐が自分で行った変更と、画面の履歴に入れないアクションの変更は入れない。ほかの窓の変更は AI の変更と同じに扱う", () => {
   const store = ready(sequence())
   foreign(store, { ...bookOf(store), title: "組み直し" }, "host")
+  foreign(store, { ...bookOf(store), locked: true } as Book, "window", "3", "@matomezu/base:book-lock")
   expect(historyOf(store)).toBeUndefined()
   foreign(store, { ...bookOf(store), title: "ほかの窓" }, "window", "7")
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["window"])

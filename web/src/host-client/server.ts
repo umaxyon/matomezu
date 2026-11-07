@@ -165,6 +165,7 @@ const BookSchema = z.object({
   version: z.number().int(),
   by: z.enum(["ai", "window", "host"]).optional(),
   act: z.number().int().optional(),
+  action: z.string().optional(),
   ...Mark,
 })
 const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
@@ -254,7 +255,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let events: Events | null = null
 
   // change は、この窓のでない変更の知らせのとき（その変更を、まだ見ていない画面の履歴の段にする）
-  const show = (change?: { book: string; by: "ai" | "window" | "host"; act: string }) =>
+  const show = (change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string }) =>
     instance?.receive(
       { books: [...confirmed.values()].map(e => e.book), settings, annotations, mailbox, touched },
       pending.map(p => p.done),
@@ -453,7 +454,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
       changed(e.book.id)
       settle(e)
       const foreign = e.client !== client && e.by !== undefined && e.act !== undefined
-      show(foreign ? { book: e.book.id, by: e.by as "ai" | "window" | "host", act: String(e.act) } : undefined)
+      show(
+        foreign
+          ? { book: e.book.id, by: e.by as "ai" | "window" | "host", act: String(e.act), action: e.action ?? "" }
+          : undefined,
+      )
     })
     on("removed", data => {
       const e = RemovedSchema.parse(JSON.parse(data))

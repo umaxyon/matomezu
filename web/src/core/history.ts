@@ -36,7 +36,7 @@ export function stepOverwritten(step: HistoryStep, before: Book, now: Book): boo
   return !!made && !!mine && overlaps(made, mine)
 }
 
-// 物が見えているかを答える関数（ブックのタイプごとのビューが知らせる）: ブック book のページ page の、最上位のアイテム item が、見える所にあるか
+// 物が見えているかを答える関数（見せ方のビューが知らせる）: ブック book のページ page の、最上位のアイテム item が、見える所にあるか
 export type SeenTest = (page: string, item: string, book: Book) => boolean
 
 // まだ見ていない画面の履歴の段 step の変更が、ブック book のページ page（ページを持たなければ null）を開いているステージで見えたか（どれか 1 つが見えたら全体）。
