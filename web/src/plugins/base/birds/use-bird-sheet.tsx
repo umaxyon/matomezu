@@ -1,4 +1,4 @@
-// 鳥の絵のシート（paint.ts が色を塗ったもの）を受け取るフック
+// 鳥の絵のシート（paint.tsx が色を塗ったもの）を受け取るフック
 import { useEffect, useState } from "react"
 import type { Bird } from "."
 import { birdColors } from "./colors"
