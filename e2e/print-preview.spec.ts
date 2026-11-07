@@ -419,3 +419,26 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙
   await expect(title).toHaveText(`${bookName} - ${pageName}`)
   await expect(output.locator("[data-sheet-title]").last()).toHaveText(`${bookName} - ${pageName}`)
 })
+
+test("刷るとき、ブラウザの拡張機能などがページに足した空の要素（自分で display を決めて刷る物の前後に置く）が、空の紙を足さない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBox(page, 200, 150, "残る箱")
+  await openPreview(page)
+  await expect(sheets(page)).toHaveCount(1)
+  await page.evaluate(() => {
+    const injected = (height: number) => {
+      const el = document.createElement("div")
+      el.setAttribute("style", `display:block !important;height:${height}px`)
+      return el
+    }
+    document.body.prepend(injected(0), injected(20))
+    document.body.append(injected(20))
+  })
+  await page.emulateMedia({ media: "print" })
+  await afterFrames(page)
+  const pdf = (await page.pdf({ preferCSSPageSize: true })).toString("latin1")
+  expect(pdf.match(/\/Type\s*\/Page\b/g)?.length).toBe(1)
+  await page.emulateMedia({ media: "screen" })
+})

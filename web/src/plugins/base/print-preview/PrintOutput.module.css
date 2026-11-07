@@ -26,8 +26,25 @@
     height: auto;
     background: none;
   }
-  :global(body):has(> .output) > :not(.output) {
-    display: none;
+  /* 刷る物のほか（画面も、ブラウザの拡張機能などがページに足した要素も）は、display が自分で決められていても、流れの外の大きさ 0 にして、空の紙を足さない */
+  :global(body):has(> .output) > :not(.output),
+  :global(html):has(> body > .output) > :not(:global(head)):not(:global(body)) {
+    /* biome-ignore lint/complexity/noImportantStyles: 足された要素が自分で決めた style（インラインの display など）より強くするため */
+    display: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: 足された要素が自分で決めた style（インラインの display など）より強くするため */
+    position: absolute !important;
+    /* biome-ignore lint/complexity/noImportantStyles: 足された要素が自分で決めた style（インラインの display など）より強くするため */
+    width: 0 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: 足された要素が自分で決めた style（インラインの display など）より強くするため */
+    height: 0 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: 足された要素が自分で決めた style（インラインの display など）より強くするため */
+    margin: 0 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: 足された要素が自分で決めた style（インラインの display など）より強くするため */
+    padding: 0 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: 足された要素が自分で決めた style（インラインの display など）より強くするため */
+    border: 0 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: 足された要素が自分で決めた style（インラインの display など）より強くするため */
+    overflow: hidden !important;
   }
   .output {
     position: static;
