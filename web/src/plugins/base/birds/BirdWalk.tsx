@@ -6,7 +6,7 @@
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かず、飛び去るときはすぐ消える（立ち寄るなら、立ち寄る間だけ出す）
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
-import { useStandAway } from "../utils/anchors"
+import { useStandAway, useStandShape } from "../utils/anchors"
 import { STAND_MARGIN } from "../utils/stand-place"
 import type { Bird } from "."
 import styles from "./BirdWalk.module.css"
@@ -17,6 +17,7 @@ import {
   GAITS,
   LEAVE,
   leavingPose,
+  orbitingPose,
   type Pose,
   VISIT_ARRIVE,
   visitLength,
@@ -27,8 +28,9 @@ import fukurouPointer from "./images/bird-marks/fukurou.png"
 import inkoPointer from "./images/bird-marks/inko.png"
 import suzumePointer from "./images/bird-marks/suzume.png"
 import tsunagidoriPointer from "./images/bird-marks/tsunagidori.png"
-import { useBirdSheet } from "./paint"
+import { type Footing, footing, lengthOf, lineMotion } from "./line"
 import { ANCHOR_X, BODY_WIDTH, CELL, COLUMNS, FRAME, GROUND_Y, SHEET_SIZE } from "./sheets"
+import { useBirdSheet } from "./use-bird-sheet"
 
 export const BIRD_SIZE = 48 // 歩く鳥の大きさ（画面の px）
 export { FRONT }
@@ -94,7 +96,12 @@ function Walker({
   const still = useReducedMotion()
   const gait = GAITS[bird]
   const scale = BIRD_SIZE / CELL
-  const range = Math.max(0, Math.min(2 * BODY_WIDTH[bird] * scale, width - BIRD_SIZE - 12))
+  // 付けた物が線なら（立ち寄りは除く）、線の形に沿う: 横向きの直線なら線の上を歩き、それ以外は線の周りを飛ぶ
+  const path = useStandShape()
+  const motion = !visit && path ? lineMotion(path) : null
+  const arrivalOn = motion && arrival === "peek" ? "fly" : arrival
+  const room = motion?.kind === "walk" ? lengthOf([motion.from, motion.to]) : width
+  const range = Math.max(0, Math.min(2 * BODY_WIDTH[bird] * scale, room - BIRD_SIZE - 12))
   // 歩く所の幅を測る。飛んでくるなら、飛んでくる所を画面（ステージ）の外に決める
   // biome-ignore lint/correctness/useExhaustiveDependencies: 飛んでくる所は、最初に描くときに一度だけ決める
   useEffect(() => {
@@ -104,9 +111,15 @@ function Walker({
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(el)
-    if (arrival === "fly") setFrom(origin ? fromElement(el, origin) : offscreen(el))
+    if (arrivalOn === "fly" || motion?.kind === "orbit") {
+      const foot = path && motion ? footing(path, motion, { x: range, rotation: 0 }, range, false) : null
+      const land = foot
+        ? { x: el.getBoundingClientRect().left + foot.x, y: el.getBoundingClientRect().top + foot.y }
+        : null
+      setFrom(origin ? fromElement(el, origin, land) : offscreen(el, land))
+    }
     return () => observer.disconnect()
-  }, [arrival])
+  }, [arrivalOn])
   useEffect(() => {
     if (still) return
     let frame = 0
@@ -124,7 +137,9 @@ function Walker({
     ? { frame: FRONT, x: range, lift: 0, from: { x: 0, y: 0 }, right: false, rotation: 0, behind: false }
     : visit
       ? visitPose(time, gait, BIRD_SIZE, range, from)
-      : birdPose(time, arrival, gait, BIRD_SIZE, range, from)
+      : motion?.kind === "orbit"
+        ? orbitingPose(time, arrivalOn, from)
+        : birdPose(time, arrivalOn, gait, BIRD_SIZE, range, from)
   const arrived = visit && (still || time >= VISIT_ARRIVE)
   // biome-ignore lint/correctness/useExhaustiveDependencies: 降りたときに一度だけ
   useEffect(() => {
@@ -140,6 +155,7 @@ function Walker({
   const visited = visit && !still && time >= visitLength(gait)
   // 飛び去る: leaving になった時刻と姿と、飛んでいく先を覚える
   const [leave, setLeave] = useState<{ at: number; start: Pose; to: Point } | null>(null)
+  const footRef = useRef<Footing | null>(null)
   const latest = useRef({ time, pose: walking })
   latest.current = { time, pose: walking }
   // biome-ignore lint/correctness/useExhaustiveDependencies: leaving になったとき（立ち寄り終えたとき）に一度だけ
@@ -149,7 +165,10 @@ function Walker({
       onGone?.()
       return
     }
-    setLeave({ at: latest.current.time, start: latest.current.pose, to: offscreen(area.current) })
+    const foot = footRef.current
+    const box = area.current.getBoundingClientRect()
+    const land = foot ? { x: box.left + foot.x, y: box.top + foot.y } : null
+    setLeave({ at: latest.current.time, start: latest.current.pose, to: offscreen(area.current, land) })
   }, [leaving || visited])
   const gone = leave !== null && time - leave.at >= LEAVE
   // biome-ignore lint/correctness/useExhaustiveDependencies: 飛び去り終えたときに一度だけ
@@ -157,7 +176,9 @@ function Walker({
     if (gone) onGone?.()
   }, [gone])
   const pose = leave ? leavingPose(Math.min(LEAVE, time - leave.at), leave.start, leave.to) : walking
-  const left = (width - range) / 2 + pose.x
+  const lined: Footing | null = path && motion ? footing(path, motion, leave ? leave.start : pose, range, still) : null
+  footRef.current = lined
+  const left = lined ? lined.x : (width - range) / 2 + pose.x
   if (away && !leave) {
     const at = away.pin({ x: left, y: BIRD_SIZE }, POINTER / 2 + STAND_MARGIN)
     return (
@@ -174,12 +195,15 @@ function Walker({
       </div>
     )
   }
+  const size = pose.scale === undefined ? "" : ` scale(${pose.scale.toString()})`
   const body = (
     <div
       className={styles.foot}
       style={{
         left,
-        transform: `translate(${pose.from.x.toString()}px, ${(pose.from.y + pose.lift).toString()}px) rotate(${pose.rotation.toString()}rad)`,
+        ...(lined ? { top: lined.y } : {}),
+        ...(pose.opacity === undefined ? {} : { opacity: pose.opacity }),
+        transform: `translate(${pose.from.x.toString()}px, ${(pose.from.y + pose.lift).toString()}px) rotate(${(pose.rotation + (lined?.tilt ?? 0)).toString()}rad)${size}`,
       }}
     >
       {children(frameStyle(sheetUrl, pose.frame, BIRD_SIZE, pose.right))}
@@ -209,18 +233,20 @@ export function frameStyle(sheet: string, index: number, size: number, flip = fa
 }
 
 // 歩く所の右端の足元から見た、要素 origin の上の辺の真ん中（別の物から飛んで移ってくるとき）
-function fromElement(el: HTMLElement, origin: Element): Point {
+// （降りる足元 foot が画面での位置で分かっていれば、右端の代わりにそれを使う）
+function fromElement(el: HTMLElement, origin: Element, foot: Point | null): Point {
   const at = el.getBoundingClientRect()
   const o = origin.getBoundingClientRect()
-  return { x: o.left + o.width / 2 - at.right, y: o.top - at.bottom }
+  const land = foot ?? { x: at.right, y: at.bottom }
+  return { x: o.left + o.width / 2 - land.x, y: o.top - land.y }
 }
 
 // 歩く所の右端の足元から見た、ステージ（スタンドのレイヤー）の外の、どこか 1 点（左・右・上のどれか）
-function offscreen(el: HTMLElement): Point {
+function offscreen(el: HTMLElement, land: Point | null): Point {
   const layer = el.closest("[data-stand-layer]") ?? document.body
   const box = layer.getBoundingClientRect()
   const at = el.getBoundingClientRect()
-  const foot = { x: at.right, y: at.bottom }
+  const foot = land ?? { x: at.right, y: at.bottom }
   const pad = BIRD_SIZE * 2
   const side = Math.floor(Math.random() * 3)
   const along = Math.random()

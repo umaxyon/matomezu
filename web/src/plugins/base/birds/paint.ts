@@ -1,8 +1,7 @@
 // 鳥の絵に色を塗って、普通の画像（blob の URL）にする所。(鳥, 配色) ごとに 1 回だけ塗り、結果を持ち続けて使い回す。
-// 鳥は塗り終わるまで出さない（useBirdSheet が null の間）。塗る計算は recolor.ts。canvas が使えない環境（テスト）では、陰影の絵をそのまま返す
-import { useEffect, useState } from "react"
+// 鳥は塗り終わるまで出さない（use-bird-sheet.tsx の useBirdSheet が null の間）。塗る計算は recolor.ts。canvas が使えない環境（テスト）では、陰影の絵をそのまま返す
 import type { Bird } from "."
-import { type BirdColors, birdColors } from "./colors"
+import type { BirdColors } from "./colors"
 import buncho from "./images/sheets/buncho.png"
 import bunchoMask from "./images/sheets/buncho-mask.png"
 import fukurou from "./images/sheets/fukurou.png"
@@ -26,7 +25,10 @@ const IMAGES: Record<Bird, { body: string; mask: string }> = {
 
 const made = new Map<string, Promise<string>>()
 const ready = new Map<string, string>()
-const keyOf = (bird: Bird, c: BirdColors) => `${bird} ${c.feather} ${c.inner} ${c.flag}`.toLowerCase()
+
+// 塗り終わったシートの URL（まだなら undefined）
+export const paintedSheet = (key: string): string | undefined => ready.get(key)
+export const sheetKey = (bird: Bird, c: BirdColors) => `${bird} ${c.feather} ${c.inner} ${c.flag}`.toLowerCase()
 
 async function pixels(url: string, canvas: HTMLCanvasElement): Promise<Uint8ClampedArray | null> {
   const image = new Image()
@@ -55,7 +57,7 @@ async function paint(bird: Bird, colors: BirdColors): Promise<string> {
 
 // 鳥 bird に配色 colors を塗ったシートの URL
 export function birdSheet(bird: Bird, colors: BirdColors): Promise<string> {
-  const key = keyOf(bird, colors)
+  const key = sheetKey(bird, colors)
   let url = made.get(key)
   if (!url) {
     url = paint(bird, colors)
@@ -66,22 +68,4 @@ export function birdSheet(bird: Bird, colors: BirdColors): Promise<string> {
     )
   }
   return url
-}
-
-// 鳥 bird に配色 palette（BIRD_PALETTES の id。無ければ元の配色）を塗ったシートの URL。塗り終わるまでは null
-export function useBirdSheet(bird: Bird, palette?: string): string | null {
-  const colors = birdColors(bird, palette)
-  const key = keyOf(bird, colors)
-  const [done, setDone] = useState<{ key: string; url: string } | null>(null)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: key が colors と bird を表す
-  useEffect(() => {
-    let alive = true
-    birdSheet(bird, colors).then(url => {
-      if (alive) setDone({ key, url })
-    })
-    return () => {
-      alive = false
-    }
-  }, [key])
-  return ready.get(key) ?? (done?.key === key ? done.url : null)
 }

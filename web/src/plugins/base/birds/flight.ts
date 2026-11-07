@@ -3,6 +3,7 @@
 // 端ごとに立ち止まってその鳥の仕草をする
 import type { Point } from "../../../core/geom"
 import type { Bird } from "."
+import { orbitPose } from "./line"
 
 export type Arrival = "fly" | "peek" | "none"
 
@@ -30,6 +31,9 @@ export interface Pose {
   right: boolean // 右を向く（絵は左向きなので、左右を返す）
   rotation: number // 体の傾き（ラジアン）
   behind: boolean // 物の裏にいる（上の辺より下を隠す）
+  hover?: Point // 線の周りを回るとき、周回の中心からの体の中心の位置
+  scale?: number // 線の周りを回るときの大きさ（手前が 1）
+  opacity?: number // 線の周りを回るときの透明度
 }
 
 export const FRONT = 4 // 正面を向いたコマ
@@ -121,6 +125,24 @@ export function birdPose(t: number, arrival: Arrival, g: Gait, size: number, ran
     return walking(t - PEEK, g, size, range)
   }
   return walking(t, g, size, range)
+}
+
+// 線の周りを回る姿: arrival が fly か peek なら、最初の FLY 秒は画面の外（降りる所からのずれ from）から回る軌道へ飛んでくる
+export function orbitingPose(t: number, arrival: Arrival, from: Point): Pose {
+  const o = orbitPose(t)
+  const left = arrival !== "none" && t < FLY ? 1 - ease(t / FLY) : 0
+  return {
+    frame: o.frame,
+    x: 0,
+    lift: 0,
+    hover: { x: o.x, y: o.y },
+    scale: o.scale,
+    opacity: o.opacity,
+    from: { x: from.x * left, y: from.y * left },
+    right: left > 0 ? from.x < 0 : o.right,
+    rotation: o.rotation,
+    behind: false,
+  }
 }
 
 // 飛び去る姿: 飛び立った時の姿 start から、t 秒（LEAVE まで）で to（足元からのずれ。画面の外）へ羽ばたいて飛ぶ

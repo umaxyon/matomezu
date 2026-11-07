@@ -4,6 +4,7 @@
 // 置ける範囲（スタンドのレイヤー）に入らなければ、範囲の中へ寄せる。edgePinned のスタンドは、アンカーの上の辺が見える所（範囲と、アンカーを囲む
 // Revealable（リストの行の並びなど）の重なり）の外に出たら寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
 // （囲む物の中のスクロールと、紙をずらしてアンカーを真ん中へ）関数を受け取る。
+// 線のように形を持つ物は、形の要素（SVG の polyline）を useAnchorShapeRef で同じ id に知らせる。スタンドの中の物は useStandShape で、形の点（スタンドの左上から）を受け取る。
 // アンカーの表（id → 要素）はステージごとに 1 つで、ステージのビューが渡す。ブックのデータにも画面の状態にも入れず、描いている間だけ持つ
 import {
   createContext,
@@ -43,14 +44,18 @@ import { ZOOM_MS } from "./useZoomMotion"
 // ステージのアンカーの表: id → 要素と、変わったときに知らせる先
 interface Anchors {
   ref(id: string): (el: Element | null) => void // id のアンカーを付ける ref（id ごとに同じ関数なので、付け直しで描き直さない）
+  shapeRef(id: string): (el: Element | null) => void // id のアンカーの形の要素を付ける ref
   element(id: string): Element | undefined
+  shape(id: string): Element | undefined
   subscribe(listener: () => void): () => void
   snapshot(): number // 変わるたびに増える数
 }
 
 function newAnchors(): Anchors {
   const elements = new Map<string, Element>()
+  const shapes = new Map<string, Element>()
   const refs = new Map<string, (el: Element | null) => void>()
+  const shapeRefs = new Map<string, (el: Element | null) => void>()
   const listeners = new Set<() => void>()
   let version = 0
   const changed = () => {
@@ -72,7 +77,20 @@ function newAnchors(): Anchors {
       }
       return r
     },
+    shapeRef: id => {
+      let r = shapeRefs.get(id)
+      if (!r) {
+        r = el => {
+          if (el) shapes.set(id, el)
+          else shapes.delete(id)
+          changed()
+        }
+        shapeRefs.set(id, r)
+      }
+      return r
+    },
     element: id => elements.get(id),
+    shape: id => shapes.get(id),
     subscribe: listener => {
       listeners.add(listener)
       return () => listeners.delete(listener)
@@ -125,6 +143,12 @@ export function useAnchorRef(): (id: string) => (el: Element | null) => void {
   return useCallback((id: string) => (anchors ? anchors.ref(id) : NO_REF), [anchors])
 }
 
+// id のアンカーの形の要素（SVG の polyline）を付ける ref を返す関数。要素の点が、その物の形（アンカーを 1 つだけ指すスタンドが useStandShape で受け取る）
+export function useAnchorShapeRef(): (id: string) => (el: Element | null) => void {
+  const anchors = useContext(Context)?.anchors
+  return useCallback((id: string) => (anchors ? anchors.shapeRef(id) : NO_REF), [anchors])
+}
+
 // スタンドのレイヤー（ウィジェット stand-layer）: スタンドを描く所。ポインタは、中のスタンドだけが受ける
 export function StandLayer() {
   const setLayer = useContext(Context)?.setLayer
@@ -165,6 +189,10 @@ export interface StandFacing {
 }
 const FacingContext = createContext<StandFacing | null>(null)
 export const useStandFacing = (): StandFacing | null => useContext(FacingContext)
+
+// スタンドが指すアンカーが 1 つで、形の要素を知らせてあれば、その形の点（スタンドの左上から。線の両端と折れ目の並び）。無ければ null
+const ShapeContext = createContext<readonly Point[] | null>(null)
+export const useStandShape = (): readonly Point[] | null => useContext(ShapeContext)
 
 // スタンドの中で、アンカーの上の辺が見える所の外に出ていれば StandAway（edgePinned でないか、外に出ていなければ null）
 export const useStandAway = (): StandAway | null => useContext(AwayContext)
@@ -218,6 +246,7 @@ export function StandAt({
     : out
       ? standBeside(rect, size, side)
       : standAt(rect, size, area, side)
+  const shape = measured.path ? measured.path.map(p => ({ x: p.x - at.x, y: p.y - at.y })) : null
   const facing = size ? { anchor: { x: rect.x - at.x, y: rect.y - at.y, w: rect.w, h: rect.h }, size } : null
   const away: StandAway | null = out
     ? {
@@ -248,7 +277,9 @@ export function StandAt({
       onKeyDown={stop}
     >
       <AwayContext.Provider value={away}>
-        <FacingContext.Provider value={facing}>{children}</FacingContext.Provider>
+        <ShapeContext.Provider value={shape}>
+          <FacingContext.Provider value={facing}>{children}</FacingContext.Provider>
+        </ShapeContext.Provider>
       </AwayContext.Provider>
     </div>,
     ctx.layer,
@@ -312,6 +343,7 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
       ctx.layer,
       ids.map(id => ctx.anchors.element(id)),
       clipped ? (stageElement(ctx.stage) ?? undefined) : undefined,
+      ids.length === 1 ? ctx.anchors.shape(ids[0] as string) : undefined,
     )
   }, [ctx, ids, clipped])
   const [measured, setMeasured] = useState<Measured | null>(null)
@@ -353,26 +385,46 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
   return measured
 }
 
-// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲む Revealable の見える所（clip。測らないか、囲む物が無ければ null）
+// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲む Revealable の見える所（clip。測らないか、囲む物が無ければ null）と、形の点（path。layer の左上から。形が無ければ null）
 interface Measured {
   rect: Rect
   clip: Rect | null
+  path: readonly Point[] | null
 }
 
 // 要素 elements（描かれていない物は undefined）をまとめて囲む四角（layer の左上から。どれも無ければ null）。
 // outer を渡せば、要素を囲む Revealable（outer の内側だけ。中の物の見え方を自分で変える物）の四角を重ねて、要素ごとの見える所をまとめた物も測る
-function measureIn(layer: Element, elements: readonly (Element | undefined)[], outer?: Element): Measured | null {
+function measureIn(
+  layer: Element,
+  elements: readonly (Element | undefined)[],
+  outer?: Element,
+  shape?: Element,
+): Measured | null {
   const els = elements.filter((e): e is Element => e !== undefined)
   if (els.length === 0) return null
   const base = layer.getBoundingClientRect()
   const local = (r: DOMRect): Rect => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height })
   const rect = unionRect(els.map(el => local(el.getBoundingClientRect())))
-  if (!outer) return { rect, clip: null }
+  const path = shape ? shapePath(shape, base) : null
+  if (!outer) return { rect, clip: null, path }
   const clips = els.flatMap(el => {
     const boxes = revealablesAround(el, outer).map(at => local(at.getBoundingClientRect()))
     return boxes.length > 0 ? [boxes.reduce(intersectRect)] : []
   })
-  return { rect, clip: clips.length === els.length ? unionRect(clips) : null }
+  return { rect, clip: clips.length === els.length ? unionRect(clips) : null, path }
+}
+
+// 形の要素（SVG の polyline）の点を、画面の位置にして layer の左上から測った点の並び（点が 2 つに満たなければ null）
+function shapePath(shape: Element, base: DOMRect): readonly Point[] | null {
+  if (!(shape instanceof SVGPolylineElement)) return null
+  const matrix = shape.getScreenCTM()
+  if (!matrix || shape.points.numberOfItems < 2) return null
+  const out: Point[] = []
+  for (let i = 0; i < shape.points.numberOfItems; i++) {
+    const p = shape.points.getItem(i).matrixTransform(matrix)
+    out.push({ x: p.x - base.left, y: p.y - base.top })
+  }
+  return out
 }
 
 // スタンドの中の操作は、スタンドを描いたビュー（React の上の物）に渡さない
@@ -381,5 +433,8 @@ const noSubscribe = () => () => {}
 const zero = () => 0
 const sameRect = (a: Rect | null, b: Rect | null) =>
   a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)
+const samePath = (a: readonly Point[] | null, b: readonly Point[] | null) =>
+  a === b ||
+  (a !== null && b !== null && a.length === b.length && a.every((p, i) => p.x === b[i]?.x && p.y === b[i]?.y))
 const same = (a: Measured | null, b: Measured | null): Measured | null =>
-  a && b && sameRect(a.rect, b.rect) && sameRect(a.clip, b.clip) ? a : b
+  a && b && sameRect(a.rect, b.rect) && sameRect(a.clip, b.clip) && samePath(a.path, b.path) ? a : b

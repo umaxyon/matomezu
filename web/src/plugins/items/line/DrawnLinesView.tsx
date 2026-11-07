@@ -5,7 +5,7 @@
 // キャプションの札は選べるときに押せ、押すと線を選んでドラッグを始める。端が吸い付いた点（snap）には輪を出す
 import type { MouseEvent, PointerEvent } from "react"
 import type { Point } from "../../../plugin-api"
-import { useAnchorRef } from "../../base/ui"
+import { useAnchorRef, useAnchorShapeRef } from "../../base/ui"
 import styles from "./DrawnLinesView.module.css"
 import type { DrawnLine } from "./drawn"
 
@@ -44,6 +44,7 @@ export function DrawnLinesView({
 }: Props) {
   const follow = { onPointerMove: drag.move, onPointerUp: drag.up, onPointerCancel: drag.cancel }
   const anchor = useAnchorRef() // 線にアンカーを付ける（そばにスタンドを立てられる）
+  const shape = useAnchorShapeRef() // 見える線を、その線の形として知らせる（スタンドの鳥などが線に沿える）
   // 選んだ線は、ほかの線に隠れないよう手前（後ろの順）に描く
   const ordered = [...lines.filter(l => !selection.includes(l.id)), ...lines.filter(l => selection.includes(l.id))]
   return (
@@ -60,7 +61,7 @@ export function DrawnLinesView({
           onDoubleClick={() => onDoubleClick(l.id)}
           onContextMenu={e => onContextMenu(e, l.id)}
         >
-          <polyline className={styles.stroke} data-dashed={l.dashed} points={pointsAttr(l.shown)} />
+          <polyline ref={shape(l.id)} className={styles.stroke} data-dashed={l.dashed} points={pointsAttr(l.shown)} />
           {l.heads.fill && <path className={styles.fill} d={l.heads.fill} />}
           {l.heads.stroke && <path className={styles.headStroke} d={l.heads.stroke} />}
           <polyline className={styles.hit} points={pointsAttr(l.points)} />
