@@ -12,6 +12,7 @@ import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import type { Bird } from "../birds"
 import { BirdWalk, birdClass, FRONT, frameStyle } from "../birds/BirdWalk"
 import type { Arrival } from "../birds/flight"
+import { useBirdSheet } from "../birds/paint"
 import { RemoveAsk } from "../birds/RemoveAsk"
 import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
@@ -197,7 +198,7 @@ function PickerStand({ stage, picker }: { stage: string; picker: AnchorTargets }
               <span className={styles.alert}>!</span>
             ) : (
               <span className={styles.pickBird}>
-                <span className={`${birdClass} ${styles.pickFrame}`} style={frameStyle(k.id, FRONT, PICK_SIZE)} />
+                <PickFrame bird={k.id} />
               </span>
             )}
           </button>
@@ -205,4 +206,11 @@ function PickerStand({ stage, picker }: { stage: string; picker: AnchorTargets }
       </div>
     </Stand>
   )
+}
+
+// 種類を選ぶスタンドの鳥の絵（色を塗り終わるまでは出さない）
+function PickFrame({ bird }: { bird: Bird }) {
+  const sheet = useBirdSheet(bird)
+  if (sheet === null) return null
+  return <span className={`${birdClass} ${styles.pickFrame}`} style={frameStyle(sheet, FRONT, PICK_SIZE)} />
 }

@@ -15,7 +15,6 @@ import {
   birdPose,
   FRONT,
   GAITS,
-  type Gait,
   LEAVE,
   leavingPose,
   type Pose,
@@ -23,17 +22,13 @@ import {
   visitLength,
   visitPose,
 } from "./flight"
-import { SHEETS, type Sheet } from "./frames"
 import bunchoPointer from "./images/bird-marks/buncho.png"
 import fukurouPointer from "./images/bird-marks/fukurou.png"
 import inkoPointer from "./images/bird-marks/inko.png"
 import suzumePointer from "./images/bird-marks/suzume.png"
 import tsunagidoriPointer from "./images/bird-marks/tsunagidori.png"
-import buncho from "./images/birds/buncho.png"
-import fukurou from "./images/birds/fukurou.png"
-import inko from "./images/birds/inko.png"
-import suzume from "./images/birds/suzume.png"
-import tsunagidori from "./images/birds/tsunagidori.png"
+import { useBirdSheet } from "./paint"
+import { ANCHOR_X, BODY_WIDTH, CELL, COLUMNS, FRAME, GROUND_Y, SHEET_SIZE } from "./sheets"
 
 export const BIRD_SIZE = 48 // 歩く鳥の大きさ（画面の px）
 export { FRONT }
@@ -49,27 +44,36 @@ export const BIRD_FACES: Record<Bird, string> = {
   fukurou: fukurouPointer,
 }
 
-// 鳥ごとの絵・コマの切り出し・歩き方
-const BIRDS: Record<Bird, { image: string; sheet: Sheet; gait: Gait }> = {
-  tsunagidori: { image: tsunagidori, sheet: SHEETS.tsunagidori, gait: GAITS.tsunagidori },
-  inko: { image: inko, sheet: SHEETS.inko, gait: GAITS.inko },
-  buncho: { image: buncho, sheet: SHEETS.buncho, gait: GAITS.buncho },
-  suzume: { image: suzume, sheet: SHEETS.suzume, gait: GAITS.suzume },
-  fukurou: { image: fukurou, sheet: SHEETS.fukurou, gait: GAITS.fukurou },
-}
-
 // 鳥の絵の 1 コマを描く物の見た目（押せる物にするなら button に付ける）
 export const birdClass = styles.bird
 
-// 物の上の辺を歩く鳥。歩く所の幅は物の幅で、鳥は真ん中寄りの、鳥の幅の 2 倍ほどを往復する。arrival は最初に描くときの出方。
+// 物の上の辺を歩く鳥。palette は鳥の配色（colors.ts の BIRD_PALETTES の id。無ければ元の配色）。色を塗り終わるまでは、歩く所だけを出す。歩く所の幅は物の幅で、鳥は真ん中寄りの、鳥の幅の 2 倍ほどを往復する。arrival は最初に描くときの出方。
 // children は鳥のコマを描く物（足元から置く見た目 style を受け取る）。paused の間は動きを止める。awayLabel は鳥の顔の丸い絵の名前
 // 歩くなら出方 arrival を受け、立ち寄るなら（visit）出方は受けない（いつも飛んでくる）
 type Motion =
   | { visit?: false; arrival: Arrival; onArrived?: never }
   | { visit: true; arrival?: never; onArrived?: () => void }
 
-export function BirdWalk({
+export function BirdWalk(props: WalkProps) {
+  const sheet = useBirdSheet(props.bird, props.palette)
+  if (sheet === null) return <div className={styles.walk} data-bird-walk />
+  return <Walker {...props} sheet={sheet} />
+}
+
+type WalkProps = Motion & {
+  bird: Bird
+  palette?: string
+  origin?: Element | null
+  paused?: boolean
+  leaving?: boolean
+  onGone?: () => void
+  awayLabel: string
+  children: (style: CSSProperties) => ReactNode
+}
+
+function Walker({
   bird,
+  sheet: sheetUrl,
   arrival = "fly",
   origin,
   paused = false,
@@ -79,15 +83,7 @@ export function BirdWalk({
   onGone,
   awayLabel,
   children,
-}: Motion & {
-  bird: Bird
-  origin?: Element | null
-  paused?: boolean
-  leaving?: boolean
-  onGone?: () => void
-  awayLabel: string
-  children: (style: CSSProperties) => ReactNode
-}) {
+}: WalkProps & { sheet: string }) {
   const away = useStandAway()
   const area = useRef<HTMLDivElement>(null)
   const [from, setFrom] = useState<Point>({ x: 0, y: 0 })
@@ -96,9 +92,9 @@ export function BirdWalk({
   const stopped = useRef(paused)
   stopped.current = paused
   const still = useReducedMotion()
-  const { sheet, gait } = BIRDS[bird]
-  const scale = BIRD_SIZE / sheet.cell
-  const range = Math.max(0, Math.min(2 * sheet.bodyWidth * scale, width - BIRD_SIZE - 12))
+  const gait = GAITS[bird]
+  const scale = BIRD_SIZE / CELL
+  const range = Math.max(0, Math.min(2 * BODY_WIDTH[bird] * scale, width - BIRD_SIZE - 12))
   // 歩く所の幅を測る。飛んでくるなら、飛んでくる所を画面（ステージ）の外に決める
   // biome-ignore lint/correctness/useExhaustiveDependencies: 飛んでくる所は、最初に描くときに一度だけ決める
   useEffect(() => {
@@ -186,7 +182,7 @@ export function BirdWalk({
         transform: `translate(${pose.from.x.toString()}px, ${(pose.from.y + pose.lift).toString()}px) rotate(${pose.rotation.toString()}rad)`,
       }}
     >
-      {children(frameStyle(bird, pose.frame, BIRD_SIZE, pose.right))}
+      {children(frameStyle(sheetUrl, pose.frame, BIRD_SIZE, pose.right))}
     </div>
   )
   return (
@@ -196,24 +192,19 @@ export function BirdWalk({
   )
 }
 
-// 鳥の絵の 1 コマを、足元を原点に描く形（size は鳥の大きさ。flip なら足元で左右を返す）
-export function frameStyle(bird: Bird, index: number, size: number, flip = false): CSSProperties {
-  const { sheet, image } = BIRDS[bird]
-  const [x, y, w, h, anchorX, groundY, clip] = sheet.frames[index] ?? sheet.frames[FRONT] ?? [0, 0, 0, 0, 0, 0, []]
-  const s = size / sheet.cell
-  const points: string[] = []
-  for (let i = 0; i + 1 < clip.length; i += 2)
-    points.push(`${((clip[i] ?? 0) * s).toString()}px ${((clip[i + 1] ?? 0) * s).toString()}px`)
+// 鳥の絵の 1 コマ（シート sheet の index 番目。足元より下の空きは含めない）を、足元を原点に描く形（size は鳥の大きさ。flip なら足元で左右を返す）
+export function frameStyle(sheet: string, index: number, size: number, flip = false): CSSProperties {
+  const s = size / CELL
+  const at = index >= 0 && index < COLUMNS * COLUMNS ? index : FRONT
   return {
-    left: -anchorX * s,
-    top: -(groundY + 1) * s,
-    width: w * s,
-    height: h * s,
-    backgroundImage: `url(${image})`,
-    backgroundSize: `${(sheet.size * s).toString()}px`,
-    backgroundPosition: `${(-x * s).toString()}px ${(-y * s).toString()}px`,
-    ...(points.length > 0 ? { clipPath: `polygon(${points.join(", ")})` } : {}),
-    ...(flip ? { transform: "scaleX(-1)", transformOrigin: `${(anchorX * s).toString()}px 0` } : {}),
+    left: -ANCHOR_X * s,
+    top: -(GROUND_Y + 1) * s,
+    width: FRAME * s,
+    height: (GROUND_Y + 1) * s,
+    backgroundImage: `url(${sheet})`,
+    backgroundSize: `${(SHEET_SIZE * s).toString()}px`,
+    backgroundPosition: `${(-(at % COLUMNS) * FRAME * s).toString()}px ${(-Math.floor(at / COLUMNS) * FRAME * s).toString()}px`,
+    ...(flip ? { transform: "scaleX(-1)", transformOrigin: `${(ANCHOR_X * s).toString()}px 0` } : {}),
   }
 }
 
