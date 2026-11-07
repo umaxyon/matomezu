@@ -1,10 +1,9 @@
-// 設定画面の「全体」: 利用者の設定の項目を、項目のビューか値の形から作った入力Form で並べる（base の UserSettings）。マスターには設定画面を開くボタンだけを置く
+// 設定画面の「全体」: 利用者の設定の項目を、項目のビューか値の形から作った入力Form で並べる（base の UserSettings）。設定画面はフッタメニューの「設定を開く」で開く
 import { afterEach, expect, test } from "bun:test"
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { userSetting } from "../../web/src/core/settings"
-import { SETTINGS_DIALOG } from "../../web/src/plugins/base/settings"
 import { defineSettingsCategory } from "../../web/src/plugins/base/ui"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { MASTER } from "../../web/src/plugins/books/master/master"
@@ -48,7 +47,7 @@ const EX_PLUGIN = kit.plugin({
 })
 const EX = definePluginUi(EX_PLUGIN, {})
 
-// book のブックを開いたステージで、設定画面を開いて「全体」の中身（tabpanel）を返す（マスターなら「設定を開く」のボタンで、ほかのブックならダイアログを開く操作で）
+// book のブックを開いたステージで、設定画面を開いて「全体」の中身（tabpanel）を返す（フッタメニューの「設定を開く」で）
 function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], book: string = MASTER_BOOK.id) {
   const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins })
   store.actions.openBook("s1", book)
@@ -57,13 +56,12 @@ function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], bo
       <Screen />
     </MatomezuProvider>,
   )
-  if (book === MASTER_BOOK.id) fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
-  else act(() => store.actions.openDialog("s1", SETTINGS_DIALOG.id))
+  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
   const value = (id: string) => userSetting(store.catalog.core, store.state.getState().settings, `@ex/s:${id}`)
   return { store, value, general: screen.getByRole("tabpanel", { name: "全体" }) }
 }
 
-test("マスターの設定の区分は、設定画面を開くボタンだけで、項目を並べない", () => {
+test("マスターはタイトルだけで、設定の項目も設定を開くボタンも置かない", () => {
   const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
   store.actions.openBook("s1", MASTER_BOOK.id)
   render(
@@ -72,7 +70,7 @@ test("マスターの設定の区分は、設定画面を開くボタンだけ�
     </MatomezuProvider>,
   )
   const master = screen.getByRole("region", { name: "マスター" })
-  expect(within(master).getByRole("button", { name: "設定を開く" })).toBeTruthy()
+  expect(within(master).queryByRole("button")).toBeNull()
   expect(within(master).queryByLabelText("言語")).toBeNull()
 })
 

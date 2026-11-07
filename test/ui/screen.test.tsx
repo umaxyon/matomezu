@@ -186,10 +186,10 @@ test("分割すると、それぞれのステージの区画に閉じるボタ�
   expect(fromMenu("画面を分割").getAttribute("aria-pressed")).toBe("false")
 })
 
-test("マスターで新しいブックを作ると、そのステージでページの無いブックが開き、ページを作ると最初のタブができる", () => {
-  renderScreen()
+test("新しいブックのダイアログでブックを作ると、そのステージでページの無いブックが開き、ページを作ると最初のタブができる", () => {
+  const store = renderScreen()
   fireEvent.click(fromMenu("ホーム"))
-  fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
+  act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
   const dialog = screen.getByRole("dialog", { name: "新しいブック" })
   const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
   expect([...type.options].map(o => o.textContent)).toEqual([
@@ -216,8 +216,7 @@ test("マスターで新しいブックを作ると、そのステージでペ�
 
 test("設定画面の「全体」で言語とスキンを変える", () => {
   renderScreen()
-  fireEvent.click(fromMenu("ホーム"))
-  fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
+  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
   fireEvent.change(screen.getByLabelText("言語"), { target: { value: "matomezu:en" } })
   expect(screen.getByRole("tab", { name: "General" })).toBeTruthy()
   fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "@matomezu/base:light" } })
@@ -415,7 +414,7 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
   })
   fireEvent.keyDown(dialog, { key: "Escape" })
   fireEvent.click(fromMenu("ホーム"))
-  fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
+  act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
   const type = within(screen.getByRole("dialog", { name: "新しいブック" })).getByLabelText(
     "ブックのタイプ",
   ) as HTMLSelectElement

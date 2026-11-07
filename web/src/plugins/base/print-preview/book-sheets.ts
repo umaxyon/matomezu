@@ -1,6 +1,7 @@
 // ブックの全ページの印刷区画の数と、印刷プレビューの並べ方（ブックの設定の項目で決める）。何も載っていない印刷区画は並べない（filled.ts）
 import { pagedOf } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import type { Point } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsAt, settingValue } from "../book-settings"
@@ -89,4 +90,22 @@ export function unprintedSheets(
     column: i % columns,
     row: Math.floor(i / columns),
   })).filter(c => !filled.has(sheetKey(c.column, c.row)))
+}
+
+// ブック book のページ page の初めの位置で、表示領域の左上に置く紙の点: 書く画面の並べ方で何か載っている印刷区画の、いちばん左の列と
+// いちばん上の行の左上（unprintedSheets が暗くしない所）。載っている印刷区画を判定できないタイプ・何も載っていないページ・描けない紙なら紙の左上
+export function startOf(catalog: CoreCatalog, book: Book, page: ItemPage): Point {
+  const paper = paperSize(catalog, page)
+  const sheets = sheetsOfPage(catalog, book, page, "screen")
+  const filled = sheets?.filled
+  if (!paper || !sheets || !filled || filled.size === 0) return { x: 0, y: 0 }
+  let column = sheets.columns
+  let row = sheets.rows
+  for (let c = 0; c < sheets.columns; c++)
+    for (let r = 0; r < sheets.rows; r++)
+      if (filled.has(sheetKey(c, r))) {
+        column = Math.min(column, c)
+        row = Math.min(row, r)
+      }
+  return column === sheets.columns ? { x: 0, y: 0 } : { x: column * paper.w, y: row * paper.h }
 }

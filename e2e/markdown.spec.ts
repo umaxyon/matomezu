@@ -140,10 +140,8 @@ test("描いた文書は、段落の中の改行 1 つを既定で改行にし�
       return new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size
     })
   await expect.poll(lines).toBe(2)
-  // 右に分けたステージでマスターから設定画面を開き、左のマークダウンを開いたまま変える
-  await (await fromMenu(page, "画面を分割")).click()
-  await (await fromMenu(page, "ホーム", 1)).click()
-  await page.getByRole("region", { name: "マスター" }).getByRole("button", { name: "設定を開く" }).click()
+  // フッタメニューから設定画面を開き、マークダウンを開いたまま変える
+  await (await fromMenu(page, "設定を開く")).click()
   await settingsDialog(page).getByRole("tab", { name: "マークダウン" }).click()
   const select = settingsDialog(page).getByLabel("段落の中の改行")
   await expect(select).toHaveValue("line-break")

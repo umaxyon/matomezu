@@ -24,6 +24,7 @@ import {
   PRINT_PREVIEW_SETTING_VIEWS,
 } from "./print-preview/ui"
 import { GENERAL_CATEGORY, KEYS_CATEGORY, type SettingsCategoryProps } from "./settings/categories"
+import { SETTINGS_ICONS } from "./settings/icons"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
 import {
   BOOK_CONTENT,
@@ -165,7 +166,14 @@ export const BASE_UI = definePluginUi(BASE, {
     GENERAL_CATEGORY,
     KEYS_CATEGORY,
   ],
-  commandIcons: { ...STAGE_ICONS, ...ZOOM_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS, ...HISTORY_ICONS },
+  commandIcons: {
+    ...STAGE_ICONS,
+    ...ZOOM_ICONS,
+    ...BOOK_OPEN_ICONS,
+    ...BOOK_LOOK_ICONS,
+    ...HISTORY_ICONS,
+    ...SETTINGS_ICONS,
+  },
   toolIcons: TOOL_ICONS,
 })
 

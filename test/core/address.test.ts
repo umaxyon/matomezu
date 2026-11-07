@@ -1,6 +1,7 @@
 // 画面の場所（core/address.ts）: 見ているものから場所を出し、場所を当てはめ、移動したかを見分ける
 import { expect, test } from "bun:test"
 import { addressOf, moved, placeAt } from "../../web/src/core/address"
+import { paperOf, setArea, setStart } from "../../web/src/core/stage"
 import { newStore } from "../support"
 
 test("場所は、ステージごとのブック・ページ・倍率・ずらす量と、カレントと境目の割合", () => {
@@ -46,4 +47,32 @@ test("移動は、ステージの数か、ブック・ページが変わった�
       stages: [...a.stages, { book: null, page: null, zoom: 1, pan: { x: 0, y: 0 } }],
     }),
   ).toBe(true)
+})
+
+test("場所を当てはめたステージは、ずらす量が 0 でも、あとから届く初めの位置に合わせない（読み直す前に見ていた所のまま）", () => {
+  const store = newStore()
+  const { catalog, state } = store
+  const ws = placeAt(catalog.core, state.getState().books, state.getState().workspace, {
+    stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 } }],
+    current: 0,
+    share: 0.5,
+  })
+  const stage = { ...ws.stages[0]!, view: { w: 400, h: 300 } }
+  const sheet = paperOf(stage)!
+  const arrived = setStart(setArea(stage, { w: sheet.w * 2, h: sheet.h }), { x: sheet.w, y: 0 })
+  expect(arrived.pan).toEqual({ x: 0, y: 0 })
+})
+
+test("今と同じ場所を当てはめる（読み直しで URL が開いた直後と同じ）ときも、あとから届く初めの位置に合わせない", () => {
+  const store = newStore()
+  const { state, actions } = store
+  actions.resizeStage("s1", { w: 400, h: 300 })
+  expect(state.getState().workspace.stages[0]!.starting).toBe(true)
+  store.locate(addressOf(state.getState().workspace))
+  const stage = state.getState().workspace.stages[0]!
+  expect(stage.starting).toBe(false)
+  const sheet = paperOf(stage)!
+  actions.setStageArea("s1", { w: sheet.w * 2, h: sheet.h })
+  actions.setStageStart("s1", { x: sheet.w, y: 0 })
+  expect(state.getState().workspace.stages[0]!.pan).toEqual({ x: 0, y: 0 })
 })

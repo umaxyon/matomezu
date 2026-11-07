@@ -2,7 +2,7 @@
 // ホイールの拡大縮小のコマンドは、回した量に合わせて倍率をかける（wheelZoom。ステージの Ctrl+ホイールは stage/StageView.tsx が、
 // 拡大縮小の帯の上のホイールは ZoomBar が、回した量と位置をそのまま渡す）。
 // 拡大・縮小は、表示領域の中の点 at の下の紙の点を動かさない（null なら表示領域の真ん中。Ctrl+ホイールはポインタの下を渡す）。
-// 開いたときの見え方（倍率 100%・最初の位置）に戻すコマンド（キーの既定は Home）と、ページの紙全体を表示領域に収めるコマンド（ZOOM_MIN より小さくはしない）
+// 開いたときの見え方（倍率 100%・初めの位置。中身の載った印刷区画の左上が表示領域の左上）に戻すコマンド（キーの既定は Home）と、ページの紙全体を表示領域に収めるコマンド（ZOOM_MIN より小さくはしない）
 import type { Point, Size } from "../../../core/geom"
 import { extentOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN } from "../../../core/viewport"

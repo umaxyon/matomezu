@@ -1,7 +1,10 @@
 // base の拡大縮小のコマンド（zoom-in・zoom-out・zoom-reset・zoom-fit）と、倍率の範囲
 import { expect, test } from "bun:test"
+import type { ItemPage } from "../../web/src/core/placed"
 import { paperOf } from "../../web/src/core/stage"
 import { MARGIN } from "../../web/src/core/viewport"
+import { roomOf } from "../../web/src/plugins/base/place/items"
+import { startOf } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { stepZoom, wheelZoom, ZOOM_MAX, ZOOM_MIN } from "../../web/src/plugins/base/zoom"
 import type { CommandId } from "../../web/src/store/commands"
 import { isEnabled } from "../../web/src/store/commands"
@@ -76,4 +79,55 @@ test("Ctrl+ホイールのコマンドは、回した量を今の倍率に重ね
   expect(zoom()).toBe(wheelZoom(once, -100))
   actions.command("s1", "@matomezu/base:zoom-wheel", { delta: 100000, at })
   expect(zoom()).toBe(ZOOM_MIN)
+})
+
+test("左と上へ増やす可変ページは、開くと、空きの印刷区画でなく中身の載った印刷区画の左上を表示領域の左上に置き、初めの位置に戻すもそこへ戻す", () => {
+  const store = newStore()
+  const { state, actions, catalog } = store
+  const enabled = () => isEnabled(store, state.getState(), "s1", "@matomezu/base:zoom-reset")
+  const stage = () => state.getState().workspace.stages[0]!
+  actions.perform(
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 100, y: 100 } },
+    { book: "b1" },
+  )
+  expect(actions.perform("@matomezu/base:page-update", { page: "p1", grows: "all" }, { book: "b1" }).ok).toBe(true)
+  // 開き直し、表示領域を測って、見せ方とレイヤーが広さと初めの位置を知らせる（左と上の印刷区画は空き）
+  actions.openBook("s1", "b1")
+  actions.openPage("s1", "p2")
+  actions.openPage("s1", "p1")
+  actions.resizeStage("s1", { w: 800, h: 600 })
+  const book = state.getState().books.b1!
+  const page = (book as { pages: readonly ItemPage[] }).pages.find(p => p.id === "p1")!
+  const sheet = paperOf(stage())!
+  const start = startOf(catalog.core, book, page)
+  expect(start).toEqual({ x: sheet.w, y: sheet.h })
+  actions.setStageArea("s1", roomOf(catalog.core, book, page))
+  actions.setStageStart("s1", start)
+  expect(stage().pan).toEqual({ x: -sheet.w, y: -sheet.h })
+  expect(enabled()).toBe(false)
+  // 動かすと押せ、押すと押せなくなる（戻る所は core の resetView）
+  actions.panStageBy("s1", 300, 200)
+  expect(enabled()).toBe(true)
+  actions.command("s1", "@matomezu/base:zoom-reset")
+  expect(enabled()).toBe(false)
+})
+
+test("ツリーの可変ページも、左へ増やす向きなら左の印刷区画が空きで、初めの位置はその右の印刷区画の左上", () => {
+  const { catalog } = newStore()
+  const children = Array.from({ length: 3 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` }))
+  const page = {
+    id: "p1",
+    title: "1",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape" as const,
+    grows: true as const,
+    root: { id: "r", caption: "根", children },
+  }
+  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] }
+  expect(startOf(catalog.core, tree as never, page as never)).toEqual({ x: 1123, y: 0 })
+  // 中身の無いページ・可変ページでないページは紙の左上
+  const plain = { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "landscape" as const, items: [] }
+  const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d1", title: "図", pages: [plain] }
+  expect(startOf(catalog.core, drawing as never, plain as never)).toEqual({ x: 0, y: 0 })
 })

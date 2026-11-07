@@ -646,6 +646,50 @@ test("「ページの設定」で可変ページにして上下左右へ増や�
   await expect(page.locator("[data-print-areas]")).toHaveCount(0)
 })
 
+test("上下左右へ増やす可変ページを開くと、左上の空きの印刷区画でなく中身の載った印刷区画の左上が見え、「初めの位置に戻す」もそこへ戻す。読み直すと、見ていた所のまま", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBox(page, 200, 200, "元")
+  const box = page.locator("[data-item]").filter({ hasText: "元" })
+  const before = (await box.boundingBox())!
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByRole("switch", { name: "可変ページにする" }).click()
+  await dialog.getByLabel("増やす向き").selectOption({ label: "上下左右" })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "3x3")
+  // ほかのページを開いてから戻ると、箱の載った印刷区画の左上が表示領域の左上に来る（箱は、紙 1 枚のときと同じ所に見える）
+  await page.getByRole("button", { name: "ページを足す" }).click()
+  await page.keyboard.press("Enter")
+  await page.getByRole("tab", { name: "ページ 1" }).click()
+  const at = async () => (await box.boundingBox())!
+  await expect
+    .poll(async () => Math.abs((await at()).x - before.x) + Math.abs((await at()).y - before.y))
+    .toBeLessThan(1)
+  // 左上へずらしてから戻すと、同じ所へ戻る
+  await page.mouse.move(empty.x, empty.y)
+  await page.mouse.wheel(-3000, -3000)
+  await expect.poll(async () => (await at()).x).toBeGreaterThan(before.x + 100)
+  await page.getByRole("button", { name: "初めの位置に戻す" }).click()
+  await expect
+    .poll(async () => Math.abs((await at()).x - before.x) + Math.abs((await at()).y - before.y))
+    .toBeLessThan(1)
+  // 左上の端へずらして読み直すと、URL の位置（左上の端）のまま
+  await page.mouse.move(empty.x, empty.y)
+  await page.mouse.wheel(-3000, -3000)
+  await expect.poll(async () => (await at()).x).toBeGreaterThan(before.x + 100)
+  const corner = await at()
+  await page.reload()
+  await expect(box).toBeVisible()
+  await expect
+    .poll(async () => Math.abs((await at()).x - corner.x) + Math.abs((await at()).y - corner.y))
+    .toBeLessThan(1)
+})
+
 test("箱の右の辺を右の箱へ向けて広げると、手を離したときに右の箱が押されて右へずれる", async ({ page }) => {
   await page.goto("/")
   for (const [x, caption] of [

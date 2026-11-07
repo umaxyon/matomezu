@@ -92,6 +92,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
       "@matomezu/base:book-open",
       "@matomezu/base:book-settings",
+      "@matomezu/base:settings-open",
     ],
   },
   // 押した物にアンカーがあれば、どの右クリックのメニューにも末尾に出す

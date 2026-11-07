@@ -155,7 +155,7 @@ test("設定画面の「マークダウン」の「Tabキー」: 押している
     </MatomezuProvider>,
   )
   const value = () => store.state.getState().settings["@matomezu/markdown:tab-key"]
-  fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
+  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
   fireEvent.click(screen.getByRole("tab", { name: "マークダウン" }))
   const general = screen.getByRole("tabpanel", { name: "マークダウン" })
   const spaces = within(general).getByRole("button", { name: "半角スペース" })
