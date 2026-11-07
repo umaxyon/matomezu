@@ -52,8 +52,8 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
   // 見たことになり、しおりは消える
   await expect.poll(async () => !!(await mailbox(page))[0]?.seenAt).toBe(true)
   await expect(bookmark).toHaveCount(0)
-  // 1 画面なら、キャンセル・開く・分割で開く
-  await expect(dialog.getByRole("button")).toHaveText(["キャンセル", "開く", "分割で開く"])
+  // 1 画面なら、閉じる・開く・分割で開く
+  await expect(dialog.getByRole("button")).toHaveText(["閉じる", "開く", "分割で開く"])
   await dialog.getByRole("button", { name: "開く", exact: true }).click()
   await expect(dialog).toHaveCount(0)
   await expect.poll(async () => !!(await mailbox(page))[0]?.visitedAt).toBe(true)
@@ -103,7 +103,7 @@ test("2 画面なら「左に開く」「右に開く」で、Enter はダイア
   })
   await page.getByRole("button", { name: "二つ" }).click()
   const dialog = page.getByRole("dialog", { name: "二つ" })
-  await expect(dialog.getByRole("button")).toHaveText(["キャンセル", "左に開く", "右に開く"])
+  await expect(dialog.getByRole("button")).toHaveText(["閉じる", "左に開く", "右に開く"])
   // カレントは右のステージなので、Enter は右に開く
   await page.keyboard.press("Enter")
   await expect(dialog).toHaveCount(0)

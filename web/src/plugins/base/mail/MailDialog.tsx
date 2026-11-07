@@ -84,7 +84,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
       <form ref={buttons} id={form} className={own.buttons} onSubmit={submit}>
         {opens ? (
           <>
-            <ActionButton onClick={onClose}>{t("Cancel")}</ActionButton>
+            <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
             {opens.opens.map(c =>
               c === opens.primary ? (
                 <ActionButton key={c} form={form} primary>
