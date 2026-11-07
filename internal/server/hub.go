@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -86,10 +87,11 @@ type Hub struct {
 	mailWarnings []string
 	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
 	windowWarnings map[string][]string
-	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
-	performed      map[string]Performed // 最近行ったアクションの番号（Perform の Key）→ その結果
-	performedOrder []string             // performed の番号を行った順に（古いものから忘れる）
-	acts           int64                // 行ったアクションの数（book の知らせの act。1 回の Perform が変えたブックに同じ印を付ける）
+	touched        map[string]string     // ブックの id → 触れた時刻（touched.go）
+	performed      map[string]Performed  // 最近行ったアクションの番号（Perform の Key）→ その結果
+	performedOrder []string              // performed の番号を行った順に（古いものから忘れる）
+	acts           int64                 // 行ったアクションの数（book の知らせの act の後ろ。1 回の Perform が変えたブックに同じ印を付ける）
+	actPrefix      string                // book の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
 	aiChanges      map[string][]AIChange // ブックの id → AI の変更の記録（ai_changes.go。1 つも無いブックは持たない）
 }
 
@@ -127,7 +129,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		}
 		aiChanges[id] = list
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiChanges: aiChanges}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiChanges: aiChanges, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -358,6 +360,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	}
 	if out.OK {
 		h.acts++
+		act := h.actPrefix + "-" + strconv.FormatInt(h.acts, 10)
 		by := "host"
 		if p.By == "ai" {
 			by = "ai"
@@ -365,12 +368,12 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			by = "window"
 		}
 		for _, body := range out.Books {
-			id, err := h.putBook(body, p.Client, p.Seq, by, h.acts, p.Action)
+			id, err := h.putBook(body, p.Client, p.Seq, by, act, p.Action)
 			if err != nil {
 				return Performed{}, err
 			}
 			if by == "ai" {
-				if err := h.recordAIChange(id, h.acts, h.books[id].version, stamp()); err != nil {
+				if err := h.recordAIChange(id, act, h.books[id].version, stamp()); err != nil {
 					return Performed{}, err
 				}
 			}
@@ -435,7 +438,7 @@ func (h *Hub) remember(key string, done Performed) {
 
 // putBook は、アクションが変えたブックを今の版の上に書いて知らせる（h.mu を持って呼ぶ）。
 // 知らせの by は頼んだ物（"ai"・窓なら "window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印（窓が、よその変更を画面の履歴の段にまとめるのに使う）、action は行ったアクションの id
-func (h *Hub) putBook(body json.RawMessage, client string, seq int64, by string, act int64, action string) (string, error) {
+func (h *Hub) putBook(body json.RawMessage, client string, seq int64, by string, act string, action string) (string, error) {
 	var head struct {
 		ID string `json:"id"`
 	}

@@ -164,7 +164,7 @@ const BookSchema = z.object({
   book: z.object({ id: z.string() }).loose(),
   version: z.number().int(),
   by: z.enum(["ai", "window", "host"]).optional(),
-  act: z.number().int().optional(),
+  act: z.string().optional(),
   action: z.string().optional(),
   ...Mark,
 })
@@ -214,7 +214,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         .fetch("api/ai-changes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ client, ...next, act: Number(next.act) }),
+          body: JSON.stringify(next),
         })
         .catch(() => null)
       if (!res || res.status >= 500) {
@@ -453,12 +453,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
         logLine(`kept book ${e.book.id} v${have.version}; the notice had v${e.version}`)
       changed(e.book.id)
       settle(e)
-      const foreign = e.client !== client && e.by !== undefined && e.act !== undefined
-      show(
-        foreign
-          ? { book: e.book.id, by: e.by as "ai" | "window" | "host", act: String(e.act), action: e.action ?? "" }
-          : undefined,
-      )
+      const act = e.act
+      const foreign = e.client !== client && e.by !== undefined && act !== undefined
+      show(foreign ? { book: e.book.id, by: e.by as "ai" | "window" | "host", act, action: e.action ?? "" } : undefined)
     })
     on("removed", data => {
       const e = RemovedSchema.parse(JSON.parse(data))

@@ -4,7 +4,7 @@ package server
 // 見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「消えた」にする。消えた物は、AI のフックが聞いたとき
 // （GET /api/ai/awaiting の undone）に渡し、次に利用者が AI に話しかけたら消す。ブックごとに aiChangesMax まで（古い物から捨てる）。
 //
-//	POST /api/ai-changes   {"client", "book", "act", "outcome": "seen" | "lost", "lost"} 窓が、AI の変更（act は book の知らせの印）を見た・見られる前に消えた
+//	POST /api/ai-changes   {"book", "act", "outcome": "seen" | "lost", "lost"} 窓が、AI の変更（act は book の知らせの印）を見た・見られる前に消えた
 
 import (
 	"encoding/json"
@@ -16,7 +16,7 @@ const aiChangesMax = 100
 
 // AIChange は AI の変更の記録 1 つ
 type AIChange struct {
-	Act     int64           `json:"act"`            // book の知らせの印（1 回の Perform）
+	Act     string          `json:"act"`            // book の知らせの印（1 回の Perform。起動し直しても重ならない）
 	At      string          `json:"at"`             // 変えた時点
 	Version int64           `json:"version"`        // 変えた後のブックの版
 	Lost    json.RawMessage `json:"lost,omitempty"` // 見られる前に消えたとき、窓が知らせた消えた所と AI の値
@@ -24,10 +24,15 @@ type AIChange struct {
 }
 
 // recordAIChange は、AI のアクション act がブック book を版 version にしたことを残す（h.mu を持って呼ぶ）
-func (h *Hub) recordAIChange(book string, act int64, version int64, at string) error {
+func (h *Hub) recordAIChange(book string, act string, version int64, at string) error {
 	list := append(slices.Clone(h.aiChanges[book]), AIChange{Act: act, At: at, Version: version})
-	if len(list) > aiChangesMax {
-		list = list[len(list)-aiChangesMax:]
+	// 多すぎたら、見られていない物の古い方から捨てる（消えた物は AI に渡すまで残す）
+	for len(list) > aiChangesMax {
+		i := slices.IndexFunc(list, func(c AIChange) bool { return c.Lost == nil })
+		if i < 0 {
+			i = 0
+		}
+		list = slices.Delete(list, i, i+1)
 	}
 	return h.putAIChanges(book, list)
 }
@@ -50,7 +55,7 @@ func (h *Hub) putAIChanges(book string, list []AIChange) error {
 
 // SettleAIChange は、窓が AI の変更 act（ブック book）を見た（lost が nil）か、見られる前に消えた（lost に消えた所と AI の値）ことを受ける。
 // まだ見られていない記録だけを変える（ほかの窓で見えて、もう無ければ何もしない）
-func (h *Hub) SettleAIChange(book string, act int64, lost json.RawMessage) error {
+func (h *Hub) SettleAIChange(book string, act string, lost json.RawMessage) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	list := slices.Clone(h.aiChanges[book])
@@ -127,11 +132,11 @@ func (h *Hub) forgetToldAIChanges() error {
 func (o Options) aiChange(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Book    string          `json:"book"`
-		Act     int64           `json:"act"`
+		Act     string          `json:"act"`
 		Outcome string          `json:"outcome"`
 		Lost    json.RawMessage `json:"lost"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Book == "" ||
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Book == "" || in.Act == "" ||
 		(in.Outcome != "seen" && in.Outcome != "lost") || (in.Outcome == "lost" && len(in.Lost) == 0) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return

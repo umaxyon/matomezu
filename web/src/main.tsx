@@ -31,7 +31,10 @@ const store = createMatomezu({
   lang: navigator.languages,
   observe: done => client.observe(done),
   aiChange: change => client.reportAIChange(change),
+  visible: () => document.visibilityState !== "hidden",
 })
+// 裏のタブから前に出たら、まだ見ていない変更が見えたかを確かめ直す
+document.addEventListener("visibilitychange", () => store.checkSeen())
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、組み立てで確かめる（見た目と、置いた配置も）。
 // 読み込めないもの・組み立てられないもの・配置が食い違うものは外す（ほかのプラグインとブックは使える）
 const added = store.use(saved.plugins as AnyPluginUi[], all => {

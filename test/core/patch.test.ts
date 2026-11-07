@@ -1,7 +1,7 @@
 // データの置き直し（core/patch.ts）: patchOf は 2 つの値の違う所だけを置き直す値を作り、applyPatch が今の値の上で行う。
 // オブジェクトはフィールドごと、id の並びは id ごと、改行を含む文字列は行ごと（ほかで変わった所は、重ならなければ残す）
 import { expect, test } from "bun:test"
-import { applyPatch, patchOf } from "../../web/src/core/patch"
+import { applyPatch, type Patch, patchOf, undoneIn } from "../../web/src/core/patch"
 
 const back = (from: unknown, to: unknown, now: unknown) => applyPatch(now, patchOf(from, to) ?? { set: now })
 
@@ -78,4 +78,40 @@ test("行ごと: やり直しも同じ（前から後へ）", () => {
   const after = "一\n自分\n二"
   const now = "AI\n一\n二"
   expect(back(before, after, now)).toBe("AI\n一\n自分\n二")
+})
+
+test("行ごと: 離れた 2 か所の違いを、それぞれの所に当てる", () => {
+  const before = "一\n二\n三\n四\n五"
+  const after = "一\n自分1\n二\n三\n四\n自分2\n五"
+  const now = "AI\n一\n自分1\n二\n三\n四\n自分2\n五"
+  expect(back(after, before, now)).toBe("AI\n一\n二\n三\n四\n五")
+})
+
+// 消えたか: made（AI が書いた所）の値が、ある変更の前にはあって後に無い所
+const lostIn = (base: unknown, ai: unknown, before: unknown, after: unknown) =>
+  undoneIn(patchOf(base, ai) as Patch, before, after)
+
+test("消えたか: フィールドは、AI の値が前にあって後に無いときだけ。前から違っていれば数えない", () => {
+  const base = { props: { caption: "a" } }
+  const ai = { props: { caption: "AI" } }
+  expect(lostIn(base, ai, ai, base)).toEqual([{ at: "props/caption", value: "AI" }])
+  expect(lostIn(base, ai, { props: { caption: "打ち直し" } }, base)).toEqual([])
+  expect(lostIn(base, ai, ai, { props: { caption: "AI" }, x: 1 })).toEqual([])
+})
+
+test("消えたか: AI が足した物を外した・AI が外した物が戻ったら数える", () => {
+  const base = { items: [{ id: "a" }] }
+  const ai = { items: [{ id: "a" }, { id: "b" }] }
+  expect(lostIn(base, ai, ai, base)).toEqual([{ at: "items/b", value: { id: "b" } }])
+  expect(lostIn(ai, base, base, ai)).toEqual([{ at: "items/b", removed: true }])
+})
+
+test("消えたか: 行は、AI が書いた行が前の文字列にあって後に無いとき。同じ字の空行がほかにあっても取り違えない。AI が消した行が戻っても数える", () => {
+  const base = "一\n\n二"
+  const ai = "一\n\nAI\n\n二"
+  expect(lostIn(base, ai, ai, base)).toEqual([{ at: "", lines: ["AI", ""] }])
+  expect(lostIn(base, ai, ai, "一\n\nAI\n\n二\n\n")).toEqual([])
+  expect(lostIn("一\n消す\n二", "一\n二", "一\n二", "一\n消す\n二")).toEqual([
+    { at: "", lines: [], removedLines: ["消す"] },
+  ])
 })

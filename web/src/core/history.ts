@@ -1,6 +1,6 @@
 // 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったブックの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
-import { overlaps, patchOf } from "./patch"
+import type { Patch } from "./patch"
 import type { Book } from "./schema/book"
 
 // 画面の履歴の段を作った物: この窓の利用者・AI・ほかの窓
@@ -28,30 +28,24 @@ export function insertStep(was: BookHistory, step: HistoryStep): BookHistory {
   return { ...was, undo: [...was.undo.slice(0, i), step, ...was.undo.slice(i)].slice(-HISTORY_LIMIT) }
 }
 
-// まだ見ていない画面の履歴の段 step がブックで変えた所を、この窓の利用者の変更（ブックを before から now にした）が上書きしたか
-export function stepOverwritten(step: HistoryStep, before: Book, now: Book): boolean {
-  const b = step.books[now.id]
-  const made = b && patchOf(b.before, b.after)
-  const mine = patchOf(before, now)
-  return !!made && !!mine && overlaps(made, mine)
-}
-
 // 物が見えているかを答える関数（見せ方のビューが知らせる）: ブック book のページ page の、最上位のアイテム item が、見える所にあるか
 export type SeenTest = (page: string, item: string, book: Book) => boolean
 
-// まだ見ていない画面の履歴の段 step の変更が、ブック book のページ page（ページを持たなければ null）を開いているステージで見えたか（どれか 1 つが見えたら全体）。
+// まだ見ていない変更（ブックを before から after にした Patch made）が、そのブックのページ page（ページを持たなければ null）を開いているステージで見えたか（どれか 1 つが見えたら全体）。
 // ブックやページのフィールドの変更は、開いていれば見えたとする。アイテムは seen に前と後のブックで聞き（消えた物は前の場所）、seen が無ければ見えたとする
-export function stepSeen(step: HistoryStep, book: string, page: string | null, seen?: SeenTest): boolean {
-  const b = step.books[book]
-  const p = b && patchOf(b.before, b.after)
-  if (!b || !p) return false
-  if (page === null || !("fields" in p) || Object.keys(p.fields).some(k => k !== "pages")) return true
-  const pages = p.fields.pages
+export function changeSeen(
+  made: Patch,
+  change: { before: Book; after: Book },
+  page: string | null,
+  seen?: SeenTest,
+): boolean {
+  if (page === null || !("fields" in made) || Object.keys(made.fields).some(k => k !== "pages")) return true
+  const pages = made.fields.pages
   if (!pages || !("list" in pages) || pages.list.length === 0) return true
   const q = pages.list.find(x => x.id === page)
   if (!q) return false
   if (!("fields" in q.patch) || Object.keys(q.patch.fields).some(k => k !== "items")) return true
   const items = q.patch.fields.items
   if (!items || !("list" in items) || items.list.length === 0 || !seen) return true
-  return items.list.some(i => seen(page, i.id, b.after) || seen(page, i.id, b.before))
+  return items.list.some(i => seen(page, i.id, change.after) || seen(page, i.id, change.before))
 }

@@ -40,7 +40,7 @@ function isKeyed(v: unknown): v is readonly Keyed[] {
 }
 
 // 並び from を並び to の順に直す id の順（両方にある物の相対順が同じなら無し）
-export function orderPatch(from: readonly { id: string }[], to: readonly { id: string }[]): string[] | undefined {
+function orderPatch(from: readonly { id: string }[], to: readonly { id: string }[]): string[] | undefined {
   const inFrom = new Set(from.map(x => x.id))
   const inTo = new Set(to.map(x => x.id))
   const a = from.filter(x => inTo.has(x.id)).map(x => x.id)
@@ -194,38 +194,66 @@ function mergeText(from: readonly string[], to: readonly string[], now: readonly
   return out
 }
 
-// Patch first が変えた所を、そのあとの Patch then（first の後の値から、さらに変えた物。間にほかの変更があってもよい）が上書きしたか。
-// フィールドと id の並びは同じ所を変えたら上書き（並びの順だけの違いは見ない）。行の違いは、first が書いた行のかたまりが then の後の文字列に残っていなければ上書き
-export function overlaps(first: Patch, then: Patch): boolean {
-  if ("fields" in first && "fields" in then)
-    return Object.entries(first.fields).some(([k, p]) => {
-      const q = then.fields[k]
-      return q !== undefined && overlaps(p, q)
-    })
-  if ("list" in first && "list" in then) {
-    const later = new Map(then.list.map(q => [q.id, q.patch]))
-    return first.list.some(p => {
-      const q = later.get(p.id)
-      return q !== undefined && overlaps(p.patch, q)
-    })
+// Patch made（ほかの物が書いた所）が書いた値のうち、ある変更の前の値 before にはまだあり、後の値 after では無くなった所（書いた所と値の並び。無ければ空）。
+// フィールドと id の並びは、書いた値が前にあって後に無い所。行の違いは、書いた行が前の文字列にあって後の文字列に無い（消した行は、前に無くて後にある）所
+export function undoneIn(made: Patch, before: unknown, after: unknown, at = ""): Written[] {
+  if ("set" in made) return sameData(before, made.set) && !sameData(after, made.set) ? [{ at, value: made.set }] : []
+  if ("absent" in made) return before === undefined && after !== undefined ? [{ at, removed: true }] : []
+  if ("fields" in made) {
+    if (!isFields(before)) return []
+    const later = isFields(after) ? after : {}
+    return Object.entries(made.fields).flatMap(([k, q]) => undoneIn(q, before[k], later[k], at ? `${at}/${k}` : k))
   }
-  if ("text" in first && "text" in then) {
-    const now = `\n${then.text.to}\n`
-    return hunksOf(first.text.from.split("\n"), first.text.to.split("\n")).some(
-      h => h.lines.length > 0 && !now.includes(`\n${h.lines.join("\n")}\n`),
-    )
+  if ("list" in made) {
+    if (!Array.isArray(before)) return []
+    const find = (list: unknown, id: string) =>
+      Array.isArray(list) ? (list as Keyed[]).find(x => isFields(x) && x.id === id) : undefined
+    return made.list.flatMap(q => undoneIn(q.patch, find(before, q.id), find(after, q.id), `${at}/${q.id}`))
   }
-  return true
+  if (typeof before !== "string") return []
+  const from = made.text.from.split("\n")
+  const wrote = made.text.to.split("\n")
+  const now = typeof after === "string" ? after.split("\n") : []
+  const { removedLines } = linesOf(from, wrote)
+  // 書いた行（made の後の文字列の行）を前の文字列に重ね、後の文字列に残ったかを見る（同じ字の行がほかにあっても取り違えない）
+  const was = before.split("\n")
+  const toBefore = matchLines(wrote, was)
+  const kept = matchLines(was, now)
+  const ours = new Set(matchLines(from, wrote).values())
+  const lost = wrote.filter((_, i) => {
+    const j = toBefore.get(i)
+    return !ours.has(i) && j !== undefined && !kept.has(j)
+  })
+  // 消した行は、後の文字列に新しく足された行に、同じ字の物があれば戻された
+  const back = new Set(kept.values())
+  const added = new Set(now.filter((_, j) => !back.has(j)))
+  const returned = removedLines.filter(l => added.has(l))
+  return lost.length > 0 || returned.length > 0
+    ? [{ at, lines: lost, ...(returned.length > 0 ? { removedLines: returned } : {}) }]
+    : []
 }
 
 // Patch が書いた所と値の並び（AI などに見せる形）: at はフィールドの名前と id の並びの id をたどった道（/ で区切る）。
-// value は入れた値、removed は外した物、lines は足した・書き換えた行（行ごとの違いのとき）
-export type Written = { at: string } & ({ value: unknown } | { removed: true } | { lines: readonly string[] })
+// value は入れた値、removed は外した物、lines は足した・書き換えた行と removedLines は消した行（行ごとの違いのとき）
+export type Written = { at: string } & (
+  | { value: unknown }
+  | { removed: true }
+  | { lines: readonly string[]; removedLines?: readonly string[] }
+)
 export function writtenBy(p: Patch, at = ""): Written[] {
   if ("set" in p) return [{ at, value: p.set }]
   if ("absent" in p) return [{ at, removed: true }]
   if ("fields" in p) return Object.entries(p.fields).flatMap(([k, q]) => writtenBy(q, at ? `${at}/${k}` : k))
   if ("list" in p) return p.list.flatMap(q => writtenBy(q.patch, `${at}/${q.id}`))
-  const lines = hunksOf(p.text.from.split("\n"), p.text.to.split("\n")).flatMap(h => h.lines)
-  return [{ at, lines }]
+  const { lines, removedLines } = linesOf(p.text.from.split("\n"), p.text.to.split("\n"))
+  return [{ at, lines, ...(removedLines.length > 0 ? { removedLines } : {}) }]
+}
+
+// 行の並び from を to にした違いの、足した・書き換えた行と、消した行
+function linesOf(from: readonly string[], to: readonly string[]): { lines: string[]; removedLines: string[] } {
+  const hunks = hunksOf(from, to)
+  return {
+    lines: hunks.flatMap(h => h.lines),
+    removedLines: hunks.flatMap(h => from.slice(h.start, h.end)),
+  }
 }

@@ -126,14 +126,45 @@ test("AI の変更が見えたら seen を、見られる前に戻すが上書�
   const last = (bookOf(store).pages[0]?.items?.length ?? 0) - 1
   const item = bookOf(store).pages[0]!.items![last]!.id
   foreign(store, renamed(bookOf(store), last, "AI"), "ai", "5")
-  foreign(store, renamed(bookOf(store), 0, "窓"), "window", "6")
   store.actions.command("s1", "@matomezu/base:undo")
   store.setSeenTest("s1", () => true)
-  // ブックのフィールドの変更は、ブックを開いていればすぐ見えた
+  // ブックのフィールドの変更は、ブックを開いていればすぐ見えた（ほかの窓の物は知らせない）
+  foreign(store, { ...bookOf(store), title: "窓の題" }, "window", "6")
   foreign(store, { ...bookOf(store), title: "AI の題" }, "ai", "7")
   const page = bookOf(store).pages[0]!.id
   expect(told).toEqual([
     { book: "b1", act: "5", outcome: "lost", lost: [{ at: `pages/${page}/items/${item}/props/caption`, value: "AI" }] },
     { book: "b1", act: "7", outcome: "seen" },
   ])
+})
+
+test("戻すが消したのでなく、ふつうの操作のあとに戻して AI の値に戻ったなら、捨てずに知らせない", async () => {
+  const told: AIChangeOutcome[] = []
+  const store = ready(sequence(), c => told.push(c))
+  store.setSeenTest("s1", () => false)
+  place(store, "自分")
+  await settled()
+  confirm(store)
+  const last = (bookOf(store).pages[0]?.items?.length ?? 0) - 1
+  const item = bookOf(store).pages[0]!.items![last]!.id
+  const page = bookOf(store).pages[0]!.id
+  foreign(store, renamed(bookOf(store), last, "AI"), "ai", "5")
+  store.actions.perform("@matomezu/paper:item-update", { page, item, props: { caption: "打ち直し" } }, { book: "b1" })
+  await settled()
+  store.actions.command("s1", "@matomezu/base:undo")
+  expect(captions(store).at(-1)).toBe("AI")
+  expect(told).toEqual([])
+  store.setSeenTest("s1", () => true)
+  expect(told).toEqual([{ book: "b1", act: "5", outcome: "seen" }])
+})
+
+test("窓が見えていない間は、見えたとしない。見えるようになって確かめ直したら差し込む", () => {
+  let visible = false
+  const store = newStore({ now: sequence(), visible: () => visible })
+  store.receive({ books: [bookOf(store)], settings: {} }, [])
+  foreign(store, { ...bookOf(store), title: "AI" })
+  expect(historyOf(store)).toBeUndefined()
+  visible = true
+  store.checkSeen()
+  expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["ai"])
 })
