@@ -6,8 +6,8 @@ import type { BirdColors } from "./colors"
 
 export type Rgb = readonly [number, number, number]
 
+// #RRGGBB の 3 つの値（0〜255）
 export function parseHex(hex: string): Rgb {
-  if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new TypeError(`色は #RRGGBB で指定してください: ${hex}`)
   return [1, 3, 5].map(i => Number.parseInt(hex.slice(i, i + 2), 16)) as unknown as Rgb
 }
 

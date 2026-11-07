@@ -24,7 +24,7 @@ export const GAITS: Record<Bird, Gait> = {
 }
 
 export interface Pose {
-  frame: number // コマの番号（frames.ts）
+  frame: number // コマの番号（sheets.ts の並び）
   x: number // 歩く所の左端からの、足元の位置
   lift: number // 上の辺からの足元の高さ（上が負）
   from: Point // 飛んでくる途中の、降りる所からのずれ（それ以外は 0）

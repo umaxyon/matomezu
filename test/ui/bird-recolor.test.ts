@@ -34,9 +34,8 @@ test("内羽と旗はそれぞれ別の色。割合が半分の画素は元の�
   expect(mixed[0]).toBeLessThan(60)
 })
 
-test("色は #RRGGBB だけ", () => {
+test("色は #RRGGBB から 3 つの値にする", () => {
   expect(parseHex("#0a1B2c")).toEqual([10, 27, 44])
-  expect(() => parseHex("red")).toThrow(TypeError)
 })
 
 test("鳥の配色: 20 個、id は重ならない。指定が無いか知らない id は元の配色", () => {
