@@ -4,7 +4,7 @@
 import { z } from "zod"
 import { creatableTypes, createBook } from "../../../core/book"
 import type { BookTypeId, SingleBookTypeId } from "../../../core/catalog"
-import { bookType, type CatalogCheck } from "../../../core/core-catalog"
+import { bookType, type CatalogCheckDef } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
 import { type PermitContext, permittedIn, type World } from "../../../core/perform"
 import { withBookSettings } from "../book-look"
@@ -51,7 +51,7 @@ export const BOOK_CREATE = kit.defineAction({
 })
 
 // タイプの createSettings が、そのタイプのブックの設定の項目を名指しているか（組み立てのときの確かめ）
-export const CREATE_SETTINGS_CHECK: CatalogCheck = catalog =>
+export const CREATE_SETTINGS_CHECK: CatalogCheckDef = catalog =>
   [...catalog.bookTypes.values()].flatMap(t =>
     (t.createSettings ?? []).flatMap(setting =>
       (bookType(catalog, t.id).settings?.book ?? []).includes(setting) ? [] : [problem("E035", { id: t.id, setting })],

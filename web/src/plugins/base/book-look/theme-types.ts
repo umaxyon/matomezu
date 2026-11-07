@@ -3,7 +3,7 @@
 // データに残っていても使わない（表に無いテーマと同じく、タイプの既定のテーマかブックのテーマで描く。データは消さない）
 
 import type { ThemeTypeTable } from "../../../core/catalog"
-import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
+import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
 import type { ThemeDef } from "../../../core/def/theme"
 import { problem } from "../../../core/errors"
 import { kit } from "../kit"
@@ -45,7 +45,7 @@ export function themeFits(catalog: CoreCatalog, type: string, theme: string): bo
 const isTypes = (v: unknown): v is readonly string[] => Array.isArray(v) && v.every(t => typeof t === "string")
 
 // テーマとブックのタイプがテーマタイプを書いているか（E040。型の無い書き方の追加プラグイン向け）と、タイプの既定のテーマが使えるか（E039）。組み立てのときの確かめ
-export const THEME_TYPES_CHECK: CatalogCheck = catalog => [
+export const THEME_TYPES_CHECK: CatalogCheckDef = catalog => [
   ...[...catalog.themes.values()].flatMap(t =>
     t.themeTypes === "all" || isTypes(t.themeTypes)
       ? []

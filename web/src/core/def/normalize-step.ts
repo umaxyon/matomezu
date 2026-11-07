@@ -3,7 +3,7 @@
 import type { CoreCatalog } from "../core-catalog"
 import type { Book } from "../schema/book"
 
-export interface NormalizeStep {
+export interface NormalizeStepDef {
   // このステップだけが書くページのフィールド。アクションの run が変えたら、perform は断る
   pageFields: readonly string[]
   // pageFields を変えてよいアクション（ブックを前の状態に戻すもの）の id

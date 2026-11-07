@@ -2,9 +2,9 @@
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
 import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
-import { buildCoreCatalog, type CatalogCheck, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
+import { buildCoreCatalog, type CatalogCheckDef, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
-import type { NormalizeStep } from "../core/def/normalize-step"
+import type { NormalizeStepDef } from "../core/def/normalize-step"
 import type { PlacedStateDef } from "../core/def/placed-state"
 import type { Scheme } from "../core/def/skin"
 import type { TokenDef } from "../core/def/theme"
@@ -34,8 +34,8 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   keys?: readonly KeyDef[] // 既定のキーバインド（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
   placedState?: PlacedStateDef // ステージの画面の状態のうち、画面の場所に入れて読み直しても戻す物（store/placed-state.ts）
-  checks?: readonly CatalogCheck[] // 組み立てのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E308 で止める）
-  normalizeSteps?: readonly NormalizeStep[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E310 で止める）
+  checks?: readonly CatalogCheckDef[] // 組み立てのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E308 で止める）
+  normalizeSteps?: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E310 で止める）
 }
 
 export type Plugin = PluginParts & {
@@ -107,7 +107,7 @@ export const definePlugin = <const P extends Plugin>(
 ): P => plugin
 
 // ビルトインプラグインが組み立てのときの確かめ（checks）を書くための型と、問題と warning の作り方（plugin-api/builtin が出し直す）
-export type { CatalogCheck }
+export type { CatalogCheckDef }
 export { problem, warning }
 
 // ビルトインプラグインの印: キーバインドで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。

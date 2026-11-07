@@ -2,7 +2,7 @@
 // 利用者の上書き（利用者の設定の項目 text-colors）をさらに重ねる。ブックのタイプが settings.book に選んだブックだけが上書きを持てる（選ばなければテーマか定義の色）
 import { z } from "zod"
 import { HEX } from "../../../core/color"
-import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
+import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
 import { splitId } from "../../../core/names"
 import type { Book } from "../../../core/schema/book"
@@ -19,7 +19,7 @@ declare module "../../../core/catalog" {
 }
 
 // テーマの textColors の色が #rrggbb か（E038）と、機能台帳にある文字の色か（W014。その色だけ効かない）。組み立てのときの確かめ
-export const THEME_TEXT_COLORS_CHECK: CatalogCheck = catalog =>
+export const THEME_TEXT_COLORS_CHECK: CatalogCheckDef = catalog =>
   [...catalog.themes.values()].flatMap(t =>
     Object.entries(t.textColors ?? {}).flatMap(([textColor, color]) => [
       ...(HEX.test(color) ? [] : [problem("E038", { id: t.id, textColor, color })]),

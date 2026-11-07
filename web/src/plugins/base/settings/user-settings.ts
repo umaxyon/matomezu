@@ -1,6 +1,6 @@
 // 利用者の設定の項目のうち、土台が読むもの: 言語・スキン・キーバインドの、利用者の変更（role で引かれる）。と、言語の項目で選んでいるパックと、設定の画面が値の形から作る入力Form を求める関数
 import { z } from "zod"
-import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
+import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
 import type { SettingDef } from "../../../core/def/setting"
 import { problem } from "../../../core/errors"
 import type { Lang } from "../../../core/i18n/i18n"
@@ -68,7 +68,7 @@ export function autoInputOf(catalog: CoreCatalog, def: SettingDef): AutoInput | 
 }
 
 // optionTitles の文言の鍵が文言にあるか（組み立てのときの確かめ）
-export const OPTION_TITLES_CHECK: CatalogCheck = catalog =>
+export const OPTION_TITLES_CHECK: CatalogCheckDef = catalog =>
   [...catalog.userSettings.values()].flatMap(d =>
     Object.values(d.optionTitles ?? {})
       .filter(title => !catalog.messages.has(title))

@@ -2,7 +2,7 @@
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）。
 // 形が変わったあとは、ページのつなぐものの決まりで整える（placed.ts の tidyConnectors）
 import { type PagedBook, putPage } from "../../../core/book"
-import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
+import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
@@ -52,7 +52,7 @@ import {
 } from "./push"
 
 // 形の仲間の名前（familyTitle）が文言の表にあるか（組み立てのときの確かめ）
-export const FAMILY_TITLE_CHECK: CatalogCheck = catalog =>
+export const FAMILY_TITLE_CHECK: CatalogCheckDef = catalog =>
   [...catalog.items.values()].flatMap(i => {
     const title = i.kind === "shape" ? i.familyTitle : undefined
     return title !== undefined && !catalog.messages.has(title)
@@ -61,7 +61,7 @@ export const FAMILY_TITLE_CHECK: CatalogCheck = catalog =>
   })
 
 // 形の captionProp・themeProp が、その形の props にある項目を名指しているか（組み立てのときの確かめ）
-export const PROP_NAMES_CHECK: CatalogCheck = catalog =>
+export const PROP_NAMES_CHECK: CatalogCheckDef = catalog =>
   [...catalog.items.values()].flatMap(i =>
     i.kind !== "shape"
       ? []

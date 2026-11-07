@@ -10,7 +10,7 @@ import type { AnnotationDef } from "./def/annotation"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { MailDef } from "./def/mail"
-import type { NormalizeStep } from "./def/normalize-step"
+import type { NormalizeStepDef } from "./def/normalize-step"
 import type { PaperDef } from "./def/paper"
 import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
@@ -58,7 +58,7 @@ export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable
   messages: readonly MessageSetDef[] // 土台の文言（CORE_MESSAGES）は、いつも表に入る
   languages: readonly LanguagePackDef[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
   tokens: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムやタイプが共に使う）
-  normalizeSteps: readonly NormalizeStep[] // ノーマライズステップ（ビルトインプラグインが持つ。並びの順にかける）
+  normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（ビルトインプラグインが持つ。並びの順にかける）
 }
 
 // ブックのタイプごとに組み立てたデータの形（ページを持たないタイプは page が null）
@@ -78,7 +78,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   bookSchema: z.ZodType
   warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとブックのタイプのテーマキーは、その定義の tokens）
-  normalizeSteps: readonly NormalizeStep[] // ノーマライズステップ（core/def/normalize-step.ts）
+  normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts）
   roles: ReadonlyMap<SettingRole, SettingDef> // role → その role を持つ利用者の設定の項目（土台は role で引く）
 }
 
@@ -86,7 +86,7 @@ const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T
 
 // 組み立てのときの確かめ: 作った機能台帳を受けて、問題（error の番号は E の表）と warning（W の表）を返す。ビルトインプラグインだけが持てる
 // （プラグインの checks。ビルトインプラグインが拡張ポイントに書き足したフィールドを確かめる）。問題が 1 つでもあれば組み立てを止め、warning は store 台帳に残す
-export type CatalogCheck = (catalog: CoreCatalog) => readonly (Problem | Warning)[]
+export type CatalogCheckDef = (catalog: CoreCatalog) => readonly (Problem | Warning)[]
 
 // 食い違いがあれば、直す所が分かる文を並べて error にする
 export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
