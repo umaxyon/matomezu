@@ -199,7 +199,8 @@ export const useStandAway = (): StandAway | null => useContext(AwayContext)
 
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
 // span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く。
-// プラグイン API の Stand は角（corner）に立てられない（角はコーナーステータスで出す）。角に立てるのは base の角のスタンドだけで、StandAt を使う
+// プラグイン API の Stand は角（corner）に立てられない（角はコーナーステータスで出す）。角に立てるのは base の角のスタンドだけで、StandAt を使う。
+// StandAt の through は、スタンドの箱そのものはポインタを受けず（下の物に届く）、中の物が自分で受けるとき（物の上の辺を歩く鳥など）に付ける
 export const Stand: (props: StandProps & { side?: StandSide }) => ReactNode = props => <StandAt {...props} />
 
 interface StandProps {
@@ -216,8 +217,9 @@ export function StandAt({
   span = false,
   edgePinned = false,
   label,
+  through = false,
   children,
-}: StandProps & { side?: StandPlace }) {
+}: StandProps & { side?: StandPlace; through?: boolean }) {
   const ctx = useContext(Context)
   const { panStageBy } = useActions()
   const ids = useMemo(() => (typeof anchor === "string" ? [anchor] : anchor), [anchor])
@@ -267,7 +269,13 @@ export function StandAt({
       className={styles.stand}
       role="group"
       aria-label={label}
-      style={{ left: at.x, top: at.y, width: span ? rect.w : undefined, visibility: size ? undefined : "hidden" }}
+      style={{
+        left: at.x,
+        top: at.y,
+        width: span ? rect.w : undefined,
+        visibility: size ? undefined : "hidden",
+        ...(through ? { pointerEvents: "none" } : {}),
+      }}
       data-stand
       onPointerDown={stop}
       onClick={stop}

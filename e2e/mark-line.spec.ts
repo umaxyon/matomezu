@@ -107,3 +107,18 @@ test("縦の直線に付けた鳥は、線の真ん中の周りを回る", async
   expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(40)
   for (const p of seen) expect(Math.hypot(p.x - centre.x, p.y - centre.y)).toBeLessThan(120)
 })
+
+test("線に付けた鳥のスタンドの空き（鳥のいない所）は、その下の物のクリックを妨げない", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto("/")
+  const line = await connect(page, { x: 550, y: 330 })
+  await addBox(page, 400, 100, "上")
+  await markLine(page, line, "ツナギドリ")
+  await expect(page.getByRole("button", { name: "ツナギドリ" })).toHaveCount(1)
+  const empty = await onPaper(page, 900, 520)
+  await page.mouse.click(empty.x, empty.y)
+  const above = items(page).filter({ hasText: "上" })
+  const a = (await above.boundingBox())!
+  await page.mouse.click(a.x + 6, a.y + a.height - 6)
+  await expect(above).toHaveAttribute("data-selected", "true")
+})

@@ -15,7 +15,7 @@ import { RemoveAsk } from "../birds/RemoveAsk"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
-import { AnchorFrame, anchorElementIn, Stand } from "../utils/anchors"
+import { AnchorFrame, anchorElementIn, StandAt } from "../utils/anchors"
 import { birdsIn, withBirds } from "./birds-state"
 import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
@@ -58,9 +58,9 @@ export function NoteBirds({ stage }: { stage: string }) {
     <>
       {current && <AnchorFrame anchor={current} className={styles.current} />}
       {shown.map(s => (
-        <Stand key={`${s.anchor}:${s.bird}`} anchor={s.anchor} side="edge" span edgePinned>
+        <StandAt key={`${s.anchor}:${s.bird}`} anchor={s.anchor} side="edge" span edgePinned through>
           <NoteBird stage={stage} shown={s} onGone={() => gone(s)} />
-        </Stand>
+        </StandAt>
       ))}
     </>
   )

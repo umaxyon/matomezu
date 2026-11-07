@@ -8,7 +8,7 @@ import { BIRD_IDS, type Bird } from "../birds"
 import { pickBird } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { kit } from "../kit"
-import { AnchorFrame, Stand } from "../utils/anchors"
+import { AnchorFrame, StandAt } from "../utils/anchors"
 import type { StageSlotProps } from "../workspace/ui"
 import { type BirdVisit, useBirdVisit, useSetBirdVisit } from "./bird-visit"
 import styles from "./MailLayer.module.css"
@@ -32,11 +32,11 @@ function Visit({ visit, onDone }: { visit: BirdVisit; onDone: () => void }) {
   return (
     <>
       {arrived && visit.ids.map(id => <AnchorFrame key={id} anchor={id} className={styles.place} />)}
-      <Stand anchor={visit.ids} side="edge" span>
+      <StandAt anchor={visit.ids} side="edge" span through>
         <BirdWalk bird={bird} visit onArrived={() => setArrived(true)} onGone={onDone} awayLabel={t("Mail")}>
           {style => <span className={birdClass} style={style} data-mail-bird />}
         </BirdWalk>
-      </Stand>
+      </StandAt>
     </>
   )
 }

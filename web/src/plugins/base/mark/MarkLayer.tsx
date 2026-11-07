@@ -18,7 +18,7 @@ import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { Stand } from "../utils/anchors"
+import { Stand, StandAt } from "../utils/anchors"
 import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import type { StageSlotProps } from "../workspace/ui"
@@ -86,9 +86,9 @@ function MarkStand({
       </AtCorner>
     )
   return (
-    <Stand anchor={anchor} side="edge" span edgePinned label={t("Mark")}>
+    <StandAt anchor={anchor} side="edge" span edgePinned label={t("Mark")} through>
       <MarkBird id={id} bird={kind} title={title} awayLabel={awayLabel} onRemove={remove} />
-    </Stand>
+    </StandAt>
   )
 }
 
