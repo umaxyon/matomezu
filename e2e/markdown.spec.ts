@@ -2,6 +2,7 @@
 import { expect, type Page, test } from "./fixtures"
 import { newBook } from "./helpers/master"
 import { openGeneral, settingsDialog } from "./helpers/settings"
+import { fromMenu } from "./helpers/stage-menu"
 
 // マスターでマークダウンのブックを作り、ページを 1 つ作る
 async function markdownBook(page: Page) {
@@ -43,6 +44,17 @@ test("紙を置かずに、ソースとプレビューを左右に並べて開�
   const top = (await pane(page, "ソース").boundingBox())!
   const bottom = (await pane(page, "プレビュー").boundingBox())!
   expect(bottom.y).toBeGreaterThan(top.y) // 上下
+})
+
+test("並べ方のボタンは上の行の左端に並び、画面を分割して出たステージの閉じるボタン（右上）と重ならない", async ({ page }) => {
+  await markdownBook(page)
+  await (await fromMenu(page, "画面を分割")).click()
+  const stage = page.locator("[data-stage]").first()
+  const bar = (await stage.getByRole("toolbar", { name: "ペイン" }).boundingBox())!
+  const close = (await page.getByRole("button", { name: "ステージを閉じる" }).first().boundingBox())!
+  const left = (await stage.boundingBox())!.x
+  expect(bar.x - left).toBeLessThan(20)
+  expect(bar.x + bar.width).toBeLessThan(close.x)
 })
 
 test("プレビューのペインの右クリックで、ページの設定を開いてページの名前を変えられる", async ({ page }) => {
