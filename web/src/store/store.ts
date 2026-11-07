@@ -69,6 +69,7 @@ import { type CommandArgs, type CommandId, commandContext, commandDef, commandOw
 import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
 import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
+import { putPlaced, takePlaced } from "./placed-state"
 import { type Assembled, assemble, type Plugin } from "./plugin"
 import { worldOf } from "./world"
 
@@ -230,7 +231,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   ): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
-  // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
+  // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、場所に入れる画面の状態。core/address.ts・placed-state.ts）。ホストクライアントだけが使う
+  address(): Address
+  // 画面の場所を address にする（core/address.ts の placeAt と、場所に入れる画面の状態）。
   // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）
   locate(address: Address): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
@@ -523,7 +526,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージの画面の状態は消す
   const commit = (next: Partial<MatomezuState>) => {
     if (Object.keys(next).length === 0) return
-    const { dialog, contextMenu, stageStates } = getState()
+    const { dialog, contextMenu } = getState()
+    const stageStates = next.stageStates ?? getState().stageStates
     const stages = next.workspace?.stages
     const gone = (opened: { stage: string } | null) =>
       stages !== undefined && opened !== null && !stages.some(s => s.id === opened.stage)
@@ -536,6 +540,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ? { stageStates: Object.fromEntries(kept.map(id => [id, stageStates[id] ?? {}])) }
         : {}),
     })
+  }
+  // 今の画面の場所（ステージごとの場所に入れる画面の状態も）
+  const addressNow = () => {
+    const { workspace, stageStates } = getState()
+    return addressOf(workspace, stage => takePlaced(defs.catalog.store.placedStates, stageStates[stage]))
   }
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // プラグイン owner の、ステージ stage の画面の状態を value にする（undefined なら消す。無いステージには置かない）
@@ -737,12 +746,26 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       checkSeen()
     },
     checkSeen,
+    address: () => addressNow(),
     locate: address => {
       const now = getState()
-      const workspace = sameData(addressOf(now.workspace), address)
-        ? keepPlace(now.workspace)
-        : placeAt(catalog, now.books, now.workspace, address)
-      if (workspace !== now.workspace) commit({ workspace })
+      if (sameData(addressNow(), address)) {
+        const workspace = keepPlace(now.workspace)
+        if (workspace !== now.workspace) commit({ workspace })
+        return
+      }
+      const workspace = placeAt(catalog, now.books, now.workspace, address)
+      const placed = defs.catalog.store.placedStates
+      // ステージごとの置き場に場所の値を戻す（空になった置き場は消す）
+      const stageStates: Record<string, Readonly<Record<string, unknown>>> = {}
+      workspace.stages.forEach((st, i) => {
+        const put = putPlaced(placed, now.stageStates[st.id], address.stages[i]?.states ?? {})
+        if (Object.keys(put).length > 0) stageStates[st.id] = put
+      })
+      commit({
+        ...(workspace === now.workspace ? {} : { workspace }),
+        ...(sameData(stageStates, now.stageStates) ? {} : { stageStates }),
+      })
     },
     setStageState,
     setEditLock: (key, lock) => {

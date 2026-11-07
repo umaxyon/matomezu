@@ -5,6 +5,7 @@ import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../
 import { buildCoreCatalog, type CatalogCheck, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { NormalizeStep } from "../core/def/normalize-step"
+import type { PlacedStateDef } from "../core/def/placed-state"
 import type { Scheme } from "../core/def/skin"
 import type { TokenDef } from "../core/def/theme"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
@@ -32,6 +33,7 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   languages?: readonly LanguagePackDef[] // 持ち込む言語（kit.defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // 既定のキーバインド（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
+  placedState?: PlacedStateDef // ステージの画面の状態のうち、画面の場所に入れて読み直しても戻す物（store/placed-state.ts）
   checks?: readonly CatalogCheck[] // 組み立てのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E308 で止める）
   normalizeSteps?: readonly NormalizeStep[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E310 で止める）
 }
@@ -124,6 +126,7 @@ export interface StoreCatalog {
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
   keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名は store/keys.ts の BASE_KEY_SCOPE_TITLES）
   keys: ReadonlyMap<string, DefaultKey> // キーの既定のキーバインド（id → キーバインド。キーはそろえた書き方）
+  placedStates: ReadonlyMap<string, PlacedStateDef> // 場所に入れる画面の状態（プラグインの id → 定義）
   warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
 }
 
@@ -225,6 +228,7 @@ export function assemble(
         dialogs: new Map(dialogs.map(d => [d.id, d])),
         keyScopes: new Map(keyScopes.map(s => [s.id, s])),
         keys: new Map(keys.map(k => [k.id, k])),
+        placedStates: new Map(plugins.flatMap(p => (p.placedState ? [[p.id, p.placedState] as const] : []))),
         warnings: [
           ...performsWarnings(plugins, catalog),
           ...keyWarnings(keys),

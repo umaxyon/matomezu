@@ -1,6 +1,7 @@
 // 画面の場所: 見ているもの（workspace）のうち、読み直しても戻したいもの。ステージごとに開いているブックとページ・倍率・ずらす量（印刷プレビューの間は、
 // 閉じたときに戻す編集の倍率とずらす量。印刷プレビューの間かは入れず、読み直すと編集に戻る）、
-// カレントのステージ、分けている境目の割合。選択・置こうとしているアイテム・道具は入れない（その場の操作の途中の状態のため）。
+// カレントのステージ、分けている境目の割合と、ステージごとの、プラグインが場所に入れると書いた画面の状態（中身は読まずに運ぶ。どれを入れるか・形を確かめるのは store）。
+// 選択・置こうとしているアイテム・道具は入れない（その場の操作の途中の状態のため）。
 // ホストがこれを外（ブラウザの URL など）に写し、外から戻すときに当てはめる。操作はデータを書き換えず、新しい値を返す
 
 import { hasPages } from "./book"
@@ -15,6 +16,7 @@ export interface StagePlace {
   page: string | null // 開いているページの id
   zoom: number
   pan: Point
+  states: Readonly<Record<string, unknown>> // 場所に入れる画面の状態（プラグインの id → 値。store/placed-state.ts）
 }
 
 export interface Address {
@@ -23,12 +25,21 @@ export interface Address {
   share: number // 分けている境目の割合（左のステージの幅）
 }
 
-// 見ているものの場所
-export function addressOf(ws: Workspace): Address {
+// 見ているものの場所。states は、ステージの id ごとの場所に入れる画面の状態
+export function addressOf(
+  ws: Workspace,
+  states: (stage: string) => Readonly<Record<string, unknown>> = () => ({}),
+): Address {
   return {
     stages: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
-      return { book: s.opened?.book ?? null, page: s.opened?.page ?? null, zoom: view.zoom, pan: view.pan }
+      return {
+        book: s.opened?.book ?? null,
+        page: s.opened?.page ?? null,
+        zoom: view.zoom,
+        pan: view.pan,
+        states: states(s.id),
+      }
     }),
     current: Math.max(
       0,
@@ -38,7 +49,7 @@ export function addressOf(ws: Workspace): Address {
   }
 }
 
-// 移動したか: ステージの数か、どれかのステージのブック・ページが違う（倍率・ずらす量・カレント・境目だけの違いは移動ではない）
+// 移動したか: ステージの数か、どれかのステージのブック・ページが違う（倍率・ずらす量・カレント・境目・画面の状態だけの違いは移動ではない）
 export function moved(a: Address, b: Address): boolean {
   return (
     a.stages.length !== b.stages.length ||
@@ -60,7 +71,7 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
 }
 
 // 見ているもの ws に場所 address を当てはめる。ステージは左から同じ番号のものを使い回し、足りなければ番号を振って足す
-// （MAX_STAGES まで）。開けないブック・ページのステージは何も開かない。場所にステージが無ければ ws のまま
+// （MAX_STAGES まで）。開けないブック・ページのステージは何も開かない。場所にステージが無ければ ws のまま。画面の状態は当てはめない（store が置く）
 export function placeAt(
   catalog: CoreCatalog,
   books: Readonly<Record<string, Book>>,
