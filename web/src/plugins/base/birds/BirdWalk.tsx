@@ -84,7 +84,7 @@ function Walker({
   const still = useReducedMotion()
   const gait = GAITS[bird]
   const scale = BIRD_SIZE / CELL
-  // 付けた物が線なら（立ち寄りは除く）、線の形に沿う: 横向きの直線なら線の上を歩き、それ以外は線の周りを飛ぶ
+  // 付けた物が線なら（立ち寄りは除く）、線の形に沿う: 歩ける横向きの区間があればその上を歩き、無ければ線の周りを飛ぶ（line.ts）
   const path = useStandShape()
   const motion = !visit && path ? lineMotion(path, 2 * BIRD_SIZE) : null
   const arrivalOn = motion && arrival === "peek" ? "fly" : arrival
