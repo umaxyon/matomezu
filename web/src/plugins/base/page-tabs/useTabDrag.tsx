@@ -2,11 +2,11 @@
 // タブの並びの外で離したら取り消す。並びが横にあふれていれば、端へ寄せている間スクロールする。始める前に page-move を行えるか問い、行えなければ始めない
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react"
 import { useAllowed, usePerform } from "../../../ui/view-hooks"
+import { DRAG_START } from "../drag"
 import { edgePanner } from "../utils"
 import { PAGE_MOVE } from "./page-move"
 import { dropIndex, within } from "./tab-drop"
 
-const DRAG_START = 4 // ドラッグを始めるまでに動かす px
 const OUTSIDE = 24 // タブの並びの外へ出たと見る px
 
 // ドラッグ中の様子: 掴んだページ、ポインタの位置（画面の座標）、掴んだ所のタブの左からの距離、落とす所の index（掴んだタブを除いて数える。並びの外なら null）

@@ -1,0 +1,28 @@
+/* 境目をつかむ所（境目の線をまたぐ細い帯。置く所と大きさは使う側が決める。色はつかんでいる間だけ付ける） */
+.handle {
+  touch-action: none;
+}
+.handle[data-direction="row"] {
+  cursor: col-resize;
+}
+.handle[data-direction="column"] {
+  cursor: row-resize;
+}
+.handle[data-direction="row"]:active {
+  background: linear-gradient(
+    to right,
+    transparent 2px,
+    var(--skin-accent) 2px,
+    var(--skin-accent) 5px,
+    transparent 5px
+  );
+}
+.handle[data-direction="column"]:active {
+  background: linear-gradient(
+    to bottom,
+    transparent 2px,
+    var(--skin-accent) 2px,
+    var(--skin-accent) 5px,
+    transparent 5px
+  );
+}

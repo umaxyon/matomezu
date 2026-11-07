@@ -28,6 +28,7 @@ import {
   useMessages,
   useStage,
 } from "../../../plugin-api/ui"
+import { DRAG_START } from "../../base"
 import { modPressed, RichText, useAnchorRef, useFollowsSelection, useRevealable, useThemeVars } from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
@@ -45,7 +46,6 @@ const LOOK_TOKENS = LIST.tokens
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
 
 // 行のドラッグを始めるまでに動かす量（画面の px）
-const DRAG_START = 4
 
 // 行のドラッグ: 押した行と位置、動かし始めたか、写しの見た目
 interface Carry {

@@ -40,17 +40,6 @@
   left: -4px;
   z-index: 6;
   width: 7px;
-  cursor: col-resize;
-  touch-action: none;
-}
-.divider:active {
-  background: linear-gradient(
-    to right,
-    transparent 2px,
-    var(--skin-accent) 2px,
-    var(--skin-accent) 5px,
-    transparent 5px
-  );
 }
 .cell {
   position: relative;

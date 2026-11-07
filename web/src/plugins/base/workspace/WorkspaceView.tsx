@@ -3,11 +3,11 @@
 // 下の行にポインタが乗っているかを、下の行に置いたウィジェットに渡す（bottom-hover.tsx）。
 // 右上の角は、ステージの中身が縦にスクロールするとき右端に出るスクロールバーに重ならないよう、スクロールバーの幅（この画面で測った値）だけ内側に浮かべる。
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
-// ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（割合の計算と収め方は workspace の側）。
+// ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（境目の部品は SplitHandle。割合の計算と収め方は workspace の側）。
 // 列の左に左サイドパネル（left-side-panel/）、列の右に右サイドパネルを置く。どちらかを開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）。
 // 左と右を別のステージで開いたら、カレントでない方のステージの物を閉じる（同じステージなら、両方を出す）。
 // 開いた物を見せ、閉じたら見え方を戻すのは、幅を動かし終えてから（RevealAndRestore）
-import { type CSSProperties, type PointerEvent, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { previewing } from "../../../core/stage"
 import { Slot } from "../../../ui/Slot"
@@ -25,6 +25,7 @@ import { RevealAndRestore } from "../right-side-panel/RevealAndRestore"
 import { RightSidePanel } from "../right-side-panel/RightSidePanel"
 import { columnGrow } from "../right-side-panel/state"
 import { BottomHoverContext } from "./bottom-hover"
+import { SplitHandle } from "./SplitHandle"
 import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import styles from "./WorkspaceView.module.css"
 
@@ -51,14 +52,6 @@ export function WorkspaceView() {
   }, [right, left, panel, closeRight, closeLeft])
   const sliding = useSidePanelSliding(panel)
   const pressClosed = useRef(false)
-  const drag = (e: PointerEvent<HTMLElement>) => {
-    if (e.type === "pointerdown") {
-      if (e.button !== 0) return
-      e.currentTarget.setPointerCapture(e.pointerId)
-    } else if (!e.currentTarget.hasPointerCapture(e.pointerId)) return
-    const box = ref.current?.getBoundingClientRect()
-    if (box) moveDivider(e.clientX - box.left, box.width)
-  }
   return (
     <main
       ref={ref}
@@ -82,13 +75,13 @@ export function WorkspaceView() {
             style={split ? { flexGrow: columnGrow(stage, i, panel, share) } : undefined}
           >
             {i === 1 && panel === null && (
-              // biome-ignore lint/a11y/noStaticElementInteractions: 境目はポインタで動かす（キーの操作は持たない）
-              <div
+              <SplitHandle
+                direction="row"
+                frame={ref}
+                onMove={moveDivider}
+                onReset={() => evenDivider()}
                 className={styles.divider}
                 data-divider
-                onPointerDown={drag}
-                onPointerMove={drag}
-                onDoubleClick={() => evenDivider()}
               />
             )}
             <StageColumn stage={stage} />

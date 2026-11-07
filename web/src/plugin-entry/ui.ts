@@ -42,6 +42,7 @@ export {
   SelectButton,
   SettingRow,
   type SettingsCategoryProps,
+  SplitHandle,
   STAGE_BASE_SLOTS,
   type StageSlotProps,
   type Swatch,

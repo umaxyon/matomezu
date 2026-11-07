@@ -83,6 +83,7 @@ export { DIAGRAM_THEME_TYPE, DOCUMENT_THEME_TYPE, themeFits, themesFor } from ".
 export { createBookIn } from "./book-new/create-book"
 export type { PageContext, SettingReader } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
+export { DRAG_START } from "./drag"
 export { PAPER_IDS } from "./looks"
 // Markdown の原文を読む（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export {

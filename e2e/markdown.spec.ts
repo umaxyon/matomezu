@@ -1,4 +1,4 @@
-// マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。上の行のボタンで並べ方を変え、右クリックでページの設定を開く
+// マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
 import { aiAuth, expect, type Page, test } from "./fixtures"
 import { newBook } from "./helpers/master"
 import { openGeneral, settingsDialog } from "./helpers/settings"
@@ -57,6 +57,77 @@ test("並べ方のボタンは上の行の左端に並び、画面を分割し�
   const left = (await stage.boundingBox())!.x
   expect(bar.x - left).toBeLessThan(20)
   expect(bar.x + bar.width).toBeLessThan(close.x)
+})
+
+// 見出し（ペインの名前）の真ん中から、to のペインの真ん中までドラッグして離す
+async function dragHeading(page: Page, from: string, to: { x: number; y: number }) {
+  const tab = (await pane(page, from).getByText(from, { exact: true }).first().boundingBox())!
+  await page.mouse.move(tab.x + tab.width / 2, tab.y + tab.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(to.x, to.y, { steps: 8 })
+  await page.mouse.up()
+}
+const middle = (box: { x: number; y: number; width: number; height: number }) => ({
+  x: box.x + box.width / 2,
+  y: box.y + box.height / 2,
+})
+
+test("見出しを掴んでもう片方のペインの上で離すと入れ替わり、ほかの所で離すと戻る。入れ替えてもソースに書き続けられる", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  const box = async (name: string) => (await pane(page, name).boundingBox())!
+  await pane(page, "ソース").getByRole("textbox").click()
+  await page.keyboard.type("書き")
+  // 上の行（ペインの外）で離すと、入れ替えない
+  const bar = (await page.getByRole("toolbar", { name: "ペイン" }).boundingBox())!
+  await dragHeading(page, "ソース", { x: bar.x + bar.width + 200, y: middle(bar).y })
+  expect((await box("ソース")).x).toBeLessThan((await box("プレビュー")).x)
+  // もう片方のペインの上で離すと入れ替わる
+  await dragHeading(page, "ソース", middle(await box("プレビュー")))
+  expect((await box("ソース")).x).toBeGreaterThan((await box("プレビュー")).x)
+  await pane(page, "ソース").getByRole("textbox").click()
+  await page.keyboard.press("End")
+  await page.keyboard.type("足す")
+  await expect(pane(page, "ソース").getByRole("textbox")).toHaveValue("書き足す")
+  // 上下に並べても、入れ替えた順のまま（プレビューが上）
+  await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "上下に並べる" }).click()
+  expect((await box("ソース")).y).toBeGreaterThan((await box("プレビュー")).y)
+})
+
+test("境目を掴んで動かすとペインの大きさが変わり、ダブルクリックで半分に戻る。並べ方・入れ替えた順・境目は読み直しても戻る", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  const box = async (name: string) => (await pane(page, name).boundingBox())!
+  const splitter = page.locator("[data-pane-splitter]")
+  const panes = { x: (await box("ソース")).x, w: (await box("ソース")).width + (await box("プレビュー")).width }
+  const at = middle((await splitter.boundingBox())!)
+  await page.mouse.move(at.x, at.y)
+  await page.mouse.down()
+  await page.mouse.move(panes.x + panes.w * 0.3, at.y, { steps: 5 })
+  await page.mouse.up()
+  expect((await box("ソース")).width / panes.w).toBeCloseTo(0.3, 1)
+  await splitter.dblclick()
+  expect((await box("ソース")).width / panes.w).toBeCloseTo(0.5, 1)
+
+  // 上下に並べ、入れ替えて、上のペインを 3 割にしてから読み直す
+  await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "上下に並べる" }).click()
+  await dragHeading(page, "ソース", middle(await box("プレビュー")))
+  const column = { y: (await box("プレビュー")).y, h: (await box("ソース")).height + (await box("プレビュー")).height }
+  const mid = middle((await splitter.boundingBox())!)
+  await page.mouse.move(mid.x, mid.y)
+  await page.mouse.down()
+  await page.mouse.move(mid.x, column.y + column.h * 0.3, { steps: 5 })
+  await page.mouse.up()
+  await expect(page).toHaveURL(/s0=/)
+  await page.reload()
+  await expect(
+    page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "上下に並べる" }),
+  ).toHaveAttribute("aria-pressed", "true")
+  const [top, bottom] = [await box("プレビュー"), await box("ソース")]
+  expect(bottom.y).toBeGreaterThan(top.y)
+  expect(top.height / (top.height + bottom.height)).toBeCloseTo(0.3, 1)
 })
 
 test("プレビューのペインの右クリックで、ページの設定を開いてページの名前を変えられる", async ({ page }) => {

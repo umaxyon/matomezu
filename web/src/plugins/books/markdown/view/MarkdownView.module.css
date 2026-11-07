@@ -16,19 +16,51 @@
 .markdown[data-split="column"] .panes {
   flex-direction: column;
 }
+/* ペイン: 並べたときの大きさは割合（flex-grow）で分け、見せる順は order（要素の並びは変えない） */
 .pane {
-  flex: 1;
+  position: relative;
+  flex: 1 1 0;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-/* 並べたペインの境目 */
-.markdown[data-split="row"] .pane + .pane {
-  border-left: 1px solid var(--theme-line);
+/* 並べたペインの境目: つかむ所の細い帯（2 つのペインの間。帯の幅のうち 1px だけ場所を取る）と、その真ん中の 1px の線（つかんでいる間は線を消し、帯の色を見せる） */
+.splitter {
+  order: 1;
+  position: relative;
+  z-index: 2;
+  flex: 0 0 7px;
 }
-.markdown[data-split="column"] .pane + .pane {
-  border-top: 1px solid var(--theme-line);
+.splitter::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  background: var(--theme-line);
+}
+.splitter:active::before {
+  display: none;
+}
+.markdown[data-split="row"] .splitter {
+  margin: 0 -3px;
+}
+.markdown[data-split="row"] .splitter::before {
+  inset: 0 3px;
+}
+.markdown[data-split="column"] .splitter {
+  margin: -3px 0;
+}
+.markdown[data-split="column"] .splitter::before {
+  inset: 3px 0;
+}
+/* 見出しのドラッグで、離すと入れ替わるペインに重ねる薄い面 */
+.pane[data-drop="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--skin-accent) 14%, transparent);
+  pointer-events: none;
 }
 /* 上の行: いつも出し、左端に並べ方のボタン（右端はステージの閉じるボタンと重なる） */
 .bar {
@@ -60,12 +92,44 @@
   background: var(--skin-surface-strong);
   color: var(--skin-accent);
 }
-/* 並べている間の、ペインごとの名前の見出し */
+/* 並べている間の、ペインごとの名前の見出し: 下の線の上に、ページタブのような角の丸い札を 1 つ左に寄せて置く（掴んで入れ替える） */
 .heading {
-  padding: 3px 12px;
+  display: flex;
+  padding: 3px 8px 0;
   border-bottom: 1px solid var(--theme-line);
-  color: var(--skin-text-muted);
   font-size: 11px;
+}
+.tab {
+  margin-bottom: -1px;
+  padding: 2px 12px;
+  border: 1px solid var(--theme-line);
+  border-bottom-color: var(--theme-surface);
+  border-radius: 6px 6px 0 0;
+  background: var(--theme-surface);
+  color: var(--skin-text-muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.tab:hover {
+  color: var(--theme-text);
+}
+/* ドラッグ中: 掴んだ見出しは元の所で薄くし、写しをポインタに付ける */
+.tab[data-carried="true"] {
+  opacity: 0.35;
+}
+.ghost {
+  position: fixed;
+  z-index: 40;
+  padding: 2px 12px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: var(--skin-stage);
+  color: var(--skin-text);
+  font-size: 11px;
+  opacity: 0.9;
+  pointer-events: none;
+  cursor: grabbing;
 }
 /* ペインの中のスクロール */
 .scroll {

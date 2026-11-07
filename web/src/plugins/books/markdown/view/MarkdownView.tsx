@@ -1,6 +1,8 @@
 // マークダウンのビュー（見せ方 markdown）: ブックのビューのレイヤー（book-content）が描く。ステージに紙は無く、ステージいっぱいにペインを並べ、ペインの中をふつうにスクロールする。
-// 並べ方はステージごとの画面の状態（panes.ts）: 左右か上下に 2 つ並べるか、1 つだけ見せる。いつも出る上の行の左端に、並べ方の 4 つのボタン（ソースだけ・左右・上下・
-// プレビューだけ。コマンド）を並べ、並べている間は、ペインごとに上辺にペインの名前の見出しを出す。
+// 並べ方はステージごとの画面の状態（panes.ts。画面の場所に入れ、読み直しても戻す）: 左右か上下に 2 つ並べるか、1 つだけ見せる。いつも出る上の行の左端に、並べ方の 4 つのボタン（ソースだけ・左右・上下・
+// プレビューだけ。コマンド）を並べ、並べている間は、ペインごとに上辺にペインの名前の見出し（ページタブのような見た目）を出す。
+// 見出しを掴んでもう片方のペインの上で離すと、2 つのペインを入れ替える（usePaneSwap）。境目は掴んで動かせ、ダブルクリックで真ん中に戻る（base の SplitHandle）。
+// 入れ替えても要素の並びは変えず、CSS の order で見せる順を変える（ソースのペインのテキストFormのフォーカス・入力の途中・スクロールの位置を保つ）。
 // 上の行・見出し・プレビューのペインの右クリックで、メニュー（pane-context。ページの設定・ブックの設定など）を開く。ソースのペインでは、文字の右クリックのままにする。
 // ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、段落の中の改行 1 つを利用者の設定の項目のとおりに見せ（soft-break.ts）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
 // 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（base の useMarkdownDocument）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
@@ -13,23 +15,34 @@ import {
   useContextMenu,
   useCoreCatalog,
   useMessages,
+  useSetStageState,
   useShownPage,
   useStageState,
   useUiCatalog,
   useUserSetting,
 } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, paperSize } from "../../../base"
-import { useMarkdownDocument, useResize } from "../../../base/ui"
+import { SplitHandle, useMarkdownDocument, useResize } from "../../../base/ui"
 import { PANE_LAYOUT_COMMANDS } from "../commands"
 import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
-import { PANES, paneLayoutOf } from "../panes"
+import {
+  EVEN_PANE_SHARE,
+  PANES,
+  type PaneLayout,
+  paneLayoutOf,
+  shareAt,
+  shownPanes,
+  splitOf,
+  swapPanes,
+} from "../panes"
 import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
 import { SOFT_BREAK, softBreakOf } from "../soft-break"
 import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 import { SourcePane } from "./SourcePane"
+import { usePaneSwap } from "./usePaneSwap"
 
 const TITLES = { source: "Source", rendered: "Preview" } as const
 
@@ -39,7 +52,11 @@ export function MarkdownView({ stage }: BookViewProps) {
   const page = useShownPage(stage)
   const book = useBook(stage)
   const layout = paneLayoutOf(useStageState(stage, kit))
+  const setStageState = useSetStageState(kit)
+  const setLayout = (next: PaneLayout) => setStageState(stage, next)
+  const swap = usePaneSwap(() => setLayout(swapPanes(layout)))
   const openMenu = useContextMenu(stage, PANE_CONTEXT)
+  const panes = useRef<HTMLDivElement>(null)
   const source = useRef<HTMLDivElement>(null)
   const rendered = useRef<HTMLDivElement>(null)
   const text = page && "text" in page && typeof page.text === "string" ? page.text : ""
@@ -55,40 +72,71 @@ export function MarkdownView({ stage }: BookViewProps) {
     const drawn = marksOf(to, (_, i) => document.blocks[i]?.range.start ?? -1)
     to.scrollTop = followScroll(written, drawn, from.scrollTop)
   }
-  const shown = layout.split === null ? [layout.shown] : PANES
+  const split = splitOf(layout.mode)
+  const shown = shownPanes(layout)
   const menu = (e: MouseEvent) => openMenu(e, {})
+  const drag = swap.drag
   return (
-    <div className={styles.markdown} data-split={layout.split ?? "none"}>
+    <div className={styles.markdown} data-split={split}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける */}
       <div className={styles.bar} onContextMenu={menu}>
         <LayoutButtons stage={stage} />
       </div>
-      <div className={styles.panes}>
-        {shown.map(pane => (
-          <section key={pane} className={styles.pane} data-pane={pane} aria-label={t(TITLES[pane])}>
-            {layout.split !== null && (
-              // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける
-              <div className={styles.heading} onContextMenu={menu}>
-                {t(TITLES[pane])}
-              </div>
-            )}
-            {pane === "source" ? (
-              <SourcePane
-                key={page.id}
-                stage={stage}
-                book={book.id}
-                page={page.id}
-                text={text}
-                document={document}
-                scrollRef={source}
-                onScroll={follow}
-              />
-            ) : (
-              <Rendered document={document} width={width} scrollRef={rendered} onContextMenu={menu} />
-            )}
-          </section>
-        ))}
+      <div ref={panes} className={styles.panes}>
+        {PANES.filter(pane => shown.includes(pane)).map(pane => {
+          const at = shown.indexOf(pane)
+          const grow = split === "none" ? 1 : at === 0 ? layout.share : 1 - layout.share
+          return (
+            <section
+              key={pane}
+              ref={swap.section(pane)}
+              className={styles.pane}
+              data-pane={pane}
+              data-drop={drag !== null && drag.pane !== pane && drag.over}
+              aria-label={t(TITLES[pane])}
+              style={{ order: at * 2, flexGrow: grow }}
+            >
+              {split !== "none" && (
+                // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける
+                <div className={styles.heading} onContextMenu={menu}>
+                  <span className={styles.tab} data-carried={drag?.pane === pane} {...swap.handlers(pane)}>
+                    {t(TITLES[pane])}
+                  </span>
+                </div>
+              )}
+              {pane === "source" ? (
+                <SourcePane
+                  key={page.id}
+                  stage={stage}
+                  book={book.id}
+                  page={page.id}
+                  text={text}
+                  document={document}
+                  scrollRef={source}
+                  onScroll={follow}
+                />
+              ) : (
+                <Rendered document={document} width={width} scrollRef={rendered} onContextMenu={menu} />
+              )}
+            </section>
+          )
+        })}
+        {split !== "none" && (
+          <SplitHandle
+            direction={split}
+            frame={panes}
+            onMove={(at, length) => setLayout({ ...layout, share: shareAt(at, length, layout.share) })}
+            onReset={() => setLayout({ ...layout, share: EVEN_PANE_SHARE })}
+            className={styles.splitter}
+            data-pane-splitter
+          />
+        )}
       </div>
+      {drag && (
+        <div className={styles.ghost} style={{ left: drag.x - drag.grab.x, top: drag.y - drag.grab.y }}>
+          {t(TITLES[drag.pane])}
+        </div>
+      )}
     </div>
   )
 }

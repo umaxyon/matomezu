@@ -1,10 +1,11 @@
-// マークダウンのプラグイン: マークダウンのブックのタイプと、その見せ方（ステージに紙を置かない）・ペインの並べ方のコマンド・ソースのペインのキーと、Tab キーとソースのペインの見た目と、描いた文書の段落の中の改行 1 つの利用者の設定の項目。
+// マークダウンのプラグイン: マークダウンのブックのタイプと、その見せ方（ステージに紙を置かない）・ペインの並べ方のコマンド（並べ方は画面の場所に入れる）・ソースのペインのキーと、Tab キーとソースのペインの見た目と、描いた文書の段落の中の改行 1 つの利用者の設定の項目。
 // テーマと紙の色の設定の項目、新しいページとページの設定のダイアログは base の物を使う
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PANE_LAYOUT_COMMANDS, SOURCE_KEYS } from "./commands"
 import { GITHUB_LIKE } from "./github-like"
 import { kit } from "./kit"
 import { MARKDOWN, MARKDOWN_PRESENTATION, SOURCE_KEY_SCOPE } from "./markdown"
+import { PANE_PLACED } from "./panes"
 import { SOFT_BREAK } from "./soft-break"
 import { type CURRENT_LINE, type LINE_NUMBERS, type SHOW_WHITESPACE, SOURCE_LOOK_SETTINGS } from "./source-look"
 import { TAB_KEY } from "./tab-key"
@@ -18,6 +19,7 @@ export const MARKDOWN_PLUGIN = defineBuiltin(
     keyScopes: [SOURCE_KEY_SCOPE],
     userSettings: [TAB_KEY, ...SOURCE_LOOK_SETTINGS, SOFT_BREAK],
     themes: [GITHUB_LIKE],
+    placedState: PANE_PLACED,
   }),
 )
 
