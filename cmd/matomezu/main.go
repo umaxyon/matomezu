@@ -322,6 +322,10 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 	for {
 		select {
 		case <-exited:
+			// 同時に起動した別のプロセスの常駐が先に立っていれば、それを使う
+			if s, _ := running(h); s != nil {
+				return s, nil
+			}
 			return nil, fmt.Errorf("the server stopped while starting: see %s", h.LogPath())
 		case <-deadline:
 			return nil, fmt.Errorf("the server did not start in %s: see %s", startWait, h.LogPath())

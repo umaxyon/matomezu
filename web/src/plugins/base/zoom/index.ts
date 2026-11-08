@@ -5,19 +5,19 @@
 // 開いたときの見え方（倍率 100%・初めの位置。中身の載った印刷区画の左上が表示領域の左上）に戻すコマンド（キーの既定は Home）と、ページの紙全体を表示領域に収めるコマンド（ZOOM_MIN より小さくはしない）
 import type { Point, Size } from "../../../core/geom"
 import { extentOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
-import { MARGIN } from "../../../core/viewport"
+import { MARGIN, ZOOM_MAX, ZOOM_MIN, zoomInRange } from "../../../core/viewport"
 import { type CommandContext, workspaceOf } from "../../../store/commands/def"
 import type { Actions } from "../../../store/store"
 import { kit } from "../kit"
 
-export const ZOOM_MIN = 0.3
-export const ZOOM_MAX = 1.8
+export { ZOOM_MAX, ZOOM_MIN }
+
 const BUTTON_STEP = 0.1 // 拡大・縮小のボタンで動く倍率
 const WHEEL_RATE = 0.0015 // Ctrl+ホイールで、回した量 1 あたりにかける倍率の指数
 const FIT_PAD = 24 // 全体を収めるときに、紙の周りに残す表示領域の余白（px）
 
 // 倍率を範囲に収め、1% 単位にする
-export const clampZoom = (zoom: number): number => Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100
+export const clampZoom = (zoom: number): number => Math.round(zoomInRange(zoom) * 100) / 100
 
 // 倍率 zoom から、dir（1 で大きく、-1 で小さく）の向きの次の BUTTON_STEP の倍数（範囲の端ではそのまま）
 export function stepZoom(zoom: number, dir: 1 | -1): number {

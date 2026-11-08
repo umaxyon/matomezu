@@ -189,9 +189,11 @@ func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 		obj, ok := v.(*goja.Object)
 		id := ""
 		if ok {
-			id = obj.Get("id").String()
+			if got := obj.Get("id"); got != nil {
+				id = got.String()
+			}
 		}
-		if !ok || obj.Get("id") == nil || id == "" {
+		if !ok || id == "" {
 			return nil, fmt.Errorf("plugin %s: %s must export the plugin as default (export default definePlugin(...))", b.Dir, b.Manifest.Engine)
 		}
 		if id != b.Manifest.ID {

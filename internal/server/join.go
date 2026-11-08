@@ -111,7 +111,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	sitting := func(s participantRecord) bool { return s.State == "requested" || s.State == "joined" }
 	// 参加の id が付いていて、その参加者が参加（要求）中なら、その参加者にプロジェクトを足す。付いていなくても、同じ link の参加者があれば同じ
 	for _, s := range records {
-		if (req.Participant != "" && s.ID == req.Participant && sitting(s)) || s.Link == req.Link {
+		if (req.Participant != "" && s.ID == req.Participant && sitting(s)) || (req.Link != "" && s.Link == req.Link) {
 			return h.addProjects(s, req)
 		}
 	}

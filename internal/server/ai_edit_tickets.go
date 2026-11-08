@@ -136,7 +136,7 @@ func (o Options) aiEditTicket(w http.ResponseWriter, r *http.Request) {
 		Outcome string          `json:"outcome"`
 		Lost    json.RawMessage `json:"lost"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Book == "" || in.Act == "" ||
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody)).Decode(&in); err != nil || in.Book == "" || in.Act == "" ||
 		(in.Outcome != "seen" && in.Outcome != "lost") || (in.Outcome == "lost" && len(in.Lost) == 0) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return

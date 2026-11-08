@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import { addressOf, moved, placeAt } from "../../web/src/core/address"
 import { paperOf, setArea, setStart } from "../../web/src/core/stage"
+import { ZOOM_MAX, ZOOM_MIN } from "../../web/src/core/viewport"
 import { screenOf } from "../../web/src/core/window"
 import { newStore } from "../support"
 
@@ -34,6 +35,27 @@ test("場所を当てはめると、そのとおりにステージを開いて�
   // ステージの番号は使い回さず、足したステージには新しい番号
   expect(ws.stages[0]!.id).toBe("s1")
   expect(ws.stages[1]!.id).toBe("s2")
+})
+
+test("場所の倍率は、範囲に収める（URL から 0・負・極端な値・数でない値が来ても）", () => {
+  const store = newStore()
+  const { catalog, state } = store
+  const zoomOf = (zoom: number) =>
+    screenOf(
+      placeAt(catalog.core, state.getState().books, state.getState().window, {
+        front: "book-screen",
+        stages: [{ book: "b1", page: "p1", zoom, pan: { x: 0, y: 0 }, states: {} }],
+        current: 0,
+        share: 0.5,
+      }),
+    ).stages[0]!.zoom
+  expect([zoomOf(0), zoomOf(-2), zoomOf(1e9), zoomOf(Number.NaN), zoomOf(1)]).toEqual([
+    ZOOM_MIN,
+    ZOOM_MIN,
+    ZOOM_MAX,
+    1,
+    1,
+  ])
 })
 
 test("移動は、ステージの数か、ブック・ページが変わったとき（倍率・ずらす量・カレント・境目だけは移動ではない）", () => {
