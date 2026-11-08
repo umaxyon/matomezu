@@ -294,3 +294,34 @@ test("ブックの設定のテーマは、マークダウンのブックが選�
   await expect(dialog).toBeHidden()
   await expect(paragraph).toHaveCSS("font-size", "16px")
 })
+
+test("ソースに書いている間（テキストFormにフォーカスがある間）は、AI がそのページを変えると断られ（being-edited）、フォーカスを外すと変えられる", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  const ai = aiAuth()
+  const field = pane(page, "ソース").getByRole("textbox")
+  await field.click()
+  await page.keyboard.type("利用者")
+  await expect(field).toHaveValue("利用者")
+  const view = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
+  const update = async () =>
+    (
+      await (
+        await page.request.post("/api/ai/perform", {
+          headers: ai,
+          data: {
+            action: "@matomezu/base:page-update",
+            args: { page: view.page, title: "AI の題" },
+            on: { book: view.book },
+          },
+        })
+      ).json()
+    ).reason as string | undefined
+  await expect.poll(update).toBe("being-edited")
+  await field.blur()
+  await expect.poll(update).toBeUndefined()
+})
