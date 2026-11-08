@@ -17,6 +17,7 @@ import { OUTBOX_MESSAGES } from "./outbox/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { PRINT_PREVIEW_MESSAGES } from "./print-preview/messages"
 import { RIGHT_SIDE_PANEL_MESSAGES } from "./right-side-panel/messages"
+import { SEARCH_MESSAGES } from "./search/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
 import { STAGE_MESSAGES } from "./stage/messages"
 import { TEXT_MESSAGES } from "./text/messages"
@@ -33,6 +34,7 @@ export const BASE_MESSAGES = joinMessages(
   TOOL_PICKER_MESSAGES,
   MINIMAP_MESSAGES,
   ZOOM_MESSAGES,
+  SEARCH_MESSAGES,
   TOOLBOX_MESSAGES,
   DIALOG_MESSAGES,
   MENU_MESSAGES,

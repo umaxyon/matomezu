@@ -6,11 +6,23 @@ import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, DOCUMENT_THEME_TYPE, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
 import { kit } from "./kit"
 import { pageFieldsInput } from "./page-fields"
+import { sourceEdit } from "./source-edit"
 import { MARKDOWN_TOKENS } from "./tokens"
 
 // マークダウンの見せ方: ステージに紙を置かない
 // 印刷区画の数と切り方は、描いて測ってから決める（ブックのビューの printMeasure。view/MarkdownPrint.tsx）
-export const MARKDOWN_PRESENTATION = kit.definePresentation({ id: "markdown", paper: false })
+// 原文を探せる（base の検索）: 探すのはページの原文で、置き換えは変わった所だけの find・replace で送る（ほかの変更と重ならない。原文が空なら丸ごと）
+export const MARKDOWN_PRESENTATION = kit.definePresentation({
+  id: "markdown",
+  paper: false,
+  search: {
+    textOf: page => ("text" in page && typeof page.text === "string" ? page.text : ""),
+    edit: (_page, before, after) => {
+      const edit = sourceEdit(before, after, before)
+      return edit.kind === "send" ? edit.fields : { text: after }
+    },
+  },
+})
 
 // ソースのペインのテキストFormが名乗るキーの範囲（その中で押したキーは、この範囲だけで引く）
 export const SOURCE_KEY_SCOPE = kit.defineKeyScope({ id: "source", title: "Source" })

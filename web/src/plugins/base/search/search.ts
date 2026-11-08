@@ -26,7 +26,8 @@ export function searchableOf(catalog: CoreCatalog, book: Book | null): Searchabl
   return (presentation ? catalog.presentations.get(presentation)?.search : undefined) ?? "none"
 }
 
-const pagesOf = (book: Book): readonly Page[] => ("pages" in book && Array.isArray(book.pages) ? book.pages : [])
+// ブック book のページ（ページを持たなければ空）
+export const pagesOf = (book: Book): readonly Page[] => ("pages" in book && Array.isArray(book.pages) ? book.pages : [])
 
 // 探す範囲のページごとの当たり（page なら開いているページ opened だけ。正規表現が読めなければ bad-pattern）
 export function hitsIn(
