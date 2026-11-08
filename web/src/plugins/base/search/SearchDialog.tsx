@@ -1,7 +1,7 @@
 // 検索ダイアログ（ウィジェット search-dialog。根のスロットに置く）: 検索を開いているステージ（カレントのステージを先に）の検索を、画面の上に浮かぶダイアログで見せる。
 // ほかの操作を止めない（ページをスクロールしたり書いたりできる。外を押しても閉じない）。見出しを掴んで動かせ、動かした所は閉じても覚える。
 // 探す字・置き換える字・切り替え（大文字小文字・正規表現・範囲・端で回る）は base のステージの画面の状態（state.ts）に書き、
-// 変えたら今の当たりを、今の当たりの頭から先の最初の当たりに選び直す。次・前・置換・閉じるはコマンド（index.ts）。入力Formは検索のキーの範囲を名乗る
+// 変えたら今の当たりを選び直す（計算は search.ts）。次・前・置換・閉じるはコマンド（index.ts）。入力Formは検索のキーの範囲を名乗る
 import { type PointerEvent, useEffect, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { useCommand } from "../../../ui/commands"
@@ -20,7 +20,7 @@ import {
   SEARCH_REPLACE_ONE,
 } from "./index"
 import styles from "./SearchDialog.module.css"
-import { firstHitFrom, hitsIn, searchableOf } from "./search"
+import { changedSearch, searchableOf, searchCount } from "./search"
 import { type SearchOpen, searchAtIn, searchIn, withSearch, withSearchAt } from "./state"
 
 // 開いたことの無いときの、窓の右上からの位置
@@ -52,38 +52,37 @@ function SearchDialog({ stage }: { stage: string }) {
   const replaceAll = useCommand(stage, SEARCH_REPLACE_ALL.id)
   const find = useRef<HTMLInputElement>(null)
   const replace = useRef<HTMLInputElement>(null)
-  // 開くたびに、開き方の入力Formに焦点を当てて中の字を選ぶ
+  // 開くたびに、開き方の入力Formに焦点を当てて中の字を選ぶ（打つ・切り替えるたびには当てない）
+  const openedN = search?.opened
+  const focus = search?.focus
   useEffect(() => {
-    if (!search) return
-    const el = search.focus === "replace" ? replace.current : find.current
+    if (openedN === undefined) return
+    const el = focus === "replace" ? replace.current : find.current
     el?.focus()
     el?.select()
-  }, [search?.opened, search?.focus, search])
+  }, [openedN, focus])
   const s = searchableOf(catalog, book)
   if (!search || s === "none" || !book) return null
-  const pages = hitsIn(s, book, search.query, search.scope, opened)
-  const bad = pages === "bad-pattern"
-  const all = bad ? [] : pages.flatMap(p => p.hits.map(h => ({ page: p.page.id, start: h.start })))
-  const cur = search.current
-  const index = cur === "none" ? -1 : all.findIndex(h => h.page === cur.page && h.start === cur.start)
-  const withPages = search.scope === "book" && !bad
-  const pageNo = withPages && cur !== "none" ? pages.findIndex(p => p.page.id === cur.page) + 1 : 0
-  const count = `${index < 0 ? 0 : index + 1}/${all.length}${pageNo > 0 && !bad ? `（${pageNo} / ${pages.length}）` : ""}`
+  const counted = searchCount(s, book, search, opened)
+  const bad = counted.kind === "bad-pattern"
+  const count =
+    counted.kind === "bad-pattern"
+      ? t("Hit count", { at: 0, all: 0 })
+      : counted.pages === "none" || counted.pages.at === 0
+        ? t("Hit count", { at: counted.at, all: counted.all })
+        : t("Hit count with page", {
+            at: counted.at,
+            all: counted.all,
+            page: counted.pages.at,
+            pages: counted.pages.all,
+          })
+  const none = counted.kind === "bad-pattern" || counted.all === 0
 
-  // 検索を change で変える（探す字か切り替えが変われば、今の当たりを選び直す）
+  // 検索を change で変える（探す字か切り替えが変われば、今の当たりを選び直す。search.ts の changedSearch）
   const update = (change: Partial<SearchOpen>) => {
     const now = read().stageStates[stage]?.[kit.id]
     const was = searchIn(now)
-    if (!was) return
-    const changed = { ...was, ...change }
-    const requery = change.query !== undefined || (change.scope !== undefined && change.scope !== was.scope)
-    const found = requery ? hitsIn(s, book, changed.query, changed.scope, opened) : "bad-pattern"
-    const current = requery
-      ? found === "bad-pattern"
-        ? "none"
-        : firstHitFrom(found, was.current, opened ?? "")
-      : changed.current
-    set(stage, withSearch(now, { ...changed, current }))
+    if (was) set(stage, withSearch(now, changedSearch(s, book, was, change, opened)))
   }
   const query = (change: Partial<SearchOpen["query"]>) => update({ query: { ...search.query, ...change } })
 
@@ -115,7 +114,7 @@ function SearchDialog({ stage }: { stage: string }) {
           onChange={e => query({ text: e.target.value })}
         />
         <span className={styles.count} data-search-count>
-          {bad ? "0/0" : count}
+          {count}
         </span>
       </div>
       <div className={styles.row}>
@@ -142,7 +141,7 @@ function SearchDialog({ stage }: { stage: string }) {
         <button
           type="button"
           className={styles.button}
-          disabled={!replaceOne.enabled || all.length === 0}
+          disabled={!replaceOne.enabled || none}
           onClick={() => replaceOne.run()}
         >
           {t("Replace one")}
@@ -150,7 +149,7 @@ function SearchDialog({ stage }: { stage: string }) {
         <button
           type="button"
           className={styles.button}
-          disabled={!replaceAll.enabled || all.length === 0}
+          disabled={!replaceAll.enabled || none}
           onClick={() => replaceAll.run()}
         >
           {t("Replace all")}

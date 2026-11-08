@@ -1,9 +1,9 @@
-// 検索: 探せるブック（見せ方が search の口を持つ）で、検索ダイアログを開き、当たりの次・前へ移り、置き換える。
+// 検索: 探せるブック（見せ方がフィールド search を持つ）で、検索ダイアログを開き、当たりの次・前へ移り、置き換える。
 // 開いている間の検索は base のステージの画面の状態（state.ts）。ダイアログは SearchDialog.tsx、探す計算は search.ts・find.ts
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../page-tabs/page-update"
-import { hitsIn, pagesOf, replaceAllArgs, replaceOneArgs, searchableOf, stepHit } from "./search"
+import { hitsIn, pagesOf, replaceAllArgs, replaceOneStep, searchableOf, stepHit } from "./search"
 import { NEW_SEARCH, type SearchOpen, searchIn, searchPickIn, withSearch, withSearchPick } from "./state"
 
 // 開いているブックが探せるか
@@ -87,7 +87,7 @@ export const SEARCH_CLOSE = kit.defineCommand({
   when: opened,
 })
 
-// 今の当たりを置き換えて、次の当たりへ移る（今の当たりが無ければ、まず次の当たりを今の当たりにするだけ）
+// 今の当たりを置き換えて、次の当たりへ移る（今の当たりが無いか、もう当たりでなければ、置き換えずに次の当たりへ移るだけ）
 export const SEARCH_REPLACE_ONE = kit.defineCommand({
   id: "search-replace-one",
   title: "Replace one",
@@ -97,15 +97,10 @@ export const SEARCH_REPLACE_ONE = kit.defineCommand({
     const search = searchIn(ctx.stageState)
     const s = searchableOf(ctx.catalog, ctx.book)
     if (!search || s === "none" || !ctx.book) return
-    const cur = search.current
-    const page = cur === "none" ? undefined : pagesOf(ctx.book).find(p => p.id === cur.page)
-    if (cur === "none" || !page) return step(ctx, a, "forward")
-    const args = replaceOneArgs(s, page, search.query, cur, search.replacement)
-    if (args === "none" || !a.perform(PAGE_UPDATE.id, args, { book: ctx.book.id }).ok) return
-    // 置き換えた字の後ろから次を探す（置き換えた字の中は探さない）
-    const after = { ...cur, start: cur.start, end: cur.start }
-    a.updateStageState(now => withSearch(now, { ...search, current: after }))
-    step({ ...ctx, stageState: withSearch(ctx.stageState, { ...search, current: after }) }, a, "forward")
+    const { args, next } = replaceOneStep(s, ctx.book, search, ctx.stage.opened?.page ?? null)
+    if (args !== "none" && !a.perform(PAGE_UPDATE.id, args, { book: ctx.book.id }).ok) return
+    a.updateStageState(now => withSearch(now, { ...search, current: next }))
+    if (next !== "none" && next.page !== ctx.stage.opened?.page) a.openPage(ctx.stage.id, next.page)
   },
   when: opened,
 })

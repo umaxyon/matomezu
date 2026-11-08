@@ -35,24 +35,37 @@ export function findAll(source: string, query: SearchQuery): Found {
   return { kind: "hits", hits }
 }
 
-// 当たり hit を replacement に置き換えた原文（hit がもう当たりでなければ source のまま）。正規表現なら replacement に $1 などを使え、
+// 原文 source の当たり hit を置き換える字（hit が当たりでなければ none）。正規表現なら replacement に $1 などを使え、
 // 式は原文全体に当てる（前後の字の条件を正しく効かせる）。正規表現でなければ replacement は字のまま
-export function replaceOne(source: string, query: SearchQuery, hit: SearchHit, replacement: string): string {
+function replacedText(source: string, query: SearchQuery, hit: SearchHit, replacement: string): string | "none" {
   const pattern = patternOf(query)
-  if (pattern === "bad-pattern") return source
+  if (pattern === "bad-pattern") return "none"
   const sticky = new RegExp(pattern.source, `${pattern.flags.replace("g", "")}y`)
   sticky.lastIndex = hit.start
   const m = sticky.exec(source)
-  if (!m || m.index + m[0].length !== hit.end) return source
+  if (!m || m.index + m[0].length !== hit.end) return "none"
+  if (!query.regex) return replacement
   sticky.lastIndex = hit.start
-  return query.regex ? source.replace(sticky, replacement) : source.replace(sticky, () => replacement)
+  const whole = source.replace(sticky, replacement)
+  return whole.slice(hit.start, whole.length - (source.length - hit.end))
 }
 
-// 当たりを全部 replacement に置き換えた原文（幅 0 の当たりは替えない）
+// 当たり hit を replacement に置き換えた原文（hit がもう当たりでなければ source のまま）
+export function replaceOne(source: string, query: SearchQuery, hit: SearchHit, replacement: string): string {
+  const text = replacedText(source, query, hit, replacement)
+  return text === "none" ? source : source.slice(0, hit.start) + text + source.slice(hit.end)
+}
+
+// 当たりを全部 replacement に置き換えた原文（幅 0 の当たりは替えない）。どの当たりの置き換える字も元の原文から作る（先読みなどが、替えたあとの字を見ない）
 export function replaceAll(source: string, query: SearchQuery, replacement: string): string {
   const found = findAll(source, query)
   if (found.kind !== "hits") return source
-  let out = source
-  for (const hit of [...found.hits].reverse()) out = replaceOne(out, query, hit, replacement)
-  return out
+  let out = ""
+  let last = 0
+  for (const hit of found.hits) {
+    const text = replacedText(source, query, hit, replacement)
+    out += source.slice(last, hit.start) + (text === "none" ? source.slice(hit.start, hit.end) : text)
+    last = hit.end
+  }
+  return out + source.slice(last)
 }

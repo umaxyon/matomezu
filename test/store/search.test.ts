@@ -92,3 +92,16 @@ test("1 つ置換は今の当たりだけを替えて次へ、全部置換は範
   actions.command("s1", "@matomezu/base:undo")
   expect(book().pages.map(p => p.text)).toEqual(["cat dog", "cat"])
 })
+
+test("長さの違う置き換えでも、1 つ置換のあとの今の当たりは次の当たりを指し、続けて押せる", () => {
+  const { store, book, search, setQuery } = markdownStore(["cat cat cat"])
+  const { actions } = store
+  actions.command("s1", "@matomezu/base:search-open")
+  setQuery("cat", { replacement: "x" })
+  actions.command("s1", "@matomezu/base:search-next")
+  actions.command("s1", "@matomezu/base:search-replace-one")
+  expect(book().pages[0]!.text).toBe("x cat cat")
+  expect(search()!.current).toMatchObject({ start: 2, end: 5 })
+  actions.command("s1", "@matomezu/base:search-replace-one")
+  expect(book().pages[0]!.text).toBe("x x cat")
+})

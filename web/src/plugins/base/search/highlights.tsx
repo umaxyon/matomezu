@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef } from "react"
 import { useBook, useCoreCatalog, useStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import type { SearchHit } from "./find"
-import { hitsIn, searchableOf } from "./search"
+import { hitsIn, liveCurrent, searchableOf } from "./search"
 import { searchIn, searchPickIn } from "./state"
 
 // 光らせる名前（CSS の ::highlight() で色を付ける。base の SearchDialog.module.css）
@@ -24,12 +24,11 @@ export function useSearchHits(
     const s = searchableOf(catalog, book)
     if (!search || s === "none" || !book) return { hits: [], current: "none" }
     const found = hitsIn(s, book, search.query, "page", page)
-    const hits = found === "bad-pattern" ? [] : (found[0]?.hits ?? [])
-    const cur = search.current
-    return {
-      hits,
-      current: cur !== "none" && cur.page === page ? { start: cur.start, end: cur.end } : "none",
-    }
+    if (found === "bad-pattern") return { hits: [], current: "none" }
+    const hits = found[0]?.hits ?? []
+    // 原文が変わって当たりでなくなった今の当たりは光らせない
+    const cur = liveCurrent(found, search.current)
+    return { hits, current: cur !== "none" && cur.page === page ? { start: cur.start, end: cur.end } : "none" }
   }, [catalog, book, search, page])
 }
 

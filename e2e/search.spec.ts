@@ -25,7 +25,14 @@ test("Mod+F で開き、打つと当たりを数えて両方のペインで光�
   await markdownBook(page, "# 猫の話\n\n猫が好き。**猫**は丸い。\n\n犬より猫。")
   await page.keyboard.press("ControlOrMeta+f")
   await expect(dialog(page)).toBeVisible()
-  await page.keyboard.insertText("猫")
+  // 1 字ずつ打っても、打った字は残る（打つたびに焦点を当て直して選ばない）
+  await page.keyboard.type("猫が")
+  await expect(dialog(page).getByLabel("探す")).toHaveValue("猫が")
+  await expect(count(page)).toHaveText("1/1")
+  // 字を変えても、今の当たりは今の所の頭から選び直す（「猫が」の当たりの「猫」のまま）
+  await page.keyboard.press("Backspace")
+  await expect(count(page)).toHaveText("2/4")
+  await page.keyboard.press("Shift+Enter")
   await expect(count(page)).toHaveText("1/4")
   // 当たり 4 つを、ソース（4）とプレビュー（4）で光らせる。今の当たりは両方で 1 つずつ
   await expect.poll(() => lit(page, "matomezu-search")).toBe(8)
@@ -43,13 +50,16 @@ test("Mod+F で開き、打つと当たりを数えて両方のペインで光�
   await expect(source(page)).toHaveValue("# 猫の話\n\n猫が好き。**猫**は丸い。\n\n犬より犬。")
 })
 
-test("1 つ置換は今の当たりだけ、全部置換は全部を替え、元に戻す 1 回で全部置換の前に戻る。正規表現が読めないと 0/0", async ({
+test("Mod+Alt+F は置換の入力Formから始め、1 つ置換は今の当たりだけ、全部置換は全部を替える。正規表現が読めないと 0/0", async ({
   page,
 }) => {
   await markdownBook(page, "cat cat cat")
   await page.keyboard.press("ControlOrMeta+Alt+f")
   await expect(dialog(page).getByLabel("置換")).toBeFocused()
-  await page.keyboard.insertText("dog")
+  // 置換の入力Formで 1 字ずつ打っても、焦点は置換の入力Formのまま
+  await page.keyboard.type("dog")
+  await expect(dialog(page).getByLabel("置換")).toBeFocused()
+  await expect(dialog(page).getByLabel("置換")).toHaveValue("dog")
   await dialog(page).getByLabel("探す").fill("cat")
   await expect(count(page)).toHaveText("1/3")
   await dialog(page).getByRole("button", { name: "1 つ置換" }).click()
@@ -57,9 +67,6 @@ test("1 つ置換は今の当たりだけ、全部置換は全部を替え、元
   await expect(count(page)).toHaveText("1/2")
   await dialog(page).getByRole("button", { name: "全部置換" }).click()
   await expect(source(page)).toHaveValue("dog dog dog")
-  await page.getByRole("region", { name: "プレビュー" }).click()
-  await page.keyboard.press("ControlOrMeta+z")
-  await expect(source(page)).toHaveValue("dog cat cat")
   await dialog(page).getByLabel("正規表現").check()
   await dialog(page).getByLabel("探す").fill("(")
   await expect(count(page)).toHaveText("0/0")
