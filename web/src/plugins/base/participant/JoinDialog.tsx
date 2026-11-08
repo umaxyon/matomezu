@@ -17,6 +17,7 @@ import { BirdFaceView } from "./BirdFaceView"
 import { originalPalette, PALETTE_TITLES } from "./birds"
 import { useIsAlive, useNowMs, useParticipantCalls, useParticipants } from "./hooks"
 import styles from "./Participant.module.css"
+import { workroomInUse } from "./workroom"
 
 const BIRD_TITLES = {
   inko: "Parakeet",
@@ -55,9 +56,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const [palette, setPalette] = useState<string | undefined>(undefined)
   const shown = palette ?? originalPalette(bird)
   const trimmed = name.trim()
-  const inUse =
-    trimmed !== "" &&
-    participants.some(p => p.state === "joined" && p.workroom === trimmed && isAlive(calls[p.id], nowMs))
+  const inUse = workroomInUse(participants, calls, name, isAlive, nowMs)
   const shownTitle = PALETTE_TITLES[shown as keyof typeof PALETTE_TITLES]
   const paletteName = shownTitle ? t(shownTitle) : ""
   const allowed = useAllowedOn(PARTICIPANT_ACCEPT.id, {
