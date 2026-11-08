@@ -7,6 +7,7 @@ import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { stageBlocks } from "../../core/stage"
+import { screenOf } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import type { MatomezuState } from "../store"
@@ -34,10 +35,11 @@ export function commandContext(
   stageId: string,
   command: string,
 ): CommandContext | null {
-  const stage = state.workspace.stages.find(s => s.id === stageId)
+  const stage = screenOf(state.window).stages.find(s => s.id === stageId)
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
-  const { workspace, settings, dialog, contextMenu } = state
+  const { settings, dialog, contextMenu } = state
+  const workspace = screenOf(state.window)
   return withWorkspace(
     {
       catalog,

@@ -2,6 +2,7 @@
 // 開くと、ダイアログと左サイドパネルを閉じてそのステージで行き先のブック・ページを開き、行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 import { type FormEvent, useEffect, useId, useRef } from "react"
+import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -34,7 +35,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const catalog = useCoreCatalog()
   const mail = useMatomezuState(s => s.mailbox.find(m => m.id === args.mail) ?? null)
   const books = useMatomezuState(s => s.books)
-  const stages = useMatomezuState(s => s.workspace.stages)
+  const stages = useMatomezuState(s => screenOf(s.window).stages)
   const read = useReadState()
   const actions = useActions()
   const closeLeft = useCloseLeftSidePanel()
@@ -58,9 +59,10 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     onClose()
     closeLeft(stage)
     if (choice === "split") actions.split(stage)
-    const target = openStageOf(read().workspace, stage, choice)
+    const target = openStageOf(screenOf(read().window), stage, choice)
     if (!target) return
-    if (read().workspace.stages.find(s => s.id === target)?.opened?.book !== to.book) actions.openBook(target, to.book)
+    if (screenOf(read().window).stages.find(s => s.id === target)?.opened?.book !== to.book)
+      actions.openBook(target, to.book)
     if (to.page) actions.openPage(target, to.page)
     if (to.ids && to.ids.length > 0) {
       reveal(target, to.ids)

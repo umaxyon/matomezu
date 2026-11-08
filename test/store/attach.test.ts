@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { actionsOf } from "../../web/src/core/perform"
 import { warningText } from "../../web/src/core/warnings"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { isShown } from "../../web/src/store/commands"
@@ -117,9 +118,9 @@ test("線を置けないタイプが line-connect を足していても、線を
     controlCenter: "@matomezu/control-center:control-center",
   })
   expect(createBookIn(instance, "s1", { title: "B", type: "boards:board" as never })).toBe(true)
-  const id = instance.state.getState().workspace.stages[0]!.opened!.book
+  const id = screenOf(instance.state.getState().window).stages[0]!.opened!.book
   expect(instance.actions.perform("@matomezu/base:page-add", { title: "P" }, { book: id }).ok).toBe(true)
-  const p = instance.state.getState().workspace.stages[0]!.opened!.page!
+  const p = screenOf(instance.state.getState().window).stages[0]!.opened!.page!
   const place = (x: number) =>
     instance.actions.perform(
       "@matomezu/paper:item-place",

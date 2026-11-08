@@ -2,6 +2,7 @@
 // book-purge と trash-empty はゴミ箱から消す。1 冊だけのタイプ・ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
 import { expect, test } from "bun:test"
 import { permittedIn } from "../../web/src/core/perform"
+import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { worldOf } from "../../web/src/store/world"
@@ -16,7 +17,7 @@ test("book-trash はブックに時刻を付けてゴミ箱へ移し、開いて
   expect("b1" in state.getState().books).toBe(false)
   expect(state.getState().trash.b1?.trashed).toBe(NOW)
   expect(Object.keys(state.getState().trash.b1 ?? {}).slice(0, 4)).toEqual(["type", "id", "title", "trashed"])
-  expect(state.getState().workspace.stages[0]?.opened).toBeNull()
+  expect(screenOf(state.getState().window).stages[0]?.opened).toBeNull()
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(false)
 })
 

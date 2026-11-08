@@ -1,6 +1,7 @@
 // 状態は凍っていて、その場で書き換えると誤りになる（前の状態と変わらない所を共有しているので、書き換えると前の状態まで変わる）。
 // アクションで変えたあとの新しいブックも、作ったときに渡したブックも同じ
 import { expect, test } from "bun:test"
+import { screenOf } from "../../web/src/core/window"
 import { newStore } from "../support"
 
 test("状態のブックは、作ったときのものもアクションのあとのものも中まで凍っていて、書き換えると誤りになる", () => {
@@ -23,5 +24,5 @@ test("状態のブックは、作ったときのものもアクションのあ�
 test("設定と画面の状態も凍っている", () => {
   const { state } = newStore()
   expect(Object.isFrozen(state.getState().settings)).toBe(true)
-  expect(Object.isFrozen(state.getState().workspace.stages)).toBe(true)
+  expect(Object.isFrozen(screenOf(state.getState().window).stages)).toBe(true)
 })

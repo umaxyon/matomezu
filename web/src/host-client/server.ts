@@ -18,6 +18,7 @@ import { hasPages } from "../core/book"
 import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
+import { screenOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type { AIEditTicketOutcome, DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
 import type { HostClient, Loaded } from "./client"
@@ -111,7 +112,7 @@ const openedOf = (stage: Stage) => {
 
 // 窓が見ているもの。book・page・mode（編集か印刷プレビューか）・selection はカレントのステージのもの（何も開いていなければ book は null）
 export function viewOf(state: MatomezuState) {
-  const ws = state.workspace
+  const ws = screenOf(state.window)
   const stage = currentStage(ws)
   return {
     ...openedOf(stage),
@@ -144,11 +145,11 @@ const ShowSchema = z.object({
 // mode が print-preview なら、印刷プレビューで出す（ページを持つブックだけ）
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
-  let stage = show.stage ?? state.getState().workspace.current
+  let stage = show.stage ?? screenOf(state.getState().window).current
   if (show.split) {
-    const before = state.getState().workspace.stages.map(s => s.id)
+    const before = screenOf(state.getState().window).stages.map(s => s.id)
     actions.split(stage)
-    const added = state.getState().workspace.stages.find(s => !before.includes(s.id))
+    const added = screenOf(state.getState().window).stages.find(s => !before.includes(s.id))
     if (!added) return
     stage = added.id
   }

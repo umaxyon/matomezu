@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
@@ -488,7 +489,7 @@ test("show が届いたら、言われたステージでブックを開き、カ
   const s = await connected()
   s.store.actions.split("s1")
   s.emit("show", { book: "b1", stage: "s2" })
-  const ws = s.store.state.getState().workspace
+  const ws = screenOf(s.store.state.getState().window)
   expect(ws.current).toBe("s2")
   expect(ws.stages.map(st => st.opened?.book ?? null)).toEqual(["b1", "b1"])
 })
@@ -496,14 +497,14 @@ test("show が届いたら、言われたステージでブックを開き、カ
 test("show の mode が print-preview なら、印刷プレビューで開く", async () => {
   const s = await connected()
   s.emit("show", { book: "b1", mode: "print-preview" })
-  expect(s.store.state.getState().workspace.stages[0]?.mode.kind).toBe("print-preview")
+  expect(screenOf(s.store.state.getState().window).stages[0]?.mode.kind).toBe("print-preview")
   expect(s.sent.at(-1)?.view).toMatchObject({ mode: "print-preview" })
 })
 
 test("show の split は、そのステージを分けて右にできたステージに開く", async () => {
   const s = await connected()
   s.emit("show", { book: "b1", split: true })
-  const ws = s.store.state.getState().workspace
+  const ws = screenOf(s.store.state.getState().window)
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
   expect(ws.stages[1]?.opened?.book).toBe("b1")

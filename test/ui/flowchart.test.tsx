@@ -3,6 +3,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { addPageIn, createBookIn, portAreasOf, rectsOf } from "../../web/src/plugins/base"
 import { floorsOf } from "../../web/src/plugins/base/place/items"
 import { ALIGN_MARGIN } from "../../web/src/plugins/books/flowchart/actions"
@@ -32,7 +33,7 @@ function flowchart() {
   act(() => {
     expect(createBookIn(store, "s1", { title: "流れ", type: "@matomezu/flowchart:flowchart" })).toBe(true)
   })
-  const id = (store.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   act(() => {
     expect(addPageIn(store, "s1", { title: "p1" })).toBe(true)
   })
@@ -73,7 +74,7 @@ test("フローチャートのツールボックス（下の行のフッタメ�
   ).toEqual(names)
   fireEvent.click(within(panel).getByRole("button", { name: "ひし形", hidden: true }))
   expect(screen.queryByRole("group", { name: "形", hidden: true })).toBeNull()
-  expect(store.state.getState().workspace.stages[0]!.placing).toBe("@matomezu/shape:shape-diamond")
+  expect(screenOf(store.state.getState().window).stages[0]!.placing).toBe("@matomezu/shape:shape-diamond")
   expect(screen.getByRole("button", { name: "形", hidden: true }).getAttribute("aria-pressed")).toBe("true")
 })
 

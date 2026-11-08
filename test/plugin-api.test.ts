@@ -2,6 +2,7 @@
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
 import { newStage } from "../web/src/core/stage"
+import { screenOf } from "../web/src/core/window"
 import { stageView, toolOf } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
@@ -328,8 +329,8 @@ test("プラグインに見せるステージ（StageView）のフィールド",
 test("コマンドに見せるステージは、プラグインに見せるステージと同じ物", () => {
   const store = newStore()
   const state = store.state.getState()
-  const stage = state.workspace.stages.find(s => s.id === "s1")!
-  const tool = toolOf(store.catalog.core, state.workspace, "s1", state.books)
+  const stage = screenOf(state.window).stages.find(s => s.id === "s1")!
+  const tool = toolOf(store.catalog.core, screenOf(state.window), "s1", state.books)
   expect(commandContext(store.catalog.core, null, state, "s1", "@matomezu/base:stage-split")?.stage).toEqual(
     stageView(store.catalog.core, stage, tool),
   )

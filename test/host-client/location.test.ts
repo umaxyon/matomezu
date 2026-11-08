@@ -1,6 +1,7 @@
 // URL と画面の場所の行き来（host-client/location.ts）: 開いたときに URL の場所を当てはめ、移動はブラウザの履歴に積み、ほかは待ってまとめて書き換え、
 // 戻る・進むはその場所を当てはめる
 import { expect, test } from "bun:test"
+import { screenOf } from "../../web/src/core/window"
 import { followLocation, type Place, parseSearch, searchOf } from "../../web/src/host-client/location"
 import { newStore } from "../support"
 
@@ -49,6 +50,7 @@ function fakePlace(start = "") {
 
 test("URL の形: ステージごとにブック・ページ・倍率とずらす量・場所に入れる画面の状態、続けてカレントと境目。読み戻すと同じ場所", () => {
   const address = {
+    front: "book-screen" as const,
     stages: [
       { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
@@ -72,7 +74,7 @@ test("開いたときは URL の場所を当てはめる（読み直しても同
   const store = newStore()
   const f = fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5")
   followLocation(store, f.place)
-  expect(store.state.getState().workspace.stages[0]!.opened?.book).toBe("b3")
+  expect(screenOf(store.state.getState().window).stages[0]!.opened?.book).toBe("b3")
 })
 
 // 同じ同期の処理が終わるのを待つ
@@ -95,7 +97,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   expect(parseSearch(f.replaced.at(-1)!)?.share).toBe(0.3)
   // 戻る: 1 つ前の場所（b2 を開いた 1 つのステージ）
   f.back(f.pushed[0]!)
-  const ws = store.state.getState().workspace
+  const ws = screenOf(store.state.getState().window)
   expect(ws.stages.map(s => s.opened?.book)).toEqual(["b2"])
   expect(f.pushed).toHaveLength(2)
 })
@@ -105,7 +107,7 @@ test("同じ処理の中の移動（分割してブックとページを開く�
   const f = fakePlace()
   followLocation(store, f.place)
   store.actions.split("s1")
-  const right = store.state.getState().workspace.stages[1]!.id
+  const right = screenOf(store.state.getState().window).stages[1]!.id
   store.actions.openBook(right, "b3")
   store.actions.openPage(right, "p1")
   await settled()

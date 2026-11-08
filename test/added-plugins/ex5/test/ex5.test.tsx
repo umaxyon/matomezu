@@ -26,7 +26,7 @@ const shelf = () => {
   act(() => {
     expect(createBookIn(instance, "s1", { title: "棚", type: "ex5:shelf" })).toBe(true)
   })
-  const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
   act(() => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { CONTROL_CENTER } from "../../web/src/plugins/control-center"
@@ -16,12 +17,12 @@ describe("コントロールセンター", () => {
     const instance = createMatomezu({ plugins: BUILTIN, controlCenter: CENTER })
     expect(instance.controlCenter).toBe(CENTER)
     expect(Object.keys(instance.state.getState().books)).toEqual([])
-    expect(instance.state.getState().workspace.stages[0]!.opened).toBeNull()
+    expect(screenOf(instance.state.getState().window).stages[0]!.opened).toBeNull()
   })
 
   test("最初に開くのは、渡したブックの最初の 1 冊", () => {
     const instance = newStore()
-    expect(instance.state.getState().workspace.stages[0]!.opened?.book).toBe(SAMPLE_BOOKS[0]!.id)
+    expect(screenOf(instance.state.getState().window).stages[0]!.opened?.book).toBe(SAMPLE_BOOKS[0]!.id)
     expect(createBookIn(instance, "s1", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
   })
 

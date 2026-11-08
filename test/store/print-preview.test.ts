@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import type { PagedBook } from "../../web/src/core/book"
+import { screenOf } from "../../web/src/core/window"
 import { pageContext } from "../../web/src/plugins/base/book-settings"
 import { growOf, paperSize } from "../../web/src/plugins/base/place/items"
 import { placedSize } from "../../web/src/plugins/base/place/placed"
@@ -12,7 +13,7 @@ import { newStore } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 const settled = () => Promise.resolve()
-const stageOf = (store: ReturnType<typeof newStore>) => store.state.getState().workspace.stages[0]!
+const stageOf = (store: ReturnType<typeof newStore>) => screenOf(store.state.getState().window).stages[0]!
 const bookOf = (store: ReturnType<typeof newStore>) => store.state.getState().books.b1 as { settings?: object }
 
 function previewing() {
@@ -189,7 +190,7 @@ test("印刷区画より大きい形は、またいでも直せないので、�
   const id = book().pages[0]!.items![0]!.id
   expect(bookCrossings(store.catalog.core, book())).toEqual([{ page: "p1", crossing: [], oversized: [id] }])
   expect(store.actions.command("s1", "@matomezu/base:print-preview-open")).toBe(true)
-  expect(store.state.getState().workspace.stages[0]!.mode.kind).toBe("print-preview")
+  expect(screenOf(store.state.getState().window).stages[0]!.mode.kind).toBe("print-preview")
 })
 
 test("印刷のときの改ページ: ツリーとディレクトリ構成図の節・行は、どれも 1 つの印刷区画に入り、線の端は節に付いたまま、区切り線は最後の行まで伸びる。書く画面の数え方は改ページの前", () => {

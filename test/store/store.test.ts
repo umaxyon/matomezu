@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { screenOf } from "../../web/src/core/window"
 import { currentStage } from "../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { newStore } from "../support"
@@ -10,8 +11,8 @@ test("ページを足すと、そのステージのブックに入り、その�
   addPageIn({ state, actions }, "s2", { title: "ページ 2" })
   const s = state.getState()
   expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "n1" }] })
-  expect(s.workspace.stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "n1" }])
-  expect(currentStage(s.workspace).id).toBe("s2")
+  expect(screenOf(s.window).stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "n1" }])
+  expect(currentStage(screenOf(s.window)).id).toBe("s2")
 })
 
 test("ページを開くのは指定したステージで、そのステージがカレントになる", () => {
@@ -21,7 +22,7 @@ test("ページを開くのは指定したステージで、そのステージ�
   actions.openBook("s2", "b1")
   actions.openPage("s2", "p1")
   actions.openPage("s1", "n1")
-  const ws = state.getState().workspace
+  const ws = screenOf(state.getState().window)
   expect(ws.stages.map(st => st.opened)).toMatchObject([{ page: "n1" }, { page: "p1" }])
   expect(currentStage(ws).id).toBe("s1")
 })
@@ -29,9 +30,9 @@ test("ページを開くのは指定したステージで、そのステージ�
 test("分けたステージは何も開いておらず、ブックを開くとそのステージがカレントになる", () => {
   const { state, actions } = newStore()
   actions.split("s1")
-  expect(state.getState().workspace.stages[1]!.opened).toBeNull()
+  expect(screenOf(state.getState().window).stages[1]!.opened).toBeNull()
   actions.openBook("s2", "b3")
-  const ws = state.getState().workspace
+  const ws = screenOf(state.getState().window)
   expect(ws.stages[1]!.opened).toMatchObject({
     type: "@matomezu/drawing:drawing",
     book: "b3",
@@ -55,14 +56,14 @@ test("store が持つずらす量は、表示領域の大きさで範囲に収�
   const { state, actions } = newStore()
   actions.resizeStage("s1", { w: 400, h: 300 })
   actions.panStageBy("s1", 500, 500)
-  expect(state.getState().workspace.stages[0]!.pan).toEqual({ x: 0, y: 0 })
+  expect(screenOf(state.getState().window).stages[0]!.pan).toEqual({ x: 0, y: 0 })
 })
 
 test("ブックを開いていないステージには、ページは足せない", () => {
   const { state, actions } = newStore()
   actions.split("s1")
   const s = state.getState()
-  expect(s.workspace.stages.map(st => st.opened?.type)).toEqual(["@matomezu/drawing:drawing", undefined])
+  expect(screenOf(s.window).stages.map(st => st.opened?.type)).toEqual(["@matomezu/drawing:drawing", undefined])
   expect(addPageIn({ state, actions }, "s2", { title: "x" })).toBe(false)
   expect(state.getState()).toBe(s)
 })
@@ -80,15 +81,15 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
     project: "default",
     pages: [],
   })
-  expect(s.workspace.stages[1]!.opened).toEqual({
+  expect(screenOf(s.window).stages[1]!.opened).toEqual({
     type: "@matomezu/drawing:drawing",
     book: "made",
     page: null,
     paper: null,
   })
-  expect(s.workspace.current).toBe("s2")
+  expect(screenOf(s.window).current).toBe("s2")
   addPageIn({ state, actions }, "s2", { title: "最初", paper: "@matomezu/base:a3", orientation: "portrait" })
-  expect(state.getState().workspace.stages[1]!.opened).toMatchObject({
+  expect(screenOf(state.getState().window).stages[1]!.opened).toMatchObject({
     page: "made",
     paper: { size: { w: 1123, h: 1587 } },
   })
@@ -122,10 +123,10 @@ test("ページの無いブックを 2 つのステージで開いて最初の�
   actions.split("s1")
   actions.openBook("s2", "n1")
   addPageIn({ state, actions }, "s2", { title: "最初" })
-  expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["n2", "n2"])
+  expect(screenOf(state.getState().window).stages.map(st => st.opened?.page)).toEqual(["n2", "n2"])
   // ほかのページを見ているステージは変えない
   addPageIn({ state, actions }, "s2", { title: "次" })
-  expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["n2", "n3"])
+  expect(screenOf(state.getState().window).stages.map(st => st.opened?.page)).toEqual(["n2", "n3"])
 })
 
 test("閉じたステージへの分割と分割の取りやめは、ほかのステージにかけない", () => {
@@ -133,10 +134,10 @@ test("閉じたステージへの分割と分割の取りやめは、ほかの�
   actions.split("s1")
   actions.closeStage("s2")
   actions.split("s1")
-  const before = state.getState().workspace
+  const before = screenOf(state.getState().window)
   actions.unsplit("s2")
   actions.split("s2")
-  expect(state.getState().workspace).toBe(before)
+  expect(screenOf(state.getState().window)).toBe(before)
   expect(before.stages.map(s => s.id)).toEqual(["s1", "s3"])
 })
 

@@ -10,6 +10,7 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { previewing } from "../../../core/stage"
+import { screenOf } from "../../../core/window"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { useCloseLeftSidePanel, useOpenedLeftSidePanel } from "../left-side-panel/hooks"
@@ -30,10 +31,10 @@ import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import styles from "./WorkspaceView.module.css"
 
 export function WorkspaceView() {
-  const ids = useMatomezuState(useShallow(s => s.workspace.stages.map(st => st.id)))
-  const direction = useMatomezuState(s => s.workspace.arrangement.direction)
-  const share = useMatomezuState(s => s.workspace.arrangement.share)
-  const current = useMatomezuState(s => s.workspace.current)
+  const ids = useMatomezuState(useShallow(s => screenOf(s.window).stages.map(st => st.id)))
+  const direction = useMatomezuState(s => screenOf(s.window).arrangement.direction)
+  const share = useMatomezuState(s => screenOf(s.window).arrangement.share)
+  const current = useMatomezuState(s => screenOf(s.window).current)
   const { moveDivider, evenDivider } = useActions()
   const ref = useRef<HTMLElement>(null)
   const [scrollbar, setScrollbar] = useState(0)
@@ -107,7 +108,7 @@ function scrollbarWidth(): number {
 // ステージの列の中身。印刷プレビューの間は、ステージの中身のほか（上・下の行と角）を出さない（中身の操作の道具を出さないため）
 function StageColumn({ stage }: { stage: string }) {
   const inPreview = useMatomezuState(s => {
-    const st = s.workspace.stages.find(st => st.id === stage)
+    const st = screenOf(s.window).stages.find(st => st.id === stage)
     return !!st && previewing(st)
   })
   return (

@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { type ItemPage, shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { amongSelected, onlySelected, toggledSelection } from "../../web/src/plugins/base"
 import { anchorsFor } from "../../web/src/plugins/base/context-menu/anchor-targets"
 import { linesOf } from "../../web/src/plugins/items/line/placed"
@@ -28,7 +29,7 @@ function ready() {
 }
 type Store = ReturnType<typeof ready>
 const page = (store: Store) => (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
-const selection = (store: Store) => store.state.getState().workspace.stages[0]!.selection
+const selection = (store: Store) => screenOf(store.state.getState().window).stages[0]!.selection
 const place = (store: Store, x: number, y: number, parent?: string, size = { w: 100, h: 64 }) =>
   store.actions.perform(
     "@matomezu/paper:item-place",

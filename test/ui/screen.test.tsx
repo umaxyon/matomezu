@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { StrictMode } from "react"
 import { defineMessages } from "../../web/src/core/i18n/messages"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -621,10 +622,10 @@ test("内包ボックスの子は親の中に描き、子に付いた線も描�
   // 子に付いた線も描く
   expect(document.querySelector('svg [data-item="l1"]')).not.toBeNull()
   fireEvent.pointerDown(item("c"), { button: 0, pointerId: 1 })
-  expect(store.state.getState().workspace.stages[0]!.selection).toEqual(["c"])
+  expect(screenOf(store.state.getState().window).stages[0]!.selection).toEqual(["c"])
   fireEvent.pointerUp(item("c"), { button: 0, pointerId: 1 })
   fireEvent.pointerDown(item("b"), { button: 0, pointerId: 2 })
-  expect(store.state.getState().workspace.stages[0]!.selection).toEqual(["b"])
+  expect(screenOf(store.state.getState().window).stages[0]!.selection).toEqual(["b"])
   fireEvent.pointerUp(item("b"), { button: 0, pointerId: 2 })
   fireEvent.doubleClick(item("c"))
   const dialog = screen.getByRole("dialog")

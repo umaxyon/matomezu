@@ -21,7 +21,7 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
   act(() => {
     expect(createBookIn(instance, "s1", { title: "単語帳", type: "ex8:deck" })).toBe(true)
   })
-  const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
   act(() => {
     expect(addPageIn(instance, "s1", { title: "1" })).toBe(true)
   })
@@ -65,7 +65,7 @@ test("カードの並べ方は画面の場所に入り（読み直しても戻�
     createBookIn(instance, "s1", { title: "単語帳", type: "ex8:deck" })
     addPageIn(instance, "s1", { title: "1" })
   })
-  const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
   const page = (instance.state.getState().books[book] as unknown as { pages: { id: string }[] }).pages[0]!.id
   act(() => {
     instance.actions.perform(

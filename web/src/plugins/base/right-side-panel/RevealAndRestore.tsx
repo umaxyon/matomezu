@@ -6,6 +6,7 @@ import { useCallback, useEffect } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { Rect } from "../../../core/geom"
 import type { Stage } from "../../../core/stage"
+import { screenOf } from "../../../core/window"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -23,9 +24,13 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   const current = found?.open.current ?? null
   const restore = restoreIn(useStageState(stage ?? "", kit))
   const kept = useMatomezuState(
-    useShallow(s => s.workspace.stages.map(st => st.id).filter(id => restoreIn(s.stageStates[id]?.[kit.id]))),
+    useShallow(s =>
+      screenOf(s.window)
+        .stages.map(st => st.id)
+        .filter(id => restoreIn(s.stageStates[id]?.[kit.id])),
+    ),
   )
-  const now = useMatomezuState(s => (stage ? s.workspace.stages.find(st => st.id === stage) : undefined))
+  const now = useMatomezuState(s => (stage ? screenOf(s.window).stages.find(st => st.id === stage) : undefined))
   const read = useReadState()
   const readOwn = useReadStageState(kit)
   const set = useSetStageState(kit)
@@ -34,7 +39,7 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
     (id: string, change: (now: unknown) => unknown) => set(id, change(readOwn(id))),
     [readOwn, set],
   )
-  const stageOf = useCallback((id: string) => read().workspace.stages.find(s => s.id === id), [read])
+  const stageOf = useCallback((id: string) => screenOf(read().window).stages.find(s => s.id === id), [read])
   // 見せる: 付いた先が替われば全部を囲む四角を収め（1 つなら 100%）、カレントだけが替われば倍率はそのままでカレントを真ん中へ（state.ts の revealFor）
   useEffect(() => {
     if (sliding || !stage || anchors === null || current === null || !restore) return

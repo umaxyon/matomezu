@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { defineAction, pagedOnly } from "../../web/src/core/def/action"
 import { defineBookType } from "../../web/src/core/def/book-type"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
@@ -123,7 +124,7 @@ describe("アクションの入口", () => {
     actions.openBook("s2", "made")
     const done = actions.perform("@matomezu/base:page-add", { title: "最初" }, { book: "made" })
     expect(done).toEqual({ ok: true, result: { page: "made" } })
-    expect(state.getState().workspace.stages.map(s => s.opened?.page)).toEqual(["made", "made"])
+    expect(screenOf(state.getState().window).stages.map(s => s.opened?.page)).toEqual(["made", "made"])
   })
 
   test("宛先のブックが無い・タイプが許さない・引数の形が違うときは断り、状態を変えない", () => {

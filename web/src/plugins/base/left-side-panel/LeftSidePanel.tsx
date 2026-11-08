@@ -4,6 +4,7 @@
 // 窓に 1 つだけで、ほかのステージでも開いていれば、カレントでない方を閉じる。開いたら中にフォーカスを入れ、Esc は左サイドパネルのキーの範囲で閉じる。
 // 外を左ボタンで押したら閉じる（ダイアログ・メニュー・トースト・開くボタンを押したときは閉じない）。開いたステージで開いているブックが替わったときも閉じる
 import { type ReactNode, useEffect, useRef } from "react"
+import { screenOf } from "../../../core/window"
 import { useMessages, useT } from "../../../ui/i18n"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useUiCatalog } from "../../../ui/view-hooks"
@@ -66,7 +67,7 @@ function Opened({
   const ref = useRef<HTMLDivElement>(null)
   const set = useSetLeftSidePanel()
   const widgets = useUiCatalog().widgets
-  const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book ?? null)
+  const book = useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === stage)?.opened?.book ?? null)
   // 開いたら中にフォーカスを入れる（Esc を左サイドパネルのキーの範囲で受けるため）
   useEffect(() => {
     if (!ref.current?.contains(document.activeElement)) ref.current?.focus({ preventScroll: true })

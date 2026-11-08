@@ -4,6 +4,7 @@ import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
 import type { Book, BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { refusalMessage } from "../../web/src/plugins/base"
 import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
@@ -98,7 +99,7 @@ test("ロック中は、行うアクションをどれも認可ステップに�
   const enabled = (id: CommandId) => isEnabled(store, state.getState(), "s1", id)
   // 箱を置こうとしている（paper-place を出す）
   const placing = () => {
-    if (!state.getState().workspace.stages[0]!.placing) actions.togglePlacing("s1", "@matomezu/box:shape-box")
+    if (!screenOf(state.getState().window).stages[0]!.placing) actions.togglePlacing("s1", "@matomezu/box:shape-box")
   }
   const first = (state.getState().books.b1 as Drawing).pages[0]!.id
   actions.openPage("s1", first)

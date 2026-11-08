@@ -21,6 +21,7 @@ import {
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
+import { screenOf } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
 import type { Performed } from "../store/store"
@@ -39,7 +40,7 @@ import {
 // そのステージが開いているブック（何も開いていなければ null）
 export function useBook(stage: string): Book | null {
   return useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
+    const o = screenOf(s.window).stages.find(st => st.id === stage)?.opened
     return o ? (s.books[o.book] ?? null) : null
   })
 }
@@ -47,7 +48,7 @@ export function useBook(stage: string): Book | null {
 // そのステージが開いているページ（ページを持たないブック・ページを開いていなければ null）
 export function usePage(stage: string): ItemPage | null {
   return useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
+    const o = screenOf(s.window).stages.find(st => st.id === stage)?.opened
     const book = o ? pagedOf(s.books[o.book]) : undefined
     return (book?.pages.find(p => p.id === o?.page) as ItemPage | undefined) ?? null
   })
@@ -61,7 +62,7 @@ export function useItem<Id extends ItemId>(
   id?: Id,
 ): PlacedOf<Id> | undefined {
   return useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
+    const o = screenOf(s.window).stages.find(st => st.id === stage)?.opened
     const book = o ? pagedOf(s.books[o.book]) : undefined
     const p = book?.pages.find(p => p.id === page) as ItemPage | undefined
     // ページのアイテムか、どの深さの子の形も
@@ -85,7 +86,7 @@ export function useShownBook(stage: string): Book | null {
 // 見せ方が描くのに使う
 export function useShownPage(stage: string): ItemPage | null {
   const page = usePage(stage)
-  const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
+  const book = useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === stage)?.opened?.book)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
     if (!page || !preview || preview.book !== book) return page
@@ -113,7 +114,7 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   const place = where && !("settings" in where) ? where : undefined
   const ids = place?.ids?.join("\n")
   const answer = useMatomezuState(s => {
-    const st = s.workspace.stages.find(st => st.id === stage)
+    const st = screenOf(s.window).stages.find(st => st.id === stage)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
     const book = o ? s.books[o.book] : undefined
@@ -153,7 +154,7 @@ export function useStage(stage: string): StageView | null {
   const catalog = useCatalog().core
   const found = useMatomezuState(
     useShallow(s => {
-      const st = s.workspace.stages.find(st => st.id === stage)
+      const st = screenOf(s.window).stages.find(st => st.id === stage)
       return st
         ? {
             id: st.id,
@@ -167,7 +168,7 @@ export function useStage(stage: string): StageView | null {
         : null
     }),
   )
-  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage, s.books))
+  const tool = useMatomezuState(s => toolOf(catalog, screenOf(s.window), stage, s.books))
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 
@@ -211,7 +212,7 @@ export function useStageArea(stage: string, area: Size | null, origin: Point | n
 // そのステージの紙をずらす量（無いステージなら null）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
 // watch が false の間は null を返し、ずらしても描き直さない（ドラッグの間だけ追うときなど）
 export function useStagePan(stage: string, watch = true): Point | null {
-  return useMatomezuState(s => (watch ? (s.workspace.stages.find(st => st.id === stage)?.pan ?? null) : null))
+  return useMatomezuState(s => (watch ? (screenOf(s.window).stages.find(st => st.id === stage)?.pan ?? null) : null))
 }
 
 // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す関数（描き直さない。押した所を直すときなど、イベントや effect の中で使う）
@@ -219,7 +220,7 @@ export function useToPaper(stage: string): (p: Point) => Point | null {
   const read = useReadState()
   return useCallback(
     (p: Point) => {
-      const st = read().workspace.stages.find(st => st.id === stage)
+      const st = screenOf(read().window).stages.find(st => st.id === stage)
       return st ? toPaper(st, p) : null
     },
     [read, stage],
@@ -229,7 +230,7 @@ export function useToPaper(stage: string): (p: Point) => Point | null {
 // そのステージの今の紙をずらす量を読む関数（描き直さない。押した所を紙の上の点に直すときなど、イベントや effect の中で読む）
 export function useLatestPan(stage: string): () => Point | null {
   const read = useReadState()
-  return useCallback(() => read().workspace.stages.find(st => st.id === stage)?.pan ?? null, [read, stage])
+  return useCallback(() => screenOf(read().window).stages.find(st => st.id === stage)?.pan ?? null, [read, stage])
 }
 
 // 機能台帳（定義の表。読むだけ。コマンドの ctx.catalog と同じ物）
@@ -261,8 +262,8 @@ export function useUserSetting(id: string): unknown {
 export function usePerform(stage: string): <Id extends ActionId>(action: Id, args: ArgsOf<Id>) => Performed<Id> {
   const { perform } = useActions()
   const catalog = useCatalog().core
-  const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
-  const mode = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.mode.kind ?? "edit")
+  const book = useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === stage)?.opened?.book)
+  const mode = useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === stage)?.mode.kind ?? "edit")
   return useMemo(
     () =>
       <Id extends ActionId>(action: Id, args: ArgsOf<Id>): Performed<Id> => {

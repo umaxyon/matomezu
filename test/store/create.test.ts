@@ -3,6 +3,7 @@ import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { type MatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { BASE, createBookIn } from "../../web/src/plugins/base"
 import { BOX } from "../../web/src/plugins/items/box/box"
@@ -88,7 +89,10 @@ describe("インスタンスを組み立てる", () => {
     })
     expect(instance.catalog.core.bookTypes.has("notes:note")).toBe(true)
     expect(createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })).toBe(true)
-    expect(instance.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "notes:note", book: "n1" })
+    expect(screenOf(instance.state.getState().window).stages[0]!.opened).toMatchObject({
+      type: "notes:note",
+      book: "n1",
+    })
     expect(untyped(instance.actions).command("s1", "notes:shoot")).toBe(true)
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:shot", stage: "s1" })
 

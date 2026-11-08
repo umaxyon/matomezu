@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { toolsIn } from "../../web/src/core/tools"
+import { screenOf } from "../../web/src/core/window"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { fieldsArgs } from "../../web/src/plugins/base/page-tabs/page-fields"
 import { keepsPan } from "../../web/src/plugins/base/tool-switch/tools"
@@ -33,7 +34,7 @@ function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   act(() => {
     expect(createBookIn(store, "s1", { title: "木", type: "@matomezu/tree:tree" })).toBe(true)
   })
-  const id = (store.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }
   return { store, id, book }
 }
@@ -491,7 +492,7 @@ test("中央の木の根で Tab を押すと、子の少ない向きへ子を足
 test("その場の編集は、同じ道具を選び直しても続き、道具が替わると終わる", () => {
   const { store, id } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
-  const editing = () => store.state.getState().workspace.stages[0]!.editing
+  const editing = () => screenOf(store.state.getState().window).stages[0]!.editing
   fireEvent.pointerDown(
     screen.getByRole("img", { name: "紙" }).querySelector(`[data-node="${done.fields!.root.children[0]!.id}"]`)!,
     {
@@ -852,7 +853,7 @@ test("線の形: ページの設定で曲線を選ぶと、親から子への線
 test("編集の道具では 125% で、選んでいる節のほかを少し暗くし、Home で根を選ぶ。ハンドにすると 100% に戻り、暗くしない", () => {
   const { store, id } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子", children: [{ caption: "孫" }] }] })
-  const zoom = () => store.state.getState().workspace.stages[0]!.zoom
+  const zoom = () => screenOf(store.state.getState().window).stages[0]!.zoom
   const paper = () => screen.getByRole("img", { name: "紙" })
   const selected = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")
   expect(zoom()).toBe(1.25)

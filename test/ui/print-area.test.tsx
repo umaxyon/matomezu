@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { paperOf } from "../../web/src/core/stage"
+import { screenOf } from "../../web/src/core/window"
 import { PrintAreaLayer } from "../../web/src/plugins/base/stage/layers"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -24,7 +25,7 @@ test("紙 1 枚で描くページには線を引かず、広さが右に 2 枚�
     </MatomezuProvider>,
   )
   expect(container.querySelector("[data-print-areas]")).toBeNull()
-  const stage = instance.state.getState().workspace.stages.find(s => s.id === "s1")!
+  const stage = screenOf(instance.state.getState().window).stages.find(s => s.id === "s1")!
   const paper = paperOf(stage)!
   act(() => instance.actions.setStageArea("s1", { w: paper.w * 2, h: paper.h * 3 }))
   const areas = container.querySelector("[data-print-areas]")

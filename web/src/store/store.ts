@@ -50,15 +50,24 @@ import {
 } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import {
+  bookScreenVisible,
+  issueStage,
+  mapScreen,
+  mapScreens,
+  newWindow,
+  screenOf,
+  type WindowState,
+} from "../core/window"
+import {
   close,
   evenDivider,
   focus,
   followBook,
   followLibrary,
   hasStage,
+  MAX_STAGES,
   mapStage,
   moveDivider,
-  newWorkspace,
   setTool,
   showPage,
   split,
@@ -80,7 +89,7 @@ export interface MatomezuState {
   books: Readonly<Record<string, Book>> // ブックの id ごと（ゴミ箱のブックは除く）
   unreadable: readonly Warning[] // 残したブックのうち読めないもの（warning W004〜W006。データには手を付けず、開けない）
   partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
-  workspace: Workspace
+  window: WindowState // 窓が前に出している物と、ブックスクリーンの並び（core/window.ts）
   settings: Settings
   annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
   mailbox: Mailbox // 利用者の郵便箱（core/mail.ts。届いた順）
@@ -273,7 +282,7 @@ function initialState(
     books: { ...open },
     unreadable,
     partial,
-    workspace: newWorkspace(catalog, first),
+    window: newWindow(catalog, first),
     settings,
     annotations: {},
     mailbox: [],
@@ -358,7 +367,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   store.subscribe(deepFreeze)
   // ステージで開いている物が替わったら、まだ見ていない画面の履歴の段が見えたかを確かめ直す（下で作る checkSeen）
   store.subscribe((now, was) => {
-    if (now.workspace !== was.workspace || now.books !== was.books) checkSeen()
+    if (now.window !== was.window || now.books !== was.books) checkSeen()
   })
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, controlCenter, lang: getState().lang, newId, now: clock() })
@@ -394,10 +403,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       keyCache = { settings, table: keyTable([...defs.catalog.store.keys.values()], keyChangesOf(catalog, settings)) }
     return keyCache.table
   }
-  const withWorkspace = (change: (ws: Workspace) => Workspace) => {
-    const { workspace: ws } = getState()
-    const next = change(ws)
-    if (next !== ws) commit({ workspace: next })
+  // 前に出せるブックスクリーンのステージの並びに操作をかける
+  const withWorkspace = (change: (ws: Workspace) => Workspace) => withWindow(win => mapScreen(win, change))
+  const withWindow = (change: (win: WindowState) => WindowState) => {
+    const { window: win } = getState()
+    const next = change(win)
+    if (next !== win) commit({ window: next })
   }
   // 開いている画面の履歴の段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 つの画面の履歴の段にまとめ、処理が終わったら
   // 画面の履歴に入れる（入れた画面の履歴の段が変えたブックの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
@@ -438,7 +449,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
   }
   const seenIn = (u: Unseen) =>
-    getState().workspace.stages.some(
+    bookScreenVisible(getState().window) &&
+    screenOf(getState().window).stages.some(
       st =>
         st.opened?.book === u.book &&
         changeSeen(u.made, u.step.books[u.book] as HistoryStep["books"][string], st.opened.page, seenTestOf(st)),
@@ -488,7 +500,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     args: unknown,
     on?: { book: string },
   ): { ok: true; result: unknown; next: Partial<MatomezuState> } | Refused | { ok: false; reason: "no-book" } => {
-    const { books, workspace, annotations } = getState()
+    const { books, window, annotations } = getState()
     const ids: string[] = []
     const c = ctx()
     const done = performIn(worldOf(getState()), id, args, on, {
@@ -509,13 +521,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // 画面の履歴に入れないアクション（戻す・やり直すなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
       if (before && !recorded) dropOverwritten(before, done.book)
       next.books = { ...books, [done.book.id]: done.book }
-      next.workspace = followBook(catalog, workspace, done.book, books[done.book.id])
+      next.window = mapScreens(window, ws => followBook(catalog, ws, done.book as Book, books[(done.book as Book).id]))
     }
     if (done.books) {
       const split = splitTrash(done.books)
       next.books = { ...split.books }
       next.trash = { ...split.trash }
-      next.workspace = followLibrary(catalog, workspace, split.books, books)
+      next.window = mapScreens(window, ws => followLibrary(catalog, ws, split.books, books))
     }
     if (done.settings) {
       next.settings = done.settings
@@ -531,7 +543,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (Object.keys(next).length === 0) return
     const { dialog, contextMenu } = getState()
     const stageStates = next.stageStates ?? getState().stageStates
-    const stages = next.workspace?.stages
+    const stages = next.window?.screens.flatMap(ws => ws.stages)
     const gone = (opened: { stage: string } | null) =>
       stages !== undefined && opened !== null && !stages.some(s => s.id === opened.stage)
     const kept = stages && Object.keys(stageStates).filter(id => stages.some(s => s.id === id))
@@ -546,17 +558,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   // 今の画面の場所（ステージごとの場所に入れる画面の状態も）
   const addressNow = () => {
-    const { workspace, stageStates } = getState()
-    return addressOf(workspace, stage => takePlaced(defs.catalog.store.placedStates, stageStates[stage]))
+    const { window, stageStates } = getState()
+    return addressOf(window, stage => takePlaced(defs.catalog.store.placedStates, stageStates[stage]))
   }
+  // ステージ stage が窓のどれかのブックスクリーンにあるか
+  const inWindow = (stage: string) => getState().window.screens.some(ws => hasStage(ws, stage))
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // プラグイン owner の、ステージ stage の画面の状態を value にする（undefined なら消す。無いステージには置かない）
   const setStageState = (stage: string, owner: string, value: unknown) => {
-    const { stageStates: now, workspace } = getState()
+    const { stageStates: now, window } = getState()
     const { [owner]: _, ...rest } = now[stage] ?? {}
     if (value === undefined) {
       if (now[stage] && owner in now[stage]) setState({ stageStates: { ...now, [stage]: rest } })
-    } else if (hasStage(workspace, stage)) setState({ stageStates: { ...now, [stage]: { ...rest, [owner]: value } } })
+    } else if (window.screens.some(ws => hasStage(ws, stage)))
+      setState({ stageStates: { ...now, [stage]: { ...rest, [owner]: value } } })
   }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
@@ -579,8 +594,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openDialog: (stage, id, ...args) => {
       if (!defs.catalog.store.dialogs.has(id)) fail("E108", { id })
-      if (getState().workspace.stages.some(s => s.id === stage))
-        setState({ dialog: { id, stage, args: args[0], submitted: 0, preview: null } })
+      if (inWindow(stage)) setState({ dialog: { id, stage, args: args[0], submitted: 0, preview: null } })
     },
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })
@@ -594,7 +608,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (dialog) setState({ dialog: { ...dialog, submitted: dialog.submitted + 1 } })
     },
     pressKey: (key, scopes, reach) => {
-      const { contextMenu, dialog, workspace, settings } = getState()
+      const { contextMenu, dialog, window, settings } = getState()
+      const workspace = screenOf(window)
       const table = keysFor(settings)
       const picker = workspace.stages.find(s => s.picker !== null)?.id
       const stage = contextMenu?.stage ?? picker ?? dialog?.stage ?? workspace.current
@@ -613,7 +628,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return false
     },
     openContextMenu: (stage, id, target, at) => {
-      if (getState().workspace.stages.some(s => s.id === stage)) setState({ contextMenu: { id, stage, target, at } })
+      if (inWindow(stage)) setState({ contextMenu: { id, stage, target, at } })
     },
     closeContextMenu: () => {
       if (getState().contextMenu) setState({ contextMenu: null })
@@ -628,7 +643,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (now.some(t => t.id === id)) setState({ toasts: now.filter(t => t.id !== id) })
     },
     // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
-    split: stage => withWorkspace(ws => (hasStage(ws, stage) ? split(focus(ws, stage)) : ws)),
+    split: stage =>
+      withWindow(win => {
+        const ws = screenOf(win)
+        if (!hasStage(ws, stage)) return win
+        const focused = focus(ws, stage)
+        if (focused.stages.length >= MAX_STAGES) return mapScreen(win, () => focused)
+        const { win: issued, id } = issueStage(win)
+        return mapScreen(issued, () => split(focused, id))
+      }),
     unsplit: stage => withWorkspace(ws => (hasStage(ws, stage) ? unsplit(focus(ws, stage)) : ws)),
     moveDivider: (x, width) => withWorkspace(ws => moveDivider(ws, x, width)),
     evenDivider: () => withWorkspace(evenDivider),
@@ -639,8 +662,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book)))
     },
     openPage: (stage, page) => {
-      const { books, workspace } = getState()
-      const book = books[workspace.stages.find(s => s.id === stage)?.opened?.book ?? ""]
+      const { books, window } = getState()
+      const book = books[screenOf(window).stages.find(s => s.id === stage)?.opened?.book ?? ""]
       if (book && hasPages(book)) withWorkspace(ws => showPage(catalog, focus(ws, stage), stage, book, page))
     },
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
@@ -749,7 +772,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       commit({
         ...(touched === now.touched ? {} : { touched }),
         ...(trash === now.trash ? {} : { trash }),
-        ...(books === now.books ? {} : { books, workspace: followLibrary(catalog, now.workspace, books, now.books) }),
+        ...(books === now.books
+          ? {}
+          : { books, window: mapScreens(now.window, ws => followLibrary(catalog, ws, books, now.books)) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(mailbox === now.mailbox ? {} : { mailbox }),
@@ -764,20 +789,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     locate: address => {
       const now = getState()
       if (sameData(addressNow(), address)) {
-        const workspace = keepPlace(now.workspace)
-        if (workspace !== now.workspace) commit({ workspace })
+        const kept = keepPlace(now.window)
+        if (kept !== now.window) commit({ window: kept })
         return
       }
-      const workspace = placeAt(catalog, now.books, now.workspace, address)
+      const win = placeAt(catalog, now.books, now.window, address)
       const placed = defs.catalog.store.placedStates
       // ステージごとの置き場に場所の値を戻す（空になった置き場は消す）
       const stageStates: Record<string, Readonly<Record<string, unknown>>> = {}
-      workspace.stages.forEach((st, i) => {
+      screenOf(win).stages.forEach((st, i) => {
         const put = putPlaced(placed, now.stageStates[st.id], address.stages[i]?.states ?? {})
         if (Object.keys(put).length > 0) stageStates[st.id] = put
       })
       commit({
-        ...(workspace === now.workspace ? {} : { workspace }),
+        ...(win === now.window ? {} : { window: win }),
         ...(sameData(stageStates, now.stageStates) ? {} : { stageStates }),
       })
     },

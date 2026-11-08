@@ -2,6 +2,7 @@
 // 開くのは、ステージに置いてそのステージをカレントにするだけ（ほかのステージで開いていた物は、入れ物が閉じる）
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { screenOf } from "../../../core/window"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -15,8 +16,10 @@ export const PressClosedContext = createContext<{ current: boolean }>({ current:
 // 右サイドパネルを開いているステージ（カレントのステージで開いていればそれ。どこも開いていなければ null）と、開いている物
 export function useOpenedRightSidePanel(): { stage: string; open: RightSidePanelOpen } | null {
   const stage = useMatomezuState(s => {
-    const ids = s.workspace.stages.map(st => st.id).filter(id => panelIn(s.stageStates[id]?.[kit.id]))
-    return ids.includes(s.workspace.current) ? s.workspace.current : (ids[0] ?? null)
+    const ids = screenOf(s.window)
+      .stages.map(st => st.id)
+      .filter(id => panelIn(s.stageStates[id]?.[kit.id]))
+    return ids.includes(screenOf(s.window).current) ? screenOf(s.window).current : (ids[0] ?? null)
   })
   const open = useMatomezuState(s => (stage ? panelIn(s.stageStates[stage]?.[kit.id]) : null))
   return stage && open ? { stage, open } : null
@@ -25,7 +28,11 @@ export function useOpenedRightSidePanel(): { stage: string; open: RightSidePanel
 // 右サイドパネルを開いている、どのステージか（入れ物が、窓に 1 つを守るのに使う）
 export const useStagesWithRightSidePanel = (): readonly string[] =>
   useMatomezuState(
-    useShallow(s => s.workspace.stages.map(st => st.id).filter(id => panelIn(s.stageStates[id]?.[kit.id]))),
+    useShallow(s =>
+      screenOf(s.window)
+        .stages.map(st => st.id)
+        .filter(id => panelIn(s.stageStates[id]?.[kit.id])),
+    ),
   )
 
 // ステージ stage の右サイドパネル（開いていなければ null）
@@ -47,8 +54,8 @@ export function useOpenRightSidePanel(): (
   return useCallback(
     (stage, open, restore = "back") => {
       if (pressClosed.current) return
-      const { workspace, stageStates } = read()
-      const now = workspace.stages.find(s => s.id === stage)
+      const { window, stageStates } = read()
+      const now = screenOf(window).stages.find(s => s.id === stage)
       const opened = now?.opened
       if (!now || !opened) return
       const state = stageStates[stage]?.[kit.id]

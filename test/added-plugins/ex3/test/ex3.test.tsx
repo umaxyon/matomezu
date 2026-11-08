@@ -25,7 +25,7 @@ const board = (instance: ReturnType<typeof make>) => {
   act(() => {
     expect(createBookIn(instance, "s1", { title: "ボード", type: "ex3:board" })).toBe(true)
   })
-  const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
   act(() => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
@@ -76,7 +76,7 @@ test("既定のテーマはミントで、置いてほしいと書いたボタ�
   act(() => {
     createBookIn(instance, "s1", { title: "図面", type: "@matomezu/drawing:drawing" })
   })
-  const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
   fireEvent.click(screen.getByRole("button", { name: "ミントにする" }))
   expect(instance.state.getState().books[book]).toMatchObject({ settings: { "@matomezu/base:book-theme": "ex3:mint" } })
 })

@@ -2,6 +2,7 @@
 // - 郵便が届いたのを見たら、フォーカスのある窓か、最後にフォーカスされた窓（常駐が知らせる）でマーキー「郵便が届きました: 題」を出す（読み込んだときからあった郵便では出さない）
 // - 行き先のある、まだ行き先を見ていない郵便の行き先が、どれかのステージに出たら（そのブックのそのページを開き、物があればその物が表示領域に入ったら）、行き先を見たことにする
 import { useEffect, useRef } from "react"
+import { screenOf } from "../../../core/window"
 import { useT } from "../../../ui/i18n"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
@@ -49,7 +50,7 @@ function useVisited() {
       const s = read()
       for (const m of s.mailbox) {
         if (!m.to || m.visitedAt) continue
-        const stages = s.workspace.stages.flatMap(st =>
+        const stages = screenOf(s.window).stages.flatMap(st =>
           st.opened ? [{ id: st.id, book: st.opened.book, page: st.opened.page }] : [],
         )
         const shown = placeShown(m, stages, onScreen)

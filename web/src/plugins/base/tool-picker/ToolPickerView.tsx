@@ -12,6 +12,7 @@ import type { ToolId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
+import { screenOf } from "../../../core/window"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
@@ -51,9 +52,11 @@ export function ToolPickerView() {
   // 長押しで開けるステージ（紙があり、ダイアログも道具のアイコンも開いていない）。押したときに読むので ref に写す
   const pressable = useMatomezuState(
     useShallow(s =>
-      s.dialog !== null || s.workspace.stages.some(st => st.picker !== null)
+      s.dialog !== null || screenOf(s.window).stages.some(st => st.picker !== null)
         ? []
-        : s.workspace.stages.filter(st => paperOf(st) !== null).map(st => st.id),
+        : screenOf(s.window)
+            .stages.filter(st => paperOf(st) !== null)
+            .map(st => st.id),
     ),
   )
   const pressableRef = useRef(pressable)
@@ -148,7 +151,7 @@ function Ring({ at, holdMs }: { at: Point; holdMs: number }) {
 // 開いている道具のアイコン。出す所は開いたときの値（無ければ最後のポインタの位置。ステージの外なら真ん中）
 function Picker({ last }: { last: { current: Point | null } }) {
   const t = useMessages(kit)
-  const opened = useMatomezuState(s => s.workspace.stages.find(st => st.picker !== null))
+  const opened = useMatomezuState(s => screenOf(s.window).stages.find(st => st.picker !== null))
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
   const current = useStage(opened?.id ?? "")?.tool ?? null
@@ -156,7 +159,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const picks: readonly ToolId[] = set ? toolsIn(catalog, set) : []
   // 使えない道具（開いているページで、行うアクションをどれも認可ステップに止められる）。並びを文字で比べて、変わったときだけ描き直す
   const unusable = useMatomezuState(s =>
-    opened ? unusableTools(catalog, s.workspace, opened.id, s.books).join("\n") : "",
+    opened ? unusableTools(catalog, screenOf(s.window), opened.id, s.books).join("\n") : "",
   ).split("\n")
   const { command, closePicker } = useActions()
   const [hover, setHover] = useState<number | null>(null)
