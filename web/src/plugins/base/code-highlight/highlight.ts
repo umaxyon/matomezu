@@ -57,7 +57,7 @@ const COLOR_OF: Readonly<Record<string, CodeColor>> = {
   symbol: "constant",
   nil: "constant",
   null: "constant",
-  entity: "constant",
+  entity: "constant", // Prism の entity は HTML の文字参照（&amp; など）。色の種類の entity（関数・クラスの名前）とは別
   function: "entity",
   "function-definition": "entity",
   "function-name": "entity",

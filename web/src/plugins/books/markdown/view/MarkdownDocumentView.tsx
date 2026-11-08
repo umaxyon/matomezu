@@ -2,7 +2,7 @@
 // リンクと画像は link-target.ts が選んだ物だけを開き・描く。# のリンクは、location を変えずに、この文書の中の飛ぶ先へスクロールする。
 // いちばん外のブロックには data-markdown-block を付ける（ソースのペインのスクロールに付いて行くときの目印。何番目のブロックかは並びで決まる）。
 // いちばん外のブロックは、中身が変わったものだけを描き直す（block-keys.ts）。段落の中の改行 1 つを改行にするか空白にするか（softBreak）は、描き直さずに見た目（CSS）で変える。
-// コードの塊は言語名のとおりに、生の HTML は html として色付けする（base の highlightCode。色はテーマキー markdown-code-color-<色の種類>）
+// コードの塊は言語名のとおりに、生の HTML は html として色付けする（base の highlightCode。色はテーマキー markdown-code-color-<色の種類>。色だけを変え、太字や斜体は付けない。字の幅が変わると印刷で測る位置がずれるため）
 import { type MouseEvent, memo, type ReactNode, useMemo } from "react"
 import type { MarkdownBlock, MarkdownDocument, MarkdownInline, MarkdownTableCell } from "../../../base"
 import { highlightCode } from "../../../base/ui"
@@ -223,7 +223,7 @@ function Inline({ inline }: { inline: MarkdownInline }): ReactNode {
   }
 }
 
-// コードを色付けした字の並び（色の無い字はそのまま、色のある字は色の種類を data-code-color に付けた span）
+// コードを色付けした字の並び（色の無い字はそのまま、色のある字は色の種類のテーマキー markdown-code-color-<種類> の色の span。色の種類は data-code-color にも付ける）
 function Highlighted({ code, language }: { code: string; language: string | undefined }) {
   const spans = useMemo(() => highlightCode(code, language), [code, language])
   return spans.map((s, i) =>
@@ -231,7 +231,7 @@ function Highlighted({ code, language }: { code: string; language: string | unde
       s.text
     ) : (
       // biome-ignore lint/suspicious/noArrayIndexKey: 並びはコードの中身だけで決まり、並べ替えない
-      <span key={i} data-code-color={s.color}>
+      <span key={i} data-code-color={s.color} style={{ color: `var(--markdown-code-color-${s.color})` }}>
         {s.text}
       </span>
     ),

@@ -1,6 +1,7 @@
 // コードの色付け（base/code-highlight/highlight.ts）: 言語名とコードから、字の並びと色の種類を返す。並びの字をつなぐと元のコードに戻る
 import { expect, test } from "bun:test"
-import { highlightCode } from "../../web/src/plugins/base/code-highlight/highlight"
+import { CODE_COLORS, highlightCode } from "../../web/src/plugins/base/code-highlight/highlight"
+import { MARKDOWN_TOKENS } from "../../web/src/plugins/books/markdown/tokens"
 
 const colorOf = (spans: ReturnType<typeof highlightCode>, text: string) => spans.find(s => s.text === text)?.color
 
@@ -50,4 +51,9 @@ test("どの入力でも、返した並びの字をつなぐと元のコード�
   const diff = highlightCode("+ added\n- removed", "diff")
   expect(diff.find(s => s.text.includes("added"))?.color).toBe("added")
   expect(diff.find(s => s.text.includes("removed"))?.color).toBe("removed")
+})
+
+test("色の種類のどれにも、マークダウンのテーマキー markdown-code-color-<種類> がある（書き忘れると字の色のまま出るため）", () => {
+  const ids = new Set(MARKDOWN_TOKENS.map(t => t.id))
+  expect(CODE_COLORS.filter(c => !ids.has(`markdown-code-color-${c}`))).toEqual([])
 })
