@@ -203,7 +203,7 @@ test("郵便箱から開いたダイアログは、「閉じる」でも「開�
   const box = (await items(page).filter({ hasText: "行き先の箱" }).getAttribute("data-item"))!
   await perform(page, {
     action: "@matomezu/base:mail-send",
-    args: { from: "a", title: "残す", to: { book, ids: [box] } },
+    args: { project: "default", from: "a", title: "残す", to: { book, ids: [box] } },
   })
   // しおりから開く: 郵便箱は閉じているので「郵便箱も閉じる」は出ない
   await page.getByRole("button", { name: "残す" }).click()
