@@ -1,0 +1,110 @@
+/* 鳥の顔の丸い絵 */
+.face {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--skin-surface);
+}
+.face img {
+  display: block;
+}
+
+/* 受け入れのダイアログ: 鳥と配色の選び（中は見えないラジオボタン。選んだ物に枠） */
+.picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.pick {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pick:has(.radio:checked) {
+  border-color: var(--skin-accent);
+}
+.pick:has(.radio:focus-visible) {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
+}
+.radio {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.swatch {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.paletteName {
+  margin: 4px 0 0;
+  color: var(--skin-text-muted);
+  font-size: 12px;
+}
+
+/* 参加者リスト */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--skin-text-muted);
+  font-size: 13px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.row + .row {
+  border-top: 1px solid var(--skin-border);
+}
+.name {
+  font-weight: 600;
+}
+.detail {
+  flex: 1;
+  min-width: 0;
+  color: var(--skin-text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.state {
+  flex: none;
+  padding: 1px 8px;
+  border: 1px solid var(--skin-border);
+  border-radius: 10px;
+  color: var(--skin-text-muted);
+  font-size: 11px;
+}
+.state[data-alive="true"] {
+  border-color: var(--skin-accent);
+  color: var(--skin-text);
+}
+
+/* ダイアログの下の行のボタン */
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

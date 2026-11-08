@@ -92,6 +92,7 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:footer-menu-book-tools is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:left-side-panel is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:mail-actions is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:annotation-icon is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:corner-statuses is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
@@ -121,11 +122,13 @@ describe("配置", () => {
       "E211",
       "E211",
       "E211",
+      "E211",
     ])
     const {
       "@matomezu/base:right-side-panel": _,
       "@matomezu/base:left-side-panel": __,
       "@matomezu/base:annotation-icon": ___,
+      "@matomezu/base:mail-actions": ____,
       ...slots
     } = layout.slots
     expect(checkLayout({ ...layout, slots } as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])

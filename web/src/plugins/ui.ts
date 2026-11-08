@@ -82,6 +82,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/markdown:settings",
       "@matomezu/base:settings-keys",
     ],
+    "@matomezu/base:mail-actions": ["@matomezu/base:join-request-actions"],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
     "@matomezu/base:corner-statuses": [
       "@matomezu/base:alert-status",

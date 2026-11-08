@@ -15,7 +15,7 @@
   font-weight: 600;
   color: var(--skin-text-muted);
 }
-/* 参加者リストの枠（中身は参加者を出す物が置く） */
+/* 参加者リストの枠 */
 .participants {
   min-height: 120px;
   border: 1px solid var(--skin-border);

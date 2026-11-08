@@ -1,11 +1,11 @@
 // 郵便のダイアログ: 題・送り手・届いた時刻・本文を見せ、開いたら見たことにする（mail-seen）。下の行に、行き先を開くボタンを画面の分割の状態で並べる（open-choices.ts）。
 // 開くと、ダイアログと左サイドパネルを閉じてそのステージで行き先のブック・ページを開き、行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
-import { type FormEvent, useEffect, useId, useRef } from "react"
+import { type FormEvent, type ReactNode, useEffect, useId, useRef } from "react"
 import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useActions, useLayout, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
@@ -18,6 +18,7 @@ import own from "./Mail.module.css"
 import { type OpenChoice, openChoices, openStageOf } from "./open-choices"
 import { placeExists } from "./place"
 import { shownOf } from "./shown"
+import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
 
 const CHOICE_TITLES = {
   here: "Open",
@@ -42,6 +43,13 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const reveal = useRequestReveal()
   const bringBird = useSetBirdVisit()
   const seen = !!mail?.seenAt
+  // この種類のボタンのウィジェット（あれば、開くボタンの代わりにそのボタンを並べる）
+  const placed: readonly string[] = useLayout().slots[MAIL_ACTIONS] ?? []
+  const uiWidgets = useUiCatalog().widgets
+  const actionsId = mail ? placed.find(w => uiWidgets.get(w)?.mailActions?.mail === mail.mail) : undefined
+  const Actions = actionsId
+    ? (uiWidgets.get(actionsId)?.view as ((props: MailActionsProps) => ReactNode) | undefined)
+    : undefined
   // 開いたら見たことにする
   useEffect(() => {
     if (mail && !seen) actions.perform(MAIL_SEEN.id, { mail: mail.id })
@@ -72,7 +80,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     }
     actions.perform(MAIL_VISITED.id, { mail: mail.id })
   }
-  const opens = to ? openChoices({ stages }, stage) : null
+  const opens = to && !Actions ? openChoices({ stages }, stage) : null
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (opens) open(opens.primary)
@@ -86,7 +94,12 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
       {shown?.body && <p className={own.body}>{shown.body}</p>}
       {exists === false && <p className={own.gone}>{t("The place is not there")}</p>}
       <form ref={buttons} id={form} className={own.buttons} onSubmit={submit}>
-        {opens ? (
+        {Actions ? (
+          <>
+            <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
+            <Actions stage={stage} mail={mail} onClose={onClose} />
+          </>
+        ) : opens ? (
           <>
             <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
             {opens.opens.map(c =>

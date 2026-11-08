@@ -44,6 +44,8 @@ import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
 import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE, PARTICIPANT_REQUEST } from "./participant"
+import { PARTICIPANT_ALIVE } from "./participant/alive"
+import { PARTICIPANT_JOIN_DIALOG } from "./participant/dialogs"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import {
   PRINT,
@@ -244,7 +246,16 @@ export const BASE = defineBuiltin(
       PRINT_PREVIEW_BOOK_NAME,
       PRINT_PREVIEW_PAGE_NAME,
     ],
-    userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS, TOOL_PICKER_HOLD, NOTE_EXPIRY, CORNER_STATUS_ORDER],
+    userSettings: [
+      LANG,
+      SKIN,
+      KEYS,
+      USER_TEXT_COLORS,
+      TOOL_PICKER_HOLD,
+      NOTE_EXPIRY,
+      PARTICIPANT_ALIVE,
+      CORNER_STATUS_ORDER,
+    ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
     textColors: TEXT_COLORS,
@@ -305,6 +316,7 @@ export const BASE = defineBuiltin(
       NEW_BOOK_DIALOG,
       SETTINGS_DIALOG,
       MAIL_DIALOG,
+      PARTICIPANT_JOIN_DIALOG,
     ],
     keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE],
     keys: [
@@ -337,6 +349,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:lang": typeof LANG
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
+    "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS
@@ -458,6 +471,7 @@ declare module "../../core/catalog" {
   }
   interface DialogTable {
     "@matomezu/base:mail": typeof MAIL_DIALOG
+    "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
