@@ -154,7 +154,7 @@ test("吹き出しに乗せると上に「隠す」が出て、はいで角の�
   await expect(stands(page)).toHaveCount(0)
 })
 
-test("吹き出しは右に入らなくても左に回さず、画面の右の端で止める。左の辺が物の左の辺を越えないように幅を縮め、尾は左に出す", async ({
+test("吹き出しは右に入らなくても左に回さず、画面の右の端で止める。尾の先が物の左の辺を越えないように幅を縮め、尾は左に出す。縮めきれなければ縁のマークポインタになり、押すと箱が見えて吹き出しに戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -164,11 +164,19 @@ test("吹き出しは右に入らなくても左に回さず、画面の右の�
   const bubble = page.getByRole("group", { name: "伝言", exact: true }).getByRole("button", { name: "伝言を開く" })
   await expect(bubble).toBeVisible()
   const stage = page.locator("[data-stage]")
-  // 窓を狭め、箱の右に吹き出しが入らず、箱の左の辺から右の端まで 180px より狭くする
-  const b = (await box.boundingBox())!
-  const s = (await stage.boundingBox())!
-  const width = page.viewportSize()!.width - (s.x + s.width - (b.x + 120))
-  await page.setViewportSize({ width: Math.round(width), height: page.viewportSize()!.height })
+  // 窓の幅を変えて、箱の左の辺からステージの右の端までを room にする（ステージは窓の幅に比例しないので、測って詰める）
+  const roomTo = async (room: number) => {
+    for (let i = 0; i < 8; i++) {
+      const b = (await box.boundingBox())!
+      const e = (await stage.boundingBox())!
+      const over = Math.round(e.x + e.width - b.x - room)
+      if (Math.abs(over) <= 2) return
+      const v = page.viewportSize()!
+      await page.setViewportSize({ width: v.width - over, height: v.height })
+    }
+  }
+  // 箱の右に吹き出しが入らず、箱の左の辺から右の端まで 180px より狭い
+  await roomTo(120)
   await expect
     .poll(async () => {
       const r = (await bubble.boundingBox())!
@@ -178,10 +186,19 @@ test("吹き出しは右に入らなくても左に回さず、画面の右の�
     .toBeLessThanOrEqual(6)
   const r = (await bubble.boundingBox())!
   const nb = (await box.boundingBox())!
-  expect(r.x).toBeGreaterThanOrEqual(nb.x - 1)
   expect(r.width).toBeLessThan(180)
   const tail = (await bubble.locator("svg").first().boundingBox())!
   expect(tail.x).toBeLessThan(r.x)
+  expect(tail.x).toBeGreaterThanOrEqual(nb.x - 1)
+
+  // いちばん細い吹き出しと尾より狭くすると、縁のマークポインタになる
+  await roomTo(60)
+  const pointer = page.getByRole("button", { name: "一を見せる" })
+  await expect(pointer).toHaveCount(1)
+  await expect(bubble).toHaveCount(0)
+  await pointer.click()
+  await expect(bubble).toBeVisible()
+  await expect(pointer).toHaveCount(0)
 })
 
 test("書いている間は Esc で付けずに閉じる", async ({ page }) => {
