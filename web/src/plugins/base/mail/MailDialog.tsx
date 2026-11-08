@@ -1,5 +1,6 @@
 // 郵便のダイアログ: 題・送り手・届いた時刻・本文を見せ、開いたら見たことにする（mail-seen）。下の行に、行き先を開くボタンを画面の分割の状態で並べる（open-choices.ts）。
-// 開くと、ダイアログと左サイドパネルを閉じてそのステージで行き先のブック・ページを開き、行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。
+// 開くと、ダイアログを閉じてそのステージで行き先のブック・ページを開き（左サイドパネルは開いていれば、行き先のステージへ同じタブで移して残す）、
+// 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 import { type FormEvent, type ReactNode, useEffect, useId, useRef } from "react"
 import { screenOf } from "../../../core/window"
@@ -10,7 +11,7 @@ import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { useCloseLeftSidePanel } from "../left-side-panel/hooks"
+import { useCloseLeftSidePanel, useOpenedLeftSidePanel, useOpenLeftSidePanel } from "../left-side-panel/hooks"
 import { useRequestReveal } from "../utils/reveal-request"
 import { MAIL_SEEN, MAIL_VISITED } from "."
 import { useSetBirdVisit } from "./bird-visit"
@@ -19,6 +20,7 @@ import { type OpenChoice, openChoices, openStageOf } from "./open-choices"
 import { placeExists } from "./place"
 import { shownOf } from "./shown"
 import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
+import { MAILBOX_TAB_ID } from "./tab-id"
 
 const CHOICE_TITLES = {
   here: "Open",
@@ -40,6 +42,9 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const read = useReadState()
   const actions = useActions()
   const closeLeft = useCloseLeftSidePanel()
+  const openLeft = useOpenLeftSidePanel()
+  const left = useOpenedLeftSidePanel()
+  const mailboxOpened = left?.tab === MAILBOX_TAB_ID
   const reveal = useRequestReveal()
   const bringBird = useSetBirdVisit()
   const seen = !!mail?.seenAt
@@ -65,12 +70,15 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const open = (choice: OpenChoice) => {
     if (!to) return
     onClose()
-    closeLeft(stage)
     if (choice === "split") actions.split(stage)
     const target = openStageOf(screenOf(read().window), stage, choice)
     if (!target) return
     // 行き先のブックがもう開いていても、ブックスクリーンは前に出す
     actions.showBookScreen()
+    if (left) {
+      if (left.stage !== target) closeLeft(left.stage)
+      openLeft(target, left.tab)
+    }
     if (screenOf(read().window).stages.find(s => s.id === target)?.opened?.book !== to.book)
       actions.openBook(target, to.book)
     if (to.page) actions.openPage(target, to.page)
@@ -86,6 +94,16 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     if (opens) open(opens.primary)
     else onClose()
   }
+  const closeBoth = mailboxOpened && left && (
+    <ActionButton
+      onClick={() => {
+        onClose()
+        closeLeft(left.stage)
+      }}
+    >
+      {t("Close the mailbox too")}
+    </ActionButton>
+  )
   return (
     <Dialog title={shown?.title ?? t("Mail")} onClose={onClose}>
       <p className={own.meta}>
@@ -101,6 +119,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
           </>
         ) : opens ? (
           <>
+            {closeBoth}
             <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
             {opens.opens.map(c =>
               c === opens.primary ? (
@@ -115,9 +134,12 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
             )}
           </>
         ) : (
-          <ActionButton form={form} primary>
-            {t("Close")}
-          </ActionButton>
+          <>
+            {closeBoth}
+            <ActionButton form={form} primary>
+              {t("Close")}
+            </ActionButton>
+          </>
         )}
       </form>
     </Dialog>
