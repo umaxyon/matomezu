@@ -204,7 +204,11 @@ test("ページを切り替えても、紙を変えても、ステージに紙�
 
 test("ソースのペインで書いた所は、ホストで AI の変更のあとに行い直しても、重ならなければ残り、重なって 1 か所にならなければ落ちる", () => {
   const done: Done[] = []
-  const { store, id, book } = markdownStore({ observe: d => done.push(d) })
+  const { store, id, book } = markdownStore({
+    observe: d => {
+      done.push(d)
+    },
+  })
   const page = book().pages[0]!.id
   const write = (from: string, to: string) => {
     const edit = sourceEdit(from, to, from)
