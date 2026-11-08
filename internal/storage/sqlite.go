@@ -68,6 +68,10 @@ var migrations = []string{
 	DELETE FROM opened WHERE id = 'master';
 	DELETE FROM annotations WHERE book = 'master';
 	DELETE FROM ai_edit_tickets WHERE book = 'master';`,
+	// ブックは土台のフィールド project、郵便は project、参加者は projects を持つ。今あるものは標準のプロジェクト default に属させる
+	`UPDATE books SET body = json_set(body, '$.project', 'default') WHERE json_type(body, '$.project') IS NULL;
+	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.project') IS NULL THEN json_set(value, '$.project', 'default') ELSE value END)) FROM json_each(mailbox.body));
+	UPDATE participants SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.projects') IS NULL THEN json_set(value, '$.projects', json('["default"]')) ELSE value END)) FROM json_each(participants.body));`,
 }
 
 type sqliteStorage struct {
