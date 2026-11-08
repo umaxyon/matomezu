@@ -102,3 +102,11 @@ test("コントロールセンターの間でも、しおりが 4 通以上の�
   await expect(center(page)).toBeHidden()
   await expect(page.getByRole("complementary", { name: "左サイドパネル" })).toBeVisible()
 })
+
+test("コントロールセンターを前に出している間、Esc でブックスクリーンへ戻る", async ({ page }) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await expect(center(page)).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(center(page)).toBeHidden()
+  await expect(page).not.toHaveURL(/f=center/)
+})

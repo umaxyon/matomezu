@@ -80,7 +80,7 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
-import { CONTROL_CENTER_TOGGLE } from "./window"
+import { CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE } from "./window"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
@@ -276,6 +276,7 @@ export const BASE = defineBuiltin(
     commands: [
       BOOK_NEW,
       CONTROL_CENTER_TOGGLE,
+      CONTROL_CENTER_LEAVE,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
@@ -328,6 +329,7 @@ export const BASE = defineBuiltin(
       ...HISTORY_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
+      ...CONTROL_CENTER_KEYS,
       ...PRINT_KEYS,
     ],
   }),
@@ -435,6 +437,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:undo": typeof UNDO
     "@matomezu/base:redo": typeof REDO
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
+    "@matomezu/base:control-center-leave": typeof CONTROL_CENTER_LEAVE
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE

@@ -9,3 +9,20 @@ export const CONTROL_CENTER_TOGGLE = kit.defineCommand({
   when: () => true,
   active: ctx => ctx.front === "control-center",
 })
+
+// センターを前に出している間、Esc でブックスクリーンへ戻る
+export const CONTROL_CENTER_LEAVE = kit.defineCommand({
+  id: "control-center-leave",
+  title: "Back to the book screen",
+  run: (_, a) => a.showBookScreen(),
+  when: ctx => ctx.front === "control-center",
+})
+
+export const CONTROL_CENTER_KEYS = [
+  kit.defineKey({
+    id: "control-center-leave-escape",
+    key: "Escape",
+    command: CONTROL_CENTER_LEAVE.id,
+    scope: "control-center",
+  }),
+]
