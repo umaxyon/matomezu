@@ -185,6 +185,7 @@ test("matomezu/ui が出す名前", () => {
     "AtCorner",
     "BOOK_SCREEN",
     "BodyField",
+    "CONTROL_CENTER_FOOTER",
     "CONTROL_CENTER_SCREEN",
     "CORNER_STATUSES",
     "CaptionField",

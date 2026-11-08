@@ -1,5 +1,5 @@
 // 左サイドパネルを開け閉めするフック（持ち方は state.ts）。窓に 1 つだけで、守るのは入れ物（LeftSidePanel）。
-// 開くのは、ステージに置いてそのステージをカレントにするだけ（ほかのステージで開いていた物は、入れ物が閉じる）
+// 開くのは、ステージに置いてそのステージをカレントにし、ブックスクリーンを前に出す（ほかのステージで開いていた物は、入れ物が閉じる）
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { screenOf } from "../../../core/window"
@@ -42,13 +42,16 @@ export const useLeftSidePanelTabs = (): readonly string[] => useLayout().slots[L
 export function useSetLeftSidePanel(): (stage: string, tab: string | null) => void {
   const read = useReadState()
   const set = useSetStageState(kit)
-  const { focusStage } = useActions()
+  const { focusStage, showBookScreen } = useActions()
   return useCallback(
     (stage, tab) => {
       set(stage, withLeftSidePanel(read().stageStates[stage]?.[kit.id], tab))
-      if (tab) focusStage(stage)
+      if (tab) {
+        focusStage(stage)
+        showBookScreen()
+      }
     },
-    [read, set, focusStage],
+    [read, set, focusStage, showBookScreen],
   )
 }
 

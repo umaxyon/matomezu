@@ -410,7 +410,10 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view["awaiting"], _ = json.Marshal(pick(list, awaiting))
+	// コントロールセンターを前に出している間は、見えている物が無いので、一番上に awaiting を置かない（hidden の中だけ）
+	if _, covered := view["hidden"]; !covered {
+		view["awaiting"], _ = json.Marshal(pick(list, awaiting))
+	}
 	// コントロールセンターを前に出している間、後ろに隠れているブックスクリーンが開いているブックの、AI の応えを待つ物も hidden に添える
 	if raw, ok := view["hidden"]; ok {
 		var hidden map[string]json.RawMessage

@@ -1,8 +1,8 @@
 // 印刷プレビューを開くボタン（ウィジェット print-preview-button。フッタメニューに置く）。ページを持つブックを編集している間だけ出す
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import styles from "../book-name/StageMenuButtons.module.css"
 import { kit } from "../kit"
+import styles from "../utils/FooterButtons.module.css"
 import type { StageSlotProps } from "../workspace/ui"
 import { PRINT_PREVIEW_OPEN } from "."
 

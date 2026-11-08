@@ -66,14 +66,9 @@
 }
 /* 下の行 */
 .bottom {
-  flex: none;
   position: relative;
   display: flex;
   align-items: stretch;
-  height: 30px;
-  background: var(--skin-surface);
-  border-top: 1px solid var(--skin-border);
-  box-shadow: var(--skin-shadow-1);
   font-size: 12px;
   user-select: none;
 }

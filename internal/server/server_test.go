@@ -680,7 +680,7 @@ func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
 	next(t, a)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"control-center","hidden":{"book":"b1","page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
 	_, got := send(t, "GET", s.URL+"/api/ai/view", "", ai)
-	if got != `{"awaiting":[],"front":"control-center","hidden":{"awaiting":[],"book":"b1","canSplit":true,"page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}]}}` {
+	if got != `{"front":"control-center","hidden":{"awaiting":[],"book":"b1","canSplit":true,"page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}]}}` {
 		t.Fatalf("view = %s", got)
 	}
 	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s1"}`, ai); !strings.Contains(body, `"ok":true`) {

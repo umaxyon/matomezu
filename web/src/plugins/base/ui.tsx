@@ -44,7 +44,7 @@ import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import type { CornerStatusProps } from "./utils/corner"
 import { WINDOW_ICONS } from "./window/icons"
-import { WINDOW } from "./window/ui"
+import { CONTROL_CENTER_PERCH, WINDOW } from "./window/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
@@ -114,7 +114,7 @@ export {
   useBodyGrips,
 } from "./text/ui"
 export * from "./utils/ui"
-export { BOOK_SCREEN, CONTROL_CENTER_SCREEN } from "./window/slots"
+export { BOOK_SCREEN, CONTROL_CENTER_FOOTER, CONTROL_CENTER_SCREEN } from "./window/slots"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {
@@ -130,6 +130,7 @@ export const BASE_UI = definePluginUi(BASE, {
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
     WINDOW,
+    CONTROL_CENTER_PERCH,
     WORKSPACE,
     DIALOG_HOST,
     MENU_HOST,
@@ -187,6 +188,7 @@ declare module "../../core/catalog" {
   interface SlotTable {
     "@matomezu/base:book-screen": Record<string, never> // ブックスクリーンの中（何も受け取らない）
     "@matomezu/base:control-center-screen": Record<string, never> // コントロールセンターの中身（何も受け取らない）
+    "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
     "@matomezu/base:stage-top": StageSlotProps
     "@matomezu/base:stage-body": StageSlotProps
     "@matomezu/base:book-layers": StageSlotProps
@@ -217,6 +219,7 @@ declare module "../../core/catalog" {
   }
   interface WidgetTable {
     "@matomezu/base:window": typeof WINDOW
+    "@matomezu/base:control-center-perch": typeof CONTROL_CENTER_PERCH
     "@matomezu/base:workspace": typeof WORKSPACE
     "@matomezu/base:dialog-host": typeof DIALOG_HOST
     "@matomezu/base:menu-host": typeof MENU_HOST

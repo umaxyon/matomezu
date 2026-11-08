@@ -175,7 +175,7 @@ export interface Actions {
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（ページを持つブックは最初のページ）、カレントにする
-  openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
+  openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにして、ブックスクリーンを前に出す
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
   setStageArea(id: string, area: Size | null, origin?: Point | null): void
@@ -677,7 +677,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openPage: (stage, page) => {
       const { books, window } = getState()
       const book = books[screenOf(window).stages.find(s => s.id === stage)?.opened?.book ?? ""]
-      if (book && hasPages(book)) withWorkspace(ws => showPage(catalog, focus(ws, stage), stage, book, page))
+      // ページを開くと、見る側のブックスクリーンを前に出す
+      if (book && hasPages(book) && inWindow(stage))
+        withWindow(win =>
+          bringFront(
+            mapScreen(win, ws => showPage(catalog, focus(ws, stage), stage, book, page)),
+            "book-screen",
+          ),
+        )
     },
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     setStageArea: (id, area, origin) => withWorkspace(ws => mapStage(ws, id, s => setArea(s, area, origin))),

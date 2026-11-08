@@ -1,0 +1,8 @@
+/* 下の行（ステージの下の行とコントロールセンターの下の行）の高さ・地・縁・影 */
+.row {
+  flex: none;
+  height: 30px;
+  background: var(--skin-surface);
+  border-top: 1px solid var(--skin-border);
+  box-shadow: var(--skin-shadow-1);
+}

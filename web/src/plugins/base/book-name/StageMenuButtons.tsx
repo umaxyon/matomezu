@@ -5,9 +5,9 @@ import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/lay
 import { useMenu, useMenuCommand } from "../../../ui/menu"
 import { useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
+import styles from "../utils/FooterButtons.module.css"
 import { useCloseFooterMenu } from "./footer-menu-context"
 import { STAGE_MENU } from "./menu"
-import styles from "./StageMenuButtons.module.css"
 
 export function StageMenuButtons({ stage }: { stage: string }) {
   const items = useMenu(STAGE_MENU)

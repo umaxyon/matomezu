@@ -6,9 +6,8 @@ import { screenOf } from "../../../core/window"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { SLIDE_MS } from "../window/slide"
 import { panelIn, type RightSidePanelOpen, withOpened, withoutAnchor, withPanel } from "./state"
-
-export const SLIDE_MS = 250 // 開け閉めでステージの列とサイドパネル（右と左）の幅を動かす時間（CSS の変数 --side-panel-slide で渡す）
 
 // 今の押しで右サイドパネルを閉じたか（入れ物が押すたびに決める。閉じたのと同じ押しの click で、押した物がまた開かないように）
 export const PressClosedContext = createContext<{ current: boolean }>({ current: false })
@@ -39,7 +38,7 @@ export const useStagesWithRightSidePanel = (): readonly string[] =>
 export const useRightSidePanel = (stage: string): RightSidePanelOpen | null =>
   useMatomezuState(s => panelIn(s.stageStates[stage]?.[kit.id]))
 
-// 右サイドパネルを開く関数: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
+// 右サイドパネルを開く関数（開くとブックスクリーンを前に出す）: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
 // 選択に従う中身なら、入れ物が開いたときにステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない。
 // restore が none なら、閉じたときに見え方を戻さない（開く前の見え方を覚えない。戻す見え方を自分で持つ物。印刷プレビューなど）
 export function useOpenRightSidePanel(): (
@@ -49,7 +48,7 @@ export function useOpenRightSidePanel(): (
 ) => void {
   const read = useReadState()
   const set = useSetStageState(kit)
-  const { focusStage } = useActions()
+  const { focusStage, showBookScreen } = useActions()
   const pressClosed = useContext(PressClosedContext)
   return useCallback(
     (stage, open, restore = "back") => {
@@ -62,8 +61,9 @@ export function useOpenRightSidePanel(): (
       const panel = { ...open, book: opened.book, page: opened.page }
       set(stage, restore === "back" ? withOpened(state, panel, now) : withPanel(state, panel))
       focusStage(stage)
+      showBookScreen()
     },
-    [read, set, focusStage, pressClosed],
+    [read, set, focusStage, showBookScreen, pressClosed],
   )
 }
 

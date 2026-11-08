@@ -2,9 +2,9 @@
 import { areaOf, paperOf } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useStage } from "../../../ui/view-hooks"
-import styles from "../book-name/StageMenuButtons.module.css"
 import { kit } from "../kit"
 import { printAreaLines } from "../place/grow"
+import styles from "../utils/FooterButtons.module.css"
 import { usePrintAreasHidden, useTogglePrintAreas } from "./print-areas"
 
 export function PrintAreaToggle({ stage: id }: { stage: string }) {

@@ -52,15 +52,10 @@
   min-height: 0;
   overflow: auto;
 }
-/* 下の行（ステージの下の行と同じ高さ・地・縁） */
+/* 下の行（高さ・地・縁は utils/FooterRow と同じ） */
 .footer {
-  flex: none;
   display: flex;
   align-items: center;
-  height: 30px;
   padding: 0 6px;
-  background: var(--skin-surface);
-  border-top: 1px solid var(--skin-border);
-  box-shadow: var(--skin-shadow-1);
   user-select: none;
 }

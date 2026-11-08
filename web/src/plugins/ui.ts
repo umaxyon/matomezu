@@ -48,6 +48,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
     "@matomezu/base:control-center-screen": ["@matomezu/control-center:screen"],
+    "@matomezu/base:control-center-footer": ["@matomezu/base:control-center-perch"],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
     "@matomezu/base:book-layers": [
