@@ -443,3 +443,48 @@ test("行の並びと下辺の間に余白があり、そこを押すとリス�
   await page.mouse.up()
   await expect.poll(async () => (await list.boundingBox())!.height).toBeGreaterThan(box.height + 40 * zoom)
 })
+
+test("チェック済みを最後に寄せたリストで、チェックの無い行をチェック済みの行の上へ運んでも、チェックの無い行の並びの最後に入る。別のリストのチェック済みの行は、チェック済みの行の並びの中に入る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const first = await addList(page, "左")
+  for (const c of ["一", "二", "三"]) await addRow(page, first, c)
+  await first.getByText("左").dblclick()
+  const dialog = page.getByRole("dialog", { name: "リストの編集" })
+  await dialog.getByRole("switch", { name: "チェックリスト" }).click()
+  await dialog.getByRole("group", { name: "チェック済みを" }).getByLabel("並べ替える").selectOption({ label: "最後" })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await first.getByRole("listitem").filter({ hasText: "一" }).getByRole("checkbox").click()
+  const rows = first.getByRole("listitem")
+  await expect(rows).toHaveText(["二", "三", "一"])
+  const drag = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    await page.mouse.move(to.x, to.y, { steps: 8 })
+    await expect(page.locator("[data-drop-bar]")).toHaveCount(1)
+    await page.mouse.up()
+  }
+  // 「二」を、チェック済みの「一」の上半分へ: 光る線はチェックの無い行の最後の後ろで止まり、そこに入る
+  const two = (await rows.nth(0).boundingBox())!
+  const done = (await rows.nth(2).boundingBox())!
+  await drag({ x: two.x + 40, y: two.y + 10 }, { x: done.x + 40, y: done.y + 4 })
+  await expect(rows).toHaveText(["三", "二", "一"])
+  // 右のリストのチェック済みの行を、左の先頭へ運ぶと、チェック済みの行の並びの中の、ポインタの下の位置（「一」の前）に入る
+  await (await footerMenuTool(page, "リスト")).click()
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  await page.mouse.click(paper.x + 520, paper.y + 120)
+  const add = page.getByRole("dialog", { name: "リストの追加" })
+  await add.getByLabel("キャプション", { exact: true }).fill("右")
+  await add.getByRole("button", { name: "追加" }).click()
+  const second = page.locator("[data-item]", { hasText: "右" })
+  await second.getByText("右").dblclick()
+  await dialog.getByRole("switch", { name: "チェックリスト" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await addRow(page, second, "四")
+  await second.getByRole("listitem").getByRole("checkbox").click()
+  const four = (await second.getByRole("listitem").boundingBox())!
+  const top = (await rows.nth(0).boundingBox())!
+  await drag({ x: four.x + 60, y: four.y + 10 }, { x: top.x + 40, y: top.y + 4 })
+  await expect(rows).toHaveText(["三", "二", "四", "一"])
+})
