@@ -6,7 +6,7 @@
 // 送ると AI 編集チケットを作り、反映したら閉じ、失敗したら失敗にする（失敗は、次に利用者が AI に話しかけたときに AI に渡る）
 import { z } from "zod"
 import type { ActionContext } from "../../../core/def/action"
-import { freshId, ownChanged, ownValues } from "../../../core/ids"
+import { freshId } from "../../../core/ids"
 import type { Mail, Mailbox } from "../../../core/mail"
 import { perform } from "../../../core/perform"
 import { isProject } from "../../../core/project"
@@ -15,6 +15,7 @@ import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { declineProjects } from "../project-refusal"
 import { withinLimit } from "."
+import { ownChanged, ownValues } from "./own-values"
 
 const ChangeSchema = z.strictObject({ action: z.string().min(1), args: z.unknown() })
 const ChangesSchema = z.array(ChangeSchema).min(1).max(50)
@@ -56,8 +57,15 @@ const performLoose = perform as (
   ctx: ActionContext,
 ) => ReturnType<typeof perform>
 
-// 乗せた変更 changes を、ブック book に順に行った結果（利用者のアクションとして。どれかが乗せられない・断られたら、その理由の英語の文）
-function carry(book: Book, changes: readonly Change[], ctx: ActionContext): { after: Book } | { declined: string } {
+// 乗せた変更 changes を、ブック book に順に行った結果（利用者のアクションとして。どれかが乗せられない・断られたら、その理由の英語の文）。
+// tried なら、1 つずつ perform で試す（送るとき。ノーマライズと認可ステップもかける）。そうでなければ、1 つずつ run だけを行い、
+// ノーマライズと認可ステップは、反映のアクションを行う perform に 1 回だけ任せる（中で整えると、整えた所を run が書いたことになって断られるため）
+function carry(
+  book: Book,
+  changes: readonly Change[],
+  ctx: ActionContext,
+  tried: boolean,
+): { after: Book } | { declined: string } {
   const { by: _, books: __, ...user } = ctx
   let after = book
   for (const [i, c] of changes.entries()) {
@@ -67,19 +75,28 @@ function carry(book: Book, changes: readonly Change[], ctx: ActionContext): { af
     if (def.target !== "book" || def.userOnly || def.history === false || def.lockedForUser)
       return { declined: `${what}: only actions that change a book can be carried` }
     let adds = false
-    const done = performLoose(after, c.action, c.args, {
+    const counted = {
       ...user,
       newId: () => {
         adds = true
         return user.newId()
       },
-    })
+    }
+    if (tried) {
+      const done = performLoose(after, c.action, c.args, counted)
+      if (adds) return { declined: `${what}: it adds things; only changes to things there now can be carried` }
+      if (!done.ok)
+        return {
+          declined: `${what} is refused (${done.reason}${"detail" in done && done.detail ? `: ${done.detail}` : ""})`,
+        }
+      after = done.next as Book
+      continue
+    }
+    const parsed = def.args.safeParse(c.args)
+    const ran = parsed.success ? def.run(after as never, parsed.data as never, counted) : null
     if (adds) return { declined: `${what}: it adds things; only changes to things there now can be carried` }
-    if (!done.ok)
-      return {
-        declined: `${what} is refused (${done.reason}${"detail" in done && done.detail ? `: ${done.detail}` : ""})`,
-      }
-    after = done.next as Book
+    if (!ran || "declined" in ran) return { declined: `${what} is refused` }
+    after = ran.next as Book
   }
   return { after }
 }
@@ -111,7 +128,7 @@ export const PROPOSAL_SEND = kit.defineAction({
     if (!isProject(args.project)) return declineProjects([args.project])
     const book = ctx.books?.[args.book]
     if (!book) return { declined: "there is no book with that id (see list_books)" }
-    const carried = carry(book, args.changes, ctx)
+    const carried = carry(book, args.changes, ctx, true)
     if ("declined" in carried) return carried
     const touched = ownChanged(book, carried.after).filter(id => id !== book.id)
     if (touched.length === 0) return { declined: "the changes change nothing" }
@@ -177,7 +194,7 @@ export const PROPOSAL_APPLY = kit.defineAction({
     const changed = proposalChanged(book, args.snapshot)
     if (changed.length > 0)
       return { declined: `changed after it was sent: ${changed.join(", ")}`, kind: PROPOSAL_CHANGED }
-    const carried = carry(book, args.changes, ctx)
+    const carried = carry(book, args.changes, ctx, false)
     if ("declined" in carried) return { ...carried, kind: PROPOSAL_REFUSED }
     return { next: carried.after, result: {} }
   },

@@ -295,7 +295,7 @@ func refusalText(reason, detail string) string {
 		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
 	case reason == "being-edited":
 		return "being-edited: the user is editing what this would change or remove (such as a note open on the screen), so nothing was changed; do it again later, " +
-			"or send the actions to the user with @matomezu/base:proposal-send (a change proposal mail the user applies with one press when done)"
+			"or send the change to the user if actions offer a way (an action that carries actions for the user to apply)"
 	case detail != "":
 		return reason + ": " + detail
 	default:

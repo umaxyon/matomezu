@@ -279,10 +279,10 @@ func (c *annotationsCmd) Run() error {
 		}
 	}
 	if len(got.Failed) > 0 {
-		fmt.Printf("matomezu: %d change proposal mail(s) you sent could not be applied (what they change was changed or removed after you sent them, "+
+		fmt.Printf("matomezu: %d change(s) you sent for the user to apply could not be applied (what they change was changed or removed after you sent them, "+
 			"or one of the changes was refused), so nothing was changed. Read the book again and think again (change it yourself, or send a new proposal). changed is what was changed or removed.\n", len(got.Failed))
 		for _, f := range got.Failed {
-			fmt.Printf("- book %q (%s), mail %s: changed %v\n", f.Title, f.Book, f.Key, f.Changed)
+			fmt.Printf("- book %q (%s), %s: changed %v\n", f.Title, f.Book, f.Key, f.Changed)
 		}
 	}
 	return nil

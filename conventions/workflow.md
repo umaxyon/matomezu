@@ -45,4 +45,4 @@
 - 見せる差分が利用者向けマニュアルの下書き（`.claude/matomezu-manual-memo.md`）だけのときは、conventions-review を省く
 - AGENT.md の「利用者向けマニュアル」のとおりサブエージェント manual-creator（`.claude/agents/manual-creator.md`）が書き足した下書きは、タスクを閉じる前にコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
 - メッセージは英語で、何をどう変えたかを書く。Co-Authored-By を付けない
-- `docs/`・`_old_docs/`・`tmp/` はコミットしない
+- `docs/`（`docs/concept.md`・`docs/usecase.md` のほか）・`_old_docs/`・`tmp/` はコミットしない

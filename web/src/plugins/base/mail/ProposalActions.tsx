@@ -1,10 +1,11 @@
 // 変更提案郵便のダイアログの下の行: 場所を示す（郵便を閉じずに窓の右の端に寄せ、ダイアログを出したステージで行き先を開き、当たる物を真ん中に見せて鳥を連れてくる）と、
-// 反映（proposal-apply を行い、常駐の答えを待つ）。反映できたら反映したと残して郵便を閉じる。どこかの窓で当たる物を直していたら断られ（being-edited）、
+// 反映（proposal-apply を行い、常駐の答えを待つ。行えなければ押せない）。反映できたら反映したと残して郵便を閉じる。どこかの窓で当たる物を直していたら断られ（being-edited）、
 // トーストで知らせて郵便は残す（直し終えてから押せる）。送ったあとに当たる物が変わっていた・変更が断られたなら、失敗したと残してトーストで知らせ、反映は押せなくなる。
 // 反映した・失敗した郵便は、ボタンを出さずに、その時刻を出す
 import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useReadState } from "../../../ui/store-context"
+import { useAllowedOn } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { useRequestReveal } from "../utils/reveal-request"
@@ -23,6 +24,9 @@ export function ProposalActions({ stage, mail, onClose, dock }: MailActionsProps
   const reveal = useRequestReveal()
   const bringBird = useSetBirdVisit()
   const props = mail.props as ProposalProps
+  const applyArgs = { ...(props.page ? { page: props.page } : {}), changes: props.changes, snapshot: props.snapshot }
+  // 反映を行えなければ（ブックのロック中など）、反映を押せなくする
+  const applicable = useAllowedOn(PROPOSAL_APPLY.id, applyArgs, { book: props.book }).ok
   if (props.appliedAt)
     return (
       <p className={own.meta}>
@@ -50,11 +54,7 @@ export function ProposalActions({ stage, mail, onClose, dock }: MailActionsProps
     if (!mail.visitedAt) actions.perform(MAIL_VISITED.id, { mail: mail.id })
   }
   const apply = async () => {
-    const done = await actions.performConfirmed(
-      PROPOSAL_APPLY.id,
-      { ...(props.page ? { page: props.page } : {}), changes: props.changes, snapshot: props.snapshot },
-      { book: props.book },
-    )
+    const done = await actions.performConfirmed(PROPOSAL_APPLY.id, applyArgs, { book: props.book })
     if (done.ok) {
       actions.perform(PROPOSAL_SETTLE.id, { mail: mail.id, outcome: "applied" })
       onClose()
@@ -84,7 +84,7 @@ export function ProposalActions({ stage, mail, onClose, dock }: MailActionsProps
       <ActionButton onClick={showPlace} disabled={!mail.to}>
         {t("Show the place")}
       </ActionButton>
-      <ActionButton primary onClick={() => void apply()}>
+      <ActionButton primary onClick={() => void apply()} disabled={!applicable}>
         {t("Apply")}
       </ActionButton>
     </>
