@@ -3,6 +3,13 @@
 // 中身が表示領域に収まる向きは真ん中に置き、収まらない向きは中身の端が表示領域の内側に入らない範囲でだけずらせる
 import type { Point, Size } from "./geom"
 
+export const ZOOM_MIN = 0.3
+export const ZOOM_MAX = 1.8
+
+// 倍率を範囲に収める（有限でなければ 100%）。URL など外から来た倍率にも使う
+export const zoomInRange = (zoom: number): number =>
+  Number.isFinite(zoom) ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) : 1
+
 export const MARGIN = 88 // 紙の周りの余白（px。倍率をかけない）
 
 export function contentSize(paper: Size, zoom: number): Size {

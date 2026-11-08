@@ -27,7 +27,7 @@ function purge(library: Library, ids: readonly string[]): Library {
 
 export const BOOK_TRASH = kit.defineAction({
   id: "book-trash",
-  aiDescription: `Move a book to the trash: it leaves the list of books (list_books no longer shows it); only the user can bring it back or delete it for good. Refused for a book type that has only one book, for a book that is locked or has a locked page (denied by ${kit.name("lock")}), and for a book shown on a screen now (open-on-screen: ask the user in the chat).`,
+  aiDescription: `Move a book to the trash: it leaves the list of books (list_books no longer shows it); only the user can bring it back or delete it for good. Refused for a book that is locked or has a locked page (denied by ${kit.name("lock")}), and for a book shown on a screen now (open-on-screen: ask the user in the chat).`,
   title: "Move to trash",
   target: "library",
   // ブックごと動かすので、ページを含むブックの全部を変える（ロック中のページを持つブックも止める）

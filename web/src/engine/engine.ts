@@ -369,7 +369,7 @@ const WindowWarningSchema = z.object({
   const lines: string[] = []
   for (const raw of z.array(z.unknown()).catch([]).parse(JSON.parse(warnings))) {
     const n = WindowWarningSchema.safeParse(raw)
-    if (n.success && n.data.code in WARNINGS)
+    if (n.success && Object.hasOwn(WARNINGS, n.data.code))
       lines.push(warningText(warning(n.data.code as keyof typeof WARNINGS, n.data.plugin, n.data.params)))
   }
   return JSON.stringify(lines)
