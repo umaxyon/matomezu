@@ -231,3 +231,99 @@ func TestDeclinedParticipantIsToldOnceAndCallsAreNotAnnouncedEveryTime(t *testin
 		t.Fatalf("told twice: %q", h.Get(NoticeHeader))
 	}
 }
+
+func acceptBody(id, workroom string) string {
+	return `{"action":"@matomezu/base:participant-accept","args":{"participant":"` + id + `","workroom":"` + workroom + `","bird":"inko"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`
+}
+
+// 話しかけたセッションが誰にも結ばれていなければ unbound を返し、候補に link が合えば結ぶ。
+// 受け入れ済みで伝えていない参加者は、結ばれたセッションの話しかけで 1 度だけ伝え（MCP の返事の知らせとは二重にならない）、ほかのセッションには伝えない
+func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"6F1C2A3E-1111-4222-8333-444455556666","projects":["default"]}`, nil)
+	var joined Joined
+	_ = json.Unmarshal([]byte(got), &joined)
+	talk := func(body string) SessionTalk {
+		out, _ := call(t, "POST", s.URL+"/api/ai/talked", body, nil)
+		var r SessionTalk
+		if err := json.Unmarshal([]byte(out), &r); err != nil {
+			t.Fatalf("talked = %q", out)
+		}
+		return r
+	}
+	if r := talk(`{"sessionId":"S9"}`); !r.Unbound || len(r.Welcomes) != 0 {
+		t.Fatalf("unbound session = %+v", r)
+	}
+	// 候補に合う link が無ければ結ばれない
+	if r := talk(`{"sessionId":"S9","candidates":["00000000-0000-4000-8000-000000000000"]}`); !r.Unbound {
+		t.Fatalf("no match = %+v", r)
+	}
+	// link が合えば（大文字小文字は問わない）結ぶ。まだ受け入れていないので伝えない
+	if r := talk(`{"sessionId":"S9","candidates":["6f1c2a3e-1111-4222-8333-444455556666"]}`); r.Unbound || len(r.Welcomes) != 0 {
+		t.Fatalf("bound but not accepted = %+v", r)
+	}
+	if r := talk(`{"sessionId":"S9"}`); r.Unbound || len(r.Welcomes) != 0 {
+		t.Fatalf("a bound session = %+v", r)
+	}
+	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil)
+	// 別のセッションには伝えない
+	if r := talk(`{"sessionId":"S8"}`); len(r.Welcomes) != 0 {
+		t.Fatalf("another session = %+v", r)
+	}
+	r := talk(`{"sessionId":"S9"}`)
+	if len(r.Welcomes) != 1 || r.Welcomes[0].Workroom != "ひよこ" || r.Welcomes[0].ForAI != "You joined matomezu. Workroom name: ひよこ" ||
+		!strings.Contains(r.Welcomes[0].Message, "ひよこ") {
+		t.Fatalf("welcome = %+v", r)
+	}
+	if r := talk(`{"sessionId":"S9"}`); len(r.Welcomes) != 0 {
+		t.Fatalf("told twice = %+v", r)
+	}
+	// 話しかけは最後に呼ばれた時刻を進めない
+	if calls := hub.ParticipantCalls(); calls[joined.Participant] != "" {
+		t.Fatalf("calls = %v", calls)
+	}
+	// 伝えたので、MCP の返事には添えない
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) != "" {
+		t.Fatalf("told by the hook and then by MCP: %q", h.Get(NoticeHeader))
+	}
+}
+
+// MCP の返事で先に伝えたときは、話しかけのフックは伝えない
+func TestTalkedDoesNotWelcomeWhatMCPToldFirst(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
+	var joined Joined
+	_ = json.Unmarshal([]byte(got), &joined)
+	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil)
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) == "" {
+		t.Fatal("MCP did not tell")
+	}
+	// join のときに添えられたセッション id（S1）で話しかける
+	out, _ := call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"S1"}`, nil)
+	if !strings.Contains(out, `"welcomes":[]`) {
+		t.Fatalf("talked = %s", out)
+	}
+}
+
+// 参加の id の持ち主は、生きていなくても（最後に呼ばれてから長くたっていても）つなぎ直さずに続けられる。弾かれも、断られた知らせも出ない
+func TestParticipantIdHolderContinuesWhenNotAlive(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
+	var joined Joined
+	_ = json.Unmarshal([]byte(got), &joined)
+	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil)
+	id := map[string]string{ParticipantHeader: joined.Participant}
+	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id) // 伝える
+	hub.mu.Lock()
+	n := hub.participantNotes[joined.Participant]
+	n.Called = "2020-01-01T00:00:00.000Z"
+	hub.participantNotes[joined.Participant] = n
+	hub.mu.Unlock()
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
+		t.Fatalf("a notice for the old participant = %q", h.Get(NoticeHeader))
+	}
+	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), id)
+	if !strings.Contains(again, `"ok":true`) || !strings.Contains(again, joined.Participant) {
+		t.Fatalf("join with the id = %s", again)
+	}
+}

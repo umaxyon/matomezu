@@ -44,7 +44,7 @@ type cli struct {
 	Stop        stopCmd        `cmd:"" help:"Stop the background server."`
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, and AI's changes the user undid before seeing them, for an AI's hook. Prints nothing when there are none or the server is not running."`
-	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook (the notes AI has read start their expiry). Prints nothing and does nothing when the server is not running."`
+	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 
@@ -82,7 +82,9 @@ type mcpCmd struct {
 
 type annotationsCmd struct{}
 
-type talkedCmd struct{}
+type talkedCmd struct {
+	Context string `help:"Text the hook adds to what it tells AI (such as the output of annotations). It is printed as it is when there is nothing to say as JSON."`
+}
 
 type versionCmd struct{}
 
@@ -273,18 +275,23 @@ func (c *annotationsCmd) Run() error {
 	return nil
 }
 
-// Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが、annotations の前に呼ぶ）。
-// 常駐を立てず、立っていない・答えないときは何もしない（話しかけを止めない）
+// Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
+// 常駐を立てず、立っていない・答えないときは何もしない（話しかけを止めない。--context があればそれだけ書く）
 func (c *talkedCmd) Run() error {
-	h, err := openHome()
-	if err != nil {
-		return nil
+	var hook hookInput
+	if in, err := os.Stdin.Stat(); err == nil && in.Mode()&os.ModeCharDevice == 0 {
+		hook = readHookInput(os.Stdin)
 	}
-	s, err := running(h)
-	if err != nil || s == nil {
-		return nil
+	var api talkAPI
+	if h, err := openHome(); err == nil {
+		if s, err := running(h); err == nil && s != nil {
+			api = func(body []byte) ([]byte, error) {
+				out, _, _, err := send(s, http.MethodPost, "api/ai/talked", body, nil)
+				return out, err
+			}
+		}
 	}
-	_, _, _, _ = send(s, http.MethodPost, "api/ai/talked", []byte("{}"), nil)
+	talked(os.Stdout, hook, c.Context, api)
 	return nil
 }
 

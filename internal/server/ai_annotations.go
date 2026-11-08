@@ -159,11 +159,26 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"awaiting": out, "undone": undone})
 }
 
-// aiTalked は、利用者が AI に話しかけたことを受ける（AI のフックが知らせる。{}）
-func (o Options) aiTalked(w http.ResponseWriter, _ *http.Request) {
-	if err := o.Hub.Talked(time.Now()); err != nil {
+// aiTalked は、利用者が AI に話しかけたことを受ける（AI のフックが知らせる。{"sessionId", "candidates"}）。
+// candidates が無ければ話しかけたときに行うアクションを行い、有れば会話のセッションの結びつけだけを行う（talk_session.go）
+func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SessionID  string   `json:"sessionId"`
+		Candidates []string `json:"candidates"`
+	}
+	if r.ContentLength != 0 && !readJSON(w, r, &req) {
+		return
+	}
+	if len(req.Candidates) == 0 {
+		if err := o.Hub.Talked(time.Now()); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	done, err := o.Hub.TalkedBy(req.SessionID, req.Candidates)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, map[string]any{})
+	writeJSON(w, done)
 }

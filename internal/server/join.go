@@ -260,7 +260,7 @@ func (h *Hub) Called(id string, now time.Time) string {
 				h.participantNotes[id] = n
 				return ""
 			}
-			return "You joined matomezu. Workroom name: " + s.Workroom
+			return joinedText(s.Workroom)
 		}
 		h.participantNotes[id] = n
 		return ""

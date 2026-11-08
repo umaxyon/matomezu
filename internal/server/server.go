@@ -28,7 +28,8 @@
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}], "undone": [{"book", "title", "at", "lost"}]} AI の応えを待つアノテーションの全部と、
 //	                         見られる前に利用者が戻した AI の変更の全部（渡したら、次に利用者が話しかけたときに消える）
-//	POST /api/ai/talked      利用者が AI に話しかけた（AI のフックが知らせる）。話しかけたときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。{}
+//	POST /api/ai/talked      {"sessionId", "candidates"} 利用者が AI に話しかけた（AI のフックが知らせる）。candidates が無ければ、話しかけたときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
+//	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/mail?projects=a&projects=b  {"mailbox": [...]} 利用者の郵便箱のうち、project が projects のどれかである郵便（届いた順。郵便ごとに見た時点 seenAt と行き先を見た時点 visitedAt。projects は books と同じ）
 //	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
