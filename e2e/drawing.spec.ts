@@ -980,6 +980,10 @@ test("線をダブルクリックすると線の編集のダイアログが開�
   await line.locator("polyline").last().dispatchEvent("dblclick")
   const dialog = page.getByRole("dialog", { name: "線の編集" })
   await expect(dialog).toBeVisible()
+  // 始点と終点の形の選ぶ欄は 1 行に並ぶ
+  const startHead = (await dialog.getByLabel("始点の形").boundingBox())!
+  const endHead = (await dialog.getByLabel("終点の形").boundingBox())!
+  expect(Math.abs(startHead.y - endHead.y)).toBeLessThan(2)
   await dialog.getByRole("radio", { name: "破線" }).check({ force: true })
   // 下書き: 確定の前から破線で見せる
   await expect(line.locator("polyline").first()).toHaveAttribute("data-dashed", "true")
