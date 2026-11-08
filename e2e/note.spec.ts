@@ -405,6 +405,8 @@ test("分けたステージの境目を左へドラッグして左のステー�
 test("物がステージより広く、見せても吹き出しが入らない間は、縁のマークポインタを押すと伝言が右サイドパネルに開く", async ({
   page,
 }) => {
+  // 右サイドパネルが閉じて見え方を戻すのを、すぐに済ませる（戻すのが拡大の後になると、拡大が消える）
+  await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ width: 600, height: 600 })
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 150, "横に長い見出しの箱です、とても長い見出しの箱です")
