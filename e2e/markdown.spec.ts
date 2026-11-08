@@ -1,10 +1,10 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
 import { aiAuth, expect, type Page, test } from "./fixtures"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 import { openGeneral, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
-// マスターでマークダウンのブックを作り、ページを 1 つ作る
+// マークダウンのブックを作り、ページを 1 つ作る
 async function markdownBook(page: Page) {
   await page.goto("/")
   const add = await newBook(page, "メモ", "マークダウン")

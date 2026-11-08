@@ -2,7 +2,7 @@
 // 画面に見えた AI の変更は、画面の履歴に時刻の位置で入り、新しい方から戻る
 import { aiAuth, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 import { addBox, items } from "./helpers/paper"
 
 test("置いた箱を Ctrl+Z で元に戻すと消え、Ctrl+Shift+Z と Ctrl+Y でやり直すと戻る", async ({ page }) => {

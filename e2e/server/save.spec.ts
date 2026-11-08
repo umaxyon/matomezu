@@ -19,9 +19,9 @@ const bookIn = async (page: Page, id: string): Promise<{ trashed?: string } | un
 const put = async <B extends { id: string }>(page: Page, book: B) =>
   expect((await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })).ok()).toBe(true)
 
-test("初めて開くと、ブックを持たずにマスターを出す", async ({ page }) => {
+test("初めて開くと、ブックを持たず、何も開かない", async ({ page }) => {
   await page.goto("/")
-  await expect(page.getByRole("region", { name: "マスター" })).toBeVisible()
+  await expect(page.getByText("ブックを選択してください")).toBeVisible()
   expect((await data(page)).books).toEqual([])
 })
 

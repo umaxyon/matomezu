@@ -2,7 +2,7 @@
 // 右サイドパネルを閉じる（Esc）か読み直すと編集に戻る。印刷区画をダブルクリックすると、そのページの編集に戻る。右端にスクロールバーを出す
 import { expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 import { panel } from "./helpers/note"
 import { addBox, items, onPaper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"

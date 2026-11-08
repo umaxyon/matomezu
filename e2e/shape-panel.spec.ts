@@ -2,7 +2,7 @@
 // 図面のパネルにはシェイプ（@matomezu/art）が並ぶ
 import { expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 import { paper } from "./helpers/paper"
 
 async function flowchartBook(page: Page) {

@@ -84,29 +84,6 @@ test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ 
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "まとめ図の構想")
 })
 
-test("マスターのボタンで、カレントのステージがマスターの画面になり、ブックを開くと紙に戻る", async ({ page }) => {
-  await page.goto("/")
-  await (await fromMenu(page, "ホーム")).click()
-  await expect(page.getByRole("region", { name: "マスター" })).toBeVisible()
-  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(0)
-  await expect(page.getByRole("tablist")).toHaveCount(0)
-  await (await fromMenu(page, "ブックを開く")).click()
-  await page.keyboard.type("残課題")
-  await page.keyboard.press("Enter")
-  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
-  await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "残課題")
-})
-
-test("分割した右のステージで探すテキストFormからマスターを選ぶと、右にマスターが開く", async ({ page }) => {
-  await page.goto("/")
-  await (await fromMenu(page, "画面を分割")).click()
-  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await right.getByRole("option", { name: "マスター" }).click()
-  await expect(right.getByRole("region", { name: "マスター" })).toBeVisible()
-  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
-  await expect(await fromMenu(page, "ホーム", 1)).toHaveAttribute("aria-pressed", "true")
-})
-
 test("分割した右のステージ（ブックを開いていない）の「新しいブック」で作ると、右のステージにそのブックが開く", async ({
   page,
 }) => {
