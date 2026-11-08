@@ -41,6 +41,8 @@ import { linesOf, type PlacedLine } from "./placed"
 
 type LineProps = PlacedLine["props"]
 type Dash = "solid" | "dashed"
+// ダイアログの幅（始点と終点の形のセレクト 2 つが 1 行に並ぶ幅）
+const DIALOG_WIDTH = 440
 // 選んだそばから線に見せる項目
 type Look = Pick<LineProps, "route" | "dash" | "startHead" | "endHead">
 // 一回きりの操作
@@ -142,6 +144,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   return (
     <Dialog
       title={t("Edit line")}
+      width={DIALOG_WIDTH}
       onClose={onClose}
       actions={
         <>
