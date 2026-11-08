@@ -1,4 +1,4 @@
-// base（ほかのプラグインが読んでよいプラグイン）: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・利用者の設定（言語・スキン・キーバインド・文字の色）・標準のテーマ・スキン（ダーク・ライト）と、その既定のキーバインド。
+// base（ほかのプラグインが読んでよいプラグイン）: ステージ（分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・利用者の設定（言語・スキン・キーバインド・文字の色）・標準のテーマ・スキン（ダーク・ライト）と、その既定のキーバインド。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
@@ -68,7 +68,7 @@ import {
   SETTINGS_SET_COMMAND,
   SKIN,
 } from "./settings"
-import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
+import { STAGE_CLOSE, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_PICKER_HOLD } from "./tool-picker/hold"
@@ -263,7 +263,6 @@ export const BASE = defineBuiltin(
     normalizeSteps: [VARIABLE_PAGES],
     commands: [
       BOOK_NEW,
-      STAGE_HOME,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
@@ -420,7 +419,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-new": typeof BOOK_NEW
     "@matomezu/base:undo": typeof UNDO
     "@matomezu/base:redo": typeof REDO
-    "@matomezu/base:stage-home": typeof STAGE_HOME
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE

@@ -58,16 +58,11 @@ test("store が持つずらす量は、表示領域の大きさで範囲に収�
   expect(state.getState().workspace.stages[0]!.pan).toEqual({ x: 0, y: 0 })
 })
 
-test("マスターはカレントのステージで開き、ページは足せない", () => {
+test("ブックを開いていないステージには、ページは足せない", () => {
   const { state, actions } = newStore()
   actions.split("s1")
-  actions.focusStage("s2")
-  actions.command("s2", "@matomezu/base:stage-home")
   const s = state.getState()
-  expect(s.workspace.stages.map(st => st.opened?.type)).toEqual([
-    "@matomezu/drawing:drawing",
-    "@matomezu/master:master",
-  ])
+  expect(s.workspace.stages.map(st => st.opened?.type)).toEqual(["@matomezu/drawing:drawing", undefined])
   expect(addPageIn({ state, actions }, "s2", { title: "x" })).toBe(false)
   expect(state.getState()).toBe(s)
 })

@@ -1,9 +1,9 @@
-// ブックを作る: 何冊も作れるタイプの空のブックを、ブックの一覧に足す。機能台帳に無いタイプと、1 冊だけのタイプは断る。
+// ブックを作る: タイプの空のブックを、ブックの一覧に足す。機能台帳に無いタイプは断る。
 // ブックの設定の項目（settings）も一緒に決められる（タイプが選んだ項目だけ。確かめと整え方は book-update と同じ withBookSettings）。
 // ブックを作るダイアログが聞く項目は、タイプが createSettings で選ぶ（定義オブジェクトの拡張ポイントに書き足す）
 import { z } from "zod"
 import { creatableTypes, createBook } from "../../../core/book"
-import type { BookTypeId, SingleBookTypeId } from "../../../core/catalog"
+import type { BookTypeId } from "../../../core/catalog"
 import { bookType, type CatalogCheckDef } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
 import { type PermitContext, permittedIn, type World } from "../../../core/perform"
@@ -11,12 +11,9 @@ import { withBookSettings } from "../book-look"
 import { settingsArgs } from "../book-settings"
 import { kit } from "../kit"
 
-// 何冊も作れるブックのタイプの id（core/catalog.ts の BookTypeTable から決まる。表に無いタイプは run が断る）
-type ManyBookTypeId = Exclude<BookTypeId, SingleBookTypeId>
-
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),
-  type: z.custom<ManyBookTypeId>(v => typeof v === "string" && v.length > 0),
+  type: z.custom<BookTypeId>(v => typeof v === "string" && v.length > 0),
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだブックの設定の項目（形はタイプが決める）
 })
 

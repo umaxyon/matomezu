@@ -79,16 +79,6 @@ test("ブックの形に無い項目があれば形に合わない。形はタ�
     false,
   )
   expect(CORE_CATALOG.bookSchema.safeParse({ id: "b1", title: "ブック", pages: ok.pages }).success).toBe(false)
-  expect(
-    CORE_CATALOG.bookSchema.safeParse({ type: "@matomezu/master:master", id: "@matomezu/master:master" }).success,
-  ).toBe(true)
-  expect(
-    CORE_CATALOG.bookSchema.safeParse({
-      type: "@matomezu/master:master",
-      id: "@matomezu/master:master",
-      pages: ok.pages,
-    }).success,
-  ).toBe(false)
 })
 
 describe("ページの紙を描く大きさ", () => {

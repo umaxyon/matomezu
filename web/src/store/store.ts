@@ -4,8 +4,8 @@
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
-import { checkBooks, hasPages, singleBooks } from "../core/book"
-import type { ActionId, DialogId, ItemId, MessageKey, SingleBookTypeId, SkinId, ToolId } from "../core/catalog"
+import { checkBooks, hasPages } from "../core/book"
+import type { ActionId, ControlCenterId, DialogId, ItemId, MessageKey, SkinId, ToolId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, BookTarget } from "../core/def/action"
 import { fail } from "../core/errors"
@@ -258,18 +258,17 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   ): { failed: { id: string; error: unknown }[] }
 }
 
-// 最初のブック（無ければホーム、それも無ければ何も開かない）を開いた状態。表にある 1 冊だけのタイプのブックはいつも持つ
+// 最初のブック（無ければ何も開かない）を開いた状態
 function initialState(
   catalog: CoreCatalog,
   books: readonly Book[],
   settings: Settings,
   lang: Lang,
-  home: string | null,
   unreadable: readonly Warning[] = [],
   partial: readonly Warning[] = [],
 ): MatomezuState {
-  const { books: open, trash } = splitTrash(Object.fromEntries([...singleBooks(catalog), ...books].map(b => [b.id, b])))
-  const first = books.find(b => b.id in open) ?? open[home ?? ""] ?? null
+  const { books: open, trash } = splitTrash(Object.fromEntries(books.map(b => [b.id, b])))
+  const first = books.find(b => b.id in open) ?? null
   return {
     books: { ...open },
     unreadable,
@@ -301,8 +300,8 @@ export type AIEditTicketOutcome =
 
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
   plugins: Ps
-  home?: SingleBookTypeId // ホームのブック（1 冊だけのタイプ）。最初に開くブックと「ホームを開く」の行き先で、ブックの一覧のアクションを許すかはこのタイプが決める
-  books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、ホームを開く
+  controlCenter?: ControlCenterId // コントロールセンターの定義の id。ブックの一覧・利用者の設定・郵便箱・参加者の表を変えるアクションを許すかはこれが決める。無ければ、それらは断る
+  books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、空のステージ
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。インスタンスにある最初の言語を使い、無ければ英語
   savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。このインスタンスのブックの形に合うものだけを、books のあとに持つ
@@ -335,8 +334,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   options: StoreOptions<Ps>,
 ): MatomezuInstance<Ps> {
   const { plugins } = options
-  let defs = assemble(plugins, options.home ?? null, options.autoSkin)
-  let { home } = defs
+  let defs = assemble(plugins, options.controlCenter ?? null, options.autoSkin)
+  let { controlCenter } = defs
   let catalog = defs.catalog.core
   // 設定の言語の項目が選んでいないときの言語
   let fallback = startLang(catalog, options.lang)
@@ -349,7 +348,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       [...(options.books ?? []), ...saved.books],
       savedSettings,
       langOf(catalog, savedSettings, fallback),
-      home,
       saved.warnings,
       saved.partial,
     )
@@ -363,7 +361,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (now.workspace !== was.workspace || now.books !== was.books) checkSeen()
   })
   const { getState, setState } = store
-  const ctx = (): ActionContext => ({ catalog, home, lang: getState().lang, newId, now: clock() })
+  const ctx = (): ActionContext => ({ catalog, controlCenter, lang: getState().lang, newId, now: clock() })
   // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）
   let checked = new WeakMap<object, { book: Book; partial?: Warning } | { warning: Warning }>()
   const restore = (saved: readonly unknown[]): { books: Book[]; warnings: Warning[]; partial: Warning[] } => {
@@ -571,7 +569,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       closeStep()
       const state = getState()
       const def = commandDef(defs, id)
-      const ctx = commandContext(catalog, home, state, stage, id)
+      const ctx = commandContext(catalog, controlCenter, state, stage, id)
       if (!ctx || !isEnabled(defs, state, stage, id)) return false
       const owner = commandOwner(id)
       const updateStageState = (change: (now: unknown) => unknown) =>
@@ -702,7 +700,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     actions,
     receive: (world, replay, change) => {
       const found = restore(world.books)
-      let library: Library = Object.fromEntries([...singleBooks(catalog), ...found.books].map(b => [b.id, b]))
+      let library: Library = Object.fromEntries(found.books.map(b => [b.id, b]))
       const was = known[change?.book ?? ""]
       const to = library[change?.book ?? ""]
       const by = change?.by === "host" ? undefined : change?.by
@@ -723,7 +721,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           done.on,
           {
             catalog,
-            home,
+            controlCenter,
             lang: done.lang,
             newId: () => ids.shift() ?? newId(),
             now: done.now,
@@ -801,11 +799,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     use: (added, check) => {
       const failed: { id: string; error: unknown }[] = []
       let used: Plugin[] = []
-      let next = assemble(plugins, options.home ?? null, options.autoSkin)
+      let next = assemble(plugins, options.controlCenter ?? null, options.autoSkin)
       for (const p of added) {
         try {
           const all = [...plugins, ...used, p]
-          const tried = assemble(all, options.home ?? null, options.autoSkin)
+          const tried = assemble(all, options.controlCenter ?? null, options.autoSkin)
           check?.(all)
           used = [...used, p]
           next = tried
@@ -814,7 +812,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         }
       }
       defs = next
-      home = next.home
+      controlCenter = next.controlCenter
       catalog = next.catalog.core
       checked = new WeakMap()
       keyCache = null
@@ -830,7 +828,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           [...(options.books ?? []), ...again.books],
           settings,
           langOf(catalog, settings, fallback),
-          home,
           again.warnings,
           again.partial,
         ),

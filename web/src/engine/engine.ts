@@ -25,18 +25,18 @@ import type { Book, Page } from "../core/schema/book"
 import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
-import { BUILTIN, BUILTIN_HOME } from "../plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
 import { aiPlacedOf, type GrowRule, textColorRef, themesFor } from "../plugins/base"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
-let assembled = assemble(BUILTIN, BUILTIN_HOME)
+let assembled = assemble(BUILTIN, BUILTIN_CONTROL_CENTER)
 
 // 追加プラグインを足して組み直す。新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で投げれば、前の組み立てのまま）。
 // 返すのは JSON: warnings は warning の 1 行ずつ（常駐がログに書く）、ai は新しい組の MCP 公開ツールの actions が返す物
 function use(added: readonly Plugin[]): string {
-  const next = assemble([...BUILTIN, ...added], BUILTIN_HOME)
+  const next = assemble([...BUILTIN, ...added], BUILTIN_CONTROL_CENTER)
   const ai = aiCatalog(next)
   assembled = next
   return JSON.stringify({ warnings: warningsOf(next.catalog).map(warningText), ai })
@@ -83,7 +83,8 @@ declare const crypto: { randomUUID(): string }
 const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> = {
   unknown: "there is no action with that id (see actions)",
   "bad-args": "the args do not match the action's args (see actions)",
-  "not-allowed": "this book's type (or, for the library and the settings, the home book's type) does not allow it",
+  "not-allowed":
+    "this book's type (or, for the library, the settings, the mailbox and the participants, the control center) does not allow it",
   refused: "the action's rules refuse it (for example the page or item does not exist); read_book to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
@@ -100,7 +101,7 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
     const detail =
       done.because === "user-only"
         ? `the setting ${done.setting} is changed only by the user; ask the user in the chat`
-        : `the home book's type keeps the setting ${done.setting} fixed`
+        : `the control center keeps the setting ${done.setting} fixed`
     return { ok: false, reason: done.reason, detail }
   }
   if ("detail" in done && done.detail !== undefined) return { ok: false, reason: done.reason, detail: done.detail }
@@ -108,7 +109,7 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
 }
 
 function perform(input: Input): Output {
-  const { home } = assembled
+  const { controlCenter } = assembled
   const catalog = assembled.catalog.core
   const settings = restoreSettings(input.settings)
   const lang = input.lang ? detectLang([input.lang], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
@@ -121,7 +122,7 @@ function perform(input: Input): Output {
   const participants = restoreParticipants(input.participants)
   const done = performIn({ books, settings, annotations, mailbox, participants }, input.action, input.args, input.on, {
     catalog,
-    home,
+    controlCenter,
     lang,
     newId: () => ids.shift() ?? crypto.randomUUID(),
     now: input.now ?? new Date().toISOString(),
@@ -193,7 +194,6 @@ function aiCatalog(of: Assembled = assembled) {
     bookTypes: [...catalog.bookTypes.values()].map(t => ({
       id: t.id,
       title: en(t.title),
-      creatable: !t.single, // book-create で作れるか（1 冊だけのタイプは作れない）
       pages: t.pages !== null,
       grows: t.pages ? growsOf(t.grow) : "none", // 可変ページの決め方
       items: t.items.allowed, // ページに置けるアイテム

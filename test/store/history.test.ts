@@ -303,7 +303,7 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
         ],
       }),
     ],
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

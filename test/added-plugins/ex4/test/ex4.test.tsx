@@ -9,7 +9,11 @@ import EX4_UI from "../ui"
 afterEach(cleanup)
 
 const make = () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX4_UI], home: "@matomezu/master:master", lang: "ja" })
+  const instance = createMatomezu({
+    plugins: [...BUILTIN_UI, EX4_UI],
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <Screen />
@@ -93,7 +97,7 @@ test("ビルトインの線（と線を選ぶ図面・フローチャート）�
   const plugins = BUILTIN_UI.filter(
     ui => !["@matomezu/line", "@matomezu/drawing", "@matomezu/flowchart"].includes(ui.id),
   )
-  const instance = createMatomezu({ plugins, home: "@matomezu/master:master", partial: true })
+  const instance = createMatomezu({ plugins, controlCenter: "@matomezu/control-center:control-center", partial: true })
   expect(() =>
     render(
       <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>

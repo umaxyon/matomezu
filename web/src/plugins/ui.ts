@@ -5,8 +5,8 @@ import { DIR_UI } from "./books/dir/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
 import { FLOWCHART_UI } from "./books/flowchart/ui"
 import { MARKDOWN_UI } from "./books/markdown/ui"
-import { MASTER_UI } from "./books/master/ui"
 import { TREE_UI } from "./books/tree/ui"
+import { CONTROL_CENTER_UI } from "./control-center/ui"
 import { ART_UI } from "./items/art/ui"
 import { BOX_UI } from "./items/box/ui"
 import { DATA_UI } from "./items/data/ui"
@@ -17,7 +17,7 @@ import { PAPER_UI } from "./paper/ui"
 
 export const BUILTIN_UI = [
   BASE_UI,
-  MASTER_UI,
+  CONTROL_CENTER_UI,
   PAPER_UI,
   BOX_UI,
   LIST_UI,
@@ -88,7 +88,6 @@ export const DEFAULT_LAYOUT = defineLayout({
   },
   menus: {
     "@matomezu/base:stage-menu": [
-      "@matomezu/base:stage-home",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
       "@matomezu/base:book-open",
       "@matomezu/base:book-settings",

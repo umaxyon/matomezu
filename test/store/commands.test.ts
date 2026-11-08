@@ -21,14 +21,11 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
     expect(shown()).toEqual(["@matomezu/base:stage-unsplit", "@matomezu/base:stage-close"])
   })
 
-  test("ブックを作るのはマスターを開いているときとブックを開いていないステージ、ページを作るのはページを足せるブックを開いているときだけ", () => {
+  test("ブックを作るのはブックを開いていないステージだけ、ページを作るのはページを足せるブックを開いているときだけ", () => {
     const store = newStore()
     const { state, actions } = store
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:book-new")).toBe(false)
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:page-new")).toBe(true)
-    actions.command("s1", "@matomezu/base:stage-home")
-    expect(isShown(store, state.getState(), "s1", "@matomezu/base:book-new")).toBe(true)
-    expect(isShown(store, state.getState(), "s1", "@matomezu/base:page-new")).toBe(false)
     // 分割した右のステージは、ブックを開いていない
     actions.split("s1")
     const right = state.getState().workspace.stages[1]!.id
@@ -108,7 +105,7 @@ describe("コマンドは、自分のプラグインが持つステージの画�
   const newPaneStore = () =>
     createMatomezuInstance({
       plugins: [...BUILTIN, definePlugin(kit.plugin({ commands: [TOGGLE] }))],
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       books: SAMPLE_BOOKS,
       lang: "ja",
       newId: sequence(),

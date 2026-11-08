@@ -7,7 +7,11 @@ import EX2_UI from "../ui"
 afterEach(cleanup)
 
 const make = () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX2_UI], home: "@matomezu/master:master", lang: "ja" })
+  const instance = createMatomezu({
+    plugins: [...BUILTIN_UI, EX2_UI],
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <Screen />

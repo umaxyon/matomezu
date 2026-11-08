@@ -68,7 +68,7 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
   }
   const ctx = {
     catalog: CORE_CATALOG,
-    home: "@matomezu/master:master" as never,
+    controlCenter: "@matomezu/control-center:control-center" as never,
     lang: "en" as const,
     newId: () => "n",
     now: "t",

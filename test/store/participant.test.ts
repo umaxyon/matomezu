@@ -105,7 +105,7 @@ test("AI は要求できるが、受け入れる・断るはできない（利�
   }
   const ctx = {
     catalog: CORE_CATALOG,
-    home: "@matomezu/master:master" as never,
+    controlCenter: "@matomezu/control-center:control-center" as never,
     lang: "en" as const,
     newId: () => "n",
     now: "t",
@@ -123,7 +123,7 @@ test("同じ入力（時刻と id のもと）なら同じ結果", () => {
     const world = { books: {}, settings: {}, annotations: {}, mailbox: [], participants: [] }
     const ctx = {
       catalog: CORE_CATALOG,
-      home: "@matomezu/master:master" as never,
+      controlCenter: "@matomezu/control-center:control-center" as never,
       lang: "en" as const,
       newId: () => "0123456789abcdef",
       now: "2026-11-08T00:00:00.000Z",

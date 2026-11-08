@@ -20,7 +20,6 @@ import {
   zoomTo,
 } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG } from "../support"
 
 describe("stage", () => {
@@ -129,22 +128,6 @@ describe("stage", () => {
     expect(opened.opened).toEqual({ type: "@matomezu/drawing:drawing", book: "b0", page: null, paper: null })
     expect(placement(opened)).toBeNull()
     expect(panBy(opened, -10, -10)).toBe(opened)
-  })
-
-  test("マスターのブックを開くと、紙が無く、ずらせず、ページも開けない。もう一度開いても同じ値", () => {
-    const master = openBook(CORE_CATALOG, panBy(resize(stage, small), -30, -40), MASTER_BOOK)
-    expect(master.opened).toEqual({
-      type: "@matomezu/master:master",
-      book: "@matomezu/master:master",
-      page: null,
-      paper: null,
-    })
-    expect(master.pan).toEqual({ x: 0, y: 0 })
-    expect(paperOf(master)).toBeNull()
-    expect(placement(master)).toBeNull()
-    expect(panBy(master, -10, -10)).toBe(master)
-    expect(openPage(CORE_CATALOG, master, paged, "p1")).toBe(master)
-    expect(openBook(CORE_CATALOG, master, MASTER_BOOK)).toBe(master)
   })
 })
 

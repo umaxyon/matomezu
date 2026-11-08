@@ -6,7 +6,6 @@ import type { SettingDef } from "../../web/src/core/def/setting"
 import { performIn } from "../../web/src/core/perform"
 import { aiSettings, langOf, userSetting } from "../../web/src/core/settings"
 import { BUILTIN } from "../../web/src/plugins"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -23,7 +22,7 @@ const EX: Plugin = { id: "@ex/u", userSettings: [SECRET, OPEN] }
 
 const ctx = (catalog = CORE_CATALOG, by?: "ai") => ({
   catalog,
-  home: MASTER_BOOK.id,
+  controlCenter: "@matomezu/control-center:control-center",
   lang: "en",
   newId: () => "x",
   now: "2026-10-29T00:00:00.000Z",
@@ -31,7 +30,7 @@ const ctx = (catalog = CORE_CATALOG, by?: "ai") => ({
 })
 
 test("利用者だけが変える項目は、AI には変えさせず、AI が読む設定と AI に見せる引数の形にも出さない", () => {
-  const catalog = assemble([...BUILTIN, EX], MASTER_BOOK.id).catalog.core
+  const catalog = assemble([...BUILTIN, EX], "@matomezu/control-center:control-center").catalog.core
   const world = { books: {}, settings: { "@ex/u:secret": "s" }, annotations: {}, mailbox: [], participants: [] }
   const set = (values: Record<string, unknown>, by?: "ai") =>
     performIn(world, "@matomezu/base:settings-set", { values }, undefined, ctx(catalog, by)).ok

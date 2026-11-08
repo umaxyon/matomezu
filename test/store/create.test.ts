@@ -18,19 +18,18 @@ const NOTE = defineBookType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1) }),
-  single: false,
   create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
-  presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
+  presentation: "@matomezu/paper:paper", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],
 })
 const SHOOT = defineCommand({
   id: "notes:shoot",
-  title: "@matomezu/master:Master",
+  title: "@matomezu/drawing:Drawing",
   run: (ctx, a) => (a.openDialog as (stage: string, id: string) => void)(ctx.stage.id, "notes:shot"),
   when: () => true,
 })
@@ -51,7 +50,6 @@ const LEAF = defineBookType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   schema: z.strictObject({ type: z.literal("notes:leaf"), id: z.string().min(1) }),
-  single: false,
   create: init => ({ type: "notes:leaf" as const, ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
@@ -64,7 +62,7 @@ const LEAF = defineBookType({
   actions: {},
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
-  presentation: "@matomezu/master:master",
+  presentation: "@matomezu/paper:paper",
   tokens: [],
 })
 
@@ -85,7 +83,7 @@ describe("インスタンスを組み立てる", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, notes],
       partial: true,
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       newId: () => "n1",
     })
     expect(instance.catalog.core.bookTypes.has("notes:note")).toBe(true)
@@ -176,7 +174,7 @@ describe("インスタンスを組み立てる", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, plugin],
       partial: true,
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       newId: () => "n1",
     })
     const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }

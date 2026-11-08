@@ -14,9 +14,9 @@ import type { Settings } from "../settings"
 import type { BookTypeDef } from "./book-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
-// この 2 つのアクションを使えるかはホームのブックのタイプが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
-// 使えるかは book と同じくそのブックのタイプが決める。mailbox は利用者に 1 つの郵便箱（core/mail.ts）で、使えるかは library・settings と同じくホームのブックのタイプが決める。
-// participants は利用者に 1 つの参加者の表（core/participant.ts）で、使えるかは mailbox と同じくホームのブックのタイプが決める
+// この 2 つのアクションを使えるかはコントロールセンターが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
+// 使えるかは book と同じくそのブックのタイプが決める。mailbox は利用者に 1 つの郵便箱（core/mail.ts）で、使えるかは library・settings と同じくコントロールセンターが決める。
+// participants は利用者に 1 つの参加者の表（core/participant.ts）で、使えるかは mailbox と同じくコントロールセンターが決める
 export interface Subjects {
   library: Library
   book: Book
@@ -34,7 +34,7 @@ export const isOnBook = (target: ActionTarget | undefined): boolean => target ==
 
 export interface ActionContext {
   catalog: CoreCatalog // 使う機能台帳（アクション・ブックのタイプ・紙など）
-  home: string | null // インスタンスのホームのブックの id（一覧と設定のアクションを許すかは、このブックのタイプが決める）。無ければ断る
+  controlCenter: string | null // インスタンスのコントロールセンターの定義の id（一覧と設定のアクションを許すかは、これが決める）。無ければ断る
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
   // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。

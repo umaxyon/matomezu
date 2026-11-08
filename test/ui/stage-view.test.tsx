@@ -26,7 +26,7 @@ test("パンしても、book-layers のレイヤーは描き直さない", () =>
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, counter],
     partial: true,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

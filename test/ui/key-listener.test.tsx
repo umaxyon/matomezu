@@ -10,7 +10,12 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 afterEach(cleanup)
 
 test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテキストFormに任せ、自分で名乗るテキストFormでは、その範囲の Mod+Z で元に戻す", async () => {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI, partial: true })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    partial: true,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <KeyListener />

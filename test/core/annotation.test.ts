@@ -53,7 +53,7 @@ test("効かないアノテーションがあっても、ほかのアノテー�
     { book: "d" },
     {
       catalog: CORE_CATALOG,
-      home: null,
+      controlCenter: null,
       lang: "en",
       newId: () => "n",
       now: "2026-11-01T00:00:00.000Z",

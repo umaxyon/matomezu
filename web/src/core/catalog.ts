@@ -5,6 +5,7 @@ import type { ConnectorData, ShapeData } from "./def/item"
 // 書き足しは、このファイルに向ける。このファイルを読み直して出す別のファイルに向けると、ほかの書き足しと合わさらない。
 // 書き足した id と、インスタンスに渡した定義の id がそろっているかは、組み立て（createMatomezu）が型で確かめる
 export interface BookTypeTable {}
+export interface ControlCenterTable {}
 export interface ItemTable {}
 export interface ActionTable {}
 export interface ThemeTable {}
@@ -58,6 +59,7 @@ export interface ContextMenuTable {}
 // 種類を足すときは、ここに 1 行と、下の PartTables に id の表を足し、定義の型をその台帳のクレートから PartDefTable に書き足す（core の種類は core/core-catalog.ts、store の種類は store/plugin.ts）
 export const PARTS = {
   bookTypes: { catalog: "core", label: "bookType" },
+  controlCenters: { catalog: "core", label: "controlCenter" },
   items: { catalog: "core", label: "item" },
   actions: { catalog: "core", label: "action" },
   settings: { catalog: "core", label: "setting" },
@@ -85,6 +87,7 @@ export const partsOf = <S extends "core" | "store">(name: S) =>
 // 種類ごとの id の表（PARTS と同じ種類を並べる。足りなければ、種類ごとに引く所 PartTables[Part] が型の誤りになる）
 export interface PartTables {
   bookTypes: BookTypeTable
+  controlCenters: ControlCenterTable
   items: ItemTable
   actions: ActionTable
   settings: SettingTable
@@ -107,8 +110,7 @@ export interface PartTables {
 export interface PartDefTable {}
 
 export type BookTypeId = keyof BookTypeTable & string
-// 1 冊だけのタイプの id（そのブックの id でもある）
-export type SingleBookTypeId = { [K in BookTypeId]: BookTypeTable[K] extends { single: true } ? K : never }[BookTypeId]
+export type ControlCenterId = keyof ControlCenterTable & string
 export type ItemId = keyof ItemTable & string
 export type ActionId = keyof ActionTable & string
 export type ThemeId = keyof ThemeTable & string
@@ -138,6 +140,7 @@ export type SlotProps<S extends SlotId> = SlotTable[S]
 // ここに declare module で書き足す（base も追加プラグインも。追加プラグインからは matomezu/catalog）。定義を書くプラグインは、書き足されたものを
 // 自分の定義オブジェクトに書く（型が効く）。base は短い名前、base 以外は "<プラグインの id>:<名前>"（例 "@foo/pdf:draw"）で書き足す
 export interface BookTypeExtras {}
+export interface ControlCenterExtras {}
 // 形とつなぐものの拡張ポイントは、書き足すメソッドが置いたデータの型 D を使えるように型引数を持つ（書き足すときも同じ型引数で書く）。
 // dataOf は D を拡張ポイントに結ぶためだけの型の印で、値は持たない
 declare const dataOf: unique symbol

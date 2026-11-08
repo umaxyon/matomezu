@@ -29,7 +29,7 @@ import type { UiCatalog } from "./plugin"
 import {
   useActions,
   useCatalog,
-  useHome,
+  useControlCenter,
   useInstance,
   useMatomezuState,
   useReadState,
@@ -108,7 +108,7 @@ export type Allowed = { ok: true } | { ok: false; permission: string | null }
 
 export function useAllowed(stage: string, action: ActionId, where?: Where | { settings: readonly string[] }): Allowed {
   const catalog = useCatalog().core
-  const home = useHome()
+  const controlCenter = useControlCenter()
   const settings = where && "settings" in where ? where.settings.join("\n") : undefined
   const place = where && !("settings" in where) ? where : undefined
   const ids = place?.ids?.join("\n")
@@ -120,7 +120,7 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
     const page = place?.page ?? o?.page ?? undefined
     const at = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
-    const done = inspect(catalog, { ...actionQuery(catalog, action, book, at), ...changed }, { home })
+    const done = inspect(catalog, { ...actionQuery(catalog, action, book, at), ...changed }, { controlCenter })
     return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
   return allowedOf(answer)
@@ -137,9 +137,12 @@ const allowedOf = (answer: string): Allowed =>
 // 引数がまだ決まらない所（ドラッグを始める前など）では、useAllowed で問う
 export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, on?: { book: string }): Allowed {
   const catalog = useCatalog().core
-  const home = useHome()
+  const controlCenter = useControlCenter()
   const answer = useMatomezuState(s => {
-    const done: Permitted | { ok: false; reason: string } = permittedIn(worldOf(s), action, args, on, { catalog, home })
+    const done: Permitted | { ok: false; reason: string } = permittedIn(worldOf(s), action, args, on, {
+      catalog,
+      controlCenter,
+    })
     return done.ok ? OK : done.reason === "denied" && "permission" in done ? done.permission : NOT_ALLOWED
   })
   return allowedOf(answer)

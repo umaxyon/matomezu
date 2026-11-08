@@ -23,7 +23,6 @@ const NOTE = defineBookType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1) }),
-  single: false,
   create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,
   items: { allowed: [] },
@@ -65,7 +64,7 @@ describe("見た目のプラグイン", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN_UI, notesUi],
       partial: true,
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       lang: "ja",
       newId: () => "n1",
     })
@@ -78,7 +77,6 @@ describe("見た目のプラグイン", () => {
       createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
     })
     expect(screen.getByText("note view")).toBeTruthy()
-    act(() => instance.actions.command("s1", "@matomezu/base:stage-home"))
     act(() => instance.actions.openDialog("s1", "@matomezu/base:book-new"))
     expect(screen.getByRole("button", { name: "my new book" })).toBeTruthy()
   })

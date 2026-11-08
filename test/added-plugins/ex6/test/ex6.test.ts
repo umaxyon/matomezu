@@ -6,7 +6,11 @@ import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
 import EX6_UI from "../ui"
 
 test("答える形の無いページの重さは 0", () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX6_UI], home: "@matomezu/master:master", lang: "ja" })
+  const instance = createMatomezu({
+    plugins: [...BUILTIN_UI, EX6_UI],
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
   act(() => {
     expect(createBookIn(instance, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
   })

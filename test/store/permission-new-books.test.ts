@@ -14,7 +14,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   const kit = pluginKit("@ex/no-tree", defineMessages({ noTree: { en: "No tree", ja: "ツリーは作らない" } }))
   const seen: { before: unknown; added: boolean }[] = []
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,
@@ -54,7 +54,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
 test("新しいブックのダイアログが出すタイプ（typesToCreate）は、作れるタイプのうち認可ステップが行う前に止めないもの", () => {
   const kit = pluginKit("@ex/no-dir", defineMessages({ noDir: { en: "No dir", ja: "ディレクトリは作らない" } }))
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,
@@ -72,7 +72,7 @@ test("新しいブックのダイアログが出すタイプ（typesToCreate）�
       }),
     ],
   })
-  const ctx = { catalog: store.catalog.core, home: store.home }
+  const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter }
   const types = typesToCreate(worldOf(store.state.getState()), ctx)
   expect(types).toEqual(creatableTypes(store.catalog.core).filter(t => t !== "@matomezu/dir:dir"))
 })

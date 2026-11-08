@@ -8,7 +8,11 @@ import EX8_UI from "../ui"
 afterEach(cleanup)
 
 test("単語帳を開くと、カードの見せ方のビューがページのカードを並べる（カードが無ければ無いと出す）", () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX8_UI], home: "@matomezu/master:master", lang: "ja" })
+  const instance = createMatomezu({
+    plugins: [...BUILTIN_UI, EX8_UI],
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <Screen />
@@ -36,14 +40,22 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
 })
 
 test("自分で足したテーマタイプのテーマ（黒板）は、それを使う単語帳のブックでだけ使え、図面のブックでは使えない", () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX8_UI], home: "@matomezu/master:master", lang: "ja" })
+  const instance = createMatomezu({
+    plugins: [...BUILTIN_UI, EX8_UI],
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
   const catalog = instance.catalog.core
   expect(themesFor(catalog, "ex8:deck").map(t => t.id)).toEqual(["@matomezu/base:standard", "ex8:chalk"])
   expect(themeFits(catalog, "@matomezu/drawing:drawing", "ex8:chalk")).toBe(false)
 })
 
 test("カードの並べ方は画面の場所に入り（読み直しても戻る）、押して選んだカードは入らない", () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX8_UI], home: "@matomezu/master:master", lang: "ja" })
+  const instance = createMatomezu({
+    plugins: [...BUILTIN_UI, EX8_UI],
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <Screen />

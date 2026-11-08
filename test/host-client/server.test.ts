@@ -529,9 +529,9 @@ test("ブックに触れた時刻は、読んだ一覧と touched の知らせ�
   })
   const { store, emit } = await connected(server)
   expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z" })
-  emit("touched", { book: "master", at: "2026-10-27T02:00:00Z" })
+  emit("touched", { book: "unsaved", at: "2026-10-27T02:00:00Z" })
   emit("touched", { book: "b1", at: "2026-10-27T00:00:00Z" })
-  expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z", master: "2026-10-27T02:00:00Z" })
+  expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z", unsaved: "2026-10-27T02:00:00Z" })
 })
 
 test("切れている間に書き残した事は、つなぎ直してから新しいつながりの id で常駐のログに送る", async () => {

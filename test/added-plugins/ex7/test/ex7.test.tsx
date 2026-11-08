@@ -10,7 +10,7 @@ import EX7_UI from "../ui"
 test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重さを足し合わせる", () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX6_UI, EX7_UI],
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
   act(() => {

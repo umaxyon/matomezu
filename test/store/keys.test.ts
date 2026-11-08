@@ -164,7 +164,7 @@ const thrown = (run: () => unknown) => {
 }
 
 test("組み立ては、読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行を error にする", () => {
-  const own = defineCommand({ id: "k:own", title: "@matomezu/master:Master", run: () => {}, when: () => true })
+  const own = defineCommand({ id: "k:own", title: "@matomezu/drawing:Drawing", run: () => {}, when: () => true })
   const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })
   expect(thrown(make([{ id: "k:a", key: "Hyper+K", command: "k:own", scope: "stage" }]))).toEqual(["E022"])
@@ -177,7 +177,7 @@ test("組み立ては、読めないキー・無いコマンド・追加プラ�
 
 test("追加プラグインの既定のキーバインドがビルトインの行に負けたら W008、id の順で先の追加プラグインの行に負けたら W021 の warning を残す（負けた行は効かない）", () => {
   const command = (id: string) =>
-    defineCommand({ id, title: "@matomezu/master:Master", run: () => {}, when: () => true })
+    defineCommand({ id, title: "@matomezu/drawing:Drawing", run: () => {}, when: () => true })
   // id を引数で作るので、頭の確かめの型は外して渡す（組み立ての確かめは実行時に通る）
   const plugin = (id: string, key: string) =>
     definePlugin({
@@ -196,7 +196,7 @@ test("追加プラグインの既定のキーバインドがビルトインの�
 })
 
 test("既定の割り当ては id で機能台帳に並び、同じ id は error。頭が自分のプラグインの id でない id も error", () => {
-  const own = defineCommand({ id: "k:own", title: "@matomezu/master:Master", run: () => {}, when: () => true })
+  const own = defineCommand({ id: "k:own", title: "@matomezu/drawing:Drawing", run: () => {}, when: () => true })
   const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })
   const one = { id: "k:a", key: "K", command: "k:own", scope: "stage" }

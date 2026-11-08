@@ -19,7 +19,11 @@ afterEach(cleanup)
 
 // フローチャートのブックを作り、ページを 1 つ足して開く
 function flowchart() {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins: BUILTIN_UI,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />

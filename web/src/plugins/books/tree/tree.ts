@@ -56,7 +56,6 @@ export const TREE = kit.defineBookType({
   version: 1,
   title: "Tree",
   schema: z.strictObject({ id: z.string().min(1) }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   createSettings: [kit.name("grow")], // ブックを作るダイアログで、伸びる向きを聞く

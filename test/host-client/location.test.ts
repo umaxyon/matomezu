@@ -59,9 +59,9 @@ test("URL の形: ステージごとにブック・ページ・倍率とずら�
   const search = searchOf(address)
   expect(decodeURIComponent(search)).toBe(`?b0=b1&p0=p1&v0=1,0,0&b1=&v1=1.25,12.5,-3&s1={"@x/p":{"a":1}}&c=1&r=0.4`)
   expect(parseSearch(search)).toEqual(address)
-  // id に : や / が入っていても読み戻せる（1 冊だけのタイプのブックの id など）
-  const master = { ...address, stages: [{ ...address.stages[0]!, book: "@matomezu/master:master", page: null }] }
-  expect(parseSearch(searchOf(master))).toEqual(master)
+  // id に : や / が入っていても読み戻せる（プラグインの名前空間の付いたブックの id など）
+  const namespaced = { ...address, stages: [{ ...address.stages[0]!, book: "@ex/notes:memo", page: null }] }
+  expect(parseSearch(searchOf(namespaced))).toEqual(namespaced)
   expect(parseSearch("?x=1")).toBeNull()
   // 画面の状態が JSON のオブジェクトでなければ空（中身の形は store が確かめる）
   expect(parseSearch("?b0=b1&v0=1,0,0&s0=%7Bx&c=0&r=0.5")?.stages[0]?.states).toEqual({})

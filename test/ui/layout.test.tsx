@@ -25,7 +25,12 @@ import { SAMPLE_BOOKS } from "../sample-books"
 afterEach(cleanup)
 
 const instance = () =>
-  createMatomezu({ plugins: BUILTIN_UI, home: "@matomezu/master:master", books: SAMPLE_BOOKS, lang: "ja" })
+  createMatomezu({
+    plugins: BUILTIN_UI,
+    controlCenter: "@matomezu/control-center:control-center",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+  })
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(instance().catalog.store.commands.keys())
 
@@ -124,7 +129,7 @@ describe("配置", () => {
       id: "bad",
       contextMenus: {
         "@matomezu/paper:paper-context": ["drawing.nope"],
-        "other.context": ["@matomezu/base:stage-home"],
+        "other.context": ["@matomezu/base:stage-split"],
       },
     } as unknown as LayoutDef
     expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
@@ -142,7 +147,7 @@ describe("配置", () => {
       ...DEFAULT_LAYOUT,
       id: "typed",
       // @ts-expect-error tool-set は道具の id だけを取る
-      anchorMenu: ["@matomezu/base:note-new", "@matomezu/base:stage-home", "@matomezu/base:tool-set"],
+      anchorMenu: ["@matomezu/base:note-new", "@matomezu/base:stage-split", "@matomezu/base:tool-set"],
     })
   })
 
@@ -449,7 +454,7 @@ describe("取り込むときの配置の確かめ", () => {
   })
 
   test("配置が食い違うプラグインは取り込むときに外し、ほかのプラグインで画面を描く", () => {
-    const instance = createMatomezu({ plugins: BUILTIN_UI, home: "@matomezu/master:master" })
+    const instance = createMatomezu({ plugins: BUILTIN_UI, controlCenter: "@matomezu/control-center:control-center" })
     const { failed } = instance.use([nowhere, fine], all => {
       shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
     })

@@ -13,7 +13,11 @@ interface Page {
 }
 
 const shelf = () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX5_UI], home: "@matomezu/master:master", lang: "ja" })
+  const instance = createMatomezu({
+    plugins: [...BUILTIN_UI, EX5_UI],
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <Screen />

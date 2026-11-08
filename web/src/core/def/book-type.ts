@@ -38,7 +38,7 @@ export interface NewBook {
   title: string
 }
 
-interface BookTypeBase<S extends z.ZodObject> extends BookTypeExtras {
+export interface BookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTypeExtras {
   id: string // データの type の値
   version: number // データの形の版
   title: MessageKey // タイプの名前。題名を持たないブックは、この名前で呼ぶ
@@ -56,8 +56,7 @@ interface BookTypeBase<S extends z.ZodObject> extends BookTypeExtras {
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、残しておいたブックは読めないとして warning W006 にする。データは捨てない）
   holds?(book: z.infer<S>, catalog: CoreCatalog): boolean
   settings?: BookTypeSettings
-  // ホームにしたときに、利用者の設定の項目のうち変えさせない物の id（利用者にも AI にも。組織のホームで決める）。actions.without の、項目ごとの版
-  fixedUserSettings?: readonly string[]
+  create(init: NewBook): z.infer<S> // 空のブックを作る
   // 使わせないアノテーションの種類の id（無ければ、どの種類も使える。core/def/annotation.ts）
   annotations?: { without?: readonly AnnotationId[] }
 }
@@ -67,21 +66,6 @@ export interface BookTypeSettings {
   book?: readonly string[]
   page?: readonly string[]
 }
-
-// 1 冊だけのタイプ（マスターなど）。作る操作は無く、その 1 冊のデータを定義に持つ（id はタイプの id）。
-// インスタンスは表にある 1 冊だけのタイプのブックを、いつも持つ
-export interface SingleBookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTypeBase<S> {
-  single: true
-  book: z.infer<S>
-}
-
-// 何冊も作れるタイプ。create は空のブックを作る
-export interface ManyBookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTypeBase<S> {
-  single: false
-  create(init: NewBook): z.infer<S>
-}
-
-export type BookTypeDef<S extends z.ZodObject = z.ZodObject> = SingleBookTypeDef<S> | ManyBookTypeDef<S>
 
 // create の返す値を、schema の形に合わせる（id などは書いた文字のまま残す）
 export function defineBookType<const S extends z.ZodObject, const T extends BookTypeDef<S>>(def: T & { schema: S }): T {

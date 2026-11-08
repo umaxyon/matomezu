@@ -15,7 +15,12 @@ afterEach(() => {
 })
 
 function setup() {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI, partial: true })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    partial: true,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -148,7 +153,12 @@ test("Tab キーは、利用者の設定の項目で選んだ字を書く（既�
 })
 
 test("設定画面の「マークダウン」の「Tabキー」: 押している方を見せ、Tab を選んでいる間に選び替えた数は、半角スペースに戻したときに使う", () => {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI, partial: true })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    partial: true,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />

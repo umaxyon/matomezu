@@ -13,7 +13,7 @@ afterEach(cleanup)
 test("紙 1 枚で描くページには線を引かず、広さが右に 2 枚・下に 3 枚なら、縦の線 1 本と横の線 2 本を引く", () => {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
   })

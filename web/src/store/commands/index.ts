@@ -29,7 +29,7 @@ export const commandOwner = (command: string): string => splitId(command).owner 
 // コマンド command をそのステージから呼んだときの様子。ステージが無ければ null。画面の状態は、コマンドを持つプラグインの置き場だけを読む
 export function commandContext(
   catalog: CoreCatalog,
-  home: string | null,
+  controlCenter: string | null,
   state: MatomezuState,
   stageId: string,
   command: string,
@@ -41,7 +41,7 @@ export function commandContext(
   return withWorkspace(
     {
       catalog,
-      home,
+      controlCenter,
       stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
       book,
       settings,
@@ -54,7 +54,7 @@ export function commandContext(
   )
 }
 
-// コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければホームのタイプ）で使えるか（認可ステップが止めているかは見ない）
+// コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければコントロールセンター）で使えるか（認可ステップが止めているかは見ない）
 function performable(def: CommandDef<never>, ctx: CommandContext): boolean {
   return (def.performs ?? []).every(
     action =>
@@ -65,7 +65,7 @@ function performable(def: CommandDef<never>, ctx: CommandContext): boolean {
 
 // 出すか: 行うアクションが使え、when が出すとするとき
 export function isShown(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.catalog.core, defs.home, state, stageId, id)
+  const ctx = commandContext(defs.catalog.core, defs.controlCenter, state, stageId, id)
   const def = commandDef(defs, id)
   return ctx !== null && performable(def, ctx) && def.when(ctx)
 }
@@ -87,12 +87,12 @@ function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
 
 // 押せるか: 出していて、行うアクションのどれかを認可ステップが止めず、enabled が押せるとするとき
 export function isEnabled(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.catalog.core, defs.home, state, stageId, id)
+  const ctx = commandContext(defs.catalog.core, defs.controlCenter, state, stageId, id)
   const def = commandDef(defs, id)
   return ctx !== null && performable(def, ctx) && def.when(ctx) && permitted(def, ctx) && (def.enabled?.(ctx) ?? true)
 }
 
 export function isActive(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.catalog.core, defs.home, state, stageId, id)
+  const ctx = commandContext(defs.catalog.core, defs.controlCenter, state, stageId, id)
   return ctx !== null && (commandDef(defs, id).active?.(ctx) ?? false)
 }

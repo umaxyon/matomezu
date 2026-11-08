@@ -8,7 +8,7 @@ import { bookType } from "../../../core/core-catalog"
 import { worldOf } from "../../../store/world"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useHome, useMatomezuState } from "../../../ui/store-context"
+import { useControlCenter, useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form, Section } from "../dialog-host/FormParts"
@@ -32,8 +32,8 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const createAndOpen = useCreateBook(stage)
   const [title, setTitle] = useState("")
   const catalog = useCoreCatalog()
-  const home = useHome()
-  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, home })))
+  const controlCenter = useControlCenter()
+  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, controlCenter })))
   const [type, setType] = useState(types[0] ?? "")
   const [settings, setSettings] = useState<SettingsPatch>({})
   const asks = type ? (bookType(catalog, type).createSettings ?? []) : []

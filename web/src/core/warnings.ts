@@ -13,7 +13,7 @@ export const WARNINGS = {
   W010: "layout {layout}: {kind} {id} is skipped, as its plugin is not there",
   W011: "the screen did not add it ({reason}); its actions still work on the host, but nothing it draws is shown",
   W012: "tool {tool}: performs {action}, which is not in the catalog",
-  W013: "bookType {type}: fixedUserSettings names {setting}, which is not a user setting",
+  W013: "controlCenter {controlCenter}: fixedUserSettings names {setting}, which is not a user setting",
   W014: "theme {theme}: textColors names {textColor}, which is not in the catalog",
   W015: "theme {theme}: token {token} is {value}, which is not {expected} (not used)",
   W016: "widget {widget}: place names {target} in slot {slot}, which is not there (not placed)",

@@ -40,7 +40,6 @@ export const MAP = kit.defineBookType({
   version: 1,
   title: "map",
   schema: z.strictObject({ id: z.string().min(1) }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {

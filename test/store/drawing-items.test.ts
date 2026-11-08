@@ -145,15 +145,13 @@ test("ハンドの道具でアイテムを置こうとすると、選択の道�
   expect(store.state.getState().workspace.stages[0]!.placing).toBeNull()
 })
 
-test("ページを替えると、選択と置こうとしていたアイテムを捨てる。紙の無いマスターでは道具の切り替えを出さない", () => {
+test("ページを替えると、選択と置こうとしていたアイテムを捨てる", () => {
   const store = ready()
   addPageIn(store, "s1", { title: "ページ 2" })
   store.actions.select("s1", ["b9"])
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
   store.actions.openPage("s1", "p1")
   expect(store.state.getState().workspace.stages[0]).toMatchObject({ placing: null, selection: [] })
-  store.actions.command("s1", "@matomezu/base:stage-home")
-  expect(store.actions.command("s1", "@matomezu/base:tool-next")).toBe(false)
 })
 
 test("箱の編集は書いた項目だけを変え、位置・大きさと id はそのまま。形に合わない項目・無い箱なら変えない", () => {
@@ -220,7 +218,7 @@ test("追加と編集のダイアログを持たない形は、押した所に�
   )
   const store = createMatomezuInstance({
     plugins,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),
@@ -253,17 +251,16 @@ test("選んでいるアイテムを消すと選択も外れる。選んでい�
   expect(page(store).items!.map(i => i.id)).toEqual(["n2"])
 })
 
-test("道具は道具の組ごとに 1 つ。同じ組を使うステージは、開いているブックが違っても同じ道具になる。紙の無いマスターは道具を持たない", () => {
+test("道具は道具の組ごとに 1 つ。同じ組を使うステージは、開いているブックが違っても同じ道具になる。ブックを開いていないステージは道具を持たない", () => {
   const store = ready()
   store.actions.split("s1")
+  expect(toolAt(store, "s2")).toBeNull()
+  expect(store.actions.command("s2", "@matomezu/base:tool-next")).toBe(false)
   store.actions.openBook("s2", "b2")
   store.actions.setTool("s1", "@matomezu/base:hand")
   expect([toolAt(store, "s1"), toolAt(store, "s2")]).toEqual(["@matomezu/base:hand", "@matomezu/base:hand"])
   store.actions.command("s2", "@matomezu/base:tool-next")
   expect([toolAt(store, "s1"), toolAt(store, "s2")]).toEqual(["@matomezu/base:select", "@matomezu/base:select"])
-  store.actions.openBook("s2", "@matomezu/master:master")
-  expect(toolAt(store, "s2")).toBeNull()
-  expect(store.actions.command("s2", "@matomezu/base:tool-next")).toBe(false)
 })
 
 test("置こうとしているアイテムはステージごと。道具を替えると、同じ組を使うステージの全部で取り消す", () => {

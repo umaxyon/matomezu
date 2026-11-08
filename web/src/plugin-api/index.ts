@@ -8,6 +8,7 @@ export type {
   ActionId,
   BookTypeId,
   CommandId,
+  ControlCenterId,
   DialogId,
   ItemId,
   KeyScopeId,
@@ -15,7 +16,6 @@ export type {
   PaperId,
   PresentationId,
   SettingId,
-  SingleBookTypeId,
   SkinId,
   SlotId,
   ThemeId,
@@ -27,6 +27,7 @@ export { bookType } from "../core/core-catalog"
 export type { ActionDef, Declined } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { BookTypeDef } from "../core/def/book-type"
+export type { ControlCenterDef } from "../core/def/control-center"
 export type {
   ConnectorData,
   ItemDef,

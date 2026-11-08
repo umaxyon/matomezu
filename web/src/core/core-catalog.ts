@@ -8,6 +8,7 @@ import { HEX } from "./color"
 import { type ActionDef, attachedTo } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
 import type { BookTypeDef } from "./def/book-type"
+import type { ControlCenterDef } from "./def/control-center"
 import type { ItemDef } from "./def/item"
 import type { MailDef } from "./def/mail"
 import type { NormalizeStepDef } from "./def/normalize-step"
@@ -36,6 +37,7 @@ export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
 declare module "./catalog" {
   interface PartDefTable {
     bookTypes: BookTypeDef
+    controlCenters: ControlCenterDef
     items: ItemDef
     actions: ActionDef
     settings: SettingDef
@@ -226,7 +228,7 @@ const shadeWarnings = (parts: CoreCatalogParts): Warning[] => {
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
 // タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの。
 // 道具の performs の、表に無いアクション（W012。その行だけ効かない）。warning は道具のプラグインのもの。
-// タイプの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）。
+// コントロールセンターの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）。
 // 明暗で同じ値だけのテーマキーに明暗で違う値を書いたテーマ（W020）
 function coreWarnings(parts: CoreCatalogParts): Warning[] {
   const actions = byId(parts.actions)
@@ -250,11 +252,13 @@ function coreWarnings(parts: CoreCatalogParts): Warning[] {
           .filter(id => !attached(id) && !(t.actions.add ?? []).includes(id))
           .map(id => warning("W001", plugin, { type: t.id, action: id })),
         ...(t.actions.add ?? []).filter(attached).map(id => warning("W002", plugin, { type: t.id, action: id })),
-        ...(t.fixedUserSettings ?? [])
-          .filter(id => !userSettings.has(id))
-          .map(id => warning("W013", plugin, { type: t.id, setting: id })),
       ]
     }),
+    ...parts.controlCenters.flatMap(c =>
+      (c.fixedUserSettings ?? [])
+        .filter(id => !userSettings.has(id))
+        .map(id => warning("W013", splitId(c.id).owner ?? "", { controlCenter: c.id, setting: id })),
+    ),
   ]
 }
 
@@ -295,6 +299,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       seen.add(d.id)
     }
   }
+  for (const c of parts.controlCenters)
+    for (const id of c.actions) if (!actions.has(id)) problems.push(problem("E041", { id: c.id, ref: id }))
   for (const t of parts.bookTypes) {
     const literal = t.schema.shape.type
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
@@ -312,9 +318,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
         if (field in (t.pages.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
     }
     const built = buildBookSchemas(parts, t).book
-    if (t.single && (t.book.id !== t.id || !built.safeParse(t.book).success))
-      problems.push(problem("E019", { id: t.id }))
-    if (!t.single && !built.safeParse(t.create({ id: "check", title: "check" })).success)
+    if (!built.safeParse(t.create({ id: "check", title: "check" })).success)
       problems.push(problem("E007", { id: t.id }))
     for (const id of t.items.allowed)
       if (!items.has(id)) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))

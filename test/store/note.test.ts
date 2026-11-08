@@ -7,7 +7,6 @@ import { defineAction } from "../../web/src/core/def/action"
 import { performIn } from "../../web/src/core/perform"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { expiryOutlook } from "../../web/src/plugins/base/note/expiry"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG, newStore } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
@@ -124,11 +123,6 @@ test("文を変えると未読に戻る。吹き出しだけを変えても既�
   expect(props().readAt).toBeUndefined()
 })
 
-test("マスターには伝言を付けられない（タイプが種類を外している）", () => {
-  const { store } = ready()
-  expect(store.actions.perform(ADD, { anchors: ["x"], text: "x" }, { book: MASTER_BOOK.id }).ok).toBe(false)
-})
-
 test("ブックを消すと、そのブックの伝言も消える", () => {
   const { store, a, notes } = ready()
   store.actions.perform(ADD, { anchors: [a], text: "x" }, ON)
@@ -144,7 +138,14 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
   const id = notes()[0]!.id
   const s = store.state.getState()
   const world = { books: s.books, settings: s.settings, annotations: s.annotations, mailbox: [], participants: [] }
-  const ctx = { catalog: CORE_CATALOG, home: null, lang: "en" as const, newId: () => "n", now: "t", by: "ai" as const }
+  const ctx = {
+    catalog: CORE_CATALOG,
+    controlCenter: null,
+    lang: "en" as const,
+    newId: () => "n",
+    now: "t",
+    by: "ai" as const,
+  }
   const ai = (action: string, args: unknown) => performIn(world, action, args, ON, ctx)
   const refused = { ok: false, reason: "not-allowed" } as const
   expect(ai(ADD, { anchors: [a], text: "y" })).toEqual(refused)

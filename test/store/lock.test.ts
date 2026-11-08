@@ -7,7 +7,6 @@ import type { Book, BookOf } from "../../web/src/core/schema/book"
 import { refusalMessage } from "../../web/src/plugins/base"
 import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import type { CommandId } from "../../web/src/store/commands"
 import { isEnabled } from "../../web/src/store/commands"
 import { CORE_CATALOG, newStore } from "../support"
@@ -56,7 +55,7 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
   const { state } = newStore()
   const ctx = (by?: "ai") => ({
     catalog: CORE_CATALOG,
-    home: MASTER_BOOK.id,
+    controlCenter: "@matomezu/control-center:control-center",
     lang: "en" as const,
     newId: () => "n",
     now: "2026-10-29T00:00:00.000Z",

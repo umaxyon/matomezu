@@ -19,7 +19,12 @@ import { writeRich } from "./rich-input"
 afterEach(cleanup)
 
 function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins, partial: true })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins,
+    partial: true,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -219,7 +224,7 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
   const make = () => {
     let n = 0
     const store = createMatomezu({
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       lang: "ja",
       plugins: BUILTIN_UI,
       newId: () => `id${String(n++).padStart(8, "0")}`,

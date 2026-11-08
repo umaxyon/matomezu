@@ -1,5 +1,5 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book と annotations が対象ならそのブックのタイプ、library と settings が対象ならインスタンスのホームのブックのタイプが決める（ホームが無ければ断る）。
+// 使えるかは、book と annotations が対象ならそのブックのタイプ、library・settings・mailbox・participants が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
@@ -37,7 +37,7 @@ export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
 
 // denied は認可ステップが止めたこと（permission はそのステップの id）。refused の detail・kind は、run が添えた断った理由の文と断りの種類（def/action.ts の Declined）。not-allowed で止めたのが利用者の設定の項目ごとのステップなら、
-// setting にその項目の id、because に理由（user-only は利用者だけが変える項目、fixed はホームのタイプが変えさせない項目）
+// setting にその項目の id、because に理由（user-only は利用者だけが変える項目、fixed はコントロールセンターが変えさせない項目）
 export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
 export type NotAllowed = { ok: false; reason: "not-allowed"; setting?: string; because?: "user-only" | "fixed" }
 export type Refused =
@@ -100,8 +100,8 @@ function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after:
   return null
 }
 
-// 行う前の問いに要る文脈（機能台帳・ホーム・誰が行うか）
-export type PermitContext = Pick<ActionContext, "catalog" | "home" | "by">
+// 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）
+export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "by">
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可の範囲で引数から出した変える項目の id も渡す。
 // 認可ステップに渡すのは、ブックが対象ならそのブックと、アクションの許可の範囲（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
@@ -177,7 +177,7 @@ function answerOf(answer: Inspected<boolean>): Permitted {
   const from = answer.decidedBy
   if (from?.source === "userSetting")
     return { ok: false, reason: "not-allowed", setting: from.id, because: "user-only" }
-  if (from?.source === "bookType" && from.field === "fixedUserSettings")
+  if (from?.source === "controlCenter" && from.id !== null && from.field === "fixedUserSettings")
     return { ok: false, reason: "not-allowed", setting: from.setting, because: "fixed" }
   return { ok: false, reason: "not-allowed" }
 }

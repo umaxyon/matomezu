@@ -1,16 +1,14 @@
 // ゴミ箱: ブックをゴミ箱に入れる book-trash（入れた時刻 trashed を付ける）、戻す book-restore（trashed を外す）、
 // 消す book-purge と、ゴミ箱を空にする trash-empty（一覧から消す。戻せない）。戻す・消す・空にするのは利用者だけ（userOnly）。
-// 1 冊だけのタイプのブックと、無いブック・入れ済みのブックは入れない。ロック中のブック・ロック中のページを持つブックは、認可ステップ lock が止める
+// 無いブック・入れ済みのブックは入れない。ロック中のブック・ロック中のページを持つブックは、認可ステップ lock が止める
 import { z } from "zod"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Library } from "../../../core/library"
 import type { Book } from "../../../core/schema/book"
 import { setField } from "../fields"
 import { kit } from "../kit"
 
-// ゴミ箱に入れる物か: まだ入れていない、1 冊だけのタイプでないブック（行えるかは、ほかに認可ステップなどが決める）
-export const isTrashCandidate = (catalog: CoreCatalog, book: Book): boolean =>
-  book.trashed === undefined && !bookType(catalog, book.type).single
+// ゴミ箱に入れる物か: まだ入れていないブック（行えるかは、ほかに認可ステップなどが決める）
+export const isTrashCandidate = (book: Book): boolean => book.trashed === undefined
 
 // ゴミ箱のブックを、入れた時刻の新しい順に
 export const trashOrder = (trash: Library): Book[] =>
@@ -37,7 +35,7 @@ export const BOOK_TRASH = kit.defineAction({
   args: z.strictObject({ book: z.string().min(1) }),
   run: (library, args, ctx) => {
     const book = library[args.book]
-    if (!book || !isTrashCandidate(ctx.catalog, book)) return null
+    if (!book || !isTrashCandidate(book)) return null
     return { next: markTrashed(library, args.book, ctx.now), result: {} }
   },
 })
