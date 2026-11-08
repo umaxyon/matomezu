@@ -140,7 +140,6 @@ export type SlotProps<S extends SlotId> = SlotTable[S]
 // ここに declare module で書き足す（base も追加プラグインも。追加プラグインからは matomezu/catalog）。定義を書くプラグインは、書き足されたものを
 // 自分の定義オブジェクトに書く（型が効く）。base は短い名前、base 以外は "<プラグインの id>:<名前>"（例 "@foo/pdf:draw"）で書き足す
 export interface BookTypeExtras {}
-export interface ControlCenterExtras {}
 // 形とつなぐものの拡張ポイントは、書き足すメソッドが置いたデータの型 D を使えるように型引数を持つ（書き足すときも同じ型引数で書く）。
 // dataOf は D を拡張ポイントに結ぶためだけの型の印で、値は持たない
 declare const dataOf: unique symbol

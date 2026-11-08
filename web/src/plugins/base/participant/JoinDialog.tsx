@@ -14,7 +14,7 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { PARTICIPANT_ACCEPT } from "."
 import { BirdFaceView } from "./BirdFaceView"
-import { originalPalette } from "./birds"
+import { originalPalette, PALETTE_TITLES } from "./birds"
 import { useIsAlive, useNowMs, useParticipantCalls, useParticipants } from "./hooks"
 import styles from "./Participant.module.css"
 
@@ -58,7 +58,8 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const inUse =
     trimmed !== "" &&
     participants.some(p => p.state === "joined" && p.workroom === trimmed && isAlive(calls[p.id], nowMs))
-  const paletteName = BIRD_PALETTES.find(p => p.id === shown)?.name ?? ""
+  const shownTitle = PALETTE_TITLES[shown as keyof typeof PALETTE_TITLES]
+  const paletteName = shownTitle ? t(shownTitle) : ""
   const allowed = useAllowedOn(PARTICIPANT_ACCEPT.id, {
     participant,
     workroom: trimmed || "-",
@@ -112,7 +113,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
               {BIRD_PALETTES.map(p => (
                 <Pick
                   key={p.id}
-                  title={p.name}
+                  title={t(PALETTE_TITLES[p.id as keyof typeof PALETTE_TITLES])}
                   checked={p.id === shown}
                   onPick={() => setPalette(p.id)}
                   group="palette"

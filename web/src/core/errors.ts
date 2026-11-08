@@ -78,6 +78,7 @@ export const ERRORS = {
   E308: "plugin {plugin}: only built-in plugins may have checks",
   E309: "plugin {plugin}: only built-in plugins may give a user setting a role ({id})",
   E310: "plugin {plugin}: only built-in plugins may have normalize steps",
+  E311: "plugin {plugin}: only built-in plugins may have control centers",
 
   E401: "the server could not give the data: {status}",
 } as const

@@ -268,6 +268,12 @@ test("テーマが明暗で同じ値だけのテーマキー（shades: one）に
   ])
 })
 
+test("追加プラグインはコントロールセンターを持てない（E311）", () => {
+  expect(() => assemble([...BUILTIN, { id: "extra", controlCenters: [{ id: "extra:center", actions: [] }] }])).toThrow(
+    /E311|only built-in/,
+  )
+})
+
 test("追加プラグインはノーマライズステップを持てない（E310）", () => {
   const step = { pageFields: [], normalize: (_before: unknown, after: never) => after }
   expect(() => assemble([...BUILTIN, { id: "extra", normalizeSteps: [step] }])).toThrow(/E310|only built-in/)

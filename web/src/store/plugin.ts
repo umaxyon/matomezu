@@ -152,6 +152,7 @@ export function assemble(
   for (const p of plugins) {
     if (p.checks !== undefined && !isBuiltin(p)) fail("E308", { plugin: p.id })
     if (p.normalizeSteps !== undefined && !isBuiltin(p)) fail("E310", { plugin: p.id })
+    if (p.controlCenters !== undefined && !isBuiltin(p)) fail("E311", { plugin: p.id })
     for (const d of p.userSettings ?? []) if (d.role && !isBuiltin(p)) fail("E309", { plugin: p.id, id: d.id })
     for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!isOwnedBy(p.id, d.id)) fail("E301", { plugin: p.id, kind, id: d.id })
