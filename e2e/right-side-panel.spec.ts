@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
 import { leftPanel, openOutbox } from "./helpers/outbox"
@@ -33,7 +33,7 @@ test("伝言の絵を押すと、窓の右から 320px の右サイドパネル�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await foldedNote(page, 200, "一", "見てほしい")
   await (await fromMenu(page, "画面を分割")).click()
   const split = await widths(page)
@@ -59,7 +59,7 @@ test("外を押しても閉じない（伝言を出している間）。ステ�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await foldedNote(page, 200, "一", "一つ目")
   await foldedNote(page, 500, "二", "二つ目")
   const icons = page.getByRole("button", { name: "伝言を開く" })
@@ -112,7 +112,7 @@ test("開いたステージのページが替わるか、分けると閉じる�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await foldedNote(page, 200, "一", "見てほしい")
   const icon = page.getByRole("button", { name: "伝言を開く" })
   // ハンドツールの間は外を押しても閉じないので、ページや分割で閉じるかだけを見られる
@@ -149,7 +149,7 @@ test("開いたステージのページが替わるか、分けると閉じる�
 
 test("窓が右サイドパネルの幅より狭ければ、右サイドパネルが窓の幅でステージを覆う。閉じれば戻る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await foldedNote(page, 200, "一", "見てほしい")
   await page.setViewportSize({ width: 300, height: 700 })
   await page.getByRole("button", { name: "伝言を開く" }).click()
@@ -177,7 +177,7 @@ async function zoomOut(page: Page) {
 
 test("開くと倍率を 100% にして、付けた物を見せる。閉じれば開く前の見え方に戻る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const full = (await paperBox(page)).w
   await foldedNote(page, 1000, "端", "見てほしい")
   await zoomOut(page)
@@ -200,7 +200,7 @@ test("開くと倍率を 100% にして、付けた物を見せる。閉じれ�
 
 test("開いている間に紙をずらすか倍率を変えたら、閉じても戻さない", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const full = (await paperBox(page)).w
   await foldedNote(page, 1000, "端", "見てほしい")
   await zoomOut(page)
@@ -224,7 +224,7 @@ test("リストの中のスクロールの奥の行を開くと、リストも�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "多い")
   for (const n of [1, 2, 3, 4, 5]) await addRow(page, list, `行 ${n}`)
   const rows = list.locator("ul").locator("..")

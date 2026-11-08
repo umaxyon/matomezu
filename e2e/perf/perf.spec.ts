@@ -5,7 +5,7 @@
 // - マークダウン: 原文 1000・3000・5000 行のページを開き、ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
-import { aiAuth, expect, type Page, test } from "../fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "../fixtures"
 import { BOX_SIZE, boxAt, dirBook, gridBook, markdownBook, PAGE, treeBook } from "./books"
 import { awaitItems, installProbe, readyAt, startRecording, stopRecording } from "./probe"
 
@@ -174,7 +174,7 @@ for (const o of OTHERS)
 
 test("アクション: AI の入口から箱と線を 300 まで足す", async ({ page, request }) => {
   const headers = aiAuth()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const perform = async (body: Record<string, unknown>) => {
     const start = performance.now()
     const res = await request.post("/api/ai/perform", { headers, data: body })

@@ -20,13 +20,13 @@ const put = async <B extends { id: string }>(page: Page, book: B) =>
   expect((await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })).ok()).toBe(true)
 
 test("初めて開くと、ブックを持たず、何も開かない", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(page.getByText("ブックを選択してください")).toBeVisible()
   expect((await data(page)).books).toEqual([])
 })
 
 test("設定画面で変えた設定は常駐に残り、読み直しても同じ", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await openGeneral(page)).getByLabel("スキン").selectOption("@matomezu/base:dark")
   await expect.poll(async () => (await data(page)).settings?.["@matomezu/base:skin"]).toBe("@matomezu/base:dark")
   await page.reload()
@@ -36,7 +36,7 @@ test("設定画面で変えた設定は常駐に残り、読み直しても同�
 test("置いた箱は少し待って常駐に残り、読み直しても同じ所にある", async ({ page }) => {
   const book = E2E_1
   await put(page, book)
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "残る箱")
   await expect.poll(async () => (await data(page)).books.find((b: { id: string }) => b.id === book.id)?.version).toBe(2)
   const before = (await page.locator("[data-item]").boundingBox())!
@@ -85,7 +85,7 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
 test("AI の入口からは、最後にフォーカスした窓が見ているものが分かり、AI が置いた箱はすぐ窓に出る", async ({ page }) => {
   const ai = aiAuth()
   await put(page, E2E_1)
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   await expect
@@ -106,7 +106,7 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
 test("AI が show で頼むと、最後にフォーカスした窓が、分けたステージでそのブックを開く", async ({ page }) => {
   const ai = aiAuth()
   await put(page, E2E_1)
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -166,7 +166,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   const ai = aiAuth()
   await put(page, E2E_1)
   await put(page, LINE_BOOK)
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   // 前のテストの窓ではなく、開いたばかりのこの窓に届くように、この窓にフォーカスを知らせる（すでに前にある窓は focus が起きない）
   await expect(page.locator("[data-stage]")).toHaveCount(1)
@@ -226,7 +226,7 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
 }) => {
   await put(page, { ...E2E_1, id: "e2e-trash", title: "捨てるブック" })
   await put(page, { ...E2E_1, id: "e2e-locked", title: "鍵のブック", locked: true })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const openDialog = async () => {
     await (await fromMenu(page, "ブックを開く")).click()
     return page.getByRole("dialog", { name: "ブックを開く" })
@@ -302,7 +302,7 @@ test("AI がマークダウンのページの原文を page-update で変える�
 }) => {
   const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -345,7 +345,7 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
 }) => {
   const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -394,7 +394,7 @@ test("付けた伝言を右サイドパネルで開いて文を直している�
 }) => {
   const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())

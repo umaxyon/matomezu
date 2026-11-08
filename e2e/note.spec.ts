@@ -1,4 +1,4 @@
-import { aiAuth, expect, type Page, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { browserMenuStopped } from "./helpers/browser-menu"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
@@ -10,7 +10,7 @@ const stands = (page: Page) => page.locator("[data-stand]")
 test("箱の右クリックの「AIに伝言」で右サイドパネルが開き、書いて付けると文の始めだけの吹き出しで出る。押すと右サイドパネルに出て、文を直して再送できる。消すと無くなる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
@@ -47,7 +47,7 @@ test("書いている間は、物を押すと付ける先が替わり、Ctrl+ク
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 150, "一")
   await addBox(page, 400, 150, "二")
   const one = items(page).filter({ hasText: "一" })
@@ -106,7 +106,7 @@ test("書いている間は、物を押すと付ける先が替わり、Ctrl+ク
 test("伝言の吹き出しと、たたんだ伝言の角の絵の右クリックでは、ブラウザのメニューも紙のメニューも出さない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await writeNote(page, items(page).filter({ hasText: "一" }), "右クリック")
   const bubble = page.getByRole("button", { name: "伝言を開く" })
@@ -125,7 +125,7 @@ test("伝言の吹き出しと、たたんだ伝言の角の絵の右クリッ�
 test("吹き出しに乗せると上に「隠す」が出て、はいで角の伝言の絵になる。絵に乗せると「表示」「消す」が出て、表示で吹き出しに戻り、消すで無くなる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await writeNote(page, items(page).filter({ hasText: "一" }), "隠す")
   const bubble = page.getByRole("group", { name: "伝言", exact: true }).getByRole("button", { name: "伝言を開く" })
@@ -157,7 +157,7 @@ test("吹き出しに乗せると上に「隠す」が出て、はいで角の�
 test("吹き出しは右に入らなくても左に回さず、画面の右の端で止める。尾の先が物の左の辺を越えないように幅を縮め、尾は左に出す。縮めきれなければ縁のマークポインタになり、押すと箱が見えて吹き出しに戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await writeNote(page, box, "右の端")
@@ -202,7 +202,7 @@ test("吹き出しは右に入らなくても左に回さず、画面の右の�
 })
 
 test("書いている間は Esc で付けずに閉じる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
@@ -217,7 +217,7 @@ test("書いている間は付ける先に鳥が出て、付ける先を足す�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 150, "一")
   await addBox(page, 400, 150, "二")
   const one = items(page).filter({ hasText: "一" })
@@ -245,7 +245,7 @@ test("書いている間は付ける先に鳥が出て、付ける先を足す�
 test("書いている間に別の伝言の吹き出しを押すと、吹き出しの物を押したのと同じに付ける先が替わり、書きかけは残る。Ctrl+クリックなら足す", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 150, "一")
   await addBox(page, 400, 150, "二")
   const one = items(page).filter({ hasText: "一" })
@@ -272,7 +272,7 @@ test("書いている間に別の伝言の吹き出しを押すと、吹き出�
 
 test("表示領域より高いリストを付ける先にすると、リストの上の辺に乗る鳥が切れない所まで見せる", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "多い")
   for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) await addRow(page, list, `行 ${n}`)
   await page.setViewportSize({ width: 1200, height: 230 })
@@ -294,7 +294,7 @@ test("表示領域より高いリストを付ける先にすると、リスト�
 test("付ける先がいくつかあるときは、カレントの物に明るい枠が重なる（1 つなら出さない）。カレントを替えると枠も移る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await addBox(page, 500, 150, "二")
   const one = items(page).filter({ hasText: "一" })
@@ -316,7 +316,7 @@ test("付ける先がいくつかあるときは、カレントの物に明る�
 })
 
 test("リストの行に付けた伝言の吹き出しは、リストの幅を変えると行の右に付いて動く", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "多い")
   await addRow(page, list, "行 1")
   await writeNote(page, list.getByRole("listitem").first(), "見て")
@@ -344,7 +344,7 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ width: 900, height: 480 })
   const ai = aiAuth()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -388,7 +388,7 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   const ai = aiAuth()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -465,7 +465,7 @@ test("角のまとめた絵は、押しても Enter でも開き、離れて少�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ width: 900, height: 480 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 40, "上")
   await addBox(page, 200, 300, "下")
   const fold = async (name: string) => {
@@ -539,7 +539,7 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   const ai = aiAuth()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const general = await openGeneral(page)
   const order = general.getByRole("group", { name: "コーナーステータスの並び" })
   const names = order.getByRole("listitem").locator(":scope > span")
@@ -553,7 +553,7 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
   await settingsDialog(page).getByRole("button", { name: "閉じる" }).click()
 
   // 既読の伝言とびっくりマークを付けると、既読の伝言が先に並ぶ
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")

@@ -1,6 +1,6 @@
 // 窓: コントロールセンターかブックスクリーンを前に出す。開いた直後はコントロールセンター、止まり木のボタンで行き来し、戻ってもブックスクリーンの中は残る。
 // 前に出す物を替えるのはブラウザの履歴に 1 つ積み、戻る・進むで戻る
-import { expect, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
 const center = (page: import("@playwright/test").Page) => page.getByRole("heading", { name: "コントロールセンター" })
@@ -8,7 +8,7 @@ const center = (page: import("@playwright/test").Page) => page.getByRole("headin
 test("開いた直後（URL が無いとき）はコントロールセンターが前に出て、後ろのブックスクリーンは隠れている", async ({
   page,
 }) => {
-  await page.goto("/?")
+  await page.goto("/")
   await expect(center(page)).toBeVisible()
   await expect(page.getByRole("heading", { name: "参加者" })).toBeVisible()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
@@ -18,7 +18,7 @@ test("開いた直後（URL が無いとき）はコントロールセンター�
 test("止まり木のボタンでコントロールセンターへ行き、押すとブックスクリーンへ戻る。戻ってもステージの中は残る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(center(page)).toBeHidden()
   await (await fromMenu(page, "画面を分割")).click()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(2)
@@ -34,7 +34,7 @@ test("止まり木のボタンでコントロールセンターへ行き、押�
 })
 
 test("前に出す物を替えるのはブラウザの履歴に 1 つ積み、戻る・進むで戻る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()
   await expect(page).toHaveURL(/f=center/)

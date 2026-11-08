@@ -1,10 +1,10 @@
-import { expect, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { browserMenuStopped } from "./helpers/browser-menu"
 import { openGeneral } from "./helpers/settings"
 import { fromMenu, menuOf } from "./helpers/stage-menu"
 
 test("下の行のどこに乗せても、ブックの名前のメニューがせり上がり、下の行から離れると下がる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   // ページタブの右の空いた所に乗せる（名前のボタンには乗せない）
   const tabs = (await page.getByRole("tablist").first().boundingBox())!
@@ -21,7 +21,7 @@ test("下の行のどこに乗せても、ブックの名前のメニューが�
 })
 
 test("分割すると、右のステージは何も開かず真ん中でブックを選べ、選ぶと右に紙が出る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const papers = page.getByRole("img", { name: "紙" })
   await expect(papers).toHaveCount(1)
   await (await fromMenu(page, "画面を分割")).click()
@@ -40,7 +40,7 @@ test("分割すると、右のステージは何も開かず真ん中でブッ�
 })
 
 test("タブの左のボタンでダイアログが開き、打った文字で絞り込んで選ぶと、そのステージで開く", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "ブックを開く")).click()
   const dialog = page.getByRole("dialog", { name: "ブックを開く" })
   await expect(dialog).toBeVisible()
@@ -56,7 +56,7 @@ test("タブの左のボタンでダイアログが開き、打った文字で�
 test("絞り込んで候補が減っても、探すテキストFormの位置は変わらない（ステージの真ん中とダイアログ）", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   const stage = page.getByRole("region", { name: "ステージ" }).nth(1)
   await (await fromMenu(page, "ブックを開く")).click()
@@ -75,7 +75,7 @@ test("絞り込んで候補が減っても、探すテキストFormの位置は�
 })
 
 test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "ブックを開く")).click()
   const dialog = page.getByRole("dialog", { name: "ブックを開く" })
   await expect(dialog).toBeVisible()
@@ -87,7 +87,7 @@ test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ 
 test("分割した右のステージ（ブックを開いていない）の「新しいブック」で作ると、右のステージにそのブックが開く", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   await right.getByRole("button", { name: "新しいブック" }).click()
@@ -98,7 +98,7 @@ test("分割した右のステージ（ブックを開いていない）の「�
 })
 
 test("分割した右のステージを閉じると、左のステージが画面全体に広がる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const full = await page.getByRole("region", { name: "ステージ" }).boundingBox()
   await (await fromMenu(page, "画面を分割")).click()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(2)
@@ -110,7 +110,7 @@ test("分割した右のステージを閉じると、左のステージが画�
 })
 
 test("ハンドの道具ではドラッグで紙がずれ、ずらせるのは紙の周りの余白までで止まる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.getByRole("button", { name: "選択ツール" }).click()
   await page.getByRole("button", { name: "付け替えツール" }).click()
   await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()
@@ -131,7 +131,7 @@ test("ハンドの道具ではドラッグで紙がずれ、ずらせるのは�
 })
 
 test("＋で開くダイアログでページを作るとタブが増え、そのページが選ばれ、選んだ紙になる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const before = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.getByRole("button", { name: "ページを足す" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいページ" })
@@ -147,7 +147,7 @@ test("＋で開くダイアログでページを作るとタブが増え、そ�
 
 test("ページが多くてタブが横にあふれているとき、タブの上でホイールを回すと横にスクロールする", async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 600 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   // タブは縮んで「…」になってから、横にあふれる
   for (let i = 0; i < 24; i++) {
     await page.getByRole("button", { name: "ページを足す" }).click()
@@ -163,7 +163,7 @@ test("ページが多くてタブが横にあふれているとき、タブの�
 })
 
 test("分割して右で同じブックを開くと右にもタブがあり、右で足したページは右だけで開く", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   await right.getByRole("option", { name: "まとめ図の構想" }).click()
@@ -182,7 +182,7 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
 })
 
 test("右のステージの新しいブックで作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
@@ -204,7 +204,7 @@ test("右のステージの新しいブックで作ると空のブックが開�
 })
 
 test("設定画面の「全体」で言語とスキンを変えると、画面がすぐに変わる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const general = await openGeneral(page)
   await general.getByLabel("スキン").selectOption("@matomezu/base:light")
   await expect(page.locator("html")).toHaveAttribute("data-skin", "@matomezu/base:light")
@@ -214,7 +214,7 @@ test("設定画面の「全体」で言語とスキンを変えると、画面�
 })
 
 test("ブックの名前のボタンにマウスを乗せるとメニューがせり上がり、離れると下がる。押しても出る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const trigger = page.getByRole("button", { name: "まとめ図の構想" })
   const menu = menuOf(trigger)
   await expect(menu).toBeHidden()
@@ -234,7 +234,7 @@ test("ブックの名前のボタンにマウスを乗せるとメニューが�
 test("分割すると、ツールボックスの無いステージでも右上に閉じるボタンがある。画面は縦にはみ出さない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   // 何も開いていないステージのブックの名前のボタンは空。空でも下の行からはみ出さない
   expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBe(0)
@@ -248,7 +248,7 @@ test("分割すると、ツールボックスの無いステージでも右上�
 test.describe("ブラウザの言語が英語のとき", () => {
   test.use({ locale: "en-US" })
   test("画面の文言が英語になる", async ({ page }) => {
-    await page.goto("/")
+    await page.goto(BOOK_SCREEN_URL)
     await expect(page.locator("html")).toHaveAttribute("lang", "en")
     await (await fromMenu(page, "Split screen")).click()
     await expect(page.getByText("Select a book")).toBeVisible()
@@ -262,7 +262,7 @@ test.describe("ブラウザの言語が英語のとき", () => {
 test("図面の画面を右クリックすると押した位置にメニューが出て、設定を押すと設定のダイアログが開く。外を押すと閉じる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const paper = page.getByRole("img", { name: "紙" })
   const box = (await paper.boundingBox())!
   await page.mouse.click(box.x + 30, box.y + 40, { button: "right" })
@@ -284,7 +284,7 @@ test("図面の画面を右クリックすると押した位置にメニュー�
 })
 
 test("右クリックのメニューは、窓の右下で開いても窓の中に収まる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const size = page.viewportSize()!
   const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
   await page.mouse.click(stage.x + stage.width - 4, stage.y + stage.height - 4, { button: "right" })
@@ -296,7 +296,7 @@ test("右クリックのメニューは、窓の右下で開いても窓の中�
 test("分割の境目をドラッグすると左右の幅が変わり、分割をやめて分け直してもその幅。境目のダブルクリックで真ん中に戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const stages = page.getByRole("region", { name: "ステージ" })
   const full = (await stages.boundingBox())!
   await (await fromMenu(page, "画面を分割")).click()
@@ -323,7 +323,7 @@ test("分割の境目をドラッグすると左右の幅が変わり、分割�
 })
 
 test("分割すると、カレントのステージの下の行だけ色が少し変わり、もう片方を押すとそちらに移る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   const stages = page.getByRole("region", { name: "ステージ" })
   await expect(stages).toHaveCount(2)
@@ -351,7 +351,7 @@ test("分割すると、カレントのステージの下の行だけ色が少�
 test("ブックを選ぶ画面と、ブックを開くダイアログ（幕も）の右クリックではブラウザのメニューを出さず、テキストFormの中では出す", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   const stage = page.getByRole("region", { name: "ステージ" }).nth(1)
   await expect(stage.getByText("ブックを選択してください")).toBeVisible()

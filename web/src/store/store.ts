@@ -666,7 +666,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openBook: (stage, bookId) => {
       const book = getState().books[bookId]
       // ブックを開くと、見る側のブックスクリーンを前に出す
-      if (book)
+      if (book && inWindow(stage))
         withWindow(win =>
           bringFront(
             mapScreen(win, ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book))),

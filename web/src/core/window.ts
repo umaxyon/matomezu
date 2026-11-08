@@ -20,8 +20,8 @@ export interface WindowState {
 }
 
 // ブックスクリーン 1 つ（ステージ 1 つ。ブックを渡せばそれを開き、無ければ何も開かない）を前に出せる窓。front は前に出す物
-export function newWindow(catalog: CoreCatalog, book: Book | null, front: Front = "book-screen"): WindowState {
-  return { front, screens: [newWorkspace(catalog, book)], screen: 0, issued: 1 }
+export function newWindow(catalog: CoreCatalog, book: Book | null): WindowState {
+  return { front: "book-screen", screens: [newWorkspace(catalog, book)], screen: 0, issued: 1 }
 }
 
 // 前に出せるブックスクリーン（コントロールセンターを前に出している間も、後ろに残っている物）

@@ -1,7 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
-import { aiAuth, expect, type Page, test } from "../fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "../fixtures"
 import { footerMenuTool } from "../helpers/footer-menu"
 import { fromMenu } from "../helpers/stage-menu"
 
@@ -40,7 +40,7 @@ test.afterEach(async ({ request }) => {
 
 test("常駐が結んだ追加プラグインを画面に渡し、画面はその見た目の JS を読む", async ({ page }) => {
   expect((await data(page)).plugins).toEqual([{ id: "ex2", ui: "api/plugins/0/ui.js?v=1" }])
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(page.locator("[data-ex2-diamond]")).toHaveAccessibleName("判断")
   // ひし形はテーマキー ex2:diamond-fill の色で塗る（見た目では --diamond-fill。変数が無ければ黒になる）
   const paint = await page.locator("[data-ex2-diamond] polygon").evaluate(el => ({
@@ -54,7 +54,7 @@ test("常駐が結んだ追加プラグインを画面に渡し、画面はそ�
 test("追加プラグインの形を動かすと、常駐のエンジンも同じアクションを行って残し、読み直しても同じ所にある", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const diamond = page.locator("[data-item]")
   const before = (await diamond.boundingBox())!
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
@@ -70,7 +70,7 @@ test("追加プラグインの形を動かすと、常駐のエンジンも同�
 })
 
 test("追加プラグインの形の道具を使うと、その形の追加のダイアログ（追加プラグインのビュー）が開く", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await footerMenuTool(page, "判断")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 400, paper.y + 300)
@@ -88,7 +88,7 @@ const loaded = (page: Page) =>
 test("動いている常駐にプラグインを足すと、開いている画面が読み直して取り込む。外すと読み直して消える", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
   const mark = () => page.evaluate(() => Object.assign(window, { notReloaded: true }))
   const reloaded = () => page.waitForFunction(() => !("notReloaded" in window))
@@ -124,7 +124,7 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
   page.on("console", m => {
     if (m.type() === "error") errors.push(m.text())
   })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const linked = await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir } })
   expect(await linked.json()).toEqual({ ok: true, id: "ex3" })
   await expect.poll(() => errors.some(e => e.includes("plugin ex3 is not added"))).toBe(true)
@@ -138,7 +138,7 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
 })
 
 test("取り込んだプラグインが置いてほしいと書いたウィジェットは、既定の配置に足されて出る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(page.getByRole("button", { name: "あいさつする" })).toHaveCount(0)
   const mark = () => page.evaluate(() => Object.assign(window, { notReloaded: true }))
   await mark()
@@ -167,7 +167,7 @@ test("3 つを読ませると、作り手の違うプラグインのボタンが
 }) => {
   await link(page, "test/added-plugins/ex1", "test/added-plugins/ex3")
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2", "ex1", "ex3"])
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
   await expect(page.getByRole("button", { name: "あいさつする" })).toBeVisible()
   await page.getByRole("button", { name: "ミントにする" }).click()
@@ -181,7 +181,7 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
   page,
 }) => {
   await link(page, "test/added-plugins/ex3")
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const catalog = await (await page.request.get("/api/ai/catalog", { headers: aiAuth() })).json()
   const answer = catalog.actions.find((a: { id: string }) => a.id === "ex2:diamond-answer")
   expect(answer.description).toContain("Answer a decision")
@@ -210,7 +210,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   page,
 }) => {
   await link(page, "test/added-plugins/ex3")
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })

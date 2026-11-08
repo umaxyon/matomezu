@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { onPaper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -13,7 +13,7 @@ async function longPress(page: Page, at: { x: number; y: number }) {
 test("紙の上で右ボタンを長押しすると、ポインタの近くに道具のアイコンが出て、右クリックのメニューは出ない。ハンドを押すとハンドになる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const at = await onPaper(page, 400, 300)
   await longPress(page, at)
   await expect(picker(page)).toBeVisible()
@@ -49,7 +49,7 @@ test("短い右クリックはメニューを出す。押している間に動�
   page,
 }) => {
   await page.clock.install()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const at = await onPaper(page, 400, 300)
   await page.mouse.click(at.x, at.y, { button: "right" })
   await expect(page.getByRole("menu")).toBeVisible()
@@ -67,7 +67,7 @@ test("短い右クリックはメニューを出す。押している間に動�
 test("付け替えを押すと付け替えになる。Escape・離れる・外を押すと閉じる。Space で開いて、もう一度 Space で閉じる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const at = await onPaper(page, 400, 300)
   await longPress(page, at)
   await page.mouse.up({ button: "right" })
@@ -100,7 +100,7 @@ test("付け替えを押すと付け替えになる。Escape・離れる・外�
 })
 
 test("分けて別の図面を開いても、道具は左右で同じ。左でハンドにすると右もハンドになる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   const stages = page.getByRole("region", { name: "ステージ" })
   const input = stages.nth(1).getByRole("combobox", { name: "ブックを探す" })
@@ -121,7 +121,7 @@ test("設定で長押しの時間を 500 ミリ秒にすると、300 ミリ秒�
   page,
 }) => {
   await page.clock.install()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "ブックを開く")).click()
   await page.keyboard.type("振り返り")
   await page.keyboard.press("Enter")
