@@ -104,7 +104,9 @@ describe("アクションの入口", () => {
       controlCenter: "@matomezu/control-center:control-center",
       newId: () => "n1",
       now: () => times.shift() ?? "later",
-      observe: d => done.push(d),
+      observe: d => {
+        done.push(d)
+      },
     })
     instance.use([notes])
     createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })

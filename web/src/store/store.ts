@@ -146,10 +146,20 @@ export type Performed<Id extends ActionId> =
   | Refused
   | { ok: false; reason: "no-book" | "print-preview" }
 
+// ホストが断った（reason はホストの断りの理由）
+export interface HostRefused {
+  ok: false
+  reason: string
+  by: "host"
+}
+
 export interface Actions {
   // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも追加プラグインのアクションも、画面と AI から同じ入口を通る）。
   // ブックが変われば、そのブックを開いている全部のステージを合わせ、一覧が変われば、無くなったブックを開いていたステージは何も開かない
   perform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
+  // perform と同じく行い、ホストが確かめた答えを待って返す（ホストが断ったら、その reason。ホストが無ければ行った結果をそのまま返す）。
+  // ほかの窓だけが知る事（ほかの窓の編集ロックなど）で断られたことを、利用者に知らせたいときに使う
+  performConfirmed<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Promise<Performed<Id> | HostRefused>
   // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す
   command<Id extends CommandId>(stage: string, id: Id, ...args: CommandArgs<Id>): boolean
   // そのステージから開くダイアログを出す（出ていたものは閉じる）。値を渡すダイアログには、その値を渡す
@@ -219,6 +229,9 @@ export interface DoneAction {
   lang: Lang
   now: string // 行った時点（ActionContext の now）
 }
+
+// ホストが、画面で行ったアクションを確かめた答え（断ったなら reason。届けられなかったものは not-saved）
+export type HostAnswer = { ok: true } | { ok: false; reason: string }
 
 export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
 
@@ -324,9 +337,19 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   initial?: MatomezuState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
-  observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
+  // アクションを行えたときに知らせる（行い直しは知らせない）。ホストが確かめた答えを返せば、断られたアクションを入れた画面の履歴の段を捨てる
+  observe?: (done: DoneAction) => Promise<HostAnswer> | undefined
   aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に戻す・やり直すで消えたときに知らせる
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
+}
+
+// 開いている画面の履歴の段。step は閉じて画面の履歴に入れた段、refused はホストが中のアクションを断ったこと
+interface OpenStep {
+  at: string
+  books: Record<string, { before: Book; after: Book }>
+  continued?: true
+  step?: HistoryStep
+  refused?: true
 }
 
 // 知らされた一覧 next を、今の一覧 now に寄せる: 中身の同じブックは前の値を使い（描き直しと、保存の知らせを減らす）、全部同じなら now を返す
@@ -418,16 +441,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   // 開いている画面の履歴の段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 つの画面の履歴の段にまとめ、処理が終わったら
   // 画面の履歴に入れる（入れた画面の履歴の段が変えたブックの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
-  let open: { at: string; books: Record<string, { before: Book; after: Book }>; continued?: true } | null = null
+  let open: OpenStep | null = null
   // ブックごとの、最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで動かしたら消す。continueStep で続けられるのはこれだけ）
   let lastPut: Record<string, HistoryStep> = {}
   const closeStep = () => {
     if (!open) return
-    const { at, books, continued } = open
+    const was = open
+    const { at, books, continued } = was
     const step: HistoryStep = { at, by: "user", books }
     open = null
+    // 入れる前にホストが断ったなら入れない
+    if (was.refused) return
     // 続けた画面の履歴の段で何も変わらなかった（足した物を書かずに消したなど）なら入れない
     if (continued && Object.values(books).every(b => sameData(b.before, b.after))) return
+    was.step = step
     const history = { ...getState().history }
     for (const id of Object.keys(step.books))
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
@@ -493,19 +520,37 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const over = mine.length >= HISTORY_LIMIT ? mine[0] : undefined
     unseen = [...unseen.filter(u => u !== over), { step, act: change.act, book: after.id, made }]
   }
-  const record = (before: Book, after: Book, at: string) => {
+  const record = (before: Book, after: Book, at: string): OpenStep => {
     if (!open) {
       open = { at, books: {} }
       queueMicrotask(closeStep)
     }
     open.books[after.id] = { before: open.books[after.id]?.before ?? before, after }
+    return open
+  }
+  // ホストが断ったアクションを入れた画面の履歴の段 at を捨てる（その段は、断られた変更を戻そうとして、その間のほかの変更を消してしまうため。
+  // 同じ段のほかのアクションの変更も、元に戻すで戻せなくなる）
+  const dropRefused = (at: OpenStep) => {
+    at.refused = true
+    const step = at.step
+    if (!step) return
+    const history = { ...getState().history }
+    for (const id of Object.keys(step.books)) {
+      const was = history[id] ?? NO_HISTORY
+      history[id] = { undo: was.undo.filter(s => s !== step), redo: was.redo.filter(s => s !== step) }
+    }
+    lastPut = Object.fromEntries(Object.entries(lastPut).filter(([, s]) => s !== step))
+    setState({ history })
   }
   // アクションを行い、入れる状態の差分を返す（入れるのは呼んだ側。ほかの変更と一度に入れられるように）
   const run = (
     id: string,
     args: unknown,
     on?: { book: string },
-  ): { ok: true; result: unknown; next: Partial<MatomezuState> } | Refused | { ok: false; reason: "no-book" } => {
+  ):
+    | { ok: true; result: unknown; next: Partial<MatomezuState>; answer: Promise<HostAnswer> | undefined }
+    | Refused
+    | { ok: false; reason: "no-book" } => {
     const { books, window, annotations } = getState()
     const ids: string[] = []
     const c = ctx()
@@ -518,12 +563,16 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       },
     })
     if (!done.ok) return done
-    options.observe?.({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now })
+    const answer =
+      options.observe?.({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now }) ?? undefined
     const next: Partial<MatomezuState> = {}
     if (done.book) {
       const before = books[done.book.id]
       const recorded = catalog.actions.get(id)?.history !== false
-      if (before && recorded) record(before, done.book, c.now)
+      if (before && recorded) {
+        const at = record(before, done.book, c.now)
+        void answer?.then(a => a.ok || dropRefused(at))
+      }
       // 画面の履歴に入れないアクション（戻す・やり直すなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
       if (before && !recorded) dropOverwritten(before, done.book)
       next.books = { ...books, [done.book.id]: done.book }
@@ -542,7 +591,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (done.annotations) next.annotations = withAnnotations(annotations, done.annotations)
     if (done.mailbox) next.mailbox = done.mailbox
     if (done.participants) next.participants = done.participants
-    return { ok: true, result: done.result, next }
+    return { ok: true, result: done.result, next, answer }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージの画面の状態は消す
   const commit = (next: Partial<MatomezuState>) => {
@@ -584,6 +633,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const done = run(id, args, on)
       if (!done.ok) return done
       commit(done.next)
+      return { ok: true, result: done.result } as Performed<typeof id>
+    },
+    performConfirmed: async (id, ...[args, on]) => {
+      const done = run(id, args, on)
+      if (!done.ok) return done
+      commit(done.next)
+      const a = await done.answer
+      if (a && !a.ok) return { ok: false, reason: a.reason, by: "host" }
       return { ok: true, result: done.result } as Performed<typeof id>
     },
     command: (stage, id, ...args) => {

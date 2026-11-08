@@ -280,6 +280,36 @@ test("断られた（ack で確かめ終わり、変わったブックが来な�
   expect(itemsOf(store)).toEqual([])
 })
 
+test("断られたアクションを入れた画面の履歴の段は捨て、performConfirmed は常駐の断りの理由を返す", async () => {
+  const { store, emit } = await connected()
+  const answer = store.actions.performConfirmed(
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
+    { book: "b1" },
+  )
+  await Promise.resolve()
+  expect(store.state.getState().history.b1?.undo).toHaveLength(1)
+  emit("ack", { seq: 1, ok: false, reason: "being-edited" })
+  expect(await answer).toEqual({ ok: false, reason: "being-edited", by: "host" })
+  expect(itemsOf(store)).toEqual([])
+  expect(store.state.getState().history.b1?.undo).toEqual([])
+})
+
+test("行えたアクションの画面の履歴の段は残し、performConfirmed は行った結果を返す", async () => {
+  const { store, emit } = await connected()
+  const answer = store.actions.performConfirmed(
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
+    { book: "b1" },
+  )
+  await Promise.resolve()
+  const id = itemsOf(store)[0] as string
+  emit("book", { book: b1With(id), version: 2, client: "c1", seq: 1 })
+  emit("ack", { seq: 1, ok: true, reason: "" })
+  expect(await answer).toMatchObject({ ok: true })
+  expect(store.state.getState().history.b1?.undo).toHaveLength(1)
+})
+
 test("つなぎ直したら（2 度目の hello）、読み直した世界の上に確かめられていないアクションを出し、新しいつながりで同じ番号で送り直す", async () => {
   const s = await connected()
   place(s.store)
@@ -293,7 +323,7 @@ test("つなぎ直したら（2 度目の hello）、読み直した世界の上
     ["c1", 1, "k1"],
     ["c9", 1, "k1"],
   ])
-  s.emit("ack", { seq: 1, ok: true })
+  s.emit("ack", { seq: 1, ok: true, reason: "" })
   expect(s.host.pending()).toEqual([])
 })
 

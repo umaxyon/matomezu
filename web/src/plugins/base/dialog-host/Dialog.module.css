@@ -14,6 +14,13 @@
 .dialog::backdrop {
   background: rgba(0, 0, 0, 0.35);
 }
+/* 窓の右の端に寄せたダイアログ（後ろを暗くせず、ほかの操作を止めない） */
+.dialog[data-docked="true"] {
+  position: fixed;
+  inset: 16px 16px auto auto;
+  margin: 0;
+  z-index: 20;
+}
 .body {
   display: flex;
   flex-direction: column;

@@ -6,18 +6,18 @@ import type { ShapeAddArgs, ShapeEditArgs, ShapeItemDef } from "../core/def/item
 declare const ARGS: unique symbol
 
 // A は開くときに渡す値の型（値を持たない印。渡さないダイアログは undefined）
-export interface DialogDef<A = undefined> extends DialogExtras {
+export interface DialogDef<A = undefined> extends DialogExtras<A> {
   id: string
   readonly [ARGS]?: A
 }
 
 // 値を渡さないダイアログ
-export const defineDialog = <const Id extends string>(def: { id: Id }): DialogDef & { id: Id } => def
+export const defineDialog = <const Id extends string>(def: { id: Id } & DialogExtras): DialogDef & { id: Id } => def
 
 // 開くときに A の値を渡すダイアログ（defineDialogWith<渡す値の型>()({ id })）
 export const defineDialogWith =
   <A>() =>
-  <const Id extends string>(def: { id: Id }): DialogDef<A> & { id: Id } =>
+  <const Id extends string>(def: { id: Id } & DialogExtras<A>): DialogDef<A> & { id: Id } =>
     def
 
 export type DialogArgsOf<Id extends DialogId> = DialogTable[Id] extends DialogDef<infer A> ? A : never

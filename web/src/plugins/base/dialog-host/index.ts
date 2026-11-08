@@ -19,3 +19,10 @@ export const DIALOG_KEYS = [
   kit.defineKey({ id: "dialog-submit-enter", key: "Enter", command: DIALOG_SUBMIT.id, scope: "dialog" }),
   kit.defineKey({ id: "dialog-close-escape", key: "Escape", command: DIALOG_CLOSE.id, scope: "dialog" }),
 ]
+
+declare module "../../../core/catalog" {
+  interface DialogExtras<A = undefined> {
+    // 物を直すダイアログが、開くときの値 args から返す、直している物の id（ブックの中の物）。開いている間、ダイアログの置き場がその物に編集ロックを掛ける
+    edits?(args: A): readonly string[]
+  }
+}

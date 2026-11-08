@@ -120,7 +120,7 @@ export const DataPropsSchema = z.strictObject({
 export type DataProps = z.infer<typeof DataPropsSchema>
 
 // 編集のダイアログ。開いたステージのブックの、ページ page のデータ item の表を書き換える
-export const DATA_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "data-edit" })
+export const DATA_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "data-edit", edits: a => [a.item] })
 
 // 置いたときの大きさと、一番小さい大きさ
 export const DATA_SIZE = { w: 160, h: 96 } as const

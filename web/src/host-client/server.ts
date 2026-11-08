@@ -1,7 +1,7 @@
 // ホストに頼むホストクライアント: 画面は自分で先にアクションを行い、同じアクションを常駐に送る（POST /api/perform）。
 // 常駐はアクションを 1 つずつ順に行い、変わったブックと設定をつながっている全部の画面に知らせる（/api/events。internal/server/hub.go）。
 // 画面は、常駐が決めた世界（確かめた世界）の上で、まだ確かめられていない自分のアクションを行い直したものを出す（store の receive）。
-// 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。
+// 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。observe は、常駐の答え（ack の ok と reason）を返す。
 // アクションは 1 つずつ順に送る。届かなかったもの（送れなかった・常駐が 5xx を返した）は消さずに送り直し、つなぎ直したら、確かめられていないものを全部
 // 新しいつながりで送り直す（つながりは窓の中で振る番号で見分ける。常駐の窓の id は、常駐を起動し直すと前と同じ物がまた振られる）。常駐が同じアクションを二度行わないように、アクションごとに一意の番号（key）を振り、送り直しても変えない。
 // 送り直しても届かなかったものだけを外してトーストで知らせる。つながりが OFFLINE_MS より長く切れたままなら store に知らせる（setOffline）。
@@ -20,7 +20,7 @@ import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { screenOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
-import type { AIEditTicketOutcome, DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
+import type { AIEditTicketOutcome, DoneAction, HostAnswer, MatomezuInstance, MatomezuState } from "../store/store"
 import type { HostClient, Loaded } from "./client"
 
 // 常駐が答えなかった（常駐から開いていない）
@@ -99,6 +99,7 @@ interface Pending {
   done: DoneAction
   sentTo: number
   tries: number
+  answer: (a: HostAnswer) => void // 常駐の答えを observe に返す
 }
 
 const openedOf = (stage: Stage) => {
@@ -185,7 +186,7 @@ const BookSchema = z.object({
   ...Mark,
 })
 const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
-const AckSchema = z.object({ seq: z.number().int() })
+const AckSchema = z.object({ seq: z.number().int(), ok: z.boolean(), reason: z.string() })
 const ParticipantCallSchema = z.object({ participant: z.string(), at: z.string() })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
@@ -289,13 +290,18 @@ export function serverClient(net: Net = browserNet): ServerClient {
       pending.map(p => p.done),
       change,
     )
-  const settle = (mark: { client?: string; seq?: number }) => {
-    if (mark.client === client && mark.seq !== undefined) pending = pending.filter(p => p.seq > (mark.seq as number))
+  // 番号 mark.seq までの自分のアクションを確かめ終える。ack なら、その番号のアクションに常駐の答え said を返す（ほかは行えた）
+  const settle = (mark: { client?: string; seq?: number }, said?: HostAnswer) => {
+    if (mark.client !== client || mark.seq === undefined) return
+    const upTo = mark.seq
+    for (const p of pending) if (p.seq <= upTo) p.answer(p.seq === upTo && said ? said : { ok: true })
+    pending = pending.filter(p => p.seq > upTo)
   }
   // 送り直しても届かなかったアクションを外し、トーストで知らせる
   const drop = (p: Pending, why: string) => {
     logLine(`action ${p.done.action} is not saved:`, why)
     pending = pending.filter(q => q !== p)
+    p.answer({ ok: false, reason: "not-saved" })
     show()
     instance?.actions.showToast({ kind: "warn", message: "An edit could not be saved" })
   }
@@ -540,7 +546,8 @@ export function serverClient(net: Net = browserNet): ServerClient {
     on("keep", () => {}) // 待ちを始め直すためだけに受ける
     on("plugins", () => net.reload())
     on("ack", data => {
-      settle({ client, seq: AckSchema.parse(JSON.parse(data)).seq })
+      const ack = AckSchema.parse(JSON.parse(data))
+      settle({ client, seq: ack.seq }, ack.ok ? { ok: true } : { ok: false, reason: ack.reason })
       show()
     })
   }
@@ -579,11 +586,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
       })
       return { books: [...confirmed.values()].map(e => e.book), settings, plugins: added, failed }
     },
-    observe: done => {
-      seq += 1
-      pending.push({ seq, key: net.newKey(), done, sentTo: 0, tries: 0 })
-      void pump()
-    },
+    observe: done =>
+      new Promise<HostAnswer>(answer => {
+        seq += 1
+        pending.push({ seq, key: net.newKey(), done, sentTo: 0, tries: 0, answer })
+        void pump()
+      }),
     reportWarnings: list => {
       warnings = list
       tellWarnings()

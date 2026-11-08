@@ -16,7 +16,7 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
     books: kept,
     settings,
     load: async () => ({ books: [...kept.values()], settings: host.settings, plugins: [], failed: [] }),
-    observe: () => {},
+    observe: async () => ({ ok: true }), // ホストがいないので、断る物もいない
     reportWarnings: () => {}, // ホストがいないので、知らせる先が無い（warning は画面の中で見る）
     reportAIEditTicket: () => {}, // ホストがいないので、AI もいない
     visible: () => true,

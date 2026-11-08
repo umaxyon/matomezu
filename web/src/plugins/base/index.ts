@@ -29,6 +29,7 @@ import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks/papers"
 import { MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./mail"
 import { MAIL_DIALOG } from "./mail/dialogs"
 import { MAIL_JOIN_REQUEST, MAIL_JOIN_REQUEST_SEND } from "./mail/join-request"
+import { MAIL_PROPOSAL, PROPOSAL_APPLY, PROPOSAL_SEND, PROPOSAL_SETTLE } from "./mail/proposal"
 // 拡張ポイントに書き足したフィールド shown の型（mail/shown.ts の declare module）
 import type {} from "./mail/shown"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
@@ -248,6 +249,9 @@ export const BASE = defineBuiltin(
       MAIL_SEEN,
       MAIL_VISITED,
       MAIL_REMOVE,
+      PROPOSAL_SEND,
+      PROPOSAL_APPLY,
+      PROPOSAL_SETTLE,
       MARK_ADD,
       MARK_READ,
       MARK_REMOVE,
@@ -286,7 +290,7 @@ export const BASE = defineBuiltin(
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
     annotations: [NOTE, MARK],
-    mails: [MAIL_LETTER, MAIL_JOIN_REQUEST],
+    mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
     checks: [
       PROP_NAMES_CHECK,
       FAMILY_TITLE_CHECK,
@@ -408,6 +412,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-seen": typeof MAIL_SEEN
     "@matomezu/base:mail-visited": typeof MAIL_VISITED
     "@matomezu/base:mail-remove": typeof MAIL_REMOVE
+    "@matomezu/base:proposal-send": typeof PROPOSAL_SEND
+    "@matomezu/base:proposal-apply": typeof PROPOSAL_APPLY
+    "@matomezu/base:proposal-settle": typeof PROPOSAL_SETTLE
     "@matomezu/base:mark-add": typeof MARK_ADD
     "@matomezu/base:mark-read": typeof MARK_READ
     "@matomezu/base:mark-remove": typeof MARK_REMOVE
@@ -435,6 +442,7 @@ declare module "../../core/catalog" {
   interface MailTable {
     "@matomezu/base:letter": typeof MAIL_LETTER
     "@matomezu/base:join-request": typeof MAIL_JOIN_REQUEST
+    "@matomezu/base:proposal": typeof MAIL_PROPOSAL
   }
   interface ToolTable {
     "@matomezu/base:select": typeof SELECT_TOOL

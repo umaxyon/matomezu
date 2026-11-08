@@ -11,6 +11,8 @@ import { MailboxView } from "./Mailbox"
 import { MailDialog } from "./MailDialog"
 import { MailLayer } from "./MailLayer"
 import { MailWatch } from "./MailWatch"
+import { ProposalActions } from "./ProposalActions"
+import { MAIL_PROPOSAL } from "./proposal"
 import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
 import { MAILBOX_TAB_ID } from "./tab-id"
 
@@ -47,3 +49,10 @@ export const MAIL_WATCH = defineWidget({ id: kit.name("mail-watch"), slots: ["ro
 export const MAIL_DIALOG_VIEWS = { [MAIL_DIALOG.id]: MailDialog }
 
 export const MAIL_LAYER = defineWidget({ id: kit.name("mail-layer"), slots: [BOOK_LAYERS], view: MailLayer })
+
+// 変更提案郵便のダイアログの下の行（場所を示す・反映）
+export const PROPOSAL_ACTIONS = defineMailActions({
+  id: kit.name("proposal-actions"),
+  mail: MAIL_PROPOSAL.id,
+  view: ProposalActions,
+})

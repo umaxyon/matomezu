@@ -31,7 +31,7 @@ export function idsIn(value: unknown): string[] {
 }
 
 // 値の中の、どの深さのオブジェクトも、id（文字列のフィールド id）→ そのオブジェクトの表にする（中の作りを知らずに、物を id で引くのに使う）
-function objectsById(value: unknown, into = new Map<string, unknown>()): Map<string, unknown> {
+export function objectsById(value: unknown, into = new Map<string, unknown>()): Map<string, unknown> {
   if (Array.isArray(value)) for (const v of value) objectsById(v, into)
   else if (typeof value === "object" && value !== null) {
     const { id } = value as { id?: unknown }

@@ -175,7 +175,7 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
     },
   ])
   const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)
-  expect(shownOf(CORE_CATALOG, mails()[0]!, ja)).toEqual({
+  expect(shownOf(CORE_CATALOG, mails()[0]!, ja)).toMatchObject({
     title: "AI エージェントから参加要求が届きました",
     body: "AI: claude\nモデル: opus\n環境: wsl\nセッション: D92",
   })
@@ -251,7 +251,7 @@ test("引き継ぎの郵便は、引き継ぐワークルームの名前を題�
   expect(perform(JOIN_MAIL, args).ok).toBe(true)
   const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)
   const [mail] = store.state.getState().mailbox
-  expect(shownOf(CORE_CATALOG, mail!, ja)).toEqual({
+  expect(shownOf(CORE_CATALOG, mail!, ja)).toMatchObject({
     title: "AI エージェントから引き継ぎの要求が届きました",
     body: "ワークルーム名: ひよこ\nAI: claude\nモデル: opus\n環境: wsl",
   })

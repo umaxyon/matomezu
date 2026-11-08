@@ -254,6 +254,12 @@ func (c *annotationsCmd) Run() error {
 			At    string          `json:"at"`
 			Lost  json.RawMessage `json:"lost"`
 		} `json:"undone"`
+		Failed []struct {
+			Book    string   `json:"book"`
+			Title   string   `json:"title"`
+			Key     string   `json:"key"`
+			Changed []string `json:"changed"`
+		} `json:"failed"`
 	}
 	if json.Unmarshal(out, &got) != nil {
 		return nil
@@ -270,6 +276,13 @@ func (c *annotationsCmd) Run() error {
 			"Do not redo them on your own; ask the user if they are still needed. lost is what was put back and the values you had written.\n", len(got.Undone))
 		for _, u := range got.Undone {
 			fmt.Printf("- book %q (%s) at %s: %s\n", u.Title, u.Book, u.At, u.Lost)
+		}
+	}
+	if len(got.Failed) > 0 {
+		fmt.Printf("matomezu: %d change(s) you sent for the user to apply could not be applied (what they change was changed or removed after you sent them, "+
+			"or one of the changes was refused), so nothing was changed. Read the book again and think again (change it yourself, or send a new proposal). changed is what was changed or removed.\n", len(got.Failed))
+		for _, f := range got.Failed {
+			fmt.Printf("- book %q (%s), %s: changed %v\n", f.Title, f.Book, f.Key, f.Changed)
 		}
 	}
 	return nil

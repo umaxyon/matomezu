@@ -41,7 +41,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う
@@ -87,6 +87,8 @@
 - 並べ方から描くもの（ツリーの線など）は、データに無いのでアイテムにしない
 - 項目の形（`props`）は Zod。ブックのデータの検査は、そのブックが使うアイテムの項目を集めて組み立てる。AI には、そのブックで使えるアイテムだけを見せる
 - 知らないアイテムが来ても壊さない（枠だけ描き、データは消さない）。機能台帳に無いアイテム（プラグインを外したなど）がページにあってもブックは読め、データはそのまま残す。形は枠だけで描き、選ぶ・動かす・消すはできるが中身は変えられない。線は描かない。決まりの確かめでは、知らない形はつなげる物として扱う。機能台帳にあってタイプが選んでいないアイテムと、項目の形が合わないアイテムは読めない（warning にする）
+- 物を直すダイアログは、定義に `edits`（base が拡張ポイントに書き足したメソッド。開くときの値から直す物を返す）を書く。開いている間、その物に編集ロックが掛かる
+- その場の編集の間は、選んでいる物に自動で編集ロックが掛かる。それ以外で物を直す見た目（マークダウンのソースのペインのようなテキストForm）は、書いている間 `useEditLock` を掛ける
 - 形の追加と編集のダイアログ（`dialogs.add`・`dialogs.edit`）は、どちらも書かなくてよい。無ければ追加はそのまま置き、編集は「設定」を出さない。渡す値は土台が決めた `ShapeAddArgs`・`ShapeEditArgs` で、名指したダイアログがその値を受けるかを型で確かめる
 - 形の紙に置くための値（core のフィールドの `min` と、base が拡張ポイントに書き足した `sizeOf`・`captionWidth`）は、どれも書かなくてよい。無ければ大きさは置いたときの `w`・`h`（無ければ定義の `size`）、キャプションの幅は定義の `size.w`、`min` が無ければ大きさを変えられない
 - キャプション（形の名前として見せる文字）を持つ形は、定義の `captionProp`（base が拡張ポイントに書き足したフィールド）にその項目の名前を書く。base はその項目が変わったときだけ、見える幅まで形を広げる。`captionProp` の無い形は、`caption` という項目があっても大きさを変えない。名指した項目が `props` に無ければ error（型と組み立てで確かめる）
@@ -129,6 +131,9 @@
 - アクションを行うコマンドは、行うアクションを `performs` に書く。どれかが今のブック（ブックかアノテーションが対象でなければコントロールセンター）で使えなければ、土台はそのコマンドを出さない（メニュー・右クリックのメニュー・ツールボックス・キーのどれからも）。どれも認可ステップに止められるなら、土台はそのコマンドを出したまま押せなくする。`when` は、出すコマンドの中で決める。キーは、今使えるコマンドのキーバインドのうち、狭い範囲から先に見つかった物が効く。同じ範囲・同じキーのキーバインドは捨てずに並べ（利用者 → ビルトインプラグイン → 追加プラグインの id の順）、効くのはその先頭の 1 つだけ。先頭がその場で使えなければ、同じ範囲のほかの物は見ずに次の範囲の同じキーを探す（使える物が無ければ何もしない）。テキストForm の中で、テキストForm に任せるキー（Escape と 1 行のテキストForm の Enter のほか）を効かせるには、テキストForm の要素が名乗った範囲にキーバインドを置く（ほかの範囲のキーバインドは効かない）
 - ブックが対象のアクションを行うコマンドは、許可の範囲（`permissionScope`）を書く（無ければ型の誤り）。`"book"`・`"opened-page"`（開いているページ）・`"selection"`（選んでいる物。形の中身やページのフィールドの中の物も含む）か、呼ばれた場所の様子から所を返す関数
 - ブックが対象のアクションのうち、図の内容でなくブックの扱いを変える物（ロックの掛け外しなど）には `history: false` を書く。書いたアクションは画面の履歴に入らない
+- 利用者が行っても、どこかの窓の編集ロックの物を変える・消すなら `being-edited` で断るアクションには `lockedForUser` を書く。断るのは常駐だけで、画面の `perform` では断られない。断りを利用者に知らせるなら、`performConfirmed` で常駐の答えを待つ
+- 郵便箱が対象のアクションの `run` は、返す物の `aiEditTicket` で AI 編集チケットを作る・閉じる・失敗にする（`key` で 1 つを見分ける）。常駐は key の意味を知らずに、そのとおりに残す
+- 郵便箱が対象のアクションは、`ActionContext` の `books` でブックの一覧を読むだけできる（「同じ入力なら同じ結果」の入力に入る）
 - 利用者が AI に話しかけたときに行うアクションは、アクションの定義が `runsWhenUserTalks` で名乗る（アノテーションが対象のアクションだけ。引数は受けない）。matomezu が利用者として、アノテーションのあるブックごとに行う
 - AI が参加を頼む（MCP の `join`）ときに行うアクションは、アクションの定義が `runsWhenAIJoins` で役を名乗る（`make-participant`・`make-takeover`・`notify-user`。役ごとに 1 つのアクションだけが名乗る）。ホストが「前の持ち主が生きていない」と確かめたうえで、利用者だけが行うアクション（引き継ぎの要求）を利用者として行うのは、話しかけで matomezu が利用者として行うのと同じ並び
 - アノテーションが対象のアクション（`annotations`）は、ブックとそのアノテーションの並びを受けて返す。ブックを変えたら断る。使えるかはそのブックのタイプが決め、認可ステップも通る。「ブックが対象のアクション」には入らないので、許可の範囲（`permissionScope`）は書かない。`history: false` を書かなくても、画面の履歴には入らない

@@ -48,6 +48,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:note-read-notice",
       "@matomezu/base:mail-bookmarks",
       "@matomezu/base:mail-watch",
+      "@matomezu/base:edit-lock",
       "@matomezu/base:tool-picker",
       "@matomezu/base:search-dialog",
     ],
@@ -87,7 +88,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/markdown:settings",
       "@matomezu/base:settings-keys",
     ],
-    "@matomezu/base:mail-actions": ["@matomezu/base:join-request-actions"],
+    "@matomezu/base:mail-actions": ["@matomezu/base:join-request-actions", "@matomezu/base:proposal-actions"],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
     "@matomezu/base:corner-statuses": [
       "@matomezu/base:alert-status",

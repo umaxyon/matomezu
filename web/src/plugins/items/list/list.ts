@@ -36,7 +36,7 @@ export const LIST_FILL = { id: kit.name("list-fill"), fallback: "fill" } as cons
 // リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
 export const LIST_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "list-add" })
 // リストの設定のダイアログ
-export const LIST_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "list-edit" })
+export const LIST_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "list-edit", edits: a => [a.item] })
 
 // チェックリストでないリストの行から、チェックの状態を消す（チェックリストをやめたとき）
 export function settleChecks<L extends { props: { checklist: boolean }; children?: ListRow[] }>(list: L): L {
@@ -108,6 +108,9 @@ export const LIST = kit.defineShape({
 // 行の追加のダイアログ（リスト list の最後に足す）
 export const ROW_ADD_DIALOG = kit.defineDialogWith<{ page: string; list: string }>()({ id: "row-add" })
 // 行の編集のダイアログ
-export const ROW_EDIT_DIALOG = kit.defineDialogWith<{ page: string; list: string; row: string }>()({ id: "row-edit" })
+export const ROW_EDIT_DIALOG = kit.defineDialogWith<{ page: string; list: string; row: string }>()({
+  id: "row-edit",
+  edits: a => [a.row],
+})
 // 行の右クリックのメニュー（ui.tsx で core/catalog.ts に書き足す）
 export const ROW_CONTEXT = kit.name("row-context")

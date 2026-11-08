@@ -4,7 +4,7 @@ import { type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
 
 export const STAR_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "star-add" })
-export const STAR_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "star-edit" })
+export const STAR_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "star-edit", edits: a => [a.item] })
 
 const STAR_SIZE = { w: 72, h: 72 }
 

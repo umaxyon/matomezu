@@ -371,19 +371,12 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			in.Annotations[id] = list
 		}
 	}
-	if p.By == "ai" {
-		in.Watched = h.watched()
-	}
+	in.Watched = h.watched()
 	out, err := h.engine.Perform(in)
 	if err != nil {
 		return Performed{}, err
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Result: out.Result, Notice: out.Notice}
-	// AI のアクションは、利用者が直している物を変えも消しもしない（AI はあとでやり直す）
-	if out.OK && p.By == "ai" && len(out.Touched) > 0 {
-		done = Performed{OK: false, Reason: "being-edited"}
-		out.OK = false
-	}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
 	if out.OK && p.By == "ai" && h.trashesShown(out.Books) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
@@ -446,6 +439,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		for book, body := range out.Annotations {
 			if err := h.putAnnotations(book, body, p.Client, p.Seq); err != nil {
 				return Performed{}, err
+			}
+		}
+		if c := out.AIEditTicket; c != nil {
+			if _, ok := h.books[c.Book]; ok {
+				if err := h.changeAIEditTicket(*c, stamp()); err != nil {
+					return Performed{}, err
+				}
 			}
 		}
 	}

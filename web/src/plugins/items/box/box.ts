@@ -15,7 +15,7 @@ export const BOX_FILL = { id: kit.name("box-fill"), fallback: "fill" } as const
 export const BOX_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "box-add" })
 
 // 箱の編集のダイアログ。開いたステージのブックの、ページ page の箱 item の中身を変える
-export const BOX_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "box-edit" })
+export const BOX_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "box-edit", edits: a => [a.item] })
 
 export const BoxPropsSchema = z
   .strictObject({

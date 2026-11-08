@@ -15,6 +15,7 @@ import {
 import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
+import { type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
@@ -57,11 +58,11 @@ interface Input {
   mailbox?: unknown // 利用者の郵便箱（郵便箱が対象のアクションのとき）
   participants?: unknown // 利用者の参加者の表（参加者の表が対象のアクションのとき）
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
-  watched?: Readonly<Record<string, readonly string[]>> // 変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
+  watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ブックの id → 物の id。編集ロック）
 }
 
-// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱、participants は変わった参加者の表。
-// touched は、受けた watched の物のうち、変わったか無くなったもの（ブックの中の物とアノテーションの id。無ければ書かない）。
+// 返すもの。aiEditTicket は郵便箱が対象のアクションが返した AI 編集チケットの変え方、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱、participants は変わった参加者の表。
+// AI のアクションと lockedForUser のアクションが、受けた watched の物（ブックの中の物とアノテーションの id）を変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
   | {
@@ -74,7 +75,7 @@ type Output =
       mailbox?: Mailbox
       participants?: Participants
       notice?: string
-      touched?: string[]
+      aiEditTicket?: AIEditTicketChange
     }
   | { ok: false; reason: string; permission?: string; detail?: string }
 
@@ -139,6 +140,9 @@ function perform(input: Input): Output {
     const list = done.annotations && id in done.annotations ? done.annotations[id] : annotations[id]
     return changedIn({ book: books[id], annotations: annotations[id] }, { book, annotations: list }, watched)
   })
+  // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）
+  if (touched.length > 0 && stopsOnEditLock(catalog.actions.get(input.action), input.by))
+    return { ok: false, reason: "being-edited" }
   return {
     ok: true,
     result: done.result,
@@ -149,7 +153,7 @@ function perform(input: Input): Output {
     ...(done.mailbox ? { mailbox: done.mailbox } : {}),
     ...(done.participants ? { participants: done.participants } : {}),
     ...(notice ? { notice } : {}),
-    ...(touched.length > 0 ? { touched } : {}),
+    ...(done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}),
   }
 }
 
