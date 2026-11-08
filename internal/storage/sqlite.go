@@ -63,6 +63,11 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// 1 冊だけのタイプのブック（id は master）はブックでなくなったので、残っている行を消す
+	`DELETE FROM books WHERE id = 'master';
+	DELETE FROM opened WHERE id = 'master';
+	DELETE FROM annotations WHERE book = 'master';
+	DELETE FROM ai_edit_tickets WHERE book = 'master';`,
 }
 
 type sqliteStorage struct {

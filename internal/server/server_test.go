@@ -947,25 +947,25 @@ func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
 		}
 		return data.Touched
 	}
-	view(1, "master", "b1")
-	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"master"`) && !strings.Contains(got, `"book":"b1"`) {
+	view(1, "b0", "b1")
+	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"b0"`) && !strings.Contains(got, `"book":"b1"`) {
 		t.Fatalf("touched after opening = %s", got)
 	}
 	first := touched()
-	if first["master"] == "" || first["b1"] == "" {
+	if first["b0"] == "" || first["b1"] == "" {
 		t.Fatalf("touched = %v", first)
 	}
 	// 出したままのブックは、ほかの知らせ（カレントの操作など）があっても開き直さない
 	time.Sleep(5 * time.Millisecond)
-	view(2, "master", "b1")
-	if got := touched(); got["master"] != first["master"] || got["b1"] != first["b1"] {
+	view(2, "b0", "b1")
+	if got := touched(); got["b0"] != first["b0"] || got["b1"] != first["b1"] {
 		t.Fatalf("kept on screen = %v; want %v", got, first)
 	}
 	// 一度消えてまた出たら、開き直した
-	view(3, "master")
+	view(3, "b0")
 	time.Sleep(5 * time.Millisecond)
-	view(4, "master", "b1")
-	if got := touched(); got["b1"] <= first["b1"] || got["master"] != first["master"] {
+	view(4, "b0", "b1")
+	if got := touched(); got["b1"] <= first["b1"] || got["b0"] != first["b0"] {
 		t.Fatalf("shown again = %v; was %v", got, first)
 	}
 }
