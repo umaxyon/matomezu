@@ -67,6 +67,19 @@ import {
 } from "./print-preview"
 import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEY_SCOPE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
 import {
+  type SEARCH_CLOSE,
+  SEARCH_COMMANDS,
+  SEARCH_KEY_SCOPE,
+  SEARCH_KEYS,
+  type SEARCH_NEXT,
+  type SEARCH_OPEN,
+  type SEARCH_OPEN_BOOK,
+  type SEARCH_OPEN_REPLACE,
+  type SEARCH_PREVIOUS,
+  type SEARCH_REPLACE_ALL,
+  type SEARCH_REPLACE_ONE,
+} from "./search"
+import {
   KEYS,
   LANG,
   OPTION_TITLES_CHECK,
@@ -112,6 +125,7 @@ export {
 export { itemMinimapMarks, type MinimapMark } from "./minimap/marks"
 export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
+export type { SearchableDef } from "./search/search"
 export type { PageProblem } from "./page-tabs/page-problems"
 export { nextPageTitle } from "./page-tabs/pages"
 export { type AiPlaced, aiPlacedOf, itemAiPlaced } from "./place/ai-placed"
@@ -316,6 +330,7 @@ export const BASE = defineBuiltin(
       PRINT_PREVIEW_OPEN,
       PRINT_PREVIEW_FIT,
       PRINT,
+      ...SEARCH_COMMANDS,
     ],
     dialogs: [
       OPEN_BOOK_DIALOG,
@@ -327,7 +342,7 @@ export const BASE = defineBuiltin(
       MAIL_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
     ],
-    keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE],
+    keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE, SEARCH_KEY_SCOPE],
     keys: [
       ...TOOLBOX_KEYS,
       ...TOOL_PICKER_KEYS,
@@ -339,6 +354,7 @@ export const BASE = defineBuiltin(
       ...LEFT_SIDE_PANEL_KEYS,
       ...CONTROL_CENTER_KEYS,
       ...PRINT_KEYS,
+      ...SEARCH_KEYS,
     ],
   }),
 )
@@ -476,11 +492,20 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-new": typeof NOTE_NEW
     "@matomezu/base:mark-new": typeof MARK_NEW
     "@matomezu/base:right-side-panel-close": typeof RIGHT_SIDE_PANEL_CLOSE
+    "@matomezu/base:search-open": typeof SEARCH_OPEN
+    "@matomezu/base:search-open-book": typeof SEARCH_OPEN_BOOK
+    "@matomezu/base:search-open-replace": typeof SEARCH_OPEN_REPLACE
+    "@matomezu/base:search-next": typeof SEARCH_NEXT
+    "@matomezu/base:search-previous": typeof SEARCH_PREVIOUS
+    "@matomezu/base:search-close": typeof SEARCH_CLOSE
+    "@matomezu/base:search-replace-one": typeof SEARCH_REPLACE_ONE
+    "@matomezu/base:search-replace-all": typeof SEARCH_REPLACE_ALL
     "@matomezu/base:left-side-panel-close": typeof LEFT_SIDE_PANEL_CLOSE
   }
   interface KeyScopeTable {
     "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_KEY_SCOPE // 右サイドパネルの中にフォーカスがある間のキー
     "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_KEY_SCOPE // 左サイドパネルの中にフォーカスがある間のキー
+    "@matomezu/base:search": typeof SEARCH_KEY_SCOPE // 検索ダイアログの入力Formの中のキー
   }
   interface DialogTable {
     "@matomezu/base:mail": typeof MAIL_DIALOG

@@ -163,8 +163,13 @@ function Inlines({ inlines }: { inlines: readonly MarkdownInline[] }) {
 
 function Inline({ inline }: { inline: MarkdownInline }): ReactNode {
   switch (inline.kind) {
+    // 原文と同じ字の並びの字は、原文の中の頭の位置を data-markdown-at に付ける（検索の当たりを光らせる所を引く。search-ranges.ts）
     case "text":
-      return inline.value
+      return inline.range.end - inline.range.start === inline.value.length ? (
+        <span data-markdown-at={inline.range.start}>{inline.value}</span>
+      ) : (
+        inline.value
+      )
     case "strong":
       return (
         <strong>

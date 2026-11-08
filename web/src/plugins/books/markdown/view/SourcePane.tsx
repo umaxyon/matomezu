@@ -3,7 +3,8 @@
 // ほかから原文が変わったら（AI・元に戻す・送れなかったなど）、書いている物をページの原文にし、書く所をずらして保つ。日本語の変換中は送らず、変換が終わってから送る・合わせる。
 // 行えなければ（ロック中など）書けない。Tab キーは利用者の設定の項目（tab-key.ts）の字を書く。元に戻す・やり直すのキーは、このテキストFormが名乗るキーの範囲で base のコマンドに渡し、テキストForm自身の元に戻すは使わない。
 // テキストFormは、同じ原文を同じ字の並びで写した物（行ごとに分け、行の中をブロックごとに切った、見えない写し）に重ね、写しの高さで伸ばす（ペインがスクロールする。ブロックの上端は写しで測る）。
-// 利用者の設定で、写しの上に印を描く（字は足さない）: 左の列の行番号、カーソルのある行の下線（折り返した行は最後の見た目の行の下）、空白（半角・全角・Tab）の印
+// 利用者の設定で、写しの上に印を描く（字は足さない）: 左の列の行番号、カーソルのある行の下線（折り返した行は最後の見た目の行の下）、空白（半角・全角・Tab）の印。
+// base の検索ダイアログを開いている間は、写しの字の上で当たりを光らせ（今の当たりは濃く、見えるようにスクロールする）、閉じたら今の当たりをテキストFormで選ぶ
 import {
   type ChangeEvent,
   type CSSProperties,
@@ -18,12 +19,20 @@ import {
 } from "react"
 import { useActions, useAllowed, usePerform, useUserSetting } from "../../../../plugin-api/ui"
 import type { MarkdownDocument } from "../../../base"
+import {
+  SEARCH_CURRENT_HIGHLIGHT,
+  SEARCH_HIGHLIGHT,
+  useHighlightRanges,
+  useSearchHits,
+  useSearchPick,
+} from "../../../base/ui"
 import { SOURCE_KEYS_SCOPE } from "../markdown"
 import { blankRuns, sourceLines } from "../scroll-sync"
 import { caretMoved, followCaret, PAUSED, planWrite, type Writing, wrote } from "../source-edit"
 import { CURRENT_LINE, LINE_NUMBERS, SHOW_WHITESPACE } from "../source-look"
 import { TAB_KEY, tabKeyText } from "../tab-key"
 import styles from "./MarkdownView.module.css"
+import { mirrorRanges, scrollToRange } from "./search-ranges"
 
 type Props = {
   stage: string
@@ -51,6 +60,28 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
   const composing = useRef(false)
   const writing = useRef<Writing>(PAUSED)
   const caret = useRef<number | null>(null) // 次に描いたあとに置く書く所
+  const mirror = useRef<HTMLPreElement>(null)
+
+  // 検索の当たりを写しの上で光らせ、今の当たりが変わったら見えるようにスクロールする
+  const search = useSearchHits(stage, page)
+  const [lit, setLit] = useState<{ all: Range[]; current: Range[] }>({ all: [], current: [] })
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 写しは書いている物 draft で描き直すので、そのたびに Range を作り直す
+  useLayoutEffect(() => {
+    const current = search.current === "none" ? [] : mirrorRanges(mirror.current, [search.current])
+    setLit({ all: mirrorRanges(mirror.current, search.hits), current })
+  }, [search, draft])
+  useHighlightRanges(SEARCH_HIGHLIGHT, lit.all)
+  useHighlightRanges(SEARCH_CURRENT_HIGHLIGHT, lit.current)
+  const currentAt = search.current === "none" ? "none" : `${search.current.start}`
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 今の当たりが替わったときだけスクロールする（光らせ直しでは動かさない）
+  useEffect(() => scrollToRange(scrollRef.current, lit.current[0]), [currentAt, lit.current.length > 0])
+  // 検索ダイアログを閉じたら、今の当たりを選んで書けるようにする
+  useSearchPick(stage, page, hit => {
+    const el = field.current
+    if (!el) return
+    el.focus()
+    el.setSelectionRange(hit.start, hit.end)
+  })
 
   // ほかから変わったページの原文に合わせる（書いている物に、送っていない所は無い）
   const follow = () => {
@@ -151,12 +182,13 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
   return (
     <div ref={scrollRef} className={styles.scroll} onScroll={onScroll}>
       <div className={styles.sourceBox} style={look} data-line-numbers={numbered}>
-        <pre className={`${styles.source} ${styles.sourceCopy}`} aria-hidden>
+        <pre ref={mirror} className={`${styles.source} ${styles.sourceCopy}`} aria-hidden>
           {lines.map(line => (
             <div
               key={line.start}
               className={styles.line}
               data-line={line.n}
+              data-line-start={line.start}
               data-current={underlined && line.n === caretLine ? true : undefined}
             >
               {line.pieces.map(p =>

@@ -1,0 +1,108 @@
+/* 検索ダイアログ: 画面の上に浮かぶ、止めないダイアログ（見出しを掴んで動かす） */
+.dialog {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 0 14px 12px;
+  border: 1px solid var(--skin-border);
+  border-radius: 10px;
+  background: var(--skin-surface-raised);
+  color: var(--skin-text);
+  box-shadow: var(--skin-shadow-3);
+  font-size: 13px;
+}
+/* 見出しの行: 掴んで動かす。右に閉じるボタン */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -14px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--skin-border);
+  color: var(--skin-text-muted);
+  font-weight: bold;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.head:active {
+  cursor: grabbing;
+}
+.close {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--skin-text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--skin-btn-hover);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.label {
+  flex: 0 0 3em;
+  color: var(--skin-text-muted);
+}
+.input {
+  flex: 1;
+  min-width: 0;
+}
+/* 正規表現が読めない */
+.input[aria-invalid="true"] {
+  outline: 2px solid var(--skin-danger, #d1242f);
+  outline-offset: -1px;
+}
+.count {
+  flex: 0 0 auto;
+  min-width: 4em;
+  color: var(--skin-text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+.buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.spacer {
+  flex: 1;
+}
+.button {
+  padding: 3px 10px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: var(--skin-btn);
+  color: var(--skin-text);
+  font: inherit;
+  cursor: pointer;
+}
+.button:hover:not(:disabled) {
+  background: var(--skin-btn-hover);
+}
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* 当たりを光らせる色（CSS Custom Highlight API。名前は highlights.tsx。色はブックの中身の明暗に合わせて、ブックのテーマの強調の色を薄くした物） */
+:global(::highlight(matomezu-search)) {
+  background-color: color-mix(in srgb, var(--theme-accent, #f2c94c) 32%, transparent);
+}
+:global(::highlight(matomezu-search-current)) {
+  background-color: color-mix(in srgb, var(--theme-accent, #f2994a) 70%, transparent);
+}

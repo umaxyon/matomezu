@@ -62,6 +62,18 @@ test("page-update の find・replace は、原文にちょうど 1 か所ある 
   expect(book().pages[0]!.text).toBe("# 見出し\n直した本文")
 })
 
+test("原文の改行はいつも \\n だけ: page-add・page-update の text と find・replace の \\r\\n と \\r を \\n にそろえる", () => {
+  const { store, id, book } = markdownStore()
+  const perform = (action: string, args: object) => store.actions.perform(action as never, args as never, { book: id })
+  expect(perform("@matomezu/base:page-add", { title: "2", fields: { text: "a\r\nb\rc" } }).ok).toBe(true)
+  expect(book().pages[1]!.text).toBe("a\nb\nc")
+  const page = book().pages[0]!.id
+  expect(perform("@matomezu/base:page-update", { page, fields: { text: "x\r\ny" } }).ok).toBe(true)
+  expect(book().pages[0]!.text).toBe("x\ny")
+  expect(perform("@matomezu/base:page-update", { page, fields: { find: "x\r\ny", replace: "1\r\n2" } }).ok).toBe(true)
+  expect(book().pages[0]!.text).toBe("1\n2")
+})
+
 test("find が無い・2 か所以上（重なりも数える）・text と一緒なら断る", () => {
   const { store, id, book } = markdownStore()
   const page = book().pages[0]!.id
