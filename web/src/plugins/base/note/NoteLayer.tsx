@@ -116,12 +116,30 @@ function ReadNote({ stage, id, anchors, props }: NoteViewProps) {
   )
 }
 
-// 読まれていない伝言の、付けた物が見える所の外にある間のマークポインタ（丸の中に伝言の絵。center はスタンドの中の丸の真ん中）
-function NotePointer({ stage, anchor, center }: { stage: string; anchor: string; center: { x: number; y: number } }) {
+// 読まれていない伝言の、付けた物が見える所の外にある間のマークポインタ（丸の中に伝言の絵。center はスタンドの中の丸の真ん中）。
+// 押すと付けた物を見せる。物が広く、見せても吹き出しが入らないときは、代わりに伝言を開く（onOpen）
+function NotePointer({
+  stage,
+  anchor,
+  center,
+  onOpen,
+}: {
+  stage: string
+  anchor: string
+  center: { x: number; y: number }
+  onOpen: (e: MouseEvent<HTMLButtonElement>) => void
+}) {
   const t = useMessages(kit)
-  const label = t("Show {name}", { name: useAnchorName(stage, anchor) })
+  const opens = useStandAway()?.afterShow === "pointer"
+  const show = t("Show {name}", { name: useAnchorName(stage, anchor) })
   return (
-    <StandPointer center={center} size={POINTER} label={label} className={styles.pointer}>
+    <StandPointer
+      center={center}
+      size={POINTER}
+      label={opens ? t("Open note") : show}
+      className={styles.pointer}
+      onPress={opens ? onOpen : undefined}
+    >
       <NoteIcon />
     </StandPointer>
   )
@@ -135,7 +153,11 @@ function BubbleStand({ stage, id, anchors, props }: NoteViewProps) {
   const asks = useNoteAsks(stage, id, "hide")
   return (
     <StandAt anchor={anchor} side="right" turn="none" minRoom={BUBBLE_MIN_W} edgePinned label={t("Note")}>
-      <Away pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}>
+      <Away
+        pointer={
+          <NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} onOpen={open} />
+        }
+      >
         <Ask items={asks} opens="hover" place="aboveRight">
           {() => <BubbleButton text={props.text} onClick={open} />}
         </Ask>
@@ -155,7 +177,7 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
       anchor={anchor}
       status={FOLDED_NOTE_STATUS_ID}
       at={props.addedAt}
-      pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}
+      pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} onOpen={open} />}
     >
       <FoldedAsk asks={busy ? [] : asks}>
         <CornerNoteButton

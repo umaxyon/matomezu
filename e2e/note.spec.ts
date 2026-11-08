@@ -2,7 +2,7 @@ import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { browserMenuStopped } from "./helpers/browser-menu"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
-import { addBox, items } from "./helpers/paper"
+import { addBox, items, settled } from "./helpers/paper"
 import { openGeneral, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -400,6 +400,32 @@ test("分けたステージの境目を左へドラッグして左のステー�
   await divider.dblclick()
   await expect(bubble).toBeVisible()
   await expect(pointer).toHaveCount(0)
+})
+
+test("物がステージより広く、見せても吹き出しが入らない間は、縁のマークポインタを押すと伝言が右サイドパネルに開く", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 600, height: 600 })
+  await page.goto("/")
+  await addBox(page, 100, 150, "横に長い見出しの箱です、とても長い見出しの箱です")
+  const box = items(page).filter({ hasText: "横に長い" })
+  await writeNote(page, box, "広い物")
+  const stage = page.locator("[data-stage]")
+  const pointer = stage.locator("[data-mark-pointer]")
+  // 箱の上で拡大して、箱の幅をステージの幅に近づける
+  await expect(async () => {
+    const b = (await box.boundingBox())!
+    await page.mouse.move(b.x + b.width / 2, b.y + 10)
+    await page.keyboard.down("Control")
+    await page.mouse.wheel(0, -100)
+    await page.keyboard.up("Control")
+    await expect(pointer).toHaveAccessibleName("伝言を開く", { timeout: 500 })
+  }).toPass()
+  // 拡大し終えて止まってから押す
+  await settled(page, box)
+  await expect(pointer).toHaveAccessibleName("伝言を開く")
+  await pointer.click()
+  await expect(panel(page).getByLabel("伝言", { exact: true })).toHaveValue("広い物")
 })
 
 test("読まれていない伝言は、箱の上の辺が画面の外に出ると、吹き出しが縁のマークポインタ（丸の中に伝言の絵）に替わり、押すと箱が見えて吹き出しに戻る。AI が読んだ伝言は縁に出ない", async ({

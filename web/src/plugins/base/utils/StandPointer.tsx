@@ -1,6 +1,6 @@
 // マークポインタ: edgePinned のスタンドのアンカーの上の辺が見える所の外にある間（useStandAway）、スタンドの中の点 center を真ん中に描いていた
-// 大きさ size の丸を、縁に寄せて出すボタン。押すと付けた物を見せる。外に出ていなければ何も出さない（マークのびっくりマーク・伝言で使う）
-import type { ReactNode } from "react"
+// 大きさ size の丸を、縁に寄せて出すボタン。押すと付けた物を見せる（onPress を渡せば、その代わりに onPress）。外に出ていなければ何も出さない（マークのびっくりマーク・伝言で使う）
+import type { MouseEvent, ReactNode } from "react"
 import type { Point } from "../../../core/geom"
 import { useStandAway } from "./anchors"
 import { STAND_MARGIN } from "./stand-place"
@@ -10,12 +10,14 @@ export function StandPointer({
   size,
   label,
   className,
+  onPress,
   children,
 }: {
   center: Point
   size: number
-  label: string // 押すと見せる物の名前（「〇〇を見せる」）
+  label: string // 押すと何をするか（「〇〇を見せる」など）
   className?: string
+  onPress?: (e: MouseEvent<HTMLButtonElement>) => void
   children: ReactNode
 }) {
   const away = useStandAway()
@@ -31,7 +33,7 @@ export function StandPointer({
         className={className}
         aria-label={label}
         title={label}
-        onClick={away.show}
+        onClick={onPress ?? away.show}
         data-mark-pointer
       >
         {children}
