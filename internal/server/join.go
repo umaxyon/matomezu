@@ -213,8 +213,25 @@ func (h *Hub) settleNotes() error {
 	return h.putParticipantNotes()
 }
 
+// callsAnnounceGap は、同じ参加者の最後に呼ばれた時刻を窓に知らせ直す、いちばん短い間（毎回の呼び出しで知らせが走らないように）
+const callsAnnounceGap = 30 * time.Second
+
+// ParticipantCalls は参加者の id ごとの、最後に呼ばれた時刻
+func (h *Hub) ParticipantCalls() map[string]string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := make(map[string]string, len(h.participantNotes))
+	for id, n := range h.participantNotes {
+		if n.Called != "" {
+			out[id] = n.Called
+		}
+	}
+	return out
+}
+
 // Called は、参加の id が付いた /api/ai の呼び出しを帳簿に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
-// 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。id が空か、表に無ければ何もしない
+// 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。表に無い id（断られたか、外された）には、1 度だけ「参加が断られた」知らせを返す。
+// id が空なら何もしない。最後に呼ばれた時刻は、前に知らせてから callsAnnounceGap 以上たっていたときだけ窓に知らせる
 func (h *Hub) Called(id string, now time.Time) string {
 	if id == "" {
 		return ""
@@ -230,7 +247,11 @@ func (h *Hub) Called(id string, now time.Time) string {
 			continue
 		}
 		n := h.participantNotes[id]
+		before, _ := time.Parse(time.RFC3339Nano, n.Called)
 		n.Called = isoTime(now)
+		if now.Sub(before) >= callsAnnounceGap {
+			h.broadcast("participant-calls", map[string]any{"participant": id, "at": n.Called})
+		}
 		if s.State == "joined" && !n.Told {
 			n.Told = true
 			h.participantNotes[id] = n
@@ -244,7 +265,14 @@ func (h *Hub) Called(id string, now time.Time) string {
 		h.participantNotes[id] = n
 		return ""
 	}
-	return ""
+	if h.goneTold[id] {
+		return ""
+	}
+	if h.goneTold == nil {
+		h.goneTold = map[string]bool{}
+	}
+	h.goneTold[id] = true
+	return "The user declined your request to join matomezu (or removed you). Tell the user, and do not ask again unless the user asks."
 }
 
 // ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、参加の id のヘッダを読んで帳簿を更新し、知らせがあれば返事のヘッダに付ける

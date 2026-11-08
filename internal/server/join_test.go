@@ -188,3 +188,46 @@ func joinBodyWith(t *testing.T, url, projects string) string {
 	got, _ := call(t, "POST", url+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"L1"`+projects+`}`, nil)
 	return got
 }
+
+// 断られた（表から消えた）参加の id の呼び出しには、1 度だけ断られた知らせを返す。最後に呼ばれた時刻は、短い間に重ねて知らせない
+func TestDeclinedParticipantIsToldOnceAndCallsAreNotAnnouncedEveryTime(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
+	var joined Joined
+	_ = json.Unmarshal([]byte(got), &joined)
+	id := map[string]string{ParticipantHeader: joined.Participant}
+
+	hub.mu.Lock()
+	c := &client{id: "w1", ch: make(chan event, 16)}
+	hub.clients["w1"] = c
+	hub.mu.Unlock()
+	drain := func() (n int) {
+		for {
+			select {
+			case e := <-c.ch:
+				if e.name == "participant-calls" {
+					n++
+				}
+			default:
+				return
+			}
+		}
+	}
+	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
+	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
+	if n := drain(); n != 1 {
+		t.Fatalf("participant-calls events = %d, want 1", n)
+	}
+	if calls := hub.ParticipantCalls(); calls[joined.Participant] == "" {
+		t.Fatalf("calls = %v", calls)
+	}
+
+	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-decline","args":{"participant":"`+joined.Participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
+	_, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
+	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); !strings.Contains(text, "declined") {
+		t.Fatalf("notice = %q", text)
+	}
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
+		t.Fatalf("told twice: %q", h.Get(NoticeHeader))
+	}
+}

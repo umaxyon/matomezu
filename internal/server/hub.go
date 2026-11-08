@@ -18,6 +18,7 @@ package server
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
+//	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join.go。30 秒以上あいたときだけ知らせる）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
@@ -77,6 +78,7 @@ type Hub struct {
 	participants     json.RawMessage            // 利用者の参加者の表（参加者の並び。無ければ nil）
 	participantNotes map[string]participantNote // 参加者の id → 帳簿（join.go）
 	joinMu           sync.Mutex                 // 参加の頼みを 1 つずつ受ける（join.go）
+	goneTold         map[string]bool            // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
 	clients          map[string]*client
 	next             int
 	ticks            int64            // フォーカスの順を振る数

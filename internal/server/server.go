@@ -3,7 +3,7 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "annotations": {id: [...]}, "mailbox": [...], "participants": [...], "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}} 置いてあるブック（ゴミ箱のブックも）と設定、
+//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "annotations": {id: [...]}, "mailbox": [...], "participants": [...], "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}} 置いてあるブック（ゴミ箱のブックも）と設定、
 //	                      ブックごとのアノテーション、郵便箱、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
 //	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS（道には ?v= で追加プラグインの版を付けて配る）  … 画面から
 //	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
@@ -216,7 +216,7 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 			plugins[i].CSS = fmt.Sprintf("api/plugins/%d/ui.css?v=%d", i, v)
 		}
 	}
-	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": o.Hub.Mailbox(), "participants": o.Hub.Participants(), "plugins": plugins, "touched": o.Hub.Touched()})
+	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": o.Hub.Mailbox(), "participants": o.Hub.Participants(), "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls()})
 }
 
 func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {
