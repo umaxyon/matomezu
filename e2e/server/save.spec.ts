@@ -454,14 +454,14 @@ test("箱の編集のダイアログを開いている間は、AI がその箱�
 }) => {
   const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
   const { result } = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/drawing:drawing", title: "直している箱" },
+    args: { type: "@matomezu/drawing:drawing", project: "default", title: "直している箱" },
   })
   const on = { book: result.book }
   const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })
