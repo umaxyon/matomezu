@@ -39,7 +39,7 @@ describe("スキン", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, acme],
       partial: true,
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       autoSkin: { dark: "acme:dark" as "@matomezu/base:dark" },
     })
     expect(instance.autoSkin).toEqual({ light: "@matomezu/base:light", dark: "acme:dark" })

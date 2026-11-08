@@ -16,6 +16,7 @@ export interface PartUi {
 
 export const PART_UI = {
   bookTypes: { views: [], define: ["defineBookType"] },
+  controlCenters: { views: [], define: ["defineControlCenter"] },
   items: { views: ["items", "connectors"], define: ["defineShape", "defineConnector"] },
   actions: { views: [], define: ["defineAction"] },
   settings: { views: ["settingViews"], define: ["defineSetting"] },

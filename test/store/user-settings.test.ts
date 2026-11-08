@@ -4,9 +4,8 @@ import { z } from "zod"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import type { SettingDef } from "../../web/src/core/def/setting"
 import { performIn } from "../../web/src/core/perform"
-import { aiSettings, langOf, userSetting } from "../../web/src/core/settings"
+import { aiSettings, isParticipantAlive, langOf, participantAliveMs, userSetting } from "../../web/src/core/settings"
 import { BUILTIN } from "../../web/src/plugins"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -23,7 +22,7 @@ const EX: Plugin = { id: "@ex/u", userSettings: [SECRET, OPEN] }
 
 const ctx = (catalog = CORE_CATALOG, by?: "ai") => ({
   catalog,
-  home: MASTER_BOOK.id,
+  controlCenter: "@matomezu/control-center:control-center",
   lang: "en",
   newId: () => "x",
   now: "2026-10-29T00:00:00.000Z",
@@ -31,8 +30,8 @@ const ctx = (catalog = CORE_CATALOG, by?: "ai") => ({
 })
 
 test("利用者だけが変える項目は、AI には変えさせず、AI が読む設定と AI に見せる引数の形にも出さない", () => {
-  const catalog = assemble([...BUILTIN, EX], MASTER_BOOK.id).catalog.core
-  const world = { books: {}, settings: { "@ex/u:secret": "s" }, annotations: {}, mailbox: [] }
+  const catalog = assemble([...BUILTIN, EX], "@matomezu/control-center:control-center").catalog.core
+  const world = { books: {}, settings: { "@ex/u:secret": "s" }, annotations: {}, mailbox: [], participants: [] }
   const set = (values: Record<string, unknown>, by?: "ai") =>
     performIn(world, "@matomezu/base:settings-set", { values }, undefined, ctx(catalog, by)).ok
   expect(set({ "@ex/u:secret": "t" })).toBe(true)
@@ -87,4 +86,22 @@ test("選択肢の名前（optionTitles）の文言の鍵が文言に無けれ�
     userSettings: [{ ...OPEN, id: "@ex/o:mode", schema: z.enum(["a"]), optionTitles: { a: "@ex/o:none" } }],
   }
   expect(() => assemble([...BUILTIN, named])).toThrow("E018")
+})
+
+test("参加者が生きているとする長さは、role が participant-alive の項目（分の数）から決まる", () => {
+  expect(participantAliveMs(CORE_CATALOG, {})).toBe(60 * 60_000)
+  expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "15" })).toBe(15 * 60_000)
+  expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "7" })).toBe(60 * 60_000)
+})
+
+test("参加者が生きているかは、最後に呼ばれた時刻から有効時間の設定以内。呼ばれていない・読めない時刻・形に合わない設定は既定の 60 分で決まる", () => {
+  const now = Date.parse("2026-11-08T10:00:00.000Z")
+  const alive = (calledAt: string | undefined, settings = {}) =>
+    isParticipantAlive(CORE_CATALOG, settings, calledAt, now)
+  expect(alive(undefined)).toBe(false)
+  expect(alive("not a time")).toBe(false)
+  expect(alive("2026-11-08T09:30:00.000Z")).toBe(true)
+  expect(alive("2026-11-08T08:30:00.000Z")).toBe(false)
+  expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "15" })).toBe(false)
+  expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "7" })).toBe(true)
 })

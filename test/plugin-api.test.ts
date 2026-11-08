@@ -2,6 +2,7 @@
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
 import { newStage } from "../web/src/core/stage"
+import { screenOf } from "../web/src/core/window"
 import { stageView, toolOf } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
@@ -28,6 +29,7 @@ test("matomezu が出す名前", () => {
     "EDGE_MAX",
     "EDGE_ZONE",
     "HEX",
+    "JOINED_MESSAGE",
     "LEN",
     "NEST_PADDING",
     "PALETTE",
@@ -183,7 +185,10 @@ test("matomezu/ui が出す名前", () => {
     "ANNOTATION_ICON",
     "ActionButton",
     "AtCorner",
+    "BOOK_SCREEN",
     "BodyField",
+    "CONTROL_CENTER_FOOTER",
+    "CONTROL_CENTER_SCREEN",
     "CORNER_STATUSES",
     "CaptionField",
     "ChoiceSetting",
@@ -197,8 +202,10 @@ test("matomezu/ui が出す名前", () => {
     "InheritChoices",
     "LEFT_SIDE_PANEL",
     "LockToggle",
+    "MAIL_ACTIONS",
     "PageProblemsView",
     "PaperFrame",
+    "ParticipantList",
     "Problem",
     "RIGHT_SIDE_PANEL",
     "RichBar",
@@ -226,6 +233,7 @@ test("matomezu/ui が出す名前", () => {
     "defineCornerStatus",
     "defineLayout",
     "defineLeftSidePanelTab",
+    "defineMailActions",
     "definePluginUi",
     "defineSettingsCategory",
     "defineWidget",
@@ -334,8 +342,8 @@ test("プラグインに見せるステージ（StageView）のフィールド",
 test("コマンドに見せるステージは、プラグインに見せるステージと同じ物", () => {
   const store = newStore()
   const state = store.state.getState()
-  const stage = state.workspace.stages.find(s => s.id === "s1")!
-  const tool = toolOf(store.catalog.core, state.workspace, "s1", state.books)
+  const stage = screenOf(state.window).stages.find(s => s.id === "s1")!
+  const tool = toolOf(store.catalog.core, screenOf(state.window), "s1", state.books)
   expect(commandContext(store.catalog.core, null, state, "s1", "@matomezu/base:stage-split")?.stage).toEqual(
     stageView(store.catalog.core, stage, tool),
   )
@@ -350,8 +358,9 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "bookHistory",
     "catalog",
     "contextMenu",
+    "controlCenter",
     "dialog",
-    "home",
+    "front",
     "settings",
     "stage",
     "stageState",
@@ -404,6 +413,8 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "setStageArea",
     "setStageStart",
     "setTool",
+    "showBookScreen",
+    "showControlCenter",
     "showToast",
     "split",
     "stopPlacing",

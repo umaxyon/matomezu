@@ -1,6 +1,7 @@
 // ステージのビュー: パン（紙をずらす量）が変わっても、ステージのビューとその中のレイヤーは描き直さない（パンを読むレイヤーだけが描き直す）
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
+import { screenOf } from "../../web/src/core/window"
 import { BOOK_LAYERS } from "../../web/src/plugins/base/workspace/slots"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -26,7 +27,7 @@ test("パンしても、book-layers のレイヤーは描き直さない", () =>
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, counter],
     partial: true,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),
@@ -41,7 +42,7 @@ test("パンしても、book-layers のレイヤーは描き直さない", () =>
     instance.actions.openBook("s1", "b1")
     instance.actions.zoomStage("s1", 1.8) // 紙が表示領域からはみ出して、ずらせるように
   })
-  const stage = () => instance.state.getState().workspace.stages[0]!
+  const stage = () => screenOf(instance.state.getState().window).stages[0]!
   expect(stage().opened?.paper).toBeTruthy()
   const before = drawn
   expect(before).toBeGreaterThan(0)

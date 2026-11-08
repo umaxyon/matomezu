@@ -1,22 +1,22 @@
-// ブックを作る: 何冊も作れるタイプの空のブックを、ブックの一覧に足す。機能台帳に無いタイプと、1 冊だけのタイプは断る。
+// ブックを作る: タイプの空のブックを、ブックの一覧に足す。機能台帳に無いタイプは断る。
 // ブックの設定の項目（settings）も一緒に決められる（タイプが選んだ項目だけ。確かめと整え方は book-update と同じ withBookSettings）。
 // ブックを作るダイアログが聞く項目は、タイプが createSettings で選ぶ（定義オブジェクトの拡張ポイントに書き足す）
 import { z } from "zod"
 import { creatableTypes, createBook } from "../../../core/book"
-import type { BookTypeId, SingleBookTypeId } from "../../../core/catalog"
+import type { BookTypeId } from "../../../core/catalog"
 import { bookType, type CatalogCheckDef } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
 import { type PermitContext, permittedIn, type World } from "../../../core/perform"
+import { DEFAULT_PROJECT, isProject } from "../../../core/project"
 import { withBookSettings } from "../book-look"
 import { settingsArgs } from "../book-settings"
 import { kit } from "../kit"
-
-// 何冊も作れるブックのタイプの id（core/catalog.ts の BookTypeTable から決まる。表に無いタイプは run が断る）
-type ManyBookTypeId = Exclude<BookTypeId, SingleBookTypeId>
+import { declineProjects } from "../project-refusal"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),
-  type: z.custom<ManyBookTypeId>(v => typeof v === "string" && v.length > 0),
+  project: z.string().min(1), // ブックが属するプロジェクトの id
+  type: z.custom<BookTypeId>(v => typeof v === "string" && v.length > 0),
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだブックの設定の項目（形はタイプが決める）
 })
 
@@ -29,7 +29,7 @@ declare module "../../../core/catalog" {
 export const BOOK_CREATE = kit.defineAction({
   id: "book-create",
   aiDescription:
-    "Create a book. type is one of the book types that are creatable (bookTypes in actions); settings are its book settings, the ones its type has. Returns the new book's id.",
+    "Create a book. project is the id of the project the book belongs to (join returns the ids of yours). type is one of the book types that are creatable (bookTypes in actions); settings are its book settings, the ones its type has. Returns the new book's id.",
   title: "New book",
   target: "library",
   permissionScope: { create: "type" },
@@ -42,7 +42,8 @@ export const BOOK_CREATE = kit.defineAction({
   },
   run: (library, args, ctx) => {
     if (!creatableTypes(ctx.catalog).includes(args.type)) return null
-    const made = createBook(ctx.catalog, args.type, { id: ctx.newId(), title: args.title })
+    if (!isProject(args.project)) return declineProjects([args.project])
+    const made = createBook(ctx.catalog, args.type, { id: ctx.newId(), title: args.title, project: args.project })
     const book = args.settings === undefined ? made : withBookSettings(ctx.catalog, made, args.settings)
     if (!book) return null
     if (book.id in library) return null
@@ -62,5 +63,5 @@ export const CREATE_SETTINGS_CHECK: CatalogCheckDef = catalog =>
 // 問うのは引数の形を通すためで、名前はタイプの判断に関わらないので、問うためだけの名前で問う
 export const typesToCreate = (world: World, ctx: PermitContext): string[] =>
   creatableTypes(ctx.catalog).filter(
-    type => permittedIn(world, BOOK_CREATE.id, { title: "-", type }, undefined, ctx).ok,
+    type => permittedIn(world, BOOK_CREATE.id, { title: "-", project: DEFAULT_PROJECT, type }, undefined, ctx).ok,
   )

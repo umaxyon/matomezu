@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test"
 import { deniedBy, inspect } from "../../web/src/core/inspect"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 
@@ -26,10 +25,10 @@ describe("inspect: アクションの許可", () => {
     expect(inspect(CORE_CATALOG, { ...update, where: { page } })).toMatchObject({ value: false, decidedBy: lock })
     expect(inspect(CORE_CATALOG, update).value).toBe(true)
     expect(inspect(CORE_CATALOG, { ...update, action: "@matomezu/base:page-unlock", where: { page } }).value).toBe(true)
-    // タイプが止めるものは、タイプのステップで決まる
-    expect(
-      deniedBy(inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:book-update", book: MASTER_BOOK })),
-    ).toBe(null)
+    // 認可ステップが止めていなければ、止めた認可ステップは無い
+    expect(deniedBy(inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:page-add", book: drawing }))).toBe(
+      null,
+    )
   })
 
   test("ブックが対象のアクションは、そのブックのタイプが決める", () => {
@@ -42,34 +41,28 @@ describe("inspect: アクションの許可", () => {
         bookType: "@matomezu/drawing:drawing",
       },
     })
-    // マスターは book-update を外す（付く先はどのブックも）
-    expect(
-      inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:book-update", book: MASTER_BOOK }),
-    ).toMatchObject({
-      value: false,
-      decidedBy: { source: "bookType", id: "@matomezu/master:master", field: "actions.without" },
-    })
-    expect(inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:page-add", book: MASTER_BOOK }).value).toBe(
-      false,
-    )
   })
 
-  test("一覧と設定のアクションは、ホームのタイプが決める。ホームが無ければ使えない", () => {
+  test("ブックが対象でないアクションは、コントロールセンターが決める。コントロールセンターが無ければ使えない", () => {
     expect(
       inspect(
         CORE_CATALOG,
         { kind: "action", action: "@matomezu/base:book-create" },
-        { home: "@matomezu/master:master" },
+        { controlCenter: "@matomezu/control-center:control-center" },
       ),
     ).toMatchObject({
       value: true,
-      decidedBy: { source: "bookType", id: "@matomezu/master:master", field: "actions.add" },
+      decidedBy: {
+        source: "controlCenter",
+        id: "@matomezu/control-center:control-center",
+        field: "actions",
+      },
     })
     expect(
-      inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:book-create" }, { home: null }),
+      inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:book-create" }, { controlCenter: null }),
     ).toMatchObject({
       value: false,
-      decidedBy: { source: "home", id: null },
+      decidedBy: { source: "controlCenter", id: null },
     })
   })
 

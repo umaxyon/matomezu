@@ -4,6 +4,7 @@ import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { placement } from "../../web/src/core/stage"
 import { resolveTokens } from "../../web/src/core/theme"
+import { screenOf } from "../../web/src/core/window"
 import { GAP } from "../../web/src/plugins/base/place/push"
 import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
 import { LIST } from "../../web/src/plugins/items/list/list"
@@ -69,7 +70,7 @@ test("押されたリストを縮めるときは、横はキャプションが�
 
 // 紙の上の点 p にアイテムの左上が来るポインタの位置
 function pointerFor(store: Store, p: Point): Point {
-  const s = placement(store.state.getState().workspace.stages[0]!)!
+  const s = placement(screenOf(store.state.getState().window).stages[0]!)!
   return { x: s.x + p.x * s.zoom + PLACE_OFFSET.x, y: s.y + p.y * s.zoom + PLACE_OFFSET.y }
 }
 
@@ -95,6 +96,7 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
     type: "@matomezu/drawing:drawing",
     id: "x",
     title: "x",
+    project: "default",
     pages: [
       {
         id: "p",

@@ -4,10 +4,10 @@ import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
 import type { Book, BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { refusalMessage } from "../../web/src/plugins/base"
 import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import type { CommandId } from "../../web/src/store/commands"
 import { isEnabled } from "../../web/src/store/commands"
 import { CORE_CATALOG, newStore } from "../support"
@@ -56,13 +56,19 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
   const { state } = newStore()
   const ctx = (by?: "ai") => ({
     catalog: CORE_CATALOG,
-    home: MASTER_BOOK.id,
+    controlCenter: "@matomezu/control-center:control-center",
     lang: "en" as const,
     newId: () => "n",
     now: "2026-10-29T00:00:00.000Z",
     ...(by ? { by } : {}),
   })
-  let world = { books: state.getState().books, settings: state.getState().settings, annotations: {}, mailbox: [] }
+  let world = {
+    books: state.getState().books,
+    settings: state.getState().settings,
+    annotations: {},
+    mailbox: [],
+    participants: [],
+  }
   const run = (id: string, by?: "ai"): PerformedIn => {
     const done = performIn(world, id, {}, { book: "b1" }, ctx(by))
     if (done.ok && done.book) world = { ...world, books: { ...world.books, [done.book.id]: done.book } }
@@ -93,7 +99,7 @@ test("ロック中は、行うアクションをどれも認可ステップに�
   const enabled = (id: CommandId) => isEnabled(store, state.getState(), "s1", id)
   // 箱を置こうとしている（paper-place を出す）
   const placing = () => {
-    if (!state.getState().workspace.stages[0]!.placing) actions.togglePlacing("s1", "@matomezu/box:shape-box")
+    if (!screenOf(state.getState().window).stages[0]!.placing) actions.togglePlacing("s1", "@matomezu/box:shape-box")
   }
   const first = (state.getState().books.b1 as Drawing).pages[0]!.id
   actions.openPage("s1", first)

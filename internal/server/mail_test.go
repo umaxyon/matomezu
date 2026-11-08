@@ -15,19 +15,19 @@ import (
 func TestAISendsMail(t *testing.T) {
 	s := newServer(t, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
-	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D64","title":"済みました"}}`, ai)
+	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"project":"default","from":"D64","title":"済みました"}}`, ai)
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
 	if strings.Count(data, `"mail":"@matomezu/base:letter"`) != 1 || !strings.Contains(data, `"props":{"title":"済みました","body":""}`) {
 		t.Fatalf("data = %s", data)
 	}
-	_, got := send(t, "GET", s.URL+"/api/ai/mail", "", ai)
+	_, got := send(t, "GET", s.URL+"/api/ai/mail?projects=default", "", ai)
 	if !strings.Contains(got, `"from":"D64"`) || strings.Contains(got, "seenAt") {
 		t.Fatalf("ai mail = %s", got)
 	}
 	id := got[strings.Index(got, `"id":"`)+6:]
 	id = id[:strings.Index(id, `"`)]
 	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:mail-seen","args":{"mail":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`, nil)
-	if _, got := send(t, "GET", s.URL+"/api/ai/mail", "", ai); !strings.Contains(got, `"seenAt":"2026-11-06T00:00:00.000Z"`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/mail?projects=default", "", ai); !strings.Contains(got, `"seenAt":"2026-11-06T00:00:00.000Z"`) {
 		t.Fatalf("ai mail after seen = %s", got)
 	}
 }

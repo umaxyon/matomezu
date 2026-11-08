@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { afterFrames } from "./helpers/frames"
 import { addList, addRow } from "./helpers/list"
@@ -7,7 +7,7 @@ import { addBox, zoomOf } from "./helpers/paper"
 test("ツールボックスのリストで置くと、キャプションの見出しと「＋」の行だけのリストが出る。「＋」で行を足し、ダブルクリックで行を変え、右クリックや編集のダイアログの「行を削除」で消す", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "買い物")
   await expect(list.getByRole("listitem")).toHaveCount(0)
   await addRow(page, list, "牛乳")
@@ -38,7 +38,7 @@ test("ツールボックスのリストで置くと、キャプションの見�
 test("チェックリストにすると行の左にチェックが出て、押すだけで入れ切りする。チェックの入ったリストでチェックリストを切ろうとすると、その場で確かめる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "やること")
   await addRow(page, list, "牛乳")
   // リストの設定（見出しのダブルクリック）でチェックリストにする
@@ -75,7 +75,7 @@ test("行がリストの高さを超えるとリストの中でスクロール�
   page,
 }) => {
   await page.clock.install()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "多い")
   for (const n of [1, 2, 3, 4, 5]) await addRow(page, list, `行 ${n}`)
   const rows = list.locator("ul").locator("..")
@@ -120,7 +120,7 @@ test("行がリストの高さを超えるとリストの中でスクロール�
 test("行の下の端をドラッグすると、その行の高さが 1 行刻みで変わる。設定の「行の高さ」で全部の行をそろえ、キャンセルなら元のまま", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "高さ")
   await addRow(page, list, "一")
   await addRow(page, list, "二", "本文")
@@ -163,7 +163,7 @@ test("行の下の端をドラッグすると、その行の高さが 1 行刻�
 test("チェックリストにすると「チェック済みを」の入力Formが出て、チェック済みの行を薄くし、先頭か最後に寄せて見せる（データの順は変えない）。寄せているときチェック済みの行はドラッグできない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "順番")
   for (const c of ["一", "二", "三"]) await addRow(page, list, c)
   await list.getByText("順番").dblclick()
@@ -202,7 +202,7 @@ test("チェックリストにすると「チェック済みを」の入力Form�
 test("リストのキャプションも、箱と同じく左・中央・右に寄せられる（既定は中央。確定の前から見せる）", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "寄せ")
   const head = list.getByText("寄せ")
   await expect(head).toHaveCSS("text-align", "center")
@@ -221,7 +221,7 @@ test("リストのキャプションも、箱と同じく左・中央・右に�
 test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは行のドラッグにならない（ダブルクリックは行の編集を開く）。ハンドツールの間は行を運ばず、行の高さも変えず、紙がずれる。ダブルクリックでダイアログも開かない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const first = await addList(page, "左")
   for (const c of ["一", "二", "三"]) await addRow(page, first, c)
   await (await footerMenuTool(page, "リスト")).click()
@@ -292,7 +292,7 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
 test("行をドラッグして行の並びの下の端へ寄せると、ポインタを止めていても一番下までスクロールし続け、上の端へ寄せると上へ戻る。光る線は行の並びの外に出ない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "多い")
   for (const n of [1, 2, 3, 4, 5, 6]) await addRow(page, list, `行 ${n}`)
   const rows = list.locator("ul").locator("..")
@@ -324,7 +324,7 @@ test("行をドラッグして行の並びの下の端へ寄せると、ポイ�
 test("リストのテーマを付箋紙にすると行が黄色の付箋になって右上が折り返り、色を選ぶと台紙がそのテーマの色になる。ブックのテーマに戻すと元の見た目", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "見た目")
   await addRow(page, list, "一")
   const mount = list.locator("ul").locator("../..")
@@ -363,7 +363,7 @@ test("リストのテーマを付箋紙にすると行が黄色の付箋にな�
 })
 
 test("行の追加と編集のダイアログで、行のキャプションと本文の寄せを選べる（既定は左）", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "寄せ")
   await addRow(page, list, "一", "本文")
   const row = list.getByRole("listitem").first()
@@ -389,7 +389,7 @@ test("行の追加と編集のダイアログで、行のキャプションと�
 test("行を押すと行だけを選び（行に選択枠）、見出しを押すとリストを選ぶ。Ctrl+クリックで同じリストの行を足し、ほかの物を Ctrl+クリックすると行はリストに置き換わる。選んだ行は Delete で消える", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "買い物")
   for (const caption of ["牛乳", "卵", "パン"]) await addRow(page, list, caption)
   const rows = list.getByRole("listitem")
@@ -422,7 +422,7 @@ test("行を押すと行だけを選び（行に選択枠）、見出しを押�
 test("行の並びと下辺の間に余白があり、そこを押すとリストが選ばれて、そのまま下のつまみで広げられる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "買い物")
   for (const caption of ["牛乳", "卵", "パン", "米", "茶"]) await addRow(page, list, caption)
   const zoom = await zoomOf(page)
@@ -447,7 +447,7 @@ test("行の並びと下辺の間に余白があり、そこを押すとリス�
 test("チェック済みを最後に寄せたリストで、チェックの無い行をチェック済みの行の上へ運んでも、チェックの無い行の並びの最後に入る。別のリストのチェック済みの行は、チェック済みの行の並びの中に入る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const first = await addList(page, "左")
   for (const c of ["一", "二", "三"]) await addRow(page, first, c)
   await first.getByText("左").dblclick()

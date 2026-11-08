@@ -2,18 +2,18 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { actionsOf } from "../../web/src/core/perform"
 import { warningText } from "../../web/src/core/warnings"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
 import { CORE_CATALOG, newStore } from "../support"
 
-const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", pages: [] }
+const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", project: "default", pages: [] }
 
-test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。マスターは足すアクションと外す book-update・book-lock・book-unlock・伝言・マークで決まる", () => {
+test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。ブックが対象でないアクションは、どのタイプにも付かない", () => {
   const ids = actionsOf(CORE_CATALOG, drawing)
   for (const id of [
     "@matomezu/base:page-add",
@@ -26,19 +26,8 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
   ])
     expect(ids).toContain(id)
   expect(ids).not.toContain("@matomezu/base:book-create")
-  expect(actionsOf(CORE_CATALOG, MASTER_BOOK)).toEqual([
-    "@matomezu/base:book-create",
-    "@matomezu/base:book-trash",
-    "@matomezu/base:book-restore",
-    "@matomezu/base:book-purge",
-    "@matomezu/base:trash-empty",
-    "@matomezu/base:settings-set",
-    "@matomezu/base:book-revert",
-    "@matomezu/base:mail-send",
-    "@matomezu/base:mail-seen",
-    "@matomezu/base:mail-visited",
-    "@matomezu/base:mail-remove",
-  ])
+  for (const id of ["@matomezu/base:settings-set", "@matomezu/base:mail-send", "@matomezu/base:participant-accept"])
+    expect(ids).not.toContain(id)
 })
 
 test("ビルトインプラグインは warning を出さない", () => {
@@ -52,7 +41,6 @@ const NOTE = notes.defineBookType({
   version: 1,
   title: "Note",
   schema: z.strictObject({ id: z.string() }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: false,
   pages: {
@@ -76,7 +64,11 @@ const SCRIBBLE = notes.defineTool({ id: "scribble", title: "Note", performs: ["n
 const PLUGIN = definePlugin(notes.plugin({ bookTypes: [NOTE], commands: [GHOST], tools: [SCRIBBLE] }))
 
 test("without・add・performs の間違いは warning（W001〜W003・W012）で、その行だけ効かず、プラグインのほかは動く", () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN, PLUGIN], partial: true, home: "@matomezu/master:master" })
+  const instance = createMatomezu({
+    plugins: [...BUILTIN, PLUGIN],
+    partial: true,
+    controlCenter: "@matomezu/control-center:control-center",
+  })
   expect(warningsOf(instance.catalog).map(warningText)).toEqual([
     "W012 notes: tool notes:scribble: performs notes:nothing, which is not in the catalog",
     "W001 notes: bookType notes:note: without names @matomezu/list:row-add, which is not attached to it",
@@ -88,14 +80,15 @@ test("without・add・performs の間違いは warning（W001〜W003・W012）�
   expect(isShown(instance, instance.state.getState(), "s1", "notes:ghost" as never)).toBe(false)
 })
 
-test("コマンドは、行うアクションが今のブックで使えなければ出ない（マスターではブックの設定もページの追加も出ない）", () => {
+test("コマンドは、行うアクションが今のブックで使えなければ出ない（ブックを開いていないステージではブックの設定もページの追加も出ない）", () => {
   const store = newStore()
   const shown = (id: string) => isShown(store, store.state.getState(), "s1", id as never)
   expect(shown("@matomezu/base:book-settings")).toBe(true)
-  store.actions.command("s1", "@matomezu/base:stage-home")
-  expect(shown("@matomezu/base:book-settings")).toBe(false)
-  expect(shown("@matomezu/base:page-new")).toBe(false)
-  expect(shown("@matomezu/base:settings-set")).toBe(true)
+  const empty = createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center" })
+  const emptyShown = (id: string) => isShown(empty, empty.state.getState(), "s1", id as never)
+  expect(emptyShown("@matomezu/base:book-settings")).toBe(false)
+  expect(emptyShown("@matomezu/base:page-new")).toBe(false)
+  expect(emptyShown("@matomezu/base:settings-set")).toBe(true)
 })
 
 // 線を置けないタイプが線のアクションを足していても、線の入った結果はブックの形に合わないので断る（線のアクションの run は、線を使うタイプかを確かめない）
@@ -105,7 +98,6 @@ const BOARD = boards.defineBookType({
   version: 1,
   title: "Board",
   schema: z.strictObject({ id: z.string() }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
@@ -123,12 +115,12 @@ test("線を置けないタイプが line-connect を足していても、線を
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin(boards.plugin({ bookTypes: [BOARD] }))],
     partial: true,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
   })
   expect(createBookIn(instance, "s1", { title: "B", type: "boards:board" as never })).toBe(true)
-  const id = instance.state.getState().workspace.stages[0]!.opened!.book
+  const id = screenOf(instance.state.getState().window).stages[0]!.opened!.book
   expect(instance.actions.perform("@matomezu/base:page-add", { title: "P" }, { book: id }).ok).toBe(true)
-  const p = instance.state.getState().workspace.stages[0]!.opened!.page!
+  const p = screenOf(instance.state.getState().window).stages[0]!.opened!.page!
   const place = (x: number) =>
     instance.actions.perform(
       "@matomezu/paper:item-place",

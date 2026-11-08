@@ -1,5 +1,5 @@
 // スライドのブック（@matomezu/slide-book）: ページの slide に置いたアイテム（文字枠・自由な線・直線・楕円）を、書いた位置と大きさ・角度で重ねの順に描く。紙の外にはみ出た部分は切る
-import { expect, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 
 const SLIDE_BOOK = {
   type: "@matomezu/slide-book:slide",
@@ -83,7 +83,7 @@ const SLIDE_BOOK = {
 test.use({ books: [SLIDE_BOOK] })
 
 test("スライドのアイテムは書いた位置に描かれ、紙の外にはみ出た部分は切れる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const items = page.locator("[data-item]")
   await expect(items).toHaveCount(6)
   await expect(items.first()).toHaveText("題名のスライド")

@@ -8,6 +8,7 @@ import { HEX } from "./color"
 import { type ActionDef, attachedTo } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
 import type { BookTypeDef } from "./def/book-type"
+import type { ControlCenterDef } from "./def/control-center"
 import type { ItemDef } from "./def/item"
 import type { MailDef } from "./def/mail"
 import type { NormalizeStepDef } from "./def/normalize-step"
@@ -24,6 +25,7 @@ import type { Messages } from "./i18n/i18n"
 import { CORE_MESSAGES, LANGUAGES, type Lang, type LanguagePackDef, type MessageSetDef } from "./i18n/messages"
 import { splitId } from "./names"
 import { placedSchema } from "./placed"
+import { DEFAULT_PROJECT } from "./project"
 import { PageSchema } from "./schema/page"
 import { type Warning, warning } from "./warnings"
 
@@ -36,6 +38,7 @@ export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
 declare module "./catalog" {
   interface PartDefTable {
     bookTypes: BookTypeDef
+    controlCenters: ControlCenterDef
     items: ItemDef
     actions: ActionDef
     settings: SettingDef
@@ -161,10 +164,11 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
       })
     : null
   const own = Object.entries(t.schema.shape)
-  // type・id・title・locked・trashed の順（type は pluginKit が後から足す。名前 title・ロック locked・ゴミ箱に入れた時刻 trashed は土台のフィールドで、どのタイプも持つ。名前は空でもよい）
+  // type・id・title・project・locked・trashed の順（type は pluginKit が後から足す。名前 title・属するプロジェクト project・ロック locked・ゴミ箱に入れた時刻 trashed は土台のフィールドで、どのタイプも持つ。名前は空でもよい）
   const head = [
     ...HEAD.flatMap(h => own.filter(([k]) => k === h)),
     ["title", z.string().default("")] as const,
+    ["project", z.string().min(1)] as const,
     ["locked", z.literal(true).optional()] as const,
     ["trashed", z.iso.datetime().optional()] as const,
   ]
@@ -240,7 +244,7 @@ const shadeWarnings = (parts: CoreCatalogParts): Warning[] => {
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
 // タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの。
 // 道具の performs の、表に無いアクション（W012。その行だけ効かない）。warning は道具のプラグインのもの。
-// タイプの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）。
+// コントロールセンターの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）。
 // 明暗で同じ値だけのテーマキーに明暗で違う値を書いたテーマ（W020）
 function coreWarnings(parts: CoreCatalogParts): Warning[] {
   const actions = byId(parts.actions)
@@ -264,11 +268,13 @@ function coreWarnings(parts: CoreCatalogParts): Warning[] {
           .filter(id => !attached(id) && !(t.actions.add ?? []).includes(id))
           .map(id => warning("W001", plugin, { type: t.id, action: id })),
         ...(t.actions.add ?? []).filter(attached).map(id => warning("W002", plugin, { type: t.id, action: id })),
-        ...(t.fixedUserSettings ?? [])
-          .filter(id => !userSettings.has(id))
-          .map(id => warning("W013", plugin, { type: t.id, setting: id })),
       ]
     }),
+    ...parts.controlCenters.flatMap(c =>
+      (c.fixedUserSettings ?? [])
+        .filter(id => !userSettings.has(id))
+        .map(id => warning("W013", splitId(c.id).owner ?? "", { controlCenter: c.id, setting: id })),
+    ),
   ]
 }
 
@@ -309,12 +315,14 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       seen.add(d.id)
     }
   }
+  for (const c of parts.controlCenters)
+    for (const id of c.actions) if (!actions.has(id)) problems.push(problem("E041", { id: c.id, ref: id }))
   for (const t of parts.bookTypes) {
     const literal = t.schema.shape.type
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
     if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
       problems.push(problem("E002", { id: t.id }))
-    for (const field of ["title", "locked", "trashed", "pages", "settings"])
+    for (const field of ["title", "project", "locked", "trashed", "pages", "settings"])
       if (field in t.schema.shape) problems.push(problem("E025", { id: t.id, field }))
     for (const id of [...(t.settings?.book ?? []), ...(t.settings?.page ?? [])])
       if (!settings.has(id)) problems.push(problem("E008", { id: t.id, kind: "setting", ref: id }))
@@ -326,17 +334,15 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
         if (field in (t.pages.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
     }
     const built = buildBookSchemas(parts, t).book
-    if (t.single && (t.book.id !== t.id || !built.safeParse(t.book).success))
-      problems.push(problem("E019", { id: t.id }))
-    if (!t.single && !built.safeParse(t.create({ id: "check", title: "check" })).success)
+    if (!built.safeParse(t.create({ id: "check", title: "check", project: DEFAULT_PROJECT })).success)
       problems.push(problem("E007", { id: t.id }))
     for (const id of t.items.allowed)
       if (!items.has(id)) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
-    if (t.slide && !t.pages) problems.push(problem("E042", { id: t.id }))
+    if (t.slide && !t.pages) problems.push(problem("E043", { id: t.id }))
     for (const id of t.slide?.allowed ?? []) {
       const def = items.get(id)
       if (!def) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
-      else if (def.kind !== "shape") problems.push(problem("E041", { id: t.id, ref: id }))
+      else if (def.kind !== "shape") problems.push(problem("E042", { id: t.id, ref: id }))
     }
     for (const id of Object.keys(t.items.options ?? {}))
       if (!t.items.allowed.includes(id)) problems.push(problem("E029", { id: t.id, ref: id }))

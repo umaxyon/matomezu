@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { defineMessages } from "../../web/src/core/i18n/messages"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { isActive, isShown } from "../../web/src/store/commands"
 import { pluginKit } from "../../web/src/store/kit"
@@ -21,17 +22,14 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
     expect(shown()).toEqual(["@matomezu/base:stage-unsplit", "@matomezu/base:stage-close"])
   })
 
-  test("ブックを作るのはマスターを開いているときとブックを開いていないステージ、ページを作るのはページを足せるブックを開いているときだけ", () => {
+  test("ブックを作るのはブックを開いていないステージだけ、ページを作るのはページを足せるブックを開いているときだけ", () => {
     const store = newStore()
     const { state, actions } = store
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:book-new")).toBe(false)
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:page-new")).toBe(true)
-    actions.command("s1", "@matomezu/base:stage-home")
-    expect(isShown(store, state.getState(), "s1", "@matomezu/base:book-new")).toBe(true)
-    expect(isShown(store, state.getState(), "s1", "@matomezu/base:page-new")).toBe(false)
     // 分割した右のステージは、ブックを開いていない
     actions.split("s1")
-    const right = state.getState().workspace.stages[1]!.id
+    const right = screenOf(state.getState().window).stages[1]!.id
     expect(isShown(store, state.getState(), right, "@matomezu/base:book-new")).toBe(true)
     expect(isShown(store, state.getState(), right, "@matomezu/base:page-new")).toBe(false)
   })
@@ -76,7 +74,7 @@ describe("コマンドを行う", () => {
     actions.command("s1", "@matomezu/base:stage-close")
     expect(state.getState().dialog).toMatchObject({ id: "@matomezu/base:book-open", stage: "s2" })
     actions.command("s2", "@matomezu/base:stage-split")
-    const added = state.getState().workspace.stages[1]!.id
+    const added = screenOf(state.getState().window).stages[1]!.id
     actions.command(added, "@matomezu/base:book-open")
     actions.command(added, "@matomezu/base:stage-close")
     expect(state.getState().dialog).toBeNull()
@@ -108,7 +106,7 @@ describe("コマンドは、自分のプラグインが持つステージの画�
   const newPaneStore = () =>
     createMatomezuInstance({
       plugins: [...BUILTIN, definePlugin(kit.plugin({ commands: [TOGGLE] }))],
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       books: SAMPLE_BOOKS,
       lang: "ja",
       newId: sequence(),

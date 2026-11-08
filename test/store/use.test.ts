@@ -12,14 +12,13 @@ const NOTE = defineBookType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1) }),
-  single: false,
   create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,
   items: { allowed: [] },
   actions: { add: ["notes:rename" as never] },
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
-  presentation: "@matomezu/master:master",
+  presentation: "@matomezu/paper:paper",
   tokens: [],
 })
 const RENAME = defineAction({
@@ -34,9 +33,10 @@ const RENAME = defineAction({
 const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME] })
 // id の頭を付けていないので組み立てられない
 const broken = { id: "bad", actions: [{ ...RENAME, id: "rename" }] } as unknown as typeof notes
-const saved = { type: "notes:note", id: "n1", title: "メモ" }
+const saved = { type: "notes:note", id: "n1", title: "メモ", project: "default" }
 
-const make = () => createMatomezu({ plugins: BUILTIN, home: "@matomezu/master:master", savedBooks: [saved] })
+const make = () =>
+  createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center", savedBooks: [saved] })
 
 test("取り込んだ追加プラグインを use で足すと組み直し、作ったときに渡したブックを新しい台帳で読み直す", () => {
   const instance = make()

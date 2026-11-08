@@ -1,6 +1,7 @@
 // URL と画面の場所の行き来（host-client/location.ts）: 開いたときに URL の場所を当てはめ、移動はブラウザの履歴に積み、ほかは待ってまとめて書き換え、
 // 戻る・進むはその場所を当てはめる
 import { expect, test } from "bun:test"
+import { screenOf } from "../../web/src/core/window"
 import { followLocation, type Place, parseSearch, searchOf } from "../../web/src/host-client/location"
 import { newStore } from "../support"
 
@@ -49,6 +50,7 @@ function fakePlace(start = "") {
 
 test("URL の形: ステージごとにブック・ページ・倍率とずらす量・場所に入れる画面の状態、続けてカレントと境目。読み戻すと同じ場所", () => {
   const address = {
+    front: "book-screen" as const,
     stages: [
       { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
@@ -59,9 +61,9 @@ test("URL の形: ステージごとにブック・ページ・倍率とずら�
   const search = searchOf(address)
   expect(decodeURIComponent(search)).toBe(`?b0=b1&p0=p1&v0=1,0,0&b1=&v1=1.25,12.5,-3&s1={"@x/p":{"a":1}}&c=1&r=0.4`)
   expect(parseSearch(search)).toEqual(address)
-  // id に : や / が入っていても読み戻せる（1 冊だけのタイプのブックの id など）
-  const master = { ...address, stages: [{ ...address.stages[0]!, book: "@matomezu/master:master", page: null }] }
-  expect(parseSearch(searchOf(master))).toEqual(master)
+  // id に : や / が入っていても読み戻せる（プラグインの名前空間の付いたブックの id など）
+  const namespaced = { ...address, stages: [{ ...address.stages[0]!, book: "@ex/notes:memo", page: null }] }
+  expect(parseSearch(searchOf(namespaced))).toEqual(namespaced)
   expect(parseSearch("?x=1")).toBeNull()
   // 画面の状態が JSON のオブジェクトでなければ空（中身の形は store が確かめる）
   expect(parseSearch("?b0=b1&v0=1,0,0&s0=%7Bx&c=0&r=0.5")?.stages[0]?.states).toEqual({})
@@ -72,7 +74,7 @@ test("開いたときは URL の場所を当てはめる（読み直しても同
   const store = newStore()
   const f = fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5")
   followLocation(store, f.place)
-  expect(store.state.getState().workspace.stages[0]!.opened?.book).toBe("b3")
+  expect(screenOf(store.state.getState().window).stages[0]!.opened?.book).toBe("b3")
 })
 
 // 同じ同期の処理が終わるのを待つ
@@ -95,7 +97,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   expect(parseSearch(f.replaced.at(-1)!)?.share).toBe(0.3)
   // 戻る: 1 つ前の場所（b2 を開いた 1 つのステージ）
   f.back(f.pushed[0]!)
-  const ws = store.state.getState().workspace
+  const ws = screenOf(store.state.getState().window)
   expect(ws.stages.map(s => s.opened?.book)).toEqual(["b2"])
   expect(f.pushed).toHaveLength(2)
 })
@@ -105,10 +107,49 @@ test("同じ処理の中の移動（分割してブックとページを開く�
   const f = fakePlace()
   followLocation(store, f.place)
   store.actions.split("s1")
-  const right = store.state.getState().workspace.stages[1]!.id
+  const right = screenOf(store.state.getState().window).stages[1]!.id
   store.actions.openBook(right, "b3")
   store.actions.openPage(right, "p1")
   await settled()
   expect(f.pushed).toHaveLength(1)
   expect(parseSearch(f.pushed[0]!)?.stages.map(s => s.book)).toEqual(["b1", "b3"])
+})
+
+test("URL が無い（開いた直後）なら、コントロールセンターを前に出す。URL にブックスクリーンの場所があれば、ブックスクリーンを前に出す", () => {
+  const first = newStore()
+  followLocation(first, fakePlace().place)
+  expect(first.state.getState().window.front).toBe("control-center")
+  const second = newStore()
+  followLocation(second, fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5").place)
+  expect(second.state.getState().window.front).toBe("book-screen")
+})
+
+test("前に出す物は URL の f に書く（コントロールセンターの間だけ。ステージの無い URL も読む）。後ろのブックスクリーンの場所も書く", () => {
+  const store = newStore()
+  const f = fakePlace()
+  followLocation(store, f.place)
+  expect(f.replaced[0]).toContain("f=center")
+  expect(f.replaced[0]).toContain("b0=b1")
+  expect(parseSearch("?f=center")).toMatchObject({ front: "control-center", stages: [] })
+  expect(parseSearch("?f=book")).toMatchObject({ front: "book-screen", stages: [] })
+  expect(parseSearch("?b0=b1&c=0&r=0.5")?.front).toBe("book-screen")
+})
+
+test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む。戻ると前に出す物が戻り、後ろのブックスクリーンの中は残る", async () => {
+  const store = newStore()
+  const f = fakePlace("?b0=b1&p0=p1&v0=1,0,0&c=0&r=0.5")
+  followLocation(store, f.place)
+  const was = screenOf(store.state.getState().window)
+  store.actions.showControlCenter()
+  await settled()
+  expect(f.pushed).toHaveLength(1)
+  expect(parseSearch(f.pushed[0]!)?.front).toBe("control-center")
+  store.actions.showBookScreen()
+  await settled()
+  expect(f.pushed).toHaveLength(2)
+  // 戻る: コントロールセンター
+  f.back(f.pushed[0]!)
+  expect(store.state.getState().window.front).toBe("control-center")
+  expect(screenOf(store.state.getState().window).stages[0]!.opened).toEqual(was.stages[0]!.opened)
+  expect(f.pushed).toHaveLength(2)
 })

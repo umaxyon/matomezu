@@ -1,12 +1,12 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
-import { aiAuth, expect, type Page, test } from "./fixtures"
-import { newBook } from "./helpers/master"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { newBook } from "./helpers/new-book"
 import { openGeneral, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
-// マスターでマークダウンのブックを作り、ページを 1 つ作る
+// マークダウンのブックを作り、ページを 1 つ作る
 async function markdownBook(page: Page) {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "メモ", "マークダウン")
   await expect(add.getByText("可変ページ")).toHaveCount(0) // いつも可変ページなので選ばせない
   await add.getByRole("button", { name: "作成" }).click()
@@ -184,7 +184,7 @@ test("ソースのペインに書くと描いた文書が変わる（読むの�
 test("ソースのエディタは既定で行番号を出し、設定画面の「マークダウン」でカーソルのある行の下線と空白の印を入れられる（印は字を足さず、テキストFormの字の並びとずれない）", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await openGeneral(page)
   await settingsDialog(page).getByRole("tab", { name: "マークダウン" }).click()
   const markdown = settingsDialog(page).getByRole("tabpanel", { name: "マークダウン" })

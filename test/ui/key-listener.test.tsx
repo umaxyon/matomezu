@@ -1,6 +1,7 @@
 // キーの受け口（ui/keys.ts）: テキストFormの中のキーは、テキストFormが自分の要素で名乗った範囲だけで引き、名乗っていなければテキストFormに任せる
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -10,7 +11,12 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 afterEach(cleanup)
 
 test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテキストFormに任せ、自分で名乗るテキストFormでは、その範囲の Mod+Z で元に戻す", async () => {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI, partial: true })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    partial: true,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <KeyListener />
@@ -23,7 +29,7 @@ test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテ
   act(() => {
     createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
   })
-  const id = store.state.getState().workspace.stages[0]!.opened!.book
+  const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
   act(() => {
     store.actions.perform("@matomezu/base:page-add", { title: "1" }, { book: id })
   })

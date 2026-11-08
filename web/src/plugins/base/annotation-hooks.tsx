@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Annotation, unexpired } from "../../core/annotation"
+import { screenOf } from "../../core/window"
 import { useActions, useMatomezuState } from "../../ui/store-context"
 import { useCoreCatalog, usePerform } from "../../ui/view-hooks"
 import { kit } from "./kit"
@@ -25,7 +26,7 @@ function useNow(): string {
 // ステージで開いているブックの、全部のアノテーション。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
 export function useAnnotationsIn(stage: string): readonly Annotation[] {
   const catalog = useCoreCatalog()
-  const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book ?? null)
+  const book = useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === stage)?.opened?.book ?? null)
   const all = useMatomezuState(s => (book && s.annotations[book]) || NONE)
   const settings = useMatomezuState(s => s.settings)
   const editing = useMatomezuState(

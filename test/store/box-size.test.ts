@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { resolveTokens } from "../../web/src/core/theme"
+import { screenOf } from "../../web/src/core/window"
 import { textBlock } from "../../web/src/plugins/base/text/block"
 import { textWidth } from "../../web/src/plugins/base/text/text"
 import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
@@ -116,7 +117,7 @@ test("@matomezu/paper:item-resize で渡した値だけを変える。x・y を�
 test("画面から辺をつかんで大きさを変える: 辺はその辺だけ、角は 2 つの辺が動き、一番小さい大きさで止まる", () => {
   const store = ready()
   place(store, box("本文"))
-  const zoom = store.state.getState().workspace.stages[0]!.zoom
+  const zoom = screenOf(store.state.getState().window).stages[0]!.zoom
   const drag = (edges: object, x: number, y: number) =>
     store.actions.command("s1", "@matomezu/paper:paper-resize", { item: "n1", edges, by: { x: x * zoom, y: y * zoom } })
   drag({ x: "right" }, 40, 30)

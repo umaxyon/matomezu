@@ -16,5 +16,6 @@ export const SAMPLE_BOOKS: BookOf<"@matomezu/drawing:drawing">[] = TITLES.map((t
   type: "@matomezu/drawing:drawing",
   id: `b${i + 1}`,
   title,
+  project: "default",
   pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
 }))

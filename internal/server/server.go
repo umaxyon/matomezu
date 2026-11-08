@@ -3,7 +3,7 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "annotations": {id: [...]}, "mailbox": [...], "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}} 置いてあるブック（ゴミ箱のブックも）と設定、
+//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "annotations": {id: [...]}, "mailbox": [...], "participants": [...], "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}} 置いてあるブック（ゴミ箱のブックも）と設定、
 //	                      ブックごとのアノテーション、郵便箱、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
 //	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS（道には ?v= で追加プラグインの版を付けて配る）  … 画面から
 //	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
@@ -21,17 +21,20 @@
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
-//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション）
-//	GET  /api/ai/books       {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
+//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"front", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
+//	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
+//	GET  /api/ai/books?projects=a&projects=b  {"books": [{"id", "type", "title", "project", "version", "awaiting"}]}（project が projects のどれかであるブックだけ。projects は必須で、空や表に無い id は 400。awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations"}
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}], "undone": [{"book", "title", "at", "lost"}]} AI の応えを待つアノテーションの全部と、
 //	                         見られる前に利用者が戻した AI の変更の全部（渡したら、次に利用者が話しかけたときに消える）
-//	POST /api/ai/talked      利用者が AI に話しかけた（AI のフックが知らせる）。話しかけたときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。{}
+//	POST /api/ai/talked      {"sessionId", "candidates"} 利用者が AI に話しかけた（AI のフックが知らせる）。candidates が無ければ、話しかけたときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
+//	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
-//	GET  /api/ai/mail        {"mailbox": [...]} 利用者の郵便箱（届いた順。郵便ごとに見た時点 seenAt と行き先を見た時点 visitedAt）
+//	GET  /api/ai/mail?projects=a&projects=b  {"mailbox": [...]} 利用者の郵便箱のうち、project が projects のどれかである郵便（届いた順。郵便ごとに見た時点 seenAt と行き先を見た時点 visitedAt。projects は books と同じ）
 //	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
+//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "projects"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る。参加の id の付いた呼び出しなら、参加するプロジェクトを足す）。{"ok", "participant", "projects"} か弾いた理由（join.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
@@ -50,9 +53,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // user は設定の持ち主（利用者は 1 人）
@@ -115,14 +121,14 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/warnings", sameOrigin(o.warnings))
 	mux.Handle("POST /api/log", sameOrigin(o.windowLog))
 	mux.Handle("POST /api/ai-edit-tickets", sameOrigin(o.aiEditTicket))
-	mux.Handle("GET /api/ai/view", o.auth(o.aiView))
-	mux.Handle("GET /api/ai/books", o.auth(o.aiBooks))
-	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
-	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.auth(o.aiPage))
-	mux.Handle("GET /api/ai/awaiting", o.auth(o.aiAwaiting))
-	mux.Handle("POST /api/ai/talked", o.auth(o.aiTalked))
+	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
+	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
+	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
+	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.ai(o.aiPage))
+	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
+	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	routesForTest(mux, o)
-	mux.Handle("GET /api/ai/settings", o.auth(func(w http.ResponseWriter, _ *http.Request) {
+	mux.Handle("GET /api/ai/settings", o.ai(func(w http.ResponseWriter, _ *http.Request) {
 		settings, err := o.Hub.AISettings()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -131,15 +137,25 @@ func Handler(o Options) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(settings)
 	}))
-	mux.Handle("GET /api/ai/mail", o.auth(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"mailbox": o.Hub.Mailbox()})
+	mux.Handle("GET /api/ai/mail", o.ai(func(w http.ResponseWriter, r *http.Request) {
+		projects, ok := o.aiProjects(w, r)
+		if !ok {
+			return
+		}
+		mailbox, err := o.Hub.AIMailbox(projects)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{"mailbox": mailbox})
 	}))
-	mux.Handle("GET /api/ai/catalog", o.auth(func(w http.ResponseWriter, _ *http.Request) {
+	mux.Handle("GET /api/ai/catalog", o.ai(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(o.Hub.AICatalog())
 	}))
-	mux.Handle("POST /api/ai/perform", o.auth(o.aiPerform))
-	mux.Handle("POST /api/ai/show", o.auth(o.aiShow))
+	mux.Handle("POST /api/ai/perform", o.ai(o.aiPerform))
+	mux.Handle("POST /api/ai/show", o.ai(o.aiShow))
+	mux.Handle("POST /api/ai/join", o.ai(o.aiJoin))
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux
@@ -201,7 +217,7 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 			plugins[i].CSS = fmt.Sprintf("api/plugins/%d/ui.css?v=%d", i, v)
 		}
 	}
-	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": o.Hub.Mailbox(), "plugins": plugins, "touched": o.Hub.Touched()})
+	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": o.Hub.Mailbox(), "participants": o.Hub.Participants(), "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls()})
 }
 
 func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {
@@ -395,12 +411,34 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view["awaiting"], _ = json.Marshal(pick(list, awaiting))
+	// コントロールセンターを前に出している間は、見えている物が無いので、一番上に awaiting を置かない（hidden の中だけ）
+	if _, covered := view["hidden"]; !covered {
+		view["awaiting"], _ = json.Marshal(pick(list, awaiting))
+	}
+	// コントロールセンターを前に出している間、後ろに隠れているブックスクリーンが開いているブックの、AI の応えを待つ物も hidden に添える
+	if raw, ok := view["hidden"]; ok {
+		var hidden map[string]json.RawMessage
+		if json.Unmarshal(raw, &hidden) == nil && hidden != nil {
+			var hiddenBook string
+			_ = json.Unmarshal(hidden["book"], &hiddenBook)
+			hiddenList, err := o.annotationsOf(hiddenBook)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			hidden["awaiting"], _ = json.Marshal(pick(hiddenList, awaiting))
+			view["hidden"], _ = json.Marshal(hidden)
+		}
+	}
 	writeJSON(w, view)
 }
 
-func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
-	books := o.Hub.AIBooks()
+func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
+	projects, ok := o.aiProjects(w, r)
+	if !ok {
+		return
+	}
+	books := slices.DeleteFunc(o.Hub.AIBooks(), func(b storage.Book) bool { return !slices.Contains(projects, projectOf(b.Body)) })
 	warnings := o.Hub.BookWarnings()
 	annotations, err := o.Hub.AIAnnotations(nil)
 	if err != nil {
@@ -411,6 +449,7 @@ func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
 		ID      string `json:"id"`
 		Type    string `json:"type"`
 		Title   string `json:"title"`
+		Project string `json:"project"`
 		Version int64  `json:"version"`
 		Problem string `json:"problem,omitempty"`  // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）
 		Warning string `json:"warning,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目を持つ（そのまま残っている）

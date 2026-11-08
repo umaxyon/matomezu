@@ -59,7 +59,6 @@ export const DECK = kit.defineBookType({
   version: 1,
   title: "deck",
   schema: z.strictObject({ id: z.string().min(1) }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {

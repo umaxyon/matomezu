@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/umaxyon/matomezu/internal/plugin"
@@ -31,9 +32,10 @@ type Input struct {
 	Books    []json.RawMessage `json:"books"`
 	Settings json.RawMessage   `json:"settings"`
 	// Annotations は要るブックのアノテーション（ブックの id → 並び。宛先のブックのか、一覧のアクションなら全部）
-	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
-	Mailbox     json.RawMessage            `json:"mailbox,omitempty"` // 利用者の郵便箱
-	By          string                     `json:"by,omitempty"`      // 頼んだのが AI なら "ai"（空なら利用者）
+	Annotations  map[string]json.RawMessage `json:"annotations,omitempty"`
+	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 利用者の郵便箱
+	Participants json.RawMessage            `json:"participants,omitempty"` // 利用者の参加者の表
+	By           string                     `json:"by,omitempty"`           // 頼んだのが AI なら "ai"（空なら利用者）
 	// Watched は、変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
 	Watched map[string][]string `json:"watched,omitempty"`
 }
@@ -47,18 +49,19 @@ type On struct {
 // Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）、
 // Annotations はアノテーションが変わったブックの id → 新しい並び（空の並びなら全部無くなった）
 type Output struct {
-	OK          bool                       `json:"ok"`
-	Reason      string                     `json:"reason,omitempty"`
-	Permission  string                     `json:"permission,omitempty"`
-	Detail      string                     `json:"detail,omitempty"`
-	Result      json.RawMessage            `json:"result,omitempty"`
-	Books       []json.RawMessage          `json:"books,omitempty"`
-	Removed     []string                   `json:"removed,omitempty"`
-	Settings    json.RawMessage            `json:"settings,omitempty"`
-	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
-	Mailbox     json.RawMessage            `json:"mailbox,omitempty"` // 変わった郵便箱
-	Notice      string                     `json:"notice,omitempty"`  // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
-	Touched     []string                   `json:"touched,omitempty"` // Watched の物のうち、変わったか無くなったもの
+	OK           bool                       `json:"ok"`
+	Reason       string                     `json:"reason,omitempty"`
+	Permission   string                     `json:"permission,omitempty"`
+	Detail       string                     `json:"detail,omitempty"`
+	Result       json.RawMessage            `json:"result,omitempty"`
+	Books        []json.RawMessage          `json:"books,omitempty"`
+	Removed      []string                   `json:"removed,omitempty"`
+	Settings     json.RawMessage            `json:"settings,omitempty"`
+	Annotations  map[string]json.RawMessage `json:"annotations,omitempty"`
+	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 変わった郵便箱
+	Participants json.RawMessage            `json:"participants,omitempty"` // 変わった参加者の表
+	Notice       string                     `json:"notice,omitempty"`       // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
+	Touched      []string                   `json:"touched,omitempty"`      // Watched の物のうち、変わったか無くなったもの
 }
 
 // Engine は読み込んだホストのエンジン（engine.js）
@@ -73,6 +76,10 @@ type Engine struct {
 	notes     func(string) string
 	without   func(string, string) string
 	talk      func() string
+	join      func() string
+	projects  func() string
+	alive     func(string, string, float64) bool
+	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
 	mails     func(string) string
 	forAI     func(string) string
@@ -122,6 +129,18 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuTalkActions"), &e.talk); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuTalkActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuJoinActions"), &e.join); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuJoinActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuParticipantAlive"), &e.alive); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuParticipantAlive: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuJoinedText"), &e.joinedMsg); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuJoinedText: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuProjects"), &e.projects); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuProjects: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuUnexpired"), &e.live); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuUnexpired: %w", err)
@@ -315,6 +334,75 @@ func (e *Engine) TalkActions() (ids []string, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.talk()), &ids)
 	return ids, err
+}
+
+// JoinActions は、AI が参加を頼むときに行うアクションの id（参加者を作る Participant と、利用者に知らせる Notice）
+type JoinActions struct {
+	Participant string `json:"participant"`
+	Takeover    string `json:"takeover"`
+	Notice      string `json:"notice"`
+}
+
+// JoinActions は、AI が参加を頼むときに行うアクション。アクションの定義が役を名乗る（Go はアクションの id を知らない）
+func (e *Engine) JoinActions() (ids *JoinActions, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.join()), &ids)
+	return ids, err
+}
+
+// JoinedText は、参加を利用者に伝える文（利用者の設定 settings の言語）
+func (e *Engine) JoinedText(settings json.RawMessage, workroom string) (text string, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.joinedMsg(string(settings), workroom), nil
+}
+
+// ParticipantAlive は、参加者が時点 now で生きているか（最後に呼ばれた時刻 calledAt は RFC 3339 の文字。空なら呼ばれていない。利用者の設定 settings の参加の有効時間で決まる）
+func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now time.Time) (alive bool, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
+}
+
+// Project はプロジェクトの表の 1 行
+type Project struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Projects はプロジェクトの表（core/project.ts。組み直しても変わらない）
+func (e *Engine) Projects() (projects []Project, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.projects()), &projects)
+	return projects, err
 }
 
 // AnnotationsUnexpired は、アノテーションの並び list から、期限（種類の expiresAt。利用者の設定 settings で決まる）が時点 now より前の物を除いた並びと、

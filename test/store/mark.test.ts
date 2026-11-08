@@ -6,8 +6,6 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { MARK_PICKER } from "../../web/src/plugins/base/mark/commands"
 import { NEW_NOTE } from "../../web/src/plugins/base/note/panel-id"
 import { panelIn } from "../../web/src/plugins/base/right-side-panel/state"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
-import { isShown } from "../../web/src/store/commands"
 import { CORE_CATALOG, newStore } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
@@ -77,8 +75,15 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
   const s = store.state.getState()
   const book = s.books.b1!
   expect(annotationsForAi(CORE_CATALOG, book, marks()).map(m => m.awaits)).toEqual([true])
-  let world = { books: s.books, settings: s.settings, annotations: s.annotations, mailbox: [] }
-  const ctx = { catalog: CORE_CATALOG, home: null, lang: "en" as const, newId: () => "n", now: "t", by: "ai" as const }
+  let world = { books: s.books, settings: s.settings, annotations: s.annotations, mailbox: [], participants: [] }
+  const ctx = {
+    catalog: CORE_CATALOG,
+    controlCenter: null,
+    lang: "en" as const,
+    newId: () => "n",
+    now: "t",
+    by: "ai" as const,
+  }
   const ai = (action: string, args: unknown) => {
     const done = performIn(world, action, args, ON, ctx)
     if (done.ok && done.annotations) world = { ...world, annotations: { ...world.annotations, ...done.annotations } }
@@ -90,13 +95,6 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
   expect(ai("@matomezu/base:mark-read", { mark: id }).ok).toBe(false)
   expect(ai("@matomezu/base:mark-remove", { mark: id }).ok).toBe(true)
   expect(world.annotations.b1).toEqual([])
-})
-
-test("マスターにはマークを付けられない（タイプが種類を外している）", () => {
-  const { store } = ready()
-  expect(
-    store.actions.perform("@matomezu/base:mark-add", { anchors: ["x"], kind: "inko" }, { book: MASTER_BOOK.id }).ok,
-  ).toBe(false)
 })
 
 test("右クリックのコマンドは、base のステージの画面の状態に付ける先を置く（伝言は、右サイドパネルの付いた先。選択を合わせるのは右サイドパネルの入れ物）。選んでいる物の 1 つを押すと、選んでいる物の全部に付ける", () => {
@@ -113,15 +111,4 @@ test("右クリックのコマンドは、base のステージの画面の状態
   store.actions.select("s1", [b])
   store.actions.command("s1", "@matomezu/base:note-new", a)
   expect(panelIn(base())).toMatchObject({ anchors: [a], current: a })
-})
-
-test("マスターでは、右クリックの「AIに伝言」「AIに示す」を出さない", () => {
-  const { store } = ready()
-  const shown = () =>
-    ["@matomezu/base:note-new", "@matomezu/base:mark-new"].map(id =>
-      isShown(store, store.state.getState(), "s1", id as never),
-    )
-  expect(shown()).toEqual([true, true])
-  store.actions.openBook("s1", MASTER_BOOK.id)
-  expect(shown()).toEqual([false, false])
 })

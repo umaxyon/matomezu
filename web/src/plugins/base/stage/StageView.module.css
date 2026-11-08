@@ -47,7 +47,7 @@
   font-size: 14px;
   color: var(--skin-text);
 }
-/* ブックを作るボタン（マスターの「新しいブック」と同じ形） */
+/* ブックを作るボタン */
 .newBook {
   padding: 6px 14px;
   border: 0;

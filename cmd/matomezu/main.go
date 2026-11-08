@@ -14,6 +14,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -42,7 +44,7 @@ type cli struct {
 	Stop        stopCmd        `cmd:"" help:"Stop the background server."`
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, and AI's changes the user undid before seeing them, for an AI's hook. Prints nothing when there are none or the server is not running."`
-	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook (the notes AI has read start their expiry). Prints nothing and does nothing when the server is not running."`
+	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 
@@ -80,7 +82,9 @@ type mcpCmd struct {
 
 type annotationsCmd struct{}
 
-type talkedCmd struct{}
+type talkedCmd struct {
+	Context string `help:"Text the hook adds to what it tells AI (such as the output of annotations). It is printed as it is when there is nothing to say as JSON."`
+}
 
 type versionCmd struct{}
 
@@ -220,7 +224,7 @@ func (c *mcpCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version)
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName())
 }
 
 // Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、利用者の話しかけに添える）。
@@ -234,7 +238,7 @@ func (c *annotationsCmd) Run() error {
 	if err != nil || s == nil {
 		return nil
 	}
-	out, _, err := send(s, http.MethodGet, "api/ai/awaiting", nil)
+	out, _, _, err := send(s, http.MethodGet, "api/ai/awaiting", nil, nil)
 	if err != nil {
 		return nil
 	}
@@ -271,18 +275,23 @@ func (c *annotationsCmd) Run() error {
 	return nil
 }
 
-// Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが、annotations の前に呼ぶ）。
-// 常駐を立てず、立っていない・答えないときは何もしない（話しかけを止めない）
+// Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
+// 常駐を立てず、立っていない・答えないときは何もしない（話しかけを止めない。--context があればそれだけ書く）
 func (c *talkedCmd) Run() error {
-	h, err := openHome()
-	if err != nil {
-		return nil
+	var hook hookInput
+	if in, err := os.Stdin.Stat(); err == nil && in.Mode()&os.ModeCharDevice == 0 {
+		hook = readHookInput(os.Stdin)
 	}
-	s, err := running(h)
-	if err != nil || s == nil {
-		return nil
+	var api talkAPI
+	if h, err := openHome(); err == nil {
+		if s, err := running(h); err == nil && s != nil {
+			api = func(body []byte) ([]byte, error) {
+				out, _, _, err := send(s, http.MethodPost, "api/ai/talked", body, nil)
+				return out, err
+			}
+		}
 	}
-	_, _, _ = send(s, http.MethodPost, "api/ai/talked", []byte("{}"))
+	talked(os.Stdout, hook, c.Context, api)
 	return nil
 }
 
@@ -333,51 +342,64 @@ type httpAPI struct {
 	reconnect func() (*home.Server, error)
 }
 
-func (a *httpAPI) Get(path string) (json.RawMessage, error) {
-	return a.do(http.MethodGet, path, nil)
+func (a *httpAPI) Get(path string, header http.Header) (json.RawMessage, http.Header, error) {
+	return a.do(http.MethodGet, path, nil, header)
 }
 
-func (a *httpAPI) Post(path string, body any) (json.RawMessage, error) {
+func (a *httpAPI) Post(path string, body any, header http.Header) (json.RawMessage, http.Header, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return a.do(http.MethodPost, path, b)
+	return a.do(http.MethodPost, path, b, header)
 }
 
-func (a *httpAPI) do(method, path string, body []byte) (json.RawMessage, error) {
+func (a *httpAPI) do(method, path string, body []byte, header http.Header) (json.RawMessage, http.Header, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	out, stale, err := send(a.s, method, path, body)
+	out, reply, stale, err := send(a.s, method, path, body, header)
 	if !stale {
-		return out, err
+		return out, reply, err
 	}
 	s, rerr := a.reconnect()
 	if rerr != nil {
-		return nil, errors.Join(err, rerr)
+		return nil, nil, errors.Join(err, rerr)
 	}
 	a.s = s
-	out, _, err = send(a.s, method, path, body)
-	return out, err
+	out, reply, _, err = send(a.s, method, path, body, header)
+	return out, reply, err
+}
+
+// envName は MCP が参加のときに常駐へ渡す環境名（runtime.GOOS。Linux の中で WSL と分かれば wsl- を頭に付ける）
+func envName() string {
+	if runtime.GOOS == "linux" {
+		if os.Getenv("WSL_DISTRO_NAME") != "" {
+			return "wsl-linux"
+		}
+		if v, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil && strings.Contains(strings.ToLower(string(v)), "microsoft") {
+			return "wsl-linux"
+		}
+	}
+	return runtime.GOOS
 }
 
 // send は 1 度だけ呼ぶ。stale は、つなぎ方が古いかもしれない（401 か、つなげなかった）とき。
 // 送ったあとに答えが来なかったときは、常駐がもう行ったかもしれないので stale にしない
-func send(s *home.Server, method, path string, body []byte) (out json.RawMessage, stale bool, err error) {
-	res, err := request(s, method, path, body, 60*time.Second)
+func send(s *home.Server, method, path string, body []byte, header http.Header) (out json.RawMessage, reply http.Header, stale bool, err error) {
+	res, err := request(s, method, path, body, 60*time.Second, header)
 	if err != nil {
 		var op *net.OpError
-		return nil, errors.As(err, &op) && op.Op == "dial", fmt.Errorf("the matomezu server did not answer: %w", err)
+		return nil, nil, errors.As(err, &op) && op.Op == "dial", fmt.Errorf("the matomezu server did not answer: %w", err)
 	}
 	defer res.Body.Close()
 	out, err = io.ReadAll(res.Body)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, res.StatusCode == http.StatusUnauthorized, fmt.Errorf("%s %s: %s %s", method, path, res.Status, bytes.TrimSpace(out))
+		return nil, nil, res.StatusCode == http.StatusUnauthorized, fmt.Errorf("%s %s: %s %s", method, path, res.Status, bytes.TrimSpace(out))
 	}
-	return out, false, nil
+	return out, res.Header, false, nil
 }
 
 // running は、立っていて答える常駐のつなぎ方。立っていなければ nil
@@ -424,7 +446,7 @@ func (versionCmd) Run() error {
 
 // call は合言葉を付けて常駐の API を本文なしで呼ぶ（答えは 3 秒だけ待つ）
 func call(s *home.Server, method, path string) (*http.Response, error) {
-	res, err := request(s, method, path, nil, 3*time.Second)
+	res, err := request(s, method, path, nil, 3*time.Second, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -436,10 +458,13 @@ func call(s *home.Server, method, path string) (*http.Response, error) {
 }
 
 // request は合言葉を付けて常駐の API を 1 度呼ぶ（body があれば JSON で送る。答えは timeout だけ待つ）
-func request(s *home.Server, method, path string, body []byte, timeout time.Duration) (*http.Response, error) {
+func request(s *home.Server, method, path string, body []byte, timeout time.Duration, header http.Header) (*http.Response, error) {
 	req, err := http.NewRequest(method, s.URL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
+	}
+	for k, v := range header {
+		req.Header[k] = v
 	}
 	req.Header.Set("Authorization", "Bearer "+s.Token)
 	if body != nil {

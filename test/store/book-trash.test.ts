@@ -1,25 +1,24 @@
 // ゴミ箱: book-trash はブックに入れた時刻を付けて一覧から外し（開いていたステージは何も開かない）、book-restore は戻し、
-// book-purge と trash-empty はゴミ箱から消す。1 冊だけのタイプ・ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
+// book-purge と trash-empty はゴミ箱から消す。ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
 import { expect, test } from "bun:test"
 import { permittedIn } from "../../web/src/core/perform"
+import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { worldOf } from "../../web/src/store/world"
 import { memoryClient } from "../host-client/memory"
 import { newStore } from "../support"
 
 const NOW = "2026-10-29T01:00:00.000Z"
 
-test("book-trash はブックに時刻を付けてゴミ箱へ移し、開いていたステージは何も開かない。無いブックと 1 冊だけのタイプは断る", () => {
+test("book-trash はブックに時刻を付けてゴミ箱へ移し、開いていたステージは何も開かない。無いブックは断る", () => {
   const { state, actions } = newStore({ now: () => NOW })
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(true)
   expect("b1" in state.getState().books).toBe(false)
   expect(state.getState().trash.b1?.trashed).toBe(NOW)
   expect(Object.keys(state.getState().trash.b1 ?? {}).slice(0, 4)).toEqual(["type", "id", "title", "trashed"])
-  expect(state.getState().workspace.stages[0]?.opened).toBeNull()
+  expect(screenOf(state.getState().window).stages[0]?.opened).toBeNull()
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(false)
-  expect(actions.perform("@matomezu/base:book-trash", { book: MASTER_BOOK.id }).ok).toBe(false)
 })
 
 test("ゴミ箱のブックは、ブックが対象のアクションでは無いものとして断る", () => {
@@ -57,7 +56,7 @@ test("ロック中のページを持つブックのゴミ箱入れは、行う�
   const page = (store.state.getState().books.b1 as { pages: readonly { id: string }[] }).pages[1]?.id as string
   store.actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
   const world = worldOf(store.state.getState())
-  const ctx = { catalog: store.catalog.core, home: store.home }
+  const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter }
   expect(permittedIn(world, "@matomezu/base:book-trash", { book: "b1" }, undefined, ctx)).toEqual({
     ok: false,
     reason: "denied",

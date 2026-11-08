@@ -1,8 +1,7 @@
-// 設定画面: マスターのボタンから設定画面のダイアログを開き、左の項目（全体・ショートカットキー）を押すと右の欄が切り替わる
+// 設定画面: フッタメニューから設定画面のダイアログを開き、左の項目（全体・ショートカットキー）を押すと右の部分が切り替わる
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
-import { MASTER } from "../../web/src/plugins/books/master/master"
+import { CONTROL_CENTER } from "../../web/src/plugins/control-center"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import type { AnyPluginUi } from "../../web/src/ui/plugin"
@@ -12,9 +11,13 @@ import { SAMPLE_BOOKS } from "../sample-books"
 
 afterEach(cleanup)
 
-test("フッタメニューの「設定を開く」で設定画面が開き、項目を押すと右の欄がその項目になり、閉じるで閉じる", () => {
-  const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
-  store.actions.openBook("s1", MASTER_BOOK.id)
+test("フッタメニューの「設定を開く」で設定画面が開き、項目を押すと右の部分がその項目になり、閉じるで閉じる", () => {
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    plugins: BUILTIN_UI,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -33,10 +36,14 @@ test("フッタメニューの「設定を開く」で設定画面が開き、�
   expect(dialog.isConnected).toBe(false)
 })
 
-// マスターから設定画面を開き、ショートカットキーの欄にする
+// フッタメニューから設定画面を開き、ショートカットキーの部分にする
 function openKeys(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
-  const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins })
-  store.actions.openBook("s1", MASTER_BOOK.id)
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    plugins,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -51,7 +58,7 @@ function openKeys(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   return { store, keys, dialog, stageScope }
 }
 
-test("ショートカットキーの欄は、範囲の見出しごとに行を並べ、探す文字で行の題名・範囲・キーの名前を絞る", () => {
+test("ショートカットキーの部分は、範囲の見出しごとに行を並べ、探す文字で行の題名・範囲・キーの名前を絞る", () => {
   const { dialog, stageScope } = openKeys()
   expect(dialog.getByRole("region", { name: "ツリー" })).toBeTruthy()
   // args で分かれる行は、キーバインドの題名で出す
@@ -99,10 +106,10 @@ test("同じ範囲のほかの行が使うキーは、付ける前に確かめ�
   expect(stageScope().getByText(/Home は効いていません（「元に戻す」が先に使っています）/)).toBeTruthy()
 })
 
-test("ホームのタイプがキーバインドの項目を変えさせなければ、外す・足す・全部を既定に戻すを押せない", () => {
-  const fixed = { ...MASTER, fixedUserSettings: ["@matomezu/base:keys"] }
-  const [base, master, ...rest] = BUILTIN_UI
-  const { stageScope } = openKeys([base, { ...master, bookTypes: [fixed] } as AnyPluginUi, ...rest])
+test("コントロールセンターがキーバインドの項目を変えさせなければ、外す・足す・全部を既定に戻すを押せない", () => {
+  const fixed = { ...CONTROL_CENTER, fixedUserSettings: ["@matomezu/base:keys"] }
+  const [base, center, ...rest] = BUILTIN_UI
+  const { stageScope } = openKeys([base, { ...center, controlCenters: [fixed] } as AnyPluginUi, ...rest])
   expect((stageScope().getByRole("button", { name: "「元に戻す」にキーを足す" }) as HTMLButtonElement).disabled).toBe(
     true,
   )

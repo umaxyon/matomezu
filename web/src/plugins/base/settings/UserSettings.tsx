@@ -2,7 +2,7 @@
 // 設定画面のほかの設定カテゴリ（配置がスロット settings-categories に置いたウィジェットの settingsCategory.settings）が名指していない物を、プラグインごとに並べる
 // （base の項目が先で見出しなし、ほかは見出しにプラグインの id）。
 // 項目のビューがあればそれを、無ければ値の形から作った入力Form（真偽はスイッチ、選択肢はセレクトForm、数と文字はテキストForm）を出し、どちらも作れない項目は出さない。
-// 変えるとコマンド settings-set を呼ぶ。コマンドが押せないときと、アクション settings-set がその項目で使えないとき（ホームのタイプが変えさせない項目）は、灰色で押せない
+// 変えるとコマンド settings-set を呼ぶ。コマンドが押せないときと、アクション settings-set がその項目で使えないとき（コントロールセンターが変えさせない項目）は、灰色で押せない
 import { type ReactNode, useState } from "react"
 import type { SettingDef } from "../../../core/def/setting"
 import type { MessageKey } from "../../../core/i18n/i18n"
@@ -64,7 +64,7 @@ export function UserSettings({ stage, settings }: { stage: string; settings?: re
   ))
 }
 
-// 項目ごとの囲み: その項目を変えられるか（ホームのタイプが変えさせない項目でないか）を問い、変えられなければまとめて押せなくする
+// 項目ごとの囲み: その項目を変えられるか（コントロールセンターが変えさせない項目でないか）を問い、変えられなければまとめて押せなくする
 function SettingItem({
   stage,
   id,

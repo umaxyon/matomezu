@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
@@ -435,6 +436,7 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
 test("窓が見ているものと、窓がフォーカスされたことを、増やす番号を付けて知らせる。変わらなければ知らせない", async () => {
   const s = await connected()
   const view = (selection: string[]) => ({
+    front: "book-screen",
     book: "b1",
     page: "p1",
     mode: "edit",
@@ -471,6 +473,7 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
   const s = await connected()
   s.store.actions.split("s1")
   expect(s.sent.at(-1)?.view).toEqual({
+    front: "book-screen",
     book: "b1",
     page: "p1",
     mode: "edit",
@@ -488,7 +491,7 @@ test("show が届いたら、言われたステージでブックを開き、カ
   const s = await connected()
   s.store.actions.split("s1")
   s.emit("show", { book: "b1", stage: "s2" })
-  const ws = s.store.state.getState().workspace
+  const ws = screenOf(s.store.state.getState().window)
   expect(ws.current).toBe("s2")
   expect(ws.stages.map(st => st.opened?.book ?? null)).toEqual(["b1", "b1"])
 })
@@ -496,14 +499,14 @@ test("show が届いたら、言われたステージでブックを開き、カ
 test("show の mode が print-preview なら、印刷プレビューで開く", async () => {
   const s = await connected()
   s.emit("show", { book: "b1", mode: "print-preview" })
-  expect(s.store.state.getState().workspace.stages[0]?.mode.kind).toBe("print-preview")
+  expect(screenOf(s.store.state.getState().window).stages[0]?.mode.kind).toBe("print-preview")
   expect(s.sent.at(-1)?.view).toMatchObject({ mode: "print-preview" })
 })
 
 test("show の split は、そのステージを分けて右にできたステージに開く", async () => {
   const s = await connected()
   s.emit("show", { book: "b1", split: true })
-  const ws = s.store.state.getState().workspace
+  const ws = screenOf(s.store.state.getState().window)
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
   expect(ws.stages[1]?.opened?.book).toBe("b1")
@@ -529,9 +532,9 @@ test("ブックに触れた時刻は、読んだ一覧と touched の知らせ�
   })
   const { store, emit } = await connected(server)
   expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z" })
-  emit("touched", { book: "master", at: "2026-10-27T02:00:00Z" })
+  emit("touched", { book: "unsaved", at: "2026-10-27T02:00:00Z" })
   emit("touched", { book: "b1", at: "2026-10-27T00:00:00Z" })
-  expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z", master: "2026-10-27T02:00:00Z" })
+  expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z", unsaved: "2026-10-27T02:00:00Z" })
 })
 
 test("切れている間に書き残した事は、つなぎ直してから新しいつながりの id で常駐のログに送る", async () => {
@@ -628,4 +631,21 @@ test("フォーカスされたとき、壁時計で QUIET_MS 何も届いてい�
     "no event for 60s by the clock; connecting again",
     "reconnected as c2 (was c1): sending 0 actions again",
   ])
+})
+
+test("コントロールセンターを前に出している間は、見ているものを front と hidden に分けて知らせる", async () => {
+  const s = await connected()
+  s.store.actions.showControlCenter()
+  expect(s.sent.at(-1)?.view).toEqual({
+    front: "control-center",
+    hidden: {
+      book: "b1",
+      page: "p1",
+      mode: "edit",
+      selection: [],
+      stage: "s1",
+      stages: [{ id: "s1", book: "b1", page: "p1", mode: "edit" }],
+      canSplit: true,
+    },
+  })
 })

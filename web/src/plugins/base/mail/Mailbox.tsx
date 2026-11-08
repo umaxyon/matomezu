@@ -44,7 +44,7 @@ function Row({ stage, mail: m, now }: { stage: string; mail: Mail; now: Date }) 
   }
   // 消せなければ（認可ステップが止めたなど）、取消を押せなくする
   const removable = useAllowedOn(MAIL_REMOVE.id, { mail: m.id }).ok
-  const title = clampChars(shownOf(catalog, m)?.title ?? t("Mail"), TITLE_CHARS)
+  const title = clampChars(shownOf(catalog, m, t)?.title ?? t("Mail"), TITLE_CHARS)
   return (
     <li className={styles.row} data-read={!!m.seenAt}>
       <button type="button" className={styles.open} onClick={() => open(stage, m.id)}>

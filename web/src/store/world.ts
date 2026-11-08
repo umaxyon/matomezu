@@ -2,9 +2,12 @@
 import type { World } from "../core/perform"
 import type { MatomezuState } from "./store"
 
-export const worldOf = (s: Pick<MatomezuState, "books" | "trash" | "settings" | "annotations" | "mailbox">): World => ({
+export const worldOf = (
+  s: Pick<MatomezuState, "books" | "trash" | "settings" | "annotations" | "mailbox" | "participants">,
+): World => ({
   books: { ...s.books, ...s.trash },
   settings: s.settings,
   annotations: s.annotations,
   mailbox: s.mailbox,
+  participants: s.participants,
 })

@@ -2,6 +2,7 @@
 // ペインの並べ方はステージの画面の状態で、ペインの分割のコマンドで変え、画面の場所に入れる（読み直しても戻す）
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { growOf } from "../../web/src/plugins/base"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
@@ -15,7 +16,7 @@ const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
   const store = newStore(options)
   createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
   addPageIn(store, "s1", { title: "ページ 1" })
-  const id = store.state.getState().workspace.stages[0]!.opened!.book
+  const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
   const book = () => store.state.getState().books[id] as BookOf<"@matomezu/markdown:markdown">
   return { store, id, book }
 }
@@ -24,7 +25,7 @@ test("マークダウンのページを開いたステージには紙を置か�
   const { store, book } = markdownStore()
   const page = book().pages[0]!
   expect(page.paper).toBe("@matomezu/base:a4")
-  expect(store.state.getState().workspace.stages[0]!.opened).toMatchObject({ page: page.id, paper: null })
+  expect(screenOf(store.state.getState().window).stages[0]!.opened).toMatchObject({ page: page.id, paper: null })
 })
 
 test("どのページもいつも下へ増やす可変ページ。page-add・page-update で grows を付けるのは断る（false は何も変えない）", () => {
@@ -136,11 +137,11 @@ test("ステージの数と並べ方が同時に変わる場所を当てはめ�
   const { store } = markdownStore()
   const { state, actions } = store
   actions.split("s1")
-  const right = state.getState().workspace.stages[1]!.id
+  const right = screenOf(state.getState().window).stages[1]!.id
   store.setStageState(right, MD, { mode: "rendered-only", first: "source", share: 0.4 })
   const two = store.address()
   store.locate({ ...two, stages: [two.stages[1]!], current: 0 })
-  expect(state.getState().workspace.stages.map(s => s.id)).toEqual(["s1"])
+  expect(screenOf(state.getState().window).stages.map(s => s.id)).toEqual(["s1"])
   expect(state.getState().stageStates.s1?.[MD]).toEqual({ mode: "rendered-only", first: "source", share: 0.4 })
   expect(state.getState().stageStates[right]).toBeUndefined()
 })
@@ -192,11 +193,11 @@ test("ページを切り替えても、紙を変えても、ステージに紙�
   const { state, actions } = store
   addPageIn(store, "s1", { title: "ページ 2" })
   const [first, second] = book().pages.map(p => p.id) as [string, string]
-  expect(state.getState().workspace.stages[0]!.opened?.page).toBe(second)
+  expect(screenOf(state.getState().window).stages[0]!.opened?.page).toBe(second)
   actions.openPage("s1", first)
-  expect(state.getState().workspace.stages[0]!.opened).toMatchObject({ page: first, paper: null })
+  expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: null })
   actions.perform("@matomezu/base:page-update", { page: first, paper: "@matomezu/base:a3" }, { book: id })
-  expect(state.getState().workspace.stages[0]!.opened).toMatchObject({ page: first, paper: null })
+  expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: null })
   for (const c of ["@matomezu/base:zoom-in", "@matomezu/base:tool-picker"] as const)
     expect(isShown(store, state.getState(), "s1", c)).toBe(false)
 })

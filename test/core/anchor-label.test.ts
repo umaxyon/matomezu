@@ -9,6 +9,7 @@ const drawing = (items: readonly unknown[]): Book =>
     type: "@matomezu/drawing:drawing",
     id: "b1",
     title: "見本",
+    project: "default",
     pages: [{ id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape", items }],
   }) as unknown as Book
 const label = (book: Book, id: string) => anchorLabel(CORE_CATALOG, book, id)
@@ -72,6 +73,7 @@ test("ツリーの節と、ディレクトリの行は、ブックのタイプ�
     type: "@matomezu/tree:tree",
     id: "t",
     title: "木",
+    project: "default",
     pages: [
       {
         id: "p1",
@@ -88,6 +90,7 @@ test("ツリーの節と、ディレクトリの行は、ブックのタイプ�
     type: "@matomezu/dir:dir",
     id: "d",
     title: "構成",
+    project: "default",
     pages: [
       {
         id: "p1",

@@ -34,6 +34,12 @@ type Storage interface {
 	// Mailbox は利用者の郵便箱（郵便の並び。無ければ nil）
 	Mailbox(user string) (json.RawMessage, error)
 	PutMailbox(user string, body json.RawMessage) error
+	// Participants は利用者の参加者の表（参加者の並び。無ければ nil）
+	Participants(user string) (json.RawMessage, error)
+	PutParticipants(user string, body json.RawMessage) error
+	// ParticipantNotes は利用者の常駐だけが持つ参加者の記録（参加者の id → セッション id と、参加を伝えたかの印。JSON のまま。無ければ nil）。アクションを通さない記録
+	ParticipantNotes(user string) (json.RawMessage, error)
+	PutParticipantNotes(user string, body json.RawMessage) error
 	// Annotations はブックの id ごとのアノテーションの並び（JSON のまま。1 つも無いブックは無い）
 	Annotations() (map[string]json.RawMessage, error)
 	// PutAnnotations はブック book のアノテーションの並びを body にする（空の並びなら消す）
@@ -42,7 +48,7 @@ type Storage interface {
 	AIEditTickets() (map[string]json.RawMessage, error)
 	// PutAIEditTickets はブック book の AI 編集チケットの並びを body にする（空の並びなら消す）
 	PutAIEditTickets(book string, body json.RawMessage) error
-	// Touched はブックの id ごとの、開いたか書いた時刻の新しい方（Stamp の形）。開いた時刻は、DB に無いブック（1 冊だけのタイプのブック）にも残る
+	// Touched はブックの id ごとの、開いたか書いた時刻の新しい方（Stamp の形）。開いた時刻は、DB に無いブックにも残る
 	Touched() (map[string]string, error)
 	// Open は、ブック id を開いた時刻を at にする
 	Open(id, at string) error

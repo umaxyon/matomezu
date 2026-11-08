@@ -4,6 +4,7 @@
 import { useEffect, useRef } from "react"
 import type { ToolId } from "../../../core/catalog"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
+import { screenOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
@@ -39,13 +40,15 @@ export function ToolSwitchView({ stage }: { stage: string }) {
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
   const set = useMatomezuState(s => {
-    const st = s.workspace.stages.find(x => x.id === stage)
+    const st = screenOf(s.window).stages.find(x => x.id === stage)
     return st ? toolSetOf(catalog, st) : null
   })
   const order: readonly ToolId[] = set ? toolsIn(catalog, set) : []
   const tool = useStage(stage)?.tool ?? order[0] ?? null
   // 使えない道具（斜めの線を引く）。並びを文字で比べて、変わったときだけ描き直す
-  const unusable = useMatomezuState(s => unusableTools(catalog, s.workspace, stage, s.books).join("\n")).split("\n")
+  const unusable = useMatomezuState(s => unusableTools(catalog, screenOf(s.window), stage, s.books).join("\n")).split(
+    "\n",
+  )
   const icons = useRef<(HTMLSpanElement | null)[]>([])
   const shown = useRef<ToolId | null>(tool)
 

@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { StrictMode } from "react"
 import { defineMessages } from "../../web/src/core/i18n/messages"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -17,7 +18,7 @@ afterEach(cleanup)
 
 function renderScreen(options: Omit<StoreOptions, "plugins"> = {}) {
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     ...options,
@@ -93,9 +94,9 @@ test("↑↓で選ぶ候補が動き、クリックでも選べる", () => {
   const right = stages()[1]!
   const input = within(right).getByRole("combobox", { name: "ブックを探す" })
   const selected = () => within(right).getByRole("option", { selected: true }).textContent
-  expect(selected()).toBe("マスター")
-  fireEvent.keyDown(input, { key: "ArrowDown" })
   expect(selected()).toBe("まとめ図の構想")
+  fireEvent.keyDown(input, { key: "ArrowDown" })
+  expect(selected()).toBe("画面の構成")
   fireEvent.keyDown(input, { key: "ArrowUp" })
   fireEvent.keyDown(input, { key: "ArrowUp" })
   expect(selected()).toBe("Design Notes")
@@ -160,19 +161,6 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
   expect(document.documentElement.lang).toBe("en")
 })
 
-test("ブックの名前のボタンのメニューのマスターで、そのステージにマスターの画面が出る。紙もページのタブもツールも無い", () => {
-  renderScreen()
-  const button = fromMenu("ホーム")
-  expect(button.getAttribute("aria-pressed")).toBe("false")
-  fireEvent.click(button)
-  expect(within(stages()[0]!).getByRole("region", { name: "マスター" })).toBeTruthy()
-  expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
-  expect(screen.queryByRole("tablist")).toBeNull()
-  expect(screen.queryByRole("toolbar")).toBeNull()
-  expect(screen.getByRole("button", { name: "マスター", expanded: false }).textContent).toBe("マスター")
-  expect(fromMenu("ホーム").getAttribute("aria-pressed")).toBe("true")
-})
-
 test("分割すると、それぞれのステージの区画に閉じるボタンが出て、閉じると残りのステージだけになる", () => {
   renderScreen()
   expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
@@ -188,7 +176,6 @@ test("分割すると、それぞれのステージの区画に閉じるボタ�
 
 test("新しいブックのダイアログでブックを作ると、そのステージでページの無いブックが開き、ページを作ると最初のタブができる", () => {
   const store = renderScreen()
-  fireEvent.click(fromMenu("ホーム"))
   act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
   const dialog = screen.getByRole("dialog", { name: "新しいブック" })
   const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
@@ -203,7 +190,6 @@ test("新しいブックのダイアログでブックを作ると、そのス�
   expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
   fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "新しい図" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
-  expect(screen.queryByRole("region", { name: "マスター" })).toBeNull()
   expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("新しい図")
   expect(screen.queryAllByRole("tab")).toHaveLength(0)
   expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
@@ -255,7 +241,7 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
     commands: base.commands.map(c => (c.id === "@matomezu/base:stage-split" ? { ...c, enabled: () => false } : c)),
   }
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: [locked, ...rest],
@@ -273,6 +259,7 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
     type: "@matomezu/drawing:drawing" as const,
     id: "x",
     title: "外した紙",
+    project: "default",
     pages: [{ id: "p1", title: "ページ 1", paper: "b5", orientation: "portrait" as const }],
   }
   const store = renderScreen({ books: [book] })
@@ -282,7 +269,7 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
 
 test("StrictMode で描いても、開いたダイアログは閉じない", async () => {
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: BUILTIN_UI,
@@ -357,7 +344,7 @@ test("認可ステップがページの削除を止めていれば、ページ�
     {},
   )
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: [...BUILTIN_UI, keep],
@@ -391,7 +378,7 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
     {},
   )
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: [...BUILTIN_UI, keep],
@@ -414,13 +401,18 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
     permission: "@ex/keep:keep",
   })
   fireEvent.keyDown(dialog, { key: "Escape" })
-  fireEvent.click(fromMenu("ホーム"))
   act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
   const type = within(screen.getByRole("dialog", { name: "新しいブック" })).getByLabelText(
     "ブックのタイプ",
   ) as HTMLSelectElement
   expect([...type.options].map(o => o.textContent)).not.toContain("ツリー")
-  expect(store.actions.perform("@matomezu/base:book-create", { title: "木", type: "@matomezu/tree:tree" })).toEqual({
+  expect(
+    store.actions.perform("@matomezu/base:book-create", {
+      title: "木",
+      project: "default",
+      type: "@matomezu/tree:tree",
+    }),
+  ).toEqual({
     ok: false,
     reason: "denied",
     permission: "@ex/keep:keep",
@@ -445,7 +437,7 @@ test("認可ステップがゴミ箱のブックの戻す・消すを止めて�
     {},
   )
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: [...BUILTIN_UI, keep],
@@ -483,17 +475,9 @@ test("右クリックのメニューは、外を押すか Escape で閉じる", 
   expect(screen.queryByRole("menu")).toBeNull()
 })
 
-test("マスターの画面には右クリックのメニューが無く、ブラウザのメニューも出さない", () => {
-  const store = renderScreen()
-  act(() => store.actions.openBook("s1", "@matomezu/master:master"))
-  const notCanceled = fireEvent.contextMenu(screen.getByRole("region", { name: "マスター" }))
-  expect(notCanceled).toBe(false)
-  expect(screen.queryByRole("menu")).toBeNull()
-})
-
 test("右クリックのメニューに出るコマンドが無ければ、メニューは出さない（ブラウザのメニューも出さない）", () => {
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: BUILTIN_UI,
@@ -526,7 +510,7 @@ test("ステージの上の行と下の行を右クリックしても、ブラ�
 
 test("読めないブックは、ブックを開くの一覧に押せない行として、開けない理由を添えて出る（データには手を付けない）", () => {
   const gone = { type: "@foo/stamps:board", id: "x1", title: "スタンプ帳", pages: [] }
-  const broken = { type: "@matomezu/drawing:drawing", id: "x2", title: "壊れた図面", pages: "?" }
+  const broken = { type: "@matomezu/drawing:drawing", id: "x2", title: "壊れた図面", project: "default", pages: "?" }
   const store = renderScreen({ savedBooks: [gone, broken] })
   expect(store.state.getState().books.x1).toBeUndefined()
   fireEvent.click(fromMenu("ブックを開く"))
@@ -555,6 +539,7 @@ test("一部のプラグインが無いブックは開け、知らない形は�
     type: "@matomezu/drawing:drawing",
     id: "u1",
     title: "星の残る図",
+    project: "default",
     pages: [
       {
         id: "p1",
@@ -614,6 +599,7 @@ test("内包ボックスの子は親の中に描き、子に付いた線も描�
     type: "@matomezu/drawing:drawing",
     id: "n1",
     title: "内包",
+    project: "default",
     pages: [
       {
         id: "p1",
@@ -637,10 +623,10 @@ test("内包ボックスの子は親の中に描き、子に付いた線も描�
   // 子に付いた線も描く
   expect(document.querySelector('svg [data-item="l1"]')).not.toBeNull()
   fireEvent.pointerDown(item("c"), { button: 0, pointerId: 1 })
-  expect(store.state.getState().workspace.stages[0]!.selection).toEqual(["c"])
+  expect(screenOf(store.state.getState().window).stages[0]!.selection).toEqual(["c"])
   fireEvent.pointerUp(item("c"), { button: 0, pointerId: 1 })
   fireEvent.pointerDown(item("b"), { button: 0, pointerId: 2 })
-  expect(store.state.getState().workspace.stages[0]!.selection).toEqual(["b"])
+  expect(screenOf(store.state.getState().window).stages[0]!.selection).toEqual(["b"])
   fireEvent.pointerUp(item("b"), { button: 0, pointerId: 2 })
   fireEvent.doubleClick(item("c"))
   const dialog = screen.getByRole("dialog")
@@ -661,6 +647,7 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
     type: "@matomezu/drawing:drawing",
     id: "w1",
     title: "幅",
+    project: "default",
     pages: [
       {
         id: "p1",

@@ -51,6 +51,27 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// 利用者ごとの参加者の表（参加者の並び。要求が届いた順）
+	`CREATE TABLE participants (
+		user TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
+	// 利用者ごとの、常駐だけが持つ参加者の記録（参加者の id ごとのセッション id と、参加を伝えたかの印）
+	`CREATE TABLE participant_notes (
+		user TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
+	// id が master の行を消す
+	`DELETE FROM books WHERE id = 'master';
+	DELETE FROM opened WHERE id = 'master';
+	DELETE FROM annotations WHERE book = 'master';
+	DELETE FROM ai_edit_tickets WHERE book = 'master';`,
+	// ブックは土台のフィールド project、郵便は project、参加者は projects を持つ。project の無いブック・郵便・参加者は標準のプロジェクト default にする
+	`UPDATE books SET body = json_set(body, '$.project', 'default') WHERE json_type(body, '$.project') IS NULL;
+	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.project') IS NULL THEN json_set(value, '$.project', 'default') ELSE value END)) FROM json_each(mailbox.body));
+	UPDATE participants SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.projects') IS NULL THEN json_set(value, '$.projects', json('["default"]')) ELSE value END)) FROM json_each(participants.body));`,
 }
 
 type sqliteStorage struct {
@@ -298,6 +319,42 @@ func (s *sqliteStorage) Mailbox(user string) (json.RawMessage, error) {
 
 func (s *sqliteStorage) PutMailbox(user string, body json.RawMessage) error {
 	_, err := s.db.Exec(`INSERT INTO mailbox (user, body, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	return err
+}
+
+func (s *sqliteStorage) Participants(user string) (json.RawMessage, error) {
+	var body string
+	err := s.db.QueryRow(`SELECT body FROM participants WHERE user = ?`, user).Scan(&body)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(body), nil
+}
+
+func (s *sqliteStorage) PutParticipants(user string, body json.RawMessage) error {
+	_, err := s.db.Exec(`INSERT INTO participants (user, body, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	return err
+}
+
+func (s *sqliteStorage) ParticipantNotes(user string) (json.RawMessage, error) {
+	var body string
+	err := s.db.QueryRow(`SELECT body FROM participant_notes WHERE user = ?`, user).Scan(&body)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(body), nil
+}
+
+func (s *sqliteStorage) PutParticipantNotes(user string, body json.RawMessage) error {
+	_, err := s.db.Exec(`INSERT INTO participant_notes (user, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
 	return err
 }

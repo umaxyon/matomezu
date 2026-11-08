@@ -8,7 +8,7 @@ import { CORE_CATALOG } from "../support"
 
 const ids = (type: string) => themesFor(CORE_CATALOG, type).map(t => t.id)
 
-test("図のタイプは all と図のテーマを、マークダウンは all と文書のテーマを、テーマタイプを使わないマスターは all のテーマだけを選べる", () => {
+test("図のタイプは all と図のテーマを、マークダウンは all と文書のテーマをを選べる", () => {
   expect(ids("@matomezu/drawing:drawing")).toEqual([
     "@matomezu/base:standard",
     "@matomezu/base:sticky",
@@ -16,7 +16,6 @@ test("図のタイプは all と図のテーマを、マークダウンは all �
     "@matomezu/base:matomezu",
   ])
   expect(ids("@matomezu/markdown:markdown")).toEqual(["@matomezu/base:standard", "@matomezu/markdown:github-like"])
-  expect(ids("@matomezu/master:master")).toEqual(["@matomezu/base:standard"])
   expect(themeFits(CORE_CATALOG, "@matomezu/drawing:drawing", "@matomezu/markdown:github-like")).toBe(false)
   expect(themeFits(CORE_CATALOG, "@matomezu/drawing:drawing", "nope")).toBe(false)
 })

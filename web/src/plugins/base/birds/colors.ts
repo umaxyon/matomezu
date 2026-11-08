@@ -10,39 +10,37 @@ export interface BirdColors {
 
 export interface BirdPalette {
   id: string
-  name: string
   colors: BirdColors
   bird?: Bird // その鳥の元の配色なら、その鳥
 }
 
-const palette = (id: string, name: string, feather: string, inner: string, flag: string, bird?: Bird): BirdPalette => ({
+const palette = (id: string, feather: string, inner: string, flag: string, bird?: Bird): BirdPalette => ({
   id,
-  name,
   colors: { feather, inner, flag },
   ...(bird ? { bird } : {}),
 })
 
 export const BIRD_PALETTES: readonly BirdPalette[] = [
-  palette("tsunagidori-green", "ツナギドリ・グリーン", "#52765A", "#C9D0A2", "#36A15A", "tsunagidori"),
-  palette("inko-red", "インコ・レッド", "#873968", "#FBEAD6", "#F63743", "inko"),
-  palette("buncho-white", "文鳥・ホワイト", "#434343", "#FFF1DE", "#FFF9F3", "buncho"),
-  palette("suzume-yellow", "スズメ・イエロー", "#B74D29", "#FAE6D6", "#F6C631", "suzume"),
-  palette("fukurou-blue", "フクロウ・ブルー", "#233C76", "#37BDBB", "#247CFA", "fukurou"),
-  palette("forest", "フォレスト", "#235F3D", "#BFD7A4", "#267048"),
-  palette("lime", "ライム", "#647E25", "#EDF0B7", "#A6CB38"),
-  palette("olive", "オリーブ", "#676B23", "#E2E3B0", "#7E821E"),
-  palette("orange", "オレンジ", "#BA6631", "#FFE2B8", "#EF8A32"),
-  palette("pink", "ピンク", "#B05D79", "#FFE0EA", "#EF8CA8"),
-  palette("magenta", "マゼンタ", "#92366C", "#F3D1E9", "#C4448D"),
-  palette("plum", "プラム", "#573457", "#D8C8EF", "#74386C"),
-  palette("lilac", "ライラック", "#8A73B6", "#F1E8FF", "#B5A1EA"),
-  palette("violet", "バイオレット", "#6543A5", "#DAD5F7", "#7951C7"),
-  palette("navy", "ネイビー", "#283D70", "#C6DEFA", "#304A8D"),
-  palette("sky", "スカイ", "#5B94AC", "#E5F3F3", "#87CDEA"),
-  palette("deep-teal", "ディープティール", "#22575F", "#ABD8C8", "#236B75"),
-  palette("turquoise", "ターコイズ", "#268C83", "#D0F0DA", "#31B9AF"),
-  palette("chestnut", "チェスナット", "#69432F", "#EED3AB", "#855236"),
-  palette("charcoal", "チャコール", "#3A3C44", "#DCE3EB", "#454852"),
+  palette("tsunagidori-green", "#52765A", "#C9D0A2", "#36A15A", "tsunagidori"),
+  palette("inko-red", "#873968", "#FBEAD6", "#F63743", "inko"),
+  palette("buncho-white", "#434343", "#FFF1DE", "#FFF9F3", "buncho"),
+  palette("suzume-yellow", "#B74D29", "#FAE6D6", "#F6C631", "suzume"),
+  palette("fukurou-blue", "#233C76", "#37BDBB", "#247CFA", "fukurou"),
+  palette("forest", "#235F3D", "#BFD7A4", "#267048"),
+  palette("lime", "#647E25", "#EDF0B7", "#A6CB38"),
+  palette("olive", "#676B23", "#E2E3B0", "#7E821E"),
+  palette("orange", "#BA6631", "#FFE2B8", "#EF8A32"),
+  palette("pink", "#B05D79", "#FFE0EA", "#EF8CA8"),
+  palette("magenta", "#92366C", "#F3D1E9", "#C4448D"),
+  palette("plum", "#573457", "#D8C8EF", "#74386C"),
+  palette("lilac", "#8A73B6", "#F1E8FF", "#B5A1EA"),
+  palette("violet", "#6543A5", "#DAD5F7", "#7951C7"),
+  palette("navy", "#283D70", "#C6DEFA", "#304A8D"),
+  palette("sky", "#5B94AC", "#E5F3F3", "#87CDEA"),
+  palette("deep-teal", "#22575F", "#ABD8C8", "#236B75"),
+  palette("turquoise", "#268C83", "#D0F0DA", "#31B9AF"),
+  palette("chestnut", "#69432F", "#EED3AB", "#855236"),
+  palette("charcoal", "#3A3C44", "#DCE3EB", "#454852"),
 ]
 
 // 鳥ごとの元の配色

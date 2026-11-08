@@ -2,8 +2,8 @@
 // タブが数（未読など。タブの定義の useCount）を答えれば、その合計を角に出す
 import { useMessages } from "../../../ui/i18n"
 import { useUiCatalog } from "../../../ui/view-hooks"
-import styles from "../book-name/StageMenuButtons.module.css"
 import { kit } from "../kit"
+import styles from "../utils/FooterButtons.module.css"
 import type { StageSlotProps } from "../workspace/ui"
 import { useLeftSidePanel, useLeftSidePanelTabs, useSetLeftSidePanel } from "./hooks"
 import own from "./LeftSidePanel.module.css"

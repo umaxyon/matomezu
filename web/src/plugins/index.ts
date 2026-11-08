@@ -4,9 +4,9 @@ import { DIR_PLUGIN } from "./books/dir"
 import { DRAWING_PLUGIN } from "./books/drawing"
 import { FLOWCHART_PLUGIN } from "./books/flowchart"
 import { MARKDOWN_PLUGIN } from "./books/markdown"
-import { MASTER, MASTER_PLUGIN } from "./books/master"
 import { SLIDE_BOOK_PLUGIN } from "./books/slide-book"
 import { TREE_PLUGIN } from "./books/tree"
+import { CONTROL_CENTER, CONTROL_CENTER_PLUGIN } from "./control-center"
 import { ART_PLUGIN } from "./items/art"
 import { BOX_PLUGIN } from "./items/box"
 import { DATA_PLUGIN } from "./items/data"
@@ -18,7 +18,7 @@ import { PAPER_PLUGIN } from "./paper"
 
 export const BUILTIN = [
   BASE,
-  MASTER_PLUGIN,
+  CONTROL_CENTER_PLUGIN,
   PAPER_PLUGIN,
   BOX_PLUGIN,
   LIST_PLUGIN,
@@ -35,5 +35,5 @@ export const BUILTIN = [
   SLIDE_BOOK_PLUGIN,
 ] as const
 
-// ビルトインのインスタンスの、ホームのタイプ（画面とエンジンが同じものを使う）
-export const BUILTIN_HOME = MASTER.id
+// ビルトインのインスタンスの、コントロールセンター（画面とエンジンが同じものを使う）
+export const BUILTIN_CONTROL_CENTER = CONTROL_CENTER.id

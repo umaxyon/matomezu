@@ -24,6 +24,7 @@ const book = {
   type: "@matomezu/drawing:drawing" as const,
   id: "b1",
   title: "見本",
+  project: "default",
   pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
 }
 const stage = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })

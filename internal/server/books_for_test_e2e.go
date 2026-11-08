@@ -115,10 +115,18 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	if err := h.store.PutMailbox(user, json.RawMessage("[]")); err != nil {
 		return err
 	}
+	if err := h.store.PutParticipants(user, json.RawMessage("[]")); err != nil {
+		return err
+	}
+	if err := h.store.PutParticipantNotes(user, json.RawMessage("{}")); err != nil {
+		return err
+	}
 	h.books = map[string]entry{}
 	h.order = nil
 	h.settings = nil
 	h.mailbox = nil
+	h.participants = nil
+	h.participantNotes = map[string]participantNote{}
 	h.annotations = map[string]json.RawMessage{}
 	h.touched = map[string]string{}
 	h.performed = map[string]Performed{}

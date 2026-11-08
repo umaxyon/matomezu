@@ -18,6 +18,7 @@ import { hasPages } from "../core/book"
 import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
+import { screenOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type { AIEditTicketOutcome, DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
 import type { HostClient, Loaded } from "./client"
@@ -109,17 +110,22 @@ const openedOf = (stage: Stage) => {
   }
 }
 
-// 窓が見ているもの。book・page・mode（編集か印刷プレビューか）・selection はカレントのステージのもの（何も開いていなければ book は null）
+// 窓が見ているもの。front は窓が前に出している物（control-center か book-screen）。
+// ブックスクリーンを前に出している間は、book・page・mode（編集か印刷プレビューか）・selection はカレントのステージのもの（何も開いていなければ book は null）。
+// コントロールセンターを前に出している間は、後ろに隠れているブックスクリーンのそれらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）
 export function viewOf(state: MatomezuState) {
-  const ws = state.workspace
+  const ws = screenOf(state.window)
   const stage = currentStage(ws)
-  return {
+  const screen = {
     ...openedOf(stage),
     selection: stage.selection,
     stage: stage.id,
     stages: ws.stages.map(s => ({ id: s.id, ...openedOf(s) })),
     canSplit: ws.stages.length < MAX_STAGES,
   }
+  return state.window.front === "book-screen"
+    ? { front: state.window.front, ...screen }
+    : { front: state.window.front, hidden: screen }
 }
 
 // 利用者が直している物（useEditLock）を、ブックの id → 物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
@@ -144,11 +150,11 @@ const ShowSchema = z.object({
 // mode が print-preview なら、印刷プレビューで出す（ページを持つブックだけ）
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
-  let stage = show.stage ?? state.getState().workspace.current
+  let stage = show.stage ?? screenOf(state.getState().window).current
   if (show.split) {
-    const before = state.getState().workspace.stages.map(s => s.id)
+    const before = screenOf(state.getState().window).stages.map(s => s.id)
     actions.split(stage)
-    const added = state.getState().workspace.stages.find(s => !before.includes(s.id))
+    const added = screenOf(state.getState().window).stages.find(s => !before.includes(s.id))
     if (!added) return
     stage = added.id
   }
@@ -163,8 +169,10 @@ const DataSchema = z.object({
   settings: z.unknown(),
   annotations: z.record(z.string(), z.unknown()).optional(),
   mailbox: z.unknown().optional(),
+  participants: z.unknown().optional(),
   plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
   touched: z.record(z.string(), z.string()).optional(),
+  participantCalls: z.record(z.string(), z.string()).optional(),
 })
 const HelloSchema = z.object({ client: z.string() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
@@ -178,9 +186,11 @@ const BookSchema = z.object({
 })
 const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
 const AckSchema = z.object({ seq: z.number().int() })
+const ParticipantCallSchema = z.object({ participant: z.string(), at: z.string() })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
 const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
+const ParticipantsSchema = z.object({ participants: z.unknown(), ...Mark })
 const MailboxSchema = z.object({ mailbox: z.unknown(), window: z.string().optional(), ...Mark })
 
 export interface ServerClient extends HostClient {
@@ -192,7 +202,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let settings: unknown
   let annotations: Record<string, unknown> = {} // ブックの id → アノテーションの並び
   let mailbox: unknown = [] // 利用者の郵便箱
+  let participants: unknown = [] // 利用者の参加者の表
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
+  let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: Pending[] = []
   let client = ""
@@ -265,7 +277,15 @@ export function serverClient(net: Net = browserNet): ServerClient {
   // change は、この窓のでない変更の知らせのとき（その変更を、まだ見ていない画面の履歴の段にする）
   const show = (change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string }) =>
     instance?.receive(
-      { books: [...confirmed.values()].map(e => e.book), settings, annotations, mailbox, touched },
+      {
+        books: [...confirmed.values()].map(e => e.book),
+        settings,
+        annotations,
+        mailbox,
+        participants,
+        touched,
+        participantCalls,
+      },
       pending.map(p => p.done),
       change,
     )
@@ -360,10 +380,13 @@ export function serverClient(net: Net = browserNet): ServerClient {
     settings = data.settings ?? undefined
     annotations = data.annotations ?? {}
     mailbox = data.mailbox ?? []
+    participants = data.participants ?? []
     plugins = data.plugins ?? []
     // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
     for (const [id, at] of Object.entries(data.touched ?? {}))
       if ((touched[id] ?? "") < at) touched = { ...touched, [id]: at }
+    for (const [id, at] of Object.entries(data.participantCalls ?? {}))
+      if ((participantCalls[id] ?? "") < at) participantCalls = { ...participantCalls, [id]: at }
   }
   // つなぎ直したときに読み直し、読み直した世界の上に、まだ確かめられていないアクションを出して送り直す。
   // 読めなければ送り直しは先に済ませ、同じつながりのうちは少し待って読み直す（読めるまで、知らせで変わった物のほかは古いまま）
@@ -493,8 +516,20 @@ export function serverClient(net: Net = browserNet): ServerClient {
       settle(e)
       show()
     })
+    on("participants", data => {
+      const e = ParticipantsSchema.parse(JSON.parse(data))
+      participants = e.participants
+      settle(e)
+      show()
+    })
     on("show", data => {
       if (instance) showIn(instance, ShowSchema.parse(JSON.parse(data)))
+    })
+    on("participant-calls", data => {
+      const e = ParticipantCallSchema.parse(JSON.parse(data))
+      if ((participantCalls[e.participant] ?? "") >= e.at) return
+      participantCalls = { ...participantCalls, [e.participant]: e.at }
+      show()
     })
     on("touched", data => {
       const e = TouchedSchema.parse(JSON.parse(data))
