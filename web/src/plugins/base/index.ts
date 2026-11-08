@@ -125,7 +125,6 @@ export {
 export { itemMinimapMarks, type MinimapMark } from "./minimap/marks"
 export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
-export type { SearchableDef } from "./search/search"
 export type { PageProblem } from "./page-tabs/page-problems"
 export { nextPageTitle } from "./page-tabs/pages"
 export { type AiPlaced, aiPlacedOf, itemAiPlaced } from "./place/ai-placed"
@@ -178,6 +177,7 @@ export type { PrintSheets, SheetPurpose } from "./print-preview"
 export { breakShift } from "./print-preview/breaks"
 export { printSheetsOf, sheetShapes, sheetsOfShape } from "./print-preview/filled"
 export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
+export type { SearchableDef } from "./search/search"
 export {
   BOOK_TEXT_COLORS,
   clampRich,

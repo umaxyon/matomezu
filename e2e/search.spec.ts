@@ -1,7 +1,7 @@
 // 検索（base の検索ダイアログ。探せるのはマークダウンのブック）: Mod+F で開き、打つと当たりを数えて光らせ、次・前へ移り、置き換え、閉じると今の当たりを選ぶ。
 // ブック全体の検索は、当たりのある次のページを開いて移る。ダイアログは見出しを掴んで動かせる
 import { expect, type Page, test } from "./fixtures"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 
 // マスターでマークダウンのブックを作り、ページの原文を text にする
 async function markdownBook(page: Page, text: string) {

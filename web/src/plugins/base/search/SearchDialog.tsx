@@ -2,8 +2,10 @@
 // ほかの操作を止めない（ページをスクロールしたり書いたりできる。外を押しても閉じない）。見出しを掴んで動かせ、動かした所は閉じても覚える。
 // 探す字・置き換える字・切り替え（大文字小文字・正規表現・範囲・端で回る）は base のステージの画面の状態（state.ts）に書き、
 // 変えたら今の当たりを選び直す（計算は search.ts）。次・前・置換・閉じるはコマンド（index.ts）。入力Formは検索のキーの範囲を名乗る
+
 import { type PointerEvent, useEffect, useRef } from "react"
 import type { Point } from "../../../core/geom"
+import { screenOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -29,8 +31,9 @@ const FIRST_AT = { right: 24, top: 64 }
 export function SearchDialogHost() {
   const stage = useMatomezuState(s => {
     const open = (id: string) => searchIn(s.stageStates[id]?.[kit.id]) !== null
-    if (open(s.workspace.current)) return s.workspace.current
-    return s.workspace.stages.find(st => open(st.id))?.id ?? null
+    const ws = screenOf(s.window)
+    if (open(ws.current)) return ws.current
+    return ws.stages.find(st => open(st.id))?.id ?? null
   })
   return stage ? <SearchDialog key={stage} stage={stage} /> : null
 }
