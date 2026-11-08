@@ -114,12 +114,44 @@ test("伝言の吹き出しと、たたんだ伝言の角の絵の右クリッ�
   await bubble.click({ button: "right" })
   await expect(page.getByRole("menu")).toHaveCount(0)
   await bubble.click()
-  await panel(page).getByRole("button", { name: "たたむ" }).click()
+  await panel(page).getByRole("button", { name: "隠す" }).click()
   const folded = page.locator("button[data-note]")
   await expect(folded).toHaveCount(1)
   expect(await browserMenuStopped(folded)).toBe(true)
   await folded.click({ button: "right" })
   await expect(page.getByRole("menu")).toHaveCount(0)
+})
+
+test("吹き出しに乗せると上に「隠す」が出て、はいで角の伝言の絵になる。絵に乗せると「表示」「消す」が出て、表示で吹き出しに戻り、消すで無くなる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBox(page, 200, 150, "一")
+  await writeNote(page, items(page).filter({ hasText: "一" }), "隠す")
+  const bubble = page.getByRole("group", { name: "伝言", exact: true }).getByRole("button", { name: "伝言を開く" })
+  await bubble.hover()
+  const hide = page.getByRole("group", { name: "隠す" })
+  await expect(hide).toBeVisible()
+  // 右端を吹き出しの右端にそろえ、吹き出しの上に出す
+  const b = (await bubble.boundingBox())!
+  const h = (await hide.boundingBox())!
+  expect(h.y + h.height).toBeLessThanOrEqual(b.y)
+  expect(Math.abs(h.x + h.width - (b.x + b.width))).toBeLessThan(12)
+  await hide.getByRole("button", { name: "はい" }).click()
+  await expect(bubble).toHaveCount(0)
+  const folded = page.locator("button[data-note]")
+  await expect(folded).toHaveCount(1)
+
+  await folded.hover()
+  await page.getByRole("group", { name: "表示" }).getByRole("button", { name: "はい" }).click()
+  await expect(bubble).toBeVisible()
+  await expect(folded).toHaveCount(0)
+
+  await bubble.hover()
+  await page.getByRole("group", { name: "隠す" }).getByRole("button", { name: "はい" }).click()
+  await folded.hover()
+  await page.getByRole("group", { name: "消す" }).getByRole("button", { name: "はい" }).click()
+  await expect(stands(page)).toHaveCount(0)
 })
 
 test("書いている間は Esc で付けずに閉じる", async ({ page }) => {
@@ -338,7 +370,7 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await readAll()
   await writeNote(page, two, "たたむ")
   await page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])")).click()
-  await panel(page).getByRole("button", { name: "たたむ" }).click()
+  await panel(page).getByRole("button", { name: "隠す" }).click()
   await page.keyboard.press("Escape")
   await two.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
@@ -393,7 +425,7 @@ test("角のまとめた絵は、押しても Enter でも開き、離れて少�
     const box = items(page).filter({ hasText: name })
     await writeNote(page, box, `${name}の伝言`)
     await page.getByRole("button", { name: "伝言を開く" }).and(page.locator(":not([data-read])")).last().click()
-    await panel(page).getByRole("button", { name: "たたむ" }).click()
+    await panel(page).getByRole("button", { name: "隠す" }).click()
     await page.keyboard.press("Escape")
     await expect(panel(page)).toHaveCount(0)
     await box.click({ button: "right" })

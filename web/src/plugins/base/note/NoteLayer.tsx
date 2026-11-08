@@ -7,11 +7,14 @@
 // 吹き出しか絵かチェックを押すと、右サイドパネルにその伝言を出す（付けた先を選び、吹き出しの物をカレントにする。吹き出しを出すかのデータは変えない）。
 // 選択に従う右サイドパネルの中身（書いている伝言など）を出している間は、吹き出しの物を押したのと同じにする（選ぶ。Mod なら足す・外す。書きかけを生かす）。
 // 右サイドパネルがほかの物を出している間は、角の吹き出しの中の絵とチェックは薄くして押せなくし、それ以外（物の右の吹き出し・角に 1 つだけの絵とチェック）は押すと閉じるだけ。
+// 吹き出しにマウスかペンを乗せると、上に「隠す [はい]」を出し、はいでたたむ。角のたたんだ伝言の絵に乗せると「表示 [はい]　消す [はい]」を出し、
+// 表示で吹き出しに戻し、消すで伝言を消す（タッチでは出さず、右サイドパネルのボタンを使う。既読のチェックには出さない。変えられないときと、角の絵を押せない間は出さない）。
 // 吹き出しの色はスキンの bubble だけで、物や伝言の様子では変えない。右サイドパネルが伝言を出している間は、付ける先に鳥を出す（NoteBirds）
 import type { MouseEvent, ReactNode } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useReadState } from "../../../ui/store-context"
-import { useAnnotationsOf } from "../annotation-hooks"
+import { useAllowed } from "../../../ui/view-hooks"
+import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import {
@@ -22,13 +25,14 @@ import {
 } from "../right-side-panel/hooks"
 import { pointedSelection } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
+import { Ask, type AskItem } from "../utils/Ask"
 import { Stand, useStandAway, useStandFacing } from "../utils/anchors"
-import { AtCorner } from "../utils/corner"
+import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import { standFacing } from "../utils/stand-place"
 import { modPressed } from "../utils/ui"
 import type { StageSlotProps } from "../workspace/ui"
-import { NOTE, type NoteProps } from "."
+import { NOTE, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
 import { NoteBirds } from "./NoteBirds"
 import styles from "./NoteLayer.module.css"
 import { FOLDED_NOTE_STATUS_ID, NEW_NOTE, NOTE_PANEL_ID, READ_NOTE_STATUS_ID } from "./panel-id"
@@ -123,13 +127,23 @@ function BubbleStand({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
   const { open } = useOpenNote(stage, id, anchors)
+  const asks = useNoteAsks(stage, id, "hide")
   return (
     <Stand anchor={anchor} side="right" edgePinned label={t("Note")}>
       <Away pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}>
-        <button type="button" className={`${styles.bubble} ${styles.opens}`} aria-label={t("Open note")} onClick={open}>
-          {clampChars(props.text, BUBBLE_CHARS)}
-          <BubbleTail />
-        </button>
+        <Ask items={asks} opens="hover" place="aboveRight">
+          {() => (
+            <button
+              type="button"
+              className={`${styles.bubble} ${styles.opens}`}
+              aria-label={t("Open note")}
+              onClick={open}
+            >
+              {clampChars(props.text, BUBBLE_CHARS)}
+              <BubbleTail />
+            </button>
+          )}
+        </Ask>
       </Away>
     </Stand>
   )
@@ -140,6 +154,7 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
   const { open, busy } = useOpenNote(stage, id, anchors)
+  const asks = useNoteAsks(stage, id, "showOrRemove")
   return (
     <AtCorner
       anchor={anchor}
@@ -147,17 +162,49 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
       at={props.addedAt}
       pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}
     >
-      <CornerNoteButton
-        className={styles.folded}
-        label={t("Open note")}
-        title={clampChars(props.text, BUBBLE_CHARS)}
-        id={id}
-        busy={busy}
-        onClick={open}
-      >
-        <NoteIcon />
-      </CornerNoteButton>
+      <FoldedAsk asks={busy ? [] : asks}>
+        <CornerNoteButton
+          className={styles.folded}
+          label={t("Open note")}
+          title={clampChars(props.text, BUBBLE_CHARS)}
+          id={id}
+          busy={busy}
+          onClick={open}
+        >
+          <NoteIcon />
+        </CornerNoteButton>
+      </FoldedAsk>
     </AtCorner>
+  )
+}
+
+// 乗せて出す問い: hide は「隠す」（吹き出し）、showOrRemove は「表示」「消す」（たたんだ伝言の絵）。変えられない物は出さない
+function useNoteAsks(stage: string, note: string, kind: "hide" | "showOrRemove"): AskItem[] {
+  const t = useMessages(kit)
+  const run = usePerformOrToast(stage, "The note was refused")
+  const updatable = useAllowed(stage, NOTE_UPDATE.id).ok
+  const removable = useAllowed(stage, NOTE_REMOVE.id).ok
+  const bubble = (on: boolean): AskItem => ({
+    question: t(on ? "Show" : "Hide"),
+    onYes: () => run(NOTE_UPDATE.id, { note, bubble: on }),
+    tone: "plain",
+  })
+  const remove: AskItem = { question: t("Remove"), onYes: () => run(NOTE_REMOVE.id, { note }), tone: "danger" }
+  return kind === "hide"
+    ? updatable
+      ? [bubble(false)]
+      : []
+    : [...(updatable ? [bubble(true)] : []), ...(removable ? [remove] : [])]
+}
+
+// たたんだ伝言の絵に乗せて出す問い（角の吹き出しの中なら、吹き出しの広がった向きに出す）
+function FoldedAsk({ asks, children }: { asks: readonly AskItem[]; children: ReactNode }) {
+  const below = useAtCornerBubble() === "below"
+  if (asks.length === 0) return children
+  return (
+    <Ask items={asks} opens="hover" place={below ? "belowRight" : "aboveRight"}>
+      {() => children}
+    </Ask>
   )
 }
 

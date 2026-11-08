@@ -16,6 +16,11 @@ export const CHOICE_SETTING_MESSAGES = defineMessages({
   "Inherit from book ({value})": { en: "Inherit from book ({value})", ja: "ブックを継承（{value}）" },
 })
 
+// 問いの吹き出し（Ask.tsx）
+export const ASK_MESSAGES = defineMessages({
+  Yes: { en: "Yes", ja: "はい" },
+})
+
 export const CORNER_MESSAGES = defineMessages({
   Corner: { en: "Corner", ja: "角" },
   "Things at the corner": { en: "Things at the corner", ja: "角の物" },

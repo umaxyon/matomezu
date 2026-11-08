@@ -11,10 +11,10 @@ import type { Bird } from "../birds"
 import { assignBirds } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { LEAVE } from "../birds/flight"
-import { RemoveAsk } from "../birds/RemoveAsk"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
+import { Ask, useRemoveAsk } from "../utils/Ask"
 import { AnchorFrame, anchorElementIn, StandAt } from "../utils/anchors"
 import { birdsIn, withBirds } from "./birds-state"
 import styles from "./NoteLayer.module.css"
@@ -79,6 +79,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
     return () => clearTimeout(timer)
   }, [shown.leaving, onGone])
   const remove = () => takeOff(stage, shown.anchor)
+  const removeAsk = useRemoveAsk(remove)
   const name = useAnchorName(stage, shown.anchor)
   return (
     <BirdWalk
@@ -94,7 +95,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
         shown.leaving ? (
           <span className={birdClass} style={style} />
         ) : (
-          <RemoveAsk onRemove={remove} onAsking={setAsking} onBird>
+          <Ask items={removeAsk} onAsking={setAsking} place="bird">
             {toggle => (
               <button
                 type="button"
@@ -108,7 +109,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
                 data-note-bird={shown.anchor}
               />
             )}
-          </RemoveAsk>
+          </Ask>
         )
       }
     </BirdWalk>

@@ -12,12 +12,12 @@ import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import type { Bird } from "../birds"
 import { BirdWalk, birdClass, FRONT, frameStyle } from "../birds/BirdWalk"
 import type { Arrival } from "../birds/flight"
-import { RemoveAsk } from "../birds/RemoveAsk"
 import { useBirdSheet } from "../birds/use-bird-sheet"
 import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
+import { Ask, useRemoveAsk } from "../utils/Ask"
 import { Stand, StandAt } from "../utils/anchors"
 import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
@@ -101,15 +101,16 @@ export function AlertLook() {
 // びっくりマーク: 押すと「外す？」を出す（角の吹き出しの中なら、吹き出しの広がった向きに重ねて出す）
 function PinnedAlert({ title, onRemove }: { title: string; onRemove: () => void }) {
   const below = useAtCornerBubble() === "below"
+  const ask = useRemoveAsk(onRemove)
   return (
     <div data-away="false">
-      <RemoveAsk onRemove={onRemove} below={below}>
+      <Ask items={ask} place={below ? "below" : "above"}>
         {toggle => (
           <button type="button" className={styles.alert} aria-label={title} onClick={toggle}>
             !
           </button>
         )}
-      </RemoveAsk>
+      </Ask>
     </div>
   )
 }
@@ -133,12 +134,13 @@ function MarkBird({
     return Math.random() < 0.5 ? "fly" : "peek"
   })
   const [asking, setAsking] = useState(false)
+  const ask = useRemoveAsk(onRemove)
   return (
     <BirdWalk bird={bird} arrival={arrival} paused={asking} awayLabel={awayLabel}>
       {style => (
-        <RemoveAsk onRemove={onRemove} onAsking={setAsking} onBird>
+        <Ask items={ask} onAsking={setAsking} place="bird">
           {toggle => <button type="button" className={birdClass} aria-label={title} onClick={toggle} style={style} />}
-        </RemoveAsk>
+        </Ask>
       )}
     </BirdWalk>
   )
