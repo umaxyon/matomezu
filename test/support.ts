@@ -23,3 +23,10 @@ export const newStore = (options: Omit<StoreOptions, "plugins"> = {}) =>
     newId: sequence(),
     ...options,
   })
+
+// 画面の大きさを決めた store（ステージ s1 が 1400×1000。紙に形を置くテストの準備）
+export function sizedStore(options: Omit<StoreOptions, "plugins"> = {}) {
+  const store = newStore(options)
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
+  return store
+}

@@ -6,13 +6,9 @@ import { BOX_LOOK } from "../../web/src/plugins/items/box/size"
 import type { ListRow } from "../../web/src/plugins/items/list/list"
 import { canCarry, dropPlace, shownOrder } from "../../web/src/plugins/items/list/rows"
 import { LIST_SIZE, linesFor, listLayout, rowHeight } from "../../web/src/plugins/items/list/size"
-import { newStore } from "../support"
+import { type newStore, sizedStore } from "../support"
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 const items = (store: ReturnType<typeof newStore>) =>
   shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!)
 const list = (store: ReturnType<typeof newStore>) => {

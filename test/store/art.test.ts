@@ -6,13 +6,9 @@ import { panelOf, toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
 import { ARTS, DB, PERSON } from "../../web/src/plugins/items/art/art"
 import { PICTURES } from "../../web/src/plugins/items/art/pictures"
 import { ART_LOOK, artHeight, minWidth } from "../../web/src/plugins/items/art/size"
-import { CORE_CATALOG, newStore } from "../support"
+import { CORE_CATALOG, sizedStore } from "../support"
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
 const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
 const at = (store: Store, id: string) => shapesOf(book(store).pages[0]!).find(i => i.id === id)!

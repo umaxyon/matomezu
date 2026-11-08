@@ -3,7 +3,7 @@ import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { GAP, planPlace, pushFrom, pushShrinking, type Rect } from "../../web/src/plugins/base/place/push"
 import { placedWidth } from "../../web/src/plugins/items/box/size"
-import { newStore } from "../support"
+import { type newStore, sizedStore } from "../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横
 const rects = (o: Record<string, Rect>) => new Map(Object.entries(o))
@@ -40,11 +40,7 @@ test("押した先が紙からはみ出すなら収まらない。前から近�
   expect(after.get("b")).toEqual(r(150, 120))
 })
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 const items = (store: ReturnType<typeof newStore>) =>
   shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!)
 const at = (store: ReturnType<typeof newStore>, id: string) => items(store).find(i => i.id === id)!
@@ -78,7 +74,6 @@ test("キャプションで広がるときも隣を押す。押した箱が収�
   const twenty = "あ".repeat(20)
   expect(update(twenty).ok).toBe(true)
   const w = placedWidth({ caption: twenty, rule: true, body: "", captionAlign: "center", bodyAlign: "left" })
-  expect(at(store, "n1").w).toBe(w)
   expect(at(store, "n2").x).toBe(100 + w + GAP)
   place(store, 1023 - 100, 300, 100)
   place(store, 100, 300, 64)

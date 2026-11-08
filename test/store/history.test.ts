@@ -9,7 +9,7 @@ import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, sequence } from "../support"
+import { newStore, sequence, sizedStore } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 type Drawing = BookOf<"@matomezu/drawing:drawing">
@@ -19,11 +19,7 @@ const historyOf = (store: ReturnType<typeof newStore>, id = "b1") => store.state
 // 同じ処理が終わる（開いている画面の履歴の段が画面の履歴に入る）のを待つ
 const settled = () => Promise.resolve()
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 const place = (store: ReturnType<typeof newStore>, x: number, caption = "箱") =>
   store.actions.perform(
     "@matomezu/paper:item-place",
