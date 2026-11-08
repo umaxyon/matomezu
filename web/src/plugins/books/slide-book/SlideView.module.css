@@ -1,10 +1,55 @@
-/* 紙の枠（紙の面は下のレイヤーが描く）。紙の外にはみ出た部分は切る */
+/* スライドのビューの全体（ポインタを受ける）。置こうとしている間は十字 */
+.view {
+  position: absolute;
+  inset: 0;
+  outline: none;
+}
+.view[data-placing="true"] {
+  cursor: crosshair;
+}
+/* 紙の枠（紙の面は下のレイヤーが描く）。切るのは中のアイテムの層だけで、選んだ物のつまみは紙の外へ出てもよい */
 .paper {
-  contain: paint;
+  contain: none;
+}
+.clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 .item {
   position: absolute;
   transform-origin: 50% 50%;
+  cursor: move;
+}
+.view[data-placing="true"] .item {
+  cursor: crosshair;
+}
+.ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+/* 文字の書き換え欄: 文字枠いっぱいに重ねる */
+.editor {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 2px solid var(--skin-accent);
+  background: transparent;
+  color: var(--theme-text);
+  font-family: inherit;
+  line-height: 1.3;
+  resize: none;
+  overflow: hidden;
+  cursor: text;
 }
 .empty {
   position: absolute;

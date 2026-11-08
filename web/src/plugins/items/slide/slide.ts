@@ -72,7 +72,7 @@ export const TEXT_FRAME = kit.defineShape({
   version: 1,
   title: "Text frame",
   capabilities: [],
-  toolbox: false, // ブックの道具箱には出さない（スライドへ足す道具は専用）
+  toolbox: true,
   props: TextFrameProps,
   tokens: [],
   size: { w: 240, h: 48 },
@@ -85,7 +85,7 @@ export const FREE_LINE = kit.defineShape({
   version: 1,
   title: "Free line",
   capabilities: [],
-  toolbox: false, // ブックの道具箱には出さない（スライドへ足す道具は専用）
+  toolbox: true,
   props: FreeLineProps,
   tokens: [],
   size: { w: 160, h: 80 },
@@ -98,7 +98,7 @@ export const STRAIGHT_LINE = kit.defineShape({
   version: 1,
   title: "Straight line",
   capabilities: [],
-  toolbox: false, // ブックの道具箱には出さない（スライドへ足す道具は専用）
+  toolbox: true,
   props: StraightLineProps,
   tokens: [],
   size: { w: 160, h: 80 },
@@ -111,7 +111,7 @@ export const ELLIPSE = kit.defineShape({
   version: 1,
   title: "Ellipse",
   capabilities: [],
-  toolbox: false, // ブックの道具箱には出さない（スライドへ足す道具は専用）
+  toolbox: true,
   props: EllipseProps,
   tokens: [],
   size: { w: 160, h: 100 },

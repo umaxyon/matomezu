@@ -5,6 +5,9 @@ import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, DIAGRAM_THEME_TYPE, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
 import { kit } from "./kit"
 
+// スライドの見せ方で描いている間のキー（ビューの根が名乗り、押した所がこの中なら、ここのキーが紙のキーより先に効く）
+export const SLIDE_KEY_SCOPE = kit.defineKeyScope({ id: "slide", title: "Slide" })
+
 export const SLIDE_PRESENTATION = kit.definePresentation({ id: "slide" })
 
 const SLIDE_ITEMS = [
@@ -23,7 +26,7 @@ export const SLIDE_BOOK = kit.defineBookType({
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+    paper: { allowed: PAPER_IDS, default: "@matomezu/base:wide", orientation: "landscape", perPage: true },
   },
   items: { allowed: [] },
   slide: { allowed: SLIDE_ITEMS },

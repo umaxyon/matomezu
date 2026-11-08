@@ -1,5 +1,5 @@
-// 見た目の定義: 標準のテーマと、付箋紙・シンプルのテーマ（標準のテーマの組）、ダーク・ライトのスキン、マスコットの色の matomezu のテーマと、matomezu のライト・ダークのスキン、紙（A5・A4・A3・レター・タブロイド）
-import { A3, A4, A5, LETTER, TABLOID } from "./papers"
+// 見た目の定義: 標準のテーマと、付箋紙・シンプルのテーマ（標準のテーマの組）、ダーク・ライトのスキン、マスコットの色の matomezu のテーマと、matomezu のライト・ダークのスキン、紙（A5・A4・A3・レター・タブロイド・16:9）
+import { A3, A4, A5, LETTER, TABLOID, WIDE } from "./papers"
 
 export { DARK } from "./dark"
 export { LIGHT } from "./light"
@@ -7,5 +7,5 @@ export { MATOMEZU_DARK_SKIN, MATOMEZU_LIGHT_SKIN, MATOMEZU_THEME } from "./matom
 export { STANDARD } from "./standard"
 export { SIMPLE, STICKY } from "./themes"
 
-export const PAPERS = [A5, A4, A3, LETTER, TABLOID] as const
+export const PAPERS = [A5, A4, A3, LETTER, TABLOID, WIDE] as const
 export const PAPER_IDS = PAPERS.map(p => p.id)

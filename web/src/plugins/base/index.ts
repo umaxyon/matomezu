@@ -25,7 +25,7 @@ import {
   STANDARD,
   STICKY,
 } from "./looks"
-import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
+import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks/papers"
 import { MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./mail"
 import { MAIL_DIALOG } from "./mail/dialogs"
 import { MAIL_JOIN_REQUEST, MAIL_JOIN_REQUEST_SEND } from "./mail/join-request"
@@ -458,6 +458,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:a3": typeof A3
     "@matomezu/base:letter": typeof LETTER
     "@matomezu/base:tabloid": typeof TABLOID
+    "@matomezu/base:wide": typeof WIDE
   }
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW

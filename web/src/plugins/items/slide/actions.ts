@@ -129,12 +129,12 @@ export const SLIDE_MOVE = kit.defineAction({
 })
 
 // 大きさを変える。lockRatio のアイテムは、w か h の一方を書けばもう一方を元の比率で決める（両方書けば w に合わせる）。
-// scale なら文字枠の文字の大きさも幅の倍率で変える（角のつまみ）
+// at を書けば左上もその場所にする（左や上の辺を引いたとき）。scale なら文字枠の文字の大きさも幅の倍率で変える（角のつまみ）
 export const SLIDE_RESIZE = kit.defineAction({
   id: "slide-resize",
   attach: ON_SLIDE,
   aiDescription:
-    "Change a slide item's frame: w and/or h in pixels (the top-left stays). With props.lockRatio set, giving one of them sets the other from the item's ratio (both: w wins). scale: true also scales a text frame's fontSize by the width's change (a corner drag); without it only the frame changes and the text wraps again.",
+    "Change a slide item's frame: w and/or h in pixels (the top-left stays, or moves to at). With props.lockRatio set, giving one of them sets the other from the item's ratio (both: w wins). scale: true also scales a text frame's fontSize by the width's change (a corner drag); without it only the frame changes and the text wraps again.",
   title: "Resize on slide",
   target: "book",
   args: z.strictObject({
@@ -142,6 +142,7 @@ export const SLIDE_RESIZE = kit.defineAction({
     item: z.string().min(1),
     w: z.number().positive().optional(),
     h: z.number().positive().optional(),
+    at: z.strictObject({ x: z.number(), y: z.number() }).optional(),
     scale: z.boolean().optional(),
   }),
   permissionScope: { page: "page", item: "item" },
@@ -150,7 +151,7 @@ export const SLIDE_RESIZE = kit.defineAction({
     const next = change(ctx.catalog, book, args.page, args.item, s => {
       const oldW = s.w ?? 0
       const oldH = s.h ?? 0
-      const ratio = typeof s.props.ratio === "number" ? s.props.ratio : oldH > 0 ? oldW / oldH : 1
+      const ratio = oldH > 0 ? oldW / oldH : 1 // 固定は今の比を保つ（置いたときの比に戻すのは reset-ratio）
       const locked = s.props.lockRatio === true
       const w = args.w ?? (locked && args.h !== undefined ? args.h * ratio : oldW)
       const h = locked && args.w !== undefined ? args.w / ratio : (args.h ?? oldH)
@@ -158,7 +159,7 @@ export const SLIDE_RESIZE = kit.defineAction({
       const scaled = args.scale && s.item === TEXT_FRAME.id && oldW > 0
       const fontSize = typeof s.props.fontSize === "number" ? s.props.fontSize : DEFAULT_FONT_SIZE
       const props = scaled ? { ...s.props, fontSize: round((fontSize * w) / oldW) } : s.props
-      return { ...s, w: round(w), h: round(h), props }
+      return { ...s, x: args.at?.x ?? s.x, y: args.at?.y ?? s.y, w: round(w), h: round(h), props }
     })
     return next && { next, result: {} }
   },
