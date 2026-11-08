@@ -4,7 +4,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { searchIn, searchPickIn, withSearch } from "../../web/src/plugins/base/search/state"
-import { isShown } from "../../web/src/store/commands"
+import { isEnabled, isShown } from "../../web/src/store/commands"
 import { newStore } from "../support"
 
 const BASE = "@matomezu/base"
@@ -104,4 +104,19 @@ test("長さの違う置き換えでも、1 つ置換のあとの今の当たり
   expect(search()!.current).toMatchObject({ start: 2, end: 5 })
   actions.command("s1", "@matomezu/base:search-replace-one")
   expect(book().pages[0]!.text).toBe("x x cat")
+})
+
+test("ページにロックが掛かっていると、そのページを替える置換は押せない（ブック全体の全部置換も）", () => {
+  const { store, pages, setQuery } = markdownStore(["cat"])
+  const { actions, state } = store
+  const book = state.getState().workspace.stages[0]!.opened!.book
+  actions.command("s1", "@matomezu/base:search-open")
+  setQuery("cat", { replacement: "dog" })
+  actions.command("s1", "@matomezu/base:search-next")
+  const enabled = (id: "@matomezu/base:search-replace-one" | "@matomezu/base:search-replace-all") =>
+    isEnabled(store, state.getState(), "s1", id)
+  expect(enabled("@matomezu/base:search-replace-one")).toBe(true)
+  expect(actions.perform("@matomezu/base:page-lock", { page: pages()[0]! }, { book }).ok).toBe(true)
+  expect(enabled("@matomezu/base:search-replace-one")).toBe(false)
+  expect(enabled("@matomezu/base:search-replace-all")).toBe(false)
 })

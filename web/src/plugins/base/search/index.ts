@@ -92,7 +92,10 @@ export const SEARCH_REPLACE_ONE = kit.defineCommand({
   id: "search-replace-one",
   title: "Replace one",
   performs: [PAGE_UPDATE.id],
-  permissionScope: "book",
+  permissionScope: ctx => {
+    const cur = searchIn(ctx.stageState)?.current
+    return { page: cur && cur !== "none" ? cur.page : (ctx.stage.opened?.page ?? undefined) }
+  },
   run: (ctx, a) => {
     const search = searchIn(ctx.stageState)
     const s = searchableOf(ctx.catalog, ctx.book)
@@ -110,7 +113,8 @@ export const SEARCH_REPLACE_ALL = kit.defineCommand({
   id: "search-replace-all",
   title: "Replace all",
   performs: [PAGE_UPDATE.id],
-  permissionScope: "book",
+  permissionScope: ctx =>
+    searchIn(ctx.stageState)?.scope === "book" ? { allPages: true } : { page: ctx.stage.opened?.page ?? undefined },
   run: (ctx, a) => {
     const search = searchIn(ctx.stageState)
     const s = searchableOf(ctx.catalog, ctx.book)
