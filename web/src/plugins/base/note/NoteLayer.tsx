@@ -1,6 +1,6 @@
 // 伝言のレイヤー（ウィジェット note-layer）: 開いているブックの伝言を、付けた物の最後の 1 つのそばにスタンドで出す。
 // 吹き出しを出す伝言は物の右に、文の始め（BUBBLE_CHARS 字）だけの吹き出しを、物の方へ曲がる尾を付けて出し、たたんだ伝言は物の右上の角に伝言の絵を出す。
-// 吹き出しは右に入らなくても左に回さず、置ける範囲の右の端で止め（物に重なる）、尾の先が物の左の辺を越えないように幅を縮める。
+// 吹き出しは右に入らなくても左に回さず、物に重ねもしない。いつもの位置（尾の先が物の右の端）のまま、置ける範囲の右の端に押されて幅を縮める。
 // BUBBLE_MIN_W まで縮めても入らなければ、物が見える所の外に出たのと同じに、縁のマークポインタにする。
 // AI が読んだ伝言は、吹き出しも絵も出さず、物の右上の角に緑の丸のチェックを出す（吹き出しを出すかのデータは変えない）。
 // 角の絵とチェックは、角に出すほかの物（マークなど）と一緒に角のスタンドにまとまる（utils/corner.tsx。2 つ以上なら、乗せると広がる吹き出しから 1 つずつ選ぶ）。
@@ -44,7 +44,7 @@ export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数�
 const POINTER = 24 // マークポインタの丸の大きさ（マークと同じ）
 const BUBBLE_W = 180 // 吹き出しの幅と、範囲の右の端で止めたときに縮める下限
 const BUBBLE_MIN_W = 72
-const TAIL_W = 14 // 吹き出しの尾の幅と高さ（尾の先は左下）
+const TAIL_W = 14 // 吹き出しの尾の幅と高さ（尾の先は左下。吹き出しの左の、物とのすき間に出す）
 const TAIL_H = 16
 
 export function NoteLayer({ stage }: StageSlotProps) {
@@ -134,7 +134,7 @@ function BubbleStand({ stage, id, anchors, props }: NoteViewProps) {
   const { open } = useOpenNote(stage, id, anchors)
   const asks = useNoteAsks(stage, id, "hide")
   return (
-    <StandAt anchor={anchor} side="right" turn="none" minRoom={BUBBLE_MIN_W + TAIL_W} edgePinned label={t("Note")}>
+    <StandAt anchor={anchor} side="right" turn="none" minRoom={BUBBLE_MIN_W} edgePinned label={t("Note")}>
       <Away pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}>
         <Ask items={asks} opens="hover" place="aboveRight">
           {() => <BubbleButton text={props.text} onClick={open} />}
@@ -262,10 +262,10 @@ function Away({ pointer, children }: { pointer: ReactNode; children: ReactNode }
   return useStandAway() ? pointer : children
 }
 
-// 伝言の吹き出し: 幅は BUBBLE_W で、物の左の辺から尾の幅だけ内側の所から範囲の右の端までがそれより狭ければ、そこまで縮める（BUBBLE_MIN_W まで）
+// 伝言の吹き出し: 幅は BUBBLE_W で、物の右のいつもの位置から範囲の右の端までがそれより狭ければ、右の端に押されてそこまで縮める（BUBBLE_MIN_W まで。左の端は動かない）
 function BubbleButton({ text, onClick }: { text: string; onClick: (e: MouseEvent<HTMLButtonElement>) => void }) {
   const t = useMessages(kit)
-  const room = (useStandFacing()?.room ?? BUBBLE_W + TAIL_W) - TAIL_W
+  const room = useStandFacing()?.room ?? BUBBLE_W
   return (
     <button
       type="button"
@@ -280,7 +280,7 @@ function BubbleButton({ text, onClick }: { text: string; onClick: (e: MouseEvent
   )
 }
 
-// 吹き出しの尾: 吹き出しの左の、物の下の辺の高さ（吹き出しの下の辺より上なら、そこ）から、左へ短く曲がって細る（範囲の端で止めて物に重なっても左）。
+// 吹き出しの尾: 吹き出しの左の、物の下の辺の高さ（吹き出しの下の辺より上なら、そこ）から、左へ短く曲がって細る。
 // 縁は外側の 2 つの曲線だけに引き、付け根は吹き出しの地で縁を隠す
 function BubbleTail() {
   const facing = useStandFacing()
