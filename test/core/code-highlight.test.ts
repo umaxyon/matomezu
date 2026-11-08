@@ -35,6 +35,7 @@ test("html はタグ・属性・値に色の種類が付き、入れ子ではい
 
 test("どの入力でも、返した並びの字をつなぐと元のコードに戻り、隣り合う同じ色はまとまっている", () => {
   const codes: [string, string | undefined][] = [
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: 色付けするコードの中の、テンプレート文字列の差し込み
     ["function f(a: number): string {\n  return `${a}`\n}\n", "ts"],
     ['<div class="a">\n  <!-- c -->\n</div>', "html"],
     ["+ added\n- removed\n  same", "diff"],
