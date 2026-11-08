@@ -11,7 +11,7 @@ const searchable = (ctx: CommandContext) => searchableOf(ctx.catalog, ctx.book) 
 // 検索ダイアログを開いているか
 const opened = (ctx: CommandContext) => searchable(ctx) && searchIn(ctx.stageState) !== null
 
-// 範囲 scope・焦点 focus で検索ダイアログを開く（前に探した字と切り替えは残す。開いていれば範囲と焦点だけ変える）
+// 範囲 scope・焦点 focus で検索ダイアログを開く（開いていれば、探す字と切り替えはそのままで範囲と焦点だけ変える。閉じると探す字も消える）
 const open = (scope: SearchOpen["scope"] | "keep", focus: SearchOpen["focus"]) => ({
   run: (_ctx: CommandContext, a: CommandActions) =>
     a.updateStageState(now => {
