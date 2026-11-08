@@ -28,6 +28,11 @@ if (typeof window !== "undefined") {
   window.addEventListener("blur", () => Object.assign(press, { held: false, pending: null }))
 }
 
+// 右クリック e のブラウザのメニューを止める（テキストFormの中は止めない）。画面の根と、知らせを外へ渡さない所（スタンドなど）が呼ぶ
+export const stopBrowserMenu = (e: Pick<MouseEvent, "target" | "preventDefault">): void => {
+  if (!(e.target instanceof Element && e.target.closest("input, textarea, [contenteditable]"))) e.preventDefault()
+}
+
 // 今の右ボタンの押し続けでは、右クリックのメニューを出さない（待たせていたものも、離したあとに届くものも）
 export function suppressContextMenu(): void {
   Object.assign(press, { pending: null, suppressed: true })

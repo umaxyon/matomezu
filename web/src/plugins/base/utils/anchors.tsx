@@ -24,6 +24,7 @@ import { useActions } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
+import { KEEP_INSIDE } from "./keep-inside"
 import { useClearRevealRequest, useRevealRequest } from "./reveal-request"
 import { revealAround, revealablesAround } from "./revealable"
 import { stageElement } from "./stage-element"
@@ -277,12 +278,7 @@ export function StandAt({
         ...(through ? { pointerEvents: "none" } : {}),
       }}
       data-stand
-      onPointerDown={stop}
-      onClick={stop}
-      onDoubleClick={stop}
-      onContextMenu={stop}
-      onWheel={stop}
-      onKeyDown={stop}
+      {...KEEP_INSIDE}
     >
       <AwayContext.Provider value={away}>
         <ShapeContext.Provider value={shape}>
@@ -435,8 +431,6 @@ function shapePath(shape: Element, base: DOMRect): readonly Point[] | null {
   return out
 }
 
-// スタンドの中の操作は、スタンドを描いたビュー（React の上の物）に渡さない
-const stop = (e: { stopPropagation(): void }) => e.stopPropagation()
 const noSubscribe = () => () => {}
 const zero = () => 0
 const sameRect = (a: Rect | null, b: Rect | null) =>

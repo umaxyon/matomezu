@@ -1,4 +1,5 @@
 import { aiAuth, expect, type Page, test } from "./fixtures"
+import { browserMenuStopped } from "./helpers/browser-menu"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
 import { addBox, items } from "./helpers/paper"
@@ -100,6 +101,25 @@ test("書いている間は、物を押すと付ける先が替わり、Ctrl+ク
   await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
   await expect(bubble).toHaveCount(1)
+})
+
+test("伝言の吹き出しと、たたんだ伝言の角の絵の右クリックでは、ブラウザのメニューも紙のメニューも出さない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBox(page, 200, 150, "一")
+  await writeNote(page, items(page).filter({ hasText: "一" }), "右クリック")
+  const bubble = page.getByRole("button", { name: "伝言を開く" })
+  expect(await browserMenuStopped(bubble)).toBe(true)
+  await bubble.click({ button: "right" })
+  await expect(page.getByRole("menu")).toHaveCount(0)
+  await bubble.click()
+  await panel(page).getByRole("button", { name: "たたむ" }).click()
+  const folded = page.locator("button[data-note]")
+  await expect(folded).toHaveCount(1)
+  expect(await browserMenuStopped(folded)).toBe(true)
+  await folded.click({ button: "right" })
+  await expect(page.getByRole("menu")).toHaveCount(0)
 })
 
 test("書いている間は Esc で付けずに閉じる", async ({ page }) => {
