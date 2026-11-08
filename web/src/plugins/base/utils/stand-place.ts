@@ -40,6 +40,24 @@ export function standAt(anchor: Rect, size: Size, area: Size, side: StandPlace, 
   }
 }
 
+// アンカーの四角 anchor の side のいつもの立ち位置（standBeside）から、置ける範囲（大きさ area）の端までの、その向きの余地（入らなければ 0 以下）。
+// 右なら立ち位置の左の端から範囲の右の端まで、下なら上の端から下の端まで。角と辺に乗せるときは、アンカーの左の辺から範囲の右の端まで
+export function roomBeside(anchor: Rect, area: Size, side: StandPlace): number {
+  switch (side) {
+    case "right":
+      return area.w - STAND_MARGIN - (anchor.x + anchor.w + GAP)
+    case "left":
+      return anchor.x - GAP - STAND_MARGIN
+    case "below":
+      return area.h - STAND_MARGIN - (anchor.y + anchor.h + GAP)
+    case "above":
+      return anchor.y - GAP - STAND_MARGIN
+    case "corner":
+    case "edge":
+      return area.w - STAND_MARGIN - anchor.x
+  }
+}
+
 // 置いたスタンド（左上 at・大きさ size）の中で、アンカーの四角 anchor を指す高さ（スタンドの上から）。
 // アンカーの下の辺とスタンドの下の辺の高い方から inset だけ上（スタンドの上から min より下）。吹き出しの尾をアンカーへ向けるのに使う
 export function facingY(anchor: Rect, at: Point, size: Size, inset: number, min: number): number {

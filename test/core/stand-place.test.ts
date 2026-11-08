@@ -5,6 +5,7 @@ import {
   intersectRect,
   pointInto,
   revealShift,
+  roomBeside,
   standAt,
   topEdgeOut,
   unionRect,
@@ -92,4 +93,13 @@ test("吹き出しの尾の高さ: アンカーとスタンドの下の辺の高
   // 物が低ければ、物の下の辺から（min より上には上げない）
   expect(facingY({ x: -100, y: 0, w: 94, h: 36 }, { x: 0, y: 0 }, size, 6, 20)).toBe(30)
   expect(facingY({ x: -100, y: 0, w: 94, h: 10 }, { x: 0, y: 0 }, size, 6, 20)).toBe(20)
+})
+
+test("いつもの立ち位置から範囲の端までの余地: 右なら立ち位置の左の端から右の端まで（物が右にはみ出せば負）、下なら上の端から下の端まで", () => {
+  const area = { w: 400, h: 300 }
+  // 右: 400 - 4（端の余白）- (100 + 50 + 6（すき間）)
+  expect(roomBeside({ x: 100, y: 10, w: 50, h: 20 }, area, "right")).toBe(240)
+  expect(roomBeside({ x: 380, y: 10, w: 50, h: 20 }, area, "right")).toBeLessThan(0)
+  expect(roomBeside({ x: 100, y: 10, w: 50, h: 20 }, area, "below")).toBe(300 - 4 - 36)
+  expect(roomBeside({ x: 100, y: 10, w: 50, h: 20 }, area, "left")).toBe(100 - 6 - 4)
 })

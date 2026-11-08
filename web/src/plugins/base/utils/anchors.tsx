@@ -2,7 +2,7 @@
 // スタンド（Stand）は、アンカーの id を指して、その物のそばに立つ。スタンドはスタンドのレイヤー（スロット book-layers）に描かれ、
 // 倍率では大きさを変えない。パン・倍率・リストのスクロールで物が動けば、付いて動く。
 // 置ける範囲（スタンドのレイヤー）に入らなければ、反対の側へ回すか（StandAt の turn が none なら回さず）、範囲の中へ寄せる。edgePinned のスタンドは、アンカーの上の辺が見える所（範囲と、アンカーを囲む
-// Revealable（リストの行の並びなど）の重なり）の外に出たら（StandAt の minRoom より、アンカーの左の辺から範囲の右の端までが狭いときも）寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
+// Revealable（リストの行の並びなど）の重なり）の外に出たら（StandAt の minRoom より、いつもの立ち位置から範囲の端までが狭いときも）寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
 // （囲む物の中のスクロールと、紙をずらしてアンカーを真ん中へ）関数を受け取る。
 // 線のように形を持つ物は、形の要素（SVG の polyline）を useAnchorShapeRef で同じ id に知らせる。スタンドの中の物は useStandShape で、形の点（スタンドの左上から）を受け取る。
 // アンカーの表（id → 要素）はステージごとに 1 つで、ステージのビューが渡す。ブックのデータにも画面の状態にも入れず、描いている間だけ持つ
@@ -32,6 +32,7 @@ import {
   intersectRect,
   pointInto,
   revealShift,
+  roomBeside,
   STAND_MARGIN,
   type StandPlace,
   type StandSide,
@@ -184,7 +185,7 @@ export interface StandAway {
 }
 const AwayContext = createContext<StandAway | null>(null)
 
-// スタンドを置いた所から見たアンカーの四角（スタンドの左上から）と、スタンドの大きさと、アンカーの左の辺から置ける範囲の右の端までの幅 room。
+// スタンドを置いた所から見たアンカーの四角（スタンドの左上から）と、スタンドの大きさと、side のいつもの立ち位置から置ける範囲の端までの余地 room（roomBeside）。
 // 中の物が、アンカーの方を指したり（吹き出しの尾など）、幅を合わせたりするのに使う（測り終えるまで null）
 export interface StandFacing {
   anchor: Rect
@@ -204,7 +205,7 @@ export const useStandAway = (): StandAway | null => useContext(AwayContext)
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
 // span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く。
 // プラグイン API の Stand は角（corner）に立てられない（角はコーナーステータスで出す）。角に立てるのは base の角のスタンドだけで、StandAt を使う。
-// StandAt の minRoom は、アンカーの左の辺から範囲の右の端までがそれより狭ければ、上の辺が外に出たのと同じにする（edgePinned のときだけ。右の端で止めて縮める吹き出しが、縮めきれないとき）。
+// StandAt の minRoom は、side のいつもの立ち位置から範囲の端までの余地（roomBeside）がそれより狭ければ、上の辺が外に出たのと同じにする（edgePinned のときだけ。範囲の端に押されて縮める吹き出しが、縮めきれないとき）。
 // StandAt の turn は、side に入らないときに反対の側へ回すか（opposite）、回さずに範囲の端で止めるか（none）。
 // StandAt の through は、スタンドの箱そのものはポインタを受けず（下の物に届く）、中の物が自分で受けるとき（物の上の辺を歩く鳥など）に付ける
 export const Stand: (props: StandProps & { side?: StandSide }) => ReactNode = props => <StandAt {...props} />
@@ -247,10 +248,9 @@ export function StandAt({
     return () => observer.disconnect()
   })
   if (!ctx?.layer || !measured) return null
-  const { rect, clip } = measured
-  const area = { w: ctx.layer.clientWidth, h: ctx.layer.clientHeight }
+  const { rect, clip, area } = measured
   const whole = { x: 0, y: 0, ...area }
-  const room = area.w - STAND_MARGIN - rect.x
+  const room = roomBeside(rect, area, side)
   const out = edgePinned && (topEdgeOut(rect, clip ? intersectRect(clip, whole) : whole) || room < minRoom)
   const at = !size
     ? { x: rect.x, y: rect.y + rect.h }
@@ -349,7 +349,8 @@ export function revealedRect(base: Element, view: Element, found: readonly { el:
   )
 }
 
-// アンカーの要素の四角と、clipped なら囲む Revealable の見える所（どちらもスタンドのレイヤーの左上から）。パン・倍率・大きさ・スクロールで動けば測り直す
+// アンカーの要素の四角と、clipped なら囲む Revealable の見える所（どちらもスタンドのレイヤーの左上から）と、レイヤー（置ける範囲）の大きさ。
+// パン・倍率・大きさ・スクロールと、レイヤーの大きさ（ステージの幅が動くなど）が変われば測り直す
 function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped: boolean): Measured | null {
   const stage = useStage(ctx?.stage ?? "")
   const pan = useStagePan(ctx?.stage ?? "")
@@ -389,11 +390,12 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
       window.removeEventListener("resize", again)
     }
   }, [])
-  // アンカーの物の大きさの変化（リストの大きさを変えて行の幅が変わったなど）
+  // アンカーの物の大きさの変化（リストの大きさを変えて行の幅が変わったなど）と、レイヤーの大きさの変化（右サイドパネルの開け閉めでステージの幅が動くなど）
   // biome-ignore lint/correctness/useExhaustiveDependencies: アンカーの表が変わるたびに見張り直す
   useEffect(() => {
     if (!ctx || typeof ResizeObserver === "undefined") return
     const watch = new ResizeObserver(() => setTick(n => n + 1))
+    if (ctx.layer) watch.observe(ctx.layer)
     for (const id of ids) {
       const el = ctx.anchors.element(id)
       if (el) watch.observe(el)
@@ -403,11 +405,13 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
   return measured
 }
 
-// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲む Revealable の見える所（clip。測らないか、囲む物が無ければ null）と、形の点（path。layer の左上から。形が無ければ null）
+// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲む Revealable の見える所（clip。測らないか、囲む物が無ければ null）と、形の点（path。layer の左上から。形が無ければ null）と、
+// layer（スタンドを置ける範囲）の大きさ（area。アンカーが動かずに範囲の幅だけが変わっても、置き直すため）
 interface Measured {
   rect: Rect
   clip: Rect | null
   path: readonly Point[] | null
+  area: Size
 }
 
 // 要素 elements（描かれていない物は undefined）をまとめて囲む四角（layer の左上から。どれも無ければ null）。
@@ -424,12 +428,13 @@ function measureIn(
   const local = (r: DOMRect): Rect => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height })
   const rect = unionRect(els.map(el => local(el.getBoundingClientRect())))
   const path = shape ? shapePath(shape, base) : null
-  if (!outer) return { rect, clip: null, path }
+  const area = { w: layer.clientWidth, h: layer.clientHeight }
+  if (!outer) return { rect, clip: null, path, area }
   const clips = els.flatMap(el => {
     const boxes = revealablesAround(el, outer).map(at => local(at.getBoundingClientRect()))
     return boxes.length > 0 ? [boxes.reduce(intersectRect)] : []
   })
-  return { rect, clip: clips.length === els.length ? unionRect(clips) : null, path }
+  return { rect, clip: clips.length === els.length ? unionRect(clips) : null, path, area }
 }
 
 // 形の要素（SVG の polyline）の点を、画面の位置にして layer の左上から測った点の並び（点が 2 つに満たなければ null）
@@ -453,4 +458,12 @@ const samePath = (a: readonly Point[] | null, b: readonly Point[] | null) =>
   a === b ||
   (a !== null && b !== null && a.length === b.length && a.every((p, i) => p.x === b[i]?.x && p.y === b[i]?.y))
 const same = (a: Measured | null, b: Measured | null): Measured | null =>
-  a && b && sameRect(a.rect, b.rect) && sameRect(a.clip, b.clip) && samePath(a.path, b.path) ? a : b
+  a &&
+  b &&
+  sameRect(a.rect, b.rect) &&
+  sameRect(a.clip, b.clip) &&
+  samePath(a.path, b.path) &&
+  a.area.w === b.area.w &&
+  a.area.h === b.area.h
+    ? a
+    : b
