@@ -12,6 +12,7 @@ const flow = {
   type: "ex2:flow",
   id: "flow-1",
   title: "フロー",
+  project: "default",
   pages: [
     {
       id: "p1",
@@ -238,6 +239,7 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
     type: "ex7:yard",
     id: "yard-1",
     title: "置き場",
+    project: "default",
     pages: [
       {
         id: "p1",
@@ -271,6 +273,7 @@ test("ex8 を読ませると、自分の見せ方のビューが開いたペー�
     type: "ex8:deck",
     id: "deck-1",
     title: "単語帳",
+    project: "default",
     pages: [
       { id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "portrait", cards: ["りんご", "みかん"] },
       { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "portrait", cards: ["ぶどう"] },

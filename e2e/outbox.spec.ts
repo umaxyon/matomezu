@@ -105,7 +105,10 @@ test("開いているブックが替わると、左サイドパネルは閉じ�
   const made = await (
     await page.request.post("/api/ai/perform", {
       headers: ai,
-      data: { action: "@matomezu/base:book-create", args: { type: "@matomezu/drawing:drawing", title: "ほかの" } },
+      data: {
+        action: "@matomezu/base:book-create",
+        args: { type: "@matomezu/drawing:drawing", project: "default", title: "ほかの" },
+      },
     })
   ).json()
   await openOutbox(page)

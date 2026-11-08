@@ -116,7 +116,10 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
     })
   const made = await page.request.post("/api/ai/perform", {
     headers: ai,
-    data: { action: "@matomezu/base:book-create", args: { type: "@matomezu/drawing:drawing", title: "AI のブック" } },
+    data: {
+      action: "@matomezu/base:book-create",
+      args: { type: "@matomezu/drawing:drawing", project: "default", title: "AI のブック" },
+    },
   })
   const { result } = await made.json()
   const shown = await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book, split: true } })
@@ -132,6 +135,7 @@ const LINE_BOOK = {
   type: "@matomezu/drawing:drawing",
   id: "e2e-line",
   title: "線",
+  project: "default",
   pages: [
     {
       id: "p1",
@@ -305,7 +309,7 @@ test("AI がマークダウンのページの原文を page-update で変える�
     .toHaveProperty("stage")
   const { result } = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/markdown:markdown", title: "AI のメモ" },
+    args: { type: "@matomezu/markdown:markdown", project: "default", title: "AI のメモ" },
   })
   const on = { book: result.book }
   const added = await perform({
@@ -348,7 +352,7 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
     .toHaveProperty("stage")
   const { result } = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/drawing:drawing", title: "伝言の消える先" },
+    args: { type: "@matomezu/drawing:drawing", project: "default", title: "伝言の消える先" },
   })
   const on = { book: result.book }
   const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })
@@ -397,7 +401,7 @@ test("付けた伝言を右サイドパネルで開いて文を直している�
     .toHaveProperty("stage")
   const { result } = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/drawing:drawing", title: "直している伝言" },
+    args: { type: "@matomezu/drawing:drawing", project: "default", title: "直している伝言" },
   })
   const on = { book: result.book }
   const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })

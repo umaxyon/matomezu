@@ -186,7 +186,7 @@ test("アクション: AI の入口から箱と線を 300 まで足す", async (
   const n = Math.max(...COUNTS)
   const made = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/drawing:drawing", title: "速さ" },
+    args: { type: "@matomezu/drawing:drawing", project: "default", title: "速さ" },
   })
   const book = made.result.book as string
   const on = { book }
