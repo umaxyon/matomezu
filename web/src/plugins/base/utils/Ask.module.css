@@ -1,0 +1,69 @@
+/* 問いの吹き出しを出す所（吹き出しの置き場所は data-place） */
+.ask {
+  position: relative;
+}
+.askBubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  font-size: 11px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+/* 押す物の下に出すとき */
+.ask[data-place="below"] .askBubble {
+  top: 100%;
+  bottom: auto;
+}
+/* 鳥の足元に置いたとき: 吹き出しを鳥の上に出す */
+.ask[data-place="bird"] .askBubble {
+  bottom: 48px;
+  left: 0;
+}
+/* 上に出し、右端を押す物の右端にそろえて左へ伸ばす */
+.ask[data-place="aboveRight"] .askBubble {
+  right: 0;
+  left: auto;
+  margin-bottom: 4px;
+  transform: none;
+}
+/* 下に出し、右端を押す物の右端にそろえて左へ伸ばす */
+.ask[data-place="belowRight"] .askBubble {
+  top: 100%;
+  right: 0;
+  bottom: auto;
+  left: auto;
+  margin-top: 4px;
+  transform: none;
+}
+/* 問いと「はい」の組 */
+.pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.yes {
+  padding: 1px 8px;
+  border: 1px solid var(--skin-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--skin-text);
+  font: inherit;
+  cursor: pointer;
+}
+/* 外す・消すの「はい」は危険の色 */
+.yes[data-tone="danger"] {
+  border-color: var(--skin-danger);
+  color: var(--skin-danger);
+}

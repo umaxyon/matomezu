@@ -37,6 +37,7 @@ import {
   type PlacedCorner as Placed,
   statusOrder,
 } from "./corner-order"
+import { KEEP_INSIDE } from "./keep-inside"
 
 type CornerEntry = Entry<ReactNode>
 type PlacedCorner = Placed<ReactNode>
@@ -183,18 +184,9 @@ export function AtCorner({
   )
   if (!slot) return null
   return createPortal(
-    // 押した物の知らせを、描いたレイヤーの外（ステージなど）へ渡さない（スタンドと同じ。React の知らせは、描いたレイヤーの木を上るため）
+    // 押した物の知らせを、描いたレイヤーの外（ステージなど）へ渡さない（スタンドと同じ。ポータルで描くのでスタンドの箱を通らない）
     // biome-ignore lint/a11y/useSemanticElements: 押す物を包む箱で、入力Formのまとまり（fieldset）ではない
-    <div
-      className={styles.item}
-      role="group"
-      onPointerDown={stop}
-      onClick={stop}
-      onDoubleClick={stop}
-      onContextMenu={stop}
-      onWheel={stop}
-      onKeyDown={stop}
-    >
+    <div className={styles.item} role="group" {...KEEP_INSIDE}>
       <BubbleContext.Provider value={isBubble(slot.dataset.cornerSlot) ? slot.dataset.cornerSlot : "none"}>
         {children}
       </BubbleContext.Provider>
@@ -204,7 +196,6 @@ export function AtCorner({
 }
 
 const noSubscribe = () => () => {}
-const stop = (e: { stopPropagation(): void }) => e.stopPropagation()
 
 // 物ごとの角のスタンド
 function CornerStands({ corners }: { corners: Corners }) {

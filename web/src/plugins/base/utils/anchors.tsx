@@ -1,7 +1,7 @@
 // アンカーとスタンド: ビューは、id を持つ物（アイテム・リストの行・節・ディレクトリの行など）を描く要素に、その id のアンカーを付ける（useAnchorRef）。
 // スタンド（Stand）は、アンカーの id を指して、その物のそばに立つ。スタンドはスタンドのレイヤー（スロット book-layers）に描かれ、
 // 倍率では大きさを変えない。パン・倍率・リストのスクロールで物が動けば、付いて動く。
-// 置ける範囲（スタンドのレイヤー）に入らなければ、範囲の中へ寄せる。edgePinned のスタンドは、アンカーの上の辺が見える所（範囲と、アンカーを囲む
+// 置ける範囲（スタンドのレイヤー）に入らなければ、反対の側へ回すか（StandAt の turn が none なら回さず）、範囲の中へ寄せる。edgePinned のスタンドは、アンカーの上の辺が見える所（範囲と、アンカーを囲む
 // Revealable（リストの行の並びなど）の重なり）の外に出たら寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
 // （囲む物の中のスクロールと、紙をずらしてアンカーを真ん中へ）関数を受け取る。
 // 線のように形を持つ物は、形の要素（SVG の polyline）を useAnchorShapeRef で同じ id に知らせる。スタンドの中の物は useStandShape で、形の点（スタンドの左上から）を受け取る。
@@ -24,6 +24,7 @@ import { useActions } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
+import { KEEP_INSIDE } from "./keep-inside"
 import { useClearRevealRequest, useRevealRequest } from "./reveal-request"
 import { revealAround, revealablesAround } from "./revealable"
 import { stageElement } from "./stage-element"
@@ -34,6 +35,7 @@ import {
   STAND_MARGIN,
   type StandPlace,
   type StandSide,
+  type StandTurn,
   standAt,
   standBeside,
   topEdgeOut,
@@ -182,10 +184,12 @@ export interface StandAway {
 }
 const AwayContext = createContext<StandAway | null>(null)
 
-// スタンドを置いた所から見たアンカーの四角（スタンドの左上から）と、スタンドの大きさ。中の物が、アンカーの方を指すのに使う（吹き出しの尾など。測り終えるまで null）
+// スタンドを置いた所から見たアンカーの四角（スタンドの左上から）と、スタンドの大きさと、アンカーの左の辺から置ける範囲の右の端までの幅 room。
+// 中の物が、アンカーの方を指したり（吹き出しの尾など）、幅を合わせたりするのに使う（測り終えるまで null）
 export interface StandFacing {
   anchor: Rect
   size: Size
+  room: number
 }
 const FacingContext = createContext<StandFacing | null>(null)
 export const useStandFacing = (): StandFacing | null => useContext(FacingContext)
@@ -200,6 +204,7 @@ export const useStandAway = (): StandAway | null => useContext(AwayContext)
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
 // span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く。
 // プラグイン API の Stand は角（corner）に立てられない（角はコーナーステータスで出す）。角に立てるのは base の角のスタンドだけで、StandAt を使う。
+// StandAt の turn は、side に入らないときに反対の側へ回すか（opposite）、回さずに範囲の端で止めるか（none）。
 // StandAt の through は、スタンドの箱そのものはポインタを受けず（下の物に届く）、中の物が自分で受けるとき（物の上の辺を歩く鳥など）に付ける
 export const Stand: (props: StandProps & { side?: StandSide }) => ReactNode = props => <StandAt {...props} />
 
@@ -217,9 +222,10 @@ export function StandAt({
   span = false,
   edgePinned = false,
   label,
+  turn = "opposite",
   through = false,
   children,
-}: StandProps & { side?: StandPlace; through?: boolean }) {
+}: StandProps & { side?: StandPlace; turn?: StandTurn; through?: boolean }) {
   const ctx = useContext(Context)
   const { panStageBy } = useActions()
   const ids = useMemo(() => (typeof anchor === "string" ? [anchor] : anchor), [anchor])
@@ -247,9 +253,15 @@ export function StandAt({
     ? { x: rect.x, y: rect.y + rect.h }
     : out
       ? standBeside(rect, size, side)
-      : standAt(rect, size, area, side)
+      : standAt(rect, size, area, side, turn)
   const shape = measured.path ? measured.path.map(p => ({ x: p.x - at.x, y: p.y - at.y })) : null
-  const facing = size ? { anchor: { x: rect.x - at.x, y: rect.y - at.y, w: rect.w, h: rect.h }, size } : null
+  const facing = size
+    ? {
+        anchor: { x: rect.x - at.x, y: rect.y - at.y, w: rect.w, h: rect.h },
+        size,
+        room: area.w - STAND_MARGIN - rect.x,
+      }
+    : null
   const away: StandAway | null = out
     ? {
         pin: (p, pad = STAND_MARGIN) => {
@@ -277,12 +289,7 @@ export function StandAt({
         ...(through ? { pointerEvents: "none" } : {}),
       }}
       data-stand
-      onPointerDown={stop}
-      onClick={stop}
-      onDoubleClick={stop}
-      onContextMenu={stop}
-      onWheel={stop}
-      onKeyDown={stop}
+      {...KEEP_INSIDE}
     >
       <AwayContext.Provider value={away}>
         <ShapeContext.Provider value={shape}>
@@ -435,8 +442,6 @@ function shapePath(shape: Element, base: DOMRect): readonly Point[] | null {
   return out
 }
 
-// スタンドの中の操作は、スタンドを描いたビュー（React の上の物）に渡さない
-const stop = (e: { stopPropagation(): void }) => e.stopPropagation()
 const noSubscribe = () => () => {}
 const zero = () => 0
 const sameRect = (a: Rect | null, b: Rect | null) =>

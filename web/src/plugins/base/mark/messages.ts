@@ -8,7 +8,6 @@ export const MARK_MESSAGES = defineMessages({
   "Mark mark read": { en: "Mark mark read", ja: "マークを既読にする" },
   "Remove mark": { en: "Remove mark", ja: "マークを外す" },
   "Remove?": { en: "Remove?", ja: "外す？" },
-  Yes: { en: "Yes", ja: "はい" },
   "Show {name}": { en: "Show {name}", ja: "{name}を見せる" },
   Tsunagidori: { en: "Tsunagidori", ja: "ツナギドリ" },
   Parakeet: { en: "Parakeet", ja: "インコ" },

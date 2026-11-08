@@ -19,7 +19,7 @@ async function foldedNote(page: Page, x: number, caption: string, text: string) 
 // 吹き出しに文 text を出している伝言を、右サイドパネルでたたんで閉じる
 async function foldNote(page: Page, text: string) {
   await page.getByRole("button", { name: "伝言を開く" }).filter({ hasText: text }).click()
-  await panel(page).getByRole("button", { name: "たたむ" }).click()
+  await panel(page).getByRole("button", { name: "隠す" }).click()
   await page.keyboard.press("Escape")
   await expect(panel(page)).toHaveCount(0)
 }
@@ -108,7 +108,7 @@ test("外を押しても閉じない（伝言を出している間）。ステ�
   await expect(icons).toHaveCount(2)
 })
 
-test("開いたステージのページが替わるか、分けると閉じる。中の「吹き出しを出す」で吹き出しに戻り、吹き出しはキーでも右サイドパネルに出せる", async ({
+test("開いたステージのページが替わるか、分けると閉じる。中の「表示」で吹き出しに戻り、吹き出しはキーでも右サイドパネルに出せる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -137,7 +137,7 @@ test("開いたステージのページが替わるか、分けると閉じる�
   await (await fromMenu(page, "分割をやめる")).click()
   // 吹き出しに戻す
   await icon.click()
-  await panel(page).getByRole("button", { name: "吹き出しを出す" }).click()
+  await panel(page).getByRole("button", { name: "表示" }).click()
   const bubble = page.getByRole("group", { name: "伝言", exact: true })
   await expect(bubble).toContainText("見てほしい")
   await page.keyboard.press("Escape")
