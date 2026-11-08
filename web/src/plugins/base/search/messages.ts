@@ -20,6 +20,9 @@ export const SEARCH_MESSAGES = defineMessages({
   "Whole book": { en: "Whole book", ja: "ブック全体" },
   "Wrap around": { en: "Continue from the other end", ja: "端まで行ったら反対の端から続ける" },
   "Search dialog": { en: "Search dialog", ja: "検索ダイアログ" },
-  "Hit count": { en: "{at}/{all}", ja: "{at}/{all}" },
-  "Hit count with page": { en: "{at}/{all} (page {page} of {pages})", ja: "{at}/{all}（{page} / {pages}）" },
+  "{at}/{all}": { en: "{at}/{all}", ja: "{at}/{all}" },
+  "{at}/{all} (page {page} of {pages})": {
+    en: "{at}/{all} (page {page} of {pages})",
+    ja: "{at}/{all}（{page} / {pages}）",
+  },
 })

@@ -67,10 +67,10 @@ function SearchDialog({ stage }: { stage: string }) {
   const bad = counted.kind === "bad-pattern"
   const count =
     counted.kind === "bad-pattern"
-      ? t("Hit count", { at: 0, all: 0 })
+      ? t("{at}/{all}", { at: 0, all: 0 })
       : counted.pages === "none" || counted.pages.at === 0
-        ? t("Hit count", { at: counted.at, all: counted.all })
-        : t("Hit count with page", {
+        ? t("{at}/{all}", { at: counted.at, all: counted.all })
+        : t("{at}/{all} (page {page} of {pages})", {
             at: counted.at,
             all: counted.all,
             page: counted.pages.at,
