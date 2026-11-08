@@ -59,7 +59,8 @@ type client struct {
 	view      json.RawMessage     // 窓が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
 	focused   int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
 	viewSeq   int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
-	shown     []string            // いまその窓に出ているブック（touched.go。新しく出たブックだけを「開いた」とする）
+	shown     []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターを前に出している間は空）
+	held      []string            // いまその窓のブックスクリーンが開いているブック（隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
 	editLocks map[string][]string // 利用者がその窓で直している物（ブックの id → 物の id の並び。editlock.go）
 }
 
@@ -654,20 +655,23 @@ func (h *Hub) Show(s Show) error {
 		return ErrNoWindow
 	}
 	var v struct {
-		Stages []struct {
-			ID string `json:"id"`
-		} `json:"stages"`
-		CanSplit bool `json:"canSplit"`
+		screen
+		Hidden *screen `json:"hidden"`
 	}
 	_ = json.Unmarshal(c.view, &v)
-	ids := make([]string, 0, len(v.Stages))
-	for _, st := range v.Stages {
+	// コントロールセンターを前に出している窓は、後ろに隠れているブックスクリーンのステージに出す（出すとブックスクリーンが前に出る）
+	shown := v.screen
+	if v.Hidden != nil {
+		shown = *v.Hidden
+	}
+	ids := make([]string, 0, len(shown.Stages))
+	for _, st := range shown.Stages {
 		ids = append(ids, st.ID)
 	}
 	if s.Stage != "" && !slices.Contains(ids, s.Stage) {
 		return ErrNoStage
 	}
-	if s.Split && !v.CanSplit {
+	if s.Split && !shown.CanSplit {
 		return ErrNoSplit
 	}
 	h.send(c, "show", s)

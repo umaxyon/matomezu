@@ -21,7 +21,8 @@
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
-//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション）
+//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"front", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
+//	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books?projects=a&projects=b  {"books": [{"id", "type", "title", "project", "version", "awaiting"}]}（project が projects のどれかであるブックだけ。projects は必須で、空や表に無い id は 400。awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations"}
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
@@ -410,6 +411,21 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	view["awaiting"], _ = json.Marshal(pick(list, awaiting))
+	// コントロールセンターを前に出している間、後ろに隠れているブックスクリーンが開いているブックの、AI の応えを待つ物も hidden に添える
+	if raw, ok := view["hidden"]; ok {
+		var hidden map[string]json.RawMessage
+		if json.Unmarshal(raw, &hidden) == nil && hidden != nil {
+			var hiddenBook string
+			_ = json.Unmarshal(hidden["book"], &hiddenBook)
+			hiddenList, err := o.annotationsOf(hiddenBook)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			hidden["awaiting"], _ = json.Marshal(pick(hiddenList, awaiting))
+			view["hidden"], _ = json.Marshal(hidden)
+		}
+	}
 	writeJSON(w, view)
 }
 

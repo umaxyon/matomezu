@@ -54,7 +54,7 @@ func projectsQuery(args map[string]any) string {
 var readTools = []readTool{
 	{
 		"view",
-		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. null when no window is open.",
+		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. front tells what the window brings to front: book-screen, or control-center, which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). null when no window is open.",
 		noArgs,
 		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") },
 	},
@@ -163,7 +163,7 @@ var showSchema = map[string]any{
 	"additionalProperties": false,
 }
 
-const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current. " +
+const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current, and the book screen comes to front if the control center was in front. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
 // listTools は MCP 公開ツールの一覧（読む MCP 公開ツール・show・perform・join）。追加プラグインを足しても変わらない

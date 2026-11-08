@@ -632,6 +632,65 @@ func TestAICannotTrashABookOnAScreen(t *testing.T) {
 	}
 }
 
+// コントロールセンターを前に出している窓の後ろに、ブックスクリーンが開いているブックも、AI はゴミ箱に入れられない（open-on-screen）
+func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"control-center","hidden":{"book":"b1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
+	trash := `{"action":"@matomezu/base:book-trash","args":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
+		t.Fatalf("ai trash behind the control center = %s", got)
+	}
+}
+
+// コントロールセンターを前に出している間、後ろのブックスクリーンのブックは開いたことにならない。ブックスクリーンが前に戻ったら開いたことになる
+func TestTouchedIgnoresTheBookScreenBehindTheControlCenter(t *testing.T) {
+	s := newServer(t, nil)
+	screen := listen(t, s.URL)
+	next(t, screen)
+	touched := func() map[string]string {
+		_, body := send(t, "GET", s.URL+"/api/data", "", nil)
+		var data struct {
+			Touched map[string]string `json:"touched"`
+		}
+		if err := json.Unmarshal([]byte(body), &data); err != nil {
+			t.Fatal(err)
+		}
+		return data.Touched
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"control-center","hidden":{"book":"b0","stages":[{"id":"s1","book":"b0"}]}},"seq":1}`, nil)
+	if got := touched(); got["b0"] != "" {
+		t.Fatalf("touched behind the control center = %v", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"book-screen","book":"b0","stages":[{"id":"s1","book":"b0"}]},"seq":2}`, nil)
+	nextTouched(t, screen)
+	if got := touched(); got["b0"] == "" {
+		t.Fatalf("touched after the book screen came to front = %v", got)
+	}
+}
+
+// AI の view は、コントロールセンターを前に出している間、出している物（front）と、隠れているブックスクリーンの book・page（hidden）を分けて返す。
+// show は隠れているブックスクリーンのステージを指せる
+func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"control-center","hidden":{"book":"b1","page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
+	_, got := send(t, "GET", s.URL+"/api/ai/view", "", ai)
+	if got != `{"awaiting":[],"front":"control-center","hidden":{"awaiting":[],"book":"b1","canSplit":true,"page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}]}}` {
+		t.Fatalf("view = %s", got)
+	}
+	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s1"}`, ai); !strings.Contains(body, `"ok":true`) {
+		t.Fatalf("show onto a hidden stage = %s", body)
+	}
+	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s9"}`, ai); !strings.Contains(body, `"no-stage"`) {
+		t.Fatalf("show onto a stage that is not there = %s", body)
+	}
+}
+
 // AI はロックを掛けられるが外せない（外すアクションは画面からだけ）。ロック中のブックは AI も変えられない
 func TestAICanLockButNotUnlock(t *testing.T) {
 	s := newServer(t, nil)
