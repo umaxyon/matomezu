@@ -90,3 +90,13 @@ export function replaceAllArgs(
   const after = replaceAll(before, query, replacement)
   return after === before ? "none" : { page: page.id, fields: searchable.edit(page, before, after) }
 }
+
+// 探す字や切り替えを変えたあとの今の当たり: 今の当たりの頭（無ければ開いているページ opened の頭）から先の最初の当たり（端からも探す。無ければ none）
+export function firstHitFrom(
+  pages: readonly { page: Page; hits: readonly SearchHit[] }[],
+  current: SearchSpot | "none",
+  opened: string,
+): SearchSpot | "none" {
+  const from = current === "none" ? { page: opened, at: 0 } : { page: current.page, at: current.start }
+  return stepHit(pages, from, "forward", true)
+}

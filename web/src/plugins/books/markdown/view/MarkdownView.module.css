@@ -157,8 +157,9 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* 写しの字は描かない（色を透明に。見えなくすると検索の当たりの光も描かれないため、見える物のまま字の色だけ消す） */
 .sourceCopy {
-  visibility: hidden;
+  color: transparent;
 }
 /* 写しの 1 行（折り返せば何段にもなる）。印は、写しが見えない中で、印だけを見せて描く（字は描かない。テキストFormの字と重ならない） */
 .line {

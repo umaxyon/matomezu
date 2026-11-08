@@ -7,7 +7,7 @@
 // ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、段落の中の改行 1 つを利用者の設定の項目のとおりに見せ（soft-break.ts）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
 // 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（base の useMarkdownDocument）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
-import { type MouseEvent, type RefObject, useRef, useState } from "react"
+import { type MouseEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react"
 import {
   type BookViewProps,
   useBook,
@@ -22,7 +22,15 @@ import {
   useUserSetting,
 } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, paperSize } from "../../../base"
-import { SplitHandle, useMarkdownDocument, useResize } from "../../../base/ui"
+import {
+  SEARCH_CURRENT_HIGHLIGHT,
+  SEARCH_HIGHLIGHT,
+  SplitHandle,
+  useHighlightRanges,
+  useMarkdownDocument,
+  useResize,
+  useSearchHits,
+} from "../../../base/ui"
 import { PANE_LAYOUT_COMMANDS } from "../commands"
 import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
@@ -42,6 +50,7 @@ import { SOFT_BREAK, softBreakOf } from "../soft-break"
 import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 import { SourcePane } from "./SourcePane"
+import { renderedRanges, scrollToRange } from "./search-ranges"
 import { usePaneSwap } from "./usePaneSwap"
 
 const TITLES = { source: "Source", rendered: "Preview" } as const
@@ -116,7 +125,15 @@ export function MarkdownView({ stage }: BookViewProps) {
                   onScroll={follow}
                 />
               ) : (
-                <Rendered document={document} width={width} scrollRef={rendered} onContextMenu={menu} />
+                <Rendered
+                  stage={stage}
+                  page={page.id}
+                  document={document}
+                  width={width}
+                  scrollRef={rendered}
+                  followHit={!shown.includes("source")}
+                  onContextMenu={menu}
+                />
               )}
             </section>
           )
@@ -144,17 +161,38 @@ export function MarkdownView({ stage }: BookViewProps) {
 // 描いた文書のペインの中身: 紙の幅で描き、ペインが紙より狭いときだけ縮めて収める。
 // 幅は小数まで測って切り捨てる（clientWidth の四捨五入で 1px 未満はみ出し、横のスクロールバーが出ないように）。
 // 縮めても紙の色がペインの下まで届くよう、縮める前の高さを倍率で割って伸ばす
+// 検索の当たりを光らせる（今の当たりは濃く）。ソースのペインを見せていなければ、今の当たりが見えるようにスクロールする（見せていれば、ソースのペインに付いて行く）
 function Rendered({
+  stage,
+  page,
   document,
   width,
   scrollRef: ref,
+  followHit,
   onContextMenu,
 }: {
+  stage: string
+  page: string
   document: MarkdownDocument
   width: number | undefined
   scrollRef: RefObject<HTMLDivElement | null>
+  followHit: boolean
   onContextMenu: (e: MouseEvent) => void
 }) {
+  const search = useSearchHits(stage, page)
+  const [lit, setLit] = useState<{ all: Range[]; current: Range[] }>({ all: [], current: [] })
+  useLayoutEffect(() => {
+    const root = ref.current
+    const current = search.current === "none" ? [] : renderedRanges(root, document.blocks, [search.current])
+    setLit({ all: renderedRanges(root, document.blocks, search.hits), current })
+  }, [search, document, ref])
+  useHighlightRanges(SEARCH_HIGHLIGHT, lit.all)
+  useHighlightRanges(SEARCH_CURRENT_HIGHLIGHT, lit.current)
+  const currentAt = search.current === "none" ? "none" : `${search.current.start}`
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 今の当たりが替わったときだけスクロールする（光らせ直しでは動かさない）
+  useEffect(() => {
+    if (followHit) scrollToRange(ref.current, lit.current[0])
+  }, [currentAt, lit.current.length > 0, followHit])
   const [room, setRoom] = useState(0)
   useResize(ref, () => {
     const el = ref.current

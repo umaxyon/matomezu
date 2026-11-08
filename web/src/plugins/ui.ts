@@ -45,6 +45,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:mail-bookmarks",
       "@matomezu/base:mail-watch",
       "@matomezu/base:tool-picker",
+      "@matomezu/base:search-dialog",
     ],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],

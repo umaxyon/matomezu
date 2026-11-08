@@ -1,4 +1,4 @@
-// ペインの並べ方のコマンドと、ソースのペインのテキストFormの中のキー（元に戻す・やり直すは base のコマンド）。
+// ペインの並べ方のコマンドと、ソースのペインのテキストFormの中のキー（元に戻す・やり直す・検索は base のコマンド）。
 // 並べ方のコマンドは 4 つ（ソースだけ・左右に並べる・上下に並べる・プレビューだけ）で、ビューの上の行のボタンが押す。今の並べ方のコマンドは押した状態。
 // 並べ方はこのプラグインのステージの画面の状態に持つ（panes.ts）。コマンドは並べ方（mode）だけを変える
 import type { CommandContext } from "../../../plugin-api"
@@ -54,4 +54,35 @@ export const SOURCE_KEYS = [
     scope: SOURCE_KEYS_SCOPE,
   }),
   kit.defineKey({ id: "source-redo-mod-y", key: "Mod+Y", command: "@matomezu/base:redo", scope: SOURCE_KEYS_SCOPE }),
+  // 書いている途中でも base の検索を開き、次・前へ移る（テキストFormの中のキーは、この範囲だけで引くため）
+  kit.defineKey({
+    id: "source-search-mod-f",
+    key: "Mod+F",
+    command: "@matomezu/base:search-open",
+    scope: SOURCE_KEYS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "source-search-book-mod-shift-f",
+    key: "Mod+Shift+F",
+    command: "@matomezu/base:search-open-book",
+    scope: SOURCE_KEYS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "source-search-replace-mod-alt-f",
+    key: "Mod+Alt+F",
+    command: "@matomezu/base:search-open-replace",
+    scope: SOURCE_KEYS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "source-search-next-f3",
+    key: "F3",
+    command: "@matomezu/base:search-next",
+    scope: SOURCE_KEYS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "source-search-previous-shift-f3",
+    key: "Shift+F3",
+    command: "@matomezu/base:search-previous",
+    scope: SOURCE_KEYS_SCOPE,
+  }),
 ]

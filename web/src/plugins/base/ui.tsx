@@ -23,6 +23,7 @@ import {
   PRINT_PREVIEW_SCROLLBARS,
   PRINT_PREVIEW_SETTING_VIEWS,
 } from "./print-preview/ui"
+import { SEARCH_DIALOG } from "./search/ui"
 import { GENERAL_CATEGORY, KEYS_CATEGORY, type SettingsCategoryProps } from "./settings/categories"
 import { SETTINGS_ICONS } from "./settings/icons"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
@@ -95,6 +96,14 @@ export {
 } from "./right-side-panel/hooks"
 export { RIGHT_SIDE_PANEL } from "./right-side-panel/slots"
 export type { RightSidePanelOpen } from "./right-side-panel/state"
+export type { SearchHit } from "./search/find"
+export {
+  SEARCH_CURRENT_HIGHLIGHT,
+  SEARCH_HIGHLIGHT,
+  useHighlightRanges,
+  useSearchHits,
+  useSearchPick,
+} from "./search/highlights"
 export { defineSettingsCategory, type SettingsCategoryProps } from "./settings/categories"
 export { SettingRow } from "./settings/SettingRow"
 export { UserSettings } from "./settings/ui"
@@ -131,6 +140,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MENU_HOST,
     TOAST_HOST,
     TOOL_PICKER_WIDGET,
+    SEARCH_DIALOG,
     BOOK_VIEW,
     PAPER_LAYER,
     PRINT_AREA_LAYER,
@@ -214,6 +224,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:menu-host": typeof MENU_HOST
     "@matomezu/base:toast-host": typeof TOAST_HOST
     "@matomezu/base:tool-picker": typeof TOOL_PICKER_WIDGET
+    "@matomezu/base:search-dialog": typeof SEARCH_DIALOG
     "@matomezu/base:book-view": typeof BOOK_VIEW
     "@matomezu/base:paper-layer": typeof PAPER_LAYER
     "@matomezu/base:print-area-layer": typeof PRINT_AREA_LAYER

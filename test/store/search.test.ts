@@ -68,12 +68,12 @@ test("ブック全体では、当たりのある次のページを開いて移�
   setQuery("x")
   const opened = () => state.getState().workspace.stages[0]!.opened!.page
   actions.command("s1", "@matomezu/base:search-next")
-  expect([opened(), search()!.current]).toEqual([pages()[0], { page: pages()[0], start: 0, end: 1 }])
+  expect([opened(), search()!.current]).toEqual([pages()[0]!, { page: pages()[0]!, start: 0, end: 1 }])
   actions.command("s1", "@matomezu/base:search-next")
-  expect([opened(), search()!.current]).toEqual([pages()[1], { page: pages()[1], start: 2, end: 3 }])
+  expect([opened(), search()!.current]).toEqual([pages()[1]!, { page: pages()[1]!, start: 2, end: 3 }])
   actions.command("s1", "@matomezu/base:search-next")
   actions.command("s1", "@matomezu/base:search-next")
-  expect(opened()).toBe(pages()[0])
+  expect(opened()).toBe(pages()[0]!)
 })
 
 test("1 つ置換は今の当たりだけを替えて次へ、全部置換は範囲の全部を替え、元に戻す 1 回で全部戻る", () => {
