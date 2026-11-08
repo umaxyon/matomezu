@@ -173,7 +173,7 @@ test.describe("スライドの操作", () => {
     await angle.press("Enter")
     await expect(e).toHaveCSS("transform", /^matrix/)
     // 元の比率に戻す(置いたときは 2:1)
-    await page.getByRole("button", { name: "元の比率に" }).click()
+    await page.getByRole("button", { name: "比率を元に戻す" }).click()
     await expect
       .poll(async () => Math.round(((await e.evaluate(el => el.getBoundingClientRect().height)) / z) as number))
       .toBe(480)

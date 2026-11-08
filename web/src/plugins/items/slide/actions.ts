@@ -128,13 +128,13 @@ export const SLIDE_MOVE = kit.defineAction({
   },
 })
 
-// 大きさを変える。lockRatio のアイテムは、w か h の一方を書けばもう一方を元の比率で決める（両方書けば w に合わせる）。
+// 大きさを変える。lockRatio のアイテムは、w か h の一方を書けばもう一方を今の比（変える前の幅 ÷ 高さ）で決める（両方書けば w に合わせる）。
 // at を書けば左上もその場所にする（左や上の辺を引いたとき）。scale なら文字枠の文字の大きさも幅の倍率で変える（角のつまみ）
 export const SLIDE_RESIZE = kit.defineAction({
   id: "slide-resize",
   attach: ON_SLIDE,
   aiDescription:
-    "Change a slide item's frame: w and/or h in pixels (the top-left stays, or moves to at). With props.lockRatio set, giving one of them sets the other from the item's ratio (both: w wins). scale: true also scales a text frame's fontSize by the width's change (a corner drag); without it only the frame changes and the text wraps again.",
+    "Change a slide item's frame: w and/or h in pixels (the top-left stays, or moves to at). With props.lockRatio set, giving one of them sets the other keeping the item's current width : height ratio (both: w wins). scale: true also scales a text frame's fontSize by the width's change (a corner drag); without it only the frame changes and the text wraps again.",
   title: "Resize on slide",
   target: "book",
   args: z.strictObject({

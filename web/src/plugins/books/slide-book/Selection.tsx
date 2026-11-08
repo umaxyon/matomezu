@@ -1,11 +1,12 @@
-// 選んだスライドのアイテムの上に出す物: 枠線・四隅と四辺のつまみ・回すつまみ（右上の角の斜め外）と、すぐ上（上が足りなければ下）に浮かぶバー（比率の固定・元の比率に・角度）。
-// 枠とつまみは、アイテムと同じ位置・大きさ・角度でかける。大きさは画面の上で一定にする（紙の倍率 --paper-zoom で割る）。バーは傾けず、傾けた枠が収まる四角の上に出す
+// 選んだスライドのアイテムの上に出す物: 枠線・四隅と四辺のつまみ・回すつまみ（右上の角の斜め外）と、そばに立つバー（スタンド。上が足りなければ下。比率の固定・比率を元に戻す・角度）。
+// 枠とつまみは、アイテムと同じ位置・大きさ・角度でかける。大きさは画面の上で一定にする（紙の倍率 --paper-zoom で割る）。バーは傾けず、倍率でも変えない（スタンドが付いて動く）
 import { useState } from "react"
 import type { Rect } from "../../../plugin-api"
 import { useCommand, useMessages } from "../../../plugin-api/ui"
+import { Stand } from "../../base/ui"
 import { SLIDE_RESET, SLIDE_SET } from "./commands"
 import { kit } from "./kit"
-import { cornersOf, normalizeAngle } from "./rect"
+import { normalizeAngle } from "./rect"
 import styles from "./Selection.module.css"
 
 export const GRIPS = [
@@ -36,7 +37,7 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
     <>
       {!hidden && (
         <div
-          className={styles.rect}
+          className={styles.frame}
           style={{
             left: rect.x,
             top: rect.y,
@@ -66,57 +67,39 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
   )
 }
 
-// 傾けた枠が収まる四角
-function boundsOf(rect: Rect, rotation: number): { left: number; top: number; right: number; bottom: number } {
-  const c = cornersOf(rect, rotation)
-  const xs = c.map(p => p.x)
-  const ys = c.map(p => p.y)
-  return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) }
-}
-
-// バーを枠の上に出せる高さ（画面の px）。足りなければ下に出す
-const BAR_ROOM = 56
-
 function Bar({ item }: { item: SelectedItem }) {
   const t = useMessages(kit)
   const set = useCommand(item.stage, SLIDE_SET.id)
   const reset = useCommand(item.stage, SLIDE_RESET.id)
-  const b = boundsOf(item.rect, item.rotation)
-  const above = b.top > BAR_ROOM
   const atRatio = item.ratio === undefined || Math.abs(item.rect.w / item.rect.h - item.ratio) < 0.005
   return (
-    <div
-      className={styles.bar}
-      data-bar
-      data-below={!above}
-      role="toolbar"
-      aria-label={t("Change on slide")}
-      style={{ left: (b.left + b.right) / 2, top: above ? b.top : b.bottom }}
-    >
-      <button
-        type="button"
-        className={styles.button}
-        aria-pressed={item.locked}
-        title={t("Lock ratio")}
-        disabled={!set.enabled}
-        onClick={() => set.run({ item: item.id, props: { lockRatio: item.locked ? null : true } })}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="5" y="11" width="14" height="9" rx="1.5" />
-          <path d={item.locked ? "M8 11V8a4 4 0 0 1 8 0v3" : "M8 11V8a4 4 0 0 1 7.5-2"} />
-        </svg>
-        {t("Ratio")}
-      </button>
-      <button
-        type="button"
-        className={styles.button}
-        disabled={!reset.enabled || atRatio}
-        onClick={() => reset.run({ item: item.id })}
-      >
-        {t("Reset ratio")}
-      </button>
-      <AngleField key={`${item.id}:${item.rotation}`} item={item} />
-    </div>
+    <Stand anchor={item.id} side="above" label={t("Change on slide")}>
+      <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
+        <button
+          type="button"
+          className={styles.button}
+          aria-pressed={item.locked}
+          title={t("Lock ratio")}
+          disabled={!set.enabled}
+          onClick={() => set.run({ item: item.id, props: { lockRatio: item.locked ? null : true } })}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="1.5" />
+            <path d={item.locked ? "M8 11V8a4 4 0 0 1 8 0v3" : "M8 11V8a4 4 0 0 1 7.5-2"} />
+          </svg>
+          {t("Ratio")}
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          disabled={!reset.enabled || atRatio}
+          onClick={() => reset.run({ item: item.id })}
+        >
+          {t("Reset ratio")}
+        </button>
+        <AngleField key={`${item.id}:${item.rotation}`} item={item} />
+      </div>
+    </Stand>
   )
 }
 

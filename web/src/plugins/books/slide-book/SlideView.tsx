@@ -4,11 +4,10 @@
 // アイテムを押すと選び（1 つだけ）、ドラッグで動かす。選んだアイテムは 8 つのつまみで大きさを変え（角は枠と文字を一緒に、辺は幅か高さだけ）、
 // 右上の角の斜め外のつまみで回す（Shift で 15 度ずつ）。ロック中のアイテムは縦横の比を保つ。文字枠はダブルクリックで文字を書き換える（外を押すと決め、Escape でやめる）。
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
-import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
+import { type PointerEvent, useEffect, useRef, useState } from "react"
 import { type ItemId, type PlacedShape, type Point, type Rect, type StageView, slideOf } from "../../../plugin-api"
 import {
   type BookViewProps,
-  type ItemViewProps,
   useActions,
   useCommand,
   useCoreCatalog,
@@ -16,17 +15,17 @@ import {
   useShownPage,
   useStage,
   useToPaper,
-  useUiCatalog,
 } from "../../../plugin-api/ui"
-import { PaperFrame } from "../../base/ui"
+import { PaperFrame, useFollowsSelection } from "../../base/ui"
 import { SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "./commands"
 import { kit } from "./kit"
 import { drawnRect, type Grip, resizedRect, rotatedTo, thinned } from "./rect"
 import { GRIPS, type SelectedItem, Selection } from "./Selection"
+import { DEFAULT_FONT_SIZE, rotationOf, SlideItem, shapeProps } from "./SlideItem"
 import styles from "./SlideView.module.css"
 import { SLIDE_KEY_SCOPE } from "./slide-book"
 
-// 幅・高さの下限と、押しただけとみなす動き（紙の上の px）、自由な線の点の間引きの間
+// 幅・高さの下限（アイテムの定義に無いときの）と、押しただけとみなす動き（紙の上の px）、自由な線の点の間引きの間
 const MIN = 8
 const CLICK = 4
 const THIN = 3
@@ -46,6 +45,7 @@ type Drag =
       rotation: number
       grip: Grip
       ratio: number | undefined
+      min: number
       text: boolean
     }
   | { kind: "rotate"; pointer: number; item: string; start: Point; center: Point; rotation: number; rect: Rect }
@@ -59,8 +59,6 @@ interface Live {
   scaled?: boolean
 }
 
-const shapeProps = (shape: PlacedShape): Record<string, unknown> => shape.props as Record<string, unknown>
-const rotationOf = (shape: PlacedShape): number => (shapeProps(shape).rotation as number | undefined) ?? 0
 const rectOf = (shape: PlacedShape): Rect => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
 const round = (n: number): number => Math.round(n * 100) / 100
 const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f.w), h: round(f.h) })
@@ -68,16 +66,16 @@ const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f
 export function SlideView({ stage: id }: BookViewProps) {
   const stage = useStage(id)
   if (!stage) return null
-  return <Page stage={stage} />
+  return <SlidePageView stage={stage} />
 }
 
-function Page({ stage }: { stage: StageView }) {
+function SlidePageView({ stage }: { stage: StageView }) {
   const t = useMessages(kit)
   const page = useShownPage(stage.id)
   const catalog = useCoreCatalog()
-  const ui = useUiCatalog()
+  const followed = useFollowsSelection(stage.id)
   const toPaperAt = useToPaper(stage.id)
-  const { select } = useActions()
+  const { select, setEditing } = useActions()
   const put = useCommand(stage.id, SLIDE_PUT.id)
   const moveTo = useCommand(stage.id, SLIDE_MOVE_TO.id)
   const reshape = useCommand(stage.id, SLIDE_RESHAPE.id)
@@ -86,23 +84,23 @@ function Page({ stage }: { stage: StageView }) {
   const drag = useRef<Drag | null>(null)
   const [live, setLive] = useState<Live | null>(null)
   const [drawn, setDrawn] = useState<Point[] | null>(null) // 置こうとしてなぞっている途中の点（紙の上）
-  const [editing, setEditing] = useState<string | null>(null)
   const typeNext = useRef(false) // 置いた文字枠で、そのまま文字を打つ
   const shapes = page ? slideOf(page) : []
   const selected = stage.selection.length === 1 ? shapes.find(s => s.id === stage.selection[0]) : undefined
   const placing = stage.placing
+  const editing = typeof stage.editing === "string" ? stage.editing : null // 文字を書き換えているアイテム
+  const minOf = (item: string): number => {
+    const def = catalog.items.get(item)
+    return def?.kind === "shape" && def.min ? Math.max(def.min.w, def.min.h) : MIN
+  }
 
   // 置いたばかりの文字枠が選ばれたら、そのまま文字を書く
   useEffect(() => {
     if (typeNext.current && selected && selected.item === TEXT) {
       typeNext.current = false
-      setEditing(selected.id)
+      setEditing(stage.id, selected.id)
     }
-  }, [selected])
-  // 選びなおすと、文字を書くのは終わる
-  useEffect(() => {
-    if (editing !== null && selected?.id !== editing) setEditing(null)
-  }, [selected, editing])
+  }, [selected, stage.id, setEditing])
 
   const paperAt = (e: PointerEvent<Element>): Point | null => {
     const el = ref.current
@@ -124,6 +122,7 @@ function Page({ stage }: { stage: StageView }) {
     if (!at) return
     const capture = () => e.currentTarget.setPointerCapture(e.pointerId)
     if (placing) {
+      if (!put.enabled) return
       e.preventDefault()
       capture()
       drag.current = { kind: "draw", pointer: e.pointerId, item: placing, start: at }
@@ -131,7 +130,7 @@ function Page({ stage }: { stage: StageView }) {
       return
     }
     const gripEl = target.closest<HTMLElement>("[data-grip]")
-    if (gripEl && selected) {
+    if (gripEl && selected && !followed && reshape.enabled) {
       e.preventDefault()
       capture()
       const found = GRIPS.find(g => g.id === gripEl.dataset.grip)
@@ -146,11 +145,12 @@ function Page({ stage }: { stage: StageView }) {
         rotation: rotationOf(selected),
         grip: found?.grip ?? {},
         ratio: locked ? rect.w / rect.h : undefined,
+        min: minOf(selected.item),
         text: selected.item === TEXT,
       }
       return
     }
-    if (target.closest("[data-rotate]") && selected) {
+    if (target.closest("[data-rotate]") && selected && !followed && set.enabled) {
       e.preventDefault()
       capture()
       const rect = rectOf(selected)
@@ -169,6 +169,7 @@ function Page({ stage }: { stage: StageView }) {
     const shape = itemEl && shapes.find(s => s.id === itemEl.dataset.item)
     if (shape) {
       select(stage.id, [shape.id])
+      if (followed || !moveTo.enabled) return
       capture()
       drag.current = {
         kind: "move",
@@ -197,7 +198,7 @@ function Page({ stage }: { stage: StageView }) {
       d.travelled = true
       setLive({ item: d.item, rect: { ...d.rect, x: d.rect.x + by.x, y: d.rect.y + by.y } })
     } else if (d.kind === "grip") {
-      const to = resizedRect(d.rect, d.rotation, d.grip, by, MIN, d.ratio)
+      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, d.ratio)
       setLive({ item: d.item, rect: to, scaled: to.scaled && d.text })
     } else if (d.kind === "rotate") {
       const rotation = rotatedTo(d.rotation, d.center, d.start, at, e.shiftKey ? 15 : undefined)
@@ -230,21 +231,23 @@ function Page({ stage }: { stage: StageView }) {
     if (item === LINE || item === FREE) {
       if (!moved) return
       const dense = item === FREE ? thinned(points, THIN / stage.zoom) : [from, to]
-      const { rect, fractions } = drawnRect(dense.slice(0, 500), MIN)
+      const { rect, fractions } = drawnRect(dense.slice(0, 500), minOf(item))
       const props = item === FREE ? { points: fractions } : { from: fractions[0], to: fractions.at(-1) }
       put.run({ item, rect: roundRect(rect), props })
       return
     }
-    const rect = moved ? drawnRect([from, to], MIN).rect : { x: from.x, y: from.y, w: def.size.w, h: def.size.h }
+    const rect = moved
+      ? drawnRect([from, to], minOf(item)).rect
+      : { x: from.x, y: from.y, w: def.size.w, h: def.size.h }
     if (item === TEXT) typeNext.current = true
     put.run({ item, rect: roundRect(rect), props: item === TEXT ? { text: "" } : {} })
   }
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = (e.target as Element).closest<HTMLElement>("[data-item]")
     const shape = el && shapes.find(s => s.id === el.dataset.item)
-    if (shape?.item === TEXT) {
+    if (shape?.item === TEXT && set.enabled && !followed) {
       select(stage.id, [shape.id])
-      setEditing(shape.id)
+      setEditing(stage.id, shape.id)
     }
   }
 
@@ -255,7 +258,7 @@ function Page({ stage }: { stage: StageView }) {
     const props = shapeProps(s)
     const scaledSize =
       live.scaled && s.item === TEXT && s.w
-        ? { fontSize: round((((props.fontSize as number | undefined) ?? 24) * live.rect.w) / s.w) }
+        ? { fontSize: round((((props.fontSize as number | undefined) ?? DEFAULT_FONT_SIZE) * live.rect.w) / s.w) }
         : {}
     return {
       ...s,
@@ -292,17 +295,19 @@ function Page({ stage }: { stage: StageView }) {
       <PaperFrame stage={stage} className={styles.paper} role="img" aria-label={t("Paper")}>
         <div className={styles.clip}>
           {shown.map(shape => (
-            <Shape
+            <SlideItem
               key={shape.id}
               shape={shape}
-              stage={stage}
-              view={ui.items.get(shape.item)?.view}
-              editing={editing === shape.id}
-              onCommit={text => {
-                setEditing(null)
-                if (text !== (shapeProps(shape).text ?? "")) set.run({ item: shape.id, props: { text } })
+              stage={stage.id}
+              zoom={stage.zoom}
+              edit={{
+                editing: editing === shape.id,
+                onCommit: text => {
+                  setEditing(stage.id, false)
+                  if (text !== (shapeProps(shape).text ?? "")) set.run({ item: shape.id, props: { text } })
+                },
+                onCancel: () => setEditing(stage.id, false),
               }}
-              onCancel={() => setEditing(null)}
             />
           ))}
           {ghost && <Ghost ghost={ghost} zoom={stage.zoom} />}
@@ -334,88 +339,5 @@ function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[
     <svg className={styles.ghost} aria-hidden="true">
       <rect x={x} y={y} width={Math.abs(a.x - b.x)} height={Math.abs(a.y - b.y)} {...stroke} />
     </svg>
-  )
-}
-
-function Shape({
-  shape,
-  stage,
-  view,
-  editing,
-  onCommit,
-  onCancel,
-}: {
-  shape: PlacedShape
-  stage: StageView
-  view: ((p: ItemViewProps<never, never>) => ReactNode) | React.ComponentType<ItemViewProps<never, never>> | undefined
-  editing: boolean
-  onCommit: (text: string) => void
-  onCancel: () => void
-}) {
-  const View = view as React.ComponentType<ItemViewProps<PlacedShape["props"]>> | undefined
-  const size = { w: shape.w ?? 0, h: shape.h ?? 0 }
-  const rotation = rotationOf(shape)
-  return (
-    <div
-      data-item={shape.id}
-      className={styles.item}
-      style={{
-        left: shape.x,
-        top: shape.y,
-        width: size.w,
-        height: size.h,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
-      }}
-    >
-      {editing ? (
-        <TextEditor shape={shape} onCommit={onCommit} onCancel={onCancel} />
-      ) : (
-        View && (
-          <View
-            props={shape.props}
-            size={size}
-            id={shape.id}
-            stage={stage.id}
-            content={{}}
-            zoom={stage.zoom}
-            hasChildren={false}
-          />
-        )
-      )}
-    </div>
-  )
-}
-
-// 文字枠の文字を書き換える欄（文字枠と同じ文字の大きさ・そろえ・色）。外へ出ると決め、Escape でやめる
-function TextEditor({
-  shape,
-  onCommit,
-  onCancel,
-}: {
-  shape: PlacedShape
-  onCommit: (text: string) => void
-  onCancel: () => void
-}) {
-  const props = shape.props as { text?: string; fontSize?: number; align?: "left" | "center" | "right"; color?: string }
-  const [text, setText] = useState(props.text ?? "")
-  const cancelled = useRef(false)
-  return (
-    <textarea
-      className={styles.editor}
-      // biome-ignore lint/a11y/noAutofocus: 文字を書き換え始めたときに、そのまま打てるようにする
-      autoFocus
-      value={text}
-      style={{ fontSize: props.fontSize ?? 24, textAlign: props.align ?? "left" }}
-      onFocus={e => e.currentTarget.setSelectionRange(text.length, text.length)}
-      onChange={e => setText(e.target.value)}
-      onBlur={() => (cancelled.current ? onCancel() : onCommit(text))}
-      onKeyDown={e => {
-        if (e.key === "Escape") {
-          cancelled.current = true
-          e.stopPropagation()
-          e.currentTarget.blur()
-        }
-      }}
-    />
   )
 }

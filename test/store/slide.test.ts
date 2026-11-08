@@ -66,7 +66,7 @@ test("置いた物は書いたとおりの位置に残り、押し合わず、�
   ).toBe(false)
 })
 
-test("大きさ: ロックすれば一方から他方を元の比率で決め、scale なら文字の大きさも変わる。比率は元に戻せる", () => {
+test("大きさ: ロックすれば一方から他方を今の比率で決め、scale なら文字の大きさも変わる。比率は元に戻せる", () => {
   const s = setup()
   s.perform("@matomezu/slide:slide-place", {
     page: s.page,
@@ -93,6 +93,20 @@ test("大きさ: ロックすれば一方から他方を元の比率で決め、
   expect(prop("fontSize")).toBe(40)
   // 最小より小さくはできない
   expect(s.perform("@matomezu/slide:slide-resize", { page: s.page, item: id, w: 1, h: 1 }).ok).toBe(false)
+})
+
+test("ロックは置いたときの比ではなく今の比を保ち、元に戻すと置いたときの比になる", () => {
+  const s = setup()
+  s.perform("@matomezu/slide:slide-place", { page: s.page, item: ELLIPSE, w: 200, h: 100 })
+  const id = s.slide()[0]?.id as string
+  const box = () => s.slide()[0] as { w: number; h: number; props: { ratio?: number } }
+  s.perform("@matomezu/slide:slide-resize", { page: s.page, item: id, w: 300 }) // 300 x 100（今の比 3、置いたときの比 2）
+  s.perform("@matomezu/slide:slide-update", { page: s.page, item: id, props: { lockRatio: true } })
+  s.perform("@matomezu/slide:slide-resize", { page: s.page, item: id, h: 200 })
+  expect([box().w, box().h]).toEqual([600, 200])
+  expect(box().props.ratio).toBe(2)
+  s.perform("@matomezu/slide:slide-reset-ratio", { page: s.page, item: id })
+  expect([box().w, box().h]).toEqual([600, 300])
 })
 
 test("項目: 角度を書き、null で消せる。形に合わない項目は断る。動かす・重ねを変える・消す", () => {

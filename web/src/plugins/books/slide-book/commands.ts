@@ -1,6 +1,6 @@
 // スライドのブックのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・比率を戻す・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、見せ方が決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
-import type { ItemId, Rect } from "../../../plugin-api"
+import { type ItemId, type ItemPage, pagedOf, type Rect, slideOf } from "../../../plugin-api"
 
 import { kit } from "./kit"
 import { SLIDE_KEY_SCOPE } from "./slide-book"
@@ -16,6 +16,13 @@ type Ctx = Parameters<Parameters<typeof kit.defineCommand>[0]["run"]>[0]
 
 // 開いているページがあるか
 const onPage = (ctx: Ctx): boolean => ctx.stage.opened?.page != null
+
+// 選んでいる物のうち、開いているページの slide にあるアイテムの id（選択には、自分の扱わない id が混じる）
+function selectedOnSlide(ctx: Ctx): string[] {
+  const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+  const ids = new Set(page ? slideOf(page as ItemPage).map(s => s.id) : [])
+  return ctx.stage.selection.filter(id => ids.has(id))
+}
 
 // 置こうとしているアイテムを、枠 rect に置く。props はそのアイテムの項目（文字枠なら text など）。置けなければトーストで知らせる
 export const SLIDE_PUT = kit.defineCommand({
@@ -121,12 +128,12 @@ export const SLIDE_DELETE = kit.defineCommand({
   permissionScope: "selection",
   title: "Delete",
   run: (ctx, a) => {
-    const { opened, selection, id } = ctx.stage
+    const { opened, id } = ctx.stage
     if (!opened?.page) return
-    for (const item of selection) a.perform(REMOVE, { page: opened.page, item }, { book: opened.book })
+    for (const item of selectedOnSlide(ctx)) a.perform(REMOVE, { page: opened.page, item }, { book: opened.book })
     a.select(id, [])
   },
-  when: ctx => onPage(ctx) && ctx.stage.selection.length > 0,
+  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
 export const SLIDE_KEYS = [
