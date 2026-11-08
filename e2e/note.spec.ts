@@ -428,7 +428,7 @@ test("物がステージより広く、見せても吹き出しが入らない�
   await expect(panel(page).getByLabel("伝言", { exact: true })).toHaveValue("広い物")
 })
 
-test("読まれていない伝言は、箱の上の辺が画面の外に出ると、吹き出しが縁のマークポインタ（丸の中に伝言の絵）に替わり、押すと箱が見えて吹き出しに戻る。AI が読んだ伝言は縁に出ない", async ({
+test("読まれていない伝言は、箱の上の辺が画面の外に出ると、吹き出しが縁のマークポインタ（丸の中に伝言の絵）に替わり、押すと箱が見えて吹き出しに戻る。AI が読んだ伝言は縁に緑の丸のチェックを出す", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -469,8 +469,55 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   })
   await expect(bubble).toHaveAttribute("data-read", "true")
   await away()
-  await expect(page.getByRole("button", { name: "一を見せる" })).toHaveCount(0)
-  await expect(bubble).toHaveCount(0) // チェックの丸も、縁に寄せて残さない
+  // 縁には緑の丸のチェックのマークポインタ。押すと箱が見えて角のチェックに戻る
+  const read = page.getByRole("button", { name: "一を見せる" })
+  await expect(read).toHaveCount(1)
+  await expect(read.locator("[data-read-check]")).toHaveCount(1)
+  await expect(bubble).toHaveCount(0)
+  await read.click()
+  await expect(bubble).toHaveAttribute("data-read", "true")
+  await expect(read).toHaveCount(0)
+})
+
+test("リストの行に付けた AI が読んだ伝言も、リストが画面の左の外に出ると、縁に緑の丸のチェックが残る", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const ai = aiAuth()
+  await page.setViewportSize({ width: 560, height: 480 })
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  const list = await addList(page, "行のリスト")
+  await addRow(page, list, "行 1")
+  await writeNote(page, list.getByRole("listitem").first(), "読んで")
+  const note = (
+    (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as { id: string }[]
+  )[0]!.id
+  await page.request.post("/api/ai/perform", {
+    headers: ai,
+    data: { action: "@matomezu/base:note-read", args: { note }, on: { book } },
+  })
+  const check = page.locator("[data-read-check]")
+  await expect(check).toHaveCount(1)
+  // 紙を左へずらして、リストを画面の左の外へ出す
+  const stage = (await page.locator("[data-stage]").boundingBox())!
+  await page.mouse.move(stage.x + stage.width - 20, stage.y + 60)
+  await page.mouse.wheel(800, 0)
+  await expect
+    .poll(async () => {
+      const l = (await list.boundingBox())!
+      return l.x + l.width
+    })
+    .toBeLessThan(stage.x)
+  const pointer = page.getByRole("button", { name: "行 1を見せる" })
+  await expect(pointer).toHaveCount(1)
+  await expect(pointer.locator("[data-read-check]")).toHaveCount(1)
+  const p = (await pointer.boundingBox())!
+  expect(Math.abs(p.x - stage.x - 4)).toBeLessThan(2) // 画面の左の縁に付く
 })
 
 test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にまとまり、乗せると広がる吹き出しから 1 つずつ選べる。右サイドパネルがほかの伝言を出している間は、伝言は薄く押せない。びっくりマークは吹き出しの上に「外す？」を出す", async ({
