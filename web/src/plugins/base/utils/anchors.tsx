@@ -2,7 +2,7 @@
 // スタンド（Stand）は、アンカーの id を指して、その物のそばに立つ。スタンドはスタンドのレイヤー（スロット book-layers）に描かれ、
 // 倍率では大きさを変えない。パン・倍率・リストのスクロールで物が動けば、付いて動く。
 // 置ける範囲（スタンドのレイヤー）に入らなければ、反対の側へ回すか（StandAt の turn が none なら回さず）、範囲の中へ寄せる。edgePinned のスタンドは、アンカーの上の辺が見える所（範囲と、アンカーを囲む
-// Revealable（リストの行の並びなど）の重なり）の外に出たら寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
+// Revealable（リストの行の並びなど）の重なり）の外に出たら（StandAt の minRoom より、アンカーの左の辺から範囲の右の端までが狭いときも）寄せずに付いて行き、中の物は useStandAway で、縁に寄せる点と、その物を見せる
 // （囲む物の中のスクロールと、紙をずらしてアンカーを真ん中へ）関数を受け取る。
 // 線のように形を持つ物は、形の要素（SVG の polyline）を useAnchorShapeRef で同じ id に知らせる。スタンドの中の物は useStandShape で、形の点（スタンドの左上から）を受け取る。
 // アンカーの表（id → 要素）はステージごとに 1 つで、ステージのビューが渡す。ブックのデータにも画面の状態にも入れず、描いている間だけ持つ
@@ -204,6 +204,7 @@ export const useStandAway = (): StandAway | null => useContext(AwayContext)
 // アンカー anchor（いくつも指せば、まとめた範囲）の side に立つスタンド。アンカーが描かれていなければ出さない。
 // span なら、幅をアンカーの幅（画面の上の幅）にそろえる。edgePinned なら、アンカーの上の辺が見える所の外に出たとき、範囲の中へ寄せずに付いて行く。
 // プラグイン API の Stand は角（corner）に立てられない（角はコーナーステータスで出す）。角に立てるのは base の角のスタンドだけで、StandAt を使う。
+// StandAt の minRoom は、アンカーの左の辺から範囲の右の端までがそれより狭ければ、上の辺が外に出たのと同じにする（edgePinned のときだけ。右の端で止めて縮める吹き出しが、縮めきれないとき）。
 // StandAt の turn は、side に入らないときに反対の側へ回すか（opposite）、回さずに範囲の端で止めるか（none）。
 // StandAt の through は、スタンドの箱そのものはポインタを受けず（下の物に届く）、中の物が自分で受けるとき（物の上の辺を歩く鳥など）に付ける
 export const Stand: (props: StandProps & { side?: StandSide }) => ReactNode = props => <StandAt {...props} />
@@ -223,9 +224,10 @@ export function StandAt({
   edgePinned = false,
   label,
   turn = "opposite",
+  minRoom = 0,
   through = false,
   children,
-}: StandProps & { side?: StandPlace; turn?: StandTurn; through?: boolean }) {
+}: StandProps & { side?: StandPlace; turn?: StandTurn; minRoom?: number; through?: boolean }) {
   const ctx = useContext(Context)
   const { panStageBy } = useActions()
   const ids = useMemo(() => (typeof anchor === "string" ? [anchor] : anchor), [anchor])
@@ -248,7 +250,8 @@ export function StandAt({
   const { rect, clip } = measured
   const area = { w: ctx.layer.clientWidth, h: ctx.layer.clientHeight }
   const whole = { x: 0, y: 0, ...area }
-  const out = edgePinned && topEdgeOut(rect, clip ? intersectRect(clip, whole) : whole)
+  const room = area.w - STAND_MARGIN - rect.x
+  const out = edgePinned && (topEdgeOut(rect, clip ? intersectRect(clip, whole) : whole) || room < minRoom)
   const at = !size
     ? { x: rect.x, y: rect.y + rect.h }
     : out
@@ -259,7 +262,7 @@ export function StandAt({
     ? {
         anchor: { x: rect.x - at.x, y: rect.y - at.y, w: rect.w, h: rect.h },
         size,
-        room: area.w - STAND_MARGIN - rect.x,
+        room,
       }
     : null
   const away: StandAway | null = out

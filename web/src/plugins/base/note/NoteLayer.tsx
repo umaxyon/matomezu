@@ -1,6 +1,7 @@
 // 伝言のレイヤー（ウィジェット note-layer）: 開いているブックの伝言を、付けた物の最後の 1 つのそばにスタンドで出す。
 // 吹き出しを出す伝言は物の右に、文の始め（BUBBLE_CHARS 字）だけの吹き出しを、物の方へ曲がる尾を付けて出し、たたんだ伝言は物の右上の角に伝言の絵を出す。
-// 吹き出しは右に入らなくても左に回さず、置ける範囲の右の端で止め（物に重なる）、左の辺が物の左の辺を越えないように幅を縮める（BUBBLE_MIN_W まで）。
+// 吹き出しは右に入らなくても左に回さず、置ける範囲の右の端で止め（物に重なる）、尾の先が物の左の辺を越えないように幅を縮める。
+// BUBBLE_MIN_W まで縮めても入らなければ、物が見える所の外に出たのと同じに、縁のマークポインタにする。
 // AI が読んだ伝言は、吹き出しも絵も出さず、物の右上の角に緑の丸のチェックを出す（吹き出しを出すかのデータは変えない）。
 // 角の絵とチェックは、角に出すほかの物（マークなど）と一緒に角のスタンドにまとまる（utils/corner.tsx。2 つ以上なら、乗せると広がる吹き出しから 1 つずつ選ぶ）。
 // 角の中の並びは、マークの後に、たたんだ伝言、既読の伝言の順で、それぞれ付けた時点の新しい順。
@@ -132,7 +133,7 @@ function BubbleStand({ stage, id, anchors, props }: NoteViewProps) {
   const { open } = useOpenNote(stage, id, anchors)
   const asks = useNoteAsks(stage, id, "hide")
   return (
-    <StandAt anchor={anchor} side="right" turn="none" edgePinned label={t("Note")}>
+    <StandAt anchor={anchor} side="right" turn="none" minRoom={BUBBLE_MIN_W + TAIL_W} edgePinned label={t("Note")}>
       <Away pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}>
         <Ask items={asks} opens="hover" place="aboveRight">
           {() => <BubbleButton text={props.text} onClick={open} />}
@@ -260,10 +261,10 @@ function Away({ pointer, children }: { pointer: ReactNode; children: ReactNode }
   return useStandAway() ? pointer : children
 }
 
-// 伝言の吹き出し: 幅は BUBBLE_W で、物の左の辺から範囲の右の端までの幅がそれより狭ければ、そこまで縮める（BUBBLE_MIN_W まで）
+// 伝言の吹き出し: 幅は BUBBLE_W で、物の左の辺から尾の幅だけ内側の所から範囲の右の端までがそれより狭ければ、そこまで縮める（BUBBLE_MIN_W まで）
 function BubbleButton({ text, onClick }: { text: string; onClick: (e: MouseEvent<HTMLButtonElement>) => void }) {
   const t = useMessages(kit)
-  const room = useStandFacing()?.room ?? BUBBLE_W
+  const room = (useStandFacing()?.room ?? BUBBLE_W + TAIL_W) - TAIL_W
   return (
     <button
       type="button"
