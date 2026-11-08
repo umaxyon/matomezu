@@ -5,7 +5,7 @@
 // AI が読んだ伝言は、吹き出しも絵も出さず、物の右上の角に緑の丸のチェックを出す（吹き出しを出すかのデータは変えない）。
 // 角の絵とチェックは、角に出すほかの物（マークなど）と一緒に角のスタンドにまとまる（utils/corner.tsx。2 つ以上なら、乗せると広がる吹き出しから 1 つずつ選ぶ）。
 // 角の中の並びは、マークの後に、たたんだ伝言、既読の伝言の順で、それぞれ付けた時点の新しい順。
-// 読まれていない伝言は、付けた物の上の辺が見える所の外に出たら、吹き出しか絵の代わりにマークポインタ（丸の中に伝言の絵）を縁に出し、押すと付けた物を見せる。読まれた伝言は縁に出さない。
+// 付けた物の上の辺が見える所の外に出たら、吹き出しか絵かチェックの代わりにマークポインタを縁に出し、押すと付けた物を見せる（読まれていない伝言は丸の中に伝言の絵、読まれた伝言は緑の丸のチェック）。
 // 吹き出しか絵かチェックを押すと、右サイドパネルにその伝言を出す（付けた先を選び、吹き出しの物をカレントにする。吹き出しを出すかのデータは変えない）。
 // 選択に従う右サイドパネルの中身（書いている伝言など）を出している間は、吹き出しの物を押したのと同じにする（選ぶ。Mod なら足す・外す。書きかけを生かす）。
 // 右サイドパネルがほかの物を出している間は、角の吹き出しの中の絵とチェックは薄くして押せなくし、それ以外（物の右の吹き出し・角に 1 つだけの絵とチェック）は押すと閉じるだけ。
@@ -94,12 +94,18 @@ interface NoteViewProps {
   props: NoteProps
 }
 
-// AI が読んだ伝言: 物の右上の角に、緑の丸のチェック
+// AI が読んだ伝言: 物の右上の角に、緑の丸のチェック。物が見える所の外にある間は、縁に緑の丸のチェックのマークポインタ
 function ReadNote({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
+  const anchor = anchors.at(-1) ?? ""
   const { open, busy } = useOpenNote(stage, id, anchors)
   return (
-    <AtCorner anchor={anchors.at(-1) ?? ""} status={READ_NOTE_STATUS_ID} at={props.addedAt}>
+    <AtCorner
+      anchor={anchor}
+      status={READ_NOTE_STATUS_ID}
+      at={props.addedAt}
+      pointer={<ReadPointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}
+    >
       <CornerNoteButton
         className={styles.readCheck}
         label={t("Open note")}
@@ -140,6 +146,21 @@ function NotePointer({
       onPress={opens ? onOpen : undefined}
     >
       <NoteIcon />
+    </StandPointer>
+  )
+}
+
+// AI が読んだ伝言の、付けた物が見える所の外にある間のマークポインタ（緑の丸のチェック。押すと付けた物を見せる）
+function ReadPointer({ stage, anchor, center }: { stage: string; anchor: string; center: { x: number; y: number } }) {
+  const t = useMessages(kit)
+  return (
+    <StandPointer
+      center={center}
+      size={POINTER}
+      label={t("Show {name}", { name: useAnchorName(stage, anchor) })}
+      className={`${styles.readCheck} ${styles.readPointer}`}
+    >
+      <ReadCheckIcon />
     </StandPointer>
   )
 }
@@ -278,7 +299,7 @@ export function ReadCheckLook() {
   )
 }
 
-// 付けた物の上の辺が見える所の外にある間は pointer（マークポインタ。読まれた伝言では何も出さない）を、そうでなければ children を出す
+// 付けた物の上の辺が見える所の外にある間は pointer（マークポインタ）を、そうでなければ children を出す
 function Away({ pointer, children }: { pointer: ReactNode; children: ReactNode }) {
   return useStandAway() ? pointer : children
 }
