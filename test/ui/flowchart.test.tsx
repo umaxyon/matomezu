@@ -1,6 +1,6 @@
 // フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・ツールボックスに形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補・自動で整列
 import { afterEach, expect, test } from "bun:test"
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
@@ -11,25 +11,13 @@ import { linesOf } from "../../web/src/plugins/items/line/placed"
 import { SHAPE_RULES, SLANT, TURNED_SLANT } from "../../web/src/plugins/items/shape/outline"
 import { SHAPES } from "../../web/src/plugins/items/shape/shapes"
 import { placedWidth } from "../../web/src/plugins/items/shape/size"
-import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { createMatomezu } from "../../web/src/store/create"
-import { Screen } from "../../web/src/ui/Screen"
-import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { renderScreen } from "./support"
 
 afterEach(cleanup)
 
 // フローチャートのブックを作り、ページを 1 つ足して開く
 function flowchart() {
-  const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
-    lang: "ja",
-    plugins: BUILTIN_UI,
-  })
-  render(
-    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
-    </MatomezuProvider>,
-  )
+  const store = renderScreen()
   act(() => {
     expect(createBookIn(store, "s1", { title: "流れ", type: "@matomezu/flowchart:flowchart" })).toBe(true)
   })

@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import { AREA_LOOK, areasOf, CONTENT_MIN } from "../../web/src/plugins/items/data/areas"
 import { settleAxes } from "../../web/src/plugins/items/data/axes"
 import {
+  barPath,
   CHART_LOOK,
   cartesianLayout,
   evenShown,
@@ -303,4 +304,24 @@ test("動き方はテーマキーの言葉から選び、知らない言葉な�
   expect(cssPx(" 6px", 4)).toBe(6)
   expect(cssPx("", 4)).toBe(4)
   expect(cssPx("6em", 4)).toBe(4) // px の長さでなければ既定（組み立てで W015）
+})
+
+test("棒の形は、値の先の角だけを丸め（根元は四角）、正の値と負の値で丸める側が逆になる。棒の太さの半分より丸めず、大きさの無い棒は空", () => {
+  const bar = { x: 10, y: 20, w: 30, h: 40, series: 0, row: "r", value: 1 }
+  const corners = (p: string) => (p.match(/A/g) ?? []).length
+  // 縦: 根元（0 の線）が棒の下なら上の角、棒の上なら下の角
+  const up = barPath(bar, false, 60, 8)
+  const down = barPath(bar, false, 20, 8)
+  expect([corners(up), corners(down)]).toEqual([2, 2])
+  expect(up.startsWith("M10,60V28")).toBe(true)
+  expect(down.startsWith("M10,20V52")).toBe(true)
+  // 横: 根元が棒の左なら右の角、棒の右なら左の角
+  const right = barPath(bar, true, 10, 8)
+  const left = barPath(bar, true, 40, 8)
+  expect(right.startsWith("M10,20H32")).toBe(true)
+  expect(left.startsWith("M40,20H18")).toBe(true)
+  // 半径は、棒の太さの半分まで
+  expect(barPath(bar, false, 60, 100).startsWith("M10,60V35")).toBe(true)
+  expect(barPath({ ...bar, w: 0 }, false, 60, 8)).toBe("")
+  expect(barPath({ ...bar, h: 0 }, true, 10, 8)).toBe("")
 })

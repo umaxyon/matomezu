@@ -1,28 +1,16 @@
 // ディレクトリ構成図のブック（plugins/books/dir）: ページを作る・行と罫線を描く・▸・▾ で開け閉めする・アクション（足す・パスから・書き換え・消す・移す・並べ替え）・紙に入らなければ断る
 import { afterEach, expect, test } from "bun:test"
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { toolsIn } from "../../web/src/core/tools"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base"
-import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { createMatomezu } from "../../web/src/store/create"
-import { Screen } from "../../web/src/ui/Screen"
-import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { writeRich } from "./rich-input"
+import { renderScreen } from "./support"
 
 afterEach(cleanup)
 
 function setup() {
-  const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
-    lang: "ja",
-    plugins: BUILTIN_UI,
-  })
-  render(
-    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
-    </MatomezuProvider>,
-  )
+  const store = renderScreen()
   act(() => {
     expect(createBookIn(store, "s1", { title: "構成", type: "@matomezu/dir:dir" })).toBe(true)
   })

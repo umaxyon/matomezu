@@ -14,7 +14,7 @@ import {
   placedWidth,
   vAlignOf,
 } from "../../web/src/plugins/items/box/size"
-import { newStore } from "../support"
+import { newStore, sizedStore } from "../support"
 
 const page = (store: ReturnType<typeof newStore>) =>
   (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
@@ -26,11 +26,7 @@ const heightOf = (n: number, rule = true) =>
   2 * (BOX_LOOK.border + BOX_LOOK.padY) + BOX_LOOK.line + (rule ? 2 * BOX_LOOK.ruleGap + 1 : 0) + n * BOX_LOOK.line
 const LONG = "あ".repeat(100)
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 const place = (
   store: ReturnType<typeof newStore>,
   props: Record<string, unknown>,

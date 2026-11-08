@@ -4,6 +4,8 @@ import {
   type Arrival,
   birdPose,
   GAITS,
+  LEAVE,
+  leavingPose,
   VISIT_ARRIVE,
   visitLength,
   visitPose,
@@ -54,4 +56,19 @@ test("立ち寄る鳥は、飛んできて降り、仕草のコマを 1 回ず�
     expect(visitLength(g) - VISIT_ARRIVE).toBeGreaterThan(0.8)
     expect(visitLength(g) - VISIT_ARRIVE).toBeLessThan(2)
   }
+})
+
+test("飛び去る鳥は、飛び立った姿から足元のずれの向きへ進み、LEAVE 秒で行き先に着く。羽ばたくコマは交互に替わる", () => {
+  const start = birdPose(10, "none", Object.values(GAITS)[0]!, SIZE, RANGE, FROM)
+  const to = { x: 300, y: -150 }
+  const at = (t: number) => leavingPose(t, start, to)
+  expect(at(0).from.x).toBeCloseTo(0)
+  expect(at(0).from.y).toBeCloseTo(0)
+  expect(at(LEAVE).from).toEqual(to)
+  expect(at(LEAVE / 2).from.x).toBeGreaterThan(0)
+  expect(at(LEAVE / 2).from.x).toBeLessThan(300)
+  expect(at(LEAVE / 2).from.y).toBeLessThan(0)
+  expect([at(0).frame, at(0.16).frame, at(0.32).frame]).toEqual([0, 1, 0])
+  expect([at(0.5).right, leavingPose(0.5, start, { x: -300, y: 0 }).right]).toEqual([true, false])
+  expect(at(0.5)).toMatchObject({ lift: 0, rotation: 0, behind: false })
 })

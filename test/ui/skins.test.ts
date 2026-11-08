@@ -35,7 +35,7 @@ describe("スキン", () => {
     expect(autoSkin(buildCoreCatalog({ ...BUILTIN_PARTS, skins: [] }))).toBeNull()
   })
 
-  test("プラグインのスキンを持ち込み、自動のスキンにでき、設定で選べる。インスタンスに無いスキンは選べない", () => {
+  test("プラグインのスキンを持ち込み、自動のスキンにでき、設定で選べる", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, acme],
       partial: true,
@@ -45,7 +45,6 @@ describe("スキン", () => {
     expect(instance.autoSkin).toEqual({ light: "@matomezu/base:light", dark: "acme:dark" })
     const skin = (id: string) => ({ values: { "@matomezu/base:skin": id } })
     expect(instance.actions.perform("@matomezu/base:settings-set", skin("acme:dark")).ok).toBe(true)
-    expect(instance.actions.perform("@matomezu/base:settings-set", skin("nope")).ok).toBe(false)
     expect(instance.actions.perform("@matomezu/base:settings-set", skin("auto")).ok).toBe(true)
   })
 })

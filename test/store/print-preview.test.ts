@@ -6,6 +6,7 @@ import { growOf, paperSize } from "../../web/src/plugins/base/place/items"
 import { placedSize } from "../../web/src/plugins/base/place/placed"
 import { bookCrossings, bookSheets, sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { filledSheets, sheetsOfShape } from "../../web/src/plugins/base/print-preview/filled"
+import { withPrintReady } from "../../web/src/plugins/base/print-preview/print-state"
 import { printLaid as printDir } from "../../web/src/plugins/books/dir/print"
 import { printLaid as printTree } from "../../web/src/plugins/books/tree/print"
 import { isEnabled, isShown } from "../../web/src/store/commands"
@@ -266,4 +267,28 @@ test("測るページ（measured）は測った数だけ 1 列に並べ、測っ
     s => `${s.page}:${s.column},${s.row}`,
   )
   expect(cells).toEqual(["a:0,0", "a:0,1", "a:0,2", "d:0,0"])
+})
+
+test("印刷のコマンドは、編集している間は印刷プレビューを開いて刷らず、印刷プレビューの間は、測り終えてから刷る（それまでは押せない）", () => {
+  const store = newStore()
+  const state = () => store.state.getState()
+  const PRINT = "@matomezu/base:print"
+  expect(isShown(store, state(), "s1", PRINT)).toBe(true)
+  expect(isEnabled(store, state(), "s1", PRINT)).toBe(true)
+  expect(store.actions.command("s1", PRINT)).toBe(true)
+  expect(stageOf(store).mode.kind).toBe("print-preview")
+  expect(state().printRequests).toBe(0)
+  expect(isEnabled(store, state(), "s1", PRINT)).toBe(false)
+  store.setStageState("s1", "@matomezu/base", withPrintReady(state().stageStates.s1?.["@matomezu/base"], true))
+  expect(isEnabled(store, state(), "s1", PRINT)).toBe(true)
+  store.actions.command("s1", PRINT)
+  expect(state().printRequests).toBe(1)
+})
+
+test("印刷プレビューの幅合わせは、印刷プレビューの間だけ出る", () => {
+  const store = newStore()
+  const FIT = "@matomezu/base:print-preview-fit"
+  expect(isShown(store, store.state.getState(), "s1", FIT)).toBe(false)
+  store.actions.command("s1", "@matomezu/base:print-preview-open")
+  expect(isShown(store, store.state.getState(), "s1", FIT)).toBe(true)
 })

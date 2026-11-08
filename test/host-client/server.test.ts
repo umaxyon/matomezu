@@ -10,10 +10,17 @@ import { newStore } from "../support"
 // 知らせのつながりは、つなぐたびに新しく作り（opened は作った数、closed は閉じた数）、emit と fail は最後に作ったつながりに送る
 function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: null }) {
   const sent: Record<string, unknown>[] = []
-  const answer: { perform: () => number | null; read: () => number; log: () => number; data: unknown } = {
+  const answer: {
+    perform: () => number | null
+    read: () => number
+    log: () => number
+    tickets: () => number | null
+    data: unknown
+  } = {
     perform: () => 200,
     read: () => 200,
     log: () => 200,
+    tickets: () => 200,
     data,
   }
   let timers: { run: () => void; ms: number }[] = []
@@ -43,9 +50,20 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   }
   const host = serverClient({
     fetch: async (url, init) => {
-      if (url === "api/perform" || url === "api/view" || url === "api/warnings" || url === "api/log")
+      if (
+        url === "api/perform" ||
+        url === "api/view" ||
+        url === "api/warnings" ||
+        url === "api/log" ||
+        url === "api/ai-edit-tickets"
+      )
         sent.push({ url, ...JSON.parse(String(init?.body)) })
       if (url === "api/data") reads++
+      if (url === "api/ai-edit-tickets") {
+        const status = answer.tickets()
+        if (status === null) throw new TypeError("Failed to fetch")
+        return new Response("{}", { status })
+      }
       if (url === "api/perform") {
         const status = answer.perform()
         if (status === null) throw new TypeError("Failed to fetch")
@@ -86,6 +104,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     for (const t of due) t.run()
   }
   const performs = () => sent.filter(x => x.url === "api/perform")
+  const tickets = () => sent.filter(x => x.url === "api/ai-edit-tickets").map(({ url: _, ...ticket }) => ticket)
   // 常駐のログに送った行（窓の id と文）
   const logged = () =>
     sent.filter(x => x.url === "api/log").flatMap(x => (x.lines as { text: string }[]).map(l => [x.client, l.text]))
@@ -94,6 +113,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     sent,
     answer,
     performs,
+    tickets,
     logged,
     emit,
     tick,
@@ -678,4 +698,38 @@ test("コントロールセンターを前に出している間は、見てい�
       canSplit: true,
     },
   })
+})
+
+test("AI の変更を見た・見られず消えた知らせは、1 つずつ常駐に送る。送れない・5xx なら溜めて次に送るときに順に送り直し、4xx なら捨てる", async () => {
+  const s = await connected()
+  const seen = (act: string) => ({ book: "b1", act, outcome: "seen" }) as const
+  s.host.reportAIEditTicket(seen("a1"))
+  await flush()
+  expect(s.tickets()).toEqual([seen("a1")])
+  s.answer.tickets = () => 500
+  s.host.reportAIEditTicket(seen("a2"))
+  await flush()
+  s.answer.tickets = () => null
+  s.host.reportAIEditTicket(seen("a3"))
+  await flush()
+  expect(s.tickets().map(t => t.act)).toEqual(["a1", "a2", "a2"])
+  s.answer.tickets = () => 400
+  s.host.reportAIEditTicket(seen("a4"))
+  await flush()
+  s.answer.tickets = () => 200
+  s.host.reportAIEditTicket(seen("a5"))
+  await flush()
+  expect(s.tickets().map(t => t.act)).toEqual(["a1", "a2", "a2", "a2", "a3", "a4", "a5"])
+})
+
+test("参加者の最後に呼ばれた時刻の知らせは、新しい物だけを使い、同じか古い物は捨てる", async () => {
+  const s = await connected()
+  const calls = () => s.store.state.getState().participantCalls
+  s.emit("participant-calls", { participant: "p1", at: "2026-11-09T10:00:00Z" })
+  s.emit("participant-calls", { participant: "p1", at: "2026-11-09T09:00:00Z" })
+  s.emit("participant-calls", { participant: "p1", at: "2026-11-09T10:00:00Z" })
+  expect(calls()).toEqual({ p1: "2026-11-09T10:00:00Z" })
+  s.emit("participant-calls", { participant: "p1", at: "2026-11-09T11:00:00Z" })
+  s.emit("participant-calls", { participant: "p2", at: "2026-11-09T08:00:00Z" })
+  expect(calls()).toEqual({ p1: "2026-11-09T11:00:00Z", p2: "2026-11-09T08:00:00Z" })
 })

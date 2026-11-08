@@ -16,13 +16,9 @@ import {
 } from "../../web/src/plugins/items/data/draft"
 import { ROW_HEIGHT, TABLE_LOOK, tableSize } from "../../web/src/plugins/items/data/size"
 import type { Table } from "../../web/src/plugins/items/data/table"
-import { CORE_CATALOG, newStore } from "../support"
+import { CORE_CATALOG, sizedStore } from "../support"
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
 const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
 const at = (store: Store, id: string) =>
