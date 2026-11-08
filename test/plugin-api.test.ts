@@ -29,6 +29,7 @@ test("matomezu が出す名前", () => {
     "EDGE_MAX",
     "EDGE_ZONE",
     "HEX",
+    "JOINED_MESSAGE",
     "LEN",
     "NEST_PADDING",
     "PALETTE",

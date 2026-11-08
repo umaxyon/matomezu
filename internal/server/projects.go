@@ -1,6 +1,6 @@
 package server
 
-// プロジェクト: 名前を持つ論理的なフィルターの層（プロジェクトの表は core/project.ts にあり、エンジンから読む）。
+// プロジェクト: ブックと郵便を絞る、名前の付いた区切り（プロジェクトの表は core/project.ts にあり、エンジンから読む）。
 // ブックの土台のフィールド project と、郵便の project を、AI が読む口（list_books・read_mail）で絞るのに使う。
 // 絞る口は、読むプロジェクトの id の並びを ?projects=a&projects=b で必ず受ける（空や表に無い id は 400 で断る）。全部を表す特別な値は無い
 

@@ -4,7 +4,7 @@ import { z } from "zod"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import type { SettingDef } from "../../web/src/core/def/setting"
 import { performIn } from "../../web/src/core/perform"
-import { aiSettings, langOf, participantAliveMs, userSetting } from "../../web/src/core/settings"
+import { aiSettings, isParticipantAlive, langOf, participantAliveMs, userSetting } from "../../web/src/core/settings"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
@@ -92,4 +92,16 @@ test("参加者が生きているとする長さは、role が participant-alive
   expect(participantAliveMs(CORE_CATALOG, {})).toBe(60 * 60_000)
   expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "15" })).toBe(15 * 60_000)
   expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "7" })).toBe(60 * 60_000)
+})
+
+test("参加者が生きているかは、最後に呼ばれた時刻から有効時間の設定以内。呼ばれていない・読めない時刻・形に合わない設定は既定の 60 分で決まる", () => {
+  const now = Date.parse("2026-11-08T10:00:00.000Z")
+  const alive = (calledAt: string | undefined, settings = {}) =>
+    isParticipantAlive(CORE_CATALOG, settings, calledAt, now)
+  expect(alive(undefined)).toBe(false)
+  expect(alive("not a time")).toBe(false)
+  expect(alive("2026-11-08T09:30:00.000Z")).toBe(true)
+  expect(alive("2026-11-08T08:30:00.000Z")).toBe(false)
+  expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "15" })).toBe(false)
+  expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "7" })).toBe(true)
 })

@@ -23,11 +23,11 @@ import { joinActions, type Participants, restoreParticipants } from "../core/par
 import { type PerformedIn, performIn } from "../core/perform"
 import { PROJECTS } from "../core/project"
 import type { Book, Page } from "../core/schema/book"
-import { aiSettings, langOf, participantAliveMs, restoreSettings, settingSchema } from "../core/settings"
+import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
-import { aiPlacedOf, type GrowRule, textColorRef, themesFor } from "../plugins/base"
+import { aiPlacedOf, type GrowRule, JOINED_MESSAGE, textColorRef, themesFor } from "../plugins/base"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
@@ -318,9 +318,11 @@ function aiCatalog(of: Assembled = assembled) {
 ;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
   JSON.stringify(joinActions(assembled.catalog.core))
 
-// 参加者が「生きている」とする長さ（ミリ秒。利用者の設定で決まる）。常駐が、同じ名前の参加者がいま生きているかを決めるのに読む
-;(globalThis as { matomezuParticipantAliveMs?: (settings: string) => number }).matomezuParticipantAliveMs = settings =>
-  participantAliveMs(assembled.catalog.core, restoreSettings(JSON.parse(settings)))
+// 参加者が時点 nowMs（ミリ秒）で生きているか（利用者の設定の参加の有効時間で決まる。常駐が、同じ名前の参加者を引き継げるかを決めるのに読む）
+;(
+  globalThis as { matomezuParticipantAlive?: (settings: string, calledAt: string, nowMs: number) => boolean }
+).matomezuParticipantAlive = (settings, calledAt, nowMs) =>
+  isParticipantAlive(assembled.catalog.core, restoreSettings(JSON.parse(settings)), calledAt || undefined, nowMs)
 
 // 参加を利用者に伝える文（利用者の言語。常駐が、話しかけのフックの systemMessage に使う）
 ;(globalThis as { matomezuJoinedText?: (settings: string, workroom: string) => string }).matomezuJoinedText = (
@@ -330,7 +332,7 @@ function aiCatalog(of: Assembled = assembled) {
   translate(
     assembled.catalog.core.messages,
     langOf(assembled.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
-    "@matomezu/base:Joined matomezu. Workroom name: {name}" as never,
+    JOINED_MESSAGE,
     { name: workroom },
   )
 

@@ -101,7 +101,7 @@ export interface MatomezuState {
   toasts: readonly Toast[] // 出しているトースト（古い順）
   // ブックの id → 触れた（開いたか書いた）時刻（ISO 8601 の UTC）。ホストが知らせたもの（receive）で、無ければ空
   touched: Readonly<Record<string, string>>
-  participantCalls: Readonly<Record<string, string>> // 参加者の id → 最後に呼ばれた時刻（常駐の帳簿。ホストが知らせる。生きているかの判定に使う）
+  participantCalls: Readonly<Record<string, string>> // 参加者の id → 最後に呼ばれた時刻（常駐だけが持つ参加者の記録。ホストが知らせる。生きているかの判定に使う）
   trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐の郵便箱の知らせに添えられた値で入れる）

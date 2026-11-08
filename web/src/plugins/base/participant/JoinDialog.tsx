@@ -13,10 +13,9 @@ import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { PARTICIPANT_ACCEPT } from "."
-import { nameInUse } from "./alive"
 import { BirdFaceView } from "./BirdFaceView"
 import { originalPalette } from "./birds"
-import { useAliveChoice, useNowMs, useParticipantCalls, useParticipants } from "./hooks"
+import { useIsAlive, useNowMs, useParticipantCalls, useParticipants } from "./hooks"
 import styles from "./Participant.module.css"
 
 const BIRD_TITLES = {
@@ -47,7 +46,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const { perform, showToast } = useActions()
   const participants = useParticipants()
   const calls = useParticipantCalls()
-  const choice = useAliveChoice()
+  const isAlive = useIsAlive()
   const nowMs = useNowMs()
   const first = participants.find(p => p.id === participant)
   const form = useId()
@@ -56,7 +55,9 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const [palette, setPalette] = useState<string | undefined>(undefined)
   const shown = palette ?? originalPalette(bird)
   const trimmed = name.trim()
-  const inUse = trimmed !== "" && nameInUse(participants, calls, trimmed, nowMs, choice)
+  const inUse =
+    trimmed !== "" &&
+    participants.some(p => p.state === "joined" && p.workroom === trimmed && isAlive(calls[p.id], nowMs))
   const paletteName = BIRD_PALETTES.find(p => p.id === shown)?.name ?? ""
   const allowed = useAllowedOn(PARTICIPANT_ACCEPT.id, {
     participant,

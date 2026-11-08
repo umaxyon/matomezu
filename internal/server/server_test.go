@@ -985,7 +985,7 @@ func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
 	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"b1"`) {
 		t.Fatalf("touched after writing = %s", got)
 	}
-	// 窓に新しく出たブックは開いた時刻を残す（マスターのように DB に無いブックも）
+	// 窓に新しく出たブックは開いた時刻を残す（DB に無いブックも）
 	view := func(seq int, books ...string) {
 		stages := ""
 		for i, b := range books {

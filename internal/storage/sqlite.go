@@ -57,18 +57,18 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
-	// 利用者ごとの、参加者の帳簿（参加者の id ごとのセッション id と、参加を伝えたかの印）
+	// 利用者ごとの、常駐だけが持つ参加者の記録（参加者の id ごとのセッション id と、参加を伝えたかの印）
 	`CREATE TABLE participant_notes (
 		user TEXT PRIMARY KEY,
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
-	// 1 冊だけのタイプのブック（id は master）はブックでなくなったので、残っている行を消す
+	// id が master の行を消す
 	`DELETE FROM books WHERE id = 'master';
 	DELETE FROM opened WHERE id = 'master';
 	DELETE FROM annotations WHERE book = 'master';
 	DELETE FROM ai_edit_tickets WHERE book = 'master';`,
-	// ブックは土台のフィールド project、郵便は project、参加者は projects を持つ。今あるものは標準のプロジェクト default に属させる
+	// ブックは土台のフィールド project、郵便は project、参加者は projects を持つ。project の無いブック・郵便・参加者は標準のプロジェクト default にする
 	`UPDATE books SET body = json_set(body, '$.project', 'default') WHERE json_type(body, '$.project') IS NULL;
 	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.project') IS NULL THEN json_set(value, '$.project', 'default') ELSE value END)) FROM json_each(mailbox.body));
 	UPDATE participants SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.projects') IS NULL THEN json_set(value, '$.projects', json('["default"]')) ELSE value END)) FROM json_each(participants.body));`,

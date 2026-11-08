@@ -3,8 +3,9 @@
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Mail } from "../../../core/mail"
-import { DEFAULT_PROJECT, declineProjects, unknownProjects } from "../../../core/project"
+import { DEFAULT_PROJECT } from "../../../core/project"
 import { kit } from "../kit"
+import { declineProjects, unknownProjects } from "../project-refusal"
 import { withinLimit } from "."
 
 const JoinRequestSchema = z.strictObject({

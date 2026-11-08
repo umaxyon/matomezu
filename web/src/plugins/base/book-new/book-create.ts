@@ -7,10 +7,11 @@ import type { BookTypeId } from "../../../core/catalog"
 import { bookType, type CatalogCheckDef } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
 import { type PermitContext, permittedIn, type World } from "../../../core/perform"
-import { DEFAULT_PROJECT, declineProjects, isProject } from "../../../core/project"
+import { DEFAULT_PROJECT, isProject } from "../../../core/project"
 import { withBookSettings } from "../book-look"
 import { settingsArgs } from "../book-settings"
 import { kit } from "../kit"
+import { declineProjects } from "../project-refusal"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),

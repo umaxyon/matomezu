@@ -1,8 +1,8 @@
 package server
 
-// AI の参加: AI（MCP の join）が参加を頼む口と、参加者ごとの帳簿。
+// AI の参加: AI（MCP の join）が参加を頼む口と、参加者ごとの記録（常駐だけが持つ）。
 // 参加を頼むと、参加者を作るアクションと、利用者に知らせる郵便のアクションを、この順に行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。
-// 参加者の表と郵便箱はアクションの結果が持つ。ここが持つ帳簿はアクションを通さない記録で、参加者の id ごとに
+// 参加者の表と郵便箱はアクションの結果が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
 //   - 最後に呼ばれた時刻（参加の id の付いた /api/ai の呼び出しのたびに更新。置き場所には書かず、窓にも知らせない）
 //   - セッション id（join のときに MCP が添える。置き場所に残す）
 //   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加の id の付いた呼び出しへの返事のヘッダ）
@@ -32,15 +32,15 @@ const (
 	NoticeHeader = "X-Matomezu-Notice"
 )
 
-// participantNote は参加者 1 人の帳簿
+// participantNote は参加者 1 人の、常駐だけが持つ記録
 type participantNote struct {
 	SessionID string `json:"sessionId,omitempty"` // join のときに MCP が添えたセッション id
 	Told      bool   `json:"told,omitempty"`      // 参加（joined）を AI に伝えた
 	Called    string `json:"-"`                   // 最後に呼ばれた時点（残さない）
 }
 
-// seat は参加者の表の 1 人のうち、join が見る所
-type seat struct {
+// participantRecord は参加者の表の 1 人のうち、join が見る所
+type participantRecord struct {
 	ID          string   `json:"id"`
 	State       string   `json:"state"`
 	AI          string   `json:"ai"`
@@ -76,10 +76,10 @@ type Joined struct {
 	Detail      string   `json:"detail,omitempty"`
 }
 
-func (h *Hub) seats() ([]seat, error) {
-	var seats []seat
-	err := json.Unmarshal(h.Participants(), &seats)
-	return seats, err
+func (h *Hub) records() ([]participantRecord, error) {
+	var records []participantRecord
+	err := json.Unmarshal(h.Participants(), &records)
+	return records, err
 }
 
 func (h *Hub) putParticipantNotes() error {
@@ -104,20 +104,20 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	}
 	h.joinMu.Lock()
 	defer h.joinMu.Unlock()
-	seats, err := h.seats()
+	records, err := h.records()
 	if err != nil {
 		return Joined{}, err
 	}
-	sitting := func(s seat) bool { return s.State == "requested" || s.State == "joined" }
+	sitting := func(s participantRecord) bool { return s.State == "requested" || s.State == "joined" }
 	// 参加の id が付いていて、その参加者が参加（要求）中なら、その参加者にプロジェクトを足す。付いていなくても、同じ link の参加者があれば同じ
-	for _, s := range seats {
+	for _, s := range records {
 		if (req.Participant != "" && s.ID == req.Participant && sitting(s)) || s.Link == req.Link {
 			return h.addProjects(s, req)
 		}
 	}
 	takeover := ""
 	if req.Workroom != "" {
-		for _, s := range seats {
+		for _, s := range records {
 			if s.State == "joined" && s.Workroom == req.Workroom {
 				alive, err := h.alive(s.ID, time.Now())
 				if err != nil {
@@ -132,7 +132,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		}
 	}
 	if takeover == "" && req.Participant == "" && req.SessionName != "" {
-		for _, s := range seats {
+		for _, s := range records {
 			if sitting(s) && s.AI == req.AI && s.Env == req.Env && s.SessionName == req.SessionName {
 				return alreadyJoined(s), nil
 			}
@@ -198,18 +198,14 @@ func takenName(takeover, workroom string) string {
 // alive は、受け入れ済みの参加者 id が、時点 now で生きているか（最後に呼ばれてから、利用者の設定の参加の有効時間以内）
 func (h *Hub) alive(id string, now time.Time) (bool, error) {
 	_, settings, _ := h.Data()
-	lasts, err := h.engine.ParticipantAlive(settings)
-	if err != nil {
-		return false, err
-	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	called, err := time.Parse(time.RFC3339Nano, h.participantNotes[id].Called)
-	return err == nil && now.Sub(called) < lasts, nil
+	called := h.participantNotes[id].Called
+	h.mu.Unlock()
+	return h.engine.ParticipantAlive(settings, called, now)
 }
 
 // addProjects は、いる参加者 s に、頼みのプロジェクトのうちまだ無いものを足す（参加者を作るアクションに、参加者の link で頼み直す。郵便は送り直さない）
-func (h *Hub) addProjects(s seat, req JoinRequest) (Joined, error) {
+func (h *Hub) addProjects(s participantRecord, req JoinRequest) (Joined, error) {
 	args := map[string]any{"ai": s.AI, "model": s.Model, "env": s.Env, "link": s.Link, "projects": req.Projects}
 	ids, err := h.engine.JoinActions()
 	if err != nil {
@@ -220,11 +216,11 @@ func (h *Hub) addProjects(s seat, req JoinRequest) (Joined, error) {
 		return refused(grown), err
 	}
 	h.noteSession(s.ID, req.SessionID)
-	seats, err := h.seats()
+	records, err := h.records()
 	if err != nil {
 		return Joined{}, err
 	}
-	for _, now := range seats {
+	for _, now := range records {
 		if now.ID == s.ID {
 			return Joined{OK: true, Participant: s.ID, Projects: now.Projects}, h.settleNotes()
 		}
@@ -232,7 +228,7 @@ func (h *Hub) addProjects(s seat, req JoinRequest) (Joined, error) {
 	return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 }
 
-func alreadyJoined(s seat) Joined {
+func alreadyJoined(s participantRecord) Joined {
 	return Joined{Reason: "already-participating", Detail: "participant " + s.ID + " is already " + s.State + " (use it as it is)"}
 }
 
@@ -249,7 +245,7 @@ func (h *Hub) performAs(action string, args map[string]any) (Performed, error) {
 	return h.Perform(Perform{Action: action, Args: b, By: "ai"})
 }
 
-// noteSession は参加者 id の帳簿にセッション id を書く（空なら何もしない）
+// noteSession は参加者 id の常駐だけが持つ参加者の記録にセッション id を書く（空なら何もしない）
 func (h *Hub) noteSession(id, sessionID string) {
 	if sessionID == "" {
 		return
@@ -261,16 +257,16 @@ func (h *Hub) noteSession(id, sessionID string) {
 	h.participantNotes[id] = n
 }
 
-// settleNotes は参加者の表に無い参加者の帳簿を捨て、帳簿を置き場所に書く
+// settleNotes は参加者の表に無い常駐だけが持つ参加者の記録を捨て、常駐だけが持つ参加者の記録を置き場所に書く
 func (h *Hub) settleNotes() error {
-	seats, err := h.seats()
+	records, err := h.records()
 	if err != nil {
 		return err
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	known := map[string]bool{}
-	for _, s := range seats {
+	for _, s := range records {
 		known[s.ID] = true
 	}
 	for id := range h.participantNotes {
@@ -297,20 +293,20 @@ func (h *Hub) ParticipantCalls() map[string]string {
 	return out
 }
 
-// Called は、参加の id が付いた /api/ai の呼び出しを帳簿に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
+// Called は、参加の id が付いた /api/ai の呼び出しを常駐だけが持つ参加者の記録に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
 // 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。表に無い id（断られたか、外された）には、1 度だけ「参加が断られた」知らせを返す。
 // id が空なら何もしない。最後に呼ばれた時刻は、前に知らせてから callsAnnounceGap 以上たっていたときだけ窓に知らせる
 func (h *Hub) Called(id string, now time.Time) string {
 	if id == "" {
 		return ""
 	}
-	seats, err := h.seats()
+	records, err := h.records()
 	if err != nil {
 		return ""
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for _, s := range seats {
+	for _, s := range records {
 		if s.ID != id {
 			continue
 		}
@@ -343,7 +339,7 @@ func (h *Hub) Called(id string, now time.Time) string {
 	return "The user declined your request to join matomezu (or removed you). Tell the user, and do not ask again unless the user asks."
 }
 
-// ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、参加の id のヘッダを読んで帳簿を更新し、知らせがあれば返事のヘッダに付ける
+// ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、参加の id のヘッダを読んで常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける
 func (o Options) ai(h http.HandlerFunc) http.Handler {
 	return o.auth(func(w http.ResponseWriter, r *http.Request) {
 		if notice := o.Hub.Called(r.Header.Get(ParticipantHeader), time.Now()); notice != "" {

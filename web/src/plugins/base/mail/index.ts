@@ -4,8 +4,9 @@
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Mail, Mailbox } from "../../../core/mail"
-import { declineProjects, isProject } from "../../../core/project"
+import { isProject } from "../../../core/project"
 import { kit } from "../kit"
+import { declineProjects } from "../project-refusal"
 
 const LetterSchema = z.strictObject({
   title: z.string().trim().min(1).max(80), // 題（一覧・しおり・ダイアログの見出し）

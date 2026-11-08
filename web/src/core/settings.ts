@@ -50,10 +50,22 @@ export function keyChangesOf(catalog: CoreCatalog, settings: Settings): KeyChang
   return parsed.success ? parsed.data : NO_KEY_CHANGES
 }
 
-// 参加者が「生きている」とする長さ（ミリ秒）: role が participant-alive の項目の値（分の数）。項目が無いか数でなければ 0（誰も生きていない）
+// 参加者が「生きている」とする長さ（ミリ秒）: role が participant-alive の項目の値（分の数。形に合わない値は項目の既定）。項目が無いか数でなければ 0（誰も生きていない）
 export function participantAliveMs(catalog: CoreCatalog, settings: Settings): number {
   const minutes = Number(byRole(catalog, settings, "participant-alive"))
   return Number.isFinite(minutes) && minutes > 0 ? minutes * 60_000 : 0
+}
+
+// 参加者が時点 nowMs で生きているか: 最後に呼ばれた時刻 calledAt（無ければ呼ばれていない）から、有効時間の設定以内。画面もホスト（エンジン経由）もこれで決める
+export function isParticipantAlive(
+  catalog: CoreCatalog,
+  settings: Settings,
+  calledAt: string | undefined,
+  nowMs: number,
+): boolean {
+  if (!calledAt) return false
+  const at = Date.parse(calledAt)
+  return !Number.isNaN(at) && nowMs - at < participantAliveMs(catalog, settings)
 }
 
 // AI に見せる設定: 機能台帳にある、利用者だけが変える項目でない項目の値（値が無いか形に合わなければ既定。既定も無ければ出さない）

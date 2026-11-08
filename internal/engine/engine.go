@@ -78,7 +78,7 @@ type Engine struct {
 	talk      func() string
 	join      func() string
 	projects  func() string
-	aliveMs   func(string) float64
+	alive     func(string, string, float64) bool
 	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
 	mails     func(string) string
@@ -133,8 +133,8 @@ func New() (*Engine, error) {
 	if err := vm.ExportTo(vm.Get("matomezuJoinActions"), &e.join); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuJoinActions: %w", err)
 	}
-	if err := vm.ExportTo(vm.Get("matomezuParticipantAliveMs"), &e.aliveMs); err != nil {
-		return nil, fmt.Errorf("engine.js has no matomezuParticipantAliveMs: %w", err)
+	if err := vm.ExportTo(vm.Get("matomezuParticipantAlive"), &e.alive); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuParticipantAlive: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuJoinedText"), &e.joinedMsg); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuJoinedText: %w", err)
@@ -371,8 +371,8 @@ func (e *Engine) JoinedText(settings json.RawMessage, workroom string) (text str
 	return e.joinedMsg(string(settings), workroom), nil
 }
 
-// ParticipantAlive は、参加者が「生きている」とする長さ（利用者の設定 settings で決まる）
-func (e *Engine) ParticipantAlive(settings json.RawMessage) (alive time.Duration, err error) {
+// ParticipantAlive は、参加者が時点 now で生きているか（最後に呼ばれた時刻 calledAt は RFC 3339 の文字。空なら呼ばれていない。利用者の設定 settings の参加の有効時間で決まる）
+func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now time.Time) (alive bool, err error) {
 	if len(settings) == 0 {
 		settings = json.RawMessage("null")
 	}
@@ -383,7 +383,7 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage) (alive time.Duration
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	return time.Duration(e.aliveMs(string(settings)) * float64(time.Millisecond)), nil
+	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
 }
 
 // Project はプロジェクトの表の 1 行

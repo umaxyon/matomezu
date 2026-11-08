@@ -127,6 +127,7 @@ export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
 export type { PageProblem } from "./page-tabs/page-problems"
 export { nextPageTitle } from "./page-tabs/pages"
+export { JOINED_MESSAGE } from "./participant"
 export { type AiPlaced, aiPlacedOf, itemAiPlaced } from "./place/ai-placed"
 export type { Frame } from "./place/frame"
 export {

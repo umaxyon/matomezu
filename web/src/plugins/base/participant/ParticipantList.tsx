@@ -2,24 +2,23 @@
 // 生きているのは、最後に呼ばれてから参加の有効時間（利用者の設定）以内。保留中の参加要求は出さない（郵便で扱う）
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
-import { isAlive } from "./alive"
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird } from "./birds"
-import { useAliveChoice, useNowMs, useParticipantCalls, useParticipants } from "./hooks"
+import { useIsAlive, useNowMs, useParticipantCalls, useParticipants } from "./hooks"
 import styles from "./Participant.module.css"
 
 export function ParticipantList() {
   const t = useMessages(kit)
   const joined = useParticipants().filter(p => p.state === "joined")
   const calls = useParticipantCalls()
-  const choice = useAliveChoice()
+  const isAlive = useIsAlive()
   const nowMs = useNowMs()
   if (joined.length === 0) return <p className={styles.empty}>{t("No participants")}</p>
   return (
     <ul className={styles.list}>
       {joined.map(p => {
         const bird = asBird(p.bird)
-        const alive = isAlive(calls[p.id], nowMs, choice)
+        const alive = isAlive(calls[p.id], nowMs)
         return (
           <li key={p.id} className={styles.row} data-participant={p.id}>
             {bird && <BirdFaceView bird={bird} {...(p.palette ? { palette: p.palette } : {})} size={32} />}

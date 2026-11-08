@@ -4,10 +4,10 @@
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Participant, Participants } from "../../../core/participant"
-import { declineProjects, unknownProjects } from "../../../core/project"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTES } from "../birds/colors"
 import { kit } from "../kit"
+import { declineProjects, unknownProjects } from "../project-refusal"
 
 // 参加者の表に残す、いちばん多い数。超えたら、受け入れていない要求のうち古い物から消す（受け入れていない要求が無ければ、要求を断る）
 export const PARTICIPANTS_LIMIT = 100
@@ -30,6 +30,9 @@ function withinLimit(participants: Participants, added: Participant): Participan
   }
   return over > 0 ? null : [...participants.filter(p => !drop.has(p.id)), added]
 }
+
+// 参加を利用者に伝える文の鍵（常駐が話しかけのフックで使う）
+export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name}")
 
 export const PARTICIPANT_REQUEST = kit.defineAction({
   id: "participant-request",

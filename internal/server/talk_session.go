@@ -2,7 +2,7 @@ package server
 
 // 話しかけと会話のセッションの結びつけ: AI が join の link に渡した使い捨ての uuid は、AI の会話の記録に残る。
 // 話しかけのフックが、記録から拾った uuid の形の文字列を常駐に送ると、link が合う参加者にセッション id を結ぶ（Codex など、MCP の呼び出しがセッション id を運ぶ AI は、join のときに結ばれている）。
-// 結ばれたセッションに受け入れ済みで「参加しました」をまだ伝えていない参加者がいれば、フックが利用者に見える形で伝える（伝えたと帳簿に印を付けるので、MCP の返事に添える知らせとは二重にならない）。
+// 結ばれたセッションに受け入れ済みで「参加しました」をまだ伝えていない参加者がいれば、フックが利用者に見える形で伝える（伝えたと常駐だけが持つ参加者の記録に印を付けるので、MCP の返事に添える知らせとは二重にならない）。
 //
 //	POST /api/ai/talked  {"sessionId", "candidates"}
 //	  candidates が無い: 利用者が話しかけた。話しかけたときに行うアクションを行い、{"welcomes", "unbound"} を返す
@@ -49,11 +49,11 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 	if sessionID == "" {
 		return SessionTalk{Welcomes: []Welcome{}}, nil
 	}
-	seats, err := h.seats()
+	records, err := h.records()
 	if err != nil {
 		return SessionTalk{}, err
 	}
-	sitting := func(s seat) bool { return s.State == "requested" || s.State == "joined" }
+	sitting := func(s participantRecord) bool { return s.State == "requested" || s.State == "joined" }
 	if len(candidates) > candidatesMax {
 		candidates = candidates[:candidatesMax]
 	}
@@ -66,7 +66,7 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 	bound := false
 	var told []Welcome
 	var toldIDs []string
-	for _, s := range seats {
+	for _, s := range records {
 		n := h.participantNotes[s.ID]
 		if sitting(s) && n.SessionID == "" && heard[strings.ToLower(s.Link)] {
 			n.SessionID = sessionID
@@ -86,7 +86,7 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 	}
 	unbound := false
 	if !bound {
-		for _, s := range seats {
+		for _, s := range records {
 			if sitting(s) && h.participantNotes[s.ID].SessionID == "" {
 				unbound = true
 			}

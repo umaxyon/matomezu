@@ -125,7 +125,7 @@ func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
 	}
 }
 
-// 参加の id の付いた呼び出しは帳簿の最後に呼ばれた時刻を更新し（残さない）、参加（joined）の知らせは 1 度だけ返す（起動し直しても繰り返さない）
+// 参加の id の付いた呼び出しは常駐だけが持つ参加者の記録の最後に呼ばれた時刻を更新し（残さない）、参加（joined）の知らせは 1 度だけ返す（起動し直しても繰り返さない）
 func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	store := joinStore(t)
 	s, hub := joinWorld(t, store)

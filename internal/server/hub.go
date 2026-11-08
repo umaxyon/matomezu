@@ -76,7 +76,7 @@ type Hub struct {
 	annotations      map[string]json.RawMessage // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
 	mailbox          json.RawMessage            // 利用者の郵便箱（郵便の並び。無ければ nil）
 	participants     json.RawMessage            // 利用者の参加者の表（参加者の並び。無ければ nil）
-	participantNotes map[string]participantNote // 参加者の id → 帳簿（join.go）
+	participantNotes map[string]participantNote // 参加者の id → 常駐だけが持つ参加者の記録（join.go）
 	joinMu           sync.Mutex                 // 参加の頼みを 1 つずつ受ける（join.go）
 	goneTold         map[string]bool            // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
 	clients          map[string]*client

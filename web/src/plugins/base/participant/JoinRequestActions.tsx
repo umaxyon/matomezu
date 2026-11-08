@@ -3,11 +3,12 @@
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
+import { BIRD_IDS } from "../birds"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { MailActionsProps } from "../mail/slots"
 import { refusalMessage } from "../utils/refusal"
-import { PARTICIPANT_DECLINE, PARTICIPANT_TAKE_OVER } from "."
+import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE, PARTICIPANT_TAKE_OVER } from "."
 import { PARTICIPANT_JOIN_DIALOG } from "./dialogs"
 
 export function JoinRequestActions({ stage, mail, onClose }: MailActionsProps) {
@@ -18,6 +19,8 @@ export function JoinRequestActions({ stage, mail, onClose }: MailActionsProps) {
   const requested = useMatomezuState(s => s.participants.some(p => p.id === id && p.state === "requested"))
   const takeover = useMatomezuState(s => s.participants.some(p => p.id === id && p.takeover !== undefined))
   const canDecline = useAllowedOn(PARTICIPANT_DECLINE.id, { participant: id }).ok
+  // 受け入れるダイアログを開く前に、受け入れが行えるかを聞く（名前と鳥は試しの値）
+  const canAccept = useAllowedOn(PARTICIPANT_ACCEPT.id, { participant: id, workroom: "-", bird: BIRD_IDS[0] }).ok
   const canTakeOver = useAllowedOn(PARTICIPANT_TAKE_OVER.id, { participant: id }).ok
   if (!requested) return null
   const decline = () => {
@@ -43,7 +46,11 @@ export function JoinRequestActions({ stage, mail, onClose }: MailActionsProps) {
           {t("Accept")}
         </ActionButton>
       ) : (
-        <ActionButton primary onClick={() => openDialog(stage, PARTICIPANT_JOIN_DIALOG.id, { participant: id })}>
+        <ActionButton
+          primary
+          onClick={() => openDialog(stage, PARTICIPANT_JOIN_DIALOG.id, { participant: id })}
+          disabled={!canAccept}
+        >
           {t("Accept")}
         </ActionButton>
       )}
