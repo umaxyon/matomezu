@@ -147,9 +147,22 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	} else if req.Workroom != "" {
 		args["workroom"] = req.Workroom
 	}
-	made, err := h.performAs(ids.Participant, args)
-	if err != nil || !made.OK {
-		return refused(made), err
+	var made Performed
+	if takeover != "" {
+		// 引き継ぎの要求は、生きていないと確かめたここ（ホスト）だけが、利用者として行う（AI には見せない）
+		b, err := json.Marshal(args)
+		if err != nil {
+			return Joined{}, err
+		}
+		made, err = h.Perform(Perform{Action: ids.Takeover, Args: b})
+		if err != nil || !made.OK {
+			return refused(made), err
+		}
+	} else {
+		var err error
+		if made, err = h.performAs(ids.Participant, args); err != nil || !made.OK {
+			return refused(made), err
+		}
 	}
 	var result struct {
 		Participant string `json:"participant"`

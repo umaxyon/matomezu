@@ -9,10 +9,7 @@ package server
 //	  candidates が有る: 記録から拾った uuid の形の文字列。行うアクションは行わず、link が合う参加者にセッション id を結んで、同じ形を返す
 //	welcomes は、そのセッションの、受け入れ済みで伝えていない参加者（伝えたと印を付けて返す）。unbound は、そのセッションが誰にも結ばれておらず、結ばれていない参加者がいる（記録を調べる値打ちがある）
 
-import (
-	"encoding/json"
-	"strings"
-)
+import "strings"
 
 // Welcome は、フックが利用者に伝える「参加しました」の 1 人分
 type Welcome struct {
@@ -36,17 +33,14 @@ func joinedText(workroom string) string {
 	return "You joined matomezu. Workroom name: " + workroom
 }
 
-// userJoinedText は、利用者の言語に合わせた、参加を伝える文
+// userJoinedText は、利用者の言語に合わせた、参加を伝える文（エンジンが作る）
 func (h *Hub) userJoinedText(workroom string) string {
-	if settings, err := h.AISettings(); err == nil {
-		var s map[string]any
-		if json.Unmarshal(settings, &s) == nil {
-			if lang, _ := s["@matomezu/base:lang"].(string); strings.HasSuffix(lang, ":ja") {
-				return "matomezu に参加しました。ワークルーム名: " + workroom
-			}
-		}
+	_, settings, _ := h.Data()
+	text, err := h.engine.JoinedText(settings, workroom)
+	if err != nil {
+		return joinedText(workroom)
 	}
-	return "Joined matomezu. Workroom name: " + workroom
+	return text
 }
 
 // TalkedBy は、セッション sessionID の話しかけについての答え。candidates があれば、先に link が合う参加者にセッション id を結ぶ。

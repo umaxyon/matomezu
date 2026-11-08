@@ -34,7 +34,7 @@ function withinLimit(participants: Participants, added: Participant): Participan
 export const PARTICIPANT_REQUEST = kit.defineAction({
   id: "participant-request",
   aiDescription:
-    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) and projects (the ids of the projects to join, one or more) are required; sessionName (the name of the original session) is optional; workroom (a workroom name to start with) and takeover (the id of a joined participant whose workroom this one takes over) are optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again adds the projects it does not have yet and returns the same participant. Returns the participant's id.",
+    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) and projects (the ids of the projects to join, one or more) are required; sessionName (the name of the original session) is optional; workroom (a workroom name to start with) is optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again adds the projects it does not have yet and returns the same participant. Returns the participant's id.",
   title: "Request to participate",
   target: "participants",
   runsWhenAIJoins: "make-participant",
@@ -46,13 +46,10 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     link: z.string().trim().min(1).max(80),
     projects: z.array(z.string().min(1)).min(1),
     workroom: z.string().trim().min(1).max(40).optional(),
-    takeover: z.string().min(1).optional(),
   }),
   run: (participants, args, ctx) => {
     const unknown = unknownProjects(args.projects)
     if (unknown.length > 0) return declineProjects(unknown)
-    if (args.takeover && !participants.some(p => p.id === args.takeover && p.state === "joined"))
-      return { declined: "there is no joined participant to take over" }
     const projects = [...new Set(args.projects)]
     const same = participants.find(p => p.link === args.link)
     if (same) {
@@ -75,7 +72,54 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
       link: args.link,
       projects,
       ...(args.workroom ? { workroom: args.workroom } : {}),
-      ...(args.takeover ? { takeover: args.takeover } : {}),
+      requestedAt: ctx.now,
+    }
+    const next = withinLimit(participants, requested)
+    return next
+      ? { next, result: { participant: id } }
+      : { declined: "the participants table is full of accepted participants" }
+  },
+})
+
+// 引き継ぎの要求: ホストが MCP の join で、名前の参加者が生きていないと確かめてから、利用者として行う（AI には見せない。確かめを通らずに作れない）
+export const PARTICIPANT_REQUEST_TAKEOVER = kit.defineAction({
+  id: "participant-request-takeover",
+  aiDescription:
+    "Ask to take over the workroom of a joined participant (done by the host for join, only as the user). Same arguments as participant-request without workroom, and takeover (the joined participant's id). Returns the new participant's id.",
+  title: "Request a takeover",
+  target: "participants",
+  userOnly: true,
+  runsWhenAIJoins: "make-takeover",
+  args: z.strictObject({
+    ai: z.string().trim().min(1).max(40),
+    model: z.string().trim().min(1).max(80),
+    env: z.string().trim().min(1).max(80),
+    sessionName: z.string().trim().max(120).optional(),
+    link: z.string().trim().min(1).max(80),
+    projects: z.array(z.string().min(1)).min(1),
+    takeover: z.string().min(1),
+  }),
+  run: (participants, args, ctx) => {
+    const unknown = unknownProjects(args.projects)
+    if (unknown.length > 0) return declineProjects(unknown)
+    if (!participants.some(p => p.id === args.takeover && p.state === "joined"))
+      return { declined: "there is no joined participant to take over" }
+    const same = participants.find(p => p.link === args.link)
+    if (same) return { next: participants, result: { participant: same.id } }
+    const id = freshId(
+      ctx.newId,
+      participants.map(p => p.id),
+    )
+    const requested: Participant = {
+      id,
+      state: "requested",
+      ai: args.ai,
+      model: args.model,
+      env: args.env,
+      sessionName: args.sessionName ?? "",
+      link: args.link,
+      projects: [...new Set(args.projects)],
+      takeover: args.takeover,
       requestedAt: ctx.now,
     }
     const next = withinLimit(participants, requested)

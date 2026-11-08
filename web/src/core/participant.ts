@@ -37,10 +37,11 @@ export function participantsSettle(before: Participants, after: Participants): b
 }
 
 // AI が参加を頼むときに行うアクション（アクションの定義が runsWhenAIJoins で名乗る物）の id。役が揃っていなければ null
-export function joinActions(catalog: CoreCatalog): { participant: string; notice: string } | null {
+export function joinActions(catalog: CoreCatalog): { participant: string; takeover: string; notice: string } | null {
   const roles = new Map<string, string>()
   for (const a of catalog.actions.values()) if (a.runsWhenAIJoins) roles.set(a.runsWhenAIJoins, a.id)
   const participant = roles.get("make-participant")
+  const takeover = roles.get("make-takeover")
   const notice = roles.get("notify-user")
-  return participant && notice ? { participant, notice } : null
+  return participant && takeover && notice ? { participant, takeover, notice } : null
 }

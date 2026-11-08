@@ -439,3 +439,22 @@ func TestJoinWithAWorkroomOfAQuietParticipantAsksToTakeOver(t *testing.T) {
 		t.Fatalf("after a long quiet = %s", again)
 	}
 }
+
+// 引き継ぎの要求は AI の perform からは行えない(確かめを通る join だけが作る)。参加を伝える文は、利用者の言語の文言の表から作る
+func TestTakeoverRequestIsNotForAIAndJoinedTextComesFromTheMessageTable(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	body := `{"action":"@matomezu/base:participant-request-takeover","args":{"ai":"a","model":"m","env":"e","link":"L9","projects":["default"],"takeover":"x"}}`
+	if out, _ := call(t, "POST", s.URL+"/api/ai/perform", body, nil); !strings.Contains(out, `"ok":false`) {
+		t.Fatalf("perform = %s", out)
+	}
+	if rows, _ := table(t, s.URL); len(rows) != 0 {
+		t.Fatalf("participants = %+v", rows)
+	}
+	if got := hub.userJoinedText("ひよこ"); got != "Joined matomezu. Workroom name: ひよこ" {
+		t.Fatalf("en = %q", got)
+	}
+	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:lang":"matomezu:ja"}},"lang":"ja"}`, nil)
+	if got := hub.userJoinedText("ひよこ"); got != "matomezu に参加しました。ワークルーム名: ひよこ" {
+		t.Fatalf("ja = %q", got)
+	}
+}

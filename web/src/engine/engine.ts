@@ -322,6 +322,18 @@ function aiCatalog(of: Assembled = assembled) {
 ;(globalThis as { matomezuParticipantAliveMs?: (settings: string) => number }).matomezuParticipantAliveMs = settings =>
   participantAliveMs(assembled.catalog.core, restoreSettings(JSON.parse(settings)))
 
+// 参加を利用者に伝える文（利用者の言語。常駐が、話しかけのフックの systemMessage に使う）
+;(globalThis as { matomezuJoinedText?: (settings: string, workroom: string) => string }).matomezuJoinedText = (
+  settings,
+  workroom,
+) =>
+  translate(
+    assembled.catalog.core.messages,
+    langOf(assembled.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
+    "@matomezu/base:Joined matomezu. Workroom name: {name}" as never,
+    { name: workroom },
+  )
+
 // プロジェクトの表（core/project.ts）。常駐が、AI の口で指されたプロジェクトが表にあるかを確かめるのに読む
 ;(globalThis as { matomezuProjects?: () => string }).matomezuProjects = () => JSON.stringify(PROJECTS)
 

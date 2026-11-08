@@ -79,6 +79,7 @@ type Engine struct {
 	join      func() string
 	projects  func() string
 	aliveMs   func(string) float64
+	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
 	mails     func(string) string
 	forAI     func(string) string
@@ -134,6 +135,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuParticipantAliveMs"), &e.aliveMs); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuParticipantAliveMs: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuJoinedText"), &e.joinedMsg); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuJoinedText: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuProjects"), &e.projects); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuProjects: %w", err)
@@ -335,6 +339,7 @@ func (e *Engine) TalkActions() (ids []string, err error) {
 // JoinActions は、AI が参加を頼むときに行うアクションの id（参加者を作る Participant と、利用者に知らせる Notice）
 type JoinActions struct {
 	Participant string `json:"participant"`
+	Takeover    string `json:"takeover"`
 	Notice      string `json:"notice"`
 }
 
@@ -349,6 +354,21 @@ func (e *Engine) JoinActions() (ids *JoinActions, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.join()), &ids)
 	return ids, err
+}
+
+// JoinedText は、参加を利用者に伝える文（利用者の設定 settings の言語）
+func (e *Engine) JoinedText(settings json.RawMessage, workroom string) (text string, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.joinedMsg(string(settings), workroom), nil
 }
 
 // ParticipantAlive は、参加者が「生きている」とする長さ（利用者の設定 settings で決まる）
