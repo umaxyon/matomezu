@@ -13,7 +13,7 @@ const ACCEPT = "@matomezu/base:participant-accept"
 const DECLINE = "@matomezu/base:participant-decline"
 const JOIN_MAIL = "@matomezu/base:mail-join-request"
 
-const WHO = { ai: "claude", model: "opus", env: "wsl", sessionName: "D92", link: "L1" }
+const WHO = { ai: "claude", model: "opus", env: "wsl", sessionName: "D92", link: "L1", projects: ["default"] }
 
 function ready() {
   const store = newStore()
@@ -36,12 +36,13 @@ test("要求すると、受け入れていない参加者が表の末尾に足�
       env: "wsl",
       sessionName: "D92",
       link: "L1",
+      projects: ["default"],
       workroom: "引き継ぎ",
       requestedAt: expect.any(String),
     },
   ])
   // セッション名は省いてよい（空になる）
-  expect(request({ ai: "codex", model: "m", env: "mac", link: "L2" }).ok).toBe(true)
+  expect(request({ ai: "codex", model: "m", env: "mac", link: "L2", projects: ["default"] }).ok).toBe(true)
   expect(people()[1]).toMatchObject({ sessionName: "" })
   // 合言葉が空なら要求しない
   expect(request({ ...WHO, link: " " }).ok).toBe(false)
@@ -149,7 +150,15 @@ test("表は 100 人まで。超えたら受け入れていない要求の古い
 
 test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・model・env・セッション名を持つ。同じ参加者なら増えない", () => {
   const { store, perform } = ready()
-  const args = { from: "claude", participant: "p1", ai: "claude", model: "opus", env: "wsl", sessionName: "D92" }
+  const args = {
+    from: "claude",
+    participant: "p1",
+    ai: "claude",
+    model: "opus",
+    env: "wsl",
+    sessionName: "D92",
+    projects: ["default"],
+  }
   const done = perform(JOIN_MAIL, args) as { ok: boolean; result: { mail: string } }
   expect(done.ok).toBe(true)
   const mails = (): readonly Mail[] => store.state.getState().mailbox
@@ -157,9 +166,10 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
     {
       id: done.result.mail,
       mail: "@matomezu/base:join-request",
+      project: "default",
       from: "claude",
       sentAt: expect.any(String),
-      props: { participant: "p1", ai: "claude", model: "opus", env: "wsl", sessionName: "D92" },
+      props: { participant: "p1", ai: "claude", model: "opus", env: "wsl", sessionName: "D92", projects: ["default"] },
     },
   ])
   const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)

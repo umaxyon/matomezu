@@ -31,6 +31,7 @@ const book = {
   type: "@matomezu/drawing:drawing" as const,
   id: "b1",
   title: "見本",
+  project: "default",
   pages: [
     { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
     { id: "p2", title: "ページ 2", paper: "@matomezu/base:a5", orientation: "portrait" as const },

@@ -205,7 +205,12 @@ describe("アクションを行う", () => {
   test("名前が空のページとブックは断る", () => {
     expect(perform(book, "@matomezu/base:page-add", { title: "  " }, ctx)).toEqual({ ok: false, reason: "bad-args" })
     expect(
-      perform(library, "@matomezu/base:book-create", { title: "", type: "@matomezu/drawing:drawing" }, ctx),
+      perform(
+        library,
+        "@matomezu/base:book-create",
+        { title: "", project: "default", type: "@matomezu/drawing:drawing" },
+        ctx,
+      ),
     ).toEqual({
       ok: false,
       reason: "bad-args",
@@ -216,7 +221,7 @@ describe("アクションを行う", () => {
     const done = perform(
       library,
       "@matomezu/base:book-create",
-      { title: "新しい図", type: "@matomezu/drawing:drawing" },
+      { title: "新しい図", project: "default", type: "@matomezu/drawing:drawing" },
       ctx,
     )
     expect(done).toMatchObject({ ok: true, result: { book: "new" } })
@@ -224,10 +229,16 @@ describe("アクションを行う", () => {
       type: "@matomezu/drawing:drawing",
       id: "new",
       title: "新しい図",
+      project: "default",
       pages: [],
     })
     const again = done.ok
-      ? perform(done.next, "@matomezu/base:book-create", { title: "もう一つ", type: "@matomezu/drawing:drawing" }, ctx)
+      ? perform(
+          done.next,
+          "@matomezu/base:book-create",
+          { title: "もう一つ", project: "default", type: "@matomezu/drawing:drawing" },
+          ctx,
+        )
       : null
     expect(again).toEqual({ ok: false, reason: "refused" })
   })
@@ -238,7 +249,7 @@ describe("アクションを行う", () => {
       perform(
         { [book.id]: book },
         "@matomezu/base:book-create",
-        { title: "x", type: "@matomezu/drawing:drawing" },
+        { title: "x", project: "default", type: "@matomezu/drawing:drawing" },
         homeless,
       ),
     ).toEqual({
@@ -272,7 +283,7 @@ describe("アクションを行う", () => {
       perform(
         {},
         "@matomezu/base:book-create",
-        { title: "x", type: "@matomezu/drawing:drawing" },
+        { title: "x", project: "default", type: "@matomezu/drawing:drawing" },
         { ...ctx, catalog: narrow },
       ),
     ).toEqual({ ok: false, reason: "not-allowed" })
@@ -330,7 +341,7 @@ describe("機能台帳ごとに別の世界", () => {
     const made = perform(
       library,
       "@matomezu/base:book-create",
-      { title: "メモ", type: "notes" as never },
+      { title: "メモ", project: "default", type: "notes" as never },
       {
         catalog: catalog,
         controlCenter: "@matomezu/control-center:control-center",
@@ -345,7 +356,7 @@ describe("機能台帳ごとに別の世界", () => {
     const refused = perform(
       library,
       "@matomezu/base:book-create",
-      { title: "メモ", type: "notes" as never },
+      { title: "メモ", project: "default", type: "notes" as never },
       {
         catalog: CORE_CATALOG,
         controlCenter: "@matomezu/control-center:control-center",

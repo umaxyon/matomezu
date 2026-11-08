@@ -27,6 +27,7 @@ const book = (pages: unknown[], extra: object = {}) => ({
   type: "@matomezu/drawing:drawing",
   id: "b1",
   title: "T",
+  project: "default",
   pages,
   ...extra,
 })
@@ -54,11 +55,11 @@ describe("組み立てたブックの形", () => {
     ).toHaveLength(1)
   })
 
-  test("保存したデータのフィールドの並び: タイプの頭のフィールド（type・id・title）・ページ・設定の項目・タイプのほかのフィールド", () => {
+  test("保存したデータのフィールドの並び: タイプの頭のフィールド（type・id・title・project）・ページ・設定の項目・タイプのほかのフィールド", () => {
     const [restored] = restoreBooks(CORE_CATALOG, [
       { ...book([page([])]), settings: { "@matomezu/line:line-route": "straight" } },
     ])
-    expect(Object.keys(restored!)).toEqual(["type", "id", "title", "pages", "settings"])
+    expect(Object.keys(restored!)).toEqual(["type", "id", "title", "project", "pages", "settings"])
     expect(Object.keys((restored as BookOf<"@matomezu/drawing:drawing">).pages[0]!)).toEqual([
       "id",
       "title",

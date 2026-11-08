@@ -231,7 +231,11 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
     })
     let book = ""
     act(() => {
-      const made = store.actions.perform("@matomezu/base:book-create", { title: "木", type: "@matomezu/tree:tree" })
+      const made = store.actions.perform("@matomezu/base:book-create", {
+        title: "木",
+        project: "default",
+        type: "@matomezu/tree:tree",
+      })
       book = (made as { result: { book: string } }).result.book
       store.actions.perform(
         "@matomezu/base:page-add",
@@ -890,12 +894,14 @@ test("book-create は、タイプが選んだブックの設定の項目を受�
   act(() => {
     const ok = store.actions.perform("@matomezu/base:book-create", {
       title: "左の木",
+      project: "default",
       type: "@matomezu/tree:tree",
       settings: { "@matomezu/tree:grow": "left" },
     })
     expect(ok.ok).toBe(true)
     const bad = store.actions.perform("@matomezu/base:book-create", {
       title: "変な木",
+      project: "default",
       type: "@matomezu/tree:tree",
       settings: { "@matomezu/tree:grow": "sideways" },
     })
@@ -903,6 +909,7 @@ test("book-create は、タイプが選んだブックの設定の項目を受�
     // 確かめと整え方は book-update と同じ（表に無いテーマは断る）
     const theme = store.actions.perform("@matomezu/base:book-create", {
       title: "テーマの無い木",
+      project: "default",
       type: "@matomezu/tree:tree",
       settings: { "@matomezu/base:book-theme": "no-such-theme" },
     })

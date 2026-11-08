@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Mail } from "../../../core/mail"
+import { DEFAULT_PROJECT, declineProjects, unknownProjects } from "../../../core/project"
 import { kit } from "../kit"
 import { withinLimit } from "."
 
@@ -12,6 +13,7 @@ const JoinRequestSchema = z.strictObject({
   model: z.string(),
   env: z.string(),
   sessionName: z.string(), // 空でもよい
+  projects: z.array(z.string().min(1)).min(1), // 参加を求めたプロジェクトの id
 })
 export type JoinRequestProps = z.output<typeof JoinRequestSchema>
 
@@ -19,7 +21,7 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
   id: "join-request",
   title: "Mail join request",
   aiDescription:
-    "A notice that an AI agent asked to join the workroom (a participant request). The user accepts or declines it on the screen. props: the participant's id, ai, model, env and sessionName.",
+    "A notice that an AI agent asked to join the workroom (a participant request). The user accepts or declines it on the screen. props: the participant's id, ai, model, env, sessionName and projects.",
   props: JoinRequestSchema,
   shown: {
     title: (_: JoinRequestProps, t) => t(kit.message("A join request arrived from an AI agent")),
@@ -36,7 +38,7 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
 export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
   id: "mail-join-request",
   aiDescription:
-    "Tell the user's mailbox that a participant asked to join (done after participant-request; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env and sessionName (optional) are the participant's. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
+    "Tell the user's mailbox that a participant asked to join (done after participant-request; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env, sessionName (optional) and projects are the participant's. The letter belongs to the first of the projects. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
   title: "Send a join request",
   target: "mailbox",
   runsWhenAIJoins: "notify-user",
@@ -47,8 +49,11 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
     model: z.string().trim().min(1).max(80),
     env: z.string().trim().min(1).max(80),
     sessionName: z.string().trim().max(120).optional(),
+    projects: z.array(z.string().min(1)).min(1),
   }),
   run: (mailbox, args, ctx) => {
+    const unknown = unknownProjects(args.projects)
+    if (unknown.length > 0) return declineProjects(unknown)
     const same = mailbox.find(
       m => m.mail === MAIL_JOIN_REQUEST.id && (m.props as JoinRequestProps).participant === args.participant,
     )
@@ -60,6 +65,7 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
     const notice: Mail = {
       id,
       mail: MAIL_JOIN_REQUEST.id,
+      project: args.projects[0] ?? DEFAULT_PROJECT,
       from: args.from,
       sentAt: ctx.now,
       props: {
@@ -68,6 +74,7 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
         model: args.model,
         env: args.env,
         sessionName: args.sessionName ?? "",
+        projects: args.projects,
       } satisfies JoinRequestProps,
     }
     return { next: withinLimit([...mailbox, notice]), result: { mail: id } }

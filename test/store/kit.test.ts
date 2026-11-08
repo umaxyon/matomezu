@@ -54,7 +54,12 @@ test("ブックのタイプは schema に type を書かず、データの type 
     presentation: "@matomezu/paper:paper",
     tokens: [],
   })
-  expect(many.create({ id: "b1", title: "T" }) as unknown).toEqual({ type: "@foo/stars:board", id: "b1", title: "T" })
+  expect(many.create({ id: "b1", title: "T", project: "default" }) as unknown).toEqual({
+    type: "@foo/stars:board",
+    id: "b1",
+    title: "T",
+    project: "default",
+  })
   expect(many.schema.parse({ type: "@foo/stars:board", id: "b1" }).type).toBe("@foo/stars:board")
 })
 

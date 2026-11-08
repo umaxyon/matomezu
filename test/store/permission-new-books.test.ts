@@ -38,7 +38,13 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   })
   const count = () => Object.keys(store.state.getState().books).length
   const was = count()
-  expect(store.actions.perform("@matomezu/base:book-create", { title: "木", type: "@matomezu/tree:tree" })).toEqual({
+  expect(
+    store.actions.perform("@matomezu/base:book-create", {
+      title: "木",
+      project: "default",
+      type: "@matomezu/tree:tree",
+    }),
+  ).toEqual({
     ok: false,
     reason: "denied",
     permission: "@ex/no-tree:no-tree",
@@ -46,7 +52,11 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   expect(count()).toBe(was)
   expect(seen).toEqual([{ before: undefined, added: true }])
   expect(
-    store.actions.perform("@matomezu/base:book-create", { title: "図", type: "@matomezu/drawing:drawing" }).ok,
+    store.actions.perform("@matomezu/base:book-create", {
+      title: "図",
+      project: "default",
+      type: "@matomezu/drawing:drawing",
+    }).ok,
   ).toBe(true)
   expect(count()).toBe(was + 1)
 })

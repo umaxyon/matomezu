@@ -73,7 +73,13 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
   expect(createBookIn({ state, actions }, "s2", { title: " ", type: "@matomezu/drawing:drawing" })).toBe(false)
   expect(createBookIn({ state, actions }, "s2", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
   const s = state.getState()
-  expect(s.books.made).toEqual({ type: "@matomezu/drawing:drawing", id: "made", title: "新しい図", pages: [] })
+  expect(s.books.made).toEqual({
+    type: "@matomezu/drawing:drawing",
+    id: "made",
+    title: "新しい図",
+    project: "default",
+    pages: [],
+  })
   expect(s.workspace.stages[1]!.opened).toEqual({
     type: "@matomezu/drawing:drawing",
     book: "made",

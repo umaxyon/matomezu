@@ -4,6 +4,7 @@
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Participant, Participants } from "../../../core/participant"
+import { declineProjects, unknownProjects } from "../../../core/project"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTES } from "../birds/colors"
 import { kit } from "../kit"
@@ -33,7 +34,7 @@ function withinLimit(participants: Participants, added: Participant): Participan
 export const PARTICIPANT_REQUEST = kit.defineAction({
   id: "participant-request",
   aiDescription:
-    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) are required; sessionName (the name of the original session) is optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again changes nothing and returns the same participant. Returns the participant's id.",
+    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) and projects (the ids of the projects to join, one or more) are required; sessionName (the name of the original session) is optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again adds the projects it does not have yet and returns the same participant. Returns the participant's id.",
   title: "Request to participate",
   target: "participants",
   runsWhenAIJoins: "make-participant",
@@ -43,11 +44,20 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     env: z.string().trim().min(1).max(80),
     sessionName: z.string().trim().max(120).optional(),
     link: z.string().trim().min(1).max(80),
+    projects: z.array(z.string().min(1)).min(1),
     workroom: z.string().trim().min(1).max(40).optional(),
   }),
   run: (participants, args, ctx) => {
+    const unknown = unknownProjects(args.projects)
+    if (unknown.length > 0) return declineProjects(unknown)
+    const projects = [...new Set(args.projects)]
     const same = participants.find(p => p.link === args.link)
-    if (same) return { next: participants, result: { participant: same.id } }
+    if (same) {
+      const added = projects.filter(id => !same.projects.includes(id))
+      if (added.length === 0) return { next: participants, result: { participant: same.id } }
+      const grown: Participant = { ...same, projects: [...same.projects, ...added] }
+      return { next: participants.map(p => (p === same ? grown : p)), result: { participant: same.id } }
+    }
     const id = freshId(
       ctx.newId,
       participants.map(p => p.id),
@@ -60,6 +70,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
       env: args.env,
       sessionName: args.sessionName ?? "",
       link: args.link,
+      projects,
       ...(args.workroom ? { workroom: args.workroom } : {}),
       requestedAt: ctx.now,
     }

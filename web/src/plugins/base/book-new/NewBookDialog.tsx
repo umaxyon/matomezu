@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { createBook } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
+import { DEFAULT_PROJECT } from "../../../core/project"
 import { worldOf } from "../../../store/world"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -95,7 +96,10 @@ function CreateSettingsInputs({
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   // 項目のビューに渡すブック（まだ作っていないので、そのタイプの空のブック）
-  const draft = useMemo(() => createBook(catalog, type, { id: "new", title: "" }), [catalog, type])
+  const draft = useMemo(
+    () => createBook(catalog, type, { id: "new", title: "", project: DEFAULT_PROJECT }),
+    [catalog, type],
+  )
   const settings = useSettingControls(draft, "book", null, asks)
   useEffect(() => onChange(settings.patch), [settings.patch, onChange])
   return <Section title={t("{type} settings", { type: t(bookType(catalog, type).title) })}>{settings.controls}</Section>

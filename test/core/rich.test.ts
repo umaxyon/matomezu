@@ -110,6 +110,7 @@ test("文字の色は定義の色を、テーマ、ブックの設定、見る�
     type: "@matomezu/drawing:drawing",
     id: "b",
     title: "",
+    project: "default",
     pages: [],
     settings: { "@matomezu/base:book-text-colors": { [W]: "#111111" } },
   } as unknown as Book

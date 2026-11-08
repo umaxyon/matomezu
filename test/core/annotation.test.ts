@@ -10,6 +10,7 @@ const book = {
   type: "@matomezu/drawing:drawing",
   id: "d",
   title: "D",
+  project: "default",
   pages: [
     {
       id: "p",

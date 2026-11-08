@@ -95,6 +95,7 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
     type: "@matomezu/drawing:drawing",
     id: "x",
     title: "x",
+    project: "default",
     pages: [
       {
         id: "p",
