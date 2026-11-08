@@ -11,7 +11,7 @@ model: opus
 
 ## 手順
 
-1. 最初に AGENT.md と、そこからたどる conventions/ の md、`.claude/shiteki-kaizen.md` を読む
+1. 最初に AGENT.md と、そこから規約としてたどる conventions/ の md（usecase.md は規約でない参考）、`.claude/shiteki-kaizen.md` を読む
 2. 呼んだ側が渡した案（または保留・仮の実装の一覧）を読み、要るだけコードを読む
 3. 下の考え方で、項目ごとに意見を決める
 
