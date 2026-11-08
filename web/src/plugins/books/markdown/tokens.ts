@@ -41,4 +41,16 @@ export const MARKDOWN_TOKENS = [
   { id: "markdown-code-radius", value: "4px", shades: "one" }, // コードの塊と文中のコードの角の丸み
   { id: "markdown-inline-code-size", value: "0.92em", shades: "one" }, // 文中のコードの字の大きさ
   { id: "markdown-inline-code-padding", value: "0.1em 0.3em", shades: "one" },
+  // コードの色（色の種類ごと）。既定は明るい紙の上の色だけ（標準のテーマの紙は暗い画面でも明るいため）。紙が明暗で変わるテーマは明暗の値で上書きする
+  { id: "markdown-code-color-comment", value: "#59636e" }, // コードの色: コメント
+  { id: "markdown-code-color-keyword", value: "#cf222e" }, // コードの色: キーワード
+  { id: "markdown-code-color-string", value: "#0a3069" }, // コードの色: 文字列・正規表現
+  { id: "markdown-code-color-constant", value: "#0550ae" }, // コードの色: 数・true などの決まった値
+  { id: "markdown-code-color-entity", value: "#6639ba" }, // コードの色: 関数・クラスの名前
+  { id: "markdown-code-color-type", value: "#953800" }, // コードの色: 型・組み込み
+  { id: "markdown-code-color-variable", value: "#0550ae" }, // コードの色: 属性・プロパティ・変数
+  { id: "markdown-code-color-tag", value: "#116329" }, // コードの色: HTML のタグ・セレクタ
+  { id: "markdown-code-color-meta", value: "#cf222e" }, // コードの色: #include などの前処理・デコレータ
+  { id: "markdown-code-color-added", value: "#116329" }, // コードの色: diff の足した行
+  { id: "markdown-code-color-removed", value: "#82071e" }, // コードの色: diff の消した行
 ] as const

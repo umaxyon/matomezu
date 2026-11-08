@@ -89,6 +89,40 @@
   font: inherit;
   white-space: pre-wrap;
 }
+/* コードの色（色の種類ごとのテーマキー）。色だけを変え、太字や斜体は付けない（字の幅が変わると、印刷で測る位置がずれるため） */
+.body [data-code-color="comment"] {
+  color: var(--markdown-code-color-comment);
+}
+.body [data-code-color="keyword"] {
+  color: var(--markdown-code-color-keyword);
+}
+.body [data-code-color="string"] {
+  color: var(--markdown-code-color-string);
+}
+.body [data-code-color="constant"] {
+  color: var(--markdown-code-color-constant);
+}
+.body [data-code-color="entity"] {
+  color: var(--markdown-code-color-entity);
+}
+.body [data-code-color="type"] {
+  color: var(--markdown-code-color-type);
+}
+.body [data-code-color="variable"] {
+  color: var(--markdown-code-color-variable);
+}
+.body [data-code-color="tag"] {
+  color: var(--markdown-code-color-tag);
+}
+.body [data-code-color="meta"] {
+  color: var(--markdown-code-color-meta);
+}
+.body [data-code-color="added"] {
+  color: var(--markdown-code-color-added);
+}
+.body [data-code-color="removed"] {
+  color: var(--markdown-code-color-removed);
+}
 .inlineCode {
   padding: var(--markdown-inline-code-padding);
   border-radius: var(--markdown-code-radius);

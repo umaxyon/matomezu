@@ -46,6 +46,7 @@ import type { CornerStatusProps } from "./utils/corner"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
+export { type CodeSpan, highlightCode } from "./code-highlight/highlight"
 export { ColorPicker, type Swatch } from "./dialog-host/ColorPicker"
 export { Confirm } from "./dialog-host/Confirm"
 export { Dialog } from "./dialog-host/Dialog"

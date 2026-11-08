@@ -196,11 +196,15 @@ test("マークダウンは、紙の高さでブロックの境目ごとに切�
   await page.keyboard.press("Escape")
   const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
   await field.click()
-  // 段落 60 個（A4 縦の 1 枚には入らない）
-  await page.keyboard.insertText(Array.from({ length: 60 }, (_, i) => `段落 ${i + 1}`).join("\n\n"))
+  // 色付けするコードの塊と、段落 60 個（A4 縦の 1 枚には入らない）
+  await page.keyboard.insertText(
+    `\`\`\`ts\nconst a = 1\n\`\`\`\n\n${Array.from({ length: 60 }, (_, i) => `段落 ${i + 1}`).join("\n\n")}`,
+  )
   await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("段落 60")
   await openPreview(page)
   await expect(async () => expect(await sheets(page).count()).toBeGreaterThan(1)).toPass()
+  // 印刷区画でもコードは色付けして描く
+  await expect(sheets(page).first().locator('[data-code-color="keyword"]')).toHaveText("const")
   // 1 枚目は原文の頭から、最後の紙は途中のブロックから始まり、「段落 60」は最後の紙の中に見える（1 枚目の外）
   await expect(sheets(page).first().locator("[data-markdown-from]")).toHaveAttribute("data-markdown-from", "0")
   const lastFrom = Number(await sheets(page).last().locator("[data-markdown-from]").getAttribute("data-markdown-from"))
