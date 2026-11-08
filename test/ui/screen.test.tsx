@@ -198,6 +198,7 @@ test("新しいブックのダイアログでブックを作ると、そのス�
     "ツリー",
     "ディレクトリ構成図",
     "マークダウン",
+    "スライド",
   ])
   expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
   fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "新しい図" } })

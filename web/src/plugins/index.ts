@@ -5,6 +5,7 @@ import { DRAWING_PLUGIN } from "./books/drawing"
 import { FLOWCHART_PLUGIN } from "./books/flowchart"
 import { MARKDOWN_PLUGIN } from "./books/markdown"
 import { MASTER, MASTER_PLUGIN } from "./books/master"
+import { SLIDE_BOOK_PLUGIN } from "./books/slide-book"
 import { TREE_PLUGIN } from "./books/tree"
 import { ART_PLUGIN } from "./items/art"
 import { BOX_PLUGIN } from "./items/box"
@@ -12,6 +13,7 @@ import { DATA_PLUGIN } from "./items/data"
 import { LINE_PLUGIN } from "./items/line"
 import { LIST_PLUGIN } from "./items/list"
 import { SHAPE_PLUGIN } from "./items/shape"
+import { SLIDE_PLUGIN } from "./items/slide"
 import { PAPER_PLUGIN } from "./paper"
 
 export const BUILTIN = [
@@ -24,11 +26,13 @@ export const BUILTIN = [
   LINE_PLUGIN,
   SHAPE_PLUGIN,
   ART_PLUGIN,
+  SLIDE_PLUGIN,
   DRAWING_PLUGIN,
   FLOWCHART_PLUGIN,
   TREE_PLUGIN,
   DIR_PLUGIN,
   MARKDOWN_PLUGIN,
+  SLIDE_BOOK_PLUGIN,
 ] as const
 
 // ビルトインのインスタンスの、ホームのタイプ（画面とエンジンが同じものを使う）

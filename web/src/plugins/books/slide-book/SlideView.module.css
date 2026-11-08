@@ -1,0 +1,17 @@
+/* 紙の枠（紙の面は下のレイヤーが描く）。紙の外にはみ出た部分は切る */
+.paper {
+  contain: paint;
+}
+.item {
+  position: absolute;
+  transform-origin: 50% 50%;
+}
+.empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  color: var(--skin-text-muted);
+}

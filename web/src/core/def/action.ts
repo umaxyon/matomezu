@@ -91,7 +91,7 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): b
   return (
     a.books === true ||
     (a.pages === true && type.pages !== null) ||
-    (a.items?.some(id => type.items.allowed.includes(id)) ?? false) ||
+    (a.items?.some(id => type.items.allowed.includes(id) || (type.slide?.allowed.includes(id) ?? false)) ?? false) ||
     (a.presentations?.includes(type.presentation) ?? false) ||
     (a.annotations?.some(id => !type.annotations?.without?.includes(id as never)) ?? false)
   )

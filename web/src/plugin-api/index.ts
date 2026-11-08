@@ -56,6 +56,7 @@ export {
   replaceShape,
   shapeSchema,
   shapesOf,
+  slideOf,
   walkShapes,
 } from "../core/placed"
 export type { Book } from "../core/schema/book"

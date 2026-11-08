@@ -137,6 +137,7 @@ test("matomezu が出す名前", () => {
     "sheetShapes",
     "sheetsOfShape",
     "shownRects",
+    "slideOf",
     "textBlock",
     "textBlockHeight",
     "textColorId",

@@ -6,6 +6,7 @@ import { DRAWING_UI } from "./books/drawing/ui"
 import { FLOWCHART_UI } from "./books/flowchart/ui"
 import { MARKDOWN_UI } from "./books/markdown/ui"
 import { MASTER_UI } from "./books/master/ui"
+import { SLIDE_BOOK_UI } from "./books/slide-book/ui"
 import { TREE_UI } from "./books/tree/ui"
 import { ART_UI } from "./items/art/ui"
 import { BOX_UI } from "./items/box/ui"
@@ -13,6 +14,7 @@ import { DATA_UI } from "./items/data/ui"
 import { LINE_UI } from "./items/line/ui"
 import { LIST_UI } from "./items/list/ui"
 import { SHAPE_UI } from "./items/shape/ui"
+import { SLIDE_UI } from "./items/slide/ui"
 import { PAPER_UI } from "./paper/ui"
 
 export const BUILTIN_UI = [
@@ -25,11 +27,13 @@ export const BUILTIN_UI = [
   LINE_UI,
   SHAPE_UI,
   ART_UI,
+  SLIDE_UI,
   DRAWING_UI,
   FLOWCHART_UI,
   TREE_UI,
   DIR_UI,
   MARKDOWN_UI,
+  SLIDE_BOOK_UI,
 ] as const
 
 // 既定の配置。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す

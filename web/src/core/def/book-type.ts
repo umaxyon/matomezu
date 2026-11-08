@@ -46,6 +46,8 @@ interface BookTypeBase<S extends z.ZodObject> extends BookTypeExtras {
   schema: S
   pages: PagesRule | null // ページを持つか（持つなら、機能台帳がページのフィールドを足す）
   items: ItemChoice
+  // ページが持つ slide（items とは別の、形だけの並び）に置けるアイテム。形（shape）だけで、並べ方の決まりも線も使わない。無ければページは slide を持たない
+  slide?: { allowed: readonly string[] }
   // 使えるアクションは、タイプが選んだ物に付いて来る（アクションの attach）。add はそのタイプだけのアクション、without は使わせないアクション
   actions: ActionChoice
   theme: string // 既定のテーマ

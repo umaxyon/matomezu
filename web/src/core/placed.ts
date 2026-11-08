@@ -58,7 +58,8 @@ export type PlacedShape = Extract<PlacedItem, { x: number }>
 export type PlacedConnector = Exclude<PlacedItem, { x: number }>
 
 // アイテムを置くページ（ページの形に、置いたアイテムの並び。重ねの順）
-export type ItemPage = Page & { items?: readonly PlacedItem[] }
+// slide は、slide を持つタイプのページが持つ、形だけの並び（重ねの順。items とは別で、押し合わず、つながない）
+export type ItemPage = Page & { items?: readonly PlacedItem[]; slide?: readonly PlacedShape[] }
 
 export const connectorDef = (catalog: CoreCatalog, item: string): ConnectorItemDef | null => {
   const def = catalog.items.get(item)
@@ -66,6 +67,7 @@ export const connectorDef = (catalog: CoreCatalog, item: string): ConnectorItemD
 }
 
 export const pageItemsOf = (page: ItemPage): readonly PlacedItem[] => page.items ?? []
+export const slideOf = (page: ItemPage): readonly PlacedShape[] => page.slide ?? []
 export const isShape = (item: PlacedItem): item is PlacedShape => "x" in item
 // ページの形（重ねの順）
 export const shapesOf = (page: ItemPage): PlacedShape[] => pageItemsOf(page).filter(isShape)

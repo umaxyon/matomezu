@@ -37,6 +37,8 @@ export const ERRORS = {
   E038: "theme {id}: textColors has {color} for {textColor}, which is not #rrggbb",
   E039: "bookType {id}: default theme {theme} is not one of the themes for its theme types",
   E040: "{kind} {id}: theme types must be {expected}",
+  E041: "bookType {id}: slide has {ref}, which is not a shape item",
+  E042: "bookType {id}: slide needs pages",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",

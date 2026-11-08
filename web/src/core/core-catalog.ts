@@ -156,6 +156,7 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
         items: z
           .array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknownItem]) : unknownItem)
           .optional(),
+        ...slideField(t, items),
         ...fields(t.settings?.page),
       })
     : null
@@ -175,6 +176,19 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
     ...Object.fromEntries(tail),
   })
   return { book, page }
+}
+
+// ページの slide（形だけの並び）: タイプが選んだ形を置いた並び。選んでいなければフィールドを足さない。
+// 機能台帳に無いアイテム（プラグインを外したなど）は、items と同じく id と item だけを確かめて残す
+function slideField(t: BookTypeDef, items: ReadonlyMap<string, ItemDef>): Record<string, z.ZodType> {
+  if (!t.slide) return {}
+  const shapes = t.slide.allowed.flatMap(id => {
+    const def = items.get(id)
+    return def?.kind === "shape" ? [placedSchema(def)] : []
+  })
+  const unknown = z.looseObject({ id: z.string().min(1), item: z.string().refine(id => !items.has(id)) })
+  const [one, ...more] = shapes
+  return { slide: z.array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknown]) : unknown).optional() }
 }
 
 // ブックのタイプのデータの形（組み立てたもの）
@@ -308,7 +322,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       const rule = t.pages.paper
       for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
       if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
-      for (const field of [...Object.keys(PageSchema.shape), "items", "settings"])
+      for (const field of [...Object.keys(PageSchema.shape), "items", "slide", "settings"])
         if (field in (t.pages.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
     }
     const built = buildBookSchemas(parts, t).book
@@ -318,6 +332,12 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       problems.push(problem("E007", { id: t.id }))
     for (const id of t.items.allowed)
       if (!items.has(id)) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
+    if (t.slide && !t.pages) problems.push(problem("E042", { id: t.id }))
+    for (const id of t.slide?.allowed ?? []) {
+      const def = items.get(id)
+      if (!def) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
+      else if (def.kind !== "shape") problems.push(problem("E041", { id: t.id, ref: id }))
+    }
     for (const id of Object.keys(t.items.options ?? {}))
       if (!t.items.allowed.includes(id)) problems.push(problem("E029", { id: t.id, ref: id }))
     for (const id of t.actions.add ?? [])

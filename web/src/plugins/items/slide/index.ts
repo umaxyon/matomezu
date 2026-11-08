@@ -1,0 +1,40 @@
+// スライドのプラグイン: スライドに描くアイテム（文字枠・自由な線・直線・楕円）と、置く・動かす・大きさを変える・項目を変える・比率を戻す・重ねを変える・消すアクション。
+// 置き場はページの slide で、スライドのブックと、背景を持つブックのタイプが選ぶ（タイプの slide.allowed）
+import { defineBuiltin } from "../../../plugin-api/builtin"
+import {
+  SLIDE_MOVE,
+  SLIDE_PLACE,
+  SLIDE_REMOVE,
+  SLIDE_REORDER,
+  SLIDE_RESET_RATIO,
+  SLIDE_RESIZE,
+  SLIDE_UPDATE,
+} from "./actions"
+import { kit } from "./kit"
+import { ELLIPSE, FREE_LINE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
+
+export const SLIDE_PLUGIN = defineBuiltin(
+  kit.plugin({
+    items: [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE],
+    actions: [SLIDE_PLACE, SLIDE_MOVE, SLIDE_RESIZE, SLIDE_UPDATE, SLIDE_RESET_RATIO, SLIDE_REORDER, SLIDE_REMOVE],
+  }),
+)
+
+declare module "../../../core/catalog" {
+  interface ItemTable {
+    "@matomezu/slide:slide-text": typeof TEXT_FRAME
+    "@matomezu/slide:slide-free-line": typeof FREE_LINE
+    "@matomezu/slide:slide-line": typeof STRAIGHT_LINE
+    "@matomezu/slide:slide-ellipse": typeof ELLIPSE
+  }
+  interface ActionTable {
+    "@matomezu/slide:slide-place": typeof SLIDE_PLACE
+    "@matomezu/slide:slide-move": typeof SLIDE_MOVE
+    "@matomezu/slide:slide-resize": typeof SLIDE_RESIZE
+    "@matomezu/slide:slide-update": typeof SLIDE_UPDATE
+    "@matomezu/slide:slide-reset-ratio": typeof SLIDE_RESET_RATIO
+    "@matomezu/slide:slide-reorder": typeof SLIDE_REORDER
+    "@matomezu/slide:slide-remove": typeof SLIDE_REMOVE
+  }
+  interface MessageTable extends Readonly<typeof kit.messages> {}
+}
