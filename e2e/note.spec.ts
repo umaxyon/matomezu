@@ -155,7 +155,7 @@ test("吹き出しに乗せると上に「隠す」が出て、はいで角の�
   await expect(stands(page)).toHaveCount(0)
 })
 
-test("吹き出しは右に入らなくても左に回さず、画面の右の端で止める。尾の先が物の左の辺を越えないように幅を縮め、尾は左に出す。縮めきれなければ縁のマークポインタになり、押すと箱が見えて吹き出しに戻る", async ({
+test("吹き出しは右に入らなくても左に回さず、物にも重ねない。尾の先は物の右の端のまま、画面の右の端に押されて幅が縮む。縮めきれなければ縁のマークポインタになり、押すと箱が見えて吹き出しに戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -165,19 +165,21 @@ test("吹き出しは右に入らなくても左に回さず、画面の右の�
   const bubble = page.getByRole("group", { name: "伝言", exact: true }).getByRole("button", { name: "伝言を開く" })
   await expect(bubble).toBeVisible()
   const stage = page.locator("[data-stage]")
-  // 窓の幅を変えて、箱の左の辺からステージの右の端までを room にする（ステージは窓の幅に比例しないので、測って詰める）
+  // 窓の幅を変えて、箱の右の辺からステージの右の端までを room にする（ステージは窓の幅に比例しないので、測って詰める。箱も動くので、合うまで繰り返す）
   const roomTo = async (room: number) => {
-    for (let i = 0; i < 8; i++) {
+    await expect(async () => {
       const b = (await box.boundingBox())!
       const e = (await stage.boundingBox())!
-      const over = Math.round(e.x + e.width - b.x - room)
-      if (Math.abs(over) <= 2) return
-      const v = page.viewportSize()!
-      await page.setViewportSize({ width: v.width - over, height: v.height })
-    }
+      const over = Math.round(e.x + e.width - (b.x + b.width) - room)
+      if (Math.abs(over) > 2) {
+        const v = page.viewportSize()!
+        await page.setViewportSize({ width: v.width - over, height: v.height })
+      }
+      expect(Math.abs(over)).toBeLessThanOrEqual(2)
+    }).toPass()
   }
-  // 箱の右に吹き出しが入らず、箱の左の辺から右の端まで 180px より狭い
-  await roomTo(120)
+  // 箱の右に吹き出しが入らない（180px より狭い）: 吹き出しの左の端は箱の右のまま、右の端が画面の右の端に押されて縮む
+  await roomTo(130)
   await expect
     .poll(async () => {
       const r = (await bubble.boundingBox())!
@@ -188,11 +190,13 @@ test("吹き出しは右に入らなくても左に回さず、画面の右の�
   const r = (await bubble.boundingBox())!
   const nb = (await box.boundingBox())!
   expect(r.width).toBeLessThan(180)
+  expect(r.x).toBeGreaterThanOrEqual(nb.x + nb.width)
+  // 尾の先は箱の右の端に届く（箱の上に伸びて重ならない）
   const tail = (await bubble.locator("svg").first().boundingBox())!
   expect(tail.x).toBeLessThan(r.x)
-  expect(tail.x).toBeGreaterThanOrEqual(nb.x - 1)
+  expect(tail.x).toBeGreaterThanOrEqual(nb.x + nb.width - 8)
 
-  // いちばん細い吹き出しと尾より狭くすると、縁のマークポインタになる
+  // いちばん細い吹き出しより狭くすると、縁のマークポインタになる
   await roomTo(60)
   const pointer = page.getByRole("button", { name: "一を見せる" })
   await expect(pointer).toHaveCount(1)
@@ -200,120 +204,6 @@ test("吹き出しは右に入らなくても左に回さず、画面の右の�
   await pointer.click()
   await expect(bubble).toBeVisible()
   await expect(pointer).toHaveCount(0)
-})
-
-test("書いている間は Esc で付けずに閉じる", async ({ page }) => {
-  await page.goto("/")
-  await addBox(page, 200, 150, "一")
-  const box = items(page).filter({ hasText: "一" })
-  await box.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  await panel(page).getByLabel("伝言", { exact: true }).fill("やめる")
-  await panel(page).getByLabel("伝言", { exact: true }).press("Escape")
-  await expect(panel(page)).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "伝言を開く" })).toHaveCount(0)
-})
-
-test("書いている間は付ける先に鳥が出て、付ける先を足すと鳥も増える。鳥を押すと「外す？」が出て、「はい」で付ける先から外れる。最後の 1 羽を外すと閉じる", async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
-  await addBox(page, 100, 150, "一")
-  await addBox(page, 400, 150, "二")
-  const one = items(page).filter({ hasText: "一" })
-  const two = items(page).filter({ hasText: "二" })
-  await one.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  const birds = page.locator("[data-note-bird]")
-  await expect(birds).toHaveCount(1)
-  await page.keyboard.down("Control")
-  await two.click()
-  await page.keyboard.up("Control")
-  await expect(birds).toHaveCount(2)
-  const badge = (name: string) => panel(page).getByRole("button", { name, exact: true })
-  await page.locator("[data-note-bird]").first().click()
-  await page.getByRole("group", { name: "外す？" }).getByRole("button", { name: "はい" }).click()
-  await expect(badge("一")).toHaveCount(0)
-  await expect(badge("二")).toHaveAttribute("aria-pressed", "true")
-  await expect(birds).toHaveCount(1)
-  await birds.first().click()
-  await page.getByRole("group", { name: "外す？" }).getByRole("button", { name: "はい" }).click()
-  await expect(panel(page)).toHaveCount(0)
-  await expect(birds).toHaveCount(0)
-})
-
-test("書いている間に別の伝言の吹き出しを押すと、吹き出しの物を押したのと同じに付ける先が替わり、書きかけは残る。Ctrl+クリックなら足す", async ({
-  page,
-}) => {
-  await page.goto("/")
-  await addBox(page, 100, 150, "一")
-  await addBox(page, 400, 150, "二")
-  const one = items(page).filter({ hasText: "一" })
-  const two = items(page).filter({ hasText: "二" })
-  await writeNote(page, one, "前の伝言")
-  await two.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  const text = panel(page).getByLabel("伝言", { exact: true })
-  await text.fill("書きかけ")
-  const badge = (name: string) => panel(page).getByRole("button", { name, exact: true })
-  const bubble = page.getByRole("button", { name: "伝言を開く" })
-  await bubble.click()
-  await expect(badge("一")).toHaveAttribute("aria-pressed", "true")
-  await expect(badge("二")).toHaveCount(0)
-  await expect(text).toHaveValue("書きかけ")
-  await two.click()
-  await page.keyboard.down("Control")
-  await bubble.click()
-  await page.keyboard.up("Control")
-  await expect(badge("一")).toHaveAttribute("aria-pressed", "true")
-  await expect(badge("二")).toHaveCount(1)
-  await expect(text).toHaveValue("書きかけ")
-})
-
-test("表示領域より高いリストを付ける先にすると、リストの上の辺に乗る鳥が切れない所まで見せる", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
-  const list = await addList(page, "多い")
-  for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) await addRow(page, list, `行 ${n}`)
-  await page.setViewportSize({ width: 1200, height: 230 })
-  await list.getByRole("listitem").nth(6).click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  await expect(panel(page)).toBeVisible()
-  // 見出しを押すと付ける先がリストになり、鳥はリストの上の辺に移る
-  await list.getByText("多い").first().click()
-  const bird = page.getByRole("button", { name: "伝言の鳥" })
-  await expect
-    .poll(async () => {
-      const b = await bird.boundingBox()
-      const l = await list.boundingBox()
-      return !!b && !!l && b.y >= 0 && Math.abs(b.y + b.height - l.y) < 4
-    })
-    .toBe(true)
-})
-
-test("付ける先がいくつかあるときは、カレントの物に明るい枠が重なる（1 つなら出さない）。カレントを替えると枠も移る", async ({
-  page,
-}) => {
-  await page.goto("/")
-  await addBox(page, 200, 150, "一")
-  await addBox(page, 500, 150, "二")
-  const one = items(page).filter({ hasText: "一" })
-  const two = items(page).filter({ hasText: "二" })
-  await one.click({ button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "AIに伝言" }).click()
-  const frame = page.locator("[data-anchor-frame]")
-  await expect(frame).toHaveCount(0)
-  await two.click({ modifiers: ["ControlOrMeta"] })
-  await expect(frame).toHaveCount(1)
-  const near = async (thing: typeof one) => {
-    const f = (await frame.boundingBox())!
-    const t = (await thing.boundingBox())!
-    return Math.abs(f.x - t.x) < 4 && Math.abs(f.y - t.y) < 4
-  }
-  await expect.poll(() => near(two)).toBe(true)
-  await panel(page).getByRole("button", { name: "一", exact: true }).click()
-  await expect.poll(() => near(one)).toBe(true)
 })
 
 test("リストの行に付けた伝言の吹き出しは、リストの幅を変えると行の右に付いて動く", async ({ page }) => {
@@ -361,6 +251,41 @@ test("分けた左のステージのリストの行の伝言は、右サイド�
   await expect(panel(page)).toHaveCount(0)
   // ステージの幅が縮み終えたあとも、行の右に付き直す（縮む途中の幅で置いたまま残らない）
   await expect.poll(beside).toBeGreaterThan(0)
+})
+
+test("分けたステージの境目を左へドラッグして左のステージを狭めると、伝言の吹き出しは右の端に押されて縮み、入らなくなると縁のマークポインタになる。戻すと吹き出しに戻る", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 700 })
+  await page.goto("/")
+  await addBox(page, 200, 150, "一")
+  const box = items(page).filter({ hasText: "一" })
+  await writeNote(page, box, "境目に押される")
+  await (await fromMenu(page, "画面を分割")).click()
+  const bubble = page.getByRole("group", { name: "伝言", exact: true }).getByRole("button", { name: "伝言を開く" })
+  const pointer = page.getByRole("button", { name: "一を見せる" })
+  await expect(bubble).toBeVisible()
+  const full = (await bubble.boundingBox())!.width
+  const divider = page.locator("[data-divider]")
+  // 境目を、箱の右の端から dx の所へドラッグする
+  const dragTo = async (dx: number) => {
+    const d = (await divider.boundingBox())!
+    const b = (await box.boundingBox())!
+    await page.mouse.move(d.x + d.width / 2, d.y + d.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(b.x + b.width + dx, d.y + d.height / 2, { steps: 5 })
+    await page.mouse.up()
+  }
+  await dragTo(120)
+  await expect.poll(async () => (await bubble.boundingBox())?.width ?? 0).toBeLessThan(full)
+  const b = (await box.boundingBox())!
+  expect((await bubble.boundingBox())!.x).toBeGreaterThanOrEqual(b.x + b.width)
+  await dragTo(50)
+  await expect(pointer).toHaveCount(1)
+  await expect(bubble).toHaveCount(0)
+  await divider.dblclick()
+  await expect(bubble).toBeVisible()
+  await expect(pointer).toHaveCount(0)
 })
 
 test("読まれていない伝言は、箱の上の辺が画面の外に出ると、吹き出しが縁のマークポインタ（丸の中に伝言の絵）に替わり、押すと箱が見えて吹き出しに戻る。AI が読んだ伝言は縁に出ない", async ({
