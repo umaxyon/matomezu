@@ -241,7 +241,9 @@ test("描いた文書は、段落の中の改行 1 つを既定で改行にし�
   await expect.poll(lines).toBe(1)
 })
 
-test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけが戻り、その間に AI が書いた行は残る", async ({ page }) => {
+test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけが戻り、書いていない間に AI が書いた行は残る", async ({
+  page,
+}) => {
   const ai = aiAuth()
   await markdownBook(page)
   const field = () => pane(page, "ソース").getByRole("textbox")
@@ -260,14 +262,21 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
     return got.book.pages.find(p => p.id === view.page)?.text
   }
   await expect.poll(text).toBe("# 見出し")
-  await page.request.post("/api/ai/perform", {
-    headers: ai,
-    data: {
-      action: "@matomezu/base:page-update",
-      args: { page: view.page, fields: { find: "# 見出し", replace: "AI の行\n# 見出し" } },
-      on: { book: view.book },
-    },
-  })
+  // 書いている間は AI が書けない（編集ロック）ので、フォーカスを外してから AI が書く
+  await field().blur()
+  await expect
+    .poll(async () => {
+      const done = await page.request.post("/api/ai/perform", {
+        headers: ai,
+        data: {
+          action: "@matomezu/base:page-update",
+          args: { page: view.page, fields: { find: "# 見出し", replace: "AI の行\n# 見出し" } },
+          on: { book: view.book },
+        },
+      })
+      return ((await done.json()) as { ok: boolean }).ok
+    })
+    .toBe(true)
   await expect(field()).toHaveValue("AI の行\n# 見出し")
   await field().click()
   await page.keyboard.press("End")
