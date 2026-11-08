@@ -94,12 +94,18 @@ interface NoteViewProps {
   props: NoteProps
 }
 
-// AI が読んだ伝言: 物の右上の角に、緑の丸のチェック
+// AI が読んだ伝言: 物の右上の角に、緑の丸のチェック。物が見える所の外にある間は、縁に緑の丸のチェックのマークポインタ
 function ReadNote({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
+  const anchor = anchors.at(-1) ?? ""
   const { open, busy } = useOpenNote(stage, id, anchors)
   return (
-    <AtCorner anchor={anchors.at(-1) ?? ""} status={READ_NOTE_STATUS_ID} at={props.addedAt}>
+    <AtCorner
+      anchor={anchor}
+      status={READ_NOTE_STATUS_ID}
+      at={props.addedAt}
+      pointer={<ReadPointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}
+    >
       <CornerNoteButton
         className={styles.readCheck}
         label={t("Open note")}
@@ -140,6 +146,21 @@ function NotePointer({
       onPress={opens ? onOpen : undefined}
     >
       <NoteIcon />
+    </StandPointer>
+  )
+}
+
+// AI が読んだ伝言の、付けた物が見える所の外にある間のマークポインタ（緑の丸のチェック。押すと付けた物を見せる）
+function ReadPointer({ stage, anchor, center }: { stage: string; anchor: string; center: { x: number; y: number } }) {
+  const t = useMessages(kit)
+  return (
+    <StandPointer
+      center={center}
+      size={POINTER}
+      label={t("Show {name}", { name: useAnchorName(stage, anchor) })}
+      className={`${styles.readCheck} ${styles.readPointer}`}
+    >
+      <ReadCheckIcon />
     </StandPointer>
   )
 }

@@ -120,6 +120,11 @@
   box-shadow: var(--skin-shadow-2);
   cursor: pointer;
 }
+/* AI が読んだ伝言のマークポインタ（付けた物が見える所の外にある間、縁に出す緑の丸のチェック。大きさはほかのマークポインタと同じ） */
+.readPointer {
+  width: 24px;
+  height: 24px;
+}
 /* 右サイドパネルがほかの物を出している間の、角の吹き出しの中の絵とチェック（薄くして押せない） */
 .folded[aria-disabled="true"],
 .readCheck[aria-disabled="true"] {
