@@ -485,7 +485,7 @@ test("リストの行に付けた AI が読んだ伝言も、リストが画面�
   await page.emulateMedia({ reducedMotion: "reduce" })
   const ai = aiAuth()
   await page.setViewportSize({ width: 560, height: 480 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
