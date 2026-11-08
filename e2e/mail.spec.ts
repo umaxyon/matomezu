@@ -178,3 +178,45 @@ test("しおりに乗せると、待たずに自前の吹き出しで題が出�
   await page.mouse.move(10, 400)
   await expect(tip).toBeHidden()
 })
+
+test("郵便箱から開いたダイアログは、「閉じる」でも「開く」でも郵便箱を残し、「郵便箱も閉じる」ならダイアログと郵便箱を一緒に閉じる。しおりから開いたときは「郵便箱も閉じる」が出ない", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const book = await ready(page)
+  await addBox(page, 300, 300, "行き先の箱")
+  const box = (await items(page).filter({ hasText: "行き先の箱" }).getAttribute("data-item"))!
+  await perform(page, {
+    action: "@matomezu/base:mail-send",
+    args: { from: "a", title: "残す", to: { book, ids: [box] } },
+  })
+  // しおりから開く: 郵便箱は閉じているので「郵便箱も閉じる」は出ない
+  await page.getByRole("button", { name: "残す" }).click()
+  const dialog = page.getByRole("dialog", { name: "残す" })
+  await expect(dialog.getByRole("button")).toHaveText(["閉じる", "開く", "分割で開く"])
+  await dialog.getByRole("button", { name: "閉じる" }).click()
+  await expect(dialog).toHaveCount(0)
+  // 郵便箱から開く
+  await (await fromMenu(page, "左サイドパネルを開く")).click()
+  await expect(leftPanel(page)).toBeVisible()
+  const open = async () => {
+    await leftPanel(page).getByRole("listitem").first().getByRole("button").first().click()
+    await expect(dialog).toBeVisible()
+  }
+  await open()
+  await expect(dialog.getByRole("button")).toHaveText(["郵便箱も閉じる", "閉じる", "開く", "分割で開く"])
+  // 「閉じる」をクリックしても、郵便箱は残る
+  await dialog.getByRole("button", { name: "閉じる", exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(leftPanel(page)).toBeVisible()
+  // 「開く」でも、郵便箱は残る
+  await open()
+  await dialog.getByRole("button", { name: "開く", exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(leftPanel(page)).toBeVisible()
+  // 「郵便箱も閉じる」で、ダイアログと郵便箱を一緒に閉じる
+  await open()
+  await dialog.getByRole("button", { name: "郵便箱も閉じる" }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(leftPanel(page)).toHaveCount(0)
+})

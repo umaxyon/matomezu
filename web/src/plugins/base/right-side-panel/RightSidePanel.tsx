@@ -11,6 +11,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useCoreCatalog, useSetStageState, useStage, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { POPUP_KEEPS } from "../utils/popup-keeps"
 import type { StageSlotProps } from "../workspace/ui"
 import {
   PressClosedContext,
@@ -25,7 +26,7 @@ import { followSelection, panelIn, pressCloses, type RightSidePanelOpen, stillOn
 const WIDTH = 480 // 中身のウィジェットが幅を書いていないときの幅（px。PC のブラウザの窓をいちばん狭くしても入る幅）
 
 // 押しても右サイドパネルを閉じない所（ダイアログ・メニュー・トースト・道具を替えるツールバー）
-const KEEPS = "[role=dialog], [role=menu], [role=status], [role=alert], [role=toolbar]"
+const KEEPS = `${POPUP_KEEPS}, [role=toolbar]`
 
 export function RightSidePanel() {
   const t = useMessages(kit)
