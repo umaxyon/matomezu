@@ -1,5 +1,5 @@
 // 参加要求を受け入れるダイアログ: ワークルームの名前・鳥・配色を 1 度に決めて、受け入れる（アクション participant-accept）。
-// 名前の初めは元のセッション名。鳥は 5 羽から 1 つ（同じ鳥を何人に当ててもよい）、配色は 20 個から 1 つ（選ばなければ、鳥の元の配色）。選んだ配色で鳥の絵が塗り替わる。
+// 名前の初めは元のセッション名。鳥は 5 羽から 1 つ（同じ鳥を何人に当ててもよい）、配色は 20 個から 1 つ（選ばなければ、鳥の元の配色）。配色を選ぶと、5 羽ともその配色に塗り替わる。
 // 同じ名前の、生きている参加者がいる間は決められない。キャンセルは閉じるだけで、参加要求は保留のまま
 import { useId, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
@@ -98,7 +98,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
           <fieldset className={styles.picks} aria-label={t("Bird")}>
             {BIRD_IDS.map(b => (
               <Pick key={b} title={t(BIRD_TITLES[b])} checked={b === bird} onPick={() => setBird(b)} group="bird">
-                <BirdFaceView bird={b} palette={shown} size={48} />
+                <BirdFaceView bird={b} {...(palette ? { palette } : {})} size={48} />
               </Pick>
             ))}
           </fieldset>
