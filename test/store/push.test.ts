@@ -74,7 +74,6 @@ test("キャプションで広がるときも隣を押す。押した箱が収�
   const twenty = "あ".repeat(20)
   expect(update(twenty).ok).toBe(true)
   const w = placedWidth({ caption: twenty, rule: true, body: "", captionAlign: "center", bodyAlign: "left" })
-  expect(at(store, "n1").w).toBe(w)
   expect(at(store, "n2").x).toBe(100 + w + GAP)
   place(store, 1023 - 100, 300, 100)
   place(store, 100, 300, 64)

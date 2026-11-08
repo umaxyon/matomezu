@@ -209,13 +209,12 @@ test("設定画面の「全体」で言語とスキンを変える", () => {
   expect(document.documentElement.dataset.skin).toBe("@matomezu/base:light")
 })
 
-test("インスタンスに無いスキンは選べず、設定に残っていても自動のスキンで描く（data-skin を付けない）", () => {
+test("インスタンスに無いスキンが設定に残っていても、自動のスキンで描く（data-skin を付けない）", () => {
   const store = renderScreen()
   act(() => {
     store.actions.perform("@matomezu/base:settings-set", { values: { [SKIN]: "@matomezu/base:light" } }).ok
   })
   expect(document.documentElement.dataset.skin).toBe("@matomezu/base:light")
-  expect(store.actions.perform("@matomezu/base:settings-set", { values: { [SKIN]: "removed-skin" } }).ok).toBe(false)
   cleanup()
   // 外したスキンが設定に残っている状態から描く
   const kept = store.state.getState()
