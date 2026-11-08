@@ -32,6 +32,7 @@ export type {
   MinimapMark,
   PageContext,
   PageFieldsWay,
+  SearchableDef,
   PageProblem,
   PortArea,
   Ports,

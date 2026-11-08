@@ -1,5 +1,6 @@
-// マークダウンのページのフィールドの受け方（base の page-update が使う）: 原文 text を丸ごと替えるか、原文の中にちょうど 1 か所ある find を replace に替える。
-// 両方を一緒には受けない。find が無い・2 か所以上ある（重なる出現も数える）なら断る。作るときは base の受け方（text を丸ごと）
+// マークダウンのページのフィールドの受け方（base の page-add・page-update が使う）: 原文 text を丸ごと替えるか、原文の中にちょうど 1 か所ある find を replace に替える。
+// 両方を一緒には受けない。find が無い・2 か所以上ある（重なる出現も数える）なら断る。作るときは text を丸ごと。
+// 原文の改行はいつも \n だけにする: 書くたびに、書いたあとの原文全体の \r\n と \r を \n にそろえる（受けた find・replace もそろえてから使う）
 import { z } from "zod"
 import { type PageFieldsWay, pageFieldsWay } from "../../base"
 
@@ -9,10 +10,19 @@ export function onlyPlace(text: string, find: string): number | null {
   return at < 0 || text.indexOf(find, at + 1) >= 0 ? null : at
 }
 
-export const pageFieldsInput: { update: PageFieldsWay } = {
+// 改行を \n にそろえた字
+export const toLf = (text: string): string => text.replace(/\r\n?/g, "\n")
+
+const TEXT = z.string().describe("The page's whole document, in Markdown, replacing what is there").optional()
+
+export const pageFieldsInput: { add: PageFieldsWay; update: PageFieldsWay } = {
+  add: pageFieldsWay({
+    args: z.strictObject({ text: TEXT }),
+    write: (_page, { text }) => ({ fields: text === undefined ? {} : { text: toLf(text) } }),
+  }),
   update: pageFieldsWay({
     args: z.strictObject({
-      text: z.string().describe("The page's whole document, in Markdown, replacing what is there").optional(),
+      text: TEXT,
       find: z
         .string()
         .min(1)
@@ -24,11 +34,12 @@ export const pageFieldsInput: { update: PageFieldsWay } = {
     }),
     write: (page, input) => {
       const { text, find, replace } = input
-      if (find === undefined && replace === undefined) return { fields: text === undefined ? {} : { text } }
+      if (find === undefined && replace === undefined) return { fields: text === undefined ? {} : { text: toLf(text) } }
       if (text !== undefined || find === undefined || replace === undefined) return null
-      const now = typeof page.text === "string" ? page.text : ""
-      const at = onlyPlace(now, find)
-      return at === null ? null : { fields: { text: now.slice(0, at) + replace + now.slice(at + find.length) } }
+      const now = toLf(typeof page.text === "string" ? page.text : "")
+      const [from, to] = [toLf(find), toLf(replace)]
+      const at = onlyPlace(now, from)
+      return at === null ? null : { fields: { text: now.slice(0, at) + to + now.slice(at + from.length) } }
     },
   }),
 }
