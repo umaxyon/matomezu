@@ -114,3 +114,42 @@ test("同じ処理の中の移動（分割してブックとページを開く�
   expect(f.pushed).toHaveLength(1)
   expect(parseSearch(f.pushed[0]!)?.stages.map(s => s.book)).toEqual(["b1", "b3"])
 })
+
+test("URL が無い（開いた直後）なら、コントロールセンターを前に出す。URL にブックスクリーンの場所があれば、ブックスクリーンを前に出す", () => {
+  const first = newStore()
+  followLocation(first, fakePlace().place)
+  expect(first.state.getState().window.front).toBe("control-center")
+  const second = newStore()
+  followLocation(second, fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5").place)
+  expect(second.state.getState().window.front).toBe("book-screen")
+})
+
+test("前に出す物は URL の f に書く（コントロールセンターの間だけ。ステージの無い URL も読む）。後ろのブックスクリーンの場所も書く", () => {
+  const store = newStore()
+  const f = fakePlace()
+  followLocation(store, f.place)
+  expect(f.replaced[0]).toContain("f=center")
+  expect(f.replaced[0]).toContain("b0=b1")
+  expect(parseSearch("?f=center")).toMatchObject({ front: "control-center", stages: [] })
+  expect(parseSearch("?f=book")).toMatchObject({ front: "book-screen", stages: [] })
+  expect(parseSearch("?b0=b1&c=0&r=0.5")?.front).toBe("book-screen")
+})
+
+test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む。戻ると前に出す物が戻り、後ろのブックスクリーンの中は残る", async () => {
+  const store = newStore()
+  const f = fakePlace("?b0=b1&p0=p1&v0=1,0,0&c=0&r=0.5")
+  followLocation(store, f.place)
+  const was = screenOf(store.state.getState().window)
+  store.actions.showControlCenter()
+  await settled()
+  expect(f.pushed).toHaveLength(1)
+  expect(parseSearch(f.pushed[0]!)?.front).toBe("control-center")
+  store.actions.showBookScreen()
+  await settled()
+  expect(f.pushed).toHaveLength(2)
+  // 戻る: コントロールセンター
+  f.back(f.pushed[0]!)
+  expect(store.state.getState().window.front).toBe("control-center")
+  expect(screenOf(store.state.getState().window).stages[0]!.opened).toEqual(was.stages[0]!.opened)
+  expect(f.pushed).toHaveLength(2)
+})

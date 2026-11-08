@@ -78,6 +78,7 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
+import { CONTROL_CENTER_TOGGLE } from "./window"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
@@ -263,6 +264,7 @@ export const BASE = defineBuiltin(
     normalizeSteps: [VARIABLE_PAGES],
     commands: [
       BOOK_NEW,
+      CONTROL_CENTER_TOGGLE,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
@@ -419,6 +421,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-new": typeof BOOK_NEW
     "@matomezu/base:undo": typeof UNDO
     "@matomezu/base:redo": typeof REDO
+    "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE

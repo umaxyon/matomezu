@@ -43,6 +43,8 @@ import { TOOL_ICONS } from "./tool-switch/icons"
 import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import type { CornerStatusProps } from "./utils/corner"
+import { WINDOW_ICONS } from "./window/icons"
+import { WINDOW } from "./window/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
@@ -112,6 +114,7 @@ export {
   useBodyGrips,
 } from "./text/ui"
 export * from "./utils/ui"
+export { BOOK_SCREEN, CONTROL_CENTER_SCREEN } from "./window/slots"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {
@@ -126,6 +129,7 @@ export const BASE_UI = definePluginUi(BASE, {
   settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
+    WINDOW,
     WORKSPACE,
     DIALOG_HOST,
     MENU_HOST,
@@ -174,12 +178,15 @@ export const BASE_UI = definePluginUi(BASE, {
     ...BOOK_LOOK_ICONS,
     ...HISTORY_ICONS,
     ...SETTINGS_ICONS,
+    ...WINDOW_ICONS,
   },
   toolIcons: TOOL_ICONS,
 })
 
 declare module "../../core/catalog" {
   interface SlotTable {
+    "@matomezu/base:book-screen": Record<string, never> // ブックスクリーンの中（何も受け取らない）
+    "@matomezu/base:control-center-screen": Record<string, never> // コントロールセンターの中身（何も受け取らない）
     "@matomezu/base:stage-top": StageSlotProps
     "@matomezu/base:stage-body": StageSlotProps
     "@matomezu/base:book-layers": StageSlotProps
@@ -209,6 +216,7 @@ declare module "../../core/catalog" {
     cornerStatus?: { title: MessageKey }
   }
   interface WidgetTable {
+    "@matomezu/base:window": typeof WINDOW
     "@matomezu/base:workspace": typeof WORKSPACE
     "@matomezu/base:dialog-host": typeof DIALOG_HOST
     "@matomezu/base:menu-host": typeof MENU_HOST

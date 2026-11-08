@@ -98,6 +98,12 @@ test("範囲は狭いものから引き、メニューとダイアログが開�
     "global",
   ])
   expect(keyScopes({ menu: false, dialog: true }, [], "b:view")).toEqual(["dialog"])
+  // コントロールセンターを前に出している間は、ステージの範囲・global・見せ方の範囲を引かず、control-center を引く（ダイアログとメニューは先）
+  expect(keyScopes({ menu: false, dialog: false, center: true }, ["a:panel"], "b:view")).toEqual([
+    "a:panel",
+    "control-center",
+  ])
+  expect(keyScopes({ menu: false, dialog: true, center: true })).toEqual(["dialog"])
   // テキストFormが名乗った範囲だけで引くときは、ほかの範囲を見ない
   expect(keyScopes({ menu: false, dialog: false }, ["a:field"], "b:view", "named")).toEqual(["a:field"])
   const table = keyTable(
@@ -217,7 +223,7 @@ test("キーの範囲は定義（KeyScopeDef）で機能台帳に並び、題名
   expect(instance.catalog.store.keyScopes.get("k:panel")?.title).toBe("k:Panel")
   expect(instance.catalog.store.keyScopes.get("@matomezu/tree:tree")?.title).toBe("@matomezu/tree:Tree")
   expect(thrown(make([scope, scope]))).toEqual(["E001"])
-  expect(Object.keys(BASE_KEY_SCOPE_TITLES)).toEqual(["global", "stage", "dialog", "menu"])
+  expect(Object.keys(BASE_KEY_SCOPE_TITLES)).toEqual(["global", "stage", "dialog", "menu", "control-center"])
 })
 
 test("設定画面の行は 範囲・コマンド・args ごと。効いていない行は first が別の行。足す・外す・行を既定に戻すは利用者の変更を作り直す", () => {

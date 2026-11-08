@@ -10,6 +10,7 @@ import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
 import { toPaper } from "../../core/stage"
+import type { Front } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
@@ -33,6 +34,7 @@ export function commandScopeOf(scope: CommandScope | undefined, ctx: CommandCont
 export interface CommandContext {
   catalog: CoreCatalog
   controlCenter: string | null // インスタンスのコントロールセンターの定義の id
+  front: Front // 窓が前に出している物（呼ばれた場所のステージは、前に出せるブックスクリーンのもの）
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
   book: Book | null // そのステージで開いているブック
   settings: Settings

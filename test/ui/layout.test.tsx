@@ -55,7 +55,8 @@ describe("配置", () => {
     const bad = {
       id: "bad",
       slots: {
-        root: ["@matomezu/base:workspace"],
+        root: ["@matomezu/base:window"],
+        "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
         "@matomezu/base:stage-top": ["nope", "@matomezu/base:book-view"],
         "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],
       },
@@ -77,6 +78,8 @@ describe("配置", () => {
       slots: { ...DEFAULT_LAYOUT.slots, root: ["@matomezu/base:dialog-host"] },
     })
     expect(checkLayout(noStages, ui, commands).map(problemText)).toEqual([
+      "E211 layout no-stages: slot @matomezu/base:book-screen is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:control-center-screen is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-top is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-body is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:book-layers is not opened by any placed widget",
@@ -106,7 +109,11 @@ describe("配置", () => {
     const layout = {
       ...DEFAULT_LAYOUT,
       id: "mine",
-      slots: { ...DEFAULT_LAYOUT.slots, root: ["w:workspace", "@matomezu/base:dialog-host"] },
+      slots: {
+        ...DEFAULT_LAYOUT.slots,
+        "@matomezu/base:book-screen": ["w:workspace"],
+        root: ["@matomezu/base:window", "@matomezu/base:dialog-host"],
+      },
     }
     // 右サイドパネルと左サイドパネルを開けない骨組みなら、その中身（左サイドパネルのタブが開ける行の絵も）を書いた配置は error
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual([

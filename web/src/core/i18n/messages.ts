@@ -42,6 +42,7 @@ export const MESSAGES = defineMessages({
   Default: { ja: "標準" },
   // 土台のキーの範囲の題名（store/keys.ts）
   "Whole screen": { ja: "画面全体" },
+  "Control center": { ja: "コントロールセンター" },
   Stage: { ja: "ステージ" },
   "While a dialog is open": { ja: "ダイアログが開いている間" },
   "While a menu is open": { ja: "メニューが開いている間" },

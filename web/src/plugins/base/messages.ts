@@ -26,10 +26,12 @@ import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
 import { joinMessages } from "./utils/join-messages"
 import { ASK_MESSAGES, CHOICE_SETTING_MESSAGES, CORNER_MESSAGES, ELAPSED_MESSAGES } from "./utils/messages"
+import { WINDOW_MESSAGES } from "./window/messages"
 import { ZOOM_MESSAGES } from "./zoom/messages"
 
 export const BASE_MESSAGES = joinMessages(
   STAGE_MESSAGES,
+  WINDOW_MESSAGES,
   TOOL_SWITCH_MESSAGES,
   TOOL_PICKER_MESSAGES,
   MINIMAP_MESSAGES,

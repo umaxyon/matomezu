@@ -110,17 +110,22 @@ const openedOf = (stage: Stage) => {
   }
 }
 
-// 窓が見ているもの。book・page・mode（編集か印刷プレビューか）・selection はカレントのステージのもの（何も開いていなければ book は null）
+// 窓が見ているもの。front は窓が前に出している物（control-center か book-screen）。
+// ブックスクリーンを前に出している間は、book・page・mode（編集か印刷プレビューか）・selection はカレントのステージのもの（何も開いていなければ book は null）。
+// コントロールセンターを前に出している間は、後ろに隠れているブックスクリーンのそれらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）
 export function viewOf(state: MatomezuState) {
   const ws = screenOf(state.window)
   const stage = currentStage(ws)
-  return {
+  const screen = {
     ...openedOf(stage),
     selection: stage.selection,
     stage: stage.id,
     stages: ws.stages.map(s => ({ id: s.id, ...openedOf(s) })),
     canSplit: ws.stages.length < MAX_STAGES,
   }
+  return state.window.front === "book-screen"
+    ? { front: state.window.front, ...screen }
+    : { front: state.window.front, hidden: screen }
 }
 
 // 利用者が直している物（useEditLock）を、ブックの id → 物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）

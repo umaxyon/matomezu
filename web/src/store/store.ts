@@ -51,6 +51,7 @@ import {
 import type { Warning } from "../core/warnings"
 import {
   bookScreenVisible,
+  bringFront,
   issueStage,
   mapScreen,
   mapScreens,
@@ -165,6 +166,8 @@ export interface Actions {
   closeContextMenu(): void
   showToast(toast: ToastInput): string // トーストを出し、その id を返す
   dismissToast(id: string): void // トーストを消す（もう無ければ何もしない）
+  showControlCenter(): void // コントロールセンターを前に出す（ブックスクリーンの中は残す）
+  showBookScreen(): void // ブックスクリーンを前に出す
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
   moveDivider(x: number, width: number): void // 分けている境目を、並べた幅 width の左から x の所へ（ドラッグした位置）
@@ -617,7 +620,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const type = workspace.stages.find(s => s.id === stage)?.opened?.type
       const presentation = type && catalog.bookTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
-      for (const scope of keyScopes({ menu, dialog: dialog !== null }, scopes, shown, reach)) {
+      const center = window.front === "control-center"
+      for (const scope of keyScopes({ menu, dialog: dialog !== null, center }, scopes, shown, reach)) {
         const hit = findKey(table, scope, key)
         if (!hit) continue
         const { command, args } = hit.binding
@@ -643,6 +647,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (now.some(t => t.id === id)) setState({ toasts: now.filter(t => t.id !== id) })
     },
     // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
+    showControlCenter: () => withWindow(win => bringFront(win, "control-center")),
+    showBookScreen: () => withWindow(win => bringFront(win, "book-screen")),
     split: stage =>
       withWindow(win => {
         const ws = screenOf(win)
@@ -659,7 +665,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     focusStage: id => withWorkspace(ws => focus(ws, id)),
     openBook: (stage, bookId) => {
       const book = getState().books[bookId]
-      if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book)))
+      // ブックを開くと、見る側のブックスクリーンを前に出す
+      if (book)
+        withWindow(win =>
+          bringFront(
+            mapScreen(win, ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book))),
+            "book-screen",
+          ),
+        )
     },
     openPage: (stage, page) => {
       const { books, window } = getState()

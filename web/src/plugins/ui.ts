@@ -37,7 +37,7 @@ export const DEFAULT_LAYOUT = defineLayout({
   id: "default",
   slots: {
     root: [
-      "@matomezu/base:workspace",
+      "@matomezu/base:window",
       "@matomezu/base:dialog-host",
       "@matomezu/base:menu-host",
       "@matomezu/base:toast-host",
@@ -46,6 +46,8 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:mail-watch",
       "@matomezu/base:tool-picker",
     ],
+    "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
+    "@matomezu/base:control-center-screen": ["@matomezu/control-center:screen"],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
     "@matomezu/base:book-layers": [
@@ -88,6 +90,7 @@ export const DEFAULT_LAYOUT = defineLayout({
   },
   menus: {
     "@matomezu/base:stage-menu": [
+      "@matomezu/base:control-center-toggle",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
       "@matomezu/base:book-open",
       "@matomezu/base:book-settings",

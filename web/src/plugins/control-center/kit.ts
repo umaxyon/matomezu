@@ -1,4 +1,5 @@
 // このプラグインの定義の関数の組（自分の物を短い名前で書き、頭 @matomezu/control-center: を付ける）
 import { pluginKit } from "../../plugin-api"
+import { CONTROL_CENTER_MESSAGES } from "./messages"
 
-export const kit = pluginKit("@matomezu/control-center")
+export const kit = pluginKit("@matomezu/control-center", CONTROL_CENTER_MESSAGES)

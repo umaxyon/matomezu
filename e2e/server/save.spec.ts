@@ -1,5 +1,5 @@
 import { E2E_BOOKS } from "../books"
-import { aiAuth, expect, type Page, test } from "../fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "../fixtures"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
@@ -63,7 +63,7 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
   }
   await put(a, { ...E2E_1, pages: [{ ...E2E_1.pages[0]!, items: [box] }] })
   for (const page of [a, b]) {
-    await page.goto("/")
+    await page.goto(BOOK_SCREEN_URL)
     await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", E2E_1.title)
     await expect(page.locator("[data-item]")).toHaveCount(1)
   }

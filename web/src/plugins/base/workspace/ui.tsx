@@ -5,6 +5,7 @@ import { FOOTER_MENU_SLOTS } from "../book-name/footer-menu"
 import { kit } from "../kit"
 import { LEFT_SIDE_PANEL } from "../left-side-panel/slots"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
+import { BOOK_SCREEN } from "../window/slots"
 import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import { WorkspaceView } from "./WorkspaceView"
 
@@ -16,14 +17,14 @@ export const STAGE_SLOTS = [STAGE_TOP, STAGE_BOTTOM, STAGE_CORNER, ...FOOTER_MEN
 // ステージのベーススロット: ステージの骨組み（根に置き、ステージの列を並べるウィジェット）が、列ごとに必ず開けるスロット
 export const STAGE_BASE_SLOTS = [STAGE_TOP, STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER] as const
 
-// ステージの骨組みのウィジェット。根に置き、ベーススロットを全部開ける（view が列ごとに描く）。base の workspace の代わりを作るときもこれで作る
+// ステージの骨組みのウィジェット。ブックスクリーンのスロットに置き、ベーススロットを全部開ける（view が列ごとに描く）。base の workspace の代わりを作るときもこれで作る
 export const defineWorkspace = <const Id extends string>(def: { id: Id; view: () => ReactNode }) =>
-  defineWidget({ id: def.id, slots: ["root"], opens: STAGE_BASE_SLOTS, view: def.view })
+  defineWidget({ id: def.id, slots: [BOOK_SCREEN], opens: STAGE_BASE_SLOTS, view: def.view })
 
 // base の骨組みは、ベーススロットのほかに、ステージの列の右に右サイドパネルのスロットと、列の左に左サイドパネルのスロットも開ける
 export const WORKSPACE = defineWidget({
   id: kit.name("workspace"),
-  slots: ["root"],
+  slots: [BOOK_SCREEN],
   opens: [...STAGE_BASE_SLOTS, RIGHT_SIDE_PANEL, LEFT_SIDE_PANEL],
   view: WorkspaceView,
 })

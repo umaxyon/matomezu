@@ -436,6 +436,7 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
 test("窓が見ているものと、窓がフォーカスされたことを、増やす番号を付けて知らせる。変わらなければ知らせない", async () => {
   const s = await connected()
   const view = (selection: string[]) => ({
+    front: "book-screen",
     book: "b1",
     page: "p1",
     mode: "edit",
@@ -472,6 +473,7 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
   const s = await connected()
   s.store.actions.split("s1")
   expect(s.sent.at(-1)?.view).toEqual({
+    front: "book-screen",
     book: "b1",
     page: "p1",
     mode: "edit",
@@ -629,4 +631,21 @@ test("フォーカスされたとき、壁時計で QUIET_MS 何も届いてい�
     "no event for 60s by the clock; connecting again",
     "reconnected as c2 (was c1): sending 0 actions again",
   ])
+})
+
+test("コントロールセンターを前に出している間は、見ているものを front と hidden に分けて知らせる", async () => {
+  const s = await connected()
+  s.store.actions.showControlCenter()
+  expect(s.sent.at(-1)?.view).toEqual({
+    front: "control-center",
+    hidden: {
+      book: "b1",
+      page: "p1",
+      mode: "edit",
+      selection: [],
+      stage: "s1",
+      stages: [{ id: "s1", book: "b1", page: "p1", mode: "edit" }],
+      canSplit: true,
+    },
+  })
 })

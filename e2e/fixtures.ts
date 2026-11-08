@@ -33,7 +33,16 @@ export const aiAuth = () => ({
 // ワーカーごとの Playwright の option（playwright.config.ts の use で渡す）
 export type HostOptions = { hostArgs: string[] }
 
+// 開いた直後（URL が無いとき）はコントロールセンターが前に出る。ブックスクリーンから始めるテストは、"/" を開く代わりにブックスクリーンを前に出す URL を開く
+// （コントロールセンターから始めるテストは "/?" を開く）
+export const BOOK_SCREEN_URL = "/?f=book"
+
 export const test = base.extend<{ books: readonly object[]; reset: undefined }, HostOptions & { host: Host }>({
+  page: async ({ page }, use) => {
+    const goto = page.goto.bind(page)
+    page.goto = (url, options) => goto(url === "/" ? BOOK_SCREEN_URL : url, options)
+    await use(page)
+  },
   // 常駐の serve に足す引数（追加プラグインのフォルダを結ぶ --plugin など）
   hostArgs: [[], { option: true, scope: "worker" }],
   host: [

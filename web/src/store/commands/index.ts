@@ -44,6 +44,7 @@ export function commandContext(
     {
       catalog,
       controlCenter,
+      front: state.window.front,
       stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
       book,
       settings,
