@@ -247,8 +247,7 @@ export function StandAt({
     return () => observer.disconnect()
   })
   if (!ctx?.layer || !measured) return null
-  const { rect, clip } = measured
-  const area = { w: ctx.layer.clientWidth, h: ctx.layer.clientHeight }
+  const { rect, clip, area } = measured
   const whole = { x: 0, y: 0, ...area }
   const room = area.w - STAND_MARGIN - rect.x
   const out = edgePinned && (topEdgeOut(rect, clip ? intersectRect(clip, whole) : whole) || room < minRoom)
@@ -349,7 +348,8 @@ export function revealedRect(base: Element, view: Element, found: readonly { el:
   )
 }
 
-// アンカーの要素の四角と、clipped なら囲む Revealable の見える所（どちらもスタンドのレイヤーの左上から）。パン・倍率・大きさ・スクロールで動けば測り直す
+// アンカーの要素の四角と、clipped なら囲む Revealable の見える所（どちらもスタンドのレイヤーの左上から）と、レイヤー（置ける範囲）の大きさ。
+// パン・倍率・大きさ・スクロールと、レイヤーの大きさ（ステージの幅が動くなど）が変われば測り直す
 function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped: boolean): Measured | null {
   const stage = useStage(ctx?.stage ?? "")
   const pan = useStagePan(ctx?.stage ?? "")
@@ -389,11 +389,12 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
       window.removeEventListener("resize", again)
     }
   }, [])
-  // アンカーの物の大きさの変化（リストの大きさを変えて行の幅が変わったなど）
+  // アンカーの物の大きさの変化（リストの大きさを変えて行の幅が変わったなど）と、レイヤーの大きさの変化（右サイドパネルの開け閉めでステージの幅が動くなど）
   // biome-ignore lint/correctness/useExhaustiveDependencies: アンカーの表が変わるたびに見張り直す
   useEffect(() => {
     if (!ctx || typeof ResizeObserver === "undefined") return
     const watch = new ResizeObserver(() => setTick(n => n + 1))
+    if (ctx.layer) watch.observe(ctx.layer)
     for (const id of ids) {
       const el = ctx.anchors.element(id)
       if (el) watch.observe(el)
@@ -403,11 +404,13 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
   return measured
 }
 
-// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲む Revealable の見える所（clip。測らないか、囲む物が無ければ null）と、形の点（path。layer の左上から。形が無ければ null）
+// 測ったアンカー: 要素をまとめて囲む四角（rect）と、要素を囲む Revealable の見える所（clip。測らないか、囲む物が無ければ null）と、形の点（path。layer の左上から。形が無ければ null）と、
+// layer（スタンドを置ける範囲）の大きさ（area。アンカーが動かずに範囲の幅だけが変わっても、置き直すため）
 interface Measured {
   rect: Rect
   clip: Rect | null
   path: readonly Point[] | null
+  area: Size
 }
 
 // 要素 elements（描かれていない物は undefined）をまとめて囲む四角（layer の左上から。どれも無ければ null）。
@@ -424,12 +427,13 @@ function measureIn(
   const local = (r: DOMRect): Rect => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height })
   const rect = unionRect(els.map(el => local(el.getBoundingClientRect())))
   const path = shape ? shapePath(shape, base) : null
-  if (!outer) return { rect, clip: null, path }
+  const area = { w: layer.clientWidth, h: layer.clientHeight }
+  if (!outer) return { rect, clip: null, path, area }
   const clips = els.flatMap(el => {
     const boxes = revealablesAround(el, outer).map(at => local(at.getBoundingClientRect()))
     return boxes.length > 0 ? [boxes.reduce(intersectRect)] : []
   })
-  return { rect, clip: clips.length === els.length ? unionRect(clips) : null, path }
+  return { rect, clip: clips.length === els.length ? unionRect(clips) : null, path, area }
 }
 
 // 形の要素（SVG の polyline）の点を、画面の位置にして layer の左上から測った点の並び（点が 2 つに満たなければ null）
@@ -453,4 +457,12 @@ const samePath = (a: readonly Point[] | null, b: readonly Point[] | null) =>
   a === b ||
   (a !== null && b !== null && a.length === b.length && a.every((p, i) => p.x === b[i]?.x && p.y === b[i]?.y))
 const same = (a: Measured | null, b: Measured | null): Measured | null =>
-  a && b && sameRect(a.rect, b.rect) && sameRect(a.clip, b.clip) && samePath(a.path, b.path) ? a : b
+  a &&
+  b &&
+  sameRect(a.rect, b.rect) &&
+  sameRect(a.clip, b.clip) &&
+  samePath(a.path, b.path) &&
+  a.area.w === b.area.w &&
+  a.area.h === b.area.h
+    ? a
+    : b

@@ -4,6 +4,7 @@ import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
 import { addBox, items } from "./helpers/paper"
 import { openGeneral, settingsDialog } from "./helpers/settings"
+import { fromMenu } from "./helpers/stage-menu"
 
 const stands = (page: Page) => page.locator("[data-stand]")
 
@@ -336,6 +337,30 @@ test("リストの行に付けた伝言の吹き出しは、リストの幅を�
   await page.mouse.up()
   await expect.poll(async () => (await row.boundingBox())!.width).toBeGreaterThan(200)
   await expect.poll(async () => Math.abs((await beside()) - gap)).toBeLessThan(2)
+})
+
+test("分けた左のステージのリストの行の伝言は、右サイドパネルを開いてステージが広がっても、閉じて狭まっても、行の右に付いたまま", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 700 })
+  await page.goto("/")
+  const list = await addList(page, "多い")
+  await addRow(page, list, "行 1")
+  const row = list.getByRole("listitem").first()
+  await writeNote(page, row, "見て")
+  await (await fromMenu(page, "画面を分割")).click()
+  const bubble = page.getByRole("button", { name: "伝言を開く" })
+  // 吹き出しの左の端と、行の右の端の差（行の右に付いていれば、すき間の分だけ正）
+  const beside = async () =>
+    (await bubble.boundingBox())!.x - ((await row.boundingBox())!.x + (await row.boundingBox())!.width)
+  await expect.poll(beside).toBeGreaterThan(0)
+  await bubble.click()
+  await expect(panel(page)).toBeVisible()
+  await expect.poll(beside).toBeGreaterThan(0)
+  await panel(page).getByRole("button", { name: "右サイドパネルを閉じる" }).click()
+  await expect(panel(page)).toHaveCount(0)
+  // ステージの幅が縮み終えたあとも、行の右に付き直す（縮む途中の幅で置いたまま残らない）
+  await expect.poll(beside).toBeGreaterThan(0)
 })
 
 test("読まれていない伝言は、箱の上の辺が画面の外に出ると、吹き出しが縁のマークポインタ（丸の中に伝言の絵）に替わり、押すと箱が見えて吹き出しに戻る。AI が読んだ伝言は縁に出ない", async ({
