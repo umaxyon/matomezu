@@ -24,7 +24,7 @@ export const ArtPropsSchema = z.strictObject({
 })
 
 // 編集のダイアログ（どの絵も同じ）
-export const ART_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "art-edit" })
+export const ART_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "art-edit", edits: a => [a.item] })
 
 // 絵 1 つの定義と、その追加のダイアログ（置く絵はツールボックスで決まっているので、絵ごとに 1 つ）
 function art<const Name extends PictureName, const Title extends keyof typeof ART_MESSAGES & string>(

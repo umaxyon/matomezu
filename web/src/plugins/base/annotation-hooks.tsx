@@ -28,11 +28,11 @@ export function useAnnotationsIn(stage: string): readonly Annotation[] {
   const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book ?? null)
   const all = useMatomezuState(s => (book && s.annotations[book]) || NONE)
   const settings = useMatomezuState(s => s.settings)
-  const editing = useMatomezuState(
+  const locked = useMatomezuState(
     useShallow(s => Object.values(s.editLocks).flatMap(l => (l.book === book ? l.ids : []))),
   )
   const now = useNow()
-  return useMemo(() => unexpired(catalog, all, settings, now, new Set(editing)), [catalog, all, settings, now, editing])
+  return useMemo(() => unexpired(catalog, all, settings, now, new Set(locked)), [catalog, all, settings, now, locked])
 }
 
 // ステージで開いているブックの、種類 annotation のアノテーション

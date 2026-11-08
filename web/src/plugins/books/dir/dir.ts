@@ -39,7 +39,10 @@ export const DIR_CONTEXT = kit.name("dir-context")
 export const ENTRY_CONTEXT = kit.name("entry-context")
 
 // ノード（中身。根も）の設定のダイアログ（開いたステージのブックの、ページ page の中身 entry の名前・説明・色）
-export const ENTRY_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; entry: string }>()({ id: "entry-settings" })
+export const ENTRY_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; entry: string }>()({
+  id: "entry-settings",
+  edits: a => [a.entry],
+})
 
 // 中身の色（無ければテーマの色）のテーマキー
 export const FOLDER_COLOR = { id: kit.name("dir-folder"), value: "#d9a441" } as const // フォルダのアイコン（標準は黄土色。テーマが上書きする）

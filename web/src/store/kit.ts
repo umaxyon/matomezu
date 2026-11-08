@@ -1,7 +1,7 @@
 // プラグインの定義の関数の組（pluginKit）: プラグインは自分の物を短い名前で書き、この組が頭（プラグインの id と :）を付けて返す。
 // 返した定義の id は本当の id（型も）で、自分の物はそれか kit.name(名前) で名指す。ほかのプラグインの物は本当の id で書く。
 // 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマキーの id・テーマが上書きする自分のテーマキーだけ
-import type { ActionId, MessageKey } from "../core/catalog"
+import type { ActionId, DialogExtras, MessageKey } from "../core/catalog"
 import type { ActionAttach, ActionDef, ActionTarget, ScopeRequired } from "../core/def/action"
 import type { AnnotationDef } from "../core/def/annotation"
 import {
@@ -173,7 +173,7 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     } & CommandScopeRequired<Ps>,
   ): Omit<CommandDef<A>, "id"> & { id: Owned<P, Id> }
 
-  defineDialog<const Id extends string>(def: { id: Id }): DialogDef & { id: Owned<P, Id> }
+  defineDialog<const Id extends string>(def: { id: Id } & DialogExtras): DialogDef & { id: Owned<P, Id> }
 
   // キーの範囲（title は自分の文言の短い鍵）
   defineKeyScope<const Id extends string>(
@@ -187,7 +187,9 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   defineLanguagePack<const L extends Omit<LanguagePackDef, "id">>(def: L): L & { id: Owned<P, L["lang"]> }
 
   // 開くときに A の値を渡すダイアログ（kit.defineDialogWith<渡す値の型>()({ id })）
-  defineDialogWith<A>(): <const Id extends string>(def: { id: Id }) => DialogDef<A> & { id: Owned<P, Id> }
+  defineDialogWith<A>(): <const Id extends string>(
+    def: { id: Id } & DialogExtras<A>,
+  ) => DialogDef<A> & { id: Owned<P, Id> }
 }
 
 export function pluginKit<const P extends string, const M extends MessageMap = Record<never, never>>(

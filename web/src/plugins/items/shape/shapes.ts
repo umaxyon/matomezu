@@ -44,7 +44,7 @@ export function startTurned(catalog: CoreCatalog, book: Book, page: string, item
 }
 
 // 編集のダイアログ（どの形も同じ）
-export const SHAPE_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "shape-edit" })
+export const SHAPE_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "shape-edit", edits: a => [a.item] })
 
 // 形 1 つの定義と、その追加のダイアログ（置く形はダイアログで決まっているので、形ごとに 1 つ）
 function shape<const Id extends string, const Title extends keyof typeof SHAPE_MESSAGES & string>(

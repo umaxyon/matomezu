@@ -8,6 +8,7 @@ import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
+import { EDIT_LOCK } from "./edit-lock/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
 import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_LAYER, MAIL_WATCH, MAILBOX_TAB } from "./mail/ui"
@@ -148,6 +149,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MAILBOX_TAB,
     MAIL_BOOKMARKS,
     MAIL_WATCH,
+    EDIT_LOCK,
     MAIL_LAYER,
     NOTE_READ_NOTICE,
     NOTE_ICON,
@@ -228,6 +230,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mailbox": typeof MAILBOX_TAB
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
+    "@matomezu/base:edit-lock": typeof EDIT_LOCK
     "@matomezu/base:mail-layer": typeof MAIL_LAYER
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON

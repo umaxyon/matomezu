@@ -444,3 +444,49 @@ test("付けた伝言を右サイドパネルで開いて文を直している�
   // 読んだ伝言は既読になって残る
   expect(await note()).toBe(id)
 })
+
+test("箱の編集のダイアログを開いている間は、AI がその箱を変えると断られ（being-edited）、閉じると変えられる。ほかの箱は変えられる", async ({
+  page,
+}) => {
+  const ai = aiAuth()
+  const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toHaveProperty("stage")
+  const { result } = await perform({
+    action: "@matomezu/base:book-create",
+    args: { type: "@matomezu/drawing:drawing", title: "直している箱" },
+  })
+  const on = { book: result.book }
+  const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })
+  const pageId = added.result.page as string
+  const place = async (x: number, caption: string) =>
+    (
+      await perform({
+        action: "@matomezu/paper:item-place",
+        args: { page: pageId, item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props: { caption } },
+        on,
+      })
+    ).result.item as string
+  const one = await place(100, "一")
+  const two = await place(400, "二")
+  await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book } })
+  const locked = page.waitForResponse(
+    r =>
+      r.url().endsWith("/api/view") &&
+      (r.request().postData() ?? "").includes(`"editLocks":{"${result.book}":["${one}"]}`),
+  )
+  await page.locator(`[data-item="${one}"]`).dblclick()
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  await expect(dialog).toBeVisible()
+  await locked
+  const rename = (item: string, caption: string) =>
+    perform({ action: "@matomezu/paper:item-update", args: { page: pageId, item, props: { caption } }, on })
+  expect(await rename(one, "AI")).toMatchObject({ ok: false, reason: "being-edited" })
+  expect(await rename(two, "AI")).toMatchObject({ ok: true })
+  await page.keyboard.press("Escape")
+  await expect(dialog).toHaveCount(0)
+  await expect.poll(async () => (await rename(one, "AI")).ok).toBe(true)
+})

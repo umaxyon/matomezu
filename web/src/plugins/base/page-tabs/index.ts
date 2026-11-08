@@ -22,7 +22,10 @@ declare module "../../../core/catalog" {
 export const NEW_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
 
 // ページの設定のダイアログ。開いたステージのブックの、ページ page の設定の項目を変える
-export const PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({ id: "page-settings" })
+export const PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({
+  id: "page-settings",
+  edits: a => [a.page],
+})
 
 // ブックのページを作るダイアログと、ページの設定のダイアログ（タイプが名指していなければ base のダイアログ）。
 // 受ける値が合うことは definePlugin が型で、名指したダイアログがあることは組み立てが確かめる

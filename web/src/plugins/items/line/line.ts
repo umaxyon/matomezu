@@ -99,7 +99,10 @@ export const captionWordsOf = (catalog: CoreCatalog, book: Pick<Book, "type">, f
   )
 
 // 線の編集のダイアログ。開いたステージのブックの、ページ page の線 item の項目を変える
-export const LINE_EDIT_DIALOG = kit.defineDialogWith<{ page: string; item: string }>()({ id: "line-edit" })
+export const LINE_EDIT_DIALOG = kit.defineDialogWith<{ page: string; item: string }>()({
+  id: "line-edit",
+  edits: a => [a.item],
+})
 
 // ページ page の線の既定が折れ線か（ページの既定、無ければブックの既定、それも無ければ設定の既定）
 export const elbowAt = (catalog: CoreCatalog, book: Book, page: object | null): boolean =>

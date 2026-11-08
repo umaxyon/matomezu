@@ -34,7 +34,10 @@ export const TREE_PRESENTATION = kit.definePresentation({
 })
 
 // ツリーのページの設定のダイアログ（根のダイアログを兼ねる。ページ名・伸びる向き・節の大きさ・根のキャプションと本文と、本文を描くか）
-export const TREE_PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({ id: "page-settings" })
+export const TREE_PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({
+  id: "page-settings",
+  edits: a => [a.page],
+})
 
 // ツリーのページを作るダイアログ（ページ名・伸びる向き・根のキャプション）
 export const NEW_TREE_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
@@ -46,7 +49,10 @@ export const TREE_CONTEXT = kit.name("tree-context")
 export const NODE_CONTEXT = kit.name("node-context")
 
 // 子の節の大きさの選び方を変えるダイアログ（開いたステージのブックの、ページ page の節 node）
-export const NODE_SIZE_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({ id: "node-size-edit" })
+export const NODE_SIZE_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({
+  id: "node-size-edit",
+  edits: a => [a.node],
+})
 
 // 節の塗りのテーマキー（無ければテーマの塗り。節の色を選ぶときの「なし」の色）
 export const NODE_FILL = { id: kit.name("tree-node-fill"), fallback: "fill" } as const

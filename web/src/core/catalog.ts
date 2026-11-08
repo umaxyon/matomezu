@@ -163,7 +163,11 @@ export interface MailExtras {}
 export interface MessageSetExtras {}
 export interface LanguagePackExtras {}
 export interface CommandExtras {}
-export interface DialogExtras {}
+// ダイアログの拡張ポイントは、書き足すフィールドが開くときに渡す値の型 A を使えるように型引数を持つ（argsOf は A を結ぶためだけの型の印）
+declare const argsOf: unique symbol
+export interface DialogExtras<A = undefined> {
+  readonly [argsOf]?: A
+}
 export interface KeyExtras {}
 export interface KeyScopeExtras {}
 export interface WidgetExtras {}

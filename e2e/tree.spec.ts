@@ -1,5 +1,5 @@
 // ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
-import { expect, type Page, test } from "./fixtures"
+import { aiAuth, expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
 import { newBook } from "./helpers/master"
 import { paper, settled } from "./helpers/paper"
@@ -272,4 +272,32 @@ test("節のメニューの「節の色」で、節のすぐ下に色のスタ�
   await stand.getByRole("button", { name: "テーマの色 2" }).click()
   await expect(stand).toHaveCount(0)
   await expect.poll(() => rootEl.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe(before)
+})
+
+test("節をその場で書いている間は、AI がその節を変えると断られ（being-edited）、確定すると変えられる", async ({
+  page,
+}) => {
+  const ai = aiAuth()
+  await treeBook(page)
+  const paperEl = paper(page)
+  await paperEl.getByRole("button", { name: "子を足す" }).click()
+  await expect(paperEl.getByRole("textbox", { name: "キャプション" })).toBeFocused()
+  await page.keyboard.type("子")
+  const child = paperEl.locator('[data-node]:not([data-root="true"])')
+  const node = (await child.getAttribute("data-node"))!
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
+  const rename = async () =>
+    (
+      await page.request.post("/api/ai/perform", {
+        headers: ai,
+        data: { action: "@matomezu/tree:node-update", args: { page: shown, node, caption: "AI" }, on: { book } },
+      })
+    ).json()
+  await expect.poll(async () => (await rename()).reason).toBe("being-edited")
+  await page.keyboard.press("Enter")
+  await expect.poll(async () => (await rename()).ok).toBe(true)
+  await expect(child).toHaveText("AI")
 })
