@@ -347,7 +347,7 @@ test("分けた左のステージのリストの行の伝言は、右サイド�
   page,
 }) => {
   await page.setViewportSize({ width: 1400, height: 700 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "多い")
   await addRow(page, list, "行 1")
   const row = list.getByRole("listitem").first()
@@ -371,7 +371,7 @@ test("分けたステージの境目を左へドラッグして左のステー�
   page,
 }) => {
   await page.setViewportSize({ width: 1400, height: 700 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await writeNote(page, box, "境目に押される")
@@ -406,7 +406,7 @@ test("物がステージより広く、見せても吹き出しが入らない�
   page,
 }) => {
   await page.setViewportSize({ width: 600, height: 600 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 150, "横に長い見出しの箱です、とても長い見出しの箱です")
   const box = items(page).filter({ hasText: "横に長い" })
   await writeNote(page, box, "広い物")
