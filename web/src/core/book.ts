@@ -5,7 +5,7 @@ import type { NewBook } from "./def/book-type"
 import { freshId } from "./ids"
 import { splitId } from "./names"
 import type { PaperChoice } from "./paper"
-import { type ItemPage, pageHolds, walkShapes } from "./placed"
+import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"
 import type { Book, Page } from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
@@ -53,6 +53,7 @@ function missingIn(catalog: CoreCatalog, book: Book): string[] {
     for (const k of settingsOf(page)) if (!catalog.settings.has(k)) found.add(k)
     for (const i of page.items ?? []) if (!catalog.items.has(i.item)) found.add(i.item)
     for (const { shape } of walkShapes(page)) if (!catalog.items.has(shape.item)) found.add(shape.item)
+    for (const s of slideOf(page)) if (!catalog.items.has(s.item)) found.add(s.item)
   }
   return [...found]
 }

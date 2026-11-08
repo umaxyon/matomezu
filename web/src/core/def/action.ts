@@ -11,7 +11,7 @@ import type { Mailbox } from "../mail"
 import type { Participants } from "../participant"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
-import type { BookTypeDef } from "./book-type"
+import { type BookTypeDef, placeableOf } from "./book-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはコントロールセンターが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
@@ -94,7 +94,7 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): b
   return (
     a.books === true ||
     (a.pages === true && type.pages !== null) ||
-    (a.items?.some(id => type.items.allowed.includes(id) || (type.slide?.allowed.includes(id) ?? false)) ?? false) ||
+    (a.items?.some(id => placeableOf(type).includes(id)) ?? false) ||
     (a.presentations?.includes(type.presentation) ?? false) ||
     (a.annotations?.some(id => !type.annotations?.without?.includes(id as never)) ?? false)
   )

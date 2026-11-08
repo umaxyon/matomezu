@@ -1,7 +1,7 @@
 // スライドのブックのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・比率を戻す・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、見せ方が決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
-import type { ItemId } from "../../../plugin-api"
-import type { Frame } from "./frame"
+import type { ItemId, Rect } from "../../../plugin-api"
+
 import { kit } from "./kit"
 import { SLIDE_KEY_SCOPE } from "./slide-book"
 
@@ -17,13 +17,13 @@ type Ctx = Parameters<Parameters<typeof kit.defineCommand>[0]["run"]>[0]
 // 開いているページがあるか
 const onPage = (ctx: Ctx): boolean => ctx.stage.opened?.page != null
 
-// 置こうとしているアイテムを、枠 frame に置く。props はそのアイテムの項目（文字枠なら text など）。置けなければトーストで知らせる
+// 置こうとしているアイテムを、枠 rect に置く。props はそのアイテムの項目（文字枠なら text など）。置けなければトーストで知らせる
 export const SLIDE_PUT = kit.defineCommand({
   id: "slide-put",
   performs: [PLACE],
   permissionScope: "opened-page",
   title: "Place on slide",
-  run: (ctx, a, args: { item: ItemId; frame: Frame; props: Record<string, unknown> }) => {
+  run: (ctx, a, args: { item: ItemId; rect: Rect; props: Record<string, unknown> }) => {
     const { opened } = ctx.stage
     if (!opened?.page) return
     const done = a.perform(
@@ -31,9 +31,9 @@ export const SLIDE_PUT = kit.defineCommand({
       {
         page: opened.page,
         item: args.item,
-        at: { x: args.frame.x, y: args.frame.y },
-        w: args.frame.w,
-        h: args.frame.h,
+        at: { x: args.rect.x, y: args.rect.y },
+        w: args.rect.w,
+        h: args.rect.h,
         props: args.props,
       } as never,
       { book: opened.book },
@@ -61,24 +61,24 @@ export const SLIDE_MOVE_TO = kit.defineCommand({
   when: onPage,
 })
 
-// アイテムの枠を frame にする。scaled なら文字枠の文字も幅の倍率で変える
+// アイテムの枠を rect にする。scaled なら文字枠の文字も幅の倍率で変える
 export const SLIDE_RESHAPE = kit.defineCommand({
   id: "slide-reshape",
   performs: [RESIZE],
   permissionScope: "opened-page",
   title: "Resize on slide",
-  run: (ctx, a, args: { item: string; frame: Frame; scaled: boolean }) => {
+  run: (ctx, a, args: { item: string; rect: Rect; scaled: boolean }) => {
     const { opened } = ctx.stage
     if (!opened?.page) return
-    const { frame } = args
+    const { rect } = args
     a.perform(
       RESIZE,
       {
         page: opened.page,
         item: args.item,
-        at: { x: frame.x, y: frame.y },
-        w: frame.w,
-        h: frame.h,
+        at: { x: rect.x, y: rect.y },
+        w: rect.w,
+        h: rect.h,
         scale: args.scaled,
       },
       { book: opened.book },

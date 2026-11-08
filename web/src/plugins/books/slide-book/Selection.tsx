@@ -1,10 +1,11 @@
 // 選んだスライドのアイテムの上に出す物: 枠線・四隅と四辺のつまみ・回すつまみ（右上の角の斜め外）と、すぐ上（上が足りなければ下）に浮かぶバー（比率の固定・元の比率に・角度）。
 // 枠とつまみは、アイテムと同じ位置・大きさ・角度でかける。大きさは画面の上で一定にする（紙の倍率 --paper-zoom で割る）。バーは傾けず、傾けた枠が収まる四角の上に出す
 import { useState } from "react"
+import type { Rect } from "../../../plugin-api"
 import { useCommand, useMessages } from "../../../plugin-api/ui"
 import { SLIDE_RESET, SLIDE_SET } from "./commands"
-import { cornersOf, type Frame, normalizeAngle } from "./frame"
 import { kit } from "./kit"
+import { cornersOf, normalizeAngle } from "./rect"
 import styles from "./Selection.module.css"
 
 export const GRIPS = [
@@ -22,25 +23,25 @@ export const GRIPS = [
 export interface SelectedItem {
   id: string
   stage: string
-  frame: Frame
+  rect: Rect
   rotation: number
   locked: boolean
   ratio: number | undefined
 }
 
 export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolean }) {
-  const { frame, rotation } = item
+  const { rect, rotation } = item
   const t = useMessages(kit)
   return (
     <>
       {!hidden && (
         <div
-          className={styles.frame}
+          className={styles.rect}
           style={{
-            left: frame.x,
-            top: frame.y,
-            width: frame.w,
-            height: frame.h,
+            left: rect.x,
+            top: rect.y,
+            width: rect.w,
+            height: rect.h,
             transform: rotation ? `rotate(${rotation}deg)` : undefined,
           }}
         >
@@ -66,8 +67,8 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
 }
 
 // 傾けた枠が収まる四角
-function boundsOf(frame: Frame, rotation: number): { left: number; top: number; right: number; bottom: number } {
-  const c = cornersOf(frame, rotation)
+function boundsOf(rect: Rect, rotation: number): { left: number; top: number; right: number; bottom: number } {
+  const c = cornersOf(rect, rotation)
   const xs = c.map(p => p.x)
   const ys = c.map(p => p.y)
   return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) }
@@ -80,9 +81,9 @@ function Bar({ item }: { item: SelectedItem }) {
   const t = useMessages(kit)
   const set = useCommand(item.stage, SLIDE_SET.id)
   const reset = useCommand(item.stage, SLIDE_RESET.id)
-  const b = boundsOf(item.frame, item.rotation)
+  const b = boundsOf(item.rect, item.rotation)
   const above = b.top > BAR_ROOM
-  const atRatio = item.ratio === undefined || Math.abs(item.frame.w / item.frame.h - item.ratio) < 0.005
+  const atRatio = item.ratio === undefined || Math.abs(item.rect.w / item.rect.h - item.ratio) < 0.005
   return (
     <div
       className={styles.bar}

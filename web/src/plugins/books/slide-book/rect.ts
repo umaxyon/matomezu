@@ -1,13 +1,6 @@
-// スライドのアイテムの枠の計算（紙の上の px。角度は度で、時計回り、枠の中心まわり）。つまみで大きさを変えたときの新しい枠と、回すつまみで決まる角度、ドラッグで描いた線の枠。
+// スライドのアイテムの四角の計算（紙の上の px。角度は度で、時計回り、四角の中心まわり）。つまみで大きさを変えたときの新しい四角と、回すつまみで決まる角度、ドラッグで描いた線の四角。
 // 大きさを変えるときは、つかんでいない側の辺（角なら向かいの角）が紙の上で動かないようにする
-import type { Point } from "../../../plugin-api"
-
-export interface Frame {
-  x: number
-  y: number
-  w: number
-  h: number
-}
+import type { Point, Rect } from "../../../plugin-api"
 
 // つかんだ辺（角なら 2 つ）
 export interface Grip {
@@ -26,10 +19,10 @@ export function turn(p: Point, deg: number): Point {
   return { x: p.x * c - p.y * s, y: p.x * s + p.y * c }
 }
 
-export const centerOf = (f: Frame): Point => ({ x: f.x + f.w / 2, y: f.y + f.h / 2 })
+export const centerOf = (f: Rect): Point => ({ x: f.x + f.w / 2, y: f.y + f.h / 2 })
 
-// 枠の四隅の紙の上の位置（左上・右上・右下・左下の順。角度をかけたあと）
-export function cornersOf(f: Frame, rotation: number): readonly Point[] {
+// 四角の四隅の紙の上の位置（左上・右上・右下・左下の順。角度をかけたあと）
+export function cornersOf(f: Rect, rotation: number): readonly Point[] {
   const c = centerOf(f)
   return [
     { x: -f.w / 2, y: -f.h / 2 },
@@ -46,12 +39,12 @@ export function cornersOf(f: Frame, rotation: number): readonly Point[] {
 export const isCorner = (g: Grip): boolean =>
   (g.left === true || g.right === true) && (g.top === true || g.bottom === true)
 
-export interface Resized extends Frame {
+export interface Resized extends Rect {
   scaled: boolean // 角をつかんだ（文字枠の文字も一緒に拡大する）
 }
 
 // 辺 grip をつかんで、紙の上で by だけ引いたあとの枠。min は幅・高さの下限。ratio（幅 ÷ 高さ）を渡せば、その比を保つ
-export function resizeFrame(f: Frame, rotation: number, grip: Grip, by: Point, min: number, ratio?: number): Resized {
+export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, min: number, ratio?: number): Resized {
   const d = turn(by, -rotation)
   const horizontal = grip.left === true || grip.right === true
   const vertical = grip.top === true || grip.bottom === true
@@ -117,7 +110,7 @@ export function rotatedTo(from: number, center: Point, start: Point, now: Point,
 }
 
 // ドラッグで描いた点の並び points を入れる枠と、枠の中の割合にした点。枠は幅・高さが min 未満にならない（線が水平・垂直のとき）
-export function drawnFrame(points: readonly Point[], min: number): { frame: Frame; fractions: Point[] } {
+export function drawnRect(points: readonly Point[], min: number): { rect: Rect; fractions: Point[] } {
   const xs = points.map(p => p.x)
   const ys = points.map(p => p.y)
   const x = Math.min(...xs)
@@ -126,7 +119,7 @@ export function drawnFrame(points: readonly Point[], min: number): { frame: Fram
   const h = Math.max(Math.max(...ys) - y, min)
   const clamp = (n: number) => Math.min(1, Math.max(0, Math.round(n * 1000) / 1000))
   return {
-    frame: { x, y, w, h },
+    rect: { x, y, w, h },
     fractions: points.map(p => ({ x: clamp((p.x - x) / w), y: clamp((p.y - y) / h) })),
   }
 }

@@ -5,7 +5,7 @@
 // 右上の角の斜め外のつまみで回す（Shift で 15 度ずつ）。ロック中のアイテムは縦横の比を保つ。文字枠はダブルクリックで文字を書き換える（外を押すと決め、Escape でやめる）。
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
-import { type ItemId, type PlacedShape, type Point, type StageView, slideOf } from "../../../plugin-api"
+import { type ItemId, type PlacedShape, type Point, type Rect, type StageView, slideOf } from "../../../plugin-api"
 import {
   type BookViewProps,
   type ItemViewProps,
@@ -20,8 +20,8 @@ import {
 } from "../../../plugin-api/ui"
 import { PaperFrame } from "../../base/ui"
 import { SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "./commands"
-import { drawnFrame, type Frame, type Grip, resizeFrame, rotatedTo, thinned } from "./frame"
 import { kit } from "./kit"
+import { drawnRect, type Grip, resizedRect, rotatedTo, thinned } from "./rect"
 import { GRIPS, type SelectedItem, Selection } from "./Selection"
 import styles from "./SlideView.module.css"
 import { SLIDE_KEY_SCOPE } from "./slide-book"
@@ -36,34 +36,34 @@ const FREE = "@matomezu/slide:slide-free-line"
 const LINE = "@matomezu/slide:slide-line"
 
 type Drag =
-  | { kind: "move"; pointer: number; item: string; start: Point; frame: Frame; travelled: boolean }
+  | { kind: "move"; pointer: number; item: string; start: Point; rect: Rect; travelled: boolean }
   | {
       kind: "grip"
       pointer: number
       item: string
       start: Point
-      frame: Frame
+      rect: Rect
       rotation: number
       grip: Grip
       ratio: number | undefined
       text: boolean
     }
-  | { kind: "rotate"; pointer: number; item: string; start: Point; center: Point; rotation: number; frame: Frame }
+  | { kind: "rotate"; pointer: number; item: string; start: Point; center: Point; rotation: number; rect: Rect }
   | { kind: "draw"; pointer: number; item: ItemId; start: Point }
 
 // ドラッグの途中の様子（離すまで、アクションは呼ばない）
 interface Live {
   item: string
-  frame: Frame
+  rect: Rect
   rotation?: number
   scaled?: boolean
 }
 
 const shapeProps = (shape: PlacedShape): Record<string, unknown> => shape.props as Record<string, unknown>
 const rotationOf = (shape: PlacedShape): number => (shapeProps(shape).rotation as number | undefined) ?? 0
-const frameOf = (shape: PlacedShape): Frame => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
+const rectOf = (shape: PlacedShape): Rect => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
 const round = (n: number): number => Math.round(n * 100) / 100
-const roundFrame = (f: Frame): Frame => ({ x: round(f.x), y: round(f.y), w: round(f.w), h: round(f.h) })
+const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f.w), h: round(f.h) })
 
 export function SlideView({ stage: id }: BookViewProps) {
   const stage = useStage(id)
@@ -135,17 +135,17 @@ function Page({ stage }: { stage: StageView }) {
       e.preventDefault()
       capture()
       const found = GRIPS.find(g => g.id === gripEl.dataset.grip)
-      const frame = frameOf(selected)
+      const rect = rectOf(selected)
       const locked = shapeProps(selected).lockRatio === true
       drag.current = {
         kind: "grip",
         pointer: e.pointerId,
         item: selected.id,
         start: at,
-        frame,
+        rect,
         rotation: rotationOf(selected),
         grip: found?.grip ?? {},
-        ratio: locked ? frame.w / frame.h : undefined,
+        ratio: locked ? rect.w / rect.h : undefined,
         text: selected.item === TEXT,
       }
       return
@@ -153,15 +153,15 @@ function Page({ stage }: { stage: StageView }) {
     if (target.closest("[data-rotate]") && selected) {
       e.preventDefault()
       capture()
-      const frame = frameOf(selected)
+      const rect = rectOf(selected)
       drag.current = {
         kind: "rotate",
         pointer: e.pointerId,
         item: selected.id,
         start: at,
-        center: { x: frame.x + frame.w / 2, y: frame.y + frame.h / 2 },
+        center: { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 },
         rotation: rotationOf(selected),
-        frame,
+        rect,
       }
       return
     }
@@ -175,7 +175,7 @@ function Page({ stage }: { stage: StageView }) {
         pointer: e.pointerId,
         item: shape.id,
         start: at,
-        frame: frameOf(shape),
+        rect: rectOf(shape),
         travelled: false,
       }
       return
@@ -195,13 +195,13 @@ function Page({ stage }: { stage: StageView }) {
     if (d.kind === "move") {
       if (!d.travelled && Math.hypot(by.x, by.y) < CLICK / stage.zoom) return
       d.travelled = true
-      setLive({ item: d.item, frame: { ...d.frame, x: d.frame.x + by.x, y: d.frame.y + by.y } })
+      setLive({ item: d.item, rect: { ...d.rect, x: d.rect.x + by.x, y: d.rect.y + by.y } })
     } else if (d.kind === "grip") {
-      const to = resizeFrame(d.frame, d.rotation, d.grip, by, MIN, d.ratio)
-      setLive({ item: d.item, frame: to, scaled: to.scaled && d.text })
+      const to = resizedRect(d.rect, d.rotation, d.grip, by, MIN, d.ratio)
+      setLive({ item: d.item, rect: to, scaled: to.scaled && d.text })
     } else if (d.kind === "rotate") {
       const rotation = rotatedTo(d.rotation, d.center, d.start, at, e.shiftKey ? 15 : undefined)
-      setLive({ item: d.item, frame: d.frame, rotation })
+      setLive({ item: d.item, rect: d.rect, rotation })
     } else {
       // なぞる点は、自由な線ならすべて、それ以外は始めと今の 2 つ
       setDrawn(now => (d.item === FREE ? [...(now ?? [d.start]), at] : [d.start, at]))
@@ -214,9 +214,8 @@ function Page({ stage }: { stage: StageView }) {
     const points = drawn
     finish()
     if (d.kind === "move" && l && d.travelled)
-      moveTo.run({ item: d.item, at: { x: round(l.frame.x), y: round(l.frame.y) } })
-    else if (d.kind === "grip" && l)
-      reshape.run({ item: d.item, frame: roundFrame(l.frame), scaled: l.scaled === true })
+      moveTo.run({ item: d.item, at: { x: round(l.rect.x), y: round(l.rect.y) } })
+    else if (d.kind === "grip" && l) reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: l.scaled === true })
     else if (d.kind === "rotate" && l && l.rotation !== undefined && l.rotation !== d.rotation)
       set.run({ item: d.item, props: { rotation: l.rotation === 0 ? null : l.rotation } })
     else if (d.kind === "draw" && points) placeDrawn(d.item, points)
@@ -231,14 +230,14 @@ function Page({ stage }: { stage: StageView }) {
     if (item === LINE || item === FREE) {
       if (!moved) return
       const dense = item === FREE ? thinned(points, THIN / stage.zoom) : [from, to]
-      const { frame, fractions } = drawnFrame(dense.slice(0, 500), MIN)
+      const { rect, fractions } = drawnRect(dense.slice(0, 500), MIN)
       const props = item === FREE ? { points: fractions } : { from: fractions[0], to: fractions.at(-1) }
-      put.run({ item, frame: roundFrame(frame), props })
+      put.run({ item, rect: roundRect(rect), props })
       return
     }
-    const frame = moved ? drawnFrame([from, to], MIN).frame : { x: from.x, y: from.y, w: def.size.w, h: def.size.h }
+    const rect = moved ? drawnRect([from, to], MIN).rect : { x: from.x, y: from.y, w: def.size.w, h: def.size.h }
     if (item === TEXT) typeNext.current = true
-    put.run({ item, frame: roundFrame(frame), props: item === TEXT ? { text: "" } : {} })
+    put.run({ item, rect: roundRect(rect), props: item === TEXT ? { text: "" } : {} })
   }
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = (e.target as Element).closest<HTMLElement>("[data-item]")
@@ -256,11 +255,11 @@ function Page({ stage }: { stage: StageView }) {
     const props = shapeProps(s)
     const scaledSize =
       live.scaled && s.item === TEXT && s.w
-        ? { fontSize: round((((props.fontSize as number | undefined) ?? 24) * live.frame.w) / s.w) }
+        ? { fontSize: round((((props.fontSize as number | undefined) ?? 24) * live.rect.w) / s.w) }
         : {}
     return {
       ...s,
-      ...live.frame,
+      ...live.rect,
       props: { ...props, ...scaledSize, ...(live.rotation === undefined ? {} : { rotation: live.rotation }) },
     } as PlacedShape
   })
@@ -270,7 +269,7 @@ function Page({ stage }: { stage: StageView }) {
     ? {
         id: current.id,
         stage: stage.id,
-        frame: frameOf(current),
+        rect: rectOf(current),
         rotation: rotationOf(current),
         locked: shapeProps(current).lockRatio === true,
         ratio: shapeProps(current).ratio as number | undefined,

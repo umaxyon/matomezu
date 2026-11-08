@@ -4,7 +4,7 @@
 
 import { isLight, PALETTE } from "./color"
 import type { CoreCatalog } from "./core-catalog"
-import type { BookTypeDef } from "./def/book-type"
+import { type BookTypeDef, placeableOf } from "./def/book-type"
 import type { ThemeValue, TokenDef } from "./def/theme"
 import { fail } from "./errors"
 import { splitId } from "./names"
@@ -49,7 +49,7 @@ export function resolveTokens(
 // ブックのタイプ type のブックを描くのに使うテーマキーの宣言: タイプのテーマキーと、タイプが置けるアイテム（allowed）のテーマキー、
 // そのアイテムの持ち主のプラグインが持つテーマキー（いくつものアイテムが共に使うもの）。同じ id は 1 つにまとめる
 export function tokenDefsOf(catalog: CoreCatalog, type: BookTypeDef): TokenDef[] {
-  const items = type.items.allowed.flatMap(id => catalog.items.get(id) ?? [])
+  const items = placeableOf(type).flatMap(id => catalog.items.get(id) ?? [])
   const owners = new Set(items.map(i => splitId(i.id).owner))
   const defs = [
     ...type.tokens,

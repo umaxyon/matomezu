@@ -70,6 +70,12 @@ export interface BookTypeSettings {
   page?: readonly string[]
 }
 
+// タイプのブックに置けるアイテムの id: ブックの items の候補と、ページの slide に置くアイテム
+export const placeableOf = (type: Pick<BookTypeDef, "items" | "slide">): readonly string[] => [
+  ...type.items.allowed,
+  ...(type.slide?.allowed ?? []),
+]
+
 // create の返す値を、schema の形に合わせる（id などは書いた文字のまま残す）
 export function defineBookType<const S extends z.ZodObject, const T extends BookTypeDef<S>>(def: T & { schema: S }): T {
   return def
