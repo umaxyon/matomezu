@@ -1,6 +1,6 @@
 // 原文の中を探す（base/search/find.ts）: 当たり・置き換え・次と前
 import { expect, test } from "bun:test"
-import { findAll, nextHit, replaceAll, replaceOne, type SearchQuery } from "../../web/src/plugins/base/search/find"
+import { findAll, replaceAll, replaceOne, type SearchQuery } from "../../web/src/plugins/base/search/find"
 
 const q = (text: string, opts: Partial<SearchQuery> = {}): SearchQuery => ({
   text,
@@ -47,19 +47,4 @@ test("全部置換は当たりを全部替える（正規表現の $1 も）", (
   expect(replaceAll("Cat cat CAT", q("cat"), "dog")).toBe("dog dog dog")
   expect(replaceAll("a1 b2", q("(\\w)(\\d)", { regex: true }), "$2$1")).toBe("1a 2b")
   expect(replaceAll("abc", q("(", { regex: true }), "x")).toBe("abc")
-})
-
-test("次・前の当たり: 位置から向きに進み、端では回るか止まる", () => {
-  const list = [
-    { start: 2, end: 3 },
-    { start: 5, end: 6 },
-    { start: 9, end: 10 },
-  ]
-  expect(nextHit(list, 3, "forward", true)).toBe(1)
-  expect(nextHit(list, 10, "forward", true)).toBe(0)
-  expect(nextHit(list, 10, "forward", false)).toBe("none")
-  expect(nextHit(list, 5, "backward", true)).toBe(0)
-  expect(nextHit(list, 2, "backward", true)).toBe(2)
-  expect(nextHit(list, 2, "backward", false)).toBe("none")
-  expect(nextHit([], 0, "forward", true)).toBe("none")
 })

@@ -1,5 +1,5 @@
 // 原文の中を探す（見た目を持たない計算）: 探す字と切り替え（大文字小文字の区別・正規表現）から、当たり（原文の中の [start, end)）の並びを出し、
-// 置き換えた原文を作り、次・前の当たりを選ぶ。正規表現は VS Code と同じく ^・$ を行の頭と終わりに当て（m）、. は改行に当てない。
+// 置き換えた原文を作る（次・前の当たりは search.ts の stepHit）。正規表現は VS Code と同じく ^・$ を行の頭と終わりに当て（m）、. は改行に当てない。
 // 幅 0 の当たり（^ や a* など）は飛ばして先へ進む。正規表現が読めなければ、当たりではなく bad-pattern を返す
 export interface SearchQuery {
   text: string // 探す字（正規表現なら式）
@@ -55,24 +55,4 @@ export function replaceAll(source: string, query: SearchQuery, replacement: stri
   let out = source
   for (const hit of [...found.hits].reverse()) out = replaceOne(out, query, hit, replacement)
   return out
-}
-
-// 原文の位置 at から向き direction に進んだ次の当たりの番号。端を越えたら wrap なら反対の端から、そうでなければ none
-export function nextHit(
-  hits: readonly SearchHit[],
-  at: number,
-  direction: "forward" | "backward",
-  wrap: boolean,
-): number | "none" {
-  if (hits.length === 0) return "none"
-  const i = direction === "forward" ? hits.findIndex(h => h.start >= at) : lastIndex(hits, h => h.start < at)
-  if (i >= 0) return i
-  if (!wrap) return "none"
-  return direction === "forward" ? 0 : hits.length - 1
-}
-
-// 並びの中で、ok に当たる最後の物の番号（無ければ -1）
-function lastIndex<T>(list: readonly T[], ok: (x: T) => boolean): number {
-  for (let i = list.length - 1; i >= 0; i--) if (ok(list[i] as T)) return i
-  return -1
 }
