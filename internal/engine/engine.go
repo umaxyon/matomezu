@@ -76,6 +76,7 @@ type Engine struct {
 	without   func(string, string) string
 	talk      func() string
 	join      func() string
+	projects  func() string
 	live      func(string, string, string, string) string
 	mails     func(string) string
 	forAI     func(string) string
@@ -128,6 +129,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuJoinActions"), &e.join); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuJoinActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuProjects"), &e.projects); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuProjects: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuUnexpired"), &e.live); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuUnexpired: %w", err)
@@ -340,6 +344,25 @@ func (e *Engine) JoinActions() (ids *JoinActions, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.join()), &ids)
 	return ids, err
+}
+
+// Project はプロジェクトの表の 1 行
+type Project struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Projects はプロジェクトの表（core/project.ts。組み直しても変わらない）
+func (e *Engine) Projects() (projects []Project, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.projects()), &projects)
+	return projects, err
 }
 
 // AnnotationsUnexpired は、アノテーションの並び list から、期限（種類の expiresAt。利用者の設定 settings で決まる）が時点 now より前の物を除いた並びと、

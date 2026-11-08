@@ -9,7 +9,8 @@ import (
 const instructions = "matomezu shows books (such as diagrams) to the user in a browser. " +
 	"Use view to see what the user is looking at, list_books, read_book and read_page to read, actions to see what can be done, and perform to do it. " +
 	"The user may put notes and marks on things in a book; view and list_books tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
-	"Changes appear at once on screens showing that book; use show to put a book on the user's screen."
+	"Changes appear at once on screens showing that book; use show to put a book on the user's screen. " +
+	"Books and mail belong to projects: list_books and read_mail take the projects to read, and book-create and mail-send take the project to make it in; join first to ask for projects and learn the ids."
 
 type readTool struct {
 	name        string
@@ -20,6 +21,36 @@ type readTool struct {
 
 var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
 
+// projectsSchema は、読む範囲を絞るツール（list_books・read_mail）が受ける形。projects は必須で、空は断る
+var projectsSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"projects": projectsProperty,
+	},
+	"required":             []string{"projects"},
+	"additionalProperties": false,
+}
+
+var projectsProperty = map[string]any{
+	"type":        "array",
+	"items":       map[string]any{"type": "string"},
+	"minItems":    1,
+	"description": "The ids of the projects to read, one or more (join returns the projects you joined).",
+}
+
+// projectsQuery は、args の projects を常駐の口の問い合わせにする（projects が無い・並びでないときは空で、常駐が断る）
+func projectsQuery(args map[string]any) string {
+	q := url.Values{}
+	if list, ok := args["projects"].([]any); ok {
+		for _, p := range list {
+			if id, ok := p.(string); ok {
+				q.Add("projects", id)
+			}
+		}
+	}
+	return "?" + q.Encode()
+}
+
 var readTools = []readTool{
 	{
 		"view",
@@ -29,9 +60,11 @@ var readTools = []readTool{
 	},
 	{
 		"list_books",
-		"List the books: id, type, title, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
-		noArgs,
-		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/books") },
+		"List the books of the projects you name: id, type, title, project, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
+		projectsSchema,
+		func(api caller, args map[string]any) (json.RawMessage, error) {
+			return api.Get("api/ai/books" + projectsQuery(args))
+		},
 	},
 	{
 		"read_book",
@@ -73,10 +106,12 @@ var readTools = []readTool{
 	},
 	{
 		"read_mail",
-		"Read the user's mailbox: the letters sent to the user, oldest first (id, from, sentAt, to: the place it points at, props: title and body). " +
+		"Read the user's mailbox, only the letters of the projects you name: the letters sent to the user, oldest first (id, project, from, sentAt, to: the place it points at, props: title and body). " +
 			"seenAt is when the user opened the letter (none: not yet), visitedAt is when the user saw the place it points at (none: not yet). Send a letter with the action mail-send.",
-		noArgs,
-		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/mail") },
+		projectsSchema,
+		func(api caller, args map[string]any) (json.RawMessage, error) {
+			return api.Get("api/ai/mail" + projectsQuery(args))
+		},
 	},
 	{
 		"actions",
@@ -274,13 +309,14 @@ var joinSchema = map[string]any{
 		"model":       map[string]any{"type": "string", "description": "The name of the model you are, such as claude-opus-4 or gpt-5."},
 		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
 		"link":        map[string]any{"type": "string", "description": "A one-time passphrase: a new uuid you make for this session. Use the same link when you ask again."},
+		"projects":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "description": "The ids of the projects to join, one or more."},
 	},
-	"required":             []string{"model", "link"},
+	"required":             []string{"model", "link", "projects"},
 	"additionalProperties": false,
 }
 
 const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. " +
-	"After you join, a notice with your workroom name comes with a later answer. Call it once per session."
+	"After you join, a notice with your workroom name comes with a later answer. Call it once per session; ask again with other projects to join those too (it answers with all the projects you joined)."
 
 // join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を以後の呼び出し全部に添える
 func join(c *conn, args map[string]any) (string, bool) {
@@ -289,8 +325,12 @@ func join(c *conn, args map[string]any) (string, bool) {
 	if model == "" || link == "" {
 		return "join needs model and link (a new uuid you make for this session)", true
 	}
+	projects, _ := args["projects"].([]any)
+	if len(projects) == 0 {
+		return "join needs projects (the ids of the projects to join, one or more)", true
+	}
 	sessionName, _ := args["sessionName"].(string)
-	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link}
+	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link, "projects": projects}
 	if c.sessionID != "" {
 		body["sessionId"] = c.sessionID
 	}
@@ -299,10 +339,11 @@ func join(c *conn, args map[string]any) (string, bool) {
 		return err.Error(), true
 	}
 	var done struct {
-		OK          bool   `json:"ok"`
-		Participant string `json:"participant"`
-		Reason      string `json:"reason"`
-		Detail      string `json:"detail"`
+		OK          bool     `json:"ok"`
+		Participant string   `json:"participant"`
+		Projects    []string `json:"projects"`
+		Reason      string   `json:"reason"`
+		Detail      string   `json:"detail"`
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
@@ -311,6 +352,6 @@ func join(c *conn, args map[string]any) (string, bool) {
 		return refusalText(done.Reason, done.Detail), true
 	}
 	c.participant = done.Participant
-	reply, _ := json.Marshal(map[string]string{"participant": done.Participant})
+	reply, _ := json.Marshal(map[string]any{"participant": done.Participant, "projects": done.Projects})
 	return string(reply), false
 }

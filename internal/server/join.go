@@ -9,7 +9,9 @@ package server
 //
 // 参加の id は MCP が X-Matomezu-Participant ヘッダで毎回添え、「参加しました」の知らせは X-Matomezu-Notice ヘッダで 1 度だけ返す（値は URL エンコード）。
 //
-//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
+//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "projects"} 参加を頼む。{"ok", "participant", "projects"}、または弾いた理由 {"ok": false, "reason", "detail"}
+//
+// projects は参加するプロジェクトの id の並び（1 つ以上で、表にあるもの）。同じ参加の id（または同じ link）でもう一度頼むと、弾かずに、まだ無いプロジェクトを足す。返す projects は、そのあとの参加者のプロジェクトの全部
 
 import (
 	"encoding/json"
@@ -34,13 +36,15 @@ type participantNote struct {
 
 // seat は参加者の表の 1 人のうち、join が見る所
 type seat struct {
-	ID          string `json:"id"`
-	State       string `json:"state"`
-	AI          string `json:"ai"`
-	Env         string `json:"env"`
-	SessionName string `json:"sessionName"`
-	Link        string `json:"link"`
-	Workroom    string `json:"workroom"`
+	ID          string   `json:"id"`
+	State       string   `json:"state"`
+	AI          string   `json:"ai"`
+	Model       string   `json:"model"`
+	Env         string   `json:"env"`
+	SessionName string   `json:"sessionName"`
+	Link        string   `json:"link"`
+	Workroom    string   `json:"workroom"`
+	Projects    []string `json:"projects"`
 }
 
 // JoinRequest は AI の参加の頼み。Participant は呼び出しに付いていた参加の id（無ければ空）
@@ -51,15 +55,18 @@ type JoinRequest struct {
 	SessionName string `json:"sessionName"`
 	Link        string `json:"link"`
 	SessionID   string `json:"sessionId"`
-	Participant string `json:"-"`
+	// Projects は参加するプロジェクトの id（1 つ以上）
+	Projects    []string `json:"projects"`
+	Participant string   `json:"-"`
 }
 
 // Joined は参加の頼みの結果。弾いたり断られたりしたら OK は false で、Reason と Detail に理由
 type Joined struct {
-	OK          bool   `json:"ok"`
-	Participant string `json:"participant,omitempty"`
-	Reason      string `json:"reason,omitempty"`
-	Detail      string `json:"detail,omitempty"`
+	OK          bool     `json:"ok"`
+	Participant string   `json:"participant,omitempty"`
+	Projects    []string `json:"projects,omitempty"` // 参加者が今参加しているプロジェクトの全部
+	Reason      string   `json:"reason,omitempty"`
+	Detail      string   `json:"detail,omitempty"`
 }
 
 func (h *Hub) seats() ([]seat, error) {
@@ -76,8 +83,11 @@ func (h *Hub) putParticipantNotes() error {
 	return h.store.PutParticipantNotes(user, body)
 }
 
-// AIJoin は AI の参加の頼みを受ける。同じ link の参加者が既にあれば、郵便は送り直さない
+// AIJoin は AI の参加の頼みを受ける。同じ link か参加の id の参加者が既にあれば、郵便は送り直さず、まだ無いプロジェクトを足す
 func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
+	if reason, err := h.checkProjects(req.Projects); err != nil || reason != "" {
+		return Joined{Reason: "refused", Detail: reason}, err
+	}
 	ids, err := h.engine.JoinActions()
 	if err != nil {
 		return Joined{}, err
@@ -92,16 +102,10 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		return Joined{}, err
 	}
 	sitting := func(s seat) bool { return s.State == "requested" || s.State == "joined" }
+	// 参加の id が付いていて、その参加者が参加（要求）中なら、その参加者にプロジェクトを足す。付いていなくても、同じ link の参加者があれば同じ
 	for _, s := range seats {
-		// 参加の id が付いていれば、その参加者が参加（要求）中なら弾く。付いていなければ、同じ AI・環境・セッション名の参加者で弾く
-		if req.Participant != "" && s.ID == req.Participant && sitting(s) {
-			return alreadyJoined(s), nil
-		}
-	}
-	for _, s := range seats {
-		if s.Link == req.Link {
-			h.noteSession(s.ID, req.SessionID)
-			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
+		if (req.Participant != "" && s.ID == req.Participant && sitting(s)) || s.Link == req.Link {
+			return h.addProjects(s, req)
 		}
 	}
 	if req.Participant == "" && req.SessionName != "" {
@@ -111,7 +115,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			}
 		}
 	}
-	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link}
+	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link, "projects": req.Projects}
 	if req.SessionName != "" {
 		args["sessionName"] = req.SessionName
 	}
@@ -133,7 +137,31 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		return refused(told), err
 	}
 	h.noteSession(result.Participant, req.SessionID)
-	return Joined{OK: true, Participant: result.Participant}, h.settleNotes()
+	return Joined{OK: true, Participant: result.Participant, Projects: req.Projects}, h.settleNotes()
+}
+
+// addProjects は、いる参加者 s に、頼みのプロジェクトのうちまだ無いものを足す（参加者を作るアクションに、参加者の link で頼み直す。郵便は送り直さない）
+func (h *Hub) addProjects(s seat, req JoinRequest) (Joined, error) {
+	args := map[string]any{"ai": s.AI, "model": s.Model, "env": s.Env, "link": s.Link, "projects": req.Projects}
+	ids, err := h.engine.JoinActions()
+	if err != nil {
+		return Joined{}, err
+	}
+	grown, err := h.performAs(ids.Participant, args)
+	if err != nil || !grown.OK {
+		return refused(grown), err
+	}
+	h.noteSession(s.ID, req.SessionID)
+	seats, err := h.seats()
+	if err != nil {
+		return Joined{}, err
+	}
+	for _, now := range seats {
+		if now.ID == s.ID {
+			return Joined{OK: true, Participant: s.ID, Projects: now.Projects}, h.settleNotes()
+		}
+	}
+	return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 }
 
 func alreadyJoined(s seat) Joined {

@@ -61,7 +61,7 @@ func call(t *testing.T, method, url, body string, header map[string]string) (str
 }
 
 func joinBody(link, sessionName string) string {
-	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1"}`
+	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1","projects":["default"]}`
 }
 
 // 参加を頼むと参加者と郵便が 1 つずつできる。同じ link をまた送っても増えず、参加の id が付いていて参加（要求）中なら弾く
@@ -102,9 +102,13 @@ func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
 	if p, m := count(); p != 1 || m != 1 {
 		t.Fatalf("after the same link: participants = %d, mails = %d", p, m)
 	}
-	refused, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), map[string]string{ParticipantHeader: first.Participant})
-	if !strings.Contains(refused, `"reason":"already-participating"`) {
-		t.Fatalf("with the participant's id = %s", refused)
+	// 参加の id が付いていれば、弾かずに同じ参加者にプロジェクトを足す（足すものが無ければ変わらない。参加者も郵便も増えない）
+	grown, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), map[string]string{ParticipantHeader: first.Participant})
+	if grown != `{"ok":true,"participant":"`+first.Participant+`","projects":["default"]}` {
+		t.Fatalf("with the participant's id = %s", grown)
+	}
+	if p, m := count(); p != 1 || m != 1 {
+		t.Fatalf("after the participant's id: participants = %d, mails = %d", p, m)
 	}
 	// id が無いときは、ai・env・sessionName が全部同じ（sessionName が空でない）参加者があれば弾く
 	call(t, "POST", s.URL+"/api/ai/join", joinBody("L3", "work"), nil)
@@ -130,7 +134,7 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	_ = json.Unmarshal([]byte(got), &joined)
 	id := map[string]string{ParticipantHeader: joined.Participant}
 
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
 		t.Fatalf("a notice before joining = %q", h.Get(NoticeHeader))
 	}
 	hub.mu.Lock()
@@ -144,18 +148,43 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	}
 
 	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-accept","args":{"participant":"`+joined.Participant+`","workroom":"ひよこ","bird":"inko"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", nil); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", nil); h.Get(NoticeHeader) != "" {
 		t.Fatalf("a notice without the participant's id = %q", h.Get(NoticeHeader))
 	}
-	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
+	_, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
 	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ" {
 		t.Fatalf("notice = %q", text)
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
 		t.Fatalf("told twice: %q", h.Get(NoticeHeader))
 	}
 	s2, _ := joinWorld(t, store)
-	if _, h := call(t, "GET", s2.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s2.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
 		t.Fatalf("told again after a restart: %q", h.Get(NoticeHeader))
 	}
+}
+
+// projects は 1 つ以上で、表にあるものだけ。足りなければ参加者を作らない
+func TestJoinNeedsKnownProjects(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	for _, projects := range []string{``, `,"projects":[]`, `,"projects":["nowhere"]`, `,"projects":["default","nowhere"]`} {
+		body := `{"ai":"claude","model":"opus","env":"wsl-linux","link":"L1"` + projects + `}`
+		got, _ := call(t, "POST", s.URL+"/api/ai/join", body, nil)
+		if !strings.Contains(got, `"ok":false`) || !strings.Contains(got, `"reason":"refused"`) {
+			t.Fatalf("join %q = %s", projects, got)
+		}
+	}
+	if !strings.Contains(joinBodyWith(t, s.URL, `,"projects":["nowhere"]`), "no such project: nowhere (known: default)") {
+		t.Fatal("the reason does not name the project")
+	}
+	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
+	if !strings.Contains(data, `"participants":[]`) || !strings.Contains(data, `"mailbox":[]`) {
+		t.Fatalf("data = %s", data)
+	}
+}
+
+func joinBodyWith(t *testing.T, url, projects string) string {
+	t.Helper()
+	got, _ := call(t, "POST", url+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"L1"`+projects+`}`, nil)
+	return got
 }
