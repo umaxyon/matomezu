@@ -12,14 +12,16 @@ export interface RenderOptions {
   books?: readonly Book[] // 無ければブックを持たない
 }
 
+// ほかのプラグインを足す・外すとき（plugins を渡すとき）は partial: true。渡さなければ、ビルトインを全部渡すので、型の確かめが効く
 export function renderScreen(options: RenderOptions = {}) {
-  const store = createMatomezu({
+  const base = {
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
-    plugins: options.plugins ?? BUILTIN_UI,
     ...(options.books ? { books: options.books } : {}),
-    partial: true,
-  })
+  } as const
+  const store = options.plugins
+    ? createMatomezu({ ...base, plugins: options.plugins, partial: true })
+    : createMatomezu({ ...base, plugins: BUILTIN_UI })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
