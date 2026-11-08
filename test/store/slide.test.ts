@@ -11,7 +11,7 @@ const LINE = "@matomezu/slide:slide-line"
 const FREE = "@matomezu/slide:slide-free-line"
 
 function setup() {
-  const instance = createMatomezu({ plugins: BUILTIN, home: "@matomezu/master:master", newId: sequence() })
+  const instance = createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center", newId: sequence() })
   createBookIn(instance, "s1", { title: "スライド", type: "@matomezu/slide-book:slide" as never })
   const book = Object.keys(instance.state.getState().books).find(
     id => (instance.state.getState().books[id] as { type: string }).type === "@matomezu/slide-book:slide",
