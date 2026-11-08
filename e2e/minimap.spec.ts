@@ -1,6 +1,6 @@
 // ミニマップ（base/minimap）: 下の行に乗ると上がるフッタメニューのものと、右ボタンの長押しのアイコンから出すもの。
 // 見えている範囲の四角をドラッグすると、紙がついて動く
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { paper, settled } from "./helpers/paper"
 
 const seen = (page: Page, where: "footer-menu" | "picker") =>
@@ -19,7 +19,7 @@ const WHEEL_100 = 1.16
 test("フッタメニューの行の左端に拡大縮小、その真上にミニマップが出る。四角をドラッグすると紙が動き、フッタメニューから出ても下がらない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(paper(page)).toBeVisible()
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await footerMenu(page)
@@ -46,7 +46,7 @@ test("フッタメニューの行の左端に拡大縮小、その真上にミ�
 })
 
 test("フッタメニューの拡大縮小で倍率が変わる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(paper(page)).toBeVisible()
   await footerMenu(page)
   const level = page.getByTitle("倍率").first()
@@ -59,7 +59,7 @@ test("フッタメニューの拡大縮小で倍率が変わる", async ({ page 
 test("右ボタンの長押しで、道具のアイコンと一緒にミニマップが出る。ドラッグで紙が動き、アイコンとミニマップから離れると閉じる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const p = (await paper(page).boundingBox())!
   const at = { x: p.x + 400, y: p.y + 300 }
   await page.mouse.move(at.x, at.y)
@@ -90,7 +90,7 @@ test("右ボタンの長押しで、道具のアイコンと一緒にミニマ�
 test("右ボタンの長押しのミニマップの下の帯で拡大縮小する（10% ずつ、30〜180%、端では押せない）。初めの位置に戻すと 100%、ページ全体を収めると紙が表示領域に入る。Ctrl+ホイールは滑らかに、Home キーでも戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const p = (await paper(page).boundingBox())!
   await page.mouse.move(p.x + 400, p.y + 300)
   await page.mouse.down({ button: "right" })
@@ -146,7 +146,7 @@ test("右ボタンの長押しのミニマップの下の帯で拡大縮小す�
 test("拡大縮小はなめらかに移り、途中でもポインタの下の紙の点は動かない。ずらすときはなめらかにしない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const p = (await paper(page).boundingBox())!
   const at = { x: p.x + 300, y: p.y + 200 }
   await page.mouse.move(at.x, at.y)
@@ -177,7 +177,7 @@ test("拡大縮小はなめらかに移り、途中でもポインタの下の�
 test("フッタメニューの拡大縮小の帯とミニマップの上でホイールを回すと（Ctrl 無しでも）、倍率が滑らかに変わり、ページはスクロールしない。紙の上のホイールは紙をずらす", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await expect(paper(page)).toBeVisible()
   await footerMenu(page)
   const level = page.getByTitle("倍率").first()

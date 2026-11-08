@@ -36,7 +36,6 @@ export const MARKDOWN = kit.defineBookType({
   version: 1,
   title: "Markdown",
   schema: z.strictObject({ id: z.string().min(1) }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pageFieldsInput, // 直すときは、原文を丸ごとか、1 か所だけ置き換えて受ける

@@ -4,7 +4,9 @@
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Mail, Mailbox } from "../../../core/mail"
+import { isProject } from "../../../core/project"
 import { kit } from "../kit"
+import { declineProjects } from "../project-refusal"
 
 const LetterSchema = z.strictObject({
   title: z.string().trim().min(1).max(80), // 題（一覧・しおり・ダイアログの見出し）
@@ -60,16 +62,18 @@ function changeMail(mailbox: Mailbox, id: string, change: (mail: Mail) => Mail |
 export const MAIL_SEND = kit.defineAction({
   id: "mail-send",
   aiDescription:
-    "Send a letter to the user's mailbox (it shows at once on the user's screen, wherever the user is). from is a short name telling who sends it (use the same name all through your session, such as your task or work name). title (80 characters at most) and body (optional) are the letter. to points at a place: a book, and optionally a page of it and things (ids) on that page; the user can move there from the letter. The place is not checked now (if it is gone when the user opens the letter, the user is told). The mailbox keeps the newest 200 letters (seen ones go first). Returns the letter's id; read_mail tells later whether the user saw it and the place.",
+    "Send a letter to the user's mailbox (it shows at once on the user's screen, wherever the user is). project is the id of the project the letter belongs to (join returns the ids of yours). from is a short name telling who sends it (use the same name all through your session, such as your task or work name). title (80 characters at most) and body (optional) are the letter. to points at a place: a book, and optionally a page of it and things (ids) on that page; the user can move there from the letter. The place is not checked now (if it is gone when the user opens the letter, the user is told). The mailbox keeps the newest 200 letters (seen ones go first). Returns the letter's id; read_mail tells later whether the user saw it and the place.",
   title: "Send mail",
   target: "mailbox",
   args: z.strictObject({
+    project: z.string().min(1),
     from: z.string().trim().min(1).max(40),
     title: LetterSchema.shape.title,
     body: LetterSchema.shape.body.optional(),
     to: ToSchema.optional(),
   }),
   run: (mailbox, args, ctx) => {
+    if (!isProject(args.project)) return declineProjects([args.project])
     const id = freshId(
       ctx.newId,
       mailbox.map(m => m.id),
@@ -77,6 +81,7 @@ export const MAIL_SEND = kit.defineAction({
     const letter: Mail = {
       id,
       mail: MAIL_LETTER.id,
+      project: args.project,
       from: args.from,
       sentAt: ctx.now,
       ...(args.to ? { to: args.to } : {}),

@@ -3,6 +3,7 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -15,7 +16,12 @@ afterEach(() => {
 })
 
 function setup() {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI, partial: true })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    partial: true,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -25,7 +31,7 @@ function setup() {
     createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
     addPageIn(store, "s1", { title: "ページ 1" })
   })
-  const id = (store.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as BookOf<"@matomezu/markdown:markdown">
   const text = () => book().pages[0]!.text ?? ""
   const field = () => within(screen.getByRole("region", { name: "ソース" })).getByRole("textbox") as HTMLTextAreaElement
@@ -148,7 +154,12 @@ test("Tab キーは、利用者の設定の項目で選んだ字を書く（既�
 })
 
 test("設定画面の「マークダウン」の「Tabキー」: 押している方を見せ、Tab を選んでいる間に選び替えた数は、半角スペースに戻したときに使う", () => {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI, partial: true })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    partial: true,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />

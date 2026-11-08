@@ -5,6 +5,7 @@
 import { type ReactNode, useMemo } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import type { ActionId } from "../../../core/catalog"
+import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useLayout, useReadState } from "../../../ui/store-context"
 import { useAllowed, useBook, useCoreCatalog, useUiCatalog } from "../../../ui/view-hooks"
@@ -99,7 +100,7 @@ function useGo(stage: string): (a: AiAnnotation, panel: string | undefined) => v
   const reveal = useRequestReveal()
   return (a, panel) => {
     setLeftSidePanel(stage, null)
-    const opened = read().workspace.stages.find(s => s.id === stage)?.opened
+    const opened = screenOf(read().window).stages.find(s => s.id === stage)?.opened
     if (a.page && opened?.page !== a.page) actions.openPage(stage, a.page)
     if (panel) {
       openPanel(stage, { widget: panel, subject: a.id, anchors: a.anchors, current: a.anchors.at(-1) ?? "" })

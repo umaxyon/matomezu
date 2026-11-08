@@ -10,7 +10,6 @@ import type { LanguagePackDef } from "../../web/src/core/i18n/messages"
 import { perform } from "../../web/src/core/perform"
 import { resolveTokens, tokenDefsOf } from "../../web/src/core/theme"
 import { bookTokens } from "../../web/src/plugins/base/book-look/look"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -31,10 +30,9 @@ describe("機能台帳", () => {
 
   test("食い違いのある定義の組からは表を作らず、直す所を並べる", () => {
     const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing")!
-    const master = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/master:master")!
     const broken = {
       ...BUILTIN_PARTS,
-      bookTypes: [drawing, master, drawing],
+      bookTypes: [drawing, drawing],
       items: [],
       themes: BUILTIN_PARTS.themes.filter(th => !th.tokens), // 外したアイテムのテーマキーを上書きするテーマも外す
       papers: BUILTIN_PARTS.papers.filter(p => p.id !== "@matomezu/base:a3"),
@@ -67,18 +65,18 @@ describe("機能台帳", () => {
       ...BUILTIN_PARTS,
       messages: [
         ...BUILTIN_PARTS.messages,
-        { id: "test:messages", messages: { "@matomezu/master:Master": { en: "Master", ja: "親分" } } },
+        { id: "test:messages", messages: { "@matomezu/drawing:Drawing": { en: "Drawing", ja: "親分" } } },
       ],
     }
     expect(checkCoreCatalog(conflict).map(problemText)).toEqual([
-      "E017 message @matomezu/master:Master has different ja translations",
+      "E017 message @matomezu/drawing:Drawing has different ja translations",
     ])
     // 同じ訳と、ほかの言語の訳を足すのはよい
     const more = {
       ...BUILTIN_PARTS,
       messages: [
         ...BUILTIN_PARTS.messages,
-        { id: "test:messages", messages: { Master: { ja: "マスター", fr: "Maître" } } },
+        { id: "test:messages", messages: { "@matomezu/drawing:Drawing": { ja: "図面", fr: "Dessin" } } },
       ],
     }
     expect(checkCoreCatalog(more)).toEqual([])
@@ -100,13 +98,13 @@ describe("機能台帳", () => {
       id: "test:fr",
       lang: "fr",
       name: "Français",
-      messages: { "@matomezu/master:Master": "Maître", "@matomezu/box:Box": "Boîte" },
+      messages: { "@matomezu/drawing:Drawing": "Dessin", "@matomezu/box:Box": "Boîte" },
     }
     const jaFix: LanguagePackDef = {
       id: "test:ja",
       lang: "ja",
       name: "日本語",
-      messages: { "@matomezu/master:Master": "親分" },
+      messages: { "@matomezu/drawing:Drawing": "親分" },
     }
     const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, languages: [fr, jaFix] })
     expect([...catalog.languages]).toEqual([
@@ -116,7 +114,7 @@ describe("機能台帳", () => {
     ])
     expect(translate(catalog.messages, "fr", "@matomezu/box:Box")).toBe("Boîte")
     expect(translate(catalog.messages, "fr", "An edit could not be saved")).toBe("An edit could not be saved")
-    expect(translate(catalog.messages, "ja", "@matomezu/master:Master")).toBe("親分")
+    expect(translate(catalog.messages, "ja", "@matomezu/drawing:Drawing")).toBe("親分")
     // インスタンスに無い鍵の訳は使わない
     const stray: LanguagePackDef = {
       id: "test:fr",
@@ -175,12 +173,12 @@ describe("アクションを行う", () => {
   const book = SAMPLE_BOOKS[0]!
   const ctx = {
     catalog: CORE_CATALOG,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     lang: "ja" as const,
     newId: () => "new",
     now: "2026-10-26T00:00:00.000Z",
   }
-  const library = { [MASTER_BOOK.id]: MASTER_BOOK, [book.id]: book }
+  const library = { [book.id]: book }
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
     const done = perform(
@@ -207,7 +205,12 @@ describe("アクションを行う", () => {
   test("名前が空のページとブックは断る", () => {
     expect(perform(book, "@matomezu/base:page-add", { title: "  " }, ctx)).toEqual({ ok: false, reason: "bad-args" })
     expect(
-      perform(library, "@matomezu/base:book-create", { title: "", type: "@matomezu/drawing:drawing" }, ctx),
+      perform(
+        library,
+        "@matomezu/base:book-create",
+        { title: "", project: "default", type: "@matomezu/drawing:drawing" },
+        ctx,
+      ),
     ).toEqual({
       ok: false,
       reason: "bad-args",
@@ -218,7 +221,7 @@ describe("アクションを行う", () => {
     const done = perform(
       library,
       "@matomezu/base:book-create",
-      { title: "新しい図", type: "@matomezu/drawing:drawing" },
+      { title: "新しい図", project: "default", type: "@matomezu/drawing:drawing" },
       ctx,
     )
     expect(done).toMatchObject({ ok: true, result: { book: "new" } })
@@ -226,21 +229,27 @@ describe("アクションを行う", () => {
       type: "@matomezu/drawing:drawing",
       id: "new",
       title: "新しい図",
+      project: "default",
       pages: [],
     })
     const again = done.ok
-      ? perform(done.next, "@matomezu/base:book-create", { title: "もう一つ", type: "@matomezu/drawing:drawing" }, ctx)
+      ? perform(
+          done.next,
+          "@matomezu/base:book-create",
+          { title: "もう一つ", project: "default", type: "@matomezu/drawing:drawing" },
+          ctx,
+        )
       : null
     expect(again).toEqual({ ok: false, reason: "refused" })
   })
 
-  test("ブックの一覧と設定を変えるアクションは、ホームのタイプが許すときだけ。ホームが無ければ断る", () => {
-    const homeless = { ...ctx, home: null }
+  test("ブックの一覧と設定を変えるアクションは、コントロールセンターが許すときだけ。コントロールセンターが無ければ断る", () => {
+    const homeless = { ...ctx, controlCenter: null }
     expect(
       perform(
         { [book.id]: book },
         "@matomezu/base:book-create",
-        { title: "x", type: "@matomezu/drawing:drawing" },
+        { title: "x", project: "default", type: "@matomezu/drawing:drawing" },
         homeless,
       ),
     ).toEqual({
@@ -264,11 +273,20 @@ describe("アクションを行う", () => {
     })
   })
 
-  test("タイプが許していないアクションと、知らないアクションは断る", () => {
-    expect(perform(MASTER_BOOK, "@matomezu/base:page-add", { title: "x" }, ctx)).toEqual({
-      ok: false,
-      reason: "not-allowed",
+  test("コントロールセンターが許していないアクションと、知らないアクションは断る", () => {
+    const center = CORE_CATALOG.controlCenters.get("@matomezu/control-center:control-center")!
+    const narrow = buildCoreCatalog({
+      ...BUILTIN_PARTS,
+      controlCenters: [{ ...center, actions: center.actions.filter(a => a !== "@matomezu/base:book-create") }],
     })
+    expect(
+      perform(
+        {},
+        "@matomezu/base:book-create",
+        { title: "x", project: "default", type: "@matomezu/drawing:drawing" },
+        { ...ctx, catalog: narrow },
+      ),
+    ).toEqual({ ok: false, reason: "not-allowed" })
     // @ts-expect-error 知らない id は型でも誤り
     expect(perform(book, "nope", {}, ctx)).toEqual({ ok: false, reason: "unknown" })
   })
@@ -284,7 +302,6 @@ describe("テーマの値", () => {
 
   test("ブックの値には、ブックで使えるアイテムのテーマキーが入る", () => {
     expect(Object.keys(bookTokens(CORE_CATALOG, SAMPLE_BOOKS[0]!))).toContain("@matomezu/box:box-fill")
-    expect(Object.keys(bookTokens(CORE_CATALOG, MASTER_BOOK))).not.toContain("@matomezu/box:box-fill")
   })
 })
 
@@ -308,27 +325,26 @@ describe("機能台帳ごとに別の世界", () => {
     version: 1,
     title: "@matomezu/drawing:Drawing",
     schema: z.strictObject({ type: z.literal("notes"), id: z.string().min(1) }),
-    single: false,
     create: init => ({ type: "notes" as const, ...init }),
     pages: null,
     items: { allowed: [] },
     actions: {},
     theme: "@matomezu/base:standard",
     themeTypes: ["@matomezu/base:diagram"],
-    presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
+    presentation: "@matomezu/paper:paper", // 画面に出さないので、見せ方は表にあるものを借りる
     tokens: [],
   })
   const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })
-  const library = { [MASTER_BOOK.id]: MASTER_BOOK }
+  const library = {}
 
   test("足したタイプのブックは、それを持つ表でだけ作れて、データの形もその表で通る", () => {
     const made = perform(
       library,
       "@matomezu/base:book-create",
-      { title: "メモ", type: "notes" as never },
+      { title: "メモ", project: "default", type: "notes" as never },
       {
         catalog: catalog,
-        home: "@matomezu/master:master",
+        controlCenter: "@matomezu/control-center:control-center",
         lang: "ja",
         newId: () => "n1",
         now: "2026-10-26T00:00:00.000Z",
@@ -340,10 +356,10 @@ describe("機能台帳ごとに別の世界", () => {
     const refused = perform(
       library,
       "@matomezu/base:book-create",
-      { title: "メモ", type: "notes" as never },
+      { title: "メモ", project: "default", type: "notes" as never },
       {
         catalog: CORE_CATALOG,
-        home: "@matomezu/master:master",
+        controlCenter: "@matomezu/control-center:control-center",
         lang: "ja",
         newId: () => "n1",
         now: "2026-10-26T00:00:00.000Z",

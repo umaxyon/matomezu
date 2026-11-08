@@ -1,14 +1,14 @@
 // ディレクトリ構成図のブック（@matomezu/dir）: キーで中身を足して名前を書き、行をドラッグして付け替え、▸・▾ で開け閉めする
-import { expect, type Page, test } from "./fixtures"
-import { newBook } from "./helpers/master"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { newBook } from "./helpers/new-book"
 import { paper } from "./helpers/paper"
 
 const rows = (page: Page) => paper(page).locator("[data-entry]")
 const row = (page: Page, name: string) => rows(page).filter({ hasText: new RegExp(`^${name}$`) })
 
-// マスターでディレクトリ構成図のブックを作り、根のフォルダ proj だけのページを作る
+// ディレクトリ構成図のブックを作り、根のフォルダ proj だけのページを作る
 async function dirBook(page: Page) {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "構成", "ディレクトリ構成図")
   await add.getByLabel("根のフォルダの名前").fill("proj")
   await add.getByRole("button", { name: "作る" }).click()

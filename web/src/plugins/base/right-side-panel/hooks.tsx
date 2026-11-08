@@ -2,12 +2,12 @@
 // 開くのは、ステージに置いてそのステージをカレントにするだけ（ほかのステージで開いていた物は、入れ物が閉じる）
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { screenOf } from "../../../core/window"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { SLIDE_MS } from "../window/slide"
 import { panelIn, type RightSidePanelOpen, withOpened, withoutAnchor, withPanel } from "./state"
-
-export const SLIDE_MS = 250 // 開け閉めでステージの列とサイドパネル（右と左）の幅を動かす時間（CSS の変数 --side-panel-slide で渡す）
 
 // 今の押しで右サイドパネルを閉じたか（入れ物が押すたびに決める。閉じたのと同じ押しの click で、押した物がまた開かないように）
 export const PressClosedContext = createContext<{ current: boolean }>({ current: false })
@@ -15,8 +15,10 @@ export const PressClosedContext = createContext<{ current: boolean }>({ current:
 // 右サイドパネルを開いているステージ（カレントのステージで開いていればそれ。どこも開いていなければ null）と、開いている物
 export function useOpenedRightSidePanel(): { stage: string; open: RightSidePanelOpen } | null {
   const stage = useMatomezuState(s => {
-    const ids = s.workspace.stages.map(st => st.id).filter(id => panelIn(s.stageStates[id]?.[kit.id]))
-    return ids.includes(s.workspace.current) ? s.workspace.current : (ids[0] ?? null)
+    const ids = screenOf(s.window)
+      .stages.map(st => st.id)
+      .filter(id => panelIn(s.stageStates[id]?.[kit.id]))
+    return ids.includes(screenOf(s.window).current) ? screenOf(s.window).current : (ids[0] ?? null)
   })
   const open = useMatomezuState(s => (stage ? panelIn(s.stageStates[stage]?.[kit.id]) : null))
   return stage && open ? { stage, open } : null
@@ -25,14 +27,18 @@ export function useOpenedRightSidePanel(): { stage: string; open: RightSidePanel
 // 右サイドパネルを開いている、どのステージか（入れ物が、窓に 1 つを守るのに使う）
 export const useStagesWithRightSidePanel = (): readonly string[] =>
   useMatomezuState(
-    useShallow(s => s.workspace.stages.map(st => st.id).filter(id => panelIn(s.stageStates[id]?.[kit.id]))),
+    useShallow(s =>
+      screenOf(s.window)
+        .stages.map(st => st.id)
+        .filter(id => panelIn(s.stageStates[id]?.[kit.id])),
+    ),
   )
 
 // ステージ stage の右サイドパネル（開いていなければ null）
 export const useRightSidePanel = (stage: string): RightSidePanelOpen | null =>
   useMatomezuState(s => panelIn(s.stageStates[stage]?.[kit.id]))
 
-// 右サイドパネルを開く関数: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
+// 右サイドパネルを開く関数（開くとブックスクリーンを前に出す）: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
 // 選択に従う中身なら、入れ物が開いたときにステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない。
 // restore が none なら、閉じたときに見え方を戻さない（開く前の見え方を覚えない。戻す見え方を自分で持つ物。印刷プレビューなど）
 export function useOpenRightSidePanel(): (
@@ -42,21 +48,22 @@ export function useOpenRightSidePanel(): (
 ) => void {
   const read = useReadState()
   const set = useSetStageState(kit)
-  const { focusStage } = useActions()
+  const { focusStage, showBookScreen } = useActions()
   const pressClosed = useContext(PressClosedContext)
   return useCallback(
     (stage, open, restore = "back") => {
       if (pressClosed.current) return
-      const { workspace, stageStates } = read()
-      const now = workspace.stages.find(s => s.id === stage)
+      const { window, stageStates } = read()
+      const now = screenOf(window).stages.find(s => s.id === stage)
       const opened = now?.opened
       if (!now || !opened) return
       const state = stageStates[stage]?.[kit.id]
       const panel = { ...open, book: opened.book, page: opened.page }
       set(stage, restore === "back" ? withOpened(state, panel, now) : withPanel(state, panel))
       focusStage(stage)
+      showBookScreen()
     },
-    [read, set, focusStage, pressClosed],
+    [read, set, focusStage, showBookScreen, pressClosed],
   )
 }
 

@@ -13,6 +13,7 @@
 // 表示で吹き出しに戻し、消すで伝言を消す（タッチでは出さず、右サイドパネルのボタンを使う。既読のチェックには出さない。変えられないときと、角の絵を押せない間は出さない）。
 // 吹き出しの色はスキンの bubble だけで、物や伝言の様子では変えない。右サイドパネルが伝言を出している間は、付ける先に鳥を出す（NoteBirds）
 import type { MouseEvent, ReactNode } from "react"
+import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useReadState } from "../../../ui/store-context"
 import { useAllowed } from "../../../ui/view-hooks"
@@ -75,7 +76,7 @@ function useOpenNote(stage: string, note: string, anchors: readonly string[]) {
   // 物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）
   const pick = (e: MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.blur()
-    const now = read().workspace.stages.find(s => s.id === stage)?.selection ?? []
+    const now = screenOf(read().window).stages.find(s => s.id === stage)?.selection ?? []
     select(stage, pointedSelection(now, anchor, modPressed(e)))
   }
   const open = (e: MouseEvent<HTMLButtonElement>) =>

@@ -1,14 +1,16 @@
-// 郵便: 郵便箱（利用者に 1 つ）に届く知らせ。種類は core/def/mail.ts。届いた順に並びで持つ。
+// 郵便: 郵便箱（利用者に 1 つ）に届く知らせ。種類は core/def/mail.ts。届いた順に並びで持つ。郵便は 1 つのプロジェクトに属する。
 // 行き先 to（ブック・ページ・物の id）は任意で、送るときには確かめない（開くときに無ければ、無いと見せる）。
 // 既読は 2 つ: 郵便そのものを見た時点 seenAt と、郵便が示した物（行き先）を見た時点 visitedAt
 import { z } from "zod"
 import type { CoreCatalog } from "./core-catalog"
 import { splitId } from "./names"
+import { isProject } from "./project"
 import { type Warning, warning } from "./warnings"
 
 export const MailSchema = z.object({
   id: z.string().min(1),
   mail: z.string().min(1), // 種類の id
+  project: z.string().min(1), // 属するプロジェクトの id（core/project.ts。郵便を絞るのに使う。to の中のブックとは別に決まる）
   from: z.string(), // 送り手の名前（AI が付けた、セッションを見分ける名前など）
   sentAt: z.string(), // 届いた時点
   to: z
@@ -35,7 +37,7 @@ export function mailboxSettles(catalog: CoreCatalog, before: Mailbox, after: Mai
   const kept = new Set(before)
   return after.every(m => {
     if (kept.has(m)) return true
-    if (!MailSchema.safeParse(m).success) return false
+    if (!MailSchema.safeParse(m).success || !isProject(m.project)) return false
     const def = catalog.mails.get(m.mail)
     return !!def && def.props.safeParse(m.props).success
   })

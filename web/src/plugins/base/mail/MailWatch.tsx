@@ -2,6 +2,8 @@
 // - 郵便が届いたのを見たら、フォーカスのある窓か、最後にフォーカスされた窓（常駐が知らせる）でマーキー「郵便が届きました: 題」を出す（読み込んだときからあった郵便では出さない）
 // - 行き先のある、まだ行き先を見ていない郵便の行き先が、どれかのステージに出たら（そのブックのそのページを開き、物があればその物が表示領域に入ったら）、行き先を見たことにする
 import { useEffect, useRef } from "react"
+import { bookScreenVisible, screenOf } from "../../../core/window"
+import { useT } from "../../../ui/i18n"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -16,6 +18,7 @@ const CHECK_MS = 1000 // 行き先が出たかを見直す間隔
 export function MailWatch() {
   const mailbox = useMailbox()
   const catalog = useCoreCatalog()
+  const t = useT()
   const { showToast } = useActions()
   const read = useReadState()
   const before = useRef<Set<string> | null>(null)
@@ -29,9 +32,9 @@ export function MailWatch() {
         kind: "info",
         form: "marquee",
         message: kit.message("Mail arrived: {title}"),
-        params: { title: shownOf(catalog, last)?.title ?? "" },
+        params: { title: shownOf(catalog, last, t)?.title ?? "" },
       })
-  }, [mailbox, catalog, showToast, read])
+  }, [mailbox, catalog, t, showToast, read])
   useVisited()
   return null
 }
@@ -45,9 +48,11 @@ function useVisited() {
     if (!waiting) return
     const check = () => {
       const s = read()
+      // コントロールセンターを前に出している間は、後ろのブックスクリーンの行き先は見えていない
+      if (!bookScreenVisible(s.window)) return
       for (const m of s.mailbox) {
         if (!m.to || m.visitedAt) continue
-        const stages = s.workspace.stages.flatMap(st =>
+        const stages = screenOf(s.window).stages.flatMap(st =>
           st.opened ? [{ id: st.id, book: st.opened.book, page: st.opened.page }] : [],
         )
         const shown = placeShown(m, stages, onScreen)

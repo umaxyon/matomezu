@@ -5,8 +5,7 @@ import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { userSetting } from "../../web/src/core/settings"
 import { defineSettingsCategory } from "../../web/src/plugins/base/ui"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
-import { MASTER } from "../../web/src/plugins/books/master/master"
+import { CONTROL_CENTER } from "../../web/src/plugins/control-center"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -47,10 +46,15 @@ const EX_PLUGIN = kit.plugin({
 })
 const EX = definePluginUi(EX_PLUGIN, {})
 
-// book のブックを開いたステージで、設定画面を開いて「全体」の中身（tabpanel）を返す（フッタメニューの「設定を開く」で）
-function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], book: string = MASTER_BOOK.id) {
-  const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins })
-  store.actions.openBook("s1", book)
+// book のブックを開いた（無ければブックを開いていない）ステージで、設定画面を開いて「全体」の中身（tabpanel）を返す（フッタメニューの「設定を開く」で）
+function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], book?: string) {
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    books: book === undefined ? [] : SAMPLE_BOOKS,
+    lang: "ja",
+    plugins,
+  })
+  if (book !== undefined) store.actions.openBook("s1", book)
   render(
     <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)}>
       <Screen />
@@ -60,19 +64,6 @@ function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], bo
   const value = (id: string) => userSetting(store.catalog.core, store.state.getState().settings, `@ex/s:${id}`)
   return { store, value, general: screen.getByRole("tabpanel", { name: "全体" }) }
 }
-
-test("マスターはタイトルだけで、設定の項目も設定を開くボタンも置かない", () => {
-  const store = createMatomezu({ home: MASTER.id, books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
-  store.actions.openBook("s1", MASTER_BOOK.id)
-  render(
-    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
-    </MatomezuProvider>,
-  )
-  const master = screen.getByRole("region", { name: "マスター" })
-  expect(within(master).queryByRole("button")).toBeNull()
-  expect(within(master).queryByLabelText("言語")).toBeNull()
-})
 
 test("「全体」は base の項目を見出しなしで先に、どの設定カテゴリも並べていないプラグインの項目をプラグインの id の見出しの下に並べる（マークダウンの項目は「マークダウン」に並べるので出さない）。ショートカットキーの行は出さない（設定画面のショートカットキーで変える）", () => {
   const { general } = renderGeneral()
@@ -89,7 +80,7 @@ test("「全体」は base の項目を見出しなしで先に、どの設定�
   expect(within(general).queryByText("一覧")).toBeNull()
 })
 
-test("マスターでないブックのステージで開いた設定画面でも、「全体」の項目を変えられる（許すかはホームのタイプが決める）", () => {
+test("ブックを開いたステージで開いた設定画面でも、「全体」の項目を変えられる（許すかはコントロールセンターが決める）", () => {
   const { general, value } = renderGeneral(undefined, SAMPLE_BOOKS[0]!.id)
   fireEvent.click(within(general).getByRole("switch", { name: "入り" }))
   expect(value("on")).toBe(true)
@@ -122,10 +113,10 @@ test("値の形から入力Form を作る: 真偽はスイッチ、選択肢は�
   expect(value("nick")).toBe("a")
 })
 
-test("ホームのタイプが変えさせない項目は、灰色で押せない", () => {
-  const fixed = { ...MASTER, fixedUserSettings: ["@matomezu/base:skin", "@ex/s:on"] }
-  const [base, master, ...rest] = BUILTIN_UI
-  const { general: view } = renderGeneral([base, { ...master, bookTypes: [fixed] } as AnyPluginUi, ...rest, EX])
+test("コントロールセンターが変えさせない項目は、灰色で押せない", () => {
+  const fixed = { ...CONTROL_CENTER, fixedUserSettings: ["@matomezu/base:skin", "@ex/s:on"] }
+  const [base, center, ...rest] = BUILTIN_UI
+  const { general: view } = renderGeneral([base, { ...center, controlCenters: [fixed] } as AnyPluginUi, ...rest, EX])
   expect((within(view).getByLabelText("スキン") as HTMLSelectElement).closest("fieldset")?.disabled).toBe(true)
   expect((within(view).getByRole("switch", { name: "入り" }) as HTMLButtonElement).closest("fieldset")?.disabled).toBe(
     true,

@@ -1,4 +1,4 @@
-// 利用者の設定のコマンド: 項目の id → 値（null は既定に戻す）を変える（アクション settings-set）。ホームのタイプが許すときだけ出す
+// 利用者の設定のコマンド: 項目の id → 値（null は既定に戻す）を変える（アクション settings-set）。コントロールセンターが許すときだけ出す
 import { kit } from "../kit"
 import { SETTINGS_SET } from "./actions"
 

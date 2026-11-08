@@ -141,9 +141,8 @@ export function BookSearch({
 // 行のゴミ箱のボタン: ゴミ箱に入れられなければ、同じ幅を空けるだけ
 function TrashButton({ book, onTrash }: { book: Book; onTrash: (book: string) => void }) {
   const t = useMessages(kit)
-  const catalog = useCatalog().core
   const allowed = useAllowedOn(BOOK_TRASH.id, { book: book.id }).ok
-  if (!allowed || !isTrashCandidate(catalog, book)) return <span className={styles.trash} />
+  if (!allowed || !isTrashCandidate(book)) return <span className={styles.trash} />
   return (
     <button
       type="button"

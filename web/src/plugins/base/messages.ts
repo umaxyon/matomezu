@@ -15,6 +15,7 @@ import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
 import { OUTBOX_MESSAGES } from "./outbox/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
+import { PARTICIPANT_MESSAGES } from "./participant/messages"
 import { PRINT_PREVIEW_MESSAGES } from "./print-preview/messages"
 import { RIGHT_SIDE_PANEL_MESSAGES } from "./right-side-panel/messages"
 import { SEARCH_MESSAGES } from "./search/messages"
@@ -26,10 +27,12 @@ import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
 import { joinMessages } from "./utils/join-messages"
 import { ASK_MESSAGES, CHOICE_SETTING_MESSAGES, CORNER_MESSAGES, ELAPSED_MESSAGES } from "./utils/messages"
+import { WINDOW_MESSAGES } from "./window/messages"
 import { ZOOM_MESSAGES } from "./zoom/messages"
 
 export const BASE_MESSAGES = joinMessages(
   STAGE_MESSAGES,
+  WINDOW_MESSAGES,
   TOOL_SWITCH_MESSAGES,
   TOOL_PICKER_MESSAGES,
   MINIMAP_MESSAGES,
@@ -49,6 +52,7 @@ export const BASE_MESSAGES = joinMessages(
   RIGHT_SIDE_PANEL_MESSAGES,
   LEFT_SIDE_PANEL_MESSAGES,
   MAIL_MESSAGES,
+  PARTICIPANT_MESSAGES,
   OUTBOX_MESSAGES,
   SETTINGS_MESSAGES,
   LOOKS_MESSAGES,

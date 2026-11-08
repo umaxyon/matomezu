@@ -7,6 +7,7 @@ import { CORE_CATALOG } from "../support"
 const letter = (id: string, props: unknown, mail = "@matomezu/base:letter"): Mail => ({
   id,
   mail,
+  project: "default",
   from: "a",
   sentAt: "2026-11-06T00:00:00.000Z",
   props,

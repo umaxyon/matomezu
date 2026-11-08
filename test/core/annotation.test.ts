@@ -10,6 +10,7 @@ const book = {
   type: "@matomezu/drawing:drawing",
   id: "d",
   title: "D",
+  project: "default",
   pages: [
     {
       id: "p",
@@ -39,7 +40,13 @@ test("種類が機能台帳に無い物は W018、形が合わない物は W019 
 })
 
 test("効かないアノテーションがあっても、ほかのアノテーションは変えられ、効かない物はそのまま残る", () => {
-  const world = { books: { d: book }, settings: {}, annotations: { d: [GOOD, BAD, GONE] }, mailbox: [] }
+  const world = {
+    books: { d: book },
+    settings: {},
+    annotations: { d: [GOOD, BAD, GONE] },
+    mailbox: [],
+    participants: [],
+  }
   const done = performIn(
     world,
     "@matomezu/base:note-remove",
@@ -47,7 +54,7 @@ test("効かないアノテーションがあっても、ほかのアノテー�
     { book: "d" },
     {
       catalog: CORE_CATALOG,
-      home: null,
+      controlCenter: null,
       lang: "en",
       newId: () => "n",
       now: "2026-11-01T00:00:00.000Z",

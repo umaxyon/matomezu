@@ -54,7 +54,6 @@ const SHEET = defineBookType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   schema: z.strictObject({ type: z.literal("notes:sheet"), id: z.string().min(1) }),
-  single: false,
   create: init => ({ type: "notes:sheet" as const, ...init, pages: [] }),
   grow: { sides: () => ({ up: false, down: true, left: false, right: true }) },
   pages: {
@@ -69,7 +68,7 @@ const SHEET = defineBookType({
   actions: {},
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
-  presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
+  presentation: "@matomezu/paper:paper", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],
 })
 
@@ -78,7 +77,7 @@ test("伸びられるタイプのページは、作るときもあとからも�
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin({ id: "notes", bookTypes: [SHEET] })],
     partial: true,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     newId: () => ids.shift() ?? "nx",
   })
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
@@ -115,12 +114,12 @@ test("可変ページは、伸びない向き（下へだけ伸びるなら横�
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin({ id: "notes", bookTypes: [SCROLL] })],
     partial: true,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     newId: sequence(),
   })
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
   expect(createBookIn(instance, "s1", { title: "巻物", type: "notes:scroll" as never })).toBe(true)
-  const book = Object.keys(instance.state.getState().books).find(id => id !== "@matomezu/master:master") as string
+  const book = Object.keys(instance.state.getState().books)[0] as string
   const pages = () => (instance.state.getState().books[book] as unknown as { pages: { id: string }[] }).pages
   expect(perform("@matomezu/base:page-add", { title: "p", orientation: "portrait", grows: true }, { book }).ok).toBe(
     true,
@@ -207,7 +206,7 @@ test("ページの shift は可変ページを整えるステップだけが書�
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin({ id: "notes", actions: [SHIFTER] })],
     partial: true,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     newId: sequence(),
   })
   const perform = instance.actions.perform as (
@@ -216,7 +215,7 @@ test("ページの shift は可変ページを整えるステップだけが書�
     on: unknown,
   ) => { ok: boolean; reason?: string }
   expect(createBookIn(instance, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
-  const book = Object.keys(instance.state.getState().books).find(id => id !== "@matomezu/master:master") as string
+  const book = Object.keys(instance.state.getState().books)[0] as string
   expect(perform("@matomezu/base:page-add", { title: "p" }, { book }).ok).toBe(true)
   const page = (instance.state.getState().books[book] as Drawing).pages[0]?.id
   expect(perform("notes:shift", { page }, { book })).toMatchObject({ ok: false, reason: "refused" })

@@ -2,11 +2,13 @@
 import { expect, test } from "bun:test"
 import { addressOf, moved, placeAt } from "../../web/src/core/address"
 import { paperOf, setArea, setStart } from "../../web/src/core/stage"
+import { screenOf } from "../../web/src/core/window"
 import { newStore } from "../support"
 
 test("場所は、ステージごとのブック・ページ・倍率・ずらす量と、カレントと境目の割合", () => {
   const { state } = newStore()
-  expect(addressOf(state.getState().workspace)).toEqual({
+  expect(addressOf(state.getState().window)).toEqual({
+    front: "book-screen",
     stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} }],
     current: 0,
     share: 0.5,
@@ -16,7 +18,8 @@ test("場所は、ステージごとのブック・ページ・倍率・ずら�
 test("場所を当てはめると、そのとおりにステージを開いて分ける。無いブックのステージは何も開かず、境目の割合は範囲に収める", () => {
   const store = newStore()
   const { catalog, state } = store
-  const ws = placeAt(catalog.core, state.getState().books, state.getState().workspace, {
+  const win = placeAt(catalog.core, state.getState().books, state.getState().window, {
+    front: "book-screen",
     stages: [
       { book: "b3", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       { book: "nothing", page: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
@@ -24,6 +27,7 @@ test("場所を当てはめると、そのとおりにステージを開いて�
     current: 1,
     share: 0.99,
   })
+  const ws = screenOf(win)
   expect(ws.stages.map(s => s.opened?.book ?? null)).toEqual(["b3", null])
   expect(ws.current).toBe(ws.stages[1]!.id)
   expect(ws.arrangement.share).toBe(0.85)
@@ -34,6 +38,7 @@ test("場所を当てはめると、そのとおりにステージを開いて�
 
 test("移動は、ステージの数か、ブック・ページが変わったとき（倍率・ずらす量・カレント・境目だけは移動ではない）", () => {
   const a = {
+    front: "book-screen" as const,
     stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} }],
     current: 0,
     share: 0.5,
@@ -52,11 +57,14 @@ test("移動は、ステージの数か、ブック・ページが変わった�
 test("場所を当てはめたステージは、ずらす量が 0 でも、あとから届く初めの位置に合わせない（読み直す前に見ていた所のまま）", () => {
   const store = newStore()
   const { catalog, state } = store
-  const ws = placeAt(catalog.core, state.getState().books, state.getState().workspace, {
-    stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} }],
-    current: 0,
-    share: 0.5,
-  })
+  const ws = screenOf(
+    placeAt(catalog.core, state.getState().books, state.getState().window, {
+      front: "book-screen",
+      stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} }],
+      current: 0,
+      share: 0.5,
+    }),
+  )
   const stage = { ...ws.stages[0]!, view: { w: 400, h: 300 } }
   const sheet = paperOf(stage)!
   const arrived = setStart(setArea(stage, { w: sheet.w * 2, h: sheet.h }), { x: sheet.w, y: 0 })
@@ -67,12 +75,12 @@ test("今と同じ場所を当てはめる（読み直しで URL が開いた直
   const store = newStore()
   const { state, actions } = store
   actions.resizeStage("s1", { w: 400, h: 300 })
-  expect(state.getState().workspace.stages[0]!.starting).toBe(true)
-  store.locate(addressOf(state.getState().workspace))
-  const stage = state.getState().workspace.stages[0]!
+  expect(screenOf(state.getState().window).stages[0]!.starting).toBe(true)
+  store.locate(addressOf(state.getState().window))
+  const stage = screenOf(state.getState().window).stages[0]!
   expect(stage.starting).toBe(false)
   const sheet = paperOf(stage)!
   actions.setStageArea("s1", { w: sheet.w * 2, h: sheet.h })
   actions.setStageStart("s1", { x: sheet.w, y: 0 })
-  expect(state.getState().workspace.stages[0]!.pan).toEqual({ x: 0, y: 0 })
+  expect(screenOf(state.getState().window).stages[0]!.pan).toEqual({ x: 0, y: 0 })
 })

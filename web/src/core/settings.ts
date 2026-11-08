@@ -1,4 +1,4 @@
-// 利用者の設定: 利用者の設定の項目の id → 値。ブックのデータではなく、変えるのは対象 settings のアクション（使えるかはホームのブックのタイプが決める）。
+// 利用者の設定: 利用者の設定の項目の id → 値。ブックのデータではなく、変えるのは対象 settings のアクション（使えるかはコントロールセンターが決める）。
 // 項目はプラグインの userSettings が持つ（core/def/setting.ts）。機能台帳に無い項目・今の形に合わない値も捨てずに残し（プラグインを戻せばまた効く）、読むときに形に合わなければ既定を使う
 import { z } from "zod"
 import type { CoreCatalog } from "./core-catalog"
@@ -48,6 +48,24 @@ export function skinOf(catalog: CoreCatalog, settings: Settings): string {
 export function keyChangesOf(catalog: CoreCatalog, settings: Settings): KeyChanges {
   const parsed = KeyChangesSchema.safeParse(byRole(catalog, settings, "keys"))
   return parsed.success ? parsed.data : NO_KEY_CHANGES
+}
+
+// 参加者が「生きている」とする長さ（ミリ秒）: role が participant-alive の項目の値（分の数。形に合わない値は項目の既定）。項目が無いか数でなければ 0（誰も生きていない）
+export function participantAliveMs(catalog: CoreCatalog, settings: Settings): number {
+  const minutes = Number(byRole(catalog, settings, "participant-alive"))
+  return Number.isFinite(minutes) && minutes > 0 ? minutes * 60_000 : 0
+}
+
+// 参加者が時点 nowMs で生きているか: 最後に呼ばれた時刻 calledAt（無ければ呼ばれていない）から、有効時間の設定以内。画面もホスト（エンジン経由）もこれで決める
+export function isParticipantAlive(
+  catalog: CoreCatalog,
+  settings: Settings,
+  calledAt: string | undefined,
+  nowMs: number,
+): boolean {
+  if (!calledAt) return false
+  const at = Date.parse(calledAt)
+  return !Number.isNaN(at) && nowMs - at < participantAliveMs(catalog, settings)
 }
 
 // AI に見せる設定: 機能台帳にある、利用者だけが変える項目でない項目の値（値が無いか形に合わなければ既定。既定も無ければ出さない）

@@ -1,4 +1,4 @@
-// 画面の場所: 見ているもの（workspace）のうち、読み直しても戻したいもの。ステージごとに開いているブックとページ・倍率・ずらす量（印刷プレビューの間は、
+// 画面の場所: 見ているもの（窓の状態 window.ts）のうち、読み直しても戻したいもの。前に出している物（コントロールセンターかブックスクリーン）と、前に出せるブックスクリーンの、ステージごとに開いているブックとページ・倍率・ずらす量（印刷プレビューの間は、
 // 閉じたときに戻す編集の倍率とずらす量。印刷プレビューの間かは入れず、読み直すと編集に戻る）、
 // カレントのステージ、分けている境目の割合と、ステージごとの、プラグインが場所に入れると書いた画面の状態（中身は読まずに運ぶ。どれを入れるか・形を確かめるのは store）。
 // 選択・置こうとしているアイテム・道具は入れない（その場の操作の途中の状態のため）。
@@ -9,7 +9,8 @@ import type { CoreCatalog } from "./core-catalog"
 import type { Point } from "./geom"
 import type { Book } from "./schema/book"
 import { newStage, openBook, openPage, panBy, type Stage, stopStart } from "./stage"
-import { MAX_STAGES, MIN_SHARE, type Workspace } from "./workspace"
+import { type Front, mapScreen, screenOf, type WindowState } from "./window"
+import { MAX_STAGES, MIN_SHARE } from "./workspace"
 
 export interface StagePlace {
   book: string | null // 開いているブックの id（何も開いていなければ null）
@@ -20,17 +21,20 @@ export interface StagePlace {
 }
 
 export interface Address {
-  stages: readonly StagePlace[] // 左から順
+  front: Front // 窓が前に出している物
+  stages: readonly StagePlace[] // 左から順（前に出せるブックスクリーンの。空なら、ブックスクリーンは今のまま）
   current: number // カレントのステージの、左からの番号
   share: number // 分けている境目の割合（左のステージの幅）
 }
 
 // 見ているものの場所。states は、ステージの id ごとの場所に入れる画面の状態
 export function addressOf(
-  ws: Workspace,
+  win: WindowState,
   states: (stage: string) => Readonly<Record<string, unknown>> = () => ({}),
 ): Address {
+  const ws = screenOf(win)
   return {
+    front: win.front,
     stages: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
       return {
@@ -49,9 +53,10 @@ export function addressOf(
   }
 }
 
-// 移動したか: ステージの数か、どれかのステージのブック・ページが違う（倍率・ずらす量・カレント・境目・画面の状態だけの違いは移動ではない）
+// 移動したか: 前に出している物か、ステージの数か、どれかのステージのブック・ページが違う（倍率・ずらす量・カレント・境目・画面の状態だけの違いは移動ではない）
 export function moved(a: Address, b: Address): boolean {
   return (
+    a.front !== b.front ||
     a.stages.length !== b.stages.length ||
     a.stages.some((s, i) => s.book !== b.stages[i]?.book || s.page !== b.stages[i]?.page)
   )
@@ -70,28 +75,32 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
   return panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)
 }
 
-// 見ているもの ws に場所 address を当てはめる。ステージは左から同じ番号のものを使い回し、足りなければ番号を振って足す
-// （MAX_STAGES まで）。開けないブック・ページのステージは何も開かない。場所にステージが無ければ ws のまま。画面の状態は当てはめない（store が置く）
+// 窓 win に場所 address を当てはめる。前に出す物を替え、前に出せるブックスクリーンのステージは左から同じ番号のものを使い回し、足りなければ窓が番号を振って足す
+// （MAX_STAGES まで）。開けないブック・ページのステージは何も開かない。場所にステージが無ければ、ブックスクリーンは今のまま。画面の状態は当てはめない（store が置く）
 export function placeAt(
   catalog: CoreCatalog,
   books: Readonly<Record<string, Book>>,
-  ws: Workspace,
+  win: WindowState,
   address: Address,
-): Workspace {
+): WindowState {
+  const front = { ...win, front: address.front }
   const places = address.stages.slice(0, MAX_STAGES)
-  if (places.length === 0) return ws
-  let issued = ws.issued
+  if (places.length === 0) return front.front === win.front ? win : front
+  let issued = front.issued
+  const ws = screenOf(front)
   const stages = places.map((place, i) => {
     const stage = ws.stages[i] ?? newStage(`s${++issued}`)
     return placed(catalog, books, stage, place)
   })
   const current = stages[Math.min(Math.max(0, address.current), stages.length - 1)] as Stage
   const share = Math.min(1 - MIN_SHARE, Math.max(MIN_SHARE, address.share))
-  return { ...ws, stages, current: current.id, issued, arrangement: { ...ws.arrangement, share } }
+  const next = { ...ws, stages, current: current.id, arrangement: { ...ws.arrangement, share } }
+  return { ...mapScreen(front, () => next), issued }
 }
 
-// 場所が今のままで当てはめを省くときの見ているもの ws: 当てはめたときと同じく、どのステージも初めの位置に合わせない（変わらなければ ws のまま）
-export function keepPlace(ws: Workspace): Workspace {
+// 場所が今のままで当てはめを省くときの窓 win: 当てはめたときと同じく、どのステージも初めの位置に合わせない（変わらなければ win のまま）
+export function keepPlace(win: WindowState): WindowState {
+  const ws = screenOf(win)
   const stages = ws.stages.map(stopStart)
-  return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
+  return stages.every((s, i) => s === ws.stages[i]) ? win : mapScreen(win, () => ({ ...ws, stages }))
 }

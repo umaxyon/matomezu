@@ -1,12 +1,16 @@
 // ダイアログの置き場（ウィジェット dialog-host）: store の開いているダイアログ（dialog）を、その id の中身（プラグインが結んだビュー）で、開くときに渡された値と一緒に描く。
 // ダイアログの定義が edits を持てば、開いている間、開いたステージのブックのその物に編集ロックを掛ける
+
 import { fail } from "../../../core/errors"
+import { screenOf } from "../../../core/window"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useEditLock } from "../utils/useEditLock"
 
 export function DialogHost() {
   const dialog = useMatomezuState(s => s.dialog)
-  const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === s.dialog?.stage)?.opened?.book ?? null)
+  const book = useMatomezuState(
+    s => screenOf(s.window).stages.find(st => st.id === s.dialog?.stage)?.opened?.book ?? null,
+  )
   const { closeDialog } = useActions()
   const ui = useUiCatalog()
   const dialogs = useCatalog().store.dialogs

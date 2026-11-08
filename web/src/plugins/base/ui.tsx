@@ -11,12 +11,14 @@ import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
+import type { MailActionsProps } from "./mail/slots"
 import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_LAYER, MAIL_WATCH, MAILBOX_TAB } from "./mail/ui"
 import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
 import type { AnnotationIconProps } from "./outbox/slots"
 import { OUTBOX } from "./outbox/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
+import { JOIN_REQUEST_ACTIONS, PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
 import {
   PRINT_CHECK_PANEL,
   PRINT_PREVIEW_BUTTON,
@@ -45,6 +47,8 @@ import { TOOL_ICONS } from "./tool-switch/icons"
 import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import type { CornerStatusProps } from "./utils/corner"
+import { WINDOW_ICONS } from "./window/icons"
+import { CONTROL_CENTER_PERCH, WINDOW } from "./window/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
@@ -81,12 +85,15 @@ export {
 export { useCloseLeftSidePanel, useLeftSidePanel, useOpenLeftSidePanel } from "./left-side-panel/hooks"
 export { LEFT_SIDE_PANEL } from "./left-side-panel/slots"
 export { defineLeftSidePanelTab } from "./left-side-panel/ui"
+export { MAIL_ACTIONS, type MailActionsProps } from "./mail/slots"
+export { defineMailActions } from "./mail/ui"
 export { useMarkdownDocument } from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/drawn"
 export { ANNOTATION_ICON, type AnnotationIconProps } from "./outbox/slots"
 export { defineAnnotationIcon } from "./outbox/ui"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
+export { ParticipantList } from "./participant/ui"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
 export {
   useCloseRightSidePanel,
@@ -122,6 +129,7 @@ export {
   useBodyGrips,
 } from "./text/ui"
 export * from "./utils/ui"
+export { BOOK_SCREEN, CONTROL_CENTER_FOOTER, CONTROL_CENTER_SCREEN } from "./window/slots"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {
@@ -132,10 +140,13 @@ export const BASE_UI = definePluginUi(BASE, {
     ...BOOK_NEW_DIALOG_VIEWS,
     ...SETTINGS_DIALOG_VIEWS,
     ...MAIL_DIALOG_VIEWS,
+    ...PARTICIPANT_DIALOG_VIEWS,
   },
   settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
+    WINDOW,
+    CONTROL_CENTER_PERCH,
     WORKSPACE,
     DIALOG_HOST,
     MENU_HOST,
@@ -161,6 +172,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MAIL_BOOKMARKS,
     MAIL_WATCH,
     EDIT_LOCK,
+    JOIN_REQUEST_ACTIONS,
     MAIL_LAYER,
     NOTE_READ_NOTICE,
     NOTE_ICON,
@@ -186,12 +198,17 @@ export const BASE_UI = definePluginUi(BASE, {
     ...BOOK_LOOK_ICONS,
     ...HISTORY_ICONS,
     ...SETTINGS_ICONS,
+    ...WINDOW_ICONS,
   },
   toolIcons: TOOL_ICONS,
 })
 
 declare module "../../core/catalog" {
   interface SlotTable {
+    "@matomezu/base:book-screen": Record<string, never> // ブックスクリーンの中（何も受け取らない）
+    "@matomezu/base:control-center-screen": Record<string, never> // コントロールセンターの中身（何も受け取らない）
+    "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
+    "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
     "@matomezu/base:stage-top": StageSlotProps
     "@matomezu/base:stage-body": StageSlotProps
     "@matomezu/base:book-layers": StageSlotProps
@@ -217,10 +234,14 @@ declare module "../../core/catalog" {
     settingsCategory?: { title: MessageKey; settings?: readonly string[] }
     // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id
     annotationIcon?: { annotation: string }
+    // 郵便のダイアログの下の行のスロットに置く物が描く、郵便の種類の本当の id
+    mailActions?: { mail: string }
     // コーナーステータスのスロットに置く物の名前（文言の鍵。設定画面の「コーナーステータスの並び」に出す）
     cornerStatus?: { title: MessageKey }
   }
   interface WidgetTable {
+    "@matomezu/base:window": typeof WINDOW
+    "@matomezu/base:control-center-perch": typeof CONTROL_CENTER_PERCH
     "@matomezu/base:workspace": typeof WORKSPACE
     "@matomezu/base:dialog-host": typeof DIALOG_HOST
     "@matomezu/base:menu-host": typeof MENU_HOST
@@ -243,6 +264,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
     "@matomezu/base:edit-lock": typeof EDIT_LOCK
+    "@matomezu/base:join-request-actions": typeof JOIN_REQUEST_ACTIONS
     "@matomezu/base:mail-layer": typeof MAIL_LAYER
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON

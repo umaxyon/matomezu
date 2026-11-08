@@ -1,4 +1,4 @@
-// 利用者の設定のアクション: 書いた項目の値だけを丸ごと置き換える。使えるか（ホームのタイプが変えさせない項目・AI に利用者だけの項目）は、
+// 利用者の設定のアクション: 書いた項目の値だけを丸ごと置き換える。使えるか（コントロールセンターが変えさせない項目・AI に利用者だけの項目）は、
 // 許可の範囲の項目ごとに土台が問う（core/inspect.ts）
 import { z } from "zod"
 import { settingSchema } from "../../../core/settings"
@@ -7,7 +7,7 @@ import { kit } from "../kit"
 export const SETTINGS_SET = kit.defineAction({
   id: "settings-set",
   aiDescription:
-    "Change the user's settings: values are keyed by the ids of settings in actions, and each value replaces the setting as a whole (to change a part, read it with read_settings first and give it back with your change). null puts the setting back to its default. Only the settings given change. A setting it does not have, a value of the wrong shape, or a setting the user's home keeps fixed is refused.",
+    "Change the user's settings: values are keyed by the ids of settings in actions, and each value replaces the setting as a whole (to change a part, read it with read_settings first and give it back with your change). null puts the setting back to its default. Only the settings given change. A setting it does not have, a value of the wrong shape, or a setting the control center keeps fixed is refused.",
   title: "Settings",
   target: "settings",
   permissionScope: { settings: "values" },

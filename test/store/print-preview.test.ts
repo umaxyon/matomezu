@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import type { PagedBook } from "../../web/src/core/book"
+import { screenOf } from "../../web/src/core/window"
 import { pageContext } from "../../web/src/plugins/base/book-settings"
 import { growOf, paperSize } from "../../web/src/plugins/base/place/items"
 import { placedSize } from "../../web/src/plugins/base/place/placed"
@@ -12,7 +13,7 @@ import { newStore } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 const settled = () => Promise.resolve()
-const stageOf = (store: ReturnType<typeof newStore>) => store.state.getState().workspace.stages[0]!
+const stageOf = (store: ReturnType<typeof newStore>) => screenOf(store.state.getState().window).stages[0]!
 const bookOf = (store: ReturnType<typeof newStore>) => store.state.getState().books.b1 as { settings?: object }
 
 function previewing() {
@@ -143,7 +144,7 @@ test("ツリーのように並べ方を描くときに決めるタイプは、�
     orientation: "landscape" as const,
     root: { id: "r", caption: "根", children: [] },
   }
-  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] }
+  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", project: "default", pages: [page] }
   expect(filledSheets(store.catalog.core, tree as never, page)).toBeNull()
   expect(sheetsOfPage(store.catalog.core, tree as never, page)).toEqual({
     columns: 1,
@@ -158,7 +159,7 @@ test("可変ページのツリーとディレクトリ構成図で中身があ�
   const paper = { paper: "@matomezu/base:a4", orientation: "landscape" as const, grows: true as const }
   const children = Array.from({ length: 40 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` }))
   const treePage = { id: "p1", title: "1", ...paper, root: { id: "r", caption: "根", children } }
-  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [treePage] }
+  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", project: "default", pages: [treePage] }
   const t = sheetsOfPage(store.catalog.core, tree as never, treePage)!
   expect(t.columns * t.rows).toBeGreaterThan(1)
   expect(t.filled?.size).toBeGreaterThan(1)
@@ -169,7 +170,7 @@ test("可変ページのツリーとディレクトリ構成図で中身があ�
     ...paper,
     root: { id: "r", kind: "folder" as const, name: "proj", children: files },
   }
-  const dir = { type: "@matomezu/dir:dir" as const, id: "d1", title: "構成", pages: [dirPage] }
+  const dir = { type: "@matomezu/dir:dir" as const, id: "d1", title: "構成", project: "default", pages: [dirPage] }
   const d = sheetsOfPage(store.catalog.core, dir as never, dirPage)!
   expect(d.rows).toBeGreaterThan(1)
   expect(d.filled?.has("0,1")).toBe(true)
@@ -189,7 +190,7 @@ test("印刷区画より大きい形は、またいでも直せないので、�
   const id = book().pages[0]!.items![0]!.id
   expect(bookCrossings(store.catalog.core, book())).toEqual([{ page: "p1", crossing: [], oversized: [id] }])
   expect(store.actions.command("s1", "@matomezu/base:print-preview-open")).toBe(true)
-  expect(store.state.getState().workspace.stages[0]!.mode.kind).toBe("print-preview")
+  expect(screenOf(store.state.getState().window).stages[0]!.mode.kind).toBe("print-preview")
 })
 
 test("印刷のときの改ページ: ツリーとディレクトリ構成図の節・行は、どれも 1 つの印刷区画に入り、線の端は節に付いたまま、区切り線は最後の行まで伸びる。書く画面の数え方は改ページの前", () => {
@@ -205,7 +206,7 @@ test("印刷のときの改ページ: ツリーとディレクトリ構成図の
   })
   const children = Array.from({ length: 40 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` }))
   const treePage = { id: "p1", title: "1", ...paper, root: { id: "r", caption: "根", children } }
-  const tree = { type: "@matomezu/tree:tree", id: "t1", title: "木", pages: [treePage] }
+  const tree = { type: "@matomezu/tree:tree", id: "t1", title: "木", project: "default", pages: [treePage] }
   const laidTree = printTree(store.catalog.core, treePage as never, on(tree, treePage))!
   expect(laidTree.nodes.every(inOne)).toBe(true)
   const node = new Map(laidTree.nodes.map(n => [n.id, n]))
@@ -222,7 +223,7 @@ test("印刷のときの改ページ: ツリーとディレクトリ構成図の
     settings: { "@matomezu/dir:notes": { shown: true, dots: false, divider: true } },
     root: { id: "r", kind: "folder" as const, name: "proj", children: files.map(f => ({ ...f, description: "説明" })) },
   }
-  const dir = { type: "@matomezu/dir:dir", id: "d1", title: "構成", pages: [dirPage] }
+  const dir = { type: "@matomezu/dir:dir", id: "d1", title: "構成", project: "default", pages: [dirPage] }
   const laidDir = printDir(store.catalog.core, dirPage as never, on(dir, dirPage))!
   expect(laidDir.rows.every(inOne)).toBe(true)
   const last = Math.max(...laidDir.rows.map(r => r.y + r.h))
@@ -239,6 +240,7 @@ test("並べ方が自動のタイプ（フローチャート）は、またい�
     type: "@matomezu/flowchart:flowchart",
     id: "f1",
     title: "流れ",
+    project: "default",
     pages: [{ id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape", grows: true, items: [] }],
   }
   expect(bookCrossings(store.catalog.core, flow as never)).toEqual([])
@@ -253,7 +255,7 @@ test("測るページ（measured）は測った数だけ 1 列に並べ、測っ
     orientation: "landscape" as const,
     items: [],
   }))
-  const book = { type: "@matomezu/drawing:drawing" as const, id: "x", title: "x", pages }
+  const book = { type: "@matomezu/drawing:drawing" as const, id: "x", title: "x", project: "default", pages }
   pages[3]!.items = [{ id: "n1", item: BOX, x: 40, y: 40, w: 100, h: 64, props: {} }] as never
   const measured = new Map<string, number | "pending">([
     ["a", 3],

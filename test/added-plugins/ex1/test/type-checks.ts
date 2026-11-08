@@ -3,7 +3,10 @@ import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
 import { kit } from "../kit"
 import EX1_UI from "../ui"
 
-const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX1_UI], home: "@matomezu/master:master" })
+const instance = createMatomezu({
+  plugins: [...BUILTIN_UI, EX1_UI],
+  controlCenter: "@matomezu/control-center:control-center",
+})
 instance.actions.command("s1", "ex1:lang", "ja")
 // @ts-expect-error 引数の要るコマンドに渡していない
 instance.actions.command("s1", "ex1:lang")
@@ -12,7 +15,7 @@ instance.actions.command("s1", "ex1:lang", "de")
 // @ts-expect-error 知らないコマンド
 instance.actions.command("s1", "ex1:nope")
 // @ts-expect-error 型を書き足した ex1 を渡し忘れた
-createMatomezu({ plugins: BUILTIN_UI, home: "master" })
+createMatomezu({ plugins: BUILTIN_UI, controlCenter: "@matomezu/control-center:control-center" })
 // @ts-expect-error 引数の型が違う既定のキー
 kit.defineKey({
   id: "bad-key",

@@ -25,7 +25,12 @@ import { SAMPLE_BOOKS } from "../sample-books"
 afterEach(cleanup)
 
 const instance = () =>
-  createMatomezu({ plugins: BUILTIN_UI, home: "@matomezu/master:master", books: SAMPLE_BOOKS, lang: "ja" })
+  createMatomezu({
+    plugins: BUILTIN_UI,
+    controlCenter: "@matomezu/control-center:control-center",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+  })
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(instance().catalog.store.commands.keys())
 
@@ -50,7 +55,8 @@ describe("配置", () => {
     const bad = {
       id: "bad",
       slots: {
-        root: ["@matomezu/base:workspace"],
+        root: ["@matomezu/base:window"],
+        "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
         "@matomezu/base:stage-top": ["nope", "@matomezu/base:book-view"],
         "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],
       },
@@ -72,6 +78,9 @@ describe("配置", () => {
       slots: { ...DEFAULT_LAYOUT.slots, root: ["@matomezu/base:dialog-host"] },
     })
     expect(checkLayout(noStages, ui, commands).map(problemText)).toEqual([
+      "E211 layout no-stages: slot @matomezu/base:book-screen is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:control-center-screen is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:control-center-footer is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-top is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-body is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:book-layers is not opened by any placed widget",
@@ -83,6 +92,7 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:footer-menu-book-tools is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:left-side-panel is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:mail-actions is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:annotation-icon is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:corner-statuses is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
@@ -101,10 +111,15 @@ describe("配置", () => {
     const layout = {
       ...DEFAULT_LAYOUT,
       id: "mine",
-      slots: { ...DEFAULT_LAYOUT.slots, root: ["w:workspace", "@matomezu/base:dialog-host"] },
+      slots: {
+        ...DEFAULT_LAYOUT.slots,
+        "@matomezu/base:book-screen": ["w:workspace"],
+        root: ["@matomezu/base:window", "@matomezu/base:dialog-host"],
+      },
     }
     // 右サイドパネルと左サイドパネルを開けない骨組みなら、その中身（左サイドパネルのタブが開ける行の絵も）を書いた配置は error
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual([
+      "E211",
       "E211",
       "E211",
       "E211",
@@ -113,6 +128,7 @@ describe("配置", () => {
       "@matomezu/base:right-side-panel": _,
       "@matomezu/base:left-side-panel": __,
       "@matomezu/base:annotation-icon": ___,
+      "@matomezu/base:mail-actions": ____,
       ...slots
     } = layout.slots
     expect(checkLayout({ ...layout, slots } as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
@@ -124,7 +140,7 @@ describe("配置", () => {
       id: "bad",
       contextMenus: {
         "@matomezu/paper:paper-context": ["drawing.nope"],
-        "other.context": ["@matomezu/base:stage-home"],
+        "other.context": ["@matomezu/base:stage-split"],
       },
     } as unknown as LayoutDef
     expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
@@ -142,7 +158,7 @@ describe("配置", () => {
       ...DEFAULT_LAYOUT,
       id: "typed",
       // @ts-expect-error tool-set は道具の id だけを取る
-      anchorMenu: ["@matomezu/base:note-new", "@matomezu/base:stage-home", "@matomezu/base:tool-set"],
+      anchorMenu: ["@matomezu/base:note-new", "@matomezu/base:stage-split", "@matomezu/base:tool-set"],
     })
   })
 
@@ -449,7 +465,7 @@ describe("取り込むときの配置の確かめ", () => {
   })
 
   test("配置が食い違うプラグインは取り込むときに外し、ほかのプラグインで画面を描く", () => {
-    const instance = createMatomezu({ plugins: BUILTIN_UI, home: "@matomezu/master:master" })
+    const instance = createMatomezu({ plugins: BUILTIN_UI, controlCenter: "@matomezu/control-center:control-center" })
     const { failed } = instance.use([nowhere, fine], all => {
       shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
     })

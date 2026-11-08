@@ -68,7 +68,6 @@ export const FLOWCHART = kit.defineBookType({
   version: 1,
   title: "Flowchart",
   schema: z.strictObject({ id: z.string().min(1) }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   // 可変ページは、流れの始まりの側を固定して残りの 3 つの向きへ増やす（下へなら上を、右へなら左を固定。base の拡張ポイント）

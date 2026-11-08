@@ -9,29 +9,62 @@ import (
 const instructions = "matomezu shows books (such as diagrams) to the user in a browser. " +
 	"Use view to see what the user is looking at, list_books, read_book and read_page to read, actions to see what can be done, and perform to do it. " +
 	"The user may put notes and marks on things in a book; view and list_books tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
-	"Changes appear at once on screens showing that book; use show to put a book on the user's screen."
+	"Changes appear at once on screens showing that book; use show to put a book on the user's screen. " +
+	"Books and mail belong to projects: list_books and read_mail take the projects to read, and book-create and mail-send take the project to make it in; join first to ask for projects and learn the ids."
 
 type readTool struct {
 	name        string
 	description string
 	schema      map[string]any
-	call        func(api API, args map[string]any) (json.RawMessage, error)
+	call        func(api caller, args map[string]any) (json.RawMessage, error)
 }
 
 var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
 
+// projectsSchema は、読む範囲を絞るツール（list_books・read_mail）が受ける形。projects は必須で、空は断る
+var projectsSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"projects": projectsProperty,
+	},
+	"required":             []string{"projects"},
+	"additionalProperties": false,
+}
+
+var projectsProperty = map[string]any{
+	"type":        "array",
+	"items":       map[string]any{"type": "string"},
+	"minItems":    1,
+	"description": "The ids of the projects to read, one or more (join returns the projects you joined).",
+}
+
+// projectsQuery は、args の projects を常駐の口の問い合わせにする（projects が無い・並びでないときは空で、常駐が断る）
+func projectsQuery(args map[string]any) string {
+	q := url.Values{}
+	if list, ok := args["projects"].([]any); ok {
+		for _, p := range list {
+			if id, ok := p.(string); ok {
+				q.Add("projects", id)
+			}
+		}
+	}
+	return "?" + q.Encode()
+}
+
 var readTools = []readTool{
 	{
 		"view",
-		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. null when no window is open.",
+		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. front tells what the window brings to front: book-screen, or control-center, which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). null when no window is open.",
 		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") },
+		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") },
 	},
 	{
 		"list_books",
-		"List the books: id, type, title, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
-		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/books") },
+		"List the books of the projects you name: id, type, title, project, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
+		projectsSchema,
+		func(api caller, args map[string]any) (json.RawMessage, error) {
+			return api.Get("api/ai/books" + projectsQuery(args))
+		},
 	},
 	{
 		"read_book",
@@ -42,7 +75,7 @@ var readTools = []readTool{
 			"required":             []string{"book"},
 			"additionalProperties": false,
 		},
-		func(api API, args map[string]any) (json.RawMessage, error) {
+		func(api caller, args map[string]any) (json.RawMessage, error) {
 			id, _ := args["book"].(string)
 			return api.Get("api/ai/books/" + url.PathEscape(id)) // 1 冊だけのブックの id は / を含む
 		},
@@ -59,7 +92,7 @@ var readTools = []readTool{
 			"required":             []string{"book", "page"},
 			"additionalProperties": false,
 		},
-		func(api API, args map[string]any) (json.RawMessage, error) {
+		func(api caller, args map[string]any) (json.RawMessage, error) {
 			book, _ := args["book"].(string)
 			page, _ := args["page"].(string)
 			return api.Get("api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page))
@@ -69,14 +102,16 @@ var readTools = []readTool{
 		"read_settings",
 		"Read the user's settings: the value of each setting in actions, keyed by the setting's id (a setting the user has not changed has its default, or is left out when it has none).",
 		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
+		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
 	},
 	{
 		"read_mail",
-		"Read the user's mailbox: the letters sent to the user, oldest first (id, from, sentAt, to: the place it points at, props: title and body). " +
+		"Read the user's mailbox, only the letters of the projects you name: the letters sent to the user, oldest first (id, project, from, sentAt, to: the place it points at, props: title and body). " +
 			"seenAt is when the user opened the letter (none: not yet), visitedAt is when the user saw the place it points at (none: not yet). Send a letter with the action mail-send.",
-		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/mail") },
+		projectsSchema,
+		func(api caller, args map[string]any) (json.RawMessage, error) {
+			return api.Get("api/ai/mail" + projectsQuery(args))
+		},
 	},
 	{
 		"actions",
@@ -85,7 +120,7 @@ var readTools = []readTool{
 			"warnings (only when there are some) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",
 		noArgs,
-		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
+		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
 	},
 }
 
@@ -128,10 +163,10 @@ var showSchema = map[string]any{
 	"additionalProperties": false,
 }
 
-const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current. " +
+const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current, and the book screen comes to front if the control center was in front. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
-// listTools は MCP 公開ツールの一覧（読む MCP 公開ツール・show・perform）。追加プラグインを足しても変わらない
+// listTools は MCP 公開ツールの一覧（読む MCP 公開ツール・show・perform・join）。追加プラグインを足しても変わらない
 func listTools() []map[string]any {
 	tools := []map[string]any{}
 	for _, t := range readTools {
@@ -140,12 +175,25 @@ func listTools() []map[string]any {
 	tools = append(tools,
 		map[string]any{"name": "show", "description": showDescription, "inputSchema": showSchema},
 		map[string]any{"name": "perform", "description": performDescription, "inputSchema": performSchema},
+		map[string]any{"name": "join", "description": joinDescription, "inputSchema": joinSchema},
 	)
 	return tools
 }
 
-// callTool は MCP 公開ツールを呼び、AI に返す文と、失敗したかを返す
-func callTool(api API, name string, raw json.RawMessage) (string, bool) {
+// callTool は MCP 公開ツールを呼び、AI に返す文と、失敗したかを返す。
+// 常駐の返事に AI への知らせ（参加しましたなど）があれば、どの MCP 公開ツールでも文の末尾に足す
+func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
+	c.notice = ""
+	text, failed := dispatch(c, name, raw)
+	if c.notice != "" {
+		text += "\n" + c.notice
+		c.notice = ""
+	}
+	return text, failed
+}
+
+func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
+	var api caller = c
 	args := map[string]any{}
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &args); err != nil {
@@ -167,10 +215,13 @@ func callTool(api API, name string, raw json.RawMessage) (string, bool) {
 	if name == "perform" {
 		return perform(api, args)
 	}
+	if name == "join" {
+		return join(c, args)
+	}
 	return "unknown tool: " + name, true
 }
 
-func perform(api API, args map[string]any) (string, bool) {
+func perform(api caller, args map[string]any) (string, bool) {
 	if _, ok := args["action"].(string); !ok {
 		return "perform needs action (an action's id, see actions)", true
 	}
@@ -201,7 +252,7 @@ func perform(api API, args map[string]any) (string, bool) {
 	return string(done.Result), false
 }
 
-func show(api API, args map[string]any) (string, bool) {
+func show(api caller, args map[string]any) (string, bool) {
 	out, err := api.Post("api/ai/show", args)
 	if err != nil {
 		return err.Error(), true
@@ -249,4 +300,68 @@ func refusalText(reason, detail string) string {
 	default:
 		return reason + ": it could not be done here (read_book to check)"
 	}
+}
+
+// joinSchema は join の受ける形。AI の名前と環境は MCP が埋めるので受けない
+var joinSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"model":       map[string]any{"type": "string", "description": "The name of the model you are, such as claude-opus-4 or gpt-5."},
+		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
+		"link":        map[string]any{"type": "string", "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
+		"workroom":    map[string]any{"type": "string", "description": "The name of a workroom to take over (a participant who joined before and is not alive any more), or the name you would like for a new one. Optional."},
+		"projects":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "description": "The ids of the projects to join, one or more."},
+	},
+	"required":             []string{"model", "link", "projects"},
+	"additionalProperties": false,
+}
+
+const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. " +
+	"After you join, a notice with your workroom name comes with a later answer (or the user is told by the hook that runs when they talk to you). Call it once per session; ask again with other projects to join those too (it answers with all the projects you joined). " +
+	"With workroom, you ask to take over that workroom: it is refused with workroom-in-use while the workroom has a participant who is alive (do not ask again; tell the user in the chat); otherwise the user is asked to accept the takeover, and the answer has takeover (the workroom's name). If no workroom has that name, the name is only a wish for a new participant."
+
+// join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を以後の呼び出し全部に添える
+func join(c *conn, args map[string]any) (string, bool) {
+	model, _ := args["model"].(string)
+	link, _ := args["link"].(string)
+	if model == "" || link == "" {
+		return "join needs model and link (a new uuid you make for this session)", true
+	}
+	projects, _ := args["projects"].([]any)
+	if len(projects) == 0 {
+		return "join needs projects (the ids of the projects to join, one or more)", true
+	}
+	sessionName, _ := args["sessionName"].(string)
+	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link, "projects": projects}
+	if workroom, _ := args["workroom"].(string); workroom != "" {
+		body["workroom"] = workroom
+	}
+	if c.sessionID != "" {
+		body["sessionId"] = c.sessionID
+	}
+	out, err := c.Post("api/ai/join", body)
+	if err != nil {
+		return err.Error(), true
+	}
+	var done struct {
+		OK          bool     `json:"ok"`
+		Participant string   `json:"participant"`
+		Projects    []string `json:"projects"`
+		Takeover    string   `json:"takeover"`
+		Reason      string   `json:"reason"`
+		Detail      string   `json:"detail"`
+	}
+	if err := json.Unmarshal(out, &done); err != nil {
+		return string(out), true
+	}
+	if !done.OK {
+		return refusalText(done.Reason, done.Detail), true
+	}
+	c.participant = done.Participant
+	answer := map[string]any{"participant": done.Participant, "projects": done.Projects}
+	if done.Takeover != "" {
+		answer["takeover"] = done.Takeover
+	}
+	reply, _ := json.Marshal(answer)
+	return string(reply), false
 }

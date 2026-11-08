@@ -8,19 +8,22 @@ import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
 import type { Mailbox } from "../mail"
+import type { Participants } from "../participant"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
 import type { BookTypeDef } from "./book-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
-// この 2 つのアクションを使えるかはホームのブックのタイプが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
-// 使えるかは book と同じくそのブックのタイプが決める。mailbox は利用者に 1 つの郵便箱（core/mail.ts）で、使えるかは library・settings と同じくホームのブックのタイプが決める
+// この 2 つのアクションを使えるかはコントロールセンターが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
+// 使えるかは book と同じくそのブックのタイプが決める。mailbox は利用者に 1 つの郵便箱（core/mail.ts）で、使えるかは library・settings と同じくコントロールセンターが決める。
+// participants は利用者に 1 つの参加者の表（core/participant.ts）で、使えるかは mailbox と同じくコントロールセンターが決める
 export interface Subjects {
   library: Library
   book: Book
   settings: Settings
   annotations: BookAnnotations
   mailbox: Mailbox
+  participants: Participants
 }
 
 export type ActionTarget = keyof Subjects
@@ -31,7 +34,7 @@ export const isOnBook = (target: ActionTarget | undefined): boolean => target ==
 
 export interface ActionContext {
   catalog: CoreCatalog // 使う機能台帳（アクション・ブックのタイプ・紙など）
-  home: string | null // インスタンスのホームのブックの id（一覧と設定のアクションを許すかは、このブックのタイプが決める）。無ければ断る
+  controlCenter: string | null // インスタンスのコントロールセンターの定義の id（一覧と設定のアクションを許すかは、これが決める）。無ければ断る
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
   // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。
@@ -215,6 +218,14 @@ export interface ActionDef<
   history?: false // 画面の履歴（Undo）に入れない（図の内容でなくブックの扱いを変えるアクション。ロックの掛け外しなど）
   // 利用者が AI に話しかけたときに、matomezu がアノテーションのあるブックごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
+  // AI が参加を頼むとき（MCP の join）に、matomezu が AI として行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
+  // "make-takeover" は、受け入れ済みの参加者のワークルームを引き継ぐ参加の要求を作る（利用者として行う。AI には見せない）、
+  // "notify-user" は利用者に知らせる郵便を送る（参加者の id などを受ける）。役ごとに 1 つのアクションだけが名乗る。make-participant・make-takeover は参加者の表、notify-user は郵便箱が対象のアクションだけが書ける
+  runsWhenAIJoins?: T extends "participants"
+    ? "make-participant" | "make-takeover"
+    : T extends "mailbox"
+      ? "notify-user"
+      : never
   // "runs" なら、印刷プレビューの間のステージからも行える（印刷プレビューの見せ方の設定を変えるアクションなど。無ければ、ブックが対象なら止める。core/stage.ts の stageBlocks）
   inPrintPreview?: "runs"
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）

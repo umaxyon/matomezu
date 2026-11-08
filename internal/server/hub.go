@@ -13,10 +13,12 @@ package server
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
 //	mailbox   {"mailbox", "window", "client", "seq"} 郵便箱が変わった（郵便が届いた・既読になった・消えた）。window は最後にフォーカスされた窓
-//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・mailbox のあとに届く
+//	participants {"participants", "client", "seq"} 参加者の表が変わった（要求が届いた・受け入れた・断った）
+//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・mailbox・participants のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
+//	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join.go。30 秒以上あいたときだけ知らせる）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
@@ -58,26 +60,31 @@ type client struct {
 	view      json.RawMessage     // 窓が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
 	focused   int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
 	viewSeq   int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
-	shown     []string            // いまその窓に出ているブック（touched.go。新しく出たブックだけを「開いた」とする）
+	shown     []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターを前に出している間は空）
+	held      []string            // いまその窓のブックスクリーンが開いているブック（隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
 	editLocks map[string][]string // 利用者がその窓で直している物（ブックの id → 物の id の並び。editlock.go）
 }
 
 // Hub は世界と窓をまとめる
 type Hub struct {
-	mu             sync.Mutex
-	store          storage.Storage
-	engine         *engine.Engine
-	books          map[string]entry
-	order          []string // 置いた順のブックの id（GET /api/data の並び）
-	settings       json.RawMessage
-	annotations    map[string]json.RawMessage // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
-	mailbox        json.RawMessage            // 利用者の郵便箱（郵便の並び。無ければ nil）
-	clients        map[string]*client
-	next           int
-	ticks          int64            // フォーカスの順を振る数
-	viewed         chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
-	plugins        []*plugin.Bundle // 足した追加プラグイン（plugins.go）
-	pluginsVersion int64            // 追加プラグインが変わるたびに進む
+	mu               sync.Mutex
+	store            storage.Storage
+	engine           *engine.Engine
+	books            map[string]entry
+	order            []string // 置いた順のブックの id（GET /api/data の並び）
+	settings         json.RawMessage
+	annotations      map[string]json.RawMessage // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
+	mailbox          json.RawMessage            // 利用者の郵便箱（郵便の並び。無ければ nil）
+	participants     json.RawMessage            // 利用者の参加者の表（参加者の並び。無ければ nil）
+	participantNotes map[string]participantNote // 参加者の id → 常駐だけが持つ参加者の記録（join.go）
+	joinMu           sync.Mutex                 // 参加の頼みを 1 つずつ受ける（join.go）
+	goneTold         map[string]bool            // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
+	clients          map[string]*client
+	next             int
+	ticks            int64            // フォーカスの順を振る数
+	viewed           chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
+	plugins          []*plugin.Bundle // 足した追加プラグイン（plugins.go）
+	pluginsVersion   int64            // 追加プラグインが変わるたびに進む
 	// warning のあるブックの id → その warning（読めない W004〜W006・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookWarnings map[string]engine.BookWarning
@@ -117,6 +124,20 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
+	participants, err := store.Participants(user)
+	if err != nil {
+		return nil, err
+	}
+	noteBody, err := store.ParticipantNotes(user)
+	if err != nil {
+		return nil, err
+	}
+	notes := map[string]participantNote{}
+	if noteBody != nil {
+		if err := json.Unmarshal(noteBody, &notes); err != nil {
+			return nil, err
+		}
+	}
 	stored, err := store.AIEditTickets()
 	if err != nil {
 		return nil, err
@@ -129,7 +150,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		}
 		aiEditTickets[id] = list
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, participants: participants, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -277,6 +298,16 @@ func (h *Hub) Mailbox() json.RawMessage {
 	return h.mailbox
 }
 
+// Participants は利用者の参加者の表（参加者の並び。要求が届いていなければ空の並び）
+func (h *Hub) Participants() json.RawMessage {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.participants == nil {
+		return json.RawMessage("[]")
+	}
+	return h.participants
+}
+
 // AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、置いた順に返す
 func (h *Hub) AIBooks() []storage.Book {
 	h.mu.Lock()
@@ -323,7 +354,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, By: p.By}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By}
 	in.Annotations = map[string]json.RawMessage{}
 	if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {
@@ -404,6 +435,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 				last = w.id
 			}
 			h.broadcast("mailbox", map[string]any{"mailbox": out.Mailbox, "window": last, "client": p.Client, "seq": p.Seq})
+		}
+		if len(out.Participants) > 0 {
+			if err := h.store.PutParticipants(user, out.Participants); err != nil {
+				return Performed{}, err
+			}
+			h.participants = out.Participants
+			h.broadcast("participants", map[string]any{"participants": out.Participants, "client": p.Client, "seq": p.Seq})
 		}
 		for book, body := range out.Annotations {
 			if err := h.putAnnotations(book, body, p.Client, p.Seq); err != nil {
@@ -619,20 +657,23 @@ func (h *Hub) Show(s Show) error {
 		return ErrNoWindow
 	}
 	var v struct {
-		Stages []struct {
-			ID string `json:"id"`
-		} `json:"stages"`
-		CanSplit bool `json:"canSplit"`
+		screen
+		Hidden *screen `json:"hidden"`
 	}
 	_ = json.Unmarshal(c.view, &v)
-	ids := make([]string, 0, len(v.Stages))
-	for _, st := range v.Stages {
+	// コントロールセンターを前に出している窓は、後ろに隠れているブックスクリーンのステージに出す（出すとブックスクリーンが前に出る）
+	shown := v.screen
+	if v.Hidden != nil {
+		shown = *v.Hidden
+	}
+	ids := make([]string, 0, len(shown.Stages))
+	for _, st := range shown.Stages {
 		ids = append(ids, st.ID)
 	}
 	if s.Stage != "" && !slices.Contains(ids, s.Stage) {
 		return ErrNoStage
 	}
-	if s.Split && !v.CanSplit {
+	if s.Split && !shown.CanSplit {
 		return ErrNoSplit
 	}
 	h.send(c, "show", s)

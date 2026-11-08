@@ -1,8 +1,7 @@
 // ブックの操作（データを書き換えず、新しい値を返す）
 
-import { bookSchemas, bookType, type CoreCatalog } from "./core-catalog"
+import { bookType, type CoreCatalog } from "./core-catalog"
 import type { NewBook } from "./def/book-type"
-import { fail } from "./errors"
 import { freshId } from "./ids"
 import { splitId } from "./names"
 import type { PaperChoice } from "./paper"
@@ -62,11 +61,6 @@ function missingIn(catalog: CoreCatalog, book: Book): string[] {
 export const restoreBooks = (catalog: CoreCatalog, saved: readonly unknown[]): Book[] =>
   checkBooks(catalog, saved).books
 
-// 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの。土台のフィールドの既定を埋めた形）
-export function singleBooks(catalog: CoreCatalog): Book[] {
-  return catalog.parts.bookTypes.flatMap(t => (t.single ? [bookSchemas(catalog, t.id).book.parse(t.book) as Book] : []))
-}
-
 // ブック book の、同じ id のページを page に替える（無ければ、at があればその並びの所に足す。並びより後ろなら末尾）。page に置いたアイテムが
 // ブックのタイプの選んだものかは型では確かめられないので、渡されたブックの型のまま返すと言い張る（形は perform がアクションの後に機能台帳のブックの形で確かめ直す）
 export function putPage<B extends PagedBook>(book: B, page: ItemPage, at?: number): B {
@@ -92,16 +86,14 @@ export const pagedOf = (book: Book | null | undefined): PagedBook | undefined =>
 // ブックのページの並び（ページを持たなければ空）
 export const pagesOf = (book: Book): readonly Page[] => pagedOf(book)?.pages ?? []
 
-// 表の、何冊も作れるタイプの id（表の順）
+// 表の、ブックを作れるタイプの id（表の順）
 export function creatableTypes(catalog: CoreCatalog): string[] {
-  return catalog.parts.bookTypes.filter(t => !t.single).map(t => t.id)
+  return catalog.parts.bookTypes.map(t => t.id)
 }
 
-// そのタイプの空のブック。何冊も作れるタイプでなければ error
+// そのタイプの空のブック
 export function createBook(catalog: CoreCatalog, type: string, init: NewBook): Book {
-  const def = bookType(catalog, type)
-  if (def.single) return fail("E104", { type })
-  return def.create(init) as Book
+  return bookType(catalog, type).create(init) as Book
 }
 
 // ブックで使えるアイテム（タイプの候補。データに置ける・引けるのはこの中だけ）

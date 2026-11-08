@@ -1,13 +1,13 @@
 // ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
-import { aiAuth, expect, type Page, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 import { paper, settled } from "./helpers/paper"
 import { selectText } from "./helpers/rich"
 
-// マスターでツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければブック継承）
+// ツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければブック継承）
 async function treeBook(page: Page, grow?: string) {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "木", "ツリー")
   if (grow) await add.getByRole("radio", { name: grow }).check({ force: true })
   await add.getByLabel("根のキャプション").fill("根")

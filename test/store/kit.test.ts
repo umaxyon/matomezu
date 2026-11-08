@@ -39,13 +39,12 @@ test("テーマが上書きするテーマキーは、: が無ければ自分の
   expect(theme.tokens as unknown).toEqual({ "@foo/stars:star-fill": "#ffd34d", "@matomezu/box:box-fill": "#000000" })
 })
 
-test("ブックのタイプは schema に type を書かず、データの type（1 冊だけならブックの id も）は本当の id", () => {
+test("ブックのタイプは schema に type を書かず、データの type は本当の id", () => {
   const many = kit.defineBookType({
     id: "board",
     version: 1,
     title: "Board",
     schema: z.strictObject({ id: z.string() }),
-    single: false,
     create: init => ({ ...init }),
     pages: null,
     items: { allowed: [] },
@@ -55,24 +54,13 @@ test("ブックのタイプは schema に type を書かず、データの type�
     presentation: "@matomezu/paper:paper",
     tokens: [],
   })
-  expect(many.create({ id: "b1", title: "T" }) as unknown).toEqual({ type: "@foo/stars:board", id: "b1", title: "T" })
-  expect(many.schema.parse({ type: "@foo/stars:board", id: "b1" }).type).toBe("@foo/stars:board")
-  const single = kit.defineBookType({
-    id: "home",
-    version: 1,
-    title: "Board",
-    schema: z.strictObject({ id: z.string() }),
-    single: true,
-    book: {},
-    pages: null,
-    items: { allowed: [] },
-    actions: {},
-    theme: "@matomezu/base:standard",
-    themeTypes: ["@matomezu/base:diagram"],
-    presentation: "@matomezu/paper:paper",
-    tokens: [],
+  expect(many.create({ id: "b1", title: "T", project: "default" }) as unknown).toEqual({
+    type: "@foo/stars:board",
+    id: "b1",
+    title: "T",
+    project: "default",
   })
-  expect(single.book as unknown).toEqual({ type: "@foo/stars:home", id: "@foo/stars:home", title: "" })
+  expect(many.schema.parse({ type: "@foo/stars:board", id: "b1" }).type).toBe("@foo/stars:board")
 })
 
 test("名前に使えるのは英小文字・数字・- だけ（先頭は英小文字）", () => {

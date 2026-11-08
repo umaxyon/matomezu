@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import type { ItemPage } from "../../web/src/core/placed"
 import { paperOf } from "../../web/src/core/stage"
 import { MARGIN } from "../../web/src/core/viewport"
+import { screenOf } from "../../web/src/core/window"
 import { roomOf } from "../../web/src/plugins/base/place/items"
 import { startOf } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { stepZoom, wheelZoom, ZOOM_MAX, ZOOM_MIN } from "../../web/src/plugins/base/zoom"
@@ -30,7 +31,7 @@ test("拡大・縮小は範囲の端で押せず、初めの位置に戻すは�
   const store = newStore()
   const { state, actions } = store
   actions.resizeStage("s1", { w: 400, h: 300 })
-  const zoom = () => state.getState().workspace.stages[0]!.zoom
+  const zoom = () => screenOf(state.getState().window).stages[0]!.zoom
   const enabled = (id: CommandId) => isEnabled(store, state.getState(), "s1", id)
   expect(enabled("@matomezu/base:zoom-reset")).toBe(false)
   actions.command("s1", "@matomezu/base:zoom-in", null)
@@ -46,7 +47,7 @@ test("拡大・縮小は範囲の端で押せず、初めの位置に戻すは�
 test("ページ全体を収めると、紙が表示領域に入る倍率にして真ん中に置く。30% より小さくはしない。収めた見え方では押せない", () => {
   const store = newStore()
   const { state, actions } = store
-  const stage = () => state.getState().workspace.stages[0]!
+  const stage = () => screenOf(state.getState().window).stages[0]!
   const enabled = () => isEnabled(store, state.getState(), "s1", "@matomezu/base:zoom-fit")
   actions.resizeStage("s1", { w: 800, h: 600 })
   const paper = paperOf(stage())!
@@ -70,7 +71,7 @@ test("Ctrl+ホイールのコマンドは、回した量を今の倍率に重ね
   const store = newStore()
   const { state, actions } = store
   actions.resizeStage("s1", { w: 800, h: 600 })
-  const zoom = () => state.getState().workspace.stages[0]!.zoom
+  const zoom = () => screenOf(state.getState().window).stages[0]!.zoom
   const at = { x: 400, y: 300 }
   actions.command("s1", "@matomezu/base:zoom-wheel", { delta: -100, at })
   const once = zoom()
@@ -85,7 +86,7 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   const store = newStore()
   const { state, actions, catalog } = store
   const enabled = () => isEnabled(store, state.getState(), "s1", "@matomezu/base:zoom-reset")
-  const stage = () => state.getState().workspace.stages[0]!
+  const stage = () => screenOf(state.getState().window).stages[0]!
   actions.perform(
     "@matomezu/paper:item-place",
     { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 100, y: 100 } },
@@ -124,10 +125,16 @@ test("ツリーの可変ページも、左へ増やす向きなら左の印刷�
     grows: true as const,
     root: { id: "r", caption: "根", children },
   }
-  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] }
+  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", project: "default", pages: [page] }
   expect(startOf(catalog.core, tree as never, page as never)).toEqual({ x: 1123, y: 0 })
   // 中身の無いページ・可変ページでないページは紙の左上
   const plain = { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "landscape" as const, items: [] }
-  const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d1", title: "図", pages: [plain] }
+  const drawing = {
+    type: "@matomezu/drawing:drawing" as const,
+    id: "d1",
+    title: "図",
+    project: "default",
+    pages: [plain],
+  }
   expect(startOf(catalog.core, drawing as never, plain as never)).toEqual({ x: 0, y: 0 })
 })

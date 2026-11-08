@@ -208,10 +208,11 @@ export function panBy(stage: Stage, dx: number, dy: number): Stage {
 // ブックを開く（ページを持つなら最初のページ）。ずらす量は紙の左上に戻し（初めの位置 start が届いたらそこへ合わせる。starting）、印刷プレビューは閉じる（開く前の倍率に戻す）。
 // ページを持たないブックがもう開いていれば、同じ値を返す
 export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
+  const { id, type } = book // ビルトインのタイプはどれもページを持つので、ページを持たない側では book が絞り込まれて何も無くなる
   if (!hasPages(book)) {
-    if (stage.opened?.book === book.id) return stage
+    if (stage.opened?.book === id) return stage
     const from = edited(stage)
-    return settle(leave(opening(from, { type: book.type, book: book.id, page: null, paper: null })), HOME)
+    return settle(leave(opening(from, { type, book: id, page: null, paper: null })), HOME)
   }
   const first = book.pages[0]
   const opened = {

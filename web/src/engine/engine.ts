@@ -19,23 +19,25 @@ import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
 import { splitId } from "../core/names"
+import { joinActions, type Participants, restoreParticipants } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
+import { PROJECTS } from "../core/project"
 import type { Book, Page } from "../core/schema/book"
-import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
+import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
-import { BUILTIN, BUILTIN_HOME } from "../plugins"
-import { aiPlacedOf, type GrowRule, textColorRef, themesFor } from "../plugins/base"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
+import { aiPlacedOf, type GrowRule, JOINED_MESSAGE, textColorRef, themesFor } from "../plugins/base"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
-let assembled = assemble(BUILTIN, BUILTIN_HOME)
+let assembled = assemble(BUILTIN, BUILTIN_CONTROL_CENTER)
 
 // 追加プラグインを足して組み直す。新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で投げれば、前の組み立てのまま）。
 // 返すのは JSON: warnings は warning の 1 行ずつ（常駐がログに書く）、ai は新しい組の MCP 公開ツールの actions が返す物
 function use(added: readonly Plugin[]): string {
-  const next = assemble([...BUILTIN, ...added], BUILTIN_HOME)
+  const next = assemble([...BUILTIN, ...added], BUILTIN_CONTROL_CENTER)
   const ai = aiCatalog(next)
   assembled = next
   return JSON.stringify({ warnings: warningsOf(next.catalog).map(warningText), ai })
@@ -53,11 +55,12 @@ interface Input {
   settings: unknown
   annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
   mailbox?: unknown // 利用者の郵便箱（郵便箱が対象のアクションのとき）
+  participants?: unknown // 利用者の参加者の表（参加者の表が対象のアクションのとき）
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
   watched?: Readonly<Record<string, readonly string[]>> // 変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
 }
 
-// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱。
+// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱、participants は変わった参加者の表。
 // touched は、受けた watched の物のうち、変わったか無くなったもの（ブックの中の物とアノテーションの id。無ければ書かない）。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
@@ -69,6 +72,7 @@ type Output =
       settings?: unknown
       annotations?: Annotations
       mailbox?: Mailbox
+      participants?: Participants
       notice?: string
       touched?: string[]
     }
@@ -80,7 +84,8 @@ declare const crypto: { randomUUID(): string }
 const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> = {
   unknown: "there is no action with that id (see actions)",
   "bad-args": "the args do not match the action's args (see actions)",
-  "not-allowed": "this book's type (or, for the library and the settings, the home book's type) does not allow it",
+  "not-allowed":
+    "this book's type (or, for the library, the settings, the mailbox and the participants, the control center) does not allow it",
   refused: "the action's rules refuse it (for example the page or item does not exist); read_book to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
@@ -97,7 +102,7 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
     const detail =
       done.because === "user-only"
         ? `the setting ${done.setting} is changed only by the user; ask the user in the chat`
-        : `the home book's type keeps the setting ${done.setting} fixed`
+        : `the control center keeps the setting ${done.setting} fixed`
     return { ok: false, reason: done.reason, detail }
   }
   if ("detail" in done && done.detail !== undefined) return { ok: false, reason: done.reason, detail: done.detail }
@@ -105,7 +110,7 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
 }
 
 function perform(input: Input): Output {
-  const { home } = assembled
+  const { controlCenter } = assembled
   const catalog = assembled.catalog.core
   const settings = restoreSettings(input.settings)
   const lang = input.lang ? detectLang([input.lang], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
@@ -115,9 +120,10 @@ function perform(input: Input): Output {
     Object.entries(input.annotations ?? {}).map(([book, list]) => [book, restoreAnnotations(list)]),
   )
   const mailbox = restoreMailbox(input.mailbox)
-  const done = performIn({ books, settings, annotations, mailbox }, input.action, input.args, input.on, {
+  const participants = restoreParticipants(input.participants)
+  const done = performIn({ books, settings, annotations, mailbox, participants }, input.action, input.args, input.on, {
     catalog,
-    home,
+    controlCenter,
     lang,
     newId: () => ids.shift() ?? crypto.randomUUID(),
     now: input.now ?? new Date().toISOString(),
@@ -141,6 +147,7 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(done.mailbox ? { mailbox: done.mailbox } : {}),
+    ...(done.participants ? { participants: done.participants } : {}),
     ...(notice ? { notice } : {}),
     ...(touched.length > 0 ? { touched } : {}),
   }
@@ -188,7 +195,6 @@ function aiCatalog(of: Assembled = assembled) {
     bookTypes: [...catalog.bookTypes.values()].map(t => ({
       id: t.id,
       title: en(t.title),
-      creatable: !t.single, // book-create で作れるか（1 冊だけのタイプは作れない）
       pages: t.pages !== null,
       grows: t.pages ? growsOf(t.grow) : "none", // 可変ページの決め方
       items: t.items.allowed, // ページに置けるアイテム
@@ -307,6 +313,31 @@ function aiCatalog(of: Assembled = assembled) {
 // 利用者が AI に話しかけたときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
+
+// AI が参加を頼むときに行うアクション（runsWhenAIJoins）の id（役 participant と notice。役が揃わなければ null。常駐が MCP の join で行う）
+;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
+  JSON.stringify(joinActions(assembled.catalog.core))
+
+// 参加者が時点 nowMs（ミリ秒）で生きているか（利用者の設定の参加の有効時間で決まる。常駐が、同じ名前の参加者を引き継げるかを決めるのに読む）
+;(
+  globalThis as { matomezuParticipantAlive?: (settings: string, calledAt: string, nowMs: number) => boolean }
+).matomezuParticipantAlive = (settings, calledAt, nowMs) =>
+  isParticipantAlive(assembled.catalog.core, restoreSettings(JSON.parse(settings)), calledAt || undefined, nowMs)
+
+// 参加を利用者に伝える文（利用者の言語。常駐が、話しかけのフックの systemMessage に使う）
+;(globalThis as { matomezuJoinedText?: (settings: string, workroom: string) => string }).matomezuJoinedText = (
+  settings,
+  workroom,
+) =>
+  translate(
+    assembled.catalog.core.messages,
+    langOf(assembled.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
+    JOINED_MESSAGE,
+    { name: workroom },
+  )
+
+// プロジェクトの表（core/project.ts）。常駐が、AI の口で指されたプロジェクトが表にあるかを確かめるのに読む
+;(globalThis as { matomezuProjects?: () => string }).matomezuProjects = () => JSON.stringify(PROJECTS)
 
 // アノテーションの並びから、期限（種類の expiresAt）が時点 now より前の物を除く（kept の id の物は除かない。利用者が直している物）。常駐が時間で消す
 ;(

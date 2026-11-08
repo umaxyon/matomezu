@@ -1,6 +1,6 @@
 // 送信トレイ: フッタメニューのボタンで左サイドパネルを開くと、開いているブックの伝言とマークがページごとに、新しい順に並ぶ。
 // 伝言の行を押すと左サイドパネルが閉じて、その伝言が右サイドパネルに出る。マークの行は付けた物へ移るだけ。取消で消える。AI が読むと既読になる
-import { aiAuth, expect, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { panel, writeNote } from "./helpers/note"
 import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, items } from "./helpers/paper"
@@ -10,7 +10,7 @@ test("左サイドパネルの送信トレイに、伝言とマークが新し�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await addBox(page, 500, 150, "二")
   await writeNote(page, items(page).filter({ hasText: "一" }), "一つ目を見て")
@@ -64,7 +64,7 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
 }) => {
   const ai = aiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -97,7 +97,7 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
 
 test("開いているブックが替わっても、左サイドパネルは閉じない", async ({ page }) => {
   const ai = aiAuth()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -105,7 +105,10 @@ test("開いているブックが替わっても、左サイドパネルは閉�
   const made = await (
     await page.request.post("/api/ai/perform", {
       headers: ai,
-      data: { action: "@matomezu/base:book-create", args: { type: "@matomezu/drawing:drawing", title: "ほかの" } },
+      data: {
+        action: "@matomezu/base:book-create",
+        args: { type: "@matomezu/drawing:drawing", project: "default", title: "ほかの" },
+      },
     })
   ).json()
   await openOutbox(page)
@@ -118,7 +121,7 @@ test("分けているとき右のステージで左サイドパネルを開く�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   const stages = page.locator("[data-stage]")
   await expect(stages).toHaveCount(2)
@@ -141,7 +144,7 @@ test("右サイドパネルを開いているステージで左サイドパネ�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await writeNote(page, items(page).filter({ hasText: "一" }), "見て")
   await (await fromMenu(page, "画面を分割")).click()

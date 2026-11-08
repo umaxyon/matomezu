@@ -5,8 +5,8 @@ import { DIR_UI } from "./books/dir/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
 import { FLOWCHART_UI } from "./books/flowchart/ui"
 import { MARKDOWN_UI } from "./books/markdown/ui"
-import { MASTER_UI } from "./books/master/ui"
 import { TREE_UI } from "./books/tree/ui"
+import { CONTROL_CENTER_UI } from "./control-center/ui"
 import { ART_UI } from "./items/art/ui"
 import { BOX_UI } from "./items/box/ui"
 import { DATA_UI } from "./items/data/ui"
@@ -17,7 +17,7 @@ import { PAPER_UI } from "./paper/ui"
 
 export const BUILTIN_UI = [
   BASE_UI,
-  MASTER_UI,
+  CONTROL_CENTER_UI,
   PAPER_UI,
   BOX_UI,
   LIST_UI,
@@ -37,7 +37,7 @@ export const DEFAULT_LAYOUT = defineLayout({
   id: "default",
   slots: {
     root: [
-      "@matomezu/base:workspace",
+      "@matomezu/base:window",
       "@matomezu/base:dialog-host",
       "@matomezu/base:menu-host",
       "@matomezu/base:toast-host",
@@ -48,6 +48,9 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:tool-picker",
       "@matomezu/base:search-dialog",
     ],
+    "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
+    "@matomezu/base:control-center-screen": ["@matomezu/control-center:screen"],
+    "@matomezu/base:control-center-footer": ["@matomezu/base:control-center-perch"],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
     "@matomezu/base:book-layers": [
@@ -81,6 +84,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/markdown:settings",
       "@matomezu/base:settings-keys",
     ],
+    "@matomezu/base:mail-actions": ["@matomezu/base:join-request-actions"],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
     "@matomezu/base:corner-statuses": [
       "@matomezu/base:alert-status",
@@ -90,7 +94,7 @@ export const DEFAULT_LAYOUT = defineLayout({
   },
   menus: {
     "@matomezu/base:stage-menu": [
-      "@matomezu/base:stage-home",
+      "@matomezu/base:control-center-toggle",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
       "@matomezu/base:book-open",
       "@matomezu/base:book-settings",

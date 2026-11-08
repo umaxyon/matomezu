@@ -5,6 +5,7 @@ import type { ConnectorData, ShapeData } from "./def/item"
 // 書き足しは、このファイルに向ける。このファイルを読み直して出す別のファイルに向けると、ほかの書き足しと合わさらない。
 // 書き足した id と、インスタンスに渡した定義の id がそろっているかは、組み立て（createMatomezu）が型で確かめる
 export interface BookTypeTable {}
+export interface ControlCenterTable {}
 export interface ItemTable {}
 export interface ActionTable {}
 export interface ThemeTable {}
@@ -41,7 +42,7 @@ export interface ThemeTypeTable {}
 
 // 土台のキーの範囲（キーバインドが効く所）: global（ダイアログもメニューも開いていないとき、ステージに結び付かない画面全体のキー）・stage（カレントのステージ）・
 // dialog・menu（開いているメニュー: 右クリックのメニューと道具のアイコン）。題名は土台が持つ（store/keys.ts）
-export type BaseKeyScope = "global" | "stage" | "dialog" | "menu"
+export type BaseKeyScope = "global" | "stage" | "dialog" | "menu" | "control-center"
 // プラグインのキーの範囲の id → 定義（KeyScopeDef）。プラグインは自分の id を頭に付けた範囲を定義して書き足し、自分のウィジェットの要素に data-key-scope で名乗らせる
 export interface KeyScopeTable {}
 
@@ -58,6 +59,7 @@ export interface ContextMenuTable {}
 // 種類を足すときは、ここに 1 行と、下の PartTables に id の表を足し、定義の型をその台帳のクレートから PartDefTable に書き足す（core の種類は core/core-catalog.ts、store の種類は store/plugin.ts）
 export const PARTS = {
   bookTypes: { catalog: "core", label: "bookType" },
+  controlCenters: { catalog: "core", label: "controlCenter" },
   items: { catalog: "core", label: "item" },
   actions: { catalog: "core", label: "action" },
   settings: { catalog: "core", label: "setting" },
@@ -85,6 +87,7 @@ export const partsOf = <S extends "core" | "store">(name: S) =>
 // 種類ごとの id の表（PARTS と同じ種類を並べる。足りなければ、種類ごとに引く所 PartTables[Part] が型の誤りになる）
 export interface PartTables {
   bookTypes: BookTypeTable
+  controlCenters: ControlCenterTable
   items: ItemTable
   actions: ActionTable
   settings: SettingTable
@@ -107,8 +110,7 @@ export interface PartTables {
 export interface PartDefTable {}
 
 export type BookTypeId = keyof BookTypeTable & string
-// 1 冊だけのタイプの id（そのブックの id でもある）
-export type SingleBookTypeId = { [K in BookTypeId]: BookTypeTable[K] extends { single: true } ? K : never }[BookTypeId]
+export type ControlCenterId = keyof ControlCenterTable & string
 export type ItemId = keyof ItemTable & string
 export type ActionId = keyof ActionTable & string
 export type ThemeId = keyof ThemeTable & string

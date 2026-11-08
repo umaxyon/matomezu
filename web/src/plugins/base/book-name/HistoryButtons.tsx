@@ -4,7 +4,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useUiCatalog } from "../../../ui/store-context"
 import { REDO, UNDO } from "../history"
 import { kit } from "../kit"
-import styles from "./StageMenuButtons.module.css"
+import styles from "../utils/FooterButtons.module.css"
 
 export function HistoryButtons({ stage }: { stage: string }) {
   return (

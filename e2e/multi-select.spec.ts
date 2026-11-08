@@ -1,9 +1,9 @@
 // 図面の複数選択: Mod+クリックで選択に足す・外し、選択の道具で何も無い所からドラッグした四角で選ぶ。選んだ物はまとめて消え、まとめて動く
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { addBox, items, onPaper } from "./helpers/paper"
 
 async function threeBoxes(page: Page) {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const x of [100, 300, 500]) await addBox(page, x, 150)
   await expect(items(page)).toHaveCount(3)
 }
@@ -77,7 +77,7 @@ test("選択の道具で何も無い所からドラッグすると四角が出�
 })
 
 test("線も Ctrl+クリックで選択に足し、もう一度で外す", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const x of [100, 500]) await addBox(page, x, 150)
   const empty = await onPaper(page, 600, 500)
   await page.mouse.click(empty.x, empty.y)
