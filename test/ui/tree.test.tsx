@@ -1,6 +1,6 @@
 // ツリーのブック（@matomezu/tree）: 自分のダイアログでページを作り（ページ名・伸びる向き・根のキャプション）、根から伸びる木を紙に描く
 import { afterEach, expect, test } from "bun:test"
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { toolsIn } from "../../web/src/core/tools"
@@ -9,28 +9,17 @@ import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { fieldsArgs } from "../../web/src/plugins/base/page-tabs/page-fields"
 import { keepsPan } from "../../web/src/plugins/base/tool-switch/tools"
 import { layoutTree } from "../../web/src/plugins/books/tree/layout"
-import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
+import { BUILTIN_UI } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { type AnyPluginUi, definePluginUi } from "../../web/src/ui/plugin"
-import { Screen } from "../../web/src/ui/Screen"
-import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { writeRich } from "./rich-input"
+import { renderScreen } from "./support"
 
 afterEach(cleanup)
 
 function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
-  const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
-    lang: "ja",
-    plugins,
-    partial: true,
-  })
-  render(
-    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
-    </MatomezuProvider>,
-  )
+  const store = renderScreen({ plugins })
   act(() => {
     expect(createBookIn(store, "s1", { title: "木", type: "@matomezu/tree:tree" })).toBe(true)
   })
