@@ -12,18 +12,23 @@ import { useRequestReveal } from "../utils/reveal-request"
 import { MAIL_VISITED } from "."
 import { useSetBirdVisit } from "./bird-visit"
 import own from "./Mail.module.css"
-import { PROPOSAL_APPLY, PROPOSAL_SETTLE, type ProposalProps, proposalChanged } from "./proposal"
+import { PROPOSAL_APPLY, PROPOSAL_SETTLE, type ProposalProps, proposalChanged, proposalOf } from "./proposal"
 import type { MailActionsProps } from "./slots"
 
 let visits = 0 // 場所を示した回の番号（bird-visit.tsx の seq。開くボタンとは別に数える）
 
-export function ProposalActions({ stage, mail, onClose, dock }: MailActionsProps) {
+// 形の合わない郵便（郵便箱には残る）には、ボタンを出さない
+export function ProposalActions(at: MailActionsProps) {
+  const props = proposalOf(at.mail)
+  return props ? <Proposal {...at} props={props} /> : null
+}
+
+function Proposal({ stage, mail, onClose, dock, props }: MailActionsProps & { props: ProposalProps }) {
   const t = useMessages(kit)
   const actions = useActions()
   const read = useReadState()
   const reveal = useRequestReveal()
   const bringBird = useSetBirdVisit()
-  const props = mail.props as ProposalProps
   const applyArgs = { ...(props.page ? { page: props.page } : {}), changes: props.changes, snapshot: props.snapshot }
   // 反映を行えなければ（ブックのロック中など）、反映を押せなくする
   const applicable = useAllowedOn(PROPOSAL_APPLY.id, applyArgs, { book: props.book }).ok

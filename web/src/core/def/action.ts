@@ -229,7 +229,7 @@ export interface ActionDef<
   attach?: At
   userOnly?: true // 利用者だけが行える（AI には断り、MCP 公開ツールの actions に出さない。core/inspect.ts のステップ）
   history?: false // 画面の履歴（Undo）に入れない（図の内容でなくブックの扱いを変えるアクション。ロックの掛け外しなど）
-  // 利用者が行っても編集ロックで断る（ほかは AI のアクションだけを断る）。行うと、どこかの窓が編集ロックを掛けた物を変えるか消すなら being-edited で断る（engine の perform）
+  // 利用者が行っても編集ロックで断る（ほかは AI のアクションだけを断る）。行うと、どこかの窓が編集ロックを掛けた物を変えるか消すなら being-edited で断る（stopsOnEditLock）
   lockedForUser?: true
   // 利用者が AI に話しかけたときに、matomezu がアノテーションのあるブックごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
@@ -254,6 +254,10 @@ export interface ActionDef<
   // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | Declined | null
 }
+
+// 利用者が直している物（編集ロック）を変えるか消すとき、断るアクションか: AI が頼んだアクションと、lockedForUser のアクション（ホストのエンジンが読む）
+export const stopsOnEditLock = (action: Pick<ActionDef, "lockedForUser"> | undefined, by: "ai" | undefined): boolean =>
+  by === "ai" || action?.lockedForUser === true
 
 // target から run の対象の型を、args の形から引数の型を決め、id は書いた文字のまま残す
 export function defineAction<

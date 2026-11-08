@@ -8,7 +8,7 @@ import { z } from "zod"
 import type { ActionContext } from "../../../core/def/action"
 import { freshId } from "../../../core/ids"
 import type { Mail, Mailbox } from "../../../core/mail"
-import { perform } from "../../../core/perform"
+import { actionsOf, perform } from "../../../core/perform"
 import { isProject } from "../../../core/project"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
@@ -48,6 +48,10 @@ export const MAIL_PROPOSAL = kit.defineMail({
       p.appliedAt ? t(kit.message("Applied")) : p.failedAt ? t(kit.message("Could not apply")) : undefined,
   },
 })
+
+// 郵便 mail の変更提案の中身（変更提案郵便でない・形が合わない郵便なら undefined。郵便箱には形の合わない郵便も残る）
+export const proposalOf = (mail: Mail | undefined): ProposalProps | undefined =>
+  mail?.mail === MAIL_PROPOSAL.id ? ProposalSchema.safeParse(mail.props).data : undefined
 
 // アクションを id で行う（乗せた変更は、どのアクションかを型で言えない）
 const performLoose = perform as (
@@ -92,6 +96,9 @@ function carry(
       after = done.next as Book
       continue
     }
+    // 送ってから反映するまでにプラグインが変わっていても、そのブックのタイプで使えないアクションは行わない
+    if (!actionsOf(ctx.catalog, after).includes(c.action))
+      return { declined: `${what}: it cannot be done on this book` }
     const parsed = def.args.safeParse(c.args)
     const ran = parsed.success ? def.run(after as never, parsed.data as never, counted) : null
     if (adds) return { declined: `${what}: it adds things; only changes to things there now can be carried` }
@@ -213,8 +220,8 @@ export const PROPOSAL_SETTLE = kit.defineAction({
     changed: z.array(z.string().min(1)).optional(),
   }),
   run: (mailbox: Mailbox, args, ctx) => {
-    const found = mailbox.find(m => m.id === args.mail && m.mail === MAIL_PROPOSAL.id)
-    const props = found?.props as ProposalProps | undefined
+    const found = mailbox.find(m => m.id === args.mail)
+    const props = proposalOf(found)
     if (!found || !props || props.appliedAt || props.failedAt) return null
     const next: ProposalProps =
       args.outcome === "applied"

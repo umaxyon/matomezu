@@ -4,7 +4,7 @@ import { putPage, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
 
 export const DIAMOND_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "diamond-add" })
-export const DIAMOND_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "diamond-edit" })
+export const DIAMOND_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "diamond-edit", edits: a => [a.item] })
 
 const DIAMOND_SIZE = { w: 96, h: 64 }
 
