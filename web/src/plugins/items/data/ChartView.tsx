@@ -125,8 +125,9 @@ export function ChartView({
       {tip && (
         <div className={styles.tip} style={{ left: tip.x + 10, top: tip.y + 10 }} role="tooltip">
           <div className={styles.tipTitle}>{tip.title}</div>
-          {tip.lines.map(l => (
-            <div key={l.name} className={styles.tipLine}>
+          {tip.lines.map((l, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 同じ名前の系列が 2 つあっても重ならない鍵にする（並びは吹き出しごとに決まる）
+            <div key={`${i}:${l.name}`} className={styles.tipLine}>
               {l.color !== undefined && <span className={styles.tipKey} style={{ background: color(l.color) }} />}
               <span>{l.name}</span>
               <span className={styles.tipValue}>{l.value}</span>

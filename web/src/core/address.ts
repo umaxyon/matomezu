@@ -9,6 +9,7 @@ import type { CoreCatalog } from "./core-catalog"
 import type { Point } from "./geom"
 import type { Book } from "./schema/book"
 import { newStage, openBook, openPage, panBy, type Stage, stopStart } from "./stage"
+import { zoomInRange } from "./viewport"
 import { type Front, mapScreen, screenOf, type WindowState } from "./window"
 import { MAX_STAGES, MIN_SHARE } from "./workspace"
 
@@ -71,7 +72,7 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
   let next = openBook(catalog, fresh, book)
   if (place.page !== null && hasPages(book)) next = openPage(catalog, next, book, place.page)
   // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）。初めの位置には合わせない（場所のずらす量が 0 のときも）
-  const zoomed = { ...stopStart(next), zoom: place.zoom }
+  const zoomed = { ...stopStart(next), zoom: zoomInRange(place.zoom) }
   return panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)
 }
 

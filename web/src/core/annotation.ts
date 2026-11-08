@@ -42,8 +42,9 @@ export function prune(annotations: readonly Annotation[], book: Book): readonly 
   const ids = anchorIds(book)
   let changed = false
   const next = annotations.flatMap(a => {
-    const anchors = Array.isArray(a.anchors) ? a.anchors.filter(id => ids.has(id)) : []
-    if (anchors.length === (Array.isArray(a.anchors) ? a.anchors.length : -1)) return [a]
+    if (!Array.isArray(a.anchors)) return [a]
+    const anchors = a.anchors.filter(id => ids.has(id))
+    if (anchors.length === a.anchors.length) return [a]
     changed = true
     return anchors.length > 0 ? [{ ...a, anchors }] : []
   })

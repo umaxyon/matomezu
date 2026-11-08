@@ -325,6 +325,10 @@ func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
 	if _, err := e.Use([]*plugin.Bundle{none}); err == nil || !strings.Contains(err.Error(), "export the plugin as default") {
 		t.Fatalf("err = %v", err)
 	}
+	noID := &plugin.Bundle{Dir: "noid", Manifest: plugin.Manifest{ID: "noid", Engine: "index.ts"}, Engine: `module.exports.default = {}`}
+	if _, err := e.Use([]*plugin.Bundle{noID}); err == nil || !strings.Contains(err.Error(), "export the plugin as default") {
+		t.Fatalf("err = %v", err)
+	}
 	other := &plugin.Bundle{Dir: "other", Manifest: plugin.Manifest{ID: "other", Engine: "index.ts"}, Engine: `module.exports.default = { id: "another" }`}
 	if _, err := e.Use([]*plugin.Bundle{other}); err == nil || !strings.Contains(err.Error(), `the id in matomezu.json is "other", but index.ts exports "another"`) {
 		t.Fatalf("err = %v", err)
@@ -401,6 +405,8 @@ func TestWarningLinesUseTheTable(t *testing.T) {
 	lines, err := e.WarningLines(json.RawMessage(`[
 		{"code":"W011","plugin":"acme","params":{"reason":"E301"}},
 		{"code":"W999","plugin":"x","params":{}},
+		{"code":"constructor","plugin":"x","params":{}},
+		{"code":"__proto__","plugin":"x","params":{}},
 		{"code":"W010","plugin":"acme","params":{"layout":"default","kind":"widget","id":"acme:w"}},
 		"broken"
 	]`))

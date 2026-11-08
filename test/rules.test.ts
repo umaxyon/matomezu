@@ -236,6 +236,7 @@ test("ソースに、その時の状況でしか意味を持たない言葉を�
     ...sources,
     ...filesUnder(join(ROOT, "test")),
     ...filesUnder(join(ROOT, "e2e")),
+    ...filesUnder(join(ROOT, "scripts")),
     ...filesEnding(SRC, ".css"),
     ...["cmd", "internal", "web"].flatMap(d => filesEnding(join(ROOT, d), ".go")),
   ]

@@ -73,6 +73,11 @@ test("prune は無くなった物をアンカーから外し、全部無くな�
   expect(prune(same, book)).toBe(same)
 })
 
+test("prune は anchors の形が壊れた物を消さずに残す（形の確かめは別の所で行う）", () => {
+  const broken = { ...GOOD, id: "c6", anchors: "a" } as unknown as typeof GOOD
+  expect(prune([broken], book)).toEqual([broken])
+})
+
 test("AI に見せるアノテーションは、結び付く物の最後のあるページと、AI の応えを待っているか（種類の awaits。形が合わない物と種類の無い物は待たない）を添える", () => {
   const read = note("c4", { text: "x", bubble: true, addedAt: "t", readAt: "t" })
   const unread = note("c5", { text: "見て", bubble: false, addedAt: "t" })
