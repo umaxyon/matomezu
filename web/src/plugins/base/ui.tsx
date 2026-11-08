@@ -12,7 +12,7 @@ import { EDIT_LOCK } from "./edit-lock/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
 import type { MailActionsProps } from "./mail/slots"
-import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_LAYER, MAIL_WATCH, MAILBOX_TAB } from "./mail/ui"
+import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_LAYER, MAIL_WATCH, MAILBOX_TAB, PROPOSAL_ACTIONS } from "./mail/ui"
 import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
 import type { AnnotationIconProps } from "./outbox/slots"
@@ -173,6 +173,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MAIL_WATCH,
     EDIT_LOCK,
     JOIN_REQUEST_ACTIONS,
+    PROPOSAL_ACTIONS,
     MAIL_LAYER,
     NOTE_READ_NOTICE,
     NOTE_ICON,
@@ -265,6 +266,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
     "@matomezu/base:edit-lock": typeof EDIT_LOCK
     "@matomezu/base:join-request-actions": typeof JOIN_REQUEST_ACTIONS
+    "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:mail-layer": typeof MAIL_LAYER
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON

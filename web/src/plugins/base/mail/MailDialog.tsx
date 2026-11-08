@@ -2,7 +2,7 @@
 // 開くと、ダイアログを閉じてそのステージで行き先のブック・ページを開き（左サイドパネルは開いていれば、行き先のステージへ同じタブで移して残す）、
 // 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
-import { type FormEvent, type ReactNode, useEffect, useId, useRef } from "react"
+import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -48,6 +48,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const reveal = useRequestReveal()
   const bringBird = useSetBirdVisit()
   const seen = !!mail?.seenAt
+  const [docked, setDocked] = useState(false) // 窓の右の端に寄せているか（種類のボタンが頼む）
   // この種類のボタンのウィジェット（あれば、開くボタンの代わりにそのボタンを並べる）
   const placed: readonly string[] = useLayout().slots[MAIL_ACTIONS] ?? []
   const uiWidgets = useUiCatalog().widgets
@@ -105,7 +106,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     </ActionButton>
   )
   return (
-    <Dialog title={shown?.title ?? t("Mail")} onClose={onClose}>
+    <Dialog title={shown?.title ?? t("Mail")} docked={docked} onClose={onClose}>
       <p className={own.meta}>
         {mail.from} · <time>{new Date(mail.sentAt).toLocaleString()}</time>
       </p>
@@ -115,7 +116,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
         {Actions ? (
           <>
             <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
-            <Actions stage={stage} mail={mail} onClose={onClose} />
+            <Actions stage={stage} mail={mail} onClose={onClose} dock={() => setDocked(true)} />
           </>
         ) : opens ? (
           <>

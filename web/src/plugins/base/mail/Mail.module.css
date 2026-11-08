@@ -13,6 +13,15 @@
   color: var(--skin-text-muted);
   font-size: 11px;
 }
+/* 題のあとに添える印（反映済みなど） */
+.mark {
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1px solid var(--skin-border);
+  border-radius: 3px;
+  color: var(--skin-text-muted);
+  font-size: 10px;
+}
 /* 郵便のダイアログ */
 .meta {
   margin: 0 0 8px;

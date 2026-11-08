@@ -1,7 +1,7 @@
 // ソースのペインの中身: ページの原文を書くテキストForm。書くたびに、変わった所を page-update の find・replace（source-edit.ts）で送る。
 // 続けて書いた物は 1 つの画面の履歴の段にまとめる（いつ切るかは source-edit.ts。日本語の変換中は、書く所の動きを見ない）。
 // ほかから原文が変わったら（AI・元に戻す・送れなかったなど）、書いている物をページの原文にし、書く所をずらして保つ。日本語の変換中は送らず、変換が終わってから送る・合わせる。
-// 行えなければ（ロック中など）書けない。Tab キーは利用者の設定の項目（tab-key.ts）の字を書く。元に戻す・やり直すのキーは、このテキストFormが名乗るキーの範囲で base のコマンドに渡し、テキストForm自身の元に戻すは使わない。
+// 書いている間（テキストFormにフォーカスがある間）は、そのページに編集ロックを掛ける。行えなければ（ロック中など）書けない。Tab キーは利用者の設定の項目（tab-key.ts）の字を書く。元に戻す・やり直すのキーは、このテキストFormが名乗るキーの範囲で base のコマンドに渡し、テキストForm自身の元に戻すは使わない。
 // テキストFormは、同じ原文を同じ字の並びで写した物（行ごとに分け、行の中をブロックごとに切った、見えない写し）に重ね、写しの高さで伸ばす（ペインがスクロールする。ブロックの上端は写しで測る）。
 // 利用者の設定で、写しの上に印を描く（字は足さない）: 左の列の行番号、カーソルのある行の下線（折り返した行は最後の見た目の行の下）、空白（半角・全角・Tab）の印。
 // base の検索ダイアログを開いている間は、写しの字の上で当たりを光らせ（今の当たりは濃く、見えるようにスクロールする）、閉じたら今の当たりをテキストFormで選ぶ
@@ -22,6 +22,7 @@ import type { MarkdownDocument } from "../../../base"
 import {
   SEARCH_CURRENT_HIGHLIGHT,
   SEARCH_HIGHLIGHT,
+  useEditLock,
   useHighlightRanges,
   useSearchHits,
   useSearchPick,
@@ -33,6 +34,8 @@ import { CURRENT_LINE, LINE_NUMBERS, SHOW_WHITESPACE } from "../source-look"
 import { TAB_KEY, tabKeyText } from "../tab-key"
 import styles from "./MarkdownView.module.css"
 import { mirrorRanges, scrollToRange } from "./search-ranges"
+
+const NO_LOCK: readonly string[] = []
 
 type Props = {
   stage: string
@@ -53,6 +56,8 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
   const underlined = useUserSetting(CURRENT_LINE.id) === true
   const blanks = useUserSetting(SHOW_WHITESPACE.id) === true
   const [caretLine, setCaretLine] = useState<number | null>(null) // 書く所のある行の番号（テキストFormにフォーカスがある間）
+  // 書いている間（テキストFormにフォーカスがある間）は、そのページに編集ロックを掛ける（開いているだけでは掛けない）
+  useEditLock(book, caretLine === null ? NO_LOCK : [page])
   const [draft, setDraft] = useState(text)
   const field = useRef<HTMLTextAreaElement>(null)
   const base = useRef(text) // 書いている物の元にした、ページの原文

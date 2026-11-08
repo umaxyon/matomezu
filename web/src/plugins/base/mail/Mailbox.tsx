@@ -1,5 +1,5 @@
 // 郵便箱（ウィジェット mailbox。左サイドパネルの最初のタブ）: 届いた郵便を新しい順に並べる。行には、まだ見ていない印・送り手・題・届いた時刻を出す。
-// 行を押すと郵便のダイアログを開く（本文はダイアログで見せ、そこで見たことになる）。「取消」は確かめてから、その郵便を消す（消せなければ押せず、断られたらトースト）
+// 種類が印を添えれば（反映済みなど）、題のあとに出す。行を押すと郵便のダイアログを開く（本文はダイアログで見せ、そこで見たことになる）。「取消」は確かめてから、その郵便を消す（消せなければ押せず、断られたらトースト）
 import type { Mail } from "../../../core/mail"
 import { useMessages } from "../../../ui/i18n"
 import { useActions } from "../../../ui/store-context"
@@ -44,7 +44,8 @@ function Row({ stage, mail: m, now }: { stage: string; mail: Mail; now: Date }) 
   }
   // 消せなければ（認可ステップが止めたなど）、取消を押せなくする
   const removable = useAllowedOn(MAIL_REMOVE.id, { mail: m.id }).ok
-  const title = clampChars(shownOf(catalog, m, t)?.title ?? t("Mail"), TITLE_CHARS)
+  const shown = shownOf(catalog, m, t)
+  const title = clampChars(shown?.title ?? t("Mail"), TITLE_CHARS)
   return (
     <li className={styles.row} data-read={!!m.seenAt}>
       <button type="button" className={styles.open} onClick={() => open(stage, m.id)}>
@@ -52,6 +53,7 @@ function Row({ stage, mail: m, now }: { stage: string; mail: Mail; now: Date }) 
         <span className={styles.text}>
           <span className={own.from}>{m.from}</span>
           {title}
+          {shown?.mark && <span className={own.mark}>{shown.mark}</span>}
         </span>
         <time className={styles.time}>{shownTime(m.sentAt, now)}</time>
       </button>

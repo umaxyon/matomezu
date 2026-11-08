@@ -39,7 +39,13 @@ export const MAIL_PROPOSAL = kit.defineMail({
   aiDescription:
     "A change proposal: actions you could not do because the user was editing what they change (being-edited), sent for the user to apply with one press. Send it with proposal-send.",
   props: ProposalSchema,
-  shown: { title: (p: ProposalProps) => p.title, body: (p: ProposalProps) => p.body },
+  shown: {
+    title: (p: ProposalProps) => p.title,
+    body: (p: ProposalProps) => p.body,
+    // 反映した・失敗したら、郵便箱の行にそう添える
+    mark: (p: ProposalProps, t) =>
+      p.appliedAt ? t(kit.message("Applied")) : p.failedAt ? t(kit.message("Could not apply")) : undefined,
+  },
 })
 
 // アクションを id で行う（乗せた変更は、どのアクションかを型で言えない）
