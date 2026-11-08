@@ -182,6 +182,8 @@ export interface StandAway {
   pin(p: Point, pad?: number): Point
   // アンカーを見せる: 物を囲む Revealable に頼んでから、紙をずらしてアンカーを表示領域の真ん中へ動かす（倍率は変えない。紙の端で、ずらせる所まで）
   show(): void
+  // 見せたあと、スタンドに戻るか（stand）、真ん中へ動かしても StandAt の minRoom の余地が無く、縁に寄せたままか（pointer。物が範囲より広いとき）
+  afterShow: "stand" | "pointer"
 }
 const AwayContext = createContext<StandAway | null>(null)
 
@@ -252,6 +254,7 @@ export function StandAt({
   const whole = { x: 0, y: 0, ...area }
   const room = roomBeside(rect, area, side)
   const out = edgePinned && (topEdgeOut(rect, clip ? intersectRect(clip, whole) : whole) || room < minRoom)
+  const centered = { ...rect, x: (area.w - rect.w) / 2, y: (area.h - rect.h) / 2 }
   const at = !size
     ? { x: rect.x, y: rect.y + rect.h }
     : out
@@ -275,6 +278,7 @@ export function StandAt({
         show: () => {
           showAnchors(ctx, ids, panStageBy)
         },
+        afterShow: roomBeside(centered, area, side) < minRoom ? "pointer" : "stand",
       }
     : null
   return createPortal(
