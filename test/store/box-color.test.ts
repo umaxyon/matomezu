@@ -4,13 +4,9 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { resolveTokens } from "../../web/src/core/theme"
 import { BOX } from "../../web/src/plugins/items/box/box"
 import { paintVars } from "../../web/src/plugins/items/box/paint"
-import { newStore } from "../support"
+import { type newStore, sizedStore } from "../support"
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 const items = (store: ReturnType<typeof newStore>) =>
   shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!)
 const place = (store: ReturnType<typeof newStore>, props: Record<string, unknown>, x = 100) =>

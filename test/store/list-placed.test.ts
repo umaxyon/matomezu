@@ -10,16 +10,12 @@ import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
 import { LIST } from "../../web/src/plugins/items/list/list"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../web/src/plugins/items/list/size"
 import { PLACE_OFFSET } from "../../web/src/plugins/paper/placing/items"
-import { CORE_CATALOG, newStore } from "../support"
+import { CORE_CATALOG, sizedStore } from "../support"
 
 // 置いたリストの大きさ・押されたときの縮め方・コマンド・データの形（箱と同じ置き場の決まりを、リストも持つこと）
 const PAPER = { w: 1123, h: 794 } // A4 横
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
 const at = (store: Store, id: string) =>
   shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!).find(i => i.id === id)!

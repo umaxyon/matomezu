@@ -12,7 +12,7 @@ import { isShown } from "../../web/src/store/commands"
 import type { Plugin } from "../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../web/src/store/store"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, sequence } from "../support"
+import { newStore, sequence, sizedStore } from "../support"
 
 // 紙の上の点 at に箱の左上が来るポインタの位置（表示領域の左上から）
 function pointerFor(store: ReturnType<typeof newStore>, at: Point): Point {
@@ -26,11 +26,7 @@ const page = (store: ReturnType<typeof newStore>, book = "b1", i = 0) =>
 const toolAt = (store: ReturnType<typeof newStore>, stage = "s1") =>
   toolOf(store.catalog.core, screenOf(store.state.getState().window), stage, store.state.getState().books)
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 
 test("箱を置こうとして紙の上で押すと、置くのをやめ、押した所を渡して追加のダイアログを開く（まだ置かない）", () => {
   const store = ready()

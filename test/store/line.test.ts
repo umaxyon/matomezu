@@ -11,13 +11,9 @@ import { GAP } from "../../web/src/plugins/base/place/push"
 import { alignedEndsOf } from "../../web/src/plugins/items/line/drawn"
 import { elbowAt, usesLines } from "../../web/src/plugins/items/line/line"
 import { CAPTION_GAP, LINK_GAP, linesOf } from "../../web/src/plugins/items/line/placed"
-import { BUILTIN_PARTS, CORE_CATALOG, newStore, sequence } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG, sequence, sizedStore } from "../support"
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
 const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
 const page = (store: Store) => book(store).pages[0]!

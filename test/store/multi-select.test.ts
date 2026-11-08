@@ -17,16 +17,12 @@ import {
   sweptSelection,
 } from "../../web/src/plugins/paper/placing/selection"
 import { isShown } from "../../web/src/store/commands"
-import { CORE_CATALOG, newStore } from "../support"
+import { CORE_CATALOG, sizedStore } from "../support"
 
 // 形の無いページ（押した物がどれも形でないときの選び方を見る）
 const EMPTY = { id: "p0", items: [] } as unknown as ItemPage
 
-function ready() {
-  const store = newStore()
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  return store
-}
+const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
 const page = (store: Store) => (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
 const selection = (store: Store) => screenOf(store.state.getState().window).stages[0]!.selection
