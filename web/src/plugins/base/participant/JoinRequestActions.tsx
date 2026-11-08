@@ -7,7 +7,7 @@ import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { MailActionsProps } from "../mail/slots"
 import { refusalMessage } from "../utils/refusal"
-import { PARTICIPANT_DECLINE } from "."
+import { PARTICIPANT_DECLINE, PARTICIPANT_TAKE_OVER } from "."
 import { PARTICIPANT_JOIN_DIALOG } from "./dialogs"
 
 export function JoinRequestActions({ stage, mail, onClose }: MailActionsProps) {
@@ -16,10 +16,19 @@ export function JoinRequestActions({ stage, mail, onClose }: MailActionsProps) {
   const { perform, showToast, openDialog } = useActions()
   const id = (mail.props as { participant?: string }).participant ?? ""
   const requested = useMatomezuState(s => s.participants.some(p => p.id === id && p.state === "requested"))
+  const takeover = useMatomezuState(s => s.participants.some(p => p.id === id && p.takeover !== undefined))
   const canDecline = useAllowedOn(PARTICIPANT_DECLINE.id, { participant: id }).ok
+  const canTakeOver = useAllowedOn(PARTICIPANT_TAKE_OVER.id, { participant: id }).ok
   if (!requested) return null
   const decline = () => {
     const done = perform(PARTICIPANT_DECLINE.id, { participant: id })
+    if (done.ok) onClose()
+    else
+      showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Could not answer the request")) })
+  }
+  // 引き継ぎは名前などを決め直さないので、ダイアログを開かずに受け入れる
+  const takeOver = () => {
+    const done = perform(PARTICIPANT_TAKE_OVER.id, { participant: id })
     if (done.ok) onClose()
     else
       showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Could not answer the request")) })
@@ -29,9 +38,15 @@ export function JoinRequestActions({ stage, mail, onClose }: MailActionsProps) {
       <ActionButton onClick={decline} disabled={!canDecline} danger>
         {t("Decline")}
       </ActionButton>
-      <ActionButton primary onClick={() => openDialog(stage, PARTICIPANT_JOIN_DIALOG.id, { participant: id })}>
-        {t("Accept")}
-      </ActionButton>
+      {takeover ? (
+        <ActionButton primary onClick={takeOver} disabled={!canTakeOver}>
+          {t("Accept")}
+        </ActionButton>
+      ) : (
+        <ActionButton primary onClick={() => openDialog(stage, PARTICIPANT_JOIN_DIALOG.id, { participant: id })}>
+          {t("Accept")}
+        </ActionButton>
+      )}
     </>
   )
 }

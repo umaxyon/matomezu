@@ -43,7 +43,7 @@ import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
-import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE, PARTICIPANT_REQUEST } from "./participant"
+import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE, PARTICIPANT_REQUEST, PARTICIPANT_TAKE_OVER } from "./participant"
 import { PARTICIPANT_ALIVE } from "./participant/alive"
 import { PARTICIPANT_JOIN_DIALOG } from "./participant/dialogs"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
@@ -234,6 +234,7 @@ export const BASE = defineBuiltin(
       PARTICIPANT_REQUEST,
       PARTICIPANT_ACCEPT,
       PARTICIPANT_DECLINE,
+      PARTICIPANT_TAKE_OVER,
       MAIL_JOIN_REQUEST_SEND,
     ],
     settings: [
@@ -390,6 +391,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant-request": typeof PARTICIPANT_REQUEST
     "@matomezu/base:participant-accept": typeof PARTICIPANT_ACCEPT
     "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
+    "@matomezu/base:participant-take-over": typeof PARTICIPANT_TAKE_OVER
     "@matomezu/base:mail-join-request": typeof MAIL_JOIN_REQUEST_SEND
   }
   interface ThemeTable {

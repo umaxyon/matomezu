@@ -50,6 +50,12 @@ export function keyChangesOf(catalog: CoreCatalog, settings: Settings): KeyChang
   return parsed.success ? parsed.data : NO_KEY_CHANGES
 }
 
+// 参加者が「生きている」とする長さ（ミリ秒）: role が participant-alive の項目の値（分の数）。項目が無いか数でなければ 0（誰も生きていない）
+export function participantAliveMs(catalog: CoreCatalog, settings: Settings): number {
+  const minutes = Number(byRole(catalog, settings, "participant-alive"))
+  return Number.isFinite(minutes) && minutes > 0 ? minutes * 60_000 : 0
+}
+
 // AI に見せる設定: 機能台帳にある、利用者だけが変える項目でない項目の値（値が無いか形に合わなければ既定。既定も無ければ出さない）
 export function aiSettings(catalog: CoreCatalog, settings: Settings): Settings {
   return Object.fromEntries(

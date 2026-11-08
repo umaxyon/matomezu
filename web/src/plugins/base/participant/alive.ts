@@ -9,6 +9,7 @@ export const PARTICIPANT_ALIVE = kit.defineSetting({
   id: "participant-alive",
   title: "Participation lasts",
   schema: z.enum(PARTICIPANT_ALIVE_CHOICES),
+  role: "participant-alive",
   default: "60",
   optionTitles: {
     "15": kit.message("15 minutes"),

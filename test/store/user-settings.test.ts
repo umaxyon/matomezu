@@ -4,7 +4,7 @@ import { z } from "zod"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import type { SettingDef } from "../../web/src/core/def/setting"
 import { performIn } from "../../web/src/core/perform"
-import { aiSettings, langOf, userSetting } from "../../web/src/core/settings"
+import { aiSettings, langOf, participantAliveMs, userSetting } from "../../web/src/core/settings"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
@@ -86,4 +86,10 @@ test("選択肢の名前（optionTitles）の文言の鍵が文言に無けれ�
     userSettings: [{ ...OPEN, id: "@ex/o:mode", schema: z.enum(["a"]), optionTitles: { a: "@ex/o:none" } }],
   }
   expect(() => assemble([...BUILTIN, named])).toThrow("E018")
+})
+
+test("参加者が生きているとする長さは、role が participant-alive の項目（分の数）から決まる", () => {
+  expect(participantAliveMs(CORE_CATALOG, {})).toBe(60 * 60_000)
+  expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "15" })).toBe(15 * 60_000)
+  expect(participantAliveMs(CORE_CATALOG, { "@matomezu/base:participant-alive": "7" })).toBe(60 * 60_000)
 })

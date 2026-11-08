@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/umaxyon/matomezu/internal/plugin"
@@ -77,6 +78,7 @@ type Engine struct {
 	talk      func() string
 	join      func() string
 	projects  func() string
+	aliveMs   func(string) float64
 	live      func(string, string, string, string) string
 	mails     func(string) string
 	forAI     func(string) string
@@ -129,6 +131,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuJoinActions"), &e.join); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuJoinActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuParticipantAliveMs"), &e.aliveMs); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuParticipantAliveMs: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuProjects"), &e.projects); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuProjects: %w", err)
@@ -344,6 +349,21 @@ func (e *Engine) JoinActions() (ids *JoinActions, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.join()), &ids)
 	return ids, err
+}
+
+// ParticipantAlive は、参加者が「生きている」とする長さ（利用者の設定 settings で決まる）
+func (e *Engine) ParticipantAlive(settings json.RawMessage) (alive time.Duration, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return time.Duration(e.aliveMs(string(settings)) * float64(time.Millisecond)), nil
 }
 
 // Project はプロジェクトの表の 1 行

@@ -19,5 +19,6 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:participant-request",
     "@matomezu/base:participant-accept",
     "@matomezu/base:participant-decline",
+    "@matomezu/base:participant-take-over",
   ],
 })

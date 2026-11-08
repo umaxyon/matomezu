@@ -308,7 +308,8 @@ var joinSchema = map[string]any{
 	"properties": map[string]any{
 		"model":       map[string]any{"type": "string", "description": "The name of the model you are, such as claude-opus-4 or gpt-5."},
 		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
-		"link":        map[string]any{"type": "string", "description": "A one-time passphrase: a new uuid you make for this session. Use the same link when you ask again."},
+		"link":        map[string]any{"type": "string", "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
+		"workroom":    map[string]any{"type": "string", "description": "The name of a workroom to take over (a participant who joined before and is not alive any more), or the name you would like for a new one. Optional."},
 		"projects":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "description": "The ids of the projects to join, one or more."},
 	},
 	"required":             []string{"model", "link", "projects"},
@@ -316,7 +317,8 @@ var joinSchema = map[string]any{
 }
 
 const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. " +
-	"After you join, a notice with your workroom name comes with a later answer. Call it once per session; ask again with other projects to join those too (it answers with all the projects you joined)."
+	"After you join, a notice with your workroom name comes with a later answer (or the user is told by the hook that runs when they talk to you). Call it once per session; ask again with other projects to join those too (it answers with all the projects you joined). " +
+	"With workroom, you ask to take over that workroom: it is refused with workroom-in-use while the workroom has a participant who is alive (do not ask again; tell the user in the chat); otherwise the user is asked to accept the takeover, and the answer has takeover (the workroom's name). If no workroom has that name, the name is only a wish for a new participant."
 
 // join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を以後の呼び出し全部に添える
 func join(c *conn, args map[string]any) (string, bool) {
@@ -331,6 +333,9 @@ func join(c *conn, args map[string]any) (string, bool) {
 	}
 	sessionName, _ := args["sessionName"].(string)
 	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link, "projects": projects}
+	if workroom, _ := args["workroom"].(string); workroom != "" {
+		body["workroom"] = workroom
+	}
 	if c.sessionID != "" {
 		body["sessionId"] = c.sessionID
 	}
@@ -342,6 +347,7 @@ func join(c *conn, args map[string]any) (string, bool) {
 		OK          bool     `json:"ok"`
 		Participant string   `json:"participant"`
 		Projects    []string `json:"projects"`
+		Takeover    string   `json:"takeover"`
 		Reason      string   `json:"reason"`
 		Detail      string   `json:"detail"`
 	}
@@ -352,6 +358,10 @@ func join(c *conn, args map[string]any) (string, bool) {
 		return refusalText(done.Reason, done.Detail), true
 	}
 	c.participant = done.Participant
-	reply, _ := json.Marshal(map[string]any{"participant": done.Participant, "projects": done.Projects})
+	answer := map[string]any{"participant": done.Participant, "projects": done.Projects}
+	if done.Takeover != "" {
+		answer["takeover"] = done.Takeover
+	}
+	reply, _ := json.Marshal(answer)
 	return string(reply), false
 }

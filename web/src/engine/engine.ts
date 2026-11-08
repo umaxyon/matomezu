@@ -23,7 +23,7 @@ import { joinActions, type Participants, restoreParticipants } from "../core/par
 import { type PerformedIn, performIn } from "../core/perform"
 import { PROJECTS } from "../core/project"
 import type { Book, Page } from "../core/schema/book"
-import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
+import { aiSettings, langOf, participantAliveMs, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
@@ -317,6 +317,10 @@ function aiCatalog(of: Assembled = assembled) {
 // AI が参加を頼むときに行うアクション（runsWhenAIJoins）の id（役 participant と notice。役が揃わなければ null。常駐が MCP の join で行う）
 ;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
   JSON.stringify(joinActions(assembled.catalog.core))
+
+// 参加者が「生きている」とする長さ（ミリ秒。利用者の設定で決まる）。常駐が、同じ名前の参加者がいま生きているかを決めるのに読む
+;(globalThis as { matomezuParticipantAliveMs?: (settings: string) => number }).matomezuParticipantAliveMs = settings =>
+  participantAliveMs(assembled.catalog.core, restoreSettings(JSON.parse(settings)))
 
 // プロジェクトの表（core/project.ts）。常駐が、AI の口で指されたプロジェクトが表にあるかを確かめるのに読む
 ;(globalThis as { matomezuProjects?: () => string }).matomezuProjects = () => JSON.stringify(PROJECTS)

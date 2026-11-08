@@ -34,7 +34,7 @@ function withinLimit(participants: Participants, added: Participant): Participan
 export const PARTICIPANT_REQUEST = kit.defineAction({
   id: "participant-request",
   aiDescription:
-    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) and projects (the ids of the projects to join, one or more) are required; sessionName (the name of the original session) is optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again adds the projects it does not have yet and returns the same participant. Returns the participant's id.",
+    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) and projects (the ids of the projects to join, one or more) are required; sessionName (the name of the original session) is optional; workroom (a workroom name to start with) and takeover (the id of a joined participant whose workroom this one takes over) are optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again adds the projects it does not have yet and returns the same participant. Returns the participant's id.",
   title: "Request to participate",
   target: "participants",
   runsWhenAIJoins: "make-participant",
@@ -46,10 +46,13 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     link: z.string().trim().min(1).max(80),
     projects: z.array(z.string().min(1)).min(1),
     workroom: z.string().trim().min(1).max(40).optional(),
+    takeover: z.string().min(1).optional(),
   }),
   run: (participants, args, ctx) => {
     const unknown = unknownProjects(args.projects)
     if (unknown.length > 0) return declineProjects(unknown)
+    if (args.takeover && !participants.some(p => p.id === args.takeover && p.state === "joined"))
+      return { declined: "there is no joined participant to take over" }
     const projects = [...new Set(args.projects)]
     const same = participants.find(p => p.link === args.link)
     if (same) {
@@ -72,6 +75,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
       link: args.link,
       projects,
       ...(args.workroom ? { workroom: args.workroom } : {}),
+      ...(args.takeover ? { takeover: args.takeover } : {}),
       requestedAt: ctx.now,
     }
     const next = withinLimit(participants, requested)
@@ -95,7 +99,7 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
   }),
   run: (participants, args, ctx) => {
     const found = participants.find(p => p.id === args.participant)
-    if (found?.state !== "requested") return null
+    if (found?.state !== "requested" || found.takeover) return null
     const joined: Participant = {
       ...found,
       state: "joined",
@@ -105,6 +109,32 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
       ...(args.palette ? { palette: args.palette } : {}),
     }
     return { next: participants.map(p => (p === found ? joined : p)), result: {} }
+  },
+})
+
+export const PARTICIPANT_TAKE_OVER = kit.defineAction({
+  id: "participant-take-over",
+  aiDescription:
+    "Accept a requested participant that asks to take over the workroom of a joined participant (only the user). The requested one gets the workroom's name, bird and palette in the place of the old participant, who is removed. Refused unless the participant is a requested takeover and the participant it takes over is still joined.",
+  title: "Accept a takeover",
+  target: "participants",
+  userOnly: true,
+  args: ID_ARGS,
+  run: (participants, args, ctx) => {
+    const found = participants.find(p => p.id === args.participant)
+    if (found?.state !== "requested" || !found.takeover) return null
+    const old = participants.find(p => p.id === found.takeover && p.state === "joined")
+    if (!old?.workroom) return null
+    const { takeover: _, ...rest } = found
+    const joined: Participant = {
+      ...rest,
+      state: "joined",
+      workroom: old.workroom,
+      joinedAt: ctx.now,
+      ...(old.bird ? { bird: old.bird } : {}),
+      ...(old.palette ? { palette: old.palette } : {}),
+    }
+    return { next: participants.flatMap(p => (p === old ? [joined] : p === found ? [] : [p])), result: {} }
   },
 })
 

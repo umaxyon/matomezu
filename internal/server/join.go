@@ -9,7 +9,12 @@ package server
 //
 // 参加の id は MCP が X-Matomezu-Participant ヘッダで毎回添え、「参加しました」の知らせは X-Matomezu-Notice ヘッダで 1 度だけ返す（値は URL エンコード）。
 //
-//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "projects"} 参加を頼む。{"ok", "participant", "projects"}、または弾いた理由 {"ok": false, "reason", "detail"}
+//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "projects", "workroom"} 参加を頼む。{"ok", "participant", "projects"}、または弾いた理由 {"ok": false, "reason", "detail"}
+//
+// workroom は、AI が引き継ぎたい（または希望する）ワークルームの名前。その名前の受け入れ済みの参加者がいて、生きていれば断る（workroom-in-use）。
+// 生きていなければ、引き継ぎの要求（参加の要求と同じ作り。受け入れると、その参加者のワークルームを引き継ぐ）を郵便で出す。いなければ、新しい参加者の名前の初めの値にする。
+// 生きているとは、最後に呼ばれてから、利用者の設定の参加の有効時間以内（起動し直すと最後に呼ばれた時刻は無くなるので、誰も生きていない）。
+// 参加の id が付いているか、同じ link の頼みは、これを見ずに、いる参加者にプロジェクトを足す（参加の id の持ち主は、生きていなくても続けられる）
 //
 // projects は参加するプロジェクトの id の並び（1 つ以上で、表にあるもの）。同じ参加の id（または同じ link）でもう一度頼むと、弾かずに、まだ無いプロジェクトを足す。返す projects は、そのあとの参加者のプロジェクトの全部
 
@@ -55,6 +60,7 @@ type JoinRequest struct {
 	SessionName string `json:"sessionName"`
 	Link        string `json:"link"`
 	SessionID   string `json:"sessionId"`
+	Workroom    string `json:"workroom"`
 	// Projects は参加するプロジェクトの id（1 つ以上）
 	Projects    []string `json:"projects"`
 	Participant string   `json:"-"`
@@ -65,6 +71,7 @@ type Joined struct {
 	OK          bool     `json:"ok"`
 	Participant string   `json:"participant,omitempty"`
 	Projects    []string `json:"projects,omitempty"` // 参加者が今参加しているプロジェクトの全部
+	Takeover    string   `json:"takeover,omitempty"` // 引き継ぎの要求を出したとき、引き継ぐワークルームの名前
 	Reason      string   `json:"reason,omitempty"`
 	Detail      string   `json:"detail,omitempty"`
 }
@@ -108,7 +115,23 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			return h.addProjects(s, req)
 		}
 	}
-	if req.Participant == "" && req.SessionName != "" {
+	takeover := ""
+	if req.Workroom != "" {
+		for _, s := range seats {
+			if s.State == "joined" && s.Workroom == req.Workroom {
+				alive, err := h.alive(s.ID, time.Now())
+				if err != nil {
+					return Joined{}, err
+				}
+				if alive {
+					return Joined{Reason: "workroom-in-use", Detail: "workroom " + s.Workroom + " already has a participant who is alive (a person or AI joined it recently); do not ask again, tell the user in the chat. A participant who keeps its participant id continues without joining again"}, nil
+				}
+				takeover = s.ID
+				break
+			}
+		}
+	}
+	if takeover == "" && req.Participant == "" && req.SessionName != "" {
 		for _, s := range seats {
 			if sitting(s) && s.AI == req.AI && s.Env == req.Env && s.SessionName == req.SessionName {
 				return alreadyJoined(s), nil
@@ -118,6 +141,11 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link, "projects": req.Projects}
 	if req.SessionName != "" {
 		args["sessionName"] = req.SessionName
+	}
+	if takeover != "" {
+		args["takeover"] = takeover
+	} else if req.Workroom != "" {
+		args["workroom"] = req.Workroom
 	}
 	made, err := h.performAs(ids.Participant, args)
 	if err != nil || !made.OK {
@@ -130,6 +158,12 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		return Joined{}, err
 	}
 	delete(args, "link")
+	delete(args, "takeover")
+	if takeover != "" {
+		args["workroom"] = req.Workroom
+	} else {
+		delete(args, "workroom")
+	}
 	args["from"] = req.AI
 	args["participant"] = result.Participant
 	told, err := h.performAs(ids.Notice, args)
@@ -137,7 +171,28 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		return refused(told), err
 	}
 	h.noteSession(result.Participant, req.SessionID)
-	return Joined{OK: true, Participant: result.Participant, Projects: req.Projects}, h.settleNotes()
+	return Joined{OK: true, Participant: result.Participant, Projects: req.Projects, Takeover: takenName(takeover, req.Workroom)}, h.settleNotes()
+}
+
+// takenName は、引き継ぎの要求を出したときのワークルームの名前（引き継ぎでなければ空）
+func takenName(takeover, workroom string) string {
+	if takeover == "" {
+		return ""
+	}
+	return workroom
+}
+
+// alive は、受け入れ済みの参加者 id が、時点 now で生きているか（最後に呼ばれてから、利用者の設定の参加の有効時間以内）
+func (h *Hub) alive(id string, now time.Time) (bool, error) {
+	_, settings, _ := h.Data()
+	lasts, err := h.engine.ParticipantAlive(settings)
+	if err != nil {
+		return false, err
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	called, err := time.Parse(time.RFC3339Nano, h.participantNotes[id].Called)
+	return err == nil && now.Sub(called) < lasts, nil
 }
 
 // addProjects は、いる参加者 s に、頼みのプロジェクトのうちまだ無いものを足す（参加者を作るアクションに、参加者の link で頼み直す。郵便は送り直さない）

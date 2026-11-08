@@ -3,6 +3,7 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const PARTICIPANT_MESSAGES = defineMessages({
   "Request to participate": { en: "Request to participate", ja: "参加を要求する" },
+  "Accept a takeover": { en: "Accept a takeover", ja: "引き継ぎを受け入れる" },
   "Accept a participant": { en: "Accept a participant", ja: "参加者を受け入れる" },
   "Decline a participant": { en: "Decline a participant", ja: "参加者を断る" },
   "Participation lasts": { en: "Participation lasts", ja: "参加の有効時間" },

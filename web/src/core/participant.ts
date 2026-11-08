@@ -19,6 +19,7 @@ export const ParticipantSchema = z.object({
   joinedAt: z.string().optional(), // 受け入れた時点
   bird: z.string().min(1).optional(), // 受け入れたときに選んだ鳥（鳥の id は base が決める）
   palette: z.string().min(1).optional(), // 鳥の配色（無ければ、その鳥の元の配色）
+  takeover: z.string().min(1).optional(), // 引き継ぎの要求（requested）が引き継ぐ、受け入れ済みの参加者の id。受け入れると、その参加者のワークルームを引き継ぎ、その参加者は無くなる
 })
 export type Participant = z.output<typeof ParticipantSchema>
 

@@ -327,3 +327,115 @@ func TestParticipantIdHolderContinuesWhenNotAlive(t *testing.T) {
 		t.Fatalf("join with the id = %s", again)
 	}
 }
+
+func joinWith(link, sessionName, extra string) string {
+	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","projects":["default"]` + extra + `}`
+}
+
+type tableRow struct {
+	ID       string `json:"id"`
+	State    string `json:"state"`
+	Link     string `json:"link"`
+	Workroom string `json:"workroom"`
+	Bird     string `json:"bird"`
+	Takeover string `json:"takeover"`
+}
+
+func table(t *testing.T, base string) (rows []tableRow, mails []struct {
+	Props struct {
+		Participant string `json:"participant"`
+		Workroom    string `json:"workroom"`
+	} `json:"props"`
+}) {
+	t.Helper()
+	var data struct {
+		Participants []tableRow `json:"participants"`
+		Mailbox      []struct {
+			Props struct {
+				Participant string `json:"participant"`
+				Workroom    string `json:"workroom"`
+			} `json:"props"`
+		} `json:"mailbox"`
+	}
+	body, _ := call(t, "GET", base+"/api/data", "", nil)
+	if err := json.Unmarshal([]byte(body), &data); err != nil {
+		t.Fatal(err)
+	}
+	return data.Participants, data.Mailbox
+}
+
+// 名前の参加者が生きているあいだ、その名前で引き継ごうとしても断る。参加者は増えず、郵便も出ない。名前の参加者が居なければ、名前は新しい参加者の初めの値になる
+func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "", ""), nil)
+	var first Joined
+	_ = json.Unmarshal([]byte(got), &first)
+	call(t, "POST", s.URL+"/api/perform", acceptBody(first.Participant, "ひよこ"), nil)
+	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
+
+	refused, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "", `,"workroom":"ひよこ"`), nil)
+	if !strings.Contains(refused, `"ok":false`) || !strings.Contains(refused, `"reason":"workroom-in-use"`) || !strings.Contains(refused, "already has a participant") {
+		t.Fatalf("join = %s", refused)
+	}
+	if rows, mails := table(t, s.URL); len(rows) != 1 || len(mails) != 1 {
+		t.Fatalf("participants = %v, mails = %d", rows, len(mails))
+	}
+	// 名前の参加者が居なければ、新しい参加者の名前の初めの値
+	fresh, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L3", "", `,"workroom":"ぴよ"`), nil)
+	if !strings.Contains(fresh, `"ok":true`) || strings.Contains(fresh, "takeover") {
+		t.Fatalf("a new name = %s", fresh)
+	}
+	rows, mails := table(t, s.URL)
+	if len(rows) != 2 || rows[1].State != "requested" || rows[1].Workroom != "ぴよ" || rows[1].Takeover != "" || len(mails) != 2 || mails[1].Props.Workroom != "" {
+		t.Fatalf("participants = %+v, mails = %+v", rows, mails)
+	}
+}
+
+// 生きていない参加者の名前で頼むと、引き継ぎの要求（参加者の要求と引き継ぎの郵便）を出す。同じ AI・環境・セッション名でも断らない。
+// 受け入れると、要求した参加者が名前・鳥を引き継いで受け入れ済みになり、元の参加者は表から無くなる。新しい参加者には「参加しました」がまだ伝わっていない
+func TestJoinWithAWorkroomOfAQuietParticipantAsksToTakeOver(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", ""), nil)
+	var first Joined
+	_ = json.Unmarshal([]byte(got), &first)
+	call(t, "POST", s.URL+"/api/perform", acceptBody(first.Participant, "ひよこ"), nil)
+
+	// 呼ばれたことがない（起動し直した後など）のは生きていない。同じ名前の頼みでも、通常の参加の「すでに参加済み」では断らない
+	asked, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "work", `,"workroom":"ひよこ"`), nil)
+	var second Joined
+	if json.Unmarshal([]byte(asked), &second) != nil || !second.OK || second.Takeover != "ひよこ" || second.Participant == first.Participant {
+		t.Fatalf("join = %s", asked)
+	}
+	rows, mails := table(t, s.URL)
+	if len(rows) != 2 || rows[1].State != "requested" || rows[1].Takeover != first.Participant || len(mails) != 2 || mails[1].Props.Workroom != "ひよこ" || mails[1].Props.Participant != second.Participant {
+		t.Fatalf("participants = %+v, mails = %+v", rows, mails)
+	}
+	// 引き継ぎの要求は、普通の受け入れでは受け入れられない
+	if out, _ := call(t, "POST", s.URL+"/api/perform", acceptBody(second.Participant, "ほか"), nil); !strings.Contains(out, `"ok":false`) {
+		t.Fatalf("ordinary accept of a takeover = %s", out)
+	}
+	if out, _ := call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-take-over","args":{"participant":"`+second.Participant+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`, nil); !strings.Contains(out, `"ok":true`) {
+		t.Fatalf("take over = %s", out)
+	}
+	rows, _ = table(t, s.URL)
+	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Workroom != "ひよこ" || rows[0].Bird != "inko" || rows[0].Takeover != "" {
+		t.Fatalf("after: %+v", rows)
+	}
+	// 新しい持ち主には MCP の返事で伝わる。元の持ち主の id は表に無いので断られた知らせ
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: second.Participant}); h.Get(NoticeHeader) == "" {
+		t.Fatal("the new owner was not welcomed")
+	}
+	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: first.Participant}); !strings.Contains(h.Get(NoticeHeader), "declined") {
+		t.Fatalf("the old owner = %q", h.Get(NoticeHeader))
+	}
+	// 呼ばれて時間がたった（有効時間を過ぎた）参加者の名前も引き継げる
+	hub.mu.Lock()
+	n := hub.participantNotes[second.Participant]
+	n.Called = "2020-01-01T00:00:00.000Z"
+	hub.participantNotes[second.Participant] = n
+	hub.mu.Unlock()
+	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L3", "", `,"workroom":"ひよこ"`), nil)
+	if !strings.Contains(again, `"takeover":"ひよこ"`) {
+		t.Fatalf("after a long quiet = %s", again)
+	}
+}
