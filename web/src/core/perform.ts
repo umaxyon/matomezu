@@ -11,6 +11,7 @@ import {
   type ActionContext,
   type ActionDef,
   type ActionTarget,
+  type AIEditTicketChange,
   type AnyLibraryScope,
   type AnyPermissionScope,
   type AnySettingsScope,
@@ -46,7 +47,9 @@ export type Refused =
   | { ok: false; reason: "refused"; detail?: string; kind?: string }
   | NotAllowed
   | { ok: false; reason: "denied"; permission: string }
-export type Performed<Id extends ActionId> = { ok: true; next: SubjectOf<Id>; result: ResultOf<Id> } | Refused
+export type Performed<Id extends ActionId> =
+  | { ok: true; next: SubjectOf<Id>; result: ResultOf<Id>; aiEditTicket?: AIEditTicketChange }
+  | Refused
 
 // タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
 function typeActions(catalog: CoreCatalog, type: string): readonly string[] {
@@ -239,7 +242,12 @@ export function perform<Id extends ActionId>(
     !participantsSettle(subject as unknown as Participants, done.next as unknown as Participants)
   )
     return { ok: false, reason: "refused" }
-  return { ok: true, next: done.next, result: done.result } as Performed<Id>
+  return {
+    ok: true,
+    next: done.next,
+    result: done.result,
+    ...(action.target === "mailbox" && ran.aiEditTicket ? { aiEditTicket: ran.aiEditTicket } : {}),
+  } as Performed<Id>
 }
 
 // アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、郵便箱と、参加者の表
@@ -263,6 +271,7 @@ export type PerformedIn =
       annotations?: Annotations
       mailbox?: Mailbox
       participants?: Participants
+      aiEditTicket?: AIEditTicketChange // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
     }
   | Refused
   | { ok: false; reason: "no-book" }
@@ -315,11 +324,15 @@ export function performIn(
       ? { ok: true, result: done.result, books }
       : { ok: true, result: done.result, books, annotations: Object.fromEntries(gone.map(b => [b, []])) }
   }
+  // 郵便箱が対象のアクションは、ブックの一覧を読める（変えはしない）
   if (target === "mailbox") {
-    const done = loose(world.mailbox, id, args, ctx)
+    const done = loose(world.mailbox, id, args, { ...ctx, books: world.books })
     if (!done.ok) return done
     const next = done.next as unknown as Mailbox
-    return next === world.mailbox ? { ok: true, result: done.result } : { ok: true, result: done.result, mailbox: next }
+    const ticket = done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}
+    return next === world.mailbox
+      ? { ok: true, result: done.result, ...ticket }
+      : { ok: true, result: done.result, mailbox: next, ...ticket }
   }
   if (target === "participants") {
     const done = loose(world.participants, id, args, ctx)

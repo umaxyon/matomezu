@@ -3,6 +3,10 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const MAIL_MESSAGES = defineMessages({
   "Mail letter": { en: "Letter", ja: "手紙" },
+  "Mail proposal": { en: "Change proposal", ja: "変更提案" },
+  "Send a change proposal": { en: "Send a change proposal", ja: "変更提案郵便を送る" },
+  "Apply a change proposal": { en: "Apply a change proposal", ja: "変更提案を反映する" },
+  "Settle a change proposal": { en: "Settle a change proposal", ja: "変更提案の結果を残す" },
   Mail: { en: "Mail", ja: "郵便" },
   Mailbox: { en: "Mailbox", ja: "郵便箱" },
   "No mail": { en: "No mail", ja: "郵便はありません" },

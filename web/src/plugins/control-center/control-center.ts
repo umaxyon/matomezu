@@ -15,6 +15,8 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:mail-seen",
     "@matomezu/base:mail-visited",
     "@matomezu/base:mail-remove",
+    "@matomezu/base:proposal-send",
+    "@matomezu/base:proposal-settle",
     "@matomezu/base:mail-join-request",
     "@matomezu/base:participant-request",
     "@matomezu/base:participant-request-takeover",

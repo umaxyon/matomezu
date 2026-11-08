@@ -41,11 +41,24 @@ export interface ActionContext {
   // アクションは時刻や乱数を直に使わず、これと newId だけを使う（同じ入力なら同じ結果）
   now: string
   by?: "ai" // 頼んだのが AI か（無ければ利用者。AI には userOnly のアクションとロックを外すことを断る）
+  // 郵便箱が対象のアクションが読むだけのブックの一覧（ほかの対象のアクションには無い。郵便に乗せる変更を確かめるのに使う）
+  books?: Readonly<Library>
+}
+
+// AI 編集チケットの変え方。key で 1 つを見分け（郵便の id など）、ブック book のチケットとして、作る（open）・閉じる（closed）・失敗にする（failed。changed は
+// 変わった・無くなった物の id）。常駐は中を読まずに、そのとおりに残し、失敗は利用者が次に AI に話しかけたときに AI に渡す
+export interface AIEditTicketChange {
+  book: string
+  key: string
+  outcome: "open" | "closed" | "failed"
+  changed?: readonly string[]
 }
 
 export interface Done<T extends ActionTarget, R> {
   next: Subjects[T]
   result: R
+  // 郵便箱が対象のアクションだけが書ける、AI 編集チケットの変え方
+  aiEditTicket?: T extends "mailbox" ? AIEditTicketChange : never
 }
 
 // run が断るときに、断った理由を添える値。declined は AI への説明に載る英語の文（ぶつかった相手や、代わりに入る所など。画面には出さない）。
@@ -216,6 +229,8 @@ export interface ActionDef<
   attach?: At
   userOnly?: true // 利用者だけが行える（AI には断り、MCP 公開ツールの actions に出さない。core/inspect.ts のステップ）
   history?: false // 画面の履歴（Undo）に入れない（図の内容でなくブックの扱いを変えるアクション。ロックの掛け外しなど）
+  // 利用者が行っても編集ロックで断る（ほかは AI のアクションだけを断る）。行うと、どこかの窓が編集ロックを掛けた物を変えるか消すなら being-edited で断る（engine の perform）
+  lockedForUser?: true
   // 利用者が AI に話しかけたときに、matomezu がアノテーションのあるブックごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
   // AI が参加を頼むとき（MCP の join）に、matomezu が AI として行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、

@@ -1209,3 +1209,54 @@ func TestEventsKeep(t *testing.T) {
 		t.Fatalf("second = %q", l)
 	}
 }
+
+// 変更提案郵便: AI が送ると AI 編集チケットができる。利用者の反映（proposal-apply）も、どこかの窓が直している物を変えるなら断る（being-edited）。
+// 反映が失敗したと残すと、AI のフックが聞いたときに failed で渡る
+func TestChangeProposal(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	k1 := placeBox(t, s.URL, 10, "一")
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["`+k1+`"]},"seq":1}`, nil)
+	change := `[{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"` + k1 + `","props":{"caption":"AI"}}}]`
+	proposal := `{"action":"@matomezu/base:proposal-send","args":{"project":"default","from":"E51","title":"名前","book":"b1","page":"p1","changes":` + change + `}}`
+	_, got := send(t, "POST", s.URL+"/api/ai/perform", proposal, ai)
+	var sent struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			Mail string `json:"mail"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(got), &sent) != nil || !sent.OK {
+		t.Fatalf("proposal-send = %s", got)
+	}
+	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
+	var world struct {
+		Mailbox []struct {
+			Props struct {
+				Snapshot json.RawMessage `json:"snapshot"`
+			} `json:"props"`
+		} `json:"mailbox"`
+	}
+	if json.Unmarshal([]byte(data), &world) != nil || len(world.Mailbox) != 1 {
+		t.Fatalf("mailbox = %s", data)
+	}
+	apply := `{"action":"@matomezu/base:proposal-apply","args":{"page":"p1","changes":` + change + `,"snapshot":` + string(world.Mailbox[0].Props.Snapshot) + `},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
+	if _, got := send(t, "POST", s.URL+"/api/perform", apply, nil); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("apply while the thing is being edited = %s", got)
+	}
+	// 編集ロックの無いアクションは、利用者なら通る
+	user := `{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"` + k1 + `","props":{"caption":"人"}},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":2}`
+	if _, got := send(t, "POST", s.URL+"/api/perform", user, nil); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("user update of a locked thing = %s", got)
+	}
+	settle := `{"action":"@matomezu/base:proposal-settle","args":{"mail":"` + sent.Result.Mail + `","outcome":"failed","changed":["` + k1 + `"]},"lang":"ja","client":"c1","seq":3}`
+	if _, got := send(t, "POST", s.URL+"/api/perform", settle, nil); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("proposal-settle = %s", got)
+	}
+	want := `"failed":[{"book":"b1","title":"T","key":"` + sent.Result.Mail + `","changed":["` + k1 + `"]}]`
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.Contains(got, want) {
+		t.Fatalf("awaiting = %s", got)
+	}
+}

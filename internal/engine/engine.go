@@ -36,7 +36,7 @@ type Input struct {
 	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 利用者の郵便箱
 	Participants json.RawMessage            `json:"participants,omitempty"` // 利用者の参加者の表
 	By           string                     `json:"by,omitempty"`           // 頼んだのが AI なら "ai"（空なら利用者）
-	// Watched は、変わったかを知らせる物（ブックの id → 物の id。利用者が直している物）
+	// Watched は、利用者が直している物（ブックの id → 物の id。編集ロック）。AI のアクションと lockedForUser のアクションが変えるか消すなら、エンジンが being-edited で断る
 	Watched map[string][]string `json:"watched,omitempty"`
 }
 
@@ -61,7 +61,16 @@ type Output struct {
 	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 変わった郵便箱
 	Participants json.RawMessage            `json:"participants,omitempty"` // 変わった参加者の表
 	Notice       string                     `json:"notice,omitempty"`       // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
-	Touched      []string                   `json:"touched,omitempty"`      // Watched の物のうち、変わったか無くなったもの
+	AIEditTicket *AIEditTicketChange        `json:"aiEditTicket,omitempty"` // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
+}
+
+// AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Key で 1 つを見分け（郵便の id など）、ブック Book のチケットを
+// 作る（open）・閉じる（closed）・失敗にする（failed。Changed は変わった・無くなった物の id）
+type AIEditTicketChange struct {
+	Book    string   `json:"book"`
+	Key     string   `json:"key"`
+	Outcome string   `json:"outcome"`
+	Changed []string `json:"changed,omitempty"`
 }
 
 // Engine は読み込んだホストのエンジン（engine.js）
