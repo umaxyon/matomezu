@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import { findShape, type ItemPage, walkShapes } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { screenOf } from "../../web/src/core/window"
 import { childOrigin, frameOf, freeSpotIn } from "../../web/src/plugins/base/place/frame"
 import { floorsOf, resizedBy, roomOf } from "../../web/src/plugins/base/place/items"
 import { allRectsOf, NEST_PADDING, placedSize, portAreasOf } from "../../web/src/plugins/base/place/placed"
@@ -190,7 +191,7 @@ test("付け替えのコマンドは、動いた所で別の親へ入れ、同�
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
   const b = place(store, { at: { x: 500, y: 100 }, w: 80, h: 40 })!
-  const zoom = store.state.getState().workspace.stages[0]!.zoom
+  const zoom = screenOf(store.state.getState().window).stages[0]!.zoom
   const screen = (x: number, y: number) => ({ x: x * zoom, y: y * zoom })
   store.actions.command("s1", "@matomezu/paper:paper-reparent", { item: b, parent: a, by: screen(-400, 0) })
   expect(at(store, b)).toMatchObject({ parent: a, at: { x: 100, y: 100 } })

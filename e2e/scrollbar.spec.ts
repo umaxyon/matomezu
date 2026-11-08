@@ -1,5 +1,5 @@
 // スクロールバーが幅を取る環境（Windows など）での見た目。ヘッドレスのブラウザは既定でスクロールバーを隠すので、隠さずに起動する
-import { aiAuth, expect, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } })
@@ -8,7 +8,7 @@ test("分割した右のステージで中身が縦にスクロールしても�
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 480 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   // 右のステージに長いマークダウンのページを作る（プレビューのペインは縦にスクロールし、右端にスクロールバーが出る）
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
@@ -40,7 +40,7 @@ test("リストの行が収まらず縦のスクロールバーが出ても、�
 }) => {
   const ai = aiAuth()
   await page.setViewportSize({ width: 1600, height: 1000 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())

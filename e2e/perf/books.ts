@@ -34,6 +34,7 @@ export function gridBook(id: string, n: number) {
     type: "@matomezu/drawing:drawing",
     id,
     title: `箱 ${n}`,
+    project: "default",
     pages: [
       {
         id: PAGE,
@@ -58,6 +59,7 @@ export function treeBook(id: string, n: number) {
     type: "@matomezu/tree:tree",
     id,
     title: `節 ${n}`,
+    project: "default",
     pages: [
       {
         id: PAGE,
@@ -84,6 +86,7 @@ export function dirBook(id: string, n: number) {
     type: "@matomezu/dir:dir",
     id,
     title: `中身 ${n}`,
+    project: "default",
     pages: [
       {
         id: PAGE,
@@ -107,6 +110,7 @@ export function markdownBook(id: string, lines: number) {
     type: "@matomezu/markdown:markdown",
     id,
     title: `原文 ${lines} 行`,
+    project: "default",
     pages: [{ id: PAGE, title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait", text }],
   }
 }

@@ -7,6 +7,7 @@ import { memo, type PointerEvent, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { areaOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
+import { screenOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
@@ -34,7 +35,7 @@ export function MinimapView({
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
+  const stage = useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === id))
   const book = useShownBook(id) // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
   const page = useShownPage(id)
   const held = keepsPan(catalog, useStage(id)?.tool ?? null)

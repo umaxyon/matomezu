@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { toolsIn } from "../../web/src/core/tools"
+import { screenOf } from "../../web/src/core/window"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { fieldsArgs } from "../../web/src/plugins/base/page-tabs/page-fields"
 import { keepsPan } from "../../web/src/plugins/base/tool-switch/tools"
@@ -19,7 +20,12 @@ import { writeRich } from "./rich-input"
 afterEach(cleanup)
 
 function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins, partial: true })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins,
+    partial: true,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -28,7 +34,7 @@ function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   act(() => {
     expect(createBookIn(store, "s1", { title: "木", type: "@matomezu/tree:tree" })).toBe(true)
   })
-  const id = (store.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }
   return { store, id, book }
 }
@@ -219,14 +225,18 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
   const make = () => {
     let n = 0
     const store = createMatomezu({
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       lang: "ja",
       plugins: BUILTIN_UI,
       newId: () => `id${String(n++).padStart(8, "0")}`,
     })
     let book = ""
     act(() => {
-      const made = store.actions.perform("@matomezu/base:book-create", { title: "木", type: "@matomezu/tree:tree" })
+      const made = store.actions.perform("@matomezu/base:book-create", {
+        title: "木",
+        project: "default",
+        type: "@matomezu/tree:tree",
+      })
       book = (made as { result: { book: string } }).result.book
       store.actions.perform(
         "@matomezu/base:page-add",
@@ -482,7 +492,7 @@ test("中央の木の根で Tab を押すと、子の少ない向きへ子を足
 test("その場の編集は、同じ道具を選び直しても続き、道具が替わると終わる", () => {
   const { store, id } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
-  const editing = () => store.state.getState().workspace.stages[0]!.editing
+  const editing = () => screenOf(store.state.getState().window).stages[0]!.editing
   fireEvent.pointerDown(
     screen.getByRole("img", { name: "紙" }).querySelector(`[data-node="${done.fields!.root.children[0]!.id}"]`)!,
     {
@@ -843,7 +853,7 @@ test("線の形: ページの設定で曲線を選ぶと、親から子への線
 test("編集の道具では 125% で、選んでいる節のほかを少し暗くし、Home で根を選ぶ。ハンドにすると 100% に戻り、暗くしない", () => {
   const { store, id } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子", children: [{ caption: "孫" }] }] })
-  const zoom = () => store.state.getState().workspace.stages[0]!.zoom
+  const zoom = () => screenOf(store.state.getState().window).stages[0]!.zoom
   const paper = () => screen.getByRole("img", { name: "紙" })
   const selected = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")
   expect(zoom()).toBe(1.25)
@@ -885,12 +895,14 @@ test("book-create は、タイプが選んだブックの設定の項目を受�
   act(() => {
     const ok = store.actions.perform("@matomezu/base:book-create", {
       title: "左の木",
+      project: "default",
       type: "@matomezu/tree:tree",
       settings: { "@matomezu/tree:grow": "left" },
     })
     expect(ok.ok).toBe(true)
     const bad = store.actions.perform("@matomezu/base:book-create", {
       title: "変な木",
+      project: "default",
       type: "@matomezu/tree:tree",
       settings: { "@matomezu/tree:grow": "sideways" },
     })
@@ -898,6 +910,7 @@ test("book-create は、タイプが選んだブックの設定の項目を受�
     // 確かめと整え方は book-update と同じ（表に無いテーマは断る）
     const theme = store.actions.perform("@matomezu/base:book-create", {
       title: "テーマの無い木",
+      project: "default",
       type: "@matomezu/tree:tree",
       settings: { "@matomezu/base:book-theme": "no-such-theme" },
     })

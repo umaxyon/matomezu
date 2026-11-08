@@ -38,7 +38,6 @@ export const DRAWING = kit.defineBookType({
   version: 1,
   title: "Drawing",
   schema: z.strictObject({ id: z.string().min(1) }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   grow: { choices: ["right-down", "right", "down", "all"] }, // 可変ページの増やす向き（base の拡張ポイント）

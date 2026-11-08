@@ -86,6 +86,7 @@ export {
   itemAiPlaced,
   itemMinimapMarks,
   itemSize,
+  JOINED_MESSAGE,
   keepApart,
   LEN,
   minSize,

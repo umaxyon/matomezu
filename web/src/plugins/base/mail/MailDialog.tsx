@@ -2,10 +2,11 @@
 // 開くと、ダイアログを閉じてそのステージで行き先のブック・ページを開き（左サイドパネルは開いていれば、行き先のステージへ同じタブで移して残す）、
 // 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
-import { type FormEvent, useEffect, useId, useRef } from "react"
+import { type FormEvent, type ReactNode, useEffect, useId, useRef } from "react"
+import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useActions, useLayout, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
@@ -18,6 +19,7 @@ import own from "./Mail.module.css"
 import { type OpenChoice, openChoices, openStageOf } from "./open-choices"
 import { placeExists } from "./place"
 import { shownOf } from "./shown"
+import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
 import { MAILBOX_TAB_ID } from "./tab-id"
 
 const CHOICE_TITLES = {
@@ -36,7 +38,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const catalog = useCoreCatalog()
   const mail = useMatomezuState(s => s.mailbox.find(m => m.id === args.mail) ?? null)
   const books = useMatomezuState(s => s.books)
-  const stages = useMatomezuState(s => s.workspace.stages)
+  const stages = useMatomezuState(s => screenOf(s.window).stages)
   const read = useReadState()
   const actions = useActions()
   const closeLeft = useCloseLeftSidePanel()
@@ -46,6 +48,13 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const reveal = useRequestReveal()
   const bringBird = useSetBirdVisit()
   const seen = !!mail?.seenAt
+  // この種類のボタンのウィジェット（あれば、開くボタンの代わりにそのボタンを並べる）
+  const placed: readonly string[] = useLayout().slots[MAIL_ACTIONS] ?? []
+  const uiWidgets = useUiCatalog().widgets
+  const actionsId = mail ? placed.find(w => uiWidgets.get(w)?.mailActions?.mail === mail.mail) : undefined
+  const Actions = actionsId
+    ? (uiWidgets.get(actionsId)?.view as ((props: MailActionsProps) => ReactNode) | undefined)
+    : undefined
   // 開いたら見たことにする
   useEffect(() => {
     if (mail && !seen) actions.perform(MAIL_SEEN.id, { mail: mail.id })
@@ -55,20 +64,23 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     buttons.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus()
   }, [])
   if (!mail) return null
-  const shown = shownOf(catalog, mail)
+  const shown = shownOf(catalog, mail, t)
   const exists = placeExists(mail, books)
   const to = exists ? mail.to : undefined
   const open = (choice: OpenChoice) => {
     if (!to) return
     onClose()
     if (choice === "split") actions.split(stage)
-    const target = openStageOf(read().workspace, stage, choice)
+    const target = openStageOf(screenOf(read().window), stage, choice)
     if (!target) return
+    // 行き先のブックがもう開いていても、ブックスクリーンは前に出す
+    actions.showBookScreen()
     if (left) {
       if (left.stage !== target) closeLeft(left.stage)
       openLeft(target, left.tab)
     }
-    if (read().workspace.stages.find(s => s.id === target)?.opened?.book !== to.book) actions.openBook(target, to.book)
+    if (screenOf(read().window).stages.find(s => s.id === target)?.opened?.book !== to.book)
+      actions.openBook(target, to.book)
     if (to.page) actions.openPage(target, to.page)
     if (to.ids && to.ids.length > 0) {
       reveal(target, to.ids)
@@ -76,7 +88,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     }
     actions.perform(MAIL_VISITED.id, { mail: mail.id })
   }
-  const opens = to ? openChoices({ stages }, stage) : null
+  const opens = to && !Actions ? openChoices({ stages }, stage) : null
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (opens) open(opens.primary)
@@ -100,7 +112,12 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
       {shown?.body && <p className={own.body}>{shown.body}</p>}
       {exists === false && <p className={own.gone}>{t("The place is not there")}</p>}
       <form ref={buttons} id={form} className={own.buttons} onSubmit={submit}>
-        {opens ? (
+        {Actions ? (
+          <>
+            <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
+            <Actions stage={stage} mail={mail} onClose={onClose} />
+          </>
+        ) : opens ? (
           <>
             {closeBoth}
             <ActionButton onClick={onClose}>{t("Close")}</ActionButton>

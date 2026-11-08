@@ -1,7 +1,7 @@
 package server
 
 // ブックに触れた時刻: ブックの id ごとの、開いたか書いた時刻の新しい方（画面がブックを選ぶ一覧の並びと「〜前」に使う）。
-// 開いたのは、窓が見ているものを知らせたときに、その窓に新しく出たブック（前の知らせに無かったもの。出したままのブックは開き直さない）。
+// 開いたのは、窓が見ているものを知らせたときに、その窓に新しく見えたブック（前の知らせに無かったもの。出したままのブックは開き直さない）。
 // 書いたのは、ブックを置いたとき。置き場所に残し、変わったら窓に知らせる（touched）
 
 import (
@@ -26,25 +26,24 @@ func (h *Hub) touch(id, at string) {
 	h.broadcast("touched", map[string]any{"book": id, "at": at})
 }
 
-// opened は、窓 c が知らせた見ているもの view に新しく出たブックの、開いた時刻を残す（h.mu を持って呼ぶ）
+// opened は、窓 c が知らせた見ているもの view に新しく見えたブックの、開いた時刻を残す（h.mu を持って呼ぶ）。
+// コントロールセンターを前に出している間、後ろに隠れているブックスクリーンのブック（view の hidden）は見えていないので、開いたとしない。
+// ただし開いているブック（held）には含める
 func (h *Hub) opened(c *client, view json.RawMessage) {
 	var v struct {
-		Book   string `json:"book"`
-		Stages []struct {
-			Book string `json:"book"`
-		} `json:"stages"`
+		screen
+		Hidden *screen `json:"hidden"`
 	}
 	if json.Unmarshal(view, &v) != nil {
 		return
 	}
-	shown := []string{}
-	for _, id := range append([]string{v.Book}, stageBooks(v.Stages)...) {
-		if id != "" && !slices.Contains(shown, id) {
-			shown = append(shown, id)
-		}
+	shown := v.books()
+	held := shown
+	if v.Hidden != nil {
+		held = v.Hidden.books()
 	}
 	before := c.shown
-	c.shown = shown
+	c.shown, c.held = shown, held
 	for _, id := range shown {
 		if slices.Contains(before, id) {
 			continue
@@ -58,13 +57,32 @@ func (h *Hub) opened(c *client, view json.RawMessage) {
 	}
 }
 
+// screen は、窓が知らせた見ているもののうち、ブックスクリーン 1 つが開いているブックとステージ
+type screen struct {
+	Book   string `json:"book"`
+	Stages []struct {
+		ID   string `json:"id"`
+		Book string `json:"book"`
+	} `json:"stages"`
+	CanSplit bool `json:"canSplit"`
+}
+
+// books は、そのブックスクリーンが開いているブックの id（重ねない）
+func (s screen) books() []string {
+	books := []string{}
+	for _, id := range append([]string{s.Book}, s.stageBooks()...) {
+		if id != "" && !slices.Contains(books, id) {
+			books = append(books, id)
+		}
+	}
+	return books
+}
+
 // stageBooks はステージごとの開いているブックの id
-func stageBooks(stages []struct {
-	Book string `json:"book"`
-}) []string {
-	ids := make([]string, len(stages))
-	for i, s := range stages {
-		ids[i] = s.Book
+func (s screen) stageBooks() []string {
+	ids := make([]string, len(s.Stages))
+	for i, st := range s.Stages {
+		ids[i] = st.Book
 	}
 	return ids
 }

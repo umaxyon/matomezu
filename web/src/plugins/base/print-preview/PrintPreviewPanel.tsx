@@ -4,6 +4,7 @@
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
 import { useEffect, useState } from "react"
 import { previewing as isPreviewing } from "../../../core/stage"
+import { screenOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
@@ -33,7 +34,7 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
   const close = useCloseRightSidePanel()
   const perform = usePerform(stage)
   const previewing = useMatomezuState(s => {
-    const st = s.workspace.stages.find(st => st.id === stage)
+    const st = screenOf(s.window).stages.find(st => st.id === stage)
     return !!st && isPreviewing(st)
   })
   const [confirming, setConfirming] = useState<Patch | null>(null)

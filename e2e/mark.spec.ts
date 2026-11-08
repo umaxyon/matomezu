@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { addList, addRow } from "./helpers/list"
 import { addBox, items } from "./helpers/paper"
 
@@ -18,7 +18,7 @@ test("箱の右クリックの「AIに示す」で 6 つの種類を選ぶスタ
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await pickMark(page, box, "ツナギドリ")
@@ -44,7 +44,7 @@ test("箱の右クリックの「AIに示す」で 6 つの種類を選ぶスタ
 test("1 つの箱のマークは 1 つで、別の種類を選ぶと置き換わる。びっくりマークは右上の角に出て、ほかを押すかポインタが離れると「外す？」が隠れる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await pickMark(page, box, "フクロウ")
@@ -69,7 +69,7 @@ test("1 つの箱のマークは 1 つで、別の種類を選ぶと置き換わ
 })
 
 test("種類を選ぶスタンドは Esc で付けずに閉じる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await box.click({ button: "right" })
@@ -85,7 +85,7 @@ test("箱の上の辺が画面の外に出ると、鳥はマークポインタ�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ width: 900, height: 480 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await addBox(page, 500, 150, "二")
   await pickMark(page, items(page).filter({ hasText: "一" }), "インコ")
@@ -128,7 +128,7 @@ test("リストの中のスクロールで行の上の辺が隠れると、鳥�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ width: 560, height: 480 })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "多い")
   for (const n of [1, 2, 3, 4, 5]) await addRow(page, list, `行 ${n}`)
   const rows = list.locator("ul").locator("..")

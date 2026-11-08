@@ -10,6 +10,7 @@ import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
 import { toPaper } from "../../core/stage"
+import type { Front } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
@@ -32,7 +33,8 @@ export function commandScopeOf(scope: CommandScope | undefined, ctx: CommandCont
 // コマンドが受け取る、呼ばれた場所の様子
 export interface CommandContext {
   catalog: CoreCatalog
-  home: string | null // インスタンスのホームのブックの id
+  controlCenter: string | null // インスタンスのコントロールセンターの定義の id
+  front: Front // 窓が前に出している物（呼ばれた場所のステージは、前に出せるブックスクリーンのもの）
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
   book: Book | null // そのステージで開いているブック
   settings: Settings
@@ -75,7 +77,7 @@ export interface CommandDef<A = undefined, Tt extends string = MessageKey> exten
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない
   run(ctx: CommandContext, actions: CommandActions, args: A): void
-  // 行うアクション。どれかが今のブック（ブックが対象でなければホームのタイプ）で使えなければ、土台はこのコマンドを出さない。
+  // 行うアクション。どれかが今のブック（ブックが対象でなければコントロールセンター）で使えなければ、土台はこのコマンドを出さない。
   // どれも認可ステップに止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
   performs?: readonly ActionId[]
   // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（認可ステップに渡す）。ブックが対象のアクションを行うなら必ず書く（defineCommand の型が求める）

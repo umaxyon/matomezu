@@ -46,14 +46,14 @@ func TestStaleTokenIsReadAgainOnce(t *testing.T) {
 		s:         &home.Server{URL: now.URL, Token: "old"},
 		reconnect: func() (*home.Server, error) { reconnects++; return now, nil },
 	}
-	out, err := a.Post("api/ai/perform", map[string]string{"x": "y"})
+	out, _, err := a.Post("api/ai/perform", map[string]string{"x": "y"}, nil)
 	if err != nil || string(out) != `{"ok":true}` {
 		t.Fatalf("got %s, %v", out, err)
 	}
 	if reconnects != 1 || calls != 2 {
 		t.Fatalf("reconnects %d, calls %d", reconnects, calls)
 	}
-	if _, err := a.Get("api/ai/books"); err != nil || reconnects != 1 {
+	if _, _, err := a.Get("api/ai/books", nil); err != nil || reconnects != 1 {
 		t.Fatalf("the new token is kept: %v, reconnects %d", err, reconnects)
 	}
 }
@@ -65,7 +65,7 @@ func TestStoppedServerIsStartedAgain(t *testing.T) {
 		s:         closedServer(t),
 		reconnect: func() (*home.Server, error) { reconnects++; return now, nil },
 	}
-	if _, err := a.Get("api/ai/books"); err != nil {
+	if _, _, err := a.Get("api/ai/books", nil); err != nil {
 		t.Fatal(err)
 	}
 	if reconnects != 1 || calls != 1 {
@@ -78,7 +78,7 @@ func TestRetriesOnlyOnce(t *testing.T) {
 	s := fakeServer(t, "new", http.StatusOK, &calls)
 	wrong := &home.Server{URL: s.URL, Token: "wrong"}
 	a := &httpAPI{s: wrong, reconnect: func() (*home.Server, error) { reconnects++; return wrong, nil }}
-	if _, err := a.Get("api/ai/books"); err == nil {
+	if _, _, err := a.Get("api/ai/books", nil); err == nil {
 		t.Fatal("still unauthorized after reading again")
 	}
 	if reconnects != 1 || calls != 2 {
@@ -90,7 +90,7 @@ func TestOtherFailuresAreNotRetried(t *testing.T) {
 	var calls, reconnects int
 	s := fakeServer(t, "new", http.StatusInternalServerError, &calls)
 	a := &httpAPI{s: s, reconnect: func() (*home.Server, error) { reconnects++; return s, nil }}
-	if _, err := a.Post("api/ai/perform", nil); err == nil {
+	if _, _, err := a.Post("api/ai/perform", nil, nil); err == nil {
 		t.Fatal("a 500 is an error")
 	}
 	if reconnects != 0 || calls != 1 {
@@ -103,7 +103,7 @@ func TestReconnectFailureIsReported(t *testing.T) {
 		s:         closedServer(t),
 		reconnect: func() (*home.Server, error) { return nil, errors.New("the server did not start") },
 	}
-	_, err := a.Get("api/ai/books")
+	_, _, err := a.Get("api/ai/books", nil)
 	if err == nil || !strings.Contains(err.Error(), "the server did not start") {
 		t.Fatalf("got %v", err)
 	}

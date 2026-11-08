@@ -2,11 +2,13 @@ import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { defineAction, pagedOnly } from "../../web/src/core/def/action"
 import { defineBookType } from "../../web/src/core/def/book-type"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions, DoneAction } from "../../web/src/store/store"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
 
 // 追加プラグインの見本: 自分のブックのタイプと、そのタイプで使えるアクション（core/catalog.ts には書き足さない）
@@ -15,14 +17,13 @@ const NOTE = defineBookType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1) }),
-  single: false,
   create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,
   items: { allowed: [] },
   actions: { add: ["notes:rename" as never, "notes:break" as never, "notes:stamp" as never] },
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
-  presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
+  presentation: "@matomezu/paper:paper", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],
 })
 const RENAME = defineAction({
@@ -59,7 +60,12 @@ const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unkn
 
 describe("アクションの入口", () => {
   test("プラグインのアクションを行い、結果を状態に入れる", () => {
-    const instance = createMatomezu({ plugins: BUILTIN, home: "@matomezu/master:master", newId: () => "n1" })
+    const instance = createMatomezu({
+      plugins: BUILTIN,
+      controlCenter: "@matomezu/control-center:control-center",
+      books: SAMPLE_BOOKS,
+      newId: () => "n1",
+    })
     instance.use([notes])
     createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
     expect(untyped(instance.actions).perform("notes:rename", { title: "新" }, { book: "n1" })).toEqual({
@@ -68,16 +74,18 @@ describe("アクションの入口", () => {
     })
     expect(instance.state.getState().books.n1).toMatchObject({ title: "新" })
     // ほかのタイプのブックには、そのタイプが許さないので使えない
-    expect(
-      untyped(instance.actions).perform("notes:rename", { title: "新" }, { book: "@matomezu/master:master" }),
-    ).toEqual({
+    expect(untyped(instance.actions).perform("notes:rename", { title: "新" }, { book: "b1" })).toEqual({
       ok: false,
       reason: "not-allowed",
     })
   })
 
   test("アクションが返したブックがタイプの形に合わなければ断り、ブックは変わらない", () => {
-    const instance = createMatomezu({ plugins: BUILTIN, home: "@matomezu/master:master", newId: () => "n1" })
+    const instance = createMatomezu({
+      plugins: BUILTIN,
+      controlCenter: "@matomezu/control-center:control-center",
+      newId: () => "n1",
+    })
     instance.use([notes])
     createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
     const before = instance.state.getState().books.n1
@@ -93,7 +101,7 @@ describe("アクションの入口", () => {
     const times = ["2026-10-26T01:00:00.000Z", "2026-10-26T02:00:00.000Z"]
     const instance = createMatomezu({
       plugins: BUILTIN,
-      home: "@matomezu/master:master",
+      controlCenter: "@matomezu/control-center:control-center",
       newId: () => "n1",
       now: () => times.shift() ?? "later",
       observe: d => done.push(d),
@@ -104,7 +112,7 @@ describe("アクションの入口", () => {
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
     expect(done.at(-1)).toMatchObject({ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" })
     // ホストから届いたブックに、まだ確かめられていないアクションを行い直す
-    const book = { type: "notes:note", id: "n1", title: "メモ" }
+    const book = { type: "notes:note", id: "n1", title: "メモ", project: "default" }
     instance.receive({ books: [book], settings: {} }, [done.at(-1)!])
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
@@ -116,17 +124,20 @@ describe("アクションの入口", () => {
     actions.openBook("s2", "made")
     const done = actions.perform("@matomezu/base:page-add", { title: "最初" }, { book: "made" })
     expect(done).toEqual({ ok: true, result: { page: "made" } })
-    expect(state.getState().workspace.stages.map(s => s.opened?.page)).toEqual(["made", "made"])
+    expect(screenOf(state.getState().window).stages.map(s => s.opened?.page)).toEqual(["made", "made"])
   })
 
   test("宛先のブックが無い・タイプが許さない・引数の形が違うときは断り、状態を変えない", () => {
-    const { state, actions } = newStore()
+    const instance = newStore({ newId: () => "n1" })
+    instance.use([notes])
+    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
+    const { state, actions } = instance
     const before = state.getState()
     expect(actions.perform("@matomezu/base:page-add", { title: "x" }, { book: "nope" })).toEqual({
       ok: false,
       reason: "no-book",
     })
-    expect(actions.perform("@matomezu/base:page-add", { title: "x" }, { book: "@matomezu/master:master" })).toEqual({
+    expect(actions.perform("@matomezu/base:page-add", { title: "x" }, { book: "n1" })).toEqual({
       ok: false,
       reason: "not-allowed",
     })
@@ -163,7 +174,7 @@ describe("アクションの入口", () => {
   })
 })
 
-test("付く先がページを持つタイプだけ（pages・items）のアクションの run は PagedBook を受ける。books・presentations も書いたら Book のまま", () => {
+test("付く先がページを持つタイプだけ（pages・items）のアクションの run は PagedBook を受ける。books・presentations も書いたら Book のまま（ビルトインのタイプはどれもページを持つので、型は pagedOnly の答えだけを確かめる）", () => {
   expect(pagedOnly({ pages: true })).toBe(true)
   expect(pagedOnly({ items: ["@matomezu/box:shape-nest-box"] })).toBe(true)
   expect(pagedOnly({ items: ["@matomezu/box:shape-nest-box"], books: true })).toBe(false)
@@ -171,23 +182,12 @@ test("付く先がページを持つタイプだけ（pages・items）のアク�
   expect(pagedOnly(undefined)).toBe(false)
   defineAction({
     id: "t:paged",
-    title: "@matomezu/master:Master",
+    title: "@matomezu/drawing:Drawing",
     attach: { pages: true },
     aiDescription: "",
     target: "book",
     permissionScope: "book",
     args: z.strictObject({}),
     run: book => ({ next: book, result: book.pages.length }), // pages を言い張りなしで読める
-  })
-  defineAction({
-    id: "t:any",
-    title: "@matomezu/master:Master",
-    attach: { books: true },
-    aiDescription: "",
-    target: "book",
-    permissionScope: "book",
-    args: z.strictObject({}),
-    // @ts-expect-error どのタイプにも付くアクションには、ページの無いブックも来る
-    run: book => ({ next: book, result: book.pages.length }),
   })
 })

@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { addBox, items, onPaper, zoomOf } from "./helpers/paper"
 
 // 始の箱の port の〇から、終の箱へ線を引く
@@ -44,7 +44,7 @@ async function markLine(page: Page, line: ReturnType<typeof page.locator>, kind:
 
 test("横向きの直線に付けた鳥は、線の上に立つ（動きを減らす設定では線の真ん中）", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const line = await connect(page, { x: 550, y: 150 })
   await markLine(page, line, "ツナギドリ")
   const bird = page.getByRole("button", { name: "ツナギドリ" })
@@ -57,7 +57,7 @@ test("横向きの直線に付けた鳥は、線の上に立つ（動きを減�
 
 test("折れ線に付けた鳥は、一番長い横の区間の上に立つ", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const line = await connect(page, { x: 550, y: 330 })
   await markLine(page, line, "スズメ")
   const bird = page.getByRole("button", { name: "スズメ" })
@@ -70,7 +70,7 @@ test("折れ線に付けた鳥は、一番長い横の区間の上に立つ", as
 })
 
 test("縦の直線に付けた鳥は、線の真ん中の周りを回る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const line = await connect(page, { x: 150, y: 400 }, "b")
   await markLine(page, line, "インコ")
   const bird = page.getByRole("button", { name: "インコ" })
@@ -110,7 +110,7 @@ test("縦の直線に付けた鳥は、線の真ん中の周りを回る", async
 
 test("線に付けた鳥のスタンドの空き（鳥のいない所）は、その下の物のクリックを妨げない", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const line = await connect(page, { x: 550, y: 330 })
   await addBox(page, 400, 100, "上")
   await markLine(page, line, "ツナギドリ")

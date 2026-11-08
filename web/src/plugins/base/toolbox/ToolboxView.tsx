@@ -5,6 +5,7 @@
 // シェイプパネルのどれかを置こうとしている間は、「形」のボタンを押されている見た目にする
 import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
+import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
@@ -15,7 +16,7 @@ import { panelOf, toolboxOf } from "./toolbox"
 
 export function ToolboxView({ stage }: { stage: string }) {
   const book = useBook(stage) ?? undefined
-  const placing = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.placing ?? null)
+  const placing = useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === stage)?.placing ?? null)
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core

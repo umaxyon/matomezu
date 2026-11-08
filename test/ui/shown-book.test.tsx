@@ -16,7 +16,7 @@ const PAPER = "@matomezu/base:book-paper-color"
 test("ブックを指す下書きは重なり、アイテムやページを指す下書きと、ほかのブックの下書きは重ならない（データは変えない）", () => {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

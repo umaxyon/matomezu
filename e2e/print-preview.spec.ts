@@ -1,8 +1,8 @@
 // 印刷プレビュー: フッタメニューのボタンで開くと、ブックの全ページの印刷区画を並べ、右サイドパネルに設定を出す。間はブックを変えるキー（元に戻す）が効かない。ロック中は変える前に聞く。
 // 右サイドパネルを閉じる（Esc）か読み直すと編集に戻る。印刷区画をダブルクリックすると、そのページの編集に戻る。右端にスクロールバーを出す
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 import { panel } from "./helpers/note"
 import { addBox, items, onPaper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -26,7 +26,7 @@ async function openPreview(page: Page) {
 test("印刷プレビューを開くと、中身のあるページの印刷区画を並べ（何も載っていないページは並べない）、ページのタブを隠す。初めは幅に合わせ、元に戻すは効かず、Esc で閉じると編集に戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "残る箱")
   await addPage(page)
   await expect(page.getByRole("tab")).toHaveCount(2)
@@ -51,7 +51,7 @@ test("印刷プレビューを開くと、中身のあるページの印刷区�
 test("並べる向きを横にすると、印刷区画が横に並ぶ。印刷区画のダブルクリックでそのページの編集に戻る。印刷プレビューは URL に入れず、読み直すと編集の画面", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await addPage(page)
   await expect(page.getByRole("tab")).toHaveCount(2)
@@ -76,7 +76,7 @@ test("並べる向きを横にすると、印刷区画が横に並ぶ。印刷�
 test("ロック中のブックで設定を変えると、書き換えてよいかを聞き、よければ変えてロックを掛け直す。やめれば変えない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await openPreview(page)
   const lock = panel(page).getByRole("button", { name: "ブックをロックする" })
   await lock.click()
@@ -95,7 +95,7 @@ test("ロック中のブックで設定を変えると、書き換えてよい�
 })
 
 test("可変ページの何も載っていない印刷区画は、書く画面で薄く暗くし、印刷プレビューには並べない", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 200, "一")
   const empty = await onPaper(page, 900, 600)
   await page.mouse.click(empty.x, empty.y, { button: "right" })
@@ -112,7 +112,7 @@ test("可変ページの何も載っていない印刷区画は、書く画面�
 })
 
 test("印刷プレビューの紙に、ページの形と線を描く（見るだけで、形に編集の印は付けない）", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 200, "左")
   await addBox(page, 600, 200, "右")
   // 左の箱の右の〇から、右の箱へ線を引く
@@ -140,7 +140,7 @@ test("印刷プレビューの紙に、ページの形と線を描く（見る�
 })
 
 test("ツリーとディレクトリ構成図も、印刷プレビューの紙に中身を描く", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const tree = await newBook(page, "木", "ツリー")
   await tree.getByLabel("根のキャプション").fill("根っこ")
   await tree.getByRole("button", { name: "作る" }).click()
@@ -158,7 +158,7 @@ test("ツリーとディレクトリ構成図も、印刷プレビューの紙�
 })
 
 test("印刷できるものが何も無いブックでは、紙を並べず、印刷できるものが無いと知らせる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await openPreview(page)
   await expect(sheets(page)).toHaveCount(0)
   await expect(page.getByText("印刷できるものはありません")).toBeVisible()
@@ -167,7 +167,7 @@ test("印刷できるものが何も無いブックでは、紙を並べず、�
 test("可変ページで印刷区画の境目をまたいだ箱があると、印刷プレビューを開かず、直してほしいと知らせてその箱のバッジを並べる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const empty = await onPaper(page, 600, 600)
   await page.mouse.click(empty.x, empty.y, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
@@ -187,7 +187,7 @@ test("可変ページで印刷区画の境目をまたいだ箱があると、�
 test("マークダウンは、紙の高さでブロックの境目ごとに切って印刷区画に並べる（原文が空なら並べない）", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "メモ", "マークダウン")
   await add.getByRole("button", { name: "作成" }).click()
   await expect(add).toBeHidden()
@@ -223,7 +223,7 @@ test("マークダウンは、紙の高さでブロックの境目ごとに切�
 })
 
 test("マークダウンの長い段落は、紙の高さに入る所で行の途中から次の紙に続ける", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "長文", "マークダウン")
   await add.getByRole("button", { name: "作成" }).click()
   await expect(add).toBeHidden()
@@ -278,7 +278,7 @@ const tallImage = (h: number) =>
 test("マークダウンの画像は、紙の残りに半分以上入れば縮めて今の紙に入れ、紙より高い画像は紙の高さに縮める", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "画像", "マークダウン")
   await add.getByRole("button", { name: "作成" }).click()
   await expect(add).toBeHidden()
@@ -304,7 +304,7 @@ test("マークダウンの画像は、紙の残りに半分以上入れば縮�
 test("印刷プレビューの右端のスクロールバーは、つまみのドラッグと溝を押すので紙をずらし、ホイールでずらすとつまみが付いて動く", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "長いメモ", "マークダウン")
   await add.getByRole("button", { name: "作成" }).click()
   await expect(add).toBeHidden()
@@ -359,7 +359,7 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙
     }
   })
   const printed = () => page.evaluate(() => (window as unknown as { printed: number }).printed)
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "刷る箱")
   await addPage(page)
   await page.getByRole("tab").last().click()
@@ -427,7 +427,7 @@ test("印刷のボタンと Ctrl+P は、並べた印刷区画を 1 つずつ紙
 test("刷るとき、ブラウザの拡張機能などがページに足した空の要素（自分で display を決めて刷る物の前後に置く）が、空の紙を足さない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "残る箱")
   await openPreview(page)
   await expect(sheets(page)).toHaveCount(1)

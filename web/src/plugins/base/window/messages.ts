@@ -1,0 +1,7 @@
+// 窓の文言
+import { defineMessages } from "../../../core/i18n/messages"
+
+export const WINDOW_MESSAGES = defineMessages({
+  "Back to the book screen": { en: "Back to the book screen", ja: "ブックスクリーンへ戻る" },
+  "Control center": { en: "Control center", ja: "コントロールセンター" },
+})

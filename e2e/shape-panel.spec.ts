@@ -1,12 +1,12 @@
 // シェイプパネル（base のツールボックス）: フッタメニューの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く。
 // 図面のパネルにはシェイプ（@matomezu/art）が並ぶ
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 import { paper } from "./helpers/paper"
 
 async function flowchartBook(page: Page) {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "流れ", "フローチャート")
   await add.getByRole("button", { name: "作成" }).click()
   await expect(paper(page)).toBeVisible()
@@ -40,7 +40,7 @@ test("「形」のボタンでパネルを開き、乗せたまま形を押す�
 })
 
 test("図面のパネルのシェイプを置くと、絵の足元にキャプションを出し、つかめるのは左右の辺だけ", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await footerMenuTool(page, "形")).click()
   const panel = page.getByRole("toolbar", { name: "ツール" }).getByRole("group", { name: "形" })
   await panel.getByRole("button", { name: "スティックマン" }).click()

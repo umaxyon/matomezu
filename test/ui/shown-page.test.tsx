@@ -17,7 +17,7 @@ const LIST = "@matomezu/list:shape-list"
 test("内包ボックスの中のリストの設定ダイアログの下書きは、子の形に重なる（データは変えない）", () => {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

@@ -6,7 +6,7 @@ import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
 const NAMES = definePlugin({ id: "names" })
 
 // @ts-expect-error 頭の無いキーの範囲と能力とテーマタイプ・別のプラグインの頭のメニュー
-createMatomezu({ plugins: [...BUILTIN_UI, NAMES], home: "@matomezu/master:master" })
+createMatomezu({ plugins: [...BUILTIN_UI, NAMES], controlCenter: "@matomezu/control-center:control-center" })
 
 declare module "matomezu/catalog" {
   interface KeyScopeTable {

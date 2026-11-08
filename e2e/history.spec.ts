@@ -1,12 +1,12 @@
 // 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない。
 // 画面に見えた AI の変更は、画面の履歴に時刻の位置で入り、新しい方から戻る
-import { aiAuth, expect, type Page, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
-import { newBook } from "./helpers/master"
+import { newBook } from "./helpers/new-book"
 import { addBox, items } from "./helpers/paper"
 
 test("置いた箱を Ctrl+Z で元に戻すと消え、Ctrl+Shift+Z と Ctrl+Y でやり直すと戻る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "戻す箱")
   await expect(items(page)).toHaveCount(1)
   await page.keyboard.press("Control+z")
@@ -22,7 +22,7 @@ test("置いた箱を Ctrl+Z で元に戻すと消え、Ctrl+Shift+Z と Ctrl+Y 
 test("フッタメニューの元に戻す・やり直すのボタンで戻し、やり直せる。押してもフッタメニューは下がらず、続けて押せる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "1")
   await addBox(page, 200, 150, "2")
   await expect(items(page)).toHaveCount(2)
@@ -42,7 +42,7 @@ test("フッタメニューの元に戻す・やり直すのボタンで戻し�
 test("ツリーで＋で足して書いた節は、1 回の Ctrl+Z で消える。あとで書き直したのは、書き直しだけが 1 つの画面の履歴の段", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "木", "ツリー")
   await add.getByLabel("根のキャプション").fill("根")
   await add.getByRole("button", { name: "作る" }).click()
@@ -67,7 +67,7 @@ test("ツリーで＋で足して書いた節は、1 回の Ctrl+Z で消える�
 test("ページタブをドラッグして並べ替えられ、元に戻すで元の並びに、やり直すで動かした並びになる。タブの外で離すと動かさない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.getByRole("button", { name: "ページを足す" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいページ" })
   await page.keyboard.press("Enter")
@@ -100,7 +100,7 @@ test("ページタブをドラッグして並べ替えられ、元に戻すで�
 // 窓を前に出し、AI が見る今のブックとページ（AI の口で読む）
 async function aiReady(page: Page) {
   const ai = aiAuth()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
@@ -134,7 +134,7 @@ async function scroll(page: Page, dy: number) {
 
 test("見えている箱を AI が書き換えたら、Ctrl+Z はまず AI の変更を戻し、次に自分の操作を戻す", async ({ page }) => {
   const ai = aiAuth()
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())

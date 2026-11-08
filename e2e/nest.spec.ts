@@ -1,5 +1,5 @@
 // 内包: 付け替えの道具のドラッグで、箱を内包ボックスの中へ入れ、外へ出す
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { addList } from "./helpers/list"
 import { addBox, confirmBox } from "./helpers/paper"
@@ -21,7 +21,7 @@ async function drag(page: Page, caption: string, dx: number, dy: number) {
 test("付け替えの道具で箱を内包ボックスの上へドラッグすると、入る先に枠が出て、離すとその中に入り、親のキャプションは子の上に出る。紙へドラッグすると外へ出る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 100, "親")
   await addBox(page, 500, 100, "子")
   await page.getByRole("button", { name: "選択ツール" }).click()
@@ -46,7 +46,7 @@ test("付け替えの道具で箱を内包ボックスの上へドラッグす�
 })
 
 test("選択の道具で親をドラッグすると子もついて動き、子をドラッグすると親の中で子だけが動く", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 100, "親")
   await addBox(page, 500, 100, "子")
   await page.getByRole("button", { name: "選択ツール" }).click()
@@ -79,7 +79,7 @@ test("選択の道具で親をドラッグすると子もついて動き、子�
 test("箱の編集のダイアログで縦の位置の「下」を押すと、子を持つ親のキャプションが子の下に出る。もう一度押すと自動に戻り、上に出る。子がある間は真ん中を押せない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 100, "親")
   await addBox(page, 500, 100, "子")
   await page.getByRole("button", { name: "選択ツール" }).click()
@@ -110,7 +110,7 @@ test("箱の編集のダイアログで縦の位置の「下」を押すと、�
 test("編集のダイアログで縦の位置の「下」を押すと、決める前から子の領域と文字が入れ替わって見え、キャンセルで元に戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 100, "親")
   await addBox(page, 500, 100, "子")
   await page.getByRole("button", { name: "選択ツール" }).click()
@@ -135,7 +135,7 @@ test("編集のダイアログで縦の位置の「下」を押すと、決め�
 })
 
 test("箱の道具で内包ボックスの上へ持っていくと入る先に枠が出て、押すとその中に置く", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 100, "親")
   const parent = (await item(page, "親").boundingBox())!
   await (await footerMenuTool(page, "箱")).click()
@@ -152,7 +152,7 @@ test("箱の道具で内包ボックスの上へ持っていくと入る先に�
 test("箱の道具でリストの上で押すと、リストは動かさずに、同じ親（ページ）の空きに置く。点線の影はその空きに出る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const list = await addList(page, "L")
   const before = (await list.boundingBox())!
   await (await footerMenuTool(page, "箱")).click()

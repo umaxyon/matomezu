@@ -14,7 +14,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   const kit = pluginKit("@ex/no-tree", defineMessages({ noTree: { en: "No tree", ja: "ツリーは作らない" } }))
   const seen: { before: unknown; added: boolean }[] = []
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,
@@ -38,7 +38,13 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   })
   const count = () => Object.keys(store.state.getState().books).length
   const was = count()
-  expect(store.actions.perform("@matomezu/base:book-create", { title: "木", type: "@matomezu/tree:tree" })).toEqual({
+  expect(
+    store.actions.perform("@matomezu/base:book-create", {
+      title: "木",
+      project: "default",
+      type: "@matomezu/tree:tree",
+    }),
+  ).toEqual({
     ok: false,
     reason: "denied",
     permission: "@ex/no-tree:no-tree",
@@ -46,7 +52,11 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   expect(count()).toBe(was)
   expect(seen).toEqual([{ before: undefined, added: true }])
   expect(
-    store.actions.perform("@matomezu/base:book-create", { title: "図", type: "@matomezu/drawing:drawing" }).ok,
+    store.actions.perform("@matomezu/base:book-create", {
+      title: "図",
+      project: "default",
+      type: "@matomezu/drawing:drawing",
+    }).ok,
   ).toBe(true)
   expect(count()).toBe(was + 1)
 })
@@ -54,7 +64,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
 test("新しいブックのダイアログが出すタイプ（typesToCreate）は、作れるタイプのうち認可ステップが行う前に止めないもの", () => {
   const kit = pluginKit("@ex/no-dir", defineMessages({ noDir: { en: "No dir", ja: "ディレクトリは作らない" } }))
   const store = createMatomezu({
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,
@@ -72,7 +82,7 @@ test("新しいブックのダイアログが出すタイプ（typesToCreate）�
       }),
     ],
   })
-  const ctx = { catalog: store.catalog.core, home: store.home }
+  const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter }
   const types = typesToCreate(worldOf(store.state.getState()), ctx)
   expect(types).toEqual(creatableTypes(store.catalog.core).filter(t => t !== "@matomezu/dir:dir"))
 })

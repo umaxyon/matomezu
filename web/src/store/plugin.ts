@@ -139,19 +139,20 @@ export interface Catalog {
 // 組み立てたもの: 機能台帳と、組み立てで決まる値
 export interface Assembled {
   catalog: Catalog
-  home: string | null // インスタンスのホームのブックの id（1 冊だけのタイプ。無ければ null）
+  controlCenter: string | null // インスタンスのコントロールセンターの定義の id（無ければ null）
   autoSkin: AutoSkin | null // 自動のスキンで使う明と暗のスキン（スキンが無ければ null）
 }
 
-// プラグインを 1 つの表にする。id の頭・同じ id の重なり・表どうしの参照・ホームが 1 冊だけのタイプか・自動のスキンの明暗を確かめ、食い違いがあれば作らない
+// プラグインを 1 つの表にする。id の頭・同じ id の重なり・表どうしの参照・コントロールセンターが表にあるか・自動のスキンの明暗を確かめ、食い違いがあれば作らない
 export function assemble(
   plugins: readonly Plugin[],
-  home: string | null = null,
+  controlCenter: string | null = null,
   auto: Partial<Record<Scheme, string>> = {},
 ): Assembled {
   for (const p of plugins) {
     if (p.checks !== undefined && !isBuiltin(p)) fail("E308", { plugin: p.id })
     if (p.normalizeSteps !== undefined && !isBuiltin(p)) fail("E310", { plugin: p.id })
+    if (p.controlCenters !== undefined && !isBuiltin(p)) fail("E311", { plugin: p.id })
     for (const d of p.userSettings ?? []) if (d.role && !isBuiltin(p)) fail("E309", { plugin: p.id, id: d.id })
     for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!isOwnedBy(p.id, d.id)) fail("E301", { plugin: p.id, kind, id: d.id })
@@ -219,7 +220,7 @@ export function assemble(
   ]
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
   const keys = defaultKeys(plugins, new Set(commands.map(c => c.id)))
-  if (home !== null && catalog.bookTypes.get(home)?.single !== true) fail("E110", { id: home })
+  if (controlCenter !== null && !catalog.controlCenters.has(controlCenter)) fail("E110", { id: controlCenter })
   return {
     catalog: {
       core: catalog,
@@ -236,7 +237,7 @@ export function assemble(
         ],
       },
     },
-    home,
+    controlCenter,
     autoSkin: autoSkin(catalog, auto),
   }
 }

@@ -1,4 +1,4 @@
-// base（ほかのプラグインが読んでよいプラグイン）: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・利用者の設定（言語・スキン・キーバインド・文字の色）・標準のテーマ・スキン（ダーク・ライト）と、その既定のキーバインド。
+// base（ほかのプラグインが読んでよいプラグイン）: ステージ（分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・利用者の設定（言語・スキン・キーバインド・文字の色）・標準のテーマ・スキン（ダーク・ライト）と、その既定のキーバインド。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
@@ -28,6 +28,7 @@ import {
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./mail"
 import { MAIL_DIALOG } from "./mail/dialogs"
+import { MAIL_JOIN_REQUEST, MAIL_JOIN_REQUEST_SEND } from "./mail/join-request"
 // 拡張ポイントに書き足したフィールド shown の型（mail/shown.ts の declare module）
 import type {} from "./mail/shown"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
@@ -42,6 +43,15 @@ import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
+import {
+  PARTICIPANT_ACCEPT,
+  PARTICIPANT_DECLINE,
+  PARTICIPANT_REQUEST,
+  PARTICIPANT_REQUEST_TAKEOVER,
+  PARTICIPANT_TAKE_OVER,
+} from "./participant"
+import { PARTICIPANT_ALIVE } from "./participant/alive"
+import { PARTICIPANT_JOIN_DIALOG } from "./participant/dialogs"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import {
   PRINT,
@@ -79,7 +89,7 @@ import {
   SETTINGS_SET_COMMAND,
   SKIN,
 } from "./settings"
-import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
+import { STAGE_CLOSE, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_PICKER_HOLD } from "./tool-picker/hold"
@@ -89,6 +99,7 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
+import { CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE } from "./window"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
@@ -116,6 +127,7 @@ export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
 export type { PageProblem } from "./page-tabs/page-problems"
 export { nextPageTitle } from "./page-tabs/pages"
+export { JOINED_MESSAGE } from "./participant"
 export { type AiPlaced, aiPlacedOf, itemAiPlaced } from "./place/ai-placed"
 export type { Frame } from "./place/frame"
 export {
@@ -240,6 +252,12 @@ export const BASE = defineBuiltin(
       MARK_READ,
       MARK_REMOVE,
       PRINT_PREVIEW_UPDATE,
+      PARTICIPANT_REQUEST,
+      PARTICIPANT_REQUEST_TAKEOVER,
+      PARTICIPANT_ACCEPT,
+      PARTICIPANT_DECLINE,
+      PARTICIPANT_TAKE_OVER,
+      MAIL_JOIN_REQUEST_SEND,
     ],
     settings: [
       BOOK_THEME,
@@ -251,7 +269,16 @@ export const BASE = defineBuiltin(
       PRINT_PREVIEW_BOOK_NAME,
       PRINT_PREVIEW_PAGE_NAME,
     ],
-    userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS, TOOL_PICKER_HOLD, NOTE_EXPIRY, CORNER_STATUS_ORDER],
+    userSettings: [
+      LANG,
+      SKIN,
+      KEYS,
+      USER_TEXT_COLORS,
+      TOOL_PICKER_HOLD,
+      NOTE_EXPIRY,
+      PARTICIPANT_ALIVE,
+      CORNER_STATUS_ORDER,
+    ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
     textColors: TEXT_COLORS,
@@ -259,7 +286,7 @@ export const BASE = defineBuiltin(
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
     annotations: [NOTE, MARK],
-    mails: [MAIL_LETTER],
+    mails: [MAIL_LETTER, MAIL_JOIN_REQUEST],
     checks: [
       PROP_NAMES_CHECK,
       FAMILY_TITLE_CHECK,
@@ -271,7 +298,8 @@ export const BASE = defineBuiltin(
     normalizeSteps: [VARIABLE_PAGES],
     commands: [
       BOOK_NEW,
-      STAGE_HOME,
+      CONTROL_CENTER_TOGGLE,
+      CONTROL_CENTER_LEAVE,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
@@ -313,6 +341,7 @@ export const BASE = defineBuiltin(
       NEW_BOOK_DIALOG,
       SETTINGS_DIALOG,
       MAIL_DIALOG,
+      PARTICIPANT_JOIN_DIALOG,
     ],
     keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE, SEARCH_KEY_SCOPE],
     keys: [
@@ -324,6 +353,7 @@ export const BASE = defineBuiltin(
       ...HISTORY_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
+      ...CONTROL_CENTER_KEYS,
       ...PRINT_KEYS,
       ...SEARCH_KEYS,
     ],
@@ -346,6 +376,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:lang": typeof LANG
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
+    "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS
@@ -381,6 +412,12 @@ declare module "../../core/catalog" {
     "@matomezu/base:mark-read": typeof MARK_READ
     "@matomezu/base:mark-remove": typeof MARK_REMOVE
     "@matomezu/base:print-preview-update": typeof PRINT_PREVIEW_UPDATE
+    "@matomezu/base:participant-request": typeof PARTICIPANT_REQUEST
+    "@matomezu/base:participant-request-takeover": typeof PARTICIPANT_REQUEST_TAKEOVER
+    "@matomezu/base:participant-accept": typeof PARTICIPANT_ACCEPT
+    "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
+    "@matomezu/base:participant-take-over": typeof PARTICIPANT_TAKE_OVER
+    "@matomezu/base:mail-join-request": typeof MAIL_JOIN_REQUEST_SEND
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD
@@ -397,6 +434,7 @@ declare module "../../core/catalog" {
   }
   interface MailTable {
     "@matomezu/base:letter": typeof MAIL_LETTER
+    "@matomezu/base:join-request": typeof MAIL_JOIN_REQUEST
   }
   interface ToolTable {
     "@matomezu/base:select": typeof SELECT_TOOL
@@ -425,7 +463,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-new": typeof BOOK_NEW
     "@matomezu/base:undo": typeof UNDO
     "@matomezu/base:redo": typeof REDO
-    "@matomezu/base:stage-home": typeof STAGE_HOME
+    "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
+    "@matomezu/base:control-center-leave": typeof CONTROL_CENTER_LEAVE
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE
@@ -471,6 +510,7 @@ declare module "../../core/catalog" {
   }
   interface DialogTable {
     "@matomezu/base:mail": typeof MAIL_DIALOG
+    "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG

@@ -1,19 +1,8 @@
-// ステージのコマンド: ホームを開く・分割する・分割をやめる・閉じる
+// ステージのコマンド: 分割する・分割をやめる・閉じる
 import { type CommandContext, workspaceOf } from "../../../store/commands/def"
 import { kit } from "../kit"
 
 const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
-
-// インスタンスのホームのブックを、そのステージで開く（ホームが無いインスタンスでは出さない）
-export const STAGE_HOME = kit.defineCommand({
-  id: "stage-home",
-  title: "Home",
-  run: (ctx, a) => {
-    if (ctx.home) a.openBook(ctx.stage.id, ctx.home)
-  },
-  when: ctx => ctx.home !== null,
-  active: ctx => ctx.home !== null && ctx.stage.opened?.book === ctx.home,
-})
 
 export const STAGE_SPLIT = kit.defineCommand({
   id: "stage-split",

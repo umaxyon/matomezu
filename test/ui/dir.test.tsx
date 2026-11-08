@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { toolsIn } from "../../web/src/core/tools"
+import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -12,7 +13,11 @@ import { writeRich } from "./rich-input"
 afterEach(cleanup)
 
 function setup() {
-  const store = createMatomezu({ home: "@matomezu/master:master", lang: "ja", plugins: BUILTIN_UI })
+  const store = createMatomezu({
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+    plugins: BUILTIN_UI,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -21,7 +26,7 @@ function setup() {
   act(() => {
     expect(createBookIn(store, "s1", { title: "構成", type: "@matomezu/dir:dir" })).toBe(true)
   })
-  const id = (store.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }
   const perform = (action: string, args: unknown) => {
     let done: ReturnType<typeof store.actions.perform> | undefined

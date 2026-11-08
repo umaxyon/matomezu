@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 
 // グラフの動きで棒や点の大きさが変わる間に測らないよう、OS の動きを減らす設定で開く（動きを確かめるテストは除く）
@@ -17,7 +17,7 @@ async function addData(page: Page) {
 test("データを置くと点線の枠に No Data と出る。編集のダイアログで列と行を足して確定すると表になり、表が全部見える大きさに広がる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const data = await addData(page)
   await expect(data).toHaveText("No Data")
   const before = (await data.boundingBox())!
@@ -90,7 +90,7 @@ async function fillMonths(page: Page, data: ReturnType<Page["locator"]>) {
 test("見た目を棒にすると横軸と値が既定で選ばれ、棒グラフになる。値を 2 つにすると凡例が出て、棒にポインタを乗せると値の吹き出しが出る。円・散布図・横向きの棒にも切り替えられる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const data = await addData(page)
   const dialog = await fillMonths(page, data)
   await dialog.getByLabel("見た目").selectOption("bar")
@@ -132,7 +132,7 @@ test("見た目を棒にすると横軸と値が既定で選ばれ、棒グラ�
 })
 
 test("表の列を消したり文字の列にしたりすると、その列の値の軸が外れ、値が無ければ確定を押せない", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const data = await addData(page)
   const dialog = await fillMonths(page, data)
   await dialog.getByLabel("見た目").selectOption("line")
@@ -152,7 +152,7 @@ test("表の列を消したり文字の列にしたりすると、その列の�
 test("入りきらない項目の文字は傾けられ、選んでいる間は文字の領域のつまみで広げ縮めできる。「選んだ行だけ」なら、表の行の印の行の文字だけが出る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const data = await addData(page)
   const dialog = await fillMonths(page, data)
   await dialog.getByLabel("見た目").selectOption("bar")
@@ -184,7 +184,7 @@ test("入りきらない項目の文字は傾けられ、選んでいる間は�
 test("データにもキャプションと本文を書け、表やグラフの上か下に出し、出さないこともできる。選んでいる間は本文の列の端のつまみで幅を変えられる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const data = await addData(page)
   const dialog = await fillMonths(page, data)
   await dialog.getByLabel("キャプション", { exact: true }).fill("月ごとの売上")
@@ -224,7 +224,7 @@ test("グラフは、表を入れたときと見た目を変えたときに動�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" })
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const data = await addData(page)
   const dialog = await fillMonths(page, data)
   await dialog.getByLabel("見た目").selectOption("bar")

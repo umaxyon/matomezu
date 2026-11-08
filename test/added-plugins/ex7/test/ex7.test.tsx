@@ -10,13 +10,13 @@ import EX7_UI from "../ui"
 test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重さを足し合わせる", () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX6_UI, EX7_UI],
-    home: "@matomezu/master:master",
+    controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
   act(() => {
     expect(createBookIn(instance, "s1", { title: "置き場", type: "ex7:yard" })).toBe(true)
   })
-  const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
+  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
   act(() => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })

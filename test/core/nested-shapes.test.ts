@@ -17,6 +17,7 @@ const book = (items: unknown[]) => ({
   type: "@matomezu/drawing:drawing",
   id: "b1",
   title: "T",
+  project: "default",
   pages: [{ id: "p1", title: "P", paper: "@matomezu/base:a4", orientation: "landscape", items }],
 })
 const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({

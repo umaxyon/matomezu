@@ -61,9 +61,9 @@ export function useMatomezuState<T>(selector: (s: MatomezuState) => T): T {
   return useStore(useMatomezuContext().store.state, selector)
 }
 
-// インスタンスのホームのブックの id（一覧と設定のアクションを使えるかを決める）
-export function useHome(): string | null {
-  return useMatomezuContext().store.home
+// インスタンスのコントロールセンターの定義の id（一覧と設定のアクションを使えるかを決める）
+export function useControlCenter(): string | null {
+  return useMatomezuContext().store.controlCenter
 }
 
 // 今の状態を読む関数（描き直さない。イベントや effect の中で、その時点の値を読むのに使う）

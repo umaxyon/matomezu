@@ -58,7 +58,6 @@ export const FLOW = kit.defineBookType({
   version: 1,
   title: "flow",
   schema: z.strictObject({ id: z.string().min(1) }),
-  single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {

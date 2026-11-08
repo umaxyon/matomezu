@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { addBox, confirmBox, items, onPaper, zoomOf } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -7,7 +7,7 @@ import { BODY, coreWidthOf } from "./text-widths"
 test("箱のツールを押すとポインタに点線の箱が付き、紙の上で押して追加のダイアログで追加すると、そこに置かれて選ばれ、道具は選択に戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await footerMenuTool(page, "箱")).click()
   await expect(await footerMenuTool(page, "箱")).toHaveAttribute("aria-pressed", "true")
   const at = await onPaper(page, 200, 150)
@@ -29,7 +29,7 @@ test("箱のツールを押すとポインタに点線の箱が付き、紙の�
 })
 
 test("紙からはみ出す所では点線の箱が薄くなり、押しても置かない。Escape で取り消す", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, 5, 5)
   await page.mouse.move(at.x, at.y)
@@ -45,7 +45,7 @@ test("紙からはみ出す所では点線の箱が薄くなり、押しても�
 test("選択の道具で箱をドラッグすると動き、何も無い所を押すと選択が外れる。ハンドの道具では箱ごと紙がずれる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150)
   const box = items(page)
   const before = (await box.boundingBox())!
@@ -76,7 +76,7 @@ test("選択の道具で箱をドラッグすると動き、何も無い所を�
 })
 
 test("ハンドの道具の間は、紙の外でも箱の上でもポインタが手になり、押している間は握った手になる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "見出し")
   const cursor = (selector: string) =>
     page
@@ -101,7 +101,7 @@ test("ハンドの道具の間は、紙の外でも箱の上でもポインタ�
 test("追加のダイアログは見出しの右にキャンセルと追加を並べ、キャンセルでは置かない。区切り線は本文を書くと押せて入り、Enter で追加する", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
@@ -137,7 +137,7 @@ test("追加のダイアログは見出しの右にキャンセルと追加を�
 test("選択の道具で箱をダブルクリックすると、今の中身の入った編集のダイアログが開き、確定で変わり、キャンセルでは変わらない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "前")
   const box = items(page)
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
@@ -162,7 +162,7 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
 })
 
 test("選んだ箱は Delete で消える。ダイアログの入力Formの中の Delete では消えない", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "消す")
   await items(page).dblclick()
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
@@ -176,7 +176,7 @@ test("選んだ箱は Delete で消える。ダイアログの入力Formの中�
 test("箱を右クリックすると選ばれ、設定・区切り線・削除のメニューが出る。設定で編集のダイアログ、削除で消える", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, caption] of [
     [200, "一"],
     [450, "二"],
@@ -204,7 +204,7 @@ test("箱を右クリックすると選ばれ、設定・区切り線・削除�
 test("キーは割り当ての表で効く: 本文のテキストFormの Enter は改行、キャプションのテキストFormの Enter で決める、メニューは Escape で閉じる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await (await footerMenuTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
@@ -242,7 +242,7 @@ async function addBodyBox(page: Page) {
 test("本文は折り返した行ごとに描き（置いたときは 5 行まで）、描いた字の幅は core の計算（フォントの表）と 1px 未満で合う", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   await page.evaluate(() => document.fonts.ready)
   const lines = page.locator("[data-item] [data-line]")
@@ -279,7 +279,7 @@ async function dragGrip(page: Page, at: string, dx: number, dy: number) {
 test("選んだ箱の四辺と四隅でポインタが矢印になる。右下の角をドラッグすると幅と高さが変わり、左上はそのまま", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   const box = page.locator("[data-item]")
   await expect(box.locator("[data-grip]")).toHaveCount(8)
@@ -300,7 +300,7 @@ test("選んだ箱の四辺と四隅でポインタが矢印になる。右下�
 test("下の辺を上へ縮めると本文は収まる行だけになって … で切れ、さらに縮めると本文と区切り線が消えてキャプションだけが残る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   const lines = page.locator("[data-item] [data-line]")
   await expect(lines).toHaveCount(5)
@@ -318,7 +318,7 @@ test("下の辺を上へ縮めると本文は収まる行だけになって … 
 test("置いた箱の幅はキャプションに合わせ、20 字までは切れずに出る。20 字を超えると、20 字と … が見える幅で切れる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await page.evaluate(() => document.fonts.ready)
   const caption = (i: number) => page.locator("[data-item]").nth(i).locator("[data-align]").first()
   const cut = (i: number) => caption(i).evaluate(el => el.scrollWidth > el.clientWidth)
@@ -339,7 +339,7 @@ test("置いた箱の幅はキャプションに合わせ、20 字までは切�
 })
 
 test("編集でキャプションを長くすると、20 字が見える幅まで箱が右へ広がる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 100, 100, "短い")
   const box = page.locator("[data-item]")
   const before = (await box.boundingBox())!
@@ -360,7 +360,7 @@ test("編集でキャプションを長くすると、20 字が見える幅ま�
 test("ダイアログでキャプションと本文の寄せを選ぶと、箱の中の文がその寄せになる。既定はキャプションが中央、本文が左", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   const box = page.locator("[data-item]")
   const align = (i: number) =>
@@ -387,7 +387,7 @@ test("ダイアログでキャプションと本文の寄せを選ぶと、箱�
 test("ダイアログで箱のテーマを付箋紙にすると黄色の付箋になって右上が折り返り、ブックのテーマに戻すと元の見た目に戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   const box = page.locator("[data-item] [data-valign]")
   const look = () =>
@@ -412,7 +412,7 @@ test("ダイアログで箱のテーマを付箋紙にすると黄色の付箋�
 test("編集のダイアログでテーマと寄せを選ぶと、確定の前から箱に出る。キャンセルで元に戻り、確定でそのままになる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   const box = page.locator("[data-item] [data-valign]")
   const fill = () => box.evaluate(el => getComputedStyle(el).backgroundColor)
@@ -446,7 +446,7 @@ test("編集のダイアログでテーマと寄せを選ぶと、確定の前�
 test("編集のダイアログの色のボタンでポップアップを開き、テーマの色を選ぶと箱がその色になる。Escape はポップアップだけを閉じ、キャンセルで元に戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   const box = page.locator("[data-item] [data-valign]")
   const look = () =>
@@ -467,7 +467,7 @@ test("編集のダイアログの色のボタンでポップアップを開き�
 test("テーマの色はテーマを変えるとそのテーマの色になり、値のテキストFormに書いた色はどのテーマでもその色。なしで元の塗りに戻る", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   const box = page.locator("[data-item] [data-valign]")
   const fill = () => box.evaluate(el => getComputedStyle(el).backgroundColor)
@@ -515,7 +515,7 @@ test("テーマの色はテーマを変えるとそのテーマの色になり�
 test("設定のダイアログでブックのテーマと紙の色を選ぶと、確定の前から紙と中の箱に出る。キャンセルで戻り、確定でそのままになる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBodyBox(page)
   const paper = page.getByRole("img", { name: "紙" })
   const surface = page.locator("[data-paper-surface]") // 紙の白い面（紙の面のレイヤー）
@@ -548,7 +548,7 @@ test("設定のダイアログでブックのテーマと紙の色を選ぶと�
 test("ブックの名前のボタンのメニューからブックの設定を開いて名前を変えると、ボタンの名前が変わる。空の間は確定できない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await (await fromMenu(page, "ブックの設定")).click()
   const dialog = page.getByRole("dialog", { name: "ブックの設定" })
@@ -565,7 +565,7 @@ test("ブックの名前のボタンのメニューからブックの設定を�
 test("紙の右クリックの「ページの設定」でページの名前を変えると、ページタブの名前が変わる。空の間は確定できない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const tab = page.getByRole("tab", { selected: true })
   const before = await tab.textContent()
   const empty = await onPaper(page, 900, 600)
@@ -585,7 +585,7 @@ test("紙の右クリックの「ページの設定」でページの名前を�
 test("「ページの設定」で紙を A3 にすると紙が大きくなる。形が入らない紙を選ぶと知らせを出して確定できない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 900, 120, "右")
   const surface = page.locator("[data-paper-surface]")
   const before = (await surface.boundingBox())!
@@ -607,7 +607,7 @@ test("「ページの設定」で紙を A3 にすると紙が大きくなる。�
 test("「ページの設定」で可変ページにして上下左右へ増やすと、上下左右に空きの印刷区画が出て、区切りの破線が引かれる（中身は 印刷区画 1 つ分ずつずれるが、箱は画面の同じ所のまま）。破線はフッタメニューのボタンで隠せる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 200, "元")
   const origin = page.locator("[data-item]").filter({ hasText: "元" })
   const before = (await origin.boundingBox())!
@@ -649,7 +649,7 @@ test("「ページの設定」で可変ページにして上下左右へ増や�
 test("上下左右へ増やす可変ページを開くと、左上の空きの印刷区画でなく中身の載った印刷区画の左上が見え、「初めの位置に戻す」もそこへ戻す。読み直すと、見ていた所のまま", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 200, "元")
   const box = page.locator("[data-item]").filter({ hasText: "元" })
   const before = (await box.boundingBox())!
@@ -691,7 +691,7 @@ test("上下左右へ増やす可変ページを開くと、左上の空きの�
 })
 
 test("箱の右の辺を右の箱へ向けて広げると、手を離したときに右の箱が押されて右へずれる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, caption] of [
     [120, "左"],
     [260, "右"],
@@ -714,7 +714,7 @@ test("箱の右の辺を右の箱へ向けて広げると、手を離したと�
 test("ドラッグ中はほかの箱が薄くなって動かず、右の箱に浅く入れて離すと手前へ戻る。半分入れるとその場で入れ替わり、離すと入れ替わった並びになる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, caption] of [
     [120, "左"],
     [260, "右"],
@@ -756,7 +756,7 @@ test("ドラッグ中はほかの箱が薄くなって動かず、右の箱に�
 test("箱を右へ広げて、押した右の箱が紙の右の端で詰まると、右の箱が縮んで収まる（キャプションが切れない幅まで）", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   const zoom = await zoomOf(page)
   for (const [x, caption] of [
@@ -782,7 +782,7 @@ test("箱を右へ広げて、押した右の箱が紙の右の端で詰まる�
 })
 
 test("箱の大きさを変えるドラッグの間は、ほかの箱が薄くなり、離すと戻る", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, caption] of [
     [120, "左"],
     [260, "右"],
@@ -805,7 +805,7 @@ test("箱の大きさを変えるドラッグの間は、ほかの箱が薄く�
 test("選択の道具で、選んでいない箱にポインタを乗せると四辺に〇が出る。〇から相手の箱へドラッグして離すと、終点に矢印の付いた線が引かれる。何も無い所や Escape では引かない", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, caption] of [
     [150, "始"],
     [550, "終"],
@@ -861,7 +861,7 @@ test("選択の道具で、選んでいない箱にポインタを乗せると�
 })
 
 test("〇から線を引いている途中にホイールで紙をずらしても、引いている線の先はポインタの所にある", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 150, 150, "始")
   const empty = await onPaper(page, 600, 500)
   await page.mouse.click(empty.x, empty.y) // 選択を外す
@@ -890,7 +890,7 @@ test("〇から線を引いている途中にホイールで紙をずらして�
 })
 
 test("〇から同じ箱へ戻して離すと、自分に戻る線が引かれる", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 300, 250, "輪")
   const empty = await onPaper(page, 700, 600)
   await page.mouse.click(empty.x, empty.y)
@@ -921,7 +921,7 @@ async function drawLine(page: Page, from: string, to: string) {
 }
 
 test("ロック中のページでは、箱にポインタを乗せても線を引く〇が出ず、選んだ線の両端に丸が出ない", async ({ page }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, caption] of [
     [150, "始"],
     [550, "終"],
@@ -965,7 +965,7 @@ test("ロック中のページでは、箱にポインタを乗せても線を�
 test("線をダブルクリックすると線の編集のダイアログが開き、線の種類と端の形を変えて確定すると線が変わる。「線を消す」で消える", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, y, caption] of [
     [150, 150, "始"],
     [550, 350, "終"],
@@ -1007,7 +1007,7 @@ test("線をダブルクリックすると線の編集のダイアログが開�
 test("紙の右クリックの「ページの設定」で、線の既定の通り方を直線にすると、確定の前から、斜めに離れた箱どうしの線が 2 点の直線になる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, y, caption] of [
     [150, 150, "始"],
     [550, 350, "終"],
@@ -1035,7 +1035,7 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
 test("選んだ線の両端に丸が出る。終点の丸を別の箱へ運んで離すとつなぎ替わり、折れ線の途中の区間をつまむと横にずれる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, y, caption] of [
     [150, 150, "始"],
     [550, 250, "終"],
@@ -1089,7 +1089,7 @@ test("選んだ線の両端に丸が出る。終点の丸を別の箱へ運ん�
 test("箱をドラッグしている間、つながる線はその箱に付いてくる（〇から引いた線は端が固定なので、端は同じ辺の上）。離したあともつながったまま", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, y, caption] of [
     [150, 150, "始"],
     [500, 150, "終"],
@@ -1125,7 +1125,7 @@ test("箱をドラッグしている間、つながる線はその箱に付い�
 test("線のキャプションを押すと線が選ばれ、ドラッグすると線から離れた所へ動く。端の丸を同じ箱のふちに沿って動かすと、端の位置が変わる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, y, caption] of [
     [150, 150, "始"],
     [550, 150, "終"],
@@ -1166,7 +1166,7 @@ test("線のキャプションを押すと線が選ばれ、ドラッグする�
 test("線の色は、灰色を紙の色に 4 割混ぜた色。見る人の OS が暗い明暗でも同じ色で、白い紙の上で見える", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, y, caption] of [
     [150, 150, "始"],
     [550, 150, "終"],
@@ -1193,7 +1193,7 @@ test("線の色は、灰色を紙の色に 4 割混ぜた色。見る人の OS �
 test("ブックの設定で線の既定の通り方を直線にすると、ページの設定が「ブックを継承」のページの線が直線になる", async ({
   page,
 }) => {
-  await page.goto("/")
+  await page.goto(BOOK_SCREEN_URL)
   for (const [x, y, caption] of [
     [150, 150, "始"],
     [550, 350, "終"],

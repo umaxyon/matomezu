@@ -236,7 +236,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":1}` {
 		t.Fatalf("event = %s", got)
 	}
-	made := perform(`{"action":"@matomezu/base:book-create","args":{"title":"F","type":"ex2:flow"}}`)
+	made := perform(`{"action":"@matomezu/base:book-create","args":{"title":"F","project":"default","type":"ex2:flow"}}`)
 	if !strings.Contains(made, `"ok":true`) {
 		t.Fatalf("@matomezu/base:book-create = %s", made)
 	}
@@ -307,7 +307,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place after removing = %s", got)
 	}
-	if got := perform(`{"action":"@matomezu/base:book-create","args":{"title":"D","type":"@matomezu/drawing:drawing"}}`); !strings.Contains(got, `"ok":true`) {
+	if got := perform(`{"action":"@matomezu/base:book-create","args":{"title":"D","project":"default","type":"@matomezu/drawing:drawing"}}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("@matomezu/base:book-create drawing = %s", got)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); !strings.Contains(got, `"ok":false`) {
@@ -317,11 +317,11 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"annotations":{},"books":[],"mailbox":[],"plugins":[],"settings":null,"touched":{}}` {
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"annotations":{},"books":[],"mailbox":[],"participantCalls":{},"participants":[],"plugins":[],"settings":null,"touched":{}}` {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
-		return `{"type":"@matomezu/drawing:drawing","id":"b1","title":"` + title + `","pages":[]}`
+		return `{"type":"@matomezu/drawing:drawing","id":"b1","title":"` + title + `","project":"default","pages":[]}`
 	}
 	put := func(title string, base int) (int, string) {
 		return send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book(title)+`,"base":`+strconv.Itoa(base)+`}`, nil)
@@ -333,7 +333,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"mailbox":[],"plugins":[],"settings":null,"touched":{"b1":"`
+	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"mailbox":[],"participantCalls":{},"participants":[],"plugins":[],"settings":null,"touched":{"b1":"`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -342,14 +342,14 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 	s := newServer(t, nil)
 	book := func(id string) string {
-		return `{"type":"@matomezu/drawing:drawing","id":"` + id + `","title":"t","pages":[]}`
+		return `{"type":"@matomezu/drawing:drawing","id":"` + id + `","title":"t","project":"default","pages":[]}`
 	}
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book("b1")+`,"base":0}`, nil)
 	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`, nil)
 	if code, body := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[`+book("b3")+`,`+book("b2")+`]}`, nil); code != 200 {
 		t.Fatalf("reset = %d %s", code, body)
 	}
-	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"mailbox":[],"plugins":[],"settings":null,"touched":{}}`
+	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"mailbox":[],"participantCalls":{},"participants":[],"plugins":[],"settings":null,"touched":{}}`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -397,7 +397,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 	}
 }
 
-const drawing = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
+const drawing = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","project":"default","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 // listen は /api/events につなぎ、届いたイベントを「名前 data」の行で返す通り道
 func listen(t *testing.T, url string) <-chan string {
@@ -567,7 +567,7 @@ func TestTrashABook(t *testing.T) {
 	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"trashed":"2026-10-29T00:00:00.000Z"`) {
 		t.Fatalf("data = %s", data)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); got != `{"books":[]}` {
+	if _, got := send(t, "GET", s.URL+"/api/ai/books?projects=default", "", ai); got != `{"books":[]}` {
 		t.Fatalf("ai books = %s", got)
 	}
 	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); code != 404 {
@@ -623,12 +623,71 @@ func TestAICannotTrashABookOnAScreen(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
 		t.Fatalf("ai trash on a screen = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"id":"b1"`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/books?projects=default", "", ai); !strings.Contains(got, `"id":"b1"`) {
 		t.Fatalf("the book left: %s", got)
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":null,"stages":[{"id":"s1","book":null}]}}`, nil)
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("ai trash = %s", got)
+	}
+}
+
+// コントロールセンターを前に出している窓の後ろに、ブックスクリーンが開いているブックも、AI はゴミ箱に入れられない（open-on-screen）
+func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"control-center","hidden":{"book":"b1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
+	trash := `{"action":"@matomezu/base:book-trash","args":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
+		t.Fatalf("ai trash behind the control center = %s", got)
+	}
+}
+
+// コントロールセンターを前に出している間、後ろのブックスクリーンのブックは開いたことにならない。ブックスクリーンが前に戻ったら開いたことになる
+func TestTouchedIgnoresTheBookScreenBehindTheControlCenter(t *testing.T) {
+	s := newServer(t, nil)
+	screen := listen(t, s.URL)
+	next(t, screen)
+	touched := func() map[string]string {
+		_, body := send(t, "GET", s.URL+"/api/data", "", nil)
+		var data struct {
+			Touched map[string]string `json:"touched"`
+		}
+		if err := json.Unmarshal([]byte(body), &data); err != nil {
+			t.Fatal(err)
+		}
+		return data.Touched
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"control-center","hidden":{"book":"b0","stages":[{"id":"s1","book":"b0"}]}},"seq":1}`, nil)
+	if got := touched(); got["b0"] != "" {
+		t.Fatalf("touched behind the control center = %v", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"book-screen","book":"b0","stages":[{"id":"s1","book":"b0"}]},"seq":2}`, nil)
+	nextTouched(t, screen)
+	if got := touched(); got["b0"] == "" {
+		t.Fatalf("touched after the book screen came to front = %v", got)
+	}
+}
+
+// AI の view は、コントロールセンターを前に出している間、出している物（front）と、隠れているブックスクリーンの book・page（hidden）を分けて返す。
+// show は隠れているブックスクリーンのステージを指せる
+func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"control-center","hidden":{"book":"b1","page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
+	_, got := send(t, "GET", s.URL+"/api/ai/view", "", ai)
+	if got != `{"front":"control-center","hidden":{"awaiting":[],"book":"b1","canSplit":true,"page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}]}}` {
+		t.Fatalf("view = %s", got)
+	}
+	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s1"}`, ai); !strings.Contains(body, `"ok":true`) {
+		t.Fatalf("show onto a hidden stage = %s", body)
+	}
+	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s9"}`, ai); !strings.Contains(body, `"no-stage"`) {
+		t.Fatalf("show onto a stage that is not there = %s", body)
 	}
 }
 
@@ -722,12 +781,12 @@ func TestAIEntrancesNeedTheToken(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	auth := map[string]string{"Authorization": "Bearer secret"}
-	for _, path := range []string{"/api/ai/view", "/api/ai/books", "/api/ai/books/b1", "/api/ai/settings", "/api/ai/catalog"} {
+	for _, path := range []string{"/api/ai/view", "/api/ai/books?projects=default", "/api/ai/books/b1", "/api/ai/settings", "/api/ai/catalog"} {
 		if code, _ := send(t, "GET", s.URL+path, "", nil); code != 401 {
 			t.Errorf("%s without the token = %d", path, code)
 		}
 	}
-	if _, body := send(t, "GET", s.URL+"/api/ai/books", "", auth); body != `{"books":[{"id":"b1","type":"@matomezu/drawing:drawing","title":"T","version":1}]}` {
+	if _, body := send(t, "GET", s.URL+"/api/ai/books?projects=default", "", auth); body != `{"books":[{"id":"b1","type":"@matomezu/drawing:drawing","title":"T","project":"default","version":1}]}` {
 		t.Fatalf("books = %s", body)
 	}
 	code, body := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"title":"Two"},"on":{"book":"b1"}}`, auth)
@@ -818,7 +877,7 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 func TestListsWhyABookCannotBeRead(t *testing.T) {
 	s := newServer(t, nil)
 	// ex2 を結んでいる間に書いたフローのブックは、ex2 を外すと読めなくなる（読めないブックは書けないので、結んでから書く）
-	flow := `{"type":"ex2:flow","id":"f1","title":"Flow","pages":[]}`
+	flow := `{"type":"ex2:flow","id":"f1","title":"Flow","project":"default","pages":[]}`
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link = %s", got)
 	}
@@ -829,7 +888,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		t.Fatalf("unlink = %s", got)
 	}
 	problem := func() string {
-		_, body := get(t, s.URL+"/api/ai/books", "secret")
+		_, body := get(t, s.URL+"/api/ai/books?projects=default", "secret")
 		var got struct {
 			Books []struct {
 				ID      string `json:"id"`
@@ -869,11 +928,11 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 // 一部のプラグインが無いだけのブックは読め、AI のブックの一覧には warning が付く（problem は付かない）
 func TestListsAWarningForAPartlyKnownBook(t *testing.T) {
 	s := newServer(t, nil)
-	book := `{"type":"@matomezu/drawing:drawing","id":"u1","title":"Stars","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":0,"y":0,"props":{}}]}]}`
+	book := `{"type":"@matomezu/drawing:drawing","id":"u1","title":"Stars","project":"default","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":0,"y":0,"props":{}}]}]}`
 	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/u1", `{"book":`+book+`,"base":0}`, nil); code != 200 {
 		t.Fatalf("put = %d %s", code, body)
 	}
-	_, body := get(t, s.URL+"/api/ai/books", "secret")
+	_, body := get(t, s.URL+"/api/ai/books?projects=default", "secret")
 	if !strings.Contains(body, `"warning":"W007 @foo/stars: book u1 (Stars): it has @foo/stars:star, not in the catalog (kept as they are)"`) || strings.Contains(body, `"problem"`) {
 		t.Fatalf("books = %s", body)
 	}
@@ -926,7 +985,7 @@ func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
 	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"b1"`) {
 		t.Fatalf("touched after writing = %s", got)
 	}
-	// 窓に新しく出たブックは開いた時刻を残す（マスターのように DB に無いブックも）
+	// 窓に新しく出たブックは開いた時刻を残す（DB に無いブックも）
 	view := func(seq int, books ...string) {
 		stages := ""
 		for i, b := range books {
@@ -947,25 +1006,25 @@ func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
 		}
 		return data.Touched
 	}
-	view(1, "master", "b1")
-	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"master"`) && !strings.Contains(got, `"book":"b1"`) {
+	view(1, "b0", "b1")
+	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"b0"`) && !strings.Contains(got, `"book":"b1"`) {
 		t.Fatalf("touched after opening = %s", got)
 	}
 	first := touched()
-	if first["master"] == "" || first["b1"] == "" {
+	if first["b0"] == "" || first["b1"] == "" {
 		t.Fatalf("touched = %v", first)
 	}
 	// 出したままのブックは、ほかの知らせ（カレントの操作など）があっても開き直さない
 	time.Sleep(5 * time.Millisecond)
-	view(2, "master", "b1")
-	if got := touched(); got["master"] != first["master"] || got["b1"] != first["b1"] {
+	view(2, "b0", "b1")
+	if got := touched(); got["b0"] != first["b0"] || got["b1"] != first["b1"] {
 		t.Fatalf("kept on screen = %v; want %v", got, first)
 	}
 	// 一度消えてまた出たら、開き直した
-	view(3, "master")
+	view(3, "b0")
 	time.Sleep(5 * time.Millisecond)
-	view(4, "master", "b1")
-	if got := touched(); got["b1"] <= first["b1"] || got["master"] != first["master"] {
+	view(4, "b0", "b1")
+	if got := touched(); got["b1"] <= first["b1"] || got["b0"] != first["b0"] {
 		t.Fatalf("shown again = %v; was %v", got, first)
 	}
 }
@@ -1083,7 +1142,7 @@ func TestEditLocksSeeOnlyTheLockedThing(t *testing.T) {
 // 置いたときのままの書き方（読み直すと既定が足される）のブックでも、編集ロックを掛けていない物を AI が変えれば通る
 func TestEditLocksIgnoreDefaultsFilledOnRead(t *testing.T) {
 	s := newServer(t, nil)
-	book := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+	book := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","project":"default","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"k1","item":"@matomezu/box:shape-nest-box","x":10,"y":10,"props":{"caption":"一"}},` +
 		`{"id":"k2","item":"@matomezu/box:shape-nest-box","x":300,"y":10,"props":{"caption":"二"}}]}]}`
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book+`,"base":0}`, nil)

@@ -5,10 +5,11 @@ import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { createBook } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
+import { DEFAULT_PROJECT } from "../../../core/project"
 import { worldOf } from "../../../store/world"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useHome, useMatomezuState } from "../../../ui/store-context"
+import { useControlCenter, useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form, Section } from "../dialog-host/FormParts"
@@ -32,8 +33,8 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const createAndOpen = useCreateBook(stage)
   const [title, setTitle] = useState("")
   const catalog = useCoreCatalog()
-  const home = useHome()
-  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, home })))
+  const controlCenter = useControlCenter()
+  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, controlCenter })))
   const [type, setType] = useState(types[0] ?? "")
   const [settings, setSettings] = useState<SettingsPatch>({})
   const asks = type ? (bookType(catalog, type).createSettings ?? []) : []
@@ -95,7 +96,10 @@ function CreateSettingsInputs({
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   // 項目のビューに渡すブック（まだ作っていないので、そのタイプの空のブック）
-  const draft = useMemo(() => createBook(catalog, type, { id: "new", title: "" }), [catalog, type])
+  const draft = useMemo(
+    () => createBook(catalog, type, { id: "new", title: "", project: DEFAULT_PROJECT }),
+    [catalog, type],
+  )
   const settings = useSettingControls(draft, "book", null, asks)
   useEffect(() => onChange(settings.patch), [settings.patch, onChange])
   return <Section title={t("{type} settings", { type: t(bookType(catalog, type).title) })}>{settings.controls}</Section>

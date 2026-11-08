@@ -6,13 +6,13 @@ import type { ActionAttach, ActionDef, ActionTarget, ScopeRequired } from "../co
 import type { AnnotationDef } from "../core/def/annotation"
 import {
   type BookSchema,
+  type BookTypeDef,
   type DataOf,
-  type ManyBookTypeDef,
   type NewBook,
-  type SingleBookTypeDef,
   type WithTypeField,
   withTypeField,
 } from "../core/def/book-type"
+import type { ControlCenterDef } from "../core/def/control-center"
 import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
 import type { MailDef } from "../core/def/mail"
 import type { PaperDef } from "../core/def/paper"
@@ -37,22 +37,17 @@ type Titled<D, K extends string> = Omit<D, "id" | "title"> & { title: K }
 type Placed<D, Id extends string> = Omit<D, "id" | "title"> & { id: Id; title: MessageKey }
 type ShapeProps = ShapeItemDef["props"]
 
-// ブックのタイプ（schema に type は書かない。1 冊だけのタイプのブックは id と名前も書かない）。book と create の返すデータの形は、組み立てが schema で確かめる
+// ブックのタイプ（schema に type は書かない）。create の返すデータの形は、組み立てが schema で確かめる
 // （ここで schema から型を作って縛ると、型の推論が回って崩れる）
-type SingleIn<S extends BookSchema, K extends string> = Titled<Omit<SingleBookTypeDef<S>, "book">, K> & { book: object }
-type ManyIn<S extends BookSchema, K extends string> = Titled<Omit<ManyBookTypeDef<S>, "create">, K> & {
+type BookTypeIn<S extends BookSchema, K extends string> = Titled<Omit<BookTypeDef<S>, "create">, K> & {
   create(init: NewBook): object
 }
-type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<
-  T,
-  "id" | "title" | "schema" | "book" | "create"
-> & {
+type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<T, "id" | "title" | "schema" | "create"> & {
   id: Id
   title: MessageKey
   schema: WithTypeField<S, Id>
-} & (T extends { single: true }
-    ? { book: DataOf<WithTypeField<S, Id>> & { title: string } }
-    : { create(init: NewBook): DataOf<WithTypeField<S, Id>> })
+  create(init: NewBook): DataOf<WithTypeField<S, Id>>
+}
 
 // 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
 export interface PluginKit<P extends string, M extends MessageMap> {
@@ -140,12 +135,15 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: MailDef<Pr, keyof M & string> & { id: Id },
   ): Omit<MailDef<Pr>, "id"> & { id: Owned<P, Id> }
 
-  // ブックのタイプ: データの type（と 1 冊だけのタイプのブックの id）は本当の id。schema に type は書かず、ここで足す
-  defineBookType<
-    const Id extends string,
-    const S extends BookSchema,
-    const T extends SingleIn<S, keyof M & string> | ManyIn<S, keyof M & string>,
-  >(def: T & { id: Id; schema: S }): BookTypeOut<T, S, Owned<P, Id>>
+  // ブックのタイプ: データの type は本当の id。schema に type は書かず、ここで足す
+  defineBookType<const Id extends string, const S extends BookSchema, const T extends BookTypeIn<S, keyof M & string>>(
+    def: T & { id: Id; schema: S },
+  ): BookTypeOut<T, S, Owned<P, Id>>
+
+  // コントロールセンター（ブックでない、利用者に 1 つの入口。core/def/control-center.ts）
+  defineControlCenter<const Id extends string, const T extends Omit<ControlCenterDef, "id">>(
+    def: T & { id: Id },
+  ): Omit<T, "id"> & { id: Owned<P, Id> }
 
   // テーマ: tokens の鍵のうち : の無いものは自分のテーマキー
   defineTheme<const Id extends string, const T extends Titled<ThemeDef, keyof M & string>>(
@@ -230,13 +228,15 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     definePermission: place,
     defineAnnotation: place,
     defineMail: place,
-    defineBookType: (def: { id: string; schema: BookSchema; book?: object; create?(init: NewBook): object }) => {
+    defineBookType: (def: { id: string; schema: BookSchema; create(init: NewBook): object }) => {
       const id = owned(plugin, def.id)
-      const placed = { ...place(def), schema: withTypeField(def.schema, id) }
-      const { create, book } = def
-      if (book !== undefined) return { ...placed, book: { type: id, id, title: "", ...book } } // 名前は土台のフィールド（1 冊だけのブックは空）
-      return { ...placed, create: (init: NewBook) => ({ type: id, ...create?.(init) }) }
+      return {
+        ...place(def),
+        schema: withTypeField(def.schema, id),
+        create: (init: NewBook) => ({ type: id, ...def.create(init) }),
+      }
     },
+    defineControlCenter: place,
     defineTheme: (def: { id: string; tokens?: Record<string, unknown> }) => {
       const placed = place(def)
       if (!def.tokens) return placed
