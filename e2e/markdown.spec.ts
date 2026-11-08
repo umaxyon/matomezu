@@ -130,6 +130,26 @@ test("境目を掴んで動かすとペインの大きさが変わり、ダブ�
   expect(top.height / (top.height + bottom.height)).toBeCloseTo(0.3, 1)
 })
 
+test("言語名の付いたコードの塊と生の HTML は、キーワード・文字列などを字と違う色で描く。言語名の無い塊は色付けしない", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  await pane(page, "ソース").getByRole("textbox").click()
+  await page.keyboard.insertText('```ts\nconst a = "s"\n```\n\n```\nconst b = 1\n```\n\n<div class="x">h</div>')
+  const preview = pane(page, "プレビュー")
+  const code = preview.locator("pre").first()
+  await expect(code.locator('[data-code-color="keyword"]')).toHaveText("const")
+  const color = (el: ReturnType<typeof code.locator>) => el.evaluate(e => getComputedStyle(e).color)
+  const [keyword, string, text] = [
+    await color(code.locator('[data-code-color="keyword"]')),
+    await color(code.locator('[data-code-color="string"]')),
+    await color(code),
+  ]
+  expect(new Set([keyword, string, text]).size).toBe(3)
+  await expect(preview.locator("pre").nth(1).locator("[data-code-color]")).toHaveCount(0)
+  await expect(preview.locator("pre").nth(2).locator('[data-code-color="tag"]').first()).toBeVisible()
+})
+
 test("プレビューのペインの右クリックで、ページの設定を開いてページの名前を変えられる", async ({ page }) => {
   await markdownBook(page)
   await pane(page, "プレビュー").click({ button: "right", position: { x: 60, y: 120 } })

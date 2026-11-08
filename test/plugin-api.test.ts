@@ -228,6 +228,7 @@ test("matomezu/ui が出す名前", () => {
     "defineWidget",
     "defineWorkspace",
     "dividerClass",
+    "highlightCode",
     "inlineClass",
     "modPressed",
     "pairClass",

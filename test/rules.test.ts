@@ -54,9 +54,10 @@ const pluginRoot = (rel: string) => {
   return parts.slice(0, parts[1] === "books" || parts[1] === "items" ? 3 : 2).join("/")
 }
 // base は土台を直に読む（プラグイン API の部品を作る側）。プラグイン API は読まない（plugin-api が base を読まないのと合わせて、輪を作らない）
-// 土台の表で読んでよい物のほかの外のライブラリは、ライブラリごとに決めた 1 つのファイルだけが読む（mdast は型だけ。@types/mdast）
+// 土台の表で読んでよい物のほかの外のライブラリは、ライブラリごとに決めた 1 つのファイルだけが読む（mdast・hast は型だけ。@types/mdast・@types/hast）
 const LIBRARY_READERS: Record<string, readonly string[]> = {
   "plugins/base/markdown/parse.ts": ["mdast", "mdast-util-from-markdown", "mdast-util-gfm", "micromark-extension-gfm"],
+  "plugins/base/code-highlight/highlight.ts": ["hast", "refractor", "refractor/zig"],
 }
 const baseAllowed = (rel: string) => (t: string) =>
   (isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod") ||
