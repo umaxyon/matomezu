@@ -95,7 +95,7 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toHaveCount(0)
 })
 
-test("開いているブックが替わると、左サイドパネルは閉じる", async ({ page }) => {
+test("開いているブックが替わっても、左サイドパネルは閉じない", async ({ page }) => {
   const ai = aiAuth()
   await page.goto("/")
   await page.bringToFront()
@@ -110,7 +110,8 @@ test("開いているブックが替わると、左サイドパネルは閉じ�
   ).json()
   await openOutbox(page)
   await page.request.post("/api/ai/show", { headers: ai, data: { book: made.result.book } })
-  await expect(leftPanel(page)).toHaveCount(0)
+  await expect(page.getByRole("region", { name: "ステージ" })).toContainText("ページがありません")
+  await expect(leftPanel(page)).toBeVisible()
 })
 
 test("分けているとき右のステージで左サイドパネルを開くと、窓の左に出て、右のステージが窓いっぱいに広がり、左のステージの幅は 0。閉じると分けた幅に戻る", async ({
@@ -126,10 +127,10 @@ test("分けているとき右のステージで左サイドパネルを開く�
   await expect(leftPanel(page)).toBeVisible()
   const side = (await leftPanel(page).boundingBox())!
   expect(side.x).toBe(0)
-  expect(side.width).toBe(320)
+  expect(side.width).toBe(400)
   await expect.poll(async () => (await stages.nth(0).boundingBox())?.width ?? 0).toBe(0)
   const wide = (await stages.nth(1).boundingBox())!
-  expect(Math.abs(wide.x - 320)).toBeLessThan(2)
+  expect(Math.abs(wide.x - 400)).toBeLessThan(2)
   expect(wide.width).toBeGreaterThan(before.width + 100)
   await page.keyboard.press("Escape")
   await expect(leftPanel(page)).toHaveCount(0)

@@ -2,12 +2,12 @@
 // 閉じれば戻す（幅の動きは右サイドパネルと同じ。workspace/WorkspaceView.tsx）。上にタブの行と閉じるボタンを置き、
 // 中身は、配置がスロットに置いたウィジェットのうち開いているタブの 1 つだけを描く。タブの名前はウィジェットの定義の leftSidePanel.title。
 // 窓に 1 つだけで、ほかのステージでも開いていれば、カレントでない方を閉じる。開いたら中にフォーカスを入れ、Esc は左サイドパネルのキーの範囲で閉じる。
-// 外を左ボタンで押したら閉じる（ダイアログ・メニュー・トースト・開くボタンを押したときは閉じない）。開いたステージで開いているブックが替わったときも閉じる
+// 外を左ボタンで押したら閉じる（ダイアログ・メニュー・トースト・開くボタンを押したときは閉じない）。ブックが替わっても閉じない（中身が開いているブックに合わせて替わる）
 import { type ReactNode, useEffect, useRef } from "react"
 import { useMessages, useT } from "../../../ui/i18n"
-import { useMatomezuState } from "../../../ui/store-context"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { POPUP_KEEPS } from "../utils/popup-keeps"
 import type { StageSlotProps } from "../workspace/ui"
 import {
   useCloseLeftSidePanel,
@@ -21,9 +21,9 @@ import { LEFT_SIDE_PANEL } from "./slots"
 import { leftSidePanelPressCloses } from "./state"
 
 // 押しても左サイドパネルを閉じない所（ダイアログ・メニュー・トースト・左サイドパネルを開くボタン）
-const KEEPS = "[role=dialog], [role=menu], [role=status], [role=alert], [data-left-side-panel-opener]"
+const KEEPS = `${POPUP_KEEPS}, [data-left-side-panel-opener]`
 
-export const LEFT_SIDE_PANEL_WIDTH = 320 // 開いているときの幅（px。窓より広ければ窓の幅で、ステージを覆う）
+export const LEFT_SIDE_PANEL_WIDTH = 400 // 開いているときの幅（px。窓より広ければ窓の幅で、ステージを覆う）
 
 export function LeftSidePanel() {
   const t = useMessages(kit)
@@ -66,16 +66,10 @@ function Opened({
   const ref = useRef<HTMLDivElement>(null)
   const set = useSetLeftSidePanel()
   const widgets = useUiCatalog().widgets
-  const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book ?? null)
   // 開いたら中にフォーカスを入れる（Esc を左サイドパネルのキーの範囲で受けるため）
   useEffect(() => {
     if (!ref.current?.contains(document.activeElement)) ref.current?.focus({ preventScroll: true })
   }, [])
-  // 開いたときのブックから替わったら閉じる
-  const first = useRef(book)
-  useEffect(() => {
-    if (book !== first.current) set(stage, null)
-  }, [book, stage, set])
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target instanceof Element ? e.target : null
