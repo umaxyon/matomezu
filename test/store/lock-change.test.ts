@@ -5,12 +5,16 @@ import { changeWithLock } from "../../web/src/plugins/base/utils/lock"
 
 function run(was: boolean, want: boolean, over: { unlock?: boolean; change?: boolean } = {}) {
   const calls: string[] = []
+  const step = (name: string, result: boolean) => () => {
+    calls.push(name)
+    return result
+  }
   const done = changeWithLock(
     was,
     want,
-    () => (calls.push("lock"), true),
-    () => (calls.push("unlock"), over.unlock ?? true),
-    () => (calls.push("change"), over.change ?? true),
+    step("lock", true),
+    step("unlock", over.unlock ?? true),
+    step("change", over.change ?? true),
   )
   return { done, calls }
 }
