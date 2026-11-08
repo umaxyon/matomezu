@@ -2,6 +2,7 @@
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { onPaper, paper } from "./helpers/paper"
+import { fromMenu } from "./helpers/stage-menu"
 
 const SLIDE_BOOK = {
   type: "@matomezu/slide-book:slide",
@@ -198,5 +199,18 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveCount(0)
     await page.keyboard.press("ControlOrMeta+z")
     await expect(page.locator("[data-item]")).toHaveCount(1)
+  })
+})
+
+test.describe("スライドの印刷", () => {
+  test.use({ books: [SLIDE_BOOK] })
+
+  test("印刷プレビューに、スライドのアイテムが載った紙 1 枚が出る", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await (await fromMenu(page, "印刷プレビュー")).click()
+    await expect(page.locator("[data-print-preview]")).toBeVisible()
+    await expect(page.locator("[data-sheet]")).toHaveCount(1)
+    await expect(page.locator("[data-sheet]").getByText("題名のスライド")).toBeVisible()
+    await expect(page.locator("[data-grip]")).toHaveCount(0)
   })
 })

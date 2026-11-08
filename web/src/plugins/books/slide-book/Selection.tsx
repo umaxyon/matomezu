@@ -2,6 +2,7 @@
 // 枠とつまみは、アイテムと同じ位置・大きさ・角度でかける。大きさは画面の上で一定にする（紙の倍率 --paper-zoom で割る）。バーは傾けず、傾けた枠が収まる四角の上に出す
 import { useState } from "react"
 import { useCommand, useMessages } from "../../../plugin-api/ui"
+import { SLIDE_RESET, SLIDE_SET } from "./commands"
 import { cornersOf, type Frame, normalizeAngle } from "./frame"
 import { kit } from "./kit"
 import styles from "./Selection.module.css"
@@ -77,8 +78,8 @@ const BAR_ROOM = 56
 
 function Bar({ item }: { item: SelectedItem }) {
   const t = useMessages(kit)
-  const set = useCommand(item.stage, "@matomezu/slide-book:slide-set")
-  const reset = useCommand(item.stage, "@matomezu/slide-book:slide-reset")
+  const set = useCommand(item.stage, SLIDE_SET.id)
+  const reset = useCommand(item.stage, SLIDE_RESET.id)
   const b = boundsOf(item.frame, item.rotation)
   const above = b.top > BAR_ROOM
   const atRatio = item.ratio === undefined || Math.abs(item.frame.w / item.frame.h - item.ratio) < 0.005
@@ -121,7 +122,7 @@ function Bar({ item }: { item: SelectedItem }) {
 // 角度の数字の入力。決める（Enter か外へ出る）と角度を変える。0 は角度を消す（水平）。入力が数字でなければ元に戻す
 function AngleField({ item }: { item: SelectedItem }) {
   const t = useMessages(kit)
-  const set = useCommand(item.stage, "@matomezu/slide-book:slide-set")
+  const set = useCommand(item.stage, SLIDE_SET.id)
   const [text, setText] = useState(String(Math.round(item.rotation * 100) / 100))
   const commit = () => {
     const n = Number(text)

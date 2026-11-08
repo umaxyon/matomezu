@@ -19,6 +19,7 @@ import {
   useUiCatalog,
 } from "../../../plugin-api/ui"
 import { PaperFrame } from "../../base/ui"
+import { SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "./commands"
 import { drawnFrame, type Frame, type Grip, resizeFrame, rotatedTo, thinned } from "./frame"
 import { kit } from "./kit"
 import { GRIPS, type SelectedItem, Selection } from "./Selection"
@@ -77,10 +78,10 @@ function Page({ stage }: { stage: StageView }) {
   const ui = useUiCatalog()
   const toPaperAt = useToPaper(stage.id)
   const { select } = useActions()
-  const put = useCommand(stage.id, "@matomezu/slide-book:slide-put")
-  const moveTo = useCommand(stage.id, "@matomezu/slide-book:slide-move-to")
-  const reshape = useCommand(stage.id, "@matomezu/slide-book:slide-reshape")
-  const set = useCommand(stage.id, "@matomezu/slide-book:slide-set")
+  const put = useCommand(stage.id, SLIDE_PUT.id)
+  const moveTo = useCommand(stage.id, SLIDE_MOVE_TO.id)
+  const reshape = useCommand(stage.id, SLIDE_RESHAPE.id)
+  const set = useCommand(stage.id, SLIDE_SET.id)
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
   const [live, setLive] = useState<Live | null>(null)

@@ -4,11 +4,16 @@
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, DIAGRAM_THEME_TYPE, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
 import { kit } from "./kit"
+import { slideMinimapMarks, slidePrintSheets } from "./print"
 
 // スライドの見せ方で描いている間のキー（ビューの根が名乗り、押した所がこの中なら、ここのキーが紙のキーより先に効く）
 export const SLIDE_KEY_SCOPE = kit.defineKeyScope({ id: "slide", title: "Slide" })
 
-export const SLIDE_PRESENTATION = kit.definePresentation({ id: "slide" })
+export const SLIDE_PRESENTATION = kit.definePresentation({
+  id: "slide",
+  minimap: slideMinimapMarks, // ミニマップには、アイテムの枠を四角で描く
+  printSheets: slidePrintSheets, // 印刷区画は、紙 1 枚（スライドのアイテムが紙に掛かれば載っている）
+})
 
 const SLIDE_ITEMS = [
   "@matomezu/slide:slide-text",
