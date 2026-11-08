@@ -154,6 +154,36 @@ test("吹き出しに乗せると上に「隠す」が出て、はいで角の�
   await expect(stands(page)).toHaveCount(0)
 })
 
+test("吹き出しは右に入らなくても左に回さず、画面の右の端で止める。左の辺が物の左の辺を越えないように幅を縮め、尾は左に出す", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBox(page, 200, 150, "一")
+  const box = items(page).filter({ hasText: "一" })
+  await writeNote(page, box, "右の端")
+  const bubble = page.getByRole("group", { name: "伝言", exact: true }).getByRole("button", { name: "伝言を開く" })
+  await expect(bubble).toBeVisible()
+  const stage = page.locator("[data-stage]")
+  // 窓を狭め、箱の右に吹き出しが入らず、箱の左の辺から右の端まで 180px より狭くする
+  const b = (await box.boundingBox())!
+  const s = (await stage.boundingBox())!
+  const width = page.viewportSize()!.width - (s.x + s.width - (b.x + 120))
+  await page.setViewportSize({ width: Math.round(width), height: page.viewportSize()!.height })
+  await expect
+    .poll(async () => {
+      const r = (await bubble.boundingBox())!
+      const e = (await stage.boundingBox())!
+      return Math.round(e.x + e.width - (r.x + r.width))
+    })
+    .toBeLessThanOrEqual(6)
+  const r = (await bubble.boundingBox())!
+  const nb = (await box.boundingBox())!
+  expect(r.x).toBeGreaterThanOrEqual(nb.x - 1)
+  expect(r.width).toBeLessThan(180)
+  const tail = (await bubble.locator("svg").first().boundingBox())!
+  expect(tail.x).toBeLessThan(r.x)
+})
+
 test("書いている間は Esc で付けずに閉じる", async ({ page }) => {
   await page.goto("/")
   await addBox(page, 200, 150, "一")

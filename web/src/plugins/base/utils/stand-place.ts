@@ -1,10 +1,13 @@
-// スタンドの置き場所: アンカーの四角のどちら側に、どれだけ離して立てるか。入らなければ反対の側へ回し、置ける範囲（スタンドのレイヤー）の中に収める
+// スタンドの置き場所: アンカーの四角のどちら側に、どれだけ離して立てるか。入らなければ反対の側へ回し（回さない指定なら、その側のまま）、置ける範囲（スタンドのレイヤー）の中に収める
 import type { Point, Rect, Size } from "../../../core/geom"
 
 // corner は右上の角に重ね、edge は上の辺に（すき間を空けずに）乗せる。corner は角のスタンド（corner.tsx）だけが使う
 export type StandPlace = "below" | "above" | "right" | "left" | "corner" | "edge"
 // プラグイン API の Stand に書ける側（角はコーナーステータスで出す）
 export type StandSide = Exclude<StandPlace, "corner">
+
+// 頼んだ側に入らないとき: opposite は反対の側へ回し、none は回さずに範囲の端で止める（物に重なる）
+export type StandTurn = "opposite" | "none"
 
 const GAP = 6 // アンカーとのすき間
 export const STAND_MARGIN = 4 // 置ける範囲の端とのすき間
@@ -19,7 +22,7 @@ const OPPOSITE: Record<StandPlace, StandPlace> = {
 }
 
 // アンカーの四角 anchor の side に、大きさ size のスタンドを置く左上（area は置ける範囲の大きさ。左上が 0,0）
-export function standAt(anchor: Rect, size: Size, area: Size, side: StandPlace): Point {
+export function standAt(anchor: Rect, size: Size, area: Size, side: StandPlace, turn: StandTurn = "opposite"): Point {
   const fits = (s: StandPlace) => {
     const p = standBeside(anchor, size, s)
     return (
@@ -29,7 +32,7 @@ export function standAt(anchor: Rect, size: Size, area: Size, side: StandPlace):
       p.y + size.h <= area.h - STAND_MARGIN
     )
   }
-  const chosen = fits(side) || !fits(OPPOSITE[side]) ? side : OPPOSITE[side]
+  const chosen = turn === "none" || fits(side) || !fits(OPPOSITE[side]) ? side : OPPOSITE[side]
   const p = standBeside(anchor, size, chosen)
   return {
     x: clamp(p.x, STAND_MARGIN, area.w - STAND_MARGIN - size.w),
@@ -37,18 +40,11 @@ export function standAt(anchor: Rect, size: Size, area: Size, side: StandPlace):
   }
 }
 
-// 置いたスタンド（左上 at・大きさ size）から見た、アンカーの四角 anchor の向き（左か右）と、スタンドの中で指す高さ y（スタンドの上から）。
-// 高さは、アンカーの下の辺とスタンドの下の辺の高い方から inset だけ上（スタンドの上から min より下）。吹き出しの尾をアンカーへ向けるのに使う
-export function standFacing(
-  anchor: Rect,
-  at: Point,
-  size: Size,
-  inset: number,
-  min: number,
-): { side: "left" | "right"; y: number } {
-  const side = anchor.x + anchor.w / 2 < at.x + size.w / 2 ? "left" : "right"
+// 置いたスタンド（左上 at・大きさ size）の中で、アンカーの四角 anchor を指す高さ（スタンドの上から）。
+// アンカーの下の辺とスタンドの下の辺の高い方から inset だけ上（スタンドの上から min より下）。吹き出しの尾をアンカーへ向けるのに使う
+export function facingY(anchor: Rect, at: Point, size: Size, inset: number, min: number): number {
   const bottom = Math.min(anchor.y + anchor.h, at.y + size.h) - at.y - inset
-  return { side, y: clamp(bottom, min, Math.max(min, size.h - inset)) }
+  return clamp(bottom, min, Math.max(min, size.h - inset))
 }
 
 // アンカーの四角 anchor の上の辺が、見える所 seen の外にあるか（辺が見える所と重ならなければ外）

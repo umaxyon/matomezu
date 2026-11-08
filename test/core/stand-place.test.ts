@@ -1,11 +1,11 @@
 // スタンドの置き場所（plugins/base/utils/stand-place.ts）: アンカーのどちら側に立て、入らなければどこへ回すか。上の辺が外に出たか・点を範囲に収める
 import { describe, expect, test } from "bun:test"
 import {
+  facingY,
   intersectRect,
   pointInto,
   revealShift,
   standAt,
-  standFacing,
   topEdgeOut,
   unionRect,
 } from "../../web/src/plugins/base/utils/stand-place"
@@ -26,6 +26,9 @@ describe("スタンドの置き場所", () => {
   test("右に立てるときは上端をそろえ、右に入らなければ左に回す", () => {
     expect(standAt({ x: 50, y: 50, w: 80, h: 30 }, size, area, "right")).toEqual({ x: 136, y: 50 })
     expect(standAt({ x: 330, y: 50, w: 60, h: 30 }, size, area, "right")).toEqual({ x: 224, y: 50 })
+  })
+  test("回さない指定なら、入らなくても頼んだ側のまま、範囲の端で止める（物に重なる）", () => {
+    expect(standAt({ x: 330, y: 50, w: 60, h: 30 }, size, area, "right", "none")).toEqual({ x: 296, y: 50 })
   })
   test("角に立てるときは真ん中を右上の角に、辺に乗せるときは左端をそろえて上の辺に置く", () => {
     expect(standAt({ x: 50, y: 50, w: 80, h: 30 }, { w: 20, h: 20 }, area, "corner")).toEqual({ x: 120, y: 40 })
@@ -82,13 +85,11 @@ describe("画面の外に出たアンカー", () => {
   })
 })
 
-test("吹き出しの尾: アンカーのある側（左か右）と、アンカーとスタンドの下の辺の高い方から inset 上の高さ（min より下）", () => {
+test("吹き出しの尾の高さ: アンカーとスタンドの下の辺の高い方から inset 上（min より下）", () => {
   const size = { w: 160, h: 60 }
-  // 物の右に立った（物はスタンドの左）。物が高ければ、スタンドの下の辺から
-  expect(standFacing({ x: -100, y: 0, w: 94, h: 96 }, { x: 0, y: 0 }, size, 6, 20)).toEqual({ side: "left", y: 54 })
-  // 左へ返った（物はスタンドの右）
-  expect(standFacing({ x: 166, y: 0, w: 94, h: 96 }, { x: 0, y: 0 }, size, 6, 20)).toEqual({ side: "right", y: 54 })
+  // 物が高ければ、スタンドの下の辺から
+  expect(facingY({ x: -100, y: 0, w: 94, h: 96 }, { x: 0, y: 0 }, size, 6, 20)).toBe(54)
   // 物が低ければ、物の下の辺から（min より上には上げない）
-  expect(standFacing({ x: -100, y: 0, w: 94, h: 36 }, { x: 0, y: 0 }, size, 6, 20)).toEqual({ side: "left", y: 30 })
-  expect(standFacing({ x: -100, y: 0, w: 94, h: 10 }, { x: 0, y: 0 }, size, 6, 20)).toEqual({ side: "left", y: 20 })
+  expect(facingY({ x: -100, y: 0, w: 94, h: 36 }, { x: 0, y: 0 }, size, 6, 20)).toBe(30)
+  expect(facingY({ x: -100, y: 0, w: 94, h: 10 }, { x: 0, y: 0 }, size, 6, 20)).toBe(20)
 })

@@ -1,10 +1,9 @@
-/* 吹き出し: 決まった幅で文字を折り返し、上の辺をそろえて下へ伸びる。色はスキンの bubble だけ */
+/* 吹き出し: 決まった幅（幅はビューが決める）で文字を折り返し、上の辺をそろえて下へ伸びる。色はスキンの bubble だけ */
 .bubble {
   display: flex;
   flex-direction: column;
   gap: 6px;
   box-sizing: border-box;
-  width: 180px;
   padding: 8px;
   border: 1px solid var(--skin-border);
   border-radius: 8px;
@@ -66,7 +65,7 @@
   pointer-events: none;
 }
 
-/* 吹き出しの尾（吹き出しの物の側に出し、右なら左右を返す。地は吹き出しと同じで、縁は外側の曲線だけ） */
+/* 吹き出しの尾（吹き出しの左に出す。地は吹き出しと同じで、縁は外側の曲線だけ） */
 .bubble {
   position: relative;
 }
@@ -75,11 +74,6 @@
   left: -13px;
   overflow: visible;
   pointer-events: none;
-}
-.tail[data-side="right"] {
-  left: auto;
-  right: -13px;
-  transform: scaleX(-1);
 }
 .tailFill {
   fill: var(--skin-bubble);
