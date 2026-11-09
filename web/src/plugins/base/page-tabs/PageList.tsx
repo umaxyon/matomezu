@@ -1,5 +1,5 @@
 // ステージの左に縦に並べるページ一覧（ウィジェット page-list。スロット stage-side）: ブックのタイプが ページ一覧（pageList）を選んでいるときだけ出す。
-// ページごとに、ページの番号と縮小絵（サムネイル）を並べる。縮小絵は、ブックのタイプの見せ方の印刷区画 1 つのビュー（printSheet）で描き、一覧の幅に合わせて縮める
+// ページごとに、ページの番号とサムネイルを並べる。サムネイルは、ブックのタイプの見せ方の印刷区画 1 つのビュー（printSheet）で描き、一覧の幅に合わせて縮める
 // （ステージの拡大縮小には従わない）。押したページをそのステージで開く（コマンド page-open）。開いているページは枠と太字の番号で示す。
 // ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-context。ここに追加・複製・削除）。
 // 一覧の下の＋は、最後にページを足す（コマンド page-add-after は最後のページの後ろ）
@@ -22,7 +22,7 @@ import { PAGE_ADD_AFTER, PAGE_CONTEXT, PAGE_OPEN } from "."
 import styles from "./PageList.module.css"
 import { useTabDrag } from "./useTabDrag"
 
-// ページ 1 枚の縮小絵: 紙の大きさ（無ければ 16:9）のままのビューを、一覧の幅に合わせて縮める
+// ページ 1 枚のサムネイル: 紙の大きさ（無ければ 16:9）のままのビューを、一覧の幅に合わせて縮める
 function Thumbnail({ stage, book, page }: { stage: string; book: Book; page: Page }) {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews

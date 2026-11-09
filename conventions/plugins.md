@@ -70,7 +70,7 @@
 - id を持つ物の右上の角に出す物（コーナーステータス）は、`Stand` を立てずに `AtCorner` で出す（base が物ごとにまとめて出す）。種類ごとに、base のスロット `@matomezu/base:corner-statuses` に置くウィジェット（`defineCornerStatus`。名前が要る）で名乗り、`AtCorner` はその id を名指す。出す・消すのは `AtCorner` を出したビューが決め、まとめた見た目の開け閉めは base が決める（上の「閉じ方は、スタンドを出したビューが決める」の例外）
 - ブックのタイプによる出し分けは配置ではなく、ウィジェットが開いているブックを見て自分で決める
 - ステージの上に浮かぶスロットは、上の行（`@matomezu/base:stage-top`。左上）と右上の角（`@matomezu/base:stage-corner`）。そこに置いたウィジェットはスロットが浮かべるので、自分で位置を決めない。ほかに、ステージの枠を基準に位置を決めて浮かべるウィジェットは、スロット `@matomezu/base:stage-body` に `@matomezu/base:book-view` と並べて置く。ブックの中身のビューの中には置かない。紙の座標で描く物はレイヤーにする。ポインタの所に出す物（道具のアイコンなど）は画面の座標で位置を決めるので、`root` に置く
-- ステージの本体の左に並べる列（ページ一覧など）は、スロット `@matomezu/base:stage-side` に置くウィジェットにする。幅はウィジェットが決め、ブックのタイプによる出し分けはウィジェットが自分で決める（ブックのタイプが選ぶフラグで決める）。印刷プレビューの間は出さない
+- ステージの本体の左に並べる列（ページ一覧など）は、スロット `@matomezu/base:stage-side` に置くウィジェットにする。幅はウィジェットが決める
 - 右サイドパネルに出す物は、スロット `@matomezu/base:right-side-panel` に置くウィジェットにし、幅はそのウィジェットの定義の `rightSidePanel` に書く。開け閉めはプラグイン API の右サイドパネルのフック（`useOpenRightSidePanel` など）でし、自分で開け閉めや幅の動きを作らない
 - 左サイドパネルに出す物は、スロット `@matomezu/base:left-side-panel` に置くタブのウィジェットにし、`defineLeftSidePanelTab` で作る（タブの名前が要る。追加プラグインは `place` で置いてほしいと書く）。開け閉めはプラグイン API の左サイドパネルのフック（`useOpenLeftSidePanel` など）でし、自分で作らない
 - 設定画面に設定カテゴリを足すときは、スロット `@matomezu/base:settings-categories` に置くウィジェットにし、`defineSettingsCategory` で作る（追加プラグインは `place` で置いてほしいと書く）。配置に置いた設定カテゴリのどれも名指していない利用者の設定の項目は、base の「全体」に並ぶ

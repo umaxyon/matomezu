@@ -18,7 +18,7 @@ export { PAGE_ADD } from "./page-add"
 declare module "../../../core/catalog" {
   interface BookTypeExtras {
     addPagesFromTabs?: boolean
-    // ページ一覧（ステージの左に、ページの縮小絵を縦に並べる）を出すか。出すタイプはページタブを出さない（無ければ出さない。ページを持つタイプだけが使う）
+    // ページ一覧（ステージの左に、ページのサムネイルを縦に並べる）を出すか。出すタイプはページタブを出さない（無ければ出さない。ページを持つタイプだけが使う）
     pageList?: boolean
     // ページを複製できるか（複製したページの中の id を振り直すだけで済むタイプだけが宣言する。無ければ複製できない）
     duplicatesPages?: boolean

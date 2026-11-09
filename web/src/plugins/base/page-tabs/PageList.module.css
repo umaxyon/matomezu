@@ -40,7 +40,7 @@
   background: none;
   cursor: pointer;
 }
-/* 縮小絵: 紙の面の色の枠（中のビューは紙の大きさで描いて縮める） */
+/* サムネイル: 紙の面の色の枠（中のビューは紙の大きさで描いて縮める） */
 .thumb {
   position: relative;
   width: 100%;

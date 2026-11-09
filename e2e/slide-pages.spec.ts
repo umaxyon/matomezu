@@ -1,4 +1,4 @@
-// スライドのブックのページ一覧（ステージの左の縦の列）: 縮小絵を並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブは出ない
+// スライドのブックのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブは出ない
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 
 const page3 = (id: string, title: string) => ({
@@ -31,7 +31,7 @@ test.use({
   ],
 })
 
-test("ページ一覧は縮小絵を縦に並べ、ページタブは出ない。押したページが開く", async ({ page }) => {
+test("ページ一覧はサムネイルを縦に並べ、ページタブは出ない。押したページが開く", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const list = page.locator("[data-page-list]")
   await expect(list).toBeVisible()
@@ -39,13 +39,13 @@ test("ページ一覧は縮小絵を縦に並べ、ページタブは出ない�
   const pages = list.locator("[data-page]")
   await expect(pages).toHaveCount(3)
   await expect(pages.nth(0).locator("button")).toHaveAttribute("aria-current", "page")
-  await expect(pages.nth(1)).toContainText("二枚目の文字") // 縮小絵に中身が描かれる
+  await expect(pages.nth(1)).toContainText("二枚目の文字") // サムネイルに中身が描かれる
   await pages.nth(1).locator("button").click()
   await expect(pages.nth(1).locator("button")).toHaveAttribute("aria-current", "page")
   await expect(page.locator('[data-item="p2-t"]').first()).toBeVisible()
 })
 
-test("縮小絵をドラッグして並べ替える", async ({ page }) => {
+test("サムネイルをドラッグして並べ替える", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const pages = page.locator("[data-page-list] [data-page]")
   await expect(pages).toHaveCount(3)

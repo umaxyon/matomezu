@@ -4,25 +4,11 @@
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
-import { idMaker, idsIn } from "../../../core/ids"
+import { idMaker, idsIn, renamedIn } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
 
 const ARGS = z.strictObject({ page: z.string().min(1), title: z.string().trim().min(1).optional() })
-
-// 値 value の中の id を、表 renamed で新しい id に置き換えた写し（つなぐものの from・to も同じ表で付け替える）
-function renamedIn(value: unknown, renamed: ReadonlyMap<string, string>): unknown {
-  if (Array.isArray(value)) return value.map(v => renamedIn(v, renamed))
-  if (typeof value !== "object" || value === null) return value
-  return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [
-      k,
-      (k === "id" || k === "from" || k === "to") && typeof v === "string"
-        ? (renamed.get(v) ?? v)
-        : renamedIn(v, renamed),
-    ]),
-  )
-}
 
 export const PAGE_DUPLICATE = kit.defineAction({
   id: "page-duplicate",
@@ -35,13 +21,13 @@ export const PAGE_DUPLICATE = kit.defineAction({
   permissionScope: "book",
   run: (book, args, ctx) => {
     if (!hasPages(book) || !bookType(ctx.catalog, book.type).duplicatesPages) return null
-    const from = book.pages.findIndex((p: ItemPage) => p.id === args.page)
+    const from = book.pages.findIndex(p => p.id === args.page)
     const source = book.pages[from]
     if (!source) return null
     const make = idMaker(ctx.newId, idsIn(book))
     const renamed = new Map(idsIn(source).map(id => [id, make()]))
-    const { locked: _locked, ...rest } = renamedIn(source, renamed) as ItemPage
-    const page = { ...rest, title: args.title ?? source.title } as ItemPage
+    const { locked: _locked, ...rest } = renamedIn(source, renamed)
+    const page: ItemPage = { ...rest, title: args.title ?? source.title }
     return { next: putPage(book, page, from + 1), result: { page: page.id } }
   },
 })

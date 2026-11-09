@@ -13,7 +13,7 @@ import { pageProblems } from "./page-problems"
 import { canChoose, defaultPaper, growsValue, paperChoices } from "./pages"
 
 const ARGS = z.strictObject({
-  title: z.string().trim().min(1).optional(), // ページの名前。無ければ「ページ N」（N は足したあとの番号。今の言語で）
+  title: z.string().trim().min(1).optional(), // ページの名前。無ければ「ページ N」（N は足したあとのページの枚数。今の言語で）
   paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定
   orientation: z.enum(ORIENTATIONS).optional(), // 無ければ規定の既定
   grows: z.union([z.boolean(), z.enum(GROW_CHOICES)]).optional(), // 可変ページにするか、選んだ増やす向き（pages.ts の growsValue）。無ければ可変ページでない
