@@ -179,7 +179,12 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	}
 	args["from"] = req.AI
 	args["participant"] = result.Participant
-	told, err := h.performAs(ids.Notice, args)
+	// 利用者に知らせる郵便は利用者だけが行うアクション。AI の参加の頼みを受けたここ（ホスト）が、利用者として送る
+	nb, err := json.Marshal(args)
+	if err != nil {
+		return Joined{}, err
+	}
+	told, err := h.Perform(Perform{Action: ids.Notice, Args: nb})
 	if err != nil || !told.OK {
 		return refused(told), err
 	}
