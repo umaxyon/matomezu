@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import type { Annotation } from "../../../web/src/core/annotation"
 import type { Book } from "../../../web/src/core/schema/book"
 import { shownTime } from "../../../web/src/plugins/base/left-side-panel/time"
-import { defineLeftSidePanelTab } from "../../../web/src/plugins/base/left-side-panel/ui"
+import { defineLeftSidePanelTab, opensOf, tabEntry } from "../../../web/src/plugins/base/left-side-panel/ui"
 import { newlyRead } from "../../../web/src/plugins/base/note/ReadNotice"
 import { listedPages } from "../../../web/src/plugins/base/outbox/rows"
 import { defineAnnotationIcon } from "../../../web/src/plugins/base/outbox/ui"
@@ -54,21 +54,19 @@ test("伝言が読まれた知らせは、前に未読だった伝言が読ま�
   expect(newlyRead(new Set(), { b1: [read] })).toBe(false)
 })
 
-test("左サイドパネルのタブと行の絵は、追加プラグインなら place で置いてほしいと書ける（true なら末尾、before・after ならその前・後ろ）", () => {
-  const tab = defineLeftSidePanelTab({
+test("左サイドパネルのタブはどのスロットにも置かず、開く側が渡す。行の絵は、追加プラグインなら place で置いてほしいと書ける（true なら末尾、before・after ならその前・後ろ）", () => {
+  const tab = defineLeftSidePanelTab<"@x/t:tab", { n: number }>({
     id: "@x/t:tab",
     title: "@matomezu/base:Outbox",
-    place: true,
+    opens: ["@matomezu/base:annotation-icon"],
     view: () => null,
   })
-  expect(tab.place).toEqual({ slot: "@matomezu/base:left-side-panel" })
-  const after = defineLeftSidePanelTab({
-    id: "@x/t:tab2",
-    title: "@matomezu/base:Outbox",
-    place: { after: "@matomezu/base:outbox" },
-    view: () => null,
-  })
-  expect(after.place).toEqual({ slot: "@matomezu/base:left-side-panel", after: "@matomezu/base:outbox" })
+  expect(tab.slots).toEqual([])
+  expect(tabEntry(tab, { n: 1 })).toEqual({ tab: "@x/t:tab", props: { n: 1 } })
+  expect(opensOf(tab, { opens: ["@matomezu/base:mail-actions"] }, tab)).toEqual([
+    "@matomezu/base:annotation-icon",
+    "@matomezu/base:mail-actions",
+  ])
   const icon = defineAnnotationIcon({ id: "@x/t:icon", annotation: "@x/t:sticky", place: true, view: () => null })
   expect(icon.place).toEqual({ slot: "@matomezu/base:annotation-icon" })
   expect(defineAnnotationIcon({ id: "@x/t:icon2", annotation: "@x/t:sticky", view: () => null }).place).toBeUndefined()

@@ -1,12 +1,12 @@
 // 送信トレイ: フッタメニューのボタンで左サイドパネルを開くと、開いているブックの伝言とマークがページごとに、新しい順に並ぶ。
-// 伝言の行を押すと左サイドパネルが閉じて、その伝言が右サイドパネルに出る。マークの行は付けた物へ移るだけ。取消で消える。AI が読むと既読になる
+// 伝言の行を押すと、その伝言が右サイドパネルに出る（左サイドパネルは閉じない）。マークの行は付けた物へ移るだけ。取消で消える。外を押しても閉じない。AI が読むと既読になる
 import { aiAuth, BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { panel, writeNote } from "./helpers/note"
 import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
-test("左サイドパネルの送信トレイに、伝言とマークが新しい順に並ぶ。伝言の行を押すと閉じて右サイドパネルに出る。マークの行は物へ移るだけ。取消は確かめてから消える。Esc で閉じる", async ({
+test("左サイドパネルの送信トレイに、伝言とマークが新しい順に並ぶ。伝言の行を押すと右サイドパネルに出る（閉じない）。マークの行は物へ移るだけ。取消は確かめてから消える。外を押しても閉じず、閉じるボタンで閉じる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -29,22 +29,20 @@ test("左サイドパネルの送信トレイに、伝言とマークが新し�
   await page.keyboard.press("Escape")
   await expect(leftPanel(page)).toHaveCount(0)
 
-  // 伝言の行を押すと、左サイドパネルが閉じて右サイドパネルに出る
+  // 伝言の行を押すと、右サイドパネルに出る（左サイドパネルは閉じない）
   await openOutbox(page)
   await rows.nth(1).getByRole("button").first().click()
-  await expect(leftPanel(page)).toHaveCount(0)
+  await expect(leftPanel(page)).toBeVisible()
   await expect(panel(page).getByLabel("伝言", { exact: true })).toHaveValue("一つ目を見て")
-  await page.keyboard.press("Escape")
+  await panel(page).getByLabel("伝言", { exact: true }).press("Escape")
   await expect(panel(page)).toHaveCount(0)
 
-  // マークの行を押すと、左サイドパネルが閉じるだけ（右サイドパネルは出ない）
-  await openOutbox(page)
+  // マークの行を押すと、物へ移るだけ（右サイドパネルは出ず、左サイドパネルも閉じない）
   await rows.nth(0).getByRole("button").first().click()
-  await expect(leftPanel(page)).toHaveCount(0)
+  await expect(leftPanel(page)).toBeVisible()
   await expect(panel(page)).toHaveCount(0)
 
-  // 取消で消える。外を押すと閉じる
-  await openOutbox(page)
+  // 取消で消える。外を押しても閉じず、閉じるボタンで閉じる
   // 取消は確かめてから消す（やめるなら消さない）
   await leftPanel(page).getByRole("button", { name: "一つ目を見てを取り消す" }).click()
   const ask = leftPanel(page).getByRole("group", { name: "取り消しますか？" })
@@ -56,6 +54,8 @@ test("左サイドパネルの送信トレイに、伝言とマークが新し�
   await expect(page.getByRole("button", { name: "伝言を開く" })).toHaveCount(0)
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + paper.width - 40, paper.y + 400)
+  await expect(leftPanel(page)).toBeVisible()
+  await leftPanel(page).getByRole("button", { name: "左サイドパネルを閉じる" }).click()
   await expect(leftPanel(page)).toHaveCount(0)
 })
 
@@ -117,7 +117,7 @@ test("開いているブックが替わっても、左サイドパネルは閉�
   await expect(leftPanel(page)).toBeVisible()
 })
 
-test("分けているとき右のステージで左サイドパネルを開くと、窓の左に出て、右のステージが窓いっぱいに広がり、左のステージの幅は 0。閉じると分けた幅に戻る", async ({
+test("分けているとき左サイドパネルを開くと、窓の左に出て、画面ごと右へ押し縮める（どちらのステージの幅も 0 にならない）。閉じると分けた幅に戻る", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -131,13 +131,32 @@ test("分けているとき右のステージで左サイドパネルを開く�
   const side = (await leftPanel(page).boundingBox())!
   expect(side.x).toBe(0)
   expect(side.width).toBe(400)
-  await expect.poll(async () => (await stages.nth(0).boundingBox())?.width ?? 0).toBe(0)
-  const wide = (await stages.nth(1).boundingBox())!
-  expect(Math.abs(wide.x - 400)).toBeLessThan(2)
-  expect(wide.width).toBeGreaterThan(before.width + 100)
+  await expect.poll(async () => Math.round((await stages.nth(1).boundingBox())!.width)).toBeLessThan(before.width)
+  const left = (await stages.nth(0).boundingBox())!
+  expect(left.width).toBeGreaterThan(50)
+  expect(left.x).toBeGreaterThanOrEqual(399)
   await page.keyboard.press("Escape")
   await expect(leftPanel(page)).toHaveCount(0)
   await expect.poll(async () => Math.round((await stages.nth(1).boundingBox())!.width)).toBe(Math.round(before.width))
+})
+
+test("コントロールセンターを前に出しても左サイドパネルは残り、コントロールセンターは右へ押し縮められる。外を押しても閉じない", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(BOOK_SCREEN_URL)
+  await openOutbox(page)
+  await (await fromMenu(page, "コントロールセンター")).click()
+  await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeVisible()
+  await expect(leftPanel(page)).toBeVisible()
+  const side = (await leftPanel(page).boundingBox())!
+  expect(side.x).toBe(0)
+  const centerBox = (await page.getByRole("heading", { name: "コントロールセンター" }).boundingBox())!
+  expect(centerBox.x).toBeGreaterThanOrEqual(side.width - 1)
+  await expect(leftPanel(page).getByRole("tab", { name: "送信トレイ" })).toHaveAttribute("aria-selected", "true")
+  // 外（コントロールセンター）を押しても閉じない
+  await page.getByRole("heading", { name: "参加者" }).click()
+  await expect(leftPanel(page)).toBeVisible()
 })
 
 test("右サイドパネルを開いているステージで左サイドパネルも開くと、両方出る。Esc は左サイドパネルだけを閉じる", async ({

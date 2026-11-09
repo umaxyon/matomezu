@@ -93,7 +93,6 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:footer-menu-basics is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:footer-menu-book-tools is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:left-side-panel is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:mail-actions is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:annotation-icon is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:corner-statuses is not opened by any placed widget",
@@ -121,20 +120,9 @@ describe("UI マッピング", () => {
         root: ["@matomezu/base:window", "@matomezu/base:dialog-host"],
       },
     }
-    // 右サイドパネルと左サイドパネルを開けない骨組みなら、その中身（左サイドパネルのタブが開ける行の絵も）を書いた UI マッピングは error
-    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual([
-      "E211",
-      "E211",
-      "E211",
-      "E211",
-    ])
-    const {
-      "@matomezu/base:right-side-panel": _,
-      "@matomezu/base:left-side-panel": __,
-      "@matomezu/base:annotation-icon": ___,
-      "@matomezu/base:mail-actions": ____,
-      ...slots
-    } = layout.slots
+    // 右サイドパネルを開けない骨組みなら、その中身を書いた UI マッピングは error
+    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual(["E211"])
+    const { "@matomezu/base:right-side-panel": _, ...slots } = layout.slots
     expect(checkLayout({ ...layout, slots } as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
   })
 

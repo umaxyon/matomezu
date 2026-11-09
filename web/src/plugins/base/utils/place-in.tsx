@@ -1,8 +1,8 @@
-// 決まったスロットの中で置いてほしい所（左サイドパネルのタブ・設定カテゴリ・コーナーステータスなど、追加プラグインが既定の UI マッピングに足してほしいとき）
+// 決まったスロットの中で、追加プラグインが既定の UI マッピングに足してほしい所の書き方
 import type { SlotId } from "../../../core/catalog"
 import type { WidgetPlace } from "../../../ui/layout"
 
-// true なら末尾、before・after なら、そのウィジェットのすぐ前・すぐ後ろ
+// 決まったスロットの中で置いてほしい所: true なら末尾、before・after なら、そのウィジェットのすぐ前・すぐ後ろ
 export type PlaceInSlot = true | { before: string } | { after: string }
 
 // スロット slot の中で place に置いてほしいときの、ウィジェットの place
