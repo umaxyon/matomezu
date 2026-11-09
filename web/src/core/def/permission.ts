@@ -27,8 +27,8 @@ export interface Changes {
 export interface PageChange {
   id: string
   change: "added" | "removed" | "changed"
-  fields: readonly string[] // 変わったページのフィールド（items を除く。足した・消したページは空）
-  items: readonly string[] // 足した・消した・変わったアイテム（ページに直に置いたもの。子の形の変化は、それを持つアイテムの変化）
+  fields: readonly string[] // 変わったページのフィールド（items と slide を除く。足した・消したページは空）
+  items: readonly string[] // 足した・消した・変わったアイテム（ページに直に置いたものと、ページの slide に置いたもの。子の形の変化は、それを持つアイテムの変化）
 }
 
 // 行った後の確かめ: アクション action の前のブック before（無ければ一覧に新しく増えた）、後のブック after（無ければ一覧から無くなった）と、その変化

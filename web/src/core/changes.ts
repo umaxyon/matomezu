@@ -8,13 +8,17 @@ type Fields = Readonly<Record<string, unknown>>
 interface Page extends Fields {
   id: string
   items?: readonly { id: string }[]
+  slide?: readonly { id: string }[]
 }
 
 // 2 つの値で違うフィールド（skip は見ないフィールド）
-function changedFields(before: Fields, after: Fields, skip: string): string[] {
+function changedFields(before: Fields, after: Fields, skip: readonly string[]): string[] {
   const keys = new Set([...Object.keys(before), ...Object.keys(after)])
-  return [...keys].filter(k => k !== skip && !sameData(before[k], after[k]))
+  return [...keys].filter(k => !skip.includes(k) && !sameData(before[k], after[k]))
 }
+
+// ページに直に置いたアイテム（items）と、ページの slide に置いたアイテム
+const itemsOf = (page: Page | undefined): readonly { id: string }[] => [...(page?.items ?? []), ...(page?.slide ?? [])]
 
 // 2 つの並びで、足した・消した・変わった要素の id
 function changedIds(before: readonly { id: string }[], after: readonly { id: string }[]): string[] {
@@ -25,13 +29,13 @@ function changedIds(before: readonly { id: string }[], after: readonly { id: str
 }
 
 function pageChange(id: string, before: Page | undefined, after: Page | undefined): PageChange {
-  if (!before) return { id, change: "added", fields: [], items: (after?.items ?? []).map(i => i.id) }
-  if (!after) return { id, change: "removed", fields: [], items: (before.items ?? []).map(i => i.id) }
+  if (!before) return { id, change: "added", fields: [], items: itemsOf(after).map(i => i.id) }
+  if (!after) return { id, change: "removed", fields: [], items: itemsOf(before).map(i => i.id) }
   return {
     id,
     change: "changed",
-    fields: changedFields(before, after, "items"),
-    items: changedIds(before.items ?? [], after.items ?? []),
+    fields: changedFields(before, after, ["items", "slide"]),
+    items: [...changedIds(before.items ?? [], after.items ?? []), ...changedIds(before.slide ?? [], after.slide ?? [])],
   }
 }
 
@@ -50,7 +54,7 @@ export function changesOf(before: Book | undefined, after: Book | undefined): Ch
   return {
     gone: false,
     added: false,
-    fields: changedFields(before as Fields, after as Fields, "pages"),
+    fields: changedFields(before as Fields, after as Fields, ["pages"]),
     pages: [...ids]
       .filter(id => !sameData(was.get(id), now.get(id)))
       .map(id => pageChange(id, was.get(id), now.get(id))),

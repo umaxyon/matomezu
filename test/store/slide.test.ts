@@ -167,3 +167,18 @@ test("文字枠を置いて続けて打った文字は、置いた画面の履�
   store.actions.command("s1", "@matomezu/base:undo")
   expect(state()).toEqual([])
 })
+
+test("ロック中のページでは、スライドのアイテムを動かせず消せない（土台が slide のアイテムの id を変化に入れる）", () => {
+  const s = setup()
+  s.perform("@matomezu/slide:slide-place", { page: s.page, item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } })
+  const item = s.slide()[0]?.id as string
+  expect(s.perform("@matomezu/base:page-lock", { page: s.page }).ok).toBe(true)
+  for (const [id, args] of [
+    ["@matomezu/slide:slide-move", { page: s.page, item, at: { x: 0, y: 0 } }],
+    ["@matomezu/slide:slide-remove", { page: s.page, item }],
+  ] as const)
+    expect(s.perform(id, args)).toMatchObject({ ok: false })
+  expect(s.slide()).toHaveLength(1)
+  expect(s.perform("@matomezu/base:page-unlock", { page: s.page }).ok).toBe(true)
+  expect(s.perform("@matomezu/slide:slide-move", { page: s.page, item, at: { x: 0, y: 0 } }).ok).toBe(true)
+})

@@ -49,3 +49,14 @@ test("前が無ければ一覧に新しく増えた: フィールドはどれも
     pages: [{ id: "p1", change: "added", fields: [], items: ["a"] }],
   })
 })
+
+test("ページの slide に置いたアイテムの id も items に入り、slide はページのフィールドに出ない", () => {
+  const withSlide = (slide: object[]) =>
+    ({ type: "t", id: "b1", title: "", pages: [{ id: "p1", title: "1", slide }] }) as unknown as Book
+  expect(changesOf(withSlide([{ id: "a" }, { id: "b" }]), withSlide([{ id: "a", x: 1 }, { id: "c" }])).pages).toEqual([
+    { id: "p1", change: "changed", fields: [], items: ["a", "b", "c"] },
+  ])
+  expect(changesOf(undefined, withSlide([{ id: "a" }])).pages).toEqual([
+    { id: "p1", change: "added", fields: [], items: ["a"] },
+  ])
+})
