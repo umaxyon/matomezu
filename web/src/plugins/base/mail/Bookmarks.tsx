@@ -13,6 +13,7 @@ import styles from "./Bookmarks.module.css"
 import { mailboxEntries } from "./entries"
 import { useMailbox, useOpenMail } from "./hooks"
 import { shownOf } from "./shown"
+import { MAILBOX_TAB_ID } from "./tab-id"
 
 const MAX_EACH = 3 // 1 通に 1 つずつぶら下げる、いちばん多い数
 
@@ -43,7 +44,7 @@ export function MailBookmarks() {
           aria-label={t("{n} unread mail", { n: unread.length })}
           onClick={() => {
             actions.showBookScreen()
-            openPanel(mailboxEntries(stage))
+            openPanel(mailboxEntries(stage), MAILBOX_TAB_ID)
           }}
         >
           {LETTER_ICON}
