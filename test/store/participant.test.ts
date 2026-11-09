@@ -1,12 +1,13 @@
 // 参加者（base の参加者の表）: 参加者の表は利用者に 1 つで、ブックのデータとは別に持つ。要求は AI も行え、受け入れる・断るは利用者だけ。
 // 参加要求の郵便（mail-join-request）は、別の対象（郵便箱）に届く
 import { expect, test } from "bun:test"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { translate } from "../../web/src/core/i18n/i18n"
 import type { Mail } from "../../web/src/core/mail"
 import { joinActions, type Participant } from "../../web/src/core/participant"
 import { performIn } from "../../web/src/core/perform"
 import { type MailT, shownOf } from "../../web/src/plugins/base/mail/shown"
-import { CORE_CATALOG, newStore } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG, newStore } from "../support"
 
 const REQUEST = "@matomezu/base:participant-request"
 const ACCEPT = "@matomezu/base:participant-accept"
@@ -285,4 +286,14 @@ test("引き継ぎの要求は AI には行えず(利用者としてホストが
     reason: "not-allowed",
   })
   expect(CORE_CATALOG.actions.get(REQUEST_TAKEOVER)?.userOnly).toBe(true)
+})
+
+test("AI が参加を頼むときの役（runsWhenAIJoins）は、1 つの役を 1 つのアクションだけが名乗る（2 つ目は E044）", () => {
+  const maker = BUILTIN_PARTS.actions.find(a => a.runsWhenAIJoins === "make-participant")
+  if (!maker) throw new Error("make-participant が無い")
+  const codes = checkCoreCatalog({
+    ...BUILTIN_PARTS,
+    actions: [...BUILTIN_PARTS.actions, { ...maker, id: "@ex/j:maker" }],
+  }).map(p => p.code)
+  expect(codes).toContain("E044")
 })

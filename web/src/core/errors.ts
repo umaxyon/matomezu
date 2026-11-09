@@ -39,6 +39,7 @@ export const ERRORS = {
   E041: "controlCenter {id}: unknown action {ref}",
   E042: "bookType {id}: slide has {ref}, which is not a shape item",
   E043: "bookType {id}: slide needs pages",
+  E044: "action {id}: runsWhenAIJoins {role} is named by {other} too",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
