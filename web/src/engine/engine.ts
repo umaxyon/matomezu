@@ -87,7 +87,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   "bad-args": "the args do not match the action's args (see actions)",
   "not-allowed":
     "this book's type (or, for the library, the settings, the mailbox and the participants, the control center) does not allow it",
-  refused: "the action's rules refuse it (for example the page or item does not exist); read_book to check",
+  refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
 }
@@ -173,7 +173,7 @@ function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly B
       : [],
   )
   return moved.length
-    ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_book before using positions.`
+    ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
     : null
 }
 // MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・利用者の設定の項目（利用者だけが変える項目は除く）・テーマ・代表色を絞って書き出したもの。
@@ -315,7 +315,7 @@ function aiTables(of: Assembled) {
   return JSON.stringify(out)
 }
 
-// ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_book・read_page に添える）。読めないブックか、見せ方が答えなければ null
+// ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_page に添える）。読めないブックか、見せ方が答えなければ null
 ;(globalThis as { matomezuAiPlaced?: (book: string) => string }).matomezuAiPlaced = book => {
   const catalog = assembled.catalog.core
   const [read] = restoreBooks(catalog, [JSON.parse(book)])

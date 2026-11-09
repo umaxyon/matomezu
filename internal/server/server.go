@@ -24,8 +24,8 @@
 //	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"front", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
 //	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books?projects=a&projects=b  {"books": [{"id", "type", "title", "project", "version", "awaiting"}]}（project が projects のどれかであるブックだけ。projects は必須で、空や表に無い id は 400。awaiting は AI の応えを待つアノテーションの数）
-//	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations"}
-//	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
+//	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
+//	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations", "placed"}（annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部
 //	                         （undone と failed は、渡したら、次に利用者が話しかけたときに消える）
@@ -480,6 +480,10 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 	list, err := o.annotationsOf(b.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if r.URL.Query().Get("outline") != "" {
+		writeJSON(w, map[string]any{"id": b.ID, "book": outlineBook(b.Body), "version": b.Version, "annotations": list})
 		return
 	}
 	placed, err := o.Hub.AIPlaced(b.Body)

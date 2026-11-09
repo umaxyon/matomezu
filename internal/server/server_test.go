@@ -1261,3 +1261,51 @@ func TestChangeProposal(t *testing.T) {
 		t.Fatalf("awaiting = %s", got)
 	}
 }
+
+func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
+	s := newServer(t, nil)
+	box := func(id, caption string, children string) string {
+		return `{"id":"` + id + `","x":10,"y":10,"item":"@matomezu/box:shape-nest-box","w":200,"h":100,"props":{"caption":"` + caption + `","rule":true,"body":"","captionAlign":"left","bodyAlign":"left"}` + children + `}`
+	}
+	nested := box("x1", "A", `,"shapes":[`+box("x2", "B", "")+`]`)
+	body := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","project":"default","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` + nested + `,` + box("x3", "C", "") + `]}]}`
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+body+`,"base":0}`, nil)
+	ai := map[string]string{"Authorization": "Bearer secret"}
+
+	// ブックは、ページの中身を除いた目次（id・題名・大きさ）
+	_, got := send(t, "GET", s.URL+"/api/ai/books/b1?outline=1", "", ai)
+	var book struct {
+		Book struct {
+			Title string                       `json:"title"`
+			Pages []map[string]json.RawMessage `json:"pages"`
+		} `json:"book"`
+	}
+	if err := json.Unmarshal([]byte(got), &book); err != nil || book.Book.Title != "T" || len(book.Book.Pages) != 1 ||
+		string(book.Book.Pages[0]["id"]) != `"p1"` || book.Book.Pages[0]["size"] == nil || book.Book.Pages[0]["items"] != nil || strings.Contains(got, `"caption"`) {
+		t.Fatalf("book outline = %s", got)
+	}
+
+	// ページは、物の目次（id・種類・大きさ）
+	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?outline=1", "", ai)
+	if !strings.Contains(got, `"id":"x1"`) || !strings.Contains(got, `"id":"x3"`) || strings.Contains(got, `"caption"`) || strings.Contains(got, `"id":"x2"`) {
+		t.Fatalf("page outline = %s", got)
+	}
+
+	// 物を指すと、その物と中の物だけ（深さを問わない）。位置は中の物の分も
+	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=x1", "", ai)
+	if !strings.Contains(got, `"caption":"A"`) || !strings.Contains(got, `"caption":"B"`) || strings.Contains(got, `"caption":"C"`) {
+		t.Fatalf("item x1 = %s", got)
+	}
+	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=x2", "", ai)
+	if !strings.Contains(got, `"caption":"B"`) || strings.Contains(got, `"caption":"A"`) {
+		t.Fatalf("nested item x2 = %s", got)
+	}
+	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=nope", "", ai); code != 404 {
+		t.Fatalf("an item that is not on the page = %d", code)
+	}
+	// 何も付けなければ、ブックの全部を返す
+	_, got = send(t, "GET", s.URL+"/api/ai/books/b1", "", ai)
+	if !strings.Contains(got, `"caption":"C"`) || !strings.Contains(got, `"placed"`) {
+		t.Fatalf("whole book = %s", got)
+	}
+}

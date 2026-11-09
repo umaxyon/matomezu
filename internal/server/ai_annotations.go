@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -10,8 +11,9 @@ import (
 
 // aiAnnotation は AI に見せるアノテーションのうち、常駐が読み分けに使うフィールド（ほかは engine が返したまま渡す）
 type aiAnnotation struct {
-	Page   *string `json:"page"`
-	Awaits bool    `json:"awaits"`
+	Page    *string  `json:"page"`
+	Awaits  bool     `json:"awaits"`
+	Anchors []string `json:"anchors"`
 }
 
 // AIAnnotations は、ブック（ids。nil なら全部）ごとに、AI に見せるアノテーションの並び（engine.AIAnnotations）を返す。
@@ -114,6 +116,10 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	onPage := pick(list, func(a aiAnnotation) bool { return a.Page != nil && *a.Page == want })
+	if r.URL.Query().Get("outline") != "" {
+		writeJSON(w, map[string]any{"id": b.ID, "page": outlinePage(page), "version": b.Version, "annotations": onPage, "placed": nil})
+		return
+	}
 	all, err := o.Hub.AIPlaced(b.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -124,6 +130,27 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	placed := byPage[want]
 	if placed == nil {
 		placed = json.RawMessage("null")
+	}
+	if item := r.URL.Query().Get("item"); item != "" {
+		found, ids := findItem(page, item)
+		if found == nil {
+			http.Error(w, "no such item", http.StatusNotFound)
+			return
+		}
+		within := func(id string) bool { return slices.Contains(ids, id) }
+		onItem := pick(list, func(a aiAnnotation) bool {
+			return a.Page != nil && *a.Page == want && slices.ContainsFunc(a.Anchors, within)
+		})
+		var boxes []map[string]any
+		_ = json.Unmarshal(placed, &boxes)
+		inside := []map[string]any{}
+		for _, box := range boxes {
+			if id, _ := box["id"].(string); within(id) {
+				inside = append(inside, box)
+			}
+		}
+		writeJSON(w, map[string]any{"id": b.ID, "page": want, "item": found, "version": b.Version, "annotations": onItem, "placed": inside})
+		return
 	}
 	writeJSON(w, map[string]any{"id": b.ID, "page": page, "version": b.Version, "annotations": onPage, "placed": placed})
 }

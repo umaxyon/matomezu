@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 )
 
@@ -68,7 +69,8 @@ var readTools = []readTool{
 	},
 	{
 		"read_book",
-		"Read a whole book (its pages and the items on them), its version, placed (per page id, where each shape is drawn, when the book type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). To read one page, use read_page.",
+		"Read a book: the book without its pages' contents (type, title, settings and so on), its pages as an outline (id, title, size in characters), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). " +
+			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
 			"properties":           map[string]any{"book": map[string]any{"type": "string", "description": "The book's id."}},
@@ -77,17 +79,20 @@ var readTools = []readTool{
 		},
 		func(api caller, args map[string]any) (json.RawMessage, error) {
 			id, _ := args["book"].(string)
-			return api.Get("api/ai/books/" + url.PathEscape(id)) // 1 冊だけのブックの id は / を含む
+			return api.Get("api/ai/books/" + url.PathEscape(id) + "?outline=1") // 1 冊だけのブックの id は / を含む
 		},
 	},
 	{
 		"read_page",
-		"Read one page of a book (the page and the items on it), the book's version, placed (where each shape is drawn, when the book type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page.",
+		"Read one page of a book (the page and the items on it), the book's version, placed (where each shape is drawn, when the book type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"book": map[string]any{"type": "string", "description": "The book's id."},
-				"page": map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
+				"book":    map[string]any{"type": "string", "description": "The book's id."},
+				"page":    map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
+				"outline": map[string]any{"type": "boolean", "description": "Answer the page's items as an outline (id, item, size in characters) instead of in full."},
+				"item":    map[string]any{"type": "string", "description": "The id of an item on the page (any depth): answer only that item and what is inside it."},
 			},
 			"required":             []string{"book", "page"},
 			"additionalProperties": false,
@@ -95,7 +100,18 @@ var readTools = []readTool{
 		func(api caller, args map[string]any) (json.RawMessage, error) {
 			book, _ := args["book"].(string)
 			page, _ := args["page"].(string)
-			return api.Get("api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page))
+			q := url.Values{}
+			if outline, _ := args["outline"].(bool); outline {
+				q.Set("outline", "1")
+			}
+			if item, _ := args["item"].(string); item != "" {
+				q.Set("item", item)
+			}
+			path := "api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page)
+			if len(q) > 0 {
+				path += "?" + q.Encode()
+			}
+			return api.Get(path)
 		},
 	},
 	{
@@ -226,6 +242,20 @@ func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
 	return text, failed
 }
 
+// maxAnswer は、読む MCP 公開ツールの 1 つの答えの文字数の上限。受け取る側（AI のクライアント）に上限があり、超えると途中で切れて AI が気づけないので、
+// 絞って読めるツールは、超える答えを返さずに絞り方を返す
+const maxAnswer = 60000
+
+// tooLarge は、答えが上限を超えたときの、絞り方の説明（絞って読めるツールだけ）
+var tooLarge = map[string]func(args map[string]any) string{
+	"read_page": func(args map[string]any) string {
+		if item, _ := args["item"].(string); item != "" {
+			return "read an item inside it: call read_page with outline to see the items of the page, or read_page with the id of an item inside this one"
+		}
+		return "call read_page with outline to see the items of the page (id, item, size), then with item to read them one at a time"
+	},
+}
+
 func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 	var api caller = c
 	args := map[string]any{}
@@ -239,6 +269,11 @@ func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 			out, err := t.call(api, args)
 			if err != nil {
 				return err.Error(), true
+			}
+			if narrow, ok := tooLarge[name]; ok {
+				if n := len([]rune(string(out))); n > maxAnswer {
+					return fmt.Sprintf("too-large: the answer is %d characters, over the limit of %d, so it is not returned; %s", n, maxAnswer, narrow(args)), true
+				}
 			}
 			return string(out), false
 		}
@@ -356,7 +391,7 @@ func refusalText(reason, detail string) string {
 	case detail != "":
 		return reason + ": " + detail
 	default:
-		return reason + ": it could not be done here (read_book to check)"
+		return reason + ": it could not be done here (read_page to check)"
 	}
 }
 
