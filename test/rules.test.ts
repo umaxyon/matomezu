@@ -230,8 +230,8 @@ test("error は error の表（core/errors.ts）の番号で投げる（ほか�
   expect(offenders).toEqual([])
 })
 
-// プラグインの中のファイルの役割: 定義は見た目でないファイル、文言の表は messages.ts、見た目を結ぶのはプラグインの ui.tsx（plugins の「プラグインの中の形」）
-test("プラグインの定義（kit.define…）は、見た目でないファイルにだけ書く", () => {
+// プラグインの中のファイルの役割: 機能台帳に足す定義（kit.define…）は見た目でないファイル、文言の表は messages.ts、見た目を結ぶのはプラグインの ui.tsx（plugins の「プラグインの中の形」）
+test("プラグインが機能台帳に足す定義（kit.define…）は、見た目でないファイルにだけ書く", () => {
   const offenders = sources
     .filter(f => crateOf(f.rel) === "plugins" && (f.rel.endsWith(".tsx") || f.rel.endsWith("/ui.ts")))
     .filter(f => /\bkit\.define[A-Z]/.test(f.text))
