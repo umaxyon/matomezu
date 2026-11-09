@@ -1,5 +1,5 @@
 // スライドのアイテム 1 つの絵: 書いた位置と大きさに、角度（rotation）を枠の中心でかけて、アイテムのビューを描く。
-// 操作を受けるビュー（SlideView）は edit を渡す: アイテムに操作の印（data-item）とアンカーを付け、文字枠は書き換え中なら書き換える欄にする。
+// 操作を受けるビュー（SlideView）は edit を渡す: アイテムに操作の印（data-item）とアンカーを付け、文字枠は書き換え中ならテキストForm にする。
 // 見るだけの印刷区画（SlideSheet）は edit を渡さない（同じアイテムが印刷区画の数だけ描かれるので、印を付けない）
 import { type ReactNode, useRef, useState } from "react"
 import type { PlacedShape } from "../../../plugin-api"
@@ -71,7 +71,7 @@ export function SlideItem({
   )
 }
 
-// 文字枠の文字を書き換える欄（文字枠と同じ文字の大きさ・そろえ）。外へ出ると決め、Escape でやめる
+// 文字枠の文字を書き換えるテキストForm（文字枠と同じ文字の大きさ・そろえ）。外へ出ると決め、Escape でやめる
 function TextEditor({
   shape,
   onCommit,

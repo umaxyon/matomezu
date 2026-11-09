@@ -1,5 +1,5 @@
 // スライドのプラグイン: スライドに描くアイテム（文字枠・自由な線・直線・楕円）と、置く・動かす・大きさを変える・項目を変える・比率を戻す・重ねを変える・消すアクション。
-// 置き場はページの slide で、スライドのブックと、背景を持つブックのタイプが選ぶ（タイプの slide.allowed）
+// 置き場はページの slide で、スライドのブックのタイプが選ぶ（タイプの slide.allowed）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import {
   SLIDE_MOVE,

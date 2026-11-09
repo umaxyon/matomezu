@@ -1,5 +1,5 @@
 // スライドのビュー（見せ方 slide）: ブックのビューのレイヤー（book-content）が描く。紙の枠の中に、開いたページの slide のアイテムを重ねの順に描く。
-// アイテムは書いた位置と大きさ（紙の左上から。負でも、紙より大きくてもよい）に置き、角度（rotation）は枠の中心でかける。紙の外にはみ出た部分は切る（切る層はアイテムだけで、選んだ物のつまみは切らない）。
+// アイテムは書いた位置と大きさ（紙の左上から。負でも、紙より大きくてもよい）に置き、角度（rotation）は枠の中心でかける。紙の外にはみ出た部分は切る（切るのはアイテムを描く所だけで、選んだ物のつまみは切らない）。
 // 置こうとしている間は、紙の上でドラッグした四角（直線は線、自由な線はなぞった跡）に置く。押しただけなら、そのアイテムの置くときの大きさで押した所に置く。文字枠を置いたら、そのまま文字を打てる。
 // アイテムを押すと選び（1 つだけ）、ドラッグで動かす。選んだアイテムは 8 つのつまみで大きさを変え（角は枠と文字を一緒に、辺は幅か高さだけ）、
 // 右上の角の斜め外のつまみで回す（Shift で 15 度ずつ）。ロック中のアイテムは縦横の比を保つ。文字枠はダブルクリックで文字を書き換える（外を押すと決め、Escape でやめる）。
@@ -88,7 +88,7 @@ function SlidePageView({ stage }: { stage: StageView }) {
   const shapes = page ? slideOf(page) : []
   const selected = stage.selection.length === 1 ? shapes.find(s => s.id === stage.selection[0]) : undefined
   const placing = stage.placing
-  const editing = typeof stage.editing === "string" ? stage.editing : null // 文字を書き換えているアイテム
+  const editing = stage.editing === true ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
   const minOf = (item: string): number => {
     const def = catalog.items.get(item)
     return def?.kind === "shape" && def.min ? Math.max(def.min.w, def.min.h) : MIN
@@ -98,7 +98,7 @@ function SlidePageView({ stage }: { stage: StageView }) {
   useEffect(() => {
     if (typeNext.current && selected && selected.item === TEXT) {
       typeNext.current = false
-      setEditing(stage.id, selected.id)
+      setEditing(stage.id, true)
     }
   }, [selected, stage.id, setEditing])
 
@@ -247,7 +247,7 @@ function SlidePageView({ stage }: { stage: StageView }) {
     const shape = el && shapes.find(s => s.id === el.dataset.item)
     if (shape?.item === TEXT && set.enabled && !followed) {
       select(stage.id, [shape.id])
-      setEditing(stage.id, shape.id)
+      setEditing(stage.id, true)
     }
   }
 
