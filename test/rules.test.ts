@@ -600,7 +600,7 @@ test("Go の internal のパッケージは、決めたパッケージだけを�
   expect(bad).toEqual([])
 })
 
-// 常駐の入口は、合言葉（auth・ai）か、画面 cookie を持つブラウザだけ（screen）。画面からの入口を sameOrigin だけで包むと、AI が画面の入口を使える抜け道になる（conventions/architecture.md「状態と外の世界」）
+// 常駐の入口は、合言葉（auth・ai）か、画面 cookie を持つブラウザだけ（screen）。画面からの入口を sameOrigin だけで包むと、AI が画面の入口を使える抜け道になる（conventions/architecture.md「ホストとブラウザとのやり取り」）
 test("Go の常駐の入口（server.go の mux.Handle）は、auth・ai・screen のどれかで包む", () => {
   const text = readFileSync(join(ROOT, "internal/server/server.go"), "utf8")
   const routes = [...text.matchAll(/mux\.Handle\("([^"]*)",\s*(.*)$/gm)].map(m => ({

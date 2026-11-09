@@ -11,7 +11,7 @@
 | `ui` | 画面の根と、プラグインが使う画面の口。画面に出る物は置かない | `core`・`store`・`ui`・React・zustand |
 | `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）とブラウザ（保存・URL・履歴・クリップボード・印刷）に頼む口 | `core`・`store`・`host-client`・zod |
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`（ビルトインの一覧と、各プラグインの入口だけ）・`plugin-modules`・zod |
-| `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
+| `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の行（プラグインのファイルと、base 以外のビルトインプラグイン） |
 | `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーバインドでビルトインを先に扱う）と、台帳アセンブルのときの確かめ（`checks`）を書く `CatalogCheckDef`・`problem`・`warning`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
 | `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（base の入口の名前を、一つずつ書いて出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
 | `testing` | テストで組む入口（`matomezu/testing`）。テストのプロセスの中で組み、ホストは使わない。プラグイン API に含めない | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
@@ -55,7 +55,7 @@
 - 状態を変えるのは `store` の中だけ（ほかで `setState` を使わない）
 - データを変える入口はアクションだけ（画面の操作も AI の操作も同じアクションを通る。テストの用意を除く。「作業の進め方」の「テスト」）。常駐だけが使う記録（ブックを開いた時刻、参加者の最後に呼ばれた時刻・セッション・伝えた印）は、アクションを通さず常駐が持つ
 - 土台（core・store・ui）は、プラグインのアクションの id を名指さない。アクションを行ってからステージで開く、のような組み合わせは、そのアクションを持つプラグインが関数で出す（base の `addPageIn`・`createBookIn`）。行うだけなら `perform`
-- インスタンスの、`useActions` に入れない操作は、ホストクライアント・画面の入口・土台のフックだけが使う。プラグインは土台のフック（プラグイン API）を通してだけ触る
+- インスタンスの、`useActions` に入れない操作は、ホストクライアント・画面の入口（`main.tsx`）・土台のフックだけが使う。プラグインは、土台のフック（プラグイン API）と、コマンドの run が受け取る操作を通してだけ触る
 
 ## ホストとブラウザとのやり取り
 
