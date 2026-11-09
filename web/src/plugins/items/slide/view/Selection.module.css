@@ -111,13 +111,13 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.angle {
+.numberField {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 0 6px;
 }
-.angle input {
+.numberField input {
   width: 52px;
   padding: 3px 4px;
   border: 1px solid var(--skin-border);

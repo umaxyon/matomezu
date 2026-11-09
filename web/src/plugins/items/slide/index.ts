@@ -25,11 +25,12 @@ import {
 } from "./commands"
 import { kit } from "./kit"
 import { SLIDE_KEY_SCOPE } from "./scope"
-import { ELLIPSE, FREE_LINE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
+import { ELLIPSE, FREE_LINE, SLIDE_INK, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
 
 export const SLIDE_PLUGIN = defineBuiltin(
   kit.plugin({
     items: [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE],
+    tokens: [SLIDE_INK],
     actions: [SLIDE_PLACE, SLIDE_MOVE, SLIDE_RESIZE, SLIDE_UPDATE, SLIDE_RESET_RATIO, SLIDE_REORDER, SLIDE_REMOVE],
     commands: [
       SLIDE_PUT,

@@ -44,8 +44,17 @@ import {
   unionOf,
 } from "../rect"
 import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE } from "../scope"
-import { DEFAULT_FONT_SIZE, FREE_LINE, MIN_SIZE, STRAIGHT_LINE, TEXT_FRAME } from "../slide"
-import { GRIPS, GroupSelection, linePoints, type SelectedItem, Selection } from "./Selection"
+import {
+  DEFAULT_FONT_SIZE,
+  FREE_LINE,
+  linePointsOf,
+  linePropsOf,
+  MIN_SIZE,
+  movedLineProps,
+  STRAIGHT_LINE,
+  TEXT_FRAME,
+} from "../slide"
+import { GRIPS, GroupSelection, type SelectedItem, Selection } from "./Selection"
 import { rotationOf, SlideItem, shapeProps } from "./SlideItem"
 import styles from "./SlideLayer.module.css"
 
@@ -100,13 +109,6 @@ interface Live {
   rotation?: number
   scaled?: boolean
   points?: Point[] // 点を動かしている途中の線の点（枠の中の割合）
-}
-
-// 線の点を、そのアイテムの項目にする（直線は from・to、自由な線は points）。点を動かすと角度と比率の固定はなくなる
-function pointProps(item: string, points: readonly Point[]): Record<string, unknown> {
-  const turned = { rotation: null, lockRatio: null }
-  if (item === FREE) return { points, ...turned }
-  return { from: points[0], to: points[1], ...turned }
 }
 
 const rectOf = (shape: PlacedShape): Rect => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
@@ -212,7 +214,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
       return
     }
     const pointEl = target.closest<HTMLElement>("[data-point]")
-    if (pointEl && selected && !followed && reshape.enabled) {
+    if (pointEl && selected && !followed && reshape.enabled && set.enabled) {
       e.preventDefault()
       capture()
       drag.current = {
@@ -223,7 +225,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
         index: Number(pointEl.dataset.point),
         rect: rectOf(selected),
         rotation: rotationOf(selected),
-        points: linePoints(selected.item, shapeProps(selected)),
+        points: linePointsOf(selected.item, shapeProps(selected)),
         min: minOf(selected.item),
       }
       return
@@ -338,8 +340,11 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
       }
     } else if (d.kind === "point" && l?.points) {
       const shape = shapes.find(s => s.id === d.item)
-      if (shape)
-        reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: false, props: pointProps(shape.item, l.points) })
+      if (shape) {
+        // 点と枠は、同じ離した所で続けて変える（画面の履歴は 1 段）
+        set.run({ items: [d.item], props: movedLineProps(shape.item, l.points) })
+        reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: false })
+      }
     } else if (d.kind === "grip" && l) reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: l.scaled === true })
     else if (d.kind === "rotate" && l && l.rotation !== undefined && l.rotation !== d.rotation)
       set.run({ items: [d.item], props: { rotation: l.rotation === 0 ? null : l.rotation } })
@@ -356,7 +361,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
       if (!moved) return
       const dense = item === FREE ? thinned(points, THIN / stage.zoom) : [from, to]
       const { rect, fractions } = drawnRect(dense.slice(0, 500), minOf(item))
-      const props = item === FREE ? { points: fractions } : { from: fractions[0], to: fractions.at(-1) }
+      const props = linePropsOf(item, fractions)
       put.run({ item, rect: roundRect(rect), props })
       return
     }
@@ -399,7 +404,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
         ...props,
         ...scaledSize,
         ...(live.rotation === undefined ? {} : { rotation: live.rotation }),
-        ...(live.points ? pointProps(s.item, live.points) : {}),
+        ...(live.points ? movedLineProps(s.item, live.points) : {}),
       },
     } as PlacedShape
   })

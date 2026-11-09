@@ -7,9 +7,9 @@ import { Stand } from "../../../base/ui"
 import { SLIDE_RESET, SLIDE_SET } from "../commands"
 import { kit } from "../kit"
 import { normalizeAngle, pointsOnPaper } from "../rect"
-import { FREE_LINE, STRAIGHT_LINE } from "../slide"
+import { linePointsOf } from "../slide"
 import styles from "./Selection.module.css"
-import { type StyleSubject, StyleTools } from "./StyleTools"
+import { type StyleSubject, StyleTools, showsGroupBar } from "./StyleTools"
 
 export const GRIPS = [
   { id: "top-left", at: [0, 0], grip: { left: true, top: true } },
@@ -127,7 +127,7 @@ function AngleField({ item }: { item: SelectedItem }) {
     if (angle !== item.rotation) set.run({ items: [item.id], props: { rotation: angle === 0 ? null : angle } })
   }
   return (
-    <label className={styles.angle}>
+    <label className={styles.numberField}>
       {t("Angle")}
       <input
         type="number"
@@ -151,7 +151,7 @@ function AngleField({ item }: { item: SelectedItem }) {
 // そばに立つバー（全部に一度に効く見た目の道具だけ。大きさ・回す・角度は出さない）
 export function GroupSelection({ rect, subjects }: { rect: Rect; subjects: readonly StyleSubject[] }) {
   const t = useMessages(kit)
-  const first = subjects[0]
+  const hasTools = showsGroupBar(subjects.map(s => s.item))
   return (
     <>
       <div className={styles.group} style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}>
@@ -159,7 +159,7 @@ export function GroupSelection({ rect, subjects }: { rect: Rect; subjects: reado
           <div key={side} className={styles.groupEdge} data-group-edge={side} />
         ))}
       </div>
-      {first && (
+      {hasTools && (
         <Stand anchor={subjects.map(s => s.id)} side="above" label={t("Change on slide")}>
           <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
             <StyleTools subjects={subjects} />
@@ -170,26 +170,12 @@ export function GroupSelection({ rect, subjects }: { rect: Rect; subjects: reado
   )
 }
 
-// 線の点（0 から 1 の割合）: 直線は両端、自由な線はすべての点
-export function linePoints(
-  kind: string,
-  props: Readonly<Record<string, unknown>>,
-): readonly { x: number; y: number }[] {
-  if (kind === FREE_LINE.id) return (props.points as { x: number; y: number }[] | undefined) ?? []
-  if (kind === STRAIGHT_LINE.id)
-    return [
-      (props.from as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
-      (props.to as { x: number; y: number } | undefined) ?? { x: 1, y: 1 },
-    ]
-  return []
-}
-
 // 点が多い自由な線は、このくらいの数に間引いてつまみを出す（始めと終わりは必ず出す）
 const MAX_HANDLES = 40
 
 // 選んだ線の点のつまみ（丸。枠の 8 つのつまみとは別）。ドラッグで点を動かす（動かす操作は SlideLayer が受ける）
 function PointHandles({ item }: { item: SelectedItem }) {
-  const points = linePoints(item.kind, item.props)
+  const points = linePointsOf(item.kind, item.props)
   if (points.length === 0) return null
   const on = pointsOnPaper(item.rect, item.rotation, points)
   const every = Math.ceil(on.length / MAX_HANDLES)

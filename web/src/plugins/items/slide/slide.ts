@@ -25,10 +25,19 @@ const FRAME = {
 // 枠の中の点（枠の左上が 0, 0、右下が 1, 1）
 export const PointSchema = z.strictObject({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) })
 
+// 線・楕円の枠の太さ（px）の既定と上限
+export const DEFAULT_STROKE_WIDTH = 2
+export const MAX_STROKE_WIDTH = 200
+
 // 線の項目（色・太さ・点線）
 const STROKE = {
   color: ColorSchema.optional().describe("Line color (a palette name or #rrggbb). Without it, the text color"),
-  width: z.number().positive().max(200).optional().describe("Line width in pixels. Without it, 2"),
+  width: z
+    .number()
+    .positive()
+    .max(MAX_STROKE_WIDTH)
+    .optional()
+    .describe(`Line width in pixels. Without it, ${DEFAULT_STROKE_WIDTH}`),
   dash: z.enum(["solid", "dashed"]).optional().describe("Without it, solid"),
 }
 
@@ -57,12 +66,42 @@ export const StraightLineProps = z.strictObject({
 export const EllipseProps = z.strictObject({
   fill: ColorSchema.optional().describe("Fill color. Without it, no fill"),
   stroke: ColorSchema.optional().describe("Outline color. Without it, the text color"),
-  width: z.number().min(0).max(200).optional().describe("Outline width in pixels (0 for none). Without it, 2"),
+  width: z
+    .number()
+    .min(0)
+    .max(MAX_STROKE_WIDTH)
+    .optional()
+    .describe(`Outline width in pixels (0 for none). Without it, ${DEFAULT_STROKE_WIDTH}`),
   ...FRAME,
 })
 
-// 線・文字・枠の色の「なし」（描くときに使う、テーマの文字の色）。色を選ぶ見本が、テーマの文字の色を「なし」として出す
+// 線・文字・枠の色の「なし」（テーマの文字の色）。描くときも、色を選ぶ見本の「なし」も、これを使う。プラグインのテーマキー
 export const SLIDE_INK = { id: kit.name("slide-ink"), fallback: "text" } as const
+
+// 枠の中の点（0 から 1 の割合）
+export type FractionPoint = z.output<typeof PointSchema>
+
+// 直線の端の点の既定（枠の左上と右下）
+const LINE_FROM: FractionPoint = { x: 0, y: 0 }
+const LINE_TO: FractionPoint = { x: 1, y: 1 }
+
+// 線の点: 直線は両端、自由な線はすべての点（線でないアイテムは無し）
+export function linePointsOf(kind: string, props: Readonly<Record<string, unknown>>): readonly FractionPoint[] {
+  if (kind === FREE_LINE.id) return (props.points as FractionPoint[] | undefined) ?? []
+  if (kind === STRAIGHT_LINE.id)
+    return [(props.from as FractionPoint | undefined) ?? LINE_FROM, (props.to as FractionPoint | undefined) ?? LINE_TO]
+  return []
+}
+
+// 線の点を、そのアイテムの項目にする（直線は from・to、自由な線は points）
+export function linePropsOf(kind: string, points: readonly FractionPoint[]): Record<string, unknown> {
+  return kind === FREE_LINE.id ? { points } : { from: points[0], to: points[1] }
+}
+
+// 線の点を動かしたときの項目: 点と、角度と比率の固定を外す（枠を紙の上の点から出し直すため）
+export function movedLineProps(kind: string, points: readonly FractionPoint[]): Record<string, unknown> {
+  return { ...linePropsOf(kind, points), rotation: null, lockRatio: null }
+}
 
 // 文字枠の文字の大きさ（px）の既定
 export const DEFAULT_FONT_SIZE = 24
@@ -79,7 +118,7 @@ export const TEXT_FRAME = kit.defineShape({
   capabilities: [],
   toolbox: true,
   props: TextFrameProps,
-  tokens: [SLIDE_INK],
+  tokens: [],
   size: { w: 240, h: 48 },
   min: MIN,
 })
@@ -116,10 +155,7 @@ export const STRAIGHT_LINE = kit.defineShape({
   size: { w: 160, h: 80 },
   min: MIN,
   minimap: (item, r): MinimapMark[] => [
-    {
-      kind: "polyline",
-      points: [inRect(item.props.from ?? { x: 0, y: 0 }, r), inRect(item.props.to ?? { x: 1, y: 1 }, r)],
-    },
+    { kind: "polyline", points: linePointsOf(STRAIGHT_LINE.id, item.props).map(p => inRect(p, r)) },
   ],
 })
 

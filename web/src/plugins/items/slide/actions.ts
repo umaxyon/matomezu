@@ -14,6 +14,7 @@ import {
 } from "../../../plugin-api"
 import { nextItemId } from "../../base"
 import { kit } from "./kit"
+import { ORDERS } from "./order"
 import { scaledFontSize } from "./rect"
 import {
   DEFAULT_FONT_SIZE,
@@ -224,7 +225,7 @@ export const SLIDE_REORDER = kit.defineAction({
   args: z.strictObject({
     page: z.string().min(1),
     item: z.string().min(1),
-    to: z.enum(["front", "back", "forward", "backward"]),
+    to: z.enum(ORDERS),
   }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args) => {

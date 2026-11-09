@@ -1,6 +1,7 @@
 // 選んだアイテムの重ねの順を動かす手順（ページの slide の並びは、あとの物ほど手前）。
 // 選んだ物どうしの前後は保つ。端まで動いた物は動かさず、その先へ別の選んだ物が越えない
-export type Order = "front" | "back" | "forward" | "backward"
+export const ORDERS = ["front", "back", "forward", "backward"] as const
+export type Order = (typeof ORDERS)[number]
 
 // 手順の 1 つ: アイテムを、to へ動かす（1 つ前・後ろは 1 段）。list は今の並び（後ろから前へ）、selected は選んだ物の id
 export interface OrderStep {

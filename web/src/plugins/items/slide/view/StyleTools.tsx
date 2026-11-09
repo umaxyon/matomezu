@@ -5,7 +5,15 @@ import { useCommand, useMessages } from "../../../../plugin-api/ui"
 import { ColorPicker, useBookOf, useBookTheme, useSwatches } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
-import { ELLIPSE, FREE_LINE, SLIDE_INK, STRAIGHT_LINE, TEXT_FRAME } from "../slide"
+import {
+  DEFAULT_STROKE_WIDTH,
+  ELLIPSE,
+  FREE_LINE,
+  MAX_STROKE_WIDTH,
+  SLIDE_INK,
+  STRAIGHT_LINE,
+  TEXT_FRAME,
+} from "../slide"
 import styles from "./Selection.module.css"
 
 // 選んだアイテム: item は種類の id、props は項目
@@ -33,6 +41,9 @@ export function commonTools(items: readonly string[]): readonly StyleTool[] {
   if (first === undefined) return []
   return toolsOf(first).filter(tool => rest.every(item => toolsOf(item).includes(tool)))
 }
+
+// 複数を選んだときにバーを出すか（全部に効く道具があるときだけ。無ければ、中身の空のバーは出さない）
+export const showsGroupBar = (items: readonly string[]): boolean => commonTools(items).length > 0
 
 // 選んだアイテムの道具。複数なら、全部に一度に効かせる（今の値は最初の物のもの）
 export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) {
@@ -78,8 +89,8 @@ export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) 
               <WidthField
                 key={tool}
                 label={t("Width")}
-                value={num("width") ?? 2}
-                min={1}
+                value={num("width") ?? DEFAULT_STROKE_WIDTH}
+                zero={false}
                 disabled={!set.enabled}
                 onCommit={n => change({ width: n })}
               />
@@ -89,8 +100,8 @@ export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) 
               <WidthField
                 key={tool}
                 label={t("Width")}
-                value={num("width") ?? 2}
-                min={0}
+                value={num("width") ?? DEFAULT_STROKE_WIDTH}
+                zero
                 disabled={!set.enabled}
                 onCommit={n => change({ width: n })}
               />
@@ -133,32 +144,32 @@ export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) 
 function WidthField({
   label,
   value,
-  min,
+  zero,
   disabled,
   onCommit,
 }: {
   label: string
   value: number
-  min: number
+  zero: boolean // 0 を入れてよい（楕円の枠なし）。線は 0 より大きい数だけ（項目の決まり）
   disabled: boolean
   onCommit: (n: number) => void
 }) {
   const [text, setText] = useState(String(value))
   const commit = () => {
     const n = Number(text)
-    if (text.trim() === "" || !Number.isFinite(n) || n < min || n > 200) {
+    if (text.trim() === "" || !Number.isFinite(n) || (zero ? n < 0 : n <= 0) || n > MAX_STROKE_WIDTH) {
       setText(String(value))
       return
     }
     if (n !== value) onCommit(n)
   }
   return (
-    <label className={styles.angle}>
+    <label className={styles.numberField}>
       {label}
       <input
         type="number"
-        min={min}
-        max={200}
+        min={zero ? 0 : undefined}
+        max={MAX_STROKE_WIDTH}
         step={1}
         value={text}
         disabled={disabled}
