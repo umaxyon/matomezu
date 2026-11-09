@@ -46,12 +46,16 @@ export function renderedRanges(
   hits: readonly { start: number; end: number }[],
 ): Range[] {
   if (!root || hits.length === 0) return []
-  const texts = [...root.querySelectorAll<HTMLElement>("[data-markdown-at]")].map(el => ({
-    el,
-    start: Number(el.dataset.markdownAt),
-    length: el.textContent?.length ?? 0,
-  }))
   const tops = [...root.querySelectorAll<HTMLElement>("[data-markdown-block]")]
+  // 中身が同じブロックは描き直さないので、data-markdown-at と data-markdown-block は描いたときの位置のまま。今のブロックの頭との差で直す
+  const texts = tops.flatMap((top, i) => {
+    const shift = (blocks[i]?.range.start ?? 0) - Number(top.dataset.markdownBlock)
+    return [...top.querySelectorAll<HTMLElement>("[data-markdown-at]")].map(el => ({
+      el,
+      start: Number(el.dataset.markdownAt) + shift,
+      length: el.textContent?.length ?? 0,
+    }))
+  })
   return hits.flatMap(hit => {
     const inText = texts.flatMap(t => {
       const [from, to] = [Math.max(hit.start, t.start), Math.min(hit.end, t.start + t.length)]

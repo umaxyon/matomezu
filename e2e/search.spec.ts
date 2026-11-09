@@ -50,6 +50,27 @@ test("Mod+F で開き、打つと当たりを数えて両方のペインで光�
   await expect(source(page)).toHaveValue("# 猫の話\n\n猫が好き。**猫**は丸い。\n\n犬より犬。")
 })
 
+test("原文の上の方に書き足して後ろのブロックの位置がずれても、プレビューの光りは今の当たりの字に当たる", async ({
+  page,
+}) => {
+  await markdownBook(page, "犬\n\nねこ猫ねこ")
+  await page.keyboard.press("ControlOrMeta+f")
+  await page.keyboard.type("猫")
+  await expect(count(page)).toHaveText("1/1")
+  await expect.poll(() => lit(page, "matomezu-search")).toBe(2)
+  await source(page).click()
+  await page.keyboard.press("ControlOrMeta+Home")
+  await page.keyboard.insertText("あいう\n\n")
+  await expect(source(page)).toHaveValue("あいう\n\n犬\n\nねこ猫ねこ")
+  const previewHits = () =>
+    page.evaluate(() =>
+      [...(CSS.highlights.get("matomezu-search") ?? [])]
+        .filter(r => (r as Range).startContainer.parentElement?.closest("[data-markdown-document]"))
+        .map(r => r.toString()),
+    )
+  await expect.poll(previewHits).toEqual(["猫"])
+})
+
 test("Mod+Alt+F は置換の入力Formから始め、1 つ置換は今の当たりだけ、全部置換は全部を替える。正規表現が読めないと 0/0", async ({
   page,
 }) => {
