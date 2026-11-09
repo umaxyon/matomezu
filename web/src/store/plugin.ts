@@ -107,7 +107,7 @@ export const definePlugin = <const P extends Plugin>(
   plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never; normalizeSteps?: never },
 ): P => plugin
 
-// ビルトインプラグインが台帳アセンブルのときの確かめ（checks）を書くための型と、問題と warning の作り方、テーマが書いたテーマキーの値の引き方（plugin-api/builtin が出し直す）
+// ビルトインプラグインが台帳アセンブルのときの確かめ（checks）を書くための型と、問題と warning の作り方、テーマキーに書かれた値の引き方（plugin-api/builtin が出し直す）
 export type { CatalogCheckDef }
 export { problem, warning, writtenValues }
 

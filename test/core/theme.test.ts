@@ -94,9 +94,9 @@ const dirOf = (id: string) => {
   return `${dir}/`
 }
 
-test("色の候補に使うテーマキーの定義（ダイアログが持つ物）は長い id で宣言し、テーマが上書きした値を引ける", () => {
+test("色の候補に使うテーマキーの定義（ダイアログが持つ物）は長い id で宣言し、テーマ（matomezu）ごとの値を引ける", () => {
   for (const def of [LIST_FILL, NODE_FILL, FILE_COLOR, FOLDER_COLOR]) expect(def.id.startsWith("@matomezu/")).toBe(true)
-  // matomezu のテーマはフォルダのアイコンを琥珀色に上書きする
+  // フォルダのアイコンは、matomezu のテーマでは琥珀色（dir が自分の宣言の themeValues に持つ）
   expect(resolveTokens(CORE_CATALOG, "@matomezu/base:matomezu", [FOLDER_COLOR])[FOLDER_COLOR.id]?.light).toBe("#f5a623")
 })
 

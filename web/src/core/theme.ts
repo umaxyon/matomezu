@@ -23,7 +23,7 @@ export function shades(value: ThemeValue): Shades {
 
 const WHITE = "#ffffff"
 
-// テーマ theme がテーマキー def に書いた値（引く順: テーマの上書き、宣言のテーマごとの値）。どちらも無ければ空。
+// テーマ theme でテーマキー def に書かれた値（引く順: テーマの上書き、宣言のテーマごとの値）。どちらも無ければ空。
 // by は書いた者: テーマの上書きはテーマのプラグイン、宣言のテーマごとの値はテーマキーを宣言したプラグイン（値の誤りの warning はその者のもの）
 export const writtenValues = (theme: ThemeDef, def: TokenDef): { value: ThemeValue; by: string }[] => {
   const own = theme.tokens?.[def.id]

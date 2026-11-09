@@ -49,7 +49,7 @@ export const FOLDER_COLOR = {
   id: kit.name("dir-folder"),
   value: "#d9a441",
   themeValues: { "@matomezu/base:matomezu": "#f5a623" },
-} as const // フォルダのアイコン（標準は黄土色。テーマが上書きする）
+} as const // フォルダのアイコン（標準は黄土色。テーマごとの値は themeValues）
 export const FILE_COLOR = {
   id: kit.name("dir-file"),
   value: "#8a8f9c",

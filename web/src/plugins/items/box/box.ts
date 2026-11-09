@@ -60,7 +60,7 @@ export const BOX_TOKENS = [
       "@matomezu/base:simple": "#262626",
       "@matomezu/base:matomezu": "#e3dbd2",
     },
-  }, // 枠線（標準は淡い灰色。テーマが上書きする）
+  }, // 枠線（標準は淡い灰色。テーマごとの値は themeValues）
   {
     id: kit.name("box-text"),
     fallback: "text",
