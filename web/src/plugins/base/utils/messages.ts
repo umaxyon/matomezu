@@ -1,4 +1,4 @@
-// 経った時間（「〜前」）と、選択肢から選ぶ設定の項目（ChoiceSetting）と、物の角に出す物（corner.tsx）の文言
+// 経った時間（「〜前」）と、問いの吹き出し（Ask.tsx）と、物の角に出す物（corner.tsx）の文言
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const ELAPSED_MESSAGES = defineMessages({
@@ -11,11 +11,6 @@ export const ELAPSED_MESSAGES = defineMessages({
   "{year}/{month}/{day}": { en: "{year}/{month}/{day}", ja: "{year}/{month}/{day}" },
 })
 
-export const CHOICE_SETTING_MESSAGES = defineMessages({
-  "Inherit from book": { en: "Book", ja: "ブック継承" },
-  "Inherit from book ({value})": { en: "Inherit from book ({value})", ja: "ブックを継承（{value}）" },
-})
-
 // 問いの吹き出し（Ask.tsx）
 export const ASK_MESSAGES = defineMessages({
   Yes: { en: "Yes", ja: "はい" },
@@ -26,6 +21,4 @@ export const CORNER_MESSAGES = defineMessages({
   "Things at the corner": { en: "Things at the corner", ja: "角の物" },
   "Show the {n} things at the corner": { en: "Show the {n} things at the corner", ja: "角の {n} 件を見る" },
   "Corner status order": { en: "Corner status order", ja: "コーナーステータスの並び" },
-  "Move {name} up": { en: "Move {name} up", ja: "{name}を前へ" },
-  "Move {name} down": { en: "Move {name} down", ja: "{name}を後ろへ" },
 })

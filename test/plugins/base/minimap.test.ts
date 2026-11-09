@@ -1,11 +1,11 @@
 // ミニマップ: 紙の範囲の計算（base/minimap/geometry.ts）・
 // ページの絵（base/minimap/marks.ts と、形・線の定義の minimap）
 import { describe, expect, test } from "bun:test"
-import type { ItemPage } from "../../web/src/core/placed"
-import type { Book } from "../../web/src/core/schema/book"
-import { fitScale, grabAt, panFor, seenRect } from "../../web/src/plugins/base/minimap/geometry"
-import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
-import { CORE_CATALOG } from "../support"
+import type { ItemPage } from "../../../web/src/core/placed"
+import type { Book } from "../../../web/src/core/schema/book"
+import { fitScale, grabAt, panFor, seenRect } from "../../../web/src/plugins/base/minimap/geometry"
+import { minimapMarks } from "../../../web/src/plugins/base/minimap/marks"
+import { CORE_CATALOG } from "../../support"
 
 describe("紙の範囲の計算", () => {
   const paper = { w: 1000, h: 800 }

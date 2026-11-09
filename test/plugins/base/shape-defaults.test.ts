@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import type { PlacedShape } from "../../web/src/core/placed"
-import { BUILTIN } from "../../web/src/plugins"
-import { placedSize } from "../../web/src/plugins/base"
-import { createMatomezu } from "../../web/src/store/create"
-import { pluginKit } from "../../web/src/store/kit"
-import { definePlugin } from "../../web/src/store/plugin"
+import type { PlacedShape } from "../../../web/src/core/placed"
+import { BUILTIN } from "../../../web/src/plugins"
+import { placedSize } from "../../../web/src/plugins/base"
+import { createMatomezu } from "../../../web/src/store/create"
+import { pluginKit } from "../../../web/src/store/kit"
+import { definePlugin } from "../../../web/src/store/plugin"
 
 // 紙に置くための値（sizeOf・captionWidth・min）を書かない形
 const dots = pluginKit("dots", { Dot: { en: "Dot" } })

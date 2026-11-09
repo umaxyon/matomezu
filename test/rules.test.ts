@@ -1,4 +1,4 @@
-// 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、ホストとブラウザに触る所、コメントの言葉
+// 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、ホストとブラウザに触る所、コメントの言葉、プラグインの中のファイルの役割、base の utils、単体のテストの置き場
 import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, normalize, relative, resolve } from "node:path"
@@ -261,15 +261,29 @@ test("単体のテストは、確かめる物の置き場（クレートか test
   const tests = filesUnder(TEST)
     .filter(path => /\.test\.tsx?$/.test(path) && !path.includes("/added-plugins/") && !path.includes("/type-checks/"))
     .map(path => ({ rel: relative(TEST, path), text: readFileSync(path, "utf8") }))
+  // 値で読む先（import type と、型だけを並べた import { type A, type B } は数えない）
+  const typeOnly = (kw: string | undefined, names: string) =>
+    kw !== undefined ||
+    (names.startsWith("{") &&
+      names
+        .replace(/[{}\s]/g, "")
+        .split(",")
+        .filter(n => n !== "")
+        .every(n => n.startsWith("type")))
   const targetsOf = (rel: string, text: string) =>
-    [...text.matchAll(/from\s*["'](\.{1,2}\/[^"']+)["']/g)].map(m => normalize(join(dirname(rel), m[1]!)))
+    [...text.matchAll(/^import\s+(type\s+)?([^"']*?)\s*from\s*["'](\.{1,2}\/[^"']+)["']/gm)]
+      .filter(m => !typeOnly(m[1], m[2]!.trim()))
+      .map(m => normalize(join(dirname(rel), m[3]!)))
+  const CRATE_DIRS = [...CRATES, "plugins"]
   const ROOT_TESTS = ["rules.test.ts", "engine.test.ts", "fonts.test.ts", "plugin-api.test.ts"]
   const bad = tests.flatMap(({ rel, text }) => {
     const parts = rel.split("/")
     if (parts.length === 1) return ROOT_TESTS.includes(rel) ? [] : [`${rel}: test の直下`]
     const reads = targetsOf(rel, text)
+    if (!CRATE_DIRS.includes(parts[0]!)) return [`${rel}: クレートの名前でないフォルダ`]
     if (parts[0] === "plugins") {
       const place = parts.slice(1, -1).join("/")
+      if (place === "") return [`${rel}: test/plugins の直下`]
       return reads.some(t => t.startsWith(`../web/src/plugins/${place}`)) ? [] : [`${rel}: plugins/${place} を読まない`]
     }
     const crate = parts[0]!
@@ -289,7 +303,12 @@ test("base の utils は、base の機能のフォルダを読まない", () => 
     .flatMap(f =>
       [...f.text.matchAll(/from\s*["'](\.\.\/[^"']+)["']/g)]
         .map(m => normalize(join(dirname(f.rel), m[1]!)))
-        .filter(t => /^plugins\/base\/[^/]+\//.test(t) && !t.startsWith("plugins/base/utils/"))
+        .filter(
+          t =>
+            t.startsWith("plugins/base/") &&
+            !t.startsWith("plugins/base/utils") &&
+            statSync(join(SRC, t.split("/").slice(0, 3).join("/")), { throwIfNoEntry: false })?.isDirectory() === true,
+        )
         .map(t => `${f.rel} → ${t}`),
     )
   expect(offenders).toEqual([])

@@ -1,11 +1,11 @@
 // 郵便の行き先が今もあるか（base/mail/place.ts の placeExists）: ブック・ページ・物のどれが無くなっても無い。物は 1 つでも残っていれば有る
 
 import { expect, test } from "bun:test"
-import type { Mail } from "../../web/src/core/mail"
-import type { Book } from "../../web/src/core/schema/book"
-import { addPageIn, createBookIn } from "../../web/src/plugins/base"
-import { placeExists } from "../../web/src/plugins/base/mail/place"
-import { newStore } from "../support"
+import type { Mail } from "../../../web/src/core/mail"
+import type { Book } from "../../../web/src/core/schema/book"
+import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
+import { placeExists } from "../../../web/src/plugins/base/mail/place"
+import { newStore } from "../../support"
 
 function ready() {
   const store = newStore()

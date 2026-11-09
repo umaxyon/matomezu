@@ -1,8 +1,8 @@
 // 物の名前（base/label/labels.ts の anchorLabel と、定義の labelOf）: id を持つ物（いちばん内側の形 → つなぐもの → ページ）の定義から引き、空なら種類の名前。装飾は外す
 import { expect, test } from "bun:test"
-import type { Book } from "../../web/src/core/schema/book"
-import { anchorLabel } from "../../web/src/plugins/base/label/labels"
-import { CORE_CATALOG } from "../support"
+import type { Book } from "../../../web/src/core/schema/book"
+import { anchorLabel } from "../../../web/src/plugins/base/label/labels"
+import { CORE_CATALOG } from "../../support"
 
 const drawing = (items: readonly unknown[]): Book =>
   ({
