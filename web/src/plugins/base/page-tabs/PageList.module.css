@@ -9,7 +9,7 @@
   gap: 8px;
   padding: 10px 8px;
   overflow-y: auto;
-  background: var(--skin-surface-sunken, var(--skin-surface));
+  background: var(--skin-surface);
   border-right: 1px solid var(--skin-border);
 }
 .item {

@@ -1,7 +1,7 @@
 // バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
 // アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（テーマの文字の色。塗りは塗らない）か、テーマの代表色か、好きな色
-import { useState } from "react"
-import { useCommand, useMessages } from "../../../../plugin-api/ui"
+import { useRef, useState } from "react"
+import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
 import { ColorPicker, useBookOf, useBookTheme, useSwatches } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
@@ -51,9 +51,14 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
   const fields = commonFields(subjects.map(s => s.item))
   const t = useMessages(kit)
   const set = useCommand(subject?.stage ?? "", SLIDE_SET.id)
-  const swatches = useSwatches(useBookTheme(useBookOf(subject?.stage ?? "")), SLIDE_INK)
+  const book = useBookOf(subject?.stage ?? "")
+  const { continueStep } = useActions()
+  const swatches = useSwatches(useBookTheme(book), SLIDE_INK)
   if (!subject) return null
-  const change = (props: Record<string, unknown>) => set.run({ items: subjects.map(s => s.id), props })
+  const change = (props: Record<string, unknown>, continues = false) => {
+    if (continues && book) continueStep(book) // 入力の途中の変更は、最初の変更の元に戻す 1 段に続ける
+    set.run({ items: subjects.map(s => s.id), props })
+  }
   const str = (key: string) => (typeof subject.props[key] === "string" ? (subject.props[key] as string) : undefined)
   const num = (key: string) => (typeof subject.props[key] === "number" ? (subject.props[key] as number) : undefined)
   const colorField = (field: StyleField, key: string, label: string) =>
@@ -92,7 +97,7 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
                 value={num("width") ?? DEFAULT_STROKE_WIDTH}
                 zero={false}
                 disabled={!set.enabled}
-                onCommit={n => change({ width: n })}
+                onCommit={(n, continues) => change({ width: n }, continues)}
               />
             )
           case "outline-width":
@@ -103,7 +108,7 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
                 value={num("width") ?? DEFAULT_STROKE_WIDTH}
                 zero
                 disabled={!set.enabled}
-                onCommit={n => change({ width: n })}
+                onCommit={(n, continues) => change({ width: n }, continues)}
               />
             )
           case "dashed":
@@ -152,16 +157,24 @@ function WidthField({
   value: number
   zero: boolean // 0 を入れてよい（楕円の枠なし）。線は 0 より大きい数だけ（項目の決まり）
   disabled: boolean
-  onCommit: (n: number) => void
+  onCommit: (n: number, continues: boolean) => void // continues: 同じ入力の中の 2 回目以降（元に戻す 1 段に続ける）
 }) {
   const [text, setText] = useState(String(value))
+  const started = useRef(false) // この入力で、もう 1 回変えたか
+  const valid = (s: string): number | null => {
+    const n = Number(s)
+    return s.trim() === "" || !Number.isFinite(n) || (zero ? n < 0 : n <= 0) || n > MAX_STROKE_WIDTH ? null : n
+  }
+  const apply = (n: number) => {
+    if (n === value) return
+    onCommit(n, started.current)
+    started.current = true
+  }
   const commit = () => {
-    const n = Number(text)
-    if (text.trim() === "" || !Number.isFinite(n) || (zero ? n < 0 : n <= 0) || n > MAX_STROKE_WIDTH) {
-      setText(String(value))
-      return
-    }
-    if (n !== value) onCommit(n)
+    started.current = false
+    const n = valid(text)
+    if (n === null) setText(String(value))
+    else apply(n)
   }
   return (
     <label className={styles.numberField}>
@@ -173,7 +186,11 @@ function WidthField({
         step={1}
         value={text}
         disabled={disabled}
-        onChange={e => setText(e.target.value)}
+        onChange={e => {
+          setText(e.target.value)
+          const n = valid(e.target.value)
+          if (n !== null) apply(n) // 入力の途中でも、数として読めれば見た目に反映する
+        }}
         onBlur={commit}
         onKeyDown={e => {
           if (e.key === "Enter") e.currentTarget.blur()

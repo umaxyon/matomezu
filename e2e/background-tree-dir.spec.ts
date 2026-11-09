@@ -69,3 +69,57 @@ test("ディレクトリ構成図: 背景編集モードで楕円を置くと、
   near(after.x, before.x)
   near(after.y, before.y)
 })
+
+test("ツリー: 背景編集モードで文字枠を置くと、そのまま文字を打てて、確定すると背景に文字が出る", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const add = await newBook(page, "木", "ツリー")
+  await add.getByLabel("根のキャプション").fill("根")
+  await add.getByRole("button", { name: "作る" }).click()
+  await expect(paper(page)).toBeVisible()
+  await settled(page)
+  await (await fromMenu(page, "背景を編集")).click()
+  await settled(page)
+  await (await footerMenuTool(page, "文字枠")).click()
+  const box = (await paper(page).boundingBox())!
+  await page.mouse.move(box.x + 100, box.y + 120)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 300, box.y + 180, { steps: 6 })
+  await page.mouse.up()
+  await expect(page.locator("textarea")).toBeFocused() // 節の書き換えに取られず、文字枠の入力Formが開く
+  await page.keyboard.type("組織図")
+  await page.mouse.click(box.x + 500, box.y + 400)
+  await expect(page.getByText("組織図")).toBeVisible()
+})
+
+test("文字枠を選ぶと、バーは回すつまみに重ならず、つまみを押せる", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const add = await newBook(page, "木", "ツリー")
+  await add.getByLabel("根のキャプション").fill("根")
+  await add.getByRole("button", { name: "作る" }).click()
+  await expect(paper(page)).toBeVisible()
+  await settled(page)
+  await (await fromMenu(page, "背景を編集")).click()
+  await settled(page)
+  await (await footerMenuTool(page, "文字枠")).click()
+  const box = (await paper(page).boundingBox())!
+  await page.mouse.move(box.x + 100, box.y + 300)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 160, box.y + 340, { steps: 6 }) // バーより狭い枠
+  await page.mouse.up()
+  await page.keyboard.type("あ")
+  await page.mouse.click(box.x + 600, box.y + 100) // 確定
+  await page.mouse.click(box.x + 120, box.y + 320) // 選ぶ
+  const rotate = (await page.locator("[data-rotate]").boundingBox())!
+  const bar = (await page.locator("[data-bar]").boundingBox())!
+  const overlaps =
+    bar.x < rotate.x + rotate.width &&
+    rotate.x < bar.x + bar.width &&
+    bar.y < rotate.y + rotate.height &&
+    rotate.y < bar.y + bar.height
+  expect(overlaps).toBe(false)
+  const hit = await page.evaluate(
+    ([x, y]: [number, number]) => document.elementFromPoint(x, y)?.closest("[data-rotate]") !== null,
+    [rotate.x + rotate.width / 2, rotate.y + rotate.height / 2] as [number, number],
+  )
+  expect(hit).toBe(true)
+})
