@@ -5,6 +5,7 @@ import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, DIAGRAM_THEME_TYPE, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
 import { kit } from "./kit"
 import { slideMinimapMarks, slidePrintSheets } from "./print"
+import { SLIDE_PRINT } from "./print-setting"
 
 // スライドの見せ方で描いている間のキー（ビューの根が名乗り、押した所がこの中なら、ここのキーが紙のキーより先に効く）
 export const SLIDE_KEY_SCOPE = kit.defineKeyScope({ id: "slide", title: "Slide" })
@@ -44,7 +45,7 @@ export const SLIDE_BOOK = kit.defineBookType({
   presentation: SLIDE_PRESENTATION.id,
   tokens: [],
   settings: {
-    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, ...PRINT_PREVIEW_SETTINGS],
-    page: [],
+    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, ...PRINT_PREVIEW_SETTINGS, SLIDE_PRINT.id],
+    page: [SLIDE_PRINT.id],
   },
 })

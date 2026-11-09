@@ -214,3 +214,18 @@ test.describe("スライドの印刷", () => {
     await expect(page.locator("[data-grip]")).toHaveCount(0)
   })
 })
+
+test.describe("スライドの印刷の設定", () => {
+  const EMPTY = {
+    ...SLIDE_BOOK,
+    pages: [{ ...SLIDE_BOOK.pages[0], slide: [], settings: { "@matomezu/slide-book:slide-print": "always" } }],
+  }
+  test.use({ books: [EMPTY] })
+
+  test("何も無いスライドも、ページの設定が必ずなら 1 枚出る", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await (await fromMenu(page, "印刷プレビュー")).click()
+    await expect(page.locator("[data-print-preview]")).toBeVisible()
+    await expect(page.locator("[data-sheet]")).toHaveCount(1)
+  })
+})

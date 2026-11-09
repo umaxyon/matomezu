@@ -15,5 +15,9 @@ export const SLIDE_BOOK_MESSAGES = defineMessages({
   Ratio: { en: "Ratio", ja: "比率" },
   Angle: { en: "Angle", ja: "角度" },
   Rotate: { en: "Rotate", ja: "回す" },
+  "Print slides": { en: "Print slides", ja: "スライドの印刷" },
+  "Print if filled": { en: "If filled", ja: "中身があれば" },
+  "Always print": { en: "Always", ja: "必ず" },
+  "Never print": { en: "Never", ja: "出さない" },
   "No slides yet": { en: "No slides yet", ja: "スライドがありません" },
 })
