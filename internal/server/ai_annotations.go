@@ -53,6 +53,36 @@ func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) 
 	return out, nil
 }
 
+// AIPage は、AI に見せるページ（engine.AIPage。背景の図形の情報は見せない）
+func (h *Hub) AIPage(book, page json.RawMessage) (json.RawMessage, error) {
+	return h.engine.AIPage(book, page)
+}
+
+// AIBook は、AI に見せるブック（本文）: 全部のページを AIPage に通す（読めない形のブックは、渡したまま返す）
+func (h *Hub) AIBook(book json.RawMessage) (json.RawMessage, error) {
+	var body map[string]json.RawMessage
+	if json.Unmarshal(book, &body) != nil {
+		return book, nil
+	}
+	var pages []json.RawMessage
+	if json.Unmarshal(body["pages"], &pages) != nil {
+		return book, nil
+	}
+	for i, p := range pages {
+		shown, err := h.AIPage(book, p)
+		if err != nil {
+			return nil, err
+		}
+		pages[i] = shown
+	}
+	raw, err := json.Marshal(pages)
+	if err != nil {
+		return nil, err
+	}
+	body["pages"] = raw
+	return json.Marshal(body)
+}
+
 // AIPlaced は、ブック（本文）のページの id ごとの、形の描いた位置と大きさ（engine.AIPlaced。見せ方が答えなければ null）
 func (h *Hub) AIPlaced(book json.RawMessage) (json.RawMessage, error) {
 	return h.engine.AIPlaced(book)
@@ -156,7 +186,12 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"id": b.ID, "page": want, "item": found, "version": b.Version, "annotations": onItem, "placed": inside})
 		return
 	}
-	writeJSON(w, map[string]any{"id": b.ID, "page": page, "version": b.Version, "annotations": onPage, "placed": placed})
+	shown, err := o.Hub.AIPage(b.Body, page)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"id": b.ID, "page": shown, "version": b.Version, "annotations": onPage, "placed": placed})
 }
 
 // aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation"}]}。ブックを置いた順）と、

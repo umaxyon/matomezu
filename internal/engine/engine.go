@@ -96,6 +96,7 @@ type Engine struct {
 	mails     func(string) string
 	forAI     func(string) string
 	placed    func(string) string
+	aiPage    func(string, string) string
 	item      func(string, string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
@@ -139,6 +140,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiPlaced"), &e.placed); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiPlaced: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiPage"), &e.aiPage); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiPage: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiItem"), &e.item); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiItem: %w", err)
@@ -507,6 +511,19 @@ func (e *Engine) AIPlaced(book json.RawMessage) (out json.RawMessage, err error)
 		}
 	}()
 	return json.RawMessage(e.placed(string(book))), nil
+}
+
+// AIPage は、AI に見せるページ（read_page の page）を返す。背景を持つタイプのページは、背景の形（slide）の図形の情報を見せず、背景の文字だけを background に入れる。
+// ほかのページと、読めないブックのページは、渡したまま返す
+func (e *Engine) AIPage(book, page json.RawMessage) (out json.RawMessage, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return json.RawMessage(e.aiPage(string(book), string(page))), nil
 }
 
 // AnnotatedBook はブックとそのアノテーションの並び（CheckAnnotations・AIAnnotations に渡す）

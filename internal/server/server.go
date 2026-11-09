@@ -501,7 +501,12 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, map[string]any{"id": b.ID, "book": b.Body, "version": b.Version, "annotations": list, "placed": placed})
+	shown, err := o.Hub.AIBook(b.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"id": b.ID, "book": shown, "version": b.Version, "annotations": list, "placed": placed})
 }
 
 func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {

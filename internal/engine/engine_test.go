@@ -560,3 +560,31 @@ module.exports.default = {
 		}
 	}
 }
+
+// AI に見せるページ: 背景を持つタイプ（図面）のページは、背景の形の図形の情報を見せず、背景の文字だけを background に入れる。背景を持たないタイプはそのまま
+func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
+	e := newEngine(t)
+	const page = `{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","slide":[` +
+		`{"id":"s1","item":"@matomezu/slide:slide-text","x":1,"y":2,"w":300,"h":40,"props":{"text":"社外秘"}},` +
+		`{"id":"s2","item":"@matomezu/slide:slide-ellipse","x":5,"y":6,"w":100,"h":60,"props":{"fill":"#f6c177","stroke":"#286983","width":3}}]}`
+	book := func(typ string) json.RawMessage {
+		return json.RawMessage(`{"type":"` + typ + `","id":"b1","title":"T","project":"default","pages":[` + page + `]}`)
+	}
+	out, err := e.AIPage(book("@matomezu/drawing:drawing"), json.RawMessage(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Slide      json.RawMessage `json:"slide"`
+		Background struct {
+			Texts []string `json:"texts"`
+		} `json:"background"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil || got.Slide != nil || len(got.Background.Texts) != 1 || got.Background.Texts[0] != "社外秘" {
+		t.Fatalf("AIPage = %s, %v", out, err)
+	}
+	same, err := e.AIPage(book("@matomezu/slide-book:slide"), json.RawMessage(page))
+	if err != nil || string(same) != page {
+		t.Fatalf("AIPage of a slide book = %s, %v", same, err)
+	}
+}

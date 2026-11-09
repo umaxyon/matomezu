@@ -14,8 +14,9 @@ import {
 } from "../core/annotation"
 import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
-import type { CoreCatalog } from "../core/core-catalog"
+import { bookType, type CoreCatalog } from "../core/core-catalog"
 import { type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
+import { slideIsBackground } from "../core/def/book-type"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
@@ -218,6 +219,8 @@ function aiTables(of: Assembled) {
       pages: t.pages !== null,
       grows: t.pages ? growsOf(t.grow) : "none", // 可変ページの決め方
       items: t.items.allowed, // ページに置けるアイテム
+      // ページの slide（形だけの並び）に置けるアイテムと、その並びがページの背景か本体か（無ければ null）。read_page には、背景は有無と文字だけが見える（page.background.texts）
+      slide: t.slide ? { items: t.slide.allowed, role: slideIsBackground(t) ? "background" : "body" } : null,
       themes: themesFor(catalog, t.id).map(th => th.id), // そのタイプのブックと中の形に当てられるテーマ（テーマタイプの重なりは、ここで計算して出す）
     })),
     items: [...catalog.items.values()].map(i => ({
@@ -320,6 +323,24 @@ function aiTables(of: Assembled) {
   const catalog = assembled.catalog.core
   const [read] = restoreBooks(catalog, [JSON.parse(book)])
   return JSON.stringify(read ? aiPlacedOf(catalog, read) : null)
+}
+
+// AI に見せるページ（read_page の page）: 背景を持つタイプのページの slide（背景の形）は、図形の情報（位置・大きさ・形の種類など）を見せず、
+// 背景があることと、背景の文字（文字枠の text。重ねの順）だけを background に入れる。背景を持たないタイプと、背景の無いページはそのまま返す
+;(globalThis as { matomezuAiPage?: (book: string, page: string) => string }).matomezuAiPage = (book, page) => {
+  const catalog = assembled.catalog.core
+  const [read] = restoreBooks(catalog, [JSON.parse(book)])
+  const body = JSON.parse(page) as { slide?: { props?: { text?: unknown } }[] }
+  if (
+    !read ||
+    !Array.isArray(body.slide) ||
+    body.slide.length === 0 ||
+    !slideIsBackground(bookType(catalog, read.type))
+  )
+    return page
+  const { slide, ...rest } = body
+  const texts = slide.flatMap(s => (typeof s.props?.text === "string" && s.props.text !== "" ? [s.props.text] : []))
+  return JSON.stringify({ ...rest, background: { texts } })
 }
 
 // ページ page（JSON）の中の、どの深さの形も、つなぐものも、id で探した物と、その物と子の形の id の全部（AI の read_page の item）。無ければ null
