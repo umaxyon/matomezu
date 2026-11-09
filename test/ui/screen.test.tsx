@@ -161,7 +161,7 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
   expect(document.documentElement.lang).toBe("en")
 })
 
-test("分割すると、それぞれのステージの区画に閉じるボタンが出て、閉じると残りのステージだけになる", () => {
+test("分割すると、それぞれのステージに閉じるボタンが出て、閉じると残りのステージだけになる", () => {
   renderBooksScreen()
   expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
   fireEvent.click(fromMenu("画面を分割"))

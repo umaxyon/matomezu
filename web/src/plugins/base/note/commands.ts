@@ -1,4 +1,4 @@
-// 伝言のコマンド: 右クリックで押した物（アンカーの付いた物）に、伝言を新しく書き始める（右サイドパネルを伝言の中身で開く）。配置の anchorMenu に置く
+// 伝言のコマンド: 右クリックで押した物（アンカーの付いた物）に、伝言を新しく書き始める（右サイドパネルを伝言の中身で開く）。UI マッピングの anchorMenu に置く
 import { workspaceOf } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"

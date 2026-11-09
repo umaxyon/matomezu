@@ -40,7 +40,7 @@ describe("コントロールセンター", () => {
     expect(instance.actions.command("s1", "@matomezu/base:stage-split")).toBe(true)
   })
 
-  test("渡すコントロールセンターは表になければ error。許すアクションが表に無ければ組み立てを止める", () => {
+  test("渡すコントロールセンターは表になければ error。許すアクションが表に無ければ台帳アセンブルを止める", () => {
     // @ts-expect-error 表に無い id は型でも誤り
     expect(() => createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/drawing:drawing" })).toThrow("E110")
     const bad = { ...CONTROL_CENTER, actions: [...CONTROL_CENTER.actions, "nope" as never] }
@@ -73,7 +73,7 @@ describe("コントロールセンター", () => {
     expect(some.actions.perform("@matomezu/base:settings-set", { values: { ...lang, ...skin } }).ok).toBe(false)
     expect(some.state.getState().settings).toEqual({})
     expect(some.actions.perform("@matomezu/base:settings-set", { values: lang }).ok).toBe(true)
-    // fixedUserSettings に利用者の設定の項目でない id を書いても組み立てられ、その行だけ効かず warning を残す
+    // fixedUserSettings に利用者の設定の項目でない id を書いても台帳アセンブルでき、その行だけ効かず warning を残す
     const warned = withCenter({ fixedUserSettings: ["@matomezu/base:book-theme"] })
     expect(warningsOf(warned.catalog).map(w => w.code)).toContain("W013")
     // 断りには、使えない項目と理由が付く

@@ -67,7 +67,7 @@ export function autoInputOf(catalog: CoreCatalog, def: SettingDef): AutoInput | 
   return null
 }
 
-// optionTitles の文言の鍵が文言にあるか（組み立てのときの確かめ）
+// optionTitles の文言の鍵が文言にあるか（台帳アセンブルのときの確かめ）
 export const OPTION_TITLES_CHECK: CatalogCheckDef = catalog =>
   [...catalog.userSettings.values()].flatMap(d =>
     Object.values(d.optionTitles ?? {})

@@ -12,7 +12,7 @@ import type { Page } from "./schema/page"
 const LOOSE_SHAPE = z.looseObject({ id: z.string().min(1), item: z.string().min(1), x: z.number(), y: z.number() })
 
 // 置いた形のデータの形。フィールドの並びは id・x・y・item・w・h・props・中身・子の形（shapes）。
-// 子の形の並びを持てるのは能力 nests のある形だけで、空の並びは持たない。child は子の形 1 つの形（ブックの形を組み立てるときに、タイプが選んだ形を渡す）
+// 子の形の並びを持てるのはケイパビリティ nests のある形だけで、空の並びは持たない。child は子の形 1 つの形（ブックの形を組み立てるときに、タイプが選んだ形を渡す）
 export function shapeSchema(def: ShapeItemDef, child: z.ZodType = LOOSE_SHAPE): z.ZodObject {
   const len = (min: number | undefined) => (min === undefined ? z.number() : z.number().min(min)).optional()
   return z.strictObject({

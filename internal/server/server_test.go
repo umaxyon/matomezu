@@ -318,7 +318,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	}
 	next(t, screen) // book
 
-	// 組み立てられないものを足しても、前のまま動き続ける
+	// 台帳アセンブルで食い違うものを足しても、前のまま動き続ける
 	broken := copyDir(t, flow, func(name, text string) string {
 		return strings.ReplaceAll(text, `items: [DIAMOND]`, `items: [DIAMOND, DIAMOND]`)
 	})

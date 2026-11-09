@@ -105,7 +105,7 @@ test("記号の字の前の \\ でただの文字になり、戻すときは記�
   }
 })
 
-test("文字の色は定義の色を、テーマ、ブックの設定、見る人の上書きの順に上書きする", () => {
+test("文字の色は定義の色を、テーマ、ブックの設定、利用者の上書きの順に上書きする", () => {
   const book = {
     type: "@matomezu/drawing:drawing",
     id: "b",
@@ -132,7 +132,7 @@ test("文字の色は定義の色を、テーマ、ブックの設定、見る�
   ])
 })
 
-test("見る人の文字の色は利用者の設定の項目 text-colors で、値を丸ごと置き換え（null で既定に戻す）、ブックの色より強い。形の合わない色は断り、無い色の id は残す", () => {
+test("利用者の文字の色は利用者の設定の項目 text-colors で、値を丸ごと置き換え（null で既定に戻す）、ブックの色より強い。形の合わない色は断り、無い色の id は残す", () => {
   const store = newStore()
   const { state, actions } = store
   const set = (colors: Record<string, string> | null) =>

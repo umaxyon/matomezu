@@ -2,7 +2,7 @@
 // きっかけは、データを初めて描いたとき（draw）・表を入れ替えたとき（data）・見た目や軸を変えたとき（look）の 3 つ。
 // きっかけごとの長さはテーマキー data-motion-draw・data-motion-data・data-motion-look で、0ms ならそのきっかけでは動かさない（CSS が使う）。
 // 動き方は、棒（data-motion-bar）・折れ線（data-motion-line）・点（data-motion-dot）・円（data-motion-pie）ごとに、決まった言葉から選ぶ。
-// 知らない言葉なら動かさない（組み立てのときに W015 を残す。check.ts）。大きさを変えた・選んだ・文字の領域をつまんだときは動かさない
+// 知らない言葉なら動かさない（台帳アセンブルのときに W015 を残す。check.ts）。大きさを変えた・選んだ・文字の領域をつまんだときは動かさない
 import type { DataProps } from "./data"
 import type { Table } from "./table"
 

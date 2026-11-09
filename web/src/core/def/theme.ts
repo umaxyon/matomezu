@@ -30,7 +30,7 @@ export type TokenDef = (
 ) &
   TokenExtras
 // テーマキーの明暗: light-dark は明暗で違う値にできる（色）、one は明暗で同じ値だけ（色でない値。CSS の light-dark() は色にしか効かない）。
-// one のテーマキーに明暗で違う値を書いたテーマは、組み立てで warning（W020）
+// one のテーマキーに明暗で違う値を書いたテーマは、台帳アセンブルで warning（W020）
 export type TokenShades = "one" | "light-dark"
 
 // テーマキーの値を入れる CSS 変数の名前（matomezu の中だけのもの）。土台のテーマキーは --theme-<名前>（「.」は「-」。例: palette.primary → --theme-palette-primary）、
@@ -45,7 +45,7 @@ export const ownTokenVarName = (id: string): string => `--${splitId(id).name}`
 export const themeVar = (id: string): string =>
   `var(${splitId(id).owner === null ? tokenVarName(id) : ownTokenVarName(id)})`
 
-// テーマキーの値: 1 つか、明暗ごとの値。明暗の両方を書いたテーマキーは見る人の OS の明暗で切り替え、片方だけなら明暗どちらでもその値。
+// テーマキーの値: 1 つか、明暗ごとの値。明暗の両方を書いたテーマキーは利用者の OS の明暗で切り替え、片方だけなら明暗どちらでもその値。
 // 明暗で違う値にできるのは色だけ（色でないテーマキーは宣言に shades: "one" を書く。TokenShades）
 // （全部のテーマキーが色 1 つか片方だけなら、固定のテーマ）
 export type ThemeValue =

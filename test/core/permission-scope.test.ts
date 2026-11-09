@@ -1,8 +1,8 @@
-// 許可の範囲（core/def/action.ts の scopeOf・libraryScopeOf）: アクションの宣言から、引数での所と、一覧が対象なら変えるブックと作るブックのタイプを出す
+// 許可スコープ（core/def/action.ts の scopeOf・libraryScopeOf）: アクションの宣言から、引数での所と、一覧が対象なら変えるブックと作るブックのタイプを出す
 import { expect, test } from "bun:test"
 import { libraryScopeOf, scopeOf } from "../../web/src/core/def/action"
 
-test("許可の範囲から所を出す: book は所なし、引数の名前はその値、関数はその返り値、無ければ分からない", () => {
+test("許可スコープから所を出す: book は所なし、引数の名前はその値、関数はその返り値、無ければ分からない", () => {
   const args = { page: "p1", list: "k1", items: ["a", "b"] }
   expect(scopeOf("book", args)).toEqual({})
   expect(scopeOf({ page: "page" }, args)).toEqual({ page: "p1" })

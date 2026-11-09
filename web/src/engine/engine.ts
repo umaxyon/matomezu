@@ -36,7 +36,7 @@ import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plug
 
 let assembled = assemble(BUILTIN, BUILTIN_CONTROL_CENTER)
 
-// 追加プラグインを足して組み直す。新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で投げれば、前の組み立てのまま）。
+// 追加プラグインを足して組み直す。新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で投げれば、前の組のまま）。
 // 返すのは JSON: warnings は warning の 1 行ずつ（常駐がログに書く）、ai は新しい組の MCP 公開ツールの actions が返す物
 function use(added: readonly Plugin[]): string {
   const next = assemble([...BUILTIN, ...added], BUILTIN_CONTROL_CENTER)

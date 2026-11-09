@@ -18,7 +18,7 @@ import { MAILBOX_TAB_ID } from "./tab-id"
 
 // 郵便の種類 mail（種類の本当の id）のダイアログの下の行のウィジェット（スロット mail-actions に置く）。
 // 置いた種類のダイアログは、閉じるの横にこのウィジェットを描く（種類のボタンなどを置く。何も描かなければ、閉じるだけ）。
-// place は、追加プラグインが既定の配置に足してほしいとき（true なら末尾）
+// place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾）
 export const defineMailActions = <const Id extends string>(def: {
   id: Id
   mail: string

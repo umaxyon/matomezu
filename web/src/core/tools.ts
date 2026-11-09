@@ -23,7 +23,7 @@ export function toolSetOf(catalog: CoreCatalog, stage: Pick<Stage, "opened">): s
   return stage.opened ? (bookType(catalog, stage.opened.type).tools ?? null) : null
 }
 
-// 組の道具（回す順。組の道具があることは組み立てが確かめるので、表の道具の id として返す）
+// 組の道具（回す順。組の道具があることは台帳アセンブルが確かめるので、表の道具の id として返す）
 export const toolsIn = (catalog: CoreCatalog, set: string): readonly ToolId[] =>
   setOf(catalog, set).tools as readonly ToolId[]
 

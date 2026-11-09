@@ -1,7 +1,7 @@
 // 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインの見せ方・アイテム・設定の項目・ダイアログのビューを結び、
 // ウィジェット（スロットに置けるコンポーネント）とコマンドのアイコンを足す。
 // ビューは、そのプラグインの id を全部持たないと型の誤り（利用者の設定の項目のビューは書かなくてよい）。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
-// 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
+// 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と台帳アセンブルで確かめる）
 import type { ComponentType, ReactNode } from "react"
 import type { BookViewExtras, ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
 import { fail } from "../core/errors"
@@ -17,7 +17,7 @@ import type { AnyWidgetDef } from "./layout"
 export interface BookViewProps {
   stage: string
 }
-// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、配置には書かない）。
+// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、UI マッピングには書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
 export interface BookViewDef extends BookViewExtras {
   view: ComponentType<BookViewProps>

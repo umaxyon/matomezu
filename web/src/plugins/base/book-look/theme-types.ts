@@ -44,7 +44,7 @@ export function themeFits(catalog: CoreCatalog, type: string, theme: string): bo
 
 const isTypes = (v: unknown): v is readonly string[] => Array.isArray(v) && v.every(t => typeof t === "string")
 
-// テーマとブックのタイプがテーマタイプを書いているか（E040。型の無い書き方の追加プラグイン向け）と、タイプの既定のテーマが使えるか（E039）。組み立てのときの確かめ
+// テーマとブックのタイプがテーマタイプを書いているか（E040。型の無い書き方の追加プラグイン向け）と、タイプの既定のテーマが使えるか（E039）。台帳アセンブルのときの確かめ
 export const THEME_TYPES_CHECK: CatalogCheckDef = catalog => [
   ...[...catalog.themes.values()].flatMap(t =>
     t.themeTypes === "all" || isTypes(t.themeTypes)

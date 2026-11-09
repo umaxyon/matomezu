@@ -124,7 +124,7 @@ test("コントロールセンターが変えさせない項目は、灰色で�
   expect((within(view).getByLabelText("言語") as HTMLSelectElement).closest("fieldset")?.disabled).toBe(false)
 })
 
-test("設定画面の左の一覧は、配置が置いた設定カテゴリを並べる（全体・マークダウン・ショートカットキー）。「マークダウン」は Tab キーとソースのペインの見た目と段落の中の改行の項目を並べ、行番号は既定で入り、段落の中の改行は既定で改行にする", () => {
+test("設定画面の左の一覧は、UI マッピングが置いた設定カテゴリを並べる（全体・マークダウン・ショートカットキー）。「マークダウン」は Tab キーとソースのペインの見た目と段落の中の改行の項目を並べ、行番号は既定で入り、段落の中の改行は既定で改行にする", () => {
   renderGeneral()
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["全体", "マークダウン", "ショートカットキー"])
   fireEvent.click(screen.getByRole("tab", { name: "マークダウン" }))

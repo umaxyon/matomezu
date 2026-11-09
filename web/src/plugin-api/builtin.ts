@@ -1,3 +1,3 @@
-// ビルトインプラグインだけが使う名前: ビルトインの印（キーバインドでビルトインを先に扱う。id の決まりはほかのプラグインと同じ）と、組み立てのときの確かめ（checks）を書くための型と問題・warning の作り方。
+// ビルトインプラグインだけが使う名前: ビルトインの印（キーバインドでビルトインを先に扱う。id の決まりはほかのプラグインと同じ）と、台帳アセンブルのときの確かめ（checks）を書くための型と問題・warning の作り方。
 // plugin-entry は出さないので、追加プラグインからは使えない
 export { type CatalogCheckDef, defineBuiltin, problem, warning } from "../store/plugin"

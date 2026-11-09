@@ -1,4 +1,4 @@
-// スロット: 配置がそのスロットに置いたウィジェットを、並びの順に描く。props はスロットが決めた値で、どのウィジェットにも同じものを渡す
+// スロット: UI マッピングがそのスロットに置いたウィジェットを、並びの順に描く。props はスロットが決めた値で、どのウィジェットにも同じものを渡す
 import type { ReactNode } from "react"
 import type { SlotId, SlotProps } from "../core/catalog"
 import { fail } from "../core/errors"

@@ -79,7 +79,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   messages: Messages // 文言の組と言語パックを重ねた、文言の鍵 → 言語ごとの訳
   languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語 → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
-  warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（core/warnings.ts）
+  warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとブックのタイプのテーマキーは、その定義の tokens）
   normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts）
   roles: ReadonlyMap<SettingRole, SettingDef> // role → その role を持つ利用者の設定の項目（土台は role で引く）
@@ -87,8 +87,8 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
 
-// 組み立てのときの確かめ: 作った機能台帳を受けて、問題（error の番号は E の表）と warning（W の表）を返す。ビルトインプラグインだけが持てる
-// （プラグインの checks。ビルトインプラグインが拡張ポイントに書き足したフィールドを確かめる）。問題が 1 つでもあれば組み立てを止め、warning は store 台帳に残す
+// 台帳アセンブルのときの確かめ: 作った機能台帳を受けて、問題（error の番号は E の表）と warning（W の表）を返す。ビルトインプラグインだけが持てる
+// （プラグインの checks。ビルトインプラグインが拡張ポイントに書き足したフィールドを確かめる）。問題が 1 つでもあれば台帳アセンブルを止め、warning は store 台帳に残す
 export type CatalogCheckDef = (catalog: CoreCatalog) => readonly (Problem | Warning)[]
 
 // 食い違いがあれば、直す所が分かる文を並べて error にする

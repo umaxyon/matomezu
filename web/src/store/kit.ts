@@ -37,7 +37,7 @@ type Titled<D, K extends string> = Omit<D, "id" | "title"> & { title: K }
 type Placed<D, Id extends string> = Omit<D, "id" | "title"> & { id: Id; title: MessageKey }
 type ShapeProps = ShapeItemDef["props"]
 
-// ブックのタイプ（schema に type は書かない）。create の返すデータの形は、組み立てが schema で確かめる
+// ブックのタイプ（schema に type は書かない）。create の返すデータの形は、台帳アセンブルが schema で確かめる
 // （ここで schema から型を作って縛ると、型の推論が回って崩れる）
 type BookTypeIn<S extends BookSchema, K extends string> = Titled<Omit<BookTypeDef<S>, "create">, K> & {
   create(init: NewBook): object

@@ -186,7 +186,7 @@ func (e *Engine) Modules() plugin.Modules {
 }
 
 // Use は追加プラグインを動かして受け取り、ビルトインプラグインに足して組み直す。返すのはプラグインの id（bundles の順）。
-// 動かせない・default でプラグインを出していない・manifest と id が違う・組み立てで食い違うなら error で、前の組み立てのまま
+// 動かせない・default でプラグインを出していない・manifest と id が違う・台帳アセンブルで食い違うなら error で、前の組のまま
 func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -218,7 +218,7 @@ func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 		plugins = append(plugins, v)
 		ids = append(ids, id)
 	}
-	// JS の側が、新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で失敗すれば前の組み立てのまま）
+	// JS の側が、新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で失敗すれば前の組のまま）
 	res, err := e.use(goja.Undefined(), e.vm.NewArray(plugins...))
 	if err != nil {
 		return nil, fmt.Errorf("plugins: %w", err)

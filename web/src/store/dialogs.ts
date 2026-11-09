@@ -26,7 +26,7 @@ export type DialogArgsOf<Id extends DialogId> = DialogTable[Id] extends DialogDe
 export type DialogTaking<A> = {
   [K in DialogId]: [DialogArgsOf<K>] extends [A] ? ([A] extends [DialogArgsOf<K>] ? K : never) : never
 }[DialogId]
-// 形の定義が名指す追加と編集のダイアログ（受ける値が ShapeAddArgs・ShapeEditArgs であることは definePlugin が型で、名指したダイアログがあることは組み立てが確かめる）
+// 形の定義が名指す追加と編集のダイアログ（受ける値が ShapeAddArgs・ShapeEditArgs であることは definePlugin が型で、名指したダイアログがあることは台帳アセンブルが確かめる）
 export function shapeDialogs(def: ShapeItemDef): {
   add?: DialogTaking<ShapeAddArgs>
   edit?: DialogTaking<ShapeEditArgs>

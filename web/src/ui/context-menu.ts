@@ -1,4 +1,4 @@
-// 右クリックのメニュー: コンポーネントが右クリックを受けてメニューを開く口と、配置に書いたメニューの中身を読む口
+// 右クリックのメニュー: コンポーネントが右クリックを受けてメニューを開く口と、UI マッピングに書いたメニューの中身を読む口
 import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
@@ -66,7 +66,7 @@ export function useOpenContextMenu(): <M extends ContextMenuId>(
   }
 }
 
-// 配置に書いたメニューの中身のうち、そのステージから見て出ているコマンドと区切り線（並びは配置の順。先頭・末尾・続けての区切り線は消す）
+// UI マッピングに書いたメニューの中身のうち、そのステージから見て出ているコマンドと区切り線（並びは UI マッピングの順。先頭・末尾・続けての区切り線は消す）
 export function useContextMenuItems<M extends ContextMenuId>(stage: string, id: M): readonly ContextMenuEntry<M>[] {
   const menus = useLayout().contextMenus as { [K in ContextMenuId]?: readonly ContextMenuEntry<K>[] } | undefined
   const items = menus?.[id] ?? []
@@ -76,7 +76,7 @@ export function useContextMenuItems<M extends ContextMenuId>(stage: string, id: 
   )
 }
 
-// 配置の anchorMenu（押した物にアンカーがあるとき、どの右クリックのメニューにも足すコマンド）のうち、そのステージから見て出ているもの（並びは配置の順）
+// UI マッピングの anchorMenu（押した物にアンカーがあるとき、どの右クリックのメニューにも足すコマンド）のうち、そのステージから見て出ているもの（並びは UI マッピングの順）
 export function useAnchorMenuItems(stage: string): readonly AnchorMenuCommandId[] {
   const items = useLayout().anchorMenu ?? []
   const defs = useInstance()

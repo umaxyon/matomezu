@@ -1,5 +1,5 @@
 // 右サイドパネルの入れ物: ステージの列の右に、窓の上から下まで出す。幅は開いている中身のウィジェットの定義の rightSidePanel（無ければ既定の幅。窓より広ければ窓の幅で、ステージを覆う）で、
-// 開け閉めのときは幅を動かす（動きを減らす設定では動かさない）。見出しに閉じるボタンを置き、中身は、配置がスロットに置いたウィジェットのうち開いている 1 つだけを描く。
+// 開け閉めのときは幅を動かす（動きを減らす設定では動かさない）。見出しに閉じるボタンを置き、中身は、UI マッピングがスロットに置いたウィジェットのうち開いている 1 つだけを描く。
 // 窓に 1 つだけで、ほかのステージでも開いていれば、カレントでない方を閉じる。開いたら中にフォーカスを入れ、Esc は右サイドパネルのキーの範囲で閉じる。
 // 外を左ボタンで押したら閉じる（ステージの道具がずらす道具のときと、ダイアログ・メニュー・トースト・ツールバーを押したときは閉じない。右ボタンはメニューと道具のアイコンを出すので閉じない）。
 // 開いたステージで開いているブックかページが替わったとき、分けたり分けるのをやめたりしたときも閉じる。
@@ -31,7 +31,7 @@ const KEEPS = `${POPUP_KEEPS}, [role=toolbar]`
 
 export function RightSidePanel() {
   const t = useMessages(kit)
-  // 開いている中身が、配置がスロットに置いたウィジェットでなければ開かない
+  // 開いている中身が、UI マッピングがスロットに置いたウィジェットでなければ開かない
   const placed: readonly string[] = useLayout().slots[RIGHT_SIDE_PANEL] ?? []
   const found = useOpenedRightSidePanel()
   const opened = found && placed.includes(found.open.widget) ? found : null
@@ -188,7 +188,7 @@ function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpe
   )
 }
 
-// 開いている中身: 配置が右サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く
+// 開いている中身: UI マッピングが右サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く
 function Content({ stage, widget }: { stage: string; widget: string }) {
   const View = useUiCatalog().widgets.get(widget)?.view as ((props: StageSlotProps) => ReactNode) | undefined
   return View ? <View stage={stage} /> : null

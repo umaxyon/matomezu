@@ -16,7 +16,7 @@ import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
 import type { Actions, Settings } from "../store"
 
-// コマンドの許可の範囲: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
+// コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
 // 言葉で言えなければ、呼ばれた場所の様子と引数（まだ無ければ undefined）から所を返す関数
 export type CommandScope<A = unknown> =
@@ -26,7 +26,7 @@ export type CommandScope<A = unknown> =
   | { page: ArgsOfType<A, string> }
   | ((ctx: CommandContext, args: A | undefined) => Where)
 
-// 表に並べたコマンドの許可の範囲（引数の形を問わない形。書くときの型は CommandScope<A>）
+// 表に並べたコマンドの許可スコープ（引数の形を問わない形。書くときの型は CommandScope<A>）
 export type AnyCommandScope =
   | "book"
   | "opened-page"
@@ -34,7 +34,7 @@ export type AnyCommandScope =
   | { page: string }
   | ((ctx: CommandContext, args: never) => Where)
 
-// 呼ばれた場所の様子 ctx と引数 args（まだ無ければ undefined）での、コマンドの許可の範囲の所
+// 呼ばれた場所の様子 ctx と引数 args（まだ無ければ undefined）での、コマンドの許可スコープの所
 export function commandScopeOf(
   scope: AnyCommandScope | undefined,
   ctx: CommandContext,
@@ -102,9 +102,9 @@ export interface CommandDef<A = undefined, Tt extends string = MessageKey> exten
   // 行うアクション。どれかが今のブック（ブックが対象でなければコントロールセンター）で使えなければ、土台はこのコマンドを出さない。
   // どれも認可ステップに止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
   performs?: readonly ActionId[]
-  // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（認可ステップに渡す）。ブックが対象のアクションを行うなら必ず書く（defineCommand の型が求める）
+  // 許可スコープ: 行うアクションが、呼ばれた場所のブックのどこを変えるか（認可ステップに渡す）。ブックが対象のアクションを行うなら必ず書く（defineCommand の型が求める）
   permissionScope?: CommandScope<A>
-  // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる。
+  // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の UI マッピングの末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる。
   // anchorMenu は、押した物にアンカーがあるときにどの右クリックのメニューにも足す項目（LayoutDef の anchorMenu）
   place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[]; anchorMenu?: boolean }
 }
@@ -119,7 +119,7 @@ export interface CommandPlace<A> {
   }[ContextMenuId][]
 }
 
-// 行うアクション P にブックが対象のものがあれば、許可の範囲を必ず書く（defineCommand の型が求める）。表に無いアクション（W003）は数えない
+// 行うアクション P にブックが対象のものがあれば、許可スコープを必ず書く（defineCommand の型が求める）。表に無いアクション（W003）は数えない
 export type CommandScopeRequired<P extends readonly ActionId[] | undefined, A = unknown> = true extends {
   [I in keyof P]: [P[I]] extends [never]
     ? false

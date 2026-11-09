@@ -1,4 +1,4 @@
-// ステージのメニューのボタン（ウィジェット stage-menu-buttons）: 配置のメニュー stage-menu の項目を横に並べる。項目はコマンドを呼び、フッタメニューの中ならフッタメニューを下げる
+// ステージのメニューのボタン（ウィジェット stage-menu-buttons）: UI マッピングのメニュー stage-menu の項目を横に並べる。項目はコマンドを呼び、フッタメニューの中ならフッタメニューを下げる
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"

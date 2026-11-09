@@ -47,7 +47,7 @@ export const CORNER_STATUSES = kit.name("corner-statuses")
 export type CornerStatusProps = Record<string, never>
 
 // コーナーステータスのウィジェット: 名前 title（文言の鍵。設定画面の「コーナーステータスの並び」に出す）と、まとめた絵に重ねる、押せない絵 view。
-// 既定の並びは、スロット corner-statuses の並び。place は、追加プラグインが既定の配置に足してほしいとき（true なら末尾、before・after ならそのコーナーステータスの前・後ろ）
+// 既定の並びは、スロット corner-statuses の並び。place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾、before・after ならそのコーナーステータスの前・後ろ）
 export const defineCornerStatus = <const Id extends string>(def: {
   id: Id
   title: MessageKey

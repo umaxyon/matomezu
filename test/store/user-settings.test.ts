@@ -71,7 +71,7 @@ test("role と userOnly は利用者の設定の項目だけが持ち、1 つの
   expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, BUILTIN_PARTS.settings[0] as SettingDef] })).toEqual([
     "E001",
   ])
-  // role の無い組み立ても作れる（土台は既定で読む）
+  // role の無い台帳アセンブルもできる（土台は既定で読む）
   expect(buildCoreCatalog({ ...BUILTIN_PARTS, userSettings: [] }).roles.size).toBe(0)
 })
 
@@ -80,7 +80,7 @@ test("追加プラグインの項目は role を持てない", () => {
   expect(() => assemble([...BUILTIN, bad])).toThrow("E309")
 })
 
-test("選択肢の名前（optionTitles）の文言の鍵が文言に無ければ、組み立てで誤り", () => {
+test("選択肢の名前（optionTitles）の文言の鍵が文言に無ければ、台帳アセンブルで誤り", () => {
   const named: Plugin = {
     id: "@ex/o",
     userSettings: [{ ...OPEN, id: "@ex/o:mode", schema: z.enum(["a"]), optionTitles: { a: "@ex/o:none" } }],

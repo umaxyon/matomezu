@@ -16,7 +16,7 @@ export const placeIn = <S extends SlotId>(slot: S, place: PlaceInSlot): WidgetPl
   place === true ? { slot } : { slot, ...place }
 
 // 左サイドパネルのタブのウィジェット: 左サイドパネルのスロットに置き、タブの名前 title（文言の鍵）を必ず持つ
-// opens は、タブの中身が開けるスロット。place は、追加プラグインが既定の配置に足してほしいとき（true なら末尾、before・after ならそのタブの前・後ろ）
+// opens は、タブの中身が開けるスロット。place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾、before・after ならそのタブの前・後ろ）
 export const defineLeftSidePanelTab = <const Id extends string>(def: {
   id: Id
   title: MessageKey

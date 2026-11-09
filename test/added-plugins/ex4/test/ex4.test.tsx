@@ -93,7 +93,7 @@ test("端の形を消すと、端の無くなった関係線も消える（つ�
   expect(page().items!.filter(i => i.item === "ex4:relation")).toEqual([])
 })
 
-test("ビルトインの線（と線を選ぶ図面・フローチャート）を外しても、既定の配置で組める", () => {
+test("ビルトインの線（と線を選ぶ図面・フローチャート）を外しても、既定の UI マッピングで組める", () => {
   const plugins = BUILTIN_UI.filter(
     ui => !["@matomezu/line", "@matomezu/drawing", "@matomezu/flowchart"].includes(ui.id),
   )

@@ -143,7 +143,7 @@ func (c *serveCmd) Run() error {
 			}
 		}
 	}()
-	// 変換・組み立てができない追加プラグインは外して立て、理由をログに残す（ほかのブックまで開けなくしない）
+	// 変換できないか台帳アセンブルで食い違う追加プラグインは外して立て、理由をログに残す（ほかのブックまで開けなくしない）
 	for _, dir := range c.Plugin {
 		if _, err := hub.LinkPlugin(dir); err != nil {
 			fmt.Fprintf(os.Stderr, "plugin %s is not added: %v\n", dir, err)

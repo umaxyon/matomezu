@@ -1,11 +1,11 @@
-// core/catalog.ts に書き足すだけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー・能力・テーマタイプ）に、渡したプラグインの id の頭が無ければ、
+// core/catalog.ts に書き足すだけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー・ケイパビリティ・テーマタイプ）に、渡したプラグインの id の頭が無ければ、
 // createMatomezu の型が誤りにする（@ts-expect-error の行が誤りにならなければ、確かめが落ちる）
 import { definePlugin } from "matomezu"
 import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
 
 const NAMES = definePlugin({ id: "names" })
 
-// @ts-expect-error 頭の無いキーの範囲と能力とテーマタイプ・別のプラグインの頭のメニュー
+// @ts-expect-error 頭の無いキーの範囲とケイパビリティとテーマタイプ・別のプラグインの頭のメニュー
 createMatomezu({ plugins: [...BUILTIN_UI, NAMES], controlCenter: "@matomezu/control-center:control-center" })
 
 declare module "matomezu/catalog" {

@@ -3,7 +3,7 @@ import type { ConnectorData, ShapeData } from "./def/item"
 // 定義の種類ごとの id と定義の型を、プラグインが書き足す所（空の interface は、書き足しを受けるためのもの。type にすると書き足せない）。定義・コマンド・ダイアログ・ウィジェットなどを足すプラグインは、自分の足す id と定義の型（typeof 定義）を、ここに declare module で書き足す。
 // ビルトインプラグインも追加プラグインも同じ口を使う（追加プラグインからは matomezu/catalog の名前で、このファイルを指す）。ここから id の型・ブックの型・アクションの引数の型などが決まる。
 // 書き足しは、このファイルに向ける。このファイルを読み直して出す別のファイルに向けると、ほかの書き足しと合わさらない。
-// 書き足した id と、インスタンスに渡した定義の id がそろっているかは、組み立て（createMatomezu）が型で確かめる
+// 書き足した id と、インスタンスに渡した定義の id がそろっているかは、createMatomezu の型が確かめる
 export interface BookTypeTable {}
 export interface ControlCenterTable {}
 export interface ItemTable {}
@@ -28,8 +28,8 @@ export interface DialogTable {}
 // 自分の処理で読む（土台は意味を知らない）
 export interface ItemOptionTable {}
 
-// アイテムの能力 → true。土台は connectable（線などでつなげる）・resizable（大きさを変えられる）・nests（子の形の並び shapes を持てる）。
-// プラグインは自分の id を頭に付けた能力を書き足し、自分の処理で読む（土台は意味を知らない）
+// アイテムのケイパビリティ → true。土台は connectable（線などでつなげる）・resizable（大きさを変えられる）・nests（子の形の並び shapes を持てる）。
+// プラグインは自分の id を頭に付けたケイパビリティを書き足し、自分の処理で読む（土台は意味を知らない）
 export interface CapabilityTable {
   connectable: true
   resizable: true
@@ -46,7 +46,7 @@ export type BaseKeyScope = "global" | "stage" | "dialog" | "menu" | "control-cen
 // プラグインのキーの範囲の id → 定義（KeyScopeDef）。プラグインは自分の id を頭に付けた範囲を定義して書き足し、自分のウィジェットの要素に data-key-scope で名乗らせる
 export interface KeyScopeTable {}
 
-// 画面の配置の分。スロットは「id → そこに置くウィジェットが受け取る値」。スロットを描くウィジェットを持つプラグインが、そのスロットを書き足す
+// 画面の UI マッピングの分。スロットは「id → そこに置くウィジェットが受け取る値」。スロットを描くウィジェットを持つプラグインが、そのスロットを書き足す
 export interface SlotTable {
   root: Record<string, never> // 画面の根（土台が描く、ただ 1 つのスロット）
 }

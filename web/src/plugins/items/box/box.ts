@@ -83,7 +83,7 @@ export const BOX = kit.defineShape({
   dialogs: { add: BOX_ADD_DIALOG.id, edit: BOX_EDIT_DIALOG.id },
 })
 
-// 内包ボックス: 箱と同じ見た目で、子の形を持てる（能力 nests）。子があれば、w・h は大きさの下限になる（子まで入る大きさは base が決める）。
+// 内包ボックス: 箱と同じ見た目で、子の形を持てる（ケイパビリティ nests）。子があれば、w・h は大きさの下限になる（子まで入る大きさは base が決める）。
 // 子の領域は、キャプションと本文を全部出した下から（左は NEST_PADDING）。縦の位置が下なら、上から NEST_PADDING で、下にキャプションと本文の高さを空ける。
 // 縦の位置を下へ・下から変えたら、子を子の領域が動いた分だけ動かす（並びは崩さない）
 type BoxData = { w?: number; props: z.output<typeof BoxPropsSchema>; shapes?: readonly { y: number }[] }

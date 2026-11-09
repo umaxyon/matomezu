@@ -169,7 +169,7 @@ const thrown = (run: () => unknown) => {
   return null
 }
 
-test("組み立ては、読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行を error にする", () => {
+test("台帳アセンブルは、読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行を error にする", () => {
   const own = defineCommand({ id: "k:own", title: "@matomezu/drawing:Drawing", run: () => {}, when: () => true })
   const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })
@@ -184,7 +184,7 @@ test("組み立ては、読めないキー・無いコマンド・追加プラ�
 test("追加プラグインの既定のキーバインドがビルトインの行に負けたら W008、id の順で先の追加プラグインの行に負けたら W021 の warning を残す（負けた行は効かない）", () => {
   const command = (id: string) =>
     defineCommand({ id, title: "@matomezu/drawing:Drawing", run: () => {}, when: () => true })
-  // id を引数で作るので、頭の確かめの型は外して渡す（組み立ての確かめは実行時に通る）
+  // id を引数で作るので、頭の確かめの型は外して渡す（台帳アセンブルの確かめは実行時に通る）
   const plugin = (id: string, key: string) =>
     definePlugin({
       id,

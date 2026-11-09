@@ -1,4 +1,4 @@
-// ビルトインプラグインの一覧（画面のあるインスタンス用。どのプラグインにも見た目を結んだもの）と、それを渡したインスタンスの既定の配置
+// ビルトインプラグインの一覧（画面のあるインスタンス用。どのプラグインにも見た目を結んだもの）と、それを渡したインスタンスの既定の UI マッピング
 import { defineLayout } from "../plugin-api/ui"
 import { BASE_UI } from "./base/ui"
 import { DIR_UI } from "./books/dir/ui"
@@ -36,7 +36,7 @@ export const BUILTIN_UI = [
   SLIDE_BOOK_UI,
 ] as const
 
-// 既定の配置。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
+// 既定の UI マッピング。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
 export const DEFAULT_LAYOUT = defineLayout({
   id: "default",
   slots: {

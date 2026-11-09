@@ -25,7 +25,7 @@ const ProposalSchema = z.strictObject({
   title: z.string().trim().min(1).max(80), // 題（一覧・しおり・ダイアログの見出し）
   body: z.string().max(4000), // 本文（AI が書いた変更の説明。空でもよい）
   book: z.string().min(1), // 変えるブック
-  page: z.string().min(1).optional(), // 変えるページ（許可の範囲。ページを持たないブックや、いくつものページを変えるなら無い）
+  page: z.string().min(1).optional(), // 変えるページ（許可スコープ。ページを持たないブックや、いくつものページを変えるなら無い）
   changes: ChangesSchema, // 乗せたアクション（順に行う）
   snapshot: z.record(z.string(), z.unknown()), // 当たる物の、送った時の自分の値（物の id → 値）
   appliedAt: z.string().optional(), // 反映した時点

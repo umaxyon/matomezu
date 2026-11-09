@@ -18,7 +18,7 @@ declare module "../../../core/catalog" {
   }
 }
 
-// テーマの textColors の色が #rrggbb か（E038）と、機能台帳にある文字の色か（W014。その色だけ効かない）。組み立てのときの確かめ
+// テーマの textColors の色が #rrggbb か（E038）と、機能台帳にある文字の色か（W014。その色だけ効かない）。台帳アセンブルのときの確かめ
 export const THEME_TEXT_COLORS_CHECK: CatalogCheckDef = catalog =>
   [...catalog.themes.values()].flatMap(t =>
     Object.entries(t.textColors ?? {}).flatMap(([textColor, color]) => [

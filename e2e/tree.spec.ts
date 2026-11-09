@@ -111,7 +111,7 @@ test("＋で子を足してその場で書き、Enter で確定する。書い�
   await expect(paperEl.locator('[data-root="true"]')).toHaveAttribute("data-selected", "true")
 })
 
-test("キャプションは普通の太さ。＋で足した節は空から書き始め、入力欄のすぐ上のボックスで太字と色を付けられる（押しても編集は続く）", async ({
+test("キャプションは普通の太さ。＋で足した節は空から書き始め、入力Formのすぐ上のボックスで太字と色を付けられる（押しても編集は続く）", async ({
   page,
 }) => {
   await treeBook(page)

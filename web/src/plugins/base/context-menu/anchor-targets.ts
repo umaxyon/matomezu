@@ -1,5 +1,5 @@
 // 右クリックで押した物から始める、付ける先を持つ画面の状態（伝言の下書き・マークの種類を選ぶスタンド）の、base のステージの画面の状態での持ち方:
-// 種類ごとの鍵に付ける先を持つ。ブックのデータには入れない。始めるのは配置の anchorMenu に置くコマンドで、終えるのはその種類のレイヤー
+// 種類ごとの鍵に付ける先を持つ。ブックのデータには入れない。始めるのは UI マッピングの anchorMenu に置くコマンドで、終えるのはその種類のレイヤー
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 
 export interface AnchorTargets {
