@@ -12,7 +12,7 @@ import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 const SLIDE_TYPE = "@matomezu/slide-book:slide"
 const slideType = BUILTIN_PARTS.bookTypes.find(t => t.id === SLIDE_TYPE)!
 const TEXT = "@matomezu/slide:slide-text"
-const page = { id: "p1", title: "P", paper: "@matomezu/base:wide", orientation: "landscape" as const }
+const page = { id: "p1", title: "P", paper: "@matomezu/base:ratio-16x9", orientation: "landscape" as const }
 const bookWith = (slide: object[]) => ({
   type: SLIDE_TYPE,
   id: "s1",

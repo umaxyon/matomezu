@@ -127,7 +127,7 @@ test("＋でページを作るダイアログが開き（紙は A 判とレタ�
   expect((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).value).toBe("@matomezu/base:a4")
   expect(
     Array.from((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).options).map(o => o.textContent),
-  ).toEqual(["A5", "A4", "A3", "レター", "タブロイド", "16:9"])
+  ).toEqual(["A5", "A4", "A3", "レター", "タブロイド", "スライド用(16:9)"])
   expect((within(dialog).getByLabelText("向き") as HTMLSelectElement).value).toBe("landscape")
   fireEvent.change(name, { target: { value: "  " } })
   expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)

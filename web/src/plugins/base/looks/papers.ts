@@ -6,4 +6,4 @@ export const A4 = kit.definePaper({ id: "a4", title: "A4", size: { w: 794, h: 11
 export const A3 = kit.definePaper({ id: "a3", title: "A3", size: { w: 1123, h: 1587 } })
 export const LETTER = kit.definePaper({ id: "letter", title: "Letter", size: { w: 816, h: 1056 } })
 export const TABLOID = kit.definePaper({ id: "tabloid", title: "Tabloid", size: { w: 1056, h: 1632 } })
-export const WIDE = kit.definePaper({ id: "wide", title: "16:9", size: { w: 720, h: 1280 } })
+export const WIDE = kit.definePaper({ id: "ratio-16x9", title: "Slide (16:9)", size: { w: 720, h: 1280 } })

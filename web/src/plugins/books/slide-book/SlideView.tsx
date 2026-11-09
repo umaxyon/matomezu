@@ -12,6 +12,7 @@ import {
   useCommand,
   useCoreCatalog,
   useMessages,
+  useShownBook,
   useShownPage,
   useStage,
   useToPaper,
@@ -23,7 +24,7 @@ import { drawnRect, type Grip, resizedRect, rotatedTo, thinned } from "./rect"
 import { GRIPS, type SelectedItem, Selection } from "./Selection"
 import { DEFAULT_FONT_SIZE, rotationOf, SlideItem, shapeProps } from "./SlideItem"
 import styles from "./SlideView.module.css"
-import { SLIDE_KEY_SCOPE } from "./slide-book"
+import { ADDED_EDIT, SLIDE_KEY_SCOPE } from "./slide-book"
 
 // 幅・高さの下限（アイテムの定義に無いときの）と、押しただけとみなす動き（紙の上の px）、自由な線の点の間引きの間
 const MIN = 8
@@ -71,11 +72,12 @@ export function SlideView({ stage: id }: BookViewProps) {
 
 function SlidePageView({ stage }: { stage: StageView }) {
   const t = useMessages(kit)
+  const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const catalog = useCoreCatalog()
   const followed = useFollowsSelection(stage.id)
   const toPaperAt = useToPaper(stage.id)
-  const { select, setEditing } = useActions()
+  const { select, setEditing, continueStep } = useActions()
   const put = useCommand(stage.id, SLIDE_PUT.id)
   const moveTo = useCommand(stage.id, SLIDE_MOVE_TO.id)
   const reshape = useCommand(stage.id, SLIDE_RESHAPE.id)
@@ -88,7 +90,7 @@ function SlidePageView({ stage }: { stage: StageView }) {
   const shapes = page ? slideOf(page) : []
   const selected = stage.selection.length === 1 ? shapes.find(s => s.id === stage.selection[0]) : undefined
   const placing = stage.placing
-  const editing = stage.editing === true ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
+  const editing = stage.editing === true || stage.editing === ADDED_EDIT ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
   const minOf = (item: string): number => {
     const def = catalog.items.get(item)
     return def?.kind === "shape" && def.min ? Math.max(def.min.w, def.min.h) : MIN
@@ -98,7 +100,7 @@ function SlidePageView({ stage }: { stage: StageView }) {
   useEffect(() => {
     if (typeNext.current && selected && selected.item === TEXT) {
       typeNext.current = false
-      setEditing(stage.id, true)
+      setEditing(stage.id, ADDED_EDIT)
     }
   }, [selected, stage.id, setEditing])
 
@@ -303,6 +305,7 @@ function SlidePageView({ stage }: { stage: StageView }) {
               edit={{
                 editing: editing === shape.id,
                 onCommit: text => {
+                  if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
                   setEditing(stage.id, false)
                   if (text !== (shapeProps(shape).text ?? "")) set.run({ item: shape.id, props: { text } })
                 },

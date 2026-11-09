@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
-import { sequence } from "../support"
+import { newStore, sequence } from "../support"
 
 const TEXT = "@matomezu/slide:slide-text"
 const ELLIPSE = "@matomezu/slide:slide-ellipse"
@@ -135,4 +135,35 @@ test("項目: 角度を書き、null で消せる。形に合わない項目は�
   expect(s.slide().map(i => i.id)).toEqual([b, a])
   expect(s.perform("@matomezu/slide:slide-remove", { page: s.page, item: b }).ok).toBe(true)
   expect(s.slide().map(i => i.id)).toEqual([a])
+})
+
+test("文字枠を置いて続けて打った文字は、置いた画面の履歴の段にまとまり、元に戻すは 1 回で文字枠ごと消える", async () => {
+  const store = newStore({
+    books: [
+      {
+        type: "@matomezu/slide-book:slide",
+        id: "b1",
+        title: "スライド",
+        project: "default",
+        pages: [{ id: "p1", title: "1", paper: "@matomezu/base:ratio-16x9", orientation: "landscape", slide: [] }],
+      },
+    ] as never,
+  })
+  const state = () =>
+    (store.state.getState().books.b1 as unknown as { pages: { slide: { id: string }[] }[] }).pages[0]!.slide
+  const on = { book: "b1" }
+  const put = store.actions.perform(
+    "@matomezu/slide:slide-place",
+    { page: "p1", item: TEXT, at: { x: 10, y: 10 }, props: { text: "" } },
+    on,
+  )
+  expect(put.ok).toBe(true)
+  await Promise.resolve()
+  const id = state()[0]!.id
+  store.actions.continueStep("b1")
+  store.actions.perform("@matomezu/slide:slide-update", { page: "p1", item: id, props: { text: "書いた" } }, on)
+  await Promise.resolve()
+  expect(store.state.getState().history.b1?.undo).toHaveLength(1)
+  store.actions.command("s1", "@matomezu/base:undo")
+  expect(state()).toEqual([])
 })

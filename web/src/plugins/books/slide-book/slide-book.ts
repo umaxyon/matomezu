@@ -9,6 +9,9 @@ import { slideMinimapMarks, slidePrintSheets } from "./print"
 // スライドの見せ方で描いている間のキー（ビューの根が名乗り、押した所がこの中なら、ここのキーが紙のキーより先に効く）
 export const SLIDE_KEY_SCOPE = kit.defineKeyScope({ id: "slide", title: "Slide" })
 
+// 置いたばかりの文字枠の文字の書き換え（書き終えた変更は、置いた変更と画面の履歴の 1 段にまとめる）
+export const ADDED_EDIT = kit.name("added-edit")
+
 export const SLIDE_PRESENTATION = kit.definePresentation({
   id: "slide",
   minimap: slideMinimapMarks, // ミニマップには、アイテムの枠を四角で描く
@@ -31,7 +34,7 @@ export const SLIDE_BOOK = kit.defineBookType({
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:wide", orientation: "landscape", perPage: true },
+    paper: { allowed: PAPER_IDS, default: "@matomezu/base:ratio-16x9", orientation: "landscape", perPage: true },
   },
   items: { allowed: [] },
   slide: { allowed: SLIDE_ITEMS },

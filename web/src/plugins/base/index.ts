@@ -466,7 +466,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:a3": typeof A3
     "@matomezu/base:letter": typeof LETTER
     "@matomezu/base:tabloid": typeof TABLOID
-    "@matomezu/base:wide": typeof WIDE
+    "@matomezu/base:ratio-16x9": typeof WIDE
   }
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW

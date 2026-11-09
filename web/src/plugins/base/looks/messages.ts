@@ -10,7 +10,7 @@ export const LOOKS_MESSAGES = defineMessages({
   A3: { en: "A3", ja: "A3" },
   Letter: { en: "Letter", ja: "レター" },
   Tabloid: { en: "Tabloid", ja: "タブロイド" },
-  "16:9": { en: "16:9", ja: "16:9" },
+  "Slide (16:9)": { en: "Slide (16:9)", ja: "スライド用(16:9)" },
   Dark: { en: "Dark", ja: "ダーク" },
   Light: { en: "Light", ja: "ライト" },
   matomezu: { en: "matomezu", ja: "matomezu" },
