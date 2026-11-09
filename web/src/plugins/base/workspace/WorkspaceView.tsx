@@ -5,7 +5,7 @@
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
 // ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（境目の部品は SplitHandle。割合の計算と収め方は workspace の側）。
 // 列の右に右サイドパネルを置く。開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）。
-// 左サイドパネルは窓の層（window/WindowView.tsx）にあり、開けばこの画面ごと押し縮める。
+// 左サイドパネルは窓の左（window/WindowView.tsx）にあり、開けばこの画面ごと押し縮める。
 // 開いた物を見せ、閉じたら見え方を戻すのは、幅を動かし終えてから（RevealAndRestore）
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"

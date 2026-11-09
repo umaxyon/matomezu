@@ -1,4 +1,4 @@
-// 左サイドパネル: 窓の左に出し、開く側が渡したタブの組を見せる入れ物（窓の層。window/WindowView.tsx が描く）。上にタブの行を置き、タブは機能が defineLeftSidePanelTab で作るウィジェット。
+// 左サイドパネル: 窓の左に出し、開く側が渡したタブの組を見せる入れ物（window/WindowView.tsx が描く）。上にタブの行を置き、タブは機能が defineLeftSidePanelTab で作るウィジェット。
 // 開け閉めの動きは入れ物が持ち、機能ごとに作らない
 import { kit } from "../kit"
 import { LEFT_SIDE_PANEL } from "./slots"

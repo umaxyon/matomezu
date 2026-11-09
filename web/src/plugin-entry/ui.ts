@@ -31,6 +31,8 @@ export {
   InheritChoices,
   inlineClass,
   LEFT_SIDE_PANEL,
+  type LeftSidePanelEntry,
+  type LeftSidePanelOpen,
   LeftSidePanelOpenButton,
   MAIL_ACTIONS,
   type MailActionsProps,

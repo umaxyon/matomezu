@@ -1,4 +1,4 @@
-// 左サイドパネルの、タブを作る関数と、開く側が渡すタブの組の部品。入れ物は窓の層（window/WindowView.tsx）が窓に 1 つ描く
+// 左サイドパネルの、タブを作る関数と、開く側が渡すタブの組の部品。入れ物は window/WindowView.tsx が窓に 1 つ描く
 import type { ReactNode } from "react"
 import type { SlotId } from "../../../core/catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
