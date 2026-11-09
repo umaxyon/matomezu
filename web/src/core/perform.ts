@@ -77,6 +77,11 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
   return isProject(book.project) && catalog.bookSchema.safeParse(book).success && holds(catalog, book)
 }
 
+// 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っているか
+export function librarySettles(catalog: CoreCatalog, before: Library, after: Library): boolean {
+  return Object.entries(after).every(([key, b]) => b.id === key && (before[key] === b || settles(catalog, b)))
+}
+
 // アクションの結果が、認可ステップの守らせること（keeps）を守っているか。守っていなければ、守らせたステップの id
 function broken(
   ctx: ActionContext,
@@ -228,6 +233,8 @@ export function perform<Id extends ActionId>(
           : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (action.target === "book" && !settles(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
+  if (action.target === "library" && !librarySettles(ctx.catalog, subject as Library, done.next as Library))
+    return { ok: false, reason: "refused" }
   if (action.target === "annotations") {
     const next = (done.next as unknown as BookAnnotations).annotations
     if (!annotationsSettle(ctx.catalog, pair.book, pair.annotations, next)) return { ok: false, reason: "refused" }
