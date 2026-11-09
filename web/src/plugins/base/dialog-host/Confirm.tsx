@@ -18,6 +18,8 @@ export function Confirm({
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const keep = useRef<HTMLButtonElement>(null)
+  // 外側を押して閉じるのは、押し始めも外側のときだけ
+  const pressedOutside = useRef(false)
   useLayoutEffect(() => {
     const d = ref.current
     if (!d) return
@@ -41,9 +43,12 @@ export function Confirm({
       aria-label={message}
       onKeyDown={onKey}
       onCancel={e => e.preventDefault()}
+      onPointerDown={e => {
+        pressedOutside.current = e.target === e.currentTarget
+      }}
       onClick={e => {
         e.stopPropagation()
-        if (e.target === e.currentTarget) onCancel()
+        if (e.target === e.currentTarget && pressedOutside.current) onCancel()
       }}
     >
       <div className={styles.confirmBody}>

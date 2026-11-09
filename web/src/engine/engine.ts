@@ -22,6 +22,7 @@ import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
 import { splitId } from "../core/names"
 import { joinActions, type Participants, restoreParticipants } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
+import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
 import { PROJECTS } from "../core/project"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
@@ -87,7 +88,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   "bad-args": "the args do not match the action's args (see actions)",
   "not-allowed":
     "this book's type (or, for the library, the settings, the mailbox and the participants, the control center) does not allow it",
-  refused: "the action's rules refuse it (for example the page or item does not exist); read_book to check",
+  refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
 }
@@ -173,17 +174,32 @@ function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly B
       : [],
   )
   return moved.length
-    ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_book before using positions.`
+    ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
     : null
 }
-// MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・利用者の設定の項目（利用者だけが変える項目は除く）・テーマ・代表色を絞って書き出したもの。
-// args・props・設定の項目の schema は JSON Schema。名前は英語
 // ブックのタイプのページの可変ページの決め方（aiCatalog）: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、
 // どのページもいつも可変ページの always、可変ページを作れない none
 const growsOf = (rule: GrowRule | undefined): readonly string[] | "by-type" | "always" | "none" =>
   !rule ? "none" : "always" in rule ? "always" : "choices" in rule ? rule.choices : "by-type"
 
+// MCP 公開ツールの actions の元になる物: 表ごとの全文（アクション・アイテム・設定などの args・props の JSON Schema まで）に、目次 index を添える。
+// 全文は、機能台帳から AI に見せる物（利用者だけのアクションと、利用者だけが変える設定の項目は除く）を書き出したもの。名前は英語。
+// 目次は、AI が最初に受け取る物: 大きい表（アクション・アイテム・設定）は id と題名だけにし、全文は id を渡して取る。小さい表は全文のまま入れる
 function aiCatalog(of: Assembled = assembled) {
+  const tables = aiTables(of)
+  const { actions, items, settings, ...whole } = tables
+  return {
+    ...tables,
+    index: {
+      actions: actions.map(a => ({ id: a.id, target: a.target, title: a.title })),
+      items: items.map(i => ({ id: i.id, kind: i.kind, title: i.title })),
+      settings: settings.map(s => ({ id: s.id, title: s.title })),
+      ...whole,
+    },
+  }
+}
+
+function aiTables(of: Assembled) {
   const catalog = of.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
   return {
@@ -299,11 +315,21 @@ function aiCatalog(of: Assembled = assembled) {
   return JSON.stringify(out)
 }
 
-// ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_book・read_page に添える）。読めないブックか、見せ方が答えなければ null
+// ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_page に添える）。読めないブックか、見せ方が答えなければ null
 ;(globalThis as { matomezuAiPlaced?: (book: string) => string }).matomezuAiPlaced = book => {
   const catalog = assembled.catalog.core
   const [read] = restoreBooks(catalog, [JSON.parse(book)])
   return JSON.stringify(read ? aiPlacedOf(catalog, read) : null)
+}
+
+// ページ page（JSON）の中の、どの深さの形も、つなぐものも、id で探した物と、その物と子の形の id の全部（AI の read_page の item）。無ければ null
+;(globalThis as { matomezuAiItem?: (page: string, id: string) => string }).matomezuAiItem = (page, id) => {
+  const body = JSON.parse(page) as ItemPage
+  const shape = findShape(body, id)?.shape
+  const item = shape ?? pageItemsOf(body).find(i => i.id === id)
+  if (!item) return JSON.stringify(null)
+  const ids = shape ? walkShapes({ ...body, items: [shape] }).map(s => s.shape.id) : [id]
+  return JSON.stringify({ item, ids })
 }
 
 // アノテーションの並びから、プラグイン plugin が足した種類（種類の id の持ち主が plugin）の物を除く（利用者がプラグインを外したときに常駐が消す）

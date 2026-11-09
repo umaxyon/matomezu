@@ -24,8 +24,8 @@
 //	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"front", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
 //	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books?projects=a&projects=b  {"books": [{"id", "type", "title", "project", "version", "awaiting"}]}（project が projects のどれかであるブックだけ。projects は必須で、空や表に無い id は 400。awaiting は AI の応えを待つアノテーションの数）
-//	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations"}
-//	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations"}（annotations はそのページの物に立つもの）
+//	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
+//	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations", "placed"}（annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部
 //	                         （undone と failed は、渡したら、次に利用者が話しかけたときに消える）
@@ -33,7 +33,7 @@
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/mail?projects=a&projects=b  {"mailbox": [...]} 利用者の郵便箱のうち、project が projects のどれかである郵便（届いた順。郵便ごとに見た時点 seenAt と行き先を見た時点 visitedAt。projects は books と同じ）
-//	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
+//	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "projects"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る。参加の id の付いた呼び出しなら、参加するプロジェクトを足す）。{"ok", "participant", "projects"} か弾いた理由（join.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
@@ -150,9 +150,9 @@ func Handler(o Options) http.Handler {
 		}
 		writeJSON(w, map[string]any{"mailbox": mailbox})
 	}))
-	mux.Handle("GET /api/ai/catalog", o.ai(func(w http.ResponseWriter, _ *http.Request) {
+	mux.Handle("GET /api/ai/catalog", o.ai(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(o.Hub.AICatalog())
+		_, _ = w.Write(o.Hub.AICatalog(r.URL.Query()["ids"]))
 	}))
 	mux.Handle("POST /api/ai/perform", o.ai(o.aiPerform))
 	mux.Handle("POST /api/ai/show", o.ai(o.aiShow))
@@ -482,6 +482,10 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if r.URL.Query().Get("outline") != "" {
+		writeJSON(w, map[string]any{"id": b.ID, "book": outlineBook(b.Body), "version": b.Version, "annotations": list})
+		return
+	}
 	placed, err := o.Hub.AIPlaced(b.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -495,7 +499,7 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &p) {
 		return
 	}
-	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, By: "ai"})
+	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, By: "ai", TimeoutSec: p.TimeoutSec})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -13,8 +13,13 @@ export const ColumnSchema = z.strictObject({
 })
 export type Column = z.infer<typeof ColumnSchema>
 
-// セル: 数の列は有限の数、文字の列は文字
-export const CellSchema = z.union([z.number().finite(), z.string()])
+// 表の大きさの上限: 列・行の数と、文字のセルの字数（動くたびに表全体を調べるので、無限に大きな表は持たない）
+export const MAX_COLUMNS = 30
+export const MAX_ROWS = 1000
+export const MAX_CELL_CHARS = 200
+
+// セル: 数の列は有限の数、文字の列は文字（MAX_CELL_CHARS まで）
+export const CellSchema = z.union([z.number().finite(), z.string().max(MAX_CELL_CHARS)])
 export type Cell = z.infer<typeof CellSchema>
 
 export const TableRowSchema = z.strictObject({
@@ -36,8 +41,8 @@ const uniqueIds = (table: { columns: readonly { id: string }[]; rows: readonly {
 // 表: 列は 1 つ以上（列の無い表は持たない）、行は 0 個以上。どの行のセルも列に合う
 export const TableSchema = z
   .strictObject({
-    columns: z.array(ColumnSchema).min(1),
-    rows: z.array(TableRowSchema),
+    columns: z.array(ColumnSchema).min(1).max(MAX_COLUMNS),
+    rows: z.array(TableRowSchema).max(MAX_ROWS),
   })
   .refine(t => t.rows.every(r => cellsFit(t.columns, r.cells)), {
     message: "Every row has one cell per column, a number in a number column and a string in a text column",

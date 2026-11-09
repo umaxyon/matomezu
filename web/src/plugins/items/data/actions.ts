@@ -17,7 +17,7 @@ import {
 } from "./data"
 import { kit } from "./kit"
 import { fitTable } from "./size"
-import { CellSchema, COLUMN_TYPES, cellsFit, TableSchema } from "./table"
+import { CellSchema, COLUMN_TYPES, cellsFit, MAX_COLUMNS, MAX_ROWS, TableSchema } from "./table"
 
 // 入れる列と行（id を書けば、今の表にあるその列・行の id を保つ。書かなければ新しく振る）
 const NewColumnSchema = z.strictObject({
@@ -93,14 +93,14 @@ export const DATA_SET = kit.defineAction({
   id: "data-set",
   attach: { items: [DATA.id] },
   aiDescription:
-    "Replace the whole table of a data item (@matomezu/data:shape-data). Each column has a name and a type, number or text; each row has one cell per column, in column order: a finite number in a number column, a string in a text column. No cell may be empty: write 0 where a number is missing. A column or row given with the id of one in the table now keeps that id (and what refers to it); one without an id gets a new id. While the item shows the table (view table), it is resized to show the whole table, up to the paper's edge, pushing the items it would come too close to (when they cannot move, it keeps its size); a column is as wide as its longest text and a row is one line high. With no columns, the table is removed and the item shows No Data. props, when given, changes the item's look, text and axes together with the table, as @matomezu/paper:item-update does (only the props given; null removes one), except that x, series columns, label and sortBy are positions (from 0) in columns and picked are positions in rows, so a new column or row can be named before it has an id; outside the table view, a caption that grows widens the item to show it. It is refused when a row's cells do not fit the columns, when an id is not in the table now, or when props names a position that is not there or does not fit the item. Axes naming a column that is gone or no longer a number column are dropped. Returns the ids of the columns and rows, in order. read_book shows the table in the item's table field.",
+    "Replace the whole table of a data item (@matomezu/data:shape-data). Each column has a name and a type, number or text; each row has one cell per column, in column order: a finite number in a number column, a string in a text column. No cell may be empty: write 0 where a number is missing. A table has at most 30 columns and 1000 rows, and a text cell at most 200 characters. A column or row given with the id of one in the table now keeps that id (and what refers to it); one without an id gets a new id. While the item shows the table (view table), it is resized to show the whole table, up to the paper's edge, pushing the items it would come too close to (when they cannot move, it keeps its size); a column is as wide as its longest text and a row is one line high. With no columns, the table is removed and the item shows No Data. props, when given, changes the item's look, text and axes together with the table, as @matomezu/paper:item-update does (only the props given; null removes one), except that x, series columns, label and sortBy are positions (from 0) in columns and picked are positions in rows, so a new column or row can be named before it has an id; outside the table view, a caption that grows widens the item to show it. It is refused when a row's cells do not fit the columns, when an id is not in the table now, or when props names a position that is not there or does not fit the item. Axes naming a column that is gone or no longer a number column are dropped. Returns the ids of the columns and rows, in order. read_page shows the table in the item's table field.",
   title: "Set data",
   target: "book",
   args: z.strictObject({
     page: z.string().min(1),
     item: z.string().min(1),
-    columns: z.array(NewColumnSchema),
-    rows: z.array(NewRowSchema),
+    columns: z.array(NewColumnSchema).max(MAX_COLUMNS),
+    rows: z.array(NewRowSchema).max(MAX_ROWS),
     props: PropsSchema.optional(),
   }),
   permissionScope: { page: "page", item: "item" },

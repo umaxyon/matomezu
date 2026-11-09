@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -36,6 +37,8 @@ type Input struct {
 	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 利用者の郵便箱
 	Participants json.RawMessage            `json:"participants,omitempty"` // 利用者の参加者の表
 	By           string                     `json:"by,omitempty"`           // 頼んだのが AI なら "ai"（空なら利用者）
+	// TimeoutSec は、アクションを待つ秒数（0 なら DefaultTimeoutSec。MaxTimeoutSec まで）。超えたら打ち切って断る
+	TimeoutSec int `json:"-"`
 	// Watched は、利用者が直している物（ブックの id → 物の id。編集ロック）。AI のアクションと lockedForUser のアクションが変えるか消すなら、エンジンが being-edited で断る
 	Watched map[string][]string `json:"watched,omitempty"`
 }
@@ -93,6 +96,7 @@ type Engine struct {
 	mails     func(string) string
 	forAI     func(string) string
 	placed    func(string) string
+	item      func(string, string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
@@ -135,6 +139,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiPlaced"), &e.placed); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiPlaced: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiItem"), &e.item); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiItem: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuTalkActions"), &e.talk); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuTalkActions: %w", err)
@@ -235,16 +242,39 @@ func (e *Engine) Warnings() []string {
 	return e.warnings
 }
 
-// Perform はアクションを行う
+// DefaultTimeoutSec と MaxTimeoutSec は、アクションを待つ秒数の標準と上限。待つ間は Engine（と、その上の Hub）の鍵を持ったままなので、止まらない処理に全員が巻き込まれないよう上限を持つ
+const (
+	DefaultTimeoutSec = 5
+	MaxTimeoutSec     = 60
+)
+
+// Perform はアクションを行う。in.TimeoutSec の間に終わらなければ、打ち切って断る（変更は反映しない）
 func (e *Engine) Perform(in Input) (out Output, err error) {
+	if in.TimeoutSec < 0 || in.TimeoutSec > MaxTimeoutSec {
+		return Output{OK: false, Reason: "bad-args", Detail: fmt.Sprintf("timeoutSec must be 1 to %d", MaxTimeoutSec)}, nil
+	}
+	seconds := in.TimeoutSec
+	if seconds == 0 {
+		seconds = DefaultTimeoutSec
+	}
 	b, err := json.Marshal(in)
 	if err != nil {
 		return Output{}, err
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	timer := time.AfterFunc(time.Duration(seconds)*time.Second, func() { e.vm.Interrupt("timeout") })
+	defer func() {
+		timer.Stop()
+		e.vm.ClearInterrupt()
+	}()
 	defer func() {
 		if r := recover(); r != nil {
+			var stopped *goja.InterruptedError
+			if re, ok := r.(error); ok && errors.As(re, &stopped) {
+				out, err = Output{OK: false, Reason: "refused", Detail: fmt.Sprintf("timed out after %d seconds; nothing was changed (timeoutSec up to %d lets a heavy action take longer)", seconds, MaxTimeoutSec)}, nil
+				return
+			}
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
@@ -517,12 +547,26 @@ func (e *Engine) AISettings(settings json.RawMessage) (out json.RawMessage, err 
 	return json.RawMessage(e.settings(string(settings))), nil
 }
 
-// AICatalog は MCP 公開ツールの actions が返す物: アクション（{"id", "target", "title", "args"}）・アイテム（{"id", "title", "size", "props"}）・
-// ブックのタイプ・利用者の設定の項目・テーマ・言語パック・スキン・色・文字の色（作るのは web/src/engine/engine.ts の aiCatalog）。args と props は JSON Schema
-func (e *Engine) AICatalog() json.RawMessage {
+// AIItem は、ページ（JSON）の中の、どの深さの形も、つなぐものも、id で探した物（item）と、その物と子の形の id の全部（ids）。無ければ found が偽（core の探し方で探す）
+func (e *Engine) AIItem(page json.RawMessage, id string) (item json.RawMessage, ids []string, found bool, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.aiCatalog
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got *struct {
+		Item json.RawMessage `json:"item"`
+		IDs  []string        `json:"ids"`
+	}
+	if err := json.Unmarshal([]byte(e.item(string(page), id)), &got); err != nil {
+		return nil, nil, false, err
+	}
+	if got == nil {
+		return nil, nil, false, nil
+	}
+	return got.Item, got.IDs, true, nil
 }
 
 // randomUUID は版 4 の UUID（画面の crypto.randomUUID と同じ形）

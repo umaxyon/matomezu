@@ -333,7 +333,9 @@ type Perform struct {
 	Client string          `json:"client,omitempty"`
 	Seq    int64           `json:"seq,omitempty"`
 	Key    string          `json:"key,omitempty"`
-	By     string          `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
+	// TimeoutSec は、アクションを待つ秒数（省略は 5、上限 60）
+	TimeoutSec int    `json:"timeoutSec,omitempty"`
+	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
 }
 
 // Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
@@ -354,7 +356,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By, TimeoutSec: p.TimeoutSec}
 	in.Annotations = map[string]json.RawMessage{}
 	if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {
@@ -697,9 +699,17 @@ func (h *Hub) AISettings() (json.RawMessage, error) {
 	return h.engine.AISettings(settings)
 }
 
-// AICatalog は MCP 公開ツールの actions が返す物（engine.AICatalog）
-func (h *Hub) AICatalog() json.RawMessage {
-	return withWarnings(h.engine.AICatalog(), h.Warnings())
+// AIItem は、ページの中の、id の物とその物と子の形の id の全部（engine.AIItem）
+func (h *Hub) AIItem(page json.RawMessage, id string) (json.RawMessage, []string, bool, error) {
+	return h.engine.AIItem(page, id)
+}
+
+// AICatalog は MCP 公開ツールの actions が返す物。ids が無ければ一覧の版と目次（今の warning を添える）、あれば ids の物の全文（engine.AICatalogIndex・AICatalogEntries）
+func (h *Hub) AICatalog(ids []string) json.RawMessage {
+	if len(ids) > 0 {
+		return h.engine.AICatalogEntries(ids)
+	}
+	return withWarnings(h.engine.AICatalogIndex(), h.Warnings())
 }
 
 // CloseAll は全部の窓を外す（常駐を止めるとき。知らせの通り道を閉じると、窓とのつながりが終わる）

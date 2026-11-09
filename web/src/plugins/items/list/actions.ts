@@ -22,7 +22,7 @@ export const ROW_ADD = kit.defineAction({
   id: "row-add",
   attach: ON_LISTS,
   aiDescription:
-    "Add a row at the end of a list (an item @matomezu/list:shape-list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks.",
+    "Add a row at the end of a list (an item @matomezu/list:shape-list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. Returns the new row's id. read_page shows a list's rows in its children, in order, with their checks.",
   title: "Add row",
   target: "book",
   args: z.strictObject({

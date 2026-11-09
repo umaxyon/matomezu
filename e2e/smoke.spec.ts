@@ -53,6 +53,20 @@ test("タブの左のボタンでダイアログが開き、打った文字で�
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "Design Notes")
 })
 
+test("ダイアログの中で押し始めて外で離しても閉じず、外側を押して離すと閉じる", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  await (await fromMenu(page, "ブックを開く")).click()
+  const dialog = page.getByRole("dialog", { name: "ブックを開く" })
+  const box = (await dialog.getByRole("combobox", { name: "ブックを探す" }).boundingBox())!
+  await page.mouse.move(box.x + 8, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(2, 2, { steps: 4 })
+  await page.mouse.up()
+  await expect(dialog).toBeVisible()
+  await page.mouse.click(2, 2)
+  await expect(dialog).toBeHidden()
+})
+
 test("絞り込んで候補が減っても、探すテキストFormの位置は変わらない（ステージの真ん中とダイアログ）", async ({
   page,
 }) => {

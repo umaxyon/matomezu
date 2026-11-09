@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 )
 
@@ -68,7 +69,8 @@ var readTools = []readTool{
 	},
 	{
 		"read_book",
-		"Read a whole book (its pages and the items on them), its version, placed (per page id, where each shape is drawn, when the book type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). To read one page, use read_page.",
+		"Read a book: the book without its pages' contents (type, title, settings and so on), its pages as an outline (id, title, size in characters), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). " +
+			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
 			"properties":           map[string]any{"book": map[string]any{"type": "string", "description": "The book's id."}},
@@ -77,17 +79,20 @@ var readTools = []readTool{
 		},
 		func(api caller, args map[string]any) (json.RawMessage, error) {
 			id, _ := args["book"].(string)
-			return api.Get("api/ai/books/" + url.PathEscape(id)) // 1 冊だけのブックの id は / を含む
+			return api.Get("api/ai/books/" + url.PathEscape(id) + "?outline=1") // 1 冊だけのブックの id は / を含む
 		},
 	},
 	{
 		"read_page",
-		"Read one page of a book (the page and the items on it), the book's version, placed (where each shape is drawn, when the book type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page.",
+		"Read one page of a book (the page and the items on it), the book's version, placed (where each shape is drawn, when the book type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"book": map[string]any{"type": "string", "description": "The book's id."},
-				"page": map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
+				"book":    map[string]any{"type": "string", "description": "The book's id."},
+				"page":    map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
+				"outline": map[string]any{"type": "boolean", "description": "Answer the page's items as an outline (id, item, size in characters) instead of in full."},
+				"item":    map[string]any{"type": "string", "description": "The id of an item on the page (any depth): answer only that item and what is inside it."},
 			},
 			"required":             []string{"book", "page"},
 			"additionalProperties": false,
@@ -95,7 +100,18 @@ var readTools = []readTool{
 		func(api caller, args map[string]any) (json.RawMessage, error) {
 			book, _ := args["book"].(string)
 			page, _ := args["page"].(string)
-			return api.Get("api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page))
+			q := url.Values{}
+			if outline, _ := args["outline"].(bool); outline {
+				q.Set("outline", "1")
+			}
+			if item, _ := args["item"].(string); item != "" {
+				q.Set("item", item)
+			}
+			path := "api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page)
+			if len(q) > 0 {
+				path += "?" + q.Encode()
+			}
+			return api.Get(path)
 		},
 	},
 	{
@@ -115,13 +131,47 @@ var readTools = []readTool{
 	},
 	{
 		"actions",
-		"List what can be done now (it changes when plugins are added or removed): the actions (id, target, title, description, and args as JSON Schema) to call with perform, " +
-			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the language packs (the language setting takes a pack id), the skins, and the user settings with their schemas. " +
-			"warnings (only when there are some) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
+		"List what can be done now (it changes when plugins are added or removed). Without ids, it answers version (changes when the list changes: keep what you read while it stays the same) and index: " +
+			"the actions (id, target and title: target tells what an action is done on), the items (shape or connector), the user settings, " +
+			"the book types (which can be created, whether they have pages and which items they place), the kinds of annotations and mail, the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
+			"With ids (ids from the index), it answers the whole entry of each: an action's description and args (JSON Schema, for perform), an item's props (JSON Schema) and default size, a setting's schema; unknown lists ids it does not have. " +
+			"warnings (only when there are some, without ids) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",
-		noArgs,
-		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
+		actionsSchema,
+		func(api caller, args map[string]any) (json.RawMessage, error) {
+			return api.Get("api/ai/catalog" + idsQuery(args))
+		},
 	},
+}
+
+// actionsSchema は actions の受ける形。ids は 1 つ以上の id（actions の目次の id）
+var actionsSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"ids": map[string]any{
+			"type":        "array",
+			"items":       map[string]any{"type": "string"},
+			"minItems":    1,
+			"description": "The ids to answer in full (see the index you get without ids): actions, items, settings and so on.",
+		},
+	},
+	"additionalProperties": false,
+}
+
+// idsQuery は、args の ids を常駐の口の問い合わせにする（無ければ空。目次を返す）
+func idsQuery(args map[string]any) string {
+	q := url.Values{}
+	if list, ok := args["ids"].([]any); ok {
+		for _, v := range list {
+			if id, ok := v.(string); ok {
+				q.Add("ids", id)
+			}
+		}
+	}
+	if len(q) == 0 {
+		return ""
+	}
+	return "?" + q.Encode()
 }
 
 // performSchema は perform の受ける形
@@ -137,6 +187,7 @@ var performSchema = map[string]any{
 			"required":             []string{"book"},
 			"additionalProperties": false,
 		},
+		"timeoutSec": map[string]any{"type": "integer", "minimum": 1, "maximum": 60, "description": "How many seconds to wait for the action (5 without it). Give more (up to 60) only for an action you know is heavy; an action that takes longer is stopped and refused with nothing changed."},
 	},
 	"required":             []string{"action", "args"},
 	"additionalProperties": false,
@@ -192,6 +243,20 @@ func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
 	return text, failed
 }
 
+// maxAnswer は、読む MCP 公開ツールの 1 つの答えの文字数の上限。受け取る側（AI のクライアント）に上限があり、超えると途中で切れて AI が気づけないので、
+// 絞って読めるツールは、超える答えを返さずに絞り方を返す
+const maxAnswer = 60000
+
+// tooLarge は、答えが上限を超えたときの、絞り方の説明（絞って読めるツールだけ）
+var tooLarge = map[string]func(args map[string]any) string{
+	"read_page": func(args map[string]any) string {
+		if item, _ := args["item"].(string); item != "" {
+			return "read an item inside it: call read_page with outline to see the items of the page, or read_page with the id of an item inside this one"
+		}
+		return "call read_page with outline to see the items of the page (id, item, size), then with item to read them one at a time"
+	},
+}
+
 func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 	var api caller = c
 	args := map[string]any{}
@@ -205,6 +270,11 @@ func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 			out, err := t.call(api, args)
 			if err != nil {
 				return err.Error(), true
+			}
+			if narrow, ok := tooLarge[name]; ok {
+				if n := len([]rune(string(out))); n > maxAnswer {
+					return fmt.Sprintf("too-large: the answer is %d characters, over the limit of %d, so it is not returned; %s", n, maxAnswer, narrow(args)), true
+				}
 			}
 			return string(out), false
 		}
@@ -243,13 +313,34 @@ func perform(api caller, args map[string]any) (string, bool) {
 		return string(out), true
 	}
 	if !done.OK {
-		return refusalText(done.Reason, done.Detail), true
+		text := refusalText(done.Reason, done.Detail)
+		if done.Reason == "bad-args" {
+			text += argsSchemaOf(api, args["action"].(string))
+		}
+		return text, true
 	}
 	// 知らせは結果の次の行に添える
 	if done.Notice != "" {
 		return string(done.Result) + "\n" + done.Notice, false
 	}
 	return string(done.Result), false
+}
+
+// argsSchemaOf は、引数が合わないと断ったアクションの引数の Schema（添えて、AI が 1 回で直せるように）。取れなければ空
+func argsSchemaOf(api caller, action string) string {
+	out, err := api.Get("api/ai/catalog?ids=" + url.QueryEscape(action))
+	if err != nil {
+		return ""
+	}
+	var got struct {
+		Actions []struct {
+			Args json.RawMessage `json:"args"`
+		} `json:"actions"`
+	}
+	if json.Unmarshal(out, &got) != nil || len(got.Actions) == 0 {
+		return ""
+	}
+	return "\nthe args of " + action + " (JSON Schema): " + string(got.Actions[0].Args)
 }
 
 func show(api caller, args map[string]any) (string, bool) {
@@ -296,10 +387,12 @@ func refusalText(reason, detail string) string {
 	case reason == "being-edited":
 		return "being-edited: the user is editing what this would change or remove (such as a note open on the screen), so nothing was changed; do it again later, " +
 			"or send the change to the user if actions offer a way (an action that carries actions for the user to apply)"
+	case reason == "bad-args":
+		return "bad-args: the args do not fit the action"
 	case detail != "":
 		return reason + ": " + detail
 	default:
-		return reason + ": it could not be done here (read_book to check)"
+		return reason + ": it could not be done here (read_page to check)"
 	}
 }
 
