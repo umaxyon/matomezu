@@ -2,14 +2,21 @@
 // スライドのアイテムは押し合わず、紙をはみ出てもよい（紙は表示の範囲で、スライドとして見せるときははみ出た所が切れる）。
 // 見せ方は専用（slide）で、紙の見せ方（paper）の置く・動かす・大きさを変えるアクションは付かない
 import { z } from "zod"
-import { BOOK_PAPER_COLOR, BOOK_THEME, DIAGRAM_THEME_TYPE, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
+import {
+  BOOK_PAPER_COLOR,
+  BOOK_THEME,
+  DIAGRAM_THEME_TYPE,
+  itemMinimapMarks,
+  PAPER_IDS,
+  PRINT_PREVIEW_SETTINGS,
+} from "../../base"
 import { kit } from "./kit"
-import { slideMinimapMarks, slidePrintSheets } from "./print"
+import { slidePrintSheets } from "./print"
 import { SLIDE_PRINT } from "./print-setting"
 
 export const SLIDE_PRESENTATION = kit.definePresentation({
   id: "slide",
-  minimap: slideMinimapMarks, // ミニマップには、アイテムの枠を四角で描く
+  minimap: itemMinimapMarks, // ミニマップには、スライドのアイテムの絵を描く
   printSheets: slidePrintSheets, // 印刷区画は、紙 1 枚（スライドのアイテムが紙に掛かれば載っている）
 })
 

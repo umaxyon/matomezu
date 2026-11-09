@@ -8,7 +8,11 @@ import { ELLIPSE, FREE_LINE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
 import { SlideLayer } from "./view/SlideLayer"
 
 // スライドのレイヤー: ブックのタイプが slide を選んでいるブックで、スライドのアイテムを描いて操作を受ける
-export const SLIDE_LAYER = defineWidget({ id: kit.name("slide-layer"), slots: ["@matomezu/base:book-layers"], view: SlideLayer })
+export const SLIDE_LAYER = defineWidget({
+  id: kit.name("slide-layer"),
+  slots: ["@matomezu/base:book-layers"],
+  view: SlideLayer,
+})
 
 export const SLIDE_UI = definePluginUi(SLIDE_PLUGIN, {
   items: {

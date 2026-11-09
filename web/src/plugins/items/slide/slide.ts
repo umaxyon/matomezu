@@ -3,7 +3,7 @@
 // 線の点は、枠（幅と高さ）の中の割合（0 から 1）で持つ。枠を拡大すれば線も一緒に拡大する。
 // 角度（rotation）・比率のロック（lockRatio）・元の比率（ratio。置いたときの幅 ÷ 高さ）は、どのアイテムも持つ
 import { z } from "zod"
-import { ColorSchema } from "../../base"
+import { ColorSchema, type MinimapMark } from "../../base"
 import { kit } from "./kit"
 
 // どのアイテムも持つ項目
@@ -81,6 +81,12 @@ export const TEXT_FRAME = kit.defineShape({
   min: MIN,
 })
 
+// 枠 r の中の割合の点 p の、紙の上の点
+const inRect = (p: { x: number; y: number }, r: { x: number; y: number; w: number; h: number }) => ({
+  x: r.x + p.x * r.w,
+  y: r.y + p.y * r.h,
+})
+
 export const FREE_LINE = kit.defineShape({
   id: "slide-free-line",
   kind: "shape",
@@ -92,6 +98,7 @@ export const FREE_LINE = kit.defineShape({
   tokens: [],
   size: { w: 160, h: 80 },
   min: MIN,
+  minimap: (item, r): MinimapMark[] => [{ kind: "polyline", points: item.props.points.map(p => inRect(p, r)) }],
 })
 
 export const STRAIGHT_LINE = kit.defineShape({
@@ -105,6 +112,12 @@ export const STRAIGHT_LINE = kit.defineShape({
   tokens: [],
   size: { w: 160, h: 80 },
   min: MIN,
+  minimap: (item, r): MinimapMark[] => [
+    {
+      kind: "polyline",
+      points: [inRect(item.props.from ?? { x: 0, y: 0 }, r), inRect(item.props.to ?? { x: 1, y: 1 }, r)],
+    },
+  ],
 })
 
 export const ELLIPSE = kit.defineShape({
@@ -118,6 +131,7 @@ export const ELLIPSE = kit.defineShape({
   tokens: [],
   size: { w: 160, h: 100 },
   min: MIN,
+  minimap: (_, r): MinimapMark[] => [{ kind: "ellipse", x: r.x, y: r.y, w: r.w, h: r.h }],
 })
 
 export const SLIDE_ITEMS = [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE] as const

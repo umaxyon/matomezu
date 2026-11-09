@@ -5,12 +5,12 @@
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import type { Point, Rect } from "../../../core/geom"
-import { byConnector, type ItemPage, shapesOf } from "../../../core/placed"
+import { byConnector, type ItemPage, shapesOf, slideOf } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { type SettingReader, settingsAt } from "../book-settings"
 import type { GrowSides } from "../place/grow"
 import { growOf } from "../place/items"
-import { type PortArea, portAreasOf, rectsOf, shapeDefOf } from "../place/placed"
+import { type PortArea, placedSize, portAreasOf, rectsOf, shapeDefOf } from "../place/placed"
 
 // ミニマップに描く簡単な絵 1 つ（紙の座標）。色と線の太さはミニマップが決める。
 // 四角（rx は角の丸み）・楕円・多角形は塗り、折れ線は線で描く
@@ -58,7 +58,7 @@ export function minimapMarks(
   return minimap(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), drawn })
 }
 
-// 置いたアイテムの絵（見せ方の minimap に、そのまま書ける）
+// 置いたアイテムの絵（ページの slide の形も含む。見せ方の minimap に、そのまま書ける）
 export function itemMinimapMarks(catalog: CoreCatalog, page: ItemPage, { setting, drawn }: MinimapOn): MinimapMark[] {
   const rects = rectsOf(catalog, page)
   const areas = portAreasOf(catalog, page, rects)
@@ -74,6 +74,14 @@ export function itemMinimapMarks(catalog: CoreCatalog, page: ItemPage, { setting
   for (const s of shapesOf(page)) {
     const r = rects.get(s.id)
     if (!r) continue
+    const def = shapeDefOf(catalog, s.item)
+    marks.push(...(def?.minimap ? def.minimap(s as ShapeData, r) : [rectMark(r)]))
+  }
+  // ページの slide の形（重ねの順に、items の上へ）
+  for (const s of slideOf(page)) {
+    const size = placedSize(catalog, s)
+    if (!size) continue
+    const r = { x: s.x, y: s.y, ...size }
     const def = shapeDefOf(catalog, s.item)
     marks.push(...(def?.minimap ? def.minimap(s as ShapeData, r) : [rectMark(r)]))
   }

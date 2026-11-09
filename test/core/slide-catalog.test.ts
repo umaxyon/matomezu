@@ -6,6 +6,8 @@ import { attachedTo } from "../../web/src/core/def/action"
 import { placeableOf } from "../../web/src/core/def/book-type"
 import { tokenDefsOf } from "../../web/src/core/theme"
 import { warningText } from "../../web/src/core/warnings"
+import { itemMinimapMarks } from "../../web/src/plugins/base/minimap/marks"
+import { filledSheets } from "../../web/src/plugins/base/print-preview/filled"
 import { toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -58,4 +60,43 @@ test("置けるアイテムは items.allowed と slide.allowed の合わせ: ア
   for (const t of box.tokens) expect(ids).toContain(t.id)
   const book = { type: SLIDE_TYPE } as never
   expect(toolboxOf(CORE_CATALOG, book)).toEqual(slideType.slide!.allowed as never)
+})
+
+test("ミニマップと印刷区画の既定は、ページの slide の形も数える（形の定義の minimap。無いなら置いた四角）", () => {
+  const ellipse = {
+    id: "e",
+    item: "@matomezu/slide:slide-ellipse",
+    x: 10,
+    y: 20,
+    w: 100,
+    h: 50,
+    props: {},
+  }
+  const line = {
+    id: "l",
+    item: "@matomezu/slide:slide-line",
+    x: 0,
+    y: 0,
+    w: 200,
+    h: 100,
+    props: { to: { x: 1, y: 0.5 } },
+  }
+  const text = { id: "t", item: TEXT, x: 5, y: 6, w: 40, h: 30, props: { text: "a" } }
+  const p = { ...page, slide: [ellipse, line, text] } as never
+  expect(
+    itemMinimapMarks(CORE_CATALOG, p, { setting: () => undefined as never, grow: undefined, drawn: () => undefined }),
+  ).toEqual([
+    { kind: "ellipse", x: 10, y: 20, w: 100, h: 50 },
+    {
+      kind: "polyline",
+      points: [
+        { x: 0, y: 0 },
+        { x: 200, y: 50 },
+      ],
+    },
+    { kind: "rect", x: 5, y: 6, w: 40, h: 30 },
+  ])
+  const book = bookWith([text]) as never
+  expect(filledSheets(CORE_CATALOG, book, { ...page, slide: [text] } as never)?.size).toBe(1)
+  expect(filledSheets(CORE_CATALOG, book, { ...page, slide: [] } as never)?.size).toBe(0)
 })
