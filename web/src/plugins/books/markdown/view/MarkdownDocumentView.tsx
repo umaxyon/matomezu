@@ -1,6 +1,6 @@
 // 描いた文書: ページの原文を読んだ形（MarkdownDocument）を、ブロックの順に描き、脚注を最後にまとめる。ステージもストアも読まない。
 // リンクと画像は link-target.ts が選んだ物だけを開き・描く。# のリンクは、location を変えずに、この文書の中の飛ぶ先へスクロールする。
-// いちばん外のブロックには data-markdown-block を付ける（ソースのペインのスクロールに付いて行くときの目印。何番目のブロックかは並びで決まる）。
+// いちばん外のブロックには data-markdown-block を付ける（ソースのペインのスクロールに付いて行くときの目印。何番目のブロックかは並びで決まる。値は描いたときの原文の頭の位置で、中身が同じなら描き直さないので、上に書くとずれる。search-ranges.ts が今の位置との差で直す）。
 // いちばん外のブロックは、中身が変わったものだけを描き直す（block-keys.ts）。段落の中の改行 1 つを改行にするか空白にするか（softBreak）は、描き直さずに見た目（CSS）で変える。
 // コードの塊は言語名のとおりに、生の HTML は html として色付けする（base の highlightCode。色はテーマキー markdown-code-color-<色の種類>。色だけを変え、太字や斜体は付けない。字の幅が変わると印刷で測る位置がずれるため）
 import { type MouseEvent, memo, type ReactNode, useMemo } from "react"
@@ -71,7 +71,7 @@ const TopBlock = memo(
 
 // place は、いちばん外のブロックか、ほかのブロックの中か
 function Block({ block, place = "inside" }: { block: MarkdownBlock; place?: "top" | "inside" }): ReactNode {
-  const at = place === "top" ? { "data-markdown-block": "" } : {}
+  const at = place === "top" ? { "data-markdown-block": block.range.start } : {}
   switch (block.kind) {
     case "paragraph":
       return (

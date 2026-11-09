@@ -119,6 +119,8 @@ test("AI は要求できるが、受け入れる・断るはできない（利�
   const refused = { ok: false, reason: "not-allowed" } as const
   expect(ai(ACCEPT, { participant, workroom: "A", bird: "inko" })).toEqual(refused)
   expect(ai(DECLINE, { participant })).toEqual(refused)
+  const notice = { from: "claude", participant, ai: "claude", model: "opus", env: "wsl", projects: ["default"] }
+  expect(ai(JOIN_MAIL, notice)).toEqual(refused)
 })
 
 test("同じ入力（時刻と id のもと）なら同じ結果", () => {

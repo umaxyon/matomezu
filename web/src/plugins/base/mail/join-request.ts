@@ -1,4 +1,4 @@
-// 参加要求の郵便: 参加者（core/participant.ts）の参加要求が届いたことを利用者に知らせる。種類は join-request、送るのは mail-join-request（AI も送れる）。
+// 参加要求の郵便: 参加者（core/participant.ts）の参加要求が届いたことを利用者に知らせる。種類は join-request、送るのは mail-join-request（利用者だけが行うアクション。AI の参加の頼みを受けたホストが、利用者として送る）。
 // 参加者の表と郵便箱は別の対象なので、郵便には参加者の id と、本文に出す ai・model・env・sessionName を添える
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
@@ -46,9 +46,10 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
 export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
   id: "mail-join-request",
   aiDescription:
-    "Tell the user's mailbox that a participant asked to join (done after participant-request; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env, sessionName (optional) and projects are the participant's; workroom (optional) is the name of the workroom it asks to take over. The letter belongs to the first of the projects. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
+    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env, sessionName (optional) and projects are the participant's; workroom (optional) is the name of the workroom it asks to take over. The letter belongs to the first of the projects. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
   title: "Send a join request",
   target: "mailbox",
+  userOnly: true,
   runsWhenAIJoins: "notify-user",
   args: z.strictObject({
     from: z.string().trim().min(1).max(40),
