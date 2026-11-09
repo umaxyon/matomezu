@@ -3,7 +3,7 @@
 // （ステージの拡大縮小には従わない）。押したページをそのステージで開く（コマンド page-open）。開いているページは枠と太字の番号で示す。
 // ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-context。ここに追加・複製・削除）。
 // 一覧の下の＋は、最後にページを足す（コマンド page-add-after は最後のページの後ろ）
-import { useLayoutEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { hasPages } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
@@ -16,6 +16,7 @@ import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
 import { pageArea } from "../place/items"
 import { Printing } from "../print-preview/printing"
+import { useResize } from "../utils/useResize"
 import type { StageSlotProps } from "../workspace/ui"
 import { PAGE_ADD_AFTER, PAGE_CONTEXT, PAGE_OPEN } from "."
 import styles from "./PageList.module.css"
@@ -29,15 +30,7 @@ function Thumbnail({ stage, book, page }: { stage: string; book: Book; page: Pag
   const look = useBookLookStyle(stage, book.type)
   const frame = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
-  useLayoutEffect(() => {
-    const el = frame.current
-    if (!el) return
-    const measure = () => setWidth(el.clientWidth)
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
+  useResize(frame, size => setWidth(size.w))
   const size = pageArea(catalog, book, page)?.size ?? { w: 1280, h: 720 }
   const scale = width / size.w
   return (
