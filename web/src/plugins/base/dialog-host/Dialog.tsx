@@ -61,6 +61,8 @@ export function Dialog({
       d.close()
     }
   }, [])
+  // 外側を押して閉じるのは、押し始めも外側のときだけ（中の字をドラッグで選んで外で離したときは閉じない）
+  const pressedOutside = useRef(false)
   // 寄せるときは、ほかの操作を止めない開き方に、戻すときは止める開き方に開き直す（開き直す間の閉じた知らせは、閉じたことにしない）
   const wasDocked = useRef(docked)
   useLayoutEffect(() => {
@@ -86,8 +88,11 @@ export function Dialog({
       onClose={e => {
         if (!unmounting.current && !e.currentTarget.open) onClose()
       }}
+      onPointerDown={e => {
+        pressedOutside.current = e.target === e.currentTarget
+      }}
       onClick={e => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget && pressedOutside.current) onClose()
       }}
       // 閉じるのはキーバインド（dialog-close）が受ける。ブラウザ自身の閉じ方（cancel）は止める
       onCancel={e => e.preventDefault()}
