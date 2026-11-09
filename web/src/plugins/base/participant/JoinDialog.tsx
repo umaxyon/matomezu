@@ -80,6 +80,10 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   }
   const allowedNew = useAllowedOn(PARTICIPANT_ACCEPT.id, accepting).ok
   const allowedTake = useAllowedOn(PARTICIPANT_TAKE_OVER.id, { participant, takeover: pick ?? "-" }).ok
+  const allowedConfirmTake = useAllowedOn(PARTICIPANT_TAKE_OVER.id, {
+    participant,
+    takeover: confirming?.target.id ?? "-",
+  }).ok
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Could not answer the request")) })
   const finish = (done: ReturnType<typeof perform>) => {
@@ -118,7 +122,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
               {t("Discard and start new")}
             </ActionButton>
           )}
-          <ActionButton primary disabled={!stillQuiet} onClick={() => takeOver(target)}>
+          <ActionButton primary disabled={!stillQuiet || !allowedConfirmTake} onClick={() => takeOver(target)}>
             {t("Take over")}
           </ActionButton>
         </div>
