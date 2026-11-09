@@ -831,20 +831,27 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         world.participants === undefined ? getState().participants : restoreParticipants(world.participants)
       for (const done of replay) {
         const ids = [...done.ids]
-        const next = performIn(
-          { books: library, settings, annotations, mailbox, participants },
-          done.action,
-          done.args,
-          done.on,
-          {
-            catalog,
-            controlCenter,
-            lang: done.lang,
-            newId: () => ids.shift() ?? newId(),
-            now: done.now,
-          },
-        )
-        if (!next.ok) continue
+        // 読み直した世界の上で行い直して投げるアクションは、断られたものと同じに落とし、あとの行い直しを続ける
+        const next = (() => {
+          try {
+            return performIn(
+              { books: library, settings, annotations, mailbox, participants },
+              done.action,
+              done.args,
+              done.on,
+              {
+                catalog,
+                controlCenter,
+                lang: done.lang,
+                newId: () => ids.shift() ?? newId(),
+                now: done.now,
+              },
+            )
+          } catch {
+            return null
+          }
+        })()
+        if (!next?.ok) continue
         if (next.book) library = { ...library, [next.book.id]: next.book }
         if (next.books) library = next.books
         if (next.settings) settings = next.settings

@@ -30,8 +30,9 @@ export type Participants = readonly Participant[]
 export const restoreParticipants = (saved: unknown): Participants =>
   Array.isArray(saved) ? (saved as Participant[]) : []
 
-// 参加者の表のアクションの結果 after が形を守っているか: 前 before に無かった（変わった）参加者が、形に合うか
+// 参加者の表のアクションの結果 after が形を守っているか: id が重ならず、前 before に無かった（変わった）参加者が、形に合うか
 export function participantsSettle(before: Participants, after: Participants): boolean {
+  if (new Set(after.map(p => p.id)).size !== after.length) return false
   const kept = new Set(before)
   return after.every(p => kept.has(p) || (ParticipantSchema.safeParse(p).success && p.projects.every(isProject)))
 }

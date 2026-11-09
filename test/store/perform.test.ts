@@ -119,6 +119,33 @@ describe("アクションの入口", () => {
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
 
+  test("行い直しの 1 つが投げても、受け取りは止まらず、あとの行い直しを続ける", () => {
+    const done: DoneAction[] = []
+    const instance = createMatomezu({
+      plugins: BUILTIN,
+      controlCenter: "@matomezu/control-center:control-center",
+      newId: () => "n1",
+      observe: d => {
+        done.push(d)
+      },
+    })
+    instance.use([notes])
+    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
+    untyped(instance.actions).perform("notes:stamp", {}, { book: "n1" })
+    const good = done.at(-1)!
+    const bad = {
+      ...good,
+      on: {
+        get book(): string {
+          throw new Error("boom")
+        },
+      },
+    } as unknown as DoneAction
+    const book = { type: "notes:note", id: "n1", title: "メモ", project: "default" }
+    instance.receive({ books: [book], settings: {} }, [bad, good])
+    expect(instance.state.getState().books.n1).toMatchObject({ title: good.now })
+  })
+
   test("ホストが断ったアクションを続けた画面の履歴の段に入れていたら、続ける前の画面の履歴の段は元に戻せるまま残る", async () => {
     const instance = createMatomezu({
       plugins: BUILTIN,

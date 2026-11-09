@@ -32,8 +32,9 @@ export type Mailbox = readonly Mail[]
 // 残しておいた郵便箱（外から来る値。並びでなければ空とし、中の 1 つずつは確かめずに持つ）
 export const restoreMailbox = (saved: unknown): Mailbox => (Array.isArray(saved) ? (saved as Mail[]) : [])
 
-// 郵便箱のアクションの結果 after が形を守っているか: 前 before に無かった（変わった）郵便が、形に合い、種類が機能台帳にあって props がその形に合う
+// 郵便箱のアクションの結果 after が形を守っているか: id が重ならず、前 before に無かった（変わった）郵便が、形に合い、種類が機能台帳にあって props がその形に合う
 export function mailboxSettles(catalog: CoreCatalog, before: Mailbox, after: Mailbox): boolean {
+  if (new Set(after.map(m => m.id)).size !== after.length) return false
   const kept = new Set(before)
   return after.every(m => {
     if (kept.has(m)) return true

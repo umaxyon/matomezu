@@ -33,3 +33,8 @@ test("郵便箱の効かない郵便は warning にする（種類が無いの�
     ["W023", "m3"],
   ])
 })
+
+test("id が重なる郵便箱は断る", () => {
+  const a = letter("m1", { title: "題", body: "" })
+  expect(mailboxSettles(CORE_CATALOG, [a], [a, letter("m1", { title: "次", body: "" })])).toBe(false)
+})
