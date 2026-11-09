@@ -9,3 +9,5 @@ export const STAGE_BOTTOM = kit.name("stage-bottom")
 export const STAGE_CORNER = kit.name("stage-corner")
 // ステージの中のレイヤー（ステージのビューが開く）。並べた順に下から重ねる。紙の座標で描くレイヤーは PaperFrame の中に描く
 export const BOOK_LAYERS = kit.name("book-layers")
+// 印刷区画 1 つの中のレイヤー（印刷プレビューと印刷と、ページ一覧のサムネイルが開く）。並べた順に下から重ねる。渡すのは PrintSheetProps
+export const SHEET_LAYERS = kit.name("sheet-layers")

@@ -68,6 +68,7 @@ export const PAGE_OPEN = kit.defineCommand({
   title: "Open page",
   run: (ctx, a, page: string) => a.openPage(ctx.stage.id, page),
   when: ctx => ctx.book !== null && hasPages(ctx.book),
+  enabled: ctx => ctx.stage.edits === "items", // 背景編集モードの間は、ページを替えない（ページタブとページ一覧はこれを見て止まる）
 })
 
 // 開いているページの設定のダイアログを開く（ブックのタイプが page-update を使えるブックだけ。

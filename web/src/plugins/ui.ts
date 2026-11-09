@@ -61,13 +61,15 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:book-layers": [
       "@matomezu/base:paper-layer",
       "@matomezu/base:print-area-layer",
-      "@matomezu/base:book-content",
       "@matomezu/slide:slide-layer",
+      "@matomezu/base:book-content",
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",
       "@matomezu/base:mail-layer",
+      "@matomezu/base:background-band",
     ],
+    "@matomezu/base:sheet-layers": ["@matomezu/slide:slide-sheet", "@matomezu/base:sheet-content"],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
     "@matomezu/base:footer-menu-map": ["@matomezu/base:footer-menu-minimap"],
@@ -75,6 +77,8 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:footer-menu-basics": [
       "@matomezu/base:stage-menu-buttons",
       "@matomezu/base:print-area-toggle",
+      "@matomezu/base:background-button",
+      "@matomezu/base:background-print-control",
       "@matomezu/base:print-preview-button",
       "@matomezu/base:left-side-panel-button",
     ],
@@ -165,6 +169,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:page-context": [
       "@matomezu/base:page-add-after",
       "@matomezu/base:page-duplicate",
+      "@matomezu/base:background-edit",
       "-",
       "@matomezu/base:page-delete",
     ],

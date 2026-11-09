@@ -85,6 +85,7 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:stage-side is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-body is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:book-layers is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:sheet-layers is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-bottom is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-corner is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:footer-menu-map is not opened by any placed widget",
@@ -363,13 +364,14 @@ describe("取り込んだプラグインの置き場所", () => {
       "@matomezu/base:paper-layer",
       "q:over",
       "@matomezu/base:print-area-layer",
+      "@matomezu/slide:slide-layer",
       "q:under",
       "@matomezu/base:book-content",
-      "@matomezu/slide:slide-layer",
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",
       "@matomezu/base:mail-layer",
+      "@matomezu/base:background-band",
       "q:top",
     ])
     expect(checkLayout(layout, assembleUi([...BUILTIN_UI, layers]), commands)).toEqual([])

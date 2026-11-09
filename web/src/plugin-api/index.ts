@@ -26,6 +26,7 @@ export { bookType } from "../core/core-catalog"
 export type { ActionDef, Declined } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { BookTypeDef } from "../core/def/book-type"
+export { slideIsBackground } from "../core/def/book-type"
 export type {
   ConnectorData,
   ItemDef,

@@ -11,12 +11,13 @@ import { screenOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { pageArea } from "../place/items"
 import { Printing } from "../print-preview/printing"
+import { SheetLayers } from "../print-preview/SheetLayers"
 import { useResize } from "../utils/useResize"
 import type { StageSlotProps } from "../workspace/ui"
 import { PAGE_ADD_AFTER, PAGE_CONTEXT, PAGE_OPEN } from "."
@@ -26,8 +27,6 @@ import { useTabDrag } from "./useTabDrag"
 // ページ 1 枚のサムネイル: 紙の大きさ（無ければ 16:9）のままのビューを、一覧の幅に合わせて縮める
 function Thumbnail({ stage, book, page }: { stage: string; book: Book; page: Page }) {
   const catalog = useCatalog().core
-  const views = useUiCatalog().presentationViews
-  const Sheet = views.get(bookType(catalog, book.type).presentation)?.printSheet
   const look = useBookLookStyle(stage, book.type)
   const frame = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
@@ -36,10 +35,10 @@ function Thumbnail({ stage, book, page }: { stage: string; book: Book; page: Pag
   const scale = width / size.w
   return (
     <div ref={frame} className={styles.thumb} style={{ ...look, aspectRatio: `${size.w} / ${size.h}` }}>
-      {Sheet && width > 0 && (
+      {width > 0 && (
         <div className={styles.scaled} style={{ width: size.w, height: size.h, transform: `scale(${scale})` }}>
           <Printing>
-            <Sheet stage={stage} book={book} page={page} column={0} row={0} paper={size} />
+            <SheetLayers stage={stage} book={book} page={page} column={0} row={0} paper={size} />
           </Printing>
         </div>
       )}
@@ -63,7 +62,7 @@ export function PageList({ stage }: StageSlotProps) {
     pages.map(p => p.id),
     "y",
   )
-  if (!book || !hasPages(book) || !bookType(catalog, book.type).pageList) return null
+  if (!book || !hasPages(book) || !bookType(catalog, book.type).pageList || !openPage.enabled) return null
   return (
     <nav className={styles.list} aria-label={t("Page list")} ref={list} data-page-list>
       {book.pages.map((p, i) => (

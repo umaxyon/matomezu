@@ -21,10 +21,13 @@
   overflow: hidden;
 }
 .item {
-  pointer-events: auto;
+  pointer-events: none;
   position: absolute;
   transform-origin: 50% 50%;
   cursor: move;
+}
+.layer[data-active="true"] .item {
+  pointer-events: auto;
 }
 .layer[data-placing="true"] .item {
   cursor: crosshair;

@@ -7,13 +7,14 @@ import { ChoiceText } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
 import { ChoiceSetting } from "../utils/ChoiceSetting"
-import { STAGE_BODY } from "../workspace/slots"
+import { SHEET_LAYERS, STAGE_BODY } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
 import { PreviewScrollbars } from "./PreviewScrollbars"
 import { PrintCheckPanel } from "./PrintCheckPanel"
 import { PrintPreviewButton } from "./PrintPreviewButton"
 import { PrintPreviewPanel } from "./PrintPreviewPanel"
 import { PRINT_CHECK_PANEL_ID, PRINT_PREVIEW_PANEL_ID } from "./panel-id"
+import { SheetContent } from "./SheetLayers"
 import { ShownSetting } from "./ShownSetting"
 import {
   BACKGROUND_PRINT,
@@ -100,3 +101,6 @@ export const PRINT_PREVIEW_PANEL = defineWidget({
   rightSidePanel: { width: 280 },
   view: PrintPreviewPanel,
 })
+
+// 印刷区画の中のレイヤー（スロット sheet-layers）: ブックの中身（ブックのタイプの見せ方の printSheet）
+export const SHEET_CONTENT = defineWidget({ id: kit.name("sheet-content"), slots: [SHEET_LAYERS], view: SheetContent })

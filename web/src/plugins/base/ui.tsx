@@ -25,12 +25,16 @@ import {
   PRINT_PREVIEW_PANEL,
   PRINT_PREVIEW_SCROLLBARS,
   PRINT_PREVIEW_SETTING_VIEWS,
+  SHEET_CONTENT,
 } from "./print-preview/ui"
 import { SEARCH_DIALOG } from "./search/ui"
 import { GENERAL_CATEGORY, KEYS_CATEGORY, type SettingsCategoryProps } from "./settings/categories"
 import { SETTINGS_ICONS } from "./settings/icons"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
 import {
+  BACKGROUND_BAND,
+  BACKGROUND_BUTTON,
+  BACKGROUND_PRINT_CONTROL,
   BOOK_CONTENT,
   BOOK_VIEW,
   CLOSE_BUTTON,
@@ -96,6 +100,9 @@ export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
 export { ParticipantList } from "./participant/ui"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
+
+import type { PrintSheetProps } from "./print-preview/PrintPreviewView"
+
 export {
   useCloseRightSidePanel,
   useFollowsSelection,
@@ -163,10 +170,14 @@ export const BASE_UI = definePluginUi(BASE, {
     NOTE_PANEL,
     MARK_LAYER,
     PRINT_AREA_TOGGLE,
+    BACKGROUND_BAND,
+    BACKGROUND_BUTTON,
+    BACKGROUND_PRINT_CONTROL,
     PRINT_PREVIEW_BUTTON,
     PRINT_PREVIEW_PANEL,
     PRINT_CHECK_PANEL,
     PRINT_PREVIEW_SCROLLBARS,
+    SHEET_CONTENT,
     LEFT_SIDE_PANEL_BUTTON,
     OUTBOX,
     MAILBOX_TAB,
@@ -216,6 +227,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:stage-side": StageSlotProps
     "@matomezu/base:stage-body": StageSlotProps
     "@matomezu/base:book-layers": StageSlotProps
+    "@matomezu/base:sheet-layers": PrintSheetProps // 印刷区画 1 つの中のレイヤー
     "@matomezu/base:stage-bottom": StageSlotProps
     "@matomezu/base:stage-corner": StageSlotProps
     "@matomezu/base:footer-menu-map": StageSlotProps
@@ -261,6 +273,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-panel": typeof NOTE_PANEL
     "@matomezu/base:mark-layer": typeof MARK_LAYER
     "@matomezu/base:print-area-toggle": typeof PRINT_AREA_TOGGLE
+    "@matomezu/base:background-band": typeof BACKGROUND_BAND
+    "@matomezu/base:background-button": typeof BACKGROUND_BUTTON
+    "@matomezu/base:background-print-control": typeof BACKGROUND_PRINT_CONTROL
     "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
     "@matomezu/base:left-side-panel-button": typeof LEFT_SIDE_PANEL_BUTTON
     "@matomezu/base:outbox": typeof OUTBOX
@@ -280,6 +295,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:print-preview-panel": typeof PRINT_PREVIEW_PANEL
     "@matomezu/base:print-check-panel": typeof PRINT_CHECK_PANEL
     "@matomezu/base:print-preview-scrollbars": typeof PRINT_PREVIEW_SCROLLBARS
+    "@matomezu/base:sheet-content": typeof SHEET_CONTENT
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME

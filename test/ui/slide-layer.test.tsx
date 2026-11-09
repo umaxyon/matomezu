@@ -1,4 +1,5 @@
-// スライドのレイヤー: ページの slide を持つタイプのブックで描かれる。何も無い所の押しは、置こうとしている間（slide のアイテムを）だけ受け、そうでなければ下のレイヤーとステージへ通す
+// スライドのレイヤー: ページの slide を持つタイプのブックで描かれる。背景のタイプでは、背景編集モードの間だけ操作を受ける（ふだんは描くだけ）。
+// 何も無い所の押しは、置こうとしている間（slide のアイテムを）だけ受け、そうでなければ下のレイヤーとステージへ通す
 
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
@@ -29,7 +30,7 @@ const BACK = defineBookType({
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   },
   items: { allowed: [BOX] },
-  slide: { allowed: [TEXT] },
+  slide: { allowed: [TEXT], background: true },
   actions: {},
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
@@ -39,10 +40,10 @@ const BACK = defineBookType({
 const back = definePlugin({ id: "back", bookTypes: [BACK], presentations: [LOOK] })
 const backUi = definePluginUi(back, { presentationViews: { "back:look": { view: () => <p>back view</p> } } })
 
-const layer = () => document.querySelector<HTMLElement>('[data-key-scope="@matomezu/slide:slide"]')
+const layer = () => document.querySelector<HTMLElement>("[data-slide-layer]")
 
 describe("スライドのレイヤー", () => {
-  test("slide を持つタイプのブックで描かれ、置こうとしている間（slide のアイテム）だけ押しを受ける", () => {
+  test("背景を持つタイプのブックでは描かれ、背景編集モードで置こうとしている間（slide のアイテム）だけ押しを受ける", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN_UI, backUi],
       partial: true,
@@ -74,7 +75,13 @@ describe("スライドのレイヤー", () => {
     expect(layer()?.dataset.active).toBe("false") // 押しはステージと下のレイヤーへ通す
     act(() => instance.actions.togglePlacing(stage, BOX))
     expect(layer()?.dataset.active).toBe("false") // 紙のアイテムを置こうとしている間は取らない
+    act(() => instance.actions.togglePlacing(stage, BOX)) // 取り消す
     act(() => instance.actions.togglePlacing(stage, TEXT))
-    expect(layer()?.dataset.active).toBe("true") // slide のアイテムを置こうとしている間は受ける
+    expect(layer()?.dataset.active).toBe("false") // ふだんの編集では、slide のアイテムを置こうとしても受けない
+    act(() => instance.actions.startBackground(stage))
+    act(() => instance.actions.togglePlacing(stage, TEXT))
+    expect(layer()?.dataset.active).toBe("true") // 背景編集モードで slide のアイテムを置こうとしている間は受ける
+    act(() => instance.actions.endBackground(stage))
+    expect(layer()?.dataset.active).toBe("false")
   })
 })

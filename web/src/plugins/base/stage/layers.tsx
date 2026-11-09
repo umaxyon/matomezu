@@ -12,6 +12,7 @@ import { startOf, unprintedSheets } from "../print-preview/book-sheets"
 import { sheetKey } from "../print-preview/filled"
 import { PaperFrame } from "../utils/PaperFrame"
 import type { StageSlotProps } from "../workspace/ui"
+import { useContentHidden } from "./background-state"
 import styles from "./layers.module.css"
 import { usePrintAreasHidden } from "./print-areas"
 
@@ -83,12 +84,20 @@ function useStartReport(id: string) {
   }, [setStageStart, id, x, y, opened])
 }
 
+// ブックの中身のレイヤー。背景編集モードの間は、中身を薄くして触れなくする（中身を隠していれば描かない）。背景は、この下のレイヤー（slide-layer）が描いて操作を受ける
 export function BookContentLayer({ stage: id }: StageSlotProps) {
-  const type = useStage(id)?.opened?.type
+  const stage = useStage(id)
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
+  const hidden = useContentHidden(id)
+  const type = stage?.opened?.type
   if (!type) return null
   const presentation = bookType(catalog, type).presentation
   const View = (views.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })).view
-  return <View stage={id} />
+  if (stage.edits !== "slide") return <View stage={id} />
+  return (
+    <div className={styles.dimmed} data-content-dimmed data-content-hidden={hidden}>
+      <View stage={id} />
+    </div>
+  )
 }

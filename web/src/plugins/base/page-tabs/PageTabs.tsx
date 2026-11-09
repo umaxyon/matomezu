@@ -9,11 +9,12 @@ import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { screenOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
+import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
-import { PAGE_NEW, PAGE_OPEN } from "."
+import { PAGE_CONTEXT, PAGE_NEW, PAGE_OPEN } from "."
 import styles from "./PageTabs.module.css"
 import { useTabDrag } from "./useTabDrag"
 
@@ -40,6 +41,7 @@ export function PageTabs({ stage }: { stage: string }) {
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const openPage = useCommand(stage, PAGE_OPEN.id)
   const newPage = useCommand(stage, PAGE_NEW.id)
+  const openMenu = useContextMenu(stage, PAGE_CONTEXT)
   const catalog = useCatalog().core
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
@@ -49,7 +51,7 @@ export function PageTabs({ stage }: { stage: string }) {
     list,
     pages.map(p => p.id),
   )
-  if (!book || !hasPages(book) || bookType(catalog, book.type).pageList)
+  if (!book || !hasPages(book) || bookType(catalog, book.type).pageList || !openPage.enabled)
     return <div className={styles.tabs} data-page-tabs />
   const { drag } = tabDrag
   const grabbed = drag && book.pages.find(p => p.id === drag.id)
@@ -75,6 +77,7 @@ export function PageTabs({ stage }: { stage: string }) {
             onClick={() => {
               if (!tabDrag.swallowClick()) openPage.run(p.id)
             }}
+            onContextMenu={e => openMenu(e, { page: p.id })}
             {...tabDrag.handlers(p.id)}
           >
             {p.title}

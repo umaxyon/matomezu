@@ -1,0 +1,57 @@
+/* 背景編集モードの帯: ステージの上に浮かべる */
+.band {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--skin-accent);
+  border-radius: 8px;
+  background: var(--skin-panel, var(--skin-bg));
+  color: var(--skin-text);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 20%);
+  font-size: 13px;
+  pointer-events: auto;
+}
+.label {
+  font-weight: 600;
+  color: var(--skin-accent);
+}
+.button,
+.choice {
+  padding: 2px 10px;
+  border: 1px solid var(--skin-border, currentColor);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.button:hover,
+.choice:hover:not(:disabled) {
+  background: var(--skin-btn-hover);
+}
+.button[aria-pressed="true"],
+.choice[aria-pressed="true"] {
+  background: var(--skin-btn);
+  color: var(--skin-accent);
+  border-color: var(--skin-accent);
+}
+.print {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--skin-text);
+}
+.printLabel {
+  margin-right: 2px;
+}

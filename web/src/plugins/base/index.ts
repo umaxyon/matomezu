@@ -104,6 +104,13 @@ import {
   SKIN,
 } from "./settings"
 import { STAGE_CLOSE, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
+import {
+  BACKGROUND_EDIT,
+  BACKGROUND_END,
+  BACKGROUND_HIDE_CONTENT,
+  BACKGROUND_PRINT_SET,
+  BACKGROUND_TOGGLE,
+} from "./stage/background"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_PICKER_HOLD } from "./tool-picker/hold"
@@ -322,6 +329,11 @@ export const BASE = defineBuiltin(
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
+      BACKGROUND_TOGGLE,
+      BACKGROUND_EDIT,
+      BACKGROUND_END,
+      BACKGROUND_HIDE_CONTENT,
+      BACKGROUND_PRINT_SET,
       TOOL_NEXT,
       TOOL_SET,
       TOOL_PICKER,
@@ -498,6 +510,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE
+    "@matomezu/base:background-toggle": typeof BACKGROUND_TOGGLE
+    "@matomezu/base:background-edit": typeof BACKGROUND_EDIT
+    "@matomezu/base:background-end": typeof BACKGROUND_END
+    "@matomezu/base:background-hide-content": typeof BACKGROUND_HIDE_CONTENT
+    "@matomezu/base:background-print-set": typeof BACKGROUND_PRINT_SET
     "@matomezu/base:tool-next": typeof TOOL_NEXT
     "@matomezu/base:tool-set": typeof TOOL_SET
     "@matomezu/base:tool-picker": typeof TOOL_PICKER
