@@ -79,3 +79,57 @@ test("キーで重なり順を変えられ、元に戻せる", async ({ page }) 
   await page.keyboard.press("Control+z")
   await expect.poll(() => order(page)).toEqual(["e2", "e1", "e3"])
 })
+
+const topOf = async (page: Page, id: string) => (await page.locator(`[data-item="${id}"]`).boundingBox())!.y
+
+test("範囲ドラッグと Shift+クリックで複数を選び、全体の枠で一緒に動かし（元に戻すは 1 回）、Delete で全部消せる", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const from = await at(page, 50, 150)
+  const to = await at(page, 650, 450)
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  await page.mouse.move(to.x, to.y, { steps: 6 })
+  await page.mouse.up()
+  await expect(page.locator("[data-group-edge]")).toHaveCount(4)
+  await expect(page.locator("[data-grip]")).toHaveCount(0) // 大きさ・回すつまみは出ない
+  await expect(page.locator("[data-bar]")).toBeVisible()
+  const before = [await topOf(page, "e1"), await topOf(page, "e2"), await topOf(page, "e3")]
+  const grab = await at(page, 150, 300)
+  await page.mouse.move(grab.x, grab.y)
+  await page.mouse.down()
+  await page.mouse.move(grab.x, grab.y + 60 * grab.z, { steps: 6 })
+  await page.mouse.up()
+  expect((await topOf(page, "e1")) - before[0]!).toBeGreaterThan(30)
+  expect((await topOf(page, "e2")) - before[1]!).toBeGreaterThan(30)
+  expect(await topOf(page, "e3")).toBeCloseTo(before[2]!, 0)
+  await page.keyboard.press("Control+z") // 2 つとも、1 回で戻る
+  await expect.poll(async () => [await topOf(page, "e1"), await topOf(page, "e2")]).toEqual([before[0], before[1]])
+  // Shift+クリックで足す・外す
+  const third = await at(page, 850, 300)
+  await page.keyboard.down("Shift")
+  await page.mouse.click(third.x, third.y)
+  await page.keyboard.up("Shift")
+  await expect(page.locator("[data-group-edge]")).toHaveCount(4)
+  const first = await at(page, 130, 300)
+  await page.keyboard.down("Shift")
+  await page.mouse.click(first.x, first.y)
+  await page.keyboard.up("Shift")
+  await page.keyboard.press("Delete")
+  expect(await order(page)).toEqual(["e1"]) // 選んでいた e2・e3 が消え、外した e1 が残る
+})
+
+test("複数を選んで重なり順を変えると、選んだ物どうしの前後を保つ", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const from = await at(page, 50, 150)
+  const to = await at(page, 650, 450)
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  await page.mouse.move(to.x, to.y, { steps: 6 })
+  await page.mouse.up()
+  await page.keyboard.press("Control+Shift+{") // 最背面へ（e1・e2 はもともと e3 より後ろ）
+  expect(await order(page)).toEqual(["e1", "e2", "e3"])
+  await page.keyboard.press("Control+Shift+}") // 最前面へ
+  expect(await order(page)).toEqual(["e3", "e1", "e2"])
+})

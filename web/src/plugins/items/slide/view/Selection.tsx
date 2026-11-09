@@ -8,7 +8,7 @@ import { SLIDE_RESET, SLIDE_SET } from "../commands"
 import { kit } from "../kit"
 import { normalizeAngle } from "../rect"
 import styles from "./Selection.module.css"
-import { StyleTools } from "./StyleTools"
+import { type StyleSubject, StyleTools } from "./StyleTools"
 
 export const GRIPS = [
   { id: "top-left", at: [0, 0], grip: { left: true, top: true } },
@@ -84,7 +84,7 @@ function Bar({ item }: { item: SelectedItem }) {
           aria-pressed={item.locked}
           title={t("Lock ratio")}
           disabled={!set.enabled}
-          onClick={() => set.run({ item: item.id, props: { lockRatio: item.locked ? null : true } })}
+          onClick={() => set.run({ items: [item.id], props: { lockRatio: item.locked ? null : true } })}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <rect x="5" y="11" width="14" height="9" rx="1.5" />
@@ -103,7 +103,7 @@ function Bar({ item }: { item: SelectedItem }) {
         <AngleField key={`${item.id}:${item.rotation}`} item={item} />
         <StyleTools
           key={`${item.id}:${item.kind}`}
-          subject={{ id: item.id, stage: item.stage, item: item.kind, props: item.props }}
+          subjects={[{ id: item.id, stage: item.stage, item: item.kind, props: item.props }]}
         />
       </div>
     </Stand>
@@ -122,7 +122,7 @@ function AngleField({ item }: { item: SelectedItem }) {
       return
     }
     const angle = normalizeAngle(n)
-    if (angle !== item.rotation) set.run({ item: item.id, props: { rotation: angle === 0 ? null : angle } })
+    if (angle !== item.rotation) set.run({ items: [item.id], props: { rotation: angle === 0 ? null : angle } })
   }
   return (
     <label className={styles.angle}>
@@ -142,5 +142,28 @@ function AngleField({ item }: { item: SelectedItem }) {
       />
       °
     </label>
+  )
+}
+
+// 複数を選んでいるときに出す物: 選んだ物の全体を囲む点線の枠（縁を押してドラッグすれば、選んだ物を一緒に動かす）と、
+// そばに立つバー（全部に一度に効く見た目の道具だけ。大きさ・回す・角度は出さない）
+export function GroupSelection({ rect, subjects }: { rect: Rect; subjects: readonly StyleSubject[] }) {
+  const t = useMessages(kit)
+  const first = subjects[0]
+  return (
+    <>
+      <div className={styles.group} style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}>
+        {(["top", "right", "bottom", "left"] as const).map(side => (
+          <div key={side} className={styles.groupEdge} data-group-edge={side} />
+        ))}
+      </div>
+      {first && (
+        <Stand anchor={subjects.map(s => s.id)} side="above" label={t("Change on slide")}>
+          <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
+            <StyleTools subjects={subjects} />
+          </div>
+        </Stand>
+      )}
+    </>
   )
 }

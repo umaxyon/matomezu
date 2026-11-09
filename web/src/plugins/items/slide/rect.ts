@@ -139,3 +139,38 @@ export function thinned(points: readonly Point[], dist: number): Point[] {
 // 角のつまみで幅が oldW から w になったときの、文字の大きさ fontSize の新しい値（幅の倍率で変え、小数 2 桁に丸める）
 export const scaledFontSize = (fontSize: number, w: number, oldW: number): number =>
   Math.round(((fontSize * w) / oldW) * 100) / 100
+
+// 角度をかけた四角を囲む、軸に沿った四角
+export function boundsOf(f: Rect, rotation: number): Rect {
+  const corners = cornersOf(f, rotation)
+  const xs = corners.map(p => p.x)
+  const ys = corners.map(p => p.y)
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }
+}
+
+// 四角を全部囲む四角（無ければ null）
+export function unionOf(rects: readonly Rect[]): Rect | null {
+  if (rects.length === 0) return null
+  const x = Math.min(...rects.map(r => r.x))
+  const y = Math.min(...rects.map(r => r.y))
+  return {
+    x,
+    y,
+    w: Math.max(...rects.map(r => r.x + r.w)) - x,
+    h: Math.max(...rects.map(r => r.y + r.h)) - y,
+  }
+}
+
+// 2 つの四角が重なるか（辺が触れるだけでも重なる）
+export const touches = (a: Rect, b: Rect): boolean =>
+  a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h
+
+// 2 点を向かい合う角にした四角（範囲ドラッグ）
+export const spanOf = (a: Point, b: Point): Rect => ({
+  x: Math.min(a.x, b.x),
+  y: Math.min(a.y, b.y),
+  w: Math.abs(a.x - b.x),
+  h: Math.abs(a.y - b.y),
+})

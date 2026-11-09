@@ -66,15 +66,16 @@ export const SLIDE_PUT = kit.defineCommand({
   when: ctx => onPage(ctx) && ctx.stage.placing !== null,
 })
 
-// アイテムを、左上が at（紙の上）になるよう動かす
+// アイテムを、左上が at（紙の上）になるよう動かす（複数のアイテムを一度に。画面の履歴は 1 段）
 export const SLIDE_MOVE_TO = kit.defineCommand({
   id: "slide-move-to",
   performs: [MOVE],
   permissionScope: "opened-page",
   title: "Move on slide",
-  run: (ctx, a, args: { item: string; at: { x: number; y: number } }) => {
+  run: (ctx, a, args: { moves: readonly { item: string; at: { x: number; y: number } }[] }) => {
     const { opened } = ctx.stage
-    if (opened?.page) a.perform(MOVE, { page: opened.page, item: args.item, at: args.at }, { book: opened.book })
+    if (!opened?.page) return
+    for (const m of args.moves) a.perform(MOVE, { page: opened.page, item: m.item, at: m.at }, { book: opened.book })
   },
   when: onPage,
 })
@@ -105,16 +106,17 @@ export const SLIDE_RESHAPE = kit.defineCommand({
   when: onPage,
 })
 
-// アイテムの項目を変える（null の項目は消す）
+// アイテムの項目を変える（null の項目は消す）。複数のアイテムを一度に変える（画面の履歴は 1 段）
 export const SLIDE_SET = kit.defineCommand({
   id: "slide-set",
   performs: [UPDATE],
   permissionScope: "opened-page",
   title: "Change on slide",
-  run: (ctx, a, args: { item: string; props: Record<string, unknown> }) => {
+  run: (ctx, a, args: { items: readonly string[]; props: Record<string, unknown> }) => {
     const { opened } = ctx.stage
-    if (opened?.page)
-      a.perform(UPDATE, { page: opened.page, item: args.item, props: args.props }, { book: opened.book })
+    if (!opened?.page) return
+    for (const item of args.items)
+      a.perform(UPDATE, { page: opened.page, item, props: args.props }, { book: opened.book })
   },
   when: onPage,
 })

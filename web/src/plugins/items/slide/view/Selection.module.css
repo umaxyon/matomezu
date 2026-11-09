@@ -138,3 +138,41 @@
   gap: 4px;
   padding: 0 6px;
 }
+
+/* 複数を選んだときの、全体を囲む点線の枠。縁（太さ 10px の押せる帯）を押してドラッグすると、選んだ物を一緒に動かす */
+.group {
+  position: absolute;
+  box-sizing: border-box;
+  border: calc(1.5px / var(--paper-zoom)) dashed var(--skin-accent);
+  pointer-events: none;
+}
+.groupEdge {
+  position: absolute;
+  pointer-events: auto;
+  cursor: move;
+  touch-action: none;
+}
+.groupEdge[data-group-edge="top"],
+.groupEdge[data-group-edge="bottom"] {
+  left: 0;
+  right: 0;
+  height: calc(10px / var(--paper-zoom));
+}
+.groupEdge[data-group-edge="left"],
+.groupEdge[data-group-edge="right"] {
+  top: 0;
+  bottom: 0;
+  width: calc(10px / var(--paper-zoom));
+}
+.groupEdge[data-group-edge="top"] {
+  top: calc(-5px / var(--paper-zoom));
+}
+.groupEdge[data-group-edge="bottom"] {
+  bottom: calc(-5px / var(--paper-zoom));
+}
+.groupEdge[data-group-edge="left"] {
+  left: calc(-5px / var(--paper-zoom));
+}
+.groupEdge[data-group-edge="right"] {
+  right: calc(-5px / var(--paper-zoom));
+}

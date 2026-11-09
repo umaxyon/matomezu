@@ -27,12 +27,22 @@ export function toolsOf(item: string): readonly StyleTool[] {
   return []
 }
 
-export function StyleTools({ subject }: { subject: StyleSubject }) {
-  const tools = toolsOf(subject.item)
+// 選んだ物の全部に効く道具（種類が混ざれば、どの種類にもある物だけ）
+export function commonTools(items: readonly string[]): readonly StyleTool[] {
+  const [first, ...rest] = items
+  if (first === undefined) return []
+  return toolsOf(first).filter(tool => rest.every(item => toolsOf(item).includes(tool)))
+}
+
+// 選んだアイテムの道具。複数なら、全部に一度に効かせる（今の値は最初の物のもの）
+export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) {
+  const subject = subjects[0]
+  const tools = commonTools(subjects.map(s => s.item))
   const t = useMessages(kit)
-  const set = useCommand(subject.stage, SLIDE_SET.id)
-  const swatches = useSwatches(useBookTheme(useBookOf(subject.stage)), SLIDE_INK)
-  const change = (props: Record<string, unknown>) => set.run({ item: subject.id, props })
+  const set = useCommand(subject?.stage ?? "", SLIDE_SET.id)
+  const swatches = useSwatches(useBookTheme(useBookOf(subject?.stage ?? "")), SLIDE_INK)
+  if (!subject) return null
+  const change = (props: Record<string, unknown>) => set.run({ items: subjects.map(s => s.id), props })
   const str = (key: string) => (typeof subject.props[key] === "string" ? (subject.props[key] as string) : undefined)
   const num = (key: string) => (typeof subject.props[key] === "number" ? (subject.props[key] as number) : undefined)
   const colorField = (tool: StyleTool, key: string, label: string) =>

@@ -56,3 +56,11 @@
   overflow: hidden;
   cursor: text;
 }
+/* 範囲ドラッグの四角 */
+.marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border: calc(1px / var(--paper-zoom)) solid var(--skin-accent);
+  background: color-mix(in srgb, var(--skin-accent) 10%, transparent);
+  pointer-events: none;
+}

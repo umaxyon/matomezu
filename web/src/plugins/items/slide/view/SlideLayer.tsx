@@ -3,7 +3,7 @@
 // 置けるアイテムが slide だけのタイプでは何も無い所も（選びを外す）。それ以外はステージ（と下のレイヤー）へ通す。
 // アイテムは書いた位置と大きさ（紙の左上から。負でも、紙より大きくてもよい）に置き、角度（rotation）は枠の中心でかける。紙の外にはみ出た部分は切る（切るのはアイテムを描く所だけで、選んだ物のつまみは切らない）。
 // 置こうとしている間は、紙の上でドラッグした四角（直線は線、自由な線はなぞった跡）に置く。押しただけなら、そのアイテムの置くときの大きさで押した所に置く。文字枠を置いたら、そのまま文字を打てる。
-// アイテムを押すと選び（1 つだけ）、ドラッグで動かす。選んだアイテムは 8 つのつまみで大きさを変え（角は枠と文字を一緒に、辺は幅か高さだけ）、
+// アイテムを押すと選び、ドラッグで動かす。何も無い所からの範囲ドラッグと、Shift・Ctrl（Mac は Command）を押しながらの押しで複数を選び、選んだ物は全体を囲む点線の枠で一緒に動かす（大きさ・回すつまみは 1 つを選んだときだけ）。右クリックでメニュー（重なり順・消す）。選んだアイテムは 8 つのつまみで大きさを変え（角は枠と文字を一緒に、辺は幅か高さだけ）、
 // 右上の角の斜め外のつまみで回す（Shift で 15 度ずつ）。ロック中のアイテムは縦横の比を保つ。文字枠はダブルクリックで文字を書き換える（外を押すと決め、Escape でやめる）。
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
 import { type PointerEvent, useEffect, useRef, useState } from "react"
@@ -28,10 +28,21 @@ import {
 } from "../../../../plugin-api/ui"
 import { PaperFrame, type StageSlotProps, useFollowsSelection } from "../../../base/ui"
 import { SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
-import { drawnRect, type Grip, resizedRect, rotatedTo, scaledFontSize, thinned } from "../rect"
+import {
+  boundsOf,
+  drawnRect,
+  type Grip,
+  resizedRect,
+  rotatedTo,
+  scaledFontSize,
+  spanOf,
+  thinned,
+  touches,
+  unionOf,
+} from "../rect"
 import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE } from "../scope"
 import { DEFAULT_FONT_SIZE, FREE_LINE, MIN_SIZE, STRAIGHT_LINE, TEXT_FRAME } from "../slide"
-import { GRIPS, type SelectedItem, Selection } from "./Selection"
+import { GRIPS, GroupSelection, type SelectedItem, Selection } from "./Selection"
 import { rotationOf, SlideItem, shapeProps } from "./SlideItem"
 import styles from "./SlideLayer.module.css"
 
@@ -44,7 +55,15 @@ const FREE = FREE_LINE.id
 const LINE = STRAIGHT_LINE.id
 
 type Drag =
-  | { kind: "move"; pointer: number; item: string; start: Point; rect: Rect; travelled: boolean }
+  | {
+      kind: "move"
+      pointer: number
+      items: readonly { id: string; rect: Rect }[]
+      start: Point
+      travelled: boolean
+      click: string // 押したアイテム（複数を選んでいて、動かさずに離したら、これだけを選ぶ）
+    }
+  | { kind: "marquee"; pointer: number; start: Point; base: readonly string[] }
   | {
       kind: "grip"
       pointer: number
@@ -99,9 +118,12 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
   const drag = useRef<Drag | null>(null)
   const [live, setLive] = useState<Live | null>(null)
   const [drawn, setDrawn] = useState<Point[] | null>(null) // 置こうとしてなぞっている途中の点（紙の上）
+  const [shift, setShift] = useState<{ ids: ReadonlySet<string>; by: Point } | null>(null) // 動かしている途中の、動かす物と動いた量
+  const [marquee, setMarquee] = useState<Rect | null>(null) // 範囲ドラッグの途中の四角（紙の上）
   const typeNext = useRef(false) // 置いた文字枠で、そのまま文字を打つ
   const shapes = page ? slideOf(page) : []
-  const selected = stage.selection.length === 1 ? shapes.find(s => s.id === stage.selection[0]) : undefined
+  const chosen = shapes.filter(s => stage.selection.includes(s.id)) // 選んでいるアイテム（重ねの順）
+  const selected = chosen.length === 1 && stage.selection.length === 1 ? chosen[0] : undefined
   const placing = stage.placing !== null && placeable.includes(stage.placing) ? stage.placing : null
   const editing = stage.editing === true || stage.editing === ADDED_EDIT ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
   const minOf = (item: string): number => {
@@ -127,6 +149,8 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
     drag.current = null
     setLive(null)
     setDrawn(null)
+    setShift(null)
+    setMarquee(null)
   }
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || stage.pans) return
@@ -180,23 +204,41 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
       }
       return
     }
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey
     const itemEl = target.closest<HTMLElement>("[data-item]")
     const shape = itemEl && shapes.find(s => s.id === itemEl.dataset.item)
-    if (shape) {
-      select(stage.id, [shape.id])
+    if (shape && additive) {
+      // Shift・Ctrl（Mac は Command）を押しながら押すと、選びに足す・外す
+      select(
+        stage.id,
+        stage.selection.includes(shape.id)
+          ? stage.selection.filter(i => i !== shape.id)
+          : [...stage.selection, shape.id],
+      )
+      return
+    }
+    // 選んだ物の全体の縁を押したら、選んだ物を一緒に動かす
+    const edge = target.closest("[data-group-edge]") && chosen.length > 1
+    const grabbed = shape ?? (edge ? chosen.at(-1) : undefined)
+    if (grabbed) {
+      const group = stage.selection.includes(grabbed.id) ? chosen : [grabbed]
+      if (!stage.selection.includes(grabbed.id)) select(stage.id, [grabbed.id])
       if (followed || !moveTo.enabled) return
       capture()
       drag.current = {
         kind: "move",
         pointer: e.pointerId,
-        item: shape.id,
+        items: group.map(s => ({ id: s.id, rect: rectOf(s) })),
         start: at,
-        rect: rectOf(shape),
         travelled: false,
+        click: grabbed.id,
       }
       return
     }
-    select(stage.id, [])
+    // 何も無い所から範囲ドラッグ（Shift・Ctrl を押していれば、今の選びに足す）
+    if (!additive) select(stage.id, [])
+    capture()
+    drag.current = { kind: "marquee", pointer: e.pointerId, start: at, base: additive ? stage.selection : [] }
   }
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current
@@ -211,7 +253,9 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
     if (d.kind === "move") {
       if (!d.travelled && Math.hypot(by.x, by.y) < CLICK / stage.zoom) return
       d.travelled = true
-      setLive({ item: d.item, rect: { ...d.rect, x: d.rect.x + by.x, y: d.rect.y + by.y } })
+      setShift({ ids: new Set(d.items.map(i => i.id)), by })
+    } else if (d.kind === "marquee") {
+      setMarquee(spanOf(d.start, at))
     } else if (d.kind === "grip") {
       const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, d.ratio)
       setLive({ item: d.item, rect: to, scaled: to.scaled && d.text })
@@ -228,12 +272,27 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
     if (d?.pointer !== e.pointerId) return
     const l = live
     const points = drawn
+    const moved = shift
+    const swept = marquee
     finish()
-    if (d.kind === "move" && l && d.travelled)
-      moveTo.run({ item: d.item, at: { x: round(l.rect.x), y: round(l.rect.y) } })
-    else if (d.kind === "grip" && l) reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: l.scaled === true })
+    if (d.kind === "move") {
+      if (d.travelled && moved) {
+        // 動かす物を全部、1 つの画面の履歴の段で動かす
+        moveTo.run({
+          moves: d.items.map(i => ({
+            item: i.id,
+            at: { x: round(i.rect.x + moved.by.x), y: round(i.rect.y + moved.by.y) },
+          })),
+        })
+      } else if (d.items.length > 1) select(stage.id, [d.click]) // 複数を選んでいて、動かさずに離したら、押した物だけを選ぶ
+    } else if (d.kind === "marquee") {
+      if (swept && Math.hypot(swept.w, swept.h) >= CLICK / stage.zoom) {
+        const hit = shapes.filter(s => touches(boundsOf(rectOf(s), rotationOf(s)), swept)).map(s => s.id)
+        select(stage.id, [...d.base, ...hit.filter(id => !d.base.includes(id))])
+      }
+    } else if (d.kind === "grip" && l) reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: l.scaled === true })
     else if (d.kind === "rotate" && l && l.rotation !== undefined && l.rotation !== d.rotation)
-      set.run({ item: d.item, props: { rotation: l.rotation === 0 ? null : l.rotation } })
+      set.run({ items: [d.item], props: { rotation: l.rotation === 0 ? null : l.rotation } })
     else if (d.kind === "draw" && points) placeDrawn(d.item, points)
   }
   // なぞった点 points に、置こうとしているアイテム item を置く（なぞれていなければ、置くときの大きさで始めの点に置く）
@@ -276,6 +335,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
 
   // 描く形（ドラッグの途中のアイテムは、動かした先の枠・角度で。角のつまみなら文字の大きさも）
   const shown = shapes.map(s => {
+    if (shift?.ids.has(s.id)) return { ...s, x: s.x + shift.by.x, y: s.y + shift.by.y } as PlacedShape
     if (!live || live.item !== s.id) return s
     const props = shapeProps(s)
     const scaledSize =
@@ -289,6 +349,13 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
     } as PlacedShape
   })
   const current = selected && shown.find(s => s.id === selected.id)
+  // 複数を選んでいるとき: 全体を囲む四角と、バーに渡す物
+  const chosenShown = shown.filter(s => stage.selection.includes(s.id))
+  const groupRect = chosenShown.length > 1 ? unionOf(chosenShown.map(s => boundsOf(rectOf(s), rotationOf(s)))) : null
+  const group = groupRect && {
+    rect: groupRect,
+    subjects: chosenShown.map(s => ({ id: s.id, stage: stage.id, item: s.item, props: shapeProps(s) })),
+  }
   const ghost = drawn && placing ? { item: placing, points: drawn } : null
   const item: SelectedItem | null = current
     ? {
@@ -331,7 +398,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
                 onCommit: text => {
                   if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
                   setEditing(stage.id, false)
-                  if (text !== (shapeProps(shape).text ?? "")) set.run({ item: shape.id, props: { text } })
+                  if (text !== (shapeProps(shape).text ?? "")) set.run({ items: [shape.id], props: { text } })
                 },
                 onCancel: () => setEditing(stage.id, false),
               }}
@@ -340,6 +407,13 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
           {ghost && <Ghost ghost={ghost} zoom={stage.zoom} />}
         </div>
         {item && !placing && <Selection item={item} hidden={editing !== null} />}
+        {group && !placing && <GroupSelection rect={group.rect} subjects={group.subjects} />}
+        {marquee && (
+          <div
+            className={styles.marquee}
+            style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+          />
+        )}
       </PaperFrame>
     </div>
   )

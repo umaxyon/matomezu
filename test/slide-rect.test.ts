@@ -1,13 +1,17 @@
 // スライドのアイテムの枠の計算: つまみで大きさを変えたあとの枠（向かいの辺が紙の上で動かない。傾いていても）、回すつまみの角度、ドラッグで描いた線の枠
 import { expect, test } from "bun:test"
 import {
+  boundsOf,
   centerOf,
   cornersOf,
   drawnRect,
   normalizeAngle,
   resizedRect,
   rotatedTo,
+  spanOf,
   thinned,
+  touches,
+  unionOf,
 } from "../web/src/plugins/items/slide/rect"
 
 const F = { x: 100, y: 50, w: 200, h: 100 }
@@ -89,4 +93,15 @@ test("ドラッグで描いた線: 点を枠の中の割合にし、水平・垂
 test("点の間引き: 近い点を捨て、最後の点は残す", () => {
   const pts = [0, 1, 2, 3, 10, 11].map(x => ({ x, y: 0 }))
   expect(thinned(pts, 5).map(p => p.x)).toEqual([0, 10, 11])
+})
+
+test("傾けた四角を囲む四角・四角の全体・範囲ドラッグの四角・重なり", () => {
+  const b = boundsOf({ x: 0, y: 0, w: 100, h: 100 }, 45)
+  close(b.w, Math.SQRT2 * 100)
+  close(b.x, 50 - (Math.SQRT2 * 100) / 2)
+  expect(unionOf([])).toBeNull()
+  expect(unionOf([F, { x: 0, y: 0, w: 10, h: 10 }])).toEqual({ x: 0, y: 0, w: 300, h: 150 })
+  expect(spanOf({ x: 5, y: 9 }, { x: 1, y: 2 })).toEqual({ x: 1, y: 2, w: 4, h: 7 })
+  expect(touches(F, { x: 300, y: 150, w: 10, h: 10 })).toBe(true) // 角が触れる
+  expect(touches(F, { x: 301, y: 50, w: 10, h: 10 })).toBe(false)
 })
