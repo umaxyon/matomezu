@@ -20,6 +20,14 @@ import { dirPrintSheets } from "./print"
 import { DIR_TOOLS } from "./tools"
 
 // ディレクトリ構成図のキーの範囲（この見せ方で描いている間に探す）
+// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+const BACKGROUND_ITEMS = [
+  "@matomezu/slide:slide-text",
+  "@matomezu/slide:slide-free-line",
+  "@matomezu/slide:slide-line",
+  "@matomezu/slide:slide-ellipse",
+] as const
+
 export const DIR_KEY_SCOPE = kit.defineKeyScope({ id: "dir", title: "Directory" })
 export const DIR_KEYS_SCOPE = DIR_KEY_SCOPE.id
 
@@ -84,6 +92,7 @@ export const DIR = kit.defineBookType({
     dialogs: { add: NEW_DIR_PAGE_DIALOG.id },
   },
   items: { allowed: [] },
+  slide: { allowed: BACKGROUND_ITEMS, background: true },
   actions: {}, // 使うアクションは、見せ方について来る
   theme: "@matomezu/base:standard",
   themeTypes: [DIAGRAM_THEME_TYPE], // 使えるテーマのテーマタイプ

@@ -10,9 +10,16 @@ import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
 import { HISTORY_ICONS } from "./history/icons"
-import { LEFT_SIDE_PANEL_BUTTON } from "./left-side-panel/ui"
 import type { MailActionsProps } from "./mail/slots"
-import { MAIL_BOOKMARKS, MAIL_DIALOG_VIEWS, MAIL_LAYER, MAIL_WATCH, MAILBOX_TAB, PROPOSAL_ACTIONS } from "./mail/ui"
+import {
+  MAIL_BOOKMARKS,
+  MAIL_DIALOG_VIEWS,
+  MAIL_LAYER,
+  MAIL_WATCH,
+  MAILBOX_BUTTON,
+  MAILBOX_TAB,
+  PROPOSAL_ACTIONS,
+} from "./mail/ui"
 import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
 import type { AnnotationIconProps } from "./outbox/slots"
@@ -88,8 +95,10 @@ export {
   useThemeVars,
 } from "./item-parts/parts"
 export { useCloseLeftSidePanel, useLeftSidePanel, useOpenLeftSidePanel } from "./left-side-panel/hooks"
+export { LeftSidePanelOpenButton } from "./left-side-panel/OpenButton"
 export { LEFT_SIDE_PANEL } from "./left-side-panel/slots"
-export { defineLeftSidePanelTab } from "./left-side-panel/ui"
+export type { LeftSidePanelEntry, LeftSidePanelOpen } from "./left-side-panel/state"
+export { defineLeftSidePanelTab, opensOf, tabEntry } from "./left-side-panel/ui"
 export { MAIL_ACTIONS, type MailActionsProps } from "./mail/slots"
 export { defineMailActions } from "./mail/ui"
 export { useMarkdownDocument } from "./markdown/ui"
@@ -178,7 +187,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PRINT_CHECK_PANEL,
     PRINT_PREVIEW_SCROLLBARS,
     SHEET_CONTENT,
-    LEFT_SIDE_PANEL_BUTTON,
+    MAILBOX_BUTTON,
     OUTBOX,
     MAILBOX_TAB,
     MAIL_BOOKMARKS,
@@ -235,7 +244,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:footer-menu-basics": StageSlotProps
     "@matomezu/base:footer-menu-book-tools": StageSlotProps
     "@matomezu/base:right-side-panel": StageSlotProps
-    "@matomezu/base:left-side-panel": StageSlotProps
     "@matomezu/base:settings-categories": SettingsCategoryProps
     "@matomezu/base:annotation-icon": AnnotationIconProps
     "@matomezu/base:corner-statuses": CornerStatusProps
@@ -244,7 +252,7 @@ declare module "../../core/catalog" {
     // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）と、
     // ステージの選択に従うか（followsSelection。従う中身を出している間は、付いた先がステージの選択になり、開いたステージの中を押しても閉じない）
     rightSidePanel?: { width: number; followsSelection?: boolean }
-    // 左サイドパネルのスロットに置くタブの名前（文言の鍵）と、開くボタンとタブに出す数（未読など）を読むフック（無ければ出さない）
+    // 左サイドパネルのタブ（どのスロットにも置かない）の名前（文言の鍵）と、開くボタンとタブに出す数（未読など）を読むフック（無ければ出さない）
     leftSidePanel?: { title: MessageKey; useCount?: () => number }
     // 設定カテゴリのスロットに置く物の、左の一覧に出す題名（文言の鍵）と、並べる利用者の設定の項目の id（無ければ中身はウィジェットのビューが描く）
     settingsCategory?: { title: MessageKey; settings?: readonly string[] }
@@ -277,7 +285,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:background-button": typeof BACKGROUND_BUTTON
     "@matomezu/base:background-print-control": typeof BACKGROUND_PRINT_CONTROL
     "@matomezu/base:print-preview-button": typeof PRINT_PREVIEW_BUTTON
-    "@matomezu/base:left-side-panel-button": typeof LEFT_SIDE_PANEL_BUTTON
+    "@matomezu/base:mailbox-button": typeof MAILBOX_BUTTON
     "@matomezu/base:outbox": typeof OUTBOX
     "@matomezu/base:mailbox": typeof MAILBOX_TAB
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS

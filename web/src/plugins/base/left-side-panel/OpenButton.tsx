@@ -1,24 +1,23 @@
-// 左サイドパネルを開くボタン（ウィジェット left-side-panel-button。フッタメニューに置く）。押すと最初のタブを開き、開いていれば閉じる。タブが無ければ出さない。
-// タブが数（未読など。タブの定義の useCount）を答えれば、その合計を角に出す
+// 左サイドパネルを開くボタン: 渡すタブの組 entries で開き、今と同じ組を開いていれば閉じる（押されている印も、同じ組を開いているときだけ）。
+// 渡すタブが数（未読など。タブの定義の useCount）を答えれば、その合計を角に出す
+
+import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import styles from "../utils/FooterButtons.module.css"
-import type { StageSlotProps } from "../workspace/ui"
-import { useLeftSidePanel, useLeftSidePanelTabs, useSetLeftSidePanel } from "./hooks"
+import { useLeftSidePanel, useToggleLeftSidePanel } from "./hooks"
 import own from "./LeftSidePanel.module.css"
+import type { LeftSidePanelEntry } from "./state"
 
-export function LeftSidePanelButton({ stage }: StageSlotProps) {
+export function LeftSidePanelOpenButton({ entries }: { entries: readonly LeftSidePanelEntry[] }) {
   const t = useMessages(kit)
-  const tabs = useLeftSidePanelTabs()
-  const open = useLeftSidePanel(stage)
-  const set = useSetLeftSidePanel()
+  const open = useLeftSidePanel()
+  const toggle = useToggleLeftSidePanel()
   const widgets = useUiCatalog().widgets
-  const first = tabs[0]
-  if (!first) return null
-  const counters = tabs.flatMap(id => {
-    const use = widgets.get(id)?.leftSidePanel?.useCount
-    return use ? [{ id, use }] : []
+  const counters = entries.flatMap(e => {
+    const use = widgets.get(e.tab)?.leftSidePanel?.useCount
+    return use ? [{ id: e.tab, use }] : []
   })
   return (
     <button
@@ -26,9 +25,9 @@ export function LeftSidePanelButton({ stage }: StageSlotProps) {
       className={`${styles.item} ${own.opener}`}
       aria-label={t("Open the left side panel")}
       title={t("Open the left side panel")}
-      aria-pressed={open !== null}
+      aria-pressed={!!open && sameData(open.entries, entries)}
       data-left-side-panel-opener
-      onClick={() => set(stage, open === null ? first : null)}
+      onClick={() => toggle(entries)}
     >
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <rect x="3" y="4" width="18" height="16" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -39,7 +38,7 @@ export function LeftSidePanelButton({ stage }: StageSlotProps) {
   )
 }
 
-// タブの数の合計（0 なら出さない）。数を答えるタブの並びが変わったら（プラグインを足す・外す）key が変わって作り直すので、1 つの間はフックを呼ぶ数が変わらない
+// タブの数の合計（0 なら出さない）。数を答えるタブの並びが変わったら key が変わって作り直すので、1 つの間はフックを呼ぶ数が変わらない
 function Count({ counters }: { counters: readonly (() => number)[] }) {
   const t = useMessages(kit)
   const total = counters.map(use => use()).reduce((a, b) => a + b, 0)

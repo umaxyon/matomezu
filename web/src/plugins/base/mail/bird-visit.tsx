@@ -4,7 +4,7 @@ import { useCallback } from "react"
 import { useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { nullableItem } from "../utils/stage-item"
+import { nullableItem } from "../utils/state-item"
 
 export interface BirdVisit {
   mail: string // 行き先を開いた郵便の id

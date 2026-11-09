@@ -3,7 +3,6 @@ import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
 import { FOOTER_MENU_SLOTS } from "../book-name/footer-menu"
 import { kit } from "../kit"
-import { LEFT_SIDE_PANEL } from "../left-side-panel/slots"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
 import { BOOK_SCREEN } from "../window/slots"
 import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_SIDE, STAGE_TOP } from "./slots"
@@ -21,10 +20,10 @@ export const STAGE_BASE_SLOTS = [STAGE_TOP, STAGE_SIDE, STAGE_BODY, STAGE_BOTTOM
 export const defineWorkspace = <const Id extends string>(def: { id: Id; view: () => ReactNode }) =>
   defineWidget({ id: def.id, slots: [BOOK_SCREEN], opens: STAGE_BASE_SLOTS, view: def.view })
 
-// base の骨組みは、ベーススロットのほかに、ステージの列の右に右サイドパネルのスロットと、列の左に左サイドパネルのスロットも開ける
+// base の骨組みは、ベーススロットのほかに、ステージの列の右に右サイドパネルのスロットも開ける
 export const WORKSPACE = defineWidget({
   id: kit.name("workspace"),
   slots: [BOOK_SCREEN],
-  opens: [...STAGE_BASE_SLOTS, RIGHT_SIDE_PANEL, LEFT_SIDE_PANEL],
+  opens: [...STAGE_BASE_SLOTS, RIGHT_SIDE_PANEL],
   view: WorkspaceView,
 })

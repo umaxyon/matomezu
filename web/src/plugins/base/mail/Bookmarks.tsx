@@ -1,15 +1,16 @@
 // しおり（ウィジェット mail-bookmarks。根に置く）: まだ見ていない郵便を、画面の上の右寄りから、しおりのようにぶら下げる（マーキーは消えるが、しおりは見るまで残る）。
-// しおりは細く、郵便の絵だけを描く（題はボタンの名前）。3 通までは 1 通に 1 つずつ、色を変えて新しい順に並べ、押すとその郵便のダイアログを開く。3 通を超えたら 1 つにまとめて数を付け、押すと郵便箱（左サイドパネルの郵便箱のタブ）を開く
+// しおりは細く、郵便の絵だけを描く（題はボタンの名前）。3 通までは 1 通に 1 つずつ、色を変えて新しい順に並べ、押すとその郵便のダイアログを開く。3 通を超えたら 1 つにまとめて数を付け、押すとブックスクリーンを前に出して、左サイドパネルに郵便箱と送信トレイを渡して開く
 
 import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
-import { useMatomezuState } from "../../../ui/store-context"
+import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { icon } from "../icon"
 import { kit } from "../kit"
 import { useOpenLeftSidePanel } from "../left-side-panel/hooks"
 import { Tip } from "../utils/Tip"
 import styles from "./Bookmarks.module.css"
+import { mailboxEntries } from "./entries"
 import { useMailbox, useOpenMail } from "./hooks"
 import { shownOf } from "./shown"
 import { MAILBOX_TAB_ID } from "./tab-id"
@@ -31,6 +32,7 @@ export function MailBookmarks() {
   const stage = useMatomezuState(s => screenOf(s.window).current)
   const open = useOpenMail()
   const openPanel = useOpenLeftSidePanel()
+  const actions = useActions()
   if (unread.length === 0) return null
   if (unread.length > MAX_EACH)
     return (
@@ -40,7 +42,10 @@ export function MailBookmarks() {
           className={styles.bookmark}
           data-tone={0}
           aria-label={t("{n} unread mail", { n: unread.length })}
-          onClick={() => openPanel(stage, MAILBOX_TAB_ID)}
+          onClick={() => {
+            actions.showBookScreen()
+            openPanel(mailboxEntries(stage), MAILBOX_TAB_ID)
+          }}
         >
           {LETTER_ICON}
           <span className={styles.count}>{unread.length}</span>
@@ -56,7 +61,7 @@ export function MailBookmarks() {
             className={styles.bookmark}
             data-tone={i}
             aria-label={shownOf(catalog, m, t)?.title ?? t("Mail")}
-            onClick={() => open(stage, m.id)}
+            onClick={() => open(m.id)}
           >
             {LETTER_ICON}
           </button>

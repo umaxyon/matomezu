@@ -52,6 +52,7 @@ export function commandContext(
       contextMenu,
       bookHistory: (book && state.history[book.id]) || NO_HISTORY,
       stageState: state.stageStates[stageId]?.[commandOwner(command)],
+      frameState: state.frameStates[commandOwner(command)],
     },
     workspace,
   )

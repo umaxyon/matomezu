@@ -1,7 +1,7 @@
 // 検索ダイアログの、base のステージの画面の状態での持ち方: 開いている間の検索（search）、動かしたダイアログの位置（searchAt。閉じても覚える）、
 // 閉じたときにビューが選ぶ今の当たり（searchPick。閉じるたびに番号を進める）
 import type { Point } from "../../../core/geom"
-import { nullableItem } from "../utils/stage-item"
+import { nullableItem } from "../utils/state-item"
 import type { SearchQuery } from "./find"
 
 // 今の当たり: ページ page の、原文の [start, end)
