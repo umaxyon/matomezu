@@ -1,0 +1,198 @@
+import { expect, test } from "bun:test"
+import { screenOf } from "../../../web/src/core/window"
+import { currentStage } from "../../../web/src/core/workspace"
+import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
+import { newStore } from "../../support"
+
+test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
+  const { state, actions } = newStore()
+  actions.split("s1")
+  actions.openBook("s2", "b1")
+  addPageIn({ state, actions }, "s2", { title: "ページ 2" })
+  const s = state.getState()
+  expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "n1" }] })
+  expect(screenOf(s.window).stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "n1" }])
+  expect(currentStage(screenOf(s.window)).id).toBe("s2")
+})
+
+test("ページを開くのは指定したステージで、そのステージがカレントになる", () => {
+  const { state, actions } = newStore()
+  addPageIn({ state, actions }, "s1", { title: "ページ 2" })
+  actions.split("s1")
+  actions.openBook("s2", "b1")
+  actions.openPage("s2", "p1")
+  actions.openPage("s1", "n1")
+  const ws = screenOf(state.getState().window)
+  expect(ws.stages.map(st => st.opened)).toMatchObject([{ page: "n1" }, { page: "p1" }])
+  expect(currentStage(ws).id).toBe("s1")
+})
+
+test("分けたステージは何も開いておらず、ブックを開くとそのステージがカレントになる", () => {
+  const { state, actions } = newStore()
+  actions.split("s1")
+  expect(screenOf(state.getState().window).stages[1]!.opened).toBeNull()
+  actions.openBook("s2", "b3")
+  const ws = screenOf(state.getState().window)
+  expect(ws.stages[1]!.opened).toMatchObject({
+    type: "@matomezu/drawing:drawing",
+    book: "b3",
+    page: "p1",
+    paper: { status: "known" },
+  })
+  expect(ws.current).toBe("s2")
+})
+
+test("変わらない操作では知らせない", () => {
+  const { state, actions } = newStore()
+  let calls = 0
+  const off = state.subscribe(() => calls++)
+  actions.focusStage("s1")
+  actions.unsplit("s1")
+  off()
+  expect(calls).toBe(0)
+})
+
+test("store が持つずらす量は、表示領域の大きさで範囲に収めた値", () => {
+  const { state, actions } = newStore()
+  actions.resizeStage("s1", { w: 400, h: 300 })
+  actions.panStageBy("s1", 500, 500)
+  expect(screenOf(state.getState().window).stages[0]!.pan).toEqual({ x: 0, y: 0 })
+})
+
+test("ブックを開いていないステージには、ページは足せない", () => {
+  const { state, actions } = newStore()
+  actions.split("s1")
+  const s = state.getState()
+  expect(screenOf(s.window).stages.map(st => st.opened?.type)).toEqual(["@matomezu/drawing:drawing", undefined])
+  expect(addPageIn({ state, actions }, "s2", { title: "x" })).toBe(false)
+  expect(state.getState()).toBe(s)
+})
+
+test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
+  const { state, actions } = newStore({ newId: () => "made" })
+  actions.split("s1")
+  expect(createBookIn({ state, actions }, "s2", { title: " ", type: "@matomezu/drawing:drawing" })).toBe(false)
+  expect(createBookIn({ state, actions }, "s2", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
+  const s = state.getState()
+  expect(s.books.made).toEqual({
+    type: "@matomezu/drawing:drawing",
+    id: "made",
+    title: "新しい図",
+    project: "default",
+    pages: [],
+  })
+  expect(screenOf(s.window).stages[1]!.opened).toEqual({
+    type: "@matomezu/drawing:drawing",
+    book: "made",
+    page: null,
+    paper: null,
+  })
+  expect(screenOf(s.window).current).toBe("s2")
+  addPageIn({ state, actions }, "s2", { title: "最初", paper: "@matomezu/base:a3", orientation: "portrait" })
+  expect(screenOf(state.getState().window).stages[1]!.opened).toMatchObject({
+    page: "made",
+    paper: { size: { w: 1123, h: 1587 } },
+  })
+})
+
+test("言語とスキンの設定を変える（書いた項目だけ変わり、null は既定に戻す）。同じ値なら知らせない", () => {
+  const { state, actions } = newStore()
+  const set = (values: Record<string, unknown>) => actions.perform("@matomezu/base:settings-set", { values }).ok
+  expect(set({ "@matomezu/base:lang": "matomezu:en" })).toBe(true)
+  expect(set({ "@matomezu/base:skin": "@matomezu/base:light" })).toBe(true)
+  expect(state.getState().settings).toEqual({
+    "@matomezu/base:lang": "matomezu:en",
+    "@matomezu/base:skin": "@matomezu/base:light",
+  })
+  expect(state.getState().lang).toBe("en")
+  const s = state.getState()
+  expect(set({ "@matomezu/base:skin": "@matomezu/base:light" })).toBe(true)
+  expect(state.getState()).toBe(s)
+  // 無い項目・形の合わない値は断り、どれも変えない
+  expect(set({ "@matomezu/base:lang": "matomezu:ja", "@gone/x:y": 1 })).toBe(false)
+  expect(set({ "@matomezu/base:lang": "matomezu:ja", "@matomezu/base:skin": "nope" })).toBe(false)
+  expect(state.getState()).toBe(s)
+  expect(set({ "@matomezu/base:lang": null })).toBe(true)
+  expect(state.getState().settings).toEqual({ "@matomezu/base:skin": "@matomezu/base:light" })
+  expect(state.getState().lang).toBe("ja")
+})
+
+test("ページの無いブックを 2 つのステージで開いて最初のページを作ると、どちらのステージもそのページを開く", () => {
+  const { state, actions } = newStore()
+  createBookIn({ state, actions }, "s1", { title: "空", type: "@matomezu/drawing:drawing" })
+  actions.split("s1")
+  actions.openBook("s2", "n1")
+  addPageIn({ state, actions }, "s2", { title: "最初" })
+  expect(screenOf(state.getState().window).stages.map(st => st.opened?.page)).toEqual(["n2", "n2"])
+  // ほかのページを見ているステージは変えない
+  addPageIn({ state, actions }, "s2", { title: "次" })
+  expect(screenOf(state.getState().window).stages.map(st => st.opened?.page)).toEqual(["n2", "n3"])
+})
+
+test("閉じたステージへの分割と分割の取りやめは、ほかのステージにかけない", () => {
+  const { state, actions } = newStore()
+  actions.split("s1")
+  actions.closeStage("s2")
+  actions.split("s1")
+  const before = screenOf(state.getState().window)
+  actions.unsplit("s2")
+  actions.split("s2")
+  expect(screenOf(state.getState().window)).toBe(before)
+  expect(before.stages.map(s => s.id)).toEqual(["s1", "s3"])
+})
+
+test("右クリックのメニューは 1 つだけ出し、開いたステージが無くなれば閉じる。無いステージでは開かない", () => {
+  const { state, actions } = newStore()
+  actions.split("s1")
+  actions.openContextMenu("s1", "@matomezu/paper:paper-context", {}, { x: 10, y: 20 })
+  actions.openContextMenu("s2", "@matomezu/paper:paper-context", {}, { x: 30, y: 40 })
+  expect(state.getState().contextMenu).toEqual({
+    id: "@matomezu/paper:paper-context",
+    stage: "s2",
+    target: {},
+    at: { x: 30, y: 40 },
+  })
+  actions.closeStage("s2")
+  expect(state.getState().contextMenu).toBeNull()
+  actions.openContextMenu("s9", "@matomezu/paper:paper-context", {}, { x: 0, y: 0 })
+  expect(state.getState().contextMenu).toBeNull()
+  actions.openContextMenu("s1", "@matomezu/paper:paper-context", {}, { x: 0, y: 0 })
+  actions.closeContextMenu()
+  expect(state.getState().contextMenu).toBeNull()
+})
+
+test("ホストとの同期（receive）はインスタンスにあり、プラグインに渡す actions には無い（アクションを通さずに世界を入れ替えられないように）", () => {
+  const instance = newStore()
+  expect("receive" in instance.actions).toBe(false)
+  expect(typeof instance.receive).toBe("function")
+})
+
+test("トーストは出した順に積み、id で消す（もう無い id なら何もしない）", () => {
+  const { state, actions } = newStore()
+  const a = actions.showToast({ kind: "warn", message: "@matomezu/flowchart:Does not fit on the paper" })
+  const b = actions.showToast({ kind: "info", message: "@matomezu/flowchart:Auto align" })
+  expect(a).not.toBe(b)
+  expect(state.getState().toasts.map(t => t.id)).toEqual([a, b])
+  actions.dismissToast(a)
+  actions.dismissToast(a)
+  expect(state.getState().toasts.map(t => t.id)).toEqual([b])
+  // マーキーは info と success だけ（型で止める）
+  actions.showToast({ kind: "info", form: "marquee", message: "@matomezu/flowchart:Auto align" })
+  // @ts-expect-error 断りの知らせはマーキーにできない
+  actions.showToast({ kind: "warn", form: "marquee", message: "@matomezu/flowchart:Auto align" })
+})
+
+test("プラグインが持つステージの画面の状態は、プラグインの id ごとに置き、undefined で消える。無いステージには置かず、ステージを閉じれば消える", () => {
+  const store = newStore()
+  const { state, actions } = store
+  actions.split("s1")
+  store.setStageState("s1", "@x/a", { n: 1 })
+  store.setStageState("s1", "@x/b", { n: 2 })
+  store.setStageState("s2", "@x/a", { n: 3 })
+  store.setStageState("s9", "@x/a", { n: 4 })
+  expect(state.getState().stageStates).toEqual({ s1: { "@x/a": { n: 1 }, "@x/b": { n: 2 } }, s2: { "@x/a": { n: 3 } } })
+  store.setStageState("s1", "@x/a", undefined)
+  expect(state.getState().stageStates.s1).toEqual({ "@x/b": { n: 2 } })
+  actions.closeStage("s2")
+  expect(state.getState().stageStates).toEqual({ s1: { "@x/b": { n: 2 } } })
+})
