@@ -49,12 +49,14 @@ export function PageTabs({ stage }: { stage: string }) {
     list,
     pages.map(p => p.id),
   )
-  if (!book || !hasPages(book) || bookType(catalog, book.type).pageList) return <div className={styles.tabs} />
+  if (!book || !hasPages(book) || bookType(catalog, book.type).pageList)
+    return <div className={styles.tabs} data-page-tabs />
   const { drag } = tabDrag
   const grabbed = drag && book.pages.find(p => p.id === drag.id)
   return (
     <div
       className={styles.tabs}
+      data-page-tabs
       role="tablist"
       aria-label={book.title}
       ref={el => {
