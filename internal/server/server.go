@@ -33,7 +33,7 @@
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/mail?projects=a&projects=b  {"mailbox": [...]} 利用者の郵便箱のうち、project が projects のどれかである郵便（届いた順。郵便ごとに見た時点 seenAt と行き先を見た時点 visitedAt。projects は books と同じ）
-//	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog に、集めた warning を足したもの）
+//	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "projects"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る。参加の id の付いた呼び出しなら、参加するプロジェクトを足す）。{"ok", "participant", "projects"} か弾いた理由（join.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
@@ -150,9 +150,9 @@ func Handler(o Options) http.Handler {
 		}
 		writeJSON(w, map[string]any{"mailbox": mailbox})
 	}))
-	mux.Handle("GET /api/ai/catalog", o.ai(func(w http.ResponseWriter, _ *http.Request) {
+	mux.Handle("GET /api/ai/catalog", o.ai(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(o.Hub.AICatalog())
+		_, _ = w.Write(o.Hub.AICatalog(r.URL.Query()["ids"]))
 	}))
 	mux.Handle("POST /api/ai/perform", o.ai(o.aiPerform))
 	mux.Handle("POST /api/ai/show", o.ai(o.aiShow))

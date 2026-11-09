@@ -444,3 +444,74 @@ func TestTalkActions(t *testing.T) {
 		t.Fatalf("talk actions = %v, %v", ids, err)
 	}
 }
+
+func TestAICatalogIndexListsEverythingAndEntriesGiveTheFullText(t *testing.T) {
+	e := newEngine(t)
+	var idx struct {
+		Version string `json:"version"`
+		Index   struct {
+			Actions  []map[string]json.RawMessage `json:"actions"`
+			Items    []map[string]json.RawMessage `json:"items"`
+			Settings []map[string]json.RawMessage `json:"settings"`
+			Mails    []map[string]json.RawMessage `json:"mails"`
+		} `json:"index"`
+	}
+	raw := e.AICatalogIndex()
+	if err := json.Unmarshal(raw, &idx); err != nil {
+		t.Fatal(err)
+	}
+	// 目次は、大きい表の物を全部、id と題名だけで並べる（引数の Schema・説明は無い）。郵便の種類のような小さい表は全文
+	if len(idx.Index.Actions) == 0 || len(idx.Index.Items) == 0 || len(idx.Index.Settings) == 0 || len(idx.Index.Mails) == 0 {
+		t.Fatalf("the index misses a table: %s", raw)
+	}
+	for _, a := range idx.Index.Actions {
+		if _, has := a["args"]; has || a["id"] == nil || a["target"] == nil || a["title"] == nil {
+			t.Fatalf("an action in the index = %v", a)
+		}
+	}
+	if _, has := idx.Index.Items[0]["props"]; has {
+		t.Fatalf("an item in the index has props: %v", idx.Index.Items[0])
+	}
+	if _, has := idx.Index.Mails[0]["props"]; !has {
+		t.Fatalf("a mail kind in the index is not whole: %v", idx.Index.Mails[0])
+	}
+	if len(raw) > 20000 || len(raw)*3 > len(e.AICatalog()) {
+		t.Fatalf("the index is %d characters of %d", len(raw), len(e.AICatalog()))
+	}
+	if len(idx.Version) != 12 || idx.Version != strings.TrimSpace(idx.Version) {
+		t.Fatalf("version = %q", idx.Version)
+	}
+
+	var got struct {
+		Version string                       `json:"version"`
+		Actions []map[string]json.RawMessage `json:"actions"`
+		Items   []map[string]json.RawMessage `json:"items"`
+		Unknown []string                     `json:"unknown"`
+	}
+	if err := json.Unmarshal(e.AICatalogEntries([]string{"@matomezu/paper:item-place", "@matomezu/box:shape-box", "nope"}), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Version != idx.Version || len(got.Actions) != 1 || len(got.Items) != 1 || strings.Join(got.Unknown, ",") != "nope" ||
+		!strings.Contains(string(got.Actions[0]["args"]), `"required"`) || !strings.Contains(string(got.Items[0]["props"]), `"caption"`) {
+		t.Fatalf("entries = %+v", got)
+	}
+}
+
+func TestAICatalogVersionChangesWithTheAddedPlugins(t *testing.T) {
+	e := newEngine(t)
+	version := func() string {
+		var v struct {
+			Version string `json:"version"`
+		}
+		_ = json.Unmarshal(e.AICatalogIndex(), &v)
+		return v.Version
+	}
+	before := version()
+	if before != version() {
+		t.Fatal("the version changes without any plugin change")
+	}
+	usePlugin(t, e, "../../test/added-plugins/ex2")
+	if version() == before {
+		t.Fatal("the version did not change after adding a plugin")
+	}
+}

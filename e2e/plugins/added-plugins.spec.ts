@@ -182,10 +182,15 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
 }) => {
   await link(page, "test/added-plugins/ex3")
   await page.goto(BOOK_SCREEN_URL)
-  const catalog = await (await page.request.get("/api/ai/catalog", { headers: aiAuth() })).json()
-  const answer = catalog.actions.find((a: { id: string }) => a.id === "ex2:diamond-answer")
-  expect(answer.description).toContain("Answer a decision")
-  expect(catalog.items.map((i: { id: string }) => i.id)).toContain("ex3:star")
+  // 目次に追加プラグインのアクションとアイテムが出て、ids で全文を引ける
+  const { index } = await (await page.request.get("/api/ai/catalog", { headers: aiAuth() })).json()
+  expect(index.actions.map((a: { id: string }) => a.id)).toContain("ex2:diamond-answer")
+  expect(index.items.map((i: { id: string }) => i.id)).toContain("ex3:star")
+  const whole = await (
+    await page.request.get("/api/ai/catalog?ids=ex2:diamond-answer&ids=ex3:star", { headers: aiAuth() })
+  ).json()
+  expect(whole.actions[0].description).toContain("Answer a decision")
+  expect(whole.items[0].props.properties).toBeDefined()
   const perform = async (body: object) =>
     (await page.request.post("/api/ai/perform", { headers: aiAuth(), data: body })).json()
   expect(

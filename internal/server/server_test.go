@@ -223,6 +223,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	screen := listen(t, s.URL)
 	next(t, screen) // hello
 	catalog := func() string { _, c := get(t, s.URL+"/api/ai/catalog", "secret"); return c }
+	entries := func(id string) string { _, c := get(t, s.URL+"/api/ai/catalog?ids="+id, "secret"); return c }
 	perform := func(body string) string {
 		_, got := send(t, "POST", s.URL+"/api/ai/perform", body, ai)
 		return got
@@ -270,7 +271,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":2}` {
 		t.Fatalf("event = %s", got)
 	}
-	if c := catalog(); !strings.Contains(c, `"w":123`) || strings.Count(c, `"id":"ex2:diamond"`) != 1 {
+	if c := entries("ex2:diamond"); !strings.Contains(c, `"w":123`) || strings.Count(c, `"id":"ex2:diamond"`) != 1 {
 		t.Fatalf("catalog after replacing = %s", c)
 	}
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
@@ -285,7 +286,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := link(t, s, broken); !strings.Contains(got, `"ok":false`) {
 		t.Fatalf("link a broken plugin = %s", got)
 	}
-	if c := catalog(); !strings.Contains(c, `"w":123`) {
+	if c := entries("ex2:diamond"); !strings.Contains(c, `"w":123`) {
 		t.Fatalf("catalog after a refused plugin = %s", c)
 	}
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {

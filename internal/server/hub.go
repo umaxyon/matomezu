@@ -697,9 +697,12 @@ func (h *Hub) AISettings() (json.RawMessage, error) {
 	return h.engine.AISettings(settings)
 }
 
-// AICatalog は MCP 公開ツールの actions が返す物（engine.AICatalog）
-func (h *Hub) AICatalog() json.RawMessage {
-	return withWarnings(h.engine.AICatalog(), h.Warnings())
+// AICatalog は MCP 公開ツールの actions が返す物。ids が無ければ一覧の版と目次（今の warning を添える）、あれば ids の物の全文（engine.AICatalogIndex・AICatalogEntries）
+func (h *Hub) AICatalog(ids []string) json.RawMessage {
+	if len(ids) > 0 {
+		return h.engine.AICatalogEntries(ids)
+	}
+	return withWarnings(h.engine.AICatalogIndex(), h.Warnings())
 }
 
 // CloseAll は全部の窓を外す（常駐を止めるとき。知らせの通り道を閉じると、窓とのつながりが終わる）

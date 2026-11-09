@@ -183,7 +183,23 @@ function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly B
 const growsOf = (rule: GrowRule | undefined): readonly string[] | "by-type" | "always" | "none" =>
   !rule ? "none" : "always" in rule ? "always" : "choices" in rule ? rule.choices : "by-type"
 
+// 表ごとの全文（アクション・アイテム・設定などの args・props の JSON Schema まで）に、目次 index を添えて返す。
+// 目次は、AI が最初に受け取る物: 大きい表（アクション・アイテム・設定）は id と題名だけにし、全文は id を渡して取る。小さい表は全文のまま入れる
 function aiCatalog(of: Assembled = assembled) {
+  const tables = aiTables(of)
+  const { actions, items, settings, ...whole } = tables
+  return {
+    ...tables,
+    index: {
+      actions: actions.map(a => ({ id: a.id, target: a.target, title: a.title })),
+      items: items.map(i => ({ id: i.id, kind: i.kind, title: i.title })),
+      settings: settings.map(s => ({ id: s.id, title: s.title })),
+      ...whole,
+    },
+  }
+}
+
+function aiTables(of: Assembled) {
   const catalog = of.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
   return {

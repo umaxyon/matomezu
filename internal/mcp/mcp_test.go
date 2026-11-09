@@ -33,6 +33,8 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 		return json.RawMessage(`{"ok":true}`), f.replied, nil
 	case "api/ai/catalog":
 		return json.RawMessage(aiCatalogJSON), f.replied, nil
+	case "api/ai/catalog?ids=%40matomezu%2Fpaper%3Aitem-place", "api/ai/catalog?ids=a&ids=b":
+		return json.RawMessage(aiCatalogJSON), f.replied, nil
 	case "api/ai/view":
 		return json.RawMessage(`{"book":"b1","page":"p1","selection":[]}`), f.replied, nil
 	}
@@ -252,5 +254,23 @@ func TestJoinPassesTheWorkroomAndAnswersTakeover(t *testing.T) {
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","workroom":"ひよこ","projects":["default"]}}}`)
 	if r := got[0]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[0]), "workroom-in-use: ") {
 		t.Fatalf("refused = %v", got[0])
+	}
+}
+
+func TestActionsTakesIDsAndAsksForThoseEntries(t *testing.T) {
+	api := &fakeAPI{}
+	talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"actions","arguments":{"ids":["a","b"]}}}`)
+	if len(api.gets) != 1 || api.gets[0] != "api/ai/catalog?ids=a&ids=b" {
+		t.Fatalf("gets = %v", api.gets)
+	}
+}
+
+func TestABadArgsRefusalCarriesTheActionsArgsSchema(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":false,"reason":"bad-args"}`}
+	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"perform","arguments":{"action":"@matomezu/paper:item-place","args":{}}}}`)
+	r := got[0]["result"].(map[string]any)
+	text := r["content"].([]any)[0].(map[string]any)["text"].(string)
+	if r["isError"] != true || !strings.HasPrefix(text, "bad-args: the args do not fit the action\nthe args of @matomezu/paper:item-place (JSON Schema): ") {
+		t.Fatalf("call = %v", r)
 	}
 }

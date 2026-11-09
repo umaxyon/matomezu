@@ -115,13 +115,47 @@ var readTools = []readTool{
 	},
 	{
 		"actions",
-		"List what can be done now (it changes when plugins are added or removed): the actions (id, target, title, description, and args as JSON Schema) to call with perform, " +
-			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the language packs (the language setting takes a pack id), the skins, and the user settings with their schemas. " +
-			"warnings (only when there are some) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
+		"List what can be done now (it changes when plugins are added or removed). Without ids, it answers version (changes when the list changes: keep what you read while it stays the same) and index: " +
+			"the actions (id, target and title: target tells what an action is done on), the items (shape or connector), the user settings, " +
+			"the book types (which can be created, whether they have pages and which items they place), the kinds of annotations and mail, the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
+			"With ids (ids from the index), it answers the whole entry of each: an action's description and args (JSON Schema, for perform), an item's props (JSON Schema) and default size, a setting's schema; unknown lists ids it does not have. " +
+			"warnings (only when there are some, without ids) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",
-		noArgs,
-		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
+		actionsSchema,
+		func(api caller, args map[string]any) (json.RawMessage, error) {
+			return api.Get("api/ai/catalog" + idsQuery(args))
+		},
 	},
+}
+
+// actionsSchema は actions の受ける形。ids は 1 つ以上の id（actions の目次の id）
+var actionsSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"ids": map[string]any{
+			"type":        "array",
+			"items":       map[string]any{"type": "string"},
+			"minItems":    1,
+			"description": "The ids to answer in full (see the index you get without ids): actions, items, settings and so on.",
+		},
+	},
+	"additionalProperties": false,
+}
+
+// idsQuery は、args の ids を常駐の口の問い合わせにする（無ければ空。目次を返す）
+func idsQuery(args map[string]any) string {
+	q := url.Values{}
+	if list, ok := args["ids"].([]any); ok {
+		for _, v := range list {
+			if id, ok := v.(string); ok {
+				q.Add("ids", id)
+			}
+		}
+	}
+	if len(q) == 0 {
+		return ""
+	}
+	return "?" + q.Encode()
 }
 
 // performSchema は perform の受ける形
@@ -243,13 +277,34 @@ func perform(api caller, args map[string]any) (string, bool) {
 		return string(out), true
 	}
 	if !done.OK {
-		return refusalText(done.Reason, done.Detail), true
+		text := refusalText(done.Reason, done.Detail)
+		if done.Reason == "bad-args" {
+			text += argsSchemaOf(api, args["action"].(string))
+		}
+		return text, true
 	}
 	// 知らせは結果の次の行に添える
 	if done.Notice != "" {
 		return string(done.Result) + "\n" + done.Notice, false
 	}
 	return string(done.Result), false
+}
+
+// argsSchemaOf は、引数が合わないと断ったアクションの引数の Schema（添えて、AI が 1 回で直せるように）。取れなければ空
+func argsSchemaOf(api caller, action string) string {
+	out, err := api.Get("api/ai/catalog?ids=" + url.QueryEscape(action))
+	if err != nil {
+		return ""
+	}
+	var got struct {
+		Actions []struct {
+			Args json.RawMessage `json:"args"`
+		} `json:"actions"`
+	}
+	if json.Unmarshal(out, &got) != nil || len(got.Actions) == 0 {
+		return ""
+	}
+	return "\nthe args of " + action + " (JSON Schema): " + string(got.Actions[0].Args)
 }
 
 func show(api caller, args map[string]any) (string, bool) {
@@ -296,6 +351,8 @@ func refusalText(reason, detail string) string {
 	case reason == "being-edited":
 		return "being-edited: the user is editing what this would change or remove (such as a note open on the screen), so nothing was changed; do it again later, " +
 			"or send the change to the user if actions offer a way (an action that carries actions for the user to apply)"
+	case reason == "bad-args":
+		return "bad-args: the args do not fit the action"
 	case detail != "":
 		return reason + ": " + detail
 	default:
