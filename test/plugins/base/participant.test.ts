@@ -21,9 +21,7 @@ function ready() {
   const people = (): readonly Participant[] => store.state.getState().participants
   const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
   const request = (args: object = WHO) => perform(REQUEST, args) as { ok: boolean; result: { participant: string } }
-  const requestTakeover = (args: object) =>
-    perform(REQUEST_TAKEOVER, args) as { ok: boolean; result: { participant: string } }
-  return { store, people, perform, request, requestTakeover }
+  return { store, people, perform, request }
 }
 
 test("要求すると、受け入れていない参加者が表の末尾に足され、id を返す", () => {
@@ -189,33 +187,27 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
 })
 
 test("AI が参加を頼むときに行うアクションは、定義が役を名乗る", () => {
-  expect(joinActions(CORE_CATALOG)).toEqual({ participant: REQUEST, takeover: REQUEST_TAKEOVER, notice: JOIN_MAIL })
+  expect(joinActions(CORE_CATALOG)).toEqual({ participant: REQUEST, notice: JOIN_MAIL })
 })
 
 const TAKE_OVER = "@matomezu/base:participant-take-over"
-const REQUEST_TAKEOVER = "@matomezu/base:participant-request-takeover"
 
-test("引き継ぎの要求は、受け入れ済みの参加者がいるときだけ出せ、普通の受け入れでは受け入れられず、断れる", () => {
-  const { people, request, requestTakeover, perform } = ready()
-  const old = request().result.participant
-  expect(requestTakeover({ ...WHO, link: "L2", takeover: old }).ok).toBe(false) // まだ受け入れていない
-  perform(ACCEPT, { participant: old, workroom: "A", bird: "buncho", palette: "forest" })
-  expect(requestTakeover({ ...WHO, link: "L2", takeover: "none" }).ok).toBe(false)
-  const next = requestTakeover({ ...WHO, link: "L2", takeover: old }).result.participant
-  expect(people()[1]).toMatchObject({ id: next, state: "requested", takeover: old })
-  expect(perform(ACCEPT, { participant: next, workroom: "B", bird: "inko" }).ok).toBe(false)
-  expect(perform(DECLINE, { participant: next }).ok).toBe(true)
-  expect(people().map(p => p.id)).toEqual([old])
-})
+// 受け入れ済みの参加者 A（ワークルーム A・文鳥・フォレスト）を 1 人置く
+function withOld() {
+  const r = ready()
+  const old = r.request().result.participant
+  r.perform(ACCEPT, { participant: old, workroom: "A", bird: "buncho", palette: "forest" })
+  return { ...r, old }
+}
 
-test("引き継ぎを受け入れると、要求した参加者が元の参加者の場所でワークルーム・鳥・配色を引き継ぎ、元の参加者は無くなる", () => {
-  const { people, request, requestTakeover, perform } = ready()
-  const old = request().result.participant
-  perform(ACCEPT, { participant: old, workroom: "A", bird: "buncho", palette: "forest" })
+test("引き継ぐと、要求した参加者が元の参加者の場所でワークルーム・鳥・配色を引き継ぎ、元の参加者は無くなる", () => {
+  const { people, request, perform, old } = withOld()
   const other = request({ ...WHO, link: "L3" }).result.participant
-  const next = requestTakeover({ ...WHO, link: "L2", sessionName: "new", takeover: old }).result.participant
-  expect(perform(TAKE_OVER, { participant: other }).ok).toBe(false) // 引き継ぎの要求ではない
-  expect(perform(TAKE_OVER, { participant: next }).ok).toBe(true)
+  const next = request({ ...WHO, link: "L2", sessionName: "new" }).result.participant
+  expect(perform(TAKE_OVER, { participant: next, takeover: "none" }).ok).toBe(false) // 相手がいない
+  expect(perform(TAKE_OVER, { participant: next, takeover: other }).ok).toBe(false) // 相手が受け入れ済みでない
+  expect(perform(TAKE_OVER, { participant: old, takeover: old }).ok).toBe(false) // 要求でない
+  expect(perform(TAKE_OVER, { participant: next, takeover: old }).ok).toBe(true)
   expect(people().map(p => p.id)).toEqual([next, other])
   expect(people()[0]).toMatchObject({
     state: "joined",
@@ -225,22 +217,26 @@ test("引き継ぎを受け入れると、要求した参加者が元の参加�
     sessionName: "new",
     link: "L2",
   })
-  expect(people()[0]?.takeover).toBeUndefined()
-  expect(perform(TAKE_OVER, { participant: next }).ok).toBe(false)
+  expect(perform(TAKE_OVER, { participant: next, takeover: old }).ok).toBe(false)
 })
 
-test("引き継ぎを受け入れられるのは、引き継ぎ先の参加者がまだいるときだけ。AI はできない", () => {
-  const { people, request, requestTakeover, perform } = ready()
-  const old = request().result.participant
-  perform(ACCEPT, { participant: old, workroom: "A", bird: "inko" })
-  const first = requestTakeover({ ...WHO, link: "L2", takeover: old }).result.participant
-  const second = requestTakeover({ ...WHO, link: "L3", takeover: old }).result.participant
-  expect(perform(TAKE_OVER, { participant: first }).ok).toBe(true)
-  expect(perform(TAKE_OVER, { participant: second }).ok).toBe(false) // 引き継ぎ先はもういない
-  expect(people().map(p => p.id)).toEqual([first, second])
+test("受け入れ済みの参加者と同じワークルームの名前では受け入れられず、外す相手に名指した参加者の名前なら受け入れて、その場所に置く", () => {
+  const { people, request, perform, old } = withOld()
+  const next = request({ ...WHO, link: "L2" }).result.participant
+  expect(perform(ACCEPT, { participant: next, workroom: "A", bird: "inko" }).ok).toBe(false) // 名前が重なる
+  expect(perform(ACCEPT, { participant: next, workroom: "B", bird: "inko", replace: old }).ok).toBe(false) // 名前が違う
+  expect(perform(ACCEPT, { participant: next, workroom: "A", bird: "inko", replace: "none" }).ok).toBe(false)
+  expect(perform(ACCEPT, { participant: next, workroom: "B", bird: "inko" }).ok).toBe(true)
+  expect(people().map(p => p.workroom)).toEqual(["A", "B"])
+  const again = request({ ...WHO, link: "L3" }).result.participant
+  expect(perform(ACCEPT, { participant: again, workroom: "A", bird: "suzume", replace: old }).ok).toBe(true)
+  expect(people().map(p => [p.id, p.workroom, p.bird])).toEqual([
+    [again, "A", "suzume"],
+    [next, "B", "inko"],
+  ])
 })
 
-test("引き継ぎの郵便は、引き継ぐワークルームの名前を題と本文に出す", () => {
+test("参加要求の郵便は、頼まれたワークルームの名前を本文に出す", () => {
   const { store, perform } = ready()
   const args = {
     from: "claude",
@@ -255,37 +251,9 @@ test("引き継ぎの郵便は、引き継ぐワークルームの名前を題�
   const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)
   const [mail] = store.state.getState().mailbox
   expect(shownOf(CORE_CATALOG, mail!, ja)).toMatchObject({
-    title: "AI エージェントから引き継ぎの要求が届きました",
+    title: "AI エージェントから参加要求が届きました",
     body: "ワークルーム名: ひよこ\nAI: claude\nモデル: opus\n環境: wsl",
   })
-})
-
-test("引き継ぎの要求は AI には行えず(利用者としてホストが行う)、participant-request は takeover を受けない", () => {
-  const { store, request, perform } = ready()
-  const old = request().result.participant
-  perform(ACCEPT, { participant: old, workroom: "A", bird: "inko" })
-  expect(perform(REQUEST, { ...WHO, link: "L2", takeover: old }).ok).toBe(false)
-  const s = store.state.getState()
-  const world = {
-    books: s.books,
-    settings: s.settings,
-    annotations: s.annotations,
-    mailbox: s.mailbox,
-    participants: s.participants,
-  }
-  const ctx = {
-    catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center" as never,
-    lang: "en" as const,
-    newId: () => "n",
-    now: "t",
-    by: "ai" as const,
-  }
-  expect(performIn(world, REQUEST_TAKEOVER, { ...WHO, link: "L2", takeover: old }, undefined, ctx)).toEqual({
-    ok: false,
-    reason: "not-allowed",
-  })
-  expect(CORE_CATALOG.actions.get(REQUEST_TAKEOVER)?.userOnly).toBe(true)
 })
 
 test("AI が参加を頼むときの役（runsWhenAIJoins）は、1 つの役を 1 つのアクションだけが名乗る（2 つ目は E044）", () => {

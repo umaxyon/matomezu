@@ -209,6 +209,21 @@ test.describe("スライドの操作", () => {
     await expect(ellipse).toHaveAttribute("stroke", "none")
   })
 
+  test("太さは打っている途中から見た目に反映され、元に戻すは 1 回で入力の前に戻る", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await draw(page, "直線", [200, 200], [600, 400])
+    const stroke = page.locator("[data-item]").first().locator("polyline")
+    const before = await stroke.getAttribute("stroke-width")
+    const width = page.locator("[data-bar]").getByLabel("太さ")
+    await width.click()
+    await width.press("ControlOrMeta+a")
+    await width.pressSequentially("12")
+    await expect(stroke).toHaveAttribute("stroke-width", "12") // 外へ出る前に反映される
+    await width.press("Enter")
+    await page.keyboard.press("ControlOrMeta+z")
+    await expect(stroke).toHaveAttribute("stroke-width", before ?? "")
+  })
+
   test("回すつまみで回せる。文字枠は置いたらそのまま打て、Delete で消せ、元に戻せる", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     await draw(page, "文字枠", [100, 100], [500, 180])

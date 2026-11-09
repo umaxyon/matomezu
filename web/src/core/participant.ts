@@ -19,7 +19,6 @@ export const ParticipantSchema = z.object({
   joinedAt: z.string().optional(), // 受け入れた時点
   bird: z.string().min(1).optional(), // 受け入れたときに選んだ鳥（鳥の id は base が決める）
   palette: z.string().min(1).optional(), // 鳥の配色（無ければ、その鳥の元の配色）
-  takeover: z.string().min(1).optional(), // 引き継ぎの要求（requested）が引き継ぐ、受け入れ済みの参加者の id。受け入れると、その参加者のワークルームを引き継ぎ、その参加者は無くなる
 })
 export type Participant = z.output<typeof ParticipantSchema>
 
@@ -38,11 +37,10 @@ export function participantsSettle(before: Participants, after: Participants): b
 }
 
 // AI が参加を頼むときに行うアクション（アクションの定義が runsWhenAIJoins で名乗る物）の id。役が揃っていなければ null
-export function joinActions(catalog: CoreCatalog): { participant: string; takeover: string; notice: string } | null {
+export function joinActions(catalog: CoreCatalog): { participant: string; notice: string } | null {
   const roles = new Map<string, string>()
   for (const a of catalog.actions.values()) if (a.runsWhenAIJoins) roles.set(a.runsWhenAIJoins, a.id)
   const participant = roles.get("make-participant")
-  const takeover = roles.get("make-takeover")
   const notice = roles.get("notify-user")
-  return participant && takeover && notice ? { participant, takeover, notice } : null
+  return participant && notice ? { participant, notice } : null
 }

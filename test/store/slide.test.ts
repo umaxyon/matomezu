@@ -168,6 +168,45 @@ test("文字枠を置いて続けて打った文字は、置いた画面の履�
   expect(state()).toEqual([])
 })
 
+test("続けている画面の履歴の段には、コマンド（slide-set）が行うアクションも足され、元に戻すは 1 回で最初の値に戻る", async () => {
+  const store = newStore({
+    books: [
+      {
+        type: "@matomezu/slide-book:slide",
+        id: "b1",
+        title: "スライド",
+        project: "default",
+        pages: [{ id: "p1", title: "1", paper: "@matomezu/base:ratio-16x9", orientation: "landscape", slide: [] }],
+      },
+    ] as never,
+  })
+  const slide = () =>
+    (store.state.getState().books.b1 as unknown as { pages: { slide: { id: string; props: { width?: number } }[] }[] })
+      .pages[0]!.slide
+  const on = { book: "b1" }
+  store.actions.perform(
+    "@matomezu/slide:slide-place",
+    {
+      page: "p1",
+      item: "@matomezu/slide:slide-ellipse",
+      at: { x: 10, y: 10 },
+      props: {},
+    },
+    on,
+  )
+  await Promise.resolve()
+  const id = slide()[0]!.id
+  store.actions.command("s1", "@matomezu/slide:slide-set", { items: [id], props: { width: 5 } })
+  await Promise.resolve()
+  store.actions.continueStep("b1")
+  store.actions.command("s1", "@matomezu/slide:slide-set", { items: [id], props: { width: 6 } })
+  await Promise.resolve()
+  expect(slide()[0]?.props.width).toBe(6)
+  expect(store.state.getState().history.b1?.undo).toHaveLength(2) // 置いた段と、太さの段（5 と 6 は 1 段）
+  store.actions.command("s1", "@matomezu/base:undo")
+  expect(slide()[0]?.props.width).toBeUndefined()
+})
+
 test("ロック中のページでは、スライドのアイテムを動かせず消せない（土台が slide のアイテムの id を変化に入れる）", () => {
   const s = setup()
   s.perform("@matomezu/slide:slide-place", { page: s.page, item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } })

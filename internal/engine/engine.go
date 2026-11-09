@@ -384,7 +384,6 @@ func (e *Engine) TalkActions() (ids []string, err error) {
 // JoinActions は、AI が参加を頼むときに行うアクションの id（参加者を作る Participant と、利用者に知らせる Notice）
 type JoinActions struct {
 	Participant string `json:"participant"`
-	Takeover    string `json:"takeover"`
 	Notice      string `json:"notice"`
 }
 

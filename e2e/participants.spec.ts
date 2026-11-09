@@ -5,7 +5,6 @@ import { fromMenu } from "./helpers/stage-menu"
 
 const JOINED = "ワークルームに入れます"
 const REQUEST = "AI エージェントから参加要求が届きました"
-const TAKEOVER = "AI エージェントから引き継ぎの要求が届きました"
 
 async function join(page: Page, link: string, sessionName = "", workroom = "") {
   const res = await page.request.post("/api/ai/join", {
@@ -21,7 +20,7 @@ async function join(page: Page, link: string, sessionName = "", workroom = "") {
       ...(workroom ? { workroom } : {}),
     },
   })
-  return (await res.json()) as { ok: boolean; participant: string; reason?: string; takeover?: string }
+  return (await res.json()) as { ok: boolean; participant: string; reason?: string }
 }
 
 // この参加者の id で AI の口を呼ぶ（最後に呼ばれた時刻が進み、受け入れた直後なら参加の知らせが返る）
@@ -158,22 +157,32 @@ async function acceptAs(page: Page, name: string) {
   await expect(dialog).toHaveCount(0)
 }
 
-test("生きていない参加者のワークルームは、引き継ぎの郵便を受け入れると新しい持ち主に替わり、センターの参加者リストに反映される", async ({
+// 最後の（新しい）参加要求の郵便を開き、受け入れるを押して受け入れのダイアログを開く
+async function openJoinDialog(page: Page) {
+  await page.getByRole("button", { name: REQUEST }).last().click()
+  await page.getByRole("dialog", { name: REQUEST }).getByRole("button", { name: "受け入れる" }).click()
+  return page.getByRole("dialog", { name: JOINED })
+}
+
+test("生きていない参加者のワークルームの名前で頼むと、受け入れのダイアログは引き継ぐが選ばれ、確かめて引き継ぐと新しい持ち主に替わる", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   const old = await join(page, "e2e-link-8", "旧")
   await acceptAs(page, "ひよこ")
 
-  // 呼ばれていない（静か）ので、引き継ぎの要求の郵便が出る（名前・鳥・配色は選ばせない）
+  // 呼ばれていない（静か）ので、引き継げる参加者に出る。頼まれた名前の参加者が初めから選ばれている
   const next = await join(page, "e2e-link-9", "新", "ひよこ")
-  expect(next).toMatchObject({ ok: true, takeover: "ひよこ" })
-  await page.getByRole("button", { name: TAKEOVER }).click()
-  const mail = page.getByRole("dialog", { name: TAKEOVER })
-  await expect(mail).toContainText("ワークルーム名: ひよこ")
-  await expect(mail.getByRole("button")).toHaveText(["閉じる", "断る", "受け入れる"])
-  await mail.getByRole("button", { name: "受け入れる" }).click()
-  await expect(mail).toHaveCount(0)
+  expect(next).toMatchObject({ ok: true })
+  const dialog = await openJoinDialog(page)
+  await expect(dialog.getByRole("radio", { name: "引き継ぐ" })).toBeChecked()
+  await expect(dialog.locator(`[data-participant="${old.participant}"]`)).toContainText("ひよこ")
+  await dialog.getByRole("button", { name: "受け入れる" }).click()
+  // 最後に確かめる（引き継ぐ・戻る。名前の入力から決めたのではないので、破棄は出さない）
+  await expect(dialog).toContainText("ひよこ を引き継ぎますか")
+  await expect(dialog.getByRole("button", { name: "前のを破棄して新しく始める" })).toHaveCount(0)
+  await dialog.getByRole("button", { name: "引き継ぐ" }).click()
+  await expect(dialog).toHaveCount(0)
 
   const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
   expect(body.participants).toMatchObject([
@@ -184,13 +193,37 @@ test("生きていない参加者のワークルームは、引き継ぎの郵�
   await expect(page.locator(`[data-participant="${old.participant}"]`)).toHaveCount(0)
 })
 
-test("引き継ぎの郵便を断ると、元の参加者はそのまま残り、引き継ぎを頼んだ参加者だけが消える", async ({ page }) => {
+test("名前が生きていない参加者と同じなら、最後に引き継ぐか前のを破棄して新しく始めるかを選べ、破棄すると選んだ鳥で始まって前の参加者は消える", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const old = await join(page, "e2e-link-14", "旧")
+  await acceptAs(page, "ひよこ")
+  const next = await join(page, "e2e-link-15", "新")
+  const dialog = await openJoinDialog(page)
+  await dialog.getByRole("radio", { name: "新しく始める" }).check()
+  await dialog.getByRole("textbox", { name: "ワークルーム名" }).fill("ひよこ")
+  await expect(dialog).toContainText("この名前の、静かな参加者がいます")
+  await dialog.getByRole("radio", { name: "文鳥", exact: true }).check({ force: true })
+  await dialog.getByRole("button", { name: "受け入れる" }).click()
+  await expect(dialog).toContainText("ひよこ を引き継ぎますか。前のを破棄して新しく始めますか")
+  await dialog.getByRole("button", { name: "前のを破棄して新しく始める" }).click()
+  await expect(dialog).toHaveCount(0)
+
+  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+  expect(body.participants).toMatchObject([
+    { id: next.participant, state: "joined", workroom: "ひよこ", bird: "buncho" },
+  ])
+  expect(body.participants.some((p: { id: string }) => p.id === old.participant)).toBe(false)
+})
+
+test("頼まれた名前の参加要求を断ると、元の参加者はそのまま残る", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const old = await join(page, "e2e-link-10", "旧")
   await acceptAs(page, "ひよこ")
   await join(page, "e2e-link-11", "新", "ひよこ")
-  await page.getByRole("button", { name: TAKEOVER }).click()
-  await page.getByRole("dialog", { name: TAKEOVER }).getByRole("button", { name: "断る" }).click()
+  await page.getByRole("button", { name: REQUEST }).last().click()
+  await page.getByRole("dialog", { name: REQUEST }).getByRole("button", { name: "断る" }).click()
   const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
   expect(body.participants).toMatchObject([{ id: old.participant, state: "joined", workroom: "ひよこ" }])
 })
@@ -202,7 +235,7 @@ test("生きている参加者のワークルームは引き継げない。断�
   await call(page, old.participant)
   const refused = await join(page, "e2e-link-13", "新", "ひよこ")
   expect(refused).toMatchObject({ ok: false, reason: "workroom-in-use" })
-  await expect(page.getByRole("button", { name: TAKEOVER })).toHaveCount(0)
   const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
   expect(body.participants).toHaveLength(1)
+  expect(body.mailbox).toHaveLength(1) // 最初の郵便だけ
 })

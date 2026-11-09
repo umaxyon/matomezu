@@ -108,3 +108,41 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* 受け入れのダイアログ: 新しく始めるか引き継ぐかの選び、引き継げる参加者の一覧、最後の確かめ */
+.modes {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.takeable {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.takeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.takeRow + .takeRow {
+  border-top: 1px solid var(--skin-border);
+}
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

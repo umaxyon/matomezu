@@ -64,6 +64,11 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* バーの下の余白: 枠の右上の外にある回すつまみの高さの分だけバーを上へ上げる（余白はポインタを通す） */
+.barBox {
+  padding-bottom: 20px;
+  pointer-events: none;
+}
 /* バー: スタンドの中に立ち、画面の上で一定の大きさ */
 .bar {
   display: flex;

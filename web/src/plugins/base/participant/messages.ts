@@ -3,12 +3,11 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const PARTICIPANT_MESSAGES = defineMessages({
   "Request to participate": { en: "Request to participate", ja: "参加を要求する" },
-  "Request a takeover": { en: "Request a takeover", ja: "引き継ぎを要求する" },
   "Joined matomezu. Workroom name: {name}": {
     en: "Joined matomezu. Workroom name: {name}",
     ja: "matomezu に参加しました。ワークルーム名: {name}",
   },
-  "Accept a takeover": { en: "Accept a takeover", ja: "引き継ぎを受け入れる" },
+  "Accept by taking over": { en: "Accept by taking over", ja: "引き継いで受け入れる" },
   "Accept a participant": { en: "Accept a participant", ja: "参加者を受け入れる" },
   "Decline a participant": { en: "Decline a participant", ja: "参加者を断る" },
   "Participation lasts": { en: "Participation lasts", ja: "参加の有効時間" },
@@ -50,4 +49,27 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "No participants": { en: "No participants", ja: "参加者はいません" },
   Alive: { en: "Alive", ja: "生きている" },
   Quiet: { en: "Quiet", ja: "静か" },
+  "Start new": { en: "Start new", ja: "新しく始める" },
+  "Take over": { en: "Take over", ja: "引き継ぐ" },
+  "Choose who to take over": { en: "Choose who to take over", ja: "引き継ぐ参加者を選ぶ" },
+  "Joined {time}": { en: "Joined {time}", ja: "{time} に参加" },
+  "Take over {name}?": { en: "Take over {name}?", ja: "{name} を引き継ぎますか" },
+  "Take over {name}, or discard it and start new?": {
+    en: "Take over {name}, or discard it and start new?",
+    ja: "{name} を引き継ぎますか。前のを破棄して新しく始めますか",
+  },
+  "A quiet participant has this name": {
+    en: "A quiet participant has this name",
+    ja: "この名前の、静かな参加者がいます",
+  },
+  "Taking over keeps its name, bird and palette. Discarding removes it and starts a new one.": {
+    en: "Taking over keeps its name, bird and palette. Discarding removes it and starts a new one.",
+    ja: "引き継ぐと、名前・鳥・配色が前のままになります。破棄すると、前の参加者を外して新しく始めます。",
+  },
+  "Taking over keeps its name, bird and palette.": {
+    en: "Taking over keeps its name, bird and palette.",
+    ja: "引き継ぐと、名前・鳥・配色が前のままになります。",
+  },
+  "Discard and start new": { en: "Discard and start new", ja: "前のを破棄して新しく始める" },
+  Back: { en: "Back", ja: "戻る" },
 })
