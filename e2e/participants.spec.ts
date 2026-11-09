@@ -206,7 +206,7 @@ test("名前が生きていない参加者と同じなら、最後に引き継�
   await expect(dialog).toContainText("この名前の、静かな参加者がいます")
   await dialog.getByRole("radio", { name: "文鳥", exact: true }).check({ force: true })
   await dialog.getByRole("button", { name: "受け入れる" }).click()
-  await expect(dialog.getByRole("button", { name: "戻る" })).toBeVisible()
+  await expect(dialog).toContainText("ひよこ を引き継ぎますか。前のを破棄して新しく始めますか")
   await dialog.getByRole("button", { name: "前のを破棄して新しく始める" }).click()
   await expect(dialog).toHaveCount(0)
 

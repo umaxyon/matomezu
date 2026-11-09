@@ -107,7 +107,11 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
     const stillQuiet = quiet.some(p => p.id === target.id)
     return (
       <div className={styles.confirm}>
-        <p>{t("Take over {name}?", { name: target.workroom ?? "" })}</p>
+        <p>
+          {t(discardable ? "Take over {name}, or discard it and start new?" : "Take over {name}?", {
+            name: target.workroom ?? "",
+          })}
+        </p>
         <p className={styles.paletteName}>
           {t(
             discardable

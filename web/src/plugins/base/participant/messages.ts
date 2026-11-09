@@ -54,6 +54,10 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "Choose who to take over": { en: "Choose who to take over", ja: "引き継ぐ参加者を選ぶ" },
   "Joined {time}": { en: "Joined {time}", ja: "{time} に参加" },
   "Take over {name}?": { en: "Take over {name}?", ja: "{name} を引き継ぎますか" },
+  "Take over {name}, or discard it and start new?": {
+    en: "Take over {name}, or discard it and start new?",
+    ja: "{name} を引き継ぎますか。前のを破棄して新しく始めますか",
+  },
   "A quiet participant has this name": {
     en: "A quiet participant has this name",
     ja: "この名前の、静かな参加者がいます",
