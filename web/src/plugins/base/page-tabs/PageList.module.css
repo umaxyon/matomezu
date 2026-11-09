@@ -1,0 +1,92 @@
+/* ステージの左に縦に並べるページ一覧。幅はステージ（列）の幅の 15%（72px 以上 180px 以下）。ページが多ければ縦にスクロールする */
+.list {
+  position: relative;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 8px;
+  overflow-y: auto;
+  background: var(--skin-surface-sunken, var(--skin-surface));
+  border-right: 1px solid var(--skin-border);
+}
+.item {
+  flex: none;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 4px;
+  align-items: start;
+}
+.item[data-carried="true"] {
+  opacity: 0.5;
+}
+.number {
+  padding-top: 2px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--skin-text-muted);
+}
+.item[data-selected="true"] .number {
+  color: var(--skin-accent);
+  font-weight: 700;
+}
+.page {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+/* 縮小絵: 紙の面の色の枠（中のビューは紙の大きさで描いて縮める） */
+.thumb {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--theme-paper);
+  box-shadow: 0 0 0 1px var(--theme-paper-line);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.item[data-selected="true"] .thumb {
+  box-shadow: 0 0 0 2px var(--skin-accent);
+}
+.scaled {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+/* ドラッグ中の落とす所の線 */
+.dropBar {
+  position: absolute;
+  left: 24px;
+  right: 8px;
+  height: 3px;
+  margin-top: -5px;
+  border-radius: 2px;
+  background: var(--skin-accent);
+  pointer-events: none;
+}
+.add {
+  flex: none;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--skin-text-muted);
+  cursor: pointer;
+}
+.add svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}

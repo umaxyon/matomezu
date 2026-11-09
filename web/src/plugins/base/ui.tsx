@@ -17,7 +17,7 @@ import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
 import type { AnnotationIconProps } from "./outbox/slots"
 import { OUTBOX } from "./outbox/ui"
-import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
+import { PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_TABS } from "./page-tabs/ui"
 import { JOIN_REQUEST_ACTIONS, PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
 import {
   PRINT_CHECK_PANEL,
@@ -189,6 +189,7 @@ export const BASE_UI = definePluginUi(BASE, {
     HISTORY_BUTTONS,
     STAGE_MENU_BUTTONS,
     PAGE_TABS,
+    PAGE_LIST,
     CLOSE_BUTTON,
     GENERAL_CATEGORY,
     KEYS_CATEGORY,
@@ -212,6 +213,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
     "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
     "@matomezu/base:stage-top": StageSlotProps
+    "@matomezu/base:stage-side": StageSlotProps
     "@matomezu/base:stage-body": StageSlotProps
     "@matomezu/base:book-layers": StageSlotProps
     "@matomezu/base:stage-bottom": StageSlotProps
@@ -285,6 +287,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:history-buttons": typeof HISTORY_BUTTONS
     "@matomezu/base:stage-menu-buttons": typeof STAGE_MENU_BUTTONS
     "@matomezu/base:page-tabs": typeof PAGE_TABS
+    "@matomezu/base:page-list": typeof PAGE_LIST
     "@matomezu/base:close-button": typeof CLOSE_BUTTON
     "@matomezu/base:settings-general": typeof GENERAL_CATEGORY
     "@matomezu/base:settings-keys": typeof KEYS_CATEGORY

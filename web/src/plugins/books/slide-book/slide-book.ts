@@ -34,7 +34,8 @@ export const SLIDE_BOOK = kit.defineBookType({
   schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
+  pageList: true, // ページはステージの左のページ一覧で並べる（ページタブは出さない）
+  duplicatesPages: true, // スライドのアイテムは id を指す項目を持たないので、ページを複製できる
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:ratio-16x9", orientation: "landscape", perPage: true },
   },

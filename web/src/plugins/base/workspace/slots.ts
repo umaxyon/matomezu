@@ -2,6 +2,8 @@
 import { kit } from "../kit"
 
 export const STAGE_TOP = kit.name("stage-top")
+// ステージの本体の左に、本体と並べて置く列（縦に並べる一覧など。幅はウィジェットが決める）
+export const STAGE_SIDE = kit.name("stage-side")
 export const STAGE_BODY = kit.name("stage-body")
 export const STAGE_BOTTOM = kit.name("stage-bottom")
 export const STAGE_CORNER = kit.name("stage-corner")

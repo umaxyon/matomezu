@@ -1,4 +1,4 @@
-// ページタブのドラッグ（フック）: タブを掴んで並べ替える。4px 動かしてから始め、落とす所を index で追い、離したらアクション page-move を行う。
+// ページタブのドラッグ（フック）: タブ（ページ一覧のページも）を掴んで並べ替える。並びの向き axis は、タブの横（x）か、ページ一覧の縦（y）。4px 動かしてから始め、落とす所を index で追い、離したらアクション page-move を行う。
 // タブの並びの外で離したら取り消す。並びが横にあふれていれば、端へ寄せている間スクロールする。始める前に page-move を行えるか問い、行えなければ始めない
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react"
 import { useAllowed, usePerform } from "../../../ui/view-hooks"
@@ -17,7 +17,12 @@ export interface TabDrag {
   index: number | null
 }
 
-export function useTabDrag(stage: string, list: RefObject<HTMLElement | null>, ids: readonly string[]) {
+export function useTabDrag(
+  stage: string,
+  list: RefObject<HTMLElement | null>,
+  ids: readonly string[],
+  axis: "x" | "y" = "x",
+) {
   const perform = usePerform(stage)
   const movable = useAllowed(stage, PAGE_MOVE.id).ok
   const [drag, setDrag] = useState<TabDrag | null>(null)
@@ -34,8 +39,8 @@ export function useTabDrag(stage: string, list: RefObject<HTMLElement | null>, i
     const others = [...slots.current].filter(([k]) => k !== id).map(([, e]) => e.getBoundingClientRect())
     const index = within(el.getBoundingClientRect(), p, OUTSIDE)
       ? dropIndex(
-          others.map(r => r.left + r.width / 2),
-          p.x,
+          others.map(r => (axis === "x" ? r.left + r.width / 2 : r.top + r.height / 2)),
+          axis === "x" ? p.x : p.y,
         )
       : null
     setDrag({ id, grab, x: p.x, y: p.y, index })
@@ -49,8 +54,11 @@ export function useTabDrag(stage: string, list: RefObject<HTMLElement | null>, i
         const r = list.current?.getBoundingClientRect()
         return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null
       },
-      dx => {
-        if (list.current) list.current.scrollLeft -= dx
+      (dx, dy) => {
+        if (list.current) {
+          if (axis === "x") list.current.scrollLeft -= dx
+          else list.current.scrollTop -= dy
+        }
         const g = press.current
         if (g) aimRef.current(g.id, g.grab)
       },
@@ -71,14 +79,18 @@ export function useTabDrag(stage: string, list: RefObject<HTMLElement | null>, i
 
   return {
     drag,
-    // 落とす所の線の位置（並びの中の左端の px。落とす所が無ければ null）
+    // 落とす所の線の位置（並びの中の左端（縦なら上端）の px。落とす所が無ければ null）
     bar: (() => {
       if (!drag || drag.index === null) return null
       const others = ids.filter(k => k !== drag.id).map(k => slots.current.get(k))
       const at = others[drag.index]
       const last = others.at(-1)
-      if (at) return at.offsetLeft - 1
-      return last ? last.offsetLeft + last.offsetWidth + 1 : null
+      if (axis === "x") {
+        if (at) return at.offsetLeft - 1
+        return last ? last.offsetLeft + last.offsetWidth + 1 : null
+      }
+      if (at) return at.offsetTop - 1
+      return last ? last.offsetTop + last.offsetHeight + 1 : null
     })(),
     // タブの置き場所（slot）の要素を覚える
     slot: (id: string) => (el: HTMLElement | null) => {
@@ -100,7 +112,10 @@ export function useTabDrag(stage: string, list: RefObject<HTMLElement | null>, i
           id,
           x: e.clientX,
           y: e.clientY,
-          grab: e.clientX - e.currentTarget.getBoundingClientRect().left,
+          grab:
+            axis === "x"
+              ? e.clientX - e.currentTarget.getBoundingClientRect().left
+              : e.clientY - e.currentTarget.getBoundingClientRect().top,
         }
         e.currentTarget.setPointerCapture(e.pointerId)
       },

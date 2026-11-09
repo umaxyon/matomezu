@@ -14,6 +14,11 @@ export const PAGE_MESSAGES = defineMessages({
   "{page}: {problem}": { en: "{page}: {problem}", ja: "{page}：{problem}" },
   "Add page": { en: "Add page", ja: "ページを足す" },
   "Remove page": { en: "Remove page", ja: "ページを消す" },
+  "Duplicate page": { en: "Duplicate page", ja: "ページを複製" },
+  "Add page here": { en: "Add page here", ja: "ここに追加" },
+  Duplicate: { en: "Duplicate", ja: "複製" },
+  "Delete page...": { en: "Delete page...", ja: "削除…" },
+  "Page list": { en: "Page list", ja: "ページ一覧" },
   "Move page": { en: "Move page", ja: "ページを動かす" },
   "Delete page": { en: "Delete page", ja: "ページを削除" },
   "The page and its contents will be deleted": {

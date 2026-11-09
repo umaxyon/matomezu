@@ -1,5 +1,5 @@
 // workspace のビュー（ウィジェット workspace）: ステージの列を並べ、列ごとにステージのスロットを描く。並べ方は workspace の arrangement に従う。
-// 列は、左上に浮かぶ上の行（stage-top）・ステージの本体（stage-body）・下の行（stage-bottom）と、右上に浮かぶ角（stage-corner）。何を置くかは配置が決める。
+// 列は、左上に浮かぶ上の行（stage-top）・ステージの本体（stage-body。左に、本体と並べる列 stage-side）・下の行（stage-bottom）と、右上に浮かぶ角（stage-corner）。何を置くかは配置が決める。
 // 下の行にポインタが乗っているかを、下の行に置いたウィジェットに渡す（bottom-hover.tsx）。
 // 右上の角は、ステージの中身が縦にスクロールするとき右端に出るスクロールバーに重ならないよう、スクロールバーの幅（この画面で測った値）だけ内側に浮かべる。
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
@@ -28,7 +28,7 @@ import footerRow from "../utils/FooterRow.module.css"
 import { SplitHandle } from "../utils/SplitHandle"
 import { SLIDE_MS } from "../window/slide"
 import { BottomHoverContext } from "./bottom-hover"
-import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
+import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_SIDE, STAGE_TOP } from "./slots"
 import styles from "./WorkspaceView.module.css"
 
 export function WorkspaceView() {
@@ -119,8 +119,15 @@ function StageColumn({ stage }: { stage: string }) {
           <Slot name={STAGE_TOP} props={{ stage }} />
         </div>
       )}
-      <div className={styles.cell}>
-        <Slot name={STAGE_BODY} props={{ stage }} />
+      <div className={styles.body}>
+        {!inPreview && (
+          <div className={styles.side}>
+            <Slot name={STAGE_SIDE} props={{ stage }} />
+          </div>
+        )}
+        <div className={styles.cell}>
+          <Slot name={STAGE_BODY} props={{ stage }} />
+        </div>
       </div>
       {!inPreview && <Bottom stage={stage} />}
       {!inPreview && (

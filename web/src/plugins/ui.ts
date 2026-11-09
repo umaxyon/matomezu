@@ -56,6 +56,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:control-center-screen": ["@matomezu/control-center:screen"],
     "@matomezu/base:control-center-footer": ["@matomezu/base:control-center-perch"],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
+    "@matomezu/base:stage-side": ["@matomezu/base:page-list"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
     "@matomezu/base:book-layers": [
       "@matomezu/base:paper-layer",
@@ -161,6 +162,12 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/tree:node-delete",
     ],
     "@matomezu/paper:item-context": ["@matomezu/paper:paper-edit", "-", "@matomezu/paper:paper-delete"],
+    "@matomezu/base:page-context": [
+      "@matomezu/base:page-add-after",
+      "@matomezu/base:page-duplicate",
+      "-",
+      "@matomezu/base:page-delete",
+    ],
     "@matomezu/list:row-context": ["@matomezu/list:list-edit-row", "-", "@matomezu/list:list-delete-row"],
     "@matomezu/line:line-context": ["@matomezu/line:line-edit", "-", "@matomezu/paper:paper-delete"],
   },

@@ -39,7 +39,19 @@ import { NOTE_NEW } from "./note/commands"
 import { NOTE_EXPIRY } from "./note/expiry"
 // 拡張ポイントに書き足したフィールド listed の型（outbox/listed.ts の declare module）
 import type {} from "./outbox/listed"
-import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
+import {
+  NEW_PAGE_DIALOG,
+  PAGE_ADD,
+  PAGE_ADD_AFTER,
+  PAGE_DELETE,
+  PAGE_DELETE_DIALOG,
+  PAGE_DUPLICATE_COMMAND,
+  PAGE_NEW,
+  PAGE_OPEN,
+  PAGE_SETTINGS,
+  PAGE_SETTINGS_DIALOG,
+} from "./page-tabs"
+import { PAGE_DUPLICATE } from "./page-tabs/page-duplicate"
 import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
@@ -227,6 +239,7 @@ export const BASE = defineBuiltin(
       PAGE_ADD,
       PAGE_UPDATE,
       PAGE_MOVE,
+      PAGE_DUPLICATE,
       PAGE_REMOVE,
       PAGE_LOCK,
       PAGE_UNLOCK,
@@ -322,6 +335,9 @@ export const BASE = defineBuiltin(
       BOOK_OPEN,
       PAGE_NEW,
       PAGE_OPEN,
+      PAGE_ADD_AFTER,
+      PAGE_DUPLICATE_COMMAND,
+      PAGE_DELETE,
       PAGE_SETTINGS,
       BOOK_SETTINGS,
       SETTINGS_SET_COMMAND,
@@ -340,6 +356,7 @@ export const BASE = defineBuiltin(
     dialogs: [
       OPEN_BOOK_DIALOG,
       NEW_PAGE_DIALOG,
+      PAGE_DELETE_DIALOG,
       PAGE_SETTINGS_DIALOG,
       BOOK_SETTINGS_DIALOG,
       NEW_BOOK_DIALOG,
@@ -392,6 +409,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE
     "@matomezu/base:page-move": typeof PAGE_MOVE
+    "@matomezu/base:page-duplicate": typeof PAGE_DUPLICATE
     "@matomezu/base:page-remove": typeof PAGE_REMOVE
     "@matomezu/base:page-lock": typeof PAGE_LOCK
     "@matomezu/base:page-unlock": typeof PAGE_UNLOCK
@@ -492,6 +510,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-open": typeof BOOK_OPEN
     "@matomezu/base:page-new": typeof PAGE_NEW
     "@matomezu/base:page-open": typeof PAGE_OPEN
+    "@matomezu/base:page-add-after": typeof PAGE_ADD_AFTER
+    "@matomezu/base:page-duplicate": typeof PAGE_DUPLICATE_COMMAND
+    "@matomezu/base:page-delete": typeof PAGE_DELETE
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS
     "@matomezu/base:print-preview-open": typeof PRINT_PREVIEW_OPEN
@@ -523,6 +544,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
+    "@matomezu/base:page-delete": typeof PAGE_DELETE_DIALOG
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS_DIALOG
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS_DIALOG
     "@matomezu/base:settings": typeof SETTINGS_DIALOG

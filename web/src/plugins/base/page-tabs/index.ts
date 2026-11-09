@@ -8,6 +8,8 @@ import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import { PAGE_ADD } from "./page-add"
+import { PAGE_DUPLICATE } from "./page-duplicate"
+import { PAGE_REMOVE } from "./page-remove"
 import { PAGE_UPDATE } from "./page-update"
 
 export { PAGE_ADD } from "./page-add"
@@ -16,10 +18,23 @@ export { PAGE_ADD } from "./page-add"
 declare module "../../../core/catalog" {
   interface BookTypeExtras {
     addPagesFromTabs?: boolean
+    // ページ一覧（ステージの左に、ページの縮小絵を縦に並べる）を出すか。出すタイプはページタブを出さない（無ければ出さない。ページを持つタイプだけが使う）
+    pageList?: boolean
+    // ページを複製できるか（複製したページの中の id を振り直すだけで済むタイプだけが宣言する。無ければ複製できない）
+    duplicatesPages?: boolean
   }
 }
 
 export const NEW_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
+
+// ページを消す前に確かめるダイアログ（ページ一覧の右クリックのメニューから開く）
+export const PAGE_DELETE_DIALOG = kit.defineDialogWith<{ page: string }>()({
+  id: "page-delete",
+  edits: a => [a.page],
+})
+
+// ページ一覧のページの右クリックのメニュー（受け取るのは右クリックしたページの id）
+export const PAGE_CONTEXT = kit.name("page-context")
 
 // ページの設定のダイアログ。開いたステージのブックの、ページ page の設定の項目を変える
 export const PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({
@@ -67,4 +82,45 @@ export const PAGE_SETTINGS = kit.defineCommand({
     if (page && ctx.book) a.openDialog(ctx.stage.id, pageDialog(ctx.catalog, ctx.book, "settings"), { page })
   },
   when: ctx => ctx.book !== null && ctx.stage.opened?.page != null,
+})
+
+// ページ page のすぐ後ろに、新しいページを足して開く（ダイアログ無し。名前と紙はタイプの既定）
+export const PAGE_ADD_AFTER = kit.defineCommand({
+  id: "page-add-after",
+  performs: [PAGE_ADD.id],
+  permissionScope: "book",
+  title: "Add page here",
+  run: (ctx, a, { page }: { page: string }) => {
+    const { book } = ctx
+    if (!book || !hasPages(book)) return
+    const at = book.pages.findIndex(p => p.id === page)
+    if (at < 0) return
+    const done = a.perform(PAGE_ADD.id, { index: at + 1 }, { book: book.id })
+    if (done.ok) a.openPage(ctx.stage.id, done.result.page)
+  },
+  when: ctx => ctx.book !== null && hasPages(ctx.book),
+})
+
+// ページ page を複製して、できたページを開く
+export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
+  id: "page-duplicate",
+  performs: [PAGE_DUPLICATE.id],
+  permissionScope: "book",
+  title: "Duplicate",
+  run: (ctx, a, { page }: { page: string }) => {
+    if (!ctx.book) return
+    const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: ctx.book.id })
+    if (done.ok) a.openPage(ctx.stage.id, done.result.page)
+  },
+  when: ctx => ctx.book !== null && hasPages(ctx.book) && bookType(ctx.catalog, ctx.book.type).duplicatesPages === true,
+})
+
+// ページ page を消す前に確かめるダイアログを開く
+export const PAGE_DELETE = kit.defineCommand({
+  id: "page-delete",
+  performs: [PAGE_REMOVE.id],
+  permissionScope: "book",
+  title: "Delete page...",
+  run: (ctx, a, { page }: { page: string }) => a.openDialog(ctx.stage.id, PAGE_DELETE_DIALOG.id, { page }),
+  when: ctx => ctx.book !== null && hasPages(ctx.book),
 })
