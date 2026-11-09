@@ -14,6 +14,7 @@ import {
 } from "../../../plugin-api"
 import { nextItemId } from "../../base"
 import { kit } from "./kit"
+import { scaledFontSize } from "./rect"
 import {
   DEFAULT_FONT_SIZE,
   ELLIPSE,
@@ -158,7 +159,7 @@ export const SLIDE_RESIZE = kit.defineAction({
       // 文字枠の文字の大きさ（無ければ既定の 24）を、幅の倍率で変える
       const scaled = args.scale && s.item === TEXT_FRAME.id && oldW > 0
       const fontSize = typeof s.props.fontSize === "number" ? s.props.fontSize : DEFAULT_FONT_SIZE
-      const props = scaled ? { ...s.props, fontSize: round((fontSize * w) / oldW) } : s.props
+      const props = scaled ? { ...s.props, fontSize: scaledFontSize(fontSize, w, oldW) } : s.props
       return { ...s, x: args.at?.x ?? s.x, y: args.at?.y ?? s.y, w: round(w), h: round(h), props }
     })
     return next && { next, result: {} }

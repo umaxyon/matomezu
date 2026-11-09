@@ -135,3 +135,7 @@ export function thinned(points: readonly Point[], dist: number): Point[] {
   if (end && out.at(-1) !== end) out.push(end)
   return out
 }
+
+// 角のつまみで幅が oldW から w になったときの、文字の大きさ fontSize の新しい値（幅の倍率で変え、小数 2 桁に丸める）
+export const scaledFontSize = (fontSize: number, w: number, oldW: number): number =>
+  Math.round(((fontSize * w) / oldW) * 100) / 100

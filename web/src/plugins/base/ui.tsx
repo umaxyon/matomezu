@@ -59,6 +59,7 @@ export { Dialog } from "./dialog-host/Dialog"
 export {
   ActionButton,
   Choices,
+  ChoiceText,
   controlClass,
   dividerClass,
   Field,

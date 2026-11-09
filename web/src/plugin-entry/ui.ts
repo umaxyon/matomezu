@@ -10,6 +10,7 @@ export {
   BodyField,
   CaptionField,
   Choices,
+  ChoiceText,
   CONTROL_CENTER_FOOTER,
   CONTROL_CENTER_SCREEN,
   type CodeSpan,

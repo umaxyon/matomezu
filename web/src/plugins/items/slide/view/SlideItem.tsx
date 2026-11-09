@@ -1,6 +1,5 @@
 // スライドのアイテム 1 つの絵: 書いた位置と大きさに、角度（rotation）を枠の中心でかけて、アイテムのビューを描く。
 // 操作を受けるレイヤー（SlideLayer）は edit を渡す: アイテムに操作の印（data-item）とアンカーを付け、文字枠は書き換え中ならテキストForm にする。
-// 見るだけの印刷区画は edit を渡さない（同じアイテムが印刷区画の数だけ描かれるので、印を付けない）
 import { type ReactNode, useRef, useState } from "react"
 import type { PlacedShape } from "../../../../plugin-api"
 import { type ItemViewProps, useUiCatalog } from "../../../../plugin-api/ui"

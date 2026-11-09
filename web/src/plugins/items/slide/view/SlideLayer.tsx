@@ -27,7 +27,7 @@ import {
 } from "../../../../plugin-api/ui"
 import { PaperFrame, type StageSlotProps, useFollowsSelection } from "../../../base/ui"
 import { SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
-import { drawnRect, type Grip, resizedRect, rotatedTo, thinned } from "../rect"
+import { drawnRect, type Grip, resizedRect, rotatedTo, scaledFontSize, thinned } from "../rect"
 import { ADDED_EDIT, SLIDE_KEY_SCOPE } from "../scope"
 import { DEFAULT_FONT_SIZE, FREE_LINE, MIN_SIZE, STRAIGHT_LINE, TEXT_FRAME } from "../slide"
 import { GRIPS, type SelectedItem, Selection } from "./Selection"
@@ -270,7 +270,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
     const props = shapeProps(s)
     const scaledSize =
       live.scaled && s.item === TEXT && s.w
-        ? { fontSize: round((((props.fontSize as number | undefined) ?? DEFAULT_FONT_SIZE) * live.rect.w) / s.w) }
+        ? { fontSize: scaledFontSize((props.fontSize as number | undefined) ?? DEFAULT_FONT_SIZE, live.rect.w, s.w) }
         : {}
     return {
       ...s,

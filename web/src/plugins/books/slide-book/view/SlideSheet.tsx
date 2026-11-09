@@ -1,9 +1,9 @@
 // スライドの印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの slide のアイテムを、見るだけで描く。
 // 入力は受けない。紙の外にはみ出た所は、紙の境目で切れる。アイテムの絵は、アイテムの定義の見た目（ui 台帳）で引く
 import type { ReactNode } from "react"
-import { type ItemPage, type PlacedShape, slideOf } from "../../../plugin-api"
-import { type ItemViewProps, useStage, useUiCatalog } from "../../../plugin-api/ui"
-import type { PrintSheetProps } from "../../base/ui"
+import { type ItemPage, type PlacedShape, slideOf } from "../../../../plugin-api"
+import { type ItemViewProps, useStage, useUiCatalog } from "../../../../plugin-api/ui"
+import type { PrintSheetProps } from "../../../base/ui"
 import styles from "./SlideSheet.module.css"
 
 type ShapeView = (p: ItemViewProps<PlacedShape["props"]>) => ReactNode

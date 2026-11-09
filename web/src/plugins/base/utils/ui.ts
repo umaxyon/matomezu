@@ -2,7 +2,6 @@
 
 import { isMac } from "../../../ui/keys"
 
-export { ChoiceText } from "../dialog-host/FormParts"
 export { Stand, type StandAway, useAnchorRef, useAnchorShapeRef, useStandAway } from "./anchors"
 export { ChoiceSetting } from "./ChoiceSetting"
 export { AtCorner, CORNER_STATUSES, type CornerStatusProps, defineCornerStatus, useAtCornerBubble } from "./corner"
