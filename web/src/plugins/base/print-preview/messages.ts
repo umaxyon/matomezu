@@ -28,6 +28,10 @@ export const PRINT_PREVIEW_MESSAGES = defineMessages({
   "Print page numbers": { en: "Print page numbers", ja: "ページ番号を入れる" },
   "Print the book name": { en: "Print the book name", ja: "ブック名を入れる" },
   "Print the page name": { en: "Print the page name", ja: "ページ名を入れる" },
+  "Print background": { en: "Print background", ja: "背景の印刷" },
+  "Background if filled": { en: "If filled", ja: "中身があれば" },
+  "Background always": { en: "Always", ja: "必ず" },
+  "Background never": { en: "Never", ja: "出さない" },
   "This book is locked. Change it anyway?": {
     en: "This book is locked. Change it anyway?",
     ja: "ロック中ですが書き換えてもいいですか？",

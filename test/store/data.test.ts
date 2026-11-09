@@ -43,7 +43,7 @@ const MONTHS = {
 
 test("図面のツールボックスに、リストの次にデータのボタンが出る", () => {
   const store = ready()
-  expect(toolboxOf(CORE_CATALOG, book(store))).toEqual([
+  expect(toolboxOf(CORE_CATALOG, book(store), "items")).toEqual([
     "@matomezu/box:shape-nest-box",
     "@matomezu/list:shape-list",
     DATA.id,

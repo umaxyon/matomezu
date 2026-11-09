@@ -59,6 +59,7 @@ declare module "../../../core/catalog" {
 }
 
 export {
+  BACKGROUND_PRINT,
   PRINT_PREVIEW_BOOK_NAME,
   PRINT_PREVIEW_FLOW,
   PRINT_PREVIEW_ORDER,

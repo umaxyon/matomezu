@@ -16,6 +16,8 @@ import { PrintPreviewPanel } from "./PrintPreviewPanel"
 import { PRINT_CHECK_PANEL_ID, PRINT_PREVIEW_PANEL_ID } from "./panel-id"
 import { ShownSetting } from "./ShownSetting"
 import {
+  BACKGROUND_PRINT,
+  type BackgroundPrint,
   PRINT_PREVIEW_BOOK_NAME,
   PRINT_PREVIEW_FLOW,
   PRINT_PREVIEW_ORDER,
@@ -43,7 +45,26 @@ function OrderSetting(props: SettingControlProps<SheetOrder>) {
   return <ChoiceSetting {...props} options={options} />
 }
 
+function BackgroundPrintSetting(props: SettingControlProps<BackgroundPrint>) {
+  const t = useMessages(kit)
+  const options = [
+    {
+      value: "auto" as const,
+      label: t("Background if filled"),
+      icon: <ChoiceText>{t("Background if filled")}</ChoiceText>,
+    },
+    {
+      value: "always" as const,
+      label: t("Background always"),
+      icon: <ChoiceText>{t("Background always")}</ChoiceText>,
+    },
+    { value: "never" as const, label: t("Background never"), icon: <ChoiceText>{t("Background never")}</ChoiceText> },
+  ]
+  return <ChoiceSetting {...props} options={options} />
+}
+
 export const PRINT_PREVIEW_SETTING_VIEWS = {
+  [BACKGROUND_PRINT.id]: { control: BackgroundPrintSetting },
   [PRINT_PREVIEW_FLOW.id]: { control: FlowSetting },
   [PRINT_PREVIEW_ORDER.id]: { control: OrderSetting },
   [PRINT_PREVIEW_SHEET_NUMBERS.id]: { control: ShownSetting },

@@ -3,6 +3,7 @@
 // つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角。
 // つなぐものは、紙が描いた絵（drawn.tsx）があればそれを使う
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { slideIsBackground } from "../../../core/def/book-type"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import type { Point, Rect } from "../../../core/geom"
 import { byConnector, type ItemPage, shapesOf, slideOf } from "../../../core/placed"
@@ -53,12 +54,15 @@ export function minimapMarks(
   page: ItemPage,
   drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
 ): readonly MinimapMark[] {
-  const minimap = catalog.presentations.get(bookType(catalog, book.type).presentation)?.minimap
+  const type = bookType(catalog, book.type)
+  const minimap = catalog.presentations.get(type.presentation)?.minimap
   if (!minimap) return []
-  return minimap(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), drawn })
+  // 背景（ページの slide。背景を持つタイプ）は、ミニマップに描かない（中身の位置の目印）
+  const shown = slideIsBackground(type) ? { ...page, slide: undefined } : page
+  return minimap(catalog, shown, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), drawn })
 }
 
-// 置いたアイテムの絵（ページの slide の形も含む。見せ方の minimap に、そのまま書ける）
+// 置いたアイテムの絵（ページの slide の形も含む。背景は minimapMarks が外す。見せ方の minimap に、そのまま書ける）
 export function itemMinimapMarks(catalog: CoreCatalog, page: ItemPage, { setting, drawn }: MinimapOn): MinimapMark[] {
   const rects = rectsOf(catalog, page)
   const areas = portAreasOf(catalog, page, rects)

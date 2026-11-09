@@ -608,8 +608,8 @@ test("流れの向きはページにも持て、ページの設定では「ブ�
   const choices = within(within(dialog).getByRole("group", { name: "流れの向き" })).getAllByRole("radio")
   expect(choices.map(c => c.getAttribute("aria-label"))).toEqual(["ブックを継承（下へ）", "下へ", "右へ"])
   expect((choices[0] as HTMLInputElement).checked).toBe(true)
-  // 継承のボタンは文字で出す（線の既定の通り方と流れの向きの 2 つ）
-  expect(within(dialog).getAllByText("ブック継承")).toHaveLength(2)
+  // 継承のボタンは文字で出す（線の既定の通り方と流れの向きと背景の印刷の 3 つ）
+  expect(within(dialog).getAllByText("ブック継承")).toHaveLength(3)
   fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
   act(() => {
     expect(

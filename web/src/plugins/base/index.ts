@@ -67,6 +67,7 @@ import { PARTICIPANT_ALIVE } from "./participant/alive"
 import { PARTICIPANT_JOIN_DIALOG } from "./participant/dialogs"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import {
+  BACKGROUND_PRINT,
   PRINT,
   PRINT_KEYS,
   PRINT_PREVIEW_BOOK_NAME,
@@ -190,7 +191,7 @@ export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export type { PrintSheets, SheetPurpose } from "./print-preview"
 export { breakShift } from "./print-preview/breaks"
 export { printSheetsOf, sheetShapes, sheetsOfShape } from "./print-preview/filled"
-export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
+export { BACKGROUND_PRINT, PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 export type { SearchableDef } from "./search/search"
 export {
   BOOK_TEXT_COLORS,
@@ -285,6 +286,7 @@ export const BASE = defineBuiltin(
       PRINT_PREVIEW_SHEET_NUMBERS,
       PRINT_PREVIEW_BOOK_NAME,
       PRINT_PREVIEW_PAGE_NAME,
+      BACKGROUND_PRINT,
     ],
     userSettings: [
       LANG,
@@ -388,6 +390,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
     "@matomezu/base:book-text-colors": typeof BOOK_TEXT_COLORS
     "@matomezu/base:print-preview-flow": typeof PRINT_PREVIEW_FLOW
+    "@matomezu/base:background-print": typeof BACKGROUND_PRINT
     "@matomezu/base:print-preview-order": typeof PRINT_PREVIEW_ORDER
     "@matomezu/base:print-preview-sheet-numbers": typeof PRINT_PREVIEW_SHEET_NUMBERS
     "@matomezu/base:print-preview-book-name": typeof PRINT_PREVIEW_BOOK_NAME
