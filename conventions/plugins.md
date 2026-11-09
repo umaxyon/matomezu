@@ -31,7 +31,7 @@
 ## プラグインの中の形
 
 - 入口は `index.ts`（React なし。プラグインの定義）と `ui.tsx`（見た目を結ぶ `definePluginUi`）
-- 大きなプラグインは中を機能ごとのフォルダに分け、各フォルダにも同じ形（`index.ts`・`ui.tsx`・コンポーネント・`messages.ts`）で置く。プラグインの `index.ts`・`ui.tsx`・`messages.ts` が集める（文言の表は `joinMessages` で 1 つにする。スプレッドで重ねると、同じ鍵の訳が黙ってあとの表で上書きされる）
+- 大きなプラグインは中を機能ごとのフォルダに分ける。フォルダには要る物だけを置き、置くときは同じ名前と役割にする（定義は `index.ts`、見た目を結ぶのは `ui.tsx`（JSX が無ければ `ui.ts`）、文言は `messages.ts`）。プラグインの `index.ts`・`ui.tsx`・`messages.ts` が集める（文言の表は `joinMessages` で 1 つにする。スプレッドで重ねると、同じ鍵の訳が黙ってあとの表で上書きされる）。定義を見た目のファイルに、文言の表を `messages.ts` のほかに書かないことは `test/rules.test.ts` が見張る
 - ブックのビューは `view/` に置く
 - 同じプラグインの中は、下のフォルダも読める
 - フォルダを動かしたら、`core/catalog.ts` への書き足し（`declare module`）のパスも直す（ずれても誤りにならず、型が never になる）
