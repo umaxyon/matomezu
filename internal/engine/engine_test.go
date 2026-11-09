@@ -162,7 +162,7 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 			Schema json.RawMessage `json:"schema"`
 		} `json:"settings"`
 	}
-	if err := json.Unmarshal(newEngine(t).AICatalog(), &c); err != nil {
+	if err := json.Unmarshal(newEngine(t).AICatalogForTest(), &c); err != nil {
 		t.Fatal(err)
 	}
 	found := false
@@ -186,7 +186,7 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 		strings.Join(langs, ",") != "matomezu:en=en,matomezu:ja=ja" || strings.Join(c.Skins, ",") != "@matomezu/base:dark,@matomezu/base:light,@matomezu/base:matomezu-light,@matomezu/base:matomezu-dark" ||
 		!strings.Contains(schemas["@matomezu/base:lang"], `"enum":["matomezu:en","matomezu:ja"]`) ||
 		!strings.Contains(schemas["@matomezu/base:skin"], `"enum":["auto","@matomezu/base:dark","@matomezu/base:light","@matomezu/base:matomezu-light","@matomezu/base:matomezu-dark"]`) {
-		t.Fatalf("ai catalog = %s", newEngine(t).AICatalog())
+		t.Fatalf("ai catalog = %s", newEngine(t).AICatalogForTest())
 	}
 }
 
@@ -204,7 +204,7 @@ func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
 			Kind string `json:"kind"`
 		} `json:"items"`
 	}
-	if err := json.Unmarshal(newEngine(t).AICatalog(), &c); err != nil {
+	if err := json.Unmarshal(newEngine(t).AICatalogForTest(), &c); err != nil {
 		t.Fatal(err)
 	}
 	types := map[string]string{}
@@ -242,7 +242,7 @@ func TestAICatalogDescribesListRows(t *testing.T) {
 			Args json.RawMessage `json:"args"`
 		} `json:"actions"`
 	}
-	if err := json.Unmarshal(newEngine(t).AICatalog(), &c); err != nil {
+	if err := json.Unmarshal(newEngine(t).AICatalogForTest(), &c); err != nil {
 		t.Fatal(err)
 	}
 	args := map[string]string{}
@@ -301,7 +301,7 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 	if ids := usePlugin(t, e, "../../test/added-plugins/ex2"); len(ids) != 1 || ids[0] != "ex2" {
 		t.Fatalf("ids = %v", ids)
 	}
-	if c := string(e.AICatalog()); !strings.Contains(c, `"id":"ex2:diamond"`) || !strings.Contains(c, `"ex2:flow"`) {
+	if c := string(e.AICatalogForTest()); !strings.Contains(c, `"id":"ex2:diamond"`) || !strings.Contains(c, `"ex2:flow"`) {
 		t.Fatalf("the AI catalog lacks the added plugin: %s", c)
 	}
 	out, err := e.Perform(Input{
@@ -372,7 +372,7 @@ module.exports.default = {
 // 新しい組で MCP 公開ツールの actions が返す物を作る所（アクションの describeArgs）が投げたら、組み直しは失敗し、定義も機能台帳も前のまま
 func TestKeepsTheCatalogWhenTheAICatalogCannotBeMade(t *testing.T) {
 	e := newEngine(t)
-	before := string(e.AICatalog())
+	before := string(e.AICatalogForTest())
 	b := &plugin.Bundle{Dir: "thrower", Manifest: plugin.Manifest{ID: "thrower", Engine: "index.ts"}, Engine: `
 var m = globalThis.__matomezuModules["matomezu"];
 module.exports.default = {
@@ -388,7 +388,7 @@ module.exports.default = {
 	if _, err := e.Use([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("err = %v", err)
 	}
-	if got := string(e.AICatalog()); got != before {
+	if got := string(e.AICatalogForTest()); got != before {
 		t.Fatalf("the AI catalog changed: %s", got)
 	}
 	out, err := e.Perform(Input{Action: "thrower:boom", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en"})
@@ -475,8 +475,8 @@ func TestAICatalogIndexListsEverythingAndEntriesGiveTheFullText(t *testing.T) {
 	if _, has := idx.Index.Mails[0]["props"]; !has {
 		t.Fatalf("a mail kind in the index is not whole: %v", idx.Index.Mails[0])
 	}
-	if len(raw) > 20000 || len(raw)*3 > len(e.AICatalog()) {
-		t.Fatalf("the index is %d characters of %d", len(raw), len(e.AICatalog()))
+	if len(raw) > 20000 || len(raw)*3 > len(e.AICatalogForTest()) {
+		t.Fatalf("the index is %d characters of %d", len(raw), len(e.AICatalogForTest()))
 	}
 	if len(idx.Version) != 12 || idx.Version != strings.TrimSpace(idx.Version) {
 		t.Fatalf("version = %q", idx.Version)
@@ -514,4 +514,11 @@ func TestAICatalogVersionChangesWithTheAddedPlugins(t *testing.T) {
 	if version() == before {
 		t.Fatal("the version did not change after adding a plugin")
 	}
+}
+
+// AICatalogForTest は AI の一覧の全部（表ごとの全文と目次。本番は目次か、ids の全文だけを返す）
+func (e *Engine) AICatalogForTest() json.RawMessage {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.aiCatalog
 }

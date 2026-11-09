@@ -1,16 +1,13 @@
 package server
 
-// AI がブックを読む口の、目次と範囲。大きいブックを 1 回で返すと MCP の上限を超えるので、ブックは目次（ページの id・題名・大きさ）で、
-// ページは 1 つの物（その中の物ごと）で絞って読める。ブックの形は、pages（id・title）と、ページの items（id・item）の並びだけを知っていて、ほかは見ない。
+// AI がブックを読む口の、ブックの目次とページの範囲。大きいブックを 1 回で返すと MCP の上限を超えるので、ブックはページの目次（id・題名・大きさ）で、
+// ページは 1 つの物（子の形ごと）で絞って読める。ここで知るブックの形は、pages（id・title）と、ページの items（id・item）の並びだけ。物を id で探すのは engine（AIItem）が core の探し方で行う。
 //
 //	GET /api/ai/books/{id}?outline=1                     {"id", "book": ブックの本文のうち pages を [{"id", "title", "size"}] にした物, "version", "annotations"}
 //	GET /api/ai/books/{id}/pages/{page}?outline=1        ページの items を [{"id", "item", "size"}] にした物（size は文字数）
-//	GET /api/ai/books/{id}/pages/{page}?item=<物の id>   {"id", "page": ページの id, "item": その物（中の物も）, "version", "annotations": その物と中の物に立つもの, "placed": その物と中の物の位置と大きさ}
+//	GET /api/ai/books/{id}/pages/{page}?item=<物の id>   {"id", "page": ページの id, "item": その物（子の形も）, "version", "annotations": その物と子の形に立つもの, "placed": その物と子の形の位置と大きさ}
 
-import (
-	"encoding/json"
-	"slices"
-)
+import "encoding/json"
 
 // sizeOf は JSON にしたときの文字数
 func sizeOf(v any) int {
@@ -24,7 +21,10 @@ func outlineBook(body json.RawMessage) json.RawMessage {
 	if json.Unmarshal(body, &book) != nil {
 		return body
 	}
-	pages, _ := book["pages"].([]any)
+	pages, has := book["pages"].([]any)
+	if !has {
+		return body
+	}
 	list := []any{}
 	for _, p := range pages {
 		page, _ := p.(map[string]any)
@@ -52,56 +52,4 @@ func outlinePage(page json.RawMessage) json.RawMessage {
 	}
 	out, _ := json.Marshal(p)
 	return out
-}
-
-// findItem は、ページの中（中の物も）の、id が want の物と、その物と中の物の id の全部
-func findItem(page json.RawMessage, want string) (found map[string]any, ids []string) {
-	var p map[string]any
-	if json.Unmarshal(page, &p) != nil {
-		return nil, nil
-	}
-	var walk func(v any) map[string]any
-	walk = func(v any) map[string]any {
-		switch x := v.(type) {
-		case map[string]any:
-			if id, _ := x["id"].(string); id == want && x["item"] != nil {
-				return x
-			}
-			for _, child := range x {
-				if hit := walk(child); hit != nil {
-					return hit
-				}
-			}
-		case []any:
-			for _, child := range x {
-				if hit := walk(child); hit != nil {
-					return hit
-				}
-			}
-		}
-		return nil
-	}
-	found = walk(p["items"])
-	if found == nil {
-		return nil, nil
-	}
-	var collect func(v any)
-	collect = func(v any) {
-		switch x := v.(type) {
-		case map[string]any:
-			if id, _ := x["id"].(string); id != "" && x["item"] != nil {
-				ids = append(ids, id)
-			}
-			for _, child := range x {
-				collect(child)
-			}
-		case []any:
-			for _, child := range x {
-				collect(child)
-			}
-		}
-	}
-	collect(found)
-	slices.Sort(ids)
-	return found, ids
 }

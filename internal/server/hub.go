@@ -697,6 +697,11 @@ func (h *Hub) AISettings() (json.RawMessage, error) {
 	return h.engine.AISettings(settings)
 }
 
+// AIItem は、ページの中の、id の物とその物と子の形の id の全部（engine.AIItem）
+func (h *Hub) AIItem(page json.RawMessage, id string) (json.RawMessage, []string, bool, error) {
+	return h.engine.AIItem(page, id)
+}
+
 // AICatalog は MCP 公開ツールの actions が返す物。ids が無ければ一覧の版と目次（今の warning を添える）、あれば ids の物の全文（engine.AICatalogIndex・AICatalogEntries）
 func (h *Hub) AICatalog(ids []string) json.RawMessage {
 	if len(ids) > 0 {

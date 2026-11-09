@@ -132,8 +132,12 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 		placed = json.RawMessage("null")
 	}
 	if item := r.URL.Query().Get("item"); item != "" {
-		found, ids := findItem(page, item)
-		if found == nil {
+		found, ids, ok, err := o.Hub.AIItem(page, item)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if !ok {
 			http.Error(w, "no such item", http.StatusNotFound)
 			return
 		}

@@ -93,6 +93,7 @@ type Engine struct {
 	mails     func(string) string
 	forAI     func(string) string
 	placed    func(string) string
+	item      func(string, string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
@@ -135,6 +136,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiPlaced"), &e.placed); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiPlaced: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiItem"), &e.item); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiItem: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuTalkActions"), &e.talk); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuTalkActions: %w", err)
@@ -517,12 +521,26 @@ func (e *Engine) AISettings(settings json.RawMessage) (out json.RawMessage, err 
 	return json.RawMessage(e.settings(string(settings))), nil
 }
 
-// AICatalog は MCP 公開ツールの actions が返す物: アクション（{"id", "target", "title", "args"}）・アイテム（{"id", "title", "size", "props"}）・
-// ブックのタイプ・利用者の設定の項目・テーマ・言語パック・スキン・色・文字の色（作るのは web/src/engine/engine.ts の aiCatalog）。args と props は JSON Schema
-func (e *Engine) AICatalog() json.RawMessage {
+// AIItem は、ページ（JSON）の中の、どの深さの形も、つなぐものも、id で探した物（item）と、その物と子の形の id の全部（ids）。無ければ found が偽（core の探し方で探す）
+func (e *Engine) AIItem(page json.RawMessage, id string) (item json.RawMessage, ids []string, found bool, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.aiCatalog
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got *struct {
+		Item json.RawMessage `json:"item"`
+		IDs  []string        `json:"ids"`
+	}
+	if err := json.Unmarshal([]byte(e.item(string(page), id)), &got); err != nil {
+		return nil, nil, false, err
+	}
+	if got == nil {
+		return nil, nil, false, nil
+	}
+	return got.Item, got.IDs, true, nil
 }
 
 // randomUUID は版 4 の UUID（画面の crypto.randomUUID と同じ形）
