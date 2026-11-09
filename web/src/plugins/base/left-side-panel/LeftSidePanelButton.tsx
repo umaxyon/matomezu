@@ -18,7 +18,7 @@ export function LeftSidePanelButton({ stage }: StageSlotProps) {
   if (!first) return null
   const counters = tabs.flatMap(id => {
     const use = widgets.get(id)?.leftSidePanel?.useCount
-    return use ? [use] : []
+    return use ? [{ id, use }] : []
   })
   return (
     <button
@@ -34,12 +34,12 @@ export function LeftSidePanelButton({ stage }: StageSlotProps) {
         <rect x="3" y="4" width="18" height="16" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
         <path d="M9 4v16M5 8h2M5 11h2M5 14h2" fill="none" stroke="currentColor" strokeWidth="1.5" />
       </svg>
-      <Count counters={counters} />
+      <Count key={counters.map(c => c.id).join("|")} counters={counters.map(c => c.use)} />
     </button>
   )
 }
 
-// タブの数の合計（0 なら出さない）。タブの並びは変わらないので、フックを呼ぶ数も変わらない
+// タブの数の合計（0 なら出さない）。数を答えるタブの並びが変わったら（プラグインを足す・外す）key が変わって作り直すので、1 つの間はフックを呼ぶ数が変わらない
 function Count({ counters }: { counters: readonly (() => number)[] }) {
   const t = useMessages(kit)
   const total = counters.map(use => use()).reduce((a, b) => a + b, 0)

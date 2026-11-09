@@ -447,7 +447,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
       source.on(name, data => {
         if (events !== source) return
         heard(source)
-        listener(data)
+        // 形の合わない知らせは、そのまま捨てる（例外を外に出さない）
+        try {
+          listener(data)
+        } catch (e) {
+          logLine(`ignored a malformed ${name} notice: ${e instanceof Error ? e.message : String(e)}`)
+        }
       })
     if (!first) heard(source)
     source.onError(() => {

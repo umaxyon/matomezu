@@ -266,6 +266,13 @@ test("ゴミ箱に入ったブックはゴミ箱へ分け、消したと届い�
   expect("b1" in store.state.getState().trash).toBe(false)
 })
 
+test("形の合わない知らせは捨て、あとの知らせは受け続ける", async () => {
+  const { store, emit } = await connected()
+  emit("book", { version: 2 })
+  emit("book", { book: b1With("x"), version: 3 })
+  expect(itemsOf(store)).toEqual(["x"])
+})
+
 test("古い版の知らせは使わない", async () => {
   const { store, emit } = await connected()
   emit("book", { book: b1With("x"), version: 3 })

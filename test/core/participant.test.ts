@@ -45,3 +45,8 @@ test("残しておいた表は、並びならそのまま、並びでなけれ�
   expect(restoreParticipants(null)).toEqual([])
   expect(restoreParticipants({ a: 1 })).toEqual([])
 })
+
+test("id が重なる参加者の表は断る", () => {
+  const old = person()
+  expect(participantsSettle([old], [old, person({ link: "l2" })])).toBe(false)
+})
