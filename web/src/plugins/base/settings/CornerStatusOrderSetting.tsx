@@ -5,9 +5,9 @@ import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useUiCatalog } from "../../../ui/store-context"
 import { rowClass, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { useCornerStatuses } from "../utils/corner"
+import { movedStatus } from "../utils/corner-order"
 import styles from "./CornerStatusOrderSetting.module.css"
-import { useCornerStatuses } from "./corner"
-import { movedStatus } from "./corner-order"
 
 export function CornerStatusOrderSetting({ label, onChange }: UserSettingControlProps<readonly string[]>) {
   const t = useMessages(kit)

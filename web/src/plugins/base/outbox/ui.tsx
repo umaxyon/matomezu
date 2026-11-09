@@ -2,7 +2,8 @@
 import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
-import { defineLeftSidePanelTab, type PlaceInSlot, placeIn } from "../left-side-panel/ui"
+import { defineLeftSidePanelTab } from "../left-side-panel/ui"
+import { type PlaceInSlot, placeIn } from "../utils/place-in"
 import { Outbox } from "./Outbox"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
 

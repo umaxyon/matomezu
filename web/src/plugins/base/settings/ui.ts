@@ -1,8 +1,8 @@
 // 利用者の設定の見た目: 土台が読む項目と利用者の文字の色のビュー、設定の並び
 import { TextColorsSetting } from "../text/TextColorsSetting"
 import { USER_TEXT_COLORS } from "../text/text-colors"
-import { CornerStatusOrderSetting } from "../utils/CornerStatusOrderSetting"
 import { CORNER_STATUS_ORDER } from "../utils/corner-order"
+import { CornerStatusOrderSetting } from "./CornerStatusOrderSetting"
 import { SettingsDialog } from "./SettingsDialog"
 import { SETTINGS_DIALOG } from "./settings-screen"
 import { LANG, SKIN } from "./user-settings"

@@ -282,6 +282,19 @@ test("単体のテストは、確かめる物の置き場（クレートか test
   expect(bad).toEqual([])
 })
 
+// base の utils は、どの機能にも属さない共通の処理の置き場なので、base の機能のフォルダを読まない（base の直下のファイルは読んでよい）（plugins の「プラグインどうしの関係」）
+test("base の utils は、base の機能のフォルダを読まない", () => {
+  const offenders = sources
+    .filter(f => f.rel.startsWith("plugins/base/utils/"))
+    .flatMap(f =>
+      [...f.text.matchAll(/from\s*["'](\.\.\/[^"']+)["']/g)]
+        .map(m => normalize(join(dirname(f.rel), m[1]!)))
+        .filter(t => /^plugins\/base\/[^/]+\//.test(t) && !t.startsWith("plugins/base/utils/"))
+        .map(t => `${f.rel} → ${t}`),
+    )
+  expect(offenders).toEqual([])
+})
+
 // コメントの言葉を見張るファイル（ソース・テスト・e2e・スクリプト・CSS・Go。このファイルは除く）
 const wordedFiles = () =>
   [
