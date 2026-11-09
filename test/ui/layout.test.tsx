@@ -362,6 +362,7 @@ describe("取り込んだプラグインの置き場所", () => {
       "@matomezu/base:print-area-layer",
       "q:under",
       "@matomezu/base:book-content",
+      "@matomezu/slide:slide-layer",
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",

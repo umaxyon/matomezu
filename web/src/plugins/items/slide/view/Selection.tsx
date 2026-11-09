@@ -1,12 +1,12 @@
 // 選んだスライドのアイテムの上に出す物: 枠線・四隅と四辺のつまみ・回すつまみ（右上の角の斜め外）と、そばに立つバー（スタンド。上が足りなければ下。比率の固定・比率を元に戻す・角度）。
 // 枠とつまみは、アイテムと同じ位置・大きさ・角度でかける。大きさは画面の上で一定にする（紙の倍率 --paper-zoom で割る）。バーは傾けず、倍率でも変えない（スタンドが付いて動く）
 import { useState } from "react"
-import type { Rect } from "../../../plugin-api"
-import { useCommand, useMessages } from "../../../plugin-api/ui"
-import { Stand } from "../../base/ui"
-import { SLIDE_RESET, SLIDE_SET } from "./commands"
-import { kit } from "./kit"
-import { normalizeAngle } from "./rect"
+import type { Rect } from "../../../../plugin-api"
+import { useCommand, useMessages } from "../../../../plugin-api/ui"
+import { Stand } from "../../../base/ui"
+import { SLIDE_RESET, SLIDE_SET } from "../commands"
+import { kit } from "../kit"
+import { normalizeAngle } from "../rect"
 import styles from "./Selection.module.css"
 
 export const GRIPS = [

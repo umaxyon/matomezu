@@ -1,17 +1,15 @@
 // スライドのアイテム 1 つの絵: 書いた位置と大きさに、角度（rotation）を枠の中心でかけて、アイテムのビューを描く。
-// 操作を受けるビュー（SlideView）は edit を渡す: アイテムに操作の印（data-item）とアンカーを付け、文字枠は書き換え中ならテキストForm にする。
-// 見るだけの印刷区画（SlideSheet）は edit を渡さない（同じアイテムが印刷区画の数だけ描かれるので、印を付けない）
+// 操作を受けるレイヤー（SlideLayer）は edit を渡す: アイテムに操作の印（data-item）とアンカーを付け、文字枠は書き換え中ならテキストForm にする。
+// 見るだけの印刷区画は edit を渡さない（同じアイテムが印刷区画の数だけ描かれるので、印を付けない）
 import { type ReactNode, useRef, useState } from "react"
-import type { PlacedShape } from "../../../plugin-api"
-import { type ItemViewProps, useUiCatalog } from "../../../plugin-api/ui"
-import { useAnchorRef } from "../../base/ui"
-import styles from "./SlideView.module.css"
+import type { PlacedShape } from "../../../../plugin-api"
+import { type ItemViewProps, useUiCatalog } from "../../../../plugin-api/ui"
+import { useAnchorRef } from "../../../base/ui"
+import { DEFAULT_FONT_SIZE } from "../slide"
+import styles from "./SlideLayer.module.css"
 
 export const shapeProps = (shape: PlacedShape): Record<string, unknown> => shape.props as Record<string, unknown>
 export const rotationOf = (shape: PlacedShape): number => (shapeProps(shape).rotation as number | undefined) ?? 0
-
-// 文字枠の文字の大きさ（px）の既定（slide プラグインの DEFAULT_FONT_SIZE と同じ）
-export const DEFAULT_FONT_SIZE = 24
 
 export interface SlideItemEdit {
   editing: boolean

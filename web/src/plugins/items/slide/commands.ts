@@ -1,16 +1,17 @@
-// スライドのブックのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・比率を戻す・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
+// スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・比率を戻す・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、見せ方が決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
 import { type ItemId, type ItemPage, pagedOf, type Rect, slideOf } from "../../../plugin-api"
 
+import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_RESET_RATIO, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
 import { kit } from "./kit"
-import { SLIDE_KEY_SCOPE } from "./slide-book"
+import { SLIDE_KEY_SCOPE } from "./scope"
 
-const PLACE = "@matomezu/slide:slide-place"
-const MOVE = "@matomezu/slide:slide-move"
-const RESIZE = "@matomezu/slide:slide-resize"
-const UPDATE = "@matomezu/slide:slide-update"
-const RESET_RATIO = "@matomezu/slide:slide-reset-ratio"
-const REMOVE = "@matomezu/slide:slide-remove"
+const PLACE = SLIDE_PLACE.id
+const MOVE = SLIDE_MOVE.id
+const RESIZE = SLIDE_RESIZE.id
+const UPDATE = SLIDE_UPDATE.id
+const RESET_RATIO = SLIDE_RESET_RATIO.id
+const REMOVE = SLIDE_REMOVE.id
 
 type Ctx = Parameters<Parameters<typeof kit.defineCommand>[0]["run"]>[0]
 

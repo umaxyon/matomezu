@@ -61,6 +61,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:paper-layer",
       "@matomezu/base:print-area-layer",
       "@matomezu/base:book-content",
+      "@matomezu/slide:slide-layer",
       "@matomezu/base:stand-layer",
       "@matomezu/base:note-layer",
       "@matomezu/base:mark-layer",

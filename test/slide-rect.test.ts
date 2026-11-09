@@ -8,7 +8,7 @@ import {
   resizedRect,
   rotatedTo,
   thinned,
-} from "../web/src/plugins/books/slide-book/rect"
+} from "../web/src/plugins/items/slide/rect"
 
 const F = { x: 100, y: 50, w: 200, h: 100 }
 const close = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(1e-6)

@@ -64,7 +64,9 @@ export const EllipseProps = z.strictObject({
 // 文字枠の文字の大きさ（px）の既定
 export const DEFAULT_FONT_SIZE = 24
 
-const MIN = { w: 8, h: 8 } as const
+// アイテムの幅・高さの下限（px）
+export const MIN_SIZE = 8
+const MIN = { w: MIN_SIZE, h: MIN_SIZE } as const
 
 export const TEXT_FRAME = kit.defineShape({
   id: "slide-text",

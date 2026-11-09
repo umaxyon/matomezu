@@ -7,12 +7,6 @@ import { kit } from "./kit"
 import { slideMinimapMarks, slidePrintSheets } from "./print"
 import { SLIDE_PRINT } from "./print-setting"
 
-// スライドの見せ方で描いている間のキー（ビューの根が名乗り、押した所がこの中なら、ここのキーが紙のキーより先に効く）
-export const SLIDE_KEY_SCOPE = kit.defineKeyScope({ id: "slide", title: "Slide" })
-
-// 置いたばかりの文字枠の文字の書き換え（書き終えた変更は、置いた変更と画面の履歴の 1 段にまとめる）
-export const ADDED_EDIT = kit.name("added-edit")
-
 export const SLIDE_PRESENTATION = kit.definePresentation({
   id: "slide",
   minimap: slideMinimapMarks, // ミニマップには、アイテムの枠を四角で描く

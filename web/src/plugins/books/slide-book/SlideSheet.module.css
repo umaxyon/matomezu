@@ -1,0 +1,6 @@
+/* 印刷区画の中のアイテム 1 つ（書いた位置と大きさ。角度は枠の中心でかける） */
+.item {
+  position: absolute;
+  transform-origin: 50% 50%;
+  cursor: default;
+}
