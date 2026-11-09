@@ -1,4 +1,5 @@
 // 開発用: 画面を変更のたびにビルドし直し、web/dist を Go の常駐（matomezu serve）で配る。bun scripts/dev.ts <ポート> [serve に渡す引数]
+// 開いたブラウザは画面 cookie を持つ必要がある（cookie が無い画面は「画面 cookie が要る」と出る）。MATOMEZU_HOME=.dev-home .dev-home/matomezu open で、画面 cookie を渡す URL でブラウザが開く。
 // 追加プラグインを結ぶなら bun run dev --plugin <開発者プロジェクトのフォルダ>（変えたら起動し直すか、POST /api/plugins で入れ替える）。
 // 常駐の matomezu 保管庫フォルダは .dev-home（利用者が使っている matomezu 保管庫フォルダに触らない）。Go のコードを変えたら起動し直す
 import { webBuild } from "./web-build"

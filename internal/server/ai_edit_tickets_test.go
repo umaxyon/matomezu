@@ -25,8 +25,9 @@ func hubAt(t *testing.T, path string) (*Hub, *httptest.Server) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	o := Options{Token: "secret", Version: "v1", Hub: hub}
+	o := Options{Token: "secret", Version: "v1", Hub: hub, Cookies: NewScreenCookies(nil, nil)}
 	s := httptest.NewServer(withRoutesForTest(Handler(o), o))
+	cookieTestBrowser(t, s, o.Cookies)
 	t.Cleanup(func() {
 		s.Close()
 		hub.CloseAll()

@@ -42,6 +42,7 @@ type cli struct {
 	Serve       serveCmd       `cmd:"" help:"Run the server in the foreground."`
 	Start       startCmd       `cmd:"" help:"Start the server in the background unless it is running, and print its URL."`
 	Stop        stopCmd        `cmd:"" help:"Stop the background server."`
+	Open        openCmd        `cmd:"" help:"Open the screen in your browser and give it the server's screen cookie (for a browser that has none). Nothing is printed."`
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, and AI's changes the user undid before seeing them, for an AI's hook. Prints nothing when there are none or the server is not running."`
 	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
@@ -75,6 +76,8 @@ type startCmd struct {
 }
 
 type stopCmd struct{}
+
+type openCmd struct{}
 
 type mcpCmd struct {
 	serverFlags
@@ -165,10 +168,25 @@ func (c *serveCmd) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	url := "http://" + ln.Addr().String() + "/"
+	keys, err := h.ReadCookieKeys()
+	if err != nil {
+		return err
+	}
+	cookieKeys := make([]server.CookieKey, len(keys))
+	for i, k := range keys {
+		cookieKeys[i] = server.CookieKey(k)
+	}
+	saveCookieKeys := func(ks []server.CookieKey) error {
+		out := make([]home.CookieKey, len(ks))
+		for i, k := range ks {
+			out[i] = home.CookieKey(k)
+		}
+		return h.WriteCookieKeys(out)
+	}
 	srv := &http.Server{
 		Handler: server.Handler(server.Options{
 			Web: webFS, Token: token, Version: version, Stop: stop, Hub: hub,
-			URL: url, Open: func() error { return browser.Open(url) },
+			URL: url, Open: browser.Open, Cookies: server.NewScreenCookies(cookieKeys, saveCookieKeys),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -454,6 +472,34 @@ func (c *stopCmd) Run() error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return errors.New("the server did not stop")
+}
+
+// Run は、cookie のコード付きでブラウザを開かせる（画面 cookie が切れたブラウザを、利用者が自分で渡し直す）。常駐が立っていなければ立てる
+func (c *openCmd) Run() error {
+	h, err := openHome()
+	if err != nil {
+		return err
+	}
+	s, err := ensure(h, serverFlags{Addr: DefaultAddr})
+	if err != nil {
+		return err
+	}
+	out, _, _, err := send(s, http.MethodPost, "api/open", nil, nil)
+	if err != nil {
+		return err
+	}
+	var done struct {
+		OK     bool   `json:"ok"`
+		Reason string `json:"reason"`
+		Detail string `json:"detail"`
+	}
+	if err := json.Unmarshal(out, &done); err != nil {
+		return err
+	}
+	if !done.OK {
+		return fmt.Errorf("the browser could not be opened: %s %s", done.Reason, done.Detail)
+	}
+	return nil
 }
 
 func (versionCmd) Run() error {

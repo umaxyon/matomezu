@@ -1,6 +1,6 @@
 // Package home は matomezu 保管庫フォルダ（利用者ごとに 1 つ）を扱う。
 //
-// フォルダには、常駐が 1 つだけ立つための鍵（server.lock）と、立っている常駐のつなぎ方（server.json）を置く。
+// フォルダには、常駐が 1 つだけ立つための鍵（server.lock）と、立っている常駐のつなぎ方（server.json）と、画面と画面 cookie を持つブラウザの鍵のハッシュ（cookies.json）を置く。
 // 図のデータもこのフォルダに置く。
 package home
 
@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/gofrs/flock"
 )
@@ -22,8 +23,9 @@ import (
 const EnvHome = "MATOMEZU_HOME"
 
 const (
-	lockName   = "server.lock"
-	serverName = "server.json"
+	lockName    = "server.lock"
+	serverName  = "server.json"
+	cookiesName = "cookies.json"
 )
 
 // Dir は matomezu 保管庫フォルダの場所。EnvHome があればそれ、無ければ OS ごとのデータの置き場所の下の matomezu
@@ -159,4 +161,39 @@ func NewToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// CookieKey は、画面と画面 cookie を持つブラウザの鍵のハッシュと、最後に使った時刻
+type CookieKey struct {
+	Hash string    `json:"hash"`
+	Used time.Time `json:"used"`
+}
+
+// ReadCookieKeys は cookies.json を読む。無ければ空
+func (h *Home) ReadCookieKeys() ([]CookieKey, error) {
+	b, err := os.ReadFile(filepath.Join(h.Dir, cookiesName))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var keys []CookieKey
+	if err := json.Unmarshal(b, &keys); err != nil {
+		return nil, fmt.Errorf("%s: %w", cookiesName, err)
+	}
+	return keys, nil
+}
+
+// WriteCookieKeys は cookies.json を本人だけが読める権限で書く（WriteServer と同じく、別名に書いてから置き換える）
+func (h *Home) WriteCookieKeys(keys []CookieKey) error {
+	b, err := json.MarshalIndent(keys, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := filepath.Join(h.Dir, cookiesName+".tmp")
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, filepath.Join(h.Dir, cookiesName))
 }

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 )
 
 func TestDirFollowsEnv(t *testing.T) {
@@ -76,5 +77,30 @@ func TestServerFileIsPrivateAndRoundTrips(t *testing.T) {
 	}
 	if err := h.RemoveServer(); err != nil {
 		t.Fatalf("second RemoveServer() = %v", err)
+	}
+}
+
+func TestCookieKeysAreKeptPrivateAndReadBack(t *testing.T) {
+	h, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if keys, err := h.ReadCookieKeys(); err != nil || keys != nil {
+		t.Fatalf("no file: %v, %v", keys, err)
+	}
+	want := []CookieKey{{Hash: "a", Used: time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)}}
+	if err := h.WriteCookieKeys(want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := h.ReadCookieKeys()
+	if err != nil || len(got) != 1 || got[0].Hash != "a" || !got[0].Used.Equal(want[0].Used) {
+		t.Fatalf("read = %+v, %v", got, err)
+	}
+	st, err := os.Stat(filepath.Join(h.Dir, cookiesName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 {
+		t.Fatalf("perm = %v; want 0600", st.Mode().Perm())
 	}
 }

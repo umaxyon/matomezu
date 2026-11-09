@@ -1,4 +1,8 @@
 // 常駐に頼むホストクライアントを作って読む。常駐が答えない（止まっている・まだ立っていない）なら、つながるまで WAIT_MS ごとに読み直す。ホストを起動はしない
+
+import type { MatomezuError } from "../core/errors"
+import { detectLang, translate } from "../core/i18n/i18n"
+import { LANGUAGES, MESSAGES } from "../core/i18n/messages"
 import type { HostClient, Loaded } from "./client"
 import { NoServer, serverClient } from "./server"
 
@@ -10,8 +14,20 @@ export async function openClient(): Promise<{ client: HostClient; loaded: Loaded
     try {
       return { client: server, loaded: await server.load() }
     } catch (e) {
-      if (!(e instanceof NoServer)) throw e
+      if (!(e instanceof NoServer)) {
+        if ((e as Partial<MatomezuError>).code === "E402") showOpenHint()
+        throw e
+      }
     }
     await new Promise(r => setTimeout(r, WAIT_MS))
   }
+}
+
+// 常駐が知らないブラウザには、画面を作る前の素の 1 行を出す（保存した言語の設定は読めないので、ブラウザの言語で選ぶ）
+function showOpenHint() {
+  const lang = detectLang(
+    navigator.languages,
+    LANGUAGES.map(l => l.lang),
+  )
+  document.body.textContent = translate(new Map(Object.entries(MESSAGES)), lang, "Run matomezu open in a terminal")
 }

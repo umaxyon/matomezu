@@ -40,7 +40,11 @@
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
 // 合言葉は Authorization: Bearer <token> で渡す（server.json の token。常駐ごとに作る）。
-// 「画面から」の入口は、この常駐の画面からの頼みだけを受ける（sameOrigin。ほかのサイトに開かれたページから書かせない）。
+// 「画面から」の入口は、この常駐の画面からの頼みで、画面 cookie を持つブラウザの物だけを受ける（screen。sameOrigin でほかのサイトに開かれたページから書かせず、withCookie で cookie の鍵を確かめる。screen_cookie.go）。
+// 画面 cookie は、ブラウザを開くときの URL の使い捨てのコードで渡す:
+//
+//	GET  /cookie?code=…  コードを 1 度だけ受け付け、鍵を cookie（HttpOnly）に置いて / へ戻す
+//	POST /api/open     （合言葉つき）cookie のコード付きでブラウザを開く。コードは返さない（matomezu open）
 package server
 
 import (
@@ -75,11 +79,12 @@ type Options struct {
 	Version string
 	Stop    func() // /api/stop で呼ぶ。呼ばれたら常駐を止める
 	Hub     *Hub
-	URL     string        // 画面の URL
-	Open    func() error  // 画面をブラウザで開く（無ければ開かない）
-	Wait    time.Duration // ブラウザで開いた窓がつながるのを待つ長さ（0 なら windowWait）
-	Latest  time.Duration // 最後にフォーカスされた窓が見ているものを知らせるのを待つ上限（0 なら latestWait）
-	Keep    time.Duration // 窓に keep を送る間隔（0 なら keepAlive）
+	URL     string                 // 画面の URL
+	Open    func(url string) error // url をブラウザで開く（無ければ開かない）。cookie のコードを付けた url を渡す
+	Cookies *ScreenCookies         // 画面 cookie（無ければ、保存しない物を作る）
+	Wait    time.Duration          // ブラウザで開いた窓がつながるのを待つ長さ（0 なら windowWait）
+	Latest  time.Duration          // 最後にフォーカスされた窓が見ているものを知らせるのを待つ上限（0 なら latestWait）
+	Keep    time.Duration          // 窓に keep を送る間隔（0 なら keepAlive）
 }
 
 // windowWait は、ブラウザで開いた窓がつながるのを待つ既定の長さ
@@ -102,6 +107,9 @@ const keepAlive = 25 * time.Second
 
 // Handler は常駐の入口をまとめた http.Handler
 func Handler(o Options) http.Handler {
+	if o.Cookies == nil {
+		o.Cookies = NewScreenCookies(nil, nil)
+	}
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/ping", o.auth(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"version": o.Version, "pid": os.Getpid()})
@@ -112,16 +120,18 @@ func Handler(o Options) http.Handler {
 			go o.Stop()
 		}
 	}))
-	mux.Handle("GET /api/data", sameOrigin(o.data))
-	mux.Handle("GET /api/events", sameOrigin(o.events))
-	mux.Handle("GET /api/plugins/{n}/{file}", sameOrigin(o.pluginFile))
+	mux.Handle("GET /api/data", o.screen(o.data))
+	mux.Handle("GET /api/events", o.screen(o.events))
+	mux.Handle("GET /api/plugins/{n}/{file}", o.screen(o.pluginFile))
+	mux.Handle("GET /cookie", http.HandlerFunc(o.giveCookie))
+	mux.Handle("POST /api/open", o.auth(o.openAPI))
 	mux.Handle("POST /api/plugins", o.auth(o.linkPlugin))
 	mux.Handle("POST /api/plugins/remove", o.auth(o.unlinkPlugin))
-	mux.Handle("POST /api/perform", sameOrigin(o.perform))
-	mux.Handle("POST /api/view", sameOrigin(o.view))
-	mux.Handle("POST /api/warnings", sameOrigin(o.warnings))
-	mux.Handle("POST /api/log", sameOrigin(o.windowLog))
-	mux.Handle("POST /api/ai-edit-tickets", sameOrigin(o.aiEditTicket))
+	mux.Handle("POST /api/perform", o.screen(o.perform))
+	mux.Handle("POST /api/view", o.screen(o.view))
+	mux.Handle("POST /api/warnings", o.screen(o.warnings))
+	mux.Handle("POST /api/log", o.screen(o.windowLog))
+	mux.Handle("POST /api/ai-edit-tickets", o.screen(o.aiEditTicket))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
@@ -523,7 +533,7 @@ func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
 	err := o.Hub.Show(req)
 	opened := false
 	if errors.Is(err, ErrNoWindow) && o.Open != nil {
-		if open := o.Open(); open != nil {
+		if open := o.openScreen(); open != nil {
 			writeJSON(w, map[string]any{"ok": false, "reason": "no-browser", "detail": open.Error(), "url": o.URL})
 			return
 		}

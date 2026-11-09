@@ -83,6 +83,7 @@ export const ERRORS = {
   E311: "plugin {plugin}: only built-in plugins may have control centers",
 
   E401: "the server could not give the data: {status}",
+  E402: "the server does not know this browser (run matomezu open in a terminal)",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

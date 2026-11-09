@@ -15,7 +15,7 @@
 // つながりが切れた・読み直せなかった・古い版を捨てたなどは、常駐のログにも書き残す（POST /api/log。切れている間の分は、つながってから送る）
 import { z } from "zod"
 import { hasPages } from "../core/book"
-import { fail } from "../core/errors"
+import { fail, matomezuError, problem } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { screenOf } from "../core/window"
@@ -459,7 +459,17 @@ export function serverClient(net: Net = browserNet): ServerClient {
       if (events !== source) return
       if (first) {
         source.close()
-        first.reject(new NoServer())
+        const rejected = first.reject
+        // 知らせが断られたのは、常駐が止まっているからか、このブラウザを知らないからか
+        void net
+          .fetch("api/data")
+          .then(async res =>
+            res.status === 403 && (await res.text()).trim() === "cookie-required"
+              ? matomezuError(problem("E402"))
+              : new NoServer(),
+          )
+          .catch(() => new NoServer())
+          .then(rejected)
         return
       }
       // つなぎ直しはブラウザに任せる（つながると hello が来る）

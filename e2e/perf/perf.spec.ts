@@ -106,20 +106,20 @@ const one = (book: string) => `?b0=${book}&p0=${PAGE}&v0=1,0,0&c=0&r=0.5`
 const split = (book: string) => `?b0=${book}&p0=${PAGE}&v0=1,0,0&b1=${book}&p1=${PAGE}&v1=1,0,0&c=0&r=0.5`
 
 for (const n of COUNTS) {
-  test(`描き方: 箱 ${n}・線 ${n - 1}`, async ({ browser, request }) => {
+  test(`描き方: 箱 ${n}・線 ${n - 1}`, async ({ newPage, request }) => {
     const id = `perf-${n}`
     const put = await request.put(`/api/books-for-test/${id}`, { data: { book: gridBook(id, n), base: 0 } })
     expect(put.ok()).toBe(true)
     const items = n + n - 1
 
-    const single = await browser.newPage()
+    const single = await newPage()
     const openMs = await open(single, one(id), items)
     const panned = await pan(single)
     const dragged = await drag(single, n)
     const connected = await connect(single)
     await single.close()
 
-    const both = await browser.newPage()
+    const both = await newPage()
     const openSplitMs = await open(both, split(id), items * 2)
     await expect(both.locator("[data-stage]")).toHaveCount(2)
     const pannedSplit = await pan(both)
@@ -150,18 +150,18 @@ const toHand = async (page: Page, tool: string | null) => {
 }
 for (const o of OTHERS)
   for (const n of COUNTS) {
-    test(`描き方: ${o.name} ${n}`, async ({ browser, request }) => {
+    test(`描き方: ${o.name} ${n}`, async ({ newPage, request }) => {
       const id = `${o.id}-${n}`
       const put = await request.put(`/api/books-for-test/${id}`, { data: { book: o.make(id, n), base: 0 } })
       expect(put.ok()).toBe(true)
 
-      const single = await browser.newPage()
+      const single = await newPage()
       const openMs = await open(single, one(id), n)
       await toHand(single, o.tool)
       const panned = await pan(single)
       await single.close()
 
-      const both = await browser.newPage()
+      const both = await newPage()
       const openSplitMs = await open(both, split(id), n * 2)
       await expect(both.locator("[data-stage]")).toHaveCount(2)
       await toHand(both, o.tool)
@@ -233,11 +233,11 @@ test("アクション: AI の入口から箱と線を 300 まで足す", async (
 })
 
 for (const n of MARKDOWN_LINES) {
-  test(`マークダウン: 原文 ${n} 行`, async ({ browser, request }) => {
+  test(`マークダウン: 原文 ${n} 行`, async ({ newPage, request }) => {
     const id = `perf-markdown-${n}`
     const put = await request.put(`/api/books-for-test/${id}`, { data: { book: markdownBook(id, n), base: 0 } })
     expect(put.ok()).toBe(true)
-    const page = await browser.newPage()
+    const page = await newPage()
     await installProbe(page)
     const started = Date.now()
     await page.goto(`/${one(id)}`)
