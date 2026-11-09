@@ -266,10 +266,11 @@ test("単体のテストは、確かめる物の置き場（クレートか test
     kw !== undefined ||
     (names.startsWith("{") &&
       names
-        .replace(/[{}\s]/g, "")
+        .replace(/[{}]/g, "")
         .split(",")
+        .map(n => n.trim())
         .filter(n => n !== "")
-        .every(n => n.startsWith("type")))
+        .every(n => /^type\s/.test(n)))
   const targetsOf = (rel: string, text: string) =>
     [...text.matchAll(/^import\s+(type\s+)?([^"']*?)\s*from\s*["'](\.{1,2}\/[^"']+)["']/gm)]
       .filter(m => !typeOnly(m[1], m[2]!.trim()))
