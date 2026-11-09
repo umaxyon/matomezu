@@ -5,9 +5,12 @@ import {
   centerOf,
   cornersOf,
   drawnRect,
+  movedPoint,
   normalizeAngle,
+  pointsOnPaper,
   resizedRect,
   rotatedTo,
+  snappedTo45,
   spanOf,
   thinned,
   touches,
@@ -104,4 +107,37 @@ test("傾けた四角を囲む四角・四角の全体・範囲ドラッグの�
   expect(spanOf({ x: 5, y: 9 }, { x: 1, y: 2 })).toEqual({ x: 1, y: 2, w: 4, h: 7 })
   expect(touches(F, { x: 300, y: 150, w: 10, h: 10 })).toBe(true) // 角が触れる
   expect(touches(F, { x: 301, y: 50, w: 10, h: 10 })).toBe(false)
+})
+
+test("線の点を動かすと、枠は点の範囲に合い、点は枠の割合で持ち直す。傾けた線は、見た目のまま角度なしになる", () => {
+  const rect = { x: 100, y: 100, w: 200, h: 100 }
+  const line = [
+    { x: 0, y: 0 },
+    { x: 1, y: 1 },
+  ]
+  const moved = movedPoint(rect, 0, line, 1, { x: 400, y: 300 }, 8)
+  expect(moved.rect).toEqual({ x: 100, y: 100, w: 300, h: 200 })
+  expect(moved.points).toEqual([
+    { x: 0, y: 0 },
+    { x: 1, y: 1 },
+  ])
+  // 動かしていない点の紙の上の位置は変わらない（傾けた線でも）
+  const turned = movedPoint(rect, 90, line, 0, { x: 0, y: 0 }, 8)
+  const keep = pointsOnPaper(rect, 90, line)[1]!
+  const after = pointsOnPaper(turned.rect, 0, turned.points)[1]!
+  close(after.x, keep.x)
+  close(after.y, keep.y)
+  // 真横の線でも、枠の高さは下限を割らない
+  expect(movedPoint(rect, 0, line, 1, { x: 300, y: 100 }, 8).rect.h).toBe(8)
+})
+
+test("45 度ずつに丸める: 水平・垂直・斜めに寄り、長さは保つ", () => {
+  const from = { x: 0, y: 0 }
+  const h = snappedTo45(from, { x: 100, y: 10 })
+  close(h.y, 0)
+  const v = snappedTo45(from, { x: 5, y: -80 })
+  close(v.x, 0)
+  const d = snappedTo45(from, { x: 60, y: 50 })
+  close(d.x, d.y)
+  close(Math.hypot(d.x, d.y), Math.hypot(60, 50))
 })

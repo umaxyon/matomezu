@@ -133,3 +133,94 @@ test("複数を選んで重なり順を変えると、選んだ物どうしの�
   await page.keyboard.press("Control+Shift+}") // 最前面へ
   expect(await order(page)).toEqual(["e3", "e1", "e2"])
 })
+
+test.describe("線の端点", () => {
+  const line = (id: string, item: string, props: object) => ({
+    id,
+    x: 200,
+    y: 200,
+    item,
+    w: 300,
+    h: 150,
+    props,
+  })
+  test.use({
+    books: [
+      {
+        type: "@matomezu/slide-book:slide",
+        id: "b1",
+        title: "スライド",
+        project: "default",
+        pages: [
+          {
+            id: "p1",
+            title: "1",
+            paper: "@matomezu/base:ratio-16x9",
+            orientation: "landscape",
+            slide: [
+              line("l1", "@matomezu/slide:slide-line", { width: 4, color: "#286983" }),
+              {
+                ...line("f1", "@matomezu/slide:slide-free-line", {
+                  points: [
+                    { x: 0, y: 1 },
+                    { x: 0.5, y: 0 },
+                    { x: 1, y: 1 },
+                  ],
+                  width: 4,
+                }),
+                x: 700,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  async function drag(page: Page, handle: string, to: [number, number], shift = false) {
+    const h = (await page.locator(handle).boundingBox())!
+    const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
+    await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2)
+    if (shift) await page.keyboard.down("Shift")
+    await page.mouse.down()
+    await page.mouse.move(h.x + h.width / 2 + to[0] * z, h.y + h.height / 2 + to[1] * z, { steps: 6 })
+    await page.mouse.up()
+    if (shift) await page.keyboard.up("Shift")
+  }
+
+  test("直線は両端、自由な線は全部の点に丸いつまみが出て、ドラッグで点を動かせる。元に戻すは 1 回", async ({
+    page,
+  }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    const p = await at(page, 300, 275)
+    await page.mouse.click(p.x, p.y)
+    await expect(page.locator("[data-point]")).toHaveCount(2)
+    const before = (await page.locator('[data-item="l1"]').boundingBox())!
+    await drag(page, '[data-point="1"]', [100, 120])
+    const after = (await page.locator('[data-item="l1"]').boundingBox())!
+    expect(after.width).toBeGreaterThan(before.width + 30)
+    expect(after.height).toBeGreaterThan(before.height + 30)
+    await page.keyboard.press("Control+z")
+    await expect
+      .poll(async () => Math.round((await page.locator('[data-item="l1"]').boundingBox())!.width))
+      .toBe(Math.round(before.width))
+    const f = await at(page, 850, 275)
+    await page.mouse.click(f.x, f.y)
+    await expect(page.locator("[data-point]")).toHaveCount(3)
+    const free = (await page.locator('[data-item="f1"]').boundingBox())!
+    await drag(page, '[data-point="1"]', [0, -90]) // 真ん中の点を上へ
+    const grown = (await page.locator('[data-item="f1"]').boundingBox())!
+    expect(grown.height).toBeGreaterThan(free.height + 40)
+    expect(Math.abs(grown.y + grown.height - (free.y + free.height))).toBeLessThan(2) // 下の端の点は動かない
+  })
+
+  test("Shift を押して動かすと、となりの点から 45 度ずつの向きに丸まる（水平にもなる）", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    const p = await at(page, 300, 275)
+    await page.mouse.click(p.x, p.y)
+    await drag(page, '[data-point="1"]', [200, 8], true) // ほぼ真横へ
+    const box = (await page.locator('[data-item="l1"]').boundingBox())!
+    const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
+    expect(box.height / z).toBeLessThan(12) // 水平なので、枠の高さは下限
+  })
+})

@@ -176,3 +176,18 @@
 .groupEdge[data-group-edge="right"] {
   right: calc(-5px / var(--paper-zoom));
 }
+
+/* 線の点のつまみ: 丸。枠の四角のつまみとは別の形 */
+.point {
+  position: absolute;
+  box-sizing: border-box;
+  width: calc(10px / var(--paper-zoom));
+  height: calc(10px / var(--paper-zoom));
+  margin: calc(-5px / var(--paper-zoom)) 0 0 calc(-5px / var(--paper-zoom));
+  border: calc(1.5px / var(--paper-zoom)) solid var(--skin-accent);
+  border-radius: 50%;
+  background: var(--skin-surface-raised);
+  cursor: crosshair;
+  pointer-events: auto;
+  touch-action: none;
+}

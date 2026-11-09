@@ -32,9 +32,12 @@ import {
   boundsOf,
   drawnRect,
   type Grip,
+  movedPoint,
+  pointsOnPaper,
   resizedRect,
   rotatedTo,
   scaledFontSize,
+  snappedTo45,
   spanOf,
   thinned,
   touches,
@@ -42,7 +45,7 @@ import {
 } from "../rect"
 import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE } from "../scope"
 import { DEFAULT_FONT_SIZE, FREE_LINE, MIN_SIZE, STRAIGHT_LINE, TEXT_FRAME } from "../slide"
-import { GRIPS, GroupSelection, type SelectedItem, Selection } from "./Selection"
+import { GRIPS, GroupSelection, linePoints, type SelectedItem, Selection } from "./Selection"
 import { rotationOf, SlideItem, shapeProps } from "./SlideItem"
 import styles from "./SlideLayer.module.css"
 
@@ -65,6 +68,17 @@ type Drag =
     }
   | { kind: "marquee"; pointer: number; start: Point; base: readonly string[] }
   | {
+      kind: "point"
+      pointer: number
+      start: Point
+      item: string
+      index: number
+      rect: Rect
+      rotation: number
+      points: readonly Point[] // 動かす前の点（枠の中の割合）
+      min: number
+    }
+  | {
       kind: "grip"
       pointer: number
       item: string
@@ -85,6 +99,14 @@ interface Live {
   rect: Rect
   rotation?: number
   scaled?: boolean
+  points?: Point[] // 点を動かしている途中の線の点（枠の中の割合）
+}
+
+// 線の点を、そのアイテムの項目にする（直線は from・to、自由な線は points）。点を動かすと角度と比率の固定はなくなる
+function pointProps(item: string, points: readonly Point[]): Record<string, unknown> {
+  const turned = { rotation: null, lockRatio: null }
+  if (item === FREE) return { points, ...turned }
+  return { from: points[0], to: points[1], ...turned }
 }
 
 const rectOf = (shape: PlacedShape): Rect => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
@@ -189,6 +211,23 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
       }
       return
     }
+    const pointEl = target.closest<HTMLElement>("[data-point]")
+    if (pointEl && selected && !followed && reshape.enabled) {
+      e.preventDefault()
+      capture()
+      drag.current = {
+        kind: "point",
+        pointer: e.pointerId,
+        start: at,
+        item: selected.id,
+        index: Number(pointEl.dataset.point),
+        rect: rectOf(selected),
+        rotation: rotationOf(selected),
+        points: linePoints(selected.item, shapeProps(selected)),
+        min: minOf(selected.item),
+      }
+      return
+    }
     if (target.closest("[data-rotate]") && selected && !followed && set.enabled) {
       e.preventDefault()
       capture()
@@ -256,6 +295,13 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
       setShift({ ids: new Set(d.items.map(i => i.id)), by })
     } else if (d.kind === "marquee") {
       setMarquee(spanOf(d.start, at))
+    } else if (d.kind === "point") {
+      // Shift で、となりの点から 45 度ずつの向きに丸める
+      const around = pointsOnPaper(d.rect, d.rotation, d.points)
+      const neighbour = around[d.index === 0 ? 1 : d.index - 1]
+      const to = e.shiftKey && neighbour ? snappedTo45(neighbour, at) : at
+      const moved = movedPoint(d.rect, d.rotation, d.points, d.index, to, d.min)
+      setLive({ item: d.item, rect: moved.rect, points: moved.points, rotation: 0 })
     } else if (d.kind === "grip") {
       const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, d.ratio)
       setLive({ item: d.item, rect: to, scaled: to.scaled && d.text })
@@ -290,6 +336,10 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
         const hit = shapes.filter(s => touches(boundsOf(rectOf(s), rotationOf(s)), swept)).map(s => s.id)
         select(stage.id, [...d.base, ...hit.filter(id => !d.base.includes(id))])
       }
+    } else if (d.kind === "point" && l?.points) {
+      const shape = shapes.find(s => s.id === d.item)
+      if (shape)
+        reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: false, props: pointProps(shape.item, l.points) })
     } else if (d.kind === "grip" && l) reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: l.scaled === true })
     else if (d.kind === "rotate" && l && l.rotation !== undefined && l.rotation !== d.rotation)
       set.run({ items: [d.item], props: { rotation: l.rotation === 0 ? null : l.rotation } })
@@ -345,7 +395,12 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
     return {
       ...s,
       ...live.rect,
-      props: { ...props, ...scaledSize, ...(live.rotation === undefined ? {} : { rotation: live.rotation }) },
+      props: {
+        ...props,
+        ...scaledSize,
+        ...(live.rotation === undefined ? {} : { rotation: live.rotation }),
+        ...(live.points ? pointProps(s.item, live.points) : {}),
+      },
     } as PlacedShape
   })
   const current = selected && shown.find(s => s.id === selected.id)

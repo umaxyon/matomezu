@@ -80,16 +80,18 @@ export const SLIDE_MOVE_TO = kit.defineCommand({
   when: onPage,
 })
 
-// アイテムの枠を rect にする。scaled なら文字枠の文字も幅の倍率で変える
+// アイテムの枠を rect にする。scaled なら文字枠の文字も幅の倍率で変える。props があれば、枠より先に項目も変える（線の点を動かして枠が変わるとき、点と枠を 1 度に変える）
 export const SLIDE_RESHAPE = kit.defineCommand({
   id: "slide-reshape",
-  performs: [RESIZE],
+  performs: [RESIZE, UPDATE],
   permissionScope: "opened-page",
   title: "Resize on slide",
-  run: (ctx, a, args: { item: string; rect: Rect; scaled: boolean }) => {
+  run: (ctx, a, args: { item: string; rect: Rect; scaled: boolean; props?: Record<string, unknown> }) => {
     const { opened } = ctx.stage
     if (!opened?.page) return
     const { rect } = args
+    const on = { book: opened.book }
+    if (args.props) a.perform(UPDATE, { page: opened.page, item: args.item, props: args.props }, on)
     a.perform(
       RESIZE,
       {
@@ -100,7 +102,7 @@ export const SLIDE_RESHAPE = kit.defineCommand({
         h: rect.h,
         scale: args.scaled,
       },
-      { book: opened.book },
+      on,
     )
   },
   when: onPage,

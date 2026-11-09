@@ -6,7 +6,8 @@ import { useCommand, useMessages } from "../../../../plugin-api/ui"
 import { Stand } from "../../../base/ui"
 import { SLIDE_RESET, SLIDE_SET } from "../commands"
 import { kit } from "../kit"
-import { normalizeAngle } from "../rect"
+import { normalizeAngle, pointsOnPaper } from "../rect"
+import { FREE_LINE, STRAIGHT_LINE } from "../slide"
 import styles from "./Selection.module.css"
 import { type StyleSubject, StyleTools } from "./StyleTools"
 
@@ -65,6 +66,7 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
           </div>
         </div>
       )}
+      {!hidden && <PointHandles item={item} />}
       <Bar item={item} />
     </>
   )
@@ -163,6 +165,40 @@ export function GroupSelection({ rect, subjects }: { rect: Rect; subjects: reado
             <StyleTools subjects={subjects} />
           </div>
         </Stand>
+      )}
+    </>
+  )
+}
+
+// 線の点（0 から 1 の割合）: 直線は両端、自由な線はすべての点
+export function linePoints(
+  kind: string,
+  props: Readonly<Record<string, unknown>>,
+): readonly { x: number; y: number }[] {
+  if (kind === FREE_LINE.id) return (props.points as { x: number; y: number }[] | undefined) ?? []
+  if (kind === STRAIGHT_LINE.id)
+    return [
+      (props.from as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+      (props.to as { x: number; y: number } | undefined) ?? { x: 1, y: 1 },
+    ]
+  return []
+}
+
+// 点が多い自由な線は、このくらいの数に間引いてつまみを出す（始めと終わりは必ず出す）
+const MAX_HANDLES = 40
+
+// 選んだ線の点のつまみ（丸。枠の 8 つのつまみとは別）。ドラッグで点を動かす（動かす操作は SlideLayer が受ける）
+function PointHandles({ item }: { item: SelectedItem }) {
+  const points = linePoints(item.kind, item.props)
+  if (points.length === 0) return null
+  const on = pointsOnPaper(item.rect, item.rotation, points)
+  const every = Math.ceil(on.length / MAX_HANDLES)
+  return (
+    <>
+      {on.map((p, index) =>
+        index % every === 0 || index === on.length - 1 ? (
+          <div key={index} className={styles.point} data-point={index} style={{ left: p.x, top: p.y }} />
+        ) : null,
       )}
     </>
   )
