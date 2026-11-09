@@ -267,6 +267,7 @@ test("matomezu/ui が出す名前", () => {
     "useEditLock",
     "useElapsed",
     "useFollowsSelection",
+    "useFrameState",
     "useHighlightRanges",
     "useItem",
     "useLatestPan",
@@ -283,12 +284,14 @@ test("matomezu/ui が出す名前", () => {
     "usePaperControls",
     "usePaperDrag",
     "usePerform",
+    "useReadFrameState",
     "useReadStageState",
     "useResize",
     "useRevealable",
     "useRightSidePanel",
     "useSearchHits",
     "useSearchPick",
+    "useSetFrameState",
     "useSetRightSidePanelCurrent",
     "useSetStageState",
     "useSettingControls",
@@ -360,6 +363,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "contextMenu",
     "controlCenter",
     "dialog",
+    "frameState",
     "front",
     "settings",
     "stage",
@@ -368,7 +372,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
   ])
 })
 
-test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグインの置き場を変える updateStageState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setStageState は渡さない）", () => {
+test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグインの置き場を変える updateStageState・updateFrameState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setStageState・setFrameState は渡さない）", () => {
   const store = newStore()
   const def = commandDef(store, "@matomezu/base:mark-new")
   const run = def.run
@@ -422,11 +426,12 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "submitDialog",
     "togglePlacing",
     "unsplit",
+    "updateFrameState",
     "updateStageState",
     "zoomStage",
   ])
   // useActions の操作は、そこから updateStageState を除いた物
-  expect(names(store.actions)).toEqual(names(got).filter(n => n !== "updateStageState"))
+  expect(names(store.actions)).toEqual(names(got).filter(n => n !== "updateStageState" && n !== "updateFrameState"))
 })
 
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {

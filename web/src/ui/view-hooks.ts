@@ -187,6 +187,23 @@ export function useReadStageState(kit: Owner): (stage: string) => unknown {
   return useCallback(stage => read().stageStates[stage]?.[id], [read, id])
 }
 
+// プラグインが持つ、窓の外観枠の状態（無ければ undefined）。自分の kit を渡し、自分の置き場だけを読む。置き直すたびに描き直す
+export const useFrameState = (kit: Owner): unknown => useMatomezuState(s => s.frameStates[kit.id])
+
+// プラグインが持つ窓の外観枠の状態を、描き直さずに読む関数
+export function useReadFrameState(kit: Owner): () => unknown {
+  const read = useReadState()
+  const { id } = kit
+  return useCallback(() => read().frameStates[id], [read, id])
+}
+
+// プラグインが持つ、窓の外観枠の状態を変える関数（undefined なら消す）
+export function useSetFrameState(kit: Owner): (value: unknown) => void {
+  const { setFrameState } = useInstance()
+  const { id } = kit
+  return useCallback(value => setFrameState(id, value), [setFrameState, id])
+}
+
 // プラグインが持つ、ステージの画面の状態を変える関数（undefined なら消す。無いステージには置かない）
 export function useSetStageState(kit: Owner): (stage: string, value: unknown) => void {
   const { setStageState } = useInstance()

@@ -127,6 +127,32 @@ describe("コマンドは、自分のプラグインが持つステージの画�
     expect(state.getState().stageStates.s1).toEqual({})
   })
 
+  test("窓の外観枠の状態も、文脈 frameState で読み、run が受け取る updateFrameState で変える（ステージによらない）", () => {
+    const frameKit = pluginKit("@x/frame", defineMessages({ flip: { en: "Flip", ja: "切り替え" } }))
+    const FLIP = frameKit.defineCommand({
+      id: "flip",
+      title: "flip",
+      run: (_, a) => a.updateFrameState(now => (now === "on" ? undefined : "on")),
+      when: () => true,
+      active: ctx => ctx.frameState === "on",
+    })
+    const store = createMatomezuInstance({
+      plugins: [...BUILTIN, definePlugin(frameKit.plugin({ commands: [FLIP] }))],
+      controlCenter: "@matomezu/control-center:control-center",
+      books: SAMPLE_BOOKS,
+      lang: "ja",
+      newId: sequence(),
+    })
+    const flip = (stage: string) =>
+      (store.actions.command as (stage: string, id: string) => boolean)(stage, "@x/frame:flip")
+    store.actions.split("s1")
+    flip("s1")
+    expect(store.state.getState().frameStates).toEqual({ "@x/frame": "on" })
+    expect(isActive(store, store.state.getState(), "s2", "@x/frame:flip" as never)).toBe(true)
+    flip("s2")
+    expect(store.state.getState().frameStates).toEqual({})
+  })
+
   test("読むのは自分の置き場だけ（ほかのプラグインの置き場の値は見えない）", () => {
     const store = newPaneStore()
     store.setStageState("s1", "@x/other", "hidden")
