@@ -4,6 +4,7 @@
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
+import { editingBackground } from "../../../core/stage"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
@@ -68,7 +69,7 @@ export const PAGE_OPEN = kit.defineCommand({
   title: "Open page",
   run: (ctx, a, page: string) => a.openPage(ctx.stage.id, page),
   when: ctx => ctx.book !== null && hasPages(ctx.book),
-  enabled: ctx => ctx.stage.edits === "items", // 背景編集モードの間は、ページを替えない（ページタブとページ一覧はこれを見て止まる）
+  enabled: ctx => !editingBackground(ctx.stage), // 背景編集モードの間は、ページを替えない（ページタブとページ一覧はこれを見て止まる）
 })
 
 // 開いているページの設定のダイアログを開く（ブックのタイプが page-update を使えるブックだけ。

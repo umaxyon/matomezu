@@ -3,6 +3,7 @@
 import { hasPages } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/book-type"
+import { editingBackground as isEditing } from "../../../core/stage"
 import type { CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../page-tabs/page-update"
@@ -12,7 +13,7 @@ import { stageItem } from "../utils/stage-item"
 // 中身（ページの普通のアイテム）を隠しているか（背景編集モードの間だけ効く）
 export const CONTENT_HIDDEN = stageItem("contentHidden", false, hidden => !hidden)
 
-const editingBackground = (ctx: CommandContext): boolean => ctx.stage.edits === "slide"
+const editingBackground = (ctx: CommandContext): boolean => isEditing(ctx.stage)
 
 // 開いているページが、背景を持つタイプのページか
 const hasBackground = (ctx: CommandContext): boolean =>

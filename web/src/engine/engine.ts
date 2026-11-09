@@ -326,11 +326,11 @@ function aiTables(of: Assembled) {
 }
 
 // AI に見せるページ（read_page の page）: 背景を持つタイプのページの slide（背景の形）は、図形の情報（位置・大きさ・形の種類など）を見せず、
-// 背景があることと、背景の文字（文字枠の text。重ねの順）だけを background に入れる。背景を持たないタイプと、背景の無いページはそのまま返す
+// 背景があることと、背景の形が持つ名前（形の定義の labelOf。文字枠なら書いた文字。重ねの順）だけを background に入れる。背景を持たないタイプと、背景の無いページはそのまま返す
 ;(globalThis as { matomezuAiPage?: (book: string, page: string) => string }).matomezuAiPage = (book, page) => {
   const catalog = assembled.catalog.core
   const [read] = restoreBooks(catalog, [JSON.parse(book)])
-  const body = JSON.parse(page) as { slide?: { props?: { text?: unknown } }[] }
+  const body = JSON.parse(page) as { slide?: { id: string; item: string }[] }
   if (
     !read ||
     !Array.isArray(body.slide) ||
@@ -339,7 +339,11 @@ function aiTables(of: Assembled) {
   )
     return page
   const { slide, ...rest } = body
-  const texts = slide.flatMap(s => (typeof s.props?.text === "string" && s.props.text !== "" ? [s.props.text] : []))
+  const texts = slide.flatMap(s => {
+    const def = catalog.items.get(s.item)
+    const text = def?.kind === "shape" ? def.labelOf?.(s as never, s.id) : undefined
+    return text ? [text] : []
+  })
   return JSON.stringify({ ...rest, background: { texts } })
 }
 

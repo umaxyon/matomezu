@@ -83,11 +83,6 @@ export const slideIsBackground = (type: Pick<BookTypeDef, "slide">): boolean => 
 // ステージが直している並び: ページの items か、ページの slide（背景のタイプでは背景。本体のタイプでは、いつも items のまま）
 export type EditList = "items" | "slide"
 
-// 直している並び list で置けるアイテムの id。背景のタイプは、items なら items の候補、slide なら slide の候補。
-// 背景でないタイプは、どちらでも置ける物全部（slide だけのタイプでは slide の候補）
-export const placeableIn = (type: Pick<BookTypeDef, "items" | "slide">, list: EditList): readonly string[] =>
-  slideIsBackground(type) ? (list === "slide" ? (type.slide?.allowed ?? []) : type.items.allowed) : placeableOf(type)
-
 // create の返す値を、schema の形に合わせる（id などは書いた文字のまま残す）
 export function defineBookType<const S extends z.ZodObject, const T extends BookTypeDef<S>>(def: T & { schema: S }): T {
   return def

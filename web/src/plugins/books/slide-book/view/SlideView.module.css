@@ -8,3 +8,8 @@
   font-size: 14px;
   color: var(--skin-text-muted);
 }
+
+/* 紙の枠は押しを受けない（下のレイヤーが受ける） */
+.paper {
+  pointer-events: none;
+}

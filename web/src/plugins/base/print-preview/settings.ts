@@ -58,7 +58,7 @@ export const PRINT_PREVIEW_SETTINGS = [
   PRINT_PREVIEW_PAGE_NAME.id,
 ] as const
 
-// 背景（ページの slide。背景を持つタイプのページ）を印刷に出すか（ページの設定。変えるのはページの設定のアクション）。
+// 背景（ページの slide。背景を持つタイプのページ）を印刷に出すか（ページとブックの設定。ページはブックを継承できる）。
 // auto は、中身の載った印刷区画にだけ背景を敷き（背景だけの印刷区画は並べない）、always は中身が無くてもそのページの全部の印刷区画に出し、never は背景を出さない
 export const BackgroundPrintSchema = z.enum(["auto", "always", "never"])
 export type BackgroundPrint = z.infer<typeof BackgroundPrintSchema>

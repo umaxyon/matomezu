@@ -1,6 +1,6 @@
 // 背景（ページの slide。背景を持つタイプ）: 本体か背景かの判定、直している並びとステージの背景編集モード、印刷区画とミニマップの扱い
 import { expect, test } from "bun:test"
-import { placeableIn, slideIsBackground } from "../../web/src/core/def/book-type"
+import { slideIsBackground } from "../../web/src/core/def/book-type"
 import {
   editingBackground,
   endBackground,
@@ -12,6 +12,7 @@ import {
 } from "../../web/src/core/stage"
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
 import { sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
+import { placeableIn } from "../../web/src/plugins/base/toolbox/toolbox"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const typeOf = (id: string) => BUILTIN_PARTS.bookTypes.find(t => t.id === id)!
