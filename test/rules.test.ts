@@ -442,6 +442,18 @@ const answers = (own: string) =>
     .filter(spec => specs.includes(spec))
     .map(specOwner)
 
+test("見本の tsconfig は、どれも package.json の typecheck で確かめる", () => {
+  const typecheck = (JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { scripts: { typecheck: string } })
+    .scripts.typecheck
+  const projects = [...typecheck.matchAll(/-p (\S+)/g)].map(m => m[1]!.replace(/\/tsconfig\.json$/, ""))
+  const configs = folders.flatMap(name =>
+    readdirSync(join(ADDED, name))
+      .filter(f => /^tsconfig.*\.json$/.test(f))
+      .map(f => relative(ROOT, join(ADDED, name, f)).replace(/\/tsconfig\.json$/, "")),
+  )
+  expect(configs.filter(c => !projects.includes(c))).toEqual([])
+})
+
 test("見本のフォルダは、見本（matomezu.json）か、対になる見本のある連携ポイント（<見本>-spec）", () => {
   expect(folders.filter(name => !plugins.includes(name) && !specs.includes(name))).toEqual([])
 })
