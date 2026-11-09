@@ -583,6 +583,19 @@ test("Go の internal のパッケージは、決めたパッケージだけを�
   expect(bad).toEqual([])
 })
 
+// 常駐の入口は、合言葉（auth・ai）か、画面 cookie を持つブラウザだけ（screen）。画面からの入口を sameOrigin だけで包むと、AI が画面の入口を使える抜け道になる（conventions/architecture.md「状態と外の世界」）
+test("Go の常駐の入口（server.go の mux.Handle）は、auth・ai・screen のどれかで包む", () => {
+  const text = readFileSync(join(ROOT, "internal/server/server.go"), "utf8")
+  const routes = [...text.matchAll(/mux\.Handle\("([^"]*)",\s*(.*)$/gm)].map(m => ({
+    path: m[1]!,
+    handler: m[2]!,
+  }))
+  expect(routes.length).toBeGreaterThan(10)
+  const open = new Set(["GET /cookie", "/api/", "/"])
+  const bad = routes.filter(r => !open.has(r.path) && !/^o\.(auth|ai|screen)\(/.test(r.handler)).map(r => r.path)
+  expect(bad).toEqual([])
+})
+
 // 自分の物は返した定義（STAR.id）か kit.name(名前) で名指す（conventions/definitions.md の「id」）。プラグイン（ビルトインと見本）のコードに、
 // 自分の id で始まる文字列を書かない。core/catalog.ts への書き足し（declare module の中）と文言（messages.ts）、見本のテスト（test/）は除く
 function withoutDeclareModule(text: string): string {

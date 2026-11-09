@@ -40,7 +40,7 @@ const startWait = 10 * time.Second
 
 type cli struct {
 	Serve       serveCmd       `cmd:"" help:"Run the server in the foreground."`
-	Start       startCmd       `cmd:"" help:"Start the server in the background unless it is running, and print its URL."`
+	Start       startCmd       `cmd:"" help:"Start the server in the background unless it is running, and print its URL (a browser opens the screen through the open command)."`
 	Stop        stopCmd        `cmd:"" help:"Stop the background server."`
 	Open        openCmd        `cmd:"" help:"Open the screen in your browser and give it the server's screen cookie (for a browser that has none). Nothing is printed."`
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
@@ -230,6 +230,8 @@ func (c *startCmd) Run() error {
 		return err
 	}
 	fmt.Println(s.URL)
+	// 画面 cookie の無いブラウザは、この URL を開いても断られる（URL は標準出力のまま、案内は標準エラーへ）
+	fmt.Fprintln(os.Stderr, "A browser that has not opened the screen through matomezu open is refused: run matomezu open to open it.")
 	return nil
 }
 
