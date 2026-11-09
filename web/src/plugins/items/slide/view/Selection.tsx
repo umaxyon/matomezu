@@ -151,7 +151,7 @@ function AngleField({ item }: { item: SelectedItem }) {
 }
 
 // 複数を選んでいるときに出す物: 選んだ物の全体を囲む点線の枠（縁を押してドラッグすれば、選んだ物を一緒に動かす）と、
-// そばに立つバー（全部に一度に効く見た目の入力部品だけ。大きさ・回す・角度は出さない）
+// そばに立つバー（全部に一度に効く見た目の入力Formだけ。大きさ・回す・角度は出さない）
 export function GroupSelection({ rect, subjects }: { rect: Rect; subjects: readonly StyleSubject[] }) {
   const t = useMessages(kit)
   const hasTools = showsGroupBar(subjects.map(s => s.item))

@@ -1,4 +1,4 @@
-// バーに並ぶ、選んだアイテムの見た目の入力部品: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
+// バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
 // アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（テーマの文字の色。塗りは塗らない）か、テーマの代表色か、好きな色
 import { useState } from "react"
 import { useCommand, useMessages } from "../../../../plugin-api/ui"
@@ -24,7 +24,7 @@ export interface StyleSubject {
   props: Readonly<Record<string, unknown>>
 }
 
-// 種類ごとに並べる入力部品（出し分けの表。単体テストが見る）
+// 種類ごとに並べる入力Form（出し分けの表。単体テストが見る）
 export type StyleField = "text-color" | "color" | "width" | "dashed" | "arrow" | "fill" | "outline" | "outline-width"
 
 export function fieldsOf(item: string): readonly StyleField[] {
@@ -35,17 +35,17 @@ export function fieldsOf(item: string): readonly StyleField[] {
   return []
 }
 
-// 選んだ物の全部に効く入力部品（種類が混ざれば、どの種類にもある物だけ）
+// 選んだ物の全部に効く入力Form（種類が混ざれば、どの種類にもある物だけ）
 export function commonFields(items: readonly string[]): readonly StyleField[] {
   const [first, ...rest] = items
   if (first === undefined) return []
   return fieldsOf(first).filter(field => rest.every(item => fieldsOf(item).includes(field)))
 }
 
-// 複数を選んだときにバーを出すか（全部に効く入力部品があるときだけ。無ければ、中身の空のバーは出さない）
+// 複数を選んだときにバーを出すか（全部に効く入力Formがあるときだけ。無ければ、中身の空のバーは出さない）
 export const showsGroupBar = (items: readonly string[]): boolean => commonFields(items).length > 0
 
-// 選んだアイテムの入力部品。複数なら、全部に一度に効かせる（今の値は最初の物のもの）
+// 選んだアイテムの入力Form。複数なら、全部に一度に効かせる（今の値は最初の物のもの）
 export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] }) {
   const subject = subjects[0]
   const fields = commonFields(subjects.map(s => s.item))
