@@ -168,10 +168,10 @@ test("知らせにつながらなければ NoServer", async () => {
   await expect(loading).rejects.toBeInstanceOf(NoServer)
 })
 
-test("ペアを組んでいないブラウザは、読めずに、ペアが要ると分かる E402 になる（ほかの断りは NoServer）", async () => {
+test("画面 cookie を持たないブラウザは、読めずに、画面 cookie が要ると分かる E402 になる（ほかの断りは NoServer）", async () => {
   const s = fakeServer()
   s.answer.read = () => 403
-  s.answer.data = "pair-required"
+  s.answer.data = "cookie-required"
   const loading = s.host.load()
   s.fail()
   await expect(loading).rejects.toMatchObject({ code: "E402" })

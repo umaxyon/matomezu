@@ -46,13 +46,13 @@ func newServerWith(t *testing.T, o Options) *httptest.Server {
 		t.Fatal(err)
 	}
 	o.Web, o.Token, o.Version, o.Hub = web, "secret", "v1", hub
-	if o.Pair == nil {
-		o.Pair = NewPairing(nil, nil)
+	if o.Cookies == nil {
+		o.Cookies = NewScreenCookies(nil, nil)
 	}
 	s := httptest.NewUnstartedServer(withRoutesForTest(Handler(o), o))
 	s.Config.RegisterOnShutdown(hub.CloseAll)
 	s.Start()
-	pairTestBrowser(t, s, o.Pair)
+	cookieTestBrowser(t, s, o.Cookies)
 	t.Cleanup(hub.CloseAll)
 	t.Cleanup(s.Close)
 	return s
@@ -126,21 +126,21 @@ func TestStopNeedsTokenAndPost(t *testing.T) {
 	<-stopped
 }
 
-// pairTestBrowser は、テストの常駐 s にペアを組んだブラウザを 1 つ作る。画面からの頼みは、この鍵が要る（send と listen は、この鍵を cookie に付ける）
-func pairTestBrowser(t *testing.T, s *httptest.Server, p *Pairing) {
+// cookieTestBrowser は、テストの常駐 s に画面 cookie を持つブラウザを 1 つ作る。画面からの頼みは、この鍵が要る（send と listen は、この鍵を cookie に付ける）
+func cookieTestBrowser(t *testing.T, s *httptest.Server, p *ScreenCookies) {
 	t.Helper()
 	secret, _ := p.Redeem(p.NewCode())
 	_, port, _ := net.SplitHostPort(strings.TrimPrefix(s.URL, "http://"))
-	pairedCookies.Store(s.URL, "matomezu-"+port+"="+secret)
-	t.Cleanup(func() { pairedCookies.Delete(s.URL) })
+	testCookies.Store(s.URL, "matomezu-"+port+"="+secret)
+	t.Cleanup(func() { testCookies.Delete(s.URL) })
 }
 
-// pairedCookies は、テストの常駐の URL ごとの、ペアを組んだブラウザの cookie
-var pairedCookies sync.Map
+// testCookies は、テストの常駐の URL ごとの、画面 cookie を持つブラウザの cookie
+var testCookies sync.Map
 
-// pairedCookie は、url の常駐のペアを組んだブラウザの cookie
-func pairedCookie(url string) (cookie string) {
-	pairedCookies.Range(func(k, v any) bool {
+// testCookie は、url の常駐の画面 cookie を持つブラウザの cookie
+func testCookie(url string) (cookie string) {
+	testCookies.Range(func(k, v any) bool {
 		if strings.HasPrefix(url, k.(string)) {
 			cookie = v.(string)
 		}
@@ -153,7 +153,7 @@ func pairedCookie(url string) (cookie string) {
 func send(t *testing.T, method, url, body string, headers map[string]string) (int, string) {
 	t.Helper()
 	if _, own := headers["Cookie"]; !own {
-		if c := pairedCookie(url); c != "" {
+		if c := testCookie(url); c != "" {
 			headers = maps.Clone(headers)
 			if headers == nil {
 				headers = map[string]string{}
@@ -413,7 +413,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 	for _, c := range cases {
 		req, _ := http.NewRequest("POST", s.URL+"/api/perform", strings.NewReader(`{"action":"nope"}`))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", pairedCookie(s.URL))
+		req.Header.Set("Cookie", testCookie(s.URL))
 		for k, v := range c.headers {
 			req.Header.Set(k, v)
 		}
@@ -431,7 +431,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 	}
 	req, _ := http.NewRequest("POST", s.URL+"/api/perform", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "text/plain")
-	req.Header.Set("Cookie", pairedCookie(s.URL))
+	req.Header.Set("Cookie", testCookie(s.URL))
 	res, _ := http.DefaultClient.Do(req)
 	res.Body.Close()
 	if res.StatusCode != 415 {
@@ -445,7 +445,7 @@ const drawing = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","proj
 func listen(t *testing.T, url string) <-chan string {
 	t.Helper()
 	req, _ := http.NewRequest(http.MethodGet, url+"/api/events", nil)
-	req.Header.Set("Cookie", pairedCookie(url))
+	req.Header.Set("Cookie", testCookie(url))
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -890,7 +890,7 @@ func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
 	var s *httptest.Server
 	opened := make(chan (<-chan string), 1)
 	s = newServerWith(t, Options{URL: "http://screen/", Open: func(url string) error {
-		if !strings.HasPrefix(url, "http://screen/pair?code=") {
+		if !strings.HasPrefix(url, "http://screen/cookie?code=") {
 			t.Errorf("the browser was opened at %s", url)
 		}
 		go func() {
@@ -1126,7 +1126,7 @@ func TestEditLocksGoWithTheWindow(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	k1 := placeBox(t, s.URL, 10, "一")
 	req, _ := http.NewRequest(http.MethodGet, s.URL+"/api/events", nil)
-	req.Header.Set("Cookie", pairedCookie(s.URL))
+	req.Header.Set("Cookie", testCookie(s.URL))
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)

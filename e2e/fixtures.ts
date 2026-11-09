@@ -37,21 +37,21 @@ export type HostOptions = { hostArgs: string[] }
 export const BOOK_SCREEN_URL = "/?f=book"
 export const CONTROL_CENTER_URL = "/?f=center"
 
-// ブラウザ（context）を常駐とペアにする（テストの用意の口でコードをもらい、本物の /pair を通って cookie を受け取る）
-const pair = async (host: Host, context: BrowserContext) => {
-  const made = await fetch(`${host.url}/api/pair-code-for-test`, {
+// ブラウザ（context）を常駐の画面 cookie を持たせる（テストの用意の口でコードをもらい、本物の /cookie を通って cookie を受け取る）
+const giveCookie = async (host: Host, context: BrowserContext) => {
+  const made = await fetch(`${host.url}/api/cookie-code-for-test`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: "{}",
   })
-  if (!made.ok) throw new Error(`pair-code-for-test: ${made.status} ${await made.text()}`)
+  if (!made.ok) throw new Error(`cookie-code-for-test: ${made.status} ${await made.text()}`)
   const { code } = (await made.json()) as { code: string }
-  const done = await context.request.get(`${host.url}/pair?code=${code}`)
-  if (!done.ok()) throw new Error(`pair: ${done.status()}`)
+  const done = await context.request.get(`${host.url}/cookie?code=${code}`)
+  if (!done.ok()) throw new Error(`cookie: ${done.status()}`)
 }
 
 export const test = base.extend<
-  { books: readonly object[]; reset: undefined; paired: undefined; newPage: () => Promise<Page> },
+  { books: readonly object[]; reset: undefined; withCookie: undefined; newPage: () => Promise<Page> },
   HostOptions & { host: Host }
 >({
   // 常駐の serve に足す引数（追加プラグインのフォルダを結ぶ --plugin など）
@@ -69,7 +69,7 @@ export const test = base.extend<
         },
       )
       // 立てた serve が自分のフォルダに書いたつなぎ方を待つ（pid で、ほかの常駐の物でないと確かめる）
-      // 画面の入口はペアを組んだブラウザにしか答えないので、合言葉の入口（/api/ping）で確かめる
+      // 画面の入口は画面 cookie を持つブラウザにしか答えないので、合言葉の入口（/api/ping）で確かめる
       const answering = async (url: string, token: string) =>
         fetch(`${url}/api/ping`, { headers: { Authorization: `Bearer ${token}` } }).then(
           r => r.ok,
@@ -92,19 +92,19 @@ export const test = base.extend<
   baseURL: async ({ host }, use) => use(host.url),
   // テストが始まるときに常駐に置くブック
   books: [E2E_BOOKS, { option: true }],
-  // テストごとのブラウザ（context）を、常駐とペアにする
-  paired: [
+  // テストごとのブラウザ（context）を、常駐の画面 cookie を持たせる
+  withCookie: [
     async ({ host, context }, use) => {
-      await pair(host, context)
+      await giveCookie(host, context)
       await use(undefined)
     },
     { auto: true },
   ],
-  // 別のブラウザ（ペアを組んだ新しい窓）を開く。複数の窓を使うテストが、browser.newPage() の代わりに使う
+  // 別のブラウザ（画面 cookie を持つ新しい窓）を開く。複数の窓を使うテストが、browser.newPage() の代わりに使う
   newPage: async ({ host, browser }, use) => {
     await use(async () => {
       const context = await browser.newContext()
-      await pair(host, context)
+      await giveCookie(host, context)
       return context.newPage()
     })
   },

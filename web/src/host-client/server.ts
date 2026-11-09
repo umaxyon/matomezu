@@ -464,7 +464,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         void net
           .fetch("api/data")
           .then(async res =>
-            res.status === 403 && (await res.text()).trim() === "pair-required"
+            res.status === 403 && (await res.text()).trim() === "cookie-required"
               ? matomezuError(problem("E402"))
               : new NoServer(),
           )

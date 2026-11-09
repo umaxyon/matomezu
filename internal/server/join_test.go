@@ -27,9 +27,9 @@ func joinWorld(t *testing.T, store storage.Storage) (*httptest.Server, *Hub) {
 		t.Fatal(err)
 	}
 	web := fstest.MapFS{"index.html": {Data: []byte("top")}}
-	pair := NewPairing(nil, nil)
-	s := httptest.NewServer(Handler(Options{Web: web, Token: "secret", Version: "v1", Hub: hub, Pair: pair}))
-	pairTestBrowser(t, s, pair)
+	cookies := NewScreenCookies(nil, nil)
+	s := httptest.NewServer(Handler(Options{Web: web, Token: "secret", Version: "v1", Hub: hub, Cookies: cookies}))
+	cookieTestBrowser(t, s, cookies)
 	t.Cleanup(func() { s.Close(); hub.CloseAll() })
 	return s, hub
 }
@@ -50,7 +50,7 @@ func call(t *testing.T, method, url, body string, header map[string]string) (str
 	req, _ := http.NewRequest(method, url, strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer secret")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Cookie", pairedCookie(url))
+	req.Header.Set("Cookie", testCookie(url))
 	for k, v := range header {
 		req.Header.Set(k, v)
 	}

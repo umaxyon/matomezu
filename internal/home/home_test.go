@@ -80,23 +80,23 @@ func TestServerFileIsPrivateAndRoundTrips(t *testing.T) {
 	}
 }
 
-func TestPairsAreKeptPrivateAndReadBack(t *testing.T) {
+func TestCookieKeysAreKeptPrivateAndReadBack(t *testing.T) {
 	h, err := Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if keys, err := h.ReadPairs(); err != nil || keys != nil {
+	if keys, err := h.ReadCookieKeys(); err != nil || keys != nil {
 		t.Fatalf("no file: %v, %v", keys, err)
 	}
-	want := []PairKey{{Hash: "a", Used: time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)}}
-	if err := h.WritePairs(want); err != nil {
+	want := []CookieKey{{Hash: "a", Used: time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)}}
+	if err := h.WriteCookieKeys(want); err != nil {
 		t.Fatal(err)
 	}
-	got, err := h.ReadPairs()
+	got, err := h.ReadCookieKeys()
 	if err != nil || len(got) != 1 || got[0].Hash != "a" || !got[0].Used.Equal(want[0].Used) {
 		t.Fatalf("read = %+v, %v", got, err)
 	}
-	st, err := os.Stat(filepath.Join(h.Dir, pairsName))
+	st, err := os.Stat(filepath.Join(h.Dir, cookiesName))
 	if err != nil {
 		t.Fatal(err)
 	}

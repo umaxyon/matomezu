@@ -40,11 +40,11 @@
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
 // 合言葉は Authorization: Bearer <token> で渡す（server.json の token。常駐ごとに作る）。
-// 「画面から」の入口は、この常駐の画面からの頼みで、ペアを組んだブラウザの物だけを受ける（screen。sameOrigin でほかのサイトに開かれたページから書かせず、paired で cookie の鍵を確かめる。pair.go）。
-// ペアは、ブラウザを開くときの URL の使い捨てのコードで組む:
+// 「画面から」の入口は、この常駐の画面からの頼みで、画面 cookie を持つブラウザの物だけを受ける（screen。sameOrigin でほかのサイトに開かれたページから書かせず、withCookie で cookie の鍵を確かめる。screen_cookie.go）。
+// 画面 cookie は、ブラウザを開くときの URL の使い捨てのコードで渡す:
 //
-//	GET  /pair?code=…  コードを 1 度だけ受け付け、鍵を cookie（HttpOnly）に置いて / へ戻す
-//	POST /api/open     （合言葉つき）ペアのコード付きでブラウザを開く。コードは返さない（matomezu open）
+//	GET  /cookie?code=…  コードを 1 度だけ受け付け、鍵を cookie（HttpOnly）に置いて / へ戻す
+//	POST /api/open     （合言葉つき）cookie のコード付きでブラウザを開く。コードは返さない（matomezu open）
 package server
 
 import (
@@ -80,8 +80,8 @@ type Options struct {
 	Stop    func() // /api/stop で呼ぶ。呼ばれたら常駐を止める
 	Hub     *Hub
 	URL     string                 // 画面の URL
-	Open    func(url string) error // url をブラウザで開く（無ければ開かない）。ペアのコードを付けた url を渡す
-	Pair    *Pairing               // 画面とのペア（無ければ、保存しない物を作る）
+	Open    func(url string) error // url をブラウザで開く（無ければ開かない）。cookie のコードを付けた url を渡す
+	Cookies *ScreenCookies         // 画面 cookie（無ければ、保存しない物を作る）
 	Wait    time.Duration          // ブラウザで開いた窓がつながるのを待つ長さ（0 なら windowWait）
 	Latest  time.Duration          // 最後にフォーカスされた窓が見ているものを知らせるのを待つ上限（0 なら latestWait）
 	Keep    time.Duration          // 窓に keep を送る間隔（0 なら keepAlive）
@@ -107,8 +107,8 @@ const keepAlive = 25 * time.Second
 
 // Handler は常駐の入口をまとめた http.Handler
 func Handler(o Options) http.Handler {
-	if o.Pair == nil {
-		o.Pair = NewPairing(nil, nil)
+	if o.Cookies == nil {
+		o.Cookies = NewScreenCookies(nil, nil)
 	}
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/ping", o.auth(func(w http.ResponseWriter, _ *http.Request) {
@@ -123,7 +123,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/data", o.screen(o.data))
 	mux.Handle("GET /api/events", o.screen(o.events))
 	mux.Handle("GET /api/plugins/{n}/{file}", o.screen(o.pluginFile))
-	mux.Handle("GET /pair", http.HandlerFunc(o.pair))
+	mux.Handle("GET /cookie", http.HandlerFunc(o.giveCookie))
 	mux.Handle("POST /api/open", o.auth(o.openAPI))
 	mux.Handle("POST /api/plugins", o.auth(o.linkPlugin))
 	mux.Handle("POST /api/plugins/remove", o.auth(o.unlinkPlugin))
