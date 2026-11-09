@@ -59,7 +59,7 @@ test("キーで重なり順を変えられ、元に戻せる", async ({ page }) 
   await page.goto(BOOK_SCREEN_URL)
   const p = await at(page, 130, 300)
   await page.mouse.click(p.x, p.y)
-  await page.keyboard.press("Control+]")
+  await page.keyboard.press("Control+Alt+]")
   expect(await order(page)).toEqual(["e2", "e1", "e3"])
   await page.keyboard.press("Control+z")
   await expect.poll(() => order(page)).toEqual(["e1", "e2", "e3"])
@@ -67,7 +67,7 @@ test("キーで重なり順を変えられ、元に戻せる", async ({ page }) 
 
 const topOf = async (page: Page, id: string) => (await page.locator(`[data-item="${id}"]`).boundingBox())!.y
 
-test("範囲ドラッグと Shift+クリックで複数を選び、全体の枠の縁やアイテムで一緒に動かし、重なり順も全部に効き（元に戻すは 1 回）、Delete で全部消せる", async ({
+test("ドラッグ枠と Shift+クリックで複数を選び、全体の枠の縁やアイテムで一緒に動かし、重なり順も全部に効き（元に戻すは 1 回）、Delete で全部消せる", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -101,7 +101,7 @@ test("範囲ドラッグと Shift+クリックで複数を選び、全体の枠�
   await page.keyboard.press("Control+z")
   await expect.poll(async () => [await topOf(page, "e1"), await topOf(page, "e2")]).toEqual([before[0], before[1]])
   // 重なり順は選んだ物どうしの前後を保って全部に効き、元に戻すは 1 回
-  await page.keyboard.press("Control+Shift+}")
+  await page.keyboard.press("Control+Alt+Shift+]")
   expect(await order(page)).toEqual(["e3", "e1", "e2"])
   await page.keyboard.press("Control+z")
   await expect.poll(() => order(page)).toEqual(["e1", "e2", "e3"])
@@ -184,6 +184,7 @@ test.describe("線の端点", () => {
     const p = await at(page, 300, 275)
     await page.mouse.click(p.x, p.y)
     await expect(page.locator("[data-point]")).toHaveCount(2)
+    await expect(page.locator("[data-grip]")).toHaveCount(0) // 枠の大きさのつまみは出ない
     const before = (await page.locator('[data-item="l1"]').boundingBox())!
     await drag(page, '[data-point="1"]', [100, 120])
     const after = (await page.locator('[data-item="l1"]').boundingBox())!
@@ -196,6 +197,7 @@ test.describe("線の端点", () => {
     const f = await at(page, 850, 275)
     await page.mouse.click(f.x, f.y)
     await expect(page.locator("[data-point]")).toHaveCount(3)
+    await expect(page.locator("[data-grip]")).toHaveCount(0)
     const free = (await page.locator('[data-item="f1"]').boundingBox())!
     await drag(page, '[data-point="1"]', [0, -90]) // 真ん中の点を上へ
     const grown = (await page.locator('[data-item="f1"]').boundingBox())!

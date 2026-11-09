@@ -212,28 +212,29 @@ export const SLIDE_KEYS = [
     command: SLIDE_DELETE.id,
     scope: SLIDE_KEY_SCOPE.id,
   }),
-  // Shift を押すと ] は } に、[ は { になる（キーの名前は押した文字）
+  // 重なり順のキーは、ブラウザの戻る・進む（Mac は Cmd+[ ]）やタブの切り替え（Cmd+Shift+[ ]）と重ならないよう Alt も押す。
+  // Alt を押した [ ] は、Mac では別の文字になるので、キーの位置から決まる（Shift は修飾キーとして付く）
   kit.defineKey({
-    id: "slide-to-front-mod-shift-brace-right",
-    key: "Mod+Shift+}",
+    id: "slide-to-front-mod-alt-shift-bracket-right",
+    key: "Mod+Alt+Shift+]",
     command: SLIDE_TO_FRONT.id,
     scope: SLIDE_KEY_SCOPE.id,
   }),
   kit.defineKey({
-    id: "slide-to-back-mod-shift-brace-left",
-    key: "Mod+Shift+{",
+    id: "slide-to-back-mod-alt-shift-bracket-left",
+    key: "Mod+Alt+Shift+[",
     command: SLIDE_TO_BACK.id,
     scope: SLIDE_KEY_SCOPE.id,
   }),
   kit.defineKey({
-    id: "slide-forward-mod-bracket-right",
-    key: "Mod+]",
+    id: "slide-forward-mod-alt-bracket-right",
+    key: "Mod+Alt+]",
     command: SLIDE_FORWARD.id,
     scope: SLIDE_KEY_SCOPE.id,
   }),
   kit.defineKey({
-    id: "slide-backward-mod-bracket-left",
-    key: "Mod+[",
+    id: "slide-backward-mod-alt-bracket-left",
+    key: "Mod+Alt+[",
     command: SLIDE_BACKWARD.id,
     scope: SLIDE_KEY_SCOPE.id,
   }),

@@ -167,7 +167,7 @@ export function unionOf(rects: readonly Rect[]): Rect | null {
 export const touches = (a: Rect, b: Rect): boolean =>
   a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h
 
-// 2 点を向かい合う角にした四角（範囲ドラッグ）
+// 2 点を向かい合う角にした四角（ドラッグ枠）
 export const spanOf = (a: Point, b: Point): Rect => ({
   x: Math.min(a.x, b.x),
   y: Math.min(a.y, b.y),

@@ -9,7 +9,7 @@ import { kit } from "../kit"
 import { normalizeAngle, pointsOnPaper } from "../rect"
 import { linePointsOf } from "../slide"
 import styles from "./Selection.module.css"
-import { type StyleSubject, StyleTools, showsGroupBar } from "./StyleTools"
+import { StyleFields, type StyleSubject, showsGroupBar } from "./StyleFields"
 
 export const GRIPS = [
   { id: "top-left", at: [0, 0], grip: { left: true, top: true } },
@@ -37,6 +37,7 @@ export interface SelectedItem {
 export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolean }) {
   const { rect, rotation } = item
   const t = useMessages(kit)
+  const isLine = linePointsOf(item.kind, item.props).length > 0
   return (
     <>
       {!hidden && (
@@ -50,15 +51,17 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
             transform: rotation ? `rotate(${rotation}deg)` : undefined,
           }}
         >
-          {GRIPS.map(g => (
-            <div
-              key={g.id}
-              className={styles.grip}
-              data-grip={g.id}
-              data-edge={g.at[0] === 50 || g.at[1] === 50}
-              style={{ left: `${g.at[0]}%`, top: `${g.at[1]}%` }}
-            />
-          ))}
+          {/* 線は端の丸い点で形を変えるので、枠の 8 つのつまみは出さない */}
+          {!isLine &&
+            GRIPS.map(g => (
+              <div
+                key={g.id}
+                className={styles.grip}
+                data-grip={g.id}
+                data-edge={g.at[0] === 50 || g.at[1] === 50}
+                style={{ left: `${g.at[0]}%`, top: `${g.at[1]}%` }}
+              />
+            ))}
           <div className={styles.rotate} data-rotate title={t("Rotate")}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M19 12a7 7 0 1 1-2.1-5M19 4v4h-4" />
@@ -103,7 +106,7 @@ function Bar({ item }: { item: SelectedItem }) {
           {t("Reset ratio")}
         </button>
         <AngleField key={`${item.id}:${item.rotation}`} item={item} />
-        <StyleTools
+        <StyleFields
           key={`${item.id}:${item.kind}`}
           subjects={[{ id: item.id, stage: item.stage, item: item.kind, props: item.props }]}
         />
@@ -148,7 +151,7 @@ function AngleField({ item }: { item: SelectedItem }) {
 }
 
 // 複数を選んでいるときに出す物: 選んだ物の全体を囲む点線の枠（縁を押してドラッグすれば、選んだ物を一緒に動かす）と、
-// そばに立つバー（全部に一度に効く見た目の道具だけ。大きさ・回す・角度は出さない）
+// そばに立つバー（全部に一度に効く見た目の入力部品だけ。大きさ・回す・角度は出さない）
 export function GroupSelection({ rect, subjects }: { rect: Rect; subjects: readonly StyleSubject[] }) {
   const t = useMessages(kit)
   const hasTools = showsGroupBar(subjects.map(s => s.item))
@@ -162,7 +165,7 @@ export function GroupSelection({ rect, subjects }: { rect: Rect; subjects: reado
       {hasTools && (
         <Stand anchor={subjects.map(s => s.id)} side="above" label={t("Change on slide")}>
           <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
-            <StyleTools subjects={subjects} />
+            <StyleFields subjects={subjects} />
           </div>
         </Stand>
       )}

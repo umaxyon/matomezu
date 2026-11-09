@@ -1,4 +1,4 @@
-// スライドのアイテム: 文字枠・自由な線・直線・楕円。ブックのアイテム（箱や線）とは別の、絵を描く道具の仲間。
+// スライドのアイテム: 文字枠・自由な線・直線・楕円。ブックのアイテム（箱や線）とは別の、描画シェイプの仲間。
 // 置き場はページの slide（ブックのタイプが選ぶ）で、押し合わず、線もつながず、紙をはみ出てもよい（紙は表示の範囲）。ケイパビリティ（capabilities）は持たない。
 // 線の点は、枠（幅と高さ）の中の割合（0 から 1）で持つ。枠を拡大すれば線も一緒に拡大する。
 // 角度（rotation）・比率のロック（lockRatio）・元の比率（ratio。置いたときの幅 ÷ 高さ）は、どのアイテムも持つ
@@ -98,9 +98,15 @@ export function linePropsOf(kind: string, points: readonly FractionPoint[]): Rec
   return kind === FREE_LINE.id ? { points } : { from: points[0], to: points[1] }
 }
 
-// 線の点を動かしたときの項目: 点と、角度と比率の固定を外す（枠を紙の上の点から出し直すため）
-export function movedLineProps(kind: string, points: readonly FractionPoint[]): Record<string, unknown> {
-  return { ...linePropsOf(kind, points), rotation: null, lockRatio: null }
+// 線の点を動かしたときの項目: 点と、角度と比率の固定を外す（枠を紙の上の点から出し直すため）。
+// 元の比率は、動かした後の枠 rect（紙の上）の比率にする（「元の比率に戻す」が、点を動かす前の比率へ戻らないように）
+export function movedLineProps(
+  kind: string,
+  points: readonly FractionPoint[],
+  rect: { w: number; h: number },
+): Record<string, unknown> {
+  const ratio = rect.h > 0 ? Math.round((rect.w / rect.h) * 100) / 100 : 0
+  return { ...linePropsOf(kind, points), rotation: null, lockRatio: null, ratio: ratio > 0 ? ratio : null }
 }
 
 // 文字枠の文字の大きさ（px）の既定

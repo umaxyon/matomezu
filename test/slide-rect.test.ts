@@ -98,7 +98,7 @@ test("点の間引き: 近い点を捨て、最後の点は残す", () => {
   expect(thinned(pts, 5).map(p => p.x)).toEqual([0, 10, 11])
 })
 
-test("傾けた四角を囲む四角・四角の全体・範囲ドラッグの四角・重なり", () => {
+test("傾けた四角を囲む四角・四角の全体・ドラッグ枠の四角・重なり", () => {
   const b = boundsOf({ x: 0, y: 0, w: 100, h: 100 }, 45)
   close(b.w, Math.SQRT2 * 100)
   close(b.x, 50 - (Math.SQRT2 * 100) / 2)

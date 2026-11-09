@@ -39,11 +39,12 @@ export interface Pressed {
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Alt", "Shift", "OS"])
 
 // 押したキーを、そろえた書き方にする（修飾キーだけを押したなら null）。
-// Alt を押しながらの文字は、Mac では別の文字になるので、キーの位置（code）から名前を決める
+// Alt を押しながらの文字・数字・括弧は、Mac では別の文字になるので、キーの位置（code）から名前を決める（括弧は Shift を押しても [ ] のまま、Shift は修飾キーとして付く）
 export function pressedKey(e: Pressed, mac: boolean): string | null {
   if (MODIFIER_KEYS.has(e.key)) return null
-  const fromCode = /^Key([A-Z])$|^Digit([0-9])$/.exec(e.code)
-  const key = e.altKey && fromCode ? (fromCode[1] ?? fromCode[2] ?? e.key) : e.key
+  const fromCode = /^Key([A-Z])$|^Digit([0-9])$|^Bracket(Left|Right)$/.exec(e.code)
+  const bracket = fromCode?.[3] === undefined ? undefined : fromCode[3] === "Left" ? "[" : "]"
+  const key = e.altKey && fromCode ? (fromCode[1] ?? fromCode[2] ?? bracket ?? e.key) : e.key
   const mods: Modifier[] = []
   if (mac ? e.metaKey : e.ctrlKey) mods.push("Mod")
   if (mac && e.ctrlKey) mods.push("Ctrl")

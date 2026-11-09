@@ -1,4 +1,4 @@
-// バーに並ぶ、選んだアイテムの見た目の道具: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
+// バーに並ぶ、選んだアイテムの見た目の入力部品: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
 // アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（テーマの文字の色。塗りは塗らない）か、テーマの代表色か、好きな色
 import { useState } from "react"
 import { useCommand, useMessages } from "../../../../plugin-api/ui"
@@ -24,10 +24,10 @@ export interface StyleSubject {
   props: Readonly<Record<string, unknown>>
 }
 
-// 種類ごとに並べる道具（出し分けの表。単体テストが見る）
-export type StyleTool = "text-color" | "color" | "width" | "dashed" | "arrow" | "fill" | "outline" | "outline-width"
+// 種類ごとに並べる入力部品（出し分けの表。単体テストが見る）
+export type StyleField = "text-color" | "color" | "width" | "dashed" | "arrow" | "fill" | "outline" | "outline-width"
 
-export function toolsOf(item: string): readonly StyleTool[] {
+export function fieldsOf(item: string): readonly StyleField[] {
   if (item === TEXT_FRAME.id) return ["text-color"]
   if (item === FREE_LINE.id) return ["color", "width", "dashed"]
   if (item === STRAIGHT_LINE.id) return ["color", "width", "dashed", "arrow"]
@@ -35,20 +35,20 @@ export function toolsOf(item: string): readonly StyleTool[] {
   return []
 }
 
-// 選んだ物の全部に効く道具（種類が混ざれば、どの種類にもある物だけ）
-export function commonTools(items: readonly string[]): readonly StyleTool[] {
+// 選んだ物の全部に効く入力部品（種類が混ざれば、どの種類にもある物だけ）
+export function commonFields(items: readonly string[]): readonly StyleField[] {
   const [first, ...rest] = items
   if (first === undefined) return []
-  return toolsOf(first).filter(tool => rest.every(item => toolsOf(item).includes(tool)))
+  return fieldsOf(first).filter(field => rest.every(item => fieldsOf(item).includes(field)))
 }
 
-// 複数を選んだときにバーを出すか（全部に効く道具があるときだけ。無ければ、中身の空のバーは出さない）
-export const showsGroupBar = (items: readonly string[]): boolean => commonTools(items).length > 0
+// 複数を選んだときにバーを出すか（全部に効く入力部品があるときだけ。無ければ、中身の空のバーは出さない）
+export const showsGroupBar = (items: readonly string[]): boolean => commonFields(items).length > 0
 
-// 選んだアイテムの道具。複数なら、全部に一度に効かせる（今の値は最初の物のもの）
-export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) {
+// 選んだアイテムの入力部品。複数なら、全部に一度に効かせる（今の値は最初の物のもの）
+export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] }) {
   const subject = subjects[0]
-  const tools = commonTools(subjects.map(s => s.item))
+  const fields = commonFields(subjects.map(s => s.item))
   const t = useMessages(kit)
   const set = useCommand(subject?.stage ?? "", SLIDE_SET.id)
   const swatches = useSwatches(useBookTheme(useBookOf(subject?.stage ?? "")), SLIDE_INK)
@@ -56,9 +56,9 @@ export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) 
   const change = (props: Record<string, unknown>) => set.run({ items: subjects.map(s => s.id), props })
   const str = (key: string) => (typeof subject.props[key] === "string" ? (subject.props[key] as string) : undefined)
   const num = (key: string) => (typeof subject.props[key] === "number" ? (subject.props[key] as number) : undefined)
-  const colorField = (tool: StyleTool, key: string, label: string) =>
+  const colorField = (field: StyleField, key: string, label: string) =>
     swatches && (
-      <span key={tool} className={styles.tool}>
+      <span key={field} className={styles.field}>
         {label}
         <ColorPicker
           label={label}
@@ -70,24 +70,24 @@ export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) 
         />
       </span>
     )
-  if (tools.length === 0) return null
+  if (fields.length === 0) return null
   return (
     <>
       <span className={styles.divider} aria-hidden="true" />
-      {tools.map(tool => {
-        switch (tool) {
+      {fields.map(field => {
+        switch (field) {
           case "text-color":
-            return colorField(tool, "color", t("Text color"))
+            return colorField(field, "color", t("Text color"))
           case "color":
-            return colorField(tool, "color", t("Color"))
+            return colorField(field, "color", t("Color"))
           case "fill":
-            return colorField(tool, "fill", t("Fill"))
+            return colorField(field, "fill", t("Fill"))
           case "outline":
-            return colorField(tool, "stroke", t("Outline color"))
+            return colorField(field, "stroke", t("Outline color"))
           case "width":
             return (
               <WidthField
-                key={tool}
+                key={field}
                 label={t("Width")}
                 value={num("width") ?? DEFAULT_STROKE_WIDTH}
                 zero={false}
@@ -98,7 +98,7 @@ export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) 
           case "outline-width":
             return (
               <WidthField
-                key={tool}
+                key={field}
                 label={t("Width")}
                 value={num("width") ?? DEFAULT_STROKE_WIDTH}
                 zero
@@ -109,7 +109,7 @@ export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) 
           case "dashed":
             return (
               <button
-                key={tool}
+                key={field}
                 type="button"
                 className={styles.button}
                 aria-pressed={str("dash") === "dashed"}
@@ -122,7 +122,7 @@ export function StyleTools({ subjects }: { subjects: readonly StyleSubject[] }) 
           case "arrow":
             return (
               <button
-                key={tool}
+                key={field}
                 type="button"
                 className={styles.button}
                 aria-pressed={str("endHead") === "arrow"}

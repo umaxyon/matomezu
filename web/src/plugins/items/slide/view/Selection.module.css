@@ -132,7 +132,7 @@
   margin: 2px 2px;
   background: var(--skin-border);
 }
-.tool {
+.field {
   display: inline-flex;
   align-items: center;
   gap: 4px;
