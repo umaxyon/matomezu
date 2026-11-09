@@ -3,9 +3,7 @@
 
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import type { Where } from "../../../core/def/action"
 import type { Book } from "../../../core/schema/book"
-import type { CommandContext } from "../../../store/commands/def"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
@@ -26,12 +24,6 @@ declare module "../../../core/catalog" {
     duplicatesPages?: boolean
   }
 }
-
-// 引数 { page } のコマンドの許可の範囲: 引数のページ（まだ引数が無ければブック）
-const pageArgScope = (_ctx: CommandContext, args: unknown): Where =>
-  typeof args === "object" && args !== null && "page" in args && typeof args.page === "string"
-    ? { page: args.page }
-    : {}
 
 export const NEW_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
 
@@ -119,7 +111,7 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
     const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: ctx.book.id })
     if (done.ok) a.openPage(ctx.stage.id, done.result.page)
   },
-  permissionScope: pageArgScope,
+  permissionScope: { page: "page" },
   when: ctx => ctx.book !== null && hasPages(ctx.book) && bookType(ctx.catalog, ctx.book.type).duplicatesPages === true,
 })
 
@@ -129,6 +121,6 @@ export const PAGE_DELETE = kit.defineCommand({
   performs: [PAGE_REMOVE.id],
   title: "Delete page...",
   run: (ctx, a, { page }: { page: string }) => a.openDialog(ctx.stage.id, PAGE_DELETE_DIALOG.id, { page }),
-  permissionScope: pageArgScope,
+  permissionScope: { page: "page" },
   when: ctx => ctx.book !== null && hasPages(ctx.book),
 })

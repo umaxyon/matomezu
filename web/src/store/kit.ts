@@ -164,11 +164,11 @@ export interface PluginKit<P extends string, M extends MessageMap> {
 
   // run の 3 つ目の引数の型から A を決める（defineCommand と同じく、run は when より前に書く）
   defineCommand<const Id extends string, A = undefined, const Ps extends readonly ActionId[] | undefined = undefined>(
-    def: CommandDef<A, keyof M & string> & {
+    def: Omit<CommandDef<A, keyof M & string>, "permissionScope"> & {
       id: Id
       performs?: Ps
       place?: CommandPlace<NoInfer<A>>
-    } & CommandScopeRequired<Ps>,
+    } & CommandScopeRequired<Ps, A>,
   ): Omit<CommandDef<A>, "id"> & { id: Owned<P, Id> }
 
   defineDialog<const Id extends string>(def: { id: Id } & DialogExtras): DialogDef & { id: Owned<P, Id> }

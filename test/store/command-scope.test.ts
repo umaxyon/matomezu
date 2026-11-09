@@ -11,9 +11,15 @@ test("コマンドの許可の範囲: 言葉ごとに、呼ばれた場所の様
   expect(commandScopeOf(undefined, ctx())).toBeUndefined()
 })
 
+test("コマンドの許可の範囲が { page } なら、その名前の引数のページ（まだ引数が無ければブック）", () => {
+  const ctx = {} as CommandContext
+  expect(commandScopeOf({ page: "page" }, ctx, { page: "p2" })).toEqual({ page: "p2" })
+  expect(commandScopeOf({ page: "page" }, ctx)).toEqual({})
+})
+
 test("コマンドの許可の範囲が関数なら、呼ばれた引数も受け取る（まだ引数が無ければ undefined）", () => {
   const ctx = {} as CommandContext
-  const scope = (_: CommandContext, args: unknown) => ({ page: (args as { page: string } | undefined)?.page ?? "none" })
+  const scope = (_: CommandContext, args: { page: string } | undefined) => ({ page: args?.page ?? "none" })
   expect(commandScopeOf(scope, ctx, { page: "p2" })).toEqual({ page: "p2" })
   expect(commandScopeOf(scope, ctx)).toEqual({ page: "none" })
 })

@@ -3,7 +3,7 @@
 
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
-import type { Where } from "../../core/def/action"
+import type { ArgsOfType, Where } from "../../core/def/action"
 import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
@@ -17,19 +17,36 @@ import type { OpenedDialog } from "../dialogs"
 import type { Actions, Settings } from "../store"
 
 // コマンドの許可の範囲: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
-// 言葉で言えなければ、呼ばれた場所の様子から所を返す関数
-// 関数は、右クリックしたページのように、コマンドの引数が所を決めるときにも使う（args は呼ばれた引数。まだ無ければ undefined）
-export type CommandScope = "book" | "opened-page" | "selection" | ((ctx: CommandContext, args: unknown) => Where)
+// { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
+// 言葉で言えなければ、呼ばれた場所の様子と引数（まだ無ければ undefined）から所を返す関数
+export type CommandScope<A = unknown> =
+  | "book"
+  | "opened-page"
+  | "selection"
+  | { page: ArgsOfType<A, string> }
+  | ((ctx: CommandContext, args: A | undefined) => Where)
 
-// 呼ばれた場所の様子 ctx と引数 args での、コマンドの許可の範囲の所
+// 表に並べたコマンドの許可の範囲（引数の形を問わない形。書くときの型は CommandScope<A>）
+export type AnyCommandScope =
+  | "book"
+  | "opened-page"
+  | "selection"
+  | { page: string }
+  | ((ctx: CommandContext, args: never) => Where)
+
+// 呼ばれた場所の様子 ctx と引数 args（まだ無ければ undefined）での、コマンドの許可の範囲の所
 export function commandScopeOf(
-  scope: CommandScope | undefined,
+  scope: AnyCommandScope | undefined,
   ctx: CommandContext,
   args?: unknown,
 ): Where | undefined {
   if (scope === undefined) return undefined
   if (scope === "book") return {}
-  if (typeof scope === "function") return scope(ctx, args)
+  if (typeof scope === "function") return scope(ctx, args as never)
+  if (typeof scope === "object") {
+    const page = typeof args === "object" && args !== null ? (args as Record<string, unknown>)[scope.page] : undefined
+    return typeof page === "string" ? { page } : {}
+  }
   const page = ctx.stage.opened?.page ?? undefined
   const on = page ? { page } : {}
   return scope === "opened-page" ? on : { ...on, ids: ctx.stage.selection }
@@ -86,7 +103,7 @@ export interface CommandDef<A = undefined, Tt extends string = MessageKey> exten
   // どれも認可ステップに止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
   performs?: readonly ActionId[]
   // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（認可ステップに渡す）。ブックが対象のアクションを行うなら必ず書く（defineCommand の型が求める）
-  permissionScope?: CommandScope
+  permissionScope?: CommandScope<A>
   // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる。
   // anchorMenu は、押した物にアンカーがあるときにどの右クリックのメニューにも足す項目（LayoutDef の anchorMenu）
   place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[]; anchorMenu?: boolean }
@@ -103,7 +120,7 @@ export interface CommandPlace<A> {
 }
 
 // 行うアクション P にブックが対象のものがあれば、許可の範囲を必ず書く（defineCommand の型が求める）。表に無いアクション（W003）は数えない
-export type CommandScopeRequired<P extends readonly ActionId[] | undefined> = true extends {
+export type CommandScopeRequired<P extends readonly ActionId[] | undefined, A = unknown> = true extends {
   [I in keyof P]: [P[I]] extends [never]
     ? false
     : P[I] extends ActionId
@@ -112,8 +129,8 @@ export type CommandScopeRequired<P extends readonly ActionId[] | undefined> = tr
         : false
       : false
 }[number & keyof P]
-  ? { permissionScope: CommandScope }
-  : unknown
+  ? { permissionScope: CommandScope<A> }
+  : { permissionScope?: CommandScope<A> }
 
 // run の 3 つ目の引数の型から A を決め、id は書いた文字のまま残す（引数が無ければ A は undefined）。
 // 型は書いた順に決まるので、run は when より前に書く（後ろに書くと、引数のあるコマンドが型の誤りになる）
@@ -122,7 +139,11 @@ export function defineCommand<
   A = undefined,
   const P extends readonly ActionId[] | undefined = undefined,
 >(
-  def: CommandDef<A> & { id: Id; performs?: P; place?: CommandPlace<NoInfer<A>> } & CommandScopeRequired<P>,
+  def: Omit<CommandDef<A>, "permissionScope"> & {
+    id: Id
+    performs?: P
+    place?: CommandPlace<NoInfer<A>>
+  } & CommandScopeRequired<P, A>,
 ): CommandDef<A> & { id: Id } {
   return def
 }

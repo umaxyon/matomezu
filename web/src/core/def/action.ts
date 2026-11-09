@@ -121,7 +121,7 @@ export interface Where {
 }
 
 // 引数の形 A のうち、値の型が V に当たる引数の名前
-type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> extends V ? K : never }[keyof A & string]
+export type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> extends V ? K : never }[keyof A & string]
 
 // 許可の範囲: ブックが対象のアクションが、ブックのどこを変えるかの宣言。認可ステップは、行う前にこの所で問う。
 // "book" はページもアイテムも変えない。page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く。
