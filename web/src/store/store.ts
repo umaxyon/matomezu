@@ -344,7 +344,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
 }
 
 // 開いている画面の履歴の段。step は閉じて画面の履歴に入れた段、refused はホストが中のアクションを断ったこと。
-// continued は続けた段（continueStep）で、prior は続ける前の段（断られたらこの段に戻す。続ける前に通っていた変更は元に戻せるまま残す）
+// continued は続けた画面の履歴の段（continueStep）で、prior は続ける前の画面の履歴の段（断られたらこの段に戻す。続ける前に通っていた変更は元に戻せるまま残す）
 interface OpenStep {
   at: string
   books: Record<string, { before: Book; after: Book }>
@@ -452,7 +452,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const { at, books, continued } = was
     const step: HistoryStep = { at, by: "user", books }
     open = null
-    // 入れる前にホストが断ったなら入れない（続けた段なら、続ける前の段に戻す）
+    // 入れる前にホストが断ったなら入れない（続けた画面の履歴の段なら、続ける前の画面の履歴の段に戻す）
     if (was.refused) {
       if (was.prior) putBack(was.prior)
       return
@@ -466,7 +466,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setState({ history })
     lastPut = { ...lastPut, ...Object.fromEntries(Object.keys(step.books).map(id => [id, step])) }
   }
-  // 続ける前の段 prior を、画面の履歴の最後に戻す（続けた段が断られたとき）
+  // 続ける前の画面の履歴の段 prior を、画面の履歴の最後に戻す（続けた画面の履歴の段が断られたとき）
   const putBack = (prior: HistoryStep) => {
     const history = { ...getState().history }
     for (const id of Object.keys(prior.books))
@@ -542,7 +542,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     return open
   }
   // ホストが断ったアクションを入れた画面の履歴の段 at を捨てる（その段は、断られた変更を戻そうとして、その間のほかの変更を消してしまうため。
-  // 同じ段のほかのアクションの変更も、元に戻すで戻せなくなる）
+  // 同じ段のほかのアクションの変更も、元に戻すで戻せなくなる。ただし続けた画面の履歴の段なら、続ける前の画面の履歴の段は戻し、その変更は元に戻せるまま残す）
   const dropRefused = (at: OpenStep) => {
     at.refused = true
     const step = at.step

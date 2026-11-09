@@ -119,7 +119,7 @@ describe("アクションの入口", () => {
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
 
-  test("ホストが断ったアクションを続けた段に入れていたら、続ける前の段は元に戻せるまま残る", async () => {
+  test("ホストが断ったアクションを続けた画面の履歴の段に入れていたら、続ける前の画面の履歴の段は元に戻せるまま残る", async () => {
     const instance = createMatomezu({
       plugins: BUILTIN,
       controlCenter: "@matomezu/control-center:control-center",
@@ -136,14 +136,14 @@ describe("アクションの入口", () => {
     await Promise.resolve()
     const first = instance.state.getState().history.n1?.undo.at(-1)
     expect(first?.books.n1?.after).toMatchObject({ title: "通る" })
-    // 続けた段（continueStep）で別のアクションを行い、ホストが断る
+    // 続けた画面の履歴の段（continueStep）で別のアクションを行い、ホストが断る
     instance.actions.continueStep("n1")
     act.perform("notes:rename", { title: "断られる" }, { book: "n1" })
     await new Promise(r => setTimeout(r, 0))
     const undo = instance.state.getState().history.n1?.undo ?? []
     expect(undo.at(-1)).toBe(first)
     expect(undo.length).toBe(1)
-    // 続ける前の段で、また続けられる
+    // 続ける前の画面の履歴の段で、また続けられる
     instance.actions.continueStep("n1")
     act.perform("notes:rename", { title: "続き" }, { book: "n1" })
     await new Promise(r => setTimeout(r, 0))
