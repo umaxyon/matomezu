@@ -288,6 +288,8 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
         rotation: rotationOf(current),
         locked: shapeProps(current).lockRatio === true,
         ratio: shapeProps(current).ratio as number | undefined,
+        kind: current.item,
+        props: shapeProps(current),
       }
     : null
   return (

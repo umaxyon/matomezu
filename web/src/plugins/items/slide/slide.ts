@@ -61,6 +61,9 @@ export const EllipseProps = z.strictObject({
   ...FRAME,
 })
 
+// 線・文字・枠の色の「なし」（描くときに使う、テーマの文字の色）。色を選ぶ見本が、テーマの文字の色を「なし」として出す
+export const SLIDE_INK = { id: kit.name("slide-ink"), fallback: "text" } as const
+
 // 文字枠の文字の大きさ（px）の既定
 export const DEFAULT_FONT_SIZE = 24
 
@@ -76,7 +79,7 @@ export const TEXT_FRAME = kit.defineShape({
   capabilities: [],
   toolbox: true,
   props: TextFrameProps,
-  tokens: [],
+  tokens: [SLIDE_INK],
   size: { w: 240, h: 48 },
   min: MIN,
 })

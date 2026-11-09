@@ -19,6 +19,13 @@ export const SLIDE_MESSAGES = defineMessages({
   Ratio: { en: "Ratio", ja: "比率" },
   Angle: { en: "Angle", ja: "角度" },
   Rotate: { en: "Rotate", ja: "回す" },
+  "Text color": { en: "Text color", ja: "文字色" },
+  Color: { en: "Color", ja: "色" },
+  Fill: { en: "Fill", ja: "塗り" },
+  "Outline color": { en: "Outline color", ja: "枠の色" },
+  Width: { en: "Width", ja: "太さ" },
+  Dashed: { en: "Dashed", ja: "点線" },
+  Arrow: { en: "Arrow", ja: "矢印" },
   "Reorder on slide": { en: "Reorder on slide", ja: "スライドで重ねを変える" },
   "Remove from slide": { en: "Remove from slide", ja: "スライドから消す" },
 })

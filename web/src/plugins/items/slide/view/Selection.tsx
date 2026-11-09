@@ -8,6 +8,7 @@ import { SLIDE_RESET, SLIDE_SET } from "../commands"
 import { kit } from "../kit"
 import { normalizeAngle } from "../rect"
 import styles from "./Selection.module.css"
+import { StyleTools } from "./StyleTools"
 
 export const GRIPS = [
   { id: "top-left", at: [0, 0], grip: { left: true, top: true } },
@@ -28,6 +29,8 @@ export interface SelectedItem {
   rotation: number
   locked: boolean
   ratio: number | undefined
+  kind: string // アイテムの種類の id
+  props: Readonly<Record<string, unknown>>
 }
 
 export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolean }) {
@@ -98,6 +101,10 @@ function Bar({ item }: { item: SelectedItem }) {
           {t("Reset ratio")}
         </button>
         <AngleField key={`${item.id}:${item.rotation}`} item={item} />
+        <StyleTools
+          key={`${item.id}:${item.kind}`}
+          subject={{ id: item.id, stage: item.stage, item: item.kind, props: item.props }}
+        />
       </div>
     </Stand>
   )
