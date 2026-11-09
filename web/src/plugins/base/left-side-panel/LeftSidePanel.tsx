@@ -1,41 +1,20 @@
-// 左サイドパネルの入れ物: ステージの列の左に、窓の上から下まで出す。開いている間は、開いたステージの列を窓いっぱいに広げ（分けていれば、もう片方の幅は 0）、
-// 閉じれば戻す（幅の動きは右サイドパネルと同じ。workspace/WorkspaceView.tsx）。上にタブの行と閉じるボタンを置き、
-// 中身は、UI マッピングがスロットに置いたウィジェットのうち開いているタブの 1 つだけを描く。タブの名前はウィジェットの定義の leftSidePanel.title。
-// 窓に 1 つだけで、ほかのステージでも開いていれば、カレントでない方を閉じる。開いたら中にフォーカスを入れ、Esc は左サイドパネルのキーの範囲で閉じる。
-// 外を左ボタンで押したら閉じる（ダイアログ・メニュー・トースト・開くボタンを押したときは閉じない）。ブックが替わっても閉じない（中身が開いているブックに合わせて替わる）
+// 左サイドパネルの入れ物: 窓の左に、上から下まで出す（窓の層。window/WindowView.tsx が描く）。開いている間は、右にある画面（ブックスクリーンかコントロールセンター）を押し縮める（窓が狭ければ、画面の幅が 0 になる）。
+// 上にタブの行と閉じるボタンを置き、中身は、開く側が渡したタブの組のうち開いているタブの 1 つだけを、渡された物のまま描く。タブの名前はウィジェットの定義の leftSidePanel.title。
+// 開いたら中にフォーカスを入れ、Esc は左サイドパネルのキーの範囲で閉じる。外を押しても閉じない（閉じるのは、閉じるボタン・Esc・開くボタン）
 import { type ReactNode, useEffect, useRef } from "react"
 import { useMessages, useT } from "../../../ui/i18n"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { POPUP_KEEPS } from "../utils/popup-keeps"
-import type { StageSlotProps } from "../workspace/ui"
-import {
-  useCloseLeftSidePanel,
-  useLeftSidePanelTabs,
-  useOpenedLeftSidePanel,
-  useSetLeftSidePanel,
-  useStagesWithLeftSidePanel,
-} from "./hooks"
+import { useCloseLeftSidePanel, useLeftSidePanel, useSetLeftSidePanelTab } from "./hooks"
 import styles from "./LeftSidePanel.module.css"
 import { LEFT_SIDE_PANEL } from "./slots"
-import { leftSidePanelPressCloses } from "./state"
+import type { LeftSidePanelOpen } from "./state"
 
-// 押しても左サイドパネルを閉じない所（ダイアログ・メニュー・トースト・左サイドパネルを開くボタン）
-const KEEPS = `${POPUP_KEEPS}, [data-left-side-panel-opener]`
-
-export const LEFT_SIDE_PANEL_WIDTH = 400 // 開いているときの幅（px。窓より広ければ窓の幅で、ステージを覆う）
+export const LEFT_SIDE_PANEL_WIDTH = 400 // 開いているときの幅（px。窓より広ければ窓の幅になる）
 
 export function LeftSidePanel() {
   const t = useMessages(kit)
-  const found = useOpenedLeftSidePanel()
-  const tabs = useLeftSidePanelTabs()
-  const opened = found && tabs.includes(found.tab) ? found : null
-  const close = useCloseLeftSidePanel()
-  // 窓に 1 つ: 開いているのと別のステージでも開いていれば閉じる
-  const all = useStagesWithLeftSidePanel()
-  useEffect(() => {
-    for (const stage of all) if (stage !== found?.stage) close(stage)
-  }, [all, found?.stage, close])
+  const opened = useLeftSidePanel()
   const width = opened ? `min(${LEFT_SIDE_PANEL_WIDTH}px, 100vw)` : 0
   return (
     <aside
@@ -44,47 +23,30 @@ export function LeftSidePanel() {
       aria-hidden={!opened}
       inert={!opened}
       aria-label={t("Left side panel")}
+      data-left-side-panel
     >
-      {opened && <Opened stage={opened.stage} tab={opened.tab} tabs={tabs} width={width} />}
+      {opened && <Opened open={opened} width={width} />}
     </aside>
   )
 }
 
-function Opened({
-  stage,
-  tab,
-  tabs,
-  width,
-}: {
-  stage: string
-  tab: string
-  tabs: readonly string[]
-  width: string | number
-}) {
+function Opened({ open, width }: { open: LeftSidePanelOpen; width: string | number }) {
   const t = useMessages(kit)
   const tr = useT()
   const ref = useRef<HTMLDivElement>(null)
-  const set = useSetLeftSidePanel()
+  const close = useCloseLeftSidePanel()
+  const setTab = useSetLeftSidePanelTab()
   const widgets = useUiCatalog().widgets
   // 開いたら中にフォーカスを入れる（Esc を左サイドパネルのキーの範囲で受けるため）
   useEffect(() => {
     if (!ref.current?.contains(document.activeElement)) ref.current?.focus({ preventScroll: true })
   }, [])
-  useEffect(() => {
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target instanceof Element ? e.target : null
-      if (!target) return
-      const inside = ref.current?.contains(target) ?? false
-      if (leftSidePanelPressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS) })) set(stage, null)
-    }
-    document.addEventListener("pointerdown", onPointerDown, true)
-    return () => document.removeEventListener("pointerdown", onPointerDown, true)
-  }, [stage, set])
+  const current = open.entries.find(e => e.tab === open.tab)
   return (
     <div ref={ref} className={styles.opened} style={{ width }} tabIndex={-1} data-key-scope={LEFT_SIDE_PANEL}>
       <div className={styles.head}>
         <div className={styles.tabs} role="tablist">
-          {tabs.map(id => {
+          {open.entries.map(({ tab: id }) => {
             const title = widgets.get(id)?.leftSidePanel?.title
             const useCount = widgets.get(id)?.leftSidePanel?.useCount
             return (
@@ -93,8 +55,8 @@ function Opened({
                 type="button"
                 role="tab"
                 className={styles.tab}
-                aria-selected={id === tab}
-                onClick={() => set(stage, id)}
+                aria-selected={id === open.tab}
+                onClick={() => setTab(id)}
               >
                 {title ? tr(title) : id}
                 {useCount && <TabCount use={useCount} />}
@@ -102,28 +64,23 @@ function Opened({
             )
           })}
         </div>
-        <button
-          type="button"
-          className={styles.close}
-          aria-label={t("Close the left side panel")}
-          onClick={() => set(stage, null)}
-        >
+        <button type="button" className={styles.close} aria-label={t("Close the left side panel")} onClick={close}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" />
           </svg>
         </button>
       </div>
       <div className={styles.body} role="tabpanel">
-        <Content stage={stage} widget={tab} />
+        {current && <Content widget={current.tab} props={current.props} />}
       </div>
     </div>
   )
 }
 
-// 開いているタブの中身: UI マッピングが左サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く
-function Content({ stage, widget }: { stage: string; widget: string }) {
-  const View = useUiCatalog().widgets.get(widget)?.view as ((props: StageSlotProps) => ReactNode) | undefined
-  return View ? <View stage={stage} /> : null
+// 開いているタブの中身: 開いているタブのウィジェットを、開く側が渡した物のまま描く
+function Content({ widget, props }: { widget: string; props: unknown }) {
+  const View = useUiCatalog().widgets.get(widget)?.view as ((props: unknown) => ReactNode) | undefined
+  return View ? <View {...(props as object)} /> : null
 }
 
 // タブに出す数（未読など。0 なら出さない）

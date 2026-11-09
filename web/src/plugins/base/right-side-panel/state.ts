@@ -4,7 +4,7 @@
 import { areaOf, type Stage } from "../../../core/stage"
 import { clampPan, contentSize } from "../../../core/viewport"
 import { toggledSelection } from "../utils/selection"
-import { nullableItem } from "../utils/stage-item"
+import { nullableItem } from "../utils/state-item"
 import type { ViewAt } from "../zoom"
 
 export interface RightSidePanelOpen {

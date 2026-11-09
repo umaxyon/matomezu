@@ -27,7 +27,6 @@ import { defineWidget } from "../../../ui/layout"
 import { useCatalog, useLayout, useUiCatalog } from "../../../ui/store-context"
 import { useSettings } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { type PlaceInSlot, placeIn } from "../left-side-panel/ui"
 import { StandAt, useStandAway } from "./anchors"
 import styles from "./corner.module.css"
 import {
@@ -38,6 +37,7 @@ import {
   statusOrder,
 } from "./corner-order"
 import { KEEP_INSIDE } from "./keep-inside"
+import { type PlaceInSlot, placeIn } from "./place-in"
 
 type CornerEntry = Entry<ReactNode>
 type PlacedCorner = Placed<ReactNode>

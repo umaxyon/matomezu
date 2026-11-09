@@ -1,8 +1,15 @@
-/* 窓の根: ブックスクリーンとコントロールセンターを重ねる。コントロールセンターを前に出すときは右から滑り込み、戻すときは右へ滑り出る */
+/* 窓の根: 左サイドパネルと、ブックスクリーンとコントロールセンターを重ねた所を横に並べる。コントロールセンターを前に出すときは右から滑り込み、戻すときは右へ滑り出る */
 .window {
-  position: relative;
+  display: flex;
   flex: 1;
   min-height: 0;
+  overflow: clip;
+}
+/* ブックスクリーンとコントロールセンターを重ねる所（左サイドパネルを開けば、その分狭まる） */
+.screens {
+  position: relative;
+  flex: 1;
+  min-width: 0;
   overflow: clip;
 }
 .bookScreen {

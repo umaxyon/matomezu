@@ -1,41 +1,33 @@
-// 左サイドパネルのウィジェット: 開くボタン（フッタメニューに置く）と、タブを作る関数。入れ物は骨組み（workspace/WorkspaceView.tsx）が窓に 1 つ描く
+// 左サイドパネルの、タブを作る関数と、開く側が渡すタブの組の部品。入れ物は窓の層（window/WindowView.tsx）が窓に 1 つ描く
 import type { ReactNode } from "react"
 import type { SlotId } from "../../../core/catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
-import { defineWidget, type WidgetPlace } from "../../../ui/layout"
-import { kit } from "../kit"
-import { STAGE_SLOTS, type StageSlotProps } from "../workspace/ui"
-import { LeftSidePanelButton } from "./LeftSidePanelButton"
-import { LEFT_SIDE_PANEL } from "./slots"
+import { defineWidget, type WidgetDef } from "../../../ui/layout"
+import type { LeftSidePanelEntry } from "./state"
 
-// 決まったスロットの中で置いてほしい所: true なら末尾、before・after なら、そのウィジェットのすぐ前・すぐ後ろ
-export type PlaceInSlot = true | { before: string } | { after: string }
-
-// スロット slot の中で place に置いてほしいときの、ウィジェットの place
-export const placeIn = <S extends SlotId>(slot: S, place: PlaceInSlot): WidgetPlace<S> =>
-  place === true ? { slot } : { slot, ...place }
-
-// 左サイドパネルのタブのウィジェット: 左サイドパネルのスロットに置き、タブの名前 title（文言の鍵）を必ず持つ
-// opens は、タブの中身が開けるスロット。place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾、before・after ならそのタブの前・後ろ）
-export const defineLeftSidePanelTab = <const Id extends string>(def: {
+// 左サイドパネルのタブのウィジェット: どのスロットにも置かない（開く側が渡したタブの組で出る）。タブの名前 title（文言の鍵）を必ず持つ。
+// view は、開く側が渡す物 P を受ける（関数を含まない、データだけ）。opens は、タブの中身が開けるスロット（開く側のウィジェットが、渡すタブの opens を名乗る）
+export const defineLeftSidePanelTab = <const Id extends string, P = Record<string, never>>(def: {
   id: Id
   title: MessageKey
   opens?: readonly SlotId[]
-  place?: PlaceInSlot
   useCount?: () => number // 開くボタンとタブに出す数（未読など）を読むフック
-  view: (props: StageSlotProps) => ReactNode
+  view: (props: P) => ReactNode
 }) =>
   defineWidget({
     id: def.id,
-    slots: [LEFT_SIDE_PANEL],
+    slots: [] as readonly never[],
     ...(def.opens ? { opens: def.opens } : {}),
-    ...(def.place ? { place: placeIn(LEFT_SIDE_PANEL, def.place) } : {}),
     leftSidePanel: { title: def.title, ...(def.useCount ? { useCount: def.useCount } : {}) },
     view: def.view,
-  })
+  }) as WidgetDef<never> & { id: Id; view: (props: P) => ReactNode }
 
-export const LEFT_SIDE_PANEL_BUTTON = defineWidget({
-  id: kit.name("left-side-panel-button"),
-  slots: STAGE_SLOTS,
-  view: LeftSidePanelButton,
-})
+// 開く側が渡す、タブ 1 つ分: タブ tab（defineLeftSidePanelTab で作ったウィジェット）と、その view に渡す物
+export function tabEntry<P>(tab: { id: string; view: (props: P) => ReactNode }, props: P): LeftSidePanelEntry {
+  return { tab: tab.id, props }
+}
+
+// 渡すタブの opens を集める（開く側のウィジェットが名乗る）
+export const opensOf = (...tabs: readonly { opens?: readonly SlotId[] }[]): readonly SlotId[] => [
+  ...new Set(tabs.flatMap(t => t.opens ?? [])),
+]

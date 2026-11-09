@@ -1,65 +1,56 @@
-// 左サイドパネルを開け閉めするフック（持ち方は state.ts）。窓に 1 つだけで、守るのは入れ物（LeftSidePanel）。
-// 開くのは、ステージに置いてそのステージをカレントにし、ブックスクリーンを前に出す（ほかのステージで開いていた物は、入れ物が閉じる）
+// 左サイドパネルを開け閉めするフック（持ち方は state.ts。窓の外観枠の状態）。窓に 1 つ。
+// 開くのは、開く側が渡したタブの組（どのタブに何を渡すか）で置き換える。前に出している物（ブックスクリーン・コントロールセンター）は替えない
 import { useCallback } from "react"
-import { useShallow } from "zustand/react/shallow"
-import { screenOf } from "../../../core/window"
-import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useSetStageState } from "../../../ui/view-hooks"
+import { useFrameState, useReadFrameState, useSetFrameState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { LEFT_SIDE_PANEL } from "./slots"
-import { leftSidePanelIn, withLeftSidePanel } from "./state"
+import {
+  type LeftSidePanelEntry,
+  type LeftSidePanelOpen,
+  leftSidePanelIn,
+  openedLeftSidePanel,
+  pressedLeftSidePanel,
+  withLeftSidePanel,
+} from "./state"
 
-// ステージ stage で開いている左サイドパネルのタブ（閉じていれば null）
-export const useLeftSidePanel = (stage: string): string | null =>
-  useMatomezuState(s => leftSidePanelIn(s.stageStates[stage]?.[kit.id]))
+// 開いている左サイドパネル（渡されたタブの組と開いているタブ。閉じていれば null）
+export const useLeftSidePanel = (): LeftSidePanelOpen | null => leftSidePanelIn(useFrameState(kit))
 
-// 左サイドパネルを開いているステージ（カレントのステージで開いていればそれ。どこも開いていなければ null）と、開いているタブ
-export function useOpenedLeftSidePanel(): { stage: string; tab: string } | null {
-  const stage = useMatomezuState(s => {
-    const ids = screenOf(s.window)
-      .stages.map(st => st.id)
-      .filter(id => leftSidePanelIn(s.stageStates[id]?.[kit.id]))
-    return ids.includes(screenOf(s.window).current) ? screenOf(s.window).current : (ids[0] ?? null)
-  })
-  const tab = useMatomezuState(s => (stage ? leftSidePanelIn(s.stageStates[stage]?.[kit.id]) : null))
-  return stage && tab ? { stage, tab } : null
-}
-
-// 左サイドパネルを開いている、どのステージか（入れ物が、窓に 1 つを守るのに使う）
-export const useStagesWithLeftSidePanel = (): readonly string[] =>
-  useMatomezuState(
-    useShallow(s =>
-      screenOf(s.window)
-        .stages.map(st => st.id)
-        .filter(id => leftSidePanelIn(s.stageStates[id]?.[kit.id])),
-    ),
-  )
-
-// UI マッピングが左サイドパネルのスロットに置いたウィジェット（タブの並び）
-export const useLeftSidePanelTabs = (): readonly string[] => useLayout().slots[LEFT_SIDE_PANEL] ?? []
-
-// ステージ stage の左サイドパネルで、タブ tab を開く関数（null なら閉じる）
-export function useSetLeftSidePanel(): (stage: string, tab: string | null) => void {
-  const read = useReadState()
-  const set = useSetStageState(kit)
-  const { focusStage, showBookScreen } = useActions()
+// タブの組 entries で左サイドパネルを開く関数（開くタブは tab。無ければ今のタブが組にあればそのまま、無ければ最初）
+export function useOpenLeftSidePanel(): (entries: readonly LeftSidePanelEntry[], tab?: string) => void {
+  const read = useReadFrameState(kit)
+  const set = useSetFrameState(kit)
   return useCallback(
-    (stage, tab) => {
-      set(stage, withLeftSidePanel(read().stageStates[stage]?.[kit.id], tab))
-      if (tab) {
-        focusStage(stage)
-        showBookScreen()
-      }
-    },
-    [read, set, focusStage, showBookScreen],
+    (entries, tab) => set(withLeftSidePanel(read(), openedLeftSidePanel(leftSidePanelIn(read()), entries, tab))),
+    [read, set],
   )
 }
 
-// ステージ stage の左サイドパネルで、タブ tab（左サイドパネルのスロットに置いたウィジェットの id）を開く関数
-export const useOpenLeftSidePanel = (): ((stage: string, tab: string) => void) => useSetLeftSidePanel()
+// 開くボタンを押したときの関数: 今と同じタブの組なら閉じ、違えばそのタブの組に置き換える
+export function useToggleLeftSidePanel(): (entries: readonly LeftSidePanelEntry[]) => void {
+  const read = useReadFrameState(kit)
+  const set = useSetFrameState(kit)
+  return useCallback(
+    entries => set(withLeftSidePanel(read(), pressedLeftSidePanel(leftSidePanelIn(read()), entries))),
+    [read, set],
+  )
+}
 
-// ステージ stage の左サイドパネルを閉じる関数
-export function useCloseLeftSidePanel(): (stage: string) => void {
-  const set = useSetLeftSidePanel()
-  return useCallback((stage: string) => set(stage, null), [set])
+// 左サイドパネルを閉じる関数
+export function useCloseLeftSidePanel(): () => void {
+  const read = useReadFrameState(kit)
+  const set = useSetFrameState(kit)
+  return useCallback(() => set(withLeftSidePanel(read(), null)), [read, set])
+}
+
+// 開いているタブを tab にする関数（渡されたタブの組の中のタブだけ）
+export function useSetLeftSidePanelTab(): (tab: string) => void {
+  const read = useReadFrameState(kit)
+  const set = useSetFrameState(kit)
+  return useCallback(
+    tab => {
+      const now = leftSidePanelIn(read())
+      if (now?.entries.some(e => e.tab === tab)) set(withLeftSidePanel(read(), { ...now, tab }))
+    },
+    [read, set],
+  )
 }

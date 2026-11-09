@@ -1,5 +1,5 @@
 // 郵便のダイアログ: 題・送り手・届いた時刻・本文を見せ、開いたら見たことにする（mail-seen）。下の行に、行き先を開くボタンを画面の分割の状態で並べる（open-choices.ts）。
-// 開くと、ダイアログを閉じてそのステージで行き先のブック・ページを開き（左サイドパネルは開いていれば、行き先のステージへ同じタブで移して残す）、
+// 開くと、ダイアログを閉じてそのステージで行き先のブック・ページを開き（左サイドパネルは開いていれば、そのまま残す）、
 // 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
@@ -11,7 +11,7 @@ import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { useCloseLeftSidePanel, useOpenedLeftSidePanel, useOpenLeftSidePanel } from "../left-side-panel/hooks"
+import { useCloseLeftSidePanel, useLeftSidePanel } from "../left-side-panel/hooks"
 import { useRequestReveal } from "../utils/reveal-request"
 import { MAIL_SEEN, MAIL_VISITED } from "."
 import { useSetBirdVisit } from "./bird-visit"
@@ -42,8 +42,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const read = useReadState()
   const actions = useActions()
   const closeLeft = useCloseLeftSidePanel()
-  const openLeft = useOpenLeftSidePanel()
-  const left = useOpenedLeftSidePanel()
+  const left = useLeftSidePanel()
   const mailboxOpened = left?.tab === MAILBOX_TAB_ID
   const reveal = useRequestReveal()
   const bringBird = useSetBirdVisit()
@@ -76,10 +75,6 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     if (!target) return
     // 行き先のブックがもう開いていても、ブックスクリーンは前に出す
     actions.showBookScreen()
-    if (left) {
-      if (left.stage !== target) closeLeft(left.stage)
-      openLeft(target, left.tab)
-    }
     if (screenOf(read().window).stages.find(s => s.id === target)?.opened?.book !== to.book)
       actions.openBook(target, to.book)
     if (to.page) actions.openPage(target, to.page)
@@ -99,7 +94,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     <ActionButton
       onClick={() => {
         onClose()
-        closeLeft(left.stage)
+        closeLeft()
       }}
     >
       {t("Close the mailbox too")}
