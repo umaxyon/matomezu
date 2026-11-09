@@ -1,6 +1,8 @@
 // 常駐に頼むホストクライアントを作って読む。常駐が答えない（止まっている・まだ立っていない）なら、つながるまで WAIT_MS ごとに読み直す。ホストを起動はしない
 
 import type { MatomezuError } from "../core/errors"
+import { detectLang, translate } from "../core/i18n/i18n"
+import { LANGUAGES, MESSAGES } from "../core/i18n/messages"
 import type { HostClient, Loaded } from "./client"
 import { NoServer, serverClient } from "./server"
 
@@ -21,8 +23,11 @@ export async function openClient(): Promise<{ client: HostClient; loaded: Loaded
   }
 }
 
-// ペアを組んでいないブラウザには、画面を作る前の素の 1 行を出す（読み込む言葉の表がまだ無いので、ここだけ 2 言語を直に持つ）
+// 常駐が知らないブラウザには、画面を作る前の素の 1 行を出す（保存した言語の設定は読めないので、ブラウザの言語で選ぶ）
 function showOpenHint() {
-  const ja = navigator.languages.some(l => l.startsWith("ja"))
-  document.body.textContent = ja ? "ターミナルで matomezu open を実行してください" : "Run matomezu open in a terminal"
+  const lang = detectLang(
+    navigator.languages,
+    LANGUAGES.map(l => l.lang),
+  )
+  document.body.textContent = translate(new Map(Object.entries(MESSAGES)), lang, "Run matomezu open in a terminal")
 }
