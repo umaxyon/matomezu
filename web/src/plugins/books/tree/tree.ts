@@ -22,6 +22,14 @@ import { treePrintSheets } from "./print"
 import { TREE_TOOLS } from "./tools"
 
 // ツリーのキーの範囲（ツリーの見せ方で描いている間に探す）
+// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+const BACKGROUND_ITEMS = [
+  "@matomezu/slide:slide-text",
+  "@matomezu/slide:slide-free-line",
+  "@matomezu/slide:slide-line",
+  "@matomezu/slide:slide-ellipse",
+] as const
+
 export const TREE_KEY_SCOPE = kit.defineKeyScope({ id: "tree", title: "Tree" })
 export const TREE_KEYS_SCOPE = TREE_KEY_SCOPE.id
 
@@ -87,6 +95,7 @@ export const TREE = kit.defineBookType({
     dialogs: { add: NEW_TREE_PAGE_DIALOG.id, settings: TREE_PAGE_SETTINGS_DIALOG.id },
   },
   items: { allowed: [] },
+  slide: { allowed: BACKGROUND_ITEMS, background: true },
   actions: {}, // 使うアクションは、見せ方・ページについて来る
   theme: "@matomezu/base:standard",
   themeTypes: [DIAGRAM_THEME_TYPE], // 使えるテーマのテーマタイプ

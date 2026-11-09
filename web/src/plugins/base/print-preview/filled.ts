@@ -5,7 +5,7 @@
 // 通り抜けるだけの印刷区画には載らない）。判定できるのは、アイテムの位置をデータに持つタイプ（置けるアイテムのあるタイプ）だけ。
 // ほかのタイプは null（どの印刷区画も載っているとして扱う）。ページの slide の形は、本体のタイプでだけ数える（背景は数えない）
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import { placeableOf, slideIsBackground } from "../../../core/def/book-type"
+import { slideIsBackground } from "../../../core/def/book-type"
 import type { Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage, type PlacedShape, shapesOf, slideOf } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
@@ -13,6 +13,7 @@ import { settingsAt } from "../book-settings"
 import { type GrowSides, grownArea } from "../place/grow"
 import { paperSize } from "../place/items"
 import { placedSize, portAreasOf, rectsOf } from "../place/placed"
+import { placeableIn } from "../toolbox/toolbox"
 import type { PrintSheets } from "."
 
 // 印刷区画の鍵（列,行）
@@ -86,7 +87,7 @@ export function sheetShapes(
 export function filledSheets(catalog: CoreCatalog, book: Book, page: ItemPage): ReadonlySet<string> | null {
   const paper = paperSize(catalog, page)
   const type = bookType(catalog, book.type)
-  if (!paper || placeableOf(type).length === 0) return null
+  if (!paper || placeableIn(type, "items").length === 0) return null
   const filled = new Set<string>()
   const rects = rectsOf(catalog, page)
   for (const r of rects.values()) for (const c of sheetsOfShape(r, paper)) filled.add(sheetKey(c.column, c.row))
