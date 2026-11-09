@@ -2,9 +2,11 @@
 import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
-import { defineLeftSidePanelTab, type PlaceInSlot, placeIn } from "../left-side-panel/ui"
+import { defineLeftSidePanelTab } from "../left-side-panel/ui"
+import { type PlaceInSlot, placeIn } from "../utils/place-in"
 import { Outbox } from "./Outbox"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
+import { OUTBOX_TAB_ID, type OutboxProps } from "./tab-id"
 
 // 種類 annotation の、送信トレイの行の絵のウィジェット（スロット annotation-icon に置く。20px 四方に収める）。
 // place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾）
@@ -22,8 +24,8 @@ export const defineAnnotationIcon = <const Id extends string>(def: {
     view: def.view,
   })
 
-export const OUTBOX = defineLeftSidePanelTab({
-  id: kit.name("outbox"),
+export const OUTBOX = defineLeftSidePanelTab<typeof OUTBOX_TAB_ID, OutboxProps>({
+  id: OUTBOX_TAB_ID,
   title: kit.message("Outbox"),
   opens: [ANNOTATION_ICON],
   view: Outbox,

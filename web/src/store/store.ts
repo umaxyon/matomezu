@@ -111,6 +111,8 @@ export interface MatomezuState {
   history: Readonly<Record<string, BookHistory>>
   // ステージの id → プラグインの id → そのプラグインが持つ、そのステージの画面の状態（中身の形はプラグインが決め、土台は読まない）
   stageStates: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  // プラグインの id → そのプラグインが持つ、窓の外観枠の状態（ステージに結ばない物。中身の形はプラグインが決め、土台は読まない。画面の場所には入れない）
+  frameStates: Readonly<Record<string, unknown>>
   // 編集ロック: 掛けた所の鍵 → 利用者が直している物（ブックの id と物の id）。ホストクライアントが常駐に知らせ、常駐はそれを変える AI のアクションを断る
   editLocks: Readonly<Record<string, EditLock>>
   // 印刷を頼んだ回数（requestPrint で増える。ホストクライアントが、増えたら画面を刷る）
@@ -279,6 +281,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // プラグイン owner（プラグインの id）が持つ、ステージ stage の画面の状態を value にする（undefined なら消す）。無いステージには置かない。
   // プラグインは、自分の kit を渡すフック useSetStageState を通して、自分の置き場だけを変える（プラグインに渡す actions には入れない）
   setStageState(stage: string, owner: string, value: unknown): void
+  // プラグイン owner（プラグインの id）が持つ、窓の外観枠の状態を value にする（undefined なら消す）。
+  // プラグインは、自分の kit を渡すフック useSetFrameState を通して、自分の置き場だけを変える（プラグインに渡す actions には入れない）
+  setFrameState(owner: string, value: unknown): void
   // 鍵 key の編集ロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
   setEditLock(key: string, lock: EditLock | null): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
@@ -320,6 +325,7 @@ function initialState(
     lastWindow: false,
     history: {},
     stageStates: {},
+    frameStates: {},
     editLocks: {},
     printRequests: 0,
   }
@@ -646,6 +652,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     } else if (window.screens.some(ws => hasStage(ws, stage)))
       setState({ stageStates: { ...now, [stage]: { ...rest, [owner]: value } } })
   }
+  // プラグイン owner の、窓の外観枠の状態を value にする（undefined なら消す）
+  const setFrameState = (owner: string, value: unknown) => {
+    const { frameStates: now } = getState()
+    const { [owner]: _, ...rest } = now
+    if (value === undefined) {
+      if (owner in now) setState({ frameStates: rest })
+    } else setState({ frameStates: { ...rest, [owner]: value } })
+  }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
       const done = run(id, args, on)
@@ -670,7 +684,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const owner = commandOwner(id)
       const updateStageState = (change: (now: unknown) => unknown) =>
         setStageState(stage, owner, change(getState().stageStates[stage]?.[owner]))
-      def.run(ctx, { ...actions, updateStageState }, args[0] as never)
+      const updateFrameState = (change: (now: unknown) => unknown) =>
+        setFrameState(owner, change(getState().frameStates[owner]))
+      def.run(ctx, { ...actions, updateStageState, updateFrameState }, args[0] as never)
       return true
     },
     openDialog: (stage, id, ...args) => {
@@ -919,6 +935,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       })
     },
     setStageState,
+    setFrameState,
     setEditLock: (key, lock) => {
       const { [key]: now, ...rest } = getState().editLocks
       if (!lock) {

@@ -80,7 +80,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:background-button",
       "@matomezu/base:background-print-control",
       "@matomezu/base:print-preview-button",
-      "@matomezu/base:left-side-panel-button",
+      "@matomezu/base:mailbox-button",
     ],
     "@matomezu/base:footer-menu-book-tools": ["@matomezu/base:toolbox"],
     "@matomezu/base:right-side-panel": [
@@ -88,7 +88,6 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-preview-panel",
       "@matomezu/base:print-check-panel",
     ],
-    "@matomezu/base:left-side-panel": ["@matomezu/base:mailbox", "@matomezu/base:outbox"],
     "@matomezu/base:settings-categories": [
       "@matomezu/base:settings-general",
       "@matomezu/markdown:settings",

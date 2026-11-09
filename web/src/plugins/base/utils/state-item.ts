@@ -1,4 +1,4 @@
-// base のステージの画面の状態の 1 項目の持ち方: base の機能はステージの画面の状態を 1 つの物に分け合い、それぞれ自分の項目名 key の値だけを読み書きする。
+// base の画面の状態（ステージの画面の状態と、窓の外観枠の状態）の 1 項目の持ち方: base の機能は画面の状態を 1 つの物に分け合い、それぞれ自分の項目名 key の値だけを読み書きする。
 // read は項目の値（無ければ fallback）、write は項目を value に差し替えた状態（gone(value) なら項目を消す。ほかの項目はそのまま）
 export interface StageItem<T> {
   read(state: unknown): T

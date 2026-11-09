@@ -8,7 +8,7 @@ import type { CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../page-tabs/page-update"
 import { BACKGROUND_PRINT, type BackgroundPrint } from "../print-preview/settings"
-import { stageItem } from "../utils/stage-item"
+import { stageItem } from "../utils/state-item"
 
 // 中身（ページの普通のアイテム）を隠しているか（背景編集モードの間だけ効く）
 export const CONTENT_HIDDEN = stageItem("contentHidden", false, hidden => !hidden)

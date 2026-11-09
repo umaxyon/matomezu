@@ -1,6 +1,6 @@
-// 送信トレイ（ウィジェット outbox。左サイドパネルのタブ）: 開いているブックの伝言とマークを、ページごとに、付けた時点の新しい順に並べる（並べ方は rows.ts）。
+// 送信トレイ（ウィジェット outbox。左サイドパネルのタブ。開く側が渡したステージで開いているブック）: 伝言とマークを、ページごとに、付けた時点の新しい順に並べる（並べ方は rows.ts）。
 // 行の出し方は種類が答える（定義の listed。listed.ts）: 左に種類の絵（スロット annotation-icon のウィジェット）、文（無ければ付けた物の名前。吹き出しと同じ字数まで）、付けた時刻。
-// AI が読んだ物は薄くして「既読」。行を押すと左サイドパネルを閉じ、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
+// AI が読んだ物は薄くして「既読」。行を押すと（左サイドパネルは閉じず）、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
 // 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
 import { type ReactNode, useMemo } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
@@ -12,7 +12,6 @@ import { useAllowed, useBook, useCoreCatalog, useUiCatalog } from "../../../ui/v
 import { useAnnotationsIn, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { useSetLeftSidePanel } from "../left-side-panel/hooks"
 import rows from "../left-side-panel/PanelRows.module.css"
 import { shownTime } from "../left-side-panel/time"
 import { Withdraw } from "../left-side-panel/Withdraw"
@@ -20,13 +19,13 @@ import { BUBBLE_CHARS } from "../note/NoteLayer"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
 import { clampChars } from "../text/text"
 import { useRequestReveal } from "../utils/reveal-request"
-import type { StageSlotProps } from "../workspace/ui"
 import { listedOf } from "./listed"
 import styles from "./Outbox.module.css"
 import { listedPages } from "./rows"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
+import type { OutboxProps } from "./tab-id"
 
-export function Outbox({ stage }: StageSlotProps) {
+export function Outbox({ stage }: OutboxProps) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const book = useBook(stage)
@@ -90,16 +89,14 @@ function Icon({ stage, annotation: a }: { stage: string; annotation: Annotation 
   )
 }
 
-// 行を押したときの動き: 左サイドパネルを閉じ、ほかのページならそのページを開いてから、種類が右サイドパネルの中身 panel を答えていればそこで開き、
+// 行を押したときの動き: ほかのページならそのページを開いてから、種類が右サイドパネルの中身 panel を答えていればそこで開き、
 // 無ければ付けた物を倍率そのままで見せる
 function useGo(stage: string): (a: AiAnnotation, panel: string | undefined) => void {
   const read = useReadState()
   const actions = useActions()
-  const setLeftSidePanel = useSetLeftSidePanel()
   const openPanel = useOpenRightSidePanel()
   const reveal = useRequestReveal()
   return (a, panel) => {
-    setLeftSidePanel(stage, null)
     const opened = screenOf(read().window).stages.find(s => s.id === stage)?.opened
     if (a.page && opened?.page !== a.page) actions.openPage(stage, a.page)
     if (panel) {

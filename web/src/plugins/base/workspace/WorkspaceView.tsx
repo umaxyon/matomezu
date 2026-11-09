@@ -4,23 +4,16 @@
 // 右上の角は、ステージの中身が縦にスクロールするとき右端に出るスクロールバーに重ならないよう、スクロールバーの幅（この画面で測った値）だけ内側に浮かべる。
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
 // ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（境目の部品は SplitHandle。割合の計算と収め方は workspace の側）。
-// 列の左に左サイドパネル（left-side-panel/）、列の右に右サイドパネルを置く。どちらかを開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）。
-// 左と右を別のステージで開いたら、カレントでない方のステージの物を閉じる（同じステージなら、両方を出す）。
+// 列の右に右サイドパネルを置く。開いている間は、開いたステージの列を広げ、もう片方の列の幅を 0 にする（share は変えないので、閉じれば元の割合に戻る）。
+// 左サイドパネルは窓の左（window/WindowView.tsx）にあり、開けばこの画面ごと押し縮める。
 // 開いた物を見せ、閉じたら見え方を戻すのは、幅を動かし終えてから（RevealAndRestore）
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { type CSSProperties, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { previewing } from "../../../core/stage"
 import { screenOf } from "../../../core/window"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
-import { useCloseLeftSidePanel, useOpenedLeftSidePanel } from "../left-side-panel/hooks"
-import { LeftSidePanel } from "../left-side-panel/LeftSidePanel"
-import {
-  PressClosedContext,
-  useCloseRightSidePanel,
-  useOpenedRightSidePanel,
-  useSidePanelSliding,
-} from "../right-side-panel/hooks"
+import { PressClosedContext, useOpenedRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
 import { RevealAndRestore } from "../right-side-panel/RevealAndRestore"
 import { RightSidePanel } from "../right-side-panel/RightSidePanel"
 import { columnGrow } from "../right-side-panel/state"
@@ -42,16 +35,8 @@ export function WorkspaceView() {
   useLayoutEffect(() => setScrollbar(scrollbarWidth()), [])
   const split = ids.length === 2
   const right = useOpenedRightSidePanel()?.stage ?? null
-  const left = useOpenedLeftSidePanel()?.stage ?? null
-  // 広げるステージ: サイドパネルを開いたステージ（左と右が別のステージなら、カレントの方）
-  const panel = right && left && right !== left ? (left === current ? left : right) : (right ?? left)
-  const closeRight = useCloseRightSidePanel()
-  const closeLeft = useCloseLeftSidePanel()
-  useEffect(() => {
-    if (!right || !left || right === left) return
-    if (panel === left) closeRight(right)
-    else closeLeft(left)
-  }, [right, left, panel, closeRight, closeLeft])
+  // 広げるステージ: 右サイドパネルを開いたステージ
+  const panel = right
   const sliding = useSidePanelSliding(panel)
   const pressClosed = useRef(false)
   return (
@@ -66,7 +51,6 @@ export function WorkspaceView() {
       }
     >
       <PressClosedContext.Provider value={pressClosed}>
-        <LeftSidePanel />
         {ids.map((stage, i) => (
           <div
             key={stage}

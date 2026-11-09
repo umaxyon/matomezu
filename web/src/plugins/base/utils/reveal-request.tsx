@@ -5,7 +5,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useSetStageState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { nullableItem } from "./stage-item"
+import { nullableItem } from "./state-item"
 
 const REVEALING = nullableItem<readonly string[]>("revealing")
 const revealingIn = REVEALING.read
