@@ -206,7 +206,12 @@ export const SLIDE_KEYS = [
     scope: SLIDE_KEY_SCOPE.id,
   }),
   // Shift を押すと ] は } に、[ は { になる（キーの名前は押した文字）
-  kit.defineKey({ id: "slide-to-front-key", key: "Mod+Shift+}", command: SLIDE_TO_FRONT.id, scope: SLIDE_KEY_SCOPE.id }),
+  kit.defineKey({
+    id: "slide-to-front-key",
+    key: "Mod+Shift+}",
+    command: SLIDE_TO_FRONT.id,
+    scope: SLIDE_KEY_SCOPE.id,
+  }),
   kit.defineKey({ id: "slide-to-back-key", key: "Mod+Shift+{", command: SLIDE_TO_BACK.id, scope: SLIDE_KEY_SCOPE.id }),
   kit.defineKey({ id: "slide-forward-key", key: "Mod+]", command: SLIDE_FORWARD.id, scope: SLIDE_KEY_SCOPE.id }),
   kit.defineKey({ id: "slide-backward-key", key: "Mod+[", command: SLIDE_BACKWARD.id, scope: SLIDE_KEY_SCOPE.id }),
