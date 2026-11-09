@@ -81,35 +81,37 @@ function Bar({ item }: { item: SelectedItem }) {
   const reset = useCommand(item.stage, SLIDE_RESET.id)
   const atRatio = item.ratio === undefined || Math.abs(item.rect.w / item.rect.h - item.ratio) < 0.005
   return (
-    <Stand anchor={item.id} side="above" label={t("Change on slide")}>
-      <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
-        <button
-          type="button"
-          className={styles.button}
-          aria-pressed={item.locked}
-          title={t("Lock ratio")}
-          disabled={!set.enabled}
-          onClick={() => set.run({ items: [item.id], props: { lockRatio: item.locked ? null : true } })}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="5" y="11" width="14" height="9" rx="1.5" />
-            <path d={item.locked ? "M8 11V8a4 4 0 0 1 8 0v3" : "M8 11V8a4 4 0 0 1 7.5-2"} />
-          </svg>
-          {t("Ratio")}
-        </button>
-        <button
-          type="button"
-          className={styles.button}
-          disabled={!reset.enabled || atRatio}
-          onClick={() => reset.run({ item: item.id })}
-        >
-          {t("Reset ratio")}
-        </button>
-        <AngleField key={`${item.id}:${item.rotation}`} item={item} />
-        <StyleFields
-          key={`${item.id}:${item.kind}`}
-          subjects={[{ id: item.id, stage: item.stage, item: item.kind, props: item.props }]}
-        />
+    <Stand anchor={item.id} side="above" through label={t("Change on slide")}>
+      <div className={styles.barBox}>
+        <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
+          <button
+            type="button"
+            className={styles.button}
+            aria-pressed={item.locked}
+            title={t("Lock ratio")}
+            disabled={!set.enabled}
+            onClick={() => set.run({ items: [item.id], props: { lockRatio: item.locked ? null : true } })}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="9" rx="1.5" />
+              <path d={item.locked ? "M8 11V8a4 4 0 0 1 8 0v3" : "M8 11V8a4 4 0 0 1 7.5-2"} />
+            </svg>
+            {t("Ratio")}
+          </button>
+          <button
+            type="button"
+            className={styles.button}
+            disabled={!reset.enabled || atRatio}
+            onClick={() => reset.run({ item: item.id })}
+          >
+            {t("Reset ratio")}
+          </button>
+          <AngleField key={`${item.id}:${item.rotation}`} item={item} />
+          <StyleFields
+            key={`${item.id}:${item.kind}`}
+            subjects={[{ id: item.id, stage: item.stage, item: item.kind, props: item.props }]}
+          />
+        </div>
       </div>
     </Stand>
   )

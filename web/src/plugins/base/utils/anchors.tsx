@@ -210,7 +210,9 @@ export const useStandAway = (): StandAway | null => useContext(AwayContext)
 // StandAt の minRoom は、side のいつもの立ち位置から範囲の端までの余地（roomBeside）がそれより狭ければ、上の辺が外に出たのと同じにする（edgePinned のときだけ。範囲の端に押されて縮める吹き出しが、縮めきれないとき）。
 // StandAt の turn は、side に入らないときに反対の側へ回すか（opposite）、回さずに範囲の端で止めるか（none）。
 // StandAt の through は、スタンドの箱そのものはポインタを受けず（下の物に届く）、中の物が自分で受けるとき（物の上の辺を歩く鳥など）に付ける
-export const Stand: (props: StandProps & { side?: StandSide }) => ReactNode = props => <StandAt {...props} />
+export const Stand: (props: StandProps & { side?: StandSide; through?: boolean }) => ReactNode = props => (
+  <StandAt {...props} />
+)
 
 interface StandProps {
   anchor: string | readonly string[]

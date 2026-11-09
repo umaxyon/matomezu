@@ -676,7 +676,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return { ok: true, result: done.result } as Performed<typeof id>
     },
     command: (stage, id, ...args) => {
-      closeStep()
+      if (!open?.continued) closeStep() // continueStep で続けている段は、このコマンドが行うアクションを足すまで閉じない
       const state = getState()
       const def = commandDef(defs, id)
       const ctx = commandContext(catalog, controlCenter, state, stage, id)

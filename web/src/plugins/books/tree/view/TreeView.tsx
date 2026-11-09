@@ -164,7 +164,7 @@ const Tree = memo(function Tree({
   const nodeWrite = useNodeWrite(stage.id, page?.id, selected !== null && selected === root?.id)
   const swatches = useSwatches(useBookTheme(book?.id), NODE_FILL) // 節の色のスタンドに並べる色
   const picking = usingEdit && stage.editing === NODE_COLOR_PICK && selected !== null // 節の色を選んでいる
-  const writing = usingEdit && stage.editing && !picking && selected !== null
+  const writing = usingEdit && (stage.editing === true || stage.editing === ADDED_EDIT) && selected !== null // 背景編集モードの文字枠の書き換え（slide のもの）は、節の書き換えにしない
   // 書いている字（どの節のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
   const ended = useRef(false)
