@@ -10,16 +10,40 @@ import {
   SLIDE_RESIZE,
   SLIDE_UPDATE,
 } from "./actions"
-import { SLIDE_DELETE, SLIDE_KEYS, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESET, SLIDE_RESHAPE, SLIDE_SET } from "./commands"
+import {
+  SLIDE_BACKWARD,
+  SLIDE_DELETE,
+  SLIDE_FORWARD,
+  SLIDE_KEYS,
+  SLIDE_MOVE_TO,
+  SLIDE_PUT,
+  SLIDE_RESET,
+  SLIDE_RESHAPE,
+  SLIDE_SET,
+  SLIDE_TO_BACK,
+  SLIDE_TO_FRONT,
+} from "./commands"
 import { kit } from "./kit"
 import { SLIDE_KEY_SCOPE } from "./scope"
-import { ELLIPSE, FREE_LINE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
+import { ELLIPSE, FREE_LINE, SLIDE_INK, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
 
 export const SLIDE_PLUGIN = defineBuiltin(
   kit.plugin({
     items: [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE],
+    tokens: [SLIDE_INK],
     actions: [SLIDE_PLACE, SLIDE_MOVE, SLIDE_RESIZE, SLIDE_UPDATE, SLIDE_RESET_RATIO, SLIDE_REORDER, SLIDE_REMOVE],
-    commands: [SLIDE_PUT, SLIDE_MOVE_TO, SLIDE_RESHAPE, SLIDE_SET, SLIDE_RESET, SLIDE_DELETE],
+    commands: [
+      SLIDE_PUT,
+      SLIDE_MOVE_TO,
+      SLIDE_RESHAPE,
+      SLIDE_SET,
+      SLIDE_RESET,
+      SLIDE_DELETE,
+      SLIDE_TO_FRONT,
+      SLIDE_FORWARD,
+      SLIDE_BACKWARD,
+      SLIDE_TO_BACK,
+    ],
     keys: SLIDE_KEYS,
     keyScopes: [SLIDE_KEY_SCOPE],
   }),
@@ -48,6 +72,10 @@ declare module "../../../core/catalog" {
     "@matomezu/slide:slide-set": typeof SLIDE_SET
     "@matomezu/slide:slide-reset": typeof SLIDE_RESET
     "@matomezu/slide:slide-delete": typeof SLIDE_DELETE
+    "@matomezu/slide:slide-to-front": typeof SLIDE_TO_FRONT
+    "@matomezu/slide:slide-forward": typeof SLIDE_FORWARD
+    "@matomezu/slide:slide-backward": typeof SLIDE_BACKWARD
+    "@matomezu/slide:slide-to-back": typeof SLIDE_TO_BACK
   }
   interface KeyScopeTable {
     "@matomezu/slide:slide": typeof SLIDE_KEY_SCOPE // スライドのレイヤーで操作している間のキー

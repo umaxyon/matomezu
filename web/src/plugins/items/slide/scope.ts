@@ -6,3 +6,6 @@ export const SLIDE_KEY_SCOPE = kit.defineKeyScope({ id: "slide", title: "Slide" 
 
 // 置いたばかりの文字枠の文字の書き換え（書き終えた変更は、置いた変更と画面の履歴の 1 段にまとめる）
 export const ADDED_EDIT = kit.name("added-edit")
+
+// スライドのアイテムの右クリックのメニュー（引数は右クリックしたアイテムの id）
+export const SLIDE_ITEM_CONTEXT = kit.name("item-context")

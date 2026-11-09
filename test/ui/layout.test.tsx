@@ -98,6 +98,7 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:corner-statuses is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
       "E213 layout no-stages: context menu @matomezu/base:page-context is not opened by any placed widget or book view",
+      "E213 layout no-stages: context menu @matomezu/slide:item-context is not opened by any placed widget or book view",
     ])
     // 中身を書かなければ、ステージの無い画面にできる
     const bare = defineLayout({ id: "bare", slots: { root: ["@matomezu/base:dialog-host"] }, menus: {} })

@@ -2,7 +2,7 @@
 // 操作を受けるレイヤー（SlideLayer）は edit を渡す: アイテムに操作の印（data-item）とアンカーを付け、文字枠は書き換え中ならテキストForm にする。
 import { type ReactNode, useRef, useState } from "react"
 import type { PlacedShape } from "../../../../plugin-api"
-import { type ItemViewProps, useUiCatalog } from "../../../../plugin-api/ui"
+import { type ItemViewProps, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
 import { useAnchorRef } from "../../../base/ui"
 import { DEFAULT_FONT_SIZE } from "../slide"
 import styles from "./SlideLayer.module.css"
@@ -29,6 +29,7 @@ export function SlideItem({
 }) {
   const ui = useUiCatalog()
   const anchor = useAnchorRef()
+  const tokens = useTokenScope(shape.item) // このアイテムのプラグインのテーマキー（--<名前>）
   const View = ui.items.get(shape.item)?.view as
     | ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode)
     | React.ComponentType<ItemViewProps<PlacedShape["props"]>>
@@ -41,6 +42,7 @@ export function SlideItem({
       data-item={edit ? shape.id : undefined}
       className={styles.item}
       style={{
+        ...tokens,
         left: shape.x,
         top: shape.y,
         width: size.w,

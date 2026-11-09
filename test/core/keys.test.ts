@@ -32,6 +32,10 @@ test("押したキーは、Mac では Cmd・ほかでは Ctrl を Mod にする�
   expect(pressedKey(press("k", { ctrlKey: true }), false)).toBe("Mod+K")
   expect(pressedKey(press("k", { ctrlKey: true }), true)).toBe("Ctrl+K")
   expect(pressedKey(press("å", { altKey: true }, "KeyA"), true)).toBe("Alt+A")
+  expect(pressedKey(press("‘", { metaKey: true, altKey: true }, "BracketRight"), true)).toBe("Mod+Alt+]")
+  expect(pressedKey(press("}", { metaKey: true, altKey: true, shiftKey: true }, "BracketRight"), true)).toBe(
+    "Mod+Alt+Shift+]",
+  )
   expect(pressedKey(press("Shift", { shiftKey: true }), true)).toBeNull()
 })
 

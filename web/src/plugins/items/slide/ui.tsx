@@ -4,6 +4,7 @@ import { SLIDE_PLUGIN } from "."
 import { ELLIPSE_ICON, FREE_LINE_ICON, STRAIGHT_LINE_ICON, TEXT_FRAME_ICON } from "./icons"
 import { kit } from "./kit"
 import { EllipseView, FreeLineView, StraightLineView, TextFrameView } from "./SlideItemViews"
+import { SLIDE_ITEM_CONTEXT } from "./scope"
 import { ELLIPSE, FREE_LINE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
 import { SlideLayer } from "./view/SlideLayer"
 
@@ -11,6 +12,7 @@ import { SlideLayer } from "./view/SlideLayer"
 export const SLIDE_LAYER = defineWidget({
   id: kit.name("slide-layer"),
   slots: ["@matomezu/base:book-layers"],
+  contextMenus: [SLIDE_ITEM_CONTEXT],
   view: SlideLayer,
 })
 
@@ -25,6 +27,9 @@ export const SLIDE_UI = definePluginUi(SLIDE_PLUGIN, {
 })
 
 declare module "../../../core/catalog" {
+  interface ContextMenuTable {
+    "@matomezu/slide:item-context": { item: string } // スライドのアイテム（右クリックしたアイテムの id）
+  }
   interface WidgetTable {
     "@matomezu/slide:slide-layer": typeof SLIDE_LAYER
   }

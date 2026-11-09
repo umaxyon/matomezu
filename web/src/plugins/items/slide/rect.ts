@@ -139,3 +139,72 @@ export function thinned(points: readonly Point[], dist: number): Point[] {
 // 角のつまみで幅が oldW から w になったときの、文字の大きさ fontSize の新しい値（幅の倍率で変え、小数 2 桁に丸める）
 export const scaledFontSize = (fontSize: number, w: number, oldW: number): number =>
   Math.round(((fontSize * w) / oldW) * 100) / 100
+
+// 角度をかけた四角を囲む、軸に沿った四角
+export function boundsOf(f: Rect, rotation: number): Rect {
+  const corners = cornersOf(f, rotation)
+  const xs = corners.map(p => p.x)
+  const ys = corners.map(p => p.y)
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }
+}
+
+// 四角を全部囲む四角（無ければ null）
+export function unionOf(rects: readonly Rect[]): Rect | null {
+  if (rects.length === 0) return null
+  const x = Math.min(...rects.map(r => r.x))
+  const y = Math.min(...rects.map(r => r.y))
+  return {
+    x,
+    y,
+    w: Math.max(...rects.map(r => r.x + r.w)) - x,
+    h: Math.max(...rects.map(r => r.y + r.h)) - y,
+  }
+}
+
+// 2 つの四角が重なるか（辺が触れるだけでも重なる）
+export const touches = (a: Rect, b: Rect): boolean =>
+  a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h
+
+// 2 点を向かい合う角にした四角（ドラッグ枠）
+export const spanOf = (a: Point, b: Point): Rect => ({
+  x: Math.min(a.x, b.x),
+  y: Math.min(a.y, b.y),
+  w: Math.abs(a.x - b.x),
+  h: Math.abs(a.y - b.y),
+})
+
+// 線の点（枠の中の割合）を、紙の上の点にする（角度をかけたあと）
+export function pointsOnPaper(rect: Rect, rotation: number, points: readonly Point[]): Point[] {
+  const c = centerOf(rect)
+  return points.map(p => {
+    const t = turn({ x: (p.x - 0.5) * rect.w, y: (p.y - 0.5) * rect.h }, rotation)
+    return { x: c.x + t.x, y: c.y + t.y }
+  })
+}
+
+// 点 to を、点 from から見て 45 度ずつの向きに丸める（長さは保つ。水平・垂直・斜め）
+export function snappedTo45(from: Point, to: Point): Point {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const step = Math.PI / 4
+  const angle = Math.round(Math.atan2(dy, dx) / step) * step
+  const length = Math.hypot(dx, dy)
+  return { x: from.x + Math.cos(angle) * length, y: from.y + Math.sin(angle) * length }
+}
+
+// 線の点 index を、紙の上の点 to へ動かしたあとの、線を入れる枠と枠の中の割合の点。角度は無くなる（紙の上の見た目は変わらない）。min は枠の幅・高さの下限
+export function movedPoint(
+  rect: Rect,
+  rotation: number,
+  points: readonly Point[],
+  index: number,
+  to: Point,
+  min: number,
+): { rect: Rect; points: Point[] } {
+  const onPaper = pointsOnPaper(rect, rotation, points)
+  onPaper[index] = to
+  const { rect: next, fractions } = drawnRect(onPaper, min)
+  return { rect: next, points: fractions }
+}

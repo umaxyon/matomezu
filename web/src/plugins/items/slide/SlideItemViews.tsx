@@ -1,20 +1,25 @@
 // スライドのアイテムのビュー: 文字枠・自由な線・直線・楕円。枠いっぱい（size）に描く。角度は見せ方が枠にかけるので、ここでは傾けない。
-// 線の点は枠の中の割合なので、枠の大きさを掛けて描く。色は代表色の名前か #rrggbb（base の colorPaint）で、無ければテーマの文字の色
+// 線の点は枠の中の割合なので、枠の大きさを掛けて描く。色は代表色の名前か #rrggbb（base の colorPaint）で、無ければ SLIDE_INK（テーマの文字の色。描く要素のテーマキーの範囲 useTokenScope が要る）
 
 import type { z } from "zod"
+import { themeVar } from "../../../plugin-api"
 import type { ItemViewProps } from "../../../plugin-api/ui"
 import { colorPaint } from "../../base"
 import {
   DEFAULT_FONT_SIZE,
+  DEFAULT_STROKE_WIDTH,
   type EllipseProps,
   type FreeLineProps,
+  linePointsOf,
+  SLIDE_INK,
+  STRAIGHT_LINE,
   type StraightLineProps,
   type TextFrameProps,
 } from "./slide"
 
-const INK = "var(--theme-text)"
+const INK = themeVar(SLIDE_INK.id)
 const paint = (color: string | undefined): string => (color === undefined ? INK : colorPaint(color).fill)
-const WIDTH = 2
+const WIDTH = DEFAULT_STROKE_WIDTH
 
 export function TextFrameView({ props, size }: ItemViewProps<z.output<typeof TextFrameProps>>) {
   return (
@@ -84,7 +89,7 @@ export function FreeLineView({ props, size }: ItemViewProps<z.output<typeof Free
 }
 
 export function StraightLineView({ props, size }: ItemViewProps<z.output<typeof StraightLineProps>>) {
-  const points = [props.from ?? { x: 0, y: 0 }, props.to ?? { x: 1, y: 1 }]
+  const points = linePointsOf(STRAIGHT_LINE.id, props)
   return (
     <Strokes
       size={size}
