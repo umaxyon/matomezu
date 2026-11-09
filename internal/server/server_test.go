@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -43,9 +46,13 @@ func newServerWith(t *testing.T, o Options) *httptest.Server {
 		t.Fatal(err)
 	}
 	o.Web, o.Token, o.Version, o.Hub = web, "secret", "v1", hub
+	if o.Pair == nil {
+		o.Pair = NewPairing(nil, nil)
+	}
 	s := httptest.NewUnstartedServer(withRoutesForTest(Handler(o), o))
 	s.Config.RegisterOnShutdown(hub.CloseAll)
 	s.Start()
+	pairTestBrowser(t, s, o.Pair)
 	t.Cleanup(hub.CloseAll)
 	t.Cleanup(s.Close)
 	return s
@@ -119,9 +126,41 @@ func TestStopNeedsTokenAndPost(t *testing.T) {
 	<-stopped
 }
 
+// pairTestBrowser は、テストの常駐 s にペアを組んだブラウザを 1 つ作る。画面からの頼みは、この鍵が要る（send と listen は、この鍵を cookie に付ける）
+func pairTestBrowser(t *testing.T, s *httptest.Server, p *Pairing) {
+	t.Helper()
+	secret, _ := p.Redeem(p.NewCode())
+	_, port, _ := net.SplitHostPort(strings.TrimPrefix(s.URL, "http://"))
+	pairedCookies.Store(s.URL, "matomezu-"+port+"="+secret)
+	t.Cleanup(func() { pairedCookies.Delete(s.URL) })
+}
+
+// pairedCookies は、テストの常駐の URL ごとの、ペアを組んだブラウザの cookie
+var pairedCookies sync.Map
+
+// pairedCookie は、url の常駐のペアを組んだブラウザの cookie
+func pairedCookie(url string) (cookie string) {
+	pairedCookies.Range(func(k, v any) bool {
+		if strings.HasPrefix(url, k.(string)) {
+			cookie = v.(string)
+		}
+		return true
+	})
+	return cookie
+}
+
 // send は画面からの頼みを送る（headers の Origin などはそのまま付ける）
 func send(t *testing.T, method, url, body string, headers map[string]string) (int, string) {
 	t.Helper()
+	if _, own := headers["Cookie"]; !own {
+		if c := pairedCookie(url); c != "" {
+			headers = maps.Clone(headers)
+			if headers == nil {
+				headers = map[string]string{}
+			}
+			headers["Cookie"] = c
+		}
+	}
 	req, _ := http.NewRequest(method, url, strings.NewReader(body))
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
@@ -374,6 +413,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 	for _, c := range cases {
 		req, _ := http.NewRequest("POST", s.URL+"/api/perform", strings.NewReader(`{"action":"nope"}`))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Cookie", pairedCookie(s.URL))
 		for k, v := range c.headers {
 			req.Header.Set(k, v)
 		}
@@ -391,6 +431,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 	}
 	req, _ := http.NewRequest("POST", s.URL+"/api/perform", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Cookie", pairedCookie(s.URL))
 	res, _ := http.DefaultClient.Do(req)
 	res.Body.Close()
 	if res.StatusCode != 415 {
@@ -403,7 +444,9 @@ const drawing = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","proj
 // listen は /api/events につなぎ、届いたイベントを「名前 data」の行で返す通り道
 func listen(t *testing.T, url string) <-chan string {
 	t.Helper()
-	res, err := http.Get(url + "/api/events")
+	req, _ := http.NewRequest(http.MethodGet, url+"/api/events", nil)
+	req.Header.Set("Cookie", pairedCookie(url))
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -846,7 +889,10 @@ func TestShowGoesToTheLastFocusedWindow(t *testing.T) {
 func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
 	var s *httptest.Server
 	opened := make(chan (<-chan string), 1)
-	s = newServerWith(t, Options{URL: "http://screen/", Open: func() error {
+	s = newServerWith(t, Options{URL: "http://screen/", Open: func(url string) error {
+		if !strings.HasPrefix(url, "http://screen/pair?code=") {
+			t.Errorf("the browser was opened at %s", url)
+		}
 		go func() {
 			lines := listen(t, s.URL)
 			<-lines // hello
@@ -866,7 +912,7 @@ func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
 }
 
 func TestShowWithoutAWindowNorABrowser(t *testing.T) {
-	s := newServerWith(t, Options{URL: "http://screen/", Wait: 50 * time.Millisecond, Open: func() error { return nil }})
+	s := newServerWith(t, Options{URL: "http://screen/", Wait: 50 * time.Millisecond, Open: func(string) error { return nil }})
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	auth := map[string]string{"Authorization": "Bearer secret"}
 	if _, got := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, auth); got != "{\"ok\":false,\"reason\":\"no-window\",\"url\":\"http://screen/\"}" {
@@ -1079,7 +1125,9 @@ func TestEditLocksGoWithTheWindow(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	k1 := placeBox(t, s.URL, 10, "一")
-	res, err := http.Get(s.URL + "/api/events")
+	req, _ := http.NewRequest(http.MethodGet, s.URL+"/api/events", nil)
+	req.Header.Set("Cookie", pairedCookie(s.URL))
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

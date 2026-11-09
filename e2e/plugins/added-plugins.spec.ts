@@ -31,11 +31,11 @@ test.use({ books: [flow] })
 const temps: string[] = []
 
 // テストが足した追加プラグインは、テストが終われば外す（常駐を空にする用意の口は、追加プラグインを残すため）。一時フォルダも消す
-test.afterEach(async ({ request }) => {
+test.afterEach(async ({ context }) => {
   for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true })
-  const { plugins } = await (await request.get("/api/data")).json()
+  const { plugins } = await (await context.request.get("/api/data")).json()
   for (const { id } of plugins as { id: string }[])
-    if (id !== "ex2") await request.post("/api/plugins/remove", { headers: aiAuth(), data: { id } })
+    if (id !== "ex2") await context.request.post("/api/plugins/remove", { headers: aiAuth(), data: { id } })
 })
 
 test("常駐が結んだ追加プラグインを画面に渡し、画面はその見た目の JS を読む", async ({ page }) => {

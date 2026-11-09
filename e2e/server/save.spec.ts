@@ -47,11 +47,11 @@ test("置いた箱は少し待って常駐に残り、読み直しても同じ�
 })
 
 test("1 つの窓で置いた箱は、同じブックを開いているほかの窓にもすぐ出る。ほかの窓で動かすと、元の窓でも動く", async ({
-  browser,
+  newPage,
 }) => {
   // 箱が 1 つのブック e2e-1 を、どちらの窓も最初に開く
-  const a = await browser.newPage()
-  const b = await browser.newPage()
+  const a = await newPage()
+  const b = await newPage()
   const box = {
     id: "k1",
     x: 40,

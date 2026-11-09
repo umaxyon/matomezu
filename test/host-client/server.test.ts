@@ -70,7 +70,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
         return new Response("{}", { status })
       }
       const status = url === "api/data" ? answer.read() : url === "api/log" ? answer.log() : 200
-      return new Response(JSON.stringify(answer.data), { status })
+      return new Response(typeof answer.data === "string" ? answer.data : JSON.stringify(answer.data), { status })
     },
     events,
     focused: () => true,
@@ -166,6 +166,19 @@ test("知らせにつながらなければ NoServer", async () => {
   const loading = s.host.load()
   s.fail()
   await expect(loading).rejects.toBeInstanceOf(NoServer)
+})
+
+test("ペアを組んでいないブラウザは、読めずに、ペアが要ると分かる E402 になる（ほかの断りは NoServer）", async () => {
+  const s = fakeServer()
+  s.answer.read = () => 403
+  s.answer.data = "pair-required"
+  const loading = s.host.load()
+  s.fail()
+  await expect(loading).rejects.toMatchObject({ code: "E402" })
+  s.answer.data = "forbidden"
+  const again = s.host.load()
+  s.fail()
+  await expect(again).rejects.toBeInstanceOf(NoServer)
 })
 
 test("読むと、置いてあるブックと設定を返す", async () => {

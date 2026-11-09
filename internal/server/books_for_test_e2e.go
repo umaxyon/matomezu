@@ -17,6 +17,9 @@ import (
 func routesForTest(mux *http.ServeMux, o Options) {
 	mux.Handle("PUT /api/books-for-test/{id}", sameOrigin(booksForTest(o)))
 	mux.Handle("POST /api/reset-for-test", sameOrigin(resetForTest(o)))
+	mux.Handle("POST /api/pair-code-for-test", sameOrigin(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"code": o.Pair.NewCode()})
+	}))
 }
 
 // booksForTest は、PUT /api/books-for-test/{id}（ブックを丸ごと置く。アクションも認可も通さない、テストの用意だけの入口）の処理

@@ -4,7 +4,7 @@
 import { spawn } from "node:child_process"
 import { readFileSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
-import { test as base } from "@playwright/test"
+import { type BrowserContext, test as base, type Page } from "@playwright/test"
 import { E2E_BOOKS } from "./books"
 
 // test のほか（expect・Page など）は Playwright のまま
@@ -37,7 +37,23 @@ export type HostOptions = { hostArgs: string[] }
 export const BOOK_SCREEN_URL = "/?f=book"
 export const CONTROL_CENTER_URL = "/?f=center"
 
-export const test = base.extend<{ books: readonly object[]; reset: undefined }, HostOptions & { host: Host }>({
+// ブラウザ（context）を常駐とペアにする（テストの用意の口でコードをもらい、本物の /pair を通って cookie を受け取る）
+const pair = async (host: Host, context: BrowserContext) => {
+  const made = await fetch(`${host.url}/api/pair-code-for-test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  })
+  if (!made.ok) throw new Error(`pair-code-for-test: ${made.status} ${await made.text()}`)
+  const { code } = (await made.json()) as { code: string }
+  const done = await context.request.get(`${host.url}/pair?code=${code}`)
+  if (!done.ok()) throw new Error(`pair: ${done.status()}`)
+}
+
+export const test = base.extend<
+  { books: readonly object[]; reset: undefined; paired: undefined; newPage: () => Promise<Page> },
+  HostOptions & { host: Host }
+>({
   // 常駐の serve に足す引数（追加プラグインのフォルダを結ぶ --plugin など）
   hostArgs: [[], { option: true, scope: "worker" }],
   host: [
@@ -53,8 +69,9 @@ export const test = base.extend<{ books: readonly object[]; reset: undefined }, 
         },
       )
       // 立てた serve が自分のフォルダに書いたつなぎ方を待つ（pid で、ほかの常駐の物でないと確かめる）
-      const answering = async (url: string) =>
-        fetch(`${url}/api/data`).then(
+      // 画面の入口はペアを組んだブラウザにしか答えないので、合言葉の入口（/api/ping）で確かめる
+      const answering = async (url: string, token: string) =>
+        fetch(`${url}/api/ping`, { headers: { Authorization: `Bearer ${token}` } }).then(
           r => r.ok,
           () => false,
         )
@@ -62,7 +79,7 @@ export const test = base.extend<{ books: readonly object[]; reset: undefined }, 
         if (serve.exitCode !== null) throw new Error(`matomezu serve stopped (${serve.exitCode})`)
         const server = serverIn(home)
         const url = server && server.pid === serve.pid ? server.url.replace(/\/$/, "") : undefined
-        if (url && (await answering(url))) {
+        if (url && server && (await answering(url, server.token))) {
           await use({ url })
           break
         }
@@ -75,6 +92,22 @@ export const test = base.extend<{ books: readonly object[]; reset: undefined }, 
   baseURL: async ({ host }, use) => use(host.url),
   // テストが始まるときに常駐に置くブック
   books: [E2E_BOOKS, { option: true }],
+  // テストごとのブラウザ（context）を、常駐とペアにする
+  paired: [
+    async ({ host, context }, use) => {
+      await pair(host, context)
+      await use(undefined)
+    },
+    { auto: true },
+  ],
+  // 別のブラウザ（ペアを組んだ新しい窓）を開く。複数の窓を使うテストが、browser.newPage() の代わりに使う
+  newPage: async ({ host, browser }, use) => {
+    await use(async () => {
+      const context = await browser.newContext()
+      await pair(host, context)
+      return context.newPage()
+    })
+  },
   reset: [
     async ({ host, books }, use) => {
       const done = await fetch(`${host.url}/api/reset-for-test`, {
