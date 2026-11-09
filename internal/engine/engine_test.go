@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/plugin"
 )
@@ -521,4 +522,41 @@ func (e *Engine) AICatalogForTest() json.RawMessage {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.aiCatalog
+}
+
+// 止まらない追加プラグインのアクションは、待つ秒数（TimeoutSec）で打ち切って断り、そのあともエンジンは使える。秒数が範囲の外なら bad-args
+func TestStopsAnActionThatDoesNotEnd(t *testing.T) {
+	e := newEngine(t)
+	b := &plugin.Bundle{Dir: "stuck", Manifest: plugin.Manifest{ID: "stuck", Engine: "index.ts"}, Engine: `
+var m = globalThis.__matomezuModules["matomezu"];
+module.exports.default = {
+  id: "stuck",
+  messages: { id: "stuck:messages", messages: { "stuck:spin": { en: "Spin" } } },
+  actions: [{
+    id: "stuck:spin", title: "stuck:spin", aiDescription: "", target: "book", attach: { books: true },
+    args: m.z.strictObject({}),
+    run: function (b) { while (true) {} }
+  }]
+}`}
+	if _, err := e.Use([]*plugin.Bundle{b}); err != nil {
+		t.Fatal(err)
+	}
+	spin := Input{Action: "stuck:spin", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en", Books: []json.RawMessage{json.RawMessage(book)}, TimeoutSec: 1}
+	start := time.Now()
+	out, err := e.Perform(spin)
+	if err != nil || out.OK || out.Reason != "refused" || !strings.Contains(out.Detail, "timed out after 1 seconds") {
+		t.Fatalf("Perform = %+v, %v", out, err)
+	}
+	if took := time.Since(start); took > 4*time.Second {
+		t.Fatalf("took %v", took)
+	}
+	if out, err := e.Perform(place("p9")); err != nil || !out.OK {
+		t.Fatalf("Perform after a timeout = %+v, %v", out, err)
+	}
+	for _, sec := range []int{-1, 61} {
+		spin.TimeoutSec = sec
+		if out, err := e.Perform(spin); err != nil || out.OK || out.Reason != "bad-args" {
+			t.Fatalf("TimeoutSec %d: Perform = %+v, %v", sec, out, err)
+		}
+	}
 }

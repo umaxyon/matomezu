@@ -333,7 +333,9 @@ type Perform struct {
 	Client string          `json:"client,omitempty"`
 	Seq    int64           `json:"seq,omitempty"`
 	Key    string          `json:"key,omitempty"`
-	By     string          `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
+	// TimeoutSec は、アクションを待つ秒数（省略は 5、上限 60）
+	TimeoutSec int    `json:"timeoutSec,omitempty"`
+	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
 }
 
 // Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
@@ -354,7 +356,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By, TimeoutSec: p.TimeoutSec}
 	in.Annotations = map[string]json.RawMessage{}
 	if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {

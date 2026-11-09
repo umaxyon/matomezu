@@ -187,6 +187,7 @@ var performSchema = map[string]any{
 			"required":             []string{"book"},
 			"additionalProperties": false,
 		},
+		"timeoutSec": map[string]any{"type": "integer", "minimum": 1, "maximum": 60, "description": "How many seconds to wait for the action (5 without it). Give more (up to 60) only for an action you know is heavy; an action that takes longer is stopped and refused with nothing changed."},
 	},
 	"required":             []string{"action", "args"},
 	"additionalProperties": false,

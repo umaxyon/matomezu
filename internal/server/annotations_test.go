@@ -243,3 +243,14 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 		t.Fatalf("stored = %s", kept["b1"])
 	}
 }
+
+// perform の待つ秒数（timeoutSec）は 1 から 60 まで。範囲の外はエンジンで断る
+func TestAIPerformRefusesATimeoutOutOfRange(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
+	ai := map[string]string{"Authorization": "Bearer secret"}
+	_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"},"timeoutSec":61}`, ai)
+	if !strings.Contains(got, `"reason":"bad-args"`) || !strings.Contains(got, "timeoutSec must be 1 to 60") {
+		t.Fatalf("timeoutSec 61 = %s", got)
+	}
+}
