@@ -29,3 +29,17 @@
   stroke-dasharray: 6 4;
   vector-effect: non-scaling-stroke;
 }
+
+/* 背景編集モードの間の、ブックの中身: 薄くして、触れない。隠していれば描かない（中身のデータは変えない） */
+.dimmed {
+  position: absolute;
+  inset: 0;
+  opacity: 0.3;
+  pointer-events: none;
+}
+.dimmed[data-content-dimmed] * {
+  pointer-events: none;
+}
+.dimmed[data-content-hidden="true"] {
+  visibility: hidden;
+}

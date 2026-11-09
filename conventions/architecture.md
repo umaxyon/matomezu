@@ -12,14 +12,14 @@
 | `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）とブラウザ（保存・URL・履歴・クリップボード・印刷）に頼む口 | `core`・`store`・`host-client`・zod |
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`（ビルトインの一覧と、各プラグインの入口だけ）・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の行（プラグインのファイルと、base 以外のビルトインプラグイン） |
-| `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーバインドでビルトインを先に扱う）と、台帳アセンブルのときの確かめ（`checks`）を書く `CatalogCheckDef`・`problem`・`warning`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
+| `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーバインドでビルトインを先に扱う）と、台帳アセンブルのときの確かめ（`checks`）を書く `CatalogCheckDef`・`problem`・`warning`、テーマキーに書かれた値の引き方 `writtenValues`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
 | `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（base の入口の名前を、一つずつ書いて出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
 | `testing` | テストで組む入口（`matomezu/testing`）。テストのプロセスの中で組み、ホストは使わない。プラグイン API に含めない | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
 | `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`index.ts` はホストのエンジン用、`ui.ts` は画面用） | `plugin-entry`・React |
 
 - 土台（`core`・`store`・`ui`）は、プラグインを受け取って動かす枠と、その枠が決める言葉（ステージ・ページ・置いたアイテムの外枠など）を持ち、具体的な機能は持たない。プラグインを読まない
 - 土台の中に、プラグインしか使わない処理を置かない。そうした処理は base が持つ。core のモジュールで、プラグインしか読んでいない物が無いことを見張る
-- ステージの見え方の状態（道具のアイコンを開いているか）と、その開閉の決まりは、ステージの言葉として土台に置く。土台自身も読む状態で、上の行の「プラグインしか使わない処理」には当たらない
+- ステージの状態（道具のアイコンを開いているか・背景を直しているか）と、その開閉の決まりは、ステージの言葉として土台に置く。土台自身も読む状態で、上の行の「プラグインしか使わない処理」には当たらない
 - コマンドマッピングの `anchorMenu`（押した物にアンカーがあるとき、どの右クリックのメニューにも足すコマンドの並び）は、コマンドマッピングの言葉として土台に置く。アンカーを付ける・押した物のアンカーを見つける・メニューに足すのは base で、土台は並びを確かめて渡すだけ
 - プラグイン（base を含む）が持つステージごとの画面の状態は、土台の store の、プラグインの id ごとの置き場に置く。土台は中身を読まない。プラグインは自分の置き場だけを読み書きする。ビューは自分の kit を渡すフックで読み書きし、コマンドは文脈の `stageState` で読み、run が受け取る `updateStageState` だけで変える（`useActions` の操作には入れない。持ち主はコマンドの id の頭のプラグイン、変えるのは呼ばれた場所のステージの状態）。読み直しても戻したい物は、プラグインの `placedState`（`PlacedStateDef`）に書く（画面の場所に入り、URL に写る）。URL やホストクライアントに自分で書かない
 - 入口（`plugin-entry`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない

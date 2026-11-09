@@ -203,7 +203,6 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     return () => el.removeEventListener("dblclick", onDoubleClick)
   }, [id, openPage])
   if (!layout || !pan || !book) return null
-  const Sheet = views.get(bookType(catalog, book.type).presentation)?.printSheet
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   // ブック名・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {
@@ -268,7 +267,6 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
               book={book}
               page={pageOf(s.page)}
               sheet={s}
-              Sheet={Sheet}
               measured={measures[s.page]?.data}
               labels={labelsOf(s)}
             />
@@ -280,7 +278,6 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
           stage={id}
           type={opened.type}
           book={book}
-          Sheet={Sheet}
           sheets={layout.sheets.map(s => ({
             ...s,
             key: keyOf(s),

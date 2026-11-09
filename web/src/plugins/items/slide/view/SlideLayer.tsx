@@ -14,6 +14,7 @@ import {
   type Point,
   type Rect,
   type StageView,
+  slideIsBackground,
   slideOf,
 } from "../../../../plugin-api"
 import {
@@ -121,12 +122,20 @@ export function SlideLayer({ stage: id }: StageSlotProps) {
   const type = stage?.opened?.type
   const slide = type ? bookType(catalog, type).slide : undefined
   if (!stage || !slide || stage.opened?.page == null) return null
-  // 置けるアイテムが slide だけのタイプは、紙の何も無い所の押しも受ける（選びを外す）。ほかのタイプは、置こうとしている間だけ紙の上を受ける
-  const owns = bookType(catalog, type as string).items.allowed.length === 0
-  return <SlidePageView stage={stage} owns={owns} placeable={slide.allowed} />
+  // slide がページの本体のタイプは、紙の何も無い所の押しも受ける（選びを外す）。背景のタイプは、背景編集モードの間だけ操作を受ける（ふだんは描くだけ）
+  const body = !slideIsBackground(bookType(catalog, type as string))
+  return <SlidePageView stage={stage} operable={body || stage.edits === "slide"} placeable={slide.allowed} />
 }
 
-function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boolean; placeable: readonly string[] }) {
+function SlidePageView({
+  stage,
+  operable,
+  placeable,
+}: {
+  stage: StageView
+  operable: boolean // 操作を受けるか（本体のタイプはいつも。背景のタイプは背景編集モードの間だけ）
+  placeable: readonly string[]
+}) {
   const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const catalog = useCoreCatalog()
@@ -148,7 +157,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
   const shapes = page ? slideOf(page) : []
   const chosen = shapes.filter(s => stage.selection.includes(s.id)) // 選んでいるアイテム（重ねの順）
   const selected = chosen.length === 1 && stage.selection.length === 1 ? chosen[0] : undefined
-  const placing = stage.placing !== null && placeable.includes(stage.placing) ? stage.placing : null
+  const placing = operable && stage.placing !== null && placeable.includes(stage.placing) ? stage.placing : null
   const editing = stage.editing === true || stage.editing === ADDED_EDIT ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
   const minOf = (item: string): number => {
     const def = catalog.items.get(item)
@@ -435,9 +444,10 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
       ref={ref}
       className={styles.layer}
       tabIndex={-1}
-      data-key-scope={SLIDE_KEY_SCOPE.id}
+      data-slide-layer
+      data-key-scope={operable ? SLIDE_KEY_SCOPE.id : undefined}
       data-placing={placing !== null}
-      data-active={owns || placing !== null}
+      data-active={operable}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -466,8 +476,8 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
           ))}
           {ghost && <Ghost ghost={ghost} zoom={stage.zoom} />}
         </div>
-        {item && !placing && <Selection item={item} hidden={editing !== null} />}
-        {group && !placing && <GroupSelection rect={group.rect} subjects={group.subjects} />}
+        {operable && item && !placing && <Selection item={item} hidden={editing !== null} />}
+        {operable && group && !placing && <GroupSelection rect={group.rect} subjects={group.subjects} />}
         {dragFrame && (
           <div
             className={styles.dragFrame}

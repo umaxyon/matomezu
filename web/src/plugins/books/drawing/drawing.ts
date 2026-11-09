@@ -1,6 +1,7 @@
 // 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
 import { z } from "zod"
 import {
+  BACKGROUND_PRINT,
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
@@ -33,6 +34,14 @@ const ITEMS = [
   "@matomezu/line:connector-line",
 ] as const
 
+// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+const BACKGROUND_ITEMS = [
+  "@matomezu/slide:slide-text",
+  "@matomezu/slide:slide-free-line",
+  "@matomezu/slide:slide-line",
+  "@matomezu/slide:slide-ellipse",
+] as const
+
 export const DRAWING = kit.defineBookType({
   id: "drawing",
   version: 1,
@@ -52,6 +61,7 @@ export const DRAWING = kit.defineBookType({
   items: {
     allowed: ITEMS,
   },
+  slide: { allowed: BACKGROUND_ITEMS, background: true },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
 
   theme: "@matomezu/base:standard",
@@ -68,7 +78,8 @@ export const DRAWING = kit.defineBookType({
       "@matomezu/line:line-route",
       BOOK_TEXT_COLORS.id,
       ...PRINT_PREVIEW_SETTINGS,
+      BACKGROUND_PRINT.id,
     ],
-    page: ["@matomezu/line:line-route"],
+    page: ["@matomezu/line:line-route", BACKGROUND_PRINT.id],
   },
 })

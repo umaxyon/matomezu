@@ -17,6 +17,7 @@ const names = (m: object) => Object.keys(m).sort()
 test("matomezu が出す名前", () => {
   expect(names(api)).toEqual([
     "AlignSchema",
+    "BACKGROUND_PRINT",
     "BODY_MAX",
     "BOOK_PAPER_COLOR",
     "BOOK_TEXT_COLORS",
@@ -138,6 +139,7 @@ test("matomezu が出す名前", () => {
     "sheetShapes",
     "sheetsOfShape",
     "shownRects",
+    "slideIsBackground",
     "slideOf",
     "textBlock",
     "textBlockHeight",
@@ -334,6 +336,7 @@ test("matomezu/testing が出す名前", () => {
 test("プラグインに見せるステージ（StageView）のフィールド", () => {
   expect(names(stageView(CORE_CATALOG, newStage("s1"), null))).toEqual([
     "editing",
+    "edits",
     "id",
     "mode",
     "opened",
@@ -397,6 +400,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "command",
     "continueStep",
     "dismissToast",
+    "endBackground",
     "evenDivider",
     "focusStage",
     "moveDivider",
@@ -425,6 +429,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "showControlCenter",
     "showToast",
     "split",
+    "startBackground",
     "stopPlacing",
     "submitDialog",
     "togglePlacing",

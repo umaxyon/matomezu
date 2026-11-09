@@ -127,6 +127,7 @@ export const TEXT_FRAME = kit.defineShape({
   tokens: [],
   size: { w: 240, h: 48 },
   min: MIN,
+  labelOf: item => (item.props as { text?: string }).text ?? "", // 文字枠の名前は、書いた文字
 })
 
 // 枠 r の中の割合の点 p の、紙の上の点

@@ -52,6 +52,7 @@ export {
   alignPadding,
   allRectsOf,
   apart,
+  BACKGROUND_PRINT,
   BODY_MAX,
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,

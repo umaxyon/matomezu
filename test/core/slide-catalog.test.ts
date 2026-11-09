@@ -51,7 +51,9 @@ test("置けるアイテムは items.allowed と slide.allowed の合わせ: ア
   const update = BUILTIN_PARTS.actions.find(a => a.id === "@matomezu/slide:slide-update")!
   expect(attachedTo(update, slideType)).toBe(true)
   const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing")!
-  expect(attachedTo(update, drawing)).toBe(false)
+  expect(attachedTo(update, drawing)).toBe(true) // 図面は背景（slide）を持つ
+  const markdown = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/markdown:markdown")!
+  expect(attachedTo(update, markdown)).toBe(false)
   // slide にだけ置けるアイテムのテーマキーも、タイプの宣言に入る
   const box = BUILTIN_PARTS.items.find(i => i.id === "@matomezu/list:shape-list")!
   expect(box.tokens.length).toBeGreaterThan(0)
@@ -59,7 +61,7 @@ test("置けるアイテムは items.allowed と slide.allowed の合わせ: ア
   const ids = tokenDefsOf(CORE_CATALOG, onlySlide).map(d => d.id)
   for (const t of box.tokens) expect(ids).toContain(t.id)
   const book = { type: SLIDE_TYPE } as never
-  expect(toolboxOf(CORE_CATALOG, book)).toEqual(slideType.slide!.allowed as never)
+  expect(toolboxOf(CORE_CATALOG, book, "items")).toEqual(slideType.slide!.allowed as never)
 })
 
 test("ミニマップと印刷区画の既定は、ページの slide の形も数える（形の定義の minimap。無いなら置いた四角）", () => {

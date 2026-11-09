@@ -500,8 +500,8 @@ test("右クリックのメニューに出るコマンドが無ければ、メ�
 
 test("ステージの上の行と下の行を右クリックしても、ブラウザのメニューを出さない", () => {
   renderBooksScreen()
-  const tab = screen.getAllByRole("tab")[0]!
-  expect(fireEvent.contextMenu(tab)).toBe(false)
+  const tabs = screen.getByRole("tablist") // タブそのものの右クリックはページのメニュー（ページ一覧と同じ）。タブの列の何も無い所は、ブラウザのメニューを出さない
+  expect(fireEvent.contextMenu(tabs)).toBe(false)
   const tool = screen.getByRole("button", { name: "選択ツール" })
   expect(fireEvent.contextMenu(tool)).toBe(false)
   expect(screen.queryByRole("menu")).toBeNull()

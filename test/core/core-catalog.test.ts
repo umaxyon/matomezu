@@ -38,8 +38,9 @@ describe("機能台帳", () => {
       papers: BUILTIN_PARTS.papers.filter(p => p.id !== "@matomezu/base:a3"),
     }
     const problems = checkCoreCatalog(broken)
-    // 図面は置けるアイテムが全部無いので、その数だけ E008（同じタイプが 2 つあるので 2 回）
-    const drawingProblems = ["E004" as const, ...Array.from(drawing.items.allowed, () => "E008" as const)]
+    // 図面は置けるアイテム（items と背景の slide）が全部無いので、その数だけ E008（同じタイプが 2 つあるので 2 回）
+    const placeable = [...drawing.items.allowed, ...(drawing.slide?.allowed ?? [])]
+    const drawingProblems = ["E004" as const, ...placeable.map(() => "E008" as const)]
     expect(problems.map(p => p.code)).toEqual(["E001", ...drawingProblems, ...drawingProblems])
     expect(problems.map(problemText).slice(0, 3)).toEqual([
       "E001 bookType @matomezu/drawing:drawing: id is registered twice",

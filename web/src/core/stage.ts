@@ -9,6 +9,7 @@ import { hasPages, type PagedBook } from "./book"
 import type { ItemId } from "./catalog"
 import type { BookTypeId, CoreCatalog } from "./core-catalog"
 import { isOnBook } from "./def/action"
+import { type EditList, slideIsBackground } from "./def/book-type"
 import type { Point, Size } from "./geom"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
 import { sameData } from "./same"
@@ -50,6 +51,8 @@ export interface Stage {
   zoom: number
   pan: Point // ずらす量（viewport.ts）
   view: Size | null // 表示領域の大きさ（測るまでは null）
+  // 直している並び: ページの items か、背景（ページの slide。背景を持つタイプの、背景編集モードの間）。開くページやブックが替わると items に戻る
+  edits: EditList
   placing: ItemId | null // 置こうとしているアイテム（ツールボックスで選んだもの。置くか取り消すまで）
   selection: readonly string[] // 選んでいる物の id（開いているページのアイテムや、ページのフィールドの中の物）
   // 選んでいる物を、今その場で編集中か（選びが替わる・開くものが変わる・道具を替えると終わる）。
@@ -84,6 +87,7 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
     zoom: 1,
     pan: HOME,
     view: null,
+    edits: "items",
     placing: null,
     selection: NONE,
     editing: false,
@@ -183,7 +187,7 @@ export function stopStart(stage: Stage): Stage {
 
 // ページを開いたステージ: 知らされた初めの位置を捨て、紙を置くなら初めの位置に合わせる印を立てる
 function opening(stage: Stage, opened: Opened): Stage {
-  return { ...stage, opened, start: null, starting: opened.paper !== null }
+  return { ...stage, opened, edits: "items", start: null, starting: opened.paper !== null }
 }
 
 // ずらす量を pan にして、範囲に収める
@@ -232,6 +236,7 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, pa
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found) return stage
   if (o.page === page) return closePrintPreview(stage)
+  if (editingBackground(stage)) return stage // 背景編集モードの間は、ページを替えない
   const opened = { type: o.type, book: o.book, page, paper: stagePaper(catalog, o.type, found), ...shiftOf(found) }
   return settle(leave(opening(edited(stage), opened)), HOME)
 }
@@ -313,6 +318,23 @@ export function resetView(stage: Stage): Stage {
 // 何も開いていない状態にする（開いていたブックが無くなったときなど）
 export function closeBook(stage: Stage): Stage {
   return stage.opened ? settle(leave({ ...edited(stage), opened: null, start: null, starting: false }), HOME) : stage
+}
+
+// 背景編集モードの間か（ステージが、ページの slide を背景として直している間）
+export const editingBackground = (stage: Pick<Stage, "edits">): boolean => stage.edits === "slide"
+
+// 背景編集モードに入る（背景を持つタイプのブックのページを開いていて、編集の間だけ）。置こうとしているアイテム・選択・その場の編集・道具のアイコンは捨てる
+export function startBackground(catalog: CoreCatalog, stage: Stage): Stage {
+  const o = stage.opened
+  if (!o || o.page === null || previewing(stage) || editingBackground(stage)) return stage
+  const type = catalog.bookTypes.get(o.type)
+  if (!type || !slideIsBackground(type)) return stage
+  return leave({ ...stage, edits: "slide" })
+}
+
+// 背景編集モードを終える（置こうとしているアイテム・選択・その場の編集・道具のアイコンは捨てる）
+export function endBackground(stage: Stage): Stage {
+  return editingBackground(stage) ? leave({ ...stage, edits: "items" }) : stage
 }
 
 // 印刷プレビューを開く（ブックを開いていて、編集の間だけ）。置こうとしているアイテム・選択・その場の編集・道具のアイコンは捨てる。

@@ -32,6 +32,7 @@ import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/se
 import {
   closePicker,
   closePrintPreview,
+  endBackground,
   openBook,
   openPicker,
   openPrintPreview,
@@ -44,6 +45,7 @@ import {
   setEditing,
   setPreviewArea,
   setStart,
+  startBackground,
   stopPlacing,
   toPaper,
   zoomTo,
@@ -201,6 +203,8 @@ export interface Actions {
   // そのステージで印刷プレビューを開く・閉じる（閉じたら開く前の倍率とずらす量に戻す）
   openPrintPreview(id: string): void
   closePrintPreview(id: string): void
+  startBackground(id: string): void // そのステージを背景編集モードにする（背景を持つタイプのブックのページを開いている編集の間だけ）
+  endBackground(id: string): void // そのステージの背景編集モードを終える
   setPreviewArea(id: string, area: Size): void // 印刷プレビューで並べた広さ（見せ方が知らせる）
   requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
@@ -784,6 +788,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     resetStageView: id => withWorkspace(ws => mapStage(ws, id, resetView)),
     openPrintPreview: id => withWorkspace(ws => mapStage(ws, id, openPrintPreview)),
     closePrintPreview: id => withWorkspace(ws => mapStage(ws, id, closePrintPreview)),
+    startBackground: id => withWorkspace(ws => mapStage(ws, id, s => startBackground(catalog, s))),
+    endBackground: id => withWorkspace(ws => mapStage(ws, id, endBackground)),
     requestPrint: () => setState({ printRequests: getState().printRequests + 1 }),
     setPreviewArea: (id, area) => withWorkspace(ws => mapStage(ws, id, s => setPreviewArea(s, area))),
     setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),

@@ -1,16 +1,21 @@
-// スライドの印刷区画 1 つのビュー（印刷プレビューと印刷。ブックのビューの定義の printSheet）: ページの slide のアイテムを、見るだけで描く。
+// スライドの印刷区画 1 つのレイヤー（スロット sheet-layers。印刷プレビューと印刷と、ページ一覧のサムネイル）: ページの slide のアイテムを、見るだけで描く。
+// ブックの中身の下に敷く（レイヤーの並び）。背景のタイプで、そのページの背景の印刷が「出さない」なら描かない。
 // 入力は受けない。紙の外にはみ出た所は、紙の境目で切れる。アイテムの絵は、アイテムの定義の見た目（ui 台帳）で引く
 import type { ReactNode } from "react"
-import { type ItemPage, type PlacedShape, slideOf } from "../../../../plugin-api"
-import { type ItemViewProps, useStage, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
+import { bookType, type ItemPage, type PlacedShape, slideIsBackground, slideOf } from "../../../../plugin-api"
+import { type ItemViewProps, useCoreCatalog, useStage, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
+import { BACKGROUND_PRINT, settingValue } from "../../../base"
 import type { PrintSheetProps } from "../../../base/ui"
 import styles from "./SlideSheet.module.css"
 
 type ShapeView = (p: ItemViewProps<PlacedShape["props"]>) => ReactNode
 
-export function SlideSheet({ stage: id, page }: PrintSheetProps) {
+export function SlideSheet({ stage: id, book, page }: PrintSheetProps) {
   const stage = useStage(id)
-  if (!stage) return null
+  const catalog = useCoreCatalog()
+  const type = bookType(catalog, book.type)
+  if (!stage || !type.slide) return null
+  if (slideIsBackground(type) && settingValue(catalog, book, page, BACKGROUND_PRINT) === "never") return null
   return (
     <>
       {slideOf(page as ItemPage).map(shape => (

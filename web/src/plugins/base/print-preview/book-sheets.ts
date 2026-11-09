@@ -1,6 +1,7 @@
 // ブックの全ページの印刷区画の数と、印刷プレビューの並べ方（ブックの設定の項目で決める）。何も載っていない印刷区画は並べない（filled.ts）
 import { pagedOf } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { slideIsBackground } from "../../../core/def/book-type"
 import type { Point } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
@@ -8,7 +9,7 @@ import { settingsAt, settingValue } from "../book-settings"
 import { growOf, pageArea, paperSize } from "../place/items"
 import type { PrintSheets, SheetPurpose } from "."
 import { crossingShapes, filledSheets, sheetKey } from "./filled"
-import { PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
+import { BACKGROUND_PRINT, PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
 import { arrangeSheets, type PageSheets, type SheetLayout } from "./sheets"
 
 // ページ page の印刷区画（purpose は数える物。印刷に並べる並べ方か、書く画面の並べ方か）: 見せ方の printSheets があればそれ、無ければ形の位置から（中身が入るだけ並べた数。base の pageArea と filledSheets。
@@ -19,11 +20,18 @@ export function sheetsOfPage(
   page: ItemPage,
   purpose: SheetPurpose = "print",
 ): (Omit<PrintSheets, "filled"> & { filled: ReadonlySet<string> | null }) | null {
-  const own = catalog.presentations.get(bookType(catalog, book.type).presentation)?.printSheets
-  if (own)
-    return own(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), purpose })
-  const area = pageArea(catalog, book, page)
-  return area && { columns: area.columns, rows: area.rows, filled: filledSheets(catalog, book, page) }
+  const type = bookType(catalog, book.type)
+  const own = catalog.presentations.get(type.presentation)?.printSheets
+  const sheets = own
+    ? own(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), purpose })
+    : (() => {
+        const area = pageArea(catalog, book, page)
+        return area && { columns: area.columns, rows: area.rows, filled: filledSheets(catalog, book, page) }
+      })()
+  // 背景を「必ず」印刷するページは、中身が無くても、どの印刷区画も載っているとする（背景は、載っている印刷区画に敷く）
+  if (sheets && slideIsBackground(type) && settingValue(catalog, book, page, BACKGROUND_PRINT) === "always")
+    return { ...sheets, filled: null }
+  return sheets
 }
 
 // 描いて測ってから決める印刷区画の数: ページの id → 測った行の数（測っている途中なら pending。そのページはまだ並べない）。

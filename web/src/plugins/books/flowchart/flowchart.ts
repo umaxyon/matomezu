@@ -2,6 +2,7 @@
 // 流れの向き（下へ・右へ）はブックとページの設定の項目で持つ（ページはブックを継承できる）。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
 import { z } from "zod"
 import {
+  BACKGROUND_PRINT,
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
@@ -63,6 +64,14 @@ export const isBranch = (item: string): boolean => (BRANCH_ITEMS as readonly str
 // 流れが右へか（setting はそのページで効いている設定の値）
 const turnedRight = (setting: SettingReader): boolean => setting(FLOW_DIRECTION) === "right"
 
+// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+const BACKGROUND_ITEMS = [
+  "@matomezu/slide:slide-text",
+  "@matomezu/slide:slide-free-line",
+  "@matomezu/slide:slide-line",
+  "@matomezu/slide:slide-ellipse",
+] as const
+
 export const FLOWCHART = kit.defineBookType({
   id: "flowchart",
   version: 1,
@@ -85,6 +94,7 @@ export const FLOWCHART = kit.defineBookType({
       perPage: true,
     },
   },
+  slide: { allowed: BACKGROUND_ITEMS, background: true },
   items: {
     allowed: ITEMS,
     // 分岐（ひし形）から出る線は、キャプションの候補に Yes / No を出す
@@ -113,7 +123,8 @@ export const FLOWCHART = kit.defineBookType({
       kit.name("flow-direction"),
       BOOK_TEXT_COLORS.id,
       ...PRINT_PREVIEW_SETTINGS,
+      BACKGROUND_PRINT.id,
     ],
-    page: ["@matomezu/line:line-route", kit.name("flow-direction")],
+    page: ["@matomezu/line:line-route", kit.name("flow-direction"), BACKGROUND_PRINT.id],
   },
 })

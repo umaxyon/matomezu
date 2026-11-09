@@ -31,7 +31,11 @@ export const LIST_ROWS_KEY_SCOPE = kit.defineKeyScope({ id: "rows", title: "List
 export const LIST_ROWS_SCOPE = LIST_ROWS_KEY_SCOPE.id
 
 // リストの塗りのテーマキー（行のカードの地。色の見本の「なし」もこの色）
-export const LIST_FILL = { id: kit.name("list-fill"), fallback: "fill" } as const
+export const LIST_FILL = {
+  id: kit.name("list-fill"),
+  fallback: "fill",
+  themeValues: { "@matomezu/base:sticky": "#fff3a6", "@matomezu/base:simple": "#ffffff" },
+} as const
 
 // リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
 export const LIST_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "list-add" })
@@ -88,20 +92,77 @@ export const LIST = kit.defineShape({
   size: LIST_SIZE,
   tokens: [
     LIST_FILL,
-    { id: "list-text", fallback: "text" }, // 文字（チェックの印も）
-    { id: "list-line", value: "#cdcdd6" }, // 区切り線と行のカードの縁の線の色
-    { id: "list-radius", value: "8px", shades: "one" }, // リストの角の丸み
-    { id: "list-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))", shades: "one" }, // リストの影（CSS の filter の値）
-    { id: "list-frame-line", value: "#cdcdd6" }, // リストの外枠の線
-    { id: "list-mount-tint", value: "#000000" }, // 台紙（リストの地）に混ぜる色
-    { id: "list-mount-mix", value: "5%", shades: "one" }, // 台紙に混ぜる割合（行のカードとの差）
-    { id: "list-head-tint", value: "#000000" }, // 見出しの帯に混ぜる色
-    { id: "list-head-mix", value: "0%", shades: "one" }, // 見出しの帯に混ぜる割合（0% なら帯なしで、台紙の上の文字）
-    { id: "list-head-ink", value: "0%", shades: "one" }, // 見出しの文字を白に寄せる割合（濃い帯の上の白い文字）
-    { id: "list-card-radius", value: "8px", shades: "one" }, // 行のカードの角の丸み
-    { id: "list-card-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))", shades: "one" }, // 行のカードの影（CSS の filter の値）
-    { id: "list-card-fold", value: "0px", shades: "one" }, // 行のカードの右上の折り返しの大きさ
-    { id: "list-card-line", value: "0%", shades: "one" }, // 行のカードの縁の線の濃さ（線の色の割合。0% なら線なし）
+    {
+      id: "list-text",
+      fallback: "text",
+      themeValues: { "@matomezu/base:sticky": "#3b3524", "@matomezu/base:simple": "#1a1a1a" },
+    }, // 文字（チェックの印も）
+    {
+      id: "list-line",
+      value: "#cdcdd6",
+      themeValues: {
+        "@matomezu/base:sticky": "#d9c873",
+        "@matomezu/base:simple": "#262626",
+        "@matomezu/base:matomezu": "#e3dbd2",
+      },
+    }, // 区切り線と行のカードの縁の線の色
+    {
+      id: "list-radius",
+      value: "8px",
+      shades: "one",
+      themeValues: { "@matomezu/base:sticky": "3px", "@matomezu/base:simple": "4px" },
+    }, // リストの角の丸み
+    {
+      id: "list-shadow",
+      value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))",
+      shades: "one",
+      themeValues: {
+        "@matomezu/base:sticky": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
+        "@matomezu/base:simple": "none",
+        "@matomezu/base:matomezu": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
+      },
+    }, // リストの影（CSS の filter の値）
+    {
+      id: "list-frame-line",
+      value: "#cdcdd6",
+      themeValues: {
+        "@matomezu/base:sticky": "#b9ad8f",
+        "@matomezu/base:simple": "#262626",
+        "@matomezu/base:matomezu": "#e3dbd2",
+      },
+    }, // リストの外枠の線
+    {
+      id: "list-mount-tint",
+      value: "#000000",
+      themeValues: { "@matomezu/base:sticky": "#e7e0cf", "@matomezu/base:matomezu": "#a84b28" },
+    }, // 台紙（リストの地）に混ぜる色
+    {
+      id: "list-mount-mix",
+      value: "5%",
+      shades: "one",
+      themeValues: { "@matomezu/base:sticky": "88%", "@matomezu/base:simple": "3%", "@matomezu/base:matomezu": "6%" },
+    }, // 台紙に混ぜる割合（行のカードとの差）
+    { id: "list-head-tint", value: "#000000", themeValues: { "@matomezu/base:simple": "#262626" } }, // 見出しの帯に混ぜる色
+    { id: "list-head-mix", value: "0%", shades: "one", themeValues: { "@matomezu/base:simple": "100%" } }, // 見出しの帯に混ぜる割合（0% なら帯なしで、台紙の上の文字）
+    { id: "list-head-ink", value: "0%", shades: "one", themeValues: { "@matomezu/base:simple": "100%" } }, // 見出しの文字を白に寄せる割合（濃い帯の上の白い文字）
+    {
+      id: "list-card-radius",
+      value: "8px",
+      shades: "one",
+      themeValues: { "@matomezu/base:sticky": "2px", "@matomezu/base:simple": "2px" },
+    }, // 行のカードの角の丸み
+    {
+      id: "list-card-shadow",
+      value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))",
+      shades: "one",
+      themeValues: {
+        "@matomezu/base:sticky": "drop-shadow(0 2px 3px rgba(70, 55, 20, 0.25))",
+        "@matomezu/base:simple": "none",
+        "@matomezu/base:matomezu": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
+      },
+    }, // 行のカードの影（CSS の filter の値）
+    { id: "list-card-fold", value: "0px", shades: "one", themeValues: { "@matomezu/base:sticky": "10px" } }, // 行のカードの右上の折り返しの大きさ
+    { id: "list-card-line", value: "0%", shades: "one", themeValues: { "@matomezu/base:simple": "100%" } }, // 行のカードの縁の線の濃さ（線の色の割合。0% なら線なし）
   ],
 })
 
