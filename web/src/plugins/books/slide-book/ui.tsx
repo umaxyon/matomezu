@@ -4,10 +4,9 @@ import { SLIDE_BOOK_PLUGIN } from "."
 import { SLIDE_PRINT } from "./print-setting"
 import { SlidePrintSetting } from "./SlidePrintSetting"
 import { SLIDE_PRESENTATION } from "./slide-book"
-import { SlideSheet } from "./view/SlideSheet"
 import { SlideView } from "./view/SlideView"
 
 export const SLIDE_BOOK_UI = definePluginUi(SLIDE_BOOK_PLUGIN, {
   settingViews: { [SLIDE_PRINT.id]: { control: SlidePrintSetting } },
-  presentationViews: { [SLIDE_PRESENTATION.id]: { view: SlideView, printSheet: SlideSheet } },
+  presentationViews: { [SLIDE_PRESENTATION.id]: { view: SlideView } },
 })

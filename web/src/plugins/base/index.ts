@@ -67,6 +67,7 @@ import { PARTICIPANT_ALIVE } from "./participant/alive"
 import { PARTICIPANT_JOIN_DIALOG } from "./participant/dialogs"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import {
+  BACKGROUND_PRINT,
   PRINT,
   PRINT_KEYS,
   PRINT_PREVIEW_BOOK_NAME,
@@ -103,6 +104,13 @@ import {
   SKIN,
 } from "./settings"
 import { STAGE_CLOSE, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
+import {
+  BACKGROUND_EDIT,
+  BACKGROUND_END,
+  BACKGROUND_HIDE_CONTENT,
+  BACKGROUND_PRINT_SET,
+  BACKGROUND_TOGGLE,
+} from "./stage/background"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_PICKER_HOLD } from "./tool-picker/hold"
@@ -190,7 +198,7 @@ export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export type { PrintSheets, SheetPurpose } from "./print-preview"
 export { breakShift } from "./print-preview/breaks"
 export { printSheetsOf, sheetShapes, sheetsOfShape } from "./print-preview/filled"
-export { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
+export { BACKGROUND_PRINT, PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
 export type { SearchableDef } from "./search/search"
 export {
   BOOK_TEXT_COLORS,
@@ -285,6 +293,7 @@ export const BASE = defineBuiltin(
       PRINT_PREVIEW_SHEET_NUMBERS,
       PRINT_PREVIEW_BOOK_NAME,
       PRINT_PREVIEW_PAGE_NAME,
+      BACKGROUND_PRINT,
     ],
     userSettings: [
       LANG,
@@ -320,6 +329,11 @@ export const BASE = defineBuiltin(
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
+      BACKGROUND_TOGGLE,
+      BACKGROUND_EDIT,
+      BACKGROUND_END,
+      BACKGROUND_HIDE_CONTENT,
+      BACKGROUND_PRINT_SET,
       TOOL_NEXT,
       TOOL_SET,
       TOOL_PICKER,
@@ -388,6 +402,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
     "@matomezu/base:book-text-colors": typeof BOOK_TEXT_COLORS
     "@matomezu/base:print-preview-flow": typeof PRINT_PREVIEW_FLOW
+    "@matomezu/base:background-print": typeof BACKGROUND_PRINT
     "@matomezu/base:print-preview-order": typeof PRINT_PREVIEW_ORDER
     "@matomezu/base:print-preview-sheet-numbers": typeof PRINT_PREVIEW_SHEET_NUMBERS
     "@matomezu/base:print-preview-book-name": typeof PRINT_PREVIEW_BOOK_NAME
@@ -495,6 +510,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE
+    "@matomezu/base:background-toggle": typeof BACKGROUND_TOGGLE
+    "@matomezu/base:background-edit": typeof BACKGROUND_EDIT
+    "@matomezu/base:background-end": typeof BACKGROUND_END
+    "@matomezu/base:background-hide-content": typeof BACKGROUND_HIDE_CONTENT
+    "@matomezu/base:background-print-set": typeof BACKGROUND_PRINT_SET
     "@matomezu/base:tool-next": typeof TOOL_NEXT
     "@matomezu/base:tool-set": typeof TOOL_SET
     "@matomezu/base:tool-picker": typeof TOOL_PICKER

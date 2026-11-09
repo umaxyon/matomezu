@@ -4,7 +4,7 @@
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import type { CoreCatalog, ItemPage, Point, StageView } from "../../../plugin-api"
-import { useActions, useAllowed, useCommand, useToPaper } from "../../../plugin-api/ui"
+import { useAllowed, useCommand, usePerform, useToPaper } from "../../../plugin-api/ui"
 import { LINE_UPDATE } from "./actions"
 import { LINE_RECONNECT_DROP } from "./commands"
 import { reconnectTargets } from "./connect"
@@ -45,7 +45,7 @@ export function useLineEdit(
   catalog: CoreCatalog,
   localOf: (e: PointerEvent<Element>) => Point | null,
 ) {
-  const { perform } = useActions()
+  const perform = usePerform(stage.id)
   const drop = useCommand(stage.id, LINE_RECONNECT_DROP.id)
   const toPaperAt = useToPaper(stage.id)
   // 線を直せるか（認可ステップが止めていれば、札・折れ目・端を動かし始めない）
@@ -133,13 +133,12 @@ export function useLineEdit(
     end(e: PointerEvent<Element>, scene: LineScene, commit: boolean) {
       const d = drag.current
       if (d?.pointer !== e.pointerId) return
-      const book = stage.opened?.book
       const at = localOf(e)
       const line = scene.lines.find(l => l.id === d.line)
       const drawn = scene.drawn.find(l => l.id === d.line)
       const to = target
       clear()
-      if (!commit || !d.moved || !book || !line || !drawn) return
+      if (!commit || !d.moved || !line || !drawn) return
       const w = d.what
       if (w.kind === "end" && to && at) return drop.run({ line: line.id, end: w.end, item: to, at })
       const props = w.kind === "via" ? viaSettled(line, drawn, scene.rects, scene.elbow) : line.props
@@ -150,7 +149,7 @@ export function useLineEdit(
             ? (["captionAt", "captionOffset"] as const)
             : ([w.end === "from" ? "exitAt" : "enterAt"] as const)
       const patch = Object.fromEntries(keys.map(k => [k, props[k] ?? null]))
-      perform(LINE_UPDATE.id, { page: scene.page.id, line: line.id, props: patch }, { book })
+      perform(LINE_UPDATE.id, { page: scene.page.id, line: line.id, props: patch })
     },
   }
 }

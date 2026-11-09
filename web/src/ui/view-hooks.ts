@@ -163,6 +163,7 @@ export function useStage(stage: string): StageView | null {
             selection: st.selection,
             editing: st.editing,
             placing: st.placing,
+            edits: st.edits,
             mode: st.mode,
           }
         : null

@@ -8,7 +8,7 @@ import type { ItemId } from "../../../core/core-catalog"
 import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useBook } from "../../../ui/view-hooks"
+import { useBook, useStage } from "../../../ui/view-hooks"
 import { useCloseFooterMenu } from "../book-name/footer-menu-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
@@ -20,8 +20,9 @@ export function ToolboxView({ stage }: { stage: string }) {
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const tools = book ? toolboxOf(catalog, book) : []
-  const panel = book ? panelOf(catalog, book) : []
+  const edits = useStage(stage)?.edits ?? "items"
+  const tools = book ? toolboxOf(catalog, book, edits) : []
+  const panel = book ? panelOf(catalog, book, edits) : []
   if (tools.length === 0 && panel.length === 0) return null
   return (
     <div className={styles.toolbox} role="toolbar" aria-label={t("Tools")}>

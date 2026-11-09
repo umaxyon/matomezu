@@ -10,7 +10,12 @@ import { PageList } from "./PageList"
 import { PageSettingsDialog } from "./PageSettingsDialog"
 import { PageTabs } from "./PageTabs"
 
-export const PAGE_TABS = defineWidget({ id: kit.name("page-tabs"), slots: STAGE_SLOTS, view: PageTabs })
+export const PAGE_TABS = defineWidget({
+  id: kit.name("page-tabs"),
+  slots: STAGE_SLOTS,
+  contextMenus: [PAGE_CONTEXT],
+  view: PageTabs,
+})
 
 // ページ一覧（ステージの左の列。ページ一覧を選んだタイプのブックだけ描く）。ページの右クリックでメニュー page-context
 export const PAGE_LIST = defineWidget({

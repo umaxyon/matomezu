@@ -85,6 +85,7 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
       "@matomezu/base:book-paper-color",
       "@matomezu/line:line-route",
       "@matomezu/base:book-text-colors",
+      "@matomezu/base:background-print",
     ],
     "settings of @matomezu/flowchart:flowchart books": [
       "@matomezu/base:book-theme",
@@ -92,6 +93,7 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
       "@matomezu/line:line-route",
       "@matomezu/flowchart:flow-direction",
       "@matomezu/base:book-text-colors",
+      "@matomezu/base:background-print",
     ],
     "settings of @matomezu/markdown:markdown books": ["@matomezu/base:book-theme", "@matomezu/base:book-paper-color"],
     "settings of @matomezu/slide-book:slide books": [

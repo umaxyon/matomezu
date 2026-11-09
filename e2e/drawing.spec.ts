@@ -1025,7 +1025,7 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
   // 既定は「ブック継承」（ブックの既定は折れ線。ボタンの名前に添える）
   const inherit = dialog.getByRole("radio", { name: "ブックを継承（折れ線）" })
   await expect(inherit).toBeChecked()
-  await expect(dialog.getByText("ブック継承")).toBeVisible()
+  await expect(dialog.getByRole("group", { name: "線の既定の通り方" }).getByText("ブック継承")).toBeVisible()
   await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
   await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2) // ダイアログの下書き
   await dialog.getByRole("button", { name: "確定" }).click()

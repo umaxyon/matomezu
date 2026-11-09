@@ -230,6 +230,31 @@ test("error は error の表（core/errors.ts）の番号で投げる（ほか�
   expect(offenders).toEqual([])
 })
 
+// プラグインの中のファイルの役割: 機能台帳に足す定義（kit.define…）は見た目でないファイル、文言の表は messages.ts、見た目を結ぶのはプラグインの ui.tsx（plugins の「プラグインの中の形」）
+test("プラグインが機能台帳に足す定義（kit.define…）は、見た目でないファイルにだけ書く", () => {
+  const offenders = sources
+    .filter(f => crateOf(f.rel) === "plugins" && (f.rel.endsWith(".tsx") || f.rel.endsWith("/ui.ts")))
+    .filter(f => /\bkit\.define[A-Z]/.test(f.text))
+    .map(f => f.rel)
+  expect(offenders).toEqual([])
+})
+
+test("プラグインの文言の表（defineMessages）は、messages.ts にだけ書く", () => {
+  const offenders = sources
+    .filter(f => crateOf(f.rel) === "plugins" && !f.rel.endsWith("/messages.ts"))
+    .filter(f => /\bdefineMessages\(/.test(f.text))
+    .map(f => f.rel)
+  expect(offenders).toEqual([])
+})
+
+test("見た目を結ぶ（definePluginUi）のは、プラグインの ui.tsx だけ", () => {
+  const offenders = sources
+    .filter(f => crateOf(f.rel) === "plugins" && !/\/ui\.tsx?$/.test(f.rel))
+    .filter(f => /\bdefinePluginUi\(/.test(f.text))
+    .map(f => f.rel)
+  expect(offenders).toEqual([])
+})
+
 // コメントの言葉を見張るファイル（ソース・テスト・e2e・スクリプト・CSS・Go。このファイルは除く）
 const wordedFiles = () =>
   [
@@ -416,6 +441,18 @@ const answers = (own: string) =>
     .flatMap(f => readsOf(f.text).map(r => r.spec))
     .filter(spec => specs.includes(spec))
     .map(specOwner)
+
+test("見本の tsconfig は、どれも package.json の typecheck で確かめる", () => {
+  const typecheck = (JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { scripts: { typecheck: string } })
+    .scripts.typecheck
+  const projects = [...typecheck.matchAll(/-p (\S+)/g)].map(m => m[1]!.replace(/\/tsconfig\.json$/, ""))
+  const configs = folders.flatMap(name =>
+    readdirSync(join(ADDED, name))
+      .filter(f => /^tsconfig.*\.json$/.test(f))
+      .map(f => relative(ROOT, join(ADDED, name, f)).replace(/\/tsconfig\.json$/, "")),
+  )
+  expect(configs.filter(c => !projects.includes(c))).toEqual([])
+})
 
 test("見本のフォルダは、見本（matomezu.json）か、対になる見本のある連携ポイント（<見本>-spec）", () => {
   expect(folders.filter(name => !plugins.includes(name) && !specs.includes(name))).toEqual([])

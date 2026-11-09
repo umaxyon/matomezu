@@ -13,6 +13,7 @@ import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { screenOf } from "../../../core/window"
+import { useCommand } from "../../../ui/commands"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
@@ -161,7 +162,8 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const unusable = useMatomezuState(s =>
     opened ? unusableTools(catalog, screenOf(s.window), opened.id, s.books).join("\n") : "",
   ).split("\n")
-  const { command, closePicker } = useActions()
+  const { closePicker } = useActions()
+  const setTool = useCommand(opened?.id ?? "", TOOL_SET.id)
   const [hover, setHover] = useState<number | null>(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
   const mapRef = useRef<HTMLDivElement>(null)
@@ -235,7 +237,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const { layout } = placed
   const pick = (tool: ToolId) => {
     closePicker()
-    if (tool !== current) command(opened.id, TOOL_SET.id, tool)
+    if (tool !== current) setTool.run(tool)
   }
   const tip = hover === null ? null : (layout.slots[hover] ?? null)
   const hovered = hover === null ? undefined : picks[hover]

@@ -48,7 +48,8 @@ export interface BookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTy
   pages: PagesRule | null // ページを持つか（持つなら、機能台帳がページのフィールドを足す）
   items: ItemChoice
   // ページが持つ slide（items とは別の、形だけの並び）に置けるアイテム。形（shape）だけで、並べ方の決まりも線も使わない。無ければページは slide を持たない
-  slide?: { allowed: readonly string[] }
+  // background を書くと、slide はページの背景（items の下に敷き、背景編集モードで直す）。書かなければ slide がページの本体（スライドのブック）
+  slide?: { allowed: readonly string[]; background?: true }
   // 使えるアクションは、タイプが選んだ物に付いて来る（アクションの attach）。add はそのタイプだけのアクション、without は使わせないアクション
   actions: ActionChoice
   theme: string // 既定のテーマ
@@ -75,6 +76,12 @@ export const placeableOf = (type: Pick<BookTypeDef, "items" | "slide">): readonl
   ...type.items.allowed,
   ...(type.slide?.allowed ?? []),
 ]
+
+// ページの slide が、そのタイプでは背景か（タイプが slide に background を書いていれば背景。書いていなければ、slide はページの本体）
+export const slideIsBackground = (type: Pick<BookTypeDef, "slide">): boolean => type.slide?.background === true
+
+// ステージが直している並び: ページの items か、ページの slide（背景のタイプでは背景。本体のタイプでは、いつも items のまま）
+export type EditList = "items" | "slide"
 
 // create の返す値を、schema の形に合わせる（id などは書いた文字のまま残す）
 export function defineBookType<const S extends z.ZodObject, const T extends BookTypeDef<S>>(def: T & { schema: S }): T {

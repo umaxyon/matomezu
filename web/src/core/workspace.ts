@@ -188,7 +188,7 @@ export function followLibrary(
 // それがドラッグで紙をずらす道具か（pans。そのあいだ、ビューはアイテムを選んだり動かしたりしない）。
 // 紙をずらす量（pan）は入れない（パンのたびに図を描き直さないため。読むのは matomezu/ui の useStagePan・useLatestPan）。
 // 表示領域の大きさ・道具のアイコンなど、中の状態は見せない（matomezu/ui の useStage）
-export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "selection" | "editing" | "placing"> & {
+export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "selection" | "editing" | "placing" | "edits"> & {
   mode: StageMode["kind"] // 編集の間か、印刷プレビューの間か
   tool: ToolId | null
   pans: boolean // 紙をずらす道具か（印刷プレビューの間は、いつもずらす）
@@ -196,10 +196,10 @@ export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "selection" | "ed
 
 export function stageView(
   catalog: CoreCatalog,
-  stage: Pick<Stage, "id" | "opened" | "mode" | "zoom" | "selection" | "editing" | "placing">,
+  stage: Pick<Stage, "id" | "opened" | "mode" | "zoom" | "selection" | "editing" | "placing" | "edits">,
   tool: ToolId | null,
 ): StageView {
-  const { id, opened, zoom, selection, editing, placing } = stage
+  const { id, opened, zoom, selection, editing, placing, edits } = stage
   const mode = stage.mode.kind
   return {
     id,
@@ -209,6 +209,7 @@ export function stageView(
     selection,
     editing,
     placing,
+    edits,
     tool,
     pans: mode === "print-preview" || (tool !== null && toolDef(catalog, tool).pans === true),
   }
