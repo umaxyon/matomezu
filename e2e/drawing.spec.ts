@@ -980,7 +980,7 @@ test("線をダブルクリックすると線の編集のダイアログが開�
   await line.locator("polyline").last().dispatchEvent("dblclick")
   const dialog = page.getByRole("dialog", { name: "線の編集" })
   await expect(dialog).toBeVisible()
-  // 始点と終点の形の選ぶ欄は 1 行に並ぶ
+  // 始点と終点の形を選ぶ入力Formは 1 行に並ぶ
   const startHead = (await dialog.getByLabel("始点の形").boundingBox())!
   const endHead = (await dialog.getByLabel("終点の形").boundingBox())!
   expect(Math.abs(startHead.y - endHead.y)).toBeLessThan(2)
@@ -1163,7 +1163,7 @@ test("線のキャプションを押すと線が選ばれ、ドラッグする�
   await expect.poll(first).not.toBe(was)
 })
 
-test("線の色は、灰色を紙の色に 4 割混ぜた色。見る人の OS が暗い明暗でも同じ色で、白い紙の上で見える", async ({
+test("線の色は、灰色を紙の色に 4 割混ぜた色。利用者の OS が暗い明暗でも同じ色で、白い紙の上で見える", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)

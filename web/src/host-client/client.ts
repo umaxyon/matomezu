@@ -1,4 +1,4 @@
-// ホストクライアント: 画面がホスト（常駐サーバー）と外の世界に頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
+// ホストクライアント: 画面がホスト（常駐サーバー）とブラウザに頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
 // 実装は常駐に頼むもの（server.ts）。テストはメモリに持つもの（test/host-client/memory.ts）を使う
 import type { Warning } from "../core/warnings"
 import type { AIEditTicketOutcome, DoneAction, HostAnswer, MatomezuInstance } from "../store/store"

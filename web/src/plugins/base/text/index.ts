@@ -1,4 +1,4 @@
-// 文字: 文字の項目と寸法（fields.ts）・幅と折り返し（text.ts）と、本文の装飾（rich.ts。太字と文字の色）・base の文字の色（colors.ts）・ブックと見る人の文字の色の上書き（text-colors.ts）
+// 文字: 文字の項目と寸法（fields.ts）・幅と折り返し（text.ts）と、本文の装飾（rich.ts。太字と文字の色）・base の文字の色（colors.ts）・ブックと利用者の文字の色の上書き（text-colors.ts）
 export { TEXT_COLORS } from "./colors"
 export {
   clampRich,

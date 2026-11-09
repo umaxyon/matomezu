@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { elapsedOf } from "../../web/src/plugins/base/utils/elapsed"
 
-const now = new Date(2026, 9, 27, 15, 0, 0) // 見る人の時間帯の 2026/10/27 15:00
+const now = new Date(2026, 9, 27, 15, 0, 0) // 利用者の時間帯の 2026/10/27 15:00
 const before = (ms: number) => new Date(now.getTime() - ms)
 const MIN = 60_000
 const HOUR = 60 * MIN

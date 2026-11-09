@@ -122,7 +122,7 @@ export interface EditLock {
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、success はうまくいったことを知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
-// （時間では消えず、出した側か見る人が消す）。文言は鍵で持ち、画面が今の言語で出す。何が起きたかを message に、原因を detail に分けて書ける。
+// （時間では消えず、出した側か利用者が消す）。文言は鍵で持ち、画面が今の言語で出す。何が起きたかを message に、原因を detail に分けて書ける。
 // form は見せ方: card はふつうのトースト、marquee は上から下りて文を横に流し、流し終えたら引っ込む知らせ（info と success だけ。無ければ card）
 // 出すトースト（id は store が振る。形ごとに id を除く）
 type WithoutId<T> = T extends unknown ? Omit<T, "id"> : never

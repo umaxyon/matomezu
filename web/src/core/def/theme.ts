@@ -45,7 +45,7 @@ export const ownTokenVarName = (id: string): string => `--${splitId(id).name}`
 export const themeVar = (id: string): string =>
   `var(${splitId(id).owner === null ? tokenVarName(id) : ownTokenVarName(id)})`
 
-// テーマキーの値: 1 つか、明暗ごとの値。明暗の両方を書いたテーマキーは見る人の OS の明暗で切り替え、片方だけなら明暗どちらでもその値。
+// テーマキーの値: 1 つか、明暗ごとの値。明暗の両方を書いたテーマキーは利用者の OS の明暗で切り替え、片方だけなら明暗どちらでもその値。
 // 明暗で違う値にできるのは色だけ（色でないテーマキーは宣言に shades: "one" を書く。TokenShades）
 // （全部のテーマキーが色 1 つか片方だけなら、固定のテーマ）
 export type ThemeValue =

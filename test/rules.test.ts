@@ -1,4 +1,4 @@
-// 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、外の世界に触る所、コメントの言葉
+// 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、ホストとブラウザに触る所、コメントの言葉
 import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, relative, resolve } from "node:path"
@@ -218,7 +218,7 @@ test("型の書き足し（declare module）は core/catalog.ts そのもの（�
   expect(bad).toEqual([])
 })
 
-test("外の世界（通信・保存・URL・クリップボード・印刷）に触るのはホストクライアントだけ", () => {
+test("ホストとブラウザ（通信・保存・URL・クリップボード・印刷）に触るのはホストクライアントだけ", () => {
   const host =
     /\bfetch\(|\blocalStorage\b|\bsessionStorage\b|\blocation\.|\bhistory\.|navigator\.clipboard|\bEventSource\b|\bWebSocket\b|\bwindow\.print\b/
   const offenders = sources.filter(f => crateOf(f.rel) !== "host-client" && host.test(f.text)).map(f => f.rel)
@@ -230,9 +230,9 @@ test("error は error の表（core/errors.ts）の番号で投げる（ほか�
   expect(offenders).toEqual([])
 })
 
-test("ソースに、その時の状況でしか意味を持たない言葉を書かない", () => {
-  const words = /新基盤|オーバーホール|仮の|とりあえず|暫定|旧版|前の作り|今まで通り|今までどおり/
-  const files = [
+// コメントの言葉を見張るファイル（ソース・テスト・e2e・スクリプト・CSS・Go。このファイルは除く）
+const wordedFiles = () =>
+  [
     ...sources,
     ...filesUnder(join(ROOT, "test")),
     ...filesUnder(join(ROOT, "e2e")),
@@ -242,10 +242,27 @@ test("ソースに、その時の状況でしか意味を持たない言葉を�
   ]
     .map(f => (typeof f === "string" ? { rel: relative(ROOT, f), text: readFileSync(f, "utf8") } : f))
     .filter(f => !f.rel.endsWith("rules.test.ts"))
+
+test("ソースに、その時の状況でしか意味を持たない言葉を書かない", () => {
+  const words = /新基盤|オーバーホール|仮の|とりあえず|暫定|旧版|前の作り|今まで通り|今までどおり/
   // 決まりはコメントのもの。画面に出す文言で、その言葉を使うと決めたものは見ない
   const shown: string[] = []
   const withoutShown = (text: string) => shown.reduce((t, s) => t.replaceAll(s, ""), text)
-  expect(files.filter(f => words.test(withoutShown(f.text))).map(f => f.rel)).toEqual([])
+  expect(
+    wordedFiles()
+      .filter(f => words.test(withoutShown(f.text)))
+      .map(f => f.rel),
+  ).toEqual([])
+})
+
+// 用語集の「使わない言葉」のうち、ふつうの文には出てこない物だけを見る
+test("ソースに、用語集で使わないと決めた言葉を書かない", () => {
+  const words = /キーの割り当て|型の表|登録表|欄|目録|見る人/
+  expect(
+    wordedFiles()
+      .filter(f => words.test(f.text))
+      .map(f => f.rel),
+  ).toEqual([])
 })
 
 test("core のデータと同じ名前のコンポーネントは作らない（データ X のビューは XView）", () => {

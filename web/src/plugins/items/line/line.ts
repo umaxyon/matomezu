@@ -77,7 +77,7 @@ export const LINE = kit.defineConnector({
   minimap: (lines, areas, setting) => linesMinimap(lines, areas, setting(LINE_ROUTE) === "elbow"),
   tokens: [
     // 線と端の形の色: 灰色を紙の色に 4 割混ぜた色（紙の色に合わせて変わる。半透明にしないのは、線が重なった区間だけ濃く見えないように）
-    // （明暗で分けない。紙の色はテーマが決め、見る人の明暗では変わらないため）
+    // （明暗で分けない。紙の色はテーマが決め、利用者の明暗では変わらないため）
     { id: "line-color", value: "color-mix(in srgb, rgb(90, 90, 110) 40%, var(--theme-paper))" },
     { id: "line-text", fallback: "text" }, // キャプションの文字の色
   ],

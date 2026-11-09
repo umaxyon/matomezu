@@ -1,6 +1,6 @@
 // 経った時間（「〜前」）: 時刻 then から今 now までを、出し方の段に分ける（どこでも使う共通の計算。追加プラグインには matomezu から出す）。
 // 言葉にするのは見た目の側（useElapsed）。
-// 1 分未満は今、1〜59 分は分、1〜23 時間は時間、それより前は暦の日（見る人の時間帯）で、前日は昨日、2〜6 日前は日、それより前は日付。
+// 1 分未満は今、1〜59 分は分、1〜23 時間は時間、それより前は暦の日（利用者の時間帯）で、前日は昨日、2〜6 日前は日、それより前は日付。
 // 先の時刻（時計のずれ）は今として扱う
 
 export type Elapsed =
@@ -14,7 +14,7 @@ export type Elapsed =
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 
-// 暦の日の始まり（見る人の時間帯）
+// 暦の日の始まり（利用者の時間帯）
 const dayOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
 
 export function elapsedOf(then: string | Date, now: Date): Elapsed {

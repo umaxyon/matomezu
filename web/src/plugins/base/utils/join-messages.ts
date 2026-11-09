@@ -15,7 +15,7 @@ type Joined<T extends readonly unknown[], Seen = unknown> = T extends readonly [
   : Seen
 
 // 1 つのプラグインの中で、フォルダごとの文言の表を 1 つにする。同じ鍵に違う訳を書いた表があれば型の誤り（keys にその鍵が出る）。同じ訳の重なりは通す。
-// 表は defineMessages で書いた物を渡す（MessageMap のような広い型の表では鍵が string になり、どの鍵も重なりとして誤りになる）
+// 表は defineMessages で書いた物を渡す（MessageMap のような広い型では鍵が string になり、どの鍵も重なりとして誤りになる）
 export function joinMessages<const T extends readonly MessageMap[]>(
   ...tables: [Clashes<T>] extends [never] ? T : { error: "the same key has different translations"; keys: Clashes<T> }[]
 ): Joined<T> {
