@@ -116,6 +116,21 @@ test("data-set は、セルが列の数と型に合わない・今の表に無�
   ).toBe(false)
 })
 
+test("data-set は、列 30・行 1000・文字のセル 200 字を超える表を断り、ちょうどなら通す", () => {
+  const store = ready()
+  place(store)
+  const column = (i: number) => ({ name: `c${i}`, type: "number" })
+  const wide = (n: number) => ({ columns: Array.from({ length: n }, (_, i) => column(i)), rows: [] })
+  expect(set(store, wide(31)).ok).toBe(false)
+  expect(set(store, wide(30)).ok).toBe(true)
+  const tall = (n: number) => ({ columns: [column(0)], rows: Array.from({ length: n }, (_, i) => ({ cells: [i] })) })
+  expect(set(store, tall(1001)).ok).toBe(false)
+  expect(set(store, tall(1000)).ok).toBe(true)
+  const text = (n: number) => ({ columns: [{ name: "t", type: "text" }], rows: [{ cells: ["あ".repeat(n)] }] })
+  expect(set(store, text(201)).ok).toBe(false)
+  expect(set(store, text(200)).ok).toBe(true)
+})
+
 test("列の無い data-set は表を消して No Data に戻す（行だけ書けば断る）", () => {
   const store = ready()
   place(store)

@@ -32,7 +32,7 @@ import {
 } from "./draft"
 import { kit } from "./kit"
 import { type DataTextDraft, TextFields } from "./TextFields"
-import type { ColumnType } from "./table"
+import { type ColumnType, MAX_CELL_CHARS, MAX_COLUMNS, MAX_ROWS } from "./table"
 
 export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const placed = useItem(stage, args.page, args.item, DATA.id)
@@ -161,6 +161,7 @@ function DataDialog({
                   <button
                     type="button"
                     className={styles.add}
+                    disabled={draft.columns.length >= MAX_COLUMNS}
                     onClick={() => change(addColumn(draft, t("Column {n}", { n: draft.columns.length + 1 })))}
                   >
                     ＋ {t("Add column")}
@@ -201,6 +202,7 @@ function DataDialog({
                           data-type={type}
                           aria-invalid={bad}
                           title={bad ? t("Not a number") : undefined}
+                          maxLength={MAX_CELL_CHARS}
                           value={text}
                           onChange={e => change(setCell(draft, row, col, e.target.value))}
                         />
@@ -214,7 +216,12 @@ function DataDialog({
         </div>
         {draft.columns.length > 0 && (
           <div className={styles.footer}>
-            <button type="button" className={styles.add} onClick={() => change(addRow(draft))}>
+            <button
+              type="button"
+              className={styles.add}
+              disabled={draft.rows.length >= MAX_ROWS}
+              onClick={() => change(addRow(draft))}
+            >
               ＋ {t("Add row")}
             </button>
           </div>
