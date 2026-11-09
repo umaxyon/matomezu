@@ -15,7 +15,7 @@ const JoinRequestSchema = z.strictObject({
   env: z.string(),
   sessionName: z.string(), // 空でもよい
   projects: z.array(z.string().min(1)).min(1), // 参加を求めたプロジェクトの id
-  workroom: z.string().min(1).optional(), // 引き継ぎの要求のとき、引き継ぐワークルームの名前
+  workroom: z.string().min(1).optional(), // AI が頼んだワークルームの名前（前のを続けるか、その名前で始めたい。無くてもよい）
 })
 export type JoinRequestProps = z.output<typeof JoinRequestSchema>
 
@@ -23,15 +23,10 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
   id: "join-request",
   title: "Mail join request",
   aiDescription:
-    "A notice that an AI agent asked to join the workroom (a participant request), or to take over a workroom that has a participant who is not alive (a takeover request, with the workroom's name). The user accepts or declines it on the screen. props: the participant's id, ai, model, env, sessionName, projects and workroom (takeover only).",
+    "A notice that an AI agent asked to join the workroom (a participant request; with workroom, the name of the workroom it would like to continue or start). The user accepts or declines it on the screen, choosing there whether it takes over a participant who joined before or starts new. props: the participant's id, ai, model, env, sessionName, projects and workroom (optional).",
   props: JoinRequestSchema,
   shown: {
-    title: (p: JoinRequestProps, t) =>
-      t(
-        p.workroom
-          ? kit.message("A takeover request arrived from an AI agent")
-          : kit.message("A join request arrived from an AI agent"),
-      ),
+    title: (_p: JoinRequestProps, t) => t(kit.message("A join request arrived from an AI agent")),
     body: (p: JoinRequestProps, t) =>
       [
         ...(p.workroom ? [`${t(kit.message("Workroom name"))}: ${p.workroom}`] : []),
@@ -46,7 +41,7 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
 export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
   id: "mail-join-request",
   aiDescription:
-    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env, sessionName (optional) and projects are the participant's; workroom (optional) is the name of the workroom it asks to take over. The letter belongs to the first of the projects. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
+    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env, sessionName (optional) and projects are the participant's; workroom (optional) is the name of the workroom it would like to continue or start. The letter belongs to the first of the projects. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
   title: "Send a join request",
   target: "mailbox",
   userOnly: true,

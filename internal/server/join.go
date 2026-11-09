@@ -71,7 +71,6 @@ type Joined struct {
 	OK          bool     `json:"ok"`
 	Participant string   `json:"participant,omitempty"`
 	Projects    []string `json:"projects,omitempty"` // 参加者が今参加しているプロジェクトの全部
-	Takeover    string   `json:"takeover,omitempty"` // 引き継ぎの要求を出したとき、引き継ぐワークルームの名前
 	Reason      string   `json:"reason,omitempty"`
 	Detail      string   `json:"detail,omitempty"`
 }
@@ -115,7 +114,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			return h.addProjects(s, req)
 		}
 	}
-	takeover := ""
+	continuing := false // 頼まれた名前の、生きていない参加者がいる（利用者が画面で引き継ぐかを選ぶ。同じセッション名でも「参加済み」にしない）
 	if req.Workroom != "" {
 		for _, s := range records {
 			if s.State == "joined" && s.Workroom == req.Workroom {
@@ -126,12 +125,12 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 				if alive {
 					return Joined{Reason: "workroom-in-use", Detail: "workroom " + s.Workroom + " already has a participant who is alive (a person or AI joined it recently); do not ask again, tell the user in the chat. A participant who keeps its participant id continues without joining again"}, nil
 				}
-				takeover = s.ID
+				continuing = true
 				break
 			}
 		}
 	}
-	if takeover == "" && req.Participant == "" && req.SessionName != "" {
+	if !continuing && req.Participant == "" && req.SessionName != "" {
 		for _, s := range records {
 			if sitting(s) && s.AI == req.AI && s.Env == req.Env && s.SessionName == req.SessionName {
 				return alreadyJoined(s), nil
@@ -142,27 +141,12 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	if req.SessionName != "" {
 		args["sessionName"] = req.SessionName
 	}
-	if takeover != "" {
-		args["takeover"] = takeover
-	} else if req.Workroom != "" {
+	if req.Workroom != "" {
 		args["workroom"] = req.Workroom
 	}
-	var made Performed
-	if takeover != "" {
-		// 引き継ぎの要求は、生きていないと確かめたここ（ホスト）だけが、利用者として行う（AI には見せない）
-		b, err := json.Marshal(args)
-		if err != nil {
-			return Joined{}, err
-		}
-		made, err = h.Perform(Perform{Action: ids.Takeover, Args: b})
-		if err != nil || !made.OK {
-			return refused(made), err
-		}
-	} else {
-		var err error
-		if made, err = h.performAs(ids.Participant, args); err != nil || !made.OK {
-			return refused(made), err
-		}
+	made, err := h.performAs(ids.Participant, args)
+	if err != nil || !made.OK {
+		return refused(made), err
 	}
 	var result struct {
 		Participant string `json:"participant"`
@@ -171,12 +155,6 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		return Joined{}, err
 	}
 	delete(args, "link")
-	delete(args, "takeover")
-	if takeover != "" {
-		args["workroom"] = req.Workroom
-	} else {
-		delete(args, "workroom")
-	}
 	args["from"] = req.AI
 	args["participant"] = result.Participant
 	// 利用者に知らせる郵便は利用者だけが行うアクション。AI の参加の頼みを受けたここ（ホスト）が、利用者として送る
@@ -189,15 +167,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		return refused(told), err
 	}
 	h.noteSession(result.Participant, req.SessionID)
-	return Joined{OK: true, Participant: result.Participant, Projects: req.Projects, Takeover: takenName(takeover, req.Workroom)}, h.settleNotes()
-}
-
-// takenName は、引き継ぎの要求を出したときのワークルームの名前（引き継ぎでなければ空）
-func takenName(takeover, workroom string) string {
-	if takeover == "" {
-		return ""
-	}
-	return workroom
+	return Joined{OK: true, Participant: result.Participant, Projects: req.Projects}, h.settleNotes()
 }
 
 // alive は、受け入れ済みの参加者 id が、時点 now で生きているか（最後に呼ばれてから、利用者の設定の参加の有効時間以内）

@@ -19,10 +19,6 @@ export const MAIL_MESSAGES = defineMessages({
   Mailbox: { en: "Mailbox", ja: "郵便箱" },
   "No mail": { en: "No mail", ja: "郵便はありません" },
   "Mail join request": { en: "Join request", ja: "参加要求" },
-  "A takeover request arrived from an AI agent": {
-    en: "A takeover request arrived from an AI agent",
-    ja: "AI エージェントから引き継ぎの要求が届きました",
-  },
   "Send a join request": { en: "Send a join request", ja: "参加要求を郵便で知らせる" },
   "A join request arrived from an AI agent": {
     en: "A join request arrived from an AI agent",

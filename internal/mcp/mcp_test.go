@@ -247,12 +247,12 @@ func TestListBooksAndReadMailAskForProjects(t *testing.T) {
 	}
 }
 
-// join の workroom は常駐にそのまま渡し、引き継ぎの要求を出したら takeover を返事に添える。生きている参加者の名前は、断った理由をそのまま返す
-func TestJoinPassesTheWorkroomAndAnswersTakeover(t *testing.T) {
-	api := &fakeAPI{answer: `{"ok":true,"participant":"p8","projects":["default"],"takeover":"ひよこ"}`}
+// join の workroom は常駐にそのまま渡す。生きている参加者の名前は、断った理由をそのまま返す
+func TestJoinPassesTheWorkroom(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"participant":"p8","projects":["default"]}`}
 	got := talk(t, api,
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","workroom":"ひよこ","projects":["default"]}}}`)
-	if !strings.Contains(api.posts[0], `"workroom":"ひよこ"`) || textOf(got[0]) != `{"participant":"p8","projects":["default"],"takeover":"ひよこ"}` {
+	if !strings.Contains(api.posts[0], `"workroom":"ひよこ"`) || textOf(got[0]) != `{"participant":"p8","projects":["default"]}` {
 		t.Fatalf("posted = %v, answered = %v", api.posts, got[0])
 	}
 	api = &fakeAPI{answer: `{"ok":false,"reason":"workroom-in-use","detail":"workroom ひよこ already has a participant who is alive"}`}
