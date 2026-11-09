@@ -34,7 +34,7 @@ const store = createMatomezu({
   visible: () => client.visible(),
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、台帳アセンブルで確かめる（見た目と、置いた UI マッピングも）。
-// 読み込めないもの・台帳アセンブルできないもの・UI マッピングが食い違うものは外す（ほかのプラグインとブックは使える）
+// 読み込めないもの・台帳アセンブルで食い違うもの・UI マッピングが食い違うものは外す（ほかのプラグインとブックは使える）
 const added = store.use(saved.plugins as AnyPluginUi[], all => {
   shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
 })

@@ -31,7 +31,7 @@ const RENAME = defineAction({
   run: (book, args) => ({ next: { ...book, title: args.title }, result: {} }),
 })
 const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME] })
-// id の頭を付けていないので台帳アセンブルできない
+// id の頭を付けていないので台帳アセンブルで食い違う
 const broken = { id: "bad", actions: [{ ...RENAME, id: "rename" }] } as unknown as typeof notes
 const saved = { type: "notes:note", id: "n1", title: "メモ", project: "default" }
 
@@ -49,7 +49,7 @@ test("取り込んだ追加プラグインを use で足すと組み直し、作
   expect(perform("notes:rename", { title: "新" }, { book: "n1" })).toEqual({ ok: true, result: {} })
 })
 
-test("台帳アセンブルできない追加プラグインは外して、ほかは足す。use は前に足したものと置き換える", () => {
+test("台帳アセンブルで食い違う追加プラグインは外して、ほかは足す。use は前に足したものと置き換える", () => {
   const instance = make()
   instance.use([notes])
   const { failed } = instance.use([broken])

@@ -3,7 +3,7 @@ import type { ConnectorData, ShapeData } from "./def/item"
 // 定義の種類ごとの id と定義の型を、プラグインが書き足す所（空の interface は、書き足しを受けるためのもの。type にすると書き足せない）。定義・コマンド・ダイアログ・ウィジェットなどを足すプラグインは、自分の足す id と定義の型（typeof 定義）を、ここに declare module で書き足す。
 // ビルトインプラグインも追加プラグインも同じ口を使う（追加プラグインからは matomezu/catalog の名前で、このファイルを指す）。ここから id の型・ブックの型・アクションの引数の型などが決まる。
 // 書き足しは、このファイルに向ける。このファイルを読み直して出す別のファイルに向けると、ほかの書き足しと合わさらない。
-// 書き足した id と、インスタンスに渡した定義の id がそろっているかは、台帳アセンブル（createMatomezu）が型で確かめる
+// 書き足した id と、インスタンスに渡した定義の id がそろっているかは、createMatomezu の型が確かめる
 export interface BookTypeTable {}
 export interface ControlCenterTable {}
 export interface ItemTable {}
