@@ -13,7 +13,7 @@ import { pageProblems } from "./page-problems"
 import { canChoose, defaultPaper, growsValue, paperChoices } from "./pages"
 
 const ARGS = z.strictObject({
-  title: z.string().trim().min(1).optional(), // ページの名前。無ければ「ページ N」（N は足したあとのページの枚数。今の言語で）
+  title: z.string().trim().min(1).optional(), // ページの名前。無ければ「（無題）」（今の言語で）
   paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定
   orientation: z.enum(ORIENTATIONS).optional(), // 無ければ規定の既定
   grows: z.union([z.boolean(), z.enum(GROW_CHOICES)]).optional(), // 可変ページにするか、選んだ増やす向き（pages.ts の growsValue）。無ければ可変ページでない
@@ -26,7 +26,7 @@ export const PAGE_ADD = kit.defineAction({
   id: "page-add",
   attach: { pages: true },
   aiDescription:
-    'Add a page at the end of a book (title is "Page N" without it). Paper and orientation default to the book type\'s. With grows, the page grows by whole papers as its contents need, instead of keeping to one paper: the book type\'s grows in actions lists the ways a user picks from (right-down, right, down or all; true takes the first), or is "by-type" when the book type decides the ways itself (give true), "always" when every page always grows (give no grows), or "none" when its pages cannot grow. A page that grows left or up keeps one blank paper left of or above its contents: putting something there shifts all its contents right or down by whole papers (and an emptied first paper is closed up), so positions change; the result\'s notice says so. fields are the page\'s own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page\'s id, and in fields what the book type returns for its fields (such as the ids it gave). With index the page goes before the page at that index (the end without it; refused past the end).',
+    'Add a page at the end of a book (title is "Untitled" without it). Paper and orientation default to the book type\'s. With grows, the page grows by whole papers as its contents need, instead of keeping to one paper: the book type\'s grows in actions lists the ways a user picks from (right-down, right, down or all; true takes the first), or is "by-type" when the book type decides the ways itself (give true), "always" when every page always grows (give no grows), or "none" when its pages cannot grow. A page that grows left or up keeps one blank paper left of or above its contents: putting something there shifts all its contents right or down by whole papers (and an emptied first paper is closed up), so positions change; the result\'s notice says so. fields are the page\'s own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page\'s id, and in fields what the book type returns for its fields (such as the ids it gave). With index the page goes before the page at that index (the end without it; refused past the end).',
   title: "Add page",
   target: "book",
   permissionScope: "book",
@@ -43,8 +43,7 @@ export const PAGE_ADD = kit.defineAction({
     const settings =
       args.settings === undefined ? null : settingsPatchOf(ctx.catalog, book, "page")?.safeParse(args.settings)
     if (settings === undefined || settings?.success === false) return null
-    const title =
-      args.title ?? translate(ctx.catalog.messages, ctx.lang, kit.message("Page {n}"), { n: book.pages.length + 1 })
+    const title = args.title ?? translate(ctx.catalog.messages, ctx.lang, kit.message("Untitled"))
     const done = addPage(book, { title, ...choice, ...(grows === undefined ? {} : { grows }) }, ctx.newId)
     const written = writeFields(ctx.catalog, done.book, done.page, args.fields, "add", ctx.newId)
     if (!written) return null

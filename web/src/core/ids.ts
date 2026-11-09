@@ -37,7 +37,9 @@ export function renamedIn<T>(value: T, renamed: ReadonlyMap<string, string>): T 
   return Object.fromEntries(
     Object.entries(value).map(([k, v]) => [
       k,
-      (k === "id" || k === "from" || k === "to") && typeof v === "string" ? (renamed.get(v) ?? v) : renamedIn(v, renamed),
+      (k === "id" || k === "from" || k === "to") && typeof v === "string"
+        ? (renamed.get(v) ?? v)
+        : renamedIn(v, renamed),
     ]),
   ) as T
 }

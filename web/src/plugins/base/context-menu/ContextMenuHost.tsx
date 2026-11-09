@@ -84,7 +84,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
 }
 
 function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMenuCommandId<ContextMenuId> }) {
-  const command = useCommand(menu.stage, id)
+  const command = useCommand(menu.stage, id, menu.target as never)
   const icon = useUiCatalog().commandIcons.get(id)
   const key = useKeyLabel(id)
   const { closeContextMenu } = useActions()

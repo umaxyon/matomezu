@@ -2,7 +2,7 @@
 // ページごとに、ページの番号とサムネイルを並べる。サムネイルは、ブックのタイプの見せ方の印刷区画 1 つのビュー（printSheet）で描き、一覧の幅に合わせて縮める
 // （ステージの拡大縮小には従わない）。押したページをそのステージで開く（コマンド page-open）。開いているページは枠と太字の番号で示す。
 // ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-context。ここに追加・複製・削除）。
-// 一覧の下の＋は、最後にページを足す（コマンド page-add-after は最後のページの後ろ）
+// 一覧の下の＋は、最後にページを足す（コマンド page-add-after。ページが 0 枚でも出す）。ロック中のページには鍵の印を付ける
 import { useRef, useState } from "react"
 import { hasPages } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
@@ -14,6 +14,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
+import { LockIcon } from "../lock/LockIcon"
 import { pageArea } from "../place/items"
 import { Printing } from "../print-preview/printing"
 import { useResize } from "../utils/useResize"
@@ -63,7 +64,6 @@ export function PageList({ stage }: StageSlotProps) {
     "y",
   )
   if (!book || !hasPages(book) || !bookType(catalog, book.type).pageList) return null
-  const last = book.pages.at(-1)
   return (
     <nav className={styles.list} aria-label={t("Page list")} ref={list} data-page-list>
       {book.pages.map((p, i) => (
@@ -76,6 +76,11 @@ export function PageList({ stage }: StageSlotProps) {
           data-page={p.id}
         >
           <span className={styles.number}>{i + 1}</span>
+          {p.locked && (
+            <span className={styles.lock} role="img" aria-label={t("Locked")}>
+              <LockIcon />
+            </span>
+          )}
           <button
             type="button"
             className={styles.page}
@@ -92,12 +97,12 @@ export function PageList({ stage }: StageSlotProps) {
         </div>
       ))}
       {drag.bar !== null && <div className={styles.dropBar} style={{ top: drag.bar }} />}
-      {last && addAfter.shown && (
+      {addAfter.shown && (
         <button
           type="button"
           className={styles.add}
           aria-label={t("Add page")}
-          onClick={() => addAfter.run({ page: last.id })}
+          onClick={() => addAfter.run({ page: book.pages.at(-1)?.id })}
         >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3v10M3 8h10" />

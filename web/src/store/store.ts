@@ -662,7 +662,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const state = getState()
       const def = commandDef(defs, id)
       const ctx = commandContext(catalog, controlCenter, state, stage, id)
-      if (!ctx || !isEnabled(defs, state, stage, id)) return false
+      if (!ctx || !isEnabled(defs, state, stage, id, args[0])) return false
       const owner = commandOwner(id)
       const updateStageState = (change: (now: unknown) => unknown) =>
         setStageState(stage, owner, change(getState().stageStates[stage]?.[owner]))

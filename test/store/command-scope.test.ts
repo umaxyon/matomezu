@@ -11,6 +11,13 @@ test("コマンドの許可の範囲: 言葉ごとに、呼ばれた場所の様
   expect(commandScopeOf(undefined, ctx())).toBeUndefined()
 })
 
+test("コマンドの許可の範囲が関数なら、呼ばれた引数も受け取る（まだ引数が無ければ undefined）", () => {
+  const ctx = {} as CommandContext
+  const scope = (_: CommandContext, args: unknown) => ({ page: (args as { page: string } | undefined)?.page ?? "none" })
+  expect(commandScopeOf(scope, ctx, { page: "p2" })).toEqual({ page: "p2" })
+  expect(commandScopeOf(scope, ctx)).toEqual({ page: "none" })
+})
+
 test("ブックが対象のアクションを行うコマンドは、許可の範囲を書かなければ型の誤り。ほかは書かなくてよい", () => {
   const base = { title: "@matomezu/base:Delete" as MessageKey, run: () => {}, when: () => true }
   // @ts-expect-error ブックが対象のアクション（item-remove）を行うのに、許可の範囲が無い

@@ -13,6 +13,7 @@
   border-right: 1px solid var(--skin-border);
 }
 .item {
+  position: relative;
   flex: none;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
@@ -31,6 +32,17 @@
 .item[data-selected="true"] .number {
   color: var(--skin-accent);
   font-weight: 700;
+}
+.lock {
+  position: absolute;
+  left: 1px;
+  top: 22px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--skin-text-muted);
+  pointer-events: none;
 }
 .page {
   display: block;

@@ -27,6 +27,7 @@ export const PAGE_MESSAGES = defineMessages({
   },
   Delete: { en: "Delete", ja: "削除" },
   "Page {n}": { en: "Page {n}", ja: "ページ {n}" },
+  Untitled: { en: "Untitled", ja: "（無題）" },
   Portrait: { en: "Portrait", ja: "縦" },
   Landscape: { en: "Landscape", ja: "横" },
   "Variable page": { en: "Variable page", ja: "可変ページにする" },

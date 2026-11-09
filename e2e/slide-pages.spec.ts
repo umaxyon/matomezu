@@ -65,7 +65,7 @@ test("右クリックで、ここに追加・複製・削除ができる（削�
   await pages.nth(0).locator("button").click({ button: "right" })
   await page.getByRole("menuitem", { name: "ここに追加" }).click()
   await expect(pages).toHaveCount(4)
-  await expect(pages.nth(1).locator("button")).toHaveAttribute("aria-label", /ページ/)
+  await expect(pages.nth(1).locator("button")).toHaveAttribute("aria-label", "（無題）")
   await pages.nth(0).locator("button").click({ button: "right" })
   await page.getByRole("menuitem", { name: "複製" }).click()
   await expect(pages).toHaveCount(5)
@@ -76,4 +76,47 @@ test("右クリックで、ここに追加・複製・削除ができる（削�
   await expect(dialog).toBeVisible()
   await dialog.getByRole("button", { name: "削除" }).click()
   await expect(pages).toHaveCount(4)
+})
+
+test.describe("ロック中のページ", () => {
+  test.use({
+    books: [
+      {
+        type: "@matomezu/slide-book:slide",
+        id: "b1",
+        title: "スライド",
+        project: "default",
+        pages: [page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }],
+      },
+    ],
+  })
+
+  test("ロック中のページには鍵の印が付き、右クリックの複製と削除は灰色になる", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    const pages = page.locator("[data-page-list] [data-page]")
+    await expect(pages.nth(1).getByRole("img", { name: "ロック中" })).toBeVisible()
+    await expect(pages.nth(0).getByRole("img", { name: "ロック中" })).toHaveCount(0)
+    await pages.nth(1).locator("button").click({ button: "right" })
+    await expect(page.getByRole("menuitem", { name: "複製" })).toBeDisabled()
+    await expect(page.getByRole("menuitem", { name: "削除…" })).toBeDisabled()
+    await page.keyboard.press("Escape")
+    await pages.nth(0).locator("button").click({ button: "right" })
+    await expect(page.getByRole("menuitem", { name: "複製" })).toBeEnabled()
+    await expect(page.getByRole("menuitem", { name: "削除…" })).toBeEnabled()
+  })
+})
+
+test.describe("ページが 0 枚", () => {
+  test.use({
+    books: [{ type: "@matomezu/slide-book:slide", id: "b1", title: "スライド", project: "default", pages: [] }],
+  })
+
+  test("ページ一覧の＋で、ダイアログ無しで「（無題）」のページを足せる", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    const pages = page.locator("[data-page-list] [data-page]")
+    await expect(pages).toHaveCount(0)
+    await page.getByRole("button", { name: "ページを足す" }).click()
+    await expect(pages).toHaveCount(1)
+    await expect(pages.nth(0).locator("button")).toHaveAttribute("aria-label", "（無題）")
+  })
 })

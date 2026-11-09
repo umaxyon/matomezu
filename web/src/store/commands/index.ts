@@ -75,9 +75,9 @@ export function isShown(defs: Assembled, state: MatomezuState, stageId: string, 
 
 // 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。
 // ブックが対象のアクションは、今のブックの許可の範囲の所で問う
-function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
+function permitted(def: CommandDef<never>, ctx: CommandContext, arg?: unknown): boolean {
   const actions = def.performs ?? []
-  const where = commandScopeOf(def.permissionScope, ctx)
+  const where = commandScopeOf(def.permissionScope, ctx, arg)
   return (
     actions.length === 0 ||
     actions.some(
@@ -89,10 +89,18 @@ function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
 }
 
 // 押せるか: 出していて、行うアクションのどれかを認可ステップが止めず、enabled が押せるとするとき
-export function isEnabled(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
+export function isEnabled(
+  defs: Assembled,
+  state: MatomezuState,
+  stageId: string,
+  id: CommandId,
+  arg?: unknown,
+): boolean {
   const ctx = commandContext(defs.catalog.core, defs.controlCenter, state, stageId, id)
   const def = commandDef(defs, id)
-  return ctx !== null && performable(def, ctx) && def.when(ctx) && permitted(def, ctx) && (def.enabled?.(ctx) ?? true)
+  return (
+    ctx !== null && performable(def, ctx) && def.when(ctx) && permitted(def, ctx, arg) && (def.enabled?.(ctx) ?? true)
+  )
 }
 
 export function isActive(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {

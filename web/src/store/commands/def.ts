@@ -18,13 +18,18 @@ import type { Actions, Settings } from "../store"
 
 // コマンドの許可の範囲: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // 言葉で言えなければ、呼ばれた場所の様子から所を返す関数
-export type CommandScope = "book" | "opened-page" | "selection" | ((ctx: CommandContext) => Where)
+// 関数は、右クリックしたページのように、コマンドの引数が所を決めるときにも使う（args は呼ばれた引数。まだ無ければ undefined）
+export type CommandScope = "book" | "opened-page" | "selection" | ((ctx: CommandContext, args: unknown) => Where)
 
-// 呼ばれた場所の様子 ctx での、コマンドの許可の範囲の所
-export function commandScopeOf(scope: CommandScope | undefined, ctx: CommandContext): Where | undefined {
+// 呼ばれた場所の様子 ctx と引数 args での、コマンドの許可の範囲の所
+export function commandScopeOf(
+  scope: CommandScope | undefined,
+  ctx: CommandContext,
+  args?: unknown,
+): Where | undefined {
   if (scope === undefined) return undefined
   if (scope === "book") return {}
-  if (typeof scope === "function") return scope(ctx)
+  if (typeof scope === "function") return scope(ctx, args)
   const page = ctx.stage.opened?.page ?? undefined
   const on = page ? { page } : {}
   return scope === "opened-page" ? on : { ...on, ids: ctx.stage.selection }

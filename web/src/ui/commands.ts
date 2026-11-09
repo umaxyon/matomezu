@@ -11,11 +11,12 @@ export interface CommandHandle<Id extends CommandId> {
   run(...args: CommandArgs<Id>): void
 }
 
-export function useCommand<Id extends CommandId>(stage: string, id: Id): CommandHandle<Id> {
+// arg は、押す前から分かっている引数（右クリックしたページのように、押せるかが引数で決まるコマンドのとき）
+export function useCommand<Id extends CommandId>(stage: string, id: Id, arg?: CommandArgs<Id>[0]): CommandHandle<Id> {
   const defs = useInstance()
   const def = commandDef(defs, id)
   const shown = useMatomezuState(s => isShown(defs, s, stage, id))
-  const enabled = useMatomezuState(s => isEnabled(defs, s, stage, id))
+  const enabled = useMatomezuState(s => isEnabled(defs, s, stage, id, arg))
   const active = useMatomezuState(s => isActive(defs, s, stage, id))
   const { command } = useActions()
   return { title: def.title, shown, enabled, active, run: (...args) => command(stage, id, ...args) }
