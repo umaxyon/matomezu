@@ -197,6 +197,7 @@ function PointHandles({ item }: { item: SelectedItem }) {
     <>
       {on.map((p, index) =>
         index % every === 0 || index === on.length - 1 ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 線の点には id が無く、並びの番号が点の名前
           <div key={index} className={styles.point} data-point={index} style={{ left: p.x, top: p.y }} />
         ) : null,
       )}
