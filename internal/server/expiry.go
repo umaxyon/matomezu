@@ -23,18 +23,17 @@ func (h *Hub) Expire(now time.Time) error {
 	defer h.mu.Unlock()
 	watched := h.watched()
 	at := isoTime(now)
+	live := map[string]json.RawMessage{}
 	for book, body := range h.annotations {
-		live, changed, err := h.engine.AnnotationsUnexpired(body, h.settings, at, watched[book])
+		kept, changed, err := h.engine.AnnotationsUnexpired(body, h.settings, at, watched[book])
 		if err != nil {
 			return err
 		}
 		if changed {
-			if err := h.putAnnotations(book, live, "", 0); err != nil {
-				return err
-			}
+			live[book] = kept
 		}
 	}
-	return nil
+	return h.putAnnotationLists(live, "", 0)
 }
 
 // Talked は、利用者が AI に話しかけたときに行うアクションを、アノテーションのあるブックごとに行う（変える物の無いブックは、断られるだけで何もしない）

@@ -10,10 +10,12 @@ package server
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"slices"
 
 	"github.com/umaxyon/matomezu/internal/engine"
+	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 const aiEditTicketsMax = 100
@@ -30,15 +32,16 @@ type AIEditTicket struct {
 	Changed []string        `json:"changed,omitempty"` // 失敗にしたときの、変わった・無くなった物の id
 }
 
-// changeAIEditTicket は、アクションが返した変え方 c のとおりにチケットを作る・閉じる・失敗にする（閉じる・失敗にするのは、まだ待っている物だけ。h.mu を持って呼ぶ）
-func (h *Hub) changeAIEditTicket(c engine.AIEditTicketChange, at string) error {
-	list := slices.Clone(h.aiEditTickets[c.Book])
+// changedTickets は、アクションが返した変え方 c のとおりにチケットの並び list を作り直す（作る・閉じる・失敗にする。閉じる・失敗にするのは、まだ待っている物だけ）。
+// 作るときの変えた後のブックの版は version。変えなければ false
+func changedTickets(list []AIEditTicket, c engine.AIEditTicketChange, version int64, at string) ([]AIEditTicket, bool) {
+	list = slices.Clone(list)
 	if c.Outcome == "open" {
-		return h.putAIEditTickets(c.Book, append(list, AIEditTicket{Key: c.Key, At: at, Version: h.books[c.Book].version}))
+		return append(list, AIEditTicket{Key: c.Key, At: at, Version: version}), true
 	}
 	i := slices.IndexFunc(list, func(t AIEditTicket) bool { return t.Key == c.Key && !t.Failed })
 	if i < 0 {
-		return nil
+		return list, false
 	}
 	switch c.Outcome {
 	case "closed":
@@ -47,12 +50,12 @@ func (h *Hub) changeAIEditTicket(c engine.AIEditTicketChange, at string) error {
 		list[i].Failed = true
 		list[i].Changed = c.Changed
 	}
-	return h.putAIEditTickets(c.Book, list)
+	return list, true
 }
 
-// recordAIEditTicket は、AI のアクション act がブック book を版 version にしたことを残す（h.mu を持って呼ぶ）
-func (h *Hub) recordAIEditTicket(book string, act string, version int64, at string) error {
-	list := append(slices.Clone(h.aiEditTickets[book]), AIEditTicket{Act: act, At: at, Version: version})
+// recordedTickets は、AI のアクション act がブックを版 version にしたことをチケットの並び list に足す
+func recordedTickets(list []AIEditTicket, act string, version int64, at string) []AIEditTicket {
+	list = append(slices.Clone(list), AIEditTicket{Act: act, At: at, Version: version})
 	// 多すぎたら、見られていない物の古い方から捨てる（消えた物は AI に渡すまで残す）
 	for len(list) > aiEditTicketsMax {
 		i := slices.IndexFunc(list, func(c AIEditTicket) bool { return c.Lost == nil && !c.Failed })
@@ -61,23 +64,37 @@ func (h *Hub) recordAIEditTicket(book string, act string, version int64, at stri
 		}
 		list = slices.Delete(list, i, i+1)
 	}
-	return h.putAIEditTickets(book, list)
+	return list
+}
+
+// putTicketLists は、ブックごとの AI 編集チケットの並び lists を 1 つのまとまりで書いて持つ（空の並びなら消す。h.mu を持って呼ぶ）
+func (h *Hub) putTicketLists(lists map[string][]AIEditTicket) error {
+	if len(lists) == 0 {
+		return nil
+	}
+	batch := storage.Batch{}
+	for _, book := range slices.Sorted(maps.Keys(lists)) {
+		body, err := json.Marshal(lists[book])
+		if err != nil {
+			return err
+		}
+		batch.AIEditTickets = append(batch.AIEditTickets, storage.BookBody{Book: book, Body: body})
+	}
+	if _, err := h.store.Apply(batch); err != nil {
+		return err
+	}
+	for book, list := range lists {
+		if len(list) == 0 {
+			delete(h.aiEditTickets, book)
+		} else {
+			h.aiEditTickets[book] = list
+		}
+	}
+	return nil
 }
 
 func (h *Hub) putAIEditTickets(book string, list []AIEditTicket) error {
-	body, err := json.Marshal(list)
-	if err != nil {
-		return err
-	}
-	if err := h.store.PutAIEditTickets(book, body); err != nil {
-		return err
-	}
-	if len(list) == 0 {
-		delete(h.aiEditTickets, book)
-	} else {
-		h.aiEditTickets[book] = list
-	}
-	return nil
+	return h.putTicketLists(map[string][]AIEditTicket{book: list})
 }
 
 // SettleAIEditTicket は、窓が AI の変更 act（ブック book）を見た（lost が nil）か、見られる前に消えた（lost に消えた所と AI の値）ことを受ける。
@@ -111,6 +128,7 @@ func (h *Hub) TellUndone() ([]UndoneAIEditTicket, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	out := []UndoneAIEditTicket{}
+	changed := map[string][]AIEditTicket{}
 	for _, id := range h.order {
 		e, ok := h.books[id]
 		list := slices.Clone(h.aiEditTickets[id])
@@ -133,10 +151,11 @@ func (h *Hub) TellUndone() ([]UndoneAIEditTicket, error) {
 			}
 		}
 		if told {
-			if err := h.putAIEditTickets(id, list); err != nil {
-				return nil, err
-			}
+			changed[id] = list
 		}
+	}
+	if err := h.putTicketLists(changed); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -154,6 +173,7 @@ func (h *Hub) TellFailed() ([]FailedAIEditTicket, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	out := []FailedAIEditTicket{}
+	changed := map[string][]AIEditTicket{}
 	for _, id := range h.order {
 		e, ok := h.books[id]
 		list := slices.Clone(h.aiEditTickets[id])
@@ -176,26 +196,26 @@ func (h *Hub) TellFailed() ([]FailedAIEditTicket, error) {
 			}
 		}
 		if told {
-			if err := h.putAIEditTickets(id, list); err != nil {
-				return nil, err
-			}
+			changed[id] = list
 		}
+	}
+	if err := h.putTicketLists(changed); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
 
 // forgetToldAIEditTickets は、AI に渡した、見られる前に消えた AI の変更と失敗にしたチケットを消す（利用者が AI に話しかけたとき。h.mu を持って呼ぶ）
 func (h *Hub) forgetToldAIEditTickets() error {
+	changed := map[string][]AIEditTicket{}
 	for _, id := range slices.Clone(h.order) {
 		list := h.aiEditTickets[id]
 		kept := slices.DeleteFunc(slices.Clone(list), func(c AIEditTicket) bool { return c.Told })
 		if len(kept) != len(list) {
-			if err := h.putAIEditTickets(id, kept); err != nil {
-				return err
-			}
+			changed[id] = kept
 		}
 	}
-	return nil
+	return h.putTicketLists(changed)
 }
 
 // aiEditTicket は、窓が AI の変更を見た・見られる前に消えたことを受ける

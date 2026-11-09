@@ -47,6 +47,12 @@ func (h *Hub) remove(id, client string, seq int64) error {
 	if err := h.store.DeleteBook(id); err != nil {
 		return err
 	}
+	h.dropBook(id, client, seq)
+	return nil
+}
+
+// dropBook は、置き場所から消し終えたブック id をメモリから外して知らせる（h.mu を持って呼ぶ）
+func (h *Hub) dropBook(id, client string, seq int64) {
 	_, annotated := h.annotations[id]
 	delete(h.books, id)
 	delete(h.annotations, id)
@@ -61,5 +67,4 @@ func (h *Hub) remove(id, client string, seq int64) error {
 		}
 	}
 	h.broadcast("removed", map[string]any{"book": id, "client": client, "seq": seq})
-	return nil
 }

@@ -5,6 +5,7 @@ package server
 // 窓に plugins を知らせる（窓は読み直す）。組み直せなければ前のまま。
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -56,17 +57,18 @@ func (h *Hub) UnlinkPlugin(id string) error {
 
 // dropAnnotationsOf は、プラグイン id が足した種類のアノテーションを消して知らせる（どの種類がそのプラグインの物かはエンジンが決める。h.mu を持って呼ぶ）
 func (h *Hub) dropAnnotationsOf(id string) error {
+	kept := map[string]json.RawMessage{}
 	for book, body := range h.annotations {
-		kept, changed, err := h.engine.AnnotationsWithout(id, body)
+		without, changed, err := h.engine.AnnotationsWithout(id, body)
 		if err != nil {
 			return err
 		}
-		if !changed {
-			continue
+		if changed {
+			kept[book] = without
 		}
-		if err := h.putAnnotations(book, kept, "", 0); err != nil {
-			return err
-		}
+	}
+	if err := h.putAnnotationLists(kept, "", 0); err != nil {
+		return err
 	}
 	return h.checkAnnotations()
 }
