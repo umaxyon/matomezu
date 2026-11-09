@@ -14,5 +14,5 @@ kit.defineConnector({
   tokens: [],
 })
 
-// @ts-expect-error 追加プラグインは組み立てのときの確かめ（checks）を持てない（ビルトインプラグインだけ）
+// @ts-expect-error 追加プラグインは台帳アセンブルのときの確かめ（checks）を持てない（ビルトインプラグインだけ）
 definePlugin(kit.plugin({ checks: [() => []] }))

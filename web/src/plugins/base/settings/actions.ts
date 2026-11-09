@@ -1,5 +1,5 @@
 // 利用者の設定のアクション: 書いた項目の値だけを丸ごと置き換える。使えるか（コントロールセンターが変えさせない項目・AI に利用者だけの項目）は、
-// 許可の範囲の項目ごとに土台が問う（core/inspect.ts）
+// 許可スコープの項目ごとに土台が問う（core/inspect.ts）
 import { z } from "zod"
 import { settingSchema } from "../../../core/settings"
 import { kit } from "../kit"

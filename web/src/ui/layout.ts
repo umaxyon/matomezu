@@ -1,4 +1,4 @@
-// ウィジェット（スロットに置けるコンポーネント）・配置（スロットごとに置くウィジェットの順と、メニューの中身）の定義と、配置の確かめ
+// ウィジェット（スロットに置けるコンポーネント）・UI マッピング（スロットごとに置くウィジェットの順と、メニューの中身）の定義と、UI マッピングの確かめ
 import type { ReactNode } from "react"
 import type {
   CommandId,
@@ -25,7 +25,7 @@ import type { Plugin } from "../store/plugin"
 export interface WidgetDef<S extends SlotId = SlotId> extends WidgetExtras {
   id: string // 本当の id（「プラグインの id:名前」。kit.name で作る）
   slots: readonly S[]
-  place?: NoInfer<S> | WidgetPlace<NoInfer<S>> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の配置に足す（placeAdded）
+  place?: NoInfer<S> | WidgetPlace<NoInfer<S>> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の UI マッピングに足す（placeAdded）
   opens?: readonly SlotId[]
   menus?: readonly MenuId[]
   contextMenus?: readonly ContextMenuId[]
@@ -105,8 +105,8 @@ export interface LayoutDef extends LayoutExtras {
 }
 export const defineLayout = <const L extends LayoutDef>(def: L): L => def
 
-// 配置に、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニュー（anchorMenu も）の末尾
-// （ウィジェットは before・after に書いた所。WidgetPlace）に足し、右クリックのメニューでは前の項目と区切り線で分ける。配置にもうあるものは足さない
+// UI マッピングに、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニュー（anchorMenu も）の末尾
+// （ウィジェットは before・after に書いた所。WidgetPlace）に足し、右クリックのメニューでは前の項目と区切り線で分ける。UI マッピングにもうあるものは足さない
 // （動いている matomezu の画面が、取り込んだプラグインを置くのに使う）
 export function placeAdded(layout: LayoutDef, plugins: readonly Plugin[]): LayoutDef {
   return placeAddedWithWarnings(layout, plugins).layout
@@ -165,7 +165,7 @@ function indexFor(ids: readonly string[], place: WidgetPlace): number | null {
   return ids.length
 }
 
-// 配置から、持ち主のプラグイン（id の頭）が組み込まれていない物を除く（ウィジェット・コマンド・スロット・メニュー・右クリックのメニュー・anchorMenu）。
+// UI マッピングから、持ち主のプラグイン（id の頭）が組み込まれていない物を除く（ウィジェット・コマンド・スロット・メニュー・右クリックのメニュー・anchorMenu）。
 // 除いた物ごとに warning W010（plugin は無いプラグイン）。頭の無い名前（土台の言葉）と、持ち主がいる物は残す（無ければ checkLayout が error にする）
 export function skipAbsent(
   layout: LayoutDef,
@@ -214,7 +214,7 @@ export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
 // 根のスロット（土台が開ける）
 export const ROOT_SLOT = "root" satisfies SlotId
 
-// 配置の食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・インスタンスに無いコマンド・
+// UI マッピングの食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・インスタンスに無いコマンド・
 // 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー、置いたウィジェットと見せ方・アイテムのビューのどれも開かない右クリックのメニュー（無ければ空）
 export function checkLayout(
   layout: LayoutDef,

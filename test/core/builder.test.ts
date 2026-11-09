@@ -82,7 +82,7 @@ describe("組み立てたブックの形", () => {
   })
 })
 
-describe("組み立ての食い違い", () => {
+describe("台帳アセンブルの食い違い", () => {
   test("タイプが自分のフィールドに、機能台帳が足すフィールド（pages・settings）を書くと error", () => {
     const own = drawing.schema.extend({ pages: z.array(z.unknown()) })
     expect(checkCoreCatalog(withDrawing({ schema: own })).map(p => p.code)).toContain("E025")
@@ -95,7 +95,7 @@ describe("組み立ての食い違い", () => {
     expect(checkCoreCatalog(withDrawing({ presentation: "nope" })).map(p => p.code)).toContain("E008")
   })
 
-  test("形のアイテムが名指すダイアログがインスタンスに無ければ、組み立てで error", () => {
+  test("形のアイテムが名指すダイアログがインスタンスに無ければ、台帳アセンブルで error", () => {
     const box = BUILTIN.find(p => p.id === "@matomezu/box")!
     const broken = { ...box, dialogs: [] }
     const plugins = BUILTIN.map(p => (p === box ? broken : p))
@@ -109,7 +109,7 @@ describe("組み立ての食い違い", () => {
   })
 })
 
-// プラグインのアイテムを差し替えて組み立てたときの問題（base とフローチャートの組み立てのときの確かめ）
+// プラグインのアイテムを差し替えて台帳アセンブルしたときの問題（base とフローチャートの台帳アセンブルのときの確かめ）
 const problemsWith = (plugin: string, item: string, patch: object) => {
   const plugins = (BUILTIN as readonly Plugin[]).map(p =>
     p.id === plugin ? { ...p, items: (p.items ?? []).map(i => (i.id === item ? { ...i, ...patch } : i)) } : p,
@@ -122,7 +122,7 @@ const problemsWith = (plugin: string, item: string, patch: object) => {
   }
 }
 
-test("形の themeProp・captionProp が props に無い項目を名指したら E028（base の組み立てのときの確かめ）", () => {
+test("形の themeProp・captionProp が props に無い項目を名指したら E028（base の台帳アセンブルのときの確かめ）", () => {
   expect(problemsWith("@matomezu/box", "@matomezu/box:shape-nest-box", { themeProp: "look" }).map(p => p.code)).toEqual(
     ["E028"],
   )
@@ -132,14 +132,14 @@ test("形の themeProp・captionProp が props に無い項目を名指したら
   expect(() => assemble(BUILTIN)).not.toThrow()
 })
 
-test("形の仲間の名前が文言の表に無ければ E018（base の組み立てのときの確かめ）", () => {
+test("形の仲間の名前が文言の表に無ければ E018（base の台帳アセンブルのときの確かめ）", () => {
   const found = problemsWith("@matomezu/shape", "@matomezu/shape:shape-diamond", {
     familyTitle: "no such message",
   })
   expect(found.map(p => p.code)).toEqual(["E018"])
 })
 
-test("ブックのタイプの createSettings がブックの設定の項目に無い項目を名指したら E035（base の組み立てのときの確かめ）", () => {
+test("ブックのタイプの createSettings がブックの設定の項目に無い項目を名指したら E035（base の台帳アセンブルのときの確かめ）", () => {
   const plugins = (BUILTIN as readonly Plugin[]).map(p =>
     p.id === "@matomezu/tree"
       ? { ...p, bookTypes: (p.bookTypes ?? []).map(t => ({ ...t, createSettings: ["@matomezu/tree:no-such"] })) }
@@ -154,7 +154,7 @@ test("ブックのタイプの createSettings がブックの設定の項目に�
   expect(found.map(p => p.code)).toEqual(["E035"])
 })
 
-test("テーマの textColors の色が #rrggbb でなければ E038（base の組み立てのときの確かめ）", () => {
+test("テーマの textColors の色が #rrggbb でなければ E038（base の台帳アセンブルのときの確かめ）", () => {
   const plugins = (BUILTIN as readonly Plugin[]).map(p =>
     p.id === "@matomezu/base"
       ? {
@@ -176,7 +176,7 @@ test("テーマの textColors の色が #rrggbb でなければ E038（base の�
   expect(found.map(p => p.code)).toEqual(["E038"])
 })
 
-test("テーマの textColors が機能台帳に無い文字の色を名指したら W014 を残し、組み立ては止めない（base の組み立てのときの確かめ）", () => {
+test("テーマの textColors が機能台帳に無い文字の色を名指したら W014 を残し、台帳アセンブルは止めない（base の台帳アセンブルのときの確かめ）", () => {
   const plugins = (BUILTIN as readonly Plugin[]).map(p =>
     p.id === "@matomezu/base"
       ? {
@@ -191,7 +191,7 @@ test("テーマの textColors が機能台帳に無い文字の色を名指し�
   expect(warnings.map(w => [w.code, w.plugin, w.params.textColor])).toEqual([["W014", "@matomezu/base", "@ex/gone:x"]])
 })
 
-test("テーマがデータの動き方のテーマキーに決まった言葉でない値を、棒の丸みに px でない値を書いたら W015 を残し、組み立ては止めない", () => {
+test("テーマがデータの動き方のテーマキーに決まった言葉でない値を、棒の丸みに px でない値を書いたら W015 を残し、台帳アセンブルは止めない", () => {
   const plugins = (BUILTIN as readonly Plugin[]).map(p =>
     p.id === "@matomezu/base"
       ? {
@@ -279,6 +279,6 @@ test("追加プラグインはノーマライズステップを持てない（E3
   expect(() => assemble([...BUILTIN, { id: "extra", normalizeSteps: [step] }])).toThrow(/E310|only built-in/)
 })
 
-test("追加プラグインは組み立てのときの確かめを持てない（E308）", () => {
+test("追加プラグインは台帳アセンブルのときの確かめを持てない（E308）", () => {
   expect(() => assemble([...BUILTIN, { id: "extra", checks: [() => []] }])).toThrow(/E308|only built-in/)
 })

@@ -79,7 +79,7 @@ const thrown = (run: () => unknown) => {
   }
 }
 
-describe("インスタンスを組み立てる", () => {
+describe("インスタンスを作る", () => {
   test("渡したプラグインの定義だけを使う", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, notes],

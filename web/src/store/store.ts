@@ -235,7 +235,7 @@ export type HostAnswer = { ok: true } | { ok: false; reason: string }
 
 export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
 
-// インスタンス: 組み立てたもの（機能台帳と、組み立てで決まる値）と、状態と操作。plugins は、台帳のもとにしたプラグイン（画面の側が見た目を引く）
+// インスタンス: 台帳アセンブルしたもの（機能台帳と、台帳アセンブルで決まる値）と、状態と操作。plugins は、台帳のもとにしたプラグイン（画面の側が見た目を引く）
 export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin[]> extends Assembled {
   plugins: Ps
   state: ReadonlyStore
@@ -278,7 +278,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 鍵 key の編集ロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
   setEditLock(key: string, lock: EditLock | null): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
-  // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と error を返す
+  // 台帳アセンブルできない追加プラグイン（check が投げたものも）は外し、その id と error を返す
   use(
     added: readonly Plugin[],
     check?: (plugins: readonly Plugin[]) => void,

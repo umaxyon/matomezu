@@ -1,4 +1,4 @@
-// マークのコマンド: 右クリックで押した物（アンカーの付いた物）のそばに、マークの種類を選ぶスタンドを出す。配置の anchorMenu に置く
+// マークのコマンド: 右クリックで押した物（アンカーの付いた物）のそばに、マークの種類を選ぶスタンドを出す。UI マッピングの anchorMenu に置く
 import { anchorTargetState } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
 import { MARK_ADD } from "."

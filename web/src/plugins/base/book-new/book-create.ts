@@ -51,7 +51,7 @@ export const BOOK_CREATE = kit.defineAction({
   },
 })
 
-// タイプの createSettings が、そのタイプのブックの設定の項目を名指しているか（組み立てのときの確かめ）
+// タイプの createSettings が、そのタイプのブックの設定の項目を名指しているか（台帳アセンブルのときの確かめ）
 export const CREATE_SETTINGS_CHECK: CatalogCheckDef = catalog =>
   [...catalog.bookTypes.values()].flatMap(t =>
     (t.createSettings ?? []).flatMap(setting =>

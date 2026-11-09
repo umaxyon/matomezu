@@ -1,4 +1,4 @@
-// 子の形（能力 nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
+// 子の形（ケイパビリティ nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
 import { describe, expect, test } from "bun:test"
 import { pagedOf, restoreBooks } from "../../web/src/core/book"
 import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
@@ -10,7 +10,7 @@ const BOX = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
 const LINE = "@matomezu/line:connector-line"
 
-// 図面のブックは内包ボックス（能力 nests）・リスト・線を使う
+// 図面のブックは内包ボックス（ケイパビリティ nests）・リスト・線を使う
 const nesting = CORE_CATALOG
 
 const book = (items: unknown[]) => ({
@@ -33,11 +33,11 @@ const line = (id: string, from: string, to: string) => ({ id, item: LINE, from, 
 const reads = (items: unknown[]) => restoreBooks(nesting, [book(items)]).length === 1
 
 describe("子の形を受け付けるブックの形", () => {
-  test("能力 nests の形は、ブックで使える形を何段でも子に持てる", () => {
+  test("ケイパビリティ nests の形は、ブックで使える形を何段でも子に持てる", () => {
     expect(reads([box("a", 10, 10, [box("b", 5, 5, [list("c")])]), line("l1", "a", "c")])).toBe(true)
   })
 
-  test("能力 nests の無い形は子を持てない", () => {
+  test("ケイパビリティ nests の無い形は子を持てない", () => {
     expect(reads([{ ...list("a"), shapes: [box("b", 0, 0)] }])).toBe(false)
   })
 

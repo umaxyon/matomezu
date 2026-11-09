@@ -1,4 +1,4 @@
-// インスタンスを組み立てる入口: 渡したプラグインから定義の表と store を作る。作った後は、プラグインを足したり変えたりしない。
+// インスタンスを作る入口: 渡したプラグインから定義の表と store を作る。作った後は、プラグインを足したり変えたりしない。
 // 型では、core/catalog.ts に書き足した id と、渡したプラグインの id がそろっているかを確かめる（型と実物のずれを、書いた時点で捕まえる）。
 // 1 つのプロジェクトの createMatomezu には、型を書き足したプラグインを全部渡す。全部は渡さないインスタンスと、型を書き足していないプラグインも渡すインスタンス（テストなど）は partial: true
 
@@ -28,7 +28,7 @@ type Provided<P> = keyof typeof MESSAGES | MessageKeysOf<P>
 type MessageGaps<P> =
   | `messages:${Exclude<keyof MessageTable, Provided<P>> & string}`
   | `messages:${Exclude<MessageKeysOf<P>, keyof MessageTable> & string}`
-// core/catalog.ts に書き足すだけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー・能力・テーマタイプ）のうち、土台の言葉でも、渡したプラグインの id と : で始まる名前でもないもの
+// core/catalog.ts に書き足すだけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー・ケイパビリティ・テーマタイプ）のうち、土台の言葉でも、渡したプラグインの id と : で始まる名前でもないもの
 type PluginIdOf<P> = P extends { id: infer I extends string } ? I : never
 type Unowned<P, Table, Base extends string, Kind extends string> =
   Exclude<keyof Table & string, Base> extends infer N

@@ -134,7 +134,7 @@ const allowedOf = (answer: string): Allowed =>
   answer === OK ? { ok: true } : { ok: false, permission: answer === NOT_ALLOWED ? null : answer }
 
 // アクション action を引数 args で、行うときと同じ形（ブックかアノテーションが対象なら on のブック）で行えるか（認可ステップも見る。答えは useAllowed と同じ形）。
-// どのブックに問うかは、アクションの許可の範囲（permissionScope）と引数、ブックが対象なら on で決まるので、ステージが開いていないブックにも問える。
+// どのブックに問うかは、アクションの許可スコープ（permissionScope）と引数、ブックが対象なら on で決まるので、ステージが開いていないブックにも問える。
 // 引数がまだ決まらない所（ドラッグを始める前など）では、useAllowed で問う
 export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, on?: { book: string }): Allowed {
   const catalog = useCatalog().core

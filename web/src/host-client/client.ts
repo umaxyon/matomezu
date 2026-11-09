@@ -7,7 +7,7 @@ import type { AIEditTicketOutcome, DoneAction, HostAnswer, MatomezuInstance } fr
 export interface Loaded {
   books: readonly unknown[] // 残しておいたブック。形に合うかは store が確かめる（createMatomezu の savedBooks）
   settings: unknown // 残しておいた設定（無ければ undefined）。使える項目かは store が確かめる（createMatomezu の settings）
-  plugins: readonly unknown[] // ホストが足した追加プラグイン（見た目を結んだもの）。プラグインかは組み立てが確かめる
+  plugins: readonly unknown[] // ホストが足した追加プラグイン（見た目を結んだもの）。プラグインかは台帳アセンブルが確かめる
   failed: readonly { id: string; error: unknown }[] // 読み込めなかった追加プラグインと理由（ほかのプラグインとブックは読む）
 }
 
@@ -15,7 +15,7 @@ export interface HostClient {
   load(): Promise<Loaded>
   observe(done: DoneAction): Promise<HostAnswer> // 画面で行ったアクションを渡し、ホストが確かめた答えを待つ（createMatomezu の observe に渡す）
   connect(instance: MatomezuInstance): () => void // load で読んだもので作ったインスタンスとつなぐ（外の変化を入れ、残す）。切る関数を返す
-  // 画面が見つけた warning（配置の W010・外した追加プラグインの W011 など）をホストに知らせる。前に知らせたものと入れ替え、
+  // 画面が見つけた warning（UI マッピングの W010・外した追加プラグインの W011 など）をホストに知らせる。前に知らせたものと入れ替え、
   // つなぎ直すたびに知らせ直す（ホストは窓ごとに持ち、ほかの warning と集めてログと AI に出す）
   reportWarnings(warnings: readonly Warning[]): void
   // まだ見ていない AI の変更が、この窓で見えたか、見られる前に消えたこと（createMatomezu の aiEditTicket に渡す）。ホストは AI の変更ごとに残し、消えた物を AI に渡す

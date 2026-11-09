@@ -35,7 +35,7 @@ export const useStagesWithLeftSidePanel = (): readonly string[] =>
     ),
   )
 
-// 配置が左サイドパネルのスロットに置いたウィジェット（タブの並び）
+// UI マッピングが左サイドパネルのスロットに置いたウィジェット（タブの並び）
 export const useLeftSidePanelTabs = (): readonly string[] => useLayout().slots[LEFT_SIDE_PANEL] ?? []
 
 // ステージ stage の左サイドパネルで、タブ tab を開く関数（null なら閉じる）

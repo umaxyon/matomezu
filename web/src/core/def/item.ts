@@ -1,4 +1,4 @@
-// アイテムの定義: データに残り、画面に置かれるもの（名詞）。並べ方は知らず、自分の形・大きさ・能力・項目の形だけを持つ。
+// アイテムの定義: データに残り、画面に置かれるもの（名詞）。並べ方は知らず、自分の形・大きさ・ケイパビリティ・項目の形だけを持つ。
 // kind はアイテムのタイプで、kind ごとに持つ項目が変わる。置いたアイテムのデータの外枠（id・位置・つなぐ相手）は kind ごとに土台が決める（core/placed.ts のスキーマ）
 import type { z } from "zod"
 import type { CapabilityTable, ConnectorItemExtras, ShapeItemExtras } from "../catalog"
@@ -6,7 +6,7 @@ import type { Point, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
 import type { TokenDef } from "./theme"
 
-// アイテムが持つ能力（core/catalog.ts の CapabilityTable の名前）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
+// アイテムが持つケイパビリティ（core/catalog.ts の CapabilityTable の名前）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
 export type Capability = keyof CapabilityTable & string
 
 interface ItemBase<Tt extends string = MessageKey> {
@@ -27,7 +27,7 @@ export interface ShapeData<P = unknown> {
   w?: number
   h?: number
   props: P
-  shapes?: readonly ShapeData[] // 子の形の並び（重ねの順）。持てるのは能力 nests のある形だけ
+  shapes?: readonly ShapeData[] // 子の形の並び（重ねの順）。持てるのはケイパビリティ nests のある形だけ
 }
 
 // 置いた線のデータ（from から to へ。同じ形なら自分に戻る線）

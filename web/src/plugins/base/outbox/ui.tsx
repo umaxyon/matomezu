@@ -7,7 +7,7 @@ import { Outbox } from "./Outbox"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
 
 // 種類 annotation の、送信トレイの行の絵のウィジェット（スロット annotation-icon に置く。20px 四方に収める）。
-// place は、追加プラグインが既定の配置に足してほしいとき（true なら末尾）
+// place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾）
 export const defineAnnotationIcon = <const Id extends string>(def: {
   id: Id
   annotation: string

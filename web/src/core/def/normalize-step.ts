@@ -1,5 +1,5 @@
 // ノーマライズステップ: ブックが対象のアクションのあとに、どのブックにもかける整え（可変ページの中身を印刷区画の単位でずらすなど）。
-// ビルトインプラグインだけが持つ（追加プラグインは definePlugin の型と組み立て E310 で止める）。perform が run のあとに並びの順にかける
+// ビルトインプラグインだけが持つ（追加プラグインは definePlugin の型と台帳アセンブル E310 で止める）。perform が run のあとに並びの順にかける
 import type { CoreCatalog } from "../core-catalog"
 import type { Book } from "../schema/book"
 

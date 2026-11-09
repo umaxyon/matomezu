@@ -34,8 +34,8 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   keys?: readonly KeyDef[] // 既定のキーバインド（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
   placedState?: PlacedStateDef // ステージの画面の状態のうち、画面の場所に入れて読み直しても戻す物（store/placed-state.ts）
-  checks?: readonly CatalogCheckDef[] // 組み立てのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E308 で止める）
-  normalizeSteps?: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E310 で止める）
+  checks?: readonly CatalogCheckDef[] // 台帳アセンブルのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と台帳アセンブル E308 で止める）
+  normalizeSteps?: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と台帳アセンブル E310 で止める）
 }
 
 export type Plugin = PluginParts & {
@@ -101,12 +101,12 @@ type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [neve
         string]: "ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs を受ける"
     }
 
-// プラグインを書く入口。id の頭と、形とブックのタイプが名指すダイアログの受ける値を型で確かめる（組み立てでも確かめる）
+// プラグインを書く入口。id の頭と、形とブックのタイプが名指すダイアログの受ける値を型で確かめる（台帳アセンブルでも確かめる）
 export const definePlugin = <const P extends Plugin>(
   plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never; normalizeSteps?: never },
 ): P => plugin
 
-// ビルトインプラグインが組み立てのときの確かめ（checks）を書くための型と、問題と warning の作り方（plugin-api/builtin が出し直す）
+// ビルトインプラグインが台帳アセンブルのときの確かめ（checks）を書くための型と、問題と warning の作り方（plugin-api/builtin が出し直す）
 export type { CatalogCheckDef }
 export { problem, warning }
 
@@ -127,7 +127,7 @@ export interface StoreCatalog {
   keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名は store/keys.ts の BASE_KEY_SCOPE_TITLES）
   keys: ReadonlyMap<string, DefaultKey> // キーの既定のキーバインド（id → キーバインド。キーはそろえた書き方）
   placedStates: ReadonlyMap<string, PlacedStateDef> // 場所に入れる画面の状態（プラグインの id → 定義）
-  warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
+  warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
 }
 
 // インスタンスが持つ機能台帳（core 台帳と store 台帳。ui 台帳は画面が持つ）
@@ -136,7 +136,7 @@ export interface Catalog {
   store: StoreCatalog
 }
 
-// 組み立てたもの: 機能台帳と、組み立てで決まる値
+// 台帳アセンブルしたもの: 機能台帳と、台帳アセンブルで決まる値
 export interface Assembled {
   catalog: Catalog
   controlCenter: string | null // インスタンスのコントロールセンターの定義の id（無ければ null）
@@ -204,7 +204,7 @@ export function assemble(
     tokens: plugins.flatMap(p => p.tokens ?? []),
     normalizeSteps: plugins.flatMap(p => p.normalizeSteps ?? []),
   })
-  // コマンドの名前も文言の表から引く。ビルトインプラグインの組み立てのときの確かめもかける（warning は store 台帳に残す）
+  // コマンドの名前も文言の表から引く。ビルトインプラグインの台帳アセンブルのときの確かめもかける（warning は store 台帳に残す）
   const checked = plugins.filter(isBuiltin).flatMap(p => (p.checks ?? []).flatMap(check => check(catalog)))
   const untitled = [
     ...commands

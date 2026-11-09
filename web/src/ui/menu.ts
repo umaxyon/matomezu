@@ -1,4 +1,4 @@
-// メニュー: 配置のメニューの項目を、そのステージから見て出すコマンドにする。切り替え（either）は出ている最初の 1 つ
+// メニュー: UI マッピングのメニューの項目を、そのステージから見て出すコマンドにする。切り替え（either）は出ている最初の 1 つ
 
 import type { MenuId } from "../core/catalog"
 import { isShown } from "../store/commands"

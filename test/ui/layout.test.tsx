@@ -34,7 +34,7 @@ const instance = () =>
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(instance().catalog.store.commands.keys())
 
-// タブを上の行に移した配置
+// タブを上の行に移した UI マッピング
 const TABS_ON_TOP = defineLayout({
   ...DEFAULT_LAYOUT,
   id: "tabs-on-top",
@@ -46,8 +46,8 @@ const TABS_ON_TOP = defineLayout({
   },
 })
 
-describe("配置", () => {
-  test("既定の配置には食い違いが無い", () => {
+describe("UI マッピング", () => {
+  test("既定の UI マッピングには食い違いが無い", () => {
     expect(checkLayout(DEFAULT_LAYOUT, ui, commands)).toEqual([])
   })
 
@@ -119,7 +119,7 @@ describe("配置", () => {
         root: ["@matomezu/base:window", "@matomezu/base:dialog-host"],
       },
     }
-    // 右サイドパネルと左サイドパネルを開けない骨組みなら、その中身（左サイドパネルのタブが開ける行の絵も）を書いた配置は error
+    // 右サイドパネルと左サイドパネルを開けない骨組みなら、その中身（左サイドパネルのタブが開ける行の絵も）を書いた UI マッピングは error
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual([
       "E211",
       "E211",
@@ -173,7 +173,7 @@ describe("配置", () => {
     })
   })
 
-  test("食い違いのある配置は、画面に置くときに error", () => {
+  test("食い違いのある UI マッピングは、画面に置くときに error", () => {
     const bad = { id: "bad", slots: { root: ["nope"] }, menus: {} } as unknown as LayoutDef
     let thrown: unknown
     try {
@@ -188,7 +188,7 @@ describe("配置", () => {
     expect(thrown).toMatchObject({ name: "MatomezuError", code: "E210" })
   })
 
-  test("配置の型: 置けないスロット・知らないウィジェット・引数の要るコマンドは型の誤り（行わない）", () => {
+  test("UI マッピングの型: 置けないスロット・知らないウィジェット・引数の要るコマンドは型の誤り（行わない）", () => {
     const typeOnly = () => {
       // @ts-expect-error ブックのビューの置き場は、ステージの本体にしか置けない
       defineLayout({ id: "x", slots: { "@matomezu/base:stage-top": ["@matomezu/base:book-view"] }, menus: {} })
@@ -200,7 +200,7 @@ describe("配置", () => {
     expect(typeOnly).toBeFunction()
   })
 
-  test("配置を替えると、その場で組み直す（タブを上の行へ）", () => {
+  test("UI マッピングを替えると、その場で組み直す（タブを上の行へ）", () => {
     const a = instance()
     const { rerender } = render(
       <MatomezuProvider instance={a} layout={DEFAULT_LAYOUT}>
@@ -282,7 +282,7 @@ describe("取り込んだプラグインの置き場所", () => {
     ],
   })
 
-  test("置いてほしいと書いたウィジェットとコマンドを、既定の配置の末尾に足す。右クリックのメニューは区切り線で分け、もうあるものは足さない", () => {
+  test("置いてほしいと書いたウィジェットとコマンドを、既定の UI マッピングの末尾に足す。右クリックのメニューは区切り線で分け、もうあるものは足さない", () => {
     const layout = placeAdded(DEFAULT_LAYOUT, [...BUILTIN_UI, added])
     expect(layout.slots["@matomezu/base:stage-bottom"] as readonly unknown[] | undefined).toEqual([
       ...DEFAULT_LAYOUT.slots["@matomezu/base:stage-bottom"],
@@ -435,7 +435,7 @@ describe("組み込まれていないプラグインの物", () => {
   })
 })
 
-test("配置を作るときに見つかった warning は、配置で除いた物の warning と一緒に useLayoutWarnings で読める", () => {
+test("UI マッピングを作るときに見つかった warning は、UI マッピングで除いた物の warning と一緒に useLayoutWarnings で読める", () => {
   const found = warning("W016", "q", { widget: "q:lost", slot: "@matomezu/base:book-layers", target: "q:nothing" })
   let read: readonly Warning[] = []
   const Read = () => {
@@ -450,7 +450,7 @@ test("配置を作るときに見つかった warning は、配置で除いた�
   expect(read).toEqual([found])
 })
 
-describe("取り込むときの配置の確かめ", () => {
+describe("取り込むときの UI マッピングの確かめ", () => {
   const Ping = () => <p>ping</p>
   // どのウィジェットも開かないスロットに置いてほしいと書いたプラグイン（取り込んだあとに描くと E211 で画面が止まる）
   const nowhere = definePluginUi(definePlugin({ id: "q" }), {
@@ -467,7 +467,7 @@ describe("取り込むときの配置の確かめ", () => {
     ],
   })
 
-  test("配置が食い違うプラグインは取り込むときに外し、ほかのプラグインで画面を描く", () => {
+  test("UI マッピングが食い違うプラグインは取り込むときに外し、ほかのプラグインで画面を描く", () => {
     const instance = createMatomezu({ plugins: BUILTIN_UI, controlCenter: "@matomezu/control-center:control-center" })
     const { failed } = instance.use([nowhere, fine], all => {
       shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))

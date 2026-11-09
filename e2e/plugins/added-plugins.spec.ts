@@ -111,10 +111,10 @@ test("動いている常駐にプラグインを足すと、開いている画�
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2"])
 })
 
-test("見た目の組み立てで食い違う追加プラグインは、画面が外して、ほかはそのまま使える。外したことは warning W011 として常駐に知らせ、AI の actions の warnings に出る", async ({
+test("見た目の台帳アセンブルで食い違う追加プラグインは、画面が外して、ほかはそのまま使える。外したことは warning W011 として常駐に知らせ、AI の actions の warnings に出る", async ({
   page,
 }) => {
-  // 星のビューを結んでいない ex3（ホストのエンジンでは組み立てられ、画面の見た目の組み立てで食い違う）
+  // 星のビューを結んでいない ex3（ホストのエンジンでは台帳アセンブルでき、画面の見た目の台帳アセンブルで食い違う）
   const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
   temps.push(dir)
   cpSync(resolve("test/added-plugins/ex3"), dir, { recursive: true })
@@ -137,7 +137,9 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
   expect(await removed.json()).toEqual({ ok: true })
 })
 
-test("取り込んだプラグインが置いてほしいと書いたウィジェットは、既定の配置に足されて出る", async ({ page }) => {
+test("取り込んだプラグインが置いてほしいと書いたウィジェットは、既定の UI マッピングに足されて出る", async ({
+  page,
+}) => {
   await page.goto(BOOK_SCREEN_URL)
   await expect(page.getByRole("button", { name: "あいさつする" })).toHaveCount(0)
   const mark = () => page.evaluate(() => Object.assign(window, { notReloaded: true }))
@@ -162,7 +164,7 @@ const link = async (page: Page, ...dirs: string[]) => {
 }
 const saved = async (page: Page, id: string) => (await data(page)).books.find((b: { id: string }) => b.id === id)?.book
 
-test("3 つを読ませると、作り手の違うプラグインのボタンが同じ配置に並び、ex3 のテーマを ex2 のブックに使える", async ({
+test("3 つを読ませると、作り手の違うプラグインのボタンが同じ UI マッピングに並び、ex3 のテーマを ex2 のブックに使える", async ({
   page,
 }) => {
   await link(page, "test/added-plugins/ex1", "test/added-plugins/ex3")

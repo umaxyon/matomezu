@@ -5,7 +5,7 @@ import EX1_UI from "../ui"
 
 afterEach(cleanup)
 
-// ビルトインプラグインと ex1 だけで組み、動いている matomezu の画面と同じく、置いてほしい所に置いた配置で描く
+// ビルトインプラグインと ex1 だけで組み、動いている matomezu の画面と同じく、置いてほしい所に置いた UI マッピングで描く
 const make = () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX1_UI],

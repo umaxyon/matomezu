@@ -1,4 +1,4 @@
-// ページの slide（形だけの並び）の土台の扱い: 機能台帳の組み立ての誤り（E042・E043）、読み込み（W005・W007）、置けるアイテムの一本化（attach・テーマキー・ツールボックス）
+// ページの slide（形だけの並び）の土台の扱い: 台帳アセンブルの誤り（E042・E043）、読み込み（W005・W007）、置けるアイテムの一本化（attach・テーマキー・ツールボックス）
 import { expect, test } from "bun:test"
 import { checkBooks } from "../../web/src/core/book"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog"

@@ -43,7 +43,7 @@ export const PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({
 })
 
 // ブックのページを作るダイアログと、ページの設定のダイアログ（タイプが名指していなければ base のダイアログ）。
-// 受ける値が合うことは definePlugin が型で、名指したダイアログがあることは組み立てが確かめる
+// 受ける値が合うことは definePlugin が型で、名指したダイアログがあることは台帳アセンブルが確かめる
 export function pageDialog(catalog: CoreCatalog, book: Book, of: "add"): DialogTaking<undefined>
 export function pageDialog(catalog: CoreCatalog, book: Book, of: "settings"): DialogTaking<PageSettingsArgs>
 export function pageDialog(catalog: CoreCatalog, book: Book, of: "add" | "settings"): string {

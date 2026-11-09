@@ -303,7 +303,7 @@ test("動き方はテーマキーの言葉から選び、知らない言葉な�
   expect(chartMotions(name => tokens[name] ?? "")).toEqual({ bar: "fade", line: "none", dot: "pop", pie: "none" })
   expect(cssPx(" 6px", 4)).toBe(6)
   expect(cssPx("", 4)).toBe(4)
-  expect(cssPx("6em", 4)).toBe(4) // px の長さでなければ既定（組み立てで W015）
+  expect(cssPx("6em", 4)).toBe(4) // px の長さでなければ既定（台帳アセンブルで W015）
 })
 
 test("棒の形は、値の先の角だけを丸め（根元は四角）、正の値と負の値で丸める側が逆になる。棒の太さの半分より丸めず、大きさの無い棒は空", () => {

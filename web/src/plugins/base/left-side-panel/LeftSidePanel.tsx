@@ -1,6 +1,6 @@
 // 左サイドパネルの入れ物: ステージの列の左に、窓の上から下まで出す。開いている間は、開いたステージの列を窓いっぱいに広げ（分けていれば、もう片方の幅は 0）、
 // 閉じれば戻す（幅の動きは右サイドパネルと同じ。workspace/WorkspaceView.tsx）。上にタブの行と閉じるボタンを置き、
-// 中身は、配置がスロットに置いたウィジェットのうち開いているタブの 1 つだけを描く。タブの名前はウィジェットの定義の leftSidePanel.title。
+// 中身は、UI マッピングがスロットに置いたウィジェットのうち開いているタブの 1 つだけを描く。タブの名前はウィジェットの定義の leftSidePanel.title。
 // 窓に 1 つだけで、ほかのステージでも開いていれば、カレントでない方を閉じる。開いたら中にフォーカスを入れ、Esc は左サイドパネルのキーの範囲で閉じる。
 // 外を左ボタンで押したら閉じる（ダイアログ・メニュー・トースト・開くボタンを押したときは閉じない）。ブックが替わっても閉じない（中身が開いているブックに合わせて替わる）
 import { type ReactNode, useEffect, useRef } from "react"
@@ -120,7 +120,7 @@ function Opened({
   )
 }
 
-// 開いているタブの中身: 配置が左サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く
+// 開いているタブの中身: UI マッピングが左サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く
 function Content({ stage, widget }: { stage: string; widget: string }) {
   const View = useUiCatalog().widgets.get(widget)?.view as ((props: StageSlotProps) => ReactNode) | undefined
   return View ? <View stage={stage} /> : null

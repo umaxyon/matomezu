@@ -51,7 +51,7 @@ import {
   tooClose,
 } from "./push"
 
-// 形の仲間の名前（familyTitle）が文言の表にあるか（組み立てのときの確かめ）
+// 形の仲間の名前（familyTitle）が文言の表にあるか（台帳アセンブルのときの確かめ）
 export const FAMILY_TITLE_CHECK: CatalogCheckDef = catalog =>
   [...catalog.items.values()].flatMap(i => {
     const title = i.kind === "shape" ? i.familyTitle : undefined
@@ -60,7 +60,7 @@ export const FAMILY_TITLE_CHECK: CatalogCheckDef = catalog =>
       : []
   })
 
-// 形の captionProp・themeProp が、その形の props にある項目を名指しているか（組み立てのときの確かめ）
+// 形の captionProp・themeProp が、その形の props にある項目を名指しているか（台帳アセンブルのときの確かめ）
 export const PROP_NAMES_CHECK: CatalogCheckDef = catalog =>
   [...catalog.items.values()].flatMap(i =>
     i.kind !== "shape"
@@ -82,13 +82,13 @@ type PropName<D extends ShapeData> = unknown extends D["props"] ? string : keyof
 declare module "../../../core/catalog" {
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     // キャプション（形の名前として見せる文字）の項目の名前。その項目が変わったときだけ、見える幅まで形を広げる（無ければ広げない）。
-    // props にある名前かは、base の組み立ての確かめが見る（E028）
+    // props にある名前かは、base の台帳アセンブルのときの確かめが見る（E028）
     captionProp?: PropName<D>
     // 個別のテーマ（この形だけ別のテーマで描く値）を持つ項目の名前。この項目だけをテーマの id として確かめる（無ければ見ない）。
-    // props にある名前かは、base の組み立ての確かめが見る（E028）
+    // props にある名前かは、base の台帳アセンブルのときの確かめが見る（E028）
     themeProp?: PropName<D>
     // 向きなどが違うだけの仲間の形をまとめて呼ぶ名前（台形と台形（逆）なら「台形」。文言の本当の鍵）。いくつものプラグインが使う見込みなので base が書き足す。
-    // 文言の表にあるかは、base の組み立ての確かめが見る（E018）
+    // 文言の表にあるかは、base の台帳アセンブルのときの確かめが見る（E018）
     familyTitle?: MessageKey
     // キャプションが切れずに見える幅（キャプションで広げる幅と、縮めてよい横の下限）。無ければ size.w
     captionWidth?(item: D): number

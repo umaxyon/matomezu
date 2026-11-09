@@ -1,7 +1,7 @@
 // 窓の根のビュー（ウィジェット window）: ブックスクリーン（スロット book-screen）とコントロールセンター（スロット control-center-screen と、下のフッター）を重ねて描く。
 // 前に出ている物（窓の front）は全面に出し、後ろに退いた物は消さずに隠す（中のステージ・倍率・選択などは残る）。隠れている物は操作も読み上げも受けない（inert）。
 // コントロールセンターは、前に出すときに右から滑り込み、戻すときに右へ滑り出る（SLIDE_MS。動きを減らす設定では動かさない）。
-// コントロールセンターの下の行は、スロット control-center-footer に置いたウィジェットを並べる（止まり木のボタンは配置が置く）
+// コントロールセンターの下の行は、スロット control-center-footer に置いたウィジェットを並べる（止まり木のボタンは UI マッピングが置く）
 import type { CSSProperties } from "react"
 import { Slot } from "../../../ui/Slot"
 import { useMatomezuState } from "../../../ui/store-context"

@@ -29,7 +29,7 @@ test("ブックのテーマの項目の値の形は、ブックのタイプが�
   expect(markdown.safeParse("@matomezu/base:sticky").success).toBe(false)
 })
 
-// base のプラグインのテーマとタイプを変えた組み立ての error の番号
+// base のプラグインのテーマとタイプを変えた台帳アセンブルの error の番号
 function codes(change: (p: Plugin) => Plugin): string[] {
   try {
     assemble((BUILTIN as readonly Plugin[]).map(change))

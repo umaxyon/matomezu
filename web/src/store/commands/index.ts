@@ -24,7 +24,7 @@ export function commandDef(defs: Assembled, id: string): CommandDef<never> {
   return defs.catalog.store.commands.get(id) ?? fail("E107", { id })
 }
 
-// コマンドを持つプラグイン（id の頭。組み立てが、どのコマンドの id にも頭があると確かめている）
+// コマンドを持つプラグイン（id の頭。台帳アセンブルが、どのコマンドの id にも頭があると確かめている）
 export const commandOwner = (command: string): string => splitId(command).owner ?? fail("E107", { id: command })
 
 // コマンド command をそのステージから呼んだときの様子。ステージが無ければ null。画面の状態は、コマンドを持つプラグインの置き場だけを読む
@@ -74,7 +74,7 @@ export function isShown(defs: Assembled, state: MatomezuState, stageId: string, 
 }
 
 // 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。
-// ブックが対象のアクションは、今のブックの許可の範囲の所で問う
+// ブックが対象のアクションは、今のブックの許可スコープの所で問う
 function permitted(def: CommandDef<never>, ctx: CommandContext, arg?: unknown): boolean {
   const actions = def.performs ?? []
   const where = commandScopeOf(def.permissionScope, ctx, arg)

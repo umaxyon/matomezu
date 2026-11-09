@@ -30,7 +30,7 @@ export type TokenDef = (
 ) &
   TokenExtras
 // テーマキーの明暗: light-dark は明暗で違う値にできる（色）、one は明暗で同じ値だけ（色でない値。CSS の light-dark() は色にしか効かない）。
-// one のテーマキーに明暗で違う値を書いたテーマは、組み立てで warning（W020）
+// one のテーマキーに明暗で違う値を書いたテーマは、台帳アセンブルで warning（W020）
 export type TokenShades = "one" | "light-dark"
 
 // テーマキーの値を入れる CSS 変数の名前（matomezu の中だけのもの）。土台のテーマキーは --theme-<名前>（「.」は「-」。例: palette.primary → --theme-palette-primary）、
