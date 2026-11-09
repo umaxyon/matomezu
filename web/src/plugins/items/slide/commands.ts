@@ -2,8 +2,17 @@
 // 位置と大きさは、見せ方が決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
 import { type ItemId, type ItemPage, pagedOf, type Rect, slideOf } from "../../../plugin-api"
 
-import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_RESET_RATIO, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
+import {
+  SLIDE_MOVE,
+  SLIDE_PLACE,
+  SLIDE_REMOVE,
+  SLIDE_REORDER,
+  SLIDE_RESET_RATIO,
+  SLIDE_RESIZE,
+  SLIDE_UPDATE,
+} from "./actions"
 import { kit } from "./kit"
+import { type Order, orderSteps } from "./order"
 import { SLIDE_KEY_SCOPE } from "./scope"
 
 const PLACE = SLIDE_PLACE.id
@@ -12,6 +21,7 @@ const RESIZE = SLIDE_RESIZE.id
 const UPDATE = SLIDE_UPDATE.id
 const RESET_RATIO = SLIDE_RESET_RATIO.id
 const REMOVE = SLIDE_REMOVE.id
+const REORDER = SLIDE_REORDER.id
 
 type Ctx = Parameters<Parameters<typeof kit.defineCommand>[0]["run"]>[0]
 
@@ -137,6 +147,56 @@ export const SLIDE_DELETE = kit.defineCommand({
   when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
+// 選んでいるアイテムの重ねの順を to へ動かす（選んだ物どうしの前後は保つ。画面の履歴は 1 段）
+function reorder(ctx: Ctx, a: Parameters<Parameters<typeof kit.defineCommand>[0]["run"]>[1], to: Order): void {
+  const { opened } = ctx.stage
+  const page = pagedOf(ctx.book)?.pages.find(p => p.id === opened?.page)
+  if (!opened?.page || !page) return
+  const list = slideOf(page as ItemPage).map(s => s.id)
+  for (const step of orderSteps(list, new Set(selectedOnSlide(ctx)), to))
+    a.perform(REORDER, { page: opened.page, item: step.item, to: step.to }, { book: opened.book })
+}
+
+// 選んでいるアイテムを最前面へ
+export const SLIDE_TO_FRONT = kit.defineCommand({
+  id: "slide-to-front",
+  performs: [REORDER],
+  permissionScope: "selection",
+  title: "To front",
+  run: (ctx, a) => reorder(ctx, a, "front"),
+  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+})
+
+// 選んでいるアイテムを 1 つ前へ
+export const SLIDE_FORWARD = kit.defineCommand({
+  id: "slide-forward",
+  performs: [REORDER],
+  permissionScope: "selection",
+  title: "Forward",
+  run: (ctx, a) => reorder(ctx, a, "forward"),
+  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+})
+
+// 選んでいるアイテムを 1 つ後ろへ
+export const SLIDE_BACKWARD = kit.defineCommand({
+  id: "slide-backward",
+  performs: [REORDER],
+  permissionScope: "selection",
+  title: "Backward",
+  run: (ctx, a) => reorder(ctx, a, "backward"),
+  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+})
+
+// 選んでいるアイテムを最背面へ
+export const SLIDE_TO_BACK = kit.defineCommand({
+  id: "slide-to-back",
+  performs: [REORDER],
+  permissionScope: "selection",
+  title: "To back",
+  run: (ctx, a) => reorder(ctx, a, "back"),
+  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+})
+
 export const SLIDE_KEYS = [
   kit.defineKey({ id: "slide-delete-delete", key: "Delete", command: SLIDE_DELETE.id, scope: SLIDE_KEY_SCOPE.id }),
   kit.defineKey({
@@ -145,4 +205,9 @@ export const SLIDE_KEYS = [
     command: SLIDE_DELETE.id,
     scope: SLIDE_KEY_SCOPE.id,
   }),
+  // Shift を押すと ] は } に、[ は { になる（キーの名前は押した文字）
+  kit.defineKey({ id: "slide-to-front-key", key: "Mod+Shift+}", command: SLIDE_TO_FRONT.id, scope: SLIDE_KEY_SCOPE.id }),
+  kit.defineKey({ id: "slide-to-back-key", key: "Mod+Shift+{", command: SLIDE_TO_BACK.id, scope: SLIDE_KEY_SCOPE.id }),
+  kit.defineKey({ id: "slide-forward-key", key: "Mod+]", command: SLIDE_FORWARD.id, scope: SLIDE_KEY_SCOPE.id }),
+  kit.defineKey({ id: "slide-backward-key", key: "Mod+[", command: SLIDE_BACKWARD.id, scope: SLIDE_KEY_SCOPE.id }),
 ]

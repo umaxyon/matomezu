@@ -19,6 +19,7 @@ import {
 import {
   useActions,
   useCommand,
+  useContextMenu,
   useCoreCatalog,
   useShownBook,
   useShownPage,
@@ -28,7 +29,7 @@ import {
 import { PaperFrame, type StageSlotProps, useFollowsSelection } from "../../../base/ui"
 import { SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
 import { drawnRect, type Grip, resizedRect, rotatedTo, scaledFontSize, thinned } from "../rect"
-import { ADDED_EDIT, SLIDE_KEY_SCOPE } from "../scope"
+import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE } from "../scope"
 import { DEFAULT_FONT_SIZE, FREE_LINE, MIN_SIZE, STRAIGHT_LINE, TEXT_FRAME } from "../slide"
 import { GRIPS, type SelectedItem, Selection } from "./Selection"
 import { rotationOf, SlideItem, shapeProps } from "./SlideItem"
@@ -93,6 +94,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
   const moveTo = useCommand(stage.id, SLIDE_MOVE_TO.id)
   const reshape = useCommand(stage.id, SLIDE_RESHAPE.id)
   const set = useCommand(stage.id, SLIDE_SET.id)
+  const openMenu = useContextMenu(stage.id, SLIDE_ITEM_CONTEXT)
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
   const [live, setLive] = useState<Live | null>(null)
@@ -255,6 +257,14 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
     if (item === TEXT) typeNext.current = true
     put.run({ item, rect: roundRect(rect), props: item === TEXT ? { text: "" } : {} })
   }
+  // アイテムを右クリックしたら、そのアイテムを選んで（選んだ物の 1 つなら選びはそのまま）メニューを開く
+  const onContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = (e.target as Element).closest<HTMLElement>("[data-item]")
+    const shape = el && shapes.find(s => s.id === el.dataset.item)
+    if (!shape || followed) return
+    if (!stage.selection.includes(shape.id)) select(stage.id, [shape.id])
+    openMenu(e, { item: shape.id })
+  }
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = (e.target as Element).closest<HTMLElement>("[data-item]")
     const shape = el && shapes.find(s => s.id === el.dataset.item)
@@ -306,6 +316,7 @@ function SlidePageView({ stage, owns, placeable }: { stage: StageView; owns: boo
       onPointerUp={onPointerUp}
       onPointerCancel={finish}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
     >
       <PaperFrame stage={stage} className={styles.paper} aria-hidden="true">
         <div className={styles.clip}>
