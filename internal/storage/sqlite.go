@@ -175,14 +175,70 @@ func (s *sqliteStorage) Books() ([]Book, error) {
 }
 
 func (s *sqliteStorage) PutBook(id string, body json.RawMessage, base int64) (int64, *Book, error) {
+	var version int64
+	have, err := s.apply(func(tx *sql.Tx) (*Book, error) {
+		v, have, err := txPutBook(tx, id, body, base)
+		version = v
+		return have, err
+	})
+	return version, have, err
+}
+
+// apply は f を 1 つのトランザクションで行う（f が error を返したら巻き戻す。ErrConflict のときの置いてあるブックも返す）
+func (s *sqliteStorage) apply(f func(tx *sql.Tx) (*Book, error)) (*Book, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 	defer tx.Rollback()
+	have, err := f(tx)
+	if err != nil {
+		return have, err
+	}
+	return nil, tx.Commit()
+}
+
+func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
+	return s.apply(func(tx *sql.Tx) (*Book, error) {
+		for _, w := range b.Books {
+			if _, have, err := txPutBook(tx, w.ID, w.Body, w.Base); err != nil {
+				return have, err
+			}
+		}
+		for _, id := range b.Removed {
+			if err := txDeleteBook(tx, id); err != nil {
+				return nil, err
+			}
+		}
+		for _, u := range []struct {
+			table string
+			body  *UserBody
+		}{{"settings", b.Settings}, {"mailbox", b.Mailbox}, {"participants", b.Participants}} {
+			if u.body == nil {
+				continue
+			}
+			if err := txPutUser(tx, u.table, u.body.User, u.body.Body); err != nil {
+				return nil, err
+			}
+		}
+		for _, a := range b.Annotations {
+			if err := txPutList(tx, "annotations", a.Book, a.Body); err != nil {
+				return nil, err
+			}
+		}
+		for _, t := range b.AIEditTickets {
+			if err := txPutList(tx, "ai_edit_tickets", t.Book, t.Body); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	})
+}
+
+func txPutBook(tx *sql.Tx, id string, body json.RawMessage, base int64) (int64, *Book, error) {
 	var have Book
 	var haveBody string
-	err = tx.QueryRow(`SELECT id, body, version FROM books WHERE id = ?`, id).Scan(&have.ID, &haveBody, &have.Version)
+	err := tx.QueryRow(`SELECT id, body, version FROM books WHERE id = ?`, id).Scan(&have.ID, &haveBody, &have.Version)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		if base != 0 {
@@ -191,7 +247,7 @@ func (s *sqliteStorage) PutBook(id string, body json.RawMessage, base int64) (in
 		if _, err := tx.Exec(`INSERT INTO books (id, body, version, updated_at) VALUES (?, ?, 1, ?)`, id, string(body), now()); err != nil {
 			return 0, nil, err
 		}
-		return 1, nil, tx.Commit()
+		return 1, nil, nil
 	case err != nil:
 		return 0, nil, err
 	}
@@ -203,28 +259,39 @@ func (s *sqliteStorage) PutBook(id string, body json.RawMessage, base int64) (in
 	if _, err := tx.Exec(`UPDATE books SET body = ?, version = ?, updated_at = ? WHERE id = ?`, string(body), next, now(), id); err != nil {
 		return 0, nil, err
 	}
-	return next, nil, tx.Commit()
+	return next, nil, nil
+}
+
+// txPutUser は、利用者ごとの表 table（settings・mailbox・participants・participant_notes）の user の行を置き換える
+func txPutUser(tx *sql.Tx, table, user string, body json.RawMessage) error {
+	_, err := tx.Exec(`INSERT INTO `+table+` (user, body, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	return err
+}
+
+// txPutList は、ブックごとの表 table（annotations・ai_edit_tickets）の book の行を置き換える（空の並びなら消す）
+func txPutList(tx *sql.Tx, table, book string, body json.RawMessage) error {
+	if empty(body) {
+		_, err := tx.Exec(`DELETE FROM `+table+` WHERE book = ?`, book)
+		return err
+	}
+	_, err := tx.Exec(`INSERT INTO `+table+` (book, body, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(book) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, book, string(body), now())
+	return err
+}
+
+func txDeleteBook(tx *sql.Tx, id string) error {
+	for _, q := range []string{`DELETE FROM books WHERE id = ?`, `DELETE FROM opened WHERE id = ?`, `DELETE FROM annotations WHERE book = ?`, `DELETE FROM ai_edit_tickets WHERE book = ?`} {
+		if _, err := tx.Exec(q, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *sqliteStorage) DeleteBook(id string) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if _, err := tx.Exec(`DELETE FROM books WHERE id = ?`, id); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`DELETE FROM opened WHERE id = ?`, id); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`DELETE FROM annotations WHERE book = ?`, id); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`DELETE FROM ai_edit_tickets WHERE book = ?`, id); err != nil {
-		return err
-	}
-	return tx.Commit()
+	_, err := s.apply(func(tx *sql.Tx) (*Book, error) { return nil, txDeleteBook(tx, id) })
+	return err
 }
 
 func (s *sqliteStorage) Annotations() (map[string]json.RawMessage, error) {
@@ -245,12 +312,7 @@ func (s *sqliteStorage) Annotations() (map[string]json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutAnnotations(book string, body json.RawMessage) error {
-	if empty(body) {
-		_, err := s.db.Exec(`DELETE FROM annotations WHERE book = ?`, book)
-		return err
-	}
-	_, err := s.db.Exec(`INSERT INTO annotations (book, body, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT(book) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, book, string(body), now())
+	_, err := s.Apply(Batch{Annotations: []BookBody{{book, body}}})
 	return err
 }
 
@@ -272,12 +334,7 @@ func (s *sqliteStorage) AIEditTickets() (map[string]json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutAIEditTickets(book string, body json.RawMessage) error {
-	if empty(body) {
-		_, err := s.db.Exec(`DELETE FROM ai_edit_tickets WHERE book = ?`, book)
-		return err
-	}
-	_, err := s.db.Exec(`INSERT INTO ai_edit_tickets (book, body, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT(book) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, book, string(body), now())
+	_, err := s.Apply(Batch{AIEditTickets: []BookBody{{book, body}}})
 	return err
 }
 
@@ -300,8 +357,7 @@ func (s *sqliteStorage) Settings(user string) (json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutSettings(user string, body json.RawMessage) error {
-	_, err := s.db.Exec(`INSERT INTO settings (user, body, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	_, err := s.Apply(Batch{Settings: &UserBody{user, body}})
 	return err
 }
 
@@ -318,8 +374,7 @@ func (s *sqliteStorage) Mailbox(user string) (json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutMailbox(user string, body json.RawMessage) error {
-	_, err := s.db.Exec(`INSERT INTO mailbox (user, body, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	_, err := s.Apply(Batch{Mailbox: &UserBody{user, body}})
 	return err
 }
 
@@ -336,8 +391,7 @@ func (s *sqliteStorage) Participants(user string) (json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutParticipants(user string, body json.RawMessage) error {
-	_, err := s.db.Exec(`INSERT INTO participants (user, body, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	_, err := s.Apply(Batch{Participants: &UserBody{user, body}})
 	return err
 }
 
@@ -354,8 +408,7 @@ func (s *sqliteStorage) ParticipantNotes(user string) (json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutParticipantNotes(user string, body json.RawMessage) error {
-	_, err := s.db.Exec(`INSERT INTO participant_notes (user, body, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
+	_, err := s.apply(func(tx *sql.Tx) (*Book, error) { return nil, txPutUser(tx, "participant_notes", user, body) })
 	return err
 }
 

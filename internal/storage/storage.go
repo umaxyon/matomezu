@@ -19,8 +19,42 @@ type Book struct {
 // ErrConflict は、書くときに添えた版が、置いてある版と違うこと
 var ErrConflict = errors.New("the book was changed by someone else")
 
+// BookWrite は Batch の、ブック 1 冊の書き込み（PutBook と同じ。base が置いてある版と違えば ErrConflict）
+type BookWrite struct {
+	ID   string
+	Body json.RawMessage
+	Base int64
+}
+
+// BookBody は Batch の、ブックごとの並び（アノテーション・AI 編集チケット）の置き換え（空の並びなら消す）
+type BookBody struct {
+	Book string
+	Body json.RawMessage
+}
+
+// UserBody は Batch の、利用者ごとの物（設定・郵便箱・参加者の表）の置き換え
+type UserBody struct {
+	User string
+	Body json.RawMessage
+}
+
+// Batch は 1 回の Perform が変える物の全部。Apply が、並びの順（ブック → 消すブック → 設定 → 郵便箱 → 参加者の表 → アノテーション → AI 編集チケット）に 1 つのまとまりとして書く。
+// 変えない物は nil（nil でない UserBody は置き換える）
+type Batch struct {
+	Books         []BookWrite
+	Removed       []string
+	Settings      *UserBody
+	Mailbox       *UserBody
+	Participants  *UserBody
+	Annotations   []BookBody
+	AIEditTickets []BookBody
+}
+
 // Storage はブックと設定とアノテーションの置き場所。設定は利用者ごとに、アノテーションはブックごとに持つ
 type Storage interface {
+	// Apply は b の全部を 1 つのまとまりとして書く。途中で 1 つでも失敗（版の違いも）したら、何も書かない。
+	// 版が違うときは、ErrConflict と、そのときの置いてあるブック
+	Apply(b Batch) (*Book, error)
 	// Books は置いてある全部のブック（ゴミ箱のブックも）
 	Books() ([]Book, error)
 	// DeleteBook はブック id と、それを開いた時刻と、そのアノテーションと AI 編集チケットを消す（戻せない）

@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strconv"
@@ -195,28 +196,58 @@ func (h *Hub) checkAnnotations() error {
 
 // checkMailbox は郵便箱を今のプラグインで確かめ、効かない郵便の warning の一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
 func (h *Hub) checkMailbox() error {
-	lines := []string{}
-	if len(h.mailbox) > 0 {
-		found, err := h.engine.CheckMailbox(h.mailbox)
-		if err != nil {
-			return err
-		}
-		lines = found
+	lines, err := h.mailboxWarnings(h.mailbox)
+	if err != nil {
+		return err
 	}
+	h.recordMailWarnings(lines)
+	return nil
+}
+
+// mailboxWarnings は郵便箱 mailbox を今のプラグインで確かめた、効かない郵便の warning の一覧（何も変えない）
+func (h *Hub) mailboxWarnings(mailbox json.RawMessage) ([]string, error) {
+	if len(mailbox) == 0 {
+		return []string{}, nil
+	}
+	return h.engine.CheckMailbox(mailbox)
+}
+
+// recordMailWarnings は、郵便箱の warning の一覧を lines にする（新しい warning は常駐のログに書く。h.mu を持って呼ぶ）
+func (h *Hub) recordMailWarnings(lines []string) {
 	for _, line := range lines {
 		if !slices.Contains(h.mailWarnings, line) {
 			fmt.Fprintln(os.Stderr, "warning:", line)
 		}
 	}
 	h.mailWarnings = lines
-	return nil
 }
 
 // putAnnotations は、ブック book のアノテーションの並びを書いて知らせる（空の並びなら消す。h.mu を持って呼ぶ）
 func (h *Hub) putAnnotations(book string, body json.RawMessage, client string, seq int64) error {
-	if err := h.store.PutAnnotations(book, body); err != nil {
+	return h.putAnnotationLists(map[string]json.RawMessage{book: body}, client, seq)
+}
+
+// putAnnotationLists は、ブックごとのアノテーションの並び lists を 1 つのまとまりで書いて持ち、窓に知らせる（h.mu を持って呼ぶ）
+func (h *Hub) putAnnotationLists(lists map[string]json.RawMessage, client string, seq int64) error {
+	if len(lists) == 0 {
+		return nil
+	}
+	batch := storage.Batch{}
+	books := slices.Sorted(maps.Keys(lists))
+	for _, book := range books {
+		batch.Annotations = append(batch.Annotations, storage.BookBody{Book: book, Body: lists[book]})
+	}
+	if _, err := h.store.Apply(batch); err != nil {
 		return err
 	}
+	for _, book := range books {
+		h.applyAnnotations(book, lists[book], client, seq)
+	}
+	return nil
+}
+
+// applyAnnotations は、書き終えたブック book のアノテーションの並びを持ち、窓に知らせる（h.mu を持って呼ぶ）
+func (h *Hub) applyAnnotations(book string, body json.RawMessage, client string, seq int64) {
 	var list []json.RawMessage
 	if json.Unmarshal(body, &list) == nil && len(list) == 0 {
 		delete(h.annotations, book)
@@ -225,7 +256,6 @@ func (h *Hub) putAnnotations(book string, body json.RawMessage, client string, s
 		h.annotations[book] = body
 	}
 	h.broadcast("annotations", map[string]any{"book": book, "annotations": body, "client": client, "seq": seq})
-	return nil
 }
 
 // checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
@@ -385,71 +415,23 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		out.OK = false
 	}
 	if out.OK {
-		h.acts++
-		act := h.actPrefix + "-" + strconv.FormatInt(h.acts, 10)
 		by := "host"
 		if p.By == "ai" {
 			by = "ai"
 		} else if p.Client != "" {
 			by = "window"
 		}
-		for _, body := range out.Books {
-			id, err := h.putBook(body, p.Client, p.Seq, by, act, p.Action)
-			if err != nil {
-				return Performed{}, err
-			}
-			if by == "ai" {
-				if err := h.recordAIEditTicket(id, act, h.books[id].version, stamp()); err != nil {
-					return Performed{}, err
-				}
-			}
+		act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
+		plan, err := h.planWrites(out, by, act, stamp())
+		if err != nil {
+			return Performed{}, err
 		}
-		for _, id := range out.Removed {
-			if err := h.remove(id, p.Client, p.Seq); err != nil {
-				return Performed{}, err
-			}
+		// 変わった物の全部を 1 つのまとまりで書く。書けなければ、置き場所もメモリも窓も何も変わらず、行い直せる
+		if _, err := h.store.Apply(plan.batch); err != nil {
+			return Performed{}, err
 		}
-		if len(out.Settings) > 0 {
-			if err := h.store.PutSettings(user, out.Settings); err != nil {
-				return Performed{}, err
-			}
-			h.settings = out.Settings
-			h.broadcast("settings", map[string]any{"settings": out.Settings, "client": p.Client, "seq": p.Seq})
-		}
-		if len(out.Mailbox) > 0 {
-			if err := h.store.PutMailbox(user, out.Mailbox); err != nil {
-				return Performed{}, err
-			}
-			h.mailbox = out.Mailbox
-			if err := h.checkMailbox(); err != nil {
-				return Performed{}, err
-			}
-			// 最後にフォーカスされた窓も添える（その窓が、届いたことをマーキーで知らせる）
-			last := ""
-			if w := h.window(); w != nil {
-				last = w.id
-			}
-			h.broadcast("mailbox", map[string]any{"mailbox": out.Mailbox, "window": last, "client": p.Client, "seq": p.Seq})
-		}
-		if len(out.Participants) > 0 {
-			if err := h.store.PutParticipants(user, out.Participants); err != nil {
-				return Performed{}, err
-			}
-			h.participants = out.Participants
-			h.broadcast("participants", map[string]any{"participants": out.Participants, "client": p.Client, "seq": p.Seq})
-		}
-		for book, body := range out.Annotations {
-			if err := h.putAnnotations(book, body, p.Client, p.Seq); err != nil {
-				return Performed{}, err
-			}
-		}
-		if c := out.AIEditTicket; c != nil {
-			if _, ok := h.books[c.Book]; ok {
-				if err := h.changeAIEditTicket(*c, stamp()); err != nil {
-					return Performed{}, err
-				}
-			}
-		}
+		h.acts++
+		h.applyWrites(plan, out, p, by, act)
 	}
 	h.remember(p.Key, done)
 	h.ack(p, done)
@@ -474,29 +456,6 @@ func (h *Hub) remember(key string, done Performed) {
 		delete(h.performed, h.performedOrder[0])
 		h.performedOrder = h.performedOrder[1:]
 	}
-}
-
-// putBook は、アクションが変えたブックを今の版の上に書いて知らせる（h.mu を持って呼ぶ）。
-// 知らせの by は頼んだ物（"ai"・窓なら "window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印（窓が、よその変更を画面の履歴の段にまとめるのに使う）、action は行ったアクションの id
-func (h *Hub) putBook(body json.RawMessage, client string, seq int64, by string, act string, action string) (string, error) {
-	var head struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(body, &head); err != nil || head.ID == "" {
-		return "", fmt.Errorf("the engine gave a book without an id: %s", body)
-	}
-	have, ok := h.books[head.ID]
-	version, _, err := h.store.PutBook(head.ID, body, have.version)
-	if err != nil {
-		return "", err
-	}
-	if !ok {
-		h.order = append(h.order, head.ID)
-	}
-	h.books[head.ID] = entry{body, version, trashed(body)}
-	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq, "by": by, "act": act, "action": action})
-	h.touch(head.ID, stamp())
-	return head.ID, h.checkBooks([]string{head.ID})
 }
 
 // Join は窓をつなぎ、知らせの通り道を返す。最初の知らせは hello

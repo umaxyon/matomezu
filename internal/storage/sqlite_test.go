@@ -280,3 +280,60 @@ func TestExistingDataJoinsTheDefaultProject(t *testing.T) {
 		t.Fatalf("participants = %s", got)
 	}
 }
+
+// 1 つのまとまり（Apply）は、全部書くか、何も書かないか。版が違うブックが 1 つでもあれば、前に並べた物も書かない（ErrConflict と置いてあるブックを返す）
+func TestApplyWritesAllOrNothingOnAConflict(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "data.db"))
+	if _, _, err := s.PutBook("b2", json.RawMessage(`{"id":"b2"}`), 0); err != nil {
+		t.Fatal(err)
+	}
+	have, err := s.Apply(Batch{
+		Books:         []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}, {"b2", json.RawMessage(`{"id":"b2","x":1}`), 7}},
+		Settings:      &UserBody{"me", json.RawMessage(`{"a":1}`)},
+		Annotations:   []BookBody{{"b1", json.RawMessage(`[{"id":"n1"}]`)}},
+		AIEditTickets: []BookBody{{"b1", json.RawMessage(`[{"at":"t"}]`)}},
+	})
+	if !errors.Is(err, ErrConflict) || have == nil || have.Version != 1 {
+		t.Fatalf("apply = %+v, %v; want ErrConflict with the stored book", have, err)
+	}
+	books, _ := s.Books()
+	settings, _ := s.Settings("me")
+	notes, _ := s.Annotations()
+	tickets, _ := s.AIEditTickets()
+	if len(books) != 1 || books[0].ID != "b2" || settings != nil || len(notes) != 0 || len(tickets) != 0 {
+		t.Fatalf("something was written: books %v, settings %s, annotations %v, tickets %v", books, settings, notes, tickets)
+	}
+}
+
+// SQL の失敗（ここでは郵便箱への書き込みが断られる）の途中でも、前に書いた物は巻き戻る。1 つのまとまりは、書く順にブック → 消すブック → 設定 → 郵便箱 → …
+func TestApplyRollsBackWhenALaterWriteFails(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	s := open(t, path)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if _, err := db.Exec(`CREATE TRIGGER refuse_mailbox BEFORE INSERT ON mailbox BEGIN SELECT RAISE(ABORT, 'refused'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Apply(Batch{
+		Books:    []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}},
+		Settings: &UserBody{"me", json.RawMessage(`{"a":1}`)},
+		Mailbox:  &UserBody{"me", json.RawMessage(`[{"id":"m1"}]`)},
+	}); err == nil {
+		t.Fatal("apply with a refused write succeeded")
+	}
+	books, _ := s.Books()
+	settings, _ := s.Settings("me")
+	if len(books) != 0 || settings != nil {
+		t.Fatalf("not rolled back: books %v, settings %s", books, settings)
+	}
+	// 書けるようになれば、同じまとまりが書ける
+	if _, err := db.Exec(`DROP TRIGGER refuse_mailbox`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Apply(Batch{Books: []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}}, Mailbox: &UserBody{"me", json.RawMessage(`[{"id":"m1"}]`)}}); err != nil {
+		t.Fatal(err)
+	}
+}
