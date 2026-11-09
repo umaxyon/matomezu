@@ -4,6 +4,7 @@ import { Glob } from "bun"
 import { PALETTE } from "../../web/src/core/color"
 import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineTheme, THEME_TOKENS, themeVar, tokenVarName } from "../../web/src/core/def/theme"
+import { splitId } from "../../web/src/core/names"
 import { resolveTokens, shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
 import { FILE_COLOR, FOLDER_COLOR } from "../../web/src/plugins/books/dir/dir"
@@ -97,4 +98,29 @@ test("色の候補に使うテーマキーの定義（ダイアログが持つ�
   for (const def of [LIST_FILL, NODE_FILL, FILE_COLOR, FOLDER_COLOR]) expect(def.id.startsWith("@matomezu/")).toBe(true)
   // matomezu のテーマはフォルダのアイコンを琥珀色に上書きする
   expect(resolveTokens(CORE_CATALOG, "@matomezu/base:matomezu", [FOLDER_COLOR])[FOLDER_COLOR.id]?.light).toBe("#f5a623")
+})
+
+test("テーマキーの値は、テーマの上書き、宣言のテーマごとの値、既定の順に引く", () => {
+  const def = {
+    id: "@matomezu/box:box-fill",
+    fallback: "fill",
+    themeValues: { "@matomezu/base:sticky": "#111111", "@matomezu/base:simple": "#222222" },
+  } as const
+  const own = defineTheme({ ...STANDARD, id: "@matomezu/base:sticky", tokens: { "@matomezu/box:box-fill": "#333333" } })
+  const bare = defineTheme({ ...STANDARD, id: "@matomezu/base:simple" })
+  const none = defineTheme({ ...STANDARD, id: "@matomezu/base:standard" })
+  const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, themes: [own, bare, none] })
+  const at = (theme: string) => resolveTokens(catalog, theme, [def])["@matomezu/box:box-fill"]?.light
+  expect(at("@matomezu/base:sticky")).toBe("#333333")
+  expect(at("@matomezu/base:simple")).toBe("#222222")
+  expect(at("@matomezu/base:standard")).toBe(STANDARD.base.fill)
+})
+
+test("base のテーマは、ほかのプラグインのテーマキーを名指さない（値は宣言したプラグインが themeValues に持つ）", () => {
+  const BASE = "@matomezu/base"
+  const ofBase = [...CORE_CATALOG.themes.values()].filter(t => splitId(t.id).owner === BASE)
+  expect(ofBase.length).toBeGreaterThan(0)
+  for (const t of ofBase)
+    for (const key of Object.keys(t.tokens ?? {}))
+      expect({ theme: t.id, owner: splitId(key).owner }).toEqual({ theme: t.id, owner: BASE })
 })

@@ -27,6 +27,7 @@ import { splitId } from "./names"
 import { placedSchema } from "./placed"
 import { DEFAULT_PROJECT } from "./project"
 import { PageSchema } from "./schema/page"
+import { writtenValues } from "./theme"
 import { type Warning, warning } from "./warnings"
 
 export type { ActionId, BookTypeId, ItemId, PaperId, SettingId, SkinId, ThemeId } from "./catalog"
@@ -228,16 +229,17 @@ const tokenDefs = (parts: CoreCatalogParts) => [
   ...parts.tokens.map(k => ({ owner: splitId(k.id).owner ?? k.id, ...k })),
 ]
 
-// 明暗で同じ値だけのテーマキー（shades: "one"）に、明暗で違う値を書いたテーマ（warning はテーマのプラグインのもの）
+// 明暗で同じ値だけのテーマキー（shades: "one"）に、明暗で違う値を書いたテーマ（warning は書いた者のもの。writtenValues の by）
 const shadeWarnings = (parts: CoreCatalogParts): Warning[] => {
   const one = tokenDefs(parts).filter(d => "value" in d && d.shades === "one")
   return parts.themes.flatMap(t =>
-    one.flatMap(({ id: token }) => {
-      const set = t.tokens?.[token]
-      if (set === undefined || typeof set === "string" || set.light === undefined || set.dark === undefined) return []
-      if (set.light === set.dark) return []
-      return [warning("W020", splitId(t.id).owner ?? "", { theme: t.id, token, light: set.light, dark: set.dark })]
-    }),
+    one.flatMap(def =>
+      writtenValues(t, def).flatMap(({ value: set, by }) => {
+        if (typeof set === "string" || set.light === undefined || set.dark === undefined) return []
+        if (set.light === set.dark) return []
+        return [warning("W020", by, { theme: t.id, token: def.id, light: set.light, dark: set.dark })]
+      }),
+    ),
   )
 }
 
