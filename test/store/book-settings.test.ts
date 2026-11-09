@@ -94,7 +94,11 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
       "@matomezu/base:book-text-colors",
     ],
     "settings of @matomezu/markdown:markdown books": ["@matomezu/base:book-theme", "@matomezu/base:book-paper-color"],
-    "settings of @matomezu/slide-book:slide books": ["@matomezu/base:book-theme", "@matomezu/base:book-paper-color"],
+    "settings of @matomezu/slide-book:slide books": [
+      "@matomezu/base:book-theme",
+      "@matomezu/base:book-paper-color",
+      "@matomezu/slide-book:slide-print",
+    ],
     "settings of @matomezu/tree:tree books": [
       "@matomezu/base:book-theme",
       "@matomezu/base:book-paper-color",

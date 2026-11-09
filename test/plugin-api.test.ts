@@ -191,6 +191,7 @@ test("matomezu/ui が出す名前", () => {
     "CORNER_STATUSES",
     "CaptionField",
     "ChoiceSetting",
+    "ChoiceText",
     "Choices",
     "ColorPicker",
     "Confirm",
