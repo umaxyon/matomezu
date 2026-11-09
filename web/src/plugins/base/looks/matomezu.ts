@@ -10,7 +10,6 @@ import { DARK } from "./dark"
 const PLUM = "#7c2d60" // 07C インコ
 const PLUM_TINT = "#f4eaf1"
 const CHARCOAL = "#45474b" // 07D 文鳥
-const TERRA = "#a84b28" // 07A スズメ
 const TERRA_TINT = "#fff1e5"
 const AMBER = "#f5a623"
 const AMBER_TEXT = "#b86e00" // 文字にするアンバー（白い紙で読める暗さ）
@@ -42,27 +41,6 @@ export const MATOMEZU_THEME = kit.defineTheme({
     warn: AMBER,
     danger: RED,
     muted: CHARCOAL,
-  },
-  tokens: {
-    "@matomezu/box:box-line": CREAM_LINE,
-    "@matomezu/box:box-shadow": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
-    "@matomezu/list:list-line": CREAM_LINE,
-    "@matomezu/list:list-frame-line": CREAM_LINE,
-    "@matomezu/list:list-shadow": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
-    "@matomezu/list:list-card-shadow": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
-    // 台紙はスズメの淡色に寄せる
-    "@matomezu/list:list-mount-tint": TERRA,
-    "@matomezu/list:list-mount-mix": "6%",
-    "@matomezu/tree:tree-node-line": CREAM_LINE,
-    "@matomezu/dir:dir-folder": AMBER,
-    "@matomezu/dir:dir-file": "#8a8178",
-    // 線は文鳥の色を紙に混ぜた落ち着いた色（強調したい線は、線の色で緑などにする）
-    "@matomezu/line:line-color": `color-mix(in srgb, ${CHARCOAL} 55%, var(--theme-paper))`,
-    // データは箱と同じクリーム色の線と薄い影、見出しの行はクリーム色の地
-    "@matomezu/data:data-line": CREAM_LINE,
-    "@matomezu/data:data-shadow": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
-    "@matomezu/data:data-head-fill": CREAM,
-    "@matomezu/data:data-grid": "#efe9e1",
   },
   textColors: {
     [TEXT_SUCCESS.id]: FOREST,

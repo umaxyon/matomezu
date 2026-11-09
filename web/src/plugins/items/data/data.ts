@@ -140,18 +140,67 @@ const SERIES_COLORS = [
 
 // データのテーマキー（プラグインが持ち、アイテムは自分のテーマキーを持たない）
 export const DATA_TOKENS = [
-  { id: kit.name("data-fill"), fallback: "fill" }, // 地
-  { id: kit.name("data-line"), value: "#cdcdd6" }, // 枠線と表の罫線
-  { id: kit.name("data-text"), fallback: "text" }, // 文字
-  { id: kit.name("data-radius"), value: "8px", shades: "one" }, // 角の丸み
+  {
+    id: kit.name("data-fill"),
+    fallback: "fill",
+    themeValues: { "@matomezu/base:sticky": "#fff3a6", "@matomezu/base:simple": "#ffffff" },
+  }, // 地
+  {
+    id: kit.name("data-line"),
+    value: "#cdcdd6",
+    themeValues: {
+      "@matomezu/base:sticky": "#d9c873",
+      "@matomezu/base:simple": "#262626",
+      "@matomezu/base:matomezu": "#e3dbd2",
+    },
+  }, // 枠線と表の罫線
+  {
+    id: kit.name("data-text"),
+    fallback: "text",
+    themeValues: { "@matomezu/base:sticky": "#3b3524", "@matomezu/base:simple": "#1a1a1a" },
+  }, // 文字
+  {
+    id: kit.name("data-radius"),
+    value: "8px",
+    shades: "one",
+    themeValues: { "@matomezu/base:sticky": "3px", "@matomezu/base:simple": "4px" },
+  }, // 角の丸み
   { id: kit.name("data-empty"), value: "#a0a0ab" }, // 表の無い間の点線の枠と「No Data」の文字
   // グラフの系列の色（決まった順に使う。色覚の違いでも隣どうしが見分けられる並び）
   ...SERIES_COLORS.map((value, i) => ({ id: kit.name(`data-series-${i + 1}`), value })),
-  { id: kit.name("data-axis"), fallback: "hint" }, // 軸と凡例の文字
-  { id: kit.name("data-grid"), value: { light: "#e6e6e1", dark: "#3a3a37" } }, // 目盛りの線
-  { id: kit.name("data-zero"), fallback: "hint" }, // 値 0 の線
-  { id: kit.name("data-head-fill"), value: "transparent" }, // 表の見出しの行の地
-  { id: kit.name("data-shadow"), value: "none", shades: "one" }, // 影（CSS の filter の値）
+  { id: kit.name("data-axis"), fallback: "hint", themeValues: { "@matomezu/base:simple": "#1a1a1a" } }, // 軸と凡例の文字
+  {
+    id: kit.name("data-grid"),
+    value: { light: "#e6e6e1", dark: "#3a3a37" },
+    themeValues: {
+      "@matomezu/base:sticky": "#eadc93",
+      "@matomezu/base:simple": "#d9d9d9",
+      "@matomezu/base:matomezu": "#efe9e1",
+    },
+  }, // 目盛りの線
+  {
+    id: kit.name("data-zero"),
+    fallback: "hint",
+    themeValues: { "@matomezu/base:sticky": "#8a7a4a", "@matomezu/base:simple": "#262626" },
+  }, // 値 0 の線
+  {
+    id: kit.name("data-head-fill"),
+    value: "transparent",
+    themeValues: {
+      "@matomezu/base:sticky": "#f7e98a",
+      "@matomezu/base:simple": "#f2f2f2",
+      "@matomezu/base:matomezu": "#f6f3ed",
+    },
+  }, // 表の見出しの行の地
+  {
+    id: kit.name("data-shadow"),
+    value: "none",
+    shades: "one",
+    themeValues: {
+      "@matomezu/base:sticky": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
+      "@matomezu/base:matomezu": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
+    },
+  }, // 影（CSS の filter の値）
   { id: kit.name("data-bar-radius"), value: "4px", shades: "one" }, // 棒の先の角の丸み（根元は丸めない）
   { id: kit.name("data-line-width"), value: "2px", shades: "one" }, // 折れ線の太さ
   { id: kit.name("data-dot-size"), value: "4px", shades: "one" }, // 点の半径

@@ -1,9 +1,9 @@
 // テーマの定義: ブックの中身の見た目。データを変える処理と並べ方の計算が使う値や、その計算が前提にする見た目（測るのに使う字の大きさ・字体など）は変えない。
 // そのほかの見た目なら、色・線・影のほか、字の大きさや余白も持てる（描いたあとに測るだけで、並べ方の計算に使わない見た目）。
 // どのテーマも共通のテーマキー（ThemeToken）を全部埋める。アイテムとブックのタイプは自分の使うテーマキーを宣言し（TokenDef）、
-// 既定の値は共通のテーマキーか、宣言に書いた値から取る。テーマは知っているテーマキーだけを上書きする。
+// 値は、テーマの上書き（ThemeDef.tokens）、宣言のテーマごとの値（themeValues）、既定（共通のテーマキーか、宣言に書いた値）の順に引く。テーマは知っているテーマキーだけを上書きする。
 // どのテーマも代表色（core/color の PALETTE の役割ごとの色）を持つ
-import type { ThemeExtras, TokenExtras } from "../catalog"
+import type { ThemeExtras, ThemeId, TokenExtras } from "../catalog"
 import type { PaletteName } from "../color"
 import type { MessageKey } from "../i18n/i18n"
 import { splitId } from "../names"
@@ -24,9 +24,12 @@ export type ThemeToken = (typeof THEME_TOKENS)[number]
 
 // アイテムやブックのタイプが使うテーマキー。id は本当の id（例: @matomezu/box:box-fill。pluginKit が頭を付ける）。値はテーマが上書きしなければ、fallback の共通のテーマキーか、
 // value に書いた値（共通のテーマキーに当たるものが無いテーマキー。角の丸み・影など）。shades はテーマが明暗で違う値を書けるか（書かなければ light-dark）
+// themeValues は、そのテーマキーを宣言した者が書く、テーマごとの値（鍵は base などが出したテーマの id）。明暗で同じ値だけのテーマキー（shades: "one"）は、1 つの値だけ書ける
+type Themed<V> = { themeValues?: Readonly<Partial<Record<ThemeId, V>>> }
 export type TokenDef = (
-  | { id: string; fallback: ThemeToken }
-  | { id: string; value: ThemeValue; shades?: TokenShades }
+  | ({ id: string; fallback: ThemeToken } & Themed<ThemeValue>)
+  | ({ id: string; value: ThemeValue; shades?: "light-dark" } & Themed<ThemeValue>)
+  | ({ id: string; value: ThemeValue; shades: "one" } & Themed<string>)
 ) &
   TokenExtras
 // テーマキーの明暗: light-dark は明暗で違う値にできる（色）、one は明暗で同じ値だけ（色でない値。CSS の light-dark() は色にしか効かない）。

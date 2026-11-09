@@ -93,7 +93,7 @@ export const TREE = kit.defineBookType({
   presentation: TREE_PRESENTATION.id,
   tokens: [
     NODE_FILL,
-    { id: "tree-node-line", value: "#cdcdd6" }, // 節の枠線（標準は淡い灰色。テーマが上書きする）
+    { id: "tree-node-line", value: "#cdcdd6", themeValues: { "@matomezu/base:matomezu": "#e3dbd2" } }, // 節の枠線（標準は淡い灰色。テーマごとの値は themeValues）
     { id: "tree-node-text", fallback: "text" },
     { id: "tree-node-radius", value: "6px", shades: "one" }, // 節の角の丸み
     { id: "tree-line", fallback: "line" }, // 親から子への線

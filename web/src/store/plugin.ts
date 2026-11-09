@@ -13,6 +13,7 @@ import type { LanguagePackDef, MessageSetDef } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
 import { isOwnedBy, splitId } from "../core/names"
 import { type AutoSkin, autoSkin } from "../core/skin"
+import { writtenValues } from "../core/theme"
 import { type Warning, warning } from "../core/warnings"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef, DialogTaking, PageSettingsArgs } from "./dialogs"
@@ -106,9 +107,9 @@ export const definePlugin = <const P extends Plugin>(
   plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never; normalizeSteps?: never },
 ): P => plugin
 
-// ビルトインプラグインが台帳アセンブルのときの確かめ（checks）を書くための型と、問題と warning の作り方（plugin-api/builtin が出し直す）
+// ビルトインプラグインが台帳アセンブルのときの確かめ（checks）を書くための型と、問題と warning の作り方、テーマキーに書かれた値の引き方（plugin-api/builtin が出し直す）
 export type { CatalogCheckDef }
-export { problem, warning }
+export { problem, warning, writtenValues }
 
 // ビルトインプラグインの印: キーバインドで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
