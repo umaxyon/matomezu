@@ -4,16 +4,23 @@ import { defineBuiltin } from "../../plugin-api/builtin"
 import { kit } from "./kit"
 import { PAPER } from "./paper"
 import {
+  CLIPBOARD_KEYS,
   ITEM_KEYS,
   ITEM_MOVE,
+  ITEM_PASTE,
   ITEM_PLACE,
   ITEM_REMOVE,
   ITEM_REPARENT,
   ITEM_RESIZE,
   ITEM_UPDATE,
+  PAPER_COPY,
+  PAPER_CUT,
   PAPER_DELETE,
+  PAPER_DUPLICATE,
   PAPER_EDIT,
   PAPER_MOVE,
+  PAPER_PASTE,
+  PAPER_PASTE_AT,
   PAPER_PLACE,
   PAPER_REPARENT,
   PAPER_RESIZE,
@@ -26,9 +33,22 @@ export const PAPER_PLUGIN = defineBuiltin(
     presentations: [PAPER],
     tools: [REPARENT_TOOL],
     toolSets: [PAPER_TOOLS],
-    actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE, ITEM_REPARENT],
-    commands: [PAPER_PLACE, PAPER_MOVE, PAPER_REPARENT, PAPER_RESIZE, PAPER_EDIT, PAPER_DELETE, PAPER_SELECT_ALL],
-    keys: ITEM_KEYS,
+    actions: [ITEM_PLACE, ITEM_PASTE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE, ITEM_REPARENT],
+    commands: [
+      PAPER_PLACE,
+      PAPER_COPY,
+      PAPER_CUT,
+      PAPER_PASTE,
+      PAPER_PASTE_AT,
+      PAPER_DUPLICATE,
+      PAPER_MOVE,
+      PAPER_REPARENT,
+      PAPER_RESIZE,
+      PAPER_EDIT,
+      PAPER_DELETE,
+      PAPER_SELECT_ALL,
+    ],
+    keys: [...ITEM_KEYS, ...CLIPBOARD_KEYS],
   }),
 )
 
@@ -44,6 +64,7 @@ declare module "../../core/catalog" {
   }
   interface ActionTable {
     "@matomezu/paper:item-place": typeof ITEM_PLACE
+    "@matomezu/paper:item-paste": typeof ITEM_PASTE
     "@matomezu/paper:item-move": typeof ITEM_MOVE
     "@matomezu/paper:item-update": typeof ITEM_UPDATE
     "@matomezu/paper:item-resize": typeof ITEM_RESIZE
@@ -53,6 +74,11 @@ declare module "../../core/catalog" {
   interface MessageTable extends Readonly<typeof kit.messages> {}
   interface CommandTable {
     "@matomezu/paper:paper-place": typeof PAPER_PLACE
+    "@matomezu/paper:paper-copy": typeof PAPER_COPY
+    "@matomezu/paper:paper-cut": typeof PAPER_CUT
+    "@matomezu/paper:paper-paste": typeof PAPER_PASTE
+    "@matomezu/paper:paper-paste-at": typeof PAPER_PASTE_AT
+    "@matomezu/paper:paper-duplicate": typeof PAPER_DUPLICATE
     "@matomezu/paper:paper-move": typeof PAPER_MOVE
     "@matomezu/paper:paper-reparent": typeof PAPER_REPARENT
     "@matomezu/paper:paper-resize": typeof PAPER_RESIZE

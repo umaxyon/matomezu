@@ -4,9 +4,9 @@
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
-import { idMaker, idsIn, renamedIn } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
+import { renewedIds } from "../utils/ids"
 
 const ARGS = z.strictObject({ page: z.string().min(1), title: z.string().trim().min(1).optional() })
 
@@ -24,9 +24,7 @@ export const PAGE_DUPLICATE = kit.defineAction({
     const from = book.pages.findIndex(p => p.id === args.page)
     const source = book.pages[from]
     if (!source) return null
-    const make = idMaker(ctx.newId, idsIn(book))
-    const renamed = new Map(idsIn(source).map(id => [id, make()]))
-    const { locked: _locked, ...rest } = renamedIn(source, renamed)
+    const { locked: _locked, ...rest } = renewedIds(book, source, ctx.newId)
     const page: ItemPage = { ...rest, title: args.title ?? source.title }
     return { next: putPage(book, page, from + 1), result: { page: page.id } }
   },

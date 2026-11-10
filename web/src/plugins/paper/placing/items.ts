@@ -166,7 +166,7 @@ export function nearestReparent(
 }
 
 // 点 from から to へ向けて 1px ずつ（大きい方の軸で数えた歩数。400 まで）寄せて、最初に fits を通す点（from から試す）
-function stepToward(from: Point, to: Point, fits: (p: Point) => boolean): Point | null {
+export function stepToward(from: Point, to: Point, fits: (p: Point) => boolean): Point | null {
   const steps = Math.min(400, Math.ceil(Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y))))
   for (let i = 0; i <= steps; i++) {
     const k = steps === 0 ? 0 : i / steps

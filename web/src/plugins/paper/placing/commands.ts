@@ -19,7 +19,7 @@ import type { Came } from "./drag"
 import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape } from "./items"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
+export const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
 export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
@@ -115,7 +115,7 @@ export const PAPER_EDIT = kit.defineCommand({
 })
 
 // 選んでいる物が、開いているページのアイテム（どの深さの形も、つなぐものも）だけか（リストの行など、形の中の物が混じれば、ほかのコマンドの物）
-function itemsSelected(ctx: CommandContext): boolean {
+export function itemsSelected(ctx: CommandContext): boolean {
   const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
   const { selection } = ctx.stage
   if (!page || selection.length === 0) return false

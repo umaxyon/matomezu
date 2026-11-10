@@ -4,7 +4,6 @@ import { z } from "zod"
 import {
   bookItems,
   type CoreCatalog,
-  type Declined,
   findShape,
   hasPages,
   type ItemPage,
@@ -29,6 +28,8 @@ import {
   widenForCaption,
 } from "../../base"
 import { kit } from "../kit"
+import { pasted } from "./clip"
+import { ancestorsOf, CROWD_AI, CrowdSchema, crowded, movedShapes, NO_FREE_SPOT, PointSchema } from "./crowd"
 import { DIRS } from "./drag"
 import { freeAt, moveItems, parsePlaced, subtreeOf } from "./items"
 
@@ -39,56 +40,9 @@ declare module "../../../core/catalog" {
     "@matomezu/paper:settle"?(item: D, before?: D): D
     // 大きさを変えられる向き: "width" なら幅だけ（高さは中身から決まる形。つかめるのは左右の辺だけで、高さは置いた大きさのまま）。無ければ幅も高さも
     "@matomezu/paper:stretch"?: "width"
+    // false なら、コピーして貼る（id を振り直す）と壊れる形で、写さない（中の id を指す項目を持つ形など）。書かなければ写せる
+    "@matomezu/paper:copies"?: false
   }
-}
-
-const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
-
-// item-place が空きを探して見つからなかった断りの種類（Declined の kind）
-const NO_FREE_SPOT = kit.name("no-free-spot")
-
-// ほかの形とぶつかるときの扱い: refuse は断る（ほかの形を動かさない。既定）、push は押してどける（画面の置く・動かす）
-const CrowdSchema = z.enum(["refuse", "push"]).optional()
-const CROWD_AI =
-  'crowd "push" pushes the other shapes out of the way instead (as the screen does); without it (crowd "refuse"), it is refused when another shape would move, and the refusal names those shapes and a free spot.'
-
-// 形 id の祖先（親から上へ）
-function ancestorsOf(page: ItemPage, id: string): string[] {
-  const parent = findShape(page, id)?.parent
-  return parent ? [parent, ...ancestorsOf(page, parent)] : []
-}
-
-// ページ page を next に変えたとき、紙の上で動いた・大きさの変わった形（free は問わない形、grows は大きさだけ変わってよい形）
-function movedShapes(
-  catalog: CoreCatalog,
-  page: ItemPage,
-  next: ItemPage,
-  free: ReadonlySet<string>,
-  grows: ReadonlySet<string>,
-): string[] {
-  const after = allRectsOf(catalog, next)
-  return [...allRectsOf(catalog, page)].flatMap(([id, r]) => {
-    const now = after.get(id)
-    if (free.has(id) || !now) return []
-    const moved = now.x !== r.x || now.y !== r.y || (!grows.has(id) && (now.w !== r.w || now.h !== r.h))
-    return moved ? [id] : []
-  })
-}
-
-// 断りに添える、空きの知らせ（spot は、そこへ置けばほかの形を動かさない空き。無ければ crowd "push" を案内する）
-const spotText = (spot: Point | null): string =>
-  spot
-    ? `; a free spot there: at ${JSON.stringify(spot)}`
-    : '; there is no free spot there (crowd "push" pushes the others)'
-
-// ほかの形を動かす moved を断った訳（そのうち子を持てる形へ入れる parent と、空きの知らせ）
-function crowded(catalog: CoreCatalog, page: ItemPage, moved: readonly string[], spot: Point | null): Declined {
-  const nests = moved.filter(id => {
-    const shape = findShape(page, id)?.shape
-    return shape && catalog.items.get(shape.item)?.capabilities.includes("nests")
-  })
-  const into = nests.map(id => `; ${id} can hold children: pass parent "${id}" to put it inside`).join("")
-  return { declined: `it would move ${moved.join(", ")}${into}${spotText(spot)}` }
 }
 
 // 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定。テーマはブックのタイプが使えるものだけ。base の book-look/theme-types.ts）。
@@ -178,6 +132,34 @@ export const ITEM_PLACE = kit.defineAction({
     if (!push && tried.moved.length > 0)
       return crowded(ctx.catalog, page, tried.moved, freeAt(ctx.catalog, book, page, parent, sized, calm))
     return { next: tried.next, result: { item: item.id, at: { x: tried.found.x, y: tried.found.y } } }
+  },
+})
+
+// コピーしたアイテム（写し）を貼る。写しはアイテムのデータそのもの（read_book が返す形と同じ）で、id は貼るときにブックで重ならない新しい id に振り直す（子・中身・線の両端も）。
+// 置き方は item-place と同じ（at は写しの範囲の左上。parent があれば親の左上から。無ければ最初の空き。crowd）
+export const ITEM_PASTE = kit.defineAction({
+  id: "item-paste",
+  attach: ON_PAPER,
+  aiDescription:
+    "Paste copied items onto a page: shapes is the items' data as read_book returns it (each with its children and contents, x and y being the top-left on the paper where they were copied), connectors the lines joined to them (both ends among the shapes). Every id is made new, so the same items can be pasted again. The group's bounding box goes with its top-left at at (in paper pixels; from the parent's top-left with parent, the id of a shape that can hold children, which the shapes become the last children of); the shapes keep their places relative to one another. Without at, it goes in the first free spot of the parent (or of the page). Items the book cannot use, themes its book type does not list, and items that cannot be copied are refused. Coming within 8 pixels of another shape would move it: " +
+    CROWD_AI +
+    " It is refused if it does not fit on the paper. Returns the new root shapes' ids (items) and the at it used.",
+  title: "Paste items",
+  target: "book",
+  args: z.strictObject({
+    page: z.string().min(1),
+    parent: z.string().min(1).optional(),
+    at: PointSchema.optional(),
+    crowd: CrowdSchema,
+    shapes: z.array(z.record(z.string(), z.unknown())).min(1),
+    connectors: z.array(z.record(z.string(), z.unknown())).optional(),
+  }),
+  permissionScope: { page: "page" },
+  run: (book, args, ctx) => {
+    const done = pasted(ctx.catalog, book, ctx.newId, args)
+    if (!done) return null
+    if ("declined" in done) return done
+    return { next: done.next, result: { items: done.items, at: done.at } }
   },
 })
 

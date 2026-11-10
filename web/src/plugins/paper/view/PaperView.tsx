@@ -183,7 +183,10 @@ export function PaperView({ stage: id }: BookViewProps) {
       ref={ref}
       className={styles.drawing}
       data-placing={placing}
-      onContextMenu={e => openMenu(e, {})}
+      onContextMenu={e => {
+        const r = ref.current?.getBoundingClientRect()
+        openMenu(e, r ? { pointer: { x: e.clientX - r.left, y: e.clientY - r.top } } : {})
+      }}
       onPointerMove={onPointerMove}
       onPointerLeave={() => setPointer(null)}
       onPointerDown={onPointerDown}

@@ -122,6 +122,7 @@ test("matomezu が出す名前", () => {
     "rectsOf",
     "refusalMessage",
     "removeItems",
+    "renewedIds",
     "replaceChild",
     "replacePushing",
     "replaceShape",
