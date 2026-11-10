@@ -45,9 +45,11 @@ import {
   touches,
   unionOf,
 } from "../rect"
+import { EllipseView } from "../SlideItemViews"
 import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE } from "../scope"
 import {
   DEFAULT_FONT_SIZE,
+  ELLIPSE,
   FREE_LINE,
   linePointsOf,
   linePropsOf,
@@ -65,6 +67,7 @@ const CLICK = 4
 const THIN = 3
 
 const TEXT = TEXT_FRAME.id
+const ROUND = ELLIPSE.id
 const FREE = FREE_LINE.id
 const LINE = STRAIGHT_LINE.id
 
@@ -99,6 +102,7 @@ type Drag =
       grip: Grip
       min: number
       text: boolean
+      round: boolean // 楕円（角を引くとき、Ctrl か Command で正円にできる）
     }
   | { kind: "rotate"; pointer: number; item: string; start: Point; center: Point; rotation: number; rect: Rect }
   | { kind: "draw"; pointer: number; item: ItemId; start: Point }
@@ -113,6 +117,11 @@ interface Live {
 }
 
 const rectOf = (shape: PlacedShape): Rect => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
+// 始めの点 start から今の点 at への縦横を、長い方に揃えた終わりの点
+function squaredEnd(start: Point, at: Point): Point {
+  const side = Math.max(Math.abs(at.x - start.x), Math.abs(at.y - start.y))
+  return { x: start.x + (at.x < start.x ? -side : side), y: start.y + (at.y < start.y ? -side : side) }
+}
 const round = (n: number): number => Math.round(n * 100) / 100
 const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f.w), h: round(f.h) })
 
@@ -221,6 +230,7 @@ function SlidePageView({
         grip: found?.grip ?? {},
         min: minOf(selected.item),
         text: selected.item === TEXT,
+        round: selected.item === ROUND,
       }
       return
     }
@@ -316,14 +326,16 @@ function SlidePageView({
       const moved = movedPoint(d.rect, d.rotation, d.points, d.index, to, d.min)
       setLive({ item: d.item, rect: moved.rect, points: moved.points, rotation: 0 })
     } else if (d.kind === "grip") {
-      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min)
+      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, d.round && (e.ctrlKey || e.metaKey))
       setLive({ item: d.item, rect: to, scaled: to.scaled && d.text })
     } else if (d.kind === "rotate") {
       const rotation = rotatedTo(d.rotation, d.center, d.start, at, e.shiftKey ? 15 : undefined)
       setLive({ item: d.item, rect: d.rect, rotation })
     } else {
       // なぞる点は、自由な線ならすべて、それ以外は始めと今の 2 つ
-      setDrawn(now => (d.item === FREE ? [...(now ?? [d.start]), at] : [d.start, at]))
+      // 楕円は、Ctrl か Command を押していれば正円になるよう、縦横の長い方に揃える
+      const end = d.item === ROUND && (e.ctrlKey || e.metaKey) ? squaredEnd(d.start, at) : at
+      setDrawn(now => (d.item === FREE ? [...(now ?? [d.start]), at] : [d.start, end]))
     }
   }
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
@@ -525,6 +537,22 @@ function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[
   }
   const x = Math.min(a.x, b.x)
   const y = Math.min(a.y, b.y)
+  if (item === ROUND) {
+    // 置いたときと同じ見た目の楕円（EllipseView）
+    return (
+      <div style={{ position: "absolute", left: x, top: y, pointerEvents: "none" }}>
+        <EllipseView
+          id=""
+          stage=""
+          props={{}}
+          content={{}}
+          zoom={zoom}
+          hasChildren={false}
+          size={{ w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) }}
+        />
+      </div>
+    )
+  }
   return (
     <svg className={styles.ghost} aria-hidden="true">
       <rect x={x} y={y} width={Math.abs(a.x - b.x)} height={Math.abs(a.y - b.y)} {...stroke} />
