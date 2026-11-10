@@ -3,10 +3,11 @@ import { pagedOf } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/book-type"
 import type { Point } from "../../../core/geom"
-import type { ItemPage } from "../../../core/placed"
+import { type ItemPage, slideOf } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsAt, settingValue } from "../book-settings"
-import { growOf, pageArea, paperSize } from "../place/items"
+import { growOf, pageArea, paperSize, slideOffsetOf } from "../place/items"
+import { placedSize } from "../place/placed"
 import type { PrintSheets, SheetPurpose } from "."
 import { crossingShapes, filledSheets, sheetKey } from "./filled"
 import { BACKGROUND_PRINT, PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
@@ -28,10 +29,32 @@ export function sheetsOfPage(
         const area = pageArea(catalog, book, page)
         return area && { columns: area.columns, rows: area.rows, filled: filledSheets(catalog, book, page) }
       })()
-  // 背景を「必ず」印刷するページは、中身が無くても、どの印刷区画も載っているとする（背景は、載っている印刷区画に敷く）
+  // 背景を「必ず」印刷するページは、中身が無くても、どの印刷区画も載っているとする（背景は、載っている印刷区画に敷く）。
+  // 可変ページは、中身の外枠の外にある背景も入るだけ、右・下へ印刷区画を増やして数える
   if (sheets && slideIsBackground(type) && settingValue(catalog, book, page, BACKGROUND_PRINT) === "always")
-    return { ...sheets, filled: null }
+    return { ...backgroundCovered(catalog, book, page, sheets), filled: null }
   return sheets
+}
+
+// 印刷区画 sheets を、ページの slide の形（背景）がすべて入るだけ、右・下へ増やした物（可変ページでなければそのまま）
+function backgroundCovered<S extends Omit<PrintSheets, "filled">>(
+  catalog: CoreCatalog,
+  book: Book,
+  page: ItemPage,
+  sheets: S,
+): S {
+  const paper = paperSize(catalog, page)
+  if (!paper || !growOf(catalog, book, page)) return sheets
+  const offset = slideOffsetOf(catalog, book, page)
+  let columns = sheets.columns
+  let rows = sheets.rows
+  for (const s of slideOf(page)) {
+    const size = placedSize(catalog, s)
+    if (!size) continue
+    columns = Math.max(columns, Math.ceil((s.x + offset.x + size.w) / paper.w - 1e-9))
+    rows = Math.max(rows, Math.ceil((s.y + offset.y + size.h) / paper.h - 1e-9))
+  }
+  return { ...sheets, columns, rows }
 }
 
 // 描いて測ってから決める印刷区画の数: ページの id → 測った行の数（測っている途中なら pending。そのページはまだ並べない）。
