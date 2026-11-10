@@ -221,3 +221,15 @@ test("データを含む選びはコピーせず、トーストで知らせる�
   expect(frameClip(store)).toBeUndefined()
   expect(toasts(store)).toBe(1)
 })
+
+test("写した入れ物を選んだまま貼ると、その中でなく隣に貼る（自分の中には入れない）", () => {
+  const store = ready()
+  const a = place(store as never, NEST, { at: { x: 40, y: 40 }, w: 300, h: 200 })
+  store.actions.select("s1", [a])
+  command(store, "paper-copy")
+  expect(command(store, "paper-paste")).toBe(true)
+  const [made] = selection(store)
+  expect(made).not.toBe(a)
+  expect(shapesOf(page(store as never))).toHaveLength(2)
+  expect(findShape(page(store as never), made as string)?.parent).toBeNull()
+})

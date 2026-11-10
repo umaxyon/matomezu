@@ -18,13 +18,16 @@ const pageOf = (ctx: CommandContext) => pagedOf(ctx.book)?.pages.find(p => p.id 
 const keep = (a: { updateFrameState(change: (now: unknown) => unknown): void }, clip: Clip) =>
   a.updateFrameState(now => ({ ...(typeof now === "object" && now !== null ? now : {}), clip }))
 
-// 貼る先: ページの形を 1 つだけ選んでいれば、子を持てる形ならその中、持てない形ならその形の隣（同じ親の中の、すぐ右）。それ以外はページ（最初の空き）
-function targetOf(ctx: CommandContext): { parent: string | null; at?: Point } {
+// 貼る先: ページの形を 1 つだけ選んでいれば、子を持てる形ならその中、持てない形（と、写した形そのもの）ならその形の隣（同じ親の中の、すぐ右）。それ以外はページ（最初の空き）
+function targetOf(ctx: CommandContext, clip: Clip): { parent: string | null; at?: Point } {
   const page = pageOf(ctx)
   const { selection } = ctx.stage
   const only = page && selection.length === 1 && selection[0] !== undefined ? findShape(page, selection[0]) : undefined
   if (!only) return { parent: null }
-  if (shapeDefOf(ctx.catalog, only.shape.item)?.capabilities.includes("nests")) return { parent: only.shape.id }
+  // 写した形そのものを選んでいるときは、その中でなく隣に貼る（自分の中には入れない）
+  const copied = clip.shapes.some(c => c.id === only.shape.id)
+  if (!copied && shapeDefOf(ctx.catalog, only.shape.item)?.capabilities.includes("nests"))
+    return { parent: only.shape.id }
   const size = placedSize(ctx.catalog, only.shape)
   return size ? { parent: only.parent, at: { x: only.shape.x + size.w + 8, y: only.shape.y } } : { parent: only.parent }
 }
@@ -35,11 +38,12 @@ function pasteAt(
   a: Parameters<(typeof PAPER_PASTE)["run"]>[1],
   clip: Clip,
   where: { parent: string | null; at?: Point },
-): void {
+  quiet = false,
+): boolean {
   const { opened, id } = ctx.stage
   const paged: PagedBook | undefined = pagedOf(ctx.book)
   const page = pageOf(ctx)
-  if (!opened?.page || !paged || !page) return
+  if (!opened?.page || !paged || !page) return false
   const at = where.at && (nearestPaste(ctx.catalog, paged, page.id, clip, where.parent, where.at) ?? undefined)
   const done = a.perform(
     ITEM_PASTE.id,
@@ -54,10 +58,25 @@ function pasteAt(
     { book: opened.book },
   )
   if (!done.ok) {
-    a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Does not fit on the paper")) })
-    return
+    if (!quiet)
+      a.showToast({
+        kind: "warn",
+        message: refusalMessage(ctx.catalog, done, kit.message("Does not fit on the paper")),
+      })
+    return false
   }
   a.select(id, done.result.items)
+  return true
+}
+
+// 選んでいる物に応じた貼る先に貼り、入れなければ（入れ物が狭い・隣に収まらない）ページの最初の空きに貼る。どこにも貼れなければトーストで知らせる
+function pasteNearSelection(ctx: CommandContext, a: Parameters<(typeof PAPER_PASTE)["run"]>[1], clip: Clip): void {
+  const where = targetOf(ctx, clip)
+  if (where.parent === null) {
+    pasteAt(ctx, a, clip, where)
+    return
+  }
+  if (!pasteAt(ctx, a, clip, where, true)) pasteAt(ctx, a, clip, { parent: null })
 }
 
 // 選んでいるアイテムを写しにする。写せない形が混じればトーストで知らせて null
@@ -106,7 +125,7 @@ export const PAPER_PASTE = kit.defineCommand({
   title: "Paste",
   run: (ctx, a) => {
     const clip = clipIn(ctx)
-    if (clip) pasteAt(ctx, a, clip, targetOf(ctx))
+    if (clip) pasteNearSelection(ctx, a, clip)
   },
   when: onOpenedPage,
   enabled: ctx => clipIn(ctx) !== null,
