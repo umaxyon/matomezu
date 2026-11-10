@@ -72,9 +72,6 @@ var migrations = []string{
 	`UPDATE books SET body = json_set(body, '$.project', 'default') WHERE json_type(body, '$.project') IS NULL;
 	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.project') IS NULL THEN json_set(value, '$.project', 'default') ELSE value END)) FROM json_each(mailbox.body));
 	UPDATE participants SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.projects') IS NULL THEN json_set(value, '$.projects', json('["default"]')) ELSE value END)) FROM json_each(participants.body));`,
-	// ページの slide の並びのアイテムから、項目 lockRatio・ratio（スライドのアイテムの項目の表から外した）を取り除く
-	`UPDATE books SET body = json_set(body, '$.pages', json((SELECT json_group_array(json(CASE WHEN json_type(page.value, '$.slide') = 'array' THEN json_set(page.value, '$.slide', json((SELECT json_group_array(json(CASE WHEN json_type(item.value, '$.props') = 'object' THEN json_remove(item.value, '$.props.lockRatio', '$.props.ratio') ELSE item.value END)) FROM json_each(page.value, '$.slide') AS item))) ELSE page.value END)) FROM json_each(books.body, '$.pages') AS page)))
-	WHERE json_type(body, '$.pages') = 'array' AND (body LIKE '%"lockRatio"%' OR body LIKE '%"ratio"%');`,
 }
 
 type sqliteStorage struct {

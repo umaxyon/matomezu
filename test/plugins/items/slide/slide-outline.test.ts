@@ -21,8 +21,7 @@ test("文字枠を押しただけで置く大きさは、高さが文字 1 行�
   expect(EMPTY_TEXT_WIDTH).toBeLessThan(24)
 })
 
-test("比率の項目（lockRatio・ratio）は、スライドのアイテムの項目の表に無いので断る", () => {
-  expect(EllipseProps.safeParse({ lockRatio: true }).success).toBe(false)
-  expect(EllipseProps.safeParse({ ratio: 1.5 }).success).toBe(false)
-  expect(TextFrameProps.safeParse({ text: "a", ratio: 1.5 }).success).toBe(false)
+test("項目の表に無い項目は断る", () => {
+  expect(EllipseProps.safeParse({ unknownProp: true }).success).toBe(false)
+  expect(TextFrameProps.safeParse({ text: "a", unknownProp: 1.5 }).success).toBe(false)
 })
