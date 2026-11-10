@@ -224,6 +224,78 @@ test.describe("スライドの操作", () => {
     await expect(stroke).toHaveAttribute("stroke-width", before ?? "")
   })
 
+  // 道具を選び、ドラッグせず紙の (x, y)（紙の上の px）を 1 回押して、文字枠を置く
+  async function putTextAt(page: Page, x: number, y: number) {
+    await (await footerMenuTool(page, "文字枠")).click()
+    const at = await onPaper(page, 0, 0)
+    const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
+    await page.mouse.click(at.x + x * z, at.y + y * z)
+    return z
+  }
+
+  test("押しただけで置く文字枠は、高さが文字 1 行分、幅が 8 文字分ほどになる", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    const z = await putTextAt(page, 200, 200)
+    await expect(page.locator("textarea")).toBeFocused()
+    const box = (await page.locator("[data-item]").first().boundingBox())!
+    expect(Math.abs(box.width / z - 192)).toBeLessThan(3)
+    expect(Math.abs(box.height / z - 32)).toBeLessThan(3)
+  })
+
+  test("何も書かずに終えた文字枠は、何も言わずに消え、元に戻す履歴に残らない", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await putTextAt(page, 200, 200)
+    await expect(page.locator("textarea")).toBeFocused()
+    await page.mouse.click(1, 1) // 何も書かずに外を押す
+    await expect(page.locator("[data-item]")).toHaveCount(0)
+    await expect(page.locator("[role=status]")).toHaveCount(0)
+    await putTextAt(page, 200, 200)
+    await page.keyboard.press("Escape") // やめても残さない
+    await expect(page.locator("[data-item]")).toHaveCount(0)
+  })
+
+  test("文字が枠に収まらなければ、幅と高さが広がり、減っても縮まない", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    const z = await putTextAt(page, 100, 100)
+    await page.keyboard.type("0123456789012345678901234567")
+    const item = page.locator("[data-item]").first()
+    await expect.poll(async () => (await item.boundingBox())!.width / z).toBeGreaterThan(300)
+    const wide = (await item.boundingBox())!.width
+    await page.keyboard.press("Enter")
+    await page.keyboard.type("下の行")
+    await expect.poll(async () => (await item.boundingBox())!.height / z).toBeGreaterThan(55)
+    await page.keyboard.press("Backspace")
+    await page.keyboard.press("Backspace")
+    expect(Math.abs((await item.boundingBox())!.width - wide)).toBeLessThan(2) // 減っても縮めない
+    await page.mouse.click(1, 1)
+    const after = (await item.boundingBox())!
+    expect(after.width / z).toBeGreaterThan(300) // 決めたあとも広がったまま
+    expect(after.height / z).toBeGreaterThan(55)
+    await page.keyboard.press("ControlOrMeta+z") // 置いて書いて広げたのが 1 回で戻る
+    await expect(page.locator("[data-item]")).toHaveCount(0)
+  })
+
+  test("書き終えた文字枠はダブルクリックで中にカーソルが入って書き直せ、全部消して終えると消える", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await putTextAt(page, 200, 200)
+    await page.keyboard.type("abcd")
+    await page.mouse.click(1, 1)
+    const item = page.locator("[data-item]").first()
+    await expect(item).toHaveText("abcd")
+    await item.dblclick()
+    await expect(page.locator("textarea")).toBeFocused()
+    await page.keyboard.type("ef")
+    await page.mouse.click(1, 1)
+    await expect(item).toHaveText("abcdef")
+    await item.dblclick()
+    await page.keyboard.press("ControlOrMeta+a")
+    await page.keyboard.press("Delete")
+    await page.mouse.click(1, 1)
+    await expect(page.locator("[data-item]")).toHaveCount(0)
+    await page.keyboard.press("ControlOrMeta+z")
+    await expect(page.locator("[data-item]")).toHaveText("abcdef")
+  })
+
   test("回すつまみで回せる。文字枠は置いたらそのまま打て、Delete で消せ、元に戻せる", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     await draw(page, "文字枠", [100, 100], [500, 180])

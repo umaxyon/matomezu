@@ -5,6 +5,7 @@ import {
   centerOf,
   cornersOf,
   drawnRect,
+  grownRect,
   movedPoint,
   normalizeAngle,
   pointsOnPaper,
@@ -140,4 +141,15 @@ test("45 度ずつに丸める: 水平・垂直・斜めに寄り、長さは保
   const d = snappedTo45(from, { x: 60, y: 50 })
   close(d.x, d.y)
   close(Math.hypot(d.x, d.y), Math.hypot(60, 50))
+})
+
+test("文字に合わせて広げた枠: 右と下へ広がり、左上の角は紙の上で動かず、小さくはならない", () => {
+  expect(grownRect(F, 0, { w: 260, h: 100 })).toEqual({ x: 100, y: 50, w: 260, h: 100 })
+  expect(grownRect(F, 0, { w: 100, h: 50 })).toBe(F) // 今より小さい要求では変えない
+  const turned = grownRect(F, 30, { w: 260, h: 140 })
+  const [before] = cornersOf(F, 30)
+  const [after] = cornersOf(turned, 30)
+  close(after?.x ?? 0, before?.x ?? 1)
+  close(after?.y ?? 0, before?.y ?? 1)
+  expect(turned).toMatchObject({ w: 260, h: 140 })
 })

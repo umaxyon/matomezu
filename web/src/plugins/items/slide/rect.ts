@@ -94,6 +94,15 @@ export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, mi
   return { x: c.x + shift.x - w / 2, y: c.y + shift.y - h / 2, w, h, scaled: horizontal && vertical }
 }
 
+// 枠 f を、幅 w・高さ h まで右と下へ広げた枠（左上の角は、角度をかけたあとの紙の上で動かない。今より小さくはしない）
+export function grownRect(f: Rect, rotation: number, need: { w: number; h: number }): Rect {
+  const dw = Math.max(0, need.w - f.w)
+  const dh = Math.max(0, need.h - f.h)
+  if (dw === 0 && dh === 0) return f
+  const { x, y, w, h } = resizedRect(f, rotation, { right: true, bottom: true }, turn({ x: dw, y: dh }, rotation), 0)
+  return { x, y, w, h }
+}
+
 // 角度を -180 を超え 180 以下にそろえる
 export function normalizeAngle(deg: number): number {
   const m = ((((deg + 180) % 360) + 360) % 360) - 180

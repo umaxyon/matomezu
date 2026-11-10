@@ -14,6 +14,7 @@ import {
   SLIDE_INK,
   STRAIGHT_LINE,
   type StraightLineProps,
+  TEXT_LINE_HEIGHT,
   type TextFrameProps,
 } from "./slide"
 
@@ -31,7 +32,7 @@ export function TextFrameView({ props, size }: ItemViewProps<z.output<typeof Tex
         whiteSpace: "pre-wrap",
         overflowWrap: "anywhere",
         fontSize: props.fontSize ?? DEFAULT_FONT_SIZE,
-        lineHeight: 1.3,
+        lineHeight: TEXT_LINE_HEIGHT,
         textAlign: props.align ?? "left",
         color: paint(props.color),
       }}

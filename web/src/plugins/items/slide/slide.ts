@@ -112,6 +112,11 @@ export function movedLineProps(
 // 文字枠の文字の大きさ（px）の既定
 export const DEFAULT_FONT_SIZE = 24
 
+// 文字枠の行の高さ（文字の大きさに対する倍率）。文字枠の絵と書き換えの入力、置くときの大きさが同じ値を使う
+export const TEXT_LINE_HEIGHT = 1.3
+// 押しただけで置く文字枠の大きさ: 高さは文字 1 行分、幅は 8 文字分
+const TEXT_FRAME_SIZE = { w: DEFAULT_FONT_SIZE * 8, h: Math.ceil(DEFAULT_FONT_SIZE * TEXT_LINE_HEIGHT) } as const
+
 // アイテムの幅・高さの下限（px）
 export const MIN_SIZE = 8
 const MIN = { w: MIN_SIZE, h: MIN_SIZE } as const
@@ -125,7 +130,7 @@ export const TEXT_FRAME = kit.defineShape({
   toolbox: true,
   props: TextFrameProps,
   tokens: [],
-  size: { w: 240, h: 48 },
+  size: TEXT_FRAME_SIZE,
   min: MIN,
   labelOf: item => (item.props as { text?: string }).text ?? "", // 文字枠の名前は、書いた文字
 })
