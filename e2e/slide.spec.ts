@@ -137,7 +137,7 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveCount(3)
   })
 
-  test("選んで動かす。角のつまみで大きさを変える。角度は数字で入れる（比率のボタンは無い）", async ({ page }) => {
+  test("選んで動かす。角のつまみで大きさを変える。角度は数字で入れる", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     const z = await draw(page, "楕円", [100, 100], [400, 250])
     const e = page.locator("[data-item]").first()
@@ -156,7 +156,6 @@ test.describe("スライドの操作", () => {
     await page.mouse.up()
     await expect.poll(async () => Math.round((await e.boundingBox())!.width / z)).toBe(400)
     await expect.poll(async () => Math.round((await e.boundingBox())!.height / z)).toBe(250)
-    await expect(page.getByRole("button", { name: /比率/ })).toHaveCount(0)
     // 辺を引くと、その向きだけ変わる
     const right = (await page.locator('[data-grip="right"]').boundingBox())!
     await page.mouse.move(right.x + right.width / 2, right.y + right.height / 2)

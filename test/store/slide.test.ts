@@ -77,10 +77,10 @@ test("大きさ: 書いた方だけ変わり、scale なら文字の大きさも
   const id = s.slide()[0]?.id as string
   const prop = (k: string) => (s.slide()[0] as { props: Record<string, unknown> }).props[k]
   const box = () => s.slide()[0] as { w: number; h: number }
-  // ロックなし: 幅だけ変わる
+  // 幅だけ書けば、高さは今のまま
   expect(s.perform("@matomezu/slide:slide-resize", { page: s.page, item: id, w: 300 }).ok).toBe(true)
   expect([box().w, box().h]).toEqual([300, 100])
-  // 高さだけ書けば、幅は今のまま。scale で文字の大きさも幅の倍率で変わる
+  // 幅と高さを書き、scale なら文字の大きさも幅の倍率で変わる
   expect(s.perform("@matomezu/slide:slide-resize", { page: s.page, item: id, w: 600, h: 300, scale: true }).ok).toBe(
     true,
   )

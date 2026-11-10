@@ -1,4 +1,4 @@
-// スライドのプラグイン: スライドに描くアイテム（文字枠・自由な線・直線・楕円）と、置く・動かす・大きさを変える・項目を変える・比率を戻す・重ねを変える・消すアクション。
+// スライドのプラグイン: スライドに描くアイテム（文字枠・自由な線・直線・楕円）と、置く・動かす・大きさを変える・項目を変える・重ねを変える・消すアクション。
 // 置き場はページの slide で、ブックのタイプが選ぶ（タイプの slide.allowed）。描いて操作を受けるレイヤー（book-layers）と、そのコマンドとキーも持つ
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
