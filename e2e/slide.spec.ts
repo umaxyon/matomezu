@@ -328,6 +328,25 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveCount(0)
   })
 
+  test("文字に寄せた枠の大きさ（フォントのデータで計算）は、ブラウザの描画と合い、書き換え中も決めたあとも文字が切れず折り返さない", async ({
+    page,
+  }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await putTextAt(page, 100, 100)
+    await page.keyboard.type("Hello World 日本語のテキスト")
+    const area = page.locator("textarea")
+    const clipped = () => area.evaluate(el => el.scrollWidth > el.clientWidth + 1)
+    await expect.poll(clipped).toBe(false) // 書き換え中、横にはみ出さない
+    await page.mouse.click(1, 1)
+    const shown = page.locator("[data-item] div").first()
+    const fits = () =>
+      shown.evaluate(el => ({
+        over: el.scrollWidth > el.clientWidth + 1,
+        rows: Math.round(el.scrollHeight / (24 * 1.3)),
+      }))
+    expect(await fits()).toEqual({ over: false, rows: 1 }) // 決めたあと、1 行のまま切れない
+  })
+
   test("書き終えた文字枠はダブルクリックで中にカーソルが入って書き直せ、全部消して終えると消える", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     await putTextAt(page, 200, 200)
