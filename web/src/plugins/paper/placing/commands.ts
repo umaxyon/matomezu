@@ -16,7 +16,7 @@ import { amongSelected, type Edges, refusalMessage, resizedBy, shapeDefOf } from
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import type { Came } from "./drag"
-import { PLACE_OFFSET, placeTarget, placingShape } from "./items"
+import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape } from "./items"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
 const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
@@ -152,7 +152,8 @@ export const PAPER_SELECT_ALL = kit.defineCommand({
   when: onOpenedPage,
 })
 
-// アイテムを、画面の上で動いた量だけ動かす（came はドラッグの通り道で覚えた、相手ごとの先端が来た向き）。収まらなければ動かさない
+// アイテムを、画面の上で動いた量だけ動かす（came はドラッグの通り道で覚えた、相手ごとの先端が来た向き）。
+// 動いた量では収まらないとき（紙や子の領域の端の外・近すぎる所）は、収まる一番近い所まで寄せる（nearestMove）。どこにも収まらなければ動かさない
 export const PAPER_MOVE = kit.defineCommand({
   id: "paper-move",
   performs: [ITEM_MOVE.id],
@@ -161,16 +162,18 @@ export const PAPER_MOVE = kit.defineCommand({
   run: (ctx, a, args: { items: readonly string[]; by: Point; came?: Came }) => {
     const { opened } = ctx.stage
     if (!opened?.page || args.items.length === 0) return
-    const by = toPaperDelta(ctx.stage, args.by)
+    const asked = toPaperDelta(ctx.stage, args.by)
     const came = args.came && { came: { ...args.came } }
     const crowd = "push" as const
+    const paged = pagedOf(ctx.book)
+    const by = (paged && nearestMove(ctx.catalog, paged, opened.page, args.items, asked, args.came)) || asked
     a.perform(ITEM_MOVE.id, { page: opened.page, items: [...args.items], by, crowd, ...came }, { book: opened.book })
   },
   when: onOpenedPage,
 })
 
 // 付け替えの道具のドラッグを離したとき: 形 item を、画面の上で動いた量 by だけ動かした所で、形 parent の中へ入れる（null はページへ出す）。
-// 今と同じ親なら、その中で動かすだけ（item-move）。入れられなければ何もしない
+// 今と同じ親なら、その中で動かすだけ（item-move。収まる一番近い所へ寄せる）。入れられなければ、入れる先の子の領域の左上（ページなら今の位置）へ寄せ、入れられる一番近い所へ入れる（nearestReparent）。どこにも入れられなければ何もしない
 export const PAPER_REPARENT = kit.defineCommand({
   id: "paper-reparent",
   performs: [ITEM_REPARENT.id, ITEM_MOVE.id],
@@ -183,11 +186,14 @@ export const PAPER_REPARENT = kit.defineCommand({
     if (!opened?.page || !found) return
     const by = toPaperDelta(ctx.stage, args.by)
     const on = { book: opened.book }
+    const paged = pagedOf(ctx.book)
     if (found.parent === args.parent) {
-      a.perform(ITEM_MOVE.id, { page: opened.page, items: [args.item], by, crowd: "push" }, on)
+      const near = paged && nearestMove(ctx.catalog, paged, opened.page, [args.item], by)
+      a.perform(ITEM_MOVE.id, { page: opened.page, items: [args.item], by: near || by, crowd: "push" }, on)
       return
     }
-    const at = { x: found.at.x + by.x, y: found.at.y + by.y }
+    const asked = { x: found.at.x + by.x, y: found.at.y + by.y }
+    const at = (paged && nearestReparent(ctx.catalog, paged, opened.page, args.item, args.parent, asked)) || asked
     a.perform(ITEM_REPARENT.id, { page: opened.page, item: args.item, parent: args.parent, at, crowd: "push" }, on)
   },
   when: onOpenedPage,

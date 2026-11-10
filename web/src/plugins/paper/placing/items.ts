@@ -3,12 +3,14 @@
 import {
   type Book,
   type CoreCatalog,
+  findShape,
   type ItemPage,
   type PagedBook,
   type PlacedShape,
   type Point,
   putPage,
   type Rect,
+  replaceShape,
   type ShapeOnPage,
   type Size,
   shapeSchema,
@@ -30,7 +32,7 @@ import {
   toData,
   withPage,
 } from "../../base"
-import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
+import { type Came, clampBy, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
 export const PLACE_OFFSET: Point = { x: 16, y: 12 }
@@ -100,6 +102,78 @@ export function moveItems(
   const followed = followConnectors(catalog, page, moved)
   if (frame.parent === null) return withPage(catalog, book, { ...followed, items: placedAt(catalog, followed, after) })
   return commitChildren(catalog, putPage(book, followed), pageId, { ...frame, parent: frame.parent }, after)
+}
+
+// moveItems が収まらないとき（null）、画面のドラッグを離したときの動かす量: by を紙の端まで切り詰め（clampBy）、それでも収まらなければ、
+// 始めの位置へ 1px ずつ（大きい方の軸で数えた歩数。400 まで）戻して、最初に収まる量（stepToward）。決まった手順なので同じ入力なら同じ結果。収まる量が無ければ null
+export function nearestMove(
+  catalog: CoreCatalog,
+  book: PagedBook,
+  pageId: string,
+  ids: readonly string[],
+  by: Point,
+  came?: Came,
+): Point | null {
+  const page = book.pages.find(p => p.id === pageId)
+  const frame = page && ids[0] !== undefined ? frameAround(catalog, book, page, ids[0]) : null
+  if (!frame) return null
+  const to = clampBy(frame.rects, ids, by, frame.paper)
+  return stepToward(to, { x: 0, y: 0 }, p => moveItems(catalog, book, pageId, ids, p, came) !== null)
+}
+
+// 付け替えで形 item を、紙の上の where へ移して形 parent の中へ入れた（null はページへ出した）ブック。入れられなければ null
+// （action の item-reparent と同じ決まり。抜いて、親の子の領域の左上より左や上なら寄せて入れる）
+export function reparentedAt(
+  catalog: CoreCatalog,
+  book: PagedBook,
+  pageId: string,
+  item: string,
+  parent: string | null,
+  where: Point,
+): PagedBook | null {
+  const page = book.pages.find(p => p.id === pageId)
+  const found = page && findShape(page, item)
+  const out = page && replaceShape(page, item, () => null)
+  if (!page || !found || !out || found.parent === parent) return null
+  const without = putPage(book, out)
+  const into = parent === null ? null : findShape(out, parent)
+  if (parent !== null && !into) return null
+  if (!into) return placeItem(catalog, without, pageId, { ...found.shape, ...where })
+  return placeChild(catalog, without, pageId, into.shape.id, found.shape, {
+    x: where.x - into.at.x,
+    y: where.y - into.at.y,
+  })
+}
+
+// 付け替えの道具を離したとき、入れる所 at（紙の上）に入れられなければ、入れる先の子の領域の左上（ページなら今の位置）へ 1px ずつ寄せて、
+// 最初に入れられる at。無ければ null
+export function nearestReparent(
+  catalog: CoreCatalog,
+  book: PagedBook,
+  pageId: string,
+  item: string,
+  parent: string | null,
+  at: Point,
+): Point | null {
+  const page = book.pages.find(p => p.id === pageId)
+  const found = page && findShape(page, item)
+  const into = page && parent !== null ? findShape(page, parent) : null
+  if (!page || !found) return null
+  const target = into
+    ? { x: into.at.x + childOrigin(catalog, into.shape).x, y: into.at.y + childOrigin(catalog, into.shape).y }
+    : found.at
+  return stepToward(at, target, p => reparentedAt(catalog, book, pageId, item, parent, p) !== null)
+}
+
+// 点 from から to へ向けて 1px ずつ（大きい方の軸で数えた歩数。400 まで）寄せて、最初に fits を通す点（from から試す）
+function stepToward(from: Point, to: Point, fits: (p: Point) => boolean): Point | null {
+  const steps = Math.min(400, Math.ceil(Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y))))
+  for (let i = 0; i <= steps; i++) {
+    const k = steps === 0 ? 0 : i / steps
+    const p = { x: Math.round(from.x + (to.x - from.x) * k), y: Math.round(from.y + (to.y - from.y) * k) }
+    if (fits(p)) return p
+  }
+  return null
 }
 
 // 形 id と、その子孫の id

@@ -9,7 +9,7 @@
 //   来た向きと逆へ動いて相手から抜けたら、覚えた向きを忘れる（引き返した）
 // - 離したとき: 入れ替えた相手とまだ近ければ、動かした箱を相手の向こう側へ寄せる（入れ替えを仕上げる）。
 //   入れ替えていない相手と近ければ、動かした箱を相手の手前（来た側）へ戻す（相手は動かさない）。
-//   それでも紙からはみ出す・近すぎる組が残るなら、動かさない（元の位置に戻る）
+//   それでも紙からはみ出す・近すぎる組が残るなら、ここでは決まらない（null。画面は、動かす量を clampBy で切り詰め、収まる一番近い所まで戻して落とす。items.ts の nearestMove）
 // - 何個かまとめて動かすときは入れ替えず、近すぎる相手の手前へまとめて戻すだけ
 
 import type { Point, Rect, Size } from "../../../plugin-api"
@@ -157,6 +157,19 @@ export function dropRects(
     )
   now.set(id, m)
   return inPaper(m, paper) && !newClash(before, now, gap) ? now : null
+}
+
+// 動かすアイテム ids の外接の四角が、紙 paper（左上は 0,0）からはみ出さないよう、動かす量 by を軸ごとに切り詰めた量
+// （斜めに出しても端に沿って滑る。紙が右や下へ限りが無ければ、左と上だけ効く）
+export function clampBy(before: Rects, ids: readonly string[], by: Point, paper: Size): Point {
+  const rs = ids.flatMap(id => before.get(id) ?? [])
+  if (rs.length === 0) return by
+  const lo = { x: Math.min(...rs.map(r => r.x)), y: Math.min(...rs.map(r => r.y)) }
+  const hi = { x: Math.max(...rs.map(r => r.x + r.w)), y: Math.max(...rs.map(r => r.y + r.h)) }
+  return {
+    x: Math.max(-lo.x, Math.min(by.x, paper.w - hi.x)),
+    y: Math.max(-lo.y, Math.min(by.y, paper.h - hi.y)),
+  }
 }
 
 // 何個かまとめて動かしたときの並び（入れ替えない。近すぎる相手があれば、まとめて来た側へ戻す。収まらなければ null）

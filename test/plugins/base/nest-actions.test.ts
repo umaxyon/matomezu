@@ -8,7 +8,13 @@ import { floorsOf, resizedBy, roomOf } from "../../../web/src/plugins/base/place
 import { allRectsOf, NEST_PADDING, placedSize, portAreasOf } from "../../../web/src/plugins/base/place/placed"
 import { targetsFrom } from "../../../web/src/plugins/items/line/connect"
 import { routeInputOf } from "../../../web/src/plugins/items/line/drawn"
-import { dropTarget, placeTarget, placingShape } from "../../../web/src/plugins/paper/placing/items"
+import {
+  dropTarget,
+  nearestMove,
+  nearestReparent,
+  placeTarget,
+  placingShape,
+} from "../../../web/src/plugins/paper/placing/items"
 import { CORE_CATALOG, newStore } from "../../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
@@ -105,6 +111,40 @@ test("子は親の中で動かし、子の領域より左や上には動かさ�
   expect(run(store, "@matomezu/paper:item-move", { items: [b], by: { x: 60, y: 0 }, crowd: "push" }).ok).toBe(true)
   expect(at(store, c)!.shape.x).toBeLessThan(at(store, b)!.shape.x)
   expect(run(store, "@matomezu/paper:item-move", { items: [a, b], by: { x: 1, y: 0 } }).ok).toBe(false)
+})
+
+const pagedBook = (store: ReturnType<typeof newStore>) =>
+  store.state.getState().books.b1 as unknown as Parameters<typeof nearestMove>[1]
+
+test("離したとき、子の領域や紙の端の外へ出した量は、収まる一番近い所へ寄せる。斜めなら端に沿い、兄弟の手前が外でも収まる所まで", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 100, y: 100 }, w: 400, h: 300 })!
+  const b = place(store, { at: { x: 40, y: 60 }, parent: a, w: 80, h: 40 })!
+  const book = pagedBook(store)
+  // 子の領域の左の外へ: 左端（O.x）まで
+  expect(nearestMove(CORE_CATALOG, book, "p1", [b], { x: -300, y: 0 })).toEqual({ x: O.x - 40, y: 0 })
+  // 左上の外へ斜めに: 左端と上端へ滑る
+  expect(nearestMove(CORE_CATALOG, book, "p1", [b], { x: -300, y: -300 })).toEqual({
+    x: O.x - 40,
+    y: O.y - at(store, b)!.shape.y,
+  })
+  // ページの形は紙の外へ出さず、紙の端へ
+  expect(nearestMove(CORE_CATALOG, book, "p1", [a], { x: -500, y: 0 })).toEqual({ x: -100, y: 0 })
+  // 収まる量はそのまま
+  expect(nearestMove(CORE_CATALOG, book, "p1", [b], { x: 20, y: 10 })).toEqual({ x: 20, y: 10 })
+})
+
+test("付け替えの道具で別の親へ入れ、入れる所が紙に収まらないときは、入れられる一番近い所へ入れる", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
+  const b = place(store, { at: { x: 500, y: 100 }, w: 80, h: 40 })!
+  const book = pagedBook(store)
+  // 親が育って紙からはみ出す所は、入れられない。入れられる所まで寄る
+  const asked = { x: 5000, y: 100 }
+  expect(nearestReparent(CORE_CATALOG, book, "p1", b, a, asked)).not.toBeNull()
+  const near = nearestReparent(CORE_CATALOG, book, "p1", b, a, asked)!
+  expect(near.x).toBeLessThan(asked.x)
+  expect(near.x).toBeGreaterThan(O.x)
 })
 
 test("子の項目と大きさも id で変えられ、大きくなった子は親の中で兄弟を押す", () => {

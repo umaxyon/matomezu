@@ -3,7 +3,7 @@ import { shapesOf } from "../../../web/src/core/placed"
 import type { BookOf } from "../../../web/src/core/schema/book"
 import { shownRects } from "../../../web/src/plugins/base/place/items"
 import { GAP, type Rect } from "../../../web/src/plugins/base/place/push"
-import { dragRects, dropManyRects, dropRects, track } from "../../../web/src/plugins/paper/placing/drag"
+import { clampBy, dragRects, dropManyRects, dropRects, track } from "../../../web/src/plugins/paper/placing/drag"
 import { CORE_CATALOG, newStore } from "../../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横
@@ -59,6 +59,15 @@ test("通り道が無い（AI が動かした）ときは、始めの位置か�
   expect(dropRects(before, "a", { x: 30, y: 0 }, undefined, PAPER)!.get("a")).toEqual(r(100, 100))
   expect(dropRects(before, "a", { x: 0, y: 300 }, undefined, PAPER)!.get("a")).toEqual(r(100, 400))
   expect(dropRects(before, "a", { x: -200, y: 0 }, undefined, PAPER)).toBeNull()
+})
+
+test("clampBy: 動かすアイテムの外接の四角が紙からはみ出さないよう、軸ごとに動かす量を切り詰める。右や下に限りが無い紙は左と上だけ", () => {
+  const before = rects({ a: r(100, 100), b: r(300, 150) })
+  expect(clampBy(before, ["a"], { x: -300, y: -300 }, PAPER)).toEqual({ x: -100, y: -100 })
+  expect(clampBy(before, ["a", "b"], { x: -300, y: 20 }, PAPER)).toEqual({ x: -100, y: 20 })
+  expect(clampBy(before, ["b"], { x: 2000, y: 2000 }, PAPER)).toEqual({ x: 1123 - 400, y: 794 - 210 })
+  const open = { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY }
+  expect(clampBy(before, ["a"], { x: 2000, y: -300 }, open)).toEqual({ x: 2000, y: -100 })
 })
 
 test("何個かまとめて動かしたときは入れ替えず、近すぎる相手の手前へまとめて戻す", () => {

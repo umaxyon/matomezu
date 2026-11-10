@@ -108,7 +108,7 @@ test("ブックで使えないアイテムは置けない", () => {
   expect(done).toEqual({ ok: false, reason: "refused" })
 })
 
-test("動かすのは画面の上で動いた量を倍率で割った量。はみ出すなら動かさない", () => {
+test("動かすのは画面の上で動いた量を倍率で割った量。はみ出すなら、紙の端まで寄せて動かす", () => {
   const store = ready()
   store.actions.perform(
     "@matomezu/paper:item-place",
@@ -118,7 +118,7 @@ test("動かすのは画面の上で動いた量を倍率で割った量。は�
   store.actions.command("s1", "@matomezu/paper:paper-move", { items: ["n1"], by: { x: 30, y: 20 } })
   expect(page(store).items![0]).toMatchObject({ x: 40, y: 30 })
   store.actions.command("s1", "@matomezu/paper:paper-move", { items: ["n1"], by: { x: -41, y: 0 } })
-  expect(page(store).items![0]).toMatchObject({ x: 40, y: 30 })
+  expect(page(store).items![0]).toMatchObject({ x: 0, y: 30 })
 })
 
 test("道具は選択・付け替え・ハンドの順に回り、替えると置こうとしていたアイテムを取り消す", () => {
