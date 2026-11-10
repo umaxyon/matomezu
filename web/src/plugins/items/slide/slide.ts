@@ -1,7 +1,7 @@
 // スライドのアイテム: 文字枠・自由な線・直線・楕円。ブックのアイテム（箱や線）とは別の、描画シェイプの仲間。
 // 置き場はページの slide（ブックのタイプが選ぶ）で、押し合わず、線もつながず、紙をはみ出てもよい（紙は表示の範囲）。ケイパビリティ（capabilities）は持たない。
 // 線の点は、枠（幅と高さ）の中の割合（0 から 1）で持つ。枠を拡大すれば線も一緒に拡大する。
-// 角度（rotation）・比率のロック（lockRatio）・元の比率（ratio。置いたときの幅 ÷ 高さ）は、どのアイテムも持つ
+// 角度（rotation）は、どのアイテムも持つ。lockRatio・ratio は使わないが、保存済みのスライドを読めるよう受ける
 import { z } from "zod"
 import { ColorSchema, type MinimapMark } from "../../base"
 import { kit } from "./kit"
@@ -14,12 +14,8 @@ const FRAME = {
     .max(360)
     .optional()
     .describe("Angle in degrees, clockwise, around the center. Without it, 0"),
-  lockRatio: z.literal(true).optional().describe("Resizing keeps the width : height ratio"),
-  ratio: z
-    .number()
-    .positive()
-    .optional()
-    .describe("The width ÷ height the item was placed with (reset-ratio goes back to it)"),
+  lockRatio: z.literal(true).optional().describe("Not used (accepted so saved slides still load)"),
+  ratio: z.number().positive().optional().describe("Not used (accepted so saved slides still load)"),
 }
 
 // 枠の中の点（枠の左上が 0, 0、右下が 1, 1）
@@ -104,15 +100,9 @@ export function linePropsOf(kind: string, points: readonly FractionPoint[]): Rec
   return kind === FREE_LINE.id ? { points } : { from: points[0], to: points[1] }
 }
 
-// 線の点を動かしたときの項目: 点と、角度と比率の固定を外す（枠を紙の上の点から出し直すため）。
-// 元の比率は、動かした後の枠 rect（紙の上）の比率にする（「元の比率に戻す」が、点を動かす前の比率へ戻らないように）
-export function movedLineProps(
-  kind: string,
-  points: readonly FractionPoint[],
-  rect: { w: number; h: number },
-): Record<string, unknown> {
-  const ratio = rect.h > 0 ? Math.round((rect.w / rect.h) * 100) / 100 : 0
-  return { ...linePropsOf(kind, points), rotation: null, lockRatio: null, ratio: ratio > 0 ? ratio : null }
+// 線の点を動かしたときの項目: 点と、角度を外す（枠を紙の上の点から出し直すため）
+export function movedLineProps(kind: string, points: readonly FractionPoint[]): Record<string, unknown> {
+  return { ...linePropsOf(kind, points), rotation: null }
 }
 
 // 文字枠の文字の大きさ（px）の既定
@@ -120,8 +110,10 @@ export const DEFAULT_FONT_SIZE = 24
 
 // 文字枠の行の高さ（文字の大きさに対する倍率）。文字枠の絵と書き換えの入力、置くときの大きさが同じ値を使う
 export const TEXT_LINE_HEIGHT = 1.3
-// 押しただけで置く文字枠の大きさ: 高さは文字 1 行分、幅は 8 文字分
-const TEXT_FRAME_SIZE = { w: DEFAULT_FONT_SIZE * 8, h: Math.ceil(DEFAULT_FONT_SIZE * TEXT_LINE_HEIGHT) } as const
+// 文字が空の文字枠の幅（px）: 1 文字より狭く、カーソルが 3 つ並ぶくらい。文字を打つと文字の幅に寄る
+export const EMPTY_TEXT_WIDTH = 12
+// 押しただけで置く文字枠の大きさ: 高さは文字 1 行分、幅は空の幅
+const TEXT_FRAME_SIZE = { w: EMPTY_TEXT_WIDTH, h: Math.ceil(DEFAULT_FONT_SIZE * TEXT_LINE_HEIGHT) } as const
 
 // アイテムの幅・高さの下限（px）
 export const MIN_SIZE = 8

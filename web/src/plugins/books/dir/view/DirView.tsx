@@ -144,7 +144,8 @@ const Rows = memo(function Rows({
   const dir = root
   const usingPencil = stage.tool === PENCIL_TOOL.id
   const selected = selectedIn(dir, stage.selection)
-  const writing = usingPencil && (stage.editing === true || stage.editing === ADDED_EDIT)
+  // 背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は、行の書き換えにしない
+  const writing = usingPencil && stage.edits === "items" && (stage.editing === true || stage.editing === ADDED_EDIT)
   const picking = usingPencil && stage.editing === KIND_PICK
   const text = writing && draft?.entry === selected ? draft.text : null
   const shown: DirFolder = text === null ? dir : (changeEntry(dir, selected, { name: text }) ?? dir)

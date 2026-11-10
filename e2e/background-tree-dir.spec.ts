@@ -123,3 +123,68 @@ test("文字枠を選ぶと、バーは回すつまみに重ならず、つま�
   )
   expect(hit).toBe(true)
 })
+
+// 実際のマウスに近い 2 回押し: 押す→離す→（1 ピクセル動いて）押す→離す。2 回目は clickCount 2 を付ける（ダブルクリックの印）
+async function realDoubleClick(page: Page, x: number, y: number) {
+  await page.mouse.move(x, y)
+  await page.mouse.down({ clickCount: 1 })
+  await page.mouse.up({ clickCount: 1 })
+  await page.mouse.move(x + 1, y)
+  await page.mouse.down({ clickCount: 2 })
+  await page.mouse.up({ clickCount: 2 })
+}
+
+test("ツリーの背景編集モード: 確定した文字枠は、文字の上でも余白でも、選択の有無にかかわらず、実際のマウスの 2 回押しで再編集できる", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const add = await newBook(page, "木", "ツリー")
+  await add.getByLabel("根のキャプション").fill("根")
+  await add.getByRole("button", { name: "作る" }).click()
+  await expect(paper(page)).toBeVisible()
+  await settled(page)
+  await (await fromMenu(page, "背景を編集")).click()
+  await settled(page)
+  await (await footerMenuTool(page, "文字枠")).click()
+  const box = (await paper(page).boundingBox())!
+  await page.mouse.move(box.x + 100, box.y + 120)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 300, box.y + 180, { steps: 6 })
+  await page.mouse.up()
+  await page.keyboard.type("組織図")
+  await page.mouse.click(box.x + 500, box.y + 400) // 確定。選択も外れる
+  const item = page.locator("[data-item]").filter({ hasText: "組織図" })
+  await expect(item).toBeVisible()
+  const at = (await item.boundingBox())!
+  // 未選択のまま、文字の上
+  await realDoubleClick(page, at.x + 10, at.y + at.height / 2)
+  await expect(page.locator("textarea")).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(page.locator("textarea")).toHaveCount(0)
+  // 選択済みのまま、枠の余白（右の端）
+  await realDoubleClick(page, at.x + at.width - 4, at.y + at.height - 4)
+  await expect(page.locator("textarea")).toBeFocused()
+})
+
+test("ディレクトリ構成図の背景編集モード: 確定した文字枠を実際のマウスの 2 回押しで再編集できる", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const add = await newBook(page, "構成", "ディレクトリ構成図")
+  await add.getByLabel("根のフォルダの名前").fill("proj")
+  await add.getByRole("button", { name: "作る" }).click()
+  await expect(paper(page).locator("[data-entry]").first()).toBeVisible()
+  await settled(page)
+  await (await fromMenu(page, "背景を編集")).click()
+  await settled(page)
+  await (await footerMenuTool(page, "文字枠")).click()
+  const box = (await paper(page).boundingBox())!
+  await page.mouse.move(box.x + 300, box.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 500, box.y + 260, { steps: 6 })
+  await page.mouse.up()
+  await page.keyboard.type("メモ")
+  await page.mouse.click(box.x + 600, box.y + 500)
+  const item = page.locator("[data-item]").filter({ hasText: "メモ" })
+  const at = (await item.boundingBox())!
+  await realDoubleClick(page, at.x + 8, at.y + at.height / 2)
+  await expect(page.locator("textarea")).toBeFocused()
+})

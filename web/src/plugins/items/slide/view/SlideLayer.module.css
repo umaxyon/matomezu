@@ -59,6 +59,19 @@
   overflow: hidden;
   cursor: text;
 }
+/* 文字を書き換えている間、同じ書体で文字を並べて、枠を寄せる大きさを測る物（見えない） */
+.ruler {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  visibility: hidden;
+  pointer-events: none;
+  font-family: inherit;
+  overflow-wrap: anywhere;
+}
 /* ドラッグ枠の四角 */
 .dragFrame {
   position: absolute;

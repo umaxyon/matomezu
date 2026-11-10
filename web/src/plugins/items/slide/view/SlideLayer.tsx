@@ -96,7 +96,6 @@ type Drag =
       rect: Rect
       rotation: number
       grip: Grip
-      ratio: number | undefined
       min: number
       text: boolean
     }
@@ -208,7 +207,6 @@ function SlidePageView({
       capture()
       const found = GRIPS.find(g => g.id === gripEl.dataset.grip)
       const rect = rectOf(selected)
-      const locked = shapeProps(selected).lockRatio === true
       drag.current = {
         kind: "grip",
         pointer: e.pointerId,
@@ -217,7 +215,6 @@ function SlidePageView({
         rect,
         rotation: rotationOf(selected),
         grip: found?.grip ?? {},
-        ratio: locked ? rect.w / rect.h : undefined,
         min: minOf(selected.item),
         text: selected.item === TEXT,
       }
@@ -315,7 +312,7 @@ function SlidePageView({
       const moved = movedPoint(d.rect, d.rotation, d.points, d.index, to, d.min)
       setLive({ item: d.item, rect: moved.rect, points: moved.points, rotation: 0 })
     } else if (d.kind === "grip") {
-      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, d.ratio)
+      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min)
       setLive({ item: d.item, rect: to, scaled: to.scaled && d.text })
     } else if (d.kind === "rotate") {
       const rotation = rotatedTo(d.rotation, d.center, d.start, at, e.shiftKey ? 15 : undefined)
@@ -352,7 +349,7 @@ function SlidePageView({
       const shape = shapes.find(s => s.id === d.item)
       if (shape) {
         // 点と枠は、同じ離した所で続けて変える（画面の履歴は 1 段）
-        set.run({ items: [d.item], props: movedLineProps(shape.item, l.points, roundRect(l.rect)) })
+        set.run({ items: [d.item], props: movedLineProps(shape.item, l.points) })
         reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: false })
       }
     } else if (d.kind === "grip" && l) reshape.run({ item: d.item, rect: roundRect(l.rect), scaled: l.scaled === true })
@@ -417,7 +414,7 @@ function SlidePageView({
         ...props,
         ...scaledSize,
         ...(live.rotation === undefined ? {} : { rotation: live.rotation }),
-        ...(live.points ? movedLineProps(s.item, live.points, live.rect) : {}),
+        ...(live.points ? movedLineProps(s.item, live.points) : {}),
       },
     } as PlacedShape
   })
@@ -436,8 +433,6 @@ function SlidePageView({
         stage: stage.id,
         rect: rectOf(current),
         rotation: rotationOf(current),
-        locked: shapeProps(current).lockRatio === true,
-        ratio: shapeProps(current).ratio as number | undefined,
         kind: current.item,
         props: shapeProps(current),
       }

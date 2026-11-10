@@ -1,15 +1,7 @@
 // スライドのプラグイン: スライドに描くアイテム（文字枠・自由な線・直線・楕円）と、置く・動かす・大きさを変える・項目を変える・比率を戻す・重ねを変える・消すアクション。
 // 置き場はページの slide で、ブックのタイプが選ぶ（タイプの slide.allowed）。描いて操作を受けるレイヤー（book-layers）と、そのコマンドとキーも持つ
 import { defineBuiltin } from "../../../plugin-api/builtin"
-import {
-  SLIDE_MOVE,
-  SLIDE_PLACE,
-  SLIDE_REMOVE,
-  SLIDE_REORDER,
-  SLIDE_RESET_RATIO,
-  SLIDE_RESIZE,
-  SLIDE_UPDATE,
-} from "./actions"
+import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
 import {
   SLIDE_BACKWARD,
   SLIDE_DELETE,
@@ -17,7 +9,6 @@ import {
   SLIDE_KEYS,
   SLIDE_MOVE_TO,
   SLIDE_PUT,
-  SLIDE_RESET,
   SLIDE_RESHAPE,
   SLIDE_SET,
   SLIDE_TO_BACK,
@@ -31,13 +22,12 @@ export const SLIDE_PLUGIN = defineBuiltin(
   kit.plugin({
     items: [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE],
     tokens: [SLIDE_INK],
-    actions: [SLIDE_PLACE, SLIDE_MOVE, SLIDE_RESIZE, SLIDE_UPDATE, SLIDE_RESET_RATIO, SLIDE_REORDER, SLIDE_REMOVE],
+    actions: [SLIDE_PLACE, SLIDE_MOVE, SLIDE_RESIZE, SLIDE_UPDATE, SLIDE_REORDER, SLIDE_REMOVE],
     commands: [
       SLIDE_PUT,
       SLIDE_MOVE_TO,
       SLIDE_RESHAPE,
       SLIDE_SET,
-      SLIDE_RESET,
       SLIDE_DELETE,
       SLIDE_TO_FRONT,
       SLIDE_FORWARD,
@@ -61,7 +51,6 @@ declare module "../../../core/catalog" {
     "@matomezu/slide:slide-move": typeof SLIDE_MOVE
     "@matomezu/slide:slide-resize": typeof SLIDE_RESIZE
     "@matomezu/slide:slide-update": typeof SLIDE_UPDATE
-    "@matomezu/slide:slide-reset-ratio": typeof SLIDE_RESET_RATIO
     "@matomezu/slide:slide-reorder": typeof SLIDE_REORDER
     "@matomezu/slide:slide-remove": typeof SLIDE_REMOVE
   }
@@ -70,7 +59,6 @@ declare module "../../../core/catalog" {
     "@matomezu/slide:slide-move-to": typeof SLIDE_MOVE_TO
     "@matomezu/slide:slide-reshape": typeof SLIDE_RESHAPE
     "@matomezu/slide:slide-set": typeof SLIDE_SET
-    "@matomezu/slide:slide-reset": typeof SLIDE_RESET
     "@matomezu/slide:slide-delete": typeof SLIDE_DELETE
     "@matomezu/slide:slide-to-front": typeof SLIDE_TO_FRONT
     "@matomezu/slide:slide-forward": typeof SLIDE_FORWARD
