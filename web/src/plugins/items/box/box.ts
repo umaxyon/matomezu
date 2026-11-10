@@ -4,7 +4,7 @@
 // 置くときは、置く所を覚えて追加のダイアログ（box-add）を開き、中身を決めてから置く。中身は編集のダイアログ（box-edit）で変える
 import { z } from "zod"
 import type { ShapeAddArgs, ShapeEditArgs } from "../../../plugin-api"
-import { blockLabel, ColorSchema, NEST_PADDING, textProps } from "../../base"
+import { blockEmpty, blockLabel, ColorSchema, NEST_PADDING, textProps } from "../../base"
 import { kit } from "./kit"
 import { BOX_MIN, BOX_SIZE, headHeight, placedHeight, placedWidth, VALIGNS } from "./size"
 
@@ -114,11 +114,12 @@ export const BOX = kit.defineShape({
 })
 
 // 内包ボックス: 箱と同じ見た目で、子の形を持てる（ケイパビリティ nests）。子があれば、w・h は大きさの下限になる（子まで入る大きさは base が決める）。
-// 子の領域は、キャプションと本文を全部出した下から（左は NEST_PADDING）。縦の位置が下なら、上から NEST_PADDING で、下にキャプションと本文の高さを空ける。
+// 子の領域は、キャプションと本文を全部出した下から（左は NEST_PADDING）。キャプションも本文も無ければ、上も NEST_PADDING から。縦の位置が下なら、上から NEST_PADDING で、下にキャプションと本文の高さを空ける。
 // 縦の位置を下へ・下から変えたら、子を子の領域が動いた分だけ動かす（並びは崩さない）
 type BoxData = { w?: number; props: z.output<typeof BoxPropsSchema>; shapes?: readonly { y: number }[] }
 const below = (box: BoxData) => box.props.vAlign === "bottom"
-const head = (box: BoxData) => headHeight(box.props, box.w ?? placedWidth(box.props))
+const head = (box: BoxData) =>
+  blockEmpty(box.props) ? NEST_PADDING : headHeight(box.props, box.w ?? placedWidth(box.props))
 const originY = (box: BoxData) => (below(box) ? NEST_PADDING : head(box))
 export const NEST_BOX = kit.defineShape({
   ...BOX_BASE,

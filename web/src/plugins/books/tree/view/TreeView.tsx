@@ -198,8 +198,8 @@ const Tree = memo(function Tree({
   // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
   const focused = useFocus(stage, page?.id)
-  useCentered(stage, usingEdit && focused && !drag.state ? at : undefined, view, panStageBy)
   useToolZoom(stage.id, usingEdit, focused, zoomStage)
+  useCentered(stage, usingEdit && focused && !drag.state ? at : undefined, view, panStageBy)
   if (!book || !page || !root || !laid || !selected) return null
   const tree = root
   const pageId = page.id
@@ -461,7 +461,9 @@ function useToolZoom(
   }, [stage, usingEdit, focused, zoomStage])
 }
 
-// 紙の上の四角 rect（無ければ何もしない）の真ん中が、大きさ view のビューの真ん中に来るように紙をずらす（紙の端では、ずらせる所まで）
+// 紙の上の四角 rect（無ければ何もしない）の真ん中が、大きさ view のビューの真ん中に来るように紙をずらす（紙の端では、ずらせる所まで）。
+// 節のフォーカスが付き直したとき（rect が無い所から有る所に替わったとき）は、同じ描き直しで道具の倍率にする操作が出るので、
+// その倍率が反映された次の描き直しで中央に置く（倍率が替わると、見えている中心がずれるため）
 function useCentered(
   stage: StageView,
   rect: { x: number; y: number; w: number; h: number } | undefined,
@@ -472,13 +474,44 @@ function useCentered(
   latest.current = stage
   const latestPan = useLatestPan(stage.id)
   const { x, y, w, h } = rect ?? {}
-  useEffect(() => {
+  const [regained, setRegained] = useState(0)
+  const waiting = useRef(false)
+  const zoomed = useRef(stage.zoom)
+  const timer = useRef(0)
+  const had = useRef(false)
+  const centerNow = useRef<() => void>(() => {})
+  centerNow.current = () => {
     const pan = latestPan()
     const at = pan && placement({ ...latest.current, pan })
     if (x === undefined || y === undefined || w === undefined || h === undefined || !view?.w || !view.h || !at) return
     const shift = centerShift({ x, y, w, h }, view, at)
     if (shift) panStageBy(latest.current.id, shift.dx, shift.dy)
-  }, [x, y, w, h, view, panStageBy, latestPan])
+  }
+  const isNone = rect === undefined
+  // 付き直したときだけ、倍率が反映された描き直しを待つ（道具の倍率が今と同じなら倍率は替わらないので、少し待って待つのをやめる）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 付き直したときだけ
+  useEffect(() => {
+    if (!isNone && !had.current) {
+      waiting.current = true
+      zoomed.current = latest.current.zoom
+      setRegained(n => n + 1)
+      timer.current = window.setTimeout(() => {
+        waiting.current = false
+      }, 300)
+    }
+    had.current = !isNone
+  }, [isNone])
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 位置が替わったときだけ中央に置く（倍率の操作では置き直さない）
+  useEffect(() => {
+    centerNow.current()
+  }, [x, y, w, h, view, panStageBy, latestPan, isNone])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 付き直したあとの描き直しと、倍率が替わったときに、中央に置く
+  useEffect(() => {
+    if (!waiting.current) return
+    centerNow.current()
+    if (latest.current.zoom !== zoomed.current) waiting.current = false
+  }, [regained, stage.zoom])
 }
 
 function NoPages({ stage }: { stage: StageView }) {

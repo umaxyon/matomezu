@@ -25,8 +25,31 @@ const place = (store: ReturnType<typeof newStore>, args: object) => {
 const at = (store: ReturnType<typeof newStore>, id: string) => findShape(page(store), id)
 const ids = (store: ReturnType<typeof newStore>) => walkShapes(page(store)).map(s => [s.shape.id, s.parent])
 
-// 何も書いていない内包ボックスの子の領域の左上（親の左上から。キャプション 1 行の下）
+// 何も書いていない内包ボックスの子の領域の左上（親の左上から。上も左と同じ NEST_PADDING）
 const O = childOrigin(CORE_CATALOG, { id: "x", x: 0, y: 0, item: NEST, props: { caption: "", body: "" } } as never)
+// キャプションだけある内包ボックスの子の領域の左上（親の左上から。キャプション 1 行の下）
+const CAPTIONED = childOrigin(CORE_CATALOG, {
+  id: "x",
+  x: 0,
+  y: 0,
+  item: NEST,
+  props: { caption: "社内", body: "" },
+} as never)
+
+test("何も書いていない内包ボックスは、子の領域が上も左と同じ NEST_PADDING から。キャプションが入ればその 1 行の下から", () => {
+  expect(O).toEqual({ x: NEST_PADDING, y: NEST_PADDING })
+  expect(CAPTIONED.y).toBeGreaterThan(NEST_PADDING)
+})
+
+test("何も書いていない内包ボックスは、縦の位置を下にしても、子の領域も子も動かない", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 300, h: 100 })!
+  const b = place(store, { at: { x: 0, y: 0 }, parent: a, w: 64, h: 40 })!
+  expect(at(store, b)!.shape.y).toBe(NEST_PADDING)
+  expect(run(store, "@matomezu/paper:item-update", { item: a, props: { vAlign: "bottom" } }).ok).toBe(true)
+  expect(childOrigin(CORE_CATALOG, at(store, a)!.shape as never)).toEqual({ x: NEST_PADDING, y: NEST_PADDING })
+  expect(at(store, b)!.shape.y).toBe(NEST_PADDING)
+})
 
 test("親を渡して置くと、親の子の並びの末尾に、親の左上からの位置で入る。子の子も置ける", () => {
   const store = newStore()
@@ -223,15 +246,15 @@ test("縦の位置が下の内包ボックスは、子の領域が上から始�
   const a = place(store, { at: { x: 0, y: 0 }, w: 300, h: 100, props: { caption: "社内" } })!
   const b = place(store, { at: { x: 20, y: 40 }, parent: a, w: 64, h: 40 })!
   const top = at(store, b)!.shape.y
-  expect(top).toBeGreaterThanOrEqual(O.y)
+  expect(top).toBeGreaterThanOrEqual(CAPTIONED.y)
   expect(run(store, "@matomezu/paper:item-update", { item: a, props: { vAlign: "bottom" } }).ok).toBe(true)
   const parent = at(store, a)!.shape
   expect(childOrigin(CORE_CATALOG, parent as never).y).toBe(NEST_PADDING)
   // 子は子の領域が上がった分だけ上がる
-  expect(at(store, b)!.shape.y).toBe(top - (O.y - NEST_PADDING))
+  expect(at(store, b)!.shape.y).toBe(top - (CAPTIONED.y - NEST_PADDING))
   // 親の大きさは、子の下にキャプションの高さ（何も書いていない箱の子の領域の上と同じ）を空ける
   const child = at(store, b)!.shape
-  expect(placedSize(CORE_CATALOG, at(store, a)!.shape as never)!.h).toBeGreaterThanOrEqual(child.y + 40 + O.y)
+  expect(placedSize(CORE_CATALOG, at(store, a)!.shape as never)!.h).toBeGreaterThanOrEqual(child.y + 40 + CAPTIONED.y)
   expect(run(store, "@matomezu/paper:item-update", { item: a, props: { vAlign: null } }).ok).toBe(true)
   expect(at(store, b)!.shape.y).toBe(top)
 })
