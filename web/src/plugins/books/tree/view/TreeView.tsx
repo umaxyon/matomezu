@@ -23,10 +23,12 @@ import {
   useLatestPan,
   useMessages,
   usePerform,
+  useSetStageState,
   useShownBook,
   useShownPage,
   useStage,
   useStageArea,
+  useStageState,
 } from "../../../../plugin-api/ui"
 import { growOf, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
@@ -193,8 +195,11 @@ const Tree = memo(function Tree({
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
   useStageArea(stage.id, laid && growing ? laidArea(paper, growing, laid, true).size : null, laid?.origin ?? null)
   const at = laid?.nodes.find(n => n.id === selected)
-  useCentered(stage, usingEdit && !drag.state ? at : undefined, view, panStageBy)
-  useToolZoom(stage.id, usingEdit, zoomStage)
+  // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
+  // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
+  const focused = useFocus(stage, page?.id)
+  useCentered(stage, usingEdit && focused && !drag.state ? at : undefined, view, panStageBy)
+  useToolZoom(stage.id, usingEdit, focused, zoomStage)
   if (!book || !page || !root || !laid || !selected) return null
   const tree = root
   const pageId = page.id
@@ -254,7 +259,7 @@ const Tree = memo(function Tree({
           data-node={n.id}
           data-root={n.id === tree.id}
           data-shape={n.id === tree.id ? "box" : shape}
-          data-selected={usingEdit && n.id === selected}
+          data-selected={usingEdit && focused && n.id === selected}
           data-dragging={moving?.has(n.id) === true}
           data-drop={drop?.mark.kind === "into" && drop.mark.node === n.id}
           style={{ left: n.x, top: n.y, width: n.w, height: n.h, ...nodePaint(n.color) }}
@@ -309,7 +314,7 @@ const Tree = memo(function Tree({
           }}
         />
       )}
-      {usingEdit && at && !dragging && (
+      {usingEdit && focused && at && !dragging && (
         // 選んでいる節のほかを少し暗くする（節の周りに大きな影を落とす）
         <div data-spotlight className={styles.spotlight} style={{ left: at.x, top: at.y, width: at.w, height: at.h }} />
       )}
@@ -353,6 +358,7 @@ const Tree = memo(function Tree({
         />
       )}
       {usingEdit &&
+        focused &&
         addable &&
         !writing &&
         !dragging &&
@@ -407,11 +413,52 @@ export function NodeText({ node: n }: { node: LaidNode }) {
   )
 }
 
-// 道具が替わったら（初めて描くときも）、道具の倍率にする（edit.ts の toolZoom）
-function useToolZoom(stage: string, usingEdit: boolean, zoomStage: (stage: string, zoom: number) => void) {
+// 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外してあるか。ステージの画面の状態に持つ（背景編集モードの間はビューが別の位置に描き直されるので、ビューの外に持つ）
+const releasedOf = (state: unknown): boolean => (state as { released?: boolean } | undefined)?.released === true
+
+// 節のフォーカスが付いているか。背景編集モードに入ると外し、ページ全体を収める（出ても外れたまま、見え方も変えない）。
+// 選びが空でなくなる（節を選ぶ）・節の書き換えを始める・ページが替わると、付いた状態に戻る
+function useFocus(stage: StageView, page: string | undefined): boolean {
+  const released = releasedOf(useStageState(stage.id, kit))
+  const writeFocus = useSetStageState(kit)
+  const fit = useCommand(stage.id, "@matomezu/base:zoom-fit")
+  const background = stage.edits === "slide"
+  const items = stage.edits === "items"
+  const selecting = stage.selection.length > 0
+  const editing = stage.editing !== false
+  const fitRef = useRef(fit)
+  fitRef.current = fit
+  const was = useRef(page)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ページが替わったときだけ戻す
   useEffect(() => {
-    zoomStage(stage, toolZoom(usingEdit))
-  }, [stage, usingEdit, zoomStage])
+    if (was.current === page) return
+    was.current = page
+    writeFocus(stage.id, undefined)
+  }, [page])
+  // ページを替えて入るとき（ページの右クリックのメニュー）は、替えたあとに外すので、この順
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 入ったときだけ外す
+  useEffect(() => {
+    if (!background) return
+    writeFocus(stage.id, { released: true })
+    fitRef.current.run()
+  }, [background])
+  useEffect(() => {
+    if (items && released && (selecting || editing)) writeFocus(stage.id, undefined)
+  }, [items, released, selecting, editing, writeFocus, stage.id])
+  return !released && !background
+}
+
+// 道具が替わったら（初めて描くときも）、道具の倍率にする（edit.ts の toolZoom）
+// （節のフォーカスを外している間は、見え方を変えない。付き直したら、道具の倍率にする）
+function useToolZoom(
+  stage: string,
+  usingEdit: boolean,
+  focused: boolean,
+  zoomStage: (stage: string, zoom: number) => void,
+) {
+  useEffect(() => {
+    if (focused) zoomStage(stage, toolZoom(usingEdit))
+  }, [stage, usingEdit, focused, zoomStage])
 }
 
 // 紙の上の四角 rect（無ければ何もしない）の真ん中が、大きさ view のビューの真ん中に来るように紙をずらす（紙の端では、ずらせる所まで）

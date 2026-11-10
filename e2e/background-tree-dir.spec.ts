@@ -27,9 +27,7 @@ async function placeEllipseOver(page: Page, target: Locator) {
 
 const near = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(3)
 
-test("ツリー（根が中央で四方へ伸びる）: 背景編集モードで楕円を置くと、根の節の位置に重なり、モードを出ても中身が動かない", async ({
-  page,
-}) => {
+test("ツリー（根が中央で四方へ伸びる）: 背景編集モードで楕円を置くと、根の節の位置に重なる", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "木", "ツリー")
   await add.getByRole("radio", { name: "中央" }).check({ force: true })
@@ -37,17 +35,11 @@ test("ツリー（根が中央で四方へ伸びる）: 背景編集モードで
   await add.getByRole("button", { name: "作る" }).click()
   await expect(paper(page)).toBeVisible()
   const root = page.locator('[data-root="true"]')
-  const { before, t, e } = await placeEllipseOver(page, root)
+  const { t, e } = await placeEllipseOver(page, root)
   near(e.x, t.x)
   near(e.y, t.y)
   near(e.width, t.width)
   near(e.height, t.height)
-  await band(page).getByRole("button", { name: "終了" }).click()
-  await expect(band(page)).toHaveCount(0)
-  await settled(page)
-  const after = (await root.boundingBox())!
-  near(after.x, before.x)
-  near(after.y, before.y)
 })
 
 test("ディレクトリ構成図: 背景編集モードで楕円を置くと、根の行の位置に重なり、モードを出ても中身が動かない", async ({
@@ -187,4 +179,51 @@ test("ディレクトリ構成図の背景編集モード: 確定した文字枠
   const at = (await item.boundingBox())!
   await realDoubleClick(page, at.x + 8, at.y + at.height / 2)
   await expect(page.locator("textarea")).toBeFocused()
+})
+
+// ツリーは、選んでいる節を中央に置き、ほかを暗くする（節のフォーカス）。背景編集モードに入るときは外してページ全体を収め、出ても外れたまま・見え方も変えない
+test("ツリー: 背景編集モードに入ると節のフォーカスが外れてページ全体が収まり、出てもそのまま。節を選ぶとフォーカスが戻る", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const add = await newBook(page, "木", "ツリー")
+  await add.getByLabel("根のキャプション").fill("根")
+  await add.getByRole("button", { name: "作る" }).click()
+  await expect(paper(page)).toBeVisible()
+  await settled(page)
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("子")
+  await page.keyboard.press("Enter")
+  const child = paper(page).locator("[data-node]", { hasText: "子" })
+  await expect(child).toHaveAttribute("data-selected", "true")
+  await expect(page.locator("[data-spotlight]")).toHaveCount(1)
+  await settled(page)
+  const focused = (await paper(page).boundingBox())!
+
+  await (await fromMenu(page, "背景を編集")).click()
+  await expect(band(page)).toBeVisible()
+  await settled(page)
+  const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
+  const inMode = (await paper(page).boundingBox())!
+  expect(inMode.width).toBeLessThan(focused.width) // 全体が収まる倍率（編集の倍率より小さい）
+  expect(inMode.x).toBeGreaterThanOrEqual(stage.x - 1)
+  expect(inMode.x + inMode.width).toBeLessThanOrEqual(stage.x + stage.width + 1)
+  expect(inMode.y).toBeGreaterThanOrEqual(stage.y - 1)
+  expect(inMode.y + inMode.height).toBeLessThanOrEqual(stage.y + stage.height + 1)
+  await expect(paper(page).locator('[data-selected="true"]')).toHaveCount(0)
+  await expect(page.locator("[data-spotlight]")).toHaveCount(0)
+
+  await band(page).getByRole("button", { name: "終了" }).click()
+  await expect(band(page)).toHaveCount(0)
+  await settled(page)
+  const after = (await paper(page).boundingBox())!
+  near(after.x, inMode.x)
+  near(after.y, inMode.y)
+  near(after.width, inMode.width)
+  await expect(paper(page).locator('[data-selected="true"]')).toHaveCount(0)
+  await expect(page.locator("[data-spotlight]")).toHaveCount(0)
+
+  await child.click()
+  await expect(child).toHaveAttribute("data-selected", "true")
+  await expect(page.locator("[data-spotlight]")).toHaveCount(1)
 })

@@ -250,7 +250,7 @@ func TestExistingDataJoinsTheDefaultProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := migrations[: len(migrations)-1 : len(migrations)-1]
+	before := migrations[:10:10] // 次の足し方の前まで
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '{"id":"b1","title":"x"}', 1, 'x'), ('b2', '{"id":"b2","project":"other"}', 1, 'x')`,
@@ -335,5 +335,34 @@ func TestApplyRollsBackWhenALaterWriteFails(t *testing.T) {
 	}
 	if _, err := s.Apply(Batch{Books: []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}}, Mailbox: &UserBody{"me", json.RawMessage(`[{"id":"m1"}]`)}}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// スライドのアイテムの項目の表から外した lockRatio・ratio は、ページの slide の並びのアイテムから取り除く（ほかの項目・ほかの並びは変えない）
+func TestSlideItemsLoseLockRatioAndRatio(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := migrations[: len(migrations)-1 : len(migrations)-1]
+	slide := `{"id":"b1","project":"default","pages":[{"id":"p1","slide":[{"id":"s1","item":"x","props":{"text":"a","ratio":1.5,"lockRatio":true}},{"id":"s2","item":"y"}]},{"id":"p2","slide":[]},{"id":"p3","items":[{"id":"i1","props":{"ratio":2}}]}]}`
+	for _, q := range append(before,
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
+		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '`+slide+`', 1, 'x'), ('b2', '{"id":"b2","project":"default"}', 1, 'x')`,
+	) {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s := open(t, path)
+	books, err := s.Books()
+	if err != nil || len(books) != 2 {
+		t.Fatalf("books = %+v, %v", books, err)
+	}
+	want := `{"id":"b1","project":"default","pages":[{"id":"p1","slide":[{"id":"s1","item":"x","props":{"text":"a"}},{"id":"s2","item":"y"}]},{"id":"p2","slide":[]},{"id":"p3","items":[{"id":"i1","props":{"ratio":2}}]}]}`
+	if string(books[0].Body) != want || string(books[1].Body) != `{"id":"b2","project":"default"}` {
+		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
 	}
 }

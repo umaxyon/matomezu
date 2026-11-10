@@ -1,7 +1,7 @@
 // スライドのアイテム: 文字枠・自由な線・直線・楕円。ブックのアイテム（箱や線）とは別の、描画シェイプの仲間。
 // 置き場はページの slide（ブックのタイプが選ぶ）で、押し合わず、線もつながず、紙をはみ出てもよい（紙は表示の範囲）。ケイパビリティ（capabilities）は持たない。
 // 線の点は、枠（幅と高さ）の中の割合（0 から 1）で持つ。枠を拡大すれば線も一緒に拡大する。
-// 角度（rotation）は、どのアイテムも持つ。lockRatio・ratio は使わないが、保存済みのスライドを読めるよう受ける
+// 角度（rotation）は、どのアイテムも持つ
 import { z } from "zod"
 import { ColorSchema, type MinimapMark } from "../../base"
 import { kit } from "./kit"
@@ -14,8 +14,6 @@ const FRAME = {
     .max(360)
     .optional()
     .describe("Angle in degrees, clockwise, around the center. Without it, 0"),
-  lockRatio: z.literal(true).optional().describe("Not used (accepted so saved slides still load)"),
-  ratio: z.number().positive().optional().describe("Not used (accepted so saved slides still load)"),
 }
 
 // 枠の中の点（枠の左上が 0, 0、右下が 1, 1）
