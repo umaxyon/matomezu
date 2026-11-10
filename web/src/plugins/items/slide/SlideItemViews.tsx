@@ -11,9 +11,11 @@ import {
   type EllipseProps,
   type FreeLineProps,
   linePointsOf,
+  NO_OUTLINE,
   SLIDE_INK,
   STRAIGHT_LINE,
   type StraightLineProps,
+  TEXT_LINE_HEIGHT,
   type TextFrameProps,
 } from "./slide"
 
@@ -31,7 +33,7 @@ export function TextFrameView({ props, size }: ItemViewProps<z.output<typeof Tex
         whiteSpace: "pre-wrap",
         overflowWrap: "anywhere",
         fontSize: props.fontSize ?? DEFAULT_FONT_SIZE,
-        lineHeight: 1.3,
+        lineHeight: TEXT_LINE_HEIGHT,
         textAlign: props.align ?? "left",
         color: paint(props.color),
       }}
@@ -112,7 +114,7 @@ export function EllipseView({ props, size }: ItemViewProps<z.output<typeof Ellip
         rx={Math.max(size.w / 2 - width / 2, 0)}
         ry={Math.max(size.h / 2 - width / 2, 0)}
         fill={props.fill === undefined ? "none" : paint(props.fill)}
-        stroke={width > 0 ? paint(props.stroke) : "none"}
+        stroke={width > 0 && props.stroke !== NO_OUTLINE ? paint(props.stroke) : "none"}
         strokeWidth={width}
       />
     </svg>

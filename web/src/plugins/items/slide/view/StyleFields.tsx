@@ -1,5 +1,5 @@
 // バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
-// アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（テーマの文字の色。塗りは塗らない）か、テーマの代表色か、好きな色
+// アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（塗りは塗らない。枠の色は枠なし）か、テーマの代表色か、好きな色
 import { useRef, useState } from "react"
 import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
 import { ColorPicker, useBookOf, useBookTheme, useSwatches } from "../../../base/ui"
@@ -10,6 +10,7 @@ import {
   ELLIPSE,
   FREE_LINE,
   MAX_STROKE_WIDTH,
+  NO_OUTLINE,
   SLIDE_INK,
   STRAIGHT_LINE,
   TEXT_FRAME,
@@ -61,17 +62,18 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
   }
   const str = (key: string) => (typeof subject.props[key] === "string" ? (subject.props[key] as string) : undefined)
   const num = (key: string) => (typeof subject.props[key] === "number" ? (subject.props[key] as number) : undefined)
-  const colorField = (field: StyleField, key: string, label: string) =>
+  // outline: 枠の色。「なし」は枠なし（NO_OUTLINE）で、未設定（テーマの文字の色の枠）とは別
+  const colorField = (field: StyleField, key: string, label: string, outline = false) =>
     swatches && (
       <span key={field} className={styles.field}>
         {label}
         <ColorPicker
           label={label}
-          value={str(key)}
+          value={outline ? (str(key) === NO_OUTLINE ? undefined : (str(key) ?? swatches.none)) : str(key)}
           palette={swatches.palette}
           none={swatches.none}
           disabled={!set.enabled}
-          onChange={v => change({ [key]: v ?? null })}
+          onChange={v => change({ [key]: v ?? (outline ? NO_OUTLINE : null) })}
         />
       </span>
     )
@@ -88,7 +90,7 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
           case "fill":
             return colorField(field, "fill", t("Fill"))
           case "outline":
-            return colorField(field, "stroke", t("Outline color"))
+            return colorField(field, "stroke", t("Outline color"), true)
           case "width":
             return (
               <WidthField

@@ -28,7 +28,7 @@ import {
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { PaperFrame, type StageSlotProps, useFollowsSelection } from "../../../base/ui"
-import { SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
+import { SLIDE_DELETE, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
 import {
   boundsOf,
   drawnRect,
@@ -146,6 +146,7 @@ function SlidePageView({
   const moveTo = useCommand(stage.id, SLIDE_MOVE_TO.id)
   const reshape = useCommand(stage.id, SLIDE_RESHAPE.id)
   const set = useCommand(stage.id, SLIDE_SET.id)
+  const remove = useCommand(stage.id, SLIDE_DELETE.id)
   const openMenu = useContextMenu(stage.id, SLIDE_ITEM_CONTEXT)
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
@@ -389,7 +390,10 @@ function SlidePageView({
     openMenu(e, { item: shape.id })
   }
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = (e.target as Element).closest<HTMLElement>("[data-item]")
+    // 押したときにポインタを捕まえているので、イベントの対象はレイヤーになる。押した位置の一番上のアイテムを引く
+    const el = document
+      .elementsFromPoint(e.clientX, e.clientY)
+      .find((n): n is HTMLElement => n instanceof HTMLElement && n.dataset.item !== undefined)
     const shape = el && shapes.find(s => s.id === el.dataset.item)
     if (shape?.item === TEXT && set.enabled && !followed) {
       select(stage.id, [shape.id])
@@ -465,12 +469,24 @@ function SlidePageView({
               zoom={stage.zoom}
               edit={{
                 editing: editing === shape.id,
-                onCommit: text => {
+                onCommit: (text, grown) => {
                   if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
                   setEditing(stage.id, false)
+                  // 何も書かずに終えた文字枠は、何も言わずに消す（置いた直後なら、置いたことごと無かったことになる）
+                  if (text === "") {
+                    remove.run()
+                    return
+                  }
+                  // 書いた文字と、文字に合わせて広げた枠は、1 つの画面の履歴の段にする
                   if (text !== (shapeProps(shape).text ?? "")) set.run({ items: [shape.id], props: { text } })
+                  if (grown) reshape.run({ item: shape.id, rect: roundRect(grown), scaled: false })
                 },
-                onCancel: () => setEditing(stage.id, false),
+                onCancel: () => {
+                  // やめても、文字が空のままの文字枠（置いた直後）は残さない
+                  if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
+                  setEditing(stage.id, false)
+                  if ((shapeProps(shape).text ?? "") === "") remove.run()
+                },
               }}
             />
           ))}
