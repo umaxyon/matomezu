@@ -3,6 +3,7 @@
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
 import { z } from "zod"
 import {
+  BACKGROUND_PRINT,
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
@@ -105,7 +106,7 @@ export const DIR = kit.defineBookType({
   ],
   tools: DIR_TOOLS.id,
   settings: {
-    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, BOOK_TEXT_COLORS.id, ...PRINT_PREVIEW_SETTINGS],
-    page: [kit.name("notes")], // 説明の見せ方（notes.ts）
+    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, BOOK_TEXT_COLORS.id, ...PRINT_PREVIEW_SETTINGS, BACKGROUND_PRINT.id],
+    page: [kit.name("notes"), BACKGROUND_PRINT.id], // 説明の見せ方（notes.ts）と背景の印刷
   },
 })

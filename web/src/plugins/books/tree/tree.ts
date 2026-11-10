@@ -4,6 +4,7 @@
 import { z } from "zod"
 import type { PageSettingsArgs } from "../../../plugin-api"
 import {
+  BACKGROUND_PRINT,
   BOOK_PAPER_COLOR,
   BOOK_TEXT_COLORS,
   BOOK_THEME,
@@ -120,7 +121,14 @@ export const TREE = kit.defineBookType({
       kit.name("line-shape"),
       BOOK_TEXT_COLORS.id,
       ...PRINT_PREVIEW_SETTINGS,
+      BACKGROUND_PRINT.id,
     ],
-    page: [kit.name("grow"), kit.name("node-size"), kit.name("node-shape"), kit.name("line-shape")],
+    page: [
+      kit.name("grow"),
+      kit.name("node-size"),
+      kit.name("node-shape"),
+      kit.name("line-shape"),
+      BACKGROUND_PRINT.id,
+    ],
   },
 })

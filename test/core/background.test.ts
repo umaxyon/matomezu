@@ -102,3 +102,12 @@ test("可変ページで背景を必ず印刷するときは、背景だけの�
   expect(auto?.columns).toBe(1)
   expect(auto?.rows).toBe(1)
 })
+
+test("背景を持つタイプは、ブックとページの設定に背景の印刷（BACKGROUND_PRINT）を並べる", () => {
+  const withBackground = BUILTIN_PARTS.bookTypes.filter(t => slideIsBackground(t))
+  expect(withBackground.length).toBeGreaterThan(0)
+  for (const t of withBackground) {
+    expect(t.settings?.book ?? []).toContain("@matomezu/base:background-print")
+    expect(t.settings?.page ?? []).toContain("@matomezu/base:background-print")
+  }
+})
