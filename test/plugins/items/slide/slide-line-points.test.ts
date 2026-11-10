@@ -27,16 +27,14 @@ test("自由な線: 点の並びをそのまま出し、そのまま項目に戻
   expect(linePointsOf("other:item", { points })).toEqual([])
 })
 
-test("点を動かしたときの項目は、点と一緒に角度と比率の固定を外し、元の比率を動かした後の枠の比率にする", () => {
+test("点を動かしたときの項目は、点と一緒に角度を外す", () => {
   const points = [
     { x: 0, y: 0 },
     { x: 1, y: 1 },
   ]
-  expect(movedLineProps(STRAIGHT_LINE.id, points, { w: 200, h: 80 })).toEqual({
+  expect(movedLineProps(STRAIGHT_LINE.id, points)).toEqual({
     from: points[0],
     to: points[1],
     rotation: null,
-    lockRatio: null,
-    ratio: 2.5,
   })
 })

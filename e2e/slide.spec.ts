@@ -137,9 +137,7 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveCount(3)
   })
 
-  test("選んで動かす。角のつまみで大きさを変える(比率の固定中は縦横の比を保つ)。角度は数字で入れる", async ({
-    page,
-  }) => {
+  test("選んで動かす。角のつまみで大きさを変える。角度は数字で入れる", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     const z = await draw(page, "楕円", [100, 100], [400, 250])
     const e = page.locator("[data-item]").first()
@@ -158,25 +156,19 @@ test.describe("スライドの操作", () => {
     await page.mouse.up()
     await expect.poll(async () => Math.round((await e.boundingBox())!.width / z)).toBe(400)
     await expect.poll(async () => Math.round((await e.boundingBox())!.height / z)).toBe(250)
-    // 比率を固定すると、辺を引いても縦横の比を保つ
-    await page.getByRole("button", { name: "比率", exact: true }).click()
+    // 辺を引くと、その向きだけ変わる
     const right = (await page.locator('[data-grip="right"]').boundingBox())!
     await page.mouse.move(right.x + right.width / 2, right.y + right.height / 2)
     await page.mouse.down()
     await page.mouse.move(right.x + right.width / 2 + 80 * z, right.y + right.height / 2, { steps: 5 })
     await page.mouse.up()
     await expect.poll(async () => Math.round((await e.boundingBox())!.width / z)).toBe(480)
-    await expect.poll(async () => Math.round((await e.boundingBox())!.height / z)).toBe(300)
+    await expect.poll(async () => Math.round((await e.boundingBox())!.height / z)).toBe(250)
     // 角度は数字で入れる
     const angle = page.getByLabel("角度")
     await angle.fill("90")
     await angle.press("Enter")
     await expect(e).toHaveCSS("transform", /^matrix/)
-    // 元の比率に戻す(置いたときは 2:1)
-    await page.getByRole("button", { name: "比率を元に戻す" }).click()
-    await expect
-      .poll(async () => Math.round(((await e.evaluate(el => el.getBoundingClientRect().height)) / z) as number))
-      .toBe(480)
   })
 
   test("直線を選ぶと、バーで色・太さ・点線・矢印を変えられる。楕円は塗りと枠の太さを変えられる", async ({ page }) => {
@@ -247,12 +239,12 @@ test.describe("スライドの操作", () => {
     return z
   }
 
-  test("押しただけで置く文字枠は、高さが文字 1 行分、幅が 8 文字分ほどになる", async ({ page }) => {
+  test("押しただけで置く文字枠は、高さが文字 1 行分、幅が 1 文字より狭い", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     const z = await putTextAt(page, 200, 200)
     await expect(page.locator("textarea")).toBeFocused()
     const box = (await page.locator("[data-item]").first().boundingBox())!
-    expect(Math.abs(box.width / z - 192)).toBeLessThan(3)
+    expect(Math.abs(box.width / z - 12)).toBeLessThan(3)
     expect(Math.abs(box.height / z - 32)).toBeLessThan(3)
   })
 
@@ -268,24 +260,32 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveCount(0)
   })
 
-  test("文字が枠に収まらなければ、幅と高さが広がり、減っても縮まない", async ({ page }) => {
+  test("文字枠は文字の幅と高さに寄り、増えれば広がり、減れば縮む。置いて書いて寄せたのは 1 回で戻る", async ({
+    page,
+  }) => {
     await page.goto(BOOK_SCREEN_URL)
     const z = await putTextAt(page, 100, 100)
-    await page.keyboard.type("0123456789012345678901234567")
     const item = page.locator("[data-item]").first()
-    await expect.poll(async () => (await item.boundingBox())!.width / z).toBeGreaterThan(300)
-    const wide = (await item.boundingBox())!.width
+    const width = async () => (await item.boundingBox())!.width / z
+    const height = async () => (await item.boundingBox())!.height / z
+    await page.keyboard.type("0123456789")
+    await expect.poll(width).toBeGreaterThan(100)
+    const ten = await width()
+    await page.keyboard.type("0123456789")
+    await expect.poll(width).toBeGreaterThan(ten + 50)
     await page.keyboard.press("Enter")
     await page.keyboard.type("下の行")
-    await expect.poll(async () => (await item.boundingBox())!.height / z).toBeGreaterThan(55)
+    await expect.poll(height).toBeGreaterThan(55)
     await page.keyboard.press("Backspace")
     await page.keyboard.press("Backspace")
-    expect(Math.abs((await item.boundingBox())!.width - wide)).toBeLessThan(2) // 減っても縮めない
+    await page.keyboard.press("Backspace")
+    await page.keyboard.press("Backspace")
+    await expect.poll(height).toBeLessThan(40) // 行が減れば縮む
+    for (let i = 0; i < 10; i++) await page.keyboard.press("Backspace")
+    await expect.poll(width).toBeLessThan(ten + 5) // 文字が減れば縮む
     await page.mouse.click(1, 1)
-    const after = (await item.boundingBox())!
-    expect(after.width / z).toBeGreaterThan(300) // 決めたあとも広がったまま
-    expect(after.height / z).toBeGreaterThan(55)
-    await page.keyboard.press("ControlOrMeta+z") // 置いて書いて広げたのが 1 回で戻る
+    expect(await width()).toBeLessThan(ten + 5) // 決めたあとも文字に寄ったまま
+    await page.keyboard.press("ControlOrMeta+z") // 置いて書いて寄せたのが 1 回で戻る
     await expect(page.locator("[data-item]")).toHaveCount(0)
   })
 
@@ -308,6 +308,32 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveCount(0)
     await page.keyboard.press("ControlOrMeta+z")
     await expect(page.locator("[data-item]")).toHaveText("abcdef")
+  })
+
+  test("文字枠のバーに角度の入力は無く、「水平に戻す」は角度が付くと押せて、押すと真正面に戻る。楕円には角度の入力がある", async ({
+    page,
+  }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await draw(page, "文字枠", [100, 100], [500, 180])
+    await page.keyboard.type("見出し")
+    await page.mouse.click(1, 1)
+    const t = page.locator("[data-item]").first()
+    await t.click()
+    await expect(page.getByLabel("角度")).toHaveCount(0)
+    const level = page.getByRole("button", { name: "水平に戻す" })
+    await expect(level).toBeDisabled()
+    const rot = (await page.locator("[data-rotate]").boundingBox())!
+    await page.mouse.move(rot.x + rot.width / 2, rot.y + rot.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(rot.x + rot.width / 2 + 120, rot.y + rot.height / 2 + 160, { steps: 8 })
+    await page.mouse.up()
+    await expect(t).toHaveCSS("transform", /^matrix/)
+    await expect(level).toBeEnabled()
+    await level.click()
+    await expect(t).toHaveCSS("transform", "none")
+    await expect(level).toBeDisabled()
+    await draw(page, "楕円", [100, 300], [300, 400])
+    await expect(page.getByLabel("角度")).toBeVisible()
   })
 
   test("回すつまみで回せる。文字枠は置いたらそのまま打て、Delete で消せ、元に戻せる", async ({ page }) => {

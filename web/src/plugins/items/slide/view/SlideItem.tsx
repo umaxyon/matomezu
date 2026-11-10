@@ -4,8 +4,8 @@ import { type ReactNode, useLayoutEffect, useRef, useState } from "react"
 import type { PlacedShape, Rect } from "../../../../plugin-api"
 import { type ItemViewProps, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
 import { useAnchorRef } from "../../../base/ui"
-import { grownRect } from "../rect"
-import { DEFAULT_FONT_SIZE, TEXT_LINE_HEIGHT } from "../slide"
+import { fittedRect } from "../rect"
+import { DEFAULT_FONT_SIZE, EMPTY_TEXT_WIDTH, TEXT_LINE_HEIGHT } from "../slide"
 import styles from "./SlideLayer.module.css"
 
 export const shapeProps = (shape: PlacedShape): Record<string, unknown> => shape.props as Record<string, unknown>
@@ -13,7 +13,7 @@ export const rotationOf = (shape: PlacedShape): number => (shapeProps(shape).rot
 
 export interface SlideItemEdit {
   editing: boolean
-  // 書き換えを終える。text は書いた文字、grown は書いている間に広げた枠（広げなかったら null）
+  // 書き換えを終える。text は書いた文字、grown は書いている間に文字に合わせた枠（変えなかったら null）
   onCommit: (text: string, grown: Rect | null) => void
   onCancel: () => void
 }
@@ -36,7 +36,7 @@ export function SlideItem({
     | ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode)
     | React.ComponentType<ItemViewProps<PlacedShape["props"]>>
     | undefined
-  const [grown, setGrown] = useState<Rect | null>(null) // 書き換えている間、文字に合わせて広げた枠
+  const [grown, setGrown] = useState<Rect | null>(null) // 書き換えている間、文字に合わせた枠
   const editing = edit?.editing === true
   const rect = editing && grown ? grown : { x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 }
   const size = { w: rect.w, h: rect.h }
@@ -88,7 +88,8 @@ export function SlideItem({
 }
 
 // 文字枠の文字を書き換えるテキストForm（文字枠と同じ文字の大きさ・そろえ）。外へ出ると決め、Escape でやめる。
-// 文字が枠に収まらなければ、右と下へ広げる（減っても縮めない）。始めから折り返している枠（狭くした枠）は幅を変えず、高さだけ広げる
+// 書いている間、枠を文字の幅と高さに寄せる（増えれば広がり、減れば縮む。左上の角は動かない）。
+// 始めから折り返している枠（狭くした枠）は幅を変えず、高さだけを文字に寄せる。文字を変えるまでは枠を変えない
 function TextEditor({
   shape,
   onGrow,
@@ -105,49 +106,63 @@ function TextEditor({
   const [wraps, setWraps] = useState<boolean | null>(null) // 始めから折り返している枠か（始めに 1 度だけ測る）
   const cancelled = useRef(false)
   const area = useRef<HTMLTextAreaElement>(null)
+  const mirror = useRef<HTMLDivElement>(null) // 同じ書体で文字を並べて、寄せる大きさを測る（見えない）
   const rotation = rotationOf(shape)
-  // text が変わるたびと、折り返す枠かが決まったときに、収まるか測って広げる。幅は枠の中の幅（枠の大きさは広げた分が親から来る）
   const base = useRef<Rect>({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
-  const reach = useRef<{ w: number; h: number }>({ w: base.current.w, h: base.current.h })
-  // biome-ignore lint/correctness/useExhaustiveDependencies: text が変わるたびに測る
+  const first = useRef(props.text ?? "")
+  const last = useRef<{ w: number; h: number }>({ w: base.current.w, h: base.current.h })
+  const style = {
+    fontSize: props.fontSize ?? DEFAULT_FONT_SIZE,
+    lineHeight: TEXT_LINE_HEIGHT,
+    textAlign: props.align ?? "left",
+    whiteSpace: wraps === true ? ("pre-wrap" as const) : ("pre" as const),
+  }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: text が変わるたびと、折り返す枠かが決まったときに測る
   useLayoutEffect(() => {
     const el = area.current
-    if (!el) return
+    const ruler = mirror.current
+    if (!el || !ruler) return
     if (wraps === null) {
       setWraps(el.scrollWidth > el.clientWidth + 1)
       return
     }
-    // はみ出したときだけ広げる（文字の右にカーソルの分、少し足す）
-    const w = !wraps && el.scrollWidth > el.clientWidth ? Math.ceil(el.scrollWidth) + 2 : reach.current.w
-    const h = el.scrollHeight > el.clientHeight ? Math.ceil(el.scrollHeight) : reach.current.h
-    if (w === reach.current.w && h === reach.current.h) return
-    reach.current = { w, h }
-    onGrow(grownRect(base.current, rotation, reach.current))
+    if (text === first.current) return
+    // 文字の右にカーソルの分、少し足す。空のときは空の幅
+    const w = wraps ? base.current.w : Math.max(EMPTY_TEXT_WIDTH, Math.ceil(ruler.offsetWidth) + 2)
+    const h = Math.ceil(ruler.offsetHeight)
+    if (w === last.current.w && h === last.current.h) return
+    last.current = { w, h }
+    onGrow(fittedRect(base.current, rotation, last.current))
   }, [text, wraps])
   return (
-    <textarea
-      ref={area}
-      className={styles.editor}
-      // biome-ignore lint/a11y/noAutofocus: 文字を書き換え始めたときに、そのまま打てるようにする
-      autoFocus
-      wrap={wraps === true ? "soft" : "off"}
-      value={text}
-      style={{
-        fontSize: props.fontSize ?? DEFAULT_FONT_SIZE,
-        lineHeight: TEXT_LINE_HEIGHT,
-        textAlign: props.align ?? "left",
-        whiteSpace: wraps === true ? "pre-wrap" : "pre",
-      }}
-      onFocus={e => e.currentTarget.setSelectionRange(text.length, text.length)}
-      onChange={e => setText(e.target.value)}
-      onBlur={() => (cancelled.current ? onCancel() : onCommit(text))}
-      onKeyDown={e => {
-        if (e.key === "Escape") {
-          cancelled.current = true
-          e.stopPropagation()
-          e.currentTarget.blur()
-        }
-      }}
-    />
+    <>
+      <div
+        ref={mirror}
+        aria-hidden="true"
+        className={styles.ruler}
+        style={{ ...style, width: wraps === true ? base.current.w : "max-content" }}
+      >
+        {`${text}\u200b`}
+      </div>
+      <textarea
+        ref={area}
+        className={styles.editor}
+        // biome-ignore lint/a11y/noAutofocus: 文字を書き換え始めたときに、そのまま打てるようにする
+        autoFocus
+        wrap={wraps === true ? "soft" : "off"}
+        value={text}
+        style={style}
+        onFocus={e => e.currentTarget.setSelectionRange(text.length, text.length)}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => (cancelled.current ? onCancel() : onCommit(text))}
+        onKeyDown={e => {
+          if (e.key === "Escape") {
+            cancelled.current = true
+            e.stopPropagation()
+            e.currentTarget.blur()
+          }
+        }}
+      />
+    </>
   )
 }

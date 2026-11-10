@@ -5,7 +5,7 @@ import {
   centerOf,
   cornersOf,
   drawnRect,
-  grownRect,
+  fittedRect,
   movedPoint,
   normalizeAngle,
   pointsOnPaper,
@@ -35,14 +35,6 @@ test("下限より小さくならない", () => {
   const l = resizedRect(F, 0, { left: true }, { x: 500, y: 0 }, 8)
   expect(l.w).toBe(8)
   expect(l.x + l.w).toBe(300)
-})
-
-test("比を保つ: 角は幅に合わせて高さを決める。辺は縦の真ん中を保つ", () => {
-  const corner = resizedRect(F, 0, { right: true, bottom: true }, { x: 100, y: 0 }, 8, 2)
-  expect(corner).toMatchObject({ x: 100, y: 50, w: 300, h: 150 })
-  const edge = resizedRect(F, 0, { right: true }, { x: 100, y: 0 }, 8, 2)
-  expect(edge).toMatchObject({ x: 100, w: 300, h: 150 })
-  close(edge.y + edge.h / 2, 100)
 })
 
 test("傾いた枠: 向かいの角が紙の上で動かない", () => {
@@ -143,10 +135,11 @@ test("45 度ずつに丸める: 水平・垂直・斜めに寄り、長さは保
   close(Math.hypot(d.x, d.y), Math.hypot(60, 50))
 })
 
-test("文字に合わせて広げた枠: 右と下へ広がり、左上の角は紙の上で動かず、小さくはならない", () => {
-  expect(grownRect(F, 0, { w: 260, h: 100 })).toEqual({ x: 100, y: 50, w: 260, h: 100 })
-  expect(grownRect(F, 0, { w: 100, h: 50 })).toBe(F) // 今より小さい要求では変えない
-  const turned = grownRect(F, 30, { w: 260, h: 140 })
+test("文字に合わせた枠: 右と下が広がることも縮むこともあり、左上の角は紙の上で動かない", () => {
+  expect(fittedRect(F, 0, { w: 260, h: 100 })).toEqual({ x: 100, y: 50, w: 260, h: 100 })
+  expect(fittedRect(F, 0, { w: 200, h: 100 })).toBe(F) // 同じ大きさの要求では変えない
+  expect(fittedRect(F, 0, { w: 40, h: 20 })).toEqual({ x: 100, y: 50, w: 40, h: 20 })
+  const turned = fittedRect(F, 30, { w: 260, h: 140 })
   const [before] = cornersOf(F, 30)
   const [after] = cornersOf(turned, 30)
   close(after?.x ?? 0, before?.x ?? 1)

@@ -1,13 +1,13 @@
-// 選んだスライドのアイテムの上に出す物: 枠線・四隅と四辺のつまみ・回すつまみ（右上の角の斜め外）と、そばに立つバー（スタンド。上が足りなければ下。比率の固定・比率を元に戻す・角度）。
+// 選んだスライドのアイテムの上に出す物: 枠線・四隅と四辺のつまみ・回すつまみ（右上の角の斜め外）と、そばに立つバー（スタンド。上が足りなければ下。角度（文字枠は「水平に戻す」）・見た目の入力Form）。
 // 枠とつまみは、アイテムと同じ位置・大きさ・角度でかける。大きさは画面の上で一定にする（紙の倍率 --paper-zoom で割る）。バーは傾けず、倍率でも変えない（スタンドが付いて動く）
 import { useState } from "react"
 import type { Rect } from "../../../../plugin-api"
 import { useCommand, useMessages } from "../../../../plugin-api/ui"
 import { Stand } from "../../../base/ui"
-import { SLIDE_RESET, SLIDE_SET } from "../commands"
+import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
 import { normalizeAngle, pointsOnPaper } from "../rect"
-import { linePointsOf } from "../slide"
+import { linePointsOf, TEXT_FRAME } from "../slide"
 import styles from "./Selection.module.css"
 import { StyleFields, type StyleSubject, showsGroupBar } from "./StyleFields"
 
@@ -22,14 +22,11 @@ export const GRIPS = [
   { id: "left", at: [0, 50], grip: { left: true } },
 ] as const
 
-// ratio は置いたときの幅 ÷ 高さ、locked は比率を固定しているか
 export interface SelectedItem {
   id: string
   stage: string
   rect: Rect
   rotation: number
-  locked: boolean
-  ratio: number | undefined
   kind: string // アイテムの種類の id
   props: Readonly<Record<string, unknown>>
 }
@@ -78,35 +75,22 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
 function Bar({ item }: { item: SelectedItem }) {
   const t = useMessages(kit)
   const set = useCommand(item.stage, SLIDE_SET.id)
-  const reset = useCommand(item.stage, SLIDE_RESET.id)
-  const atRatio = item.ratio === undefined || Math.abs(item.rect.w / item.rect.h - item.ratio) < 0.005
   return (
     <Stand anchor={item.id} side="above" through label={t("Change on slide")}>
       <div className={styles.barBox}>
         <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
-          <button
-            type="button"
-            className={styles.button}
-            aria-pressed={item.locked}
-            title={t("Lock ratio")}
-            disabled={!set.enabled}
-            onClick={() => set.run({ items: [item.id], props: { lockRatio: item.locked ? null : true } })}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="5" y="11" width="14" height="9" rx="1.5" />
-              <path d={item.locked ? "M8 11V8a4 4 0 0 1 8 0v3" : "M8 11V8a4 4 0 0 1 7.5-2"} />
-            </svg>
-            {t("Ratio")}
-          </button>
-          <button
-            type="button"
-            className={styles.button}
-            disabled={!reset.enabled || atRatio}
-            onClick={() => reset.run({ item: item.id })}
-          >
-            {t("Reset ratio")}
-          </button>
-          <AngleField key={`${item.id}:${item.rotation}`} item={item} />
+          {item.kind === TEXT_FRAME.id ? (
+            <button
+              type="button"
+              className={styles.button}
+              disabled={!set.enabled || item.rotation === 0}
+              onClick={() => set.run({ items: [item.id], props: { rotation: null } })}
+            >
+              {t("Level")}
+            </button>
+          ) : (
+            <AngleField key={`${item.id}:${item.rotation}`} item={item} />
+          )}
           <StyleFields
             key={`${item.id}:${item.kind}`}
             subjects={[{ id: item.id, stage: item.stage, item: item.kind, props: item.props }]}

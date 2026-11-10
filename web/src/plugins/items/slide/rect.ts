@@ -43,8 +43,8 @@ export interface Resized extends Rect {
   scaled: boolean // 角をつかんだ（文字枠の文字も一緒に拡大する）
 }
 
-// 辺 grip をつかんで、紙の上で by だけ引いたあとの枠。min は幅・高さの下限。ratio（幅 ÷ 高さ）を渡せば、その比を保つ
-export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, min: number, ratio?: number): Resized {
+// 辺 grip をつかんで、紙の上で by だけ引いたあとの枠。min は幅・高さの下限
+export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, min: number): Resized {
   const d = turn(by, -rotation)
   const horizontal = grip.left === true || grip.right === true
   const vertical = grip.top === true || grip.bottom === true
@@ -61,31 +61,6 @@ export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, mi
     if (grip.top) t = b - min
     else b = t + min
   }
-  if (ratio !== undefined) {
-    // 比を保つ: 角は幅に合わせて高さを決め（つかんでいない側の辺は動かさない）、辺は向かいの方向の真ん中を保って広げる
-    const w = Math.max(r - l, min, min * ratio)
-    const h = w / ratio
-    if (horizontal && vertical) {
-      if (grip.left) l = r - w
-      else r = l + w
-      if (grip.top) t = b - h
-      else b = t + h
-    } else if (horizontal) {
-      if (grip.left) l = r - w
-      else r = l + w
-      const mid = (t + b) / 2
-      t = mid - h / 2
-      b = mid + h / 2
-    } else {
-      const h2 = Math.max(b - t, min, min / ratio)
-      const w2 = h2 * ratio
-      if (grip.top) t = b - h2
-      else b = t + h2
-      const mid = (l + r) / 2
-      l = mid - w2 / 2
-      r = mid + w2 / 2
-    }
-  }
   const w = r - l
   const h = b - t
   // 新しい中心は、古い中心から枠の中で動いた分を、角度をかけて紙の上に直した所
@@ -94,10 +69,10 @@ export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, mi
   return { x: c.x + shift.x - w / 2, y: c.y + shift.y - h / 2, w, h, scaled: horizontal && vertical }
 }
 
-// 枠 f を、幅 w・高さ h まで右と下へ広げた枠（左上の角は、角度をかけたあとの紙の上で動かない。今より小さくはしない）
-export function grownRect(f: Rect, rotation: number, need: { w: number; h: number }): Rect {
-  const dw = Math.max(0, need.w - f.w)
-  const dh = Math.max(0, need.h - f.h)
+// 枠 f を、幅 w・高さ h に合わせた枠（右と下が動き、左上の角は、角度をかけたあとの紙の上で動かない。広がることも縮むこともある）
+export function fittedRect(f: Rect, rotation: number, need: { w: number; h: number }): Rect {
+  const dw = need.w - f.w
+  const dh = need.h - f.h
   if (dw === 0 && dh === 0) return f
   const { x, y, w, h } = resizedRect(f, rotation, { right: true, bottom: true }, turn({ x: dw, y: dh }, rotation), 0)
   return { x, y, w, h }

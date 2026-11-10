@@ -1,4 +1,4 @@
-// スライドのアクション: 置く・動かす・大きさを変える・項目を変える・比率を戻す・重ねを変える・消す。
+// スライドのアクション: 置く・動かす・大きさを変える・項目を変える・重ねを変える・消す。
 // 対象はページの slide（形だけの並び。重ねの順）。ほかの形を押さず、紙の外に出てもよい（位置は紙の左上からの px で、負でもよい）。
 // 位置と大きさは、書いたとおりに残る。アクションはスライドのアイテムを置けるタイプについて来る
 import { z } from "zod"
@@ -103,7 +103,7 @@ export const SLIDE_PLACE = kit.defineAction({
       item: args.item,
       w,
       h,
-      props: { ...args.props, ratio: round(w / h) },
+      props: { ...args.props },
     }
     if (!fits(ctx.catalog, shape)) return null
     return { next: withSlide(book, page, [...shapes(page), shape]), result: { item: shape.id } }
@@ -130,13 +130,12 @@ export const SLIDE_MOVE = kit.defineAction({
   },
 })
 
-// 大きさを変える。lockRatio のアイテムは、w か h の一方を書けばもう一方を今の比（変える前の幅 ÷ 高さ）で決める（両方書けば w に合わせる）。
-// at を書けば左上もその場所にする（左や上の辺を引いたとき）。scale なら文字枠の文字の大きさも幅の倍率で変える（角のつまみ）
+// 大きさを変える。w か h の一方だけ書けば、もう一方は今のまま。at を書けば左上もその場所にする（左や上の辺を引いたとき）。scale なら文字枠の文字の大きさも幅の倍率で変える（角のつまみ）
 export const SLIDE_RESIZE = kit.defineAction({
   id: "slide-resize",
   attach: ON_SLIDE,
   aiDescription:
-    "Change a slide item's frame: w and/or h in pixels (the top-left stays, or moves to at). With props.lockRatio set, giving one of them sets the other keeping the item's current width : height ratio (both: w wins). scale: true also scales a text frame's fontSize by the width's change (a corner drag); without it only the frame changes and the text wraps again.",
+    "Change a slide item's frame: w and/or h in pixels (the top-left stays, or moves to at). scale: true also scales a text frame's fontSize by the width's change (a corner drag); without it only the frame changes and the text wraps again.",
   title: "Resize on slide",
   target: "book",
   args: z.strictObject({
@@ -153,10 +152,8 @@ export const SLIDE_RESIZE = kit.defineAction({
     const next = change(ctx.catalog, book, args.page, args.item, s => {
       const oldW = s.w ?? 0
       const oldH = s.h ?? 0
-      const ratio = oldH > 0 ? oldW / oldH : 1 // 固定は今の比を保つ（置いたときの比に戻すのは reset-ratio）
-      const locked = s.props.lockRatio === true
-      const w = args.w ?? (locked && args.h !== undefined ? args.h * ratio : oldW)
-      const h = locked && args.w !== undefined ? args.w / ratio : (args.h ?? oldH)
+      const w = args.w ?? oldW
+      const h = args.h ?? oldH
       // 文字枠の文字の大きさ（無ければ既定の 24）を、幅の倍率で変える
       const scaled = args.scale && s.item === TEXT_FRAME.id && oldW > 0
       const fontSize = typeof s.props.fontSize === "number" ? s.props.fontSize : DEFAULT_FONT_SIZE
@@ -172,7 +169,7 @@ export const SLIDE_UPDATE = kit.defineAction({
   id: "slide-update",
   attach: ON_SLIDE,
   aiDescription:
-    "Change some props of a slide item (text, fontSize, color, points, rotation, lockRatio, ...). Props not given stay; a prop given as null is removed (back to its default). Refused when the result does not fit the item's props.",
+    "Change some props of a slide item (text, fontSize, color, points, rotation, ...). Props not given stay; a prop given as null is removed (back to its default). Refused when the result does not fit the item's props.",
   title: "Update on slide",
   target: "book",
   args: z.strictObject({
@@ -189,26 +186,6 @@ export const SLIDE_UPDATE = kit.defineAction({
         else props[k] = v
       }
       return { ...s, props }
-    })
-    return next && { next, result: {} }
-  },
-})
-
-// 比率を元に戻す（置いたときの幅 ÷ 高さ。幅は変えず、高さを合わせる）
-export const SLIDE_RESET_RATIO = kit.defineAction({
-  id: "slide-reset-ratio",
-  attach: ON_SLIDE,
-  aiDescription:
-    "Put a slide item back to the width : height ratio it was placed with: the width stays and the height follows.",
-  title: "Reset ratio",
-  target: "book",
-  args: z.strictObject({ page: z.string().min(1), item: z.string().min(1) }),
-  permissionScope: { page: "page", item: "item" },
-  run: (book, args, ctx) => {
-    const next = change(ctx.catalog, book, args.page, args.item, s => {
-      const ratio = s.props.ratio
-      if (typeof ratio !== "number" || s.w === undefined) return null
-      return { ...s, h: round(s.w / ratio) }
     })
     return next && { next, result: {} }
   },

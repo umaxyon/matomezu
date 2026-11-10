@@ -1,16 +1,8 @@
-// スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・比率を戻す・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
+// スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、見せ方が決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
 import { type ItemId, type ItemPage, pagedOf, type Rect, slideOf } from "../../../plugin-api"
 
-import {
-  SLIDE_MOVE,
-  SLIDE_PLACE,
-  SLIDE_REMOVE,
-  SLIDE_REORDER,
-  SLIDE_RESET_RATIO,
-  SLIDE_RESIZE,
-  SLIDE_UPDATE,
-} from "./actions"
+import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { type Order, orderSteps } from "./order"
 import { SLIDE_KEY_SCOPE } from "./scope"
@@ -19,7 +11,6 @@ const PLACE = SLIDE_PLACE.id
 const MOVE = SLIDE_MOVE.id
 const RESIZE = SLIDE_RESIZE.id
 const UPDATE = SLIDE_UPDATE.id
-const RESET_RATIO = SLIDE_RESET_RATIO.id
 const REMOVE = SLIDE_REMOVE.id
 const REORDER = SLIDE_REORDER.id
 
@@ -124,19 +115,6 @@ export const SLIDE_SET = kit.defineCommand({
     if (!opened?.page) return
     for (const item of args.items)
       a.perform(UPDATE, { page: opened.page, item, props: args.props }, { book: opened.book })
-  },
-  when: onPage,
-})
-
-// アイテムの比率を、置いたときの比率に戻す
-export const SLIDE_RESET = kit.defineCommand({
-  id: "slide-reset",
-  performs: [RESET_RATIO],
-  permissionScope: "opened-page",
-  title: "Reset ratio",
-  run: (ctx, a, args: { item: string }) => {
-    const { opened } = ctx.stage
-    if (opened?.page) a.perform(RESET_RATIO, { page: opened.page, item: args.item }, { book: opened.book })
   },
   when: onPage,
 })
