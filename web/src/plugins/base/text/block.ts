@@ -36,6 +36,10 @@ export interface BlockProps {
 export const blockLabel = (props: Pick<BlockProps, "caption" | "body">): string =>
   props.caption.trim() !== "" ? props.caption : (props.body.split("\n").find(l => l.trim() !== "") ?? "")
 
+// 文字の塊が空か（キャプションも本文も無い。空白だけの文字は空とは見ない。描く側もそう見る）
+export const blockEmpty = (props: Pick<BlockProps, "caption" | "body">): boolean =>
+  props.caption === "" && props.body === ""
+
 // 本文の列: 中の左からの位置と幅
 export interface BodyColumn {
   x: number

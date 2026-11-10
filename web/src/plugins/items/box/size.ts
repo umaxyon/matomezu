@@ -52,6 +52,6 @@ export function placedWidth(props: BoxProps): number {
 export const placedHeight = (props: BoxProps, w: number): number =>
   Math.max(BOX_SIZE.h, PAD_Y + textBlockHeight(props, innerWidth(w), BODY_LEAST, PLACE_LINES))
 
-// キャプションと本文を全部出す高さ（本文は幅 w の箱の本文の列で折り返す。内包ボックスの子の領域は、塊が上ならこの下から、下ならこの上まで）
+// キャプションと本文を全部出す高さ（本文は幅 w の箱の本文の列で折り返す。文字が無い箱でもキャプション 1 行ぶん。内包ボックスの子の領域は、文字があれば、塊が上ならこの下から、下ならこの上まで）
 export const headHeight = (props: BoxProps, w: number): number =>
   PAD_Y + textBlockHeight(props, innerWidth(w), BODY_LEAST)
