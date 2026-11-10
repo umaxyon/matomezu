@@ -4,7 +4,7 @@ import { defineBuiltin } from "../../plugin-api/builtin"
 import { kit } from "./kit"
 import { PAPER } from "./paper"
 import {
-  CLIPBOARD_KEYS,
+  COPY_PASTE_KEYS,
   ITEM_KEYS,
   ITEM_MOVE,
   ITEM_PASTE,
@@ -48,7 +48,7 @@ export const PAPER_PLUGIN = defineBuiltin(
       PAPER_DELETE,
       PAPER_SELECT_ALL,
     ],
-    keys: [...ITEM_KEYS, ...CLIPBOARD_KEYS],
+    keys: [...ITEM_KEYS, ...COPY_PASTE_KEYS],
   }),
 )
 

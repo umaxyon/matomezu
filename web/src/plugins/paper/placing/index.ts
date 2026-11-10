@@ -1,7 +1,6 @@
 // 置いたアイテム: 紙のページに置いたアイテムのデータ、置く・動かす・中身を変える・消すアクションと、画面から呼ぶコマンド
 
 export { ITEM_MOVE, ITEM_PASTE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
-export { CLIPBOARD_KEYS, PAPER_COPY, PAPER_CUT, PAPER_DUPLICATE, PAPER_PASTE, PAPER_PASTE_AT } from "./clipboard"
 export {
   ITEM_KEYS,
   PAPER_DELETE,
@@ -13,6 +12,7 @@ export {
   PAPER_SELECT_ALL,
   placeAt,
 } from "./commands"
+export { COPY_PASTE_KEYS, PAPER_COPY, PAPER_CUT, PAPER_DUPLICATE, PAPER_PASTE, PAPER_PASTE_AT } from "./copy-paste"
 export { type Came, DIRS, type Dir } from "./drag"
 export { dragging, dropTarget, movableTogether, type PlaceTarget, placeTarget, placingShape, trackDrag } from "./items"
 export {

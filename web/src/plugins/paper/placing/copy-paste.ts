@@ -1,4 +1,4 @@
-// コピー・切り取り・貼り付け・複製のコマンド。写し（clip.ts の Clip）は紙の見せ方の窓の外観枠の状態に置く（ブック・ページをまたいで貼れる。読み込み直すと消える）。
+// コピー・切り取り・貼り付け・複製のコマンド。写し（clip.ts の Clip）は紙のプラグインの窓の外観枠の状態に置く（ブック・ページをまたいで貼れる。読み込み直すと消える）。
 // 貼るときは、アクション item-paste に写しを渡す（選んだ物に応じて入れる先を決め、収まらなければ収まる一番近い所へ寄せる）
 
 import { type CommandContext, findShape, type PagedBook, type Point, pagedOf, walkShapes } from "../../../plugin-api"
@@ -131,7 +131,7 @@ export const PAPER_PASTE_AT = kit.defineCommand({
 export const PAPER_DUPLICATE = kit.defineCommand({
   id: "paper-duplicate",
   performs: [ITEM_PASTE.id],
-  permissionScope: "selection",
+  permissionScope: "opened-page",
   title: "Duplicate",
   run: (ctx, a) => {
     const page = pageOf(ctx)
@@ -149,7 +149,7 @@ export const PAPER_DUPLICATE = kit.defineCommand({
   when: ctx => onOpenedPage(ctx) && itemsSelected(ctx),
 })
 
-export const CLIPBOARD_KEYS = [
+export const COPY_PASTE_KEYS = [
   kit.defineKey({ id: "paper-copy-mod-c", key: "Mod+C", command: PAPER_COPY.id, scope: "stage" }),
   kit.defineKey({ id: "paper-cut-mod-x", key: "Mod+X", command: PAPER_CUT.id, scope: "stage" }),
   kit.defineKey({ id: "paper-paste-mod-v", key: "Mod+V", command: PAPER_PASTE.id, scope: "stage" }),
