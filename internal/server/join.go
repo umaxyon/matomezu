@@ -4,8 +4,11 @@ package server
 // 参加を頼むと、参加者を作るアクションと、利用者に知らせる郵便のアクションを、この順に行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。
 // 参加者の表と郵便箱はアクションの結果が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
 //   - 最後に呼ばれた時刻（参加の id の付いた /api/ai の呼び出しのたびに更新。置き場所には書かず、窓にも知らせない）
-//   - セッション id（join のときに MCP が添える。置き場所に残す）
-//   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加の id の付いた呼び出しへの返事のヘッダ）
+//   - セッション id（join のときに MCP が添える。置き場所に残す）と、それを結んだ所（join の MCP か、話しかけのフックか）
+//   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加の id の付いた呼び出しへの返事のヘッダ、または話しかけのフック）
+//
+// 受け入れた参加者は、AI のフックが参加を伝えるまで準備中（セッション id を join で運ぶ AI は受け入れた時点で準備中でない）。
+// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・「参加しました」の知らせ・伝えた印を残さない。準備中の間は生きていない
 //
 // 参加の id は MCP が X-Matomezu-Participant ヘッダで毎回添え、「参加しました」の知らせは X-Matomezu-Notice ヘッダで 1 度だけ返す（値は URL エンコード）。
 //
@@ -22,6 +25,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 )
 
@@ -34,10 +38,19 @@ const (
 
 // participantNote は参加者 1 人の、常駐だけが持つ記録
 type participantNote struct {
-	SessionID string `json:"sessionId,omitempty"` // join のときに MCP が添えたセッション id
+	SessionID string `json:"sessionId,omitempty"` // セッション id（join のときに MCP が添えたか、話しかけのフックが結んだ）
+	BoundBy   string `json:"boundBy,omitempty"`   // セッション id を結んだ所（boundByJoin か boundByHook。空は boundByHook と同じ）
 	Told      bool   `json:"told,omitempty"`      // 参加（joined）を AI に伝えた
 	Called    string `json:"-"`                   // 最後に呼ばれた時点（残さない）
 }
+
+const (
+	boundByJoin = "join" // join のときに MCP がセッション id を運んだ（フックの無い AI）
+	boundByHook = "hook" // 話しかけのフックが会話の記録から結んだ
+)
+
+// ready は、受け入れたあとの参加者が準備中でない（参加者として数える）か。参加を伝えたか、join で MCP がセッション id を運んだとき
+func (n participantNote) ready() bool { return n.Told || n.BoundBy == boundByJoin }
 
 // participantRecord は参加者の表の 1 人のうち、join が見る所
 type participantRecord struct {
@@ -220,7 +233,8 @@ func (h *Hub) performAs(action string, args map[string]any) (Performed, error) {
 	return h.Perform(Perform{Action: action, Args: b, By: "ai"})
 }
 
-// noteSession は参加者 id の常駐だけが持つ参加者の記録にセッション id を書く（空なら何もしない）
+// noteSession は参加者 id の常駐だけが持つ参加者の記録に、join で MCP が運んだセッション id を書く（空なら何もしない）。
+// 運んだ AI は準備中にならないので、窓に知らせる
 func (h *Hub) noteSession(id, sessionID string) {
 	if sessionID == "" {
 		return
@@ -229,7 +243,23 @@ func (h *Hub) noteSession(id, sessionID string) {
 	defer h.mu.Unlock()
 	n := h.participantNotes[id]
 	n.SessionID = sessionID
+	n.BoundBy = boundByJoin
 	h.participantNotes[id] = n
+	h.broadcast("participant-ready", map[string]any{"participant": id})
+}
+
+// ParticipantReady は、準備中でない参加者の id（窓が、受け入れ済みの参加者の準備中を見分ける）
+func (h *Hub) ParticipantReady() []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := []string{}
+	for id, n := range h.participantNotes {
+		if n.ready() {
+			out = append(out, id)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // settleNotes は参加者の表に無い常駐だけが持つ参加者の記録を捨て、常駐だけが持つ参加者の記録を置き場所に書く
@@ -269,7 +299,8 @@ func (h *Hub) ParticipantCalls() map[string]string {
 }
 
 // Called は、参加の id が付いた /api/ai の呼び出しを常駐だけが持つ参加者の記録に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
-// 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。表に無い id（断られたか、外された）には、1 度だけ「参加が断られた」知らせを返す。
+// 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。参加が済んでいない（要求中か準備中）id は何も残さず、知らせも返さない。
+// 表に無い id（断られたか、外された）には、1 度だけ「参加が断られた」知らせを返す。
 // id が空なら何もしない。最後に呼ばれた時刻は、前に知らせてから callsAnnounceGap 以上たっていたときだけ窓に知らせる
 func (h *Hub) Called(id string, now time.Time) string {
 	if id == "" {
@@ -286,12 +317,15 @@ func (h *Hub) Called(id string, now time.Time) string {
 			continue
 		}
 		n := h.participantNotes[id]
+		if s.State != "joined" || !n.ready() {
+			return ""
+		}
 		before, _ := time.Parse(time.RFC3339Nano, n.Called)
 		n.Called = isoTime(now)
 		if now.Sub(before) >= callsAnnounceGap {
 			h.broadcast("participant-calls", map[string]any{"participant": id, "at": n.Called})
 		}
-		if s.State == "joined" && !n.Told {
+		if !n.Told {
 			n.Told = true
 			h.participantNotes[id] = n
 			if err := h.putParticipantNotes(); err != nil {

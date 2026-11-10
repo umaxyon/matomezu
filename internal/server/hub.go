@@ -19,6 +19,7 @@ package server
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
 //	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join.go。30 秒以上あいたときだけ知らせる）
+//	participant-ready {"participant"} 参加者が準備中でなくなった（フックが参加を伝えた、または join で MCP がセッション id を運んだ。join.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 

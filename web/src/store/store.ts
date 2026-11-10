@@ -104,6 +104,7 @@ export interface MatomezuState {
   // ブックの id → 触れた（開いたか書いた）時刻（ISO 8601 の UTC）。ホストが知らせたもの（receive）で、無ければ空
   touched: Readonly<Record<string, string>>
   participantCalls: Readonly<Record<string, string>> // 参加者の id → 最後に呼ばれた時刻（常駐だけが持つ参加者の記録。ホストが知らせる。生きているかの判定に使う）
+  participantReady: readonly string[] // 準備中でない参加者の id（常駐だけが持つ参加者の記録。ホストが知らせる。受け入れ済みの参加者の準備中を見分けるのに使う）
   trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐の郵便箱の知らせに添えられた値で入れる）
@@ -261,6 +262,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       participants?: unknown
       touched?: Readonly<Record<string, string>>
       participantCalls?: Readonly<Record<string, string>>
+      participantReady?: readonly string[]
     },
     replay: readonly DoneAction[],
     change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string },
@@ -320,6 +322,7 @@ function initialState(
     toasts: [],
     touched: {},
     participantCalls: {},
+    participantReady: [],
     trash: { ...trash },
     offline: false,
     lastWindow: false,
@@ -896,9 +899,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         world.participantCalls === undefined || sameData(world.participantCalls, now.participantCalls)
           ? now.participantCalls
           : world.participantCalls
+      const participantReady =
+        world.participantReady === undefined || sameData(world.participantReady, now.participantReady)
+          ? now.participantReady
+          : world.participantReady
       commit({
         ...(touched === now.touched ? {} : { touched }),
         ...(participantCalls === now.participantCalls ? {} : { participantCalls }),
+        ...(participantReady === now.participantReady ? {} : { participantReady }),
         ...(trash === now.trash ? {} : { trash }),
         ...(books === now.books
           ? {}

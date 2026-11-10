@@ -9,7 +9,10 @@ package server
 //	  candidates が有る: 記録から拾った uuid の形の文字列。行うアクションは行わず、link が合う参加者にセッション id を結んで、同じ形を返す
 //	welcomes は、そのセッションの、受け入れ済みで伝えていない参加者（伝えたと印を付けて返す）。unbound は、そのセッションが誰にも結ばれておらず、結ばれていない参加者がいる（記録を調べる値打ちがある）
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // Welcome は、フックが利用者に伝える「参加しました」の 1 人分
 type Welcome struct {
@@ -70,6 +73,7 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 		n := h.participantNotes[s.ID]
 		if sitting(s) && n.SessionID == "" && heard[strings.ToLower(s.Link)] {
 			n.SessionID = sessionID
+			n.BoundBy = boundByHook
 			h.participantNotes[s.ID] = n
 			changed = true
 		}
@@ -77,6 +81,7 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 			bound = true
 			if s.State == "joined" && !n.Told {
 				n.Told = true
+				n.Called = isoTime(time.Now())
 				h.participantNotes[s.ID] = n
 				changed = true
 				toldIDs = append(toldIDs, s.ID)
@@ -98,10 +103,16 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 			for _, id := range toldIDs {
 				n := h.participantNotes[id]
 				n.Told = false
+				n.Called = ""
 				h.participantNotes[id] = n
 			}
 			told = nil
 		}
+	}
+	// 伝えた参加者は、そのときを最後に呼ばれた時刻にして、準備中でなくなったと窓に知らせる
+	for _, w := range told {
+		h.broadcast("participant-calls", map[string]any{"participant": w.Participant, "at": h.participantNotes[w.Participant].Called})
+		h.broadcast("participant-ready", map[string]any{"participant": w.Participant})
 	}
 	h.mu.Unlock()
 	if perr != nil {

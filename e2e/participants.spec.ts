@@ -6,7 +6,8 @@ import { fromMenu } from "./helpers/stage-menu"
 const JOINED = "ワークルームに入れます"
 const REQUEST = "AI エージェントから参加要求が届きました"
 
-async function join(page: Page, link: string, sessionName = "", workroom = "") {
+// sessionId を渡すと、MCP がセッション id を運ぶ AI（フックの無い AI）の join になる。渡さなければ、話しかけのフックが参加を伝えるまで準備中
+async function join(page: Page, link: string, sessionName = "", workroom = "", sessionId = "") {
   const res = await page.request.post("/api/ai/join", {
     headers: aiAuth(),
     data: {
@@ -15,7 +16,7 @@ async function join(page: Page, link: string, sessionName = "", workroom = "") {
       env: "wsl",
       sessionName,
       link,
-      sessionId: "",
+      sessionId,
       projects: ["default"],
       ...(workroom ? { workroom } : {}),
     },
@@ -23,11 +24,15 @@ async function join(page: Page, link: string, sessionName = "", workroom = "") {
   return (await res.json()) as { ok: boolean; participant: string; reason?: string }
 }
 
-// この参加者の id で AI の口を呼ぶ（最後に呼ばれた時刻が進み、受け入れた直後なら参加の知らせが返る）
+// この参加者の id で AI の口を呼ぶ（参加が済んでいれば、最後に呼ばれた時刻が進み、受け入れた直後なら参加の知らせが返る）
 const call = (page: Page, participant: string) =>
   page.request.get("/api/ai/books?projects=default", {
     headers: { ...aiAuth(), "X-Matomezu-Participant": participant },
   })
+
+// 話しかけのフックの代わり。会話の記録から拾った link で、そのセッションに参加者を結び、参加を伝える
+const talk = (page: Page, sessionId: string, link: string) =>
+  page.request.post("/api/ai/talked", { headers: aiAuth(), data: { sessionId, candidates: [link] } })
 
 // 画面を開き、参加要求の郵便のダイアログを開く
 async function openRequest(page: Page) {
@@ -70,14 +75,36 @@ test("参加要求の郵便で受け入れるを押すと、名前・鳥・配�
   expect(body.participants).toMatchObject([
     { id: made.participant, state: "joined", workroom: "ひよこ", bird: "buncho", palette: "pink" },
   ])
-  // センターの参加者リストに出る（呼ばれるまでは静か）
+  // センターの参加者リストに出る（フックが参加を伝えるまでは準備中）
   await (await fromMenu(page, "コントロールセンター")).click()
   const row = page.locator(`[data-participant="${made.participant}"]`)
   await expect(row).toContainText("ひよこ")
   await expect(row).toContainText("claude / opus-5 / wsl")
+  await expect(row).toContainText("準備中")
+  // 準備中の間は、AI の口を呼んでも参加者として数えない（知らせも返らない）
+  const early = await call(page, made.participant)
+  expect(early.headers()["x-matomezu-notice"]).toBeUndefined()
+  await expect(row).toContainText("準備中")
+  // フックが参加を伝えると生きている
+  await talk(page, "S-e2e-1", "e2e-link-1")
+  await expect(row).toContainText("生きている")
+})
+
+test("セッション id を join で運ぶ AI（フックの無い AI）は、受け入れた直後は準備中でなく静かで、呼ばれると生きている", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(BOOK_SCREEN_URL)
+  const made = await join(page, "e2e-link-20", "codex", "", "S-e2e-20")
+  await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
+  await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
+  await (await fromMenu(page, "コントロールセンター")).click()
+  const row = page.locator(`[data-participant="${made.participant}"]`)
   await expect(row).toContainText("静か")
-  // 呼ばれると生きている
-  await call(page, made.participant)
+  const told = await call(page, made.participant)
+  expect(decodeURIComponent((told.headers()["x-matomezu-notice"] ?? "").replaceAll("+", " "))).toContain(
+    "You joined matomezu",
+  )
   await expect(row).toContainText("生きている")
 })
 
@@ -122,7 +149,7 @@ test("受け入れ済みの参加要求の郵便には、断る・受け入れ�
 
 test("生きている参加者と同じ名前は、受け入れのダイアログでその場で断る", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
-  const first = await join(page, "e2e-link-5", "同じ名前")
+  const first = await join(page, "e2e-link-5", "同じ名前", "", "S-e2e-5")
   await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
   await call(page, first.participant)
@@ -230,7 +257,7 @@ test("頼まれた名前の参加要求を断ると、元の参加者はその�
 
 test("生きている参加者のワークルームは引き継げない。断られ、郵便も出ない", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
-  const old = await join(page, "e2e-link-12", "旧")
+  const old = await join(page, "e2e-link-12", "旧", "", "S-e2e-12")
   await acceptAs(page, "ひよこ")
   await call(page, old.participant)
   const refused = await join(page, "e2e-link-13", "新", "ひよこ")
