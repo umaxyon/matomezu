@@ -27,6 +27,7 @@ import {
   useStage,
   useToPaper,
 } from "../../../../plugin-api/ui"
+import { slideOffsetOf } from "../../../base"
 import { PaperFrame, type StageSlotProps, useFollowsSelection } from "../../../base/ui"
 import { SLIDE_DELETE, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
 import {
@@ -155,6 +156,8 @@ function SlidePageView({
   const [dragFrame, setDragFrame] = useState<Rect | null>(null) // ドラッグ枠の途中の四角（紙の上）
   const typeNext = useRef(false) // 置いた文字枠で、そのまま文字を打つ
   const shapes = page ? slideOf(page) : []
+  // 位置をデータに持たない見せ方（ツリー）が、可変ページで中身をずらした量。slide の形は、データの座標のまま、この分ずらして描く
+  const offset = book && page ? slideOffsetOf(catalog, book, page) : { x: 0, y: 0 }
   const chosen = shapes.filter(s => stage.selection.includes(s.id)) // 選んでいるアイテム（重ねの順）
   const selected = chosen.length === 1 && stage.selection.length === 1 ? chosen[0] : undefined
   const placing = operable && stage.placing !== null && placeable.includes(stage.placing) ? stage.placing : null
@@ -176,7 +179,8 @@ function SlidePageView({
     const el = ref.current
     if (!el) return null
     const r = el.getBoundingClientRect()
-    return toPaperAt({ x: e.clientX - r.left, y: e.clientY - r.top })
+    const at = toPaperAt({ x: e.clientX - r.left, y: e.clientY - r.top })
+    return at && { x: at.x - offset.x, y: at.y - offset.y }
   }
   const finish = () => {
     drag.current = null
@@ -456,45 +460,49 @@ function SlidePageView({
     >
       <PaperFrame stage={stage} className={styles.paper} aria-hidden="true">
         <div className={styles.clip}>
-          {shown.map(shape => (
-            <SlideItem
-              key={shape.id}
-              shape={shape}
-              stage={stage.id}
-              zoom={stage.zoom}
-              edit={{
-                editing: editing === shape.id,
-                onCommit: (text, grown) => {
-                  if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
-                  setEditing(stage.id, false)
-                  // 何も書かずに終えた文字枠は、何も言わずに消す（置いた直後なら、置いたことごと無かったことになる）
-                  if (text === "") {
-                    remove.run()
-                    return
-                  }
-                  // 書いた文字と、文字に合わせて広げた枠は、1 つの画面の履歴の段にする
-                  if (text !== (shapeProps(shape).text ?? "")) set.run({ items: [shape.id], props: { text } })
-                  if (grown) reshape.run({ item: shape.id, rect: roundRect(grown), scaled: false })
-                },
-                onCancel: () => {
-                  // やめても、文字が空のままの文字枠（置いた直後）は残さない
-                  if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
-                  setEditing(stage.id, false)
-                  if ((shapeProps(shape).text ?? "") === "") remove.run()
-                },
-              }}
-            />
-          ))}
-          {ghost && <Ghost ghost={ghost} zoom={stage.zoom} />}
+          <div className={styles.shifted} style={{ left: offset.x, top: offset.y }}>
+            {shown.map(shape => (
+              <SlideItem
+                key={shape.id}
+                shape={shape}
+                stage={stage.id}
+                zoom={stage.zoom}
+                edit={{
+                  editing: editing === shape.id,
+                  onCommit: (text, grown) => {
+                    if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
+                    setEditing(stage.id, false)
+                    // 何も書かずに終えた文字枠は、何も言わずに消す（置いた直後なら、置いたことごと無かったことになる）
+                    if (text === "") {
+                      remove.run()
+                      return
+                    }
+                    // 書いた文字と、文字に合わせて広げた枠は、1 つの画面の履歴の段にする
+                    if (text !== (shapeProps(shape).text ?? "")) set.run({ items: [shape.id], props: { text } })
+                    if (grown) reshape.run({ item: shape.id, rect: roundRect(grown), scaled: false })
+                  },
+                  onCancel: () => {
+                    // やめても、文字が空のままの文字枠（置いた直後）は残さない
+                    if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
+                    setEditing(stage.id, false)
+                    if ((shapeProps(shape).text ?? "") === "") remove.run()
+                  },
+                }}
+              />
+            ))}
+            {ghost && <Ghost ghost={ghost} zoom={stage.zoom} />}
+          </div>
         </div>
-        {operable && item && !placing && <Selection item={item} hidden={editing !== null} />}
-        {operable && group && !placing && <GroupSelection rect={group.rect} subjects={group.subjects} />}
-        {dragFrame && (
-          <div
-            className={styles.dragFrame}
-            style={{ left: dragFrame.x, top: dragFrame.y, width: dragFrame.w, height: dragFrame.h }}
-          />
-        )}
+        <div className={styles.shifted} style={{ left: offset.x, top: offset.y }}>
+          {operable && item && !placing && <Selection item={item} hidden={editing !== null} />}
+          {operable && group && !placing && <GroupSelection rect={group.rect} subjects={group.subjects} />}
+          {dragFrame && (
+            <div
+              className={styles.dragFrame}
+              style={{ left: dragFrame.x, top: dragFrame.y, width: dragFrame.w, height: dragFrame.h }}
+            />
+          )}
+        </div>
       </PaperFrame>
     </div>
   )

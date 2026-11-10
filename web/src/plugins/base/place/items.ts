@@ -2,7 +2,7 @@
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）。
 // 形が変わったあとは、ページのつなぐものの決まりで整える（placed.ts の tidyConnectors）
 import { type PagedBook, putPage } from "../../../core/book"
-import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
+import { bookType, type CatalogCheckDef, type CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
@@ -241,6 +241,27 @@ export function growOf(catalog: CoreCatalog, book: Book, page: ItemPage): GrowSi
   return chosen && GROW_CHOICE_SIDES[chosen]
 }
 
+declare module "../../../core/catalog" {
+  interface BookTypeExtras {
+    // 位置をデータに持たない見せ方が、可変ページで描く中身を右・下へずらした印刷区画の数（ページの slide の形も、同じだけずらして描く。無ければ 0）。
+    // page で効いている設定の値は setting、ページの増やす向きは grow（可変ページでなければ undefined。growOf）
+    contentOrigin?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader, grow: GrowSides | undefined): Point
+  }
+}
+
+// ブック book のページ page の slide の形を、描くときにずらす量（紙の上。ブックのタイプの contentOrigin の印刷区画の数に、紙の大きさを掛ける）。
+// 位置をデータに持つ見せ方は、データの slide の座標をずらすので、ここでは 0
+export function slideOffsetOf(catalog: CoreCatalog, book: Book, page: ItemPage): Point {
+  const paper = paperSize(catalog, page)
+  const origin = bookType(catalog, book.type).contentOrigin?.(
+    catalog,
+    page,
+    settingsAt(catalog, book, page),
+    growOf(catalog, book, page),
+  )
+  return paper && origin ? { x: origin.x * paper.w, y: origin.y * paper.h } : { x: 0, y: 0 }
+}
+
 // ブック book のページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
 // （spare なら右・下へ増やす向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
 export function pageArea(
@@ -329,7 +350,8 @@ export function adaptPage<P extends ItemPage>(catalog: CoreCatalog, page: P, con
 
 // 可変ページの中身を、印刷区画の単位でずらしたページ: 形の外枠の左端（上端）が、左（上）から into.x（into.y）番目の印刷区画に来るようにする
 // （1 なら左・上に空きの印刷区画を 1 つ持ち、0 なら持たない。無い向きはずらさない）。ずらした量（印刷区画の数）はページの shift に足す（0 なら消す）。
-// つなぐものは、定義の shift で位置を持つ物も一緒にずらす。形の無いページ・ずらさなくてよいページはそのまま
+// つなぐものは、定義の shift で位置を持つ物も一緒にずらす。ページの slide の形も、同じ量でずらす（線の点は枠の割合なので、枠の位置だけ）。
+// 形の無いページ・ずらさなくてよいページはそのまま
 export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, page: P, into: { x?: 0 | 1; y?: 0 | 1 }): P {
   const paper = paperSize(catalog, page)
   if (!paper) return page
@@ -344,7 +366,11 @@ export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, page: P, 
     isShape(i) ? { ...i, x: i.x + d.x, y: i.y + d.y } : (shifted.get(i.id) ?? i),
   )
   const total = { x: (page.shift?.x ?? 0) + kx, y: (page.shift?.y ?? 0) + ky }
-  const moved = { ...page, items }
+  const moved = {
+    ...page,
+    items,
+    ...(page.slide ? { slide: page.slide.map(s => ({ ...s, x: s.x + d.x, y: s.y + d.y })) } : {}),
+  }
   return setField(moved, ["orientation", "grows"], "shift", total.x === 0 && total.y === 0 ? undefined : total)
 }
 

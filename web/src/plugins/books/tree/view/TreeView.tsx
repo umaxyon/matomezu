@@ -489,7 +489,6 @@ function useCentered(
   }
   const isNone = rect === undefined
   // 付き直したときだけ、倍率が反映された描き直しを待つ（道具の倍率が今と同じなら倍率は替わらないので、少し待って待つのをやめる）
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 付き直したときだけ
   useEffect(() => {
     if (!isNone && !had.current) {
       waiting.current = true

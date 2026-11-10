@@ -124,6 +124,7 @@ export {
   sheetShapes,
   sheetsOfShape,
   shownRects,
+  slideOffsetOf,
   TEXT_LOOK,
   textBlock,
   textBlockHeight,

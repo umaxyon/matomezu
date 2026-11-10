@@ -141,6 +141,7 @@ test("matomezu が出す名前", () => {
     "shownRects",
     "slideIsBackground",
     "slideOf",
+    "slideOffsetOf",
     "textBlock",
     "textBlockHeight",
     "textColorId",

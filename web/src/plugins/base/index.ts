@@ -181,6 +181,7 @@ export {
   roomOf,
   shapeThemeFits,
   shownRects,
+  slideOffsetOf,
   unpinPage,
   widenForCaption,
   withPage,
