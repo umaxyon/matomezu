@@ -11,6 +11,9 @@ export const useParticipants = (): Participants => useMatomezuState(s => s.parti
 // 参加者の id → 最後に呼ばれた時刻
 export const useParticipantCalls = (): Readonly<Record<string, string>> => useMatomezuState(s => s.participantCalls)
 
+// 準備中でない参加者の id
+export const useParticipantReady = (): readonly string[] => useMatomezuState(s => s.participantReady)
+
 // 参加者が生きているかを決める関数（最後に呼ばれた時刻と今の時刻から。参加の有効時間の設定で決まる）
 export function useIsAlive(): (calledAt: string | undefined, nowMs: number) => boolean {
   const catalog = useCoreCatalog()

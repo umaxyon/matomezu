@@ -49,6 +49,7 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   "No participants": { en: "No participants", ja: "参加者はいません" },
   Alive: { en: "Alive", ja: "生きている" },
   Quiet: { en: "Quiet", ja: "静か" },
+  Preparing: { en: "Preparing", ja: "準備中" },
   "Start new": { en: "Start new", ja: "新しく始める" },
   "Take over": { en: "Take over", ja: "引き継ぐ" },
   "Choose who to take over": { en: "Choose who to take over", ja: "引き継ぐ参加者を選ぶ" },

@@ -753,3 +753,13 @@ test("参加者の最後に呼ばれた時刻の知らせは、新しい物だ�
   s.emit("participant-calls", { participant: "p2", at: "2026-11-09T08:00:00Z" })
   expect(calls()).toEqual({ p1: "2026-11-09T11:00:00Z", p2: "2026-11-09T08:00:00Z" })
 })
+
+test("準備中でない参加者の知らせは、同じ id を重ねて持たない", async () => {
+  const s = await connected()
+  const ready = () => s.store.state.getState().participantReady
+  expect(ready()).toEqual([])
+  s.emit("participant-ready", { participant: "p1" })
+  s.emit("participant-ready", { participant: "p1" })
+  s.emit("participant-ready", { participant: "p2" })
+  expect(ready()).toEqual(["p1", "p2"])
+})

@@ -97,9 +97,13 @@
   color: var(--skin-text-muted);
   font-size: 11px;
 }
-.state[data-alive="true"] {
+.state[data-state="alive"] {
   border-color: var(--skin-accent);
   color: var(--skin-text);
+}
+
+.state[data-state="preparing"] {
+  border-style: dashed;
 }
 
 /* ダイアログの下の行のボタン */
