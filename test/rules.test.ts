@@ -3,7 +3,6 @@ import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, normalize, relative, resolve } from "node:path"
 import { WEB_ENTRIES } from "../scripts/web-build"
-import { CORE_CATALOG } from "./support"
 
 const ROOT = resolve(import.meta.dir, "..")
 const SRC = join(ROOT, "web/src")
