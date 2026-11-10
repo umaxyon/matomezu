@@ -1,7 +1,7 @@
-// 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、ホストとブラウザに触る所、コメントの言葉
+// 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、ホストとブラウザに触る所、コメントの言葉、プラグインの中のファイルの役割、base の utils、単体のテストの置き場
 import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
-import { basename, dirname, join, relative, resolve } from "node:path"
+import { basename, dirname, join, normalize, relative, resolve } from "node:path"
 import { WEB_ENTRIES } from "../scripts/web-build"
 import { CORE_CATALOG } from "./support"
 
@@ -252,6 +252,66 @@ test("見た目を結ぶ（definePluginUi）のは、プラグインの ui.tsx �
     .filter(f => crateOf(f.rel) === "plugins" && !/\/ui\.tsx?$/.test(f.rel))
     .filter(f => /\bdefinePluginUi\(/.test(f.text))
     .map(f => f.rel)
+  expect(offenders).toEqual([])
+})
+
+// 単体のテストの置き場: test の直下は全体を見張るテストだけ。test/<クレート> はそのクレート（かその置き場の手伝い）を、test/plugins/<置き場> はそのプラグインを読む
+test("単体のテストは、確かめる物の置き場（クレートか test/plugins/<プラグイン>）に置く", () => {
+  const TEST = join(ROOT, "test")
+  const tests = filesUnder(TEST)
+    .filter(path => /\.test\.tsx?$/.test(path) && !path.includes("/added-plugins/") && !path.includes("/type-checks/"))
+    .map(path => ({ rel: relative(TEST, path), text: readFileSync(path, "utf8") }))
+  // 値で読む先（import type と、型だけを並べた import { type A, type B } は数えない）
+  const typeOnly = (kw: string | undefined, names: string) =>
+    kw !== undefined ||
+    (names.startsWith("{") &&
+      names
+        .replace(/[{}]/g, "")
+        .split(",")
+        .map(n => n.trim())
+        .filter(n => n !== "")
+        .every(n => /^type\s/.test(n)))
+  const targetsOf = (rel: string, text: string) =>
+    [...text.matchAll(/^import\s+(type\s+)?([^"']*?)\s*from\s*["'](\.{1,2}\/[^"']+)["']/gm)]
+      .filter(m => !typeOnly(m[1], m[2]!.trim()))
+      .map(m => normalize(join(dirname(rel), m[3]!)))
+  const CRATE_DIRS = [...CRATES, "plugins"]
+  const ROOT_TESTS = ["rules.test.ts", "engine.test.ts", "fonts.test.ts", "plugin-api.test.ts"]
+  const bad = tests.flatMap(({ rel, text }) => {
+    const parts = rel.split("/")
+    if (parts.length === 1) return ROOT_TESTS.includes(rel) ? [] : [`${rel}: test の直下`]
+    const reads = targetsOf(rel, text)
+    if (!CRATE_DIRS.includes(parts[0]!)) return [`${rel}: クレートの名前でないフォルダ`]
+    if (parts[0] === "plugins") {
+      const place = parts.slice(1, -1).join("/")
+      if (place === "") return [`${rel}: test/plugins の直下`]
+      return reads.some(t => t.startsWith(`../web/src/plugins/${place}`)) ? [] : [`${rel}: plugins/${place} を読まない`]
+    }
+    const crate = parts[0]!
+    const own = reads.some(t => t.startsWith(`../web/src/${crate}/`) || t.startsWith(`${crate}/`))
+    const onlyPlugins = reads.filter(t => t.startsWith("../web/src/")).every(t => t.startsWith("../web/src/plugins/"))
+    return !own && onlyPlugins && reads.some(t => t.startsWith("../web/src/plugins/"))
+      ? [`${rel}: プラグインだけを読む`]
+      : []
+  })
+  expect(bad).toEqual([])
+})
+
+// base の utils は、どの機能にも属さない共通の処理の置き場なので、base の機能のフォルダを読まない（base の直下のファイルは読んでよい）（plugins の「プラグインどうしの関係」）
+test("base の utils は、base の機能のフォルダを読まない", () => {
+  const offenders = sources
+    .filter(f => f.rel.startsWith("plugins/base/utils/"))
+    .flatMap(f =>
+      [...f.text.matchAll(/from\s*["'](\.\.\/[^"']+)["']/g)]
+        .map(m => normalize(join(dirname(f.rel), m[1]!)))
+        .filter(
+          t =>
+            t.startsWith("plugins/base/") &&
+            !t.startsWith("plugins/base/utils") &&
+            statSync(join(SRC, t.split("/").slice(0, 3).join("/")), { throwIfNoEntry: false })?.isDirectory() === true,
+        )
+        .map(t => `${f.rel} → ${t}`),
+    )
   expect(offenders).toEqual([])
 })
 

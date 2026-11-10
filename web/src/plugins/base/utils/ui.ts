@@ -3,10 +3,7 @@
 import { isMac } from "../../../ui/keys"
 
 export { Stand, type StandAway, useAnchorRef, useAnchorShapeRef, useStandAway } from "./anchors"
-export { ChoiceSetting } from "./ChoiceSetting"
 export { AtCorner, CORNER_STATUSES, type CornerStatusProps, defineCornerStatus, useAtCornerBubble } from "./corner"
-export { LockToggle } from "./LockToggle"
-export { PageProblemsView, usePageProblems } from "./PageProblems"
 export { PaperFrame } from "./PaperFrame"
 export { type Revealable, useRevealable } from "./revealable"
 export { type SettingsPatch, useSettingControls } from "./SettingControls"
