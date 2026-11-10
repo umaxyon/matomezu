@@ -43,8 +43,8 @@ export interface Resized extends Rect {
   scaled: boolean // 角をつかんだ（文字枠の文字も一緒に拡大する）
 }
 
-// 辺 grip をつかんで、紙の上で by だけ引いたあとの枠。min は幅・高さの下限
-export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, min: number): Resized {
+// grip をつかんで、紙の上で by だけ引いたあとの枠。min は幅・高さの下限。square なら、角をつかんだとき正方形（長い方に揃える）
+export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, min: number, square = false): Resized {
   const d = turn(by, -rotation)
   const horizontal = grip.left === true || grip.right === true
   const vertical = grip.top === true || grip.bottom === true
@@ -60,6 +60,14 @@ export function resizedRect(f: Rect, rotation: number, grip: Grip, by: Point, mi
   if (b - t < min) {
     if (grip.top) t = b - min
     else b = t + min
+  }
+  // 角をつかんで square なら、縦横の長い方に揃える（つかんだ角の反対側の角を動かさない）
+  if (square && horizontal && vertical) {
+    const side = Math.max(r - l, b - t)
+    if (grip.left) l = r - side
+    else r = l + side
+    if (grip.top) t = b - side
+    else b = t + side
   }
   const w = r - l
   const h = b - t

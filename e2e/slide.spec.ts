@@ -137,7 +137,7 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveCount(3)
   })
 
-  test("選んで動かす。角のつまみで大きさを変える。角度は数字で入れる", async ({ page }) => {
+  test("選んで動かす。角のつまみで大きさを変える。回すつまみで回し、「水平に戻す」で戻す", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     const z = await draw(page, "楕円", [100, 100], [400, 250])
     const e = page.locator("[data-item]").first()
@@ -164,11 +164,50 @@ test.describe("スライドの操作", () => {
     await page.mouse.up()
     await expect.poll(async () => Math.round((await e.boundingBox())!.width / z)).toBe(480)
     await expect.poll(async () => Math.round((await e.boundingBox())!.height / z)).toBe(250)
-    // 角度は数字で入れる
-    const angle = page.getByLabel("角度")
-    await angle.fill("90")
-    await angle.press("Enter")
+    // 回すつまみで回し、「水平に戻す」で戻す
+    const rot = (await page.locator("[data-rotate]").boundingBox())!
+    await page.mouse.move(rot.x + rot.width / 2, rot.y + rot.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(rot.x + rot.width / 2 + 120, rot.y + rot.height / 2 + 160, { steps: 8 })
+    await page.mouse.up()
     await expect(e).toHaveCSS("transform", /^matrix/)
+    await page.getByRole("button", { name: "水平に戻す" }).click()
+    await expect(e).toHaveCSS("transform", "none")
+  })
+
+  test("楕円は、ドラッグしている間も楕円が見え、Ctrl を押していれば正円で置ける。角のつまみも Ctrl で正円になる", async ({
+    page,
+  }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await (await footerMenuTool(page, "楕円")).click()
+    const at = await onPaper(page, 0, 0)
+    const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
+    await page.mouse.move(at.x + 100 * z, at.y + 100 * z)
+    await page.mouse.down()
+    await page.mouse.move(at.x + 400 * z, at.y + 250 * z, { steps: 6 })
+    // 離す前に、置いたときと同じ見た目の楕円が見える（まだ置いていないので、アイテムは無い）
+    await expect(page.locator("[data-item]")).toHaveCount(0)
+    await expect(page.locator("[data-placing] ellipse")).toHaveCount(1)
+    // Ctrl を押しながら動かすと正円（長い方の 300 に揃う）
+    await page.keyboard.down("Control")
+    await page.mouse.move(at.x + 401 * z, at.y + 250 * z, { steps: 2 })
+    await page.mouse.up()
+    await page.keyboard.up("Control")
+    const e = page.locator("[data-item]").first()
+    const box = (await e.boundingBox())!
+    expect(Math.abs(box.width - box.height)).toBeLessThan(3)
+    expect(Math.abs(box.width / z - 300)).toBeLessThan(4)
+    // 角のつまみを Ctrl で引くと正円のまま
+    const grip = (await page.locator('[data-grip="bottom-right"]').boundingBox())!
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+    await page.mouse.down()
+    await page.keyboard.down("Control")
+    await page.mouse.move(grip.x + grip.width / 2 + 100 * z, grip.y + grip.height / 2 + 20 * z, { steps: 5 })
+    await page.mouse.up()
+    await page.keyboard.up("Control")
+    const after = (await e.boundingBox())!
+    expect(Math.abs(after.width - after.height)).toBeLessThan(3)
+    expect(after.width / z).toBeGreaterThan(380)
   })
 
   test("直線を選ぶと、バーで色・太さ・点線・矢印を変えられる。楕円は塗りと枠の太さを変えられる", async ({ page }) => {
@@ -289,6 +328,25 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveCount(0)
   })
 
+  test("文字に寄せた枠の大きさ（フォントのデータで計算）は、ブラウザの描画と合い、書き換え中も決めたあとも文字が切れず折り返さない", async ({
+    page,
+  }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await putTextAt(page, 100, 100)
+    await page.keyboard.type("Hello World 日本語のテキスト")
+    const area = page.locator("textarea")
+    const clipped = () => area.evaluate(el => el.scrollWidth > el.clientWidth + 1)
+    await expect.poll(clipped).toBe(false) // 書き換え中、横にはみ出さない
+    await page.mouse.click(1, 1)
+    const shown = page.locator("[data-item] div").first()
+    const fits = () =>
+      shown.evaluate(el => ({
+        over: el.scrollWidth > el.clientWidth + 1,
+        rows: Math.round(el.scrollHeight / (24 * 1.3)),
+      }))
+    expect(await fits()).toEqual({ over: false, rows: 1 }) // 決めたあと、1 行のまま切れない
+  })
+
   test("書き終えた文字枠はダブルクリックで中にカーソルが入って書き直せ、全部消して終えると消える", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     await putTextAt(page, 200, 200)
@@ -310,7 +368,7 @@ test.describe("スライドの操作", () => {
     await expect(page.locator("[data-item]")).toHaveText("abcdef")
   })
 
-  test("文字枠のバーに角度の入力は無く、「水平に戻す」は角度が付くと押せて、押すと真正面に戻る。楕円には角度の入力がある", async ({
+  test("文字枠のバーに角度の入力は無く、「水平に戻す」は角度が付くと押せて、押すと真正面に戻る。楕円も同じで、直線には角度の入力がある", async ({
     page,
   }) => {
     await page.goto(BOOK_SCREEN_URL)
@@ -333,6 +391,9 @@ test.describe("スライドの操作", () => {
     await expect(t).toHaveCSS("transform", "none")
     await expect(level).toBeDisabled()
     await draw(page, "楕円", [100, 300], [300, 400])
+    await expect(page.getByLabel("角度")).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "水平に戻す" })).toBeDisabled()
+    await draw(page, "直線", [600, 300], [900, 400])
     await expect(page.getByLabel("角度")).toBeVisible()
   })
 

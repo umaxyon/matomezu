@@ -18,6 +18,7 @@ import {
   TEXT_LINE_HEIGHT,
   type TextFrameProps,
 } from "./slide"
+import face from "./TextFace.module.css"
 
 const INK = themeVar(SLIDE_INK.id)
 const paint = (color: string | undefined): string => (color === undefined ? INK : colorPaint(color).fill)
@@ -26,6 +27,7 @@ const WIDTH = DEFAULT_STROKE_WIDTH
 export function TextFrameView({ props, size }: ItemViewProps<z.output<typeof TextFrameProps>>) {
   return (
     <div
+      className={face.face}
       style={{
         width: size.w,
         height: size.h,

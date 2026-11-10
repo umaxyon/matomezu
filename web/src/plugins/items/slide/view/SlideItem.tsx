@@ -5,7 +5,9 @@ import type { PlacedShape, Rect } from "../../../../plugin-api"
 import { type ItemViewProps, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
 import { useAnchorRef } from "../../../base/ui"
 import { fittedRect } from "../rect"
-import { DEFAULT_FONT_SIZE, EMPTY_TEXT_WIDTH, TEXT_LINE_HEIGHT } from "../slide"
+import { DEFAULT_FONT_SIZE, TEXT_LINE_HEIGHT } from "../slide"
+import face from "../TextFace.module.css"
+import { textFitSize, wrapsIn } from "../text-fit"
 import styles from "./SlideLayer.module.css"
 
 export const shapeProps = (shape: PlacedShape): Record<string, unknown> => shape.props as Record<string, unknown>
@@ -106,47 +108,34 @@ function TextEditor({
   const [wraps, setWraps] = useState<boolean | null>(null) // 始めから折り返している枠か（始めに 1 度だけ測る）
   const cancelled = useRef(false)
   const area = useRef<HTMLTextAreaElement>(null)
-  const mirror = useRef<HTMLDivElement>(null) // 同じ書体で文字を並べて、寄せる大きさを測る（見えない）
   const rotation = rotationOf(shape)
   const base = useRef<Rect>({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
   const first = useRef(props.text ?? "")
   const last = useRef<{ w: number; h: number }>({ w: base.current.w, h: base.current.h })
+  const size = props.fontSize ?? DEFAULT_FONT_SIZE
   const style = {
-    fontSize: props.fontSize ?? DEFAULT_FONT_SIZE,
+    fontSize: size,
     lineHeight: TEXT_LINE_HEIGHT,
     textAlign: props.align ?? "left",
     whiteSpace: wraps === true ? ("pre-wrap" as const) : ("pre" as const),
   }
-  // biome-ignore lint/correctness/useExhaustiveDependencies: text が変わるたびと、折り返す枠かが決まったときに測る
+  // biome-ignore lint/correctness/useExhaustiveDependencies: text が変わるたびと、折り返す枠かが決まったときに寄せる
   useLayoutEffect(() => {
-    const el = area.current
-    const ruler = mirror.current
-    if (!el || !ruler) return
     if (wraps === null) {
-      setWraps(el.scrollWidth > el.clientWidth + 1)
+      setWraps(wrapsIn(text, size, base.current.w))
       return
     }
     if (text === first.current) return
-    // 文字の右にカーソルの分、少し足す。空のときは空の幅
-    const w = wraps ? base.current.w : Math.max(EMPTY_TEXT_WIDTH, Math.ceil(ruler.offsetWidth) + 2)
-    const h = Math.ceil(ruler.offsetHeight)
-    if (w === last.current.w && h === last.current.h) return
-    last.current = { w, h }
-    onGrow(fittedRect(base.current, rotation, last.current))
+    const fit = textFitSize(text, size, wraps ? base.current.w : null)
+    if (fit.w === last.current.w && fit.h === last.current.h) return
+    last.current = fit
+    onGrow(fittedRect(base.current, rotation, fit))
   }, [text, wraps])
   return (
     <>
-      <div
-        ref={mirror}
-        aria-hidden="true"
-        className={styles.ruler}
-        style={{ ...style, width: wraps === true ? base.current.w : "max-content" }}
-      >
-        {`${text}\u200b`}
-      </div>
       <textarea
         ref={area}
-        className={styles.editor}
+        className={`${styles.editor} ${face.face}`}
         // biome-ignore lint/a11y/noAutofocus: 文字を書き換え始めたときに、そのまま打てるようにする
         autoFocus
         wrap={wraps === true ? "soft" : "off"}
