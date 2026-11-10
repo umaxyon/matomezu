@@ -227,3 +227,50 @@ test("ツリー: 背景編集モードに入ると節のフォーカスが外れ
   await expect(child).toHaveAttribute("data-selected", "true")
   await expect(page.locator("[data-spotlight]")).toHaveCount(1)
 })
+
+test("ツリー: 背景編集モードを出たあとで離れた節を押すと、その節がステージの中央に来る", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const add = await newBook(page, "木", "ツリー")
+  await add.getByLabel("根のキャプション").fill("根")
+  await add.getByRole("button", { name: "作る" }).click()
+  await expect(paper(page)).toBeVisible()
+  await settled(page)
+  for (const name of ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]) {
+    await page.keyboard.press("Tab")
+    await page.keyboard.type(name)
+    await page.keyboard.press("Enter")
+  }
+  const last = paper(page).locator("[data-node]", { hasText: "十" })
+  await expect(last).toHaveAttribute("data-selected", "true")
+  await settled(page)
+
+  await (await fromMenu(page, "背景を編集")).click()
+  await expect(band(page)).toBeVisible()
+  await settled(page)
+  await band(page).getByRole("button", { name: "終了" }).click()
+  await expect(band(page)).toHaveCount(0)
+  await settled(page)
+
+  const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
+  const centered = async (node: Locator) => {
+    await expect(node).toHaveAttribute("data-selected", "true")
+    await settled(page)
+    const b = (await node.boundingBox())!
+    return {
+      dx: b.x + b.width / 2 - (stage.x + stage.width / 2),
+      dy: b.y + b.height / 2 - (stage.y + stage.height / 2),
+      b,
+    }
+  }
+  // 中ほどの節は、押すと中央に来る
+  const middle = paper(page).locator("[data-node]", { hasText: "五" })
+  await middle.click()
+  const m = await centered(middle)
+  expect(Math.abs(m.dx)).toBeLessThan(stage.width / 8)
+  expect(Math.abs(m.dy)).toBeLessThan(stage.height / 8)
+  // 紙の端にある節は、中央には置けなくても、ステージの中に見える
+  await last.click()
+  const e = await centered(last)
+  expect(e.b.y).toBeGreaterThanOrEqual(stage.y)
+  expect(e.b.y + e.b.height).toBeLessThanOrEqual(stage.y + stage.height)
+})
