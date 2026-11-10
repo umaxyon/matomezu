@@ -209,6 +209,20 @@ test.describe("スライドの操作", () => {
     await expect(ellipse).toHaveAttribute("stroke", "none")
   })
 
+  test("楕円の枠の色の「なし」を選ぶと枠が描かれず、色を選び直すと戻る（未設定は文字色の枠）", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await draw(page, "楕円", [700, 300], [1000, 500])
+    const ellipse = page.locator("[data-item]").first().locator("ellipse")
+    await expect(ellipse).toHaveAttribute("stroke", /.+/)
+    await expect(ellipse).not.toHaveAttribute("stroke", "none") // 未設定は文字色の枠
+    const bar = page.locator("[data-bar]")
+    await bar.getByRole("button", { name: "枠の色" }).click()
+    await page.getByRole("button", { name: "なし" }).click()
+    await expect(ellipse).toHaveAttribute("stroke", "none")
+    await page.getByRole("button", { name: "テーマの色 2" }).click()
+    await expect(ellipse).not.toHaveAttribute("stroke", "none")
+  })
+
   test("太さは打っている途中から見た目に反映され、元に戻すは 1 回で入力の前に戻る", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     await draw(page, "直線", [200, 200], [600, 400])

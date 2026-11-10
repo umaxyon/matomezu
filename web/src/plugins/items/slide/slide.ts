@@ -63,9 +63,15 @@ export const StraightLineProps = z.strictObject({
   ...FRAME,
 })
 
+// 枠の色が「枠なし」を表す値（未設定は、文字色の枠）
+export const NO_OUTLINE = "none"
+
 export const EllipseProps = z.strictObject({
   fill: ColorSchema.optional().describe("Fill color. Without it, no fill"),
-  stroke: ColorSchema.optional().describe("Outline color. Without it, the text color"),
+  stroke: z
+    .union([ColorSchema, z.literal(NO_OUTLINE)])
+    .optional()
+    .describe(`Outline color, or "${NO_OUTLINE}" for no outline. Without it, the text color`),
   width: z
     .number()
     .min(0)

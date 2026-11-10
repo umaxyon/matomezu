@@ -11,6 +11,7 @@ import {
   type EllipseProps,
   type FreeLineProps,
   linePointsOf,
+  NO_OUTLINE,
   SLIDE_INK,
   STRAIGHT_LINE,
   type StraightLineProps,
@@ -113,7 +114,7 @@ export function EllipseView({ props, size }: ItemViewProps<z.output<typeof Ellip
         rx={Math.max(size.w / 2 - width / 2, 0)}
         ry={Math.max(size.h / 2 - width / 2, 0)}
         fill={props.fill === undefined ? "none" : paint(props.fill)}
-        stroke={width > 0 ? paint(props.stroke) : "none"}
+        stroke={width > 0 && props.stroke !== NO_OUTLINE ? paint(props.stroke) : "none"}
         strokeWidth={width}
       />
     </svg>
