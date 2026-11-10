@@ -84,7 +84,7 @@ test("箱の上の辺が画面の外に出ると、鳥はマークポインタ�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.setViewportSize({ width: 900, height: 480 })
+  await page.setViewportSize({ width: 900, height: 560 })
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await addBox(page, 500, 150, "二")

@@ -434,7 +434,7 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await page.setViewportSize({ width: 900, height: 480 })
+  await page.setViewportSize({ width: 900, height: 560 })
   const ai = aiAuth()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()

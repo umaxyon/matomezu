@@ -173,7 +173,7 @@ test("選んだ箱は Delete で消える。ダイアログの入力Formの中�
   await expect(items(page)).toHaveCount(0)
 })
 
-test("箱を右クリックすると選ばれ、設定・区切り線・削除のメニューが出る。設定で編集のダイアログ、削除で消える", async ({
+test("箱を右クリックすると選ばれ、設定・区切り線・切り取り・コピー・貼り付け・区切り線・削除のメニューが出る。設定で編集のダイアログ、削除で消える", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -186,9 +186,17 @@ test("箱を右クリックすると選ばれ、設定・区切り線・削除�
   const second = items(page).filter({ hasText: "二" })
   await items(page).filter({ hasText: "一" }).click({ button: "right" })
   const menu = page.getByRole("menu")
-  await expect(menu.getByRole("menuitem")).toHaveText(["設定", "削除Delete", "AIに伝言", "AIに示す"])
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    "設定",
+    "切り取りCtrl+X",
+    "コピーCtrl+C",
+    "貼り付けCtrl+V",
+    "削除Delete",
+    "AIに伝言",
+    "AIに示す",
+  ])
   await expect(menu.getByRole("menuitem", { name: "削除" }).locator("kbd")).toHaveText("Delete")
-  await expect(menu.locator("hr")).toHaveCount(2)
+  await expect(menu.locator("hr")).toHaveCount(3)
   await expect(items(page).filter({ hasText: "一" })).toHaveAttribute("data-selected", "true")
   await expect(second).toHaveAttribute("data-selected", "false")
   await menu.getByRole("menuitem", { name: "設定" }).click()
