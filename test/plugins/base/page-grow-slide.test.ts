@@ -1,8 +1,9 @@
-// 可変ページで左・上へ増やすとき、ページの slide の形も、中身（items）と同じ量でずれる（base の place/items の alignPadding）
+// 可変ページの中身のずらし（base の place/items の alignPadding）: 左・上へ増やすとき、ページの slide の形も、中身（items）と同じ量でずれる
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../../../web/src/core/schema/book"
-import { ELLIPSE } from "../../../../web/src/plugins/items/slide/slide"
-import { newStore } from "../../../support"
+import type { BookOf } from "../../../web/src/core/schema/book"
+import { paperSize } from "../../../web/src/plugins/base/place/items"
+import { ELLIPSE } from "../../../web/src/plugins/items/slide/slide"
+import { CORE_CATALOG, newStore } from "../../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
 
@@ -34,11 +35,12 @@ test("左・上へ増やす可変ページにすると、slide の形も中身�
   expect(done.ok).toBe(true)
   const ellipse = done.result?.item as string
   const size = { w: at().slide[0]?.w, h: at().slide[0]?.h }
-  // 可変ページにすると、中身が 印刷区画 1 つ分ずつ（A4 横は 1123×794）ずれ、slide の形も同じだけずれる
+  const paper = paperSize(CORE_CATALOG, at() as never) as { w: number; h: number }
+  // 可変ページにすると、中身が 印刷区画 1 つ分ずつ（紙の大きさの分）ずれ、slide の形も同じだけずれる
   expect(actions.perform("@matomezu/base:page-update", { page, grows: "all" }, { book: "b1" }).ok).toBe(true)
   expect(at().shift).toEqual({ x: 1, y: 1 })
-  expect(at().items[0]).toMatchObject({ x: 1223, y: 894 })
-  expect(at().slide.find(s => s.id === ellipse)).toMatchObject({ x: 1423, y: 994, ...size })
+  expect(at().items[0]).toMatchObject({ x: 100 + paper.w, y: 100 + paper.h })
+  expect(at().slide.find(s => s.id === ellipse)).toMatchObject({ x: 300 + paper.w, y: 200 + paper.h, ...size })
   // 可変ページをやめると、空きを詰めて、slide の形も元の位置に戻る
   expect(actions.perform("@matomezu/base:page-update", { page, grows: false }, { book: "b1" }).ok).toBe(true)
   expect(at().shift).toBeUndefined()

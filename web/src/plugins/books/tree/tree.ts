@@ -18,7 +18,7 @@ import { kit } from "./kit"
 import { treeMinimap } from "./minimap"
 import { TreeRootSchema, treeRootOf } from "./node"
 import { pageFieldsInput } from "./page-fields"
-import { laidPage, treePrintSheets } from "./print"
+import { laidOrigin, laidPage, treePrintSheets } from "./print"
 import { TREE_TOOLS } from "./tools"
 
 // ツリーのキーの範囲（ツリーの見せ方で描いている間に探す）
@@ -80,7 +80,7 @@ export const TREE = kit.defineBookType({
   // 可変ページは、根のある側を固定して残りの向きへ増やす（中央なら 4 つとも。base の拡張ポイント）
   grow: { sides: setting => growSidesOf(setting(GROW)) },
   // 左（上）へ増やすとき、木全体を右・下へずらした印刷区画の数（ページの slide の形も、同じだけずらして描く。base の拡張ポイント）
-  contentOrigin: (catalog, page, setting, grow) => laidPage(catalog, page, { setting, grow })?.origin ?? { x: 0, y: 0 },
+  contentOrigin: (catalog, page, setting, grow) => laidOrigin(laidPage(catalog, page, { setting, grow })),
   // 節の名前はキャプション（base の labelOf）
   labelOf: (page, id) => {
     const root = treeRootOf(page)

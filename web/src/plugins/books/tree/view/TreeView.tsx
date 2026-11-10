@@ -66,7 +66,7 @@ import { kit } from "../kit"
 import { editorWidth, type LaidNode } from "../layout"
 import { LINE_SHAPE, treePath } from "../line-shape"
 import { treeRootOf } from "../node"
-import { laidArea, laidPage } from "../print"
+import { laidArea, laidOrigin, laidPage } from "../print"
 import { NODE_SHAPE } from "../shape"
 import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, NODE_FILL, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
@@ -193,7 +193,7 @@ const Tree = memo(function Tree({
       ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
-  useStageArea(stage.id, laid && growing ? laidArea(paper, growing, laid, true).size : null, laid?.origin ?? null)
+  useStageArea(stage.id, laid && growing ? laidArea(paper, growing, laid, true).size : null, laidOrigin(laid))
   const at = laid?.nodes.find(n => n.id === selected)
   // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
