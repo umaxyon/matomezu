@@ -6,6 +6,7 @@ export const DARK = kit.defineSkin({
   title: "Dark",
   scheme: "dark",
   tokens: {
+    recess: "#0d151e",
     stage: "#141c25",
     "stage-grid": "rgba(164, 199, 238, 0.12)",
     surface: "#17212b",

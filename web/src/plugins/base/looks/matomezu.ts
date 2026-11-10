@@ -56,6 +56,7 @@ export const MATOMEZU_LIGHT_SKIN = kit.defineSkin({
   title: "matomezu Light",
   scheme: "light",
   tokens: {
+    recess: "#e2d9cd",
     stage: "#ede6db",
     "stage-grid": "rgba(110, 90, 70, 0.1)",
     surface: CREAM,
@@ -90,6 +91,7 @@ export const MATOMEZU_DARK_SKIN = kit.defineSkin({
   title: "matomezu Dark",
   scheme: "dark",
   tokens: {
+    recess: "#141218",
     stage: "#1c1a20",
     "stage-grid": "rgba(182, 166, 242, 0.10)",
     surface: "#211d25",

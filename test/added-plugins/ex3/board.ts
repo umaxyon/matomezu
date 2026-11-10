@@ -68,6 +68,7 @@ export const NIGHT = kit.defineSkin({
   title: "night",
   scheme: "dark",
   tokens: {
+    recess: "#070b17",
     stage: "#0b1020",
     "stage-grid": "rgba(255, 255, 255, 0.04)",
     surface: "#111833",

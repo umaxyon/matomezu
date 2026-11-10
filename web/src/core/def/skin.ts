@@ -5,6 +5,7 @@ import type { MessageKey } from "../i18n/i18n"
 
 export const SKIN_TOKENS = [
   // 面
+  "recess", // 奥の面の地（stage より暗い）
   "stage", // ステージの地（紙の外）
   "stage-grid", // ステージの地の点
   "surface", // 下の行の地（ステージの下に付いた面）

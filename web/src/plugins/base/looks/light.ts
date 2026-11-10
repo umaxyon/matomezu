@@ -8,6 +8,7 @@ export const LIGHT = kit.defineSkin({
   title: "Light",
   scheme: "light",
   tokens: {
+    recess: "#d9e1e8",
     stage: "#e9eef2",
     "stage-grid": "rgba(49, 95, 146, 0.12)",
     surface: "#f3f5f7",
@@ -21,7 +22,7 @@ export const LIGHT = kit.defineSkin({
     border: "#d0d8e0",
     "border-strong": "#7b8997",
     text: "#26323e",
-    "text-muted": "#5a6876",
+    "text-muted": "#576573",
     "text-disabled": "#98a3ae",
     btn: "#e7edf2",
     "btn-hover": "#d8e3ed",
