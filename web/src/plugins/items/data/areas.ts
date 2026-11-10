@@ -2,7 +2,7 @@
 // 文字の領域は textAt が top なら上、bottom なら下で、none のときとキャプションも本文も無いときは出さない。
 // 文字の領域の高さは本文を全部出した高さで、描く所が CONTENT_MIN より低くなるなら、本文を収まる行まで切る
 import type { Size } from "../../../plugin-api"
-import { captionTextWidth, TEXT_LOOK, textBlock, textBlockHeight } from "../../base"
+import { blockEmpty, captionTextWidth, TEXT_LOOK, textBlock, textBlockHeight } from "../../base"
 import type { DataProps } from "./data"
 
 // 枠の寸法（px）。DataItemView.module.css と同じ値にする
@@ -21,7 +21,7 @@ export const captionWidthOf = (caption: string): number => captionTextWidth(capt
 
 // 文字の領域を出すか
 export const textShown = (p: Pick<DataProps, "textAt" | "caption" | "body">): boolean =>
-  p.textAt !== "none" && (p.caption !== "" || p.body !== "")
+  p.textAt !== "none" && !blockEmpty(p)
 
 export interface DataAreas {
   text: { inner: number; least: number; maxH: number; height: number } | null // 文字の領域（出さなければ null。height は余白を含む）
