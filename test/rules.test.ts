@@ -28,8 +28,10 @@ const crateOf = (rel: string) => rel.split("/")[0]!
 // import の行き先。相対なら web/src から見たパス（拡張子なし）、そうでなければパッケージ名
 function importsOf(file: { path: string; text: string }): string[] {
   const specs = [
-    ...file.text.matchAll(/(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']/g),
-  ].map(m => (m[1] ?? m[2])!)
+    ...file.text.matchAll(
+      /(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g,
+    ),
+  ].map(m => (m[1] ?? m[2] ?? m[3])!)
   return specs.map(s => (s.startsWith(".") ? relative(SRC, resolve(dirname(file.path), s)) : s))
 }
 const topOf = (t: string) => t.split("/")[0]!
@@ -191,14 +193,11 @@ test("状態を変えるのは store の中だけ（画面は setState を使わ
   expect(offenders).toEqual([])
 })
 
-test("土台（core・store・ui）は、プラグインのアクションの id を名指さない", () => {
-  const actions = new Set(CORE_CATALOG.actions.keys())
+test("土台（core・store・ui）は、プラグインの物を id で名指さない", () => {
   const offenders = sources
     .filter(f => ["core", "store", "ui"].includes(crateOf(f.rel)))
     .flatMap(f =>
-      [...f.text.replace(/\/\/.*$/gm, "").matchAll(/["'`](@[a-z0-9-]+\/[a-z0-9-]+:[a-z0-9-]+)["'`]/g)]
-        .filter(m => actions.has(m[1]! as never))
-        .map(m => `${f.rel}: ${m[1]}`),
+      [...f.text.replace(/\/\/.*$/gm, "").matchAll(/["'`](@matomezu\/[^"'`]*)["'`]/g)].map(m => `${f.rel}: ${m[1]}`),
     )
   expect(offenders).toEqual([])
 })
@@ -572,8 +571,9 @@ test("アクションは同じ入力なら同じ結果: アクションと、ア
   expect(bad).toEqual([])
 })
 
-// 土台に、プラグインしか使わない処理を置かない（プラグインだけが使う物は base が持つ）。プラグイン API が出し直すだけの物も、土台の中で使っていなければ当たる
-test("core のモジュールで、プラグインとプラグイン API しか読んでいない物は無い", () => {
+// 土台に、プラグインしか使わない処理を置かない（プラグインだけが使う物は base が持つ）。プラグイン API が出し直すだけの物も、土台の中で使っていなければ当たる。
+// ui はプラグインが使う画面の口なので、プラグインからだけ読まれてよい
+test("core と store のモジュールで、プラグインとプラグイン API しか読んでいない物は無い", () => {
   const readers = new Map<string, Set<string>>()
   for (const f of sources)
     for (const t of importsOf(f)) {
@@ -581,7 +581,7 @@ test("core のモジュールで、プラグインとプラグイン API しか�
       readers.set(key, (readers.get(key) ?? new Set()).add(crateOf(f.rel)))
     }
   const pluginsOnly = sources
-    .filter(f => crateOf(f.rel) === "core")
+    .filter(f => crateOf(f.rel) === "core" || crateOf(f.rel) === "store")
     .map(f => f.rel.replace(/\.tsx?$/, ""))
     .filter(m => {
       const by = [...(readers.get(m) ?? [])]
