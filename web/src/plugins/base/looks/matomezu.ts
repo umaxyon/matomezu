@@ -56,9 +56,9 @@ export const MATOMEZU_LIGHT_SKIN = kit.defineSkin({
   title: "matomezu Light",
   scheme: "light",
   tokens: {
-    stage: CREAM,
+    stage: "#ede6db",
     "stage-grid": "rgba(110, 90, 70, 0.1)",
-    surface: "#ede6db",
+    surface: CREAM,
     "surface-muted": "#fbf9f6",
     "surface-strong": TERRA_TINT,
     "surface-raised": "#ffffff",
@@ -92,8 +92,8 @@ export const MATOMEZU_DARK_SKIN = kit.defineSkin({
   tokens: {
     stage: "#1c1a20",
     "stage-grid": "rgba(182, 166, 242, 0.10)",
-    surface: "#27232c",
-    "surface-muted": "#211d25",
+    surface: "#211d25",
+    "surface-muted": "#27232c",
     "surface-strong": "#44332f",
     "surface-raised": "#322c36",
     bubble: "#3d3638",

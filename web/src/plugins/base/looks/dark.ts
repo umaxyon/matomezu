@@ -8,8 +8,8 @@ export const DARK = kit.defineSkin({
   tokens: {
     stage: "#141c25",
     "stage-grid": "rgba(164, 199, 238, 0.12)",
-    surface: "#1c2733",
-    "surface-muted": "#17212b",
+    surface: "#17212b",
+    "surface-muted": "#1c2733",
     "surface-strong": "#304154",
     "surface-raised": "#253341",
     bubble: "#3a3a2c",
