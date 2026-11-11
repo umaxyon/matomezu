@@ -29,6 +29,9 @@ const CHOICE_TITLES = {
   right: "Open on the right",
 } as const satisfies Record<OpenChoice, string>
 
+// ボタンが 4 つ並んでも（英語の「Close the mailbox too」「Open on the left」「Open on the right」を含め）1 行に収まる幅。土台の 360 には収まらない
+const DIALOG_WIDTH = 620
+
 let visits = 0 // 行き先の物を開いた回の番号（bird-visit.tsx の seq）
 
 export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string }>) {
@@ -101,7 +104,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     </ActionButton>
   )
   return (
-    <Dialog title={shown?.title ?? t("Mail")} docked={docked} onClose={onClose}>
+    <Dialog title={shown?.title ?? t("Mail")} width={DIALOG_WIDTH} docked={docked} onClose={onClose}>
       <p className={own.meta}>
         {mail.from} · <time>{new Date(mail.sentAt).toLocaleString()}</time>
       </p>
