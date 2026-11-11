@@ -16,7 +16,7 @@ const JoinRequestSchema = z.strictObject({
   env: z.string(),
   sessionName: z.string(), // 空でもよい
   projects: z.array(z.string().min(1)).min(1), // 参加を求めたプロジェクトの id
-  workroom: z.string().min(1).optional(), // AI が頼んだワークルームの名前（前のを続けるか、その名前で始めたい。無くてもよい）
+  workroom: z.string().min(1).max(WORKROOM_NAME_MAX).optional(), // AI が頼んだワークルームの名前（前のを続けるか、その名前で始めたい。無くてもよい）
 })
 export type JoinRequestProps = z.output<typeof JoinRequestSchema>
 
