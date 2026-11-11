@@ -67,7 +67,7 @@ type Output struct {
 	AIEditTicket *AIEditTicketChange        `json:"aiEditTicket,omitempty"` // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
 }
 
-// AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Key で 1 つを見分け（郵便の id など）、ブック Book のチケットを
+// AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Key で 1 つを見分け（郵便の id など）、ブック Book の AI 編集チケットを
 // 作る（open）・閉じる（closed）・失敗にする（failed。Changed は変わった・無くなった物の id）
 type AIEditTicketChange struct {
 	Book    string   `json:"book"`

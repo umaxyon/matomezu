@@ -45,7 +45,7 @@ export interface ActionContext {
   books?: Readonly<Library>
 }
 
-// AI 編集チケットの変え方。key で 1 つを見分け（郵便の id など）、ブック book のチケットとして、作る（open）・閉じる（closed）・失敗にする（failed。changed は
+// AI 編集チケットの変え方。key で 1 つを見分け（郵便の id など）、ブック book の AI 編集チケットとして、作る（open）・閉じる（closed）・失敗にする（failed。changed は
 // 変わった・無くなった物の id）。常駐は中を読まずに、そのとおりに残し、失敗は利用者が次に AI に話しかけたときに AI に渡す
 export interface AIEditTicketChange {
   book: string
