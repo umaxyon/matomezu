@@ -1,6 +1,13 @@
 // アノテーション（core/annotation.ts）: 種類が無い・形が合わない物は、その 1 つだけ効かず warning になり、ほかのアノテーションは変えられる
 import { expect, test } from "bun:test"
-import { type Annotation, annotationsForAi, checkAnnotations, prune, unexpired } from "../../web/src/core/annotation"
+import {
+  type Annotation,
+  annotationBriefs,
+  annotationsForAi,
+  checkAnnotations,
+  prune,
+  unexpired,
+} from "../../web/src/core/annotation"
 import { performIn } from "../../web/src/core/perform"
 import type { Book } from "../../web/src/core/schema/book"
 import { warningText } from "../../web/src/core/warnings"
@@ -90,6 +97,21 @@ test("AI に見せるアノテーションは、結び付く物の最後のあ�
     ["c2", "p", false],
     ["c3", "p", false],
   ])
+})
+
+test("AI に知らせる 1 行は、種類の aiBrief を、改行と続く空白を 1 つの空白にして 40 字で切り、切れたら全体の字数を添える。aiBrief の無い種類・形が合わない物・種類の無い物には付けない", () => {
+  const long = note("c6", { text: `${"あ".repeat(30)}\n\n${"い".repeat(30)}`, bubble: true, addedAt: "t" })
+  const mark: Annotation = {
+    id: "m1",
+    annotation: "@matomezu/base:mark",
+    anchors: ["a"],
+    props: { kind: "suzume", addedAt: "t" },
+  }
+  expect(annotationBriefs(CORE_CATALOG, book, [GOOD, long, mark, BAD, GONE])).toEqual({
+    c1: "x",
+    c6: `${"あ".repeat(30)} ${"い".repeat(9)}… (61 chars)`,
+    m1: "suzume",
+  })
 })
 
 test("伝言は、会話の時点から伝言期限（利用者の設定。既定 60 分）が過ぎると残らない。消さないの設定、会話の時点の無い物、直している物は残る", () => {

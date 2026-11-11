@@ -247,6 +247,46 @@ func (c *mcpCmd) Run() error {
 	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName())
 }
 
+// awaitingItem は、常駐の api/ai/awaiting が返す、AI の応えを待つアノテーション 1 つ（brief は種類の aiBrief の 1 行。無ければ空）
+type awaitingItem struct {
+	Book       string          `json:"book"`
+	Title      string          `json:"title"`
+	Annotation json.RawMessage `json:"annotation"`
+	Brief      string          `json:"brief"`
+}
+
+// writeAwaiting は、待つアノテーションを、ブックごとの見出しと、その下に 1 件 1 行（ページ・種類の id・アノテーションの id・1 行）で書く。
+// 中身の全文は書かない（AI が read_page で読む）。待つ物が無ければ何も書かない
+func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
+	if len(awaiting) == 0 {
+		return
+	}
+	fmt.Fprintf(out, "matomezu: %d annotation(s), such as the user's notes and marks, wait for your answer. "+
+		"Answer each as its kind says (see actions). A line is only what tells them apart: read_page (or read_book for one with no page) shows what it stands on and the whole text of one that ends with … and its length.\n", len(awaiting))
+	last := ""
+	for _, a := range awaiting {
+		if a.Book != last {
+			fmt.Fprintf(out, "- book %q (%s)\n", a.Title, a.Book)
+			last = a.Book
+		}
+		var head struct {
+			ID         string  `json:"id"`
+			Annotation string  `json:"annotation"`
+			Page       *string `json:"page"`
+		}
+		_ = json.Unmarshal(a.Annotation, &head)
+		page := "no page"
+		if head.Page != nil {
+			page = "page " + *head.Page
+		}
+		line := fmt.Sprintf("  - %s, %s %s", page, head.Annotation, head.ID)
+		if a.Brief != "" {
+			line += fmt.Sprintf(": %q", a.Brief)
+		}
+		fmt.Fprintln(out, line)
+	}
+}
+
 // Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、利用者の話しかけに添える）。
 // 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（話しかけを止めない）
 func (c *annotationsCmd) Run() error {
@@ -263,12 +303,8 @@ func (c *annotationsCmd) Run() error {
 		return nil
 	}
 	var got struct {
-		Awaiting []struct {
-			Book       string          `json:"book"`
-			Title      string          `json:"title"`
-			Annotation json.RawMessage `json:"annotation"`
-		} `json:"awaiting"`
-		Undone []struct {
+		Awaiting []awaitingItem `json:"awaiting"`
+		Undone   []struct {
 			Book  string          `json:"book"`
 			Title string          `json:"title"`
 			At    string          `json:"at"`
@@ -284,13 +320,7 @@ func (c *annotationsCmd) Run() error {
 	if json.Unmarshal(out, &got) != nil {
 		return nil
 	}
-	if len(got.Awaiting) > 0 {
-		fmt.Printf("matomezu: %d annotation(s), such as the user's notes and marks, wait for your answer. "+
-			"Answer each as its kind says (see actions); read_page shows what it stands on.\n", len(got.Awaiting))
-		for _, a := range got.Awaiting {
-			fmt.Printf("- book %q (%s): %s\n", a.Title, a.Book, a.Annotation)
-		}
-	}
+	writeAwaiting(os.Stdout, got.Awaiting)
 	if len(got.Undone) > 0 {
 		fmt.Printf("matomezu: %d change(s) you made were undone by the user before they saw them. "+
 			"Do not redo them on your own; ask the user if they are still needed. lost is what was put back and the values you had written.\n", len(got.Undone))

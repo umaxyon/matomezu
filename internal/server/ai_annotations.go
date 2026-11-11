@@ -16,10 +16,10 @@ type aiAnnotation struct {
 	Anchors []string `json:"anchors"`
 }
 
-// AIAnnotations は、ブック（ids。nil なら全部）ごとに、AI に見せるアノテーションの並び（engine.AIAnnotations）を返す。
-// ゴミ箱のブックと、アノテーションの無いブックは入れない
-func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) {
+// annotatedBooks は、ブック（ids。nil なら全部）のうち、アノテーションの有る物（ゴミ箱のブックは入れない）の、ブックとアノテーションの並びと、その id
+func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	var pairs []engine.AnnotatedBook
 	var books []string
 	if ids == nil {
@@ -34,7 +34,13 @@ func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) 
 		pairs = append(pairs, engine.AnnotatedBook{Book: e.body, Annotations: list})
 		books = append(books, id)
 	}
-	h.mu.Unlock()
+	return pairs, books
+}
+
+// AIAnnotations は、ブック（ids。nil なら全部）ごとに、AI に見せるアノテーションの並び（engine.AIAnnotations）を返す。
+// ゴミ箱のブックと、アノテーションの無いブックは入れない
+func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) {
+	pairs, books := h.annotatedBooks(ids)
 	out := map[string][]json.RawMessage{}
 	if len(pairs) == 0 {
 		return out, nil
@@ -49,6 +55,23 @@ func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) 
 			return nil, err
 		}
 		out[books[i]] = list
+	}
+	return out, nil
+}
+
+// AIBriefs は、ブックごとに、待っている物を AI に知らせる 1 行（アノテーションの id → 1 行。engine.AIBriefs）を返す。AIAnnotations と同じブックだけ
+func (h *Hub) AIBriefs() (map[string]map[string]string, error) {
+	pairs, books := h.annotatedBooks(nil)
+	out := map[string]map[string]string{}
+	if len(pairs) == 0 {
+		return out, nil
+	}
+	lists, err := h.engine.AIBriefs(pairs)
+	if err != nil {
+		return nil, err
+	}
+	for i, briefs := range lists {
+		out[books[i]] = briefs
 	}
 	return out, nil
 }
@@ -194,10 +217,16 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"id": b.ID, "page": shown, "version": b.Version, "annotations": onPage, "placed": placed})
 }
 
-// aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation"}]}。ブックを置いた順）と、
+// aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation", "brief"}]}。ブックを置いた順。
+// brief は種類の aiBrief が答える、見分けに要る 1 行で、種類が答えなければ無い。話しかけのフックはこれを短い行にして貼る）と、
 // 見られる前に利用者が戻した AI の変更の全部（"undone"。ai_edit_tickets.go の TellUndone）と、失敗にした AI 編集チケットの全部（"failed"。TellFailed）
 func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 	all, err := o.Hub.AIAnnotations(nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	briefs, err := o.Hub.AIBriefs()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -206,6 +235,7 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 		Book       string          `json:"book"`
 		Title      string          `json:"title"`
 		Annotation json.RawMessage `json:"annotation"`
+		Brief      string          `json:"brief,omitempty"`
 	}
 	out := []item{}
 	for _, b := range o.Hub.AIBooks() {
@@ -214,7 +244,11 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 		}
 		_ = json.Unmarshal(b.Body, &head)
 		for _, a := range pick(all[b.ID], awaiting) {
-			out = append(out, item{Book: b.ID, Title: head.Title, Annotation: a})
+			var id struct {
+				ID string `json:"id"`
+			}
+			_ = json.Unmarshal(a, &id)
+			out = append(out, item{Book: b.ID, Title: head.Title, Annotation: a, Brief: briefs[b.ID][id.ID]})
 		}
 	}
 	undone, err := o.Hub.TellUndone()

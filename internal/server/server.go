@@ -26,7 +26,7 @@
 //	GET  /api/ai/books?projects=a&projects=b  {"books": [{"id", "type", "title", "project", "version", "awaiting"}]}（project が projects のどれかであるブックだけ。projects は必須で、空や表に無い id は 400。awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations", "placed"}（annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
-//	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}]}
+//	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部
 //	                         （undone と failed は、渡したら、次に利用者が話しかけたときに消える）
 //	POST /api/ai/talked      {"sessionId", "candidates"} 利用者が AI に話しかけた（AI のフックが知らせる）。candidates が無ければ、話しかけたときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。

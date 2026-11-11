@@ -29,9 +29,10 @@ export const NOTE = kit.defineAnnotation({
   id: "note",
   title: "Note",
   aiDescription:
-    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in, then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text or the things it is on makes it unread again). talkedAt is when the user talked to AI after it was read; the note is removed when the user's note expiry has passed since then (unless it is set to never).",
+    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in (a note told at the user's talk may be cut short, ending with … and its length: read the page for the whole text before you answer it), then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text or the things it is on makes it unread again). talkedAt is when the user talked to AI after it was read; the note is removed when the user's note expiry has passed since then (unless it is set to never).",
   props: NoteSchema,
   awaits: p => p.readAt === undefined,
+  aiBrief: p => p.text, // 利用者の文（長ければ core が切る）
   expiresAt: (p, setting) => (p.talkedAt ? expiryFrom(p.talkedAt, setting(NOTE_EXPIRY.id)) : null),
   // 送信トレイでは文を出し、取消で消し、押すと右サイドパネルで開く
   listed: {

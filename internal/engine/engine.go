@@ -95,6 +95,7 @@ type Engine struct {
 	live      func(string, string, string, string) string
 	mails     func(string) string
 	forAI     func(string) string
+	briefs    func(string) string
 	placed    func(string) string
 	aiPage    func(string, string) string
 	item      func(string, string) string
@@ -137,6 +138,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiAnnotations"), &e.forAI); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiAnnotations: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiBriefs"), &e.briefs); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiBriefs: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiPlaced"), &e.placed); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiPlaced: %w", err)
@@ -494,6 +498,26 @@ func (e *Engine) AIAnnotations(pairs []AnnotatedBook) (out []json.RawMessage, er
 		}
 	}()
 	if err := json.Unmarshal([]byte(e.forAI(string(b))), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AIBriefs は、ブックとそのアノテーションの並びごとに、待っている物を AI に知らせる 1 行（アノテーションの id → 1 行。
+// 種類が 1 行を持たない物・形の合わない物は入れない）を返す。並びは pairs と同じ順
+func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]string, err error) {
+	b, err := json.Marshal(pairs)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	if err := json.Unmarshal([]byte(e.briefs(string(b))), &out); err != nil {
 		return nil, err
 	}
 	return out, nil

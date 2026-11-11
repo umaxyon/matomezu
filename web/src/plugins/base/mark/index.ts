@@ -34,6 +34,7 @@ export const MARK = kit.defineAnnotation({
   props: MarkSchema,
   // 読まれていないもの
   awaits: p => p.readAt === undefined,
+  aiBrief: p => p.kind, // マークの種類（MARK_KINDS の id）
   // 送信トレイでは付けた物の名前を出し、取消で外す
   listed: {
     addedAt: (p: MarkProps) => p.addedAt,

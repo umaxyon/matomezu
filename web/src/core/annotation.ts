@@ -107,6 +107,29 @@ export function annotationsForAi(catalog: CoreCatalog, book: Book, annotations: 
   })
 }
 
+// AI に知らせる 1 行の長さの上限（字。コードポイントで数える）
+const BRIEF_LIMIT = 40
+
+// 待っている物を AI に知らせる 1 行（種類の aiBrief）: アノテーションの id → 1 行。改行と続く空白は 1 つの空白にし、上限を超えたら切って「…」と全体の字数を添える。
+// 種類が aiBrief を持たない物・形が合わない物（props を種類に渡さない）・空の物は入れない
+export function annotationBriefs(
+  catalog: CoreCatalog,
+  book: Book,
+  annotations: readonly Annotation[],
+): Record<string, string> {
+  const ids = anchorIds(book)
+  const out: Record<string, string> = {}
+  for (const a of annotations) {
+    const def = catalog.annotations.get(a.annotation)
+    if (def?.aiBrief === undefined || !fits(catalog, book, ids, a)) continue
+    const chars = [...def.aiBrief(a.props).replace(/\s+/g, " ").trim()]
+    if (chars.length === 0) continue
+    out[a.id] =
+      chars.length > BRIEF_LIMIT ? `${chars.slice(0, BRIEF_LIMIT).join("")}… (${chars.length} chars)` : chars.join("")
+  }
+  return out
+}
+
 // ブックごとのアノテーション all に、変わったブックの並び changed（performIn の annotations）を入れる。空の並びのブックは持たない
 export function withAnnotations(all: Annotations, changed: Annotations | undefined): Annotations {
   if (!changed) return all

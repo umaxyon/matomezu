@@ -6,6 +6,7 @@
 import { z } from "zod"
 import {
   type Annotations,
+  annotationBriefs,
   annotationsForAi,
   checkAnnotations,
   restoreAnnotations,
@@ -314,6 +315,16 @@ function aiTables(of: Assembled) {
     const list = restoreAnnotations(p.annotations)
     const [book] = restoreBooks(catalog, [p.book])
     return book ? annotationsForAi(catalog, book, list) : list.map(a => ({ ...a, page: null, awaits: false }))
+  })
+  return JSON.stringify(out)
+}
+
+// ブックとそのアノテーションの並びごとに、待っている物を AI に知らせる 1 行（annotationBriefs。アノテーションの id → 1 行）を返す。読めないブックは空
+;(globalThis as { matomezuAiBriefs?: (pairs: string) => string }).matomezuAiBriefs = pairs => {
+  const catalog = assembled.catalog.core
+  const out = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).map(p => {
+    const [book] = restoreBooks(catalog, [p.book])
+    return book ? annotationBriefs(catalog, book, restoreAnnotations(p.annotations)) : {}
   })
   return JSON.stringify(out)
 }
