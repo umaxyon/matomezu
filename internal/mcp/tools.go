@@ -456,7 +456,7 @@ var joinSchema = map[string]any{
 		"model":       map[string]any{"type": "string", "description": "The name of the model you are, such as claude-opus-4 or gpt-5."},
 		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
 		"link":        map[string]any{"type": "string", "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
-		"workroom":    map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a participant who joined before and is not alive any more), or the name you would like for a new one. The user chooses on the screen. Optional."},
+		"workroom":    map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a participant who joined before and is not alive any more), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
 		"projects":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "description": "The ids of the projects to join, one or more."},
 	},
 	"required":             []string{"model", "link", "projects"},

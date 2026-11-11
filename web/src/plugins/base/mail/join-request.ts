@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Mail } from "../../../core/mail"
+import { WORKROOM_NAME_MAX } from "../../../core/participant"
 import { DEFAULT_PROJECT } from "../../../core/project"
 import { kit } from "../kit"
 import { declineProjects, unknownProjects } from "../project-refusal"
@@ -42,7 +43,7 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
 export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
   id: "mail-join-request",
   aiDescription:
-    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env, sessionName (optional) and projects are the participant's; workroom (optional) is the name of the workroom it would like to continue or start. The letter belongs to the first of the projects. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
+    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env, sessionName (optional) and projects are the participant's; workroom (optional, up to 20 characters) is the name of the workroom it would like to continue or start. The letter belongs to the first of the projects. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
   title: "Send a join request",
   target: "mailbox",
   userOnly: true,
@@ -55,7 +56,7 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
     env: z.string().trim().min(1).max(80),
     sessionName: z.string().trim().max(120).optional(),
     projects: z.array(z.string().min(1)).min(1),
-    workroom: z.string().trim().min(1).max(40).optional(),
+    workroom: z.string().trim().min(1).max(WORKROOM_NAME_MAX).optional(),
   }),
   run: (mailbox, args, ctx) => {
     const unknown = unknownProjects(args.projects)

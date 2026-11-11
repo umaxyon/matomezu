@@ -5,6 +5,8 @@ import { z } from "zod"
 import type { CoreCatalog } from "./core-catalog"
 import { isProject } from "./project"
 
+export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
+
 export const ParticipantSchema = z.object({
   id: z.string().min(1),
   state: z.enum(["requested", "joined"]),
@@ -14,7 +16,7 @@ export const ParticipantSchema = z.object({
   sessionName: z.string(), // 元のセッション名（空でもよい）
   link: z.string().min(1),
   projects: z.array(z.string().min(1)).min(1), // 参加しているプロジェクトの id（core/project.ts。重ならない）
-  workroom: z.string().min(1).optional(), // ワークルームの名前（受け入れたときに決まる）
+  workroom: z.string().min(1).max(WORKROOM_NAME_MAX).optional(), // ワークルームの名前（受け入れたときに決まる）
   requestedAt: z.string(), // 要求が届いた時点
   joinedAt: z.string().optional(), // 受け入れた時点
   bird: z.string().min(1).optional(), // 受け入れたときに選んだ鳥（鳥の id は base が決める）

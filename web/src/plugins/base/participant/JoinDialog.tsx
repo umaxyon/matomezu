@@ -4,7 +4,7 @@
 // 同じ名前の、生きている参加者がいる間は決められない。名前が生きていない参加者と同じなら、最後に引き継ぐか、前のを破棄して新しく始める（アクション participant-accept の replace）かを確かめる。
 // キャンセルは閉じるだけで、参加要求は保留のまま
 import { useId, useState } from "react"
-import type { Participant } from "../../../core/participant"
+import { type Participant, WORKROOM_NAME_MAX } from "../../../core/participant"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
@@ -29,8 +29,6 @@ const BIRD_TITLES = {
   tsunagidori: "Tsunagidori",
   fukurou: "Barn owl",
 } as const satisfies Record<Bird, string>
-
-const NAME_MAX = 40
 
 export function ParticipantJoinDialog({ args, onClose }: DialogProps<{ participant: string }>) {
   const t = useMessages(kit)
@@ -178,7 +176,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
                   id={id}
                   className={controlClass}
                   value={name}
-                  maxLength={NAME_MAX}
+                  maxLength={WORKROOM_NAME_MAX}
                   // biome-ignore lint/a11y/noAutofocus: 開いたダイアログの最初の入力Form
                   autoFocus
                   onChange={e => setName(e.target.value)}

@@ -72,6 +72,9 @@ var migrations = []string{
 	`UPDATE books SET body = json_set(body, '$.project', 'default') WHERE json_type(body, '$.project') IS NULL;
 	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.project') IS NULL THEN json_set(value, '$.project', 'default') ELSE value END)) FROM json_each(mailbox.body));
 	UPDATE participants SET body = (SELECT json_group_array(json(CASE WHEN json_type(value, '$.projects') IS NULL THEN json_set(value, '$.projects', json('["default"]')) ELSE value END)) FROM json_each(participants.body));`,
+	// ワークルームの名前は 20 字まで。それより長い名前（参加者のワークルーム、参加の頼みの郵便の希望）は 20 字に切り詰める
+	`UPDATE participants SET body = (SELECT json_group_array(json(CASE WHEN length(json_extract(value, '$.workroom')) > 20 THEN json_set(value, '$.workroom', trim(substr(json_extract(value, '$.workroom'), 1, 20))) ELSE value END)) FROM json_each(participants.body));
+	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN length(json_extract(value, '$.props.workroom')) > 20 THEN json_set(value, '$.props.workroom', trim(substr(json_extract(value, '$.props.workroom'), 1, 20))) ELSE value END)) FROM json_each(mailbox.body));`,
 }
 
 type sqliteStorage struct {

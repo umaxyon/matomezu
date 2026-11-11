@@ -60,10 +60,19 @@ test("同じ link の要求は何も変えず、同じ id を返す（受け入�
   expect(people()).toHaveLength(1)
 })
 
+test("ワークルームの名前は 20 字まで（要求の希望も受け入れも。21 字は断り、20 字は通す）", () => {
+  const { people, request, perform } = ready()
+  expect(request({ ...WHO, workroom: "あ".repeat(21) }).ok).toBe(false)
+  const { participant } = request({ ...WHO, workroom: "あ".repeat(20) }).result
+  expect(perform(ACCEPT, { participant, workroom: "い".repeat(20), bird: "inko" }).ok).toBe(true)
+  expect(people()[0]?.workroom).toBe("い".repeat(20))
+})
+
 test("受け入れると、ワークルーム・鳥・配色・受け入れた時点を一度に書く。2 回目の受け入れは断る", () => {
   const { people, request, perform } = ready()
   const { participant } = request().result
   expect(perform(ACCEPT, { participant, workroom: "", bird: "inko" }).ok).toBe(false)
+  expect(perform(ACCEPT, { participant, workroom: "あ".repeat(21), bird: "inko" }).ok).toBe(false)
   expect(perform(ACCEPT, { participant, workroom: "A", bird: "dodo" }).ok).toBe(false)
   expect(perform(ACCEPT, { participant, workroom: "A", bird: "inko", palette: "none" }).ok).toBe(false)
   expect(people()[0]).toMatchObject({ state: "requested" })

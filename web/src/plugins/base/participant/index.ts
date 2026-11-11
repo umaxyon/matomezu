@@ -3,7 +3,7 @@
 // 受け入れるときにワークルームの名前と鳥と配色を 1 度に決める（名前だけ・鳥だけの途中の状態は無い）
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
-import type { Participant, Participants } from "../../../core/participant"
+import { type Participant, type Participants, WORKROOM_NAME_MAX } from "../../../core/participant"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTES } from "../birds/colors"
 import { kit } from "../kit"
@@ -37,7 +37,7 @@ export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name
 export const PARTICIPANT_REQUEST = kit.defineAction({
   id: "participant-request",
   aiDescription:
-    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) and projects (the ids of the projects to join, one or more) are required; sessionName (the name of the original session) is optional; workroom (a workroom name to start with) is optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again adds the projects it does not have yet and returns the same participant. Returns the participant's id.",
+    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) and projects (the ids of the projects to join, one or more) are required; sessionName (the name of the original session) is optional; workroom (a workroom name to start with, up to 20 characters) is optional. The participant waits as requested until the user accepts it on the screen. Sending the same link again adds the projects it does not have yet and returns the same participant. Returns the participant's id.",
   title: "Request to participate",
   target: "participants",
   runsWhenAIJoins: "make-participant",
@@ -48,7 +48,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     sessionName: z.string().trim().max(120).optional(),
     link: z.string().trim().min(1).max(80),
     projects: z.array(z.string().min(1)).min(1),
-    workroom: z.string().trim().min(1).max(40).optional(),
+    workroom: z.string().trim().min(1).max(WORKROOM_NAME_MAX).optional(),
   }),
   run: (participants, args, ctx) => {
     const unknown = unknownProjects(args.projects)
@@ -87,12 +87,12 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
 export const PARTICIPANT_ACCEPT = kit.defineAction({
   id: "participant-accept",
   aiDescription:
-    "Accept a requested participant, naming the workroom and choosing the bird and its palette (only the user). Refused unless the participant is requested, or when a joined participant already has the workroom's name. With replace (the id of the joined participant that has that name), that participant is removed and the new one starts in its place.",
+    "Accept a requested participant, naming the workroom (up to 20 characters) and choosing the bird and its palette (only the user). Refused unless the participant is requested, or when a joined participant already has the workroom's name. With replace (the id of the joined participant that has that name), that participant is removed and the new one starts in its place.",
   title: "Accept a participant",
   target: "participants",
   userOnly: true,
   args: ID_ARGS.extend({
-    workroom: z.string().trim().min(1).max(40),
+    workroom: z.string().trim().min(1).max(WORKROOM_NAME_MAX),
     bird: z.enum(BIRD_IDS),
     palette: z.enum(PALETTE_IDS).optional(),
     replace: z.string().min(1).optional(),

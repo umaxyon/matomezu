@@ -250,7 +250,7 @@ func TestExistingDataJoinsTheDefaultProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := migrations[: len(migrations)-1 : len(migrations)-1]
+	before := migrations[:10:10] // 次の足し方の前まで
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '{"id":"b1","title":"x"}', 1, 'x'), ('b2', '{"id":"b2","project":"other"}', 1, 'x')`,
@@ -335,5 +335,35 @@ func TestApplyRollsBackWhenALaterWriteFails(t *testing.T) {
 	}
 	if _, err := s.Apply(Batch{Books: []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}}, Mailbox: &UserBody{"me", json.RawMessage(`[{"id":"m1"}]`)}}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// 20 字より長いワークルームの名前は 20 字に切り詰め、短い名前と、名前の無い参加者・郵便は変えない
+func TestLongWorkroomNamesAreShortened(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := migrations[: len(migrations)-1 : len(migrations)-1]
+	for _, q := range append(before,
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
+		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1","workroom":"あいうえおかきくけこさしすせそたちつてとなにぬ"},{"id":"p2","workroom":"短い"},{"id":"p3"}]', 'x'), ('u2', '[]', 'x')`,
+		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m2","props":{"a":1}}]', 'x')`,
+	) {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s := open(t, path)
+	if got, _ := s.Participants("u1"); string(got) != `[{"id":"p1","workroom":"あいうえおかきくけこさしすせそたちつてと"},{"id":"p2","workroom":"短い"},{"id":"p3"}]` {
+		t.Fatalf("participants = %s", got)
+	}
+	if got, _ := s.Participants("u2"); string(got) != `[]` {
+		t.Fatalf("empty participants = %s", got)
+	}
+	if got, _ := s.Mailbox("u1"); string(got) != `[{"id":"m1","props":{"workroom":"abcdefghij klmnopqrs"}},{"id":"m2","props":{"a":1}}]` {
+		t.Fatalf("mailbox = %s", got)
 	}
 }
