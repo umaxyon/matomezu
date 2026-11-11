@@ -51,6 +51,12 @@ export const PANE_PLACED: PlacedStateDef<PaneLayout> = {
   },
 }
 
+// 並べ方を決めるときに読む、ページの id と本文（本文を持たないページは空）
+export const paneInputOf = (page: { id: string }): { id: string; text: string } => ({
+  id: page.id,
+  text: "text" in page && typeof page.text === "string" ? page.text : "",
+})
+
 // ページを開いたときに決める並べ方（本文が空白だけでなければ描いた文書だけ）
 export const openingModeOf = (text: string): PaneMode => (text.trim() === "" ? DEFAULT.mode : "rendered-only")
 

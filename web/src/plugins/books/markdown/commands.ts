@@ -4,7 +4,7 @@
 import type { CommandContext } from "../../../plugin-api"
 import { kit } from "./kit"
 import { MARKDOWN_PRESENTATION, SOURCE_KEYS_SCOPE } from "./markdown"
-import { type PaneMode, type PaneState, paneLayoutOf, withChosen } from "./panes"
+import { type PaneMode, type PaneState, paneInputOf, paneLayoutOf, withChosen } from "./panes"
 
 // 開いているブックのタイプが、マークダウンの見せ方で描くか
 const onMarkdown = (ctx: CommandContext) =>
@@ -14,7 +14,7 @@ const onMarkdown = (ctx: CommandContext) =>
 function openedPage(ctx: CommandContext): { id: string; text: string } | null {
   const id = ctx.stage.opened?.page
   const page = id ? ctx.book?.pages.find(p => p.id === id) : undefined
-  return page ? { id: page.id, text: "text" in page && typeof page.text === "string" ? page.text : "" } : null
+  return page ? paneInputOf(page) : null
 }
 
 // 並べ方 mode にするコマンドの中身（入れ替えた順と境目の割合はそのまま。今その並べ方なら押した状態）

@@ -38,6 +38,7 @@ import {
   EVEN_PANE_SHARE,
   PANES,
   type PaneLayout,
+  paneInputOf,
   paneLayoutOf,
   shareAt,
   shownPanes,
