@@ -46,3 +46,16 @@
   background: var(--skin-bubble);
   transform: rotate(45deg);
 }
+/* 上に出す: 押す物の上に置き、尾は下の辺から押す物の方へ向ける（縁は下の 2 辺） */
+.tip[data-side="above"] .bubble {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+.tip[data-side="above"] .bubble::before {
+  top: auto;
+  bottom: -6px;
+  border-top: 0;
+  border-left: 0;
+  border-right: 1px solid var(--skin-border);
+  border-bottom: 1px solid var(--skin-border);
+}
