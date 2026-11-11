@@ -220,7 +220,7 @@ test("郵便箱から開いたダイアログは、「閉じる」でも「開�
   }
   await open()
   await expect(dialog.getByRole("button")).toHaveText(["郵便箱も閉じる", "閉じる", "開く", "分割で開く"])
-  // 4 つのボタンはダイアログの幅に収まり、1 行に並ぶ（E86）
+  // 4 つのボタンはダイアログの幅に収まり、1 行に並ぶ
   const boxes = await dialog.getByRole("button").evaluateAll(els => els.map(e => e.getBoundingClientRect()))
   const frame = await dialog.boundingBox()
   expect(new Set(boxes.map(r => Math.round(r.top))).size).toBe(1)
