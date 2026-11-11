@@ -8,6 +8,8 @@ async function markdownBook(page: Page, text: string) {
   await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "メモ", "マークダウン")
   await add.getByRole("button", { name: "作成" }).click()
+  // 並べ方を選んでおく（選ばないと、本文のあるページに替えたときプレビューだけで開く）
+  await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "左右に並べる" }).click()
   await page.getByRole("region", { name: "ソース" }).getByRole("textbox").click()
   await page.keyboard.insertText(text)
   await expect(page.getByRole("region", { name: "プレビュー" })).toContainText(text.split("\n")[0]!.replace(/^# /, ""))

@@ -1,4 +1,4 @@
-// マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを左右に並べて開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
+// マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを（選んでいなければ空のページは左右、本文のあるページはプレビューだけで）開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { newBook } from "./helpers/new-book"
 import { openGeneral, settingsDialog } from "./helpers/settings"
@@ -128,6 +128,27 @@ test("境目を掴んで動かすとペインの大きさが変わり、ダブ�
   const [top, bottom] = [await box("プレビュー"), await box("ソース")]
   expect(bottom.y).toBeGreaterThan(top.y)
   expect(top.height / (top.height + bottom.height)).toBeCloseTo(0.3, 1)
+})
+
+test("並べ方を選んでいないとき、空のページは左右で開き、書いても左右のまま。本文のあるページは開き直すとプレビューだけで開く。選んだ並べ方は本文があっても優先する", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  const button = (name: string) => page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name })
+  await expect(button("左右に並べる")).toHaveAttribute("aria-pressed", "true")
+  await pane(page, "ソース").getByRole("textbox").click()
+  await page.keyboard.type("# 見出し")
+  await expect(pane(page, "プレビュー").getByRole("heading", { name: "見出し" })).toBeVisible()
+  await expect(pane(page, "ソース")).toBeVisible() // 書いても並べ方は変わらない
+  await expect(page).not.toHaveURL(/s0=/) // 開いたときに決めた並べ方は場所に入れない
+  await page.reload()
+  await expect(pane(page, "ソース")).toHaveCount(0)
+  await expect(button("プレビューだけ")).toHaveAttribute("aria-pressed", "true")
+  await button("左右に並べる").click()
+  await expect(page).toHaveURL(/s0=/)
+  await page.reload()
+  await expect(pane(page, "ソース")).toBeVisible()
+  await expect(button("左右に並べる")).toHaveAttribute("aria-pressed", "true")
 })
 
 test("言語名の付いたコードの塊と生の HTML は、キーワード・文字列などを字と違う色で描く。言語名の無い塊は色付けしない", async ({

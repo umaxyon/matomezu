@@ -320,6 +320,8 @@ test("AI がマークダウンのページの原文を page-update で変える�
   await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book } })
   const preview = page.getByRole("region", { name: "プレビュー" })
   await expect(preview.getByRole("heading", { level: 1 })).toHaveText("最初")
+  // 本文のあるページは、並べ方を選んでいないとプレビューだけで開くので、左右に並べる
+  await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "左右に並べる" }).click()
   const updated = await perform({
     action: "@matomezu/base:page-update",
     args: { page: added.result.page, fields: { find: "最初", replace: "AI の見出し" } },
@@ -335,6 +337,7 @@ test("AI がマークダウンのページの原文を page-update で変える�
   const textOf = async () =>
     ((await bookIn(page, result.book)) as { pages?: { text?: string }[] } | undefined)?.pages?.[0]?.text
   await expect.poll(textOf).toBe("# AI の見出し\n\n本文")
+  await expect(page).toHaveURL(/s0=/)
   await page.reload()
   await expect(field()).toHaveValue("# AI の見出し\n\n本文")
   await expect(page.getByRole("region", { name: "プレビュー" }).getByText("本文")).toBeVisible()

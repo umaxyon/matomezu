@@ -1,6 +1,6 @@
 // マークダウンのビュー（見せ方 markdown）: ブックのビューのレイヤー（book-content）が描く。ステージに紙は無く、ステージいっぱいにペインを並べ、ペインの中をふつうにスクロールする。
 // 並べ方はステージごとの画面の状態（panes.ts。画面の場所に入れ、読み直しても戻す）: 左右か上下に 2 つ並べるか、1 つだけ見せる。いつも出る上の行の左端に、並べ方の 4 つのボタン（ソースだけ・左右・上下・
-// プレビューだけ。コマンド）を並べ、並べている間は、ペインごとに上辺にペインの名前の見出し（ページタブのような見た目）を出す。
+// プレビューだけ。コマンド）を並べ（選んでいなければ、ページを開いたとき本文があればプレビューだけ、空なら左右）、並べている間は、ペインごとに上辺にペインの名前の見出し（ページタブのような見た目）を出す。
 // 見出しを掴んでもう片方のペインの上で離すと、2 つのペインを入れ替える（usePaneSwap）。境目は掴んで動かせ、ダブルクリックで真ん中に戻る（base の SplitHandle）。
 // 入れ替えても要素の並びは変えず、CSS の order で見せる順を変える（ソースのペインのテキストFormのフォーカス・入力の途中・スクロールの位置を保つ）。
 // 上の行・見出し・プレビューのペインの右クリックで、メニュー（pane-context。ページの設定・ブックの設定など）を開く。ソースのペインでは、文字の右クリックのままにする。
@@ -43,6 +43,8 @@ import {
   shownPanes,
   splitOf,
   swapPanes,
+  withChosen,
+  withOpening,
 } from "../panes"
 import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
@@ -60,9 +62,13 @@ export function MarkdownView({ stage }: BookViewProps) {
   const catalog = useCoreCatalog()
   const page = useShownPage(stage)
   const book = useBook(stage)
-  const layout = paneLayoutOf(useStageState(stage, kit))
+  const state = useStageState(stage, kit)
+  const shownPage = page
+    ? { id: page.id, text: "text" in page && typeof page.text === "string" ? page.text : "" }
+    : null
+  const layout = paneLayoutOf(state, shownPage)
   const setStageState = useSetStageState(kit)
-  const setLayout = (next: PaneLayout) => setStageState(stage, next)
+  const setLayout = (next: PaneLayout) => setStageState(stage, withChosen(state, next))
   const swap = usePaneSwap(() => setLayout(swapPanes(layout)))
   const openMenu = useContextMenu(stage, PANE_CONTEXT)
   const panes = useRef<HTMLDivElement>(null)
@@ -70,6 +76,15 @@ export function MarkdownView({ stage }: BookViewProps) {
   const rendered = useRef<HTMLDivElement>(null)
   const text = page && "text" in page && typeof page.text === "string" ? page.text : ""
   const document = useMarkdownDocument(text, page?.id ?? "")
+  // ページを開いたとき（替えたとき）に決めた並べ方を置き場に書く（本文を打っても決め直さない）
+  const openedId = shownPage?.id
+  const openedText = shownPage?.text
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 本文は開いたとき（ページが替わったとき）だけ読む
+  useEffect(() => {
+    if (openedId === undefined) return
+    const next = withOpening(state, { id: openedId, text: openedText ?? "" })
+    if (next) setStageState(stage, next)
+  }, [openedId])
   if (!page || !book) return <NoPages stage={stage} />
   const width = paperSize(catalog, page)?.w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）

@@ -6,7 +6,15 @@ import { screenOf } from "../../web/src/core/window"
 import { growOf } from "../../web/src/plugins/base"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
-import { paneLayoutOf, shareAt, shownPanes, swapPanes } from "../../web/src/plugins/books/markdown/panes"
+import {
+  openingModeOf,
+  PANE_PLACED,
+  paneLayoutOf,
+  shareAt,
+  shownPanes,
+  swapPanes,
+  withOpening,
+} from "../../web/src/plugins/books/markdown/panes"
 import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
 import { isActive, isShown } from "../../web/src/store/commands"
 import type { DoneAction as Done } from "../../web/src/store/store"
@@ -89,20 +97,47 @@ test("find が無い・2 か所以上（重なりも数える）・text と一�
 
 const MD = "@matomezu/markdown"
 
-test("ペインの並べ方: 何も無いか形に合わなければ、ソースを左に半分ずつ左右に並べる", () => {
+const EMPTY = { id: "p1", text: "" }
+const WRITTEN = { id: "p1", text: "# 見出し" }
+
+test("ペインの並べ方: 選んだ並べ方があればそれ、形に合わなければ無いのと同じ。無ければ、空のページはソースを左に半分ずつ左右に並べる", () => {
   const even = { mode: "split-row", first: "source", share: 0.5 } as const
-  expect(paneLayoutOf(undefined)).toEqual(even)
-  expect(paneLayoutOf({ mode: "split-column", first: "rendered", share: 0.3 })).toEqual({
-    mode: "split-column",
-    first: "rendered",
-    share: 0.3,
-  })
-  expect(paneLayoutOf({ mode: "diagonal", first: "source", share: 0.5 })).toEqual(even)
-  expect(paneLayoutOf({ mode: "split-row", first: "source", share: 0.99 })).toEqual(even)
+  expect(paneLayoutOf(undefined, EMPTY)).toEqual(even)
+  expect(paneLayoutOf(undefined, null)).toEqual(even)
+  const chosen = { mode: "split-column", first: "rendered", share: 0.3 } as const
+  expect(paneLayoutOf({ chosen }, WRITTEN)).toEqual(chosen)
+  expect(paneLayoutOf({ chosen: { mode: "diagonal", first: "source", share: 0.5 } }, EMPTY)).toEqual(even)
+  expect(paneLayoutOf({ chosen: { mode: "split-row", first: "source", share: 0.99 } }, EMPTY)).toEqual(even)
+})
+
+test("選んだ並べ方が無いとき、本文が空白だけでなければ描いた文書だけで開く。空白だけは空と同じ", () => {
+  expect(paneLayoutOf(undefined, WRITTEN)).toEqual({ mode: "rendered-only", first: "source", share: 0.5 })
+  expect(openingModeOf("")).toBe("split-row")
+  expect(openingModeOf(" \n\t \n")).toBe("split-row")
+  expect(openingModeOf("a")).toBe("rendered-only")
+})
+
+test("開いたときに決めた並べ方は、そのページを開いている間は本文が変わっても変わらず、ページが替われば本文から決め直す", () => {
+  const opened = withOpening(undefined, EMPTY)!
+  expect(opened.opening).toEqual({ page: "p1", mode: "split-row" })
+  expect(paneLayoutOf(opened, WRITTEN).mode).toBe("split-row")
+  expect(withOpening(opened, WRITTEN)).toBeUndefined()
+  const other = { id: "p2", text: "x" }
+  expect(paneLayoutOf(opened, other).mode).toBe("rendered-only")
+  expect(withOpening(opened, other)?.opening).toEqual({ page: "p2", mode: "rendered-only" })
+})
+
+test("画面の場所に入るのは選んだ並べ方だけ。戻すときは開いたときに決めた並べ方を残す", () => {
+  const chosen = { mode: "source-only", first: "source", share: 0.5 } as const
+  const state = { chosen, opening: { page: "p1", mode: "rendered-only" } }
+  expect(PANE_PLACED.take?.(state)).toEqual(chosen)
+  expect(PANE_PLACED.take?.({ opening: state.opening })).toBeUndefined()
+  expect(PANE_PLACED.put?.(undefined, state)).toEqual({ opening: state.opening })
+  expect(PANE_PLACED.put?.(chosen, { opening: state.opening })).toEqual(state)
 })
 
 test("入れ替えると、並べたときの左（上）のペインが替わる。1 つだけ見せている間はそのペインだけ", () => {
-  const layout = paneLayoutOf(undefined)
+  const layout = paneLayoutOf(undefined, EMPTY)
   expect(shownPanes(layout)).toEqual(["source", "rendered"])
   expect(shownPanes(swapPanes(layout))).toEqual(["rendered", "source"])
   expect(shownPanes({ ...swapPanes(layout), mode: "source-only" })).toEqual(["source"])
@@ -124,13 +159,15 @@ test("並べ方は画面の場所に入り、場所を当てはめると戻る�
   expect(placed.stages[0]!.states).toEqual({ [MD]: { mode: "split-column", first: "source", share: 0.5 } })
   actions.command("s1", "@matomezu/markdown:pane-show-source")
   store.locate(placed)
-  expect(state.getState().stageStates.s1?.[MD]).toEqual({ mode: "split-column", first: "source", share: 0.5 })
+  expect(state.getState().stageStates.s1?.[MD]).toEqual({
+    chosen: { mode: "split-column", first: "source", share: 0.5 },
+  })
   const at = (states: Record<string, unknown>) => ({ ...placed, stages: [{ ...placed.stages[0]!, states }] })
   store.locate(at({ [MD]: { mode: "diagonal" } }))
-  expect(state.getState().stageStates.s1?.[MD]).toBeUndefined()
+  expect(state.getState().stageStates.s1?.[MD]).toEqual({})
   actions.command("s1", "@matomezu/markdown:pane-show-source")
   store.locate(at({}))
-  expect(state.getState().stageStates.s1?.[MD]).toBeUndefined()
+  expect(state.getState().stageStates.s1?.[MD]).toEqual({})
 })
 
 test("ステージの数と並べ方が同時に変わる場所を当てはめても、残るステージに並べ方が入り、消えたステージの置き場は無くなる", () => {
@@ -138,11 +175,13 @@ test("ステージの数と並べ方が同時に変わる場所を当てはめ�
   const { state, actions } = store
   actions.split("s1")
   const right = screenOf(state.getState().window).stages[1]!.id
-  store.setStageState(right, MD, { mode: "rendered-only", first: "source", share: 0.4 })
+  store.setStageState(right, MD, { chosen: { mode: "rendered-only", first: "source", share: 0.4 } })
   const two = store.address()
   store.locate({ ...two, stages: [two.stages[1]!], current: 0 })
   expect(screenOf(state.getState().window).stages.map(s => s.id)).toEqual(["s1"])
-  expect(state.getState().stageStates.s1?.[MD]).toEqual({ mode: "rendered-only", first: "source", share: 0.4 })
+  expect(state.getState().stageStates.s1?.[MD]).toEqual({
+    chosen: { mode: "rendered-only", first: "source", share: 0.4 },
+  })
   expect(state.getState().stageStates[right]).toBeUndefined()
 })
 
@@ -158,14 +197,16 @@ test("並べ方の 4 つのコマンドは、押すとその並べ方にし、�
   const { state, actions } = store
   const active = (stage: string) => LAYOUT_COMMANDS.filter(c => isActive(store, state.getState(), stage, c))
   expect(active("s1")).toEqual(["@matomezu/markdown:pane-split-row"])
-  store.setStageState("s1", MD, { mode: "split-row", first: "rendered", share: 0.3 })
+  store.setStageState("s1", MD, { chosen: { mode: "split-row", first: "rendered", share: 0.3 } })
   actions.command("s1", "@matomezu/markdown:pane-show-source")
-  expect(state.getState().stageStates.s1?.[MD]).toEqual({ mode: "source-only", first: "rendered", share: 0.3 })
+  expect(state.getState().stageStates.s1?.[MD]).toEqual({
+    chosen: { mode: "source-only", first: "rendered", share: 0.3 },
+  })
   expect(active("s1")).toEqual(["@matomezu/markdown:pane-show-source"])
   actions.command("s1", "@matomezu/markdown:pane-show-rendered")
   expect(active("s1")).toEqual(["@matomezu/markdown:pane-show-rendered"])
   actions.command("s1", "@matomezu/markdown:pane-split-column")
-  expect(paneLayoutOf(state.getState().stageStates.s1?.[MD])).toEqual({
+  expect(paneLayoutOf(state.getState().stageStates.s1?.[MD], EMPTY)).toEqual({
     mode: "split-column",
     first: "rendered",
     share: 0.3,

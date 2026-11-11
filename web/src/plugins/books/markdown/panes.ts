@@ -2,7 +2,9 @@
 // 並べ方は、ステージごとの画面の状態（このプラグインの置き場）に持ち、画面の場所に入れる（読み直しても戻す。PANE_PLACED）。
 // 並べ方は 4 つ（左右（split-row）・上下（split-column）に 2 つ並べるか、ソースだけ（source-only）・描いた文書だけ（rendered-only））。
 // 並べたときの左（上下なら上）のペインが first、その幅（上下なら高さ）の割合が share。左右と上下で同じ first と share を使い、1 つだけ見せている間も覚えている。
-// 置き場に何も無いか形に合わなければ、ソースを左・描いた文書を右に半分ずつ並べる
+// 利用者が並べ方を選んでいなければ（画面の場所にも無ければ）、ページを開いたときに 1 回、本文が空白だけでなければ描いた文書だけ、空なら
+// ソースを左・描いた文書を右に半分ずつ並べる。開いたときに決めた並べ方は置き場に持ち（画面の場所には入れない）、本文を打っても変えない。
+// 置き場は { chosen（利用者が選んだ並べ方）, opening（開いたときに決めた並べ方）} で、並べ方を読む所は paneLayoutOf（ビューとコマンドで同じ）
 import { z } from "zod"
 import type { PlacedStateDef } from "../../../plugin-api"
 
@@ -27,13 +29,48 @@ export type PaneLayout = z.infer<typeof PANE_LAYOUT>
 
 const DEFAULT: PaneLayout = { mode: "split-row", first: "source", share: EVEN_PANE_SHARE }
 
-// 画面の場所に入れる、このプラグインの画面の状態（置き場をそのまま入れる）
-export const PANE_PLACED: PlacedStateDef<PaneLayout> = { schema: PANE_LAYOUT }
+// 開いたときに決めた並べ方: どのページを開いたとき（page）に、どの並べ方（mode）に決めたか
+export type PaneOpening = { page: string; mode: PaneMode }
+export type PaneState = { chosen?: PaneLayout; opening?: PaneOpening }
 
-// ステージの画面の状態 state の並べ方（形に合わなければ既定）
-export function paneLayoutOf(state: unknown): PaneLayout {
-  const read = PANE_LAYOUT.safeParse(state)
-  return read.success ? read.data : DEFAULT
+// ステージの画面の状態 state（形に合わなければ何も無い）
+function paneStateOf(state: unknown): PaneState {
+  const s = typeof state === "object" && state !== null ? (state as Record<string, unknown>) : {}
+  const chosen = PANE_LAYOUT.safeParse(s.chosen)
+  const opening = z.object({ page: z.string(), mode: z.enum(PANE_MODES) }).safeParse(s.opening)
+  return { ...(chosen.success ? { chosen: chosen.data } : {}), ...(opening.success ? { opening: opening.data } : {}) }
+}
+
+// 画面の場所に入れるのは、利用者が選んだ並べ方だけ（開いたときに決めた並べ方は入れず、戻すときも残す）
+export const PANE_PLACED: PlacedStateDef<PaneLayout> = {
+  schema: PANE_LAYOUT,
+  take: state => paneStateOf(state).chosen,
+  put: (placed, state) => {
+    const { opening } = paneStateOf(state)
+    return { ...(placed ? { chosen: placed } : {}), ...(opening ? { opening } : {}) }
+  },
+}
+
+// ページを開いたときに決める並べ方（本文が空白だけでなければ描いた文書だけ）
+export const openingModeOf = (text: string): PaneMode => (text.trim() === "" ? DEFAULT.mode : "rendered-only")
+
+// 今の並べ方: 利用者が選んだ並べ方、なければ（今のページを開いたときに決めた並べ方、それも無ければ本文から決める）既定
+export function paneLayoutOf(state: unknown, page: { id: string; text: string } | null): PaneLayout {
+  const { chosen, opening } = paneStateOf(state)
+  if (chosen) return chosen
+  const mode = page && opening?.page === page.id ? opening.mode : openingModeOf(page?.text ?? "")
+  return { ...DEFAULT, mode }
+}
+
+// 利用者が並べ方を選んだ後の置き場
+export const withChosen = (state: unknown, chosen: PaneLayout): PaneState => ({ ...paneStateOf(state), chosen })
+
+// ページ page を開いたときに決めた並べ方を持った置き場（もう持っていれば undefined）
+export function withOpening(state: unknown, page: { id: string; text: string }): PaneState | undefined {
+  const now = paneStateOf(state)
+  return now.opening?.page === page.id
+    ? undefined
+    : { ...now, opening: { page: page.id, mode: openingModeOf(page.text) } }
 }
 
 // 並べる向き（1 つだけ見せている間は "none"）
