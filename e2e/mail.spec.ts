@@ -220,6 +220,12 @@ test("郵便箱から開いたダイアログは、「閉じる」でも「開�
   }
   await open()
   await expect(dialog.getByRole("button")).toHaveText(["郵便箱も閉じる", "閉じる", "開く", "分割で開く"])
+  // 4 つのボタンはダイアログの幅に収まり、1 行に並ぶ（E86）
+  const boxes = await dialog.getByRole("button").evaluateAll(els => els.map(e => e.getBoundingClientRect()))
+  const frame = await dialog.boundingBox()
+  expect(new Set(boxes.map(r => Math.round(r.top))).size).toBe(1)
+  expect(Math.min(...boxes.map(r => r.left))).toBeGreaterThanOrEqual(frame?.x ?? 0)
+  expect(Math.max(...boxes.map(r => r.right))).toBeLessThanOrEqual((frame?.x ?? 0) + (frame?.width ?? 0))
   // 「閉じる」をクリックしても、郵便箱は残る
   await dialog.getByRole("button", { name: "閉じる", exact: true }).click()
   await expect(dialog).toHaveCount(0)
