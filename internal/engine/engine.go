@@ -96,6 +96,7 @@ type Engine struct {
 	mails     func(string) string
 	forAI     func(string) string
 	briefs    func(string) string
+	aiMail    func(string) string
 	placed    func(string) string
 	aiPage    func(string, string) string
 	item      func(string, string) string
@@ -141,6 +142,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiBriefs"), &e.briefs); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiBriefs: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiMail"), &e.aiMail); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiMail: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiPlaced"), &e.placed); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiPlaced: %w", err)
@@ -521,6 +525,47 @@ func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]string, err e
 		return nil, err
 	}
 	return out, nil
+}
+
+// MailQuery は、AI が郵便を読むときの取り方（read_mail の引数。値は外から来た文字のまま。engine の mailForAi が確かめる）。Ids が nil なら一覧
+type MailQuery struct {
+	Ids       []string `json:"ids,omitempty"`
+	Limit     *string  `json:"limit,omitempty"`
+	Before    *string  `json:"before,omitempty"`
+	Unseen    *string  `json:"unseen,omitempty"`
+	Unvisited *string  `json:"unvisited,omitempty"`
+}
+
+// AIMail は、郵便箱（mailbox）を、プロジェクトの絞り projects と取り方 query で、AI に見せる形（一覧か、指した郵便の全文）にして返す。
+// 取り方が合わなければ、answer は空で、断る理由 reason（AI に返す英語の文）を返す
+func (e *Engine) AIMail(mailbox json.RawMessage, projects []string, query MailQuery) (answer json.RawMessage, reason string, err error) {
+	b, err := json.Marshal(struct {
+		Mailbox  json.RawMessage `json:"mailbox"`
+		Projects []string        `json:"projects"`
+		Query    MailQuery       `json:"query"`
+	}{mailbox, projects, query})
+	if err != nil {
+		return nil, "", err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got struct {
+		Ok     bool            `json:"ok"`
+		Answer json.RawMessage `json:"answer"`
+		Reason string          `json:"reason"`
+	}
+	if err := json.Unmarshal([]byte(e.aiMail(string(b))), &got); err != nil {
+		return nil, "", err
+	}
+	if !got.Ok {
+		return nil, got.Reason, nil
+	}
+	return got.Answer, "", nil
 }
 
 // AIPlaced は、ブックのページの id ごとの、形の描いた位置と大きさ（{id, x, y, w, h} の並び。紙の上の左上から）を返す。

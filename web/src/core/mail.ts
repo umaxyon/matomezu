@@ -2,6 +2,7 @@
 // 行き先 to（ブック・ページ・物の id）は任意で、送るときには確かめない（開くときに無ければ、無いと見せる）。
 // 既読は 2 つ: 郵便そのものを見た時点 seenAt と、郵便が示した物（行き先）を見た時点 visitedAt
 import { z } from "zod"
+import { briefLine } from "./brief"
 import type { CoreCatalog } from "./core-catalog"
 import { splitId } from "./names"
 import { isProject } from "./project"
@@ -55,4 +56,86 @@ export function checkMailbox(catalog: CoreCatalog, mailbox: Mailbox): Warning[] 
       ? []
       : [warning("W023", owner, { id: String(m.id), mail: kind })]
   })
+}
+
+// AI が郵便を読むときの取り方（read_mail の引数。値は外から来た文字のまま持ち、mailForAi が確かめる）
+export interface MailQuery {
+  ids?: readonly string[] // 指定した郵便の全文
+  limit?: string // 一覧に返す通数（1 以上 MAIL_LIST_MAX 以下の整数。無ければ MAIL_LIST_DEFAULT）
+  before?: string // この郵便より古い分（その郵便は含まない）
+  unseen?: string // "1" なら、利用者がまだ開いていない郵便だけ
+  unvisited?: string // "1" なら、行き先があって、利用者がまだ見ていない郵便だけ
+}
+
+const MAIL_LIST_DEFAULT = 20 // 一覧に返す通数の既定
+const MAIL_LIST_MAX = 100 // 一覧に返す通数の上限
+const MAIL_IDS_MAX = 20 // 全文を 1 回に取れる通数の上限（変更提案の本文は大きい）
+const MAIL_TITLE_LIMIT = 80 // 一覧の題の長さの上限（字。手紙と変更提案の題の上限と同じ）
+
+// AI に見せる郵便の一覧の 1 行: 郵便から中身（props）を外し、種類の aiBrief が答えた 1 行を title に付ける（種類が台帳に無い・形が合わない・aiBrief が無い・空なら付けない）
+export type MailRow = Omit<Mail, "props"> & { title?: string }
+
+export type MailForAi =
+  | { ok: true; answer: { mailbox: MailRow[]; total: number; older: number } | { mailbox: Mail[]; unknown?: string[] } }
+  | { ok: false; reason: string } // 断る理由（AI に返す英語の文）
+
+// 郵便箱 mailbox のうち、プロジェクトが projects のどれかである郵便を、query の取り方で AI に見せる。
+// 一覧（ids が無いとき）は新しい順で、{mailbox: 行の並び, total, older}: total は絞り（projects・unseen・unvisited）に合う全部の数、
+// older は返した中で一番古い郵便より古い、絞りに合う数（続きは、返した一番古い郵便の id を before に渡して取る）。before の位置は、unseen・unvisited で絞る前の箱で数える。
+// ids のときは、その郵便の全文（箱の新しい順。重なりは 1 つ）と、箱に無い・projects の外の id（unknown。あるときだけ）。ids はほかの取り方と一緒には渡せない
+export function mailForAi(
+  catalog: CoreCatalog,
+  mailbox: Mailbox,
+  projects: readonly string[],
+  query: MailQuery,
+): MailForAi {
+  const mine = mailbox.filter(m => projects.includes(m.project))
+  if (query.ids !== undefined) {
+    if (
+      query.limit !== undefined ||
+      query.before !== undefined ||
+      query.unseen !== undefined ||
+      query.unvisited !== undefined
+    ) {
+      return { ok: false, reason: "ids cannot be given together with limit, before, unseen or unvisited" }
+    }
+    if (query.ids.length === 0 || query.ids.length > MAIL_IDS_MAX) {
+      return { ok: false, reason: `ids takes 1 to ${MAIL_IDS_MAX} ids of letters` }
+    }
+    const wanted = new Set(query.ids)
+    const found = mine.filter(m => wanted.has(m.id)).reverse()
+    const unknown = [...wanted].filter(id => !found.some(m => m.id === id)).sort()
+    return { ok: true, answer: unknown.length > 0 ? { mailbox: found, unknown } : { mailbox: found } }
+  }
+  let limit = MAIL_LIST_DEFAULT
+  if (query.limit !== undefined) {
+    limit = /^\d+$/.test(query.limit) ? Number(query.limit) : 0
+    if (limit < 1 || limit > MAIL_LIST_MAX) {
+      return { ok: false, reason: `limit is an integer from 1 to ${MAIL_LIST_MAX}` }
+    }
+  }
+  let older = mine
+  if (query.before !== undefined) {
+    const at = mine.findIndex(m => m.id === query.before)
+    if (at < 0) {
+      return {
+        ok: false,
+        reason: `no such letter to go back from: ${query.before} (before takes the id of a letter in the projects you named)`,
+      }
+    }
+    older = mine.slice(0, at)
+  }
+  const keep = (m: Mail) =>
+    (query.unseen !== "1" || m.seenAt === undefined) &&
+    (query.unvisited !== "1" || (m.to !== undefined && m.visitedAt === undefined))
+  const total = mine.filter(keep).length
+  const matching = older.filter(keep)
+  const shown = matching.slice(-limit).reverse()
+  const rows = shown.map(({ props, ...head }): MailRow => {
+    const def = catalog.mails.get(head.mail)
+    if (def?.aiBrief === undefined || !def.props.safeParse(props).success) return head
+    const title = briefLine(def.aiBrief(props), MAIL_TITLE_LIMIT)
+    return title === "" ? head : { ...head, title }
+  })
+  return { ok: true, answer: { mailbox: rows, total, older: matching.length - rows.length } }
 }

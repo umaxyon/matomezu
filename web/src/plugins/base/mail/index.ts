@@ -20,6 +20,7 @@ export const MAIL_LETTER = kit.defineMail({
   aiDescription:
     "A letter to the user: title, an optional body, and an optional place it points at (to: a book, a page in it, things on the page). The user opens it from their mailbox and moves to the place from it.",
   props: LetterSchema,
+  aiBrief: (p: LetterProps) => p.title,
   // 一覧・しおり・ダイアログに出す題と本文
   shown: { title: (p: LetterProps) => p.title, body: (p: LetterProps) => p.body },
 })

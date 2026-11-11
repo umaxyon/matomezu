@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // checkProjects は、AI が指したプロジェクトの id の並び ids が、1 つ以上で、全部表にあるかを確かめる。断る理由の文（AI に返す）は、あれば返す
@@ -60,17 +62,8 @@ func projectOf(body json.RawMessage) string {
 	return head.Project
 }
 
-// AIMailbox は、利用者の郵便箱のうち、プロジェクトが projects のどれかである郵便を、届いた順に返す
-func (h *Hub) AIMailbox(projects []string) (json.RawMessage, error) {
-	var all []json.RawMessage
-	if err := json.Unmarshal(h.Mailbox(), &all); err != nil {
-		return nil, err
-	}
-	kept := []json.RawMessage{}
-	for _, m := range all {
-		if slices.Contains(projects, projectOf(m)) {
-			kept = append(kept, m)
-		}
-	}
-	return json.Marshal(kept)
+// AIMail は、利用者の郵便箱のうち、プロジェクトが projects のどれかである郵便を、取り方 query で AI に見せる形にして返す（engine.AIMail）。
+// 取り方が合わなければ、answer は空で、断る理由 reason を返す
+func (h *Hub) AIMail(projects []string, query engine.MailQuery) (answer json.RawMessage, reason string, err error) {
+	return h.engine.AIMail(h.Mailbox(), projects, query)
 }

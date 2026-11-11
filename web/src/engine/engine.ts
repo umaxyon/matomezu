@@ -20,7 +20,7 @@ import { type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/book-type"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
-import { checkMailbox, type Mailbox, restoreMailbox } from "../core/mail"
+import { checkMailbox, type Mailbox, type MailQuery, mailForAi, restoreMailbox } from "../core/mail"
 import { splitId } from "../core/names"
 import { joinActions, type Participants, restoreParticipants } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
@@ -327,6 +327,12 @@ function aiTables(of: Assembled) {
     return book ? annotationBriefs(catalog, book, restoreAnnotations(p.annotations)) : {}
   })
   return JSON.stringify(out)
+}
+
+// 郵便箱を、プロジェクトの絞りと AI の取り方（read_mail の引数）で AI に見せる形にする（mailForAi）。{ok, answer} か、断る理由の {ok: false, reason}
+;(globalThis as { matomezuAiMail?: (input: string) => string }).matomezuAiMail = input => {
+  const { mailbox, projects, query } = JSON.parse(input) as { mailbox: unknown; projects: string[]; query: MailQuery }
+  return JSON.stringify(mailForAi(assembled.catalog.core, restoreMailbox(mailbox), projects, query))
 }
 
 // ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_page に添える）。読めないブックか、見せ方が答えなければ null

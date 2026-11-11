@@ -40,6 +40,7 @@ export const MAIL_PROPOSAL = kit.defineMail({
   aiDescription:
     "A change proposal: actions you could not do because the user was editing what they change (being-edited), sent for the user to apply with one press. Send it with proposal-send.",
   props: ProposalSchema,
+  aiBrief: (p: ProposalProps) => p.title,
   shown: {
     title: (p: ProposalProps) => p.title,
     body: (p: ProposalProps) => p.body,

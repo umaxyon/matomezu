@@ -2,6 +2,7 @@
 // 結び付く物（アンカー）は、ブックのページの中の id を持つ物（ページそのものは含まない）。アンカーの物が全部無くなったアノテーションは残らない。
 // 種類の期限（expiresAt）の過ぎたアノテーションも残らない（消すのは常駐で、画面はそれまで出さない）
 import { z } from "zod"
+import { briefLine } from "./brief"
 import { bookType, type CoreCatalog } from "./core-catalog"
 import { idsIn } from "./ids"
 import { splitId } from "./names"
@@ -122,10 +123,8 @@ export function annotationBriefs(
   for (const a of annotations) {
     const def = catalog.annotations.get(a.annotation)
     if (def?.aiBrief === undefined || !fits(catalog, book, ids, a)) continue
-    const chars = [...def.aiBrief(a.props).replace(/\s+/g, " ").trim()]
-    if (chars.length === 0) continue
-    out[a.id] =
-      chars.length > BRIEF_LIMIT ? `${chars.slice(0, BRIEF_LIMIT).join("")}… (${chars.length} chars)` : chars.join("")
+    const line = briefLine(def.aiBrief(a.props), BRIEF_LIMIT)
+    if (line !== "") out[a.id] = line
   }
   return out
 }

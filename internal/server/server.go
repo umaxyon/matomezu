@@ -32,7 +32,9 @@
 //	POST /api/ai/talked      {"sessionId", "candidates"} 利用者が AI に話しかけた（AI のフックが知らせる）。candidates が無ければ、話しかけたときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
-//	GET  /api/ai/mail?projects=a&projects=b  {"mailbox": [...]} 利用者の郵便箱のうち、project が projects のどれかである郵便（届いた順。郵便ごとに見た時点 seenAt と行き先を見た時点 visitedAt。projects は books と同じ）
+//	GET  /api/ai/mail?projects=a&projects=b[&limit=N&before=id&unseen=1&unvisited=1]  利用者の郵便箱のうち、project が projects のどれかである郵便の一覧（新しい順。{"mailbox": [中身 props の無い行。種類の aiBrief の title が付く], "total", "older"}。
+//	                      limit は 1〜100（既定 20）、before はその郵便より古い分、unseen は利用者がまだ開いていない郵便、unvisited は行き先をまだ見ていない郵便。projects は books と同じ）。
+//	                      ?projects=a&ids=x&ids=y は指した郵便の全文（{"mailbox": [...], "unknown": [...]}。ほかの取り方とは一緒に渡せない）。合わない取り方は 400
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "projects"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る。参加の id の付いた呼び出しなら、参加するプロジェクトを足す）。{"ok", "participant", "projects"} か弾いた理由（join.go）
@@ -57,12 +59,14 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -153,12 +157,19 @@ func Handler(o Options) http.Handler {
 		if !ok {
 			return
 		}
-		mailbox, err := o.Hub.AIMailbox(projects)
+		q := r.URL.Query()
+		query := engine.MailQuery{Ids: q["ids"], Limit: queryValue(q, "limit"), Before: queryValue(q, "before"), Unseen: queryValue(q, "unseen"), Unvisited: queryValue(q, "unvisited")}
+		answer, reason, err := o.Hub.AIMail(projects, query)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, map[string]any{"mailbox": mailbox})
+		if reason != "" {
+			http.Error(w, reason, http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(answer)
 	}))
 	mux.Handle("GET /api/ai/catalog", o.ai(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -170,6 +181,15 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux
+}
+
+// queryValue は、問い合わせの名前 name の値（無ければ nil）
+func queryValue(q url.Values, name string) *string {
+	if !q.Has(name) {
+		return nil
+	}
+	v := q.Get(name)
+	return &v
 }
 
 // auth は合言葉の合う頼みだけを通す

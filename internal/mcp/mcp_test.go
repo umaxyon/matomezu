@@ -240,6 +240,15 @@ func TestListBooksAndReadMailAskForProjects(t *testing.T) {
 	if strings.Join(api.gets, " ") != "api/ai/books?projects=default&projects=work api/ai/mail?projects=default" {
 		t.Fatalf("gets = %v", api.gets)
 	}
+	// read_mail の取り方は、渡された物だけを問い合わせにする（false の unseen は渡さない）
+	api = &fakeAPI{}
+	talk(t, api,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_mail","arguments":{"projects":["default"],"limit":5,"before":"m9","unseen":true,"unvisited":false}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_mail","arguments":{"projects":["default"],"ids":["m1","m2"]}}}`,
+	)
+	if strings.Join(api.gets, " ") != "api/ai/mail?before=m9&limit=5&projects=default&unseen=1 api/ai/mail?ids=m1&ids=m2&projects=default" {
+		t.Fatalf("read_mail gets = %v", api.gets)
+	}
 	api = &fakeAPI{}
 	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_books","arguments":{}}}`)
 	if api.gets[0] != "api/ai/books?" || got[0]["result"].(map[string]any)["isError"] != true {

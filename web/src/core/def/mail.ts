@@ -10,4 +10,7 @@ export interface MailDef<P extends z.ZodType = z.ZodType, Tt extends string = Me
   title: Tt
   aiDescription: string // AI 向けの説明（英語。MCP の actions の mails で見せる。何のための物で、AI がどう送るか）
   props: P // 種類ごとの形
+  // AI に郵便の一覧で見せる 1 行（1 通ずつを見分ける題。利用者が書いた文はそのまま、決まった言葉は英語で返す）。長さは core が切る（切れたら「…」と全体の字数が付く）。
+  // 無ければ、一覧には種類の id だけで見分ける。画面の題（shown の title）とは別
+  aiBrief?(props: z.output<P>): string
 }

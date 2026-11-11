@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // instructions は、つないだ AI に渡す matomezu の説明
@@ -37,6 +38,55 @@ var projectsProperty = map[string]any{
 	"items":       map[string]any{"type": "string"},
 	"minItems":    1,
 	"description": "The ids of the projects to read, one or more (join returns the projects you joined).",
+}
+
+// mailSchema は read_mail の受ける形: projects（必須）と、取り方（一覧の limit・before・unseen・unvisited か、全文の ids）
+var mailSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"projects":  projectsProperty,
+		"limit":     map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "description": "How many letters to list, newest first (default 20)."},
+		"before":    map[string]any{"type": "string", "description": "The id of a letter: list the letters older than it (not it). Give the oldest id of the list you have, to go back."},
+		"unseen":    map[string]any{"type": "boolean", "description": "true: only the letters the user has not opened yet."},
+		"unvisited": map[string]any{"type": "boolean", "description": "true: only the letters that point at a place the user has not seen yet."},
+		"ids": map[string]any{
+			"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": 20,
+			"description": "The ids of letters to read in full (props too; from the list). Not together with limit, before, unseen or unvisited.",
+		},
+	},
+	"required":             []string{"projects"},
+	"additionalProperties": false,
+}
+
+// mailQuery は、read_mail の args を常駐の口の問い合わせにする（projects のほかに、渡された取り方だけ）
+func mailQuery(args map[string]any) string {
+	q := url.Values{}
+	if list, ok := args["projects"].([]any); ok {
+		for _, p := range list {
+			if id, ok := p.(string); ok {
+				q.Add("projects", id)
+			}
+		}
+	}
+	if list, ok := args["ids"].([]any); ok {
+		for _, v := range list {
+			if id, ok := v.(string); ok {
+				q.Add("ids", id)
+			}
+		}
+	}
+	if n, ok := args["limit"].(float64); ok {
+		q.Set("limit", strconv.FormatFloat(n, 'f', -1, 64))
+	}
+	if id, ok := args["before"].(string); ok {
+		q.Set("before", id)
+	}
+	for _, name := range []string{"unseen", "unvisited"} {
+		if on, ok := args[name].(bool); ok && on {
+			q.Set(name, "1")
+		}
+	}
+	return "?" + q.Encode()
 }
 
 // projectsQuery は、args の projects を常駐の口の問い合わせにする（projects が無い・並びでないときは空で、常駐が断る）
@@ -122,11 +172,14 @@ var readTools = []readTool{
 	},
 	{
 		"read_mail",
-		"Read the user's mailbox, only the letters of the projects you name: the letters sent to the user, oldest first (id, project, from, sentAt, to: the place it points at, props: title and body). " +
-			"seenAt is when the user opened the letter (none: not yet), visitedAt is when the user saw the place it points at (none: not yet). Send a letter with the action mail-send.",
-		projectsSchema,
+		"Read the user's mailbox, only the letters of the projects you name. Without ids it lists the letters newest first, 20 by default (limit: up to 100) without their props: " +
+			"id, mail (the kind), project, from, sentAt, to (the place it points at), seenAt (when the user opened the letter; left out: not yet), visitedAt (when the user saw the place it points at; left out: not yet) and title (a line that tells the letter apart; left out when its kind gives none). " +
+			"total is how many letters fit what you asked (the projects, unseen, unvisited), and older how many of them are older than the oldest one listed: give that letter's id as before to go back. " +
+			"unseen lists only the letters the user has not opened yet, unvisited only the letters that point at a place the user has not seen yet. " +
+			"With ids (from the list, up to 20; not together with the other arguments) it answers the whole letters, props too (title and body, and more for some kinds), and unknown, the ids it does not have in these projects. Send a letter with the action mail-send.",
+		mailSchema,
 		func(api caller, args map[string]any) (json.RawMessage, error) {
-			return api.Get("api/ai/mail" + projectsQuery(args))
+			return api.Get("api/ai/mail" + mailQuery(args))
 		},
 	},
 	{

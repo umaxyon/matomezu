@@ -32,6 +32,35 @@ func TestAISendsMail(t *testing.T) {
 	}
 }
 
+// AI の読む口は、一覧（中身を外して題を付け、total と older を添える）と、指した郵便の全文を、取り方の問い合わせで返し、合わない取り方は 400 で断る（取り方の細かな境界は core のテストが見る）
+func TestAIMailQuery(t *testing.T) {
+	s := newServer(t, nil)
+	ai := map[string]string{"Authorization": "Bearer secret"}
+	for _, title := range []string{"一", "二", "三"} {
+		send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"project":"default","from":"D89","title":"`+title+`","body":"本文"}}`, ai)
+	}
+	_, list := send(t, "GET", s.URL+"/api/ai/mail?projects=default&limit=2", "", ai)
+	if strings.Contains(list, `"props"`) || !strings.Contains(list, `"title":"三"`) || !strings.Contains(list, `"title":"二"`) || strings.Contains(list, `"title":"一"`) ||
+		!strings.Contains(list, `"total":3`) || !strings.Contains(list, `"older":1`) {
+		t.Fatalf("list = %s", list)
+	}
+	id := list[strings.LastIndex(list, `"id":"`)+6:]
+	id = id[:strings.Index(id, `"`)]
+	_, older := send(t, "GET", s.URL+"/api/ai/mail?projects=default&before="+id, "", ai)
+	if !strings.Contains(older, `"title":"一"`) || strings.Contains(older, `"title":"二"`) {
+		t.Fatalf("before = %s", older)
+	}
+	_, full := send(t, "GET", s.URL+"/api/ai/mail?projects=default&ids="+id+"&ids=nothing", "", ai)
+	if !strings.Contains(full, `"props":{"title":"二","body":"本文"}`) || !strings.Contains(full, `"unknown":["nothing"]`) {
+		t.Fatalf("ids = %s", full)
+	}
+	for _, bad := range []string{"limit=0", "before=nothing", "ids=x&limit=1"} {
+		if code, _ := send(t, "GET", s.URL+"/api/ai/mail?projects=default&"+bad, "", ai); code != 400 {
+			t.Fatalf("%s = %d", bad, code)
+		}
+	}
+}
+
 // 効かない郵便（種類が機能台帳に無い）は、消さずに warning（W022）として一覧に持つ
 func TestUnknownMailIsAWarning(t *testing.T) {
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
