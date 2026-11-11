@@ -4,7 +4,7 @@
 // leaving になったら画面の外へ飛び去り、飛び去り終えたら onGone を呼ぶ。visit なら歩かずに立ち寄り（flight.ts の visitPose）、降りたら onArrived を呼び、
 // 立ち寄り終えたら自分で飛び去る。
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かず、飛び去るときはすぐ消える（立ち寄るなら、立ち寄る間だけ出す）
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react"
+import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
 import { useStandAway, useStandShape } from "../utils/anchors"
 import { STAND_MARGIN } from "../utils/stand-place"
@@ -90,9 +90,9 @@ function Walker({
   const arrivalOn = motion && arrival === "peek" ? "fly" : arrival
   const room = motion?.kind === "walk" ? lengthOf([motion.from, motion.to]) : width
   const range = Math.max(0, Math.min(2 * BODY_WIDTH[bird] * scale, room - BIRD_SIZE - 12))
-  // 歩く所の幅を測る。飛んでくるなら、飛んでくる所を画面（ステージ）の外に決める
+  // 歩く所の幅を測る。飛んでくるなら、飛んでくる所を画面（ステージ）の外に決める（最初の描画の前に決めて、降りる所に一瞬出ないようにする）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 飛んでくる所は、最初に描くときに一度だけ決める
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = area.current
     if (!el) return
     const measure = () => setWidth(el.clientWidth)
