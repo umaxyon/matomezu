@@ -64,9 +64,7 @@ export function MarkdownView({ stage }: BookViewProps) {
   const page = useShownPage(stage)
   const book = useBook(stage)
   const state = useStageState(stage, kit)
-  const shownPage = page
-    ? { id: page.id, text: "text" in page && typeof page.text === "string" ? page.text : "" }
-    : null
+  const shownPage = page ? paneInputOf(page) : null
   const layout = paneLayoutOf(state, shownPage)
   const setStageState = useSetStageState(kit)
   const setLayout = (next: PaneLayout) => setStageState(stage, withChosen(state, next))
