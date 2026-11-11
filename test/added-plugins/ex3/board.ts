@@ -80,6 +80,7 @@ export const NIGHT = kit.defineSkin({
     "shadow-2": "0 4px 12px rgb(0 0 0 / 0.55)",
     "shadow-3": "0 12px 36px rgb(0 0 0 / 0.65)",
     border: "rgba(255, 255, 255, 0.1)",
+    "border-medium": "rgba(255, 255, 255, 0.16)",
     "border-strong": "rgba(255, 255, 255, 0.22)",
     text: "#dbe4ff",
     "text-muted": "rgba(219, 228, 255, 0.55)",

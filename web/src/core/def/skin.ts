@@ -19,6 +19,7 @@ export const SKIN_TOKENS = [
   "shadow-3", // メニュー・トースト・ダイアログ・色のポップアップ
   // 線
   "border",
+  "border-medium", // border と border-strong の間の線（カードの輪郭など）
   "border-strong", // 入力Formの縁
   // 文字
   "text",

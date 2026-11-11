@@ -20,6 +20,7 @@ export const LIGHT = kit.defineSkin({
     "shadow-2": "0 2px 4px rgb(38 50 62 / 0.06), 0 6px 16px rgb(38 50 62 / 0.10)",
     "shadow-3": "0 4px 12px rgb(38 50 62 / 0.08), 0 20px 48px rgb(38 50 62 / 0.16)",
     border: "#d0d8e0",
+    "border-medium": "#a6b0bc",
     "border-strong": "#7b8997",
     text: "#26323e",
     "text-muted": "#576573",

@@ -18,6 +18,7 @@ export const DARK = kit.defineSkin({
     "shadow-2": "0 2px 4px rgb(0 0 0 / 0.20), 0 8px 20px rgb(0 0 0 / 0.24)",
     "shadow-3": "0 4px 12px rgb(0 0 0 / 0.24), 0 20px 48px rgb(0 0 0 / 0.32)",
     border: "#3b4d60",
+    "border-medium": "#586c81",
     "border-strong": "#758ba2",
     text: "#e3eaf1",
     "text-muted": "#afbdcb",
