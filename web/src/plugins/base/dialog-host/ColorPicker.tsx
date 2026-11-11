@@ -1,5 +1,5 @@
 // 色を選ぶ入力Form: 今の色の丸いボタン（「なし」のときは、テーマに任せている印に縁を点線にする）。押すと下に色を選ぶポップアップを出す（Figma の形）:
-//   上: 見本（代表色など、使う側が渡す）と「なし」。押すとその色になる
+//   上: 見本（代表色など、使う側が渡す）と「なし」（none を渡したときだけ）。押すとその色になる
 //   中: 四角（横が濃さ、縦が明るさ）と、色合いのスライダー、灰色のスライダー（どの色合いでも灰色を選べる）
 //   下: 値のテキストForm（#rrggbb。Enter かテキストFormを離れたら決める。読めない値なら元に戻す）
 // 四角とスライダーは、動かすそばから onChange に渡す。外を押すか Esc で閉じる（Esc はダイアログには渡さない）。
@@ -24,6 +24,9 @@ export interface Swatch {
   label: string // 見本の名前
 }
 
+// 「なし」を選べず、見本も無いときに、値が無い（undefined）ボタンに使う色
+const NO_SWATCH_HEX = "#000000"
+
 export function ColorPicker({
   id,
   label,
@@ -37,13 +40,14 @@ export function ColorPicker({
   label: string // ボタンの名前
   value: string | undefined // 代表色の名前か #rrggbb。undefined は「なし」
   palette: readonly Swatch[]
-  none: string // 「なし」のときの見た目の色（#rrggbb）
+  none?: string // 「なし」のときの見た目の色（#rrggbb）。渡さなければ「なし」を選べない
   disabled?: boolean
   onChange: (value: string | undefined) => void
 }) {
   const [open, setOpen] = useState(false)
   const button = useRef<HTMLButtonElement>(null)
-  const hexOf = (v: string | undefined) => (v === undefined ? none : (palette.find(p => p.name === v)?.hex ?? v))
+  const hexOf = (v: string | undefined) =>
+    v === undefined ? (none ?? palette[0]?.hex ?? NO_SWATCH_HEX) : (palette.find(p => p.name === v)?.hex ?? v)
   const shown = hexOf(value)
   return (
     <>
@@ -55,7 +59,7 @@ export function ColorPicker({
         aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}
-        data-none={value === undefined}
+        data-none={value === undefined && none !== undefined}
         disabled={disabled}
         style={{ "--color": shown } as CSSProperties}
         onClick={() => setOpen(o => !o)}
@@ -66,6 +70,7 @@ export function ColorPicker({
           value={value}
           start={shown}
           palette={palette}
+          offersNone={none !== undefined}
           onChange={onChange}
           onClose={() => {
             setOpen(false)
@@ -82,6 +87,7 @@ function Popup({
   value,
   start,
   palette,
+  offersNone,
   onChange,
   onClose,
 }: {
@@ -89,6 +95,7 @@ function Popup({
   value: string | undefined
   start: string
   palette: readonly Swatch[]
+  offersNone: boolean
   onChange: (value: string | undefined) => void
   onClose: () => void
 }) {
@@ -182,14 +189,16 @@ function Popup({
             onClick={() => chooseSwatch(s)}
           />
         ))}
-        <button
-          type="button"
-          className={styles.none}
-          aria-pressed={value === undefined}
-          onClick={() => onChange(undefined)}
-        >
-          {t("None")}
-        </button>
+        {offersNone && (
+          <button
+            type="button"
+            className={styles.none}
+            aria-pressed={value === undefined}
+            onClick={() => onChange(undefined)}
+          >
+            {t("None")}
+          </button>
+        )}
       </div>
       <div
         className={styles.square}
