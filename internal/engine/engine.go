@@ -527,7 +527,7 @@ func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]string, err e
 	return out, nil
 }
 
-// MailQuery は、AI が郵便を読むときの取り方（read_mail の引数。値は外から来た文字のまま。engine の mailForAi が確かめる）。Ids が nil なら一覧
+// MailQuery は、AI が郵便を読むときの取り方（read_mail の引数。値は外から来た文字のまま。エンジンの core（core/mail.ts の mailForAi）が確かめる）。Ids が nil なら一覧
 type MailQuery struct {
 	Ids       []string `json:"ids,omitempty"`
 	Limit     *string  `json:"limit,omitempty"`

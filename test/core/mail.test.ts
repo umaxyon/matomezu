@@ -1,4 +1,4 @@
-// 郵便箱のアクションの結果の確かめ（core/mail.ts の mailboxSettles）: 新しく入った・変わった郵便は、形に合い、種類が機能台帳にあって props がその形に合うものだけ。
+// 郵便箱の確かめ（core/mail.ts の mailboxSettles・checkMailbox）と、AI が郵便を読む取り方（mailForAi）。mailboxSettles: 新しく入った・変わった郵便は、形に合い、種類が機能台帳にあって props がその形に合うものだけ。
 // 前からあった郵便は、効かなくなっていても（種類を外したなど）そのまま通す
 import { expect, test } from "bun:test"
 import { checkMailbox, type Mail, type MailQuery, mailboxSettles, mailForAi } from "../../web/src/core/mail"

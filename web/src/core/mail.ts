@@ -70,7 +70,7 @@ export interface MailQuery {
 const MAIL_LIST_DEFAULT = 20 // 一覧に返す通数の既定
 const MAIL_LIST_MAX = 100 // 一覧に返す通数の上限
 const MAIL_IDS_MAX = 20 // 全文を 1 回に取れる通数の上限（変更提案の本文は大きい）
-const MAIL_TITLE_LIMIT = 80 // 一覧の題の長さの上限（字。手紙と変更提案の題の上限と同じ）
+const MAIL_TITLE_LIMIT = 80 // 一覧の題の長さの上限（字）
 
 // AI に見せる郵便の一覧の 1 行: 郵便から中身（props）を外し、種類の aiBrief が答えた 1 行を title に付ける（種類が台帳に無い・形が合わない・aiBrief が無い・空なら付けない）
 export type MailRow = Omit<Mail, "props"> & { title?: string }

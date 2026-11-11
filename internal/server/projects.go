@@ -53,7 +53,7 @@ func (o Options) aiProjects(w http.ResponseWriter, r *http.Request) ([]string, b
 	return ids, true
 }
 
-// projectOf は、ブックか郵便のデータ body の project（無ければ空）
+// projectOf は、ブックのデータ body の project（無ければ空）
 func projectOf(body json.RawMessage) string {
 	var head struct {
 		Project string `json:"project"`
