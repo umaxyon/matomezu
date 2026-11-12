@@ -48,10 +48,10 @@ test("右クリックのメニューで重なり順を変えられ、選んだ�
   const p = await at(page, 130, 300)
   await page.mouse.click(p.x, p.y, { button: "right" })
   await page.getByRole("menuitem", { name: "最前面へ" }).click()
-  expect(await order(page)).toEqual(["e2", "e3", "e1"])
+  await expect.poll(() => order(page)).toEqual(["e2", "e3", "e1"])
   await page.mouse.click(p.x, p.y, { button: "right" })
   await page.getByRole("menuitem", { name: "消す" }).click()
-  expect(await order(page)).toEqual(["e2", "e3"])
+  await expect.poll(() => order(page)).toEqual(["e2", "e3"])
 })
 
 test("キーで重なり順を変えられ、元に戻せる", async ({ page }) => {
@@ -59,7 +59,7 @@ test("キーで重なり順を変えられ、元に戻せる", async ({ page }) 
   const p = await at(page, 130, 300)
   await page.mouse.click(p.x, p.y)
   await page.keyboard.press("Control+Alt+]")
-  expect(await order(page)).toEqual(["e2", "e1", "e3"])
+  await expect.poll(() => order(page)).toEqual(["e2", "e1", "e3"])
   await page.keyboard.press("Control+z")
   await expect.poll(() => order(page)).toEqual(["e1", "e2", "e3"])
 })
@@ -101,7 +101,7 @@ test("ドラッグ枠と Shift+クリックで複数を選び、全体の枠の�
   await expect.poll(async () => [await topOf(page, "e1"), await topOf(page, "e2")]).toEqual([before[0], before[1]])
   // 重なり順は選んだ物どうしの前後を保って全部に効き、元に戻すは 1 回
   await page.keyboard.press("Control+Alt+Shift+]")
-  expect(await order(page)).toEqual(["e3", "e1", "e2"])
+  await expect.poll(() => order(page)).toEqual(["e3", "e1", "e2"])
   await page.keyboard.press("Control+z")
   await expect.poll(() => order(page)).toEqual(["e1", "e2", "e3"])
   // 複数を選んでいて、動かさずに離すと、押した物だけを選ぶ
@@ -119,7 +119,7 @@ test("ドラッグ枠と Shift+クリックで複数を選び、全体の枠の�
   await page.mouse.click(only.x, only.y)
   await page.keyboard.up("Shift")
   await page.keyboard.press("Delete")
-  expect(await order(page)).toEqual(["e1", "e2"]) // e1 を足して外したので、選んでいた e3 だけが消える
+  await expect.poll(() => order(page)).toEqual(["e1", "e2"]) // e1 を足して外したので、選んでいた e3 だけが消える
 })
 
 test.describe("線の端点", () => {

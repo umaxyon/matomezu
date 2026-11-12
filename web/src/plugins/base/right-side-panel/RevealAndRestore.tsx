@@ -1,6 +1,6 @@
 // 右サイドパネルで開いた物を見せ、閉じたら見え方を戻す（窓に 1 つで、右サイドパネルの入れ物と並べて置く。描く物は無い）。
 // 開いて幅を動かし終えたら（同じステージで開き直したときは、すぐ）、付いた先を真ん中へ見せる（1 つなら倍率 100%、いくつかなら全部が入る倍率。reveal.ts）。付いた先かカレントが替わるたびに見せ直す。物を囲むビューが Revealable を名乗り出ていれば、先にそれに見えるようにと頼む（リストの中のスクロールなど。これは戻さない）。
-// 開いている間に倍率かずらす量を変えたかを覚えておき、閉じて幅を動かし終えたら、変えていなければ開く前の見え方に戻す（覚え方は state.ts）。
+// 開いている間と、閉じて幅を動かしている間に倍率かずらす量を変えたかを覚えておき、閉じて幅を動かし終えたら、変えていなければ開く前の見え方に戻す（覚え方は state.ts）。
 // 別のステージで開き直したときは、前のステージは戻さない。表示領域の大きさが変わってずらす量が収め直されただけなら、変えたことにはしない
 import { useCallback, useEffect } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -31,7 +31,12 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
         .filter(id => pluginValueOf(s.pluginValues, id, RIGHT_SIDE_PANEL_RESTORE_STATE)),
     ),
   )
-  const now = useMatomezuState(s => (stage ? screenOf(s.window).stages.find(st => st.id === stage) : undefined))
+  // 戻すための覚えを持つステージ（開いているステージと、閉じて幅を動かしているステージ）
+  const watched = useMatomezuState(
+    useShallow(s =>
+      screenOf(s.window).stages.filter(st => pluginValueOf(s.pluginValues, st.id, RIGHT_SIDE_PANEL_RESTORE_STATE)),
+    ),
+  )
   const read = useReadState()
   const readRestore = useReadPluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const update = useUpdatePluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
@@ -50,11 +55,14 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
     const after = stageOf(stage) ?? before
     update(stage, now => withRestore(now, { shown: { zoom: after.zoom, pan: after.pan }, seen: { anchors, current } }))
   }, [sliding, stage, anchors, current, restore, stageOf, actions, update])
-  // 見せたあと、倍率かずらす量を変えたら覚える
+  // 見せたあと、倍率かずらす量を変えたら覚える（閉じて幅を動かしている間も。閉じたステージは stage でなくなるので、覚えを持つステージを全部見る）
   useEffect(() => {
-    if (!stage || !restore || restore.moved || !now) return
-    if (movedFrom(restore, now)) update(stage, now => withRestore(now, { moved: true }))
-  }, [stage, restore, now, update])
+    for (const now of watched) {
+      const record = readRestore(now.id)
+      if (record && !record.moved && movedFrom(record, now, now.id !== stage))
+        update(now.id, r => withRestore(r, { moved: true }))
+    }
+  }, [watched, stage, readRestore, update])
   // 閉じて幅を動かし終えたら、戻して覚えを消す（別のステージで開いていれば、戻さずに消す）
   useEffect(() => {
     if (sliding) return

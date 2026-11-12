@@ -4,7 +4,7 @@ import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
 import { newBook } from "./helpers/new-book"
 import { panel } from "./helpers/note"
-import { addBox, items, onPaper } from "./helpers/paper"
+import { addBox, items, onPaper, settled } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
 const preview = (page: Page) => page.locator("[data-print-preview]")
@@ -289,6 +289,9 @@ test("マークダウンの画像は、紙の残りに半分以上入れば縮�
   await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("後ろ")
   await openPreview(page)
   await expect(async () => expect(await sheets(page).count()).toBe(2)).toPass()
+  // 右サイドパネルが滑り込み、幅に合わせ終えて紙が止まってから測る（動いている間は、測るたびに倍率が違う）
+  await expect(panel(page).getByRole("button", { name: "幅に合わせる" })).toBeDisabled()
+  await settled(page, sheets(page).nth(1))
   const box = async (i: number) => (await sheets(page).nth(i).boundingBox())!
   const within = (r: { y: number; height: number }, b: { y: number; height: number }) =>
     r.y >= b.y - 0.5 && r.y + r.height <= b.y + b.height + 0.5

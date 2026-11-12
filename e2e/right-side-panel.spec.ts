@@ -220,6 +220,35 @@ test("開いている間に紙をずらすか倍率を変えたら、閉じて�
   expect((await paperBox(page)).w).toBe(full)
 })
 
+test("閉じて幅を動かしている間に倍率を変えても、閉じ終えたときに戻さない", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const full = (await paperBox(page)).w
+  await foldedNote(page, 1000, "端", "見てほしい")
+  await settled(page)
+  await zoomOut(page)
+  await expect.poll(async () => (await paperBox(page)).w).toBeLessThan(full * 0.7)
+  await page.getByRole("button", { name: "伝言を開く" }).click()
+  await expect(panel(page)).toContainText("見てほしい")
+  // 開いて幅を動かし終え、付けた物を 100% で見せてから閉じる
+  await expect.poll(async () => (await paperBox(page)).w).toBe(full)
+  await settled(page)
+  // 閉じ始めてすぐ（幅を動かし終える前に）拡大する。Esc と Ctrl+ホイールをページの中で続けて出す（間が空くと、遅い時に閉じ終えてから拡大になる）
+  const s = (await page.locator("[data-stage]").first().boundingBox())!
+  await page.evaluate(
+    ({ x, y }) => {
+      const at = document.activeElement ?? document.body
+      at.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }))
+      at.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }))
+      const wheel = { deltaY: -200, ctrlKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true }
+      document.elementFromPoint(x, y)!.dispatchEvent(new WheelEvent("wheel", wheel))
+    },
+    { x: s.x + s.width / 2, y: s.y + s.height / 2 },
+  )
+  await expect(panel(page)).toHaveCount(0)
+  await settled(page)
+  expect((await paperBox(page)).w).toBeGreaterThan(full)
+})
+
 test("リストの中のスクロールの奥の行を開くと、リストもスクロールしてその行を見せる。閉じてもリストのスクロールは戻さない", async ({
   page,
 }) => {
