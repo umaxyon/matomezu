@@ -3,7 +3,6 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import type { ActionDef } from "../../web/src/core/def/action"
-import { nextNumber } from "../../web/src/core/def/action"
 import type { SubjectDef } from "../../web/src/core/def/subject"
 import { type PerformedIn, performIn, permittedIn, type World } from "../../web/src/core/perform"
 import { checkRecords, REMOVED, withCounters, withRecord } from "../../web/src/core/records"
@@ -34,10 +33,14 @@ const action = (id: string, over: Record<string, unknown>): ActionDef =>
 const ADD = action("card-add", {
   reads: [CARD] as never,
   run: ((_now: unknown, args: { label: string }, ctx: never) => {
-    const c = ctx as Parameters<typeof nextNumber>[0]
+    const c = ctx as {
+      newId(): string
+      records?: Record<string, Record<string, unknown>>
+      number(scope: string): number
+    }
     const taken = Object.values(c.records?.[CARD] ?? {}).some(r => (r as { label: string }).label === args.label)
     if (taken) return { declined: "the label is taken" }
-    return { next: { id: c.newId(), label: args.label, no: nextNumber(c, "@ex/rec:card-add", "all") }, result: {} }
+    return { next: { id: c.newId(), label: args.label, no: c.number("all") }, result: {} }
   }) as never,
 })
 const RENAME = action("card-rename", {

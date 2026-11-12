@@ -1,5 +1,5 @@
 // ex9 のカード: 自分で足したアクションの対象の種類（レコード）。カードは番号を振る（区切りは 1 つ）。名前は重ならない（reads で同じ種類を読んで確かめる）
-import { nextNumber, z } from "matomezu"
+import { z } from "matomezu"
 import { kit } from "./kit"
 
 export const CARD = kit.defineSubject({
@@ -22,7 +22,8 @@ export const CARD_ADD = kit.defineAction({
     const taken = Object.values(ctx.records?.[CARD.id] ?? {}).some(c => (c as { name: string }).name === args.name)
     if (taken) return { declined: `a card named ${args.name} already exists` }
     const id = ctx.newId()
-    const no = nextNumber(ctx, CARD_ADD.id, "all")
+    if (!ctx.number) return null // 番号を振る種類のアクションだけが受け取る
+    const no = ctx.number("all")
     return { next: { id, name: args.name, no }, result: { card: id, no } }
   },
 })

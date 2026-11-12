@@ -6,7 +6,6 @@ import type { BookAnnotations } from "../annotation"
 import type { PagedBook } from "../book"
 import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
-import { fail } from "../errors"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
 import type { Mailbox } from "../mail"
@@ -72,14 +71,8 @@ export interface ActionContext {
   books?: Readonly<Library>
   // レコードが対象のアクションが読むだけの、アクションの reads の種類のレコード（種類の id → id → レコード。ほかの対象のアクションには無い）
   records?: Readonly<Records>
-  // 番号を振る種類（対象の定義の numbered）のアクションが、区切り scope の次の番号を受け取る。常駐が決めた値で、使い回さない（ほかのアクションには無い。nextNumber で受ける）
+  // 番号を振る種類（対象の定義の numbered）のアクションが、区切り scope の次の番号を受け取る。常駐が決めた値で、使い回さない（ほかのアクションには無い）
   number?(scope: string): number
-}
-
-// 番号を振る種類のアクションが、区切り scope の次の番号を受け取る
-export function nextNumber(ctx: ActionContext, action: string, scope: string): number {
-  if (!ctx.number) return fail("E118", { id: action })
-  return ctx.number(scope)
 }
 
 // AI 編集チケットの変え方。key で 1 つを見分け（郵便の id など）、ブック book の AI 編集チケットとして、作る（open）・閉じる（closed）・失敗にする（failed。changed は

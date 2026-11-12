@@ -43,7 +43,6 @@ export function restoreRecords(saved: unknown): Records {
   )
 }
 
-// レコード 1 件の変更を当てた、新しいレコード（消したなら、その種類の中から外す。種類のレコードが 1 件も無くなれば、種類も外す）
 // 番号を進めた変更を当てた、新しい番号の表
 export function withCounters(counters: Counters, change: RecordChange): Counters {
   return change.counters === undefined
@@ -51,6 +50,7 @@ export function withCounters(counters: Counters, change: RecordChange): Counters
     : { ...counters, [change.subject]: { ...(counters[change.subject] ?? {}), ...change.counters } }
 }
 
+// レコード 1 件の変更を当てた、新しいレコード（消したなら、その種類の中から外す。種類のレコードが 1 件も無くなれば、種類も外す）
 export function withRecord(records: Records, change: RecordChange): Records {
   const table = { ...(records[change.subject] ?? {}) }
   if (change.record === REMOVED) delete table[change.id]

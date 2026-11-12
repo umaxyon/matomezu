@@ -59,7 +59,6 @@ export const ERRORS = {
   E115: "unknown tool: {id}",
   E116: "stage {id}: the command context was not made by matomezu (a copy of it does not carry the workspace)",
   E117: "the window has no book screen numbered {index}",
-  E118: "nextNumber: the action {id} is not an action of a numbered subject",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",
