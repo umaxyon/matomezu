@@ -34,7 +34,7 @@ export const RIGHT_SIDE_PANEL_STATE = kit.definePluginStateOf<RightSidePanelOpen
 })
 
 // 閉じたときに見え方を戻すための覚え: 開く前の見え方とそのブックとページ、開いて物を見せた見え方（まだ見せていなければ null）、
-// 開いている間に倍率かずらす量を変えたか（ページを替えれば閉じ、restoreTo が戻さない）。ステージの right-side-panel-restore に持ち、
+// 開いている間か閉じて幅を動かしている間に倍率かずらす量を変えたか（ページを替えれば閉じ、restoreTo が戻さない）。ステージの right-side-panel-restore に持ち、
 // 閉じて幅を動かし終えたら、変えていなければ戻して消す
 export interface RightSidePanelRestore {
   before: ViewAt & { book: string; page: string | null }
@@ -104,14 +104,16 @@ export const withRestore = (
 
 const sameView = (a: ViewAt, b: ViewAt): boolean => a.zoom === b.zoom && a.pan.x === b.pan.x && a.pan.y === b.pan.y
 
-// 開いている間のステージ now で、倍率かずらす量を変えたことになるか。物を見せる前と、表示領域の大きさが変わってずらす量が収め直されただけのときは数えない
-// （見せた見え方を今の表示領域で収め直したものと比べる。幅を動かし終えたあとに表示領域の大きさが届くことがあるため）
+// 開いている間か、閉じて幅を動かしている間（closing）のステージ now で、倍率かずらす量を変えたことになるか。物を見せたあとは見せた見え方と比べる。
+// 見せる前は、開いている間は数えず（これから見せて動かすため）、見せる前に閉じたなら開く前の見え方と比べる。
+// 表示領域の大きさが変わってずらす量が収め直されただけのときは数えない（比べる見え方を今の表示領域で収め直したものと比べる。幅を動かし終えたあとに表示領域の大きさが届くことがあるため）
 export function movedFrom(
   restore: RightSidePanelRestore,
   now: Pick<Stage, "zoom" | "pan" | "view" | "opened">,
+  closing: boolean,
 ): boolean {
   if (restore.moved) return true
-  const shown = restore.shown
+  const shown = restore.shown ?? (closing ? restore.before : null)
   if (!shown) return false
   const area = areaOf(now)
   const pan = now.view && area ? clampPan(now.view, contentSize(area, shown.zoom), shown.pan) : shown.pan

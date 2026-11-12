@@ -41,16 +41,27 @@ test("開くと、開く前の見え方を覚え、物はまだ見せていな�
   expect(other.before).toEqual({ ...HOME, book: "b1", page: "p2" })
 })
 
-test("見せたあとに倍率かずらす量が変わったら、変えたことにする。見せる前と、表示領域の大きさが変わって収め直されただけのときは数えない", () => {
+test("見せたあとに倍率かずらす量が変わったら、変えたことにする。開いている間の見せる前と、表示領域の大きさが変わって収め直されただけのときは数えない", () => {
   const panned = panBy(stage, -300, -200)
   const restore = openedRestore(undefined, OPEN, PANNED)
-  expect(movedFrom(restore, panned)).toBe(false)
+  expect(movedFrom(restore, zoomTo(panned, 1.1), false)).toBe(false)
   const shown = { ...restore, shown: { zoom: panned.zoom, pan: panned.pan } }
-  expect(movedFrom(shown, panned)).toBe(false)
-  expect(movedFrom(shown, resize(panned, { w: 900, h: 700 }))).toBe(false)
-  expect(movedFrom(shown, panBy(panned, 0, -5))).toBe(true)
-  expect(movedFrom(shown, zoomTo(panned, 1.1))).toBe(true)
-  expect(movedFrom({ ...shown, moved: true }, panned)).toBe(true)
+  for (const closing of [false, true]) {
+    expect(movedFrom(shown, panned, closing)).toBe(false)
+    expect(movedFrom(shown, resize(panned, { w: 900, h: 700 }), closing)).toBe(false)
+    expect(movedFrom(shown, panBy(panned, 0, -5), closing)).toBe(true)
+    expect(movedFrom(shown, zoomTo(panned, 1.1), closing)).toBe(true)
+    expect(movedFrom({ ...shown, moved: true }, panned, closing)).toBe(true)
+  }
+})
+
+test("見せる前に閉じたら、閉じて幅を動かしている間は開く前の見え方と比べる（表示領域が広がって収め直されただけなら数えない）", () => {
+  const before = { ...stage, ...PANNED }
+  const restore = openedRestore(undefined, OPEN, PANNED)
+  expect(movedFrom(restore, before, true)).toBe(false)
+  expect(movedFrom(restore, resize(before, { w: 900, h: 700 }), true)).toBe(false)
+  expect(movedFrom(restore, zoomTo(before, 1.1), true)).toBe(true)
+  expect(movedFrom(restore, panBy(before, 0, -5), true)).toBe(true)
 })
 
 test("閉じたら、変えていなければ開く前の見え方に戻す。変えたか、ほかのブックかページを開いているか、別のステージで開いていれば戻さない", () => {
