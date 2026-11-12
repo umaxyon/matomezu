@@ -11,7 +11,6 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   Workrooms: { en: "Workrooms / participants", ja: "ワークルーム/参加者" },
   "No workrooms": { en: "No workrooms", ja: "ワークルームはありません" },
   "(empty)": { en: "(empty)", ja: "（空室）" },
-  "(idle)": { en: "(idle)", ja: "（空き）" },
   "(preparing)": { en: "(preparing)", ja: "（準備中）" },
   "Workroom information": {
     en: "Workroom information, features (undecided)",
@@ -25,8 +24,6 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   "Environment:": { en: "Environment:", ja: "os:" },
   None: { en: "None", ja: "なし" },
   Preparing: { en: "Preparing", ja: "準備中" },
-  "Current task": { en: "Current task", ja: "現在のタスク" },
-  History: { en: "History", ja: "履歴" },
   Leave: { en: "Leave", ja: "退室" },
   "Leave the workroom": { en: "Leave the workroom", ja: "退室する" },
   "Leaving the workroom": { en: "will be left.", ja: "から退室します。" },

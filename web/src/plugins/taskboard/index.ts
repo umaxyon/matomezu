@@ -18,6 +18,8 @@ import { HISTORY, HISTORY_TOPIC, TOPIC_BODY, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_S
 import { kit } from "./kit"
 import { CLOSED_PROJECT } from "./permission"
 import { PROJECT } from "./project"
+import { PROJECT_ORDER, SHOWN_PROJECTS } from "./settings"
+import { LANE_SORTS, LIST_OPEN, MAXIMIZED } from "./states"
 import { TICKET } from "./ticket"
 import { TICKET_SCREEN_STATE } from "./ticket-screen-state"
 
@@ -40,7 +42,8 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       CURRENT_TICKET_SET,
     ],
     permissions: [CLOSED_PROJECT],
-    pluginStates: [TICKET_SCREEN_STATE],
+    userSettings: [PROJECT_ORDER, SHOWN_PROJECTS],
+    pluginStates: [LIST_OPEN, LANE_SORTS, MAXIMIZED, TICKET_SCREEN_STATE],
   }),
 )
 
@@ -73,7 +76,14 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:ticket-history-add": typeof TICKET_HISTORY_ADD
     "@matomezu/taskboard:current-ticket-set": typeof CURRENT_TICKET_SET
   }
+  interface UserSettingTable {
+    "@matomezu/taskboard:project-order": typeof PROJECT_ORDER
+    "@matomezu/taskboard:shown-projects": typeof SHOWN_PROJECTS
+  }
   interface PluginStateTable {
+    "@matomezu/taskboard:list-open": typeof LIST_OPEN
+    "@matomezu/taskboard:lane-sorts": typeof LANE_SORTS
+    "@matomezu/taskboard:maximized": typeof MAXIMIZED
     "@matomezu/taskboard:ticket-screen-state": typeof TICKET_SCREEN_STATE
   }
   interface PermissionTable {
