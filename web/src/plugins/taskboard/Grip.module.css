@@ -1,0 +1,9 @@
+.grip {
+  display: flex;
+  flex: none;
+  color: var(--skin-text-muted);
+  cursor: grab;
+}
+.grip:hover {
+  color: var(--skin-text);
+}
