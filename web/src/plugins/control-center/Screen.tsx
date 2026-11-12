@@ -3,11 +3,10 @@
 // 前に出す画面は画面の場所に入る（FRONT_SCREEN。値が無ければプロジェクト）。選んだワークルームと書庫の最大化は窓の中だけ
 import { useState } from "react"
 import { usePluginState, useSetPluginState } from "../../plugin-api/ui"
-import { useWorkroomRows } from "../base/ui"
+import { Panel, useWorkroomRows } from "../base/ui"
 import { FRONT_SCREEN, type FrontScreen, frontScreenOf, LIBRARY_MAXIMIZED, PICKED_ROOM } from "./control-center"
 import { kit } from "./kit"
 import { LibraryScreen } from "./LibraryScreen"
-import { Panel } from "./Panel"
 import { ParticipantListView } from "./ParticipantListView"
 import { pickedRow } from "./rows"
 import styles from "./Screen.module.css"

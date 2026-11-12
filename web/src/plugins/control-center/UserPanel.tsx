@@ -1,13 +1,10 @@
 // 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く
 import type { ReactNode } from "react"
 import { useCommand, useMessages, useWindowStage } from "../../plugin-api/ui"
-import { Tip, useMailboxPanel } from "../base/ui"
-import { Band } from "./Band"
+import { Band, IconButton, Panel, Tip, useMailboxPanel } from "../base/ui"
 import type { FrontScreen } from "./control-center"
-import { IconButton } from "./IconButton"
 import { AvatarIcon, GearIcon, LibraryIcon, MailIcon, ProjectIcon } from "./icons"
 import { kit } from "./kit"
-import { Panel } from "./Panel"
 import styles from "./UserPanel.module.css"
 
 type Tile = { label: string; icon: ReactNode; onClick: () => void; pressed: boolean }

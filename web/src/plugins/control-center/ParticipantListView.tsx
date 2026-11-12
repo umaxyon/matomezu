@@ -1,12 +1,10 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
 // 下の 1 行は、参加済みでは（空き）
 import { useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
-import { useWorkroomRows } from "../base/ui"
-import { Band } from "./Band"
+import { Band, Panel, useWorkroomRows } from "../base/ui"
 import { Bird } from "./Bird"
 import { PICKED_ROOM } from "./control-center"
 import { kit } from "./kit"
-import { Panel } from "./Panel"
 import styles from "./ParticipantListView.module.css"
 import { type RowDetail, rowDetail } from "./rows"
 import text from "./text.module.css"
