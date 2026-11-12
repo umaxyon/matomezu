@@ -1,5 +1,5 @@
 // マークダウンのブック: 見せ方はステージに紙を置かない、どのページもいつも可変ページで下へ増やす（可変ページにする・やめるは選べない）、
-// ペインの並べ方はステージの画面の状態で、ペインの分割のコマンドで変え、画面の場所に入れる（読み直しても戻す）
+// ペインの並べ方はステージごとのプラグイン状態で、ペインの分割のコマンドで変え、画面の場所に入れる（読み直しても戻す）
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
@@ -7,13 +7,13 @@ import { growOf } from "../../web/src/plugins/base"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import {
+  openingFor,
   openingModeOf,
   PANE_LAYOUT_STATE,
   paneLayoutOf,
   shareAt,
   shownPanes,
   swapPanes,
-  withOpening,
 } from "../../web/src/plugins/books/markdown/panes"
 import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
 import { isActive, isShown } from "../../web/src/store/commands"
@@ -95,12 +95,11 @@ test("find が無い・2 か所以上（重なりも数える）・text と一�
   expect(book().pages[0]!.text).toBe("aaa")
 })
 
-const MD = "@matomezu/markdown"
-const PL = "@matomezu/markdown:pane-layout" // 利用者が選んだ並べ方の、場所に入れる画面の状態の宣言の id
+const PL = "@matomezu/markdown:pane-layout" // 利用者が選んだ並べ方の、画面の場所に入れるプラグイン状態の宣言の id
 const placedOf = (
-  store: { state: { getState(): { placedValues: { stages: Record<string, Record<string, unknown> | undefined> } } } },
+  store: { state: { getState(): { pluginValues: { stages: Record<string, Record<string, unknown> | undefined> } } } },
   stage: string,
-) => store.state.getState().placedValues.stages[stage]?.[PL]
+) => store.state.getState().pluginValues.stages[stage]?.[PL]
 
 const EMPTY = { id: "p1", text: "" }
 const WRITTEN = { id: "p1", text: "# 見出し" }
@@ -112,8 +111,8 @@ test("ペインの並べ方: 選んだ並べ方があればそれ、形に合わ
   const chosen = { mode: "split-column", first: "rendered", share: 0.3 } as const
   expect(paneLayoutOf(chosen, undefined, WRITTEN)).toEqual(chosen)
   // 形に合わない値は、宣言の形（schema）で落とされて無いのと同じ（場所から戻すときも、置くときも）
-  expect(PANE_LAYOUT_STATE.schema.safeParse({ mode: "diagonal", first: "source", share: 0.5 }).success).toBe(false)
-  expect(PANE_LAYOUT_STATE.schema.safeParse({ mode: "split-row", first: "source", share: 0.99 }).success).toBe(false)
+  expect(PANE_LAYOUT_STATE.schema!.safeParse({ mode: "diagonal", first: "source", share: 0.5 }).success).toBe(false)
+  expect(PANE_LAYOUT_STATE.schema!.safeParse({ mode: "split-row", first: "source", share: 0.99 }).success).toBe(false)
 })
 
 test("選んだ並べ方が無いとき、本文が空白だけでなければ描いた文書だけで開く。空白だけは空と同じ", () => {
@@ -124,18 +123,18 @@ test("選んだ並べ方が無いとき、本文が空白だけでなければ�
 })
 
 test("開いたときに決めた並べ方は、そのページを開いている間は本文が変わっても変わらず、ページが替われば本文から決め直す", () => {
-  const opened = withOpening(undefined, EMPTY)!
-  expect(opened.opening).toEqual({ page: "p1", mode: "split-row" })
+  const opened = openingFor(undefined, EMPTY)!
+  expect(opened).toEqual({ page: "p1", mode: "split-row" })
   expect(paneLayoutOf(undefined, opened, WRITTEN).mode).toBe("split-row")
-  expect(withOpening(opened, WRITTEN)).toBeUndefined()
+  expect(openingFor(opened, WRITTEN)).toBeUndefined()
   const other = { id: "p2", text: "x" }
   expect(paneLayoutOf(undefined, opened, other).mode).toBe("rendered-only")
-  expect(withOpening(opened, other)?.opening).toEqual({ page: "p2", mode: "rendered-only" })
+  expect(openingFor(opened, other)).toEqual({ page: "p2", mode: "rendered-only" })
 })
 
 test("画面の場所に入るのは選んだ並べ方だけ（宣言した値）。開いたときに決めた並べ方は、このプラグインの画面の状態に残る", () => {
   expect(PANE_LAYOUT_STATE.scope).toBe("stage")
-  expect(PANE_LAYOUT_STATE.browserHistory).toBe("replace")
+  expect(PANE_LAYOUT_STATE.address).toBe("replace")
   expect(PANE_LAYOUT_STATE.id).toBe("@matomezu/markdown:pane-layout")
 })
 
@@ -177,12 +176,12 @@ test("ステージの数と並べ方が同時に変わる場所を当てはめ�
   const { state, actions } = store
   actions.split("s1")
   const right = screenOf(state.getState().window).stages[1]!.id
-  store.setPlaced(PL, right, { mode: "rendered-only", first: "source", share: 0.4 })
+  store.setPluginState(PL, right, { mode: "rendered-only", first: "source", share: 0.4 })
   const two = store.address()
   store.locate({ ...two, stages: [two.stages[1]!], current: 0 })
   expect(screenOf(state.getState().window).stages.map(s => s.id)).toEqual(["s1"])
   expect(placedOf(store, "s1")).toEqual({ mode: "rendered-only", first: "source", share: 0.4 })
-  expect(state.getState().placedValues.stages[right]).toBeUndefined()
+  expect(state.getState().pluginValues.stages[right]).toBeUndefined()
 })
 
 const LAYOUT_COMMANDS = [
@@ -197,14 +196,20 @@ test("並べ方の 4 つのコマンドは、押すとその並べ方にし、�
   const { state, actions } = store
   const active = (stage: string) => LAYOUT_COMMANDS.filter(c => isActive(store, state.getState(), stage, c))
   expect(active("s1")).toEqual(["@matomezu/markdown:pane-split-row"])
-  store.setPlaced(PL, "s1", { mode: "split-row", first: "rendered", share: 0.3 })
+  store.setPluginState(PL, "s1", { mode: "split-row", first: "rendered", share: 0.3 })
   actions.command("s1", "@matomezu/markdown:pane-show-source")
   expect(placedOf(store, "s1")).toEqual({ mode: "source-only", first: "rendered", share: 0.3 })
   expect(active("s1")).toEqual(["@matomezu/markdown:pane-show-source"])
   actions.command("s1", "@matomezu/markdown:pane-show-rendered")
   expect(active("s1")).toEqual(["@matomezu/markdown:pane-show-rendered"])
   actions.command("s1", "@matomezu/markdown:pane-split-column")
-  expect(paneLayoutOf(placedOf(store, "s1") as never, state.getState().stageStates.s1?.[MD], EMPTY)).toEqual({
+  expect(
+    paneLayoutOf(
+      placedOf(store, "s1") as never,
+      state.getState().pluginValues.stages.s1?.["@matomezu/markdown:pane-opening"] as never,
+      EMPTY,
+    ),
+  ).toEqual({
     mode: "split-column",
     first: "rendered",
     share: 0.3,

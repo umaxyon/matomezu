@@ -6,7 +6,7 @@ import { growOf, paperSize } from "../../web/src/plugins/base/place/items"
 import { placedSize } from "../../web/src/plugins/base/place/placed"
 import { bookCrossings, bookSheets, sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { filledSheets, sheetsOfShape } from "../../web/src/plugins/base/print-preview/filled"
-import { withPrintReady } from "../../web/src/plugins/base/print-preview/print-state"
+import { PRINT_READY_STATE } from "../../web/src/plugins/base/print-preview/print-state"
 import { printLaid as printDir } from "../../web/src/plugins/books/dir/print"
 import { printLaid as printTree } from "../../web/src/plugins/books/tree/print"
 import { isEnabled, isShown } from "../../web/src/store/commands"
@@ -278,7 +278,7 @@ test("印刷のコマンドは、編集している間は印刷プレビュー�
   expect(stageOf(store).mode.kind).toBe("print-preview")
   expect(state().printRequests).toBe(0)
   expect(isEnabled(store, state(), "s1", PRINT)).toBe(false)
-  store.setStageState("s1", "@matomezu/base", withPrintReady(state().stageStates.s1?.["@matomezu/base"], true))
+  store.setPluginState(PRINT_READY_STATE.id, "s1", true)
   expect(isEnabled(store, state(), "s1", PRINT)).toBe(true)
   store.actions.command("s1", PRINT)
   expect(state().printRequests).toBe(1)

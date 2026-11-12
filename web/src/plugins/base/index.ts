@@ -13,6 +13,7 @@ import { kit } from "./kit"
 // 拡張ポイントに書き足したメソッド labelOf の型（label/index.ts の declare module）
 import type {} from "./label"
 import { LEFT_SIDE_PANEL_CLOSE, LEFT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEYS } from "./left-side-panel"
+import { type LEFT_SIDE_PANEL_STATE, LEFT_SIDE_PANEL_STATES } from "./left-side-panel/state"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import {
   DARK,
@@ -32,10 +33,14 @@ import { MAIL_JOIN_REQUEST, MAIL_JOIN_REQUEST_SEND } from "./mail/join-request"
 import { MAIL_PROPOSAL, PROPOSAL_APPLY, PROPOSAL_SEND, PROPOSAL_SETTLE } from "./mail/proposal"
 // 拡張ポイントに書き足したフィールド shown の型（mail/shown.ts の declare module）
 import type {} from "./mail/shown"
+import { type MAIL_BIRD_VISIT, MAIL_STATES } from "./mail/states"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
 import { MARK_NEW } from "./mark/commands"
+import { type MARK_PICKER, MARK_STATES } from "./mark/states"
 import { SOFT_BREAK } from "./markdown/soft-break"
+import { type MINIMAP_DRAWN, MINIMAP_STATES } from "./minimap/states"
 import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_TALKED, NOTE_UPDATE } from "./note"
+import { type NOTE_BIRDS, NOTE_STATES } from "./note/birds-state"
 import { NOTE_NEW } from "./note/commands"
 import { NOTE_EXPIRY } from "./note/expiry"
 // 拡張ポイントに書き足したフィールド listed の型（outbox/listed.ts の declare module）
@@ -86,7 +91,14 @@ import {
   PRINT_PREVIEW_SHEET_NUMBERS,
   PRINT_PREVIEW_UPDATE,
 } from "./print-preview"
+import { MEASURES_STATES, type PRINT_MEASURES } from "./print-preview/measures-state"
+import { PRINT_PREVIEW_STATES, type PRINT_READY_STATE } from "./print-preview/print-state"
 import { RIGHT_SIDE_PANEL_CLOSE, RIGHT_SIDE_PANEL_KEY_SCOPE, RIGHT_SIDE_PANEL_KEYS } from "./right-side-panel"
+import {
+  type RIGHT_SIDE_PANEL_RESTORE_STATE,
+  type RIGHT_SIDE_PANEL_STATE,
+  RIGHT_SIDE_PANEL_STATES,
+} from "./right-side-panel/state"
 import {
   type SEARCH_CLOSE,
   SEARCH_COMMANDS,
@@ -100,6 +112,7 @@ import {
   type SEARCH_REPLACE_ALL,
   type SEARCH_REPLACE_ONE,
 } from "./search"
+import { type SEARCH_AT_STATE, type SEARCH_PICK_STATE, type SEARCH_STATE, SEARCH_STATES } from "./search/state"
 import {
   KEYS,
   LANG,
@@ -118,6 +131,7 @@ import {
   BACKGROUND_PRINT_SET,
   BACKGROUND_TOGGLE,
 } from "./stage/background"
+import { type CONTENT_HIDDEN, type PRINT_AREAS_HIDDEN, STAGE_STATES } from "./stage/states"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_PICKER_HOLD } from "./tool-picker/hold"
@@ -127,6 +141,7 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
+import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
 import { CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE } from "./window"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
@@ -400,6 +415,19 @@ export const BASE = defineBuiltin(
       MAIL_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
     ],
+    pluginStates: [
+      ...SEARCH_STATES,
+      ...RIGHT_SIDE_PANEL_STATES,
+      ...LEFT_SIDE_PANEL_STATES,
+      ...REVEAL_REQUEST_STATES,
+      ...PRINT_PREVIEW_STATES,
+      ...MEASURES_STATES,
+      ...STAGE_STATES,
+      ...MINIMAP_STATES,
+      ...MAIL_STATES,
+      ...NOTE_STATES,
+      ...MARK_STATES,
+    ],
     keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE, SEARCH_KEY_SCOPE],
     keys: [
       ...TOOLBOX_KEYS,
@@ -583,6 +611,23 @@ declare module "../../core/catalog" {
     "@matomezu/base:search-replace-one": typeof SEARCH_REPLACE_ONE
     "@matomezu/base:search-replace-all": typeof SEARCH_REPLACE_ALL
     "@matomezu/base:left-side-panel-close": typeof LEFT_SIDE_PANEL_CLOSE
+  }
+  interface PluginStateTable {
+    "@matomezu/base:search": typeof SEARCH_STATE
+    "@matomezu/base:search-at": typeof SEARCH_AT_STATE
+    "@matomezu/base:search-pick": typeof SEARCH_PICK_STATE
+    "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_STATE
+    "@matomezu/base:right-side-panel-restore": typeof RIGHT_SIDE_PANEL_RESTORE_STATE
+    "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_STATE
+    "@matomezu/base:revealing": typeof REVEALING_STATE
+    "@matomezu/base:print-ready": typeof PRINT_READY_STATE
+    "@matomezu/base:print-measures": typeof PRINT_MEASURES
+    "@matomezu/base:content-hidden": typeof CONTENT_HIDDEN
+    "@matomezu/base:print-areas-hidden": typeof PRINT_AREAS_HIDDEN
+    "@matomezu/base:minimap-drawn": typeof MINIMAP_DRAWN
+    "@matomezu/base:mail-bird-visit": typeof MAIL_BIRD_VISIT
+    "@matomezu/base:note-birds": typeof NOTE_BIRDS
+    "@matomezu/base:mark-picker": typeof MARK_PICKER
   }
   interface KeyScopeTable {
     "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_KEY_SCOPE // 右サイドパネルの中にフォーカスがある間のキー

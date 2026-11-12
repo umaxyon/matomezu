@@ -1,4 +1,4 @@
-// コピー・切り取り・貼り付け・複製のコマンド。写し（clip.ts の Clip）は紙のプラグインの窓の外観枠の状態に置く（ブック・ページをまたいで貼れる。読み込み直すと消える）。
+// コピー・切り取り・貼り付け・複製のコマンド。写し（clip.ts の Clip）は紙のプラグインのプラグイン状態（CLIP_STATE）に置く（ブック・ページをまたいで貼れる。読み込み直すと消える）。
 // 貼るときは、アクション item-paste に写しを渡す（選んだ物に応じて入れる先を決め、収まらなければ収まる一番近い所へ寄せる）
 
 import { type CommandContext, findShape, type PagedBook, type Point, pagedOf, walkShapes } from "../../../plugin-api"
@@ -7,16 +7,17 @@ import { kit } from "../kit"
 import { ITEM_PASTE, ITEM_REMOVE } from "./actions"
 import { type Clip, clipOf, nearestPaste } from "./clip"
 import { itemsSelected, onOpenedPage } from "./commands"
+import { CLIP_STATE } from "./states"
 
-// 窓の外観枠の状態に置いた写し（無ければ null）
-const clipIn = (ctx: CommandContext): Clip | null => (ctx.frameState as { clip?: Clip } | undefined)?.clip ?? null
+// プラグイン状態に置いた写し（無ければ null）
+const clipIn = (ctx: CommandContext): Clip | null => ctx.pluginState(CLIP_STATE) ?? null
 
 // 開いているページ
 const pageOf = (ctx: CommandContext) => pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
 
-// 写しを窓の外観枠の状態に置く（ほかの状態は残す）
-const keep = (a: { updateFrameState(change: (now: unknown) => unknown): void }, clip: Clip) =>
-  a.updateFrameState(now => ({ ...(typeof now === "object" && now !== null ? now : {}), clip }))
+// 写しをプラグイン状態に置く
+const keep = (a: { updatePluginState(def: typeof CLIP_STATE, change: () => Clip): void }, clip: Clip) =>
+  a.updatePluginState(CLIP_STATE, () => clip)
 
 // 貼る先: ページの形を 1 つだけ選んでいれば、子を持てる形ならその中、持てない形（と、写した形そのもの）ならその形の隣（同じ親の中の、すぐ右）。それ以外はページ（最初の空き）
 function targetOf(ctx: CommandContext, clip: Clip): { parent: string | null; at?: Point } {

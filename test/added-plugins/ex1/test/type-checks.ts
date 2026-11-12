@@ -50,13 +50,14 @@ kit.defineCommand({
   // @ts-expect-error アンカーの id（文字列）を取れないコマンドは anchorMenu に入れられない
   place: { anchorMenu: true },
 })
+const SHOWN = kit.definePluginStateOf<"on">()({ id: "shown", scope: "stage" })
 kit.defineCommand({
   id: "state-in-when",
   title: "sayHello",
-  run: (_ctx, a) => a.updateStageState(now => now),
-  // @ts-expect-error when・enabled・active の文脈には、画面の状態を変える操作が無い（変えるのは run が受け取る updateStageState だけ）
-  when: ctx => ctx.updateStageState(() => 1) === undefined,
+  run: (_ctx, a) => a.updatePluginState(SHOWN, now => now),
+  // @ts-expect-error when・enabled・active の文脈には、プラグイン状態を変える操作が無い（変えるのは run が受け取る updatePluginState だけ）
+  when: ctx => ctx.updatePluginState(SHOWN, () => "on") === undefined,
   // @ts-expect-error 同じく enabled にも無い
-  enabled: ctx => ctx.setStageState(1) === undefined,
-  active: ctx => ctx.stageState === "on",
+  enabled: ctx => ctx.setPluginState(SHOWN.id, null, 1) === undefined,
+  active: ctx => ctx.pluginState(SHOWN) === "on",
 })

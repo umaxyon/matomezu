@@ -54,10 +54,10 @@ function fakePlace(start = "") {
   }
 }
 
-test("URL の形: ステージごとにブック・ページ・倍率とずらす量・場所に入れる画面の状態、続けてカレントと境目。読み戻すと同じ場所", () => {
+test("URL の形: ステージごとにブック・ページ・倍率とずらす量・画面の場所に入れるプラグイン状態、続けてカレントと境目。読み戻すと同じ場所", () => {
   const address = {
     front: "book-screen" as const,
-    frame: { "@x/tab": "two" },
+    window: { "@x/tab": "two" },
     stages: [
       { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
@@ -77,9 +77,9 @@ test("URL の形: ステージごとにブック・ページ・倍率とずら�
   // 画面の状態が JSON のオブジェクトでなければ空（中身の形は store が確かめる）
   expect(parseSearch("?b0=b1&v0=1,0,0&s0=%7Bx&c=0&r=0.5")?.stages[0]?.states).toEqual({})
   expect(parseSearch("?b0=b1&v0=1,0,0&s0=%5B1%5D&c=0&r=0.5")?.stages[0]?.states).toEqual({})
-  // 窓の外の画面の状態 w も同じ（JSON のオブジェクトでなければ空。無ければ書かない）
-  expect(parseSearch("?b0=b1&v0=1,0,0&w=%5B1%5D&c=0&r=0.5")?.frame).toEqual({})
-  expect(searchOf({ ...address, frame: {} })).not.toContain("w=")
+  // ステージに結ばない画面の状態 w も同じ（JSON のオブジェクトでなければ空。無ければ書かない）
+  expect(parseSearch("?b0=b1&v0=1,0,0&w=%5B1%5D&c=0&r=0.5")?.window).toEqual({})
+  expect(searchOf({ ...address, window: {} })).not.toContain("w=")
 })
 
 test("開いたときは URL の場所を当てはめる（読み直しても同じ所が開く）", () => {
@@ -167,17 +167,17 @@ test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む�
 })
 
 // 積むと宣言した画面の状態の値が変わると、ブラウザの履歴に積む（宣言が答える）。書き換えると宣言した物は、まとめて書き換える
-test("積むと宣言した窓の外の値は変わるたびにブラウザの履歴に積み、書き換えると宣言したステージの値は積まず、戻ると前の値に戻る", async () => {
+test("積むと宣言したステージに結ばない値は変わるたびにブラウザの履歴に積み、書き換えると宣言したステージの値は積まず、戻ると前の値に戻る", async () => {
   const kit = pluginKit("k", defineMessages({}))
-  const TAB = kit.definePlacedState({
+  const TAB = kit.definePluginState({
     id: "tab",
-    scope: "frame",
+    scope: "window",
     schema: z.enum(["one", "two"]),
-    browserHistory: "push",
+    address: "push",
   })
-  const MODE = kit.definePlacedState({ id: "mode", scope: "stage", schema: z.string(), browserHistory: "replace" })
+  const MODE = kit.definePluginState({ id: "mode", scope: "stage", schema: z.string(), address: "replace" })
   const store = createMatomezu({
-    plugins: [...BUILTIN, kit.plugin({ placedStates: [TAB, MODE] })],
+    plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, MODE] })],
     controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
@@ -187,23 +187,23 @@ test("積むと宣言した窓の外の値は変わるたびにブラウザの�
   followLocation(store, f.place)
   expect(store.pushing().has("k:tab")).toBe(true)
   expect(store.pushing().has("k:mode")).toBe(false)
-  store.setPlaced("k:tab", null, "two")
+  store.setPluginState("k:tab", null, "two")
   await settled()
-  expect(f.pushed.map(s => parseSearch(s)?.frame)).toEqual([{ "k:tab": "two" }])
-  store.setPlaced("k:mode", "s1", "wide")
+  expect(f.pushed.map(s => parseSearch(s)?.window)).toEqual([{ "k:tab": "two" }])
+  store.setPluginState("k:mode", "s1", "wide")
   await settled()
   expect(f.pushed).toHaveLength(1)
   f.flush()
   expect(parseSearch(f.replaced.at(-1)!)?.stages[0]?.states).toEqual({ "k:mode": "wide" })
   // 積む値と書き換える値が同じ処理で変われば、積むのは 1 つで、URL には今の値が全部入る
-  store.setPlaced("k:tab", null, "one")
-  store.setPlaced("k:mode", "s1", "narrow")
+  store.setPluginState("k:tab", null, "one")
+  store.setPluginState("k:mode", "s1", "narrow")
   await settled()
   expect(f.pushed).toHaveLength(2)
   const last = parseSearch(f.pushed[1]!)
-  expect(last?.frame).toEqual({ "k:tab": "one" })
+  expect(last?.window).toEqual({ "k:tab": "one" })
   expect(last?.stages[0]?.states).toEqual({ "k:mode": "narrow" })
   // 戻る: 1 つ前の値（積んだ URL の値）が当たる
   f.back(f.pushed[0]!)
-  expect(store.address().frame).toEqual({ "k:tab": "two" })
+  expect(store.address().window).toEqual({ "k:tab": "two" })
 })

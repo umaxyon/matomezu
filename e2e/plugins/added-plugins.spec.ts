@@ -293,7 +293,7 @@ test("ex8 を読ませると、自分の見せ方のビューが開いたペー�
   await expect(sheets.nth(1).locator("[data-ex8-card]")).toHaveText(["ぶどう"])
 })
 
-test("ex10 の窓の外の宣言（placedState、積む）は、変えると URL の w に入ってブラウザの履歴に積まれ、読み直しても戻り、戻ると前の値に戻る", async ({
+test("ex10 のステージに結ばない宣言（address が push）は、変えると URL の w に入ってブラウザの履歴に積まれ、読み直しても戻り、戻ると前の値に戻る", async ({
   page,
 }) => {
   await link(page, "test/added-plugins/ex10")

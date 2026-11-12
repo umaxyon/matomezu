@@ -15,11 +15,9 @@ import {
   useContextMenu,
   useCoreCatalog,
   useMessages,
-  usePlacedState,
-  useSetPlacedState,
-  useSetStageState,
+  usePluginState,
+  useSetPluginState,
   useShownPage,
-  useStageState,
   useUiCatalog,
   useUserSetting,
 } from "../../../../plugin-api/ui"
@@ -39,15 +37,17 @@ import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
 import {
   EVEN_PANE_SHARE,
+  openingFor,
   PANE_LAYOUT_STATE,
+  PANE_OPENING_STATE,
   PANES,
+  type PaneLayout,
   paneInputOf,
   paneLayoutOf,
   shareAt,
   shownPanes,
   splitOf,
   swapPanes,
-  withOpening,
 } from "../panes"
 import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
@@ -63,12 +63,13 @@ export function MarkdownView({ stage }: BookViewProps) {
   const catalog = useCoreCatalog()
   const page = useShownPage(stage)
   const book = useBook(stage)
-  const state = useStageState(stage, kit)
   const shownPage = page ? paneInputOf(page) : null
-  const chosen = usePlacedState(kit, PANE_LAYOUT_STATE, stage)
-  const layout = paneLayoutOf(chosen, state, shownPage)
-  const setStageState = useSetStageState(kit)
-  const setLayout = useSetPlacedState(kit, PANE_LAYOUT_STATE, stage)
+  const chosen = usePluginState(kit, PANE_LAYOUT_STATE, stage)
+  const opening = usePluginState(kit, PANE_OPENING_STATE, stage)
+  const layout = paneLayoutOf(chosen, opening, shownPage)
+  const setChosen = useSetPluginState(kit, PANE_LAYOUT_STATE)
+  const setOpening = useSetPluginState(kit, PANE_OPENING_STATE)
+  const setLayout = (next: PaneLayout) => setChosen(stage, next)
   const swap = usePaneSwap(() => setLayout(swapPanes(layout)))
   const openMenu = useContextMenu(stage, PANE_CONTEXT)
   const panes = useRef<HTMLDivElement>(null)
@@ -76,14 +77,14 @@ export function MarkdownView({ stage }: BookViewProps) {
   const rendered = useRef<HTMLDivElement>(null)
   const text = page && "text" in page && typeof page.text === "string" ? page.text : ""
   const document = useMarkdownDocument(text, page?.id ?? "")
-  // ページを開いたとき（替えたとき）に決めた並べ方を置き場に書く（本文を打っても決め直さない）
+  // ページを開いたとき（替えたとき）に決めた並べ方を書く（本文を打っても決め直さない）
   const openedId = shownPage?.id
   const openedText = shownPage?.text
   // biome-ignore lint/correctness/useExhaustiveDependencies: 本文は開いたとき（ページが替わったとき）だけ読む
   useEffect(() => {
     if (openedId === undefined) return
-    const next = withOpening(state, { id: openedId, text: openedText ?? "" })
-    if (next) setStageState(stage, next)
+    const next = openingFor(opening, { id: openedId, text: openedText ?? "" })
+    if (next) setOpening(stage, next)
   }, [openedId])
   if (!page || !book) return <NoPages stage={stage} />
   const width = paperSize(catalog, page)?.w

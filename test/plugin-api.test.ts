@@ -286,7 +286,6 @@ test("matomezu/ui が出す名前", () => {
     "useEditLock",
     "useElapsed",
     "useFollowsSelection",
-    "useFrameState",
     "useHighlightRanges",
     "useItem",
     "useLatestPan",
@@ -303,19 +302,17 @@ test("matomezu/ui が出す名前", () => {
     "usePaperControls",
     "usePaperDrag",
     "usePerform",
-    "usePlacedState",
-    "useReadFrameState",
-    "useReadStageState",
+    "usePluginState",
+    "useReadPluginState",
     "useRecordEditLock",
     "useResize",
     "useRevealable",
     "useRightSidePanel",
     "useSearchHits",
     "useSearchPick",
-    "useSetFrameState",
-    "useSetPlacedState",
+    "useSetPluginState",
+    "useSetPluginStates",
     "useSetRightSidePanelCurrent",
-    "useSetStageState",
     "useSettingControls",
     "useSettings",
     "useShapeMarks",
@@ -324,7 +321,6 @@ test("matomezu/ui が出す名前", () => {
     "useStage",
     "useStageArea",
     "useStagePan",
-    "useStageState",
     "useStandAway",
     "useSwatches",
     "useT",
@@ -332,6 +328,7 @@ test("matomezu/ui が出す名前", () => {
     "useToPaper",
     "useTokenScope",
     "useUiCatalog",
+    "useUpdatePluginState",
     "useUserSetting",
     "useZoomMotion",
   ])
@@ -386,17 +383,15 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "contextMenu",
     "controlCenter",
     "dialog",
-    "frameState",
     "front",
-    "placed",
+    "pluginState",
     "settings",
     "stage",
-    "stageState",
     "toPaper",
   ])
 })
 
-test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグインの置き場を変える updateStageState・updateFrameState・updatePlaced（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setStageState・setFrameState・setPlaced は渡さない）", () => {
+test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグイン状態を変える updatePluginState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setPluginState・setPluginStates は渡さない）", () => {
   const store = newStore()
   const def = commandDef(store, "@matomezu/base:mark-new")
   const run = def.run
@@ -452,15 +447,11 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "submitDialog",
     "togglePlacing",
     "unsplit",
-    "updateFrameState",
-    "updatePlaced",
-    "updateStageState",
+    "updatePluginState",
     "zoomStage",
   ])
-  // useActions の操作は、そこから updateStageState・updateFrameState・updatePlaced を除いた物
-  expect(names(store.actions)).toEqual(
-    names(got).filter(n => n !== "updateStageState" && n !== "updateFrameState" && n !== "updatePlaced"),
-  )
+  // useActions の操作は、そこから updatePluginState を除いた物
+  expect(names(store.actions)).toEqual(names(got).filter(n => n !== "updatePluginState"))
 })
 
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {

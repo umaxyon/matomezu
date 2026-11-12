@@ -158,7 +158,7 @@ const toasts = (store: ReturnType<typeof ready>) => store.state.getState().toast
 const command = (store: ReturnType<typeof ready>, id: string) =>
   (store.actions.command as (stage: string, id: string) => boolean)("s1", `@matomezu/paper:${id}`)
 const frameClip = (store: ReturnType<typeof ready>) =>
-  (store.state.getState().frameStates["@matomezu/paper"] as { clip?: Clip } | undefined)?.clip
+  store.state.getState().pluginValues.window["@matomezu/paper:clip"] as Clip | undefined
 
 test("コピーは写しを置くだけでブックを変えない。選んでいなければコマンドは出ない。貼ると貼った形を選ぶ", () => {
   const store = ready()

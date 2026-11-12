@@ -10,7 +10,7 @@ import { screenOf } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useCoreCatalog, useSetStageState, useStage, useUiCatalog } from "../../../ui/view-hooks"
+import { useCoreCatalog, useReadPluginState, useSetPluginState, useStage, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { POPUP_KEEPS } from "../utils/popup-keeps"
 import type { StageSlotProps } from "../workspace/ui"
@@ -22,7 +22,7 @@ import {
 } from "./hooks"
 import styles from "./RightSidePanel.module.css"
 import { RIGHT_SIDE_PANEL } from "./slots"
-import { followSelection, panelIn, pressCloses, type RightSidePanelOpen, stillOn, withPanel } from "./state"
+import { followSelection, pressCloses, RIGHT_SIDE_PANEL_STATE, type RightSidePanelOpen, stillOn } from "./state"
 
 const WIDTH = 480 // 中身のウィジェットが幅を書いていないときの幅（px。PC のブラウザの窓をいちばん狭くしても入る幅）
 
@@ -95,7 +95,8 @@ export function RightSidePanel() {
 function useFollowSelection(stage: string | null) {
   const read = useReadState()
   const { select } = useActions()
-  const set = useSetStageState(kit)
+  const readPanel = useReadPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
   const opened = useOpenedRightSidePanel()
   const selection = useStage(stage ?? "")?.selection
   const following = useRef<string | null>(null)
@@ -141,14 +142,13 @@ function useFollowSelection(stage: string | null) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: 選択が変わるたびに合わせる（値はストアから今のものを読む）
   useEffect(() => {
     if (!stage || pressing.current || shown !== synced.current) return
-    const now = read().stageStates[stage]?.[kit.id]
-    const open = panelIn(now)
+    const open = readPanel(stage)
     if (!open) return
     // 開いたときに選択を変えたばかりのこともあるので、選択はストアから今の値を読む
     const current = screenOf(read().window).stages.find(s => s.id === stage)?.selection ?? []
     const next = followSelection(open, current)
-    if (next !== open) set(stage, withPanel(now, next))
-  }, [stage, shown, selection, released, read, set])
+    if (next !== open) set(stage, next)
+  }, [stage, shown, selection, released, read, readPanel, set])
 }
 
 function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: string | number }) {

@@ -23,11 +23,11 @@ export const CONTROL_CENTER = kit.defineControlCenter({
   subjects: "all",
 })
 
-// コントロールセンターの中で前に出す画面（場所に入れる画面の状態。ステージに結ばない値で、変えるたびにブラウザの履歴に積む）。
+// コントロールセンターの中で前に出す画面（画面の場所に入れるプラグイン状態。ステージに結ばない値で、変えるたびにブラウザの履歴に積む）。
 // 値は、プロジェクトの画面（projects）か書庫の画面（library）。値が無ければ、参加者リストの画面を出す
-export const FRONT_SCREEN = kit.definePlacedState({
+export const FRONT_SCREEN = kit.definePluginState({
   id: "front-screen",
-  scope: "frame",
+  scope: "window",
   schema: z.enum(["projects", "library"]),
-  browserHistory: "push",
+  address: "push",
 })

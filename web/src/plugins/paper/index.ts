@@ -26,11 +26,13 @@ import {
   PAPER_RESIZE,
   PAPER_SELECT_ALL,
 } from "./placing"
+import { type CLIP_STATE, PAPER_STATES } from "./placing/states"
 import { PAPER_TOOLS, REPARENT_TOOL } from "./tools"
 
 export const PAPER_PLUGIN = defineBuiltin(
   kit.plugin({
     presentations: [PAPER],
+    pluginStates: PAPER_STATES,
     tools: [REPARENT_TOOL],
     toolSets: [PAPER_TOOLS],
     actions: [ITEM_PLACE, ITEM_PASTE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE, ITEM_REPARENT],
@@ -55,6 +57,9 @@ export const PAPER_PLUGIN = defineBuiltin(
 declare module "../../core/catalog" {
   interface PresentationTable {
     "@matomezu/paper:paper": typeof PAPER
+  }
+  interface PluginStateTable {
+    "@matomezu/paper:clip": typeof CLIP_STATE
   }
   interface ToolTable {
     "@matomezu/paper:reparent": typeof REPARENT_TOOL

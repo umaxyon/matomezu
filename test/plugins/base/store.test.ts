@@ -180,31 +180,3 @@ test("トーストは出した順に積み、id で消す（もう無い id な�
   // @ts-expect-error 断りの知らせはマーキーにできない
   actions.showToast({ kind: "warn", form: "marquee", message: "@matomezu/flowchart:Auto align" })
 })
-
-test("プラグインが持つ窓の外観枠の状態は、プラグインの id ごとに置き、undefined で消える（ステージに結ばない）", () => {
-  const store = newStore()
-  const { state, actions } = store
-  store.setFrameState("@x/a", { n: 1 })
-  store.setFrameState("@x/b", { n: 2 })
-  expect(state.getState().frameStates).toEqual({ "@x/a": { n: 1 }, "@x/b": { n: 2 } })
-  actions.split("s1")
-  actions.closeStage("s2")
-  expect(state.getState().frameStates).toEqual({ "@x/a": { n: 1 }, "@x/b": { n: 2 } })
-  store.setFrameState("@x/a", undefined)
-  expect(state.getState().frameStates).toEqual({ "@x/b": { n: 2 } })
-})
-
-test("プラグインが持つステージの画面の状態は、プラグインの id ごとに置き、undefined で消える。無いステージには置かず、ステージを閉じれば消える", () => {
-  const store = newStore()
-  const { state, actions } = store
-  actions.split("s1")
-  store.setStageState("s1", "@x/a", { n: 1 })
-  store.setStageState("s1", "@x/b", { n: 2 })
-  store.setStageState("s2", "@x/a", { n: 3 })
-  store.setStageState("s9", "@x/a", { n: 4 })
-  expect(state.getState().stageStates).toEqual({ s1: { "@x/a": { n: 1 }, "@x/b": { n: 2 } }, s2: { "@x/a": { n: 3 } } })
-  store.setStageState("s1", "@x/a", undefined)
-  expect(state.getState().stageStates.s1).toEqual({ "@x/b": { n: 2 } })
-  actions.closeStage("s2")
-  expect(state.getState().stageStates).toEqual({ s1: { "@x/b": { n: 2 } } })
-})

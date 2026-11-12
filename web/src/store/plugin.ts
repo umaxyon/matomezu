@@ -5,7 +5,7 @@ import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../
 import { buildCoreCatalog, type CatalogCheckDef, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { NormalizeStepDef } from "../core/def/normalize-step"
-import type { PlacedStateDef } from "../core/def/placed-state"
+import type { PluginStateDef } from "../core/def/plugin-state"
 import type { Scheme } from "../core/def/skin"
 import type { TokenDef } from "../core/def/theme"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
@@ -25,7 +25,7 @@ declare module "../core/catalog" {
     commands: CommandDef<never>
     dialogs: DialogDef<unknown>
     keyScopes: KeyScopeDef
-    placedStates: PlacedStateDef
+    pluginStates: PluginStateDef
   }
 }
 
@@ -127,7 +127,7 @@ export interface StoreCatalog {
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
   keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名は store/keys.ts の BASE_KEY_SCOPE_TITLES）
   keys: ReadonlyMap<string, DefaultKey> // キーの既定のキーバインド（id → キーバインド。キーはそろえた書き方）
-  placedStates: ReadonlyMap<string, PlacedStateDef> // 場所に入れる画面の状態の宣言（id → 定義。store/placed-state.ts）
+  pluginStates: ReadonlyMap<string, PluginStateDef> // プラグイン状態の宣言（id → 定義。store/plugin-state.ts）
   warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
 }
 
@@ -230,7 +230,7 @@ export function assemble(
         dialogs: new Map(dialogs.map(d => [d.id, d])),
         keyScopes: new Map(keyScopes.map(s => [s.id, s])),
         keys: new Map(keys.map(k => [k.id, k])),
-        placedStates: new Map(all("placedStates").map(d => [d.id, d])),
+        pluginStates: new Map(all("pluginStates").map(d => [d.id, d])),
         warnings: [
           ...performsWarnings(plugins, catalog),
           ...keyWarnings(keys),

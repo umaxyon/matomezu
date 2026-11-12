@@ -1,16 +1,16 @@
-// 紙に描いたつなぐもののミニマップの絵（base が持つステージの画面の状態。つなぐものの種類の id ごと）。
+// 紙に描いたつなぐもののミニマップの絵（base が持つステージのプラグイン状態 minimap-drawn。つなぐものの種類の id ごと）。
 // つなぐもののビューは描くたびに、描いた形からミニマップの絵を作って useDrawnMinimap で置く。ミニマップは置いた絵があればそれを描き、
 // 無ければ（まだ描いていない・別のページを描いた絵）定義の minimap で作る
 import { useLayoutEffect } from "react"
-import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
+import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { usePrinting } from "../print-preview/printing"
 import type { MinimapMark } from "./marks"
+import { type DrawnTable, MINIMAP_DRAWN } from "./states"
 
-// 種類の id → 描いたページの id と絵
-export type DrawnTable = Readonly<Record<string, { page: string; marks: readonly MinimapMark[] }>>
+export type { DrawnTable }
+
 const NONE: DrawnTable = {}
-const tableOf = (value: unknown): DrawnTable => (value as { drawn?: DrawnTable } | undefined)?.drawn ?? NONE
 
 const samePoints = (a: MinimapMark, b: MinimapMark): boolean => {
   if (a.kind !== b.kind) return false
@@ -27,30 +27,29 @@ const sameMarks = (a: readonly MinimapMark[], b: readonly MinimapMark[]): boolea
 // 前と同じ絵なら置き直さない。ビューが消えたら絵も消す。置いた絵は購読しない（置くたびにビューが描き直されないように）。
 // 印刷区画の中で描いたビュー（印刷区画ごとに、寄せた位置で描く）は、置きも消しもしない（編集のミニマップの絵を上書きしないように）
 export function useDrawnMinimap(stage: string, item: string, page: string, marks: readonly MinimapMark[] | null) {
-  const setStageState = useSetStageState(kit)
-  const read = useReadStageState(kit)
+  const set = useSetPluginState(kit, MINIMAP_DRAWN)
+  const read = useReadPluginState(kit, MINIMAP_DRAWN)
   const printing = usePrinting() // 印刷区画の中で描いているか
   useLayoutEffect(() => {
     if (!marks || printing) return
-    const state = (read(stage) ?? {}) as Record<string, unknown>
-    const table = tableOf(state)
+    const table = read(stage) ?? NONE
     const now = table[item]
     if (now?.page === page && sameMarks(now.marks, marks)) return
-    setStageState(stage, { ...state, drawn: { ...table, [item]: { page, marks } } })
+    set(stage, { ...table, [item]: { page, marks } })
   })
   useLayoutEffect(
     () => () => {
       if (printing) return
-      const state = (read(stage) ?? {}) as Record<string, unknown>
-      const { [item]: _, ...rest } = tableOf(state)
-      setStageState(stage, { ...state, drawn: rest })
+      const { [item]: gone, ...rest } = read(stage) ?? NONE
+      if (!gone) return
+      set(stage, Object.keys(rest).length === 0 ? undefined : rest)
     },
-    [read, setStageState, stage, item, printing],
+    [read, set, stage, item, printing],
   )
 }
 
 // ステージ stage に置いた絵の表。置き直すまで同じ表を返す
-export const useDrawnTable = (stage: string): DrawnTable => tableOf(useStageState(stage, kit))
+export const useDrawnTable = (stage: string): DrawnTable => usePluginState(kit, MINIMAP_DRAWN, stage) ?? NONE
 
 // 表 table の、つなぐもの item がページ page に描いた絵（無ければ undefined）
 export function drawnOn(table: DrawnTable, item: string, page: string): readonly MinimapMark[] | undefined {

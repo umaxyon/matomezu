@@ -1,10 +1,11 @@
-// 右サイドパネルを開いているかの、base のステージの画面の状態での持ち方: 開いたステージの rightSidePanel に、出している中身と開いた所を持つ。
-// 閉じたときに見え方を戻すための覚えは、rightSidePanelRestore に持つ。
-// 窓に 1 つだけで、ブックのデータにも URL にも入れない
+// 右サイドパネルを開いているかの、base のプラグイン状態での持ち方: 開いたステージの right-side-panel に、出している中身と開いた所を持つ。
+// 閉じたときに見え方を戻すための覚えは、right-side-panel-restore に持つ。
+// 窓に 1 つだけで、ブックのデータにも画面の場所にも入れない
+
 import { areaOf, type Stage } from "../../../core/stage"
 import { clampPan, contentSize } from "../../../core/viewport"
+import { kit } from "../kit"
 import { toggledSelection } from "../utils/selection"
-import { nullableItem } from "../utils/state-item"
 import type { ViewAt } from "../zoom"
 
 export interface RightSidePanelOpen {
@@ -26,16 +27,14 @@ export function followSelection(open: RightSidePanelOpen, selection: readonly st
   return { ...open, anchors: [...selection], current }
 }
 
-const PANEL = nullableItem<RightSidePanelOpen>("rightSidePanel")
-
-// base のステージの画面の状態 state の、右サイドパネル（開いていなければ null）
-export const panelIn = PANEL.read
-
-// base のステージの画面の状態 state の、右サイドパネルを open にしたもの（null なら閉じる）
-export const withPanel = PANEL.write
+// ステージの右サイドパネル（開いていなければ無い）
+export const RIGHT_SIDE_PANEL_STATE = kit.definePluginStateOf<RightSidePanelOpen>()({
+  id: "right-side-panel",
+  scope: "stage",
+})
 
 // 閉じたときに見え方を戻すための覚え: 開く前の見え方とそのブックとページ、開いて物を見せた見え方（まだ見せていなければ null）、
-// 開いている間に倍率かずらす量を変えたか（ページを替えれば閉じ、restoreTo が戻さない）。base のステージの画面の状態の rightSidePanelRestore に持ち、
+// 開いている間に倍率かずらす量を変えたか（ページを替えれば閉じ、restoreTo が戻さない）。ステージの right-side-panel-restore に持ち、
 // 閉じて幅を動かし終えたら、変えていなければ戻して消す
 export interface RightSidePanelRestore {
   before: ViewAt & { book: string; page: string | null }
@@ -72,16 +71,22 @@ export function revealFor(seen: Seen | null, open: Seen): "anchors" | "current" 
   return seen.current === open.current ? "none" : "current"
 }
 
-const RESTORE = nullableItem<RightSidePanelRestore>("rightSidePanelRestore")
+// ステージの、閉じたときに見え方を戻すための覚え（無ければ無い）
+export const RIGHT_SIDE_PANEL_RESTORE_STATE = kit.definePluginStateOf<RightSidePanelRestore>()({
+  id: "right-side-panel-restore",
+  scope: "stage",
+})
 
-export const restoreIn = RESTORE.read
+export const RIGHT_SIDE_PANEL_STATES = [RIGHT_SIDE_PANEL_STATE, RIGHT_SIDE_PANEL_RESTORE_STATE] as const
 
-// 右サイドパネルを open で開いたもの。開く前の見え方は now で、物はまだ見せていない。
+// 右サイドパネルを open で開いたときの、戻すための覚え。開く前の見え方は now で、物はまだ見せていない。
 // 閉じて戻す前に同じブックとページで開き直したときは、最初に開く前の見え方と、それまでに変えたかをそのまま持つ（一度変えたら、開き直しても戻さない）
-export function withOpened(state: unknown, open: RightSidePanelOpen, now: ViewAt): Record<string, unknown> {
-  const kept = restoreIn(state)
-  const same = kept && kept.before.book === open.book && kept.before.page === open.page
-  const restore = same
+export function openedRestore(
+  kept: RightSidePanelRestore | undefined,
+  open: RightSidePanelOpen,
+  now: ViewAt,
+): RightSidePanelRestore {
+  return kept && kept.before.book === open.book && kept.before.page === open.page
     ? { before: kept.before, shown: null, seen: null, moved: kept.moved }
     : {
         before: { zoom: now.zoom, pan: now.pan, book: open.book, page: open.page },
@@ -89,19 +94,13 @@ export function withOpened(state: unknown, open: RightSidePanelOpen, now: ViewAt
         seen: null,
         moved: false,
       }
-  return RESTORE.write(withPanel(state, open), restore)
 }
 
-// 戻すための覚えを、change で変えたもの（覚えが無ければそのまま）
-export function withRestore(state: unknown, change: Partial<RightSidePanelRestore>): Record<string, unknown> {
-  const restore = restoreIn(state)
-  return restore
-    ? RESTORE.write(state, { ...restore, ...change })
-    : ((state as Record<string, unknown> | undefined) ?? {})
-}
-
-// 戻すための覚えを消したもの
-export const withoutRestore = (state: unknown): Record<string, unknown> => RESTORE.write(state, null)
+// 戻すための覚え restore を、change で変えたもの（覚えが無ければ無いまま）
+export const withRestore = (
+  restore: RightSidePanelRestore | undefined,
+  change: Partial<RightSidePanelRestore>,
+): RightSidePanelRestore | undefined => restore && { ...restore, ...change }
 
 const sameView = (a: ViewAt, b: ViewAt): boolean => a.zoom === b.zoom && a.pan.x === b.pan.x && a.pan.y === b.pan.y
 

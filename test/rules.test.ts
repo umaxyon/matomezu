@@ -237,6 +237,18 @@ test("プラグインが機能台帳に足す定義（kit.define…）は、見�
   expect(offenders).toEqual([])
 })
 
+test("プラグイン状態の宣言（kit.definePluginState・definePluginStateOf）は、書いたものがすべて、ビルトインプラグインの pluginStates に載っている", async () => {
+  const { BUILTIN } = await import("../web/src/plugins")
+  const { createMatomezu } = await import("../web/src/store/create")
+  const written = sources
+    .filter(f => crateOf(f.rel) === "plugins")
+    .map(f => f.text.match(/\bkit\.definePluginState(?:Of\b<[^()]*>\(\))?\(/g)?.length ?? 0)
+    .reduce((a, b) => a + b, 0)
+  const instance = createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center" })
+  // 鍵ごとに宣言を作る関数（anchorTargetState）は 1 つの書き方で、呼ぶ所ごとに宣言が 1 つ増える
+  expect(instance.catalog.store.pluginStates.size).toBe(written)
+})
+
 test("プラグインの文言の表（defineMessages）は、messages.ts にだけ書く", () => {
   const offenders = sources
     .filter(f => crateOf(f.rel) === "plugins" && !f.rel.endsWith("/messages.ts"))

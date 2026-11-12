@@ -1,6 +1,6 @@
 // 画面の場所: 見ているもの（窓の状態 window.ts）のうち、読み直しても戻したいもの。前に出している物（コントロールセンターかブックスクリーン）と、前に出せるブックスクリーンの、ステージごとに開いているブックとページ・倍率・ずらす量（印刷プレビューの間は、
 // 閉じたときに戻す編集の倍率とずらす量。印刷プレビューの間かは入れず、読み直すと編集に戻る）、
-// カレントのステージ、分けている境目の割合と、ステージごとの、プラグインが場所に入れると書いた画面の状態（中身は読まずに運ぶ。どれを入れるか・形を確かめるのは store）。
+// カレントのステージ、分けている境目の割合と、ステージごとの、場所に入れるプラグイン状態（中身は読まずに運ぶ。どれを入れるか・形を確かめるのは store）。
 // 選択・置こうとしているアイテム・道具は入れない（その場の操作の途中の状態のため）。
 // ホストがこれを外（ブラウザの URL など）に写し、外から戻すときに当てはめる。操作はデータを書き換えず、新しい値を返す
 
@@ -19,7 +19,7 @@ export interface StagePlace {
   page: string | null // 開いているページの id
   zoom: number
   pan: Point
-  states: Readonly<Record<string, unknown>> // 場所に入れる画面の状態（プラグインの id → 値。store/placed-state.ts）
+  states: Readonly<Record<string, unknown>> // 画面の場所に入れるプラグイン状態（宣言の id → 値。store/plugin-state.ts）
 }
 
 export interface Address {
@@ -27,14 +27,14 @@ export interface Address {
   stages: readonly StagePlace[] // 左から順（前に出せるブックスクリーンの。空なら、ブックスクリーンは今のまま）
   current: number // カレントのステージの、左からの番号
   share: number // 分けている境目の割合（左のステージの幅）
-  frame: Readonly<Record<string, unknown>> // 窓の外（ステージに結ばない）の、場所に入れる画面の状態（宣言の id → 値。store/placed-state.ts）
+  window: Readonly<Record<string, unknown>> // ステージに結ばない（ステージに結ばない）、場所に入れるプラグイン状態（宣言の id → 値。store/plugin-state.ts）
 }
 
-// 見ているものの場所。states は、ステージの id ごとの場所に入れる画面の状態
+// 見ているものの場所。states は、ステージの id ごとの画面の場所に入れるプラグイン状態
 export function addressOf(
   win: WindowState,
   states: (stage: string) => Readonly<Record<string, unknown>> = () => ({}),
-  frame: Readonly<Record<string, unknown>> = {},
+  windowValues: Readonly<Record<string, unknown>> = {},
 ): Address {
   const ws = screenOf(win)
   return {
@@ -54,7 +54,7 @@ export function addressOf(
       ws.stages.findIndex(s => s.id === ws.current),
     ),
     share: ws.arrangement.share,
-    frame,
+    window: windowValues,
   }
 }
 
@@ -67,7 +67,7 @@ export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new 
     a.stages.some((s, i) => s.book !== b.stages[i]?.book || s.page !== b.stages[i]?.page) ||
     [...pushes].some(
       id =>
-        !sameData(a.frame[id], b.frame[id]) ||
+        !sameData(a.window[id], b.window[id]) ||
         a.stages.some((s, i) => !sameData(s.states[id], b.stages[i]?.states[id])),
     )
   )

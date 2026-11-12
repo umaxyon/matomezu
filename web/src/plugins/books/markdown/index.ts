@@ -5,7 +5,7 @@ import { PANE_LAYOUT_COMMANDS, SOURCE_KEYS } from "./commands"
 import { GITHUB_LIKE } from "./github-like"
 import { kit } from "./kit"
 import { MARKDOWN, MARKDOWN_PRESENTATION, SOURCE_KEY_SCOPE } from "./markdown"
-import { PANE_LAYOUT_STATE } from "./panes"
+import { MARKDOWN_STATES, type PANE_LAYOUT_STATE, type PANE_OPENING_STATE } from "./panes"
 import { type CURRENT_LINE, type LINE_NUMBERS, type SHOW_WHITESPACE, SOURCE_LOOK_SETTINGS } from "./source-look"
 import { TAB_KEY } from "./tab-key"
 
@@ -18,7 +18,7 @@ export const MARKDOWN_PLUGIN = defineBuiltin(
     keyScopes: [SOURCE_KEY_SCOPE],
     userSettings: [TAB_KEY, ...SOURCE_LOOK_SETTINGS],
     themes: [GITHUB_LIKE],
-    placedStates: [PANE_LAYOUT_STATE],
+    pluginStates: MARKDOWN_STATES,
   }),
 )
 
@@ -44,8 +44,9 @@ declare module "../../../core/catalog" {
   interface ThemeTable {
     "@matomezu/markdown:github-like": typeof GITHUB_LIKE
   }
-  interface PlacedStateTable {
+  interface PluginStateTable {
     "@matomezu/markdown:pane-layout": typeof PANE_LAYOUT_STATE
+    "@matomezu/markdown:pane-opening": typeof PANE_OPENING_STATE
   }
   interface KeyScopeTable {
     "@matomezu/markdown:source": typeof SOURCE_KEY_SCOPE // ソースのペインのテキストFormの中のキー

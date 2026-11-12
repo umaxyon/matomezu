@@ -1,25 +1,16 @@
-// 右サイドパネルの持ち方: base のステージの画面の状態の rightSidePanel に持ち、ほかの物は残す。開いたときのブックかページから替われば閉じる
+// 右サイドパネルの持ち方（base のプラグイン状態 right-side-panel）。開いたときのブックかページから替われば閉じる
 import { expect, test } from "bun:test"
 import {
   columnGrow,
   followSelection,
-  panelIn,
   pointedSelection,
   pressCloses,
   revealFor,
   stillOn,
   withoutAnchor,
-  withPanel,
 } from "../../../web/src/plugins/base/right-side-panel/state"
 
 const OPEN = { widget: "p:panel", subject: "c1", anchors: ["a1"], current: "a1", book: "b1", page: "p1" }
-
-test("開くと置き、閉じると消す。ほかの画面の状態は残す", () => {
-  const opened = withPanel({ noteDraft: { anchors: ["x"] } }, OPEN)
-  expect(panelIn(opened)).toEqual(OPEN)
-  expect(withPanel(opened, null)).toEqual({ noteDraft: { anchors: ["x"] } })
-  expect(panelIn(undefined)).toBeNull()
-})
 
 test("開いたときのブックとページを開いている間だけ、開いたままにする", () => {
   expect(stillOn(OPEN, { opened: { book: "b1", page: "p1" } as never })).toBe(true)

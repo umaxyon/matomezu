@@ -5,11 +5,10 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
-import { searchIn, searchPickIn, withSearch } from "../../web/src/plugins/base/search/state"
+import { SEARCH_PICK_STATE, SEARCH_STATE } from "../../web/src/plugins/base/search/state"
 import { isEnabled, isShown } from "../../web/src/store/commands"
+import { pluginValueOf } from "../../web/src/store/plugin-state"
 import { newStore } from "../support"
-
-const BASE = "@matomezu/base"
 
 function markdownStore(texts: readonly string[]) {
   const store = newStore()
@@ -18,17 +17,13 @@ function markdownStore(texts: readonly string[]) {
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
   const book = () => store.state.getState().books[id] as BookOf<"@matomezu/markdown:markdown">
   const pages = () => book().pages.map(p => p.id)
-  const search = () => searchIn(store.state.getState().stageStates.s1?.[BASE])
+  const search = () => pluginValueOf(store.state.getState().pluginValues, "s1", SEARCH_STATE)
   const setQuery = (text: string, more: object = {}) =>
-    store.setStageState(
-      "s1",
-      BASE,
-      withSearch(store.state.getState().stageStates.s1?.[BASE], {
-        ...search()!,
-        query: { ...search()!.query, text },
-        ...more,
-      }),
-    )
+    store.setPluginState("@matomezu/base:search", "s1", {
+      ...search()!,
+      query: { ...search()!.query, text },
+      ...more,
+    })
   return { store, book, pages, search, setQuery }
 }
 
@@ -58,8 +53,12 @@ test("開いたページの中で次・前へ回り、端で止めることも�
   actions.command("s1", "@matomezu/base:search-next")
   expect(search()!.current).toMatchObject({ start: 8 })
   actions.command("s1", "@matomezu/base:search-close")
-  expect(search()).toBeNull()
-  expect(searchPickIn(state.getState().stageStates.s1?.[BASE])).toMatchObject({ start: 8, end: 11, n: 1 })
+  expect(search()).toBeUndefined()
+  expect(pluginValueOf(state.getState().pluginValues, "s1", SEARCH_PICK_STATE)).toMatchObject({
+    start: 8,
+    end: 11,
+    n: 1,
+  })
 })
 
 test("ブック全体では、当たりのある次のページを開いて移り、最後のページの次は最初のページに戻る", () => {

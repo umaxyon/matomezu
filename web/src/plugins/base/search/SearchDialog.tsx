@@ -1,15 +1,23 @@
 // 検索ダイアログ（ウィジェット search-dialog。根のスロットに置く）: 検索を開いているステージ（カレントのステージを先に）の検索を、画面の上に浮かぶダイアログで見せる。
 // ほかの操作を止めない（ページをスクロールしたり書いたりできる。外を押しても閉じない）。見出しを掴んで動かせ、動かした所は閉じても覚える。
-// 探す字・置き換える字・切り替え（大文字小文字・正規表現・範囲・端で回る）は base のステージの画面の状態（state.ts）に書き、
+// 探す字・置き換える字・切り替え（大文字小文字・正規表現・範囲・端で回る）は base のプラグイン状態（state.ts）に書き、
 // 変えたら今の当たりを選び直す（計算は search.ts）。次・前・置換・閉じるはコマンド（index.ts）。入力Formは検索のキーの範囲を名乗る
 
 import { type PointerEvent, useEffect, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { screenOf } from "../../../core/window"
+import { pluginValueOf } from "../../../store/plugin-state"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useBook, useCoreCatalog, useSetStageState, useStage } from "../../../ui/view-hooks"
+import { useMatomezuState } from "../../../ui/store-context"
+import {
+  useBook,
+  useCoreCatalog,
+  usePluginState,
+  useReadPluginState,
+  useSetPluginState,
+  useStage,
+} from "../../../ui/view-hooks"
 import { controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { DRAG_START } from "../utils/drag"
@@ -23,14 +31,14 @@ import {
 } from "./index"
 import styles from "./SearchDialog.module.css"
 import { changedSearch, searchableOf, searchCount } from "./search"
-import { type SearchOpen, searchAtIn, searchIn, withSearch, withSearchAt } from "./state"
+import { SEARCH_AT_STATE, SEARCH_STATE, type SearchOpen } from "./state"
 
 // 開いたことの無いときの、窓の右上からの位置
 const FIRST_AT = { right: 24, top: 64 }
 
 export function SearchDialogHost() {
   const stage = useMatomezuState(s => {
-    const open = (id: string) => searchIn(s.stageStates[id]?.[kit.id]) !== null
+    const open = (id: string) => pluginValueOf(s.pluginValues, id, SEARCH_STATE) !== undefined
     const ws = screenOf(s.window)
     if (open(ws.current)) return ws.current
     return ws.stages.find(st => open(st.id))?.id ?? null
@@ -43,11 +51,11 @@ function SearchDialog({ stage }: { stage: string }) {
   const catalog = useCoreCatalog()
   const book = useBook(stage)
   const opened = useStage(stage)?.opened?.page ?? null
-  const state = useMatomezuState(s => s.stageStates[stage]?.[kit.id])
-  const read = useReadState()
-  const set = useSetStageState(kit)
-  const search = searchIn(state)
-  const at = searchAtIn(state)
+  const search = usePluginState(kit, SEARCH_STATE, stage)
+  const at = usePluginState(kit, SEARCH_AT_STATE, stage)
+  const readSearch = useReadPluginState(kit, SEARCH_STATE)
+  const setSearch = useSetPluginState(kit, SEARCH_STATE)
+  const setAt = useSetPluginState(kit, SEARCH_AT_STATE)
   const next = useCommand(stage, SEARCH_NEXT.id)
   const previous = useCommand(stage, SEARCH_PREVIOUS.id)
   const close = useCommand(stage, SEARCH_CLOSE.id)
@@ -83,9 +91,8 @@ function SearchDialog({ stage }: { stage: string }) {
 
   // 検索を change で変える（探す字か切り替えが変われば、今の当たりを選び直す。search.ts の changedSearch）
   const update = (change: Partial<SearchOpen>) => {
-    const now = read().stageStates[stage]?.[kit.id]
-    const was = searchIn(now)
-    if (was) set(stage, withSearch(now, changedSearch(s, book, was, change, opened)))
+    const was = readSearch(stage)
+    if (was) setSearch(stage, changedSearch(s, book, was, change, opened))
   }
   const query = (change: Partial<SearchOpen["query"]>) => update({ query: { ...search.query, ...change } })
 
@@ -101,7 +108,7 @@ function SearchDialog({ stage }: { stage: string }) {
         title={t("Search")}
         closeLabel={t("Close search")}
         onClose={() => close.run()}
-        onMove={p => set(stage, withSearchAt(read().stageStates[stage]?.[kit.id], p))}
+        onMove={p => setAt(stage, p)}
       />
       <div className={styles.row}>
         <label className={styles.label} htmlFor={`${stage}-search-find`}>

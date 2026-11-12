@@ -7,14 +7,14 @@ import { kit } from "./kit"
 export { CONTROL_CENTER, FRONT_SCREEN } from "./control-center"
 
 export const CONTROL_CENTER_PLUGIN = defineBuiltin(
-  kit.plugin({ controlCenters: [CONTROL_CENTER], placedStates: [FRONT_SCREEN] }),
+  kit.plugin({ controlCenters: [CONTROL_CENTER], pluginStates: [FRONT_SCREEN] }),
 )
 
 declare module "../../core/catalog" {
   interface ControlCenterTable {
     "@matomezu/control-center:control-center": typeof CONTROL_CENTER
   }
-  interface PlacedStateTable {
+  interface PluginStateTable {
     "@matomezu/control-center:front-screen": typeof FRONT_SCREEN
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
