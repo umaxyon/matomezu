@@ -118,6 +118,7 @@ type Engine struct {
 	alive     func(string, string, float64) bool
 	needs     func(string) string
 	roles     func() string
+	once      func() string
 	records   func(string) string
 	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
@@ -194,6 +195,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuCheckRecords"), &e.records); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuCheckRecords: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuRunOnceActions"), &e.once); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuRunOnceActions: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSubjectRoles"), &e.roles); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSubjectRoles: %w", err)
@@ -487,6 +491,19 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now
 		}
 	}()
 	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
+}
+
+// RunOnceActions は、常駐が初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）の id の並び
+func (e *Engine) RunOnceActions() (ids []string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.once()), &ids)
+	return ids, err
 }
 
 // SubjectRoles は、常駐が読む種類の役（participants・workrooms）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）

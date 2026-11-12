@@ -117,6 +117,8 @@ var migrations = []string{
 				CASE WHEN json_extract(j.value, '$.workroom') IS NULL THEN '$.wantedName' ELSE '$.none' END) END, 1, p.updated_at
 	FROM participants p, json_each(p.body) j;
 	DROP TABLE participants;`,
+	// 初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）の、行ったという記録
+	`CREATE TABLE ran_once (action TEXT PRIMARY KEY);`,
 }
 
 type sqliteStorage struct {
@@ -510,3 +512,25 @@ func (s *sqliteStorage) PutParticipantNotes(user string, body json.RawMessage) e
 }
 
 func (s *sqliteStorage) Close() error { return s.db.Close() }
+
+func (s *sqliteStorage) RanOnce() (map[string]bool, error) {
+	rows, err := s.db.Query(`SELECT action FROM ran_once`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
+}
+
+func (s *sqliteStorage) MarkRanOnce(id string) error {
+	_, err := s.db.Exec(`INSERT OR IGNORE INTO ran_once (action) VALUES (?)`, id)
+	return err
+}

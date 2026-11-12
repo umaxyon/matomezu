@@ -92,10 +92,9 @@ test("参加要求の郵便で受け入れるを押すと、名前・鳥・配�
   await expect(dialog).toHaveCount(0)
 
   // 受け入れた参加者の表に、決めた名前・鳥・配色が入る
-  const table = await participants(page)
-  expect(table).toMatchObject([
-    { id: made.participant, state: "joined", workroom: "ひよこ", bird: "buncho", palette: "pink" },
-  ])
+  await expect
+    .poll(() => participants(page))
+    .toMatchObject([{ id: made.participant, state: "joined", workroom: "ひよこ", bird: "buncho", palette: "pink" }])
   // センターの参加者リストに出る（フックが参加を伝えるまでは準備中）
   await (await fromMenu(page, "コントロールセンター")).click()
   const row = page.locator(`[data-participant="${made.participant}"]`)

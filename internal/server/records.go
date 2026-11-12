@@ -204,3 +204,31 @@ func (h *Hub) recordsOfRole(role string) []json.RawMessage {
 	}
 	return out
 }
+
+// runOnceActions は、初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）のうち、まだ行っていない物を利用者として行い、行えたら記録する
+// （利用者があとで消しても作り直さない。行えなければ記録せず、次の起動でまた行う。失敗は起動を止めず、ログに書く）
+func (h *Hub) runOnceActions() {
+	ids, err := h.engine.RunOnceActions()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not list the actions to run once:", err)
+		return
+	}
+	done, err := h.store.RanOnce()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not read which actions ran once:", err)
+		return
+	}
+	for _, id := range ids {
+		if done[id] {
+			continue
+		}
+		out, err := h.Perform(Perform{Action: id, Args: json.RawMessage("{}")})
+		if err != nil || !out.OK {
+			fmt.Fprintln(os.Stderr, "the action", id, "could not run at the first start:", err, out.Reason, out.Detail)
+			continue
+		}
+		if err := h.store.MarkRanOnce(id); err != nil {
+			fmt.Fprintln(os.Stderr, "could not record that", id, "ran:", err)
+		}
+	}
+}

@@ -21,5 +21,8 @@ export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends stri
   // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す種類は、アクションの reads に書く）
   refers?(record: z.output<R>): readonly { subject: string; id: string }[]
   role?: SubjectRole // 常駐が読む種類の役（参加者・ワークルーム）
+  // AI に見せる種類（read_records）の目次の 1 行（id とともに並ぶ題）。書いた種類だけが AI に見える（書かなければ AI には見せない）。aiListed は目次に載せるか（無ければ載せる）
+  aiBrief?(record: z.output<R>): string
+  aiListed?(record: z.output<R>): boolean
   numbered?: true // レコードに番号を振る種類。アクションは ctx.number(区切り) で次の番号を受け取る（常駐が決める。区切りごとに連番で、使い回さない）
 }

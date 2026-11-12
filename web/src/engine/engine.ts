@@ -214,13 +214,14 @@ const growsOf = (rule: GrowRule | undefined): readonly string[] | "by-type" | "a
 // 目次は、AI が最初に受け取る物: 大きい表（アクション・アイテム・設定）は id と題名だけにし、全文は id を渡して取る。小さい表は全文のまま入れる
 function aiCatalog(of: Assembled = assembled) {
   const tables = aiTables(of)
-  const { actions, items, settings, ...whole } = tables
+  const { actions, items, settings, subjects, ...whole } = tables
   return {
     ...tables,
     index: {
       actions: actions.map(a => ({ id: a.id, target: a.target, title: a.title })),
       items: items.map(i => ({ id: i.id, kind: i.kind, title: i.title })),
       settings: settings.map(s => ({ id: s.id, title: s.title })),
+      subjects: subjects.map(s => ({ id: s.id, title: s.title })),
       ...whole,
     },
   }
@@ -272,12 +273,14 @@ function aiTables(of: Assembled) {
       props: z.toJSONSchema(a.props, { io: "input", unrepresentable: "any" }),
     })),
     // 対象の定義（レコードの種類。アクションの target はこの id のとき、perform の on は { record: レコードの id }（作るときは on を書かない））
-    subjects: [...catalog.subjects.values()].map(s => ({
-      id: s.id,
-      title: en(s.title),
-      description: s.aiDescription,
-      record: z.toJSONSchema(s.record, { io: "input", unrepresentable: "any" }),
-    })),
+    subjects: [...catalog.subjects.values()]
+      .filter(s => s.aiBrief !== undefined)
+      .map(s => ({
+        id: s.id,
+        title: en(s.title),
+        description: s.aiDescription,
+        record: z.toJSONSchema(s.record, { io: "input", unrepresentable: "any" }),
+      })),
     // 郵便の種類（read_mail の郵便の mail は、この id）
     mails: [...catalog.mails.values()].map(m => ({
       id: m.id,
@@ -338,6 +341,10 @@ function aiTables(of: Assembled) {
 // 残した郵便箱を今の機能台帳で確かめ、効かない郵便（種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
 ;(globalThis as { matomezuCheckMailbox?: (list: string) => string }).matomezuCheckMailbox = list =>
   JSON.stringify(checkMailbox(assembled.catalog.core, restoreMailbox(JSON.parse(list))).map(warningText))
+
+// 常駐が初めて起動したときに 1 度だけ行うアクション（ActionDef の runsOnceAtStart）の id の並び
+;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
+  JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
 
 // 常駐が読む種類の役（参加者・ワークルーム）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
 ;(globalThis as { matomezuSubjectRoles?: () => string }).matomezuSubjectRoles = () =>

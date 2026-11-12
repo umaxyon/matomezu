@@ -412,7 +412,7 @@ func TestParticipantTableBecomesRecords(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := migrations[: len(migrations)-1 : len(migrations)-1]
+	before := migrations[:13:13] // 次の足し方の前まで
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[
