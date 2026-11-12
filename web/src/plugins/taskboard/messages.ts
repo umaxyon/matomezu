@@ -44,6 +44,7 @@ export const TASKBOARD_MESSAGES = defineMessages({
   History: { en: "History", ja: "履歴" },
   "(idle)": { en: "(idle)", ja: "（空き）" },
   "Project:": { en: "Project:", ja: "プロジェクト:" },
+  "Show on the board": { en: "Show on the board", ja: "ボードで見る" },
   Latest: { en: "Latest", ja: "最新" },
   None: { en: "None", ja: "なし" },
   "shown projects": { en: "Shown projects", ja: "出しているプロジェクト" },

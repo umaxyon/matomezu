@@ -1,11 +1,12 @@
 // チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前（1 行で … で切る）・タグのバッヂ・優先度の印・右上に担当の鳥。
 // 押すとチケットスクリーンを開く。チケットカードには data-card（チケットの id）を付ける
-import { useMessages } from "../../plugin-api/ui"
+import { useMessages, usePluginState } from "../../plugin-api/ui"
 import { useOpenScreen } from "../base/ui"
 import { AssigneeStack } from "./AssigneeStack"
 import { PRIORITIES, type TagRecord, type TicketRecord, type WorkroomRecord } from "./board"
 import { kit } from "./kit"
 import styles from "./LaneView.module.css"
+import { CARD_VISIT } from "./states"
 import { TagBadge } from "./TagBadge"
 import { ticketLabel } from "./ticket-label"
 import { TICKET_SCREEN } from "./ticket-screen"
@@ -28,12 +29,15 @@ export function TicketCardView({
   assignees: readonly WorkroomRecord[]
 }) {
   const { open } = useOpenScreen()
+  const visit = usePluginState(kit, CARD_VISIT)
+  const lit = visit?.phase === "visiting" && visit.ticket === ticket.id
   const show = () => open(TICKET_SCREEN, { ticket: ticket.id })
   return (
     // biome-ignore lint/a11y/useSemanticElements: 中に担当の鳥など押せる物を持つので、button にはできない
     <div
       className={styles.card}
       data-card={ticket.id}
+      data-lit={lit}
       role="button"
       tabIndex={0}
       onClick={show}

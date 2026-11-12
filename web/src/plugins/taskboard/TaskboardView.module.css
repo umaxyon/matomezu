@@ -1,5 +1,6 @@
 /* タスクボードの画面の根: 動きの長さ・間・タスクボードの高さの下限は、ここで持つ（枠のコントロールセンターの変数を当てにしない） */
 .root {
+  position: relative;
   --gap: 6px;
   --motion: 0.3s;
   --board-min-height: 300px;

@@ -1,8 +1,8 @@
-// 鳥のチケットカードへの立ち寄りの、見た目でない決め事: 見に行く手順の入り口の判定・スクロールの量・カードの置き場の変わりの判定。
-// 「配置が変わった」は窓の状態を読まず、カードの要素の位置・つながり・inert・手前に別の物があるかだけで決める（測るのは CardVisitView の 1 か所）
+// 鳥のチケットカードへの立ち寄りの、見た目でない決め事: 見に行く手順の入り口の判定・スクロールの量・チケットカードの置き場の変わりの判定。
+// 「配置が変わった」は窓の状態を読まず、チケットカードの要素の位置・つながり・inert・手前に別の物があるかだけで決める（測るのは CardVisitView の 1 か所）
 export type VisitPhase = "seeking" | "visiting"
 
-// 立ち寄りの状態（窓の中だけ）: seq は続けて同じカードに来るための番号、seeking は見に行く途中、visiting は鳥が来ている間
+// 立ち寄りの状態（窓の中だけ）: seq は続けて同じチケットカードに来るための番号、seeking は見に行く途中、visiting は鳥が来ている間
 export interface CardVisit {
   seq: number
   ticket: string
@@ -25,7 +25,7 @@ export interface Rect {
   height: number
 }
 
-// カードの置き場の測り: 位置と、その要素がまだ画面にあって見えているか
+// チケットカードの置き場の測り: 位置と、その要素がまだ画面にあって見えているか
 export interface Placement {
   rect: Rect
   connected: boolean // 要素が文書につながっているか
@@ -41,7 +41,7 @@ export const samePlace = (a: Rect, b: Rect): boolean =>
   Math.abs(a.width - b.width) < SAME_PX &&
   Math.abs(a.height - b.height) < SAME_PX
 
-// 立ち寄っている間にカードの置き場が変わったか（初めに測った rect からずれた・カードが無くなった・見えなくなった・手前を覆われた）
+// 立ち寄っている間にチケットカードの置き場が変わったか（初めに測った rect からずれた・チケットカードが無くなった・見えなくなった・手前を覆われた）
 export const placementBroken = (start: Rect, now: Placement): boolean =>
   !now.connected || now.inert || now.covered || !samePlace(start, now.rect)
 

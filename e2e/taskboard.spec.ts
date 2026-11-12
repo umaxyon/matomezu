@@ -73,3 +73,35 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   await page.keyboard.press("Escape")
   await expect(target.getByRole("button", { name: "並べ方" })).toHaveAttribute("aria-expanded", "false")
 })
+
+test("ワークルームのボードで見るを押すと、出ていないタスクボードが出て、鳥がカードに立ち寄り、色が付いて、飛び去ると消える", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
+    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await records(page, "@matomezu/taskboard:project"))[0]!
+  const lane = first.lanes!.find(l => l.kind === "lane")!.id
+  const added = await perform(page, {
+    action: "@matomezu/taskboard:ticket-add",
+    args: { project: first.id, name: "立ち寄り先", lane },
+  })
+  const ticket = added.result!.ticket!
+  expect((await perform(page, { action: "@matomezu/taskboard:current-ticket-set", args: { ticket } })).ok).toBe(true)
+
+  // タスクボードを隠してから、ワークルームを選ぶ
+  await page.locator("button[aria-expanded]", { hasText: "プロジェクト" }).click()
+  await page.getByRole("checkbox", { name: first.name }).uncheck()
+  await expect(page.locator(`[data-board="${first.id}"]`)).toHaveCount(0)
+  await page.locator("[data-workroom]").first().getByRole("button").first().click()
+  await page.getByRole("button", { name: "ボードで見る" }).click()
+
+  // タスクボードが出て、鳥が来て、カードに色が付く
+  const card = page.locator(`[data-card="${ticket}"]`)
+  await expect(card).toBeVisible()
+  await expect(page.locator("[data-card-visit]")).toBeVisible({ timeout: 10_000 })
+  await expect(card).toHaveAttribute("data-lit", "true")
+  // 鳥が飛び去ると、鳥も色も消える
+  await expect(page.locator("[data-card-visit]")).toHaveCount(0, { timeout: 10_000 })
+  await expect(card).toHaveAttribute("data-lit", "false")
+})

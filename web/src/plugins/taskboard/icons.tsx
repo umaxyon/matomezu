@@ -89,3 +89,12 @@ export const UserIcon = () => (
     <path d="M4.5 20c1.2-4 4-5.5 7.5-5.5s6.3 1.5 7.5 5.5" />
   </Svg>
 )
+
+// 照準（ボードで見る）
+export const TargetIcon = () => (
+  <Svg size={16} stroke={1.8}>
+    <circle cx="12" cy="12" r="7" />
+    <circle cx="12" cy="12" r="1.5" />
+    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+  </Svg>
+)

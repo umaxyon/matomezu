@@ -68,7 +68,8 @@
   font-size: 13px;
   text-align: left;
 }
-.card:hover {
+.card:hover,
+.card[data-lit="true"] {
   border-color: var(--skin-accent);
   background: var(--skin-accent-subtle);
 }

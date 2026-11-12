@@ -46,3 +46,24 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.visit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+  padding: 2px 6px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.visit:hover:not(:disabled) {
+  background: var(--skin-btn-hover);
+}
+.visit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

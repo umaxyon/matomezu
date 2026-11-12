@@ -1,17 +1,18 @@
 // ワークルームの鳥をチケットカードに立ち寄らせる（タスクボードの根の中に置く）: 状態 CARD_VISIT が seeking になったら、
-// プロジェクトのタスクボードを出し（出ていなければ。利用者の設定に残る）、カードが止まるまで待ち、スクロールして見せ、また止まるまで待ってから、鳥を出す（visiting）。
-// 鳥はカードの裏から顔を出し、上の辺に乗ってすぐ飛び去る。来ている間はカードに色が当たる（TicketCardView）。
-// 置き場が変わったら（measure の 1 か所）鳥をすぐ消して終える。カードが見つからない・止まらないときも黙って終える
+// プロジェクトのタスクボードを出し（出ていなければ。利用者の設定に残る）、チケットカードが止まるまで待ち、スクロールして見せ、また止まるまで待ってから、鳥を出す（visiting）。
+// 鳥はチケットカードの裏から顔を出し、上の辺に乗ってすぐ飛び去る。来ている間はチケットカードに色が当たる（TicketCardView）。
+// 置き場が変わったら（measure の 1 か所）鳥をすぐ消して終える。チケットカードが見つからない・止まらないときも黙って終える
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
-import { usePluginState, useRecord, useSetPluginState } from "../../plugin-api/ui"
+import { usePluginState, useRecord, useRecords, useSetPluginState, useUpdatePluginState } from "../../plugin-api/ui"
 import { BirdWalk } from "../base/ui"
 import { orderedProjects, shownProjects } from "./board"
-import { useRecords } from "../../plugin-api/ui"
-import { PROJECT } from "./project"
-import { TICKET } from "./ticket"
+import { WORKROOM_SUBJECT } from "./by"
+import styles from "./CardVisitView.module.css"
 import { kit } from "./kit"
 import { CARD_VISIT_ROOM, VISIT_PACE } from "./motion"
+import { PROJECT } from "./project"
 import { CARD_VISIT } from "./states"
+import { TICKET } from "./ticket"
 import { useBoardSettings } from "./useBoardSettings"
 import {
   nearestShift,
@@ -23,15 +24,13 @@ import {
   samePlace,
   withProject,
 } from "./visit"
-import styles from "./CardVisitView.module.css"
-import { WORKROOM_SUBJECT } from "./by"
 
 const rectOf = (el: Element): Rect => {
   const r = el.getBoundingClientRect()
   return { left: r.left, top: r.top, width: r.width, height: r.height }
 }
 
-// カードの置き場の測り（置き場が変わったかの入力は、すべてここで測る）
+// チケットカードの置き場の測り（置き場が変わったかの入力は、すべてここで測る）
 function measure(card: Element): Placement {
   const rect = rectOf(card)
   const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
@@ -66,7 +65,7 @@ async function settled(find: () => Element | null, cancelled: () => boolean): Pr
   return null
 }
 
-// スクロールできる祖先（root まで）を、カードが見える所まで動かす（root には鳥の場所の余白を空ける）
+// スクロールできる祖先（root まで）を、チケットカードが見える所まで動かす（root には鳥の場所の余白を空ける）
 function reveal(card: Element, root: HTMLElement, smooth: boolean) {
   for (let el = card.parentElement; el; el = el.parentElement) {
     const style = getComputedStyle(el)
@@ -86,6 +85,7 @@ function reveal(card: Element, root: HTMLElement, smooth: boolean) {
 export function CardVisitView({ root }: { root: HTMLElement | null }) {
   const visit = usePluginState(kit, CARD_VISIT)
   const setVisit = useSetPluginState(kit, CARD_VISIT)
+  const updateVisit = useUpdatePluginState(kit, CARD_VISIT)
   const settings = useBoardSettings()
   const projects = useRecords(PROJECT.id)
   const ticket = useRecord(TICKET.id, visit?.ticket ?? "-")
@@ -113,14 +113,20 @@ export function CardVisitView({ root }: { root: HTMLElement | null }) {
         if (!now.settings.canChange) return give()
         now.settings.setShown(withProject(shownIds, now.ticket.project))
       }
-      const find = () => root.querySelector(`[data-card="${now.ticket?.id}"]`)
+      // タスクボードが入り終えて落ち着いた（idle で、動き（遅れて始まる動きも）が残っていない）ときだけ、チケットカードとして見つける
+      const find = () => {
+        const card = root.querySelector(`[data-card="${now.ticket?.id}"]`)
+        const board = card?.closest("[data-board]")
+        const moving = board?.getAnimations({ subtree: true }).length !== 0
+        return board?.getAttribute("data-state") === "idle" && !moving ? card : null
+      }
       const first = await settled(find, cancelled)
       if (!first) return cancelled() ? undefined : give()
       reveal(first, root, !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
       const card = await settled(find, cancelled)
       if (!card) return cancelled() ? undefined : give()
       setBox({ card, at: rectOf(card), placed: rectOf(root) })
-      setVisit(v => (v && v.seq === seq ? { ...v, phase: "visiting" } : v))
+      updateVisit(v => (v && v.seq === seq ? { ...v, phase: "visiting" } : v))
     })()
     return () => {
       stop = true

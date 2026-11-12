@@ -1,8 +1,10 @@
 // コントロールセンターのプロジェクトの画面に置くタスクボード: 出しているプロジェクトのタスクボードを縦に並べる（1 枚ずつ、題の帯・最大化のボタン・レーンの横並び）。
 // タスクボードの出入りは useBoardPhases の様子（phase）で動かす。タスクボードかレーンを最大化すると、ほかのタスクボードは畳み、枠にも最大化を知らせる（左と下を退かせる）
+import { useState } from "react"
 import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../plugin-api/ui"
 import { TitledArea, useControlCenterMaximize } from "../base/ui"
 import { lanesOf, orderedProjects, shownProjects, ticketsByLane } from "./board"
+import { CardVisitView } from "./CardVisitView"
 import { kit } from "./kit"
 import { LaneView } from "./LaneView"
 import { maximizedAmong, released, toggleBoard, toggleLane } from "./maximize"
@@ -19,6 +21,7 @@ export function TaskboardView() {
   const tickets = useRecords(TICKET.id)
   const workrooms = useRecords("@matomezu/base:workroom")
   const settings = useBoardSettings()
+  const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const ordered = orderedProjects(projects, settings.order)
   const shownIds = shownProjects(ordered, settings.shown).map(p => p.id)
   const maximizedNow = usePluginState(kit, MAXIMIZED)
@@ -30,7 +33,7 @@ export function TaskboardView() {
 
   if (ordered.length === 0) return <p className={styles.empty}>{t("No projects")}</p>
   return (
-    <div className={styles.root}>
+    <div ref={setRoot} className={styles.root}>
       {rendered.map(project => {
         const phase = phases[project.id] ?? "idle"
         const hidden = maximized !== undefined && maximized.board !== project.id
@@ -67,6 +70,7 @@ export function TaskboardView() {
           </div>
         )
       })}
+      <CardVisitView root={root} />
     </div>
   )
 }
