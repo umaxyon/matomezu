@@ -15,6 +15,12 @@ export const SUBJECT_ROLE_FIELDS = {
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
 
+// 索引キー 1 つ: 値の型と、レコードから値を返す関数（値の無いレコードは何も返さない）。条件と並びに書けるのは、宣言した索引キーだけ（core/record-keys.ts）
+export interface RecordKeyDef<Rec = never> {
+  type: "text" | "number"
+  of(record: Rec): string | number | undefined
+}
+
 export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends string = MessageKey> extends SubjectExtras {
   id: string // 本当の id（例: @matomezu/example:note）
   title: Tt
@@ -23,6 +29,8 @@ export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends stri
   // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す種類は、アクションの reads に書く）
   refers?(record: z.output<R>): readonly { subject: string; id: string }[]
   role?: SubjectRole // 常駐と core が種類で引く役（参加者・ワークルーム・郵便）
+  // 索引キー（名前 → 宣言）。保存が中身とは別に持ち、中身を開けずに探すのに使う
+  keys?: Readonly<Record<string, RecordKeyDef<z.output<R>>>>
   // AI に見せる種類（read_records）の目次の 1 行（id とともに並ぶ題）。書いた種類だけが AI に見える（書かなければ AI には見せない）。aiListed は目次に載せるか（無ければ載せる）
   aiBrief?(record: z.output<R>): string
   aiListed?(record: z.output<R>): boolean
