@@ -379,8 +379,8 @@ type Perform struct {
 	// TimeoutSec は、アクションを待つ秒数（省略は 5、上限 60）
 	TimeoutSec int    `json:"timeoutSec,omitempty"`
 	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
-	// Participation は、頼んだのが AI のとき、参加が確定している（受け入れ済みで準備中でない）なら "joined"（AI の口だけが入れる。窓からは受けない）
-	Participation string `json:"-"`
+	// Workroom は、頼んだのが AI のとき、入っているワークルームの id（参加が確定していなければ空。AI の口だけが入れる。窓からは受けない）
+	Workroom string `json:"-"`
 }
 
 // Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
@@ -401,7 +401,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By, Participation: p.Participation, TimeoutSec: p.TimeoutSec}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, Actor: actorOf(p), TimeoutSec: p.TimeoutSec}
 	in.Annotations = map[string]json.RawMessage{}
 	needs, err := h.engine.RecordNeeds(p.Action)
 	if err != nil {
@@ -726,4 +726,12 @@ func (h *Hub) send(c *client, name string, v any) {
 // 取り方が合わなければ、answer は空で、断る理由 reason を返す
 func (h *Hub) AIMail(query engine.MailQuery) (answer json.RawMessage, reason string, err error) {
 	return h.engine.AIMail(h.Mailbox(), query)
+}
+
+// actorOf は、Perform を頼んだ者を engine に渡す形にする（AI の口が入れた By と、入っているワークルームの id）
+func actorOf(p Perform) *engine.Actor {
+	if p.By == "ai" {
+		return &engine.Actor{Kind: "ai", Workroom: p.Workroom}
+	}
+	return nil
 }

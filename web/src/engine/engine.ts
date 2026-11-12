@@ -4,7 +4,7 @@
 // 追加プラグインが借りる実物（plugin-modules）は、読み込んだときに globalThis.__matomezuModules に置く（変換した JS はここから取り出す）
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
-import { actorOfWire } from "../core/actor"
+import { actorOfWire, type WireActor } from "../core/actor"
 import {
   type Annotations,
   annotationBriefs,
@@ -63,8 +63,7 @@ interface Input {
   participants?: unknown // 利用者の参加者の表（参加者の表が対象のアクションのとき）
   counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
   records?: unknown // 対象の定義が足した種類のレコード（種類の id → id → レコード。レコードが対象のアクションのとき、宛先と読むだけの種類）
-  by?: "ai" // 頼んだのが AI か（無ければ利用者）
-  participation?: "none" | "joined" // 頼んだのが AI のとき、参加が確定しているか（無ければ確定していない）
+  actor?: WireActor // 頼んだ者（無ければ利用者。AI は入っているワークルームの id を持つ）
   watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ブックの id → 物の id。編集ロック）
   watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
@@ -141,7 +140,7 @@ function perform(input: Input): Output {
   const participants = restoreParticipants(input.participants)
   const records = restoreRecords(input.records)
   const counters = restoreCounters(input.counters)
-  const actor = actorOfWire(input.by, input.participation)
+  const actor = actorOfWire(input.actor)
   const done = performIn(
     { books, settings, annotations, mailbox, participants, records, counters },
     input.action,

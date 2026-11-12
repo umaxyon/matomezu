@@ -525,7 +525,7 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &p) {
 		return
 	}
-	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, By: "ai", Participation: o.Hub.Participation(r.Header.Get(ParticipantHeader)), TimeoutSec: p.TimeoutSec})
+	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, By: "ai", Workroom: o.Hub.WorkroomOf(r.Header.Get(ParticipantHeader)), TimeoutSec: p.TimeoutSec})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

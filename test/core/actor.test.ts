@@ -1,6 +1,6 @@
-// アクター: 利用者か AI か。読む所は isAI・isUser を通し、外から来る "ai" の印は actorOfWire で形にする
+// アクター: 利用者か AI か。読む所は isAI・isUser を通し、外から来る形は actorOfWire でアクターにする
 import { expect, test } from "bun:test"
-import { AI, actorOfWire, isAI, isUser, USER } from "../../web/src/core/actor"
+import { AI, actorOfWire, hasJoined, isAI, isUser, USER } from "../../web/src/core/actor"
 
 test("利用者と AI は別のアクターで、isAI・isUser が答える", () => {
   expect([isAI(USER), isUser(USER)]).toEqual([false, true])
@@ -8,6 +8,8 @@ test("利用者と AI は別のアクターで、isAI・isUser が答える", ()
 })
 
 test('外から来た印は、"ai" なら AI、無ければ利用者', () => {
-  expect(isAI(actorOfWire("ai"))).toBe(true)
+  expect(hasJoined(actorOfWire({ kind: "ai", workroom: "w1" }))).toBe(true)
+  expect(actorOfWire({ kind: "ai", workroom: "w1" })).toEqual({ kind: "ai", workroom: { id: "w1" } })
+  expect(isAI(actorOfWire({ kind: "ai" })) && !hasJoined(actorOfWire({ kind: "ai" }))).toBe(true)
   expect(isUser(actorOfWire(undefined))).toBe(true)
 })

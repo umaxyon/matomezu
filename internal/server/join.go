@@ -340,8 +340,8 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, done)
 }
 
-// Participation は、参加の id が指す参加者が、参加が確定している（受け入れ済みで準備中でない）なら "joined"、そうでなければ（参加の id が無い・要求中・準備中・表に無い）空
-func (h *Hub) Participation(id string) string {
+// WorkroomOf は、参加の id が指す参加者が参加が確定している（受け入れ済みで準備中でない）なら、入っているワークルームの id（参加の id が無い・要求中・準備中・表に無いなら空）
+func (h *Hub) WorkroomOf(id string) string {
 	if id == "" {
 		return ""
 	}
@@ -353,7 +353,7 @@ func (h *Hub) Participation(id string) string {
 	defer h.mu.Unlock()
 	for _, s := range records {
 		if s.ID == id && s.State == "joined" && h.participantNotes[id].ready() {
-			return "joined"
+			return s.ID // ワークルームを独立したデータにするまでは、参加者の id を部屋の id として渡す
 		}
 	}
 	return ""
