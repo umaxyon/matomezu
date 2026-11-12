@@ -27,6 +27,7 @@ type writePlan struct {
 	removed      []string                  // 置いてあって消すブック
 	tickets      map[string][]AIEditTicket // 書き換えた AI 編集チケットの並び（ブックごと）
 	mailWarnings []string
+	record       *recordPut // 変えたレコード 1 件
 }
 
 // planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。何も変えない（h.mu を持って呼ぶ）
@@ -94,6 +95,7 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 	if len(out.Participants) > 0 {
 		plan.batch.Participants = &storage.UserBody{User: user, Body: out.Participants}
 	}
+	h.planRecord(plan, out)
 	for book, body := range out.Annotations {
 		plan.batch.Annotations = append(plan.batch.Annotations, storage.BookBody{Book: book, Body: body})
 	}
@@ -162,6 +164,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		h.participants = out.Participants
 		h.broadcast("participants", map[string]any{"participants": out.Participants, "client": p.Client, "seq": p.Seq})
 	}
+	h.applyRecord(plan, out, p)
 	for book, body := range out.Annotations {
 		h.applyAnnotations(book, body, p.Client, p.Seq)
 	}

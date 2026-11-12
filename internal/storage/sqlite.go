@@ -79,6 +79,21 @@ var migrations = []string{
 	`UPDATE books SET body = json_remove(body, '$.project');
 	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN json_extract(value, '$.mail') = '@matomezu/base:join-request' THEN json_remove(json_remove(value, '$.project'), '$.props.projects') ELSE json_remove(value, '$.project') END)) FROM json_each(mailbox.body));
 	UPDATE participants SET body = (SELECT json_group_array(json(json_remove(value, '$.projects'))) FROM json_each(participants.body));`,
+	// 対象の定義が足した種類のレコード（種類・id ごとに 1 行で、版つき）と、番号を振る種類の、区切りごとの次の番号
+	`CREATE TABLE records (
+		subject TEXT NOT NULL,
+		id TEXT NOT NULL,
+		body TEXT NOT NULL,
+		version INTEGER NOT NULL,
+		updated_at TEXT NOT NULL,
+		PRIMARY KEY (subject, id)
+	);
+	CREATE TABLE counters (
+		subject TEXT NOT NULL,
+		scope TEXT NOT NULL,
+		next INTEGER NOT NULL,
+		PRIMARY KEY (subject, scope)
+	);`,
 }
 
 type sqliteStorage struct {
@@ -238,8 +253,77 @@ func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
 				return nil, err
 			}
 		}
+		for _, r := range b.Records {
+			if err := txPutRecord(tx, r); err != nil {
+				return nil, err
+			}
+		}
+		for _, c := range b.Counters {
+			if _, err := tx.Exec(`INSERT INTO counters (subject, scope, next) VALUES (?, ?, ?)
+				ON CONFLICT(subject, scope) DO UPDATE SET next = excluded.next`, c.Subject, c.Scope, c.Next); err != nil {
+				return nil, err
+			}
+		}
 		return nil, nil
 	})
+}
+
+// txPutRecord は、レコード 1 件を書く（置いてある版が Base のときだけ。作るときは Base 0 で、まだ無いときだけ。消すときも版を確かめる）
+func txPutRecord(tx *sql.Tx, w RecordWrite) error {
+	var version int64
+	err := tx.QueryRow(`SELECT version FROM records WHERE subject = ? AND id = ?`, w.Subject, w.ID).Scan(&version)
+	have := !errors.Is(err, sql.ErrNoRows)
+	if err != nil && have {
+		return err
+	}
+	if (have && version != w.Base) || (!have && w.Base != 0) {
+		return ErrConflict
+	}
+	switch {
+	case w.Removed:
+		_, err = tx.Exec(`DELETE FROM records WHERE subject = ? AND id = ?`, w.Subject, w.ID)
+	case !have:
+		_, err = tx.Exec(`INSERT INTO records (subject, id, body, version, updated_at) VALUES (?, ?, ?, 1, ?)`, w.Subject, w.ID, string(w.Body), now())
+	default:
+		_, err = tx.Exec(`UPDATE records SET body = ?, version = ?, updated_at = ? WHERE subject = ? AND id = ?`, string(w.Body), w.Base+1, now(), w.Subject, w.ID)
+	}
+	return err
+}
+
+func (s *sqliteStorage) Records() ([]Record, error) {
+	rows, err := s.db.Query(`SELECT subject, id, body, version FROM records ORDER BY subject, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Record{}
+	for rows.Next() {
+		var r Record
+		var body string
+		if err := rows.Scan(&r.Subject, &r.ID, &body, &r.Version); err != nil {
+			return nil, err
+		}
+		r.Body = json.RawMessage(body)
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+func (s *sqliteStorage) Counters() ([]Counter, error) {
+	rows, err := s.db.Query(`SELECT subject, scope, next FROM counters ORDER BY subject, scope`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Counter{}
+	for rows.Next() {
+		var c Counter
+		if err := rows.Scan(&c.Subject, &c.Scope, &c.Next); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 func txPutBook(tx *sql.Tx, id string, body json.RawMessage, base int64) (int64, *Book, error) {

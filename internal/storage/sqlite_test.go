@@ -250,7 +250,7 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := migrations[: len(migrations)-1 : len(migrations)-1]
+	before := migrations[:12:12] // 次の足し方の前まで
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '{"id":"b1","title":"x","project":"default"}', 1, 'x'), ('b2', '{"id":"b2"}', 1, 'x')`,

@@ -16,6 +16,21 @@ type Book struct {
 	Version int64           `json:"version"`
 }
 
+// Record は、置いたレコード 1 件（対象の定義が足した種類のデータ）。Version は書くたびに 1 つ上がる（最初に書いたときが 1）。中身は JSON のまま持ち、中を解釈しない
+type Record struct {
+	Subject string          `json:"subject"`
+	ID      string          `json:"id"`
+	Body    json.RawMessage `json:"record"`
+	Version int64           `json:"version"`
+}
+
+// Counter は、番号を振る種類の、区切りごとの次の番号
+type Counter struct {
+	Subject string `json:"subject"`
+	Scope   string `json:"scope"`
+	Next    int64  `json:"next"`
+}
+
 // ErrConflict は、書くときに添えた版が、置いてある版と違うこと
 var ErrConflict = errors.New("the book was changed by someone else")
 
@@ -24,6 +39,15 @@ type BookWrite struct {
 	ID   string
 	Body json.RawMessage
 	Base int64
+}
+
+// RecordWrite は Batch の、レコード 1 件の書き込み（base が置いてある版と違えば ErrConflict。作るときの base は 0。Removed なら消す）
+type RecordWrite struct {
+	Subject string
+	ID      string
+	Body    json.RawMessage
+	Base    int64
+	Removed bool
 }
 
 // BookBody は Batch の、ブックごとの並び（アノテーション・AI 編集チケット）の置き換え（空の並びなら消す）
@@ -48,6 +72,8 @@ type Batch struct {
 	Participants  *UserBody
 	Annotations   []BookBody
 	AIEditTickets []BookBody
+	Records       []RecordWrite // レコード 1 件（Apply では ブック → レコード の順）
+	Counters      []Counter     // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
 }
 
 // Storage はブックと設定とアノテーションの置き場所。設定は利用者ごとに、アノテーションはブックごとに持つ
@@ -57,6 +83,9 @@ type Storage interface {
 	Apply(b Batch) (*Book, error)
 	// Books は置いてある全部のブック（ゴミ箱のブックも）
 	Books() ([]Book, error)
+	// Records は置いてある全部のレコード（種類・id の順）、Counters は番号の表
+	Records() ([]Record, error)
+	Counters() ([]Counter, error)
 	// DeleteBook はブック id と、それを開いた時刻と、そのアノテーションと AI 編集チケットを消す（戻せない）
 	DeleteBook(id string) error
 	// PutBook は、置いてある版が base のときだけ body で書き換え、新しい版を返す。base が 0 なら、まだ無いときだけ足す。

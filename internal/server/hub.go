@@ -75,12 +75,14 @@ type Hub struct {
 	books            map[string]entry
 	order            []string // 置いた順のブックの id（GET /api/data の並び）
 	settings         json.RawMessage
-	annotations      map[string]json.RawMessage // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
-	mailbox          json.RawMessage            // 利用者の郵便箱（郵便の並び。無ければ nil）
-	participants     json.RawMessage            // 利用者の参加者の表（参加者の並び。無ければ nil）
-	participantNotes map[string]participantNote // 参加者の id → 常駐だけが持つ参加者の記録（join.go）
-	joinMu           sync.Mutex                 // 参加の頼みを 1 つずつ受ける（join.go）
-	goneTold         map[string]bool            // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
+	annotations      map[string]json.RawMessage        // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
+	mailbox          json.RawMessage                   // 利用者の郵便箱（郵便の並び。無ければ nil）
+	participants     json.RawMessage                   // 利用者の参加者の表（参加者の並び。無ければ nil）
+	recordTables     map[string]map[string]recordEntry // 対象の定義が足した種類のレコード（種類の id → id → レコード。records.go）
+	counters         map[string]map[string]int64       // 番号を振る種類の、区切り → 次の番号（種類の id → 区切り → 次の番号。records.go）
+	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go）
+	joinMu           sync.Mutex                        // 参加の頼みを 1 つずつ受ける（join.go）
+	goneTold         map[string]bool                   // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
 	clients          map[string]*client
 	next             int
 	ticks            int64            // フォーカスの順を振る数
@@ -156,6 +158,9 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
+	}
+	if err := h.loadRecords(); err != nil {
+		return nil, err
 	}
 	if err := h.checkBooks(h.order); err != nil {
 		return nil, err
@@ -403,6 +408,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		for id, list := range h.annotations {
 			in.Annotations[id] = list
 		}
+	}
+	if err := h.recordInputs(&in, p.On); err != nil {
+		return Performed{}, err
 	}
 	in.Watched = h.watched()
 	out, err := h.engine.Perform(in)

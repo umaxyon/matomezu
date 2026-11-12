@@ -242,7 +242,8 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 			plugins[i].CSS = fmt.Sprintf("api/plugins/%d/ui.css?v=%d", i, v)
 		}
 	}
-	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": o.Hub.Mailbox(), "participants": o.Hub.Participants(), "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady()})
+	records, counters := o.Hub.Records()
+	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": o.Hub.Mailbox(), "participants": o.Hub.Participants(), "records": records, "counters": counters, "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady()})
 }
 
 func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {

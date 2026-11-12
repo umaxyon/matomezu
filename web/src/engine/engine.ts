@@ -430,6 +430,13 @@ function aiTables(of: Assembled) {
     { name: workroom },
   )
 
+// アクションがレコードを対象にするとき、常駐が渡すレコード: 対象の種類（レコードが対象でなければ null）と、読むだけの種類。常駐が、行う前にどのレコードを渡すかを決めるのに引く
+;(globalThis as { matomezuRecordNeeds?: (action: string) => string }).matomezuRecordNeeds = action => {
+  const def = assembled.catalog.core.actions.get(action)
+  const subject = def && assembled.catalog.core.subjects.has(def.target) ? def.target : null
+  return JSON.stringify({ subject, reads: subject === null ? [] : [...(def?.reads ?? [])] })
+}
+
 // アノテーションの並びから、期限（種類の expiresAt）が時点 now より前の物を除く（kept の id の物は除かない。利用者が直している物）。常駐が時間で消す
 ;(
   globalThis as { matomezuUnexpired?: (list: string, settings: string, now: string, kept: string) => string }

@@ -36,16 +36,34 @@ type Input struct {
 	Annotations  map[string]json.RawMessage `json:"annotations,omitempty"`
 	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 利用者の郵便箱
 	Participants json.RawMessage            `json:"participants,omitempty"` // 利用者の参加者の表
-	By           string                     `json:"by,omitempty"`           // 頼んだのが AI なら "ai"（空なら利用者）
+	// Records は対象の定義が足した種類のレコード（種類の id → id → レコード。宛先のレコードと、アクションが読むだけの種類の全部）。Counters は対象の種類の、区切り → 次の番号
+	Records  map[string]map[string]json.RawMessage `json:"records,omitempty"`
+	Counters map[string]map[string]int64           `json:"counters,omitempty"`
+	By       string                                `json:"by,omitempty"` // 頼んだのが AI なら "ai"（空なら利用者）
 	// TimeoutSec は、アクションを待つ秒数（0 なら DefaultTimeoutSec。MaxTimeoutSec まで）。超えたら打ち切って断る
 	TimeoutSec int `json:"-"`
 	// Watched は、利用者が直している物（ブックの id → 物の id。編集ロック）。AI のアクションと lockedForUser のアクションが変えるか消すなら、エンジンが being-edited で断る
 	Watched map[string][]string `json:"watched,omitempty"`
 }
 
-// On はアクションの宛先のブック
+// On はアクションの宛先: ブックか、レコード（対象の定義が足した種類のデータ）のどちらか
 type On struct {
-	Book string `json:"book"`
+	Book   string `json:"book,omitempty"`
+	Record string `json:"record,omitempty"`
+}
+
+// RecordChange は、アクションが変えたレコード 1 件。Record は新しいレコードか、消したなら "removed"（JSON の文字）。Counters は番号を進めた区切りごとの、次の番号
+type RecordChange struct {
+	Subject  string           `json:"subject"`
+	ID       string           `json:"id"`
+	Record   json.RawMessage  `json:"record"`
+	Counters map[string]int64 `json:"counters,omitempty"`
+}
+
+// RecordNeeds は、アクションが対象にする種類（レコードが対象でなければ空）と、読むだけの種類
+type RecordNeeds struct {
+	Subject string   `json:"subject"`
+	Reads   []string `json:"reads"`
 }
 
 // Output は行った結果。断ったときは OK が false で Reason に理由、Detail に AI への説明（認可ステップが止めた denied なら、Permission にそのステップの id）。
@@ -63,6 +81,7 @@ type Output struct {
 	Annotations  map[string]json.RawMessage `json:"annotations,omitempty"`
 	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 変わった郵便箱
 	Participants json.RawMessage            `json:"participants,omitempty"` // 変わった参加者の表
+	Record       *RecordChange              `json:"record,omitempty"`       // 変わったレコード 1 件
 	Notice       string                     `json:"notice,omitempty"`       // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	AIEditTicket *AIEditTicketChange        `json:"aiEditTicket,omitempty"` // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
 }
@@ -90,6 +109,7 @@ type Engine struct {
 	talk      func() string
 	join      func() string
 	alive     func(string, string, float64) bool
+	needs     func(string) string
 	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
 	mails     func(string) string
@@ -162,6 +182,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuParticipantAlive"), &e.alive); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuParticipantAlive: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuRecordNeeds"), &e.needs); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuRecordNeeds: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuJoinedText"), &e.joinedMsg); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuJoinedText: %w", err)
@@ -432,6 +455,19 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now
 		}
 	}()
 	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
+}
+
+// RecordNeeds は、アクション action が対象にする種類（レコードが対象でなければ Subject が空）と、読むだけの種類を返す
+func (e *Engine) RecordNeeds(action string) (needs RecordNeeds, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.needs(action)), &needs)
+	return needs, err
 }
 
 // AnnotationsUnexpired は、アノテーションの並び list から、期限（種類の expiresAt。利用者の設定 settings で決まる）が時点 now より前の物を除いた並びと、
