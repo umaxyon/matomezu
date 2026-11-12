@@ -1,9 +1,6 @@
 // 部屋の見方。生きているかは、最後に呼ばれた時刻と今の時刻で決まる（アクションの入力に無いので、受け入れのダイアログが見て、行うアクションの選び方を決める）
-import type { z } from "zod"
-import type { PARTICIPANT, WORKROOM } from "."
+import type { Participant, Workroom } from "."
 
-type Participant = z.output<typeof PARTICIPANT.record>
-type Workroom = z.output<typeof WORKROOM.record>
 type IsAlive = (calledAt: string | undefined, nowMs: number) => boolean
 
 // 部屋にいる受け入れ済みの参加者（いなければ空室）

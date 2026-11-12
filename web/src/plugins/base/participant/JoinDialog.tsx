@@ -4,7 +4,6 @@
 // 同じ名前の部屋に、生きている参加者がいる間は決められない。名前が引き継げる部屋と同じなら、最後に引き継ぐか、前の部屋を消して新しく始めるかを確かめる。
 // 部屋を作る・いる参加者を外す・入れるは、アクション 1 件ずつ続けて行う（join-flow.ts）。キャンセルは閉じるだけで、参加要求は保留のまま
 import { useId, useState } from "react"
-import type { z } from "zod"
 import { WORKROOM_NAME_MAX } from "../../../core/participant"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -16,15 +15,13 @@ import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
-import { PARTICIPANT_ACCEPT, type WORKROOM, WORKROOM_ADD } from "."
+import { PARTICIPANT_ACCEPT, WORKROOM_ADD, type Workroom } from "."
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird, originalPalette, PALETTE_TITLES } from "./birds"
 import { useIsAlive, useNowMs, useParticipantCalls, useParticipants, useWorkrooms } from "./hooks"
 import { acceptInNewRoom, acceptInRoom, discardAndStart } from "./join-flow"
 import styles from "./Participant.module.css"
 import { nameInUse, occupantOf, takeable } from "./workroom"
-
-type Workroom = z.output<typeof WORKROOM.record>
 
 const BIRD_TITLES = {
   inko: "Parakeet",
@@ -152,7 +149,12 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
               {quiet.map(r => {
                 const who = occupantOf(participants, r)
                 return (
-                  <label key={r.id} className={styles.takeRow} data-workroom={r.id}>
+                  <label
+                    key={r.id}
+                    className={styles.takeRow}
+                    data-workroom={r.id}
+                    {...(who ? { "data-participant": who.id } : {})}
+                  >
                     <input type="radio" name="take-over" checked={r.id === pick} onChange={() => setPick(r.id)} />
                     {asBird(r.bird) && (
                       <BirdFaceView

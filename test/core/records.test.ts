@@ -75,7 +75,6 @@ const empty: World = {
   settings: {},
   annotations: {},
   mailbox: [],
-  participants: [],
   records: {},
   counters: {},
 }

@@ -70,8 +70,9 @@ export const ADMIN_MARK = kit.defineSubject({
 // 参加を利用者に伝える文の鍵（常駐が話しかけのフックで使う）
 export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name}")
 
-type Participant = z.output<typeof PARTICIPANT.record>
-type Workroom = z.output<typeof WORKROOM.record>
+// データの型（画面の見た目は、ここから読む）
+export type Participant = z.output<typeof PARTICIPANT.record>
+export type Workroom = z.output<typeof WORKROOM.record>
 const participantsIn = (ctx: { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> }) =>
   Object.values(ctx.records?.[PARTICIPANT.id] ?? {}) as Participant[]
 const workroomsIn = (ctx: { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> }) =>

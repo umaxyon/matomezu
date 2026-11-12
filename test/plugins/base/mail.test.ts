@@ -71,7 +71,6 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
     settings: s.settings,
     annotations: s.annotations,
     mailbox: s.mailbox,
-    participants: s.participants,
     records: {},
     counters: {},
   }

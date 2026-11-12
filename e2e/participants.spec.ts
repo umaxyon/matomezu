@@ -23,6 +23,28 @@ async function join(page: Page, link: string, sessionName = "", workroom = "", s
   return (await res.json()) as { ok: boolean; participant: string; reason?: string }
 }
 
+// 参加者の表（要求が届いた順）。入っているワークルームの名前・鳥・配色を workroom・bird・palette に引き、要求中は希望の名前を workroom に置く
+async function participants(page: Page) {
+  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+  const rooms = (body.records?.["@matomezu/base:workroom"] ?? {}) as Record<
+    string,
+    { name: string; bird: string; palette?: string }
+  >
+  const people = Object.values(body.records?.["@matomezu/base:participant"] ?? {}) as {
+    id: string
+    state: string
+    workroom?: string
+    wantedName?: string
+    requestedAt: string
+  }[]
+  return people
+    .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt) || a.id.localeCompare(b.id))
+    .map(p => {
+      const room = p.workroom === undefined ? undefined : rooms[p.workroom]
+      return { ...p, workroom: room?.name ?? p.wantedName, bird: room?.bird, palette: room?.palette }
+    })
+}
+
 // この参加者の id で AI の口を呼ぶ（参加が済んでいれば、最後に呼ばれた時刻が進み、受け入れた直後なら参加の知らせが返る）
 const call = (page: Page, participant: string) =>
   page.request.get("/api/ai/books", {
@@ -70,8 +92,8 @@ test("参加要求の郵便で受け入れるを押すと、名前・鳥・配�
   await expect(dialog).toHaveCount(0)
 
   // 受け入れた参加者の表に、決めた名前・鳥・配色が入る
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-  expect(body.participants).toMatchObject([
+  const table = await participants(page)
+  expect(table).toMatchObject([
     { id: made.participant, state: "joined", workroom: "ひよこ", bird: "buncho", palette: "pink" },
   ])
   // センターの参加者リストに出る（フックが参加を伝えるまでは準備中）
@@ -122,9 +144,7 @@ test("断るを押すと郵便が閉じ、参加者の表から消える。AI �
   const mail = await openRequest(page)
   await mail.getByRole("button", { name: "断る" }).click()
   await expect(mail).toHaveCount(0)
-  await expect
-    .poll(async () => (await (await page.request.get("/api/data", { headers: aiAuth() })).json()).participants)
-    .toEqual([])
+  await expect.poll(async () => await participants(page)).toEqual([])
   const first = await call(page, made.participant)
   expect(decodeURIComponent(first.headers()["x-matomezu-notice"] ?? "")).toContain("declined")
   const second = await call(page, made.participant)
@@ -151,6 +171,8 @@ test("生きている参加者と同じ名前は、受け入れのダイアロ�
   const first = await join(page, "e2e-link-5", "同じ名前", "", "S-e2e-5")
   await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
+  await expect(page.getByRole("dialog", { name: JOINED })).toHaveCount(0)
+  await joinedOnHost(page)
   await call(page, first.participant)
   const second = await join(page, "e2e-link-6", "別のセッション")
   expect(second.participant).not.toBe(first.participant)
@@ -170,8 +192,8 @@ test("キャンセルは何も変えず、参加要求は保留のまま郵便�
   const made = await join(page, "e2e-link-7", "x")
   await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "キャンセル" }).click()
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-  expect(body.participants).toMatchObject([{ id: made.participant, state: "requested" }])
+  const table = await participants(page)
+  expect(table).toMatchObject([{ id: made.participant, state: "requested" }])
 })
 
 // 受け入れの画面で名前を決めて、参加者を受け入れる
@@ -181,7 +203,12 @@ async function acceptAs(page: Page, name: string) {
   await dialog.getByRole("textbox", { name: "ワークルーム名" }).fill(name)
   await dialog.getByRole("button", { name: "受け入れる" }).click()
   await expect(dialog).toHaveCount(0)
+  await joinedOnHost(page)
 }
+
+// 受け入れ（部屋を作る→入れるの続けて行うアクション）が、常駐まで届くのを待つ
+const joinedOnHost = (page: Page) =>
+  expect.poll(async () => (await participants(page)).some(p => p.state === "joined")).toBe(true)
 
 // 最後の（新しい）参加要求の郵便を開き、受け入れるを押して受け入れのダイアログを開く
 async function openJoinDialog(page: Page) {
@@ -210,10 +237,10 @@ test("生きていない参加者のワークルームの名前で頼むと、�
   await dialog.getByRole("button", { name: "引き継ぐ" }).click()
   await expect(dialog).toHaveCount(0)
 
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-  expect(body.participants).toMatchObject([
-    { id: next.participant, state: "joined", workroom: "ひよこ", sessionName: "新" },
-  ])
+  // 続けて行うアクションは、常駐へ順に届くので、揃うまで待つ
+  await expect
+    .poll(() => participants(page))
+    .toMatchObject([{ id: next.participant, state: "joined", workroom: "ひよこ", sessionName: "新" }])
   await (await fromMenu(page, "コントロールセンター")).click()
   await expect(page.locator(`[data-participant="${next.participant}"]`)).toContainText("ひよこ")
   await expect(page.locator(`[data-participant="${old.participant}"]`)).toHaveCount(0)
@@ -236,11 +263,10 @@ test("名前が生きていない参加者と同じなら、最後に引き継�
   await dialog.getByRole("button", { name: "前のを破棄して新しく始める" }).click()
   await expect(dialog).toHaveCount(0)
 
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-  expect(body.participants).toMatchObject([
-    { id: next.participant, state: "joined", workroom: "ひよこ", bird: "buncho" },
-  ])
-  expect(body.participants.some((p: { id: string }) => p.id === old.participant)).toBe(false)
+  await expect
+    .poll(() => participants(page))
+    .toMatchObject([{ id: next.participant, state: "joined", workroom: "ひよこ", bird: "buncho" }])
+  expect((await participants(page)).some(p => p.id === old.participant)).toBe(false)
 })
 
 test("頼まれた名前の参加要求を断ると、元の参加者はそのまま残る", async ({ page }) => {
@@ -250,8 +276,8 @@ test("頼まれた名前の参加要求を断ると、元の参加者はその�
   await join(page, "e2e-link-11", "新", "ひよこ")
   await page.getByRole("button", { name: REQUEST }).last().click()
   await page.getByRole("dialog", { name: REQUEST }).getByRole("button", { name: "断る" }).click()
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-  expect(body.participants).toMatchObject([{ id: old.participant, state: "joined", workroom: "ひよこ" }])
+  const table = await participants(page)
+  expect(table).toMatchObject([{ id: old.participant, state: "joined", workroom: "ひよこ" }])
 })
 
 test("生きている参加者のワークルームは引き継げない。断られ、郵便も出ない", async ({ page }) => {
@@ -261,7 +287,8 @@ test("生きている参加者のワークルームは引き継げない。断�
   await call(page, old.participant)
   const refused = await join(page, "e2e-link-13", "新", "ひよこ")
   expect(refused).toMatchObject({ ok: false, reason: "workroom-in-use" })
+  const table = await participants(page)
+  expect(table).toHaveLength(1)
   const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-  expect(body.participants).toHaveLength(1)
   expect(body.mailbox).toHaveLength(1) // 最初の郵便だけ
 })
