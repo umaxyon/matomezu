@@ -1,0 +1,5 @@
+{
+  "name": "matomezu",
+  "version": "0.1.0",
+  "description": "Lets matomezu wake Claude Code when the user does something on the screen that AI should answer (such as accepting AI's request to join)."
+}

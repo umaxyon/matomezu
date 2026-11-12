@@ -1,6 +1,6 @@
 #!/bin/sh
-# Claude Code のフック（利用者が話しかけたとき）: 開発の常駐（main の worktree の .dev-home）に、利用者が話しかけたことを知らせ（読まれた伝言の期限が数え始まる）、
-# AI の応えを待つアノテーションを聞いて、あれば話しかけに添える。どの worktree から呼んでも main の常駐を見る。常駐が無い・待つ物が無いときは何も出さない。
+# Claude Code のフック（UserPromptSubmit。AI のターンの始まり）: 開発の常駐（main の worktree の .dev-home）に、ターンの始まりを知らせ（利用者トリガートークなら読まれた伝言の期限が数え始まる）、
+# AI の応えを待つアノテーションを聞いて、あればターンの始まりに添える。どの worktree から呼んでも main の常駐を見る。常駐が無い・待つ物が無いときは何も出さない。
 # フックの出力は JSON か文のどちらか 1 つなので、アノテーションの文は talked に渡し、talked が（参加の知らせのときは JSON に入れて）まとめて出す。
 # フックの標準入力の JSON（session_id・transcript_path）は talked がそのまま読む。
 # 引数 $1 は Claude Code のプロセス id（フックのコマンドの $PPID）。talked が常駐に添え、/clear でセッション id が変わっても同じ参加者に結び直す

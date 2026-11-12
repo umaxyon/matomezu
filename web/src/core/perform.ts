@@ -65,7 +65,7 @@ export type Performed<Id extends ActionId> =
       next: SubjectOf<Id>
       result: ResultOf<Id>
       others?: readonly OtherRecord<never>[]
-      aiEditTicket?: AIEditTicketChange
+      aiEditTickets?: readonly AIEditTicketChange[]
     }
   | Refused
 
@@ -319,7 +319,9 @@ export function perform<Id extends ActionId>(
     next: done.next,
     result: done.result,
     ...(others.length > 0 ? { others } : {}),
-    ...(isRecordTarget(ctx.catalog, action.target) && ran.aiEditTicket ? { aiEditTicket: ran.aiEditTicket } : {}),
+    ...(isRecordTarget(ctx.catalog, action.target) && ran.aiEditTickets && ran.aiEditTickets.length > 0
+      ? { aiEditTickets: ran.aiEditTickets }
+      : {}),
   } as Performed<Id>
 }
 
@@ -373,7 +375,7 @@ export type PerformedIn =
       annotations?: Annotations
       records?: readonly RecordChange[] // レコードが対象のアクションで変わったレコード（宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
       counters?: Counters // レコードが対象のアクションが進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）
-      aiEditTicket?: AIEditTicketChange // レコードが対象のアクションが返した、AI 編集チケットの変え方
+      aiEditTickets?: readonly AIEditTicketChange[] // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで当てる）
     }
   | Refused
   | { ok: false; reason: "no-book" }
@@ -507,7 +509,7 @@ function performRecord(
     result: done.result,
     ...(changes.length > 0 ? { records: changes } : {}),
     ...(changes.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
-    ...(done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}),
+    ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
   }
 }
 

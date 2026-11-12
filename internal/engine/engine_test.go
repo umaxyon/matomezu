@@ -437,7 +437,7 @@ func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 	}
 }
 
-// 利用者が話しかけたときに行うアクションは、runsWhenUserTalks を名乗ったものだけ（ビルトインでは伝言の note-talked）
+// 利用者トリガートークのときに行うアクションは、runsWhenUserTalks を名乗ったものだけ（ビルトインでは伝言の note-talked）
 func TestTalkActions(t *testing.T) {
 	e := newEngine(t)
 	ids, err := e.TalkActions()

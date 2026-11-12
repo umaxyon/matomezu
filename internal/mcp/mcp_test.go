@@ -67,7 +67,7 @@ func talk(t *testing.T, api API, lines ...string) []map[string]any {
 func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[string]any {
 	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242"); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1"); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -183,9 +183,9 @@ func textOf(a map[string]any) string {
 	return a["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
 }
 
-// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）と、AI のプログラムのプロセス id も添える。
-// その呼び出しの _meta にモデルがあれば（Codex）、モデルも添える（URL エンコード）。参加の id が無ければ、どれも添えない
-func TestBranchHostAndModelGoWithTheParticipant(t *testing.T) {
+// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添え、その呼び出しの _meta にモデルがあれば（Codex）、モデルも添える（URL エンコード）。
+// 参加の id が無ければ、どちらも添えない。AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id は、join も含めていつも添える（起こす知らせの宛て先）
+func TestBranchAndModelGoWithTheParticipantAndHostAlways(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 	branches := []string{"feat/d110", "", ""}
 	read := 0
@@ -197,7 +197,7 @@ func TestBranchHostAndModelGoWithTheParticipant(t *testing.T) {
 	if len(api.headers) != 3 {
 		t.Fatalf("calls = %d", len(api.headers))
 	}
-	if h := api.headers[0]; len(h) != 0 {
+	if h := api.headers[0]; len(h) != 2 || h.Get("X-Matomezu-Host") != "4242" || h.Get("X-Matomezu-Host-Session") != "HS1" {
 		t.Fatalf("join without a participant = %v", h)
 	}
 	for i, want := range []struct{ branch, model string }{{"feat%2Fd110", ""}, {"", "gpt+6%2Fluna"}} {

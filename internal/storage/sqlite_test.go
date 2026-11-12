@@ -564,8 +564,8 @@ func TestMailboxBecomesRecords(t *testing.T) {
 		t.Fatal("the mailbox table is still there")
 	}
 	var version int
-	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != mailMigration+1 {
-		t.Fatalf("user_version = %d, %v; want %d", version, err, mailMigration+1)
+	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != len(migrations) {
+		t.Fatalf("user_version = %d, %v; want %d", version, err, len(migrations))
 	}
 }
 
@@ -586,5 +586,55 @@ func TestEmptyMailboxBecomesNoRecords(t *testing.T) {
 				t.Fatalf("counters = %+v, %v", counters, err)
 			}
 		})
+	}
+}
+
+// ticketsMigration は、閉じる者のいない AI 編集チケットを閉じる足し方の番号
+const ticketsMigration = 18
+
+// 閉じる者のいない AI 編集チケット（key があり、失敗にも消えたことにもしておらず、同じ id の郵便のレコードが無い物）は閉じる（AI には渡さない）。
+// key の無い物・郵便が残っている物・失敗にした物・消えたと記した物は並びの順のまま残し、1 つも残らないブックの行は消す。表の形の版は 1 つ進む
+func TestTicketsOfGoneMailAreClosed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := migrations[:ticketsMigration:ticketsMigration] // 次の足し方の前まで
+	for _, q := range append(before,
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
+		`INSERT INTO records (subject, id, body, version, updated_at) VALUES ('@matomezu/base:mail', 'kept', '{}', 1, 'x')`,
+		`INSERT INTO ai_edit_tickets (book, body, updated_at) VALUES
+			('b1', '[{"act":"a1","at":"t1","version":1},{"key":"gone","subject":"@matomezu/base:mail","at":"t2","version":1},{"key":"kept","at":"t3","version":1},
+				{"key":"failed","failed":true,"at":"t4","version":1},{"key":"removed","removed":"user","at":"t5","version":1}]', 'x'),
+			('b2', '[{"key":"gone2","at":"t","version":1}]', 'x')`,
+	) {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s := open(t, path)
+	tickets, err := s.AIEditTickets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	var list []struct {
+		Act string `json:"act"`
+		Key string `json:"key"`
+	}
+	if err := json.Unmarshal(tickets["b1"], &list); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range list {
+		keys = append(keys, c.Act+c.Key)
+	}
+	if fmt.Sprint(keys) != "[a1 kept failed removed]" || len(tickets) != 1 {
+		t.Fatalf("tickets = %v (%d books)", keys, len(tickets))
+	}
+	var version int
+	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != ticketsMigration+1 {
+		t.Fatalf("user_version = %d, %v; want %d", version, err, ticketsMigration+1)
 	}
 }

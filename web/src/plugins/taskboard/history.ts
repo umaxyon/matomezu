@@ -12,8 +12,11 @@ export const HISTORY_TOPIC = kit.defineEnum({
   title: "history topic",
   aiDescription:
     "The topics of the lines of a ticket's history, such as a status report, a plan and a question. ticket-history-add takes the id of one of them as its topic.",
-  value: z.strictObject({ color: z.enum(PALETTE), asksUser: z.boolean().optional() }), // 題を描く色の役割と、利用者への質問か（質問は、見せる側が押せる吹き出しにする）
+  value: z.strictObject({ color: z.enum(PALETTE), asksUser: z.boolean().optional(), textless: z.boolean().optional() }), // 題を描く色の役割と、利用者への質問か（質問は、見せる側が押せる吹き出しにする）、行に文を持たなくてよいか（持たない題の行の文は、見せる側が題から決める）
 })
+
+// 列挙 history-topic の値の data の形
+export type TopicData = z.output<typeof HISTORY_TOPIC.value>
 
 export const TOPIC_STATUS = kit.defineEnumValue({
   id: "topic-status",
@@ -37,6 +40,15 @@ export const TOPIC_QUESTION = kit.defineEnumValue({
   data: { color: "warn", asksUser: true },
 })
 
+export const TOPIC_BODY = kit.defineEnumValue({
+  id: "topic-body",
+  enum: HISTORY_TOPIC.id,
+  title: "topic body",
+  aiDescription:
+    "The body of the ticket was rewritten (the screen writes this line, without text, when the user leaves the ticket after changing the body).",
+  data: { color: "muted", textless: true },
+})
+
 export const HISTORY = kit.defineSubject({
   id: "ticket-history",
   title: "ticket history",
@@ -46,7 +58,7 @@ export const HISTORY = kit.defineSubject({
     id: z.string().min(1),
     ticket: z.string().min(1),
     topic: z.string().min(1),
-    text: z.string().min(1),
+    text: z.string(), // 文を持たなくてよい題（data.textless）の行だけ空にできる（行う側が確かめる）
     at: z.string(),
     by: BY,
   }),

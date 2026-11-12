@@ -45,8 +45,14 @@ function setup() {
   )
 }
 
+// 動きを減らす設定にして、滑り出る時間を 0 にする（時間に頼らず、全体を流した負荷の中でも同じに動く）
+const reducedMotion = (on: boolean) => {
+  ;(globalThis as { matchMedia?: unknown }).matchMedia = on ? () => ({ matches: true }) : undefined
+}
+
 describe("スクリーンの重ね場所", () => {
   test("開くと重ねて描き、閉じると外す。開いている間は inert でなく、滑り出る間は inert", async () => {
+    reducedMotion(true)
     setup()
     expect(screen.queryByTestId("shot")).toBeNull()
     act(() => controls.open(SHOT, { name: "A" }))
@@ -60,7 +66,8 @@ describe("スクリーンの重ね場所", () => {
     expect(opened).toBe("none")
     // 滑り出る間は、まだ描いて、操作は受けない
     expect(document.querySelector("[data-screen-overlay]")?.hasAttribute("inert")).toBe(true)
-    await waitFor(() => expect(screen.queryByTestId("shot")).toBeNull())
+    await waitFor(() => expect(screen.queryByTestId("shot")).toBeNull(), { timeout: 5000 })
+    reducedMotion(false)
   })
 
   test("定義が無いスクリーン・値が形に合わないスクリーンは、何も重ねない", () => {

@@ -14,7 +14,7 @@ import {
   TICKET_UPDATE,
 } from "./actions"
 import { CURRENT } from "./current"
-import { HISTORY, HISTORY_TOPIC, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./history"
+import { HISTORY, HISTORY_TOPIC, TOPIC_BODY, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./history"
 import { kit } from "./kit"
 import { CLOSED_PROJECT } from "./permission"
 import { PROJECT } from "./project"
@@ -29,7 +29,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
     subjects: [PROJECT, TICKET, HISTORY, CURRENT],
     enums: [HISTORY_TOPIC],
-    enumValues: [TOPIC_STATUS, TOPIC_PLAN, TOPIC_QUESTION],
+    enumValues: [TOPIC_STATUS, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_BODY],
     actions: [
       PROJECT_ADD,
       PROJECT_UPDATE,
@@ -64,6 +64,7 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:topic-status": typeof TOPIC_STATUS
     "@matomezu/taskboard:topic-plan": typeof TOPIC_PLAN
     "@matomezu/taskboard:topic-question": typeof TOPIC_QUESTION
+    "@matomezu/taskboard:topic-body": typeof TOPIC_BODY
   }
   interface ActionTable {
     "@matomezu/taskboard:project-add": typeof PROJECT_ADD
