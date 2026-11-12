@@ -46,7 +46,7 @@ export function discardAndStart(perform: Do, participant: string, room: string, 
   return acceptInNewRoom(perform, participant, newRoom)
 }
 
-// ワークルーム room を空室にする（いる参加者 occupant を外す。部屋は残る）
+// いる参加者 occupant をワークルームから外して空室にする（ワークルームは残る）
 export const leaveWorkroom = (perform: Do, occupant: string) => perform(PARTICIPANT_REMOVE.id, {}, { record: occupant })
 
 // ワークルーム room を管理者にする（管理者の印を room に向ける）

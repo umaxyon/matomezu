@@ -1,4 +1,4 @@
-// ワークルームの鳥（本物の鳥の顔）。管理者の鳥は頭に金の王冠を重ねる。準備中の参加者の鳥は薄くする。空室は中が空の点線の丸
+// ワークルームの鳥（鳥の顔）。管理者の鳥は頭に金の王冠を重ねる。準備中の参加者の鳥は薄くする。空室は中が空の点線の丸
 import type { WorkroomRow } from "../base"
 import { BirdFaceView } from "../base/ui"
 import styles from "./Bird.module.css"

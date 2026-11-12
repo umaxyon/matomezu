@@ -19,9 +19,6 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:proposal-send",
     "@matomezu/base:proposal-settle",
     "@matomezu/base:mail-join-request",
-    "@matomezu/base:participant-remove",
-    "@matomezu/base:workroom-remove",
-    "@matomezu/base:admin-set",
   ],
   subjects: "all",
 })

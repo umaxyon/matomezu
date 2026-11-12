@@ -1,5 +1,5 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・現在のタスク・履歴。
-// 情報の列の右下に退室のアイコン。現在のタスクと履歴は、タスクボードの物（9b）が入るまで「なし」
+// 情報の列の右下に退室のアイコン。現在のタスクと履歴の列は、中身が無ければ「なし」
 import { useActions, useAllowedOn, useMessages, useWindowStage } from "../../plugin-api/ui"
 import type { WorkroomRow } from "../base"
 import { Elapsed, Tip, useWorkroomActions } from "../base/ui"
@@ -9,6 +9,7 @@ import { IconButton } from "./IconButton"
 import { CrownIcon, LeaveIcon } from "./icons"
 import { kit } from "./kit"
 import { Panel } from "./Panel"
+import { lastAccessOf } from "./rows"
 import text from "./text.module.css"
 import styles from "./WorkroomView.module.css"
 
@@ -36,6 +37,7 @@ function Occupied({ row }: { row: WorkroomRow }) {
   const { openDialog } = useActions()
   const rooms = useWorkroomActions()
   const participant = row.participant
+  const access = lastAccessOf(row)
   const canAdmin = useAllowedOn("@matomezu/base:admin-set", { workroom: row.room.id }).ok
   const canLeave = useAllowedOn("@matomezu/base:participant-remove", {}, { record: participant?.id ?? "-" }).ok
   return (
@@ -62,7 +64,13 @@ function Occupied({ row }: { row: WorkroomRow }) {
         <dl className={styles.facts}>
           <dt>{t("Last access:")}</dt>
           <dd>
-            {row.calledAt ? <Elapsed at={row.calledAt} /> : row.state === "preparing" ? t("Preparing") : t("None")}
+            {access === "called" && row.calledAt ? (
+              <Elapsed at={row.calledAt} />
+            ) : access === "preparing" ? (
+              t("Preparing")
+            ) : (
+              t("None")
+            )}
           </dd>
           {/* ブランチは git を使っている参加者だけが持つ（git は必須でない）。無ければ行ごと出さない */}
           {row.branch ? (

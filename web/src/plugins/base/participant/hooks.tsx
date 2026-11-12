@@ -48,13 +48,13 @@ export function useNowMs(interval = 30_000): number {
   return now
 }
 
-// 管理者の部屋の id（管理者の印が指す部屋が無ければ undefined）
+// 管理者のワークルームの id（管理者の印が指すワークルームが無ければ undefined）
 export function useAdminRoom(): string | undefined {
   const mark = useMatomezuState(s => s.records[ADMIN_MARK.id]?.admin) as { workroom: string } | undefined
   return adminRoomOf(mark, useWorkrooms())
 }
 
-// ワークルームごとの行（管理者の部屋が先頭）。生きているかは、行の calledAt から決める
+// ワークルームごとの行（管理者のワークルームが先頭）。生きているかは、行の calledAt から決める
 export function useWorkroomRows(): readonly WorkroomRow[] {
   const rooms = useWorkrooms()
   const participants = useParticipants()
@@ -68,7 +68,7 @@ export function useWorkroomRows(): readonly WorkroomRow[] {
   )
 }
 
-// ワークルームを動かす関数（部屋を出る・部屋を消す・管理者にする）。どれも行って、断られたら断りをトーストで知らせ、行えたかを返す。
+// ワークルームを動かす関数（ワークルームを出る・消す・管理者にする）。どれも行って、断られたら断りをトーストで知らせ、行えたかを返す。
 // 消すときは、いる参加者を先に外す（続けて行う。外したあとに消すのが断られたら、空室が残る）
 export interface WorkroomActions {
   leave: (occupant: string) => boolean

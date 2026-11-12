@@ -10,6 +10,12 @@ export function rowDetail(row: WorkroomRow): RowDetail {
   return row.admin ? "none" : "idle"
 }
 
-// 選んでいるワークルームの行（選んだ部屋が無くなっていれば、選んでいないのと同じ）
+// 選んでいるワークルームの行（選んだワークルームが無くなっていれば、選んでいないのと同じ）
 export const pickedRow = (rows: readonly WorkroomRow[], picked: string | undefined): WorkroomRow | undefined =>
   rows.find(r => r.room.id === picked)
+
+// ワークルームの枠の「最終アクセス」の出し方: 呼ばれた時刻があればそれ、無ければ準備中か、なし
+export type LastAccess = "called" | "preparing" | "none"
+
+export const lastAccessOf = (row: WorkroomRow): LastAccess =>
+  row.calledAt ? "called" : row.state === "preparing" ? "preparing" : "none"

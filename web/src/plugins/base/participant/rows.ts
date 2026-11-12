@@ -1,5 +1,5 @@
-// ワークルームごとの行（参加者リストの 1 行）: 部屋・いる参加者・様子・管理者か。画面（コントロールセンターなど）は、判定を自分で持たずにこの行を読む。
-// 管理者の部屋は先頭に出し、ほかは受け取った順（部屋を作った順）。管理者の印が指す部屋が無ければ、管理者は無い。
+// ワークルームごとの行（参加者リストの 1 行）: ワークルーム・いる参加者・様子・管理者か。画面（コントロールセンターなど）は、判定を自分で持たずにこの行を読む。
+// 管理者のワークルームは先頭に出し、ほかは受け取った順（作った順）。管理者の印が指すワークルームが無ければ、管理者は無い。
 // 様子は 3 つ: 空室（いる参加者が無い）・準備中（受け入れたあと、AI のフックが参加を伝えるまで）・参加済み（準備中でない）。生きているかは行の様子でなく、最後に呼ばれた時刻（calledAt）で見る
 import type { ParticipantLive } from "../../../store/store"
 import type { Participant, Workroom } from "."
@@ -17,7 +17,7 @@ export interface WorkroomRow {
   calledAt?: string // 参加者が最後に呼ばれた時刻（呼ばれていなければ無い）
 }
 
-// 管理者の印（ADMIN_MARK のレコード。無い・none・部屋が無ければ undefined）が指す、部屋の id
+// 管理者の印（ADMIN_MARK のレコード。無い・none・ワークルームが無ければ undefined）が指す、ワークルームの id
 export function adminRoomOf(mark: { workroom: string } | undefined, rooms: readonly Workroom[]): string | undefined {
   return mark && rooms.some(r => r.id === mark.workroom) ? mark.workroom : undefined
 }
@@ -25,7 +25,7 @@ export function adminRoomOf(mark: { workroom: string } | undefined, rooms: reado
 export function workroomRows(input: {
   rooms: readonly Workroom[] // 作った順
   participants: readonly Participant[]
-  admin: string | undefined // 管理者の部屋の id（adminRoomOf）
+  admin: string | undefined // 管理者のワークルームの id（adminRoomOf）
   ready: readonly string[] // 準備中でない参加者の id
   live: Readonly<Record<string, ParticipantLive>>
   calls: Readonly<Record<string, string>> // 参加者の id → 最後に呼ばれた時刻

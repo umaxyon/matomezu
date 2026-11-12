@@ -1,4 +1,4 @@
-// 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は本物の左サイドパネルを開閉し、全体設定は本物の設定画面を開く
+// 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く
 import type { ReactNode } from "react"
 import { useCommand, useMessages, useWindowStage } from "../../plugin-api/ui"
 import { Tip, useMailboxPanel } from "../base/ui"

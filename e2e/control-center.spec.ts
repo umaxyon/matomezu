@@ -1,5 +1,5 @@
 // コントロールセンターの画面: 左の列（利用者パネル・ワークルーム/参加者の一覧）と右の領域（プロジェクト・書庫）。
-// 前に出す画面を替えると履歴に積まれ、戻れる。郵便は左サイドパネルを開閉し、歯車は本物の設定画面を開く。ワークルームは選ぶと枠に出て、王冠で管理者にし、退室で空室にするか消す
+// 前に出す画面を替えると履歴に積まれ、戻れる。郵便は左サイドパネルを開閉し、歯車は設定画面を開く。ワークルームは選ぶと枠に出て、王冠で管理者にし、退室で空室にするか消す
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 
 const NOW = "2026-11-12T00:00:00.000Z"
@@ -73,7 +73,7 @@ test("書庫は最大化でき、最大化の間は左の列が出ていく。�
   await expect(page.getByRole("heading", { name: "ワークルーム/参加者" })).toBeVisible()
 })
 
-test("郵便のボタンは本物の左サイドパネルを開閉し、歯車は本物の設定画面を開く", async ({ page }) => {
+test("郵便のボタンは本物の左サイドパネルを開閉し、歯車は設定画面を開く", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
   const panel = page.getByRole("complementary", { name: "左サイドパネル" })

@@ -27,7 +27,7 @@ const input = (over: Partial<Parameters<typeof workroomRows>[0]> = {}) => ({
   ...over,
 })
 
-test("行は部屋の作った順で、管理者の部屋だけ先頭。空室・準備中・参加済みの様子と管理者かを持つ", () => {
+test("行はワークルームの作った順で、管理者のワークルームだけ先頭。空室・準備中・参加済みの様子と管理者かを持つ", () => {
   const rows = workroomRows(input({ admin: "c" }))
   expect(rows.map(r => r.room.id)).toEqual(["c", "a", "b"])
   expect(rows.map(r => [r.room.id, r.state, r.admin])).toEqual([
@@ -51,14 +51,14 @@ test("モデルは AI のフックが知らせた今のモデルを先に、ブ�
   expect(c && ["model", "branch", "calledAt", "participant"].some(k => k in c)).toBe(false)
 })
 
-test("受け入れていない参加者（要求中）は部屋に入っていないので、行に出ない", () => {
+test("受け入れていない参加者（要求中）はワークルームに入っていないので、行に出ない", () => {
   const requested: Participant = { ...person("pc", "c"), state: "requested" }
   const { workroom: _, joinedAt: __, ...rest } = requested
   const rows = workroomRows(input({ participants: [{ ...rest, state: "requested" } as Participant] }))
   expect(rows.every(r => r.state === "empty")).toBe(true)
 })
 
-test("管理者の印が指す部屋が無い・印が無ければ、管理者は無い", () => {
+test("管理者の印が指すワークルームが無い・印が無ければ、管理者は無い", () => {
   const rooms = [room("a")]
   expect(adminRoomOf({ workroom: "a" }, rooms)).toBe("a")
   expect(adminRoomOf({ workroom: "none" }, rooms)).toBeUndefined()
@@ -66,7 +66,7 @@ test("管理者の印が指す部屋が無い・印が無ければ、管理者�
   expect(adminRoomOf(undefined, rooms)).toBeUndefined()
 })
 
-test("部屋を出る・管理者にする・部屋を消すは、アクションを 1 件ずつ続けて行い、途中で断られたら止める（空室が残る）", () => {
+test("ワークルームを出る・管理者にする・ワークルームを消すは、アクションを 1 件ずつ続けて行い、途中で断られたら止める（空室が残る）", () => {
   const calls: string[] = []
   const answers: Record<string, boolean> = {}
   const perform: Do = (id, _args, on) => {
