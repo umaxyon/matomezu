@@ -109,6 +109,9 @@ type Storage interface {
 	PutAIEditTickets(book string, body json.RawMessage) error
 	// Touched はブックの id ごとの、開いたか書いた時刻の新しい方（Stamp の形）。開いた時刻は、DB に無いブックにも残る
 	Touched() (map[string]string, error)
+	// RanOnce は、初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）のうち、行ったと記録した物の id、MarkRanOnce は 1 つ記録する
+	RanOnce() (map[string]bool, error)
+	MarkRanOnce(id string) error
 	// Open は、ブック id を開いた時刻を at にする
 	Open(id, at string) error
 	Close() error

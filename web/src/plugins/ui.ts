@@ -16,6 +16,7 @@ import { LIST_UI } from "./items/list/ui"
 import { SHAPE_UI } from "./items/shape/ui"
 import { SLIDE_UI } from "./items/slide/ui"
 import { PAPER_UI } from "./paper/ui"
+import { TASKBOARD_UI } from "./taskboard/ui"
 
 export const BUILTIN_UI = [
   BASE_UI,
@@ -34,6 +35,7 @@ export const BUILTIN_UI = [
   DIR_UI,
   MARKDOWN_UI,
   SLIDE_BOOK_UI,
+  TASKBOARD_UI,
 ] as const
 
 // 既定の UI マッピング。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す

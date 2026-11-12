@@ -19,7 +19,7 @@ function fragmentName(name: string): string {
   }
 }
 
-export const drawsImage = (url: string) => /^data:image\//i.test(url)
+export const drawsMarkdownImage = (url: string) => /^data:image\//i.test(url)
 
 // 脚注と、その参照のフラグメント（見出しのフラグメントには : が残らないので、見出しとぶつからない）
 export const footnoteFragment = (n: number) => `fn:${n}`

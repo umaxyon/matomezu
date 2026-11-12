@@ -166,6 +166,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err := h.loadRoles(); err != nil {
 		return nil, err
 	}
+	h.runOnceActions()
 	if err := h.checkBooks(h.order); err != nil {
 		return nil, err
 	}

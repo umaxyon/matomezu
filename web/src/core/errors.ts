@@ -47,6 +47,7 @@ export const ERRORS = {
   E051: "subject {id}: role {role} needs {field} in its record",
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
   E049: "action {id}: lockSwitch is only for an action whose target is a lockable subject",
+  E052: "skin {id}: palette has {color} for {role}, which is not #rrggbb",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
@@ -63,6 +64,10 @@ export const ERRORS = {
   E115: "unknown tool: {id}",
   E116: "stage {id}: the command context was not made by matomezu (a copy of it does not carry the workspace)",
   E117: "the window has no book screen numbered {index}",
+  E122: "unknown placed state: {id}",
+  E123: "placed state {id}: the value does not fit its schema",
+  E124: "placed state {id} is a {scope} state: {need}",
+  E125: "placed state {id} belongs to another plugin than {owner}",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

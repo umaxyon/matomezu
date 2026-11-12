@@ -397,6 +397,9 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   }
   for (const p of parts.papers) if (p.size.w > p.size.h) problems.push(problem("E014", { id: p.id }))
   for (const c of parts.textColors) if (!HEX.test(c.color)) problems.push(problem("E034", { id: c.id, color: c.color }))
+  for (const s of parts.skins)
+    for (const [role, color] of Object.entries(s.palette ?? {}))
+      if (!HEX.test(color)) problems.push(problem("E052", { id: s.id, role, color }))
   // 同じ鍵の同じ言語に違う訳を持つ文言（プラグインの文言どうし・言語パックどうし）、名前の違う同じ言語、文言の表に無い名前
   const messages = new Map<string, Record<Lang, string>>()
   for (const set of allMessages(parts))

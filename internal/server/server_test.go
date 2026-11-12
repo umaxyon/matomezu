@@ -358,7 +358,10 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"annotations":{},"books":[],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{}}` {
+	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
+		!strings.HasPrefix(body, `{"annotations":{},"books":[],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
+		!strings.HasSuffix(body, `},"settings":null,"touched":{}}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
@@ -374,8 +377,8 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{"b1":"`
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) {
+	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) || !strings.Contains(body, `"touched":{"b1":"`) {
 		t.Fatalf("data = %d %s", code, body)
 	}
 }
@@ -516,7 +519,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	}
 	for name, lines := range map[string]<-chan string{"a": a, "b": b} {
 		got := next(t, lines)
-		if !strings.HasPrefix(got, `book {"act":"`) || !strings.Contains(got, `-1","action":"@matomezu/paper:item-place","book":{`) || !strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `"by":"window","client":"c1","seq":7,"version":2}`) {
+		if !strings.HasPrefix(got, `book {"act":"`) || !strings.Contains(got, `-2","action":"@matomezu/paper:item-place","book":{`) || !strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `"by":"window","client":"c1","seq":7,"version":2}`) {
 			t.Fatalf("%s book = %s", name, got)
 		}
 	}
@@ -1494,5 +1497,35 @@ func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
 	joinedHeader := joinedAI(t, s)
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", mail, joinedHeader); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("a confirmed participant = %s", got)
+	}
+}
+
+// 最初のプロジェクトは 1 度だけ作る: 印が付いていれば、起動しても作らない
+func TestFirstProjectIsMadeOnce(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	if err := store.MarkRanOnce("@matomezu/taskboard:project-add"); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hub, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(hub.CloseAll)
+	recs, err := store.Records()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range recs {
+		if r.Subject == "@matomezu/taskboard:project" {
+			t.Fatalf("project made again: %v", r)
+		}
 	}
 }

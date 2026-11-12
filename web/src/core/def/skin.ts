@@ -1,6 +1,7 @@
 // スキンの定義: matomezu 外観枠（ステージの地・下の行・フッタメニュー・メニュー・ダイアログ・トーストなど、ブックの中身でない所）の色や形。利用者の設定で選び、ブックの中身（テーマ）には効かない。
 // どのスキンも土台が決めたスキンキー（SkinToken）の値を全部埋める（抜けると型の誤り）。スキンキーは CSS 変数 --skin-<スキンキー> になり、ウィジェットはこのスキンキーだけで色を付ける
 import type { SkinExtras } from "../catalog"
+import type { PaletteName } from "../color"
 import type { MessageKey } from "../i18n/i18n"
 
 export const SKIN_TOKENS = [
@@ -48,6 +49,8 @@ export interface SkinDef extends SkinExtras {
   title: MessageKey
   scheme: Scheme // 入力Formやスクロールバーの明暗。自動のスキンは、OS の明暗と同じ明暗のスキンから選ぶ
   tokens: Readonly<Record<SkinToken, string>>
+  // 外観枠の代表色（スキンにもテーマにも属さないシステムの情報の色）の上書き（#rrggbb）。書かなかった役割は、スキンの明暗ごとの既定（core/skin.ts）
+  palette?: Readonly<Partial<Record<PaletteName, string>>>
 }
 
 export function defineSkin<const T extends SkinDef>(def: T): T {

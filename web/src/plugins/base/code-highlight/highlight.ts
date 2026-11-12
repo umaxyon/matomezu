@@ -6,24 +6,12 @@
 import type { ElementContent } from "hast"
 import { refractor } from "refractor"
 import zig from "refractor/zig"
+import { CODE_COLORS, type CodeColor } from "../../../core/color"
 
 refractor.register(zig)
 
-// 色の種類（マークダウンのテーマキー markdown-code-color-<種類> の名前にもなる）
-export const CODE_COLORS = [
-  "comment",
-  "keyword",
-  "string",
-  "constant",
-  "entity",
-  "type",
-  "variable",
-  "tag",
-  "meta",
-  "added",
-  "removed",
-] as const
-export type CodeColor = (typeof CODE_COLORS)[number]
+// 色の種類は core/color.ts（スキンの既定の値も同じ種類で持つ）
+export { CODE_COLORS, type CodeColor }
 
 // 色付けした字の並びの 1 つ（color が plain なら字の色のまま）
 export interface CodeSpan {

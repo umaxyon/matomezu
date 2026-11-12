@@ -9,7 +9,7 @@ import (
 
 // instructions は、つないだ AI に渡す matomezu の説明
 const instructions = "matomezu shows books (such as diagrams) to the user in a browser. " +
-	"Use view to see what the user is looking at, list_books, read_book and read_page to read, actions to see what can be done, and perform to do it. " +
+	"Use view to see what the user is looking at, list_books, read_book and read_page to read, read_records for the records plugins keep (such as the task board), actions to see what can be done, and perform to do it. " +
 	"The user may put notes and marks on things in a book; view and list_books tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
 	"Changes appear at once on screens showing that book; use show to put a book on the user's screen. "
 
@@ -122,6 +122,36 @@ var readTools = []readTool{
 				path += "?" + q.Encode()
 			}
 			return api.Get(path)
+		},
+	},
+	{
+		"read_records",
+		"Read the records of a kind that plugins keep (such as the projects and tickets of the task board). kind is a subject's id (the subjects in the index of actions). Without id, answer the records as lines (id and a one-line brief, in the order the kind decides, up to 100 with total telling how many there are): where keeps only the records whose fields have those values (for example the project of a ticket). With id, answer that record in full. To change a record, use perform with its action.",
+		map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"kind":  map[string]any{"type": "string", "description": "The subject's id."},
+				"id":    map[string]any{"type": "string", "description": "A record's id: answer only that record, in full."},
+				"where": map[string]any{"type": "object", "description": "Field names with the values they must have (top-level fields, as text).", "additionalProperties": map[string]any{"type": "string"}},
+			},
+			"required":             []string{"kind"},
+			"additionalProperties": false,
+		},
+		func(api caller, args map[string]any) (json.RawMessage, error) {
+			q := url.Values{}
+			kind, _ := args["kind"].(string)
+			q.Set("kind", kind)
+			if id, _ := args["id"].(string); id != "" {
+				q.Set("id", id)
+			}
+			if where, ok := args["where"].(map[string]any); ok {
+				for k, v := range where {
+					if text, ok := v.(string); ok {
+						q.Set("where."+k, text)
+					}
+				}
+			}
+			return api.Get("api/ai/records?" + q.Encode())
 		},
 	},
 	{

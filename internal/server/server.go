@@ -26,6 +26,7 @@
 //	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations", "placed"}（annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
+//	GET  /api/ai/records?kind=K[&id=ID][&where.field=value]  AI に見せる種類（対象の定義の aiBrief）のレコード。id があれば {"kind","record"}、無ければ where に合う物の一覧 {"kind","records":[{"id","brief"}],"total"}（100 行まで。ai_records.go）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部
 //	                         （undone と failed は、渡したら、次に利用者が話しかけたときに消える）
@@ -140,6 +141,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
 	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.ai(o.aiPage))
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
+	mux.Handle("GET /api/ai/records", o.ai(o.aiRecords))
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
 	routesForTest(mux, o)

@@ -15,14 +15,17 @@ import {
   useContextMenu,
   useCoreCatalog,
   useMessages,
+  usePlacedState,
+  useSetPlacedState,
   useSetStageState,
   useShownPage,
   useStageState,
   useUiCatalog,
   useUserSetting,
 } from "../../../../plugin-api/ui"
-import { type MarkdownDocument, paperSize } from "../../../base"
+import { type MarkdownDocument, paperSize, SOFT_BREAK, softBreakOf } from "../../../base"
 import {
+  MarkdownDocumentView,
   SEARCH_CURRENT_HIGHLIGHT,
   SEARCH_HIGHLIGHT,
   SplitHandle,
@@ -36,21 +39,18 @@ import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
 import {
   EVEN_PANE_SHARE,
+  PANE_LAYOUT_STATE,
   PANES,
-  type PaneLayout,
   paneInputOf,
   paneLayoutOf,
   shareAt,
   shownPanes,
   splitOf,
   swapPanes,
-  withChosen,
   withOpening,
 } from "../panes"
 import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
-import { SOFT_BREAK, softBreakOf } from "../soft-break"
-import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 import { SourcePane } from "./SourcePane"
 import { renderedRanges, scrollToRange } from "./search-ranges"
@@ -65,9 +65,10 @@ export function MarkdownView({ stage }: BookViewProps) {
   const book = useBook(stage)
   const state = useStageState(stage, kit)
   const shownPage = page ? paneInputOf(page) : null
-  const layout = paneLayoutOf(state, shownPage)
+  const chosen = usePlacedState(kit, PANE_LAYOUT_STATE, stage)
+  const layout = paneLayoutOf(chosen, state, shownPage)
   const setStageState = useSetStageState(kit)
-  const setLayout = (next: PaneLayout) => setStageState(stage, withChosen(state, next))
+  const setLayout = useSetPlacedState(kit, PANE_LAYOUT_STATE, stage)
   const swap = usePaneSwap(() => setLayout(swapPanes(layout)))
   const openMenu = useContextMenu(stage, PANE_CONTEXT)
   const panes = useRef<HTMLDivElement>(null)

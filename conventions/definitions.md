@@ -16,7 +16,7 @@
 | アイテム（`ItemDef`） | 名詞。データに残り、画面に置かれるもの（箱・ひし形・線など） | `core/def/item.ts` |
 | アクション（`ActionDef`） | 動詞。データを変える物 | `core/def/action.ts` |
 | テーマ（`ThemeDef`） | ブックの中身の見た目 | `core/def/theme.ts` |
-| スキン（`SkinDef`） | matomezu 外観枠の色や形（利用者の設定で選ぶ） | `core/def/skin.ts` |
+| スキン（`SkinDef`） | matomezu 外観枠の色や形（利用者の設定で選ぶ）。外観枠の代表色は、スキンの明暗ごとの既定があり、`palette` で上書きできる | `core/def/skin.ts` |
 | 紙（`PaperDef`） | ページに置く紙の大きさ | `core/def/paper.ts` |
 | 文字の色（`TextColorDef`） | 本文の一部に付ける、意味の役割の色（成功・注意など）。色を持つ | `core/def/text-color.ts` |
 | 設定の項目（`SettingDef`） | ブックやページ、または利用者の設定に持たせる 1 つの値（線の既定の通り方・言語など） | `core/def/setting.ts` |
@@ -36,11 +36,10 @@
 | キーの範囲（`KeyScopeDef`） | キーバインドが効く場面の名前と、画面に出す題名 | `store/keys.ts` |
 | ノーマライズステップ（`NormalizeStepDef`） | ブックが対象のアクションの run のあとに、perform がどのブックにもかける処理。id を持たない | `core/def/normalize-step.ts` |
 | 台帳アセンブルのときの確かめ（`CatalogCheckDef`） | ビルトインプラグインが、自分の書き足したフィールドを台帳アセンブルのときに確かめる処理。id を持たない | `core/core-catalog.ts` |
-| 場所に入れる画面の状態（`PlacedStateDef`） | プラグインのステージごとの画面の状態のうち、画面の場所に入れる部分の形と、取り出し方・戻し方 | `core/def/placed-state.ts` |
+| 場所に入れる画面の状態（`PlacedStateDef`） | 画面の場所（URL）に入れて読み直しても戻す値 1 つの宣言 | `core/def/placed-state.ts` |
 
-- 定義の種類（文言の組・言語パック・テーマキー・既定のキーバインド・場所に入れる画面の状態・ノーマライズステップ・台帳アセンブルのときの確かめを除く上の表）の一覧は `core/catalog.ts` の `PARTS` と `PartTables` だけに書き、定義の型は、その台帳のクレートが `PartDefTable` に書き足す。種類ごとの見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く
+- 定義の種類（文言の組・言語パック・テーマキー・既定のキーバインド・ノーマライズステップ・台帳アセンブルのときの確かめを除く上の表）の一覧は `core/catalog.ts` の `PARTS` と `PartTables` だけに書き、定義の型は、その台帳のクレートが `PartDefTable` に書き足す。種類ごとの見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く
 - 文言の組・言語パック・テーマキー・既定のキーバインドは、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとブックのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作る
-- 場所に入れる画面の状態は、プラグインの `placedState` に書き、`PARTS` に入れない（id を持たず、プラグインの id で引く。置き場はプラグインごとに 1 つ）
 - 定義は `defineX()` で書く。React を使わない（描き方はプラグインの見た目で結ぶ）
 
 - core 台帳は定義の組から作り、作ったあとは変えない。作るときに表どうしの参照を確かめ、食い違えば作らない
@@ -49,7 +48,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`PlacedStateExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う
@@ -154,6 +153,7 @@
 - 郵便箱が対象のアクションの `run` は、返す物の `aiEditTicket` で AI 編集チケットを作る・閉じる・失敗にする（`key` で 1 つを見分ける）。常駐は key の意味を知らずに、そのとおりに残す
 - 郵便箱が対象のアクションは、`ActionContext` の `books` でブックの一覧を読むだけできる（「同じ入力なら同じ結果」の入力に入る）
 - 利用者が AI に話しかけたときに行うアクションは、アクションの定義が `runsWhenUserTalks` で名乗る（アノテーションが対象のアクションだけ。引数は受けない）。matomezu が利用者として、アノテーションのあるブックごとに行う
+- 常駐が初めて起動したときに 1 度だけ行うアクションは、アクションの定義が `runsOnceAtStart` で名乗る（引数は省いて `{}`）。matomezu が利用者として、まだ行っていない物を行い、行えたら、利用者があとで消しても作り直さない。行えなければ、次の起動でまた行う
 - AI が参加を頼む（MCP の `join`）ときに行うアクションは、アクションの定義が `runsWhenAIJoins` で役を名乗る（`make-participant`・`notify-user`。役ごとに 1 つのアクションだけが名乗る）。`notify-user` の役のアクションは利用者だけが行い、AI の参加の頼みを受けたホストが、話しかけで matomezu が利用者として行うのと同じく、利用者として送る
 - アノテーションが対象のアクション（`annotations`）は、ブックとそのアノテーションの並びを受けて返す。ブックを変えたら断る。使えるかはそのブックのタイプが決め、認可ステップも通る。「ブックが対象のアクション」には入らないので、許可スコープ（`permissionScope`）は書かない。`history: false` を書かなくても、画面の履歴には入らない
 - ブックかアノテーションが対象のアクションは、印刷プレビューを開いているステージからは止まる。その間も行う物（印刷プレビューの設定を変えるなど）だけ、定義に `inPrintPreview: "runs"` を書く。AI とほかのステージからは止まらない
@@ -211,7 +211,8 @@
 
 ## AI に見せる
 
-- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションとアイテム・アノテーションの種類・ブックのタイプ・郵便の種類・対象の定義・テーマ・代表色・文字の色・言語・スキン・利用者の設定の項目の定義を、目次と、id を渡して取る全文で返す `actions`（引数なしの答えに今の warning も。architecture の「warning」）と、アクションを行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_page`・`read_settings`・`read_mail`）と `show`、参加を頼む `join`。`read_mail` は、郵便の目次（中身 `props` を除く）と、id を渡して取る全文で返す。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
+- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションとアイテム・アノテーションの種類・ブックのタイプ・郵便の種類・対象の定義・テーマ・代表色・文字の色・言語・スキン・利用者の設定の項目の定義を、目次と、id を渡して取る全文で返す `actions`（引数なしの答えに今の warning も。architecture の「warning」）と、アクションを行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_page`・`read_records`・`read_settings`・`read_mail`）と `show`、参加を頼む `join`。`read_mail` は、郵便の目次（中身 `props` を除く）と、id を渡して取る全文で返す。`read_records` は、対象の定義のレコードを、目次（id と 1 行）と、id を渡して取る全文で返し、トップのフィールドの値で絞れる。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
+- AI に見せる対象の定義は、`aiBrief`（レコード 1 件の 1 行。書き方は「アノテーション」の `aiBrief` と同じ）を書いた種類だけ。`actions` の対象の定義にも、`read_records` にも、その種類だけが出る（書かない種類のレコードは、アクションの引数や `on` で名指されるだけ）。`aiListed` で目次に載せるかを、`aiOrder` で目次の並びを決める（どちらも書かなくてよい）
 - AI の `read_page` には、ページの形を描いた位置と大きさを、見せ方の定義の `aiPlaced`（base が拡張ポイントに書き足したメソッド。書かなくてよい）が答えて添える。書かなければ添えない
 - アクションは全部 AI に見せる（利用者の設定のアクションも。行えるかは画面と同じく、コントロールセンターが決める）。ただし、利用者だけが行うアクション（`userOnly`）は見せず、AI が頼んでも断る。利用者の設定の項目の `userOnly` も同じく、AI に見せず（AI が読む設定にも出さない）、AI が変えようとしても断る
 - MCP で AI に見せるもの（アクション・アイテム・タイプの名前、アクションの説明、断った理由の文）は英語に固定し、利用者の言語に合わせない。名前は英語の文言（`en`）で引く
@@ -235,6 +236,7 @@
 - プラグインの見た目では、自分が宣言したテーマキーを `--<名前>` の CSS 変数で使う（例: テーマキー `@foo/stars:star-fill` → `var(--star-fill)`）。matomezu が、そのプラグインのアイテムとブックの見せ方を描く要素に、そのプラグインのテーマキーだけを短い名前で置く（ほかのプラグインのテーマキーは置かないので、ぶつからない）。テーマキーの名前は `theme-`・`skin-` で始めない（土台の CSS 変数とぶつかるため。台帳アセンブルが確かめる）
 - 土台のテーマキー（`accent`・`paper`・`text` など）は、どこでも `--theme-<名前>` で使う
 - テーマキーの値を置く中の CSS 変数の名前は、matomezu の中だけのもので、開発者は書かない。ビルトインプラグインの CSS が参照するテーマキーが、宣言したテーマキーにあることをテストが見張る
+- base のコンポーネントがテーマキーで見た目を受けるとき（`MarkdownDocumentView` など）は、自分が宣言したテーマキーを使う決まりの例外として、テーマキーの並び（短い id と既定）を base が出し、そのコンポーネントを使うブックのタイプが `tokens` にその並びを並べる。ブックの外でコンポーネントを描く所は、同じ名前の CSS 変数を自分で置く。コンポーネントが読む名前が並びにあることを、テストが見張る
 
 ## id
 

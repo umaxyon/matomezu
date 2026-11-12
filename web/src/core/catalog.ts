@@ -46,6 +46,8 @@ export interface ThemeTypeTable {}
 export type BaseKeyScope = "global" | "stage" | "dialog" | "menu" | "control-center"
 // プラグインのキーの範囲の id → 定義（KeyScopeDef）。プラグインは自分の id を頭に付けた範囲を定義して書き足し、自分のウィジェットの要素に data-key-scope で名乗らせる
 export interface KeyScopeTable {}
+// 場所に入れる画面の状態の id → 定義（PlacedStateDef）。プラグインは自分の id を頭に付けて宣言し、書き足す
+export interface PlacedStateTable {}
 
 // 画面の UI マッピングの分。スロットは「id → そこに置くウィジェットが受け取る値」。スロットを描くウィジェットを持つプラグインが、そのスロットを書き足す
 export interface SlotTable {
@@ -79,6 +81,7 @@ export const PARTS = {
   commands: { catalog: "store", label: "command" },
   dialogs: { catalog: "store", label: "dialog" },
   keyScopes: { catalog: "store", label: "keyScope" },
+  placedStates: { catalog: "store", label: "placedState" },
 } as const
 export type Part = keyof typeof PARTS
 export type CorePart = { [K in Part]: (typeof PARTS)[K]["catalog"] extends "core" ? K : never }[Part]
@@ -108,6 +111,7 @@ export interface PartTables {
   commands: CommandTable
   dialogs: DialogTable
   keyScopes: KeyScopeTable
+  placedStates: PlacedStateTable
 }
 // 種類ごとの定義の型。その台帳のクレートが書き足す（ここは空。書き足し忘れは、種類ごとに引く所 PartDefTable[Part] が型の誤りになる）
 export interface PartDefTable {}
@@ -132,6 +136,7 @@ export type PermissionId = keyof PermissionTable & string
 export type MessageKey = keyof MessageTable & string
 export type CommandId = keyof CommandTable & string
 export type KeyScopeId = BaseKeyScope | (keyof KeyScopeTable & string)
+export type PlacedStateId = keyof PlacedStateTable & string
 export type DialogId = keyof DialogTable & string
 export type SlotId = keyof SlotTable & string
 export type WidgetId = keyof WidgetTable & string
@@ -178,6 +183,7 @@ export interface DialogExtras<A = undefined> {
 }
 export interface KeyExtras {}
 export interface KeyScopeExtras {}
+export interface PlacedStateExtras {}
 export interface WidgetExtras {}
 export interface LayoutExtras {}
 export interface BookViewExtras {}

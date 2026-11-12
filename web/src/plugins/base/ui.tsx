@@ -102,7 +102,12 @@ export { defineLeftSidePanelTab, opensOf, tabEntry } from "./left-side-panel/ui"
 export { LockToggle } from "./lock/LockToggle"
 export { MAIL_ACTIONS, type MailActionsProps } from "./mail/slots"
 export { defineMailActions } from "./mail/ui"
-export { useMarkdownDocument } from "./markdown/ui"
+export {
+  MARKDOWN_PANE_MODE_ICONS,
+  MarkdownDocumentView,
+  markdownDocumentOnSkin,
+  useMarkdownDocument,
+} from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/drawn"
 export { ANNOTATION_ICON, type AnnotationIconProps } from "./outbox/slots"
 export { defineAnnotationIcon } from "./outbox/ui"

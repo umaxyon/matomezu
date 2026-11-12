@@ -81,7 +81,7 @@ test("カードの並べ方は画面の場所に入り（読み直しても戻�
     document.querySelectorAll("[data-ex8-card]")[1]!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
   })
   const placed = instance.address()
-  expect(placed.stages[0]!.states).toEqual({ ex8: "sorted" })
+  expect(placed.stages[0]!.states).toEqual({ "ex8:order": "sorted" })
   // 並べ方の無い場所を当てはめると書いた順に戻り、選んだカードはそのまま
   act(() => instance.locate({ ...placed, stages: [{ ...placed.stages[0]!, states: {} }] }))
   expect(words()).toEqual(["みかん", "りんご", "いちご"])

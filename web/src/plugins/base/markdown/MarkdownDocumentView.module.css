@@ -1,4 +1,4 @@
-/* 描いた文書の文字の見た目（色・大きさ・字体・余白はマークダウンのテーマキー。tokens.ts） */
+/* 描いた文書の文字の見た目（色・大きさ・字体・余白はマークダウンのテーマキー。tokens.ts の MARKDOWN_DOCUMENT_TOKENS） */
 .body {
   color: var(--markdown-text);
   font-family: var(--markdown-font-family);

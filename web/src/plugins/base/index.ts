@@ -34,6 +34,7 @@ import { MAIL_PROPOSAL, PROPOSAL_APPLY, PROPOSAL_SEND, PROPOSAL_SETTLE } from ".
 import type {} from "./mail/shown"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
 import { MARK_NEW } from "./mark/commands"
+import { SOFT_BREAK } from "./markdown/soft-break"
 import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_TALKED, NOTE_UPDATE } from "./note"
 import { NOTE_NEW } from "./note/commands"
 import { NOTE_EXPIRY } from "./note/expiry"
@@ -135,8 +136,11 @@ export { createBookIn } from "./book-new/create-book"
 export type { PageContext, SettingReader } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
 export { PAPER_IDS } from "./looks"
-// Markdown の原文を読む（ほかのプラグインが使う。追加プラグインには matomezu から出す）
+// Markdown の原文を読む・描いた文書が使う物（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export {
+  drawsMarkdownImage,
+  MARKDOWN_DOCUMENT_TOKENS,
+  MARKDOWN_PANE_MODES,
   type MarkdownAlign,
   type MarkdownBlock,
   type MarkdownCheck,
@@ -144,9 +148,13 @@ export {
   type MarkdownFootnote,
   type MarkdownInline,
   type MarkdownListItem,
+  type MarkdownPaneMode,
   type MarkdownRange,
   type MarkdownTableCell,
   parseMarkdown,
+  SOFT_BREAK,
+  type SoftBreak,
+  softBreakOf,
 } from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export { itemMinimapMarks, type MinimapMark } from "./minimap/marks"
@@ -315,6 +323,7 @@ export const BASE = defineBuiltin(
       NOTE_EXPIRY,
       PARTICIPANT_ALIVE,
       CORNER_STATUS_ORDER,
+      SOFT_BREAK,
     ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
@@ -426,6 +435,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
+    "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS

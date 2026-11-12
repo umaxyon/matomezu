@@ -13,6 +13,7 @@ test("場所は、ステージごとのブック・ページ・倍率・ずら�
     stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} }],
     current: 0,
     share: 0.5,
+    frame: {},
   })
 })
 
@@ -27,6 +28,7 @@ test("場所を当てはめると、そのとおりにステージを開いて�
     ],
     current: 1,
     share: 0.99,
+    frame: {},
   })
   const ws = screenOf(win)
   expect(ws.stages.map(s => s.opened?.book ?? null)).toEqual(["b3", null])
@@ -47,6 +49,7 @@ test("場所の倍率は、範囲に収める（URL から 0・負・極端な�
         stages: [{ book: "b1", page: "p1", zoom, pan: { x: 0, y: 0 }, states: {} }],
         current: 0,
         share: 0.5,
+        frame: {},
       }),
     ).stages[0]!.zoom
   expect([zoomOf(0), zoomOf(-2), zoomOf(1e9), zoomOf(Number.NaN), zoomOf(1)]).toEqual([
@@ -64,6 +67,7 @@ test("移動は、ステージの数か、ブック・ページが変わった�
     stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} }],
     current: 0,
     share: 0.5,
+    frame: {},
   }
   expect(moved(a, { ...a, share: 0.3, current: 0 })).toBe(false)
   expect(moved(a, { ...a, stages: [{ ...a.stages[0]!, zoom: 2, pan: { x: 10, y: 0 } }] })).toBe(false)
@@ -85,6 +89,7 @@ test("場所を当てはめたステージは、ずらす量が 0 でも、あ�
       stages: [{ book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} }],
       current: 0,
       share: 0.5,
+      frame: {},
     }),
   )
   const stage = { ...ws.stages[0]!, view: { w: 400, h: 300 } }

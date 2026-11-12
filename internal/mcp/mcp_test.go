@@ -106,7 +106,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_settings,read_mail,actions,show,perform,join" {
+	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_records,read_settings,read_mail,actions,show,perform,join" {
 		t.Fatalf("tools = %v", names)
 	}
 }
