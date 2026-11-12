@@ -139,6 +139,7 @@ export { PAPER_IDS } from "./looks"
 export {
   drawsMarkdownImage,
   MARKDOWN_DOCUMENT_TOKENS,
+  MARKDOWN_PANE_MODES,
   type MarkdownAlign,
   type MarkdownBlock,
   type MarkdownCheck,
@@ -146,6 +147,7 @@ export {
   type MarkdownFootnote,
   type MarkdownInline,
   type MarkdownListItem,
+  type MarkdownPaneMode,
   type MarkdownRange,
   type MarkdownTableCell,
   parseMarkdown,

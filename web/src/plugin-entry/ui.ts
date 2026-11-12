@@ -37,6 +37,7 @@ export {
   LeftSidePanelOpenButton,
   LockToggle,
   MAIL_ACTIONS,
+  MARKDOWN_PANE_MODE_ICONS,
   type MailActionsProps,
   MarkdownDocumentView,
   opensOf,
