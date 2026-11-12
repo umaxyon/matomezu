@@ -15,6 +15,7 @@ import {
   unexpired,
 } from "../core/annotation"
 import { checkBooks, restoreBooks } from "../core/book"
+import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { bookType, type CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
@@ -347,6 +348,24 @@ function aiTables(of: Assembled) {
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
 
 // 常駐が読む種類の役（参加者・ワークルーム）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
+// AI に見せる種類 kind のレコードの一覧（read_records）: 載せる物（aiListed）の id と 1 行（aiBrief）を、並びの鍵（aiOrder。無ければ id）の順に返す。AI に見せない種類・無い種類は null
+;(globalThis as { matomezuAiRecords?: (kind: string, records: string) => string }).matomezuAiRecords = (
+  kind,
+  records,
+) => {
+  const def = assembled.catalog.core.subjects.get(kind)
+  const brief = def?.aiBrief
+  if (def === undefined || brief === undefined) return "null"
+  const rows = (JSON.parse(records) as unknown[]).flatMap(r => {
+    const parsed = def.record.safeParse(r)
+    if (!parsed.success || def.aiListed?.(parsed.data) === false) return []
+    const { id } = parsed.data as { id: string }
+    return [{ id, order: def.aiOrder?.(parsed.data) ?? 0, brief: briefLine(brief(parsed.data), 120) }]
+  })
+  rows.sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  return JSON.stringify(rows.map(({ id, brief }) => ({ id, brief })))
+}
+
 ;(globalThis as { matomezuSubjectRoles?: () => string }).matomezuSubjectRoles = () =>
   JSON.stringify(
     Object.fromEntries([...assembled.catalog.core.subjects.values()].flatMap(s => (s.role ? [[s.role, s.id]] : []))),

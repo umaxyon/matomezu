@@ -118,6 +118,7 @@ type Engine struct {
 	alive     func(string, string, float64) bool
 	needs     func(string) string
 	roles     func() string
+	aiRecords func(string, string) string
 	once      func() string
 	records   func(string) string
 	joinedMsg func(string, string) string
@@ -201,6 +202,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSubjectRoles"), &e.roles); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSubjectRoles: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiRecords"), &e.aiRecords); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiRecords: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuRecordNeeds"), &e.needs); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuRecordNeeds: %w", err)
@@ -517,6 +521,33 @@ func (e *Engine) SubjectRoles() (roles map[string]string, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.roles()), &roles)
 	return roles, err
+}
+
+// RecordBrief は、AI に見せるレコードの一覧の 1 行
+type RecordBrief struct {
+	ID    string `json:"id"`
+	Brief string `json:"brief"`
+}
+
+// AIRecords は、AI に見せる種類 kind のレコードの一覧（載せる物だけ。種類が決めた並び）を返す。AI に見せない種類・無い種類は ok が false
+func (e *Engine) AIRecords(kind string, records []json.RawMessage) (rows []RecordBrief, ok bool, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	in, err := json.Marshal(records)
+	if err != nil {
+		return nil, false, err
+	}
+	out := e.aiRecords(kind, string(in))
+	if out == "null" {
+		return nil, false, nil
+	}
+	err = json.Unmarshal([]byte(out), &rows)
+	return rows, err == nil, err
 }
 
 // RecordNeeds は、アクション action が対象にする種類（レコードが対象でなければ Subject が空）と、読むだけの種類を返す

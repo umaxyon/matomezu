@@ -24,5 +24,7 @@ export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends stri
   // AI に見せる種類（read_records）の目次の 1 行（id とともに並ぶ題）。書いた種類だけが AI に見える（書かなければ AI には見せない）。aiListed は目次に載せるか（無ければ載せる）
   aiBrief?(record: z.output<R>): string
   aiListed?(record: z.output<R>): boolean
+  // 一覧（read_records）の並びの鍵（小さい順。無ければ id の順）
+  aiOrder?(record: z.output<R>): number
   numbered?: true // レコードに番号を振る種類。アクションは ctx.number(区切り) で次の番号を受け取る（常駐が決める。区切りごとに連番で、使い回さない）
 }

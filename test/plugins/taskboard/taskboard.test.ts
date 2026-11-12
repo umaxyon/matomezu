@@ -1,12 +1,14 @@
 // タスクボード（プロジェクトとチケット。レコード）: 作る・直す・断る、AI の権限、番号、閉じたプロジェクト
 
 import { expect, test } from "bun:test"
-import { AI, type USER } from "../../web/src/core/actor"
-import { performIn } from "../../web/src/core/perform"
-import { CORE_CATALOG, newStore } from "../support"
+import { AI, type USER } from "../../../web/src/core/actor"
+import { performIn } from "../../../web/src/core/perform"
+import { PROJECT } from "../../../web/src/plugins/taskboard/project"
+import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
+import { CORE_CATALOG, newStore } from "../../support"
 
-const P = "@matomezu/taskboard:project"
-const T = "@matomezu/taskboard:ticket"
+const P = PROJECT.id
+const T = TICKET.id
 const A = (id: string) => `@matomezu/taskboard:${id}`
 
 type Done = { ok: boolean; reason?: string; result?: Record<string, unknown> }

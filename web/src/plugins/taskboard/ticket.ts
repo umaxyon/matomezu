@@ -28,6 +28,7 @@ export const TICKET = kit.defineSubject({
   }),
   refers: t => [{ subject: PROJECT.id, id: t.project }],
   numbered: true,
+  aiOrder: t => t.number,
   aiBrief: t => `${t.number} ${t.name} [${t.lane}${t.tag === NO_TAG ? "" : `, ${t.tag}`}]`,
 })
 
