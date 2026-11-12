@@ -77,28 +77,30 @@ type RecordNeeds struct {
 // Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）、
 // Annotations はアノテーションが変わったブックの id → 新しい並び（空の並びなら全部無くなった）
 type Output struct {
-	OK           bool                        `json:"ok"`
-	Reason       string                      `json:"reason,omitempty"`
-	Permission   string                      `json:"permission,omitempty"`
-	Detail       string                      `json:"detail,omitempty"`
-	Result       json.RawMessage             `json:"result,omitempty"`
-	Books        []json.RawMessage           `json:"books,omitempty"`
-	Removed      []string                    `json:"removed,omitempty"`
-	Settings     json.RawMessage             `json:"settings,omitempty"`
-	Annotations  map[string]json.RawMessage  `json:"annotations,omitempty"`
-	Records      []RecordChange              `json:"records,omitempty"`      // 変わったレコードの全部（宛先が先）。1 つのトランザクションで書く
-	Counters     map[string]map[string]int64 `json:"counters,omitempty"`     // 番号を進めた種類の id → 区切り → 次の番号（進めた区切りだけ）
-	Notice       string                      `json:"notice,omitempty"`       // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
-	AIEditTicket *AIEditTicketChange         `json:"aiEditTicket,omitempty"` // レコードが対象のアクションが返した、AI 編集チケットの変え方
+	OK            bool                        `json:"ok"`
+	Reason        string                      `json:"reason,omitempty"`
+	Permission    string                      `json:"permission,omitempty"`
+	Detail        string                      `json:"detail,omitempty"`
+	Result        json.RawMessage             `json:"result,omitempty"`
+	Books         []json.RawMessage           `json:"books,omitempty"`
+	Removed       []string                    `json:"removed,omitempty"`
+	Settings      json.RawMessage             `json:"settings,omitempty"`
+	Annotations   map[string]json.RawMessage  `json:"annotations,omitempty"`
+	Records       []RecordChange              `json:"records,omitempty"`       // 変わったレコードの全部（宛先が先）。1 つのトランザクションで書く
+	Counters      map[string]map[string]int64 `json:"counters,omitempty"`      // 番号を進めた種類の id → 区切り → 次の番号（進めた区切りだけ）
+	Notice        string                      `json:"notice,omitempty"`        // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
+	AIEditTickets []AIEditTicketChange        `json:"aiEditTickets,omitempty"` // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで、順に当てる）
 }
 
 // AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Key で 1 つを見分け（郵便の id など）、ブック Book の AI 編集チケットを
-// 作る（open）・閉じる（closed）・失敗にする（failed。Changed は変わった・無くなった物の id）
+// 作る（open）・閉じる（closed）・失敗にする（failed。Changed は変わった・無くなった物の id）・郵便が消えたと記す（removed。
+// Cause は消えたわけで、上限で消えた limit か、利用者が消した user）
 type AIEditTicketChange struct {
 	Book    string   `json:"book"`
 	Key     string   `json:"key"`
 	Outcome string   `json:"outcome"`
 	Changed []string `json:"changed,omitempty"`
+	Cause   string   `json:"cause,omitempty"`
 }
 
 // Engine は読み込んだホストのエンジン（engine.js）
@@ -417,7 +419,7 @@ func (e *Engine) CheckRecords(records map[string]map[string]json.RawMessage) (ou
 	return out, err
 }
 
-// TalkActions は、利用者が AI に話しかけたときに、アノテーションのあるブックごとに行うアクションの id
+// TalkActions は、利用者トリガートークのときに、アノテーションのあるブックごとに行うアクションの id
 func (e *Engine) TalkActions() (ids []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

@@ -2,13 +2,14 @@
 // 日の区切りは時間帯で変わるので、時間帯を受け取る（無ければ使っている環境の時間帯）
 import type { z } from "zod"
 import type { By } from "./by"
-import type { HISTORY } from "./history"
+import { type HISTORY, TOPIC_BODY } from "./history"
 import type { TICKET } from "./ticket"
 
 type Ticket = z.output<typeof TICKET.record>
 type Line = z.output<typeof HISTORY.record>
 
 export const FILED = "filed" // 起票の行の題（列挙の値でなく、画面が足す行）
+export const BODY_UPDATED = TOPIC_BODY.id // 本文更新の行の題（文を持たない行。文は画面が題から決める）
 
 // 題 topic の色の役割（起票の行は success。列挙の値の data の color）。列挙から無くなった題は undefined（色を付けない）
 export const topicColor = (topic: string, data: { color: string } | undefined): string | undefined =>
@@ -16,6 +17,14 @@ export const topicColor = (topic: string, data: { color: string } | undefined): 
 
 // 列挙から無くなった題の名前: 題の id の終わり
 export const topicTail = (topic: string): string => topic.split(":").pop() ?? topic
+
+// チケット履歴の行の文の出どころ: 起票の行（filed）・本文更新の行（body）・文を持たない題の文の無い行（topic。題の名前を文にする）・行の文（text）
+export type RowTextSource = "filed" | "body" | "topic" | "text"
+export function rowTextSource(row: HistoryRow, textless: boolean): RowTextSource {
+  if (row.topic === FILED) return "filed"
+  if (row.topic === BODY_UPDATED) return "body"
+  return textless && row.text === "" ? "topic" : "text"
+}
 
 // 見せる番号: チケットプレフィクスと、3 桁に 0 を詰めた番号（1000 からは伸びる）
 export const ticketLabel = (prefix: string, number: number): string => `${prefix}${String(number).padStart(3, "0")}`

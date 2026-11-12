@@ -68,7 +68,7 @@ export const ADMIN_MARK = kit.defineSubject({
   refers: a => (a.workroom === "none" ? [] : [{ subject: WORKROOM.id, id: a.workroom }]),
 })
 
-// 参加を利用者に伝える文の鍵（常駐が話しかけのフックで使う）
+// 参加を利用者に伝える文の鍵（常駐がUserPromptSubmit のフックで使う）
 export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name}")
 
 // データの型（画面の見た目は、ここから読む）

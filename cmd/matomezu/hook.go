@@ -1,7 +1,7 @@
 package main
 
-// 話しかけのフック（talked）: AI の UserPromptSubmit のフックが標準入力に渡す JSON（session_id・transcript_path）から、
-// 話しかけを常駐に知らせ、会話の記録から使い捨ての uuid を拾って参加者にセッション id を結ばせ、結べた参加者を利用者に伝える。
+// UserPromptSubmit のフック（talked）: AI の UserPromptSubmit のフックが標準入力に渡す JSON（session_id・transcript_path）から、
+// ターンの始まりを常駐に知らせ、会話の記録から使い捨ての uuid を拾って参加者にセッション id を結ばせ、結べた参加者を利用者に伝える。
 // 伝えるのはフックの JSON の出力（systemMessage が利用者に見え、sessionTitle が Claude Code のセッション名になり、additionalContext が AI に届く）。
 //
 // モデルのフック（model）: AI の SessionStart と PostModelSwitch のフックが標準入力に渡す JSON（session_id と、model か to_model）から、
@@ -25,7 +25,14 @@ type hookInput struct {
 	TranscriptPath string `json:"transcript_path"`
 	Model          string `json:"model"`    // SessionStart のモデル
 	ToModel        string `json:"to_model"` // PostModelSwitch の、切り替えた先のモデル
+	Prompt         string `json:"prompt"`   // UserPromptSubmit の、ターンを始めた入力
 	Host           string `json:"-"`        // AI のプログラムのプロセス id（フックが --host で渡す）
+}
+
+// woken は、ターンが利用者トリガートークでなく、裏の知らせ（plugin の monitor の 1 行・裏で走らせた物の終わりなど）で始まったか
+// （Claude Code は、その入力を <task-notification> で包んで渡す）
+func (in hookInput) woken() bool {
+	return strings.HasPrefix(strings.TrimSpace(in.Prompt), "<task-notification>")
 }
 
 // model は、フックが知らせるモデル（切り替えた先があればそれ。どちらも無ければ空）
@@ -67,7 +74,7 @@ const (
 
 var uuidShape = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
 
-// talked は話しかけを常駐に知らせ、out に出すものを書く。context は、フックが AI に添える文（annotations の出力など）。
+// talked はターンの始まりを常駐に知らせ、out に出すものを書く。context は、フックが AI に添える文（annotations の出力など）。
 // 伝えることがあるときは 1 つの JSON を書き、無ければ context だけをそのまま書く（フックの出力は JSON か文のどちらか 1 つ）
 func talked(out io.Writer, hook hookInput, context string, api hookAPI) {
 	var reply talkReply
@@ -99,10 +106,10 @@ func talked(out io.Writer, hook hookInput, context string, api hookAPI) {
 	})
 }
 
-// askTalked は、話しかけを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
+// askTalked は、ターンの始まりを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
 func askTalked(hook hookInput, api hookAPI) talkReply {
 	var reply talkReply
-	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host})
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.woken()})
 	out, err := api(body)
 	if err != nil || json.Unmarshal(out, &reply) != nil {
 		return talkReply{}

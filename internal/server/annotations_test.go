@@ -111,11 +111,11 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"version":1,"awaiting":1}`) {
 		t.Fatalf("list_books = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"book":"b1","title":"T","annotation":`+waiting+`,"brief":"x"}],"failed":[],"undone":[]}` {
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"book":"b1","title":"T","annotation":`+waiting+`,"brief":"x"}],"failed":[],"removed":[],"undone":[]}` {
 		t.Fatalf("awaiting = %s", got)
 	}
 	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"book":"b1"}}`, ai)
-	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[],"failed":[],"undone":[]}` {
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[],"failed":[],"removed":[],"undone":[]}` {
 		t.Fatalf("awaiting after read = %s", got)
 	}
 }
@@ -178,7 +178,7 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	}
 }
 
-// 利用者が話しかけると（Talked）、読まれた伝言に会話の時点が付き、期限が過ぎたら時間で消え（Expire）、保存からも消える。
+// 利用者トリガートークがあると（Talked）、読まれた伝言に会話の時点が付き、期限が過ぎたら時間で消え（Expire）、保存からも消える。
 // 窓で利用者が直している伝言は、期限が過ぎても消さない（期限の境目は core の unexpired のテストが見る）
 func TestTalkStartsNoteExpiry(t *testing.T) {
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))

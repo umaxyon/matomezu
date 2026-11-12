@@ -105,7 +105,7 @@ func TestCalledNotesTheBranchHostAndModel(t *testing.T) {
 	}
 }
 
-// フックが知らせたモデルは、そのセッション id を結んだ参加者に書く。結ばれる前なら覚えておき、join で MCP が運んだときと、話しかけのフックが結んだときに移す
+// フックが知らせたモデルは、そのセッション id を結んだ参加者に書く。結ばれる前なら覚えておき、join で MCP が運んだときと、UserPromptSubmit のフックが結んだときに移す
 func TestHeardModelReachesTheSessionsParticipant(t *testing.T) {
 	store := joinStore(t)
 	s, hub := joinWorld(t, store)
@@ -140,7 +140,7 @@ func TestHeardModelReachesTheSessionsParticipant(t *testing.T) {
 		t.Fatalf("join: %+v, %v", n, hub.heardModels)
 	}
 
-	// 話しかけのフックが結ぶ前
+	// UserPromptSubmit のフックが結ぶ前
 	model(`{"sessionId":"S3","model":"haiku"}`)
 	p3 := joinedID(t, s.URL, `{"ai":"claude","model":"opus","env":"linux","link":"6f1c2a3e-1111-4222-8333-444455556666"}`)
 	call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"S3","host":"300","candidates":["6f1c2a3e-1111-4222-8333-444455556666"]}`, nil)
@@ -185,7 +185,7 @@ func TestHeardModelsAreDroppedWhenOldOrTooMany(t *testing.T) {
 	}
 }
 
-// セッション id が変わっても（/clear）、AI のプログラムのプロセス id が同じ参加者に、モデルのフックと話しかけのフックが新しいセッション id を結び直す。
+// セッション id が変わっても（/clear）、AI のプログラムのプロセス id が同じ参加者に、モデルのフックとUserPromptSubmit のフックが新しいセッション id を結び直す。
 // 結んだ所と伝えた印は変えず、プロセス id が空なら結び直さない。join でセッション id を運んだ参加者は、プロセス id が同じでも結び直さない
 // （Codex の app-server では、マシンの全部の会話のプロセス id が同じ）
 func TestHostRebindsANewSession(t *testing.T) {

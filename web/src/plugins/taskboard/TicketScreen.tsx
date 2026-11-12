@@ -1,5 +1,5 @@
 // チケットスクリーン: コントロールセンターの画面の上に全体を覆って重なる（スクリーンの重ね場所が右から滑り込ませる）。左にチケットの枠（番号・タグ・名前・起票日時と最終更新・担当・優先度・ナレッジ・履歴）、
-// 右に本文（マークダウン）。本文は最初からプレビューで出ていて、ナレッジの「起票時の本文」で出し入れし、4 つの並べ方（編集・縦分割・横分割・プレビュー）を切り替える。本文の最大化で、左の枠は戻るボタンだけに畳む。
+// 右に本文（マークダウン）。本文は最初からプレビューで出ていて、ナレッジの「本文」で出し入れし、4 つの並べ方（編集・縦分割・横分割・プレビュー）を切り替える。本文の最大化で、左の枠は戻るボタンだけに畳む。
 // チケット履歴の質問を押すと、質問の枠が右の領域の上に重なる。名前・本文・優先度は直したそばから反映する（本文は打つたびに送り、変換中は送らない）。
 // ロック中のチケットは薄くして直せなくし、帯のロックで掛け外しする。直している間（名前の入力か本文の編集にフォーカスがある間）は、チケットに編集ロックを掛ける。画面の状態は、開いているチケットが替われば初めに戻る
 import { type KeyboardEvent, useEffect, useState } from "react"
@@ -36,6 +36,7 @@ import { TicketTagBadge } from "./TicketTagBadge"
 import { PRIORITIES, TICKET, TICKET_NAME_MAX } from "./ticket"
 import { TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "./ticket-screen-state"
 import { assigneesOf, type HistoryRow, historyRows, ticketLabel, whenOf } from "./ticket-view"
+import { useBodyUpdateLine } from "./useBodyUpdateLine"
 import { WriterBird } from "./WriterBird"
 
 const WORKROOM = "@matomezu/base:workroom"
@@ -65,6 +66,7 @@ export function TicketScreen({ ticket: id }: { ticket: string }) {
   const allowed = useAllowedOn(TICKET_UPDATE.id, {}, { record: id })
   const locked = ticket?.locked === true
   const canEdit = allowed.ok && !locked
+  const markBodyEdited = useBodyUpdateLine(ticket ? id : undefined)
 
   if (!ticket)
     return (
@@ -131,7 +133,7 @@ export function TicketScreen({ ticket: id }: { ticket: string }) {
               <span className={styles.itemIcon}>
                 <BookIcon />
               </span>
-              <span className={styles.itemName}>{t("Body at filing")}</span>
+              <span className={styles.itemName}>{t("Body")}</span>
             </button>
           </div>
           <div className={styles.sectionHead}>{t("History")}</div>
@@ -155,7 +157,9 @@ export function TicketScreen({ ticket: id }: { ticket: string }) {
             onMode={mode => set({ mode })}
             onMaximize={() => set({ maximized: !view.maximized })}
             onEditing={setEditing}
-            onBody={body => edit({ body })}
+            onBody={body => {
+              if (edit({ body }).ok) markBodyEdited()
+            }}
           />
         </Side>
         <Side open={question !== undefined} title={t("Question")} className={styles.question}>
