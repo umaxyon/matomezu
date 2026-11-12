@@ -2,6 +2,7 @@
 // データはブック・ページ・アイテム、ステージは読むだけの StageView（プラグインが持つ画面の状態は useStageState・useSetStageState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { USER } from "../core/actor"
 import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -143,6 +144,7 @@ export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, 
     const done: Permitted | { ok: false; reason: string } = permittedIn(worldOf(s), action, args, on, {
       catalog,
       controlCenter,
+      actor: USER,
     })
     return done.ok ? OK : done.reason === "denied" && "permission" in done ? done.permission : NOT_ALLOWED
   })

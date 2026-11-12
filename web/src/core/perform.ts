@@ -109,7 +109,7 @@ function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after:
 }
 
 // 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）
-export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter"> & Partial<Pick<ActionContext, "actor">>
+export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "actor">
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可スコープで引数から出した変える項目の id も渡す。
 // 認可ステップに渡すのは、ブックが対象ならそのブックと、アクションの許可スコープ（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
@@ -135,7 +135,7 @@ function permits(
           book,
           ...(where ? { where } : {}),
           ...(settings ? { settings } : {}),
-          ...(ctx.actor ? { actor: ctx.actor } : {}),
+          actor: ctx.actor,
         },
         ctx,
       ),

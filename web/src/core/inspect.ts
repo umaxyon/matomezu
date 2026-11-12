@@ -2,7 +2,7 @@
 // 口はこの inspect 1 つで、問い合わせの種類（kind）ごとに調べ方を足す。
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
-import { type Actor, isAI } from "./actor"
+import { type Actor, isAI, USER } from "./actor"
 import type { ActionId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
 import { type ActionContext, type ActionDef, attachedTo, isOnBook, type Where } from "./def/action"
@@ -63,7 +63,7 @@ export function inspect(
 // （ほかの対象は、コントロールセンターで決まる）
 export function actionQuery(catalog: CoreCatalog, action: string, book: Book | undefined, where?: Where): Query {
   const onBook = book !== undefined && isOnBook(catalog.actions.get(action)?.target)
-  return { kind: "action", action, ...(onBook ? { book, ...(where ? { where } : {}) } : {}) }
+  return { kind: "action", action, actor: USER, ...(onBook ? { book, ...(where ? { where } : {}) } : {}) }
 }
 
 const decide = <V>(steps: Step<V>[]): Inspected<V> => {
@@ -110,14 +110,14 @@ const centerSteps = (def: ActionDef, center: ControlCenterDef): Step<boolean>[] 
 function userSettingSteps(
   catalog: CoreCatalog,
   ids: readonly string[],
-  actor: Actor | undefined,
+  actor: Actor,
   center: ControlCenterDef,
 ): { userOnly: Step<boolean>[]; fixed: Step<boolean>[] } {
   const known = ids.filter(id => catalog.userSettings.has(id))
   return {
     userOnly: known.map(id => ({
       from: { source: "userSetting", id, field: "userOnly" },
-      value: actor !== undefined && isAI(actor) && catalog.userSettings.get(id)?.userOnly ? false : null,
+      value: isAI(actor) && catalog.userSettings.get(id)?.userOnly ? false : null,
     })),
     fixed: known.map(id => ({
       from: { source: "controlCenter", id: center.id, field: "fixedUserSettings", setting: id },
@@ -141,7 +141,7 @@ function action(
   if (!def) return decide([known])
   const userOnly: Step<boolean> = {
     from: { source: "action", id: def.id, field: "userOnly" },
-    value: def.userOnly && q.actor !== undefined && isAI(q.actor) ? false : null,
+    value: def.userOnly && isAI(q.actor) ? false : null,
   }
   const { kind: _, action: __, book, settings, ...where } = q
   const permitted = book ? permissionSteps(catalog, { ...where, action: def, book }) : []

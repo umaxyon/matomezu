@@ -8,6 +8,6 @@ test("利用者と AI は別のアクターで、isAI・isUser が答える", ()
 })
 
 test('外から来た印は、"ai" なら AI、無ければ利用者', () => {
-  expect(actorOfWire("ai")).toBe(AI)
-  expect(actorOfWire(undefined)).toBe(USER)
+  expect(isAI(actorOfWire("ai"))).toBe(true)
+  expect(isUser(actorOfWire(undefined))).toBe(true)
 })

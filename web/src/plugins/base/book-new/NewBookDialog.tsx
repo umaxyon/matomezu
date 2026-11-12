@@ -1,8 +1,10 @@
 // ブックを作るダイアログ: 名前とタイプを決めて作り（アクション book-create）、そのステージで開く。
 // 選べるタイプは、作れるタイプのうちアクション book-create を行えるもの（追加プラグインの認可ステップがタイプごとに止めることもある）。
 // タイプが作るときに聞く設定の項目（createSettings）を選んでいれば、そのタイプを選んだときに項目を開いて見せ（アコーディオン）、決めた値も一緒に渡す
+
 import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { USER } from "../../../core/actor"
 import { createBook } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import { DEFAULT_PROJECT } from "../../../core/project"
@@ -34,7 +36,7 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const [title, setTitle] = useState("")
   const catalog = useCoreCatalog()
   const controlCenter = useControlCenter()
-  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, controlCenter })))
+  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, controlCenter, actor: USER })))
   const [type, setType] = useState(types[0] ?? "")
   const [settings, setSettings] = useState<SettingsPatch>({})
   const asks = type ? (bookType(catalog, type).createSettings ?? []) : []

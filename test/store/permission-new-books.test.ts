@@ -1,6 +1,8 @@
 // 作るブックと認可ステップ: 行った後の確かめ（keeps）は、一覧が対象のアクションで新しく増えたブックも見る（前のブックは無い）。
 // 行う前は、作るタイプの空のブックで問う
+
 import { expect, test } from "bun:test"
+import { USER } from "../../web/src/core/actor"
 import { creatableTypes } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN } from "../../web/src/plugins"
@@ -82,7 +84,7 @@ test("新しいブックのダイアログが出すタイプ（typesToCreate）�
       }),
     ],
   })
-  const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter }
+  const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter, actor: USER }
   const types = typesToCreate(worldOf(store.state.getState()), ctx)
   expect(types).toEqual(creatableTypes(store.catalog.core).filter(t => t !== "@matomezu/dir:dir"))
 })

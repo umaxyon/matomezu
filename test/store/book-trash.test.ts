@@ -1,6 +1,8 @@
 // ゴミ箱: book-trash はブックに入れた時刻を付けて一覧から外し（開いていたステージは何も開かない）、book-restore は戻し、
 // book-purge と trash-empty はゴミ箱から消す。ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
+
 import { expect, test } from "bun:test"
+import { USER } from "../../web/src/core/actor"
 import { permittedIn } from "../../web/src/core/perform"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
@@ -56,7 +58,7 @@ test("ロック中のページを持つブックのゴミ箱入れは、行う�
   const page = (store.state.getState().books.b1 as { pages: readonly { id: string }[] }).pages[1]?.id as string
   store.actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
   const world = worldOf(store.state.getState())
-  const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter }
+  const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter, actor: USER }
   expect(permittedIn(world, "@matomezu/base:book-trash", { book: "b1" }, undefined, ctx)).toEqual({
     ok: false,
     reason: "denied",

@@ -6,8 +6,8 @@ export type Actor = { readonly kind: "user" } | { readonly kind: "ai" }
 export const USER: Actor = { kind: "user" }
 export const AI: Actor = { kind: "ai" }
 
-export const isAI = (actor: Actor): boolean => actor.kind === "ai"
-export const isUser = (actor: Actor): boolean => actor.kind === "user"
+export const isAI = (actor: Actor): actor is Extract<Actor, { kind: "ai" }> => actor.kind === "ai"
+export const isUser = (actor: Actor): actor is Extract<Actor, { kind: "user" }> => actor.kind === "user"
 
 // 外から来た印（"ai"。無ければ利用者）のアクター
 export const actorOfWire = (by: "ai" | undefined): Actor => (by === "ai" ? AI : USER)

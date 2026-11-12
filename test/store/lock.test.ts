@@ -85,8 +85,8 @@ test("変える所を言わないアクションは、行う前にはページ�
   const page = { id: "p1", title: "1", locked: true as const }
   const before = { type: "t", id: "b1", title: "", pages: [page] } as unknown as Book
   const action = CORE_CATALOG.actions.get("@matomezu/base:page-update")!
-  expect(LOCK.denies({ action, book: before })).toBe(false)
-  expect(LOCK.denies({ action, book: before, where: { page: "p1" } })).toBe(true)
+  expect(LOCK.denies({ action, book: before, actor: USER })).toBe(false)
+  expect(LOCK.denies({ action, book: before, where: { page: "p1" }, actor: USER })).toBe(true)
   const after = { ...before, pages: [{ ...page, title: "x" }] } as unknown as Book
   expect(LOCK.keeps!({ action, before, after, changes: changesOf(before, after), actor: USER })).toBe(false)
   const unlocked = { ...before, pages: [{ id: "p1", title: "1" }] } as unknown as Book

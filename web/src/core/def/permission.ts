@@ -14,7 +14,7 @@ export interface PermissionQuery {
   action: ActionDef
   book: Book
   where?: Where
-  actor?: Actor // 問う者（無ければ利用者の画面からの問い）
+  actor: Actor // 問う者
 }
 
 // 行う前と後のブックの変化（core が比べて求める）
