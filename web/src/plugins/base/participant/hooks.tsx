@@ -1,12 +1,23 @@
 // 参加者の表と、最後に呼ばれた時刻を読むフック
 import { useCallback, useEffect, useState } from "react"
-import type { Participants } from "../../../core/participant"
+import type { z } from "zod"
+import { useShallow } from "zustand/react/shallow"
 import { isParticipantAlive } from "../../../core/settings"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
+import { PARTICIPANT, WORKROOM } from "."
 
-// 利用者の参加者の表（要求が届いた順）
-export const useParticipants = (): Participants => useMatomezuState(s => s.participants)
+// 参加者のレコード（種類 PARTICIPANT。要求が届いた順）と、ワークルームのレコード（作った順）
+type Participant = z.output<typeof PARTICIPANT.record>
+type Workroom = z.output<typeof WORKROOM.record>
+const sorted = <T extends { id: string }>(records: Readonly<Record<string, unknown>> | undefined, key: keyof T) =>
+  (Object.values(records ?? {}) as T[]).sort(
+    (a, b) => String(a[key]).localeCompare(String(b[key])) || a.id.localeCompare(b.id),
+  )
+export const useParticipants = (): readonly Participant[] =>
+  useMatomezuState(useShallow(s => sorted<Participant>(s.records[PARTICIPANT.id], "requestedAt")))
+export const useWorkrooms = (): readonly Workroom[] =>
+  useMatomezuState(useShallow(s => sorted<Workroom>(s.records[WORKROOM.id], "createdAt")))
 
 // 参加者の id → 最後に呼ばれた時刻
 export const useParticipantCalls = (): Readonly<Record<string, string>> => useMatomezuState(s => s.participantCalls)

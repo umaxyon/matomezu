@@ -5,6 +5,14 @@ import type { z } from "zod"
 import type { SubjectExtras } from "../catalog"
 import type { MessageKey } from "../i18n/i18n"
 
+// 常駐が読む種類の役。参加者（participants）とワークルーム（workrooms）は、常駐（join・話しかけのフック）が読むので、定義が役を名乗り、常駐は役で種類を引く。
+// 役ごとに 1 つの種類だけが名乗り、常駐が読むフィールドを record に持つ（SUBJECT_ROLE_FIELDS。台帳アセンブルのときに確かめる）
+export const SUBJECT_ROLE_FIELDS = {
+  participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom"],
+  workrooms: ["id", "name"],
+} as const
+export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
+
 export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends string = MessageKey> extends SubjectExtras {
   id: string // 本当の id（例: @matomezu/example:note）
   title: Tt
@@ -12,5 +20,6 @@ export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends stri
   record: R // レコード 1 件の形。id（文字）を持つ
   // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す種類は、アクションの reads に書く）
   refers?(record: z.output<R>): readonly { subject: string; id: string }[]
+  role?: SubjectRole // 常駐が読む種類の役（参加者・ワークルーム）
   numbered?: true // レコードに番号を振る種類。アクションは ctx.number(区切り) で次の番号を受け取る（常駐が決める。区切りごとに連番で、使い回さない）
 }

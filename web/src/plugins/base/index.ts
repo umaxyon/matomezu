@@ -56,7 +56,19 @@ import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { VARIABLE_PAGES } from "./page-tabs/variable-pages"
-import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE, PARTICIPANT_REQUEST, PARTICIPANT_TAKE_OVER } from "./participant"
+import {
+  ADMIN_MARK,
+  ADMIN_SET,
+  PARTICIPANT,
+  PARTICIPANT_ACCEPT,
+  PARTICIPANT_DECLINE,
+  PARTICIPANT_REMOVE,
+  PARTICIPANT_REQUEST,
+  WORKROOM,
+  WORKROOM_ADD,
+  WORKROOM_REMOVE,
+  WORKROOM_UPDATE,
+} from "./participant"
 import { PARTICIPANT_ALIVE } from "./participant/alive"
 import { PARTICIPANT_JOIN_DIALOG } from "./participant/dialogs"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
@@ -276,7 +288,11 @@ export const BASE = defineBuiltin(
       PARTICIPANT_REQUEST,
       PARTICIPANT_ACCEPT,
       PARTICIPANT_DECLINE,
-      PARTICIPANT_TAKE_OVER,
+      PARTICIPANT_REMOVE,
+      WORKROOM_ADD,
+      WORKROOM_UPDATE,
+      WORKROOM_REMOVE,
+      ADMIN_SET,
       MAIL_JOIN_REQUEST_SEND,
     ],
     settings: [
@@ -308,6 +324,7 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [NOTE, MARK],
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
+    subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK],
     checks: [
       PROP_NAMES_CHECK,
       FAMILY_TITLE_CHECK,
@@ -451,7 +468,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant-request": typeof PARTICIPANT_REQUEST
     "@matomezu/base:participant-accept": typeof PARTICIPANT_ACCEPT
     "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
-    "@matomezu/base:participant-take-over": typeof PARTICIPANT_TAKE_OVER
+    "@matomezu/base:participant-remove": typeof PARTICIPANT_REMOVE
+    "@matomezu/base:workroom-add": typeof WORKROOM_ADD
+    "@matomezu/base:workroom-update": typeof WORKROOM_UPDATE
+    "@matomezu/base:workroom-remove": typeof WORKROOM_REMOVE
+    "@matomezu/base:admin-set": typeof ADMIN_SET
     "@matomezu/base:mail-join-request": typeof MAIL_JOIN_REQUEST_SEND
   }
   interface ThemeTable {
@@ -466,6 +487,11 @@ declare module "../../core/catalog" {
   interface AnnotationTable {
     "@matomezu/base:note": typeof NOTE
     "@matomezu/base:mark": typeof MARK
+  }
+  interface SubjectTable {
+    "@matomezu/base:workroom": typeof WORKROOM
+    "@matomezu/base:participant": typeof PARTICIPANT
+    "@matomezu/base:admin-mark": typeof ADMIN_MARK
   }
   interface MailTable {
     "@matomezu/base:letter": typeof MAIL_LETTER

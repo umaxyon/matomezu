@@ -183,7 +183,6 @@ const DataSchema = z.object({
   settings: z.unknown(),
   annotations: z.record(z.string(), z.unknown()).optional(),
   mailbox: z.unknown().optional(),
-  participants: z.unknown().optional(),
   records: z.unknown().optional(),
   counters: z.unknown().optional(),
   plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
@@ -208,7 +207,6 @@ const ParticipantReadySchema = z.object({ participant: z.string() })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
 const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
-const ParticipantsSchema = z.object({ participants: z.unknown(), ...Mark })
 const RecordSchema = z.object({
   subject: z.string(),
   id: z.string(),
@@ -227,7 +225,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let settings: unknown
   let annotations: Record<string, unknown> = {} // ブックの id → アノテーションの並び
   let mailbox: unknown = [] // 利用者の郵便箱
-  let participants: unknown = [] // 利用者の参加者の表
   let records: unknown = {} // 対象の定義が足した種類のレコード（種類の id → id → レコード）
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
@@ -310,7 +307,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
         settings,
         annotations,
         mailbox,
-        participants,
         records,
         counters,
         touched,
@@ -416,7 +412,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
     settings = data.settings ?? undefined
     annotations = data.annotations ?? {}
     mailbox = data.mailbox ?? []
-    participants = data.participants ?? []
     records = data.records ?? {}
     counters = data.counters ?? {}
     plugins = data.plugins ?? []
@@ -568,12 +563,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
       const e = MailboxSchema.parse(JSON.parse(data))
       mailbox = e.mailbox
       instance?.setLastWindow(e.window === client)
-      settle(e)
-      show()
-    })
-    on("participants", data => {
-      const e = ParticipantsSchema.parse(JSON.parse(data))
-      participants = e.participants
       settle(e)
       show()
     })

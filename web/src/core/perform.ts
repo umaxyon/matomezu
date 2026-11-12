@@ -1,5 +1,5 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book と annotations が対象ならそのブックのタイプ、library・settings・mailbox・participants が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
+// 使えるかは、book と annotations が対象ならそのブックのタイプ、library・settings・mailbox と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
@@ -29,7 +29,6 @@ import type { SubjectDef } from "./def/subject"
 import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { type Mailbox, mailboxSettles } from "./mail"
-import { type Participants, participantsSettle } from "./participant"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
 import { readsOf, referredOf } from "./refs"
 import { sameData } from "./same"
@@ -306,11 +305,6 @@ export function perform<Id extends ActionId>(
     !mailboxSettles(ctx.catalog, subject as unknown as Mailbox, done.next as unknown as Mailbox)
   )
     return { ok: false, reason: "refused" }
-  if (
-    action.target === "participants" &&
-    !participantsSettle(subject as unknown as Participants, done.next as unknown as Participants)
-  )
-    return { ok: false, reason: "refused" }
   return {
     ok: true,
     next: done.next,
@@ -325,7 +319,6 @@ export interface World {
   settings: Settings
   annotations: Annotations
   mailbox: Mailbox
-  participants: Participants
   records: Records // 対象の定義が足した種類ごとのレコード（種類の id → id → レコード）
   counters: Counters // 番号を振る種類ごとの、区切りごとの次の番号
 }
@@ -341,7 +334,6 @@ export type PerformedIn =
       settings?: Settings
       annotations?: Annotations
       mailbox?: Mailbox
-      participants?: Participants
       record?: RecordChange // レコードが対象のアクションで変わったレコード 1 件
       aiEditTicket?: AIEditTicketChange // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
     }
@@ -408,14 +400,6 @@ export function performIn(
     return next === world.mailbox
       ? { ok: true, result: done.result, ...ticket }
       : { ok: true, result: done.result, mailbox: next, ...ticket }
-  }
-  if (target === "participants") {
-    const done = loose(world.participants, id, args, ctx)
-    if (!done.ok) return done
-    const next = done.next as unknown as Participants
-    return next === world.participants
-      ? { ok: true, result: done.result }
-      : { ok: true, result: done.result, participants: next }
   }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
@@ -512,13 +496,7 @@ export function permittedIn(
     return now === undefined ? { ok: false, reason: "no-record" } : permitted(now, id, args, { ...ctx, records: reads })
   }
   return permitted(
-    target === "library"
-      ? world.books
-      : target === "mailbox"
-        ? world.mailbox
-        : target === "participants"
-          ? world.participants
-          : world.settings,
+    target === "library" ? world.books : target === "mailbox" ? world.mailbox : world.settings,
     id,
     args,
     ctx,

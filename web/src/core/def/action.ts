@@ -9,7 +9,6 @@ import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
 import type { Mailbox } from "../mail"
-import type { Participants } from "../participant"
 import type { Records } from "../records"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
@@ -18,18 +17,16 @@ import { type BookTypeDef, placeableOf } from "./book-type"
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはコントロールセンターが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
 // 使えるかは book と同じくそのブックのタイプが決める。mailbox は利用者に 1 つの郵便箱（core/mail.ts）で、使えるかは library・settings と同じくコントロールセンターが決める。
-// participants は利用者に 1 つの参加者の表（core/participant.ts）で、使えるかは mailbox と同じくコントロールセンターが決める
 export interface Subjects {
   library: Library
   book: Book
   settings: Settings
   annotations: BookAnnotations
   mailbox: Mailbox
-  participants: Participants
 }
 
 // 土台が持つ対象の名前（対象の定義が足した種類は、その id が対象の名前になる）
-export const BASE_TARGETS: readonly string[] = ["library", "book", "settings", "annotations", "mailbox", "participants"]
+export const BASE_TARGETS: readonly string[] = ["library", "book", "settings", "annotations", "mailbox"]
 export type ActionTarget = keyof Subjects | SubjectId
 
 // 対象の定義の種類 T のレコード 1 件（形は定義の record）
@@ -265,7 +262,7 @@ export interface ActionDef<
   runsWhenUserTalks?: T extends "annotations" ? true : never
   // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
   // "notify-user" は利用者に知らせる郵便を、利用者として送る（参加者の id などを受ける。利用者だけが行うアクション）。役ごとに 1 つのアクションだけが名乗る。make-participant は参加者の表、notify-user は郵便箱が対象のアクションだけが書ける
-  runsWhenAIJoins?: T extends "participants" ? "make-participant" : T extends "mailbox" ? "notify-user" : never
+  runsWhenAIJoins?: T extends SubjectId ? "make-participant" : T extends "mailbox" ? "notify-user" : never
   // "runs" なら、印刷プレビューの間のステージからも行える（印刷プレビューの見せ方の設定を変えるアクションなど。無ければ、ブックが対象なら止める。core/stage.ts の stageBlocks）
   inPrintPreview?: "runs"
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）

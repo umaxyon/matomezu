@@ -23,7 +23,7 @@ import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { checkMailbox, type Mailbox, type MailQuery, mailForAi, restoreMailbox } from "../core/mail"
 import { splitId } from "../core/names"
-import { joinActions, type Participants, restoreParticipants } from "../core/participant"
+import { joinActions } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
 import { checkRecords, type RecordChange, restoreCounters, restoreRecords } from "../core/records"
@@ -60,7 +60,6 @@ interface Input {
   settings: unknown
   annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
   mailbox?: unknown // 利用者の郵便箱（郵便箱が対象のアクションのとき）
-  participants?: unknown // 利用者の参加者の表（参加者の表が対象のアクションのとき）
   counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
   records?: unknown // 対象の定義が足した種類のレコード（種類の id → id → レコード。レコードが対象のアクションのとき、宛先と読むだけの種類）
   actor?: WireActor // 頼んだ者（無ければ利用者。AI は入っているワークルームの id を持つ）
@@ -68,7 +67,7 @@ interface Input {
   watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
 
-// 返すもの。aiEditTicket は郵便箱が対象のアクションが返した AI 編集チケットの変え方、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱、participants は変わった参加者の表。
+// 返すもの。aiEditTicket は郵便箱が対象のアクションが返した AI 編集チケットの変え方、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱、record は変わったレコード 1 件。
 // AI のアクションと lockedForUser のアクションが、受けた watched の物（ブックの中の物とアノテーションの id）を変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
@@ -80,7 +79,6 @@ type Output =
       settings?: unknown
       annotations?: Annotations
       mailbox?: Mailbox
-      participants?: Participants
       record?: RecordChange // 変わったレコード 1 件（消したなら record は removed）
       notice?: string
       aiEditTicket?: AIEditTicketChange
@@ -94,7 +92,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   unknown: "there is no action with that id (see actions)",
   "bad-args": "the args do not match the action's args (see actions)",
   "not-allowed":
-    "this book's type (or, for the library, the settings, the mailbox and the participants, the control center) does not allow it",
+    "this book's type (or, for the library, the settings, the mailbox and the records, the control center) does not allow it",
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
@@ -137,12 +135,11 @@ function perform(input: Input): Output {
     Object.entries(input.annotations ?? {}).map(([book, list]) => [book, restoreAnnotations(list)]),
   )
   const mailbox = restoreMailbox(input.mailbox)
-  const participants = restoreParticipants(input.participants)
   const records = restoreRecords(input.records)
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
   const done = performIn(
-    { books, settings, annotations, mailbox, participants, records, counters },
+    { books, settings, annotations, mailbox, records, counters },
     input.action,
     input.args,
     input.on,
@@ -182,7 +179,6 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(done.mailbox ? { mailbox: done.mailbox } : {}),
-    ...(done.participants ? { participants: done.participants } : {}),
     ...(done.record ? { record: done.record } : {}),
     ...(notice ? { notice } : {}),
     ...(done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}),
@@ -342,6 +338,12 @@ function aiTables(of: Assembled) {
 // 残した郵便箱を今の機能台帳で確かめ、効かない郵便（種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
 ;(globalThis as { matomezuCheckMailbox?: (list: string) => string }).matomezuCheckMailbox = list =>
   JSON.stringify(checkMailbox(assembled.catalog.core, restoreMailbox(JSON.parse(list))).map(warningText))
+
+// 常駐が読む種類の役（参加者・ワークルーム）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
+;(globalThis as { matomezuSubjectRoles?: () => string }).matomezuSubjectRoles = () =>
+  JSON.stringify(
+    Object.fromEntries([...assembled.catalog.core.subjects.values()].flatMap(s => (s.role ? [[s.role, s.id]] : []))),
+  )
 
 // 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が無い W024・形が合わない W025）の warning の 1 行ずつを返す（常駐がログに書く）
 ;(globalThis as { matomezuCheckRecords?: (records: string) => string }).matomezuCheckRecords = records =>

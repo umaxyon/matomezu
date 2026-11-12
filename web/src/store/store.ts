@@ -33,7 +33,6 @@ import {
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
 import { type Mailbox, restoreMailbox } from "../core/mail"
-import { type Participants, restoreParticipants } from "../core/participant"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import { type Counters, type Records, restoreCounters, restoreRecords, withCounters, withRecord } from "../core/records"
@@ -107,7 +106,6 @@ export interface MatomezuState {
   settings: Settings
   annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
   mailbox: Mailbox // 利用者の郵便箱（core/mail.ts。届いた順）
-  participants: Participants // 利用者の参加者の表（core/participant.ts。要求が届いた順）
   records: Records // 対象の定義が足した種類ごとのレコード（core/records.ts。種類の id → id → レコード）
   counters: Counters // 番号を振る種類ごとの、区切りごとの次の番号（core/records.ts）
   lang: Lang // 今の言語（設定の言語の項目が選んだ言語パックの言語。選んでいない・使えなければ、インスタンスを作ったときに決めた言語）
@@ -274,7 +272,6 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       settings: unknown
       annotations?: unknown
       mailbox?: unknown
-      participants?: unknown
       records?: unknown
       counters?: unknown
       touched?: Readonly<Record<string, string>>
@@ -332,7 +329,6 @@ function initialState(
     settings,
     annotations: {},
     mailbox: [],
-    participants: [],
     records: {},
     counters: {},
     lang,
@@ -636,7 +632,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     if (done.annotations) next.annotations = withAnnotations(annotations, done.annotations)
     if (done.mailbox) next.mailbox = done.mailbox
-    if (done.participants) next.participants = done.participants
     if (done.record) {
       next.records = withRecord(getState().records, done.record)
       if (done.record.counters) next.counters = withCounters(getState().counters, done.record)
@@ -875,8 +870,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)
       let mailbox = world.mailbox === undefined ? getState().mailbox : restoreMailbox(world.mailbox)
-      let participants =
-        world.participants === undefined ? getState().participants : restoreParticipants(world.participants)
       let records = world.records === undefined ? getState().records : restoreRecords(world.records)
       let counters = world.counters === undefined ? getState().counters : restoreCounters(world.counters)
       for (const done of replay) {
@@ -885,7 +878,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const next = (() => {
           try {
             return performIn(
-              { books: library, settings, annotations, mailbox, participants, records, counters },
+              { books: library, settings, annotations, mailbox, records, counters },
               done.action,
               done.args,
               done.on,
@@ -907,7 +900,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (next.books) library = next.books
         if (next.settings) settings = next.settings
         if (next.mailbox) mailbox = next.mailbox
-        if (next.participants) participants = next.participants
         if (next.record) {
           records = withRecord(records, next.record)
           counters = withCounters(counters, next.record)
@@ -921,7 +913,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (sameData(settings, now.settings)) settings = now.settings
       if (sameData(annotations, now.annotations)) annotations = now.annotations
       if (sameData(mailbox, now.mailbox)) mailbox = now.mailbox
-      if (sameData(participants, now.participants)) participants = now.participants
       if (sameData(records, now.records)) records = now.records
       if (sameData(counters, now.counters)) counters = now.counters
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
@@ -946,7 +937,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(mailbox === now.mailbox ? {} : { mailbox }),
-        ...(participants === now.participants ? {} : { participants }),
         ...(records === now.records ? {} : { records }),
         ...(counters === now.counters ? {} : { counters }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),

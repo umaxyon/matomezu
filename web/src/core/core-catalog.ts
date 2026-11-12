@@ -17,7 +17,7 @@ import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
 import type { SettingDef, SettingRole } from "./def/setting"
 import type { SkinDef } from "./def/skin"
-import type { SubjectDef } from "./def/subject"
+import { SUBJECT_ROLE_FIELDS, type SubjectDef } from "./def/subject"
 import type { TextColorDef } from "./def/text-color"
 import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
 import type { ToolDef, ToolSetDef } from "./def/tool"
@@ -328,6 +328,15 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   const subjects = new Set<string>(parts.subjects.map(s => s.id))
   for (const s of parts.subjects)
     if (!(s.record.shape.id instanceof z.ZodString)) problems.push(problem("E045", { id: s.id }))
+  const roleOwner = new Map<string, string>()
+  for (const s of parts.subjects) {
+    if (!s.role) continue
+    const other = roleOwner.get(s.role)
+    if (other) problems.push(problem("E050", { id: s.id, role: s.role, other }))
+    else roleOwner.set(s.role, s.id)
+    for (const field of SUBJECT_ROLE_FIELDS[s.role])
+      if (!(field in s.record.shape)) problems.push(problem("E051", { id: s.id, role: s.role, field }))
+  }
   for (const a of parts.actions)
     if (!BASE_TARGETS.includes(a.target) && !subjects.has(a.target))
       problems.push(problem("E046", { id: a.id, target: a.target }))
