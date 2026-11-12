@@ -37,13 +37,16 @@ type Input struct {
 	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 利用者の郵便箱
 	Participants json.RawMessage            `json:"participants,omitempty"` // 利用者の参加者の表
 	// Records は対象の定義が足した種類のレコード（種類の id → id → レコード。宛先のレコードと、アクションが読むだけの種類の全部）。Counters は対象の種類の、区切り → 次の番号
-	Records  map[string]map[string]json.RawMessage `json:"records,omitempty"`
-	Counters map[string]map[string]int64           `json:"counters,omitempty"`
-	By       string                                `json:"by,omitempty"` // 頼んだのが AI なら "ai"（空なら利用者）
+	Records       map[string]map[string]json.RawMessage `json:"records,omitempty"`
+	Counters      map[string]map[string]int64           `json:"counters,omitempty"`
+	By            string                                `json:"by,omitempty"`            // 頼んだのが AI なら "ai"（空なら利用者）
+	Participation string                                `json:"participation,omitempty"` // 頼んだのが AI のとき、参加が確定していれば "joined"（空なら確定していない）
 	// TimeoutSec は、アクションを待つ秒数（0 なら DefaultTimeoutSec。MaxTimeoutSec まで）。超えたら打ち切って断る
 	TimeoutSec int `json:"-"`
 	// Watched は、利用者が直している物（ブックの id → 物の id。編集ロック）。AI のアクションと lockedForUser のアクションが変えるか消すなら、エンジンが being-edited で断る
 	Watched map[string][]string `json:"watched,omitempty"`
+	// WatchedRecords は、利用者が直しているレコード（対象の種類の id → レコードの id）。レコードが対象のアクションにも同じ決まりで効く
+	WatchedRecords map[string][]string `json:"watchedRecords,omitempty"`
 }
 
 // On はアクションの宛先: ブックか、レコード（対象の定義が足した種類のデータ）のどちらか

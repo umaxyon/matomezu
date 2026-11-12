@@ -47,7 +47,12 @@ export type ResultOf<Id extends ActionId> =
 // denied は認可ステップが止めたこと（permission はそのステップの id）。refused の detail・kind は、run が添えた断った理由の文と断りの種類（def/action.ts の Declined）。not-allowed で止めたのが利用者の設定の項目ごとのステップなら、
 // setting にその項目の id、because に理由（user-only は利用者だけが変える項目、fixed はコントロールセンターが変えさせない項目）
 export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
-export type NotAllowed = { ok: false; reason: "not-allowed"; setting?: string; because?: "user-only" | "fixed" }
+export type NotAllowed = {
+  ok: false
+  reason: "not-allowed"
+  setting?: string
+  because?: "user-only" | "fixed" | "not-joined"
+}
 export type Refused =
   | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
   | { ok: false; reason: "refused"; detail?: string; kind?: string }
@@ -234,6 +239,7 @@ function answerOf(answer: Inspected<boolean>): Permitted {
   const permission = deniedBy(answer)
   if (permission) return { ok: false, reason: "denied", permission }
   const from = answer.decidedBy
+  if (from?.source === "participation") return { ok: false, reason: "not-allowed", because: "not-joined" }
   if (from?.source === "userSetting")
     return { ok: false, reason: "not-allowed", setting: from.id, because: "user-only" }
   if (from?.source === "controlCenter" && from.id !== null && from.field === "fixedUserSettings")

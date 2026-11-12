@@ -64,7 +64,9 @@ interface Input {
   counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
   records?: unknown // 対象の定義が足した種類のレコード（種類の id → id → レコード。レコードが対象のアクションのとき、宛先と読むだけの種類）
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
+  participation?: "none" | "joined" // 頼んだのが AI のとき、参加が確定しているか（無ければ確定していない）
   watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ブックの id → 物の id。編集ロック）
+  watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
 
 // 返すもの。aiEditTicket は郵便箱が対象のアクションが返した AI 編集チケットの変え方、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱、participants は変わった参加者の表。
@@ -107,6 +109,13 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
       ...done,
       detail: `by ${done.permission}: ${catalog.permissions.get(done.permission)?.aiDescription ?? AI_REFUSALS.denied}`,
     }
+  if ("because" in done && done.because === "not-joined")
+    return {
+      ok: false,
+      reason: done.reason,
+      detail:
+        "you have not joined matomezu yet (not accepted by the user, or not told by the hook): until then you can read and change books, but not use the actions of the control center; ask the user in the chat",
+    }
   if ("setting" in done && done.setting !== undefined) {
     const detail =
       done.because === "user-only"
@@ -132,7 +141,7 @@ function perform(input: Input): Output {
   const participants = restoreParticipants(input.participants)
   const records = restoreRecords(input.records)
   const counters = restoreCounters(input.counters)
-  const actor = actorOfWire(input.by)
+  const actor = actorOfWire(input.by, input.participation)
   const done = performIn(
     { books, settings, annotations, mailbox, participants, records, counters },
     input.action,
@@ -158,7 +167,13 @@ function perform(input: Input): Output {
     return changedIn({ book: books[id], annotations: annotations[id] }, { book, annotations: list }, watched)
   })
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）
-  if (touched.length > 0 && stopsOnEditLock(catalog.actions.get(input.action), actor))
+  // レコードが対象のアクションは、直しているレコードを変えるか消すなら、同じように断る（作るレコードは宛先に無いので断らない）
+  const editedRecord =
+    done.record !== undefined &&
+    input.on !== undefined &&
+    "record" in input.on &&
+    (input.watchedRecords?.[done.record.subject] ?? []).includes(done.record.id)
+  if ((touched.length > 0 || editedRecord) && stopsOnEditLock(catalog.actions.get(input.action), actor))
     return { ok: false, reason: "being-edited" }
   return {
     ok: true,

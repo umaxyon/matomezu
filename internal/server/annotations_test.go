@@ -225,7 +225,7 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 	}
 	// 窓で直している間は消さない
 	c := h.Join()
-	h.SetView(c.id, json.RawMessage(`{}`), map[string][]string{"b1": {"c1"}}, true, 1)
+	h.SetView(c.id, json.RawMessage(`{}`), map[string][]string{"b1": {"c1"}}, nil, true, 1)
 	if err := h.Expire(talked.Add(3 * time.Hour)); err != nil {
 		t.Fatal(err)
 	}

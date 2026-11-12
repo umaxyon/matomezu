@@ -296,6 +296,7 @@ test("matomezu/ui が出す名前", () => {
     "usePerform",
     "useReadFrameState",
     "useReadStageState",
+    "useRecordEditLock",
     "useResize",
     "useRevealable",
     "useRightSidePanel",

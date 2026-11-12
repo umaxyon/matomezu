@@ -133,9 +133,21 @@ export function viewOf(state: MatomezuState) {
 // 利用者が直している物（useEditLock）を、ブックの id → 物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
 export function editLocksOf(state: MatomezuState): Record<string, string[]> {
   const locks: Record<string, string[]> = {}
-  for (const { book, ids } of Object.values(state.editLocks)) {
-    const now = locks[book] ?? []
-    locks[book] = [...now, ...ids.filter(id => !now.includes(id))]
+  for (const l of Object.values(state.editLocks)) {
+    if (!("book" in l)) continue
+    const now = locks[l.book] ?? []
+    locks[l.book] = [...now, ...l.ids.filter(id => !now.includes(id))]
+  }
+  return locks
+}
+
+// 利用者が直しているレコード（useRecordEditLock）を、対象の種類の id → レコードの id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
+export function recordLocksOf(state: MatomezuState): Record<string, string[]> {
+  const locks: Record<string, string[]> = {}
+  for (const l of Object.values(state.editLocks)) {
+    if (!("subject" in l)) continue
+    const now = locks[l.subject] ?? []
+    locks[l.subject] = [...now, ...l.ids.filter(id => !now.includes(id))]
   }
   return locks
 }
@@ -660,7 +672,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
       // 見ているものと、利用者が直している物（どちらかが変わったときと、フォーカスされたときに知らせる）
       const tell = (focused: boolean) => {
         const state = next.state.getState()
-        const now = JSON.stringify({ view: viewOf(state), editLocks: editLocksOf(state) })
+        const now = JSON.stringify({
+          view: viewOf(state),
+          editLocks: editLocksOf(state),
+          recordLocks: recordLocksOf(state),
+        })
         if (now === told && !focused) return
         told = now
         viewSeq += 1

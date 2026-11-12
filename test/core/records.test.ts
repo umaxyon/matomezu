@@ -1,7 +1,7 @@
 // 対象の定義（レコード）: プラグインが足した種類のデータをアクションが 1 件ずつ作る・直す・消す。確かめは宣言の形、番号は常駐が決める
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { USER } from "../../web/src/core/actor"
+import { AI, AI_NOT_JOINED, USER } from "../../web/src/core/actor"
 import type { ActionDef } from "../../web/src/core/def/action"
 import type { SubjectDef } from "../../web/src/core/def/subject"
 import { type PerformedIn, performIn, permittedIn, type World } from "../../web/src/core/perform"
@@ -189,4 +189,59 @@ test("残したレコードを確かめ、種類が機能台帳に無い・形�
     "@ex/gone:thing": { t1: { id: "t1" } },
   }).map(w => w.code)
   expect(lines).toEqual(["W025", "W024"])
+})
+
+test("参加が確定していない AI は、ブックでない対象のアクションを断られる（理由は not-joined）。確定した AI と利用者は行える", () => {
+  const ask = (actor: typeof USER) =>
+    permittedIn(empty, "@ex/rec:card-add", { label: "a" }, undefined, { catalog, controlCenter: CENTER, actor })
+  expect(ask(USER)).toEqual({ ok: true })
+  expect(ask(AI)).toEqual({ ok: true })
+  expect(ask(AI_NOT_JOINED)).toEqual({ ok: false, reason: "not-allowed", because: "not-joined" })
+  // 参加を頼む役のアクションは、参加が確定する前にも行える（準備中の AI が参加を頼める）
+  const join = permittedIn(
+    empty,
+    "@matomezu/base:participant-request",
+    { ai: "a", model: "m", env: "e", link: "l" },
+    undefined,
+    {
+      catalog,
+      controlCenter: CENTER,
+      actor: AI_NOT_JOINED,
+    },
+  )
+  expect(join).not.toMatchObject({ because: "not-joined" }) // この試験のコントロールセンターは許していないので、断りは参加の確定とは別
+})
+
+test("ロックしたレコードをロックの印を外す形で変えるのを、AI には守らせず、利用者の外す操作だけを通す（印を信じず実際の差分で見る）", () => {
+  const LOCKED = defineBuiltin({
+    ...EX,
+    subjects: [
+      {
+        ...SUBJECT,
+        lockable: true,
+        record: z.strictObject({
+          id: z.string(),
+          label: z.string(),
+          no: z.number().optional(),
+          locked: z.literal(true).optional(),
+        }),
+      },
+    ],
+    actions: [
+      action("card-open", {
+        lockSwitch: true,
+        args: z.strictObject({}),
+        run: ((now: { id: string; label: string }) => ({
+          next: { id: now.id, label: now.label },
+          result: {},
+        })) as never,
+      }),
+    ],
+  } as never)
+  const locked = assemble([...BUILTIN, LOCKED], CENTER).catalog.core
+  const world: World = { ...empty, records: { [CARD]: { c1: { id: "c1", label: "a", locked: true } } } }
+  const open = (actor: typeof USER) =>
+    performIn(world, "@ex/rec:card-open", {}, { record: "c1" }, { ...ctx(), catalog: locked, actor })
+  expect(open(USER)).toMatchObject({ ok: true })
+  expect(open(AI)).toMatchObject({ ok: false, reason: "denied", permission: "@matomezu/base:lock" })
 })

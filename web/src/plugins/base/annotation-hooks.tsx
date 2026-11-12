@@ -30,7 +30,7 @@ export function useAnnotationsIn(stage: string): readonly Annotation[] {
   const all = useMatomezuState(s => (book && s.annotations[book]) || NONE)
   const settings = useMatomezuState(s => s.settings)
   const locked = useMatomezuState(
-    useShallow(s => Object.values(s.editLocks).flatMap(l => (l.book === book ? l.ids : []))),
+    useShallow(s => Object.values(s.editLocks).flatMap(l => ("book" in l && l.book === book ? l.ids : []))),
   )
   const now = useNow()
   return useMemo(() => unexpired(catalog, all, settings, now, new Set(locked)), [catalog, all, settings, now, locked])

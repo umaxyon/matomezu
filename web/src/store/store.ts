@@ -133,11 +133,8 @@ export interface MatomezuState {
   printRequests: number
 }
 
-// 編集ロックの 1 つ: ブック book の物 ids（伝言など。ブックの中の物やアノテーションの id）
-export interface EditLock {
-  book: string
-  ids: readonly string[]
-}
+// 編集ロックの 1 つ: ブック book の物 ids（伝言など。ブックの中の物やアノテーションの id）か、対象の種類 subject のレコード ids
+export type EditLock = { book: string; ids: readonly string[] } | { subject: string; ids: readonly string[] }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、success はうまくいったことを知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
 // （時間では消えず、出した側か利用者が消す）。文言は鍵で持ち、画面が今の言語で出す。何が起きたかを message に、原因を detail に分けて書ける。
@@ -985,8 +982,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { [key]: now, ...rest } = getState().editLocks
       if (!lock) {
         if (now) setState({ editLocks: rest })
-      } else if (!now || now.book !== lock.book || !sameData(now.ids, lock.ids))
-        setState({ editLocks: { ...rest, [key]: lock } })
+      } else if (!now || !sameData(now, lock)) setState({ editLocks: { ...rest, [key]: lock } })
     },
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })

@@ -14,7 +14,7 @@ import (
 // 画面から利用者が見たと知らせると、AI の読む口に見た時点が出る（AI に断る所は store のテストが見る）
 func TestAISendsMail(t *testing.T) {
 	s := newServer(t, nil)
-	ai := map[string]string{"Authorization": "Bearer secret"}
+	ai := joinedAI(t, s)
 	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D64","title":"済みました"}}`, ai)
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
 	if strings.Count(data, `"mail":"@matomezu/base:letter"`) != 1 || !strings.Contains(data, `"props":{"title":"済みました","body":""}`) {
@@ -35,13 +35,13 @@ func TestAISendsMail(t *testing.T) {
 // AI の読む口は、一覧（中身を外して題を付け、total と older を添える）と、指した郵便の全文を、取り方の問い合わせで返し、合わない取り方は 400 で断る（取り方の細かな境界は core のテストが見る）
 func TestAIMailQuery(t *testing.T) {
 	s := newServer(t, nil)
-	ai := map[string]string{"Authorization": "Bearer secret"}
+	ai := joinedAI(t, s)
 	for _, title := range []string{"一", "二", "三"} {
 		send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D89","title":"`+title+`","body":"本文"}}`, ai)
 	}
 	_, list := send(t, "GET", s.URL+"/api/ai/mail?limit=2", "", ai)
 	if strings.Contains(list, `"props"`) || !strings.Contains(list, `"title":"三"`) || !strings.Contains(list, `"title":"二"`) || strings.Contains(list, `"title":"一"`) ||
-		!strings.Contains(list, `"total":3`) || !strings.Contains(list, `"older":1`) {
+		!strings.Contains(list, `"total":4`) || !strings.Contains(list, `"older":2`) {
 		t.Fatalf("list = %s", list)
 	}
 	id := list[strings.LastIndex(list, `"id":"`)+6:]

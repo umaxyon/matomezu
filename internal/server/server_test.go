@@ -259,6 +259,7 @@ func TestServesTheAddedPluginsToTheScreen(t *testing.T) {
 
 func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	s := newServer(t, nil)
+	ai := joinedAI(t, s)
 	screen := listen(t, s.URL)
 	next(t, screen) // hello
 	catalog := func() string { _, c := get(t, s.URL+"/api/ai/catalog", "secret"); return c }
@@ -573,6 +574,7 @@ func TestRefusedActionChangesNothing(t *testing.T) {
 
 func TestSettingsActions(t *testing.T) {
 	s := newServer(t, nil)
+	ai := joinedAI(t, s)
 	a := listen(t, s.URL)
 	next(t, a)
 	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`, nil)
@@ -659,6 +661,7 @@ func TestAICannotRestoreOrPurge(t *testing.T) {
 // AI は、どこかの窓に出ているブックをゴミ箱に入れられない（open-on-screen）。出ていなければ入れられる
 func TestAICannotTrashABookOnAScreen(t *testing.T) {
 	s := newServer(t, nil)
+	ai := joinedAI(t, s)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
 	next(t, a)
@@ -679,6 +682,7 @@ func TestAICannotTrashABookOnAScreen(t *testing.T) {
 // コントロールセンターを前に出している窓の後ろに、ブックスクリーンが開いているブックも、AI はゴミ箱に入れられない（open-on-screen）
 func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
 	s := newServer(t, nil)
+	ai := joinedAI(t, s)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
 	next(t, a)
@@ -1263,6 +1267,7 @@ func TestEventsKeep(t *testing.T) {
 // 反映が失敗したと残すと、AI のフックが聞いたときに failed で渡る
 func TestChangeProposal(t *testing.T) {
 	s := newServer(t, nil)
+	ai := joinedAI(t, s)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	k1 := placeBox(t, s.URL, 10, "一")
 	a := listen(t, s.URL)
@@ -1288,10 +1293,11 @@ func TestChangeProposal(t *testing.T) {
 			} `json:"props"`
 		} `json:"mailbox"`
 	}
-	if json.Unmarshal([]byte(data), &world) != nil || len(world.Mailbox) != 1 {
+	// 先頭は、参加の要求の郵便（joinedAI が受け入れた AI の分）。変更提案はその次
+	if json.Unmarshal([]byte(data), &world) != nil || len(world.Mailbox) != 2 {
 		t.Fatalf("mailbox = %s", data)
 	}
-	apply := `{"action":"@matomezu/base:proposal-apply","args":{"page":"p1","changes":` + change + `,"snapshot":` + string(world.Mailbox[0].Props.Snapshot) + `},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
+	apply := `{"action":"@matomezu/base:proposal-apply","args":{"page":"p1","changes":` + change + `,"snapshot":` + string(world.Mailbox[1].Props.Snapshot) + `},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
 	if _, got := send(t, "POST", s.URL+"/api/perform", apply, nil); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("apply while the thing is being edited = %s", got)
 	}
@@ -1361,6 +1367,7 @@ func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
 // 追加プラグインが足した対象の種類（ex9 のカード）のレコードを、AI が作る・直す・消す。窓には record の知らせが届き、/api/data にレコードと番号の表が載る
 func TestRecordsOfAnAddedSubject(t *testing.T) {
 	s := newServer(t, nil)
+	ai := joinedAI(t, s)
 	screen := listen(t, s.URL)
 	next(t, screen) // hello
 	if got := link(t, s, "../../test/added-plugins/ex9"); got != `{"id":"ex9","ok":true}` {
@@ -1402,5 +1409,90 @@ func TestRecordsOfAnAddedSubject(t *testing.T) {
 	// 消しても、次の番号は戻らない
 	if got := perform(`{"action":"ex9:card-add","args":{"name":"fig"}}`); !strings.Contains(got, `"no":2`) {
 		t.Fatalf("card-add after removing = %s", got)
+	}
+}
+
+// 窓が直しているレコード（recordLocks）を、AI のアクションは変えも消しもせず（being-edited）、窓を離れれば行える。新しく作るアクションは断らない
+func TestRecordBeingEditedStopsAIActions(t *testing.T) {
+	s := newServer(t, nil)
+	ai := joinedAI(t, s)
+	screen := listen(t, s.URL)
+	next(t, screen) // hello
+	if got := link(t, s, "../../test/added-plugins/ex9"); got != `{"id":"ex9","ok":true}` {
+		t.Fatalf("link = %s", got)
+	}
+	next(t, screen) // plugins
+	perform := func(body string) string {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", body, ai)
+		return got
+	}
+	made := perform(`{"action":"ex9:card-add","args":{"name":"apple"}}`)
+	var created struct{ Result struct{ Card string } }
+	if json.Unmarshal([]byte(made), &created) != nil || created.Result.Card == "" {
+		t.Fatalf("card-add = %s", made)
+	}
+	next(t, screen) // record
+	code, _ := send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{},"editLocks":{},"recordLocks":{"ex9:card":["`+created.Result.Card+`"]},"focused":true,"seq":1}`, nil)
+	if code != 200 {
+		t.Fatalf("view = %d", code)
+	}
+	rename := `{"action":"ex9:card-rename","args":{"name":"pear"},"on":{"record":"` + created.Result.Card + `"}}`
+	if got := perform(rename); !strings.Contains(got, `"reason":"being-edited"`) {
+		t.Fatalf("rename while editing = %s", got)
+	}
+	if got := perform(`{"action":"ex9:card-add","args":{"name":"fig"}}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("a new card while editing = %s", got)
+	}
+}
+
+// joinedAI は、参加が確定した AI（受け入れ済みで、join でセッション id を運んだので準備中でない）の合言葉と参加の id のヘッダ。
+// ブックでない対象のアクションは、参加が確定するまで AI が使えない
+func joinedAI(t *testing.T, s *httptest.Server) map[string]string {
+	t.Helper()
+	_, got := send(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"JL","sessionId":"JS"}`, ai)
+	var joined struct{ Participant string }
+	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
+		t.Fatalf("join = %s", got)
+	}
+	if code, body := send(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "w"), nil); code != 200 || !strings.Contains(body, `"ok":true`) {
+		t.Fatalf("accept = %d %s", code, body)
+	}
+	header := map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
+	send(t, "GET", s.URL+"/api/ai/books", "", header) // 最初の呼び出しの知らせ（participant-calls）を、窓をつなぐ前に済ませておく
+	return header
+}
+
+// ブックでない対象のアクション（郵便を送るなど）を AI が使えるのは、参加が確定してから: 参加の id が無い・要求中・準備中（受け入れ済みでも、フックが参加を伝えるまで）は断り、確定すれば行える。ブックのアクションは参加を問わない
+func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
+	s := newServer(t, nil)
+	mail := `{"action":"@matomezu/base:mail-send","args":{"from":"x","title":"t"}}`
+	refused := func(header map[string]string) bool {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", mail, header)
+		return strings.Contains(got, `"reason":"not-allowed"`) && strings.Contains(got, "not joined")
+	}
+	if !refused(ai) {
+		t.Fatal("without a participant id, the action was not refused")
+	}
+	_, got := send(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"L"}`, ai)
+	var joined struct{ Participant string }
+	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
+		t.Fatalf("join = %s", got)
+	}
+	header := map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
+	if !refused(header) {
+		t.Fatal("while requested, the action was not refused")
+	}
+	send(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "prep"), nil)
+	if !refused(header) {
+		t.Fatal("while preparing (accepted, the hook has not told), the action was not refused")
+	}
+	// ブックのアクションは、参加を問わない
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"title":"P"},"on":{"book":"nothing"}}`, ai); strings.Contains(got, "not joined") {
+		t.Fatalf("a book action was stopped for the participation: %s", got)
+	}
+	// 参加が確定した AI は行える
+	joinedHeader := joinedAI(t, s)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", mail, joinedHeader); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("a confirmed participant = %s", got)
 	}
 }

@@ -58,14 +58,15 @@ type event struct {
 }
 
 type client struct {
-	id        string
-	ch        chan event
-	view      json.RawMessage     // 窓が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
-	focused   int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
-	viewSeq   int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
-	shown     []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターを前に出している間は空）
-	held      []string            // いまその窓のブックスクリーンが開いているブック（隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
-	editLocks map[string][]string // 利用者がその窓で直している物（ブックの id → 物の id の並び。editlock.go）
+	id          string
+	ch          chan event
+	view        json.RawMessage     // 窓が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
+	focused     int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
+	viewSeq     int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
+	shown       []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターを前に出している間は空）
+	held        []string            // いまその窓のブックスクリーンが開いているブック（隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
+	editLocks   map[string][]string // 利用者がその窓で直している物（ブックの id → 物の id の並び。editlock.go）
+	recordLocks map[string][]string // 利用者がその窓で直しているレコード（対象の種類の id → レコードの id の並び。editlock.go）
 }
 
 // Hub は世界と窓をまとめる
@@ -378,6 +379,8 @@ type Perform struct {
 	// TimeoutSec は、アクションを待つ秒数（省略は 5、上限 60）
 	TimeoutSec int    `json:"timeoutSec,omitempty"`
 	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
+	// Participation は、頼んだのが AI のとき、参加が確定している（受け入れ済みで準備中でない）なら "joined"（AI の口だけが入れる。窓からは受けない）
+	Participation string `json:"-"`
 }
 
 // Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
@@ -398,7 +401,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By, TimeoutSec: p.TimeoutSec}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By, Participation: p.Participation, TimeoutSec: p.TimeoutSec}
 	in.Annotations = map[string]json.RawMessage{}
 	needs, err := h.engine.RecordNeeds(p.Action)
 	if err != nil {
@@ -423,6 +426,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	}
 	h.recordInputs(&in, needs, p.On)
 	in.Watched = h.watched()
+	in.WatchedRecords = h.watchedRecords()
 	out, err := h.engine.Perform(in)
 	if err != nil {
 		return Performed{}, err
@@ -509,7 +513,7 @@ func (h *Hub) drop(c *client) {
 
 // SetView は、窓が見ているものと、利用者が直している物 editLocks（ブックの id → 物の id の並び）を覚える（seq が受けたものより古ければ覚えない）。
 // focused なら、その窓がいちばん新しくフォーカスされた窓になる
-func (h *Hub) SetView(clientID string, view json.RawMessage, editLocks map[string][]string, focused bool, seq int64) bool {
+func (h *Hub) SetView(clientID string, view json.RawMessage, editLocks, recordLocks map[string][]string, focused bool, seq int64) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	c, ok := h.clients[clientID]
@@ -523,6 +527,7 @@ func (h *Hub) SetView(clientID string, view json.RawMessage, editLocks map[strin
 	}
 	if !stale {
 		c.editLocks = editLocks
+		c.recordLocks = recordLocks
 	}
 	if len(view) > 0 && !stale {
 		c.view = view

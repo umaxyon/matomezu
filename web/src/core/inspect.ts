@@ -2,7 +2,7 @@
 // 口はこの inspect 1 つで、問い合わせの種類（kind）ごとに調べ方を足す。
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
-import { type Actor, isAI, USER } from "./actor"
+import { type Actor, hasJoined, isAI, USER } from "./actor"
 import type { ActionId, SubjectId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
 import { type ActionContext, type ActionDef, attachedTo, BASE_TARGETS, isOnBook, type Where } from "./def/action"
@@ -19,6 +19,7 @@ export type Source =
   | { source: "bookType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
   | { source: "action"; id: string; field: "attach"; bookType: string } // アクションの付く先が、そのタイプに当てはまるか
   | { source: "action"; id: string; field: "userOnly" } // 利用者だけが行うアクションを、AI が頼んだ
+  | { source: "participation"; id: string } // 参加が確定していない AI が、ブックでない対象のアクションを頼んだ
   | { source: "userSetting"; id: string; field: "userOnly" } // 利用者だけが変える利用者の設定の項目を、AI が変えようとした
   | { source: "controlCenter"; id: string; field: "actions" } // コントロールセンターが許すアクション
   | { source: "controlCenter"; id: string; field: "fixedUserSettings"; setting: string } // コントロールセンターが変えさせない利用者の設定の項目
@@ -104,6 +105,9 @@ function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean
   }))
 }
 
+// 参加を頼む役（AI が参加を頼むときに matomezu が行うアクション）は、参加が確定する前にも行える
+const joinsWithoutParticipation = (def: ActionDef): boolean => def.runsWhenAIJoins !== undefined
+
 // コントロールセンターが、対象の種類（対象の定義）のアクションを全部許すか
 const allowsSubject = (center: ControlCenterDef, target: string): boolean =>
   center.subjects === "all" ? !BASE_TARGETS.includes(target) : (center.subjects?.includes(target as SubjectId) ?? false)
@@ -154,6 +158,10 @@ function action(
     from: { source: "action", id: def.id, field: "userOnly" },
     value: def.userOnly && isAI(q.actor) ? false : null,
   }
+  const participation: Step<boolean> = {
+    from: { source: "participation", id: def.id },
+    value: !hasJoined(q.actor) && !joinsWithoutParticipation(def) && !isOnBook(def.target) ? false : null,
+  }
   const { book, settings, where, record } = q
   const permitted = book
     ? permissionSteps(catalog, { kind: "book", action: def, book, actor: q.actor, ...(where ? { where } : {}) })
@@ -173,9 +181,18 @@ function action(
       ? decide([known, userOnly, ...permitted, ...typeSteps(def, bookType(catalog, book.type))])
       : decide([known, userOnly])
   const center = controlCenter === null ? undefined : catalog.controlCenters.get(controlCenter)
-  if (!center) return decide([known, userOnly, { from: { source: "controlCenter", id: null }, value: false }])
+  if (!center)
+    return decide([known, userOnly, participation, { from: { source: "controlCenter", id: null }, value: false }])
   const items = userSettingSteps(catalog, def.target === "settings" ? (settings ?? []) : [], q.actor, center)
-  return decide([known, userOnly, ...items.userOnly, ...permitted, ...items.fixed, ...centerSteps(def, center)])
+  return decide([
+    known,
+    userOnly,
+    participation,
+    ...items.userOnly,
+    ...permitted,
+    ...items.fixed,
+    ...centerSteps(def, center),
+  ])
 }
 
 // 認可ステップを除いて決めた答え（タイプなどで使えるか。認可ステップが止めているかは見ない）

@@ -515,13 +515,15 @@ test("窓が見ているものと、窓がフォーカスされたことを、�
     stages: [{ id: "s1", book: "b1", page: "p1", mode: "edit" }],
     canSplit: true,
   })
-  expect(s.sent).toEqual([{ url: "api/view", client: "c1", view: view([]), editLocks: {}, focused: true, seq: 1 }])
+  expect(s.sent).toEqual([
+    { url: "api/view", client: "c1", view: view([]), editLocks: {}, recordLocks: {}, focused: true, seq: 1 },
+  ])
   s.store.actions.select("s1", ["x"])
   s.store.actions.resizeStage("s1", { w: 100, h: 100 })
   s.focus()
   expect(s.sent.slice(1)).toEqual([
-    { url: "api/view", client: "c1", view: view(["x"]), editLocks: {}, focused: false, seq: 2 },
-    { url: "api/view", client: "c1", view: view(["x"]), editLocks: {}, focused: true, seq: 3 },
+    { url: "api/view", client: "c1", view: view(["x"]), editLocks: {}, recordLocks: {}, focused: false, seq: 2 },
+    { url: "api/view", client: "c1", view: view(["x"]), editLocks: {}, recordLocks: {}, focused: true, seq: 3 },
   ])
 })
 

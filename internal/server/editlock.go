@@ -23,3 +23,21 @@ func (h *Hub) watched() map[string][]string {
 	}
 	return all
 }
+
+// watchedRecords は、どこかの窓で利用者が直しているレコード（対象の種類の id → レコードの id。無ければ nil。h.mu を持って呼ぶ）
+func (h *Hub) watchedRecords() map[string][]string {
+	var all map[string][]string
+	for _, c := range h.clients {
+		for subject, ids := range c.recordLocks {
+			if all == nil {
+				all = map[string][]string{}
+			}
+			for _, id := range ids {
+				if !slices.Contains(all[subject], id) {
+					all[subject] = append(all[subject], id)
+				}
+			}
+		}
+	}
+	return all
+}

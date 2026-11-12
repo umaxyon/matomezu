@@ -15,3 +15,16 @@ export function useEditLock(book: string | null, ids: readonly string[]): void {
   }, [setEditLock, key, book, joined])
   useEffect(() => () => setEditLock(key, null), [setEditLock, key])
 }
+
+// レコードの編集ロックを掛けるフック: 描いている間、対象の種類 subject のレコード ids を、利用者が直している物として常駐に知らせる（useEditLock のレコード版。
+// 常駐は、そのレコードを変えるか消す AI のアクションと lockedForUser のアクションを断る）。ids が空か subject が null なら掛けず、描かなくなったら外す
+export function useRecordEditLock(subject: string | null, ids: readonly string[]): void {
+  const { setEditLock } = useInstance()
+  const key = useId()
+  const joined = ids.join(" ")
+  // biome-ignore lint/correctness/useExhaustiveDependencies: レコードの並びは joined で比べる
+  useEffect(() => {
+    setEditLock(key, subject && ids.length > 0 ? { subject, ids: [...ids] } : null)
+  }, [setEditLock, key, subject, joined])
+  useEffect(() => () => setEditLock(key, null), [setEditLock, key])
+}
