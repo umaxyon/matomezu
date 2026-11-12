@@ -22,16 +22,15 @@ type bookPut struct {
 
 // writePlan は、書く物の全部と、当てるときに要る物
 type writePlan struct {
-	batch        storage.Batch
-	puts         []bookPut
-	removed      []string                  // 置いてあって消すブック
-	tickets      map[string][]AIEditTicket // 書き換えた AI 編集チケットの並び（ブックごと）
-	mailWarnings []string
-	record       *recordPut // 変えたレコード 1 件
+	batch   storage.Batch
+	puts    []bookPut
+	removed []string                  // 置いてあって消すブック
+	tickets map[string][]AIEditTicket // 書き換えた AI 編集チケットの並び（ブックごと）
+	records []recordPut               // 変えたレコードの全部
 }
 
-// planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。何も変えない（h.mu を持って呼ぶ）
-func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, error) {
+// planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。subject はアクションの対象の種類（ブックが対象なら空）。何も変えない（h.mu を持って呼ぶ）
+func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*writePlan, error) {
 	plan := &writePlan{tickets: map[string][]AIEditTicket{}}
 	versions := map[string]int64{} // この Perform で書くブックの、書いた後の版
 	versionOf := func(id string) int64 {
@@ -84,20 +83,12 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 	if len(out.Settings) > 0 {
 		plan.batch.Settings = &storage.UserBody{User: user, Body: out.Settings}
 	}
-	if len(out.Mailbox) > 0 {
-		lines, err := h.mailboxWarnings(out.Mailbox)
-		if err != nil {
-			return nil, err
-		}
-		plan.mailWarnings = lines
-		plan.batch.Mailbox = &storage.UserBody{User: user, Body: out.Mailbox}
-	}
-	h.planRecord(plan, out)
+	h.planRecords(plan, out)
 	for book, body := range out.Annotations {
 		plan.batch.Annotations = append(plan.batch.Annotations, storage.BookBody{Book: book, Body: body})
 	}
 	if c := out.AIEditTicket; c != nil && has[c.Book] {
-		if list, changed := changedTickets(ticketsOf(c.Book), *c, versionOf(c.Book), at); changed {
+		if list, changed := changedTickets(ticketsOf(c.Book), subject, *c, versionOf(c.Book), at); changed {
 			plan.tickets[c.Book] = list
 		}
 	}
@@ -147,17 +138,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		h.settings = out.Settings
 		h.broadcast("settings", map[string]any{"settings": out.Settings, "client": p.Client, "seq": p.Seq})
 	}
-	if len(out.Mailbox) > 0 {
-		h.mailbox = out.Mailbox
-		h.recordMailWarnings(plan.mailWarnings)
-		// 最後にフォーカスされた窓も添える（その窓が、届いたことをマーキーで知らせる）
-		last := ""
-		if w := h.window(); w != nil {
-			last = w.id
-		}
-		h.broadcast("mailbox", map[string]any{"mailbox": out.Mailbox, "window": last, "client": p.Client, "seq": p.Seq})
-	}
-	h.applyRecord(plan, out, p)
+	h.applyRecords(plan, out, p)
 	for book, body := range out.Annotations {
 		h.applyAnnotations(book, body, p.Client, p.Seq)
 	}

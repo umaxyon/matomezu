@@ -82,7 +82,6 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
     books: s.books,
     settings: s.settings,
     annotations: s.annotations,
-    mailbox: [],
     participants: [],
     records: {},
     counters: {},

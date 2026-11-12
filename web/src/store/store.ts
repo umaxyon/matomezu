@@ -33,10 +33,16 @@ import {
 } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
-import { type Mailbox, restoreMailbox } from "../core/mail"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
-import { type Counters, type Records, restoreCounters, restoreRecords, withCounters, withRecord } from "../core/records"
+import {
+  type Counters,
+  type Records,
+  restoreCounters,
+  restoreRecords,
+  withCounters,
+  withRecords,
+} from "../core/records"
 import { sameData } from "../core/same"
 import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
@@ -116,7 +122,6 @@ export interface MatomezuState {
   window: WindowState // 窓が前に出している物と、ブックスクリーンの並び（core/window.ts）
   settings: Settings
   annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
-  mailbox: Mailbox // 利用者の郵便箱（core/mail.ts。届いた順）
   records: Records // 対象の定義が足した種類ごとのレコード（core/records.ts。種類の id → id → レコード）
   counters: Counters // 番号を振る種類ごとの、区切りごとの次の番号（core/records.ts）
   lang: Lang // 今の言語（設定の言語の項目が選んだ言語パックの言語。選んでいない・使えなければ、インスタンスを作ったときに決めた言語）
@@ -131,7 +136,7 @@ export interface MatomezuState {
   participantLive: Readonly<Record<string, ParticipantLive>>
   trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
-  lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐の郵便箱の知らせに添えられた値で入れる）
+  lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのブックを変えたら、その全部のブックに同じ画面の履歴の段が入る
   history: Readonly<Record<string, BookHistory>>
   // プラグイン状態の宣言（core/def/plugin-state.ts）の値: ステージに結ばない物は宣言の id → 値、ステージごとの物は ステージの id → 宣言の id → 値。画面の場所に入れる宣言の値は画面の場所に入る（アクションのデータとは別で、アクションでは変えない）
@@ -288,7 +293,6 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       books: readonly unknown[]
       settings: unknown
       annotations?: unknown
-      mailbox?: unknown
       records?: unknown
       counters?: unknown
       touched?: Readonly<Record<string, string>>
@@ -347,7 +351,6 @@ function initialState(
     window: newWindow(catalog, first),
     settings,
     annotations: {},
-    mailbox: [],
     records: {},
     counters: {},
     lang,
@@ -375,7 +378,7 @@ export type AIEditTicketOutcome =
 
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
   plugins: Ps
-  controlCenter?: ControlCenterId // コントロールセンターの定義の id。ブックの一覧・利用者の設定・郵便箱・対象の定義の種類を変えるアクションを許すかはこれが決める。無ければ、それらは断る
+  controlCenter?: ControlCenterId // コントロールセンターの定義の id。ブックの一覧・利用者の設定・対象の定義の種類を変えるアクションを許すかはこれが決める。無ければ、それらは断る
   books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、空のステージ
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。インスタンスにある最初の言語を使い、無ければ英語
@@ -650,11 +653,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.lang = langOf(catalog, done.settings, fallback)
     }
     if (done.annotations) next.annotations = withAnnotations(annotations, done.annotations)
-    if (done.mailbox) next.mailbox = done.mailbox
-    if (done.record) {
-      next.records = withRecord(getState().records, done.record)
-      if (done.record.counters) next.counters = withCounters(getState().counters, done.record)
-    }
+    if (done.records) next.records = withRecords(getState().records, done.records)
+    if (done.counters) next.counters = withCounters(getState().counters, done.counters)
     return { ok: true, result: done.result, next, answer }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージごとのプラグイン状態は消す
@@ -914,7 +914,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       known = library
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)
-      let mailbox = world.mailbox === undefined ? getState().mailbox : restoreMailbox(world.mailbox)
       let records = world.records === undefined ? getState().records : restoreRecords(world.records)
       let counters = world.counters === undefined ? getState().counters : restoreCounters(world.counters)
       for (const done of replay) {
@@ -923,7 +922,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const next = (() => {
           try {
             return performIn(
-              { books: library, settings, annotations, mailbox, records, counters },
+              { books: library, settings, annotations, records, counters },
               done.action,
               done.args,
               done.on,
@@ -944,11 +943,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (next.book) library = { ...library, [next.book.id]: next.book }
         if (next.books) library = next.books
         if (next.settings) settings = next.settings
-        if (next.mailbox) mailbox = next.mailbox
-        if (next.record) {
-          records = withRecord(records, next.record)
-          counters = withCounters(counters, next.record)
-        }
+        if (next.records) records = withRecords(records, next.records)
+        counters = withCounters(counters, next.counters)
         annotations = withAnnotations(annotations, next.annotations)
       }
       const now = getState()
@@ -957,7 +953,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const trash = sameAs(split.trash, now.trash)
       if (sameData(settings, now.settings)) settings = now.settings
       if (sameData(annotations, now.annotations)) annotations = now.annotations
-      if (sameData(mailbox, now.mailbox)) mailbox = now.mailbox
       if (sameData(records, now.records)) records = now.records
       if (sameData(counters, now.counters)) counters = now.counters
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
@@ -980,7 +975,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           : { books, window: mapScreens(now.window, ws => followLibrary(catalog, ws, books, now.books)) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
-        ...(mailbox === now.mailbox ? {} : { mailbox }),
         ...(records === now.records ? {} : { records }),
         ...(counters === now.counters ? {} : { counters }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),

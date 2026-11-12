@@ -8,7 +8,6 @@ import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
-import type { Mailbox } from "../mail"
 import type { Records } from "../records"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
@@ -16,17 +15,16 @@ import { type BookTypeDef, placeableOf } from "./book-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはコントロールセンターが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
-// 使えるかは book と同じくそのブックのタイプが決める。mailbox は利用者に 1 つの郵便箱（core/mail.ts）で、使えるかは library・settings と同じくコントロールセンターが決める。
+// 使えるかは book と同じくそのブックのタイプが決める
 export interface Subjects {
   library: Library
   book: Book
   settings: Settings
   annotations: BookAnnotations
-  mailbox: Mailbox
 }
 
 // 土台が持つ対象の名前（対象の定義が足した種類は、その id が対象の名前になる）
-export const BASE_TARGETS: readonly string[] = ["library", "book", "settings", "annotations", "mailbox"]
+export const BASE_TARGETS: readonly string[] = ["library", "book", "settings", "annotations"]
 export type ActionTarget = keyof Subjects | SubjectId
 
 // 対象の定義の種類 T のレコード 1 件（形は定義の record）
@@ -64,7 +62,7 @@ export interface ActionContext {
   // アクションは時刻や乱数を直に使わず、これと newId だけを使う（同じ入力なら同じ結果）
   now: string
   actor: Actor // 行った者（利用者か AI か。AI には userOnly のアクションとロックを外すことを断る）
-  // 郵便箱が対象のアクションが読むだけのブックの一覧（ほかの対象のアクションには無い。郵便に乗せる変更を確かめるのに使う）
+  // レコードが対象のアクションが読むだけのブック（アクションの readsBooks が引数から答えた id のブックだけ。ほかのアクションには無い。郵便に乗せる変更を確かめるのに使う）
   books?: Readonly<Library>
   // レコードが対象のアクションが読むだけの、アクションの reads の種類のレコード（種類の id → id → レコード。ほかの対象のアクションには無い）
   records?: Readonly<Records>
@@ -81,11 +79,19 @@ export interface AIEditTicketChange {
   changed?: readonly string[]
 }
 
+// レコードが対象のアクションが、宛先の 1 件のほかに変える、同じ種類のレコード 1 件（record は新しいレコードか、消すなら removed）
+export interface OtherRecord<T extends SubjectId> {
+  id: string
+  record: RecordOf<T> | "removed"
+}
+
 export interface Done<T extends ActionTarget, R> {
   next: SubjectNext<T>
   result: R
-  // 郵便箱が対象のアクションだけが書ける、AI 編集チケットの変え方
-  aiEditTicket?: T extends "mailbox" ? AIEditTicketChange : never
+  // レコードが対象のアクションが、宛先のほかに変える同じ種類のレコード（宛先と合わせて RECORDS_MAX 件まで。全部が通るか、全部を断る）
+  others?: T extends SubjectId ? readonly OtherRecord<T>[] : never
+  // レコードが対象のアクションだけが書ける、AI 編集チケットの変え方
+  aiEditTicket?: T extends SubjectId ? AIEditTicketChange : never
 }
 
 // run が断るときに、断った理由を添える値。declined は AI への説明に載る英語の文（ぶつかった相手や、代わりに入る所など。画面には出さない）。
@@ -242,6 +248,9 @@ export function settingsScopeOf(scope: AnySettingsScope | undefined, args: unkno
   return typeof values === "object" && values !== null ? Object.keys(values) : undefined
 }
 
+// 引数から読むブックの id を答える関数（表に並べるとき、引数の型を問わずに並べられるよう、メソッドの形で書く）
+type BooksOfArgs<A> = { booksOf(args: A): readonly string[] }["booksOf"]
+
 export interface ActionDef<
   T extends ActionTarget = ActionTarget,
   A = unknown,
@@ -261,8 +270,8 @@ export interface ActionDef<
   // 利用者が AI に話しかけたときに、matomezu がアノテーションのあるブックごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
   // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
-  // "notify-user" は利用者に知らせる郵便を、利用者として送る（参加者の id などを受ける。利用者だけが行うアクション）。役ごとに 1 つのアクションだけが名乗る。make-participant は対象の定義の種類、notify-user は郵便箱が対象のアクションだけが書ける
-  runsWhenAIJoins?: T extends SubjectId ? "make-participant" : T extends "mailbox" ? "notify-user" : never
+  // "notify-user" は利用者に知らせる郵便を、利用者として送る（参加者の id などを受ける。利用者だけが行うアクション）。役ごとに 1 つのアクションだけが名乗る。どちらも対象の定義の種類が対象のアクションだけが書ける
+  runsWhenAIJoins?: T extends SubjectId ? "make-participant" | "notify-user" : never
   // 常駐が初めて起動したとき（その行ったという記録がまだ無いとき）に、利用者として 1 度だけ行う（引数は {}。最初の 1 件を作るなど。行えたら記録し、
   // 利用者があとで消しても作り直さない。行えなければ記録せず、次の起動でまた行う）
   runsOnceAtStart?: true
@@ -270,8 +279,10 @@ export interface ActionDef<
   inPrintPreview?: "runs"
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
-  // レコードが対象のアクションが、読むだけの種類（対象の定義の id。その種類のレコード全部が ctx.records に入る。同じ種類の重なりを確かめるときなど。変えるのは対象の 1 件だけ）
+  // レコードが対象のアクションが、読むだけの種類（対象の定義の id。その種類のレコード全部が ctx.records に入る。同じ種類の重なりを確かめるときなど。変えるのは対象の種類のレコードだけで、宛先のほかも変える〈Done の others〉なら、対象の種類も書く）
   reads?: T extends SubjectId ? readonly SubjectId[] : never
+  // レコードが対象のアクションが読むだけのブックの id を、引数から答える（そのブックだけが ctx.books に入る。無ければブックを読まない）
+  readsBooks?: T extends SubjectId ? BooksOfArgs<A> : never
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType

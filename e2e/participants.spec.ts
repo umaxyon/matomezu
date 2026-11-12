@@ -295,5 +295,5 @@ test("生きている参加者のワークルームは引き継げない。断�
   const table = await participants(page)
   expect(table).toHaveLength(1)
   const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-  expect(body.mailbox).toHaveLength(1) // 最初の郵便だけ
+  expect(Object.keys(body.records["@matomezu/base:mail"] ?? {})).toHaveLength(1) // 最初の郵便だけ
 })

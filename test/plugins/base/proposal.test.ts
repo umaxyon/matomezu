@@ -2,9 +2,10 @@
 // 送ったあとに当たる物が変わっていたら断る。反映した・失敗したは郵便に一度だけ残す
 
 import { expect, test } from "bun:test"
-import { AI } from "../../../web/src/core/actor"
+import { AI, USER } from "../../../web/src/core/actor"
 import type { Mail } from "../../../web/src/core/mail"
 import { performIn } from "../../../web/src/core/perform"
+import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
 import { type ProposalProps, proposalChanged } from "../../../web/src/plugins/base/mail/proposal"
 import { CORE_CATALOG, newStore } from "../../support"
 
@@ -17,7 +18,7 @@ function ready() {
   const perform = store.actions.perform as (
     id: string,
     args: unknown,
-    on?: { book: string },
+    on?: { book: string } | { record: string },
   ) => {
     ok: boolean
     result?: unknown
@@ -42,7 +43,7 @@ function ready() {
   })
   const send = (changes: object[]) =>
     perform(SEND, { from: "E51", title: "名前を直す", book: "b1", page: "p1", changes })
-  const mail = (): Mail => store.state.getState().mailbox.at(-1) as Mail
+  const mail = (): Mail => mailboxOf(store.state.getState().records).at(-1) as Mail
   const props = () => mail().props as ProposalProps
   const apply = () => perform(APPLY, { page: "p1", changes: props().changes, snapshot: props().snapshot }, on)
   const caption = (item: string) =>
@@ -86,9 +87,9 @@ test("反映すると乗せた変更を順に行い、画面の履歴の段は 1
   expect([caption(one), caption(two)]).toEqual(["AI 一", "AI 二"])
   return Promise.resolve().then(() => {
     expect(store.state.getState().history.b1?.undo).toHaveLength(steps + 1)
-    expect(perform(SETTLE, { mail: mail().id, outcome: "applied" }).ok).toBe(true)
+    expect(perform(SETTLE, { outcome: "applied" }, { record: mail().id }).ok).toBe(true)
     expect(mail().props).toMatchObject({ appliedAt: expect.any(String) })
-    expect(perform(SETTLE, { mail: mail().id, outcome: "failed" }).ok).toBe(false)
+    expect(perform(SETTLE, { outcome: "failed" }, { record: mail().id }).ok).toBe(false)
   })
 })
 
@@ -130,6 +131,71 @@ test("反映と結果を残すのは利用者だけ。送るのは AI もでき�
     now: "t",
     actor: AI,
   }
-  const settle = performIn(world as never, SETTLE, { mail: "m", outcome: "applied" }, undefined, ctx)
+  const settle = performIn(world as never, SETTLE, { outcome: "applied" }, { record: "m" }, ctx)
   expect(settle).toMatchObject({ ok: false })
+})
+
+test("送るときに読むのは、引数 book のブック 1 冊だけ（readsBooks）。送ると AI 編集チケットを作り、結果を残すと閉じる・失敗にする", () => {
+  const { store, send, one, rename, mail } = ready()
+  const s = store.state.getState()
+  const def = CORE_CATALOG.actions.get(SEND)
+  expect(def?.readsBooks?.({ book: "b1" } as never)).toEqual(["b1"])
+  // 読んだブックを見張る: ほかのブックは ctx.books に入らない
+  const seen: string[][] = []
+  const watching = {
+    ...CORE_CATALOG,
+    actions: new Map<string, unknown>([
+      ...CORE_CATALOG.actions,
+      [
+        SEND,
+        {
+          ...def,
+          run: (now: never, args: never, ctx: { books?: Record<string, unknown> }) => {
+            seen.push(Object.keys(ctx.books ?? {}))
+            return (def as { run: (...a: unknown[]) => unknown }).run(now, args, ctx)
+          },
+        },
+      ],
+    ]),
+  }
+  const world = {
+    books: { ...s.books, other: { ...s.books.b1, id: "other" } },
+    settings: s.settings,
+    annotations: s.annotations,
+    records: s.records,
+    counters: s.counters,
+  }
+  const ctx = {
+    catalog: watching as never,
+    controlCenter: "@matomezu/control-center:control-center" as never,
+    lang: "ja" as const,
+    newId: () => "fresh-mail-1",
+    now: "t",
+    actor: AI,
+  }
+  const done = performIn(
+    world as never,
+    SEND,
+    { from: "E51", title: "名前", book: "b1", page: "p1", changes: [rename(one, "AI")] },
+    undefined,
+    ctx,
+  )
+  expect(seen).toEqual([["b1"]])
+  expect(done).toMatchObject({
+    ok: true,
+    records: [{ subject: MAIL.id, id: "freshmail1" }],
+    aiEditTicket: { book: "b1", key: "freshmail1", outcome: "open" },
+  })
+  send([rename(one, "AI 2")])
+  const settled = performIn(
+    { ...world, records: store.state.getState().records } as never,
+    SETTLE,
+    { outcome: "failed", changed: [one] },
+    { record: mail().id },
+    { ...ctx, catalog: CORE_CATALOG, actor: USER },
+  )
+  expect(settled).toMatchObject({
+    ok: true,
+    aiEditTicket: { book: "b1", key: mail().id, outcome: "failed", changed: [one] },
+  })
 })
