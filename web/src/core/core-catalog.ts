@@ -333,7 +333,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       problems.push(problem("E046", { id: a.id, target: a.target }))
   for (const c of parts.controlCenters) {
     for (const id of c.actions) if (!actions.has(id)) problems.push(problem("E041", { id: c.id, ref: id }))
-    for (const id of c.subjects ?? []) if (!subjects.has(id)) problems.push(problem("E047", { id: c.id, ref: id }))
+    for (const id of c.subjects === "all" ? [] : (c.subjects ?? []))
+      if (!subjects.has(id)) problems.push(problem("E047", { id: c.id, ref: id }))
   }
   for (const t of parts.bookTypes) {
     const literal = t.schema.shape.type

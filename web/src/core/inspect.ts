@@ -5,7 +5,7 @@
 import { type Actor, isAI, USER } from "./actor"
 import type { ActionId, SubjectId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
-import { type ActionContext, type ActionDef, attachedTo, isOnBook, type Where } from "./def/action"
+import { type ActionContext, type ActionDef, attachedTo, BASE_TARGETS, isOnBook, type Where } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ControlCenterDef } from "./def/control-center"
 import type { PermissionQuery } from "./def/permission"
@@ -97,12 +97,15 @@ function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean
   }))
 }
 
+// コントロールセンターが、対象の種類（対象の定義）のアクションを全部許すか
+const allowsSubject = (center: ControlCenterDef, target: string): boolean =>
+  center.subjects === "all" ? !BASE_TARGETS.includes(target) : (center.subjects?.includes(target as SubjectId) ?? false)
+
 // コントロールセンターがアクションを許すかのステップ
 const centerSteps = (def: ActionDef, center: ControlCenterDef): Step<boolean>[] => [
   {
     from: { source: "controlCenter", id: center.id, field: "actions" },
-    value:
-      center.actions.includes(def.id as ActionId) || center.subjects?.includes(def.target as SubjectId) ? true : null,
+    value: center.actions.includes(def.id as ActionId) || allowsSubject(center, def.target) ? true : null,
   },
 ]
 

@@ -5,7 +5,8 @@ import type { ActionId, ControlCenterExtras, SubjectId } from "../catalog"
 export interface ControlCenterDef extends ControlCenterExtras {
   id: string
   actions: readonly ActionId[] // 許す、ブックが対象でないアクション（ここに無いものは断る）
-  subjects?: readonly SubjectId[] // 対象の種類（対象の定義）のうち、そのアクションを全部許す物
+  // 対象の種類（対象の定義）のうち、そのアクションを全部許す物。"all" は宣言された種類全部（追加プラグインの種類も）。書かなければ、どの種類のアクションも許さない
+  subjects?: readonly SubjectId[] | "all"
   // 利用者の設定の項目のうち変えさせない物の id（利用者にも AI にも。組織のコントロールセンターで決める）
   fixedUserSettings?: readonly string[]
 }
