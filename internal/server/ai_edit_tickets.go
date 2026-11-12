@@ -1,10 +1,11 @@
 package server
 
 // AI 編集チケット: AI のアクションがブックを変えるたびに、ブックごとに 1 つ開く（まだ見られていない物）。どれかの窓で見えたら消し、
-// 見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「消えた」にする。消えた物は、AI のフックが聞いたとき
+// 見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「見られる前に消えた」にする。その物は、AI のフックが聞いたとき
 // （GET /api/ai/awaiting の undone）に渡し、次の利用者トリガートークで消す。ブックごとに aiEditTicketsMax まで（古い物から捨てる）。
-// アクションが返した変え方（engine.AIEditTicketChange。変更提案郵便を送った・反映したなど）でも、アクションの対象の種類 Subject と Key で見分ける AI 編集チケットを作る・閉じる・失敗にする。
-// 失敗した物は、AI のフックが聞いたとき（GET /api/ai/awaiting の failed）に渡し、次の利用者トリガートークで消す。
+// アクションが返した変え方（engine.AIEditTicketChange。変更提案郵便を送った・反映した・消したなど）でも、アクションの対象の種類 Subject と Key で見分ける AI 編集チケットを
+// 作る・閉じる・失敗にする・郵便が消えたと記す。失敗した物と郵便が消えたと記した物は、AI のフックが聞いたとき（GET /api/ai/awaiting の failed と removed）に渡し、
+// 次の利用者トリガートークで消す。Key で見分ける物は、上限でも捨てない（閉じる・失敗にする・消えたと記すまで残す）。
 //
 //	POST /api/ai-edit-tickets   {"book", "act", "outcome": "seen" | "lost", "lost"} 窓が、AI の変更（act は book の知らせの印）を見た・見られる前に消えた
 
@@ -31,9 +32,11 @@ type AIEditTicket struct {
 	Told    bool            `json:"told,omitempty"`    // 消えた・失敗したことを AI に渡した
 	Failed  bool            `json:"failed,omitempty"`  // アクションが返した変え方で失敗にした
 	Changed []string        `json:"changed,omitempty"` // 失敗にしたときの、変わった・無くなった物の id
+	Removed string          `json:"removed,omitempty"` // アクションが返した変え方で、郵便が消えたと記したときの消えたわけ（limit か user。空ならそうしていない）
 }
 
-// changedTickets は、対象の種類 subject のアクションが返した変え方 c のとおりに AI 編集チケットの並び list を作り直す（作る・閉じる・失敗にする。閉じる・失敗にするのは、まだ待っている物だけ）。
+// changedTickets は、対象の種類 subject のアクションが返した変え方 c のとおりに AI 編集チケットの並び list を作り直す（作る・閉じる・失敗にする・消えたと記す。
+// 閉じる・失敗にする・消えたと記すのは、まだ待っている物だけ）。
 // 作るときの変えた後のブックの版は version。変えなければ false
 func changedTickets(list []AIEditTicket, subject string, c engine.AIEditTicketChange, version int64, at string) ([]AIEditTicket, bool) {
 	list = slices.Clone(list)
@@ -41,7 +44,7 @@ func changedTickets(list []AIEditTicket, subject string, c engine.AIEditTicketCh
 		return append(list, AIEditTicket{Key: c.Key, Subject: subject, At: at, Version: version}), true
 	}
 	i := slices.IndexFunc(list, func(t AIEditTicket) bool {
-		return t.Key == c.Key && (t.Subject == "" || t.Subject == subject) && !t.Failed
+		return t.Key == c.Key && (t.Subject == "" || t.Subject == subject) && !t.Failed && t.Removed == ""
 	})
 	if i < 0 {
 		return list, false
@@ -52,6 +55,10 @@ func changedTickets(list []AIEditTicket, subject string, c engine.AIEditTicketCh
 	case "failed":
 		list[i].Failed = true
 		list[i].Changed = c.Changed
+	case "removed":
+		list[i].Removed = c.Cause
+	default:
+		return list, false
 	}
 	return list, true
 }
@@ -59,11 +66,15 @@ func changedTickets(list []AIEditTicket, subject string, c engine.AIEditTicketCh
 // recordedTickets は、AI のアクション act がブックを版 version にしたことを AI 編集チケットの並び list に足す
 func recordedTickets(list []AIEditTicket, act string, version int64, at string) []AIEditTicket {
 	list = append(slices.Clone(list), AIEditTicket{Act: act, At: at, Version: version})
-	// 多すぎたら、見られていない物の古い方から捨てる（消えた物は AI に渡すまで残す）
+	// 多すぎたら、見られていない物の古い方から捨てる（消えた物は AI に渡すまで残す）。それも無ければ、消えた物の古い方から捨てる。
+	// Key で見分ける物は捨てない（アクションが閉じる・失敗にする・消えたと記すまで残す）
 	for len(list) > aiEditTicketsMax {
-		i := slices.IndexFunc(list, func(c AIEditTicket) bool { return c.Lost == nil && !c.Failed })
+		i := slices.IndexFunc(list, func(c AIEditTicket) bool { return c.Key == "" && c.Lost == nil })
 		if i < 0 {
-			i = 0
+			i = slices.IndexFunc(list, func(c AIEditTicket) bool { return c.Key == "" })
+		}
+		if i < 0 {
+			break
 		}
 		list = slices.Delete(list, i, i+1)
 	}
@@ -208,7 +219,52 @@ func (h *Hub) TellFailed() ([]FailedAIEditTicket, error) {
 	return out, nil
 }
 
-// forgetToldAIEditTickets は、AI に渡した、見られる前に消えた AI の変更と失敗にした AI 編集チケットを消す（利用者トリガートークのとき。h.mu を持って呼ぶ）
+// RemovedAIEditTicket は、アクションが返した変え方で、郵便が消えたと記した AI 編集チケット 1 つ（AI に渡す形。Key は郵便の id など、Cause は消えたわけ）
+type RemovedAIEditTicket struct {
+	Book  string `json:"book"`
+	Title string `json:"title"`
+	Key   string `json:"key"`
+	Cause string `json:"cause"`
+}
+
+// TellRemoved は、アクションが返した変え方で消えたと記した AI 編集チケットの全部（ゴミ箱のブックの物は除く。ブックを置いた順）を返し、AI に渡した印を付ける
+func (h *Hub) TellRemoved() ([]RemovedAIEditTicket, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := []RemovedAIEditTicket{}
+	changed := map[string][]AIEditTicket{}
+	for _, id := range h.order {
+		e, ok := h.books[id]
+		list := slices.Clone(h.aiEditTickets[id])
+		if !ok || e.trashed || len(list) == 0 {
+			continue
+		}
+		var head struct {
+			Title string `json:"title"`
+		}
+		_ = json.Unmarshal(e.body, &head)
+		told := false
+		for i, c := range list {
+			if c.Removed == "" {
+				continue
+			}
+			out = append(out, RemovedAIEditTicket{Book: id, Title: head.Title, Key: c.Key, Cause: c.Removed})
+			if !c.Told {
+				list[i].Told = true
+				told = true
+			}
+		}
+		if told {
+			changed[id] = list
+		}
+	}
+	if err := h.putTicketLists(changed); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// forgetToldAIEditTickets は、AI に渡した、見られる前に消えた AI の変更と、失敗にした・消えたと記した AI 編集チケットを消す（利用者トリガートークのとき。h.mu を持って呼ぶ）
 func (h *Hub) forgetToldAIEditTickets() error {
 	changed := map[string][]AIEditTicket{}
 	for _, id := range slices.Clone(h.order) {

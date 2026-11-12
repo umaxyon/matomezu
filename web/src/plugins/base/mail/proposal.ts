@@ -3,7 +3,8 @@
 // 乗せられるのは 1 冊のブックの、既にある物を変える・消すアクションだけ（物を足すアクション・利用者だけのアクション・画面の履歴に入らないアクションは乗せられない）。
 // 送るときに変更を試しに当て（ブックは変えない）、当たる物のその時の自分の値（core/ids.ts の ownValues）を郵便にしまう。反映のときに今の値と比べ、
 // 少しでも違う・無いなら失敗にする。反映は 1 つのアクションで、乗せた変更を順に行い、1 つでも断られたら全部取り消す。
-// 送ると AI 編集チケットを作り、反映したら閉じ、失敗したら失敗にする（失敗は、次の利用者トリガートークのときに AI に渡る）
+// 送ると AI 編集チケットを作り、反映したら閉じ、失敗したら失敗にし、反映も失敗もしないまま郵便が消えたら消えたと記す（郵便箱の上限で消えたか、利用者が消したか。
+// 失敗と消えたことは、次の利用者トリガートークのときに AI に渡る）
 import { z } from "zod"
 import { USER } from "../../../core/actor"
 import type { ActionContext } from "../../../core/def/action"
@@ -45,6 +46,13 @@ export const MAIL_PROPOSAL = kit.defineMail({
     // 反映した・失敗したら、郵便箱の行にそう添える
     mark: (p: ProposalProps, t) =>
       p.appliedAt ? t(kit.message("Applied")) : p.failedAt ? t(kit.message("Could not apply")) : undefined,
+  },
+  // 反映も失敗もしていない提案が消えたら、AI 編集チケットを消えたと記す（形の合わない郵便は直せないので、何もしない）
+  ticketOnRemoved: (mail, cause) => {
+    const p = proposalOf(mail)
+    return p && !p.appliedAt && !p.failedAt
+      ? { book: p.book, key: mail.id, outcome: "removed" as const, cause }
+      : undefined
   },
 })
 
@@ -119,7 +127,7 @@ export function proposalChanged(book: Book, snapshot: Readonly<Record<string, un
 export const PROPOSAL_SEND = kit.defineAction({
   id: "proposal-send",
   aiDescription:
-    "Send a change proposal mail: when an action of yours on a book was refused with being-edited (the user is editing what it changes), put the actions here and the user applies them with one press when done. from your short name (as in mail-send), title (80 characters at most) and body (optional) tell the user what it changes and why. book is the book, page the page they change (leave it out if they change several pages), changes the actions in order, each {action, args} as you would perform it on that book. Only actions that change things there now can be carried: no actions that add things, and only one book per mail. They are tried now without changing the book: if one cannot be done, nothing is sent and why is returned. When the user applies it, it fails if what it changes was changed or removed after you sent it; then nothing is changed and you are told the next time the user talks to you (think again from the book as it is then). Returns the mail's id.",
+    "Send a change proposal mail: when an action of yours on a book was refused with being-edited (the user is editing what it changes), put the actions here and the user applies them with one press when done. from your short name (as in mail-send), title (80 characters at most) and body (optional) tell the user what it changes and why. book is the book, page the page they change (leave it out if they change several pages), changes the actions in order, each {action, args} as you would perform it on that book. Only actions that change things there now can be carried: no actions that add things, and only one book per mail. They are tried now without changing the book: if one cannot be done, nothing is sent and why is returned. When the user applies it, it fails if what it changes was changed or removed after you sent it; then nothing is changed and you are told the next time the user talks to you (think again from the book as it is then). If the mail is removed before it is applied (the mailbox keeps the newest 200 mails, or the user removes it), you are told that too, the next time the user talks to you. Returns the mail's id.",
   title: "Send a change proposal",
   target: MAIL.id,
   reads: [MAIL.id],
@@ -167,7 +175,7 @@ export const PROPOSAL_SEND = kit.defineAction({
       next: added.next,
       others: added.others,
       result: { mail: added.next.id },
-      aiEditTicket: { book: book.id, key: added.next.id, outcome: "open" as const },
+      aiEditTickets: [{ book: book.id, key: added.next.id, outcome: "open" as const }, ...added.aiEditTickets],
     }
   },
 })
@@ -227,12 +235,11 @@ export const PROPOSAL_SETTLE = kit.defineAction({
     return {
       next: { ...found, props: next },
       result: {},
-      aiEditTicket: {
-        book: props.book,
-        key: found.id,
-        outcome: args.outcome === "applied" ? ("closed" as const) : ("failed" as const),
-        ...(args.outcome === "failed" ? { changed: [...(args.changed ?? [])] } : {}),
-      },
+      aiEditTickets: [
+        args.outcome === "applied"
+          ? { book: props.book, key: found.id, outcome: "closed" as const }
+          : { book: props.book, key: found.id, outcome: "failed" as const, changed: [...(args.changed ?? [])] },
+      ],
     }
   },
 })

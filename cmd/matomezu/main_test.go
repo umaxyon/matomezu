@@ -146,3 +146,33 @@ func TestWriteAwaiting(t *testing.T) {
 		t.Fatalf("the whole text was written: %s", out.String())
 	}
 }
+
+func TestWriteRemovedSeparatesTheCauses(t *testing.T) {
+	var out strings.Builder
+	writeRemoved(&out, []removedTicket{
+		{Book: "b1", Title: "Plan", Key: "m1", Cause: "limit"},
+		{Book: "b1", Title: "Plan", Key: "m2", Cause: "user"},
+		{Book: "b2", Title: "Other", Key: "m3", Cause: "other"},
+	})
+	text := out.String()
+	for _, want := range []string{
+		"1 change(s) you sent for the user to apply were removed by the mailbox limit",
+		"Send them again if they are still needed.",
+		"1 change(s) you sent for the user to apply were removed by the user without applying them",
+		"Do not send them again unless the user asks.",
+		`- book "Plan" (b1), m1`,
+		`- book "Plan" (b1), m2`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing %q in:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "m3") {
+		t.Errorf("an unknown cause must be skipped:\n%s", text)
+	}
+	out.Reset()
+	writeRemoved(&out, nil)
+	if out.Len() != 0 {
+		t.Errorf("nothing to say, but wrote %q", out.String())
+	}
+}

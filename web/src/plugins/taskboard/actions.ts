@@ -5,7 +5,7 @@ import { type z, z as zod } from "zod"
 import { enumValuesOf, isAI } from "../../plugin-api"
 import { byOf, WORKROOM_SUBJECT, workroomOf } from "./by"
 import { CURRENT, NO_TICKET } from "./current"
-import { HISTORY, HISTORY_TOPIC } from "./history"
+import { HISTORY, HISTORY_TOPIC, type TopicData } from "./history"
 import { kit } from "./kit"
 import { LANE_NAME_MAX, LANES, NO_TAG, PREFIX, PROJECT, PROJECT_NAME_MAX, TAG, TAG_NAME_MAX, UNSORTED } from "./project"
 import { projectNameOf, sayIn, templateOf } from "./template"
@@ -277,25 +277,32 @@ export const TICKET_HISTORY_ADD = kit.defineAction({
   id: "ticket-history-add",
   title: "add ticket history",
   aiDescription:
-    "Add a line to the history of the ticket (its id): topic is the id of a value of the enum history-topic (the values are listed in the arguments), text is what to write. The line records you (your workroom, as it is now) and the time. Lines cannot be changed or removed later. The ticket's own time of the last change does not move.",
+    "Add a line to the history of the ticket (its id): topic is the id of a value of the enum history-topic (the values are listed in the arguments), text is what to write (needed, except for a topic whose data says textless). The line records you (your workroom, as it is now) and the time. Lines cannot be changed or removed later. The ticket's own time of the last change does not move.",
   target: HISTORY.id,
   reads: [TICKET.id, WORKROOM_SUBJECT],
-  args: zod.strictObject({ ticket: zod.string().min(1), topic: zod.string().min(1), text: zod.string().min(1) }),
+  args: zod.strictObject({ ticket: zod.string().min(1), topic: zod.string().min(1), text: zod.string() }),
   describeArgs: catalog => {
     const topics = enumValuesOf(catalog, HISTORY_TOPIC.id)
     const ids = topics.map(v => v.id) as [string, ...string[]]
     // 題の候補と、いつ選ぶかの説明（値の aiDescription）を、引数の説明に並べる
     const topic =
       ids.length > 0
-        ? zod.enum(ids).describe(topics.map(v => `${v.id}: ${v.aiDescription}`).join("\n"))
+        ? zod
+            .enum(ids)
+            .describe(
+              topics
+                .map(v => `${v.id}: ${v.aiDescription}${(v.data as TopicData).textless ? " (text may be empty)" : ""}`)
+                .join("\n"),
+            )
         : zod.string().min(1)
-    return zod.strictObject({ ticket: zod.string().min(1), topic, text: zod.string().min(1) })
+    return zod.strictObject({ ticket: zod.string().min(1), topic, text: zod.string() })
   },
   run: (now, args, ctx) => {
     if (now !== "none") return null
     if (!ticketsIn(ctx).some(t => t.id === args.ticket)) return { declined: "the ticket is not there" }
-    if (!enumValuesOf(ctx.catalog, HISTORY_TOPIC.id).some(v => v.id === args.topic))
-      return { declined: "the topic is not a value of history-topic" }
+    const topic = enumValuesOf(ctx.catalog, HISTORY_TOPIC.id).find(v => v.id === args.topic)
+    if (!topic) return { declined: "the topic is not a value of history-topic" }
+    if (args.text.trim() === "" && !(topic.data as TopicData).textless) return { declined: "the topic needs a text" }
     const by = byOf(ctx.actor, ctx)
     if (!by) return { declined: "the workroom of the AI is not there" }
     const line: z.output<typeof HISTORY.record> = {

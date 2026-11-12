@@ -119,12 +119,20 @@ test("今のチケットは、AI が自分のワークルームの分だけ宣�
   expect(table(CURRENT.id)).toEqual([])
 })
 
-test("履歴の題は列挙 history-topic の値（状況・プラン・質問）。値の data は色の役割で、質問だけ利用者への質問（asksUser）", () => {
+test("履歴の題は列挙 history-topic の値（状況・プラン・質問・本文更新）。値の data は色の役割で、質問だけ利用者への質問（asksUser）、本文更新だけ文を持たない（textless）", () => {
   const values = [...CORE_CATALOG.enumValues.values()].filter(v => v.enum === HISTORY_TOPIC.id)
-  expect(values.map(v => v.id)).toEqual([A("topic-status"), A("topic-plan"), A("topic-question")])
+  expect(values.map(v => v.id)).toEqual([A("topic-status"), A("topic-plan"), A("topic-question"), A("topic-body")])
   expect(values.map(v => v.data)).toEqual([
     { color: "primary" },
     { color: "secondary" },
     { color: "warn", asksUser: true },
+    { color: "muted", textless: true },
   ])
+})
+
+test("本文更新の題は文を持たなくてよい。ほかの題は文が空だと断る", () => {
+  const { user, table, ticket } = ready()
+  expect(user(A(LOG), { ticket, topic: A("topic-body"), text: "" }).ok).toBe(true)
+  expect(table(HISTORY.id)[0]).toMatchObject({ topic: A("topic-body"), text: "", by: { kind: "user" } })
+  expect(user(A(LOG), { ticket, topic: A("topic-status"), text: "  " }).ok).toBe(false)
 })
