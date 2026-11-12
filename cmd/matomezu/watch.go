@@ -21,14 +21,16 @@ import (
 // watchRetry は、常駐が立っていない・切れたときに、つなぎ直すまで待つ間
 const watchRetry = 3 * time.Second
 
-// Run は、常駐の AI を起こす知らせ（GET /api/ai/watch）につなぎ、届いた 1 行ずつを標準出力に書く。常駐が立っていなければ待ち、切れたらつなぎ直す（常駐は立てない）
+// Run は、常駐の AI を起こす知らせ（GET /api/ai/watch）につなぎ、届いた 1 行ずつを標準出力に書く。常駐が立っていなければ待ち、切れたらつなぎ直す（常駐は立てない）。
+// --host のプロセスが居なくなったら終える（AI のプログラムが閉じたのに残らないように）
 func (c *watchCmd) Run() error {
-	for {
+	for processAlive(c.Host) {
 		if s := runningServer(); s != nil {
 			_ = watchOnce(s, c.Host, os.Stdout)
 		}
 		time.Sleep(watchRetry)
 	}
+	return nil
 }
 
 // runningServer は、立っていて答える常駐のつなぎ方（無ければ nil）
@@ -54,14 +56,14 @@ func watchOnce(s *home.Server, host string, out io.Writer) error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("watch: %s", res.Status)
 	}
-	return readWakes(res.Body, out)
+	return readWakes(res.Body, out, func() bool { return processAlive(host) })
 }
 
-// readWakes は、SSE の流れ r の wake の知らせの文を、1 行ずつ out に書く（ほかの知らせは読み捨てる）
-func readWakes(r io.Reader, out io.Writer) error {
+// readWakes は、SSE の流れ r の wake の知らせの文を、1 行ずつ out に書く（ほかの知らせは読み捨てる）。行を読むたびに still を聞き、偽なら終える（keep が間を置いて届く）
+func readWakes(r io.Reader, out io.Writer, still func() bool) error {
 	scan := bufio.NewScanner(r)
 	name := ""
-	for scan.Scan() {
+	for scan.Scan() && still() {
 		line := scan.Text()
 		switch {
 		case strings.HasPrefix(line, "event: "):

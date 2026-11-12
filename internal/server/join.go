@@ -12,7 +12,7 @@ package server
 //     セッション id が変わったとき（Claude Code の /clear など）に、同じプロセス id の参加者へ新しいセッション id を結び直すのに使う）
 //
 // 受け入れた参加者は、AI のフックが参加を伝えるまで準備中（セッション id を join で運ぶ AI は受け入れた時点で準備中でない）。
-// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・AI のプログラムのプロセス id・「参加しました」の知らせ・伝えた印を残さない（プロセス id は、join の頼みに添えた物だけ残す）。準備中の間は生きていない
+// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・AI のプログラムのプロセス id・「参加しました」の知らせ・伝えた印を残さない（join の頼みに添えたプロセス id は、起こす知らせの宛て先として別に残す）。準備中の間は生きていない
 //
 // 参加の id は MCP が X-Matomezu-Participant ヘッダで毎回添え、「参加しました」の知らせは X-Matomezu-Notice ヘッダで 1 度だけ返す（値は URL エンコード）。
 // 参加の id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）も添える。AI のプログラムのプロセス id（X-Matomezu-Host）は join も含めていつも添える。
@@ -55,6 +55,7 @@ type participantNote struct {
 	Model     string `json:"model,omitempty"`     // AI のフックが知らせたモデル
 	Branch    string `json:"branch,omitempty"`    // MCP が添えた git のブランチ
 	Host      string `json:"host,omitempty"`      // AI のプログラム（Claude Code など）のプロセス id（MCP とフックが添える）
+	WakeHost  string `json:"wakeHost,omitempty"`  // join の頼みに MCP が添えた AI のプログラムのプロセス id（起こす知らせの宛て先だけに使う。結び直しには使わない。watch.go）
 }
 
 // live は、窓に知らせる参加者の様子（モデルとブランチ。空は省く）
@@ -297,8 +298,8 @@ func (h *Hub) performAs(action string, args map[string]any) (Performed, error) {
 	return h.Perform(Perform{Action: action, Args: b, By: "ai"})
 }
 
-// noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id を書く（空なら何もしない）。
-// 要求中の間も残す（受け入れ・断りの知らせを、その AI の起こす知らせの通り道へ流す宛て先。watch.go）
+// noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id を、起こす知らせの宛て先として書く（空なら何もしない）。
+// 要求中の間も残す（受け入れ・断りの知らせの宛て先。watch.go）。セッション id の結び直し（Host）には使わない
 func (h *Hub) noteJoinHost(id, host string) {
 	if host == "" {
 		return
@@ -306,7 +307,7 @@ func (h *Hub) noteJoinHost(id, host string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	n := h.participantNotes[id]
-	n.Host = host
+	n.WakeHost = host
 	h.participantNotes[id] = n
 }
 

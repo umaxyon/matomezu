@@ -27,16 +27,16 @@ func joinFrom(t *testing.T, url, link, host string) string {
 	return joined.Participant
 }
 
-// wakes は、通り道 w に届いた知らせの文（待っても来なければそこまで）
-func wakes(w *watcher, wait time.Duration) []string {
+// wakes は、通り道 l に届いている知らせの文（知らせはアクションの返事より前に入るので、待たない）
+func wakes(l *wakeLine) []string {
 	var out []string
 	for {
 		select {
-		case ev := <-w.ch:
+		case ev := <-l.ch:
 			var wake struct{ Text string }
 			_ = json.Unmarshal(ev.data, &wake)
 			out = append(out, wake.Text)
-		case <-time.After(wait):
+		default:
 			return out
 		}
 	}
@@ -55,17 +55,17 @@ func makeRoom(t *testing.T, url, name string) string {
 // 窓で受け入れると、その参加者が join したプロセス id の通り道にだけ、ワークルーム名つきの 1 行が届く
 func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	mine, other := hub.Watch("100"), hub.Watch("200")
+	mine, other := hub.OpenWakes("100"), hub.OpenWakes("200")
 	participant := joinFrom(t, s.URL, "L1", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("accept = %s", out)
 	}
-	got := wakes(mine, 200*time.Millisecond)
+	got := wakes(mine)
 	if len(got) != 1 || !strings.Contains(got[0], "accepted") || !strings.Contains(got[0], "ひよこ") {
 		t.Fatalf("wakes = %q", got)
 	}
-	if got := wakes(other, 50*time.Millisecond); len(got) != 0 {
+	if got := wakes(other); len(got) != 0 {
 		t.Fatalf("another process woke: %q", got)
 	}
 }
@@ -73,18 +73,18 @@ func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 // 窓で断ると「断られた」が届く。AI と常駐（利用者として行う物）が行ったアクションでは起こさない
 func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	w := hub.Watch("100")
+	w := hub.OpenWakes("100")
 	first := joinFrom(t, s.URL, "L1", "100") // join の中の、AI と常駐が行うアクション（参加者を作る・郵便を送る）では起こさない
 	room := makeRoom(t, s.URL, "ひよこ")
 	acceptIn(t, s.URL, first, room) // 窓の印の無い（常駐が行う）受け入れでは起こさない
-	if got := wakes(w, 100*time.Millisecond); len(got) != 0 {
+	if got := wakes(w); len(got) != 0 {
 		t.Fatalf("woke without a window: %q", got)
 	}
 	second := joinFrom(t, s.URL, "L2", "100")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, second); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("decline = %s", out)
 	}
-	got := wakes(w, 200*time.Millisecond)
+	got := wakes(w)
 	if len(got) != 1 || !strings.Contains(got[0], "declined") {
 		t.Fatalf("wakes = %q", got)
 	}
@@ -127,5 +127,29 @@ func TestWatchStreamsWakes(t *testing.T) {
 		case <-deadline:
 			t.Fatal("no wake came")
 		}
+	}
+}
+
+// 起こされたターン（woken）のフックは、話しかけたときのアクションを行わず、プロセス id が合うだけでは結ばない。会話の記録の link で結び、「参加しました」を 1 度だけ返す
+func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	line := hub.OpenWakes("100")
+	participant := joinFrom(t, s.URL, "6f1c2a3e-1111-4222-8333-444455556666", "100")
+	room := makeRoom(t, s.URL, "ひよこ")
+	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
+	if got := wakes(line); len(got) != 1 {
+		t.Fatalf("wakes = %q", got)
+	}
+	// プロセス id が合うだけでは結ばない（記録を調べる値打ちがあると返す）
+	out, _ := call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"S9","host":"100","woken":true}`, nil)
+	if !strings.Contains(out, `"welcomes":[]`) || !strings.Contains(out, `"unbound":true`) {
+		t.Fatalf("woken talk = %s", out)
+	}
+	out, _ = call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"S9","host":"100","woken":true,"candidates":["6f1c2a3e-1111-4222-8333-444455556666"]}`, nil)
+	if !strings.Contains(out, "ひよこ") {
+		t.Fatalf("bound by link = %s", out)
+	}
+	if out, _ := call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"S9","host":"100","woken":true}`, nil); !strings.Contains(out, `"welcomes":[]`) {
+		t.Fatalf("welcomed twice = %s", out)
 	}
 }

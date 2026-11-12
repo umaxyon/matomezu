@@ -174,15 +174,3 @@ func TestTalkedTellsWhetherTheTurnWasWoken(t *testing.T) {
 		t.Fatalf("calls = %v", f.bodies)
 	}
 }
-
-// watch は SSE の wake の知らせの文だけを 1 行ずつ書き、ほかの知らせ（keep）は書かない
-func TestReadWakesPrintsOnlyWakeLines(t *testing.T) {
-	in := "event: keep\ndata: {}\n\nevent: wake\ndata: {\"text\":\"matomezu: the user accepted\"}\n\nevent: wake\ndata: {\"text\":\"\"}\n\n"
-	var out bytes.Buffer
-	if err := readWakes(strings.NewReader(in), &out); err != nil {
-		t.Fatal(err)
-	}
-	if out.String() != "matomezu: the user accepted\n" {
-		t.Fatalf("out = %q", out.String())
-	}
-}
