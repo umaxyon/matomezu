@@ -21,7 +21,7 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
   id: "join-request",
   title: "Mail join request",
   aiDescription:
-    "A notice that an AI agent asked to join the workroom (a participant request; with workroom, the name of the workroom it would like to continue or start). The user accepts or declines it on the screen, choosing there whether it takes over a participant who joined before or starts new. props: the participant's id, ai, model, env, sessionName, projects and workroom (optional).",
+    "A notice that an AI agent asked to join the workroom (a participant request; with workroom, the name of the workroom it would like to continue or start). The user accepts or declines it on the screen, choosing there whether it takes over a participant who joined before or starts new. props: the participant's id, ai, model, env, sessionName and workroom (optional).",
   props: JoinRequestSchema,
   aiBrief: (p: JoinRequestProps) => ["join request:", p.ai, p.model, p.sessionName].filter(Boolean).join(" "),
   shown: {

@@ -136,7 +136,7 @@ var readTools = []readTool{
 			"id, mail (the kind), from, sentAt, to (the place it points at), seenAt (when the user opened the letter; left out: not yet), visitedAt (when the user saw the place it points at; left out: not yet) and title (a line that tells the letter apart; left out when its kind gives none). " +
 			"total is how many letters fit what you asked (unseen, unvisited), and older how many of them are older than the oldest one listed: give that letter's id as before to go back. " +
 			"unseen lists only the letters the user has not opened yet, unvisited only the letters that point at a place the user has not seen yet. " +
-			"With ids (from the list, up to 20; not together with the other arguments) it answers the whole letters, props too (title and body, and more for some kinds), and unknown, the ids it does not have in these projects. Send a letter with the action mail-send.",
+			"With ids (from the list, up to 20; not together with the other arguments) it answers the whole letters, props too (title and body, and more for some kinds), and unknown, the ids it does not have. Send a letter with the action mail-send.",
 		mailSchema,
 		func(api caller, args map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/mail" + mailQuery(args))
@@ -423,7 +423,7 @@ var joinSchema = map[string]any{
 }
 
 const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. " +
-	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name; an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Your tools work the same meanwhile. Call it once per session; ask again with other projects to join those too (it answers with all the projects you joined). " +
+	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name; an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Your tools work the same meanwhile. Call it once per session. " +
 	"With workroom, you say which workroom you would like to continue (the name you were given when you joined before) or the name you would like for a new one: it is refused with workroom-in-use while the workroom has a participant who is alive (do not ask again; tell the user in the chat). Otherwise the user chooses on the screen whether you take over a participant who joined before or start new. Use the same workroom name each time you continue the same work."
 
 // join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を以後の呼び出し全部に添える
