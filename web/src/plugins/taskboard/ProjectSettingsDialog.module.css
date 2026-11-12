@@ -1,0 +1,33 @@
+/* プロジェクト設定: タブと中身はダイアログの高さいっぱいに伸ばし、中身の一覧とプロンプトがその中でスクロールする */
+.body {
+  display: flex;
+  flex: 1;
+  height: 400px;
+  min-height: 0;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fill {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.section[hidden],
+.fill[hidden] {
+  display: none;
+}
+.required {
+  color: var(--skin-danger);
+  font-size: 12px;
+}
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}

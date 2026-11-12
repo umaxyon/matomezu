@@ -1,4 +1,4 @@
-// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトにチケットを足させない）。
+// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
 import { defineBuiltin } from "../../plugin-api/builtin"
 import {
   CURRENT_TICKET_SET,
@@ -18,6 +18,7 @@ import { HISTORY, HISTORY_TOPIC, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from
 import { kit } from "./kit"
 import { CLOSED_PROJECT } from "./permission"
 import { PROJECT } from "./project"
+import { PROJECT_SETTINGS_DIALOG } from "./settings-dialog"
 import { TICKET } from "./ticket"
 
 export const TASKBOARD_PLUGIN = defineBuiltin(
@@ -39,6 +40,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       CURRENT_TICKET_SET,
     ],
     permissions: [CLOSED_PROJECT],
+    dialogs: [PROJECT_SETTINGS_DIALOG],
   }),
 )
 
@@ -72,6 +74,9 @@ declare module "../../core/catalog" {
   }
   interface PermissionTable {
     "@matomezu/taskboard:closed-project": typeof CLOSED_PROJECT
+  }
+  interface DialogTable {
+    "@matomezu/taskboard:project-settings": typeof PROJECT_SETTINGS_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }
