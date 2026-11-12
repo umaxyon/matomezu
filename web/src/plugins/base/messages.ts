@@ -11,6 +11,7 @@ import { LOCK_MESSAGES } from "./lock/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
 import { MAIL_MESSAGES } from "./mail/messages"
 import { MARK_MESSAGES } from "./mark/messages"
+import { MARKDOWN_DOCUMENT_MESSAGES } from "./markdown/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
 import { OUTBOX_MESSAGES } from "./outbox/messages"
@@ -53,6 +54,7 @@ export const BASE_MESSAGES = joinMessages(
   LEFT_SIDE_PANEL_MESSAGES,
   MAIL_MESSAGES,
   PARTICIPANT_MESSAGES,
+  MARKDOWN_DOCUMENT_MESSAGES,
   OUTBOX_MESSAGES,
   SETTINGS_MESSAGES,
   LOOKS_MESSAGES,

@@ -34,6 +34,7 @@ import { MAIL_PROPOSAL, PROPOSAL_APPLY, PROPOSAL_SEND, PROPOSAL_SETTLE } from ".
 import type {} from "./mail/shown"
 import { MARK, MARK_ADD, MARK_READ, MARK_REMOVE } from "./mark"
 import { MARK_NEW } from "./mark/commands"
+import { SOFT_BREAK } from "./markdown/soft-break"
 import { NOTE, NOTE_ADD, NOTE_READ, NOTE_REMOVE, NOTE_TALKED, NOTE_UPDATE } from "./note"
 import { NOTE_NEW } from "./note/commands"
 import { NOTE_EXPIRY } from "./note/expiry"
@@ -151,8 +152,10 @@ export {
   type MarkdownRange,
   type MarkdownTableCell,
   parseMarkdown,
+  SOFT_BREAK,
   type SoftBreak,
   SoftBreakSchema,
+  softBreakOf,
 } from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export { itemMinimapMarks, type MinimapMark } from "./minimap/marks"
@@ -321,6 +324,7 @@ export const BASE = defineBuiltin(
       NOTE_EXPIRY,
       PARTICIPANT_ALIVE,
       CORNER_STATUS_ORDER,
+      SOFT_BREAK,
     ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
@@ -432,6 +436,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
+    "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS

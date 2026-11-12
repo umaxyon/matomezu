@@ -1,7 +1,7 @@
 // 描いた文書（base の MarkdownDocumentView）と、リンク・画像の行き先・いちばん外のブロックの名前（base/markdown）
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render } from "@testing-library/react"
-import { parseMarkdown, type SoftBreak } from "../../../web/src/plugins/base"
+import { parseMarkdown, type SoftBreak, softBreakOf } from "../../../web/src/plugins/base"
 import { blockKeys } from "../../../web/src/plugins/base/markdown/block-keys"
 import { linkTarget } from "../../../web/src/plugins/base/markdown/link-target"
 import { MarkdownDocumentView } from "../../../web/src/plugins/base/ui"
@@ -94,4 +94,10 @@ test("段落の中の改行 1 つの見せ方は、文書の外の要素の印�
     expect(c.querySelector("p")?.textContent).toBe("一行目\n二行目三行目")
     expect(c.querySelectorAll("p br")).toHaveLength(1)
   }
+})
+
+test("段落の中の改行 1 つの設定の値は、形に合わない値なら「改行にする」", () => {
+  expect(softBreakOf("space")).toBe("space")
+  expect(softBreakOf("line-break")).toBe("line-break")
+  expect(softBreakOf(true)).toBe("line-break")
 })

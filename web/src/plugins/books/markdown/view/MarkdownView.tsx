@@ -21,7 +21,7 @@ import {
   useUiCatalog,
   useUserSetting,
 } from "../../../../plugin-api/ui"
-import { type MarkdownDocument, paperSize } from "../../../base"
+import { type MarkdownDocument, paperSize, SOFT_BREAK, softBreakOf } from "../../../base"
 import {
   MarkdownDocumentView,
   SEARCH_CURRENT_HIGHLIGHT,
@@ -50,7 +50,6 @@ import {
 } from "../panes"
 import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
-import { SOFT_BREAK, softBreakOf } from "../soft-break"
 import styles from "./MarkdownView.module.css"
 import { SourcePane } from "./SourcePane"
 import { renderedRanges, scrollToRange } from "./search-ranges"
