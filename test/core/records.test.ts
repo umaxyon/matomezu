@@ -6,7 +6,7 @@ import type { ActionDef } from "../../web/src/core/def/action"
 import { nextNumber } from "../../web/src/core/def/action"
 import type { SubjectDef } from "../../web/src/core/def/subject"
 import { type PerformedIn, performIn, permittedIn, type World } from "../../web/src/core/perform"
-import { REMOVED, withCounters, withRecord } from "../../web/src/core/records"
+import { checkRecords, REMOVED, withCounters, withRecord } from "../../web/src/core/records"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble, defineBuiltin, type Plugin } from "../../web/src/store/plugin"
 
@@ -178,4 +178,12 @@ test("定義の組の確かめ: レコードに id が無い・対象が種類�
   expect(
     broken({ ...EX, controlCenters: [{ id: CENTER, actions: [], subjects: ["@ex/rec:nothing" as never] }] }),
   ).toThrow(/E016/)
+})
+
+test("残したレコードを確かめ、種類が機能台帳に無い・形が合わないレコードは warning にする（データには手を付けない）", () => {
+  const lines = checkRecords(catalog, {
+    [CARD]: { c1: { id: "c1", label: "a" }, c2: { id: "c2", label: 1 } },
+    "@ex/gone:thing": { t1: { id: "t1" } },
+  }).map(w => w.code)
+  expect(lines).toEqual(["W025", "W024"])
 })

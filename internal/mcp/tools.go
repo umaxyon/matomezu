@@ -146,7 +146,7 @@ var readTools = []readTool{
 		"actions",
 		"List what can be done now (it changes when plugins are added or removed). Without ids, it answers version (changes when the list changes: keep what you read while it stays the same) and index: " +
 			"the actions (id, target and title: target tells what an action is done on), the items (shape or connector), the user settings, " +
-			"the book types (which can be created, whether they have pages and which items they place), the kinds of annotations and mail, the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
+			"the book types (which can be created, whether they have pages and which items they place), the kinds of annotations and mail, the subjects (kinds of records that actions work on, with the shape of a record; perform takes on.record for them), the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
 			"With ids (ids from the index), it answers the whole entry of each: an action's description and args (JSON Schema, for perform), an item's props (JSON Schema) and default size, a setting's schema; unknown lists ids it does not have. " +
 			"warnings (only when there are some, without ids) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",

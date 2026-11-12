@@ -367,3 +367,43 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 		t.Fatalf("mailbox = %s", got)
 	}
 }
+
+// レコードは種類・id ごとに 1 件、版つきで書き、番号の表と同じ 1 回の書き込みで進める。版が違えば何も書かず、開き直しても残る
+func TestRecordsAndCountersAreWrittenTogether(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	s := open(t, path)
+	if _, err := s.Apply(Batch{
+		Records:  []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1"}`), Base: 0}},
+		Counters: []Counter{{Subject: "x:card", Scope: "all", Next: 2}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Apply(Batch{Records: []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":1}`), Base: 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	// 版が違う書き込みは、同じまとまりの番号の表も書かない
+	if _, err := s.Apply(Batch{
+		Records:  []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":2}`), Base: 1}},
+		Counters: []Counter{{Subject: "x:card", Scope: "all", Next: 9}},
+	}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("a stale write = %v", err)
+	}
+	s.Close()
+	s = open(t, path)
+	records, err := s.Records()
+	if err != nil || len(records) != 1 || records[0].Version != 2 || string(records[0].Body) != `{"id":"c1","a":1}` {
+		t.Fatalf("records = %+v, %v", records, err)
+	}
+	if counters, _ := s.Counters(); len(counters) != 1 || counters[0].Next != 2 {
+		t.Fatalf("counters = %+v", counters)
+	}
+	if _, err := s.Apply(Batch{Records: []RecordWrite{{Subject: "x:card", ID: "c1", Base: 2, Removed: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	if records, _ := s.Records(); len(records) != 0 {
+		t.Fatalf("after removing = %+v", records)
+	}
+	if counters, _ := s.Counters(); len(counters) != 1 || counters[0].Next != 2 {
+		t.Fatalf("the number came back: %+v", counters)
+	}
+}

@@ -26,6 +26,7 @@
 | 認可ステップ（`PermissionDef`） | アクションを、ブックのある所で行うのを止める物（ロックなど） | `core/def/permission.ts` |
 | アノテーション（`AnnotationDef`） | ブックの物に id で結び付き、ブックのデータとは別に残る物の種類（伝言など） | `core/def/annotation.ts` |
 | 郵便（`MailDef`） | 送り手が利用者に宛てて送る物の種類（手紙など） | `core/def/mail.ts` |
+| 対象の定義（`SubjectDef`） | アクションの対象の種類（レコードの種類）。レコード 1 件の形（Zod）と、番号を振るか | `core/def/subject.ts` |
 | コマンド（`CommandDef`） | 画面の入口（ボタン・メニュー・キーから呼ぶ） | `store/commands/def.ts` |
 | ダイアログ（`DialogDef`） | 開くダイアログの id | `store/dialogs.ts` |
 | 文言の組（`MessageSetDef`） | プラグイン 1 つの、画面に出す文と訳 | `core/i18n/messages.ts` |
@@ -48,7 +49,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う
@@ -159,6 +160,12 @@
 - プラグインは、戻す・やり直すための逆のアクションを作らない。戻すのは base が画面の履歴の段から行う
 - `without` に付いていないアクション、`add` にすでに付いているアクション、コマンドと道具の `performs` に表に無いアクション、コントロールセンターの `fixedUserSettings` に利用者の設定の項目でない id を書いたら、その行だけ効かず、warning を残す
 - アクションを行った者は、アクションの文脈（`ActionContext`）の `actor`（アクター）で決まる。読む所は `actor.kind` を直に見ず、`isAI`・`isUser` を通す
+- アクションの対象は、土台の 6 つ（`library`・`book`・`settings`・`annotations`・`mailbox`・`participants`）か、対象の定義が足した種類の id。種類のデータは「レコード」で、1 件が 1 つのまとまり（`id` を持つ）。core は中を読まず、確かめるのは定義の `record`（Zod）だけ
+- 種類が対象のアクションは、`on` の `record` で指した 1 件（指さなければ新しく作る。`run` が受けるのは `"none"`）を受け、新しい 1 件か、消すなら `"removed"` を返す。1 回に変えるレコードは 1 件で、`id` は変えず、作るときは今ある `id` と重ならない（core が見る）。レコードにゴミ箱と画面の履歴は無い
+- 同じ種類の重なりなど、ほかのレコードを読んで確かめるアクションは、`reads` に読む種類を書き、`ctx.records` で読むだけで受け取る
+- 定義の `numbered` を書いた種類のアクションは、`nextNumber(ctx, アクションの id, 区切り)` で次の番号を受け取る。番号は常駐が決め、行い直しでも同じ値で、区切りごとに連番、消しても使い回さない（番号の表は常駐が、レコードを書くのと同じ書き込みで進める）
+- 種類が対象のアクションを許すのは、コントロールセンターの `subjects`（種類の id の並びか `"all"`）。許した種類のアクションは全部使える
+- 残したレコードの種類が機能台帳に無い・形が合わない場合は、データに手を付けず warning にする（郵便と同じ）
 
 ## 参加者
 
