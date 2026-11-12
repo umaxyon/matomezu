@@ -30,7 +30,7 @@
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部
 //	                         （undone と failed は、渡したら、次の利用者トリガートークのときに消える）
-//	GET  /api/ai/watch?host=<プロセス id>  SSE。そのプロセス id の AI を起こす知らせ（event: wake、data: {"text"}。参加の要求が受け入れられた・断られたなど。watch.go）
+//	GET  /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>]  SSE。そのプロセス id の AI を起こす知らせ（event: wake、data: {"text"}。参加の要求が受け入れられた・断られたなど。watch.go）
 //	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
 //	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）

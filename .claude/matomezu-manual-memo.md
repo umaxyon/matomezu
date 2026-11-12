@@ -2854,7 +2854,7 @@ AI が動き出す操作:
 
 入れ方（利用者ごとに 1 度）:
 
-1. `claude plugin marketplace add （matomezu のリポジトリ）/clients` を打つ
+1. `claude plugin marketplace add （matomezu のリポジトリ）/clients/claude-code` を打つ
 2. `claude plugin install matomezu@matomezu` を打つ
 
 - プラグインは、Claude Code の裏で `matomezu watch` を動かします。画面の操作を待ち、届いたら AI を動かします
