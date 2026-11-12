@@ -102,8 +102,9 @@ func TestAnnotationsHookScript(t *testing.T) {
 	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
 		t.Skipf("git: %v %s", err, out)
 	}
+	// 引数は Claude Code のプロセス id（フックのコマンドの $PPID）。talked に --host で渡る
 	run := func(stdin string) string {
-		cmd := exec.Command("sh", script)
+		cmd := exec.Command("sh", script, "123")
 		cmd.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+repo)
 		cmd.Stdin = strings.NewReader(stdin)
 		out, err := cmd.Output()
@@ -122,7 +123,7 @@ func TestAnnotationsHookScript(t *testing.T) {
 	fake := `#!/bin/sh
 case "$1" in
 annotations) printf '%s' "$FAKE_NOTES" ;;
-talked) in=$(cat); printf 'talked[%s][%s]' "$2" "$3" ; printf '%s' "$in" > "$FAKE_STDIN" ;;
+talked) in=$(cat); printf 'talked[%s][%s][%s][%s]' "$2" "$3" "$4" "$5" ; printf '%s' "$in" > "$FAKE_STDIN" ;;
 esac
 `
 	if err := os.WriteFile(filepath.Join(home, "matomezu"), []byte(fake), 0o755); err != nil {
@@ -130,7 +131,7 @@ esac
 	}
 	stdinFile := filepath.Join(t.TempDir(), "stdin")
 	t.Setenv("FAKE_STDIN", stdinFile)
-	for notes, want := range map[string]string{"": "talked[--context][]", "NOTE": "talked[--context][NOTE]"} {
+	for notes, want := range map[string]string{"": "talked[--host][123][--context][]", "NOTE": "talked[--host][123][--context][NOTE]"} {
 		t.Setenv("FAKE_NOTES", notes)
 		if got := run(`{"session_id":"S1"}`); got != want {
 			t.Fatalf("notes %q: out = %q, want %q", notes, got, want)
