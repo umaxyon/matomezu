@@ -1,7 +1,8 @@
-// 参加者・ワークルームのレコードと、最後に呼ばれた時刻を読むフック
+// 参加者・ワークルームのレコードと、最後に呼ばれた時刻・モデルとブランチを読むフック
 import { useCallback, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { isParticipantAlive } from "../../../core/settings"
+import type { ParticipantLive } from "../../../store/store"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { PARTICIPANT, type Participant, WORKROOM, type Workroom } from "."
@@ -18,6 +19,10 @@ export const useWorkrooms = (): readonly Workroom[] =>
 
 // 参加者の id → 最後に呼ばれた時刻
 export const useParticipantCalls = (): Readonly<Record<string, string>> => useMatomezuState(s => s.participantCalls)
+
+// 参加者の id → AI のフックが知らせたモデルと、MCP が添えた git のブランチ
+export const useParticipantLive = (): Readonly<Record<string, ParticipantLive>> =>
+  useMatomezuState(s => s.participantLive)
 
 // 準備中でない参加者の id
 export const useParticipantReady = (): readonly string[] => useMatomezuState(s => s.participantReady)

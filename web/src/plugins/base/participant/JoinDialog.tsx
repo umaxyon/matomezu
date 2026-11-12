@@ -17,8 +17,9 @@ import { refusalMessage } from "../utils/refusal"
 import { PARTICIPANT_ACCEPT, WORKROOM_ADD, WORKROOM_NAME_MAX, type Workroom } from "."
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird, originalPalette, PALETTE_TITLES } from "./birds"
-import { useIsAlive, useNowMs, useParticipantCalls, useParticipants, useWorkrooms } from "./hooks"
+import { useIsAlive, useNowMs, useParticipantCalls, useParticipantLive, useParticipants, useWorkrooms } from "./hooks"
 import { acceptInNewRoom, acceptInRoom, discardAndStart } from "./join-flow"
+import { shownModel } from "./live"
 import styles from "./Participant.module.css"
 import { nameInUse, occupantOf, takeable } from "./workroom"
 
@@ -49,6 +50,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const participants = useParticipants()
   const rooms = useWorkrooms()
   const calls = useParticipantCalls()
+  const live = useParticipantLive()
   const isAlive = useIsAlive()
   const nowMs = useNowMs()
   const first = participants.find(p => p.id === participant)
@@ -164,7 +166,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
                     )}
                     <span className={styles.name}>{r.name}</span>
                     <span className={styles.detail}>
-                      {who ? [who.ai, who.model, who.env].join(" / ") : t("Empty room")}
+                      {who ? [who.ai, shownModel(who, live[who.id]), who.env].join(" / ") : t("Empty room")}
                     </span>
                     <span className={styles.detail}>
                       {who?.joinedAt ? t("Joined {time}", { time: new Date(who.joinedAt).toLocaleString() }) : ""}

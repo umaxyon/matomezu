@@ -1,6 +1,7 @@
-// 参加ダイアログ: 引き継げる部屋（空室か、いる参加者が生きていない部屋）と、名前が使われているか
+// 参加ダイアログと参加者リストの見方: 引き継げる部屋（空室か、いる参加者が生きていない部屋）と、名前が使われているか、画面に出すモデル
 
 import { expect, test } from "bun:test"
+import { shownModel } from "../../../web/src/plugins/base/participant/live"
 import { nameInUse, occupantOf, takeable } from "../../../web/src/plugins/base/participant/workroom"
 
 const room = (id: string, name: string) => ({ id, name, bird: "inko", createdAt: "t" }) as never
@@ -20,4 +21,11 @@ test("部屋にいる参加者を引く。名前が使われているかは、�
   expect(nameInUse(rooms, " 桜 ")?.id).toBe("r1")
   expect(nameInUse(rooms, "竹")).toBeUndefined()
   expect(nameInUse(rooms, "  ")).toBeUndefined()
+})
+
+test("画面に出すモデルは、フックが知らせたモデルを先に、無ければ参加を頼んだときのモデル", () => {
+  const p = { id: "a", model: "opus" } as never
+  expect(shownModel(p, { model: "sonnet", branch: "main" })).toBe("sonnet")
+  expect(shownModel(p, { branch: "main" })).toBe("opus")
+  expect(shownModel(p, undefined)).toBe("opus")
 })

@@ -116,6 +116,8 @@ export interface MatomezuState {
   touched: Readonly<Record<string, string>>
   participantCalls: Readonly<Record<string, string>> // 参加者の id → 最後に呼ばれた時刻（常駐だけが持つ参加者の記録。ホストが知らせる。生きているかの判定に使う）
   participantReady: readonly string[] // 準備中でない参加者の id（常駐だけが持つ参加者の記録。ホストが知らせる。受け入れ済みの参加者の準備中を見分けるのに使う）
+  // 参加者の id → AI のフックが知らせたモデルと、MCP が添えた git のブランチ（常駐だけが持つ参加者の記録。ホストが知らせる。どちらも無い参加者は持たない）
+  participantLive: Readonly<Record<string, ParticipantLive>>
   trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐の郵便箱の知らせに添えられた値で入れる）
@@ -129,6 +131,12 @@ export interface MatomezuState {
   editLocks: Readonly<Record<string, EditLock>>
   // 印刷を頼んだ回数（requestPrint で増える。ホストクライアントが、増えたら画面を刷る）
   printRequests: number
+}
+
+// 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
+export interface ParticipantLive {
+  readonly model?: string
+  readonly branch?: string
 }
 
 // 編集ロックの 1 つ: ブック book の物 ids（伝言など。ブックの中の物やアノテーションの id）か、対象の種類 subject のレコード ids
@@ -277,6 +285,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       touched?: Readonly<Record<string, string>>
       participantCalls?: Readonly<Record<string, string>>
       participantReady?: readonly string[]
+      participantLive?: Readonly<Record<string, ParticipantLive>>
     },
     replay: readonly DoneAction[],
     change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string },
@@ -338,6 +347,7 @@ function initialState(
     touched: {},
     participantCalls: {},
     participantReady: [],
+    participantLive: {},
     trash: { ...trash },
     offline: false,
     lastWindow: false,
@@ -917,19 +927,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (sameData(counters, now.counters)) counters = now.counters
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
       const partial = sameData(found.partial, now.partial) ? now.partial : found.partial
-      const touched = world.touched === undefined || sameData(world.touched, now.touched) ? now.touched : world.touched
-      const participantCalls =
-        world.participantCalls === undefined || sameData(world.participantCalls, now.participantCalls)
-          ? now.participantCalls
-          : world.participantCalls
-      const participantReady =
-        world.participantReady === undefined || sameData(world.participantReady, now.participantReady)
-          ? now.participantReady
-          : world.participantReady
+      // ホストが知らせた値は、無いか変わっていなければ今の値のまま
+      const kept = <T>(next: T | undefined, current: T): T =>
+        next === undefined || sameData(next, current) ? current : next
+      const touched = kept(world.touched, now.touched)
+      const participantCalls = kept(world.participantCalls, now.participantCalls)
+      const participantReady = kept(world.participantReady, now.participantReady)
+      const participantLive = kept(world.participantLive, now.participantLive)
       commit({
         ...(touched === now.touched ? {} : { touched }),
         ...(participantCalls === now.participantCalls ? {} : { participantCalls }),
         ...(participantReady === now.participantReady ? {} : { participantReady }),
+        ...(participantLive === now.participantLive ? {} : { participantLive }),
         ...(trash === now.trash ? {} : { trash }),
         ...(books === now.books
           ? {}
