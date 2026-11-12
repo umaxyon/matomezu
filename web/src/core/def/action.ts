@@ -71,7 +71,7 @@ export interface ActionContext {
 }
 
 // AI 編集チケットの変え方。key で 1 つを見分け（郵便の id など）、ブック book の AI 編集チケットとして、作る（open）・閉じる（closed）・失敗にする（failed。changed は
-// 変わった・無くなった物の id）。常駐は中を読まずに、そのとおりに残し、失敗は利用者が次に AI に話しかけたときに AI に渡す
+// 変わった・無くなった物の id）。常駐は中を読まずに、そのとおりに残し、失敗は次の利用者トリガートークのときに AI に渡す
 export interface AIEditTicketChange {
   book: string
   key: string
@@ -267,7 +267,7 @@ export interface ActionDef<
   history?: false // 画面の履歴（Undo）に入れない（図の内容でなくブックの扱いを変えるアクション。ロックの掛け外しなど）
   // 利用者が行っても編集ロックで断る（ほかは AI のアクションだけを断る）。行うと、どこかの窓が編集ロックを掛けた物を変えるか消すなら being-edited で断る（stopsOnEditLock）
   lockedForUser?: true
-  // 利用者が AI に話しかけたときに、matomezu がアノテーションのあるブックごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
+  // 利用者トリガートークのときに、matomezu がアノテーションのあるブックごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
   // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
   // "notify-user" は利用者に知らせる郵便を、利用者として送る（参加者の id などを受ける。利用者だけが行うアクション）。役ごとに 1 つのアクションだけが名乗る。どちらも対象の定義の種類が対象のアクションだけが書ける

@@ -303,8 +303,8 @@ func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 	}
 }
 
-// Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、利用者の話しかけに添える）。
-// 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（話しかけを止めない）
+// Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、ターンの始まりに添える）。
+// 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（AI のターンを止めない）
 func (c *annotationsCmd) Run() error {
 	h, err := openHome()
 	if err != nil {
@@ -354,8 +354,8 @@ func (c *annotationsCmd) Run() error {
 	return nil
 }
 
-// Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
-// 常駐を立てず、立っていない・答えないときは何もしない（話しかけを止めない。--context があればそれだけ書く）
+// Run は、AI のターンの始まりを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
+// 常駐を立てず、立っていない・答えないときは何もしない（AI のターンを止めない。--context があればそれだけ書く）
 func (c *talkedCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = c.Host

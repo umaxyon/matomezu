@@ -4,8 +4,8 @@ package server
 // 参加を頼むと、参加者を作るアクションと、利用者に知らせる郵便のアクションを、この順に行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。
 // 参加者・ワークルーム・郵便はアクションの結果（レコード）が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
 //   - 最後に呼ばれた時刻（参加の id の付いた /api/ai の呼び出しのたびに更新。前に窓に知らせてから callsAnnounceGap 以上たっていたときだけ、置き場所に書いて窓に知らせる）
-//   - セッション id（join のときに MCP が添えるか、話しかけのフックが結ぶ。置き場所に残す）と、それを結んだ所（join の MCP か、話しかけのフックか）
-//   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加の id の付いた呼び出しへの返事のヘッダ、または話しかけのフック）
+//   - セッション id（join のときに MCP が添えるか、UserPromptSubmit のフックが結ぶ。置き場所に残す）と、それを結んだ所（join の MCP か、UserPromptSubmit のフックか）
+//   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加の id の付いた呼び出しへの返事のヘッダ、または UserPromptSubmit のフック）
 //   - モデル（AI のフックが知らせる。model.go。置き場所に残し、変わったら窓に知らせる）
 //   - git のブランチ（MCP が呼び出しのたびに X-Matomezu-Branch ヘッダで添える。変わったら置き場所に書いて窓に知らせる）
 //   - AI のプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
@@ -50,7 +50,7 @@ const (
 
 // participantNote は参加者 1 人の、常駐だけが持つ記録
 type participantNote struct {
-	SessionID   string `json:"sessionId,omitempty"`   // セッション id（join のときに MCP が添えたか、話しかけのフックが結んだ）
+	SessionID   string `json:"sessionId,omitempty"`   // セッション id（join のときに MCP が添えたか、UserPromptSubmit のフックが結んだ）
 	BoundBy     string `json:"boundBy,omitempty"`     // セッション id を結んだ所（boundByJoin か boundByHook。空は boundByHook と同じ）
 	Told        bool   `json:"told,omitempty"`        // 参加（joined）を AI に伝えた
 	Called      string `json:"called,omitempty"`      // 最後に呼ばれた時点（置き場所に残す。生きているかも、この時刻で決める。書くのは窓に知らせ直すときだけ）
@@ -83,7 +83,7 @@ func (h *Hub) announceLive(id string) {
 
 const (
 	boundByJoin = "join" // join のときに MCP がセッション id を運んだ（フックの無い AI）
-	boundByHook = "hook" // 話しかけのフックが会話の記録から結んだ
+	boundByHook = "hook" // UserPromptSubmit のフックが会話の記録から結んだ
 )
 
 // ready は、受け入れたあとの参加者が準備中でない（参加者として数える）か。参加を伝えたか、join で MCP がセッション id を運んだとき

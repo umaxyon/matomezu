@@ -65,7 +65,7 @@ func TestTalkedBindsTheSessionAndWelcomes(t *testing.T) {
 		got.Special.Context != "You joined matomezu. Workroom name: ひよこ\nNOTE" {
 		t.Fatalf("output = %s", out.String())
 	}
-	// 話しかけを知らせる 1 回と、uuid が見つかった塊の 1 回だけ（uuid の無い塊は送らない）
+	// ターンの始まりを知らせる 1 回と、uuid が見つかった塊の 1 回だけ（uuid の無い塊は送らない）
 	if len(f.bodies) != 2 || f.bodies[0]["candidates"] != nil || f.bodies[1]["candidates"] == nil {
 		t.Fatalf("calls = %v", f.bodies)
 	}
@@ -164,7 +164,7 @@ func TestModelHookSendsTheModel(t *testing.T) {
 	}
 }
 
-// 裏の知らせで始まったターン（入力が <task-notification> で始まる）は woken を付けて知らせる。利用者の話しかけには付けない
+// 裏の知らせで始まったターン（入力が <task-notification> で始まる）は woken を付けて知らせる。利用者トリガートークには付けない
 func TestTalkedTellsWhetherTheTurnWasWoken(t *testing.T) {
 	f := &fakeTalk{bound: true, told: true}
 	for _, prompt := range []string{"<task-notification>\n<summary>Monitor event: \"matomezu\"</summary>\n</task-notification>", "こんにちは"} {

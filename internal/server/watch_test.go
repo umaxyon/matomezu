@@ -136,7 +136,7 @@ func TestWatchStreamsWakes(t *testing.T) {
 	}
 }
 
-// 起こされたターン（woken）のフックは、話しかけたときのアクションを行わず、プロセス id が合うだけでは結ばない。会話の記録の link で結び、「参加しました」を 1 度だけ返す
+// 起こされたターン（woken）のフックは、利用者トリガートークのときのアクションを行わず、プロセス id が合うだけでは結ばない。会話の記録の link で結び、「参加しました」を 1 度だけ返す
 func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	line := hub.OpenWakes("100", "")

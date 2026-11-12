@@ -417,7 +417,7 @@ func (e *Engine) CheckRecords(records map[string]map[string]json.RawMessage) (ou
 	return out, err
 }
 
-// TalkActions は、利用者が AI に話しかけたときに、アノテーションのあるブックごとに行うアクションの id
+// TalkActions は、利用者トリガートークのときに、アノテーションのあるブックごとに行うアクションの id
 func (e *Engine) TalkActions() (ids []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

@@ -178,7 +178,7 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	}
 }
 
-// 利用者が話しかけると（Talked）、読まれた伝言に会話の時点が付き、期限が過ぎたら時間で消え（Expire）、保存からも消える。
+// 利用者トリガートークがあると（Talked）、読まれた伝言に会話の時点が付き、期限が過ぎたら時間で消え（Expire）、保存からも消える。
 // 窓で利用者が直している伝言は、期限が過ぎても消さない（期限の境目は core の unexpired のテストが見る）
 func TestTalkStartsNoteExpiry(t *testing.T) {
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))

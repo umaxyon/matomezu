@@ -262,8 +262,8 @@ const (
 	mailKind        = "@matomezu/base:mail"
 )
 
-// 話しかけたセッションが誰にも結ばれていなければ unbound を返し、候補に link が合えば結ぶ。
-// 受け入れ済みで伝えていない参加者は、結ばれたセッションの話しかけで 1 度だけ伝え（MCP の返事の知らせとは二重にならない）、ほかのセッションには伝えない
+// ターンを始めたセッションが誰にも結ばれていなければ unbound を返し、候補に link が合えば結ぶ。
+// 受け入れ済みで伝えていない参加者は、結ばれたセッションのターンの始まりで 1 度だけ伝え（MCP の返事の知らせとは二重にならない）、ほかのセッションには伝えない
 func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"6F1C2A3E-1111-4222-8333-444455556666"}`, nil)
@@ -315,7 +315,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	if r := talk(`{"sessionId":"S9"}`); len(r.Welcomes) != 0 {
 		t.Fatalf("told twice = %+v", r)
 	}
-	// 伝えたときが最後に呼ばれた時刻になり、準備中でなくなる。そのあとの話しかけは時刻を進めない
+	// 伝えたときが最後に呼ばれた時刻になり、準備中でなくなる。そのあとのターンの始まりは時刻を進めない
 	at := hub.ParticipantCalls()[joined.Participant]
 	if at == "" {
 		t.Fatal("the welcome did not set the last called time")
@@ -333,7 +333,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	}
 }
 
-// MCP の返事で先に伝えたときは、話しかけのフックは伝えない
+// MCP の返事で先に伝えたときは、UserPromptSubmit のフックは伝えない
 func TestTalkedDoesNotWelcomeWhatMCPToldFirst(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
@@ -343,7 +343,7 @@ func TestTalkedDoesNotWelcomeWhatMCPToldFirst(t *testing.T) {
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) == "" {
 		t.Fatal("MCP did not tell")
 	}
-	// join のときに添えられたセッション id（S1）で話しかける
+	// join のときに添えられたセッション id（S1）でターンを始める
 	out, _ := call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"S1"}`, nil)
 	if !strings.Contains(out, `"welcomes":[]`) {
 		t.Fatalf("talked = %s", out)
