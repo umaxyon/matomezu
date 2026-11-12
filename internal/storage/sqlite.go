@@ -122,6 +122,17 @@ var migrations = []string{
 	WHERE json_type(body, '$."@matomezu/markdown:soft-break"') IS NOT NULL;`,
 	// 初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）の、行ったという記録
 	`CREATE TABLE ran_once (action TEXT PRIMARY KEY);`,
+	// 郵便箱の表をやめ、郵便を 1 通ずつレコードにする（対象の定義。種類の id は @matomezu/base:mail）。読むのは利用者 me の行だけ。
+	// 届いた順 order は郵便箱の並びの位置の順に 1 から（id の無い郵便とオブジェクトでない物は飛ばし、その番号は空ける。同じ id は先の物を残す）。
+	// 番号の表は、区切り mail の次の番号を、いちばん大きい order の次にする（郵便が無ければ書かない）。郵便箱の表は捨てる
+	`INSERT OR IGNORE INTO records (subject, id, body, version, updated_at)
+	SELECT '@matomezu/base:mail', json_extract(j.value, '$.id'), json_set(j.value, '$.order', j.key + 1), 1, m.updated_at
+	FROM mailbox m, json_each(CASE WHEN json_valid(m.body) AND json_type(m.body) = 'array' THEN m.body ELSE '[]' END) j
+	WHERE m.user = 'me' AND j.type = 'object' AND json_type(j.value, '$.id') = 'text' AND json_extract(j.value, '$.id') != ''
+	ORDER BY j.key;
+	INSERT OR REPLACE INTO counters (subject, scope, next)
+	SELECT '@matomezu/base:mail', 'mail', MAX(json_extract(body, '$.order')) + 1 FROM records WHERE subject = '@matomezu/base:mail' HAVING COUNT(*) > 0;
+	DROP TABLE mailbox;`,
 }
 
 type sqliteStorage struct {
@@ -263,7 +274,7 @@ func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
 		for _, u := range []struct {
 			table string
 			body  *UserBody
-		}{{"settings", b.Settings}, {"mailbox", b.Mailbox}} {
+		}{{"settings", b.Settings}} {
 			if u.body == nil {
 				continue
 			}
@@ -381,7 +392,7 @@ func txPutBook(tx *sql.Tx, id string, body json.RawMessage, base int64) (int64, 
 	return next, nil, nil
 }
 
-// txPutUser は、利用者ごとの表 table（settings・mailbox・participant_notes）の user の行を置き換える
+// txPutUser は、利用者ごとの表 table（settings・participant_notes）の user の行を置き換える
 func txPutUser(tx *sql.Tx, table, user string, body json.RawMessage) error {
 	_, err := tx.Exec(`INSERT INTO `+table+` (user, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
@@ -477,23 +488,6 @@ func (s *sqliteStorage) Settings(user string) (json.RawMessage, error) {
 
 func (s *sqliteStorage) PutSettings(user string, body json.RawMessage) error {
 	_, err := s.Apply(Batch{Settings: &UserBody{user, body}})
-	return err
-}
-
-func (s *sqliteStorage) Mailbox(user string) (json.RawMessage, error) {
-	var body string
-	err := s.db.QueryRow(`SELECT body FROM mailbox WHERE user = ?`, user).Scan(&body)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return json.RawMessage(body), nil
-}
-
-func (s *sqliteStorage) PutMailbox(user string, body json.RawMessage) error {
-	_, err := s.Apply(Batch{Mailbox: &UserBody{user, body}})
 	return err
 }
 

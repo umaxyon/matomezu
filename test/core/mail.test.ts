@@ -1,56 +1,68 @@
-// 郵便箱の確かめ（core/mail.ts の mailboxSettles・checkMailbox）と、AI が郵便を読む取り方（mailForAi）。mailboxSettles: 新しく入った・変わった郵便は、形に合い、種類が機能台帳にあって props がその形に合うものだけ。
-// 前からあった郵便は、効かなくなっていても（種類を外したなど）そのまま通す
+// 郵便の確かめ（core/mail.ts の checkMail。残した郵便は core/records.ts の checkRecords から）と、AI が郵便を読む取り方（mailForAi）。
+// 郵便は役 mails の種類のレコードで、届いた順は order。mailForAi はレコードを順を問わずに受け、order の順に並べる
 import { expect, test } from "bun:test"
-import { checkMailbox, type Mail, type MailQuery, mailboxSettles, mailForAi } from "../../web/src/core/mail"
+import { checkMail, type Mail, type MailQuery, mailForAi, mailsInOrder } from "../../web/src/core/mail"
+import { checkRecords } from "../../web/src/core/records"
 import { CORE_CATALOG } from "../support"
 
+const MAIL = "@matomezu/base:mail"
+let order = 0
 const letter = (id: string, props: unknown, mail = "@matomezu/base:letter"): Mail => ({
   id,
   mail,
   from: "a",
   sentAt: "2026-11-06T00:00:00.000Z",
   props,
+  order: ++order,
 })
 
-test("新しい郵便は、種類が機能台帳にあり、props がその形に合えば通る。種類が無い・props が合わない・形が合わない物は断る", () => {
-  const good = letter("m1", { title: "題", body: "" })
-  expect(mailboxSettles(CORE_CATALOG, [], [good])).toBe(true)
-  expect(mailboxSettles(CORE_CATALOG, [], [letter("m2", { title: "題", body: "" }, "@ex/x:nothing")])).toBe(false)
-  expect(mailboxSettles(CORE_CATALOG, [], [letter("m3", { title: "", body: "" })])).toBe(false)
-  expect(mailboxSettles(CORE_CATALOG, [], [{ ...good, id: "" }])).toBe(false)
+test("郵便は、種類が機能台帳にあり、形と props がその形に合えば効く。種類が無いのは W022、形・props が合わないのは W023", () => {
+  expect(checkMail(CORE_CATALOG, letter("m1", { title: "題", body: "" }))).toEqual([])
+  expect(checkMail(CORE_CATALOG, letter("m2", {}, "@ex/x:gone")).map(w => w.code)).toEqual(["W022"])
+  expect(checkMail(CORE_CATALOG, letter("m3", { title: "" })).map(w => w.code)).toEqual(["W023"])
+  const { order: _, ...noOrder } = letter("m4", { title: "題", body: "" })
+  expect(checkMail(CORE_CATALOG, noOrder).map(w => w.code)).toEqual(["W023"])
 })
 
-test("前からあった郵便は、効かなくなっていても確かめ直さない", () => {
-  const old = letter("m1", { title: "題", body: "" }, "@ex/x:gone")
-  expect(mailboxSettles(CORE_CATALOG, [old], [old, letter("m2", { title: "次", body: "" })])).toBe(true)
-})
-
-test("郵便箱の効かない郵便は warning にする（種類が無いのは W022、形が合わないのは W023）。データには手を付けない", () => {
-  const list = [letter("m1", { title: "題", body: "" }), letter("m2", {}, "@ex/x:gone"), letter("m3", { title: "" })]
-  expect(checkMailbox(CORE_CATALOG, list).map(w => [w.code, w.params.id])).toEqual([
+test("残した郵便のレコードの効かない物は、郵便の warning にする（W022・W023。W025 にはしない）。データには手を付けない", () => {
+  const table = Object.fromEntries(
+    [letter("m1", { title: "題", body: "" }), letter("m2", {}, "@ex/x:gone"), letter("m3", { title: "" })].map(m => [
+      m.id,
+      m,
+    ]),
+  )
+  expect(checkRecords(CORE_CATALOG, { [MAIL]: table }).map(w => [w.code, w.params.id])).toEqual([
     ["W022", "m2"],
     ["W023", "m3"],
   ])
 })
 
-test("id が重なる郵便箱は断る", () => {
-  const a = letter("m1", { title: "題", body: "" })
-  expect(mailboxSettles(CORE_CATALOG, [a], [a, letter("m1", { title: "次", body: "" })])).toBe(false)
+test("郵便のレコードは order の順に並ぶ。order が数でない郵便はいちばん古い所に置く（同じ順は id の順）", () => {
+  const a = { ...letter("a", {}), order: 3 }
+  const b = { ...letter("b", {}), order: 1 }
+  const c = { ...letter("c", {}), order: "x" }
+  const d = { ...letter("d", {}), order: undefined }
+  expect(mailsInOrder([a, c, b, d]).map(m => m.id)).toEqual(["c", "d", "b", "a"])
 })
 
 // AI が郵便を読む取り方（mailForAi）。箱は古い順に m1〜m4。m1 は開いて行き先を見た、m2 は開いた（行き先は無い）、
 // m3 は未開封で行き先を見ていない、m4 は未開封で行き先が無い
 const box = (): Mail[] => [
-  { ...letter("m1", { title: "一番目", body: "本文 1" }), to: { book: "b" }, seenAt: "t", visitedAt: "t" },
-  { ...letter("m2", { title: "二番目", body: "本文 2" }), seenAt: "t" },
-  { ...letter("m3", { title: "三番目", body: "本文 3" }), to: { book: "b", page: "p" } },
-  { ...letter("m4", { title: "四番目\n改行", body: "本文 4" }) },
+  { ...letter("m1", { title: "一番目", body: "本文 1" }), to: { book: "b" }, seenAt: "t", visitedAt: "t", order: 1 },
+  { ...letter("m2", { title: "二番目", body: "本文 2" }), seenAt: "t", order: 2 },
+  { ...letter("m3", { title: "三番目", body: "本文 3" }), to: { book: "b", page: "p" }, order: 3 },
+  { ...letter("m4", { title: "四番目\n改行", body: "本文 4" }), order: 4 },
 ]
-const boxed = (i: number) => box()[i] as Mail
+// 全文に見せる郵便（届いた順の番号を外す）
+const boxed = (i: number) => {
+  const { order: _, ...rest } = box()[i] as Mail
+  return rest
+}
 const ids = (r: ReturnType<typeof mailForAi>) => (r.ok ? r.answer.mailbox.map(m => m.id) : `ng: ${r.reason}`)
-const ask = (query: MailQuery, mailbox: Mail[] = box()) => mailForAi(CORE_CATALOG, mailbox, query)
+// レコードは順を問わずに渡る（ここでは逆の順に渡す）
+const ask = (query: MailQuery, mailbox: Mail[] = box()) => mailForAi(CORE_CATALOG, [...mailbox].reverse(), query)
 
-test("AI が読む郵便の一覧は、新しい順で、中身を外して種類の aiBrief の題を付け、total と older を添える", () => {
+test("AI が読む郵便の一覧は、新しい順（order の大きい順）で、中身と order を外して種類の aiBrief の題を付け、total と older を添える", () => {
   const all = ask({})
   expect(ids(all)).toEqual(["m4", "m3", "m2", "m1"])
   expect(all.ok && all.answer).toMatchObject({ total: 4, older: 0 })
@@ -85,7 +97,7 @@ test("unseen は利用者がまだ開いていない郵便だけ、unvisited は
   expect(ids(ask({ unseen: "1", before: "m4" }))).toEqual(["m3"])
 })
 
-test("ids は指した郵便の全文（props 付き。箱の新しい順で、重なりは 1 つ）と、箱に無い id（unknown。あるときだけ）", () => {
+test("ids は指した郵便の全文（props 付きで order は外す。箱の新しい順で、重なりは 1 つ）と、箱に無い id（unknown。あるときだけ）", () => {
   const got = ask({ ids: ["m1", "m3", "m1", "nothing"] })
   expect(got.ok && got.answer).toEqual({ mailbox: [boxed(2), boxed(0)], unknown: ["nothing"] })
   const full = ask({ ids: ["m2"] })
@@ -119,7 +131,10 @@ test("一覧の題は、種類の aiBrief を 80 字で切る。種類が台帳�
     join("m8", "s"),
     join("m9", "x".repeat(100)),
   ]
-  const got = ask({}, mixed)
+  const got = ask(
+    {},
+    mixed.map((m, i) => ({ ...m, order: i + 1 })),
+  )
   expect(got.ok && got.answer).toMatchObject({ total: 6 })
   const rows = got.ok && "total" in got.answer ? got.answer.mailbox : []
   expect(rows.map(r => [r.id, r.title])).toEqual([

@@ -1,4 +1,4 @@
-// コントロールセンター: ブックの一覧・利用者の設定・郵便箱・対象の定義の種類を変えるアクションを許す。
+// コントロールセンター: ブックの一覧・利用者の設定・対象の定義の種類（郵便・参加者リストなどのレコード）を変えるアクションを許す。
 // 組織ごとのコントロールセンターは、このプラグインの代わりに自分のものを渡す
 import { z } from "zod"
 import { kit } from "./kit"
@@ -12,13 +12,6 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:book-purge",
     "@matomezu/base:trash-empty",
     "@matomezu/base:settings-set",
-    "@matomezu/base:mail-send",
-    "@matomezu/base:mail-seen",
-    "@matomezu/base:mail-visited",
-    "@matomezu/base:mail-remove",
-    "@matomezu/base:proposal-send",
-    "@matomezu/base:proposal-settle",
-    "@matomezu/base:mail-join-request",
   ],
   subjects: "all",
 })

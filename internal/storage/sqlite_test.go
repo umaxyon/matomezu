@@ -229,7 +229,7 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '{"id":"b1","title":"x","project":"default"}', 1, 'x'), ('b2', '{"id":"b2"}', 1, 'x')`,
-		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","mail":"@matomezu/base:join-request","project":"default","props":{"projects":["default"],"a":1}},{"id":"m2","mail":"@x/other","project":"default","props":{"projects":["keep"]}}]', 'x'), ('u2', '[]', 'x')`,
+		`INSERT INTO mailbox (user, body, updated_at) VALUES ('me', '[{"id":"m1","mail":"@matomezu/base:join-request","project":"default","props":{"projects":["default"],"a":1}},{"id":"m2","mail":"@x/other","project":"default","props":{"projects":["keep"]}}]', 'x'), ('u2', '[]', 'x')`,
 	) {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
@@ -244,11 +244,9 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	if string(books[0].Body) != `{"id":"b1","title":"x"}` || string(books[1].Body) != `{"id":"b2"}` {
 		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
 	}
-	if got, _ := s.Mailbox("u1"); string(got) != `[{"id":"m1","mail":"@matomezu/base:join-request","props":{"a":1}},{"id":"m2","mail":"@x/other","props":{"projects":["keep"]}}]` {
-		t.Fatalf("mailbox = %s", got)
-	}
-	if got, _ := s.Mailbox("u2"); string(got) != `[]` {
-		t.Fatalf("empty mailbox = %s", got)
+	mails := recordsOfKind(t, s, mailSubject)
+	if len(mails) != 2 || mails["m1"] != `{"id":"m1","mail":"@matomezu/base:join-request","props":{"a":1},"order":1}` || mails["m2"] != `{"id":"m2","mail":"@x/other","props":{"projects":["keep"]},"order":2}` {
+		t.Fatalf("mail = %v", mails)
 	}
 }
 
@@ -276,7 +274,7 @@ func TestApplyWritesAllOrNothingOnAConflict(t *testing.T) {
 	}
 }
 
-// SQL の失敗（ここでは郵便箱への書き込みが断られる）の途中でも、前に書いた物は巻き戻る。1 つのまとまりは、書く順にブック → 消すブック → 設定 → 郵便箱 → …
+// SQL の失敗（ここではレコードの書き込みが断られる）の途中でも、前に書いた物は巻き戻る。1 つのまとまりは、書く順にブック → 消すブック → 設定 → … → レコード
 func TestApplyRollsBackWhenALaterWriteFails(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	s := open(t, path)
@@ -285,13 +283,13 @@ func TestApplyRollsBackWhenALaterWriteFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	if _, err := db.Exec(`CREATE TRIGGER refuse_mailbox BEFORE INSERT ON mailbox BEGIN SELECT RAISE(ABORT, 'refused'); END`); err != nil {
+	if _, err := db.Exec(`CREATE TRIGGER refuse_records BEFORE INSERT ON records BEGIN SELECT RAISE(ABORT, 'refused'); END`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Apply(Batch{
 		Books:    []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}},
 		Settings: &UserBody{"me", json.RawMessage(`{"a":1}`)},
-		Mailbox:  &UserBody{"me", json.RawMessage(`[{"id":"m1"}]`)},
+		Records:  []RecordWrite{{Subject: mailSubject, ID: "m1", Body: json.RawMessage(`{"id":"m1"}`)}},
 	}); err == nil {
 		t.Fatal("apply with a refused write succeeded")
 	}
@@ -301,10 +299,10 @@ func TestApplyRollsBackWhenALaterWriteFails(t *testing.T) {
 		t.Fatalf("not rolled back: books %v, settings %s", books, settings)
 	}
 	// 書けるようになれば、同じまとまりが書ける
-	if _, err := db.Exec(`DROP TRIGGER refuse_mailbox`); err != nil {
+	if _, err := db.Exec(`DROP TRIGGER refuse_records`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Apply(Batch{Books: []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}}, Mailbox: &UserBody{"me", json.RawMessage(`[{"id":"m1"}]`)}}); err != nil {
+	if _, err := s.Apply(Batch{Books: []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}}, Records: []RecordWrite{{Subject: mailSubject, ID: "m1", Body: json.RawMessage(`{"id":"m1"}`)}}}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -320,7 +318,7 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1","state":"joined","workroom":"あいうえおかきくけこさしすせそたちつてとなにぬ","bird":"inko","ai":"a","model":"m","env":"e","sessionName":"","link":"l1","requestedAt":"t"},{"id":"p2","state":"joined","workroom":"短い","bird":"suzume","ai":"a","model":"m","env":"e","sessionName":"","link":"l2","requestedAt":"t"}]', 'x'), ('u2', '[]', 'x')`,
-		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","mail":"@matomezu/base:join-request","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m2","props":{"a":1}}]', 'x')`,
+		`INSERT INTO mailbox (user, body, updated_at) VALUES ('me', '[{"id":"m1","mail":"@matomezu/base:join-request","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m2","props":{"a":1}}]', 'x')`,
 	) {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
@@ -332,8 +330,9 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 	if rooms["p1"] != "あいうえおかきくけこさしすせそたちつてと" || rooms["p2"] != "短い" {
 		t.Fatalf("workroom names = %v", rooms)
 	}
-	if got, _ := s.Mailbox("u1"); string(got) != `[{"id":"m1","mail":"@matomezu/base:join-request","props":{"workroom":"abcdefghij klmnopqrs"}},{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m2","props":{"a":1}}]` {
-		t.Fatalf("mailbox = %s", got)
+	mails := recordsOfKind(t, s, mailSubject)
+	if mails["m1"] != `{"id":"m1","mail":"@matomezu/base:join-request","props":{"workroom":"abcdefghij klmnopqrs"},"order":1}` || mails["m3"] != `{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"},"order":2}` || mails["m2"] != `{"id":"m2","props":{"a":1},"order":3}` {
+		t.Fatalf("mail = %v", mails)
 	}
 }
 
@@ -491,5 +490,101 @@ func TestRanOnceMarksStay(t *testing.T) {
 	}
 	if got, err = s.RanOnce(); err != nil || len(got) != 1 || !got["a:x"] {
 		t.Fatalf("RanOnce = %v %v", got, err)
+	}
+}
+
+const mailSubject = "@matomezu/base:mail"
+
+// mailMigration は、郵便箱をレコードに移し替える足し方の番号
+const mailMigration = 17
+
+// 郵便箱の移し替えの前まで表の形を進めたデータベース（path）に、qs を流す
+func beforeMailMigration(t *testing.T, path string, qs ...string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	before := migrations[:mailMigration:mailMigration] // 郵便箱の移し替えの前まで
+	for _, q := range append(append(before, fmt.Sprintf(`PRAGMA user_version = %d`, len(before))), qs...) {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// 郵便箱の表は、郵便 1 通ずつのレコードになる: 届いた順 order は並びの位置の順に 1 から、版は 1、時刻は郵便箱の行の時刻。
+// 読むのは利用者 me の行だけ。id の無い郵便・オブジェクトでない物は飛ばし（番号は空ける）、同じ id は先の物を残す。
+// 番号の表の区切り mail は、いちばん大きい order の次。郵便箱の表は無くなり、表の形の版は 1 つ進む
+func TestMailboxBecomesRecords(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	beforeMailMigration(t, path,
+		`INSERT INTO mailbox (user, body, updated_at) VALUES ('me', '[
+			{"id":"m1","mail":"@matomezu/base:letter","from":"a","sentAt":"t1","props":{"title":"一"}},
+			{"mail":"@matomezu/base:letter","from":"a","sentAt":"t2","props":{}},
+			{"id":"","mail":"@matomezu/base:letter","from":"a","sentAt":"t3","props":{}},
+			"not a mail",
+			{"id":"m1","mail":"@matomezu/base:letter","from":"b","sentAt":"t4","props":{"title":"重なり"}},
+			{"id":"m2","mail":"@x/gone","from":"b","sentAt":"t5","seenAt":"t6","props":{"a":1}}]', 'stamp'),
+			('other', '[{"id":"o1","mail":"@matomezu/base:letter","from":"a","sentAt":"t","props":{}}]', 'x')`,
+	)
+	s := open(t, path)
+	mails := recordsOfKind(t, s, mailSubject)
+	want := map[string]string{
+		"m1": `{"id":"m1","mail":"@matomezu/base:letter","from":"a","sentAt":"t1","props":{"title":"一"},"order":1}`,
+		"m2": `{"id":"m2","mail":"@x/gone","from":"b","sentAt":"t5","seenAt":"t6","props":{"a":1},"order":6}`,
+	}
+	if len(mails) != len(want) {
+		t.Fatalf("mail = %v", mails)
+	}
+	for id, body := range want {
+		if mails[id] != body {
+			t.Fatalf("mail %s = %s, want %s", id, mails[id], body)
+		}
+	}
+	all, err := s.Records()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range all {
+		if r.Version != 1 {
+			t.Fatalf("version of %s = %d", r.ID, r.Version)
+		}
+	}
+	var at string
+	if err := s.(*sqliteStorage).db.QueryRow(`SELECT updated_at FROM records WHERE id = 'm1'`).Scan(&at); err != nil || at != "stamp" {
+		t.Fatalf("updated_at = %q, %v", at, err)
+	}
+	counters, err := s.Counters()
+	if err != nil || len(counters) != 1 || counters[0] != (Counter{Subject: mailSubject, Scope: "mail", Next: 7}) {
+		t.Fatalf("counters = %+v, %v", counters, err)
+	}
+	if _, err := s.(*sqliteStorage).db.Exec(`SELECT 1 FROM mailbox`); err == nil {
+		t.Fatal("the mailbox table is still there")
+	}
+	var version int
+	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != mailMigration+1 {
+		t.Fatalf("user_version = %d, %v; want %d", version, err, mailMigration+1)
+	}
+}
+
+// 空の郵便箱・郵便箱の行の無いデータは、郵便のレコードも番号の表も作らずに移し替える
+func TestEmptyMailboxBecomesNoRecords(t *testing.T) {
+	for name, qs := range map[string][]string{
+		"empty": {`INSERT INTO mailbox (user, body, updated_at) VALUES ('me', '[]', 'x')`},
+		"none":  nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "data.db")
+			beforeMailMigration(t, path, qs...)
+			s := open(t, path)
+			if mails := recordsOfKind(t, s, mailSubject); len(mails) != 0 {
+				t.Fatalf("mail = %v", mails)
+			}
+			if counters, err := s.Counters(); err != nil || len(counters) != 0 {
+				t.Fatalf("counters = %+v, %v", counters, err)
+			}
+		})
 	}
 }

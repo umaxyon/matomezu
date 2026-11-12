@@ -1,13 +1,15 @@
 package server
 
 // レコード: 対象の定義（プラグインが足した、アクションの対象の種類）のデータ。常駐は中を解釈せず、種類・id ごとに 1 件ずつ、版つきで置く（形を確かめるのは engine）。
-// 番号を振る種類の、区切りごとの次の番号（counters）は、レコードを書くのと同じ 1 回の書き込みで進める。
+// 1 つのアクションが変えたレコードの全部と、番号を振る種類の、区切りごとの次の番号（counters）は、1 回の書き込み（1 つのトランザクション）で書き、1 つの知らせで窓に送る。
 //
-//	record {"subject", "id", "record"（消したなら "removed"）, "version", "counters"?, "client", "seq"} レコードが変わった（Hub.broadcast）
+//	record {"records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?: {種類: {区切り: 次の番号}}, "window", "client", "seq"}
+//	       1 つのアクションが変えたレコード（Hub.broadcast）。counters はそのアクションが進めた区切りだけ。window は最後にフォーカスされた窓の id（無ければ空）
 
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 
@@ -100,87 +102,144 @@ func (h *Hub) recordInputs(in *engine.Input, needs engine.RecordNeeds, on *engin
 	in.Counters = map[string]map[string]int64{needs.Subject: h.counters[needs.Subject]}
 }
 
-// planRecord は out の変えたレコードを、置き場所に書く形にして plan に足す（何も変えない。h.mu を持って呼ぶ）
-func (h *Hub) planRecord(plan *writePlan, out engine.Output) {
-	c := out.Record
-	if c == nil {
-		return
+// planRecords は out の変えたレコードの全部と進めた番号を、置き場所に書く形にして plan に足す（何も変えない。h.mu を持って呼ぶ）。
+// 同じアクションの中で同じレコードは 2 度来ないので、版は置いてある版から決める
+func (h *Hub) planRecords(plan *writePlan, out engine.Output) {
+	for _, c := range out.Records {
+		base := h.recordTables[c.Subject][c.ID].version
+		removed := string(c.Record) == removedRecord
+		plan.batch.Records = append(plan.batch.Records, storage.RecordWrite{Subject: c.Subject, ID: c.ID, Body: c.Record, Base: base, Removed: removed})
+		put := recordPut{subject: c.Subject, id: c.ID, body: c.Record, version: base + 1, removed: removed}
+		if removed {
+			put.version = 0
+		}
+		plan.records = append(plan.records, put)
 	}
-	base := h.recordTables[c.Subject][c.ID].version
-	removed := string(c.Record) == removedRecord
-	plan.batch.Records = append(plan.batch.Records, storage.RecordWrite{Subject: c.Subject, ID: c.ID, Body: c.Record, Base: base, Removed: removed})
-	put := recordPut{subject: c.Subject, id: c.ID, body: c.Record, version: base + 1, removed: removed}
-	if removed {
-		put.version = 0
-	}
-	plan.record = &put
-	scopes := make([]string, 0, len(c.Counters))
-	for scope := range c.Counters {
-		scopes = append(scopes, scope)
-	}
-	slices.Sort(scopes)
-	for _, scope := range scopes {
-		plan.batch.Counters = append(plan.batch.Counters, storage.Counter{Subject: c.Subject, Scope: scope, Next: c.Counters[scope]})
+	for _, subject := range slices.Sorted(maps.Keys(out.Counters)) {
+		scopes := out.Counters[subject]
+		for _, scope := range slices.Sorted(maps.Keys(scopes)) {
+			plan.batch.Counters = append(plan.batch.Counters, storage.Counter{Subject: subject, Scope: scope, Next: scopes[scope]})
+		}
 	}
 }
 
-// applyRecord は、書き終えたレコードをメモリに当て、窓に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) applyRecord(plan *writePlan, out engine.Output, p Perform) {
-	put := plan.record
-	if put == nil {
+// applyRecords は、書き終えたレコードの全部をメモリに当て、変えたレコードだけを確かめ直し、窓に 1 つの知らせで送る（h.mu を持って呼ぶ）
+func (h *Hub) applyRecords(plan *writePlan, out engine.Output, p Perform) {
+	if len(plan.records) == 0 && len(out.Counters) == 0 {
 		return
 	}
 	if h.recordTables == nil {
 		h.recordTables = map[string]map[string]recordEntry{}
 	}
-	if put.removed {
-		delete(h.recordTables[put.subject], put.id)
-		if len(h.recordTables[put.subject]) == 0 {
-			delete(h.recordTables, put.subject)
+	changes := make([]map[string]any, 0, len(plan.records))
+	keys := make([]recordKey, 0, len(plan.records))
+	for _, put := range plan.records {
+		if put.removed {
+			delete(h.recordTables[put.subject], put.id)
+			if len(h.recordTables[put.subject]) == 0 {
+				delete(h.recordTables, put.subject)
+			}
+		} else {
+			if h.recordTables[put.subject] == nil {
+				h.recordTables[put.subject] = map[string]recordEntry{}
+			}
+			h.recordTables[put.subject][put.id] = recordEntry{put.body, put.version}
 		}
-	} else {
-		if h.recordTables[put.subject] == nil {
-			h.recordTables[put.subject] = map[string]recordEntry{}
-		}
-		h.recordTables[put.subject][put.id] = recordEntry{put.body, put.version}
+		keys = append(keys, recordKey{put.subject, put.id})
+		changes = append(changes, map[string]any{"subject": put.subject, "id": put.id, "record": json.RawMessage(put.body), "version": put.version})
 	}
-	if len(out.Record.Counters) > 0 {
-		if h.counters[put.subject] == nil {
-			h.counters[put.subject] = map[string]int64{}
+	for subject, scopes := range out.Counters {
+		if h.counters[subject] == nil {
+			h.counters[subject] = map[string]int64{}
 		}
-		for scope, n := range out.Record.Counters {
-			h.counters[put.subject][scope] = n
-		}
+		maps.Copy(h.counters[subject], scopes)
 	}
-	if err := h.checkRecords(); err != nil {
+	if err := h.checkRecordsOf(keys); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the records:", err)
 	}
-	h.broadcast("record", map[string]any{"subject": put.subject, "id": put.id, "record": json.RawMessage(put.body), "version": put.version, "counters": out.Record.Counters, "client": p.Client, "seq": p.Seq})
+	// 最後にフォーカスされた窓も添える（郵便が届いたなら、その窓がマーキーで知らせる）
+	last := ""
+	if w := h.window(); w != nil {
+		last = w.id
+	}
+	event := map[string]any{"records": changes, "window": last, "client": p.Client, "seq": p.Seq}
+	if len(out.Counters) > 0 {
+		event["counters"] = out.Counters
+	}
+	h.broadcast("record", event)
 }
 
-// checkRecords は全部のレコードを今のプラグインで確かめ、効かないレコード（種類が無い・形が合わない）の warning の一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
+// recordKey はレコード 1 件の見分け（種類の id と、レコードの id）
+type recordKey struct {
+	subject string
+	id      string
+}
+
+// checkRecords は全部のレコードを今のプラグインで確かめ、効かないレコードの warning の一覧を作り直す（起動したときと、プラグインが変わったとき。h.mu を持って呼ぶ）
 func (h *Hub) checkRecords() error {
-	all := map[string]map[string]json.RawMessage{}
+	// 置いてある全部と、warning を持っていた全部（消えた物は checkRecordsOf が外す）
+	keys := slices.Collect(maps.Keys(h.recordLines))
 	for subject, table := range h.recordTables {
-		all[subject] = map[string]json.RawMessage{}
-		for id, e := range table {
-			all[subject][id] = e.body
+		for id := range table {
+			if _, ok := h.recordLines[recordKey{subject, id}]; !ok {
+				keys = append(keys, recordKey{subject, id})
+			}
 		}
 	}
-	lines, err := h.engine.CheckRecords(all)
-	if err != nil {
-		return err
+	return h.checkRecordsOf(keys)
+}
+
+// checkRecordsOf は、レコード keys（置いてなければ消えた物）を今のプラグインで確かめ、その warning を一覧で入れ替える。
+// 効かないレコードは、種類が無い W024・形が合わない W025（郵便は W022・W023）。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
+func (h *Hub) checkRecordsOf(keys []recordKey) error {
+	if h.recordLines == nil {
+		h.recordLines = map[recordKey][]string{}
 	}
-	for _, line := range lines {
-		if !slices.Contains(h.recordLines, line) {
-			fmt.Fprintln(os.Stderr, "warning:", line)
+	found := make(map[recordKey][]string, len(keys))
+	for _, k := range keys {
+		e, ok := h.recordTables[k.subject][k.id]
+		if !ok {
+			continue
+		}
+		lines, err := h.engine.CheckRecords(map[string]map[string]json.RawMessage{k.subject: {k.id: e.body}})
+		if err != nil {
+			return err
+		}
+		found[k] = lines
+	}
+	for _, k := range keys {
+		before := h.recordLines[k]
+		lines := found[k]
+		for _, line := range lines {
+			if !slices.Contains(before, line) {
+				fmt.Fprintln(os.Stderr, "warning:", line)
+			}
+		}
+		if len(lines) == 0 {
+			delete(h.recordLines, k)
+		} else {
+			h.recordLines[k] = lines
 		}
 	}
-	h.recordLines = lines
 	return nil
 }
 
-// loadRoles は、常駐が読む種類の役（参加者・ワークルーム）ごとの、対象の定義の id を引き直す（起動したときと、プラグインが変わったとき。h.mu を持って呼ぶ）
+// recordWarningLines は、効かないレコードの warning の 1 行ずつ（種類の id、レコードの id の順。h.mu を持って呼ぶ）
+func (h *Hub) recordWarningLines() []string {
+	keys := slices.SortedFunc(maps.Keys(h.recordLines), func(a, b recordKey) int {
+		if c := compareStrings(a.subject, b.subject); c != 0 {
+			return c
+		}
+		return compareStrings(a.id, b.id)
+	})
+	out := []string{}
+	for _, k := range keys {
+		out = append(out, h.recordLines[k]...)
+	}
+	return out
+}
+
+// loadRoles は、常駐が読む種類の役（参加者・ワークルーム・郵便）ごとの、対象の定義の id を引き直す（起動したときと、プラグインが変わったとき。h.mu を持って呼ぶ）
 func (h *Hub) loadRoles() error {
 	roles, err := h.engine.SubjectRoles()
 	if err != nil {

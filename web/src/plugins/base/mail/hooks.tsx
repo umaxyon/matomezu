@@ -1,18 +1,20 @@
 // 郵便箱を読み、郵便を開くフック
 import { useCallback } from "react"
-import type { Mailbox } from "../../../core/mail"
+import { useShallow } from "zustand/react/shallow"
+import type { Mail } from "../../../core/mail"
 import { sameData } from "../../../core/same"
 import { screenOf } from "../../../core/window"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useLeftSidePanel, useToggleLeftSidePanel } from "../left-side-panel/hooks"
+import { mailboxOf } from "."
 import { MAIL_DIALOG } from "./dialogs"
 import { mailboxEntries } from "./entries"
 
-// 利用者の郵便箱（届いた順）
-export const useMailbox = (): Mailbox => useMatomezuState(s => s.mailbox)
+// 利用者の郵便箱（郵便のレコードを届いた順に並べた物）
+export const useMailbox = (): readonly Mail[] => useMatomezuState(useShallow(s => mailboxOf(s.records)))
 
 // まだ見ていない郵便の数
-export const useUnreadMail = (): number => useMatomezuState(s => s.mailbox.filter(m => !m.seenAt).length)
+export const useUnreadMail = (): number => useMailbox().filter(m => !m.seenAt).length
 
 // 前に出せるブックスクリーンのカレントのステージで、郵便 id のダイアログを開く関数（前に出している物は替えない）
 export function useOpenMail(): (id: string) => void {

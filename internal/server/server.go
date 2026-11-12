@@ -3,8 +3,8 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "annotations": {id: [...]}, "mailbox": [...], "records": {種類: {id: レコード}}, "counters": {種類: {区切り: 次の番号}}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}, "participantReady": [準備中でない参加者の id], "participantLive": {参加者の id: {"model", "branch"}}} 置いてあるブック（ゴミ箱のブックも）と設定、
-//	                      ブックごとのアノテーション、郵便箱、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
+//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "annotations": {id: [...]}, "records": {種類: {id: レコード}}, "counters": {種類: {区切り: 次の番号}}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}, "participantReady": [準備中でない参加者の id], "participantLive": {参加者の id: {"model", "branch"}}} 置いてあるブック（ゴミ箱のブックも）と設定、
+//	                      ブックごとのアノテーション、レコード（郵便も）と番号の表、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
 //	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS（道には ?v= で追加プラグインの版を付けて配る）  … 画面から
 //	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
 //	POST /api/plugins        {"dir"} 開発者プロジェクトのフォルダの追加プラグインを足す（同じ id なら入れ替える）。{"ok", "id"} か {"ok": false, "reason"}  … 要合言葉
@@ -34,7 +34,7 @@
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	POST /api/ai/model       {"sessionId", "model", "host"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
-//	GET  /api/ai/mail[?limit=N&before=id&unseen=1&unvisited=1]  利用者の郵便箱の郵便の一覧（新しい順。{"mailbox": [中身 props の無い行。種類の aiBrief の title が付く], "total", "older"}。
+//	GET  /api/ai/mail[?limit=N&before=id&unseen=1&unvisited=1]  利用者の郵便（役 mails の種類のレコード）の一覧（新しい順。{"mailbox": [中身 props の無い行。種類の aiBrief の title が付く], "total", "older"}。
 //	                      limit は 1〜100（既定 20）、before はその郵便より古い分、unseen は利用者がまだ開いていない郵便、unvisited は行き先をまだ見ていない郵便）。
 //	                      ?ids=x&ids=y は指した郵便の全文（{"mailbox": [...], "unknown": [...]}。ほかの取り方とは一緒に渡せない）。合わない取り方は 400
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
@@ -247,7 +247,7 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	records, counters := o.Hub.Records()
-	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "mailbox": o.Hub.Mailbox(), "records": records, "counters": counters, "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady(), "participantLive": o.Hub.ParticipantLive()})
+	writeJSON(w, map[string]any{"books": books, "settings": settings, "annotations": annotations, "records": records, "counters": counters, "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady(), "participantLive": o.Hub.ParticipantLive()})
 }
 
 func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {

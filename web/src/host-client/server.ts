@@ -16,7 +16,7 @@
 import { z } from "zod"
 import { hasPages } from "../core/book"
 import { fail, matomezuError, problem } from "../core/errors"
-import { restoreCounters, restoreRecords, withCounters, withRecord } from "../core/records"
+import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { screenOf } from "../core/window"
@@ -195,7 +195,6 @@ const DataSchema = z.object({
   books: z.array(z.object({ id: z.string(), book: z.unknown(), version: z.number().int() })),
   settings: z.unknown(),
   annotations: z.record(z.string(), z.unknown()).optional(),
-  mailbox: z.unknown().optional(),
   records: z.unknown().optional(),
   counters: z.unknown().optional(),
   plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
@@ -228,14 +227,14 @@ const ParticipantLiveSchema = z.object({
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
 const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
-const RecordSchema = z.object({
-  subject: z.string(),
-  id: z.string(),
-  record: z.unknown(),
-  counters: z.record(z.string(), z.number()).nullish(),
+// レコードの知らせ: 1 つのアクションが変えたレコードの全部（records。消したなら record は "removed"）と進めた番号（種類 → 区切り → 次の番号）。
+// window は最後にフォーカスされた窓（その窓が、郵便が届いたことをマーキーで知らせる）
+const RecordsSchema = z.object({
+  records: z.array(z.object({ subject: z.string(), id: z.string(), record: z.unknown() })),
+  counters: z.record(z.string(), z.record(z.string(), z.number())).nullish(),
+  window: z.string().optional(),
   ...Mark,
 })
-const MailboxSchema = z.object({ mailbox: z.unknown(), window: z.string().optional(), ...Mark })
 
 export interface ServerClient extends HostClient {
   pending(): readonly DoneAction[] // まだ確かめられていない自分のアクション
@@ -245,7 +244,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
   const confirmed = new Map<string, { book: unknown; version: number }>()
   let settings: unknown
   let annotations: Record<string, unknown> = {} // ブックの id → アノテーションの並び
-  let mailbox: unknown = [] // 利用者の郵便箱
   let records: unknown = {} // 対象の定義が足した種類のレコード（種類の id → id → レコード）
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
@@ -328,7 +326,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
         books: [...confirmed.values()].map(e => e.book),
         settings,
         annotations,
-        mailbox,
         records,
         counters,
         touched,
@@ -434,7 +431,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
     }
     settings = data.settings ?? undefined
     annotations = data.annotations ?? {}
-    mailbox = data.mailbox ?? []
     records = data.records ?? {}
     counters = data.counters ?? {}
     plugins = data.plugins ?? []
@@ -588,18 +584,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
       settle(e)
       show()
     })
-    on("mailbox", data => {
-      const e = MailboxSchema.parse(JSON.parse(data))
-      mailbox = e.mailbox
-      instance?.setLastWindow(e.window === client)
-      settle(e)
-      show()
-    })
     on("record", data => {
-      const e = RecordSchema.parse(JSON.parse(data))
-      const change = { subject: e.subject, id: e.id, record: e.record, ...(e.counters ? { counters: e.counters } : {}) }
-      records = withRecord(restoreRecords(records), change)
-      counters = withCounters(restoreCounters(counters), change)
+      const e = RecordsSchema.parse(JSON.parse(data))
+      records = withRecords(restoreRecords(records), e.records)
+      counters = withCounters(restoreCounters(counters), e.counters ?? undefined)
+      if (e.window !== undefined) instance?.setLastWindow(e.window === client)
       settle(e)
       show()
     })

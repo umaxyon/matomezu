@@ -3,7 +3,7 @@ package server
 // AI 編集チケット: AI のアクションがブックを変えるたびに、ブックごとに 1 つ開く（まだ見られていない物）。どれかの窓で見えたら消し、
 // 見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「消えた」にする。消えた物は、AI のフックが聞いたとき
 // （GET /api/ai/awaiting の undone）に渡し、次に利用者が AI に話しかけたら消す。ブックごとに aiEditTicketsMax まで（古い物から捨てる）。
-// アクションが返した変え方（engine.AIEditTicketChange。変更提案郵便を送った・反映したなど）でも、Key で見分ける AI 編集チケットを作る・閉じる・失敗にする。
+// アクションが返した変え方（engine.AIEditTicketChange。変更提案郵便を送った・反映したなど）でも、アクションの対象の種類 Subject と Key で見分ける AI 編集チケットを作る・閉じる・失敗にする。
 // 失敗した物は、AI のフックが聞いたとき（GET /api/ai/awaiting の failed）に渡し、次に利用者が AI に話しかけたら消す。
 //
 //	POST /api/ai-edit-tickets   {"book", "act", "outcome": "seen" | "lost", "lost"} 窓が、AI の変更（act は book の知らせの印）を見た・見られる前に消えた
@@ -24,6 +24,7 @@ const aiEditTicketsMax = 100
 type AIEditTicket struct {
 	Act     string          `json:"act,omitempty"`     // book の知らせの印（1 回の Perform。起動し直しても重ならない）。アクションが返した変え方で作った物は空
 	Key     string          `json:"key,omitempty"`     // アクションが返した変え方で作った物の見分け（郵便の id など）
+	Subject string          `json:"subject,omitempty"` // アクションが返した変え方で作った物の、アクションの対象の種類（Key はこの種類の中で見分ける。空なら種類を問わない）
 	At      string          `json:"at"`                // 変えた時点
 	Version int64           `json:"version"`           // 変えた後のブックの版
 	Lost    json.RawMessage `json:"lost,omitempty"`    // 見られる前に消えたとき、窓が知らせた消えた所と AI の値
@@ -32,14 +33,16 @@ type AIEditTicket struct {
 	Changed []string        `json:"changed,omitempty"` // 失敗にしたときの、変わった・無くなった物の id
 }
 
-// changedTickets は、アクションが返した変え方 c のとおりに AI 編集チケットの並び list を作り直す（作る・閉じる・失敗にする。閉じる・失敗にするのは、まだ待っている物だけ）。
+// changedTickets は、対象の種類 subject のアクションが返した変え方 c のとおりに AI 編集チケットの並び list を作り直す（作る・閉じる・失敗にする。閉じる・失敗にするのは、まだ待っている物だけ）。
 // 作るときの変えた後のブックの版は version。変えなければ false
-func changedTickets(list []AIEditTicket, c engine.AIEditTicketChange, version int64, at string) ([]AIEditTicket, bool) {
+func changedTickets(list []AIEditTicket, subject string, c engine.AIEditTicketChange, version int64, at string) ([]AIEditTicket, bool) {
 	list = slices.Clone(list)
 	if c.Outcome == "open" {
-		return append(list, AIEditTicket{Key: c.Key, At: at, Version: version}), true
+		return append(list, AIEditTicket{Key: c.Key, Subject: subject, At: at, Version: version}), true
 	}
-	i := slices.IndexFunc(list, func(t AIEditTicket) bool { return t.Key == c.Key && !t.Failed })
+	i := slices.IndexFunc(list, func(t AIEditTicket) bool {
+		return t.Key == c.Key && (t.Subject == "" || t.Subject == subject) && !t.Failed
+	})
 	if i < 0 {
 		return list, false
 	}

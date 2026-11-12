@@ -44,8 +44,9 @@ func joinedID(t *testing.T, url, body string) string {
 	return joined.Participant
 }
 
-// MCP が添えたブランチは、参加が済んだ参加者にだけ残す。変わったときだけ、すぐに置き場所に書いて窓に知らせ、空のブランチは消す。ヘッダが無ければ変えない
-func TestCalledNotesTheBranchAndHost(t *testing.T) {
+// MCP が添えたブランチとモデルは、参加が済んだ参加者にだけ残す。変わったときだけ、すぐに置き場所に書いて窓に知らせ、空のブランチは消す。
+// ブランチのヘッダが無ければブランチを、モデルのヘッダが無ければモデルを変えない。モデルは、フックが知らせたモデルとあとに届いた方を使う
+func TestCalledNotesTheBranchHostAndModel(t *testing.T) {
 	store := joinStore(t)
 	s, hub := joinWorld(t, store)
 	id := joinedID(t, s.URL, joinBody("L1", ""))
@@ -80,6 +81,27 @@ func TestCalledNotesTheBranchAndHost(t *testing.T) {
 	}
 	if _, ok := hub.ParticipantLive()[id]; ok {
 		t.Fatalf("live without a model or branch = %v", hub.ParticipantLive())
+	}
+
+	model := func(m string) map[string]string {
+		return map[string]string{ParticipantHeader: id, ModelHeader: m}
+	}
+	call(t, "GET", s.URL+"/api/ai/books", "", model("gpt-6%2Fluna"))
+	if got := live(); len(got) != 1 || got[0] != `{"participant":"`+id+`","model":"gpt-6/luna"}` {
+		t.Fatalf("participant-live by the model header = %v", got)
+	}
+	if saved, _ := store.ParticipantNotes(user); !strings.Contains(string(saved), `"model":"gpt-6/luna"`) {
+		t.Fatalf("saved notes = %s", saved)
+	}
+	call(t, "GET", s.URL+"/api/ai/books", "", model("gpt-6%2Fluna"))
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: id})
+	if got := live(); len(got) != 0 || noteOf(hub, id).Model != "gpt-6/luna" {
+		t.Fatalf("announced without a change: %v, %+v", got, noteOf(hub, id))
+	}
+	call(t, "POST", s.URL+"/api/ai/model", `{"sessionId":"S1","model":"gpt-6-sol"}`, nil)
+	call(t, "GET", s.URL+"/api/ai/books", "", model("gpt-6-astra"))
+	if n := noteOf(hub, id); n.Model != "gpt-6-astra" {
+		t.Fatalf("the model that came last = %+v", n)
 	}
 }
 
@@ -164,34 +186,38 @@ func TestHeardModelsAreDroppedWhenOldOrTooMany(t *testing.T) {
 }
 
 // セッション id が変わっても（/clear）、AI のプログラムのプロセス id が同じ参加者に、モデルのフックと話しかけのフックが新しいセッション id を結び直す。
-// 結んだ所と伝えた印は変えず、プロセス id が空なら結び直さない
+// 結んだ所と伝えた印は変えず、プロセス id が空なら結び直さない。join でセッション id を運んだ参加者は、プロセス id が同じでも結び直さない
+// （Codex の app-server では、マシンの全部の会話のプロセス id が同じ）
 func TestHostRebindsANewSession(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	id := joinedID(t, s.URL, joinBody("L1", ""))
-	acceptRoom(t, s.URL, id, "ひよこ")
-	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: id, BranchHeader: "", HostHeader: "100"})
-	before := noteOf(hub, id)
-	if before.SessionID != "S1" || before.Host != "100" || !before.Told || before.BoundBy != boundByJoin {
-		t.Fatalf("before = %+v", before)
+	carried := joinedID(t, s.URL, joinBody("L1", ""))
+	acceptRoom(t, s.URL, carried, "ひよこ")
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: carried, BranchHeader: "", HostHeader: "100"})
+	if n := noteOf(hub, carried); n.SessionID != "S1" || n.Host != "100" || !n.Told || n.BoundBy != boundByJoin {
+		t.Fatalf("carried = %+v", n)
 	}
 	// 準備中（受け入れたが、フックがまだ参加を伝えていない）の参加者は、AI のプログラムのプロセス id もブランチも残さない
-	preparing := joinedID(t, s.URL, `{"ai":"claude","model":"opus","env":"linux","link":"L2"}`)
-	acceptRoom(t, s.URL, preparing, "すずめ")
-	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: preparing, BranchHeader: "main", HostHeader: "100"})
-	if n := noteOf(hub, preparing); n.Host != "" || n.Branch != "" {
+	id := joinedID(t, s.URL, `{"ai":"claude","model":"opus","env":"linux","link":"L2"}`)
+	acceptRoom(t, s.URL, id, "すずめ")
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: id, BranchHeader: "main", HostHeader: "100"})
+	if n := noteOf(hub, id); n.Host != "" || n.Branch != "" {
 		t.Fatalf("noted while preparing: %+v", n)
+	}
+	call(t, "POST", s.URL+"/api/ai/talked", `{"sessionId":"C1","host":"100","candidates":["L2"]}`, nil)
+	if n := noteOf(hub, id); n.SessionID != "C1" || n.Host != "100" || !n.Told || n.BoundBy != boundByHook {
+		t.Fatalf("bound by the hook = %+v", n)
 	}
 
 	call(t, "POST", s.URL+"/api/ai/model", `{"sessionId":"S5","host":""}`, nil)
-	if n := noteOf(hub, id); n.SessionID != "S1" {
+	if n := noteOf(hub, id); n.SessionID != "C1" {
 		t.Fatalf("rebound without a host: %+v", n)
 	}
 	call(t, "POST", s.URL+"/api/ai/model", `{"sessionId":"S5","host":"999"}`, nil)
-	if n := noteOf(hub, id); n.SessionID != "S1" {
+	if n := noteOf(hub, id); n.SessionID != "C1" {
 		t.Fatalf("rebound by another host: %+v", n)
 	}
 	call(t, "POST", s.URL+"/api/ai/model", `{"sessionId":"S5","host":"100"}`, nil)
-	if n := noteOf(hub, id); n.SessionID != "S5" || n.BoundBy != boundByJoin || !n.Told {
+	if n := noteOf(hub, id); n.SessionID != "S5" || n.BoundBy != boundByHook || !n.Told {
 		t.Fatalf("by model: %+v", n)
 	}
 
@@ -200,5 +226,8 @@ func TestHostRebindsANewSession(t *testing.T) {
 	_ = json.Unmarshal([]byte(out), &r)
 	if n := noteOf(hub, id); n.SessionID != "S6" || r.Unbound || len(r.Welcomes) != 0 {
 		t.Fatalf("by talked: %+v, %s", n, out)
+	}
+	if n := noteOf(hub, carried); n.SessionID != "S1" {
+		t.Fatalf("the participant whose join carried the session was rebound: %+v", n)
 	}
 }

@@ -5,11 +5,13 @@ import type { z } from "zod"
 import type { SubjectExtras } from "../catalog"
 import type { MessageKey } from "../i18n/i18n"
 
-// 常駐が読む種類の役。参加者（participants）とワークルーム（workrooms）は、常駐（join・話しかけのフック）が読むので、定義が役を名乗り、常駐は役で種類を引く。
-// 役ごとに 1 つの種類だけが名乗り、常駐が読むフィールドを record に持つ（SUBJECT_ROLE_FIELDS。台帳アセンブルのときに確かめる）
+// 常駐と core が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・話しかけのフック）が読み、
+// 郵便（mails）は常駐がレコードを丸ごと core に渡して、core が読む（core/mail.ts の形。read_mail の見せ方と確かめ）。定義が役を名乗り、常駐と core は役で種類を引く。
+// 役ごとに 1 つの種類だけが名乗り、読むフィールドを record に持つ（SUBJECT_ROLE_FIELDS。台帳アセンブルのときに確かめる）
 export const SUBJECT_ROLE_FIELDS = {
   participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom", "requestedAt"],
   workrooms: ["id", "name"],
+  mails: ["id", "mail", "from", "sentAt", "to", "seenAt", "visitedAt", "props", "order"],
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
 
@@ -20,7 +22,7 @@ export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends stri
   record: R // レコード 1 件の形。id（文字）を持つ
   // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す種類は、アクションの reads に書く）
   refers?(record: z.output<R>): readonly { subject: string; id: string }[]
-  role?: SubjectRole // 常駐が読む種類の役（参加者・ワークルーム）
+  role?: SubjectRole // 常駐と core が種類で引く役（参加者・ワークルーム・郵便）
   // AI に見せる種類（read_records）の目次の 1 行（id とともに並ぶ題）。書いた種類だけが AI に見える（書かなければ AI には見せない）。aiListed は目次に載せるか（無ければ載せる）
   aiBrief?(record: z.output<R>): string
   aiListed?(record: z.output<R>): boolean

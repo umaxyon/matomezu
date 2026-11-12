@@ -68,7 +68,6 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
     books: state.getState().books,
     settings: state.getState().settings,
     annotations: {},
-    mailbox: [],
     participants: [],
     records: {},
     counters: {},

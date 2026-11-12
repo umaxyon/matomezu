@@ -1,5 +1,5 @@
 // 参加者・ワークルーム・管理者の印（base の対象の定義。レコード）: 要求は AI も行え、受け入れる・外す・部屋を作る・消すは利用者だけ。
-// 部屋の名前は重ならず、部屋に入る参加者は 1 人で、人のいる部屋は消せない。参加要求の郵便（mail-join-request）は、別の対象（郵便箱）に届く
+// 部屋の名前は重ならず、部屋に入る参加者は 1 人で、人のいる部屋は消せない。参加要求の郵便（mail-join-request）は、別の種類（郵便のレコード）として届く
 
 import { expect, test } from "bun:test"
 import { AI, USER } from "../../../web/src/core/actor"
@@ -8,6 +8,7 @@ import { translate } from "../../../web/src/core/i18n/i18n"
 import type { Mail } from "../../../web/src/core/mail"
 import { joinActions } from "../../../web/src/core/participant"
 import { performIn } from "../../../web/src/core/perform"
+import { mailboxOf } from "../../../web/src/plugins/base/mail"
 import { type MailT, shownOf } from "../../../web/src/plugins/base/mail/shown"
 import { BUILTIN_PARTS, CORE_CATALOG, newStore } from "../../support"
 
@@ -113,7 +114,6 @@ test("AI は要求できるが、受け入れる・外す・部屋を作る・�
     books: {},
     settings: s.settings,
     annotations: {},
-    mailbox: [],
     records: s.records,
     counters: s.counters,
   })
@@ -139,7 +139,7 @@ test("同じ入力（時刻と id のもと）なら同じ結果", () => {
     const { store } = ready()
     const s = store.state.getState()
     return performIn(
-      { books: {}, settings: s.settings, annotations: {}, mailbox: [], records: s.records, counters: s.counters },
+      { books: {}, settings: s.settings, annotations: {}, records: s.records, counters: s.counters },
       REQUEST,
       WHO,
       undefined,
@@ -197,7 +197,7 @@ test("管理者の印は 1 件（id は admin）。部屋か none を指し、�
   expect(perform(ADMIN_SET, { workroom: "none" }, { record: "admin" }).ok).toBe(true)
 })
 
-test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・model・env・セッション名を持つ。同じ参加者なら増えない", () => {
+test("参加要求の郵便は郵便箱に届き、本文に ai・model・env・セッション名を持つ（送るたびに 1 通届く。同じ参加者の郵便があるかは見ない）", () => {
   const { store, perform } = ready()
   const args = {
     from: "claude",
@@ -209,7 +209,7 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
   }
   const done = perform(JOIN_MAIL, args) as { ok: boolean; result: { mail: string } }
   expect(done.ok).toBe(true)
-  const mails = (): readonly Mail[] => store.state.getState().mailbox
+  const mails = (): readonly Mail[] => mailboxOf(store.state.getState().records)
   expect(mails()).toEqual([
     {
       id: done.result.mail,
@@ -217,6 +217,7 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
       from: "claude",
       sentAt: expect.any(String),
       props: { participant: "p1", ai: "claude", model: "opus", env: "wsl", sessionName: "D92" },
+      order: 1,
     },
   ])
   const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)
@@ -224,8 +225,6 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
     title: "AI エージェントから参加要求が届きました",
     body: "AI: claude\nモデル: opus\n環境: wsl\nセッション: D92",
   })
-  expect(perform(JOIN_MAIL, args)).toEqual({ ok: true, result: { mail: done.result.mail } })
-  expect(mails()).toHaveLength(1)
   expect(perform(JOIN_MAIL, { ...args, participant: "p2" }).ok).toBe(true)
   expect(mails()).toHaveLength(2)
 })
@@ -246,7 +245,7 @@ test("参加要求の郵便は、頼まれたワークルームの名前を本�
   }
   expect(perform(JOIN_MAIL, args).ok).toBe(true)
   const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)
-  const [mail] = store.state.getState().mailbox
+  const [mail] = mailboxOf(store.state.getState().records)
   expect(shownOf(CORE_CATALOG, mail!, ja)).toMatchObject({
     title: "AI エージェントから参加要求が届きました",
     body: "ワークルーム名: ひよこ\nAI: claude\nモデル: opus\n環境: wsl",

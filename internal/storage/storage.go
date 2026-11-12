@@ -56,22 +56,21 @@ type BookBody struct {
 	Body json.RawMessage
 }
 
-// UserBody は Batch の、利用者ごとの物（設定・郵便箱）の置き換え
+// UserBody は Batch の、利用者ごとの物（設定）の置き換え
 type UserBody struct {
 	User string
 	Body json.RawMessage
 }
 
-// Batch は 1 回の Perform が変える物の全部。Apply が、並びの順（ブック → 消すブック → 設定 → 郵便箱 → 参加者の表 → アノテーション → AI 編集チケット）に 1 つのまとまりとして書く。
+// Batch は 1 回の Perform が変える物の全部。Apply が、並びの順（ブック → 消すブック → 設定 → アノテーション → AI 編集チケット → レコード → 番号の表）に 1 つのまとまりとして書く。
 // 変えない物は nil（nil でない UserBody は置き換える）
 type Batch struct {
 	Books         []BookWrite
 	Removed       []string
 	Settings      *UserBody
-	Mailbox       *UserBody
 	Annotations   []BookBody
 	AIEditTickets []BookBody
-	Records       []RecordWrite // レコード 1 件（Apply では ブック → レコード の順）
+	Records       []RecordWrite // 変えるレコード（1 つのアクションが変えた全部）
 	Counters      []Counter     // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
 }
 
@@ -93,9 +92,6 @@ type Storage interface {
 	// Settings は利用者の設定（無ければ nil）
 	Settings(user string) (json.RawMessage, error)
 	PutSettings(user string, body json.RawMessage) error
-	// Mailbox は利用者の郵便箱（郵便の並び。無ければ nil）
-	Mailbox(user string) (json.RawMessage, error)
-	PutMailbox(user string, body json.RawMessage) error
 	// ParticipantNotes は利用者の常駐だけが持つ参加者の記録（参加者の id → セッション id と、参加を伝えたかの印。JSON のまま。無ければ nil）。アクションを通さない記録
 	ParticipantNotes(user string) (json.RawMessage, error)
 	PutParticipantNotes(user string, body json.RawMessage) error
