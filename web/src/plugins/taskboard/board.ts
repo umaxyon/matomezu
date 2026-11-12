@@ -1,4 +1,4 @@
-// タスクボードの見せ方の決め事（見た目でない。レコードから、画面に出す物を決める）: 一覧の並びと出すボード・ボードのレーン・レーンのチケット・タグ・担当・ワークルームの今のチケット。
+// タスクボードの見せ方の決め事（見た目でない。レコードから、画面に出す物を決める）: 一覧の並びと出すタスクボード・タスクボードのレーン・レーンのチケット・タグ・担当・ワークルームの今のチケット。
 // 消した物を指しているチケットは書き換えず、ここで読み替える（無いレーンは未分類、無いタグはタグなし、無いワークルームは担当から外す）。閉じたプロジェクトは出さない
 import type { z } from "zod"
 import type { RecordOf } from "../../plugin-api"
@@ -24,7 +24,7 @@ export function orderedProjects(projects: readonly ProjectRecord[], order: reado
   return [...listed, ...rest]
 }
 
-// 出しているボード: 利用者の設定の値 shown（無ければ、まだ選んでいないので並びの最初の 1 枚。空の並びは何も出さない）の中の、並び ordered にある物を、並びの順に
+// 出しているタスクボード: 利用者の設定の値 shown（無ければ、まだ選んでいないので並びの最初の 1 枚。空の並びは何も出さない）の中の、並び ordered にある物を、並びの順に
 export function shownProjects(
   ordered: readonly ProjectRecord[],
   shown: readonly string[] | undefined,
@@ -33,7 +33,7 @@ export function shownProjects(
   return ordered.filter(p => shown.includes(p.id))
 }
 
-// ボードに出すレーン（設定の並びのとおり。未分類は「未分類を表示する」がオンのときだけ）
+// タスクボードに出すレーン（設定の並びのとおり。未分類は「未分類を表示する」がオンのときだけ）
 export interface LaneInfo {
   id: string // レーンの id（未分類は UNSORTED）
   name: string | null // レーンの名前（未分類は null で、画面が文言を出す）

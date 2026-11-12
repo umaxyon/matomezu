@@ -1,19 +1,7 @@
-.birds {
-  display: flex;
-  gap: 2px;
-}
-.bird {
-  position: relative;
-  display: flex;
-}
-/* 重ねる: 並びの先頭を右端の前に置き、後ろの鳥を左へずらして裏に入れ、薄くする */
-.birds[data-stacked="true"] {
-  flex-direction: row-reverse;
-  gap: 0;
-}
-.birds[data-stacked="true"] > .bird + .bird {
-  margin-right: -10px;
-}
-.bird[data-back="true"] {
-  opacity: 0.45;
+.assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

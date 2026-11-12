@@ -1,12 +1,14 @@
-// チケットのカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前（1 行で … で切る）・タグのバッヂ・優先度の印・右上に担当の鳥。
-// 押すとチケットスクリーンを開く（onOpen を渡されたときだけ）。カードには data-card（チケットの id）を付ける
+// チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前（1 行で … で切る）・タグのバッヂ・優先度の印・右上に担当の鳥。
+// 押すとチケットスクリーンを開く。チケットカードには data-card（チケットの id）を付ける
 import { useMessages } from "../../plugin-api/ui"
-import { AssigneeBirds } from "./AssigneeBirds"
+import { useOpenScreen } from "../base/ui"
+import { AssigneeStack } from "./AssigneeStack"
 import { PRIORITIES, type TagRecord, type TicketRecord, type WorkroomRecord } from "./board"
 import { kit } from "./kit"
 import styles from "./LaneView.module.css"
 import { TagBadge } from "./TagBadge"
 import { ticketLabel } from "./ticket-label"
+import { TICKET_SCREEN } from "./ticket-screen"
 
 // 優先度の棒の形（SVG の単位）: どの棒も同じ太さで描けるよう、CSS の px ではなく SVG で描く
 const BAR_WIDTH = 2
@@ -25,11 +27,26 @@ export function TicketCardView({
   tag: TagRecord | undefined
   assignees: readonly WorkroomRecord[]
 }) {
+  const { open } = useOpenScreen()
+  const show = () => open(TICKET_SCREEN, { ticket: ticket.id })
   return (
-    <div className={styles.card} data-card={ticket.id}>
+    // biome-ignore lint/a11y/useSemanticElements: 中に担当の鳥など押せる物を持つので、button にはできない
+    <div
+      className={styles.card}
+      data-card={ticket.id}
+      role="button"
+      tabIndex={0}
+      onClick={show}
+      onKeyDown={e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          show()
+        }
+      }}
+    >
       {assignees.length > 0 ? (
         <span className={styles.assignee}>
-          <AssigneeBirds rooms={assignees} />
+          <AssigneeStack rooms={assignees} />
         </span>
       ) : null}
       <span className={styles.cardId}>{ticketLabel(prefix, ticket.number)}</span>

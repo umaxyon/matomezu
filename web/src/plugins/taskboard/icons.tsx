@@ -60,3 +60,32 @@ export const SortIcon = () => (
     <path d="M8 19V5M4.5 8.5L8 5l3.5 3.5M16 5v14M12.5 15.5L16 19l3.5-3.5" />
   </Svg>
 )
+
+// チケットスクリーンの線画のアイコン（16px の格子）
+export const BackIcon = () => (
+  <Svg size={16} stroke={2}>
+    <path d="M19 12H5M11 6l-6 6 6 6" />
+  </Svg>
+)
+
+export const PencilIcon = () => (
+  <Svg size={16} stroke={2}>
+    <path d="M4 20l4-1 11-11-3-3L5 16l-1 4z" />
+    <path d="M14 7l3 3" />
+  </Svg>
+)
+
+export const BookIcon = () => (
+  <Svg size={16} stroke={2}>
+    <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" />
+    <path d="M5 17a3 3 0 0 1 3-3h11" />
+  </Svg>
+)
+
+// 利用者（鳥でない書いた者）の印
+export const UserIcon = () => (
+  <Svg size={16} stroke={2}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4.5 20c1.2-4 4-5.5 7.5-5.5s6.3 1.5 7.5 5.5" />
+  </Svg>
+)

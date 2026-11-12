@@ -1,6 +1,6 @@
-// ボードの出入りの様子（boardPhases.ts）を、時間で進めるフック: 新しく出すボードは、畳んで 1 回描いてから idle にし、出さなくなるボードは、右へ出て枠が閉じるのを待ってから取り除く。
-// 出しているボード shown が変わった（この窓のチェックでも、別の窓の変更でも）ときに動く。最初の描画では動かさない。
-// 出ていくボードの id は onLeaving で知らせる（最大化を解くなど）
+// タスクボードの出入りの様子（boardPhases.ts）を、時間で進めるフック: 新しく出すタスクボードは、畳んで 1 回描いてから idle にし、出さなくなるタスクボードは、右へ出て枠が閉じるのを待ってから取り除く。
+// 出しているタスクボード shown が変わった（この窓のチェックでも、別の窓の変更でも）ときに動く。最初の描画では動かさない。
+// 出ていくタスクボードの id は onLeaving で知らせる（最大化を解くなど）
 import { useEffect, useRef, useState } from "react"
 import { nextPhases, type Phase, type Phases } from "./boardPhases"
 import { ENTER_FRAME_MS, LEAVE_REMOVE_MS } from "./motion"
@@ -18,7 +18,7 @@ export function useBoardPhases(shown: readonly string[], onLeaving: (id: string)
     [],
   )
   const key = shown.join("\n")
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 出しているボードの並びが変わったときだけ（key が並びを表す）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 出しているタスクボードの並びが変わったときだけ（key が並びを表す）
   useEffect(() => {
     const prev = before.current
     before.current = shown

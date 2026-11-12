@@ -1,4 +1,4 @@
-// タスクボード: コントロールセンターの左の一覧でプロジェクトのボードを出す・隠す、レーンにチケットのカードが並ぶ、レーンの最大化と並べ方のトレイ
+// タスクボード: コントロールセンターの左の一覧でプロジェクトのタスクボードを出す・隠す、レーンにチケットのチケットカードが並ぶ、レーンの最大化と並べ方の一覧
 import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
 const perform = async (page: Page, data: object) =>
@@ -16,7 +16,7 @@ const records = async (page: Page, subject: string) =>
     ).records[subject] ?? {},
   ) as { id: string; name: string; lanes?: { kind: string; id: string }[] }[]
 
-test("一覧でボードを出し入れし、レーンにカードが並び、最大化と並べ方のトレイが動く", async ({ page }) => {
+test("一覧でタスクボードを出し入れし、レーンにチケットカードが並び、最大化と並べ方の一覧が動く", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
   // 最初のプロジェクトが無ければ足す（常駐が初めて起動したときに作られる）
@@ -28,7 +28,7 @@ test("一覧でボードを出し入れし、レーンにカードが並び、�
     (
       await perform(page, {
         action: "@matomezu/taskboard:ticket-add",
-        args: { project: first.id, name: "最初のカード", lane },
+        args: { project: first.id, name: "最初のチケットカード", lane },
       })
     ).ok,
   ).toBe(true)
@@ -44,10 +44,10 @@ test("一覧でボードを出し入れし、レーンにカードが並び、�
   // 何も選んでいなければ、最初のプロジェクトだけが出る
   const board = page.locator(`[data-board="${first.id}"]`)
   await expect(board).toBeVisible()
-  const card = board.locator("[data-card]", { hasText: "最初のカード" })
+  const card = board.locator("[data-card]", { hasText: "最初のチケットカード" })
   await expect(card).toContainText("-001")
 
-  // 一覧は最初は閉じていて、見出しで開く。チェックを外すとボードが消え、入れるとまた出る
+  // 一覧は最初は閉じていて、見出しで開く。チェックを外すとタスクボードが消え、入れるとまた出る
   const head = page.locator("button[aria-expanded]", { hasText: "プロジェクト" })
   await expect(head).toHaveAttribute("aria-expanded", "false")
   await head.click()
@@ -67,7 +67,7 @@ test("一覧でボードを出し入れし、レーンにカードが並び、�
   await target.getByRole("button", { name: "元に戻す" }).click()
   await expect(target).toHaveAttribute("data-max", "false")
 
-  // 並べ方のトレイ: 開いて、Esc で閉じる
+  // 並べ方の一覧: 開いて、Esc で閉じる
   await target.getByRole("button", { name: "並べ方" }).click()
   await expect(page.getByText("優先度").first()).toBeVisible()
   await page.keyboard.press("Escape")

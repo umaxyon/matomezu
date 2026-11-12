@@ -1,4 +1,4 @@
-// タスクボードのプラグインの見た目: コントロールセンターの左の列のプロジェクトの一覧、プロジェクトの画面のボード、ワークルームの枠の列、参加者の行の 1 行
+// タスクボードのプラグインの見た目: コントロールセンターの左の列のプロジェクトの一覧、プロジェクトの画面のタスクボード、ワークルームの枠の列、参加者の行の 1 行
 
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import { CONTROL_CENTER_PROJECTS, CONTROL_CENTER_SIDE, WORKROOM_COLUMNS, WORKROOM_ROW_LINE } from "../base/ui"
@@ -6,6 +6,7 @@ import { TASKBOARD_PLUGIN } from "."
 import { kit } from "./kit"
 import { ProjectListView } from "./ProjectListView"
 import { TaskboardView } from "./TaskboardView"
+import { TICKET_SCREEN } from "./ticket-screen"
 import { WorkroomColumns } from "./WorkroomColumns"
 import { WorkroomRowLine } from "./WorkroomRowLine"
 
@@ -31,7 +32,7 @@ export const WORKROOM_CURRENT_LINE = defineWidget({
 })
 
 export const TASKBOARD_UI = definePluginUi(TASKBOARD_PLUGIN, {
-  widgets: [PROJECT_LIST, TASKBOARD, WORKROOM_TASK_COLUMNS, WORKROOM_CURRENT_LINE],
+  widgets: [PROJECT_LIST, TASKBOARD, WORKROOM_TASK_COLUMNS, WORKROOM_CURRENT_LINE, TICKET_SCREEN],
 })
 
 declare module "../../core/catalog" {
@@ -40,5 +41,6 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:taskboard": typeof TASKBOARD
     "@matomezu/taskboard:workroom-columns": typeof WORKROOM_TASK_COLUMNS
     "@matomezu/taskboard:workroom-current-line": typeof WORKROOM_CURRENT_LINE
+    "@matomezu/taskboard:ticket-screen": typeof TICKET_SCREEN
   }
 }

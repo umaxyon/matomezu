@@ -1,4 +1,4 @@
-// レーンのチケットの並べ方のトレイ: 項目（id・優先度・最終更新・タグ）ごとに、使うかのチェック・昇順と降順の切り替え。
+// レーンのチケットの並べ方の一覧: 項目（id・優先度・最終更新・タグ）ごとに、使うかのチェック・昇順と降順の切り替え。
 // 行の左のつまみのドラッグで項目の順を変え、上の項目から順に比べる（例: タグを上・優先度の降順を下にすると、タグごとの優先度の降順）。外を押すか Esc で閉じる
 import { useEffect, useRef } from "react"
 import { useMessages } from "../../plugin-api/ui"
@@ -37,7 +37,7 @@ export function SortTray({
       if (e.target instanceof Node && (ref.current?.contains(e.target) || opener?.contains(e.target))) return
       onClose()
     }
-    // Esc はトレイを閉じるだけにする（窓のキーの操作（画面を戻すなど）へは渡さない）
+    // Esc は一覧を閉じるだけにする（窓のキーの操作（画面を戻すなど）へは渡さない）
     const key = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return
       e.stopPropagation()

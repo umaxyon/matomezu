@@ -1,5 +1,5 @@
-// コントロールセンターの左の列に置くプロジェクトの一覧: 見出しを押して開閉（最初は閉じている）。行ごとに、左のつまみのドラッグで並べ替え・ボードを出すチェック・名前。
-// 並びと出しているボードは利用者の設定。変えさせない設定のときは、つまみもチェックも押せない
+// コントロールセンターの左の列に置くプロジェクトの一覧: 見出しを押して開閉（最初は閉じている）。行ごとに、左のつまみのドラッグで並べ替え・タスクボードを出すチェック・名前。
+// 並びと出しているタスクボードは利用者の設定。変えさせない設定のときは、つまみもチェックも押せない
 import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../plugin-api/ui"
 import { Panel } from "../base/ui"
 import { orderedProjects, shownProjects } from "./board"

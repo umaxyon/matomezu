@@ -99,6 +99,7 @@ import {
   type RIGHT_SIDE_PANEL_STATE,
   RIGHT_SIDE_PANEL_STATES,
 } from "./right-side-panel/state"
+import { type OPEN_SCREEN_STATE, SCREEN_STATES } from "./screen/state"
 import {
   type SEARCH_CLOSE,
   SEARCH_COMMANDS,
@@ -422,6 +423,7 @@ export const BASE = defineBuiltin(
       ...RIGHT_SIDE_PANEL_STATES,
       ...LEFT_SIDE_PANEL_STATES,
       MAXIMIZERS,
+      ...SCREEN_STATES,
       ...REVEAL_REQUEST_STATES,
       ...PRINT_PREVIEW_STATES,
       ...MEASURES_STATES,
@@ -624,6 +626,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:right-side-panel-restore": typeof RIGHT_SIDE_PANEL_RESTORE_STATE
     "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_STATE
     "@matomezu/base:control-center-maximizers": typeof MAXIMIZERS
+    "@matomezu/base:open-screen": typeof OPEN_SCREEN_STATE
     "@matomezu/base:revealing": typeof REVEALING_STATE
     "@matomezu/base:print-ready": typeof PRINT_READY_STATE
     "@matomezu/base:print-measures": typeof PRINT_MEASURES

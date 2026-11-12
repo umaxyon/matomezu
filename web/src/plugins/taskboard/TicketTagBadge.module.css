@@ -1,0 +1,7 @@
+.badge {
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+}

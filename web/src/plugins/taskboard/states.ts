@@ -1,4 +1,4 @@
-// タスクボードの画面の状態（窓の中だけ。読み直すと消える）: 一覧の開閉・レーンごとの並べ方・ボードとレーンの最大化
+// タスクボードの画面の状態（窓の中だけ。読み直すと消える）: 一覧の開閉・レーンごとの並べ方・タスクボードとレーンの最大化
 import { kit } from "./kit"
 import type { Maximized } from "./maximize"
 import type { SortRules } from "./sort"
@@ -12,5 +12,5 @@ export const LANE_SORTS = kit.definePluginStateOf<Readonly<Record<string, Readon
   scope: "window",
 })
 
-// 最大化しているボードとレーン（無ければ何も最大化していない）
+// 最大化しているタスクボードとレーン（無ければ何も最大化していない）
 export const MAXIMIZED = kit.definePluginStateOf<Maximized>()({ id: "maximized", scope: "window" })

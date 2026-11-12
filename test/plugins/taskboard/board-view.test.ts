@@ -67,14 +67,14 @@ test("一覧は、利用者の並びにある物をその順に、並びに無�
   expect(orderedProjects(all, []).map(p => p.id)).toEqual(["a", "b", "c"])
 })
 
-test("出しているボードは、設定の値が無ければ並びの最初の 1 枚、空の並びなら何も出さず、あれば並びの順で、並びに無い物は出さない", () => {
+test("出しているタスクボードは、設定の値が無ければ並びの最初の 1 枚、空の並びなら何も出さず、あれば並びの順で、並びに無い物は出さない", () => {
   const ordered = [project("c"), project("b"), project("a")]
   expect(shownProjects(ordered, undefined).map(p => p.id)).toEqual(["c"])
   expect(shownProjects(ordered, []).map(p => p.id)).toEqual([])
   expect(shownProjects(ordered, ["a", "c", "gone"]).map(p => p.id)).toEqual(["c", "a"])
 })
 
-test("ボードのレーンは設定の並びのとおりで、未分類は「未分類を表示する」がオンのときだけ出る", () => {
+test("タスクボードのレーンは設定の並びのとおりで、未分類は「未分類を表示する」がオンのときだけ出る", () => {
   expect(lanesOf(project("p1")).map(l => l.id)).toEqual(["todo", "done"])
   const withUnsorted = project("p1", {
     lanes: [
@@ -134,12 +134,12 @@ test("番号の見せ方は、プレフィクスに 3 桁まで 0 で埋めた�
   expect(ticketLabel("T-", 1000)).toBe("T-1000")
 })
 
-test("ボードの最大化は 1 つだけ。レーンを最大化するとボードも最大化し、元に戻すと前のボードの最大化に戻る。出ていくボードの最大化は解く", () => {
+test("タスクボードの最大化は 1 つだけ。レーンを最大化するとタスクボードも最大化し、元に戻すと前のタスクボードの最大化に戻る。出ていくタスクボードの最大化は解く", () => {
   expect(toggleBoard(undefined, "a")).toEqual({ board: "a" })
   expect(toggleBoard({ board: "a" }, "a")).toBeUndefined()
   expect(toggleBoard({ board: "a" }, "b")).toEqual({ board: "b" })
   expect(toggleBoard({ board: "a", lane: "x", boardWasMax: true }, "a")).toBeUndefined()
-  // ボードを最大化していて、そのレーンを最大化・戻す → ボードの最大化に戻る
+  // タスクボードを最大化していて、そのレーンを最大化・戻す → タスクボードの最大化に戻る
   const lane = toggleLane({ board: "a" }, "a", "x")
   expect(lane).toEqual({ board: "a", lane: "x", boardWasMax: true })
   expect(toggleLane(lane, "a", "x")).toEqual({ board: "a" })

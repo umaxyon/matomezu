@@ -5,7 +5,7 @@
   --lane-gap: 10px;
   display: flex;
   flex: 0 0 var(--lane-width);
-  min-width: 0; /* 長いカードの名前で広げない（名前は … で切る） */
+  min-width: 0; /* 長いチケットカードの名前で広げない（名前は … で切る） */
   overflow: hidden;
   transition:
     flex-grow var(--motion) ease,
@@ -21,7 +21,7 @@
 .lane + .lane {
   margin-left: var(--lane-gap);
 }
-/* 最大化: このレーンだけでボードの幅いっぱいに広がる */
+/* 最大化: このレーンだけでタスクボードの幅いっぱいに広がる */
 .lane[data-max="true"] {
   flex-grow: 1;
 }
@@ -53,6 +53,7 @@
   transition: opacity 0.15s ease;
 }
 .card {
+  cursor: pointer;
   position: relative;
   min-width: 0;
   display: flex;
@@ -143,7 +144,7 @@
   right: 6px;
   display: flex;
 }
-/* 最大化したレーン（動き終わってから）: カードを上から下へ並べ、下まで行ったら右の列の上へ折り返す。右に入らない分は横にスクロール */
+/* 最大化したレーン（動き終わってから）: チケットカードを上から下へ並べ、下まで行ったら右の列の上へ折り返す。右に入らない分は横にスクロール */
 .cards[data-wrap="true"] {
   flex-wrap: wrap;
   align-content: flex-start;
@@ -153,7 +154,7 @@
 .cards[data-wrap="true"] .card {
   width: calc(var(--lane-width) - 14px);
 }
-/* 最大化・元に戻すで動いている間: カードを素早く消し、動き終わったら出す */
+/* 最大化・元に戻すで動いている間: チケットカードを素早く消し、動き終わったら出す */
 .cards[data-settling="true"] {
   opacity: 0;
   transition-duration: 0.1s;

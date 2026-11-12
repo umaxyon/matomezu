@@ -21,6 +21,7 @@ import { PROJECT } from "./project"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "./settings"
 import { LANE_SORTS, LIST_OPEN, MAXIMIZED } from "./states"
 import { TICKET } from "./ticket"
+import { TICKET_SCREEN_STATE } from "./ticket-screen-state"
 
 export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -42,7 +43,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
     ],
     permissions: [CLOSED_PROJECT],
     userSettings: [PROJECT_ORDER, SHOWN_PROJECTS],
-    pluginStates: [LIST_OPEN, LANE_SORTS, MAXIMIZED],
+    pluginStates: [LIST_OPEN, LANE_SORTS, MAXIMIZED, TICKET_SCREEN_STATE],
   }),
 )
 
@@ -82,6 +83,7 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:list-open": typeof LIST_OPEN
     "@matomezu/taskboard:lane-sorts": typeof LANE_SORTS
     "@matomezu/taskboard:maximized": typeof MAXIMIZED
+    "@matomezu/taskboard:ticket-screen-state": typeof TICKET_SCREEN_STATE
   }
   interface PermissionTable {
     "@matomezu/taskboard:closed-project": typeof CLOSED_PROJECT
