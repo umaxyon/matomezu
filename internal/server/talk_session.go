@@ -1,14 +1,14 @@
 package server
 
-// 話しかけと会話のセッションの結びつけ: AI が join の link に渡した使い捨ての uuid は、AI の会話の記録に残る。
-// 話しかけのフックが、記録から拾った uuid の形の文字列を常駐に送ると、link が合う参加者にセッション id を結ぶ（Codex など、MCP の呼び出しがセッション id を運ぶ AI は、join のときに結ばれている）。
+// ターンの始まりと会話のセッションの結びつけ: AI が join の link に渡した使い捨ての uuid は、AI の会話の記録に残る。
+// UserPromptSubmit のフックが、記録から拾った uuid の形の文字列を常駐に送ると、link が合う参加者にセッション id を結ぶ（Codex など、MCP の呼び出しがセッション id を運ぶ AI は、join のときに結ばれている）。
 // 結ばれたセッションに受け入れ済みで「参加しました」をまだ伝えていない参加者がいれば、フックが利用者に見える形で伝える（伝えたと常駐だけが持つ参加者の記録に印を付けるので、MCP の返事に添える知らせとは二重にならない）。
 //
 // host（AI のプログラムのプロセス id）が添えてあれば、先に、同じプロセス id の参加者にそのセッション id を結び直す（Claude Code の /clear のあと、
 // 会話のセッション id は変わるが、MCP とフックの親の Claude Code のプロセスは変わらない。新しい会話の記録には link が無いので、記録からは結べない）。
 //
-//	POST /api/ai/talked  {"sessionId", "host", "candidates"}
-//	  candidates が無い: 利用者が話しかけた。話しかけたときに行うアクションを行い、{"welcomes", "unbound"} を返す
+//	POST /api/ai/talked  {"sessionId", "host", "candidates", "woken"}
+//	  candidates が無い: ターンが始まった。woken でなければ利用者トリガートークのときに行うアクションを行い、{"welcomes", "unbound"} を返す
 //	  candidates が有る: 記録から拾った uuid の形の文字列。行うアクションは行わず、link が合う参加者にセッション id を結んで、同じ形を返す
 //	welcomes は、そのセッションの、受け入れ済みで伝えていない参加者（伝えたと印を付けて返す）。unbound は、そのセッションが誰にも結ばれておらず、結ばれていない参加者がいる（記録を調べる値打ちがある）
 
@@ -25,7 +25,7 @@ type Welcome struct {
 	ForAI       string `json:"forAi"`   // AI に伝える英語の文（MCP の返事に添える知らせと同じ）
 }
 
-// SessionTalk は、話しかけに対する、そのセッションについての答え
+// SessionTalk は、ターンの始まりに対する、そのセッションについての答え
 type SessionTalk struct {
 	Welcomes []Welcome `json:"welcomes"`
 	Unbound  bool      `json:"unbound"`
@@ -49,7 +49,7 @@ func (h *Hub) userJoinedText(workroom string) string {
 	return text
 }
 
-// TalkedBy は、セッション sessionID の話しかけについての答え。先にAI のプログラムのプロセス id host の参加者に結び直し、candidates があれば、link が合う参加者にセッション id を結ぶ。
+// TalkedBy は、セッション sessionID のターンの始まりについての答え。先にAI のプログラムのプロセス id host の参加者に結び直し、candidates があれば、link が合う参加者にセッション id を結ぶ。
 // sessionID が空なら、結びつけも知らせもしない
 func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk, error) {
 	if sessionID == "" {

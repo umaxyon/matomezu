@@ -47,6 +47,7 @@ type cli struct {
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, and AI's changes the user undid before seeing them, for an AI's hook. Prints nothing when there are none or the server is not running."`
 	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
+	Watch       watchCmd       `cmd:"" help:"Print one line for each thing the user did on the screen that should wake AI (such as accepting AI's request to join), for an AI's background monitor. Waits for the server and reconnects; prints nothing else."`
 	Model       modelCmd       `cmd:"" help:"Tell the server the model of AI's session, for an AI's hook (SessionStart or PostModelSwitch) that passes the hook's JSON on stdin (model or to_model). Does nothing when the JSON has no model or the server is not running."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
@@ -95,6 +96,14 @@ type talkedCmd struct {
 type modelCmd struct {
 	Host string `help:"Process id of AI's host program (such as Claude Code). The server ties a new session id of the same process to its participant (after /clear)."`
 }
+
+type watchCmd struct {
+	Host    string `required:"" help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed."`
+	Session string `help:"Session id the host program started with (Claude Code: CLAUDE_CODE_SESSION_ID). When both this and the one MCP sent on join are known, they must match too."`
+}
+
+// claudeSessionEnv は、Claude Code が立てたプロセスに渡す、立てたときのセッション id の環境変数（/clear でも変わらない）
+const claudeSessionEnv = "CLAUDE_CODE_SESSION_ID"
 
 type versionCmd struct{}
 
@@ -251,7 +260,7 @@ func (c *mcpCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, strconv.Itoa(os.Getppid()))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, strconv.Itoa(os.Getppid()), os.Getenv(claudeSessionEnv))
 }
 
 // awaitingItem は、常駐の api/ai/awaiting が返す、AI の応えを待つアノテーション 1 つ（brief は種類の aiBrief の 1 行。無ければ空）
@@ -294,8 +303,8 @@ func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 	}
 }
 
-// Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、利用者の話しかけに添える）。
-// 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（話しかけを止めない）
+// Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、ターンの始まりに添える）。
+// 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（AI のターンを止めない）
 func (c *annotationsCmd) Run() error {
 	h, err := openHome()
 	if err != nil {
@@ -377,8 +386,8 @@ func writeRemoved(w io.Writer, removed []removedTicket) {
 	}
 }
 
-// Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
-// 常駐を立てず、立っていない・答えないときは何もしない（話しかけを止めない。--context があればそれだけ書く）
+// Run は、AI のターンの始まりを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
+// 常駐を立てず、立っていない・答えないときは何もしない（AI のターンを止めない。--context があればそれだけ書く）
 func (c *talkedCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = c.Host

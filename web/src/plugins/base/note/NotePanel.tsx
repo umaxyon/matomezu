@@ -218,7 +218,7 @@ function NoteEditor({
   )
 }
 
-// 読まれた伝言が消えるまでの見込み（まだ話しかけていなければ、話しかけてからの時間。数え始めたら残りで、30 秒ごとに見直す。消さない設定なら出さない）
+// 読まれた伝言が消えるまでの見込み（まだ利用者トリガートークが無ければ、利用者トリガートークからの時間。数え始めたら残りで、30 秒ごとに見直す。消さない設定なら出さない）
 function ExpiryNote({ props }: { props: NoteProps }) {
   const t = useMessages(kit)
   const choice = useUserSetting(NOTE_EXPIRY.id)

@@ -2,10 +2,10 @@ package server
 
 // AI 編集チケット: AI のアクションがブックを変えるたびに、ブックごとに 1 つ開く（まだ見られていない物）。どれかの窓で見えたら消し、
 // 見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「見られる前に消えた」にする。その物は、AI のフックが聞いたとき
-// （GET /api/ai/awaiting の undone）に渡し、次に利用者が AI に話しかけたら消す。ブックごとに aiEditTicketsMax まで（古い物から捨てる）。
+// （GET /api/ai/awaiting の undone）に渡し、次の利用者トリガートークで消す。ブックごとに aiEditTicketsMax まで（古い物から捨てる）。
 // アクションが返した変え方（engine.AIEditTicketChange。変更提案郵便を送った・反映した・消したなど）でも、アクションの対象の種類 Subject と Key で見分ける AI 編集チケットを
 // 作る・閉じる・失敗にする・郵便が消えたと記す。失敗した物と郵便が消えたと記した物は、AI のフックが聞いたとき（GET /api/ai/awaiting の failed と removed）に渡し、
-// 次に利用者が AI に話しかけたら消す。Key で見分ける物は、上限でも捨てない（閉じる・失敗にする・消えたと記すまで残す）。
+// 次の利用者トリガートークで消す。Key で見分ける物は、上限でも捨てない（閉じる・失敗にする・消えたと記すまで残す）。
 //
 //	POST /api/ai-edit-tickets   {"book", "act", "outcome": "seen" | "lost", "lost"} 窓が、AI の変更（act は book の知らせの印）を見た・見られる前に消えた
 
@@ -264,7 +264,7 @@ func (h *Hub) TellRemoved() ([]RemovedAIEditTicket, error) {
 	return out, nil
 }
 
-// forgetToldAIEditTickets は、AI に渡した、見られる前に消えた AI の変更と、失敗にした・消えたと記した AI 編集チケットを消す（利用者が AI に話しかけたとき。h.mu を持って呼ぶ）
+// forgetToldAIEditTickets は、AI に渡した、見られる前に消えた AI の変更と、失敗にした・消えたと記した AI 編集チケットを消す（利用者トリガートークのとき。h.mu を持って呼ぶ）
 func (h *Hub) forgetToldAIEditTickets() error {
 	changed := map[string][]AIEditTicket{}
 	for _, id := range slices.Clone(h.order) {

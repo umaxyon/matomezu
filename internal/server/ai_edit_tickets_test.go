@@ -48,7 +48,7 @@ func acts(h *Hub) []string {
 	return out
 }
 
-// AI 編集チケット: AI のアクションが変えたブックに 1 つ残り、窓が見たら消え、見られる前に消えたら AI のフックに渡り、次に話しかけたら消える。
+// AI 編集チケット: AI のアクションが変えたブックに 1 つ残り、窓が見たら消え、見られる前に消えたら AI のフックに渡り、次の利用者トリガートークで消える。
 // 常駐を起動し直しても残り、起動し直したあとの act は前の物と重ならない
 func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
@@ -89,7 +89,11 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	if b := acts(hub2); len(b) != 2 || b[1] == a[1] || b[1] == a[0] {
 		t.Fatalf("acts after restart = %v (before %v)", b, a)
 	}
-	// 渡した物は、話しかけたら消える
+	// 裏の知らせで始まったターン（woken）は利用者トリガートークではないので消えない。渡した物は、利用者トリガートークがあったら消える
+	send(t, "POST", s2.URL+"/api/ai/talked", `{"woken":true}`, ai)
+	if g := got(s2); strings.Count(g, `"lost":`) != 1 {
+		t.Fatalf("awaiting after a woken turn = %s", g)
+	}
 	send(t, "POST", s2.URL+"/api/ai/talked", `{}`, ai)
 	if g := got(s2); !strings.HasSuffix(g, `"undone":[]}`) {
 		t.Fatalf("awaiting after talked = %s", g)
@@ -118,7 +122,7 @@ func TestTicketsWithAKeyAreNotDroppedAtTheLimit(t *testing.T) {
 	}
 }
 
-// 利用者が反映していない変更提案郵便を消すと、その AI 編集チケットは消えたことになり（cause user）、AI のフックに removed で渡り、次に話しかけたら消える
+// 利用者が反映していない変更提案郵便を消すと、その AI 編集チケットは消えたことになり（cause user）、AI のフックに removed で渡り、次の利用者トリガートークで消える
 func TestRemovedProposalIsToldAndForgotten(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)

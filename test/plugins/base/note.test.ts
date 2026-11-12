@@ -178,7 +178,7 @@ test("付ける先を変えられる（吹き出しは最後の物のそば）�
   expect((notes()[0]!.props as { readAt?: string }).readAt).toBeUndefined()
 })
 
-test("話しかけたとき（note-talked）は、読まれていて会話の時点の無い伝言にだけ会話の時点を付ける。文を変えると会話の時点も外れる。AI は行えない", () => {
+test("利用者トリガートークのとき（note-talked）は、読まれていて会話の時点の無い伝言にだけ会話の時点を付ける。文を変えると会話の時点も外れる。AI は行えない", () => {
   const { store, a, b, notes } = ready()
   store.actions.perform(ADD, { anchors: [a], text: "読まれた" }, ON)
   store.actions.perform(ADD, { anchors: [b], text: "まだ" }, ON)
@@ -194,7 +194,7 @@ test("話しかけたとき（note-talked）は、読まれていて会話の時
   expect(props()[0]).toBeUndefined()
 })
 
-test("話しかけたときに行うアクションは、アノテーションが対象のアクションだけが名乗れる（型で止める）", () => {
+test("利用者トリガートークのときに行うアクションは、アノテーションが対象のアクションだけが名乗れる（型で止める）", () => {
   const talks = defineAction({
     id: "@x/t:talk",
     title: "@matomezu/base:Note",
@@ -210,14 +210,14 @@ test("話しかけたときに行うアクションは、アノテーション�
     title: "@matomezu/base:Note",
     aiDescription: "t",
     target: "book",
-    // @ts-expect-error ブックが対象のアクションは、話しかけたときに行えない
+    // @ts-expect-error ブックが対象のアクションは、利用者トリガートークのときに行えない
     runsWhenUserTalks: true,
     args: z.strictObject({}),
     run: () => null,
   })
 })
 
-test("読まれた伝言が消えるまでの見込み: 話しかけるまでは設定の時間、数え始めたら残り（切り上げ、過ぎたら 0）。読まれていない・消さない設定は無い", () => {
+test("読まれた伝言が消えるまでの見込み: 利用者トリガートークまでは設定の時間、数え始めたら残り（切り上げ、過ぎたら 0）。読まれていない・消さない設定は無い", () => {
   const now = new Date("2026-11-06T10:00:00.000Z")
   expect(expiryOutlook({}, "60", now)).toBeNull()
   expect(expiryOutlook({ readAt: "2026-11-06T09:00:00.000Z" }, "never", now)).toBeNull()

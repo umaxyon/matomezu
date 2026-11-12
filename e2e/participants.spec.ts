@@ -6,7 +6,7 @@ import { fromMenu } from "./helpers/stage-menu"
 const JOINED = "ワークルームに入れます"
 const REQUEST = "AI エージェントから参加要求が届きました"
 
-// sessionId を渡すと、MCP がセッション id を運ぶ AI（フックの無い AI）の join になる。渡さなければ、話しかけのフックが参加を伝えるまで準備中
+// sessionId を渡すと、MCP がセッション id を運ぶ AI（フックの無い AI）の join になる。渡さなければ、UserPromptSubmit のフックが参加を伝えるまで準備中
 async function join(page: Page, link: string, sessionName = "", workroom = "", sessionId = "") {
   const res = await page.request.post("/api/ai/join", {
     headers: aiAuth(),
@@ -51,7 +51,7 @@ const call = (page: Page, participant: string) =>
     headers: { ...aiAuth(), "X-Matomezu-Participant": participant },
   })
 
-// 話しかけのフックの代わり。会話の記録から拾った link で、そのセッションに参加者を結び、参加を伝える
+// UserPromptSubmit のフックの代わり。会話の記録から拾った link で、そのセッションに参加者を結び、参加を伝える
 const talk = (page: Page, sessionId: string, link: string) =>
   page.request.post("/api/ai/talked", { headers: aiAuth(), data: { sessionId, candidates: [link] } })
 

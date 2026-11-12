@@ -1,0 +1,11 @@
+{
+  "name": "matomezu",
+  "owner": { "name": "matomezu" },
+  "plugins": [
+    {
+      "name": "matomezu",
+      "source": "./",
+      "description": "Lets matomezu wake Claude Code when the user does something on the screen that AI should answer (such as accepting AI's request to join)."
+    }
+  ]
+}

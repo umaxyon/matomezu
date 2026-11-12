@@ -444,7 +444,7 @@ function aiTables(of: Assembled) {
     return JSON.stringify({ annotations: kept, changed: kept.length !== all.length })
   }
 
-// 利用者が AI に話しかけたときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
+// 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
 
@@ -458,7 +458,7 @@ function aiTables(of: Assembled) {
 ).matomezuParticipantAlive = (settings, calledAt, nowMs) =>
   isParticipantAlive(assembled.catalog.core, restoreSettings(JSON.parse(settings)), calledAt || undefined, nowMs)
 
-// 参加を利用者に伝える文（利用者の言語。常駐が、話しかけのフックの systemMessage に使う）
+// 参加を利用者に伝える文（利用者の言語。常駐が、UserPromptSubmit のフックの systemMessage に使う）
 ;(globalThis as { matomezuJoinedText?: (settings: string, workroom: string) => string }).matomezuJoinedText = (
   settings,
   workroom,
