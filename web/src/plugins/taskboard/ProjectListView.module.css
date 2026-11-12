@@ -1,0 +1,71 @@
+.accordion {
+  --panel-gap: 0;
+  --gap: 6px;
+  --motion-fast: 0.25s;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.chevron {
+  transition: transform var(--motion-fast) ease;
+}
+.head[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+/* 高さは 0fr → 1fr で動かす。閉じている間は、閉じ終わってから visibility で操作を止める */
+.body {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--motion-fast) ease,
+    visibility 0s linear var(--motion-fast);
+}
+.body[data-open="true"] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.inner {
+  overflow: hidden;
+  min-height: 0;
+  transition: padding-top var(--motion-fast) ease;
+}
+.body[data-open="true"] .inner {
+  padding-top: var(--gap);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 3px;
+  border-bottom: 1px solid var(--skin-border);
+  font-size: 12px;
+}
+.row:last-child {
+  border-bottom: 0;
+}
+.row[data-dragging="true"] {
+  opacity: 0.4;
+}
+.name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}

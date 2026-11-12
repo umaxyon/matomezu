@@ -1,6 +1,7 @@
 // タスクボードの見せ方の決め事（見た目でない。レコードから、画面に出す物を決める）: 一覧の並びと出すボード・ボードのレーン・レーンのチケット・タグ・担当・ワークルームの今のチケット。
 // 消した物を指しているチケットは書き換えず、ここで読み替える（無いレーンは未分類、無いタグはタグなし、無いワークルームは担当から外す）。閉じたプロジェクトは出さない
 import type { z } from "zod"
+import type { RecordOf } from "../../plugin-api"
 import type { CURRENT } from "./current"
 import { NO_TICKET } from "./current"
 import type { HISTORY } from "./history"
@@ -12,6 +13,7 @@ export type ProjectRecord = z.output<typeof PROJECT.record>
 export type TicketRecord = z.output<typeof TICKET.record>
 export type HistoryRecord = z.output<typeof HISTORY.record>
 export type CurrentRecord = z.output<typeof CURRENT.record>
+export type WorkroomRecord = RecordOf<"@matomezu/base:workroom">
 export type TagRecord = ProjectRecord["tags"][number]
 
 // 一覧の並び: 利用者の並び order にあるプロジェクトをその順に、並びに無い物（新しい物）は後ろに名前の順。閉じた物は出さない
@@ -78,16 +80,16 @@ export function currentTaskOf(
   currents: readonly CurrentRecord[],
   tickets: readonly TicketRecord[],
   projects: readonly ProjectRecord[],
-  history: readonly HistoryRecord[],
+  entries: readonly HistoryRecord[],
 ): CurrentTask | undefined {
   const current = currents.find(c => c.id === workroom)
   if (!current || current.ticket === NO_TICKET) return undefined
   const ticket = tickets.find(t => t.id === current.ticket)
   const project = ticket && projects.find(p => p.id === ticket.project)
   if (!ticket || !project) return undefined
-  return { ticket, project, latest: newestFirst(history.filter(h => h.ticket === ticket.id))[0] }
+  return { ticket, project, latest: newestFirst(entries.filter(h => h.ticket === ticket.id))[0] }
 }
 
 // 履歴を新しい順に（同じ時刻なら id の降順）
-export const newestFirst = (history: readonly HistoryRecord[]): HistoryRecord[] =>
-  [...history].sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id))
+export const newestFirst = (entries: readonly HistoryRecord[]): HistoryRecord[] =>
+  [...entries].sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id))

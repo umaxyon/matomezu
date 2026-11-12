@@ -1,10 +1,10 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: var(--panel-gap, var(--gap));
+  gap: var(--panel-gap, var(--gap, 6px));
   min-height: 0;
   min-width: 0;
-  padding: var(--panel-pad-y) var(--panel-pad-x);
+  padding: var(--panel-pad-y, 6px) var(--panel-pad-x, 8px);
   border: 1px solid var(--skin-border);
   border-radius: 8px;
   background: var(--skin-surface);

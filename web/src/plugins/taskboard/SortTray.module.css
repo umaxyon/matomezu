@@ -1,0 +1,56 @@
+/* レーンのタイトル帯の左下に出す小さなトレイ */
+.tray {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 4px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 8px;
+  background: var(--skin-surface-raised);
+  box-shadow: var(--skin-shadow-3);
+  font-size: 12px;
+  font-weight: normal;
+  text-align: left;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 5px;
+}
+.row[data-dragging="true"] {
+  opacity: 0.5;
+}
+.name {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 72px;
+  cursor: pointer;
+}
+.row[data-on="false"] .name {
+  color: var(--skin-text-muted);
+}
+.dir {
+  padding: 1px 6px;
+  border: 1px solid var(--skin-border);
+  border-radius: 4px;
+  background: var(--skin-surface);
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dir:hover {
+  background: var(--skin-btn-hover);
+}
+.row[data-on="false"] .dir {
+  color: var(--skin-text-muted);
+}

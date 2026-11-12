@@ -1,0 +1,75 @@
+// コントロールセンターの左の列に置くプロジェクトの一覧: 見出しを押して開閉（最初は閉じている）。行ごとに、左のつまみのドラッグで並べ替え・ボードを出すチェック・名前。
+// 並びと出しているボードは利用者の設定。変えさせない設定のときは、つまみもチェックも押せない
+import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../plugin-api/ui"
+import { Panel } from "../base/ui"
+import { orderedProjects, shownProjects } from "./board"
+import { Grip } from "./Grip"
+import { ChevronIcon } from "./icons"
+import { kit } from "./kit"
+import styles from "./ProjectListView.module.css"
+import { PROJECT } from "./project"
+import { moved } from "./reorder"
+import { LIST_OPEN } from "./states"
+import { useBoardSettings } from "./useBoardSettings"
+import { useGripDrag } from "./useGripDrag"
+import { useReorderAnimation } from "./useReorderAnimation"
+
+export function ProjectListView() {
+  const t = useMessages(kit)
+  const open = usePluginState(kit, LIST_OPEN) ?? false
+  const updateOpen = useUpdatePluginState(kit, LIST_OPEN)
+  const projects = useRecords(PROJECT.id)
+  const settings = useBoardSettings()
+  const ordered = orderedProjects(projects, settings.order)
+  const ids = ordered.map(p => p.id)
+  const shown = shownProjects(ordered, settings.shown).map(p => p.id)
+  const { register, snapshot } = useReorderAnimation(ids)
+  const { dragRowProps, gripProps } = useGripDrag((dragging, over) => {
+    if (!settings.canChange) return
+    snapshot()
+    settings.setOrder(moved(ids, dragging, over))
+  })
+  const toggle = (id: string) => {
+    if (!settings.canChange) return
+    settings.setShown(shown.includes(id) ? shown.filter(s => s !== id) : [...shown, id])
+  }
+  return (
+    <Panel className={styles.accordion}>
+      <button type="button" className={styles.head} aria-expanded={open} onClick={() => updateOpen(now => !now)}>
+        <span className={styles.chevron}>
+          <ChevronIcon />
+        </span>
+        {t("Projects")}
+      </button>
+      <div className={styles.body} data-open={open}>
+        <div className={styles.inner}>
+          {ordered.length === 0 ? (
+            <p className={styles.name}>{t("No projects")}</p>
+          ) : (
+            <ul className={styles.list}>
+              {ordered.map(project => (
+                <li
+                  key={project.id}
+                  ref={register(project.id)}
+                  className={styles.row}
+                  data-project={project.id}
+                  {...(settings.canChange ? dragRowProps(project.id) : {})}
+                >
+                  {settings.canChange ? <Grip {...gripProps(project.id)} /> : null}
+                  <input
+                    type="checkbox"
+                    aria-label={project.name}
+                    checked={shown.includes(project.id)}
+                    disabled={!settings.canChange}
+                    onChange={() => toggle(project.id)}
+                  />
+                  <span className={styles.name}>{project.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Panel>
+  )
+}
