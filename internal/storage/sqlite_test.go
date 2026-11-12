@@ -254,7 +254,7 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '{"id":"b1","title":"x","project":"default"}', 1, 'x'), ('b2', '{"id":"b2"}', 1, 'x')`,
-		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","project":"default","props":{"projects":["default"],"a":1}},{"id":"m2","props":{"a":1}}]', 'x'), ('u2', '[]', 'x')`,
+		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","mail":"@matomezu/base:join-request","project":"default","props":{"projects":["default"],"a":1}},{"id":"m2","mail":"@x/other","project":"default","props":{"projects":["keep"]}}]', 'x'), ('u2', '[]', 'x')`,
 		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1","projects":["default"],"link":"l"},{"id":"p2"}]', 'x')`,
 	) {
 		if _, err := db.Exec(q); err != nil {
@@ -270,7 +270,7 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	if string(books[0].Body) != `{"id":"b1","title":"x"}` || string(books[1].Body) != `{"id":"b2"}` {
 		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
 	}
-	if got, _ := s.Mailbox("u1"); string(got) != `[{"id":"m1","props":{"a":1}},{"id":"m2","props":{"a":1}}]` {
+	if got, _ := s.Mailbox("u1"); string(got) != `[{"id":"m1","mail":"@matomezu/base:join-request","props":{"a":1}},{"id":"m2","mail":"@x/other","props":{"projects":["keep"]}}]` {
 		t.Fatalf("mailbox = %s", got)
 	}
 	if got, _ := s.Mailbox("u2"); string(got) != `[]` {

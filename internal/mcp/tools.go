@@ -423,7 +423,7 @@ var joinSchema = map[string]any{
 }
 
 const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. " +
-	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name; an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Your tools work the same meanwhile. Call it once per session. " +
+	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name; an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Your tools work the same meanwhile. Call it once per session (asking again with the same link answers with the participant you already are). " +
 	"With workroom, you say which workroom you would like to continue (the name you were given when you joined before) or the name you would like for a new one: it is refused with workroom-in-use while the workroom has a participant who is alive (do not ask again; tell the user in the chat). Otherwise the user chooses on the screen whether you take over a participant who joined before or start new. Use the same workroom name each time you continue the same work."
 
 // join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を以後の呼び出し全部に添える

@@ -67,7 +67,7 @@ func joinBody(link, sessionName string) string {
 	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1"}`
 }
 
-// 参加を頼むと参加者と郵便が 1 つずつできる。同じ link をまた送っても増えず、参加の id が付いていて参加（要求）中なら弾く
+// 参加を頼むと参加者と郵便が 1 つずつできる。同じ link をまた送っても増えず、参加の id が付いていて参加（要求）中でも、弾かずにいる参加者のまま答える
 func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
@@ -105,10 +105,10 @@ func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
 	if p, m := count(); p != 1 || m != 1 {
 		t.Fatalf("after the same link: participants = %d, mails = %d", p, m)
 	}
-	// 参加の id が付いていれば、弾かずに同じ参加者にプロジェクトを足す（足すものが無ければ変わらない。参加者も郵便も増えない）
-	grown, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), map[string]string{ParticipantHeader: first.Participant})
-	if grown != `{"ok":true,"participant":"`+first.Participant+`"}` {
-		t.Fatalf("with the participant's id = %s", grown)
+	// 参加の id が付いていれば、弾かずに同じ参加者のまま答える（参加者も郵便も増えない）
+	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), map[string]string{ParticipantHeader: first.Participant})
+	if again != `{"ok":true,"participant":"`+first.Participant+`"}` {
+		t.Fatalf("with the participant's id = %s", again)
 	}
 	if p, m := count(); p != 1 || m != 1 {
 		t.Fatalf("after the participant's id: participants = %d, mails = %d", p, m)

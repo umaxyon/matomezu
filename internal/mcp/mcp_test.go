@@ -213,8 +213,8 @@ func TestNoticeHeaderIsAddedToEveryTool(t *testing.T) {
 	}
 }
 
-// list_books と read_mail は、引数なしで常駐に頼む
-func TestListBooksAndReadMailTakeNoProject(t *testing.T) {
+// list_books と read_mail は、渡された取り方だけを常駐への問い合わせにする
+func TestListBooksAndReadMailQueries(t *testing.T) {
 	api := &fakeAPI{}
 	talk(t, api,
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_books","arguments":{}}}`,

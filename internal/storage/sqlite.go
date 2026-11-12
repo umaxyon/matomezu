@@ -75,9 +75,9 @@ var migrations = []string{
 	// ワークルームの名前は 20 字まで。それより長い名前（参加者のワークルーム、参加の頼みの郵便の希望）は 20 字に切り詰める
 	`UPDATE participants SET body = (SELECT json_group_array(json(CASE WHEN length(json_extract(value, '$.workroom')) > 20 THEN json_set(value, '$.workroom', trim(substr(json_extract(value, '$.workroom'), 1, 20))) ELSE value END)) FROM json_each(participants.body));
 	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN json_extract(value, '$.mail') = '@matomezu/base:join-request' AND length(json_extract(value, '$.props.workroom')) > 20 THEN json_set(value, '$.props.workroom', trim(substr(json_extract(value, '$.props.workroom'), 1, 20))) ELSE value END)) FROM json_each(mailbox.body));`,
-	// ブック・郵便・参加者はプロジェクトを持たない。ブックと郵便の project、参加者の projects、参加の要求の郵便の props の projects を外す
+	// ブック・郵便・参加者はプロジェクトを持たない。ブックと郵便の project、参加者の projects、参加の要求の郵便（join-request）の props の projects を外す
 	`UPDATE books SET body = json_remove(body, '$.project');
-	UPDATE mailbox SET body = (SELECT json_group_array(json(json_remove(json_remove(value, '$.project'), '$.props.projects'))) FROM json_each(mailbox.body));
+	UPDATE mailbox SET body = (SELECT json_group_array(json(CASE WHEN json_extract(value, '$.mail') = '@matomezu/base:join-request' THEN json_remove(json_remove(value, '$.project'), '$.props.projects') ELSE json_remove(value, '$.project') END)) FROM json_each(mailbox.body));
 	UPDATE participants SET body = (SELECT json_group_array(json(json_remove(value, '$.projects'))) FROM json_each(participants.body));`,
 }
 
