@@ -7,7 +7,7 @@ package main
 // モデルのフック（model）: AI の SessionStart と PostModelSwitch のフックが標準入力に渡す JSON（session_id と、model か to_model）から、
 // セッションのモデルを常駐に知らせる（参加者の様子に出す）。
 //
-// どちらも、フックが --host で渡す AI のホストのプログラム（Claude Code など）のプロセス id を添える。常駐は、セッション id が変わったとき（/clear など）、
+// どちらも、フックが --host で渡す AI のプログラム（Claude Code など）のプロセス id を添える。常駐は、セッション id が変わったとき（/clear など）、
 // 同じプロセス id の参加者に新しいセッション id を結び直す
 
 import (
@@ -25,7 +25,7 @@ type hookInput struct {
 	TranscriptPath string `json:"transcript_path"`
 	Model          string `json:"model"`    // SessionStart のモデル
 	ToModel        string `json:"to_model"` // PostModelSwitch の、切り替えた先のモデル
-	Host           string `json:"-"`        // AI のホストのプログラムのプロセス id（フックが --host で渡す）
+	Host           string `json:"-"`        // AI のプログラムのプロセス id（フックが --host で渡す）
 }
 
 // model は、フックが知らせるモデル（切り替えた先があればそれ。どちらも無ければ空）
@@ -155,8 +155,8 @@ func askTalked(hook hookInput, api hookAPI) talkReply {
 	return reply
 }
 
-// sentModel は、フックが知らせるモデルを常駐に送る。モデルもセッション id も無いか、常駐が立っていなければ何もしない（答えは読まない）
-func sentModel(hook hookInput, api hookAPI) {
+// sendModel は、フックが知らせるモデルを常駐に送る。モデルもセッション id も無いか、常駐が立っていなければ何もしない（答えは読まない）
+func sendModel(hook hookInput, api hookAPI) {
 	model := hook.model()
 	if api == nil || model == "" || hook.SessionID == "" {
 		return

@@ -142,7 +142,7 @@ esac
 	}
 }
 
-// モデルのフックは、SessionStart の model と PostModelSwitch の to_model を、セッション id とホストのプロセス id を添えて送る。どちらも無ければ送らない
+// モデルのフックは、SessionStart の model と PostModelSwitch の to_model を、セッション id とAI のプログラムのプロセス id を添えて送る。どちらも無ければ送らない
 func TestModelHookSendsTheModel(t *testing.T) {
 	var sent []string
 	api := func(body []byte) ([]byte, error) { sent = append(sent, string(body)); return []byte("{}"), nil }
@@ -153,7 +153,7 @@ func TestModelHookSendsTheModel(t *testing.T) {
 	} {
 		hook := readHookInput(strings.NewReader(in))
 		hook.Host = "100"
-		sentModel(hook, api)
+		sendModel(hook, api)
 	}
 	want := []string{
 		`{"host":"100","model":"claude-opus-5-5","sessionId":"S1"}`,

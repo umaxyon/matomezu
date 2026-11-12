@@ -57,7 +57,7 @@ func (f *fakeAPI) Post(path string, body any, header http.Header) (json.RawMessa
 	return json.RawMessage(f.answer), f.replied, nil
 }
 
-// talk は頼みを 1 行ずつ送り、答えを返す（ブランチは無く、ホストのプロセス id は 4242）
+// talk は頼みを 1 行ずつ送り、答えを返す（ブランチは無く、AI のプログラムのプロセス id は 4242）
 func talk(t *testing.T, api API, lines ...string) []map[string]any {
 	t.Helper()
 	return talkOn(t, api, func() string { return "" }, lines...)
@@ -183,7 +183,7 @@ func textOf(a map[string]any) string {
 	return a["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
 }
 
-// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）と、ホストのプロセス id も添える。参加の id が無ければ添えない
+// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）と、AI のプログラムのプロセス id も添える。参加の id が無ければ添えない
 func TestBranchAndHostGoWithTheParticipant(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 	branches := []string{"feat/d110", ""}

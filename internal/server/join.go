@@ -8,14 +8,14 @@ package server
 //   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加の id の付いた呼び出しへの返事のヘッダ、または話しかけのフック）
 //   - モデル（AI のフックが知らせる。model.go。置き場所に残し、変わったら窓に知らせる）
 //   - git のブランチ（MCP が呼び出しのたびに X-Matomezu-Branch ヘッダで添える。変わったら置き場所に書いて窓に知らせる）
-//   - AI のホストのプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
+//   - AI のプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
 //     セッション id が変わったとき（Claude Code の /clear など）に、同じプロセス id の参加者へ新しいセッション id を結び直すのに使う）
 //
 // 受け入れた参加者は、AI のフックが参加を伝えるまで準備中（セッション id を join で運ぶ AI は受け入れた時点で準備中でない）。
-// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・ホストのプロセス id・「参加しました」の知らせ・伝えた印を残さない。準備中の間は生きていない
+// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・AI のプログラムのプロセス id・「参加しました」の知らせ・伝えた印を残さない。準備中の間は生きていない
 //
 // 参加の id は MCP が X-Matomezu-Participant ヘッダで毎回添え、「参加しました」の知らせは X-Matomezu-Notice ヘッダで 1 度だけ返す（値は URL エンコード）。
-// 参加の id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）と、ホストのプロセス id（X-Matomezu-Host）も添える。
+// 参加の id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）と、AI のプログラムのプロセス id（X-Matomezu-Host）も添える。
 //
 //	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
 //
@@ -42,7 +42,7 @@ const (
 	NoticeHeader = "X-Matomezu-Notice"
 	// BranchHeader は、MCP が git のブランチを添えるヘッダ（値は URL エンコード。参加の id を添えるときはいつも添え、空はブランチが無い）
 	BranchHeader = "X-Matomezu-Branch"
-	// HostHeader は、MCP が AI のホストのプログラムのプロセス id を添えるヘッダ
+	// HostHeader は、MCP が AI のプログラムのプロセス id を添えるヘッダ
 	HostHeader = "X-Matomezu-Host"
 )
 
@@ -54,7 +54,7 @@ type participantNote struct {
 	Called    string `json:"called,omitempty"`    // 最後に呼ばれた時点（置き場所に残す。生きているかも、この時刻で決める。書くのは窓に知らせ直すときだけ）
 	Model     string `json:"model,omitempty"`     // AI のフックが知らせたモデル
 	Branch    string `json:"branch,omitempty"`    // MCP が添えた git のブランチ
-	Host      string `json:"host,omitempty"`      // AI のホストのプログラム（Claude Code など）のプロセス id（MCP とフックが添える）
+	Host      string `json:"host,omitempty"`      // AI のプログラム（Claude Code など）のプロセス id（MCP とフックが添える）
 }
 
 // live は、窓に知らせる参加者の様子（モデルとブランチ。空は省く）
@@ -306,7 +306,7 @@ func (h *Hub) noteSession(id, sessionID string) {
 	h.broadcast("participant-ready", map[string]any{"participant": id})
 }
 
-// bindSession は、参加者 id にセッション id sessionID を、結んだ所 by で結ぶ。host が空でなければホストのプロセス id も書く。
+// bindSession は、参加者 id にセッション id sessionID を、結んだ所 by で結ぶ。host が空でなければAI のプログラムのプロセス id も書く。
 // そのセッションについてフックが先に知らせたモデルを覚えていれば、参加者の記録に移す。覚えていなくても、同じセッションのほかの参加者がモデルを持っていれば、それを写す。
 // モデルが変わったら窓に知らせる。置き場所には書かない（h.mu を持って呼ぶ）
 func (h *Hub) bindSession(id, sessionID, by, host string) {
@@ -338,8 +338,8 @@ func (h *Hub) bindSession(id, sessionID, by, host string) {
 	}
 }
 
-// rebindByHost は、ホストのプロセス id が host で、セッション id が sessionID でない、参加（要求）中の参加者に、セッション id sessionID を結び直す
-// （AI のホストのプログラムが同じまま、会話のセッションだけが変わったとき。Claude Code の /clear など）。結んだ所と伝えた印は変えない。
+// rebindByHost は、AI のプログラムのプロセス id が host で、セッション id が sessionID でない、参加（要求）中の参加者に、セッション id sessionID を結び直す
+// （AI のプログラムが同じまま、会話のセッションだけが変わったとき。Claude Code の /clear など）。結んだ所と伝えた印は変えない。
 // host か sessionID が空なら何もしない。結び直したか（置き場所には書かない。h.mu を持って呼ぶ）
 func (h *Hub) rebindByHost(records []participantRecord, sessionID, host string) bool {
 	if sessionID == "" || host == "" {
@@ -410,7 +410,7 @@ func (h *Hub) ParticipantLive() map[string]participantLive {
 type CallerSays struct {
 	Branch     string // git のブランチ（空はブランチが無い）
 	BranchSent bool   // ブランチのヘッダが付いていた（付いていなければブランチを変えない）
-	Host       string // AI のホストのプログラムのプロセス id（空なら変えない）
+	Host       string // AI のプログラムのプロセス id（空なら変えない）
 }
 
 // callerSays は、呼び出しのヘッダから MCP が添えたものを読む
@@ -444,7 +444,7 @@ func (h *Hub) ParticipantCalls() map[string]string {
 // 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。参加が済んでいない（要求中か準備中）id は何も残さず、知らせも返さない。
 // 表に無い id（断られたか、外された）には、1 度だけ「参加が断られた」知らせを返す。
 // id が空なら何もしない。最後に呼ばれた時刻は、前に知らせてから callsAnnounceGap 以上たっていたときだけ窓に知らせる。
-// says のブランチとホストのプロセス id も、参加が済んだ参加者にだけ残す。ブランチが変わったら、すぐに置き場所に書いて窓に知らせる
+// says のブランチとAI のプログラムのプロセス id も、参加が済んだ参加者にだけ残す。ブランチが変わったら、すぐに置き場所に書いて窓に知らせる
 func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 	if id == "" {
 		return ""
@@ -512,7 +512,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 	return "The user declined your request to join matomezu (or removed you). Tell the user, and do not ask again unless the user asks."
 }
 
-// ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、参加の id・ブランチ・ホストのプロセス id のヘッダを読んで常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける
+// ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、参加の id・ブランチ・AI のプログラムのプロセス id のヘッダを読んで常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける
 func (o Options) ai(h http.HandlerFunc) http.Handler {
 	return o.auth(func(w http.ResponseWriter, r *http.Request) {
 		if notice := o.Hub.Called(r.Header.Get(ParticipantHeader), callerSays(r.Header), time.Now()); notice != "" {

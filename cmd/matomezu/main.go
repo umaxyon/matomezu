@@ -359,7 +359,7 @@ func (c *talkedCmd) Run() error {
 func (c *modelCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = c.Host
-	sentModel(hook, runningAPI("api/ai/model"))
+	sendModel(hook, runningAPI("api/ai/model"))
 	return nil
 }
 

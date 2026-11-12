@@ -163,7 +163,7 @@ func TestHeardModelsAreDroppedWhenOldOrTooMany(t *testing.T) {
 	}
 }
 
-// セッション id が変わっても（/clear）、ホストのプロセス id が同じ参加者に、モデルのフックと話しかけのフックが新しいセッション id を結び直す。
+// セッション id が変わっても（/clear）、AI のプログラムのプロセス id が同じ参加者に、モデルのフックと話しかけのフックが新しいセッション id を結び直す。
 // 結んだ所と伝えた印は変えず、プロセス id が空なら結び直さない
 func TestHostRebindsANewSession(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
@@ -174,7 +174,7 @@ func TestHostRebindsANewSession(t *testing.T) {
 	if before.SessionID != "S1" || before.Host != "100" || !before.Told || before.BoundBy != boundByJoin {
 		t.Fatalf("before = %+v", before)
 	}
-	// 準備中（受け入れたが、フックがまだ参加を伝えていない）の参加者は、ホストのプロセス id もブランチも残さない
+	// 準備中（受け入れたが、フックがまだ参加を伝えていない）の参加者は、AI のプログラムのプロセス id もブランチも残さない
 	preparing := joinedID(t, s.URL, `{"ai":"claude","model":"opus","env":"linux","link":"L2"}`)
 	acceptRoom(t, s.URL, preparing, "すずめ")
 	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: preparing, BranchHeader: "main", HostHeader: "100"})
