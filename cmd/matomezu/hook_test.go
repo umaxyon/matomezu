@@ -140,3 +140,25 @@ esac
 		}
 	}
 }
+
+// モデルのフックは、SessionStart の model と PostModelSwitch の to_model を、セッション id とホストのプロセス id を添えて送る。どちらも無ければ送らない
+func TestModelHookSendsTheModel(t *testing.T) {
+	var sent []string
+	api := func(body []byte) ([]byte, error) { sent = append(sent, string(body)); return []byte("{}"), nil }
+	for _, in := range []string{
+		`{"session_id":"S1","hook_event_name":"SessionStart","model":"claude-opus-5-5"}`,
+		`{"session_id":"S1","hook_event_name":"PostModelSwitch","from_model":"claude-opus-5-5","to_model":"claude-sonnet-5"}`,
+		`{"session_id":"S2","hook_event_name":"SessionStart","source":"clear"}`,
+	} {
+		hook := readHookInput(strings.NewReader(in))
+		hook.Host = "100"
+		sentModel(hook, api)
+	}
+	want := []string{
+		`{"host":"100","model":"claude-opus-5-5","sessionId":"S1"}`,
+		`{"host":"100","model":"claude-sonnet-5","sessionId":"S1"}`,
+	}
+	if strings.Join(sent, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("sent = %v", sent)
+	}
+}

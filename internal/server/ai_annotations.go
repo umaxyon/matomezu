@@ -264,11 +264,12 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"awaiting": out, "undone": undone, "failed": failed})
 }
 
-// aiTalked は、利用者が AI に話しかけたことを受ける（AI のフックが知らせる。{"sessionId", "candidates"}）。
+// aiTalked は、利用者が AI に話しかけたことを受ける（AI のフックが知らせる。{"sessionId", "host", "candidates"}）。
 // candidates が無ければ話しかけたときに行うアクションを行い、有れば会話のセッションの結びつけだけを行う（talk_session.go）
 func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string   `json:"sessionId"`
+		Host       string   `json:"host"`
 		Candidates []string `json:"candidates"`
 	}
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
@@ -280,7 +281,7 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	done, err := o.Hub.TalkedBy(req.SessionID, req.Candidates)
+	done, err := o.Hub.TalkedBy(req.SessionID, req.Host, req.Candidates)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -4,7 +4,10 @@ package server
 // 話しかけのフックが、記録から拾った uuid の形の文字列を常駐に送ると、link が合う参加者にセッション id を結ぶ（Codex など、MCP の呼び出しがセッション id を運ぶ AI は、join のときに結ばれている）。
 // 結ばれたセッションに受け入れ済みで「参加しました」をまだ伝えていない参加者がいれば、フックが利用者に見える形で伝える（伝えたと常駐だけが持つ参加者の記録に印を付けるので、MCP の返事に添える知らせとは二重にならない）。
 //
-//	POST /api/ai/talked  {"sessionId", "candidates"}
+// host（AI のホストのプログラムのプロセス id）が添えてあれば、先に、同じプロセス id の参加者にそのセッション id を結び直す（Claude Code の /clear のあと、
+// 会話のセッション id は変わるが、MCP とフックの親の Claude Code のプロセスは変わらない。新しい会話の記録には link が無いので、記録からは結べない）。
+//
+//	POST /api/ai/talked  {"sessionId", "host", "candidates"}
 //	  candidates が無い: 利用者が話しかけた。話しかけたときに行うアクションを行い、{"welcomes", "unbound"} を返す
 //	  candidates が有る: 記録から拾った uuid の形の文字列。行うアクションは行わず、link が合う参加者にセッション id を結んで、同じ形を返す
 //	welcomes は、そのセッションの、受け入れ済みで伝えていない参加者（伝えたと印を付けて返す）。unbound は、そのセッションが誰にも結ばれておらず、結ばれていない参加者がいる（記録を調べる値打ちがある）
@@ -46,9 +49,9 @@ func (h *Hub) userJoinedText(workroom string) string {
 	return text
 }
 
-// TalkedBy は、セッション sessionID の話しかけについての答え。candidates があれば、先に link が合う参加者にセッション id を結ぶ。
+// TalkedBy は、セッション sessionID の話しかけについての答え。先にホストのプロセス id host の参加者に結び直し、candidates があれば、link が合う参加者にセッション id を結ぶ。
 // sessionID が空なら、結びつけも知らせもしない
-func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, error) {
+func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk, error) {
 	if sessionID == "" {
 		return SessionTalk{Welcomes: []Welcome{}}, nil
 	}
@@ -69,16 +72,15 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 		heard[strings.ToLower(c)] = true
 	}
 	h.mu.Lock()
-	changed := false
+	changed := h.rebindByHost(records, sessionID, host)
 	bound := false
 	var told []Welcome
 	var toldIDs []string
 	for _, s := range records {
 		n := h.participantNotes[s.ID]
 		if sitting(s) && n.SessionID == "" && heard[strings.ToLower(s.Link)] {
-			n.SessionID = sessionID
-			n.BoundBy = boundByHook
-			h.participantNotes[s.ID] = n
+			h.bindSession(s.ID, sessionID, boundByHook, host)
+			n = h.participantNotes[s.ID]
 			changed = true
 		}
 		if n.SessionID == sessionID {
