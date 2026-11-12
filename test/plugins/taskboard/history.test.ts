@@ -15,7 +15,7 @@ type Done = {
   ok: boolean
   reason?: string
   result?: Record<string, unknown>
-  record?: { record: Record<string, unknown> }
+  records?: readonly { record: Record<string, unknown> }[]
 }
 type On = { record: string }
 
@@ -32,7 +32,6 @@ function ready() {
       books: {},
       settings: s.settings,
       annotations: {},
-      mailbox: [],
       records: s.records,
       counters: s.counters,
     }
@@ -71,7 +70,7 @@ test("AI の行の by は、入っているワークルームの名前・鳥の�
   const { as, room, ticket } = ready()
   const id = room("ひよこ")
   const done = as(ai(id), LOG, { ticket, topic: A("topic-plan"), text: "計画" })
-  expect(done.record?.record).toMatchObject({
+  expect(done.records?.[0]?.record).toMatchObject({
     by: { kind: "ai", workroom: { id, name: "ひよこ", bird: "inko" } },
     at: "2026-11-12T00:00:00.000Z",
   })
@@ -111,7 +110,7 @@ test("今のチケットは、AI が自分のワークルームの分だけ宣�
   expect(as(ai(id), "current-ticket-set", { ticket: "nothing" }).ok).toBe(false)
   expect(as(ai(id), "current-ticket-set", { ticket }, { record: other }).ok).toBe(false)
   expect(as(ai(id), "current-ticket-set", { ticket })).toMatchObject({ ok: true, result: { current: id } })
-  expect(as(ai(id), "current-ticket-set", { ticket }).record?.record).toEqual({
+  expect(as(ai(id), "current-ticket-set", { ticket }).records?.[0]?.record).toEqual({
     id,
     ticket,
     at: "2026-11-12T00:00:00.000Z",

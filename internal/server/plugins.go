@@ -89,9 +89,6 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	if err := h.checkAnnotations(); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
 	}
-	if err := h.checkMailbox(); err != nil {
-		fmt.Fprintln(os.Stderr, "engine: could not check the mailbox:", err)
-	}
 	if err := h.loadRoles(); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not read the roles of the subjects:", err)
 	}

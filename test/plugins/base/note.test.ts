@@ -143,7 +143,6 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
     books: s.books,
     settings: s.settings,
     annotations: s.annotations,
-    mailbox: [],
     participants: [],
     records: {},
     counters: {},

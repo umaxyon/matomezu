@@ -21,7 +21,7 @@ import (
 //go:embed engine.js
 var source string
 
-// Input はアクション 1 つの頼み。Books は対象のアクションが要るブック（一覧のアクションなら全部）、
+// Input はアクション 1 つの頼み。Books は対象のアクションが要るブック（一覧のアクションなら全部。レコードが対象のアクションなら、読むだけのブック）、
 // IDs は振る id のもと（画面で先に行ったときの値。尽きたら新しく作る）
 type Input struct {
 	Action   string            `json:"action"`
@@ -34,7 +34,6 @@ type Input struct {
 	Settings json.RawMessage   `json:"settings"`
 	// Annotations は要るブックのアノテーション（ブックの id → 並び。宛先のブックのか、一覧のアクションなら全部）
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
-	Mailbox     json.RawMessage            `json:"mailbox,omitempty"` // 利用者の郵便箱
 	// Records は対象の定義が足した種類のレコード（種類の id → id → レコード。宛先のレコードと、アクションが読むだけの種類の全部）。Counters は対象の種類の、区切り → 次の番号
 	Records  map[string]map[string]json.RawMessage `json:"records,omitempty"`
 	Counters map[string]map[string]int64           `json:"counters,omitempty"`
@@ -60,37 +59,37 @@ type On struct {
 	Record string `json:"record,omitempty"`
 }
 
-// RecordChange は、アクションが変えたレコード 1 件。Record は新しいレコードか、消したなら "removed"（JSON の文字）。Counters は番号を進めた区切りごとの、次の番号
+// RecordChange は、アクションが変えたレコード 1 件。Record は新しいレコードか、消したなら "removed"（JSON の文字）
 type RecordChange struct {
-	Subject  string           `json:"subject"`
-	ID       string           `json:"id"`
-	Record   json.RawMessage  `json:"record"`
-	Counters map[string]int64 `json:"counters,omitempty"`
+	Subject string          `json:"subject"`
+	ID      string          `json:"id"`
+	Record  json.RawMessage `json:"record"`
 }
 
-// RecordNeeds は、アクションが対象にする種類（レコードが対象でなければ空）と、読むだけの種類
+// RecordNeeds は、アクションが対象にする種類（レコードが対象でなければ空）と、読むだけの種類と、読むだけのブックの id（アクションが引数から答える）
 type RecordNeeds struct {
 	Subject string   `json:"subject"`
 	Reads   []string `json:"reads"`
+	Books   []string `json:"books"`
 }
 
 // Output は行った結果。断ったときは OK が false で Reason に理由、Detail に AI への説明（認可ステップが止めた denied なら、Permission にそのステップの id）。
 // Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）、
 // Annotations はアノテーションが変わったブックの id → 新しい並び（空の並びなら全部無くなった）
 type Output struct {
-	OK           bool                       `json:"ok"`
-	Reason       string                     `json:"reason,omitempty"`
-	Permission   string                     `json:"permission,omitempty"`
-	Detail       string                     `json:"detail,omitempty"`
-	Result       json.RawMessage            `json:"result,omitempty"`
-	Books        []json.RawMessage          `json:"books,omitempty"`
-	Removed      []string                   `json:"removed,omitempty"`
-	Settings     json.RawMessage            `json:"settings,omitempty"`
-	Annotations  map[string]json.RawMessage `json:"annotations,omitempty"`
-	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 変わった郵便箱
-	Record       *RecordChange              `json:"record,omitempty"`       // 変わったレコード 1 件
-	Notice       string                     `json:"notice,omitempty"`       // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
-	AIEditTicket *AIEditTicketChange        `json:"aiEditTicket,omitempty"` // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
+	OK           bool                        `json:"ok"`
+	Reason       string                      `json:"reason,omitempty"`
+	Permission   string                      `json:"permission,omitempty"`
+	Detail       string                      `json:"detail,omitempty"`
+	Result       json.RawMessage             `json:"result,omitempty"`
+	Books        []json.RawMessage           `json:"books,omitempty"`
+	Removed      []string                    `json:"removed,omitempty"`
+	Settings     json.RawMessage             `json:"settings,omitempty"`
+	Annotations  map[string]json.RawMessage  `json:"annotations,omitempty"`
+	Records      []RecordChange              `json:"records,omitempty"`      // 変わったレコードの全部（宛先が先）。1 つのトランザクションで書く
+	Counters     map[string]map[string]int64 `json:"counters,omitempty"`     // 番号を進めた種類の id → 区切り → 次の番号（進めた区切りだけ）
+	Notice       string                      `json:"notice,omitempty"`       // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
+	AIEditTicket *AIEditTicketChange         `json:"aiEditTicket,omitempty"` // レコードが対象のアクションが返した、AI 編集チケットの変え方
 }
 
 // AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Key で 1 つを見分け（郵便の id など）、ブック Book の AI 編集チケットを
@@ -116,14 +115,13 @@ type Engine struct {
 	talk      func() string
 	join      func() string
 	alive     func(string, string, float64) bool
-	needs     func(string) string
+	needs     func(string, string) string
 	roles     func() string
 	aiRecords func(string, string, string) string
 	once      func() string
 	records   func(string) string
 	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
-	mails     func(string) string
 	forAI     func(string) string
 	briefs    func(string) string
 	aiMail    func(string) string
@@ -214,9 +212,6 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuUnexpired"), &e.live); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuUnexpired: %w", err)
-	}
-	if err := vm.ExportTo(vm.Get("matomezuCheckMailbox"), &e.mails); err != nil {
-		return nil, fmt.Errorf("engine.js has no matomezuCheckMailbox: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -405,19 +400,6 @@ func (e *Engine) AnnotationsWithout(plugin string, list json.RawMessage) (out js
 	return got.Annotations, got.Changed, nil
 }
 
-// CheckMailbox は郵便箱 list を今の機能台帳で確かめ、効かない郵便（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）
-func (e *Engine) CheckMailbox(list json.RawMessage) (out []string, err error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("engine: %v", r)
-		}
-	}()
-	err = json.Unmarshal([]byte(e.mails(string(list))), &out)
-	return out, err
-}
-
 // CheckRecords はレコード（種類の id → id → レコード）を今の機能台帳で確かめ、効かないレコード（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）
 func (e *Engine) CheckRecords(records map[string]map[string]json.RawMessage) (out []string, err error) {
 	body, err := json.Marshal(records)
@@ -510,7 +492,7 @@ func (e *Engine) RunOnceActions() (ids []string, err error) {
 	return ids, err
 }
 
-// SubjectRoles は、常駐が読む種類の役（participants・workrooms）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）
+// SubjectRoles は、常駐が読む種類の役（participants・workrooms・mails）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）
 func (e *Engine) SubjectRoles() (roles map[string]string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -554,8 +536,9 @@ func (e *Engine) AIRecords(kind string, records []json.RawMessage, where map[str
 	return rows, err == nil, err
 }
 
-// RecordNeeds は、アクション action が対象にする種類（レコードが対象でなければ Subject が空）と、読むだけの種類を返す
-func (e *Engine) RecordNeeds(action string) (needs RecordNeeds, err error) {
+// RecordNeeds は、アクション action が対象にする種類（レコードが対象でなければ Subject が空）と、読むだけの種類と、
+// 引数 args（perform の args の JSON。無ければ空）から答えた読むだけのブックの id を返す
+func (e *Engine) RecordNeeds(action string, args json.RawMessage) (needs RecordNeeds, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	defer func() {
@@ -563,7 +546,7 @@ func (e *Engine) RecordNeeds(action string) (needs RecordNeeds, err error) {
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	err = json.Unmarshal([]byte(e.needs(action)), &needs)
+	err = json.Unmarshal([]byte(e.needs(action, string(args))), &needs)
 	return needs, err
 }
 
@@ -646,13 +629,16 @@ type MailQuery struct {
 	Unvisited *string  `json:"unvisited,omitempty"`
 }
 
-// AIMail は、郵便箱（mailbox）を、取り方 query で、AI に見せる形（一覧か、指した郵便の全文）にして返す。
+// AIMail は、郵便（役 mails の種類のレコードの並び。順は問わない。並べるのは core）を、取り方 query で、AI に見せる形（一覧か、指した郵便の全文）にして返す。
 // 取り方が合わなければ、answer は空で、断る理由 reason（AI に返す英語の文）を返す
-func (e *Engine) AIMail(mailbox json.RawMessage, query MailQuery) (answer json.RawMessage, reason string, err error) {
+func (e *Engine) AIMail(records []json.RawMessage, query MailQuery) (answer json.RawMessage, reason string, err error) {
+	if records == nil {
+		records = []json.RawMessage{}
+	}
 	b, err := json.Marshal(struct {
-		Mailbox json.RawMessage `json:"mailbox"`
-		Query   MailQuery       `json:"query"`
-	}{mailbox, query})
+		Records []json.RawMessage `json:"records"`
+		Query   MailQuery         `json:"query"`
+	}{records, query})
 	if err != nil {
 		return nil, "", err
 	}

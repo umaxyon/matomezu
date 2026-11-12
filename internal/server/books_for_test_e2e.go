@@ -101,7 +101,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64
 	return version, nil, nil
 }
 
-// resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定・郵便箱も消す。つないでいる窓と追加プラグインはそのまま。窓には知らせないので、テストは開き直す）
+// resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定・レコード（郵便も）も消す。つないでいる窓と追加プラグインはそのまま。窓には知らせないので、テストは開き直す）
 func (h *Hub) resetForTest(books []json.RawMessage) error {
 	ids := make([]string, len(books))
 	for i, body := range books {
@@ -123,9 +123,6 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	if err := h.store.PutSettings(user, json.RawMessage("null")); err != nil {
 		return err
 	}
-	if err := h.store.PutMailbox(user, json.RawMessage("[]")); err != nil {
-		return err
-	}
 	if err := h.resetRecordsForTest(); err != nil {
 		return err
 	}
@@ -135,7 +132,6 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	h.books = map[string]entry{}
 	h.order = nil
 	h.settings = nil
-	h.mailbox = nil
 	h.participantNotes = map[string]participantNote{}
 	h.annotations = map[string]json.RawMessage{}
 	h.touched = map[string]string{}
@@ -182,13 +178,15 @@ func (h *Hub) joinedAIForTest() (string, error) {
 	if _, err := h.store.Apply(storage.Batch{Records: writes}); err != nil {
 		return "", err
 	}
+	changes := make([]map[string]any, 0, len(writes))
 	for _, w := range writes {
 		if h.recordTables[w.Subject] == nil {
 			h.recordTables[w.Subject] = map[string]recordEntry{}
 		}
 		h.recordTables[w.Subject][w.ID] = recordEntry{w.Body, 1}
-		h.broadcast("record", map[string]any{"subject": w.Subject, "id": w.ID, "record": json.RawMessage(w.Body), "version": 1})
+		changes = append(changes, map[string]any{"subject": w.Subject, "id": w.ID, "record": json.RawMessage(w.Body), "version": 1})
 	}
+	h.broadcast("record", map[string]any{"records": changes})
 	h.participantNotes[id] = participantNote{SessionID: id, BoundBy: boundByJoin}
 	if err := h.putParticipantNotes(); err != nil {
 		return "", err
@@ -214,5 +212,6 @@ func (h *Hub) resetRecordsForTest() error {
 	}
 	h.recordTables = map[string]map[string]recordEntry{}
 	h.counters = map[string]map[string]int64{}
+	h.recordLines = map[recordKey][]string{}
 	return nil
 }

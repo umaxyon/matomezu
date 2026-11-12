@@ -22,12 +22,12 @@ import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core
 import { slideIsBackground } from "../core/def/book-type"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
-import { checkMailbox, type Mailbox, type MailQuery, mailForAi, restoreMailbox } from "../core/mail"
+import { type MailQuery, mailForAi } from "../core/mail"
 import { splitId } from "../core/names"
 import { joinActions } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
-import { checkRecords, type RecordChange, restoreCounters, restoreRecords } from "../core/records"
+import { type Counters, checkRecords, type RecordChange, restoreCounters, restoreRecords } from "../core/records"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
@@ -49,7 +49,7 @@ function use(added: readonly Plugin[]): string {
   return JSON.stringify({ warnings: warningsOf(next.catalog).map(warningText), ai })
 }
 
-// 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
+// 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部、レコードが対象のアクションなら readsBooks が答えたブック。matomezuRecordNeeds の books）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
 interface Input {
   action: string
   args: unknown
@@ -60,7 +60,6 @@ interface Input {
   books?: unknown[]
   settings: unknown
   annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
-  mailbox?: unknown // 利用者の郵便箱（郵便箱が対象のアクションのとき）
   counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
   records?: unknown // 対象の定義が足した種類のレコード（種類の id → id → レコード。レコードが対象のアクションのとき、宛先と読むだけの種類）
   actor?: WireActor // 頼んだ者（無ければ利用者。AI は入っているワークルームの id を持つ）
@@ -68,8 +67,9 @@ interface Input {
   watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
 
-// 返すもの。aiEditTicket は郵便箱が対象のアクションが返した AI 編集チケットの変え方、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、mailbox は変わった郵便箱、record は変わったレコード 1 件。
-// AI のアクションと lockedForUser のアクションが、受けた watched の物（ブックの中の物とアノテーションの id）を変えるか消すなら、何も変えずに being-edited で断る。
+// 返すもの。aiEditTicket はレコードが対象のアクションが返した AI 編集チケットの変え方、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、
+// records は変わったレコードの並び（1 つのトランザクションで書く）、counters は進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）。
+// AI のアクションと lockedForUser のアクションが、受けた watched の物（ブックの中の物とアノテーションの id）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
   | {
@@ -79,8 +79,8 @@ type Output =
       removed: string[]
       settings?: unknown
       annotations?: Annotations
-      mailbox?: Mailbox
-      record?: RecordChange // 変わったレコード 1 件（消したなら record は removed）
+      records?: readonly RecordChange[] // 変わったレコード（消したなら record は removed）
+      counters?: Counters
       notice?: string
       aiEditTicket?: AIEditTicketChange
     }
@@ -93,7 +93,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   unknown: "there is no action with that id (see actions)",
   "bad-args": "the args do not match the action's args (see actions)",
   "not-allowed":
-    "this book's type (or, for the library, the settings, the mailbox and the records, the control center) does not allow it",
+    "this book's type (or, for the library, the settings and the records, the control center) does not allow it",
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
@@ -135,24 +135,17 @@ function perform(input: Input): Output {
   const annotations = Object.fromEntries(
     Object.entries(input.annotations ?? {}).map(([book, list]) => [book, restoreAnnotations(list)]),
   )
-  const mailbox = restoreMailbox(input.mailbox)
   const records = restoreRecords(input.records)
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
-  const done = performIn(
-    { books, settings, annotations, mailbox, records, counters },
-    input.action,
-    input.args,
-    input.on,
-    {
-      catalog,
-      controlCenter,
-      lang,
-      newId: () => ids.shift() ?? crypto.randomUUID(),
-      now: input.now ?? new Date().toISOString(),
-      actor,
-    },
-  )
+  const done = performIn({ books, settings, annotations, records, counters }, input.action, input.args, input.on, {
+    catalog,
+    controlCenter,
+    lang,
+    newId: () => ids.shift() ?? crypto.randomUUID(),
+    now: input.now ?? new Date().toISOString(),
+    actor,
+  })
   if (!done.ok) return refusal(catalog, done)
   const next = done.books
   const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
@@ -164,12 +157,8 @@ function perform(input: Input): Output {
     return changedIn({ book: books[id], annotations: annotations[id] }, { book, annotations: list }, watched)
   })
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）
-  // レコードが対象のアクションは、直しているレコードを変えるか消すなら、同じように断る（作るレコードは宛先に無いので断らない）
-  const editedRecord =
-    done.record !== undefined &&
-    input.on !== undefined &&
-    "record" in input.on &&
-    (input.watchedRecords?.[done.record.subject] ?? []).includes(done.record.id)
+  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
+  const editedRecord = (done.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
   if ((touched.length > 0 || editedRecord) && stopsOnEditLock(catalog.actions.get(input.action), actor))
     return { ok: false, reason: "being-edited" }
   return {
@@ -179,8 +168,8 @@ function perform(input: Input): Output {
     removed,
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
-    ...(done.mailbox ? { mailbox: done.mailbox } : {}),
-    ...(done.record ? { record: done.record } : {}),
+    ...(done.records ? { records: done.records } : {}),
+    ...(done.counters ? { counters: done.counters } : {}),
     ...(notice ? { notice } : {}),
     ...(done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}),
   }
@@ -339,10 +328,6 @@ function aiTables(of: Assembled) {
   return JSON.stringify(lines)
 }
 
-// 残した郵便箱を今の機能台帳で確かめ、効かない郵便（種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
-;(globalThis as { matomezuCheckMailbox?: (list: string) => string }).matomezuCheckMailbox = list =>
-  JSON.stringify(checkMailbox(assembled.catalog.core, restoreMailbox(JSON.parse(list))).map(warningText))
-
 // 常駐が初めて起動したときに 1 度だけ行うアクション（ActionDef の runsOnceAtStart）の id の並び
 ;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
@@ -373,13 +358,13 @@ function aiTables(of: Assembled) {
   return JSON.stringify(rows.map(({ id, brief }) => ({ id, brief })))
 }
 
-// 常駐が読む種類の役（参加者・ワークルーム）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
+// 常駐と core が種類で引く役（参加者・ワークルーム・郵便）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
 ;(globalThis as { matomezuSubjectRoles?: () => string }).matomezuSubjectRoles = () =>
   JSON.stringify(
     Object.fromEntries([...assembled.catalog.core.subjects.values()].flatMap(s => (s.role ? [[s.role, s.id]] : []))),
   )
 
-// 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が無い W024・形が合わない W025）の warning の 1 行ずつを返す（常駐がログに書く）
+// 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が無い W024・形が合わない W025。役 mails の種類の郵便は、郵便の種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
 ;(globalThis as { matomezuCheckRecords?: (records: string) => string }).matomezuCheckRecords = records =>
   JSON.stringify(checkRecords(assembled.catalog.core, restoreRecords(JSON.parse(records))).map(warningText))
 
@@ -405,10 +390,11 @@ function aiTables(of: Assembled) {
   return JSON.stringify(out)
 }
 
-// 郵便箱を、AI の取り方（read_mail の引数）で AI に見せる形にする（mailForAi）。{ok, answer} か、断る理由の {ok: false, reason}
+// 郵便（役 mails の種類のレコードの並び。順は問わない）を、AI の取り方（read_mail の引数）で AI に見せる形にする（mailForAi。届いた順は core が決める）。
+// {ok, answer} か、断る理由の {ok: false, reason}
 ;(globalThis as { matomezuAiMail?: (input: string) => string }).matomezuAiMail = input => {
-  const { mailbox, query } = JSON.parse(input) as { mailbox: unknown; query: MailQuery }
-  return JSON.stringify(mailForAi(assembled.catalog.core, restoreMailbox(mailbox), query))
+  const { records, query } = JSON.parse(input) as { records: unknown; query: MailQuery }
+  return JSON.stringify(mailForAi(assembled.catalog.core, Array.isArray(records) ? records : [], query))
 }
 
 // ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_page に添える）。読めないブックか、見せ方が答えなければ null
@@ -484,13 +470,30 @@ function aiTables(of: Assembled) {
     { name: workroom },
   )
 
-// アクションがレコードを対象にするとき、常駐が渡すレコード: 対象の種類（レコードが対象でなければ null）と、読むだけの種類。常駐が、行う前にどのレコードを渡すかを決めるのに引く
-;(globalThis as { matomezuRecordNeeds?: (action: string) => string }).matomezuRecordNeeds = action => {
+// アクションがレコードを対象にするとき、常駐が渡す物: 対象の種類（レコードが対象でなければ null）と、読むだけの種類と、読むだけのブックの id（アクションの readsBooks が引数 args〈JSON〉から答えた物。
+// 引数が形に合わなければ空）。常駐が、行う前にどのレコードとブックを渡すかを決めるのに引く
+;(globalThis as { matomezuRecordNeeds?: (action: string, args: string) => string }).matomezuRecordNeeds = (
+  action,
+  args,
+) => {
   const def = assembled.catalog.core.actions.get(action)
   const subject = def && assembled.catalog.core.subjects.has(def.target) ? def.target : null
-  return JSON.stringify({ subject, reads: subject === null ? [] : [...(def?.reads ?? [])] })
+  const books = (() => {
+    if (subject === null || !def?.readsBooks) return []
+    const parsed = def.args.safeParse(parseOr(args))
+    return parsed.success ? [...(def.readsBooks as (args: unknown) => readonly string[])(parsed.data)] : []
+  })()
+  return JSON.stringify({ subject, reads: subject === null ? [] : [...(def?.reads ?? [])], books })
 }
 
+// JSON の文字 text を読んだ値（読めなければ undefined）
+function parseOr(text: string): unknown {
+  try {
+    return text ? JSON.parse(text) : undefined
+  } catch {
+    return undefined
+  }
+}
 // アノテーションの並びから、期限（種類の expiresAt）が時点 now より前の物を除く（kept の id の物は除かない。利用者が直している物）。常駐が時間で消す
 ;(
   globalThis as { matomezuUnexpired?: (list: string, settings: string, now: string, kept: string) => string }

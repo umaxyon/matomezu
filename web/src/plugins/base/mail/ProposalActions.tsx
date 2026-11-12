@@ -56,12 +56,12 @@ function Proposal({ stage, mail, onClose, dock, props }: MailActionsProps & { pr
       reveal(stage, to.ids)
       bringBird(stage, { mail: mail.id, seq: ++visits, book: to.book, page: to.page ?? null, ids: to.ids })
     }
-    if (!mail.visitedAt) actions.perform(MAIL_VISITED.id, { mail: mail.id })
+    if (!mail.visitedAt) actions.perform(MAIL_VISITED.id, {}, { record: mail.id })
   }
   const apply = async () => {
     const done = await actions.performConfirmed(PROPOSAL_APPLY.id, applyArgs, { book: props.book })
     if (done.ok) {
-      actions.perform(PROPOSAL_SETTLE.id, { mail: mail.id, outcome: "applied" })
+      actions.perform(PROPOSAL_SETTLE.id, { outcome: "applied" }, { record: mail.id })
       onClose()
       return
     }
@@ -75,7 +75,7 @@ function Proposal({ stage, mail, onClose, dock, props }: MailActionsProps & { pr
     }
     const book = read().books[props.book]
     const changed = book ? proposalChanged(book, props.snapshot) : Object.keys(props.snapshot)
-    actions.perform(PROPOSAL_SETTLE.id, { mail: mail.id, outcome: "failed", changed })
+    actions.perform(PROPOSAL_SETTLE.id, { outcome: "failed", changed }, { record: mail.id })
     actions.showToast({
       kind: "warn",
       message: kit.message("Could not apply"),

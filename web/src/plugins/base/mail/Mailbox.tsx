@@ -36,13 +36,13 @@ function Row({ mail: m, now }: { mail: Mail; now: Date }) {
   const catalog = useCoreCatalog()
   const open = useOpenMail()
   const { perform, showToast } = useActions()
-  // 郵便箱が対象のアクションなので、ステージのブックに付けずに行う。断られたらトーストに出す
+  // 郵便のレコードが対象のアクションなので、ステージのブックに付けずに行う。断られたらトーストに出す
   const remove = () => {
-    const done = perform(MAIL_REMOVE.id, { mail: m.id })
+    const done = perform(MAIL_REMOVE.id, {}, { record: m.id })
     if (!done.ok) showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Could not withdraw")) })
   }
   // 消せなければ（認可ステップが止めたなど）、取消を押せなくする
-  const removable = useAllowedOn(MAIL_REMOVE.id, { mail: m.id }).ok
+  const removable = useAllowedOn(MAIL_REMOVE.id, {}, { record: m.id }).ok
   const shown = shownOf(catalog, m, t)
   const title = clampChars(shown?.title ?? t("Mail"), TITLE_CHARS)
   return (

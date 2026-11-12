@@ -7,13 +7,12 @@
 import { z } from "zod"
 import { USER } from "../../../core/actor"
 import type { ActionContext } from "../../../core/def/action"
-import { freshId } from "../../../core/ids"
-import type { Mail, Mailbox } from "../../../core/mail"
+import type { Mail } from "../../../core/mail"
 import { actionsOf, perform } from "../../../core/perform"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { withinLimit } from "."
+import { MAIL, mailAdded } from "."
 import { ownChanged, ownValues } from "./own-values"
 
 const ChangeSchema = z.strictObject({ action: z.string().min(1), args: z.unknown() })
@@ -70,7 +69,7 @@ function carry(
   ctx: ActionContext,
   tried: boolean,
 ): { after: Book } | { declined: string } {
-  const { actor: _, books: __, ...rest } = ctx
+  const { actor: _, books: __, records: ___, number: ____, ...rest } = ctx
   const user: ActionContext = { ...rest, actor: USER }
   let after = book
   for (const [i, c] of changes.entries()) {
@@ -122,7 +121,10 @@ export const PROPOSAL_SEND = kit.defineAction({
   aiDescription:
     "Send a change proposal mail: when an action of yours on a book was refused with being-edited (the user is editing what it changes), put the actions here and the user applies them with one press when done. from your short name (as in mail-send), title (80 characters at most) and body (optional) tell the user what it changes and why. book is the book, page the page they change (leave it out if they change several pages), changes the actions in order, each {action, args} as you would perform it on that book. Only actions that change things there now can be carried: no actions that add things, and only one book per mail. They are tried now without changing the book: if one cannot be done, nothing is sent and why is returned. When the user applies it, it fails if what it changes was changed or removed after you sent it; then nothing is changed and you are told the next time the user talks to you (think again from the book as it is then). Returns the mail's id.",
   title: "Send a change proposal",
-  target: "mailbox",
+  target: MAIL.id,
+  reads: [MAIL.id],
+  // 読むのは、変えるブック 1 冊だけ
+  readsBooks: args => [args.book],
   args: z.strictObject({
     from: z.string().trim().min(1).max(40),
     title: ProposalSchema.shape.title,
@@ -131,7 +133,8 @@ export const PROPOSAL_SEND = kit.defineAction({
     page: z.string().min(1).optional(),
     changes: ChangesSchema,
   }),
-  run: (mailbox, args, ctx) => {
+  run: (now, args, ctx) => {
+    if (now !== "none") return null
     const book = ctx.books?.[args.book]
     if (!book) return { declined: "there is no book with that id (see list_books)" }
     const carried = carry(book, args.changes, ctx, true)
@@ -141,12 +144,7 @@ export const PROPOSAL_SEND = kit.defineAction({
     const before = ownValues(book)
     const pages = new Set("pages" in book ? (book.pages as readonly { id: string }[]).map(p => p.id) : [])
     const things = touched.filter(id => !pages.has(id))
-    const id = freshId(
-      ctx.newId,
-      mailbox.map(m => m.id),
-    )
-    const mail: Mail = {
-      id,
+    const added = mailAdded(ctx, {
       mail: MAIL_PROPOSAL.id,
       from: args.from,
       sentAt: ctx.now,
@@ -163,11 +161,13 @@ export const PROPOSAL_SEND = kit.defineAction({
         changes: args.changes,
         snapshot: Object.fromEntries(touched.map(t => [t, before.get(t)])),
       } satisfies ProposalProps,
-    }
+    })
+    if (!added) return null
     return {
-      next: withinLimit([...mailbox, mail]),
-      result: { mail: id },
-      aiEditTicket: { book: book.id, key: id, outcome: "open" as const },
+      next: added.next,
+      others: added.others,
+      result: { mail: added.next.id },
+      aiEditTicket: { book: book.id, key: added.next.id, outcome: "open" as const },
     }
   },
 })
@@ -208,17 +208,16 @@ export const PROPOSAL_APPLY = kit.defineAction({
 export const PROPOSAL_SETTLE = kit.defineAction({
   id: "proposal-settle",
   aiDescription:
-    "Done by the user's screen after the user applied a change proposal mail (only the user): it was applied, or it failed (changed is what was changed or removed). Refused if it was settled.",
+    "Done by the user's screen after the user applied the change proposal mail named by on.record (only the user): it was applied, or it failed (changed is what was changed or removed). Refused if it was settled.",
   title: "Settle a change proposal",
-  target: "mailbox",
+  target: MAIL.id,
   userOnly: true,
   args: z.strictObject({
-    mail: z.string().min(1),
     outcome: z.enum(["applied", "failed"]),
     changed: z.array(z.string().min(1)).optional(),
   }),
-  run: (mailbox: Mailbox, args, ctx) => {
-    const found = mailbox.find(m => m.id === args.mail)
+  run: (now, args, ctx) => {
+    const found = now === "none" ? undefined : now
     const props = proposalOf(found)
     if (!found || !props || props.appliedAt || props.failedAt) return null
     const next: ProposalProps =
@@ -226,7 +225,7 @@ export const PROPOSAL_SETTLE = kit.defineAction({
         ? { ...props, appliedAt: ctx.now }
         : { ...props, failedAt: ctx.now, changed: [...(args.changed ?? [])] }
     return {
-      next: mailbox.map(m => (m === found ? { ...m, props: next } : m)),
+      next: { ...found, props: next },
       result: {},
       aiEditTicket: {
         book: props.book,
