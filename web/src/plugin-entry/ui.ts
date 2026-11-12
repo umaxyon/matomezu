@@ -38,6 +38,7 @@ export {
   LockToggle,
   MAIL_ACTIONS,
   type MailActionsProps,
+  MarkdownDocumentView,
   opensOf,
   PageProblemsView,
   type PaperValue,

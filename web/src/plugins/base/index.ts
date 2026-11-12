@@ -135,8 +135,10 @@ export { createBookIn } from "./book-new/create-book"
 export type { PageContext, SettingReader } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
 export { PAPER_IDS } from "./looks"
-// Markdown の原文を読む（ほかのプラグインが使う。追加プラグインには matomezu から出す）
+// Markdown の原文を読む・描いた文書が使う物（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export {
+  drawsMarkdownImage,
+  MARKDOWN_DOCUMENT_TOKENS,
   type MarkdownAlign,
   type MarkdownBlock,
   type MarkdownCheck,
@@ -147,6 +149,8 @@ export {
   type MarkdownRange,
   type MarkdownTableCell,
   parseMarkdown,
+  type SoftBreak,
+  SoftBreakSchema,
 } from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export { itemMinimapMarks, type MinimapMark } from "./minimap/marks"

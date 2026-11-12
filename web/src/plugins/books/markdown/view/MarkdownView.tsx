@@ -23,6 +23,7 @@ import {
 } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, paperSize } from "../../../base"
 import {
+  MarkdownDocumentView,
   SEARCH_CURRENT_HIGHLIGHT,
   SEARCH_HIGHLIGHT,
   SplitHandle,
@@ -50,7 +51,6 @@ import {
 import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
 import { SOFT_BREAK, softBreakOf } from "../soft-break"
-import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 import { SourcePane } from "./SourcePane"
 import { renderedRanges, scrollToRange } from "./search-ranges"

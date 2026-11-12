@@ -1,7 +1,7 @@
 // コードの色付け（base/code-highlight/highlight.ts）: 言語名とコードから、字の並びと色の種類を返す。並びの字をつなぐと元のコードに戻る
 import { expect, test } from "bun:test"
+import { MARKDOWN_DOCUMENT_TOKENS as MARKDOWN_TOKENS } from "../../../web/src/plugins/base"
 import { CODE_COLORS, highlightCode } from "../../../web/src/plugins/base/code-highlight/highlight"
-import { MARKDOWN_TOKENS } from "../../../web/src/plugins/books/markdown/tokens"
 
 const colorOf = (spans: ReturnType<typeof highlightCode>, text: string) => spans.find(s => s.text === text)?.color
 

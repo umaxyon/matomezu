@@ -1,7 +1,7 @@
 // マークダウンのページの印刷: 印刷区画の数と切る位置は、描いて測ってから決める（view/MarkdownPrint.tsx。切る位置の計算はここの cutSheets。
 // 原文が空ならブロックが無く、印刷区画も無い）
 import type { MarkdownBlock } from "../../base"
-import { drawsImage } from "./link-target"
+import { drawsMarkdownImage } from "../../base"
 
 // ページの原文（無ければ空）
 export const pageText = (page: object | null | undefined): string =>
@@ -31,12 +31,12 @@ export interface ImageShrink {
   height: number
 }
 
-// 画像の決まりで切るブロックか: 描く画像（link-target.ts の drawsImage）がちょうど 1 つで、ほかは空白と改行だけの段落。
+// 画像の決まりで切るブロックか: 描く画像（base の drawsMarkdownImage）がちょうど 1 つで、ほかは空白と改行だけの段落。
 // 画像が 2 つ以上の段落は、行で分ける物として、画像と画像の間で切る
 export function isImageBlock(block: MarkdownBlock): boolean {
   if (block.kind !== "paragraph") return false
-  const images = block.children.filter(c => c.kind === "image" && drawsImage(c.url))
-  const rest = block.children.filter(c => !(c.kind === "image" && drawsImage(c.url)))
+  const images = block.children.filter(c => c.kind === "image" && drawsMarkdownImage(c.url))
+  const rest = block.children.filter(c => !(c.kind === "image" && drawsMarkdownImage(c.url)))
   return images.length === 1 && rest.every(c => c.kind === "break" || (c.kind === "text" && c.value.trim() === ""))
 }
 

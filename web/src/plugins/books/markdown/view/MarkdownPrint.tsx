@@ -7,10 +7,9 @@
 import { memo, useLayoutEffect, useMemo, useRef } from "react"
 import { useUserSetting } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, parseMarkdown } from "../../../base"
-import type { PrintMeasureProps, PrintSheetProps } from "../../../base/ui"
+import { MarkdownDocumentView, type PrintMeasureProps, type PrintSheetProps } from "../../../base/ui"
 import { cutSheets, isImageBlock, lineBreaks, type MeasuredBlock, pageText, type SheetCut } from "../print"
 import { SOFT_BREAK, softBreakOf } from "../soft-break"
-import { MarkdownDocumentView } from "./MarkdownDocumentView"
 import styles from "./MarkdownView.module.css"
 
 // 測るだけのビューが知らせ、印刷区画 1 つのビューが受け取るデータ: 印刷区画ごとの切った所と、上の余白（px）、
