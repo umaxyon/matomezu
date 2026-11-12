@@ -3,6 +3,7 @@
 //   中: 四角（横が濃さ、縦が明るさ）と、色合いのスライダー、灰色のスライダー（どの色合いでも灰色を選べる）
 //   下: 値のテキストForm（#rrggbb。Enter かテキストFormを離れたら決める。読めない値なら元に戻す）
 // 四角とスライダーは、動かすそばから onChange に渡す。外を押すか Esc で閉じる（Esc はダイアログには渡さない）。
+// swatchesOnly なら、見本（と「なし」）だけを出し、四角・スライダー・テキストFormは出さない（値を見本の名前に限るとき。見本の色は CSS の色でよい。例 var(--skin-palette-primary)）。
 // ダイアログの中でスクロールしても切れないように、画面の座標で置く
 import {
   type CSSProperties,
@@ -20,7 +21,7 @@ import { type Hsv, hexToHsv, hsvToHex, parseHex } from "./hsv"
 
 export interface Swatch {
   name: string // 選んだときの値（代表色の名前か #rrggbb）
-  hex: string // 見本の色（#rrggbb）
+  hex: string // 見本の色（#rrggbb。色選びが swatchesOnly なら CSS の色でもよい）
   label: string // 見本の名前
 }
 
@@ -33,6 +34,7 @@ export function ColorPicker({
   value,
   palette,
   none,
+  swatchesOnly = false,
   disabled,
   onChange,
 }: {
@@ -41,6 +43,7 @@ export function ColorPicker({
   value: string | undefined // 代表色の名前か #rrggbb。undefined は「なし」
   palette: readonly Swatch[]
   none?: string // 「なし」のときの見た目の色（#rrggbb）。渡さなければ「なし」を選べない
+  swatchesOnly?: boolean // 見本（と「なし」）だけから選ぶ
   disabled?: boolean
   onChange: (value: string | undefined) => void
 }) {
@@ -71,6 +74,7 @@ export function ColorPicker({
           start={shown}
           palette={palette}
           offersNone={none !== undefined}
+          swatchesOnly={swatchesOnly}
           onChange={onChange}
           onClose={() => {
             setOpen(false)
@@ -88,21 +92,25 @@ function Popup({
   start,
   palette,
   offersNone,
+  swatchesOnly,
   onChange,
   onClose,
 }: {
   opener: HTMLElement // 開いたボタン
   value: string | undefined
-  start: string
+  start: string // 今の色（swatchesOnly なら CSS の色のこともある）
   palette: readonly Swatch[]
   offersNone: boolean
+  swatchesOnly: boolean
   onChange: (value: string | undefined) => void
   onClose: () => void
 }) {
   const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
-  const [hsv, setHsv] = useState<Hsv>(() => hexToHsv(start))
-  const [text, setText] = useState(value && !palette.some(p => p.name === value) ? value : hsvToHex(hexToHsv(start)))
+  const [hsv, setHsv] = useState<Hsv>(() => hexToHsv(parseHex(start) ?? NO_SWATCH_HEX))
+  const [text, setText] = useState(
+    value && !palette.some(p => p.name === value) ? value : hsvToHex(hexToHsv(parseHex(start) ?? NO_SWATCH_HEX)),
+  )
   const [at, setAt] = useState({ left: 0, top: 0 })
 
   // ボタンの下に出す（下に入らなければ上に）
@@ -133,8 +141,11 @@ function Popup({
     onChange(hex)
   }
   const chooseSwatch = (s: Swatch) => {
-    setHsv(hexToHsv(s.hex))
-    setText(s.hex)
+    const hex = parseHex(s.hex)
+    if (hex) {
+      setHsv(hexToHsv(hex))
+      setText(hex)
+    }
     onChange(s.name)
   }
   const commitText = () => {
@@ -166,7 +177,6 @@ function Popup({
     }
   }
 
-  const gray = hsv.s === 0
   return (
     <div
       ref={ref}
@@ -200,6 +210,33 @@ function Popup({
           </button>
         )}
       </div>
+      {!swatchesOnly && (
+        <Mixer hsv={hsv} text={text} onSquare={onSquare} onPick={pick} onText={setText} onCommit={commitText} />
+      )}
+    </div>
+  )
+}
+
+// 四角・スライダー・値のテキストForm（見本に無い色を作る所）
+function Mixer({
+  hsv,
+  text,
+  onSquare,
+  onPick,
+  onText,
+  onCommit,
+}: {
+  hsv: Hsv
+  text: string
+  onSquare: (e: PointerEvent<HTMLDivElement>) => void
+  onPick: (next: Hsv) => void
+  onText: (text: string) => void
+  onCommit: () => void
+}) {
+  const t = useMessages(kit)
+  const gray = hsv.s === 0
+  return (
+    <>
       <div
         className={styles.square}
         role="presentation"
@@ -220,7 +257,7 @@ function Popup({
             max={360}
             aria-label={t("Hue")}
             value={Math.round(hsv.h)}
-            onChange={e => pick({ h: Number(e.target.value), s: gray ? 1 : hsv.s, v: hsv.v })}
+            onChange={e => onPick({ h: Number(e.target.value), s: gray ? 1 : hsv.s, v: hsv.v })}
           />
           <input
             type="range"
@@ -230,7 +267,7 @@ function Popup({
             max={100}
             aria-label={t("Gray")}
             value={gray ? Math.round(hsv.v * 100) : 50}
-            onChange={e => pick({ h: hsv.h, s: 0, v: Number(e.target.value) / 100 })}
+            onChange={e => onPick({ h: hsv.h, s: 0, v: Number(e.target.value) / 100 })}
           />
         </div>
       </div>
@@ -240,9 +277,9 @@ function Popup({
         aria-label={t("Color value (#rrggbb)")}
         spellCheck={false}
         value={text}
-        onChange={e => setText(e.target.value)}
-        onBlur={commitText}
+        onChange={e => onText(e.target.value)}
+        onBlur={onCommit}
       />
-    </div>
+    </>
   )
 }

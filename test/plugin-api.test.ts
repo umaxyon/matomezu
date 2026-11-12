@@ -242,6 +242,7 @@ test("matomezu/ui が出す名前", () => {
     "SelectButton",
     "SettingRow",
     "ShapeMarksProvider",
+    "SideTabs",
     "Slot",
     "SplitHandle",
     "Stand",
