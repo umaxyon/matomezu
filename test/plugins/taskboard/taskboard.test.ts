@@ -1,8 +1,8 @@
 // タスクボード（プロジェクトとチケット。レコード）: 作る・直す・断る、AI の権限、番号、閉じたプロジェクト
 
 import { expect, test } from "bun:test"
-import { AI, type USER } from "../../../web/src/core/actor"
-import { performIn } from "../../../web/src/core/perform"
+import { AI, USER } from "../../../web/src/core/actor"
+import { performIn, permittedIn } from "../../../web/src/core/perform"
 import { PROJECT } from "../../../web/src/plugins/taskboard/project"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { CORE_CATALOG, newStore } from "../../support"
@@ -203,4 +203,27 @@ test("閉じたプロジェクトは直せない。開け直すと直せる", ()
   expect(user("project-update", { name: "z" }, { record: p.id }).ok).toBe(false)
   expect(user("project-reopen", {}, { record: p.id }).ok).toBe(true)
   expect(user("project-update", { name: "z" }, { record: p.id }).ok).toBe(true)
+})
+
+test("閉じたプロジェクトは、行う前の問いでも、開け直すほかは断る（画面は歯車を出さない）", () => {
+  const { user, store, projects } = ready()
+  user("project-add", {})
+  const p = projects()[0] as Project
+  user("project-close", {}, { record: p.id })
+  const s = store.state.getState()
+  const world = { books: {}, settings: s.settings, annotations: {}, records: s.records, counters: s.counters }
+  const asked = (action: string) =>
+    permittedIn(
+      world,
+      A(action) as never,
+      {} as never,
+      { record: p.id },
+      {
+        catalog: CORE_CATALOG,
+        controlCenter: "@matomezu/control-center:control-center" as never,
+        actor: USER,
+      },
+    )
+  expect(asked("project-update")).toMatchObject({ ok: false, reason: "denied" })
+  expect(asked("project-reopen").ok).toBe(true)
 })

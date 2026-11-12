@@ -1,9 +1,17 @@
-// プロジェクト設定: 左のタブで「全般」（プロジェクト名・タスクプレフィクス）・「チケットタグ」・「レーン」を切り替える（切り替えても入れた値は残る）。
-// プロジェクト名とタスクプレフィクスは必須。プレフィクスは英字 1〜3 字と、最後にハイフン 1 つまでしか打てず、ほかのプロジェクトと重なれば知らせる。
+// プロジェクト設定: 左のタブで、画面の見出し「全般」（プロジェクト名・チケットプレフィクス）・「チケットタグ」・「レーン」を切り替える（切り替えても入れた値は残る）。
+// プロジェクト名とチケットプレフィクスは必須。チケットプレフィクスは英字 1〜3 字と、最後にハイフン 1 つまでしか打てず、ほかのプロジェクトと重なれば知らせる。
 // 名前が空か、どれかが重なっている間は保存できない。保存はプロジェクトを直すアクション 1 回で、常駐の答えを待ってから閉じる（断られたらダイアログの中に出す）。
-// プロジェクトが無いか閉じていれば（閉じたプロジェクトは直せない）、すぐ閉じる
+// プロジェクトが無いか、直せなければ（閉じたプロジェクトなど。認可ステップに聞く）、すぐ閉じる
 import { useEffect, useId, useState } from "react"
-import { type DialogProps, useActions, useCoreCatalog, useMessages, useRecord, useRecords } from "../../plugin-api/ui"
+import {
+  type DialogProps,
+  useActions,
+  useAllowedOn,
+  useCoreCatalog,
+  useMessages,
+  useRecord,
+  useRecords,
+} from "../../plugin-api/ui"
 import { refusalMessage } from "../base"
 import { ActionButton, controlClass, Dialog, Field, Form, Problem, SideTabs } from "../base/ui"
 import { PROJECT_UPDATE } from "./actions"
@@ -33,7 +41,8 @@ const PREFIX_TYPING = /^([A-Za-z]{1,3}-?)?$/
 
 export function ProjectSettingsDialog({ args, onClose }: DialogProps<{ project: string }>) {
   const project = useRecord(PROJECT.id, args.project)
-  const gone = !project || project.closed
+  const allowed = useAllowedOn(PROJECT_UPDATE.id, {}, { record: args.project }).ok
+  const gone = !project || !allowed
   useEffect(() => {
     if (gone) onClose()
   }, [gone, onClose])

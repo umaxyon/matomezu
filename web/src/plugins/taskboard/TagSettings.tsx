@@ -16,10 +16,10 @@ export function TagSettings({ tags, repeated }: { tags: EditableRows<TagRow>; re
   const { rows, change, add, leave, nameRef } = tags
   const [selected, setSelected] = useState<string | null>(null)
   const chosen = rows.find(r => r.key === selected)
-  const swatches: readonly Swatch[] = PALETTE.map(role => ({
+  const swatches: readonly Swatch[] = PALETTE.map((role, i) => ({
     name: role,
     hex: `var(--skin-palette-${role})`,
-    label: role,
+    label: t("Color {n}", { n: i + 1 }),
   }))
   return (
     <PromptSplit

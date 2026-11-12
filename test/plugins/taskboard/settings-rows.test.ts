@@ -86,7 +86,7 @@ test("行から作った引数でプロジェクトを直すと、残した行�
     "unsorted",
   ])
   expect(q.lanes.some(l => l.kind === "lane" && l.id.startsWith("new-"))).toBe(false)
-  expect(q.tags.map(t => t.name)).toEqual([p.tags[0]?.name, "調べ物"])
+  expect(q.tags.map(t => t.name)).toEqual([p.tags[0]?.name ?? "", "調べ物"])
   expect(q.tags.some(t => t.id.startsWith("new-"))).toBe(false)
 })
 

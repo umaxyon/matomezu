@@ -1,7 +1,8 @@
-// コントロールセンターのプロジェクトの画面に置くタスクボード: 出しているプロジェクトのタスクボードを縦に並べる（1 枚ずつ、題の帯・歯車〈プロジェクト設定。閉じたプロジェクトには出さない〉・最大化のボタン・レーンの横並び）。
+// コントロールセンターのプロジェクトの画面に置くタスクボード: 出しているプロジェクトのタスクボードを縦に並べる（1 枚ずつ、題の帯・歯車〈プロジェクト設定。直せないプロジェクトには出さない〉・最大化のボタン・レーンの横並び）。
 // タスクボードの出入りは useBoardPhases の様子（phase）で動かす。タスクボードかレーンを最大化すると、ほかのタスクボードは畳み、枠にも最大化を知らせる（左と下を退かせる）
-import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../plugin-api/ui"
+import { useAllowedOn, useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../plugin-api/ui"
 import { IconButton, TitledArea, useControlCenterMaximize } from "../base/ui"
+import { PROJECT_UPDATE } from "./actions"
 import { lanesOf, orderedProjects, shownProjects, ticketsByLane } from "./board"
 import { GearIcon } from "./icons"
 import { kit } from "./kit"
@@ -49,13 +50,7 @@ export function TaskboardView() {
             <TitledArea
               className={styles.board}
               title={project.name}
-              actions={
-                project.closed ? null : (
-                  <IconButton small label={t("Project settings")} onClick={() => openSettings(project.id)}>
-                    <GearIcon />
-                  </IconButton>
-                )
-              }
+              actions={<SettingsGear project={project.id} onOpen={() => openSettings(project.id)} />}
               maximized={maximized?.board === project.id && laneMax === undefined}
               onToggleMaximize={() => updateMaximized(now => toggleBoard(now, project.id))}
             >
@@ -78,5 +73,17 @@ export function TaskboardView() {
         )
       })}
     </div>
+  )
+}
+
+// プロジェクト設定を開く歯車（プロジェクトを直せないとき〈閉じたプロジェクトなど〉は出さない）
+function SettingsGear({ project, onOpen }: { project: string; onOpen: () => void }) {
+  const t = useMessages(kit)
+  const allowed = useAllowedOn(PROJECT_UPDATE.id, {}, { record: project }).ok
+  if (!allowed) return null
+  return (
+    <IconButton small label={t("Project settings")} onClick={onOpen}>
+      <GearIcon />
+    </IconButton>
   )
 }

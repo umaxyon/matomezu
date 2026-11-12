@@ -120,6 +120,7 @@ export const TASKBOARD_MESSAGES = defineMessages({
   "Add a tag": { en: "Add a tag", ja: "タグ追加" },
   "Tag prompt": { en: "Tag prompt", ja: "タグプロンプト" },
   "Tag name": { en: "Tag name", ja: "タグ名" },
+  "Color {n}": { en: "Color {n}", ja: "色 {n}" },
   "Color of {name}": { en: "Color of {name}", ja: "{name}の色" },
   "Use {name}": { en: "Use {name}", ja: "{name}を有効にする" },
   "Add a lane": { en: "Add a lane", ja: "レーン追加" },
