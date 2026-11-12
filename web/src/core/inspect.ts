@@ -9,6 +9,7 @@ import { type ActionContext, type ActionDef, attachedTo, BASE_TARGETS, isOnBook,
 import type { BookTypeDef } from "./def/book-type"
 import type { ControlCenterDef } from "./def/control-center"
 import type { PermissionQuery, Referred } from "./def/permission"
+import type { SubjectDef } from "./def/subject"
 import type { KeyBinding } from "./keys"
 import type { Book } from "./schema/book"
 
@@ -161,6 +162,7 @@ function action(
           kind: "record",
           action: def,
           subject: def.target,
+          def: catalog.subjects.get(def.target) as SubjectDef,
           record: record.record,
           refs: record.refs,
           actor: q.actor,

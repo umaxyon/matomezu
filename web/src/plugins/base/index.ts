@@ -13,7 +13,7 @@ import { kit } from "./kit"
 // 拡張ポイントに書き足したメソッド labelOf の型（label/index.ts の declare module）
 import type {} from "./label"
 import { LEFT_SIDE_PANEL_CLOSE, LEFT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEYS } from "./left-side-panel"
-import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
+import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import {
   DARK,
   LIGHT,
@@ -312,6 +312,7 @@ export const BASE = defineBuiltin(
       PROP_NAMES_CHECK,
       FAMILY_TITLE_CHECK,
       CREATE_SETTINGS_CHECK,
+      LOCKABLE_CHECK,
       OPTION_TITLES_CHECK,
       THEME_TEXT_COLORS_CHECK,
       THEME_TYPES_CHECK,

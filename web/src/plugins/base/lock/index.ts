@@ -3,10 +3,32 @@
 import { z } from "zod"
 import { isAI } from "../../../core/actor"
 import { hasPages, pagesOf, putPage } from "../../../core/book"
+import type { CatalogCheckDef } from "../../../core/core-catalog"
 import type { PermissionCheck } from "../../../core/def/permission"
+import { problem } from "../../../core/errors"
+import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { setField } from "../fields"
 import { kit } from "../kit"
+
+declare module "../../../core/catalog" {
+  interface SubjectExtras {
+    lockable?: true // このレコードにロックを掛けられる（record に locked: true を持つ項目を書く）。ロック中のレコードは、ロックの掛け外しのアクションのほかを断る
+  }
+  interface ActionExtras {
+    lockSwitch?: true // レコードのロックを掛け外しするアクション（ロック中のレコードに行える。外すのは利用者だけ）
+  }
+}
+
+// lockable の種類は record に locked（true、省ける）を持ち、lockSwitch はロックできる種類のアクションだけが書く（台帳アセンブルのときの確かめ）
+export const LOCKABLE_CHECK: CatalogCheckDef = catalog => [
+  ...[...catalog.subjects.values()]
+    .filter(s => s.lockable && !("locked" in s.record.shape))
+    .map(s => problem("E048", { id: s.id })),
+  ...[...catalog.actions.values()]
+    .filter(a => a.lockSwitch && !catalog.subjects.get(a.target)?.lockable)
+    .map(a => problem("E049", { id: a.id })),
+]
 
 const lockBook = (book: Book, on: boolean): Book | null =>
   !!book.locked === on ? null : setField(book, ["title"], "locked", on ? true : undefined)
@@ -94,6 +116,19 @@ const onlySwitched = (
   actor: PermissionCheck["actor"],
 ) => fields.every(f => f === "locked") && !(isAI(actor) && fields.includes("locked") && !next?.locked)
 
+// ロック中のレコードは、ロックの印を掛け外すほかは変えず、消さない。外せるのは利用者だけ（印を掛け外すアクションかは、印でなく実際の変化で見る）。作るレコードは、ロックを掛けて作ってもよい
+function recordKeeps(c: Extract<PermissionCheck, { kind: "record" }>): boolean {
+  if (!c.def.lockable || c.before === "none") return true
+  const before = c.before as { locked?: true }
+  if (!before.locked) return true
+  if (c.after === "removed") return false
+  const after = c.after as { locked?: true }
+  const { locked: _, ...was } = before
+  const { locked: __, ...now } = after
+  if (!sameData(was, now)) return false
+  return !(isAI(c.actor) && !after.locked)
+}
+
 export const LOCK = kit.definePermission({
   id: "lock",
   title: "Locked",
@@ -102,6 +137,13 @@ export const LOCK = kit.definePermission({
   // 変える所が分からないアクションは、ページのロックでは止めない（行った後の keeps が止める）。ページを含むブックの全部を変えるなら、どれかのページがロック中で止める。
   // アノテーションは図の中身ではないので止めない
   denies: q => {
+    if (q.kind === "record")
+      return (
+        q.def.lockable === true &&
+        q.record !== "none" &&
+        !!(q.record as { locked?: true }).locked &&
+        !q.action.lockSwitch
+      )
     if (q.kind !== "book") return false
     const { action, book, where } = q
     if (action.target === "annotations") return false
@@ -114,6 +156,7 @@ export const LOCK = kit.definePermission({
   // ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
   // ブックごとゴミ箱にも入れない。ロックを外せるのは利用者だけ
   keeps: c => {
+    if (c.kind === "record") return recordKeeps(c)
     if (c.kind !== "book") return true
     const { before, after, changes, actor } = c
     if (!before) return true // 新しく増えたブックは、ロックを掛けて作ってもよい

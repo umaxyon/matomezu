@@ -43,6 +43,8 @@ export const ERRORS = {
   E045: "subject {id}: record needs an id (a string)",
   E046: "action {id}: target {target} is not a subject",
   E047: "controlCenter {id}: unknown subject {ref}",
+  E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
+  E049: "action {id}: lockSwitch is only for an action whose target is a lockable subject",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",

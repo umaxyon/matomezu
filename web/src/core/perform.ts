@@ -25,6 +25,7 @@ import {
   type Where,
 } from "./def/action"
 import type { Referred } from "./def/permission"
+import type { SubjectDef } from "./def/subject"
 import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { type Mailbox, mailboxSettles } from "./mail"
@@ -117,7 +118,19 @@ function brokenRecord(
   if (was === "unreadable" || now === "unreadable") return "unreadable"
   const refs = [...was, ...now.filter(n => !was.some(w => w.subject === n.subject && w.id === n.id))]
   for (const p of ctx.catalog.permissions.values())
-    if (p.keeps && !p.keeps({ kind: "record", action, subject: action.target, before, after, refs, actor: ctx.actor }))
+    if (
+      p.keeps &&
+      !p.keeps({
+        kind: "record",
+        action,
+        subject: action.target,
+        def: ctx.catalog.subjects.get(action.target) as SubjectDef,
+        before,
+        after,
+        refs,
+        actor: ctx.actor,
+      })
+    )
       return p.id
   return null
 }
