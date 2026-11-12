@@ -15,6 +15,7 @@ package server
 //	mailbox   {"mailbox", "window", "client", "seq"} 郵便箱が変わった（郵便が届いた・既読になった・消えた）。window は最後にフォーカスされた窓
 //	participants {"participants", "client", "seq"} 参加者の表が変わった（要求が届いた・受け入れた・断った）
 //	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・mailbox・participants のあとに届く
+//	record    {"subject", "id", "record"（消したなら "removed"）, "version", "counters", "client", "seq"} 対象の定義が足した種類のレコード 1 件が変わった（records.go）
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
@@ -96,6 +97,8 @@ type Hub struct {
 	annotationWarnings []string
 	// 効かない郵便（種類が無い W022・形が合わない W023）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・郵便箱が変わったときに確かめ直す
 	mailWarnings []string
+	// 効かないレコード（種類が無い W024・形が合わない W025）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・レコードが変わったときに確かめ直す（records.go）
+	recordLines []string
 	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
 	windowWarnings map[string][]string
 	touched        map[string]string         // ブックの id → 触れた時刻（touched.go）
@@ -169,6 +172,9 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		return nil, err
 	}
 	if err := h.checkMailbox(); err != nil {
+		return nil, err
+	}
+	if err := h.checkRecords(); err != nil {
 		return nil, err
 	}
 	return h, nil
@@ -394,7 +400,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	}
 	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, By: p.By, TimeoutSec: p.TimeoutSec}
 	in.Annotations = map[string]json.RawMessage{}
-	if p.On != nil {
+	needs, err := h.engine.RecordNeeds(p.Action)
+	if err != nil {
+		return Performed{}, err
+	}
+	if needs.Subject != "" {
+		// レコードが対象のアクションは、ブックもアノテーションも読まない
+	} else if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {
 			in.Books = []json.RawMessage{e.body}
 		}
@@ -409,9 +421,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			in.Annotations[id] = list
 		}
 	}
-	if err := h.recordInputs(&in, p.On); err != nil {
-		return Performed{}, err
-	}
+	h.recordInputs(&in, needs, p.On)
 	in.Watched = h.watched()
 	out, err := h.engine.Perform(in)
 	if err != nil {

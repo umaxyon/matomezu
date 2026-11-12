@@ -1357,3 +1357,50 @@ func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
 		t.Fatalf("whole book = %s", got)
 	}
 }
+
+// 追加プラグインが足した対象の種類（ex9 のカード）のレコードを、AI が作る・直す・消す。窓には record の知らせが届き、/api/data にレコードと番号の表が載る
+func TestRecordsOfAnAddedSubject(t *testing.T) {
+	s := newServer(t, nil)
+	screen := listen(t, s.URL)
+	next(t, screen) // hello
+	if got := link(t, s, "../../test/added-plugins/ex9"); got != `{"id":"ex9","ok":true}` {
+		t.Fatalf("link = %s", got)
+	}
+	next(t, screen) // plugins
+	perform := func(body string) string {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", body, ai)
+		return got
+	}
+	made := perform(`{"action":"ex9:card-add","args":{"name":"apple"}}`)
+	var created struct{ Result struct{ Card string } }
+	if !strings.Contains(made, `"ok":true`) || json.Unmarshal([]byte(made), &created) != nil || created.Result.Card == "" || !strings.Contains(made, `"no":1`) {
+		t.Fatalf("card-add = %s", made)
+	}
+	if got := next(t, screen); !strings.HasPrefix(got, "record ") || !strings.Contains(got, `"counters":{"all":2}`) || !strings.Contains(got, `"id":"`+created.Result.Card+`"`) || !strings.Contains(got, `"subject":"ex9:card"`) {
+		t.Fatalf("event = %s", got)
+	}
+	if got := perform(`{"action":"ex9:card-add","args":{"name":"apple"}}`); !strings.Contains(got, `"ok":false`) {
+		t.Fatalf("a repeated name = %s", got)
+	}
+	if got := perform(`{"action":"ex9:card-rename","args":{"name":"pear"},"on":{"record":"` + created.Result.Card + `"}}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("card-rename = %s", got)
+	}
+	next(t, screen) // record
+	if got := perform(`{"action":"ex9:card-rename","args":{"name":"pear"},"on":{"record":"nothing"}}`); !strings.Contains(got, `"reason":"no-record"`) {
+		t.Fatalf("rename of a record that is not there = %s", got)
+	}
+	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
+	if !strings.Contains(data, `"records":{"ex9:card":{"`+created.Result.Card+`":{"id":"`+created.Result.Card+`","name":"pear","no":1}}}`) || !strings.Contains(data, `"counters":{"ex9:card":{"all":2}}`) {
+		t.Fatalf("data = %s", data)
+	}
+	if got := perform(`{"action":"ex9:card-remove","args":{},"on":{"record":"` + created.Result.Card + `"}}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("card-remove = %s", got)
+	}
+	if got := next(t, screen); !strings.Contains(got, `"record":"removed"`) {
+		t.Fatalf("event = %s", got)
+	}
+	// 消しても、次の番号は戻らない
+	if got := perform(`{"action":"ex9:card-add","args":{"name":"fig"}}`); !strings.Contains(got, `"no":2`) {
+		t.Fatalf("card-add after removing = %s", got)
+	}
+}

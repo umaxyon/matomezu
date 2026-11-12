@@ -1,3 +1,7 @@
+import type { CoreCatalog } from "./core-catalog"
+import { splitId } from "./names"
+import { type Warning, warning } from "./warnings"
+
 // レコード: 対象の定義（core/def/subject.ts）が足した種類のデータ。種類ごとに id → レコード 1 件（中は種類の形。core は読まない）。
 // アクションが 1 回に変えるレコードは 1 件で、新しく作る（on の record が無い。受け取るのは none）か、直すか、消す（返すのは removed）
 export type Records = Readonly<Record<string, Readonly<Record<string, unknown>>>>
@@ -53,4 +57,16 @@ export function withRecord(records: Records, change: RecordChange): Records {
   else table[change.id] = change.record
   const { [change.subject]: _, ...rest } = records
   return Object.keys(table).length === 0 ? rest : { ...rest, [change.subject]: table }
+}
+
+// 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が機能台帳に無い W024・形が合わない W025）の warning を返す。データには手を付けない
+export function checkRecords(catalog: CoreCatalog, records: Records): Warning[] {
+  return Object.entries(records).flatMap(([subject, table]) => {
+    const owner = splitId(subject).owner ?? ""
+    const def = catalog.subjects.get(subject)
+    return Object.entries(table).flatMap(([id, record]) => {
+      if (!def) return [warning("W024", owner, { id, subject })]
+      return def.record.safeParse(record).success ? [] : [warning("W025", owner, { id, subject })]
+    })
+  })
 }

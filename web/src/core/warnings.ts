@@ -24,6 +24,8 @@ export const WARNINGS = {
   W021: "key {key} in {scope} for {command}: added plugin {other}'s key is there first (not used)",
   W022: "mail {id} is a {mail}, which is not in the catalog (kept as it is, shown as mail)",
   W023: "mail {id} does not fit {mail} (kept as it is, shown as mail)",
+  W024: "record {id} is a {subject}, which is not in the catalog (kept as it is, not used)",
+  W025: "record {id} does not fit {subject} (kept as it is, not used)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

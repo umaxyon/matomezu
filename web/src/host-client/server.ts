@@ -16,6 +16,7 @@
 import { z } from "zod"
 import { hasPages } from "../core/book"
 import { fail, matomezuError, problem } from "../core/errors"
+import { restoreCounters, restoreRecords, withCounters, withRecord } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { screenOf } from "../core/window"
@@ -171,6 +172,8 @@ const DataSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   mailbox: z.unknown().optional(),
   participants: z.unknown().optional(),
+  records: z.unknown().optional(),
+  counters: z.unknown().optional(),
   plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
   touched: z.record(z.string(), z.string()).optional(),
   participantCalls: z.record(z.string(), z.string()).optional(),
@@ -194,6 +197,13 @@ const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
 const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
 const ParticipantsSchema = z.object({ participants: z.unknown(), ...Mark })
+const RecordSchema = z.object({
+  subject: z.string(),
+  id: z.string(),
+  record: z.unknown(),
+  counters: z.record(z.string(), z.number()).nullish(),
+  ...Mark,
+})
 const MailboxSchema = z.object({ mailbox: z.unknown(), window: z.string().optional(), ...Mark })
 
 export interface ServerClient extends HostClient {
@@ -206,6 +216,8 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let annotations: Record<string, unknown> = {} // ブックの id → アノテーションの並び
   let mailbox: unknown = [] // 利用者の郵便箱
   let participants: unknown = [] // 利用者の参加者の表
+  let records: unknown = {} // 対象の定義が足した種類のレコード（種類の id → id → レコード）
+  let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
@@ -287,6 +299,8 @@ export function serverClient(net: Net = browserNet): ServerClient {
         annotations,
         mailbox,
         participants,
+        records,
+        counters,
         touched,
         participantCalls,
         participantReady,
@@ -391,6 +405,8 @@ export function serverClient(net: Net = browserNet): ServerClient {
     annotations = data.annotations ?? {}
     mailbox = data.mailbox ?? []
     participants = data.participants ?? []
+    records = data.records ?? {}
+    counters = data.counters ?? {}
     plugins = data.plugins ?? []
     // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
     for (const [id, at] of Object.entries(data.touched ?? {}))
@@ -546,6 +562,14 @@ export function serverClient(net: Net = browserNet): ServerClient {
     on("participants", data => {
       const e = ParticipantsSchema.parse(JSON.parse(data))
       participants = e.participants
+      settle(e)
+      show()
+    })
+    on("record", data => {
+      const e = RecordSchema.parse(JSON.parse(data))
+      const change = { subject: e.subject, id: e.id, record: e.record, ...(e.counters ? { counters: e.counters } : {}) }
+      records = withRecord(restoreRecords(records), change)
+      counters = withCounters(restoreCounters(counters), change)
       settle(e)
       show()
     })

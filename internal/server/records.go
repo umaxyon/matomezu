@@ -7,6 +7,8 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"slices"
 
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -79,13 +81,9 @@ func (h *Hub) Records() (map[string]map[string]json.RawMessage, map[string]map[s
 }
 
 // recordInputs は、アクションを行う前にエンジンへ渡すレコードと番号の表を in に入れる: 宛先のレコードと、アクションが読むだけの種類の全部、対象の種類の番号の表（h.mu を持って呼ぶ）
-func (h *Hub) recordInputs(in *engine.Input, on *engine.On) error {
-	needs, err := h.engine.RecordNeeds(in.Action)
-	if err != nil {
-		return err
-	}
+func (h *Hub) recordInputs(in *engine.Input, needs engine.RecordNeeds, on *engine.On) {
 	if needs.Subject == "" {
-		return nil
+		return
 	}
 	in.Records = map[string]map[string]json.RawMessage{}
 	if on != nil && on.Record != "" {
@@ -100,7 +98,6 @@ func (h *Hub) recordInputs(in *engine.Input, on *engine.On) error {
 		}
 	}
 	in.Counters = map[string]map[string]int64{needs.Subject: h.counters[needs.Subject]}
-	return nil
 }
 
 // planRecord は out の変えたレコードを、置き場所に書く形にして plan に足す（何も変えない。h.mu を持って呼ぶ）
@@ -155,5 +152,30 @@ func (h *Hub) applyRecord(plan *writePlan, out engine.Output, p Perform) {
 			h.counters[put.subject][scope] = n
 		}
 	}
+	if err := h.checkRecords(); err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the records:", err)
+	}
 	h.broadcast("record", map[string]any{"subject": put.subject, "id": put.id, "record": json.RawMessage(put.body), "version": put.version, "counters": out.Record.Counters, "client": p.Client, "seq": p.Seq})
+}
+
+// checkRecords は全部のレコードを今のプラグインで確かめ、効かないレコード（種類が無い・形が合わない）の warning の一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
+func (h *Hub) checkRecords() error {
+	all := map[string]map[string]json.RawMessage{}
+	for subject, table := range h.recordTables {
+		all[subject] = map[string]json.RawMessage{}
+		for id, e := range table {
+			all[subject][id] = e.body
+		}
+	}
+	lines, err := h.engine.CheckRecords(all)
+	if err != nil {
+		return err
+	}
+	for _, line := range lines {
+		if !slices.Contains(h.recordLines, line) {
+			fmt.Fprintln(os.Stderr, "warning:", line)
+		}
+	}
+	h.recordLines = lines
+	return nil
 }

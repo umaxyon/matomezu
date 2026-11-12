@@ -101,6 +101,7 @@ test("matomezu が出す名前", () => {
     "minSize",
     "newClash",
     "nextItemId",
+    "nextNumber",
     "nextPageTitle",
     "onlySelected",
     "pageContext",

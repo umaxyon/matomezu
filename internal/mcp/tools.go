@@ -194,10 +194,12 @@ var performSchema = map[string]any{
 		"action": map[string]any{"type": "string", "description": "The action's id (see actions)."},
 		"args":   map[string]any{"type": "object", "description": "The action's arguments, matching its args in actions."},
 		"on": map[string]any{
-			"type":                 "object",
-			"description":          "The book the action is done on, for an action whose target is book.",
-			"properties":           map[string]any{"book": map[string]any{"type": "string", "description": "The book's id."}},
-			"required":             []string{"book"},
+			"type":        "object",
+			"description": "What the action is done on: the book, for an action whose target is book (or annotations); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
+			"properties": map[string]any{
+				"book":   map[string]any{"type": "string", "description": "The book's id."},
+				"record": map[string]any{"type": "string", "description": "The record's id."},
+			},
 			"additionalProperties": false,
 		},
 		"timeoutSec": map[string]any{"type": "integer", "minimum": 1, "maximum": 60, "description": "How many seconds to wait for the action (5 without it). Give more (up to 60) only for an action you know is heavy; an action that takes longer is stopped and refused with nothing changed."},

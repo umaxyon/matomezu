@@ -110,6 +110,7 @@ type Engine struct {
 	join      func() string
 	alive     func(string, string, float64) bool
 	needs     func(string) string
+	records   func(string) string
 	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
 	mails     func(string) string
@@ -182,6 +183,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuParticipantAlive"), &e.alive); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuParticipantAlive: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuCheckRecords"), &e.records); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuCheckRecords: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuRecordNeeds"), &e.needs); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuRecordNeeds: %w", err)
@@ -392,6 +396,23 @@ func (e *Engine) CheckMailbox(list json.RawMessage) (out []string, err error) {
 		}
 	}()
 	err = json.Unmarshal([]byte(e.mails(string(list))), &out)
+	return out, err
+}
+
+// CheckRecords はレコード（種類の id → id → レコード）を今の機能台帳で確かめ、効かないレコード（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）
+func (e *Engine) CheckRecords(records map[string]map[string]json.RawMessage) (out []string, err error) {
+	body, err := json.Marshal(records)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.records(string(body))), &out)
 	return out, err
 }
 

@@ -92,6 +92,9 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	if err := h.checkMailbox(); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the mailbox:", err)
 	}
+	if err := h.checkRecords(); err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the records:", err)
+	}
 	// 定義の warning は止めずに、新しく出たものだけ常駐のログ（標準エラー）に書く
 	for _, n := range h.engine.Warnings() {
 		if !slices.Contains(before, n) {

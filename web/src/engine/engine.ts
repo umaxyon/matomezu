@@ -26,7 +26,7 @@ import { splitId } from "../core/names"
 import { joinActions, type Participants, restoreParticipants } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
-import { type RecordChange, restoreCounters, restoreRecords } from "../core/records"
+import { checkRecords, type RecordChange, restoreCounters, restoreRecords } from "../core/records"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
@@ -328,6 +328,10 @@ function aiTables(of: Assembled) {
 // 残した郵便箱を今の機能台帳で確かめ、効かない郵便（種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
 ;(globalThis as { matomezuCheckMailbox?: (list: string) => string }).matomezuCheckMailbox = list =>
   JSON.stringify(checkMailbox(assembled.catalog.core, restoreMailbox(JSON.parse(list))).map(warningText))
+
+// 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が無い W024・形が合わない W025）の warning の 1 行ずつを返す（常駐がログに書く）
+;(globalThis as { matomezuCheckRecords?: (records: string) => string }).matomezuCheckRecords = records =>
+  JSON.stringify(checkRecords(assembled.catalog.core, restoreRecords(JSON.parse(records))).map(warningText))
 
 // ブックとそのアノテーションの並びごとに、AI に見せる並び（annotationsForAi。結び付く物の最後のあるページと、AI の応えを待っているか）を返す。
 // 読めないブックのアノテーションは、ページが分からず待たないものとして返す

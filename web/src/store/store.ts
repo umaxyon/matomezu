@@ -6,7 +6,16 @@ import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { checkBooks, hasPages } from "../core/book"
-import type { ActionId, ControlCenterId, DialogId, ItemId, MessageKey, SkinId, ToolId } from "../core/catalog"
+import type {
+  ActionId,
+  ControlCenterId,
+  DialogId,
+  ItemId,
+  MessageKey,
+  SkinId,
+  SubjectId,
+  ToolId,
+} from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn, BookTarget } from "../core/def/action"
 import { fail } from "../core/errors"
@@ -146,8 +155,13 @@ interface ToastBody {
 }
 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
+// （対象の定義が足した種類のアクションは、直す・消すなら 1 件を指し、作るなら指さない）
 export type PerformArgs<Id extends ActionId> =
-  TargetOf<Id> extends BookTarget ? [args: ArgsOf<Id>, on: { book: string }] : [args: ArgsOf<Id>]
+  TargetOf<Id> extends BookTarget
+    ? [args: ArgsOf<Id>, on: { book: string }]
+    : TargetOf<Id> extends SubjectId
+      ? [args: ArgsOf<Id>, on?: { record: string }]
+      : [args: ArgsOf<Id>]
 // 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は認可ステップが止めたとき（permission はそのステップの id）、
 // print-preview は印刷プレビューの間のステージから行おうとしたとき（ui の usePerform。core/stage.ts の stageBlocks）
 export type Performed<Id extends ActionId> =
