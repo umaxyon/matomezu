@@ -68,7 +68,7 @@ export const tagOf = (project: ProjectRecord, ticket: TicketRecord): TagRecord |
 export const assigneesOf = (ticket: TicketRecord, workrooms: readonly string[]): string[] =>
   ticket.assignees.filter(id => workrooms.includes(id))
 
-// ワークルームの今のチケット（宣言が無い・none・チケットかプロジェクトが無ければ undefined）と、そのチケットの最新の履歴
+// ワークルームの今のチケット（宣言が無い・none・チケットかプロジェクトが無ければ undefined）と、そのチケットの最新のチケット履歴
 export interface CurrentTask {
   ticket: TicketRecord
   project: ProjectRecord
@@ -90,6 +90,6 @@ export function currentTaskOf(
   return { ticket, project, latest: newestFirst(entries.filter(h => h.ticket === ticket.id))[0] }
 }
 
-// 履歴を新しい順に（同じ時刻なら id の降順）
+// チケット履歴を新しい順に（同じ時刻なら id の降順）
 export const newestFirst = (entries: readonly HistoryRecord[]): HistoryRecord[] =>
   [...entries].sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id))

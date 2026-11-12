@@ -1,5 +1,5 @@
 // コントロールセンターのプロジェクトの画面に置くタスクボード: 出しているプロジェクトのボードを縦に並べる（1 枚ずつ、題の帯・最大化のボタン・レーンの横並び）。
-// ボードの出入りは useBoardPhases の段で動かす。ボードかレーンを最大化すると、ほかのボードは畳み、枠にも最大化を知らせる（左と下を退かせる）
+// ボードの出入りは useBoardPhases の様子（phase）で動かす。ボードかレーンを最大化すると、ほかのボードは畳み、枠にも最大化を知らせる（左と下を退かせる）
 import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../plugin-api/ui"
 import { TitledArea, useControlCenterMaximize } from "../base/ui"
 import { lanesOf, orderedProjects, shownProjects, ticketsByLane } from "./board"

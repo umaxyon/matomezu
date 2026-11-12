@@ -1,4 +1,4 @@
-// ワークルームの枠の、情報の列の右に並べる 2 列: 現在のタスク（プロジェクト・番号と名前・最新の履歴）と、そのチケットの履歴（新しい順）。中身が無ければ「なし」
+// ワークルームの枠の、情報の列の右に並べる 2 列: 今のチケット（プロジェクト・番号と名前・最新の履歴）と、そのチケットの履歴（新しい順）。中身が無ければ「なし」
 import { useMessages, useRecords } from "../../plugin-api/ui"
 import { Elapsed } from "../base/ui"
 import { currentTaskOf, newestFirst } from "./board"
