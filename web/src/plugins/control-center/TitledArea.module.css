@@ -1,0 +1,17 @@
+.area {
+  --panel-pad-y: 8px;
+  --panel-pad-x: 8px;
+  --band-pad-right: 32px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 6px;
+  box-sizing: border-box;
+}
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}

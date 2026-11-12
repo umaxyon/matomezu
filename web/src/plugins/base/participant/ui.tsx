@@ -1,12 +1,10 @@
-// 参加者の見た目: 受け入れのダイアログ、参加要求の郵便のダイアログの下の行、参加者リスト（コントロールセンターが使う）
+// 参加者の見た目: 受け入れのダイアログ、参加要求の郵便のダイアログの下の行
 import { kit } from "../kit"
 import { MAIL_JOIN_REQUEST } from "../mail/join-request"
 import { defineMailActions } from "../mail/ui"
 import { PARTICIPANT_JOIN_DIALOG } from "./dialogs"
 import { ParticipantJoinDialog } from "./JoinDialog"
 import { JoinRequestActions } from "./JoinRequestActions"
-
-export { ParticipantList } from "./ParticipantList"
 
 export const PARTICIPANT_DIALOG_VIEWS = { [PARTICIPANT_JOIN_DIALOG.id]: ParticipantJoinDialog }
 

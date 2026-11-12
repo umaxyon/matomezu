@@ -48,7 +48,7 @@ export const MAILBOX_TAB = defineLeftSidePanelTab<typeof MAILBOX_TAB_ID>({
 })
 
 // 郵便箱を開く側（郵便箱のボタンとしおり）が、左サイドパネルに渡すタブ（郵便箱と送信トレイ）の opens を名乗る
-const MAILBOX_OPENS = opensOf(MAILBOX_TAB, OUTBOX)
+export const MAILBOX_OPENS = opensOf(MAILBOX_TAB, OUTBOX)
 
 export const MAIL_BOOKMARKS = defineWidget({
   id: kit.name("mail-bookmarks"),

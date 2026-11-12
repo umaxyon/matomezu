@@ -45,6 +45,8 @@ export type {
   SoftBreak,
   TextBlock,
   Weight,
+  WorkroomRow,
+  WorkroomState,
 } from "../plugins/base"
 export {
   AlignSchema,

@@ -1,0 +1,29 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.crownBox {
+  position: absolute;
+  left: 50%;
+  top: -38%;
+  display: flex;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.crownBox svg {
+  display: block;
+  color: var(--crown);
+  stroke: var(--crown-line);
+}
+.empty {
+  flex: none;
+  box-sizing: border-box;
+  border: 2px dotted var(--skin-border-strong);
+  border-radius: 50%;
+}
+
+/* 準備中の参加者の鳥は薄くする */
+.wrap[data-preparing="true"] {
+  opacity: 0.45;
+}

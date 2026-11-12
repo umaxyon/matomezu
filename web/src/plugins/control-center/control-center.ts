@@ -19,15 +19,30 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:proposal-send",
     "@matomezu/base:proposal-settle",
     "@matomezu/base:mail-join-request",
+    "@matomezu/base:participant-remove",
+    "@matomezu/base:workroom-remove",
+    "@matomezu/base:admin-set",
   ],
   subjects: "all",
 })
 
 // コントロールセンターの中で前に出す画面（画面の場所に入れるプラグイン状態。ステージに結ばない値で、変えるたびにブラウザの履歴に積む）。
-// 値は、プロジェクトの画面（projects）か書庫の画面（library）。値が無ければ、参加者リストの画面を出す
+// 値は、プロジェクトの画面（projects）か書庫の画面（library）。値が無ければ、プロジェクトの画面を出す（frontScreenOf）
 export const FRONT_SCREEN = kit.definePluginState({
   id: "front-screen",
   scope: "window",
   schema: z.enum(["projects", "library"]),
   address: "push",
 })
+
+export type FrontScreen = "projects" | "library"
+export const frontScreenOf = (value: FrontScreen | undefined): FrontScreen => value ?? "projects"
+
+// 選んでいるワークルームの id（窓の中だけの状態。読み直すと消える。ワークルームが無くなれば、選んでいないのと同じ）
+export const PICKED_ROOM = kit.definePluginStateOf<string>()({ id: "picked-room", scope: "window" })
+
+// 書庫の画面を最大化しているか（窓の中だけの状態。読み直すと消える）
+export const LIBRARY_MAXIMIZED = kit.definePluginStateOf<boolean>()({ id: "library-maximized", scope: "window" })
+
+// 退室の確認のダイアログ（部屋を出る・部屋を削除する）。退室するワークルームの id を受け取る
+export const WORKROOM_LEAVE_DIALOG = kit.defineDialogWith<{ workroom: string }>()({ id: "workroom-leave" })

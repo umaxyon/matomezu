@@ -1,24 +1,72 @@
+/* 画面全体の枠と配置。動きの長さ・大きさ・色の変数は、ここで持つ（各部品の CSS が読む） */
 .screen {
+  --gap: 6px;
+  --motion: 0.3s;
+  --motion-fast: 0.25s;
+  --left-width: 230px;
+  --room-height: 130px;
+  --screen-min-height: 700px;
+  --project-min-height: 550px; /* 画面の高さの下限（--screen-min-height）の中で、ワークルームを除いて残る高さ */
+  --board-min-height: 300px;
+  --row-height: 40px;
+  --admin-row-height: 62px;
+  --card-visit-room: 56px; /* カードに立ち寄る鳥（高さ 48px）の場所 */
+  --off-screen: 16px; /* 最大化で押し出す物が、確実に見えなくなる余分 */
+  --panel-pad-y: 6px;
+  --panel-pad-x: 8px;
+  --scrim: rgb(0 0 0 / 45%);
+  --crown: #f2b705;
+  --crown-line: #b8860b;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
+  box-sizing: border-box;
+  height: 100%;
+  /* これより低いウィンドウでは、画面の下が切れる（画面の中にスクロールは出さない） */
+  min-height: var(--screen-min-height);
+  padding: var(--gap);
+  color: var(--skin-text);
 }
-.title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+.layout {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
-.heading {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--skin-text-muted);
+.left {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  width: var(--left-width);
+  min-width: 0;
+  min-height: 0;
+  transition: transform var(--motion) ease;
 }
-/* 参加者リストの枠 */
-.participants {
-  min-height: 120px;
-  border: 1px solid var(--skin-border);
-  border-radius: 8px;
-  background: var(--skin-surface);
+.left[data-max="true"] {
+  transform: translateX(calc(-100% - var(--gap)));
+}
+.stage {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: calc(var(--left-width) + var(--gap));
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: left var(--motion) ease;
+}
+.stage[data-max="true"] {
+  left: 0;
+}
+.projectScreen {
+  position: relative;
+}
+/* プロジェクトの画面の上のボードの置き場（下のワークルームの高さを除いた全部）。ボードはタスクボードの物が入る */
+.boards {
+  position: absolute;
+  inset: 0 0 calc(var(--room-height) + var(--gap)) 0;
 }

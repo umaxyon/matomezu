@@ -1,0 +1,177 @@
+.room {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--room-height);
+  transition: transform var(--motion) ease;
+}
+.room[data-max="true"] {
+  transform: translateY(calc(100% + var(--off-screen)));
+}
+.leave {
+  position: absolute;
+  right: var(--edge-gap); /* ボタンの枠の右端を、右の縦の罫線から --edge-gap に置く */
+  bottom: 0;
+  display: flex;
+  font-weight: normal;
+}
+.leaveButton {
+  width: var(--leave-size);
+  height: var(--leave-size);
+  border-color: var(--skin-border-strong);
+}
+.body {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  gap: 12px;
+  min-height: 0;
+}
+.info {
+  --info-pad-right: 16px;
+  --leave-size: 24px;
+  --crown-pad: 2px; /* 王冠のボタンの、絵の周りの余白 */
+  --edge-gap: 8px; /* 右の縦の罫線から、王冠の絵の右端と退室のボタンの右端までの距離 */
+  position: relative;
+  /* 幅は、鳥・ワークルーム名（上限 20 字）・王冠が入る幅で決める（20ch は名前の字で測るので、字の大きさと太さを名前にそろえる） */
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: calc(22px + 8px + 21ch + 8px + 26px);
+  padding-right: var(--info-pad-right);
+  border-right: 1px solid var(--skin-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* 王冠は列の右端に置き、絵の右端を右の縦の罫線から --edge-gap に置く（列の右の余白にはみ出させる）。名前の長さでは動かさない */
+.head > :last-child {
+  flex: none;
+  margin-left: auto;
+  margin-right: calc(var(--edge-gap) - var(--info-pad-right) - var(--crown-pad));
+}
+.name {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere; /* 字の幅が広い字体でも王冠を押し出さず、折り返す */
+}
+.crown {
+  display: flex;
+  padding: var(--crown-pad);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: color-mix(in srgb, var(--skin-border) 45%, transparent);
+  cursor: pointer;
+}
+.crown:hover {
+  background: var(--skin-btn-hover);
+}
+.crown[aria-pressed="true"] {
+  color: var(--crown);
+}
+.crown svg {
+  stroke: var(--skin-border);
+}
+.crown[aria-pressed="true"] svg {
+  stroke: var(--crown-line);
+}
+.facts {
+  font-weight: normal;
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  column-gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--skin-text-muted);
+}
+.facts dt {
+  text-align: right;
+}
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere; /* ブランチの名前は長さを決められないので折り返す */
+}
+/* 現在のタスクと履歴の列: 見出しの下を縦にスクロールする */
+.task,
+.history {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+}
+/* 見出しより下だけを縦にスクロールする。字は折り返す */
+.taskScroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 0;
+  padding-right: 10px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+.heading {
+  align-self: stretch;
+}
+.history {
+  padding-left: 12px;
+  border-left: 1px solid var(--skin-border);
+}
+.historyList {
+  flex: 1;
+  min-height: 0;
+  padding-right: 10px; /* 行とスクロールバーの間 */
+  overflow: auto;
+}
+.label {
+  margin-right: 6px;
+  color: var(--skin-text-muted);
+}
+.latestHeading {
+  margin-top: 4px;
+}
+/* 最新の出来事と、カードの行: 名前や文のあとにバッヂとボタンを、字の流れのまま続ける（長ければ折り返す） */
+.latest,
+.taskRow {
+  align-self: stretch;
+  line-height: 1.6;
+}
+.latest > * + *,
+.taskRow > * + * {
+  margin-left: 6px;
+}
+.latest {
+  font-size: 12px;
+}
+.latest > :not(.latestText) {
+  display: inline-block;
+  vertical-align: middle;
+}
+.latestAt {
+  font-size: 11px;
+  color: var(--skin-text-muted);
+}
+.taskRow {
+  margin-left: 12px; /* 字下げ。折り返しても字下げの中に収める */
+  font-size: 13px;
+}
+.taskRow > :not(.taskName) {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.project {
+  font-size: 13px;
+}

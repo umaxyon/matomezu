@@ -4,6 +4,7 @@ import { isMac } from "../../../ui/keys"
 
 export { Stand, type StandAway, useAnchorRef, useAnchorShapeRef, useStandAway } from "./anchors"
 export { AtCorner, CORNER_STATUSES, type CornerStatusProps, defineCornerStatus, useAtCornerBubble } from "./corner"
+export { Elapsed } from "./ElapsedText"
 export { PaperFrame } from "./PaperFrame"
 export { type Revealable, useRevealable } from "./revealable"
 export { type SettingsPatch, useSettingControls } from "./SettingControls"

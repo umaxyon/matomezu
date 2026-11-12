@@ -331,3 +331,7 @@ export function usePerform(stage: string): <Id extends ActionId>(action: Id, arg
     [perform, catalog, book, mode],
   )
 }
+
+// 窓のカレントのステージの id（ブックスクリーンが前に出ていなくても、窓にはいつもカレントのステージがある）。
+// ステージの無い所（コントロールセンターの画面など）が、ステージを前提にするコマンドやダイアログを、この窓のステージで行うのに使う
+export const useWindowStage = (): string => useMatomezuState(s => screenOf(s.window).current)
