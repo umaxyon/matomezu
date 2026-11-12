@@ -1,11 +1,11 @@
-// 対象の定義（レコード）: プラグインが足した種類のデータをアクションが 1 件ずつ作る・直す・消す。確かめは宣言の形、番号は常駐が決める
+// 対象の定義（レコード）: プラグインが足した種類のデータをアクションが作る・直す・消す（宛先の 1 件と、ほかの同じ種類のレコードを 1 回でまとめて）。確かめは宣言の形、番号は常駐が決める
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { AI, AI_NOT_JOINED, USER } from "../../web/src/core/actor"
 import type { ActionDef } from "../../web/src/core/def/action"
 import type { SubjectDef } from "../../web/src/core/def/subject"
 import { type PerformedIn, performIn, permittedIn, type World } from "../../web/src/core/perform"
-import { checkRecords, REMOVED, withCounters, withRecord } from "../../web/src/core/records"
+import { checkRecords, RECORDS_MAX, REMOVED, withCounters, withRecords } from "../../web/src/core/records"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble, defineBuiltin, type Plugin } from "../../web/src/store/plugin"
 
@@ -62,10 +62,29 @@ const REMOVE = action("card-remove", {
 const SAME_ID = action("card-same-id", {
   run: (() => ({ next: { id: "c1", label: "x" }, result: {} })) as never,
 })
+// 宛先を直し、ほかのレコードも引数 others のとおりに変える（宛先のほかに変える物を試す）
+const MANY = action("card-many", {
+  reads: [CARD] as never,
+  args: z.strictObject({ label: z.string(), others: z.array(z.unknown()) }),
+  run: ((now: { id: string }, args: { label: string; others: unknown[] }) => ({
+    next: { ...now, label: args.label },
+    others: args.others,
+    result: {},
+  })) as never,
+})
+// reads に自分の種類を書かずに、ほかのレコードを変える
+const MANY_UNREAD = action("card-many-unread", {
+  args: z.strictObject({ label: z.string(), others: z.array(z.unknown()) }),
+  run: ((now: { id: string }, args: { label: string; others: unknown[] }) => ({
+    next: { ...now, label: args.label },
+    others: args.others,
+    result: {},
+  })) as never,
+})
 const EX = {
   id: "@ex/rec",
   subjects: [SUBJECT],
-  actions: [ADD, RENAME, REID, BAD, REMOVE, SAME_ID],
+  actions: [ADD, RENAME, REID, BAD, REMOVE, SAME_ID, MANY, MANY_UNREAD],
   controlCenters: [{ id: CENTER, actions: [], subjects: [CARD as never] }],
 } as unknown as Plugin
 const catalog = assemble([...BUILTIN, defineBuiltin(EX as never)], CENTER).catalog.core
@@ -74,7 +93,6 @@ const empty: World = {
   books: {},
   settings: {},
   annotations: {},
-  mailbox: [],
   records: {},
   counters: {},
 }
@@ -90,21 +108,25 @@ const ctx = (newIds = [...ids]) => ({
 const run = (world: World, id: string, args: unknown, on?: { record: string }, newIds?: string[]): PerformedIn =>
   performIn(world, `@ex/rec:${id}`, args, on, ctx(newIds))
 const apply = (world: World, done: PerformedIn): World =>
-  done.ok && done.record
-    ? { ...world, records: withRecord(world.records, done.record), counters: withCounters(world.counters, done.record) }
+  done.ok && done.records
+    ? {
+        ...world,
+        records: withRecords(world.records, done.records),
+        counters: withCounters(world.counters, done.counters),
+      }
     : world
 
 test("レコードを作ると、新しい 1 件を返す。番号は常駐の決めた次の番号で、区切りごとに進み、返した番号の表を当てると続きから振る", () => {
   const first = run(empty, "card-add", { label: "a" })
   expect(first).toMatchObject({
     ok: true,
-    record: { subject: CARD, id: "c1", record: { id: "c1", label: "a", no: 1 } },
+    records: [{ subject: CARD, id: "c1", record: { id: "c1", label: "a", no: 1 } }],
   })
-  expect(first.ok && first.record?.counters).toEqual({ all: 2 })
+  expect(first.ok && first.counters).toEqual({ [CARD]: { all: 2 } })
   const world = apply(empty, first)
   const second = run(world, "card-add", { label: "b" }, undefined, ["c2"])
-  expect(second).toMatchObject({ ok: true, record: { id: "c2", record: { no: 2 } } })
-  expect(second.ok && second.record?.counters).toEqual({ all: 3 })
+  expect(second).toMatchObject({ ok: true, records: [{ id: "c2", record: { no: 2 } }] })
+  expect(second.ok && second.counters).toEqual({ [CARD]: { all: 3 } })
 })
 
 test("同じ入力なら同じ結果（番号も）", () => {
@@ -124,7 +146,7 @@ test("on の record で指したレコードを直す。無いレコードは no
   const world = apply(empty, run(empty, "card-add", { label: "a" }))
   expect(run(world, "card-rename", { label: "b" }, { record: "c1" })).toMatchObject({
     ok: true,
-    record: { id: "c1", record: { id: "c1", label: "b", no: 1 } },
+    records: [{ id: "c1", record: { id: "c1", label: "b", no: 1 } }],
   })
   expect(run(world, "card-rename", { label: "b" }, { record: "nope" })).toEqual({ ok: false, reason: "no-record" })
   expect(run(world, "card-reid", { label: "b" }, { record: "c1" })).toEqual({ ok: false, reason: "refused" })
@@ -139,7 +161,7 @@ test("宣言の形に合わない新しいレコードは断る。今ある id �
 test("消すと removed を返し、その種類の最後の 1 件を消せば種類ごと外れる。番号は戻さない", () => {
   const world = apply(empty, run(empty, "card-add", { label: "a" }))
   const gone = run(world, "card-remove", {}, { record: "c1" })
-  expect(gone).toMatchObject({ ok: true, record: { subject: CARD, id: "c1", record: REMOVED } })
+  expect(gone).toMatchObject({ ok: true, records: [{ subject: CARD, id: "c1", record: REMOVED }] })
   const after = apply(world, gone)
   expect(after.records).toEqual({})
   expect(after.counters[CARD]).toEqual({ all: 2 })
@@ -243,4 +265,101 @@ test("ロックしたレコードをロックの印を外す形で変えるの�
     performIn(world, "@ex/rec:card-open", {}, { record: "c1" }, { ...ctx(), catalog: locked, actor })
   expect(open(USER)).toMatchObject({ ok: true })
   expect(open(AI)).toMatchObject({ ok: false, reason: "denied", permission: "@matomezu/base:lock" })
+})
+
+// c1・c2 があり、c1 を宛先に直しながら、ほかを変える
+const two = (): World => ({
+  ...empty,
+  records: { [CARD]: { c1: { id: "c1", label: "a" }, c2: { id: "c2", label: "b" } } },
+})
+const many = (others: unknown[], world = two(), id = "card-many") =>
+  run(world, id, { label: "A", others }, { record: "c1" })
+
+test("宛先のほかに、同じ種類のレコードを作る・直す・消すを 1 回で返せる（宛先が先で、ほかは返した順）", () => {
+  const done = many([
+    { id: "c2", record: REMOVED },
+    { id: "c3", record: { id: "c3", label: "c" } },
+  ])
+  expect(done).toMatchObject({
+    ok: true,
+    records: [
+      { subject: CARD, id: "c1", record: { id: "c1", label: "A" } },
+      { subject: CARD, id: "c2", record: REMOVED },
+      { subject: CARD, id: "c3", record: { id: "c3", label: "c" } },
+    ],
+  })
+  expect(apply(two(), done).records).toEqual({
+    [CARD]: { c1: { id: "c1", label: "A" }, c3: { id: "c3", label: "c" } },
+  })
+})
+
+test("ほかのレコードの変更が 1 つでも合わなければ、全部を断る（形が合わない・無い物を消す・id が違う・同じ id を 2 度・宛先と同じ id）", () => {
+  const refused = { ok: false, reason: "refused" } as const
+  expect(
+    many([
+      { id: "c3", record: { id: "c3", label: "c" } },
+      { id: "c2", record: { id: "c2", label: 1 } },
+    ]),
+  ).toEqual(refused)
+  expect(many([{ id: "nope", record: REMOVED }])).toEqual(refused)
+  expect(many([{ id: "c3", record: { id: "c4", label: "c" } }])).toEqual(refused)
+  expect(
+    many([
+      { id: "c2", record: REMOVED },
+      { id: "c2", record: { id: "c2", label: "x" } },
+    ]),
+  ).toEqual(refused)
+  expect(many([{ id: "c1", record: REMOVED }])).toEqual(refused)
+  expect(many([{ id: "c3", record: null }])).toEqual(refused)
+})
+
+test("reads に対象の種類を書かないアクションは、ほかのレコードを変えられない", () => {
+  expect(many([{ id: "c2", record: REMOVED }], two(), "card-many-unread")).toEqual({ ok: false, reason: "refused" })
+})
+
+test(`アクション 1 回で変えられるレコードは、宛先と合わせて ${RECORDS_MAX} 件まで`, () => {
+  const table = Object.fromEntries(
+    Array.from({ length: RECORDS_MAX + 1 }, (_, i) => [`c${i + 1}`, { id: `c${i + 1}`, label: "x" }]),
+  )
+  const world: World = { ...empty, records: { [CARD]: table } }
+  const removing = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `c${i + 2}`, record: REMOVED }))
+  expect(many(removing(RECORDS_MAX - 1), world)).toMatchObject({ ok: true })
+  expect(many(removing(RECORDS_MAX), world)).toEqual({ ok: false, reason: "refused" })
+})
+
+test("認可ステップは、変える全部にかかる（宛先でないロックしたレコードを変えるなら、AI は止められる）", () => {
+  const LOCKED = defineBuiltin({
+    ...EX,
+    subjects: [
+      {
+        ...SUBJECT,
+        lockable: true,
+        record: z.strictObject({
+          id: z.string(),
+          label: z.string(),
+          no: z.number().optional(),
+          locked: z.literal(true).optional(),
+        }),
+      },
+    ],
+  } as never)
+  const locked = assemble([...BUILTIN, LOCKED], CENTER).catalog.core
+  const world: World = {
+    ...empty,
+    records: { [CARD]: { c1: { id: "c1", label: "a" }, c2: { id: "c2", label: "b", locked: true } } },
+  }
+  const go = (others: unknown[]) =>
+    performIn(
+      world,
+      "@ex/rec:card-many",
+      { label: "A", others },
+      { record: "c1" },
+      { ...ctx(), catalog: locked, actor: AI },
+    )
+  expect(go([])).toMatchObject({ ok: true })
+  expect(go([{ id: "c2", record: REMOVED }])).toMatchObject({
+    ok: false,
+    reason: "denied",
+    permission: "@matomezu/base:lock",
+  })
 })

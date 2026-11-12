@@ -36,7 +36,6 @@ function ready() {
       books: {},
       settings: s.settings,
       annotations: {},
-      mailbox: [],
       records: s.records,
       counters: s.counters,
     }

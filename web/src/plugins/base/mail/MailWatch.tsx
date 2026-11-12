@@ -4,11 +4,11 @@
 import { useEffect, useRef } from "react"
 import { bookScreenVisible, screenOf } from "../../../core/window"
 import { useT } from "../../../ui/i18n"
-import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useActions, useReadState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorElementIn } from "../utils/anchors"
-import { MAIL_VISITED } from "."
+import { MAIL_VISITED, mailboxOf } from "."
 import { useMailbox } from "./hooks"
 import { shownOf } from "./shown"
 import { placeShown } from "./visited"
@@ -43,20 +43,20 @@ export function MailWatch() {
 function useVisited() {
   const read = useReadState()
   const { perform } = useActions()
-  const waiting = useMatomezuState(s => s.mailbox.some(m => m.to && !m.visitedAt))
+  const waiting = useMailbox().some(m => m.to && !m.visitedAt)
   useEffect(() => {
     if (!waiting) return
     const check = () => {
       const s = read()
       // コントロールセンターを前に出している間は、後ろのブックスクリーンの行き先は見えていない
       if (!bookScreenVisible(s.window)) return
-      for (const m of s.mailbox) {
+      for (const m of mailboxOf(s.records)) {
         if (!m.to || m.visitedAt) continue
         const stages = screenOf(s.window).stages.flatMap(st =>
           st.opened ? [{ id: st.id, book: st.opened.book, page: st.opened.page }] : [],
         )
         const shown = placeShown(m, stages, onScreen)
-        if (shown) perform(MAIL_VISITED.id, { mail: m.id })
+        if (shown) perform(MAIL_VISITED.id, {}, { record: m.id })
       }
     }
     check()

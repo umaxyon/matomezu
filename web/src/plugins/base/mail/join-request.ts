@@ -1,11 +1,9 @@
 // 参加要求の郵便: 参加者（core/participant.ts）の参加要求が届いたことを利用者に知らせる。種類は join-request、送るのは mail-join-request（利用者だけが行うアクション。AI の参加の頼みを受けたホストが、利用者として送る）。
-// 参加者の表と郵便箱は別の対象なので、郵便には参加者の id と、本文に出す ai・model・env・sessionName を添える
+// 参加者と郵便は別の種類のレコードなので、郵便には参加者の id と、本文に出す ai・model・env・sessionName を添える
 import { z } from "zod"
-import { freshId } from "../../../core/ids"
-import type { Mail } from "../../../core/mail"
 import { kit } from "../kit"
 import { WORKROOM_NAME_MAX } from "../participant"
-import { withinLimit } from "."
+import { MAIL, mailAdded } from "."
 
 const JoinRequestSchema = z.strictObject({
   participant: z.string().min(1), // 参加者の id
@@ -40,9 +38,10 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
 export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
   id: "mail-join-request",
   aiDescription:
-    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env and sessionName (optional) are the participant's; workroom (optional, up to 20 characters) is the name of the workroom it would like to continue or start. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
+    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env and sessionName (optional) are the participant's; workroom (optional, up to 20 characters) is the name of the workroom it would like to continue or start. from is a short name telling who sends it. Returns the mail's id.",
   title: "Send a join request",
-  target: "mailbox",
+  target: MAIL.id,
+  reads: [MAIL.id],
   userOnly: true,
   runsWhenAIJoins: "notify-user",
   args: z.strictObject({
@@ -54,17 +53,9 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
     sessionName: z.string().trim().max(120).optional(),
     workroom: z.string().trim().min(1).max(WORKROOM_NAME_MAX).optional(),
   }),
-  run: (mailbox, args, ctx) => {
-    const same = mailbox.find(
-      m => m.mail === MAIL_JOIN_REQUEST.id && (m.props as JoinRequestProps).participant === args.participant,
-    )
-    if (same) return { next: mailbox, result: { mail: same.id } }
-    const id = freshId(
-      ctx.newId,
-      mailbox.map(m => m.id),
-    )
-    const notice: Mail = {
-      id,
+  run: (now, args, ctx) => {
+    if (now !== "none") return null
+    const added = mailAdded(ctx, {
       mail: MAIL_JOIN_REQUEST.id,
       from: args.from,
       sentAt: ctx.now,
@@ -76,7 +67,7 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
         sessionName: args.sessionName ?? "",
         ...(args.workroom ? { workroom: args.workroom } : {}),
       } satisfies JoinRequestProps,
-    }
-    return { next: withinLimit([...mailbox, notice]), result: { mail: id } }
+    })
+    return added && { next: added.next, others: added.others, result: { mail: added.next.id } }
   },
 })

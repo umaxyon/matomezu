@@ -12,9 +12,9 @@ package server
 //	          by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印で、同じ Perform が変えたブックは同じ act。action は行ったアクションの id）
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
-//	mailbox   {"mailbox", "window", "client", "seq"} 郵便箱が変わった（郵便が届いた・既読になった・消えた）。window は最後にフォーカスされた窓
-//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・mailbox・record のあとに届く
-//	record    {"subject", "id", "record"（消したなら "removed"）, "version", "counters", "client", "seq"} 対象の定義が足した種類のレコード 1 件が変わった（records.go）
+//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・record のあとに届く
+//	record    {"records": [{"subject", "id", "record"（消したなら "removed"）, "version"}], "counters"?, "window", "client", "seq"} 1 つのアクションが変えた、対象の定義が足した種類のレコード
+//	          （郵便も。records.go）。window は最後にフォーカスされた窓
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
@@ -78,8 +78,7 @@ type Hub struct {
 	order            []string // 置いた順のブックの id（GET /api/data の並び）
 	settings         json.RawMessage
 	annotations      map[string]json.RawMessage        // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
-	mailbox          json.RawMessage                   // 利用者の郵便箱（郵便の並び。無ければ nil）
-	roles            map[string]string                 // 常駐が読む種類の役（participants・workrooms）→ 対象の定義の id（records.go）
+	roles            map[string]string                 // 常駐が読む種類の役（participants・workrooms・mails）→ 対象の定義の id（records.go）
 	recordTables     map[string]map[string]recordEntry // 対象の定義が足した種類のレコード（種類の id → id → レコード。records.go）
 	counters         map[string]map[string]int64       // 番号を振る種類の、区切り → 次の番号（種類の id → 区切り → 次の番号。records.go）
 	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go）
@@ -97,10 +96,9 @@ type Hub struct {
 	bookWarnings map[string]engine.BookWarning
 	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
 	annotationWarnings []string
-	// 効かない郵便（種類が無い W022・形が合わない W023）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・郵便箱が変わったときに確かめ直す
-	mailWarnings []string
-	// 効かないレコード（種類が無い W024・形が合わない W025）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・レコードが変わったときに確かめ直す（records.go）
-	recordLines []string
+	// 効かないレコード（種類が無い W024・形が合わない W025。郵便は種類が無い W022・形が合わない W023）の warning の 1 行ずつ（レコードごと）。
+	// 起動したとき・プラグインが変わったときに全部、アクションがレコードを変えたときに変えたレコードだけを確かめ直す（records.go）
+	recordLines map[recordKey][]string
 	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
 	windowWarnings map[string][]string
 	touched        map[string]string         // ブックの id → 触れた時刻（touched.go）
@@ -129,10 +127,6 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	mailbox, err := store.Mailbox(user)
-	if err != nil {
-		return nil, err
-	}
 	noteBody, err := store.ParticipantNotes(user)
 	if err != nil {
 		return nil, err
@@ -155,7 +149,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		}
 		aiEditTickets[id] = list
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
@@ -171,9 +165,6 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		return nil, err
 	}
 	if err := h.checkAnnotations(); err != nil {
-		return nil, err
-	}
-	if err := h.checkMailbox(); err != nil {
 		return nil, err
 	}
 	if err := h.checkRecords(); err != nil {
@@ -206,34 +197,6 @@ func (h *Hub) checkAnnotations() error {
 	}
 	h.annotationWarnings = lines
 	return nil
-}
-
-// checkMailbox は郵便箱を今のプラグインで確かめ、効かない郵便の warning の一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
-func (h *Hub) checkMailbox() error {
-	lines, err := h.mailboxWarnings(h.mailbox)
-	if err != nil {
-		return err
-	}
-	h.recordMailWarnings(lines)
-	return nil
-}
-
-// mailboxWarnings は郵便箱 mailbox を今のプラグインで確かめた、効かない郵便の warning の一覧（何も変えない）
-func (h *Hub) mailboxWarnings(mailbox json.RawMessage) ([]string, error) {
-	if len(mailbox) == 0 {
-		return []string{}, nil
-	}
-	return h.engine.CheckMailbox(mailbox)
-}
-
-// recordMailWarnings は、郵便箱の warning の一覧を lines にする（新しい warning は常駐のログに書く。h.mu を持って呼ぶ）
-func (h *Hub) recordMailWarnings(lines []string) {
-	for _, line := range lines {
-		if !slices.Contains(h.mailWarnings, line) {
-			fmt.Fprintln(os.Stderr, "warning:", line)
-		}
-	}
-	h.mailWarnings = lines
 }
 
 // putAnnotations は、ブック book のアノテーションの並びを書いて知らせる（空の並びなら消す。h.mu を持って呼ぶ）
@@ -332,16 +295,6 @@ func (h *Hub) Data() ([]storage.Book, json.RawMessage, map[string]json.RawMessag
 	return books, h.settings, annotations
 }
 
-// Mailbox は利用者の郵便箱（郵便の並び。届いていなければ空の並び）
-func (h *Hub) Mailbox() json.RawMessage {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.mailbox == nil {
-		return json.RawMessage("[]")
-	}
-	return h.mailbox
-}
-
 // AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、置いた順に返す
 func (h *Hub) AIBooks() []storage.Book {
 	h.mu.Lock()
@@ -392,14 +345,19 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Actor: actorOf(p), TimeoutSec: p.TimeoutSec}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Actor: actorOf(p), TimeoutSec: p.TimeoutSec}
 	in.Annotations = map[string]json.RawMessage{}
-	needs, err := h.engine.RecordNeeds(p.Action)
+	needs, err := h.engine.RecordNeeds(p.Action, p.Args)
 	if err != nil {
 		return Performed{}, err
 	}
 	if needs.Subject != "" {
-		// レコードが対象のアクションは、ブックもアノテーションも読まない
+		// レコードが対象のアクションは、アノテーションを読まず、ブックはアクションが引数から答えた読むだけの物だけ
+		for _, id := range needs.Books {
+			if e, ok := h.books[id]; ok {
+				in.Books = append(in.Books, e.body)
+			}
+		}
 	} else if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {
 			in.Books = []json.RawMessage{e.body}
@@ -436,7 +394,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			by = "window"
 		}
 		act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
-		plan, err := h.planWrites(out, by, act, stamp())
+		plan, err := h.planWrites(out, needs.Subject, by, act, stamp())
 		if err != nil {
 			return Performed{}, err
 		}
@@ -713,10 +671,13 @@ func (h *Hub) send(c *client, name string, v any) {
 	}
 }
 
-// AIMail は、利用者の郵便箱を、取り方 query で AI に見せる形にして返す（engine.AIMail）。
+// AIMail は、利用者の郵便（役 mails の種類のレコード）を、取り方 query で AI に見せる形にして返す（engine.AIMail。並べるのは core）。
 // 取り方が合わなければ、answer は空で、断る理由 reason を返す
 func (h *Hub) AIMail(query engine.MailQuery) (answer json.RawMessage, reason string, err error) {
-	return h.engine.AIMail(h.Mailbox(), query)
+	h.mu.Lock()
+	mails := h.recordsOfRole("mails")
+	h.mu.Unlock()
+	return h.engine.AIMail(mails, query)
 }
 
 // actorOf は、Perform を頼んだ者を engine に渡す形にする（AI の口が入れた By と、入っているワークルームの id）

@@ -27,7 +27,7 @@ import {
   STICKY,
 } from "./looks"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks/papers"
-import { MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./mail"
+import { MAIL, MAIL_LETTER, MAIL_REMOVE, MAIL_SEEN, MAIL_SEND, MAIL_VISITED } from "./mail"
 import { MAIL_DIALOG } from "./mail/dialogs"
 import { MAIL_JOIN_REQUEST, MAIL_JOIN_REQUEST_SEND } from "./mail/join-request"
 import { MAIL_PROPOSAL, PROPOSAL_APPLY, PROPOSAL_SEND, PROPOSAL_SETTLE } from "./mail/proposal"
@@ -350,7 +350,7 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [NOTE, MARK],
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
-    subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK],
+    subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL],
     checks: [
       PROP_NAMES_CHECK,
       FAMILY_TITLE_CHECK,
@@ -533,6 +533,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:workroom": typeof WORKROOM
     "@matomezu/base:participant": typeof PARTICIPANT
     "@matomezu/base:admin-mark": typeof ADMIN_MARK
+    "@matomezu/base:mail": typeof MAIL
   }
   interface MailTable {
     "@matomezu/base:letter": typeof MAIL_LETTER

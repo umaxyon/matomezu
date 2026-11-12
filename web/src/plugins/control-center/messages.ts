@@ -8,8 +8,6 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   Mailbox: { en: "Mailbox", ja: "郵便" },
   Library: { en: "Library", ja: "書庫" },
   Projects: { en: "Projects", ja: "プロジェクト" },
-  Maximize: { en: "Maximize", ja: "最大化" },
-  Restore: { en: "Restore", ja: "元に戻す" },
   Workrooms: { en: "Workrooms / participants", ja: "ワークルーム/参加者" },
   "No workrooms": { en: "No workrooms", ja: "ワークルームはありません" },
   "(empty)": { en: "(empty)", ja: "（空室）" },

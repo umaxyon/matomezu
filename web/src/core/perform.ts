@@ -1,5 +1,5 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book と annotations が対象ならそのブックのタイプ、library・settings・mailbox と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
+// 使えるかは、book と annotations が対象ならそのブックのタイプ、library・settings と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
@@ -17,6 +17,7 @@ import {
   type AnyPermissionScope,
   type AnySettingsScope,
   libraryScopeOf,
+  type OtherRecord,
   pagedOnly,
   type SubjectData,
   type Subjects,
@@ -28,8 +29,8 @@ import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
 import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
-import { type Mailbox, mailboxSettles } from "./mail"
-import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
+import { checkMail } from "./mail"
+import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { readsOf, referredOf } from "./refs"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -57,8 +58,15 @@ export type Refused =
   | { ok: false; reason: "refused"; detail?: string; kind?: string }
   | NotAllowed
   | { ok: false; reason: "denied"; permission: string }
+// others はレコードが対象のアクションが、宛先のほかに変えた同じ種類のレコード（確かめ終えた物）
 export type Performed<Id extends ActionId> =
-  | { ok: true; next: SubjectOf<Id>; result: ResultOf<Id>; aiEditTicket?: AIEditTicketChange }
+  | {
+      ok: true
+      next: SubjectOf<Id>
+      result: ResultOf<Id>
+      others?: readonly OtherRecord<never>[]
+      aiEditTicket?: AIEditTicketChange
+    }
   | Refused
 
 // タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
@@ -294,31 +302,61 @@ export function perform<Id extends ActionId>(
     const next = (done.next as unknown as BookAnnotations).annotations
     if (!annotationsSettle(ctx.catalog, pair.book, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
+  const others = (ran.others ?? []) as readonly OtherRecord<never>[]
   if (isRecordTarget(ctx.catalog, action.target)) {
-    if (!recordSettles(ctx.catalog, action.target, subject, done.next)) return { ok: false, reason: "refused" }
-    const kept = brokenRecord(ctx, action, subject, done.next)
-    if (kept === "unreadable") return { ok: false, reason: "refused" }
-    if (kept) return { ok: false, reason: "denied", permission: kept }
-  }
-  if (
-    action.target === "mailbox" &&
-    !mailboxSettles(ctx.catalog, subject as unknown as Mailbox, done.next as unknown as Mailbox)
-  )
-    return { ok: false, reason: "refused" }
+    const changes = recordChanges(ctx, action.target, subject, done.next, others)
+    if (!changes) return { ok: false, reason: "refused" }
+    // 変える全部に、形・郵便の種類・認可ステップの守らせることをかける（どれか 1 つでも合わなければ、全部を断る）
+    for (const c of changes) {
+      if (!recordSettles(ctx.catalog, action.target, c.now, c.next)) return { ok: false, reason: "refused" }
+      const kept = brokenRecord(ctx, action, c.now, c.next)
+      if (kept === "unreadable") return { ok: false, reason: "refused" }
+      if (kept) return { ok: false, reason: "denied", permission: kept }
+    }
+  } else if (others.length > 0) return { ok: false, reason: "refused" }
   return {
     ok: true,
     next: done.next,
     result: done.result,
-    ...(action.target === "mailbox" && ran.aiEditTicket ? { aiEditTicket: ran.aiEditTicket } : {}),
+    ...(others.length > 0 ? { others } : {}),
+    ...(isRecordTarget(ctx.catalog, action.target) && ran.aiEditTicket ? { aiEditTicket: ran.aiEditTicket } : {}),
   } as Performed<Id>
 }
 
-// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、郵便箱と、対象の定義が足した種類のレコードと番号の表
+// レコードが対象のアクションが変えるレコードの、前 now と後 next の組（宛先 subject の 1 件と、ほかの同じ種類の others）。
+// others の前は、アクションの reads の対象の種類（ctx.records）から引く（reads に対象の種類が無ければ引けないので、others は断る）。
+// 同じ id を 2 度変える・合わせて RECORDS_MAX 件を超えるなら null
+function recordChanges(
+  ctx: ActionContext,
+  target: string,
+  subject: unknown,
+  next: unknown,
+  others: readonly OtherRecord<never>[],
+): { now: unknown; next: unknown }[] | null {
+  if (others.length + 1 > RECORDS_MAX) return null
+  const table = ctx.records?.[target]
+  if (others.length > 0 && table === undefined) return null
+  const own = next === REMOVED ? subject : next
+  const seen = new Set<string>(
+    own !== NO_RECORD && typeof own === "object" && own !== null ? [String((own as { id?: unknown }).id)] : [],
+  )
+  const changes = [{ now: subject, next }]
+  for (const o of others) {
+    if (seen.has(o.id)) return null
+    seen.add(o.id)
+    const now = table?.[o.id] ?? NO_RECORD
+    // 作るレコードは、変更の id と record の id が同じ
+    if (now === NO_RECORD && o.record !== REMOVED && (o.record as { id?: unknown } | null)?.id !== o.id) return null
+    changes.push({ now, next: o.record })
+  }
+  return changes
+}
+
+// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、対象の定義が足した種類のレコードと番号の表
 export interface World {
   books: Library
   settings: Settings
   annotations: Annotations
-  mailbox: Mailbox
   records: Records // 対象の定義が足した種類ごとのレコード（種類の id → id → レコード）
   counters: Counters // 番号を振る種類ごとの、区切りごとの次の番号
 }
@@ -333,9 +371,9 @@ export type PerformedIn =
       books?: Library
       settings?: Settings
       annotations?: Annotations
-      mailbox?: Mailbox
-      record?: RecordChange // レコードが対象のアクションで変わったレコード 1 件
-      aiEditTicket?: AIEditTicketChange // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
+      records?: readonly RecordChange[] // レコードが対象のアクションで変わったレコード（宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
+      counters?: Counters // レコードが対象のアクションが進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）
+      aiEditTicket?: AIEditTicketChange // レコードが対象のアクションが返した、AI 編集チケットの変え方
     }
   | Refused
   | { ok: false; reason: "no-book" }
@@ -391,16 +429,6 @@ export function performIn(
       ? { ok: true, result: done.result, books }
       : { ok: true, result: done.result, books, annotations: Object.fromEntries(gone.map(b => [b, []])) }
   }
-  // 郵便箱が対象のアクションは、ブックの一覧を読める（変えはしない）
-  if (target === "mailbox") {
-    const done = loose(world.mailbox, id, args, { ...ctx, books: world.books })
-    if (!done.ok) return done
-    const next = done.next as unknown as Mailbox
-    const ticket = done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}
-    return next === world.mailbox
-      ? { ok: true, result: done.result, ...ticket }
-      : { ok: true, result: done.result, mailbox: next, ...ticket }
-  }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
   const next = done.next as Settings
@@ -411,16 +439,19 @@ export function performIn(
 // アクションの対象が、対象の定義が足した種類か
 const isRecordTarget = (catalog: CoreCatalog, target: string): boolean => catalog.subjects.has(target)
 
-// レコードが対象のアクションの結果 next が形を守っているか: 新しいレコードは種類の形に合い、id は変わらず（作るときは新しい id）、消すなら now がある
+// レコードが対象のアクションの結果 next が形を守っているか: 新しいレコードは種類の形に合い、id は変わらず（作るときは新しい id）、消すなら now がある。
+// 役 mails の種類（郵便）なら、郵便の種類が機能台帳にあって、その形にも合う（core/mail.ts の checkMail）
 function recordSettles(catalog: CoreCatalog, target: string, now: unknown, next: unknown): boolean {
   if (next === REMOVED) return now !== NO_RECORD
   const def = catalog.subjects.get(target)
   const fits = def?.record.safeParse(next)
   if (!fits?.success) return false
+  if (def?.role === "mails" && checkMail(catalog, next).length > 0) return false
   return now === NO_RECORD || (now as { id: string }).id === (next as { id: string }).id
 }
 
-// レコードが対象のアクションを行う: on の record のレコード（無ければ新しく作る）を渡し、1 件だけ変えた結果を返す。作るレコードの id は今ある id と重ならない
+// レコードが対象のアクションを行う: on の record のレコード（無ければ新しく作る）を渡し、宛先と、run が返したほかの同じ種類のレコードを変えた結果を返す。
+// 作るレコードの id は今ある id と重ならない。readsBooks を書いたアクションには、引数が答えた id のブックだけを ctx.books に渡す
 function performRecord(
   world: World,
   target: string,
@@ -438,6 +469,7 @@ function performRecord(
   const withBase: ActionContext = {
     ...ctx,
     records: reads,
+    ...(action?.readsBooks ? { books: booksRead(world, action, args) } : {}),
     ...(def?.numbered
       ? {
           number: (scope: string) => {
@@ -459,13 +491,32 @@ function performRecord(
   )
   if (!done.ok) return done
   const next = done.next as unknown
-  if (next === now) return { ok: true, result: done.result }
-  if (next === REMOVED)
-    return { ok: true, result: done.result, record: { subject: target, id: wanted as string, record: REMOVED } }
-  const made = (next as { id: string }).id
-  if (now === NO_RECORD && made in table) return { ok: false, reason: "refused" }
-  const numbers = Object.keys(used).length > 0 ? { counters: { ...counters, ...used } } : {}
-  return { ok: true, result: done.result, record: { subject: target, id: made, record: next, ...numbers } }
+  const changes: RecordChange[] = []
+  if (next === REMOVED) changes.push({ subject: target, id: wanted as string, record: REMOVED })
+  else if (next !== now) {
+    const made = (next as { id: string }).id
+    if (now === NO_RECORD && made in table) return { ok: false, reason: "refused" }
+    changes.push({ subject: target, id: made, record: next })
+  }
+  for (const o of done.others ?? []) {
+    if (o.record === REMOVED ? !(o.id in table) : o.record === table[o.id]) continue
+    changes.push({ subject: target, id: o.id, record: o.record })
+  }
+  return {
+    ok: true,
+    result: done.result,
+    ...(changes.length > 0 ? { records: changes } : {}),
+    ...(changes.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
+    ...(done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}),
+  }
+}
+
+// アクション action が引数 args から答えた、読むだけのブック（world にあるブックだけ。引数が形に合わなければ無し）
+function booksRead(world: World, action: ActionDef, args: unknown): Library {
+  const parsed = action.args.safeParse(args)
+  if (!parsed.success || !action.readsBooks) return {}
+  const ids = (action.readsBooks as (args: unknown) => readonly string[])(parsed.data)
+  return Object.fromEntries(ids.flatMap(id => (world.books[id] ? [[id, world.books[id]]] : [])))
 }
 
 // ブックかアノテーションが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
@@ -495,10 +546,5 @@ export function permittedIn(
     const reads = readsOf(world.records, ctx.catalog.actions.get(id)?.reads)
     return now === undefined ? { ok: false, reason: "no-record" } : permitted(now, id, args, { ...ctx, records: reads })
   }
-  return permitted(
-    target === "library" ? world.books : target === "mailbox" ? world.mailbox : world.settings,
-    id,
-    args,
-    ctx,
-  )
+  return permitted(target === "library" ? world.books : world.settings, id, args, ctx)
 }

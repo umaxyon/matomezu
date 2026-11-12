@@ -52,7 +52,6 @@ test("効かないアノテーションがあっても、ほかのアノテー�
     books: { d: book },
     settings: {},
     annotations: { d: [GOOD, BAD, GONE] },
-    mailbox: [],
     participants: [],
     records: {},
     counters: {},

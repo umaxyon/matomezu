@@ -360,7 +360,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
 	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
-		!strings.HasPrefix(body, `{"annotations":{},"books":[],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
+		!strings.HasPrefix(body, `{"annotations":{},"books":[],"counters":{},"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
 		!strings.HasSuffix(body, `},"settings":null,"touched":{}}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
@@ -377,7 +377,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
+	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) || !strings.Contains(body, `"touched":{"b1":"`) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -393,7 +393,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 	if code, body := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[`+book("b3")+`,`+book("b2")+`]}`, nil); code != 200 {
 		t.Fatalf("reset = %d %s", code, body)
 	}
-	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{}}`
+	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"counters":{},"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{}}`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -1290,17 +1290,17 @@ func TestChangeProposal(t *testing.T) {
 	}
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
 	var world struct {
-		Mailbox []struct {
+		Records map[string]map[string]struct {
 			Props struct {
 				Snapshot json.RawMessage `json:"snapshot"`
 			} `json:"props"`
-		} `json:"mailbox"`
+		} `json:"records"`
 	}
-	// 先頭は、参加の要求の郵便（joinedAI が受け入れた AI の分）。変更提案はその次
-	if json.Unmarshal([]byte(data), &world) != nil || len(world.Mailbox) != 2 {
-		t.Fatalf("mailbox = %s", data)
+	// ほかは、参加の要求の郵便（joinedAI が受け入れた AI の分）
+	if json.Unmarshal([]byte(data), &world) != nil || len(world.Records[mailKind]) != 2 || world.Records[mailKind][sent.Result.Mail].Props.Snapshot == nil {
+		t.Fatalf("mail = %s", data)
 	}
-	apply := `{"action":"@matomezu/base:proposal-apply","args":{"page":"p1","changes":` + change + `,"snapshot":` + string(world.Mailbox[1].Props.Snapshot) + `},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
+	apply := `{"action":"@matomezu/base:proposal-apply","args":{"page":"p1","changes":` + change + `,"snapshot":` + string(world.Records[mailKind][sent.Result.Mail].Props.Snapshot) + `},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
 	if _, got := send(t, "POST", s.URL+"/api/perform", apply, nil); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("apply while the thing is being edited = %s", got)
 	}
@@ -1309,7 +1309,7 @@ func TestChangeProposal(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/perform", user, nil); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("user update of a locked thing = %s", got)
 	}
-	settle := `{"action":"@matomezu/base:proposal-settle","args":{"mail":"` + sent.Result.Mail + `","outcome":"failed","changed":["` + k1 + `"]},"lang":"ja","client":"c1","seq":3}`
+	settle := `{"action":"@matomezu/base:proposal-settle","args":{"outcome":"failed","changed":["` + k1 + `"]},"on":{"record":"` + sent.Result.Mail + `"},"lang":"ja","client":"c1","seq":3}`
 	if _, got := send(t, "POST", s.URL+"/api/perform", settle, nil); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("proposal-settle = %s", got)
 	}
@@ -1386,7 +1386,7 @@ func TestRecordsOfAnAddedSubject(t *testing.T) {
 	if !strings.Contains(made, `"ok":true`) || json.Unmarshal([]byte(made), &created) != nil || created.Result.Card == "" || !strings.Contains(made, `"no":1`) {
 		t.Fatalf("card-add = %s", made)
 	}
-	if got := next(t, screen); !strings.HasPrefix(got, "record ") || !strings.Contains(got, `"counters":{"all":2}`) || !strings.Contains(got, `"id":"`+created.Result.Card+`"`) || !strings.Contains(got, `"subject":"ex9:card"`) {
+	if got := next(t, screen); !strings.HasPrefix(got, "record ") || !strings.Contains(got, `"counters":{"ex9:card":{"all":2}}`) || !strings.Contains(got, `"id":"`+created.Result.Card+`"`) || !strings.Contains(got, `"subject":"ex9:card"`) {
 		t.Fatalf("event = %s", got)
 	}
 	if got := perform(`{"action":"ex9:card-add","args":{"name":"apple"}}`); !strings.Contains(got, `"ok":false`) {
@@ -1400,7 +1400,7 @@ func TestRecordsOfAnAddedSubject(t *testing.T) {
 		t.Fatalf("rename of a record that is not there = %s", got)
 	}
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"ex9:card":{"`+created.Result.Card+`":{"id":"`+created.Result.Card+`","name":"pear","no":1}}`) || !strings.Contains(data, `"counters":{"ex9:card":{"all":2}}`) {
+	if !strings.Contains(data, `"ex9:card":{"`+created.Result.Card+`":{"id":"`+created.Result.Card+`","name":"pear","no":1}}`) || !strings.Contains(data, `"ex9:card":{"all":2}`) {
 		t.Fatalf("data = %s", data)
 	}
 	if got := perform(`{"action":"ex9:card-remove","args":{},"on":{"record":"` + created.Result.Card + `"}}`); !strings.Contains(got, `"ok":true`) {

@@ -259,6 +259,7 @@ func recordsOf(t *testing.T, url, subject string) map[string]map[string]any {
 const (
 	participantKind = "@matomezu/base:participant"
 	workroomKind    = "@matomezu/base:workroom"
+	mailKind        = "@matomezu/base:mail"
 )
 
 // 話しかけたセッションが誰にも結ばれていなければ unbound を返し、候補に link が合えば結ぶ。
@@ -396,12 +397,6 @@ func table(t *testing.T, base string) (rows []tableRow, mails []struct {
 	t.Helper()
 	var data struct {
 		Records map[string]map[string]json.RawMessage `json:"records"`
-		Mailbox []struct {
-			Props struct {
-				Participant string `json:"participant"`
-				Workroom    string `json:"workroom"`
-			} `json:"props"`
-		} `json:"mailbox"`
 	}
 	body, _ := call(t, "GET", base+"/api/data", "", nil)
 	if err := json.Unmarshal([]byte(body), &data); err != nil {
@@ -432,7 +427,29 @@ func table(t *testing.T, base string) (rows []tableRow, mails []struct {
 	for _, f := range found {
 		rows = append(rows, f.row)
 	}
-	return rows, data.Mailbox
+	// 郵便は届いた順（order）に並べる
+	type withOrder struct {
+		order int
+		raw   json.RawMessage
+	}
+	var letters []withOrder
+	for _, raw := range data.Records[mailKind] {
+		var m struct{ Order int }
+		_ = json.Unmarshal(raw, &m)
+		letters = append(letters, withOrder{m.Order, raw})
+	}
+	slices.SortFunc(letters, func(a, b withOrder) int { return a.order - b.order })
+	for _, l := range letters {
+		var m struct {
+			Props struct {
+				Participant string `json:"participant"`
+				Workroom    string `json:"workroom"`
+			} `json:"props"`
+		}
+		_ = json.Unmarshal(l.raw, &m)
+		mails = append(mails, m)
+	}
+	return rows, mails
 }
 
 // 名前の参加者が生きているあいだ、その名前で引き継ごうとしても断る。参加者は増えず、郵便も出ない。名前の参加者が居なければ、名前は新しい参加者の初めの値になる

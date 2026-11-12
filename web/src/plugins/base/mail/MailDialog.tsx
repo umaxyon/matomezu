@@ -15,6 +15,7 @@ import { useCloseLeftSidePanel, useLeftSidePanel } from "../left-side-panel/hook
 import { useRequestReveal } from "../utils/reveal-request"
 import { MAIL_SEEN, MAIL_VISITED } from "."
 import { useSetBirdVisit } from "./bird-visit"
+import { useMailbox } from "./hooks"
 import own from "./Mail.module.css"
 import { type OpenChoice, openChoices, openStageOf } from "./open-choices"
 import { placeExists } from "./place"
@@ -39,7 +40,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const form = useId()
   const buttons = useRef<HTMLFormElement>(null)
   const catalog = useCoreCatalog()
-  const mail = useMatomezuState(s => s.mailbox.find(m => m.id === args.mail) ?? null)
+  const mail = useMailbox().find(m => m.id === args.mail) ?? null
   const books = useMatomezuState(s => s.books)
   const stages = useMatomezuState(s => screenOf(s.window).stages)
   const read = useReadState()
@@ -60,7 +61,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     : undefined
   // 開いたら見たことにする
   useEffect(() => {
-    if (mail && !seen) actions.perform(MAIL_SEEN.id, { mail: mail.id })
+    if (mail && !seen) actions.perform(MAIL_SEEN.id, {}, { record: mail.id })
   }, [mail, seen, actions])
   // 決めるボタンに焦点を当てる（入力Form の無いダイアログでは、ブラウザが開いたときに最初のボタン〈キャンセル〉に焦点を当てるため）
   useEffect(() => {
@@ -85,7 +86,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
       reveal(target, to.ids)
       bringBird(target, { mail: mail.id, seq: ++visits, book: to.book, page: to.page ?? null, ids: to.ids })
     }
-    actions.perform(MAIL_VISITED.id, { mail: mail.id })
+    actions.perform(MAIL_VISITED.id, {}, { record: mail.id })
   }
   const opens = to && !Actions ? openChoices({ stages }, stage) : null
   const submit = (e: FormEvent) => {

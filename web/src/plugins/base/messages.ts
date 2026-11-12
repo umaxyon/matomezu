@@ -27,7 +27,7 @@ import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
 import { joinMessages } from "./utils/join-messages"
-import { ASK_MESSAGES, CORNER_MESSAGES, ELAPSED_MESSAGES } from "./utils/messages"
+import { ASK_MESSAGES, CORNER_MESSAGES, ELAPSED_MESSAGES, MAX_BUTTON_MESSAGES } from "./utils/messages"
 import { WINDOW_MESSAGES } from "./window/messages"
 import { ZOOM_MESSAGES } from "./zoom/messages"
 
@@ -61,6 +61,7 @@ export const BASE_MESSAGES = joinMessages(
   ITEM_PARTS_MESSAGES,
   TEXT_MESSAGES,
   ELAPSED_MESSAGES,
+  MAX_BUTTON_MESSAGES,
   CORNER_MESSAGES,
   ASK_MESSAGES,
   HISTORY_MESSAGES,

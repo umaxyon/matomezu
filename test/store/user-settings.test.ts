@@ -37,7 +37,6 @@ test("利用者だけが変える項目は、AI には変えさせず、AI が�
     books: {},
     settings: { "@ex/u:secret": "s" },
     annotations: {},
-    mailbox: [],
     participants: [],
     records: {},
     counters: {},

@@ -1,4 +1,4 @@
-// 常駐が埋め込む engine.js が、今のソースから作ったものと同じか（ソースを変えたら bun run build:engine）
+// 常駐が埋め込む engine.js が、今のソースから作ったものと同じか（ソースを変えたら bun run build:engine）と、エンジンの入口のうちレコードと郵便の物
 import { expect, test } from "bun:test"
 import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -17,4 +17,76 @@ test("internal/engine/engine.js は web/src/engine/engine.ts から作り直し�
   const build = Bun.spawn(args, { cwd: ROOT, env, stdout: "ignore", stderr: "inherit" })
   expect(await build.exited).toBe(0)
   expect(readFileSync(join(ROOT, "internal/engine/engine.js"), "utf8")).toBe(readFileSync(out, "utf8"))
+})
+
+// ホストのエンジンの入口（常駐が呼ぶグローバル関数）のうち、レコードと郵便の物
+import "../web/src/engine/engine"
+
+const MAIL = "@matomezu/base:mail"
+const engine = globalThis as unknown as {
+  matomezuPerform(input: string): string
+  matomezuRecordNeeds(action: string, args: string): string
+  matomezuAiMail(input: string): string
+}
+const letter = (n: number, seen = false) => ({
+  id: `m${n}`,
+  mail: "@matomezu/base:letter",
+  from: "a",
+  sentAt: "2026-11-12T00:00:00.000Z",
+  props: { title: `t${n}`, body: "" },
+  order: n,
+  ...(seen ? { seenAt: "2026-11-12T00:00:00.000Z" } : {}),
+})
+// 200 通の郵便（m1 だけ見た）。AI が 1 通送ると、上限を守るために m1 が消える
+const full = () => Object.fromEntries(Array.from({ length: 200 }, (_, i) => [`m${i + 1}`, letter(i + 1, i === 0)]))
+const send = (watchedRecords?: Record<string, string[]>) =>
+  JSON.parse(
+    engine.matomezuPerform(
+      JSON.stringify({
+        action: "@matomezu/base:mail-send",
+        args: { from: "a", title: "new" },
+        ids: ["newmail001"],
+        now: "2026-11-12T00:00:00.000Z",
+        settings: {},
+        records: { [MAIL]: full() },
+        counters: { [MAIL]: { mail: 201 } },
+        actor: { kind: "ai", workroom: "room" },
+        ...(watchedRecords ? { watchedRecords } : {}),
+      }),
+    ),
+  )
+
+test("エンジンは 1 回のアクションで変えたレコードの全部を records で返し、進めた番号を counters で返す", () => {
+  const out = send()
+  expect(out).toMatchObject({
+    ok: true,
+    records: [
+      { subject: MAIL, id: "newmail001", record: { id: "newmail001", order: 201 } },
+      { subject: MAIL, id: "m1", record: "removed" },
+    ],
+    counters: { [MAIL]: { mail: 202 } },
+  })
+})
+
+test("エンジンの編集ロックは、変えるレコードの全部にかかる（宛先でない、消す郵便を利用者が直していても being-edited）", () => {
+  expect(send({ [MAIL]: ["m1"] })).toEqual({ ok: false, reason: "being-edited" })
+  expect(send({ [MAIL]: ["m2"] })).toMatchObject({ ok: true })
+})
+
+test("RecordNeeds は対象の種類・読む種類と、readsBooks が引数から答えた読むブックの id を返す（引数が合わなければ空）", () => {
+  const needs = (action: string, args: unknown) =>
+    JSON.parse(engine.matomezuRecordNeeds(action, args === undefined ? "" : JSON.stringify(args)))
+  const proposal = { from: "a", title: "t", book: "b1", changes: [{ action: "x", args: {} }] }
+  expect(needs("@matomezu/base:proposal-send", proposal)).toEqual({ subject: MAIL, reads: [MAIL], books: ["b1"] })
+  expect(needs("@matomezu/base:proposal-send", { book: "b1" })).toEqual({ subject: MAIL, reads: [MAIL], books: [] })
+  expect(needs("@matomezu/base:mail-seen", {})).toEqual({ subject: MAIL, reads: [], books: [] })
+  expect(needs("@matomezu/base:book-create", undefined)).toEqual({ subject: null, reads: [], books: [] })
+})
+
+test("AiMail は郵便のレコードを順を問わずに受け、order の順に並べて見せる（order は見せない）", () => {
+  const records = [letter(3), letter(1), letter(2)]
+  const out = JSON.parse(engine.matomezuAiMail(JSON.stringify({ records, query: { limit: "2" } })))
+  expect(out).toMatchObject({ ok: true, answer: { total: 3, older: 1 } })
+  expect(out.answer.mailbox.map((m: { id: string }) => m.id)).toEqual(["m3", "m2"])
+  expect(out.answer.mailbox.some((m: object) => "order" in m)).toBe(false)
 })
