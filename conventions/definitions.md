@@ -36,11 +36,10 @@
 | キーの範囲（`KeyScopeDef`） | キーバインドが効く場面の名前と、画面に出す題名 | `store/keys.ts` |
 | ノーマライズステップ（`NormalizeStepDef`） | ブックが対象のアクションの run のあとに、perform がどのブックにもかける処理。id を持たない | `core/def/normalize-step.ts` |
 | 台帳アセンブルのときの確かめ（`CatalogCheckDef`） | ビルトインプラグインが、自分の書き足したフィールドを台帳アセンブルのときに確かめる処理。id を持たない | `core/core-catalog.ts` |
-| 場所に入れる画面の状態（`PlacedStateDef`） | プラグインのステージごとの画面の状態のうち、画面の場所に入れる部分の形と、取り出し方・戻し方 | `core/def/placed-state.ts` |
+| 場所に入れる画面の状態（`PlacedStateDef`） | 画面の場所（URL）に入れて読み直しても戻す値 1 つの、id・範囲（ステージごとか窓の外か）・値の形・ブラウザの履歴に積むか | `core/def/placed-state.ts` |
 
-- 定義の種類（文言の組・言語パック・テーマキー・既定のキーバインド・場所に入れる画面の状態・ノーマライズステップ・台帳アセンブルのときの確かめを除く上の表）の一覧は `core/catalog.ts` の `PARTS` と `PartTables` だけに書き、定義の型は、その台帳のクレートが `PartDefTable` に書き足す。種類ごとの見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く
+- 定義の種類（文言の組・言語パック・テーマキー・既定のキーバインド・ノーマライズステップ・台帳アセンブルのときの確かめを除く上の表）の一覧は `core/catalog.ts` の `PARTS` と `PartTables` だけに書き、定義の型は、その台帳のクレートが `PartDefTable` に書き足す。種類ごとの見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く
 - 文言の組・言語パック・テーマキー・既定のキーバインドは、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとブックのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作る
-- 場所に入れる画面の状態は、プラグインの `placedState` に書き、`PARTS` に入れない（id を持たず、プラグインの id で引く。置き場はプラグインごとに 1 つ）
 - 定義は `defineX()` で書く。React を使わない（描き方はプラグインの見た目で結ぶ）
 
 - core 台帳は定義の組から作り、作ったあとは変えない。作るときに表どうしの参照を確かめ、食い違えば作らない

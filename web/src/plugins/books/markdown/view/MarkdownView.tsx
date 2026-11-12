@@ -15,6 +15,8 @@ import {
   useContextMenu,
   useCoreCatalog,
   useMessages,
+  usePlacedState,
+  useSetPlacedState,
   useSetStageState,
   useShownPage,
   useStageState,
@@ -37,15 +39,14 @@ import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
 import {
   EVEN_PANE_SHARE,
+  PANE_LAYOUT_STATE,
   PANES,
-  type PaneLayout,
   paneInputOf,
   paneLayoutOf,
   shareAt,
   shownPanes,
   splitOf,
   swapPanes,
-  withChosen,
   withOpening,
 } from "../panes"
 import { followScroll, type PaneMarks } from "../scroll-sync"
@@ -64,9 +65,10 @@ export function MarkdownView({ stage }: BookViewProps) {
   const book = useBook(stage)
   const state = useStageState(stage, kit)
   const shownPage = page ? paneInputOf(page) : null
-  const layout = paneLayoutOf(state, shownPage)
+  const chosen = usePlacedState(kit, PANE_LAYOUT_STATE, stage)
+  const layout = paneLayoutOf(chosen, state, shownPage)
   const setStageState = useSetStageState(kit)
-  const setLayout = (next: PaneLayout) => setStageState(stage, withChosen(state, next))
+  const setLayout = useSetPlacedState(kit, PANE_LAYOUT_STATE, stage)
   const swap = usePaneSwap(() => setLayout(swapPanes(layout)))
   const openMenu = useContextMenu(stage, PANE_CONTEXT)
   const panes = useRef<HTMLDivElement>(null)

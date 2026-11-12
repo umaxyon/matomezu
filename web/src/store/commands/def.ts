@@ -4,6 +4,7 @@
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { ArgsOfType, Where } from "../../core/def/action"
+import type { PlacedStateDef } from "../../core/def/placed-state"
 import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
@@ -66,6 +67,8 @@ export interface CommandContext {
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
   stageState: unknown // コマンドを持つプラグイン（id の頭）が持つ、そのステージの画面の状態（無ければ undefined。変えるのは run が受け取る updateStageState）
   frameState: unknown // コマンドを持つプラグインが持つ、窓の外観枠の状態（無ければ undefined。変えるのは run が受け取る updateFrameState）
+  // コマンドを持つプラグインが宣言した、場所に入れる画面の状態 def の値（ステージの宣言は呼ばれた場所のステージの値。無ければ undefined。ほかのプラグインの宣言は E121。変えるのは run が受け取る updatePlaced）
+  placed<S>(def: PlacedStateDef<S>): S | undefined
 }
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）
@@ -93,6 +96,8 @@ export interface CommandActions extends Actions {
   updateStageState(change: (now: unknown) => unknown): void
   // このコマンドを持つプラグインの、窓の外観枠の状態を、今の値から change が返す値にする（undefined なら消す）。ほかのプラグインの状態は変えられない
   updateFrameState(change: (now: unknown) => unknown): void
+  // このコマンドを持つプラグインが宣言した、場所に入れる画面の状態 def の値を、今の値から change が返す値にする（undefined なら消す。ステージの宣言は呼ばれた場所のステージの値）。形に合わなければ E119
+  updatePlaced<S>(def: PlacedStateDef<S>, change: (now: S | undefined) => S | undefined): void
 }
 
 export interface CommandDef<A = undefined, Tt extends string = MessageKey> extends CommandExtras {

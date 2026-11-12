@@ -7,6 +7,7 @@
 import { hasPages } from "./book"
 import type { CoreCatalog } from "./core-catalog"
 import type { Point } from "./geom"
+import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import { newStage, openBook, openPage, panBy, type Stage, stopStart } from "./stage"
 import { zoomInRange } from "./viewport"
@@ -26,12 +27,14 @@ export interface Address {
   stages: readonly StagePlace[] // 左から順（前に出せるブックスクリーンの。空なら、ブックスクリーンは今のまま）
   current: number // カレントのステージの、左からの番号
   share: number // 分けている境目の割合（左のステージの幅）
+  frame: Readonly<Record<string, unknown>> // 窓の外（ステージに結ばない）の、場所に入れる画面の状態（宣言の id → 値。store/placed-state.ts）
 }
 
 // 見ているものの場所。states は、ステージの id ごとの場所に入れる画面の状態
 export function addressOf(
   win: WindowState,
   states: (stage: string) => Readonly<Record<string, unknown>> = () => ({}),
+  frame: Readonly<Record<string, unknown>> = {},
 ): Address {
   const ws = screenOf(win)
   return {
@@ -51,15 +54,22 @@ export function addressOf(
       ws.stages.findIndex(s => s.id === ws.current),
     ),
     share: ws.arrangement.share,
+    frame,
   }
 }
 
-// 移動したか: 前に出している物か、ステージの数か、どれかのステージのブック・ページが違う（倍率・ずらす量・カレント・境目・画面の状態だけの違いは移動ではない）
-export function moved(a: Address, b: Address): boolean {
+// 移動したか: 前に出している物か、ステージの数か、どれかのステージのブック・ページが違う、または積むと宣言した画面の状態（pushes: 宣言の id の組）の値が違う
+// （倍率・ずらす量・カレント・境目と、積むと宣言していない画面の状態だけの違いは移動ではない）
+export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new Set()): boolean {
   return (
     a.front !== b.front ||
     a.stages.length !== b.stages.length ||
-    a.stages.some((s, i) => s.book !== b.stages[i]?.book || s.page !== b.stages[i]?.page)
+    a.stages.some((s, i) => s.book !== b.stages[i]?.book || s.page !== b.stages[i]?.page) ||
+    [...pushes].some(
+      id =>
+        !sameData(a.frame[id], b.frame[id]) ||
+        a.stages.some((s, i) => !sameData(s.states[id], b.stages[i]?.states[id])),
+    )
   )
 }
 

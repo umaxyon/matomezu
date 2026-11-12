@@ -2,6 +2,7 @@
 
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
+import type { PlacedStateDef } from "../../core/def/placed-state"
 import { fail } from "../../core/errors"
 import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
@@ -9,6 +10,7 @@ import { splitId } from "../../core/names"
 import { stageBlocks } from "../../core/stage"
 import { screenOf } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
+import { ownedPlaced, placedValueOf } from "../placed-state"
 import type { Assembled } from "../plugin"
 import type { MatomezuState } from "../store"
 import { type CommandContext, type CommandDef, commandScopeOf, withWorkspace } from "./def"
@@ -53,6 +55,8 @@ export function commandContext(
       bookHistory: (book && state.history[book.id]) || NO_HISTORY,
       stageState: state.stageStates[stageId]?.[commandOwner(command)],
       frameState: state.frameStates[commandOwner(command)],
+      placed: <S>(def: PlacedStateDef<S>) =>
+        placedValueOf(state.placedValues, stageId, ownedPlaced(commandOwner(command), def)),
     },
     workspace,
   )

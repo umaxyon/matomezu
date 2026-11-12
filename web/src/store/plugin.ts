@@ -25,6 +25,7 @@ declare module "../core/catalog" {
     commands: CommandDef<never>
     dialogs: DialogDef<unknown>
     keyScopes: KeyScopeDef
+    placedStates: PlacedStateDef
   }
 }
 
@@ -34,7 +35,6 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   languages?: readonly LanguagePackDef[] // 持ち込む言語（kit.defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // 既定のキーバインド（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
-  placedState?: PlacedStateDef // ステージの画面の状態のうち、画面の場所に入れて読み直しても戻す物（store/placed-state.ts）
   checks?: readonly CatalogCheckDef[] // 台帳アセンブルのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と台帳アセンブル E308 で止める）
   normalizeSteps?: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と台帳アセンブル E310 で止める）
 }
@@ -127,7 +127,7 @@ export interface StoreCatalog {
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
   keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名は store/keys.ts の BASE_KEY_SCOPE_TITLES）
   keys: ReadonlyMap<string, DefaultKey> // キーの既定のキーバインド（id → キーバインド。キーはそろえた書き方）
-  placedStates: ReadonlyMap<string, PlacedStateDef> // 場所に入れる画面の状態（プラグインの id → 定義）
+  placedStates: ReadonlyMap<string, PlacedStateDef> // 場所に入れる画面の状態の宣言（id → 定義。store/placed-state.ts）
   warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
 }
 
@@ -230,7 +230,7 @@ export function assemble(
         dialogs: new Map(dialogs.map(d => [d.id, d])),
         keyScopes: new Map(keyScopes.map(s => [s.id, s])),
         keys: new Map(keys.map(k => [k.id, k])),
-        placedStates: new Map(plugins.flatMap(p => (p.placedState ? [[p.id, p.placedState] as const] : []))),
+        placedStates: new Map(all("placedStates").map(d => [d.id, d])),
         warnings: [
           ...performsWarnings(plugins, catalog),
           ...keyWarnings(keys),

@@ -292,3 +292,19 @@ test("ex8 を読ませると、自分の見せ方のビューが開いたペー�
   await expect(sheets.nth(0).locator("[data-ex8-card]")).toHaveText(["りんご", "みかん"])
   await expect(sheets.nth(1).locator("[data-ex8-card]")).toHaveText(["ぶどう"])
 })
+
+test("ex10 の窓の外の宣言（placedState、積む）は、変えると URL の w に入ってブラウザの履歴に積まれ、読み直しても戻り、戻ると前の値に戻る", async ({
+  page,
+}) => {
+  await link(page, "test/added-plugins/ex10")
+  await page.goto(BOOK_SCREEN_URL)
+  const tabs = page.locator("[data-ex10-tabs]")
+  await expect(tabs).toHaveAttribute("data-tab", "one")
+  await tabs.locator("button").nth(1).click()
+  await expect(tabs).toHaveAttribute("data-tab", "two")
+  await expect.poll(() => decodeURIComponent(new URL(page.url()).search)).toContain('w={"ex10:tab":"two"}')
+  await page.reload()
+  await expect(page.locator("[data-ex10-tabs]")).toHaveAttribute("data-tab", "two")
+  await page.goBack()
+  await expect(page.locator("[data-ex10-tabs]")).toHaveAttribute("data-tab", "one")
+})

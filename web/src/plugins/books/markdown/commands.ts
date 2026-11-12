@@ -1,10 +1,10 @@
 // ペインの並べ方のコマンドと、ソースのペインのテキストFormの中のキー（元に戻す・やり直す・検索は base のコマンド）。
 // 並べ方のコマンドは 4 つ（ソースだけ・左右に並べる・上下に並べる・プレビューだけ）で、ビューの上の行のボタンが押す。今の並べ方のコマンドは押した状態。
-// 並べ方はこのプラグインのステージの画面の状態に持つ（panes.ts）。コマンドは並べ方（mode）だけを変え、選んだ並べ方にする
+// 利用者が選んだ並べ方は場所に入れる画面の状態に持つ（panes.ts の PANE_LAYOUT_STATE）。コマンドは並べ方（mode）だけを変え、選んだ並べ方にする
 import type { CommandContext } from "../../../plugin-api"
 import { kit } from "./kit"
 import { MARKDOWN_PRESENTATION, SOURCE_KEYS_SCOPE } from "./markdown"
-import { type PaneMode, type PaneState, paneInputOf, paneLayoutOf, withChosen } from "./panes"
+import { PANE_LAYOUT_STATE, type PaneLayout, type PaneMode, paneInputOf, paneLayoutOf } from "./panes"
 
 // 開いているブックのタイプが、マークダウンの見せ方で描くか
 const onMarkdown = (ctx: CommandContext) =>
@@ -19,10 +19,13 @@ function openedPage(ctx: CommandContext): { id: string; text: string } | null {
 
 // 並べ方 mode にするコマンドの中身（入れ替えた順と境目の割合はそのまま。今その並べ方なら押した状態）
 const toMode = (mode: PaneMode) => ({
-  run: (ctx: CommandContext, a: { updateStageState(f: (now: unknown) => PaneState): void }) =>
-    a.updateStageState(now => withChosen(now, { ...paneLayoutOf(now, openedPage(ctx)), mode })),
+  run: (
+    ctx: CommandContext,
+    a: { updatePlaced(def: typeof PANE_LAYOUT_STATE, f: (now: PaneLayout | undefined) => PaneLayout): void },
+  ) => a.updatePlaced(PANE_LAYOUT_STATE, now => ({ ...paneLayoutOf(now, ctx.stageState, openedPage(ctx)), mode })),
   when: onMarkdown,
-  active: (ctx: CommandContext) => paneLayoutOf(ctx.stageState, openedPage(ctx)).mode === mode,
+  active: (ctx: CommandContext) =>
+    paneLayoutOf(ctx.placed(PANE_LAYOUT_STATE), ctx.stageState, openedPage(ctx)).mode === mode,
 })
 
 export const PANE_SHOW_SOURCE = kit.defineCommand({

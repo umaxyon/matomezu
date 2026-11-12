@@ -1,6 +1,6 @@
 // ex8 のブックのタイプ「単語帳」: ページ 1 つがカードの束で、カードの文字はページのフィールド cards に持つ（置けるアイテムは無い）。
 // 自分の見せ方（カード）を持ち、ステージに紙を置かずにビューがカードを並べる。ページは紙を持ち、印刷プレビューでは 1 ページを紙 1 枚に描く
-import { BOOK_THEME, PAPER_IDS, type PlacedStateDef, PRINT_PREVIEW_SETTINGS, z } from "matomezu"
+import { BOOK_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS, z } from "matomezu"
 import { kit } from "./kit"
 
 // 単語帳のテーマタイプ（自分で足す。単語帳はこれだけを使うので、選べるのは "all" のテーマと、黒板のテーマ）
@@ -33,22 +33,21 @@ export const CHALK = kit.defineTheme({
 })
 
 // カードの見せ方のステージごとの画面の状態: カードの並べ方（書いた順か、並べ替えるか）と、押して選んでいるカード（並びの位置）。
-// 並べ方だけを画面の場所に入れ（読み直しても戻す）、選んでいるカードは入れない（take で取り出し、put で今の置き場に戻す）
+// 並べ方は場所に入れる画面の状態の宣言（DECK_ORDER。読み直しても戻す）、選んでいるカードはこのプラグインのステージの画面の状態（場所には入れない）
 export const DECK_ORDERS = ["written", "sorted"] as const
-export type DeckView = { order: (typeof DECK_ORDERS)[number]; picked: number | "none" }
+export type DeckOrder = (typeof DECK_ORDERS)[number]
 
-export const deckViewOf = (state: unknown): DeckView => {
-  const s = state as Partial<DeckView> | undefined
-  return {
-    order: s?.order === "sorted" ? "sorted" : "written",
-    picked: typeof s?.picked === "number" ? s.picked : "none",
-  }
-}
-
-export const DECK_PLACED: PlacedStateDef<DeckView["order"]> = {
+export const DECK_ORDER = kit.definePlacedState({
+  id: "order",
+  scope: "stage",
   schema: z.enum(DECK_ORDERS),
-  take: state => deckViewOf(state).order,
-  put: (order, state) => ({ ...deckViewOf(state), order: order ?? "written" }),
+  browserHistory: "replace",
+})
+
+// 選んでいるカード（並びの位置。選んでいなければ "none"）
+export const pickedOf = (state: unknown): number | "none" => {
+  const picked = (state as { picked?: unknown } | undefined)?.picked
+  return typeof picked === "number" ? picked : "none"
 }
 
 // カードの見せ方: ステージに紙を置かない（ビューが描く広さとスクロールを持つ）

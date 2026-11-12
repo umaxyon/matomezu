@@ -18,6 +18,7 @@ import type {
 } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn, BookTarget } from "../core/def/action"
+import type { PlacedStateDef } from "../core/def/placed-state"
 import { fail } from "../core/errors"
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
@@ -92,7 +93,15 @@ import { type CommandArgs, type CommandId, commandContext, commandDef, commandOw
 import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
 import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
-import { putPlaced, takePlaced } from "./placed-state"
+import {
+  NO_PLACED,
+  ownedPlaced,
+  type PlacedValues,
+  placedValueOf,
+  pushingIds,
+  readPlaced,
+  withPlaced,
+} from "./placed-state"
 import { type Assembled, assemble, type Plugin } from "./plugin"
 import { worldOf } from "./world"
 
@@ -125,6 +134,8 @@ export interface MatomezuState {
   stageStates: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   // プラグインの id → そのプラグインが持つ、窓の外観枠の状態（ステージに結ばない物。中身の形はプラグインが決め、土台は読まない。画面の場所には入れない）
   frameStates: Readonly<Record<string, unknown>>
+  // 場所に入れる画面の状態の宣言（core/def/placed-state.ts）の値: 窓の外は宣言の id → 値、ステージは ステージの id → 宣言の id → 値。画面の場所に入る（アクションのデータとは別で、アクションでは変えない）
+  placedValues: PlacedValues
   // 編集ロック: 掛けた所の鍵 → 利用者が直している物（ブックの id と物の id）。ホストクライアントが常駐に知らせ、常駐はそれを変える AI のアクションを断る
   editLocks: Readonly<Record<string, EditLock>>
   // 印刷を頼んだ回数（requestPrint で増える。ホストクライアントが、増えたら画面を刷る）
@@ -300,6 +311,11 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // プラグイン owner（プラグインの id）が持つ、窓の外観枠の状態を value にする（undefined なら消す）。
   // プラグインは、自分の kit を渡すフック useSetFrameState を通して、自分の置き場だけを変える（プラグインに渡す actions には入れない）
   setFrameState(owner: string, value: unknown): void
+  // 場所に入れる画面の状態の宣言 id の値を value にする（undefined なら消す）。ステージの宣言は stage のステージの値を、窓の外の宣言は stage を渡さず。知らない id は E118、範囲が合わなければ E120、形に合わない値は E119。
+  // プラグインは、自分の kit と宣言を渡すフックを通して、自分の宣言だけを変える（プラグインに渡す actions には入れない）
+  setPlaced(id: string, stage: string | null, value: unknown): void
+  // ブラウザの履歴に積むと宣言した宣言の id の組（今の台帳のもの。追加プラグインを取り込んだら変わる。ホストクライアントが、画面の場所が移動したかを決めるのに使う）
+  pushing(): ReadonlySet<string>
   // 鍵 key の編集ロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
   setEditLock(key: string, lock: EditLock | null): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
@@ -344,6 +360,7 @@ function initialState(
     history: {},
     stageStates: {},
     frameStates: {},
+    placedValues: NO_PLACED,
     editLocks: {},
     printRequests: 0,
   }
@@ -647,6 +664,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const gone = (opened: { stage: string } | null) =>
       stages !== undefined && opened !== null && !stages.some(s => s.id === opened.stage)
     const kept = stages && Object.keys(stageStates).filter(id => stages.some(s => s.id === id))
+    const placedStages = next.placedValues?.stages ?? getState().placedValues.stages
+    const placedKept = stages && Object.keys(placedStages).filter(id => stages.some(s => s.id === id))
     setState({
       ...next,
       ...(gone(dialog) ? { dialog: null } : {}),
@@ -654,12 +673,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       ...(kept && kept.length < Object.keys(stageStates).length
         ? { stageStates: Object.fromEntries(kept.map(id => [id, stageStates[id] ?? {}])) }
         : {}),
+      ...(placedKept && placedKept.length < Object.keys(placedStages).length
+        ? {
+            placedValues: {
+              ...(next.placedValues ?? getState().placedValues),
+              stages: Object.fromEntries(placedKept.map(id => [id, placedStages[id] ?? {}])),
+            },
+          }
+        : {}),
     })
   }
   // 今の画面の場所（ステージごとの場所に入れる画面の状態も）
   const addressNow = () => {
-    const { window, stageStates } = getState()
-    return addressOf(window, stage => takePlaced(defs.catalog.store.placedStates, stageStates[stage]))
+    const { window, placedValues } = getState()
+    return addressOf(window, stage => placedValues.stages[stage] ?? {}, placedValues.frame)
   }
   // ステージ stage が窓のどれかのブックスクリーンにあるか
   const inWindow = (stage: string) => getState().window.screens.some(ws => hasStage(ws, stage))
@@ -680,6 +707,24 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (value === undefined) {
       if (owner in now) setState({ frameStates: rest })
     } else setState({ frameStates: { ...rest, [owner]: value } })
+  }
+  // 宣言 id の、場所に入れる画面の状態の値を value にする（undefined なら消す）。ステージの宣言は stage のステージの値（無いステージには置かず、窓の外の宣言は stage を渡さない）。
+  // 知らない id は E118、範囲が合わなければ E120、形に合わない値は E119
+  const setPlaced = (id: string, stage: string | null, value: unknown) => {
+    const def = defs.catalog.store.placedStates.get(id) ?? fail("E118", { id })
+    if (def.scope === "frame" && stage !== null) fail("E120", { id, scope: "frame", need: "give no stage" })
+    if (def.scope === "stage" && stage === null) fail("E120", { id, scope: "stage", need: "give the stage" })
+    const read = value === undefined ? { success: true as const, data: undefined } : def.schema.safeParse(value)
+    if (!read.success) fail("E119", { id })
+    const { placedValues: now, window } = getState()
+    if (stage === null) {
+      if (!sameData(now.frame[id], read.data))
+        setState({ placedValues: { ...now, frame: withPlaced(now.frame, id, read.data) } })
+    } else if (window.screens.some(ws => hasStage(ws, stage)) && !sameData(now.stages[stage]?.[id], read.data)) {
+      setState({
+        placedValues: { ...now, stages: { ...now.stages, [stage]: withPlaced(now.stages[stage], id, read.data) } },
+      })
+    }
   }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
@@ -707,7 +752,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         setStageState(stage, owner, change(getState().stageStates[stage]?.[owner]))
       const updateFrameState = (change: (now: unknown) => unknown) =>
         setFrameState(owner, change(getState().frameStates[owner]))
-      def.run(ctx, { ...actions, updateStageState, updateFrameState }, args[0] as never)
+      const updatePlaced = <S>(placedDef: PlacedStateDef<S>, change: (now: S | undefined) => S | undefined) => {
+        const own = ownedPlaced(owner, placedDef)
+        setPlaced(
+          own.id,
+          own.scope === "stage" ? stage : null,
+          change(placedValueOf(getState().placedValues, stage, own)),
+        )
+      }
+      def.run(ctx, { ...actions, updateStageState, updateFrameState, updatePlaced }, args[0] as never)
       return true
     },
     openDialog: (stage, id, ...args) => {
@@ -955,19 +1008,22 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       const win = placeAt(catalog, now.books, now.window, address)
       const placed = defs.catalog.store.placedStates
-      // ステージごとの置き場に場所の値を戻す（空になった置き場は消す）
-      const stageStates: Record<string, Readonly<Record<string, unknown>>> = {}
+      // 場所の値で、宣言した画面の状態を丸ごと置き換える（形に合わない値・宣言の無い id は落とす。空になったステージの組は持たない）
+      const stages: Record<string, Readonly<Record<string, unknown>>> = {}
       screenOf(win).stages.forEach((st, i) => {
-        const put = putPlaced(placed, now.stageStates[st.id], address.stages[i]?.states ?? {})
-        if (Object.keys(put).length > 0) stageStates[st.id] = put
+        const read = readPlaced(placed, "stage", address.stages[i]?.states)
+        if (Object.keys(read).length > 0) stages[st.id] = read
       })
+      const placedValues: PlacedValues = { frame: readPlaced(placed, "frame", address.frame), stages }
       commit({
         ...(win === now.window ? {} : { window: win }),
-        ...(sameData(stageStates, now.stageStates) ? {} : { stageStates }),
+        ...(sameData(placedValues, now.placedValues) ? {} : { placedValues }),
       })
     },
     setStageState,
     setFrameState,
+    setPlaced,
+    pushing: () => pushingIds(defs.catalog.store.placedStates),
     setEditLock: (key, lock) => {
       const { [key]: now, ...rest } = getState().editLocks
       if (!lock) {

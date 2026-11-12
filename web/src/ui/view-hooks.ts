@@ -7,6 +7,7 @@ import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isOnBook, type Where } from "../core/def/action"
+import type { PlacedStateDef } from "../core/def/placed-state"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
@@ -25,6 +26,7 @@ import { stageBlocks, toPaper } from "../core/stage"
 import { screenOf } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
+import { ownedPlaced, placedValueOf } from "../store/placed-state"
 import type { Performed } from "../store/store"
 import { worldOf } from "../store/world"
 import type { UiCatalog } from "./plugin"
@@ -205,6 +207,38 @@ export function useSetFrameState(kit: Owner): (value: unknown) => void {
   const { setFrameState } = useInstance()
   const { id } = kit
   return useCallback(value => setFrameState(id, value), [setFrameState, id])
+}
+
+// プラグインが宣言した、場所に入れる画面の状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E121）。
+// ステージの宣言（scope が stage）は、読むステージ stage も渡す。置き直すたびに描き直す
+export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S> & { scope: "frame" }): S | undefined
+export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S> & { scope: "stage" }, stage: string): S | undefined
+export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S>, stage = ""): S | undefined {
+  const own = ownedPlaced(kit.id, def)
+  return useMatomezuState(s => placedValueOf(s.placedValues, stage, own))
+}
+
+// 場所に入れる画面の状態 def の値を変える関数（undefined なら消す。形に合わなければ E119。無いステージには置かない）。自分の kit を渡し、自分の宣言だけを変える
+export function useSetPlacedState<S>(
+  kit: Owner,
+  def: PlacedStateDef<S> & { scope: "frame" },
+): (value: S | undefined) => void
+export function useSetPlacedState<S>(
+  kit: Owner,
+  def: PlacedStateDef<S> & { scope: "stage" },
+  stage: string,
+): (value: S | undefined) => void
+export function useSetPlacedState<S>(
+  kit: Owner,
+  def: PlacedStateDef<S>,
+  stage?: string,
+): (value: S | undefined) => void {
+  const { setPlaced } = useInstance()
+  const { id, scope } = ownedPlaced(kit.id, def)
+  return useCallback(
+    value => setPlaced(id, scope === "stage" ? (stage ?? null) : null, value),
+    [setPlaced, id, scope, stage],
+  )
 }
 
 // プラグインが持つ、ステージの画面の状態を変える関数（undefined なら消す。無いステージには置かない）
