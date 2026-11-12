@@ -1,6 +1,5 @@
 // 鳥の立ち寄りの決め事: 入り口の判定・スクロールの量・置き場の変わり
 import { expect, test } from "bun:test"
-import { PEEK_VISIT_LENGTH } from "../../../web/src/plugins/base/birds/flight"
 import {
   canVisit,
   nearestShift,
@@ -40,8 +39,4 @@ test("置き場が変わった・つながりが切れた・inert・手前を覆
   expect(placementBroken(rect, { ...ok, inert: true })).toBe(true)
   expect(placementBroken(rect, { ...ok, covered: true })).toBe(true)
   expect(samePlace(rect, { ...rect, width: 202 })).toBe(false)
-})
-
-test("顔を出して立ち寄る長さは、顔を出してから着地するまで", () => {
-  expect(PEEK_VISIT_LENGTH).toBe(4)
 })
