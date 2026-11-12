@@ -1,7 +1,9 @@
 /* 左にタブの並び、右に選んだタブの中身（右の中身だけがスクロールする） */
 .frame {
   display: flex;
+  flex: 1;
   gap: 16px;
+  min-width: 0;
   height: 100%;
   min-height: 0;
   font-size: 13px;
