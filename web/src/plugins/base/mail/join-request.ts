@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { kit } from "../kit"
 import { WORKROOM_NAME_MAX } from "../participant"
-import { MAIL, mailAdded } from "."
+import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "."
 
 const JoinRequestSchema = z.strictObject({
   participant: z.string().min(1), // 参加者の id
@@ -41,7 +41,7 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
     "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env and sessionName (optional) are the participant's; workroom (optional, up to 20 characters) is the name of the workroom it would like to continue or start. from is a short name telling who sends it. Returns the mail's id.",
   title: "Send a join request",
   target: MAIL.id,
-  reads: [MAIL.id],
+  reads: READS_MAILBOX_KEYS,
   userOnly: true,
   runsWhenAIJoins: "notify-user",
   args: z.strictObject({

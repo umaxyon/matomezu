@@ -1,0 +1,87 @@
+// レコードの読み口: レコードが対象のアクションが読む物を、1 件ずつ・条件つきで引く所。画面は持っているレコードから、ホストのエンジンは置き場所から引く。
+// 条件に合うかは core/record-keys.ts の関数で決める（読み口が返すのは候補で、ここで絞る。画面とホストで同じ結果になる）。
+// アクションの読む物の宣言（ActionDef の reads が関数のとき）を引いた結果が、run に渡る ctx.records（中身）と ctx.keys（索引キーだけ）
+import type { Actor } from "./actor"
+import type { CoreCatalog } from "./core-catalog"
+import type { ActionDef, RecordRead } from "./def/action"
+import { type Condition, type KeyValues, keyValuesOf, matches, unknownKey } from "./record-keys"
+import type { Records } from "./records"
+
+export interface RecordSource {
+  // 種類 subject の id のレコード（無ければ undefined）
+  byId(subject: string, id: string): unknown | undefined
+  // 種類 subject の、条件 where に合うかもしれないレコードの全部（id → レコード。合わない物が混ざってよい）
+  candidates(subject: string, where: readonly Condition[]): Readonly<Record<string, unknown>>
+}
+
+// 持っているレコード records から引く読み口
+export function sourceOf(records: Records): RecordSource {
+  return {
+    byId: (subject, id) => records[subject]?.[id],
+    candidates: subject => records[subject] ?? {},
+  }
+}
+
+// アクションの文脈に読み口を持たせる鍵（run を書くプラグインには見せない。core の中だけで引く）
+export const SOURCE: unique symbol = Symbol("record source")
+export type WithSource = { [SOURCE]?: RecordSource }
+export const sourceIn = (ctx: object): RecordSource | undefined => (ctx as WithSource)[SOURCE]
+
+// アクションが読む索引キーだけの行（種類の id → id → 索引キーの値）
+export type RecordKeys = Readonly<Record<string, Readonly<Record<string, KeyValues>>>>
+
+// 種類 subject の、条件 where に合うレコード（id → レコードと索引キーの値）。宣言に無いキーの条件なら、何も合わない
+export function find(
+  catalog: CoreCatalog,
+  source: RecordSource,
+  subject: string,
+  where: readonly Condition[],
+): Readonly<Record<string, { record: unknown; keys: KeyValues }>> {
+  const def = catalog.subjects.get(subject)
+  if (!def || unknownKey(def, where) !== null) return {}
+  const out: Record<string, { record: unknown; keys: KeyValues }> = {}
+  for (const [id, record] of Object.entries(source.candidates(subject, where))) {
+    const keys = keyValuesOf(def, record)
+    if (matches(keys, where)) out[id] = { record, keys }
+  }
+  return out
+}
+
+// アクション action の読む物の宣言（関数）が、引数 args と行う者 actor から答えた物を、読み口から引いた結果。
+// records は中身ごと読む物（種類の id → id → レコード）、keys は索引キーだけ読む物。引数が形に合わなければ、どちらも空
+export function readFrom(
+  catalog: CoreCatalog,
+  source: RecordSource,
+  action: ActionDef,
+  args: unknown,
+  actor: Actor,
+): { records: Records; keys: RecordKeys } {
+  const records: Record<string, Record<string, unknown>> = {}
+  const keys: Record<string, Record<string, KeyValues>> = {}
+  const parsed = action.args.safeParse(args)
+  if (!parsed.success || typeof action.reads !== "function") return { records, keys }
+  const reads = (action.reads as (args: unknown, actor: Actor) => readonly RecordRead[])(parsed.data, actor)
+  // 種類 subject の入れ物（まだ無ければ作る。合う物が 1 件も無くても、読んだ種類は空の入れ物を持つ）
+  const tableIn = <V>(all: Record<string, Record<string, V>>, subject: string): Record<string, V> => {
+    const table = all[subject] ?? {}
+    all[subject] = table
+    return table
+  }
+  for (const read of reads) {
+    if ("id" in read) {
+      const record = source.byId(read.subject, read.id)
+      const table = tableIn(records, read.subject)
+      if (record !== undefined) table[read.id] = record
+      continue
+    }
+    const found = find(catalog, source, read.subject, read.where)
+    if (read.keysOnly) {
+      const table = tableIn(keys, read.subject)
+      for (const [id, row] of Object.entries(found)) table[id] = row.keys
+    } else {
+      const table = tableIn(records, read.subject)
+      for (const [id, row] of Object.entries(found)) table[id] = row.record
+    }
+  }
+  return { records, keys }
+}

@@ -376,7 +376,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	h.recordInputs(&in, needs, p.On)
 	in.Watched = h.watched()
 	in.WatchedRecords = h.watchedRecords()
-	out, err := h.engine.Perform(in)
+	out, err := h.engine.PerformWith(in, recordSource{h})
 	if err != nil {
 		return Performed{}, err
 	}

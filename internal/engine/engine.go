@@ -105,6 +105,7 @@ type AIEditTicketChange struct {
 type Engine struct {
 	mu        sync.Mutex
 	vm        *goja.Runtime
+	source    Source // 行っている間だけある、レコードを引く口（PerformWith）
 	perform   func(string) string
 	readAI    func() string
 	check     func(string) string
@@ -144,6 +145,31 @@ func New() (*Engine, error) {
 		return nil, fmt.Errorf("engine.js: %w", err)
 	}
 	e := &Engine{vm: vm}
+	// engine.js が行っている間にレコードを引く口（行っていない間と、口を渡されていないときは、何も無いと答える）
+	if err := vm.Set("matomezuHostRecord", func(subject, id string) string {
+		if e.source == nil {
+			return ""
+		}
+		body, ok := e.source.Record(subject, id)
+		if !ok {
+			return ""
+		}
+		return string(body)
+	}); err != nil {
+		return nil, err
+	}
+	if err := vm.Set("matomezuHostKind", func(subject string) string {
+		if e.source == nil {
+			return "{}"
+		}
+		b, err := json.Marshal(e.source.Kind(subject))
+		if err != nil {
+			return "{}"
+		}
+		return string(b)
+	}); err != nil {
+		return nil, err
+	}
 	if err := vm.ExportTo(vm.Get("matomezuPerform"), &e.perform); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuPerform: %w", err)
 	}
@@ -298,7 +324,17 @@ const (
 )
 
 // Perform はアクションを行う。in.TimeoutSec の間に終わらなければ、打ち切って断る（変更は反映しない）
-func (e *Engine) Perform(in Input) (out Output, err error) {
+func (e *Engine) Perform(in Input) (out Output, err error) { return e.PerformWith(in, nil) }
+
+// Source は、アクションを行っている間にエンジンがレコードを引く口: 種類 subject の id の 1 件（無ければ false）と、種類の全部（id → レコード）。
+// 読む物を関数で宣言したアクションと、レコードが指す先・同じ種類のほかのレコードを引くのに使う
+type Source interface {
+	Record(subject, id string) (json.RawMessage, bool)
+	Kind(subject string) map[string]json.RawMessage
+}
+
+// PerformWith は、レコードを引く口 src を渡して Perform する（src が nil なら、in の Records だけで行う）
+func (e *Engine) PerformWith(in Input, src Source) (out Output, err error) {
 	if in.TimeoutSec < 0 || in.TimeoutSec > MaxTimeoutSec {
 		return Output{OK: false, Reason: "bad-args", Detail: fmt.Sprintf("timeoutSec must be 1 to %d", MaxTimeoutSec)}, nil
 	}
@@ -312,6 +348,8 @@ func (e *Engine) Perform(in Input) (out Output, err error) {
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
 	timer := time.AfterFunc(time.Duration(seconds)*time.Second, func() { e.vm.Interrupt("timeout") })
 	defer func() {
 		timer.Stop()

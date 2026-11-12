@@ -19,6 +19,10 @@ const SUBJECT: SubjectDef = {
   aiDescription: "a card",
   record: z.strictObject({ id: z.string().min(1), label: z.string(), no: z.number().optional() }),
   numbered: true,
+  keys: {
+    label: { type: "text", of: (c: { label: string }) => c.label },
+    no: { type: "number", of: (c: { no?: number }) => c.no },
+  } as never,
 }
 const action = (id: string, over: Record<string, unknown>): ActionDef =>
   ({
@@ -81,10 +85,33 @@ const MANY_UNREAD = action("card-many-unread", {
     result: {},
   })) as never,
 })
+// reads を種類の並びで書き、自分の種類を入れずに、ほかのレコードを変える
+const MANY_OTHER = action("card-many-other", {
+  reads: [] as never,
+  args: z.strictObject({ label: z.string(), others: z.array(z.unknown()) }),
+  run: ((now: { id: string }, args: { label: string; others: unknown[] }) => ({
+    next: { ...now, label: args.label },
+    others: args.others,
+    result: {},
+  })) as never,
+})
+// 読む物を関数で宣言する: 引数の id の 1 件・ラベルが同じ物・番号の無い物の索引キーだけ。読んだ物をそのまま result に返す
+const READS = action("card-reads", {
+  args: z.strictObject({ label: z.string(), one: z.string() }),
+  reads: ((args: { label: string; one: string }) => [
+    { subject: CARD, id: args.one },
+    { subject: CARD, where: [{ key: "label", eq: args.label }] },
+    { subject: CARD, where: [{ key: "no", is: "absent" }], keysOnly: true },
+  ]) as never,
+  run: ((now: unknown, _args: unknown, ctx: { records?: unknown; keys?: unknown }) => ({
+    next: now,
+    result: { records: ctx.records, keys: ctx.keys },
+  })) as never,
+})
 const EX = {
   id: "@ex/rec",
   subjects: [SUBJECT],
-  actions: [ADD, RENAME, REID, BAD, REMOVE, SAME_ID, MANY, MANY_UNREAD],
+  actions: [ADD, RENAME, REID, BAD, REMOVE, SAME_ID, MANY, MANY_UNREAD, MANY_OTHER, READS],
   controlCenters: [{ id: CENTER, actions: [], subjects: [CARD as never] }],
 } as unknown as Plugin
 const catalog = assemble([...BUILTIN, defineBuiltin(EX as never)], CENTER).catalog.core
@@ -313,8 +340,12 @@ test("ほかのレコードの変更が 1 つでも合わなければ、全部�
   expect(many([{ id: "c3", record: null }])).toEqual(refused)
 })
 
-test("reads に対象の種類を書かないアクションは、ほかのレコードを変えられない", () => {
-  expect(many([{ id: "c2", record: REMOVED }], two(), "card-many-unread")).toEqual({ ok: false, reason: "refused" })
+test("reads を書かないアクションも、同じ種類のほかのレコードを変えられる（前の中身は読み口から引く）", () => {
+  expect(many([{ id: "c2", record: REMOVED }], two(), "card-many-unread")).toMatchObject({ ok: true })
+})
+
+test("reads を種類の並びで書き、対象の種類を入れないアクションは、ほかのレコードを変えられない", () => {
+  expect(many([{ id: "c2", record: REMOVED }], two(), "card-many-other")).toEqual({ ok: false, reason: "refused" })
 })
 
 test(`アクション 1 回で変えられるレコードは、宛先と合わせて ${RECORDS_MAX} 件まで`, () => {
@@ -362,4 +393,53 @@ test("認可ステップは、変える全部にかかる（宛先でないロ�
     reason: "denied",
     permission: "@matomezu/base:lock",
   })
+})
+
+test("読む物を関数で宣言したアクションには、答えた物だけが渡る（id の 1 件・条件に合う全部・索引キーだけ）", () => {
+  const world: World = {
+    ...empty,
+    records: {
+      [CARD]: {
+        c1: { id: "c1", label: "a", no: 1 },
+        c2: { id: "c2", label: "b" },
+        c3: { id: "c3", label: "a" },
+        c4: { id: "c4", label: "c", no: 4 },
+      },
+    },
+  }
+  const done = run(world, "card-reads", { label: "a", one: "c4" }, { record: "c1" })
+  expect(done).toMatchObject({
+    ok: true,
+    result: {
+      records: {
+        [CARD]: {
+          c1: { id: "c1", label: "a", no: 1 },
+          c3: { id: "c3", label: "a" },
+          c4: { id: "c4", label: "c", no: 4 },
+        },
+      },
+      keys: { [CARD]: { c2: { label: "b" }, c3: { label: "a" } } },
+    },
+  })
+  const result = (done as { result: { records: Record<string, object> } }).result
+  expect(Object.keys(result.records[CARD] ?? {}).sort()).toEqual(["c1", "c3", "c4"])
+})
+
+test("読み口を渡すと、持っているレコードでなく読み口から引く（ホストのエンジンと同じ形）", () => {
+  const all: Record<string, unknown> = { c1: { id: "c1", label: "a" }, c2: { id: "c2", label: "b" } }
+  const asked: string[] = []
+  const world: World = {
+    ...empty,
+    records: { [CARD]: { c1: all.c1 } },
+    source: {
+      byId: (_, id) => {
+        asked.push(id)
+        return all[id]
+      },
+      candidates: () => all,
+    },
+  }
+  const done = run(world, "card-many-unread", { label: "A", others: [{ id: "c2", record: REMOVED }] }, { record: "c1" })
+  expect(done).toMatchObject({ ok: true, records: [{ id: "c1" }, { id: "c2", record: REMOVED }] })
+  expect(asked).toContain("c2")
 })

@@ -291,3 +291,19 @@ func (h *Hub) runOnceActions() {
 		}
 	}
 }
+
+// recordSource は、アクションを行っている間にエンジンがレコードを引く口（engine.Source）。Perform が h.mu を持ったまま呼ぶので、ここでは鍵を取らない
+type recordSource struct{ h *Hub }
+
+func (s recordSource) Record(subject, id string) (json.RawMessage, bool) {
+	e, ok := s.h.recordTables[subject][id]
+	return e.body, ok
+}
+
+func (s recordSource) Kind(subject string) map[string]json.RawMessage {
+	out := map[string]json.RawMessage{}
+	for id, e := range s.h.recordTables[subject] {
+		out[id] = e.body
+	}
+	return out
+}

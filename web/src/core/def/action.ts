@@ -8,6 +8,8 @@ import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
+import type { Condition } from "../record-keys"
+import type { RecordKeys } from "../record-source"
 import type { Records } from "../records"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
@@ -46,6 +48,11 @@ export type SubjectNext<T extends ActionTarget> = T extends keyof Subjects
     ? RecordOf<T> | "removed"
     : never
 
+// レコードが対象のアクションが読む物 1 つ: id で 1 件か、索引キーの条件 where に合う全部（keysOnly なら、その id と索引キーの値だけで、中身は読まない）
+export type RecordRead =
+  | { subject: string; id: string }
+  | { subject: string; where: readonly Condition[]; keysOnly?: true }
+
 // アクションの宛先: ブックの id か、レコード（対象の定義が足した種類のデータ）の id
 export type ActionOn = { book: string } | { record: string }
 
@@ -66,6 +73,8 @@ export interface ActionContext {
   books?: Readonly<Library>
   // レコードが対象のアクションが読むだけの、アクションの reads の種類のレコード（種類の id → id → レコード。ほかの対象のアクションには無い）
   records?: Readonly<Records>
+  // レコードが対象のアクションが、索引キーだけ読むと宣言した物（reads の keysOnly。種類の id → id → 索引キーの値。中身は読まない）
+  keys?: RecordKeys
   // 番号を振る種類（対象の定義の numbered）のアクションが、区切り scope の次の番号を受け取る。常駐が決めた値で、使い回さない（ほかのアクションには無い）
   number?(scope: string): number
 }
@@ -250,6 +259,8 @@ export function settingsScopeOf(scope: AnySettingsScope | undefined, args: unkno
 
 // 引数から読むブックの id を答える関数（表に並べるとき、引数の型を問わずに並べられるよう、メソッドの形で書く）
 type BooksOfArgs<A> = { booksOf(args: A): readonly string[] }["booksOf"]
+// 引数と行う者から読む物を答える関数（同じく、メソッドの形で書く）
+type ReadsOfArgs<A> = { readsOf(args: A, actor: Actor): readonly RecordRead[] }["readsOf"]
 
 export interface ActionDef<
   T extends ActionTarget = ActionTarget,
@@ -280,7 +291,9 @@ export interface ActionDef<
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
   // レコードが対象のアクションが、読むだけの種類（対象の定義の id。その種類のレコード全部が ctx.records に入る。同じ種類の重なりを確かめるときなど。変えるのは対象の種類のレコードだけで、宛先のほかも変える〈Done の others〉なら、対象の種類も書く）
-  reads?: T extends SubjectId ? readonly SubjectId[] : never
+  // 関数なら、読む物を引数と行う者から答える（RecordRead の並び: id で 1 件・索引キーの条件に合う全部・その索引キーだけ）。答えた物だけが ctx.records と ctx.keys に入る。
+  // レコードが指す先（対象の定義の refers）は core が読むので、書かなくてよい
+  reads?: T extends SubjectId ? readonly SubjectId[] | ReadsOfArgs<A> : never
   // レコードが対象のアクションが読むだけのブックの id を、引数から答える（そのブックだけが ctx.books に入る。無ければブックを読まない）
   readsBooks?: T extends SubjectId ? BooksOfArgs<A> : never
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）

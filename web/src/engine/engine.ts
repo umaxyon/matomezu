@@ -27,7 +27,9 @@ import { splitId } from "../core/names"
 import { joinActions } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
+import type { RecordSource } from "../core/record-source"
 import { type Counters, checkRecords, type RecordChange, restoreCounters, restoreRecords } from "../core/records"
+import { readsWholeKinds } from "../core/refs"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
@@ -125,6 +127,22 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
   return { ok: false, reason: done.reason, detail: AI_REFUSALS[done.reason] }
 }
 
+// ホストが置いた、レコードを引く口（常駐が行う間だけ答える。無ければ、受けたレコードだけで行う）: 1 件（無ければ空の文字）と、種類の全部（id → レコードの JSON）
+const hostRecords = globalThis as {
+  matomezuHostRecord?: (subject: string, id: string) => string
+  matomezuHostKind?: (subject: string) => string
+}
+
+// レコードの読み口: 受けたレコード given（宛先と、種類の並びで読む種類）に無い物は、ホストから引く
+function hostSource(given: Readonly<Record<string, Readonly<Record<string, unknown>>>>): RecordSource | null {
+  const { matomezuHostRecord: one, matomezuHostKind: kind } = hostRecords
+  if (!one || !kind) return null
+  return {
+    byId: (subject, id) => given[subject]?.[id] ?? parseOr(one(subject, id)),
+    candidates: subject => ({ ...restoreRecords({ [subject]: parseOr(kind(subject)) })[subject], ...given[subject] }),
+  }
+}
+
 function perform(input: Input): Output {
   const { controlCenter } = assembled
   const catalog = assembled.catalog.core
@@ -138,7 +156,9 @@ function perform(input: Input): Output {
   const records = restoreRecords(input.records)
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
-  const done = performIn({ books, settings, annotations, records, counters }, input.action, input.args, input.on, {
+  const source = hostSource(records)
+  const world = { books, settings, annotations, records, counters, ...(source ? { source } : {}) }
+  const done = performIn(world, input.action, input.args, input.on, {
     catalog,
     controlCenter,
     lang,
@@ -483,7 +503,11 @@ function aiTables(of: Assembled) {
     const parsed = def.args.safeParse(parseOr(args))
     return parsed.success ? [...(def.readsBooks as (args: unknown) => readonly string[])(parsed.data)] : []
   })()
-  return JSON.stringify({ subject, reads: subject === null ? [] : [...(def?.reads ?? [])], books })
+  return JSON.stringify({
+    subject,
+    reads: subject !== null && def && readsWholeKinds(def.reads) ? [...def.reads] : [],
+    books,
+  })
 }
 
 // JSON の文字 text を読んだ値（読めなければ undefined）

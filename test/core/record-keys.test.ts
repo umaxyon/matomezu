@@ -21,7 +21,12 @@ test("条件は全部に合うときだけ合う", () => {
   expect(matches(v, [])).toBe(true)
   expect(matches(v, [{ key: "board", eq: "a" }])).toBe(true)
   expect(matches(v, [{ key: "board", eq: "b" }])).toBe(false)
-  expect(matches(v, [{ key: "order", lt: 4 }, { key: "order", gt: 2 }])).toBe(true)
+  expect(
+    matches(v, [
+      { key: "order", lt: 4 },
+      { key: "order", gt: 2 },
+    ]),
+  ).toBe(true)
   expect(matches(v, [{ key: "order", lt: 3 }])).toBe(false)
   expect(matches(v, [{ key: "doneAt", is: "absent" }])).toBe(true)
   expect(matches(v, [{ key: "doneAt", is: "present" }])).toBe(false)

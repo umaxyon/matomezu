@@ -73,12 +73,12 @@ test("エンジンの編集ロックは、変えるレコードの全部にか�
   expect(send({ [MAIL]: ["m2"] })).toMatchObject({ ok: true })
 })
 
-test("RecordNeeds は対象の種類・読む種類と、readsBooks が引数から答えた読むブックの id を返す（引数が合わなければ空）", () => {
+test("RecordNeeds は対象の種類・種類の並びで読む種類（読む物を関数で宣言したアクションは空で、行う間に読み口から引く）と、readsBooks が引数から答えた読むブックの id を返す（引数が合わなければ空）", () => {
   const needs = (action: string, args: unknown) =>
     JSON.parse(engine.matomezuRecordNeeds(action, args === undefined ? "" : JSON.stringify(args)))
   const proposal = { from: "a", title: "t", book: "b1", changes: [{ action: "x", args: {} }] }
-  expect(needs("@matomezu/base:proposal-send", proposal)).toEqual({ subject: MAIL, reads: [MAIL], books: ["b1"] })
-  expect(needs("@matomezu/base:proposal-send", { book: "b1" })).toEqual({ subject: MAIL, reads: [MAIL], books: [] })
+  expect(needs("@matomezu/base:proposal-send", proposal)).toEqual({ subject: MAIL, reads: [], books: ["b1"] })
+  expect(needs("@matomezu/base:proposal-send", { book: "b1" })).toEqual({ subject: MAIL, reads: [], books: [] })
   expect(needs("@matomezu/base:mail-seen", {})).toEqual({ subject: MAIL, reads: [], books: [] })
   expect(needs("@matomezu/base:book-create", undefined)).toEqual({ subject: null, reads: [], books: [] })
 })

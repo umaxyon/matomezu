@@ -30,8 +30,9 @@ import type { SubjectDef } from "./def/subject"
 import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { checkMail } from "./mail"
+import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
-import { readsOf, referredOf } from "./refs"
+import { readsOf, readsWholeKinds, referredOf } from "./refs"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
@@ -125,8 +126,9 @@ function brokenRecord(
   after: unknown,
 ): string | "unreadable" | null {
   const reads = ctx.records ?? {}
-  const was = referredOf(ctx.catalog, action.target, before, reads)
-  const now = referredOf(ctx.catalog, action.target, after, reads)
+  const source = readsWholeKinds(action.reads) ? undefined : sourceIn(ctx)
+  const was = referredOf(ctx.catalog, action.target, before, reads, source)
+  const now = referredOf(ctx.catalog, action.target, after, reads, source)
   if (was === "unreadable" || now === "unreadable") return "unreadable"
   const refs = [...was, ...now.filter(n => !was.some(w => w.subject === n.subject && w.id === n.id))]
   for (const p of ctx.catalog.permissions.values())
@@ -162,7 +164,7 @@ function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after:
 
 // 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）
 // records はレコードが対象のアクションが読む種類のレコード（reads。レコードが指すほかのレコードを引くのに使う）
-export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "actor" | "records">
+export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "actor" | "records"> & WithSource
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可スコープで引数から出した変える項目の id も渡す。
 // 認可ステップに渡すのは、ブックが対象ならそのブックと、アクションの許可スコープ（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
@@ -199,7 +201,13 @@ function permits(
       ),
     )
   if (isRecordTarget(ctx.catalog, action.target)) {
-    const refs = referredOf(ctx.catalog, action.target, subject, ctx.records ?? {})
+    const refs = referredOf(
+      ctx.catalog,
+      action.target,
+      subject,
+      ctx.records ?? {},
+      readsWholeKinds(action.reads) ? undefined : sourceIn(ctx),
+    )
     if (refs === "unreadable") return { ok: false, reason: "not-allowed" }
     return asked(undefined, undefined, { record: subject, refs })
   }
@@ -304,7 +312,7 @@ export function perform<Id extends ActionId>(
   }
   const others = (ran.others ?? []) as readonly OtherRecord<never>[]
   if (isRecordTarget(ctx.catalog, action.target)) {
-    const changes = recordChanges(ctx, action.target, subject, done.next, others)
+    const changes = recordChanges(ctx, action, subject, done.next, others)
     if (!changes) return { ok: false, reason: "refused" }
     // 変える全部に、形・郵便の種類・認可ステップの守らせることをかける（どれか 1 つでも合わなければ、全部を断る）
     for (const c of changes) {
@@ -324,18 +332,20 @@ export function perform<Id extends ActionId>(
 }
 
 // レコードが対象のアクションが変えるレコードの、前 now と後 next の組（宛先 subject の 1 件と、ほかの同じ種類の others）。
-// others の前は、アクションの reads の対象の種類（ctx.records）から引く（reads に対象の種類が無ければ引けないので、others は断る）。
+// others の前は、アクションの reads が種類の並びなら対象の種類（ctx.records）から引き（reads に対象の種類が無ければ引けないので、others は断る）、そうでなければ読み口から引く。
 // 同じ id を 2 度変える・合わせて RECORDS_MAX 件を超えるなら null
 function recordChanges(
   ctx: ActionContext,
-  target: string,
+  action: ActionDef,
   subject: unknown,
   next: unknown,
   others: readonly OtherRecord<never>[],
 ): { now: unknown; next: unknown }[] | null {
   if (others.length + 1 > RECORDS_MAX) return null
-  const table = ctx.records?.[target]
-  if (others.length > 0 && table === undefined) return null
+  const target = action.target
+  const source = readsWholeKinds(action.reads) ? undefined : sourceIn(ctx)
+  const table = source ? undefined : ctx.records?.[target]
+  if (others.length > 0 && table === undefined && !source) return null
   const own = next === REMOVED ? subject : next
   const seen = new Set<string>(
     own !== NO_RECORD && typeof own === "object" && own !== null ? [String((own as { id?: unknown }).id)] : [],
@@ -344,7 +354,7 @@ function recordChanges(
   for (const o of others) {
     if (seen.has(o.id)) return null
     seen.add(o.id)
-    const now = table?.[o.id] ?? NO_RECORD
+    const now = (source ? source.byId(target, o.id) : table?.[o.id]) ?? NO_RECORD
     // 作るレコードは、変更の id と record の id が同じ
     if (now === NO_RECORD && o.record !== REMOVED && (o.record as { id?: unknown } | null)?.id !== o.id) return null
     changes.push({ now, next: o.record })
@@ -359,6 +369,8 @@ export interface World {
   annotations: Annotations
   records: Records // 対象の定義が足した種類ごとのレコード（種類の id → id → レコード）
   counters: Counters // 番号を振る種類ごとの、区切りごとの次の番号
+  // レコードの読み口（無ければ records から引く。ホストのエンジンは、records に宛先だけを持ち、ほかは置き場所から引く読み口を渡す）
+  source?: RecordSource
 }
 
 // performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧、
@@ -460,15 +472,20 @@ function performRecord(
   on: ActionOn | undefined,
   ctx: ActionContext,
 ): PerformedIn {
-  const table = world.records[target] ?? {}
+  const source = world.source ?? sourceOf(world.records)
   const def = ctx.catalog.subjects.get(target)
   const action = ctx.catalog.actions.get(id)
   const used: Record<string, number> = {}
   const counters = world.counters[target] ?? {}
-  const reads = readsOf(world.records, action?.reads)
-  const withBase: ActionContext = {
+  const read =
+    action && !readsWholeKinds(action.reads)
+      ? readFrom(ctx.catalog, source, action, args, ctx.actor)
+      : { records: readsOf(world.records, action?.reads as readonly string[] | undefined) }
+  const withBase: ActionContext & WithSource = {
     ...ctx,
-    records: reads,
+    [SOURCE]: source,
+    records: read.records,
+    ...("keys" in read ? { keys: read.keys } : {}),
     ...(action?.readsBooks ? { books: booksRead(world, action, args) } : {}),
     ...(def?.numbered
       ? {
@@ -481,7 +498,7 @@ function performRecord(
       : {}),
   }
   const wanted = on && "record" in on ? on.record : undefined
-  const now = wanted === undefined ? NO_RECORD : table[wanted]
+  const now = wanted === undefined ? NO_RECORD : source.byId(target, wanted)
   if (now === undefined) return { ok: false, reason: "no-record" }
   const done = (perform as (s: unknown, id: string, a: unknown, c: ActionContext) => ReturnType<typeof perform>)(
     now,
@@ -495,11 +512,12 @@ function performRecord(
   if (next === REMOVED) changes.push({ subject: target, id: wanted as string, record: REMOVED })
   else if (next !== now) {
     const made = (next as { id: string }).id
-    if (now === NO_RECORD && made in table) return { ok: false, reason: "refused" }
+    if (now === NO_RECORD && source.byId(target, made) !== undefined) return { ok: false, reason: "refused" }
     changes.push({ subject: target, id: made, record: next })
   }
   for (const o of done.others ?? []) {
-    if (o.record === REMOVED ? !(o.id in table) : o.record === table[o.id]) continue
+    const had = source.byId(target, o.id)
+    if (o.record === REMOVED ? had === undefined : o.record === had) continue
     changes.push({ subject: target, id: o.id, record: o.record })
   }
   return {
@@ -542,9 +560,13 @@ export function permittedIn(
   }
   if (target !== undefined && isRecordTarget(ctx.catalog, target)) {
     const wanted = on && "record" in on ? on.record : undefined
-    const now = wanted === undefined ? NO_RECORD : world.records[target]?.[wanted]
-    const reads = readsOf(world.records, ctx.catalog.actions.get(id)?.reads)
-    return now === undefined ? { ok: false, reason: "no-record" } : permitted(now, id, args, { ...ctx, records: reads })
+    const source = world.source ?? sourceOf(world.records)
+    const now = wanted === undefined ? NO_RECORD : source.byId(target, wanted)
+    const action = ctx.catalog.actions.get(id)
+    const reads = readsWholeKinds(action?.reads) ? readsOf(world.records, action?.reads) : {}
+    return now === undefined
+      ? { ok: false, reason: "no-record" }
+      : permitted(now, id, args, { ...ctx, [SOURCE]: source, records: reads })
   }
   return permitted(target === "library" ? world.books : world.settings, id, args, ctx)
 }

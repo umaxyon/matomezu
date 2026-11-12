@@ -5,6 +5,7 @@ import { z } from "zod"
 import type { ActionContext } from "../../../core/def/action"
 import { freshId } from "../../../core/ids"
 import { MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder } from "../../../core/mail"
+import { inOrder } from "../../../core/record-keys"
 import { RECORDS_MAX, type Records } from "../../../core/records"
 import { kit } from "../kit"
 
@@ -16,7 +17,21 @@ export const MAIL = kit.defineSubject({
   role: "mails",
   numbered: true,
   record: MailSchema,
+  // 届いた順の番号と、利用者が見た時点（見ていなければ無い）
+  keys: {
+    order: { type: "number", of: m => m.order },
+    seenAt: { type: "text", of: m => m.seenAt },
+  },
 })
+
+// 郵便を 1 通足すアクションが読む物: 今ある郵便全部の、索引キーだけ（上限で消す古い郵便と、重ならない id を決めるのに使う。本文は読まない）
+export const READS_MAILBOX_KEYS = () => [{ subject: MAIL.id, where: [], keysOnly: true as const }]
+
+// 郵便箱の 1 通の、索引キーから分かる所（届いた順に並べた物）
+interface MailKeys {
+  id: string
+  seen: boolean
+}
 
 // 郵便のレコードを届いた順に並べた郵便箱（画面のフックが読む）
 export const mailboxOf = (records: Records): readonly Mail[] => mailsInOrder(Object.values(records[MAIL.id] ?? {}))
@@ -48,10 +63,10 @@ const ToSchema = z.strictObject({
 export const MAILBOX_LIMIT = 200
 
 // 郵便箱 mailbox（届いた順）を上限までにするために消す郵便の id（アクション 1 回で変えられる数を超えない）
-function overLimit(mailbox: readonly Mail[]): readonly string[] {
+function overLimit(mailbox: readonly MailKeys[]): readonly string[] {
   let over = Math.min(mailbox.length - MAILBOX_LIMIT, RECORDS_MAX - 1)
   if (over <= 0) return []
-  const seen = mailbox.filter(m => m.seenAt)
+  const seen = mailbox.filter(m => m.seen)
   const drop = new Set(seen.slice(0, over).map(m => m.id))
   over -= drop.size
   for (const m of mailbox) {
@@ -65,19 +80,25 @@ function overLimit(mailbox: readonly Mail[]): readonly string[] {
 }
 
 // 郵便を 1 通足すアクション（mail-send・proposal-send・mail-join-request）が返す物: 足す郵便（id と届いた順の番号を振る）と、上限を守るために消す古い郵便。
-// 今ある郵便は ctx.records から読む（アクションの reads に MAIL を書く）。番号を受け取れなければ null
+// 今ある郵便は、索引キーだけを ctx.keys から読む（アクションの reads に READS_MAILBOX_KEYS を書く）。番号を受け取れなければ null
 export function mailAdded(
   ctx: ActionContext,
   mail: Omit<Mail, "id" | "order">,
 ): { next: Mail; others: readonly { id: string; record: "removed" }[] } | null {
   if (!ctx.number) return null
-  const mailbox = mailsInOrder(Object.values(ctx.records?.[MAIL.id] ?? {}))
+  const mailbox: MailKeys[] = inOrder(
+    Object.entries(ctx.keys?.[MAIL.id] ?? {}).map(([id, keys]) => ({ id, keys })),
+    { key: "order", dir: "asc" },
+  ).map(m => ({ id: m.id, seen: m.keys.seenAt !== undefined }))
   const id = freshId(
     ctx.newId,
     mailbox.map(m => m.id),
   )
   const next: Mail = { ...mail, id, order: ctx.number(MAIL_ORDER_SCOPE) }
-  return { next, others: overLimit([...mailbox, next]).map(id => ({ id, record: "removed" as const })) }
+  return {
+    next,
+    others: overLimit([...mailbox, { id, seen: false }]).map(id => ({ id, record: "removed" as const })),
+  }
 }
 
 // 宛先の郵便（on の record）だけで行うアクションの引数
@@ -89,7 +110,7 @@ export const MAIL_SEND = kit.defineAction({
     "Send a letter to the user's mailbox (it shows at once on the user's screen, wherever the user is). from is a short name telling who sends it (use the same name all through your session, such as your task or work name). title (80 characters at most) and body (optional) are the letter. to points at a place: a book, and optionally a page of it and things (ids) on that page; the user can move there from the letter. The place is not checked now (if it is gone when the user opens the letter, the user is told). The mailbox keeps the newest 200 letters (seen ones go first). Returns the letter's id; read_mail tells later whether the user saw it and the place.",
   title: "Send mail",
   target: MAIL.id,
-  reads: [MAIL.id],
+  reads: READS_MAILBOX_KEYS,
   args: z.strictObject({
     from: z.string().trim().min(1).max(40),
     title: LetterSchema.shape.title,
