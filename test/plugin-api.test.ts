@@ -81,6 +81,7 @@ test("matomezu が出す名前", () => {
     "edgeScroll",
     "edgeSpeed",
     "elapsedOf",
+    "enumValuesOf",
     "evenGap",
     "extentOf",
     "findShape",

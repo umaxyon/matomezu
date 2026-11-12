@@ -9,6 +9,7 @@ import { type ActionDef, attachedTo, BASE_TARGETS } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
 import type { BookTypeDef } from "./def/book-type"
 import type { ControlCenterDef } from "./def/control-center"
+import type { EnumDef, EnumValueDef } from "./def/enum"
 import type { ItemDef } from "./def/item"
 import type { MailDef } from "./def/mail"
 import type { NormalizeStepDef } from "./def/normalize-step"
@@ -21,6 +22,7 @@ import { SUBJECT_ROLE_FIELDS, type SubjectDef } from "./def/subject"
 import type { TextColorDef } from "./def/text-color"
 import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
 import type { ToolDef, ToolSetDef } from "./def/tool"
+import { enumValuesOf } from "./enum"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
 import { CORE_MESSAGES, LANGUAGES, type Lang, type LanguagePackDef, type MessageSetDef } from "./i18n/messages"
@@ -55,6 +57,8 @@ declare module "./catalog" {
     annotations: AnnotationDef
     mails: MailDef
     subjects: SubjectDef
+    enums: EnumDef
+    enumValues: EnumValueDef
   }
 }
 
@@ -256,9 +260,13 @@ function coreWarnings(parts: CoreCatalogParts): Warning[] {
       .filter(a => !actions.has(a))
       .map(a => warning("W012", splitId(tool.id).owner ?? "", { tool: tool.id, action: a })),
   )
+  const enums = byId(parts.enums)
   return [
     ...tools,
     ...shadeWarnings(parts),
+    ...parts.enumValues
+      .filter(v => !enums.has(v.enum))
+      .map(v => warning("W026", splitId(v.id).owner ?? "", { id: v.id, enum: v.enum })),
     ...parts.bookTypes.flatMap(t => {
       const plugin = splitId(t.id).owner ?? ""
       const attached = (id: string) => {
@@ -337,6 +345,11 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     for (const field of SUBJECT_ROLE_FIELDS[s.role])
       if (!(field in s.record.shape)) problems.push(problem("E051", { id: s.id, role: s.role, field }))
   }
+  // 列挙の値の data は、宣言の value の形に合う（宣言が無い値は error にせず、効かない warning にする）
+  const enumTables = { enums: byId(parts.enums), enumValues: byId(parts.enumValues) }
+  for (const e of parts.enums)
+    for (const v of enumValuesOf(enumTables, e.id))
+      if (!e.value.safeParse(v.data).success) problems.push(problem("E053", { id: v.id, enum: e.id }))
   for (const a of parts.actions)
     if (!BASE_TARGETS.includes(a.target) && !subjects.has(a.target))
       problems.push(problem("E046", { id: a.id, target: a.target }))

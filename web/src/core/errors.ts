@@ -48,6 +48,7 @@ export const ERRORS = {
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
   E049: "action {id}: lockSwitch is only for an action whose target is a lockable subject",
   E052: "skin {id}: palette has {color} for {role}, which is not #rrggbb",
+  E053: "enum value {id}: data does not fit the value of enum {enum}",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
