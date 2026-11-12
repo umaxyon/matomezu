@@ -1,6 +1,6 @@
 // ex11（ほかのプラグインの列挙に値を足す）で、タスクボードの履歴の題に足した値で履歴に書け、AI に見せる引数にも並ぶことを確かめる
 import { expect, test } from "bun:test"
-import { enumValuesOf } from "matomezu"
+import { enumValuesOf, z } from "matomezu"
 import { BUILTIN, createMatomezu } from "matomezu/testing"
 import EX11 from ".."
 
@@ -30,6 +30,11 @@ test("足した題でチケットの履歴に書ける。足さなければ、�
 test("AI に見せる ticket-history-add の引数に、足した題が並ぶ", () => {
   const { catalog } = make()
   const args = catalog.core.actions.get("@matomezu/taskboard:ticket-history-add")?.describeArgs?.(catalog.core)
+  const description = (
+    z.toJSONSchema(args as never, { io: "input" }) as unknown as { properties: { topic: { description: string } } }
+  ).properties.topic.description
+  expect(description).toContain("ex11:topic-review: The result of reviewing")
+  expect(description).toContain("@matomezu/taskboard:topic-plan: A plan")
   expect(JSON.stringify(args?.safeParse({ ticket: "t", topic: "ex11:topic-review", text: "x" }).success)).toBe("true")
   expect(args?.safeParse({ ticket: "t", topic: "nothing", text: "x" }).success).toBe(false)
 })

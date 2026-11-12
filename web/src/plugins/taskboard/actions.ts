@@ -282,12 +282,14 @@ export const TICKET_HISTORY_ADD = kit.defineAction({
   reads: [TICKET.id, WORKROOM_SUBJECT],
   args: zod.strictObject({ ticket: zod.string().min(1), topic: zod.string().min(1), text: zod.string().min(1) }),
   describeArgs: catalog => {
-    const topics = enumValuesOf(catalog, HISTORY_TOPIC.id).map(v => v.id)
-    return zod.strictObject({
-      ticket: zod.string().min(1),
-      topic: topics.length > 0 ? zod.enum(topics as [string, ...string[]]) : zod.string().min(1),
-      text: zod.string().min(1),
-    })
+    const topics = enumValuesOf(catalog, HISTORY_TOPIC.id)
+    const ids = topics.map(v => v.id) as [string, ...string[]]
+    // 題の候補と、いつ選ぶかの説明（値の aiDescription）を、引数の説明に並べる
+    const topic =
+      ids.length > 0
+        ? zod.enum(ids).describe(topics.map(v => `${v.id}: ${v.aiDescription}`).join("\n"))
+        : zod.string().min(1)
+    return zod.strictObject({ ticket: zod.string().min(1), topic, text: zod.string().min(1) })
   },
   run: (now, args, ctx) => {
     if (now !== "none") return null

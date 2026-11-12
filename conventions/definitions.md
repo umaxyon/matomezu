@@ -26,6 +26,8 @@
 | 認可ステップ（`PermissionDef`） | アクションを、ブックのある所やレコードに対して行うのを止める物（ロックなど） | `core/def/permission.ts` |
 | アノテーション（`AnnotationDef`） | ブックの物に id で結び付き、ブックのデータとは別に残る物の種類（伝言など） | `core/def/annotation.ts` |
 | 郵便（`MailDef`） | 送り手が利用者に宛てて送る物の種類（手紙など） | `core/def/mail.ts` |
+| 列挙（`EnumDef`） | プラグインが宣言する値の組。値が持つデータの形（Zod）を持つ | `core/def/enum.ts` |
+| 列挙の値（`EnumValueDef`） | 宣言した列挙に足す値 1 つ。データだけを持つ | `core/def/enum.ts` |
 | 対象の定義（`SubjectDef`） | アクションの対象の種類（レコードの種類）。レコード 1 件の形（Zod）と、番号を振るか | `core/def/subject.ts` |
 | コマンド（`CommandDef`） | 画面の入口（ボタン・メニュー・キーから呼ぶ） | `store/commands/def.ts` |
 | ダイアログ（`DialogDef`） | 開くダイアログの id | `store/dialogs.ts` |
@@ -48,7 +50,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`PluginStateExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`EnumExtras`・`EnumValueExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`PluginStateExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う
@@ -208,6 +210,14 @@
 - 郵便を画面に出すときの題と本文は、種類の定義の `shown`（base が拡張ポイントに書き足したフィールド。書かなくてよい）が答える
 - 郵便の種類の AI 向けの説明は、種類の定義の `aiDescription` に書く
 - AI に郵便の目次を見せるときの題は、種類の定義の `aiBrief` が答える（書き方は「アノテーション」の `aiBrief` と同じ。書かなくてよい。無ければ種類の id だけで見分ける）。1 行に整えて切るのは matomezu
+
+## 列挙
+
+- 列挙は、プラグインが宣言し（`EnumDef`）、宣言した自分とほかのプラグインが値（`EnumValueDef`）を足す。値は宣言の id を `enum` で名指し、宣言は値を知らない
+- 値はデータだけで、メソッドを持たない。土台が持つのは `id`・`title`（文言の鍵）・`aiDescription` と、宣言の `value`（値の `data` の形。Zod）で、`data` を読んで振る舞いを決めるのは宣言したプラグイン
+- 列挙の値は `enumValuesOf` で読み、機能台帳の `enumValues` を直に並べない（宣言の無い値が混じるため）
+- 宣言が機能台帳に無い値は、その値だけ効かず warning（持ち主は値を足したプラグイン）。`data` が宣言の `value` に合わない・id が重なるのは error
+- 列挙の値を受けるアクションの引数は、`describeArgs` が値の id と `aiDescription` を並べて AI に見せる（「アクション」）
 
 ## AI に見せる
 
