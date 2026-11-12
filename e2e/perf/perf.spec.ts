@@ -5,7 +5,7 @@
 // - マークダウン: 原文 1000・3000・5000 行のページを開き、ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "../fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "../fixtures"
 import { BOX_SIZE, boxAt, dirBook, gridBook, markdownBook, PAGE, treeBook } from "./books"
 import { awaitItems, installProbe, readyAt, startRecording, stopRecording } from "./probe"
 
@@ -173,7 +173,7 @@ for (const o of OTHERS)
   }
 
 test("アクション: AI の入口から箱と線を 300 まで足す", async ({ page, request }) => {
-  const headers = aiAuth()
+  const headers = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)
   const perform = async (body: Record<string, unknown>) => {
     const start = performance.now()
@@ -239,8 +239,12 @@ for (const n of MARKDOWN_LINES) {
     expect(put.ok()).toBe(true)
     const page = await newPage()
     await installProbe(page)
-    const started = Date.now()
+    // 本文のあるページはプレビューだけで開くので、左右に並べてから（並べ方が画面の場所に入る）開き直すまでを測る
     await page.goto(`/${one(id)}`)
+    await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "左右に並べる" }).click()
+    await expect(page).toHaveURL(/s0=/)
+    const started = Date.now()
+    await page.reload()
     const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
     await expect(field).toHaveValue(/見出し/, { timeout: 60_000 })
     await expect(page.getByRole("region", { name: "プレビュー" }).getByRole("heading").first()).toBeVisible()
