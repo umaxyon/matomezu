@@ -43,6 +43,8 @@ const FLY = 2.1 // 飛んでくる秒
 export const LEAVE = 1.2 // 飛び去る秒
 const LAND = 0.4 // 着地の秒
 const PEEK = 4 // 顔を出してから着地するまでの秒
+// 顔を出して立ち寄る（BirdWalk の peekVisit）長さ: 顔を出してから、上の辺に着地するまで。着地したらすぐ飛び去る
+export const PEEK_VISIT_LENGTH = PEEK
 
 const clamp = (x: number) => Math.max(0, Math.min(1, x))
 const ease = (x: number) => {

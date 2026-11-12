@@ -7,6 +7,7 @@ export {
   ANNOTATION_ICON,
   type AnnotationIconProps,
   BirdFaceView,
+  BirdWalk,
   BOOK_SCREEN,
   BodyField,
   CaptionField,

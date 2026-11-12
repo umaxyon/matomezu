@@ -1,0 +1,13 @@
+/* 鳥の歩く所を、カードの上の辺に足元が来るように置く（歩く所は、足元より上に鳥の高さぶん）。位置はタスクボードの根の中身の座標 */
+.layer {
+  position: absolute;
+  z-index: 5;
+  transform: translateY(-100%);
+  pointer-events: none;
+}
+.bird {
+  position: absolute;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}

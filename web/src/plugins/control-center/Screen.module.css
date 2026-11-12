@@ -10,7 +10,6 @@
   --board-min-height: 300px;
   --row-height: 40px;
   --admin-row-height: 62px;
-  --card-visit-room: 56px; /* チケットカードに立ち寄る鳥（高さ 48px）の場所 */
   --off-screen: 16px; /* 最大化で押し出す物が、確実に見えなくなる余分 */
   --panel-pad-y: 6px;
   --panel-pad-x: 8px;

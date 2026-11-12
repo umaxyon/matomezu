@@ -12,3 +12,7 @@ export const LEAVE_REMOVE_MS = MOTION_MS * 2 + 80
 
 // レーンの最大化・元に戻すで、レーンが広がり（縮み）終わるまでチケットカードを隠しておく長さ
 export const LANE_SETTLE_MS = MOTION_MS + 20
+
+// 鳥がカードに立ち寄る速さ（本物の鳥の倍率）と、カードの上の辺の上に空ける、鳥の場所（鳥の高さ 48px の分より少し広く）
+export const VISIT_PACE = 1.5
+export const CARD_VISIT_ROOM = 56

@@ -2,6 +2,7 @@
 import { kit } from "./kit"
 import type { Maximized } from "./maximize"
 import type { SortRules } from "./sort"
+import type { CardVisit } from "./visit"
 
 // プロジェクトの一覧を開いているか（最初は閉じている）
 export const LIST_OPEN = kit.definePluginStateOf<boolean>()({ id: "list-open", scope: "window" })
@@ -14,3 +15,6 @@ export const LANE_SORTS = kit.definePluginStateOf<Readonly<Record<string, Readon
 
 // 最大化しているタスクボードとレーン（無ければ何も最大化していない）
 export const MAXIMIZED = kit.definePluginStateOf<Maximized>()({ id: "maximized", scope: "window" })
+
+// 鳥がチケットカードに立ち寄っているか（無ければ立ち寄りなし）
+export const CARD_VISIT = kit.definePluginStateOf<CardVisit>()({ id: "card-visit", scope: "window" })
