@@ -256,7 +256,7 @@ test("名前が生きていない参加者と同じなら、最後に引き継�
   const dialog = await openJoinDialog(page)
   await dialog.getByRole("radio", { name: "新しく始める" }).check()
   await dialog.getByRole("textbox", { name: "ワークルーム名" }).fill("ひよこ")
-  await expect(dialog).toContainText("この名前の、静かな参加者がいます")
+  await expect(dialog).toContainText("この名前の、引き継げる部屋があります")
   await dialog.getByRole("radio", { name: "文鳥", exact: true }).check({ force: true })
   await dialog.getByRole("button", { name: "受け入れる" }).click()
   await expect(dialog).toContainText("ひよこ を引き継ぎますか。前のを破棄して新しく始めますか")

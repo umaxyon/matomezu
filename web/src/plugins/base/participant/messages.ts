@@ -61,7 +61,7 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   workroom: { en: "Workroom", ja: "ワークルーム" },
   participant: { en: "Participant", ja: "参加者" },
   adminMark: { en: "Administrator mark", ja: "管理者の印" },
-  "Choose who to take over": { en: "Choose who to take over", ja: "引き継ぐ参加者を選ぶ" },
+  "Choose who to take over": { en: "Choose a room to take over", ja: "引き継ぐ部屋を選ぶ" },
   "Joined {time}": { en: "Joined {time}", ja: "{time} に参加" },
   "Take over {name}?": { en: "Take over {name}?", ja: "{name} を引き継ぎますか" },
   "Take over {name}, or discard it and start new?": {
@@ -69,8 +69,8 @@ export const PARTICIPANT_MESSAGES = defineMessages({
     ja: "{name} を引き継ぎますか。前のを破棄して新しく始めますか",
   },
   "A quiet participant has this name": {
-    en: "A quiet participant has this name",
-    ja: "この名前の、静かな参加者がいます",
+    en: "A room with this name can be taken over",
+    ja: "この名前の、引き継げる部屋があります",
   },
   "Taking over keeps its name, bird and palette. Discarding removes it and starts a new one.": {
     en: "Taking over keeps its name, bird and palette. Discarding removes it and starts a new one.",
