@@ -108,7 +108,7 @@ func (h *Hub) planRecords(plan *writePlan, out engine.Output) {
 	for _, c := range out.Records {
 		base := h.recordTables[c.Subject][c.ID].version
 		removed := string(c.Record) == removedRecord
-		plan.batch.Records = append(plan.batch.Records, storage.RecordWrite{Subject: c.Subject, ID: c.ID, Body: c.Record, Base: base, Removed: removed})
+		plan.batch.Records = append(plan.batch.Records, storage.RecordWrite{Subject: c.Subject, ID: c.ID, Body: c.Record, Base: base, Removed: removed, Keys: c.Keys})
 		put := recordPut{subject: c.Subject, id: c.ID, body: c.Record, version: base + 1, removed: removed}
 		if removed {
 			put.version = 0
@@ -292,18 +292,89 @@ func (h *Hub) runOnceActions() {
 	}
 }
 
-// recordSource は、アクションを行っている間にエンジンがレコードを引く口（engine.Source）。Perform が h.mu を持ったまま呼ぶので、ここでは鍵を取らない
+// syncKinds は、今のプラグインのレコードの種類と索引キーの宣言を置き場所に伝え、全部のレコードの索引キーの値を入れ直す
+// （起動したときと、プラグインが変わったとき。索引キーを返す関数はプラグインの物なので、宣言が同じでも値は変わりうる）
+func (h *Hub) syncKinds() error {
+	kinds, err := h.engine.Kinds()
+	if err != nil {
+		return err
+	}
+	specs := make([]storage.KindSpec, 0, len(kinds))
+	for _, k := range kinds {
+		keys := make([]storage.KeySpec, 0, len(k.Keys))
+		for _, key := range k.Keys {
+			keys = append(keys, storage.KeySpec{Name: key.Name, Type: key.Type})
+		}
+		specs = append(specs, storage.KindSpec{Subject: k.Subject, Keys: keys})
+	}
+	if err := h.store.SetKinds(specs); err != nil {
+		return err
+	}
+	for _, k := range kinds {
+		if len(k.Keys) == 0 {
+			continue
+		}
+		bodies := map[string]json.RawMessage{}
+		for id, e := range h.recordTables[k.Subject] {
+			bodies[id] = e.body
+		}
+		keys, err := h.engine.KeysOf(k.Subject, bodies)
+		if err != nil {
+			return err
+		}
+		if err := h.store.FillKeys(k.Subject, keys); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// recordSource は、アクションを行っている間にエンジンがレコードを引く口（engine.Source）。置き場所から引き、条件は索引キーの列で絞る
+// （中身を開けずに探す。索引キーだけを読むなら、中身は置き場所からも読まない）。Perform が h.mu を持ったまま呼ぶ
 type recordSource struct{ h *Hub }
 
 func (s recordSource) Record(subject, id string) (json.RawMessage, bool) {
-	e, ok := s.h.recordTables[subject][id]
-	return e.body, ok
+	r, err := s.h.store.Record(subject, id)
+	if err != nil || r == nil {
+		return nil, false
+	}
+	return r.Body, true
 }
 
-func (s recordSource) Kind(subject string) map[string]json.RawMessage {
-	out := map[string]json.RawMessage{}
-	for id, e := range s.h.recordTables[subject] {
-		out[id] = e.body
+// sourceCond は engine.js が渡す条件 1 つ（{key, eq}・{key, lt}・{key, gt}・{key, is}）
+type sourceCond struct {
+	Key string `json:"key"`
+	Eq  any    `json:"eq"`
+	Lt  any    `json:"lt"`
+	Gt  any    `json:"gt"`
+	Is  string `json:"is"`
+}
+
+func (s recordSource) Find(subject string, where json.RawMessage, keysOnly bool) map[string]engine.SourceFound {
+	out := map[string]engine.SourceFound{}
+	var conds []sourceCond
+	if err := json.Unmarshal(where, &conds); err != nil {
+		return out
+	}
+	q := storage.Query{KeysOnly: keysOnly}
+	for _, c := range conds {
+		switch {
+		case c.Is != "":
+			q.Where = append(q.Where, storage.Cond{Key: c.Key, Op: c.Is})
+		case c.Eq != nil:
+			q.Where = append(q.Where, storage.Cond{Key: c.Key, Op: "eq", Value: c.Eq})
+		case c.Lt != nil:
+			q.Where = append(q.Where, storage.Cond{Key: c.Key, Op: "lt", Value: c.Lt})
+		case c.Gt != nil:
+			q.Where = append(q.Where, storage.Cond{Key: c.Key, Op: "gt", Value: c.Gt})
+		}
+	}
+	found, err := s.h.store.Find(subject, q)
+	if err != nil {
+		return out
+	}
+	for _, f := range found {
+		out[f.ID] = engine.SourceFound{Record: f.Body, Keys: f.Keys}
 	}
 	return out
 }

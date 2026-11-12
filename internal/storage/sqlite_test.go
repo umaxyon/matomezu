@@ -564,8 +564,8 @@ func TestMailboxBecomesRecords(t *testing.T) {
 		t.Fatal("the mailbox table is still there")
 	}
 	var version int
-	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != mailMigration+1 {
-		t.Fatalf("user_version = %d, %v; want %d", version, err, mailMigration+1)
+	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != len(migrations) {
+		t.Fatalf("user_version = %d, %v; want %d", version, err, len(migrations))
 	}
 }
 

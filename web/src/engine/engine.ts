@@ -27,8 +27,16 @@ import { splitId } from "../core/names"
 import { joinActions } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
+import { type Condition, type KeyValues, keyValuesOf } from "../core/record-keys"
 import type { RecordSource } from "../core/record-source"
-import { type Counters, checkRecords, type RecordChange, restoreCounters, restoreRecords } from "../core/records"
+import {
+  type Counters,
+  checkRecords,
+  REMOVED,
+  type RecordChange,
+  restoreCounters,
+  restoreRecords,
+} from "../core/records"
 import { readsWholeKinds } from "../core/refs"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
@@ -128,18 +136,28 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
 }
 
 // ホストが置いた、レコードを引く口（常駐が行う間だけ答える。無ければ、受けたレコードだけで行う）: 1 件（無ければ空の文字）と、種類の全部（id → レコードの JSON）
+// 探す口は、条件 where（JSON）に合うかもしれないレコードを id → { record, keys } で答える（keysOnly なら record は無い。keys は置き場所が持っている索引キーの値）
 const hostRecords = globalThis as {
   matomezuHostRecord?: (subject: string, id: string) => string
-  matomezuHostKind?: (subject: string) => string
+  matomezuHostFind?: (subject: string, where: string, keysOnly: boolean) => string
 }
+
+type HostFound = Readonly<Record<string, { record?: unknown; keys?: KeyValues }>>
 
 // レコードの読み口: 受けたレコード given（宛先と、種類の並びで読む種類）に無い物は、ホストから引く
 function hostSource(given: Readonly<Record<string, Readonly<Record<string, unknown>>>>): RecordSource | null {
-  const { matomezuHostRecord: one, matomezuHostKind: kind } = hostRecords
-  if (!one || !kind) return null
+  const { matomezuHostRecord: one, matomezuHostFind: find } = hostRecords
+  if (!one || !find) return null
+  const found = (subject: string, where: readonly Condition[], keysOnly: boolean): HostFound =>
+    (parseOr(find(subject, JSON.stringify(where), keysOnly)) ?? {}) as HostFound
   return {
     byId: (subject, id) => given[subject]?.[id] ?? parseOr(one(subject, id)),
-    candidates: subject => ({ ...restoreRecords({ [subject]: parseOr(kind(subject)) })[subject], ...given[subject] }),
+    candidates: (subject, where) => ({
+      ...Object.fromEntries(Object.entries(found(subject, where, false)).map(([id, row]) => [id, row.record])),
+      ...given[subject],
+    }),
+    keys: (subject, where) =>
+      Object.fromEntries(Object.entries(found(subject, where, true)).map(([id, row]) => [id, row.keys ?? {}])),
   }
 }
 
@@ -188,7 +206,7 @@ function perform(input: Input): Output {
     removed,
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
-    ...(done.records ? { records: done.records } : {}),
+    ...(done.records ? { records: done.records.map(c => withKeys(catalog, c)) } : {}),
     ...(done.counters ? { counters: done.counters } : {}),
     ...(notice ? { notice } : {}),
     ...(done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}),
@@ -376,6 +394,32 @@ function aiTables(of: Assembled) {
   })
   rows.sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   return JSON.stringify(rows.map(({ id, brief }) => ({ id, brief })))
+}
+
+// 変えたレコード 1 件に、索引キーの値を添える（置き場所が中身とは別に置く。消したレコードと、索引キーの無い種類には添えない）
+function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { keys?: KeyValues } {
+  const def = catalog.subjects.get(change.subject)
+  return def?.keys && change.record !== REMOVED ? { ...change, keys: keyValuesOf(def, change.record) } : change
+}
+// 今の機能台帳の、レコードの種類と索引キーの宣言（常駐が置き場所に伝える。索引キーは宣言の順）
+;(globalThis as { matomezuKinds?: () => string }).matomezuKinds = () =>
+  JSON.stringify(
+    [...assembled.catalog.core.subjects.values()].map(s => ({
+      subject: s.id,
+      keys: Object.entries(s.keys ?? {}).map(([name, key]) => ({ name, type: key.type })),
+    })),
+  )
+
+// 種類 subject のレコード records（JSON。id → レコード）の、索引キーの値（id → 名前 → 値）。常駐が、宣言が変わったあとに置き場所へ入れ直すのに引く
+;(globalThis as { matomezuKeysOf?: (subject: string, records: string) => string }).matomezuKeysOf = (
+  subject,
+  records,
+) => {
+  const def = assembled.catalog.core.subjects.get(subject)
+  const table = restoreRecords({ [subject]: parseOr(records) })[subject] ?? {}
+  return JSON.stringify(
+    Object.fromEntries(Object.entries(table).map(([id, record]) => [id, def ? keyValuesOf(def, record) : {}])),
+  )
 }
 
 // 常駐と core が種類で引く役（参加者・ワークルーム・郵便）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）

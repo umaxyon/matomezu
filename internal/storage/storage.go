@@ -41,14 +41,60 @@ type BookWrite struct {
 	Base int64
 }
 
-// RecordWrite は Batch の、レコード 1 件の書き込み（base が置いてある版と違えば ErrConflict。作るときの base は 0。Removed なら消す）
+// RecordWrite は Batch の、レコード 1 件の書き込み（base が置いてある版と違えば ErrConflict。作るときの base は 0。Removed なら消す）。
+// Keys は索引キーの値（名前 → 文字か数。値の無いキーは持たない）。種類が宣言した索引キー（SetKinds）の分だけを、中身とは別に置く
 type RecordWrite struct {
 	Subject string
 	ID      string
 	Body    json.RawMessage
 	Base    int64
 	Removed bool
+	Keys    map[string]any
 }
+
+// KeySpec は索引キー 1 つの宣言: 名前と、値の型（text か number）
+type KeySpec struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// KindSpec は、レコードの種類 1 つと、その索引キーの宣言（宣言の順）
+type KindSpec struct {
+	Subject string    `json:"subject"`
+	Keys    []KeySpec `json:"keys"`
+}
+
+// Cond は索引キーの条件 1 つ。Op は eq・lt・gt（Value と比べる）か、absent（値が無い）・present（値がある）
+type Cond struct {
+	Key   string
+	Op    string
+	Value any
+}
+
+// Order は並び: 索引キー Key の小さい順（Desc なら大きい順）。同じ値と値の無いレコードは id の順で、値の無いレコードは後ろ
+type Order struct {
+	Key  string
+	Desc bool
+}
+
+// Query はレコードの探し方: Where の全部に合う物を、Order の順（無ければ id の順）に、Limit 件まで（0 なら全部）。KeysOnly なら中身を読まない
+type Query struct {
+	Where    []Cond
+	Order    *Order
+	Limit    int
+	KeysOnly bool
+}
+
+// Found は探して見つかったレコード 1 件: id と索引キーの値、中身（KeysOnly なら nil）と版
+type Found struct {
+	ID      string
+	Body    json.RawMessage
+	Version int64
+	Keys    map[string]any
+}
+
+// ErrUnknownKey は、種類が宣言していない索引キーを条件か並びに書いたこと
+var ErrUnknownKey = errors.New("the kind has no such index key")
 
 // BookBody は Batch の、ブックごとの並び（アノテーション・AI 編集チケット）の置き換え（空の並びなら消す）
 type BookBody struct {
@@ -81,6 +127,15 @@ type Storage interface {
 	Apply(b Batch) (*Book, error)
 	// Books は置いてある全部のブック（ゴミ箱のブックも）
 	Books() ([]Book, error)
+	// SetKinds は、今ある種類と索引キーの宣言を伝える。種類ごとに 1 つの表を持ち、宣言した索引キーを中身とは別の列に置く
+	// （宣言が変わった種類は列を作り直す。値は FillKeys で入れ直すまで無い）。伝えられたことの無い種類のレコードは、中を解釈せずに 1 つの表に置いたまま
+	SetKinds(kinds []KindSpec) error
+	// FillKeys は、種類 subject の全部のレコードの索引キーの値を keys（レコードの id → 名前 → 値）にする（宣言が変わったあとに入れ直す）
+	FillKeys(subject string, keys map[string]map[string]any) error
+	// Record は種類 subject の id の 1 件（無ければ nil）
+	Record(subject, id string) (*Record, error)
+	// Find は種類 subject の、探し方 q に合うレコード。宣言に無い索引キーを書いたら ErrUnknownKey
+	Find(subject string, q Query) ([]Found, error)
 	// Records は置いてある全部のレコード（種類・id の順）、Counters は番号の表
 	Records() ([]Record, error)
 	Counters() ([]Counter, error)

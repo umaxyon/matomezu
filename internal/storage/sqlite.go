@@ -133,10 +133,17 @@ var migrations = []string{
 	INSERT OR REPLACE INTO counters (subject, scope, next)
 	SELECT '@matomezu/base:mail', 'mail', MAX(json_extract(body, '$.order')) + 1 FROM records WHERE subject = '@matomezu/base:mail' HAVING COUNT(*) > 0;
 	DROP TABLE mailbox;`,
+	// 種類ごとの表の一覧（n 番目の種類のレコードは表 rec_<n> に置く。spec は索引キーの宣言の並び）。伝えられたことの無い種類のレコードは records に置いたまま
+	`CREATE TABLE kinds (
+		n INTEGER PRIMARY KEY AUTOINCREMENT,
+		subject TEXT NOT NULL UNIQUE,
+		spec TEXT NOT NULL
+	);`,
 }
 
 type sqliteStorage struct {
-	db *sql.DB
+	db    *sql.DB
+	kinds map[string]kind // 種類の id → その種類の表（kinds.go）
 }
 
 // OpenSQLite は path の SQLite を開き（無ければ作り）、表の形を最新にする
@@ -158,7 +165,12 @@ func OpenSQLite(path string) (Storage, error) {
 		db.Close()
 		return nil, err
 	}
-	return &sqliteStorage{db: db}, nil
+	s := &sqliteStorage{db: db}
+	if err := s.loadKinds(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return s, nil
 }
 
 func migrate(db *sql.DB) error {
@@ -293,7 +305,7 @@ func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
 			}
 		}
 		for _, r := range b.Records {
-			if err := txPutRecord(tx, r); err != nil {
+			if err := s.txPutRecord(tx, r); err != nil {
 				return nil, err
 			}
 		}
@@ -307,10 +319,16 @@ func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
 	})
 }
 
-// txPutRecord は、レコード 1 件を書く（置いてある版が Base のときだけ。作るときは Base 0 で、まだ無いときだけ。消すときも版を確かめる）
-func txPutRecord(tx *sql.Tx, w RecordWrite) error {
+// txPutRecord は、レコード 1 件を書く（置いてある版が Base のときだけ。作るときは Base 0 で、まだ無いときだけ。消すときも版を確かめる）。
+// 種類の表があればそこに、索引キーの値と一緒に書く。無ければ、中を解釈しない表 records に書く
+func (s *sqliteStorage) txPutRecord(tx *sql.Tx, w RecordWrite) error {
+	k, known := s.kinds[w.Subject]
+	table, match, args := "records", "subject = ? AND id = ?", []any{w.Subject, w.ID}
+	if known {
+		table, match, args = k.table, "id = ?", []any{w.ID}
+	}
 	var version int64
-	err := tx.QueryRow(`SELECT version FROM records WHERE subject = ? AND id = ?`, w.Subject, w.ID).Scan(&version)
+	err := tx.QueryRow(`SELECT version FROM `+table+` WHERE `+match, args...).Scan(&version)
 	have := !errors.Is(err, sql.ErrNoRows)
 	if err != nil && have {
 		return err
@@ -318,19 +336,37 @@ func txPutRecord(tx *sql.Tx, w RecordWrite) error {
 	if (have && version != w.Base) || (!have && w.Base != 0) {
 		return ErrConflict
 	}
+	cols, marks, sets := "", "", ""
+	var keys []any
+	if known {
+		keys = keyArgs(k, w.Keys)
+		for i := range k.keys {
+			cols += fmt.Sprintf(", k%d", i)
+			marks += ", ?"
+			sets += fmt.Sprintf(", k%d = ?", i)
+		}
+	}
 	switch {
 	case w.Removed:
-		_, err = tx.Exec(`DELETE FROM records WHERE subject = ? AND id = ?`, w.Subject, w.ID)
+		_, err = tx.Exec(`DELETE FROM `+table+` WHERE `+match, args...)
+	case !have && known:
+		_, err = tx.Exec(`INSERT INTO `+table+` (id, body, version, updated_at`+cols+`) VALUES (?, ?, 1, ?`+marks+`)`, append([]any{w.ID, string(w.Body), now()}, keys...)...)
 	case !have:
 		_, err = tx.Exec(`INSERT INTO records (subject, id, body, version, updated_at) VALUES (?, ?, ?, 1, ?)`, w.Subject, w.ID, string(w.Body), now())
 	default:
-		_, err = tx.Exec(`UPDATE records SET body = ?, version = ?, updated_at = ? WHERE subject = ? AND id = ?`, string(w.Body), w.Base+1, now(), w.Subject, w.ID)
+		_, err = tx.Exec(`UPDATE `+table+` SET body = ?, version = ?, updated_at = ?`+sets+` WHERE `+match, append(append([]any{string(w.Body), w.Base + 1, now()}, keys...), args...)...)
 	}
 	return err
 }
 
 func (s *sqliteStorage) Records() ([]Record, error) {
-	rows, err := s.db.Query(`SELECT subject, id, body, version FROM records ORDER BY subject, id`)
+	query := `SELECT subject, id, body, version FROM records`
+	var args []any
+	for subject, k := range s.kinds {
+		query += ` UNION ALL SELECT ?, id, body, version FROM ` + k.table
+		args = append(args, subject)
+	}
+	rows, err := s.db.Query(query+` ORDER BY 1, 2`, args...)
 	if err != nil {
 		return nil, err
 	}

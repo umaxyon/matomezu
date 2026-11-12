@@ -12,6 +12,8 @@ export interface RecordSource {
   byId(subject: string, id: string): unknown | undefined
   // 種類 subject の、条件 where に合うかもしれないレコードの全部（id → レコード。合わない物が混ざってよい）
   candidates(subject: string, where: readonly Condition[]): Readonly<Record<string, unknown>>
+  // 同じく、合うかもしれないレコードの索引キーの値だけ（id → 値の組。中身を開けずに答えられる読み口だけが持つ。無ければ candidates の中身から求める）
+  keys?(subject: string, where: readonly Condition[]): Readonly<Record<string, KeyValues>>
 }
 
 // 持っているレコード records から引く読み口
@@ -30,16 +32,23 @@ export const sourceIn = (ctx: object): RecordSource | undefined => (ctx as WithS
 // アクションが読む索引キーだけの行（種類の id → id → 索引キーの値）
 export type RecordKeys = Readonly<Record<string, Readonly<Record<string, KeyValues>>>>
 
-// 種類 subject の、条件 where に合うレコード（id → レコードと索引キーの値）。宣言に無いキーの条件なら、何も合わない
+// 種類 subject の、条件 where に合うレコード（id → レコードと索引キーの値）。宣言に無いキーの条件なら、何も合わない。
+// keysOnly なら中身は読まず（record は undefined）、読み口が索引キーの値だけを答えられれば、それを使う
 export function find(
   catalog: CoreCatalog,
   source: RecordSource,
   subject: string,
   where: readonly Condition[],
+  keysOnly = false,
 ): Readonly<Record<string, { record: unknown; keys: KeyValues }>> {
   const def = catalog.subjects.get(subject)
   if (!def || unknownKey(def, where) !== null) return {}
   const out: Record<string, { record: unknown; keys: KeyValues }> = {}
+  if (keysOnly && source.keys) {
+    for (const [id, keys] of Object.entries(source.keys(subject, where)))
+      if (matches(keys, where)) out[id] = { record: undefined, keys }
+    return out
+  }
   for (const [id, record] of Object.entries(source.candidates(subject, where))) {
     const keys = keyValuesOf(def, record)
     if (matches(keys, where)) out[id] = { record, keys }
@@ -74,7 +83,7 @@ export function readFrom(
       if (record !== undefined) table[read.id] = record
       continue
     }
-    const found = find(catalog, source, read.subject, read.where)
+    const found = find(catalog, source, read.subject, read.where, read.keysOnly === true)
     if (read.keysOnly) {
       const table = tableIn(keys, read.subject)
       for (const [id, row] of Object.entries(found)) table[id] = row.keys

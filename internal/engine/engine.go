@@ -64,6 +64,18 @@ type RecordChange struct {
 	Subject string          `json:"subject"`
 	ID      string          `json:"id"`
 	Record  json.RawMessage `json:"record"`
+	Keys    map[string]any  `json:"keys,omitempty"` // 索引キーの値（名前 → 文字か数。索引キーの無い種類と、消したレコードには無い）
+}
+
+// KeySpec は索引キー 1 つの宣言（名前と、値の型 text か number）、Kind はレコードの種類 1 つとその索引キーの宣言
+type KeySpec struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+type Kind struct {
+	Subject string    `json:"subject"`
+	Keys    []KeySpec `json:"keys"`
 }
 
 // RecordNeeds は、アクションが対象にする種類（レコードが対象でなければ空）と、読むだけの種類と、読むだけのブックの id（アクションが引数から答える）
@@ -106,6 +118,8 @@ type Engine struct {
 	mu        sync.Mutex
 	vm        *goja.Runtime
 	source    Source // 行っている間だけある、レコードを引く口（PerformWith）
+	kinds     func() string
+	keysOf    func(string, string) string
 	perform   func(string) string
 	readAI    func() string
 	check     func(string) string
@@ -158,17 +172,23 @@ func New() (*Engine, error) {
 	}); err != nil {
 		return nil, err
 	}
-	if err := vm.Set("matomezuHostKind", func(subject string) string {
+	if err := vm.Set("matomezuHostFind", func(subject, where string, keysOnly bool) string {
 		if e.source == nil {
 			return "{}"
 		}
-		b, err := json.Marshal(e.source.Kind(subject))
+		b, err := json.Marshal(e.source.Find(subject, json.RawMessage(where), keysOnly))
 		if err != nil {
 			return "{}"
 		}
 		return string(b)
 	}); err != nil {
 		return nil, err
+	}
+	if err := vm.ExportTo(vm.Get("matomezuKinds"), &e.kinds); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuKinds: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuKeysOf"), &e.keysOf); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuKeysOf: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuPerform"), &e.perform); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuPerform: %w", err)
@@ -326,11 +346,48 @@ const (
 // Perform はアクションを行う。in.TimeoutSec の間に終わらなければ、打ち切って断る（変更は反映しない）
 func (e *Engine) Perform(in Input) (out Output, err error) { return e.PerformWith(in, nil) }
 
-// Source は、アクションを行っている間にエンジンがレコードを引く口: 種類 subject の id の 1 件（無ければ false）と、種類の全部（id → レコード）。
+// Source は、アクションを行っている間にエンジンがレコードを引く口: 種類 subject の id の 1 件（無ければ false）と、
+// 索引キーの条件 where（engine.js が渡す JSON の並び）に合うかもしれないレコード（id → 見つかった物。合わない物が混ざってよく、絞るのはエンジン）。
 // 読む物を関数で宣言したアクションと、レコードが指す先・同じ種類のほかのレコードを引くのに使う
 type Source interface {
 	Record(subject, id string) (json.RawMessage, bool)
-	Kind(subject string) map[string]json.RawMessage
+	Find(subject string, where json.RawMessage, keysOnly bool) map[string]SourceFound
+}
+
+// SourceFound は Source が探して見つけたレコード 1 件: 中身（keysOnly なら無い）と、置き場所が持っている索引キーの値
+type SourceFound struct {
+	Record json.RawMessage `json:"record,omitempty"`
+	Keys   map[string]any  `json:"keys"`
+}
+
+// Kinds は、今の機能台帳のレコードの種類と、索引キーの宣言
+func (e *Engine) Kinds() (kinds []Kind, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.kinds()), &kinds)
+	return kinds, err
+}
+
+// KeysOf は、種類 subject のレコード records（id → レコード）の索引キーの値（id → 名前 → 値）
+func (e *Engine) KeysOf(subject string, records map[string]json.RawMessage) (keys map[string]map[string]any, err error) {
+	b, err := json.Marshal(records)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.keysOf(subject, string(b))), &keys)
+	return keys, err
 }
 
 // PerformWith は、レコードを引く口 src を渡して Perform する（src が nil なら、in の Records だけで行う）
