@@ -108,7 +108,7 @@ export const LocateIcon = () => (
   </Svg>
 )
 
-// ブック 1 冊（ナレッジの、起票時の本文など）
+// ブック 1 冊（ナレッジの、本文など）
 export const BookIcon = () => (
   <Svg size={20} stroke={1.5}>
     <path d="M6 3.5h11.5v15H7a1.5 1.5 0 0 0-1.5 1.5V5A1.5 1.5 0 0 1 6 3.5z" />
