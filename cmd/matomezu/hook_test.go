@@ -163,3 +163,26 @@ func TestModelHookSendsTheModel(t *testing.T) {
 		t.Fatalf("sent = %v", sent)
 	}
 }
+
+// 裏の知らせで始まったターン（入力が <task-notification> で始まる）は woken を付けて知らせる。利用者の話しかけには付けない
+func TestTalkedTellsWhetherTheTurnWasWoken(t *testing.T) {
+	f := &fakeTalk{bound: true, told: true}
+	for _, prompt := range []string{"<task-notification>\n<summary>Monitor event: \"matomezu\"</summary>\n</task-notification>", "こんにちは"} {
+		talked(&bytes.Buffer{}, hookInput{SessionID: "S1", Prompt: prompt}, "", f.api)
+	}
+	if len(f.bodies) != 2 || f.bodies[0]["woken"] != true || f.bodies[1]["woken"] != false {
+		t.Fatalf("calls = %v", f.bodies)
+	}
+}
+
+// watch は SSE の wake の知らせの文だけを 1 行ずつ書き、ほかの知らせ（keep）は書かない
+func TestReadWakesPrintsOnlyWakeLines(t *testing.T) {
+	in := "event: keep\ndata: {}\n\nevent: wake\ndata: {\"text\":\"matomezu: the user accepted\"}\n\nevent: wake\ndata: {\"text\":\"\"}\n\n"
+	var out bytes.Buffer
+	if err := readWakes(strings.NewReader(in), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "matomezu: the user accepted\n" {
+		t.Fatalf("out = %q", out.String())
+	}
+}

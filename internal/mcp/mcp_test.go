@@ -183,8 +183,9 @@ func textOf(a map[string]any) string {
 	return a["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
 }
 
-// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）と、AI のプログラムのプロセス id も添える。参加の id が無ければ添えない
-func TestBranchAndHostGoWithTheParticipant(t *testing.T) {
+// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添える。参加の id が無ければ添えない。
+// AI のプログラムのプロセス id は、join も含めていつも添える（起こす知らせの宛て先）
+func TestBranchGoesWithTheParticipantAndHostAlways(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 	branches := []string{"feat/d110", ""}
 	read := 0
@@ -196,7 +197,7 @@ func TestBranchAndHostGoWithTheParticipant(t *testing.T) {
 	if len(api.headers) != 3 {
 		t.Fatalf("calls = %d", len(api.headers))
 	}
-	if _, ok := api.headers[0]["X-Matomezu-Branch"]; ok || api.headers[0].Get("X-Matomezu-Host") != "" {
+	if _, ok := api.headers[0]["X-Matomezu-Branch"]; ok || api.headers[0].Get("X-Matomezu-Host") != "4242" {
 		t.Fatalf("join without a participant = %v", api.headers[0])
 	}
 	for i, want := range []string{"feat%2Fd110", ""} {

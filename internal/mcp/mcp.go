@@ -19,7 +19,7 @@ const (
 	participantHeader = "X-Matomezu-Participant" // 送る: join の返事で受けた参加の id
 	noticeHeader      = "X-Matomezu-Notice"      // 返る: AI への知らせ（値は URL エンコード）
 	branchHeader      = "X-Matomezu-Branch"      // 送る: 参加の id と一緒にいつも。git のブランチ（値は URL エンコード。空はブランチが無い）
-	hostHeader        = "X-Matomezu-Host"        // 送る: 参加の id と一緒に。AI のプログラムのプロセス id
+	hostHeader        = "X-Matomezu-Host"        // 送る: いつも（join も）。AI のプログラムのプロセス id
 )
 
 // API は常駐の AI の入口を呼ぶ口。header は送るヘッダ、戻りの 2 つ目は返事のヘッダ
@@ -49,12 +49,12 @@ type conn struct {
 
 func (c *conn) header() http.Header {
 	h := http.Header{}
+	if c.host != "" {
+		h.Set(hostHeader, c.host)
+	}
 	if c.participant != "" {
 		h.Set(participantHeader, c.participant)
 		h.Set(branchHeader, url.QueryEscape(c.branch()))
-		if c.host != "" {
-			h.Set(hostHeader, c.host)
-		}
 	}
 	return h
 }

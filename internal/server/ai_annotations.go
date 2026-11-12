@@ -271,11 +271,12 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 		SessionID  string   `json:"sessionId"`
 		Host       string   `json:"host"`
 		Candidates []string `json:"candidates"`
+		Woken      bool     `json:"woken"` // 裏の知らせで始まったターン（利用者は話しかけていない）
 	}
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
 	}
-	if len(req.Candidates) == 0 {
+	if len(req.Candidates) == 0 && !req.Woken {
 		if err := o.Hub.Talked(time.Now()); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -12,10 +12,10 @@ package server
 //     セッション id が変わったとき（Claude Code の /clear など）に、同じプロセス id の参加者へ新しいセッション id を結び直すのに使う）
 //
 // 受け入れた参加者は、AI のフックが参加を伝えるまで準備中（セッション id を join で運ぶ AI は受け入れた時点で準備中でない）。
-// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・AI のプログラムのプロセス id・「参加しました」の知らせ・伝えた印を残さない。準備中の間は生きていない
+// 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・AI のプログラムのプロセス id・「参加しました」の知らせ・伝えた印を残さない（プロセス id は、join の頼みに添えた物だけ残す）。準備中の間は生きていない
 //
 // 参加の id は MCP が X-Matomezu-Participant ヘッダで毎回添え、「参加しました」の知らせは X-Matomezu-Notice ヘッダで 1 度だけ返す（値は URL エンコード）。
-// 参加の id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）と、AI のプログラムのプロセス id（X-Matomezu-Host）も添える。
+// 参加の id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）も添える。AI のプログラムのプロセス id（X-Matomezu-Host）は join も含めていつも添える。
 //
 //	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
 //
@@ -114,6 +114,7 @@ type JoinRequest struct {
 	SessionID   string `json:"sessionId"`
 	Workroom    string `json:"workroom"`
 	Participant string `json:"-"`
+	Host        string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。起こす知らせの宛て先。watch.go）
 }
 
 // Joined は参加の頼みの結果。弾いたり断られたりしたら OK は false で、Reason と Detail に理由
@@ -195,6 +196,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	for _, s := range records {
 		if (req.Participant != "" && s.ID == req.Participant && sitting(s)) || (req.Link != "" && s.Link == req.Link) {
 			h.noteSession(s.ID, req.SessionID)
+			h.noteJoinHost(s.ID, req.Host)
 			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 		}
 	}
@@ -265,6 +267,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		return refused(told), err
 	}
 	h.noteSession(result.Participant, req.SessionID)
+	h.noteJoinHost(result.Participant, req.Host)
 	return Joined{OK: true, Participant: result.Participant}, h.settleNotes()
 }
 
@@ -292,6 +295,19 @@ func (h *Hub) performAs(action string, args map[string]any) (Performed, error) {
 		return Performed{}, err
 	}
 	return h.Perform(Perform{Action: action, Args: b, By: "ai"})
+}
+
+// noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id を書く（空なら何もしない）。
+// 要求中の間も残す（受け入れ・断りの知らせを、その AI の起こす知らせの通り道へ流す宛て先。watch.go）
+func (h *Hub) noteJoinHost(id, host string) {
+	if host == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	n := h.participantNotes[id]
+	n.Host = host
+	h.participantNotes[id] = n
 }
 
 // noteSession は参加者 id の常駐だけが持つ参加者の記録に、join で MCP が運んだセッション id を結ぶ（空なら何もしない）。
@@ -528,6 +544,7 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Participant = r.Header.Get(ParticipantHeader)
+	req.Host = r.Header.Get(HostHeader)
 	done, err := o.Hub.AIJoin(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

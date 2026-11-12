@@ -88,7 +88,11 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	if b := acts(hub2); len(b) != 2 || b[1] == a[1] || b[1] == a[0] {
 		t.Fatalf("acts after restart = %v (before %v)", b, a)
 	}
-	// 渡した物は、話しかけたら消える
+	// 裏の知らせで始まったターン（woken）は話しかけではないので消えない。渡した物は、話しかけたら消える
+	send(t, "POST", s2.URL+"/api/ai/talked", `{"woken":true}`, ai)
+	if g := got(s2); strings.Count(g, `"lost":`) != 1 {
+		t.Fatalf("awaiting after a woken turn = %s", g)
+	}
 	send(t, "POST", s2.URL+"/api/ai/talked", `{}`, ai)
 	if g := got(s2); !strings.HasSuffix(g, `"undone":[]}`) {
 		t.Fatalf("awaiting after talked = %s", g)

@@ -25,7 +25,14 @@ type hookInput struct {
 	TranscriptPath string `json:"transcript_path"`
 	Model          string `json:"model"`    // SessionStart のモデル
 	ToModel        string `json:"to_model"` // PostModelSwitch の、切り替えた先のモデル
+	Prompt         string `json:"prompt"`   // UserPromptSubmit の、ターンを始めた入力
 	Host           string `json:"-"`        // AI のプログラムのプロセス id（フックが --host で渡す）
+}
+
+// woken は、ターンが利用者の話しかけでなく、裏の知らせ（plugin の monitor の 1 行・裏で走らせた物の終わりなど）で始まったか
+// （Claude Code は、その入力を <task-notification> で包んで渡す）
+func (in hookInput) woken() bool {
+	return strings.HasPrefix(strings.TrimSpace(in.Prompt), "<task-notification>")
 }
 
 // model は、フックが知らせるモデル（切り替えた先があればそれ。どちらも無ければ空）
@@ -102,7 +109,7 @@ func talked(out io.Writer, hook hookInput, context string, api hookAPI) {
 // askTalked は、話しかけを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
 func askTalked(hook hookInput, api hookAPI) talkReply {
 	var reply talkReply
-	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host})
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.woken()})
 	out, err := api(body)
 	if err != nil || json.Unmarshal(out, &reply) != nil {
 		return talkReply{}
