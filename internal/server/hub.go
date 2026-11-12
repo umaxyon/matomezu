@@ -13,7 +13,6 @@ package server
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
 //	mailbox   {"mailbox", "window", "client", "seq"} 郵便箱が変わった（郵便が届いた・既読になった・消えた）。window は最後にフォーカスされた窓
-//	participants {"participants", "client", "seq"} 参加者の表が変わった（要求が届いた・受け入れた・断った）
 //	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・mailbox・participants のあとに届く
 //	record    {"subject", "id", "record"（消したなら "removed"）, "version", "counters", "client", "seq"} 対象の定義が足した種類のレコード 1 件が変わった（records.go）
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
@@ -79,7 +78,7 @@ type Hub struct {
 	settings         json.RawMessage
 	annotations      map[string]json.RawMessage        // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
 	mailbox          json.RawMessage                   // 利用者の郵便箱（郵便の並び。無ければ nil）
-	participants     json.RawMessage                   // 利用者の参加者の表（参加者の並び。無ければ nil）
+	roles            map[string]string                 // 常駐が読む種類の役（participants・workrooms）→ 対象の定義の id（records.go）
 	recordTables     map[string]map[string]recordEntry // 対象の定義が足した種類のレコード（種類の id → id → レコード。records.go）
 	counters         map[string]map[string]int64       // 番号を振る種類の、区切り → 次の番号（種類の id → 区切り → 次の番号。records.go）
 	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go）
@@ -132,10 +131,6 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	participants, err := store.Participants(user)
-	if err != nil {
-		return nil, err
-	}
 	noteBody, err := store.ParticipantNotes(user)
 	if err != nil {
 		return nil, err
@@ -158,12 +153,15 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		}
 		aiEditTickets[id] = list
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, participants: participants, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, mailbox: mailbox, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
 		h.order = append(h.order, b.ID)
 	}
 	if err := h.loadRecords(); err != nil {
+		return nil, err
+	}
+	if err := h.loadRoles(); err != nil {
 		return nil, err
 	}
 	if err := h.checkBooks(h.order); err != nil {
@@ -341,16 +339,6 @@ func (h *Hub) Mailbox() json.RawMessage {
 	return h.mailbox
 }
 
-// Participants は利用者の参加者の表（参加者の並び。要求が届いていなければ空の並び）
-func (h *Hub) Participants() json.RawMessage {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.participants == nil {
-		return json.RawMessage("[]")
-	}
-	return h.participants
-}
-
 // AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、置いた順に返す
 func (h *Hub) AIBooks() []storage.Book {
 	h.mu.Lock()
@@ -401,7 +389,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Participants: h.participants, Actor: actorOf(p), TimeoutSec: p.TimeoutSec}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Mailbox: h.mailbox, Actor: actorOf(p), TimeoutSec: p.TimeoutSec}
 	in.Annotations = map[string]json.RawMessage{}
 	needs, err := h.engine.RecordNeeds(p.Action)
 	if err != nil {

@@ -21,9 +21,12 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -39,7 +42,7 @@ type participantNote struct {
 	SessionID string `json:"sessionId,omitempty"` // セッション id（join のときに MCP が添えたか、話しかけのフックが結んだ）
 	BoundBy   string `json:"boundBy,omitempty"`   // セッション id を結んだ所（boundByJoin か boundByHook。空は boundByHook と同じ）
 	Told      bool   `json:"told,omitempty"`      // 参加（joined）を AI に伝えた
-	Called    string `json:"-"`                   // 最後に呼ばれた時点（残さない）
+	Called    string `json:"called,omitempty"`    // 最後に呼ばれた時点（置き場所に残す。生きているかも、この時刻で決める。書くのは窓に知らせ直すときだけ）
 }
 
 const (
@@ -50,7 +53,7 @@ const (
 // ready は、受け入れたあとの参加者が準備中でない（参加者として数える）か。参加を伝えたか、join で MCP がセッション id を運んだとき
 func (n participantNote) ready() bool { return n.Told || n.BoundBy == boundByJoin }
 
-// participantRecord は参加者の表の 1 人のうち、join が見る所
+// participantRecord は参加者のレコード（役 participants）のうち、常駐が読む所（core/def/subject.ts の SUBJECT_ROLE_FIELDS）。Workroom は入っているワークルームの id
 type participantRecord struct {
 	ID          string `json:"id"`
 	State       string `json:"state"`
@@ -60,6 +63,13 @@ type participantRecord struct {
 	SessionName string `json:"sessionName"`
 	Link        string `json:"link"`
 	Workroom    string `json:"workroom"`
+	RequestedAt string `json:"requestedAt"`
+}
+
+// workroomRecord はワークルームのレコード（役 workrooms）のうち、常駐が読む所
+type workroomRecord struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // JoinRequest は AI の参加の頼み。Participant は呼び出しに付いていた参加の id（無ければ空）
@@ -82,10 +92,47 @@ type Joined struct {
 	Detail      string `json:"detail,omitempty"`
 }
 
+// records は参加者のレコードを要求が届いた順に返す
 func (h *Hub) records() ([]participantRecord, error) {
-	var records []participantRecord
-	err := json.Unmarshal(h.Participants(), &records)
-	return records, err
+	h.mu.Lock()
+	raw := h.recordsOfRole("participants")
+	h.mu.Unlock()
+	records := make([]participantRecord, 0, len(raw))
+	for _, body := range raw {
+		var r participantRecord
+		if err := json.Unmarshal(body, &r); err != nil {
+			return nil, err
+		}
+		records = append(records, r)
+	}
+	slices.SortStableFunc(records, func(a, b participantRecord) int { return strings.Compare(a.RequestedAt, b.RequestedAt) })
+	return records, nil
+}
+
+// workrooms はワークルームのレコードを返す
+func (h *Hub) workrooms() ([]workroomRecord, error) {
+	h.mu.Lock()
+	raw := h.recordsOfRole("workrooms")
+	h.mu.Unlock()
+	rooms := make([]workroomRecord, 0, len(raw))
+	for _, body := range raw {
+		var r workroomRecord
+		if err := json.Unmarshal(body, &r); err != nil {
+			return nil, err
+		}
+		rooms = append(rooms, r)
+	}
+	return rooms, nil
+}
+
+// roomName は、ワークルームの id の名前（無ければ空）
+func roomName(rooms []workroomRecord, id string) string {
+	for _, r := range rooms {
+		if r.ID == id {
+			return r.Name
+		}
+	}
+	return ""
 }
 
 func (h *Hub) putParticipantNotes() error {
@@ -119,19 +166,28 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 		}
 	}
-	continuing := false // 頼まれた名前の、生きていない参加者がいる（利用者が画面で引き継ぐかを選ぶ。同じセッション名でも「参加済み」にしない）
+	continuing := false // 頼まれた名前の部屋に、生きていない参加者がいる（利用者が画面で引き継ぐかを選ぶ。同じセッション名でも「参加済み」にしない）
 	if req.Workroom != "" {
-		for _, s := range records {
-			if s.State == "joined" && s.Workroom == req.Workroom {
+		rooms, err := h.workrooms()
+		if err != nil {
+			return Joined{}, err
+		}
+		for _, room := range rooms {
+			if room.Name != req.Workroom {
+				continue
+			}
+			for _, s := range records {
+				if s.State != "joined" || s.Workroom != room.ID {
+					continue
+				}
 				alive, err := h.alive(s.ID, time.Now())
 				if err != nil {
 					return Joined{}, err
 				}
 				if alive {
-					return Joined{Reason: "workroom-in-use", Detail: "workroom " + s.Workroom + " already has a participant who is alive (a person or AI joined it recently); do not ask again, tell the user in the chat. A participant who keeps its participant id continues without joining again"}, nil
+					return Joined{Reason: "workroom-in-use", Detail: "workroom " + req.Workroom + " already has a participant who is alive (a person or AI joined it recently); do not ask again, tell the user in the chat. A participant who keeps its participant id continues without joining again"}, nil
 				}
 				continuing = true
-				break
 			}
 		}
 	}
@@ -147,7 +203,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		args["sessionName"] = req.SessionName
 	}
 	if req.Workroom != "" {
-		args["workroom"] = req.Workroom
+		args["wantedName"] = req.Workroom
 	}
 	made, err := h.performAs(ids.Participant, args)
 	if err != nil || !made.OK {
@@ -159,7 +215,12 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	if err := json.Unmarshal(made.Result, &result); err != nil {
 		return Joined{}, err
 	}
+	// 利用者に知らせる郵便の引数（頼んだ名前は workroom）
 	delete(args, "link")
+	delete(args, "wantedName")
+	if req.Workroom != "" {
+		args["workroom"] = req.Workroom
+	}
 	args["from"] = req.AI
 	args["participant"] = result.Participant
 	// 利用者に知らせる郵便は利用者だけが行うアクション。AI の参加の頼みを受けたここ（ホスト）が、利用者として送る
@@ -278,6 +339,10 @@ func (h *Hub) Called(id string, now time.Time) string {
 	if err != nil {
 		return ""
 	}
+	rooms, err := h.workrooms()
+	if err != nil {
+		return ""
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, s := range records {
@@ -292,6 +357,10 @@ func (h *Hub) Called(id string, now time.Time) string {
 		n.Called = isoTime(now)
 		if now.Sub(before) >= callsAnnounceGap {
 			h.broadcast("participant-calls", map[string]any{"participant": id, "at": n.Called})
+			h.participantNotes[id] = n
+			if err := h.putParticipantNotes(); err != nil {
+				fmt.Fprintln(os.Stderr, "could not save the last call of participant", id, ":", err)
+			}
 		}
 		if !n.Told {
 			n.Told = true
@@ -301,7 +370,7 @@ func (h *Hub) Called(id string, now time.Time) string {
 				h.participantNotes[id] = n
 				return ""
 			}
-			return joinedText(s.Workroom)
+			return joinedText(roomName(rooms, s.Workroom))
 		}
 		h.participantNotes[id] = n
 		return ""
@@ -352,8 +421,8 @@ func (h *Hub) WorkroomOf(id string) string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, s := range records {
-		if s.ID == id && s.State == "joined" && h.participantNotes[id].ready() {
-			return s.ID // ワークルームを独立したデータにするまでは、参加者の id を部屋の id として渡す
+		if s.ID == id && s.State == "joined" && s.Workroom != "" && h.participantNotes[id].ready() {
+			return s.Workroom
 		}
 	}
 	return ""

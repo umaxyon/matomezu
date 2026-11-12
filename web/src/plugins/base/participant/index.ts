@@ -63,7 +63,7 @@ export const ADMIN_MARK = kit.defineSubject({
   title: "adminMark",
   aiDescription:
     "The administrator's mark: which workroom is the administrator (the id, or none). There is one, with the id admin.",
-  record: z.strictObject({ id: z.literal("admin"), workroom: z.string().min(1) }),
+  record: z.strictObject({ id: z.string().min(1), workroom: z.string().min(1) }), // id は "admin"（admin-set が作る）
   refers: a => (a.workroom === "none" ? [] : [{ subject: WORKROOM.id, id: a.workroom }]),
 })
 
@@ -142,6 +142,7 @@ export const PARTICIPANT_DECLINE = kit.defineAction({
     "Decline the requested participant named by on.record and remove it (only the user). Refused unless it is requested.",
   title: "Decline a participant",
   target: PARTICIPANT.id,
+  reads: [WORKROOM.id], // 参加者が指すワークルーム（refers）を引くため
   userOnly: true,
   args: z.strictObject({}),
   run: now => (now === "none" || now.state !== "requested" ? null : { next: "removed", result: {} }),
@@ -153,6 +154,7 @@ export const PARTICIPANT_REMOVE = kit.defineAction({
     "Remove the joined participant named by on.record from its workroom (only the user). The workroom stays, empty.",
   title: "Remove a participant",
   target: PARTICIPANT.id,
+  reads: [WORKROOM.id], // 参加者が指すワークルーム（refers）を引くため
   userOnly: true,
   args: z.strictObject({}),
   run: now => (now === "none" || now.state !== "joined" ? null : { next: "removed", result: {} }),

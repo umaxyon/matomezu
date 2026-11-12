@@ -358,7 +358,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"annotations":{},"books":[],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"participants":[],"plugins":[],"records":{},"settings":null,"touched":{}}` {
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"annotations":{},"books":[],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{}}` {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
@@ -374,7 +374,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"participants":[],"plugins":[],"records":{},"settings":null,"touched":{"b1":"`
+	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{"b1":"`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -390,7 +390,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 	if code, body := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[`+book("b3")+`,`+book("b2")+`]}`, nil); code != 200 {
 		t.Fatalf("reset = %d %s", code, body)
 	}
-	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"participants":[],"plugins":[],"records":{},"settings":null,"touched":{}}`
+	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{}}`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -1397,7 +1397,7 @@ func TestRecordsOfAnAddedSubject(t *testing.T) {
 		t.Fatalf("rename of a record that is not there = %s", got)
 	}
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"records":{"ex9:card":{"`+created.Result.Card+`":{"id":"`+created.Result.Card+`","name":"pear","no":1}}}`) || !strings.Contains(data, `"counters":{"ex9:card":{"all":2}}`) {
+	if !strings.Contains(data, `"ex9:card":{"`+created.Result.Card+`":{"id":"`+created.Result.Card+`","name":"pear","no":1}}`) || !strings.Contains(data, `"counters":{"ex9:card":{"all":2}}`) {
 		t.Fatalf("data = %s", data)
 	}
 	if got := perform(`{"action":"ex9:card-remove","args":{},"on":{"record":"` + created.Result.Card + `"}}`); !strings.Contains(got, `"ok":true`) {
@@ -1454,8 +1454,8 @@ func joinedAI(t *testing.T, s *httptest.Server) map[string]string {
 	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
 		t.Fatalf("join = %s", got)
 	}
-	if code, body := send(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "w"), nil); code != 200 || !strings.Contains(body, `"ok":true`) {
-		t.Fatalf("accept = %d %s", code, body)
+	if body := acceptRoom(t, s.URL, joined.Participant, "w"); !strings.Contains(body, `"ok":true`) {
+		t.Fatalf("accept = %s", body)
 	}
 	header := map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
 	send(t, "GET", s.URL+"/api/ai/books", "", header) // 最初の呼び出しの知らせ（participant-calls）を、窓をつなぐ前に済ませておく
@@ -1482,7 +1482,7 @@ func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
 	if !refused(header) {
 		t.Fatal("while requested, the action was not refused")
 	}
-	send(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "prep"), nil)
+	acceptRoom(t, s.URL, joined.Participant, "prep")
 	if !refused(header) {
 		t.Fatal("while preparing (accepted, the hook has not told), the action was not refused")
 	}

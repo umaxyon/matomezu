@@ -179,3 +179,28 @@ func (h *Hub) checkRecords() error {
 	h.recordLines = lines
 	return nil
 }
+
+// loadRoles は、常駐が読む種類の役（参加者・ワークルーム）ごとの、対象の定義の id を引き直す（起動したときと、プラグインが変わったとき。h.mu を持って呼ぶ）
+func (h *Hub) loadRoles() error {
+	roles, err := h.engine.SubjectRoles()
+	if err != nil {
+		return err
+	}
+	h.roles = roles
+	return nil
+}
+
+// recordsOfRole は、役 role の種類のレコードを id の順に返す（役を名乗る定義が無ければ空。h.mu を持って呼ぶ）
+func (h *Hub) recordsOfRole(role string) []json.RawMessage {
+	table := h.recordTables[h.roles[role]]
+	ids := make([]string, 0, len(table))
+	for id := range table {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	out := make([]json.RawMessage, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, table[id].body)
+	}
+	return out
+}

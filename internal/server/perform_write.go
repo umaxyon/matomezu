@@ -92,9 +92,6 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 		plan.mailWarnings = lines
 		plan.batch.Mailbox = &storage.UserBody{User: user, Body: out.Mailbox}
 	}
-	if len(out.Participants) > 0 {
-		plan.batch.Participants = &storage.UserBody{User: user, Body: out.Participants}
-	}
 	h.planRecord(plan, out)
 	for book, body := range out.Annotations {
 		plan.batch.Annotations = append(plan.batch.Annotations, storage.BookBody{Book: book, Body: body})
@@ -159,10 +156,6 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 			last = w.id
 		}
 		h.broadcast("mailbox", map[string]any{"mailbox": out.Mailbox, "window": last, "client": p.Client, "seq": p.Seq})
-	}
-	if len(out.Participants) > 0 {
-		h.participants = out.Participants
-		h.broadcast("participants", map[string]any{"participants": out.Participants, "client": p.Client, "seq": p.Seq})
 	}
 	h.applyRecord(plan, out, p)
 	for book, body := range out.Annotations {

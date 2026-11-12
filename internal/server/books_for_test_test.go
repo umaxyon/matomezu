@@ -118,7 +118,7 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	if err := h.store.PutMailbox(user, json.RawMessage("[]")); err != nil {
 		return err
 	}
-	if err := h.store.PutParticipants(user, json.RawMessage("[]")); err != nil {
+	if err := h.resetRecordsForTest(); err != nil {
 		return err
 	}
 	if err := h.store.PutParticipantNotes(user, json.RawMessage("{}")); err != nil {
@@ -128,7 +128,6 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	h.order = nil
 	h.settings = nil
 	h.mailbox = nil
-	h.participants = nil
 	h.participantNotes = map[string]participantNote{}
 	h.annotations = map[string]json.RawMessage{}
 	h.touched = map[string]string{}
@@ -145,4 +144,25 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 		h.order = append(h.order, ids[i])
 	}
 	return h.checkBooks(h.order)
+}
+
+// resetRecordsForTest は、レコードと番号の表を空にする（置き場所もメモリも。窓には知らせない）。h.mu を持って呼ぶ
+func (h *Hub) resetRecordsForTest() error {
+	var batch storage.Batch
+	for subject, table := range h.recordTables {
+		for id, e := range table {
+			batch.Records = append(batch.Records, storage.RecordWrite{Subject: subject, ID: id, Base: e.version, Removed: true})
+		}
+	}
+	for subject, table := range h.counters {
+		for scope := range table {
+			batch.Counters = append(batch.Counters, storage.Counter{Subject: subject, Scope: scope, Next: 1})
+		}
+	}
+	if _, err := h.store.Apply(batch); err != nil {
+		return err
+	}
+	h.recordTables = map[string]map[string]recordEntry{}
+	h.counters = map[string]map[string]int64{}
+	return nil
 }

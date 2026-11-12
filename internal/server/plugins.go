@@ -92,6 +92,9 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	if err := h.checkMailbox(); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the mailbox:", err)
 	}
+	if err := h.loadRoles(); err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not read the roles of the subjects:", err)
+	}
 	if err := h.checkRecords(); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the records:", err)
 	}

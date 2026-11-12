@@ -94,6 +94,29 @@ var migrations = []string{
 		next INTEGER NOT NULL,
 		PRIMARY KEY (subject, scope)
 	);`,
+	// 参加者の表をやめ、参加者・ワークルーム・管理者の印をレコードにする（対象の定義。種類の id は @matomezu/base:participant・workroom・admin-mark）。
+	// 受け入れ済みの参加者ごとに、ワークルーム（id は元の参加者の id。名前・鳥・配色は元の workroom・bird・palette）と、そこに入る参加者を作る。
+	// 要求中は部屋を持たず、望んだ名前（wantedName）に移す。参加者の表は捨てる
+	`INSERT INTO records (subject, id, body, version, updated_at)
+	SELECT '@matomezu/base:workroom', json_extract(j.value, '$.id'),
+		json_remove(json_object('id', json_extract(j.value, '$.id'), 'name', json_extract(j.value, '$.workroom'), 'bird', json_extract(j.value, '$.bird'),
+			'palette', json_extract(j.value, '$.palette'), 'createdAt', COALESCE(json_extract(j.value, '$.joinedAt'), json_extract(j.value, '$.requestedAt'))),
+			CASE WHEN json_extract(j.value, '$.palette') IS NULL THEN '$.palette' ELSE '$.none' END), 1, p.updated_at
+	FROM participants p, json_each(p.body) j
+	WHERE json_extract(j.value, '$.state') = 'joined' AND json_extract(j.value, '$.workroom') IS NOT NULL;
+	INSERT INTO records (subject, id, body, version, updated_at)
+	SELECT '@matomezu/base:participant', json_extract(j.value, '$.id'),
+		CASE WHEN json_extract(j.value, '$.state') = 'joined' AND json_extract(j.value, '$.workroom') IS NOT NULL
+			THEN json_object('id', json_extract(j.value, '$.id'), 'state', 'joined', 'ai', json_extract(j.value, '$.ai'), 'model', json_extract(j.value, '$.model'),
+				'env', json_extract(j.value, '$.env'), 'sessionName', json_extract(j.value, '$.sessionName'), 'link', json_extract(j.value, '$.link'),
+				'workroom', json_extract(j.value, '$.id'), 'requestedAt', json_extract(j.value, '$.requestedAt'),
+				'joinedAt', COALESCE(json_extract(j.value, '$.joinedAt'), json_extract(j.value, '$.requestedAt')))
+			ELSE json_remove(json_object('id', json_extract(j.value, '$.id'), 'state', 'requested', 'ai', json_extract(j.value, '$.ai'), 'model', json_extract(j.value, '$.model'),
+				'env', json_extract(j.value, '$.env'), 'sessionName', json_extract(j.value, '$.sessionName'), 'link', json_extract(j.value, '$.link'),
+				'wantedName', json_extract(j.value, '$.workroom'), 'requestedAt', json_extract(j.value, '$.requestedAt')),
+				CASE WHEN json_extract(j.value, '$.workroom') IS NULL THEN '$.wantedName' ELSE '$.none' END) END, 1, p.updated_at
+	FROM participants p, json_each(p.body) j;
+	DROP TABLE participants;`,
 }
 
 type sqliteStorage struct {
@@ -235,7 +258,7 @@ func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
 		for _, u := range []struct {
 			table string
 			body  *UserBody
-		}{{"settings", b.Settings}, {"mailbox", b.Mailbox}, {"participants", b.Participants}} {
+		}{{"settings", b.Settings}, {"mailbox", b.Mailbox}} {
 			if u.body == nil {
 				continue
 			}
@@ -353,7 +376,7 @@ func txPutBook(tx *sql.Tx, id string, body json.RawMessage, base int64) (int64, 
 	return next, nil, nil
 }
 
-// txPutUser は、利用者ごとの表 table（settings・mailbox・participants・participant_notes）の user の行を置き換える
+// txPutUser は、利用者ごとの表 table（settings・mailbox・participant_notes）の user の行を置き換える
 func txPutUser(tx *sql.Tx, table, user string, body json.RawMessage) error {
 	_, err := tx.Exec(`INSERT INTO `+table+` (user, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(user) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, user, string(body), now())
@@ -466,23 +489,6 @@ func (s *sqliteStorage) Mailbox(user string) (json.RawMessage, error) {
 
 func (s *sqliteStorage) PutMailbox(user string, body json.RawMessage) error {
 	_, err := s.Apply(Batch{Mailbox: &UserBody{user, body}})
-	return err
-}
-
-func (s *sqliteStorage) Participants(user string) (json.RawMessage, error) {
-	var body string
-	err := s.db.QueryRow(`SELECT body FROM participants WHERE user = ?`, user).Scan(&body)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return json.RawMessage(body), nil
-}
-
-func (s *sqliteStorage) PutParticipants(user string, body json.RawMessage) error {
-	_, err := s.Apply(Batch{Participants: &UserBody{user, body}})
 	return err
 }
 

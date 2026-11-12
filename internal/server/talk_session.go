@@ -56,6 +56,10 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 	if err != nil {
 		return SessionTalk{}, err
 	}
+	rooms, err := h.workrooms()
+	if err != nil {
+		return SessionTalk{}, err
+	}
 	sitting := func(s participantRecord) bool { return s.State == "requested" || s.State == "joined" }
 	if len(candidates) > candidatesMax {
 		candidates = candidates[:candidatesMax]
@@ -85,7 +89,8 @@ func (h *Hub) TalkedBy(sessionID string, candidates []string) (SessionTalk, erro
 				h.participantNotes[s.ID] = n
 				changed = true
 				toldIDs = append(toldIDs, s.ID)
-				told = append(told, Welcome{Participant: s.ID, Workroom: s.Workroom, ForAI: joinedText(s.Workroom)})
+				name := roomName(rooms, s.Workroom)
+				told = append(told, Welcome{Participant: s.ID, Workroom: name, ForAI: joinedText(name)})
 			}
 		}
 	}

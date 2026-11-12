@@ -126,7 +126,7 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	if err := h.store.PutMailbox(user, json.RawMessage("[]")); err != nil {
 		return err
 	}
-	if err := h.store.PutParticipants(user, json.RawMessage("[]")); err != nil {
+	if err := h.resetRecordsForTest(); err != nil {
 		return err
 	}
 	if err := h.store.PutParticipantNotes(user, json.RawMessage("{}")); err != nil {
@@ -136,7 +136,6 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	h.order = nil
 	h.settings = nil
 	h.mailbox = nil
-	h.participants = nil
 	h.participantNotes = map[string]participantNote{}
 	h.annotations = map[string]json.RawMessage{}
 	h.touched = map[string]string{}
@@ -155,39 +154,65 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	return h.checkBooks(h.order)
 }
 
-// joinedAIForTest は、参加が確定した AI の参加者（受け入れ済みで準備中でない）を 1 人置く（まだ無ければ。アクションも郵便も通さない）。参加の id を返す。
+// joinedAIForTest は、参加が確定した AI の参加者（受け入れ済みで準備中でない）を、ワークルームと一緒に 1 人置く（まだ無ければ。アクションも郵便も通さない）。参加の id を返す。
 // ブックでない対象のアクションは、参加が確定するまで AI が使えないので、AI の入口を使う e2e の用意に使う
 func (h *Hub) joinedAIForTest() (string, error) {
 	const id = "e2e-ai"
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	var list []map[string]any
-	if len(h.participants) > 0 {
-		if err := json.Unmarshal(h.participants, &list); err != nil {
-			return "", err
-		}
+	if _, ok := h.recordTables[h.roles["participants"]][id]; ok {
+		return id, nil
 	}
-	for _, p := range list {
-		if p["id"] == id {
-			return id, nil
-		}
-	}
-	list = append(list, map[string]any{
-		"id": id, "state": "joined", "ai": "claude", "model": "e2e", "env": "e2e", "sessionName": "", "link": id,
-		"requestedAt": stamp(), "joinedAt": stamp(), "workroom": "e2e", "bird": "inko",
-	})
-	body, err := json.Marshal(list)
+	now := stamp()
+	room, err := json.Marshal(map[string]any{"id": "e2e-room", "name": "e2e", "bird": "inko", "createdAt": now})
 	if err != nil {
 		return "", err
 	}
-	if err := h.store.PutParticipants(user, body); err != nil {
+	who, err := json.Marshal(map[string]any{
+		"id": id, "state": "joined", "ai": "claude", "model": "e2e", "env": "e2e", "sessionName": "", "link": id,
+		"workroom": "e2e-room", "requestedAt": now, "joinedAt": now,
+	})
+	if err != nil {
 		return "", err
 	}
-	h.participants = body
+	writes := []storage.RecordWrite{
+		{Subject: h.roles["workrooms"], ID: "e2e-room", Body: room},
+		{Subject: h.roles["participants"], ID: id, Body: who},
+	}
+	if _, err := h.store.Apply(storage.Batch{Records: writes}); err != nil {
+		return "", err
+	}
+	for _, w := range writes {
+		if h.recordTables[w.Subject] == nil {
+			h.recordTables[w.Subject] = map[string]recordEntry{}
+		}
+		h.recordTables[w.Subject][w.ID] = recordEntry{w.Body, 1}
+		h.broadcast("record", map[string]any{"subject": w.Subject, "id": w.ID, "record": json.RawMessage(w.Body), "version": 1})
+	}
 	h.participantNotes[id] = participantNote{SessionID: id, BoundBy: boundByJoin}
 	if err := h.putParticipantNotes(); err != nil {
 		return "", err
 	}
-	h.broadcast("participants", map[string]any{"participants": json.RawMessage(body)})
 	return id, nil
+}
+
+// resetRecordsForTest は、レコードと番号の表を空にする（置き場所もメモリも。窓には知らせない）。h.mu を持って呼ぶ
+func (h *Hub) resetRecordsForTest() error {
+	var batch storage.Batch
+	for subject, table := range h.recordTables {
+		for id, e := range table {
+			batch.Records = append(batch.Records, storage.RecordWrite{Subject: subject, ID: id, Base: e.version, Removed: true})
+		}
+	}
+	for subject, table := range h.counters {
+		for scope := range table {
+			batch.Counters = append(batch.Counters, storage.Counter{Subject: subject, Scope: scope, Next: 1})
+		}
+	}
+	if _, err := h.store.Apply(batch); err != nil {
+		return err
+	}
+	h.recordTables = map[string]map[string]recordEntry{}
+	h.counters = map[string]map[string]int64{}
+	return nil
 }

@@ -33,9 +33,8 @@ type Input struct {
 	Books    []json.RawMessage `json:"books"`
 	Settings json.RawMessage   `json:"settings"`
 	// Annotations は要るブックのアノテーション（ブックの id → 並び。宛先のブックのか、一覧のアクションなら全部）
-	Annotations  map[string]json.RawMessage `json:"annotations,omitempty"`
-	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 利用者の郵便箱
-	Participants json.RawMessage            `json:"participants,omitempty"` // 利用者の参加者の表
+	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
+	Mailbox     json.RawMessage            `json:"mailbox,omitempty"` // 利用者の郵便箱
 	// Records は対象の定義が足した種類のレコード（種類の id → id → レコード。宛先のレコードと、アクションが読むだけの種類の全部）。Counters は対象の種類の、区切り → 次の番号
 	Records  map[string]map[string]json.RawMessage `json:"records,omitempty"`
 	Counters map[string]map[string]int64           `json:"counters,omitempty"`
@@ -89,7 +88,6 @@ type Output struct {
 	Settings     json.RawMessage            `json:"settings,omitempty"`
 	Annotations  map[string]json.RawMessage `json:"annotations,omitempty"`
 	Mailbox      json.RawMessage            `json:"mailbox,omitempty"`      // 変わった郵便箱
-	Participants json.RawMessage            `json:"participants,omitempty"` // 変わった参加者の表
 	Record       *RecordChange              `json:"record,omitempty"`       // 変わったレコード 1 件
 	Notice       string                     `json:"notice,omitempty"`       // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	AIEditTicket *AIEditTicketChange        `json:"aiEditTicket,omitempty"` // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
@@ -119,6 +117,7 @@ type Engine struct {
 	join      func() string
 	alive     func(string, string, float64) bool
 	needs     func(string) string
+	roles     func() string
 	records   func(string) string
 	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
@@ -195,6 +194,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuCheckRecords"), &e.records); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuCheckRecords: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuSubjectRoles"), &e.roles); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuSubjectRoles: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuRecordNeeds"), &e.needs); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuRecordNeeds: %w", err)
@@ -485,6 +487,19 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now
 		}
 	}()
 	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
+}
+
+// SubjectRoles は、常駐が読む種類の役（participants・workrooms）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）
+func (e *Engine) SubjectRoles() (roles map[string]string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.roles()), &roles)
+	return roles, err
 }
 
 // RecordNeeds は、アクション action が対象にする種類（レコードが対象でなければ Subject が空）と、読むだけの種類を返す

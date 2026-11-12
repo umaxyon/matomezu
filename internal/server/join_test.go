@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -76,25 +77,13 @@ func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
 		t.Fatalf("join = %s", got)
 	}
 	count := func() (int, int) {
-		var data struct {
-			Participants []json.RawMessage `json:"participants"`
-			Mailbox      []struct {
-				Mail  string `json:"mail"`
-				Props struct {
-					Participant string `json:"participant"`
-				} `json:"props"`
-			} `json:"mailbox"`
-		}
-		body, _ := call(t, "GET", s.URL+"/api/data", "", nil)
-		if err := json.Unmarshal([]byte(body), &data); err != nil {
-			t.Fatal(err)
-		}
-		for _, m := range data.Mailbox {
-			if m.Mail != "@matomezu/base:join-request" || m.Props.Participant == "" {
+		rows, mails := table(t, s.URL)
+		for _, m := range mails {
+			if m.Props.Participant == "" {
 				t.Fatalf("mail = %+v", m)
 			}
 		}
-		return len(data.Participants), len(data.Mailbox)
+		return len(rows), len(mails)
 	}
 	if p, m := count(); p != 1 || m != 1 {
 		t.Fatalf("participants = %d, mails = %d", p, m)
@@ -155,7 +144,7 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 		t.Fatalf("saved notes = %s", saved)
 	}
 
-	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-accept","args":{"participant":"`+joined.Participant+`","workroom":"ひよこ","bird":"inko"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
+	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", nil); h.Get(NoticeHeader) != "" {
 		t.Fatalf("a notice without the participant's id = %q", h.Get(NoticeHeader))
 	}
@@ -191,7 +180,7 @@ func TestDeclinedParticipantIsToldOnce(t *testing.T) {
 		t.Fatalf("calls = %v", calls)
 	}
 
-	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-decline","args":{"participant":"`+joined.Participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
+	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-decline","args":{},"on":{"record":"`+joined.Participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); !strings.Contains(text, "declined") {
 		t.Fatalf("notice = %q", text)
@@ -208,7 +197,7 @@ func TestCallsAreNotAnnouncedEveryTime(t *testing.T) {
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
 	id := map[string]string{ParticipantHeader: joined.Participant}
-	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil) // join で MCP がセッション id を運んでいるので、受け入れで準備中でなくなる
+	acceptRoom(t, s.URL, joined.Participant, "ひよこ") // join で MCP がセッション id を運んでいるので、受け入れで準備中でなくなる
 
 	hub.mu.Lock()
 	c := &client{id: "w1", ch: make(chan event, 16)}
@@ -236,9 +225,41 @@ func TestCallsAreNotAnnouncedEveryTime(t *testing.T) {
 	}
 }
 
-func acceptBody(id, workroom string) string {
-	return `{"action":"@matomezu/base:participant-accept","args":{"participant":"` + id + `","workroom":"` + workroom + `","bird":"inko"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`
+// acceptRoom は、利用者が要求中の参加者 participant を、名前 room の新しい部屋に受け入れる（部屋を作って入れる）。入れるアクションの答えを返す
+func acceptRoom(t *testing.T, url, participant, room string) string {
+	t.Helper()
+	made, _ := call(t, "POST", url+"/api/perform", `{"action":"@matomezu/base:workroom-add","args":{"name":"`+room+`","bird":"inko"},"lang":"ja","now":"2026-11-08T00:59:00.000Z"}`, nil)
+	var out struct{ Result struct{ Workroom string } }
+	if json.Unmarshal([]byte(made), &out) != nil || out.Result.Workroom == "" {
+		return made
+	}
+	return acceptIn(t, url, participant, out.Result.Workroom)
 }
+
+// acceptIn は、要求中の参加者 participant を、今ある部屋 room（id）に受け入れる。答えを返す
+func acceptIn(t *testing.T, url, participant, room string) string {
+	t.Helper()
+	got, _ := call(t, "POST", url+"/api/perform", `{"action":"@matomezu/base:participant-accept","args":{"workroom":"`+room+`"},"on":{"record":"`+participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
+	return got
+}
+
+// recordsOf は /api/data の、種類 subject のレコード（id → 中身）
+func recordsOf(t *testing.T, url, subject string) map[string]map[string]any {
+	t.Helper()
+	body, _ := call(t, "GET", url+"/api/data", "", nil)
+	var data struct {
+		Records map[string]map[string]map[string]any `json:"records"`
+	}
+	if err := json.Unmarshal([]byte(body), &data); err != nil {
+		t.Fatal(err)
+	}
+	return data.Records[subject]
+}
+
+const (
+	participantKind = "@matomezu/base:participant"
+	workroomKind    = "@matomezu/base:workroom"
+)
 
 // 話しかけたセッションが誰にも結ばれていなければ unbound を返し、候補に link が合えば結ぶ。
 // 受け入れ済みで伝えていない参加者は、結ばれたセッションの話しかけで 1 度だけ伝え（MCP の返事の知らせとは二重にならない）、ほかのセッションには伝えない
@@ -269,7 +290,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	if r := talk(`{"sessionId":"S9"}`); r.Unbound || len(r.Welcomes) != 0 {
 		t.Fatalf("a bound session = %+v", r)
 	}
-	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil)
+	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
 	// 別のセッションには伝えない
 	if r := talk(`{"sessionId":"S8"}`); len(r.Welcomes) != 0 {
 		t.Fatalf("another session = %+v", r)
@@ -317,7 +338,7 @@ func TestTalkedDoesNotWelcomeWhatMCPToldFirst(t *testing.T) {
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
-	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil)
+	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) == "" {
 		t.Fatal("MCP did not tell")
 	}
@@ -334,7 +355,7 @@ func TestParticipantIdHolderContinuesWhenNotAlive(t *testing.T) {
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
-	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil)
+	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
 	id := map[string]string{ParticipantHeader: joined.Participant}
 	call(t, "GET", s.URL+"/api/ai/books", "", id) // 伝える
 	hub.mu.Lock()
@@ -356,13 +377,16 @@ func joinWith(link, sessionName, extra string) string {
 }
 
 type tableRow struct {
-	ID       string `json:"id"`
-	State    string `json:"state"`
-	Link     string `json:"link"`
-	Workroom string `json:"workroom"`
-	Bird     string `json:"bird"`
+	ID         string `json:"id"`
+	State      string `json:"state"`
+	Link       string `json:"link"`
+	Workroom   string `json:"workroom"`   // 入っているワークルームの id（受け入れ済みだけ）
+	WantedName string `json:"wantedName"` // 要求中が入りたい部屋の名前
+	Room       string `json:"-"`          // 入っているワークルームの名前
+	Bird       string `json:"-"`          // 入っているワークルームの鳥
 }
 
+// table は /api/data の参加者（要求が届いた順）と、郵便。入っているワークルームの名前と鳥は Room・Bird に引く
 func table(t *testing.T, base string) (rows []tableRow, mails []struct {
 	Props struct {
 		Participant string `json:"participant"`
@@ -371,8 +395,8 @@ func table(t *testing.T, base string) (rows []tableRow, mails []struct {
 }) {
 	t.Helper()
 	var data struct {
-		Participants []tableRow `json:"participants"`
-		Mailbox      []struct {
+		Records map[string]map[string]json.RawMessage `json:"records"`
+		Mailbox []struct {
 			Props struct {
 				Participant string `json:"participant"`
 				Workroom    string `json:"workroom"`
@@ -383,7 +407,32 @@ func table(t *testing.T, base string) (rows []tableRow, mails []struct {
 	if err := json.Unmarshal([]byte(body), &data); err != nil {
 		t.Fatal(err)
 	}
-	return data.Participants, data.Mailbox
+	rooms := map[string]struct{ Name, Bird string }{}
+	for id, raw := range data.Records[workroomKind] {
+		var r struct{ Name, Bird string }
+		_ = json.Unmarshal(raw, &r)
+		rooms[id] = r
+	}
+	type withTime struct {
+		row tableRow
+		at  string
+	}
+	var found []withTime
+	for _, raw := range data.Records[participantKind] {
+		var r tableRow
+		var at struct {
+			RequestedAt string `json:"requestedAt"`
+		}
+		_ = json.Unmarshal(raw, &r)
+		_ = json.Unmarshal(raw, &at)
+		r.Room, r.Bird = rooms[r.Workroom].Name, rooms[r.Workroom].Bird
+		found = append(found, withTime{r, at.RequestedAt})
+	}
+	slices.SortFunc(found, func(a, b withTime) int { return strings.Compare(a.at+a.row.ID, b.at+b.row.ID) })
+	for _, f := range found {
+		rows = append(rows, f.row)
+	}
+	return rows, data.Mailbox
 }
 
 // 名前の参加者が生きているあいだ、その名前で引き継ごうとしても断る。参加者は増えず、郵便も出ない。名前の参加者が居なければ、名前は新しい参加者の初めの値になる
@@ -392,7 +441,7 @@ func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "", `,"sessionId":"S1"`), nil)
 	var first Joined
 	_ = json.Unmarshal([]byte(got), &first)
-	call(t, "POST", s.URL+"/api/perform", acceptBody(first.Participant, "ひよこ"), nil)
+	acceptRoom(t, s.URL, first.Participant, "ひよこ")
 	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
 
 	refused, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "", `,"workroom":"ひよこ"`), nil)
@@ -408,7 +457,7 @@ func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
 		t.Fatalf("a new name = %s", fresh)
 	}
 	rows, mails := table(t, s.URL)
-	if len(rows) != 2 || rows[1].State != "requested" || rows[1].Workroom != "ぴよ" || len(mails) != 2 || mails[1].Props.Workroom != "ぴよ" {
+	if len(rows) != 2 || rows[1].State != "requested" || rows[1].WantedName != "ぴよ" || len(mails) != 2 || mails[1].Props.Workroom != "ぴよ" {
 		t.Fatalf("participants = %+v, mails = %+v", rows, mails)
 	}
 }
@@ -420,7 +469,7 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", ""), nil)
 	var first Joined
 	_ = json.Unmarshal([]byte(got), &first)
-	call(t, "POST", s.URL+"/api/perform", acceptBody(first.Participant, "ひよこ"), nil)
+	acceptRoom(t, s.URL, first.Participant, "ひよこ")
 
 	// 呼ばれたことがない（起動し直した後など）のは生きていない。同じ名前の頼みでも、通常の参加の「すでに参加済み」では断らない
 	asked, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "work", `,"workroom":"ひよこ","sessionId":"S2"`), nil)
@@ -429,18 +478,24 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 		t.Fatalf("join = %s", asked)
 	}
 	rows, mails := table(t, s.URL)
-	if len(rows) != 2 || rows[1].State != "requested" || rows[1].Workroom != "ひよこ" || len(mails) != 2 || mails[1].Props.Workroom != "ひよこ" || mails[1].Props.Participant != second.Participant {
+	if len(rows) != 2 || rows[1].State != "requested" || rows[1].WantedName != "ひよこ" || len(mails) != 2 || mails[1].Props.Workroom != "ひよこ" || mails[1].Props.Participant != second.Participant {
 		t.Fatalf("participants = %+v, mails = %+v", rows, mails)
 	}
 	// 同じ名前では、普通の受け入れでは受け入れられない（引き継ぐか、外して始める）
-	if out, _ := call(t, "POST", s.URL+"/api/perform", acceptBody(second.Participant, "ひよこ"), nil); !strings.Contains(out, `"ok":false`) {
+	if out := acceptRoom(t, s.URL, second.Participant, "ひよこ"); !strings.Contains(out, `"ok":false`) {
 		t.Fatalf("accept with the same name = %s", out)
 	}
-	if out, _ := call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-take-over","args":{"participant":"`+second.Participant+`","takeover":"`+first.Participant+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`, nil); !strings.Contains(out, `"ok":true`) {
+	// 引き継ぎは、前の参加者を外してから、同じ部屋に受け入れる
+	oldRows, _ := table(t, s.URL)
+	room := oldRows[0].Workroom
+	if out, _ := call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+first.Participant+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`, nil); !strings.Contains(out, `"ok":true`) {
+		t.Fatalf("remove = %s", out)
+	}
+	if out := acceptIn(t, s.URL, second.Participant, room); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("take over = %s", out)
 	}
 	rows, _ = table(t, s.URL)
-	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Workroom != "ひよこ" || rows[0].Bird != "inko" {
+	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Room != "ひよこ" || rows[0].Bird != "inko" {
 		t.Fatalf("after: %+v", rows)
 	}
 	// 新しい持ち主には MCP の返事で伝わる。元の持ち主の id は表に無いので断られた知らせ

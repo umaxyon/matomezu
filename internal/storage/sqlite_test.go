@@ -218,31 +218,6 @@ func TestMasterBookIsRemoved(t *testing.T) {
 	}
 }
 
-// 参加者の表は利用者ごとに持ち、書き直せて、開き直しても残る
-func TestParticipantsPerUser(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "data.db")
-	s := open(t, path)
-	if got, err := s.Participants("u1"); err != nil || got != nil {
-		t.Fatalf("empty participants = %s, %v", got, err)
-	}
-	for user, body := range map[string]string{"u1": `[{"id":"p1"}]`, "u2": `[]`} {
-		if err := s.PutParticipants(user, json.RawMessage(body)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := s.PutParticipants("u1", json.RawMessage(`[{"id":"p1"},{"id":"p2"}]`)); err != nil {
-		t.Fatal(err)
-	}
-	s.Close()
-	s = open(t, path)
-	if got, _ := s.Participants("u1"); string(got) != `[{"id":"p1"},{"id":"p2"}]` {
-		t.Fatalf("u1 = %s", got)
-	}
-	if got, _ := s.Participants("u2"); string(got) != `[]` {
-		t.Fatalf("u2 = %s", got)
-	}
-}
-
 // プロジェクトの項目は外す: ブックと郵便の project、参加者の projects、参加の要求の郵便の props の projects（ほかの項目と、無かった物は変えない）
 func TestProjectFieldsAreRemoved(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
@@ -255,7 +230,6 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '{"id":"b1","title":"x","project":"default"}', 1, 'x'), ('b2', '{"id":"b2"}', 1, 'x')`,
 		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","mail":"@matomezu/base:join-request","project":"default","props":{"projects":["default"],"a":1}},{"id":"m2","mail":"@x/other","project":"default","props":{"projects":["keep"]}}]', 'x'), ('u2', '[]', 'x')`,
-		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1","projects":["default"],"link":"l"},{"id":"p2"}]', 'x')`,
 	) {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
@@ -275,9 +249,6 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	}
 	if got, _ := s.Mailbox("u2"); string(got) != `[]` {
 		t.Fatalf("empty mailbox = %s", got)
-	}
-	if got, _ := s.Participants("u1"); string(got) != `[{"id":"p1","link":"l"},{"id":"p2"}]` {
-		t.Fatalf("participants = %s", got)
 	}
 }
 
@@ -348,7 +319,7 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 	before := migrations[:11:11] // 次の足し方の前まで
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
-		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1","workroom":"あいうえおかきくけこさしすせそたちつてとなにぬ"},{"id":"p2","workroom":"短い"},{"id":"p3"}]', 'x'), ('u2', '[]', 'x')`,
+		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1","state":"joined","workroom":"あいうえおかきくけこさしすせそたちつてとなにぬ","bird":"inko","ai":"a","model":"m","env":"e","sessionName":"","link":"l1","requestedAt":"t"},{"id":"p2","state":"joined","workroom":"短い","bird":"suzume","ai":"a","model":"m","env":"e","sessionName":"","link":"l2","requestedAt":"t"}]', 'x'), ('u2', '[]', 'x')`,
 		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","mail":"@matomezu/base:join-request","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m2","props":{"a":1}}]', 'x')`,
 	) {
 		if _, err := db.Exec(q); err != nil {
@@ -357,11 +328,9 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 	}
 	db.Close()
 	s := open(t, path)
-	if got, _ := s.Participants("u1"); string(got) != `[{"id":"p1","workroom":"あいうえおかきくけこさしすせそたちつてと"},{"id":"p2","workroom":"短い"},{"id":"p3"}]` {
-		t.Fatalf("participants = %s", got)
-	}
-	if got, _ := s.Participants("u2"); string(got) != `[]` {
-		t.Fatalf("empty participants = %s", got)
+	rooms := roomNames(t, s)
+	if rooms["p1"] != "あいうえおかきくけこさしすせそたちつてと" || rooms["p2"] != "短い" {
+		t.Fatalf("workroom names = %v", rooms)
 	}
 	if got, _ := s.Mailbox("u1"); string(got) != `[{"id":"m1","mail":"@matomezu/base:join-request","props":{"workroom":"abcdefghij klmnopqrs"}},{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"}},{"id":"m2","props":{"a":1}}]` {
 		t.Fatalf("mailbox = %s", got)
@@ -405,5 +374,77 @@ func TestRecordsAndCountersAreWrittenTogether(t *testing.T) {
 	}
 	if counters, _ := s.Counters(); len(counters) != 1 || counters[0].Next != 2 {
 		t.Fatalf("the number came back: %+v", counters)
+	}
+}
+
+// 記録された種類 subject のレコード（id → 本文）
+func recordsOfKind(t *testing.T, s Storage, subject string) map[string]string {
+	t.Helper()
+	all, err := s.Records()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for _, r := range all {
+		if r.Subject == subject {
+			out[r.ID] = string(r.Body)
+		}
+	}
+	return out
+}
+
+// ワークルームのレコードの名前（id → 名前）
+func roomNames(t *testing.T, s Storage) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for id, body := range recordsOfKind(t, s, "@matomezu/base:workroom") {
+		var r struct{ Name string }
+		_ = json.Unmarshal([]byte(body), &r)
+		out[id] = r.Name
+	}
+	return out
+}
+
+// 参加者の表は、ワークルーム・参加者のレコードになる: 受け入れ済みは部屋（id は元の参加者の id）と、そこに入る参加者、要求中は部屋を持たず希望の名前に移す。表は無くなる
+func TestParticipantTableBecomesRecords(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := migrations[: len(migrations)-1 : len(migrations)-1]
+	for _, q := range append(before,
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
+		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[
+			{"id":"p1","state":"joined","ai":"claude","model":"m","env":"e","sessionName":"s","link":"l1","workroom":"ひよこ","bird":"inko","palette":"forest","requestedAt":"t1","joinedAt":"t2"},
+			{"id":"p2","state":"requested","ai":"codex","model":"m","env":"e","sessionName":"","link":"l2","workroom":"希望","requestedAt":"t3"},
+			{"id":"p3","state":"requested","ai":"codex","model":"m","env":"e","sessionName":"","link":"l3","requestedAt":"t4"}]', 'x')`,
+	) {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s := open(t, path)
+	rooms := recordsOfKind(t, s, "@matomezu/base:workroom")
+	if len(rooms) != 1 || rooms["p1"] != `{"id":"p1","name":"ひよこ","bird":"inko","palette":"forest","createdAt":"t2"}` {
+		t.Fatalf("workrooms = %v", rooms)
+	}
+	people := recordsOfKind(t, s, "@matomezu/base:participant")
+	want := map[string]string{
+		"p1": `{"id":"p1","state":"joined","ai":"claude","model":"m","env":"e","sessionName":"s","link":"l1","workroom":"p1","requestedAt":"t1","joinedAt":"t2"}`,
+		"p2": `{"id":"p2","state":"requested","ai":"codex","model":"m","env":"e","sessionName":"","link":"l2","wantedName":"希望","requestedAt":"t3"}`,
+		"p3": `{"id":"p3","state":"requested","ai":"codex","model":"m","env":"e","sessionName":"","link":"l3","requestedAt":"t4"}`,
+	}
+	for id, body := range want {
+		if people[id] != body {
+			t.Fatalf("participant %s = %s, want %s", id, people[id], body)
+		}
+	}
+	if len(people) != 3 {
+		t.Fatalf("participants = %v", people)
+	}
+	if _, err := s.(*sqliteStorage).db.Exec(`SELECT 1 FROM participants`); err == nil {
+		t.Fatal("the participants table is still there")
 	}
 }

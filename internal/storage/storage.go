@@ -56,7 +56,7 @@ type BookBody struct {
 	Body json.RawMessage
 }
 
-// UserBody は Batch の、利用者ごとの物（設定・郵便箱・参加者の表）の置き換え
+// UserBody は Batch の、利用者ごとの物（設定・郵便箱）の置き換え
 type UserBody struct {
 	User string
 	Body json.RawMessage
@@ -69,7 +69,6 @@ type Batch struct {
 	Removed       []string
 	Settings      *UserBody
 	Mailbox       *UserBody
-	Participants  *UserBody
 	Annotations   []BookBody
 	AIEditTickets []BookBody
 	Records       []RecordWrite // レコード 1 件（Apply では ブック → レコード の順）
@@ -97,9 +96,6 @@ type Storage interface {
 	// Mailbox は利用者の郵便箱（郵便の並び。無ければ nil）
 	Mailbox(user string) (json.RawMessage, error)
 	PutMailbox(user string, body json.RawMessage) error
-	// Participants は利用者の参加者の表（参加者の並び。無ければ nil）
-	Participants(user string) (json.RawMessage, error)
-	PutParticipants(user string, body json.RawMessage) error
 	// ParticipantNotes は利用者の常駐だけが持つ参加者の記録（参加者の id → セッション id と、参加を伝えたかの印。JSON のまま。無ければ nil）。アクションを通さない記録
 	ParticipantNotes(user string) (json.RawMessage, error)
 	PutParticipantNotes(user string, body json.RawMessage) error
