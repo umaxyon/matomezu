@@ -1,0 +1,21 @@
+/* 画面の複数の部品が使う文字の見た目 */
+.heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--skin-text-muted);
+}
+/* 下に線を引いた小見出し（チケットスクリーンのナレッジ・履歴、ワークルームの現在のタスク・履歴） */
+.sectionHeading {
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--skin-border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--skin-text-muted);
+}
+/* 中身の無い所に出す一言（ワークルームの「なし」など） */
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--skin-text-muted);
+}

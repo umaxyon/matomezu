@@ -1,0 +1,16 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--panel-gap, var(--gap));
+  min-height: 0;
+  min-width: 0;
+  padding: var(--panel-pad-y) var(--panel-pad-x);
+  border: 1px solid var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-surface);
+}
+.recess {
+  padding: 0;
+  overflow: hidden;
+  background: var(--skin-recess);
+}

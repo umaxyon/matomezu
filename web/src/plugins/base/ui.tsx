@@ -100,8 +100,9 @@ export { LEFT_SIDE_PANEL } from "./left-side-panel/slots"
 export type { LeftSidePanelEntry, LeftSidePanelOpen } from "./left-side-panel/state"
 export { defineLeftSidePanelTab, opensOf, tabEntry } from "./left-side-panel/ui"
 export { LockToggle } from "./lock/LockToggle"
+export { useMailboxPanel } from "./mail/hooks"
 export { MAIL_ACTIONS, type MailActionsProps } from "./mail/slots"
-export { defineMailActions } from "./mail/ui"
+export { defineMailActions, MAILBOX_OPENS } from "./mail/ui"
 export {
   MARKDOWN_PANE_MODE_ICONS,
   MarkdownDocumentView,
@@ -114,7 +115,8 @@ export { defineAnnotationIcon } from "./outbox/ui"
 export { PageProblemsView, usePageProblems } from "./page-tabs/PageProblems"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
-export { ParticipantList } from "./participant/ui"
+export { BirdFaceView } from "./participant/BirdFaceView"
+export { useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./participant/hooks"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
 export { ChoiceSetting } from "./settings/ChoiceSetting"
 

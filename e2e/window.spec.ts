@@ -10,7 +10,7 @@ test("開いた直後（URL が無いとき）はコントロールセンター�
 }) => {
   await page.goto("/")
   await expect(center(page)).toBeVisible()
-  await expect(page.getByRole("heading", { name: "参加者" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "ワークルーム/参加者" })).toBeVisible()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
   await expect(page).toHaveURL(/f=center/)
 })

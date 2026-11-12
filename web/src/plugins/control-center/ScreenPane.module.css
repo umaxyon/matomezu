@@ -1,0 +1,33 @@
+.pane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--skin-stage);
+}
+.pane > * {
+  flex: 1;
+  min-height: 0;
+}
+.pane[data-front="true"] {
+  z-index: 2;
+}
+.pane[data-front="false"] {
+  z-index: 1;
+}
+.pane[data-front="true"][data-slide-in="true"] {
+  /* 名前は animation-name に分けて書く。animation の一括指定に var() が入ると、bun が名前を CSS Modules の名前に書き換えない */
+  animation-name: drop-in;
+  animation-duration: var(--motion);
+  animation-timing-function: ease;
+}
+@keyframes drop-in {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

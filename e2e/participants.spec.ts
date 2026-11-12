@@ -95,22 +95,26 @@ test("参加要求の郵便で受け入れるを押すと、名前・鳥・配�
   await expect
     .poll(() => participants(page))
     .toMatchObject([{ id: made.participant, state: "joined", workroom: "ひよこ", bird: "buncho", palette: "pink" }])
-  // センターの参加者リストに出る（フックが参加を伝えるまでは準備中）
+  // センターの参加者の一覧に出る（フックが参加を伝えるまでは準備中。鳥も薄くなる）
   await (await fromMenu(page, "コントロールセンター")).click()
-  const row = page.locator(`[data-participant="${made.participant}"]`)
-  await expect(row).toContainText("ひよこ")
-  await expect(row).toContainText("claude / opus-5 / wsl")
-  await expect(row).toContainText("準備中")
+  const row = page.getByRole("listitem").filter({ hasText: "ひよこ" })
+  await expect(row).toContainText("（準備中）")
+  await expect(row.locator("[data-preparing=true]")).toHaveCount(1)
   // 準備中の間は、AI の口を呼んでも参加者として数えない（知らせも返らない）
   const early = await call(page, made.participant)
   expect(early.headers()["x-matomezu-notice"]).toBeUndefined()
-  await expect(row).toContainText("準備中")
-  // フックが参加を伝えると生きている
+  await expect(row).toContainText("（準備中）")
+  // フックが参加を伝えると準備中でなくなり、選ぶとワークルームの枠に model・os・最終アクセスが出る
   await talk(page, "S-e2e-1", "e2e-link-1")
-  await expect(row).toContainText("生きている")
+  await expect(row).not.toContainText("準備中")
+  await row.getByRole("button").click()
+  const room = page.locator("[data-workroom-panel]")
+  await expect(room).toContainText("opus-5")
+  await expect(room).toContainText("wsl")
+  await expect(room).toContainText("たった今")
 })
 
-test("セッション id を join で運ぶ AI（フックの無い AI）は、受け入れた直後は準備中でなく静かで、呼ばれると生きている", async ({
+test("セッション id を join で運ぶ AI（フックの無い AI）は、受け入れた直後から準備中でなく、呼ばれると最終アクセスが出る", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -119,20 +123,23 @@ test("セッション id を join で運ぶ AI（フックの無い AI）は、�
   await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
   await (await fromMenu(page, "コントロールセンター")).click()
-  const row = page.locator(`[data-participant="${made.participant}"]`)
-  await expect(row).toContainText("静か")
+  const row = page.getByRole("listitem").filter({ hasText: "codex" })
+  await expect(row).toContainText("（空き）")
+  await row.getByRole("button").click()
+  const room = page.locator("[data-workroom-panel]")
+  await expect(room).toContainText("最終アクセス:なし")
   const told = await call(page, made.participant)
   expect(decodeURIComponent((told.headers()["x-matomezu-notice"] ?? "").replaceAll("+", " "))).toContain(
     "You joined matomezu",
   )
-  await expect(row).toContainText("生きている")
+  await expect(room).toContainText("たった今")
 })
 
-test("保留中の参加要求は参加者リストに出ず、リストが空のうちは空と出る", async ({ page }) => {
+test("保留中の参加要求は参加者の一覧に出ず、一覧が空のうちは空と出る", async ({ page }) => {
   await page.goto("/?f=center")
-  await expect(page.getByText("参加者はいません")).toBeVisible()
+  await expect(page.getByText("ワークルームはありません")).toBeVisible()
   await join(page, "e2e-link-2")
-  await expect(page.getByText("参加者はいません")).toBeVisible()
+  await expect(page.getByText("ワークルームはありません")).toBeVisible()
 })
 
 test("断るを押すと郵便が閉じ、参加者の表から消える。AI は次の呼び出しで断られたと知る（1 度だけ）", async ({
@@ -241,8 +248,7 @@ test("生きていない参加者のワークルームの名前で頼むと、�
     .poll(() => participants(page))
     .toMatchObject([{ id: next.participant, state: "joined", workroom: "ひよこ", sessionName: "新" }])
   await (await fromMenu(page, "コントロールセンター")).click()
-  await expect(page.locator(`[data-participant="${next.participant}"]`)).toContainText("ひよこ")
-  await expect(page.locator(`[data-participant="${old.participant}"]`)).toHaveCount(0)
+  await expect(page.getByRole("listitem").filter({ hasText: "ひよこ" })).toHaveCount(1)
 })
 
 test("名前が生きていない参加者と同じなら、最後に引き継ぐか前のを破棄して新しく始めるかを選べ、破棄すると選んだ鳥で始まって前の参加者は消える", async ({

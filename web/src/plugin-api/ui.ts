@@ -46,4 +46,5 @@ export {
   useUiCatalog,
   useUpdatePluginState,
   useUserSetting,
+  useWindowStage,
 } from "../ui/view-hooks"

@@ -1,0 +1,63 @@
+.list {
+  flex: 1;
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 calc(-1 * var(--panel-pad-x)); /* 行と選んだ行の色を、枠の左右の端まで広げる */
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.row {
+  border-bottom: 1px solid var(--skin-border);
+}
+.row:last-child {
+  border-bottom: 0;
+}
+.row[data-selected="true"] {
+  background: var(--skin-accent-subtle);
+  box-shadow: inset 2px 0 0 var(--skin-accent);
+}
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--row-height);
+  padding: 4px calc(var(--panel-pad-x) + 3px); /* 鳥の位置は、枠の余白の内側のまま */
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lead {
+  display: flex;
+  flex: none;
+}
+/* 管理者の行は、王冠が上にはみ出さないよう、鳥を上寄せで下げる */
+.row[data-admin="true"] .pick {
+  align-items: flex-start;
+  min-height: var(--admin-row-height);
+}
+.row[data-admin="true"] .lead {
+  margin-top: 10px;
+}
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+.detail {
+  font-size: 11px;
+  color: var(--skin-text-muted);
+  overflow-wrap: anywhere;
+}

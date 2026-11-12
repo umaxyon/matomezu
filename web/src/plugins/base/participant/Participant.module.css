@@ -56,29 +56,6 @@
   font-size: 12px;
 }
 
-/* 参加者リスト */
-.list {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.empty {
-  margin: 0;
-  padding: 16px;
-  color: var(--skin-text-muted);
-  font-size: 13px;
-}
-.row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-}
-.row + .row {
-  border-top: 1px solid var(--skin-border);
-}
 .name {
   font-weight: 600;
 }
@@ -89,23 +66,6 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-.state {
-  flex: none;
-  padding: 1px 8px;
-  border: 1px solid var(--skin-border);
-  border-radius: 10px;
-  color: var(--skin-text-muted);
-  font-size: 11px;
-}
-.state[data-state="alive"] {
-  border-color: var(--skin-accent);
-  color: var(--skin-text);
-}
-
-.state[data-state="preparing"] {
-  border-style: dashed;
-}
-
 /* ダイアログの下の行のボタン */
 .buttons {
   display: flex;

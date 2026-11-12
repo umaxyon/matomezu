@@ -1,10 +1,14 @@
 // 参加者リストの操作を、アクション 1 件ずつ続けて行う（アクションが変えるレコードは 1 件なので、続けて行う）。
 // 途中で断られたら、そこで止めて断りを返す（途中で止まっても、空室が残るなど、状態は壊れない）。
 // 順番: ワークルームに人がいると participant-accept も workroom-remove も断るので、いる参加者を先に消す
-import { PARTICIPANT_ACCEPT, PARTICIPANT_REMOVE, WORKROOM_ADD, WORKROOM_REMOVE } from "."
+import { ADMIN_SET, PARTICIPANT_ACCEPT, PARTICIPANT_REMOVE, WORKROOM_ADD, WORKROOM_REMOVE } from "."
 
 // アクションを 1 件行う関数（useActions の perform）。成功なら ok が true で result を持ち、断られたら ok が false
-type Do = (id: string, args: object, on?: { record: string }) => { ok: boolean; result?: unknown }
+export type Do = (
+  id: string,
+  args: object,
+  on?: { record: string },
+) => { ok: boolean; result?: unknown; reason?: string; permission?: string }
 
 export interface NewRoom {
   name: string
@@ -42,8 +46,14 @@ export function discardAndStart(perform: Do, participant: string, room: string, 
   return acceptInNewRoom(perform, participant, newRoom)
 }
 
-// ワークルーム room を消す（いる参加者 occupant があれば先に外す）
-export function deleteRoom(perform: Do, room: string, occupant?: string) {
+// いる参加者 occupant をワークルームから外して空室にする（ワークルームは残る）
+export const leaveWorkroom = (perform: Do, occupant: string) => perform(PARTICIPANT_REMOVE.id, {}, { record: occupant })
+
+// ワークルーム room を管理者にする（管理者の印を room に向ける）
+export const makeAdmin = (perform: Do, room: string) => perform(ADMIN_SET.id, { workroom: room })
+
+// ワークルーム room を消す（いる参加者 occupant があれば先に外す。外したあとに消すのが断られたら、空室が残る）
+export function removeWorkroom(perform: Do, room: string, occupant?: string) {
   if (occupant !== undefined) {
     const left = perform(PARTICIPANT_REMOVE.id, {}, { record: occupant })
     if (!left.ok) return left

@@ -1,0 +1,21 @@
+/* 余白は、帯を置く面が --panel-pad-y / --panel-pad-x で教える。右だけ --band-pad-right で広げられる（隅のボタンを避ける） */
+.band {
+  --band-pad-y: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: calc(-1 * var(--panel-pad-y)) calc(-1 * var(--panel-pad-x)) 0;
+  padding: var(--band-pad-y) var(--panel-pad-x) var(--band-pad-y) var(--panel-pad-x);
+  border-bottom: 1px solid var(--skin-border);
+  border-radius: 7px 7px 0 0;
+  background: var(--skin-surface-muted);
+}
+.tall {
+  --band-pad-y: 8px;
+  padding-right: var(--band-pad-right, var(--panel-pad-x));
+  border-radius: 0;
+  line-height: 16px;
+}
+.spread {
+  justify-content: space-between;
+}
