@@ -78,7 +78,7 @@ test("AI の行の by は、入っているワークルームの名前・鳥の�
   expect(as(ai("nothing"), LOG, { ticket, topic: A("topic-plan"), text: "計画" }).ok).toBe(false)
 })
 
-test("起票した者はチケットに残る。担当は、ある部屋だけを重ねずに付けられ、同じ並びなら最終更新は動かない", () => {
+test("起票した者はチケットに残る。担当は、あるワークルームだけを重ねずに付けられ、同じ並びなら最終更新は動かない", () => {
   const { user, table, room, ticket } = ready()
   const a = room("あ")
   const b = room("い")

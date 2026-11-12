@@ -24,7 +24,7 @@ export const TICKET = kit.defineSubject({
     lane: z.string().min(1),
     tag: z.string().min(1),
     priority: z.enum(PRIORITIES),
-    assignees: z.array(z.string().min(1)), // 担当のワークルームの id（順序つき。消した部屋の id は書いたまま残し、読む側が外す）
+    assignees: z.array(z.string().min(1)), // 担当のワークルームの id（順序つき。消したワークルームの id は書いたまま残し、読む側が外す）
     createdAt: z.string(),
     createdBy: BY, // 起票した者（起票は履歴の行にせず、ここと createdAt から見せる）
     updatedAt: z.string(),
