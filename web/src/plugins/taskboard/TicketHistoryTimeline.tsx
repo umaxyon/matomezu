@@ -3,8 +3,8 @@
 import { useMessages, useSettings } from "../../plugin-api/ui"
 import { kit } from "./kit"
 import styles from "./TicketHistoryTimeline.module.css"
-import { TopicBadge, useTopicData } from "./TopicBadge"
-import { dayHeading, FILED, groupByDay, type HistoryRow, timeOf } from "./ticket-view"
+import { TopicBadge, useTopicData, useTopicName } from "./TopicBadge"
+import { dayHeading, groupByDay, type HistoryRow, rowTextSource, timeOf } from "./ticket-view"
 import { WriterBird } from "./WriterBird"
 
 export function TicketHistoryTimeline({
@@ -44,7 +44,16 @@ function Row({
 }) {
   const t = useMessages(kit)
   const data = useTopicData(row.topic)
-  const text = row.topic === FILED ? t("Filed this ticket") : row.text
+  const topicName = useTopicName(row.topic)
+  const source = rowTextSource(row, data?.textless === true)
+  const text =
+    source === "filed"
+      ? t("Filed this ticket")
+      : source === "body"
+        ? t("Updated the body")
+        : source === "topic"
+          ? topicName
+          : row.text
   return (
     <li className={styles.item}>
       <span className={styles.time}>{timeOf(row.at)}</span>

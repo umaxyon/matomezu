@@ -133,3 +133,43 @@ test("名前を直している間は、AI がそのチケットを変えると�
   await screen.getByRole("textbox", { name: "チケットの名前" }).press("Escape")
   await expect.poll(async () => (await rename()).ok).toBe(true)
 })
+
+test("本文を直してチケットスクリーンから離れると、チケット履歴に「本文を更新しました」の行が 1 行だけ足される。直さずに離れたときは足されない", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const { ticket } = await setup(page)
+  const lines = async () => {
+    const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+    return (
+      Object.values(body.records["@matomezu/taskboard:ticket-history"] ?? {}) as {
+        topic: string
+        text: string
+        by: { kind: string }
+      }[]
+    ).filter(l => l.topic === "@matomezu/taskboard:topic-body")
+  }
+  // 本文を直さずに（優先度だけ変えて）開いて戻る: 足されない
+  await page.goto(open(ticket))
+  const screen = page.getByRole("region", { name: "チケット" }).first()
+  await expect(screen.getByRole("button", { name: "本文", exact: true })).toBeVisible()
+  const slider = screen.getByRole("slider")
+  await slider.focus()
+  await slider.press("ArrowRight")
+  await expect(slider).toHaveAttribute("aria-valuetext", "大")
+  await screen.getByRole("button", { name: "戻る" }).click()
+  await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeHidden()
+  expect(await lines()).toHaveLength(0)
+  // 本文を何度か打って戻る: 1 行
+  await page.goto(open(ticket))
+  const again = page.getByRole("region", { name: "チケット" }).first()
+  await again.getByRole("button", { name: "編集", exact: true }).click()
+  const source = again.getByRole("textbox", { name: "本文（マークダウン）" })
+  await source.fill("一度目")
+  await source.fill("二度目")
+  await again.getByRole("button", { name: "戻る" }).click()
+  await expect.poll(async () => (await lines()).map(l => [l.text, l.by.kind])).toEqual([["", "user"]])
+  // チケット履歴の一覧には、題と文が出る
+  await page.goto(open(ticket))
+  await expect(page.getByRole("region", { name: "チケット" }).first().getByText("本文を更新しました")).toBeVisible()
+})
