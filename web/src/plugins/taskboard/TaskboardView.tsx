@@ -1,10 +1,12 @@
-// コントロールセンターのプロジェクトの画面に置くタスクボード: 出しているプロジェクトのタスクボードを縦に並べる（1 枚ずつ、題の帯・最大化のボタン・レーンの横並び）。
+// コントロールセンターのプロジェクトの画面に置くタスクボード: 出しているプロジェクトのタスクボードを縦に並べる（1 枚ずつ、題の帯・歯車〈プロジェクト設定。直せないプロジェクトには出さない〉・最大化のボタン・レーンの横並び）。
 // タスクボードの出入りは useBoardPhases の様子（phase）で動かす。タスクボードかレーンを最大化すると、ほかのタスクボードは畳み、枠にも最大化を知らせる（左と下を退かせる）
 import { useState } from "react"
-import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../plugin-api/ui"
-import { TitledArea, useControlCenterMaximize } from "../base/ui"
+import { useAllowedOn, useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../plugin-api/ui"
+import { IconButton, TitledArea, useControlCenterMaximize } from "../base/ui"
+import { PROJECT_UPDATE } from "./actions"
 import { lanesOf, orderedProjects, shownProjects, ticketsByLane } from "./board"
 import { CardVisitView } from "./CardVisitView"
+import { GearIcon } from "./icons"
 import { kit } from "./kit"
 import { LaneView } from "./LaneView"
 import { maximizedAmong, released, toggleBoard, toggleLane } from "./maximize"
@@ -14,6 +16,7 @@ import styles from "./TaskboardView.module.css"
 import { TICKET } from "./ticket"
 import { useBoardPhases } from "./useBoardPhases"
 import { useBoardSettings } from "./useBoardSettings"
+import { useOpenProjectSettings } from "./useOpenProjectSettings"
 
 export function TaskboardView() {
   const t = useMessages(kit)
@@ -30,6 +33,7 @@ export function TaskboardView() {
   const maximized = maximizedAmong(maximizedNow, shownIds)
   useControlCenterMaximize(maximized !== undefined)
   const rendered = ordered.filter(p => p.id in phases)
+  const openSettings = useOpenProjectSettings()
 
   if (ordered.length === 0) return <p className={styles.empty}>{t("No projects")}</p>
   return (
@@ -49,6 +53,7 @@ export function TaskboardView() {
             <TitledArea
               className={styles.board}
               title={project.name}
+              actions={<SettingsGear project={project.id} onOpen={() => openSettings(project.id)} />}
               maximized={maximized?.board === project.id && laneMax === undefined}
               onToggleMaximize={() => updateMaximized(now => toggleBoard(now, project.id))}
             >
@@ -72,5 +77,17 @@ export function TaskboardView() {
       })}
       <CardVisitView root={root} />
     </div>
+  )
+}
+
+// プロジェクト設定を開く歯車（プロジェクトを直せないとき〈閉じたプロジェクトなど〉は出さない）
+function SettingsGear({ project, onOpen }: { project: string; onOpen: () => void }) {
+  const t = useMessages(kit)
+  const allowed = useAllowedOn(PROJECT_UPDATE.id, {}, { record: project }).ok
+  if (!allowed) return null
+  return (
+    <IconButton small label={t("Project settings")} onClick={onOpen}>
+      <GearIcon />
+    </IconButton>
   )
 }

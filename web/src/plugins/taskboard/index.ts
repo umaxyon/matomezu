@@ -1,4 +1,4 @@
-// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトにチケットを足させない）。
+// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
 import { defineBuiltin } from "../../plugin-api/builtin"
 import {
   CURRENT_TICKET_SET,
@@ -19,7 +19,9 @@ import { kit } from "./kit"
 import { CLOSED_PROJECT } from "./permission"
 import { PROJECT } from "./project"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "./settings"
+import { PROJECT_SETTINGS_DIALOG } from "./settings-dialog"
 import { CARD_VISIT, LANE_SORTS, LIST_OPEN, MAXIMIZED } from "./states"
+
 import { TICKET } from "./ticket"
 import { TICKET_SCREEN_STATE } from "./ticket-screen-state"
 
@@ -42,6 +44,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       CURRENT_TICKET_SET,
     ],
     permissions: [CLOSED_PROJECT],
+    dialogs: [PROJECT_SETTINGS_DIALOG],
     userSettings: [PROJECT_ORDER, SHOWN_PROJECTS],
     pluginStates: [LIST_OPEN, LANE_SORTS, MAXIMIZED, CARD_VISIT, TICKET_SCREEN_STATE],
   }),
@@ -89,6 +92,9 @@ declare module "../../core/catalog" {
   }
   interface PermissionTable {
     "@matomezu/taskboard:closed-project": typeof CLOSED_PROJECT
+  }
+  interface DialogTable {
+    "@matomezu/taskboard:project-settings": typeof PROJECT_SETTINGS_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

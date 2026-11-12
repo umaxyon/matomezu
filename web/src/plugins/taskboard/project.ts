@@ -1,7 +1,7 @@
 // プロジェクト: タスクボード 1 枚の区切り。名前・チケットプレフィクス（チケットの番号の頭）・閉じているか・レーンの並び・チケットタグを持つ。
 // レーンの並びには未分類の行もちょうど 1 つ入る（並べ替えた位置が残り、shown が「未分類を表示する」）。
 // チケットはレーン・タグを id で指す（消したときにチケットは書き換えず、読む側が「無い物は未分類・タグなし」とする）。
-// 閉じたプロジェクトには、チケットを足せない（認可ステップ closed-project）
+// 閉じたプロジェクトには、チケットを足せず、プロジェクトも開け直すほかは直せない（認可ステップ closed-project）
 import { z } from "zod"
 import { PALETTE } from "../../plugin-api"
 import { kit } from "./kit"
@@ -10,13 +10,22 @@ export const PROJECT_NAME_MAX = 30
 export const LANE_NAME_MAX = 10
 export const TAG_NAME_MAX = 10
 
-// チケットプレフィクス: 英字で始まり、英字とハイフンだけ（ハイフンまで含めて持つ。例 T-）
-const PREFIX = z
-  .string()
-  .trim()
-  .min(1)
-  .max(10)
-  .regex(/^[A-Za-z][A-Za-z-]*$/)
+// チケットプレフィクス: 英字 1〜3 字と、最後にハイフン 1 つまで（ハイフンまで含めて持つ。例 T-）
+export const PREFIX_PATTERN = /^[A-Za-z]{1,3}-?$/
+const PREFIX = z.string().trim().regex(PREFIX_PATTERN)
+
+// 名前 a と b が同じか（前後の空白を除いて比べる。caseless なら大文字小文字を分けない）
+export const sameName = (a: string, b: string, caseless = false) =>
+  caseless ? a.trim().toLowerCase() === b.trim().toLowerCase() : a.trim() === b.trim()
+
+// 名前の並び names のうち、ほかと重なっている物の位置（空の名前は数えない）
+export function repeatedAt(names: readonly string[]): ReadonlySet<number> {
+  const at = new Set<number>()
+  names.forEach((n, i) => {
+    if (n.trim() !== "" && names.some((m, k) => k !== i && sameName(m, n))) at.add(i)
+  })
+  return at
+}
 
 export const UNSORTED = "unsorted" // 未分類の行・チケットのレーンの値
 export const NO_TAG = "none" // タグなしのチケットのタグの値
@@ -42,11 +51,11 @@ const lanesOk = (lanes: readonly z.output<typeof LANE | typeof UNSORTED_ROW>[]) 
   return (
     lanes.filter(l => l.kind === "unsorted").length === 1 &&
     new Set(rows.map(l => l.id)).size === rows.length &&
-    new Set(rows.map(l => l.name)).size === rows.length
+    repeatedAt(rows.map(l => l.name)).size === 0
   )
 }
 const tagsOk = (tags: readonly z.output<typeof TAG>[]) =>
-  new Set(tags.map(t => t.id)).size === tags.length && new Set(tags.map(t => t.name)).size === tags.length
+  new Set(tags.map(t => t.id)).size === tags.length && repeatedAt(tags.map(t => t.name)).size === 0
 
 export const LANES = z.array(z.union([LANE, UNSORTED_ROW])).refine(lanesOk)
 export const TAGS = z.array(TAG).refine(tagsOk)
@@ -56,7 +65,7 @@ export const PROJECT = kit.defineSubject({
   id: "project",
   title: "project",
   aiDescription:
-    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too) and the ticket tags (each with a prompt that tells you how to handle the tickets with the tag).",
+    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too) and the ticket tags (each with a prompt that tells you how to handle the tickets with the tag).",
   record: z.strictObject({
     id: z.string().min(1),
     name: z.string().trim().min(1).max(PROJECT_NAME_MAX),
