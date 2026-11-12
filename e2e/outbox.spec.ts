@@ -1,6 +1,6 @@
 // 送信トレイ: フッタメニューのボタンで左サイドパネルを開くと、開いているブックの伝言とマークがページごとに、新しい順に並ぶ。
 // 伝言の行を押すと、その伝言が右サイドパネルに出る（左サイドパネルは閉じない）。マークの行は付けた物へ移るだけ。取消で消える。外を押しても閉じない。AI が読むと既読になる
-import { aiAuth, BOOK_SCREEN_URL, expect, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, test } from "./fixtures"
 import { panel, writeNote } from "./helpers/note"
 import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, items } from "./helpers/paper"
@@ -62,7 +62,7 @@ test("左サイドパネルの送信トレイに、伝言とマークが新し�
 test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言を読みました」と流れ、送信トレイの行が既読になり、吹き出しが緑の丸のチェックに替わる", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
@@ -96,7 +96,7 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
 })
 
 test("開いているブックが替わっても、左サイドパネルは閉じない", async ({ page }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect

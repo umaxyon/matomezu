@@ -1,5 +1,5 @@
 import { E2E_BOOKS } from "../books"
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "../fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "../fixtures"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
@@ -83,7 +83,7 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
 })
 
 test("AI の入口からは、最後にフォーカスした窓が見ているものが分かり、AI が置いた箱はすぐ窓に出る", async ({ page }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await put(page, E2E_1)
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
@@ -104,7 +104,7 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
 })
 
 test("AI が show で頼むと、最後にフォーカスした窓が、分けたステージでそのブックを開く", async ({ page }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await put(page, E2E_1)
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
@@ -162,7 +162,7 @@ const LINE_BOOK = {
 test("線は箱より手前に描かれ、選択の道具で押すと選ばれ、Delete と右クリックのメニューで消せる。箱を消すと、つながる線も消える", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await put(page, E2E_1)
   await put(page, LINE_BOOK)
   await page.goto(BOOK_SCREEN_URL)
@@ -299,7 +299,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
 test("AI がマークダウンのページの原文を page-update で変えると、ソースとプレビューが変わる。ソースのペインで書き足した物は常駐に残り、読み直しても同じ", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
@@ -345,7 +345,7 @@ test("AI がマークダウンのページの原文を page-update で変える�
 test("伝言を書いている間に AI が付ける先の物を消すと、右サイドパネルは閉じずに知らせ、書きかけは残る（付ける先が無い間は付けられない）", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
@@ -394,7 +394,7 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
 test("付けた伝言を右サイドパネルで開いて文を直している間は、AI が読んだと知らせても断られ（being-edited）、閉じると読める", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
@@ -454,7 +454,7 @@ test("付けた伝言を右サイドパネルで開いて文を直している�
 test("箱の編集のダイアログを開いている間は、AI がその箱を変えると断られ（being-edited）、閉じると変えられる。ほかの箱は変えられる", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()

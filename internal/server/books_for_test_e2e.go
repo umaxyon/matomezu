@@ -17,6 +17,14 @@ import (
 func routesForTest(mux *http.ServeMux, o Options) {
 	mux.Handle("PUT /api/books-for-test/{id}", sameOrigin(booksForTest(o)))
 	mux.Handle("POST /api/reset-for-test", sameOrigin(resetForTest(o)))
+	mux.Handle("POST /api/joined-ai-for-test", sameOrigin(func(w http.ResponseWriter, _ *http.Request) {
+		id, err := o.Hub.joinedAIForTest()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{"participant": id})
+	}))
 	mux.Handle("POST /api/cookie-code-for-test", sameOrigin(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"code": o.Cookies.NewCode()})
 	}))
@@ -145,4 +153,41 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 		h.order = append(h.order, ids[i])
 	}
 	return h.checkBooks(h.order)
+}
+
+// joinedAIForTest は、参加が確定した AI の参加者（受け入れ済みで準備中でない）を 1 人置く（まだ無ければ。アクションも郵便も通さない）。参加の id を返す。
+// ブックでない対象のアクションは、参加が確定するまで AI が使えないので、AI の入口を使う e2e の用意に使う
+func (h *Hub) joinedAIForTest() (string, error) {
+	const id = "e2e-ai"
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var list []map[string]any
+	if len(h.participants) > 0 {
+		if err := json.Unmarshal(h.participants, &list); err != nil {
+			return "", err
+		}
+	}
+	for _, p := range list {
+		if p["id"] == id {
+			return id, nil
+		}
+	}
+	list = append(list, map[string]any{
+		"id": id, "state": "joined", "ai": "claude", "model": "e2e", "env": "e2e", "sessionName": "", "link": id,
+		"requestedAt": stamp(), "joinedAt": stamp(), "workroom": "e2e", "bird": "inko",
+	})
+	body, err := json.Marshal(list)
+	if err != nil {
+		return "", err
+	}
+	if err := h.store.PutParticipants(user, body); err != nil {
+		return "", err
+	}
+	h.participants = body
+	h.participantNotes[id] = participantNote{SessionID: id, BoundBy: boundByJoin}
+	if err := h.putParticipantNotes(); err != nil {
+		return "", err
+	}
+	h.broadcast("participants", map[string]any{"participants": json.RawMessage(body)})
+	return id, nil
 }

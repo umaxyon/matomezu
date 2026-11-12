@@ -1,6 +1,6 @@
 // 窓: コントロールセンターかブックスクリーンを前に出す。開いた直後はコントロールセンター、止まり木のボタンで行き来し、戻ってもブックスクリーンの中は残る。
 // 前に出す物を替えるのはブラウザの履歴に 1 つ積み、戻る・進むで戻る
-import { aiAuth, BOOK_SCREEN_URL, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
 const center = (page: Page) => page.getByRole("heading", { name: "コントロールセンター" })
@@ -51,21 +51,21 @@ async function startOnCenter(page: Page): Promise<string> {
   await page.bringToFront()
   await expect(center(page)).toBeVisible()
   await expect
-    .poll(async () => (await page.request.get("/api/ai/view", { headers: aiAuth() })).json())
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
     .toHaveProperty("hidden.book")
-  const view = await (await page.request.get("/api/ai/view", { headers: aiAuth() })).json()
+  const view = await (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json()
   expect(view).toMatchObject({ front: "control-center" })
   expect("book" in view || "awaiting" in view).toBe(false)
   return view.hidden.book as string
 }
 const send = async (page: Page, args: object) =>
   page.request.post("/api/ai/perform", {
-    headers: aiAuth(),
+    headers: await joinedAiAuth(),
     data: { action: "@matomezu/base:mail-send", args: { from: "D92", ...args } },
   })
 const visitedAt = async (page: Page) =>
   (
-    (await (await page.request.get("/api/ai/mail", { headers: aiAuth() })).json()).mailbox as {
+    (await (await page.request.get("/api/ai/mail", { headers: await joinedAiAuth() })).json()).mailbox as {
       visitedAt?: string
     }[]
   )[0]?.visitedAt

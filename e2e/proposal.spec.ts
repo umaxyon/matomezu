@@ -1,14 +1,14 @@
 // 変更提案郵便: 利用者が直している箱を AI が変えようとして断られ（being-edited）、変更を郵便で送る。利用者は郵便を開き、「場所を示す」で郵便を閉じずに
 // 窓の右の端に寄せて箱を見て、「反映」を押すと箱が変わり、郵便箱の行に「反映済み」が出る。ほかの窓でその箱を直している間は、反映を断ってトーストで知らせる
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
 const perform = async (page: Page, data: object) =>
-  (await page.request.post("/api/ai/perform", { headers: aiAuth(), data })).json()
+  (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data })).json()
 
 async function ready(page: Page): Promise<{ book: string; page: string }> {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
