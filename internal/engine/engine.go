@@ -118,7 +118,7 @@ type Engine struct {
 	alive     func(string, string, float64) bool
 	needs     func(string) string
 	roles     func() string
-	aiRecords func(string, string) string
+	aiRecords func(string, string, string) string
 	once      func() string
 	records   func(string) string
 	joinedMsg func(string, string) string
@@ -529,8 +529,8 @@ type RecordBrief struct {
 	Brief string `json:"brief"`
 }
 
-// AIRecords は、AI に見せる種類 kind のレコードの一覧（載せる物だけ。種類が決めた並び）を返す。AI に見せない種類・無い種類は ok が false
-func (e *Engine) AIRecords(kind string, records []json.RawMessage) (rows []RecordBrief, ok bool, err error) {
+// AIRecords は、AI に見せる種類 kind のレコードの一覧（載せる物のうち、トップの項目が where の値と同じ物だけ。種類が決めた並び）を返す。AI に見せない種類・無い種類は ok が false
+func (e *Engine) AIRecords(kind string, records []json.RawMessage, where map[string]string) (rows []RecordBrief, ok bool, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	defer func() {
@@ -542,7 +542,11 @@ func (e *Engine) AIRecords(kind string, records []json.RawMessage) (rows []Recor
 	if err != nil {
 		return nil, false, err
 	}
-	out := e.aiRecords(kind, string(in))
+	w, err := json.Marshal(where)
+	if err != nil {
+		return nil, false, err
+	}
+	out := e.aiRecords(kind, string(in), string(w))
 	if out == "null" {
 		return nil, false, nil
 	}
