@@ -128,6 +128,18 @@ func TestHeardModelReachesTheSessionsParticipant(t *testing.T) {
 	if got := hub.ParticipantLive(); got[p2].Model != "sonnet" || got[p3].Model != "haiku" {
 		t.Fatalf("live = %v", got)
 	}
+
+	// 同じセッションに結ばれた参加者みなに届く（覚えていた物を移したあとに結ばれた参加者にも）
+	model(`{"sessionId":"S4","model":"opus-6"}`)
+	p4 := joinedID(t, s.URL, `{"ai":"codex","model":"gpt","env":"linux","link":"L4","sessionId":"S4"}`)
+	p5 := joinedID(t, s.URL, `{"ai":"codex","model":"gpt","env":"linux","link":"L5","sessionId":"S4"}`)
+	if noteOf(hub, p4).Model != "opus-6" || noteOf(hub, p5).Model != "opus-6" {
+		t.Fatalf("shared session: %+v, %+v", noteOf(hub, p4), noteOf(hub, p5))
+	}
+	model(`{"sessionId":"S4","model":"opus-7"}`)
+	if noteOf(hub, p4).Model != "opus-7" || noteOf(hub, p5).Model != "opus-7" {
+		t.Fatalf("shared session after a switch: %+v, %+v", noteOf(hub, p4), noteOf(hub, p5))
+	}
 }
 
 // 結ばれていないセッションのモデルは、古くなったものと、上限を超えた分（知らせた時点の古いもの）を捨てる
@@ -161,6 +173,13 @@ func TestHostRebindsANewSession(t *testing.T) {
 	before := noteOf(hub, id)
 	if before.SessionID != "S1" || before.Host != "100" || !before.Told || before.BoundBy != boundByJoin {
 		t.Fatalf("before = %+v", before)
+	}
+	// 準備中（受け入れたが、フックがまだ参加を伝えていない）の参加者は、ホストのプロセス id もブランチも残さない
+	preparing := joinedID(t, s.URL, `{"ai":"claude","model":"opus","env":"linux","link":"L2"}`)
+	acceptRoom(t, s.URL, preparing, "すずめ")
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: preparing, BranchHeader: "main", HostHeader: "100"})
+	if n := noteOf(hub, preparing); n.Host != "" || n.Branch != "" {
+		t.Fatalf("noted while preparing: %+v", n)
 	}
 
 	call(t, "POST", s.URL+"/api/ai/model", `{"sessionId":"S5","host":""}`, nil)

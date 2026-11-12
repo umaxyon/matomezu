@@ -307,7 +307,8 @@ func (h *Hub) noteSession(id, sessionID string) {
 }
 
 // bindSession は、参加者 id にセッション id sessionID を、結んだ所 by で結ぶ。host が空でなければホストのプロセス id も書く。
-// そのセッションについてフックが先に知らせたモデルを覚えていれば、参加者の記録に移して窓に知らせる。置き場所には書かない（h.mu を持って呼ぶ）
+// そのセッションについてフックが先に知らせたモデルを覚えていれば、参加者の記録に移す。覚えていなくても、同じセッションのほかの参加者がモデルを持っていれば、それを写す。
+// モデルが変わったら窓に知らせる。置き場所には書かない（h.mu を持って呼ぶ）
 func (h *Hub) bindSession(id, sessionID, by, host string) {
 	n := h.participantNotes[id]
 	n.SessionID = sessionID
@@ -315,13 +316,24 @@ func (h *Hub) bindSession(id, sessionID, by, host string) {
 	if host != "" {
 		n.Host = host
 	}
-	heard, ok := h.heardModels[sessionID]
-	if ok {
-		n.Model = heard.model
+	model := ""
+	if heard, ok := h.heardModels[sessionID]; ok {
+		model = heard.model
+		delete(h.heardModels, sessionID)
+	} else {
+		for other, o := range h.participantNotes {
+			if other != id && o.SessionID == sessionID && o.Model != "" {
+				model = o.Model
+				break
+			}
+		}
+	}
+	moved := model != "" && model != n.Model
+	if moved {
+		n.Model = model
 	}
 	h.participantNotes[id] = n
-	if ok {
-		delete(h.heardModels, sessionID)
+	if moved {
 		h.announceLive(id)
 	}
 }
