@@ -1,0 +1,14 @@
+// 対象の定義: プラグインが足す、アクションの対象の種類。この種類のデータは「レコード」で、1 件が 1 つのまとまり（id を持つ）。
+// core は中を読まず、種類ごとにレコードを入れ物として持つ。確かめは record の形（Zod）1 つ。レコードは 1 件ずつ版を持って保存される（ブックと同じ）。
+// アクションは target に種類の id を書き、on の record で 1 件を指して行う（指さなければ新しいレコードを作る）。ゴミ箱は無い（消したら無くなる）
+import type { z } from "zod"
+import type { SubjectExtras } from "../catalog"
+import type { MessageKey } from "../i18n/i18n"
+
+export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends string = MessageKey> extends SubjectExtras {
+  id: string // 本当の id（例: @matomezu/example:note）
+  title: Tt
+  aiDescription: string // AI 向けの説明（英語。MCP の actions の subjects で見せる。何のレコードで、AI がどう行うか）
+  record: R // レコード 1 件の形。id（文字）を持つ
+  numbered?: true // レコードに番号を振る種類。アクションは ctx.number(区切り) で次の番号を受け取る（常駐が決める。区切りごとに連番で、使い回さない）
+}

@@ -3,11 +3,16 @@ import type { World } from "../core/perform"
 import type { MatomezuState } from "./store"
 
 export const worldOf = (
-  s: Pick<MatomezuState, "books" | "trash" | "settings" | "annotations" | "mailbox" | "participants">,
+  s: Pick<
+    MatomezuState,
+    "books" | "trash" | "settings" | "annotations" | "mailbox" | "participants" | "records" | "counters"
+  >,
 ): World => ({
   books: { ...s.books, ...s.trash },
   settings: s.settings,
   annotations: s.annotations,
   mailbox: s.mailbox,
   participants: s.participants,
+  records: s.records,
+  counters: s.counters,
 })

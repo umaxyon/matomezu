@@ -4,12 +4,14 @@ import type { z } from "zod"
 import { type Actor, isAI } from "../actor"
 import type { BookAnnotations } from "../annotation"
 import type { PagedBook } from "../book"
-import type { ActionExtras } from "../catalog"
+import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
+import { fail } from "../errors"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
 import type { Mailbox } from "../mail"
 import type { Participants } from "../participant"
+import type { Records } from "../records"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
 import { type BookTypeDef, placeableOf } from "./book-type"
@@ -27,7 +29,31 @@ export interface Subjects {
   participants: Participants
 }
 
-export type ActionTarget = keyof Subjects
+// 土台が持つ対象の名前（対象の定義が足した種類は、その id が対象の名前になる）
+export const BASE_TARGETS: readonly string[] = ["library", "book", "settings", "annotations", "mailbox", "participants"]
+export type ActionTarget = keyof Subjects | SubjectId
+
+// 対象の定義の種類 T のレコード 1 件（形は定義の record）
+export type RecordOf<T extends string> = T extends keyof SubjectTable
+  ? SubjectTable[T] extends { record: infer R extends z.ZodType }
+    ? z.output<R>
+    : never
+  : never
+// アクションが受け取る対象: 土台の対象はそのデータ、種類の対象は指したレコードか、新しく作るときの none
+export type SubjectData<T extends ActionTarget> = T extends keyof Subjects
+  ? Subjects[T]
+  : T extends SubjectId
+    ? RecordOf<T> | "none"
+    : never
+// アクションが返す新しい対象: 土台の対象はそのデータ、種類の対象は新しいレコードか、消すときの removed
+export type SubjectNext<T extends ActionTarget> = T extends keyof Subjects
+  ? Subjects[T]
+  : T extends SubjectId
+    ? RecordOf<T> | "removed"
+    : never
+
+// アクションの宛先: ブックの id か、レコード（対象の定義が足した種類のデータ）の id
+export type ActionOn = { book: string } | { record: string }
 
 // 宛先のブック（on.book）を要る対象か（ブックと、ブックのアノテーション）
 export type BookTarget = "book" | "annotations"
@@ -44,6 +70,16 @@ export interface ActionContext {
   actor: Actor // 行った者（利用者か AI か。AI には userOnly のアクションとロックを外すことを断る）
   // 郵便箱が対象のアクションが読むだけのブックの一覧（ほかの対象のアクションには無い。郵便に乗せる変更を確かめるのに使う）
   books?: Readonly<Library>
+  // レコードが対象のアクションが読むだけの、アクションの reads の種類のレコード（種類の id → id → レコード。ほかの対象のアクションには無い）
+  records?: Readonly<Records>
+  // 番号を振る種類（対象の定義の numbered）のアクションが、区切り scope の次の番号を受け取る。常駐が決めた値で、使い回さない（ほかのアクションには無い。nextNumber で受ける）
+  number?(scope: string): number
+}
+
+// 番号を振る種類のアクションが、区切り scope の次の番号を受け取る
+export function nextNumber(ctx: ActionContext, action: string, scope: string): number {
+  if (!ctx.number) return fail("E118", { id: action })
+  return ctx.number(scope)
 }
 
 // AI 編集チケットの変え方。key で 1 つを見分け（郵便の id など）、ブック book の AI 編集チケットとして、作る（open）・閉じる（closed）・失敗にする（failed。changed は
@@ -56,7 +92,7 @@ export interface AIEditTicketChange {
 }
 
 export interface Done<T extends ActionTarget, R> {
-  next: Subjects[T]
+  next: SubjectNext<T>
   result: R
   // 郵便箱が対象のアクションだけが書ける、AI 編集チケットの変え方
   aiEditTicket?: T extends "mailbox" ? AIEditTicketChange : never
@@ -99,7 +135,7 @@ export type RunSubject<T extends ActionTarget, At> = T extends "book"
   ? At extends PagedOnly
     ? PagedBook
     : Book
-  : Subjects[T]
+  : SubjectData<T>
 
 // アクションがタイプ type に付くか（attach のどれかに当てはまるか）
 export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): boolean {
@@ -241,6 +277,8 @@ export interface ActionDef<
   inPrintPreview?: "runs"
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
+  // レコードが対象のアクションが、読むだけの種類（対象の定義の id。その種類のレコード全部が ctx.records に入る。同じ種類の重なりを確かめるときなど。変えるのは対象の 1 件だけ）
+  reads?: T extends SubjectId ? readonly SubjectId[] : never
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType

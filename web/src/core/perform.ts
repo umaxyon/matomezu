@@ -10,6 +10,7 @@ import { bookType, type CoreCatalog } from "./core-catalog"
 import {
   type ActionContext,
   type ActionDef,
+  type ActionOn,
   type ActionTarget,
   type AIEditTicketChange,
   type AnyLibraryScope,
@@ -17,6 +18,7 @@ import {
   type AnySettingsScope,
   libraryScopeOf,
   pagedOnly,
+  type SubjectData,
   type Subjects,
   scopeOf,
   settingsScopeOf,
@@ -26,13 +28,15 @@ import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { type Mailbox, mailboxSettles } from "./mail"
 import { type Participants, participantsSettle } from "./participant"
+import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
+import { settledAfter } from "./settle"
 
 type ActionOf<Id extends ActionId> = ActionTable[Id]
 export type TargetOf<Id extends ActionId> = ActionOf<Id>["target"]
-export type SubjectOf<Id extends ActionId> = Subjects[ActionOf<Id>["target"]]
+export type SubjectOf<Id extends ActionId> = SubjectData<ActionOf<Id>["target"]>
 export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
@@ -78,7 +82,10 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
 
 // 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っているか
 export function librarySettles(catalog: CoreCatalog, before: Library, after: Library): boolean {
-  return Object.entries(after).every(([key, b]) => b.id === key && (before[key] === b || settles(catalog, b)))
+  return (
+    Object.entries(after).every(([key, b]) => b.id === key) &&
+    settledAfter(Object.values(before), Object.values(after), b => settles(catalog, b))
+  )
 }
 
 // アクションの結果が、認可ステップの守らせること（keeps）を守っているか。守っていなければ、守らせたステップの id
@@ -117,7 +124,7 @@ export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "a
 function permits(
   ctx: PermitContext,
   action: ActionDef,
-  subject: Subjects[keyof Subjects],
+  subject: unknown,
   args: { success: true; data: unknown } | { success: false },
 ): Permitted {
   const settings =
@@ -237,6 +244,8 @@ export function perform<Id extends ActionId>(
     const next = (done.next as unknown as BookAnnotations).annotations
     if (!annotationsSettle(ctx.catalog, pair.book, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
+  if (isRecordTarget(ctx.catalog, action.target) && !recordSettles(ctx.catalog, action.target, subject, done.next))
+    return { ok: false, reason: "refused" }
   if (
     action.target === "mailbox" &&
     !mailboxSettles(ctx.catalog, subject as unknown as Mailbox, done.next as unknown as Mailbox)
@@ -262,6 +271,8 @@ export interface World {
   annotations: Annotations
   mailbox: Mailbox
   participants: Participants
+  records: Records // 対象の定義が足した種類ごとのレコード（種類の id → id → レコード）
+  counters: Counters // 番号を振る種類ごとの、区切りごとの次の番号
 }
 
 // performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧、
@@ -276,10 +287,12 @@ export type PerformedIn =
       annotations?: Annotations
       mailbox?: Mailbox
       participants?: Participants
+      record?: RecordChange // レコードが対象のアクションで変わったレコード 1 件
       aiEditTicket?: AIEditTicketChange // 郵便箱が対象のアクションが返した、AI 編集チケットの変え方
     }
   | Refused
   | { ok: false; reason: "no-book" }
+  | { ok: false; reason: "no-record" }
 
 // 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
 // ブックとアノテーションが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
@@ -288,7 +301,7 @@ export function performIn(
   world: World,
   id: string,
   args: unknown,
-  on: { book: string } | undefined,
+  on: ActionOn | undefined,
   ctx: ActionContext,
 ): PerformedIn {
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
@@ -298,8 +311,10 @@ export function performIn(
     args: unknown,
     ctx: ActionContext,
   ) => ReturnType<typeof perform>
+  if (target !== undefined && isRecordTarget(ctx.catalog, target))
+    return performRecord(world, target, id, args, on, ctx)
   if (target === "book" || target === "annotations") {
-    const book = bookIn(world, on)
+    const book = bookIn(world, on as { book: string } | undefined)
     if (!book) return { ok: false, reason: "no-book" }
     const annotations = world.annotations[book.id] ?? []
     if (target === "annotations") {
@@ -354,9 +369,69 @@ export function performIn(
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
 }
 
+// アクションの対象が、対象の定義が足した種類か
+const isRecordTarget = (catalog: CoreCatalog, target: string): boolean => catalog.subjects.has(target)
+
+// レコードが対象のアクションの結果 next が形を守っているか: 新しいレコードは種類の形に合い、id は変わらず（作るときは新しい id）、消すなら now がある
+function recordSettles(catalog: CoreCatalog, target: string, now: unknown, next: unknown): boolean {
+  if (next === REMOVED) return now !== NO_RECORD
+  const def = catalog.subjects.get(target)
+  const fits = def?.record.safeParse(next)
+  if (!fits?.success) return false
+  return now === NO_RECORD || (now as { id: string }).id === (next as { id: string }).id
+}
+
+// レコードが対象のアクションを行う: on の record のレコード（無ければ新しく作る）を渡し、1 件だけ変えた結果を返す。作るレコードの id は今ある id と重ならない
+function performRecord(
+  world: World,
+  target: string,
+  id: string,
+  args: unknown,
+  on: ActionOn | undefined,
+  ctx: ActionContext,
+): PerformedIn {
+  const table = world.records[target] ?? {}
+  const def = ctx.catalog.subjects.get(target)
+  const action = ctx.catalog.actions.get(id)
+  const used: Record<string, number> = {}
+  const counters = world.counters[target] ?? {}
+  const reads = Object.fromEntries((action?.reads ?? []).map(k => [k, world.records[k] ?? {}]))
+  const withBase: ActionContext = {
+    ...ctx,
+    records: reads,
+    ...(def?.numbered
+      ? {
+          number: (scope: string) => {
+            const n = used[scope] ?? counters[scope] ?? 1
+            used[scope] = n + 1
+            return n
+          },
+        }
+      : {}),
+  }
+  const wanted = on && "record" in on ? on.record : undefined
+  const now = wanted === undefined ? NO_RECORD : table[wanted]
+  if (now === undefined) return { ok: false, reason: "no-record" }
+  const done = (perform as (s: unknown, id: string, a: unknown, c: ActionContext) => ReturnType<typeof perform>)(
+    now,
+    id,
+    args,
+    withBase,
+  )
+  if (!done.ok) return done
+  const next = done.next as unknown
+  if (next === now) return { ok: true, result: done.result }
+  if (next === REMOVED)
+    return { ok: true, result: done.result, record: { subject: target, id: wanted as string, record: REMOVED } }
+  const made = (next as { id: string }).id
+  if (now === NO_RECORD && made in table) return { ok: false, reason: "refused" }
+  const numbers = Object.keys(used).length > 0 ? { counters: { ...counters, ...used } } : {}
+  return { ok: true, result: done.result, record: { subject: target, id: made, record: next, ...numbers } }
+}
+
 // ブックかアノテーションが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
-function bookIn(world: World, on: { book: string } | undefined): Book | null {
-  const book = world.books[on?.book ?? ""]
+function bookIn(world: World, on: ActionOn | undefined): Book | null {
+  const book = world.books[(on && "book" in on ? on.book : undefined) ?? ""]
   return book && book.trashed === undefined ? book : null
 }
 
@@ -365,15 +440,20 @@ export function permittedIn(
   world: World,
   id: string,
   args: unknown,
-  on: { book: string } | undefined,
+  on: ActionOn | undefined,
   ctx: PermitContext,
-): Permitted | Refused | { ok: false; reason: "no-book" } {
+): Permitted | Refused | { ok: false; reason: "no-book" | "no-record" } {
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   if (target === "book" || target === "annotations") {
     const book = bookIn(world, on)
     if (!book) return { ok: false, reason: "no-book" }
     const subject = target === "book" ? book : { book, annotations: world.annotations[book.id] ?? [] }
     return permitted(subject, id, args, ctx)
+  }
+  if (target !== undefined && isRecordTarget(ctx.catalog, target)) {
+    const wanted = on && "record" in on ? on.record : undefined
+    const now = wanted === undefined ? NO_RECORD : world.records[target]?.[wanted]
+    return now === undefined ? { ok: false, reason: "no-record" } : permitted(now, id, args, ctx)
   }
   return permitted(
     target === "library"

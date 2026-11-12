@@ -77,7 +77,15 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
   const s = store.state.getState()
   const book = s.books.b1!
   expect(annotationsForAi(CORE_CATALOG, book, marks()).map(m => m.awaits)).toEqual([true])
-  let world = { books: s.books, settings: s.settings, annotations: s.annotations, mailbox: [], participants: [] }
+  let world = {
+    books: s.books,
+    settings: s.settings,
+    annotations: s.annotations,
+    mailbox: [],
+    participants: [],
+    records: {},
+    counters: {},
+  }
   const ctx = {
     catalog: CORE_CATALOG,
     controlCenter: null,

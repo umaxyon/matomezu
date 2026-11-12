@@ -40,6 +40,9 @@ export const ERRORS = {
   E042: "bookType {id}: slide has {ref}, which is not a shape item",
   E043: "bookType {id}: slide needs pages",
   E044: "action {id}: runsWhenAIJoins {role} is named by {other} too",
+  E045: "subject {id}: record needs an id (a string)",
+  E046: "action {id}: target {target} is not a subject",
+  E047: "controlCenter {id}: unknown subject {ref}",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
@@ -56,6 +59,7 @@ export const ERRORS = {
   E115: "unknown tool: {id}",
   E116: "stage {id}: the command context was not made by matomezu (a copy of it does not carry the workspace)",
   E117: "the window has no book screen numbered {index}",
+  E118: "nextNumber: the action {id} is not an action of a numbered subject",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

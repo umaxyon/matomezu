@@ -27,6 +27,7 @@ export const PART_UI = {
   permissions: { views: [], define: ["definePermission"] },
   annotations: { views: [], define: ["defineAnnotation"] },
   mails: { views: [], define: ["defineMail"] },
+  subjects: { views: [], define: ["defineSubject"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
   textColors: { views: [], define: ["defineTextColor"] },

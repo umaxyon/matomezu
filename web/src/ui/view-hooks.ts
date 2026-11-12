@@ -6,7 +6,7 @@ import { USER } from "../core/actor"
 import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
-import { isOnBook, type Where } from "../core/def/action"
+import { type ActionOn, isOnBook, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
@@ -137,7 +137,7 @@ const allowedOf = (answer: string): Allowed =>
 // アクション action を引数 args で、行うときと同じ形（ブックかアノテーションが対象なら on のブック）で行えるか（認可ステップも見る。答えは useAllowed と同じ形）。
 // どのブックに問うかは、アクションの許可スコープ（permissionScope）と引数、ブックが対象なら on で決まるので、ステージが開いていないブックにも問える。
 // 引数がまだ決まらない所（ドラッグを始める前など）では、useAllowed で問う
-export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, on?: { book: string }): Allowed {
+export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, on?: ActionOn): Allowed {
   const catalog = useCatalog().core
   const controlCenter = useControlCenter()
   const answer = useMatomezuState(s => {
@@ -287,7 +287,7 @@ export function usePerform(stage: string): <Id extends ActionId>(action: Id, arg
   return useMemo(
     () =>
       <Id extends ActionId>(action: Id, args: ArgsOf<Id>): Performed<Id> => {
-        const loose = perform as (id: string, args: unknown, on?: { book: string }) => Performed<Id>
+        const loose = perform as (id: string, args: unknown, on?: ActionOn) => Performed<Id>
         if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
         if (!isOnBook(catalog.actions.get(action)?.target)) return loose(action, args)
         return book === undefined ? { ok: false, reason: "no-book" } : loose(action, args, { book })

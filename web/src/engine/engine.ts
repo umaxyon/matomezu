@@ -17,7 +17,7 @@ import {
 import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { bookType, type CoreCatalog } from "../core/core-catalog"
-import { type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
+import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/book-type"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
@@ -26,6 +26,7 @@ import { splitId } from "../core/names"
 import { joinActions, type Participants, restoreParticipants } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
+import { type RecordChange, restoreCounters, restoreRecords } from "../core/records"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
@@ -51,7 +52,7 @@ function use(added: readonly Plugin[]): string {
 interface Input {
   action: string
   args: unknown
-  on?: { book: string }
+  on?: ActionOn
   lang?: string // 画面で先に行ったときの言語。無ければ（AI が頼んだときなど）設定の言語の項目で決める
   ids?: string[]
   now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
@@ -60,6 +61,8 @@ interface Input {
   annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
   mailbox?: unknown // 利用者の郵便箱（郵便箱が対象のアクションのとき）
   participants?: unknown // 利用者の参加者の表（参加者の表が対象のアクションのとき）
+  counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
+  records?: unknown // 対象の定義が足した種類のレコード（種類の id → id → レコード。レコードが対象のアクションのとき、宛先と読むだけの種類）
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
   watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ブックの id → 物の id。編集ロック）
 }
@@ -77,6 +80,7 @@ type Output =
       annotations?: Annotations
       mailbox?: Mailbox
       participants?: Participants
+      record?: RecordChange // 変わったレコード 1 件（消したなら record は removed）
       notice?: string
       aiEditTicket?: AIEditTicketChange
     }
@@ -93,6 +97,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
+  "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
 }
 
 // 断りに、AI への説明を添える
@@ -125,15 +130,23 @@ function perform(input: Input): Output {
   )
   const mailbox = restoreMailbox(input.mailbox)
   const participants = restoreParticipants(input.participants)
+  const records = restoreRecords(input.records)
+  const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.by)
-  const done = performIn({ books, settings, annotations, mailbox, participants }, input.action, input.args, input.on, {
-    catalog,
-    controlCenter,
-    lang,
-    newId: () => ids.shift() ?? crypto.randomUUID(),
-    now: input.now ?? new Date().toISOString(),
-    actor,
-  })
+  const done = performIn(
+    { books, settings, annotations, mailbox, participants, records, counters },
+    input.action,
+    input.args,
+    input.on,
+    {
+      catalog,
+      controlCenter,
+      lang,
+      newId: () => ids.shift() ?? crypto.randomUUID(),
+      now: input.now ?? new Date().toISOString(),
+      actor,
+    },
+  )
   if (!done.ok) return refusal(catalog, done)
   const next = done.books
   const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
@@ -156,6 +169,7 @@ function perform(input: Input): Output {
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(done.mailbox ? { mailbox: done.mailbox } : {}),
     ...(done.participants ? { participants: done.participants } : {}),
+    ...(done.record ? { record: done.record } : {}),
     ...(notice ? { notice } : {}),
     ...(done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}),
   }
@@ -246,6 +260,13 @@ function aiTables(of: Assembled) {
       title: en(a.title),
       description: a.aiDescription,
       props: z.toJSONSchema(a.props, { io: "input", unrepresentable: "any" }),
+    })),
+    // 対象の定義（レコードの種類。アクションの target はこの id のとき、perform の on は { record: レコードの id }（作るときは on を書かない））
+    subjects: [...catalog.subjects.values()].map(s => ({
+      id: s.id,
+      title: en(s.title),
+      description: s.aiDescription,
+      record: z.toJSONSchema(s.record, { io: "input", unrepresentable: "any" }),
     })),
     // 郵便の種類（read_mail の郵便の mail は、この id）
     mails: [...catalog.mails.values()].map(m => ({

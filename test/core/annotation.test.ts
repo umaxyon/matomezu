@@ -54,6 +54,8 @@ test("効かないアノテーションがあっても、ほかのアノテー�
     annotations: { d: [GOOD, BAD, GONE] },
     mailbox: [],
     participants: [],
+    records: {},
+    counters: {},
   }
   const done = performIn(
     world,

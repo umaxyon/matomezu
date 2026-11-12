@@ -5,6 +5,7 @@ import { z } from "zod"
 import { briefLine } from "./brief"
 import type { CoreCatalog } from "./core-catalog"
 import { splitId } from "./names"
+import { settledAfter } from "./settle"
 import { type Warning, warning } from "./warnings"
 
 export const MailSchema = z.object({
@@ -33,10 +34,7 @@ export const restoreMailbox = (saved: unknown): Mailbox => (Array.isArray(saved)
 
 // 郵便箱のアクションの結果 after が形を守っているか: id が重ならず、前 before に無かった（変わった）郵便が、形に合い、種類が機能台帳にあって props がその形に合う
 export function mailboxSettles(catalog: CoreCatalog, before: Mailbox, after: Mailbox): boolean {
-  if (new Set(after.map(m => m.id)).size !== after.length) return false
-  const kept = new Set(before)
-  return after.every(m => {
-    if (kept.has(m)) return true
+  return settledAfter(before, after, m => {
     if (!MailSchema.safeParse(m).success) return false
     const def = catalog.mails.get(m.mail)
     return !!def && def.props.safeParse(m.props).success

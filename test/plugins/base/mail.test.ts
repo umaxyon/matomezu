@@ -72,6 +72,8 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
     annotations: s.annotations,
     mailbox: s.mailbox,
     participants: s.participants,
+    records: {},
+    counters: {},
   }
   const ctx = {
     catalog: CORE_CATALOG,

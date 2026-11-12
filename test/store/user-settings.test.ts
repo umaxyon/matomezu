@@ -33,7 +33,15 @@ const ctx = (catalog = CORE_CATALOG, actor: Actor = USER) => ({
 
 test("利用者だけが変える項目は、AI には変えさせず、AI が読む設定と AI に見せる引数の形にも出さない", () => {
   const catalog = assemble([...BUILTIN, EX], "@matomezu/control-center:control-center").catalog.core
-  const world = { books: {}, settings: { "@ex/u:secret": "s" }, annotations: {}, mailbox: [], participants: [] }
+  const world = {
+    books: {},
+    settings: { "@ex/u:secret": "s" },
+    annotations: {},
+    mailbox: [],
+    participants: [],
+    records: {},
+    counters: {},
+  }
   const set = (values: Record<string, unknown>, actor?: Actor) =>
     performIn(world, "@matomezu/base:settings-set", { values }, undefined, ctx(catalog, actor)).ok
   expect(set({ "@ex/u:secret": "t" })).toBe(true)

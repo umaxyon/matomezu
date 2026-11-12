@@ -20,6 +20,7 @@ import type { PermissionDef } from "../core/def/permission"
 import type { PresentationDef } from "../core/def/presentation"
 import type { DefaultedSettingDef, SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
+import type { SubjectDef } from "../core/def/subject"
 import type { TextColorDef } from "../core/def/text-color"
 import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
@@ -135,6 +136,11 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: MailDef<Pr, keyof M & string> & { id: Id },
   ): Omit<MailDef<Pr>, "id"> & { id: Owned<P, Id> }
 
+  // 対象の定義（アクションの対象の種類。レコード 1 件の形を record に書く）
+  defineSubject<const Id extends string, R extends SubjectDef["record"]>(
+    def: SubjectDef<R, keyof M & string> & { id: Id },
+  ): Omit<SubjectDef<R>, "id"> & { id: Owned<P, Id> }
+
   // ブックのタイプ: データの type は本当の id。schema に type は書かず、ここで足す
   defineBookType<const Id extends string, const S extends BookSchema, const T extends BookTypeIn<S, keyof M & string>>(
     def: T & { id: Id; schema: S },
@@ -230,6 +236,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     definePermission: place,
     defineAnnotation: place,
     defineMail: place,
+    defineSubject: place,
     defineBookType: (def: { id: string; schema: BookSchema; create(init: NewBook): object }) => {
       const id = owned(plugin, def.id)
       return {

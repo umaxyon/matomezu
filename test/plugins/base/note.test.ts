@@ -139,7 +139,15 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
   store.actions.perform(ADD, { anchors: [a], text: "x" }, ON)
   const id = notes()[0]!.id
   const s = store.state.getState()
-  const world = { books: s.books, settings: s.settings, annotations: s.annotations, mailbox: [], participants: [] }
+  const world = {
+    books: s.books,
+    settings: s.settings,
+    annotations: s.annotations,
+    mailbox: [],
+    participants: [],
+    records: {},
+    counters: {},
+  }
   const ctx = {
     catalog: CORE_CATALOG,
     controlCenter: null,

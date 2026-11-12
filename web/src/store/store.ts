@@ -8,7 +8,7 @@ import { type Annotations, restoreAllAnnotations, withAnnotations } from "../cor
 import { checkBooks, hasPages } from "../core/book"
 import type { ActionId, ControlCenterId, DialogId, ItemId, MessageKey, SkinId, ToolId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
-import type { ActionContext, BookTarget } from "../core/def/action"
+import type { ActionContext, ActionOn, BookTarget } from "../core/def/action"
 import { fail } from "../core/errors"
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
@@ -27,6 +27,7 @@ import { type Mailbox, restoreMailbox } from "../core/mail"
 import { type Participants, restoreParticipants } from "../core/participant"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
+import { type Counters, type Records, restoreCounters, restoreRecords, withCounters, withRecord } from "../core/records"
 import { sameData } from "../core/same"
 import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
@@ -98,6 +99,8 @@ export interface MatomezuState {
   annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
   mailbox: Mailbox // 利用者の郵便箱（core/mail.ts。届いた順）
   participants: Participants // 利用者の参加者の表（core/participant.ts。要求が届いた順）
+  records: Records // 対象の定義が足した種類ごとのレコード（core/records.ts。種類の id → id → レコード）
+  counters: Counters // 番号を振る種類ごとの、区切りごとの次の番号（core/records.ts）
   lang: Lang // 今の言語（設定の言語の項目が選んだ言語パックの言語。選んでいない・使えなければ、インスタンスを作ったときに決めた言語）
   dialog: OpenedDialog | null
   contextMenu: OpenedContextMenu | null
@@ -150,7 +153,7 @@ export type PerformArgs<Id extends ActionId> =
 export type Performed<Id extends ActionId> =
   | { ok: true; result: ResultOf<Id> }
   | Refused
-  | { ok: false; reason: "no-book" | "print-preview" }
+  | { ok: false; reason: "no-book" | "no-record" | "print-preview" }
 
 // ホストが断った（reason はホストの断りの理由）
 export interface HostRefused {
@@ -232,7 +235,7 @@ export interface Actions {
 export interface DoneAction {
   action: string
   args: unknown
-  on?: { book: string }
+  on?: ActionOn
   ids: readonly string[]
   lang: Lang
   now: string // 行った時点（ActionContext の now）
@@ -261,6 +264,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       annotations?: unknown
       mailbox?: unknown
       participants?: unknown
+      records?: unknown
+      counters?: unknown
       touched?: Readonly<Record<string, string>>
       participantCalls?: Readonly<Record<string, string>>
       participantReady?: readonly string[]
@@ -317,6 +322,8 @@ function initialState(
     annotations: {},
     mailbox: [],
     participants: [],
+    records: {},
+    counters: {},
     lang,
     dialog: null,
     contextMenu: null,
@@ -574,11 +581,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const run = (
     id: string,
     args: unknown,
-    on?: { book: string },
+    on?: ActionOn,
   ):
     | { ok: true; result: unknown; next: Partial<MatomezuState>; answer: Promise<HostAnswer> | undefined }
     | Refused
-    | { ok: false; reason: "no-book" } => {
+    | { ok: false; reason: "no-book" | "no-record" } => {
     const { books, window, annotations } = getState()
     const ids: string[] = []
     const c = ctx()
@@ -619,6 +626,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (done.annotations) next.annotations = withAnnotations(annotations, done.annotations)
     if (done.mailbox) next.mailbox = done.mailbox
     if (done.participants) next.participants = done.participants
+    if (done.record) {
+      next.records = withRecord(getState().records, done.record)
+      if (done.record.counters) next.counters = withCounters(getState().counters, done.record)
+    }
     return { ok: true, result: done.result, next, answer }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じ、そのステージの画面の状態は消す
@@ -855,13 +866,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let mailbox = world.mailbox === undefined ? getState().mailbox : restoreMailbox(world.mailbox)
       let participants =
         world.participants === undefined ? getState().participants : restoreParticipants(world.participants)
+      let records = world.records === undefined ? getState().records : restoreRecords(world.records)
+      let counters = world.counters === undefined ? getState().counters : restoreCounters(world.counters)
       for (const done of replay) {
         const ids = [...done.ids]
         // 読み直した世界の上で行い直して投げるアクションは、断られたものと同じに落とし、あとの行い直しを続ける
         const next = (() => {
           try {
             return performIn(
-              { books: library, settings, annotations, mailbox, participants },
+              { books: library, settings, annotations, mailbox, participants, records, counters },
               done.action,
               done.args,
               done.on,
@@ -884,6 +897,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (next.settings) settings = next.settings
         if (next.mailbox) mailbox = next.mailbox
         if (next.participants) participants = next.participants
+        if (next.record) {
+          records = withRecord(records, next.record)
+          counters = withCounters(counters, next.record)
+        }
         annotations = withAnnotations(annotations, next.annotations)
       }
       const now = getState()
@@ -894,6 +911,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (sameData(annotations, now.annotations)) annotations = now.annotations
       if (sameData(mailbox, now.mailbox)) mailbox = now.mailbox
       if (sameData(participants, now.participants)) participants = now.participants
+      if (sameData(records, now.records)) records = now.records
+      if (sameData(counters, now.counters)) counters = now.counters
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
       const partial = sameData(found.partial, now.partial) ? now.partial : found.partial
       const touched = world.touched === undefined || sameData(world.touched, now.touched) ? now.touched : world.touched
@@ -917,6 +936,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(mailbox === now.mailbox ? {} : { mailbox }),
         ...(participants === now.participants ? {} : { participants }),
+        ...(records === now.records ? {} : { records }),
+        ...(counters === now.counters ? {} : { counters }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
       })

@@ -70,6 +70,8 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
     annotations: {},
     mailbox: [],
     participants: [],
+    records: {},
+    counters: {},
   }
   const run = (id: string, actor?: Actor): PerformedIn => {
     const done = performIn(world, id, {}, { book: "b1" }, ctx(actor))

@@ -3,7 +3,7 @@
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
 import { type Actor, isAI, USER } from "./actor"
-import type { ActionId } from "./catalog"
+import type { ActionId, SubjectId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
 import { type ActionContext, type ActionDef, attachedTo, isOnBook, type Where } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
@@ -101,7 +101,8 @@ function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean
 const centerSteps = (def: ActionDef, center: ControlCenterDef): Step<boolean>[] => [
   {
     from: { source: "controlCenter", id: center.id, field: "actions" },
-    value: center.actions.includes(def.id as ActionId) ? true : null,
+    value:
+      center.actions.includes(def.id as ActionId) || center.subjects?.includes(def.target as SubjectId) ? true : null,
   },
 ]
 

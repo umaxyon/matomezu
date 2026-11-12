@@ -114,6 +114,8 @@ test("AI は要求できるが、受け入れる・断るはできない（利�
     annotations: s.annotations,
     mailbox: s.mailbox,
     participants: s.participants,
+    records: {},
+    counters: {},
   }
   const ctx = {
     catalog: CORE_CATALOG,
@@ -134,7 +136,7 @@ test("AI は要求できるが、受け入れる・断るはできない（利�
 
 test("同じ入力（時刻と id のもと）なら同じ結果", () => {
   const run = () => {
-    const world = { books: {}, settings: {}, annotations: {}, mailbox: [], participants: [] }
+    const world = { books: {}, settings: {}, annotations: {}, mailbox: [], participants: [], records: {}, counters: {} }
     const ctx = {
       catalog: CORE_CATALOG,
       controlCenter: "@matomezu/control-center:control-center" as never,

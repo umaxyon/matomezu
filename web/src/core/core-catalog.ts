@@ -5,7 +5,7 @@
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
 import { HEX } from "./color"
-import { type ActionDef, attachedTo } from "./def/action"
+import { type ActionDef, attachedTo, BASE_TARGETS } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
 import type { BookTypeDef } from "./def/book-type"
 import type { ControlCenterDef } from "./def/control-center"
@@ -17,6 +17,7 @@ import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
 import type { SettingDef, SettingRole } from "./def/setting"
 import type { SkinDef } from "./def/skin"
+import type { SubjectDef } from "./def/subject"
 import type { TextColorDef } from "./def/text-color"
 import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
 import type { ToolDef, ToolSetDef } from "./def/tool"
@@ -53,6 +54,7 @@ declare module "./catalog" {
     permissions: PermissionDef
     annotations: AnnotationDef
     mails: MailDef
+    subjects: SubjectDef
   }
 }
 
@@ -323,8 +325,16 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       seen.add(d.id)
     }
   }
-  for (const c of parts.controlCenters)
+  const subjects = new Set<string>(parts.subjects.map(s => s.id))
+  for (const s of parts.subjects)
+    if (!(s.record.shape.id instanceof z.ZodString)) problems.push(problem("E045", { id: s.id }))
+  for (const a of parts.actions)
+    if (!BASE_TARGETS.includes(a.target) && !subjects.has(a.target))
+      problems.push(problem("E046", { id: a.id, target: a.target }))
+  for (const c of parts.controlCenters) {
     for (const id of c.actions) if (!actions.has(id)) problems.push(problem("E041", { id: c.id, ref: id }))
+    for (const id of c.subjects ?? []) if (!subjects.has(id)) problems.push(problem("E047", { id: c.id, ref: id }))
+  }
   for (const t of parts.bookTypes) {
     const literal = t.schema.shape.type
     // id だけを通す形か（ほかの文字も通すなら literal ではない）

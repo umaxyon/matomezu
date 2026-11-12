@@ -20,6 +20,7 @@ export interface ToolSetTable {}
 export interface PermissionTable {}
 export interface AnnotationTable {}
 export interface MailTable {} // 郵便の種類の id → 定義
+export interface SubjectTable {} // 対象の定義（レコードの種類）の id → 定義
 export interface MessageTable {} // 文言の鍵 → 訳
 export interface CommandTable {}
 export interface DialogTable {}
@@ -70,6 +71,7 @@ export const PARTS = {
   permissions: { catalog: "core", label: "permission" },
   annotations: { catalog: "core", label: "annotation" },
   mails: { catalog: "core", label: "mail" },
+  subjects: { catalog: "core", label: "subject" },
   themes: { catalog: "core", label: "theme" },
   papers: { catalog: "core", label: "paper" },
   textColors: { catalog: "core", label: "textColor" },
@@ -98,6 +100,7 @@ export interface PartTables {
   permissions: PermissionTable
   annotations: AnnotationTable
   mails: MailTable
+  subjects: SubjectTable
   themes: ThemeTable
   papers: PaperTable
   textColors: TextColorTable
@@ -121,6 +124,7 @@ export type SettingId = keyof SettingTable & string
 export type UserSettingId = keyof UserSettingTable & string
 export type AnnotationId = keyof AnnotationTable & string
 export type MailId = keyof MailTable & string
+export type SubjectId = keyof SubjectTable & string
 export type PresentationId = keyof PresentationTable & string
 export type ToolId = keyof ToolTable & string
 export type ToolSetId = keyof ToolSetTable & string
@@ -162,6 +166,8 @@ export interface ToolSetExtras {}
 export interface PermissionExtras {}
 export interface AnnotationExtras {}
 export interface MailExtras {}
+export interface SubjectExtras {}
+export interface ControlCenterExtras {}
 export interface MessageSetExtras {}
 export interface LanguagePackExtras {}
 export interface CommandExtras {}
