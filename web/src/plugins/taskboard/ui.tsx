@@ -1,16 +1,49 @@
-// タスクボードのプラグインの見た目: プロジェクト設定のダイアログ（見た目の差し替えを持たない）
-import { definePluginUi, useActions, useWindowStage } from "../../plugin-api/ui"
+// タスクボードのプラグインの見た目: コントロールセンターの左の列のプロジェクトの一覧、プロジェクトの画面のタスクボード、ワークルームの枠の列、参加者の行の 1 行、プロジェクト設定のダイアログ
+
+import { definePluginUi, defineWidget } from "../../plugin-api/ui"
+import { CONTROL_CENTER_PROJECTS, CONTROL_CENTER_SIDE, WORKROOM_COLUMNS, WORKROOM_ROW_LINE } from "../base/ui"
 import { TASKBOARD_PLUGIN } from "."
+import { kit } from "./kit"
+import { ProjectListView } from "./ProjectListView"
 import { ProjectSettingsDialog } from "./ProjectSettingsDialog"
 import { PROJECT_SETTINGS_DIALOG } from "./settings-dialog"
+import { TaskboardView } from "./TaskboardView"
+import { TICKET_SCREEN } from "./ticket-screen"
+import { WorkroomColumns } from "./WorkroomColumns"
+import { WorkroomRowLine } from "./WorkroomRowLine"
+
+export const PROJECT_LIST = defineWidget({
+  id: kit.name("project-list"),
+  slots: [CONTROL_CENTER_SIDE],
+  view: ProjectListView,
+})
+export const TASKBOARD = defineWidget({
+  id: kit.name("taskboard"),
+  slots: [CONTROL_CENTER_PROJECTS],
+  view: TaskboardView,
+})
+export const WORKROOM_TASK_COLUMNS = defineWidget({
+  id: kit.name("workroom-columns"),
+  slots: [WORKROOM_COLUMNS],
+  view: WorkroomColumns,
+})
+export const WORKROOM_CURRENT_LINE = defineWidget({
+  id: kit.name("workroom-current-line"),
+  slots: [WORKROOM_ROW_LINE],
+  view: WorkroomRowLine,
+})
 
 export const TASKBOARD_UI = definePluginUi(TASKBOARD_PLUGIN, {
+  widgets: [PROJECT_LIST, TASKBOARD, WORKROOM_TASK_COLUMNS, WORKROOM_CURRENT_LINE, TICKET_SCREEN],
   dialogViews: { [PROJECT_SETTINGS_DIALOG.id]: ProjectSettingsDialog },
 })
 
-// プロジェクト project の設定を、窓の今のステージで開く関数を返す（ボードの帯の歯車が使う）
-export function useOpenProjectSettings(): (project: string) => void {
-  const stage = useWindowStage()
-  const { openDialog } = useActions()
-  return project => openDialog(stage, PROJECT_SETTINGS_DIALOG.id, { project })
+declare module "../../core/catalog" {
+  interface WidgetTable {
+    "@matomezu/taskboard:project-list": typeof PROJECT_LIST
+    "@matomezu/taskboard:taskboard": typeof TASKBOARD
+    "@matomezu/taskboard:workroom-columns": typeof WORKROOM_TASK_COLUMNS
+    "@matomezu/taskboard:workroom-current-line": typeof WORKROOM_CURRENT_LINE
+    "@matomezu/taskboard:ticket-screen": typeof TICKET_SCREEN
+  }
 }

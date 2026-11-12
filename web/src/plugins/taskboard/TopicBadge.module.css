@@ -1,0 +1,12 @@
+.topic {
+  flex: none;
+  min-width: 3.2em;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  color: var(--skin-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}

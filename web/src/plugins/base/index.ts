@@ -99,6 +99,7 @@ import {
   type RIGHT_SIDE_PANEL_STATE,
   RIGHT_SIDE_PANEL_STATES,
 } from "./right-side-panel/state"
+import { type OPEN_SCREEN_STATE, SCREEN_STATES } from "./screen/state"
 import {
   type SEARCH_CLOSE,
   SEARCH_COMMANDS,
@@ -143,6 +144,7 @@ import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
 import { CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE } from "./window"
+import { MAXIMIZERS } from "./window/maximize-state"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
@@ -420,6 +422,8 @@ export const BASE = defineBuiltin(
       ...SEARCH_STATES,
       ...RIGHT_SIDE_PANEL_STATES,
       ...LEFT_SIDE_PANEL_STATES,
+      MAXIMIZERS,
+      ...SCREEN_STATES,
       ...REVEAL_REQUEST_STATES,
       ...PRINT_PREVIEW_STATES,
       ...MEASURES_STATES,
@@ -621,6 +625,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_STATE
     "@matomezu/base:right-side-panel-restore": typeof RIGHT_SIDE_PANEL_RESTORE_STATE
     "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_STATE
+    "@matomezu/base:control-center-maximizers": typeof MAXIMIZERS
+    "@matomezu/base:open-screen": typeof OPEN_SCREEN_STATE
     "@matomezu/base:revealing": typeof REVEALING_STATE
     "@matomezu/base:print-ready": typeof PRINT_READY_STATE
     "@matomezu/base:print-measures": typeof PRINT_MEASURES
