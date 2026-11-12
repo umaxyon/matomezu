@@ -14,5 +14,5 @@ export {
   type MarkdownTableCell,
   parseMarkdown,
 } from "./parse"
-export { SOFT_BREAK, type SoftBreak, SoftBreakSchema, softBreakOf } from "./soft-break"
+export { SOFT_BREAK, type SoftBreak, softBreakOf } from "./soft-break"
 export { MARKDOWN_DOCUMENT_TOKENS } from "./tokens"

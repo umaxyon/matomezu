@@ -154,7 +154,6 @@ export {
   parseMarkdown,
   SOFT_BREAK,
   type SoftBreak,
-  SoftBreakSchema,
   softBreakOf,
 } from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）

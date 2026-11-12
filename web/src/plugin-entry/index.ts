@@ -124,7 +124,6 @@ export {
   richWidth,
   roomOf,
   SOFT_BREAK,
-  SoftBreakSchema,
   settingValue,
   settleChildren,
   shapeDefOf,

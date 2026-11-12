@@ -12,7 +12,7 @@ import { MARKDOWN_PANE_MODES, type MarkdownPaneMode } from "../../base"
 export const PANES = ["source", "rendered"] as const
 export type Pane = (typeof PANES)[number]
 
-export const PANE_MODES = MARKDOWN_PANE_MODES // 値の並びと型は base が出す（同じ見せ方の切り替えを持つ所と同じ値を使う）
+export const PANE_MODES = MARKDOWN_PANE_MODES // 値の並びと型は base が出す
 export type PaneMode = MarkdownPaneMode
 
 export const EVEN_PANE_SHARE = 0.5

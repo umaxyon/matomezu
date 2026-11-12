@@ -4,6 +4,8 @@
 //   data-markdown-document: 文書の根。data-soft-break に、段落の中の改行 1 つの見せ方（SoftBreak）を持つ
 //   data-markdown-block: いちばん外のブロック。値は描いたときの原文の頭の位置で、中身が同じなら描き直さないので、上に書くとずれる（読む側が今の位置との差で直す）。何番目のブロックかは並びで決まる
 //   data-markdown-fragment: 飛ぶ先（見出し・脚注）の名前
+//   data-markdown-at: 原文と同じ字の並びの文中の字。値は原文の中の頭の位置で、block と同じく中身が同じなら描き直さないのでずれる（検索の当たりを光らせる側が今の位置との差で直す）
+//   文書の根の直下の section: 脚注の節（印刷の測りが、本文のブロックと分けて測る）
 // いちばん外のブロックは、中身が変わったものだけを描き直す（block-keys.ts）。段落の中の改行 1 つを改行にするか空白にするか（softBreak）は、描き直さずに見た目（CSS）で変える。
 // コードの塊は言語名のとおりに、生の HTML は html として色付けする（highlightCode。色はテーマキー markdown-code-color-<色の種類>。色だけを変え、太字や斜体は付けない。字の幅が変わると印刷で測る位置がずれるため）
 // 色・字の大きさ・字体・余白は、テーマキー（tokens.ts の MARKDOWN_DOCUMENT_TOKENS）の CSS 変数で受ける。ブックの外で描く所は、その CSS 変数を自分で置く
@@ -167,7 +169,7 @@ function Inlines({ inlines }: { inlines: readonly MarkdownInline[] }) {
 
 function Inline({ inline }: { inline: MarkdownInline }): ReactNode {
   switch (inline.kind) {
-    // 原文と同じ字の並びの字は、原文の中の頭の位置を data-markdown-at に付ける（検索の当たりを光らせる所を引く。search-ranges.ts）
+    // 原文と同じ字の並びの字は、原文の中の頭の位置を data-markdown-at に付ける（検索の当たりを光らせる側が引く）
     case "text":
       return inline.range.end - inline.range.start === inline.value.length ? (
         <span data-markdown-at={inline.range.start}>{inline.value}</span>

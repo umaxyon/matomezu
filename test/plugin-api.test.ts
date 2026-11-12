@@ -39,7 +39,6 @@ test("matomezu が出す名前", () => {
     "PLACE_LINES",
     "PRINT_PREVIEW_SETTINGS",
     "SOFT_BREAK",
-    "SoftBreakSchema",
     "TEXT_LOOK",
     "actionsOf",
     "adaptPage",
