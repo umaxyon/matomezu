@@ -43,6 +43,10 @@ export const dayKey = (at: string, timeZone?: string): string =>
 export const timeOf = (at: string, timeZone?: string): string =>
   parts(at, timeZone, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
 
+// 見せる日時（YYYY/MM/DD HH:MM）
+export const whenOf = (at: string, timeZone?: string): string =>
+  `${dayKey(at, timeZone).replaceAll("-", "/")} ${timeOf(at, timeZone)}`
+
 // 日の見出し（11/12（木）など。言語 lang で整える）
 export const dayHeading = (key: string, lang: string): string => {
   const [y = 0, m = 1, d = 1] = key.split("-").map(Number)

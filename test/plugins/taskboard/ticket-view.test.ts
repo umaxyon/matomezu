@@ -9,6 +9,7 @@ import {
   historyRows,
   ticketLabel,
   timeOf,
+  whenOf,
 } from "../../../web/src/plugins/taskboard/ticket-view"
 
 const ticket = {
@@ -53,6 +54,7 @@ test("日ごとにまとめる。日の区切りは時間帯で変わる", () =>
     ["2026-11-11", 1],
   ])
   expect(timeOf("2026-11-11T20:00:00.000Z", "Asia/Tokyo")).toBe("05:00")
+  expect(whenOf("2026-11-11T20:00:00.000Z", "Asia/Tokyo")).toBe("2026/11/12 05:00")
   expect(dayHeading("2026-11-12", "ja")).toContain("11")
 })
 
