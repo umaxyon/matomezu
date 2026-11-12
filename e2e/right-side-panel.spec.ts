@@ -175,6 +175,15 @@ async function zoomOut(page: Page) {
   await page.keyboard.up("Control")
 }
 
+// ステージの真ん中で拡大する（付けた物を見せて紙がずれていても、紙の上で回す）
+async function zoomIn(page: Page) {
+  const s = (await page.locator("[data-stage]").first().boundingBox())!
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  await page.keyboard.down("Control")
+  await page.mouse.wheel(0, -200)
+  await page.keyboard.up("Control")
+}
+
 test("開くと倍率を 100% にして、付けた物を見せる。閉じれば開く前の見え方に戻る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(BOOK_SCREEN_URL)
@@ -218,6 +227,26 @@ test("開いている間に紙をずらすか倍率を変えたら、閉じて�
   // 倍率は 100% のまま（ずらす量は、広がった表示領域に収め直される）。戻すなら閉じ終えたときなので、紙が止まってから見る
   await settled(page)
   expect((await paperBox(page)).w).toBe(full)
+})
+
+test("閉じて幅を動かしている間に倍率を変えても、閉じ終えたときに戻さない", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const full = (await paperBox(page)).w
+  await foldedNote(page, 1000, "端", "見てほしい")
+  await settled(page)
+  await zoomOut(page)
+  await expect.poll(async () => (await paperBox(page)).w).toBeLessThan(full * 0.7)
+  await page.getByRole("button", { name: "伝言を開く" }).click()
+  await expect(panel(page)).toContainText("見てほしい")
+  // 開いて幅を動かし終え、付けた物を 100% で見せてから閉じる
+  await expect.poll(async () => (await paperBox(page)).w).toBe(full)
+  await settled(page)
+  // 閉じ始めてすぐ（幅を動かし終える前に）拡大する
+  await page.keyboard.press("Escape")
+  await zoomIn(page)
+  await expect(panel(page)).toHaveCount(0)
+  await settled(page)
+  expect((await paperBox(page)).w).toBeGreaterThan(full)
 })
 
 test("リストの中のスクロールの奥の行を開くと、リストもスクロールしてその行を見せる。閉じてもリストのスクロールは戻さない", async ({
