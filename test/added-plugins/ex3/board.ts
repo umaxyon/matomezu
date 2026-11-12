@@ -96,6 +96,7 @@ export const NIGHT = kit.defineSkin({
     success: "#6fd39a",
     font: 'system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif',
   },
+  palette: { primary: "#7aa2ff" }, // 外観枠の代表色は役割ごとに上書きできる（書かない役割は、暗いスキンの既定）
 })
 
 export const BOARD = kit.defineBookType({

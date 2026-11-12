@@ -257,6 +257,7 @@ test("matomezu/ui が出す名前", () => {
     "dividerClass",
     "highlightCode",
     "inlineClass",
+    "markdownDocumentOnSkin",
     "modPressed",
     "opensOf",
     "pairClass",

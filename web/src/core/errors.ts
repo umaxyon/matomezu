@@ -47,6 +47,7 @@ export const ERRORS = {
   E051: "subject {id}: role {role} needs {field} in its record",
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
   E049: "action {id}: lockSwitch is only for an action whose target is a lockable subject",
+  E052: "skin {id}: palette has {color} for {role}, which is not #rrggbb",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",

@@ -5,6 +5,22 @@
 export const PALETTE = ["primary", "secondary", "success", "warn", "danger", "muted"] as const
 export type PaletteName = (typeof PALETTE)[number]
 
+// コードの色の種類（コードの塊の色付け。マークダウンのテーマキー markdown-code-color-<種類> と、スキンの --skin-code-<種類> の名前になる）
+export const CODE_COLORS = [
+  "comment",
+  "keyword",
+  "string",
+  "constant",
+  "entity",
+  "type",
+  "variable",
+  "tag",
+  "meta",
+  "added",
+  "removed",
+] as const
+export type CodeColor = (typeof CODE_COLORS)[number]
+
 // AI に見せる、役割の意味（英語）
 export const PALETTE_MEANINGS: Readonly<Record<PaletteName, string>> = {
   primary: "the main subject",

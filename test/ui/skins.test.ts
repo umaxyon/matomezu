@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test"
+import { PALETTE } from "../../web/src/core/color"
 import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineSkin, SKIN_TOKENS } from "../../web/src/core/def/skin"
 import { autoSkin } from "../../web/src/core/skin"
 import { BUILTIN } from "../../web/src/plugins"
 import { DARK } from "../../web/src/plugins/base/looks/dark"
+import { LIGHT } from "../../web/src/plugins/base/looks/light"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import { skinCss } from "../../web/src/ui/skins/css"
@@ -19,6 +21,16 @@ describe("スキン", () => {
     for (const id of CORE_CATALOG.skins.keys()) expect(css).toContain(`:root[data-skin="${id}"]`)
     expect(css).toContain("prefers-color-scheme: light")
     for (const k of SKIN_TOKENS) expect(css).toContain(`--skin-${k}:`)
+  })
+
+  test("外観枠の代表色とコードの色は、スキンの CSS に --skin-palette-<役割>（上の字は -ink）と --skin-code-<種類> で出る。上書きが勝ち、コードの色は明暗ごと", () => {
+    const over = defineSkin({ ...DARK, id: "acme:over", palette: { primary: "#112233" } })
+    const css = skinCss(new Map([[over.id, over]]), null)
+    expect(css).toContain("--skin-palette-primary: #112233; --skin-palette-primary-ink: #ffffff;")
+    expect(css).toContain("--skin-palette-warn: #facc15; --skin-palette-warn-ink: #1b1b1f;")
+    for (const role of PALETTE) expect(css).toContain(`--skin-palette-${role}-ink:`)
+    expect(css).toContain("--skin-code-keyword: #ff7b72;")
+    expect(skinCss(new Map([[LIGHT.id, LIGHT]]), null)).toContain("--skin-code-keyword: #cf222e;")
   })
 
   test("自動のスキンは、決めなければ表で最初に出てくる明と暗。決めたものは明暗が合っていなければ error", () => {

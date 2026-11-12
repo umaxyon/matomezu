@@ -40,6 +40,7 @@ export {
   MARKDOWN_PANE_MODE_ICONS,
   type MailActionsProps,
   MarkdownDocumentView,
+  markdownDocumentOnSkin,
   opensOf,
   PageProblemsView,
   type PaperValue,
