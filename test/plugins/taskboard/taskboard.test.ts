@@ -67,7 +67,7 @@ test("プロジェクトを作ると、テンプレのレーン（未着手・�
   expect(p?.tags.map(t => t.name)).toEqual(["タスク", "バグ"])
 })
 
-test("接頭辞は、大文字小文字を分けずに、プロジェクトをまたいで重ならない", () => {
+test("チケットプレフィクスは、大文字小文字を分けずに、プロジェクトをまたいで重ならない", () => {
   const { user, projects } = ready()
   user("project-add", { prefix: "AB-" })
   expect(user("project-add", { prefix: "ab-" }).ok).toBe(false)
