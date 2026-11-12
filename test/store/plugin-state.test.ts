@@ -1,0 +1,145 @@
+// 画面の場所に入れるプラグイン状態の宣言（定義は core/def/plugin-state.ts、置き場と読み戻しは store/plugin-state.ts）:
+// 宣言した値だけを置いて場所に入れ、場所から戻すときは宣言の形で読んで丸ごと置き換える
+import { expect, test } from "bun:test"
+import { z } from "zod"
+import type { PluginStateDef } from "../../web/src/core/def/plugin-state"
+import type { MatomezuError } from "../../web/src/core/errors"
+import { defineMessages } from "../../web/src/core/i18n/messages"
+import { BUILTIN } from "../../web/src/plugins"
+import { createMatomezu } from "../../web/src/store/create"
+import { pluginKit } from "../../web/src/store/kit"
+import { readPlaced, withPluginState } from "../../web/src/store/plugin-state"
+import { SAMPLE_BOOKS } from "../sample-books"
+
+const kit = pluginKit("k", defineMessages({}))
+const TAB = kit.definePluginState({ id: "tab", scope: "window", schema: z.enum(["one", "two"]), address: "push" })
+const MODE = kit.definePluginState({ id: "mode", scope: "stage", schema: z.string(), address: "replace" })
+
+const NOTE = kit.definePluginStateOf<string>()({ id: "note", scope: "window" })
+const PICK = kit.definePluginStateOf<number>()({ id: "pick", scope: "stage" })
+
+const make = () =>
+  createMatomezu({
+    plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, MODE, NOTE, PICK] })],
+    controlCenter: "@matomezu/control-center:control-center",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    partial: true,
+  })
+
+const code = (run: () => void): string | undefined => {
+  try {
+    run()
+  } catch (e) {
+    return (e as MatomezuError).code
+  }
+  return undefined
+}
+
+test("宣言は id を持ち、kit が頭を付ける。積むと宣言した宣言の id の組を台帳から引ける。同じ id は error", () => {
+  expect(TAB.id).toBe("k:tab")
+  const instance = make()
+  expect(instance.pushing().has("k:tab")).toBe(true)
+  expect(instance.pushing().has("k:mode")).toBe(false)
+  expect(instance.catalog.store.pluginStates.get("k:mode")?.scope).toBe("stage")
+  expect(() =>
+    createMatomezu({ plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, TAB] })], partial: true }),
+  ).toThrow("E001")
+})
+
+test("値を置くと画面の場所に入る。形に合わない値は E123、知らない id は E122、範囲が違えば E124。ステージの宣言は無いステージに置かない", () => {
+  const instance = make()
+  instance.setPluginState("k:tab", null, "two")
+  instance.setPluginState("k:mode", "s1", "wide")
+  instance.setPluginState("k:mode", "s9", "wide")
+  const address = instance.address()
+  expect(address.window).toEqual({ "k:tab": "two" })
+  expect(address.stages[0]?.states).toEqual({ "k:mode": "wide" })
+  expect(code(() => instance.setPluginState("k:tab", null, "three"))).toBe("E123")
+  expect(code(() => instance.setPluginState("k:nope", null, 1))).toBe("E122")
+  expect(code(() => instance.setPluginState("k:tab", "s1", "one"))).toBe("E124")
+  expect(code(() => instance.setPluginState("k:mode", null, "x"))).toBe("E124")
+  // undefined なら消す
+  instance.setPluginState("k:tab", null, undefined)
+  expect(instance.address().window).toEqual({})
+})
+
+test("場所を当てはめると、宣言した値を丸ごと置き換える。形に合わない値と宣言の無い id は落ちる", () => {
+  const instance = make()
+  instance.setPluginState("k:mode", "s1", "old")
+  const at = instance.address()
+  instance.locate({
+    ...at,
+    window: { "k:tab": "one", "k:nope": 1 },
+    stages: [{ ...at.stages[0]!, states: { "k:tab": "two" } }],
+  })
+  // ステージの場所の k:tab はステージに結ばない宣言なので落ち、k:mode は場所に無いので消える
+  expect(instance.address().window).toEqual({ "k:tab": "one" })
+  expect(instance.address().stages[0]?.states).toEqual({})
+  instance.locate({ ...at, window: { "k:tab": "three" } })
+  expect(instance.address().window).toEqual({})
+})
+
+test("ステージを閉じると、そのステージの値は消える", () => {
+  const instance = make()
+  instance.actions.split("s1")
+  const right = instance.state.getState().window.screens[0]!.stages[1]!.id
+  instance.setPluginState("k:mode", right, "right")
+  expect(instance.state.getState().pluginValues.stages[right]).toEqual({ "k:mode": "right" })
+  instance.actions.closeStage(right)
+  expect(instance.state.getState().pluginValues.stages[right]).toBeUndefined()
+})
+
+test("readPlaced は範囲の合う宣言の値だけを読み、withPluginState は id の値を替える（undefined なら消す）", () => {
+  const defs = new Map<string, PluginStateDef>([
+    [TAB.id, TAB],
+    [MODE.id, MODE],
+  ])
+  expect(readPlaced(defs, "window", { "k:tab": "two", "k:mode": "x" })).toEqual({ "k:tab": "two" })
+  expect(readPlaced(defs, "stage", { "k:mode": 5 })).toEqual({})
+  expect(readPlaced(defs, "window", undefined)).toEqual({})
+  expect(withPluginState({ a: 1 }, "b", 2)).toEqual({ a: 1, b: 2 })
+  expect(withPluginState({ a: 1 }, "a", undefined)).toEqual({})
+})
+
+test("コントロールセンターの前に出す画面の宣言は、ステージに結ばない値で、変えるたびにブラウザの履歴に積む", () => {
+  const instance = createMatomezu({
+    plugins: BUILTIN,
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
+  const id = "@matomezu/control-center:front-screen"
+  expect(instance.catalog.store.pluginStates.get(id)).toMatchObject({ scope: "window", address: "push" })
+  expect(instance.pushing().has(id)).toBe(true)
+  instance.setPluginState(id, null, "library")
+  expect(instance.address().window).toEqual({ [id]: "library" })
+  expect(code(() => instance.setPluginState(id, null, "participants"))).toBe("E123")
+})
+
+test("画面の場所に入れない宣言（none）の値は、画面の場所に出ず、場所から来ても読まず、場所を当てはめても（戻る・進むでも）残る", () => {
+  const instance = make()
+  instance.setPluginState("k:note", null, "hello")
+  instance.setPluginState("k:pick", "s1", 3)
+  instance.setPluginState("k:tab", null, "two")
+  const at = instance.address()
+  // 場所には入れる宣言の値だけが出る
+  expect(at.window).toEqual({ "k:tab": "two" })
+  expect(at.stages[0]?.states).toEqual({})
+  // 場所を当てはめると入れる宣言の値は置き換わり、入れない宣言の値は残る
+  instance.locate({ ...at, window: {} })
+  expect(instance.state.getState().pluginValues.window).toEqual({ "k:note": "hello" })
+  expect(instance.state.getState().pluginValues.stages.s1).toEqual({ "k:pick": 3 })
+  // URL に書かれた入れない宣言の id は読まない（手で書いた URL で状態を作らせない）
+  instance.locate({ ...at, window: { "k:note": "forged" }, stages: [{ ...at.stages[0]!, states: { "k:pick": 9 } }] })
+  expect(instance.state.getState().pluginValues.window).toEqual({ "k:note": "hello" })
+  expect(instance.state.getState().pluginValues.stages.s1).toEqual({ "k:pick": 3 })
+})
+
+test("入れない宣言（none）は形を確かめず、同じ値なら置き直さない。入れる宣言の形は書くたびに確かめる", () => {
+  const instance = make()
+  instance.setPluginState("k:note", null, "a")
+  const first = instance.state.getState().pluginValues
+  instance.setPluginState("k:note", null, "a")
+  expect(instance.state.getState().pluginValues).toBe(first)
+  expect(code(() => instance.setPluginState("k:tab", null, "three"))).toBe("E123")
+})

@@ -8,7 +8,7 @@ import { HISTORY, HISTORY_TOPIC } from "../../../web/src/plugins/taskboard/histo
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { CORE_CATALOG, newStore } from "../../support"
 
-const LOG = "ticket-log"
+const LOG = "ticket-history-add"
 const A = (id: string) => `@matomezu/taskboard:${id}`
 const PROJECT = "@matomezu/taskboard:project"
 type Done = {
@@ -107,12 +107,16 @@ test("今のチケットは、AI が自分のワークルームの分だけ宣�
   const { user, as, table, room, ticket } = ready()
   const id = room("ひよこ")
   const other = room("ぴよ")
-  expect(user(A("ticket-start"), { ticket }).ok).toBe(false)
-  expect(as(ai(id), "ticket-start", { ticket: "nothing" }).ok).toBe(false)
-  expect(as(ai(id), "ticket-start", { ticket }, { record: other }).ok).toBe(false)
-  expect(as(ai(id), "ticket-start", { ticket })).toMatchObject({ ok: true, result: { current: id } })
-  expect(as(ai(id), "ticket-start", { ticket }).record?.record).toEqual({ id, ticket, at: "2026-11-12T00:00:00.000Z" })
-  expect(as(ai(id), "ticket-start", { ticket: "none" }).ok).toBe(true)
+  expect(user(A("current-ticket-set"), { ticket }).ok).toBe(false)
+  expect(as(ai(id), "current-ticket-set", { ticket: "nothing" }).ok).toBe(false)
+  expect(as(ai(id), "current-ticket-set", { ticket }, { record: other }).ok).toBe(false)
+  expect(as(ai(id), "current-ticket-set", { ticket })).toMatchObject({ ok: true, result: { current: id } })
+  expect(as(ai(id), "current-ticket-set", { ticket }).record?.record).toEqual({
+    id,
+    ticket,
+    at: "2026-11-12T00:00:00.000Z",
+  })
+  expect(as(ai(id), "current-ticket-set", { ticket: "none" }).ok).toBe(true)
   expect(table(CURRENT.id)).toEqual([])
 })
 

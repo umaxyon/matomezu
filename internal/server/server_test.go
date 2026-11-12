@@ -360,7 +360,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
 	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
-		!strings.HasPrefix(body, `{"annotations":{},"books":[],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
+		!strings.HasPrefix(body, `{"annotations":{},"books":[],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
 		!strings.HasSuffix(body, `},"settings":null,"touched":{}}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
@@ -377,7 +377,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
+	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) || !strings.Contains(body, `"touched":{"b1":"`) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -393,7 +393,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 	if code, body := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[`+book("b3")+`,`+book("b2")+`]}`, nil); code != 200 {
 		t.Fatalf("reset = %d %s", code, body)
 	}
-	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"counters":{},"mailbox":[],"participantCalls":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{}}`
+	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"counters":{},"mailbox":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{}}`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
 		t.Fatalf("data = %d %s", code, body)
 	}

@@ -32,23 +32,20 @@ export const CHALK = kit.defineTheme({
   },
 })
 
-// カードの見せ方のステージごとの画面の状態: カードの並べ方（書いた順か、並べ替えるか）と、押して選んでいるカード（並びの位置）。
-// 並べ方は場所に入れる画面の状態の宣言（DECK_ORDER。読み直しても戻す）、選んでいるカードはこのプラグインのステージの画面の状態（場所には入れない）
+// カードの見せ方のステージごとのプラグイン状態: カードの並べ方（書いた順か、並べ替えるか）と、押して選んでいるカード（並びの位置）。
+// 並べ方は画面の場所に入れるプラグイン状態（DECK_ORDER。読み直しても戻す）、選んでいるカードは入れないプラグイン状態（DECK_PICKED）
 export const DECK_ORDERS = ["written", "sorted"] as const
 export type DeckOrder = (typeof DECK_ORDERS)[number]
 
-export const DECK_ORDER = kit.definePlacedState({
+export const DECK_ORDER = kit.definePluginState({
   id: "order",
   scope: "stage",
   schema: z.enum(DECK_ORDERS),
-  browserHistory: "replace",
+  address: "replace",
 })
 
-// 選んでいるカード（並びの位置。選んでいなければ "none"）
-export const pickedOf = (state: unknown): number | "none" => {
-  const picked = (state as { picked?: unknown } | undefined)?.picked
-  return typeof picked === "number" ? picked : "none"
-}
+// 選んでいるカード（並びの位置。画面の場所には入れない。選んでいなければ無い）
+export const DECK_PICKED = kit.definePluginStateOf<number>()({ id: "picked", scope: "stage" })
 
 // カードの見せ方: ステージに紙を置かない（ビューが描く広さとスクロールを持つ）
 export const CARDS = kit.definePresentation({ id: "cards", paper: false })

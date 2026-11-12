@@ -37,7 +37,7 @@ export const PART_UI = {
   commands: { views: ["commandIcons"], define: ["defineCommand"] },
   dialogs: { views: ["dialogViews"], define: ["defineDialog", "defineDialogWith"] },
   keyScopes: { views: [], define: ["defineKeyScope"] },
-  placedStates: { views: [], define: ["definePlacedState"] },
+  pluginStates: { views: [], define: ["definePluginState", "definePluginStateOf"] },
 } as const satisfies Record<Part, PartUi>
 
 // 定義の種類（PARTS）に入らない定義オブジェクトを書く関数の名前（既定のキーバインド・言語パック。プラグインの keys・languages に渡す。見た目は無い）。

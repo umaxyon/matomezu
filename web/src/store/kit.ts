@@ -18,7 +18,7 @@ import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } fro
 import type { MailDef } from "../core/def/mail"
 import type { PaperDef } from "../core/def/paper"
 import type { PermissionDef } from "../core/def/permission"
-import type { PlacedScope, PlacedStateDef } from "../core/def/placed-state"
+import type { PluginStateAddress, PluginStateDef, PluginStateSchema, PluginStateScope } from "../core/def/plugin-state"
 import type { PresentationDef } from "../core/def/presentation"
 import type { DefaultedSettingDef, SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
@@ -194,10 +194,25 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: Omit<KeyScopeDef, "id" | "title"> & { id: Id; title: keyof M & string },
   ): KeyScopeDef & { id: Owned<P, Id> }
 
-  // 場所に入れる画面の状態の宣言（画面の場所に入れ、読み直しても戻す値。id は頭が付く）
-  definePlacedState<const Id extends string, S, const Sc extends PlacedScope>(
-    def: Omit<PlacedStateDef<S>, "id" | "scope"> & { id: Id; scope: Sc },
-  ): PlacedStateDef<S> & { id: Owned<P, Id>; scope: Sc }
+  // プラグイン状態の宣言（プラグインが画面の中で持つ状態。id は頭が付く）。address が push か replace なら、値を画面の場所（URL）に入れ、読み直しても戻す。値の形 schema を持つ
+  definePluginState<
+    const Id extends string,
+    S,
+    const Sc extends PluginStateScope,
+    const Ad extends Exclude<PluginStateAddress, "none">,
+  >(
+    def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema"> & {
+      id: Id
+      scope: Sc
+      address: Ad
+      schema: PluginStateSchema<S>
+    },
+  ): PluginStateDef<S> & { id: Owned<P, Id>; scope: Sc; address: Ad }
+
+  // 画面の場所に入れない（none）プラグイン状態の宣言（読み直すと消える。値の型だけを持つ。kit.definePluginStateOf<値の型>()({ id, scope })）
+  definePluginStateOf<S>(): <const Id extends string, const Sc extends PluginStateScope>(
+    def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema"> & { id: Id; scope: Sc },
+  ) => PluginStateDef<S> & { id: Owned<P, Id>; scope: Sc; address: "none" }
 
   // キーの既定のキーバインド 1 つ（command はコマンドの本当の id。args はそのコマンドの引数の型。title は自分の文言の短い鍵）
   defineKey<const K extends KeyDef>(def: K & { title?: keyof M & string }): Omit<K, "id"> & { id: Owned<P, K["id"]> }
@@ -276,7 +291,8 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineDialog: place,
     defineDialogWith: () => place,
     defineKeyScope: place,
-    definePlacedState: place,
+    definePluginState: place,
+    definePluginStateOf: () => (def: { id: string }) => ({ ...place(def), address: "none" as const }),
     defineKey: place,
     defineLanguagePack: (def: { lang: string }) => ({ ...def, id: owned(plugin, def.lang) }),
   }

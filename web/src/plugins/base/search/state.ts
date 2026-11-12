@@ -1,7 +1,7 @@
-// 検索ダイアログの、base のステージの画面の状態での持ち方: 開いている間の検索（search）、動かしたダイアログの位置（searchAt。閉じても覚える）、
+// 検索ダイアログの、base のプラグイン状態での持ち方: 開いている間の検索（search）、動かしたダイアログの位置（searchAt。閉じても覚える）、
 // 閉じたときにビューが選ぶ今の当たり（searchPick。閉じるたびに番号を進める）
 import type { Point } from "../../../core/geom"
-import { nullableItem } from "../utils/state-item"
+import { kit } from "../kit"
 import type { SearchQuery } from "./find"
 
 // 今の当たり: ページ page の、原文の [start, end)
@@ -25,16 +25,11 @@ export interface SearchPick extends SearchSpot {
   n: number // 閉じるたびに進める番号（ビューが前に選んだ物と見分ける）
 }
 
-const SEARCH = nullableItem<SearchOpen>("search")
-const SEARCH_AT = nullableItem<Point>("searchAt")
-const SEARCH_PICK = nullableItem<SearchPick>("searchPick")
+export const SEARCH_STATE = kit.definePluginStateOf<SearchOpen>()({ id: "search", scope: "stage" })
+export const SEARCH_AT_STATE = kit.definePluginStateOf<Point>()({ id: "search-at", scope: "stage" })
+export const SEARCH_PICK_STATE = kit.definePluginStateOf<SearchPick>()({ id: "search-pick", scope: "stage" })
 
-export const searchIn = SEARCH.read
-export const withSearch = SEARCH.write
-export const searchAtIn = SEARCH_AT.read
-export const withSearchAt = SEARCH_AT.write
-export const searchPickIn = SEARCH_PICK.read
-export const withSearchPick = SEARCH_PICK.write
+export const SEARCH_STATES = [SEARCH_STATE, SEARCH_AT_STATE, SEARCH_PICK_STATE] as const
 
 export const NEW_SEARCH: Omit<SearchOpen, "scope" | "focus" | "opened"> = {
   query: { text: "", caseSensitive: false, regex: false },

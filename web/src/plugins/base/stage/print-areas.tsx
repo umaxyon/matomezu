@@ -1,20 +1,14 @@
-// 印刷区画の区切りの線を隠しているか（base が持つステージの画面の状態。画面の中だけで、読み直すと見せる）
-import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
+// 印刷区画の区切りの線を隠しているか（base が持つステージのプラグイン状態。画面の中だけで、読み直すと見せる）
+import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { stageItem } from "../utils/state-item"
-
-const HIDDEN = stageItem("printAreasHidden", false, hidden => !hidden)
-const hiddenIn = HIDDEN.read
+import { PRINT_AREAS_HIDDEN } from "./states"
 
 // ステージ stage で、区切りの線を隠しているか
-export const usePrintAreasHidden = (stage: string): boolean => hiddenIn(useStageState(stage, kit))
+export const usePrintAreasHidden = (stage: string): boolean => usePluginState(kit, PRINT_AREAS_HIDDEN, stage) ?? false
 
 // ステージの区切りの線を、見せる・隠すを入れ替える関数
 export function useTogglePrintAreas(): (stage: string) => void {
-  const read = useReadStageState(kit)
-  const set = useSetStageState(kit)
-  return stage => {
-    const state = read(stage)
-    set(stage, HIDDEN.write(state, !hiddenIn(state)))
-  }
+  const read = useReadPluginState(kit, PRINT_AREAS_HIDDEN)
+  const set = useSetPluginState(kit, PRINT_AREAS_HIDDEN)
+  return stage => set(stage, read(stage) ? undefined : true)
 }

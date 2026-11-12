@@ -1,18 +1,11 @@
-// 右クリックで押した物から始める、付ける先を持つ画面の状態（伝言の下書き・マークの種類を選ぶスタンド）の、base のステージの画面の状態での持ち方:
-// 種類ごとの鍵に付ける先を持つ。ブックのデータには入れない。始めるのは UI マッピングの anchorMenu に置くコマンドで、終えるのはその種類のレイヤー
+// 右クリックで押した物から始める、付ける先を持つプラグイン状態（伝言の下書き・マークの種類を選ぶスタンド）: 種類ごとに宣言を作る（anchorTargetState。ステージごと、画面の場所には入れない）。
+// ブックのデータには入れない。始めるのは UI マッピングの anchorMenu に置くコマンドで（startAnchorTarget）、終えるのはその種類のレイヤー
+import type { PluginStateDef } from "../../../core/def/plugin-state"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
+import { kit } from "../kit"
 
 export interface AnchorTargets {
   anchors: readonly string[] // 付ける先（出す物は最後の物のそばに出す）
-}
-
-export interface AnchorTargetState {
-  // base のステージの画面の状態 state の、付ける先（無ければ null）
-  read(state: unknown): AnchorTargets | null
-  // base のステージの画面の状態 state の、付ける先を targets にしたもの（null なら終える）
-  write(state: unknown, targets: AnchorTargets | null): Record<string, unknown>
-  // 押した物 anchor から始めるコマンドの run（選んでいる物の 1 つを押したなら、選んでいる物の全部に付ける）
-  start(ctx: CommandContext, actions: CommandActions, anchor: string): void
 }
 
 // 付ける先: 押した物が選んでいる物のうちなら、選んでいる物の全部（押した物を最後にして、出す物は押した物のそばに出す）、でなければ押した物だけ
@@ -20,17 +13,12 @@ export function anchorsFor(clicked: string, selection: readonly string[]): reado
   return selection.includes(clicked) ? [...selection.filter(s => s !== clicked), clicked] : [clicked]
 }
 
-// 鍵 key に付ける先を持つ画面の状態
-export function anchorTargetState(key: string): AnchorTargetState {
-  const read = (state: unknown) => (state as Record<string, AnchorTargets> | undefined)?.[key] ?? null
-  const write = (state: unknown, targets: AnchorTargets | null) => {
-    const { [key]: _, ...rest } = (state as Record<string, unknown> | undefined) ?? {}
-    return targets ? { ...rest, [key]: targets } : rest
-  }
-  return {
-    read,
-    write,
-    start: (ctx, a, anchor) =>
-      a.updateStageState(now => write(now, { anchors: anchorsFor(anchor, ctx.stage.selection) })),
-  }
-}
+// id（kebab-case）の、付ける先を持つステージのプラグイン状態の宣言（付ける先を持たないときは値が無い）
+export const anchorTargetState = <const Id extends string>(id: Id) =>
+  kit.definePluginStateOf<AnchorTargets>()({ id, scope: "stage" })
+
+// 宣言 state の付ける先を、押した物 anchor から始めるコマンドの run（選んでいる物の 1 つを押したなら、選んでいる物の全部に付ける）
+export const startAnchorTarget =
+  (state: PluginStateDef<AnchorTargets>) =>
+  (ctx: CommandContext, a: CommandActions, anchor: string): void =>
+    a.updatePluginState(state, () => ({ anchors: anchorsFor(anchor, ctx.stage.selection) }))

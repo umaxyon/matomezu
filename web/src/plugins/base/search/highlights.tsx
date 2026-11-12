@@ -2,11 +2,11 @@
 // 光らせる Range を名前ごとに窓 1 つの表（CSS Custom Highlight API）へ足し・外すフック、閉じたときに今の当たりを受け取るフック。
 // どこを光らせるか（原文の位置から描いた要素の Range を作る）は、描いたビューが決める（ほかのプラグインのビューの中には手を入れない）
 import { useEffect, useMemo, useRef } from "react"
-import { useBook, useCoreCatalog, useStageState } from "../../../ui/view-hooks"
+import { useBook, useCoreCatalog, usePluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import type { SearchHit } from "./find"
 import { hitsIn, liveCurrent, searchableOf } from "./search"
-import { searchIn, searchPickIn } from "./state"
+import { SEARCH_PICK_STATE, SEARCH_STATE } from "./state"
 
 // 光らせる名前（CSS の ::highlight() で色を付ける。base の SearchDialog.module.css）
 export const SEARCH_HIGHLIGHT = "matomezu-search"
@@ -19,7 +19,7 @@ export function useSearchHits(
 ): { hits: readonly SearchHit[]; current: SearchHit | "none" } {
   const catalog = useCoreCatalog()
   const book = useBook(stage)
-  const search = searchIn(useStageState(stage, kit))
+  const search = usePluginState(kit, SEARCH_STATE, stage)
   return useMemo(() => {
     const s = searchableOf(catalog, book)
     if (!search || s === "none" || !book) return { hits: [], current: "none" }
@@ -59,7 +59,7 @@ export function useHighlightRanges(name: string, ranges: readonly Range[]): void
 
 // 検索ダイアログを閉じたとき、ページ page の今の当たりを pick に渡す（閉じるたびに 1 回）
 export function useSearchPick(stage: string, page: string, pick: (hit: SearchHit) => void): void {
-  const picked = searchPickIn(useStageState(stage, kit))
+  const picked = usePluginState(kit, SEARCH_PICK_STATE, stage)
   const seen = useRef(picked?.n ?? 0)
   const call = useRef(pick)
   call.current = pick

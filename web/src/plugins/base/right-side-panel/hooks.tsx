@@ -3,11 +3,27 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { screenOf } from "../../../core/window"
+import { type PluginValues, pluginValueOf } from "../../../store/plugin-state"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useSetStageState, useUiCatalog } from "../../../ui/view-hooks"
+import {
+  useReadPluginState,
+  useSetPluginState,
+  useSetPluginStates,
+  useUiCatalog,
+  useUpdatePluginState,
+} from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { SLIDE_MS } from "../window/slide"
-import { panelIn, type RightSidePanelOpen, withOpened, withoutAnchor, withPanel } from "./state"
+import {
+  openedRestore,
+  RIGHT_SIDE_PANEL_RESTORE_STATE,
+  RIGHT_SIDE_PANEL_STATE,
+  type RightSidePanelOpen,
+  withoutAnchor,
+} from "./state"
+
+const panelOf = (s: { pluginValues: PluginValues }, stage: string) =>
+  pluginValueOf(s.pluginValues, stage, RIGHT_SIDE_PANEL_STATE)
 
 // 今の押しで右サイドパネルを閉じたか（入れ物が押すたびに決める。閉じたのと同じ押しの click で、押した物がまた開かないように）
 export const PressClosedContext = createContext<{ current: boolean }>({ current: false })
@@ -17,10 +33,10 @@ export function useOpenedRightSidePanel(): { stage: string; open: RightSidePanel
   const stage = useMatomezuState(s => {
     const ids = screenOf(s.window)
       .stages.map(st => st.id)
-      .filter(id => panelIn(s.stageStates[id]?.[kit.id]))
+      .filter(id => panelOf(s, id))
     return ids.includes(screenOf(s.window).current) ? screenOf(s.window).current : (ids[0] ?? null)
   })
-  const open = useMatomezuState(s => (stage ? panelIn(s.stageStates[stage]?.[kit.id]) : null))
+  const open = useMatomezuState(s => (stage ? panelOf(s, stage) : undefined))
   return stage && open ? { stage, open } : null
 }
 
@@ -30,13 +46,13 @@ export const useStagesWithRightSidePanel = (): readonly string[] =>
     useShallow(s =>
       screenOf(s.window)
         .stages.map(st => st.id)
-        .filter(id => panelIn(s.stageStates[id]?.[kit.id])),
+        .filter(id => panelOf(s, id)),
     ),
   )
 
 // ステージ stage の右サイドパネル（開いていなければ null）
 export const useRightSidePanel = (stage: string): RightSidePanelOpen | null =>
-  useMatomezuState(s => panelIn(s.stageStates[stage]?.[kit.id]))
+  useMatomezuState(s => panelOf(s, stage) ?? null)
 
 // 右サイドパネルを開く関数（開くとブックスクリーンを前に出す）: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
 // 選択に従う中身なら、入れ物が開いたときにステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない。
@@ -47,23 +63,30 @@ export function useOpenRightSidePanel(): (
   restore?: "back" | "none",
 ) => void {
   const read = useReadState()
-  const set = useSetStageState(kit)
+  const readRestore = useReadPluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
+  const setStates = useSetPluginStates(kit)
   const { focusStage, showBookScreen } = useActions()
   const pressClosed = useContext(PressClosedContext)
   return useCallback(
     (stage, open, restore = "back") => {
       if (pressClosed.current) return
-      const { window, stageStates } = read()
+      const { window } = read()
       const now = screenOf(window).stages.find(s => s.id === stage)
       const opened = now?.opened
       if (!now || !opened) return
-      const state = stageStates[stage]?.[kit.id]
       const panel = { ...open, book: opened.book, page: opened.page }
-      set(stage, restore === "back" ? withOpened(state, panel, now) : withPanel(state, panel))
+      setStates(
+        restore === "back"
+          ? [
+              [RIGHT_SIDE_PANEL_STATE, stage, panel],
+              [RIGHT_SIDE_PANEL_RESTORE_STATE, stage, openedRestore(readRestore(stage), panel, now)],
+            ]
+          : [[RIGHT_SIDE_PANEL_STATE, stage, panel]],
+      )
       focusStage(stage)
       showBookScreen()
     },
-    [read, set, focusStage, showBookScreen, pressClosed],
+    [read, readRestore, setStates, focusStage, showBookScreen, pressClosed],
   )
 }
 
@@ -77,53 +100,43 @@ export function useFollowsSelection(stage: string): boolean {
 
 // 選択に従う中身で、ステージ stage の付いた先から anchor を外す関数: 選択からも外し、カレントは一つ前の物へ（state.ts の withoutAnchor）。残りが無ければ閉じる
 export function useTakeOffAnchor(): (stage: string, anchor: string) => void {
-  const read = useReadState()
-  const set = useSetStageState(kit)
+  const readPanel = useReadPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
   const { select } = useActions()
   const close = useCloseRightSidePanel()
   return useCallback(
     (stage, anchor) => {
-      const now = read().stageStates[stage]?.[kit.id]
-      const open = panelIn(now)
+      const open = readPanel(stage)
       if (!open) return
       const next = withoutAnchor(open, anchor)
       if (next.anchors.length === 0) {
         close(stage)
         return
       }
-      set(stage, withPanel(now, next))
+      set(stage, next)
       select(stage, next.anchors)
     },
-    [read, set, select, close],
+    [readPanel, set, select, close],
   )
 }
 
 // ステージ stage の右サイドパネルのカレントを、付いた先の 1 つ anchor にする関数（付いた先の並びも、ステージの選択も変えない）
 export function useSetRightSidePanelCurrent(): (stage: string, anchor: string) => void {
-  const read = useReadState()
-  const set = useSetStageState(kit)
+  const readPanel = useReadPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
   return useCallback(
     (stage, anchor) => {
-      const now = read().stageStates[stage]?.[kit.id]
-      const open = panelIn(now)
-      if (open?.anchors.includes(anchor) && open.current !== anchor)
-        set(stage, withPanel(now, { ...open, current: anchor }))
+      const open = readPanel(stage)
+      if (open?.anchors.includes(anchor) && open.current !== anchor) set(stage, { ...open, current: anchor })
     },
-    [read, set],
+    [readPanel, set],
   )
 }
 
 // ステージ stage の右サイドパネルを閉じる関数
 export function useCloseRightSidePanel(): (stage: string) => void {
-  const read = useReadState()
-  const set = useSetStageState(kit)
-  return useCallback(
-    stage => {
-      const now = read().stageStates[stage]?.[kit.id]
-      if (panelIn(now)) set(stage, withPanel(now, null))
-    },
-    [read, set],
-  )
+  const update = useUpdatePluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  return useCallback(stage => update(stage, () => undefined), [update])
 }
 
 // サイドパネル（右か左）を開いたステージが替わってから、幅を動かし終えるまで true（替わったのと同じ描き方で true にし、列の幅と一緒に動きを付ける）。

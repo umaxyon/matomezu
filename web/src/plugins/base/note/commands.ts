@@ -2,7 +2,7 @@
 import { workspaceOf } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
-import { withOpened } from "../right-side-panel/state"
+import { openedRestore, RIGHT_SIDE_PANEL_RESTORE_STATE, RIGHT_SIDE_PANEL_STATE } from "../right-side-panel/state"
 import { NOTE_ADD } from "."
 import { NEW_NOTE, NOTE_PANEL_ID } from "./panel-id"
 
@@ -17,13 +17,16 @@ export const NOTE_NEW = kit.defineCommand({
     const opened = now?.opened
     if (!now || !opened) return
     const anchors = anchorsFor(anchor, ctx.stage.selection)
-    a.updateStageState(state =>
-      withOpened(
-        state,
-        { widget: NOTE_PANEL_ID, subject: NEW_NOTE, anchors, current: anchor, book: opened.book, page: opened.page },
-        now,
-      ),
-    )
+    const panel = {
+      widget: NOTE_PANEL_ID,
+      subject: NEW_NOTE,
+      anchors,
+      current: anchor,
+      book: opened.book,
+      page: opened.page,
+    }
+    a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => panel)
+    a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, panel, now))
   },
   when: ctx => ctx.book !== null,
 })

@@ -23,12 +23,12 @@ import {
   useLatestPan,
   useMessages,
   usePerform,
-  useSetStageState,
+  usePluginState,
+  useSetPluginState,
   useShownBook,
   useShownPage,
   useStage,
   useStageArea,
-  useStageState,
 } from "../../../../plugin-api/ui"
 import { growOf, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
@@ -68,6 +68,7 @@ import { LINE_SHAPE, treePath } from "../line-shape"
 import { treeRootOf } from "../node"
 import { laidArea, laidOrigin, laidPage } from "../print"
 import { NODE_SHAPE } from "../shape"
+import { TREE_FOCUS_RELEASED_STATE } from "../states"
 import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, NODE_FILL, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
 import { NodeColorStand } from "./NodeColorStand"
@@ -413,14 +414,11 @@ export function NodeText({ node: n }: { node: LaidNode }) {
   )
 }
 
-// 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外してあるか。ステージの画面の状態に持つ（背景編集モードの間はビューが別の位置に描き直されるので、ビューの外に持つ）
-const releasedOf = (state: unknown): boolean => (state as { released?: boolean } | undefined)?.released === true
-
 // 節のフォーカスが付いているか。背景編集モードに入ると外し、ページ全体を収める（出ても外れたまま、見え方も変えない）。
 // 選びが空でなくなる（節を選ぶ）・節の書き換えを始める・ページが替わると、付いた状態に戻る
 function useFocus(stage: StageView, page: string | undefined): boolean {
-  const released = releasedOf(useStageState(stage.id, kit))
-  const writeFocus = useSetStageState(kit)
+  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE, stage.id) === true
+  const writeFocus = useSetPluginState(kit, TREE_FOCUS_RELEASED_STATE)
   const fit = useCommand(stage.id, "@matomezu/base:zoom-fit")
   const background = stage.edits === "slide"
   const items = stage.edits === "items"
@@ -439,7 +437,7 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
   // biome-ignore lint/correctness/useExhaustiveDependencies: 入ったときだけ外す
   useEffect(() => {
     if (!background) return
-    writeFocus(stage.id, { released: true })
+    writeFocus(stage.id, true)
     fitRef.current.run()
   }, [background])
   useEffect(() => {

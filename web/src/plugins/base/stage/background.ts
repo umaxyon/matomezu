@@ -1,17 +1,14 @@
-// 背景編集モードのコマンドと画面の状態: 背景（ページの slide。背景を持つタイプだけ）を直すモードに入る・出る、中身を隠す、背景の印刷の設定を変える。
-// モードはステージが持つ（core/stage.ts の edits）。中身を隠しているかは base が持つステージの画面の状態（モードを出ると戻る）
+// 背景編集モードのコマンド: 背景（ページの slide。背景を持つタイプだけ）を直すモードに入る・出る、中身を隠す、背景の印刷の設定を変える。
+// モードはステージが持つ（core/stage.ts の edits）。中身を隠しているかは base が持つステージのプラグイン状態（states.ts。モードを出ると戻る）
 import { hasPages } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/book-type"
 import { editingBackground as isEditing } from "../../../core/stage"
-import type { CommandContext } from "../../../store/commands/def"
+import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../page-tabs/page-update"
 import { BACKGROUND_PRINT, type BackgroundPrint } from "../print-preview/settings"
-import { stageItem } from "../utils/state-item"
-
-// 中身（ページの普通のアイテム）を隠しているか（背景編集モードの間だけ効く）
-export const CONTENT_HIDDEN = stageItem("contentHidden", false, hidden => !hidden)
+import { CONTENT_HIDDEN } from "./states"
 
 const editingBackground = (ctx: CommandContext): boolean => isEditing(ctx.stage)
 
@@ -23,8 +20,7 @@ const hasBackground = (ctx: CommandContext): boolean =>
   slideIsBackground(bookType(ctx.catalog, ctx.book.type))
 
 // 背景編集モードに入ったとき、前に隠していた中身は見せる
-const showContent = (a: { updateStageState(change: (now: unknown) => unknown): void }) =>
-  a.updateStageState(now => CONTENT_HIDDEN.write(now, false))
+const showContent = (a: CommandActions) => a.updatePluginState(CONTENT_HIDDEN, () => undefined)
 
 // 背景編集モードに入る・出る（フッタのボタン。もう一度押すと出る）
 export const BACKGROUND_TOGGLE = kit.defineCommand({
@@ -70,9 +66,9 @@ export const BACKGROUND_END = kit.defineCommand({
 export const BACKGROUND_HIDE_CONTENT = kit.defineCommand({
   id: "background-hide-content",
   title: "Hide content",
-  run: (_ctx, a) => a.updateStageState(now => CONTENT_HIDDEN.write(now, !CONTENT_HIDDEN.read(now))),
+  run: (_ctx, a) => a.updatePluginState(CONTENT_HIDDEN, now => (now ? undefined : true)),
   when: editingBackground,
-  active: ctx => CONTENT_HIDDEN.read(ctx.stageState),
+  active: ctx => ctx.pluginState(CONTENT_HIDDEN) ?? false,
 })
 
 // 開いているページの背景の印刷の設定を変える（フッタの「印刷対象」）

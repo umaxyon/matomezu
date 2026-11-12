@@ -94,70 +94,93 @@ describe("コマンドを行う", () => {
   })
 })
 
-describe("コマンドは、自分のプラグインが持つステージの画面の状態を文脈で読み、run が受け取る updateStageState で変える", () => {
+describe("コマンドは、自分のプラグインのプラグイン状態を文脈 pluginState で読み、run が受け取る updatePluginState で変える", () => {
   const kit = pluginKit("@x/pane", defineMessages({ toggle: { en: "Toggle", ja: "切り替え" } }))
+  const MODE = kit.definePluginStateOf<"split" | "hidden">()({ id: "mode", scope: "stage" })
+  const FLIPPED = kit.definePluginStateOf<"on">()({ id: "flipped", scope: "window" })
   const TOGGLE = kit.defineCommand({
     id: "toggle",
     title: "toggle",
-    run: (_, a) => a.updateStageState(now => (now === "split" ? undefined : "split")),
-    when: ctx => ctx.stageState !== "hidden",
-    active: ctx => ctx.stageState === "split",
+    run: (_, a) => a.updatePluginState(MODE, now => (now === "split" ? undefined : "split")),
+    when: ctx => ctx.pluginState(MODE) !== "hidden",
+    active: ctx => ctx.pluginState(MODE) === "split",
   })
-  const newPaneStore = () =>
+  // 2 つの値を 1 回のコマンドで書く
+  const BOTH = kit.defineCommand({
+    id: "both",
+    title: "toggle",
+    run: (_, a) => {
+      a.updatePluginState(MODE, () => "split")
+      a.updatePluginState(FLIPPED, now => (now === "on" ? undefined : "on"))
+    },
+    when: () => true,
+  })
+  const make = (plugin = kit.plugin({ pluginStates: [MODE, FLIPPED], commands: [TOGGLE, BOTH] })) =>
     createMatomezuInstance({
-      plugins: [...BUILTIN, definePlugin(kit.plugin({ commands: [TOGGLE] }))],
+      plugins: [...BUILTIN, definePlugin(plugin)],
       controlCenter: "@matomezu/control-center:control-center",
       books: SAMPLE_BOOKS,
       lang: "ja",
       newId: sequence(),
     })
+  // 表に無い id（型に書き足していない追加プラグインのコマンド）を呼ぶ
+  const call = (store: ReturnType<typeof make>, stage: string, id: string) =>
+    (store.actions.command as (stage: string, id: string) => boolean)(stage, `@x/pane:${id}`)
 
   test("run で置いた値を、そのステージの when・active が読む。ほかのステージには効かない", () => {
-    const store = newPaneStore()
-    const { state, actions } = store
-    // 表に無い id（型に書き足していない追加プラグインのコマンド）を呼ぶ
-    const toggle = (stage: string) =>
-      (actions.command as (stage: string, id: string) => boolean)(stage, "@x/pane:toggle")
-    actions.split("s1")
-    toggle("s1")
-    expect(state.getState().stageStates).toEqual({ s1: { "@x/pane": "split" } })
+    const store = make()
+    const { state } = store
+    store.actions.split("s1")
+    call(store, "s1", "toggle")
+    expect(state.getState().pluginValues.stages).toEqual({ s1: { "@x/pane:mode": "split" } })
     expect(isActive(store, state.getState(), "s1", "@x/pane:toggle" as never)).toBe(true)
     expect(isActive(store, state.getState(), "s2", "@x/pane:toggle" as never)).toBe(false)
-    toggle("s1")
-    expect(state.getState().stageStates.s1).toEqual({})
+    call(store, "s1", "toggle")
+    expect(state.getState().pluginValues.stages.s1).toEqual({})
   })
 
-  test("窓の外観枠の状態も、文脈 frameState で読み、run が受け取る updateFrameState で変える（ステージによらない）", () => {
-    const frameKit = pluginKit("@x/frame", defineMessages({ flip: { en: "Flip", ja: "切り替え" } }))
-    const FLIP = frameKit.defineCommand({
-      id: "flip",
-      title: "flip",
-      run: (_, a) => a.updateFrameState(now => (now === "on" ? undefined : "on")),
+  test("ステージに結ばない宣言（scope が window）の値は、ステージによらない", () => {
+    const store = make()
+    store.actions.split("s1")
+    call(store, "s1", "both")
+    expect(store.state.getState().pluginValues.window).toEqual({ "@x/pane:flipped": "on" })
+    call(store, "s2", "both")
+    expect(store.state.getState().pluginValues.window).toEqual({})
+  })
+
+  test("1 回のコマンドで何度書いても、store には 1 回で書く（途中の状態を知らせない）", () => {
+    const store = make()
+    let notified = 0
+    store.state.subscribe(() => {
+      notified++
+    })
+    call(store, "s1", "both")
+    expect(notified).toBe(1)
+    expect(store.state.getState().pluginValues.stages.s1).toEqual({ "@x/pane:mode": "split" })
+    expect(store.state.getState().pluginValues.window).toEqual({ "@x/pane:flipped": "on" })
+  })
+
+  test("読むのは自分の宣言だけ（ほかのプラグインの宣言を読む・書くと E125）", () => {
+    const other = pluginKit("@x/other", defineMessages({ steal: { en: "Steal", ja: "盗む" } }))
+    const STEAL = other.defineCommand({
+      id: "steal",
+      title: "steal",
+      run: (_, a) => a.updatePluginState(MODE, () => "hidden"),
       when: () => true,
-      active: ctx => ctx.frameState === "on",
     })
     const store = createMatomezuInstance({
-      plugins: [...BUILTIN, definePlugin(frameKit.plugin({ commands: [FLIP] }))],
+      plugins: [
+        ...BUILTIN,
+        definePlugin(kit.plugin({ pluginStates: [MODE, FLIPPED], commands: [TOGGLE, BOTH] })),
+        definePlugin(other.plugin({ commands: [STEAL] })),
+      ],
       controlCenter: "@matomezu/control-center:control-center",
       books: SAMPLE_BOOKS,
       lang: "ja",
       newId: sequence(),
     })
-    const flip = (stage: string) =>
-      (store.actions.command as (stage: string, id: string) => boolean)(stage, "@x/frame:flip")
-    store.actions.split("s1")
-    flip("s1")
-    expect(store.state.getState().frameStates).toEqual({ "@x/frame": "on" })
-    expect(isActive(store, store.state.getState(), "s2", "@x/frame:flip" as never)).toBe(true)
-    flip("s2")
-    expect(store.state.getState().frameStates).toEqual({})
-  })
-
-  test("読むのは自分の置き場だけ（ほかのプラグインの置き場の値は見えない）", () => {
-    const store = newPaneStore()
-    store.setStageState("s1", "@x/other", "hidden")
-    expect(isShown(store, store.state.getState(), "s1", "@x/pane:toggle" as never)).toBe(true)
-    store.setStageState("s1", "@x/pane", "hidden")
-    expect(isShown(store, store.state.getState(), "s1", "@x/pane:toggle" as never)).toBe(false)
+    expect(() => (store.actions.command as (stage: string, id: string) => boolean)("s1", "@x/other:steal")).toThrow(
+      "E125",
+    )
   })
 })

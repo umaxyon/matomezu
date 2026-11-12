@@ -18,14 +18,18 @@ test("足した題でチケットの履歴に書ける。足さなければ、�
     const project = Object.keys(state.getState().records["@matomezu/taskboard:project"] ?? {})[0] ?? ""
     const added = actions.perform("@matomezu/taskboard:ticket-add", { project, name: "t" })
     const ticket = added.ok ? (added.result as { ticket: string }).ticket : ""
-    const line = actions.perform("@matomezu/taskboard:ticket-log", { ticket, topic: "ex11:topic-review", text: "よい" })
+    const line = actions.perform("@matomezu/taskboard:ticket-history-add", {
+      ticket,
+      topic: "ex11:topic-review",
+      text: "よい",
+    })
     expect(line.ok).toBe(ok)
   }
 })
 
-test("AI に見せる ticket-log の引数に、足した題が並ぶ", () => {
+test("AI に見せる ticket-history-add の引数に、足した題が並ぶ", () => {
   const { catalog } = make()
-  const args = catalog.core.actions.get("@matomezu/taskboard:ticket-log")?.describeArgs?.(catalog.core)
+  const args = catalog.core.actions.get("@matomezu/taskboard:ticket-history-add")?.describeArgs?.(catalog.core)
   expect(JSON.stringify(args?.safeParse({ ticket: "t", topic: "ex11:topic-review", text: "x" }).success)).toBe("true")
   expect(args?.safeParse({ ticket: "t", topic: "nothing", text: "x" }).success).toBe(false)
 })

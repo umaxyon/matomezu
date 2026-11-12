@@ -3,7 +3,7 @@
 // ならブラウザの履歴に積み（pushState）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。同じ同期の処理の中の
 // 変わりは、終わってから 1 つにまとめて書く（分割してブックとページを開いても、ブラウザの履歴に積むのは 1 つ）。ブラウザの戻る・進む（popstate）は、その URL の場所を当てはめる。
 // URL の形: ステージごとに b0（ブックの id。何も開いていなければ空）・p0（ページの id。無ければ書かない）・v0（倍率,横,縦）・
-// s0（ステージの、場所に入れる画面の状態。宣言の id → 値の JSON。無ければ書かない）、続けて b1・p1・v1・s1 …、w（窓の外の、場所に入れる画面の状態。宣言の id → 値の JSON。無ければ書かない）、f（コントロールセンターを前に出している間だけ center。ブックスクリーンを前に出している間は書かない）・c（カレントの番号）・r（境目の割合）。
+// s0（ステージの、画面の場所に入れるプラグイン状態。宣言の id → 値の JSON。無ければ書かない）、続けて b1・p1・v1・s1 …、w（窓の外の、画面の場所に入れるプラグイン状態。宣言の id → 値の JSON。無ければ書かない）、f（コントロールセンターを前に出している間だけ center。ブックスクリーンを前に出している間は書かない）・c（カレントの番号）・r（境目の割合）。
 // ステージの無い URL（f だけ）は、前に出す物だけを決める。URL が無ければ、開いた直後はコントロールセンターを前に出す。
 // id にどの文字が入っても読み戻せるように、ステージの値ごとに分けて書く。画面の状態の中身は読まない（形を確かめるのは store の locate）
 import { type Address, moved, type StagePlace } from "../core/address"
@@ -46,7 +46,7 @@ export function searchOf(address: Address): string {
     q.set(`v${i}`, `${round(s.zoom)},${round(s.pan.x)},${round(s.pan.y)}`)
     if (Object.keys(s.states).length > 0) q.set(`s${i}`, JSON.stringify(s.states))
   })
-  if (Object.keys(address.frame).length > 0) q.set("w", JSON.stringify(address.frame))
+  if (Object.keys(address.window).length > 0) q.set("w", JSON.stringify(address.window))
   if (address.front === "control-center") q.set("f", "center")
   q.set("c", String(address.current))
   q.set("r", String(round(address.share)))
@@ -73,10 +73,10 @@ export function parseSearch(search: string): Address | null {
   }
   const front = q.get("f") === "center" ? "control-center" : "book-screen"
   if (stages.length === 0 && !q.has("f")) return null
-  return { front, stages, current: num(q.get("c"), 0), share: num(q.get("r"), 0.5), frame: statesOf(q.get("w")) }
+  return { front, stages, current: num(q.get("c"), 0), share: num(q.get("r"), 0.5), window: statesOf(q.get("w")) }
 }
 
-// URL の s0・w などの値を、場所に入れる画面の状態にする（JSON のオブジェクトでなければ空）
+// URL の s0・w などの値を、画面の場所に入れるプラグイン状態にする（JSON のオブジェクトでなければ空）
 function statesOf(text: string | null): Readonly<Record<string, unknown>> {
   if (text === null) return {}
   try {
@@ -100,7 +100,7 @@ export function followLocation(
     stages: [],
     current: 0,
     share: 0.5,
-    frame: {},
+    window: {},
   }
   instance.locate(start)
   let shown = instance.address()

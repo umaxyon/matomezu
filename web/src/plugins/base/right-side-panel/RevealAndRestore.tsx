@@ -7,38 +7,35 @@ import { useShallow } from "zustand/react/shallow"
 import type { Rect } from "../../../core/geom"
 import type { Stage } from "../../../core/stage"
 import { screenOf } from "../../../core/window"
+import { pluginValueOf } from "../../../store/plugin-state"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useReadStageState, useSetStageState, useStageState } from "../../../ui/view-hooks"
+import { usePluginState, useReadPluginState, useUpdatePluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorElementIn, revealedRect } from "../utils/anchors"
 import { stageElement } from "../utils/stage-element"
 import { moveView } from "../zoom"
 import { useOpenedRightSidePanel } from "./hooks"
 import { paperRectOf, revealView } from "./reveal"
-import { movedFrom, restoreIn, restoreTo, revealFor, withoutRestore, withRestore } from "./state"
+import { movedFrom, RIGHT_SIDE_PANEL_RESTORE_STATE, restoreTo, revealFor, withRestore } from "./state"
 
 export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   const found = useOpenedRightSidePanel()
   const stage = found?.stage ?? null
   const anchors = found?.open.anchors ?? null
   const current = found?.open.current ?? null
-  const restore = restoreIn(useStageState(stage ?? "", kit))
+  const restore = usePluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE, stage ?? "")
   const kept = useMatomezuState(
     useShallow(s =>
       screenOf(s.window)
         .stages.map(st => st.id)
-        .filter(id => restoreIn(s.stageStates[id]?.[kit.id])),
+        .filter(id => pluginValueOf(s.pluginValues, id, RIGHT_SIDE_PANEL_RESTORE_STATE)),
     ),
   )
   const now = useMatomezuState(s => (stage ? screenOf(s.window).stages.find(st => st.id === stage) : undefined))
   const read = useReadState()
-  const readOwn = useReadStageState(kit)
-  const set = useSetStageState(kit)
+  const readRestore = useReadPluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
+  const update = useUpdatePluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const actions = useActions()
-  const update = useCallback(
-    (id: string, change: (now: unknown) => unknown) => set(id, change(readOwn(id))),
-    [readOwn, set],
-  )
   const stageOf = useCallback((id: string) => screenOf(read().window).stages.find(s => s.id === id), [read])
   // 見せる: 付いた先が替われば全部を囲む四角を収め（1 つなら 100%）、カレントだけが替われば倍率はそのままでカレントを真ん中へ（state.ts の revealFor）
   useEffect(() => {
@@ -56,7 +53,7 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   // 見せたあと、倍率かずらす量を変えたら覚える
   useEffect(() => {
     if (!stage || !restore || restore.moved || !now) return
-    if (movedFrom(restore, now)) update(stage, state => withRestore(state, { moved: true }))
+    if (movedFrom(restore, now)) update(stage, now => withRestore(now, { moved: true }))
   }, [stage, restore, now, update])
   // 閉じて幅を動かし終えたら、戻して覚えを消す（別のステージで開いていれば、戻さずに消す）
   useEffect(() => {
@@ -64,12 +61,12 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
     for (const id of kept) {
       if (id === stage) continue
       const now = stageOf(id)
-      const record = restoreIn(readOwn(id))
+      const record = readRestore(id)
       const to = now && record ? restoreTo(record, now, stage !== null) : null
       if (now && to) moveView(actions, now, to)
-      update(id, withoutRestore)
+      update(id, () => undefined)
     }
-  }, [sliding, kept, stage, stageOf, readOwn, actions, update])
+  }, [sliding, kept, stage, stageOf, readRestore, actions, update])
   return null
 }
 

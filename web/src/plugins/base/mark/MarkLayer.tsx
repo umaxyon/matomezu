@@ -23,8 +23,8 @@ import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import type { StageSlotProps } from "../workspace/ui"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
-import { MARK_PICKER } from "./commands"
 import styles from "./MarkLayer.module.css"
+import { MARK_PICKER } from "./states"
 
 const PICK_SIZE = 40 // 種類を選ぶスタンドの鳥の大きさ
 const ALERT = 18 // びっくりマークの丸の大きさ

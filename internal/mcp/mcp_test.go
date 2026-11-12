@@ -15,8 +15,9 @@ type fakeAPI struct {
 	posts   []string
 	gets    []string // 読む口に頼んだ道筋（問い合わせを含む）
 	answer  string
-	sent    []string    // 呼び出しごとに添えた参加の id
-	replied http.Header // 返事に付けるヘッダ
+	sent    []string      // 呼び出しごとに添えた参加の id
+	headers []http.Header // 呼び出しごとに添えたヘッダ
+	replied http.Header   // 返事に付けるヘッダ
 }
 
 const aiCatalogJSON = `{"actions":[
@@ -27,6 +28,7 @@ const aiCatalogJSON = `{"actions":[
 
 func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.Header, error) {
 	f.sent = append(f.sent, header.Get("X-Matomezu-Participant"))
+	f.headers = append(f.headers, header)
 	f.gets = append(f.gets, path)
 	switch path {
 	case "api/ai/books", "api/ai/mail":
@@ -49,16 +51,23 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 
 func (f *fakeAPI) Post(path string, body any, header http.Header) (json.RawMessage, http.Header, error) {
 	f.sent = append(f.sent, header.Get("X-Matomezu-Participant"))
+	f.headers = append(f.headers, header)
 	b, _ := json.Marshal(body)
 	f.posts = append(f.posts, path+" "+string(b))
 	return json.RawMessage(f.answer), f.replied, nil
 }
 
-// talk は頼みを 1 行ずつ送り、答えを返す
+// talk は頼みを 1 行ずつ送り、答えを返す（ブランチは無く、AI のプログラムのプロセス id は 4242）
 func talk(t *testing.T, api API, lines ...string) []map[string]any {
 	t.Helper()
+	return talkOn(t, api, func() string { return "" }, lines...)
+}
+
+// talkOn は、git のブランチを branch で読む MCP に、頼みを 1 行ずつ送り、答えを返す
+func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[string]any {
+	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux"); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242"); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -172,6 +181,30 @@ func TestShowTool(t *testing.T) {
 
 func textOf(a map[string]any) string {
 	return a["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
+}
+
+// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）と、AI のプログラムのプロセス id も添える。参加の id が無ければ添えない
+func TestBranchAndHostGoWithTheParticipant(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
+	branches := []string{"feat/d110", ""}
+	read := 0
+	talkOn(t, api, func() string { b := branches[read]; read++; return b },
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L1"}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"view","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"view","arguments":{}}}`,
+	)
+	if len(api.headers) != 3 {
+		t.Fatalf("calls = %d", len(api.headers))
+	}
+	if _, ok := api.headers[0]["X-Matomezu-Branch"]; ok || api.headers[0].Get("X-Matomezu-Host") != "" {
+		t.Fatalf("join without a participant = %v", api.headers[0])
+	}
+	for i, want := range []string{"feat%2Fd110", ""} {
+		h := api.headers[i+1]
+		if v, ok := h["X-Matomezu-Branch"]; !ok || v[0] != want || h.Get("X-Matomezu-Host") != "4242" {
+			t.Fatalf("call %d = %v", i+1, h)
+		}
+	}
 }
 
 // join は AI の名前（clientInfo の名前と版）・環境・_meta のセッション id を MCP が埋めて頼み、返った参加の id を以後の呼び出し全部に添える

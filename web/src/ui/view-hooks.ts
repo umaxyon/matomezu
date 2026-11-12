@@ -1,5 +1,5 @@
 // プラグインの見た目が使うフック（matomezu/ui）: matomezu が渡すステージの id から、約束のものだけを引く。状態を丸ごとは見せない。
-// データはブック・ページ・アイテム、ステージは読むだけの StageView（プラグインが持つ画面の状態は useStageState・useSetStageState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ
+// データはブック・ページ・アイテム、ステージは読むだけの StageView（プラグインが持つ状態は usePluginState・useSetPluginState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { USER } from "../core/actor"
@@ -7,7 +7,7 @@ import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isOnBook, type Where } from "../core/def/action"
-import type { PlacedStateDef } from "../core/def/placed-state"
+import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
@@ -26,7 +26,7 @@ import { stageBlocks, toPaper } from "../core/stage"
 import { screenOf } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
-import { ownedPlaced, placedValueOf } from "../store/placed-state"
+import { ownedPluginState, pluginValueOf } from "../store/plugin-state"
 import type { Performed } from "../store/store"
 import { worldOf } from "../store/world"
 import type { UiCatalog } from "./plugin"
@@ -177,75 +177,77 @@ export function useStage(stage: string): StageView | null {
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 
-// 画面の状態の置き場の持ち主（プラグインの kit。kit の id の置き場を使う。id だけの物は受けない）
+// プラグイン状態の持ち主（プラグインの kit。kit の id が頭の宣言だけを読み書きする。id だけの物は受けない）
 // biome-ignore lint/suspicious/noExplicitAny: どのプラグインの kit も受ける（文言の表の型は見ない）
 type Owner = PluginKit<string, any>
 
-// プラグインが持つ、ステージ stage の画面の状態（無ければ undefined）。自分の kit を渡し、自分の置き場だけを読む。置き直すたびに描き直す
-export const useStageState = (stage: string, kit: Owner): unknown =>
-  useMatomezuState(s => s.stageStates[stage]?.[kit.id])
+// ステージごとの宣言は、読み書きするステージ stage を呼び出しに渡す（ステージに結ばない宣言は渡さない）
+type At<Sc extends PluginStateScope> = Sc extends "stage" ? [stage: string] : []
 
-// プラグインが持つステージの画面の状態を、描き直さずに読む関数（置いた側が、前に置いた値と比べるときなど）
-export function useReadStageState(kit: Owner): (stage: string) => unknown {
+// プラグイン状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。
+// ステージごとの宣言は読むステージ stage も渡す。置き直すたびに描き直す
+export function usePluginState<S>(kit: Owner, def: PluginStateDef<S> & { scope: "window" }): S | undefined
+export function usePluginState<S>(kit: Owner, def: PluginStateDef<S> & { scope: "stage" }, stage: string): S | undefined
+export function usePluginState<S>(kit: Owner, def: PluginStateDef<S>, stage = ""): S | undefined {
+  const own = ownedPluginState(kit.id, def)
+  return useMatomezuState(s => pluginValueOf(s.pluginValues, stage, own))
+}
+
+// プラグイン状態 def を、描き直さずに読む関数（置いた側が、前に置いた値と比べるときなど。ステージごとの宣言は、読むステージを呼び出しに渡す）
+export function useReadPluginState<S, Sc extends PluginStateScope>(
+  kit: Owner,
+  def: PluginStateDef<S> & { scope: Sc },
+): (...at: At<Sc>) => S | undefined {
   const read = useReadState()
-  const { id } = kit
-  return useCallback(stage => read().stageStates[stage]?.[id], [read, id])
+  const own = ownedPluginState(kit.id, def)
+  return useCallback((...at: string[]) => pluginValueOf(read().pluginValues, at[0] ?? "", own), [read, own])
 }
 
-// プラグインが持つ、窓の外観枠の状態（無ければ undefined）。自分の kit を渡し、自分の置き場だけを読む。置き直すたびに描き直す
-export const useFrameState = (kit: Owner): unknown => useMatomezuState(s => s.frameStates[kit.id])
-
-// プラグインが持つ窓の外観枠の状態を、描き直さずに読む関数
-export function useReadFrameState(kit: Owner): () => unknown {
-  const read = useReadState()
-  const { id } = kit
-  return useCallback(() => read().frameStates[id], [read, id])
-}
-
-// プラグインが持つ、窓の外観枠の状態を変える関数（undefined なら消す）
-export function useSetFrameState(kit: Owner): (value: unknown) => void {
-  const { setFrameState } = useInstance()
-  const { id } = kit
-  return useCallback(value => setFrameState(id, value), [setFrameState, id])
-}
-
-// プラグインが宣言した、場所に入れる画面の状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。
-// ステージの宣言（scope が stage）は、読むステージ stage も渡す。置き直すたびに描き直す
-export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S> & { scope: "frame" }): S | undefined
-export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S> & { scope: "stage" }, stage: string): S | undefined
-export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S>, stage = ""): S | undefined {
-  const own = ownedPlaced(kit.id, def)
-  return useMatomezuState(s => placedValueOf(s.placedValues, stage, own))
-}
-
-// 場所に入れる画面の状態 def の値を変える関数（undefined なら消す。形に合わなければ E123。無いステージには置かない）。自分の kit を渡し、自分の宣言だけを変える
-export function useSetPlacedState<S>(
+// プラグイン状態 def の値を変える関数（最後の引数が新しい値。undefined なら消す。ステージごとの宣言は、先頭にステージを渡す。無いステージには置かない。
+// 画面の場所に入れる宣言の形に合わなければ E123）
+export function useSetPluginState<S, Sc extends PluginStateScope>(
   kit: Owner,
-  def: PlacedStateDef<S> & { scope: "frame" },
-): (value: S | undefined) => void
-export function useSetPlacedState<S>(
-  kit: Owner,
-  def: PlacedStateDef<S> & { scope: "stage" },
-  stage: string,
-): (value: S | undefined) => void
-export function useSetPlacedState<S>(
-  kit: Owner,
-  def: PlacedStateDef<S>,
-  stage?: string,
-): (value: S | undefined) => void {
-  const { setPlaced } = useInstance()
-  const { id, scope } = ownedPlaced(kit.id, def)
+  def: PluginStateDef<S> & { scope: Sc },
+): (...args: [...At<Sc>, S | undefined]) => void {
+  const { setPluginState } = useInstance()
+  const own = ownedPluginState(kit.id, def)
   return useCallback(
-    value => setPlaced(id, scope === "stage" ? (stage ?? null) : null, value),
-    [setPlaced, id, scope, stage],
+    (...args: unknown[]) =>
+      setPluginState(own.id, own.scope === "stage" ? (args[0] as string) : null, args[args.length - 1]),
+    [setPluginState, own],
   )
 }
 
-// プラグインが持つ、ステージの画面の状態を変える関数（undefined なら消す。無いステージには置かない）
-export function useSetStageState(kit: Owner): (stage: string, value: unknown) => void {
-  const { setStageState } = useInstance()
-  const { id } = kit
-  return useCallback((stage, value) => setStageState(stage, id, value), [setStageState, id])
+// 複数のプラグイン状態の値を、1 回で書く関数（途中の、片方だけ変わった状態を知らせない）。自分の kit を渡し、自分の宣言だけを書く。
+// 変え方は [宣言, ステージ（ステージに結ばない宣言は null）, 新しい値] の並び
+export function useSetPluginStates(
+  kit: Owner,
+): (changes: readonly (readonly [def: PluginStateDef<unknown>, stage: string | null, value: unknown])[]) => void {
+  const { setPluginStates } = useInstance()
+  const id = kit.id
+  return useCallback(
+    changes =>
+      setPluginStates(changes.map(([def, stage, value]) => [ownedPluginState(id, def).id, stage, value] as const)),
+    [setPluginStates, id],
+  )
+}
+
+// プラグイン状態 def の値を、今の値から change が返す値にする関数（最後の引数が change。ステージごとの宣言は、先頭にステージを渡す）
+export function useUpdatePluginState<S, Sc extends PluginStateScope>(
+  kit: Owner,
+  def: PluginStateDef<S> & { scope: Sc },
+): (...args: [...At<Sc>, (now: S | undefined) => S | undefined]) => void {
+  const { setPluginState } = useInstance()
+  const read = useReadState()
+  const own = ownedPluginState(kit.id, def)
+  return useCallback(
+    (...args: unknown[]) => {
+      const stage = own.scope === "stage" ? (args[0] as string) : null
+      const change = args[args.length - 1] as (now: S | undefined) => S | undefined
+      setPluginState(own.id, stage, change(pluginValueOf(read().pluginValues, stage ?? "", own)))
+    },
+    [setPluginState, read, own],
+  )
 }
 
 // 見せ方のビューが、そのステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。

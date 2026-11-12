@@ -1,15 +1,15 @@
 // タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトにチケットを足させない）。
 import { defineBuiltin } from "../../plugin-api/builtin"
 import {
+  CURRENT_TICKET_SET,
   PROJECT_ADD,
   PROJECT_CLOSE,
   PROJECT_REOPEN,
   PROJECT_UPDATE,
   TICKET_ADD,
+  TICKET_HISTORY_ADD,
   TICKET_LOCK,
-  TICKET_LOG,
   TICKET_REMOVE,
-  TICKET_START,
   TICKET_UNLOCK,
   TICKET_UPDATE,
 } from "./actions"
@@ -35,8 +35,8 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       TICKET_REMOVE,
       TICKET_LOCK,
       TICKET_UNLOCK,
-      TICKET_LOG,
-      TICKET_START,
+      TICKET_HISTORY_ADD,
+      CURRENT_TICKET_SET,
     ],
     permissions: [CLOSED_PROJECT],
   }),
@@ -67,8 +67,8 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:ticket-remove": typeof TICKET_REMOVE
     "@matomezu/taskboard:ticket-lock": typeof TICKET_LOCK
     "@matomezu/taskboard:ticket-unlock": typeof TICKET_UNLOCK
-    "@matomezu/taskboard:ticket-log": typeof TICKET_LOG
-    "@matomezu/taskboard:ticket-start": typeof TICKET_START
+    "@matomezu/taskboard:ticket-history-add": typeof TICKET_HISTORY_ADD
+    "@matomezu/taskboard:current-ticket-set": typeof CURRENT_TICKET_SET
   }
   interface PermissionTable {
     "@matomezu/taskboard:closed-project": typeof CLOSED_PROJECT

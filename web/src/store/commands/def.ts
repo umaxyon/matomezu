@@ -4,7 +4,7 @@
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { ArgsOfType, Where } from "../../core/def/action"
-import type { PlacedStateDef } from "../../core/def/placed-state"
+import type { PluginStateDef } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
@@ -65,10 +65,8 @@ export interface CommandContext {
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
   bookHistory: BookHistory // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
-  stageState: unknown // コマンドを持つプラグイン（id の頭）が持つ、そのステージの画面の状態（無ければ undefined。変えるのは run が受け取る updateStageState）
-  frameState: unknown // コマンドを持つプラグインが持つ、窓の外観枠の状態（無ければ undefined。変えるのは run が受け取る updateFrameState）
-  // コマンドを持つプラグインが宣言した、場所に入れる画面の状態 def の値（ステージの宣言は呼ばれた場所のステージの値。無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePlaced）
-  placed<S>(def: PlacedStateDef<S>): S | undefined
+  // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（ステージごとの宣言は呼ばれた場所のステージの値。無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）
+  pluginState<S>(def: PluginStateDef<S>): S | undefined
 }
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）
@@ -90,14 +88,10 @@ export function withWorkspace(ctx: Omit<CommandContext, "toPaper">, workspace: W
 // コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx) ?? fail("E116", { id: ctx.stage.id })
 
-// コマンドが受け取る store の操作: 画面の操作（Actions）に、そのコマンドを持つプラグインの、ステージの画面の状態を変える操作を足したもの
+// コマンドが受け取る store の操作: 画面の操作（Actions）に、そのコマンドを持つプラグインのプラグイン状態を変える操作を足したもの
 export interface CommandActions extends Actions {
-  // 呼ばれた場所のステージの、このコマンドを持つプラグインの画面の状態を、今の値から change が返す値にする（undefined なら消す）。ほかのステージ・プラグインの状態は変えられない
-  updateStageState(change: (now: unknown) => unknown): void
-  // このコマンドを持つプラグインの、窓の外観枠の状態を、今の値から change が返す値にする（undefined なら消す）。ほかのプラグインの状態は変えられない
-  updateFrameState(change: (now: unknown) => unknown): void
-  // このコマンドを持つプラグインが宣言した、場所に入れる画面の状態 def の値を、今の値から change が返す値にする（undefined なら消す。ステージの宣言は呼ばれた場所のステージの値）。形に合わなければ E123
-  updatePlaced<S>(def: PlacedStateDef<S>, change: (now: S | undefined) => S | undefined): void
+  // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（undefined なら消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
+  updatePluginState<S>(def: PluginStateDef<S>, change: (now: S | undefined) => S | undefined): void
 }
 
 export interface CommandDef<A = undefined, Tt extends string = MessageKey> extends CommandExtras {

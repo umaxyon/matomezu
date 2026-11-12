@@ -19,6 +19,7 @@ import { kit } from "./kit"
 import { LINE_SHAPE } from "./line-shape"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
+import { type TREE_FOCUS_RELEASED_STATE, TREE_STATES } from "./states"
 import { EDIT_TOOL, TREE_TOOLS } from "./tools"
 import {
   NEW_TREE_PAGE_DIALOG,
@@ -32,6 +33,7 @@ import {
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [TREE],
+    pluginStates: TREE_STATES,
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],
     dialogs: [NEW_TREE_PAGE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, NODE_SIZE_DIALOG],
@@ -81,6 +83,9 @@ declare module "../../../core/catalog" {
     "@matomezu/tree:node-delete": typeof NODE_DELETE
     "@matomezu/tree:node-size-edit": typeof NODE_SIZE_EDIT
     "@matomezu/tree:node-color-edit": typeof NODE_COLOR_EDIT
+  }
+  interface PluginStateTable {
+    "@matomezu/tree:focus-released": typeof TREE_FOCUS_RELEASED_STATE
   }
   interface KeyScopeTable {
     "@matomezu/tree:tree": typeof TREE_KEY_SCOPE // ツリーの見せ方で描いている間のキー

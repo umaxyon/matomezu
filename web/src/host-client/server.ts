@@ -21,7 +21,14 @@ import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { screenOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
-import type { AIEditTicketOutcome, DoneAction, HostAnswer, MatomezuInstance, MatomezuState } from "../store/store"
+import type {
+  AIEditTicketOutcome,
+  DoneAction,
+  HostAnswer,
+  MatomezuInstance,
+  MatomezuState,
+  ParticipantLive,
+} from "../store/store"
 import type { HostClient, Loaded } from "./client"
 
 // 常駐が答えなかった（常駐から開いていない）
@@ -102,6 +109,12 @@ interface Pending {
   tries: number
   answer: (a: HostAnswer) => void // 常駐の答えを observe に返す
 }
+
+// 参加者の様子のうち、空でない物（モデルもブランチも無ければ undefined）
+const liveOf = (v: { model?: string | undefined; branch?: string | undefined }): ParticipantLive | undefined =>
+  v.model || v.branch
+    ? { ...(v.model ? { model: v.model } : {}), ...(v.branch ? { branch: v.branch } : {}) }
+    : undefined
 
 const openedOf = (stage: Stage) => {
   const opened = stage.opened
@@ -189,6 +202,9 @@ const DataSchema = z.object({
   touched: z.record(z.string(), z.string()).optional(),
   participantCalls: z.record(z.string(), z.string()).optional(),
   participantReady: z.array(z.string()).optional(),
+  participantLive: z
+    .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
+    .optional(),
 })
 const HelloSchema = z.object({ client: z.string() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
@@ -204,6 +220,11 @@ const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
 const AckSchema = z.object({ seq: z.number().int(), ok: z.boolean(), reason: z.string() })
 const ParticipantCallSchema = z.object({ participant: z.string(), at: z.string() })
 const ParticipantReadySchema = z.object({ participant: z.string() })
+const ParticipantLiveSchema = z.object({
+  participant: z.string(),
+  model: z.string().optional(),
+  branch: z.string().optional(),
+})
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
 const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
@@ -230,6 +251,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
+  let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → モデルとブランチ（どちらも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: Pending[] = []
   let client = ""
@@ -312,6 +334,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         touched,
         participantCalls,
         participantReady,
+        participantLive,
       },
       pending.map(p => p.done),
       change,
@@ -422,6 +445,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
       if ((participantCalls[id] ?? "") < at) participantCalls = { ...participantCalls, [id]: at }
     for (const id of data.participantReady ?? [])
       if (!participantReady.includes(id)) participantReady = [...participantReady, id]
+    // 参加者の様子は、読んだ物で全部を入れ替える
+    participantLive = {}
+    for (const [id, live] of Object.entries(data.participantLive ?? {})) {
+      const l = liveOf(live)
+      if (l) participantLive[id] = l
+    }
   }
   // つなぎ直したときに読み直し、読み直した世界の上に、まだ確かめられていないアクションを出して送り直す。
   // 読めなければ送り直しは先に済ませ、同じつながりのうちは少し待って読み直す（読めるまで、知らせで変わった物のほかは古いまま）
@@ -587,6 +616,13 @@ export function serverClient(net: Net = browserNet): ServerClient {
       const e = ParticipantReadySchema.parse(JSON.parse(data))
       if (participantReady.includes(e.participant)) return
       participantReady = [...participantReady, e.participant]
+      show()
+    })
+    on("participant-live", data => {
+      const e = ParticipantLiveSchema.parse(JSON.parse(data))
+      const { [e.participant]: _, ...rest } = participantLive
+      const l = liveOf(e)
+      participantLive = l ? { ...rest, [e.participant]: l } : rest
       show()
     })
     on("touched", data => {

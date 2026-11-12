@@ -2,14 +2,14 @@
 // 開け閉めの動きは入れ物が持ち、機能ごとに作らない
 import { kit } from "../kit"
 import { LEFT_SIDE_PANEL } from "./slots"
-import { leftSidePanelIn, withLeftSidePanel } from "./state"
+import { LEFT_SIDE_PANEL_STATE } from "./state"
 
 // 開いている左サイドパネルを閉じる（Esc。左サイドパネルの中にフォーカスがあるとき）
 export const LEFT_SIDE_PANEL_CLOSE = kit.defineCommand({
   id: "left-side-panel-close",
   title: "Close the left side panel",
-  run: (_ctx, a) => a.updateFrameState(now => withLeftSidePanel(now, null)),
-  when: ctx => leftSidePanelIn(ctx.frameState) !== null,
+  run: (_ctx, a) => a.updatePluginState(LEFT_SIDE_PANEL_STATE, () => undefined),
+  when: ctx => ctx.pluginState(LEFT_SIDE_PANEL_STATE) !== undefined,
 })
 
 // 左サイドパネルの中にフォーカスがある間のキーの範囲（名前は LEFT_SIDE_PANEL と同じ）

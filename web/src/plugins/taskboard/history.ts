@@ -11,7 +11,7 @@ export const HISTORY_TOPIC = kit.defineEnum({
   id: "history-topic",
   title: "history topic",
   aiDescription:
-    "The topics of the lines of a ticket's history, such as a status report, a plan and a question. ticket-log takes the id of one of them as its topic.",
+    "The topics of the lines of a ticket's history, such as a status report, a plan and a question. ticket-history-add takes the id of one of them as its topic.",
   value: z.strictObject({ color: z.enum(PALETTE) }), // 題を描く色の役割
 })
 

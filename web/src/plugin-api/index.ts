@@ -38,7 +38,7 @@ export type {
   ShapeEditArgs,
 } from "../core/def/item"
 export type { PaperDef } from "../core/def/paper"
-export type { PlacedStateDef } from "../core/def/placed-state"
+export type { PluginStateDef } from "../core/def/plugin-state"
 export type { PresentationDef } from "../core/def/presentation"
 export type { SettingDef } from "../core/def/setting"
 export type { SkinDef } from "../core/def/skin"

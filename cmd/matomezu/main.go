@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -46,6 +47,7 @@ type cli struct {
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, and AI's changes the user undid before seeing them, for an AI's hook. Prints nothing when there are none or the server is not running."`
 	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
+	Model       modelCmd       `cmd:"" help:"Tell the server the model of AI's session, for an AI's hook (SessionStart or PostModelSwitch) that passes the hook's JSON on stdin (model or to_model). Does nothing when the JSON has no model or the server is not running."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 
@@ -87,6 +89,11 @@ type annotationsCmd struct{}
 
 type talkedCmd struct {
 	Context string `help:"Text the hook adds to what it tells AI (such as the output of annotations). It is printed as it is when there is nothing to say as JSON."`
+	Host    string `help:"Process id of AI's host program (such as Claude Code). The server ties a new session id of the same process to its participant (after /clear)."`
+}
+
+type modelCmd struct {
+	Host string `help:"Process id of AI's host program (such as Claude Code). The server ties a new session id of the same process to its participant (after /clear)."`
 }
 
 type versionCmd struct{}
@@ -244,7 +251,7 @@ func (c *mcpCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName())
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, strconv.Itoa(os.Getppid()))
 }
 
 // awaitingItem は、常駐の api/ai/awaiting が返す、AI の応えを待つアノテーション 1 つ（brief は種類の aiBrief の 1 行。無ければ空）
@@ -341,21 +348,43 @@ func (c *annotationsCmd) Run() error {
 // Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
 // 常駐を立てず、立っていない・答えないときは何もしない（話しかけを止めない。--context があればそれだけ書く）
 func (c *talkedCmd) Run() error {
-	var hook hookInput
-	if in, err := os.Stdin.Stat(); err == nil && in.Mode()&os.ModeCharDevice == 0 {
-		hook = readHookInput(os.Stdin)
-	}
-	var api talkAPI
-	if h, err := openHome(); err == nil {
-		if s, err := running(h); err == nil && s != nil {
-			api = func(body []byte) ([]byte, error) {
-				out, _, _, err := send(s, http.MethodPost, "api/ai/talked", body, nil)
-				return out, err
-			}
-		}
-	}
-	talked(os.Stdout, hook, c.Context, api)
+	hook := stdinHook()
+	hook.Host = c.Host
+	talked(os.Stdout, hook, c.Context, runningAPI("api/ai/talked"))
 	return nil
+}
+
+// Run は、AI のセッションのモデルを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
+// 常駐を立てず、立っていない・答えないときは何もしない
+func (c *modelCmd) Run() error {
+	hook := stdinHook()
+	hook.Host = c.Host
+	sendModel(hook, runningAPI("api/ai/model"))
+	return nil
+}
+
+// stdinHook は、標準入力に来たフックの JSON（端末なら読まない）
+func stdinHook() hookInput {
+	if in, err := os.Stdin.Stat(); err == nil && in.Mode()&os.ModeCharDevice == 0 {
+		return readHookInput(os.Stdin)
+	}
+	return hookInput{}
+}
+
+// runningAPI は、立っている常駐の POST path を呼ぶ口（立っていなければ nil。常駐を立てない）
+func runningAPI(path string) hookAPI {
+	h, err := openHome()
+	if err != nil {
+		return nil
+	}
+	s, err := running(h)
+	if err != nil || s == nil {
+		return nil
+	}
+	return func(body []byte) ([]byte, error) {
+		out, _, _, err := send(s, http.MethodPost, path, body, nil)
+		return out, err
+	}
 }
 
 // ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ
@@ -448,6 +477,24 @@ func envName() string {
 		}
 	}
 	return runtime.GOOS
+}
+
+// gitBranchWait は、git のブランチを読むのを待つ長さ
+const gitBranchWait = time.Second
+
+// gitBranch は、MCP が呼び出しのたびに常駐へ添える、作業フォルダの git のブランチ（git が無い・リポジトリでない・ブランチに居ない・待ちきれないなら空）
+func gitBranch() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), gitBranchWait)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "-C", dir, "branch", "--show-current").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // send は 1 度だけ呼ぶ。stale は、つなぎ方が古いかもしれない（401 か、つなげなかった）とき。

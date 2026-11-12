@@ -6,13 +6,11 @@ import {
   type PrintSheetProps,
   useMessages,
   usePage,
-  usePlacedState,
-  useSetPlacedState,
-  useSetStageState,
-  useStageState,
+  usePluginState,
+  useSetPluginState,
 } from "matomezu/ui"
 import { EX8 } from "."
-import { CARDS, DECK_ORDER, pickedOf } from "./deck"
+import { CARDS, DECK_ORDER, DECK_PICKED } from "./deck"
 import { kit } from "./kit"
 import styles from "./views.module.css"
 
@@ -44,22 +42,22 @@ function Cards({
 function CardsView({ stage }: BookViewProps) {
   const t = useMessages(kit)
   const written = cardsOf(usePage(stage))
-  const order = usePlacedState(kit, DECK_ORDER, stage) ?? "written"
-  const setOrder = useSetPlacedState(kit, DECK_ORDER, stage)
-  const picked = pickedOf(useStageState(stage, kit))
-  const setPicked = useSetStageState(kit)
+  const order = usePluginState(kit, DECK_ORDER, stage) ?? "written"
+  const setOrder = useSetPluginState(kit, DECK_ORDER)
+  const picked = usePluginState(kit, DECK_PICKED, stage) ?? "none"
+  const setPicked = useSetPluginState(kit, DECK_PICKED)
   const cards = order === "sorted" ? [...written].sort() : written
   return (
     <div className={styles.deck} data-ex8-deck>
       <button
         type="button"
         aria-pressed={order === "sorted"}
-        onClick={() => setOrder(order === "sorted" ? "written" : "sorted")}
+        onClick={() => setOrder(stage, order === "sorted" ? "written" : "sorted")}
       >
         {t("sort cards")}
       </button>
       {cards.length > 0 ? (
-        <Cards cards={cards} picked={picked} onPick={i => setPicked(stage, { picked: i })} />
+        <Cards cards={cards} picked={picked} onPick={i => setPicked(stage, i)} />
       ) : (
         <p className={styles.empty}>{t("no cards")}</p>
       )}

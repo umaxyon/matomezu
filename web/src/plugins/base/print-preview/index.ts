@@ -13,11 +13,11 @@ import { withBookSettings } from "../book-look"
 import { type SettingReader, settingValue } from "../book-settings"
 import { kit } from "../kit"
 import type { GrowSides } from "../place/grow"
-import { withOpened } from "../right-side-panel/state"
+import { openedRestore, RIGHT_SIDE_PANEL_RESTORE_STATE, RIGHT_SIDE_PANEL_STATE } from "../right-side-panel/state"
 import { fitSideView, moveView, stageOf } from "../zoom"
 import { hasCrossing } from "./book-sheets"
 import { printCheckOpen } from "./panel-id"
-import { printReadyOf } from "./print-state"
+import { PRINT_READY_STATE } from "./print-state"
 import {
   PRINT_PREVIEW_BOOK_NAME,
   PRINT_PREVIEW_FLOW,
@@ -122,7 +122,8 @@ function openPreview(ctx: CommandContext, a: CommandActions) {
   const opened = now?.opened
   if (book && now && opened && hasCrossing(ctx.catalog, book)) {
     const open = { ...printCheckOpen(book.id), book: opened.book, page: opened.page }
-    a.updateStageState(state => withOpened(state, open, now))
+    a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => open)
+    a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, open, now))
     return
   }
   a.openPrintPreview(ctx.stage.id)
@@ -143,10 +144,10 @@ export const PRINT = kit.defineCommand({
   title: "Print",
   run: (ctx, a) => {
     if (ctx.stage.mode === "edit") openPreview(ctx, a)
-    else if (printReadyOf(ctx.stageState)) a.requestPrint()
+    else if (ctx.pluginState(PRINT_READY_STATE)) a.requestPrint()
   },
   when: ctx => ctx.book !== null && hasPages(ctx.book),
-  enabled: ctx => ctx.stage.mode === "edit" || printReadyOf(ctx.stageState),
+  enabled: ctx => ctx.stage.mode === "edit" || ctx.pluginState(PRINT_READY_STATE) === true,
 })
 
 export const PRINT_KEYS = [kit.defineKey({ id: "print-mod-p", key: "Mod+P", command: PRINT.id, scope: "stage" })]

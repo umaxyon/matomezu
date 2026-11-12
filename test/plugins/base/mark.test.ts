@@ -5,9 +5,10 @@ import { AI } from "../../../web/src/core/actor"
 import { type Annotation, annotationsForAi } from "../../../web/src/core/annotation"
 import { performIn } from "../../../web/src/core/perform"
 import type { BookOf } from "../../../web/src/core/schema/book"
-import { MARK_PICKER } from "../../../web/src/plugins/base/mark/commands"
+import { MARK_PICKER } from "../../../web/src/plugins/base/mark/states"
 import { NEW_NOTE } from "../../../web/src/plugins/base/note/panel-id"
-import { panelIn } from "../../../web/src/plugins/base/right-side-panel/state"
+import { RIGHT_SIDE_PANEL_STATE } from "../../../web/src/plugins/base/right-side-panel/state"
+import { pluginValueOf } from "../../../web/src/store/plugin-state"
 import { CORE_CATALOG, newStore } from "../../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
@@ -107,18 +108,28 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
   expect(world.annotations.b1).toEqual([])
 })
 
-test("右クリックのコマンドは、base のステージの画面の状態に付ける先を置く（伝言は、右サイドパネルの付いた先。選択を合わせるのは右サイドパネルの入れ物）。選んでいる物の 1 つを押すと、選んでいる物の全部に付ける", () => {
+test("右クリックのコマンドは、base のステージのプラグイン状態に付ける先を置く（伝言は、右サイドパネルの付いた先。選択を合わせるのは右サイドパネルの入れ物）。選んでいる物の 1 つを押すと、選んでいる物の全部に付ける", () => {
   const { store, a, b } = ready()
-  const base = () => store.state.getState().stageStates.s1?.["@matomezu/base"]
+  const picker = () => pluginValueOf(store.state.getState().pluginValues, "s1", MARK_PICKER)
   expect(store.actions.command("s1", "@matomezu/base:mark-new", a)).toBe(true)
-  expect(MARK_PICKER.read(base())).toEqual({ anchors: [a] })
+  expect(picker()).toEqual({ anchors: [a] })
   store.actions.select("s1", [b, a])
   store.actions.command("s1", "@matomezu/base:note-new", a)
-  expect(panelIn(base())).toMatchObject({ subject: NEW_NOTE, anchors: [b, a], current: a })
-  expect(MARK_PICKER.read(base())).toEqual({ anchors: [a] })
+  expect(pluginValueOf(store.state.getState().pluginValues, "s1", RIGHT_SIDE_PANEL_STATE)).toMatchObject({
+    subject: NEW_NOTE,
+    anchors: [b, a],
+    current: a,
+  })
+  expect(picker()).toEqual({ anchors: [a] })
   store.actions.command("s1", "@matomezu/base:note-new", b)
-  expect(panelIn(base())).toMatchObject({ anchors: [a, b], current: b })
+  expect(pluginValueOf(store.state.getState().pluginValues, "s1", RIGHT_SIDE_PANEL_STATE)).toMatchObject({
+    anchors: [a, b],
+    current: b,
+  })
   store.actions.select("s1", [b])
   store.actions.command("s1", "@matomezu/base:note-new", a)
-  expect(panelIn(base())).toMatchObject({ anchors: [a], current: a })
+  expect(pluginValueOf(store.state.getState().pluginValues, "s1", RIGHT_SIDE_PANEL_STATE)).toMatchObject({
+    anchors: [a],
+    current: a,
+  })
 })

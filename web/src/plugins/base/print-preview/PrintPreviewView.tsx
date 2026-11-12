@@ -28,6 +28,7 @@ import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets, hasCrossing } from "./book-sheets"
 import { useMeasures, useReportMeasure, useSetPrintReady } from "./measures"
+import type { PrintMeasured } from "./measures-state"
 import { PrintOutput } from "./PrintOutput"
 import styles from "./PrintPreviewView.module.css"
 import { PRINT_PREVIEW_PANEL_ID, printCheckOpen } from "./panel-id"
@@ -60,10 +61,7 @@ export interface PrintMeasureProps {
   report(measured: PrintMeasured): void
 }
 
-export interface PrintMeasured {
-  rows: number
-  data: unknown
-}
+export type { PrintMeasured } from "./measures-state"
 
 declare module "../../../core/catalog" {
   interface BookViewExtras {
@@ -103,7 +101,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
   const read = useReadState()
   const lang = useMatomezuState(s => s.lang)
-  // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージの画面の状態。measures.tsx）
+  // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
   const bookId = book?.id
   const measures = useMeasures(id, bookId)
   const report = useReportMeasure(id, bookId)

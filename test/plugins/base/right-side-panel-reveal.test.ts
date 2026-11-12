@@ -3,15 +3,7 @@ import { expect, test } from "bun:test"
 import type { Rect } from "../../../web/src/core/geom"
 import { newStage, openBook, panBy, placement, resize, type Stage, zoomTo } from "../../../web/src/core/stage"
 import { paperRectOf, revealView } from "../../../web/src/plugins/base/right-side-panel/reveal"
-import {
-  movedFrom,
-  restoreIn,
-  restoreTo,
-  withOpened,
-  withoutRestore,
-  withPanel,
-  withRestore,
-} from "../../../web/src/plugins/base/right-side-panel/state"
+import { movedFrom, openedRestore, restoreTo, withRestore } from "../../../web/src/plugins/base/right-side-panel/state"
 import { EDGE_STAND_ROOM } from "../../../web/src/plugins/base/utils/stand-place"
 import { fitView, moveView, ZOOM_MIN } from "../../../web/src/plugins/base/zoom"
 import { CORE_CATALOG } from "../../support"
@@ -29,30 +21,29 @@ const book = {
 const stage = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
 
 test("開くと、開く前の見え方を覚え、物はまだ見せていない。閉じて戻す前に同じページで開き直しても、最初に開く前の見え方と、変えたかはそのまま", () => {
-  const opened = withOpened({ other: 1 }, OPEN, PANNED)
-  expect(restoreIn(opened)).toEqual({
+  const opened = openedRestore(undefined, OPEN, PANNED)
+  expect(opened).toEqual({
     before: { ...PANNED, book: "b1", page: "p1" },
     shown: null,
     seen: null,
     moved: false,
   })
-  const shown = withRestore(withPanel(opened, null), { shown: HOME, moved: true })
-  const again = withOpened(shown, { ...OPEN, subject: "c2" }, HOME)
-  expect(restoreIn(again)).toEqual({
+  const shown = withRestore(opened, { shown: HOME, moved: true })
+  const again = openedRestore(shown, { ...OPEN, subject: "c2" }, HOME)
+  expect(again).toEqual({
     before: { ...PANNED, book: "b1", page: "p1" },
     shown: null,
     seen: null,
     moved: true,
   })
-  expect(withoutRestore(withPanel(again, null))).toEqual({ other: 1 })
   // ほかのページで開き直したら、そのとき開く前の見え方を覚え直す
-  const other = withOpened(shown, { ...OPEN, page: "p2" }, HOME)
-  expect(restoreIn(other)?.before).toEqual({ ...HOME, book: "b1", page: "p2" })
+  const other = openedRestore(shown, { ...OPEN, page: "p2" }, HOME)
+  expect(other.before).toEqual({ ...HOME, book: "b1", page: "p2" })
 })
 
 test("見せたあとに倍率かずらす量が変わったら、変えたことにする。見せる前と、表示領域の大きさが変わって収め直されただけのときは数えない", () => {
   const panned = panBy(stage, -300, -200)
-  const restore = restoreIn(withOpened({}, OPEN, PANNED))!
+  const restore = openedRestore(undefined, OPEN, PANNED)
   expect(movedFrom(restore, panned)).toBe(false)
   const shown = { ...restore, shown: { zoom: panned.zoom, pan: panned.pan } }
   expect(movedFrom(shown, panned)).toBe(false)
@@ -63,7 +54,7 @@ test("見せたあとに倍率かずらす量が変わったら、変えたこ�
 })
 
 test("閉じたら、変えていなければ開く前の見え方に戻す。変えたか、ほかのブックかページを開いているか、別のステージで開いていれば戻さない", () => {
-  const restore = { ...restoreIn(withOpened({}, OPEN, PANNED))!, shown: HOME }
+  const restore = { ...openedRestore(undefined, OPEN, PANNED), shown: HOME }
   const on = { opened: { book: "b1", page: "p1" } as never }
   expect(restoreTo(restore, on)).toEqual(PANNED)
   expect(restoreTo(restore, on, true)).toBeNull()

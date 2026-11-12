@@ -102,8 +102,9 @@ func TestAnnotationsHookScript(t *testing.T) {
 	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
 		t.Skipf("git: %v %s", err, out)
 	}
+	// 引数は Claude Code のプロセス id（フックのコマンドの $PPID）。talked に --host で渡る
 	run := func(stdin string) string {
-		cmd := exec.Command("sh", script)
+		cmd := exec.Command("sh", script, "123")
 		cmd.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+repo)
 		cmd.Stdin = strings.NewReader(stdin)
 		out, err := cmd.Output()
@@ -122,7 +123,7 @@ func TestAnnotationsHookScript(t *testing.T) {
 	fake := `#!/bin/sh
 case "$1" in
 annotations) printf '%s' "$FAKE_NOTES" ;;
-talked) in=$(cat); printf 'talked[%s][%s]' "$2" "$3" ; printf '%s' "$in" > "$FAKE_STDIN" ;;
+talked) in=$(cat); printf 'talked[%s][%s][%s][%s]' "$2" "$3" "$4" "$5" ; printf '%s' "$in" > "$FAKE_STDIN" ;;
 esac
 `
 	if err := os.WriteFile(filepath.Join(home, "matomezu"), []byte(fake), 0o755); err != nil {
@@ -130,7 +131,7 @@ esac
 	}
 	stdinFile := filepath.Join(t.TempDir(), "stdin")
 	t.Setenv("FAKE_STDIN", stdinFile)
-	for notes, want := range map[string]string{"": "talked[--context][]", "NOTE": "talked[--context][NOTE]"} {
+	for notes, want := range map[string]string{"": "talked[--host][123][--context][]", "NOTE": "talked[--host][123][--context][NOTE]"} {
 		t.Setenv("FAKE_NOTES", notes)
 		if got := run(`{"session_id":"S1"}`); got != want {
 			t.Fatalf("notes %q: out = %q, want %q", notes, got, want)
@@ -138,5 +139,27 @@ esac
 		if b, _ := os.ReadFile(stdinFile); string(b) != `{"session_id":"S1"}` {
 			t.Fatalf("talked's stdin = %q", b)
 		}
+	}
+}
+
+// モデルのフックは、SessionStart の model と PostModelSwitch の to_model を、セッション id とAI のプログラムのプロセス id を添えて送る。どちらも無ければ送らない
+func TestModelHookSendsTheModel(t *testing.T) {
+	var sent []string
+	api := func(body []byte) ([]byte, error) { sent = append(sent, string(body)); return []byte("{}"), nil }
+	for _, in := range []string{
+		`{"session_id":"S1","hook_event_name":"SessionStart","model":"claude-opus-5-5"}`,
+		`{"session_id":"S1","hook_event_name":"PostModelSwitch","from_model":"claude-opus-5-5","to_model":"claude-sonnet-5"}`,
+		`{"session_id":"S2","hook_event_name":"SessionStart","source":"clear"}`,
+	} {
+		hook := readHookInput(strings.NewReader(in))
+		hook.Host = "100"
+		sendModel(hook, api)
+	}
+	want := []string{
+		`{"host":"100","model":"claude-opus-5-5","sessionId":"S1"}`,
+		`{"host":"100","model":"claude-sonnet-5","sessionId":"S1"}`,
+	}
+	if strings.Join(sent, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("sent = %v", sent)
 	}
 }

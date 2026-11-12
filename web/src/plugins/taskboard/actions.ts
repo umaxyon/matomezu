@@ -273,9 +273,9 @@ export const TICKET_UNLOCK = kit.defineAction({
 })
 
 // 履歴の行を足す。書いた者は行った者（引数では受けない）。題は、列挙 history-topic の値の id
-export const TICKET_LOG = kit.defineAction({
-  id: "ticket-log",
-  title: "log ticket",
+export const TICKET_HISTORY_ADD = kit.defineAction({
+  id: "ticket-history-add",
+  title: "add ticket history",
   aiDescription:
     "Add a line to the history of the ticket (its id): topic is the id of a value of the enum history-topic (the values are listed in the arguments), text is what to write. The line records you (your workroom, as it is now) and the time. Lines cannot be changed or removed later. The ticket's own time of the last change does not move.",
   target: HISTORY.id,
@@ -309,9 +309,9 @@ export const TICKET_LOG = kit.defineAction({
 })
 
 // AI が自分のワークルームの今のチケットを宣言する（表示のため）。最初は on を省き、2 回目からは on.record に自分のワークルームの id を書く
-export const TICKET_START = kit.defineAction({
-  id: "ticket-start",
-  title: "start ticket",
+export const CURRENT_TICKET_SET = kit.defineAction({
+  id: "current-ticket-set",
+  title: "set current ticket",
   aiDescription:
     "Declare the ticket your workroom is working on now (only to be shown to the user; it decides nothing), or none when you work on none. Only an AI in a workroom, and only for its own workroom. The first time, leave on out; after that, set on.record to your workroom's id (the id this action returned as current).",
   target: CURRENT.id,

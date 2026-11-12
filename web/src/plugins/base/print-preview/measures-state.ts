@@ -1,0 +1,18 @@
+// 測る見せ方（printMeasure）が知らせた、ページごとの測った結果の、base のステージごとのプラグイン状態 print-measures（開いたブックごとに 1 つ）
+import { kit } from "../kit"
+
+// 印刷区画の数と、印刷区画 1 つのビューに渡すデータ（ページ 1 つの測った結果）
+export interface PrintMeasured {
+  rows: number
+  data: unknown
+}
+
+// 測ったブックの id と、ページの id → 測った結果
+export interface Measures {
+  book: string
+  pages: Readonly<Record<string, PrintMeasured>>
+}
+
+export const PRINT_MEASURES = kit.definePluginStateOf<Measures>()({ id: "print-measures", scope: "stage" })
+
+export const MEASURES_STATES = [PRINT_MEASURES] as const
