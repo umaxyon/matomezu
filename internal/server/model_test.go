@@ -187,7 +187,7 @@ func TestHeardModelsAreDroppedWhenOldOrTooMany(t *testing.T) {
 
 // セッション id が変わっても（/clear）、AI のプログラムのプロセス id が同じ参加者に、モデルのフックと話しかけのフックが新しいセッション id を結び直す。
 // 結んだ所と伝えた印は変えず、プロセス id が空なら結び直さない。join でセッション id を運んだ参加者は、プロセス id が同じでも結び直さない
-// （Codex の共有の常駐では、マシンの全部の会話のプロセス id が同じ）
+// （Codex の app-server では、マシンの全部の会話のプロセス id が同じ）
 func TestHostRebindsANewSession(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	carried := joinedID(t, s.URL, joinBody("L1", ""))
