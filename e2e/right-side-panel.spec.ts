@@ -175,15 +175,6 @@ async function zoomOut(page: Page) {
   await page.keyboard.up("Control")
 }
 
-// ステージの真ん中で拡大する（付けた物を見せて紙がずれていても、紙の上で回す）
-async function zoomIn(page: Page) {
-  const s = (await page.locator("[data-stage]").first().boundingBox())!
-  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
-  await page.keyboard.down("Control")
-  await page.mouse.wheel(0, -200)
-  await page.keyboard.up("Control")
-}
-
 test("開くと倍率を 100% にして、付けた物を見せる。閉じれば開く前の見え方に戻る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(BOOK_SCREEN_URL)
@@ -241,9 +232,18 @@ test("閉じて幅を動かしている間に倍率を変えても、閉じ終�
   // 開いて幅を動かし終え、付けた物を 100% で見せてから閉じる
   await expect.poll(async () => (await paperBox(page)).w).toBe(full)
   await settled(page)
-  // 閉じ始めてすぐ（幅を動かし終える前に）拡大する
-  await page.keyboard.press("Escape")
-  await zoomIn(page)
+  // 閉じ始めてすぐ（幅を動かし終える前に）拡大する。Esc と Ctrl+ホイールをページの中で続けて出す（間が空くと、遅い時に閉じ終えてから拡大になる）
+  const s = (await page.locator("[data-stage]").first().boundingBox())!
+  await page.evaluate(
+    ({ x, y }) => {
+      const at = document.activeElement ?? document.body
+      at.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }))
+      at.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }))
+      const wheel = { deltaY: -200, ctrlKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true }
+      document.elementFromPoint(x, y)!.dispatchEvent(new WheelEvent("wheel", wheel))
+    },
+    { x: s.x + s.width / 2, y: s.y + s.height / 2 },
+  )
   await expect(panel(page)).toHaveCount(0)
   await settled(page)
   expect((await paperBox(page)).w).toBeGreaterThan(full)
