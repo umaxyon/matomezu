@@ -263,6 +263,9 @@ export interface ActionDef<
   // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
   // "notify-user" は利用者に知らせる郵便を、利用者として送る（参加者の id などを受ける。利用者だけが行うアクション）。役ごとに 1 つのアクションだけが名乗る。make-participant は対象の定義の種類、notify-user は郵便箱が対象のアクションだけが書ける
   runsWhenAIJoins?: T extends SubjectId ? "make-participant" : T extends "mailbox" ? "notify-user" : never
+  // 常駐が初めて起動したとき（その行ったという記録がまだ無いとき）に、利用者として 1 度だけ行う（引数は {}。最初の 1 件を作るなど。行えたら記録し、
+  // 利用者があとで消しても作り直さない。行えなければ記録せず、次の起動でまた行う）
+  runsOnceAtStart?: true
   // "runs" なら、印刷プレビューの間のステージからも行える（印刷プレビューの見せ方の設定を変えるアクションなど。無ければ、ブックが対象なら止める。core/stage.ts の stageBlocks）
   inPrintPreview?: "runs"
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）

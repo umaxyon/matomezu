@@ -15,6 +15,7 @@ import { LIST_PLUGIN } from "./items/list"
 import { SHAPE_PLUGIN } from "./items/shape"
 import { SLIDE_PLUGIN } from "./items/slide"
 import { PAPER_PLUGIN } from "./paper"
+import { TASKBOARD_PLUGIN } from "./taskboard"
 
 export const BUILTIN = [
   BASE,
@@ -33,6 +34,7 @@ export const BUILTIN = [
   DIR_PLUGIN,
   MARKDOWN_PLUGIN,
   SLIDE_BOOK_PLUGIN,
+  TASKBOARD_PLUGIN,
 ] as const
 
 // ビルトインのインスタンスの、コントロールセンター（画面とエンジンが同じものを使う）

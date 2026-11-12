@@ -118,6 +118,8 @@ type Engine struct {
 	alive     func(string, string, float64) bool
 	needs     func(string) string
 	roles     func() string
+	aiRecords func(string, string, string) string
+	once      func() string
 	records   func(string) string
 	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
@@ -195,8 +197,14 @@ func New() (*Engine, error) {
 	if err := vm.ExportTo(vm.Get("matomezuCheckRecords"), &e.records); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuCheckRecords: %w", err)
 	}
+	if err := vm.ExportTo(vm.Get("matomezuRunOnceActions"), &e.once); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuRunOnceActions: %w", err)
+	}
 	if err := vm.ExportTo(vm.Get("matomezuSubjectRoles"), &e.roles); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSubjectRoles: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuAiRecords"), &e.aiRecords); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiRecords: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuRecordNeeds"), &e.needs); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuRecordNeeds: %w", err)
@@ -489,6 +497,19 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now
 	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
 }
 
+// RunOnceActions は、常駐が初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）の id の並び
+func (e *Engine) RunOnceActions() (ids []string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.once()), &ids)
+	return ids, err
+}
+
 // SubjectRoles は、常駐が読む種類の役（participants・workrooms）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）
 func (e *Engine) SubjectRoles() (roles map[string]string, err error) {
 	e.mu.Lock()
@@ -500,6 +521,37 @@ func (e *Engine) SubjectRoles() (roles map[string]string, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.roles()), &roles)
 	return roles, err
+}
+
+// RecordBrief は、AI に見せるレコードの一覧の 1 行
+type RecordBrief struct {
+	ID    string `json:"id"`
+	Brief string `json:"brief"`
+}
+
+// AIRecords は、AI に見せる種類 kind のレコードの一覧（載せる物のうち、トップの項目が where の値と同じ物だけ。種類が決めた並び）を返す。AI に見せない種類・無い種類は ok が false
+func (e *Engine) AIRecords(kind string, records []json.RawMessage, where map[string]string) (rows []RecordBrief, ok bool, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	in, err := json.Marshal(records)
+	if err != nil {
+		return nil, false, err
+	}
+	w, err := json.Marshal(where)
+	if err != nil {
+		return nil, false, err
+	}
+	out := e.aiRecords(kind, string(in), string(w))
+	if out == "null" {
+		return nil, false, nil
+	}
+	err = json.Unmarshal([]byte(out), &rows)
+	return rows, err == nil, err
 }
 
 // RecordNeeds は、アクション action が対象にする種類（レコードが対象でなければ Subject が空）と、読むだけの種類を返す
