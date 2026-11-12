@@ -448,3 +448,20 @@ func TestParticipantTableBecomesRecords(t *testing.T) {
 		t.Fatal("the participants table is still there")
 	}
 }
+
+// 1 度だけ行うアクションの印は、付けると読め、付け直しても変わらない
+func TestRanOnceMarksStay(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "data.db"))
+	got, err := s.RanOnce()
+	if err != nil || len(got) != 0 {
+		t.Fatalf("RanOnce = %v %v", got, err)
+	}
+	for range 2 {
+		if err := s.MarkRanOnce("a:x"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, err = s.RanOnce(); err != nil || len(got) != 1 || !got["a:x"] {
+		t.Fatalf("RanOnce = %v %v", got, err)
+	}
+}

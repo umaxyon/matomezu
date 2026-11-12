@@ -1499,3 +1499,33 @@ func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
 		t.Fatalf("a confirmed participant = %s", got)
 	}
 }
+
+// 最初のプロジェクトは 1 度だけ作る: 印が付いていれば、起動しても作らない
+func TestFirstProjectIsMadeOnce(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	if err := store.MarkRanOnce("@matomezu/taskboard:project-add"); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hub, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(hub.CloseAll)
+	recs, err := store.Records()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range recs {
+		if r.Subject == "@matomezu/taskboard:project" {
+			t.Fatalf("project made again: %v", r)
+		}
+	}
+}
