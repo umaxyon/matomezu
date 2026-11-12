@@ -11,7 +11,7 @@ test("一覧が対象のアクションの結果は、変わったブックが�
   expect(librarySettles(CORE_CATALOG, before, { [book.id]: { ...book, title: "変えた" } })).toBe(true)
   // 形に合わない（土台のフィールドが違う・タイプの形に無いフィールド）
   expect(librarySettles(CORE_CATALOG, before, { [book.id]: { ...book, color: "red" } as never })).toBe(false)
-  expect(librarySettles(CORE_CATALOG, before, { [book.id]: { ...book, project: "" } })).toBe(false)
+  expect(librarySettles(CORE_CATALOG, before, { [book.id]: { ...book, title: 1 } as never })).toBe(false)
   // 鍵と id が違う
   expect(librarySettles(CORE_CATALOG, before, { ...before, other: book })).toBe(false)
   // 増やしたブックも確かめる

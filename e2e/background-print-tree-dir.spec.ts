@@ -16,7 +16,6 @@ const treeBook = (settings: object) => ({
   type: "@matomezu/tree:tree",
   id: "t1",
   title: "木",
-  project: "default",
   settings,
   pages: [
     {
@@ -35,7 +34,6 @@ const dirBook = (settings: object) => ({
   type: "@matomezu/dir:dir",
   id: "d1",
   title: "構成",
-  project: "default",
   settings,
   pages: [
     {

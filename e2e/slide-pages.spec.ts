@@ -25,7 +25,6 @@ test.use({
       type: "@matomezu/slide-book:slide",
       id: "b1",
       title: "スライド",
-      project: "default",
       pages: [page3("p1", "一枚目"), page3("p2", "二枚目"), page3("p3", "三枚目")],
     },
   ],
@@ -85,7 +84,6 @@ test.describe("ロック中のページ", () => {
         type: "@matomezu/slide-book:slide",
         id: "b1",
         title: "スライド",
-        project: "default",
         pages: [page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }],
       },
     ],
@@ -108,7 +106,7 @@ test.describe("ロック中のページ", () => {
 
 test.describe("ページが 0 枚", () => {
   test.use({
-    books: [{ type: "@matomezu/slide-book:slide", id: "b1", title: "スライド", project: "default", pages: [] }],
+    books: [{ type: "@matomezu/slide-book:slide", id: "b1", title: "スライド", pages: [] }],
   })
 
   test("ページ一覧の＋で、ダイアログ無しで「（無題）」のページを足せる", async ({ page }) => {

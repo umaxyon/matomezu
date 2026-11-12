@@ -26,7 +26,6 @@ import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { type Mailbox, mailboxSettles } from "./mail"
 import { type Participants, participantsSettle } from "./participant"
-import { DEFAULT_PROJECT, isProject } from "./project"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
@@ -74,7 +73,7 @@ function normalized(catalog: CoreCatalog, action: ActionDef, before: Book, after
 
 // アクションが返したブックが、機能台帳のブックの形に合い、データの形の外の決まりも守っているか（型を言い張った所があっても、ここで止める）
 function settles(catalog: CoreCatalog, book: Book): boolean {
-  return isProject(book.project) && catalog.bookSchema.safeParse(book).success && holds(catalog, book)
+  return catalog.bookSchema.safeParse(book).success && holds(catalog, book)
 }
 
 // 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っているか
@@ -173,7 +172,7 @@ function permits(
 }
 
 // 作るブックを認可ステップに問うときの id と名前（問うためだけの物で、作るブックの中身はタイプが決める）
-const NEW_BOOK = { id: "new-book", title: "new book", project: DEFAULT_PROJECT }
+const NEW_BOOK = { id: "new-book", title: "new book" }
 
 // 行う前の問いの答え: 使えるか、止めた理由
 export type Permitted = { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string }

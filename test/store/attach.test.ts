@@ -11,7 +11,7 @@ import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
 import { CORE_CATALOG, newStore } from "../support"
 
-const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", project: "default", pages: [] }
+const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", pages: [] }
 
 test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。ブックが対象でないアクションは、どのタイプにも付かない", () => {
   const ids = actionsOf(CORE_CATALOG, drawing)

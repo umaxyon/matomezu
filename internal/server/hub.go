@@ -698,3 +698,9 @@ func (h *Hub) send(c *client, name string, v any) {
 		h.drop(c)
 	}
 }
+
+// AIMail は、利用者の郵便箱を、取り方 query で AI に見せる形にして返す（engine.AIMail）。
+// 取り方が合わなければ、answer は空で、断る理由 reason を返す
+func (h *Hub) AIMail(query engine.MailQuery) (answer json.RawMessage, reason string, err error) {
+	return h.engine.AIMail(h.Mailbox(), query)
+}

@@ -7,7 +7,6 @@ import { CORE_CATALOG } from "../support"
 const letter = (id: string, props: unknown, mail = "@matomezu/base:letter"): Mail => ({
   id,
   mail,
-  project: "default",
   from: "a",
   sentAt: "2026-11-06T00:00:00.000Z",
   props,
@@ -39,21 +38,19 @@ test("id が重なる郵便箱は断る", () => {
   expect(mailboxSettles(CORE_CATALOG, [a], [a, letter("m1", { title: "次", body: "" })])).toBe(false)
 })
 
-// AI が郵便を読む取り方（mailForAi）。箱は古い順に m1〜m5（default の 4 通と work の 1 通）。m1 は開いて行き先を見た、m2 は開いた（行き先は無い）、
-// m3 は未開封で行き先を見ていない、m4 は未開封で行き先が無い、m5（work）は未開封
+// AI が郵便を読む取り方（mailForAi）。箱は古い順に m1〜m4。m1 は開いて行き先を見た、m2 は開いた（行き先は無い）、
+// m3 は未開封で行き先を見ていない、m4 は未開封で行き先が無い
 const box = (): Mail[] => [
   { ...letter("m1", { title: "一番目", body: "本文 1" }), to: { book: "b" }, seenAt: "t", visitedAt: "t" },
   { ...letter("m2", { title: "二番目", body: "本文 2" }), seenAt: "t" },
   { ...letter("m3", { title: "三番目", body: "本文 3" }), to: { book: "b", page: "p" } },
   { ...letter("m4", { title: "四番目\n改行", body: "本文 4" }) },
-  { ...letter("m5", { title: "work の手紙", body: "" }), project: "work" },
 ]
 const boxed = (i: number) => box()[i] as Mail
 const ids = (r: ReturnType<typeof mailForAi>) => (r.ok ? r.answer.mailbox.map(m => m.id) : `ng: ${r.reason}`)
-const ask = (query: MailQuery, projects = ["default"], mailbox: Mail[] = box()) =>
-  mailForAi(CORE_CATALOG, mailbox, projects, query)
+const ask = (query: MailQuery, mailbox: Mail[] = box()) => mailForAi(CORE_CATALOG, mailbox, query)
 
-test("AI が読む郵便の一覧は、projects で絞り、新しい順で、中身を外して種類の aiBrief の題を付け、total と older を添える", () => {
+test("AI が読む郵便の一覧は、新しい順で、中身を外して種類の aiBrief の題を付け、total と older を添える", () => {
   const all = ask({})
   expect(ids(all)).toEqual(["m4", "m3", "m2", "m1"])
   expect(all.ok && all.answer).toMatchObject({ total: 4, older: 0 })
@@ -61,13 +58,10 @@ test("AI が読む郵便の一覧は、projects で絞り、新しい順で、�
   expect(row).toEqual({
     id: "m4",
     mail: "@matomezu/base:letter",
-    project: "default",
     from: "a",
     sentAt: "2026-11-06T00:00:00.000Z",
     title: "四番目 改行",
   })
-  expect(ids(ask({}, ["default", "work"]))).toEqual(["m5", "m4", "m3", "m2", "m1"])
-  expect(ids(ask({}, ["work"]))).toEqual(["m5"])
 })
 
 test("limit は新しい方から N 通で、older は返した中で一番古い郵便より古い、絞りに合う数。before はその郵便より古い分（その郵便は含まない）", () => {
@@ -91,9 +85,9 @@ test("unseen は利用者がまだ開いていない郵便だけ、unvisited は
   expect(ids(ask({ unseen: "1", before: "m4" }))).toEqual(["m3"])
 })
 
-test("ids は指した郵便の全文（props 付き。箱の新しい順で、重なりは 1 つ）と、無い・projects の外の id（unknown。あるときだけ）", () => {
-  const got = ask({ ids: ["m1", "m3", "m1", "nothing", "m5"] })
-  expect(got.ok && got.answer).toEqual({ mailbox: [boxed(2), boxed(0)], unknown: ["m5", "nothing"] })
+test("ids は指した郵便の全文（props 付き。箱の新しい順で、重なりは 1 つ）と、箱に無い id（unknown。あるときだけ）", () => {
+  const got = ask({ ids: ["m1", "m3", "m1", "nothing"] })
+  expect(got.ok && got.answer).toEqual({ mailbox: [boxed(2), boxed(0)], unknown: ["nothing"] })
   const full = ask({ ids: ["m2"] })
   expect(full.ok && full.answer).toEqual({ mailbox: [boxed(1)] })
 })
@@ -102,7 +96,6 @@ test("合わない取り方は、理由を付けて断る（limit が 1〜100 �
   for (const limit of ["0", "-1", "101", "1.5", "x", ""])
     expect(ids(ask({ limit }))).toMatch(/^ng: limit is an integer/)
   expect(ids(ask({ before: "nothing" }))).toMatch(/^ng: no such letter/)
-  expect(ids(ask({ before: "m5" }))).toMatch(/^ng: no such letter/) // projects の外
   expect(ids(ask({ ids: ["m1"], limit: "1" }))).toMatch(/^ng: ids cannot be given together/)
   expect(ids(ask({ ids: [] }))).toMatch(/^ng: ids takes/)
   expect(ids(ask({ ids: Array.from({ length: 21 }, (_, i) => `m${i}`) }))).toMatch(/^ng: ids takes/)
@@ -115,7 +108,7 @@ test("一覧の題は、種類の aiBrief を 80 字で切る。種類が台帳�
   const join = (id: string, sessionName: string) =>
     letter(
       id,
-      { participant: "p", ai: "claude", model: "opus", env: "wsl", sessionName, projects: ["default"] },
+      { participant: "p", ai: "claude", model: "opus", env: "wsl", sessionName },
       "@matomezu/base:join-request",
     )
   const mixed = [
@@ -126,7 +119,7 @@ test("一覧の題は、種類の aiBrief を 80 字で切る。種類が台帳�
     join("m8", "s"),
     join("m9", "x".repeat(100)),
   ]
-  const got = ask({}, ["default"], mixed)
+  const got = ask({}, mixed)
   expect(got.ok && got.answer).toMatchObject({ total: 6 })
   const rows = got.ok && "total" in got.answer ? got.answer.mailbox : []
   expect(rows.map(r => [r.id, r.title])).toEqual([

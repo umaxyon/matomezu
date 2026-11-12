@@ -4,9 +4,7 @@ import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Mail } from "../../../core/mail"
 import { WORKROOM_NAME_MAX } from "../../../core/participant"
-import { DEFAULT_PROJECT } from "../../../core/project"
 import { kit } from "../kit"
-import { declineProjects, unknownProjects } from "../project-refusal"
 import { withinLimit } from "."
 
 const JoinRequestSchema = z.strictObject({
@@ -15,7 +13,6 @@ const JoinRequestSchema = z.strictObject({
   model: z.string(),
   env: z.string(),
   sessionName: z.string(), // 空でもよい
-  projects: z.array(z.string().min(1)).min(1), // 参加を求めたプロジェクトの id
   workroom: z.string().min(1).max(WORKROOM_NAME_MAX).optional(), // AI が頼んだワークルームの名前（前のを続けるか、その名前で始めたい。無くてもよい）
 })
 export type JoinRequestProps = z.output<typeof JoinRequestSchema>
@@ -43,7 +40,7 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
 export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
   id: "mail-join-request",
   aiDescription:
-    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env, sessionName (optional) and projects are the participant's; workroom (optional, up to 20 characters) is the name of the workroom it would like to continue or start. The letter belongs to the first of the projects. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
+    "Tell the user's mailbox that a participant asked to join (the host does this when an AI asks to join; it shows at once on the user's screen). participant is the id participant-request returned; ai, model, env and sessionName (optional) are the participant's; workroom (optional, up to 20 characters) is the name of the workroom it would like to continue or start. from is a short name telling who sends it. If a notice for the participant is already in the mailbox, nothing changes and its id is returned. Returns the mail's id.",
   title: "Send a join request",
   target: "mailbox",
   userOnly: true,
@@ -55,12 +52,9 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
     model: z.string().trim().min(1).max(80),
     env: z.string().trim().min(1).max(80),
     sessionName: z.string().trim().max(120).optional(),
-    projects: z.array(z.string().min(1)).min(1),
     workroom: z.string().trim().min(1).max(WORKROOM_NAME_MAX).optional(),
   }),
   run: (mailbox, args, ctx) => {
-    const unknown = unknownProjects(args.projects)
-    if (unknown.length > 0) return declineProjects(unknown)
     const same = mailbox.find(
       m => m.mail === MAIL_JOIN_REQUEST.id && (m.props as JoinRequestProps).participant === args.participant,
     )
@@ -72,7 +66,6 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
     const notice: Mail = {
       id,
       mail: MAIL_JOIN_REQUEST.id,
-      project: args.projects[0] ?? DEFAULT_PROJECT,
       from: args.from,
       sentAt: ctx.now,
       props: {
@@ -81,7 +74,6 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
         model: args.model,
         env: args.env,
         sessionName: args.sessionName ?? "",
-        projects: args.projects,
         ...(args.workroom ? { workroom: args.workroom } : {}),
       } satisfies JoinRequestProps,
     }

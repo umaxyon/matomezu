@@ -34,7 +34,6 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   const sent = await perform(page, {
     action: "@matomezu/base:proposal-send",
     args: {
-      project: "default",
       from: "E51",
       title: "名前を直す",
       body: "箱の名前を AI に",

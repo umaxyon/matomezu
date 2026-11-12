@@ -16,7 +16,6 @@ const bookWith = (settings: object) => ({
   type: "@matomezu/drawing:drawing",
   id: "b1",
   title: "図面",
-  project: "default",
   settings,
   pages: [
     {

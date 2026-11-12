@@ -3,7 +3,6 @@
 // link は使い捨ての合言葉で、画面には出さない（同じ link の要求は 1 つの参加者にまとまる）
 import { z } from "zod"
 import type { CoreCatalog } from "./core-catalog"
-import { isProject } from "./project"
 
 export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
 
@@ -15,7 +14,6 @@ export const ParticipantSchema = z.object({
   env: z.string(), // 環境名
   sessionName: z.string(), // 元のセッション名（空でもよい）
   link: z.string().min(1),
-  projects: z.array(z.string().min(1)).min(1), // 参加しているプロジェクトの id（core/project.ts。重ならない）
   workroom: z.string().min(1).max(WORKROOM_NAME_MAX).optional(), // ワークルームの名前（受け入れたときに決まる）
   requestedAt: z.string(), // 要求が届いた時点
   joinedAt: z.string().optional(), // 受け入れた時点
@@ -35,7 +33,7 @@ export const restoreParticipants = (saved: unknown): Participants =>
 export function participantsSettle(before: Participants, after: Participants): boolean {
   if (new Set(after.map(p => p.id)).size !== after.length) return false
   const kept = new Set(before)
-  return after.every(p => kept.has(p) || (ParticipantSchema.safeParse(p).success && p.projects.every(isProject)))
+  return after.every(p => kept.has(p) || ParticipantSchema.safeParse(p).success)
 }
 
 // AI が参加を頼むときに行うアクション（アクションの定義が runsWhenAIJoins で名乗る物）の id。役が揃っていなければ null

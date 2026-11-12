@@ -11,7 +11,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/plugin"
 )
 
-const book = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","project":"default","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
+const book = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 func newEngine(t *testing.T) *Engine {
 	t.Helper()
@@ -88,7 +88,7 @@ func TestARefusalCarriesTheActionsReason(t *testing.T) {
 // AI に見せる描いた位置と大きさ: w・h を書いていない箱は定義の大きさ、子で大きく描く内包ボックスは子が入る大きさで、子は紙の上の位置
 func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
 	e := newEngine(t)
-	const drawn = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","project":"default","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+	const drawn = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"a","x":10,"y":20,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"},"shapes":[` +
 		`{"id":"c","x":8,"y":40,"item":"@matomezu/box:shape-nest-box","w":300,"h":100,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"}}]}]}]}`
 	out, err := e.AIPlaced(json.RawMessage(drawn))
@@ -115,12 +115,12 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
 	out, err := e.Perform(Input{
 		Action: "@matomezu/base:book-create",
-		Args:   json.RawMessage(`{"title":"New","project":"default","type":"@matomezu/drawing:drawing"}`),
+		Args:   json.RawMessage(`{"title":"New","type":"@matomezu/drawing:drawing"}`),
 		Lang:   "ja",
 		IDs:    []string{"nb"},
 		Books:  []json.RawMessage{json.RawMessage(book)},
 	})
-	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"type":"@matomezu/drawing:drawing","id":"nb","title":"New","project":"default","pages":[]}` {
+	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"type":"@matomezu/drawing:drawing","id":"nb","title":"New","pages":[]}` {
 		t.Fatalf("@matomezu/base:book-create = %+v %s, %v", out, out.Books, err)
 	}
 	out, err = e.Perform(Input{Action: "@matomezu/base:settings-set", Args: json.RawMessage(`{"values":{"@matomezu/base:lang":"matomezu:en"}}`), Lang: "ja", Settings: json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja"}`)})
@@ -265,7 +265,7 @@ func TestAICatalogDescribesListRows(t *testing.T) {
 // 線の道筋の計算（route）を通るアクションも、画面と同じに行える: つないだ箱が近ければどけ、手で直した区間が引けるかを確かめる
 func TestConnectsItemsWithALine(t *testing.T) {
 	e := newEngine(t)
-	two := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","project":"default","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+	two := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"a","x":100,"y":100,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}},` +
 		`{"id":"b","x":400,"y":300,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}}]}]}`
 	out, err := e.Perform(Input{
@@ -307,7 +307,7 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 	}
 	out, err := e.Perform(Input{
 		Action: "@matomezu/base:book-create",
-		Args:   json.RawMessage(`{"title":"Flow","project":"default","type":"ex2:flow"}`),
+		Args:   json.RawMessage(`{"title":"Flow","type":"ex2:flow"}`),
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
 	})
@@ -422,8 +422,8 @@ func TestWarningLinesUseTheTable(t *testing.T) {
 
 func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 	e := newEngine(t)
-	noType := json.RawMessage(`{"type":"@foo/stamps:board","id":"x1","title":"S","project":"default"}`)
-	star := json.RawMessage(`{"type":"@matomezu/drawing:drawing","id":"y1","title":"T","project":"default","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":1,"y":1,"props":{}}]}]}`)
+	noType := json.RawMessage(`{"type":"@foo/stamps:board","id":"x1","title":"S"}`)
+	star := json.RawMessage(`{"type":"@matomezu/drawing:drawing","id":"y1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":1,"y":1,"props":{}}]}]}`)
 	found, err := e.CheckBooks([]json.RawMessage{noType, star})
 	if err != nil {
 		t.Fatal(err)
@@ -568,7 +568,7 @@ func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
 		`{"id":"s1","item":"@matomezu/slide:slide-text","x":1,"y":2,"w":300,"h":40,"props":{"text":"社外秘"}},` +
 		`{"id":"s2","item":"@matomezu/slide:slide-ellipse","x":5,"y":6,"w":100,"h":60,"props":{"fill":"#f6c177","stroke":"#286983","width":3}}]}`
 	book := func(typ string) json.RawMessage {
-		return json.RawMessage(`{"type":"` + typ + `","id":"b1","title":"T","project":"default","pages":[` + page + `]}`)
+		return json.RawMessage(`{"type":"` + typ + `","id":"b1","title":"T","pages":[` + page + `]}`)
 	}
 	out, err := e.AIPage(book("@matomezu/drawing:drawing"), json.RawMessage(page))
 	if err != nil {

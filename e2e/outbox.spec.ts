@@ -107,7 +107,7 @@ test("開いているブックが替わっても、左サイドパネルは閉�
       headers: ai,
       data: {
         action: "@matomezu/base:book-create",
-        args: { type: "@matomezu/drawing:drawing", project: "default", title: "ほかの" },
+        args: { type: "@matomezu/drawing:drawing", title: "ほかの" },
       },
     })
   ).json()

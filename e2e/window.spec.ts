@@ -61,11 +61,11 @@ async function startOnCenter(page: Page): Promise<string> {
 const send = async (page: Page, args: object) =>
   page.request.post("/api/ai/perform", {
     headers: aiAuth(),
-    data: { action: "@matomezu/base:mail-send", args: { project: "default", from: "D92", ...args } },
+    data: { action: "@matomezu/base:mail-send", args: { from: "D92", ...args } },
   })
 const visitedAt = async (page: Page) =>
   (
-    (await (await page.request.get("/api/ai/mail?projects=default", { headers: aiAuth() })).json()).mailbox as {
+    (await (await page.request.get("/api/ai/mail", { headers: aiAuth() })).json()).mailbox as {
       visitedAt?: string
     }[]
   )[0]?.visitedAt

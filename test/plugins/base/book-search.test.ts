@@ -6,7 +6,6 @@ const book = (id: string, title: string) => ({
   type: "@matomezu/drawing:drawing" as const,
   id,
   title,
-  project: "default",
   pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
 })
 const books = [

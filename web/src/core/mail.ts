@@ -5,13 +5,11 @@ import { z } from "zod"
 import { briefLine } from "./brief"
 import type { CoreCatalog } from "./core-catalog"
 import { splitId } from "./names"
-import { isProject } from "./project"
 import { type Warning, warning } from "./warnings"
 
 export const MailSchema = z.object({
   id: z.string().min(1),
   mail: z.string().min(1), // 種類の id
-  project: z.string().min(1), // 属するプロジェクトの id（core/project.ts。郵便を絞るのに使う。to の中のブックとは別に決まる）
   from: z.string(), // 送り手の名前（AI が付けた、セッションを見分ける名前など）
   sentAt: z.string(), // 届いた時点
   to: z
@@ -39,7 +37,7 @@ export function mailboxSettles(catalog: CoreCatalog, before: Mailbox, after: Mai
   const kept = new Set(before)
   return after.every(m => {
     if (kept.has(m)) return true
-    if (!MailSchema.safeParse(m).success || !isProject(m.project)) return false
+    if (!MailSchema.safeParse(m).success) return false
     const def = catalog.mails.get(m.mail)
     return !!def && def.props.safeParse(m.props).success
   })
@@ -79,17 +77,11 @@ export type MailForAi =
   | { ok: true; answer: { mailbox: MailRow[]; total: number; older: number } | { mailbox: Mail[]; unknown?: string[] } }
   | { ok: false; reason: string } // 断る理由（AI に返す英語の文）
 
-// 郵便箱 mailbox のうち、プロジェクトが projects のどれかである郵便を、query の取り方で AI に見せる。
-// 一覧（ids が無いとき）は新しい順で、{mailbox: 行の並び, total, older}: total は絞り（projects・unseen・unvisited）に合う全部の数、
+// 郵便箱 mailbox を、query の取り方で AI に見せる。
+// 一覧（ids が無いとき）は新しい順で、{mailbox: 行の並び, total, older}: total は絞り（unseen・unvisited）に合う全部の数、
 // older は返した中で一番古い郵便より古い、絞りに合う数（続きは、返した一番古い郵便の id を before に渡して取る）。before の位置は、unseen・unvisited で絞る前の箱で数える。
-// ids のときは、その郵便の全文（箱の新しい順。重なりは 1 つ）と、箱に無い・projects の外の id（unknown。あるときだけ）。ids はほかの取り方と一緒には渡せない
-export function mailForAi(
-  catalog: CoreCatalog,
-  mailbox: Mailbox,
-  projects: readonly string[],
-  query: MailQuery,
-): MailForAi {
-  const mine = mailbox.filter(m => projects.includes(m.project))
+// ids のときは、その郵便の全文（箱の新しい順。重なりは 1 つ）と、箱に無い id（unknown。あるときだけ）。ids はほかの取り方と一緒には渡せない
+export function mailForAi(catalog: CoreCatalog, mailbox: Mailbox, query: MailQuery): MailForAi {
   if (query.ids !== undefined) {
     if (
       query.limit !== undefined ||
@@ -103,7 +95,7 @@ export function mailForAi(
       return { ok: false, reason: `ids takes 1 to ${MAIL_IDS_MAX} ids of letters` }
     }
     const wanted = new Set(query.ids)
-    const found = mine.filter(m => wanted.has(m.id)).reverse()
+    const found = mailbox.filter(m => wanted.has(m.id)).reverse()
     const unknown = [...wanted].filter(id => !found.some(m => m.id === id)).sort()
     return { ok: true, answer: unknown.length > 0 ? { mailbox: found, unknown } : { mailbox: found } }
   }
@@ -114,21 +106,21 @@ export function mailForAi(
       return { ok: false, reason: `limit is an integer from 1 to ${MAIL_LIST_MAX}` }
     }
   }
-  let older = mine
+  let older = mailbox
   if (query.before !== undefined) {
-    const at = mine.findIndex(m => m.id === query.before)
+    const at = mailbox.findIndex(m => m.id === query.before)
     if (at < 0) {
       return {
         ok: false,
-        reason: `no such letter to go back from: ${query.before} (before takes the id of a letter in the projects you named)`,
+        reason: `no such letter to go back from: ${query.before} (before takes the id of a letter in the mailbox)`,
       }
     }
-    older = mine.slice(0, at)
+    older = mailbox.slice(0, at)
   }
   const keep = (m: Mail) =>
     (query.unseen !== "1" || m.seenAt === undefined) &&
     (query.unvisited !== "1" || (m.to !== undefined && m.visitedAt === undefined))
-  const total = mine.filter(keep).length
+  const total = mailbox.filter(keep).length
   const matching = older.filter(keep)
   const shown = matching.slice(-limit).reverse()
   const rows = shown.map(({ props, ...head }): MailRow => {

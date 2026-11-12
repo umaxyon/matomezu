@@ -33,7 +33,7 @@ const RENAME = defineAction({
 const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME] })
 // id の頭を付けていないので台帳アセンブルで食い違う
 const broken = { id: "bad", actions: [{ ...RENAME, id: "rename" }] } as unknown as typeof notes
-const saved = { type: "notes:note", id: "n1", title: "メモ", project: "default" }
+const saved = { type: "notes:note", id: "n1", title: "メモ" }
 
 const make = () =>
   createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center", savedBooks: [saved] })

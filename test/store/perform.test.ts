@@ -114,7 +114,7 @@ describe("アクションの入口", () => {
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
     expect(done.at(-1)).toMatchObject({ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" })
     // ホストから届いたブックに、まだ確かめられていないアクションを行い直す
-    const book = { type: "notes:note", id: "n1", title: "メモ", project: "default" }
+    const book = { type: "notes:note", id: "n1", title: "メモ" }
     instance.receive({ books: [book], settings: {} }, [done.at(-1)!])
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
@@ -141,7 +141,7 @@ describe("アクションの入口", () => {
         },
       },
     } as unknown as DoneAction
-    const book = { type: "notes:note", id: "n1", title: "メモ", project: "default" }
+    const book = { type: "notes:note", id: "n1", title: "メモ" }
     instance.receive({ books: [book], settings: {} }, [bad, good])
     expect(instance.state.getState().books.n1).toMatchObject({ title: good.now })
   })

@@ -64,7 +64,7 @@ func call(t *testing.T, method, url, body string, header map[string]string) (str
 }
 
 func joinBody(link, sessionName string) string {
-	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1","projects":["default"]}`
+	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1"}`
 }
 
 // 参加を頼むと参加者と郵便が 1 つずつできる。同じ link をまた送っても増えず、参加の id が付いていて参加（要求）中なら弾く
@@ -107,7 +107,7 @@ func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
 	}
 	// 参加の id が付いていれば、弾かずに同じ参加者にプロジェクトを足す（足すものが無ければ変わらない。参加者も郵便も増えない）
 	grown, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), map[string]string{ParticipantHeader: first.Participant})
-	if grown != `{"ok":true,"participant":"`+first.Participant+`","projects":["default"]}` {
+	if grown != `{"ok":true,"participant":"`+first.Participant+`"}` {
 		t.Fatalf("with the participant's id = %s", grown)
 	}
 	if p, m := count(); p != 1 || m != 1 {
@@ -137,7 +137,7 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	_ = json.Unmarshal([]byte(got), &joined)
 	id := map[string]string{ParticipantHeader: joined.Participant}
 
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
 		t.Fatalf("a notice before joining = %q", h.Get(NoticeHeader))
 	}
 	// join で MCP がセッション id を運んだ AI は準備中でない
@@ -156,10 +156,10 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	}
 
 	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-accept","args":{"participant":"`+joined.Participant+`","workroom":"ひよこ","bird":"inko"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", nil); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", nil); h.Get(NoticeHeader) != "" {
 		t.Fatalf("a notice without the participant's id = %q", h.Get(NoticeHeader))
 	}
-	_, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
+	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ" {
 		t.Fatalf("notice = %q", text)
 	}
@@ -169,38 +169,13 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	if called == "" {
 		t.Fatal("the call after joining was not noted")
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
 		t.Fatalf("told twice: %q", h.Get(NoticeHeader))
 	}
 	s2, _ := joinWorld(t, store)
-	if _, h := call(t, "GET", s2.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s2.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
 		t.Fatalf("told again after a restart: %q", h.Get(NoticeHeader))
 	}
-}
-
-// projects は 1 つ以上で、表にあるものだけ。足りなければ参加者を作らない
-func TestJoinNeedsKnownProjects(t *testing.T) {
-	s, _ := joinWorld(t, joinStore(t))
-	for _, projects := range []string{``, `,"projects":[]`, `,"projects":["nowhere"]`, `,"projects":["default","nowhere"]`} {
-		body := `{"ai":"claude","model":"opus","env":"wsl-linux","link":"L1"` + projects + `}`
-		got, _ := call(t, "POST", s.URL+"/api/ai/join", body, nil)
-		if !strings.Contains(got, `"ok":false`) || !strings.Contains(got, `"reason":"refused"`) {
-			t.Fatalf("join %q = %s", projects, got)
-		}
-	}
-	if !strings.Contains(joinBodyWith(t, s.URL, `,"projects":["nowhere"]`), "no such project: nowhere (known: default)") {
-		t.Fatal("the reason does not name the project")
-	}
-	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"participants":[]`) || !strings.Contains(data, `"mailbox":[]`) {
-		t.Fatalf("data = %s", data)
-	}
-}
-
-func joinBodyWith(t *testing.T, url, projects string) string {
-	t.Helper()
-	got, _ := call(t, "POST", url+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"L1"`+projects+`}`, nil)
-	return got
 }
 
 // 断られた（表から消えた）参加の id の呼び出しには、1 度だけ断られた知らせを返す。要求中の呼び出しは、時刻を残さず、窓にも知らせない
@@ -211,17 +186,17 @@ func TestDeclinedParticipantIsToldOnce(t *testing.T) {
 	_ = json.Unmarshal([]byte(got), &joined)
 	id := map[string]string{ParticipantHeader: joined.Participant}
 
-	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
+	call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if calls := hub.ParticipantCalls(); calls[joined.Participant] != "" {
 		t.Fatalf("calls = %v", calls)
 	}
 
 	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-decline","args":{"participant":"`+joined.Participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
-	_, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
+	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); !strings.Contains(text, "declined") {
 		t.Fatalf("notice = %q", text)
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
 		t.Fatalf("told twice: %q", h.Get(NoticeHeader))
 	}
 }
@@ -251,8 +226,8 @@ func TestCallsAreNotAnnouncedEveryTime(t *testing.T) {
 			}
 		}
 	}
-	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
-	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id)
+	call(t, "GET", s.URL+"/api/ai/books", "", id)
+	call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if n := drain(); n != 1 {
 		t.Fatalf("participant-calls events = %d, want 1", n)
 	}
@@ -269,7 +244,7 @@ func acceptBody(id, workroom string) string {
 // 受け入れ済みで伝えていない参加者は、結ばれたセッションの話しかけで 1 度だけ伝え（MCP の返事の知らせとは二重にならない）、ほかのセッションには伝えない
 func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"6F1C2A3E-1111-4222-8333-444455556666","projects":["default"]}`, nil)
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"6F1C2A3E-1111-4222-8333-444455556666"}`, nil)
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
 	talk := func(body string) SessionTalk {
@@ -301,7 +276,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	}
 	// フックが伝えるまでは準備中。MCP が参加の id を名乗っても、知らせも最後に呼ばれた時刻も残さない
 	mcp := map[string]string{ParticipantHeader: joined.Participant}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", mcp); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", mcp); h.Get(NoticeHeader) != "" {
 		t.Fatalf("MCP told while preparing: %q", h.Get(NoticeHeader))
 	}
 	if calls := hub.ParticipantCalls(); calls[joined.Participant] != "" {
@@ -331,7 +306,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 		t.Fatalf("a talk moved the time: %q -> %q", at, now)
 	}
 	// 伝えたので、MCP の返事には添えない
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) != "" {
 		t.Fatalf("told by the hook and then by MCP: %q", h.Get(NoticeHeader))
 	}
 }
@@ -343,7 +318,7 @@ func TestTalkedDoesNotWelcomeWhatMCPToldFirst(t *testing.T) {
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
 	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil)
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) == "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) == "" {
 		t.Fatal("MCP did not tell")
 	}
 	// join のときに添えられたセッション id（S1）で話しかける
@@ -361,13 +336,13 @@ func TestParticipantIdHolderContinuesWhenNotAlive(t *testing.T) {
 	_ = json.Unmarshal([]byte(got), &joined)
 	call(t, "POST", s.URL+"/api/perform", acceptBody(joined.Participant, "ひよこ"), nil)
 	id := map[string]string{ParticipantHeader: joined.Participant}
-	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id) // 伝える
+	call(t, "GET", s.URL+"/api/ai/books", "", id) // 伝える
 	hub.mu.Lock()
 	n := hub.participantNotes[joined.Participant]
 	n.Called = "2020-01-01T00:00:00.000Z"
 	hub.participantNotes[joined.Participant] = n
 	hub.mu.Unlock()
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", id); h.Get(NoticeHeader) != "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
 		t.Fatalf("a notice for the old participant = %q", h.Get(NoticeHeader))
 	}
 	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), id)
@@ -377,7 +352,7 @@ func TestParticipantIdHolderContinuesWhenNotAlive(t *testing.T) {
 }
 
 func joinWith(link, sessionName, extra string) string {
-	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","projects":["default"]` + extra + `}`
+	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `"` + extra + `}`
 }
 
 type tableRow struct {
@@ -418,7 +393,7 @@ func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
 	var first Joined
 	_ = json.Unmarshal([]byte(got), &first)
 	call(t, "POST", s.URL+"/api/perform", acceptBody(first.Participant, "ひよこ"), nil)
-	call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
 
 	refused, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "", `,"workroom":"ひよこ"`), nil)
 	if !strings.Contains(refused, `"ok":false`) || !strings.Contains(refused, `"reason":"workroom-in-use"`) || !strings.Contains(refused, "already has a participant") {
@@ -469,10 +444,10 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 		t.Fatalf("after: %+v", rows)
 	}
 	// 新しい持ち主には MCP の返事で伝わる。元の持ち主の id は表に無いので断られた知らせ
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: second.Participant}); h.Get(NoticeHeader) == "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: second.Participant}); h.Get(NoticeHeader) == "" {
 		t.Fatal("the new owner was not welcomed")
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books?projects=default", "", map[string]string{ParticipantHeader: first.Participant}); !strings.Contains(h.Get(NoticeHeader), "declined") {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant}); !strings.Contains(h.Get(NoticeHeader), "declined") {
 		t.Fatalf("the old owner = %q", h.Get(NoticeHeader))
 	}
 	// 呼ばれて時間がたった（有効時間を過ぎた）参加者の名前も引き継げる

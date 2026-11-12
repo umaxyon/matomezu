@@ -12,7 +12,7 @@ func TestParticipantsAreKeptAndTold(t *testing.T) {
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	screen := listen(t, s.URL)
 	next(t, screen)
-	request := `{"action":"@matomezu/base:participant-request","args":{"ai":"claude","model":"opus","env":"wsl","link":"L1","projects":["default"]}}`
+	request := `{"action":"@matomezu/base:participant-request","args":{"ai":"claude","model":"opus","env":"wsl","link":"L1"}}`
 	_, got := send(t, "POST", s.URL+"/api/ai/perform", request, ai)
 	const head = `{"ok":true,"result":{"participant":"`
 	if !strings.HasPrefix(got, head) {

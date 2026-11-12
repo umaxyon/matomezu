@@ -78,7 +78,6 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
     type: "@matomezu/drawing:drawing",
     id: "made",
     title: "新しい図",
-    project: "default",
     pages: [],
   })
   expect(screenOf(s.window).stages[1]!.opened).toEqual({

@@ -23,7 +23,7 @@
 //
 //	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"front", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
 //	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
-//	GET  /api/ai/books?projects=a&projects=b  {"books": [{"id", "type", "title", "project", "version", "awaiting"}]}（project が projects のどれかであるブックだけ。projects は必須で、空や表に無い id は 400。awaiting は AI の応えを待つアノテーションの数）
+//	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations", "placed"}（annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}]}
@@ -32,12 +32,12 @@
 //	POST /api/ai/talked      {"sessionId", "candidates"} 利用者が AI に話しかけた（AI のフックが知らせる）。candidates が無ければ、話しかけたときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
-//	GET  /api/ai/mail?projects=a&projects=b[&limit=N&before=id&unseen=1&unvisited=1]  利用者の郵便箱のうち、project が projects のどれかである郵便の一覧（新しい順。{"mailbox": [中身 props の無い行。種類の aiBrief の title が付く], "total", "older"}。
-//	                      limit は 1〜100（既定 20）、before はその郵便より古い分、unseen は利用者がまだ開いていない郵便、unvisited は行き先をまだ見ていない郵便。projects は books と同じ）。
-//	                      ?projects=a&ids=x&ids=y は指した郵便の全文（{"mailbox": [...], "unknown": [...]}。ほかの取り方とは一緒に渡せない）。合わない取り方は 400
+//	GET  /api/ai/mail[?limit=N&before=id&unseen=1&unvisited=1]  利用者の郵便箱の郵便の一覧（新しい順。{"mailbox": [中身 props の無い行。種類の aiBrief の title が付く], "total", "older"}。
+//	                      limit は 1〜100（既定 20）、before はその郵便より古い分、unseen は利用者がまだ開いていない郵便、unvisited は行き先をまだ見ていない郵便）。
+//	                      ?ids=x&ids=y は指した郵便の全文（{"mailbox": [...], "unknown": [...]}。ほかの取り方とは一緒に渡せない）。合わない取り方は 400
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
-//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "projects"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る。参加の id の付いた呼び出しなら、参加するプロジェクトを足す）。{"ok", "participant", "projects"} か弾いた理由（join.go）
+//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
@@ -61,13 +61,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
-	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // user は設定の持ち主（利用者は 1 人）
@@ -153,13 +151,9 @@ func Handler(o Options) http.Handler {
 		_, _ = w.Write(settings)
 	}))
 	mux.Handle("GET /api/ai/mail", o.ai(func(w http.ResponseWriter, r *http.Request) {
-		projects, ok := o.aiProjects(w, r)
-		if !ok {
-			return
-		}
 		q := r.URL.Query()
 		query := engine.MailQuery{Ids: q["ids"], Limit: queryValue(q, "limit"), Before: queryValue(q, "before"), Unseen: queryValue(q, "unseen"), Unvisited: queryValue(q, "unvisited")}
-		answer, reason, err := o.Hub.AIMail(projects, query)
+		answer, reason, err := o.Hub.AIMail(query)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -465,11 +459,7 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
-	projects, ok := o.aiProjects(w, r)
-	if !ok {
-		return
-	}
-	books := slices.DeleteFunc(o.Hub.AIBooks(), func(b storage.Book) bool { return !slices.Contains(projects, projectOf(b.Body)) })
+	books := o.Hub.AIBooks()
 	warnings := o.Hub.BookWarnings()
 	annotations, err := o.Hub.AIAnnotations(nil)
 	if err != nil {
@@ -480,7 +470,6 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 		ID      string `json:"id"`
 		Type    string `json:"type"`
 		Title   string `json:"title"`
-		Project string `json:"project"`
 		Version int64  `json:"version"`
 		Problem string `json:"problem,omitempty"`  // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）
 		Warning string `json:"warning,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目を持つ（そのまま残っている）

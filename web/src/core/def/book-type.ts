@@ -36,7 +36,6 @@ export interface PagesRule {
 export interface NewBook {
   id: string
   title: string
-  project: string // 属するプロジェクトの id（core/project.ts）
 }
 
 export interface BookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTypeExtras {

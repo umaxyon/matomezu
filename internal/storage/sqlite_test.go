@@ -181,7 +181,7 @@ func TestTrashedAtMovesIntoTheBook(t *testing.T) {
 	if err != nil || len(books) != 2 {
 		t.Fatalf("books = %+v, %v", books, err)
 	}
-	if string(books[0].Body) != `{"id":"b1","trashed":"2026-10-29T01:00:00.000Z","project":"default"}` || string(books[1].Body) != `{"id":"b2","project":"default"}` {
+	if string(books[0].Body) != `{"id":"b1","trashed":"2026-10-29T01:00:00.000Z"}` || string(books[1].Body) != `{"id":"b2"}` {
 		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
 	}
 }
@@ -243,19 +243,19 @@ func TestParticipantsPerUser(t *testing.T) {
 	}
 }
 
-// プロジェクトを持たなかった置き場所は、ブック・郵便・参加者を標準のプロジェクト default に属させる（持っているものは変えない）
-func TestExistingDataJoinsTheDefaultProject(t *testing.T) {
+// プロジェクトの項目は外す: ブックと郵便の project、参加者の projects、参加の要求の郵便の props の projects（ほかの項目と、無かった物は変えない）
+func TestProjectFieldsAreRemoved(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := migrations[:10:10] // 次の足し方の前まで
+	before := migrations[: len(migrations)-1 : len(migrations)-1]
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
-		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '{"id":"b1","title":"x"}', 1, 'x'), ('b2', '{"id":"b2","project":"other"}', 1, 'x')`,
-		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","props":{"a":1}},{"id":"m2","project":"other"}]', 'x'), ('u2', '[]', 'x')`,
-		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1"},{"id":"p2","projects":["other"]}]', 'x')`,
+		`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', '{"id":"b1","title":"x","project":"default"}', 1, 'x'), ('b2', '{"id":"b2"}', 1, 'x')`,
+		`INSERT INTO mailbox (user, body, updated_at) VALUES ('u1', '[{"id":"m1","project":"default","props":{"projects":["default"],"a":1}},{"id":"m2","props":{"a":1}}]', 'x'), ('u2', '[]', 'x')`,
+		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1","projects":["default"],"link":"l"},{"id":"p2"}]', 'x')`,
 	) {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
@@ -267,16 +267,16 @@ func TestExistingDataJoinsTheDefaultProject(t *testing.T) {
 	if err != nil || len(books) != 2 {
 		t.Fatalf("books = %+v, %v", books, err)
 	}
-	if string(books[0].Body) != `{"id":"b1","title":"x","project":"default"}` || string(books[1].Body) != `{"id":"b2","project":"other"}` {
+	if string(books[0].Body) != `{"id":"b1","title":"x"}` || string(books[1].Body) != `{"id":"b2"}` {
 		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
 	}
-	if got, _ := s.Mailbox("u1"); string(got) != `[{"id":"m1","props":{"a":1},"project":"default"},{"id":"m2","project":"other"}]` {
+	if got, _ := s.Mailbox("u1"); string(got) != `[{"id":"m1","props":{"a":1}},{"id":"m2","props":{"a":1}}]` {
 		t.Fatalf("mailbox = %s", got)
 	}
 	if got, _ := s.Mailbox("u2"); string(got) != `[]` {
 		t.Fatalf("empty mailbox = %s", got)
 	}
-	if got, _ := s.Participants("u1"); string(got) != `[{"id":"p1","projects":["default"]},{"id":"p2","projects":["other"]}]` {
+	if got, _ := s.Participants("u1"); string(got) != `[{"id":"p1","link":"l"},{"id":"p2"}]` {
 		t.Fatalf("participants = %s", got)
 	}
 }
@@ -345,7 +345,7 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := migrations[: len(migrations)-1 : len(migrations)-1]
+	before := migrations[:11:11] // 次の足し方の前まで
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[{"id":"p1","workroom":"あいうえおかきくけこさしすせそたちつてとなにぬ"},{"id":"p2","workroom":"短い"},{"id":"p3"}]', 'x'), ('u2', '[]', 'x')`,

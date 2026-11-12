@@ -16,7 +16,7 @@ const ACCEPT = "@matomezu/base:participant-accept"
 const DECLINE = "@matomezu/base:participant-decline"
 const JOIN_MAIL = "@matomezu/base:mail-join-request"
 
-const WHO = { ai: "claude", model: "opus", env: "wsl", sessionName: "D92", link: "L1", projects: ["default"] }
+const WHO = { ai: "claude", model: "opus", env: "wsl", sessionName: "D92", link: "L1" }
 
 function ready() {
   const store = newStore()
@@ -39,13 +39,12 @@ test("要求すると、受け入れていない参加者が表の末尾に足�
       env: "wsl",
       sessionName: "D92",
       link: "L1",
-      projects: ["default"],
       workroom: "引き継ぎ",
       requestedAt: expect.any(String),
     },
   ])
   // セッション名は省いてよい（空になる）
-  expect(request({ ai: "codex", model: "m", env: "mac", link: "L2", projects: ["default"] }).ok).toBe(true)
+  expect(request({ ai: "codex", model: "m", env: "mac", link: "L2" }).ok).toBe(true)
   expect(people()[1]).toMatchObject({ sessionName: "" })
   // 合言葉が空なら要求しない
   expect(request({ ...WHO, link: " " }).ok).toBe(false)
@@ -129,7 +128,7 @@ test("AI は要求できるが、受け入れる・断るはできない（利�
   const refused = { ok: false, reason: "not-allowed" } as const
   expect(ai(ACCEPT, { participant, workroom: "A", bird: "inko" })).toEqual(refused)
   expect(ai(DECLINE, { participant })).toEqual(refused)
-  const notice = { from: "claude", participant, ai: "claude", model: "opus", env: "wsl", projects: ["default"] }
+  const notice = { from: "claude", participant, ai: "claude", model: "opus", env: "wsl" }
   expect(ai(JOIN_MAIL, notice)).toEqual(refused)
 })
 
@@ -172,7 +171,6 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
     model: "opus",
     env: "wsl",
     sessionName: "D92",
-    projects: ["default"],
   }
   const done = perform(JOIN_MAIL, args) as { ok: boolean; result: { mail: string } }
   expect(done.ok).toBe(true)
@@ -181,10 +179,9 @@ test("参加要求の郵便は郵便箱に 1 通だけ届き、本文に ai・mo
     {
       id: done.result.mail,
       mail: "@matomezu/base:join-request",
-      project: "default",
       from: "claude",
       sentAt: expect.any(String),
-      props: { participant: "p1", ai: "claude", model: "opus", env: "wsl", sessionName: "D92", projects: ["default"] },
+      props: { participant: "p1", ai: "claude", model: "opus", env: "wsl", sessionName: "D92" },
     },
   ])
   const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)
@@ -256,7 +253,6 @@ test("参加要求の郵便は、頼まれたワークルームの名前を本�
     ai: "claude",
     model: "opus",
     env: "wsl",
-    projects: ["default"],
     workroom: "ひよこ",
   }
   expect(perform(JOIN_MAIL, args).ok).toBe(true)

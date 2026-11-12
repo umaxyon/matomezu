@@ -10,11 +10,9 @@ import type { ActionContext } from "../../../core/def/action"
 import { freshId } from "../../../core/ids"
 import type { Mail, Mailbox } from "../../../core/mail"
 import { actionsOf, perform } from "../../../core/perform"
-import { isProject } from "../../../core/project"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { declineProjects } from "../project-refusal"
 import { withinLimit } from "."
 import { ownChanged, ownValues } from "./own-values"
 
@@ -122,11 +120,10 @@ export function proposalChanged(book: Book, snapshot: Readonly<Record<string, un
 export const PROPOSAL_SEND = kit.defineAction({
   id: "proposal-send",
   aiDescription:
-    "Send a change proposal mail: when an action of yours on a book was refused with being-edited (the user is editing what it changes), put the actions here and the user applies them with one press when done. project is the id of the project (join returns the ids of yours), from your short name (as in mail-send), title (80 characters at most) and body (optional) tell the user what it changes and why. book is the book, page the page they change (leave it out if they change several pages), changes the actions in order, each {action, args} as you would perform it on that book. Only actions that change things there now can be carried: no actions that add things, and only one book per mail. They are tried now without changing the book: if one cannot be done, nothing is sent and why is returned. When the user applies it, it fails if what it changes was changed or removed after you sent it; then nothing is changed and you are told the next time the user talks to you (think again from the book as it is then). Returns the mail's id.",
+    "Send a change proposal mail: when an action of yours on a book was refused with being-edited (the user is editing what it changes), put the actions here and the user applies them with one press when done. from your short name (as in mail-send), title (80 characters at most) and body (optional) tell the user what it changes and why. book is the book, page the page they change (leave it out if they change several pages), changes the actions in order, each {action, args} as you would perform it on that book. Only actions that change things there now can be carried: no actions that add things, and only one book per mail. They are tried now without changing the book: if one cannot be done, nothing is sent and why is returned. When the user applies it, it fails if what it changes was changed or removed after you sent it; then nothing is changed and you are told the next time the user talks to you (think again from the book as it is then). Returns the mail's id.",
   title: "Send a change proposal",
   target: "mailbox",
   args: z.strictObject({
-    project: z.string().min(1),
     from: z.string().trim().min(1).max(40),
     title: ProposalSchema.shape.title,
     body: ProposalSchema.shape.body.optional(),
@@ -135,7 +132,6 @@ export const PROPOSAL_SEND = kit.defineAction({
     changes: ChangesSchema,
   }),
   run: (mailbox, args, ctx) => {
-    if (!isProject(args.project)) return declineProjects([args.project])
     const book = ctx.books?.[args.book]
     if (!book) return { declined: "there is no book with that id (see list_books)" }
     const carried = carry(book, args.changes, ctx, true)
@@ -152,7 +148,6 @@ export const PROPOSAL_SEND = kit.defineAction({
     const mail: Mail = {
       id,
       mail: MAIL_PROPOSAL.id,
-      project: args.project,
       from: args.from,
       sentAt: ctx.now,
       to: {

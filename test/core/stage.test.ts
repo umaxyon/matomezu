@@ -27,7 +27,6 @@ describe("stage", () => {
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
-    project: "default",
     pages: [
       { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
       { id: "p2", title: "ページ 2", paper: "@matomezu/base:a5", orientation: "portrait" as const },
@@ -109,7 +108,6 @@ describe("stage", () => {
       type: "@matomezu/drawing:drawing" as const,
       id: "b9",
       title: "見本",
-      project: "default",
       pages: [
         { id: "p4", title: "ページ 4", paper: "@matomezu/base:a4", orientation: "landscape" as const },
         { id: "p5", title: "ページ 5", paper: "@matomezu/base:a4", orientation: "landscape" as const },
@@ -149,7 +147,6 @@ test("見せ方が知らせた広さ（可変ページ）は、紙の枠とず�
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
-    project: "default",
     pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }],
   }
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
@@ -178,7 +175,6 @@ test("開いているページの中身をずらした（ページの shift が�
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
-    project: "default",
     pages: [page],
   }
   const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
@@ -202,7 +198,6 @@ test("位置をデータに持たない見せ方が、描く中身をずらし�
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
-    project: "default",
     pages: [page],
   }
   const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
@@ -225,7 +220,6 @@ test("開いたばかりのページは、知らせた初めの位置（start）
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
-    project: "default",
     pages: [page],
   }
   const view = { w: 400, h: 300 }
@@ -261,7 +255,6 @@ test("開いていたページが無くなって隣のページを開いたと�
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
-    project: "default",
     pages: [p1, p2],
   }
   const view = { w: 400, h: 300 }

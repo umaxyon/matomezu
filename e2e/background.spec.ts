@@ -21,7 +21,6 @@ test.use({
       type: "@matomezu/drawing:drawing",
       id: "b1",
       title: "図面",
-      project: "default",
       pages: [
         { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape", slide: [backdrop] },
         { id: "p2", title: "ページ 2", paper: "@matomezu/base:a4", orientation: "landscape", slide: [backdrop] },

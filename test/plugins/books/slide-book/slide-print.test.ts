@@ -17,7 +17,7 @@ const sheetsOf = (slide: object[], book: object, page: object) => {
     slide,
     ...page,
   }
-  const b = { type: "@matomezu/slide-book:slide", id: "s1", title: "S", project: "default", pages: [p], ...book }
+  const b = { type: "@matomezu/slide-book:slide", id: "s1", title: "S", pages: [p], ...book }
   return slidePrintSheets(CORE_CATALOG, p as never, { setting: settingsAt(CORE_CATALOG, b as never, p as never) })
 }
 

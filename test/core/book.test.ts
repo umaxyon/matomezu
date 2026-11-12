@@ -9,7 +9,6 @@ const book = {
   type: "@matomezu/drawing:drawing" as const,
   id: "b1",
   title: "ブック",
-  project: "default",
   pages: [
     { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
     { id: "p3", title: "ページ 3", paper: "@matomezu/base:a3", orientation: "portrait" as const },
@@ -29,8 +28,8 @@ test("ページを足すと、振った id で、決めた名前と紙のペー�
 })
 
 test("作ったブックは、そのタイプの形の空のブック", () => {
-  const made = createBook(CORE_CATALOG, "@matomezu/drawing:drawing", { id: "x", title: "新しい図", project: "default" })
-  expect(made).toEqual({ type: "@matomezu/drawing:drawing", id: "x", title: "新しい図", project: "default", pages: [] })
+  const made = createBook(CORE_CATALOG, "@matomezu/drawing:drawing", { id: "x", title: "新しい図" })
+  expect(made).toEqual({ type: "@matomezu/drawing:drawing", id: "x", title: "新しい図", pages: [] })
   expect(CORE_CATALOG.bookSchema.safeParse(made).success).toBe(true)
 })
 
@@ -68,7 +67,6 @@ test("ブックの形に無い項目があれば形に合わない。形はタ�
     type: "@matomezu/drawing:drawing",
     id: "b1",
     title: "ブック",
-    project: "default",
     pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
   }
   expect(CORE_CATALOG.bookSchema.safeParse(ok).success).toBe(true)

@@ -8,7 +8,6 @@ const book = {
   type: "@matomezu/drawing:drawing",
   id: "u1",
   title: "星の残る図",
-  project: "default",
   pages: [
     {
       id: "p1",

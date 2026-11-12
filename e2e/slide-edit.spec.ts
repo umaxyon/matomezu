@@ -18,7 +18,6 @@ test.use({
       type: "@matomezu/slide-book:slide",
       id: "b1",
       title: "スライド",
-      project: "default",
       pages: [
         {
           id: "p1",
@@ -139,7 +138,6 @@ test.describe("線の端点", () => {
         type: "@matomezu/slide-book:slide",
         id: "b1",
         title: "スライド",
-        project: "default",
         pages: [
           {
             id: "p1",

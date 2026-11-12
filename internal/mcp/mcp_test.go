@@ -29,7 +29,7 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 	f.sent = append(f.sent, header.Get("X-Matomezu-Participant"))
 	f.gets = append(f.gets, path)
 	switch path {
-	case "api/ai/books?projects=default&projects=work", "api/ai/mail?projects=default":
+	case "api/ai/books", "api/ai/mail":
 		return json.RawMessage(`{"ok":true}`), f.replied, nil
 	case "api/ai/catalog":
 		return json.RawMessage(aiCatalogJSON), f.replied, nil
@@ -176,17 +176,17 @@ func textOf(a map[string]any) string {
 
 // join は AI の名前（clientInfo の名前と版）・環境・_meta のセッション id を MCP が埋めて頼み、返った参加の id を以後の呼び出し全部に添える
 func TestJoinFillsWhoAndAttachesTheParticipantToLaterCalls(t *testing.T) {
-	api := &fakeAPI{answer: `{"ok":true,"participant":"p7","projects":["default"]}`}
+	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 	got := talk(t, api,
 		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInfo":{"name":"codex","version":"0.5"}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"join","arguments":{"model":"gpt-5","link":"L1","sessionName":"s","projects":["default"]},"_meta":{"sessionId":"S1"}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"join","arguments":{"model":"gpt-5","link":"L1","sessionName":"s"},"_meta":{"sessionId":"S1"}}}`,
 		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"view","arguments":{}}}`,
 		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"perform","arguments":{"action":"a.b","args":{}}}}`,
 	)
-	if api.posts[0] != `api/ai/join {"ai":"codex 0.5","env":"wsl-linux","link":"L1","model":"gpt-5","projects":["default"],"sessionId":"S1","sessionName":"s"}` {
+	if api.posts[0] != `api/ai/join {"ai":"codex 0.5","env":"wsl-linux","link":"L1","model":"gpt-5","sessionId":"S1","sessionName":"s"}` {
 		t.Fatalf("posted = %v", api.posts)
 	}
-	if textOf(got[1]) != `{"participant":"p7","projects":["default"]}` {
+	if textOf(got[1]) != `{"participant":"p7"}` {
 		t.Fatalf("join = %v", got[1])
 	}
 	if strings.Join(api.sent, ",") != ",p7,p7" { // join のときはまだ無く、以後は全部に付く
@@ -194,7 +194,7 @@ func TestJoinFillsWhoAndAttachesTheParticipantToLaterCalls(t *testing.T) {
 	}
 	// 弾かれたら理由を返し、参加の id は持たない
 	api = &fakeAPI{answer: `{"ok":false,"reason":"already-participating","detail":"participant p1 is already joined"}`}
-	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","projects":["default"]}}}`)
+	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L"}}}`)
 	if r := got[0]["result"].(map[string]any); r["isError"] != true || textOf(got[0]) != "already-participating: participant p1 is already joined" {
 		t.Fatalf("refused join = %v", got[0])
 	}
@@ -213,60 +213,38 @@ func TestNoticeHeaderIsAddedToEveryTool(t *testing.T) {
 	}
 }
 
-// join は projects を必ず受ける（空は常駐に頼まず断る）
-func TestJoinNeedsProjects(t *testing.T) {
-	api := &fakeAPI{}
-	got := talk(t, api,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L"}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","projects":[]}}}`,
-	)
-	for _, g := range got {
-		if g["result"].(map[string]any)["isError"] != true || !strings.HasPrefix(textOf(g), "join needs projects") {
-			t.Fatalf("join without projects = %v", g)
-		}
-	}
-	if len(api.posts) != 0 {
-		t.Fatalf("posted = %v", api.posts)
-	}
-}
-
-// list_books と read_mail は、読むプロジェクトを問い合わせにして常駐に頼む（足りなければ常駐が断る）
-func TestListBooksAndReadMailAskForProjects(t *testing.T) {
+// list_books と read_mail は、引数なしで常駐に頼む
+func TestListBooksAndReadMailTakeNoProject(t *testing.T) {
 	api := &fakeAPI{}
 	talk(t, api,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_books","arguments":{"projects":["default","work"]}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_mail","arguments":{"projects":["default"]}}}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_books","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_mail","arguments":{}}}`,
 	)
-	if strings.Join(api.gets, " ") != "api/ai/books?projects=default&projects=work api/ai/mail?projects=default" {
+	if strings.Join(api.gets, " ") != "api/ai/books api/ai/mail?" {
 		t.Fatalf("gets = %v", api.gets)
 	}
 	// read_mail の取り方は、渡された物だけを問い合わせにする（false の unseen は渡さない）
 	api = &fakeAPI{}
 	talk(t, api,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_mail","arguments":{"projects":["default"],"limit":5,"before":"m9","unseen":true,"unvisited":false}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_mail","arguments":{"projects":["default"],"ids":["m1","m2"]}}}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_mail","arguments":{"limit":5,"before":"m9","unseen":true,"unvisited":false}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_mail","arguments":{"ids":["m1","m2"]}}}`,
 	)
-	if strings.Join(api.gets, " ") != "api/ai/mail?before=m9&limit=5&projects=default&unseen=1 api/ai/mail?ids=m1&ids=m2&projects=default" {
+	if strings.Join(api.gets, " ") != "api/ai/mail?before=m9&limit=5&unseen=1 api/ai/mail?ids=m1&ids=m2" {
 		t.Fatalf("read_mail gets = %v", api.gets)
-	}
-	api = &fakeAPI{}
-	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_books","arguments":{}}}`)
-	if api.gets[0] != "api/ai/books?" || got[0]["result"].(map[string]any)["isError"] != true {
-		t.Fatalf("without projects: gets = %v, %v", api.gets, got[0])
 	}
 }
 
 // join の workroom は常駐にそのまま渡す。生きている参加者の名前は、断った理由をそのまま返す
 func TestJoinPassesTheWorkroom(t *testing.T) {
-	api := &fakeAPI{answer: `{"ok":true,"participant":"p8","projects":["default"]}`}
+	api := &fakeAPI{answer: `{"ok":true,"participant":"p8"}`}
 	got := talk(t, api,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","workroom":"ひよこ","projects":["default"]}}}`)
-	if !strings.Contains(api.posts[0], `"workroom":"ひよこ"`) || textOf(got[0]) != `{"participant":"p8","projects":["default"]}` {
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","workroom":"ひよこ"}}}`)
+	if !strings.Contains(api.posts[0], `"workroom":"ひよこ"`) || textOf(got[0]) != `{"participant":"p8"}` {
 		t.Fatalf("posted = %v, answered = %v", api.posts, got[0])
 	}
 	api = &fakeAPI{answer: `{"ok":false,"reason":"workroom-in-use","detail":"workroom ひよこ already has a participant who is alive"}`}
 	got = talk(t, api,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","workroom":"ひよこ","projects":["default"]}}}`)
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","workroom":"ひよこ"}}}`)
 	if r := got[0]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[0]), "workroom-in-use: ") {
 		t.Fatalf("refused = %v", got[0])
 	}

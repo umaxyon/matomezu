@@ -43,7 +43,6 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   expect(
     store.actions.perform("@matomezu/base:book-create", {
       title: "木",
-      project: "default",
       type: "@matomezu/tree:tree",
     }),
   ).toEqual({
@@ -56,7 +55,6 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   expect(
     store.actions.perform("@matomezu/base:book-create", {
       title: "図",
-      project: "default",
       type: "@matomezu/drawing:drawing",
     }).ok,
   ).toBe(true)

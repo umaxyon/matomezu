@@ -14,7 +14,6 @@ const book = {
   type: "@matomezu/drawing:drawing",
   id: "b1",
   title: "見本",
-  project: "default",
   pages: [
     { id: "p1", title: "一", paper: "@matomezu/base:a4", orientation: "landscape", items: [box("a"), box("b")] },
     { id: "p2", title: "二", paper: "@matomezu/base:a4", orientation: "landscape", items: [box("c")] },

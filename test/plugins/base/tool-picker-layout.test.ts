@@ -33,7 +33,6 @@ test("開くと出す所だけを持ち、閉じれば消える", () => {
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
-    project: "default",
     pages: [{ id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
   }
   const picked = openPicker(openBook(CORE_CATALOG, newStage("s1"), paged), { x: 10, y: 20 })

@@ -125,7 +125,7 @@ test("ツリーの可変ページも、左へ増やす向きなら左の印刷�
     grows: true as const,
     root: { id: "r", caption: "根", children },
   }
-  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", project: "default", pages: [page] }
+  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] }
   expect(startOf(catalog.core, tree as never, page as never)).toEqual({ x: 1123, y: 0 })
   // 中身の無いページ・可変ページでないページは紙の左上
   const plain = { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "landscape" as const, items: [] }
@@ -133,7 +133,6 @@ test("ツリーの可変ページも、左へ増やす向きなら左の印刷�
     type: "@matomezu/drawing:drawing" as const,
     id: "d1",
     title: "図",
-    project: "default",
     pages: [plain],
   }
   expect(startOf(catalog.core, drawing as never, plain as never)).toEqual({ x: 0, y: 0 })

@@ -19,7 +19,6 @@ const bookWith = (slide: object[]) => ({
   type: SLIDE_TYPE,
   id: "s1",
   title: "S",
-  project: "default",
   pages: [{ ...page, slide }],
 })
 

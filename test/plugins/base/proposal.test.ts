@@ -41,7 +41,7 @@ function ready() {
     args: { page: "p1", item, props: { caption } },
   })
   const send = (changes: object[]) =>
-    perform(SEND, { project: "default", from: "E51", title: "名前を直す", book: "b1", page: "p1", changes })
+    perform(SEND, { from: "E51", title: "名前を直す", book: "b1", page: "p1", changes })
   const mail = (): Mail => store.state.getState().mailbox.at(-1) as Mail
   const props = () => mail().props as ProposalProps
   const apply = () => perform(APPLY, { page: "p1", changes: props().changes, snapshot: props().snapshot }, on)

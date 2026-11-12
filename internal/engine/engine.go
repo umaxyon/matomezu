@@ -89,7 +89,6 @@ type Engine struct {
 	without   func(string, string) string
 	talk      func() string
 	join      func() string
-	projects  func() string
 	alive     func(string, string, float64) bool
 	joinedMsg func(string, string) string
 	live      func(string, string, string, string) string
@@ -166,9 +165,6 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuJoinedText"), &e.joinedMsg); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuJoinedText: %w", err)
-	}
-	if err := vm.ExportTo(vm.Get("matomezuProjects"), &e.projects); err != nil {
-		return nil, fmt.Errorf("engine.js has no matomezuProjects: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuUnexpired"), &e.live); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuUnexpired: %w", err)
@@ -438,25 +434,6 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now
 	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
 }
 
-// Project はプロジェクトの表の 1 行
-type Project struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-// Projects はプロジェクトの表（core/project.ts。組み直しても変わらない）
-func (e *Engine) Projects() (projects []Project, err error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("engine: %v", r)
-		}
-	}()
-	err = json.Unmarshal([]byte(e.projects()), &projects)
-	return projects, err
-}
-
 // AnnotationsUnexpired は、アノテーションの並び list から、期限（種類の expiresAt。利用者の設定 settings で決まる）が時点 now より前の物を除いた並びと、
 // 除いたかを返す。kept の id の物は除かない（利用者が直している物）
 func (e *Engine) AnnotationsUnexpired(list, settings json.RawMessage, now string, kept []string) (out json.RawMessage, changed bool, err error) {
@@ -536,14 +513,13 @@ type MailQuery struct {
 	Unvisited *string  `json:"unvisited,omitempty"`
 }
 
-// AIMail は、郵便箱（mailbox）を、プロジェクトの絞り projects と取り方 query で、AI に見せる形（一覧か、指した郵便の全文）にして返す。
+// AIMail は、郵便箱（mailbox）を、取り方 query で、AI に見せる形（一覧か、指した郵便の全文）にして返す。
 // 取り方が合わなければ、answer は空で、断る理由 reason（AI に返す英語の文）を返す
-func (e *Engine) AIMail(mailbox json.RawMessage, projects []string, query MailQuery) (answer json.RawMessage, reason string, err error) {
+func (e *Engine) AIMail(mailbox json.RawMessage, query MailQuery) (answer json.RawMessage, reason string, err error) {
 	b, err := json.Marshal(struct {
-		Mailbox  json.RawMessage `json:"mailbox"`
-		Projects []string        `json:"projects"`
-		Query    MailQuery       `json:"query"`
-	}{mailbox, projects, query})
+		Mailbox json.RawMessage `json:"mailbox"`
+		Query   MailQuery       `json:"query"`
+	}{mailbox, query})
 	if err != nil {
 		return nil, "", err
 	}

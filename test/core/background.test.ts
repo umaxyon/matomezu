@@ -24,8 +24,7 @@ const pages = [
   { id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape" as const, slide: [backdrop] },
   { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "landscape" as const, slide: [backdrop] },
 ]
-const book = (type: string, extra: object = {}) =>
-  ({ type, id: "b1", title: "B", project: "default", pages, ...extra }) as never
+const book = (type: string, extra: object = {}) => ({ type, id: "b1", title: "B", pages, ...extra }) as never
 
 test("slide が背景か本体かは、タイプが slide に background を書いたかで決まる。直している並びで置ける物が変わる", () => {
   expect(slideIsBackground(typeOf(DRAWING))).toBe(true)

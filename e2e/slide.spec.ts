@@ -8,7 +8,6 @@ const SLIDE_BOOK = {
   type: "@matomezu/slide-book:slide",
   id: "b1",
   title: "スライド",
-  project: "default",
   pages: [
     {
       id: "p1",
@@ -100,7 +99,6 @@ const EMPTY = {
   type: "@matomezu/slide-book:slide",
   id: "b2",
   title: "空のスライド",
-  project: "default",
   pages: [{ id: "p1", title: "1", paper: "@matomezu/base:ratio-16x9", orientation: "landscape", slide: [] }],
 }
 const WIDE_WIDTH = 1280

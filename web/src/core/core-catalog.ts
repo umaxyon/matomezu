@@ -25,7 +25,6 @@ import type { Messages } from "./i18n/i18n"
 import { CORE_MESSAGES, LANGUAGES, type Lang, type LanguagePackDef, type MessageSetDef } from "./i18n/messages"
 import { splitId } from "./names"
 import { placedSchema } from "./placed"
-import { DEFAULT_PROJECT } from "./project"
 import { PageSchema } from "./schema/page"
 import { writtenValues } from "./theme"
 import { type Warning, warning } from "./warnings"
@@ -165,11 +164,10 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
       })
     : null
   const own = Object.entries(t.schema.shape)
-  // type・id・title・project・locked・trashed の順（type は pluginKit が後から足す。名前 title・属するプロジェクト project・ロック locked・ゴミ箱に入れた時刻 trashed は土台のフィールドで、どのタイプも持つ。名前は空でもよい）
+  // type・id・title・locked・trashed の順（type は pluginKit が後から足す。名前 title・ロック locked・ゴミ箱に入れた時刻 trashed は土台のフィールドで、どのタイプも持つ。名前は空でもよい）
   const head = [
     ...HEAD.flatMap(h => own.filter(([k]) => k === h)),
     ["title", z.string().default("")] as const,
-    ["project", z.string().min(1)] as const,
     ["locked", z.literal(true).optional()] as const,
     ["trashed", z.iso.datetime().optional()] as const,
   ]
@@ -332,7 +330,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
     if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
       problems.push(problem("E002", { id: t.id }))
-    for (const field of ["title", "project", "locked", "trashed", "pages", "settings"])
+    for (const field of ["title", "locked", "trashed", "pages", "settings"])
       if (field in t.schema.shape) problems.push(problem("E025", { id: t.id, field }))
     for (const id of [...(t.settings?.book ?? []), ...(t.settings?.page ?? [])])
       if (!settings.has(id)) problems.push(problem("E008", { id: t.id, kind: "setting", ref: id }))
@@ -344,7 +342,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
         if (field in (t.pages.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
     }
     const built = buildBookSchemas(parts, t).book
-    if (!built.safeParse(t.create({ id: "check", title: "check", project: DEFAULT_PROJECT })).success)
+    if (!built.safeParse(t.create({ id: "check", title: "check" })).success)
       problems.push(problem("E007", { id: t.id }))
     for (const id of t.items.allowed)
       if (!items.has(id)) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))

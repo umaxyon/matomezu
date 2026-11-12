@@ -9,7 +9,7 @@ const leftPanel = (page: Page) => page.getByRole("complementary", { name: "左�
 const perform = async (page: Page, data: object) =>
   (await page.request.post("/api/ai/perform", { headers: aiAuth(), data })).json()
 const mailbox = async (page: Page) =>
-  (await (await page.request.get("/api/ai/mail?projects=default", { headers: aiAuth() })).json()).mailbox as {
+  (await (await page.request.get("/api/ai/mail", { headers: aiAuth() })).json()).mailbox as {
     id: string
     seenAt?: string
     visitedAt?: string
@@ -38,7 +38,6 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
   await perform(page, {
     action: "@matomezu/base:mail-send",
     args: {
-      project: "default",
       from: "D64",
       title: "見てください",
       body: "箱を直しました",
@@ -83,7 +82,7 @@ test("1 画面で「分割で開く」は、右に分けたステージで行き
   const box = (await items(page).filter({ hasText: "右の箱" }).getAttribute("data-item"))!
   await perform(page, {
     action: "@matomezu/base:mail-send",
-    args: { project: "default", from: "a", title: "右へ", to: { book, ids: [box] } },
+    args: { from: "a", title: "右へ", to: { book, ids: [box] } },
   })
   await page.getByRole("button", { name: "右へ" }).click()
   await page.getByRole("dialog", { name: "右へ" }).getByRole("button", { name: "分割で開く" }).click()
@@ -105,7 +104,7 @@ test("2 画面なら「左に開く」「右に開く」で、Enter はダイア
   await expect(stages).toHaveCount(2)
   await perform(page, {
     action: "@matomezu/base:mail-send",
-    args: { project: "default", from: "a", title: "二つ", to: { book, ids: [box] } },
+    args: { from: "a", title: "二つ", to: { book, ids: [box] } },
   })
   await page.getByRole("button", { name: "二つ" }).click()
   const dialog = page.getByRole("dialog", { name: "二つ" })
@@ -124,10 +123,10 @@ test("未読が 3 通まではしおりを 1 通に 1 つずつ、4 通になる
   for (const n of [1, 2, 3])
     await perform(page, {
       action: "@matomezu/base:mail-send",
-      args: { project: "default", from: "a", title: `題${n}` },
+      args: { from: "a", title: `題${n}` },
     })
   for (const n of [1, 2, 3]) await expect(page.getByRole("button", { name: `題${n}` })).toBeVisible()
-  await perform(page, { action: "@matomezu/base:mail-send", args: { project: "default", from: "a", title: "題4" } })
+  await perform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "題4" } })
   const many = page.getByRole("button", { name: "未読の郵便 4 通" })
   await expect(many).toBeVisible()
   await expect(page.getByRole("button", { name: "題1" })).toHaveCount(0)
@@ -151,7 +150,7 @@ test("行き先の無くなった手紙は、ダイアログに「行き先が�
   const book = await ready(page)
   await perform(page, {
     action: "@matomezu/base:mail-send",
-    args: { project: "default", from: "a", title: "消えた所", to: { book, ids: ["nothing"] } },
+    args: { from: "a", title: "消えた所", to: { book, ids: ["nothing"] } },
   })
   await page.getByRole("button", { name: "消えた所" }).click()
   const dialog = page.getByRole("dialog", { name: "消えた所" })
@@ -167,7 +166,7 @@ test("開くを使わなくても、行き先が画面に出ていれば行き�
   const book = await ready(page)
   await perform(page, {
     action: "@matomezu/base:mail-send",
-    args: { project: "default", from: "a", title: "今のブック", to: { book } },
+    args: { from: "a", title: "今のブック", to: { book } },
   })
   await expect.poll(async () => !!(await mailbox(page))[0]?.visitedAt).toBe(true)
   expect((await mailbox(page))[0]?.seenAt).toBeUndefined()
@@ -179,7 +178,7 @@ test("しおりに乗せると、待たずに自前の吹き出しで題が出�
   await ready(page)
   await perform(page, {
     action: "@matomezu/base:mail-send",
-    args: { project: "default", from: "a", title: "吹き出しの題" },
+    args: { from: "a", title: "吹き出しの題" },
   })
   const bookmark = page.getByRole("button", { name: "吹き出しの題" })
   await expect(bookmark).toBeVisible()
@@ -203,7 +202,7 @@ test("郵便箱から開いたダイアログは、「閉じる」でも「開�
   const box = (await items(page).filter({ hasText: "行き先の箱" }).getAttribute("data-item"))!
   await perform(page, {
     action: "@matomezu/base:mail-send",
-    args: { project: "default", from: "a", title: "残す", to: { book, ids: [box] } },
+    args: { from: "a", title: "残す", to: { book, ids: [box] } },
   })
   // しおりから開く: 郵便箱は閉じているので「郵便箱も閉じる」は出ない
   await page.getByRole("button", { name: "残す" }).click()

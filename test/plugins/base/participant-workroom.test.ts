@@ -13,7 +13,6 @@ const joined = (id: string, workroom: string) =>
     model: "m",
     env: "e",
     sessionName: "",
-    projects: ["default"],
   }) as unknown as Participants[number]
 
 test("生きている受け入れ済みの参加者が同じ名前なら使われている。生きていない・要求中・空の名前は使われていない", () => {

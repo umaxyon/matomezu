@@ -17,7 +17,6 @@ async function join(page: Page, link: string, sessionName = "", workroom = "", s
       sessionName,
       link,
       sessionId,
-      projects: ["default"],
       ...(workroom ? { workroom } : {}),
     },
   })
@@ -26,7 +25,7 @@ async function join(page: Page, link: string, sessionName = "", workroom = "", s
 
 // この参加者の id で AI の口を呼ぶ（参加が済んでいれば、最後に呼ばれた時刻が進み、受け入れた直後なら参加の知らせが返る）
 const call = (page: Page, participant: string) =>
-  page.request.get("/api/ai/books?projects=default", {
+  page.request.get("/api/ai/books", {
     headers: { ...aiAuth(), "X-Matomezu-Participant": participant },
   })
 

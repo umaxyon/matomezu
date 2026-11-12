@@ -258,7 +258,6 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
     type: "@matomezu/drawing:drawing" as const,
     id: "x",
     title: "外した紙",
-    project: "default",
     pages: [{ id: "p1", title: "ページ 1", paper: "b5", orientation: "portrait" as const }],
   }
   const store = renderBooksScreen({ books: [book] })
@@ -408,7 +407,6 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
   expect(
     store.actions.perform("@matomezu/base:book-create", {
       title: "木",
-      project: "default",
       type: "@matomezu/tree:tree",
     }),
   ).toEqual({
@@ -509,7 +507,7 @@ test("ステージの上の行と下の行を右クリックしても、ブラ�
 
 test("読めないブックは、ブックを開くの一覧に押せない行として、開けない理由を添えて出る（データには手を付けない）", () => {
   const gone = { type: "@foo/stamps:board", id: "x1", title: "スタンプ帳", pages: [] }
-  const broken = { type: "@matomezu/drawing:drawing", id: "x2", title: "壊れた図面", project: "default", pages: "?" }
+  const broken = { type: "@matomezu/drawing:drawing", id: "x2", title: "壊れた図面", pages: "?" }
   const store = renderBooksScreen({ savedBooks: [gone, broken] })
   expect(store.state.getState().books.x1).toBeUndefined()
   fireEvent.click(fromMenu("ブックを開く"))
@@ -538,7 +536,6 @@ test("一部のプラグインが無いブックは開け、知らない形は�
     type: "@matomezu/drawing:drawing",
     id: "u1",
     title: "星の残る図",
-    project: "default",
     pages: [
       {
         id: "p1",
@@ -598,7 +595,6 @@ test("内包ボックスの子は親の中に描き、子に付いた線も描�
     type: "@matomezu/drawing:drawing",
     id: "n1",
     title: "内包",
-    project: "default",
     pages: [
       {
         id: "p1",
@@ -646,7 +642,6 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
     type: "@matomezu/drawing:drawing",
     id: "w1",
     title: "幅",
-    project: "default",
     pages: [
       {
         id: "p1",
