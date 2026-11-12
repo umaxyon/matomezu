@@ -4,9 +4,9 @@ import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { USER } from "../core/actor"
 import { pagedOf, withSettings } from "../core/book"
-import type { ActionId, ItemId } from "../core/catalog"
+import type { ActionId, ItemId, SubjectId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
-import { type ActionOn, isOnBook, type Where } from "../core/def/action"
+import { type ActionOn, isOnBook, type RecordOf, type Where } from "../core/def/action"
 import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
@@ -335,3 +335,27 @@ export function usePerform(stage: string): <Id extends ActionId>(action: Id, arg
 // 窓のカレントのステージの id（ブックスクリーンが前に出ていなくても、窓にはいつもカレントのステージがある）。
 // ステージの無い所（コントロールセンターの画面など）が、ステージを前提にするコマンドやダイアログを、この窓のステージで行うのに使う
 export const useWindowStage = (): string => useMatomezuState(s => screenOf(s.window).current)
+
+// 対象の定義の種類 subject のレコード全部（id の順）。定義の record に合わない物（warning W025 の物）は返さない。
+// 返す配列は、その種類のレコードが変わらない間は同じ参照
+export function useRecords<const T extends SubjectId>(subject: T): readonly RecordOf<T>[] {
+  const catalog = useCoreCatalog()
+  const table = useMatomezuState(s => s.records[subject])
+  return useMemo(() => {
+    const record = catalog.subjects.get(subject)?.record
+    if (!record) return []
+    return Object.values(table ?? {})
+      .filter(r => record.safeParse(r).success)
+      .sort((a, b) => (a as { id: string }).id.localeCompare((b as { id: string }).id)) as RecordOf<T>[]
+  }, [catalog, subject, table])
+}
+
+// 種類 subject の id のレコード 1 件（無いか、定義の record に合わなければ undefined）
+export function useRecord<const T extends SubjectId>(subject: T, id: string): RecordOf<T> | undefined {
+  const catalog = useCoreCatalog()
+  const one = useMatomezuState(s => s.records[subject]?.[id])
+  return useMemo(() => {
+    const record = catalog.subjects.get(subject)?.record
+    return one !== undefined && record?.safeParse(one).success ? (one as RecordOf<T>) : undefined
+  }, [catalog, subject, one])
+}

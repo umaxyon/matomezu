@@ -34,6 +34,8 @@ export {
   usePerform,
   usePluginState,
   useReadPluginState,
+  useRecord,
+  useRecords,
   useSetPluginState,
   useSetPluginStates,
   useSettings,
