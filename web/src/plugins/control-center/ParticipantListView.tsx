@@ -1,7 +1,7 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
-// 下の 1 行は、参加済みでは（空き）
-import { useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
-import { useWorkroomRows } from "../base/ui"
+// 下の 1 行は、参加済みでは base のスロット（workroom-row-line）に置かれたウィジェットが出す（今のタスクなど）
+import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
+import { useWorkroomRows, WORKROOM_ROW_LINE } from "../base/ui"
 import { Band } from "./Band"
 import { Bird } from "./Bird"
 import { PICKED_ROOM } from "./control-center"
@@ -16,8 +16,7 @@ export function ParticipantListView() {
   const rows = useWorkroomRows()
   const picked = usePluginState(kit, PICKED_ROOM)
   const pick = useSetPluginState(kit, PICKED_ROOM)
-  const detailText = (d: RowDetail) =>
-    d === "empty" ? t("(empty)") : d === "preparing" ? t("(preparing)") : d === "idle" ? t("(idle)") : null
+  const detailText = (d: RowDetail) => (d === "empty" ? t("(empty)") : d === "preparing" ? t("(preparing)") : null)
   return (
     <Panel className={styles.list}>
       <Band>
@@ -26,7 +25,8 @@ export function ParticipantListView() {
       {rows.length === 0 ? <p className={text.note}>{t("No workrooms")}</p> : null}
       <ul className={styles.rows}>
         {rows.map(row => {
-          const detail = detailText(rowDetail(row))
+          const kind = rowDetail(row)
+          const detail = detailText(kind)
           return (
             <li
               key={row.room.id}
@@ -42,6 +42,9 @@ export function ParticipantListView() {
                 <span className={styles.who}>
                   <span className={styles.name}>{row.room.name}</span>
                   {detail ? <span className={styles.detail}>{detail}</span> : null}
+                  {kind === "slot" ? (
+                    <Slot name={WORKROOM_ROW_LINE} props={{ workroom: row.room.id, admin: row.admin }} />
+                  ) : null}
                 </span>
               </button>
             </li>

@@ -19,6 +19,8 @@ export const TASKBOARD_MESSAGES = defineMessages({
   "ticket history": { en: "Ticket history", ja: "チケット履歴" },
   "current ticket": { en: "Current ticket", ja: "今のチケット" },
   "history topic": { en: "History topic", ja: "履歴の題" },
+  "project order": { en: "Project order", ja: "プロジェクトの並び" },
+  "shown projects": { en: "Shown projects", ja: "出しているプロジェクト" },
   "topic status": { en: "Status", ja: "状況" },
   "topic plan": { en: "Plan", ja: "プラン" },
   "topic question": { en: "Question", ja: "質問" },
