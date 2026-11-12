@@ -47,7 +47,7 @@ export interface Inspected<V> {
 
 export type Query =
   // アクションを使えるか。book はアクションが変えるブック（ブックが対象のアクションは、そのブック）、where はその中の所（分からなければ無い）、actor は誰が行うか。
-  // 認可ステップは book があるときだけ見る。settings は、利用者の設定が対象のアクションで変える項目の id（項目ごとに見る）
+  // 認可ステップは book か record があるときに見る。settings は、利用者の設定が対象のアクションで変える項目の id（項目ごとに見る）
   {
     kind: "action"
     action: string
