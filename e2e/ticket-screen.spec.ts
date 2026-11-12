@@ -18,7 +18,7 @@ async function perform(page: Page, action: string, args: object, on?: object) {
   return (await res.json()) as { ok: boolean; result?: Record<string, string> }
 }
 
-// プロジェクトを作ってチケットを足し、履歴を書く
+// プロジェクトを作ってチケットを足し、チケット履歴を書く
 async function setup(page: Page) {
   const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "T-" })
   const project = made.result?.project ?? ""
@@ -41,7 +41,7 @@ async function setup(page: Page) {
   return { project, ticket }
 }
 
-test("URL でチケットを開くと、チケットの枠と本文が右から出る。履歴の質問を押すと質問の枠が出て、閉じられる", async ({
+test("URL でチケットを開くと、チケットの枠と本文が右から出る。チケット履歴の質問を押すと質問の枠が出て、閉じられる", async ({
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
@@ -51,7 +51,7 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeVisible()
   await expect(screen.getByText("T-001")).toBeVisible()
   await expect(screen.getByText("起票日時")).toBeVisible()
-  // 履歴: 起票の行・状況・質問（吹き出し）
+  // チケット履歴: 起票の行・状況・質問（吹き出し）
   await expect(screen.getByText("チケットを起票しました")).toBeVisible()
   await expect(screen.getByText("調べています")).toBeVisible()
   await screen.getByRole("button", { name: "どちらの画面ですか" }).click()
@@ -59,6 +59,11 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await expect(question.getByText("どちらの画面ですか").last()).toBeVisible()
   await question.getByRole("button", { name: "閉じる" }).click()
   await expect(page.getByRole("region", { name: "質問", includeHidden: false })).toHaveCount(0)
+  // 質問だけが吹き出し（押せる）で、状況の行は押せない
+  await expect(screen.getByRole("button", { name: "調べています" })).toHaveCount(0)
+  // 左上の戻るで閉じる
+  await screen.getByRole("button", { name: "戻る" }).click()
+  await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeHidden()
 })
 
 test("名前・優先度・本文は直したそばから反映され、読み直しても残る。戻るで閉じる", async ({ page }) => {
@@ -77,8 +82,8 @@ test("名前・優先度・本文は直したそばから反映され、読み�
   await slider.press("ArrowRight")
   await expect(slider).toHaveAttribute("aria-valuetext", "大")
   // 本文を編集に切り替えて書く
-  await page.getByRole("button", { name: "編集", exact: true }).click()
-  await page.getByRole("textbox", { name: "本文（マークダウン）" }).fill("書き直した本文")
+  await screen.getByRole("button", { name: "編集", exact: true }).click()
+  await screen.getByRole("textbox", { name: "本文（マークダウン）" }).fill("書き直した本文")
   await expect
     .poll(async () => {
       const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()

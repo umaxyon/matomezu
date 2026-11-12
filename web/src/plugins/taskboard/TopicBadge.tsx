@@ -5,7 +5,7 @@ import { useCoreCatalog, useMessages, useT } from "../../plugin-api/ui"
 import { HISTORY_TOPIC } from "./history"
 import { kit } from "./kit"
 import styles from "./TopicBadge.module.css"
-import { FILED } from "./ticket-view"
+import { FILED, topicColor, topicTail } from "./ticket-view"
 
 export type TopicData = { color: string; asksUser?: boolean }
 
@@ -20,8 +20,8 @@ export function TopicBadge({ topic }: { topic: string }) {
   const own = useMessages(kit)
   const catalog = useCoreCatalog()
   const value = enumValuesOf(catalog, HISTORY_TOPIC.id).find(v => v.id === topic)
-  const color = topic === FILED ? "success" : (value?.data as TopicData | undefined)?.color
-  const name = topic === FILED ? own("Filed") : value ? t(value.title) : (topic.split(":").pop() ?? topic)
+  const color = topicColor(topic, value?.data as TopicData | undefined)
+  const name = topic === FILED ? own("Filed") : value ? t(value.title) : topicTail(topic)
   return (
     <span className={styles.topic} style={color ? { color: `var(--skin-palette-${color})` } : undefined}>
       {name}

@@ -1,4 +1,4 @@
-// 履歴の行の書いた者・担当の鳥: AI はそのときのワークルームの鳥の顔、利用者は利用者の印。名前は吹き出しで出す
+// チケット履歴の行の書いた者・担当の鳥: AI はそのときのワークルームの鳥の顔、利用者は利用者の印。名前は吹き出しで出す
 import { useMessages } from "../../plugin-api/ui"
 import { BirdFaceView, Tip } from "../base/ui"
 import type { By } from "./by"

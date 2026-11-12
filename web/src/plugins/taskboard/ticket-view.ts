@@ -10,6 +10,13 @@ type Line = z.output<typeof HISTORY.record>
 
 export const FILED = "filed" // 起票の行の題（列挙の値でなく、画面が足す行）
 
+// 題 topic の色の役割（起票の行は success。列挙の値の data の color）。列挙から無くなった題は undefined（色を付けない）
+export const topicColor = (topic: string, data: { color: string } | undefined): string | undefined =>
+  topic === FILED ? "success" : data?.color
+
+// 列挙から無くなった題の名前: 題の id の終わり
+export const topicTail = (topic: string): string => topic.split(":").pop() ?? topic
+
 // 見せる番号: チケットプレフィクスと、3 桁に 0 を詰めた番号（1000 からは伸びる）
 export const ticketLabel = (prefix: string, number: number): string => `${prefix}${String(number).padStart(3, "0")}`
 
@@ -21,7 +28,7 @@ export interface HistoryRow {
   by: By
 }
 
-// チケットの履歴の行（ticket のもの）に、起票の行を足し、新しい順（同じ時点は id の順）に並べる
+// チケット履歴の行（ticket のもの）に、起票の行を足し、新しい順（同じ時点は id の順）に並べる
 export function historyRows(ticket: Ticket, lines: readonly Line[]): HistoryRow[] {
   const own = lines.filter(l => l.ticket === ticket.id)
   const filed: HistoryRow = {

@@ -1,6 +1,7 @@
-// チケットスクリーンが見せる物の整え方: 番号・履歴の行（起票の行・新しい順）・日ごとのまとめ・担当
+// チケットスクリーンが見せる物の整え方: 番号・チケット履歴の行（起票の行・新しい順）・日ごとのまとめ・担当
 
 import { expect, test } from "bun:test"
+import { viewOf } from "../../../web/src/plugins/taskboard/ticket-screen-state"
 import {
   assigneesOf,
   dayHeading,
@@ -9,6 +10,8 @@ import {
   historyRows,
   ticketLabel,
   timeOf,
+  topicColor,
+  topicTail,
   whenOf,
 } from "../../../web/src/plugins/taskboard/ticket-view"
 
@@ -34,7 +37,7 @@ test("番号は、プレフィクスと 3 桁に 0 を詰めた番号で、1000 
   expect(ticketLabel("T-", 1000)).toBe("T-1000")
 })
 
-test("履歴の行は、そのチケットの物に起票の行を足し、新しい順に並べる（同じ時点は id の順）", () => {
+test("チケット履歴の行は、そのチケットの物に起票の行を足し、新しい順に並べる（同じ時点は id の順）", () => {
   const rows = historyRows(ticket, [
     line("b", "2026-11-12T01:00:00.000Z"),
     line("a", "2026-11-12T01:00:00.000Z"),
@@ -61,4 +64,19 @@ test("日ごとにまとめる。日の区切りは時間帯で変わる", () =>
 test("担当は、チケットの並びのまま、もう無いワークルームを外す", () => {
   const rooms = [{ id: "a" }, { id: "b" }]
   expect(assigneesOf(ticket, rooms).map(w => w.id)).toEqual(["b", "a"])
+})
+
+test("題の色は、起票の行が success、そのほかは列挙の値の data。列挙から無くなった題は色を付けず、id の終わりを名前にする", () => {
+  expect(topicColor(FILED, undefined)).toBe("success")
+  expect(topicColor("a:b", { color: "warn" })).toBe("warn")
+  expect(topicColor("a:gone", undefined)).toBeUndefined()
+  expect(topicTail("@x/y:topic-review")).toBe("topic-review")
+})
+
+test("チケットスクリーンの画面の状態は、開いているチケットが替われば初めの形に戻る", () => {
+  const first = viewOf(undefined, "t1")
+  expect(first).toEqual({ ticket: "t1", mode: "rendered-only", body: true, maximized: false })
+  const changed = { ...first, maximized: true, question: "q" }
+  expect(viewOf(changed, "t1")).toBe(changed)
+  expect(viewOf(changed, "t2")).toEqual({ ticket: "t2", mode: "rendered-only", body: true, maximized: false })
 })

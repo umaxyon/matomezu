@@ -38,7 +38,6 @@ export const TASKBOARD_MESSAGES = defineMessages({
   Knowledge: { en: "Knowledge", ja: "ナレッジ" },
   "Body at filing": { en: "Body at filing", ja: "起票時の本文" },
   History: { en: "History", ja: "履歴" },
-  "No history yet": { en: "Nothing yet", ja: "（まだありません）" },
   "No assignees": { en: "None", ja: "—" },
   "Edit the name": { en: "Edit the name", ja: "名前を編集" },
   "Ticket name": { en: "Ticket name", ja: "チケットの名前" },

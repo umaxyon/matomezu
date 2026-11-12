@@ -19,7 +19,7 @@ import { kit } from "./kit"
 import { CLOSED_PROJECT } from "./permission"
 import { PROJECT } from "./project"
 import { TICKET } from "./ticket"
-import { TICKET_SCREEN_VIEW } from "./ticket-screen-state"
+import { TICKET_SCREEN_STATE } from "./ticket-screen-state"
 
 export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -40,7 +40,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       CURRENT_TICKET_SET,
     ],
     permissions: [CLOSED_PROJECT],
-    pluginStates: [TICKET_SCREEN_VIEW],
+    pluginStates: [TICKET_SCREEN_STATE],
   }),
 )
 
@@ -73,7 +73,7 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:current-ticket-set": typeof CURRENT_TICKET_SET
   }
   interface PluginStateTable {
-    "@matomezu/taskboard:ticket-screen-view": typeof TICKET_SCREEN_VIEW
+    "@matomezu/taskboard:ticket-screen-state": typeof TICKET_SCREEN_STATE
   }
   interface PermissionTable {
     "@matomezu/taskboard:closed-project": typeof CLOSED_PROJECT

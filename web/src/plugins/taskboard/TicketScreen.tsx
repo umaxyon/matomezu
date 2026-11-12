@@ -1,7 +1,7 @@
 // チケットスクリーン: コントロールセンターの画面の上に全体を覆って重なる（スクリーンの重ね場所が右から滑り込ませる）。左にチケットの枠（番号・タグ・名前・起票日時と最終更新・担当・優先度・ナレッジ・履歴）、
-// 右に本文（マークダウン）。本文は最初からプレビューで出ていて、ナレッジの「起票時の本文」で出し入れし、4 つの見せ方（編集・縦分割・横分割・プレビュー）を切り替える。本文の最大化で、左の枠は戻るボタンだけに畳む。
-// 履歴の質問を押すと、質問の枠が右の領域の上に重なる。名前・本文・優先度は直したそばから反映する（本文は打つたびに送り、変換中は送らない）。
-// ロック中のチケットは薄くして直せなくし、帯のロックで掛け外しする。直している間（名前の入力か本文の編集にフォーカスがある間）は、チケットに編集ロックを掛ける。見せ方は、開いているチケットが替われば初めに戻る
+// 右に本文（マークダウン）。本文は最初からプレビューで出ていて、ナレッジの「起票時の本文」で出し入れし、4 つの並べ方（編集・縦分割・横分割・プレビュー）を切り替える。本文の最大化で、左の枠は戻るボタンだけに畳む。
+// チケット履歴の質問を押すと、質問の枠が右の領域の上に重なる。名前・本文・優先度は直したそばから反映する（本文は打つたびに送り、変換中は送らない）。
+// ロック中のチケットは薄くして直せなくし、帯のロックで掛け外しする。直している間（名前の入力か本文の編集にフォーカスがある間）は、チケットに編集ロックを掛ける。画面の状態は、開いているチケットが替われば初めに戻る
 import { type KeyboardEvent, useEffect, useState } from "react"
 import {
   useActions,
@@ -34,7 +34,7 @@ import { TicketHistoryTimeline } from "./TicketHistoryTimeline"
 import styles from "./TicketScreen.module.css"
 import { TicketTagBadge } from "./TicketTagBadge"
 import { PRIORITIES, TICKET, TICKET_NAME_MAX } from "./ticket"
-import { TICKET_SCREEN_VIEW, type TicketScreenView, viewOf } from "./ticket-screen-state"
+import { TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "./ticket-screen-state"
 import { assigneesOf, type HistoryRow, historyRows, ticketLabel, whenOf } from "./ticket-view"
 import { WriterBird } from "./WriterBird"
 
@@ -55,10 +55,10 @@ export function TicketScreen({ ticket: id }: { ticket: string }) {
   const lines = useRecords(HISTORY.id)
   const workrooms = useRecords(WORKROOM)
   const { perform } = useActions()
-  const [now, update] = [usePluginState(kit, TICKET_SCREEN_VIEW), useUpdatePluginState(kit, TICKET_SCREEN_VIEW)]
+  const [now, update] = [usePluginState(kit, TICKET_SCREEN_STATE), useUpdatePluginState(kit, TICKET_SCREEN_STATE)]
   const view = viewOf(now, id)
-  const set = (patch: Partial<TicketScreenView>) => update(cur => ({ ...viewOf(cur, id), ...patch }))
-  // 閉じたら見せ方を捨てる（開くたびに初めに戻す）
+  const set = (patch: Partial<TicketScreenState>) => update(cur => ({ ...viewOf(cur, id), ...patch }))
+  // 閉じたら画面の状態を捨てる（開くたびに初めに戻す）
   useEffect(() => () => update(() => undefined), [update])
   const [editing, setEditing] = useState(false) // 名前の入力か本文の編集にフォーカスがある間
   useRecordEditLock(TICKET.id, editing ? [id] : [])
@@ -308,7 +308,7 @@ function PriorityField({
   )
 }
 
-// 本文の枠: 帯（題・4 つの見せ方・最大化）と、編集（原文）とプレビュー
+// 本文の枠: 帯（題・4 つの並べ方・最大化）と、編集（原文）とプレビュー
 function BodyPanes({
   ticket,
   body,
@@ -322,10 +322,10 @@ function BodyPanes({
 }: {
   ticket: string
   body: string
-  mode: TicketScreenView["mode"]
+  mode: TicketScreenState["mode"]
   maximized: boolean
   canEdit: boolean
-  onMode: (mode: TicketScreenView["mode"]) => void
+  onMode: (mode: TicketScreenState["mode"]) => void
   onMaximize: () => void
   onEditing: (on: boolean) => void
   onBody: (body: string) => void
@@ -362,7 +362,7 @@ function BodyPanes({
             aria-label={t("Body (markdown)")}
             readOnly={!canEdit}
             value={composing ?? body}
-            onFocus={() => onEditing(true)}
+            onFocus={() => canEdit && onEditing(true)}
             onBlur={() => onEditing(false)}
             onCompositionStart={e => setComposing(e.currentTarget.value)}
             onCompositionEnd={e => {
@@ -388,7 +388,7 @@ function BodyPanes({
   )
 }
 
-// 履歴の質問を開いた枠（右の領域の上に重ねる）: 質問した者の鳥・時刻・質問の文と、閉じるボタン
+// チケット履歴の質問を開いた枠（右の領域の上に重ねる）: 質問した者の鳥・時刻・質問の文と、閉じるボタン
 function QuestionView({ row, onClose }: { row: HistoryRow; onClose: () => void }) {
   const t = useMessages(kit)
   return (

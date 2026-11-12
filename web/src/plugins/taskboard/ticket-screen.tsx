@@ -6,7 +6,6 @@ import { TICKET_SCREEN_PROPS } from "./ticket-screen-props"
 
 export const TICKET_SCREEN = defineScreen({
   id: kit.name("ticket-screen"),
-  title: kit.message("ticket screen"),
   props: TICKET_SCREEN_PROPS,
   view: TicketScreen,
 })
