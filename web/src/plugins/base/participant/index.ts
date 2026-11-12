@@ -1,14 +1,15 @@
 // 参加者・ワークルーム・管理者の印: 参加者リストのデータ（対象の定義。レコード）。
 // ワークルームは名前・鳥・配色を持つ独立したデータ（id は振り直さない）。空室は、入っている参加者がいないワークルーム（ワークルームの側には持たない）。
 // 参加者は AI のセッションが入る記録で、要求中（requested）か受け入れ済み（joined。入っているワークルームの id を持つ）。
-// 管理者の印は全体に 1 つ（id は "admin"。ワークルームの id か "none"。今は飾りで、どこからも読まない）。指す先のワークルームが無ければ「無い」として読み、書き換えない。
-// 要求する participant-request は AI も行え、ほかは利用者だけ。受け入れるときに、新しい部屋なら先に workroom-add で部屋を作り、participant-accept で入れる。
-// 引き継ぎ・部屋を出る・部屋を消すは、アクションを 1 件ずつ続けて行う（join-flow.ts）
+// 管理者の印は全体に 1 つ（id は "admin"。ワークルームの id か "none"。どこからも読まない飾り）。指す先のワークルームが無ければ「無い」として読み、書き換えない。
+// 要求する participant-request は AI も行え、ほかは利用者だけ。受け入れるときに、新しいワークルームなら先に workroom-add でワークルームを作り、participant-accept で入れる。
+// 引き継ぎ・ワークルームを出る・ワークルームを消すは、アクションを 1 件ずつ続けて行う（join-flow.ts）
 import { z } from "zod"
-import { WORKROOM_NAME_MAX } from "../../../core/participant"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTES } from "../birds/colors"
 import { kit } from "../kit"
+
+export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
 
 // 受け入れていない要求の、いちばん多い数。超えたら、要求を断る
 export const PARTICIPANTS_LIMIT = 100

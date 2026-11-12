@@ -1,4 +1,4 @@
-// コントロールセンター: ブックの一覧・利用者の設定・郵便箱・参加者の表を変えるアクションを許す。
+// コントロールセンター: ブックの一覧・利用者の設定・郵便箱・対象の定義の種類を変えるアクションを許す。
 // 組織ごとのコントロールセンターは、このプラグインの代わりに自分のものを渡す
 import { kit } from "./kit"
 
@@ -18,9 +18,6 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:proposal-send",
     "@matomezu/base:proposal-settle",
     "@matomezu/base:mail-join-request",
-    "@matomezu/base:participant-request",
-    "@matomezu/base:participant-accept",
-    "@matomezu/base:participant-decline",
   ],
   subjects: "all",
 })

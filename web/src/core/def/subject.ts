@@ -8,7 +8,7 @@ import type { MessageKey } from "../i18n/i18n"
 // 常駐が読む種類の役。参加者（participants）とワークルーム（workrooms）は、常駐（join・話しかけのフック）が読むので、定義が役を名乗り、常駐は役で種類を引く。
 // 役ごとに 1 つの種類だけが名乗り、常駐が読むフィールドを record に持つ（SUBJECT_ROLE_FIELDS。台帳アセンブルのときに確かめる）
 export const SUBJECT_ROLE_FIELDS = {
-  participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom"],
+  participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom", "requestedAt"],
   workrooms: ["id", "name"],
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS

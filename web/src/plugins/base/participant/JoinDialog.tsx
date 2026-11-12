@@ -1,10 +1,9 @@
-// 参加要求を受け入れるダイアログ: 新しく始める（ワークルームの名前・鳥・配色を 1 度に決める。部屋を作って入れる）か、
-// 引き継げる部屋（空室か、いる参加者が生きていない部屋）に入る（一覧から選ぶ。名前・鳥・配色は部屋のまま）かを選ぶ（引き継げる部屋がなければ、新しく始めるだけ）。
+// 参加要求を受け入れるダイアログ: 新しく始める（ワークルームの名前・鳥・配色を 1 度に決める。ワークルームを作って入れる）か、
+// 引き継げるワークルーム（空室か、いる参加者が生きていないワークルーム）に入る（一覧から選ぶ。名前・鳥・配色はワークルームのまま）かを選ぶ（引き継げるワークルームがなければ、新しく始めるだけ）。
 // 名前の初めは AI が頼んだ名前か元のセッション名。鳥は 5 羽から 1 つ（同じ鳥を何人に当ててもよい）、配色は 20 個から 1 つ（選ばなければ、鳥の元の配色）。配色を選ぶと、5 羽ともその配色に塗り替わる。
-// 同じ名前の部屋に、生きている参加者がいる間は決められない。名前が引き継げる部屋と同じなら、最後に引き継ぐか、前の部屋を消して新しく始めるかを確かめる。
-// 部屋を作る・いる参加者を外す・入れるは、アクション 1 件ずつ続けて行う（join-flow.ts）。キャンセルは閉じるだけで、参加要求は保留のまま
+// 同じ名前のワークルームに、生きている参加者がいる間は決められない。名前が引き継げるワークルームと同じなら、最後に引き継ぐか、前のワークルームを消して新しく始めるかを確かめる。
+// ワークルームを作る・いる参加者を外す・入れるは、アクション 1 件ずつ続けて行う（join-flow.ts）。キャンセルは閉じるだけで、参加要求は保留のまま
 import { useId, useState } from "react"
-import { WORKROOM_NAME_MAX } from "../../../core/participant"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions } from "../../../ui/store-context"
@@ -15,7 +14,7 @@ import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
-import { PARTICIPANT_ACCEPT, WORKROOM_ADD, type Workroom } from "."
+import { PARTICIPANT_ACCEPT, WORKROOM_ADD, WORKROOM_NAME_MAX, type Workroom } from "."
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird, originalPalette, PALETTE_TITLES } from "./birds"
 import { useIsAlive, useNowMs, useParticipantCalls, useParticipants, useWorkrooms } from "./hooks"
@@ -58,7 +57,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const asked = quiet.find(r => r.name === first?.wantedName)
   const [mode, setMode] = useState<Mode>(asked ? "takeover" : "new")
   const [pick, setPick] = useState<string | undefined>(asked?.id)
-  // 確かめている途中の、引き継ぐ部屋（無ければ、まだ確かめていない）
+  // 確かめている途中の、引き継ぐワークルーム（無ければ、まだ確かめていない）
   const [confirming, setConfirming] = useState<{ target: Workroom; discardable: boolean } | undefined>(undefined)
   const [name, setName] = useState(first?.wantedName ?? first?.sessionName ?? "")
   const [bird, setBird] = useState<Bird>(BIRD_IDS[0])
@@ -91,7 +90,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
         typeof perform
       >,
     )
-  // OK: 名前が引き継げる部屋と同じ、または一覧から選んだなら、最後に確かめる
+  // OK: 名前が引き継げるワークルームと同じ、または一覧から選んだなら、最後に確かめる
   const submit = () => {
     if (mode === "takeover") {
       if (chosen) setConfirming({ target: chosen, discardable: false })

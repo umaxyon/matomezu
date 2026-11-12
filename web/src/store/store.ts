@@ -356,7 +356,7 @@ export type AIEditTicketOutcome =
 
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
   plugins: Ps
-  controlCenter?: ControlCenterId // コントロールセンターの定義の id。ブックの一覧・利用者の設定・郵便箱・参加者の表を変えるアクションを許すかはこれが決める。無ければ、それらは断る
+  controlCenter?: ControlCenterId // コントロールセンターの定義の id。ブックの一覧・利用者の設定・郵便箱・対象の定義の種類を変えるアクションを許すかはこれが決める。無ければ、それらは断る
   books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、空のステージ
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。インスタンスにある最初の言語を使い、無ければ英語

@@ -3,8 +3,8 @@
 import { z } from "zod"
 import { freshId } from "../../../core/ids"
 import type { Mail } from "../../../core/mail"
-import { WORKROOM_NAME_MAX } from "../../../core/participant"
 import { kit } from "../kit"
+import { WORKROOM_NAME_MAX } from "../participant"
 import { withinLimit } from "."
 
 const JoinRequestSchema = z.strictObject({

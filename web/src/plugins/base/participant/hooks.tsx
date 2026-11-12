@@ -1,4 +1,4 @@
-// 参加者の表と、最後に呼ばれた時刻を読むフック
+// 参加者・ワークルームのレコードと、最後に呼ばれた時刻を読むフック
 import { useCallback, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { isParticipantAlive } from "../../../core/settings"

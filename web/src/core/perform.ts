@@ -313,7 +313,7 @@ export function perform<Id extends ActionId>(
   } as Performed<Id>
 }
 
-// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、郵便箱と、参加者の表
+// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、郵便箱と、対象の定義が足した種類のレコードと番号の表
 export interface World {
   books: Library
   settings: Settings
