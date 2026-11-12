@@ -4,15 +4,15 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: calc(-1 * var(--panel-pad-y)) calc(-1 * var(--panel-pad-x)) 0;
-  padding: var(--band-pad-y) var(--panel-pad-x) var(--band-pad-y) var(--panel-pad-x);
+  margin: calc(-1 * var(--panel-pad-y, 6px)) calc(-1 * var(--panel-pad-x, 8px)) 0;
+  padding: var(--band-pad-y) var(--panel-pad-x, 8px) var(--band-pad-y) var(--panel-pad-x, 8px);
   border-bottom: 1px solid var(--skin-border);
   border-radius: 7px 7px 0 0;
   background: var(--skin-surface-muted);
 }
 .tall {
   --band-pad-y: 8px;
-  padding-right: var(--band-pad-right, var(--panel-pad-x));
+  padding-right: var(--band-pad-right, var(--panel-pad-x, 8px));
   border-radius: 0;
   line-height: 16px;
 }

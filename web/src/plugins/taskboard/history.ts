@@ -12,7 +12,7 @@ export const HISTORY_TOPIC = kit.defineEnum({
   title: "history topic",
   aiDescription:
     "The topics of the lines of a ticket's history, such as a status report, a plan and a question. ticket-history-add takes the id of one of them as its topic.",
-  value: z.strictObject({ color: z.enum(PALETTE) }), // 題を描く色の役割
+  value: z.strictObject({ color: z.enum(PALETTE), asksUser: z.boolean().optional() }), // 題を描く色の役割と、利用者への質問か（質問は、見せる側が押せる吹き出しにする）
 })
 
 export const TOPIC_STATUS = kit.defineEnumValue({
@@ -27,14 +27,14 @@ export const TOPIC_PLAN = kit.defineEnumValue({
   enum: HISTORY_TOPIC.id,
   title: "topic plan",
   aiDescription: "A plan: what will be done and how, before doing it.",
-  data: { color: "success" },
+  data: { color: "secondary" },
 })
 export const TOPIC_QUESTION = kit.defineEnumValue({
   id: "topic-question",
   enum: HISTORY_TOPIC.id,
   title: "topic question",
   aiDescription: "A question to the user that blocks or changes the work.",
-  data: { color: "warn" },
+  data: { color: "warn", asksUser: true },
 })
 
 export const HISTORY = kit.defineSubject({

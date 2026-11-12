@@ -1,0 +1,12 @@
+.bird {
+  display: flex;
+}
+.user {
+  display: grid;
+  place-items: center;
+  color: var(--skin-text-muted);
+}
+.user svg {
+  width: 100%;
+  height: 100%;
+}

@@ -1,22 +1,20 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・現在のタスク・履歴。
-// 情報の列の右下に退室のアイコン。現在のタスクと履歴の列は、中身が無ければ「なし」
-import { useActions, useAllowedOn, useMessages, useWindowStage } from "../../plugin-api/ui"
+// 情報の列の右下に退室のアイコン。情報の列の右には、base のスロット（workroom-columns）に置かれたウィジェットの列（現在のタスク・履歴など）が並ぶ
+import { Slot, useActions, useAllowedOn, useMessages, useWindowStage } from "../../plugin-api/ui"
 import type { WorkroomRow } from "../base"
-import { Elapsed, Tip, useWorkroomActions } from "../base/ui"
+import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, WORKROOM_COLUMNS } from "../base/ui"
 import { Bird } from "./Bird"
 import { WORKROOM_LEAVE_DIALOG } from "./control-center"
-import { IconButton } from "./IconButton"
 import { CrownIcon, LeaveIcon } from "./icons"
 import { kit } from "./kit"
-import { Panel } from "./Panel"
 import { lastAccessOf } from "./rows"
 import text from "./text.module.css"
 import styles from "./WorkroomView.module.css"
 
-export function WorkroomView({ row }: { row: WorkroomRow | undefined }) {
+export function WorkroomView({ row, hidden }: { row: WorkroomRow | undefined; hidden: boolean }) {
   const t = useMessages(kit)
   return (
-    <Panel className={styles.room} data-workroom-panel>
+    <Panel className={styles.room} data-max={hidden} data-workroom-panel>
       {row && row.state === "empty" ? (
         <p className={text.note}>
           {row.room.name}
@@ -98,18 +96,7 @@ function Occupied({ row }: { row: WorkroomRow }) {
           </Tip>
         </span>
       </div>
-      <div className={styles.task}>
-        <span className={`${text.sectionHeading} ${styles.heading}`}>{t("Current task")}</span>
-        <div className={styles.taskScroll}>
-          <p className={text.note}>{t("None")}</p>
-        </div>
-      </div>
-      <div className={styles.history}>
-        <span className={`${text.sectionHeading} ${styles.heading}`}>{t("History")}</span>
-        <div className={styles.historyList}>
-          <p className={text.note}>{t("None")}</p>
-        </div>
-      </div>
+      <Slot name={WORKROOM_COLUMNS} props={{ workroom: row.room.id }} />
     </div>
   )
 }

@@ -183,27 +183,43 @@ func textOf(a map[string]any) string {
 	return a["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
 }
 
-// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添える。参加の id が無ければ添えない。
-// AI のプログラムのプロセス id は、join も含めていつも添える（起こす知らせの宛て先）
-func TestBranchGoesWithTheParticipantAndHostAlways(t *testing.T) {
+// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添え、その呼び出しの _meta にモデルがあれば（Codex）、モデルも添える（URL エンコード）。
+// 参加の id が無ければ、どちらも添えない。AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id は、join も含めていつも添える（起こす知らせの宛て先）
+func TestBranchAndModelGoWithTheParticipantAndHostAlways(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
-	branches := []string{"feat/d110", ""}
+	branches := []string{"feat/d110", "", ""}
 	read := 0
 	talkOn(t, api, func() string { b := branches[read]; read++; return b },
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L1"}}}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L1"},"_meta":{"x-codex-turn-metadata":{"model":"gpt-6"}}}}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"view","arguments":{}}}`,
-		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"view","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"view","arguments":{},"_meta":{"sessionId":"S1","x-codex-turn-metadata":{"model":"gpt 6/luna"}}}}`,
 	)
 	if len(api.headers) != 3 {
 		t.Fatalf("calls = %d", len(api.headers))
 	}
-	if _, ok := api.headers[0]["X-Matomezu-Branch"]; ok || api.headers[0].Get("X-Matomezu-Host") != "4242" || api.headers[0].Get("X-Matomezu-Host-Session") != "HS1" {
-		t.Fatalf("join without a participant = %v", api.headers[0])
+	if h := api.headers[0]; len(h) != 2 || h.Get("X-Matomezu-Host") != "4242" || h.Get("X-Matomezu-Host-Session") != "HS1" {
+		t.Fatalf("join without a participant = %v", h)
 	}
-	for i, want := range []string{"feat%2Fd110", ""} {
+	for i, want := range []struct{ branch, model string }{{"feat%2Fd110", ""}, {"", "gpt+6%2Fluna"}} {
 		h := api.headers[i+1]
-		if v, ok := h["X-Matomezu-Branch"]; !ok || v[0] != want || h.Get("X-Matomezu-Host") != "4242" {
+		if v, ok := h["X-Matomezu-Branch"]; !ok || v[0] != want.branch || h.Get("X-Matomezu-Host") != "4242" || h.Get("X-Matomezu-Model") != want.model {
 			t.Fatalf("call %d = %v", i+1, h)
+		}
+	}
+}
+
+// _meta のセッション id は sessionId（無ければ threadId）、モデルは AI ごとの置き場所から読む
+func TestFromMeta(t *testing.T) {
+	for _, c := range []struct{ meta, session, model string }{
+		{``, "", ""},
+		{`{}`, "", ""},
+		{`{"sessionId":"S1","threadId":"T1"}`, "S1", ""},
+		{`{"threadId":"T1"}`, "T1", ""},
+		{`{"sessionId":"S1","x-codex-turn-metadata":{"model":"gpt-6-luna","session_id":"S1"}}`, "S1", "gpt-6-luna"},
+		{`"broken"`, "", ""},
+	} {
+		if s, m := fromMeta(json.RawMessage(c.meta)); s != c.session || m != c.model {
+			t.Errorf("fromMeta(%s) = %q, %q", c.meta, s, m)
 		}
 	}
 }

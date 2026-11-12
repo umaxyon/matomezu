@@ -14,13 +14,14 @@ import (
 	"sync"
 )
 
-// 常駐の AI の入口とやりとりするヘッダ（server の ParticipantHeader・NoticeHeader・BranchHeader・HostHeader と同じ名前）
+// 常駐の AI の入口とやりとりするヘッダ（server の ParticipantHeader・NoticeHeader・BranchHeader・HostHeader・ModelHeader と同じ名前）
 const (
 	participantHeader = "X-Matomezu-Participant"  // 送る: join の返事で受けた参加の id
 	noticeHeader      = "X-Matomezu-Notice"       // 返る: AI への知らせ（値は URL エンコード）
 	branchHeader      = "X-Matomezu-Branch"       // 送る: 参加の id と一緒にいつも。git のブランチ（値は URL エンコード。空はブランチが無い）
 	hostHeader        = "X-Matomezu-Host"         // 送る: いつも（join も）。AI のプログラムのプロセス id
 	hostSessionHeader = "X-Matomezu-Host-Session" // 送る: いつも（join も）。AI のプログラムが MCP を立てたときのセッション id（分かるときだけ。/clear でも変わらない）
+	modelHeader       = "X-Matomezu-Model"        // 送る: 参加の id と一緒に、呼び出しの _meta にモデルがあったとき。今のモデル（値は URL エンコード）
 )
 
 // API は常駐の AI の入口を呼ぶ口。header は送るヘッダ、戻りの 2 つ目は返事のヘッダ
@@ -46,6 +47,7 @@ type conn struct {
 	hostSession string        // AI のプログラムが MCP を立てたときのセッション id（分からなければ空）
 	participant string        // join の返事で受けた参加の id
 	sessionID   string        // いま処理している呼び出しの _meta にあったセッション id
+	model       string        // いま処理している呼び出しの _meta にあったモデル（無ければ空）
 	notice      string        // いま処理している呼び出しの返事で届いた知らせ
 }
 
@@ -60,6 +62,9 @@ func (c *conn) header() http.Header {
 	if c.participant != "" {
 		h.Set(participantHeader, c.participant)
 		h.Set(branchHeader, url.QueryEscape(c.branch()))
+		if c.model != "" {
+			h.Set(modelHeader, url.QueryEscape(c.model))
+		}
 	}
 	return h
 }
@@ -169,23 +174,37 @@ func handle(req request, c *conn) (any, *rpcError) {
 		var p struct {
 			Name      string          `json:"name"`
 			Arguments json.RawMessage `json:"arguments"`
-			Meta      struct {
-				SessionID string `json:"sessionId"`
-				ThreadID  string `json:"threadId"`
-			} `json:"_meta"`
+			Meta      json.RawMessage `json:"_meta"`
 		}
 		if err := json.Unmarshal(req.Params, &p); err != nil {
 			return nil, &rpcError{-32602, "invalid params"}
 		}
-		c.sessionID = p.Meta.SessionID
-		if c.sessionID == "" {
-			c.sessionID = p.Meta.ThreadID
-		}
+		c.sessionID, c.model = fromMeta(p.Meta)
 		text, failed := callTool(c, p.Name, p.Arguments)
 		return map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "isError": failed}, nil
 	default:
 		return nil, &rpcError{-32601, fmt.Sprintf("method not found: %s", req.Method)}
 	}
+}
+
+// fromMeta は、tools/call の _meta から、AI が添えたセッション id とモデルを読む（無ければ空）。
+// セッション id は sessionId（無ければ threadId）。モデルは AI ごとの置き場所（Codex は x-codex-turn-metadata の model）
+func fromMeta(meta json.RawMessage) (sessionID, model string) {
+	var m struct {
+		SessionID string `json:"sessionId"`
+		ThreadID  string `json:"threadId"`
+		Codex     struct {
+			Model string `json:"model"`
+		} `json:"x-codex-turn-metadata"`
+	}
+	if len(meta) == 0 || json.Unmarshal(meta, &m) != nil {
+		return "", ""
+	}
+	sessionID = m.SessionID
+	if sessionID == "" {
+		sessionID = m.ThreadID
+	}
+	return sessionID, m.Codex.Model
 }
 
 // aiName は clientInfo の名前と版から、参加者の表に載せる AI の名前（40 字まで）を作る

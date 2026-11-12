@@ -119,7 +119,12 @@ test("今のチケットは、AI が自分のワークルームの分だけ宣�
   expect(table(CURRENT.id)).toEqual([])
 })
 
-test("履歴の題は列挙 history-topic の値（状況・プラン・質問）。値の data は色の役割", () => {
+test("履歴の題は列挙 history-topic の値（状況・プラン・質問）。値の data は色の役割で、質問だけ利用者への質問（asksUser）", () => {
   const values = [...CORE_CATALOG.enumValues.values()].filter(v => v.enum === HISTORY_TOPIC.id)
   expect(values.map(v => v.id)).toEqual([A("topic-status"), A("topic-plan"), A("topic-question")])
+  expect(values.map(v => v.data)).toEqual([
+    { color: "primary" },
+    { color: "secondary" },
+    { color: "warn", asksUser: true },
+  ])
 })
