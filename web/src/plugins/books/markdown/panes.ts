@@ -7,12 +7,13 @@
 // 置き場は { chosen（利用者が選んだ並べ方）, opening（開いたときに決めた並べ方）} で、並べ方を読む所は paneLayoutOf（ビューとコマンドで同じ）
 import { z } from "zod"
 import type { PlacedStateDef } from "../../../plugin-api"
+import { MARKDOWN_PANE_MODES, type MarkdownPaneMode } from "../../base"
 
 export const PANES = ["source", "rendered"] as const
 export type Pane = (typeof PANES)[number]
 
-export const PANE_MODES = ["split-row", "split-column", "source-only", "rendered-only"] as const
-export type PaneMode = (typeof PANE_MODES)[number]
+export const PANE_MODES = MARKDOWN_PANE_MODES // 値の並びと型は base が出す
+export type PaneMode = MarkdownPaneMode
 
 export const EVEN_PANE_SHARE = 0.5
 export const MIN_PANE_SHARE = 0.15 // 片方のペインの割合の下限（ステージの境目と同じ）

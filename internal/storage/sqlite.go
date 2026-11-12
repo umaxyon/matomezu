@@ -117,6 +117,9 @@ var migrations = []string{
 				CASE WHEN json_extract(j.value, '$.workroom') IS NULL THEN '$.wantedName' ELSE '$.none' END) END, 1, p.updated_at
 	FROM participants p, json_each(p.body) j;
 	DROP TABLE participants;`,
+	// 利用者の設定「段落の中の改行」の保存した値は、設定の項目の id を @matomezu/markdown:soft-break から @matomezu/base:soft-break に付け替える
+	`UPDATE settings SET body = json_remove(json_set(body, '$."@matomezu/base:soft-break"', json_extract(body, '$."@matomezu/markdown:soft-break"')), '$."@matomezu/markdown:soft-break"')
+	WHERE json_type(body, '$."@matomezu/markdown:soft-break"') IS NOT NULL;`,
 	// 初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）の、行ったという記録
 	`CREATE TABLE ran_once (action TEXT PRIMARY KEY);`,
 }

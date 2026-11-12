@@ -412,7 +412,7 @@ func TestParticipantTableBecomesRecords(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := migrations[:13:13] // 次の足し方の前まで
+	before := migrations[:14:14] // 次の足し方の前まで
 	for _, q := range append(before,
 		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
 		`INSERT INTO participants (user, body, updated_at) VALUES ('u1', '[
@@ -446,6 +446,34 @@ func TestParticipantTableBecomesRecords(t *testing.T) {
 	}
 	if _, err := s.(*sqliteStorage).db.Exec(`SELECT 1 FROM participants`); err == nil {
 		t.Fatal("the participants table is still there")
+	}
+}
+
+// 利用者の設定「段落の中の改行」は、設定の項目の id が markdown の物から base の物に替わる: 保存した値を付け替え、ほかの設定と、まだ選んでいない利用者の設定は変えない
+func TestSoftBreakSettingMovesToBase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := migrations[:15:15] // 次の足し方の前まで
+	for _, q := range append(before,
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
+		`INSERT INTO settings (user, body, updated_at) VALUES
+			('u1', '{"@matomezu/base:lang":"matomezu:ja","@matomezu/markdown:soft-break":"space","@matomezu/markdown:line-numbers":false}', 'x'),
+			('u2', '{"@matomezu/base:lang":"matomezu:en"}', 'x')`,
+	) {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s := open(t, path)
+	if got, _ := s.Settings("u1"); string(got) != `{"@matomezu/base:lang":"matomezu:ja","@matomezu/markdown:line-numbers":false,"@matomezu/base:soft-break":"space"}` {
+		t.Fatalf("u1 settings = %s", got)
+	}
+	if got, _ := s.Settings("u2"); string(got) != `{"@matomezu/base:lang":"matomezu:en"}` {
+		t.Fatalf("u2 settings = %s", got)
 	}
 }
 
