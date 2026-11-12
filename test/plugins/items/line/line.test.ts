@@ -1,6 +1,7 @@
 // 線のアクション（line-connect・line-update）と、線と形の決まり（組ごとの間隔・消すと線も消える・引けなくなった区間・関係の検査）
 
 import { expect, test } from "bun:test"
+import { USER } from "../../../../web/src/core/actor"
 import { restoreBooks } from "../../../../web/src/core/book"
 import { buildCoreCatalog } from "../../../../web/src/core/core-catalog"
 import { perform } from "../../../../web/src/core/perform"
@@ -313,6 +314,7 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
     lang: "ja",
     newId: sequence("x"),
     now: "2026-10-26T00:00:00.000Z",
+    actor: USER,
   }
   expect(usesLines(CORE_CATALOG, book)).toBe(true)
   expect(usesLines(noLines, book)).toBe(false)

@@ -1,6 +1,7 @@
 // アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も LLM の操作も同じものを通る。
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 import type { z } from "zod"
+import { type Actor, isAI } from "../actor"
 import type { BookAnnotations } from "../annotation"
 import type { PagedBook } from "../book"
 import type { ActionExtras } from "../catalog"
@@ -40,7 +41,7 @@ export interface ActionContext {
   // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。
   // アクションは時刻や乱数を直に使わず、これと newId だけを使う（同じ入力なら同じ結果）
   now: string
-  by?: "ai" // 頼んだのが AI か（無ければ利用者。AI には userOnly のアクションとロックを外すことを断る）
+  actor: Actor // 行った者（利用者か AI か。AI には userOnly のアクションとロックを外すことを断る）
   // 郵便箱が対象のアクションが読むだけのブックの一覧（ほかの対象のアクションには無い。郵便に乗せる変更を確かめるのに使う）
   books?: Readonly<Library>
 }
@@ -251,8 +252,8 @@ export interface ActionDef<
 }
 
 // 利用者が直している物（編集ロック）を変えるか消すとき、断るアクションか: AI が頼んだアクションと、lockedForUser のアクション（ホストのエンジンが読む）
-export const stopsOnEditLock = (action: Pick<ActionDef, "lockedForUser"> | undefined, by: "ai" | undefined): boolean =>
-  by === "ai" || action?.lockedForUser === true
+export const stopsOnEditLock = (action: Pick<ActionDef, "lockedForUser"> | undefined, actor: Actor): boolean =>
+  isAI(actor) || action?.lockedForUser === true
 
 // target から run の対象の型を、args の形から引数の型を決め、id は書いた文字のまま残す
 export function defineAction<

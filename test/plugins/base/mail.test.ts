@@ -1,6 +1,8 @@
 // 郵便（base の郵便の種類の手紙）: 郵便箱は利用者に 1 つで、ブックのデータとは別に持つ。送るのは AI もでき、見た・行き先を見た・消すは利用者だけ。
 // 既読は 2 つ（郵便を見た seenAt、行き先を見た visitedAt）で、どちらも一度だけ付く
+
 import { expect, test } from "bun:test"
+import { AI } from "../../../web/src/core/actor"
 import type { Mail } from "../../../web/src/core/mail"
 import { performIn } from "../../../web/src/core/perform"
 import { placeShown } from "../../../web/src/plugins/base/mail/visited"
@@ -79,7 +81,7 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
     lang: "en" as const,
     newId: () => "n",
     now: "t",
-    by: "ai" as const,
+    actor: AI,
   }
   const ai = (action: string, args: unknown) => performIn(world, action, args, undefined, ctx)
   expect(ai(SEND, { project: "default", from: "b", title: "y" }).ok).toBe(true)

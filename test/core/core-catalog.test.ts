@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { z } from "zod"
+import { USER } from "../../web/src/core/actor"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, problemText } from "../../web/src/core/errors"
@@ -178,6 +179,7 @@ describe("アクションを行う", () => {
     lang: "ja" as const,
     newId: () => "new",
     now: "2026-10-26T00:00:00.000Z",
+    actor: USER,
   }
   const library = { [book.id]: book }
 
@@ -349,6 +351,7 @@ describe("機能台帳ごとに別の世界", () => {
         lang: "ja",
         newId: () => "n1",
         now: "2026-10-26T00:00:00.000Z",
+        actor: USER,
       },
     )
     expect(made).toMatchObject({ ok: true, result: { book: "n1" } })
@@ -364,6 +367,7 @@ describe("機能台帳ごとに別の世界", () => {
         lang: "ja",
         newId: () => "n1",
         now: "2026-10-26T00:00:00.000Z",
+        actor: USER,
       },
     )
     expect(refused).toEqual({ ok: false, reason: "refused" })

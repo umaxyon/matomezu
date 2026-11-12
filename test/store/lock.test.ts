@@ -1,5 +1,7 @@
 // ロック: ロック中のブック・ページは利用者も AI も変えられない（認可ステップ lock が止める）。外せるのは利用者だけ
+
 import { expect, test } from "bun:test"
+import { type Actor, AI, USER } from "../../web/src/core/actor"
 import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
@@ -54,13 +56,13 @@ test("ロック中のページは変えられず消せない。ほかのペー�
 
 test("AI はロックを掛けられるが外せない（userOnly のアクションは断る）", () => {
   const { state } = newStore()
-  const ctx = (by?: "ai") => ({
+  const ctx = (actor: Actor = USER) => ({
     catalog: CORE_CATALOG,
     controlCenter: "@matomezu/control-center:control-center",
     lang: "en" as const,
     newId: () => "n",
     now: "2026-10-29T00:00:00.000Z",
-    ...(by ? { by } : {}),
+    actor,
   })
   let world = {
     books: state.getState().books,
@@ -69,13 +71,13 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
     mailbox: [],
     participants: [],
   }
-  const run = (id: string, by?: "ai"): PerformedIn => {
-    const done = performIn(world, id, {}, { book: "b1" }, ctx(by))
+  const run = (id: string, actor?: Actor): PerformedIn => {
+    const done = performIn(world, id, {}, { book: "b1" }, ctx(actor))
     if (done.ok && done.book) world = { ...world, books: { ...world.books, [done.book.id]: done.book } }
     return done
   }
-  expect(run("@matomezu/base:book-lock", "ai").ok).toBe(true)
-  expect(run("@matomezu/base:book-unlock", "ai")).toEqual({ ok: false, reason: "not-allowed" })
+  expect(run("@matomezu/base:book-lock", AI).ok).toBe(true)
+  expect(run("@matomezu/base:book-unlock", AI)).toEqual({ ok: false, reason: "not-allowed" })
   expect(run("@matomezu/base:book-unlock").ok).toBe(true)
 })
 
@@ -86,10 +88,10 @@ test("変える所を言わないアクションは、行う前にはページ�
   expect(LOCK.denies({ action, book: before })).toBe(false)
   expect(LOCK.denies({ action, book: before, where: { page: "p1" } })).toBe(true)
   const after = { ...before, pages: [{ ...page, title: "x" }] } as unknown as Book
-  expect(LOCK.keeps!({ action, before, after, changes: changesOf(before, after) })).toBe(false)
+  expect(LOCK.keeps!({ action, before, after, changes: changesOf(before, after), actor: USER })).toBe(false)
   const unlocked = { ...before, pages: [{ id: "p1", title: "1" }] } as unknown as Book
-  expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked) })).toBe(true)
-  expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked), by: "ai" })).toBe(false)
+  expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked), actor: USER })).toBe(true)
+  expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked), actor: AI })).toBe(false)
 })
 
 test("ロック中は、行うアクションをどれも認可ステップに止められるコマンドを押せない。設定のダイアログはロックを外すために押せる", () => {

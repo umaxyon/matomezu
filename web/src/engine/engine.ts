@@ -4,6 +4,7 @@
 // 追加プラグインが借りる実物（plugin-modules）は、読み込んだときに globalThis.__matomezuModules に置く（変換した JS はここから取り出す）
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
+import { actorOfWire } from "../core/actor"
 import {
   type Annotations,
   annotationBriefs,
@@ -125,13 +126,14 @@ function perform(input: Input): Output {
   )
   const mailbox = restoreMailbox(input.mailbox)
   const participants = restoreParticipants(input.participants)
+  const actor = actorOfWire(input.by)
   const done = performIn({ books, settings, annotations, mailbox, participants }, input.action, input.args, input.on, {
     catalog,
     controlCenter,
     lang,
     newId: () => ids.shift() ?? crypto.randomUUID(),
     now: input.now ?? new Date().toISOString(),
-    ...(input.by === "ai" ? { by: "ai" as const } : {}),
+    actor,
   })
   if (!done.ok) return refusal(catalog, done)
   const next = done.books
@@ -144,7 +146,7 @@ function perform(input: Input): Output {
     return changedIn({ book: books[id], annotations: annotations[id] }, { book, annotations: list }, watched)
   })
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）
-  if (touched.length > 0 && stopsOnEditLock(catalog.actions.get(input.action), input.by))
+  if (touched.length > 0 && stopsOnEditLock(catalog.actions.get(input.action), actor))
     return { ok: false, reason: "being-edited" }
   return {
     ok: true,

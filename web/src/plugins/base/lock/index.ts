@@ -1,6 +1,7 @@
 // ロック: ブックとページに掛ける「変えない」印（locked は土台のフィールド）。ロック中は利用者も AI も中身を変えられず、ゴミ箱へも入れられない（止めるのは認可ステップ LOCK）。
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
+import { isAI } from "../../../core/actor"
 import { hasPages, pagesOf, putPage } from "../../../core/book"
 import type { PermissionCheck } from "../../../core/def/permission"
 import type { Book } from "../../../core/schema/book"
@@ -87,8 +88,11 @@ const BOOK_SWITCHES: readonly string[] = [BOOK_LOCK.id, BOOK_UNLOCK.id]
 const PAGE_SWITCHES: readonly string[] = [PAGE_LOCK.id, PAGE_UNLOCK.id]
 
 // 変わったのがロックの印だけで、AI がロックを外していないか（next は変わった後のブックかページ）
-const onlySwitched = (fields: readonly string[], next: { locked?: true } | undefined, by: PermissionCheck["by"]) =>
-  fields.every(f => f === "locked") && !(by === "ai" && fields.includes("locked") && !next?.locked)
+const onlySwitched = (
+  fields: readonly string[],
+  next: { locked?: true } | undefined,
+  actor: PermissionCheck["actor"],
+) => fields.every(f => f === "locked") && !(isAI(actor) && fields.includes("locked") && !next?.locked)
 
 export const LOCK = kit.definePermission({
   id: "lock",
@@ -107,16 +111,16 @@ export const LOCK = kit.definePermission({
   },
   // ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
   // ブックごとゴミ箱にも入れない。ロックを外せるのは利用者だけ
-  keeps: ({ before, after, changes, by }) => {
+  keeps: ({ before, after, changes, actor }) => {
     if (!before) return true // 新しく増えたブックは、ロックを掛けて作ってもよい
     const locked = pagesOf(before).filter(p => p.locked)
     if (!before.locked && locked.length === 0) return true
     if (changes.gone || changes.fields.includes("trashed")) return false
-    if (before.locked && (changes.pages.length > 0 || !onlySwitched(changes.fields, after, by))) return false
+    if (before.locked && (changes.pages.length > 0 || !onlySwitched(changes.fields, after, actor))) return false
     const next = new Map((after ? pagesOf(after) : []).map(p => [p.id, p]))
     return locked.every(p => {
       const c = changes.pages.find(x => x.id === p.id)
-      return !c || (c.change === "changed" && c.items.length === 0 && onlySwitched(c.fields, next.get(p.id), by))
+      return !c || (c.change === "changed" && c.items.length === 0 && onlySwitched(c.fields, next.get(p.id), actor))
     })
   },
 })

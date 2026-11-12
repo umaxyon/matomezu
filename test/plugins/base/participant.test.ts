@@ -1,6 +1,8 @@
 // 参加者（base の参加者の表）: 参加者の表は利用者に 1 つで、ブックのデータとは別に持つ。要求は AI も行え、受け入れる・断るは利用者だけ。
 // 参加要求の郵便（mail-join-request）は、別の対象（郵便箱）に届く
+
 import { expect, test } from "bun:test"
+import { AI, USER } from "../../../web/src/core/actor"
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
 import { translate } from "../../../web/src/core/i18n/i18n"
 import type { Mail } from "../../../web/src/core/mail"
@@ -120,7 +122,7 @@ test("AI は要求できるが、受け入れる・断るはできない（利�
     lang: "en" as const,
     newId: () => "n",
     now: "t",
-    by: "ai" as const,
+    actor: AI,
   }
   const ai = (action: string, args: unknown) => performIn(world, action, args, undefined, ctx)
   expect(ai(REQUEST, { ...WHO, link: "L9" }).ok).toBe(true)
@@ -140,6 +142,7 @@ test("同じ入力（時刻と id のもと）なら同じ結果", () => {
       lang: "en" as const,
       newId: () => "0123456789abcdef",
       now: "2026-11-08T00:00:00.000Z",
+      actor: USER,
     }
     return performIn(world, REQUEST, WHO, undefined, ctx)
   }

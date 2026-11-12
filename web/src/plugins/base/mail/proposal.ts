@@ -5,6 +5,7 @@
 // 少しでも違う・無いなら失敗にする。反映は 1 つのアクションで、乗せた変更を順に行い、1 つでも断られたら全部取り消す。
 // 送ると AI 編集チケットを作り、反映したら閉じ、失敗したら失敗にする（失敗は、次に利用者が AI に話しかけたときに AI に渡る）
 import { z } from "zod"
+import { USER } from "../../../core/actor"
 import type { ActionContext } from "../../../core/def/action"
 import { freshId } from "../../../core/ids"
 import type { Mail, Mailbox } from "../../../core/mail"
@@ -71,7 +72,8 @@ function carry(
   ctx: ActionContext,
   tried: boolean,
 ): { after: Book } | { declined: string } {
-  const { by: _, books: __, ...user } = ctx
+  const { actor: _, books: __, ...rest } = ctx
+  const user: ActionContext = { ...rest, actor: USER }
   let after = book
   for (const [i, c] of changes.entries()) {
     const def = ctx.catalog.actions.get(c.action)

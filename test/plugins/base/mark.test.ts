@@ -1,5 +1,7 @@
 // マーク（base のアノテーションの種類）: 文の無い印。付けるのは利用者だけで、1 つの物に 1 つ。読まれるまで AI の応えを待ち、利用者も AI も外せる
+
 import { expect, test } from "bun:test"
+import { AI } from "../../../web/src/core/actor"
 import { type Annotation, annotationsForAi } from "../../../web/src/core/annotation"
 import { performIn } from "../../../web/src/core/perform"
 import type { BookOf } from "../../../web/src/core/schema/book"
@@ -82,7 +84,7 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
     lang: "en" as const,
     newId: () => "n",
     now: "t",
-    by: "ai" as const,
+    actor: AI,
   }
   const ai = (action: string, args: unknown) => {
     const done = performIn(world, action, args, ON, ctx)

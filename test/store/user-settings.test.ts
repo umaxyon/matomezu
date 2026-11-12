@@ -1,6 +1,8 @@
 // 利用者の設定の項目: プラグインの userSettings が持ち、settings-set で変える。role は土台が読む項目の印で、ビルトインプラグインだけが持てる
+
 import { expect, test } from "bun:test"
 import { z } from "zod"
+import { type Actor, AI, USER } from "../../web/src/core/actor"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import type { SettingDef } from "../../web/src/core/def/setting"
 import { performIn } from "../../web/src/core/perform"
@@ -20,32 +22,32 @@ const SECRET: SettingDef = {
 const OPEN: SettingDef = { id: "@ex/u:open", title: "@matomezu/base:Language", schema: z.number(), default: 1 }
 const EX: Plugin = { id: "@ex/u", userSettings: [SECRET, OPEN] }
 
-const ctx = (catalog = CORE_CATALOG, by?: "ai") => ({
+const ctx = (catalog = CORE_CATALOG, actor: Actor = USER) => ({
   catalog,
   controlCenter: "@matomezu/control-center:control-center",
   lang: "en",
   newId: () => "x",
   now: "2026-10-29T00:00:00.000Z",
-  ...(by ? { by } : {}),
+  actor,
 })
 
 test("利用者だけが変える項目は、AI には変えさせず、AI が読む設定と AI に見せる引数の形にも出さない", () => {
   const catalog = assemble([...BUILTIN, EX], "@matomezu/control-center:control-center").catalog.core
   const world = { books: {}, settings: { "@ex/u:secret": "s" }, annotations: {}, mailbox: [], participants: [] }
-  const set = (values: Record<string, unknown>, by?: "ai") =>
-    performIn(world, "@matomezu/base:settings-set", { values }, undefined, ctx(catalog, by)).ok
+  const set = (values: Record<string, unknown>, actor?: Actor) =>
+    performIn(world, "@matomezu/base:settings-set", { values }, undefined, ctx(catalog, actor)).ok
   expect(set({ "@ex/u:secret": "t" })).toBe(true)
-  expect(set({ "@ex/u:secret": "t" }, "ai")).toBe(false)
+  expect(set({ "@ex/u:secret": "t" }, AI)).toBe(false)
   // 断りには、利用者だけが変える項目だと分かる理由が付く（利用者だけのアクションと同じ not-allowed）
   expect(
-    performIn(world, "@matomezu/base:settings-set", { values: { "@ex/u:secret": "t" } }, undefined, ctx(catalog, "ai")),
+    performIn(world, "@matomezu/base:settings-set", { values: { "@ex/u:secret": "t" } }, undefined, ctx(catalog, AI)),
   ).toEqual({
     ok: false,
     reason: "not-allowed",
     setting: "@ex/u:secret",
     because: "user-only",
   })
-  expect(set({ "@ex/u:open": 2 }, "ai")).toBe(true)
+  expect(set({ "@ex/u:open": 2 }, AI)).toBe(true)
   expect(aiSettings(catalog, world.settings)).toMatchObject({ "@ex/u:open": 1 })
   expect(aiSettings(catalog, world.settings)).not.toHaveProperty("@ex/u:secret")
   const shown = catalog.actions.get("@matomezu/base:settings-set")?.describeArgs?.(catalog)

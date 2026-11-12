@@ -1,7 +1,9 @@
 // 伝言（base のアノテーションの種類）: ブックのデータとは別に持ち、付ける・変える・消すのは利用者だけで、AI は読んだと知らせるだけ。
 // ロック中のブックにも付けられ、画面の履歴に入らず、アンカーの物が全部無くなると消える
+
 import { expect, test } from "bun:test"
 import { z } from "zod"
+import { AI } from "../../../web/src/core/actor"
 import type { Annotation } from "../../../web/src/core/annotation"
 import { defineAction } from "../../../web/src/core/def/action"
 import { performIn } from "../../../web/src/core/perform"
@@ -144,7 +146,7 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
     lang: "en" as const,
     newId: () => "n",
     now: "t",
-    by: "ai" as const,
+    actor: AI,
   }
   const ai = (action: string, args: unknown) => performIn(world, action, args, ON, ctx)
   const refused = { ok: false, reason: "not-allowed" } as const

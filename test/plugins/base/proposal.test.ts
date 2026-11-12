@@ -1,6 +1,8 @@
 // 変更提案郵便（base の郵便の種類 proposal）: 送るときに乗せた変更を試し、当たる物の値を郵便にしまう。反映は乗せた変更を順に 1 つのアクションで行い、
 // 送ったあとに当たる物が変わっていたら断る。反映した・失敗したは郵便に一度だけ残す
+
 import { expect, test } from "bun:test"
+import { AI } from "../../../web/src/core/actor"
 import type { Mail } from "../../../web/src/core/mail"
 import { performIn } from "../../../web/src/core/perform"
 import { type ProposalProps, proposalChanged } from "../../../web/src/plugins/base/mail/proposal"
@@ -126,7 +128,7 @@ test("反映と結果を残すのは利用者だけ。送るのは AI もでき�
     lang: "ja" as const,
     newId: () => "x",
     now: "t",
-    by: "ai" as const,
+    actor: AI,
   }
   const settle = performIn(world as never, SETTLE, { mail: "m", outcome: "applied" }, undefined, ctx)
   expect(settle).toMatchObject({ ok: false })

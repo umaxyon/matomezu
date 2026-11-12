@@ -2,6 +2,7 @@
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
 
 import { createStore, type StoreApi } from "zustand/vanilla"
+import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { checkBooks, hasPages } from "../core/book"
@@ -414,7 +415,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (now.window !== was.window || now.books !== was.books) checkSeen()
   })
   const { getState, setState } = store
-  const ctx = (): ActionContext => ({ catalog, controlCenter, lang: getState().lang, newId, now: clock() })
+  const ctx = (): ActionContext => ({ catalog, controlCenter, lang: getState().lang, newId, now: clock(), actor: USER })
   // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）
   let checked = new WeakMap<object, { book: Book; partial?: Warning } | { warning: Warning }>()
   const restore = (saved: readonly unknown[]): { books: Book[]; warnings: Warning[]; partial: Warning[] } => {
@@ -870,6 +871,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
                 lang: done.lang,
                 newId: () => ids.shift() ?? newId(),
                 now: done.now,
+                actor: USER,
               },
             )
           } catch {

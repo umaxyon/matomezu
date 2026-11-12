@@ -2,10 +2,11 @@
 // アクションを使えるかの問い合わせ（inspect の action）で、タイプのステップの前に並ぶ。止めることはできても、許すことはしない（使えるかはタイプが決める）。
 // 止めたステップは問い合わせの答えの decidedBy に出るので、画面の各機能はそれを見て、薄くするか消すかなどを自分で決める。AI には断ったステップの aiDescription を返す。
 // 行う前の denies は見せ方のための判断で、守るのは行った後の keeps（行う前に分からなかった所を変えていても、実際の変化で止める）
+import type { Actor } from "../actor"
 import type { PermissionExtras } from "../catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { Book } from "../schema/book"
-import type { ActionContext, ActionDef, Where } from "./action"
+import type { ActionDef, Where } from "./action"
 
 // 行う前の問い: どこに対して・誰が行うか。book はアクションが変えるブック、where はその中の所（分からなければ無い）。
 // 一覧が対象のアクションは、変えるブックごとに問う。作るブックは、そのタイプで作る空のブックで問う（その id と名前は問うためだけの物で、頼らない）
@@ -13,7 +14,7 @@ export interface PermissionQuery {
   action: ActionDef
   book: Book
   where?: Where
-  by?: ActionContext["by"]
+  actor?: Actor // 問う者（無ければ利用者の画面からの問い）
 }
 
 // 行う前と後のブックの変化（core が比べて求める）
@@ -37,7 +38,7 @@ export interface PermissionCheck {
   before: Book | undefined
   after: Book | undefined
   changes: Changes
-  by?: ActionContext["by"]
+  actor: Actor
 }
 
 export interface PermissionDef<Tt extends string = MessageKey> extends PermissionExtras {

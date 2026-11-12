@@ -1,5 +1,7 @@
 // アノテーション（core/annotation.ts）: 種類が無い・形が合わない物は、その 1 つだけ効かず warning になり、ほかのアノテーションは変えられる
+
 import { expect, test } from "bun:test"
+import { USER } from "../../web/src/core/actor"
 import {
   type Annotation,
   annotationBriefs,
@@ -65,6 +67,7 @@ test("効かないアノテーションがあっても、ほかのアノテー�
       lang: "en",
       newId: () => "n",
       now: "2026-11-01T00:00:00.000Z",
+      actor: USER,
     },
   )
   expect(done).toMatchObject({ ok: true, annotations: { d: [BAD, GONE] } })
