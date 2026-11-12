@@ -45,9 +45,9 @@ export function withPlaced(
 export const pushingIds = (defs: PlacedDefs): ReadonlySet<string> =>
   new Set([...defs.values()].filter(d => d.browserHistory === "push").map(d => d.id))
 
-// 宣言 def が持ち主 owner（プラグインの id）の物か確かめて、そのまま返す（ほかのプラグインの宣言は E121）
+// 宣言 def が持ち主 owner（プラグインの id）の物か確かめて、そのまま返す（ほかのプラグインの宣言は E125）
 export function ownedPlaced<S>(owner: string, def: PlacedStateDef<S>): PlacedStateDef<S> {
-  return isOwnedBy(owner, def.id) ? def : fail("E121", { id: def.id, owner })
+  return isOwnedBy(owner, def.id) ? def : fail("E125", { id: def.id, owner })
 }
 
 // 宣言 def の今の値（ステージの宣言は stage のステージの値。無ければ undefined）

@@ -36,7 +36,7 @@
 | キーの範囲（`KeyScopeDef`） | キーバインドが効く場面の名前と、画面に出す題名 | `store/keys.ts` |
 | ノーマライズステップ（`NormalizeStepDef`） | ブックが対象のアクションの run のあとに、perform がどのブックにもかける処理。id を持たない | `core/def/normalize-step.ts` |
 | 台帳アセンブルのときの確かめ（`CatalogCheckDef`） | ビルトインプラグインが、自分の書き足したフィールドを台帳アセンブルのときに確かめる処理。id を持たない | `core/core-catalog.ts` |
-| 場所に入れる画面の状態（`PlacedStateDef`） | 画面の場所（URL）に入れて読み直しても戻す値 1 つの、id・範囲（ステージごとか窓の外か）・値の形・ブラウザの履歴に積むか | `core/def/placed-state.ts` |
+| 場所に入れる画面の状態（`PlacedStateDef`） | 画面の場所（URL）に入れて読み直しても戻す値 1 つの宣言 | `core/def/placed-state.ts` |
 
 - 定義の種類（文言の組・言語パック・テーマキー・既定のキーバインド・ノーマライズステップ・台帳アセンブルのときの確かめを除く上の表）の一覧は `core/catalog.ts` の `PARTS` と `PartTables` だけに書き、定義の型は、その台帳のクレートが `PartDefTable` に書き足す。種類ごとの見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く
 - 文言の組・言語パック・テーマキー・既定のキーバインドは、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとブックのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作る
@@ -48,7 +48,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`PlacedStateExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う

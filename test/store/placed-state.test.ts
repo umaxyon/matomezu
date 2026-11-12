@@ -44,7 +44,7 @@ test("宣言は id を持ち、kit が頭を付ける。積むと宣言した宣
   ).toThrow("E001")
 })
 
-test("値を置くと画面の場所に入る。形に合わない値は E119、知らない id は E118、範囲が違えば E120。ステージの宣言は無いステージに置かない", () => {
+test("値を置くと画面の場所に入る。形に合わない値は E123、知らない id は E122、範囲が違えば E124。ステージの宣言は無いステージに置かない", () => {
   const instance = make()
   instance.setPlaced("k:tab", null, "two")
   instance.setPlaced("k:mode", "s1", "wide")
@@ -52,10 +52,10 @@ test("値を置くと画面の場所に入る。形に合わない値は E119、
   const address = instance.address()
   expect(address.frame).toEqual({ "k:tab": "two" })
   expect(address.stages[0]?.states).toEqual({ "k:mode": "wide" })
-  expect(code(() => instance.setPlaced("k:tab", null, "three"))).toBe("E119")
-  expect(code(() => instance.setPlaced("k:nope", null, 1))).toBe("E118")
-  expect(code(() => instance.setPlaced("k:tab", "s1", "one"))).toBe("E120")
-  expect(code(() => instance.setPlaced("k:mode", null, "x"))).toBe("E120")
+  expect(code(() => instance.setPlaced("k:tab", null, "three"))).toBe("E123")
+  expect(code(() => instance.setPlaced("k:nope", null, 1))).toBe("E122")
+  expect(code(() => instance.setPlaced("k:tab", "s1", "one"))).toBe("E124")
+  expect(code(() => instance.setPlaced("k:mode", null, "x"))).toBe("E124")
   // undefined なら消す
   instance.setPlaced("k:tab", null, undefined)
   expect(instance.address().frame).toEqual({})
@@ -110,5 +110,5 @@ test("コントロールセンターの前に出す画面の宣言は、窓の�
   expect(instance.pushing().has(id)).toBe(true)
   instance.setPlaced(id, null, "library")
   expect(instance.address().frame).toEqual({ [id]: "library" })
-  expect(code(() => instance.setPlaced(id, null, "participants"))).toBe("E119")
+  expect(code(() => instance.setPlaced(id, null, "participants"))).toBe("E123")
 })

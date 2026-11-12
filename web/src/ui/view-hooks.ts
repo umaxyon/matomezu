@@ -209,7 +209,7 @@ export function useSetFrameState(kit: Owner): (value: unknown) => void {
   return useCallback(value => setFrameState(id, value), [setFrameState, id])
 }
 
-// プラグインが宣言した、場所に入れる画面の状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E121）。
+// プラグインが宣言した、場所に入れる画面の状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。
 // ステージの宣言（scope が stage）は、読むステージ stage も渡す。置き直すたびに描き直す
 export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S> & { scope: "frame" }): S | undefined
 export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S> & { scope: "stage" }, stage: string): S | undefined
@@ -218,7 +218,7 @@ export function usePlacedState<S>(kit: Owner, def: PlacedStateDef<S>, stage = ""
   return useMatomezuState(s => placedValueOf(s.placedValues, stage, own))
 }
 
-// 場所に入れる画面の状態 def の値を変える関数（undefined なら消す。形に合わなければ E119。無いステージには置かない）。自分の kit を渡し、自分の宣言だけを変える
+// 場所に入れる画面の状態 def の値を変える関数（undefined なら消す。形に合わなければ E123。無いステージには置かない）。自分の kit を渡し、自分の宣言だけを変える
 export function useSetPlacedState<S>(
   kit: Owner,
   def: PlacedStateDef<S> & { scope: "frame" },

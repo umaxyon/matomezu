@@ -311,7 +311,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // プラグイン owner（プラグインの id）が持つ、窓の外観枠の状態を value にする（undefined なら消す）。
   // プラグインは、自分の kit を渡すフック useSetFrameState を通して、自分の置き場だけを変える（プラグインに渡す actions には入れない）
   setFrameState(owner: string, value: unknown): void
-  // 場所に入れる画面の状態の宣言 id の値を value にする（undefined なら消す）。ステージの宣言は stage のステージの値を、窓の外の宣言は stage を渡さず。知らない id は E118、範囲が合わなければ E120、形に合わない値は E119。
+  // 場所に入れる画面の状態の宣言 id の値を value にする（undefined なら消す）。ステージの宣言は stage のステージの値を、窓の外の宣言は stage を渡さず。知らない id は E122、範囲が合わなければ E124、形に合わない値は E123。
   // プラグインは、自分の kit と宣言を渡すフックを通して、自分の宣言だけを変える（プラグインに渡す actions には入れない）
   setPlaced(id: string, stage: string | null, value: unknown): void
   // ブラウザの履歴に積むと宣言した宣言の id の組（今の台帳のもの。追加プラグインを取り込んだら変わる。ホストクライアントが、画面の場所が移動したかを決めるのに使う）
@@ -709,13 +709,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     } else setState({ frameStates: { ...rest, [owner]: value } })
   }
   // 宣言 id の、場所に入れる画面の状態の値を value にする（undefined なら消す）。ステージの宣言は stage のステージの値（無いステージには置かず、窓の外の宣言は stage を渡さない）。
-  // 知らない id は E118、範囲が合わなければ E120、形に合わない値は E119
+  // 知らない id は E122、範囲が合わなければ E124、形に合わない値は E123
   const setPlaced = (id: string, stage: string | null, value: unknown) => {
-    const def = defs.catalog.store.placedStates.get(id) ?? fail("E118", { id })
-    if (def.scope === "frame" && stage !== null) fail("E120", { id, scope: "frame", need: "give no stage" })
-    if (def.scope === "stage" && stage === null) fail("E120", { id, scope: "stage", need: "give the stage" })
+    const def = defs.catalog.store.placedStates.get(id) ?? fail("E122", { id })
+    if (def.scope === "frame" && stage !== null) fail("E124", { id, scope: "frame", need: "give no stage" })
+    if (def.scope === "stage" && stage === null) fail("E124", { id, scope: "stage", need: "give the stage" })
     const read = value === undefined ? { success: true as const, data: undefined } : def.schema.safeParse(value)
-    if (!read.success) fail("E119", { id })
+    if (!read.success) fail("E123", { id })
     const { placedValues: now, window } = getState()
     if (stage === null) {
       if (!sameData(now.frame[id], read.data))
