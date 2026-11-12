@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -95,5 +96,55 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	}
 	if code, _ := send(t, "POST", s2.URL+"/api/ai-edit-tickets", `{"book":"b1","act":"x","outcome":"other"}`, nil); code != 400 {
 		t.Fatalf("bad outcome = %d", code)
+	}
+}
+
+// 上限（aiEditTicketsMax）を超えても、key で見分ける AI 編集チケットは捨てず、key の無い物の古い方から捨てる
+func TestTicketsWithAKeyAreNotDroppedAtTheLimit(t *testing.T) {
+	list := []AIEditTicket{{Key: "proposal", At: "t", Version: 1}}
+	for i := range aiEditTicketsMax {
+		list = recordedTickets(list, fmt.Sprintf("a%d", i), int64(i+2), "t")
+	}
+	if len(list) != aiEditTicketsMax || list[0].Key != "proposal" || list[1].Act != "a1" {
+		t.Fatalf("list = %d, first %+v, second %+v", len(list), list[0], list[1])
+	}
+	// key で見分ける物だけで上限を超えていれば、それは捨てず、足した key の無い物を捨てる
+	keyed := []AIEditTicket{}
+	for i := range aiEditTicketsMax + 1 {
+		keyed = append(keyed, AIEditTicket{Key: fmt.Sprintf("k%d", i)})
+	}
+	if got := recordedTickets(keyed, "a", 1, "t"); len(got) != aiEditTicketsMax+1 || got[0].Key != "k0" || got[len(got)-1].Key != "k100" {
+		t.Fatalf("keyed = %d", len(got))
+	}
+}
+
+// 利用者が反映していない変更提案郵便を消すと、その AI 編集チケットは消えたことになり（cause user）、AI のフックに removed で渡り、次に話しかけたら消える
+func TestRemovedProposalIsToldAndForgotten(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	store, err := storage.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Apply(storage.Batch{
+		Books:         []storage.BookWrite{{ID: "b1", Body: json.RawMessage(boxed)}},
+		Counters:      []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 2}},
+		Records:       []storage.RecordWrite{{Subject: mailKind, ID: "m1", Body: json.RawMessage(`{"id":"m1","mail":"@matomezu/base:proposal","from":"a","sentAt":"t","props":{"title":"提案","body":"","book":"b1","changes":[{"action":"x","args":{}}],"snapshot":{}},"order":1}`)}},
+		AIEditTickets: []storage.BookBody{{Book: "b1", Body: json.RawMessage(`[{"key":"m1","subject":"` + mailKind + `","at":"t","version":1}]`)}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	_, s := hubAt(t, path)
+	ai := map[string]string{"Authorization": "Bearer secret"}
+	if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:mail-remove","args":{},"on":{"record":"m1"},"lang":"ja"}`, nil); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("mail-remove = %s", got)
+	}
+	want := `"removed":[{"book":"b1","title":"T","key":"m1","cause":"user"}]`
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.Contains(got, want) || !strings.Contains(got, `"failed":[]`) {
+		t.Fatalf("awaiting = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/ai/talked", `{}`, ai)
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.Contains(got, `"removed":[]`) {
+		t.Fatalf("awaiting after talked = %s", got)
 	}
 }

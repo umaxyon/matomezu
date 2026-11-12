@@ -184,7 +184,7 @@ test("送るときに読むのは、引数 book のブック 1 冊だけ（reads
   expect(done).toMatchObject({
     ok: true,
     records: [{ subject: MAIL.id, id: "freshmail1" }],
-    aiEditTicket: { book: "b1", key: "freshmail1", outcome: "open" },
+    aiEditTickets: [{ book: "b1", key: "freshmail1", outcome: "open" }],
   })
   send([rename(one, "AI 2")])
   const settled = performIn(
@@ -196,6 +196,103 @@ test("送るときに読むのは、引数 book のブック 1 冊だけ（reads
   )
   expect(settled).toMatchObject({
     ok: true,
-    aiEditTicket: { book: "b1", key: mail().id, outcome: "failed", changed: [one] },
+    aiEditTickets: [{ book: "b1", key: mail().id, outcome: "failed", changed: [one] }],
+  })
+})
+
+// 郵便のレコード（id・種類・届いた順と、中身 props。seen なら見た郵便）
+const mailRecord = (id: string, order: number, kind: string, props: object, seen = false): Mail => ({
+  id,
+  mail: kind,
+  from: "E94",
+  sentAt: "t",
+  ...(seen ? { seenAt: "t" } : {}),
+  props,
+  order,
+})
+// ブック book への変更提案郵便の中身（extra は反映した・失敗したの時点など）
+const proposalProps = (book: string, extra: object = {}) => ({
+  title: "提案",
+  body: "",
+  book,
+  changes: [{ action: "@matomezu/paper:item-update", args: {} }],
+  snapshot: {},
+  ...extra,
+})
+const PROPOSAL = "@matomezu/base:proposal"
+const LETTER = "@matomezu/base:letter"
+
+test("上限で反映していない提案が消えると、送ったアクションの結果に、新しい提案の open と消えた提案の removed（cause limit）が 1 回で入る（ほかのブックの提案も）", () => {
+  const { store, one, rename } = ready()
+  const s = store.state.getState()
+  // 上限を 1 通超えた郵便箱（送ると、見た郵便の 2 通が消える）
+  const mails: Mail[] = [
+    mailRecord("old1", 1, PROPOSAL, proposalProps("b1"), true),
+    mailRecord("old2", 2, PROPOSAL, proposalProps("b2"), true),
+    ...Array.from({ length: 199 }, (_, i) => mailRecord(`l${i}`, i + 3, LETTER, { title: `t${i}`, body: "" })),
+  ]
+  const done = performIn(
+    {
+      ...s,
+      records: { ...s.records, [MAIL.id]: Object.fromEntries(mails.map(m => [m.id, m])) },
+      counters: { [MAIL.id]: { mail: 202 } },
+    } as never,
+    SEND,
+    { from: "E94", title: "名前", book: "b1", page: "p1", changes: [rename(one, "AI")] },
+    undefined,
+    {
+      catalog: CORE_CATALOG,
+      controlCenter: "@matomezu/control-center:control-center" as never,
+      lang: "ja",
+      newId: () => "fresh-mail-1",
+      now: "t",
+      actor: AI,
+    },
+  )
+  expect(done.ok && done.records?.map(c => [c.id, c.record === "removed"])).toEqual([
+    ["freshmail1", false],
+    ["old1", true],
+    ["old2", true],
+  ])
+  expect(done.ok && done.aiEditTickets).toEqual([
+    { book: "b1", key: "freshmail1", outcome: "open" },
+    { book: "b1", key: "old1", outcome: "removed", cause: "limit" },
+    { book: "b2", key: "old2", outcome: "removed", cause: "limit" },
+  ])
+})
+
+test("利用者が消すと、反映していない提案だけが removed（cause user）を返す。反映した・失敗した提案と手紙は AI 編集チケットを直さない", () => {
+  const { store } = ready()
+  const s = store.state.getState()
+  const mails: Mail[] = [
+    mailRecord("applied", 1, PROPOSAL, proposalProps("b1", { appliedAt: "t" })),
+    mailRecord("failed", 2, PROPOSAL, proposalProps("b1", { failedAt: "t", changed: [] })),
+    mailRecord("letter", 3, LETTER, { title: "手紙", body: "" }),
+    mailRecord("open", 4, PROPOSAL, proposalProps("b1")),
+  ]
+  const world = { ...s, records: { ...s.records, [MAIL.id]: Object.fromEntries(mails.map(m => [m.id, m])) } }
+  const remove = (id: string) =>
+    performIn(
+      world as never,
+      "@matomezu/base:mail-remove",
+      {},
+      { record: id },
+      {
+        catalog: CORE_CATALOG,
+        controlCenter: "@matomezu/control-center:control-center" as never,
+        lang: "ja",
+        newId: () => "x",
+        now: "t",
+        actor: USER,
+      },
+    )
+  for (const id of ["applied", "failed", "letter"]) {
+    const done = remove(id)
+    expect(done.ok).toBe(true)
+    expect(done.ok && done.aiEditTickets).toBeUndefined()
+  }
+  expect(remove("open")).toMatchObject({
+    ok: true,
+    aiEditTickets: [{ book: "b1", key: "open", outcome: "removed", cause: "user" }],
   })
 })

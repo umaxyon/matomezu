@@ -87,8 +87,12 @@ func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*write
 	for book, body := range out.Annotations {
 		plan.batch.Annotations = append(plan.batch.Annotations, storage.BookBody{Book: book, Body: body})
 	}
-	if c := out.AIEditTicket; c != nil && has[c.Book] {
-		if list, changed := changedTickets(ticketsOf(c.Book), subject, *c, versionOf(c.Book), at); changed {
+	// AI 編集チケットの変え方は順に当てる（同じブックの物は前の結果に重ねる）。消えたブックを指す物は飛ばす
+	for _, c := range out.AIEditTickets {
+		if !has[c.Book] {
+			continue
+		}
+		if list, changed := changedTickets(ticketsOf(c.Book), subject, c, versionOf(c.Book), at); changed {
 			plan.tickets[c.Book] = list
 		}
 	}

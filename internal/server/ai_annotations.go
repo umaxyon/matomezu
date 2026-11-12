@@ -219,7 +219,8 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 
 // aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation", "brief"}]}。ブックを置いた順。
 // brief は種類の aiBrief が答える、見分けに要る 1 行で、種類が答えなければ無い。話しかけのフックはこれを短い行にして貼る）と、
-// 見られる前に利用者が戻した AI の変更の全部（"undone"。ai_edit_tickets.go の TellUndone）と、失敗にした AI 編集チケットの全部（"failed"。TellFailed）
+// 見られる前に利用者が戻した AI の変更の全部（"undone"。ai_edit_tickets.go の TellUndone）と、失敗にした AI 編集チケットの全部（"failed"。TellFailed）と、
+// 郵便が消えたと記した AI 編集チケットの全部（"removed"。TellRemoved）
 func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 	all, err := o.Hub.AIAnnotations(nil)
 	if err != nil {
@@ -261,7 +262,12 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, map[string]any{"awaiting": out, "undone": undone, "failed": failed})
+	removed, err := o.Hub.TellRemoved()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"awaiting": out, "undone": undone, "failed": failed, "removed": removed})
 }
 
 // aiTalked は、利用者が AI に話しかけたことを受ける（AI のフックが知らせる。{"sessionId", "host", "candidates"}）。

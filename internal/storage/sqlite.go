@@ -133,6 +133,18 @@ var migrations = []string{
 	INSERT OR REPLACE INTO counters (subject, scope, next)
 	SELECT '@matomezu/base:mail', 'mail', MAX(json_extract(body, '$.order')) + 1 FROM records WHERE subject = '@matomezu/base:mail' HAVING COUNT(*) > 0;
 	DROP TABLE mailbox;`,
+	// key で見分ける AI 編集チケット（変更提案郵便が開いた物）のうち、失敗にも消えたことにもしておらず、同じ id の郵便のレコード（@matomezu/base:mail）が
+	// もう無い物は、閉じる者がいないので閉じる（AI には渡さない）。ほかの AI 編集チケットは並びの順のまま残し、1 つも残らないブックの行は消す
+	`UPDATE ai_edit_tickets SET body = (
+		SELECT json_group_array(json(value)) FROM (
+			SELECT j.value FROM json_each(ai_edit_tickets.body) j
+			WHERE NOT (j.type = 'object' AND json_type(j.value, '$.key') IS 'text' AND json_extract(j.value, '$.key') != ''
+				AND COALESCE(json_extract(j.value, '$.failed'), 0) = 0
+				AND COALESCE(json_extract(j.value, '$.removed'), '') = ''
+				AND NOT EXISTS (SELECT 1 FROM records r WHERE r.subject = '@matomezu/base:mail' AND r.id = json_extract(j.value, '$.key')))
+			ORDER BY j.key))
+	WHERE json_valid(body) AND json_type(body) = 'array';
+	DELETE FROM ai_edit_tickets WHERE json_valid(body) AND json_type(body) = 'array' AND json_array_length(body) = 0;`,
 }
 
 type sqliteStorage struct {

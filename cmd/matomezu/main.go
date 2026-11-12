@@ -323,6 +323,7 @@ func (c *annotationsCmd) Run() error {
 			Key     string   `json:"key"`
 			Changed []string `json:"changed"`
 		} `json:"failed"`
+		Removed []removedTicket `json:"removed"`
 	}
 	if json.Unmarshal(out, &got) != nil {
 		return nil
@@ -342,7 +343,38 @@ func (c *annotationsCmd) Run() error {
 			fmt.Printf("- book %q (%s), %s: changed %v\n", f.Title, f.Book, f.Key, f.Changed)
 		}
 	}
+	writeRemoved(os.Stdout, got.Removed)
 	return nil
+}
+
+// removedTicket は、郵便が消えたと記した AI 編集チケット 1 つ（cause は上限で消えた limit か、利用者が消した user）
+type removedTicket struct {
+	Book  string `json:"book"`
+	Title string `json:"title"`
+	Key   string `json:"key"`
+	Cause string `json:"cause"`
+}
+
+// writeRemoved は、反映される前に消えた変更提案を、消えたわけごとに AI 向けの文にして w に書く（無ければ何も書かない）
+func writeRemoved(w io.Writer, removed []removedTicket) {
+	for _, c := range []struct{ cause, text string }{
+		{"limit", "were removed by the mailbox limit before the user applied them, so nothing was changed. Send them again if they are still needed."},
+		{"user", "were removed by the user without applying them, so nothing was changed. Do not send them again unless the user asks."},
+	} {
+		var list []removedTicket
+		for _, r := range removed {
+			if r.Cause == c.cause {
+				list = append(list, r)
+			}
+		}
+		if len(list) == 0 {
+			continue
+		}
+		fmt.Fprintf(w, "matomezu: %d change(s) you sent for the user to apply %s\n", len(list), c.text)
+		for _, r := range list {
+			fmt.Fprintf(w, "- book %q (%s), %s\n", r.Title, r.Book, r.Key)
+		}
+	}
 }
 
 // Run は、利用者が AI に話しかけたことを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。

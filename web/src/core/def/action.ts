@@ -71,13 +71,13 @@ export interface ActionContext {
 }
 
 // AI 編集チケットの変え方。key で 1 つを見分け（郵便の id など）、ブック book の AI 編集チケットとして、作る（open）・閉じる（closed）・失敗にする（failed。changed は
-// 変わった・無くなった物の id）。常駐は中を読まずに、そのとおりに残し、失敗は利用者が次に AI に話しかけたときに AI に渡す
-export interface AIEditTicketChange {
-  book: string
-  key: string
-  outcome: "open" | "closed" | "failed"
-  changed?: readonly string[]
-}
+// 変わった・無くなった物の id）・郵便が消えたと記す（removed。cause は消えたわけ: 上限で消えた limit か、利用者が消した user）。
+// 常駐は中を読まずに、そのとおりに残し、失敗と消えたことは利用者が次に AI に話しかけたときに AI に渡す
+export type AIEditTicketChange =
+  | { book: string; key: string; outcome: "open" | "closed" }
+  | { book: string; key: string; outcome: "failed"; changed?: readonly string[] }
+  | { book: string; key: string; outcome: "removed"; cause: AIEditTicketRemovedCause }
+export type AIEditTicketRemovedCause = "limit" | "user"
 
 // レコードが対象のアクションが、宛先の 1 件のほかに変える、同じ種類のレコード 1 件（record は新しいレコードか、消すなら removed）
 export interface OtherRecord<T extends SubjectId> {
@@ -90,8 +90,8 @@ export interface Done<T extends ActionTarget, R> {
   result: R
   // レコードが対象のアクションが、宛先のほかに変える同じ種類のレコード（宛先と合わせて RECORDS_MAX 件まで。全部が通るか、全部を断る）
   others?: T extends SubjectId ? readonly OtherRecord<T>[] : never
-  // レコードが対象のアクションだけが書ける、AI 編集チケットの変え方
-  aiEditTicket?: T extends SubjectId ? AIEditTicketChange : never
+  // レコードが対象のアクションだけが書ける、AI 編集チケットの変え方の並び（宛先と others の変えたレコードと同じ 1 回の書き込みで、順に当てる）
+  aiEditTickets?: T extends SubjectId ? readonly AIEditTicketChange[] : never
 }
 
 // run が断るときに、断った理由を添える値。declined は AI への説明に載る英語の文（ぶつかった相手や、代わりに入る所など。画面には出さない）。
