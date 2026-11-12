@@ -28,6 +28,8 @@ export const PART_UI = {
   annotations: { views: [], define: ["defineAnnotation"] },
   mails: { views: [], define: ["defineMail"] },
   subjects: { views: [], define: ["defineSubject"] },
+  enums: { views: [], define: ["defineEnum"] },
+  enumValues: { views: [], define: ["defineEnumValue"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
   textColors: { views: [], define: ["defineTextColor"] },

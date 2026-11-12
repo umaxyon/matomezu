@@ -2,6 +2,10 @@
 // プロジェクトを直す（レーン・タグのプロンプトは AI への指示なので）・閉じる・開け直す・チケットを消すは利用者だけ。
 // プロジェクトを作るのは、最初の 1 度は常駐が初めて起動したときに行う（project-add の引数は省いてよい）
 import { type z, z as zod } from "zod"
+import { enumValuesOf, isAI } from "../../plugin-api"
+import { byOf, WORKROOM_SUBJECT, workroomOf } from "./by"
+import { CURRENT, NO_TICKET } from "./current"
+import { HISTORY, HISTORY_TOPIC } from "./history"
 import { kit } from "./kit"
 import { LANE_NAME_MAX, LANES, NO_TAG, PREFIX, PROJECT, PROJECT_NAME_MAX, TAG, TAG_NAME_MAX, UNSORTED } from "./project"
 import { projectNameOf, sayIn, templateOf } from "./template"
@@ -11,6 +15,7 @@ type Project = z.output<typeof PROJECT.record>
 type Ticket = z.output<typeof TICKET.record>
 type Records = { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> }
 
+const ticketsIn = (ctx: Records) => Object.values(ctx.records?.[TICKET.id] ?? {}) as Ticket[]
 const projectsIn = (ctx: Records) => Object.values(ctx.records?.[PROJECT.id] ?? {}) as Project[]
 const sameText = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
@@ -139,7 +144,7 @@ export const TICKET_ADD = kit.defineAction({
   aiDescription:
     "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane's id of the project (left out: unsorted), tag is a tag's id of the project that is enabled (left out: none), priority is lowest, low, medium (the default), high or highest. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. Returns the ticket's id and number.",
   target: TICKET.id,
-  reads: [PROJECT.id],
+  reads: [PROJECT.id, WORKROOM_SUBJECT],
   args: zod.strictObject({
     project: zod.string().min(1),
     name: zod.string().trim().min(1).max(TICKET_NAME_MAX),
@@ -158,6 +163,8 @@ export const TICKET_ADD = kit.defineAction({
     if (tag !== NO_TAG && !project.tags.some(t => t.id === tag && t.enabled))
       return { declined: "the tag is not in the project, or is not enabled" }
     if (!ctx.number) return null
+    const createdBy = byOf(ctx.actor, ctx)
+    if (!createdBy) return { declined: "the workroom of the AI is not there" }
     const ticket: Ticket = {
       id: ctx.newId(),
       project: project.id,
@@ -167,7 +174,9 @@ export const TICKET_ADD = kit.defineAction({
       lane,
       tag,
       priority: args.priority ?? PRIORITY_DEFAULT,
+      assignees: [],
       createdAt: ctx.now,
+      createdBy,
       updatedAt: ctx.now,
     }
     return { next: ticket, result: { ticket: ticket.id, number: ticket.number } }
@@ -178,15 +187,16 @@ export const TICKET_UPDATE = kit.defineAction({
   id: "ticket-update",
   title: "update ticket",
   aiDescription:
-    "Change the name, the body, the priority, the lane or the tag of the ticket named by on.record. The same rules as ticket-add apply to the lane and the tag (a tag that is not enabled any more can stay on the ticket). The project of a ticket does not change. The time of the last change moves only when something changed.",
+    "Change the name, the body, the priority, the lane, the tag or the assignees of the ticket named by on.record. assignees is the whole new list of workrooms' ids, in order (the first is the main one; no id twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tag (a tag that is not enabled any more can stay on the ticket). The project of a ticket does not change. The time of the last change moves only when something changed.",
   target: TICKET.id,
-  reads: [PROJECT.id],
+  reads: [PROJECT.id, WORKROOM_SUBJECT],
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(TICKET_NAME_MAX).optional(),
     body: zod.string().optional(),
     priority: zod.enum(PRIORITIES).optional(),
     lane: zod.string().min(1).optional(),
     tag: zod.string().min(1).optional(),
+    assignees: zod.array(zod.string().min(1)).optional(),
   }),
   run: (now, args, ctx) => {
     if (now === "none") return null
@@ -201,15 +211,23 @@ export const TICKET_UPDATE = kit.defineAction({
       !project.tags.some(t => t.id === args.tag && t.enabled)
     )
       return { declined: "the tag is not in the project, or is not enabled" }
+    if (args.assignees !== undefined) {
+      const added = args.assignees.filter(id => !now.assignees.includes(id))
+      if (new Set(args.assignees).size !== args.assignees.length) return { declined: "an assignee is there twice" }
+      if (added.some(id => !workroomOf(ctx, id))) return { declined: "an assignee is not a workroom that is there" }
+    }
     const next: Ticket = {
       ...now,
+      ...(args.assignees === undefined ? {} : { assignees: args.assignees }),
       ...(args.name === undefined ? {} : { name: args.name }),
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.priority === undefined ? {} : { priority: args.priority }),
       ...(args.lane === undefined ? {} : { lane: args.lane }),
       ...(args.tag === undefined ? {} : { tag: args.tag }),
     }
-    const changed = (Object.keys(next) as (keyof Ticket)[]).some(k => next[k] !== now[k])
+    const changed = (Object.keys(next) as (keyof Ticket)[]).some(
+      k => JSON.stringify(next[k]) !== JSON.stringify(now[k]),
+    )
     return { next: changed ? { ...next, updatedAt: ctx.now } : now, result: {} }
   },
 })
@@ -223,4 +241,89 @@ export const TICKET_REMOVE = kit.defineAction({
   userOnly: true,
   args: zod.strictObject({}),
   run: now => (now === "none" ? null : { next: "removed", result: {} }),
+})
+
+// チケットのロックを掛ける・外す（ロック中のチケットは、この 2 つのほかのアクションを断る。外せるのは利用者だけ）
+export const TICKET_LOCK = kit.defineAction({
+  id: "ticket-lock",
+  title: "lock ticket",
+  aiDescription:
+    "Lock the ticket named by on.record: while locked it cannot be changed or removed (only the user can unlock it). Lines of its history can still be added.",
+  lockSwitch: true,
+  target: TICKET.id,
+  reads: [PROJECT.id],
+  args: zod.strictObject({}),
+  run: now => (now === "none" || now.locked ? null : { next: { ...now, locked: true as const }, result: {} }),
+})
+
+export const TICKET_UNLOCK = kit.defineAction({
+  id: "ticket-unlock",
+  title: "unlock ticket",
+  aiDescription: "Unlock the ticket named by on.record (only the user).",
+  lockSwitch: true,
+  userOnly: true,
+  target: TICKET.id,
+  reads: [PROJECT.id],
+  args: zod.strictObject({}),
+  run: now => {
+    if (now === "none" || !now.locked) return null
+    const { locked: _, ...rest } = now
+    return { next: rest, result: {} }
+  },
+})
+
+// 履歴の行を足す。書いた者は行った者（引数では受けない）。題は、列挙 history-topic の値の id
+export const TICKET_LOG = kit.defineAction({
+  id: "ticket-log",
+  title: "log ticket",
+  aiDescription:
+    "Add a line to the history of the ticket (its id): topic is the id of a value of the enum history-topic (the values are listed in the arguments), text is what to write. The line records you (your workroom, as it is now) and the time. Lines cannot be changed or removed later. The ticket's own time of the last change does not move.",
+  target: HISTORY.id,
+  reads: [TICKET.id, WORKROOM_SUBJECT],
+  args: zod.strictObject({ ticket: zod.string().min(1), topic: zod.string().min(1), text: zod.string().min(1) }),
+  describeArgs: catalog => {
+    const topics = enumValuesOf(catalog, HISTORY_TOPIC.id).map(v => v.id)
+    return zod.strictObject({
+      ticket: zod.string().min(1),
+      topic: topics.length > 0 ? zod.enum(topics as [string, ...string[]]) : zod.string().min(1),
+      text: zod.string().min(1),
+    })
+  },
+  run: (now, args, ctx) => {
+    if (now !== "none") return null
+    if (!ticketsIn(ctx).some(t => t.id === args.ticket)) return { declined: "the ticket is not there" }
+    if (!enumValuesOf(ctx.catalog, HISTORY_TOPIC.id).some(v => v.id === args.topic))
+      return { declined: "the topic is not a value of history-topic" }
+    const by = byOf(ctx.actor, ctx)
+    if (!by) return { declined: "the workroom of the AI is not there" }
+    const line: z.output<typeof HISTORY.record> = {
+      id: ctx.newId(),
+      ticket: args.ticket,
+      topic: args.topic,
+      text: args.text,
+      at: ctx.now,
+      by,
+    }
+    return { next: line, result: { line: line.id } }
+  },
+})
+
+// AI が自分のワークルームの今のチケットを宣言する（表示のため）。最初は on を省き、2 回目からは on.record に自分のワークルームの id を書く
+export const TICKET_START = kit.defineAction({
+  id: "ticket-start",
+  title: "start ticket",
+  aiDescription:
+    "Declare the ticket your workroom is working on now (only to be shown to the user; it decides nothing), or none when you work on none. Only an AI in a workroom, and only for its own workroom. The first time, leave on out; after that, set on.record to your workroom's id (the id this action returned as current).",
+  target: CURRENT.id,
+  reads: [TICKET.id, WORKROOM_SUBJECT],
+  args: zod.strictObject({ ticket: zod.string().min(1) }),
+  run: (now, args, ctx) => {
+    if (!isAI(ctx.actor) || ctx.actor.workroom === "none")
+      return { declined: "only an AI in a workroom declares its current ticket" }
+    const id = ctx.actor.workroom.id
+    if (now !== "none" && now.id !== id) return { declined: "a workroom declares only its own current ticket" }
+    if (args.ticket !== NO_TICKET && !ticketsIn(ctx).some(t => t.id === args.ticket))
+      return { declined: "the ticket is not there" }
+    return { next: { id, ticket: args.ticket, at: ctx.now }, result: { current: id } }
+  },
 })

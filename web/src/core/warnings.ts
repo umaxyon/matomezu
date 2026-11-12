@@ -26,6 +26,7 @@ export const WARNINGS = {
   W023: "mail {id} does not fit {mail} (kept as it is, shown as mail)",
   W024: "record {id} is a {subject}, which is not in the catalog (kept as it is, not used)",
   W025: "record {id} does not fit {subject} (kept as it is, not used)",
+  W026: "enum value {id}: its enum {enum} is not in the catalog (not used)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

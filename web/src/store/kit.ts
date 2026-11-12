@@ -13,6 +13,7 @@ import {
   withTypeField,
 } from "../core/def/book-type"
 import type { ControlCenterDef } from "../core/def/control-center"
+import type { EnumDataOf, EnumDef, EnumValueDef } from "../core/def/enum"
 import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
 import type { MailDef } from "../core/def/mail"
 import type { PaperDef } from "../core/def/paper"
@@ -142,6 +143,14 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: SubjectDef<R, keyof M & string> & { id: Id },
   ): Omit<SubjectDef<R>, "id"> & { id: Owned<P, Id> }
 
+  // 列挙の宣言（値の組。値が持つフィールドの形を value に書く）と、列挙の値（宣言した列挙 enum に足す。data は宣言の value の形）
+  defineEnum<const Id extends string, V extends EnumDef["value"]>(
+    def: EnumDef<V, keyof M & string> & { id: Id },
+  ): Omit<EnumDef<V>, "id"> & { id: Owned<P, Id> }
+  defineEnumValue<const Id extends string, const E extends string>(
+    def: EnumValueDef<E, EnumDataOf<E>, keyof M & string> & { id: Id },
+  ): Omit<EnumValueDef<E>, "id"> & { id: Owned<P, Id> }
+
   // ブックのタイプ: データの type は本当の id。schema に type は書かず、ここで足す
   defineBookType<const Id extends string, const S extends BookSchema, const T extends BookTypeIn<S, keyof M & string>>(
     def: T & { id: Id; schema: S },
@@ -243,6 +252,8 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineAnnotation: place,
     defineMail: place,
     defineSubject: place,
+    defineEnum: place,
+    defineEnumValue: place,
     defineBookType: (def: { id: string; schema: BookSchema; create(init: NewBook): object }) => {
       const id = owned(plugin, def.id)
       return {

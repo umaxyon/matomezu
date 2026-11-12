@@ -25,10 +25,11 @@ export type {
 export { HEX, isLight, isPaletteName, PALETTE } from "../core/color"
 export type { CoreCatalog, ItemProps } from "../core/core-catalog"
 export { bookType } from "../core/core-catalog"
-export type { ActionDef, Declined } from "../core/def/action"
+export type { ActionDef, Declined, RecordOf } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { BookTypeDef } from "../core/def/book-type"
 export { slideIsBackground } from "../core/def/book-type"
+export type { EnumDef, EnumValueDef } from "../core/def/enum"
 export type {
   ConnectorData,
   ItemDef,
@@ -45,6 +46,7 @@ export type { SubjectDef } from "../core/def/subject"
 export type { TextColorDef } from "../core/def/text-color"
 export type { ThemeDef } from "../core/def/theme"
 export { themeVar } from "../core/def/theme"
+export { enumValuesOf } from "../core/enum"
 export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"

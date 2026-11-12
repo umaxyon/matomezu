@@ -1,4 +1,4 @@
-// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）とチケットの対象の定義と、そのアクション・認可ステップ（閉じたプロジェクトにチケットを足させない）。
+// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）とチケットの対象の定義と、そと、チケット履歴・ワークルームごとの今のチケットの対象の定義、履歴の題の列挙、そのアクション・認可ステップ（閉じたプロジェクトにチケットを足させない）。
 import { defineBuiltin } from "../../plugin-api/builtin"
 import {
   PROJECT_ADD,
@@ -6,9 +6,15 @@ import {
   PROJECT_REOPEN,
   PROJECT_UPDATE,
   TICKET_ADD,
+  TICKET_LOCK,
+  TICKET_LOG,
   TICKET_REMOVE,
+  TICKET_START,
+  TICKET_UNLOCK,
   TICKET_UPDATE,
 } from "./actions"
+import { CURRENT } from "./current"
+import { HISTORY, HISTORY_TOPIC, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./history"
 import { kit } from "./kit"
 import { CLOSED_PROJECT } from "./permission"
 import { PROJECT } from "./project"
@@ -16,8 +22,22 @@ import { TICKET } from "./ticket"
 
 export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
-    subjects: [PROJECT, TICKET],
-    actions: [PROJECT_ADD, PROJECT_UPDATE, PROJECT_CLOSE, PROJECT_REOPEN, TICKET_ADD, TICKET_UPDATE, TICKET_REMOVE],
+    subjects: [PROJECT, TICKET, HISTORY, CURRENT],
+    enums: [HISTORY_TOPIC],
+    enumValues: [TOPIC_STATUS, TOPIC_PLAN, TOPIC_QUESTION],
+    actions: [
+      PROJECT_ADD,
+      PROJECT_UPDATE,
+      PROJECT_CLOSE,
+      PROJECT_REOPEN,
+      TICKET_ADD,
+      TICKET_UPDATE,
+      TICKET_REMOVE,
+      TICKET_LOCK,
+      TICKET_UNLOCK,
+      TICKET_LOG,
+      TICKET_START,
+    ],
     permissions: [CLOSED_PROJECT],
   }),
 )
@@ -26,6 +46,16 @@ declare module "../../core/catalog" {
   interface SubjectTable {
     "@matomezu/taskboard:project": typeof PROJECT
     "@matomezu/taskboard:ticket": typeof TICKET
+    "@matomezu/taskboard:ticket-history": typeof HISTORY
+    "@matomezu/taskboard:current-ticket": typeof CURRENT
+  }
+  interface EnumTable {
+    "@matomezu/taskboard:history-topic": typeof HISTORY_TOPIC
+  }
+  interface EnumValueTable {
+    "@matomezu/taskboard:topic-status": typeof TOPIC_STATUS
+    "@matomezu/taskboard:topic-plan": typeof TOPIC_PLAN
+    "@matomezu/taskboard:topic-question": typeof TOPIC_QUESTION
   }
   interface ActionTable {
     "@matomezu/taskboard:project-add": typeof PROJECT_ADD
@@ -35,6 +65,10 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:ticket-add": typeof TICKET_ADD
     "@matomezu/taskboard:ticket-update": typeof TICKET_UPDATE
     "@matomezu/taskboard:ticket-remove": typeof TICKET_REMOVE
+    "@matomezu/taskboard:ticket-lock": typeof TICKET_LOCK
+    "@matomezu/taskboard:ticket-unlock": typeof TICKET_UNLOCK
+    "@matomezu/taskboard:ticket-log": typeof TICKET_LOG
+    "@matomezu/taskboard:ticket-start": typeof TICKET_START
   }
   interface PermissionTable {
     "@matomezu/taskboard:closed-project": typeof CLOSED_PROJECT
