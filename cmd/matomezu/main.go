@@ -98,8 +98,12 @@ type modelCmd struct {
 }
 
 type watchCmd struct {
-	Host string `required:"" help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed."`
+	Host    string `required:"" help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed."`
+	Session string `help:"Session id the host program started with (Claude Code: CLAUDE_CODE_SESSION_ID). When both this and the one MCP sent on join are known, they must match too."`
 }
+
+// claudeSessionEnv は、Claude Code が立てたプロセスに渡す、立てたときのセッション id の環境変数（/clear でも変わらない）
+const claudeSessionEnv = "CLAUDE_CODE_SESSION_ID"
 
 type versionCmd struct{}
 
@@ -256,7 +260,7 @@ func (c *mcpCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, strconv.Itoa(os.Getppid()))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, strconv.Itoa(os.Getppid()), os.Getenv(claudeSessionEnv))
 }
 
 // awaitingItem は、常駐の api/ai/awaiting が返す、AI の応えを待つアノテーション 1 つ（brief は種類の aiBrief の 1 行。無ければ空）

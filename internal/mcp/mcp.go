@@ -16,10 +16,11 @@ import (
 
 // 常駐の AI の入口とやりとりするヘッダ（server の ParticipantHeader・NoticeHeader・BranchHeader・HostHeader と同じ名前）
 const (
-	participantHeader = "X-Matomezu-Participant" // 送る: join の返事で受けた参加の id
-	noticeHeader      = "X-Matomezu-Notice"      // 返る: AI への知らせ（値は URL エンコード）
-	branchHeader      = "X-Matomezu-Branch"      // 送る: 参加の id と一緒にいつも。git のブランチ（値は URL エンコード。空はブランチが無い）
-	hostHeader        = "X-Matomezu-Host"        // 送る: いつも（join も）。AI のプログラムのプロセス id
+	participantHeader = "X-Matomezu-Participant"  // 送る: join の返事で受けた参加の id
+	noticeHeader      = "X-Matomezu-Notice"       // 返る: AI への知らせ（値は URL エンコード）
+	branchHeader      = "X-Matomezu-Branch"       // 送る: 参加の id と一緒にいつも。git のブランチ（値は URL エンコード。空はブランチが無い）
+	hostHeader        = "X-Matomezu-Host"         // 送る: いつも（join も）。AI のプログラムのプロセス id
+	hostSessionHeader = "X-Matomezu-Host-Session" // 送る: いつも（join も）。AI のプログラムが MCP を立てたときのセッション id（分かるときだけ。/clear でも変わらない）
 )
 
 // API は常駐の AI の入口を呼ぶ口。header は送るヘッダ、戻りの 2 つ目は返事のヘッダ
@@ -42,6 +43,7 @@ type conn struct {
 	env         string        // 環境名
 	branch      func() string // 呼び出しのたびに git のブランチを読む（読めなければ空）
 	host        string        // AI のプログラムのプロセス id
+	hostSession string        // AI のプログラムが MCP を立てたときのセッション id（分からなければ空）
 	participant string        // join の返事で受けた参加の id
 	sessionID   string        // いま処理している呼び出しの _meta にあったセッション id
 	notice      string        // いま処理している呼び出しの返事で届いた知らせ
@@ -51,6 +53,9 @@ func (c *conn) header() http.Header {
 	h := http.Header{}
 	if c.host != "" {
 		h.Set(hostHeader, c.host)
+	}
+	if c.hostSession != "" {
+		h.Set(hostSessionHeader, c.hostSession)
 	}
 	if c.participant != "" {
 		h.Set(participantHeader, c.participant)
@@ -102,9 +107,10 @@ type response struct {
 }
 
 // Serve は in から頼みを読み、out に答えを書く。in が終わると戻る
-// env は環境名（join で常駐に渡す）。branch は git のブランチを読む関数、host は AI のプログラムのプロセス id（どちらも参加の id と一緒に常駐に添える）
-func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host string) error {
-	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host}
+// env は環境名（join で常駐に渡す）。branch は git のブランチを読む関数（参加の id と一緒に常駐に添える）、host は AI のプログラムのプロセス id、
+// hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。起こす知らせの宛て先）
+func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host, hostSession string) error {
+	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession}
 	var mu sync.Mutex
 	enc := json.NewEncoder(out)
 	write := func(r response) {

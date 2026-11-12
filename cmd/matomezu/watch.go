@@ -26,7 +26,7 @@ const watchRetry = 3 * time.Second
 func (c *watchCmd) Run() error {
 	for processAlive(c.Host) {
 		if s := runningServer(); s != nil {
-			_ = watchOnce(s, c.Host, os.Stdout)
+			_ = watchOnce(s, c.Host, c.Session, os.Stdout)
 		}
 		time.Sleep(watchRetry)
 	}
@@ -47,8 +47,8 @@ func runningServer() *home.Server {
 }
 
 // watchOnce は、常駐 s の起こす知らせにつなぎ、切れるまで、届いた知らせの文を 1 行ずつ out に書く
-func watchOnce(s *home.Server, host string, out io.Writer) error {
-	res, err := request(s, http.MethodGet, "api/ai/watch?host="+url.QueryEscape(host), nil, 0, nil)
+func watchOnce(s *home.Server, host, session string, out io.Writer) error {
+	res, err := request(s, http.MethodGet, "api/ai/watch?host="+url.QueryEscape(host)+"&session="+url.QueryEscape(session), nil, 0, nil)
 	if err != nil {
 		return err
 	}

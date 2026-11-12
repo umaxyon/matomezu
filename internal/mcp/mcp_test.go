@@ -67,7 +67,7 @@ func talk(t *testing.T, api API, lines ...string) []map[string]any {
 func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[string]any {
 	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242"); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1"); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -197,7 +197,7 @@ func TestBranchGoesWithTheParticipantAndHostAlways(t *testing.T) {
 	if len(api.headers) != 3 {
 		t.Fatalf("calls = %d", len(api.headers))
 	}
-	if _, ok := api.headers[0]["X-Matomezu-Branch"]; ok || api.headers[0].Get("X-Matomezu-Host") != "4242" {
+	if _, ok := api.headers[0]["X-Matomezu-Branch"]; ok || api.headers[0].Get("X-Matomezu-Host") != "4242" || api.headers[0].Get("X-Matomezu-Host-Session") != "HS1" {
 		t.Fatalf("join without a participant = %v", api.headers[0])
 	}
 	for i, want := range []string{"feat%2Fd110", ""} {
