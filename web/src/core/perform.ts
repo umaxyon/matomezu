@@ -24,11 +24,13 @@ import {
   settingsScopeOf,
   type Where,
 } from "./def/action"
+import type { Referred } from "./def/permission"
 import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { type Mailbox, mailboxSettles } from "./mail"
 import { type Participants, participantsSettle } from "./participant"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
+import { readsOf, referredOf } from "./refs"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
@@ -97,7 +99,26 @@ function broken(
 ): string | null {
   const changes = changesOf(before, after)
   for (const p of ctx.catalog.permissions.values())
-    if (p.keeps && !p.keeps({ action, before, after, changes, actor: ctx.actor })) return p.id
+    if (p.keeps && !p.keeps({ kind: "book", action, before, after, changes, actor: ctx.actor })) return p.id
+  return null
+}
+
+// レコードが対象のアクションの結果が、認可ステップの守らせること（keeps）を守っているか。前後のレコードが指すほかのレコードを、アクションの reads から引いて渡す。
+// 守っていなければ、守らせたステップの id。指す種類がアクションの reads に無ければ "unreadable"
+function brokenRecord(
+  ctx: ActionContext,
+  action: ActionDef,
+  before: unknown,
+  after: unknown,
+): string | "unreadable" | null {
+  const reads = ctx.records ?? {}
+  const was = referredOf(ctx.catalog, action.target, before, reads)
+  const now = referredOf(ctx.catalog, action.target, after, reads)
+  if (was === "unreadable" || now === "unreadable") return "unreadable"
+  const refs = [...was, ...now.filter(n => !was.some(w => w.subject === n.subject && w.id === n.id))]
+  for (const p of ctx.catalog.permissions.values())
+    if (p.keeps && !p.keeps({ kind: "record", action, subject: action.target, before, after, refs, actor: ctx.actor }))
+      return p.id
   return null
 }
 
@@ -115,7 +136,8 @@ function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after:
 }
 
 // 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）
-export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "actor">
+// records はレコードが対象のアクションが読む種類のレコード（reads。レコードが指すほかのレコードを引くのに使う）
+export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "actor" | "records">
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可スコープで引数から出した変える項目の id も渡す。
 // 認可ステップに渡すのは、ブックが対象ならそのブックと、アクションの許可スコープ（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
@@ -131,7 +153,11 @@ function permits(
     args.success && action.target === "settings"
       ? settingsScopeOf(action.permissionScope as AnySettingsScope, args.data)
       : undefined
-  const asked = (book: Book | undefined, where: Where | undefined) =>
+  const asked = (
+    book: Book | undefined,
+    where: Where | undefined,
+    record?: { record: unknown; refs: readonly Referred[] },
+  ) =>
     answerOf(
       inspect(
         ctx.catalog,
@@ -141,11 +167,17 @@ function permits(
           book,
           ...(where ? { where } : {}),
           ...(settings ? { settings } : {}),
+          ...(record ? { record } : {}),
           actor: ctx.actor,
         },
         ctx,
       ),
     )
+  if (isRecordTarget(ctx.catalog, action.target)) {
+    const refs = referredOf(ctx.catalog, action.target, subject, ctx.records ?? {})
+    if (refs === "unreadable") return { ok: false, reason: "not-allowed" }
+    return asked(undefined, undefined, { record: subject, refs })
+  }
   if (action.target === "library") {
     const targets = args.success ? libraryScopeOf(action.permissionScope as AnyLibraryScope, args.data) : null
     const library = subject as Library
@@ -244,8 +276,12 @@ export function perform<Id extends ActionId>(
     const next = (done.next as unknown as BookAnnotations).annotations
     if (!annotationsSettle(ctx.catalog, pair.book, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
-  if (isRecordTarget(ctx.catalog, action.target) && !recordSettles(ctx.catalog, action.target, subject, done.next))
-    return { ok: false, reason: "refused" }
+  if (isRecordTarget(ctx.catalog, action.target)) {
+    if (!recordSettles(ctx.catalog, action.target, subject, done.next)) return { ok: false, reason: "refused" }
+    const kept = brokenRecord(ctx, action, subject, done.next)
+    if (kept === "unreadable") return { ok: false, reason: "refused" }
+    if (kept) return { ok: false, reason: "denied", permission: kept }
+  }
   if (
     action.target === "mailbox" &&
     !mailboxSettles(ctx.catalog, subject as unknown as Mailbox, done.next as unknown as Mailbox)
@@ -395,7 +431,7 @@ function performRecord(
   const action = ctx.catalog.actions.get(id)
   const used: Record<string, number> = {}
   const counters = world.counters[target] ?? {}
-  const reads = Object.fromEntries((action?.reads ?? []).map(k => [k, world.records[k] ?? {}]))
+  const reads = readsOf(world.records, action?.reads)
   const withBase: ActionContext = {
     ...ctx,
     records: reads,
@@ -453,7 +489,8 @@ export function permittedIn(
   if (target !== undefined && isRecordTarget(ctx.catalog, target)) {
     const wanted = on && "record" in on ? on.record : undefined
     const now = wanted === undefined ? NO_RECORD : world.records[target]?.[wanted]
-    return now === undefined ? { ok: false, reason: "no-record" } : permitted(now, id, args, ctx)
+    const reads = readsOf(world.records, ctx.catalog.actions.get(id)?.reads)
+    return now === undefined ? { ok: false, reason: "no-record" } : permitted(now, id, args, { ...ctx, records: reads })
   }
   return permitted(
     target === "library"

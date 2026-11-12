@@ -367,9 +367,10 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
           id: "keep",
           title: "keep",
           aiDescription: "this book stays, and no tree is made",
-          denies: ({ action, book }) =>
-            (action.id === "@matomezu/base:book-trash" && book.title === "API の一覧") ||
-            (action.id === "@matomezu/base:book-create" && book.type === "@matomezu/tree:tree"),
+          denies: q =>
+            q.kind === "book" &&
+            ((q.action.id === "@matomezu/base:book-trash" && q.book.title === "API の一覧") ||
+              (q.action.id === "@matomezu/base:book-create" && q.book.type === "@matomezu/tree:tree")),
         }),
       ],
     }),
@@ -425,9 +426,10 @@ test("認可ステップがゴミ箱のブックの戻す・消すを止めて�
           id: "keep",
           title: "keep",
           aiDescription: "this book stays in the trash",
-          denies: ({ action, book }) =>
-            ["@matomezu/base:book-restore", "@matomezu/base:book-purge"].includes(action.id) &&
-            book.title === "API の一覧",
+          denies: q =>
+            q.kind === "book" &&
+            ["@matomezu/base:book-restore", "@matomezu/base:book-purge"].includes(q.action.id) &&
+            q.book.title === "API の一覧",
         }),
       ],
     }),

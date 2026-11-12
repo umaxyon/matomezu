@@ -10,12 +10,35 @@ import type { ActionDef, Where } from "./action"
 
 // 行う前の問い: どこに対して・誰が行うか。book はアクションが変えるブック、where はその中の所（分からなければ無い）。
 // 一覧が対象のアクションは、変えるブックごとに問う。作るブックは、そのタイプで作る空のブックで問う（その id と名前は問うためだけの物で、頼らない）
-export interface PermissionQuery {
+export interface BookPermissionQuery {
+  kind: "book"
   action: ActionDef
   book: Book
   where?: Where
   actor: Actor // 問う者
 }
+
+// レコードが指す、ほかのレコード（対象の定義の refers が答える）と、引いたレコード（無ければ none）
+export interface Ref {
+  subject: string
+  id: string
+}
+export interface Referred extends Ref {
+  record: unknown
+}
+
+// レコード（対象の定義が足した種類のデータ）が対象のアクションの、行う前の問い: record は今のレコード（作るなら none）、refs はそのレコードが指すほかのレコード
+export interface RecordPermissionQuery {
+  kind: "record"
+  action: ActionDef
+  subject: string
+  record: unknown
+  refs: readonly Referred[]
+  actor: Actor
+}
+
+// 認可ステップが受ける問い。core がアクションの対象から kind を決めて渡し、ステップは受け取った kind で、自分が読む物だけを扱う
+export type PermissionQuery = BookPermissionQuery | RecordPermissionQuery
 
 // 行う前と後のブックの変化（core が比べて求める）
 export interface Changes {
@@ -33,13 +56,27 @@ export interface PageChange {
 }
 
 // 行った後の確かめ: アクション action の前のブック before（無ければ一覧に新しく増えた）、後のブック after（無ければ一覧から無くなった）と、その変化
-export interface PermissionCheck {
+export interface BookPermissionCheck {
+  kind: "book"
   action: ActionDef
   before: Book | undefined
   after: Book | undefined
   changes: Changes
   actor: Actor
 }
+
+// レコードが対象のアクションの、行った後の確かめ: before は前のレコード（作ったなら none）、after は後のレコード（消したなら removed）、refs は前後のレコードが指すほかのレコード
+export interface RecordPermissionCheck {
+  kind: "record"
+  action: ActionDef
+  subject: string
+  before: unknown
+  after: unknown
+  refs: readonly Referred[]
+  actor: Actor
+}
+
+export type PermissionCheck = BookPermissionCheck | RecordPermissionCheck
 
 export interface PermissionDef<Tt extends string = MessageKey> extends PermissionExtras {
   id: string

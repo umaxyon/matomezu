@@ -295,7 +295,7 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
             title: "keep",
             aiDescription: "b2 is not put back",
             denies: () => false,
-            keeps: ({ action, before }) => !(action.id === "@matomezu/base:book-revert" && before?.id === "b2"),
+            keeps: c => c.kind !== "book" || !(c.action.id === "@matomezu/base:book-revert" && c.before?.id === "b2"),
           }),
         ],
       }),

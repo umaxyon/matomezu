@@ -8,7 +8,7 @@ import { bookType, type CoreCatalog } from "./core-catalog"
 import { type ActionContext, type ActionDef, attachedTo, BASE_TARGETS, isOnBook, type Where } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ControlCenterDef } from "./def/control-center"
-import type { PermissionQuery } from "./def/permission"
+import type { PermissionQuery, Referred } from "./def/permission"
 import type { KeyBinding } from "./keys"
 import type { Book } from "./schema/book"
 
@@ -46,10 +46,16 @@ export interface Inspected<V> {
 export type Query =
   // アクションを使えるか。book はアクションが変えるブック（ブックが対象のアクションは、そのブック）、where はその中の所（分からなければ無い）、actor は誰が行うか。
   // 認可ステップは book があるときだけ見る。settings は、利用者の設定が対象のアクションで変える項目の id（項目ごとに見る）
-  { kind: "action"; action: string; book?: Book; settings?: readonly string[] } & Pick<
-    PermissionQuery,
-    "where" | "actor"
-  >
+  {
+    kind: "action"
+    action: string
+    book?: Book
+    settings?: readonly string[]
+    where?: Where
+    actor: Actor
+    // レコードが対象のアクションの宛先のレコード（作るなら none）と、そのレコードが指すほかのレコード。認可ステップは record があるときに見る
+    record?: { record: unknown; refs: readonly Referred[] }
+  }
 
 export function inspect(
   catalog: CoreCatalog,
@@ -147,8 +153,19 @@ function action(
     from: { source: "action", id: def.id, field: "userOnly" },
     value: def.userOnly && isAI(q.actor) ? false : null,
   }
-  const { kind: _, action: __, book, settings, ...where } = q
-  const permitted = book ? permissionSteps(catalog, { ...where, action: def, book }) : []
+  const { book, settings, where, record } = q
+  const permitted = book
+    ? permissionSteps(catalog, { kind: "book", action: def, book, actor: q.actor, ...(where ? { where } : {}) })
+    : record && catalog.subjects.has(def.target)
+      ? permissionSteps(catalog, {
+          kind: "record",
+          action: def,
+          subject: def.target,
+          record: record.record,
+          refs: record.refs,
+          actor: q.actor,
+        })
+      : []
   if (def.target === "book" || def.target === "annotations")
     return book
       ? decide([known, userOnly, ...permitted, ...typeSteps(def, bookType(catalog, book.type))])

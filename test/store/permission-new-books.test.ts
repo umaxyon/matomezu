@@ -29,7 +29,9 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
             title: "noTree",
             aiDescription: "no tree book is made",
             denies: () => false,
-            keeps: ({ before, after, changes }) => {
+            keeps: c => {
+              if (c.kind !== "book") return true
+              const { before, after, changes } = c
               if (changes.added) seen.push({ before, added: changes.added })
               return !(changes.added && after?.type === "@matomezu/tree:tree")
             },
@@ -76,7 +78,7 @@ test("新しいブックのダイアログが出すタイプ（typesToCreate）�
             id: "no-dir",
             title: "noDir",
             aiDescription: "no dir book is made",
-            denies: ({ book }) => book.type === "@matomezu/dir:dir",
+            denies: q => q.kind === "book" && q.book.type === "@matomezu/dir:dir",
           }),
         ],
       }),

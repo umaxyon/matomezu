@@ -55,15 +55,19 @@ export const TILE_LIMIT_PERMISSION = kit.definePermission({
   id: "tile-limit",
   title: "tileLimit",
   aiDescription: `a page can hold at most ${TILE_LIMIT} tiles; make a new page for more`,
-  denies: ({ action, book, where }) =>
-    action.id === TILE_ADD.id &&
-    hasPages(book) &&
-    tilesOn((book.pages as readonly TilesPage[]).find(p => p.id === where?.page)) >= TILE_LIMIT,
+  denies: q =>
+    q.kind === "book" &&
+    q.action.id === TILE_ADD.id &&
+    hasPages(q.book) &&
+    tilesOn((q.book.pages as readonly TilesPage[]).find(p => p.id === q.where?.page)) >= TILE_LIMIT,
   // 札を足すほかのアクションも、行った後の変化で止める（変わったページの札が上限を超えたら守っていない）
-  keeps: ({ after, changes }) =>
-    !after ||
-    !hasPages(after) ||
-    changes.pages.every(c => tilesOn((after.pages as readonly TilesPage[]).find(p => p.id === c.id)) <= TILE_LIMIT),
+  keeps: c =>
+    c.kind !== "book" ||
+    !c.after ||
+    !hasPages(c.after) ||
+    c.changes.pages.every(
+      p => tilesOn((c.after as { pages: readonly TilesPage[] }).pages.find(t => t.id === p.id)) <= TILE_LIMIT,
+    ),
 })
 
 // 仕分けの道具（自分の道具の見本。ドラッグで紙をずらさず、置く道具でもない）と、ビルトインの選択とハンドに挟んだ棚の道具の組
