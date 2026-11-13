@@ -8,7 +8,7 @@ export function freshId(newId: () => string, taken: Iterable<string>): string {
   return idMaker(newId, taken)()
 }
 
-// ページの id: newId の値をそのまま使う（uuid。ページは、ブックの外からも id だけで指される）。taken と重なれば振り直す
+// ページの id: newId の値をそのまま使う（uuid）。taken と重なれば振り直す
 export function freshPageId(newId: () => string, taken: Iterable<string>): string {
   return maker(newId, taken, raw => raw)()
 }
