@@ -21,16 +21,8 @@ import {
   type PlacedShape,
   replaceShape,
 } from "../core/placed"
-import {
-  type Condition,
-  type ConditionOf,
-  inOrder,
-  keyValuesOf,
-  matches,
-  type Order,
-  type OrderOf,
-  unknownKey,
-} from "../core/record-keys"
+import { type Condition, type ConditionOf, inOrder, type Order, type OrderOf, unknownKey } from "../core/record-keys"
+import { find, sourceOf } from "../core/record-source"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
@@ -377,11 +369,11 @@ export function useRecords<const T extends SubjectId>(subject: T, query: Records
   return useMemo(() => {
     const { where, order, limit } = JSON.parse(asked) as { where: readonly Condition[]; order?: Order; limit?: number }
     const def = catalog.subjects.get(subject)
-    if (!def || unknownKey(def, where, order) !== null) return []
-    const rows = Object.values(table ?? {})
-      .filter(r => def.record.safeParse(r).success)
-      .map(r => ({ id: (r as { id: string }).id, keys: keyValuesOf(def, r), record: r }))
-      .filter(r => matches(r.keys, where))
+    // 並びのキーは find が見ないので、ここで確かめる（宣言に無ければ何も返さない）
+    if (!def || unknownKey(def, [], order) !== null) return []
+    const rows = Object.entries(find(catalog, sourceOf({ [subject]: table ?? {} }), subject, where))
+      .filter(([, r]) => def.record.safeParse(r.record).success)
+      .map(([id, r]) => ({ id, keys: r.keys, record: r.record }))
     return inOrder(rows, order)
       .slice(0, limit)
       .map(r => r.record) as RecordOf<T>[]

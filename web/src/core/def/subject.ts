@@ -26,7 +26,10 @@ export interface RecordKeyDef<Rec = never> {
 export type SubjectKeys<Rec = never> = Readonly<Record<string, RecordKeyDef<Rec>>>
 // 名前 → 値の型（text か number）の組と、レコードの形 R から、索引キーの宣言の組の型を作る（kit.defineSubject が、書いた宣言から値の型だけを読み取るのに使う）
 export type KeysOfTypes<Kt extends Readonly<Record<string, RecordKeyDef["type"]>>, R extends z.ZodObject> = {
-  readonly [N in keyof Kt]: { type: Kt[N]; of(record: z.output<R>): string | number | undefined }
+  readonly [N in keyof Kt]: {
+    type: Kt[N]
+    of(record: z.output<R>): (Kt[N] extends "number" ? number : string) | undefined // 返す値は、宣言した型（text なら字・number なら数）
+  }
 }
 
 // Ks は索引キーの宣言の組の型（kit.defineSubject が書いたとおりに残す。条件・並び・ctx.keys の型は、ここから決まる。core/record-keys.ts の KeyNameOf など）

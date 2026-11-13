@@ -113,13 +113,9 @@ export interface LayoutDef extends LayoutExtras {
 }
 export const defineLayout = <const L extends LayoutDef>(def: L): L => def
 
-// UI マッピングに、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニュー（anchorMenu も）の末尾
-// （ウィジェットは before・after に書いた所。WidgetPlace）に足し、右クリックのメニューでは前の項目と区切り線で分ける。UI マッピングにもうあるものは足さない
-// （動いている matomezu の画面が、取り込んだプラグインを置くのに使う）
 // プラグイン p が定義したスクリーンとスクリーンアレンジメントの id（どれも、それだけで同じ名前のスロットになる）
 function ownScreenSlots(p: Plugin): ReadonlySet<string> {
-  const parts = p as { screens?: readonly { id: string }[]; screenArrangements?: readonly { id: string }[] }
-  return new Set([...(parts.screens ?? []), ...(parts.screenArrangements ?? [])].map(d => d.id))
+  return new Set([...(p.screens ?? []), ...(p.screenArrangements ?? [])].map(d => d.id))
 }
 
 // place を書かないウィジェットのうち、置けるスロットが、自分のプラグインが定義したスクリーン（かスクリーンアレンジメント）1 つだけの物は、そこに置く。
@@ -129,6 +125,10 @@ function screenPlace(w: AnyWidgetDef, own: ReadonlySet<string>): SlotId | undefi
   return w.slots.length === 1 && slot !== undefined && own.has(slot) ? slot : undefined
 }
 
+// UI マッピングに、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニュー（anchorMenu も）の末尾
+// （ウィジェットは before・after に書いた所。WidgetPlace）に足し、右クリックのメニューでは前の項目と区切り線で分ける。UI マッピングにもうあるものは足さない。
+// place を書かないウィジェットも、置けるスロットが自分のプラグインのスクリーン（かスクリーンアレンジメント）1 つだけなら、そこに置く（screenPlace）
+// （動いている matomezu の画面が、取り込んだプラグインを置くのに使う）
 export function placeAdded(layout: LayoutDef, plugins: readonly Plugin[]): LayoutDef {
   return placeAddedWithWarnings(layout, plugins).layout
 }

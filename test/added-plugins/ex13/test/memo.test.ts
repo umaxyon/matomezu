@@ -1,4 +1,4 @@
-// ex13 のアクション: ボードごとに上限まで残し、別のボードのメモは消さない。済みにするのは 1 度だけ。索引キーの条件は型が見張る
+// ex13 のアクション: ボードごとに上限まで残し、別のボードのメモは消さない。済みにするのは 1 度だけ（索引キーの型の確かめは types.ts）
 import { expect, test } from "bun:test"
 import { BUILTIN, createMatomezu } from "matomezu/testing"
 import EX13 from ".."
@@ -24,30 +24,3 @@ test("ボードに 100 件を超えて足すと古い物から消え、別のボ
   expect(perform("ex13:memo-done", {}, { record: a[0]!.id }).ok).toBe(true)
   expect(perform("ex13:memo-done", {}, { record: a[0]!.id }).ok).toBe(false)
 })
-
-import { z } from "matomezu"
-import { MEMO as MEMO_SUBJECT } from ".."
-// 型だけを確かめる（実行しない）: 宣言に無い索引キーや、型の違う値は型の誤り
-import { kit } from "../kit"
-export const TYPE_CHECKS = [
-  kit.defineAction({
-    id: "t1",
-    title: "memo",
-    aiDescription: "",
-    target: MEMO_SUBJECT.id,
-    args: z.strictObject({}),
-    // @ts-expect-error text は索引キーでない
-    reads: () => [{ subject: MEMO_SUBJECT.id, where: [{ key: "text", eq: "a" }] }],
-    run: () => null,
-  }),
-  kit.defineAction({
-    id: "t2",
-    title: "memo",
-    aiDescription: "",
-    target: MEMO_SUBJECT.id,
-    args: z.strictObject({}),
-    // @ts-expect-error board は文字の索引キー
-    reads: () => [{ subject: MEMO_SUBJECT.id, where: [{ key: "board", eq: 1 }] }],
-    run: () => null,
-  }),
-]
