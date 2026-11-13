@@ -5,7 +5,7 @@ import type { Actor } from "./actor"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionDef, RecordRead } from "./def/action"
 import { type Condition, type KeyValues, keyValuesOf, matches, unknownKey } from "./record-keys"
-import type { Records } from "./records"
+import { NO_RECORD, type Records } from "./records"
 
 export interface RecordSource {
   // 種類 subject の id のレコード（無ければ undefined）
@@ -64,11 +64,14 @@ export function readFrom(
   action: ActionDef,
   args: unknown,
   actor: Actor,
-): { records: Records; keys: RecordKeys } {
+): { records: Records; keys: RecordKeys; record(subject: string, id: string): unknown } {
   const records: Record<string, Record<string, unknown>> = {}
   const keys: Record<string, Record<string, KeyValues>> = {}
+  // 読む物に書いた種類のレコードを、id で 1 件読む（書いていない種類と、無いレコードは none）
+  const record = (subject: string, id: string): unknown =>
+    subject in records || subject in keys ? (source.byId(subject, id) ?? NO_RECORD) : NO_RECORD
   const parsed = action.args.safeParse(args)
-  if (!parsed.success || typeof action.reads !== "function") return { records, keys }
+  if (!parsed.success || typeof action.reads !== "function") return { records, keys, record }
   const reads = (action.reads as (args: unknown, actor: Actor) => readonly RecordRead[])(parsed.data, actor)
   // 種類 subject の入れ物（まだ無ければ作る。合う物が 1 件も無くても、読んだ種類は空の入れ物を持つ）
   const tableIn = <V>(all: Record<string, Record<string, V>>, subject: string): Record<string, V> => {
@@ -92,5 +95,5 @@ export function readFrom(
       for (const [id, row] of Object.entries(found)) table[id] = row.record
     }
   }
-  return { records, keys }
+  return { records, keys, record }
 }

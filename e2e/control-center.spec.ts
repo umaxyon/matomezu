@@ -50,7 +50,7 @@ const roomPanel = (page: Page) => page.locator("[data-workroom-panel]")
 test("前に出す画面は、書庫とプロジェクトを替えるたびに履歴に積まれ、戻ると前の画面が前に出る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  const projects = page.getByRole("button", { name: "プロジェクト", exact: true })
+  const projects = page.locator('button[aria-label="プロジェクト"]')
   const library = page.getByRole("button", { name: "書庫", exact: true })
   await expect(projects).toHaveAttribute("aria-pressed", "true")
   await library.click()

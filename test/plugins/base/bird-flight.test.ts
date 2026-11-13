@@ -1,74 +1,7 @@
-// 鳥のマークの動き（birdPose）: 付けたときだけ飛んでくるか顔を出し、降りたあとは「付けたときの動き無し」と同じに、上の辺を往復して歩く
+// 鳥の動きの長さ
 import { expect, test } from "bun:test"
-import {
-  type Arrival,
-  birdPose,
-  GAITS,
-  LEAVE,
-  leavingPose,
-  VISIT_ARRIVE,
-  visitLength,
-  visitPose,
-} from "../../../web/src/plugins/base/birds/flight"
+import { PEEK_VISIT_LENGTH } from "../../../web/src/plugins/base/birds/flight"
 
-const SIZE = 48
-const RANGE = 200
-const FROM = { x: -300, y: -150 }
-const ARRIVED: Record<Exclude<Arrival, "none">, number> = { fly: 2.5, peek: 4 } // 降りるまでの秒
-// 足しても丸めの出ない刻み（降りるまでの秒を足して比べるため）
-const times = Array.from({ length: 240 }, (_, i) => i * 0.125)
-
-test("降りたあとは、付けたときの動きの無い鳥と同じ姿で歩く", () => {
-  for (const gait of Object.values(GAITS))
-    for (const [arrival, after] of Object.entries(ARRIVED))
-      for (const t of times)
-        expect(birdPose(after + t, arrival as Arrival, gait, SIZE, RANGE, FROM)).toEqual(
-          birdPose(t, "none", gait, SIZE, RANGE, FROM),
-        )
-})
-
-test("歩くあいだは、歩く所の中にいて、ずれも裏も無い", () => {
-  for (const gait of Object.values(GAITS))
-    for (const t of times) {
-      const pose = birdPose(t, "none", gait, SIZE, RANGE, FROM)
-      expect(pose.x).toBeGreaterThanOrEqual(0)
-      expect(pose.x).toBeLessThanOrEqual(RANGE)
-      expect(pose.lift).toBeLessThanOrEqual(0)
-      expect([pose.from, pose.behind]).toEqual([{ x: 0, y: 0 }, false])
-      expect(pose.frame).toBeGreaterThanOrEqual(8)
-    }
-})
-
-test("飛んでくるときは画面の外から始まり、顔を出すときは物の裏の下から始まる", () => {
-  const gait = GAITS.suzume
-  expect(birdPose(0, "fly", gait, SIZE, RANGE, FROM)).toMatchObject({ from: FROM, behind: false, right: true })
-  expect(birdPose(0, "peek", gait, SIZE, RANGE, FROM)).toMatchObject({ lift: SIZE, behind: true })
-})
-
-test("立ち寄る鳥は、飛んできて降り、仕草のコマを 1 回ずつ、その鳥の速さで見せてから正面を向いて止まる", () => {
-  for (const g of Object.values(GAITS)) {
-    const from = { x: -500, y: -300 }
-    expect(visitPose(0, g, 48, 80, from)).toEqual(birdPose(0, "fly", g, 48, 80, from))
-    const frames = [0, 1, 2, 3].map(i => visitPose(VISIT_ARRIVE + (i + 0.5) * g.step, g, 48, 80, from).frame)
-    expect(frames).toEqual([12, 13, 14, 15])
-    expect(visitPose(visitLength(g) + 0.01, g, 48, 80, from)).toMatchObject({ frame: 4, x: 80, from: { x: 0, y: 0 } })
-    // 仕草は 1 秒くらい（鳥の速さで 0.9〜1.9 秒）
-    expect(visitLength(g) - VISIT_ARRIVE).toBeGreaterThan(0.8)
-    expect(visitLength(g) - VISIT_ARRIVE).toBeLessThan(2)
-  }
-})
-
-test("飛び去る鳥は、飛び立った姿から足元のずれの向きへ進み、LEAVE 秒で行き先に着く。羽ばたくコマは交互に替わる", () => {
-  const start = birdPose(10, "none", Object.values(GAITS)[0]!, SIZE, RANGE, FROM)
-  const to = { x: 300, y: -150 }
-  const at = (t: number) => leavingPose(t, start, to)
-  expect(at(0).from.x).toBeCloseTo(0)
-  expect(at(0).from.y).toBeCloseTo(0)
-  expect(at(LEAVE).from).toEqual(to)
-  expect(at(LEAVE / 2).from.x).toBeGreaterThan(0)
-  expect(at(LEAVE / 2).from.x).toBeLessThan(300)
-  expect(at(LEAVE / 2).from.y).toBeLessThan(0)
-  expect([at(0).frame, at(0.16).frame, at(0.32).frame]).toEqual([0, 1, 0])
-  expect([at(0.5).right, leavingPose(0.5, start, { x: -300, y: 0 }).right]).toEqual([true, false])
-  expect(at(0.5)).toMatchObject({ lift: 0, rotation: 0, behind: false })
+test("顔を出して立ち寄る長さは、顔を出してから着地するまで", () => {
+  expect(PEEK_VISIT_LENGTH).toBe(4)
 })

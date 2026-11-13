@@ -27,10 +27,13 @@
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations", "placed"}（annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
 //	GET  /api/ai/records?kind=K[&id=ID][&where.field=value]  AI に見せる種類（対象の定義の aiBrief）のレコード。id があれば {"kind","record"}、無ければ where に合う物の一覧 {"kind","records":[{"id","brief"}],"total"}（100 行まで。ai_records.go）
-//	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}]}
-//	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部
-//	                         （undone と failed は、渡したら、次に利用者が話しかけたときに消える）
-//	POST /api/ai/talked      {"sessionId", "host", "candidates"} 利用者が AI に話しかけた（AI のフックが知らせる）。candidates が無ければ、話しかけたときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
+//	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
+//	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部と、
+//	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
+//	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
+//	GET  /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>]  SSE。そのプロセス id の AI を起こす知らせ（event: wake、data: {"text"}。参加の要求が受け入れられた・断られたなど。watch.go）
+//	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
+//	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	POST /api/ai/model       {"sessionId", "model", "host"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
@@ -141,6 +144,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
 	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.ai(o.aiPage))
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
+	mux.Handle("GET /api/ai/watch", o.ai(o.aiWatch))
 	mux.Handle("GET /api/ai/records", o.ai(o.aiRecords))
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
@@ -303,6 +307,13 @@ func (o Options) unlinkPlugin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o Options) events(w http.ResponseWriter, r *http.Request) {
+	c := o.Hub.Join()
+	defer o.Hub.Leave(c)
+	o.stream(w, r, c.ch)
+}
+
+// stream は、知らせの通り道 ch を SSE で書き出す（間が空けば keep を送る）。ch が閉じるか、頼んだ側が切れたら終える
+func (o Options) stream(w http.ResponseWriter, r *http.Request, ch <-chan event) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming is not supported", http.StatusInternalServerError)
@@ -310,8 +321,8 @@ func (o Options) events(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
-	c := o.Hub.Join()
-	defer o.Hub.Leave(c)
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush() // つながったことを、最初の知らせを待たずに返す
 	every := o.Keep
 	if every == 0 {
 		every = keepAlive
@@ -320,7 +331,7 @@ func (o Options) events(w http.ResponseWriter, r *http.Request) {
 	defer tick.Stop()
 	for {
 		select {
-		case ev, ok := <-c.ch:
+		case ev, ok := <-ch:
 			if !ok {
 				return
 			}

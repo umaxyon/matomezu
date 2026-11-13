@@ -1,7 +1,7 @@
 // 伝言: 利用者がブックの物に付けて AI に伝える文の、アノテーションの種類（core/def/annotation.ts）。付ける・変える・消すのは利用者だけ（userOnly）で、AI は読んだと知らせるだけ。
 // 返事は書かない。文の無い印はマーク（mark/）。
 // AI が読んだかは readAt（AI が読んだ時点）で持ち、利用者が文か付ける先を変えると未読に戻る。
-// 読まれたあと、利用者が AI に話しかけると会話の時点 talkedAt を持ち、そこから伝言期限（利用者の設定 note-expiry）が過ぎると消える。
+// 読まれたあと、利用者トリガートークがあると会話の時点 talkedAt を持ち、そこから伝言期限（利用者の設定 note-expiry）が過ぎると消える。
 // ロック中のブックにも付けられる（ロックはアノテーションを止めない）
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
@@ -21,7 +21,7 @@ const NoteSchema = z.strictObject({
   bubble: z.boolean(), // 吹き出しを出すか（出さなければ、たたんだ伝言の絵だけ）
   addedAt: z.string(), // 付けた時点
   readAt: z.string().optional(), // AI が読んだ時点（無ければ未読）
-  talkedAt: z.string().optional(), // 読まれたあと、利用者が AI に話しかけた時点（無ければ、まだ話していない）
+  talkedAt: z.string().optional(), // 読まれたあと、利用者トリガートークがあった時点（無ければ、まだ無い）
 })
 export type NoteProps = z.output<typeof NoteSchema>
 
@@ -142,7 +142,7 @@ export const NOTE_READ = kit.defineAction({
   },
 })
 
-// 利用者が AI に話しかけたとき（matomezu が行う）: 読まれていて、まだ会話の時点の無い伝言に、会話の時点を付ける（そこから伝言期限が数え始まる）
+// 利用者トリガートークのとき（matomezu が行う）: 読まれていて、まだ会話の時点の無い伝言に、会話の時点を付ける（そこから伝言期限が数え始まる）
 export const NOTE_TALKED = kit.defineAction({
   id: "note-talked",
   attach: { annotations: [NOTE.id] },

@@ -199,3 +199,58 @@ func TestAIEditTicketsAreFoundBySubjectAndKey(t *testing.T) {
 		t.Fatalf("closed without a subject = %+v, %v", left, changed)
 	}
 }
+
+// 郵便箱が上限のとき、変更提案郵便を送ると、新しい提案の AI 編集チケットを開くのと、上限で消えた反映していない提案の AI 編集チケットを
+// 消えたと記す（cause limit）のを、郵便のレコードと一緒に 1 回の書き込みで行う
+func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	batch := storage.Batch{
+		Books:         []storage.BookWrite{{ID: "b1", Body: json.RawMessage(boxed)}},
+		Counters:      []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 201}},
+		AIEditTickets: []storage.BookBody{{Book: "b1", Body: json.RawMessage(`[{"key":"m001","subject":"` + mailKind + `","at":"t","version":1}]`)}},
+	}
+	for i := 1; i <= 200; i++ {
+		id := fmt.Sprintf("m%03d", i)
+		body := fmt.Sprintf(`{"id":%q,"mail":"@matomezu/base:letter","from":"a","sentAt":"t","props":{"title":"%d","body":""},"order":%d}`, id, i, i)
+		if i == 1 {
+			// 見た郵便は先に消える
+			body = `{"id":"m001","mail":"@matomezu/base:proposal","from":"a","sentAt":"t","seenAt":"t","props":{"title":"提案","body":"","book":"b1","changes":[{"action":"x","args":{}}],"snapshot":{}},"order":1}`
+		}
+		batch.Records = append(batch.Records, storage.RecordWrite{Subject: mailKind, ID: id, Body: json.RawMessage(body)})
+	}
+	if _, err := store.Apply(batch); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	change := `[{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"a","props":{"caption":"AI"}}}]`
+	done, err := h.Perform(Perform{Action: "@matomezu/base:proposal-send", Args: json.RawMessage(`{"from":"E94","title":"名前","book":"b1","page":"p1","changes":` + change + `}`)})
+	var sent struct{ Mail string }
+	if err != nil || !done.OK || json.Unmarshal(done.Result, &sent) != nil || sent.Mail == "" {
+		t.Fatalf("proposal-send = %+v, %v", done, err)
+	}
+	want := fmt.Sprintf(`[{"key":"m001","subject":%q,"at":"t","version":1,"removed":"limit"},{"key":%q,"subject":%q,"at":`, mailKind, sent.Mail, mailKind)
+	stored, err := store.AIEditTickets()
+	if err != nil || !strings.HasPrefix(string(stored["b1"]), want) {
+		t.Fatalf("stored tickets = %s, %v; want %s…", stored["b1"], err, want)
+	}
+	h.mu.Lock()
+	list := h.aiEditTickets["b1"]
+	h.mu.Unlock()
+	if len(list) != 2 || list[0].Removed != "limit" || list[1].Key != sent.Mail || list[1].Removed != "" {
+		t.Fatalf("tickets = %+v", list)
+	}
+	if records, _ := h.Records(); records[mailKind]["m001"] != nil {
+		t.Fatal("the proposal over the limit is still there")
+	}
+}

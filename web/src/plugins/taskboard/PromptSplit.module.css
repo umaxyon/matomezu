@@ -1,0 +1,74 @@
+/* プロジェクト設定の一覧（左、幅 210px）とプロンプト（右） */
+.split {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  min-height: 0;
+}
+.list {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  width: 210px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.row[data-dragging="true"] {
+  opacity: 0.5;
+}
+.row[data-selected="true"] {
+  background: var(--skin-accent-subtle);
+}
+.name {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+}
+.name[aria-invalid="true"] {
+  border-color: var(--skin-danger);
+}
+.label {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  color: var(--skin-text-muted);
+}
+.note {
+  margin: 0;
+  color: var(--skin-danger);
+  font-size: 12px;
+}
+.prompt {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--skin-border);
+}
+.promptField {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+.promptTitle {
+  font-weight: 600;
+}
+.textarea {
+  flex: 1;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 120px;
+  resize: none;
+  line-height: 1.5;
+}

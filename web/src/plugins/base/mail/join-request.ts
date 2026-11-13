@@ -68,6 +68,13 @@ export const MAIL_JOIN_REQUEST_SEND = kit.defineAction({
         ...(args.workroom ? { workroom: args.workroom } : {}),
       } satisfies JoinRequestProps,
     })
-    return added && { next: added.next, others: added.others, result: { mail: added.next.id } }
+    return (
+      added && {
+        next: added.next,
+        others: added.others,
+        result: { mail: added.next.id },
+        aiEditTickets: added.aiEditTickets,
+      }
+    )
   },
 })

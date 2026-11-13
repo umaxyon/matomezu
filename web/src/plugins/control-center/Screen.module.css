@@ -10,7 +10,6 @@
   --board-min-height: 300px;
   --row-height: 40px;
   --admin-row-height: 62px;
-  --card-visit-room: 56px; /* カードに立ち寄る鳥（高さ 48px）の場所 */
   --off-screen: 16px; /* 最大化で押し出す物が、確実に見えなくなる余分 */
   --panel-pad-y: 6px;
   --panel-pad-x: 8px;
@@ -65,7 +64,7 @@
 .projectScreen {
   position: relative;
 }
-/* プロジェクトの画面の上のボードの置き場（下のワークルームの高さを除いた全部）。ボードはタスクボードの物が入る */
+/* プロジェクトの画面の上のタスクボードの置き場（下のワークルームの高さを除いた全部）。タスクボードはタスクボードの物が入る */
 .boards {
   position: absolute;
   inset: 0 0 calc(var(--room-height) + var(--gap)) 0;

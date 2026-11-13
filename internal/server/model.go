@@ -2,8 +2,8 @@ package server
 
 // AI のモデルの知らせ: AI のフック（Claude Code の SessionStart と PostModelSwitch）が、会話のセッションのモデルを常駐に知らせる。
 // そのセッション id が結ばれた参加者の記録にモデルを書き、窓に知らせる。まだ誰にも結ばれていなければ、セッション id ごとにメモリで覚えておき、
-// 結ばれたとき（join で MCP が運んだか、話しかけのフックが結んだか、AI のプログラムのプロセス id で結び直したか）に参加者の記録へ移す。
-// host が添えてあれば、先に、同じAI のプログラムのプロセス id の参加者にそのセッション id を結び直す（talk_session.go の話しかけと同じ）。
+// 結ばれたとき（join で MCP が運んだか、UserPromptSubmit のフックが結んだか、AI のプログラムのプロセス id で結び直したか）に参加者の記録へ移す。
+// host が添えてあれば、先に、同じAI のプログラムのプロセス id の参加者にそのセッション id を結び直す（talk_session.go の結び直しと同じ）。
 //
 //	POST /api/ai/model  {"sessionId", "model", "host"}  {} を返す
 

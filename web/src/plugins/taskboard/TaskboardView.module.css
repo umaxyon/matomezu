@@ -1,0 +1,75 @@
+/* タスクボードの画面の根: 動きの長さ・間・タスクボードの高さの下限は、ここで持つ（枠のコントロールセンターの変数を当てにしない） */
+.root {
+  position: relative;
+  --gap: 6px;
+  --motion: 0.3s;
+  --board-min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+/* 順番は遅延でつなぐ。入る = 枠が開いて既存が縮む → タスクボードが右から入る。出る = タスクボードが右へ出る → 枠が閉じる。
+   別のタスクボードの最大化で隠れるときは、遅らせず、最大化の広がりと同時に畳む */
+.slot {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: var(--board-min-height);
+  padding-top: var(--gap);
+  overflow: hidden;
+  transition:
+    flex-grow var(--motion) ease,
+    min-height var(--motion) ease,
+    padding-top var(--motion) ease;
+}
+.slot:first-child {
+  padding-top: 0;
+}
+.slot[data-state="enter"],
+.slot[data-state="leave"],
+.slot[data-state="hidden"] {
+  flex-grow: 0;
+  min-height: 0;
+  padding-top: 0;
+  transition-delay: 0s;
+}
+.slot[data-state="leave"] {
+  transition-delay: var(--motion);
+}
+.board {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  transform: translateX(0);
+  transition: transform var(--motion) ease var(--motion);
+}
+.slot[data-state="enter"] > .board,
+.slot[data-state="leave"] > .board,
+.slot[data-state="hidden"] > .board {
+  transform: translateX(100%);
+  transition-delay: 0s;
+}
+.slot[data-state="enter"] > .board {
+  transition: none;
+}
+
+.lanes {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-height: 0;
+  overflow: auto;
+}
+/* レーンを最大化している間は、タスクボードの中を横にスクロールさせない（最大化したレーンの中でスクロールする） */
+.lanes[data-lane-max="true"] {
+  overflow: hidden;
+}
+.empty {
+  margin: 0;
+  padding: 8px;
+  font-size: 13px;
+  color: var(--skin-text-muted);
+}

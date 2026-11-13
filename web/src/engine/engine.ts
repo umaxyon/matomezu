@@ -77,7 +77,7 @@ interface Input {
   watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
 
-// 返すもの。aiEditTicket はレコードが対象のアクションが返した AI 編集チケットの変え方、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、
+// 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、
 // records は変わったレコードの並び（1 つのトランザクションで書く）、counters は進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）。
 // AI のアクションと lockedForUser のアクションが、受けた watched の物（ブックの中の物とアノテーションの id）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
@@ -92,7 +92,7 @@ type Output =
       records?: readonly RecordChange[] // 変わったレコード（消したなら record は removed）
       counters?: Counters
       notice?: string
-      aiEditTicket?: AIEditTicketChange
+      aiEditTickets?: readonly AIEditTicketChange[]
     }
   | { ok: false; reason: string; permission?: string; detail?: string }
 
@@ -209,7 +209,7 @@ function perform(input: Input): Output {
     ...(done.records ? { records: done.records.map(c => withKeys(catalog, c)) } : {}),
     ...(done.counters ? { counters: done.counters } : {}),
     ...(notice ? { notice } : {}),
-    ...(done.aiEditTicket ? { aiEditTicket: done.aiEditTicket } : {}),
+    ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
   }
 }
 
@@ -508,7 +508,7 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
     return JSON.stringify({ annotations: kept, changed: kept.length !== all.length })
   }
 
-// 利用者が AI に話しかけたときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
+// 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
 
@@ -522,7 +522,7 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
 ).matomezuParticipantAlive = (settings, calledAt, nowMs) =>
   isParticipantAlive(assembled.catalog.core, restoreSettings(JSON.parse(settings)), calledAt || undefined, nowMs)
 
-// 参加を利用者に伝える文（利用者の言語。常駐が、話しかけのフックの systemMessage に使う）
+// 参加を利用者に伝える文（利用者の言語。常駐が、UserPromptSubmit のフックの systemMessage に使う）
 ;(globalThis as { matomezuJoinedText?: (settings: string, workroom: string) => string }).matomezuJoinedText = (
   settings,
   workroom,

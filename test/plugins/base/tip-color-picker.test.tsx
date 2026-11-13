@@ -63,3 +63,19 @@ test("ColorPicker は none を渡さなければ「なし」を出さず、値�
   expect(screen.queryByRole("button", { name: "None" })).toBeNull()
   expect(screen.getAllByRole("button").length).toBeGreaterThan(2) // 見本は出ている
 })
+
+test("ColorPicker は swatchesOnly なら見本だけを出し（四角・スライダー・値のテキストFormは無い）、見本の色に CSS の変数を使える", () => {
+  const picked: (string | undefined)[] = []
+  const vars = [
+    { name: "primary", hex: "var(--skin-palette-primary)", label: "Primary" },
+    { name: "danger", hex: "var(--skin-palette-danger)", label: "Danger" },
+  ]
+  inContext(<ColorPicker label="色" value="primary" palette={vars} swatchesOnly onChange={v => picked.push(v)} />)
+  const button = screen.getByRole("button", { name: "色" })
+  expect(button.style.getPropertyValue("--color")).toBe("var(--skin-palette-primary)")
+  fireEvent.click(button)
+  expect(screen.queryByRole("slider")).toBeNull()
+  expect(screen.queryByRole("textbox")).toBeNull()
+  fireEvent.click(screen.getByRole("button", { name: "Danger" }))
+  expect(picked).toEqual(["danger"])
+})

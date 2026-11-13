@@ -8,6 +8,7 @@ import {
   FILED,
   groupByDay,
   historyRows,
+  rowTextSource,
   ticketLabel,
   timeOf,
   topicColor,
@@ -79,4 +80,13 @@ test("チケットスクリーンの画面の状態は、開いているチケ�
   const changed = { ...first, maximized: true, question: "q" }
   expect(viewOf(changed, "t1")).toBe(changed)
   expect(viewOf(changed, "t2")).toEqual({ ticket: "t2", mode: "rendered-only", body: true, maximized: false })
+})
+
+test("履歴の行の文の出どころ: 起票・本文更新の行は題から、文を持たない題の文の無い行は題の名前、そのほかは行の文", () => {
+  const row = (topic: string, text: string) => ({ id: "r", topic, text, at: "t", by: { kind: "user" } }) as never
+  expect(rowTextSource(row(FILED, ""), false)).toBe("filed")
+  expect(rowTextSource(row("@matomezu/taskboard:topic-body", ""), true)).toBe("body")
+  expect(rowTextSource(row("@x/y:topic-review", ""), true)).toBe("topic")
+  expect(rowTextSource(row("@x/y:topic-review", "文"), true)).toBe("text")
+  expect(rowTextSource(row("@x/y:topic-review", ""), false)).toBe("text")
 })

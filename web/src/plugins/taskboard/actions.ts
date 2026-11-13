@@ -1,13 +1,25 @@
 // タスクボードのアクション（どれも 1 件のレコードを変える）。プロジェクトを作る・チケットを足す・直すは AI も行え、
-// プロジェクトを直す（レーン・タグのプロンプトは AI への指示なので）・閉じる・開け直す・チケットを消すは利用者だけ。
+// プロジェクトを直す（レーン・タグのプロンプトは AI への指示なので）・チケットを消すは利用者だけ。閉じる・開け直すは AI も行える（利用者が AI に頼む）。
 // プロジェクトを作るのは、最初の 1 度は常駐が初めて起動したときに行う（project-add の引数は省いてよい）
 import { type z, z as zod } from "zod"
 import { enumValuesOf, isAI } from "../../plugin-api"
 import { byOf, WORKROOM_SUBJECT, workroomOf } from "./by"
 import { CURRENT, NO_TICKET } from "./current"
-import { HISTORY, HISTORY_TOPIC } from "./history"
+import { HISTORY, HISTORY_TOPIC, type TopicData } from "./history"
 import { kit } from "./kit"
-import { LANE_NAME_MAX, LANES, NO_TAG, PREFIX, PROJECT, PROJECT_NAME_MAX, TAG, TAG_NAME_MAX, UNSORTED } from "./project"
+import {
+  LANE_NAME_MAX,
+  LANES,
+  NO_TAG,
+  PREFIX,
+  PROJECT,
+  PROJECT_NAME_MAX,
+  sameName,
+  TAG,
+  TAG_NAME_MAX,
+  TAGS,
+  UNSORTED,
+} from "./project"
 import { projectNameOf, sayIn, templateOf } from "./template"
 import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "./ticket"
 
@@ -17,13 +29,12 @@ type Records = { records?: Readonly<Record<string, Readonly<Record<string, unkno
 
 const ticketsIn = (ctx: Records) => Object.values(ctx.records?.[TICKET.id] ?? {}) as Ticket[]
 const projectsIn = (ctx: Records) => Object.values(ctx.records?.[PROJECT.id] ?? {}) as Project[]
-const sameText = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
 export const PROJECT_ADD = kit.defineAction({
   id: "project-add",
   title: "add project",
   aiDescription:
-    "Add a project (a task board) with the lanes and the ticket tags of the template: to do, in progress and done, the tags task and bug, each with a prompt. name (up to 30 characters) and prefix (the head of the ticket numbers: letters and hyphens, starting with a letter, such as T-; not the same as another project's, whatever the case) are optional when it is the first project. Returns the project's id.",
+    "Add a project (a task board) with the lanes and the ticket tags of the template: to do, in progress and done, the tags task and bug, each with a prompt. name (up to 30 characters) and prefix (the head of the ticket numbers: 1 to 3 letters and at most one hyphen at the end, such as T- or ABC; not the same as another project's, whatever the case) are optional when it is the first project. Returns the project's id.",
   target: PROJECT.id,
   reads: [PROJECT.id],
   runsOnceAtStart: true,
@@ -34,7 +45,7 @@ export const PROJECT_ADD = kit.defineAction({
   run: (now, args, ctx) => {
     if (now !== "none") return null
     const prefix = args.prefix ?? "T-"
-    if (projectsIn(ctx).some(p => sameText(p.prefix, prefix)))
+    if (projectsIn(ctx).some(p => sameName(p.prefix, prefix, true)))
       return { declined: `a project has the prefix ${prefix} already: give another prefix` }
     const say = sayIn(ctx.catalog.messages, ctx.lang)
     const project: Project = {
@@ -63,7 +74,7 @@ export const PROJECT_UPDATE = kit.defineAction({
   id: "project-update",
   title: "update project",
   aiDescription:
-    "Change the name, the prefix, the lanes or the ticket tags of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted or none.",
+    "Change the name, the prefix (as in project-add), the lanes or the ticket tags of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted or none.",
   target: PROJECT.id,
   reads: [PROJECT.id],
   userOnly: true,
@@ -77,27 +88,20 @@ export const PROJECT_UPDATE = kit.defineAction({
     if (now === "none") return null
     if (
       args.prefix !== undefined &&
-      projectsIn(ctx).some(p => p.id !== now.id && sameText(p.prefix, args.prefix as string))
+      projectsIn(ctx).some(p => p.id !== now.id && sameName(p.prefix, args.prefix as string, true))
     )
       return { declined: `a project has the prefix ${args.prefix} already` }
-    const known = new Set(now.lanes.flatMap(l => (l.kind === "lane" ? [l.id] : [])))
-    const lanes = args.lanes?.map(l => (l.kind === "lane" ? { ...l, id: l.id ?? ctx.newId() } : l))
-    if (
-      lanes?.some(
-        l =>
-          l.kind === "lane" &&
-          l.id !== undefined &&
-          !known.has(l.id) &&
-          args.lanes?.some(i => i.kind === "lane" && i.id === l.id),
-      )
-    )
+    const knownLanes = new Set(now.lanes.flatMap(l => (l.kind === "lane" ? [l.id] : [])))
+    if (args.lanes?.some(l => l.kind === "lane" && l.id !== undefined && !knownLanes.has(l.id)))
       return { declined: "a lane has an id that is not in the project: leave the id out to make a new lane" }
     const knownTags = new Set(now.tags.map(t => t.id))
-    const tags = args.tags?.map(t => ({ ...t, id: t.id ?? ctx.newId() }))
     if (args.tags?.some(t => t.id !== undefined && !knownTags.has(t.id)))
       return { declined: "a tag has an id that is not in the project: leave the id out to make a new tag" }
+    const lanes = args.lanes?.map(l => (l.kind === "lane" ? { ...l, id: l.id ?? ctx.newId() } : l))
+    const tags = args.tags?.map(t => ({ ...t, id: t.id ?? ctx.newId() }))
     if (lanes && !LANES.safeParse(lanes).success)
       return { declined: "the lanes need exactly one unsorted row, and the lane ids and names must not repeat" }
+    if (tags && !TAGS.safeParse(tags).success) return { declined: "the tag ids and names must not repeat" }
     return {
       next: {
         ...now,
@@ -115,9 +119,8 @@ export const PROJECT_CLOSE = kit.defineAction({
   id: "project-close",
   title: "close project",
   aiDescription:
-    "Close the project named by on.record (only the user): no ticket can be added to it, but its tickets can still be changed.",
+    "Close the project named by on.record (when the user asks you to): no ticket can be added to it and the project cannot be changed until it is reopened, but its tickets can still be changed.",
   target: PROJECT.id,
-  userOnly: true,
   args: zod.strictObject({}),
   run: now => (now === "none" || now.closed ? null : { next: { ...now, closed: true }, result: {} }),
 })
@@ -125,9 +128,8 @@ export const PROJECT_CLOSE = kit.defineAction({
 export const PROJECT_REOPEN = kit.defineAction({
   id: "project-reopen",
   title: "reopen project",
-  aiDescription: "Reopen the closed project named by on.record (only the user).",
+  aiDescription: "Reopen the closed project named by on.record (when the user asks you to).",
   target: PROJECT.id,
-  userOnly: true,
   args: zod.strictObject({}),
   run: now => (now === "none" || !now.closed ? null : { next: { ...now, closed: false }, result: {} }),
 })
@@ -277,25 +279,32 @@ export const TICKET_HISTORY_ADD = kit.defineAction({
   id: "ticket-history-add",
   title: "add ticket history",
   aiDescription:
-    "Add a line to the history of the ticket (its id): topic is the id of a value of the enum history-topic (the values are listed in the arguments), text is what to write. The line records you (your workroom, as it is now) and the time. Lines cannot be changed or removed later. The ticket's own time of the last change does not move.",
+    "Add a line to the history of the ticket (its id): topic is the id of a value of the enum history-topic (the values are listed in the arguments), text is what to write (needed, except for a topic whose data says textless). The line records you (your workroom, as it is now) and the time. Lines cannot be changed or removed later. The ticket's own time of the last change does not move.",
   target: HISTORY.id,
   reads: [TICKET.id, WORKROOM_SUBJECT],
-  args: zod.strictObject({ ticket: zod.string().min(1), topic: zod.string().min(1), text: zod.string().min(1) }),
+  args: zod.strictObject({ ticket: zod.string().min(1), topic: zod.string().min(1), text: zod.string() }),
   describeArgs: catalog => {
     const topics = enumValuesOf(catalog, HISTORY_TOPIC.id)
     const ids = topics.map(v => v.id) as [string, ...string[]]
     // 題の候補と、いつ選ぶかの説明（値の aiDescription）を、引数の説明に並べる
     const topic =
       ids.length > 0
-        ? zod.enum(ids).describe(topics.map(v => `${v.id}: ${v.aiDescription}`).join("\n"))
+        ? zod
+            .enum(ids)
+            .describe(
+              topics
+                .map(v => `${v.id}: ${v.aiDescription}${(v.data as TopicData).textless ? " (text may be empty)" : ""}`)
+                .join("\n"),
+            )
         : zod.string().min(1)
-    return zod.strictObject({ ticket: zod.string().min(1), topic, text: zod.string().min(1) })
+    return zod.strictObject({ ticket: zod.string().min(1), topic, text: zod.string() })
   },
   run: (now, args, ctx) => {
     if (now !== "none") return null
     if (!ticketsIn(ctx).some(t => t.id === args.ticket)) return { declined: "the ticket is not there" }
-    if (!enumValuesOf(ctx.catalog, HISTORY_TOPIC.id).some(v => v.id === args.topic))
-      return { declined: "the topic is not a value of history-topic" }
+    const topic = enumValuesOf(ctx.catalog, HISTORY_TOPIC.id).find(v => v.id === args.topic)
+    if (!topic) return { declined: "the topic is not a value of history-topic" }
+    if (args.text.trim() === "" && !(topic.data as TopicData).textless) return { declined: "the topic needs a text" }
     const by = byOf(ctx.actor, ctx)
     if (!by) return { declined: "the workroom of the AI is not there" }
     const line: z.output<typeof HISTORY.record> = {

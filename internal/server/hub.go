@@ -86,6 +86,7 @@ type Hub struct {
 	goneTold         map[string]bool                   // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
 	clients          map[string]*client
+	wakeLines        map[*wakeLine]struct{} // AI を起こす知らせの通り道（watch.go）
 	next             int
 	ticks            int64            // フォーカスの順を振る数
 	viewed           chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
@@ -396,6 +397,11 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		} else if p.Client != "" {
 			by = "window"
 		}
+		// 窓のアクションで要求中の参加者が受け入れられた・断られたら、その AI を起こす（watch.go。起こす通り道が無ければ見ない）
+		var requested map[string]bool
+		if by == "window" && len(h.wakeLines) > 0 {
+			requested = h.requestedParticipants()
+		}
 		act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
 		plan, err := h.planWrites(out, needs.Subject, by, act, stamp())
 		if err != nil {
@@ -407,6 +413,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		}
 		h.acts++
 		h.applyWrites(plan, out, p, by, act)
+		h.wakeOnParticipants(requested)
 	}
 	h.remember(p.Key, done)
 	h.ack(p, done)
@@ -647,12 +654,16 @@ func (h *Hub) AICatalog(ids []string) json.RawMessage {
 	return withWarnings(h.engine.AICatalogIndex(), h.Warnings())
 }
 
-// CloseAll は全部の窓を外す（常駐を止めるとき。知らせの通り道を閉じると、窓とのつながりが終わる）
+// CloseAll は全部の窓と、AI を起こす知らせの通り道を外す（常駐を止めるとき。知らせの通り道を閉じると、つながりが終わる）
 func (h *Hub) CloseAll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, c := range h.clients {
 		h.drop(c)
+	}
+	for l := range h.wakeLines {
+		delete(h.wakeLines, l)
+		close(l.ch)
 	}
 }
 

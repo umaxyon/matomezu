@@ -1,4 +1,4 @@
-// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトにチケットを足させない）。
+// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
 import { defineBuiltin } from "../../plugin-api/builtin"
 import {
   CURRENT_TICKET_SET,
@@ -14,10 +14,14 @@ import {
   TICKET_UPDATE,
 } from "./actions"
 import { CURRENT } from "./current"
-import { HISTORY, HISTORY_TOPIC, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./history"
+import { HISTORY, HISTORY_TOPIC, TOPIC_BODY, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./history"
 import { kit } from "./kit"
 import { CLOSED_PROJECT } from "./permission"
 import { PROJECT } from "./project"
+import { PROJECT_ORDER, SHOWN_PROJECTS } from "./settings"
+import { PROJECT_SETTINGS_DIALOG } from "./settings-dialog"
+import { CARD_VISIT, LANE_SORTS, LIST_OPEN, MAXIMIZED } from "./states"
+
 import { TICKET } from "./ticket"
 import { TICKET_SCREEN_STATE } from "./ticket-screen-state"
 
@@ -25,7 +29,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
     subjects: [PROJECT, TICKET, HISTORY, CURRENT],
     enums: [HISTORY_TOPIC],
-    enumValues: [TOPIC_STATUS, TOPIC_PLAN, TOPIC_QUESTION],
+    enumValues: [TOPIC_STATUS, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_BODY],
     actions: [
       PROJECT_ADD,
       PROJECT_UPDATE,
@@ -40,7 +44,9 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       CURRENT_TICKET_SET,
     ],
     permissions: [CLOSED_PROJECT],
-    pluginStates: [TICKET_SCREEN_STATE],
+    dialogs: [PROJECT_SETTINGS_DIALOG],
+    userSettings: [PROJECT_ORDER, SHOWN_PROJECTS],
+    pluginStates: [LIST_OPEN, LANE_SORTS, MAXIMIZED, CARD_VISIT, TICKET_SCREEN_STATE],
   }),
 )
 
@@ -58,6 +64,7 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:topic-status": typeof TOPIC_STATUS
     "@matomezu/taskboard:topic-plan": typeof TOPIC_PLAN
     "@matomezu/taskboard:topic-question": typeof TOPIC_QUESTION
+    "@matomezu/taskboard:topic-body": typeof TOPIC_BODY
   }
   interface ActionTable {
     "@matomezu/taskboard:project-add": typeof PROJECT_ADD
@@ -72,11 +79,22 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:ticket-history-add": typeof TICKET_HISTORY_ADD
     "@matomezu/taskboard:current-ticket-set": typeof CURRENT_TICKET_SET
   }
+  interface UserSettingTable {
+    "@matomezu/taskboard:project-order": typeof PROJECT_ORDER
+    "@matomezu/taskboard:shown-projects": typeof SHOWN_PROJECTS
+  }
   interface PluginStateTable {
+    "@matomezu/taskboard:list-open": typeof LIST_OPEN
+    "@matomezu/taskboard:lane-sorts": typeof LANE_SORTS
+    "@matomezu/taskboard:maximized": typeof MAXIMIZED
+    "@matomezu/taskboard:card-visit": typeof CARD_VISIT
     "@matomezu/taskboard:ticket-screen-state": typeof TICKET_SCREEN_STATE
   }
   interface PermissionTable {
     "@matomezu/taskboard:closed-project": typeof CLOSED_PROJECT
+  }
+  interface DialogTable {
+    "@matomezu/taskboard:project-settings": typeof PROJECT_SETTINGS_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

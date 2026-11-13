@@ -2,12 +2,13 @@
 // base の郵便の種類は手紙（letter。題と本文）。送るのは mail-send（AI も送れる）、見た・行き先を見た・消すは利用者だけ（on の record で郵便を指す）。
 // 既読は 2 つ: 利用者が郵便を開いて見た時点 seenAt（画面の未読の数はこれで数える）と、郵便が示した物を見た時点 visitedAt（AI は read_mail でこれを知る）
 import { z } from "zod"
-import type { ActionContext } from "../../../core/def/action"
+import type { ActionContext, AIEditTicketChange } from "../../../core/def/action"
 import { freshId } from "../../../core/ids"
 import { MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder } from "../../../core/mail"
 import { inOrder } from "../../../core/record-keys"
-import { RECORDS_MAX, type Records } from "../../../core/records"
+import { NO_RECORD, RECORDS_MAX, type Records } from "../../../core/records"
 import { kit } from "../kit"
+import { ticketsOnRemoved } from "./removed"
 
 // 郵便のレコードの種類。read_mail と重ならないよう、AI の read_records には見せない（aiBrief を書かない）
 export const MAIL = kit.defineSubject({
@@ -79,12 +80,17 @@ function overLimit(mailbox: readonly MailKeys[]): readonly string[] {
   return mailbox.flatMap(m => (drop.has(m.id) ? [m.id] : []))
 }
 
-// 郵便を 1 通足すアクション（mail-send・proposal-send・mail-join-request）が返す物: 足す郵便（id と届いた順の番号を振る）と、上限を守るために消す古い郵便。
-// 今ある郵便は、索引キーだけを ctx.keys から読む（アクションの reads に READS_MAILBOX_KEYS を書く）。番号を受け取れなければ null
+// 郵便を 1 通足すアクション（mail-send・proposal-send・mail-join-request）が返す物: 足す郵便（id と届いた順の番号を振る）と、上限を守るために消す古い郵便と、
+// 消す郵便の種類が答えた AI 編集チケットの変え方（removed.ts。足す郵便のアクションが返す aiEditTickets に入れる）。
+// 今ある郵便は、索引キーだけを ctx.keys から読み（アクションの reads に READS_MAILBOX_KEYS を書く）、消す郵便だけ中身を ctx.record で読む。番号を受け取れなければ null
 export function mailAdded(
   ctx: ActionContext,
   mail: Omit<Mail, "id" | "order">,
-): { next: Mail; others: readonly { id: string; record: "removed" }[] } | null {
+): {
+  next: Mail
+  others: readonly { id: string; record: "removed" }[]
+  aiEditTickets: readonly AIEditTicketChange[]
+} | null {
   if (!ctx.number) return null
   const mailbox: MailKeys[] = inOrder(
     Object.entries(ctx.keys?.[MAIL.id] ?? {}).map(([id, keys]) => ({ id, keys })),
@@ -95,9 +101,15 @@ export function mailAdded(
     mailbox.map(m => m.id),
   )
   const next: Mail = { ...mail, id, order: ctx.number(MAIL_ORDER_SCOPE) }
+  const dropped = overLimit([...mailbox, { id, seen: false }])
+  const gone = dropped.flatMap(id => {
+    const mail = ctx.record?.(MAIL.id, id)
+    return mail === undefined || mail === NO_RECORD ? [] : [mail as Mail]
+  })
   return {
     next,
-    others: overLimit([...mailbox, { id, seen: false }]).map(id => ({ id, record: "removed" as const })),
+    others: dropped.map(id => ({ id, record: "removed" as const })),
+    aiEditTickets: ticketsOnRemoved(ctx.catalog, gone, "limit"),
   }
 }
 
@@ -126,7 +138,14 @@ export const MAIL_SEND = kit.defineAction({
       ...(args.to ? { to: args.to } : {}),
       props: { title: args.title, body: args.body ?? "" } satisfies LetterProps,
     })
-    return added && { next: added.next, others: added.others, result: { mail: added.next.id } }
+    return (
+      added && {
+        next: added.next,
+        others: added.others,
+        result: { mail: added.next.id },
+        aiEditTickets: added.aiEditTickets,
+      }
+    )
   },
 })
 
@@ -160,5 +179,9 @@ export const MAIL_REMOVE = kit.defineAction({
   target: MAIL.id,
   userOnly: true,
   args: NO_ARGS,
-  run: now => (now === "none" ? null : { next: "removed" as const, result: {} }),
+  // 消す郵便の種類が答えた AI 編集チケットの変え方も返す（removed.ts）
+  run: (now, _, ctx) =>
+    now === "none"
+      ? null
+      : { next: "removed" as const, result: {}, aiEditTickets: ticketsOnRemoved(ctx.catalog, [now], "user") },
 })

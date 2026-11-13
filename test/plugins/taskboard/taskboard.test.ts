@@ -1,8 +1,8 @@
 // タスクボード（プロジェクトとチケット。レコード）: 作る・直す・断る、AI の権限、番号、閉じたプロジェクト
 
 import { expect, test } from "bun:test"
-import { AI, type USER } from "../../../web/src/core/actor"
-import { performIn } from "../../../web/src/core/perform"
+import { AI, USER } from "../../../web/src/core/actor"
+import { performIn, permittedIn } from "../../../web/src/core/perform"
 import { PROJECT } from "../../../web/src/plugins/taskboard/project"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { CORE_CATALOG, newStore } from "../../support"
@@ -73,7 +73,7 @@ test("チケットプレフィクスは、大文字小文字を分けずに、�
   expect(projects()).toHaveLength(1)
 })
 
-test("AI はプロジェクトを作る・チケットを足す・直すはできるが、プロジェクトを直す・閉じる・開け直す・チケットを消すはできない", () => {
+test("AI はプロジェクトを作る・閉じる・開け直す・チケットを足す・直すはできるが、プロジェクトを直す・チケットを消すはできない", () => {
   const { user, run, projects, tickets } = ready()
   expect(run(AI, "project-add", { prefix: "X-" }).ok).toBe(true)
   user("project-add", { prefix: "Y-" })
@@ -84,11 +84,12 @@ test("AI はプロジェクトを作る・チケットを足す・直すはで�
   expect(run(AI, "ticket-update", { name: "b" }, { record: t }).ok).toBe(true)
   for (const [a, args, on] of [
     ["project-update", { name: "z" }, p.id],
-    ["project-close", {}, p.id],
-    ["project-reopen", {}, p.id],
     ["ticket-remove", {}, t],
   ] as const)
     expect(run(AI, a, args, { record: on })).toMatchObject({ ok: false, reason: "not-allowed" })
+  expect(run(AI, "project-close", {}, { record: p.id }).ok).toBe(true) // run は store に写さない
+  user("project-close", {}, { record: p.id })
+  expect(run(AI, "project-reopen", {}, { record: p.id }).ok).toBe(true)
 })
 
 test("チケットの番号はプロジェクトごとに続き、消しても使い回さない。レーンを省くと未分類、優先度は中", () => {
@@ -130,4 +131,99 @@ test("閉じたプロジェクトにはチケットを足せないが、ある�
   expect(user("ticket-update", { name: "c" }, { record: tickets()[0]?.id as string }).ok).toBe(true)
   user("project-reopen", {}, { record: p.id })
   expect(user("ticket-add", { project: p.id, name: "b" }).ok).toBe(true)
+})
+
+test("プロジェクトを直すと、id の無いレーン・タグは新しく入り、id のある物は残り、省いた物は消える", () => {
+  const { user, projects } = ready()
+  user("project-add", {})
+  const p = projects()[0] as Project
+  const [todo] = p.lanes
+  const [task] = p.tags
+  const done = user(
+    "project-update",
+    {
+      name: "新しい名前",
+      prefix: "NEW",
+      lanes: [
+        { kind: "unsorted", shown: true },
+        { kind: "lane", id: todo?.id, name: "やる", prompt: "" },
+        { kind: "lane", name: "見直し", prompt: "p" },
+      ],
+      tags: [
+        { ...task, name: "仕事" },
+        { name: "調べ物", color: "success", enabled: false, prompt: "" },
+      ],
+    },
+    { record: p.id },
+  )
+  expect(done.ok).toBe(true)
+  const q = projects()[0] as Project
+  expect(q).toMatchObject({ prefix: "NEW" })
+  expect(q.lanes.map(l => l.name ?? l.kind)).toEqual(["unsorted", "やる", "見直し"])
+  expect(q.lanes[1]?.id).toBe(todo?.id)
+  expect(q.lanes[2]?.id).toBeString()
+  expect(q.tags.map(t => t.name)).toEqual(["仕事", "調べ物"])
+  expect(q.tags[0]?.id).toBe(task?.id)
+})
+
+test("プロジェクトを直すとき、無い id・重なる名前（前後の空白を除いて）・未分類が 1 つでない並び・ほかのプロジェクトと重なるプレフィクス（大文字小文字を問わない）は断る", () => {
+  const { user, projects } = ready()
+  user("project-add", { prefix: "AB-" })
+  user("project-add", { prefix: "C" })
+  const p = projects().find(x => x.prefix === "C") as Project
+  const lane = (name: string, id?: string) => ({ kind: "lane", name, prompt: "", ...(id ? { id } : {}) })
+  const tag = (name: string, id?: string) => ({
+    name,
+    color: "primary",
+    enabled: true,
+    prompt: "",
+    ...(id ? { id } : {}),
+  })
+  const unsorted = { kind: "unsorted", shown: false }
+  for (const args of [
+    { lanes: [unsorted, lane("a", "nope")] },
+    { tags: [tag("a", "nope")] },
+    { lanes: [unsorted, lane("a"), lane(" a ")] },
+    { tags: [tag("a"), tag("a ")] },
+    { lanes: [lane("a")] },
+    { lanes: [unsorted, unsorted, lane("a")] },
+    { prefix: "ab-" },
+    { prefix: "ABCD" },
+    { prefix: "A--" },
+  ])
+    expect(user("project-update", args, { record: p.id }).ok).toBe(false)
+  expect(projects().find(x => x.id === p.id)).toMatchObject({ prefix: "C" })
+})
+
+test("閉じたプロジェクトは直せない。開け直すと直せる", () => {
+  const { user, projects } = ready()
+  user("project-add", {})
+  const p = projects()[0] as Project
+  user("project-close", {}, { record: p.id })
+  expect(user("project-update", { name: "z" }, { record: p.id }).ok).toBe(false)
+  expect(user("project-reopen", {}, { record: p.id }).ok).toBe(true)
+  expect(user("project-update", { name: "z" }, { record: p.id }).ok).toBe(true)
+})
+
+test("閉じたプロジェクトは、行う前の問いでも、開け直すほかは断る（画面は歯車を出さない）", () => {
+  const { user, store, projects } = ready()
+  user("project-add", {})
+  const p = projects()[0] as Project
+  user("project-close", {}, { record: p.id })
+  const s = store.state.getState()
+  const world = { books: {}, settings: s.settings, annotations: {}, records: s.records, counters: s.counters }
+  const asked = (action: string) =>
+    permittedIn(
+      world,
+      A(action) as never,
+      {} as never,
+      { record: p.id },
+      {
+        catalog: CORE_CATALOG,
+        controlCenter: "@matomezu/control-center:control-center" as never,
+        actor: USER,
+      },
+    )
+  expect(asked("project-update")).toMatchObject({ ok: false, reason: "denied" })
+  expect(asked("project-reopen").ok).toBe(true)
 })

@@ -1,8 +1,8 @@
-// 伝言期限: 読まれたあと、利用者が AI に話しかけてから伝言が消えるまでの時間（利用者の設定の項目）と、消える時点の計算
+// 伝言期限: 読まれたあと、利用者トリガートークから伝言が消えるまでの時間（利用者の設定の項目）と、消える時点の計算
 import { z } from "zod"
 import { kit } from "../kit"
 
-// 選べる伝言期限: 分の数（0 は話しかけたらすぐ）と、消さない（never）
+// 選べる伝言期限: 分の数（0 は利用者トリガートークがあったらすぐ）と、消さない（never）
 export const NOTE_EXPIRY_CHOICES = ["0", "5", "15", "30", "60", "480", "never"] as const
 export const NOTE_EXPIRY = kit.defineSetting({
   id: "note-expiry",
@@ -29,7 +29,7 @@ export function expiryFrom(talkedAt: string, choice: unknown): string | null {
   return Number.isNaN(ms) ? null : new Date(ms).toISOString()
 }
 
-// 読まれた伝言 props が消えるまでの、右サイドパネルに出す見込み: まだ話しかけていない（話しかけてから minutes 分で消える）・数え始めた（時点 now から
+// 読まれた伝言 props が消えるまでの、右サイドパネルに出す見込み: まだ利用者トリガートークが無い（利用者トリガートークから minutes 分で消える）・数え始めた（時点 now から
 // あと minutes 分。1 分未満は切り上げ、過ぎていれば 0）。読まれていない・消さない設定なら null
 // 分の数を、時間と分に分ける（画面に「2 時間 10 分」と出すため）
 export const hoursAndMinutes = (minutes: number): { h: number; m: number } => ({

@@ -63,6 +63,7 @@ import { CONTROL_CENTER_PERCH, WINDOW } from "./window/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
+export { BirdWalk } from "./birds/BirdWalk"
 export { type CodeSpan, highlightCode } from "./code-highlight/highlight"
 export { ColorPicker, type Swatch } from "./dialog-host/ColorPicker"
 export { Confirm } from "./dialog-host/Confirm"
@@ -159,7 +160,16 @@ export {
   useBodyGrips,
 } from "./text/ui"
 export * from "./utils/ui"
-export { BOOK_SCREEN, CONTROL_CENTER_FOOTER, CONTROL_CENTER_SCREEN } from "./window/slots"
+export { useControlCenterMaximize, useControlCenterMaximized } from "./window/maximize"
+export {
+  BOOK_SCREEN,
+  CONTROL_CENTER_FOOTER,
+  CONTROL_CENTER_PROJECTS,
+  CONTROL_CENTER_SCREEN,
+  CONTROL_CENTER_SIDE,
+  WORKROOM_COLUMNS,
+  WORKROOM_ROW_LINE,
+} from "./window/slots"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {
@@ -244,6 +254,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-screen": Record<string, never> // ブックスクリーンの中（何も受け取らない）
     "@matomezu/base:control-center-screen": Record<string, never> // コントロールセンターの中身（何も受け取らない）
     "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
+    "@matomezu/base:control-center-side": Record<string, never> // コントロールセンターの左の列の、利用者パネルと参加者の一覧の間（何も受け取らない）
+    "@matomezu/base:control-center-projects": Record<string, never> // コントロールセンターのプロジェクトの画面の上の領域（何も受け取らない）
+    "@matomezu/base:workroom-columns": { workroom: string } // ワークルームの枠の、情報の列の右に並べる列（選んでいるワークルームの id を受け取る）
+    "@matomezu/base:workroom-row-line": { workroom: string; admin: boolean } // 参加者の一覧の、参加済みの行の下の 1 行（その行のワークルームの id と、管理者かを受け取る）
     "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
     "@matomezu/base:stage-top": StageSlotProps
     "@matomezu/base:stage-side": StageSlotProps

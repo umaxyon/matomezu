@@ -1,4 +1,4 @@
-// 鳥を描く所: 物の上の辺を歩く鳥（BirdWalk）と、鳥の絵の 1 コマ（frameStyle）。スタンドの中に置く。
+// 鳥を描く所: 物の上の辺を歩く鳥（BirdWalk）と、鳥の絵の 1 コマ（frameStyle）。スタンドの中にも、スタンドでない所にも置ける。
 // 物の上の辺が見える所の外に出たら（edgePinned のスタンドの useStandAway）、鳥の代わりに鳥の顔の丸い絵（マークならマークポインタ）を、
 // 鳥の足元を見える所の縁に寄せた所に描き（歩く動きのまま縁を動く）、押すと付けた物を見せる。
 // leaving になったら画面の外へ飛び去り、飛び去り終えたら onGone を呼ぶ。visit なら歩かずに立ち寄り（flight.ts の visitPose）、降りたら onArrived を呼び、
@@ -18,6 +18,7 @@ import {
   LEAVE,
   leavingPose,
   orbitingPose,
+  PEEK_VISIT_LENGTH,
   type Pose,
   VISIT_ARRIVE,
   visitLength,
@@ -37,7 +38,8 @@ export const birdClass = styles.bird
 
 // 物の上の辺を歩く鳥。palette は鳥の配色（colors.ts の BIRD_PALETTES の id。無ければ元の配色）。色を塗り終わるまでは、歩く所だけを出す。歩く所の幅は物の幅で、鳥は真ん中寄りの、鳥の幅の 2 倍ほどを往復する。arrival は最初に描くときの出方。
 // children は鳥のコマを描く物（足元から置く見た目 style を受け取る）。paused の間は動きを止める。awayLabel は鳥の顔の丸い絵の名前
-// 歩くなら出方 arrival を受け、立ち寄るなら（visit）出方は受けない（いつも飛んでくる）
+// 歩くなら出方 arrival を受け、立ち寄るなら（visit）出方は受けない（いつも飛んでくる）。
+// peekVisit（出方 peek で歩く鳥だけ）は、物の裏から顔を出し、上の辺に着地したらすぐ自分で飛び去って、飛び去り終えたら onGone を呼ぶ
 type Motion =
   | { visit?: false; arrival: Arrival; onArrived?: never }
   | { visit: true; arrival?: never; onArrived?: () => void }
@@ -55,6 +57,8 @@ type WalkProps = Motion & {
   paused?: boolean
   leaving?: boolean
   onGone?: () => void
+  peekVisit?: boolean
+  pace?: number // 動きの速さの倍率（既定は 1。2 なら飛んでくる・仕草・飛び去るがどれも半分の時間）
   awayLabel: string
   children: (style: CSSProperties) => ReactNode
 }
@@ -70,6 +74,8 @@ function Walker({
   visit = false,
   onArrived,
   onGone,
+  peekVisit = false,
+  pace = 1,
   awayLabel,
   children,
 }: WalkProps & { sheet: string }) {
@@ -114,13 +120,13 @@ function Walker({
     let last: number | null = null
     const tick = (now: number) => {
       const dt = last === null ? 0 : Math.min(0.1, (now - last) / 1000)
-      if (dt > 0 && !stopped.current) setTime(t => t + dt)
+      if (dt > 0 && !stopped.current) setTime(t => t + dt * pace)
       last = now
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [still])
+  }, [still, pace])
   const walking: Pose = still
     ? { frame: FRONT, x: range, lift: 0, from: { x: 0, y: 0 }, right: false, rotation: 0, behind: false }
     : visit
@@ -136,11 +142,11 @@ function Walker({
   // 動きを減らす設定で立ち寄るなら、立ち寄る間だけ出す
   // biome-ignore lint/correctness/useExhaustiveDependencies: 出たときに一度だけ
   useEffect(() => {
-    if (!visit || !still) return
-    const timer = setTimeout(() => onGone?.(), visitLength(gait) * 1000)
+    if (!(visit || peekVisit) || !still) return
+    const timer = setTimeout(() => onGone?.(), ((visit ? visitLength(gait) : PEEK_VISIT_LENGTH) * 1000) / pace)
     return () => clearTimeout(timer)
   }, [])
-  const visited = visit && !still && time >= visitLength(gait)
+  const visited = !still && (visit ? time >= visitLength(gait) : peekVisit && time >= PEEK_VISIT_LENGTH)
   // 飛び去る: leaving になった時刻と姿と、飛んでいく先を覚える
   const [leave, setLeave] = useState<{ at: number; start: Pose; to: Point } | null>(null)
   const footRef = useRef<Footing | null>(null)

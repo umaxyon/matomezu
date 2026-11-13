@@ -5,7 +5,7 @@ import type { z } from "zod"
 import type { SubjectExtras } from "../catalog"
 import type { MessageKey } from "../i18n/i18n"
 
-// 常駐と core が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・話しかけのフック）が読み、
+// 常駐と core が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・UserPromptSubmit のフック）が読み、
 // 郵便（mails）は常駐がレコードを丸ごと core に渡して、core が読む（core/mail.ts の形。read_mail の見せ方と確かめ）。定義が役を名乗り、常駐と core は役で種類を引く。
 // 役ごとに 1 つの種類だけが名乗り、読むフィールドを record に持つ（SUBJECT_ROLE_FIELDS。台帳アセンブルのときに確かめる）
 export const SUBJECT_ROLE_FIELDS = {
