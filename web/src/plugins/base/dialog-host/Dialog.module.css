@@ -41,6 +41,8 @@
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
+  /* つまみは字の色を薄めた色（スキンに従う）、溝は無し */
+  scrollbar-color: color-mix(in srgb, var(--skin-text) 28%, transparent) transparent;
 }
 /* 見出しの行: 左に見出し、右に置いた物（ボタンなど） */
 .head {

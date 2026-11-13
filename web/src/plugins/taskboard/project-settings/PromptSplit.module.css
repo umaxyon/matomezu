@@ -17,6 +17,11 @@
   width: 210px;
   overflow-y: auto;
   scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--skin-text) 28%, transparent) transparent; /* タスクボードの細いスクロールバーと同じ色 */
+}
+/* プロンプトの見出しの上に置く物（レーンの「完了レーンにする」など）と、見出しの間 */
+.promptHead {
+  margin-bottom: 12px;
 }
 .row {
   display: flex;

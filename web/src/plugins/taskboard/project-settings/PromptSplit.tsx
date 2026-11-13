@@ -110,7 +110,7 @@ export function PromptSplit({
         </div>
       </div>
       <div className={styles.prompt}>
-        {prompt !== undefined ? promptHead : null}
+        {prompt !== undefined && promptHead ? <div className={styles.promptHead}>{promptHead}</div> : null}
         {prompt !== undefined ? (
           <label className={styles.promptField}>
             <span className={styles.promptTitle}>{promptTitle}</span>
