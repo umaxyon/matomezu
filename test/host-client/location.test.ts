@@ -4,7 +4,7 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { type Address, currentIn, recentStagesIn } from "../../web/src/core/address"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { viewFrontOf, screenOf } from "../../web/src/core/window"
+import { screenOf, viewFrontOf } from "../../web/src/core/window"
 import {
   type FormerAddress,
   followLocation,

@@ -95,16 +95,16 @@ export type AIEditTicketChange =
   | { book: string; key: string; outcome: "removed"; cause: AIEditTicketRemovedCause }
 export type AIEditTicketRemovedCause = "limit" | "user"
 
-// レコードが対象のアクションが、宛先の 1 件のほかに変える、同じ種類のレコード 1 件（record は新しいレコードか、消すなら removed）
-export interface OtherRecord<T extends SubjectId> {
-  id: string
-  record: RecordOf<T> | "removed"
-}
+// レコードが対象のアクションが、宛先の 1 件のほかに変えるレコード 1 件（record は新しいレコードか、消すなら removed）。
+// subject を省けば、対象の種類 T のレコード。別の種類のレコードは subject に種類の id を書く（アクションの定義の writes に書いた種類だけ）
+export type OtherRecord<T extends SubjectId> =
+  | { subject?: undefined; id: string; record: RecordOf<T> | "removed" }
+  | { [S in SubjectId]: { subject: S; id: string; record: RecordOf<S> | "removed" } }[SubjectId]
 
 export interface Done<T extends ActionTarget, R> {
   next: SubjectNext<T>
   result: R
-  // レコードが対象のアクションが、宛先のほかに変える同じ種類のレコード（宛先と合わせて RECORDS_MAX 件まで。全部が通るか、全部を断る）
+  // レコードが対象のアクションが、宛先のほかに変えるレコード（同じ種類か、writes に書いた種類。宛先と合わせて RECORDS_MAX 件まで。全部が通るか、全部を断る）
   others?: T extends SubjectId ? readonly OtherRecord<T>[] : never
   // レコードが対象のアクションだけが書ける、AI 編集チケットの変え方の並び（宛先と others の変えたレコードと同じ 1 回の書き込みで、順に当てる）
   aiEditTickets?: T extends SubjectId ? readonly AIEditTicketChange[] : never
@@ -300,6 +300,8 @@ export interface ActionDef<
   // レコードが対象のアクションが、宛先のほかに読む物を、引数・行う者・宛先のレコードの id から答える（RecordRead の並び: id で 1 件・索引キーの条件に合う全部・その索引キーだけ。
   // 同じ種類の重なりを確かめるときなど）。答えた物だけが ctx.records と ctx.keys に入る。宛先のレコードが指す先（対象の定義の refers）は、書かなくても ctx.record で読める
   reads?: T extends SubjectId ? ReadsOfArgs<A> : never
+  // レコードが対象のアクションが、宛先のほかに変える別の種類（種類の id の並び。others の subject に書けるのはこの種類だけ。引数によらない宣言なので、関数でなく並び）
+  writes?: T extends SubjectId ? readonly SubjectId[] : never
   // レコードが対象のアクションが読むだけのブックの id を、引数から答える（そのブックだけが ctx.books に入る。無ければブックを読まない）
   readsBooks?: T extends SubjectId ? BooksOfArgs<A> : never
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）

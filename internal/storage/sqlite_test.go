@@ -376,6 +376,35 @@ func TestRecordsAndCountersAreWrittenTogether(t *testing.T) {
 	}
 }
 
+// 種類の違うレコードも、1 回の書き込みでまとめて書く（アクションが宛先のほかの種類も変えたとき）。どれかの版が違えば、全部を書かない
+func TestRecordsOfDifferentKindsAreWrittenTogether(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "data.db"))
+	if _, err := s.Apply(Batch{Records: []RecordWrite{
+		{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1"}`), Base: 0},
+		{Subject: "x:note", ID: "c1", Body: json.RawMessage(`{"id":"c1"}`), Base: 0},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Apply(Batch{Records: []RecordWrite{
+		{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":2}`), Base: 1},
+		{Subject: "x:note", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":2}`), Base: 9},
+	}}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("a stale write = %v", err)
+	}
+	if got := recordsOfKind(t, s, "x:card")["c1"]; got != `{"id":"c1"}` {
+		t.Fatalf("the card was written although the note was stale: %s", got)
+	}
+	if _, err := s.Apply(Batch{Records: []RecordWrite{
+		{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":3}`), Base: 1},
+		{Subject: "x:note", ID: "c1", Base: 1, Removed: true},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(recordsOfKind(t, s, "x:note")) != 0 || recordsOfKind(t, s, "x:card")["c1"] != `{"id":"c1","a":3}` {
+		t.Fatalf("after one write: card %v, note %v", recordsOfKind(t, s, "x:card"), recordsOfKind(t, s, "x:note"))
+	}
+}
+
 // 記録された種類 subject のレコード（id → 本文）
 func recordsOfKind(t *testing.T, s Storage, subject string) map[string]string {
 	t.Helper()

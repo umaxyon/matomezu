@@ -112,11 +112,18 @@ const joinsWithoutParticipation = (def: ActionDef): boolean => def.runsWhenAIJoi
 const allowsSubject = (center: ControlCenterDef, target: string): boolean =>
   center.subjects === "all" ? !BASE_TARGETS.includes(target) : (center.subjects?.includes(target as SubjectId) ?? false)
 
+// アクションの writes の種類が全部許されているか（コントロールセンターの actions に並べたアクションも、変える別の種類は許されていなければ使えない）
+const allowsWrites = (center: ControlCenterDef, def: ActionDef): boolean =>
+  (def.writes ?? []).every(s => allowsSubject(center, s))
+
 // コントロールセンターがアクションを許すかのステップ
 const centerSteps = (def: ActionDef, center: ControlCenterDef): Step<boolean>[] => [
   {
     from: { source: "controlCenter", id: center.id, field: "actions" },
-    value: center.actions.includes(def.id as ActionId) || allowsSubject(center, def.target) ? true : null,
+    value:
+      (center.actions.includes(def.id as ActionId) || allowsSubject(center, def.target)) && allowsWrites(center, def)
+        ? true
+        : null,
   },
 ]
 
