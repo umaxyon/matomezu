@@ -30,7 +30,4 @@ declare module "../../core/catalog" {
   interface WidgetTable {
     "@matomezu/control-center:screen": typeof CONTROL_CENTER_SCREEN_WIDGET
   }
-  interface SlotTable {
-    "@matomezu/control-center:screen": Record<string, never> // コントロールセンターのスクリーンを描くウィジェットを置くスロット（何も受け取らない）
-  }
 }

@@ -1,4 +1,4 @@
-// 窓のスロットの名前（base の ui.tsx で、core/catalog.ts の SlotTable に書き足す）。どちらも何も受け取らない
+// 窓のスロットの名前（base の ui.tsx で、core/catalog.ts の SlotTable に書き足す。スクリーンとスクリーンアレンジメントの定義の id と同じ名前の物は、書き足さなくてもスロット）
 import { kit } from "../kit"
 
 // ブックスクリーンを描くウィジェットを置くスロット（ステージの列を並べるウィジェット workspace を置く）。名前は、ブックスクリーンの定義（index.ts の BOOK_SCREEN_DEF）の id と同じ

@@ -25,7 +25,9 @@ import type { Plugin } from "../store/plugin"
 export interface WidgetDef<S extends SlotId = SlotId> extends WidgetExtras {
   id: string // 本当の id（「プラグインの id:名前」。kit.name で作る）
   slots: readonly S[]
-  place?: NoInfer<S> | WidgetPlace<NoInfer<S>> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の UI マッピングに足す（placeAdded）
+  // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の UI マッピングに足す（placeAdded）。
+  // 置けるスロットが、自分のプラグインが定義したスクリーン（かスクリーンアレンジメント）1 つだけなら、書かなくてもそこに置く
+  place?: NoInfer<S> | WidgetPlace<NoInfer<S>>
   opens?: readonly SlotId[]
   // スクリーンアレンジメントのウィジェット: スクリーンの定義の id と同じ名前のスロットを、置いたスクリーン 1 枚ごとに開ける（定義 1 つにつきスロット 1 つ。そこに置いたウィジェットが、そのスクリーンを描く。ui/ScreenView.tsx）
   screens?: true
@@ -114,6 +116,19 @@ export const defineLayout = <const L extends LayoutDef>(def: L): L => def
 // UI マッピングに、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニュー（anchorMenu も）の末尾
 // （ウィジェットは before・after に書いた所。WidgetPlace）に足し、右クリックのメニューでは前の項目と区切り線で分ける。UI マッピングにもうあるものは足さない
 // （動いている matomezu の画面が、取り込んだプラグインを置くのに使う）
+// プラグイン p が定義したスクリーンとスクリーンアレンジメントの id（どれも、それだけで同じ名前のスロットになる）
+function ownScreenSlots(p: Plugin): ReadonlySet<string> {
+  const parts = p as { screens?: readonly { id: string }[]; screenArrangements?: readonly { id: string }[] }
+  return new Set([...(parts.screens ?? []), ...(parts.screenArrangements ?? [])].map(d => d.id))
+}
+
+// place を書かないウィジェットのうち、置けるスロットが、自分のプラグインが定義したスクリーン（かスクリーンアレンジメント）1 つだけの物は、そこに置く。
+// ほかのプラグインのスクリーンを描くウィジェット（骨組みの差し替えなど）は、書かなければ置かない
+function screenPlace(w: AnyWidgetDef, own: ReadonlySet<string>): SlotId | undefined {
+  const [slot] = w.slots
+  return w.slots.length === 1 && slot !== undefined && own.has(slot) ? slot : undefined
+}
+
 export function placeAdded(layout: LayoutDef, plugins: readonly Plugin[]): LayoutDef {
   return placeAddedWithWarnings(layout, plugins).layout
 }
@@ -129,7 +144,11 @@ export function placeAddedWithWarnings(
   const contextMenus = { ...layout.contextMenus } as Record<string, readonly string[]>
   let anchorMenu = (layout.anchorMenu ?? []) as readonly string[]
   for (const p of plugins) {
-    const widgets = ((p as { ui?: { widgets?: readonly AnyWidgetDef[] } }).ui?.widgets ?? []).filter(w => w.place)
+    const own = ownScreenSlots(p)
+    const widgets = ((p as { ui?: { widgets?: readonly AnyWidgetDef[] } }).ui?.widgets ?? []).flatMap(w => {
+      const place = w.place ?? screenPlace(w, own)
+      return place === undefined ? [] : [{ ...w, place }]
+    })
     for (const w of widgets) {
       const place: WidgetPlace = typeof w.place === "string" ? { slot: w.place } : (w.place as WidgetPlace)
       const ids = slots[place.slot] ?? []

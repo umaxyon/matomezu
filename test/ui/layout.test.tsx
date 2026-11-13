@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
+import { z } from "zod"
 import { problemText } from "../../web/src/core/errors"
 import { type Warning, warning, warningText } from "../../web/src/core/warnings"
 import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui"
@@ -314,6 +315,24 @@ describe("取り込んだプラグインの置き場所", () => {
     const all = assembleUi([...BUILTIN_UI, added])
     const commandsWith = new Set([...commands, "p:open", "p:edit", "p:note"])
     expect(checkLayout(layout, all, commandsWith, screens)).toEqual([])
+  })
+
+  test("自分が定義したスクリーンを描くウィジェットは、place を書かなくても、そのスクリーンのスロットに置く。ほかのプラグインのスクリーンを描くウィジェットは置かない", () => {
+    const own = definePluginUi(
+      definePlugin({
+        id: "q",
+        screens: [{ id: "q:s", title: "S" as never, aiDescription: "", props: z.strictObject({}) }],
+      }),
+      {
+        widgets: [
+          defineWidget({ id: "q:own", slots: ["q:s" as never], view: Ping }),
+          defineWidget({ id: "q:other", slots: ["@matomezu/base:book-screen"], view: Ping }),
+        ],
+      },
+    )
+    const layout = placeAdded(DEFAULT_LAYOUT, [...BUILTIN_UI, own]) as { slots: Record<string, readonly string[]> }
+    expect(layout.slots["q:s"]).toEqual(["q:own"])
+    expect(layout.slots["@matomezu/base:book-screen"]).toEqual(DEFAULT_LAYOUT.slots["@matomezu/base:book-screen"])
   })
 
   test("置いてほしいウィジェットのすぐ前（before）・すぐ後ろ（after）に足す。名指ししたウィジェットが並びに無い（W016）・両方書いた（W017）なら置かずに warning", () => {
