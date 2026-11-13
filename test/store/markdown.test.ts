@@ -1,6 +1,7 @@
 // マークダウンのブック: 見せ方はステージに紙を置かない、どのページもいつも可変ページで下へ増やす（可変ページにする・やめるは選べない）、
 // ペインの並べ方はステージごとのプラグイン状態で、ペインの分割のコマンドで変え、画面の場所に入れる（読み直しても戻す）
 import { expect, test } from "bun:test"
+import { stagePlacesOf, withStagePlaces } from "../../web/src/core/address"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { growOf } from "../../web/src/plugins/base"
@@ -158,11 +159,11 @@ test("並べ方は画面の場所に入り、場所を当てはめると戻る�
   const { state, actions } = store
   actions.command("s1", "@matomezu/markdown:pane-split-column")
   const placed = store.address()
-  expect(placed.stages[0]!.states).toEqual({ [PL]: { mode: "split-column", first: "source", share: 0.5 } })
+  expect(stagePlacesOf(placed)[0]!.states).toEqual({ [PL]: { mode: "split-column", first: "source", share: 0.5 } })
   actions.command("s1", "@matomezu/markdown:pane-show-source")
   store.locate(placed)
   expect(placedOf(store, "s1")).toEqual({ mode: "split-column", first: "source", share: 0.5 })
-  const at = (states: Record<string, unknown>) => ({ ...placed, stages: [{ ...placed.stages[0]!, states }] })
+  const at = (states: Record<string, unknown>) => withStagePlaces(placed, [{ ...stagePlacesOf(placed)[0]!, states }])
   store.locate(at({ [PL]: { mode: "diagonal" } }))
   expect(placedOf(store, "s1")).toBeUndefined()
   actions.command("s1", "@matomezu/markdown:pane-show-source")
@@ -178,7 +179,7 @@ test("ステージの数と並べ方が同時に変わる場所を当てはめ�
   const right = screenOf(state.getState().window).stages[1]!.id
   store.setPluginState(PL, right, { mode: "rendered-only", first: "source", share: 0.4 })
   const two = store.address()
-  store.locate({ ...two, stages: [two.stages[1]!], current: 0 })
+  store.locate(withStagePlaces(two, [stagePlacesOf(two)[1]!], 0))
   expect(screenOf(state.getState().window).stages.map(s => s.id)).toEqual(["s1"])
   expect(placedOf(store, "s1")).toEqual({ mode: "rendered-only", first: "source", share: 0.4 })
   expect(state.getState().pluginValues.stages[right]).toBeUndefined()

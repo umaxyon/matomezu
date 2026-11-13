@@ -1,5 +1,5 @@
 import { E2E_BOOKS } from "../books"
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "../fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
@@ -217,7 +217,7 @@ test("開いているブックとページは URL に入り、読み直しても
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   await page.reload()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
-  expect(new URL(page.url()).searchParams.get("b0")).toBe(book.id)
+  expect(urlStages(page)[0]?.b).toBe(book.id)
 })
 
 test("ブックを開くダイアログで、行のゴミ箱のボタンでゴミ箱に入れ、ゴミ箱の一覧から戻す・消すができる。ロック中のブックにはボタンが出ない", async ({
@@ -336,7 +336,7 @@ test("AI がマークダウンのページの原文を page-update で変える�
   const textOf = async () =>
     ((await bookIn(page, result.book)) as { pages?: { text?: string }[] } | undefined)?.pages?.[0]?.text
   await expect.poll(textOf).toBe("# AI の見出し\n\n本文")
-  await expect(page).toHaveURL(/s0=/)
+  await expect.poll(() => urlStages(page)[0]?.s).toBeTruthy()
   await page.reload()
   await expect(field()).toHaveValue("# AI の見出し\n\n本文")
   await expect(page.getByRole("region", { name: "プレビュー" }).getByText("本文")).toBeVisible()

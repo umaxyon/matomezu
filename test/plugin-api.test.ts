@@ -370,6 +370,8 @@ test("matomezu/testing が出す名前", () => {
     "defineLayout",
     "openedIn",
     "placeAdded",
+    "stagePlacesOf",
+    "withStagePlaces",
   ])
 })
 

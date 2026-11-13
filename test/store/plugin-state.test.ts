@@ -2,6 +2,7 @@
 // 宣言した値だけを置いて場所に入れ、場所から戻すときは宣言の形で読んで丸ごと置き換える
 import { expect, test } from "bun:test"
 import { z } from "zod"
+import { stagePlacesOf, withStagePlaces } from "../../web/src/core/address"
 import type { PluginStateDef } from "../../web/src/core/def/plugin-state"
 import type { MatomezuError } from "../../web/src/core/errors"
 import { defineMessages } from "../../web/src/core/i18n/messages"
@@ -55,7 +56,7 @@ test("値を置くと画面の場所に入る。形に合わない値は E123、
   instance.setPluginState("k:mode", "s9", "wide")
   const address = instance.address()
   expect(address.window).toEqual({ "k:tab": "two" })
-  expect(address.stages[0]?.states).toEqual({ "k:mode": "wide" })
+  expect(stagePlacesOf(address)[0]?.states).toEqual({ "k:mode": "wide" })
   expect(code(() => instance.setPluginState("k:tab", null, "three"))).toBe("E123")
   expect(code(() => instance.setPluginState("k:nope", null, 1))).toBe("E122")
   expect(code(() => instance.setPluginState("k:tab", "s1", "one"))).toBe("E124")
@@ -70,13 +71,12 @@ test("場所を当てはめると、宣言した値を丸ごと置き換える�
   instance.setPluginState("k:mode", "s1", "old")
   const at = instance.address()
   instance.locate({
-    ...at,
+    ...withStagePlaces(at, [{ ...stagePlacesOf(at)[0]!, states: { "k:tab": "two" } }]),
     window: { "k:tab": "one", "k:nope": 1 },
-    stages: [{ ...at.stages[0]!, states: { "k:tab": "two" } }],
   })
   // ステージの場所の k:tab はステージに結ばない宣言なので落ち、k:mode は場所に無いので消える
   expect(instance.address().window).toEqual({ "k:tab": "one" })
-  expect(instance.address().stages[0]?.states).toEqual({})
+  expect(stagePlacesOf(instance.address())[0]?.states).toEqual({})
   instance.locate({ ...at, window: { "k:tab": "three" } })
   expect(instance.address().window).toEqual({})
 })
@@ -125,13 +125,16 @@ test("画面の場所に入れない宣言（none）の値は、画面の場所�
   const at = instance.address()
   // 場所には入れる宣言の値だけが出る
   expect(at.window).toEqual({ "k:tab": "two" })
-  expect(at.stages[0]?.states).toEqual({})
+  expect(stagePlacesOf(at)[0]?.states).toEqual({})
   // 場所を当てはめると入れる宣言の値は置き換わり、入れない宣言の値は残る
   instance.locate({ ...at, window: {} })
   expect(instance.state.getState().pluginValues.window).toEqual({ "k:note": "hello" })
   expect(instance.state.getState().pluginValues.stages.s1).toEqual({ "k:pick": 3 })
   // URL に書かれた入れない宣言の id は読まない（手で書いた URL で状態を作らせない）
-  instance.locate({ ...at, window: { "k:note": "forged" }, stages: [{ ...at.stages[0]!, states: { "k:pick": 9 } }] })
+  instance.locate({
+    ...withStagePlaces(at, [{ ...stagePlacesOf(at)[0]!, states: { "k:pick": 9 } }]),
+    window: { "k:note": "forged" },
+  })
   expect(instance.state.getState().pluginValues.window).toEqual({ "k:note": "hello" })
   expect(instance.state.getState().pluginValues.stages.s1).toEqual({ "k:pick": 3 })
 })

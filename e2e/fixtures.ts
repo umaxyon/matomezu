@@ -51,6 +51,30 @@ export type HostOptions = { hostArgs: string[] }
 export const BOOK_SCREEN_URL = "/?f=book"
 export const CONTROL_CENTER_URL = "/?f=center"
 
+// URL に書かれた画面の場所（host-client/location.ts の sc の値。無ければ null）
+export interface UrlPlace {
+  s: { i: string; d: string; p?: unknown; t?: Record<string, unknown>; g?: { l: UrlStage[]; c: number; r: number } }[]
+  o: string[]
+  w?: Record<string, unknown>
+}
+export interface UrlStage {
+  b: string | null
+  p?: string
+  v: [number, number, number]
+  s?: Record<string, unknown>
+}
+export const urlPlace = (page: { url(): string }): UrlPlace | null =>
+  JSON.parse(new URL(page.url()).searchParams.get("sc") ?? "null")
+// URL の、前に出ているスクリーンの定義の id
+export const urlFront = (page: { url(): string }): string | undefined => {
+  const place = urlPlace(page)
+  return place?.s.find(x => x.i === place.o.at(-1))?.d
+}
+// URL の、ブックスクリーンのステージの並び（左から）
+export const urlStages = (page: { url(): string }): UrlStage[] => urlPlace(page)?.s.find(x => x.g)?.g?.l ?? []
+export const CONTROL_CENTER_SCREEN_DEF = "@matomezu/control-center:screen"
+export const BOOK_SCREEN_DEF = "@matomezu/base:book-screen"
+
 // ブラウザ（context）を常駐の画面 cookie を持たせる（テストの用意の口でコードをもらい、本物の /cookie を通って cookie を受け取る）
 const giveCookie = async (host: Host, context: BrowserContext) => {
   const made = await fetch(`${host.url}/api/cookie-code-for-test`, {

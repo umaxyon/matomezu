@@ -2,9 +2,17 @@
 // 戻る・進むはその場所を当てはめる
 import { expect, test } from "bun:test"
 import { z } from "zod"
+import { type Address, frontIn, recentStagesIn } from "../../web/src/core/address"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { frontOf, screenOf } from "../../web/src/core/window"
-import { followLocation, type Place, parseSearch, searchOf } from "../../web/src/host-client/location"
+import {
+  type FormerAddress,
+  followLocation,
+  fromFormer,
+  type Place,
+  parseSearch,
+  searchOf,
+} from "../../web/src/host-client/location"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -54,32 +62,110 @@ function fakePlace(start = "") {
   }
 }
 
-test("URL の形: ステージごとにブック・ページ・倍率とずらす量・画面の場所に入れるプラグイン状態、続けてカレントと境目。読み戻すと同じ場所", () => {
-  const address = {
-    front: "book-screen" as const,
+// 書いた URL（今の形）の場所
+const written = (search: string) => parseSearch(search) as Address
+// 書いた URL の、ブックスクリーン（いちばん最近前に出した、ステージを並べるスクリーン）の中の場所
+const stagesIn = (search: string) => recentStagesIn(written(search))?.stages
+// 書いた URL の、前に出ているスクリーンの定義の id
+const frontDefIn = (search: string) => {
+  const address = written(search)
+  return address.screens.find(x => x.id === frontIn(address))?.def
+}
+
+test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出した順と、ステージごとのブック・ページ・倍率とずらす量、場所に入れるプラグイン状態を書く。読み戻すと同じ場所", () => {
+  const address: Address = {
+    screens: [
+      { id: "c1", def: "@x/home", props: {}, states: { "@x/pane": "b" } },
+      {
+        id: "c2",
+        def: "@x/books",
+        props: {},
+        states: {},
+        stages: {
+          places: [
+            { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+            { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
+          ],
+          current: 1,
+          share: 0.4,
+        },
+      },
+      { id: "c3", def: "@x/ticket", props: { ticket: "@ex/notes:t1" }, states: {} },
+    ],
+    order: ["c2", "c1", "c3"],
     window: { "@x/tab": "two" },
+  }
+  const search = searchOf(address)
+  expect(JSON.parse(new URLSearchParams(search).get("sc") ?? "")).toEqual({
+    s: [
+      { i: "c1", d: "@x/home", t: { "@x/pane": "b" } },
+      {
+        i: "c2",
+        d: "@x/books",
+        g: {
+          l: [
+            { b: "b1", p: "p1", v: [1, 0, 0] },
+            { b: null, v: [1.25, 12.5, -3], s: { "@x/p": { a: 1 } } },
+          ],
+          c: 1,
+          r: 0.4,
+        },
+      },
+      { i: "c3", d: "@x/ticket", p: { ticket: "@ex/notes:t1" } },
+    ],
+    o: ["c2", "c1", "c3"],
+    w: { "@x/tab": "two" },
+  })
+  expect(parseSearch(search)).toEqual(address)
+  expect(parseSearch("?x=1")).toBeNull()
+  // 読めない値・形の合わない値は、場所ではない。形の合わないスクリーンは落とす
+  expect(parseSearch("?sc=%7Bx")).toBeNull()
+  expect(parseSearch(`?sc=${encodeURIComponent("[1]")}`)).toBeNull()
+  expect(parseSearch(`?sc=${encodeURIComponent('{"s":[1,{"i":"c1","d":"@x/home"}],"o":[1,"c1"]}')}`)).toEqual({
+    screens: [{ id: "c1", def: "@x/home", props: {}, states: {} }],
+    order: ["c1"],
+    window: {},
+  })
+})
+
+test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今開いているスクリーンに重ねて今の形に直す", () => {
+  const former = parseSearch(
+    `?b0=b1&p0=p1&v0=1,0,0&b1=&v1=1.25,12.5,-3&s1={"@x/p":{"a":1}}&w={"@x/tab":"two"}&c=1&r=0.4`,
+  )
+  expect(former).toEqual({
+    former: true,
+    front: "book-screen",
     stages: [
       { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
     ],
     current: 1,
     share: 0.4,
+    window: { "@x/tab": "two" },
+  })
+  // プラグイン状態が JSON のオブジェクトでなければ空（中身の形は store が確かめる）
+  expect(parseSearch("?b0=b1&v0=1,0,0&s0=%7Bx&w=%5B1%5D&c=0&r=0.5")).toMatchObject({
+    stages: [{ states: {} }],
+    window: {},
+  })
+  expect(parseSearch("?f=center")).toMatchObject({ front: "control-center", stages: [] })
+  expect(parseSearch("?f=book")).toMatchObject({ front: "book-screen", stages: [] })
+  const now: Address = {
+    screens: [
+      { id: "c1", def: "@x/home", props: {}, states: {} },
+      { id: "c2", def: "@x/books", props: {}, states: {}, stages: { places: [], current: 0, share: 0.5 } },
+    ],
+    order: ["c1", "c2"],
+    window: {},
   }
-  const search = searchOf(address)
-  expect(decodeURIComponent(search)).toBe(
-    `?b0=b1&p0=p1&v0=1,0,0&b1=&v1=1.25,12.5,-3&s1={"@x/p":{"a":1}}&w={"@x/tab":"two"}&c=1&r=0.4`,
-  )
-  expect(parseSearch(search)).toEqual(address)
-  // id に : や / が入っていても読み戻せる（プラグインの名前空間の付いたブックの id など）
-  const namespaced = { ...address, stages: [{ ...address.stages[0]!, book: "@ex/notes:memo", page: null }] }
-  expect(parseSearch(searchOf(namespaced))).toEqual(namespaced)
-  expect(parseSearch("?x=1")).toBeNull()
-  // 画面の状態が JSON のオブジェクトでなければ空（中身の形は store が確かめる）
-  expect(parseSearch("?b0=b1&v0=1,0,0&s0=%7Bx&c=0&r=0.5")?.stages[0]?.states).toEqual({})
-  expect(parseSearch("?b0=b1&v0=1,0,0&s0=%5B1%5D&c=0&r=0.5")?.stages[0]?.states).toEqual({})
-  // ステージに結ばない画面の状態 w も同じ（JSON のオブジェクトでなければ空。無ければ書かない）
-  expect(parseSearch("?b0=b1&v0=1,0,0&w=%5B1%5D&c=0&r=0.5")?.window).toEqual({})
-  expect(searchOf({ ...address, window: {} })).not.toContain("w=")
+  const placed = fromFormer(former as FormerAddress, now)
+  expect(placed.screens[1]?.stages).toMatchObject({ current: 1, share: 0.4, places: [{ book: "b1" }, { book: null }] })
+  expect(placed.order).toEqual(["c1", "c2"])
+  expect(placed.window).toEqual({ "@x/tab": "two" })
+  // ステージの無い前の形は、前に出す物の種類だけを替える（ステージは今のまま）
+  const center = fromFormer(parseSearch("?f=center") as FormerAddress, now)
+  expect(center.order).toEqual(["c2", "c1"])
+  expect(center.screens[1]?.stages).toEqual(now.screens[1]?.stages)
 })
 
 test("開いたときは URL の場所を当てはめる（読み直しても同じ所が開く）", () => {
@@ -98,7 +184,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   followLocation(store, f.place)
   store.actions.openBook("s1", "b2")
   await settled()
-  expect(f.pushed.map(s => parseSearch(s)?.stages[0]?.book)).toEqual(["b2"])
+  expect(f.pushed.map(s => stagesIn(s)?.places[0]?.book)).toEqual(["b2"])
   store.actions.split("s1")
   await settled()
   expect(f.pushed).toHaveLength(2)
@@ -106,7 +192,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   await settled()
   expect(f.pushed).toHaveLength(2)
   f.flush()
-  expect(parseSearch(f.replaced.at(-1)!)?.share).toBe(0.3)
+  expect(stagesIn(f.replaced.at(-1)!)?.share).toBe(0.3)
   // 戻る: 1 つ前の場所（b2 を開いた 1 つのステージ）
   f.back(f.pushed[0]!)
   const ws = screenOf(store.state.getState().window)
@@ -124,7 +210,7 @@ test("同じ処理の中の移動（分割してブックとページを開く�
   store.actions.openPage(right, "p1")
   await settled()
   expect(f.pushed).toHaveLength(1)
-  expect(parseSearch(f.pushed[0]!)?.stages.map(s => s.book)).toEqual(["b1", "b3"])
+  expect(stagesIn(f.pushed[0]!)?.places.map(s => s.book)).toEqual(["b1", "b3"])
 })
 
 test("URL が無い（開いた直後）なら、コントロールセンターを前に出す。URL にブックスクリーンの場所があれば、ブックスクリーンを前に出す", () => {
@@ -136,15 +222,12 @@ test("URL が無い（開いた直後）なら、コントロールセンター�
   expect(frontOf(second.state.getState().window)).toBe("book-screen")
 })
 
-test("前に出す物は URL の f に書く（コントロールセンターの間だけ。ステージの無い URL も読む）。後ろのブックスクリーンの場所も書く", () => {
+test("前に出ているスクリーンは URL の前に出した順に書く。後ろのブックスクリーンの場所も書く", () => {
   const store = newStore()
   const f = fakePlace()
   followLocation(store, f.place)
-  expect(f.replaced[0]).toContain("f=center")
-  expect(f.replaced[0]).toContain("b0=b1")
-  expect(parseSearch("?f=center")).toMatchObject({ front: "control-center", stages: [] })
-  expect(parseSearch("?f=book")).toMatchObject({ front: "book-screen", stages: [] })
-  expect(parseSearch("?b0=b1&c=0&r=0.5")?.front).toBe("book-screen")
+  expect(frontDefIn(f.replaced[0]!)).toBe("@matomezu/control-center:screen")
+  expect(stagesIn(f.replaced[0]!)?.places[0]?.book).toBe("b1")
 })
 
 test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む。戻ると前に出す物が戻り、後ろのブックスクリーンの中は残る", async () => {
@@ -155,7 +238,7 @@ test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む�
   store.actions.showControlCenter()
   await settled()
   expect(f.pushed).toHaveLength(1)
-  expect(parseSearch(f.pushed[0]!)?.front).toBe("control-center")
+  expect(frontDefIn(f.pushed[0]!)).toBe("@matomezu/control-center:screen")
   store.actions.showBookScreen()
   await settled()
   expect(f.pushed).toHaveLength(2)
@@ -189,20 +272,19 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
   expect(store.pushing().has("k:mode")).toBe(false)
   store.setPluginState("k:tab", null, "two")
   await settled()
-  expect(f.pushed.map(s => parseSearch(s)?.window)).toEqual([{ "k:tab": "two" }])
+  expect(f.pushed.map(s => written(s).window)).toEqual([{ "k:tab": "two" }])
   store.setPluginState("k:mode", "s1", "wide")
   await settled()
   expect(f.pushed).toHaveLength(1)
   f.flush()
-  expect(parseSearch(f.replaced.at(-1)!)?.stages[0]?.states).toEqual({ "k:mode": "wide" })
+  expect(stagesIn(f.replaced.at(-1)!)?.places[0]?.states).toEqual({ "k:mode": "wide" })
   // 積む値と書き換える値が同じ処理で変われば、積むのは 1 つで、URL には今の値が全部入る
   store.setPluginState("k:tab", null, "one")
   store.setPluginState("k:mode", "s1", "narrow")
   await settled()
   expect(f.pushed).toHaveLength(2)
-  const last = parseSearch(f.pushed[1]!)
-  expect(last?.window).toEqual({ "k:tab": "one" })
-  expect(last?.stages[0]?.states).toEqual({ "k:mode": "narrow" })
+  expect(written(f.pushed[1]!).window).toEqual({ "k:tab": "one" })
+  expect(stagesIn(f.pushed[1]!)?.places[0]?.states).toEqual({ "k:mode": "narrow" })
   // 戻る: 1 つ前の値（積んだ URL の値）が当たる
   f.back(f.pushed[0]!)
   expect(store.address().window).toEqual({ "k:tab": "two" })

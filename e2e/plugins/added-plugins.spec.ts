@@ -1,7 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "../fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test, urlPlace } from "../fixtures"
 import { footerMenuTool } from "../helpers/footer-menu"
 import { fromMenu } from "../helpers/stage-menu"
 
@@ -302,7 +302,7 @@ test("ex10 のステージに結ばない宣言（address が push）は、変�
   await expect(tabs).toHaveAttribute("data-tab", "one")
   await tabs.locator("button").nth(1).click()
   await expect(tabs).toHaveAttribute("data-tab", "two")
-  await expect.poll(() => decodeURIComponent(new URL(page.url()).search)).toContain('w={"ex10:tab":"two"}')
+  await expect.poll(() => urlPlace(page)?.w).toEqual({ "ex10:tab": "two" })
   await page.reload()
   await expect(page.locator("[data-ex10-tabs]")).toHaveAttribute("data-tab", "two")
   await page.goBack()

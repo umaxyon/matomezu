@@ -1,6 +1,16 @@
 // 窓: コントロールセンターかブックスクリーンを前に出す。開いた直後はコントロールセンター、止まり木のボタンで行き来し、戻ってもブックスクリーンの中は残る。
 // 前に出す物を替えるのはブラウザの履歴に 1 つ積み、戻る・進むで戻る
-import { BOOK_SCREEN_URL, CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import {
+  BOOK_SCREEN_DEF,
+  BOOK_SCREEN_URL,
+  CONTROL_CENTER_SCREEN_DEF,
+  CONTROL_CENTER_URL,
+  expect,
+  joinedAiAuth,
+  type Page,
+  test,
+  urlFront,
+} from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
 const center = (page: Page) => page.getByRole("heading", { name: "コントロールセンター" })
@@ -12,7 +22,7 @@ test("開いた直後（URL が無いとき）はコントロールセンター�
   await expect(center(page)).toBeVisible()
   await expect(page.getByRole("heading", { name: "ワークルーム/参加者" })).toBeVisible()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
-  await expect(page).toHaveURL(/f=center/)
+  await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
 })
 
 test("止まり木のボタンでコントロールセンターへ行き、押すとブックスクリーンへ戻る。戻ってもステージの中は残る", async ({
@@ -37,7 +47,7 @@ test("前に出す物を替えるのはブラウザの履歴に 1 つ積み、�
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()
-  await expect(page).toHaveURL(/f=center/)
+  await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
   await page.goBack()
   await expect(center(page)).toBeHidden()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
@@ -112,5 +122,5 @@ test("コントロールセンターを前に出している間、Esc でブッ�
   await expect(center(page)).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(center(page)).toBeHidden()
-  await expect(page).not.toHaveURL(/f=center/)
+  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
 })

@@ -1017,13 +1017,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const placed = defs.catalog.store.pluginStates
       // 場所の値で、画面の場所に入れる宣言の値を丸ごと置き換える（形に合わない値・宣言の無い id・入れない宣言の id は落とし、入れない宣言の値は残す。空になったステージの組は持たない）
       const stages: Record<string, Readonly<Record<string, unknown>>> = {}
-      screenOf(win).stages.forEach((st, i) => {
-        const next = {
-          ...keptOutside(placed, "stage", now.pluginValues.stages[st.id]),
-          ...readPlaced(placed, "stage", address.stages[i]?.states),
-        }
-        if (Object.keys(next).length > 0) stages[st.id] = next
-      })
+      for (const screen of win.screens) {
+        const places = address.screens.find(x => x.id === screen.id)?.stages?.places
+        screen.stages?.stages.forEach((st, i) => {
+          const next = {
+            ...keptOutside(placed, "stage", now.pluginValues.stages[st.id]),
+            ...readPlaced(
+              placed,
+              "stage",
+              places ? places[i]?.states : placedOf(placed, "stage", now.pluginValues.stages[st.id]),
+            ),
+          }
+          if (Object.keys(next).length > 0) stages[st.id] = next
+        })
+      }
       const pluginValues: PluginValues = {
         window: {
           ...keptOutside(placed, "window", now.pluginValues.window),
@@ -1103,3 +1110,6 @@ export const openedIn = (
   const opened = stageIn(instance.state.getState().window, stage)?.opened
   return opened ? { book: opened.book, page: opened.page ?? null } : null
 }
+
+// 画面の場所の中の、ブックスクリーンのステージの並びを読む・差し替える関数（core/address.ts。テストが、場所を作って当てはめるのに使う）
+export { stagePlacesOf, withStagePlaces } from "../core/address"

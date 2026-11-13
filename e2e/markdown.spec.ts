@@ -1,5 +1,5 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを（選んでいなければ空のページは左右、本文のあるページはプレビューだけで）開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test, urlStages } from "./fixtures"
 import { newBook } from "./helpers/new-book"
 import { openGeneral, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
@@ -120,7 +120,7 @@ test("境目を掴んで動かすとペインの大きさが変わり、ダブ�
   await page.mouse.down()
   await page.mouse.move(mid.x, column.y + column.h * 0.3, { steps: 5 })
   await page.mouse.up()
-  await expect(page).toHaveURL(/s0=/)
+  await expect.poll(() => urlStages(page)[0]?.s).toBeTruthy()
   await page.reload()
   await expect(
     page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "上下に並べる" }),
@@ -140,12 +140,12 @@ test("並べ方を選んでいないとき、空のページは左右で開き�
   await page.keyboard.type("# 見出し")
   await expect(pane(page, "プレビュー").getByRole("heading", { name: "見出し" })).toBeVisible()
   await expect(pane(page, "ソース")).toBeVisible() // 書いても並べ方は変わらない
-  await expect(page).not.toHaveURL(/s0=/) // 開いたときに決めた並べ方は場所に入れない
+  expect(urlStages(page)[0]?.s).toBeUndefined() // 開いたときに決めた並べ方は場所に入れない
   await page.reload()
   await expect(pane(page, "ソース")).toHaveCount(0)
   await expect(button("プレビューだけ")).toHaveAttribute("aria-pressed", "true")
   await button("左右に並べる").click()
-  await expect(page).toHaveURL(/s0=/)
+  await expect.poll(() => urlStages(page)[0]?.s).toBeTruthy()
   await page.reload()
   await expect(pane(page, "ソース")).toBeVisible()
   await expect(button("左右に並べる")).toHaveAttribute("aria-pressed", "true")
