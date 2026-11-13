@@ -363,6 +363,19 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   for (const a of parts.actions)
     if (!BASE_TARGETS.includes(a.target) && !subjects.has(a.target))
       problems.push(problem("E046", { id: a.id, target: a.target }))
+  // アクションの対象と writes に書ける種類は、アクションと同じプラグインの種類だけ。writes は、台帳にある種類で、対象でなく、番号を振る種類でない
+  const numbered = new Set(parts.subjects.filter(s => s.numbered).map(s => s.id))
+  for (const a of parts.actions) {
+    const owner = splitId(a.id).owner
+    for (const ref of [a.target, ...(a.writes ?? [])])
+      if (subjects.has(ref) && splitId(ref).owner !== owner) problems.push(problem("E058", { id: a.id, ref }))
+    for (const ref of a.writes ?? []) {
+      if (!subjects.has(ref)) problems.push(problem("E056", { id: a.id, ref }))
+      else if (ref === a.target) problems.push(problem("E057", { id: a.id, target: a.target }))
+      else if (numbered.has(ref)) problems.push(problem("E059", { id: a.id, ref }))
+    }
+    if (a.lockSwitch && (a.writes?.length ?? 0) > 0) problems.push(problem("E060", { id: a.id }))
+  }
   for (const c of parts.controlCenters) {
     for (const id of c.actions) if (!actions.has(id)) problems.push(problem("E041", { id: c.id, ref: id }))
     for (const id of c.subjects === "all" ? [] : (c.subjects ?? []))

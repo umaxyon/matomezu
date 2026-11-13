@@ -11,6 +11,7 @@ import { assemble, defineBuiltin, type Plugin } from "../../web/src/store/plugin
 
 const CARD = "@ex/rec:card"
 const CENTER = "@ex/rec:center"
+const NOTE_ID = "@ex/rec:note" as never
 const title = "@matomezu/base:Language" as never
 
 const SUBJECT: SubjectDef = {
@@ -77,6 +78,16 @@ const MANY = action("card-many", {
     result: {},
   })) as never,
 })
+// 宛先を直し、別の種類（メモ。writes に書く）のレコードも引数 others のとおりに変える
+const MANY_NOTES = action("card-many-notes", {
+  args: z.strictObject({ label: z.string(), others: z.array(z.unknown()) }),
+  writes: [NOTE_ID],
+  run: ((now: { id: string }, args: { label: string; others: unknown[] }) => ({
+    next: { ...now, label: args.label },
+    others: args.others,
+    result: {},
+  })) as never,
+})
 // reads に自分の種類を書かずに、ほかのレコードを変える
 const MANY_UNREAD = action("card-many-unread", {
   args: z.strictObject({ label: z.string(), others: z.array(z.unknown()) }),
@@ -130,7 +141,7 @@ const READS = action("card-reads", {
 const EX = {
   id: "@ex/rec",
   subjects: [SUBJECT, NOTES],
-  actions: [ADD, RENAME, REID, BAD, REMOVE, SAME_ID, MANY, MANY_UNREAD, READS, NOTE_READ, NOTE_ON],
+  actions: [ADD, RENAME, REID, BAD, REMOVE, SAME_ID, MANY, MANY_NOTES, MANY_UNREAD, READS, NOTE_READ, NOTE_ON],
   controlCenters: [{ id: CENTER, actions: [], subjects: [CARD as never, NOTE as never] }],
 } as unknown as Plugin
 const catalog = assemble([...BUILTIN, defineBuiltin(EX as never)], CENTER).catalog.core
@@ -477,4 +488,116 @@ test("読み口を渡すと、持っているレコードでなく読み口か�
   const done = run(world, "card-many-unread", { label: "A", others: [{ id: "c2", record: REMOVED }] }, { record: "c1" })
   expect(done).toMatchObject({ ok: true, records: [{ id: "c1" }, { id: "c2", record: REMOVED }] })
   expect(asked).toContain("c2")
+})
+
+// 別の種類（writes に書いた種類）のレコードも、宛先と同じ 1 回で変える
+const withNote = (): World => ({ ...two(), records: { ...two().records, [NOTE]: { n1: { id: "n1", card: "c1" } } } })
+const manyNotes = (
+  others: unknown[],
+  world = withNote(),
+  id = "card-many-notes",
+  actor: typeof USER = USER,
+  cat = catalog,
+) => performIn(world, `@ex/rec:${id}`, { label: "A", others }, { record: "c1" }, { ...ctx(), actor, catalog: cat })
+
+test("宛先のほかに、writes に書いた別の種類のレコードを作る・直す・消すを 1 回で返せる（宛先が先で、ほかは返した順。種類が違えば同じ id でも通る）", () => {
+  const done = manyNotes([
+    { subject: NOTE, id: "n1", record: REMOVED },
+    { subject: NOTE, id: "n2", record: { id: "n2", card: "c2" } },
+    { subject: NOTE, id: "c1", record: { id: "c1", card: "c2" } },
+  ])
+  expect(done).toMatchObject({
+    ok: true,
+    records: [
+      { subject: CARD, id: "c1", record: { id: "c1", label: "A" } },
+      { subject: NOTE, id: "n1", record: REMOVED },
+      { subject: NOTE, id: "n2", record: { id: "n2", card: "c2" } },
+      { subject: NOTE, id: "c1", record: { id: "c1", card: "c2" } },
+    ],
+  })
+  expect(apply(withNote(), done).records[NOTE]).toEqual({
+    n2: { id: "n2", card: "c2" },
+    c1: { id: "c1", card: "c2" },
+  })
+})
+
+test("別の種類のレコードの変更が 1 つでも合わなければ、全部を断る。writes に書いていない種類と、同じ（種類, id）の 2 度は断る", () => {
+  const refused = { ok: false, reason: "refused" } as const
+  // 別の種類の形に合わない（宛先の変更は通る形でも、全部を断る）
+  expect(manyNotes([{ subject: NOTE, id: "n1", record: { id: "n1", card: 1 } }])).toEqual(refused)
+  expect(manyNotes([{ subject: NOTE, id: "nope", record: REMOVED }])).toEqual(refused)
+  // writes に書いていない種類（宛先の種類のアクション card-many は writes を持たない）
+  expect(manyNotes([{ subject: NOTE, id: "n1", record: REMOVED }], withNote(), "card-many")).toEqual(refused)
+  // 同じ（種類, id）の 2 度
+  expect(
+    manyNotes([
+      { subject: NOTE, id: "n1", record: REMOVED },
+      { subject: NOTE, id: "n1", record: { id: "n1", card: "c2" } },
+    ]),
+  ).toEqual(refused)
+})
+
+test("認可ステップは、writes に書いた別の種類のレコードにも、その種類の定義でかかる（ロックしたメモは AI が変えられない）", () => {
+  const locked = assemble(
+    [
+      ...BUILTIN,
+      defineBuiltin({
+        ...EX,
+        subjects: [
+          SUBJECT,
+          {
+            ...NOTES,
+            lockable: true,
+            record: z.strictObject({ id: z.string().min(1), card: z.string(), locked: z.literal(true).optional() }),
+          },
+        ],
+      } as never),
+    ],
+    CENTER,
+  ).catalog.core
+  const world: World = {
+    ...two(),
+    records: { ...two().records, [NOTE]: { n1: { id: "n1", card: "c1", locked: true } } },
+  }
+  const go = (actor: typeof USER) =>
+    manyNotes([{ subject: NOTE, id: "n1", record: REMOVED }], world, "card-many-notes", actor, locked)
+  expect(go(AI)).toMatchObject({ ok: false, reason: "denied", permission: "@matomezu/base:lock" })
+})
+
+test("コントロールセンターが writes の種類を許していなければ、そのアクションは使えない（宛先の種類だけ許していても）", () => {
+  const only = assemble(
+    [
+      ...BUILTIN,
+      defineBuiltin({ ...EX, controlCenters: [{ id: CENTER, actions: [], subjects: [CARD as never] }] } as never),
+    ],
+    CENTER,
+  ).catalog.core
+  const ask = (id: string, cat = catalog) =>
+    permittedIn(
+      withNote(),
+      `@ex/rec:${id}`,
+      { label: "A", others: [] },
+      { record: "c1" },
+      {
+        catalog: cat,
+        controlCenter: CENTER,
+        actor: USER,
+      },
+    )
+  expect(ask("card-many-notes")).toEqual({ ok: true })
+  expect(ask("card-many-notes", only)).toMatchObject({ ok: false, reason: "not-allowed" })
+  expect(ask("card-many", only)).toEqual({ ok: true })
+})
+
+test("定義の組の確かめ: writes が種類でない・宛先そのもの・番号を振る種類、別のプラグインの種類を宛先か writes にする、ロックの切り替えが writes を持つ、は error", () => {
+  const broken = (actions: ActionDef[]) => () =>
+    assemble([...BUILTIN, defineBuiltin({ ...EX, actions } as never)], CENTER)
+  const w = (id: string, over: Record<string, unknown>) => action(id, { run: (() => null) as never, ...over })
+  expect(broken([w("a", { writes: ["@ex/rec:nothing"] })])).toThrow(/E056/)
+  expect(broken([w("a", { writes: [CARD] })])).toThrow(/E057/)
+  expect(broken([w("a", { target: NOTE_ID, writes: [CARD] })])).toThrow(/E059/)
+  expect(broken([w("a", { writes: ["@matomezu/base:mail"] })])).toThrow(/E058/)
+  expect(broken([w("a", { target: "@matomezu/base:mail", writes: [] })])).toThrow(/E058/)
+  expect(broken([w("a", { writes: [NOTE_ID], lockSwitch: true })])).toThrow(/E060/)
+  expect(broken([w("a", { writes: [NOTE_ID] })])).not.toThrow()
 })
