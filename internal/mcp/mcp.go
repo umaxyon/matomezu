@@ -188,11 +188,12 @@ func handle(req request, c *conn) (any, *rpcError) {
 }
 
 // fromMeta は、tools/call の _meta から、AI が添えたセッション id とモデルを読む（無ければ空）。
-// セッション id は sessionId（無ければ threadId）。モデルは AI ごとの置き場所（Codex は x-codex-turn-metadata の model）
+// セッション id は sessionId（無ければ threadId、無ければ opencode の ai.opencode/sessionID）。モデルは AI ごとの置き場所（Codex は x-codex-turn-metadata の model）
 func fromMeta(meta json.RawMessage) (sessionID, model string) {
 	var m struct {
 		SessionID string `json:"sessionId"`
 		ThreadID  string `json:"threadId"`
+		OpenCode  string `json:"ai.opencode/sessionID"`
 		Codex     struct {
 			Model string `json:"model"`
 		} `json:"x-codex-turn-metadata"`
@@ -203,6 +204,9 @@ func fromMeta(meta json.RawMessage) (sessionID, model string) {
 	sessionID = m.SessionID
 	if sessionID == "" {
 		sessionID = m.ThreadID
+	}
+	if sessionID == "" {
+		sessionID = m.OpenCode
 	}
 	return sessionID, m.Codex.Model
 }

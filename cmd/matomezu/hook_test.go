@@ -174,3 +174,22 @@ func TestTalkedTellsWhetherTheTurnWasWoken(t *testing.T) {
 		t.Fatalf("calls = %v", f.bodies)
 	}
 }
+
+// 出力のイベント名は、入力のイベント名に合わせる（Gemini CLI の BeforeAgent。無ければ UserPromptSubmit）
+func TestTalkedEchoesTheHookEventName(t *testing.T) {
+	for _, c := range []struct{ in, want string }{{"", "UserPromptSubmit"}, {"UserPromptSubmit", "UserPromptSubmit"}, {"BeforeAgent", "BeforeAgent"}} {
+		welcome := func([]byte) ([]byte, error) {
+			return []byte(`{"welcomes":[{"workroom":"ひよこ","message":"m","forAi":"a"}],"unbound":false}`), nil
+		}
+		var out bytes.Buffer
+		talked(&out, hookInput{SessionID: "S1", HookEventName: c.in}, "NOTE", welcome)
+		var got struct {
+			Special struct {
+				Event string `json:"hookEventName"`
+			} `json:"hookSpecificOutput"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &got); err != nil || got.Special.Event != c.want {
+			t.Errorf("event %q: got %q (%v) in %s", c.in, got.Special.Event, err, out.String())
+		}
+	}
+}

@@ -227,3 +227,95 @@ test("閉じたプロジェクトは、行う前の問いでも、開け直す�
   expect(asked("project-update")).toMatchObject({ ok: false, reason: "denied" })
   expect(asked("project-reopen").ok).toBe(true)
 })
+
+test("ticket-add は、レーン・タグ・担当を名前でも指せ、担当も一度に付けられ、チケットプレフィクスを付けた番号（label） と解決した値を返す。無い名前は選べる一覧つきで断る", () => {
+  const { user, projects, tickets, store } = ready()
+  const addRoom = (name: string) =>
+    (
+      (store.actions.perform as unknown as (id: string, a: unknown) => Done)("@matomezu/base:workroom-add", {
+        name,
+        bird: "inko",
+      }) as Done & {
+        result: { workroom: string }
+      }
+    ).result.workroom
+  const made = user("project-add", {}) as Done & {
+    result: {
+      project: string
+      prefix: string
+      lanes: { id: string; name: string }[]
+      tags: { id: string; name: string }[]
+    }
+  }
+  expect(made.result.prefix).toBe("T-")
+  expect(made.result.lanes.map(l => l.name)).toEqual(["未着手", "作業中", "完了"])
+  expect(made.result.tags.map(t => t.name)).toEqual(["タスク", "バグ"])
+  const room = addRoom("ひよこ")
+  const added = user("ticket-add", {
+    project: made.result.project,
+    name: "a",
+    lane: "作業中",
+    tag: "バグ",
+    assignees: ["ひよこ"],
+  }) as Done & {
+    result: { label: string; lane: string; tag: string; assignees: string[] }
+  }
+  expect(added.result).toMatchObject({
+    label: "T-001",
+    lane: made.result.lanes[1]?.id,
+    tag: made.result.tags[1]?.id,
+    assignees: [room],
+  })
+  expect(tickets()[0]).toMatchObject({ lane: made.result.lanes[1]?.id, assignees: [room] })
+  const refused = user("ticket-add", { project: made.result.project, name: "b", lane: "nothing" })
+  expect(refused.ok).toBe(false)
+  expect(projects()).toHaveLength(1)
+})
+
+test("ticket-update は、レーン・タグ・担当を名前でも指せ、同じワークルームを名前と id で 2 回書くと断る", () => {
+  const { user, projects, tickets, store } = ready()
+  const addRoom = (name: string) =>
+    (
+      (store.actions.perform as unknown as (id: string, a: unknown) => Done)("@matomezu/base:workroom-add", {
+        name,
+        bird: "inko",
+      }) as Done & { result: { workroom: string } }
+    ).result.workroom
+  user("project-add", {})
+  const p = projects()[0] as Project
+  const room = addRoom("ひよこ")
+  const t = (user("ticket-add", { project: p.id, name: "a" }) as Done & { result: { ticket: string } }).result.ticket
+  expect(user("ticket-update", { lane: "完了", tag: "タスク", assignees: ["ひよこ"] }, { record: t }).ok).toBe(true)
+  expect(tickets()[0]).toMatchObject({ lane: p.lanes[2]?.id, assignees: [room] })
+  expect(user("ticket-update", { assignees: ["ひよこ", room] }, { record: t }).ok).toBe(false)
+  expect(user("ticket-update", { lane: "unsorted" }, { record: t }).ok).toBe(true)
+  expect(tickets()[0]).toMatchObject({ lane: "unsorted" })
+})
+
+test("ticket-update は、今の値をそのまま送れば通る（消したレーン・有効でなくなったタグ・消したワークルームのままでも。タグは名前でも）。ticket-add は有効でないタグを名前で指すと断る", () => {
+  const { user, projects, tickets, store } = ready()
+  const perform = store.actions.perform as unknown as (id: string, a: unknown, o?: { record: string }) => Done
+  user("project-add", {})
+  const p = projects()[0] as Project
+  const room = (
+    perform("@matomezu/base:workroom-add", { name: "ひよこ", bird: "inko" }) as Done & { result: { workroom: string } }
+  ).result.workroom
+  const lane = p.lanes[0]?.id as string
+  const tag = p.tags[0]?.id as string
+  const t = (
+    user("ticket-add", { project: p.id, name: "a", lane, tag, assignees: [room] }) as Done & {
+      result: { ticket: string }
+    }
+  ).result.ticket
+  // レーンを消し、タグを使わなくし、ワークルームを消す
+  const lanes = p.lanes
+    .filter(l => l.kind !== "lane" || l.id !== lane)
+    .map(l => (l.kind === "lane" ? { ...l, prompt: "" } : l))
+  const tags = p.tags.map((x, i) => ({ ...x, prompt: "", enabled: i !== 0 }))
+  expect(user("project-update", { lanes, tags }, { record: p.id }).ok).toBe(true)
+  perform("@matomezu/base:workroom-remove", {}, { record: room })
+  expect(user("ticket-update", { lane, tag, assignees: [room], name: "b" }, { record: t }).ok).toBe(true)
+  expect(user("ticket-update", { tag: "タスク" }, { record: t }).ok).toBe(true)
+  expect(tickets()[0]).toMatchObject({ name: "b", lane, tag, assignees: [room] })
+  expect(user("ticket-add", { project: p.id, name: "c", tag: "タスク" }).ok).toBe(false)
+})

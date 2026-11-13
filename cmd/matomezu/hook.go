@@ -1,6 +1,6 @@
 package main
 
-// UserPromptSubmit のフック（talked）: AI の UserPromptSubmit のフックが標準入力に渡す JSON（session_id・transcript_path）から、
+// 話しかけのフック（talked）: AI の話しかけのフック（Claude Code の UserPromptSubmit・Gemini CLI の BeforeAgent）が標準入力に渡す JSON（session_id・transcript_path）から、
 // ターンの始まりを常駐に知らせ、会話の記録から使い捨ての uuid を拾って参加者にセッション id を結ばせ、結べた参加者を利用者に伝える。
 // 伝えるのはフックの JSON の出力（systemMessage が利用者に見え、sessionTitle が Claude Code のセッション名になり、additionalContext が AI に届く）。
 //
@@ -23,10 +23,19 @@ import (
 type hookInput struct {
 	SessionID      string `json:"session_id"`
 	TranscriptPath string `json:"transcript_path"`
-	Model          string `json:"model"`    // SessionStart のモデル
-	ToModel        string `json:"to_model"` // PostModelSwitch の、切り替えた先のモデル
-	Prompt         string `json:"prompt"`   // UserPromptSubmit の、ターンを始めた入力
-	Host           string `json:"-"`        // AI のプログラムのプロセス id（フックが --host で渡す）
+	HookEventName  string `json:"hook_event_name"` // 話しかけのフックのイベント名（Claude Code は UserPromptSubmit、Gemini CLI は BeforeAgent。無ければ UserPromptSubmit）
+	Model          string `json:"model"`           // SessionStart のモデル
+	ToModel        string `json:"to_model"`        // PostModelSwitch の、切り替えた先のモデル
+	Prompt         string `json:"prompt"`          // 話しかけのフックの、ターンを始めた入力
+	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
+}
+
+// eventName は、フックの出力に書くイベント名（入力のイベント名。無ければ UserPromptSubmit）
+func (in hookInput) eventName() string {
+	if in.HookEventName != "" {
+		return in.HookEventName
+	}
+	return "UserPromptSubmit"
 }
 
 // woken は、ターンが利用者トリガートークでなく、裏の知らせ（plugin の monitor の 1 行・裏で走らせた物の終わりなど）で始まったか
@@ -93,7 +102,7 @@ func talked(out io.Writer, hook hookInput, context string, api hookAPI) {
 		ai = append(ai, w.ForAI)
 	}
 	special := map[string]any{
-		"hookEventName": "UserPromptSubmit",
+		"hookEventName": hook.eventName(),
 		// 参加者が 1 人なら、その名前をセッション名にする（元のセッション名は常駐の参加者が持っている）
 		"additionalContext": strings.TrimSpace(strings.Join(append(ai, context), "\n")),
 	}
