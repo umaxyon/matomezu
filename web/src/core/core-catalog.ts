@@ -16,6 +16,7 @@ import type { NormalizeStepDef } from "./def/normalize-step"
 import type { PaperDef } from "./def/paper"
 import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
+import type { ScreenDef } from "./def/screen-def"
 import type { SettingDef, SettingRole } from "./def/setting"
 import type { SkinDef } from "./def/skin"
 import { SUBJECT_ROLE_FIELDS, type SubjectDef } from "./def/subject"
@@ -57,6 +58,7 @@ declare module "./catalog" {
     annotations: AnnotationDef
     mails: MailDef
     subjects: SubjectDef
+    screens: ScreenDef
     enums: EnumDef
     enumValues: EnumValueDef
   }
