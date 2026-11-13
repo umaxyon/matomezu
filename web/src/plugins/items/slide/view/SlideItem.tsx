@@ -132,26 +132,24 @@ function TextEditor({
     onGrow(fittedRect(base.current, rotation, fit))
   }, [text, wraps])
   return (
-    <>
-      <textarea
-        ref={area}
-        className={`${styles.editor} ${face.face}`}
-        // biome-ignore lint/a11y/noAutofocus: 文字を書き換え始めたときに、そのまま打てるようにする
-        autoFocus
-        wrap={wraps === true ? "soft" : "off"}
-        value={text}
-        style={style}
-        onFocus={e => e.currentTarget.setSelectionRange(text.length, text.length)}
-        onChange={e => setText(e.target.value)}
-        onBlur={() => (cancelled.current ? onCancel() : onCommit(text))}
-        onKeyDown={e => {
-          if (e.key === "Escape") {
-            cancelled.current = true
-            e.stopPropagation()
-            e.currentTarget.blur()
-          }
-        }}
-      />
-    </>
+    <textarea
+      ref={area}
+      className={`${styles.editor} ${face.face}`}
+      // biome-ignore lint/a11y/noAutofocus: 文字を書き換え始めたときに、そのまま打てるようにする
+      autoFocus
+      wrap={wraps === true ? "soft" : "off"}
+      value={text}
+      style={style}
+      onFocus={e => e.currentTarget.setSelectionRange(text.length, text.length)}
+      onChange={e => setText(e.target.value)}
+      onBlur={() => (cancelled.current ? onCancel() : onCommit(text))}
+      onKeyDown={e => {
+        if (e.key === "Escape") {
+          cancelled.current = true
+          e.stopPropagation()
+          e.currentTarget.blur()
+        }
+      }}
+    />
   )
 }
