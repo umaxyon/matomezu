@@ -1,4 +1,4 @@
-/* タスクボードの中のスクロールバー（レーンの縦・タスクボードの横）: 細く、溝は無し。Chromium は ::-webkit-scrollbar、それの無いブラウザは細い既定のバー */
+/* タスクボードのプラグインの中のスクロールバー: 細く、溝は無し。Chromium は ::-webkit-scrollbar、それの無いブラウザは細い既定のバー */
 .thin::-webkit-scrollbar {
   width: 6px;
   height: 6px;

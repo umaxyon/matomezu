@@ -28,6 +28,7 @@ import {
 import { BackIcon, BookIcon, PencilIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
+import scroll from "../scrollbar.module.css"
 import { PRIORITIES, TICKET, TICKET_NAME_MAX } from "../ticket"
 import { TICKET_LOCK, TICKET_UNLOCK, TICKET_UPDATE } from "../ticket/actions"
 import { assigneesOf } from "../ticket/assignees"
@@ -148,7 +149,7 @@ export function TicketScreen() {
             </button>
           </div>
           <div className={styles.sectionHead}>{t("History")}</div>
-          <div className={styles.historyScroll}>
+          <div className={`${styles.historyScroll} ${scroll.thin}`}>
             <TicketHistoryTimeline
               rows={rows}
               openQuestion={view.question}
@@ -374,7 +375,7 @@ function BodyPanes({
       <div className={styles.panes} data-mode={mode}>
         {mode !== "rendered-only" ? (
           <textarea
-            className={styles.source}
+            className={`${styles.source} ${scroll.thin}`}
             aria-label={t("Body (markdown)")}
             readOnly={!canEdit}
             value={composing ?? body}
@@ -389,7 +390,7 @@ function BodyPanes({
           />
         ) : null}
         {mode !== "source-only" ? (
-          <div className={styles.preview}>
+          <div className={`${styles.preview} ${scroll.thin}`}>
             {body ? (
               <div className={styles.markdown} style={markdownDocumentOnSkin()}>
                 <MarkdownDocumentView document={document} softBreak={softBreak} />
@@ -421,7 +422,7 @@ function QuestionView({ row, onClose }: { row: HistoryRow; onClose: () => void }
           </button>
         </span>
       </div>
-      <p className={styles.questionText}>{row.text}</p>
+      <p className={`${styles.questionText} ${scroll.thin}`}>{row.text}</p>
     </>
   )
 }

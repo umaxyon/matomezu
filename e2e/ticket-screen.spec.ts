@@ -56,6 +56,15 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   const size = page.viewportSize()
   expect(box?.height ?? 0).toBeGreaterThan((size?.height ?? 0) - 60)
   await expect(page.getByRole("button", { name: "コントロールセンター" })).toBeVisible()
+  // 閉じて右へ出ている質問の枠が、チケットスクリーンを包むスクロールの枠に横スクロールを作らない
+  const wide = await screen.evaluate(el => {
+    for (let e = el.parentElement; e; e = e.parentElement) {
+      const x = getComputedStyle(e).overflowX
+      if ((x === "auto" || x === "scroll") && e.scrollWidth > e.clientWidth + 1) return true
+    }
+    return false
+  })
+  expect(wide).toBe(false)
   // チケット履歴: 起票の行・状況・質問（吹き出し）
   await expect(screen.getByText("チケットを起票しました")).toBeVisible()
   await expect(screen.getByText("調べています")).toBeVisible()
