@@ -93,6 +93,7 @@
 }
 .cardId {
   font-size: 11px;
+  font-weight: 700;
   color: var(--skin-text-muted);
 }
 /* large: 名前を折り返す（長い語も枠の中で折る） */

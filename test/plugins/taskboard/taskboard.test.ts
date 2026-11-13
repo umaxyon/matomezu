@@ -267,7 +267,7 @@ test("ticket-add は、レーン・タグ・担当を名前でも指せ、担当
     result: { label: string; lane: string; tag: string; assignees: string[] }
   }
   expect(added.result).toMatchObject({
-    label: "T-001",
+    label: "T-0001",
     lane: made.result.lanes[1]?.id,
     tag: made.result.tags[1]?.id,
     assignees: [room],

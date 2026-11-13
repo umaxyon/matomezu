@@ -45,7 +45,7 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   const board = page.locator(`[data-board="${first.id}"]`)
   await expect(board).toBeVisible()
   const card = board.locator("[data-card]", { hasText: "最初のチケットカード" })
-  await expect(card).toContainText("-001")
+  await expect(card).toContainText("-0001")
 
   // 一覧は最初は閉じていて、見出しで開く。チェックを外すとタスクボードが消え、入れるとまた出る
   const head = page.locator("button[aria-expanded]", { hasText: "プロジェクト" })

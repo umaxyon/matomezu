@@ -132,10 +132,11 @@ test("並べ方は、使う項目を上から比べる。既定は id の降順�
   expect(ids(on())).toEqual(["T1", "T2", "T3"])
 })
 
-test("番号の見せ方は、プレフィクスに 3 桁まで 0 で埋めた番号。1000 からはそのまま", () => {
-  expect(ticketLabel("T-", 3)).toBe("T-003")
-  expect(ticketLabel("BUG-", 42)).toBe("BUG-042")
+test("番号の見せ方は、プレフィクスに 4 桁まで 0 で埋めた番号。10000 からはそのまま", () => {
+  expect(ticketLabel("T-", 3)).toBe("T-0003")
+  expect(ticketLabel("BUG-", 42)).toBe("BUG-0042")
   expect(ticketLabel("T-", 1000)).toBe("T-1000")
+  expect(ticketLabel("T-", 10000)).toBe("T-10000")
 })
 
 test("タスクボードの最大化は 1 つだけ。レーンを最大化するとタスクボードも最大化し、元に戻すと前のタスクボードの最大化に戻る。出ていくタスクボードの最大化は解く", () => {

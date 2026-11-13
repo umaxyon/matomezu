@@ -49,7 +49,7 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await page.goto(open(ticket))
   const screen = page.getByRole("region", { name: "チケット" }).first()
   await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeVisible()
-  await expect(screen.getByText("T-001")).toBeVisible()
+  await expect(screen.getByText("T-0001")).toBeVisible()
   await expect(screen.getByText("起票日時")).toBeVisible()
   // チケットスクリーンは、下の行（止まり木）を残して、窓の高さいっぱいに広がる
   const box = await screen.boundingBox()
