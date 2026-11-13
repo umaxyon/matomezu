@@ -82,6 +82,7 @@ export {
   Form,
   InheritChoices,
   inlineClass,
+  MultiChoices,
   Problem,
   pairClass,
   rowClass,

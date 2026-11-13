@@ -431,6 +431,7 @@ export function useScreen<P>(def: { id: string; props: PropsShape<P> }): {
 export function useScreens(): {
   screens: readonly { id: string; def: string; props: unknown; shown: boolean; current: boolean }[]
   open<P>(def: { id: string; props: PropsShape<P> }, props: P): string
+  setProps<P>(id: string, def: { id: string; props: PropsShape<P> }, props: P): boolean // 開いているスクリーン id（定義 def の物）の渡す値を替える（積まない）
   makeCurrent(id: string): void
   close(id: string): void
 } {
@@ -438,7 +439,7 @@ export function useScreens(): {
   const opened = useMatomezuState(s => s.window.screens)
   const current = useMatomezuState(s => currentScreen(s.window).id)
   const shown = useMatomezuState(useShallow(s => shownScreens(catalog, s.window)))
-  const { openScreen, makeScreenCurrent, closeScreen } = useActions()
+  const { openScreen, setScreenProps, makeScreenCurrent, closeScreen } = useActions()
   const screens = useMemo(
     () =>
       opened.map(s => ({
@@ -454,5 +455,9 @@ export function useScreens(): {
     <P>(def: { id: string; props: PropsShape<P> }, props: P) => openScreen(def.id, props),
     [openScreen],
   )
-  return { screens, open, makeCurrent: makeScreenCurrent, close: closeScreen }
+  const setProps = useCallback(
+    <P>(id: string, _def: { id: string; props: PropsShape<P> }, props: P) => setScreenProps(id, props),
+    [setScreenProps],
+  )
+  return { screens, open, setProps, makeCurrent: makeScreenCurrent, close: closeScreen }
 }

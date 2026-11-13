@@ -88,3 +88,9 @@ button.row:hover {
   font-size: 13px;
   cursor: pointer;
 }
+/* 入力の言葉に当たった所: skin の danger の色の字（背景は付けない） */
+.hit {
+  background: transparent;
+  color: var(--skin-danger);
+  font-weight: 600;
+}

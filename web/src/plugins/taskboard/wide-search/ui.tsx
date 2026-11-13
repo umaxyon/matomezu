@@ -17,10 +17,14 @@ export const TICKET_MODE = defineWideSearchMode({
 
 // チケットスクリーンでチケット ticket を開く関数を返すフック（当たった物がチケット履歴なら、その親のチケット）
 const useOpenTicket = (ticketOf: (hit: WideSearchHit) => string | undefined) => {
-  const { open } = useScreens()
+  const { screens, open, setProps } = useScreens()
   return (hit: WideSearchHit) => {
     const ticket = ticketOf(hit)
-    if (ticket !== undefined) open(TICKET_SCREEN, { ticket })
+    if (ticket === undefined) return
+    // 今のスクリーンがチケットスクリーンなら、積まずに中身のチケットだけ替える（戻る矢印 1 回でコントロールセンターに戻る）
+    const here = screens.find(s => s.current)
+    if (here?.def === TICKET_SCREEN.id) setProps(here.id, TICKET_SCREEN, { ticket })
+    else open(TICKET_SCREEN, { ticket })
   }
 }
 

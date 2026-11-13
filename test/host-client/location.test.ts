@@ -293,3 +293,26 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
   f.back(f.pushed[0]!)
   expect(store.address().window).toEqual({ "k:tab": "two" })
 })
+
+test("スクリーンを開くと履歴に積むが、setScreenProps で渡す値だけを替えたときは積まず、今の行を置き換える", async () => {
+  const store = createMatomezu({
+    plugins: BUILTIN,
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
+  const f = fakePlace()
+  followLocation(store, f.place)
+  const id = store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
+  await settled()
+  expect(f.pushed).toHaveLength(1)
+  expect(store.actions.setScreenProps(id, { ticket: "t2" })).toBe(true)
+  await settled()
+  expect(f.pushed).toHaveLength(1)
+  f.flush()
+  expect(f.replaced.at(-1)).toContain("t2")
+  expect(f.replaced.at(-1)).not.toContain("t1")
+  // ほかの経路（別のスクリーンを開く）は積む
+  store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t3" })
+  await settled()
+  expect(f.pushed).toHaveLength(2)
+})

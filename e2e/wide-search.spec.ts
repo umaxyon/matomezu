@@ -63,7 +63,9 @@ test("虫メガネで左サイドパネルに横断検索が開き、全文で�
   expect(hit).not.toBe("")
 })
 
-test("チケットモードは、パネルを開いたままボードを絞り、閉じても残り、印の × で戻る", async ({ page }) => {
+test("チケットモードは、パネルを開いたままボードを絞り、閉じても残り、パネルを開き直して印の × で戻る", async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   const word = `ちけっと${Date.now()}`
   const { hit, other } = await setup(page, word)
@@ -80,8 +82,12 @@ test("チケットモードは、パネルを開いたままボードを絞り�
   await expect(side.getByRole("textbox", { name: "検索する言葉" })).toHaveCount(0)
   await expect(page.locator(`[data-card="${hit}"]`)).toBeVisible()
   await expect(page.locator(`[data-card="${other}"]`)).toHaveCount(0)
+  // 絞りの印はボードの上には出ず、左サイドパネルの中に出る
   const mark = page.getByRole("status").filter({ hasText: "検索中" })
+  await expect(mark).toHaveCount(0)
+  await page.getByRole("button", { name: "横断検索" }).click()
   await expect(mark).toContainText(word)
+  await expect(side.locator(mark)).toHaveCount(1)
   await mark.getByRole("button", { name: "絞りを解除" }).click()
   await expect(mark).toHaveCount(0)
   await expect(page.locator(`[data-card="${other}"]`)).toBeVisible()
@@ -101,4 +107,33 @@ test("書庫が前に出ていても、チケットモードで絞るとボー�
   // コンテンツエリアの書庫の表示が引っ込み、プロジェクトの表示が出て、番号に当たったチケットのカードが見える
   await expect(page.getByRole("button", { name: "プロジェクト" }).first()).toHaveAttribute("aria-pressed", "true")
   await expect(page.locator(`[data-card="${hit}"]`)).toBeVisible()
+})
+
+test("全文モードで続けて別のチケットを開いても、スクリーンは積まず、戻る矢印 1 回でコントロールセンターに戻る。当たった所は赤字になる", async ({
+  page,
+}) => {
+  const word = `かさね${Date.now()}`
+  const { hit, other } = await setup(page, word)
+  expect(other).not.toBe(hit)
+  // 2 枚目のチケット（題にも word を入れる）
+  const first = (await projects(page))[0]!
+  const lane = first.lanes.find(l => l.kind === "lane")!.id
+  await perform(page, {
+    action: "@matomezu/taskboard:ticket-add",
+    args: { project: first.id, name: `${word}の二枚目`, lane },
+  })
+  await page.getByRole("button", { name: "横断検索" }).click()
+  const side = panel(page)
+  await side.getByRole("button", { name: "全文" }).click()
+  await side.getByRole("textbox", { name: "検索する言葉" }).fill(word)
+  await expect(side.locator("mark").first()).toHaveText(new RegExp(word, "i"))
+  await side.getByRole("button", { name: new RegExp(`${word}を直す`) }).click()
+  await expect(page.getByRole("heading", { name: `${word}を直す` })).toBeVisible()
+  const length = await page.evaluate(() => history.length)
+  await side.getByRole("button", { name: new RegExp(`${word}の二枚目`) }).click()
+  await expect(page.getByRole("heading", { name: `${word}の二枚目` })).toBeVisible()
+  // ブラウザの履歴にも積まない（今の行を置き換える）
+  expect(await page.evaluate(() => history.length)).toBe(length)
+  await page.getByRole("button", { name: "戻る" }).click()
+  await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeVisible()
 })

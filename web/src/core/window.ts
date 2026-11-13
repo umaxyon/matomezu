@@ -78,6 +78,12 @@ export function openScreen(
   }
 }
 
+// 開いているスクリーン id に渡した値を props に替える（スクリーンは積まず、その 1 枚の中身だけ替える。無いスクリーンなら何もしない）
+export function withScreenProps(win: WindowState, id: string, props: unknown): WindowState {
+  if (!win.screens.some(s => s.id === id)) return win
+  return { ...win, screens: win.screens.map(s => (s.id === id ? { ...s, props } : s)) }
+}
+
 // カレントスクリーン（キーが効く先。いつも 1 枚で、最後にカレントにした物）
 export function currentScreen(win: Pick<WindowState, "screens" | "order">): OpenedScreen {
   const id = win.order[win.order.length - 1]

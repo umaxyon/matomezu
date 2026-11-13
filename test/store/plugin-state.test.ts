@@ -200,3 +200,21 @@ test("ほかのプラグインの宣言に、id と値だけで入れる道: add
   expect(instance.setPluginStateById(id, "projects", { screen: center })).toBe(true)
   expect(instance.state.getState().pluginValues).toBe(before)
 })
+
+test("スクリーンに渡す値を替える（積まない）: 開いているスクリーンの値だけ、定義の形に合う値で替える。無いスクリーン・形に合わない値は替えず false", () => {
+  const instance = createMatomezu({
+    plugins: BUILTIN,
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
+  const def = "@matomezu/taskboard:ticket-screen"
+  const id = instance.actions.openScreen(def, { ticket: "t1" })
+  const count = instance.state.getState().window.screens.length
+  expect(instance.actions.setScreenProps(id, { ticket: "t2" })).toBe(true)
+  const now = instance.state.getState().window
+  expect(now.screens.length).toBe(count)
+  expect(now.screens.find(s => s.id === id)?.props).toEqual({ ticket: "t2" })
+  expect(instance.actions.setScreenProps(id, { ticket: 3 })).toBe(false)
+  expect(instance.actions.setScreenProps("c99", { ticket: "t2" })).toBe(false)
+  expect(instance.state.getState().window.screens.find(s => s.id === id)?.props).toEqual({ ticket: "t2" })
+})

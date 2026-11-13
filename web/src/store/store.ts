@@ -85,6 +85,7 @@ import {
   shownBookScreens,
   stageIn,
   type WindowState,
+  withScreenProps,
 } from "../core/window"
 import {
   close,
@@ -232,6 +233,8 @@ export interface Actions {
   // スクリーンを 1 枚開いてカレントにし、開いた 1 枚の id を返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
   // 機能台帳に無い定義・形に合わない値なら開かず、refused を返す
   openScreen(def: string, props: unknown): string
+  // 開いているスクリーン id に渡す値を props に替える（スクリーンを積まない。値は、そのスクリーンの定義の props の形。無いスクリーン・形に合わない値なら替えず false）
+  setScreenProps(id: string, props: unknown): boolean
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   // 開いているスクリーン id を閉じる（カレントスクリーンだったなら、1 つ前にカレントだった物がカレントになる）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
   closeScreen(id: string): void
@@ -326,6 +329,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
   // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
+  // setScreenProps で渡す値を替えたスクリーンの id（前に取り出してから今まで）を返して空にする。ホストクライアントだけが使う: 渡す値だけが変わった場所は、ブラウザの履歴に積まず今の行を置き換える
+  takeReplacedScreens(): ReadonlySet<string>
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
   address(): Address
   // 画面の場所を address にする（core/address.ts の placeAt と、画面の場所に入れるプラグイン状態）。
@@ -777,6 +782,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (next !== now) setState({ pluginValues: next })
   }
   const setPluginState = (id: string, stage: string | null, value: unknown) => setPluginStates([[id, stage, value]])
+  let replacedScreens = new Set<string>() // setScreenProps で渡す値を替えたスクリーンの id（takeReplacedScreens が空にする）
   const setPluginStateById = (
     id: string,
     value: unknown,
@@ -905,6 +911,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { win, id } = openScreen(getState().window, catalog, def, fits.data)
       commit({ window: win })
       return id
+    },
+    setScreenProps: (id, props) => {
+      const screen = getState().window.screens.find(s => s.id === id)
+      const fits = screen && catalog.screens.get(screen.def)?.props.safeParse(props)
+      if (!fits?.success) return false
+      withWindow(win => withScreenProps(win, id, fits.data))
+      replacedScreens.add(id)
+      return true
     },
     makeScreenCurrent: id => withWindow(win => makeCurrent(win, id)),
     setScreenArrangement: def => withWindow(win => setArrangement(win, catalog, def)),
@@ -1095,6 +1109,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     checkSeen,
     search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
+    takeReplacedScreens: () => {
+      const taken = replacedScreens
+      replacedScreens = new Set()
+      return taken
+    },
     address: () => addressNow(),
     locate: address => {
       const now = getState()

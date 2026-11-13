@@ -90,6 +90,39 @@ export function Choices<V extends string>({
   )
 }
 
+// 選択肢から複数を選べる、Choices と同じ見た目のボタンの並び（選んでいる物の値の並びが values。押すと入り切りする）
+export function MultiChoices<V extends string>({
+  label,
+  values,
+  options,
+  onChange,
+}: {
+  label: string
+  values: readonly V[]
+  options: readonly { value: V; label: string; icon: ReactNode }[]
+  onChange: (values: V[]) => void
+}) {
+  return (
+    <fieldset aria-label={label} className={styles.choices}>
+      {options.map(o => (
+        <label key={o.value} className={styles.choice} title={o.label}>
+          <input
+            type="checkbox"
+            className={styles.radio}
+            value={o.value}
+            aria-label={o.label}
+            checked={values.includes(o.value)}
+            onChange={() =>
+              onChange(values.includes(o.value) ? values.filter(v => v !== o.value) : [...values, o.value])
+            }
+          />
+          {o.icon}
+        </label>
+      ))}
+    </fieldset>
+  )
+}
+
 // 文字の選択肢の中身（Choices の icon に渡す。ボタンは文字の幅だけ広がる）
 export function ChoiceText({ children }: { children: ReactNode }) {
   return <span className={styles.choiceText}>{children}</span>

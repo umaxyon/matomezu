@@ -1,0 +1,30 @@
+/* チケットモードの選びのボタン: タグのバッヂ（board/TagBadge.module.css の .badge）と同じ大きさ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--skin-surface-muted);
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.chip[aria-pressed="true"] {
+  border-color: var(--skin-border-strong);
+  background: var(--skin-btn);
+  opacity: 1;
+  font-weight: 600;
+}
+.chip[data-colored][aria-pressed="true"] {
+  border-color: var(--skin-text);
+  background: inherit;
+}
+.chip:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
+}
