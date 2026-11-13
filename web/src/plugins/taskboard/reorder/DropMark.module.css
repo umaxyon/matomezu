@@ -1,0 +1,13 @@
+/* ドラッグの離し先の印: 入るすき間の側の辺に細い線（行の内側。並びを入れている入れ物に切られない） */
+.y[data-drop="before"] {
+  box-shadow: inset 0 2px 0 0 var(--skin-accent);
+}
+.y[data-drop="after"] {
+  box-shadow: inset 0 -2px 0 0 var(--skin-accent);
+}
+.x[data-drop="before"] {
+  box-shadow: inset 3px 0 0 0 var(--skin-accent);
+}
+.x[data-drop="after"] {
+  box-shadow: inset -3px 0 0 0 var(--skin-accent);
+}

@@ -10,7 +10,7 @@ import { Grip } from "../reorder/Grip"
 import { useGripDrag } from "../reorder/useGripDrag"
 import { useReorderAnimation } from "../reorder/useReorderAnimation"
 import settings from "./ProjectSettingsDialog.module.css"
-import { NameInput, PromptSplit, rowProps } from "./PromptSplit"
+import { NameField, PromptSplit, rowProps } from "./PromptSplit"
 import styles from "./PromptSplit.module.css"
 import type { LaneRow } from "./rows"
 import type { EditableRows } from "./useEditableRows"
@@ -31,10 +31,13 @@ export function LaneSettings({
   const shown = unsorted?.kind === "unsorted" && unsorted.shown
   const visible = rows.filter(r => r.kind === "lane" || shown)
   const { register, snapshot } = useReorderAnimation(visible.map(r => r.key))
-  const { dragRowProps, gripProps } = useGripDrag((dragging, over) => {
-    snapshot()
-    move(dragging, over)
-  })
+  const { dragRowProps, gripProps, markClass } = useGripDrag(
+    (dragging, over) => {
+      snapshot()
+      move(dragging, over)
+    },
+    visible.map(r => r.key),
+  )
   const chosen = rows.find(r => r.key === selected)
   const switchId = useId()
   return (
@@ -63,13 +66,14 @@ export function LaneSettings({
           <div
             key={lane.key}
             ref={register(lane.key)}
-            {...rowProps(lane.key, selected, setSelected)}
+            {...rowProps(lane.key, selected, setSelected, markClass)}
             {...dragRowProps(lane.key)}
           >
             <Grip {...gripProps(lane.key)} />
             {lane.kind === "lane" ? (
-              <NameInput
+              <NameField
                 label={t("Lane name")}
+                editLabel={t("Edit the name")}
                 value={lane.name}
                 max={LANE_NAME_MAX}
                 repeated={repeated.has(lane.key)}

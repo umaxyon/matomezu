@@ -34,6 +34,7 @@
 }
 .title {
   position: relative;
+  user-select: none;
   padding: 6px;
   border-bottom: 1px solid var(--skin-border);
   border-radius: 7px 7px 0 0;
@@ -41,6 +42,12 @@
   font-size: 13px;
   font-weight: 600;
   text-align: center;
+}
+.lane[data-dragging="true"] {
+  opacity: 0.5;
+}
+.title[data-draggable="true"] {
+  cursor: grab;
 }
 .cards {
   display: flex;

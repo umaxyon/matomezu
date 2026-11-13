@@ -1,6 +1,7 @@
 // タスクボードの見せ方の決め事（taskboard/board の shown.ts・sort.ts・maximize.ts）・今のチケット（current-ticket/task.ts）・チケットの番号と担当（ticket/label.ts・assignees.ts）と、利用者の設定 2 つ（board/user-settings.ts）
 import { expect, test } from "bun:test"
 import { autoInputOf } from "../../../web/src/plugins/base/settings/user-settings"
+import { laneKeyOf, movedLanes } from "../../../web/src/plugins/taskboard/board/lane-order"
 import { maximizedAmong, released, toggleBoard, toggleLane } from "../../../web/src/plugins/taskboard/board/maximize"
 import {
   lanesOf,
@@ -180,4 +181,14 @@ test("利用者の設定 2 つは利用者だけが変え、値の形から入�
   expect("default" in SHOWN_PROJECTS).toBe(false)
   expect(autoInputOf(CORE_CATALOG, PROJECT_ORDER)).toBeNull()
   expect(autoInputOf(CORE_CATALOG, SHOWN_PROJECTS)).toBeNull()
+})
+
+test("レーンのドラッグによる並べ替えは、未分類の行も含む並びで、ドラッグしたレーンを離したレーンの位置へ移す", () => {
+  const lane = (id: string) => ({ kind: "lane" as const, id, name: id, prompt: "" })
+  const rows = [lane("a"), lane("b"), { kind: "unsorted" as const, shown: true }, lane("c")]
+  const keys = (list: typeof rows) => list.map(laneKeyOf)
+  expect(keys(movedLanes(rows, "c", "a"))).toEqual(["c", "a", "b", "unsorted"])
+  expect(keys(movedLanes(rows, "a", "unsorted"))).toEqual(["b", "unsorted", "a", "c"])
+  expect(keys(movedLanes(rows, "b", "b"))).toEqual(["a", "b", "unsorted", "c"])
+  expect(keys(movedLanes(rows, "gone", "a"))).toEqual(["a", "b", "unsorted", "c"])
 })

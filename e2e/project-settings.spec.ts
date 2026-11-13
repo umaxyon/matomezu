@@ -24,14 +24,22 @@ test("ボードの歯車でプロジェクト設定を開き、レーンを直�
   const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
   await dialog.getByRole("tab", { name: "レーン" }).click()
 
-  // 名前が重なる間は保存できず、知らせが出る
-  const names = dialog.getByRole("textbox", { name: "レーン名" })
-  const firstName = await names.nth(0).inputValue()
-  await names.nth(1).fill(firstName)
+  // 名前はラベルで、鉛筆を押すと入力Formになる（Enter で終える）。名前が重なる間は保存できず、知らせが出る
+  const pencils = dialog.getByRole("button", { name: "名前を編集" })
+  const name = dialog.getByRole("textbox", { name: "レーン名" })
+  await expect(name).toHaveCount(0)
+  await pencils.nth(0).click()
+  const firstName = await name.inputValue()
+  await name.press("Enter")
+  await expect(name).toHaveCount(0)
+  await pencils.nth(1).click()
+  await name.fill(firstName)
   await expect(dialog.getByText("名前が重なっています")).toBeVisible()
   await expect(dialog.getByRole("button", { name: "保存" })).toBeDisabled()
 
-  await names.nth(1).fill("見直し")
+  await name.fill("見直し")
+  await name.press("Enter")
+  await expect(dialog.getByText("見直し", { exact: true })).toBeVisible()
   await dialog.getByRole("switch", { name: "未分類を表示する" }).click()
   await expect(dialog.getByText("未分類", { exact: true })).toBeVisible()
   await dialog.getByRole("button", { name: "保存" }).click()

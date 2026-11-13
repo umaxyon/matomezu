@@ -6,6 +6,8 @@ import { useMessages, usePluginState, useUpdatePluginState } from "../../../plug
 import { MaximizeIcon, RestoreIcon, SortIcon } from "../icons"
 import { kit } from "../kit"
 import { LANE_SETTLE_MS } from "../motion"
+import type { useGripDrag } from "../reorder/useGripDrag"
+import scroll from "../scrollbar.module.css"
 import { assigneesOf } from "../ticket/assignees"
 import { LANE_SORTS } from "."
 import styles from "./LaneView.module.css"
@@ -13,6 +15,13 @@ import { SortTray } from "./SortTray"
 import { type LaneInfo, type ProjectRecord, type TicketRecord, tagOf, type WorkroomRecord } from "./shown"
 import { DEFAULT_SORT, type SortRules, sortActive, sortTickets } from "./sort"
 import { TicketCardView } from "./TicketCardView"
+
+// レーンの入れ替えのドラッグ: レーンの枠に rowProps と markClass、タイトル帯に gripProps（useGripDrag の物）
+export interface LaneDrag {
+  rowProps: ReturnType<ReturnType<typeof useGripDrag>["dragRowProps"]>
+  gripProps: ReturnType<ReturnType<typeof useGripDrag>["gripProps"]>
+  markClass: string
+}
 
 export function LaneView({
   project,
@@ -22,6 +31,7 @@ export function LaneView({
   maximized,
   folded,
   onToggleMaximize,
+  drag,
 }: {
   project: ProjectRecord
   lane: LaneInfo
@@ -30,6 +40,7 @@ export function LaneView({
   maximized: boolean // このレーンだけで広がる
   folded: boolean // ほかのレーンが最大化されている間（畳んで消す）
   onToggleMaximize: () => void
+  drag?: LaneDrag // タイトル帯のドラッグでレーンを入れ替える（入れ替えられないときは無い）
 }) {
   const t = useMessages(kit)
   const sorts = usePluginState(kit, LANE_SORTS)
@@ -53,8 +64,22 @@ export function LaneView({
   }, [maximized])
   const name = lane.name ?? t("Unsorted")
   return (
-    <div className={styles.lane} data-max={maximized} data-folded={folded} inert={folded} data-lane={lane.id}>
-      <div className={styles.title}>
+    <div
+      className={`${styles.lane} ${drag?.markClass ?? ""}`}
+      data-max={maximized}
+      data-folded={folded}
+      inert={folded}
+      data-lane={lane.id}
+      {...drag?.rowProps}
+    >
+      <div
+        className={styles.title}
+        data-draggable={drag !== undefined}
+        onPointerDown={e => {
+          // 帯の中のボタンと並べ方の一覧は、ドラッグのつまみにしない
+          if (!(e.target as HTMLElement).closest("button, [role=dialog]")) drag?.gripProps.onPointerDown()
+        }}
+      >
         <button
           ref={setOpener}
           type="button"
@@ -81,7 +106,7 @@ export function LaneView({
           <SortTray rules={rules} opener={opener} onChange={setRules} onClose={() => setTrayOpen(false)} />
         ) : null}
       </div>
-      <div className={styles.cards} data-wrap={maximized && !settling} data-settling={settling}>
+      <div className={`${styles.cards} ${scroll.thin}`} data-wrap={maximized && !settling} data-settling={settling}>
         {sortTickets(
           tickets,
           rules,
