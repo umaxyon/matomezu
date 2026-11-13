@@ -1,11 +1,9 @@
 // 窓のスロットの名前（base の ui.tsx で、core/catalog.ts の SlotTable に書き足す）。どちらも何も受け取らない
 import { kit } from "../kit"
 
-// ブックスクリーンを置くスロット（ステージの列を並べるウィジェット workspace を置く）
+// ブックスクリーンを描くウィジェットを置くスロット（ステージの列を並べるウィジェット workspace を置く）。名前は、ブックスクリーンの定義（index.ts の BOOK_SCREEN_DEF）の id と同じ
 export const BOOK_SCREEN = kit.name("book-screen")
-// コントロールセンターの中身を置くスロット（下の行は control-center-footer）
-export const CONTROL_CENTER_SCREEN = kit.name("control-center-screen")
-// コントロールセンターの下の行に並べるウィジェットを置くスロット（止まり木のボタンなど）。何も受け取らない
+// ステージを並べないスクリーンが前に出ている間の、下の行に並べるウィジェットを置くスロット（止まり木のボタンなど）。何も受け取らない
 export const CONTROL_CENTER_FOOTER = kit.name("control-center-footer")
 // コントロールセンターの左の列の、利用者パネルと参加者の一覧の間に並べるウィジェットを置くスロット（プロジェクトの一覧など）。何も受け取らない
 export const CONTROL_CENTER_SIDE = kit.name("control-center-side")

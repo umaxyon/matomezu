@@ -205,7 +205,6 @@ test("matomezu/ui が出す名前", () => {
     "BodyField",
     "CONTROL_CENTER_FOOTER",
     "CONTROL_CENTER_PROJECTS",
-    "CONTROL_CENTER_SCREEN",
     "CONTROL_CENTER_SIDE",
     "CORNER_STATUSES",
     "CaptionField",
@@ -432,10 +431,12 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     def.run = run
   }
   expect(names(got)).toEqual([
+    "bringScreenFront",
     "closeContextMenu",
     "closeDialog",
     "closePicker",
     "closePrintPreview",
+    "closeScreen",
     "closeStage",
     "command",
     "continueStep",
@@ -451,6 +452,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "openPage",
     "openPicker",
     "openPrintPreview",
+    "openScreen",
     "panStageBy",
     "perform",
     "performConfirmed",

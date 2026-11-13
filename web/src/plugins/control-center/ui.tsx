@@ -3,21 +3,20 @@
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import {
   CONTROL_CENTER_PROJECTS,
-  CONTROL_CENTER_SCREEN,
   CONTROL_CENTER_SIDE,
   MAILBOX_OPENS,
   WORKROOM_COLUMNS,
   WORKROOM_ROW_LINE,
 } from "../base/ui"
 import { CONTROL_CENTER_PLUGIN } from "."
-import { WORKROOM_LEAVE_DIALOG } from "./control-center"
+import { CONTROL_CENTER_SCREEN, WORKROOM_LEAVE_DIALOG } from "./control-center"
 import { kit } from "./kit"
 import { ControlCenterScreen } from "./Screen"
 import { WorkroomLeaveDialog } from "./WorkroomLeaveDialog"
 
 export const CONTROL_CENTER_SCREEN_WIDGET = defineWidget({
   id: kit.name("screen"),
-  slots: [CONTROL_CENTER_SCREEN],
+  slots: [CONTROL_CENTER_SCREEN.id],
   opens: [...MAILBOX_OPENS, CONTROL_CENTER_SIDE, CONTROL_CENTER_PROJECTS, WORKROOM_COLUMNS, WORKROOM_ROW_LINE],
   view: ControlCenterScreen,
 })
@@ -30,5 +29,8 @@ export const CONTROL_CENTER_UI = definePluginUi(CONTROL_CENTER_PLUGIN, {
 declare module "../../core/catalog" {
   interface WidgetTable {
     "@matomezu/control-center:screen": typeof CONTROL_CENTER_SCREEN_WIDGET
+  }
+  interface SlotTable {
+    "@matomezu/control-center:screen": Record<string, never> // コントロールセンターのスクリーンを描くウィジェットを置くスロット（何も受け取らない）
   }
 }

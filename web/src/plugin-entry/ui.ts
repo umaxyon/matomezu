@@ -16,7 +16,6 @@ export {
   ChoiceText,
   CONTROL_CENTER_FOOTER,
   CONTROL_CENTER_PROJECTS,
-  CONTROL_CENTER_SCREEN,
   CONTROL_CENTER_SIDE,
   type CodeSpan,
   ColorPicker,

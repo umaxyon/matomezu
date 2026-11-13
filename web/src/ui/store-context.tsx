@@ -24,7 +24,8 @@ export function shownLayout(
 ): { layout: LayoutDef; warnings: Warning[] } {
   const skipped = skipAbsent(layout, new Set(plugins.map(p => p.id)))
   const commands = new Set(plugins.flatMap(p => (p.commands ?? []).map(c => c.id)))
-  const problems = checkLayout(skipped.layout, ui, commands)
+  const screens = new Set(plugins.flatMap(p => (p.screens ?? []).map(s => s.id)))
+  const problems = checkLayout(skipped.layout, ui, commands, screens)
   if (problems.length > 0) throw matomezuError(problem("E210", { layout: layout.id, count: problems.length }), problems)
   return skipped
 }

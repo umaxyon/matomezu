@@ -70,11 +70,14 @@ import {
 import type { Warning } from "../core/warnings"
 import {
   bookScreenVisible,
+  bringFront,
   bringFrontKind,
+  closeScreen,
   issueStage,
   mapScreen,
   mapScreens,
   newWindow,
+  openScreen,
   screenOf,
   stageIn,
   type WindowState,
@@ -115,6 +118,9 @@ import {
 import { worldOf } from "./world"
 
 export type { Settings } from "../core/settings"
+
+// openScreen が開かなかったときに返す値
+export const SCREEN_REFUSED = "refused"
 
 export interface MatomezuState {
   books: Readonly<Record<string, Book>> // ブックの id ごと（ゴミ箱のブックは除く）
@@ -218,6 +224,12 @@ export interface Actions {
   closeContextMenu(): void
   showToast(toast: ToastInput): string // トーストを出し、その id を返す
   dismissToast(id: string): void // トーストを消す（もう無ければ何もしない）
+  // スクリーンを 1 枚開いて前に出し、開いた 1 枚の id を返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
+  // 機能台帳に無い定義・形に合わない値なら開かず、refused を返す
+  openScreen(def: string, props: unknown): string
+  bringScreenFront(id: string): void // 開いているスクリーン id を前に出す（後ろへ退いた物の中は残す）
+  // 開いているスクリーン id を閉じる（前に出ていたなら、1 つ前に出していた物が前に出る）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
+  closeScreen(id: string): void
   showControlCenter(): void // コントロールセンターを前に出す（ブックスクリーンの中は残す）
   showBookScreen(): void // ブックスクリーンを前に出す
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
@@ -808,6 +820,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (now.some(t => t.id === id)) setState({ toasts: now.filter(t => t.id !== id) })
     },
     // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
+    openScreen: (def, props) => {
+      const fits = catalog.screens.get(def)?.props.safeParse(props)
+      if (!fits?.success) return SCREEN_REFUSED
+      const { win, id } = openScreen(getState().window, catalog, def, fits.data)
+      commit({ window: win })
+      return id
+    },
+    bringScreenFront: id => withWindow(win => bringFront(win, id)),
+    closeScreen: id => withWindow(win => closeScreen(win, catalog, id)),
     showControlCenter: () => withWindow(win => bringFrontKind(win, "control-center")),
     showBookScreen: () => withWindow(win => bringFrontKind(win, "book-screen")),
     split: stage =>

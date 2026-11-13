@@ -165,7 +165,6 @@ export {
   BOOK_SCREEN,
   CONTROL_CENTER_FOOTER,
   CONTROL_CENTER_PROJECTS,
-  CONTROL_CENTER_SCREEN,
   CONTROL_CENTER_SIDE,
   WORKROOM_COLUMNS,
   WORKROOM_ROW_LINE,
@@ -252,7 +251,6 @@ export const BASE_UI = definePluginUi(BASE, {
 declare module "../../core/catalog" {
   interface SlotTable {
     "@matomezu/base:book-screen": Record<string, never> // ブックスクリーンの中（何も受け取らない）
-    "@matomezu/base:control-center-screen": Record<string, never> // コントロールセンターの中身（何も受け取らない）
     "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
     "@matomezu/base:control-center-side": Record<string, never> // コントロールセンターの左の列の、利用者パネルと参加者の一覧の間（何も受け取らない）
     "@matomezu/base:control-center-projects": Record<string, never> // コントロールセンターのプロジェクトの画面の上の領域（何も受け取らない）

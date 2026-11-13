@@ -33,6 +33,7 @@ const instance = () =>
   })
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(instance().catalog.store.commands.keys())
+const screens = new Set(instance().catalog.core.screens.keys())
 
 // タブを上の行に移した UI マッピング
 const TABS_ON_TOP = defineLayout({
@@ -48,7 +49,7 @@ const TABS_ON_TOP = defineLayout({
 
 describe("UI マッピング", () => {
   test("既定の UI マッピングには食い違いが無い", () => {
-    expect(checkLayout(DEFAULT_LAYOUT, ui, commands)).toEqual([])
+    expect(checkLayout(DEFAULT_LAYOUT, ui, commands, screens)).toEqual([])
   })
 
   test("知らないウィジェット・置けないスロット・インスタンスに無いコマンドは error", () => {
@@ -62,7 +63,7 @@ describe("UI マッピング", () => {
       },
       menus: { "@matomezu/base:stage-menu": [{ either: ["@matomezu/base:stage-split", "stage.nope"] }] },
     } as unknown as LayoutDef
-    expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
+    expect(checkLayout(bad, ui, commands, screens).map(problemText)).toEqual([
       "E207 layout bad: slot @matomezu/base:stage-top has unknown widget nope",
       "E208 layout bad: widget @matomezu/base:book-view cannot be placed in slot @matomezu/base:stage-top",
       "E209 layout bad: menu @matomezu/base:stage-menu has unknown command stage.nope",
@@ -77,9 +78,9 @@ describe("UI マッピング", () => {
       id: "no-stages",
       slots: { ...DEFAULT_LAYOUT.slots, root: ["@matomezu/base:dialog-host"] },
     })
-    expect(checkLayout(noStages, ui, commands).map(problemText)).toEqual([
+    expect(checkLayout(noStages, ui, commands, screens).map(problemText)).toEqual([
       "E211 layout no-stages: slot @matomezu/base:book-screen is not opened by any placed widget",
-      "E211 layout no-stages: slot @matomezu/base:control-center-screen is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/control-center:screen is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:control-center-side is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:control-center-projects is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:workroom-columns is not opened by any placed widget",
@@ -106,7 +107,7 @@ describe("UI マッピング", () => {
     ])
     // 中身を書かなければ、ステージの無い画面にできる
     const bare = defineLayout({ id: "bare", slots: { root: ["@matomezu/base:dialog-host"] }, menus: {} })
-    expect(checkLayout(bare, ui, commands)).toEqual([])
+    expect(checkLayout(bare, ui, commands, screens)).toEqual([])
   })
 
   test("ステージの骨組みは defineWorkspace で差し替えられる（ベーススロットを全部開ける）", () => {
@@ -125,9 +126,11 @@ describe("UI マッピング", () => {
       },
     }
     // 右サイドパネルを開けない骨組みなら、その中身を書いた UI マッピングは error
-    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands).map(p => p.code)).toEqual(["E211"])
+    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands, screens).map(p => p.code)).toEqual(
+      ["E211"],
+    )
     const { "@matomezu/base:right-side-panel": _, ...slots } = layout.slots
-    expect(checkLayout({ ...layout, slots } as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
+    expect(checkLayout({ ...layout, slots } as unknown as LayoutDef, { ...ui, widgets }, commands, screens)).toEqual([])
   })
 
   test("右クリックのメニューのインスタンスに無いコマンドと、どのコンポーネントも開かないメニューは error", () => {
@@ -139,7 +142,7 @@ describe("UI マッピング", () => {
         "other.context": ["@matomezu/base:stage-split"],
       },
     } as unknown as LayoutDef
-    expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
+    expect(checkLayout(bad, ui, commands, screens).map(problemText)).toEqual([
       "E209 layout bad: menu @matomezu/paper:paper-context has unknown command drawing.nope",
       "E213 layout bad: context menu other.context is not opened by any placed widget or book view",
     ])
@@ -147,7 +150,7 @@ describe("UI マッピング", () => {
 
   test("anchorMenu のインスタンスに無いコマンドは error。置けるのは引数の無いコマンドとアンカーの id を引数に取れるコマンドだけ", () => {
     const bad = { ...DEFAULT_LAYOUT, id: "bad", anchorMenu: ["drawing.nope"] } as unknown as LayoutDef
-    expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
+    expect(checkLayout(bad, ui, commands, screens).map(problemText)).toEqual([
       "E209 layout bad: menu anchorMenu has unknown command drawing.nope",
     ])
     defineLayout({
@@ -304,7 +307,7 @@ describe("取り込んだプラグインの置き場所", () => {
     expect(placeAdded(layout, [added])).toEqual(layout)
     const all = assembleUi([...BUILTIN_UI, added])
     const commandsWith = new Set([...commands, "p:open", "p:edit", "p:note"])
-    expect(checkLayout(layout, all, commandsWith)).toEqual([])
+    expect(checkLayout(layout, all, commandsWith, screens)).toEqual([])
   })
 
   test("置いてほしいウィジェットのすぐ前（before）・すぐ後ろ（after）に足す。名指ししたウィジェットが並びに無い（W016）・両方書いた（W017）なら置かずに warning", () => {
@@ -366,7 +369,7 @@ describe("取り込んだプラグインの置き場所", () => {
       "@matomezu/base:background-band",
       "q:top",
     ])
-    expect(checkLayout(layout, assembleUi([...BUILTIN_UI, layers]), commands)).toEqual([])
+    expect(checkLayout(layout, assembleUi([...BUILTIN_UI, layers]), commands, screens)).toEqual([])
   })
 
   test("置けないスロットと、引数の合わないメニューは型の誤り", () => {
@@ -426,7 +429,7 @@ describe("組み込まれていないプラグインの物", () => {
     expect(all.warnings).toEqual([])
     const ui = assembleUi(BUILTIN_UI)
     const commands = new Set(createMatomezu({ plugins: BUILTIN_UI }).catalog.store.commands.keys())
-    expect(checkLayout(all.layout, ui, commands).map(p => p.code)).toEqual(["E209"])
+    expect(checkLayout(all.layout, ui, commands, screens).map(p => p.code)).toEqual(["E209"])
   })
 })
 

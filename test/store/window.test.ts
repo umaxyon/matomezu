@@ -132,3 +132,18 @@ test("AI の show は、ブックを渡すとブックスクリーンを前に�
   expect(frontOf(store.state.getState().window)).toBe("book-screen")
   expect(screenOf(store.state.getState().window).stages[0]?.opened?.book).toBe("b2")
 })
+
+test("store の openScreen は、定義の渡す値の形に合えば開いて前に出し、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
+  const { actions, state } = newStore()
+  const before = frontScreen(state.getState().window).id
+  expect(actions.openScreen("@ex/none:x", {})).toBe("refused")
+  expect(actions.openScreen("@matomezu/control-center:screen", { extra: 1 })).toBe("refused")
+  const id = actions.openScreen("@matomezu/control-center:screen", {})
+  expect(frontScreen(state.getState().window)).toMatchObject({ id, def: "@matomezu/control-center:screen" })
+  actions.bringScreenFront(before)
+  expect(frontScreen(state.getState().window).id).toBe(before)
+  actions.bringScreenFront(id)
+  actions.closeScreen(id)
+  expect(frontScreen(state.getState().window).id).toBe(before)
+  expect(state.getState().window.screens.some(s => s.id === id)).toBe(false)
+})

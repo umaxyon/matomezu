@@ -1,4 +1,4 @@
-/* 窓の根: 左サイドパネルと、ブックスクリーンとコントロールセンターを重ねた所を横に並べる。コントロールセンターを前に出すときは右から滑り込み、戻すときは右へ滑り出る */
+/* 窓の根: 左サイドパネルと、スクリーンを重ねた所を横に並べる。ステージを並べないスクリーンを前に出すときは右から滑り込み、ブックスクリーンへ戻すときは右へ滑り出る */
 .window {
   display: flex;
   flex: 1;
@@ -54,10 +54,24 @@
     transition: none;
   }
 }
+/* いちばん最近前に出した物でないブックスクリーンは、描いたまま出さない */
+.bookScreen[data-shown="false"] {
+  display: none;
+}
+/* ステージを並べないスクリーンを重ねる所 */
 .body {
+  position: relative;
   flex: 1;
   min-height: 0;
+}
+/* ステージを並べないスクリーン 1 枚。いちばん最近前に出した物だけを出し、ほかは描いたまま隠す */
+.plain {
+  position: absolute;
+  inset: 0;
   overflow: auto;
+}
+.plain[data-shown="false"] {
+  visibility: hidden;
 }
 /* 下の行（高さ・地・縁は utils/FooterRow と同じ） */
 .footer {

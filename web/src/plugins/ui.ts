@@ -55,7 +55,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:search-dialog",
     ],
     "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
-    "@matomezu/base:control-center-screen": ["@matomezu/control-center:screen"],
+    "@matomezu/control-center:screen": ["@matomezu/control-center:screen"],
     "@matomezu/base:control-center-side": ["@matomezu/taskboard:project-list"],
     "@matomezu/base:control-center-projects": ["@matomezu/taskboard:taskboard"],
     "@matomezu/base:workroom-columns": ["@matomezu/taskboard:workroom-columns"],
