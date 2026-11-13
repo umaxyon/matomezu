@@ -3,7 +3,7 @@ import { kit } from "../kit"
 
 // ブックスクリーンを描くウィジェットを置くスロット（ステージの列を並べるウィジェット workspace を置く）。名前は、ブックスクリーンの定義（index.ts の BOOK_SCREEN_DEF）の id と同じ
 export const BOOK_SCREEN = kit.name("book-screen")
-// ステージを並べないスクリーンが前に出ている間の、下の行に並べるウィジェットを置くスロット（止まり木のボタンなど）。何も受け取らない
+// カレントスクリーンがステージを並べないスクリーンの間の、下の行に並べるウィジェットを置くスロット（止まり木のボタンなど）。何も受け取らない
 export const CONTROL_CENTER_FOOTER = kit.name("control-center-footer")
 // コントロールセンターの左の列の、利用者パネルと参加者の一覧の間に並べるウィジェットを置くスロット（プロジェクトの一覧など）。何も受け取らない
 export const CONTROL_CENTER_SIDE = kit.name("control-center-side")

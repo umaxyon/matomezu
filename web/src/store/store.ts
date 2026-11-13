@@ -129,7 +129,7 @@ export interface MatomezuState {
   books: Readonly<Record<string, Book>> // ブックの id ごと（ゴミ箱のブックは除く）
   unreadable: readonly Warning[] // 残したブックのうち読めないもの（warning W004〜W006。データには手を付けず、開けない）
   partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
-  window: WindowState // 窓が前に出している物と、ブックスクリーンの並び（core/window.ts）
+  window: WindowState // 窓の、開いているスクリーンとカレントにした順・スクリーンアレンジメント（core/window.ts）
   settings: Settings
   annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
   records: Records // 対象の定義が足した種類ごとのレコード（core/records.ts。種類の id → id → レコード）
@@ -228,11 +228,11 @@ export interface Actions {
   closeContextMenu(): void
   showToast(toast: ToastInput): string // トーストを出し、その id を返す
   dismissToast(id: string): void // トーストを消す（もう無ければ何もしない）
-  // スクリーンを 1 枚開いて前に出し、開いた 1 枚の id を返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
+  // スクリーンを 1 枚開いてカレントにし、開いた 1 枚の id を返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
   // 機能台帳に無い定義・形に合わない値なら開かず、refused を返す
   openScreen(def: string, props: unknown): string
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
-  // 開いているスクリーン id を閉じる（前に出ていたなら、1 つ前に出していた物が前に出る）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
+  // 開いているスクリーン id を閉じる（カレントスクリーンだったなら、1 つ前にカレントだった物がカレントになる）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
   closeScreen(id: string): void
   setScreenArrangement(def: string): void // スクリーンアレンジメントを、定義 def に替える（機能台帳に無ければ替えない）
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
@@ -243,7 +243,7 @@ export interface Actions {
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（ページを持つブックは最初のページ）、カレントにする
-  openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにして、ブックスクリーンを前に出す
+  openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにして、そのブックスクリーンをカレントスクリーンにする
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
   setStageArea(id: string, area: Size | null, origin?: Point | null): void
@@ -501,7 +501,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       keyCache = { settings, table: keyTable([...defs.catalog.store.keys.values()], keyChangesOf(catalog, settings)) }
     return keyCache.table
   }
-  // 前に出せるブックスクリーンのステージの並びに操作をかける
+  // いちばん最近カレントにしたブックスクリーンのステージの並びに操作をかける
   const withWorkspace = (change: (ws: Workspace) => Workspace) => withWindow(win => mapScreen(win, change))
   // ステージ stage を並べているブックスクリーンのステージの並びに操作をかける（どのブックスクリーンのステージでも届く）
   const withStageScreen = (stage: string, change: (ws: Workspace) => Workspace) =>
@@ -898,7 +898,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     focusStage: id => withStageScreen(id, ws => focus(ws, id)),
     openBook: (stage, bookId) => {
       const book = getState().books[bookId]
-      // ブックを開くと、見る側のブックスクリーンを前に出す
+      // ブックを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
           makeCurrent(
@@ -910,7 +910,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openPage: (stage, page) => {
       const { books, window } = getState()
       const book = books[stageIn(window, stage)?.opened?.book ?? ""]
-      // ページを開くと、見る側のブックスクリーンを前に出す
+      // ページを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && hasPages(book) && inWindow(stage))
         withWindow(win =>
           makeCurrent(

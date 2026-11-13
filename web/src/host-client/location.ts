@@ -3,7 +3,7 @@
 // ならブラウザの履歴に積み（pushState）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。同じ同期の処理の中の
 // 変わりは、終わってから 1 つにまとめて書く（分割してブックとページを開いても、ブラウザの履歴に積むのは 1 つ）。ブラウザの戻る・進む（popstate）は、その URL の場所を当てはめる。
 // URL の形: 値 1 つ（sc）に、場所を短い名前の JSON で書く（searchOf）。前の形（b0・p0・v0・s0…、c・r・w・f）は読むだけで、書かない。
-// URL が無ければ、開いた直後はステージを並べないスクリーン（コントロールセンター）を前に出す。プラグイン状態の中身は読まない（形を確かめるのは store の locate）
+// URL が無ければ、開いた直後はステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする。プラグイン状態の中身は読まない（形を確かめるのは store の locate）
 import { type Address, moved, recentStagesIn, type ScreenPlace, type StagePlace } from "../core/address"
 import type { MatomezuInstance } from "../store/store"
 
@@ -86,7 +86,7 @@ export function searchOf(address: Address): string {
   return `?${q.toString()}`
 }
 
-// 前の形の URL から読んだ場所: 前に出す物の種類（ステージを並べるスクリーンか、そうでないスクリーンか）と、ブックスクリーンのステージの並び
+// 前の形の URL から読んだ場所: カレントスクリーンの種類（ステージを並べるスクリーンか、そうでないスクリーンか）と、ブックスクリーンのステージの並び
 export interface FormerAddress {
   former: true
   front: "control-center" | "book-screen"
@@ -178,8 +178,8 @@ function formerAddress(q: URLSearchParams): FormerAddress | null {
 // 前の形で、重ねて開いたスクリーンを書いていた、窓の範囲の値の名前
 const FORMER_OPENED = "@matomezu/base:open-screen"
 
-// 前の形の場所 former を、今の場所 now（開いているスクリーンの id を持つ）に重ねて、今の形にする: いちばん最近前に出したステージを並べるスクリーンに
-// ステージの並びを当て（ステージが無ければ今のまま）、前に出すのは、その種類のいちばん最近前に出したスクリーン
+// 前の形の場所 former を、今の場所 now（開いているスクリーンの id を持つ）に重ねて、今の形にする: いちばん最近カレントにしたステージを並べるスクリーンに
+// ステージの並びを当て（ステージが無ければ今のまま）、カレントスクリーンにするのは、その種類のいちばん最近カレントにしたスクリーン
 export function fromFormer(former: FormerAddress, now: Address): Address {
   const book = recentStagesIn(now)
   const screens = now.screens.map(s =>
@@ -220,7 +220,7 @@ export function followLocation(
   // 読んだ場所を、今の形の場所にする（前の形の URL は、今開いているスクリーンに重ねる）
   const read = (found: Address | FormerAddress): Address =>
     "former" in found ? fromFormer(found, instance.address()) : found
-  // URL が無い（開いた直後）なら、ステージを並べないスクリーン（コントロールセンター）を前に出す
+  // URL が無い（開いた直後）なら、ステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする
   const start: Address | FormerAddress = parseSearch(place.search()) ?? {
     former: true,
     front: "control-center",

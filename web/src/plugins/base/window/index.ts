@@ -1,4 +1,4 @@
-// 窓のスクリーンの定義（ブックスクリーン）と、窓のコマンド: 前に出す物（ステージを並べないスクリーンかブックスクリーン）の切り替え
+// 窓のスクリーンの定義（ブックスクリーン）と、窓のコマンド: カレントスクリーン（ステージを並べないスクリーンかブックスクリーン）の切り替え
 import { z } from "zod"
 import type { CalledScreen, ScreenCommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"

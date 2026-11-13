@@ -126,9 +126,9 @@ const openedOf = (stage: Stage) => {
   }
 }
 
-// 窓が見ているもの。front は窓が前に出している物（control-center か book-screen）。
-// ブックスクリーンを前に出している間は、book・page・mode（編集か印刷プレビューか）・selection はカレントのステージのもの（何も開いていなければ book は null）。
-// コントロールセンターを前に出している間は、後ろに隠れているブックスクリーンのそれらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）
+// 窓が見ているもの。front はカレントスクリーンの種類（ステージを並べるスクリーンなら book-screen、そうでなければ control-center）。
+// book・page・mode（編集か印刷プレビューか）・selection は、いちばん最近カレントにしたブックスクリーンの、カレントのステージのもの（何も開いていなければ book は null）。
+// そのブックスクリーンが見えているスクリーンでなければ、それらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）
 export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
   const book = recentBookScreen(state.window)
   const ws = book.stages
