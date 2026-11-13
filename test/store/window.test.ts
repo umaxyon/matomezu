@@ -1,12 +1,13 @@
 // 窓の状態（core/window.ts）: コントロールセンターかブックスクリーンを前に出す。前に出す物を替えても、ブックスクリーンの中は残る。
 // コントロールセンターを前に出している間、後ろのブックスクリーンは見えていない物として扱い、キーも届かない
+
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import type { MatomezuError } from "../../web/src/core/errors"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import {
   closeScreen,
   currentScreen,
-  viewFrontOf,
   makeCurrent,
   newWindow,
   openScreen,
@@ -14,6 +15,7 @@ import {
   shownBookScreens,
   shownScreens,
   stageIn,
+  viewFrontOf,
 } from "../../web/src/core/window"
 import { showIn, viewOf } from "../../web/src/host-client/server"
 import { BUILTIN } from "../../web/src/plugins"
@@ -243,4 +245,28 @@ test("窓を開いたときのスクリーンアレンジメントを 2 つが�
     codes = (e as MatomezuError).details.map(p => p.code)
   }
   expect(codes).toContain("E054")
+})
+
+test("ステージを並べるスクリーンの定義を 2 つが名乗ると、台帳アセンブルの error（E055）", () => {
+  const kit = pluginKit("k", defineMessages({ Other: { en: "Other", ja: "ほか" } }))
+  const OTHER = kit.defineScreen({
+    id: "other",
+    title: "Other",
+    aiDescription: "Another screen that lines stages up.",
+    props: z.strictObject({}),
+    stages: true,
+  })
+  let codes: string[] = []
+  try {
+    createMatomezu({
+      plugins: [...BUILTIN, kit.plugin({ screens: [OTHER] })],
+      controlCenter: "@matomezu/control-center:control-center",
+      books: SAMPLE_BOOKS,
+      lang: "ja",
+      partial: true,
+    })
+  } catch (e) {
+    codes = (e as MatomezuError).details.map(p => p.code)
+  }
+  expect(codes).toContain("E055")
 })

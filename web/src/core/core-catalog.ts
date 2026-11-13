@@ -340,6 +340,9 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   // 窓を開いたときのスクリーンアレンジメントは 1 つだけ
   const atStart = parts.screenArrangements.filter(a => a.atStart)
   for (const a of atStart.slice(1)) problems.push(problem("E054", { id: a.id, other: atStart[0]?.id ?? "" }))
+  // ステージを並べるスクリーンの定義（ブックスクリーン）は 1 つだけ（窓は、その定義から何枚でも開く）
+  const staged = parts.screens.filter(d => d.stages)
+  for (const d of staged.slice(1)) problems.push(problem("E055", { id: d.id, other: staged[0]?.id ?? "" }))
   const subjects = new Set<string>(parts.subjects.map(s => s.id))
   for (const s of parts.subjects)
     if (!(s.record.shape.id instanceof z.ZodString)) problems.push(problem("E045", { id: s.id }))

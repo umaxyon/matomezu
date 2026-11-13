@@ -27,7 +27,7 @@ export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends stri
   title: Tt
   aiDescription: string // AI 向けの説明（英語。MCP の actions の subjects で見せる。何のレコードで、AI がどう行うか）
   record: R // レコード 1 件の形。id（文字）を持つ
-  // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す種類は、アクションの reads に書く）
+  // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す先は core が読むので、アクションの reads に書かなくてよい）
   refers?(record: z.output<R>): readonly { subject: string; id: string }[]
   role?: SubjectRole // 常駐が種類で引く役（参加者・ワークルーム）
   // レコード 1 件の、形（record）のほかの確かめ。効かない所があれば warning を返す（無ければ空）。書いた種類は、形の確かめもここで行う（形に合わないレコードも渡る）。
