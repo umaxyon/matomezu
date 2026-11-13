@@ -28,7 +28,7 @@ test("スクロールは、見える所に入っていれば動かさず、は�
   expect(nearestShift(100, 160, 0, 500, 56)).toBe(0)
   expect(nearestShift(30, 90, 0, 500, 56)).toBe(-26) // 上に鳥の場所が足りない
   expect(nearestShift(450, 560, 0, 500)).toBe(60)
-  expect(nearestShift(100, 900, 0, 500)).toBe(100 - 0 - 0 > 0 ? 100 : 0) // 範囲より大きい物は始めを合わせる
+  expect(nearestShift(100, 900, 0, 500)).toBe(100) // 範囲より大きい物は、始めを範囲の始めに合わせる
 })
 
 test("置き場が変わった・つながりが切れた・inert・手前を覆われたら、置き場が変わったとする", () => {
