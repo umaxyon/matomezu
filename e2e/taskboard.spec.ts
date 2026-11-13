@@ -105,3 +105,35 @@ test("ワークルームのボードで見るを押すと、出ていないタ�
   await expect(page.locator("[data-card-visit]")).toHaveCount(0, { timeout: 10_000 })
   await expect(card).toHaveAttribute("data-lit", "false")
 })
+
+test("レーンのタイトル帯をドラッグすると、レーンが左右に入れ替わり、離す前は入るすき間に線が出る", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(CONTROL_CENTER_URL)
+  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
+    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await records(page, "@matomezu/taskboard:project"))[0]!
+  const board = page.locator(`[data-board="${first.id}"]`)
+  const lanes = board.locator("[data-lane]")
+  const ids = async () => lanes.evaluateAll(els => els.map(e => e.getAttribute("data-lane")))
+  const before = await ids()
+  expect(before.length).toBeGreaterThan(1)
+  const [a, b] = before as [string, string]
+
+  // タイトル帯の字は選べない
+  await expect(lanes.nth(1).locator("> div").first()).toHaveCSS("user-select", "none")
+
+  // つかんで先頭のレーンの上へ運ぶと、先頭の手前（左の辺）に印が出て、離すと入れ替わる
+  const handle = lanes.nth(1).locator("> div").first()
+  const from = (await handle.boundingBox())!
+  const over = (await lanes.nth(0).boundingBox())!
+  await page.mouse.move(from.x + 40, from.y + 6)
+  await page.mouse.down()
+  await page.mouse.move(over.x + 40, over.y + 60, { steps: 8 })
+  await expect(lanes.nth(0)).toHaveAttribute("data-drop", "before")
+  await page.mouse.up()
+  await expect.poll(ids).toEqual([b, a, ...before.slice(2)])
+
+  // 戻す
+  await lanes.nth(1).locator("> div").first().dragTo(lanes.nth(0))
+  await expect.poll(ids).toEqual(before)
+})

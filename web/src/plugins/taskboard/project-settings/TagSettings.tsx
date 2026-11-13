@@ -7,7 +7,7 @@ import { useMessages } from "../../../plugin-api/ui"
 import { ColorPicker, type Swatch } from "../../base/ui"
 import { kit } from "../kit"
 import { TAG_NAME_MAX } from "../project"
-import { NameInput, PromptSplit, rowProps } from "./PromptSplit"
+import { NameField, PromptSplit, rowProps } from "./PromptSplit"
 import type { TagRow } from "./rows"
 import type { EditableRows } from "./useEditableRows"
 
@@ -42,8 +42,9 @@ export function TagSettings({ tags, repeated }: { tags: EditableRows<TagRow>; re
               if (role) change(tag.key, { color: role })
             }}
           />
-          <NameInput
+          <NameField
             label={t("Tag name")}
+            editLabel={t("Edit the name")}
             value={tag.name}
             max={TAG_NAME_MAX}
             repeated={repeated.has(tag.key)}

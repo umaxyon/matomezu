@@ -8,12 +8,13 @@ import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { PROJECT_UPDATE } from "../project/actions"
 import { useOpenProjectSettings } from "../project-settings/useOpenProjectSettings"
+import scroll from "../scrollbar.module.css"
 import { TICKET } from "../ticket"
 import { MAXIMIZED } from "."
+import { BoardLanes } from "./BoardLanes"
 import { CardVisitView } from "./CardVisitView"
-import { LaneView } from "./LaneView"
 import { maximizedAmong, released, toggleBoard, toggleLane } from "./maximize"
-import { lanesOf, orderedProjects, shownProjects, ticketsByLane } from "./shown"
+import { orderedProjects, shownProjects, ticketsByLane } from "./shown"
 import styles from "./TaskboardView.module.css"
 import { useBoardPhases } from "./useBoardPhases"
 import { useBoardSettings } from "./useBoardSettings"
@@ -37,7 +38,7 @@ export function TaskboardView() {
 
   if (ordered.length === 0) return <p className={styles.empty}>{t("No projects")}</p>
   return (
-    <div ref={setRoot} className={styles.root}>
+    <div ref={setRoot} className={`${styles.root} ${scroll.thin}`}>
       {rendered.map(project => {
         const phase = phases[project.id] ?? "idle"
         const hidden = maximized !== undefined && maximized.board !== project.id
@@ -57,20 +58,13 @@ export function TaskboardView() {
               maximized={maximized?.board === project.id && laneMax === undefined}
               onToggleMaximize={() => updateMaximized(now => toggleBoard(now, project.id))}
             >
-              <div className={styles.lanes} data-lane-max={laneMax !== undefined}>
-                {lanesOf(project).map(lane => (
-                  <LaneView
-                    key={lane.id}
-                    project={project}
-                    lane={lane}
-                    tickets={byLane[lane.id] ?? []}
-                    workrooms={workrooms}
-                    maximized={laneMax === lane.id}
-                    folded={laneMax !== undefined && laneMax !== lane.id}
-                    onToggleMaximize={() => updateMaximized(now => toggleLane(now, project.id, lane.id))}
-                  />
-                ))}
-              </div>
+              <BoardLanes
+                project={project}
+                byLane={byLane}
+                workrooms={workrooms}
+                laneMax={laneMax}
+                onToggleMaximize={lane => updateMaximized(now => toggleLane(now, project.id, lane))}
+              />
             </TitledArea>
           </div>
         )

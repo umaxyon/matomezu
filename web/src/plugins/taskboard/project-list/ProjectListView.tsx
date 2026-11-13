@@ -24,11 +24,11 @@ export function ProjectListView() {
   const ids = ordered.map(p => p.id)
   const shown = shownProjects(ordered, settings.shown).map(p => p.id)
   const { register, snapshot } = useReorderAnimation(ids)
-  const { dragRowProps, gripProps } = useGripDrag((dragging, over) => {
+  const { dragRowProps, gripProps, markClass } = useGripDrag((dragging, over) => {
     if (!settings.canChange) return
     snapshot()
     settings.setOrder(moved(ids, dragging, over))
-  })
+  }, ids)
   const toggle = (id: string) => {
     if (!settings.canChange) return
     settings.setShown(shown.includes(id) ? shown.filter(s => s !== id) : [...shown, id])
@@ -51,7 +51,7 @@ export function ProjectListView() {
                 <li
                   key={project.id}
                   ref={register(project.id)}
-                  className={styles.row}
+                  className={`${styles.row} ${markClass}`}
                   data-project={project.id}
                   {...(settings.canChange ? dragRowProps(project.id) : {})}
                 >

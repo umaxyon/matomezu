@@ -36,6 +36,27 @@
 .name[aria-invalid="true"] {
   border-color: var(--skin-danger);
 }
+/* ラベルと、すぐ右の鉛筆（行の残りの幅はこの入れ物が取る） */
+.nameView {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.nameLabel {
+  flex: 0 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nameLabel[data-invalid="true"] {
+  color: var(--skin-danger);
+}
 .label {
   flex: 1;
   min-width: 0;

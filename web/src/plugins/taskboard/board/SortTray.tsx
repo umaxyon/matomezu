@@ -22,11 +22,14 @@ export function SortTray({
 }) {
   const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
-  const { dragRowProps, gripProps } = useGripDrag((dragging, over) => {
-    const from = rules.find(r => r.key === dragging)
-    const to = rules.find(r => r.key === over)
-    if (from && to) onChange(moved(rules, from, to))
-  })
+  const { dragRowProps, gripProps, markClass } = useGripDrag(
+    (dragging, over) => {
+      const from = rules.find(r => r.key === dragging)
+      const to = rules.find(r => r.key === over)
+      if (from && to) onChange(moved(rules, from, to))
+    },
+    rules.map(r => r.key),
+  )
   const change = (key: SortRule["key"], patch: Partial<SortRule>) =>
     onChange(rules.map(r => (r.key === key ? { ...r, ...patch } : r)))
   const nameOf = (key: SortRule["key"]) =>
@@ -54,7 +57,7 @@ export function SortTray({
   return (
     <div ref={ref} className={styles.tray} role="dialog" aria-label={t("Sort cards")}>
       {rules.map(r => (
-        <div key={r.key} className={styles.row} data-on={r.on} {...dragRowProps(r.key)}>
+        <div key={r.key} className={`${styles.row} ${markClass}`} data-on={r.on} {...dragRowProps(r.key)}>
           <Grip {...gripProps(r.key)} />
           <label className={styles.name}>
             <input type="checkbox" checked={r.on} onChange={e => change(r.key, { on: e.target.checked })} />
