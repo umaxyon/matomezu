@@ -65,6 +65,15 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
     return false
   })
   expect(wide).toBe(false)
+  // 本文のスクロールバーは、本文の枠の右端に沿う（枠の右の線の内側まで）
+  const gap = await screen.evaluate(el => {
+    const preview = el.querySelector('[class*="preview"]')
+    const frame = preview?.closest("section")
+    return frame && preview
+      ? Math.round(frame.getBoundingClientRect().right - 1 - preview.getBoundingClientRect().right)
+      : -1
+  })
+  expect(gap).toBe(0)
   // チケット履歴: 起票の行・状況・質問（吹き出し）
   await expect(screen.getByText("チケットを起票しました")).toBeVisible()
   await expect(screen.getByText("調べています")).toBeVisible()
