@@ -69,7 +69,7 @@ export const PROJECT = kit.defineSubject({
   id: "project",
   title: "project",
   aiDescription:
-    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; a ticket gets there only through ticket-complete) and the ticket tags (each with a prompt that tells you how to handle the tickets with the tag).",
+    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; a ticket gets there only through ticket-complete: the prompt of the done lane tells when a ticket is done, and then you complete it with ticket-complete) and the ticket tags (each with a prompt that tells you how to handle the tickets with the tag).",
   record: z.strictObject({
     id: z.string().min(1),
     name: z.string().trim().min(1).max(PROJECT_NAME_MAX),

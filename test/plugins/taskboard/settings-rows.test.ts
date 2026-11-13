@@ -5,6 +5,7 @@ import { expect, test } from "bun:test"
 import { PROJECT } from "../../../web/src/plugins/taskboard/project"
 import {
   doneChoices,
+  doneElsewhereOf,
   doneLaneBlocked,
   doneLaneOf,
   hidesTickets,
@@ -127,4 +128,15 @@ test("完了のレーンは、名前のあるレーンの行から選ぶ。選�
   expect(doneLaneBlocked(project, added, "new-1", tickets)).toBe(false)
   expect(doneLaneBlocked(project, added, first.key, [{ ...tickets[0]!, assignees: [] }])).toBe(false)
   expect(doneLaneBlocked({ ...project, doneLane: first.id as string }, added, first.key, tickets)).toBe(false)
+})
+
+test("行を完了のレーンにしようとしたとき、ほかの行が完了のレーンなら、その行の今の名前を返す（無いか自分なら null）", () => {
+  const { project: current } = withProject()
+  const lanes = laneRowsOf(current())
+  const added: LaneRow[] = [...lanes, lane("new-1", "  見直し ")]
+  const first = added.find(l => l.kind === "lane") as Extract<LaneRow, { kind: "lane" }>
+  expect(doneElsewhereOf(added, "none", "new-1")).toBeNull()
+  expect(doneElsewhereOf(added, "new-1", "new-1")).toBeNull()
+  expect(doneElsewhereOf(added, "new-1", first.key)).toBe("見直し")
+  expect(doneElsewhereOf(added, "unsorted", first.key)).toBeNull()
 })

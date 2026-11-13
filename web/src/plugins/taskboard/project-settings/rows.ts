@@ -75,6 +75,12 @@ export function doneLaneOf(lanes: readonly LaneRow[], doneKey: string): string {
   return row ? (row.id ?? row.name.trim()) : NO_DONE_LANE
 }
 
+// 行 key を完了のレーンにしようとしたとき、ほかの行がもう完了のレーンなら、その行の今の名前（無ければ null）
+export function doneElsewhereOf(lanes: readonly LaneRow[], doneKey: string, key: string): string | null {
+  const other = doneChoices(lanes).find(l => l.key === doneKey)
+  return other && other.key !== key ? other.name.trim() : null
+}
+
 // 完了のレーンに選んだ行に、担当のいるチケットがあるか（保存すると断られる。もう完了のレーンの行は、そのまま通る）
 export function doneLaneBlocked(
   project: Project,

@@ -21,8 +21,8 @@ export const PROJECT_MESSAGES = defineMessages({
   },
   "template lane done": { en: "Done", ja: "完了" },
   "template lane done prompt": {
-    en: "When the commits are merged into main and no work is left, move the ticket to this lane",
-    ja: "コミットがmainにマージされ、残作業が無くなったらこのレーンにチケットを移動する",
+    en: "When the commits are merged into main and no work is left, complete the ticket with ticket-complete",
+    ja: "コミットがmainにマージされ、残作業が無くなったら ticket-complete で完了にする",
   },
   "template tag task": { en: "Task", ja: "タスク" },
   "template tag task prompt": {

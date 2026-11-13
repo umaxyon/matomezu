@@ -4,12 +4,17 @@ import { defineMessages } from "../../../plugin-api"
 export const PROJECT_SETTINGS_MESSAGES = defineMessages({
   "Project settings": { en: "Project settings", ja: "プロジェクト設定" },
   General: { en: "General", ja: "全般" },
-  "Done lane": { en: "Done lane", ja: "完了のレーン" },
+  "Make it the done lane": { en: "Make it the done lane", ja: "完了レーンにする" },
+  "{name} is the done lane now. Change it?": {
+    en: "{name} is the done lane now. Change it?",
+    ja: "完了レーンに「{name}」が設定されています。変更しますか？",
+  },
+  "Change it": { en: "Change", ja: "変更する" },
+  "Keep it": { en: "Keep", ja: "やめる" },
   "The done lane has tickets with assignees: complete them first": {
     en: "The done lane has tickets with assignees: complete them first",
     ja: "完了のレーンに、担当のいるチケットがあります。先に完了にしてください",
   },
-  "No done lane": { en: "None", ja: "なし" },
   "Edit the name": { en: "Edit the name", ja: "名前を編集" },
   "Ticket tags": { en: "Ticket tags", ja: "チケットタグ" },
   Lanes: { en: "Lanes", ja: "レーン" },

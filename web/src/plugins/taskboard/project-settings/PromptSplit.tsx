@@ -83,6 +83,7 @@ export function PromptSplit({
   addLabel,
   onAdd,
   promptTitle,
+  promptHead,
   prompt,
   onPromptChange,
 }: {
@@ -91,6 +92,7 @@ export function PromptSplit({
   addLabel: string
   onAdd: () => void
   promptTitle: string
+  promptHead?: ReactNode // 選んだ行のプロンプトの見出しの上に置く物（レーンの「完了レーンにする」など）
   prompt: string | undefined // 選んだ行のプロンプト。undefined は、プロンプトを持つ行を選んでいない
   onPromptChange: (prompt: string) => void
 }) {
@@ -108,6 +110,7 @@ export function PromptSplit({
         </div>
       </div>
       <div className={styles.prompt}>
+        {prompt !== undefined ? promptHead : null}
         {prompt !== undefined ? (
           <label className={styles.promptField}>
             <span className={styles.promptTitle}>{promptTitle}</span>

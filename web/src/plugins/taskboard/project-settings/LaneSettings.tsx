@@ -1,9 +1,10 @@
 // プロジェクト設定の「レーン」: 上に「未分類を表示する」のスイッチ、左にレーンの一覧（つまみ・名前、「レーン追加」、つまみのドラッグで並べ替え）、右に選んだレーンの「レーンプロンプト」。
+// プロンプトの上に「完了レーンにする」のスイッチ（名前のあるレーンだけ）。ほかのレーンが完了のレーンなら、入れる前に確かめる。切ると完了のレーンは無し。
 // 未分類の行は、スイッチが入っている間だけ並びに出る（「未分類」の字とつまみ。プロンプトは書けない）。切っても並びの位置は残る。
 // 名前の入力Formを離れたとき、空か、ほかのレーンと重なっていれば片付ける（settings-rows）
 import { useId, useState } from "react"
 import { useMessages } from "../../../plugin-api/ui"
-import { controlClass, Switch } from "../../base/ui"
+import { Confirm, Switch } from "../../base/ui"
 import { kit } from "../kit"
 import { LANE_NAME_MAX, NO_DONE_LANE } from "../project"
 import { Grip } from "../reorder/Grip"
@@ -12,7 +13,7 @@ import { useReorderAnimation } from "../reorder/useReorderAnimation"
 import settings from "./ProjectSettingsDialog.module.css"
 import { NameField, PromptSplit, rowProps } from "./PromptSplit"
 import styles from "./PromptSplit.module.css"
-import { doneChoices, type LaneRow } from "./rows"
+import { doneChoices, doneElsewhereOf, type LaneRow } from "./rows"
 import type { EditableRows } from "./useEditableRows"
 
 export function LaneSettings({
@@ -46,6 +47,16 @@ export function LaneSettings({
   )
   const chosen = rows.find(r => r.key === selected)
   const switchId = useId()
+  const doneId = useId()
+  // 完了のレーンにしようとして、確かめている行の鍵と、今の完了のレーンの名前
+  const [asking, setAsking] = useState<{ key: string; now: string } | null>(null)
+  const doneChoice = doneChoices(rows).find(r => r.key === chosen?.key)
+  const toggleDone = (key: string, on: boolean) => {
+    if (!on) return onDone(NO_DONE_LANE)
+    const now = doneElsewhereOf(rows, done, key)
+    if (now === null) onDone(key)
+    else setAsking({ key, now })
+  }
   return (
     <>
       <div className={settings.switchRow}>
@@ -57,17 +68,6 @@ export function LaneSettings({
         />
         <label htmlFor={switchId}>{t("Show unsorted")}</label>
       </div>
-      <label className={settings.switchRow}>
-        {t("Done lane")}
-        <select className={controlClass} value={done} onChange={e => onDone(e.target.value)}>
-          <option value={NO_DONE_LANE}>{t("No done lane")}</option>
-          {doneChoices(rows).map(r => (
-            <option key={r.key} value={r.key}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-      </label>
       <PromptSplit
         notes={[
           ...(repeated.size > 0 ? [t("The names repeat")] : []),
@@ -77,6 +77,19 @@ export function LaneSettings({
         addLabel={t("Add a lane")}
         onAdd={() => setSelected(add({ kind: "lane", prompt: "" }))}
         promptTitle={t("Lane prompt")}
+        promptHead={
+          doneChoice ? (
+            <div className={settings.switchRow}>
+              <Switch
+                id={doneId}
+                label={t("Make it the done lane")}
+                checked={done === doneChoice.key}
+                onChange={on => toggleDone(doneChoice.key, on)}
+              />
+              <label htmlFor={doneId}>{t("Make it the done lane")}</label>
+            </div>
+          ) : null
+        }
         prompt={chosen?.kind === "lane" ? chosen.prompt : undefined}
         onPromptChange={prompt => chosen && change(chosen.key, { prompt })}
       >
@@ -106,6 +119,18 @@ export function LaneSettings({
           </div>
         ))}
       </PromptSplit>
+      {asking ? (
+        <Confirm
+          message={t("{name} is the done lane now. Change it?", { name: asking.now })}
+          ok={t("Change it")}
+          cancel={t("Keep it")}
+          onOk={() => {
+            onDone(asking.key)
+            setAsking(null)
+          }}
+          onCancel={() => setAsking(null)}
+        />
+      ) : null}
     </>
   )
 }
