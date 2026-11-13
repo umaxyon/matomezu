@@ -3,9 +3,9 @@
 import { expect, test } from "bun:test"
 import type { Actor } from "../../../web/src/core/actor"
 import { performIn } from "../../../web/src/core/perform"
-import { CURRENT } from "../../../web/src/plugins/taskboard/current"
-import { HISTORY, HISTORY_TOPIC } from "../../../web/src/plugins/taskboard/history"
+import { CURRENT } from "../../../web/src/plugins/taskboard/current-ticket"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
+import { HISTORY, HISTORY_TOPIC } from "../../../web/src/plugins/taskboard/ticket-history"
 import { CORE_CATALOG, newStore } from "../../support"
 
 const LOG = "ticket-history-add"

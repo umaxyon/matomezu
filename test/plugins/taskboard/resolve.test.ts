@@ -1,7 +1,7 @@
 // AI が指す物（レーン・タグ・ワークルーム）を id か名前から 1 つに決める: 予約語 → id → 名前（前後の空白を除いた完全一致。大文字小文字は分ける）
 
 import { expect, test } from "bun:test"
-import { resolve } from "../../../web/src/plugins/taskboard/resolve"
+import { resolve } from "../../../web/src/plugins/taskboard/ticket/resolve"
 
 const lanes = [
   { id: "l1", name: "未着手" },

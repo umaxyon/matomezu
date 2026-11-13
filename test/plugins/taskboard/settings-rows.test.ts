@@ -13,7 +13,7 @@ import {
   type TagRow,
   tagRowsOf,
   updateArgsOf,
-} from "../../../web/src/plugins/taskboard/settings-rows"
+} from "../../../web/src/plugins/taskboard/project-settings/rows"
 import { newStore } from "../../support"
 
 type Project = Parameters<typeof laneRowsOf>[0]

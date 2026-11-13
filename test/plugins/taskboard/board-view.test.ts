@@ -1,24 +1,22 @@
-// タスクボードの見せ方の決め事（taskboard/board.ts・sort.ts・maximize.ts・ticket-label.ts）と、利用者の設定 2 つ（settings.ts）
+// タスクボードの見せ方の決め事（taskboard/board の shown.ts・sort.ts・maximize.ts）・今のチケット（current-ticket/task.ts）・チケットの番号と担当（ticket/label.ts・assignees.ts）と、利用者の設定 2 つ（board/user-settings.ts）
 import { expect, test } from "bun:test"
 import { autoInputOf } from "../../../web/src/plugins/base/settings/user-settings"
+import { maximizedAmong, released, toggleBoard, toggleLane } from "../../../web/src/plugins/taskboard/board/maximize"
 import {
-  assigneesOf,
-  type CurrentRecord,
-  currentTaskOf,
-  type HistoryRecord,
   lanesOf,
-  newestFirst,
   orderedProjects,
   type ProjectRecord,
   shownProjects,
   type TicketRecord,
   tagOf,
   ticketsByLane,
-} from "../../../web/src/plugins/taskboard/board"
-import { maximizedAmong, released, toggleBoard, toggleLane } from "../../../web/src/plugins/taskboard/maximize"
-import { PROJECT_ORDER, SHOWN_PROJECTS } from "../../../web/src/plugins/taskboard/settings"
-import { DEFAULT_SORT, type SortRules, sortTickets } from "../../../web/src/plugins/taskboard/sort"
-import { ticketLabel } from "../../../web/src/plugins/taskboard/ticket-label"
+} from "../../../web/src/plugins/taskboard/board/shown"
+import { DEFAULT_SORT, type SortRules, sortTickets } from "../../../web/src/plugins/taskboard/board/sort"
+import { PROJECT_ORDER, SHOWN_PROJECTS } from "../../../web/src/plugins/taskboard/board/user-settings"
+import { type CurrentRecord, currentTaskOf } from "../../../web/src/plugins/taskboard/current-ticket/task"
+import { assigneesOf } from "../../../web/src/plugins/taskboard/ticket/assignees"
+import { ticketLabel } from "../../../web/src/plugins/taskboard/ticket/label"
+import { type HistoryRecord, newestFirst } from "../../../web/src/plugins/taskboard/ticket-history"
 import { CORE_CATALOG } from "../../support"
 
 const project = (id: string, over: Partial<ProjectRecord> = {}): ProjectRecord => ({
@@ -106,7 +104,9 @@ test("タグは id で引き、タグなしと無いタグは無い物として�
   expect(tagOf(p, ticket("T1", { tag: "bug" }))?.name).toBe("バグ")
   expect(tagOf(p, ticket("T1", { tag: "none" }))).toBeUndefined()
   expect(tagOf(p, ticket("T1", { tag: "gone" }))).toBeUndefined()
-  expect(assigneesOf(ticket("T1", { assignees: ["r2", "gone", "r1"] }), ["r1", "r2"])).toEqual(["r2", "r1"])
+  expect(
+    assigneesOf(ticket("T1", { assignees: ["r2", "gone", "r1"] }), [{ id: "r1" }, { id: "r2" }]).map(w => w.id),
+  ).toEqual(["r2", "r1"])
 })
 
 test("並べ方は、使う項目を上から比べる。既定は id の降順。タグは設定の並びの順で、タグなしと無いタグは最後。何も使わなければ元の並び", () => {

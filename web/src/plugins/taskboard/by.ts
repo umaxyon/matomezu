@@ -19,7 +19,7 @@ export const BY = z.discriminatedUnion("kind", [
 ])
 export type By = z.output<typeof BY>
 
-type Records = { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> }
+export type Records = { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> }
 
 export const workroomOf = (ctx: Records, id: string) =>
   ctx.records?.[WORKROOM_SUBJECT]?.[id] as RecordOf<typeof WORKROOM_SUBJECT> | undefined
