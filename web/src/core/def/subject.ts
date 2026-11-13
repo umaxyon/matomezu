@@ -60,5 +60,7 @@ export interface SubjectDef<
   aiList?: { order: Order<keyof Ks & string>; limit: number }
   // 一覧（read_records）の 1 行に、id と題のほかに添えるフィールド（見分けに要る物だけ。aiList を書いた種類だけが使える）
   aiRow?(record: z.output<R>): Readonly<Record<string, unknown>>
+  // この種類を宛先か writes に書いてよい、ほかのプラグインの id の並び（持ち主が許す。書かなければ、ほかのどのプラグインにも許さない。同じプラグインのアクションは書かなくてよい）
+  writableBy?: readonly string[]
   numbered?: true // レコードに番号を振る種類。アクションは ctx.number(区切り) で次の番号を受け取る（常駐が決める。区切りごとに連番で、使い回さない）
 }

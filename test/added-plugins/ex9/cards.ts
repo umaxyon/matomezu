@@ -7,7 +7,13 @@ export const SHELF = kit.defineSubject({
   id: "shelf",
   title: "shelf",
   aiDescription: "A shelf of cards: a name, and closed (no card can be added to a closed shelf).",
-  record: z.strictObject({ id: z.string().min(1), name: z.string().min(1).max(40), closed: z.boolean() }),
+  record: z.strictObject({
+    id: z.string().min(1),
+    name: z.string().min(1).max(40),
+    closed: z.boolean(),
+    stamps: z.number().int().min(0).optional(), // 押されたスタンプの数（ex14 が、許されて増やす）
+  }),
+  writableBy: ["ex14"], // ex14 のアクションが、棚を変えてよい（持ち主が許す）
 })
 
 export const CARD = kit.defineSubject({

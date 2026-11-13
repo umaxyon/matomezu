@@ -1,7 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test, urlPlace } from "../fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace } from "../fixtures"
 import { footerMenuTool } from "../helpers/footer-menu"
 import { fromMenu } from "../helpers/stage-menu"
 
@@ -268,6 +268,32 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
   // 画面も ex7 の見た目を読み、置き場の木箱を描く
   await page.goto(`/?b0=${yard.id}&p0=p1`)
   await expect(page.locator("[data-ex7-crate]")).toHaveCount(2)
+})
+
+test("ex9 と ex14 を読ませると、ex14 のアクションが、ex9 が許した（writableBy）棚を、自分のスタンプの作成と同じ 1 トランザクションで変えて残し、読み直しても同じ。ex9 が許していない種類には書けない", async ({
+  page,
+}) => {
+  await link(page, "test/added-plugins/ex9", "test/added-plugins/ex14")
+  const perform = async (body: object) =>
+    (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data: body })).json()
+  const shelf = await perform({ action: "ex9:shelf-add", args: { name: "本棚" } })
+  expect(shelf.ok).toBe(true)
+  const id = shelf.result.shelf as string
+  expect(await perform({ action: "ex14:stamp-add", args: { shelf: id, mark: "★" } })).toMatchObject({ ok: true })
+  expect(await perform({ action: "ex14:stamp-add", args: { shelf: id, mark: "◎" } })).toMatchObject({ ok: true })
+  expect(await perform({ action: "ex14:stamp-add", args: { shelf: "nothing", mark: "★" } })).toMatchObject({
+    ok: false,
+  })
+  const records = (await data(page)).records
+  expect(records["ex9:shelf"][id].stamps).toBe(2)
+  expect(
+    Object.values(records["ex14:stamp"])
+      .map(r => (r as { mark: string }).mark)
+      .sort(),
+  ).toEqual(["★", "◎"].sort())
+  // 読み直しても同じ（常駐が 1 回の書き込みで残している）
+  await page.reload()
+  expect((await data(page)).records["ex9:shelf"][id].stamps).toBe(2)
 })
 
 test("ex8 を読ませると、自分の見せ方のビューが開いたページのカードを描き、印刷プレビューは印刷区画 1 つのビュー（printSheet）でページごとに紙を描く", async ({
