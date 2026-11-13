@@ -7,7 +7,7 @@ import {
   placementBroken,
   samePlace,
   withProject,
-} from "../../../web/src/plugins/taskboard/visit"
+} from "../../../web/src/plugins/taskboard/board/visit"
 
 const rect = { left: 10, top: 100, width: 200, height: 60 }
 const ok: Placement = { rect, connected: true, inert: false, covered: false }

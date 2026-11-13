@@ -1,29 +1,20 @@
 // タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
 import { defineBuiltin } from "../../plugin-api/builtin"
-import {
-  CURRENT_TICKET_SET,
-  PROJECT_ADD,
-  PROJECT_CLOSE,
-  PROJECT_REOPEN,
-  PROJECT_UPDATE,
-  TICKET_ADD,
-  TICKET_HISTORY_ADD,
-  TICKET_LOCK,
-  TICKET_REMOVE,
-  TICKET_UNLOCK,
-  TICKET_UPDATE,
-} from "./actions"
-import { CURRENT } from "./current"
-import { HISTORY, HISTORY_TOPIC, TOPIC_BODY, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./history"
+import { CARD_VISIT, LANE_SORTS, MAXIMIZED } from "./board"
+import { PROJECT_ORDER, SHOWN_PROJECTS } from "./board/user-settings"
+import { CURRENT } from "./current-ticket"
+import { CURRENT_TICKET_SET } from "./current-ticket/actions"
 import { kit } from "./kit"
-import { CLOSED_PROJECT } from "./permission"
 import { PROJECT } from "./project"
-import { PROJECT_ORDER, SHOWN_PROJECTS } from "./settings"
-import { PROJECT_SETTINGS_DIALOG } from "./settings-dialog"
-import { CARD_VISIT, LANE_SORTS, LIST_OPEN, MAXIMIZED } from "./states"
-
+import { PROJECT_ADD, PROJECT_CLOSE, PROJECT_REOPEN, PROJECT_UPDATE } from "./project/actions"
+import { LIST_OPEN } from "./project-list"
+import { PROJECT_SETTINGS_DIALOG } from "./project-settings"
 import { TICKET } from "./ticket"
-import { TICKET_SCREEN_STATE } from "./ticket-screen-state"
+import { TICKET_ADD, TICKET_LOCK, TICKET_REMOVE, TICKET_UNLOCK, TICKET_UPDATE } from "./ticket/actions"
+import { CLOSED_PROJECT } from "./ticket/permission"
+import { HISTORY, HISTORY_TOPIC, TOPIC_BODY, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./ticket-history"
+import { TICKET_HISTORY_ADD } from "./ticket-history/actions"
+import { TICKET_SCREEN_STATE } from "./ticket-screen"
 
 export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
