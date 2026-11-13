@@ -77,8 +77,8 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     if (choice === "split") actions.split(stage)
     const target = openStageOf(screenOf(read().window), stage, choice)
     if (!target) return
-    // 行き先のブックがもう開いていても、ブックスクリーンは前に出す
-    actions.showBookScreen()
+    // 行き先のブックがもう開いていても、そのステージを見せる（ブックスクリーンをカレントスクリーンにする）
+    actions.showStage(target)
     if (stageIn(read().window, target)?.opened?.book !== to.book) actions.openBook(target, to.book)
     if (to.page) actions.openPage(target, to.page)
     if (to.ids && to.ids.length > 0) {

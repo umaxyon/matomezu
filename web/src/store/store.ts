@@ -70,7 +70,6 @@ import {
 import type { Warning } from "../core/warnings"
 import {
   bookScreenCurrent,
-  bringFrontKind,
   closeScreen,
   issueStage,
   makeCurrent,
@@ -102,9 +101,10 @@ import {
   unsplit,
   type Workspace,
 } from "../core/workspace"
-import { type CommandArgs, type CommandId, commandContext, commandDef, commandOwner, isEnabled } from "./commands"
+import { type CommandArgs, type CommandId, called, commandOwner, isEnabled } from "./commands"
+import type { CommandActions } from "./commands/def"
 import type { OpenedContextMenu } from "./context-menus"
-import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
+import { type DialogArgs, type DialogPreview, NO_STAGE, type OpenedDialog } from "./dialogs"
 import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type Assembled, assemble, type Plugin } from "./plugin"
 import {
@@ -213,7 +213,8 @@ export interface Actions {
   // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す
   command<Id extends CommandId>(stage: string, id: Id, ...args: CommandArgs<Id>): boolean
   // そのステージから開くダイアログを出す（出ていたものは閉じる）。値を渡すダイアログには、その値を渡す
-  openDialog<Id extends DialogId>(stage: string, id: Id, ...args: DialogArgs<Id>): void
+  // ダイアログを開く。at は、開く場所: ステージの id か、開いているスクリーンの id（ステージを持たないスクリーンから開くとき）。どちらでもなければ開かない
+  openDialog<Id extends DialogId>(at: string, id: Id, ...args: DialogArgs<Id>): void
   closeDialog(): void
   // 開いているダイアログの下書きを置く（null で消す）。ダイアログを閉じると下書きも消える
   previewDialog(preview: DialogPreview | null): void
@@ -234,8 +235,7 @@ export interface Actions {
   // 開いているスクリーン id を閉じる（前に出ていたなら、1 つ前に出していた物が前に出る）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
   closeScreen(id: string): void
   setScreenArrangement(def: string): void // スクリーンアレンジメントを、定義 def に替える（機能台帳に無ければ替えない）
-  showControlCenter(): void // コントロールセンターを前に出す（ブックスクリーンの中は残す）
-  showBookScreen(): void // ブックスクリーンを前に出す
+  showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
   moveDivider(x: number, width: number): void // 分けている境目を、並べた幅 width の左から x の所へ（ドラッグした位置）
@@ -684,8 +684,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (Object.keys(next).length === 0) return
     const { dialog, contextMenu } = getState()
     const stages = next.window?.screens.flatMap(s => s.stages?.stages ?? [])
-    const gone = (opened: { stage: string } | null) =>
-      stages !== undefined && opened !== null && !stages.some(s => s.id === opened.stage)
+    // 開いたステージ（ステージを持たずに開いたダイアログは、開いたスクリーン）が無くなったか
+    const screensNow = next.window?.screens
+    const gone = (opened: { stage: string; screen?: string } | null) => {
+      if (opened === null) return false
+      if (opened.stage !== NO_STAGE) return stages !== undefined && !stages.some(s => s.id === opened.stage)
+      return screensNow !== undefined && !screensNow.some(s => s.id === opened.screen)
+    }
     const values = next.pluginValues ?? getState().pluginValues
     const kept = stages && Object.keys(values.stages).filter(id => stages.some(s => s.id === id))
     // 閉じたスクリーンのプラグイン状態も消す
@@ -776,9 +781,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     command: (stage, id, ...args) => {
       if (!open?.continued) closeStep() // continueStep で続けている段は、このコマンドが行うアクションを足すまで閉じない
       const state = getState()
-      const def = commandDef(defs, id)
-      const ctx = commandContext(catalog, controlCenter, state, stage, id)
-      if (!ctx || !isEnabled(defs, state, stage, id, args[0])) return false
+      const call = called(defs, state, stage, id)
+      if (!call || !isEnabled(defs, state, stage, id, args[0])) return false
       const owner = commandOwner(id)
       // 1 回のコマンドで複数の値を書いても、store には 1 回で書く（途中の、片方だけ変わった状態を知らせない）。読む値は、書いた分を重ねたもの
       const pending: [string, string | null, unknown][] = []
@@ -786,14 +790,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
       const updatePluginState = <S>(stateDef: PluginStateDef<S>, change: (now: S | undefined) => S | undefined) => {
         const own = ownedPluginState(owner, stateDef)
-        // スクリーンごとの宣言は、呼ばれた場所のステージを並べているスクリーンの値
-        const here = own.scope === "screen" ? (screenOfStage(getState().window, stage)?.id ?? "") : stage
+        // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
+        const here = own.scope === "screen" ? call.ctx.screen.id : stage
         const at = own.scope === "window" ? null : here
         const next = change(pluginValueOf(working(), here, own))
         withPluginValue(working(), own.id, at, next) // 書く前に、範囲と形を確かめる
         pending.push([own.id, at, next])
       }
-      def.run(ctx, { ...actions, updatePluginState }, args[0] as never)
+      const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
+      run(call.ctx, { ...actions, updatePluginState }, args[0] as never)
       if (pending.length > 0) {
         const now = getState().pluginValues
         const next = working()
@@ -801,9 +806,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       return true
     },
-    openDialog: (stage, id, ...args) => {
+    openDialog: (at, id, ...args) => {
       if (!defs.catalog.store.dialogs.has(id)) fail("E108", { id })
-      if (inWindow(stage)) setState({ dialog: { id, stage, args: args[0], submitted: 0, preview: null } })
+      const win = getState().window
+      // ステージから開いたなら、そのステージと、それを並べているスクリーン。スクリーンから開いたなら、ステージは持たない
+      const screen = screenOfStage(win, at)?.id ?? win.screens.find(s => s.id === at)?.id
+      if (screen === undefined) return
+      const stage = inWindow(at) ? at : NO_STAGE
+      setState({ dialog: { id, stage, screen, args: args[0], submitted: 0, preview: null } })
     },
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })
@@ -821,7 +831,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const table = keysFor(settings)
       // 長押しの道具のアイコンを開いているステージ（どのブックスクリーンのステージでも）
       const picker = window.screens.flatMap(x => x.stages?.stages ?? []).find(st => st.picker !== null)?.id
-      const stage = contextMenu?.stage ?? picker ?? dialog?.stage ?? screenOf(window).current
+      // キーの宛先: 右クリックのメニュー・長押しの道具・ダイアログを開いたステージ。無ければ（ステージを持たずに開いたダイアログも）、いちばん最近カレントにしたブックスクリーンのカレントのステージ
+      const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
+      const stage = contextMenu?.stage ?? picker ?? opener ?? screenOf(window).current
       const menu = contextMenu !== null || picker !== undefined
       const type = stageIn(window, stage)?.opened?.type
       const presentation = type && catalog.bookTypes.get(type)?.presentation
@@ -863,8 +875,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     makeScreenCurrent: id => withWindow(win => makeCurrent(win, id)),
     setScreenArrangement: def => withWindow(win => setArrangement(win, catalog, def)),
     closeScreen: id => withWindow(win => closeScreen(win, catalog, id)),
-    showControlCenter: () => withWindow(win => bringFrontKind(win, "control-center")),
-    showBookScreen: () => withWindow(win => bringFrontKind(win, "book-screen")),
+    showStage: id =>
+      withWindow(win =>
+        makeCurrent(
+          mapScreenOfStage(win, id, ws => focus(ws, id)),
+          screenOfStage(win, id)?.id ?? "",
+        ),
+      ),
     split: stage =>
       withWindow(win => {
         const ws = screenOfStage(win, stage)?.stages

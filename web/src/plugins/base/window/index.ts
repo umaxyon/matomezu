@@ -1,5 +1,6 @@
 // 窓のスクリーンの定義（ブックスクリーン）と、窓のコマンド: 前に出す物（ステージを並べないスクリーンかブックスクリーン）の切り替え
 import { z } from "zod"
+import type { CalledScreen, ScreenCommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 
 // ブックスクリーン: ステージを並べて、ブックを見る・直すスクリーン。渡す値は無い
@@ -22,21 +23,34 @@ export const ONE_SCREEN = kit.defineScreenArrangement({
   atStart: true,
 })
 
-// 止まり木のボタン。コントロールセンターを前に出し、コントロールセンターを前に出している間は押すとブックスクリーンへ戻る
-export const CONTROL_CENTER_TOGGLE = kit.defineCommand({
+// カレントスクリーン（呼ばれた文脈の、カレントにした順の最後）
+const current = (ctx: ScreenCommandContext): CalledScreen | undefined => ctx.screens[ctx.screens.length - 1]
+// いちばん最近カレントにした、ステージを並べるスクリーン（stages が true）か、並べないスクリーン（false）
+const recent = (ctx: ScreenCommandContext, stages: boolean): CalledScreen | undefined =>
+  [...ctx.screens].reverse().find(s => s.stages === stages)
+
+// 止まり木のボタン。ブックスクリーンと、ステージを並べないスクリーン（コントロールセンターなど）を行き来する: カレントスクリーンと違う種類の、
+// いちばん最近カレントにしたスクリーンをカレントスクリーンにする。ステージを並べないスクリーンがカレントの間は、押された状態
+export const CONTROL_CENTER_TOGGLE = kit.defineScreenCommand({
   id: "control-center-toggle",
   title: "Control center",
-  run: (ctx, a) => (ctx.front === "control-center" ? a.showBookScreen() : a.showControlCenter()),
+  run: (ctx, a) => {
+    const to = recent(ctx, current(ctx)?.stages !== true)
+    if (to) a.makeScreenCurrent(to.id)
+  },
   when: () => true,
-  active: ctx => ctx.front === "control-center",
+  active: ctx => current(ctx)?.stages === false,
 })
 
-// センターを前に出している間、Esc でブックスクリーンへ戻る
-export const CONTROL_CENTER_LEAVE = kit.defineCommand({
+// ステージを並べないスクリーンがカレントの間、Esc でブックスクリーンへ戻る
+export const CONTROL_CENTER_LEAVE = kit.defineScreenCommand({
   id: "control-center-leave",
   title: "Back to the book screen",
-  run: (_, a) => a.showBookScreen(),
-  when: ctx => ctx.front === "control-center",
+  run: (ctx, a) => {
+    const to = recent(ctx, true)
+    if (to) a.makeScreenCurrent(to.id)
+  },
+  when: ctx => current(ctx)?.stages === false,
 })
 
 export const CONTROL_CENTER_KEYS = [

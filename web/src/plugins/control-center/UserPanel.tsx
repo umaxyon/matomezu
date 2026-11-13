@@ -1,6 +1,6 @@
 // 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く
 import type { ReactNode } from "react"
-import { useCommand, useMessages, useWindowStage } from "../../plugin-api/ui"
+import { useCommand, useMessages, useScreenId } from "../../plugin-api/ui"
 import { Band, IconButton, Panel, Tip, useMailboxPanel } from "../base/ui"
 import type { FrontScreen } from "./control-center"
 import { AvatarIcon, GearIcon, LibraryIcon, MailIcon, ProjectIcon } from "./icons"
@@ -11,9 +11,8 @@ type Tile = { label: string; icon: ReactNode; onClick: () => void; pressed: bool
 
 export function UserPanel({ screen, onShow }: { screen: FrontScreen; onShow: (to: FrontScreen) => void }) {
   const t = useMessages(kit)
-  const stage = useWindowStage()
-  const mailbox = useMailboxPanel(stage)
-  const settings = useCommand(stage, "@matomezu/base:settings-open")
+  const mailbox = useMailboxPanel()
+  const settings = useCommand(useScreenId(), "@matomezu/base:settings-open")
   const tiles: Tile[] = [
     { label: t("Mailbox"), icon: <MailIcon />, onClick: mailbox.toggle, pressed: mailbox.open },
     { label: t("Library"), icon: <LibraryIcon />, onClick: () => onShow("library"), pressed: screen === "library" },

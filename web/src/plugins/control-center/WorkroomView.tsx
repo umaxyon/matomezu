@@ -1,6 +1,6 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・現在のタスク・履歴。
 // 情報の列の右下に退室のアイコン。情報の列の右には、base のスロット（workroom-columns）に置かれたウィジェットの列（現在のタスク・履歴など）が並ぶ
-import { Slot, useActions, useAllowedOn, useMessages, useWindowStage } from "../../plugin-api/ui"
+import { Slot, useActions, useAllowedOn, useMessages, useScreenId } from "../../plugin-api/ui"
 import type { WorkroomRow } from "../base"
 import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, WORKROOM_COLUMNS } from "../base/ui"
 import { Bird } from "./Bird"
@@ -31,7 +31,7 @@ export function WorkroomView({ row, hidden }: { row: WorkroomRow | undefined; hi
 
 function Occupied({ row }: { row: WorkroomRow }) {
   const t = useMessages(kit)
-  const stage = useWindowStage()
+  const here = useScreenId()
   const { openDialog } = useActions()
   const rooms = useWorkroomActions()
   const participant = row.participant
@@ -89,7 +89,7 @@ function Occupied({ row }: { row: WorkroomRow }) {
               label={t("Leave")}
               title={undefined}
               disabled={!canLeave}
-              onClick={() => openDialog(stage, WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
+              onClick={() => openDialog(here, WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
             >
               <LeaveIcon />
             </IconButton>

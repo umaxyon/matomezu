@@ -24,8 +24,9 @@ import {
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
-import { currentScreen, screenOf, shownScreens, stageIn, workspaceOf } from "../core/window"
+import { currentScreen, shownScreens, stageIn, workspaceOf } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
+import { NO_STAGE } from "../store/dialogs"
 import type { PluginKit } from "../store/kit"
 import { ownedPluginState, pluginValueOf } from "../store/plugin-state"
 import type { Performed } from "../store/store"
@@ -344,9 +345,9 @@ export function usePerform(stage: string): <Id extends ActionId>(action: Id, arg
   )
 }
 
-// 窓のカレントのステージの id（ブックスクリーンが前に出ていなくても、窓にはいつもカレントのステージがある）。
-// ステージの無い所（コントロールセンターの画面など）が、ステージを前提にするコマンドやダイアログを、この窓のステージで行うのに使う
-export const useWindowStage = (): string => useMatomezuState(s => screenOf(s.window).current)
+// 描いている場所のスクリーンの id（スクリーンの外で描いているなら none）。ステージを持たない所から、ダイアログを開く（openDialog）・コマンドを呼ぶ（useCommand）・
+// 行えるかを問う（useAllowed）ときに、ステージの id の代わりに渡す
+export const useScreenId = (): string => useScreenHere()?.id ?? NO_STAGE
 
 // 対象の定義の種類 subject のレコード全部（id の順）。定義の record に合わない物（warning W025 の物）は返さない。
 // 返す配列は、その種類のレコードが変わらない間は同じ参照

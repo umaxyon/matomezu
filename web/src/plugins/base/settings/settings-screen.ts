@@ -7,9 +7,9 @@ export const SETTINGS_CATEGORIES = kit.name("settings-categories")
 
 export const SETTINGS_DIALOG = kit.defineDialog({ id: "settings" })
 
-export const SETTINGS_OPEN = kit.defineCommand({
+export const SETTINGS_OPEN = kit.defineScreenCommand({
   id: "settings-open",
   title: "Open settings",
-  run: (ctx, a) => a.openDialog(ctx.stage.id, SETTINGS_DIALOG.id),
+  run: (ctx, a) => a.openDialog(ctx.screen.id, SETTINGS_DIALOG.id),
   when: () => true,
 })

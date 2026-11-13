@@ -38,6 +38,7 @@ export {
   useRecord,
   useRecords,
   useScreen,
+  useScreenId,
   useScreens,
   useSetPluginState,
   useSetPluginStates,
@@ -51,5 +52,4 @@ export {
   useUiCatalog,
   useUpdatePluginState,
   useUserSetting,
-  useWindowStage,
 } from "../ui/view-hooks"

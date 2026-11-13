@@ -21,7 +21,7 @@ import { isActive } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { CORE_CATALOG, newStore, sequence } from "../support"
+import { CORE_CATALOG, newStore, sequence, showBooks, showCenter } from "../support"
 
 const CENTER = "@matomezu/base:control-center-toggle"
 
@@ -68,10 +68,10 @@ test("コントロールセンターを前に出しても、ブックスクリ�
   const { actions, state } = newStore()
   actions.zoomStage("s1", 2)
   const before = screenOf(state.getState().window)
-  actions.showControlCenter()
+  showCenter({ state, actions })
   expect(frontOf(state.getState().window)).toBe("control-center")
   expect(screenOf(state.getState().window)).toBe(before)
-  actions.showBookScreen()
+  showBooks({ state, actions })
   expect(frontOf(state.getState().window)).toBe("book-screen")
   expect(screenOf(state.getState().window)).toBe(before)
 })
@@ -90,7 +90,7 @@ test("止まり木のコマンドは、コントロールセンターを前に�
 
 test("ブックを開くと、ブックスクリーンを前に出す", () => {
   const { actions, state } = newStore()
-  actions.showControlCenter()
+  showCenter({ state, actions })
   actions.openBook("s1", "b2")
   expect(frontOf(state.getState().window)).toBe("book-screen")
   expect(screenOf(state.getState().window).stages[0]?.opened?.book).toBe("b2")
@@ -101,10 +101,10 @@ test("コントロールセンターを前に出している間は、ステー�
   actions.resizeStage("s1", { w: 800, h: 600 })
   actions.zoomStage("s1", 2)
   // Home はステージの範囲のキー（倍率を開いたときに戻す）
-  actions.showControlCenter()
+  showCenter({ state, actions })
   expect(actions.pressKey("Home")).toBe(false)
   expect(screenOf(state.getState().window).stages[0]?.zoom).toBe(2)
-  actions.showBookScreen()
+  showBooks({ state, actions })
   expect(actions.pressKey("Home")).toBe(true)
   expect(screenOf(state.getState().window).stages[0]?.zoom).toBe(1)
 })
@@ -113,7 +113,7 @@ test("コントロールセンターを前に出している間は、後ろの�
   const store = newStore({ now: sequence() })
   const book = store.state.getState().books.b1 as never as { title: string; id: string }
   store.receive({ books: [book], settings: {} }, [])
-  store.actions.showControlCenter()
+  showCenter(store)
   store.receive({ books: [{ ...book, title: "AI" }], settings: {} }, [], {
     book: "b1",
     by: "ai",
@@ -121,7 +121,7 @@ test("コントロールセンターを前に出している間は、後ろの�
     action: "@matomezu/base:book-update",
   })
   expect(store.state.getState().history.b1).toBeUndefined()
-  store.actions.showBookScreen()
+  showBooks(store)
   expect(store.state.getState().history.b1?.undo.map(s => s.by)).toEqual(["ai"])
 })
 
@@ -133,7 +133,7 @@ test("AI に知らせる見ているもの: ブックスクリーンを前に出
     page: "p1",
     stage: "s1",
   })
-  actions.showControlCenter()
+  showCenter({ state, actions })
   const view = viewOf(CORE_CATALOG, state.getState())
   expect(view).toMatchObject({ front: "control-center", hidden: { book: "b1", page: "p1", stage: "s1" } })
   expect("book" in view).toBe(false)
@@ -141,7 +141,7 @@ test("AI に知らせる見ているもの: ブックスクリーンを前に出
 
 test("AI の show は、ブックを渡すとブックスクリーンを前に出す（コントロールセンターを前に出していても）", () => {
   const store = newStore()
-  store.actions.showControlCenter()
+  showCenter(store)
   showIn(store, { book: "b2" })
   expect(frontOf(store.state.getState().window)).toBe("book-screen")
   expect(screenOf(store.state.getState().window).stages[0]?.opened?.book).toBe("b2")
@@ -213,7 +213,7 @@ test("見えているスクリーンは、スクリーンアレンジメント�
   const win = () => state.getState().window
   expect(win().arrangement).toBe("@matomezu/base:one-screen")
   expect(shownScreens(core, win())).toEqual([currentScreen(win()).id])
-  actions.showControlCenter()
+  showCenter({ state, actions })
   expect(shownBookScreens(core, win())).toEqual([])
   // 全部を見せるアレンジメントに替えると、カレントでないブックスクリーンも見えている
   actions.setScreenArrangement("k:all")

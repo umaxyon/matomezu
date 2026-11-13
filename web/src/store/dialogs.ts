@@ -41,9 +41,13 @@ export interface PageSettingsArgs {
 
 export type DialogArgs<Id extends DialogId> = [DialogArgsOf<Id>] extends [undefined] ? [] : [DialogArgsOf<Id>]
 
+// ステージを持たずに開いたダイアログの stage の値
+export const NO_STAGE = "none"
+
 export interface OpenedDialog {
   id: DialogId
-  stage: string // 開いたステージ。ダイアログの操作はこのステージに向ける
+  stage: string // 開いたステージ。ダイアログの操作はこのステージに向ける。ステージを持たないスクリーンから開いたなら NO_STAGE
+  screen: string // 開いたスクリーンの id（ステージから開いたなら、そのステージを並べているスクリーン）
   args: unknown // 開くときに渡した値（id で型が決まる）
   submitted: number // 決めるように頼まれた回数（ダイアログの枠が見て、中身の form を送る）
   preview: DialogPreview | null // 選んだ値を、決める前に重ねて見せる下書き（このダイアログを閉じれば消える）

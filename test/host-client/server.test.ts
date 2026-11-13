@@ -3,7 +3,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore } from "../support"
+import { newStore, showCenter } from "../support"
 
 // 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る。perform はアクションを送られたときの答え（null は送れない）、
 // read は読まれたときの答えの status、log はログを送られたときの答えの status、data は読まれたときに返す世界。待ち（later）は tick で進める。
@@ -742,7 +742,7 @@ test("フォーカスされたとき、壁時計で QUIET_MS 何も届いてい�
 
 test("コントロールセンターを前に出している間は、見ているものを front と hidden に分けて知らせる", async () => {
   const s = await connected()
-  s.store.actions.showControlCenter()
+  showCenter(s.store)
   expect(s.sent.at(-1)?.view).toEqual({
     front: "control-center",
     hidden: {

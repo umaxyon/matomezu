@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
-import { isActive, isShown } from "../../web/src/store/commands"
+import { isActive, isShown, screenCommandContext } from "../../web/src/store/commands"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin } from "../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../web/src/store/store"
@@ -34,12 +34,56 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
     expect(isShown(store, state.getState(), right, "@matomezu/base:page-new")).toBe(false)
   })
 
-  test("無いステージからは、どのコマンドも出さない", () => {
+  test("無いステージからは、ステージから呼ぶコマンドを出さない。スクリーンから呼ぶコマンドは、カレントスクリーンから呼んだ物として出す", () => {
     const store = newStore()
     const { state } = store
+    const shown = [...store.catalog.store.commands.values()].filter(c =>
+      isShown(store, state.getState(), "nope", c.id as never),
+    )
+    expect(shown.length).toBeGreaterThan(0)
+    expect(shown.every(c => c.from === "screen")).toBe(true)
+    expect(shown.map(c => c.id)).toContain("@matomezu/base:settings-open")
+  })
+
+  test("スクリーンから呼ぶコマンドの文脈は、呼ばれた場所のスクリーンと、カレントにした順のスクリーンを持ち、ステージとブックは持たない", () => {
+    const store = newStore()
+    const { state } = store
+    const center = state.getState().window.screens.find(s => s.def === "@matomezu/control-center:screen")!.id
+    const ctx = screenCommandContext(
+      store.catalog.core,
+      store.controlCenter,
+      state.getState(),
+      center,
+      "@matomezu/base:settings-open",
+    )
+    expect(ctx.screen).toMatchObject({ id: center, def: "@matomezu/control-center:screen", stages: false })
+    expect(ctx.screens.at(-1)).toMatchObject({ def: "@matomezu/base:book-screen", stages: true })
+    expect("stage" in ctx || "book" in ctx).toBe(false)
+    // ステージから呼べば、そのステージを並べているスクリーン
     expect(
-      [...store.catalog.store.commands.keys()].filter(id => isShown(store, state.getState(), "nope", id as never)),
-    ).toEqual([])
+      screenCommandContext(
+        store.catalog.core,
+        store.controlCenter,
+        state.getState(),
+        "s1",
+        "@matomezu/base:settings-open",
+      ).screen.stages,
+    ).toBe(true)
+  })
+
+  test("ダイアログは、ステージからも、ステージを持たないスクリーンからも開ける。開いたスクリーンを閉じると、ダイアログも閉じる", () => {
+    const store = newStore()
+    const { state, actions } = store
+    actions.openDialog("s1", "@matomezu/base:settings")
+    expect(state.getState().dialog).toMatchObject({ stage: "s1", screen: "c2" })
+    actions.closeDialog()
+    actions.openDialog("nope", "@matomezu/base:settings")
+    expect(state.getState().dialog).toBeNull()
+    const second = actions.openScreen("@matomezu/control-center:screen", {})
+    actions.openDialog(second, "@matomezu/base:settings")
+    expect(state.getState().dialog).toMatchObject({ stage: "none", screen: second })
+    actions.closeScreen(second)
+    expect(state.getState().dialog).toBeNull()
   })
 })
 

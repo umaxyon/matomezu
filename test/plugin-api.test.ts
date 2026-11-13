@@ -328,6 +328,7 @@ test("matomezu/ui が出す名前", () => {
     "useRevealable",
     "useRightSidePanel",
     "useScreen",
+    "useScreenId",
     "useScreens",
     "useSearchHits",
     "useSearchPick",
@@ -351,7 +352,6 @@ test("matomezu/ui が出す名前", () => {
     "useUiCatalog",
     "useUpdatePluginState",
     "useUserSetting",
-    "useWindowStage",
     "useWorkroomActions",
     "useWorkroomRows",
     "useZoomMotion",
@@ -410,8 +410,9 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "contextMenu",
     "controlCenter",
     "dialog",
-    "front",
     "pluginState",
+    "screen",
+    "screens",
     "settings",
     "stage",
     "toPaper",
@@ -423,9 +424,9 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
   const def = commandDef(store, "@matomezu/base:mark-new")
   const run = def.run
   let got: object = {}
-  def.run = (_ctx, actions) => {
+  def.run = ((_ctx: unknown, actions: object) => {
     got = actions
-  }
+  }) as typeof def.run
   try {
     store.actions.command("s1", "@matomezu/base:mark-new" as never, "x" as never)
   } finally {
@@ -469,8 +470,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "setStageArea",
     "setStageStart",
     "setTool",
-    "showBookScreen",
-    "showControlCenter",
+    "showStage",
     "showToast",
     "split",
     "startBackground",

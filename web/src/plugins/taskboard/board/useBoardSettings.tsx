@@ -1,6 +1,6 @@
 // 利用者の設定 2 つ（プロジェクトの並びと、出しているタスクボード）を読み、変えるフック。変えられるか（コントロールセンターが変えさせない項目でないか）を先に問い、変えられなければ押せなくする。
 // 設定の値は窓のカレントのステージのコマンド settings-set で書く（ステージの無いコントロールセンターの画面が、窓のステージを借りる）
-import { useAllowed, useCommand, useUserSetting, useWindowStage } from "../../../plugin-api/ui"
+import { useAllowed, useCommand, useScreenId, useUserSetting } from "../../../plugin-api/ui"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "./user-settings"
 
 const stringList = (value: unknown): string[] | undefined =>
@@ -15,7 +15,7 @@ export interface BoardSettings {
 }
 
 export function useBoardSettings(): BoardSettings {
-  const stage = useWindowStage()
+  const stage = useScreenId()
   const set = useCommand(stage, "@matomezu/base:settings-set")
   const orderAllowed = useAllowed(stage, "@matomezu/base:settings-set", { settings: [PROJECT_ORDER.id] }).ok
   const shownAllowed = useAllowed(stage, "@matomezu/base:settings-set", { settings: [SHOWN_PROJECTS.id] }).ok

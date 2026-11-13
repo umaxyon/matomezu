@@ -30,7 +30,7 @@ import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
 import type { LanguagePackDef, MessageMap } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
-import type { CommandDef, CommandPlace, CommandScopeRequired } from "./commands/def"
+import type { CommandPlace, CommandScopeRequired, ScreenCommandDef, StageCommandDef } from "./commands/def"
 import type { DialogDef } from "./dialogs"
 import type { KeyDef, KeyScopeDef } from "./keys"
 import type { PluginParts } from "./plugin"
@@ -192,12 +192,20 @@ export interface PluginKit<P extends string, M extends MessageMap> {
 
   // run の 3 つ目の引数の型から A を決める（defineCommand と同じく、run は when より前に書く）
   defineCommand<const Id extends string, A = undefined, const Ps extends readonly ActionId[] | undefined = undefined>(
-    def: Omit<CommandDef<A, keyof M & string>, "permissionScope"> & {
+    def: Omit<StageCommandDef<A, keyof M & string>, "permissionScope"> & {
       id: Id
       performs?: Ps
       place?: CommandPlace<NoInfer<A>>
     } & CommandScopeRequired<Ps, A>,
-  ): Omit<CommandDef<A>, "id"> & { id: Owned<P, Id> }
+  ): Omit<StageCommandDef<A>, "id"> & { id: Owned<P, Id> }
+
+  // スクリーンから呼ぶコマンド（ステージを持たないスクリーンからも呼べる。ステージとブックは受け取らず、ブックが対象のアクションは行わない）
+  defineScreenCommand<const Id extends string, A = undefined>(
+    def: Omit<ScreenCommandDef<A, keyof M & string>, "permissionScope" | "from"> & {
+      id: Id
+      place?: CommandPlace<NoInfer<A>>
+    },
+  ): Omit<ScreenCommandDef<A>, "id"> & { id: Owned<P, Id> }
 
   defineDialog<const Id extends string>(def: { id: Id } & DialogExtras): DialogDef & { id: Owned<P, Id> }
 
@@ -302,6 +310,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineTextColor: place,
     defineSkin: place,
     defineCommand: place,
+    defineScreenCommand: (def: { id: string }) => ({ ...place(def), from: "screen" as const }),
     defineDialog: place,
     defineDialogWith: () => place,
     defineKeyScope: place,

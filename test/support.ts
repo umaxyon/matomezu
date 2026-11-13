@@ -1,4 +1,5 @@
 // テストで使う、ビルトインプラグインだけの表と store
+import { recentBookScreen, recentPlainScreen } from "../web/src/core/window"
 import { BUILTIN } from "../web/src/plugins"
 import { assemble } from "../web/src/store/plugin"
 import { createMatomezuInstance, type StoreOptions } from "../web/src/store/store"
@@ -29,4 +30,15 @@ export function sizedStore(options: Omit<StoreOptions, "plugins"> = {}) {
   const store = newStore(options)
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   return store
+}
+
+// ステージを並べないスクリーン（コントロールセンター）を、カレントスクリーンにする
+export function showCenter(store: Pick<ReturnType<typeof newStore>, "state" | "actions">) {
+  const to = recentPlainScreen(store.state.getState().window)
+  if (to) store.actions.makeScreenCurrent(to.id)
+}
+
+// ブックスクリーンを、カレントスクリーンにする
+export function showBooks(store: Pick<ReturnType<typeof newStore>, "state" | "actions">) {
+  store.actions.makeScreenCurrent(recentBookScreen(store.state.getState().window).id)
 }

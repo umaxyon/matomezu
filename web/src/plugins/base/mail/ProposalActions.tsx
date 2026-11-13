@@ -48,7 +48,7 @@ function Proposal({ stage, mail, onClose, dock, props }: MailActionsProps & { pr
     const to = mail.to
     if (!to) return
     dock()
-    actions.showBookScreen()
+    actions.showStage(stage)
     if (stageIn(read().window, stage)?.opened?.book !== to.book) actions.openBook(stage, to.book)
     if (to.page) actions.openPage(stage, to.page)
     if (to.ids && to.ids.length > 0) {

@@ -2,7 +2,7 @@
 import { kit } from "../kit"
 import { SETTINGS_SET } from "./actions"
 
-export const SETTINGS_SET_COMMAND = kit.defineCommand({
+export const SETTINGS_SET_COMMAND = kit.defineScreenCommand({
   id: "settings-set",
   performs: [SETTINGS_SET.id],
   title: "Settings",

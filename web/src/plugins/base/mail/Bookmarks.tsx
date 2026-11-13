@@ -43,7 +43,7 @@ export function MailBookmarks() {
           data-tone={0}
           aria-label={t("{n} unread mail", { n: unread.length })}
           onClick={() => {
-            actions.showBookScreen()
+            actions.showStage(stage)
             openPanel(mailboxEntries(stage), MAILBOX_TAB_ID)
           }}
         >

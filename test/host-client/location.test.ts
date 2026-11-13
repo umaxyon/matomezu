@@ -17,7 +17,7 @@ import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore } from "../support"
+import { newStore, showBooks, showCenter } from "../support"
 
 // 書いた URL を覚える偽の Place（later はすぐには呼ばず、flush で呼ぶ）
 function fakePlace(start = "") {
@@ -239,11 +239,11 @@ test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む�
   const f = fakePlace("?b0=b1&p0=p1&v0=1,0,0&c=0&r=0.5")
   followLocation(store, f.place)
   const was = screenOf(store.state.getState().window)
-  store.actions.showControlCenter()
+  showCenter(store)
   await settled()
   expect(f.pushed).toHaveLength(1)
   expect(frontDefIn(f.pushed[0]!)).toBe("@matomezu/control-center:screen")
-  store.actions.showBookScreen()
+  showBooks(store)
   await settled()
   expect(f.pushed).toHaveLength(2)
   // 戻る: コントロールセンター

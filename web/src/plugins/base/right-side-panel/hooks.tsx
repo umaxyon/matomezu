@@ -65,7 +65,7 @@ export function useOpenRightSidePanel(): (
   const read = useReadState()
   const readRestore = useReadPluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const setStates = useSetPluginStates(kit)
-  const { focusStage, showBookScreen } = useActions()
+  const { showStage } = useActions()
   const pressClosed = useContext(PressClosedContext)
   return useCallback(
     (stage, open, restore = "back") => {
@@ -83,10 +83,9 @@ export function useOpenRightSidePanel(): (
             ]
           : [[RIGHT_SIDE_PANEL_STATE, stage, panel]],
       )
-      focusStage(stage)
-      showBookScreen()
+      showStage(stage)
     },
-    [read, readRestore, setStates, focusStage, showBookScreen, pressClosed],
+    [read, readRestore, setStates, showStage, pressClosed],
   )
 }
 
