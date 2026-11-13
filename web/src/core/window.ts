@@ -22,15 +22,19 @@ export interface OpenedScreen {
 // ステージを並べるスクリーン（ブックスクリーン）
 export type BookScreen = OpenedScreen & { stages: Workspace }
 
-// 窓が前に出している物の種類: ステージを並べるスクリーンか、そうでないスクリーンか
+// カレントスクリーンの種類: ステージを並べるスクリーンか、そうでないスクリーンか
 export type Front = "control-center" | "book-screen"
 
 export interface WindowState {
   screens: readonly OpenedScreen[] // 開いているスクリーン（開いた順。1 枚以上で、ステージを並べるスクリーンを 1 枚以上持つ）
-  order: readonly string[] // スクリーンの id を、前に出した順に並べた物（最後が今の前）
+  order: readonly string[] // スクリーンの id を、カレントにした順に並べた物（最後がカレントスクリーン）
+  arrangement: string // スクリーンアレンジメントの定義の id（開いているスクリーンの見せ方）
   issued: number // 最後に振ったステージの番号
   issuedScreens: number // 最後に振ったスクリーンの番号
 }
+
+// 機能台帳にスクリーンアレンジメントの定義が無いときの値（見えているのは、カレントスクリーンだけ）
+export const NO_ARRANGEMENT = "none"
 
 // 機能台帳にステージを並べるスクリーンの定義が無いときに、ステージの並びを持たせるスクリーンの定義の id（定義は無い）
 export const NO_SCREEN_DEF = "none"
@@ -42,7 +46,9 @@ const holdsStages = (s: OpenedScreen): s is BookScreen => s.stages !== undefined
 export function newWindow(catalog: CoreCatalog, book: Book | null): WindowState {
   const defs = [...catalog.screens.values()]
   const stages = defs.find(d => d.stages)?.id ?? NO_SCREEN_DEF
-  let win: WindowState = { screens: [], order: [], issued: 0, issuedScreens: 0 }
+  const arrangements = [...catalog.screenArrangements.values()]
+  const arrangement = (arrangements.find(a => a.atStart) ?? arrangements[0])?.id ?? NO_ARRANGEMENT
+  let win: WindowState = { screens: [], order: [], arrangement, issued: 0, issuedScreens: 0 }
   for (const d of defs) if (d.atStart && !d.stages) win = openScreen(win, catalog, d.id, {}).win
   return openScreen(win, catalog, stages, {}, book).win
 }
@@ -62,6 +68,7 @@ export function openScreen(
     : { id, def, props }
   return {
     win: {
+      ...win,
       screens: [...win.screens, opened],
       order: [...win.order, id],
       issued: stages ? win.issued + 1 : win.issued,
@@ -71,8 +78,8 @@ export function openScreen(
   }
 }
 
-// 前に出ているスクリーン
-export function frontScreen(win: Pick<WindowState, "screens" | "order">): OpenedScreen {
+// カレントスクリーン（キーが効く先。いつも 1 枚で、最後にカレントにした物）
+export function currentScreen(win: Pick<WindowState, "screens" | "order">): OpenedScreen {
   const id = win.order[win.order.length - 1]
   return win.screens.find(s => s.id === id) ?? fail("E117", { index: String(id) })
 }
@@ -129,8 +136,8 @@ export function mapScreens(win: WindowState, change: (ws: Workspace) => Workspac
   return screens.every((s, i) => s === win.screens[i]) ? win : { ...win, screens }
 }
 
-// スクリーン id を前に出す（無い id・もう前なら同じ窓を返す）
-export function bringFront(win: WindowState, id: string): WindowState {
+// スクリーン id をカレントスクリーンにする（無い id・もうカレントなら同じ窓を返す）。見せるかは、スクリーンアレンジメントが決める
+export function makeCurrent(win: WindowState, id: string): WindowState {
   if (win.order[win.order.length - 1] === id || !win.screens.some(s => s.id === id)) return win
   return { ...win, order: [...win.order.filter(x => x !== id), id] }
 }
@@ -138,7 +145,7 @@ export function bringFront(win: WindowState, id: string): WindowState {
 // 前に出す物の種類を替える: いちばん最近前に出した、その種類のスクリーンを前に出す（無ければ同じ窓を返す）
 export function bringFrontKind(win: WindowState, front: Front): WindowState {
   const to = recent(win, front === "book-screen" ? "stages" : "plain")
-  return to ? bringFront(win, to.id) : win
+  return to ? makeCurrent(win, to.id) : win
 }
 
 // スクリーン id を閉じる。最初から開いているスクリーン（定義が atStart を名乗る）の最後の 1 枚と、最後の 1 枚のブックスクリーンは閉じない（同じ窓を返す）。
@@ -158,12 +165,12 @@ export function issueStage(win: WindowState): { win: WindowState; id: string } {
   return { win: { ...win, issued }, id: `s${issued}` }
 }
 
-// 前に出ている物の種類
+// カレントスクリーンの種類
 export const frontOf = (win: Pick<WindowState, "screens" | "order">): Front =>
-  holdsStages(frontScreen(win)) ? "book-screen" : "control-center"
+  holdsStages(currentScreen(win)) ? "book-screen" : "control-center"
 
-// ブックスクリーンが見えているか（前に出ているか）。ほかのスクリーンを前に出している間、後ろのブックスクリーンは見えていない
-export const bookScreenVisible = (win: Pick<WindowState, "screens" | "order">): boolean =>
+// カレントスクリーンがブックスクリーン（ステージを並べるスクリーン）か。ステージのキーと、ステージでの操作が効くのは、この間
+export const bookScreenCurrent = (win: Pick<WindowState, "screens" | "order">): boolean =>
   frontOf(win) === "book-screen"
 
 // ステージの id から、そのステージ（どのブックスクリーンの物でも。ステージの id は窓で一意。無ければ undefined）
@@ -188,3 +195,22 @@ export function workspaceOf(win: Pick<WindowState, "screens" | "order">, stage: 
 // 窓の全部のステージ（どのブックスクリーンのステージも。スクリーンを開いた順・左から）
 export const allStages = (win: Pick<WindowState, "screens">): readonly Stage[] =>
   win.screens.flatMap(s => s.stages?.stages ?? [])
+
+// 見えているスクリーンの id（スクリーンアレンジメントが答える。描いているスクリーンで、スクロールで画面の外にある物も含む）。
+// 機能台帳に無いアレンジメントなら、カレントスクリーンだけ。開いていない id は除く
+export function shownScreens(catalog: CoreCatalog, win: WindowState): readonly string[] {
+  const def = catalog.screenArrangements.get(win.arrangement)
+  if (!def) return [currentScreen(win).id]
+  return def.shown(win.screens, win.order).filter(id => win.screens.some(s => s.id === id))
+}
+
+// 見えているブックスクリーン（開いた順）
+export function shownBookScreens(catalog: CoreCatalog, win: WindowState): readonly BookScreen[] {
+  const shown = shownScreens(catalog, win)
+  return win.screens.filter((s): s is BookScreen => holdsStages(s) && shown.includes(s.id))
+}
+
+// スクリーンアレンジメントを替える（機能台帳に無い定義・今と同じなら同じ窓を返す）
+export function setArrangement(win: WindowState, catalog: CoreCatalog, def: string): WindowState {
+  return win.arrangement === def || !catalog.screenArrangements.has(def) ? win : { ...win, arrangement: def }
+}

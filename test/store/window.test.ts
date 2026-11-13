@@ -1,18 +1,26 @@
 // 窓の状態（core/window.ts）: コントロールセンターかブックスクリーンを前に出す。前に出す物を替えても、ブックスクリーンの中は残る。
 // コントロールセンターを前に出している間、後ろのブックスクリーンは見えていない物として扱い、キーも届かない
 import { expect, test } from "bun:test"
+import type { MatomezuError } from "../../web/src/core/errors"
+import { defineMessages } from "../../web/src/core/i18n/messages"
 import {
-  bringFront,
   closeScreen,
+  currentScreen,
   frontOf,
-  frontScreen,
+  makeCurrent,
   newWindow,
   openScreen,
   screenOf,
+  shownBookScreens,
+  shownScreens,
   stageIn,
 } from "../../web/src/core/window"
 import { showIn, viewOf } from "../../web/src/host-client/server"
+import { BUILTIN } from "../../web/src/plugins"
 import { isActive } from "../../web/src/store/commands"
+import { createMatomezu } from "../../web/src/store/create"
+import { pluginKit } from "../../web/src/store/kit"
+import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG, newStore, sequence } from "../support"
 
 const CENTER = "@matomezu/base:control-center-toggle"
@@ -30,20 +38,20 @@ test("窓は、最初から開いているスクリーンと、ブックスク�
   const win = newWindow(CORE_CATALOG, null)
   expect(win.screens.map(s => s.def)).toEqual(["@matomezu/control-center:screen", "@matomezu/base:book-screen"])
   expect(frontOf(win)).toBe("book-screen")
-  expect(frontScreen(win)).toMatchObject({ id: "c2", stages: { current: "s1" } })
+  expect(currentScreen(win)).toMatchObject({ id: "c2", stages: { current: "s1" } })
 })
 
 test("スクリーンを開くと前に出て、閉じると 1 つ前に出していた物が前に出る。同じ定義から何枚でも開け、id は使い回さない", () => {
   let win = newWindow(CORE_CATALOG, null)
-  win = bringFront(win, "c1")
+  win = makeCurrent(win, "c1")
   const first = openScreen(win, CORE_CATALOG, "@matomezu/control-center:screen", {})
   const second = openScreen(first.win, CORE_CATALOG, "@matomezu/control-center:screen", {})
   expect([first.id, second.id]).toEqual(["c3", "c4"])
-  expect(frontScreen(second.win).id).toBe("c4")
+  expect(currentScreen(second.win).id).toBe("c4")
   win = closeScreen(second.win, CORE_CATALOG, "c4")
-  expect(frontScreen(win).id).toBe("c3")
+  expect(currentScreen(win).id).toBe("c3")
   win = closeScreen(win, CORE_CATALOG, "c3")
-  expect(frontScreen(win).id).toBe("c1")
+  expect(currentScreen(win).id).toBe("c1")
   expect(openScreen(win, CORE_CATALOG, "@matomezu/control-center:screen", {}).id).toBe("c5")
 })
 
@@ -52,7 +60,7 @@ test("最初から開いているスクリーンと、最後の 1 枚のブッ�
   expect(closeScreen(win, CORE_CATALOG, "c1")).toBe(win)
   expect(closeScreen(win, CORE_CATALOG, "c2")).toBe(win)
   const two = openScreen(win, CORE_CATALOG, "@matomezu/base:book-screen", {})
-  expect(frontScreen(two.win)).toMatchObject({ id: "c3", stages: { current: "s2" } })
+  expect(currentScreen(two.win)).toMatchObject({ id: "c3", stages: { current: "s2" } })
   expect(closeScreen(two.win, CORE_CATALOG, "c2").screens.map(s => s.id)).toEqual(["c1", "c3"])
 })
 
@@ -119,9 +127,14 @@ test("コントロールセンターを前に出している間は、後ろの�
 
 test("AI に知らせる見ているもの: ブックスクリーンを前に出している間は book など、コントロールセンターを前に出している間は front と hidden に分ける", () => {
   const { actions, state } = newStore()
-  expect(viewOf(state.getState())).toMatchObject({ front: "book-screen", book: "b1", page: "p1", stage: "s1" })
+  expect(viewOf(CORE_CATALOG, state.getState())).toMatchObject({
+    front: "book-screen",
+    book: "b1",
+    page: "p1",
+    stage: "s1",
+  })
   actions.showControlCenter()
-  const view = viewOf(state.getState())
+  const view = viewOf(CORE_CATALOG, state.getState())
   expect(view).toMatchObject({ front: "control-center", hidden: { book: "b1", page: "p1", stage: "s1" } })
   expect("book" in view).toBe(false)
 })
@@ -136,16 +149,16 @@ test("AI の show は、ブックを渡すとブックスクリーンを前に�
 
 test("store の openScreen は、定義の渡す値の形に合えば開いて前に出し、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
   const { actions, state } = newStore()
-  const before = frontScreen(state.getState().window).id
+  const before = currentScreen(state.getState().window).id
   expect(actions.openScreen("@ex/none:x", {})).toBe("refused")
   expect(actions.openScreen("@matomezu/control-center:screen", { extra: 1 })).toBe("refused")
   const id = actions.openScreen("@matomezu/control-center:screen", {})
-  expect(frontScreen(state.getState().window)).toMatchObject({ id, def: "@matomezu/control-center:screen" })
-  actions.bringScreenFront(before)
-  expect(frontScreen(state.getState().window).id).toBe(before)
-  actions.bringScreenFront(id)
+  expect(currentScreen(state.getState().window)).toMatchObject({ id, def: "@matomezu/control-center:screen" })
+  actions.makeScreenCurrent(before)
+  expect(currentScreen(state.getState().window).id).toBe(before)
+  actions.makeScreenCurrent(id)
   actions.closeScreen(id)
-  expect(frontScreen(state.getState().window).id).toBe(before)
+  expect(currentScreen(state.getState().window).id).toBe(before)
   expect(state.getState().window.screens.some(s => s.id === id)).toBe(false)
 })
 
@@ -172,4 +185,62 @@ test("2 枚目のブックスクリーンのステージにも、ステージの
   // 1 枚目のブックスクリーンは変わらない（ステージ s1 は b1 を開いたまま）
   expect(stageIn(state.getState().window, "s1")?.opened?.book).toBe("b1")
   expect(stageIn(state.getState().window, "s1")?.zoom).toBe(1)
+})
+
+// 開いているスクリーンを全部見せるスクリーンアレンジメントを足したインスタンス
+function withAllShown(atStart = false) {
+  const kit = pluginKit("k", defineMessages({ All: { en: "All", ja: "全部" } }))
+  const ALL = kit.defineScreenArrangement({
+    id: "all",
+    title: "All",
+    aiDescription: "Shows every opened screen.",
+    shown: screens => screens.map(s => s.id),
+    ...(atStart ? { atStart: true as const } : {}),
+  })
+  return createMatomezu({
+    plugins: [...BUILTIN, kit.plugin({ screenArrangements: [ALL] })],
+    controlCenter: "@matomezu/control-center:control-center",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    partial: true,
+  })
+}
+
+test("見えているスクリーンは、スクリーンアレンジメントが答える。「1 枚ずつ」ではカレントスクリーンだけで、替えると見え方が変わる", () => {
+  const instance = withAllShown()
+  const { actions, state } = instance
+  const core = instance.catalog.core
+  const win = () => state.getState().window
+  expect(win().arrangement).toBe("@matomezu/base:one-screen")
+  expect(shownScreens(core, win())).toEqual([currentScreen(win()).id])
+  actions.showControlCenter()
+  expect(shownBookScreens(core, win())).toEqual([])
+  // 全部を見せるアレンジメントに替えると、カレントでないブックスクリーンも見えている
+  actions.setScreenArrangement("k:all")
+  expect(win().arrangement).toBe("k:all")
+  expect(shownScreens(core, win())).toEqual(win().screens.map(s => s.id))
+  expect(shownBookScreens(core, win()).map(s => s.def)).toEqual(["@matomezu/base:book-screen"])
+  expect(frontOf(win())).toBe("control-center")
+  // 見えているブックスクリーンは、AI に見えている物として知らせる（カレントスクリーンの種類は変わらない）
+  expect(viewOf(core, state.getState())).toMatchObject({ front: "control-center", book: "b1" })
+  // 機能台帳に無いアレンジメントには替えない。場所に入り、当てはめると戻る
+  actions.setScreenArrangement("k:none")
+  expect(win().arrangement).toBe("k:all")
+  const at = instance.address()
+  expect(at.arrangement).toBe("k:all")
+  actions.setScreenArrangement("@matomezu/base:one-screen")
+  instance.locate(at)
+  expect(win().arrangement).toBe("k:all")
+  instance.locate({ ...at, arrangement: "k:none" })
+  expect(win().arrangement).toBe("k:all")
+})
+
+test("窓を開いたときのスクリーンアレンジメントを 2 つが名乗ると、台帳アセンブルの error（E054）", () => {
+  let codes: string[] = []
+  try {
+    withAllShown(true)
+  } catch (e) {
+    codes = (e as MatomezuError).details.map(p => p.code)
+  }
+  expect(codes).toContain("E054")
 })

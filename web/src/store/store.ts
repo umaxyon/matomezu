@@ -69,19 +69,20 @@ import {
 } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import {
-  bookScreenVisible,
-  bringFront,
+  bookScreenCurrent,
   bringFrontKind,
   closeScreen,
   issueStage,
+  makeCurrent,
   mapScreen,
   mapScreenOfStage,
   mapScreens,
   newWindow,
   openScreen,
-  recentBookScreen,
   screenOf,
   screenOfStage,
+  setArrangement,
+  shownBookScreens,
   stageIn,
   type WindowState,
 } from "../core/window"
@@ -229,9 +230,10 @@ export interface Actions {
   // スクリーンを 1 枚開いて前に出し、開いた 1 枚の id を返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
   // 機能台帳に無い定義・形に合わない値なら開かず、refused を返す
   openScreen(def: string, props: unknown): string
-  bringScreenFront(id: string): void // 開いているスクリーン id を前に出す（後ろへ退いた物の中は残す）
+  makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   // 開いているスクリーン id を閉じる（前に出ていたなら、1 つ前に出していた物が前に出る）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
   closeScreen(id: string): void
+  setScreenArrangement(def: string): void // スクリーンアレンジメントを、定義 def に替える（機能台帳に無ければ替えない）
   showControlCenter(): void // コントロールセンターを前に出す（ブックスクリーンの中は残す）
   showBookScreen(): void // ブックスクリーンを前に出す
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
@@ -562,13 +564,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return !!p && !!shown && !!def.seen?.(catalog, p, item, shown)
     }
   }
+  // 見えているブックスクリーンのステージで見えたか
   const seenIn = (u: Unseen) =>
-    bookScreenVisible(getState().window) &&
-    recentBookScreen(getState().window).stages.stages.some(
-      st =>
-        st.opened?.book === u.book &&
-        changeSeen(u.made, u.step.books[u.book] as HistoryStep["books"][string], st.opened.page, seenTestOf(st)),
-    )
+    shownBookScreens(catalog, getState().window)
+      .flatMap(s => s.stages.stages)
+      .some(
+        st =>
+          st.opened?.book === u.book &&
+          changeSeen(u.made, u.step.books[u.book] as HistoryStep["books"][string], st.opened.page, seenTestOf(st)),
+      )
   // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
     if (unseen.length === 0 || options.visible?.() === false) return
@@ -822,7 +826,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const type = stageIn(window, stage)?.opened?.type
       const presentation = type && catalog.bookTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
-      const center = !bookScreenVisible(window)
+      const center = !bookScreenCurrent(window)
       for (const scope of keyScopes({ menu, dialog: dialog !== null, center }, scopes, shown, reach)) {
         const hit = findKey(table, scope, key)
         if (!hit) continue
@@ -856,7 +860,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       commit({ window: win })
       return id
     },
-    bringScreenFront: id => withWindow(win => bringFront(win, id)),
+    makeScreenCurrent: id => withWindow(win => makeCurrent(win, id)),
+    setScreenArrangement: def => withWindow(win => setArrangement(win, catalog, def)),
     closeScreen: id => withWindow(win => closeScreen(win, catalog, id)),
     showControlCenter: () => withWindow(win => bringFrontKind(win, "control-center")),
     showBookScreen: () => withWindow(win => bringFrontKind(win, "book-screen")),
@@ -879,7 +884,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // ブックを開くと、見る側のブックスクリーンを前に出す
       if (book && inWindow(stage))
         withWindow(win =>
-          bringFront(
+          makeCurrent(
             mapScreenOfStage(win, stage, ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book))),
             screenOfStage(win, stage)?.id ?? "",
           ),
@@ -891,7 +896,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // ページを開くと、見る側のブックスクリーンを前に出す
       if (book && hasPages(book) && inWindow(stage))
         withWindow(win =>
-          bringFront(
+          makeCurrent(
             mapScreenOfStage(win, stage, ws => showPage(catalog, focus(ws, stage), stage, book, page)),
             screenOfStage(win, stage)?.id ?? "",
           ),

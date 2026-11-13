@@ -93,6 +93,7 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出し
       { id: "c3", def: "@x/ticket", props: { ticket: "@ex/notes:t1" }, states: {} },
     ],
     order: ["c2", "c1", "c3"],
+    arrangement: "@x/one",
     window: { "@x/tab": "two" },
   }
   const search = searchOf(address)
@@ -114,6 +115,7 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出し
       { i: "c3", d: "@x/ticket", p: { ticket: "@ex/notes:t1" } },
     ],
     o: ["c2", "c1", "c3"],
+    a: "@x/one",
     w: { "@x/tab": "two" },
   })
   expect(parseSearch(search)).toEqual(address)
@@ -124,6 +126,7 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出し
   expect(parseSearch(`?sc=${encodeURIComponent('{"s":[1,{"i":"c1","d":"@x/home"}],"o":[1,"c1"]}')}`)).toEqual({
     screens: [{ id: "c1", def: "@x/home", props: {}, states: {} }],
     order: ["c1"],
+    arrangement: "",
     window: {},
   })
 })
@@ -156,6 +159,7 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
       { id: "c2", def: "@x/books", props: {}, states: {}, stages: { places: [], current: 0, share: 0.5 } },
     ],
     order: ["c1", "c2"],
+    arrangement: "@x/one",
     window: {},
   }
   const placed = fromFormer(former as FormerAddress, now)

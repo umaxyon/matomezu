@@ -12,6 +12,16 @@ export const BOOK_SCREEN_DEF = kit.defineScreen({
   stages: true,
 })
 
+// スクリーンアレンジメント「1 枚ずつ」: 見えているのは、カレントスクリーンの 1 枚だけ。窓を開いたときのスクリーンアレンジメント。
+// ブックスクリーンは動かさず、ステージを並べないスクリーンは右から滑り込み、その間は下の行（止まり木）を出す（描き方は WindowView）
+export const ONE_SCREEN = kit.defineScreenArrangement({
+  id: "one-screen",
+  title: "One screen at a time",
+  aiDescription: "Shows one screen at a time: the current screen. The others stay open behind it, unseen.",
+  shown: (_, order) => order.slice(-1),
+  atStart: true,
+})
+
 // 止まり木のボタン。コントロールセンターを前に出し、コントロールセンターを前に出している間は押すとブックスクリーンへ戻る
 export const CONTROL_CENTER_TOGGLE = kit.defineCommand({
   id: "control-center-toggle",

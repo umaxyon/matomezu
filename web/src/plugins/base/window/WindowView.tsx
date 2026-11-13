@@ -6,7 +6,7 @@
 import type { CSSProperties } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { SlotId } from "../../../core/catalog"
-import { frontOf, frontScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
+import { currentScreen, frontOf, recentBookScreen, recentPlainScreen } from "../../../core/window"
 import { Slot } from "../../../ui/Slot"
 import { ScreenProvider } from "../../../ui/screen-context"
 import { useMatomezuState } from "../../../ui/store-context"
@@ -18,7 +18,7 @@ import styles from "./WindowView.module.css"
 
 export function WindowView() {
   const front = useMatomezuState(s => frontOf(s.window))
-  const frontId = useMatomezuState(s => frontScreen(s.window).id)
+  const currentId = useMatomezuState(s => currentScreen(s.window).id)
   const screens = useMatomezuState(s => s.window.screens)
   // 見せるブックスクリーン（いちばん最近前に出した 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
   const book = useMatomezuState(s => recentBookScreen(s.window).id)
@@ -28,7 +28,9 @@ export function WindowView() {
     const s = screens.find(x => x.id === id)
     if (!s) return null
     return (
-      <ScreenProvider screen={{ id: s.id, def: s.def, props: s.props, front: s.id === frontId }}>
+      <ScreenProvider
+        screen={{ id: s.id, def: s.def, props: s.props, shown: s.id === currentId, current: s.id === currentId }}
+      >
         <Slot name={s.def as SlotId} props={{} as never} />
       </ScreenProvider>
     )

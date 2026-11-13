@@ -15,11 +15,12 @@
 // つながりが切れた・読み直せなかった・古い版を捨てたなどは、常駐のログにも書き残す（POST /api/log。切れている間の分は、つながってから送る）
 import { z } from "zod"
 import { hasPages } from "../core/book"
+import type { CoreCatalog } from "../core/core-catalog"
 import { fail, matomezuError, problem } from "../core/errors"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
-import { frontOf, screenOf } from "../core/window"
+import { frontOf, recentBookScreen, screenOf, shownScreens } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type {
   AIEditTicketOutcome,
@@ -128,8 +129,9 @@ const openedOf = (stage: Stage) => {
 // 窓が見ているもの。front は窓が前に出している物（control-center か book-screen）。
 // ブックスクリーンを前に出している間は、book・page・mode（編集か印刷プレビューか）・selection はカレントのステージのもの（何も開いていなければ book は null）。
 // コントロールセンターを前に出している間は、後ろに隠れているブックスクリーンのそれらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）
-export function viewOf(state: MatomezuState) {
-  const ws = screenOf(state.window)
+export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
+  const book = recentBookScreen(state.window)
+  const ws = book.stages
   const stage = currentStage(ws)
   const screen = {
     ...openedOf(stage),
@@ -139,7 +141,8 @@ export function viewOf(state: MatomezuState) {
     canSplit: ws.stages.length < MAX_STAGES,
   }
   const front = frontOf(state.window)
-  return front === "book-screen" ? { front, ...screen } : { front, hidden: screen }
+  // そのブックスクリーンが見えていなければ、見えていない物として分ける
+  return shownScreens(catalog, state.window).includes(book.id) ? { front, ...screen } : { front, hidden: screen }
 }
 
 // 利用者が直している物（useEditLock）を、ブックの id → 物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
@@ -686,7 +689,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       const tell = (focused: boolean) => {
         const state = next.state.getState()
         const now = JSON.stringify({
-          view: viewOf(state),
+          view: viewOf(next.catalog.core, state),
           editLocks: editLocksOf(state),
           recordLocks: recordLocksOf(state),
         })

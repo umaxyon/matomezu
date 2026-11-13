@@ -435,7 +435,6 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     def.run = run
   }
   expect(names(got)).toEqual([
-    "bringScreenFront",
     "closeContextMenu",
     "closeDialog",
     "closePicker",
@@ -448,6 +447,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "endBackground",
     "evenDivider",
     "focusStage",
+    "makeScreenCurrent",
     "moveDivider",
     "moveHistory",
     "openBook",
@@ -468,6 +468,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "select",
     "setEditing",
     "setPreviewArea",
+    "setScreenArrangement",
     "setStageArea",
     "setStageStart",
     "setTool",

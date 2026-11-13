@@ -2,7 +2,7 @@
 // - 郵便が届いたのを見たら、フォーカスのある窓か、最後にフォーカスされた窓（常駐が知らせる）でマーキー「郵便が届きました: 題」を出す（読み込んだときからあった郵便では出さない）
 // - 行き先のある、まだ行き先を見ていない郵便の行き先が、どれかのステージに出たら（そのブックのそのページを開き、物があればその物が表示領域に入ったら）、行き先を見たことにする
 import { useEffect, useRef } from "react"
-import { bookScreenVisible, screenOf } from "../../../core/window"
+import { shownBookScreens } from "../../../core/window"
 import { useT } from "../../../ui/i18n"
 import { useActions, useReadState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
@@ -42,27 +42,28 @@ export function MailWatch() {
 // 行き先を見たかの見張り
 function useVisited() {
   const read = useReadState()
+  const catalog = useCoreCatalog()
   const { perform } = useActions()
   const waiting = useMailbox().some(m => m.to && !m.visitedAt)
   useEffect(() => {
     if (!waiting) return
     const check = () => {
       const s = read()
-      // コントロールセンターを前に出している間は、後ろのブックスクリーンの行き先は見えていない
-      if (!bookScreenVisible(s.window)) return
+      // 見えていないブックスクリーンの行き先は、見たことにしない
+      const shown = shownBookScreens(catalog, s.window)
+      if (shown.length === 0) return
       for (const m of mailboxOf(s.records)) {
         if (!m.to || m.visitedAt) continue
-        const stages = screenOf(s.window).stages.flatMap(st =>
-          st.opened ? [{ id: st.id, book: st.opened.book, page: st.opened.page }] : [],
-        )
-        const shown = placeShown(m, stages, onScreen)
-        if (shown) perform(MAIL_VISITED.id, {}, { record: m.id })
+        const stages = shown
+          .flatMap(x => x.stages.stages)
+          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.book, page: st.opened.page }] : []))
+        if (placeShown(m, stages, onScreen)) perform(MAIL_VISITED.id, {}, { record: m.id })
       }
     }
     check()
     const timer = setInterval(check, CHECK_MS)
     return () => clearInterval(timer)
-  }, [waiting, read, perform])
+  }, [waiting, read, perform, catalog])
 }
 
 // ステージ stage で、物 id が表示領域に入っているか

@@ -15,6 +15,7 @@ const at = (places: StagePlace[], current = 0, share = 0.5): Address => ({
     { id: "c2", def: BOOKS, props: {}, states: {}, stages: { places, current, share } },
   ],
   order: ["c1", "c2"],
+  arrangement: "@matomezu/base:one-screen",
   window: {},
 })
 

@@ -24,7 +24,7 @@ import {
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
-import { frontScreen, screenOf, stageIn, workspaceOf } from "../core/window"
+import { currentScreen, screenOf, shownScreens, stageIn, workspaceOf } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
 import { ownedPluginState, pluginValueOf } from "../store/plugin-state"
@@ -377,32 +377,46 @@ interface PropsShape<P> {
   safeParse(value: unknown): { success: true; data: P } | { success: false }
 }
 
-// 描いている場所のスクリーン（定義 def のスクリーンの中のビューが使う）: 開いた 1 枚の id・渡された値・窓の前に出ているか。
+// 描いている場所のスクリーン（定義 def のスクリーンの中のビューが使う）: 開いた 1 枚の id・渡された値・見えているか・カレントスクリーンか。
 // スクリーンの外や、ほかの定義のスクリーンの中で呼べば E126
-export function useScreen<P>(def: { id: string; props: PropsShape<P> }): { id: string; props: P; front: boolean } {
+export function useScreen<P>(def: { id: string; props: PropsShape<P> }): {
+  id: string
+  props: P
+  shown: boolean
+  current: boolean
+} {
   const here = useScreenHere()
   if (here === null || here.def !== def.id) return fail("E126", { screen: def.id })
-  return here as { id: string; props: P; front: boolean }
+  return here as { id: string; props: P; shown: boolean; current: boolean }
 }
 
-// 窓のスクリーン: 開いているスクリーンの並び（開いた順。1 枚ごとの id・定義の id・渡された値・前に出ているか）と、
-// 開く（定義と渡す値。開いた 1 枚の id を返す。値が定義の形に合わなければ開かず refused）・前に出す・閉じる
+// 窓のスクリーン: 開いているスクリーンの並び（開いた順。1 枚ごとの id・定義の id・渡された値・見えているか・カレントスクリーンか）と、
+// 開く（定義と渡す値。開いた 1 枚の id を返し、カレントスクリーンにする。値が定義の形に合わなければ開かず refused）・カレントスクリーンにする・閉じる
 export function useScreens(): {
-  screens: readonly { id: string; def: string; props: unknown; front: boolean }[]
+  screens: readonly { id: string; def: string; props: unknown; shown: boolean; current: boolean }[]
   open<P>(def: { id: string; props: PropsShape<P> }, props: P): string
-  bringFront(id: string): void
+  makeCurrent(id: string): void
   close(id: string): void
 } {
+  const catalog = useCoreCatalog()
   const opened = useMatomezuState(s => s.window.screens)
-  const front = useMatomezuState(s => frontScreen(s.window).id)
-  const { openScreen, bringScreenFront, closeScreen } = useActions()
+  const current = useMatomezuState(s => currentScreen(s.window).id)
+  const shown = useMatomezuState(useShallow(s => shownScreens(catalog, s.window)))
+  const { openScreen, makeScreenCurrent, closeScreen } = useActions()
   const screens = useMemo(
-    () => opened.map(s => ({ id: s.id, def: s.def, props: s.props, front: s.id === front })),
-    [opened, front],
+    () =>
+      opened.map(s => ({
+        id: s.id,
+        def: s.def,
+        props: s.props,
+        shown: shown.includes(s.id),
+        current: s.id === current,
+      })),
+    [opened, current, shown],
   )
   const open = useCallback(
     <P>(def: { id: string; props: PropsShape<P> }, props: P) => openScreen(def.id, props),
     [openScreen],
   )
-  return { screens, open, bringFront: bringScreenFront, close: closeScreen }
+  return { screens, open, makeCurrent: makeScreenCurrent, close: closeScreen }
 }

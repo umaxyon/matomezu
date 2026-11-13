@@ -36,11 +36,12 @@ export const browserPlace: Place = {
 const round = (n: number) => Math.round(n * 1000) / 1000
 
 // URL の値 1 つに書く形（短い名前の JSON）: s はスクリーンの並び（i は id、d は定義の id、p は渡された値、t はスクリーンの範囲のプラグイン状態、
-// g はステージを並べるスクリーンの中）、o は前に出した順、w は窓の範囲のプラグイン状態。g の l はステージの並び（b はブックの id、p はページの id、
+// g はステージを並べるスクリーンの中）、o はカレントにした順、a はスクリーンアレンジメントの定義の id、w は窓の範囲のプラグイン状態。g の l はステージの並び（b はブックの id、p はページの id、
 // v は倍率・横・縦、s はステージの範囲のプラグイン状態）、c はカレントの番号、r は境目の割合。空の物は書かない
 interface Written {
   s: { i: string; d: string; p?: unknown; t?: Record<string, unknown>; g?: WrittenStages }[]
   o: string[]
+  a: string
   w?: Record<string, unknown>
 }
 interface WrittenStages {
@@ -77,6 +78,7 @@ export function searchOf(address: Address): string {
         : {}),
     })),
     o: [...address.order],
+    a: address.arrangement,
     ...(some(address.window) ? { w: { ...address.window } } : {}),
   }
   const q = new URLSearchParams()
@@ -141,7 +143,8 @@ function writtenAddress(text: string): Address | null {
     ]
   })
   const order = Array.isArray(value.o) ? value.o.filter((x: unknown): x is string => typeof x === "string") : []
-  return { screens, order, window: isObject(value.w) ? value.w : {} }
+  const arrangement = typeof value.a === "string" ? value.a : ""
+  return { screens, order, arrangement, window: isObject(value.w) ? value.w : {} }
 }
 
 // 前の形の URL を読む（matomezu の場所でなければ null）
@@ -185,7 +188,7 @@ export function fromFormer(former: FormerAddress, now: Address): Address {
     [...now.order].reverse().find(id => (now.screens.find(s => s.id === id)?.stages !== undefined) === stages)
   const to = recent(former.front === "book-screen")
   const order = to === undefined ? now.order : [...now.order.filter(id => id !== to), to]
-  return { screens, order, window: former.window }
+  return { screens, order, arrangement: now.arrangement, window: former.window }
 }
 
 // URL の値を、画面の場所に入れるプラグイン状態にする（JSON のオブジェクトでなければ空）

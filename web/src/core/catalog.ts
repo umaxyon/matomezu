@@ -22,6 +22,7 @@ export interface AnnotationTable {}
 export interface MailTable {} // 郵便の種類の id → 定義
 export interface SubjectTable {} // 対象の定義（レコードの種類）の id → 定義
 export interface ScreenTable {} // スクリーンの定義の id → 定義
+export interface ScreenArrangementTable {} // スクリーンアレンジメントの定義の id → 定義
 export interface EnumTable {} // 列挙の宣言の id → 定義（EnumDef）。列挙を宣言するプラグインが書き足す
 export interface EnumValueTable {} // 列挙の値の id → 定義（EnumValueDef）
 export interface MessageTable {} // 文言の鍵 → 訳
@@ -78,6 +79,7 @@ export const PARTS = {
   mails: { catalog: "core", label: "mail" },
   subjects: { catalog: "core", label: "subject" },
   screens: { catalog: "core", label: "screen" },
+  screenArrangements: { catalog: "core", label: "screenArrangement" },
   enums: { catalog: "core", label: "enum" },
   enumValues: { catalog: "core", label: "enumValue" },
   themes: { catalog: "core", label: "theme" },
@@ -111,6 +113,7 @@ export interface PartTables {
   mails: MailTable
   subjects: SubjectTable
   screens: ScreenTable
+  screenArrangements: ScreenArrangementTable
   enums: EnumTable
   enumValues: EnumValueTable
   themes: ThemeTable
@@ -139,6 +142,7 @@ export type AnnotationId = keyof AnnotationTable & string
 export type MailId = keyof MailTable & string
 export type SubjectId = keyof SubjectTable & string
 export type ScreenId = keyof ScreenTable & string
+export type ScreenArrangementId = keyof ScreenArrangementTable & string
 export type EnumId = keyof EnumTable & string
 export type PresentationId = keyof PresentationTable & string
 export type ToolId = keyof ToolTable & string
@@ -184,6 +188,7 @@ export interface AnnotationExtras {}
 export interface MailExtras {}
 export interface SubjectExtras {}
 export interface ScreenExtras {}
+export interface ScreenArrangementExtras {}
 export interface EnumExtras {}
 export interface EnumValueExtras {}
 export interface ControlCenterExtras {}

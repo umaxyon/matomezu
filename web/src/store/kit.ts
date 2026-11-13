@@ -20,6 +20,7 @@ import type { PaperDef } from "../core/def/paper"
 import type { PermissionDef } from "../core/def/permission"
 import type { PluginStateAddress, PluginStateDef, PluginStateSchema, PluginStateScope } from "../core/def/plugin-state"
 import type { PresentationDef } from "../core/def/presentation"
+import type { ScreenArrangementDef } from "../core/def/screen-arrangement"
 import type { ScreenDef } from "../core/def/screen-def"
 import type { DefaultedSettingDef, SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
@@ -149,6 +150,11 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: ScreenDef<Pr, keyof M & string> & { id: Id },
   ): Omit<ScreenDef<Pr>, "id"> & { id: Owned<P, Id> }
 
+  // スクリーンアレンジメントの定義（窓の、開いているスクリーンの見せ方。見えているスクリーンを shown が答える）
+  defineScreenArrangement<const Id extends string>(
+    def: ScreenArrangementDef<keyof M & string> & { id: Id },
+  ): Omit<ScreenArrangementDef, "id"> & { id: Owned<P, Id> }
+
   // 列挙の宣言（値の組。値が持つフィールドの形を value に書く）と、列挙の値（宣言した列挙 enum に足す。data は宣言の value の形）
   defineEnum<const Id extends string, V extends EnumDef["value"]>(
     def: EnumDef<V, keyof M & string> & { id: Id },
@@ -274,6 +280,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineMail: place,
     defineSubject: place,
     defineScreen: place,
+    defineScreenArrangement: place,
     defineEnum: place,
     defineEnumValue: place,
     defineBookType: (def: { id: string; schema: BookSchema; create(init: NewBook): object }) => {

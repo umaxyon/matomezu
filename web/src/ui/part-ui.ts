@@ -29,6 +29,7 @@ export const PART_UI = {
   mails: { views: [], define: ["defineMail"] },
   subjects: { views: [], define: ["defineSubject"] },
   screens: { views: [], define: ["defineScreen"] },
+  screenArrangements: { views: [], define: ["defineScreenArrangement"] },
   enums: { views: [], define: ["defineEnum"] },
   enumValues: { views: [], define: ["defineEnumValue"] },
   themes: { views: [], define: ["defineTheme"] },

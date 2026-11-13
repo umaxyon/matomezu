@@ -41,7 +41,8 @@ export interface ScreenPlace {
 
 export interface Address {
   screens: readonly ScreenPlace[] // 開いた順（空なら、窓のスクリーンは今のまま）
-  order: readonly string[] // スクリーンの id を、前に出した順に並べた物（最後が前）
+  order: readonly string[] // スクリーンの id を、カレントにした順に並べた物（最後がカレントスクリーン）
+  arrangement: string // スクリーンアレンジメントの定義の id
   window: Readonly<Record<string, unknown>> // 画面の場所に入れる、窓の範囲のプラグイン状態（宣言の id → 値）
 }
 
@@ -63,6 +64,7 @@ export function addressOf(
       ...(s.stages ? { stages: stagesPlaceOf(s.stages, stageStates) } : {}),
     })),
     order: win.order,
+    arrangement: win.arrangement,
     window: windowValues,
   }
 }
@@ -87,7 +89,7 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
   }
 }
 
-// 場所 address の、前に出ているスクリーンの id（無ければ undefined）
+// 場所 address の、カレントスクリーンの id（無ければ undefined）
 export const frontIn = (address: Address): string | undefined => address.order[address.order.length - 1]
 
 // 場所 address の、いちばん最近前に出した、ステージを並べるスクリーン（無ければ undefined）
@@ -110,11 +112,11 @@ export function withStagePlaces(address: Address, places: readonly StagePlace[],
   return { ...address, screens: address.screens.map(s => (s.id === book.id ? { ...s, stages } : s)) }
 }
 
-// 移動したか: 開いているスクリーン（id・定義・渡された値）か、前に出ている物か、どれかのスクリーンのステージの数か、どれかのステージのブック・ページが違う、
+// 移動したか: 開いているスクリーン（id・定義・渡された値）か、カレントスクリーンか、スクリーンアレンジメントか、どれかのスクリーンのステージの数か、どれかのステージのブック・ページが違う、
 // または積むと宣言したプラグイン状態（pushes: 宣言の id）の値が違う
 // （倍率・ずらす量・カレント・境目と、積むと宣言していないプラグイン状態だけの違いは移動ではない）
 export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new Set()): boolean {
-  if (frontIn(a) !== frontIn(b) || a.screens.length !== b.screens.length) return true
+  if (frontIn(a) !== frontIn(b) || a.screens.length !== b.screens.length || a.arrangement !== b.arrangement) return true
   if ([...pushes].some(id => !sameData(a.window[id], b.window[id]))) return true
   return a.screens.some((s, i) => {
     const t = b.screens[i]
@@ -202,7 +204,9 @@ export function placeAt(
   if (!all.some(s => s.stages)) return win
   const given = address.order.filter((id, i, list) => all.some(s => s.id === id) && list.indexOf(id) === i)
   const order = [...all.filter(s => !given.includes(s.id)).map(s => s.id), ...given]
-  return { screens: all, order, issued, issuedScreens }
+  // 機能台帳に無いスクリーンアレンジメントなら、今のまま
+  const arrangement = catalog.screenArrangements.has(address.arrangement) ? address.arrangement : win.arrangement
+  return { screens: all, order, arrangement, issued, issuedScreens }
 }
 
 // 場所が今のままで当てはめを省くときの窓 win: 当てはめたときと同じく、どのステージも初めの位置に合わせない（変わらなければ win のまま）

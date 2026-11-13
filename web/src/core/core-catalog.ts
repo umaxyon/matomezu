@@ -16,6 +16,7 @@ import type { NormalizeStepDef } from "./def/normalize-step"
 import type { PaperDef } from "./def/paper"
 import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
+import type { ScreenArrangementDef } from "./def/screen-arrangement"
 import type { ScreenDef } from "./def/screen-def"
 import type { SettingDef, SettingRole } from "./def/setting"
 import type { SkinDef } from "./def/skin"
@@ -59,6 +60,7 @@ declare module "./catalog" {
     mails: MailDef
     subjects: SubjectDef
     screens: ScreenDef
+    screenArrangements: ScreenArrangementDef
     enums: EnumDef
     enumValues: EnumValueDef
   }
@@ -335,6 +337,9 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       seen.add(d.id)
     }
   }
+  // 窓を開いたときのスクリーンアレンジメントは 1 つだけ
+  const atStart = parts.screenArrangements.filter(a => a.atStart)
+  for (const a of atStart.slice(1)) problems.push(problem("E054", { id: a.id, other: atStart[0]?.id ?? "" }))
   const subjects = new Set<string>(parts.subjects.map(s => s.id))
   for (const s of parts.subjects)
     if (!(s.record.shape.id instanceof z.ZodString)) problems.push(problem("E045", { id: s.id }))
