@@ -58,12 +58,15 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   await check.check()
   await expect(board).toBeVisible()
 
-  // レーンの最大化: ほかのレーンが畳まれ、元に戻すと戻る
+  // レーンの最大化: ほかのレーンが畳まれ、タスクボードの置き場は、退いたワークルームの下の端まで広がる。元に戻すと戻る
   const lanes = board.locator("[data-lane]")
   const target = board.locator(`[data-lane="${lane}"]`)
+  const area = page.locator("[data-boards-area]")
+  const roomBottom = await page.locator("[data-workroom-panel]").evaluate(e => e.getBoundingClientRect().bottom)
   await target.getByRole("button", { name: "最大化" }).click()
   await expect(target).toHaveAttribute("data-max", "true")
   await expect(lanes.nth(1)).toHaveAttribute("data-folded", "true")
+  await expect.poll(() => area.evaluate(e => Math.round(e.getBoundingClientRect().bottom))).toBe(Math.round(roomBottom))
   await target.getByRole("button", { name: "元に戻す" }).click()
   await expect(target).toHaveAttribute("data-max", "false")
 

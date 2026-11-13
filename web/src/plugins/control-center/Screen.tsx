@@ -56,7 +56,7 @@ export function ControlCenterScreen() {
         <div className={styles.stage} data-max={retreat.left}>
           <ScreenPane front={screen === "projects"} slideIn={switched}>
             <div className={styles.projectScreen}>
-              <Panel recess className={styles.boards}>
+              <Panel recess className={styles.boards} data-max={retreat.workroom} data-boards-area>
                 <Slot name={CONTROL_CENTER_PROJECTS} props={{}} />
               </Panel>
               <WorkroomView row={picked} hidden={retreat.workroom} />
