@@ -8,7 +8,7 @@
 
 ## テスト
 
-- 単体のテストは `test/` の下に、確かめる物の置き場で分けて置く。クレートの物は `test/<クレート>/`、プラグインの物は `test/plugins/<プラグインの置き場>/`（`web/src/plugins` と同じ並び。`base`・`items/line` など）。`test/` の直下には、全体を見張るテストだけを置く（`test/rules.test.ts` が見張る）
+- 単体のテストは `test/` の下に、確かめる物の置き場で分けて置く。クレートの物は `test/<クレート>/`、プラグインの物は `test/plugins/<プラグインの置き場>/`（`web/src/plugins` と同じ並び。`base`・`items/line` など）、`scripts/` のスクリプトの物は `test/scripts/`。`test/` の直下には、全体を見張るテストだけを置く（`test/rules.test.ts` が見張る）
 - 作業中は、直したものに関係するテストだけを流す（`bun test test/<置き場>/xxx.test.ts`・`go test ./internal/xxx -run Xxx`・`bunx playwright test e2e/xxx.spec.ts`）
 - 全部を流すのは、main への取り込みを頼む前（「コミット」の手順）と、ユーザーに画面の確認を頼む前だけ（main に直接積むときは、コミットの前）
   - 単体: `bun test`
