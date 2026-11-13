@@ -13,3 +13,5 @@ export const CONTROL_CENTER_PROJECTS = kit.name("control-center-projects")
 export const WORKROOM_COLUMNS = kit.name("workroom-columns")
 // 参加者の一覧の、参加済みの行の下の 1 行に出すウィジェットを置くスロット（今のタスクなど）。その行のワークルームの id と、管理者かを受け取る
 export const WORKROOM_ROW_LINE = kit.name("workroom-row-line")
+// スクリーンアレンジメント「1 枚ずつ」を描くウィジェットを置くスロット。名前は、その定義（index.ts の ONE_SCREEN）の id と同じ
+export const ONE_SCREEN_SLOT = kit.name("one-screen")

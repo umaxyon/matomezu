@@ -33,7 +33,10 @@ const instance = () =>
   })
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(instance().catalog.store.commands.keys())
-const screens = new Set(instance().catalog.core.screens.keys())
+const screens = {
+  screens: new Set(instance().catalog.core.screens.keys()),
+  screenArrangements: new Set(instance().catalog.core.screenArrangements.keys()),
+}
 
 // タブを上の行に移した UI マッピング
 const TABS_ON_TOP = defineLayout({
@@ -57,6 +60,7 @@ describe("UI マッピング", () => {
       id: "bad",
       slots: {
         root: ["@matomezu/base:window"],
+        "@matomezu/base:one-screen": ["@matomezu/base:one-screen-view"],
         "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
         "@matomezu/base:stage-top": ["nope", "@matomezu/base:book-view"],
         "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],
@@ -85,6 +89,7 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:control-center-projects is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:workroom-columns is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:workroom-row-line is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:one-screen is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:control-center-footer is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-top is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-side is not opened by any placed widget",

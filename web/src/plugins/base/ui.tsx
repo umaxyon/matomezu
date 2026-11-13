@@ -59,7 +59,7 @@ import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import type { CornerStatusProps } from "./utils/corner"
 import { WINDOW_ICONS } from "./window/icons"
-import { CONTROL_CENTER_PERCH, WINDOW } from "./window/ui"
+import { CONTROL_CENTER_PERCH, ONE_SCREEN_WIDGET, WINDOW } from "./window/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
@@ -185,6 +185,7 @@ export const BASE_UI = definePluginUi(BASE, {
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
     WINDOW,
+    ONE_SCREEN_WIDGET,
     CONTROL_CENTER_PERCH,
     WORKSPACE,
     DIALOG_HOST,
@@ -251,6 +252,7 @@ export const BASE_UI = definePluginUi(BASE, {
 declare module "../../core/catalog" {
   interface SlotTable {
     "@matomezu/base:book-screen": Record<string, never> // ブックスクリーンの中（何も受け取らない）
+    "@matomezu/base:one-screen": Record<string, never> // スクリーンアレンジメント「1 枚ずつ」を描くウィジェットを置く所（何も受け取らない）
     "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
     "@matomezu/base:control-center-side": Record<string, never> // コントロールセンターの左の列の、利用者パネルと参加者の一覧の間（何も受け取らない）
     "@matomezu/base:control-center-projects": Record<string, never> // コントロールセンターのプロジェクトの画面の上の領域（何も受け取らない）
@@ -292,6 +294,7 @@ declare module "../../core/catalog" {
   }
   interface WidgetTable {
     "@matomezu/base:window": typeof WINDOW
+    "@matomezu/base:one-screen-view": typeof ONE_SCREEN_WIDGET
     "@matomezu/base:control-center-perch": typeof CONTROL_CENTER_PERCH
     "@matomezu/base:workspace": typeof WORKSPACE
     "@matomezu/base:dialog-host": typeof DIALOG_HOST

@@ -27,7 +27,10 @@ export interface WidgetDef<S extends SlotId = SlotId> extends WidgetExtras {
   slots: readonly S[]
   place?: NoInfer<S> | WidgetPlace<NoInfer<S>> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の UI マッピングに足す（placeAdded）
   opens?: readonly SlotId[]
-  screens?: true // 窓の枠: スクリーンの定義の id と同じ名前のスロットを、開いているスクリーン 1 枚ごとに開ける（定義 1 つにつきスロット 1 つ。そこに置いたウィジェットが、そのスクリーンを描く）
+  // スクリーンアレンジメントのウィジェット: スクリーンの定義の id と同じ名前のスロットを、置いたスクリーン 1 枚ごとに開ける（定義 1 つにつきスロット 1 つ。そこに置いたウィジェットが、そのスクリーンを描く。ui/ScreenView.tsx）
+  screens?: true
+  // 窓の根のウィジェット: スクリーンアレンジメントの定義の id と同じ名前のスロットを開ける（そこに置いたウィジェットが、開いているスクリーンを並べる）
+  screenArrangements?: true
   menus?: readonly MenuId[]
   contextMenus?: readonly ContextMenuId[]
   view: (props: SlotProps<S>) => ReactNode
@@ -45,6 +48,7 @@ export interface AnyWidgetDef extends WidgetExtras {
   place?: SlotId | WidgetPlace
   opens?: readonly SlotId[]
   screens?: true
+  screenArrangements?: true
   menus?: readonly MenuId[]
   contextMenus?: readonly ContextMenuId[]
   view: (props: never) => ReactNode
@@ -227,7 +231,8 @@ export function checkLayout(
     items: ReadonlyMap<string, { contextMenus?: readonly string[] }>
   },
   commands: ReadonlySet<string>,
-  screens: ReadonlySet<string>, // スクリーンの定義の id（窓の枠が、同じ名前のスロットを開ける）
+  // 定義の id と同じ名前のスロットを持つ定義: スクリーンの定義と、スクリーンアレンジメントの定義の id
+  named: { screens: ReadonlySet<string>; screenArrangements: ReadonlySet<string> },
 ): Problem[] {
   const { widgets } = views
   const problems: Problem[] = []
@@ -248,7 +253,7 @@ export function checkLayout(
         problems.push(problem("E209", { layout: layout.id, menu, command: id }))
   for (const id of layout.anchorMenu ?? [])
     if (!commands.has(id)) problems.push(problem("E209", { layout: layout.id, menu: "anchorMenu", command: id }))
-  const { slots, menus, contextMenus: openedMenus } = opened(layout, widgets, screens)
+  const { slots, menus, contextMenus: openedMenus } = opened(layout, widgets, named)
   for (const view of [...views.presentationViews.values(), ...views.connectors.values(), ...views.items.values()])
     for (const m of view.contextMenus ?? []) openedMenus.add(m)
   for (const [slot, ids] of Object.entries(layout.slots) as [string, readonly string[]][])
@@ -261,8 +266,12 @@ export function checkLayout(
 }
 
 // 画面に開くスロットとメニュー（右クリックのメニューも）: 根のスロットから、置いたウィジェットが開けるものをたどる。
-// 窓の枠（screens を名乗るウィジェット）は、スクリーンの定義 screens の id と同じ名前のスロットを全部開ける
-function opened(layout: LayoutDef, widgets: ReadonlyMap<string, AnyWidgetDef>, screens: ReadonlySet<string>) {
+// screens・screenArrangements を名乗るウィジェットは、その種類の定義 named の id と同じ名前のスロットを全部開ける
+function opened(
+  layout: LayoutDef,
+  widgets: ReadonlyMap<string, AnyWidgetDef>,
+  named: { screens: ReadonlySet<string>; screenArrangements: ReadonlySet<string> },
+) {
   const slots = new Set<string>([ROOT_SLOT])
   const menus = new Set<string>()
   const contextMenus = new Set<string>()
@@ -270,8 +279,8 @@ function opened(layout: LayoutDef, widgets: ReadonlyMap<string, AnyWidgetDef>, s
   for (let slot = next.pop(); slot !== undefined; slot = next.pop())
     for (const id of (layout.slots as Record<string, readonly string[] | undefined>)[slot] ?? []) {
       const w = widgets.get(id)
-      for (const s of [...(w?.opens ?? []), ...(w?.screens ? screens : [])])
-        if (!slots.has(s)) next.push(slots.add(s) && s)
+      const byDefs = [...(w?.screens ? named.screens : []), ...(w?.screenArrangements ? named.screenArrangements : [])]
+      for (const s of [...(w?.opens ?? []), ...byDefs]) if (!slots.has(s)) next.push(slots.add(s) && s)
       for (const m of w?.menus ?? []) menus.add(m)
       for (const m of w?.contextMenus ?? []) contextMenus.add(m)
     }
