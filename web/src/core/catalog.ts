@@ -153,11 +153,12 @@ export type CommandId = keyof CommandTable & string
 export type KeyScopeId = BaseKeyScope | (keyof KeyScopeTable & string)
 export type PluginStateId = keyof PluginStateTable & string
 export type DialogId = keyof DialogTable & string
-export type SlotId = keyof SlotTable & string
+// スクリーンとスクリーンアレンジメントの定義の id は、それだけで同じ名前のスロットになる（何も受け取らない。SlotTable に書かなくてよい）
+export type SlotId = (keyof SlotTable | ScreenId | ScreenArrangementId) & string
 export type WidgetId = keyof WidgetTable & string
 export type MenuId = keyof MenuTable & string
 export type ContextMenuId = keyof ContextMenuTable & string
-export type SlotProps<S extends SlotId> = SlotTable[S]
+export type SlotProps<S extends SlotId> = S extends keyof SlotTable ? SlotTable[S] : Record<string, never>
 
 // 定義オブジェクトの拡張ポイント: どの定義オブジェクトの型も、種類ごとの拡張ポイントを 1 つ含む（ここは空）。
 // 土台の定義オブジェクトの型に書くのは土台が読むフィールド・メソッドだけで、ほかのプラグインが読むものは、読む側のプラグインが

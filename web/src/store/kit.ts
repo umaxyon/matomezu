@@ -24,7 +24,7 @@ import type { ScreenArrangementDef } from "../core/def/screen-arrangement"
 import type { ScreenDef } from "../core/def/screen-def"
 import type { DefaultedSettingDef, SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
-import type { SubjectDef } from "../core/def/subject"
+import type { KeysOfTypes, RecordKeyDef, SubjectDef } from "../core/def/subject"
 import type { TextColorDef } from "../core/def/text-color"
 import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
@@ -141,9 +141,17 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   ): Omit<MailDef<Pr>, "id"> & { id: Owned<P, Id> }
 
   // 対象の定義（アクションの対象の種類。レコード 1 件の形を record に書く）
-  defineSubject<const Id extends string, R extends SubjectDef["record"]>(
-    def: SubjectDef<R, keyof M & string> & { id: Id },
-  ): Omit<SubjectDef<R>, "id"> & { id: Owned<P, Id> }
+  // 索引キー（keys）は、書いたとおりの名前と値の型（text か number）で残す（条件・並び・ctx.keys の型が、そこから決まる）
+  defineSubject<
+    const Id extends string,
+    R extends SubjectDef["record"],
+    const Kt extends Readonly<Record<string, RecordKeyDef["type"]>> = Record<never, never>,
+  >(
+    def: Omit<SubjectDef<R, keyof M & string, KeysOfTypes<Kt, R>>, "keys"> & {
+      id: Id
+      keys?: KeysOfTypes<Kt, R>
+    },
+  ): Omit<SubjectDef<R, MessageKey, KeysOfTypes<Kt, R>>, "id"> & { id: Owned<P, Id> }
 
   // スクリーンの定義（窓が見せる画面 1 枚の種類。開くときに渡す値の形を props に書く）
   defineScreen<const Id extends string, Pr extends ScreenDef["props"]>(

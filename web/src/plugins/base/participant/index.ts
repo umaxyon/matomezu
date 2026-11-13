@@ -5,7 +5,9 @@
 // 要求する participant-request は AI も行え、ほかは利用者だけ。受け入れるときに、新しいワークルームなら先に workroom-add でワークルームを作り、participant-accept で入れる。
 // 引き継ぎ・ワークルームを出る・ワークルームを消すは、アクションを 1 件ずつ続けて行う（join-flow.ts）
 import { z } from "zod"
+import type { SubjectId } from "../../../core/catalog"
 import type { ActionContext } from "../../../core/def/action"
+import type { KeyValuesOf } from "../../../core/record-keys"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTES } from "../birds/colors"
 import { kit } from "../kit"
@@ -85,8 +87,8 @@ export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name
 export type Participant = z.output<typeof PARTICIPANT.record>
 export type Workroom = z.output<typeof WORKROOM.record>
 // アクションが読んだ索引キーの行（種類 subject の、id と索引キーの値）
-const keysIn = (ctx: Pick<ActionContext, "keys">, subject: string) =>
-  Object.entries(ctx.keys?.[subject] ?? {}).map(([id, keys]) => ({ id, keys }))
+const keysIn = <S extends SubjectId>(ctx: Pick<ActionContext, "keys">, subject: S) =>
+  Object.entries<KeyValuesOf<S>>(ctx.keys?.[subject] ?? {}).map(([id, keys]) => ({ id, keys }))
 
 const BIRD_ARGS = { bird: z.enum(BIRD_IDS), palette: z.enum(PALETTE_IDS).optional() }
 const NAME = z.string().trim().min(1).max(WORKROOM_NAME_MAX)

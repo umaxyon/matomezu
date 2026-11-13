@@ -18,7 +18,7 @@ export function ProjectListView() {
   const t = useMessages(kit)
   const open = usePluginState(kit, LIST_OPEN) ?? false
   const updateOpen = useUpdatePluginState(kit, LIST_OPEN)
-  const projects = useRecords(PROJECT.id)
+  const projects = useRecords(PROJECT.id, { where: [] })
   const settings = useBoardSettings()
   const ordered = orderedProjects(projects, settings.order)
   const ids = ordered.map(p => p.id)

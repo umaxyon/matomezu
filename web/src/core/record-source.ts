@@ -3,7 +3,7 @@
 // アクションの読む物の宣言（ActionDef の reads が関数のとき）を引いた結果が、run に渡る ctx.records（中身）と ctx.keys（索引キーだけ）
 import type { Actor } from "./actor"
 import type { CoreCatalog } from "./core-catalog"
-import type { ActionDef, RecordRead } from "./def/action"
+import type { ActionDef, AnyRecordRead } from "./def/action"
 import { type Condition, type KeyValues, keyValuesOf, matches, unknownKey } from "./record-keys"
 import { NO_RECORD, type Records } from "./records"
 
@@ -77,7 +77,7 @@ export function readFrom(
       : NO_RECORD
   const parsed = action.args.safeParse(args)
   if (!parsed.success || !action.reads) return { records, keys, record }
-  const reads = (action.reads as (args: unknown, actor: Actor, on: string | undefined) => readonly RecordRead[])(
+  const reads = (action.reads as (args: unknown, actor: Actor, on: string | undefined) => readonly AnyRecordRead[])(
     parsed.data,
     actor,
     on,

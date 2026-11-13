@@ -265,7 +265,7 @@
 - プラグインが足す物の id は `<プラグインの id>:<名前>`（例: `@foo/stars:star`・`@matomezu/box:shape-box`）。ビルトインプラグインも同じ。定義の種類・テーマキー・ウィジェット・スロット・キーの範囲・メニュー・右クリックのメニュー・ケイパビリティ・テーマタイプ・その場の編集の名前のどれも
 - 名前に使える字は英小文字・数字・`-` だけで、先頭は英小文字（kebab-case）。プラグインの id（npm のパッケージ名。ビルトインプラグインは `@matomezu/<名前>`）は `:` を含まないので、区切りを見誤らない
 - `:` の無い名前は土台の言葉（スロットの `root`、キーの範囲の `stage`・`dialog`・`menu`・`global`・`screen`、土台のテーマキーの `accent` など）。土台のキーの範囲は、題名も土台が持つ（土台の文言）。土台の文言の組と言語パックの id だけは `matomezu:<名前>`（`matomezu:messages`・`matomezu:en`）
-- スロット・メニュー・右クリックのメニュー・ケイパビリティ・テーマタイプの名前は、`core/catalog.ts`（`SlotTable`・`MenuTable`・`ContextMenuTable`・`CapabilityTable`・`ThemeTypeTable`）に書き足して作る。土台の言葉のほかは `<プラグインの id>:<名前>` で、渡したプラグインの id で始まるかを `createMatomezu` の型が確かめる
+- スロット・メニュー・右クリックのメニュー・ケイパビリティ・テーマタイプの名前は、`core/catalog.ts`（`SlotTable`・`MenuTable`・`ContextMenuTable`・`CapabilityTable`・`ThemeTypeTable`）に書き足して作る。土台の言葉のほかは `<プラグインの id>:<名前>` で、渡したプラグインの id で始まるかを `createMatomezu` の型が確かめる。スクリーンとスクリーンアレンジメントの定義の id は、書き足さなくてもそのままスロットになる
 - プラグインは自分の物を短い名前で定義する。プラグイン API の `pluginKit(プラグインの id, 文言)` が返す定義の関数（`kit.defineShape` など）が頭を付け、返した定義の id は長い形（型も）。自分の物は返した定義（`STAR.id`）か `kit.name(名前)` で名指し、ほかのプラグインの物は長い id で書く
 - その場の編集の名前（`setEditing` に渡す名前）は、表に書き足さず `kit.name(名前)` で作る。ただの文字を渡さない
 - ブックのタイプの `schema` に `type` は書かず、`create` の返すブックにも書かない。

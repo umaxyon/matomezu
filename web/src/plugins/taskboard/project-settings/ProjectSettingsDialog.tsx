@@ -58,8 +58,8 @@ function Settings({
   const lanes = useEditableRows<LaneRow>(() => laneRowsOf(project))
   const tags = useEditableRows<TagRow>(() => tagRowsOf(project))
   const [refused, setRefused] = useState<string | null>(null)
-  const others = useRecords(PROJECT.id).filter(p => p.id !== project.id)
-  const tickets = useRecords(TICKET.id)
+  const others = useRecords(PROJECT.id, { where: [] }).filter(p => p.id !== project.id)
+  const tickets = useRecords(TICKET.id, { where: [] })
 
   const nameMissing = name.trim() === ""
   const prefixMissing = prefix.trim() === ""

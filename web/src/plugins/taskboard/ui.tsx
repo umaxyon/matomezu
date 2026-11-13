@@ -22,7 +22,4 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:workroom-current-line": typeof WORKROOM_CURRENT_LINE
     "@matomezu/taskboard:ticket-screen-view": typeof TICKET_SCREEN_VIEW
   }
-  interface SlotTable {
-    "@matomezu/taskboard:ticket-screen": Record<string, never> // チケットスクリーンを描くウィジェットを置くスロット（何も受け取らない）
-  }
 }

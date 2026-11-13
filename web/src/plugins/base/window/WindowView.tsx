@@ -1,7 +1,7 @@
 // 窓の根のビュー（ウィジェット window）: 左に左サイドパネル（left-side-panel/）、右に今のスクリーンアレンジメント（定義の id と同じ名前のスロットに置いたウィジェットが、開いているスクリーンを並べる）。
 // 左サイドパネルを開けば、右を押し縮める。どのスクリーンを・どこに・どの大きさで出すか、下の行を出すかは、スクリーンアレンジメントが決める（窓の根は決めない）
 import type { CSSProperties } from "react"
-import type { SlotId } from "../../../core/catalog"
+import type { ScreenArrangementId } from "../../../core/catalog"
 import { Slot } from "../../../ui/Slot"
 import { useMatomezuState } from "../../../ui/store-context"
 import { LeftSidePanel } from "../left-side-panel/LeftSidePanel"
@@ -22,7 +22,7 @@ export function WindowView() {
     >
       <LeftSidePanel />
       <div className={styles.screens}>
-        <Slot name={arrangement as SlotId} props={{} as never} />
+        <Slot name={arrangement as ScreenArrangementId} props={{}} />
       </div>
     </div>
   )
