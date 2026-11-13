@@ -364,7 +364,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   for (const a of parts.actions)
     if (!BASE_TARGETS.includes(a.target) && !subjects.has(a.target))
       problems.push(problem("E046", { id: a.id, target: a.target }))
-  // アクションの対象と writes に書ける種類は、アクションと同じプラグインの種類だけ。writes は、台帳にある種類で、対象でなく、番号を振る種類でない
+  // アクションの対象と writes に書ける種類は、アクションと同じプラグインの種類か、持ち主が writableBy に許した種類。writes は、台帳にある種類で、対象でなく、番号を振る種類でない
   const numbered = new Set(parts.subjects.filter(s => s.numbered).map(s => s.id))
   for (const a of parts.actions) {
     const owner = splitId(a.id).owner
