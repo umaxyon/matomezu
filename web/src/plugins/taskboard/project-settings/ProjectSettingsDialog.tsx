@@ -20,7 +20,16 @@ import { PROJECT_UPDATE } from "../project/actions"
 import { TICKET } from "../ticket"
 import { LaneSettings } from "./LaneSettings"
 import styles from "./ProjectSettingsDialog.module.css"
-import { hidesTickets, type LaneRow, laneRowsOf, repeatedKeys, type TagRow, tagRowsOf, updateArgsOf } from "./rows"
+import {
+  doneLaneBlocked,
+  hidesTickets,
+  type LaneRow,
+  laneRowsOf,
+  repeatedKeys,
+  type TagRow,
+  tagRowsOf,
+  updateArgsOf,
+} from "./rows"
 import { TagSettings } from "./TagSettings"
 import { useEditableRows } from "./useEditableRows"
 
@@ -66,6 +75,7 @@ function Settings({
   const prefixMissing = prefix.trim() === ""
   const prefixTaken = !prefixMissing && others.some(p => sameName(p.prefix, prefix, true))
   const repeatedLanes = repeatedKeys(lanes.rows)
+  const doneBlocked = doneLaneBlocked(project, lanes.rows, doneKey, tickets)
   const repeatedTags = repeatedKeys(tags.rows)
   const ready =
     !nameMissing &&
@@ -73,7 +83,8 @@ function Settings({
     PREFIX_PATTERN.test(prefix) &&
     !prefixTaken &&
     repeatedLanes.size === 0 &&
-    repeatedTags.size === 0
+    repeatedTags.size === 0 &&
+    !doneBlocked
 
   const save = async () => {
     const done = await actions.performConfirmed(
@@ -156,6 +167,7 @@ function Settings({
                 hides={hidesTickets(project, lanes.rows, tickets)}
                 done={doneKey}
                 onDone={setDoneKey}
+                doneBlocked={doneBlocked}
               />
             </div>
           </SideTabs>

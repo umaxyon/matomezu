@@ -22,7 +22,6 @@ export function templateOf(
 ): { lanes: z.output<typeof LANES>; tags: z.output<typeof TAGS>; doneLane: string } {
   const done = newId()
   return {
-    doneLane: done,
     lanes: [
       {
         kind: "lane",
@@ -60,5 +59,6 @@ export function templateOf(
         prompt: say(kit.message("template tag bug prompt")),
       },
     ],
+    doneLane: done,
   }
 }

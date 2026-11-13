@@ -5,6 +5,10 @@ export const PROJECT_SETTINGS_MESSAGES = defineMessages({
   "Project settings": { en: "Project settings", ja: "プロジェクト設定" },
   General: { en: "General", ja: "全般" },
   "Done lane": { en: "Done lane", ja: "完了のレーン" },
+  "The done lane has tickets with assignees: complete them first": {
+    en: "The done lane has tickets with assignees: complete them first",
+    ja: "完了のレーンに、担当のいるチケットがあります。先に完了にしてください",
+  },
   "No done lane": { en: "None", ja: "なし" },
   "Edit the name": { en: "Edit the name", ja: "名前を編集" },
   "Ticket tags": { en: "Ticket tags", ja: "チケットタグ" },

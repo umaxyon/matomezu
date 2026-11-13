@@ -97,7 +97,7 @@ export const PROJECT_UPDATE = kit.defineAction({
   id: "project-update",
   title: "update project",
   aiDescription:
-    "Change the name, the prefix (as in project-add), the lanes, the ticket tags or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees or is a current ticket) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted or none.",
+    "Change the name, the prefix (as in project-add), the lanes, the ticket tags or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees; a workroom whose current ticket is in that lane gets none) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted or none.",
   target: PROJECT.id,
   // 完了のレーンを選ぶときは、そのレーンのチケットと今のチケットを確かめるために、プロジェクトのチケットと今のチケットの索引キーを読む
   // （project は ticket・current-ticket を読まない向きなので、id だけを書く）
@@ -110,6 +110,7 @@ export const PROJECT_UPDATE = kit.defineAction({
           { subject: CURRENT_ID, where: [], keysOnly: true as const },
         ]),
   ],
+  writes: [CURRENT_ID],
   userOnly: true,
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(PROJECT_NAME_MAX).optional(),
@@ -135,16 +136,17 @@ export const PROJECT_UPDATE = kit.defineAction({
     if (tags && !TAGS.safeParse(tags).success) return { declined: "the tag ids and names must not repeat" }
     const done = doneLaneOf(now, args.doneLane, (lanes ?? now.lanes) as Project["lanes"])
     if ("declined" in done) return done
+    let cleared: string[] = []
     if (done.id !== (now.doneLane ?? NO_DONE_LANE) && done.id !== NO_DONE_LANE) {
-      // 新しい完了のレーンにいるチケットは、担当がおらず、今のチケットに指されていない
+      // 新しい完了のレーンにいるチケットは、担当がいれば断る。今のチケットに指されていれば、同じトランザクションで今のチケットを none にする
       const inLane = Object.entries(ctx.keys?.[TICKET_ID] ?? {}).filter(([, k]) => k.lane === done.id)
       if (inLane.some(([, k]) => Number(k.assigned ?? 0) > 0))
         return { declined: "tickets in that lane have assignees: complete them with ticket-complete first" }
       const ids = new Set(inLane.map(([id]) => id))
-      if (Object.values(ctx.keys?.[CURRENT_ID] ?? {}).some(k => ids.has(String(k.ticket))))
-        return {
-          declined: "tickets in that lane are a current ticket of a workroom: complete them with ticket-complete first",
-        }
+      cleared = Object.entries(ctx.keys?.[CURRENT_ID] ?? {})
+        .filter(([, k]) => ids.has(String(k.ticket)))
+        .map(([room]) => room)
+        .sort()
     }
     const { doneLane: _was, ...kept } = now
     return {
@@ -156,6 +158,11 @@ export const PROJECT_UPDATE = kit.defineAction({
         ...(tags === undefined ? {} : { tags: tags as Project["tags"] }),
         ...(done.id === NO_DONE_LANE ? {} : { doneLane: done.id }),
       },
+      others: cleared.map(room => ({
+        subject: CURRENT_ID,
+        id: room,
+        record: { id: room, ticket: "none", at: ctx.now },
+      })),
       result: {},
     }
   },

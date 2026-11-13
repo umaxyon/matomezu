@@ -12,7 +12,7 @@ import { useReorderAnimation } from "../reorder/useReorderAnimation"
 import settings from "./ProjectSettingsDialog.module.css"
 import { NameField, PromptSplit, rowProps } from "./PromptSplit"
 import styles from "./PromptSplit.module.css"
-import type { LaneRow } from "./rows"
+import { doneChoices, type LaneRow } from "./rows"
 import type { EditableRows } from "./useEditableRows"
 
 export function LaneSettings({
@@ -21,12 +21,14 @@ export function LaneSettings({
   hides,
   done,
   onDone,
+  doneBlocked,
 }: {
   lanes: EditableRows<LaneRow>
   repeated: ReadonlySet<string>
   hides: boolean // 保存すると、消したレーンのチケットがボードに出なくなる
   done: string // 完了のレーンに選んだ行の鍵（無ければ none）
   onDone: (key: string) => void
+  doneBlocked: boolean // 完了のレーンに選んだ行に、担当のいるチケットがある（保存できない）
 }) {
   const t = useMessages(kit)
   const { rows, change, add, leave, move, nameRef } = lanes
@@ -59,19 +61,18 @@ export function LaneSettings({
         {t("Done lane")}
         <select className={controlClass} value={done} onChange={e => onDone(e.target.value)}>
           <option value={NO_DONE_LANE}>{t("No done lane")}</option>
-          {rows
-            .flatMap(r => (r.kind === "lane" && r.name.trim() !== "" ? [r] : []))
-            .map(r => (
-              <option key={r.key} value={r.key}>
-                {r.name}
-              </option>
-            ))}
+          {doneChoices(rows).map(r => (
+            <option key={r.key} value={r.key}>
+              {r.name}
+            </option>
+          ))}
         </select>
       </label>
       <PromptSplit
         notes={[
           ...(repeated.size > 0 ? [t("The names repeat")] : []),
           ...(hides ? [t("Tickets moved to unsorted are not shown on the board")] : []),
+          ...(doneBlocked ? [t("The done lane has tickets with assignees: complete them first")] : []),
         ]}
         addLabel={t("Add a lane")}
         onAdd={() => setSelected(add({ kind: "lane", prompt: "" }))}

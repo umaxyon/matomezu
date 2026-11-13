@@ -54,7 +54,7 @@ export const TOPIC_COMPLETE = kit.defineEnumValue({
   enum: HISTORY_TOPIC.id,
   title: "topic complete",
   aiDescription:
-    "The ticket was completed (ticket-complete writes this line, without text, and keeps the assignees it released in released). Do not write it yourself: complete the ticket with ticket-complete.",
+    "The ticket was completed (ticket-complete writes this line, without text, and keeps the assignees it released in released). ticket-history-add refuses this topic: complete the ticket with ticket-complete.",
   data: { color: "success", textless: true },
 })
 

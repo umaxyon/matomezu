@@ -13,7 +13,7 @@ export const CURRENT_TICKET_SET = kit.defineAction({
   id: "current-ticket-set",
   title: "set current ticket",
   aiDescription:
-    "Declare the ticket your workroom is working on now (only to be shown to the user; it decides nothing), or none when you work on none. Only an AI in a workroom, and only for its own workroom. The first time, leave on out; after that, set on.record to your workroom's id (the id this action returned as current).",
+    "Declare the ticket your workroom is working on now (only to be shown to the user; it decides nothing), or none when you work on none. Only an AI in a workroom, and only for its own workroom. A ticket in the done lane of its project is refused (it is completed); completing a ticket with ticket-complete sets the current ticket of every workroom that pointed at it to none. The first time, leave on out; after that, set on.record to your workroom's id (the id this action returned as current).",
   target: CURRENT.id,
   // 宣言するチケットと、そのチケットのプロジェクトを引く（完了のレーンのチケットは宣言させない）
   reads: args =>

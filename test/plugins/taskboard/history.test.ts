@@ -145,7 +145,7 @@ test("本文更新の題は文を持たなくてよい。ほかの題は文が�
   expect(user(A(LOG), { ticket, topic: A("topic-status"), text: "  " }).ok).toBe(false)
 })
 
-// チケットの完了（ticket-complete）: レーン・担当・今のチケット・履歴が 1 回で、全部そろって変わる。
+// チケットの完了（ticket-complete）: レーン・担当・今のチケット・チケット履歴が 1 回で、全部そろって変わる。
 // store は利用者だけが行うので、AI としても行うここだけは、世界を自分で持って結果を当てていく
 function completing() {
   let w: World = { books: {}, settings: {}, annotations: {}, records: {}, counters: {} }
@@ -185,7 +185,7 @@ function completing() {
   return { act, user, table, room, project, ticket, projectRecord, laneNamed }
 }
 
-test("完了にすると、チケットは完了のレーンへ移り、担当が外れ、指している全部のワークルームの今のチケットが none になり、履歴に完了の行（外した担当つき）が足される。1 回で全部", () => {
+test("完了にすると、チケットは完了のレーンへ移り、担当が外れ、指している全部のワークルームの今のチケットが none になり、チケット履歴に完了の行（外した担当つき）が足される。1 回で全部", () => {
   const { user, act, table, room, ticket, projectRecord } = completing()
   const a = room("あ")
   const b = room("い")
@@ -232,8 +232,8 @@ test("完了のレーンのチケットは、今のチケットに宣言でき�
   expect(act(ai(a), "current-ticket-set", { ticket: "none" }, { record: a }).ok).toBe(true)
 })
 
-test("完了のレーンを替えるときは、新しいレーンのチケットに担当がいるか今のチケットに指されていれば断る。名前でも指せ、無いレーンは断る。レーンを消すと none になる", () => {
-  const { user, act, room, ticket, project, projectRecord, laneNamed } = completing()
+test("完了のレーンを替えるときは、新しいレーンのチケットに担当がいれば断り、今のチケットに指されていれば同じ 1 回で none にする。名前でも指せ、無いレーンは断る。レーンを消すと none になる", () => {
+  const { user, act, table, room, ticket, project, projectRecord, laneNamed } = completing()
   const a = room("あ")
   const todo = laneNamed("未着手")
   user("ticket-update", { lane: todo, assignees: [a] }, { record: ticket })
@@ -241,13 +241,18 @@ test("完了のレーンを替えるときは、新しいレーンのチケッ�
   expect(set("未着手").ok).toBe(false) // 担当のいるチケットがある
   user("ticket-update", { assignees: [] }, { record: ticket })
   expect(act(ai(a), "current-ticket-set", { ticket }).ok).toBe(true)
-  expect(set("未着手").ok).toBe(false) // 今のチケットに指されている
-  expect(act(ai(a), "current-ticket-set", { ticket: "none" }, { record: a }).ok).toBe(true)
   expect(set("nothing").ok).toBe(false)
-  expect(set("未着手").ok).toBe(true)
+  expect(set("未着手").ok).toBe(true) // 今のチケットに指されていても通り、同じ 1 回で none になる
+  expect(table(CURRENT.id).map(c => c.ticket)).toEqual(["none"])
   expect(projectRecord().doneLane).toBe(todo)
   // 完了のレーンを並びから省くと、完了のレーンは none になる
   const rest = projectRecord().lanes.filter(l => l.id !== todo)
   expect(user("project-update", { lanes: rest }, { record: project }).ok).toBe(true)
   expect(projectRecord().doneLane).toBeUndefined()
+})
+
+test("完了の行は、チケット履歴に直に書けない（ticket-complete だけが書く）", () => {
+  const { user, ticket, table } = completing()
+  expect(user("ticket-history-add", { ticket, topic: A("topic-complete"), text: "" }).ok).toBe(false)
+  expect(table(HISTORY.id)).toEqual([])
 })

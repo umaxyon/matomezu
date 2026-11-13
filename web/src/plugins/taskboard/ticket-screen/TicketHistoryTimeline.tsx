@@ -4,7 +4,7 @@ import { useMessages, useSettings } from "../../../plugin-api/ui"
 import { kit } from "../kit"
 import styles from "./TicketHistoryTimeline.module.css"
 import { TopicBadge, useTopicData, useTopicName } from "./TopicBadge"
-import { dayHeading, groupByDay, type HistoryRow, rowTextSource, timeOf } from "./view"
+import { dayHeading, groupByDay, type HistoryRow, namesLine, rowTextSource, timeOf } from "./view"
 import { WriterBird } from "./WriterBird"
 
 export function TicketHistoryTimeline({
@@ -53,16 +53,20 @@ function Row({
   workroomNames: Readonly<Record<string, string>>
 }) {
   const t = useMessages(kit)
+  const { lang } = useSettings()
   const data = useTopicData(row.topic)
   const topicName = useTopicName(row.topic)
   const source = rowTextSource(row, data?.textless === true)
+  const releasedNames = (row.released ?? []).flatMap(id => workroomNames[id] ?? [])
   const text =
     source === "filed"
       ? t("Filed this ticket")
       : source === "body"
         ? t("Updated the body")
         : source === "topic"
-          ? [topicName, ...(row.released ?? []).flatMap(id => workroomNames[id] ?? [])].join(" ")
+          ? releasedNames.length > 0
+            ? t("{topic}: {names}", { topic: topicName, names: namesLine(releasedNames, lang) })
+            : topicName
           : row.text
   return (
     <li className={styles.item}>

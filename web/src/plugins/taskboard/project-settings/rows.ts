@@ -65,11 +65,29 @@ export function moveRow<R extends { key: string }>(rows: readonly R[], dragging:
 }
 
 // ダイアログの行から、プロジェクトを直すアクションの引数を作る（名前は前後の空白を除く。空の名前の行は入れない）
+// 完了のレーンに選べる行: 名前のあるレーン（未分類の行と、名前が空の行は選べない）
+export const doneChoices = (lanes: readonly LaneRow[]): (NamedRow & { kind: "lane"; prompt: string })[] =>
+  lanes.filter((l): l is NamedRow & { kind: "lane"; prompt: string } => l.kind === "lane" && l.name.trim() !== "")
+
 // 完了のレーンは、選んだ行の鍵 doneKey から決める（もうある行は id、新しい行は名前で指す。行が無ければ none）
 export function doneLaneOf(lanes: readonly LaneRow[], doneKey: string): string {
-  const row = named(lanes).find(l => "kind" in l && l.kind === "lane" && l.key === doneKey)
-  if (!row || row.name.trim() === "") return NO_DONE_LANE
-  return row.id ?? row.name.trim()
+  const row = doneChoices(lanes).find(l => l.key === doneKey)
+  return row ? (row.id ?? row.name.trim()) : NO_DONE_LANE
+}
+
+// 完了のレーンに選んだ行に、担当のいるチケットがあるか（保存すると断られる。もう完了のレーンの行は、そのまま通る）
+export function doneLaneBlocked(
+  project: Project,
+  lanes: readonly LaneRow[],
+  doneKey: string,
+  tickets: readonly { project: string; lane: string; assignees: readonly string[] }[],
+): boolean {
+  const id = doneChoices(lanes).find(l => l.key === doneKey)?.id
+  return (
+    id !== undefined &&
+    id !== project.doneLane &&
+    tickets.some(t => t.project === project.id && t.lane === id && t.assignees.length > 0)
+  )
 }
 
 export function updateArgsOf(

@@ -5,7 +5,7 @@ import { byOf, readsBy } from "../by"
 import { kit } from "../kit"
 import { TICKET } from "../ticket"
 import { ticketOf } from "../ticket/actions"
-import { HISTORY, HISTORY_TOPIC, type TopicData } from "."
+import { HISTORY, HISTORY_TOPIC, TOPIC_COMPLETE, type TopicData } from "."
 
 // 履歴の行を足す。書いた者は行った者（引数では受けない）。題は、列挙 history-topic の値の id
 export const TICKET_HISTORY_ADD = kit.defineAction({
@@ -37,6 +37,8 @@ export const TICKET_HISTORY_ADD = kit.defineAction({
     if (!ticketOf(ctx, args.ticket)) return { declined: "the ticket is not there" }
     const topic = enumValuesOf(ctx.catalog, HISTORY_TOPIC.id).find(v => v.id === args.topic)
     if (!topic) return { declined: "the topic is not a value of history-topic" }
+    if (topic.id === TOPIC_COMPLETE.id)
+      return { declined: "the completion line is written by ticket-complete: complete the ticket with it" }
     if (args.text.trim() === "" && !(topic.data as TopicData).textless) return { declined: "the topic needs a text" }
     const by = byOf(ctx.actor, ctx)
     if (!by) return { declined: "the workroom of the AI is not there" }

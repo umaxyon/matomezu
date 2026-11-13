@@ -61,7 +61,7 @@ function pickAssignees(
   return new Set(ids).size === ids.length ? { ids } : { declined: "an assignee is there twice" }
 }
 
-// 完了のレーンへは、ticket-complete だけが入れる（担当を外す・今のチケットを空にする・履歴を足すを一緒に行うため）
+// 完了のレーンへは、ticket-complete だけが入れる（担当を外す・今のチケットを空にする・チケット履歴を足すを一緒に行うため）
 const DONE_LANE_REFUSAL = "the done lane is entered only with ticket-complete: complete the ticket"
 
 export const TICKET_ADD = kit.defineAction({
