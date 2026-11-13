@@ -587,6 +587,18 @@ test("コントロールセンターが writes の種類を許していなけれ
   expect(ask("card-many-notes")).toEqual({ ok: true })
   expect(ask("card-many-notes", only)).toMatchObject({ ok: false, reason: "not-allowed" })
   expect(ask("card-many", only)).toEqual({ ok: true })
+  // actions に直に並べたアクションも、writes の種類が許されていなければ使えない
+  const listed = assemble(
+    [
+      ...BUILTIN,
+      defineBuiltin({
+        ...EX,
+        controlCenters: [{ id: CENTER, actions: ["@ex/rec:card-many-notes" as never], subjects: [] }],
+      } as never),
+    ],
+    CENTER,
+  ).catalog.core
+  expect(ask("card-many-notes", listed)).toMatchObject({ ok: false, reason: "not-allowed" })
 })
 
 test("定義の組の確かめ: writes が種類でない・宛先そのもの・番号を振る種類、別のプラグインの種類を宛先か writes にする、ロックの切り替えが writes を持つ、は error", () => {

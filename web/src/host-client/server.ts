@@ -20,7 +20,7 @@ import { fail, matomezuError, problem } from "../core/errors"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
-import { viewFrontOf, recentBookScreen, screenOf, shownScreens } from "../core/window"
+import { recentBookScreen, screenOf, shownScreens, viewFrontOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type {
   AIEditTicketOutcome,
