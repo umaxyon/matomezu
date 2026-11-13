@@ -44,8 +44,11 @@ function Ex12Row({ screen, current, closable }: { screen: string; current: boole
           </button>
         )}
       </div>
-      {/* ステージを並べるスクリーンは、決まった大きさの中に描く（中身の高さまかせにしない） */}
-      <div data-ex12-screen style={{ position: "relative", height, display: "flex", flexDirection: "column" }}>
+      {/* どのスクリーンも、決まった高さの枠の中に描く（はみ出す中身は、枠の中でスクロールする。ステージを並べるスクリーンは、中身の高さまかせにできない） */}
+      <div
+        data-ex12-screen
+        style={{ position: "relative", height, display: "flex", flexDirection: "column", overflow: "auto" }}
+      >
         <ScreenView screen={screen} />
       </div>
     </section>
