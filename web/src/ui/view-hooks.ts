@@ -8,6 +8,7 @@ import type { ActionId, ItemId, SubjectId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isOnBook, type RecordOf, type Where } from "../core/def/action"
 import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"
+import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
@@ -23,13 +24,14 @@ import {
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
-import { screenOf, stageIn } from "../core/window"
+import { frontScreen, screenOf, stageIn } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
 import { ownedPluginState, pluginValueOf } from "../store/plugin-state"
 import type { Performed } from "../store/store"
 import { worldOf } from "../store/world"
 import type { UiCatalog } from "./plugin"
+import { useScreenHere } from "./screen-context"
 import {
   useActions,
   useCatalog,
@@ -182,12 +184,22 @@ export function useStage(stage: string): StageView | null {
 type Owner = PluginKit<string, any>
 
 // ステージごとの宣言は、読み書きするステージ stage を呼び出しに渡す（ステージに結ばない宣言は渡さない）
-type At<Sc extends PluginStateScope> = Sc extends "stage" ? [stage: string] : []
+// 値のある場所: ステージごとの宣言はステージの id、スクリーンごとの宣言は開いているスクリーンの id（useScreen が返す自分の id など）
+type At<Sc extends PluginStateScope> = Sc extends "stage"
+  ? [stage: string]
+  : Sc extends "screen"
+    ? [screen: string]
+    : []
 
 // プラグイン状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。
 // ステージごとの宣言は読むステージ stage も渡す。置き直すたびに描き直す
 export function usePluginState<S>(kit: Owner, def: PluginStateDef<S> & { scope: "window" }): S | undefined
 export function usePluginState<S>(kit: Owner, def: PluginStateDef<S> & { scope: "stage" }, stage: string): S | undefined
+export function usePluginState<S>(
+  kit: Owner,
+  def: PluginStateDef<S> & { scope: "screen" },
+  screen: string,
+): S | undefined
 export function usePluginState<S>(kit: Owner, def: PluginStateDef<S>, stage = ""): S | undefined {
   const own = ownedPluginState(kit.id, def)
   return useMatomezuState(s => pluginValueOf(s.pluginValues, stage, own))
@@ -213,7 +225,7 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
   const own = ownedPluginState(kit.id, def)
   return useCallback(
     (...args: unknown[]) =>
-      setPluginState(own.id, own.scope === "stage" ? (args[0] as string) : null, args[args.length - 1]),
+      setPluginState(own.id, own.scope === "window" ? null : (args[0] as string), args[args.length - 1]),
     [setPluginState, own],
   )
 }
@@ -242,7 +254,7 @@ export function useUpdatePluginState<S, Sc extends PluginStateScope>(
   const own = ownedPluginState(kit.id, def)
   return useCallback(
     (...args: unknown[]) => {
-      const stage = own.scope === "stage" ? (args[0] as string) : null
+      const stage = own.scope === "window" ? null : (args[0] as string)
       const change = args[args.length - 1] as (now: S | undefined) => S | undefined
       setPluginState(own.id, stage, change(pluginValueOf(read().pluginValues, stage ?? "", own)))
     },
@@ -358,4 +370,39 @@ export function useRecord<const T extends SubjectId>(subject: T, id: string): Re
     const record = catalog.subjects.get(subject)?.record
     return one !== undefined && record?.safeParse(one).success ? (one as RecordOf<T>) : undefined
   }, [catalog, subject, one])
+}
+
+// スクリーンの定義の、渡す値の形（確かめて通った値の型 P だけを見る）
+interface PropsShape<P> {
+  safeParse(value: unknown): { success: true; data: P } | { success: false }
+}
+
+// 描いている場所のスクリーン（定義 def のスクリーンの中のビューが使う）: 開いた 1 枚の id・渡された値・窓の前に出ているか。
+// スクリーンの外や、ほかの定義のスクリーンの中で呼べば E126
+export function useScreen<P>(def: { id: string; props: PropsShape<P> }): { id: string; props: P; front: boolean } {
+  const here = useScreenHere()
+  if (here === null || here.def !== def.id) return fail("E126", { screen: def.id })
+  return here as { id: string; props: P; front: boolean }
+}
+
+// 窓のスクリーン: 開いているスクリーンの並び（開いた順。1 枚ごとの id・定義の id・渡された値・前に出ているか）と、
+// 開く（定義と渡す値。開いた 1 枚の id を返す。値が定義の形に合わなければ開かず refused）・前に出す・閉じる
+export function useScreens(): {
+  screens: readonly { id: string; def: string; props: unknown; front: boolean }[]
+  open<P>(def: { id: string; props: PropsShape<P> }, props: P): string
+  bringFront(id: string): void
+  close(id: string): void
+} {
+  const opened = useMatomezuState(s => s.window.screens)
+  const front = useMatomezuState(s => frontScreen(s.window).id)
+  const { openScreen, bringScreenFront, closeScreen } = useActions()
+  const screens = useMemo(
+    () => opened.map(s => ({ id: s.id, def: s.def, props: s.props, front: s.id === front })),
+    [opened, front],
+  )
+  const open = useCallback(
+    <P>(def: { id: string; props: PropsShape<P> }, props: P) => openScreen(def.id, props),
+    [openScreen],
+  )
+  return { screens, open, bringFront: bringScreenFront, close: closeScreen }
 }

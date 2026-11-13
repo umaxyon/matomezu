@@ -79,6 +79,7 @@ import {
   newWindow,
   openScreen,
   screenOf,
+  screenOfStage,
   stageIn,
   type WindowState,
 } from "../core/window"
@@ -679,12 +680,26 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       stages !== undefined && opened !== null && !stages.some(s => s.id === opened.stage)
     const values = next.pluginValues ?? getState().pluginValues
     const kept = stages && Object.keys(values.stages).filter(id => stages.some(s => s.id === id))
+    // 閉じたスクリーンのプラグイン状態も消す
+    const opened = next.window?.screens
+    const keptScreens = opened && Object.keys(values.screens).filter(id => opened.some(s => s.id === id))
+    const fewer =
+      (kept !== undefined && kept.length < Object.keys(values.stages).length) ||
+      (keptScreens !== undefined && keptScreens.length < Object.keys(values.screens).length)
     setState({
       ...next,
       ...(gone(dialog) ? { dialog: null } : {}),
       ...(gone(contextMenu) ? { contextMenu: null } : {}),
-      ...(kept && kept.length < Object.keys(values.stages).length
-        ? { pluginValues: { ...values, stages: Object.fromEntries(kept.map(id => [id, values.stages[id] ?? {}])) } }
+      ...(fewer
+        ? {
+            pluginValues: {
+              ...values,
+              stages: kept ? Object.fromEntries(kept.map(id => [id, values.stages[id] ?? {}])) : values.stages,
+              screens: keptScreens
+                ? Object.fromEntries(keptScreens.map(id => [id, values.screens[id] ?? {}]))
+                : values.screens,
+            },
+          }
         : {}),
     })
   }
@@ -696,6 +711,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       window,
       stage => placedOf(placed, "stage", pluginValues.stages[stage]),
       placedOf(placed, "window", pluginValues.window),
+      screen => placedOf(placed, "screen", pluginValues.screens[screen]),
     )
   }
   // ステージ stage が窓のどれかのブックスクリーンにあるか
@@ -703,10 +719,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // プラグイン状態の宣言 id の値を value にした値の組 values（変わらなければ values のまま）。画面の場所に入れる宣言の値は宣言の形で確かめる（合わなければ E123）。
   // ステージごとの宣言は stage のステージの値（無いステージには置かない）、ステージに結ばない宣言は stage を渡さない。知らない id は E122、範囲が合わなければ E124
+  // スクリーンごとの宣言は、stage に開いているスクリーンの id を渡す（無いスクリーンには置かない）
   const withPluginValue = (values: PluginValues, id: string, stage: string | null, value: unknown): PluginValues => {
     const def = defs.catalog.store.pluginStates.get(id) ?? fail("E122", { id })
     if (def.scope === "window" && stage !== null) fail("E124", { id, scope: "window", need: "give no stage" })
     if (def.scope === "stage" && stage === null) fail("E124", { id, scope: "stage", need: "give the stage" })
+    if (def.scope === "screen" && stage === null) fail("E124", { id, scope: "screen", need: "give the screen" })
     let next = value
     if (value !== undefined && def.address !== "none") {
       const read = def.schema?.safeParse(value)
@@ -717,6 +735,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const same = def.address === "none" ? Object.is : sameData
     if (stage === null) {
       return same(values.window[id], next) ? values : { ...values, window: withPluginState(values.window, id, next) }
+    }
+    if (def.scope === "screen") {
+      const opened = getState().window.screens.some(s => s.id === stage)
+      if (!opened || same(values.screens[stage]?.[id], next)) return values
+      return { ...values, screens: { ...values.screens, [stage]: withPluginState(values.screens[stage], id, next) } }
     }
     if (!inWindow(stage) || same(values.stages[stage]?.[id], next)) return values
     return { ...values, stages: { ...values.stages, [stage]: withPluginState(values.stages[stage], id, next) } }
@@ -755,8 +778,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
       const updatePluginState = <S>(stateDef: PluginStateDef<S>, change: (now: S | undefined) => S | undefined) => {
         const own = ownedPluginState(owner, stateDef)
-        const at = own.scope === "stage" ? stage : null
-        const next = change(pluginValueOf(working(), stage, own))
+        // スクリーンごとの宣言は、呼ばれた場所のステージを並べているスクリーンの値
+        const here = own.scope === "screen" ? (screenOfStage(getState().window, stage)?.id ?? "") : stage
+        const at = own.scope === "window" ? null : here
+        const next = change(pluginValueOf(working(), here, own))
         withPluginValue(working(), own.id, at, next) // 書く前に、範囲と形を確かめる
         pending.push([own.id, at, next])
       }
@@ -1031,12 +1056,27 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           if (Object.keys(next).length > 0) stages[st.id] = next
         })
       }
+      // スクリーンごとの宣言の値も同じ（場所に無いスクリーンの値は、今のまま）
+      const screens: Record<string, Readonly<Record<string, unknown>>> = {}
+      for (const screen of win.screens) {
+        const place = address.screens.find(x => x.id === screen.id)
+        const next = {
+          ...keptOutside(placed, "screen", now.pluginValues.screens[screen.id]),
+          ...readPlaced(
+            placed,
+            "screen",
+            place ? place.states : placedOf(placed, "screen", now.pluginValues.screens[screen.id]),
+          ),
+        }
+        if (Object.keys(next).length > 0) screens[screen.id] = next
+      }
       const pluginValues: PluginValues = {
         window: {
           ...keptOutside(placed, "window", now.pluginValues.window),
           ...readPlaced(placed, "window", address.window),
         },
         stages,
+        screens,
       }
       commit({
         ...(win === now.window ? {} : { window: win }),

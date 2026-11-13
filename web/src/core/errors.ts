@@ -69,6 +69,7 @@ export const ERRORS = {
   E123: "plugin state {id}: the value does not fit its schema",
   E124: "plugin state {id} is a {scope} state: {need}",
   E125: "plugin state {id} belongs to another plugin than {owner}",
+  E126: "this view is not drawn in a screen of {screen}",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

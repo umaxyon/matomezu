@@ -36,6 +36,8 @@ export {
   useReadPluginState,
   useRecord,
   useRecords,
+  useScreen,
+  useScreens,
   useSetPluginState,
   useSetPluginStates,
   useSettings,

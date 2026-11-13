@@ -9,9 +9,10 @@ import { isOwnedBy } from "../core/names"
 export interface PluginValues {
   readonly window: Readonly<Record<string, unknown>>
   readonly stages: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  readonly screens: Readonly<Record<string, Readonly<Record<string, unknown>>>> // 開いているスクリーンの id → id → 値
 }
 
-export const NO_PLUGIN_STATES: PluginValues = { window: {}, stages: {} }
+export const NO_PLUGIN_STATES: PluginValues = { window: {}, stages: {}, screens: {} }
 
 // 宣言の表（id → 定義）
 export type PluginStateDefs = ReadonlyMap<string, PluginStateDef>
@@ -75,9 +76,10 @@ export function ownedPluginState<S>(owner: string, def: PluginStateDef<S>): Plug
   return isOwnedBy(owner, def.id) ? def : fail("E125", { id: def.id, owner })
 }
 
-// 宣言 def の今の値（ステージの宣言は stage のステージの値。無ければ undefined）
-export function pluginValueOf<S>(values: PluginValues, stage: string, def: PluginStateDef<S>): S | undefined {
-  return (def.scope === "window" ? values.window[def.id] : values.stages[stage]?.[def.id]) as S | undefined
+// 宣言 def の今の値（ステージの宣言は at のステージの値、スクリーンの宣言は at のスクリーンの値。無ければ undefined）
+export function pluginValueOf<S>(values: PluginValues, at: string, def: PluginStateDef<S>): S | undefined {
+  if (def.scope === "window") return values.window[def.id] as S | undefined
+  return (def.scope === "stage" ? values.stages[at] : values.screens[at])?.[def.id] as S | undefined
 }
 
 // 画面の場所に入れて、変わるたびにブラウザの履歴に積むと宣言した id の組

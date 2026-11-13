@@ -8,7 +8,7 @@ import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { stageBlocks } from "../../core/stage"
-import { frontOf, screenOf, stageIn } from "../../core/window"
+import { frontOf, screenOf, screenOfStage, stageIn } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, pluginValueOf } from "../plugin-state"
@@ -53,8 +53,13 @@ export function commandContext(
       dialog,
       contextMenu,
       bookHistory: (book && state.history[book.id]) || NO_HISTORY,
+      // スクリーンごとの宣言は、呼ばれた場所のステージを並べているスクリーンの値
       pluginState: <S>(def: PluginStateDef<S>) =>
-        pluginValueOf(state.pluginValues, stageId, ownedPluginState(commandOwner(command), def)),
+        pluginValueOf(
+          state.pluginValues,
+          def.scope === "screen" ? (screenOfStage(state.window, stageId)?.id ?? "") : stageId,
+          ownedPluginState(commandOwner(command), def),
+        ),
     },
     workspace,
   )

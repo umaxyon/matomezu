@@ -1,9 +1,9 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
 // 下の 1 行は、参加済みでは base のスロット（workroom-row-line）に置かれたウィジェットが出す（今のタスクなど）
-import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
+import { Slot, useMessages, usePluginState, useScreen, useSetPluginState } from "../../plugin-api/ui"
 import { Band, Panel, useWorkroomRows, WORKROOM_ROW_LINE } from "../base/ui"
 import { Bird } from "./Bird"
-import { PICKED_ROOM } from "./control-center"
+import { CONTROL_CENTER_SCREEN, PICKED_ROOM } from "./control-center"
 import { kit } from "./kit"
 import styles from "./ParticipantListView.module.css"
 import { type RowDetail, rowDetail } from "./rows"
@@ -12,8 +12,10 @@ import text from "./text.module.css"
 export function ParticipantListView() {
   const t = useMessages(kit)
   const rows = useWorkroomRows()
-  const picked = usePluginState(kit, PICKED_ROOM)
-  const pick = useSetPluginState(kit, PICKED_ROOM)
+  const me = useScreen(CONTROL_CENTER_SCREEN).id
+  const picked = usePluginState(kit, PICKED_ROOM, me)
+  const setPicked = useSetPluginState(kit, PICKED_ROOM)
+  const pick = (room: string | undefined) => setPicked(me, room)
   const detailText = (d: RowDetail) => (d === "empty" ? t("(empty)") : d === "preparing" ? t("(preparing)") : null)
   return (
     <Panel className={styles.list}>

@@ -103,18 +103,33 @@ test("readPlaced は範囲の合う宣言の値だけを読み、withPluginState
   expect(withPluginState({ a: 1 }, "a", undefined)).toEqual({})
 })
 
-test("コントロールセンターの前に出す画面の宣言は、ステージに結ばない値で、変えるたびにブラウザの履歴に積む", () => {
+test("コントロールセンターの前に出す画面の宣言は、スクリーン 1 枚ごとの値で、変えるたびにブラウザの履歴に積む。スクリーンを閉じると値も消える", () => {
   const instance = createMatomezu({
     plugins: BUILTIN,
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
   const id = "@matomezu/control-center:front-screen"
-  expect(instance.catalog.store.pluginStates.get(id)).toMatchObject({ scope: "window", address: "push" })
+  expect(instance.catalog.store.pluginStates.get(id)).toMatchObject({ scope: "screen", address: "push" })
   expect(instance.pushing().has(id)).toBe(true)
-  instance.setPluginState(id, null, "library")
-  expect(instance.address().window).toEqual({ [id]: "library" })
-  expect(code(() => instance.setPluginState(id, null, "participants"))).toBe("E123")
+  const center = instance.state.getState().window.screens.find(s => s.def === "@matomezu/control-center:screen")!.id
+  instance.setPluginState(id, center, "library")
+  expect(instance.address().screens.find(s => s.id === center)?.states).toEqual({ [id]: "library" })
+  expect(code(() => instance.setPluginState(id, center, "participants"))).toBe("E123")
+  expect(code(() => instance.setPluginState(id, null, "library"))).toBe("E124")
+  // 開いていないスクリーンには置かない。2 枚目に置いた値は、そのスクリーンを閉じると消える
+  instance.setPluginState(id, "c99", "library")
+  expect(instance.state.getState().pluginValues.screens.c99).toBeUndefined()
+  const second = instance.actions.openScreen("@matomezu/control-center:screen", {})
+  instance.setPluginState(id, second, "library")
+  expect(instance.state.getState().pluginValues.screens[second]).toEqual({ [id]: "library" })
+  instance.actions.closeScreen(second)
+  expect(instance.state.getState().pluginValues.screens[second]).toBeUndefined()
+  // 場所を当てはめると、スクリーンごとの値も戻る
+  const at = instance.address()
+  instance.setPluginState(id, center, "projects")
+  instance.locate(at)
+  expect(instance.state.getState().pluginValues.screens[center]).toEqual({ [id]: "library" })
 })
 
 test("画面の場所に入れない宣言（none）の値は、画面の場所に出ず、場所から来ても読まず、場所を当てはめても（戻る・進むでも）残る", () => {

@@ -4,7 +4,7 @@
 // プロジェクトの画面は上にタスクボードの置き場、下にワークルーム。書庫は最大化できる。最大化の間（書庫の最大化と、中身が名乗った最大化）は、枠が出ていく（retreatOf）。
 // スクリーン（チケットスクリーンなど）は、この画面の全体に重ねて出す（ScreenOverlay）。前に出す画面は画面の場所に入る（FRONT_SCREEN。値が無ければプロジェクト）。選んだワークルームと書庫の最大化は窓の中だけ
 import { useState } from "react"
-import { Slot, usePluginState, useSetPluginState } from "../../plugin-api/ui"
+import { Slot, usePluginState, useScreen, useSetPluginState } from "../../plugin-api/ui"
 import {
   CONTROL_CENTER_PROJECTS,
   CONTROL_CENTER_SIDE,
@@ -14,7 +14,14 @@ import {
   useOpenedScreen,
   useWorkroomRows,
 } from "../base/ui"
-import { FRONT_SCREEN, type FrontScreen, frontScreenOf, LIBRARY_MAXIMIZED, PICKED_ROOM } from "./control-center"
+import {
+  CONTROL_CENTER_SCREEN,
+  FRONT_SCREEN,
+  type FrontScreen,
+  frontScreenOf,
+  LIBRARY_MAXIMIZED,
+  PICKED_ROOM,
+} from "./control-center"
 import { kit } from "./kit"
 import { LibraryScreen } from "./LibraryScreen"
 import { ParticipantListView } from "./ParticipantListView"
@@ -25,14 +32,17 @@ import { UserPanel } from "./UserPanel"
 import { WorkroomView } from "./WorkroomView"
 
 export function ControlCenterScreen() {
-  const screen = frontScreenOf(usePluginState(kit, FRONT_SCREEN))
-  const setScreen = useSetPluginState(kit, FRONT_SCREEN)
-  const maximized = usePluginState(kit, LIBRARY_MAXIMIZED) === true
+  const me = useScreen(CONTROL_CENTER_SCREEN).id
+  const screen = frontScreenOf(usePluginState(kit, FRONT_SCREEN, me))
+  const setFront = useSetPluginState(kit, FRONT_SCREEN)
+  const setScreen = (to: FrontScreen) => setFront(me, to)
+  const maximized = usePluginState(kit, LIBRARY_MAXIMIZED, me) === true
   const retreat = retreatOf(screen, maximized, useControlCenterMaximized())
-  const setMaximized = useSetPluginState(kit, LIBRARY_MAXIMIZED)
+  const setLibraryMaximized = useSetPluginState(kit, LIBRARY_MAXIMIZED)
+  const setMaximized = (on: boolean) => setLibraryMaximized(me, on)
   // スクリーンが開いている間は、下の画面を操作も読み上げも受けないようにする
   const covered = useOpenedScreen() !== "none"
-  const picked = pickedRow(useWorkroomRows(), usePluginState(kit, PICKED_ROOM))
+  const picked = pickedRow(useWorkroomRows(), usePluginState(kit, PICKED_ROOM, me))
   // 最初の表示では滑り込ませず、画面を替えたあとから滑り込ませる
   const [switched, setSwitched] = useState(false)
   const show = (to: FrontScreen) => {

@@ -330,6 +330,8 @@ test("matomezu/ui が出す名前", () => {
     "useResize",
     "useRevealable",
     "useRightSidePanel",
+    "useScreen",
+    "useScreens",
     "useSearchHits",
     "useSearchPick",
     "useSetPluginState",
