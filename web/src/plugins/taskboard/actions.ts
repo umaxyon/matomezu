@@ -2,7 +2,7 @@
 // プロジェクトを直す（レーン・タグのプロンプトは AI への指示なので）・チケットを消すは利用者だけ。閉じる・開け直すは AI も行える（利用者が AI に頼む）。
 // プロジェクトを作るのは、最初の 1 度は常駐が初めて起動したときに行う（project-add の引数は省いてよい）
 import { type z, z as zod } from "zod"
-import { enumValuesOf, isAI } from "../../plugin-api"
+import { enumValuesOf, isAI, type RecordOf } from "../../plugin-api"
 import { byOf, WORKROOM_SUBJECT } from "./by"
 import { CURRENT, NO_TICKET } from "./current"
 import { HISTORY, HISTORY_TOPIC, type TopicData } from "./history"
@@ -23,7 +23,7 @@ import {
 import { type Candidate, type Resolved, resolve } from "./resolve"
 import { projectNameOf, sayIn, templateOf } from "./template"
 import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "./ticket"
-import { ticketLabel } from "./ticket-view"
+import { ticketLabel } from "./ticket-label"
 
 type Project = z.output<typeof PROJECT.record>
 type Ticket = z.output<typeof TICKET.record>
@@ -145,7 +145,7 @@ const lanesOf = (project: Project): Candidate[] =>
   project.lanes.flatMap(l => (l.kind === "lane" ? [{ id: l.id, name: l.name }] : []))
 const tagsOf = (project: Project): Candidate[] => project.tags.map(t => ({ id: t.id, name: t.name }))
 const workroomsOf = (ctx: Records): Candidate[] =>
-  (Object.values(ctx.records?.[WORKROOM_SUBJECT] ?? {}) as { id: string; name: string; createdAt: string }[])
+  (Object.values(ctx.records?.[WORKROOM_SUBJECT] ?? {}) as RecordOf<typeof WORKROOM_SUBJECT>[])
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
     .map(w => ({ id: w.id, name: w.name }))
 
@@ -164,7 +164,7 @@ function pickTag(project: Project, ref: string, current?: string): Resolved {
     tagsOf({ ...project, tags: project.tags.filter(t => t.enabled) }),
   )
   if ("declined" in found || found.id === NO_TAG) return found
-  return project.tags.some(t => t.id === found.id && t.enabled)
+  return found.id === current || project.tags.some(t => t.id === found.id && t.enabled)
     ? found
     : { declined: `the tag "${ref}" is not enabled in the project` }
 }
@@ -189,7 +189,7 @@ export const TICKET_ADD = kit.defineAction({
   id: "ticket-add",
   title: "add ticket",
   aiDescription:
-    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tag is an enabled tag of the project by its id or name (left out or the word none: none), assignees are the workrooms by their ids or names, in order (the first is the main one; none twice), priority is lowest, low, medium (the default), high or highest. A lane or tag that is named like the words unsorted or none is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. Returns the ticket's id and number, the number with the prefix of the project as label (such as M-001), and the lane, the tag and the assignees as the ids they were taken for.",
+    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tag is an enabled tag of the project by its id or name (left out or the word none: none), assignees are the workrooms by their ids or names, in order (the first is the main one; no workroom twice), priority is lowest, low, medium (the default), high or highest. A lane or tag that is named like the words unsorted or none is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. Returns the ticket's id and number, the number with the prefix of the project as label (such as M-001), and the lane, the tag and the assignees as the ids they were taken for.",
   target: TICKET.id,
   reads: [PROJECT.id, WORKROOM_SUBJECT],
   args: zod.strictObject({
@@ -246,7 +246,7 @@ export const TICKET_UPDATE = kit.defineAction({
   id: "ticket-update",
   title: "update ticket",
   aiDescription:
-    "Change the name, the body, the priority, the lane, the tag or the assignees of the ticket named by on.record. assignees is the whole new list of workrooms by their ids or names, in order (the first is the main one; none twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tag, by their ids or names (a tag that is not enabled any more can stay on the ticket). The project of a ticket does not change. The time of the last change moves only when something changed.",
+    "Change the name, the body, the priority, the lane, the tag or the assignees of the ticket named by on.record. assignees is the whole new list of workrooms by their ids or names, in order (the first is the main one; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tag, by their ids or names (a tag that is not enabled any more can stay on the ticket). The project of a ticket does not change. The time of the last change moves only when something changed.",
   target: TICKET.id,
   reads: [PROJECT.id, WORKROOM_SUBJECT],
   args: zod.strictObject({
