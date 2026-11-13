@@ -51,6 +51,10 @@
 .title[data-draggable="true"] {
   cursor: grab;
 }
+/* 入れ替えられることは、帯全体をつかむ手にして、乗せたときに帯の色を変えて示す（つまみの枠は取らない） */
+.title[data-draggable="true"]:hover {
+  background: var(--skin-btn-hover);
+}
 .cards {
   display: flex;
   flex: 1;
