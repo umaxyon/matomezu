@@ -109,6 +109,16 @@ export function mapScreen(win: WindowState, change: (ws: Workspace) => Workspace
     : { ...win, screens: win.screens.map(s => (s.id === was.id ? { ...s, stages: next } : s)) }
 }
 
+// ステージ stage を並べているブックスクリーンに操作をかける（そのステージが無ければ・変わらなければ同じ窓を返す）
+export function mapScreenOfStage(win: WindowState, stage: string, change: (ws: Workspace) => Workspace): WindowState {
+  const was = screenOfStage(win, stage)
+  if (!was) return win
+  const next = change(was.stages)
+  return next === was.stages
+    ? win
+    : { ...win, screens: win.screens.map(s => (s.id === was.id ? { ...s, stages: next } : s)) }
+}
+
 // 全部のブックスクリーンに操作をかける（ブックが変わったときなど、後ろのブックスクリーンも合わせる）。変わらなければ同じ窓を返す
 export function mapScreens(win: WindowState, change: (ws: Workspace) => Workspace): WindowState {
   const screens = win.screens.map(s => {
@@ -169,3 +179,12 @@ export function stageIn(win: Pick<WindowState, "screens">, id: string): Stage | 
 export function screenOfStage(win: Pick<WindowState, "screens">, id: string): BookScreen | undefined {
   return win.screens.find((s): s is BookScreen => s.stages?.stages.some(st => st.id === id) === true)
 }
+
+// ステージ stage を並べているブックスクリーンの中（ステージの並び。そのステージが無ければ、いちばん最近前に出したブックスクリーンの中）
+export function workspaceOf(win: Pick<WindowState, "screens" | "order">, stage: string): Workspace {
+  return screenOfStage(win, stage)?.stages ?? screenOf(win)
+}
+
+// 窓の全部のステージ（どのブックスクリーンのステージも。スクリーンを開いた順・左から）
+export const allStages = (win: Pick<WindowState, "screens">): readonly Stage[] =>
+  win.screens.flatMap(s => s.stages?.stages ?? [])

@@ -75,9 +75,11 @@ import {
   closeScreen,
   issueStage,
   mapScreen,
+  mapScreenOfStage,
   mapScreens,
   newWindow,
   openScreen,
+  recentBookScreen,
   screenOf,
   screenOfStage,
   stageIn,
@@ -89,7 +91,6 @@ import {
   focus,
   followBook,
   followLibrary,
-  hasStage,
   MAX_STAGES,
   mapStage,
   moveDivider,
@@ -500,6 +501,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   // 前に出せるブックスクリーンのステージの並びに操作をかける
   const withWorkspace = (change: (ws: Workspace) => Workspace) => withWindow(win => mapScreen(win, change))
+  // ステージ stage を並べているブックスクリーンのステージの並びに操作をかける（どのブックスクリーンのステージでも届く）
+  const withStageScreen = (stage: string, change: (ws: Workspace) => Workspace) =>
+    withWindow(win => mapScreenOfStage(win, stage, change))
   const withWindow = (change: (win: WindowState) => WindowState) => {
     const { window: win } = getState()
     const next = change(win)
@@ -560,7 +564,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   const seenIn = (u: Unseen) =>
     bookScreenVisible(getState().window) &&
-    screenOf(getState().window).stages.some(
+    recentBookScreen(getState().window).stages.stages.some(
       st =>
         st.opened?.book === u.book &&
         changeSeen(u.made, u.step.books[u.book] as HistoryStep["books"][string], st.opened.page, seenTestOf(st)),
@@ -810,12 +814,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     pressKey: (key, scopes, reach) => {
       const { contextMenu, dialog, window, settings } = getState()
-      const workspace = screenOf(window)
       const table = keysFor(settings)
-      const picker = workspace.stages.find(s => s.picker !== null)?.id
-      const stage = contextMenu?.stage ?? picker ?? dialog?.stage ?? workspace.current
+      // 長押しの道具のアイコンを開いているステージ（どのブックスクリーンのステージでも）
+      const picker = window.screens.flatMap(x => x.stages?.stages ?? []).find(st => st.picker !== null)?.id
+      const stage = contextMenu?.stage ?? picker ?? dialog?.stage ?? screenOf(window).current
       const menu = contextMenu !== null || picker !== undefined
-      const type = workspace.stages.find(s => s.id === stage)?.opened?.type
+      const type = stageIn(window, stage)?.opened?.type
       const presentation = type && catalog.bookTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
       const center = !bookScreenVisible(window)
@@ -858,26 +862,26 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     showBookScreen: () => withWindow(win => bringFrontKind(win, "book-screen")),
     split: stage =>
       withWindow(win => {
-        const ws = screenOf(win)
-        if (!hasStage(ws, stage)) return win
+        const ws = screenOfStage(win, stage)?.stages
+        if (!ws) return win
         const focused = focus(ws, stage)
-        if (focused.stages.length >= MAX_STAGES) return mapScreen(win, () => focused)
+        if (focused.stages.length >= MAX_STAGES) return mapScreenOfStage(win, stage, () => focused)
         const { win: issued, id } = issueStage(win)
-        return mapScreen(issued, () => split(focused, id))
+        return mapScreenOfStage(issued, stage, () => split(focused, id))
       }),
-    unsplit: stage => withWorkspace(ws => (hasStage(ws, stage) ? unsplit(focus(ws, stage)) : ws)),
+    unsplit: stage => withStageScreen(stage, ws => unsplit(focus(ws, stage))),
     moveDivider: (x, width) => withWorkspace(ws => moveDivider(ws, x, width)),
     evenDivider: () => withWorkspace(evenDivider),
-    closeStage: id => withWorkspace(ws => close(ws, id)),
-    focusStage: id => withWorkspace(ws => focus(ws, id)),
+    closeStage: id => withStageScreen(id, ws => close(ws, id)),
+    focusStage: id => withStageScreen(id, ws => focus(ws, id)),
     openBook: (stage, bookId) => {
       const book = getState().books[bookId]
       // ブックを開くと、見る側のブックスクリーンを前に出す
       if (book && inWindow(stage))
         withWindow(win =>
-          bringFrontKind(
-            mapScreen(win, ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book))),
-            "book-screen",
+          bringFront(
+            mapScreenOfStage(win, stage, ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book))),
+            screenOfStage(win, stage)?.id ?? "",
           ),
         )
     },
@@ -887,35 +891,39 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // ページを開くと、見る側のブックスクリーンを前に出す
       if (book && hasPages(book) && inWindow(stage))
         withWindow(win =>
-          bringFrontKind(
-            mapScreen(win, ws => showPage(catalog, focus(ws, stage), stage, book, page)),
-            "book-screen",
+          bringFront(
+            mapScreenOfStage(win, stage, ws => showPage(catalog, focus(ws, stage), stage, book, page)),
+            screenOfStage(win, stage)?.id ?? "",
           ),
         )
     },
-    resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
-    setStageArea: (id, area, origin) => withWorkspace(ws => mapStage(ws, id, s => setArea(s, area, origin))),
-    setStageStart: (id, start) => withWorkspace(ws => mapStage(ws, id, s => setStart(s, start))),
-    panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
-    zoomStage: (id, zoom, at) => withWorkspace(ws => mapStage(ws, id, s => zoomTo(s, zoom, at))),
-    resetStageView: id => withWorkspace(ws => mapStage(ws, id, resetView)),
-    openPrintPreview: id => withWorkspace(ws => mapStage(ws, id, openPrintPreview)),
-    closePrintPreview: id => withWorkspace(ws => mapStage(ws, id, closePrintPreview)),
-    startBackground: id => withWorkspace(ws => mapStage(ws, id, s => startBackground(catalog, s))),
-    endBackground: id => withWorkspace(ws => mapStage(ws, id, endBackground)),
+    resizeStage: (id, view) => withStageScreen(id, ws => mapStage(ws, id, s => resize(s, view))),
+    setStageArea: (id, area, origin) => withStageScreen(id, ws => mapStage(ws, id, s => setArea(s, area, origin))),
+    setStageStart: (id, start) => withStageScreen(id, ws => mapStage(ws, id, s => setStart(s, start))),
+    panStageBy: (id, dx, dy) => withStageScreen(id, ws => mapStage(ws, id, s => panBy(s, dx, dy))),
+    zoomStage: (id, zoom, at) => withStageScreen(id, ws => mapStage(ws, id, s => zoomTo(s, zoom, at))),
+    resetStageView: id => withStageScreen(id, ws => mapStage(ws, id, resetView)),
+    openPrintPreview: id => withStageScreen(id, ws => mapStage(ws, id, openPrintPreview)),
+    closePrintPreview: id => withStageScreen(id, ws => mapStage(ws, id, closePrintPreview)),
+    startBackground: id => withStageScreen(id, ws => mapStage(ws, id, s => startBackground(catalog, s))),
+    endBackground: id => withStageScreen(id, ws => mapStage(ws, id, endBackground)),
     requestPrint: () => setState({ printRequests: getState().printRequests + 1 }),
-    setPreviewArea: (id, area) => withWorkspace(ws => mapStage(ws, id, s => setPreviewArea(s, area))),
-    setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),
-    togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),
-    stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),
-    select: (id, ids) => withWorkspace(ws => mapStage(ws, id, s => select(s, ids))),
-    setEditing: (id, editing) => withWorkspace(ws => mapStage(ws, id, s => setEditing(s, editing))),
+    setPreviewArea: (id, area) => withStageScreen(id, ws => mapStage(ws, id, s => setPreviewArea(s, area))),
+    setTool: (id, tool) => withStageScreen(id, ws => setTool(catalog, ws, id, tool)),
+    togglePlacing: (id, item) => withStageScreen(id, ws => togglePlacing(catalog, ws, id, item)),
+    stopPlacing: id => withStageScreen(id, ws => mapStage(ws, id, s => stopPlacing(s))),
+    select: (id, ids) => withStageScreen(id, ws => mapStage(ws, id, s => select(s, ids))),
+    setEditing: (id, editing) => withStageScreen(id, ws => mapStage(ws, id, s => setEditing(s, editing))),
     openPicker: (id, at) =>
-      withWorkspace(ws => {
-        const closed = ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)
-        return mapStage(closed, id, s => openPicker(s, at))
-      }),
-    closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
+      withWindow(win =>
+        mapScreenOfStage(
+          mapScreens(win, ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
+          id,
+          ws => mapStage(ws, id, s => openPicker(s, at)),
+        ),
+      ),
+    closePicker: () =>
+      withWindow(win => mapScreens(win, ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws))),
     continueStep: book => {
       closeStep()
       const { history } = getState()

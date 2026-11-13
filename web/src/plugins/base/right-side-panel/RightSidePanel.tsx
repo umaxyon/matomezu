@@ -6,7 +6,7 @@
 // 選択に従う中身（ウィジェットの定義の rightSidePanel.followsSelection）を出している間は、開いたステージの中を押しても閉じず、付いた先をステージの選択に合わせる
 // （ポインタを押している間は、離してから。state.ts の followSelection）。開いたステージの中を押して離したあとに付いた先が空なら閉じる（AI が物を消すなど、押さずに空になったときは閉じない）
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
-import { screenOf, stageIn } from "../../../core/window"
+import { screenOf, stageIn, workspaceOf } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -57,7 +57,7 @@ export function RightSidePanel() {
       const target = e.target instanceof Element ? e.target : null
       if (!stage || !target) return
       const s = read()
-      const tool = toolOf(catalog, screenOf(s.window), stage, s.books)
+      const tool = toolOf(catalog, workspaceOf(s.window, stage), stage, s.books)
       const inside = ref.current?.contains(target) ?? false
       const st = stageIn(s.window, stage)
       const pans = !!st && stageView(catalog, st, tool).pans // 紙をずらしているか（ずらす道具の間と、印刷プレビューの間）

@@ -9,7 +9,7 @@
 import { memo, type PointerEvent, useEffect, useRef, useState, type WheelEvent } from "react"
 import type { BookTypeId } from "../../../core/core-catalog"
 import { paperOf } from "../../../core/stage"
-import { screenOf } from "../../../core/window"
+import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
@@ -38,7 +38,7 @@ interface Drag {
 
 export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
   const stage = useStage(id) // パンの量を読まない（パンのたびに描き直さない）
-  const isCurrent = useMatomezuState(s => screenOf(s.window).current === id)
+  const isCurrent = useMatomezuState(s => workspaceOf(s.window, id).current === id)
   const book = useBook(id)
   const catalog = useCatalog().core
   const tool = stage?.tool ?? null

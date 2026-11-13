@@ -8,7 +8,7 @@ import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { stageBlocks } from "../../core/stage"
-import { frontOf, screenOf, screenOfStage, stageIn } from "../../core/window"
+import { frontOf, screenOfStage, stageIn, workspaceOf } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, pluginValueOf } from "../plugin-state"
@@ -41,7 +41,7 @@ export function commandContext(
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
   const { settings, dialog, contextMenu } = state
-  const workspace = screenOf(state.window)
+  const workspace = workspaceOf(state.window, stageId)
   return withWorkspace(
     {
       catalog,

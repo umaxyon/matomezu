@@ -5,7 +5,7 @@
 // フッタメニューには、左から地図・履歴・基本・ブックの道具の 4 つのスロット（footer-menu.ts の FOOTER_MENU_SLOTS）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
 // 中のウィジェットは、項目を選んだらフッタメニューを下げられる（footer-menu-context.tsx）
 import { useEffect, useRef, useState } from "react"
-import { screenOf } from "../../../core/window"
+import { workspaceOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
@@ -24,7 +24,7 @@ const LEAVE_MS = 250
 export function BookName({ stage }: { stage: string }) {
   const book = useBook(stage) ?? undefined
   const lang = useMatomezuState(s => s.lang)
-  const current = useMatomezuState(s => screenOf(s.window).current === stage)
+  const current = useMatomezuState(s => workspaceOf(s.window, stage).current === stage)
   const t = useMessages(kit)
   const [open, setOpen] = useState(false)
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null)

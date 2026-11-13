@@ -12,7 +12,7 @@ import type { ToolId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
-import { bookScreenVisible, screenOf } from "../../../core/window"
+import { allStages, bookScreenVisible, screenOf, workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -53,7 +53,7 @@ export function ToolPickerView() {
   // 長押しで開けるステージ（ブックスクリーンが前に出ていて、紙があり、ダイアログも道具のアイコンも開いていない）。押したときに読むので ref に写す
   const pressable = useMatomezuState(
     useShallow(s =>
-      s.dialog !== null || !bookScreenVisible(s.window) || screenOf(s.window).stages.some(st => st.picker !== null)
+      s.dialog !== null || !bookScreenVisible(s.window) || allStages(s.window).some(st => st.picker !== null)
         ? []
         : screenOf(s.window)
             .stages.filter(st => paperOf(st) !== null)
@@ -152,7 +152,7 @@ function Ring({ at, holdMs }: { at: Point; holdMs: number }) {
 // 開いている道具のアイコン。出す所は開いたときの値（無ければ最後のポインタの位置。ステージの外なら真ん中）
 function Picker({ last }: { last: { current: Point | null } }) {
   const t = useMessages(kit)
-  const opened = useMatomezuState(s => screenOf(s.window).stages.find(st => st.picker !== null))
+  const opened = useMatomezuState(s => allStages(s.window).find(st => st.picker !== null))
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
   const current = useStage(opened?.id ?? "")?.tool ?? null
@@ -160,7 +160,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const picks: readonly ToolId[] = set ? toolsIn(catalog, set) : []
   // 使えない道具（開いているページで、行うアクションをどれも認可ステップに止められる）。並びを文字で比べて、変わったときだけ描き直す
   const unusable = useMatomezuState(s =>
-    opened ? unusableTools(catalog, screenOf(s.window), opened.id, s.books).join("\n") : "",
+    opened ? unusableTools(catalog, workspaceOf(s.window, opened.id), opened.id, s.books).join("\n") : "",
   ).split("\n")
   const { closePicker } = useActions()
   const setTool = useCommand(opened?.id ?? "", TOOL_SET.id)

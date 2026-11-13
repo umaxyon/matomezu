@@ -9,6 +9,7 @@ import {
   newWindow,
   openScreen,
   screenOf,
+  stageIn,
 } from "../../web/src/core/window"
 import { showIn, viewOf } from "../../web/src/host-client/server"
 import { isActive } from "../../web/src/store/commands"
@@ -146,4 +147,29 @@ test("store の openScreen は、定義の渡す値の形に合えば開いて�
   actions.closeScreen(id)
   expect(frontScreen(state.getState().window).id).toBe(before)
   expect(state.getState().window.screens.some(s => s.id === id)).toBe(false)
+})
+
+test("2 枚目のブックスクリーンのステージにも、ステージの操作が届く（大きさ・ずらす・倍率・フォーカス・ブックを開く・分割）", () => {
+  const { actions, state } = newStore()
+  const second = actions.openScreen("@matomezu/base:book-screen", {})
+  const stageOf = () => state.getState().window.screens.find(s => s.id === second)!.stages!
+  const stage = stageOf().current
+  expect(stage).not.toBe("s1")
+  actions.resizeStage(stage, { w: 800, h: 600 })
+  expect(stageOf().stages[0]!.view).toEqual({ w: 800, h: 600 })
+  actions.openBook(stage, "b2")
+  expect(stageOf().stages[0]!.opened?.book).toBe("b2")
+  actions.zoomStage(stage, 2)
+  expect(stageOf().stages[0]!.zoom).toBe(2)
+  actions.select(stage, ["x"])
+  actions.split(stage)
+  expect(stageOf().stages).toHaveLength(2)
+  const right = stageOf().stages[1]!.id
+  actions.focusStage(right)
+  expect(stageOf().current).toBe(right)
+  actions.closeStage(right)
+  expect(stageOf().stages.map(s => s.id)).toEqual([stage])
+  // 1 枚目のブックスクリーンは変わらない（ステージ s1 は b1 を開いたまま）
+  expect(stageIn(state.getState().window, "s1")?.opened?.book).toBe("b1")
+  expect(stageIn(state.getState().window, "s1")?.zoom).toBe(1)
 })

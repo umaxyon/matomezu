@@ -24,7 +24,7 @@ import {
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
-import { frontScreen, screenOf, stageIn } from "../core/window"
+import { frontScreen, screenOf, stageIn, workspaceOf } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
 import { ownedPluginState, pluginValueOf } from "../store/plugin-state"
@@ -175,7 +175,7 @@ export function useStage(stage: string): StageView | null {
         : null
     }),
   )
-  const tool = useMatomezuState(s => toolOf(catalog, screenOf(s.window), stage, s.books))
+  const tool = useMatomezuState(s => toolOf(catalog, workspaceOf(s.window, stage), stage, s.books))
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 

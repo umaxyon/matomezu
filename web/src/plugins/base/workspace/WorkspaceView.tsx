@@ -11,7 +11,9 @@ import { type CSSProperties, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { previewing } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
+import type { MatomezuState } from "../../../store/store"
 import { Slot } from "../../../ui/Slot"
+import { useScreenHere } from "../../../ui/screen-context"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { PressClosedContext, useOpenedRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
 import { RevealAndRestore } from "../right-side-panel/RevealAndRestore"
@@ -25,10 +27,13 @@ import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_SIDE, STAGE_TOP } from ".
 import styles from "./WorkspaceView.module.css"
 
 export function WorkspaceView() {
-  const ids = useMatomezuState(useShallow(s => screenOf(s.window).stages.map(st => st.id)))
-  const direction = useMatomezuState(s => screenOf(s.window).arrangement.direction)
-  const share = useMatomezuState(s => screenOf(s.window).arrangement.share)
-  const current = useMatomezuState(s => screenOf(s.window).current)
+  // 描いている場所のブックスクリーンの中（スクリーンの外で描いたときは、いちばん最近前に出したブックスクリーンの中）
+  const here = useScreenHere()?.id
+  const mine = (s: MatomezuState) => s.window.screens.find(x => x.id === here)?.stages ?? screenOf(s.window)
+  const ids = useMatomezuState(useShallow(s => mine(s).stages.map(st => st.id)))
+  const direction = useMatomezuState(s => mine(s).arrangement.direction)
+  const share = useMatomezuState(s => mine(s).arrangement.share)
+  const current = useMatomezuState(s => mine(s).current)
   const { moveDivider, evenDivider } = useActions()
   const ref = useRef<HTMLElement>(null)
   const [scrollbar, setScrollbar] = useState(0)
