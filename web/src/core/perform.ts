@@ -58,7 +58,7 @@ export type Refused =
   | { ok: false; reason: "refused"; detail?: string; kind?: string }
   | NotAllowed
   | { ok: false; reason: "denied"; permission: string }
-// others はレコードが対象のアクションが、宛先のほかに変えた同じ種類のレコード（確かめ終えた物）
+// others はレコードが対象のアクションが、宛先のほかに変えたレコード（同じ種類か、writes に書いた種類。確かめ終えた物）
 export type Performed<Id extends ActionId> =
   | {
       ok: true
@@ -121,13 +121,14 @@ function broken(
 function brokenRecord(
   ctx: ActionContext,
   action: ActionDef,
+  subject: string,
   before: unknown,
   after: unknown,
 ): string | "unreadable" | null {
   const reads = ctx.records ?? {}
   const source = sourceIn(ctx)
-  const was = referredOf(ctx.catalog, action.target, before, reads, source)
-  const now = referredOf(ctx.catalog, action.target, after, reads, source)
+  const was = referredOf(ctx.catalog, subject, before, reads, source)
+  const now = referredOf(ctx.catalog, subject, after, reads, source)
   if (was === "unreadable" || now === "unreadable") return "unreadable"
   const refs = [...was, ...now.filter(n => !was.some(w => w.subject === n.subject && w.id === n.id))]
   for (const p of ctx.catalog.permissions.values())
@@ -136,8 +137,8 @@ function brokenRecord(
       !p.keeps({
         kind: "record",
         action,
-        subject: action.target,
-        def: ctx.catalog.subjects.get(action.target) as SubjectDef,
+        subject,
+        def: ctx.catalog.subjects.get(subject) as SubjectDef,
         before,
         after,
         refs,
@@ -309,8 +310,8 @@ export function perform<Id extends ActionId>(
     if (!changes) return { ok: false, reason: "refused" }
     // 変える全部に、形・郵便の種類・認可ステップの守らせることをかける（どれか 1 つでも合わなければ、全部を断る）
     for (const c of changes) {
-      if (!recordSettles(ctx.catalog, action.target, c.now, c.next)) return { ok: false, reason: "refused" }
-      const kept = brokenRecord(ctx, action, c.now, c.next)
+      if (!recordSettles(ctx.catalog, c.subject, c.now, c.next)) return { ok: false, reason: "refused" }
+      const kept = brokenRecord(ctx, action, c.subject, c.now, c.next)
       if (kept === "unreadable") return { ok: false, reason: "refused" }
       if (kept) return { ok: false, reason: "denied", permission: kept }
     }
@@ -326,33 +327,39 @@ export function perform<Id extends ActionId>(
   } as Performed<Id>
 }
 
-// レコードが対象のアクションが変えるレコードの、前 now と後 next の組（宛先 subject の 1 件と、ほかの同じ種類の others）。
-// others の前は、読み口から引く（読み口の無い文脈なら、ctx.records の対象の種類から引き、それも無ければ others は断る）。
-// 同じ id を 2 度変える・合わせて RECORDS_MAX 件を超えるなら null
+// レコードが対象のアクションが変えるレコードの、種類 subject と、前 now と後 next の組（宛先の 1 件と、ほかの others）。
+// others の種類は、省けば宛先と同じ種類で、別の種類はアクションの writes に書いた種類だけ（書いていなければ null）。
+// others の前は、読み口から引く（読み口の無い文脈なら、ctx.records のその種類から引き、それも無ければ others は断る）。
+// 同じ（種類, id）を 2 度変える・合わせて RECORDS_MAX 件を超えるなら null
 function recordChanges(
   ctx: ActionContext,
   action: ActionDef,
   subject: unknown,
   next: unknown,
   others: readonly OtherRecord<never>[],
-): { now: unknown; next: unknown }[] | null {
+): { subject: string; now: unknown; next: unknown }[] | null {
   if (others.length + 1 > RECORDS_MAX) return null
   const target = action.target
   const source = sourceIn(ctx)
-  const table = source ? undefined : ctx.records?.[target]
-  if (others.length > 0 && table === undefined && !source) return null
   const own = next === REMOVED ? subject : next
   const seen = new Set<string>(
-    own !== NO_RECORD && typeof own === "object" && own !== null ? [String((own as { id?: unknown }).id)] : [],
+    own !== NO_RECORD && typeof own === "object" && own !== null
+      ? [`${target}\n${String((own as { id?: unknown }).id)}`]
+      : [],
   )
-  const changes = [{ now: subject, next }]
+  const changes: { subject: string; now: unknown; next: unknown }[] = [{ subject: target, now: subject, next }]
   for (const o of others) {
-    if (seen.has(o.id)) return null
-    seen.add(o.id)
-    const now = (source ? source.byId(target, o.id) : table?.[o.id]) ?? NO_RECORD
+    const kind: string = o.subject ?? target
+    if (kind !== target && !(action.writes as readonly string[] | undefined)?.includes(kind)) return null
+    const table = source ? undefined : ctx.records?.[kind]
+    if (table === undefined && !source) return null
+    const key = `${kind}\n${o.id}`
+    if (seen.has(key)) return null
+    seen.add(key)
+    const now = (source ? source.byId(kind, o.id) : table?.[o.id]) ?? NO_RECORD
     // 作るレコードは、変更の id と record の id が同じ
     if (now === NO_RECORD && o.record !== REMOVED && (o.record as { id?: unknown } | null)?.id !== o.id) return null
-    changes.push({ now, next: o.record })
+    changes.push({ subject: kind, now, next: o.record })
   }
   return changes
 }
@@ -512,9 +519,10 @@ function performRecord(
     changes.push({ subject: target, id: made, record: next })
   }
   for (const o of done.others ?? []) {
-    const had = source.byId(target, o.id)
+    const kind: string = o.subject ?? target
+    const had = source.byId(kind, o.id)
     if (o.record === REMOVED ? had === undefined : o.record === had) continue
-    changes.push({ subject: target, id: o.id, record: o.record })
+    changes.push({ subject: kind, id: o.id, record: o.record })
   }
   return {
     ok: true,
