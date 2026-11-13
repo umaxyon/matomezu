@@ -119,9 +119,6 @@ export { useAddPage } from "./page-tabs/useAddPage"
 export { BirdFaceView } from "./participant/BirdFaceView"
 export { useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./participant/hooks"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
-export { useOpenedScreen, useOpenScreen } from "./screen/hooks"
-export { ScreenOverlay } from "./screen/ScreenOverlay"
-export { defineScreen } from "./screen/ui"
 export { ChoiceSetting } from "./settings/ChoiceSetting"
 
 import type { PrintSheetProps } from "./print-preview/PrintPreviewView"
@@ -281,8 +278,6 @@ declare module "../../core/catalog" {
     rightSidePanel?: { width: number; followsSelection?: boolean }
     // 左サイドパネルのタブ（どのスロットにも置かない）の名前（文言の鍵）と、開くボタンとタブに出す数（未読など）を読むフック（無ければ出さない）
     leftSidePanel?: { title: MessageKey; useCount?: () => number }
-    // スクリーン（どのスロットにも置かない）のビューが受け取る物の形（開いている値を確かめる）
-    screen?: { props: { safeParse(value: unknown): { success: boolean } } }
     // 設定カテゴリのスロットに置く物の、左の一覧に出す題名（文言の鍵）と、並べる利用者の設定の項目の id（無ければ中身はウィジェットのビューが描く）
     settingsCategory?: { title: MessageKey; settings?: readonly string[] }
     // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id

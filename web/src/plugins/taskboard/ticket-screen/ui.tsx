@@ -1,11 +1,11 @@
-// チケットスクリーンの定義: コントロールセンターの画面に重ねるスクリーン。開くときの値はチケットの id（useOpenScreen の open に { ticket } を渡す）
-import { defineScreen } from "../../base/ui"
+// チケットスクリーンを描くウィジェット。チケットスクリーンの定義（index.ts の TICKET_SCREEN）の id と同じ名前のスロットに置く
+import { defineWidget } from "../../../plugin-api/ui"
 import { kit } from "../kit"
-import { TICKET_SCREEN_PROPS } from "./props"
+import { TICKET_SCREEN } from "."
 import { TicketScreen } from "./TicketScreen"
 
-export const TICKET_SCREEN = defineScreen({
-  id: kit.name("ticket-screen"),
-  props: TICKET_SCREEN_PROPS,
+export const TICKET_SCREEN_VIEW = defineWidget({
+  id: kit.name("ticket-screen-view"),
+  slots: [TICKET_SCREEN.id],
   view: TicketScreen,
 })

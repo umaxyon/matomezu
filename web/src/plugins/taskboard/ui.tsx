@@ -7,10 +7,10 @@ import { WORKROOM_CURRENT_LINE, WORKROOM_TASK_COLUMNS } from "./current-ticket/u
 import { PROJECT_LIST } from "./project-list/ui"
 import { PROJECT_SETTINGS_DIALOG } from "./project-settings"
 import { ProjectSettingsDialog } from "./project-settings/ProjectSettingsDialog"
-import { TICKET_SCREEN } from "./ticket-screen/ui"
+import { TICKET_SCREEN_VIEW } from "./ticket-screen/ui"
 
 export const TASKBOARD_UI = definePluginUi(TASKBOARD_PLUGIN, {
-  widgets: [PROJECT_LIST, TASKBOARD, WORKROOM_TASK_COLUMNS, WORKROOM_CURRENT_LINE, TICKET_SCREEN],
+  widgets: [PROJECT_LIST, TASKBOARD, WORKROOM_TASK_COLUMNS, WORKROOM_CURRENT_LINE, TICKET_SCREEN_VIEW],
   dialogViews: { [PROJECT_SETTINGS_DIALOG.id]: ProjectSettingsDialog },
 })
 
@@ -20,6 +20,9 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:taskboard": typeof TASKBOARD
     "@matomezu/taskboard:workroom-columns": typeof WORKROOM_TASK_COLUMNS
     "@matomezu/taskboard:workroom-current-line": typeof WORKROOM_CURRENT_LINE
-    "@matomezu/taskboard:ticket-screen": typeof TICKET_SCREEN
+    "@matomezu/taskboard:ticket-screen-view": typeof TICKET_SCREEN_VIEW
+  }
+  interface SlotTable {
+    "@matomezu/taskboard:ticket-screen": Record<string, never> // チケットスクリーンを描くウィジェットを置くスロット（何も受け取らない）
   }
 }

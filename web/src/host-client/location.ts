@@ -175,6 +175,9 @@ function formerAddress(q: URLSearchParams): FormerAddress | null {
   }
 }
 
+// 前の形で、重ねて開いたスクリーンを書いていた、窓の範囲の値の名前
+const FORMER_OPENED = "@matomezu/base:open-screen"
+
 // 前の形の場所 former を、今の場所 now（開いているスクリーンの id を持つ）に重ねて、今の形にする: いちばん最近前に出したステージを並べるスクリーンに
 // ステージの並びを当て（ステージが無ければ今のまま）、前に出すのは、その種類のいちばん最近前に出したスクリーン
 export function fromFormer(former: FormerAddress, now: Address): Address {
@@ -188,7 +191,14 @@ export function fromFormer(former: FormerAddress, now: Address): Address {
     [...now.order].reverse().find(id => (now.screens.find(s => s.id === id)?.stages !== undefined) === stages)
   const to = recent(former.front === "book-screen")
   const order = to === undefined ? now.order : [...now.order.filter(id => id !== to), to]
-  return { screens, order, arrangement: now.arrangement, window: former.window }
+  // 前の形では、重ねて開いたスクリーン（チケットスクリーンなど）を窓の範囲の値 1 つに書いていた。開いているスクリーンの 1 枚に直す
+  const { [FORMER_OPENED]: opened, ...window } = former.window
+  if (!isObject(opened) || typeof opened.screen !== "string")
+    return { screens, order, arrangement: now.arrangement, window }
+  const id = `c${Math.max(0, ...now.screens.map(s => Number(s.id.slice(1)) || 0)) + 1}`
+  const added: ScreenPlace = { id, def: opened.screen, props: opened.props ?? {}, states: {} }
+  const front = former.front === "book-screen" ? [id, ...order] : [...order, id]
+  return { screens: [...screens, added], order: front, arrangement: now.arrangement, window }
 }
 
 // URL の値を、画面の場所に入れるプラグイン状態にする（JSON のオブジェクトでなければ空）

@@ -51,6 +51,11 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeVisible()
   await expect(screen.getByText("T-001")).toBeVisible()
   await expect(screen.getByText("起票日時")).toBeVisible()
+  // チケットスクリーンは、下の行（止まり木）を残して、窓の高さいっぱいに広がる
+  const box = await screen.boundingBox()
+  const size = page.viewportSize()
+  expect(box?.height ?? 0).toBeGreaterThan((size?.height ?? 0) - 60)
+  await expect(page.getByRole("button", { name: "コントロールセンター" })).toBeVisible()
   // チケット履歴: 起票の行・状況・質問（吹き出し）
   await expect(screen.getByText("チケットを起票しました")).toBeVisible()
   await expect(screen.getByText("調べています")).toBeVisible()

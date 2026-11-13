@@ -14,7 +14,7 @@ import { TICKET_ADD, TICKET_LOCK, TICKET_REMOVE, TICKET_UNLOCK, TICKET_UPDATE } 
 import { CLOSED_PROJECT } from "./ticket/permission"
 import { HISTORY, HISTORY_TOPIC, TOPIC_BODY, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./ticket-history"
 import { TICKET_HISTORY_ADD } from "./ticket-history/actions"
-import { TICKET_SCREEN_STATE } from "./ticket-screen"
+import { TICKET_SCREEN, TICKET_SCREEN_STATE } from "./ticket-screen"
 
 export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -36,6 +36,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
     ],
     permissions: [CLOSED_PROJECT],
     dialogs: [PROJECT_SETTINGS_DIALOG],
+    screens: [TICKET_SCREEN],
     userSettings: [PROJECT_ORDER, SHOWN_PROJECTS],
     pluginStates: [LIST_OPEN, LANE_SORTS, MAXIMIZED, CARD_VISIT, TICKET_SCREEN_STATE],
   }),
@@ -80,6 +81,9 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:maximized": typeof MAXIMIZED
     "@matomezu/taskboard:card-visit": typeof CARD_VISIT
     "@matomezu/taskboard:ticket-screen-state": typeof TICKET_SCREEN_STATE
+  }
+  interface ScreenTable {
+    "@matomezu/taskboard:ticket-screen": typeof TICKET_SCREEN
   }
   interface PermissionTable {
     "@matomezu/taskboard:closed-project": typeof CLOSED_PROJECT

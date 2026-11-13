@@ -3,18 +3,22 @@
 // 利用者が中を押すか、中にフォーカスが入ると、そのスクリーンをカレントスクリーンにする（キーが効く先が移る）
 import { useCallback } from "react"
 import type { SlotId } from "../core/catalog"
-import { currentScreen, shownScreens } from "../core/window"
+import { currentScreen, type OpenedScreen, shownScreens } from "../core/window"
 import { Slot } from "./Slot"
 import { ScreenProvider } from "./screen-context"
 import { useActions, useInstance, useMatomezuState } from "./store-context"
 
-export function ScreenView({ screen }: { screen: string }) {
+// closed を渡すと、もう閉じたスクリーンを、閉じたときの値で描く（閉じる動きの間だけ描き続けるのに使う。カレントスクリーンにはしない）
+export function ScreenView({ screen, closed }: { screen: string; closed?: OpenedScreen }) {
   const catalog = useInstance().catalog.core
-  const opened = useMatomezuState(s => s.window.screens.find(x => x.id === screen))
+  const live = useMatomezuState(s => s.window.screens.find(x => x.id === screen))
+  const opened = live ?? closed
   const current = useMatomezuState(s => currentScreen(s.window).id === screen)
   const shown = useMatomezuState(s => shownScreens(catalog, s.window).includes(screen))
   const { makeScreenCurrent } = useActions()
-  const take = useCallback(() => makeScreenCurrent(screen), [makeScreenCurrent, screen])
+  const take = useCallback(() => {
+    if (live) makeScreenCurrent(screen)
+  }, [makeScreenCurrent, screen, live])
   if (!opened) return null
   return (
     <div style={{ display: "contents" }} onPointerDownCapture={take} onFocusCapture={take}>

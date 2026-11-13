@@ -2,7 +2,7 @@
 // 右に本文（マークダウン）。本文は最初からプレビューで出ていて、ナレッジの「本文」で出し入れし、4 つの並べ方（編集・縦分割・横分割・プレビュー）を切り替える。本文の最大化で、左の枠は戻るボタンだけに畳む。
 // チケット履歴の質問を押すと、質問の枠が右の領域の上に重なる。名前・本文・優先度は直したそばから反映する（本文は打つたびに送り、変換中は送らない）。
 // ロック中のチケットは薄くして直せなくし、帯のロックで掛け外しする。直している間（名前の入力か本文の編集にフォーカスがある間）は、チケットに編集ロックを掛ける。画面の状態は、開いているチケットが替われば初めに戻る
-import { type KeyboardEvent, useEffect, useState } from "react"
+import { type KeyboardEvent, useState } from "react"
 import {
   useActions,
   useAllowedOn,
@@ -10,6 +10,8 @@ import {
   usePluginState,
   useRecord,
   useRecords,
+  useScreen,
+  useScreens,
   useUpdatePluginState,
   useUserSetting,
 } from "../../../plugin-api/ui"
@@ -21,7 +23,6 @@ import {
   MaxButton,
   markdownDocumentOnSkin,
   useMarkdownDocument,
-  useOpenScreen,
   useRecordEditLock,
 } from "../../base/ui"
 import { BackIcon, BookIcon, PencilIcon } from "../icons"
@@ -32,7 +33,7 @@ import { TICKET_LOCK, TICKET_UNLOCK, TICKET_UPDATE } from "../ticket/actions"
 import { assigneesOf } from "../ticket/assignees"
 import { ticketLabel } from "../ticket/label"
 import { HISTORY } from "../ticket-history"
-import { TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "."
+import { TICKET_SCREEN, TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "."
 import { AssigneeBirds } from "./AssigneeBirds"
 import { TicketHistoryTimeline } from "./TicketHistoryTimeline"
 import styles from "./TicketScreen.module.css"
@@ -50,19 +51,24 @@ const MODES = [
   { mode: "rendered-only", label: "Preview only" },
 ] as const
 
-export function TicketScreen({ ticket: id }: { ticket: string }) {
+export function TicketScreen() {
   const t = useMessages(kit)
-  const { close } = useOpenScreen()
+  const me = useScreen(TICKET_SCREEN)
+  const id = me.props.ticket
+  const { close: closeScreen } = useScreens()
+  const close = () => closeScreen(me.id)
   const ticket = useRecord(TICKET.id, id)
   const project = useRecord(PROJECT.id, ticket?.project ?? "")
   const lines = useRecords(HISTORY.id)
   const workrooms = useRecords(WORKROOM)
   const { perform } = useActions()
-  const [now, update] = [usePluginState(kit, TICKET_SCREEN_STATE), useUpdatePluginState(kit, TICKET_SCREEN_STATE)]
+  // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）
+  const [now, update] = [
+    usePluginState(kit, TICKET_SCREEN_STATE, me.id),
+    useUpdatePluginState(kit, TICKET_SCREEN_STATE),
+  ]
   const view = viewOf(now, id)
-  const set = (patch: Partial<TicketScreenState>) => update(cur => ({ ...viewOf(cur, id), ...patch }))
-  // 閉じたら画面の状態を捨てる（開くたびに初めに戻す）
-  useEffect(() => () => update(() => undefined), [update])
+  const set = (patch: Partial<TicketScreenState>) => update(me.id, cur => ({ ...viewOf(cur, id), ...patch }))
   const [editing, setEditing] = useState(false) // 名前の入力か本文の編集にフォーカスがある間
   useRecordEditLock(TICKET.id, editing ? [id] : [])
   const allowed = useAllowedOn(TICKET_UPDATE.id, {}, { record: id })

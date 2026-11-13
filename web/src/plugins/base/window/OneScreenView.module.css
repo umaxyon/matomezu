@@ -51,14 +51,25 @@
   flex: 1;
   min-height: 0;
 }
-/* ステージを並べないスクリーン 1 枚。いちばん最近前に出した物だけを出し、ほかは描いたまま隠す */
+/* ステージを並べないスクリーン 1 枚。並べた順に重なり、上の 1 枚が下の物を覆う。あとから開いた物は右から滑り込み、閉じると右へ滑り出る */
 .plain {
   position: absolute;
   inset: 0;
+  /* 中のスクリーンを、高さいっぱいに伸ばす */
+  display: flex;
+  flex-direction: column;
   overflow: auto;
+  background: var(--skin-stage);
+  transform: translateX(0);
+  transition: transform var(--front-slide) ease;
 }
-.plain[data-shown="false"] {
-  visibility: hidden;
+.plain[data-in="false"] {
+  transform: translateX(100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .plain {
+    transition: none;
+  }
 }
 /* 下の行（高さ・地・縁は utils/FooterRow と同じ） */
 .footer {

@@ -56,6 +56,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
     "@matomezu/control-center:screen": ["@matomezu/control-center:screen"],
+    "@matomezu/taskboard:ticket-screen": ["@matomezu/taskboard:ticket-screen-view"],
     "@matomezu/base:control-center-side": ["@matomezu/taskboard:project-list"],
     "@matomezu/base:control-center-projects": ["@matomezu/taskboard:taskboard"],
     "@matomezu/base:workroom-columns": ["@matomezu/taskboard:workroom-columns"],
