@@ -36,3 +36,7 @@
   flex-direction: column;
   gap: 8px;
 }
+/* プレフィクスの入力: 入る文字数に合わせた幅（Form の .control は横いっぱいなので、詳細度で上書きする） */
+input.prefixInput {
+  width: 26ch;
+}

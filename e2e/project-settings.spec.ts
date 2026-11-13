@@ -103,3 +103,22 @@ test("プロジェクト設定でチケットサイズを変えると、ボー�
   await dialog.getByRole("button", { name: "保存" }).click()
   await expect(card).toHaveAttribute("data-size", "small")
 })
+
+test("プロジェクト設定の全般で、プレフィクスの入力とチケットサイズの枠は中身の幅で、名前の入力より狭い", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(CONTROL_CENTER_URL)
+  if ((await projects(page)).length === 0)
+    await page.request.post("/api/ai/perform", {
+      headers: await joinedAiAuth(),
+      data: { action: "@matomezu/taskboard:project-add", args: {} },
+    })
+  const first = (await projects(page))[0]!
+  await page.locator(`[data-board="${first.id}"]`).getByRole("button", { name: "プロジェクト設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
+  const width = async (locator: ReturnType<Page["locator"]>) => (await locator.boundingBox())!.width
+  const nameWidth = await width(dialog.getByRole("textbox", { name: "プロジェクト名" }))
+  expect(await width(dialog.getByRole("textbox", { name: "タスクプレフィクス" }))).toBeLessThan(nameWidth * 0.8)
+  expect(await width(dialog.getByRole("group", { name: "チケットサイズ" }))).toBeLessThan(nameWidth * 0.4)
+})

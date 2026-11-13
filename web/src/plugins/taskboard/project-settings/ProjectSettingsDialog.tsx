@@ -150,7 +150,7 @@ function Settings({
                   <input
                     id={id}
                     type="text"
-                    className={controlClass}
+                    className={`${controlClass} ${styles.prefixInput}`}
                     aria-invalid={prefixMissing || prefixTaken}
                     placeholder={t("Up to 3 letters and a hyphen")}
                     value={prefix}
