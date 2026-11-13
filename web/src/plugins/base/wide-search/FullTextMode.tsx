@@ -6,6 +6,7 @@ import { useMessages, useT } from "../../../ui/i18n"
 import { useLayout, useUiCatalog } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { highlightParts } from "./highlight"
 import { useWideSearch } from "./hooks"
 import { openerOf } from "./openers"
 import { WIDE_SEARCH_OPENERS, type WideSearchModeProps } from "./slots"
@@ -71,7 +72,7 @@ export function FullTextMode({ term }: WideSearchModeProps) {
       )}
       <ul className={styles.list}>
         {shown.hits.map(hit => (
-          <HitRow key={`${hit.kind}/${hit.id}/${hit.part}`} hit={hit} />
+          <HitRow key={`${hit.kind}/${hit.id}/${hit.part}`} hit={hit} words={words} />
         ))}
       </ul>
       {shown.more > 0 && (
@@ -84,19 +85,25 @@ export function FullTextMode({ term }: WideSearchModeProps) {
 }
 
 // 横断検索の当たり 1 行: 種類の題・何に当たったかの名前・当たった所の前後。種類の開き方があれば押せる
-function HitRow({ hit }: { hit: WideSearchHit }) {
+function HitRow({ hit, words }: { hit: WideSearchHit; words: string }) {
   const t = useT()
   const catalog = useCoreCatalog()
   const placed: readonly string[] = useLayout().slots[WIDE_SEARCH_OPENERS] ?? []
   const widgets = useUiCatalog().widgets
   const opener = openerOf(placed, widgets, hit.kind)
   const kind = catalog.subjects.get(hit.kind)
-  const label = opener?.useLabel ? <LabelOf useLabel={opener.useLabel} hit={hit} /> : hit.label
+  const label = opener?.useLabel ? (
+    <LabelOf useLabel={opener.useLabel} hit={hit} words={words} />
+  ) : (
+    <Marked text={hit.label ?? ""} words={words} />
+  )
   const body = (
     <>
       {kind && <span className={styles.kind}>{t(kind.title)}</span>}
       <span className={styles.brief}>{label}</span>
-      <span className={styles.snippet}>{hit.snippet}</span>
+      <span className={styles.snippet}>
+        <Marked text={hit.snippet} words={words} />
+      </span>
     </>
   )
   return (
@@ -131,14 +138,35 @@ function OpenableRow({
   )
 }
 
-// 横断検索の当たりの名前を、種類の開き方が画面の持つ物から作る（無ければホストの label）
+// 横断検索の当たりの名前を、種類の開き方が画面の持つ物から作る（無ければホストの label）。入力の言葉に当たった所は赤字にする
 function LabelOf({
   useLabel,
   hit,
+  words,
 }: {
   useLabel: () => (hit: WideSearchHit) => string | undefined
   hit: WideSearchHit
+  words: string
 }) {
   const label = useLabel()
-  return label(hit) ?? hit.label
+  return <Marked text={label(hit) ?? hit.label ?? ""} words={words} />
+}
+
+// 入力の言葉に当たった所を赤字（skin の danger の色）にして出す
+function Marked({ text, words }: { text: string; words: string }) {
+  return (
+    <>
+      {highlightParts(text, words).map((p, i) =>
+        p.hit ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 同じ文字の並びの中の位置で見分ける
+          <mark key={i} className={styles.hit}>
+            {p.text}
+          </mark>
+        ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 同じ文字の並びの中の位置で見分ける
+          <span key={i}>{p.text}</span>
+        ),
+      )}
+    </>
+  )
 }

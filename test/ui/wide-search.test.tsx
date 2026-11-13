@@ -71,7 +71,7 @@ test("虫メガネで横断検索が開き、全文で打つと当たりが並�
   fireEvent.click(await screen.findByRole("button", { name: "全文" }))
   fireEvent.change(await screen.findByRole("textbox", { name: "検索する言葉" }), { target: { value: "確認" } })
   // 横断検索の当たりの名前は、画面の持つチケットから番号の見せ方で作る（ホストの題の数字のままにしない）
-  fireEvent.click(await screen.findByRole("button", { name: /0001 ログイン.*確認が済んだ/ }, { timeout: 2000 }))
+  fireEvent.click(await screen.findByRole("button", { name: /0001 ログイン.*確認.*が済んだ/ }, { timeout: 2000 }))
   await waitFor(() =>
     expect(store.state.getState().window.screens.map(s => [s.def, s.props])).toContainEqual([
       "@matomezu/taskboard:ticket-screen",

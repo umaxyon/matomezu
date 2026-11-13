@@ -16,10 +16,15 @@
   color: var(--skin-text-muted);
   font-size: 12px;
 }
+/* タグの見出しは、プロジェクトの名前（グループの中の小見出し） */
+.group[data-sub] .legend {
+  margin-left: 8px;
+  font-size: 11px;
+}
 .buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   font-size: 13px;
 }
 .note {

@@ -1,4 +1,4 @@
-// プロジェクト設定の一覧とプロンプトの左右の分割（チケットタグ・レーン）: 左に行・重なりの知らせ・「〜追加」のボタン、右に選んだ行のプロンプトの入力Form。
+// プロジェクト設定の一覧とプロンプトの左右の分割（チケットタグ・レーン）: 左に「〜追加」のボタン・行（ここだけスクロールする）・重なりの知らせ、右に選んだ行のプロンプトの入力Form。
 // 行は使う側が描き、行の枠には rowProps を付ける（行のどこを押しても選ぶ・選んだ行の色）。行の名前には NameField を使う
 import { type ReactNode, type RefObject, useState } from "react"
 import { ActionButton, controlClass, IconButton } from "../../base/ui"
@@ -98,16 +98,16 @@ export function PromptSplit({
 }) {
   return (
     <div className={styles.split}>
-      <div className={styles.list}>
-        {children}
+      <div className={styles.listColumn}>
+        <div>
+          <ActionButton onClick={onAdd}>{addLabel}</ActionButton>
+        </div>
+        <div className={styles.list}>{children}</div>
         {notes.map(n => (
           <p key={n} className={styles.note}>
             {n}
           </p>
         ))}
-        <div>
-          <ActionButton onClick={onAdd}>{addLabel}</ActionButton>
-        </div>
       </div>
       <div className={styles.prompt}>
         {prompt !== undefined && promptHead ? <div className={styles.promptHead}>{promptHead}</div> : null}

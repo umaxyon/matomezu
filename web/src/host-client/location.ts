@@ -214,7 +214,10 @@ function statesOf(text: string | null): Readonly<Record<string, unknown>> {
 
 // インスタンスの画面の場所を URL と行き来させる。止める関数を返す
 export function followLocation(
-  instance: Pick<MatomezuInstance, "state" | "address" | "locate"> & { pushing?(): ReadonlySet<string> },
+  instance: Pick<MatomezuInstance, "state" | "address" | "locate"> & {
+    pushing?(): ReadonlySet<string>
+    takeReplacedScreens?(): ReadonlySet<string>
+  },
   place: Place = browserPlace,
 ) {
   // 読んだ場所を、今の形の場所にする（前の形の URL は、今開いているスクリーンに重ねる）
@@ -244,7 +247,17 @@ export function followLocation(
     if (search === searchOf(shown)) return
     pending?.()
     pending = null
-    if (moved(shown, now, instance.pushing?.())) place.push(search)
+    // setScreenProps で渡す値だけを替えたスクリーンは、替える前の値を今の値にそろえて比べる（それだけの違いなら、積まずに置き換える）
+    const replaced = instance.takeReplacedScreens?.() ?? new Set<string>()
+    const before: Address = replaced.size
+      ? {
+          ...shown,
+          screens: shown.screens.map(s =>
+            replaced.has(s.id) ? { ...s, props: now.screens.find(n => n.id === s.id)?.props ?? s.props } : s,
+          ),
+        }
+      : shown
+    if (moved(before, now, instance.pushing?.())) place.push(search)
     else pending = place.later(() => place.replace(search))
     shown = now
   }

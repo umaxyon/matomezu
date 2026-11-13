@@ -1,5 +1,5 @@
 // 横断検索のチケットモード: 入力の言葉（題名・番号・チケット履歴・本文）に当たったチケットと、プロジェクト・タグ・優先度の選びで、タスクボードのチケットを絞る。
-// 絞りは窓の状態に持ち、パネルを閉じても残る（タスクボードの上の印の × で外す）。言葉は打つのを待ってから、チケットとチケット履歴の両方をホストで探す。
+// 絞りは窓の状態に持ち、パネルを閉じても残る（パネルの印の × で外す）。絞りの状態が無い間は、ボードに出しているプロジェクトが選ばれた状態で始める。言葉は打つのを待ってから、チケットとチケット履歴の両方をホストで探す。
 // 言葉も選びも空なら絞らない
 import { useEffect, useRef, useState } from "react"
 import {
@@ -9,7 +9,7 @@ import {
   useSetPluginStateById,
   useUpdatePluginState,
 } from "../../../plugin-api/ui"
-import { ActionButton, useWideSearch, WIDE_SEARCH_LIMIT_MAX, type WideSearchModeProps } from "../../base/ui"
+import { ChoiceText, MultiChoices, useWideSearch, WIDE_SEARCH_LIMIT_MAX, type WideSearchModeProps } from "../../base/ui"
 import { orderedProjects, PRIORITIES, shownProjects } from "../board/shown"
 import { useBoardSettings } from "../board/useBoardSettings"
 import { kit } from "../kit"
@@ -17,6 +17,8 @@ import { PROJECT } from "../project"
 import { TICKET } from "../ticket"
 import { HISTORY } from "../ticket-history"
 import { TICKET_FILTER } from "."
+import { FilterBanner } from "./FilterBanner"
+import { FilterChip } from "./FilterChip"
 import {
   filterTickets,
   isFiltering,
@@ -46,9 +48,12 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
   const setPluginStateById = useSetPluginStateById()
   const tickets = useRecords(TICKET.id, { where: [] })
   const [failed, setFailed] = useState(false)
+  // 出しているタスクボードのプロジェクト（絞りの状態が無い間、選びの初めの状態になる）
+  const shownIds = shownProjects(orderedProjects(allProjects, settings.order), settings.shown).map(p => p.id)
+  const change = (f: (now: TicketFilter) => TicketFilter) =>
+    update(now => f(now ?? { ...NO_FILTER, projects: shownIds }))
   const latest = useRef(0) // 最後に頼んだ問い合わせの番号（それ以外の返りは捨てる）
   const first = useRef(true)
-  const change = (f: (now: TicketFilter) => TicketFilter) => update(now => f(now ?? NO_FILTER))
   // biome-ignore lint/correctness/useExhaustiveDependencies: 言葉が変わったときだけ探す
   useEffect(() => {
     // 開き直したとき、絞りに言葉が残っていれば入力に戻す（言葉が空のまま、残っている絞りを消さない）
@@ -81,10 +86,10 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     }, WAIT_MS)
     return () => clearTimeout(timer)
   }, [term])
-  const f = filter ?? NO_FILTER
-  const active = isFiltering(f)
+  const f = filter ?? { ...NO_FILTER, projects: shownIds }
+  const active = isFiltering(filter)
   const matched = active ? filterTickets(tickets, f) : []
-  const count = active ? matched.length : tickets.length
+  const count = isFiltering(f) ? filterTickets(tickets, f).length : tickets.length
   // 絞りが有効になったら、コントロールセンターのコンテンツエリアをプロジェクトの表示（タスクボード）にする（書庫の表示なら引っ込む）。
   // コントロールセンターのコードは読まず、画面の場所に入れる宣言 front-screen の id と値で土台に頼む。同じ値なら何も起きない。開き直しただけでは頼まない
   const wasActive = useRef(active)
@@ -94,7 +99,6 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     wasActive.current = active
   }, [active, setPluginStateById])
   // 絞りに合うチケットのプロジェクトと、選びで指したプロジェクトは、出すタスクボードに足す（利用者の設定。絞りを外しても戻さない）
-  const shownIds = shownProjects(orderedProjects(allProjects, settings.order), settings.shown).map(p => p.id)
   const missing = [...new Set([...f.projects, ...matched.map(tk => tk.project)])].filter(
     id => allProjects.some(p => p.id === id && !p.closed) && !shownIds.includes(id),
   )
@@ -104,55 +108,62 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
   }, [active, missing.join("|"), settings.canChange])
   return (
     <div className={styles.panel}>
+      <p className={styles.note}>{failed ? t("Could not search") : t("{n} tickets", { n: count })}</p>
+      {isFiltering(filter) && <FilterBanner filter={filter} onClear={() => update(() => undefined)} />}
       <Group title={t("Filter projects")}>
         {projects.map(p => (
-          <ActionButton
+          <FilterChip
             key={p.id}
             pressed={f.projects.includes(p.id)}
             onClick={() => change(now => ({ ...now, projects: toggled(now.projects, p.id) }))}
           >
             {p.name}
-          </ActionButton>
+          </FilterChip>
         ))}
       </Group>
       <Group title={t("Filter tags")}>
-        <ActionButton
+        <FilterChip
           pressed={f.tags.includes(NO_TAGS)}
           onClick={() => change(now => ({ ...now, tags: toggled(now.tags, NO_TAGS) }))}
         >
           {t("No tag")}
-        </ActionButton>
-        {projects.flatMap(p =>
-          p.tags.map(tag => (
-            <ActionButton
-              key={`${p.id}/${tag.id}`}
-              pressed={f.tags.includes(tag.id)}
-              onClick={() => change(now => ({ ...now, tags: toggled(now.tags, tag.id) }))}
-            >
-              {`${p.name} / ${tag.name}`}
-            </ActionButton>
-          )),
-        )}
+        </FilterChip>
       </Group>
-      <Group title={t("Filter priorities")}>
-        {PRIORITIES.map(p => (
-          <ActionButton
-            key={p}
-            pressed={f.priorities.includes(p)}
-            onClick={() => change(now => ({ ...now, priorities: toggled(now.priorities, p) }))}
-          >
-            {t(`priority ${p}`)}
-          </ActionButton>
+      {projects
+        .filter(p => p.tags.length > 0)
+        .map(p => (
+          <Group key={p.id} title={p.name} sub>
+            {p.tags.map(tag => (
+              <FilterChip
+                key={tag.id}
+                color={tag.color}
+                pressed={f.tags.includes(tag.id)}
+                onClick={() => change(now => ({ ...now, tags: toggled(now.tags, tag.id) }))}
+              >
+                {tag.name}
+              </FilterChip>
+            ))}
+          </Group>
         ))}
+      <Group title={t("Filter priorities")}>
+        <MultiChoices
+          label={t("Filter priorities")}
+          values={f.priorities}
+          options={PRIORITIES.map(p => ({
+            value: p,
+            label: t(`priority ${p}`),
+            icon: <ChoiceText>{t(`priority ${p}`)}</ChoiceText>,
+          }))}
+          onChange={priorities => change(now => ({ ...now, priorities }))}
+        />
       </Group>
-      <p className={styles.note}>{failed ? t("Could not search") : t("{n} tickets", { n: count })}</p>
     </div>
   )
 }
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+function Group({ title, sub, children }: { title: string; sub?: boolean; children: React.ReactNode }) {
   return (
-    <fieldset className={styles.group}>
+    <fieldset className={styles.group} data-sub={sub || undefined}>
       <legend className={styles.legend}>{title}</legend>
       <div className={styles.buttons}>{children}</div>
     </fieldset>

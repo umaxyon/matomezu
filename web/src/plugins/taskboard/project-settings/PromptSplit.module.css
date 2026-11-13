@@ -5,16 +5,24 @@
   gap: 12px;
   min-height: 0;
 }
-/* 先頭の行の手前の線が切られないよう、上下に 4px の余白（同じだけ外へ出して、置き場所は変えない） */
-.list {
-  --drop-gap: 6px;
+/* 一覧の列: 上に「〜追加」のボタン、その下の行の並びだけがスクロールする */
+.listColumn {
   display: flex;
   flex: none;
   flex-direction: column;
+  gap: 4px;
+  width: 210px;
+  min-height: 0;
+}
+/* 先頭の行の手前の線が切られないよう、上下に 4px の余白 */
+.list {
+  --drop-gap: 6px;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
   gap: 6px;
   padding-block: 4px;
-  margin-block: -4px;
-  width: 210px;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--skin-text) 28%, transparent) transparent; /* タスクボードの細いスクロールバーと同じ色 */
