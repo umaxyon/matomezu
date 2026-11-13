@@ -3,6 +3,8 @@
   --lane-width: 240px;
   --motion: 0.3s;
   --lane-gap: 10px;
+  --drop-gap: var(--lane-gap);
+  --drop-border: 1px;
   display: flex;
   flex: 0 0 var(--lane-width);
   min-width: 0; /* 長いチケットカードの名前で広げない（名前は … で切る） */

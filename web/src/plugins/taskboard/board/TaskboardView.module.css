@@ -62,6 +62,9 @@
   align-items: stretch;
   min-height: 0;
   overflow: auto;
+  /* 先頭・末尾のレーンの外側の線が切られないよう、左右に 6px の余白（同じだけ外へ出して、置き場所は変えない） */
+  padding-inline: 6px;
+  margin-inline: -6px;
 }
 /* レーンを最大化している間は、タスクボードの中を横にスクロールさせない（最大化したレーンの中でスクロールする） */
 .lanes[data-lane-max="true"] {
