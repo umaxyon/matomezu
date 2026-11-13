@@ -208,13 +208,15 @@ func TestBranchAndModelGoWithTheParticipantAndHostAlways(t *testing.T) {
 	}
 }
 
-// _meta のセッション id は sessionId（無ければ threadId）、モデルは AI ごとの置き場所から読む
+// _meta のセッション id は sessionId（無ければ threadId、無ければ opencode の ai.opencode/sessionID）、モデルは AI ごとの置き場所から読む
 func TestFromMeta(t *testing.T) {
 	for _, c := range []struct{ meta, session, model string }{
 		{``, "", ""},
 		{`{}`, "", ""},
 		{`{"sessionId":"S1","threadId":"T1"}`, "S1", ""},
 		{`{"threadId":"T1"}`, "T1", ""},
+		{`{"ai.opencode/sessionID":"O1"}`, "O1", ""},
+		{`{"sessionId":"S1","ai.opencode/sessionID":"O1"}`, "S1", ""},
 		{`{"sessionId":"S1","x-codex-turn-metadata":{"model":"gpt-6-luna","session_id":"S1"}}`, "S1", "gpt-6-luna"},
 		{`"broken"`, "", ""},
 	} {
