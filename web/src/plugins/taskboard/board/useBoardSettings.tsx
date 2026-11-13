@@ -10,7 +10,7 @@ export interface BoardSettings {
   order: readonly string[] // 利用者の並び（プロジェクトの id。消したプロジェクトの id も残る）
   shown: readonly string[] | undefined // 出しているタスクボード（まだ選んでいなければ undefined）
   canChange: boolean // 並びも出しているタスクボードも変えられるか
-  setOrder: (ids: readonly string[]) => void
+  setOrder: (ids: readonly string[], pinShown?: readonly string[]) => void // pinShown: まだ選んでいない（shown が undefined）とき、今出している物を同じ書き込みで決める（既定の「最初の 1 枚」が並びに付いて動かないように）
   setShown: (ids: readonly string[]) => void
 }
 
@@ -23,7 +23,8 @@ export function useBoardSettings(): BoardSettings {
     order: stringList(useUserSetting(PROJECT_ORDER.id)) ?? [],
     shown: stringList(useUserSetting(SHOWN_PROJECTS.id)),
     canChange: set.enabled && orderAllowed && shownAllowed,
-    setOrder: ids => set.run({ [PROJECT_ORDER.id]: [...ids] }),
+    setOrder: (ids, pinShown) =>
+      set.run({ [PROJECT_ORDER.id]: [...ids], ...(pinShown ? { [SHOWN_PROJECTS.id]: [...pinShown] } : {}) }),
     setShown: ids => set.run({ [SHOWN_PROJECTS.id]: [...ids] }),
   }
 }
