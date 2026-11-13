@@ -19,7 +19,8 @@ export const projectNameOf = (say: Say): string => say(kit.message("template pro
 export function templateOf(
   say: Say,
   newId: () => string,
-): { lanes: z.output<typeof LANES>; tags: z.output<typeof TAGS> } {
+): { lanes: z.output<typeof LANES>; tags: z.output<typeof TAGS>; doneLane: string } {
+  const done = newId()
   return {
     lanes: [
       {
@@ -36,7 +37,7 @@ export function templateOf(
       },
       {
         kind: "lane",
-        id: newId(),
+        id: done,
         name: say(kit.message("template lane done")),
         prompt: say(kit.message("template lane done prompt")),
       },
@@ -58,5 +59,6 @@ export function templateOf(
         prompt: say(kit.message("template tag bug prompt")),
       },
     ],
+    doneLane: done,
   }
 }

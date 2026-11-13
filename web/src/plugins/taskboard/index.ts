@@ -2,6 +2,7 @@
 import { defineBuiltin } from "../../plugin-api/builtin"
 import { CARD_VISIT, LANE_SORTS, MAXIMIZED } from "./board"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "./board/user-settings"
+import { TICKET_COMPLETE } from "./completion"
 import { CURRENT } from "./current-ticket"
 import { CURRENT_TICKET_SET } from "./current-ticket/actions"
 import { kit } from "./kit"
@@ -12,7 +13,15 @@ import { PROJECT_SETTINGS_DIALOG } from "./project-settings"
 import { TICKET } from "./ticket"
 import { TICKET_ADD, TICKET_LOCK, TICKET_REMOVE, TICKET_UNLOCK, TICKET_UPDATE } from "./ticket/actions"
 import { CLOSED_PROJECT } from "./ticket/permission"
-import { HISTORY, HISTORY_TOPIC, TOPIC_BODY, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_STATUS } from "./ticket-history"
+import {
+  HISTORY,
+  HISTORY_TOPIC,
+  TOPIC_BODY,
+  TOPIC_COMPLETE,
+  TOPIC_PLAN,
+  TOPIC_QUESTION,
+  TOPIC_STATUS,
+} from "./ticket-history"
 import { TICKET_HISTORY_ADD } from "./ticket-history/actions"
 import { TICKET_SCREEN, TICKET_SCREEN_STATE } from "./ticket-screen"
 
@@ -20,7 +29,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
     subjects: [PROJECT, TICKET, HISTORY, CURRENT],
     enums: [HISTORY_TOPIC],
-    enumValues: [TOPIC_STATUS, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_BODY],
+    enumValues: [TOPIC_STATUS, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_BODY, TOPIC_COMPLETE],
     actions: [
       PROJECT_ADD,
       PROJECT_UPDATE,
@@ -32,6 +41,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       TICKET_LOCK,
       TICKET_UNLOCK,
       TICKET_HISTORY_ADD,
+      TICKET_COMPLETE,
       CURRENT_TICKET_SET,
     ],
     permissions: [CLOSED_PROJECT],
@@ -57,6 +67,7 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:topic-plan": typeof TOPIC_PLAN
     "@matomezu/taskboard:topic-question": typeof TOPIC_QUESTION
     "@matomezu/taskboard:topic-body": typeof TOPIC_BODY
+    "@matomezu/taskboard:topic-complete": typeof TOPIC_COMPLETE
   }
   interface ActionTable {
     "@matomezu/taskboard:project-add": typeof PROJECT_ADD
@@ -69,6 +80,7 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:ticket-lock": typeof TICKET_LOCK
     "@matomezu/taskboard:ticket-unlock": typeof TICKET_UNLOCK
     "@matomezu/taskboard:ticket-history-add": typeof TICKET_HISTORY_ADD
+    "@matomezu/taskboard:ticket-complete": typeof TICKET_COMPLETE
     "@matomezu/taskboard:current-ticket-set": typeof CURRENT_TICKET_SET
   }
   interface UserSettingTable {

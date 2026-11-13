@@ -15,12 +15,21 @@ import {
 import { refusalMessage } from "../../base"
 import { ActionButton, controlClass, Dialog, Field, Form, Problem, SideTabs } from "../../base/ui"
 import { kit } from "../kit"
-import { PREFIX_PATTERN, PROJECT, PROJECT_NAME_MAX, sameName } from "../project"
+import { NO_DONE_LANE, PREFIX_PATTERN, PROJECT, PROJECT_NAME_MAX, sameName } from "../project"
 import { PROJECT_UPDATE } from "../project/actions"
 import { TICKET } from "../ticket"
 import { LaneSettings } from "./LaneSettings"
 import styles from "./ProjectSettingsDialog.module.css"
-import { hidesTickets, type LaneRow, laneRowsOf, repeatedKeys, type TagRow, tagRowsOf, updateArgsOf } from "./rows"
+import {
+  doneLaneBlocked,
+  hidesTickets,
+  type LaneRow,
+  laneRowsOf,
+  repeatedKeys,
+  type TagRow,
+  tagRowsOf,
+  updateArgsOf,
+} from "./rows"
 import { TagSettings } from "./TagSettings"
 import { useEditableRows } from "./useEditableRows"
 
@@ -57,6 +66,7 @@ function Settings({
   const [prefix, setPrefix] = useState(project.prefix)
   const lanes = useEditableRows<LaneRow>(() => laneRowsOf(project))
   const tags = useEditableRows<TagRow>(() => tagRowsOf(project))
+  const [doneKey, setDoneKey] = useState(project.doneLane ?? NO_DONE_LANE) // 完了のレーンに選んだ行の鍵（もうあるレーンは id。無ければ none）
   const [refused, setRefused] = useState<string | null>(null)
   const others = useRecords(PROJECT.id, { where: [] }).filter(p => p.id !== project.id)
   const tickets = useRecords(TICKET.id, { where: [] })
@@ -65,6 +75,7 @@ function Settings({
   const prefixMissing = prefix.trim() === ""
   const prefixTaken = !prefixMissing && others.some(p => sameName(p.prefix, prefix, true))
   const repeatedLanes = repeatedKeys(lanes.rows)
+  const doneBlocked = doneLaneBlocked(project, lanes.rows, doneKey, tickets)
   const repeatedTags = repeatedKeys(tags.rows)
   const ready =
     !nameMissing &&
@@ -72,12 +83,17 @@ function Settings({
     PREFIX_PATTERN.test(prefix) &&
     !prefixTaken &&
     repeatedLanes.size === 0 &&
-    repeatedTags.size === 0
+    repeatedTags.size === 0 &&
+    !doneBlocked
 
   const save = async () => {
-    const done = await actions.performConfirmed(PROJECT_UPDATE.id, updateArgsOf(name, prefix, lanes.rows, tags.rows), {
-      record: project.id,
-    })
+    const done = await actions.performConfirmed(
+      PROJECT_UPDATE.id,
+      updateArgsOf(name, prefix, lanes.rows, tags.rows, doneKey),
+      {
+        record: project.id,
+      },
+    )
     if (done.ok) onClose()
     else setRefused(t(refusalMessage(catalog, done, kit.message("Changed elsewhere: open the settings again"))))
   }
@@ -145,7 +161,14 @@ function Settings({
               <TagSettings tags={tags} repeated={repeatedTags} />
             </div>
             <div className={styles.fill} hidden={tab !== "lanes"}>
-              <LaneSettings lanes={lanes} repeated={repeatedLanes} hides={hidesTickets(project, lanes.rows, tickets)} />
+              <LaneSettings
+                lanes={lanes}
+                repeated={repeatedLanes}
+                hides={hidesTickets(project, lanes.rows, tickets)}
+                done={doneKey}
+                onDone={setDoneKey}
+                doneBlocked={doneBlocked}
+              />
             </div>
           </SideTabs>
         </div>

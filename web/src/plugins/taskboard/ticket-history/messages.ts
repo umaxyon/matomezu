@@ -9,5 +9,6 @@ export const TICKET_HISTORY_MESSAGES = defineMessages({
   "topic status": { en: "Status", ja: "状況" },
   "topic plan": { en: "Plan", ja: "プラン" },
   "topic body": { en: "Body updated", ja: "本文更新" },
+  "topic complete": { en: "Completed", ja: "完了" },
   "topic question": { en: "Question", ja: "質問" },
 })

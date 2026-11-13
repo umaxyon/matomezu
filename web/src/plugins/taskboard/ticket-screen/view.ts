@@ -8,6 +8,10 @@ import { type HISTORY, newestFirst, TOPIC_BODY } from "../ticket-history"
 type Ticket = z.output<typeof TICKET.record>
 type Line = z.output<typeof HISTORY.record>
 
+// 名前の並びを、言語 lang の言い方でつないだ文字
+export const namesLine = (names: readonly string[], lang: string): string =>
+  new Intl.ListFormat(lang, { type: "unit", style: "narrow" }).format(names)
+
 export const FILED = "filed" // 起票の行の題（列挙の値でなく、画面が足す行）
 export const BODY_UPDATED = TOPIC_BODY.id // 本文更新の行の題（文を持たない行。文は画面が題から決める）
 
@@ -32,6 +36,7 @@ export interface HistoryRow {
   text: string
   at: string
   by: By
+  released?: readonly string[] // 完了の行だけ: 完了で担当を外したワークルームの id
 }
 
 // チケット履歴の行（ticket のもの）に、起票の行を足し、新しい順（同じ時点は id の降順）に並べる

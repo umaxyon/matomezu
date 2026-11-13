@@ -39,7 +39,13 @@ test("ボードの歯車でプロジェクト設定を開き、レーンを直�
 
   await name.fill("見直し")
   await name.press("Enter")
-  await expect(dialog.getByText("見直し", { exact: true })).toBeVisible()
+  await expect(dialog.locator('[title="見直し"]')).toBeVisible()
+  // 完了のレーンは、レーンの並びから 1 つ選ぶ（最初のプロジェクトは「完了」が選ばれている）
+  const doneLane = dialog.getByRole("combobox", { name: "完了のレーン" })
+  await expect(doneLane).toHaveValue(/.+/)
+  await doneLane.selectOption({ label: "なし" })
+  await expect(doneLane).toHaveValue("none")
+  await doneLane.selectOption({ label: "見直し" })
   await dialog.getByRole("switch", { name: "未分類を表示する" }).click()
   await expect(dialog.getByText("未分類", { exact: true })).toBeVisible()
   await dialog.getByRole("button", { name: "保存" }).click()

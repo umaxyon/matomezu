@@ -2,6 +2,7 @@
 import { defineMessages } from "../../../plugin-api"
 
 export const TICKET_SCREEN_MESSAGES = defineMessages({
+  "{topic}: {names}": { en: "{topic}: {names}", ja: "{topic}: {names}" },
   "Updated the body": { en: "Updated the body", ja: "本文を更新しました" },
   "ticket screen": { en: "Ticket", ja: "チケット" },
   Back: { en: "Back", ja: "戻る" },

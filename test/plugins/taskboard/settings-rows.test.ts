@@ -4,6 +4,9 @@
 import { expect, test } from "bun:test"
 import { PROJECT } from "../../../web/src/plugins/taskboard/project"
 import {
+  doneChoices,
+  doneLaneBlocked,
+  doneLaneOf,
   hidesTickets,
   type LaneRow,
   laneRowsOf,
@@ -74,9 +77,13 @@ test("行から作った引数でプロジェクトを直すと、残した行�
     { key: "new-1", name: " 調べ物 ", color: "success", enabled: true, prompt: "調べる" },
   ]
   const nextLanes: LaneRow[] = [...lanes.slice(0, 1), lane("new-2", "見直し"), lane("new-3", "  "), ...lanes.slice(-1)]
-  const done = perform("@matomezu/taskboard:project-update", updateArgsOf(" 新しい名前 ", "AB-", nextLanes, tags), {
-    record: p.id,
-  })
+  const done = perform(
+    "@matomezu/taskboard:project-update",
+    updateArgsOf(" 新しい名前 ", "AB-", nextLanes, tags, "none"),
+    {
+      record: p.id,
+    },
+  )
   expect(done.ok).toBe(true)
   const q = project()
   expect(q.name).toBe("新しい名前")
@@ -102,4 +109,22 @@ test("チケットの入ったレーンを消すと、未分類を表示しな�
   expect(hidesTickets(p, shown(true), tickets)).toBe(false)
   expect(hidesTickets(p, rows, tickets)).toBe(false)
   expect(hidesTickets(p, shown(false), [])).toBe(false)
+})
+
+test("完了のレーンは、名前のあるレーンの行から選ぶ。選んだ行の id（新しい行は名前）で指し、行が無ければ none。担当のいるチケットがあるレーンを新しく選ぶと保存できない", () => {
+  const { project: current } = withProject()
+  const project = current()
+  const lanes = laneRowsOf(project)
+  const first = lanes.find(l => l.kind === "lane") as Extract<LaneRow, { kind: "lane" }>
+  const added: LaneRow[] = [...lanes, lane("new-1", "  見直し ")]
+  expect(doneChoices(added).map(l => l.key)).toEqual([...lanes.filter(l => l.kind === "lane").map(l => l.key), "new-1"])
+  expect(doneLaneOf(added, first.key)).toBe(first.id as string)
+  expect(doneLaneOf(added, "new-1")).toBe("見直し")
+  expect(doneLaneOf(added, "gone")).toBe("none")
+  expect(doneLaneOf(added, "unsorted")).toBe("none")
+  const tickets = [{ project: project.id, lane: first.id as string, assignees: ["r1"] }]
+  expect(doneLaneBlocked(project, added, first.key, tickets)).toBe(true)
+  expect(doneLaneBlocked(project, added, "new-1", tickets)).toBe(false)
+  expect(doneLaneBlocked(project, added, first.key, [{ ...tickets[0]!, assignees: [] }])).toBe(false)
+  expect(doneLaneBlocked({ ...project, doneLane: first.id as string }, added, first.key, tickets)).toBe(false)
 })

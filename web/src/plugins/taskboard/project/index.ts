@@ -32,6 +32,7 @@ export function repeatedAt(names: readonly string[]): ReadonlySet<number> {
 
 export const UNSORTED = "unsorted" // 未分類の行・チケットのレーンの値
 export const NO_TAG = "none" // タグなしのチケットのタグの値
+export const NO_DONE_LANE = "none" // 完了のレーンを無しにするときの、project-update の doneLane の値（プロジェクトのレコードでは doneLane を持たない）
 
 const LANE = z.strictObject({
   kind: z.literal("lane"),
@@ -68,7 +69,7 @@ export const PROJECT = kit.defineSubject({
   id: "project",
   title: "project",
   aiDescription:
-    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too) and the ticket tags (each with a prompt that tells you how to handle the tickets with the tag).",
+    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; a ticket gets there only through ticket-complete) and the ticket tags (each with a prompt that tells you how to handle the tickets with the tag).",
   record: z.strictObject({
     id: z.string().min(1),
     name: z.string().trim().min(1).max(PROJECT_NAME_MAX),
@@ -76,6 +77,7 @@ export const PROJECT = kit.defineSubject({
     closed: z.boolean(),
     lanes: LANES,
     tags: TAGS,
+    doneLane: z.string().min(1).optional(), // 完了のレーンの id（無ければ完了のレーンは無い。レーンを消したら外す）
   }),
   // prefix は、重なりを確かめるのに比べる形（前後の空白を除き、小文字にした物）
   keys: { prefix: { type: "text", of: p => prefixKey(p.prefix) } },

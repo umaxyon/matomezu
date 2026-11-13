@@ -31,6 +31,12 @@ export const TICKET = kit.defineSubject({
     locked: z.literal(true).optional(), // ロックの印（base の lockable）
   }),
   refers: t => [{ subject: PROJECT.id, id: t.project }],
+  // プロジェクトのチケットを、レーンと担当の有無で探す（完了のレーンの確かめなど。担当の人数 assigned は、いない 0）
+  keys: {
+    project: { type: "text", of: t => t.project },
+    lane: { type: "text", of: t => t.lane },
+    assigned: { type: "number", of: t => t.assignees.length },
+  },
   numbered: true,
   lockable: true,
   aiOrder: t => t.number,

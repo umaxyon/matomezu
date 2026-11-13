@@ -179,3 +179,37 @@ test("一覧でプロジェクトをつまみで入れ替えても、チェッ�
   await expect.poll(async () => (await state()).slice().sort()).toEqual(before.slice().sort())
   await expect.poll(async () => (await state())[0]).toBe(before[1])
 })
+
+test("完了のアクションで、チケットカードが完了のレーンへ移る。ほかの道で完了のレーンへ入れることは断られる", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(CONTROL_CENTER_URL)
+  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
+    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await records(page, "@matomezu/taskboard:project"))[0]! as { id: string; doneLane?: string } & {
+    lanes?: { kind: string; id: string }[]
+  }
+  const todo = first.lanes!.find(l => l.kind === "lane")!.id
+  expect(typeof first.doneLane).toBe("string") // 最初のプロジェクトは、完了のレーンが最初から決まっている
+  const added = await perform(page, {
+    action: "@matomezu/taskboard:ticket-add",
+    args: { project: first.id, name: "完了させるチケット", lane: todo },
+  })
+  const ticket = added.result?.ticket as string
+  const board = page.locator(`[data-board="${first.id}"]`)
+  await expect(board).toHaveAttribute("data-state", "idle")
+  const card = board.locator("[data-card]", { hasText: "完了させるチケット" })
+  await expect(card).toBeVisible()
+  // ほかの道で完了のレーンへは入れない
+  const moved = await page.request.post("/api/ai/perform", {
+    headers: await joinedAiAuth(),
+    data: { action: "@matomezu/taskboard:ticket-update", args: { lane: first.doneLane }, on: { record: ticket } },
+  })
+  expect((await moved.json()).ok).toBe(false)
+  const done = await perform(page, { action: "@matomezu/taskboard:ticket-complete", args: {}, on: { record: ticket } })
+  expect(done.ok).toBe(true)
+  await expect(
+    board.locator(`[data-lane="${first.doneLane}"]`).locator("[data-card]", { hasText: "完了させるチケット" }),
+  ).toBeVisible()
+})

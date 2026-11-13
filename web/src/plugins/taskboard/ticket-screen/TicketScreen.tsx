@@ -2,7 +2,7 @@
 // 右に本文（マークダウン）。本文は最初からプレビューで出ていて、ナレッジの「本文」で出し入れし、4 つの並べ方（編集・縦分割・横分割・プレビュー）を切り替える。本文の最大化で、左の枠は戻るボタンだけに畳む。
 // チケット履歴の質問を押すと、質問の枠が右の領域の上に重なる。名前・本文・優先度は直したそばから反映する（本文は打つたびに送り、変換中は送らない）。
 // ロック中のチケットは薄くして直せなくし、帯のロックで掛け外しする。直している間（名前の入力か本文の編集にフォーカスがある間）は、チケットに編集ロックを掛ける。画面の状態は、開いているチケットが替われば初めに戻る
-import { type KeyboardEvent, useState } from "react"
+import { type KeyboardEvent, useMemo, useState } from "react"
 import {
   useActions,
   useAllowedOn,
@@ -97,6 +97,7 @@ export function TicketScreen() {
   const rows = historyRows(ticket, lines)
   const question = rows.find(r => r.id === view.question)
   const assignees = assigneesOf(ticket, workrooms)
+  const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
   return (
     <section className={styles.screen} aria-label={t("ticket screen")}>
       <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
@@ -150,6 +151,7 @@ export function TicketScreen() {
               rows={rows}
               openQuestion={view.question}
               onOpenQuestion={(row: HistoryRow) => set({ question: row.id })}
+              workroomNames={workroomNames}
             />
           </div>
         </div>

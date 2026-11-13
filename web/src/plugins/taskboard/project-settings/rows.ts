@@ -2,7 +2,7 @@
 // 行からプロジェクトを直すアクションの引数を作る関数。
 // 行は画面の中だけの鍵 key と、データの id（もうある行だけ。無い行は保存で新しく入る）を分けて持つ。もうある行は、開いたときの名前 was も持つ
 import type { z } from "zod"
-import { type LANE, type PROJECT, repeatedAt, type TAG, UNSORTED } from "../project"
+import { type LANE, NO_DONE_LANE, type PROJECT, repeatedAt, type TAG, UNSORTED } from "../project"
 import { moved } from "../reorder/order"
 
 type Project = z.output<typeof PROJECT.record>
@@ -65,10 +65,42 @@ export function moveRow<R extends { key: string }>(rows: readonly R[], dragging:
 }
 
 // ダイアログの行から、プロジェクトを直すアクションの引数を作る（名前は前後の空白を除く。空の名前の行は入れない）
-export function updateArgsOf(name: string, prefix: string, lanes: readonly LaneRow[], tags: readonly TagRow[]) {
+// 完了のレーンに選べる行: 名前のあるレーン（未分類の行と、名前が空の行は選べない）
+export const doneChoices = (lanes: readonly LaneRow[]): (NamedRow & { kind: "lane"; prompt: string })[] =>
+  lanes.filter((l): l is NamedRow & { kind: "lane"; prompt: string } => l.kind === "lane" && l.name.trim() !== "")
+
+// 完了のレーンは、選んだ行の鍵 doneKey から決める（もうある行は id、新しい行は名前で指す。行が無ければ none）
+export function doneLaneOf(lanes: readonly LaneRow[], doneKey: string): string {
+  const row = doneChoices(lanes).find(l => l.key === doneKey)
+  return row ? (row.id ?? row.name.trim()) : NO_DONE_LANE
+}
+
+// 完了のレーンに選んだ行に、担当のいるチケットがあるか（保存すると断られる。もう完了のレーンの行は、そのまま通る）
+export function doneLaneBlocked(
+  project: Project,
+  lanes: readonly LaneRow[],
+  doneKey: string,
+  tickets: readonly { project: string; lane: string; assignees: readonly string[] }[],
+): boolean {
+  const id = doneChoices(lanes).find(l => l.key === doneKey)?.id
+  return (
+    id !== undefined &&
+    id !== project.doneLane &&
+    tickets.some(t => t.project === project.id && t.lane === id && t.assignees.length > 0)
+  )
+}
+
+export function updateArgsOf(
+  name: string,
+  prefix: string,
+  lanes: readonly LaneRow[],
+  tags: readonly TagRow[],
+  doneKey: string,
+) {
   return {
     name: name.trim(),
     prefix: prefix.trim(),
+    doneLane: doneLaneOf(lanes, doneKey),
     lanes: lanes.flatMap((l): (Lane | { kind: "unsorted"; shown: boolean } | Omit<Lane, "id">)[] => {
       if (l.kind === "unsorted") return [{ kind: "unsorted", shown: l.shown }]
       if (l.name.trim() === "") return []
