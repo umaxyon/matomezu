@@ -31,7 +31,6 @@ export function repeatedAt(names: readonly string[]): ReadonlySet<number> {
 }
 
 export const UNSORTED = "unsorted" // 未分類の行・チケットのレーンの値
-export const NO_TAG = "none" // タグなしのチケットのタグの値
 // チケットカードの大きさ（チケットサイズ）: large は題を折り返し、medium は題を 1 行で切り、small は番号と題の 1 行だけ。
 // レーンは inherit でプロジェクトの大きさに従う。完了のレーンにしたレーンは、画面で small にする（DONE_LANE_CARD_SIZE）
 export const CARD_SIZES = ["large", "medium", "small"] as const

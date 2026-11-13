@@ -2,7 +2,7 @@
 // 消した物を指しているチケットは書き換えず、ここで読み替える（無いレーンは未分類、無いタグはタグなし）。閉じたプロジェクトは出さない
 import type { z } from "zod"
 import type { RecordOf } from "../../../plugin-api"
-import { type CardSize, INHERIT_CARD_SIZE, NO_TAG, type PROJECT, UNSORTED } from "../project"
+import { type CardSize, INHERIT_CARD_SIZE, type PROJECT, UNSORTED } from "../project"
 import { PRIORITIES, PRIORITY_DEFAULT, type TICKET } from "../ticket"
 
 export { PRIORITIES, PRIORITY_DEFAULT }
@@ -60,7 +60,3 @@ export function cardSizeOf(project: ProjectRecord, lane: string): CardSize {
   const row = project.lanes.find(l => l.kind === "lane" && l.id === lane)
   return row?.kind === "lane" && row.cardSize !== INHERIT_CARD_SIZE ? row.cardSize : project.cardSize
 }
-
-// チケットのタグ（タグなし・無いタグは undefined）
-export const tagOf = (project: ProjectRecord, ticket: TicketRecord): TagRecord | undefined =>
-  ticket.tag === NO_TAG ? undefined : project.tags.find(t => t.id === ticket.tag)
