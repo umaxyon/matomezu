@@ -15,15 +15,15 @@ const book = {
   ],
 }
 
-test("ページを足すと、振った id で、決めた名前と紙のページになる。ほかのページと重なる id は振り直す", () => {
+test("ページを足すと、newId の値そのままの id（uuid）で、決めた名前と紙のページになる。ほかのページと重なる id は振り直す", () => {
   const ids = ["p3", "p-2a"]
   const { book: next, page } = addPage(
     book,
     { title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" },
     () => ids.shift()!,
   )
-  expect(page).toEqual({ id: "p2a", title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" })
-  expect(next.pages.map(p => p.id)).toEqual(["p1", "p3", "p2a"])
+  expect(page).toEqual({ id: "p-2a", title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" })
+  expect(next.pages.map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
   expect(book.pages).toHaveLength(2)
 })
 

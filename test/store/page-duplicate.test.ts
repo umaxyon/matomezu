@@ -9,11 +9,11 @@ const TEXT = "@matomezu/slide:slide-text"
 
 type Pages = { id: string; title: string; locked?: boolean; slide?: { id: string }[] }[]
 
-function slideSetup() {
+function slideSetup(newId: () => string = sequence()) {
   const instance = createMatomezu({
     plugins: BUILTIN,
     controlCenter: "@matomezu/control-center:control-center",
-    newId: sequence(),
+    newId,
   })
   createBookIn(instance, "s1", { title: "スライド", type: "@matomezu/slide-book:slide" as never })
   const book = Object.keys(instance.state.getState().books).find(
@@ -70,4 +70,17 @@ test("page-duplicate は元のすぐ後ろに写しを足し、中の id を振�
 test("page-duplicate は、複製を宣言していないタイプでは断る", () => {
   const store = newStore()
   expect(store.actions.perform("@matomezu/base:page-duplicate", { page: "x" }, { book: "b1" }).ok).toBe(false)
+})
+
+test("ページの id は newId の値そのまま（uuid）。page-add でも page-duplicate でも、短くしない", () => {
+  let n = 0
+  const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`
+  const s = slideSetup(uuid)
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/
+  const added = s.perform("@matomezu/base:page-add", { title: "A" }).result?.page as string
+  expect(added).toMatch(UUID)
+  const copied = s.perform("@matomezu/base:page-duplicate", { page: added }).result?.page as string
+  expect(copied).toMatch(UUID)
+  expect(copied).not.toBe(added)
+  expect(s.pages().map(p => p.id)).toEqual([added, copied])
 })

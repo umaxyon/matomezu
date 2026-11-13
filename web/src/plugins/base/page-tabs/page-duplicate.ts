@@ -4,6 +4,7 @@
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
+import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
@@ -24,8 +25,12 @@ export const PAGE_DUPLICATE = kit.defineAction({
     const from = book.pages.findIndex(p => p.id === args.page)
     const source = book.pages[from]
     if (!source) return null
-    const { locked: _locked, ...rest } = renewedIds(book, source, ctx.newId)
-    const page: ItemPage = { ...rest, title: args.title ?? source.title }
+    const { id: _id, locked: _locked, ...content } = source
+    const id = freshPageId(
+      ctx.newId,
+      book.pages.map(p => p.id),
+    )
+    const page: ItemPage = { ...renewedIds(book, content, ctx.newId), id, title: args.title ?? source.title }
     return { next: putPage(book, page, from + 1), result: { page: page.id } }
   },
 })

@@ -2,7 +2,7 @@
 
 import { bookType, type CoreCatalog } from "./core-catalog"
 import type { NewBook } from "./def/book-type"
-import { freshId } from "./ids"
+import { freshPageId } from "./ids"
 import { splitId } from "./names"
 import type { PaperChoice } from "./paper"
 import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"
@@ -102,14 +102,14 @@ export function bookItems(catalog: CoreCatalog, book: Pick<Book, "type">): reado
   return bookType(catalog, book.type).items.allowed
 }
 
-// ページを末尾に足す。id は newId から振る（ブックのほかのページと重ならない）
+// ページを末尾に足す。id は newId の値（uuid。ブックのほかのページと重ならない）
 export function addPage<B extends PagedBook>(
   book: B,
   init: { title: string; grows?: Page["grows"] } & PaperChoice,
   newId: () => string,
 ): { book: B; page: Page } {
   const page = {
-    id: freshId(
+    id: freshPageId(
       newId,
       book.pages.map(p => p.id),
     ),

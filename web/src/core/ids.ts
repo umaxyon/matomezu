@@ -1,5 +1,5 @@
-// id の扱い: アクションの中で振る、ほかと重ならない短い id と、id を持つ物が変わったかの比べ。
-// 短い id は、newId（アクションの文脈が振る値）から作るので、
+// id の扱い: アクションの中で振る、ほかと重ならない短い id とページの id（uuid）、id を持つ物が変わったかの比べ。
+// どちらも newId（アクションの文脈が振る値）から作るので、
 // 同じ newId の並びで行い直せば同じ id になる（画面で先に行い、常駐で行い直しても食い違わない）。taken と重なれば振り直す
 import { fail } from "./errors"
 import { sameData } from "./same"
@@ -8,12 +8,21 @@ export function freshId(newId: () => string, taken: Iterable<string>): string {
   return idMaker(newId, taken)()
 }
 
+// ページの id: newId の値をそのまま使う（uuid。ページは、ブックの外からも id だけで指される）。taken と重なれば振り直す
+export function freshPageId(newId: () => string, taken: Iterable<string>): string {
+  return maker(newId, taken, raw => raw)()
+}
+
 // 続けて何個も振る関数: 振った id を使われている id に足しながら振るので、振った id どうしも重ならない
 export function idMaker(newId: () => string, taken: Iterable<string>): () => string {
+  return maker(newId, taken, raw => raw.replace(/-/g, "").slice(0, 10))
+}
+
+function maker(newId: () => string, taken: Iterable<string>, form: (raw: string) => string): () => string {
   const used = new Set(taken)
   return () => {
     for (let i = 0; i < 100; i++) {
-      const id = newId().replace(/-/g, "").slice(0, 10)
+      const id = form(newId())
       if (id !== "" && !used.has(id)) {
         used.add(id)
         return id
