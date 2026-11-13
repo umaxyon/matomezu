@@ -1,4 +1,4 @@
-// チケットに付いたタグを、プロジェクトのタグの順に並べる（無いタグは外す）。カード・チケットスクリーン・並べ方「タグ」が使う
+// チケットに付いたタグを、プロジェクトのタグの順に並べる（無いタグは外す）。カードとチケットスクリーンが使う
 import type { z } from "zod"
 import type { PROJECT } from "../project"
 import type { TICKET } from "."

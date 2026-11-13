@@ -1,5 +1,5 @@
 // タスクボードの見せ方の決め事（見た目でない。レコードから、画面に出す物を決める）: 一覧の並びと出すタスクボード・タスクボードのレーン・レーンのチケット・タグ。
-// 消した物を指しているチケットは書き換えず、ここで読み替える（無いレーンは未分類、無いタグはタグなし）。閉じたプロジェクトは出さない
+// 消した物を指しているチケットは書き換えず、ここで読み替える（無いレーンは未分類、無いタグは外す）。閉じたプロジェクトは出さない
 import type { z } from "zod"
 import type { RecordOf } from "../../../plugin-api"
 import { type CardSize, INHERIT_CARD_SIZE, type PROJECT, UNSORTED } from "../project"
