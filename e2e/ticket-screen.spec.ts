@@ -178,3 +178,28 @@ test("本文を直してチケットスクリーンから離れると、チケ�
   await page.goto(open(ticket))
   await expect(page.getByRole("region", { name: "チケット" }).first().getByText("本文を更新しました")).toBeVisible()
 })
+
+test("ボードのカードを押すとチケットスクリーンが開き、戻るで閉じる。もう一度押すと、また開く", async ({ page }) => {
+  await page.goto(CONTROL_CENTER_URL)
+  // レーンに入れたチケットが、ボードのカードになる（未分類のチケットは、レーンには出ない）
+  const made = await page.request.post("/api/perform", {
+    data: { action: "@matomezu/taskboard:project-add", args: { prefix: "T-" }, lang: "ja", now: NOW },
+  })
+  const { result } = (await made.json()) as { result: { project: string; lanes: { id: string }[] } }
+  const added = await perform(page, "@matomezu/taskboard:ticket-add", {
+    project: result.project,
+    name: "ログイン画面を直す",
+    lane: result.lanes[0]?.id ?? "",
+  })
+  const ticket = added.result?.ticket ?? ""
+  const card = page.locator(`[data-card="${ticket}"]`)
+  await card.click()
+  const screen = page.getByRole("region", { name: "チケット" }).first()
+  await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeVisible()
+  await screen.getByRole("button", { name: "戻る" }).click()
+  await expect(page.getByRole("heading", { name: "ログイン画面を直す" })).toHaveCount(0)
+  await card.click()
+  await expect(
+    page.getByRole("region", { name: "チケット" }).first().getByRole("heading", { name: "ログイン画面を直す" }),
+  ).toBeVisible()
+})
