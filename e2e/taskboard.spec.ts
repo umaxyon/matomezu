@@ -113,6 +113,8 @@ test("レーンのタイトル帯をドラッグすると、レーンが左右�
     expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
   const first = (await records(page, "@matomezu/taskboard:project"))[0]!
   const board = page.locator(`[data-board="${first.id}"]`)
+  // 入る動き（右から滑り込む）が終わって、位置が止まってから測る（動いている間の位置でつかむと、別の所を運ぶことになる）
+  await expect(board).toHaveAttribute("data-state", "idle")
   const lanes = board.locator("[data-lane]")
   const ids = async () => lanes.evaluateAll(els => els.map(e => e.getAttribute("data-lane")))
   const before = await ids()
@@ -124,6 +126,18 @@ test("レーンのタイトル帯をドラッグすると、レーンが左右�
 
   // つかんで先頭のレーンの上へ運ぶと、先頭の手前（左の辺）に印が出て、離すと入れ替わる
   const handle = lanes.nth(1).locator("> div").first()
+  let last = ""
+  await expect
+    .poll(
+      async () => {
+        const now = JSON.stringify([await handle.boundingBox(), await lanes.nth(0).boundingBox()])
+        const same = now === last
+        last = now
+        return same
+      },
+      { intervals: [100] },
+    )
+    .toBe(true)
   const from = (await handle.boundingBox())!
   const over = (await lanes.nth(0).boundingBox())!
   await page.mouse.move(from.x + 40, from.y + 6)
@@ -136,4 +150,27 @@ test("レーンのタイトル帯をドラッグすると、レーンが左右�
   // 戻す
   await lanes.nth(1).locator("> div").first().dragTo(lanes.nth(0))
   await expect.poll(ids).toEqual(before)
+})
+
+test("一覧でプロジェクトをつまみで入れ替えても、チェックはプロジェクトに付いて行く", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(CONTROL_CENTER_URL)
+  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
+    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  if ((await records(page, "@matomezu/taskboard:project")).length < 2)
+    expect(
+      (await perform(page, { action: "@matomezu/taskboard:project-add", args: { name: "二つ目", prefix: "SW-" } })).ok,
+    ).toBe(true)
+  const head = page.locator("button[aria-expanded]", { hasText: "プロジェクト" })
+  if ((await head.getAttribute("aria-expanded")) === "false") await head.click()
+  const rows = page.locator("li[data-project]")
+  const state = async () =>
+    rows.evaluateAll(els =>
+      els.map(e => `${e.getAttribute("data-project")}:${(e.querySelector("input") as HTMLInputElement).checked}`),
+    )
+  const before = await state()
+  await rows.nth(1).locator("span").first().dragTo(rows.nth(0))
+  // 入れ替わっても、各プロジェクトのチェックの有無はそのまま
+  await expect.poll(async () => (await state()).slice().sort()).toEqual(before.slice().sort())
+  await expect.poll(async () => (await state())[0]).toBe(before[1])
 })

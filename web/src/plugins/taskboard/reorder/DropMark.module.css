@@ -1,13 +1,50 @@
-/* ドラッグの離し先の印: 入るすき間の側の辺に細い線（行の内側。並びを入れている入れ物に切られない） */
-.y[data-drop="before"] {
-  box-shadow: inset 0 2px 0 0 var(--skin-accent);
+/* ドラッグの離し先の印: 入るすき間の中央に細い線（行・レーンの縁に重ねない）。
+   使う側が、並びのすき間の幅を --drop-gap（既定 0）、行・レーンの枠線の太さを --drop-border（既定 0）に置く */
+.y {
+  position: relative;
 }
-.y[data-drop="after"] {
-  box-shadow: inset 0 -2px 0 0 var(--skin-accent);
+.y[data-drop="before"]::before,
+.y[data-drop="after"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--skin-accent);
+  pointer-events: none;
 }
-.x[data-drop="before"] {
-  box-shadow: inset 3px 0 0 0 var(--skin-accent);
+.y[data-drop="before"]::before {
+  top: calc(var(--drop-gap, 0px) / -2 - 1px);
 }
-.x[data-drop="after"] {
-  box-shadow: inset -3px 0 0 0 var(--skin-accent);
+.y[data-drop="after"]::after {
+  bottom: calc(var(--drop-gap, 0px) / -2 - 1px);
+}
+
+/* 横に並ぶ列: 列が自分の枠で内側を切っていても、印を出す間だけ枠の外へ 8px まで描かせる */
+.x {
+  position: relative;
+}
+.x[data-drop] {
+  overflow: clip;
+  overflow-clip-margin: 8px;
+}
+.x[data-drop="before"]::before,
+.x[data-drop="after"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 3px;
+  border-radius: 1.5px;
+  background: var(--skin-accent);
+  pointer-events: none;
+}
+.x[data-drop="before"]::before {
+  left: calc(var(--drop-gap, 0px) / -2 - var(--drop-border, 0px) - 1.5px);
+}
+.x[data-drop="after"]::after {
+  right: calc(var(--drop-gap, 0px) / -2 - var(--drop-border, 0px) - 1.5px);
 }
