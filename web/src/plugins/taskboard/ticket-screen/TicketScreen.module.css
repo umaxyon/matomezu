@@ -150,8 +150,8 @@
 .content > .historyScroll {
   flex: 1;
   min-height: 0;
-  margin-right: -10px;
-  padding: 0 10px 14px 0;
+  margin-right: -16px; /* スクロールバーを枠の右端に沿わせる（.content の右の余白と同じ） */
+  padding: 0 16px 14px 0;
   overflow: auto;
 }
 .ticket[data-folded="true"] .bandTitle,
@@ -335,7 +335,7 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding: 0 8px;
+  padding: 0 0 0 8px; /* 右の余白は中身に付け、スクロールバーは枠の右端に沿わせる */
   overflow: auto;
 }
 .panes[data-mode="split-row"] .preview {
@@ -348,6 +348,7 @@
 /* 本文のマークダウン: 変数の組は markdownDocumentOnSkin が style で置く。ここは字の大きさだけ */
 .markdown {
   --markdown-font-size: 14px;
+  padding-right: 8px;
   color: var(--skin-text);
 }
 

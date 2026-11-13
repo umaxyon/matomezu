@@ -63,6 +63,7 @@ export function TicketScreen() {
   const project = useRecord(PROJECT.id, ticket?.project ?? "")
   const lines = useRecords(HISTORY.id, { where: [] })
   const workrooms = useRecords(WORKROOM, { where: [] })
+  const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
   const { perform } = useActions()
   // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）
   const [now, update] = [
@@ -100,7 +101,6 @@ export function TicketScreen() {
   const rows = historyRows(ticket, lines)
   const question = rows.find(r => r.id === view.question)
   const assignees = assigneesOf(ticket, workrooms)
-  const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
   return (
     <section className={styles.screen} aria-label={t("ticket screen")}>
       <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
