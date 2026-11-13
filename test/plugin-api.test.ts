@@ -241,6 +241,7 @@ test("matomezu/ui が出す名前", () => {
     "SEARCH_HIGHLIGHT",
     "STAGE_BASE_SLOTS",
     "ScreenOverlay",
+    "ScreenView",
     "Section",
     "SelectButton",
     "SettingRow",

@@ -19,6 +19,7 @@ export type {
   UserSettingControlProps,
 } from "../ui/plugin"
 export { definePluginUi } from "../ui/plugin"
+export { ScreenView } from "../ui/ScreenView"
 export { Slot } from "../ui/Slot"
 export { useActions, useLayoutWarnings } from "../ui/store-context"
 export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"

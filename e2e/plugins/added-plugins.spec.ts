@@ -308,3 +308,32 @@ test("ex10 のステージに結ばない宣言（address が push）は、変�
   await page.goBack()
   await expect(page.locator("[data-ex10-tabs]")).toHaveAttribute("data-tab", "one")
 })
+
+test("ex12 のスクリーンアレンジメントに替えると、スクリーンが縦に並び、ブックスクリーンを 2 枚並べてもどちらのステージも大きさを持つ。押したスクリーンがカレントになり、読み直しても並んだまま", async ({
+  page,
+}) => {
+  await link(page, "test/added-plugins/ex12")
+  await page.goto(BOOK_SCREEN_URL)
+  await page.locator("[data-ex12-switch] button").nth(0).click()
+  const rows = page.locator("[data-ex12-row]")
+  await expect(rows).toHaveCount(2)
+  // 下の行（止まり木）は、このスクリーンアレンジメントには無い
+  await expect(page.getByRole("button", { name: "コントロールセンター" })).toHaveCount(0)
+  await page.locator("[data-ex12-switch] button").nth(3).click()
+  await expect(rows).toHaveCount(3)
+  const stages = page.getByRole("region", { name: "ステージ" })
+  await expect(stages).toHaveCount(2)
+  for (const i of [0, 1]) {
+    const box = await stages.nth(i).boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThan(100)
+    expect(box?.width ?? 0).toBeGreaterThan(300)
+  }
+  // 開いたばかりの 2 枚目がカレント。1 枚目のステージを押すと、そちらがカレントになる
+  await expect(rows.nth(2)).toHaveAttribute("data-current", "true")
+  await stages.nth(0).click({ position: { x: 20, y: 60 } })
+  await expect(rows.nth(1)).toHaveAttribute("data-current", "true")
+  await expect.poll(() => urlPlace(page)?.s.length).toBe(3)
+  await page.reload()
+  await expect(page.locator("[data-ex12-row]")).toHaveCount(3)
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(2)
+})
