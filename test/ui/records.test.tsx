@@ -6,11 +6,11 @@ import type { ReactNode } from "react"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
-import { useRecord, useRecords } from "../../web/src/ui/view-hooks"
+import { type RecordsQuery, useRecord, useRecords } from "../../web/src/ui/view-hooks"
 
 const WORKROOM = "@matomezu/base:workroom"
 const TICKET = "@matomezu/taskboard:ticket"
-const MAIL = "@matomezu/base:mail"
+const MAIL = "@matomezu/base:mail" as const
 const letter = (n: number, seen: boolean) => ({
   id: `m${n}`,
   mail: "@matomezu/base:letter",
@@ -73,7 +73,7 @@ describe("レコードを読むフック", () => {
     const { store, wrapper } = setup()
     const mails = Object.fromEntries([1, 2, 3, 4].map(n => [`m${n}`, letter(n, n === 2)]))
     act(() => store.receive({ books: [], settings: {}, records: { [MAIL]: mails } }, []))
-    const ids = (query: Parameters<typeof useRecords>[1]) =>
+    const ids = (query: RecordsQuery<typeof MAIL>) =>
       renderHook(() => useRecords(MAIL, query), { wrapper }).result.current.map(m => m.id)
     expect(ids({ where: [] })).toEqual(["m1", "m2", "m3", "m4"])
     expect(ids({ where: [{ key: "seenAt", is: "absent" }], order: { key: "order", dir: "desc" } })).toEqual([
@@ -82,7 +82,12 @@ describe("レコードを読むフック", () => {
       "m1",
     ])
     expect(ids({ where: [], order: { key: "order", dir: "desc" }, limit: 2 })).toEqual(["m4", "m3"])
+    // 宣言に無い索引キーは型の誤り。型を通らずに来ても、何も返さない
+    // @ts-expect-error from は郵便の索引キーでない
     expect(ids({ where: [{ key: "from", eq: "a" }] })).toEqual([])
+    // @ts-expect-error from は郵便の索引キーでない
     expect(ids({ where: [], order: { key: "from", dir: "asc" } })).toEqual([])
+    // @ts-expect-error order は数の索引キー
+    expect(ids({ where: [{ key: "order", eq: "1" }] })).toEqual([])
   })
 })

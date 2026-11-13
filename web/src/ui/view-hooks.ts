@@ -21,7 +21,16 @@ import {
   type PlacedShape,
   replaceShape,
 } from "../core/placed"
-import { type Condition, inOrder, keyValuesOf, matches, type Order, unknownKey } from "../core/record-keys"
+import {
+  type Condition,
+  type ConditionOf,
+  inOrder,
+  keyValuesOf,
+  matches,
+  type Order,
+  type OrderOf,
+  unknownKey,
+} from "../core/record-keys"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
@@ -352,20 +361,21 @@ export const useScreenId = (): string => useScreenHere()?.id ?? NO_STAGE
 
 // useRecords の読み方: 索引キーの条件（全部を読むなら空）・並び（無ければ id の順）・件数（無ければ合う全部）。
 // 合うか・並びは、アクションの reads とホストの読みと同じ関数（core/record-keys.ts）で決める
-export interface RecordsQuery {
-  where: readonly Condition[]
-  order?: Order
+// 条件と並びに書けるのは、種類 T が宣言した索引キーの名前と、その値の型だけ
+export interface RecordsQuery<T extends SubjectId> {
+  where: readonly ConditionOf<T>[]
+  order?: OrderOf<T>
   limit?: number
 }
 
 // 対象の定義の種類 subject のレコードのうち、query に合う物。定義の record に合わない物（warning W025 の物）は返さない。
 // 宣言に無い索引キーを条件か並びに書けば、何も返さない。返す配列は、その種類のレコードと query が変わらない間は同じ参照
-export function useRecords<const T extends SubjectId>(subject: T, query: RecordsQuery): readonly RecordOf<T>[] {
+export function useRecords<const T extends SubjectId>(subject: T, query: RecordsQuery<T>): readonly RecordOf<T>[] {
   const catalog = useCoreCatalog()
   const table = useMatomezuState(s => s.records[subject])
   const asked = JSON.stringify(query)
   return useMemo(() => {
-    const { where, order, limit } = JSON.parse(asked) as RecordsQuery
+    const { where, order, limit } = JSON.parse(asked) as { where: readonly Condition[]; order?: Order; limit?: number }
     const def = catalog.subjects.get(subject)
     if (!def || unknownKey(def, where, order) !== null) return []
     const rows = Object.values(table ?? {})

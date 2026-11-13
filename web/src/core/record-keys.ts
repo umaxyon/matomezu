@@ -1,6 +1,7 @@
 // 索引キー: 対象の定義（core/def/subject.ts の keys）が宣言する、レコードを探すのに使う値。レコードから値を返す関数で宣言し、保存は中身とは別に持つ（中身を開けずに探す）。
 // 条件に合うか・並びは、ここの関数 1 つずつで決める（画面とホストのエンジンが同じ関数を使う。保存の索引は候補を絞るだけ）。
 // 並びは、キーの値の小さい順か大きい順で、同じ値と値の無いレコードは id の順（値の無いレコードは、どちらの向きでも後ろ）
+import type { SubjectId, SubjectTable } from "./catalog"
 import type { SubjectDef } from "./def/subject"
 
 export type KeyValue = string | number
@@ -19,6 +20,24 @@ export interface Order<K extends string = string> {
   key: K
   dir: "asc" | "desc"
 }
+
+// 種類 S が宣言した索引キーの名前と値の型（対象の定義の keys から決まる。条件・並び・ctx.keys・useRecords の型に使う）
+type KeysDeclOf<S extends SubjectId> = SubjectTable[S] extends { keys?: infer K } ? NonNullable<K> : never
+export type KeyNameOf<S extends SubjectId> = keyof KeysDeclOf<S> & string
+type KeyValueOf<S extends SubjectId, N extends KeyNameOf<S>> = KeysDeclOf<S>[N] extends { type: "number" }
+  ? number
+  : string
+// 種類 S のレコード 1 件の索引キーの値の組（値の無いキーは持たない）
+export type KeyValuesOf<S extends SubjectId> = { readonly [N in KeyNameOf<S>]?: KeyValueOf<S, N> }
+// 種類 S の条件 1 つ（宣言した名前と、その値の型だけを書ける）
+export type ConditionOf<S extends SubjectId> = {
+  [N in KeyNameOf<S>]:
+    | { key: N; eq: KeyValueOf<S, N> }
+    | { key: N; lt: KeyValueOf<S, N> }
+    | { key: N; gt: KeyValueOf<S, N> }
+    | { key: N; is: "absent" | "present" }
+}[KeyNameOf<S>]
+export type OrderOf<S extends SubjectId> = Order<KeyNameOf<S>>
 
 // レコード 1 件の索引キーの値（宣言した型と違う値と、値を返さないキーは持たない。レコードが形に合わず関数が投げたキーも持たない）
 export function keyValuesOf(def: Pick<SubjectDef, "keys">, record: unknown): KeyValues {

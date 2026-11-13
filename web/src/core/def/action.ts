@@ -8,8 +8,7 @@ import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
-import type { Condition } from "../record-keys"
-import type { RecordKeys } from "../record-source"
+import type { Condition, ConditionOf, KeyValuesOf } from "../record-keys"
 import type { Records } from "../records"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
@@ -48,10 +47,15 @@ export type SubjectNext<T extends ActionTarget> = T extends keyof Subjects
     ? RecordOf<T> | "removed"
     : never
 
-// レコードが対象のアクションが読む物 1 つ: id で 1 件か、索引キーの条件 where に合う全部（keysOnly なら、その id と索引キーの値だけで、中身は読まない）
-export type RecordRead =
+// レコードが対象のアクションが読む物 1 つ: id で 1 件か、索引キーの条件 where に合う全部（keysOnly なら、その id と索引キーの値だけで、中身は読まない）。
+// 種類を問わない形（core が引くときに使う）。アクションが書くのは、下の RecordRead
+export type AnyRecordRead =
   | { subject: string; id: string }
   | { subject: string; where: readonly Condition[]; keysOnly?: true }
+// アクションの reads が答える読む物（種類ごとに、宣言した索引キーの名前と値の型だけを条件に書ける）
+export type RecordRead = {
+  [S in SubjectId]: { subject: S; id: string } | { subject: S; where: readonly ConditionOf<S>[]; keysOnly?: true }
+}[SubjectId]
 
 // アクションの宛先: ブックの id か、レコード（対象の定義が足した種類のデータ）の id
 export type ActionOn = { book: string } | { record: string }
@@ -74,7 +78,7 @@ export interface ActionContext {
   // レコードが対象のアクションが読むだけの、アクションの reads が答えたレコード（種類の id → id → レコード。ほかの対象のアクションには無い）
   records?: Readonly<Records>
   // レコードが対象のアクションが、索引キーだけ読むと宣言した物（reads の keysOnly。種類の id → id → 索引キーの値。中身は読まない）
-  keys?: RecordKeys
+  keys?: { readonly [S in SubjectId]?: Readonly<Record<string, KeyValuesOf<S>>> }
   // レコードが対象のアクションが、読む物に書いた種類（reads が答えた種類）のレコードと、宛先のレコードが指す先（対象の定義の refers）を、id で 1 件読む（無ければ none）。
   // 読んだ索引キーから相手を決めて、その中身を読むのに使う（引数からは決まらない相手。どちらでもない物は読めず none）
   record?(subject: string, id: string): unknown
