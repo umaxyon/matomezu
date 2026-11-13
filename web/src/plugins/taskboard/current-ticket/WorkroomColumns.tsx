@@ -17,10 +17,10 @@ import styles from "./WorkroomColumns.module.css"
 
 export function WorkroomColumns({ workroom }: { workroom: string }) {
   const t = useMessages(kit)
-  const currents = useRecords(CURRENT.id)
-  const tickets = useRecords(TICKET.id)
-  const projects = useRecords(PROJECT.id)
-  const entries = useRecords(HISTORY.id)
+  const currents = useRecords(CURRENT.id, { where: [] })
+  const tickets = useRecords(TICKET.id, { where: [] })
+  const projects = useRecords(PROJECT.id, { where: [] })
+  const entries = useRecords(HISTORY.id, { where: [] })
   const settings = useBoardSettings()
   const setVisit = useSetPluginState(kit, CARD_VISIT)
   const task = currentTaskOf(workroom, currents, tickets, projects, entries)

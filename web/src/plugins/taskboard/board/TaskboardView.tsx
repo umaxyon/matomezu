@@ -21,9 +21,9 @@ import { useBoardSettings } from "./useBoardSettings"
 
 export function TaskboardView() {
   const t = useMessages(kit)
-  const projects = useRecords(PROJECT.id)
-  const tickets = useRecords(TICKET.id)
-  const workrooms = useRecords("@matomezu/base:workroom")
+  const projects = useRecords(PROJECT.id, { where: [] })
+  const tickets = useRecords(TICKET.id, { where: [] })
+  const workrooms = useRecords("@matomezu/base:workroom", { where: [] })
   const settings = useBoardSettings()
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const ordered = orderedProjects(projects, settings.order)

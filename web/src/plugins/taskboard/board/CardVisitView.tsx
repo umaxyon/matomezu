@@ -87,7 +87,7 @@ export function CardVisitView({ root }: { root: HTMLElement | null }) {
   const setVisit = useSetPluginState(kit, CARD_VISIT)
   const updateVisit = useUpdatePluginState(kit, CARD_VISIT)
   const settings = useBoardSettings()
-  const projects = useRecords(PROJECT.id)
+  const projects = useRecords(PROJECT.id, { where: [] })
   const ticket = useRecord(TICKET.id, visit?.ticket ?? "-")
   const room = useRecord(WORKROOM_SUBJECT, visit?.workroom ?? "-")
   const [box, setBox] = useState<{ card: Element; at: Rect; placed: Rect } | null>(null)

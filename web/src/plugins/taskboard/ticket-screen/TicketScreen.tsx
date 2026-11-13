@@ -59,8 +59,8 @@ export function TicketScreen() {
   const close = () => closeScreen(me.id)
   const ticket = useRecord(TICKET.id, id)
   const project = useRecord(PROJECT.id, ticket?.project ?? "")
-  const lines = useRecords(HISTORY.id)
-  const workrooms = useRecords(WORKROOM)
+  const lines = useRecords(HISTORY.id, { where: [] })
+  const workrooms = useRecords(WORKROOM, { where: [] })
   const { perform } = useActions()
   // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）
   const [now, update] = [

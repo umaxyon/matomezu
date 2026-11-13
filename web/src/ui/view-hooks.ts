@@ -21,6 +21,7 @@ import {
   type PlacedShape,
   replaceShape,
 } from "../core/placed"
+import { type Condition, inOrder, keyValuesOf, matches, type Order, unknownKey } from "../core/record-keys"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
@@ -349,18 +350,32 @@ export function usePerform(stage: string): <Id extends ActionId>(action: Id, arg
 // 行えるかを問う（useAllowed）ときに、ステージの id の代わりに渡す
 export const useScreenId = (): string => useScreenHere()?.id ?? NO_STAGE
 
-// 対象の定義の種類 subject のレコード全部（id の順）。定義の record に合わない物（warning W025 の物）は返さない。
-// 返す配列は、その種類のレコードが変わらない間は同じ参照
-export function useRecords<const T extends SubjectId>(subject: T): readonly RecordOf<T>[] {
+// useRecords の読み方: 索引キーの条件（全部を読むなら空）・並び（無ければ id の順）・件数（無ければ合う全部）。
+// 合うか・並びは、アクションの reads とホストの読みと同じ関数（core/record-keys.ts）で決める
+export interface RecordsQuery {
+  where: readonly Condition[]
+  order?: Order
+  limit?: number
+}
+
+// 対象の定義の種類 subject のレコードのうち、query に合う物。定義の record に合わない物（warning W025 の物）は返さない。
+// 宣言に無い索引キーを条件か並びに書けば、何も返さない。返す配列は、その種類のレコードと query が変わらない間は同じ参照
+export function useRecords<const T extends SubjectId>(subject: T, query: RecordsQuery): readonly RecordOf<T>[] {
   const catalog = useCoreCatalog()
   const table = useMatomezuState(s => s.records[subject])
+  const asked = JSON.stringify(query)
   return useMemo(() => {
-    const record = catalog.subjects.get(subject)?.record
-    if (!record) return []
-    return Object.values(table ?? {})
-      .filter(r => record.safeParse(r).success)
-      .sort((a, b) => (a as { id: string }).id.localeCompare((b as { id: string }).id)) as RecordOf<T>[]
-  }, [catalog, subject, table])
+    const { where, order, limit } = JSON.parse(asked) as RecordsQuery
+    const def = catalog.subjects.get(subject)
+    if (!def || unknownKey(def, where, order) !== null) return []
+    const rows = Object.values(table ?? {})
+      .filter(r => def.record.safeParse(r).success)
+      .map(r => ({ id: (r as { id: string }).id, keys: keyValuesOf(def, r), record: r }))
+      .filter(r => matches(r.keys, where))
+    return inOrder(rows, order)
+      .slice(0, limit)
+      .map(r => r.record) as RecordOf<T>[]
+  }, [catalog, subject, table, asked])
 }
 
 // 種類 subject の id のレコード 1 件（無いか、定義の record に合わなければ undefined）
