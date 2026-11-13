@@ -3,7 +3,7 @@
 // プロジェクトを作るのは、最初の 1 度は常駐が初めて起動したときに行う（project-add の引数は省いてよい）
 import { type z, z as zod } from "zod"
 import { enumValuesOf, isAI } from "../../plugin-api"
-import { byOf, WORKROOM_SUBJECT, workroomOf } from "./by"
+import { byOf, WORKROOM_SUBJECT } from "./by"
 import { CURRENT, NO_TICKET } from "./current"
 import { HISTORY, HISTORY_TOPIC, type TopicData } from "./history"
 import { kit } from "./kit"
@@ -20,8 +20,10 @@ import {
   TAGS,
   UNSORTED,
 } from "./project"
+import { type Candidate, type Resolved, resolve } from "./resolve"
 import { projectNameOf, sayIn, templateOf } from "./template"
 import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "./ticket"
+import { ticketLabel } from "./ticket-view"
 
 type Project = z.output<typeof PROJECT.record>
 type Ticket = z.output<typeof TICKET.record>
@@ -34,7 +36,7 @@ export const PROJECT_ADD = kit.defineAction({
   id: "project-add",
   title: "add project",
   aiDescription:
-    "Add a project (a task board) with the lanes and the ticket tags of the template: to do, in progress and done, the tags task and bug, each with a prompt. name (up to 30 characters) and prefix (the head of the ticket numbers: 1 to 3 letters and at most one hyphen at the end, such as T- or ABC; not the same as another project's, whatever the case) are optional when it is the first project. Returns the project's id.",
+    "Add a project (a task board) with the lanes and the ticket tags of the template: to do, in progress and done, the tags task and bug, each with a prompt. name (up to 30 characters) and prefix (the head of the ticket numbers: 1 to 3 letters and at most one hyphen at the end, such as T- or ABC; not the same as another project's, whatever the case) are optional when it is the first project. Returns the project's id, its prefix, and its lanes and tags as {id, name} (point at a lane or tag by its id or name; a lane or tag named like the reserved unsorted or none is pointed at by its id).",
   target: PROJECT.id,
   reads: [PROJECT.id],
   runsOnceAtStart: true,
@@ -55,7 +57,9 @@ export const PROJECT_ADD = kit.defineAction({
       closed: false,
       ...templateOf(say, ctx.newId),
     }
-    return { next: project, result: { project: project.id } }
+    const lanes = project.lanes.flatMap(l => (l.kind === "lane" ? [{ id: l.id, name: l.name }] : []))
+    const tags = project.tags.map(t => ({ id: t.id, name: t.name }))
+    return { next: project, result: { project: project.id, prefix: project.prefix, lanes, tags } }
   },
 })
 
@@ -136,15 +140,56 @@ export const PROJECT_REOPEN = kit.defineAction({
 
 const projectOf = (ctx: Records, id: string): Project | undefined => projectsIn(ctx).find(p => p.id === id)
 
-// レーン lane（レーンの id か未分類）が、プロジェクトにあるか
-const hasLane = (project: Project, lane: string) =>
-  lane === UNSORTED || project.lanes.some(l => l.kind === "lane" && l.id === lane)
+// プロジェクトのレーン（未分類の行は除く）・チケットタグ・ワークルームの候補（id と名前）
+const lanesOf = (project: Project): Candidate[] =>
+  project.lanes.flatMap(l => (l.kind === "lane" ? [{ id: l.id, name: l.name }] : []))
+const tagsOf = (project: Project): Candidate[] => project.tags.map(t => ({ id: t.id, name: t.name }))
+const workroomsOf = (ctx: Records): Candidate[] =>
+  (Object.values(ctx.records?.[WORKROOM_SUBJECT] ?? {}) as { id: string; name: string; createdAt: string }[])
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+    .map(w => ({ id: w.id, name: w.name }))
+
+// レーン ref（id か名前。未分類は予約の unsorted）を id に決める。今のレーン current と同じ id ならそのまま通す（消したレーンのままでもよい）
+const pickLane = (project: Project, ref: string, current?: string): Resolved =>
+  ref === current ? { id: ref } : resolve(ref, lanesOf(project), "lane", UNSORTED)
+
+// タグ ref（id か名前。タグなしは予約の none）を id に決める。使えるのは有効なタグだけ（今のタグ current のままならよい）
+function pickTag(project: Project, ref: string, current?: string): Resolved {
+  if (ref === current) return { id: ref }
+  const found = resolve(
+    ref,
+    tagsOf(project),
+    "tag",
+    NO_TAG,
+    tagsOf({ ...project, tags: project.tags.filter(t => t.enabled) }),
+  )
+  if ("declined" in found || found.id === NO_TAG) return found
+  return project.tags.some(t => t.id === found.id && t.enabled)
+    ? found
+    : { declined: `the tag "${ref}" is not enabled in the project` }
+}
+
+// 担当 refs（ワークルームの id か名前の並び）を id の並びに決める。今の担当 current にある id はそのまま通す（消したワークルームのままでもよい）。同じワークルームを 2 回は断る
+function pickAssignees(
+  ctx: Records,
+  refs: readonly string[],
+  current: readonly string[],
+): { ids: string[] } | { declined: string } {
+  const rooms = workroomsOf(ctx)
+  const ids: string[] = []
+  for (const ref of refs) {
+    const found = current.includes(ref) ? { id: ref } : resolve(ref, rooms, "workroom")
+    if ("declined" in found) return found
+    ids.push(found.id)
+  }
+  return new Set(ids).size === ids.length ? { ids } : { declined: "an assignee is there twice" }
+}
 
 export const TICKET_ADD = kit.defineAction({
   id: "ticket-add",
   title: "add ticket",
   aiDescription:
-    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane's id of the project (left out: unsorted), tag is a tag's id of the project that is enabled (left out: none), priority is lowest, low, medium (the default), high or highest. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. Returns the ticket's id and number.",
+    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tag is an enabled tag of the project by its id or name (left out or the word none: none), assignees are the workrooms by their ids or names, in order (the first is the main one; none twice), priority is lowest, low, medium (the default), high or highest. A lane or tag that is named like the words unsorted or none is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. Returns the ticket's id and number, the number with the prefix of the project as label (such as M-001), and the lane, the tag and the assignees as the ids they were taken for.",
   target: TICKET.id,
   reads: [PROJECT.id, WORKROOM_SUBJECT],
   args: zod.strictObject({
@@ -153,17 +198,19 @@ export const TICKET_ADD = kit.defineAction({
     body: zod.string().optional(),
     lane: zod.string().min(1).optional(),
     tag: zod.string().min(1).optional(),
+    assignees: zod.array(zod.string().min(1)).optional(),
     priority: zod.enum(PRIORITIES).optional(),
   }),
   run: (now, args, ctx) => {
     if (now !== "none") return null
     const project = projectOf(ctx, args.project)
     if (!project) return { declined: "the project is not there" }
-    const lane = args.lane ?? UNSORTED
-    if (!hasLane(project, lane)) return { declined: "the lane is not in the project" }
-    const tag = args.tag ?? NO_TAG
-    if (tag !== NO_TAG && !project.tags.some(t => t.id === tag && t.enabled))
-      return { declined: "the tag is not in the project, or is not enabled" }
+    const lane = pickLane(project, args.lane ?? UNSORTED)
+    if ("declined" in lane) return lane
+    const tag = pickTag(project, args.tag ?? NO_TAG)
+    if ("declined" in tag) return tag
+    const assignees = pickAssignees(ctx, args.assignees ?? [], [])
+    if ("declined" in assignees) return assignees
     if (!ctx.number) return null
     const createdBy = byOf(ctx.actor, ctx)
     if (!createdBy) return { declined: "the workroom of the AI is not there" }
@@ -173,15 +220,25 @@ export const TICKET_ADD = kit.defineAction({
       number: ctx.number(project.id),
       name: args.name,
       body: args.body ?? "",
-      lane,
-      tag,
+      lane: lane.id,
+      tag: tag.id,
       priority: args.priority ?? PRIORITY_DEFAULT,
-      assignees: [],
+      assignees: assignees.ids,
       createdAt: ctx.now,
       createdBy,
       updatedAt: ctx.now,
     }
-    return { next: ticket, result: { ticket: ticket.id, number: ticket.number } }
+    return {
+      next: ticket,
+      result: {
+        ticket: ticket.id,
+        number: ticket.number,
+        label: ticketLabel(project.prefix, ticket.number),
+        lane: ticket.lane,
+        tag: ticket.tag,
+        assignees: ticket.assignees,
+      },
+    }
   },
 })
 
@@ -189,7 +246,7 @@ export const TICKET_UPDATE = kit.defineAction({
   id: "ticket-update",
   title: "update ticket",
   aiDescription:
-    "Change the name, the body, the priority, the lane, the tag or the assignees of the ticket named by on.record. assignees is the whole new list of workrooms' ids, in order (the first is the main one; no id twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tag (a tag that is not enabled any more can stay on the ticket). The project of a ticket does not change. The time of the last change moves only when something changed.",
+    "Change the name, the body, the priority, the lane, the tag or the assignees of the ticket named by on.record. assignees is the whole new list of workrooms by their ids or names, in order (the first is the main one; none twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tag, by their ids or names (a tag that is not enabled any more can stay on the ticket). The project of a ticket does not change. The time of the last change moves only when something changed.",
   target: TICKET.id,
   reads: [PROJECT.id, WORKROOM_SUBJECT],
   args: zod.strictObject({
@@ -204,28 +261,20 @@ export const TICKET_UPDATE = kit.defineAction({
     if (now === "none") return null
     const project = projectOf(ctx, now.project)
     if (!project) return { declined: "the project of the ticket is not there" }
-    if (args.lane !== undefined && args.lane !== now.lane && !hasLane(project, args.lane))
-      return { declined: "the lane is not in the project" }
-    if (
-      args.tag !== undefined &&
-      args.tag !== now.tag &&
-      args.tag !== NO_TAG &&
-      !project.tags.some(t => t.id === args.tag && t.enabled)
-    )
-      return { declined: "the tag is not in the project, or is not enabled" }
-    if (args.assignees !== undefined) {
-      const added = args.assignees.filter(id => !now.assignees.includes(id))
-      if (new Set(args.assignees).size !== args.assignees.length) return { declined: "an assignee is there twice" }
-      if (added.some(id => !workroomOf(ctx, id))) return { declined: "an assignee is not a workroom that is there" }
-    }
+    const lane = args.lane === undefined ? undefined : pickLane(project, args.lane, now.lane)
+    if (lane && "declined" in lane) return lane
+    const tag = args.tag === undefined ? undefined : pickTag(project, args.tag, now.tag)
+    if (tag && "declined" in tag) return tag
+    const assignees = args.assignees === undefined ? undefined : pickAssignees(ctx, args.assignees, now.assignees)
+    if (assignees && "declined" in assignees) return assignees
     const next: Ticket = {
       ...now,
-      ...(args.assignees === undefined ? {} : { assignees: args.assignees }),
+      ...(assignees === undefined ? {} : { assignees: assignees.ids }),
       ...(args.name === undefined ? {} : { name: args.name }),
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.priority === undefined ? {} : { priority: args.priority }),
-      ...(args.lane === undefined ? {} : { lane: args.lane }),
-      ...(args.tag === undefined ? {} : { tag: args.tag }),
+      ...(lane === undefined ? {} : { lane: lane.id }),
+      ...(tag === undefined ? {} : { tag: tag.id }),
     }
     const changed = (Object.keys(next) as (keyof Ticket)[]).some(
       k => JSON.stringify(next[k]) !== JSON.stringify(now[k]),
