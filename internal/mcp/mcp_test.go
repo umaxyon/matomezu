@@ -265,15 +265,16 @@ func TestNoticeHeaderIsAddedToEveryTool(t *testing.T) {
 	}
 }
 
-// read_records は、渡された取り方だけを常駐への問い合わせにする（値・数・値が無いという条件・件数・続き・何件かの id）
+// read_records は、渡された取り方だけを常駐への問い合わせにする（値・数・値が無いという条件・件数・続き・何件かの id・載せない物の扱い）
 func TestReadRecordsQueries(t *testing.T) {
 	api := &fakeAPI{}
 	talk(t, api,
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_records","arguments":{"kind":"k"}}}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_records","arguments":{"kind":"k","where":{"to":"b1","order":3,"seenAt":{"is":"absent"}},"limit":5,"before":"m9"}}}`,
 		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_records","arguments":{"kind":"k","ids":["m1","m2"]}}}`,
+		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"read_records","arguments":{"kind":"k","unlisted":"only"}}}`,
 	)
-	want := "api/ai/records?kind=k api/ai/records?before=m9&is.seenAt=absent&kind=k&limit=5&where.order=3&where.to=b1 api/ai/records?ids=m1&ids=m2&kind=k"
+	want := "api/ai/records?kind=k api/ai/records?before=m9&is.seenAt=absent&kind=k&limit=5&where.order=3&where.to=b1 api/ai/records?ids=m1&ids=m2&kind=k api/ai/records?kind=k&unlisted=only"
 	if strings.Join(api.gets, " ") != want {
 		t.Fatalf("gets = %v", api.gets)
 	}

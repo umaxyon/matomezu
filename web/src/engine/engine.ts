@@ -5,6 +5,7 @@
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
 import { actorOfWire, type WireActor } from "../core/actor"
+import { listAIRecords, UNLISTED_MODES } from "../core/ai-list"
 import {
   type Annotations,
   annotationBriefs,
@@ -306,6 +307,8 @@ function aiTables(of: Assembled) {
         title: en(s.title),
         description: s.aiDescription,
         record: z.toJSONSchema(s.record, { io: "input", unrepresentable: "any" }),
+        // 一覧の既定の目次に載せない物（read_records の unlisted で include か only を付けると取れる）
+        ...(s.aiListed ? { unlisted: s.aiListed.unlisted } : {}),
         // 索引キー（read_records の where に書ける名前と型。一覧の既定の並びを持つ種類だけが、索引キーで探す）
         ...(s.aiList && s.keys
           ? { keys: Object.fromEntries(Object.entries(s.keys).map(([name, key]) => [name, key.type])) }
@@ -372,36 +375,27 @@ function aiTables(of: Assembled) {
 ;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
 
-// AI に見せる種類 kind のレコードの一覧（read_records）: 載せる物（aiListed）のうち、トップの項目が where（項目 → 値）と同じ物の id と 1 行（aiBrief）を、並びの鍵（aiOrder。無ければ id）の順に返す。AI に見せない種類・無い種類は null
-;(globalThis as { matomezuAiRecords?: (kind: string, records: string, where: string) => string }).matomezuAiRecords = (
-  kind,
-  records,
-  where,
-) => {
+// AI に見せる種類 kind のレコードの一覧（read_records）の、種類の全部を読む道: where（項目 → 値）に合う物を、載せる物と載せない物（aiListed）に分け、unlisted（hide・include・only）の物の id と 1 行（aiBrief）を、
+// 並びの鍵（aiOrder。無ければ id）の順に返す（core/ai-list.ts）。hide のときは、載せなかった数も返す。指す先のレコードは、ホストの読み口から引く。AI に見せない種類・無い種類は null
+;(
+  globalThis as {
+    matomezuAiRecords?: (kind: string, records: string, where: string, unlisted: string) => string
+  }
+).matomezuAiRecords = (kind, records, where, unlisted) => {
   const def = assembled.catalog.core.subjects.get(kind)
-  const brief = def?.aiBrief
-  if (def === undefined || brief === undefined) return "null"
-  const wanted = Object.entries(JSON.parse(where) as Record<string, string>)
-  // トップの項目が where の値と同じか（文字列はそのまま、ほかは JSON の書き方で比べる）
-  const fits = (r: unknown) =>
-    wanted.every(([k, v]) => {
-      const x = (r as Record<string, unknown>)[k]
-      return (typeof x === "string" ? x : JSON.stringify(x)) === v
-    })
-  const rows = (JSON.parse(records) as unknown[]).flatMap(r => {
-    const parsed = def.record.safeParse(r)
-    if (!parsed.success || def.aiListed?.(parsed.data) === false || !fits(r)) return []
-    const { id } = parsed.data as { id: string }
-    return [
-      {
-        id,
-        order: def.aiOrder?.(parsed.data) ?? 0,
-        brief: briefLine(brief(parsed.data, assembled.catalog.core), 120),
-      },
-    ]
-  })
-  rows.sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-  return JSON.stringify(rows.map(({ id, brief }) => ({ id, brief })))
+  if (def === undefined || def.aiBrief === undefined) return "null"
+  const source = hostSource({})
+  const mode = UNLISTED_MODES.find(m => m === unlisted) ?? "hide"
+  return JSON.stringify(
+    listAIRecords(
+      assembled.catalog.core,
+      def,
+      JSON.parse(records) as unknown[],
+      JSON.parse(where) as Record<string, string>,
+      mode,
+      (subject, id) => source?.byId(subject, id),
+    ),
+  )
 }
 
 // 変えたレコード 1 件に、索引キーの値を添える（置き場所が中身とは別に置く。消したレコードと、索引キーの無い種類には添えない）
@@ -418,6 +412,8 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
       // AI に見せる種類か（aiBrief を書いた種類）と、その一覧の既定の並びと件数（aiList。索引キーで探す種類だけ）
       ai: s.aiBrief !== undefined,
       ...(s.aiBrief !== undefined && s.aiList && s.keys?.[s.aiList.order.key] ? { aiList: s.aiList } : {}),
+      // 目次に載せない物がある種類の、載せない物の説明（aiListed。read_records の unlisted を受ける種類）
+      ...(s.aiBrief !== undefined && s.aiListed ? { aiUnlisted: s.aiListed.unlisted } : {}),
     })),
   )
 

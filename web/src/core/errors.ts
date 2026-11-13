@@ -50,6 +50,7 @@ export const ERRORS = {
   E058: "action {id}: {ref} belongs to another plugin that does not allow it (writableBy)",
   E059: "action {id}: writes {ref}, which is numbered",
   E060: "action {id}: lockSwitch cannot have writes",
+  E061: "subject {id}: aiListed and aiList cannot be given together",
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
   E049: "action {id}: lockSwitch is only for an action whose target is a lockable subject",
   E052: "skin {id}: palette has {color} for {role}, which is not #rrggbb",

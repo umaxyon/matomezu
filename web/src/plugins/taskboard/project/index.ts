@@ -37,6 +37,10 @@ export const CARD_SIZES = ["large", "medium", "small"] as const
 export type CardSize = (typeof CARD_SIZES)[number]
 export const INHERIT_CARD_SIZE = "inherit"
 export const DONE_LANE_CARD_SIZE: CardSize = "small"
+// レーン lane が、プロジェクト project の完了のレーンか（完了のレーンが無ければ、どのレーンも違う）
+export const inDoneLane = (project: { doneLane?: string | undefined }, lane: string): boolean =>
+  project.doneLane !== undefined && project.doneLane === lane
+
 export const NO_DONE_LANE = "none" // 完了のレーンを無しにするときの、project-update の doneLane の値（プロジェクトのレコードでは doneLane を持たない）
 
 const LANE = z.strictObject({
@@ -89,5 +93,5 @@ export const PROJECT = kit.defineSubject({
   // prefix は、重なりを確かめるのに比べる形（前後の空白を除き、小文字にした物）
   keys: { prefix: { type: "text", of: p => prefixKey(p.prefix) } },
   aiBrief: p => `${p.prefix} ${p.name}`,
-  aiListed: p => !p.closed,
+  aiListed: { when: p => !p.closed, unlisted: "closed projects" },
 })

@@ -78,6 +78,8 @@ type Kind struct {
 	Keys    []KeySpec `json:"keys"`
 	AI      bool      `json:"ai"`               // AI に見せる種類か（read_records）
 	AIList  *AIList   `json:"aiList,omitempty"` // 一覧の既定の並びと件数（索引キーで探す種類だけ）
+	// 一覧の既定の目次に載せない物がある種類の、載せない物の説明（read_records の unlisted を受ける種類）
+	AIUnlisted string `json:"aiUnlisted,omitempty"`
 }
 
 // AIList は、AI に見せる一覧の既定の並び（索引キー Key の asc か desc）と件数
@@ -145,7 +147,7 @@ type Engine struct {
 	alive     func(string, string, float64) bool
 	needs     func(string, string) string
 	roles     func() string
-	aiRecords func(string, string, string) string
+	aiRecords func(string, string, string, string) string
 	once      func() string
 	records   func(string) string
 	joinedMsg func(string, string) string
@@ -639,10 +641,13 @@ type RecordBrief struct {
 	Brief string `json:"brief"`
 }
 
-// AIRecords は、AI に見せる種類 kind のレコードの一覧（載せる物のうち、トップの項目が where の値と同じ物だけ。種類が決めた並び）を返す。AI に見せない種類・無い種類は ok が false
-func (e *Engine) AIRecords(kind string, records []json.RawMessage, where map[string]string) (rows []RecordBrief, ok bool, err error) {
+// AIRecords は、AI に見せる種類 kind のレコードの一覧（トップの項目が where の値と同じ物のうち、unlisted の hide は目次に載せる物だけ・include は全部・only は載せない物だけ。
+// 種類が決めた並び）と、hide のときの載せなかった数を返す。指す先のレコードは src から引く（呼ぶ側が置き場所を止めておく）。AI に見せない種類・無い種類は ok が false
+func (e *Engine) AIRecords(kind string, records []json.RawMessage, where map[string]string, unlisted string, src Source) (rows []RecordBrief, hidden int, ok bool, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("engine: %v", r)
@@ -650,18 +655,22 @@ func (e *Engine) AIRecords(kind string, records []json.RawMessage, where map[str
 	}()
 	in, err := json.Marshal(records)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, false, err
 	}
 	w, err := json.Marshal(where)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, false, err
 	}
-	out := e.aiRecords(kind, string(in), string(w))
+	out := e.aiRecords(kind, string(in), string(w), unlisted)
 	if out == "null" {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
-	err = json.Unmarshal([]byte(out), &rows)
-	return rows, err == nil, err
+	var listed struct {
+		Rows     []RecordBrief `json:"rows"`
+		Unlisted int           `json:"unlisted"`
+	}
+	err = json.Unmarshal([]byte(out), &listed)
+	return listed.Rows, listed.Unlisted, err == nil, err
 }
 
 // RecordNeeds は、アクション action が対象にする種類（レコードが対象でなければ Subject が空）と、読むだけの種類と、

@@ -5,6 +5,7 @@ import { z as zod } from "zod"
 import { byOf, readsBy } from "../by"
 import { CURRENT, NO_TICKET } from "../current-ticket"
 import { kit } from "../kit"
+import { inDoneLane } from "../project"
 import { projectOf } from "../project/actions"
 import { TICKET } from "../ticket"
 import { HISTORY, TOPIC_COMPLETE } from "../ticket-history"
@@ -29,7 +30,7 @@ export const TICKET_COMPLETE = kit.defineAction({
     if (!project) return { declined: "the project of the ticket is not there" }
     if (project.doneLane === undefined)
       return { declined: "the project has no done lane: the user chooses it in the project settings" }
-    if (now.lane === project.doneLane) return { declined: "the ticket is completed already" }
+    if (inDoneLane(project, now.lane)) return { declined: "the ticket is completed already" }
     const by = byOf(ctx.actor, ctx)
     if (!by) return { declined: "the workroom of the AI is not there" }
     const pointing = (Object.values(ctx.records?.[CURRENT.id] ?? {}) as Current[])

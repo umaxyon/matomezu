@@ -29,6 +29,8 @@ type RecordsQuery struct {
 	Is     map[string]string
 	Limit  string
 	Before string
+	// Unlisted は、一覧の既定の目次に載せない物の扱い: 無い・hide は載せる物だけ、include は全部、only は載せない物だけ
+	Unlisted string
 }
 
 // AIRecords は、AI に見せる種類のレコードを、取り方 q で返す。refusal は取り方が合わないときの断る理由（AI に返す英語の文）。
@@ -42,10 +44,13 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 	if !known || !kind.AI {
 		return nil, "", false, nil
 	}
-	listing := len(q.Where) > 0 || len(q.Is) > 0 || q.Limit != "" || q.Before != ""
+	if q.Unlisted != "" && q.Unlisted != "hide" && q.Unlisted != "include" && q.Unlisted != "only" {
+		return nil, "unlisted is hide, include or only", true, nil
+	}
+	listing := len(q.Where) > 0 || len(q.Is) > 0 || q.Limit != "" || q.Before != "" || q.Unlisted != ""
 	if q.ID != "" {
 		if listing || len(q.IDs) > 0 {
-			return nil, "id cannot be given together with ids, where, limit or before", true, nil
+			return nil, "id cannot be given together with ids, where, limit, before or unlisted", true, nil
 		}
 		r, err := h.store.Record(q.Kind, q.ID)
 		if err != nil || r == nil {
@@ -56,7 +61,7 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 	}
 	if len(q.IDs) > 0 {
 		if listing {
-			return nil, "ids cannot be given together with where, limit or before", true, nil
+			return nil, "ids cannot be given together with where, limit, before or unlisted", true, nil
 		}
 		if len(q.IDs) > aiRecordsIDsMax {
 			return nil, fmt.Sprintf("ids takes 1 to %d ids", aiRecordsIDsMax), true, nil
@@ -85,11 +90,16 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 		out, err = json.Marshal(answer)
 		return out, "", err == nil, err
 	}
+	if q.Unlisted == "include" || q.Unlisted == "only" {
+		if kind.AIUnlisted == "" {
+			return nil, "this kind lists all its records: unlisted is for the kinds that leave some out of the list (see the index of actions)", true, nil
+		}
+	}
 	if kind.AIList == nil {
 		if len(q.Is) > 0 || q.Limit != "" || q.Before != "" {
 			return nil, "this kind takes only where (it has no index keys to list by)", true, nil
 		}
-		return h.aiRecordsOfAll(q.Kind, q.Where)
+		return h.aiRecordsOfAll(q.Kind, q.Where, q.Unlisted)
 	}
 	limit := kind.AIList.Limit
 	if q.Limit != "" {
@@ -181,9 +191,11 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 	return out, "", err == nil, err
 }
 
-// aiRecordsOfAll は、一覧の既定の並びを持たない種類の一覧: 種類の全部を読み、where（トップの項目 = 値）に合う物をエンジンが並べる（100 行まで）
-func (h *Hub) aiRecordsOfAll(kind string, where map[string]string) (out json.RawMessage, refusal string, ok bool, err error) {
+// aiRecordsOfAll は、一覧の既定の並びを持たない種類の一覧: 種類の全部を読み、where（トップの項目 = 値）に合う物を、unlisted（hide・include・only）に従ってエンジンが分けて並べる（100 行まで）。
+// hide のときは、載せなかった数 unlisted も添える（0 なら省く）。指す先のレコードは置き場所から引くので、エンジンを呼ぶ間も h.mu を持つ（行う間と同じ）
+func (h *Hub) aiRecordsOfAll(kind string, where map[string]string, unlisted string) (out json.RawMessage, refusal string, ok bool, err error) {
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	table := h.recordTables[kind]
 	ids := make([]string, 0, len(table))
 	for rid := range table {
@@ -194,11 +206,10 @@ func (h *Hub) aiRecordsOfAll(kind string, where map[string]string) (out json.Raw
 	for _, rid := range ids {
 		bodies = append(bodies, table[rid].body)
 	}
-	h.mu.Unlock()
 	if where == nil {
 		where = map[string]string{}
 	}
-	rows, known, err := h.engine.AIRecords(kind, bodies, where)
+	rows, hidden, known, err := h.engine.AIRecords(kind, bodies, where, unlisted, recordSource{h})
 	if err != nil || !known {
 		return nil, "", false, err
 	}
@@ -213,13 +224,17 @@ func (h *Hub) aiRecordsOfAll(kind string, where map[string]string) (out json.Raw
 	if kept == nil {
 		kept = []map[string]string{}
 	}
-	out, err = json.Marshal(map[string]any{"kind": kind, "records": kept, "total": total})
+	answer := map[string]any{"kind": kind, "records": kept, "total": total}
+	if hidden > 0 {
+		answer["unlisted"] = hidden
+	}
+	out, err = json.Marshal(answer)
 	return out, "", err == nil, err
 }
 
 func (o Options) aiRecords(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	query := RecordsQuery{Kind: q.Get("kind"), ID: q.Get("id"), IDs: q["ids"], Limit: q.Get("limit"), Before: q.Get("before"), Where: map[string]string{}, Is: map[string]string{}}
+	query := RecordsQuery{Kind: q.Get("kind"), ID: q.Get("id"), IDs: q["ids"], Limit: q.Get("limit"), Before: q.Get("before"), Unlisted: q.Get("unlisted"), Where: map[string]string{}, Is: map[string]string{}}
 	if query.Kind == "" {
 		http.Error(w, "kind is needed (the subjects are in the index of actions)", http.StatusBadRequest)
 		return

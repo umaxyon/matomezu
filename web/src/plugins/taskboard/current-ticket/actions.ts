@@ -2,7 +2,7 @@
 import { z as zod } from "zod"
 import { isAI } from "../../../plugin-api"
 import { kit } from "../kit"
-import { PROJECT } from "../project"
+import { inDoneLane, PROJECT } from "../project"
 import { projectOf } from "../project/actions"
 import { TICKET } from "../ticket"
 import { ticketOf } from "../ticket/actions"
@@ -33,7 +33,7 @@ export const CURRENT_TICKET_SET = kit.defineAction({
       const ticket = ticketOf(ctx, args.ticket)
       if (!ticket) return { declined: "the ticket is not there" }
       const project = projectOf(ctx, ticket.project)
-      if (project && ticket.lane === project.doneLane)
+      if (project && inDoneLane(project, ticket.lane))
         return { declined: "the ticket is completed: a completed ticket is not a current ticket" }
     }
     return { next: { id, ticket: args.ticket, at: ctx.now }, result: { current: id } }
