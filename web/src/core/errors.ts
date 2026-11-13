@@ -47,7 +47,7 @@ export const ERRORS = {
   E051: "subject {id}: role {role} needs {field} in its record",
   E056: "action {id}: writes {ref} is not a subject",
   E057: "action {id}: writes has the target {target} itself",
-  E058: "action {id}: {ref} belongs to another plugin than the action",
+  E058: "action {id}: {ref} belongs to another plugin that does not allow it (writableBy)",
   E059: "action {id}: writes {ref}, which is numbered",
   E060: "action {id}: lockSwitch cannot have writes",
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",

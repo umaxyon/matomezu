@@ -344,6 +344,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   const staged = parts.screens.filter(d => d.stages)
   for (const d of staged.slice(1)) problems.push(problem("E055", { id: d.id, other: staged[0]?.id ?? "" }))
   const subjects = new Set<string>(parts.subjects.map(s => s.id))
+  const subjectDefs = new Map(parts.subjects.map(s => [s.id, s]))
   for (const s of parts.subjects)
     if (!(s.record.shape.id instanceof z.ZodString)) problems.push(problem("E045", { id: s.id }))
   const roleOwner = new Map<string, string>()
@@ -367,8 +368,11 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   const numbered = new Set(parts.subjects.filter(s => s.numbered).map(s => s.id))
   for (const a of parts.actions) {
     const owner = splitId(a.id).owner
-    for (const ref of [a.target, ...(a.writes ?? [])])
-      if (subjects.has(ref) && splitId(ref).owner !== owner) problems.push(problem("E058", { id: a.id, ref }))
+    for (const ref of [a.target, ...(a.writes ?? [])]) {
+      const def = subjectDefs.get(ref)
+      if (def && splitId(ref).owner !== owner && !(owner !== null && def.writableBy?.includes(owner)))
+        problems.push(problem("E058", { id: a.id, ref }))
+    }
     for (const ref of a.writes ?? []) {
       if (!subjects.has(ref)) problems.push(problem("E056", { id: a.id, ref }))
       else if (ref === a.target) problems.push(problem("E057", { id: a.id, target: a.target }))

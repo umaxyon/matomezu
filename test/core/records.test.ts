@@ -613,3 +613,40 @@ test("定義の組の確かめ: writes が種類でない・宛先そのもの�
   expect(broken([w("a", { writes: [NOTE_ID], lockSwitch: true })])).toThrow(/E060/)
   expect(broken([w("a", { writes: [NOTE_ID] })])).not.toThrow()
 })
+
+test("別のプラグインの種類を宛先か writes にできるのは、持ち主が対象の定義の writableBy にそのプラグインを書いたときだけ", () => {
+  const OTHER = "@ex/other"
+  const mine = (over: Record<string, unknown>) =>
+    ({
+      id: `${OTHER}:mine`,
+      title,
+      aiDescription: "x",
+      record: z.strictObject({ id: z.string().min(1) }),
+      ...over,
+    }) as never
+  const writer = (id: string, over: Record<string, unknown>) =>
+    ({
+      id: `${OTHER}:${id}`,
+      title,
+      aiDescription: id,
+      target: `${OTHER}:mine`,
+      args: z.strictObject({}),
+      run: (() => null) as never,
+      ...over,
+    }) as never
+  const build = (cardOver: Record<string, unknown>, actions: unknown[]) => () =>
+    assemble(
+      [
+        ...BUILTIN,
+        defineBuiltin({ ...EX, subjects: [SUBJECT, { ...NOTES, ...cardOver } as never] } as never),
+        defineBuiltin({ id: OTHER, subjects: [mine({})], actions, controlCenters: [] } as never),
+      ],
+      CENTER,
+    )
+  const writes = writer("w", { writes: [NOTE_ID] })
+  const target = writer("t", { target: NOTE_ID })
+  expect(build({}, [writes])).toThrow(/E058/) // 持ち主が許していない
+  expect(build({}, [target])).toThrow(/E058/)
+  expect(build({ writableBy: ["@ex/elsewhere"] }, [writes])).toThrow(/E058/) // 別のプラグインだけ許している
+  expect(build({ writableBy: [OTHER] }, [writes, target])).not.toThrow()
+})
