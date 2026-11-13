@@ -64,3 +64,42 @@ test("ボードの歯車でプロジェクト設定を開き、レーンを直�
   await expect(board.getByText("見直し", { exact: true })).toBeVisible()
   await expect(board.getByText("未分類", { exact: true })).toBeVisible()
 })
+
+test("プロジェクト設定でチケットサイズを変えると、ボードのチケットカードの大きさが変わる（レーンは継承か、自分のサイズ）", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(CONTROL_CENTER_URL)
+  const ai = { headers: await joinedAiAuth() }
+  if ((await projects(page)).length === 0)
+    await page.request.post("/api/ai/perform", { ...ai, data: { action: "@matomezu/taskboard:project-add", args: {} } })
+  const first = (await projects(page))[0] as unknown as {
+    id: string
+    lanes: { kind: string; id?: string; name?: string }[]
+  }
+  const lane = first.lanes.find(l => l.kind === "lane")!
+  await page.request.post("/api/ai/perform", {
+    ...ai,
+    data: {
+      action: "@matomezu/taskboard:ticket-add",
+      args: { project: first.id, name: "大きさを見る", lane: lane.id },
+    },
+  })
+  const board = page.locator(`[data-board="${first.id}"]`)
+  const card = board.locator("[data-card]").filter({ hasText: "大きさを見る" })
+  const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
+
+  // 全般で L にすると、継承のレーンのカードが L になる
+  await board.getByRole("button", { name: "プロジェクト設定" }).click()
+  await dialog.getByTitle("大: 題を折り返す").click()
+  await dialog.getByRole("button", { name: "保存" }).click()
+  await expect(card).toHaveAttribute("data-size", "large")
+
+  // レーンで S にすると、そのレーンのカードは S になる
+  await board.getByRole("button", { name: "プロジェクト設定" }).click()
+  await dialog.getByRole("tab", { name: "レーン" }).click()
+  await dialog.locator(`[title="${lane.name}"]`).click()
+  await dialog.locator(`label[title="小: 番号と題の 1 行"]:visible`).click()
+  await dialog.getByRole("button", { name: "保存" }).click()
+  await expect(card).toHaveAttribute("data-size", "small")
+})

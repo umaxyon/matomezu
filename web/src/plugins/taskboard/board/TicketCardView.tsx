@@ -1,7 +1,9 @@
-// チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前（1 行で … で切る）・タグのバッヂ・優先度の印・右上に担当の鳥。
+// チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前・タグのバッヂ・優先度の印・右上に担当の鳥。
+// 大きさ（チケットサイズ）で形が変わる: large は名前を折り返し、medium は名前を 1 行で … で切り、small は番号と名前の 1 行だけ（… で切る）。
 // 押すとチケットスクリーンを開く。チケットカードには data-card（チケットの id）を付ける
 import { useMessages, usePluginState, useScreens } from "../../../plugin-api/ui"
 import { kit } from "../kit"
+import type { CardSize } from "../project"
 import { ticketLabel } from "../ticket/label"
 import { TICKET_SCREEN } from "../ticket-screen"
 import { CARD_VISIT } from "."
@@ -17,11 +19,13 @@ const BAR_TOP = 10
 const barHeight = (i: number) => 3 + i * 1.75
 
 export function TicketCardView({
+  size,
   ticket,
   prefix,
   tag,
   assignees,
 }: {
+  size: CardSize
   ticket: TicketRecord
   prefix: string
   tag: TagRecord | undefined
@@ -36,6 +40,7 @@ export function TicketCardView({
     <div
       className={styles.card}
       data-card={ticket.id}
+      data-size={size}
       data-lit={lit}
       role="button"
       tabIndex={0}
@@ -47,17 +52,25 @@ export function TicketCardView({
         }
       }}
     >
-      {assignees.length > 0 ? (
-        <span className={styles.assignee}>
-          <AssigneeStack rooms={assignees} />
+      {size === "small" ? (
+        <span className={styles.cardLine}>
+          <span className={styles.cardId}>{ticketLabel(prefix, ticket.number)}</span> {ticket.name}
         </span>
-      ) : null}
-      <span className={styles.cardId}>{ticketLabel(prefix, ticket.number)}</span>
-      <span className={styles.cardName}>{ticket.name}</span>
-      <span className={styles.foot}>
-        <TagBadge tag={tag} />
-        <PriorityMark priority={ticket.priority} />
-      </span>
+      ) : (
+        <>
+          {assignees.length > 0 ? (
+            <span className={styles.assignee}>
+              <AssigneeStack rooms={assignees} />
+            </span>
+          ) : null}
+          <span className={styles.cardId}>{ticketLabel(prefix, ticket.number)}</span>
+          <span className={styles.cardName}>{ticket.name}</span>
+          <span className={styles.foot}>
+            <TagBadge tag={tag} />
+            <PriorityMark priority={ticket.priority} />
+          </span>
+        </>
+      )}
     </div>
   )
 }

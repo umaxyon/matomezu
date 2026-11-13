@@ -12,7 +12,7 @@ import { assigneesOf } from "../ticket/assignees"
 import { LANE_SORTS } from "."
 import styles from "./LaneView.module.css"
 import { SortTray } from "./SortTray"
-import { type LaneInfo, type ProjectRecord, type TicketRecord, tagOf, type WorkroomRecord } from "./shown"
+import { cardSizeOf, type LaneInfo, type ProjectRecord, type TicketRecord, tagOf, type WorkroomRecord } from "./shown"
 import { DEFAULT_SORT, type SortRules, sortActive, sortTickets } from "./sort"
 import { TicketCardView } from "./TicketCardView"
 
@@ -63,6 +63,7 @@ export function LaneView({
     return () => window.clearTimeout(timer)
   }, [maximized])
   const name = lane.name ?? t("Unsorted")
+  const size = cardSizeOf(project, lane.id)
   return (
     <div
       className={`${styles.lane} ${drag?.markClass ?? ""}`}
@@ -114,6 +115,7 @@ export function LaneView({
         ).map(ticket => (
           <TicketCardView
             key={ticket.id}
+            size={size}
             ticket={ticket}
             prefix={project.prefix}
             tag={tagOf(project, ticket)}

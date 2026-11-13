@@ -6,14 +6,15 @@ import { useId, useState } from "react"
 import { useMessages } from "../../../plugin-api/ui"
 import { Confirm, Switch } from "../../base/ui"
 import { kit } from "../kit"
-import { LANE_NAME_MAX, NO_DONE_LANE } from "../project"
+import { INHERIT_CARD_SIZE, LANE_NAME_MAX, NO_DONE_LANE } from "../project"
 import { Grip } from "../reorder/Grip"
 import { useGripDrag } from "../reorder/useGripDrag"
 import { useReorderAnimation } from "../reorder/useReorderAnimation"
+import { LaneCardSizeChoices } from "./CardSizeChoices"
 import settings from "./ProjectSettingsDialog.module.css"
 import { NameField, PromptSplit, rowProps } from "./PromptSplit"
 import styles from "./PromptSplit.module.css"
-import { doneChoices, doneElsewhereOf, type LaneRow } from "./rows"
+import { doneChoices, doneElsewhereOf, type LaneRow, sizedAsDone } from "./rows"
 import type { EditableRows } from "./useEditableRows"
 
 export function LaneSettings({
@@ -51,10 +52,15 @@ export function LaneSettings({
   // 完了のレーンにしようとして、確かめている行の鍵と、今の完了のレーンの名前
   const [asking, setAsking] = useState<{ key: string; now: string } | null>(null)
   const doneChoice = doneChoices(rows).find(r => r.key === chosen?.key)
+  // 完了のレーンにする（その行のチケットサイズを small にする）
+  const makeDone = (key: string) => {
+    onDone(key)
+    lanes.apply(list => sizedAsDone(list, key) as LaneRow[])
+  }
   const toggleDone = (key: string, on: boolean) => {
     if (!on) return onDone(NO_DONE_LANE)
     const now = doneElsewhereOf(rows, done, key)
-    if (now === null) onDone(key)
+    if (now === null) makeDone(key)
     else setAsking({ key, now })
   }
   return (
@@ -75,18 +81,26 @@ export function LaneSettings({
           ...(doneBlocked ? [t("The done lane has tickets with assignees: complete them first")] : []),
         ]}
         addLabel={t("Add a lane")}
-        onAdd={() => setSelected(add({ kind: "lane", prompt: "" }))}
+        onAdd={() => setSelected(add({ kind: "lane", prompt: "", cardSize: INHERIT_CARD_SIZE }))}
         promptTitle={t("Lane prompt")}
         promptHead={
-          doneChoice ? (
-            <div className={settings.switchRow}>
-              <Switch
-                id={doneId}
-                label={t("Make it the done lane")}
-                checked={done === doneChoice.key}
-                onChange={on => toggleDone(doneChoice.key, on)}
-              />
-              <label htmlFor={doneId}>{t("Make it the done lane")}</label>
+          chosen?.kind === "lane" ? (
+            <div className={settings.promptHeadRows}>
+              {doneChoice ? (
+                <div className={settings.switchRow}>
+                  <Switch
+                    id={doneId}
+                    label={t("Make it the done lane")}
+                    checked={done === doneChoice.key}
+                    onChange={on => toggleDone(doneChoice.key, on)}
+                  />
+                  <label htmlFor={doneId}>{t("Make it the done lane")}</label>
+                </div>
+              ) : null}
+              <div className={settings.switchRow}>
+                <span>{t("Ticket size")}</span>
+                <LaneCardSizeChoices value={chosen.cardSize} onChange={cardSize => change(chosen.key, { cardSize })} />
+              </div>
             </div>
           ) : null
         }
@@ -125,7 +139,7 @@ export function LaneSettings({
           ok={t("Change it")}
           cancel={t("Keep it")}
           onOk={() => {
-            onDone(asking.key)
+            makeDone(asking.key)
             setAsking(null)
           }}
           onCancel={() => setAsking(null)}

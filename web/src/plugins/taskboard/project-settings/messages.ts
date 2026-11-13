@@ -4,6 +4,15 @@ import { defineMessages } from "../../../plugin-api"
 export const PROJECT_SETTINGS_MESSAGES = defineMessages({
   "Project settings": { en: "Project settings", ja: "プロジェクト設定" },
   General: { en: "General", ja: "全般" },
+  "Ticket size": { en: "Ticket size", ja: "チケットサイズ" },
+  "Card size large": { en: "Large: the title wraps", ja: "大: 題を折り返す" },
+  "Card size medium": { en: "Medium: the title in one line", ja: "中: 題を 1 行で" },
+  "Card size small": { en: "Small: the number and the title in one line", ja: "小: 番号と題の 1 行" },
+  Inherit: { en: "Inherit", ja: "継承" },
+  "Follow the project's ticket size": {
+    en: "Follow the project's ticket size",
+    ja: "プロジェクトのチケットサイズに従う",
+  },
   "Make it the done lane": { en: "Make it the done lane", ja: "完了レーンにする" },
   "{name} is the done lane now. Change it?": {
     en: "{name} is the done lane now. Change it?",

@@ -29,8 +29,9 @@ export function useEditableRows<R extends LaneRow | TagRow>(initial: () => R[]) 
   const leave = (key: string) => setRows(list => leaveRow(list, key))
   const move = (dragging: string, over: string) => setRows(list => moveRow(list, dragging, over))
   const nameRef = (key: string) => (key === focusKey ? focusRef : undefined)
+  const apply = (f: (rows: readonly R[]) => R[]) => setRows(list => f(list)) // 行の並びを純関数で直す（完了のレーンにした行を small にするなど）
 
-  return { rows, change, add, leave, move, nameRef }
+  return { rows, change, add, leave, move, nameRef, apply }
 }
 
 export type EditableRows<R extends LaneRow | TagRow> = ReturnType<typeof useEditableRows<R>>

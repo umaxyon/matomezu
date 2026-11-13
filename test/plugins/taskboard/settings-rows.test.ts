@@ -14,6 +14,7 @@ import {
   leaveRow,
   moveRow,
   repeatedKeys,
+  sizedAsDone,
   type TagRow,
   tagRowsOf,
   updateArgsOf,
@@ -39,6 +40,7 @@ const lane = (key: string, name: string, was?: string): LaneRow => ({
   kind: "lane",
   name,
   prompt: "",
+  cardSize: "inherit",
   ...(was === undefined ? {} : { id: key, was }),
 })
 
@@ -80,7 +82,7 @@ test("行から作った引数でプロジェクトを直すと、残した行�
   const nextLanes: LaneRow[] = [...lanes.slice(0, 1), lane("new-2", "見直し"), lane("new-3", "  "), ...lanes.slice(-1)]
   const done = perform(
     "@matomezu/taskboard:project-update",
-    updateArgsOf(" 新しい名前 ", "AB-", nextLanes, tags, "none"),
+    updateArgsOf(" 新しい名前 ", "AB-", nextLanes, tags, "none", "large"),
     {
       record: p.id,
     },
@@ -88,6 +90,7 @@ test("行から作った引数でプロジェクトを直すと、残した行�
   expect(done.ok).toBe(true)
   const q = project()
   expect(q.name).toBe("新しい名前")
+  expect(q.cardSize).toBe("large")
   expect(q.lanes.map(l => (l.kind === "lane" ? l.name : l.kind))).toEqual([
     first?.kind === "lane" ? first.name : "",
     "見直し",
@@ -139,4 +142,11 @@ test("行を完了のレーンにしようとしたとき、ほかの行が完�
   expect(doneElsewhereOf(added, "new-1", "new-1")).toBeNull()
   expect(doneElsewhereOf(added, "new-1", first.key)).toBe("見直し")
   expect(doneElsewhereOf(added, "unsorted", first.key)).toBeNull()
+})
+
+test("行を完了のレーンにすると、その行のチケットサイズだけを small にする", () => {
+  const rows: LaneRow[] = [lane("a", "A"), lane("b", "B"), { key: "unsorted", kind: "unsorted", shown: false }]
+  const sized = sizedAsDone(rows, "b")
+  expect(sized.map(r => (r.kind === "lane" ? r.cardSize : r.kind))).toEqual(["inherit", "small", "unsorted"])
+  expect(sizedAsDone(rows, "unsorted")).toEqual(rows)
 })

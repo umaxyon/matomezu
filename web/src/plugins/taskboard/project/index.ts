@@ -32,6 +32,12 @@ export function repeatedAt(names: readonly string[]): ReadonlySet<number> {
 
 export const UNSORTED = "unsorted" // 未分類の行・チケットのレーンの値
 export const NO_TAG = "none" // タグなしのチケットのタグの値
+// チケットカードの大きさ（チケットサイズ）: large は題を折り返し、medium は題を 1 行で切り、small は番号と題の 1 行だけ。
+// レーンは inherit でプロジェクトの大きさに従う。完了のレーンにしたレーンは、画面で small にする（DONE_LANE_CARD_SIZE）
+export const CARD_SIZES = ["large", "medium", "small"] as const
+export type CardSize = (typeof CARD_SIZES)[number]
+export const INHERIT_CARD_SIZE = "inherit"
+export const DONE_LANE_CARD_SIZE: CardSize = "small"
 export const NO_DONE_LANE = "none" // 完了のレーンを無しにするときの、project-update の doneLane の値（プロジェクトのレコードでは doneLane を持たない）
 
 const LANE = z.strictObject({
@@ -39,6 +45,7 @@ const LANE = z.strictObject({
   id: z.string().min(1),
   name: z.string().trim().min(1).max(LANE_NAME_MAX),
   prompt: z.string(), // AI がそのレーンでチケットをどう扱うかの指示
+  cardSize: z.enum([INHERIT_CARD_SIZE, ...CARD_SIZES]), // このレーンのチケットカードの大きさ（inherit はプロジェクトの大きさ）
 })
 const UNSORTED_ROW = z.strictObject({ kind: z.literal("unsorted"), shown: z.boolean() })
 const TAG = z.strictObject({
@@ -69,7 +76,7 @@ export const PROJECT = kit.defineSubject({
   id: "project",
   title: "project",
   aiDescription:
-    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; a ticket gets there only through ticket-complete: the prompt of the done lane tells when a ticket is done, and then you complete it with ticket-complete) and the ticket tags (each with a prompt that tells you how to handle the tickets with the tag).",
+    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; a ticket gets there only through ticket-complete: the prompt of the done lane tells when a ticket is done, and then you complete it with ticket-complete), the ticket tags (each with a prompt that tells you how to handle the tickets with the tag) and cardSize (large, medium or small: how big the ticket cards are drawn on the board; each lane has a cardSize too, where inherit takes the project's).",
   record: z.strictObject({
     id: z.string().min(1),
     name: z.string().trim().min(1).max(PROJECT_NAME_MAX),
@@ -78,6 +85,7 @@ export const PROJECT = kit.defineSubject({
     lanes: LANES,
     tags: TAGS,
     doneLane: z.string().min(1).optional(), // 完了のレーンの id（無ければ完了のレーンは無い。レーンを消したら外す）
+    cardSize: z.enum(CARD_SIZES), // チケットカードの大きさ（レーンが inherit のとき）
   }),
   // prefix は、重なりを確かめるのに比べる形（前後の空白を除き、小文字にした物）
   keys: { prefix: { type: "text", of: p => prefixKey(p.prefix) } },

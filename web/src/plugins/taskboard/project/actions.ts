@@ -4,6 +4,8 @@ import { type z, z as zod } from "zod"
 import { type Records, recordIn } from "../by"
 import { kit } from "../kit"
 import {
+  CARD_SIZES,
+  INHERIT_CARD_SIZE,
   LANE_NAME_MAX,
   LANES,
   NO_DONE_LANE,
@@ -68,6 +70,7 @@ const LANE_INPUT = zod.union([
     id: zod.string().min(1).optional(),
     name: zod.string().trim().min(1).max(LANE_NAME_MAX),
     prompt: zod.string(),
+    cardSize: zod.enum([INHERIT_CARD_SIZE, ...CARD_SIZES]),
   }),
   zod.strictObject({ kind: zod.literal("unsorted"), shown: zod.boolean() }),
 ])
@@ -97,7 +100,7 @@ export const PROJECT_UPDATE = kit.defineAction({
   id: "project-update",
   title: "update project",
   aiDescription:
-    "Change the name, the prefix (as in project-add), the lanes, the ticket tags or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees; a workroom whose current ticket is in that lane gets none) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted or none.",
+    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees; a workroom whose current ticket is in that lane gets none) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted or none.",
   target: PROJECT.id,
   // 完了のレーンを選ぶときは、そのレーンのチケットと今のチケットを確かめるために、プロジェクトのチケットと今のチケットの索引キーを読む
   // （project は ticket・current-ticket を読まない向きなので、id だけを書く）
@@ -118,6 +121,7 @@ export const PROJECT_UPDATE = kit.defineAction({
     lanes: zod.array(LANE_INPUT).optional(),
     tags: zod.array(TAG_INPUT).optional(),
     doneLane: zod.string().min(1).optional(),
+    cardSize: zod.enum(CARD_SIZES).optional(),
   }),
   run: (now, args, ctx) => {
     if (now === "none") return null
@@ -157,6 +161,7 @@ export const PROJECT_UPDATE = kit.defineAction({
         ...(lanes === undefined ? {} : { lanes: lanes as Project["lanes"] }),
         ...(tags === undefined ? {} : { tags: tags as Project["tags"] }),
         ...(done.id === NO_DONE_LANE ? {} : { doneLane: done.id }),
+        ...(args.cardSize === undefined ? {} : { cardSize: args.cardSize }),
       },
       others: cleared.map(room => ({
         subject: CURRENT_ID,

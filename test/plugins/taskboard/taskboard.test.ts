@@ -146,8 +146,8 @@ test("プロジェクトを直すと、id の無いレーン・タグは新し�
       prefix: "NEW",
       lanes: [
         { kind: "unsorted", shown: true },
-        { kind: "lane", id: todo?.id, name: "やる", prompt: "" },
-        { kind: "lane", name: "見直し", prompt: "p" },
+        { kind: "lane", id: todo?.id, name: "やる", prompt: "", cardSize: "inherit" },
+        { kind: "lane", name: "見直し", prompt: "p", cardSize: "inherit" },
       ],
       tags: [
         { ...task, name: "仕事" },
@@ -171,7 +171,13 @@ test("プロジェクトを直すとき、無い id・重なる名前（前後�
   user("project-add", { prefix: "AB-" })
   user("project-add", { prefix: "C" })
   const p = projects().find(x => x.prefix === "C") as Project
-  const lane = (name: string, id?: string) => ({ kind: "lane", name, prompt: "", ...(id ? { id } : {}) })
+  const lane = (name: string, id?: string) => ({
+    kind: "lane",
+    name,
+    prompt: "",
+    cardSize: "inherit",
+    ...(id ? { id } : {}),
+  })
   const tag = (name: string, id?: string) => ({
     name,
     color: "primary",

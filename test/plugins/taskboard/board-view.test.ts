@@ -4,6 +4,7 @@ import { autoInputOf } from "../../../web/src/plugins/base/settings/user-setting
 import { laneKeyOf, movedLanes } from "../../../web/src/plugins/taskboard/board/lane-order"
 import { maximizedAmong, released, toggleBoard, toggleLane } from "../../../web/src/plugins/taskboard/board/maximize"
 import {
+  cardSizeOf,
   lanesOf,
   orderedProjects,
   type ProjectRecord,
@@ -26,15 +27,16 @@ const project = (id: string, over: Partial<ProjectRecord> = {}): ProjectRecord =
   prefix: "T-",
   closed: false,
   lanes: [
-    { kind: "lane", id: "todo", name: "未着手", prompt: "" },
+    { kind: "lane", id: "todo", name: "未着手", prompt: "", cardSize: "inherit" },
     { kind: "unsorted", shown: false },
-    { kind: "lane", id: "done", name: "完了", prompt: "" },
+    { kind: "lane", id: "done", name: "完了", prompt: "", cardSize: "inherit" },
   ],
   tags: [
     { id: "task", name: "タスク", color: "primary", enabled: true, prompt: "" },
     { id: "bug", name: "バグ", color: "danger", enabled: true, prompt: "" },
   ],
   doneLane: "done",
+  cardSize: "medium",
   ...over,
 })
 const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => ({
@@ -78,7 +80,7 @@ test("タスクボードのレーンは設定の並びのとおりで、未分�
   expect(lanesOf(project("p1")).map(l => l.id)).toEqual(["todo", "done"])
   const withUnsorted = project("p1", {
     lanes: [
-      { kind: "lane", id: "todo", name: "未着手", prompt: "" },
+      { kind: "lane", id: "todo", name: "未着手", prompt: "", cardSize: "inherit" },
       { kind: "unsorted", shown: true },
     ],
   })
@@ -185,11 +187,26 @@ test("利用者の設定 2 つは利用者だけが変え、値の形から入�
 })
 
 test("レーンのドラッグによる並べ替えは、未分類の行も含む並びで、ドラッグしたレーンを離したレーンの位置へ移す", () => {
-  const lane = (id: string) => ({ kind: "lane" as const, id, name: id, prompt: "" })
-  const rows = [lane("a"), lane("b"), { kind: "unsorted" as const, shown: true }, lane("c")]
+  const lane = (id: string) => ({ kind: "lane" as const, id, name: id, prompt: "", cardSize: "inherit" as const })
+  const rows: ProjectRecord["lanes"] = [lane("a"), lane("b"), { kind: "unsorted" as const, shown: true }, lane("c")]
   const keys = (list: typeof rows) => list.map(laneKeyOf)
   expect(keys(movedLanes(rows, "c", "a"))).toEqual(["c", "a", "b", "unsorted"])
   expect(keys(movedLanes(rows, "a", "unsorted"))).toEqual(["b", "unsorted", "a", "c"])
   expect(keys(movedLanes(rows, "b", "b"))).toEqual(["a", "b", "unsorted", "c"])
   expect(keys(movedLanes(rows, "gone", "a"))).toEqual(["a", "b", "unsorted", "c"])
+})
+
+test("レーンのチケットカードの大きさは、レーンの cardSize。inherit・未分類・無いレーンなら、プロジェクトの cardSize", () => {
+  const p = project("p", {
+    cardSize: "large",
+    lanes: [
+      { kind: "lane", id: "todo", name: "未着手", prompt: "", cardSize: "inherit" },
+      { kind: "unsorted", shown: true },
+      { kind: "lane", id: "done", name: "完了", prompt: "", cardSize: "small" },
+    ],
+  })
+  expect(cardSizeOf(p, "todo")).toBe("large")
+  expect(cardSizeOf(p, "done")).toBe("small")
+  expect(cardSizeOf(p, "unsorted")).toBe("large")
+  expect(cardSizeOf(p, "gone")).toBe("large")
 })

@@ -2,7 +2,7 @@
 // 行からプロジェクトを直すアクションの引数を作る関数。
 // 行は画面の中だけの鍵 key と、データの id（もうある行だけ。無い行は保存で新しく入る）を分けて持つ。もうある行は、開いたときの名前 was も持つ
 import type { z } from "zod"
-import { type LANE, NO_DONE_LANE, type PROJECT, repeatedAt, type TAG, UNSORTED } from "../project"
+import { DONE_LANE_CARD_SIZE, type LANE, NO_DONE_LANE, type PROJECT, repeatedAt, type TAG, UNSORTED } from "../project"
 import { moved } from "../reorder/order"
 
 type Project = z.output<typeof PROJECT.record>
@@ -15,7 +15,10 @@ export interface NamedRow {
   was?: string // 開いたときの名前（もうある行だけ）
   name: string
 }
-export type LaneRow = (NamedRow & { kind: "lane"; prompt: string }) | { key: string; kind: "unsorted"; shown: boolean }
+export type LaneRow =
+  | (NamedRow & { kind: "lane"; prompt: string; cardSize: LaneCardSize })
+  | { key: string; kind: "unsorted"; shown: boolean }
+type LaneCardSize = Lane["cardSize"]
 export type TagRow = NamedRow & Omit<Tag, "id" | "name">
 
 export const UNSORTED_KEY = UNSORTED // 未分類の行の鍵（どの行の鍵とも重ならない）
@@ -24,7 +27,7 @@ export const UNSORTED_KEY = UNSORTED // 未分類の行の鍵（どの行の鍵�
 export const laneRowsOf = (project: Project): LaneRow[] =>
   project.lanes.map(l =>
     l.kind === "lane"
-      ? { key: l.id, id: l.id, was: l.name, kind: "lane", name: l.name, prompt: l.prompt }
+      ? { key: l.id, id: l.id, was: l.name, kind: "lane", name: l.name, prompt: l.prompt, cardSize: l.cardSize }
       : { key: UNSORTED_KEY, kind: "unsorted", shown: l.shown },
   )
 
@@ -66,14 +69,20 @@ export function moveRow<R extends { key: string }>(rows: readonly R[], dragging:
 
 // ダイアログの行から、プロジェクトを直すアクションの引数を作る（名前は前後の空白を除く。空の名前の行は入れない）
 // 完了のレーンに選べる行: 名前のあるレーン（未分類の行と、名前が空の行は選べない）
-export const doneChoices = (lanes: readonly LaneRow[]): (NamedRow & { kind: "lane"; prompt: string })[] =>
-  lanes.filter((l): l is NamedRow & { kind: "lane"; prompt: string } => l.kind === "lane" && l.name.trim() !== "")
+type NamedLaneRow = Extract<LaneRow, { kind: "lane" }>
+export const doneChoices = (lanes: readonly LaneRow[]): NamedLaneRow[] =>
+  lanes.filter((l): l is NamedLaneRow => l.kind === "lane" && l.name.trim() !== "")
 
 // 完了のレーンは、選んだ行の鍵 doneKey から決める（もうある行は id、新しい行は名前で指す。行が無ければ none）
 export function doneLaneOf(lanes: readonly LaneRow[], doneKey: string): string {
   const row = doneChoices(lanes).find(l => l.key === doneKey)
   return row ? (row.id ?? row.name.trim()) : NO_DONE_LANE
 }
+
+// 行 key を完了のレーンにした行の並び（その行のチケットサイズを small にする。あとで利用者が変えてよい。完了のレーンを外しても戻さない）。
+// 大きさを決めるのはこの画面だけで、project-update を直に呼んで完了のレーンを替えても、大きさは変わらない
+export const sizedAsDone = (lanes: readonly LaneRow[], key: string): LaneRow[] =>
+  lanes.map(l => (l.key === key && l.kind === "lane" ? { ...l, cardSize: DONE_LANE_CARD_SIZE } : l))
 
 // 行 key を完了のレーンにしようとしたとき、ほかの行がもう完了のレーンなら、その行の今の名前（無ければ null）
 export function doneElsewhereOf(lanes: readonly LaneRow[], doneKey: string, key: string): string | null {
@@ -102,15 +111,19 @@ export function updateArgsOf(
   lanes: readonly LaneRow[],
   tags: readonly TagRow[],
   doneKey: string,
+  cardSize: Project["cardSize"],
 ) {
   return {
     name: name.trim(),
+    cardSize,
     prefix: prefix.trim(),
     doneLane: doneLaneOf(lanes, doneKey),
     lanes: lanes.flatMap((l): (Lane | { kind: "unsorted"; shown: boolean } | Omit<Lane, "id">)[] => {
       if (l.kind === "unsorted") return [{ kind: "unsorted", shown: l.shown }]
       if (l.name.trim() === "") return []
-      return [{ kind: "lane", ...(l.id ? { id: l.id } : {}), name: l.name.trim(), prompt: l.prompt }]
+      return [
+        { kind: "lane", ...(l.id ? { id: l.id } : {}), name: l.name.trim(), prompt: l.prompt, cardSize: l.cardSize },
+      ]
     }),
     tags: tags.flatMap(({ key: _key, was: _was, ...t }) =>
       t.name.trim() === "" ? [] : [{ ...t, name: t.name.trim() }],

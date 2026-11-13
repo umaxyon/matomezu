@@ -30,3 +30,9 @@
   gap: 8px;
   font-size: 13px;
 }
+/* レーンのプロンプトの見出しの上に並べる行（「完了レーンにする」・チケットサイズ） */
+.promptHeadRows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

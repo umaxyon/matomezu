@@ -95,6 +95,20 @@
   font-size: 11px;
   color: var(--skin-text-muted);
 }
+/* large: 名前を折り返す（長い語も枠の中で折る） */
+.card[data-size="large"] .cardName {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* small: 番号と名前の 1 行（… で切る） */
+.card[data-size="small"] {
+  padding-block: 4px;
+}
+.cardLine {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .foot {
   display: flex;
   align-items: flex-end;

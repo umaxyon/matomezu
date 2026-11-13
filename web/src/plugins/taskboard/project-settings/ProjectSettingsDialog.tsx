@@ -18,6 +18,7 @@ import { kit } from "../kit"
 import { NO_DONE_LANE, PREFIX_PATTERN, PROJECT, PROJECT_NAME_MAX, sameName } from "../project"
 import { PROJECT_UPDATE } from "../project/actions"
 import { TICKET } from "../ticket"
+import { ProjectCardSizeChoices } from "./CardSizeChoices"
 import { LaneSettings } from "./LaneSettings"
 import styles from "./ProjectSettingsDialog.module.css"
 import {
@@ -66,6 +67,7 @@ function Settings({
   const [prefix, setPrefix] = useState(project.prefix)
   const lanes = useEditableRows<LaneRow>(() => laneRowsOf(project))
   const tags = useEditableRows<TagRow>(() => tagRowsOf(project))
+  const [cardSize, setCardSize] = useState(project.cardSize)
   const [doneKey, setDoneKey] = useState(project.doneLane ?? NO_DONE_LANE) // 完了のレーンに選んだ行の鍵（もうあるレーンは id。無ければ none）
   const [refused, setRefused] = useState<string | null>(null)
   const others = useRecords(PROJECT.id, { where: [] }).filter(p => p.id !== project.id)
@@ -89,7 +91,7 @@ function Settings({
   const save = async () => {
     const done = await actions.performConfirmed(
       PROJECT_UPDATE.id,
-      updateArgsOf(name, prefix, lanes.rows, tags.rows, doneKey),
+      updateArgsOf(name, prefix, lanes.rows, tags.rows, doneKey, cardSize),
       {
         record: project.id,
       },
@@ -155,6 +157,9 @@ function Settings({
                     onChange={e => PREFIX_TYPING.test(e.target.value) && setPrefix(e.target.value)}
                   />
                 )}
+              </Field>
+              <Field label={t("Ticket size")}>
+                {() => <ProjectCardSizeChoices value={cardSize} onChange={setCardSize} />}
               </Field>
             </div>
             <div className={styles.fill} hidden={tab !== "tags"}>
