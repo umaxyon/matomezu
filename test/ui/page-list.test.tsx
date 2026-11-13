@@ -4,8 +4,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
-import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { WindowRoot } from "../../web/src/ui/WindowRoot"
 
 afterEach(cleanup)
 
@@ -22,7 +22,7 @@ function open(type: string) {
   })
   render(
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   act(() => {

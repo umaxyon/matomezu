@@ -5,7 +5,7 @@
 // ステージを並べないスクリーンが出ている間の下の行は、スロット control-center-footer に置いたウィジェットを並べる（止まり木のボタンは UI マッピングが置く）
 import { useEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { frontOf, type OpenedScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
+import { bookScreenCurrent, type OpenedScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
 import { ScreenView } from "../../../ui/ScreenView"
 import { Slot } from "../../../ui/Slot"
 import { useMatomezuState } from "../../../ui/store-context"
@@ -17,7 +17,8 @@ import { CONTROL_CENTER_FOOTER } from "./slots"
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
 
 export function OneScreenView() {
-  const front = useMatomezuState(s => frontOf(s.window))
+  // カレントスクリーンがブックスクリーンか（CSS が data-front で、どちらを見せるかを決める）
+  const front = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
   // 見せるブックスクリーン（いちばん最近カレントにした 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
   const book = useMatomezuState(s => recentBookScreen(s.window).id)
   const top = useMatomezuState(s => recentPlainScreen(s.window))

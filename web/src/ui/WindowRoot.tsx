@@ -4,11 +4,11 @@ import { stopBrowserMenu } from "./context-menu"
 import { KeyListener } from "./keys"
 import { LangSync } from "./LangSync"
 import { ROOT_SLOT } from "./layout"
-import styles from "./Screen.module.css"
 import { Slot } from "./Slot"
 import { SkinStyle } from "./skins/SkinStyle"
+import styles from "./WindowRoot.module.css"
 
-export function Screen() {
+export function WindowRoot() {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない
     <div className={styles.screen} onContextMenu={stopBrowserMenu}>

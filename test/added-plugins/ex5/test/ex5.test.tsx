@@ -9,7 +9,7 @@ import {
   MatomezuProvider,
   openedIn,
   placeAdded,
-  Screen,
+  WindowRoot,
 } from "matomezu/testing"
 import EX5_UI from "../ui"
 
@@ -28,7 +28,7 @@ const shelf = () => {
   })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   act(() => {

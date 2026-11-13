@@ -6,7 +6,7 @@ import { defineMessages } from "../../web/src/core/i18n/messages"
 import {
   closeScreen,
   currentScreen,
-  frontOf,
+  viewFrontOf,
   makeCurrent,
   newWindow,
   openScreen,
@@ -37,7 +37,7 @@ test("ステージの番号は窓で振り、閉じたステージの番号も�
 test("窓は、最初から開いているスクリーンと、ブックスクリーン 1 枚で始まり、ブックスクリーンを前に出す", () => {
   const win = newWindow(CORE_CATALOG, null)
   expect(win.screens.map(s => s.def)).toEqual(["@matomezu/control-center:screen", "@matomezu/base:book-screen"])
-  expect(frontOf(win)).toBe("book-screen")
+  expect(viewFrontOf(win)).toBe("book-screen")
   expect(currentScreen(win)).toMatchObject({ id: "c2", stages: { current: "s1" } })
 })
 
@@ -69,10 +69,10 @@ test("コントロールセンターを前に出しても、ブックスクリ�
   actions.zoomStage("s1", 2)
   const before = screenOf(state.getState().window)
   showCenter({ state, actions })
-  expect(frontOf(state.getState().window)).toBe("control-center")
+  expect(viewFrontOf(state.getState().window)).toBe("control-center")
   expect(screenOf(state.getState().window)).toBe(before)
   showBooks({ state, actions })
-  expect(frontOf(state.getState().window)).toBe("book-screen")
+  expect(viewFrontOf(state.getState().window)).toBe("book-screen")
   expect(screenOf(state.getState().window)).toBe(before)
 })
 
@@ -81,10 +81,10 @@ test("止まり木のコマンドは、コントロールセンターを前に�
   const active = () => isActive(instance as never, state.getState(), "s1", CENTER)
   expect(active()).toBe(false)
   expect(actions.command("s1", CENTER)).toBe(true)
-  expect(frontOf(state.getState().window)).toBe("control-center")
+  expect(viewFrontOf(state.getState().window)).toBe("control-center")
   expect(active()).toBe(true)
   expect(actions.command("s1", CENTER)).toBe(true)
-  expect(frontOf(state.getState().window)).toBe("book-screen")
+  expect(viewFrontOf(state.getState().window)).toBe("book-screen")
   expect(active()).toBe(false)
 })
 
@@ -92,7 +92,7 @@ test("ブックを開くと、ブックスクリーンを前に出す", () => {
   const { actions, state } = newStore()
   showCenter({ state, actions })
   actions.openBook("s1", "b2")
-  expect(frontOf(state.getState().window)).toBe("book-screen")
+  expect(viewFrontOf(state.getState().window)).toBe("book-screen")
   expect(screenOf(state.getState().window).stages[0]?.opened?.book).toBe("b2")
 })
 
@@ -143,7 +143,7 @@ test("AI の show は、ブックを渡すとブックスクリーンを前に�
   const store = newStore()
   showCenter(store)
   showIn(store, { book: "b2" })
-  expect(frontOf(store.state.getState().window)).toBe("book-screen")
+  expect(viewFrontOf(store.state.getState().window)).toBe("book-screen")
   expect(screenOf(store.state.getState().window).stages[0]?.opened?.book).toBe("b2")
 })
 
@@ -220,7 +220,7 @@ test("見えているスクリーンは、スクリーンアレンジメント�
   expect(win().arrangement).toBe("k:all")
   expect(shownScreens(core, win())).toEqual(win().screens.map(s => s.id))
   expect(shownBookScreens(core, win()).map(s => s.def)).toEqual(["@matomezu/base:book-screen"])
-  expect(frontOf(win())).toBe("control-center")
+  expect(viewFrontOf(win())).toBe("control-center")
   // 見えているブックスクリーンは、AI に見えている物として知らせる（カレントスクリーンの種類は変わらない）
   expect(viewOf(core, state.getState())).toMatchObject({ front: "control-center", book: "b1" })
   // 機能台帳に無いアレンジメントには替えない。場所に入り、当てはめると戻る

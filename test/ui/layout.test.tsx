@@ -18,8 +18,8 @@ import {
   tidySeparators,
 } from "../../web/src/ui/layout"
 import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
-import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider, shownLayout, useLayoutWarnings } from "../../web/src/ui/store-context"
+import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { SAMPLE_BOOKS } from "../sample-books"
 
 afterEach(cleanup)
@@ -182,7 +182,7 @@ describe("UI マッピング", () => {
     try {
       render(
         <MatomezuProvider instance={instance()} layout={bad}>
-          <Screen />
+          <WindowRoot />
         </MatomezuProvider>,
       )
     } catch (e) {
@@ -207,14 +207,14 @@ describe("UI マッピング", () => {
     const a = instance()
     const { rerender } = render(
       <MatomezuProvider instance={a} layout={DEFAULT_LAYOUT}>
-        <Screen />
+        <WindowRoot />
       </MatomezuProvider>,
     )
     const toolbar = () => screen.getByRole("toolbar", { name: "ツール", hidden: true }).parentElement!
     expect(within(toolbar()).queryByRole("tablist")).toBeNull()
     rerender(
       <MatomezuProvider instance={a} layout={TABS_ON_TOP}>
-        <Screen />
+        <WindowRoot />
       </MatomezuProvider>,
     )
     expect(within(toolbar()).getByRole("tablist")).toBeTruthy()
@@ -480,7 +480,7 @@ describe("取り込むときの UI マッピングの確かめ", () => {
     expect(instance.plugins.map(p => p.id as string)).toContain("r")
     render(
       <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
-        <Screen />
+        <WindowRoot />
       </MatomezuProvider>,
     )
     expect(screen.getAllByText("ping").length).toBeGreaterThan(0)

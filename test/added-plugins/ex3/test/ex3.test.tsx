@@ -8,7 +8,7 @@ import {
   MatomezuProvider,
   openedIn,
   placeAdded,
-  Screen,
+  WindowRoot,
 } from "matomezu/testing"
 import EX3_UI from "../ui"
 
@@ -23,7 +23,7 @@ const make = () => {
   })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   return instance

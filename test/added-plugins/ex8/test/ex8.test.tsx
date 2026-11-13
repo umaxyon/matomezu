@@ -9,8 +9,8 @@ import {
   MatomezuProvider,
   openedIn,
   placeAdded,
-  Screen,
   stagePlacesOf,
+  WindowRoot,
   withStagePlaces,
 } from "matomezu/testing"
 import EX8_UI from "../ui"
@@ -25,7 +25,7 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
   })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   act(() => {
@@ -68,7 +68,7 @@ test("カードの並べ方は画面の場所に入り（読み直しても戻�
   })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   act(() => {

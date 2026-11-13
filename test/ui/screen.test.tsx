@@ -8,8 +8,8 @@ import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import type { StoreOptions } from "../../web/src/store/store"
 import { definePluginUi } from "../../web/src/ui/plugin"
-import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { SAMPLE_BOOKS } from "../sample-books"
 
 const SKIN = "@matomezu/base:skin"
@@ -26,7 +26,7 @@ function renderBooksScreen(options: Omit<StoreOptions, "plugins"> = {}) {
   })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   return store
@@ -247,7 +247,7 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
   })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   expect((fromMenu("画面を分割") as HTMLButtonElement).disabled).toBe(true)
@@ -275,7 +275,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   render(
     <StrictMode>
       <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-        <Screen />
+        <WindowRoot />
       </MatomezuProvider>
     </StrictMode>,
   )
@@ -350,7 +350,7 @@ test("認可ステップがページの削除を止めていれば、ページ�
   })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))
@@ -385,7 +385,7 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
   })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   fireEvent.click(fromMenu("ブックを開く"))
@@ -449,7 +449,7 @@ test("認可ステップがゴミ箱のブックの戻す・消すを止めて�
     ).toBe(true)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   fireEvent.click(fromMenu("ブックを開く"))
@@ -489,7 +489,7 @@ test("右クリックのメニューに出るコマンドが無ければ、メ�
   } as const
   render(
     <MatomezuProvider instance={store} layout={layout}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   const notCanceled = fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))

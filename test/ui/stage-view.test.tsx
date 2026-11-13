@@ -8,8 +8,8 @@ import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import { defineWidget, placeAdded } from "../../web/src/ui/layout"
 import { definePluginUi } from "../../web/src/ui/plugin"
-import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { sequence } from "../support"
 
@@ -34,7 +34,7 @@ test("パンしても、book-layers のレイヤーは描き直さない", () =>
   })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, [counter])}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   act(() => {

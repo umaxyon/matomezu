@@ -11,8 +11,8 @@ import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { placeAdded } from "../../web/src/ui/layout"
 import { type AnyPluginUi, definePluginUi } from "../../web/src/ui/plugin"
-import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { SAMPLE_BOOKS } from "../sample-books"
 
 afterEach(cleanup)
@@ -57,7 +57,7 @@ function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], bo
   if (book !== undefined) store.actions.openBook("s1", book)
   render(
     <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))

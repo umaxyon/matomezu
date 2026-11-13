@@ -10,7 +10,7 @@ import {
   MatomezuProvider,
   openedIn,
   placeAdded,
-  Screen,
+  WindowRoot,
 } from "matomezu/testing"
 import EX4_UI from "../ui"
 
@@ -24,7 +24,7 @@ const make = () => {
   })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   return instance
@@ -109,7 +109,7 @@ test("ビルトインの線（と線を選ぶ図面・フローチャート）�
   expect(() =>
     render(
       <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
-        <Screen />
+        <WindowRoot />
       </MatomezuProvider>,
     ),
   ).not.toThrow()

@@ -1,4 +1,4 @@
-// 画面の場所: 見ているもの（窓の状態 window.ts）のうち、読み直しても戻したいもの。開いているスクリーンの並び（1 枚ごとの id・定義の id・渡された値）と前に出した順、
+// 画面の場所: 見ているもの（窓の状態 window.ts）のうち、読み直しても戻したいもの。開いているスクリーンの並び（1 枚ごとの id・定義の id・渡された値）とカレントにした順、
 // ステージを並べるスクリーンの、ステージごとに開いているブックとページ・倍率・ずらす量（印刷プレビューの間は、閉じたときに戻す編集の倍率とずらす量。
 // 印刷プレビューの間かは入れず、読み直すと編集に戻る）・カレントのステージ・分けている境目の割合と、場所に入れるプラグイン状態（窓・スクリーン・ステージの範囲。
 // 中身は読まずに運ぶ。どれを入れるか・形を確かめるのは store）。
@@ -90,9 +90,9 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
 }
 
 // 場所 address の、カレントスクリーンの id（無ければ undefined）
-export const frontIn = (address: Address): string | undefined => address.order[address.order.length - 1]
+export const currentIn = (address: Address): string | undefined => address.order[address.order.length - 1]
 
-// 場所 address の、いちばん最近前に出した、ステージを並べるスクリーン（無ければ undefined）
+// 場所 address の、いちばん最近カレントにした、ステージを並べるスクリーン（無ければ undefined）
 export function recentStagesIn(address: Address): ScreenPlace | undefined {
   for (let i = address.order.length - 1; i >= 0; i--) {
     const s = address.screens.find(x => x.id === address.order[i])
@@ -101,7 +101,7 @@ export function recentStagesIn(address: Address): ScreenPlace | undefined {
   return address.screens.find(s => s.stages)
 }
 
-// 場所 address の、ブックスクリーン（いちばん最近前に出した、ステージを並べるスクリーン）のステージの並び（無ければ空）
+// 場所 address の、ブックスクリーン（いちばん最近カレントにした、ステージを並べるスクリーン）のステージの並び（無ければ空）
 export const stagePlacesOf = (address: Address): readonly StagePlace[] => recentStagesIn(address)?.stages?.places ?? []
 
 // 場所 address の、ブックスクリーンのステージの並びを places にした場所（current を渡せば、カレントの番号も替える。ブックスクリーンが無ければ同じ場所）
@@ -116,7 +116,8 @@ export function withStagePlaces(address: Address, places: readonly StagePlace[],
 // または積むと宣言したプラグイン状態（pushes: 宣言の id）の値が違う
 // （倍率・ずらす量・カレント・境目と、積むと宣言していないプラグイン状態だけの違いは移動ではない）
 export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new Set()): boolean {
-  if (frontIn(a) !== frontIn(b) || a.screens.length !== b.screens.length || a.arrangement !== b.arrangement) return true
+  if (currentIn(a) !== currentIn(b) || a.screens.length !== b.screens.length || a.arrangement !== b.arrangement)
+    return true
   if ([...pushes].some(id => !sameData(a.window[id], b.window[id]))) return true
   return a.screens.some((s, i) => {
     const t = b.screens[i]
@@ -151,7 +152,7 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
 
 // 窓 win に場所 address を当てはめる。場所のスクリーンを、その id のまま開く（同じ id・同じ定義のスクリーンが開いていれば、その中を使い回す。
 // 機能台帳に無い定義・形に合わない渡す値・c と番号でない id のスクリーンは開かない）。場所に無いスクリーンは閉じる（最初から開いているスクリーンと、
-// ステージを並べるスクリーンが 1 枚も残らなくなるなら、今の物を残す）。前に出す順は場所のとおり。
+// ステージを並べるスクリーンが 1 枚も残らなくなるなら、今の物を残す）。カレントにした順は場所のとおり。
 // ステージを並べるスクリーンのステージは、左から同じ番号のものを使い回し、足りなければ足す（MAX_STAGES まで）。開けないブック・ページのステージは何も開かない。
 // 場所にステージが無ければ、そのスクリーンのステージは今のまま。場所にスクリーンが無ければ、窓は今のまま。プラグイン状態は当てはめない（store の locate が当てはめる）
 export function placeAt(

@@ -4,8 +4,8 @@ import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import type { AnyPluginUi } from "../../web/src/ui/plugin"
-import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { WindowRoot } from "../../web/src/ui/WindowRoot"
 
 export interface RenderOptions {
   plugins?: readonly AnyPluginUi[] // 既定はビルトインのプラグイン
@@ -24,7 +24,7 @@ export function renderScreen(options: RenderOptions = {}) {
     : createMatomezu({ ...base, plugins: BUILTIN_UI })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>,
   )
   return store

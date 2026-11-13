@@ -1,6 +1,6 @@
-// 窓の状態。窓は、スクリーン（core/def/screen-def.ts の定義から開いた 1 枚ずつ）を何枚でも持ち、そのうち 1 枚を前に出す。
+// 窓の状態。窓は、スクリーン（core/def/screen-def.ts の定義から開いた 1 枚ずつ）を何枚でも持ち、そのうち 1 枚がカレントスクリーン（どれを見せるかは、スクリーンアレンジメントが決める）。
 // 同じ定義・同じ渡す値でも別の 1 枚として開ける（1 枚ずつ id を振る。閉じたスクリーンの id も使い回さない）。
-// 前に出した順（order）を覚え、最後が今の前。前のスクリーンを閉じたら、その 1 つ前に出していた物が前に出る。後ろに退いたスクリーンの中（ステージ・倍率・選択など）は残る。
+// カレントにした順（order）を覚え、最後がカレントスクリーン。カレントスクリーンを閉じたら、その 1 つ前にカレントだった物がカレントになる。カレントでないスクリーンの中（ステージ・倍率・選択など）は残る。
 // ステージを並べるスクリーン（定義が stages を名乗る。ブックスクリーン）は、開いた 1 枚ごとに、見ているもの（workspace.ts のステージの並び）を持つ。
 // ステージの番号は窓で一意に振る（issued。どのスクリーンのステージでも、閉じたステージの番号も使い回さない）。
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを使い回す）
@@ -22,8 +22,8 @@ export interface OpenedScreen {
 // ステージを並べるスクリーン（ブックスクリーン）
 export type BookScreen = OpenedScreen & { stages: Workspace }
 
-// カレントスクリーンの種類: ステージを並べるスクリーンか、そうでないスクリーンか
-export type Front = "control-center" | "book-screen"
+// AI に見せる（view の front）、カレントスクリーンの種類: ステージを並べるスクリーン（book-screen）か、そうでないスクリーン（control-center。コントロールセンターのほかのスクリーンも）
+export type ViewFront = "control-center" | "book-screen"
 
 export interface WindowState {
   screens: readonly OpenedScreen[] // 開いているスクリーン（開いた順。1 枚以上で、ステージを並べるスクリーンを 1 枚以上持つ）
@@ -42,7 +42,7 @@ export const NO_SCREEN_DEF = "none"
 const holdsStages = (s: OpenedScreen): s is BookScreen => s.stages !== undefined
 
 // 窓を開いたときの状態: 機能台帳の、最初から開いているスクリーン（定義が atStart を名乗る）と、ステージを並べるスクリーン 1 枚（ブックを渡せばそれを開き、無ければ何も開かない）。
-// 前に出すのは、ステージを並べるスクリーン
+// カレントスクリーンは、ステージを並べるスクリーン
 export function newWindow(catalog: CoreCatalog, book: Book | null): WindowState {
   const defs = [...catalog.screens.values()]
   const stages = defs.find(d => d.stages)?.id ?? NO_SCREEN_DEF
@@ -53,7 +53,7 @@ export function newWindow(catalog: CoreCatalog, book: Book | null): WindowState 
   return openScreen(win, catalog, stages, {}, book).win
 }
 
-// スクリーンを 1 枚開いて前に出す（ステージを並べるスクリーンなら、ステージ 1 つの並びを持たせ、ブックを渡せばそれを開く）。開いた 1 枚の id も返す
+// スクリーンを 1 枚開いてカレントにする（ステージを並べるスクリーンなら、ステージ 1 つの並びを持たせ、ブックを渡せばそれを開く）。開いた 1 枚の id も返す
 export function openScreen(
   win: WindowState,
   catalog: CoreCatalog,
@@ -84,7 +84,7 @@ export function currentScreen(win: Pick<WindowState, "screens" | "order">): Open
   return win.screens.find(s => s.id === id) ?? fail("E117", { index: String(id) })
 }
 
-// いちばん最近前に出した、種類 kind のスクリーン（stages はステージを並べるスクリーン、plain はそうでないスクリーン。無ければ undefined）
+// いちばん最近カレントにした、種類 kind のスクリーン（stages はステージを並べるスクリーン、plain はそうでないスクリーン。無ければ undefined）
 function recent(win: Pick<WindowState, "screens" | "order">, kind: "stages" | "plain"): OpenedScreen | undefined {
   for (let i = win.order.length - 1; i >= 0; i--) {
     const s = win.screens.find(x => x.id === win.order[i])
@@ -93,21 +93,21 @@ function recent(win: Pick<WindowState, "screens" | "order">, kind: "stages" | "p
   return undefined
 }
 
-// いちばん最近前に出した、ステージを並べるスクリーン（ほかのスクリーンを前に出している間も、後ろに残っている物）
+// いちばん最近カレントにした、ステージを並べるスクリーン（ほかのスクリーンがカレントの間も、残っている物）
 export function recentBookScreen(win: Pick<WindowState, "screens" | "order">): BookScreen {
   return (recent(win, "stages") as BookScreen | undefined) ?? fail("E117", { index: "none" })
 }
 
-// いちばん最近前に出した、ステージを並べないスクリーン（無ければ undefined）
+// いちばん最近カレントにした、ステージを並べないスクリーン（無ければ undefined）
 export const recentPlainScreen = (win: Pick<WindowState, "screens" | "order">): OpenedScreen | undefined =>
   recent(win, "plain")
 
-// いちばん最近前に出したブックスクリーンの中（ステージの並び）
+// いちばん最近カレントにしたブックスクリーンの中（ステージの並び）
 export function screenOf(win: Pick<WindowState, "screens" | "order">): Workspace {
   return recentBookScreen(win).stages
 }
 
-// いちばん最近前に出したブックスクリーンに操作をかける。変わらなければ同じ窓を返す
+// いちばん最近カレントにしたブックスクリーンに操作をかける。変わらなければ同じ窓を返す
 export function mapScreen(win: WindowState, change: (ws: Workspace) => Workspace): WindowState {
   const was = recentBookScreen(win)
   const next = change(was.stages)
@@ -142,14 +142,14 @@ export function makeCurrent(win: WindowState, id: string): WindowState {
   return { ...win, order: [...win.order.filter(x => x !== id), id] }
 }
 
-// 前に出す物の種類を替える: いちばん最近前に出した、その種類のスクリーンを前に出す（無ければ同じ窓を返す）
-export function bringFrontKind(win: WindowState, front: Front): WindowState {
+// カレントスクリーンの種類を替える: いちばん最近カレントにした、その種類のスクリーンをカレントにする（無ければ同じ窓を返す）
+export function makeCurrentKind(win: WindowState, front: ViewFront): WindowState {
   const to = recent(win, front === "book-screen" ? "stages" : "plain")
   return to ? makeCurrent(win, to.id) : win
 }
 
 // スクリーン id を閉じる。最初から開いているスクリーン（定義が atStart を名乗る）の最後の 1 枚と、最後の 1 枚のブックスクリーンは閉じない（同じ窓を返す）。
-// 前のスクリーンを閉じたら、その 1 つ前に出していた物が前に出る
+// カレントスクリーンを閉じたら、その 1 つ前にカレントだった物がカレントになる
 export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string): WindowState {
   const target = win.screens.find(s => s.id === id)
   if (!target) return win
@@ -165,13 +165,13 @@ export function issueStage(win: WindowState): { win: WindowState; id: string } {
   return { win: { ...win, issued }, id: `s${issued}` }
 }
 
-// カレントスクリーンの種類
-export const frontOf = (win: Pick<WindowState, "screens" | "order">): Front =>
+// AI に見せる、カレントスクリーンの種類
+export const viewFrontOf = (win: Pick<WindowState, "screens" | "order">): ViewFront =>
   holdsStages(currentScreen(win)) ? "book-screen" : "control-center"
 
 // カレントスクリーンがブックスクリーン（ステージを並べるスクリーン）か。ステージのキーと、ステージでの操作が効くのは、この間
 export const bookScreenCurrent = (win: Pick<WindowState, "screens" | "order">): boolean =>
-  frontOf(win) === "book-screen"
+  viewFrontOf(win) === "book-screen"
 
 // ステージの id から、そのステージ（どのブックスクリーンの物でも。ステージの id は窓で一意。無ければ undefined）
 export function stageIn(win: Pick<WindowState, "screens">, id: string): Stage | undefined {
@@ -187,7 +187,7 @@ export function screenOfStage(win: Pick<WindowState, "screens">, id: string): Bo
   return win.screens.find((s): s is BookScreen => s.stages?.stages.some(st => st.id === id) === true)
 }
 
-// ステージ stage を並べているブックスクリーンの中（ステージの並び。そのステージが無ければ、いちばん最近前に出したブックスクリーンの中）
+// ステージ stage を並べているブックスクリーンの中（ステージの並び。そのステージが無ければ、いちばん最近カレントにしたブックスクリーンの中）
 export function workspaceOf(win: Pick<WindowState, "screens" | "order">, stage: string): Workspace {
   return screenOfStage(win, stage)?.stages ?? screenOf(win)
 }

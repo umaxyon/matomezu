@@ -20,7 +20,7 @@ import { fail, matomezuError, problem } from "../core/errors"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
-import { frontOf, recentBookScreen, screenOf, shownScreens } from "../core/window"
+import { viewFrontOf, recentBookScreen, screenOf, shownScreens } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type {
   AIEditTicketOutcome,
@@ -140,7 +140,7 @@ export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
     stages: ws.stages.map(s => ({ id: s.id, ...openedOf(s) })),
     canSplit: ws.stages.length < MAX_STAGES,
   }
-  const front = frontOf(state.window)
+  const front = viewFrontOf(state.window)
   // そのブックスクリーンが見えていなければ、見えていない物として分ける
   return shownScreens(catalog, state.window).includes(book.id) ? { front, ...screen } : { front, hidden: screen }
 }

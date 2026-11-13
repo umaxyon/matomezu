@@ -16,8 +16,8 @@ import { createMatomezu } from "./store/create"
 import { loadFonts } from "./ui/fonts"
 import { placeAdded, placeAddedWithWarnings } from "./ui/layout"
 import { type AnyPluginUi, assembleUi } from "./ui/plugin"
-import { Screen } from "./ui/Screen"
 import { MatomezuProvider, shownLayout } from "./ui/store-context"
+import { WindowRoot } from "./ui/WindowRoot"
 import "./ui/skin.css"
 
 loadFonts()
@@ -59,7 +59,7 @@ if (!root) fail("E202")
 createRoot(root).render(
   <StrictMode>
     <MatomezuProvider instance={store} layout={layout} warnings={screenWarnings}>
-      <Screen />
+      <WindowRoot />
     </MatomezuProvider>
   </StrictMode>,
 )

@@ -364,7 +364,7 @@ test("matomezu/testing が出す名前", () => {
     "BUILTIN_UI",
     "DEFAULT_LAYOUT",
     "MatomezuProvider",
-    "Screen",
+    "WindowRoot",
     "createMatomezu",
     "defineLayout",
     "openedIn",
