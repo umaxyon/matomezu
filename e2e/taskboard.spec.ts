@@ -113,6 +113,8 @@ test("レーンのタイトル帯をドラッグすると、レーンが左右�
     expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
   const first = (await records(page, "@matomezu/taskboard:project"))[0]!
   const board = page.locator(`[data-board="${first.id}"]`)
+  // 入る動き（右から滑り込む）が終わって、位置が止まってから測る（動いている間の位置でつかむと、別の所を運ぶことになる）
+  await expect(board).toHaveAttribute("data-state", "idle")
   const lanes = board.locator("[data-lane]")
   const ids = async () => lanes.evaluateAll(els => els.map(e => e.getAttribute("data-lane")))
   const before = await ids()
@@ -124,6 +126,18 @@ test("レーンのタイトル帯をドラッグすると、レーンが左右�
 
   // つかんで先頭のレーンの上へ運ぶと、先頭の手前（左の辺）に印が出て、離すと入れ替わる
   const handle = lanes.nth(1).locator("> div").first()
+  let last = ""
+  await expect
+    .poll(
+      async () => {
+        const now = JSON.stringify([await handle.boundingBox(), await lanes.nth(0).boundingBox()])
+        const same = now === last
+        last = now
+        return same
+      },
+      { intervals: [100] },
+    )
+    .toBe(true)
   const from = (await handle.boundingBox())!
   const over = (await lanes.nth(0).boundingBox())!
   await page.mouse.move(from.x + 40, from.y + 6)
