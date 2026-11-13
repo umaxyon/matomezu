@@ -1,6 +1,7 @@
 // 郵便のダイアログの下の行のスロットの名前と、渡す物（base の ui.tsx で、core/catalog.ts の表に書き足す）
-import type { Mail } from "../../../core/mail"
+
 import { kit } from "../kit"
+import type { Mail } from "./mail"
 
 export const MAIL_ACTIONS = kit.name("mail-actions")
 

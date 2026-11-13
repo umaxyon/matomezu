@@ -621,7 +621,7 @@ func (e *Engine) RunOnceActions() (ids []string, err error) {
 	return ids, err
 }
 
-// SubjectRoles は、常駐が読む種類の役（participants・workrooms・mails）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）
+// SubjectRoles は、常駐が読む種類の役（participants・workrooms）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）
 func (e *Engine) SubjectRoles() (roles map[string]string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

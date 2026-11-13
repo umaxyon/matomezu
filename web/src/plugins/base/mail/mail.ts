@@ -1,11 +1,11 @@
-// 郵便: 利用者に届く知らせ。種類は core/def/mail.ts。郵便 1 通は、役 mails の対象の定義（core/def/subject.ts）のレコード 1 件で、
-// 届いた順は番号 order で決まる（番号を振る種類。使い回さない）。core が読むのは、ここで決めた形（MailSchema）だけ。
+// 郵便: 利用者に届く知らせ。種類は core/def/mail.ts。郵便 1 通は、base の対象の定義 mail（index.ts）のレコード 1 件で、
+// 届いた順は番号 order で決まる（番号を振る種類。使い回さない）。郵便の形（MailSchema）と確かめ（checkMail）は、ここが持つ（core は郵便を知らない）。
 // 行き先 to（ブック・ページ・物の id）は任意で、送るときには確かめない（開くときに無ければ、無いと見せる）。
 // 既読は 2 つ: 郵便そのものを見た時点 seenAt と、郵便が示した物（行き先）を見た時点 visitedAt
 import { z } from "zod"
-import type { CoreCatalog } from "./core-catalog"
-import { splitId } from "./names"
-import { type Warning, warning } from "./warnings"
+import type { CoreCatalog } from "../../../core/core-catalog"
+import { splitId } from "../../../core/names"
+import { type Warning, warning } from "../../../core/warnings"
 
 export const MailSchema = z.object({
   id: z.string().min(1),
@@ -30,7 +30,7 @@ export type Mail = z.output<typeof MailSchema>
 export const MAIL_ORDER_SCOPE = "mail"
 
 // 郵便 1 通の効かない所（種類が機能台帳に無い W022・形が合わない W023）の warning。データには手を付けない（画面は題を「郵便」として出す）。
-// アクションの結果の確かめ（core/perform.ts）と、残した郵便の確かめ（core/records.ts の checkRecords）が使う
+// 対象の定義 mail の check に書き、アクションの結果の確かめ（core/perform.ts）と、残したレコードの確かめ（core/records.ts の checkRecords）が呼ぶ
 export function checkMail(catalog: CoreCatalog, record: unknown): Warning[] {
   const m = (typeof record === "object" && record !== null ? record : {}) as Partial<Record<keyof Mail, unknown>>
   const kind = typeof m.mail === "string" ? m.mail : ""

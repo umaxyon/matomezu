@@ -1,7 +1,6 @@
 // 郵便箱を読み、郵便を開くフック
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
-import type { Mail } from "../../../core/mail"
 import { sameData } from "../../../core/same"
 import { screenOf } from "../../../core/window"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -9,6 +8,7 @@ import { useLeftSidePanel, useToggleLeftSidePanel } from "../left-side-panel/hoo
 import { mailboxOf } from "."
 import { MAIL_DIALOG } from "./dialogs"
 import { mailboxEntries } from "./entries"
+import type { Mail } from "./mail"
 
 // 利用者の郵便箱（郵便のレコードを届いた順に並べた物）
 export const useMailbox = (): readonly Mail[] => useMatomezuState(useShallow(s => mailboxOf(s.records)))

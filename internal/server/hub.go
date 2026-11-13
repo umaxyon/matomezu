@@ -78,7 +78,7 @@ type Hub struct {
 	order            []string // 置いた順のブックの id（GET /api/data の並び）
 	settings         json.RawMessage
 	annotations      map[string]json.RawMessage        // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
-	roles            map[string]string                 // 常駐が読む種類の役（participants・workrooms・mails）→ 対象の定義の id（records.go）
+	roles            map[string]string                 // 常駐が読む種類の役（participants・workrooms）→ 対象の定義の id（records.go）
 	recordTables     map[string]map[string]recordEntry // 対象の定義が足した種類のレコード（種類の id → id → レコード。records.go）
 	kinds            map[string]engine.Kind            // 今のプラグインのレコードの種類（種類の id → 索引キーの宣言と、AI に見せる一覧の決まり。records.go の syncKinds）
 	counters         map[string]map[string]int64       // 番号を振る種類の、区切り → 次の番号（種類の id → 区切り → 次の番号。records.go）

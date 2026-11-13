@@ -1,6 +1,6 @@
 // 郵便箱（ウィジェット mailbox。左サイドパネルのタブ）: 届いた郵便を新しい順に並べる。行には、まだ見ていない印・送り手・題・届いた時刻を出す。
 // 種類が印を添えれば（反映済みなど）、題のあとに出す。行を押すと郵便のダイアログを開く（本文はダイアログで見せ、そこで見たことになる）。「取消」は確かめてから、その郵便を消す（消せなければ押せず、断られたらトースト）
-import type { Mail } from "../../../core/mail"
+
 import { useMessages } from "../../../ui/i18n"
 import { useActions } from "../../../ui/store-context"
 import { useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
@@ -13,6 +13,7 @@ import { refusalMessage } from "../utils/refusal"
 import { MAIL_REMOVE } from "."
 import { useMailbox, useOpenMail } from "./hooks"
 import own from "./Mail.module.css"
+import type { Mail } from "./mail"
 import { shownOf } from "./shown"
 
 const TITLE_CHARS = 24 // 行に出す題の字数

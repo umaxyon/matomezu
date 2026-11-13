@@ -29,7 +29,6 @@ import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
 import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
-import { checkMail } from "./mail"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { readsOf, readsWholeKinds, referredOf } from "./refs"
@@ -454,13 +453,13 @@ export function performIn(
 const isRecordTarget = (catalog: CoreCatalog, target: string): boolean => catalog.subjects.has(target)
 
 // レコードが対象のアクションの結果 next が形を守っているか: 新しいレコードは種類の形に合い、id は変わらず（作るときは新しい id）、消すなら now がある。
-// 役 mails の種類（郵便）なら、郵便の種類が機能台帳にあって、その形にも合う（core/mail.ts の checkMail）
+// 種類が形のほかの確かめ（対象の定義の check）を書いていれば、それにも通る（郵便なら、郵便の種類が機能台帳にあって、その形にも合う）
 function recordSettles(catalog: CoreCatalog, target: string, now: unknown, next: unknown): boolean {
   if (next === REMOVED) return now !== NO_RECORD
   const def = catalog.subjects.get(target)
   const fits = def?.record.safeParse(next)
   if (!fits?.success) return false
-  if (def?.role === "mails" && checkMail(catalog, next).length > 0) return false
+  if (def?.check && def.check(next, catalog).length > 0) return false
   return now === NO_RECORD || (now as { id: string }).id === (next as { id: string }).id
 }
 

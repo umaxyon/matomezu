@@ -1,5 +1,4 @@
 import type { CoreCatalog } from "./core-catalog"
-import { checkMail } from "./mail"
 import { splitId } from "./names"
 import { type Warning, warning } from "./warnings"
 
@@ -71,14 +70,14 @@ export function withRecords(records: Records, changes: readonly RecordChange[]):
 }
 
 // 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が機能台帳に無い W024・形が合わない W025）の warning を返す。データには手を付けない。
-// 役 mails の種類のレコード（郵便）は、郵便の種類で確かめる（core/mail.ts の checkMail。W022・W023）
+// 形のほかの確かめ（対象の定義の check）を書いた種類は、その warning を返す（郵便は W022・W023）
 export function checkRecords(catalog: CoreCatalog, records: Records): Warning[] {
   return Object.entries(records).flatMap(([subject, table]) => {
     const owner = splitId(subject).owner ?? ""
     const def = catalog.subjects.get(subject)
     return Object.entries(table).flatMap(([id, record]) => {
       if (!def) return [warning("W024", owner, { id, subject })]
-      if (def.role === "mails") return checkMail(catalog, record)
+      if (def.check) return def.check(record, catalog)
       return def.record.safeParse(record).success ? [] : [warning("W025", owner, { id, subject })]
     })
   })

@@ -8,12 +8,12 @@
 import { z } from "zod"
 import { USER } from "../../../core/actor"
 import type { ActionContext } from "../../../core/def/action"
-import type { Mail } from "../../../core/mail"
 import { actionsOf, perform } from "../../../core/perform"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "."
+import type { Mail } from "./mail"
 import { ownChanged, ownValues } from "./own-values"
 
 const ChangeSchema = z.strictObject({ action: z.string().min(1), args: z.unknown() })

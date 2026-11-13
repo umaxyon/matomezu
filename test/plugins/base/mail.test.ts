@@ -3,9 +3,9 @@
 
 import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
-import type { Mail } from "../../../web/src/core/mail"
 import { performIn } from "../../../web/src/core/perform"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
+import type { Mail } from "../../../web/src/plugins/base/mail/mail"
 import { placeShown } from "../../../web/src/plugins/base/mail/visited"
 import { CORE_CATALOG, newStore } from "../../support"
 

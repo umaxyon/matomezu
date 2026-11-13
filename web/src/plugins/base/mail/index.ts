@@ -4,10 +4,10 @@
 import { z } from "zod"
 import type { ActionContext, AIEditTicketChange } from "../../../core/def/action"
 import { freshId } from "../../../core/ids"
-import { MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder } from "../../../core/mail"
 import { inOrder } from "../../../core/record-keys"
 import { NO_RECORD, RECORDS_MAX, type Records } from "../../../core/records"
 import { kit } from "../kit"
+import { checkMail, MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder } from "./mail"
 import { ticketsOnRemoved } from "./removed"
 
 // 郵便のレコードの種類。AI は read_records で読む: 一覧は新しい順に 20 通（題と、種類・送り手・届いた時点・行き先・既読の 2 つ）、中身（props）は id を指して読む
@@ -16,9 +16,10 @@ export const MAIL = kit.defineSubject({
   title: "Mail",
   aiDescription:
     "A letter in the user's mailbox (send one with mail-send). Listed newest first: mail (the kind of letter), from, sentAt, to (the place it points at), seenAt (when the user opened the letter; left out: not yet), visitedAt (when the user saw the place it points at; left out: not yet) and brief (a line that tells the letter apart). Its props (title and body, and more for some kinds) come with id or ids. Index keys: seenAt (where {seenAt: {is: absent}} lists the letters the user has not opened yet), visitedAt, to (the id of the book it points at; {to: {is: present}, visitedAt: {is: absent}} lists the letters whose place the user has not seen yet) and order (the number it arrived as).",
-  role: "mails",
   numbered: true,
   record: MailSchema,
+  // 郵便の種類が機能台帳にあり、その形にも合うか
+  check: (record, catalog) => checkMail(catalog, record),
   // 届いた順の番号、利用者が見た時点（見ていなければ無い）、行き先を見た時点（見ていなければ無い）、行き先のブックの id（行き先が無ければ無い）
   keys: {
     order: { type: "number", of: m => m.order },

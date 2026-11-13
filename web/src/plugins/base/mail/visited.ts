@@ -1,5 +1,5 @@
 // 郵便の行き先が画面に出ているか（行き先を見たかの見張り MailWatch が使う。表示領域に入ったかを測るのは見張りの側で、ここは決めるだけ）
-import type { Mail } from "../../../core/mail"
+import type { Mail } from "./mail"
 
 // 開いているステージ（ステージの id と、開いているブック・ページ）
 export interface OpenedStage {

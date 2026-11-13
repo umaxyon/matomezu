@@ -1,9 +1,9 @@
 // 郵便の確かめ（core/mail.ts の checkMail。残した郵便は core/records.ts の checkRecords から）と、届いた順の並べ方。AI が読む取り方は read_records（常駐のテスト）（mailForAi）。
 // 郵便は役 mails の種類のレコードで、届いた順は order
 import { expect, test } from "bun:test"
-import { checkMail, type Mail, mailsInOrder } from "../../web/src/core/mail"
-import { checkRecords } from "../../web/src/core/records"
-import { CORE_CATALOG } from "../support"
+import { checkRecords } from "../../../web/src/core/records"
+import { checkMail, type Mail, mailsInOrder } from "../../../web/src/plugins/base/mail/mail"
+import { CORE_CATALOG } from "../../support"
 
 const MAIL = "@matomezu/base:mail"
 let order = 0

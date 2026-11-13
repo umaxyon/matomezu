@@ -457,7 +457,7 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
     Object.fromEntries([...assembled.catalog.core.subjects.values()].flatMap(s => (s.role ? [[s.role, s.id]] : []))),
   )
 
-// 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が無い W024・形が合わない W025。役 mails の種類の郵便は、郵便の種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
+// 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が無い W024・形が合わない W025。形のほかの確かめを書いた種類はその warning。郵便なら、郵便の種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
 ;(globalThis as { matomezuCheckRecords?: (records: string) => string }).matomezuCheckRecords = records =>
   JSON.stringify(checkRecords(assembled.catalog.core, restoreRecords(JSON.parse(records))).map(warningText))
 

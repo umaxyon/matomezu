@@ -6,14 +6,13 @@ import type { SubjectExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { Order } from "../record-keys"
+import type { Warning } from "../warnings"
 
-// 常駐と core が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・UserPromptSubmit のフック）が読み、
-// 郵便（mails）は常駐がレコードを丸ごと core に渡して、core が読む（core/mail.ts の形。read_mail の見せ方と確かめ）。定義が役を名乗り、常駐と core は役で種類を引く。
+// 常駐が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・話しかけのフック）が読む。定義が役を名乗り、常駐は役で種類を引く。
 // 役ごとに 1 つの種類だけが名乗り、読むフィールドを record に持つ（SUBJECT_ROLE_FIELDS。台帳アセンブルのときに確かめる）
 export const SUBJECT_ROLE_FIELDS = {
   participants: ["id", "state", "ai", "model", "env", "sessionName", "link", "workroom", "requestedAt"],
   workrooms: ["id", "name"],
-  mails: ["id", "mail", "from", "sentAt", "to", "seenAt", "visitedAt", "props", "order"],
 } as const
 export type SubjectRole = keyof typeof SUBJECT_ROLE_FIELDS
 
@@ -30,7 +29,10 @@ export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends stri
   record: R // レコード 1 件の形。id（文字）を持つ
   // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す種類は、アクションの reads に書く）
   refers?(record: z.output<R>): readonly { subject: string; id: string }[]
-  role?: SubjectRole // 常駐と core が種類で引く役（参加者・ワークルーム・郵便）
+  role?: SubjectRole // 常駐が種類で引く役（参加者・ワークルーム）
+  // レコード 1 件の、形（record）のほかの確かめ。効かない所があれば warning を返す（無ければ空）。書いた種類は、形の確かめもここで行う（形に合わないレコードも渡る）。
+  // アクションの結果は、warning が 1 つでもあれば断り、残したレコードは、この warning を一覧に持つ（データには手を付けない）
+  check?(record: unknown, catalog: CoreCatalog): readonly Warning[]
   // 索引キー（名前 → 宣言）。保存が中身とは別に持ち、中身を開けずに探すのに使う
   keys?: Readonly<Record<string, RecordKeyDef<z.output<R>>>>
   // AI に見せる種類（read_records）の目次の 1 行（id とともに並ぶ題）。書いた種類だけが AI に見える（書かなければ AI には見せない）。aiListed は目次に載せるか（無ければ載せる）

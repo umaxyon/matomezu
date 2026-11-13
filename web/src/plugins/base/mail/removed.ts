@@ -3,7 +3,7 @@
 
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { AIEditTicketChange, AIEditTicketRemovedCause } from "../../../core/def/action"
-import type { Mail } from "../../../core/mail"
+import type { Mail } from "./mail"
 
 declare module "../../../core/catalog" {
   interface MailExtras {
