@@ -65,7 +65,11 @@ const send = async (page: Page, args: object) =>
   })
 const visitedAt = async (page: Page) =>
   (
-    (await (await page.request.get("/api/ai/mail", { headers: await joinedAiAuth() })).json()).mailbox as {
+    (
+      await (
+        await page.request.get("/api/ai/records?kind=%40matomezu%2Fbase%3Amail", { headers: await joinedAiAuth() })
+      ).json()
+    ).records as {
       visitedAt?: string
     }[]
   )[0]?.visitedAt

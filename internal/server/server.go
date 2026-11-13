@@ -26,7 +26,8 @@
 //	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations", "placed"}（annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
-//	GET  /api/ai/records?kind=K[&id=ID][&where.field=value]  AI に見せる種類（対象の定義の aiBrief）のレコード。id があれば {"kind","record"}、無ければ where に合う物の一覧 {"kind","records":[{"id","brief"}],"total"}（100 行まで。ai_records.go）
+//	GET  /api/ai/records?kind=K[&id=ID | &ids=a&ids=b | &where.key=value&is.key=absent&limit=N&before=ID]  AI に見せる種類（対象の定義の aiBrief）のレコード（ai_records.go）。
+//	                      id はその 1 件の全文、ids は何件かの全文、どちらも無ければ一覧（索引キーで探す種類は {"kind","records","total","older"}）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部と、
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
@@ -37,9 +38,6 @@
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
 //	POST /api/ai/model       {"sessionId", "model", "host"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
-//	GET  /api/ai/mail[?limit=N&before=id&unseen=1&unvisited=1]  利用者の郵便（役 mails の種類のレコード）の一覧（新しい順。{"mailbox": [中身 props の無い行。種類の aiBrief の title が付く], "total", "older"}。
-//	                      limit は 1〜100（既定 20）、before はその郵便より古い分、unseen は利用者がまだ開いていない郵便、unvisited は行き先をまだ見ていない郵便）。
-//	                      ?ids=x&ids=y は指した郵便の全文（{"mailbox": [...], "unknown": [...]}。ほかの取り方とは一緒に渡せない）。合わない取り方は 400
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
@@ -64,13 +62,10 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // user は設定の持ち主（利用者は 1 人）
@@ -158,21 +153,6 @@ func Handler(o Options) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(settings)
 	}))
-	mux.Handle("GET /api/ai/mail", o.ai(func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		query := engine.MailQuery{Ids: q["ids"], Limit: queryValue(q, "limit"), Before: queryValue(q, "before"), Unseen: queryValue(q, "unseen"), Unvisited: queryValue(q, "unvisited")}
-		answer, reason, err := o.Hub.AIMail(query)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if reason != "" {
-			http.Error(w, reason, http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(answer)
-	}))
 	mux.Handle("GET /api/ai/catalog", o.ai(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(o.Hub.AICatalog(r.URL.Query()["ids"]))
@@ -183,15 +163,6 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux
-}
-
-// queryValue は、問い合わせの名前 name の値（無ければ nil）
-func queryValue(q url.Values, name string) *string {
-	if !q.Has(name) {
-		return nil
-	}
-	v := q.Get(name)
-	return &v
 }
 
 // auth は合言葉の合う頼みだけを通す

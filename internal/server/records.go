@@ -300,7 +300,9 @@ func (h *Hub) syncKinds() error {
 		return err
 	}
 	specs := make([]storage.KindSpec, 0, len(kinds))
+	h.kinds = map[string]engine.Kind{}
 	for _, k := range kinds {
+		h.kinds[k.Subject] = k
 		keys := make([]storage.KeySpec, 0, len(k.Keys))
 		for _, key := range k.Keys {
 			keys = append(keys, storage.KeySpec{Name: key.Name, Type: key.Type})

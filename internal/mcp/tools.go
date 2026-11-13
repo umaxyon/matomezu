@@ -22,46 +22,6 @@ type readTool struct {
 
 var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
 
-// mailSchema は read_mail の受ける形: 取り方（一覧の limit・before・unseen・unvisited か、全文の ids）
-var mailSchema = map[string]any{
-	"type": "object",
-	"properties": map[string]any{
-		"limit":     map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "description": "How many letters to list, newest first (default 20)."},
-		"before":    map[string]any{"type": "string", "description": "The id of a letter: list the letters older than it (not it). Give the oldest id of the list you have, to go back."},
-		"unseen":    map[string]any{"type": "boolean", "description": "true: only the letters the user has not opened yet."},
-		"unvisited": map[string]any{"type": "boolean", "description": "true: only the letters that point at a place the user has not seen yet."},
-		"ids": map[string]any{
-			"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": 20,
-			"description": "The ids of letters to read in full (props too; from the list). Not together with limit, before, unseen or unvisited.",
-		},
-	},
-	"additionalProperties": false,
-}
-
-// mailQuery は、read_mail の args を常駐の口の問い合わせにする（渡された取り方だけ）
-func mailQuery(args map[string]any) string {
-	q := url.Values{}
-	if list, ok := args["ids"].([]any); ok {
-		for _, v := range list {
-			if id, ok := v.(string); ok {
-				q.Add("ids", id)
-			}
-		}
-	}
-	if n, ok := args["limit"].(float64); ok {
-		q.Set("limit", strconv.FormatFloat(n, 'f', -1, 64))
-	}
-	if id, ok := args["before"].(string); ok {
-		q.Set("before", id)
-	}
-	for _, name := range []string{"unseen", "unvisited"} {
-		if on, ok := args[name].(bool); ok && on {
-			q.Set(name, "1")
-		}
-	}
-	return "?" + q.Encode()
-}
-
 var readTools = []readTool{
 	{
 		"view",
@@ -126,13 +86,31 @@ var readTools = []readTool{
 	},
 	{
 		"read_records",
-		"Read the records of a kind that plugins keep (such as the projects and tickets of the task board). kind is a subject's id (the subjects in the index of actions). Without id, answer the records as lines (id and a one-line brief, in the order the kind decides, up to 100 with total telling how many there are): where keeps only the records whose fields have those values (for example the project of a ticket). With id, answer that record in full. To change a record, use perform with its action.",
+		"Read the records of a kind that plugins keep (such as the letters of the user's mailbox, or the projects and tickets of the task board). kind is a subject's id (the subjects in the index of actions, each with its index keys). " +
+			"Without id or ids it lists the records as lines (id, a one-line brief and what the kind adds), in the order the kind decides: a kind with index keys lists the number it decides (limit: up to 100) with total, how many fit what you asked, " +
+			"and older, how many of them come after the last one listed (give that record's id as before to go on); where keeps only the records whose index keys have the values given, " +
+			"and {\"is\": \"absent\"} or {\"is\": \"present\"} in place of a value keeps the records that have no value, or some value, for that key. A kind without index keys lists up to 100 with total, and where takes its top-level fields as text. " +
+			"With id it answers that record in full; with ids (up to 20; not together with the other arguments) those records in full, and unknown, the ids it does not have.",
 		map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"kind":  map[string]any{"type": "string", "description": "The subject's id."},
-				"id":    map[string]any{"type": "string", "description": "A record's id: answer only that record, in full."},
-				"where": map[string]any{"type": "object", "description": "Field names with the values they must have (top-level fields, as text).", "additionalProperties": map[string]any{"type": "string"}},
+				"kind": map[string]any{"type": "string", "description": "The subject's id."},
+				"id":   map[string]any{"type": "string", "description": "A record's id: answer only that record, in full."},
+				"ids": map[string]any{
+					"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": 20,
+					"description": "The ids of records to read in full (from the list). Not together with where, limit or before.",
+				},
+				"where": map[string]any{
+					"type":        "object",
+					"description": "Index keys of the kind with the values they must have, or {\"is\": \"absent\"} / {\"is\": \"present\"} for records with no value / some value for that key.",
+					"additionalProperties": map[string]any{"anyOf": []any{
+						map[string]any{"type": "string"},
+						map[string]any{"type": "number"},
+						map[string]any{"type": "object", "properties": map[string]any{"is": map[string]any{"type": "string", "enum": []string{"absent", "present"}}}, "required": []string{"is"}, "additionalProperties": false},
+					}},
+				},
+				"limit":  map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "description": "How many records to list (the kind decides without it)."},
+				"before": map[string]any{"type": "string", "description": "The id of a record: list the records that come after it in the kind's order (not it). Give the last id of the list you have, to go on."},
 			},
 			"required":             []string{"kind"},
 			"additionalProperties": false,
@@ -144,12 +122,32 @@ var readTools = []readTool{
 			if id, _ := args["id"].(string); id != "" {
 				q.Set("id", id)
 			}
-			if where, ok := args["where"].(map[string]any); ok {
-				for k, v := range where {
-					if text, ok := v.(string); ok {
-						q.Set("where."+k, text)
+			if list, ok := args["ids"].([]any); ok {
+				for _, v := range list {
+					if id, ok := v.(string); ok {
+						q.Add("ids", id)
 					}
 				}
+			}
+			if where, ok := args["where"].(map[string]any); ok {
+				for k, v := range where {
+					switch value := v.(type) {
+					case string:
+						q.Set("where."+k, value)
+					case float64:
+						q.Set("where."+k, strconv.FormatFloat(value, 'f', -1, 64))
+					case map[string]any:
+						if is, ok := value["is"].(string); ok {
+							q.Set("is."+k, is)
+						}
+					}
+				}
+			}
+			if n, ok := args["limit"].(float64); ok {
+				q.Set("limit", strconv.FormatFloat(n, 'f', -1, 64))
+			}
+			if id, _ := args["before"].(string); id != "" {
+				q.Set("before", id)
 			}
 			return api.Get("api/ai/records?" + q.Encode())
 		},
@@ -159,18 +157,6 @@ var readTools = []readTool{
 		"Read the user's settings: the value of each setting in actions, keyed by the setting's id (a setting the user has not changed has its default, or is left out when it has none).",
 		noArgs,
 		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
-	},
-	{
-		"read_mail",
-		"Read the user's mailbox. Without ids it lists the letters newest first, 20 by default (limit: up to 100) without their props: " +
-			"id, mail (the kind), from, sentAt, to (the place it points at), seenAt (when the user opened the letter; left out: not yet), visitedAt (when the user saw the place it points at; left out: not yet) and title (a line that tells the letter apart; left out when its kind gives none). " +
-			"total is how many letters fit what you asked (unseen, unvisited), and older how many of them are older than the oldest one listed: give that letter's id as before to go back. " +
-			"unseen lists only the letters the user has not opened yet, unvisited only the letters that point at a place the user has not seen yet. " +
-			"With ids (from the list, up to 20; not together with the other arguments) it answers the whole letters, props too (title and body, and more for some kinds), and unknown, the ids it does not have. Send a letter with the action mail-send.",
-		mailSchema,
-		func(api caller, args map[string]any) (json.RawMessage, error) {
-			return api.Get("api/ai/mail" + mailQuery(args))
-		},
 	},
 	{
 		"actions",

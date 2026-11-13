@@ -22,7 +22,6 @@ import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core
 import { slideIsBackground } from "../core/def/book-type"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
-import { type MailQuery, mailForAi } from "../core/mail"
 import { splitId } from "../core/names"
 import { joinActions } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
@@ -308,8 +307,12 @@ function aiTables(of: Assembled) {
         title: en(s.title),
         description: s.aiDescription,
         record: z.toJSONSchema(s.record, { io: "input", unrepresentable: "any" }),
+        // 索引キー（read_records の where に書ける名前と型。一覧の既定の並びを持つ種類だけが、索引キーで探す）
+        ...(s.aiList && s.keys
+          ? { keys: Object.fromEntries(Object.entries(s.keys).map(([name, key]) => [name, key.type])) }
+          : {}),
       })),
-    // 郵便の種類（read_mail の郵便の mail は、この id）
+    // 郵便の種類（read_records の郵便の mail は、この id）
     mails: [...catalog.mails.values()].map(m => ({
       id: m.id,
       title: en(m.title),
@@ -390,7 +393,13 @@ function aiTables(of: Assembled) {
     const parsed = def.record.safeParse(r)
     if (!parsed.success || def.aiListed?.(parsed.data) === false || !fits(r)) return []
     const { id } = parsed.data as { id: string }
-    return [{ id, order: def.aiOrder?.(parsed.data) ?? 0, brief: briefLine(brief(parsed.data), 120) }]
+    return [
+      {
+        id,
+        order: def.aiOrder?.(parsed.data) ?? 0,
+        brief: briefLine(brief(parsed.data, assembled.catalog.core), 120),
+      },
+    ]
   })
   rows.sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   return JSON.stringify(rows.map(({ id, brief }) => ({ id, brief })))
@@ -407,8 +416,28 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
     [...assembled.catalog.core.subjects.values()].map(s => ({
       subject: s.id,
       keys: Object.entries(s.keys ?? {}).map(([name, key]) => ({ name, type: key.type })),
+      // AI に見せる種類か（aiBrief を書いた種類）と、その一覧の既定の並びと件数（aiList。索引キーで探す種類だけ）
+      ai: s.aiBrief !== undefined,
+      ...(s.aiBrief !== undefined && s.aiList && s.keys?.[s.aiList.order.key] ? { aiList: s.aiList } : {}),
     })),
   )
+
+// AI に見せる種類 kind のレコードの並び records（JSON。常駐が索引キーで探して並べた、その件数だけ）の、一覧の行: id・種類が添えるフィールド（aiRow）・題（brief）。
+// 並びは受けた順のまま。形に合わないレコードは id だけの行にする（数と続きが食い違わないように）
+;(globalThis as { matomezuAiRows?: (kind: string, records: string) => string }).matomezuAiRows = (kind, records) => {
+  const def = assembled.catalog.core.subjects.get(kind)
+  const brief = def?.aiBrief
+  if (def === undefined || brief === undefined) return "null"
+  return JSON.stringify(
+    (JSON.parse(records) as unknown[]).map(r => {
+      const parsed = def.record.safeParse(r)
+      if (!parsed.success) return { id: String((r as { id?: unknown } | null)?.id ?? "") }
+      const { id } = parsed.data as { id: string }
+      const line = briefLine(brief(parsed.data, assembled.catalog.core), 120)
+      return { id, ...(def.aiRow?.(parsed.data) ?? {}), ...(line === "" ? {} : { brief: line }) }
+    }),
+  )
+}
 
 // 種類 subject のレコード records（JSON。id → レコード）の、索引キーの値（id → 名前 → 値）。常駐が、宣言が変わったあとに置き場所へ入れ直すのに引く
 ;(globalThis as { matomezuKeysOf?: (subject: string, records: string) => string }).matomezuKeysOf = (
@@ -452,13 +481,6 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
     return book ? annotationBriefs(catalog, book, restoreAnnotations(p.annotations)) : {}
   })
   return JSON.stringify(out)
-}
-
-// 郵便（役 mails の種類のレコードの並び。順は問わない）を、AI の取り方（read_mail の引数）で AI に見せる形にする（mailForAi。届いた順は core が決める）。
-// {ok, answer} か、断る理由の {ok: false, reason}
-;(globalThis as { matomezuAiMail?: (input: string) => string }).matomezuAiMail = input => {
-  const { records, query } = JSON.parse(input) as { records: unknown; query: MailQuery }
-  return JSON.stringify(mailForAi(assembled.catalog.core, Array.isArray(records) ? records : [], query))
 }
 
 // ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_page に添える）。読めないブックか、見せ方が答えなければ null

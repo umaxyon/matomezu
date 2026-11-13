@@ -3,7 +3,9 @@
 // アクションは target に種類の id を書き、on の record で 1 件を指して行う（指さなければ新しいレコードを作る）。ゴミ箱は無い（消したら無くなる）
 import type { z } from "zod"
 import type { SubjectExtras } from "../catalog"
+import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
+import type { Order } from "../record-keys"
 
 // 常駐と core が種類で引く役。参加者（participants）とワークルーム（workrooms）は常駐（join・UserPromptSubmit のフック）が読み、
 // 郵便（mails）は常駐がレコードを丸ごと core に渡して、core が読む（core/mail.ts の形。read_mail の見せ方と確かめ）。定義が役を名乗り、常駐と core は役で種類を引く。
@@ -32,9 +34,14 @@ export interface SubjectDef<R extends z.ZodObject = z.ZodObject, Tt extends stri
   // 索引キー（名前 → 宣言）。保存が中身とは別に持ち、中身を開けずに探すのに使う
   keys?: Readonly<Record<string, RecordKeyDef<z.output<R>>>>
   // AI に見せる種類（read_records）の目次の 1 行（id とともに並ぶ題）。書いた種類だけが AI に見える（書かなければ AI には見せない）。aiListed は目次に載せるか（無ければ載せる）
-  aiBrief?(record: z.output<R>): string
+  aiBrief?(record: z.output<R>, catalog: CoreCatalog): string
   aiListed?(record: z.output<R>): boolean
   // 一覧（read_records）の並びの鍵（小さい順。無ければ id の順）
   aiOrder?(record: z.output<R>): number
+  // 一覧（read_records）の既定の並び（索引キー）と件数。書いた種類の一覧は、索引キーで探して並べ、その件数だけ中身を読む
+  // （続きは before で取る。条件に書けるのは索引キーだけ）。書かなければ、種類の全部を読んで aiOrder の順に並べる
+  aiList?: { order: Order; limit: number }
+  // 一覧（read_records）の 1 行に、id と題のほかに添えるフィールド（見分けに要る物だけ。aiList を書いた種類だけが使える）
+  aiRow?(record: z.output<R>): Readonly<Record<string, unknown>>
   numbered?: true // レコードに番号を振る種類。アクションは ctx.number(区切り) で次の番号を受け取る（常駐が決める。区切りごとに連番で、使い回さない）
 }

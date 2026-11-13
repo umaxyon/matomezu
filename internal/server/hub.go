@@ -80,6 +80,7 @@ type Hub struct {
 	annotations      map[string]json.RawMessage        // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
 	roles            map[string]string                 // 常駐が読む種類の役（participants・workrooms・mails）→ 対象の定義の id（records.go）
 	recordTables     map[string]map[string]recordEntry // 対象の定義が足した種類のレコード（種類の id → id → レコード。records.go）
+	kinds            map[string]engine.Kind            // 今のプラグインのレコードの種類（種類の id → 索引キーの宣言と、AI に見せる一覧の決まり。records.go の syncKinds）
 	counters         map[string]map[string]int64       // 番号を振る種類の、区切り → 次の番号（種類の id → 区切り → 次の番号。records.go）
 	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go）
 	joinMu           sync.Mutex                        // 参加の頼みを 1 つずつ受ける（join.go）
@@ -683,15 +684,6 @@ func (h *Hub) send(c *client, name string, v any) {
 		fmt.Fprintln(os.Stderr, stamp(), "window", c.id, "is cut off: too many events waiting")
 		h.drop(c)
 	}
-}
-
-// AIMail は、利用者の郵便（役 mails の種類のレコード）を、取り方 query で AI に見せる形にして返す（engine.AIMail。並べるのは core）。
-// 取り方が合わなければ、answer は空で、断る理由 reason を返す
-func (h *Hub) AIMail(query engine.MailQuery) (answer json.RawMessage, reason string, err error) {
-	h.mu.Lock()
-	mails := h.recordsOfRole("mails")
-	h.mu.Unlock()
-	return h.engine.AIMail(mails, query)
 }
 
 // actorOf は、Perform を頼んだ者を engine に渡す形にする（AI の口が入れた By と、入っているワークルームの id）

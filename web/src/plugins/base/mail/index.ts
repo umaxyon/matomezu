@@ -1,6 +1,6 @@
 // 郵便: 送り手（AI など）から利用者へ届く物。郵便 1 通は対象の定義 mail のレコード 1 件で、届いた順は番号 order（core/mail.ts）。
 // base の郵便の種類は手紙（letter。題と本文）。送るのは mail-send（AI も送れる）、見た・行き先を見た・消すは利用者だけ（on の record で郵便を指す）。
-// 既読は 2 つ: 利用者が郵便を開いて見た時点 seenAt（画面の未読の数はこれで数える）と、郵便が示した物を見た時点 visitedAt（AI は read_mail でこれを知る）
+// 既読は 2 つ: 利用者が郵便を開いて見た時点 seenAt（画面の未読の数はこれで数える）と、郵便が示した物を見た時点 visitedAt（AI は read_records でこれを知る）
 import { z } from "zod"
 import type { ActionContext, AIEditTicketChange } from "../../../core/def/action"
 import { freshId } from "../../../core/ids"
@@ -10,19 +10,36 @@ import { NO_RECORD, RECORDS_MAX, type Records } from "../../../core/records"
 import { kit } from "../kit"
 import { ticketsOnRemoved } from "./removed"
 
-// 郵便のレコードの種類。read_mail と重ならないよう、AI の read_records には見せない（aiBrief を書かない）
+// 郵便のレコードの種類。AI は read_records で読む: 一覧は新しい順に 20 通（題と、種類・送り手・届いた時点・行き先・既読の 2 つ）、中身（props）は id を指して読む
 export const MAIL = kit.defineSubject({
   id: "mail",
   title: "Mail",
-  aiDescription: "A letter in the user's mailbox (read it with read_mail).",
+  aiDescription:
+    "A letter in the user's mailbox (send one with mail-send). Listed newest first: mail (the kind of letter), from, sentAt, to (the place it points at), seenAt (when the user opened the letter; left out: not yet), visitedAt (when the user saw the place it points at; left out: not yet) and brief (a line that tells the letter apart). Its props (title and body, and more for some kinds) come with id or ids. Index keys: seenAt (where {seenAt: {is: absent}} lists the letters the user has not opened yet), visitedAt, to (the id of the book it points at; {to: {is: present}, visitedAt: {is: absent}} lists the letters whose place the user has not seen yet) and order (the number it arrived as).",
   role: "mails",
   numbered: true,
   record: MailSchema,
-  // 届いた順の番号と、利用者が見た時点（見ていなければ無い）
+  // 届いた順の番号、利用者が見た時点（見ていなければ無い）、行き先を見た時点（見ていなければ無い）、行き先のブックの id（行き先が無ければ無い）
   keys: {
     order: { type: "number", of: m => m.order },
     seenAt: { type: "text", of: m => m.seenAt },
+    visitedAt: { type: "text", of: m => m.visitedAt },
+    to: { type: "text", of: m => m.to?.book },
   },
+  aiList: { order: { key: "order", dir: "desc" }, limit: 20 },
+  // 一覧の題は、郵便の種類が答えた 1 行（種類が機能台帳に無い・形が合わない・答えなければ無し）
+  aiBrief: (m, catalog) => {
+    const def = catalog.mails.get(m.mail)
+    return def?.aiBrief !== undefined && def.props.safeParse(m.props).success ? def.aiBrief(m.props) : ""
+  },
+  aiRow: m => ({
+    mail: m.mail,
+    from: m.from,
+    sentAt: m.sentAt,
+    ...(m.to ? { to: m.to } : {}),
+    ...(m.seenAt ? { seenAt: m.seenAt } : {}),
+    ...(m.visitedAt ? { visitedAt: m.visitedAt } : {}),
+  }),
 })
 
 // 郵便を 1 通足すアクションが読む物: 今ある郵便全部の、索引キーだけ（上限で消す古い郵便と、重ならない id を決めるのに使う。本文は読まない）
@@ -119,7 +136,7 @@ const NO_ARGS = z.strictObject({})
 export const MAIL_SEND = kit.defineAction({
   id: "mail-send",
   aiDescription:
-    "Send a letter to the user's mailbox (it shows at once on the user's screen, wherever the user is). from is a short name telling who sends it (use the same name all through your session, such as your task or work name). title (80 characters at most) and body (optional) are the letter. to points at a place: a book, and optionally a page of it and things (ids) on that page; the user can move there from the letter. The place is not checked now (if it is gone when the user opens the letter, the user is told). The mailbox keeps the newest 200 letters (seen ones go first). Returns the letter's id; read_mail tells later whether the user saw it and the place.",
+    "Send a letter to the user's mailbox (it shows at once on the user's screen, wherever the user is). from is a short name telling who sends it (use the same name all through your session, such as your task or work name). title (80 characters at most) and body (optional) are the letter. to points at a place: a book, and optionally a page of it and things (ids) on that page; the user can move there from the letter. The place is not checked now (if it is gone when the user opens the letter, the user is told). The mailbox keeps the newest 200 letters (seen ones go first). Returns the letter's id; read_records (kind @matomezu/base:mail) tells later whether the user saw it and the place.",
   title: "Send mail",
   target: MAIL.id,
   reads: READS_MAILBOX_KEYS,

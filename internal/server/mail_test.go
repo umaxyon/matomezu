@@ -11,7 +11,10 @@ import (
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// AI が手紙を送ると、利用者の郵便箱に 1 通だけ届き、画面の読む口（/api/data）と AI の読む口（/api/ai/mail）に出る。
+// mailRecords は、AI が郵便を読む口（read_records の郵便の種類）
+const mailRecords = "/api/ai/records?kind=%40matomezu%2Fbase%3Amail"
+
+// AI が手紙を送ると、利用者の郵便箱に 1 通だけ届き、画面の読む口（/api/data）と AI の読む口（read_records の郵便の種類）に出る。
 // 画面から利用者が見たと知らせると、AI の読む口に見た時点が出る（AI に断る所は store のテストが見る）
 func TestAISendsMail(t *testing.T) {
 	s := newServer(t, nil)
@@ -21,14 +24,14 @@ func TestAISendsMail(t *testing.T) {
 	if strings.Count(data, `"mail":"@matomezu/base:letter"`) != 1 || !strings.Contains(data, `"props":{"title":"済みました","body":""}`) {
 		t.Fatalf("data = %s", data)
 	}
-	_, got := send(t, "GET", s.URL+"/api/ai/mail", "", ai)
+	_, got := send(t, "GET", s.URL+mailRecords, "", ai)
 	if !strings.Contains(got, `"from":"D64"`) || strings.Contains(got, "seenAt") {
 		t.Fatalf("ai mail = %s", got)
 	}
 	id := got[strings.Index(got, `"id":"`)+6:]
 	id = id[:strings.Index(id, `"`)]
 	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:mail-seen","args":{},"on":{"record":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`, nil)
-	if _, got := send(t, "GET", s.URL+"/api/ai/mail", "", ai); !strings.Contains(got, `"seenAt":"2026-11-06T00:00:00.000Z"`) {
+	if _, got := send(t, "GET", s.URL+mailRecords, "", ai); !strings.Contains(got, `"seenAt":"2026-11-06T00:00:00.000Z"`) {
 		t.Fatalf("ai mail after seen = %s", got)
 	}
 }
@@ -40,25 +43,33 @@ func TestAIMailQuery(t *testing.T) {
 	for _, title := range []string{"一", "二", "三"} {
 		send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D89","title":"`+title+`","body":"本文"}}`, ai)
 	}
-	_, list := send(t, "GET", s.URL+"/api/ai/mail?limit=2", "", ai)
-	if strings.Contains(list, `"props"`) || !strings.Contains(list, `"title":"三"`) || !strings.Contains(list, `"title":"二"`) || strings.Contains(list, `"title":"一"`) ||
+	_, list := send(t, "GET", s.URL+mailRecords+"&limit=2", "", ai)
+	if strings.Contains(list, `"props"`) || !strings.Contains(list, `"brief":"三"`) || !strings.Contains(list, `"brief":"二"`) || strings.Contains(list, `"brief":"一"`) ||
 		!strings.Contains(list, `"total":4`) || !strings.Contains(list, `"older":2`) {
 		t.Fatalf("list = %s", list)
 	}
 	id := list[strings.LastIndex(list, `"id":"`)+6:]
 	id = id[:strings.Index(id, `"`)]
-	_, older := send(t, "GET", s.URL+"/api/ai/mail?before="+id, "", ai)
-	if !strings.Contains(older, `"title":"一"`) || strings.Contains(older, `"title":"二"`) {
+	_, older := send(t, "GET", s.URL+mailRecords+"&before="+id, "", ai)
+	if !strings.Contains(older, `"brief":"一"`) || strings.Contains(older, `"brief":"二"`) {
 		t.Fatalf("before = %s", older)
 	}
-	_, full := send(t, "GET", s.URL+"/api/ai/mail?ids="+id+"&ids=nothing", "", ai)
+	_, full := send(t, "GET", s.URL+mailRecords+"&ids="+id+"&ids=nothing", "", ai)
 	if !strings.Contains(full, `"props":{"title":"二","body":"本文"}`) || !strings.Contains(full, `"unknown":["nothing"]`) {
 		t.Fatalf("ids = %s", full)
 	}
-	for _, bad := range []string{"limit=0", "before=nothing", "ids=x&limit=1"} {
-		if code, _ := send(t, "GET", s.URL+"/api/ai/mail?"+bad, "", ai); code != 400 {
+	for _, bad := range []string{"limit=0", "before=nothing", "ids=x&limit=1", "where.title=x", "is.seenAt=maybe", "where.order=x"} {
+		if code, _ := send(t, "GET", s.URL+mailRecords+"&"+bad, "", ai); code != 400 {
 			t.Fatalf("%s = %d", bad, code)
 		}
+	}
+	// 利用者が開いていない郵便だけ（見た時点が無い）と、届いた順の番号で 1 通
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:mail-seen","args":{},"on":{"record":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`, nil)
+	if _, unseen := send(t, "GET", s.URL+mailRecords+"&is.seenAt=absent", "", ai); strings.Contains(unseen, `"brief":"二"`) || !strings.Contains(unseen, `"brief":"三"`) || !strings.Contains(unseen, `"total":3`) {
+		t.Fatalf("unseen = %s", unseen)
+	}
+	if _, seen := send(t, "GET", s.URL+mailRecords+"&is.seenAt=present", "", ai); !strings.Contains(seen, `"brief":"二"`) || !strings.Contains(seen, `"total":1`) {
+		t.Fatalf("seen = %s", seen)
 	}
 }
 

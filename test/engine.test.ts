@@ -26,7 +26,7 @@ const MAIL = "@matomezu/base:mail"
 const engine = globalThis as unknown as {
   matomezuPerform(input: string): string
   matomezuRecordNeeds(action: string, args: string): string
-  matomezuAiMail(input: string): string
+  matomezuAiRows(kind: string, records: string): string
 }
 const letter = (n: number, seen = false) => ({
   id: `m${n}`,
@@ -83,10 +83,12 @@ test("RecordNeeds は対象の種類・種類の並びで読む種類（読む�
   expect(needs("@matomezu/base:book-create", undefined)).toEqual({ subject: null, reads: [], books: [] })
 })
 
-test("AiMail は郵便のレコードを順を問わずに受け、order の順に並べて見せる（order は見せない）", () => {
-  const records = [letter(3), letter(1), letter(2)]
-  const out = JSON.parse(engine.matomezuAiMail(JSON.stringify({ records, query: { limit: "2" } })))
-  expect(out).toMatchObject({ ok: true, answer: { total: 3, older: 1 } })
-  expect(out.answer.mailbox.map((m: { id: string }) => m.id)).toEqual(["m3", "m2"])
-  expect(out.answer.mailbox.some((m: object) => "order" in m)).toBe(false)
+test("AiRows は受けた順のまま、郵便の一覧の行（種類が添えるフィールドと題。中身は見せない）を返す", () => {
+  const records = [letter(3), { ...letter(1), seenAt: "t" }]
+  const rows = JSON.parse(engine.matomezuAiRows(MAIL, JSON.stringify(records)))
+  expect(rows.map((m: { id: string }) => m.id)).toEqual(["m3", "m1"])
+  expect(rows[0]).toMatchObject({ mail: "@matomezu/base:letter", from: expect.any(String), brief: expect.any(String) })
+  expect(rows[1].seenAt).toBe("t")
+  expect(rows.some((m: object) => "props" in m)).toBe(false)
+  expect(engine.matomezuAiRows("@ex/none:x", "[]")).toBe("null")
 })

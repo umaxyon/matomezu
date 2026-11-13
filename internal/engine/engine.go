@@ -76,6 +76,17 @@ type KeySpec struct {
 type Kind struct {
 	Subject string    `json:"subject"`
 	Keys    []KeySpec `json:"keys"`
+	AI      bool      `json:"ai"`               // AI に見せる種類か（read_records）
+	AIList  *AIList   `json:"aiList,omitempty"` // 一覧の既定の並びと件数（索引キーで探す種類だけ）
+}
+
+// AIList は、AI に見せる一覧の既定の並び（索引キー Key の asc か desc）と件数
+type AIList struct {
+	Order struct {
+		Key string `json:"key"`
+		Dir string `json:"dir"`
+	} `json:"order"`
+	Limit int `json:"limit"`
 }
 
 // RecordNeeds は、アクションが対象にする種類（レコードが対象でなければ空）と、読むだけの種類と、読むだけのブックの id（アクションが引数から答える）
@@ -121,6 +132,7 @@ type Engine struct {
 	vm        *goja.Runtime
 	source    Source // 行っている間だけある、レコードを引く口（PerformWith）
 	kinds     func() string
+	aiRows    func(string, string) string
 	keysOf    func(string, string) string
 	perform   func(string) string
 	readAI    func() string
@@ -141,7 +153,6 @@ type Engine struct {
 	live      func(string, string, string, string) string
 	forAI     func(string) string
 	briefs    func(string) string
-	aiMail    func(string) string
 	placed    func(string) string
 	aiPage    func(string, string) string
 	item      func(string, string) string
@@ -189,6 +200,9 @@ func New() (*Engine, error) {
 	if err := vm.ExportTo(vm.Get("matomezuKinds"), &e.kinds); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuKinds: %w", err)
 	}
+	if err := vm.ExportTo(vm.Get("matomezuAiRows"), &e.aiRows); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuAiRows: %w", err)
+	}
 	if err := vm.ExportTo(vm.Get("matomezuKeysOf"), &e.keysOf); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuKeysOf: %w", err)
 	}
@@ -218,9 +232,6 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiBriefs"), &e.briefs); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiBriefs: %w", err)
-	}
-	if err := vm.ExportTo(vm.Get("matomezuAiMail"), &e.aiMail); err != nil {
-		return nil, fmt.Errorf("engine.js has no matomezuAiMail: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiPlaced"), &e.placed); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiPlaced: %w", err)
@@ -373,6 +384,27 @@ func (e *Engine) Kinds() (kinds []Kind, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.kinds()), &kinds)
 	return kinds, err
+}
+
+// AIRows は、AI に見せる種類 kind のレコードの並び records の、一覧の行（受けた順のまま。id・種類が添えるフィールド・題 brief）。AI に見せない種類なら ok が false
+func (e *Engine) AIRows(kind string, records []json.RawMessage) (rows []json.RawMessage, ok bool, err error) {
+	b, err := json.Marshal(records)
+	if err != nil {
+		return nil, false, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	out := e.aiRows(kind, string(b))
+	if out == "null" {
+		return nil, false, nil
+	}
+	err = json.Unmarshal([]byte(out), &rows)
+	return rows, err == nil, err
 }
 
 // KeysOf は、種類 subject のレコード records（id → レコード）の索引キーの値（id → 名前 → 値）
@@ -715,49 +747,6 @@ func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]string, err e
 		return nil, err
 	}
 	return out, nil
-}
-
-// MailQuery は、AI が郵便を読むときの取り方（read_mail の引数。値は外から来た文字のまま。エンジンの core（core/mail.ts の mailForAi）が確かめる）。Ids が nil なら一覧
-type MailQuery struct {
-	Ids       []string `json:"ids,omitempty"`
-	Limit     *string  `json:"limit,omitempty"`
-	Before    *string  `json:"before,omitempty"`
-	Unseen    *string  `json:"unseen,omitempty"`
-	Unvisited *string  `json:"unvisited,omitempty"`
-}
-
-// AIMail は、郵便（役 mails の種類のレコードの並び。順は問わない。並べるのは core）を、取り方 query で、AI に見せる形（一覧か、指した郵便の全文）にして返す。
-// 取り方が合わなければ、answer は空で、断る理由 reason（AI に返す英語の文）を返す
-func (e *Engine) AIMail(records []json.RawMessage, query MailQuery) (answer json.RawMessage, reason string, err error) {
-	if records == nil {
-		records = []json.RawMessage{}
-	}
-	b, err := json.Marshal(struct {
-		Records []json.RawMessage `json:"records"`
-		Query   MailQuery         `json:"query"`
-	}{records, query})
-	if err != nil {
-		return nil, "", err
-	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("engine: %v", r)
-		}
-	}()
-	var got struct {
-		Ok     bool            `json:"ok"`
-		Answer json.RawMessage `json:"answer"`
-		Reason string          `json:"reason"`
-	}
-	if err := json.Unmarshal([]byte(e.aiMail(string(b))), &got); err != nil {
-		return nil, "", err
-	}
-	if !got.Ok {
-		return nil, got.Reason, nil
-	}
-	return got.Answer, "", nil
 }
 
 // AIPlaced は、ブックのページの id ごとの、形の描いた位置と大きさ（{id, x, y, w, h} の並び。紙の上の左上から）を返す。

@@ -31,7 +31,7 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 	f.headers = append(f.headers, header)
 	f.gets = append(f.gets, path)
 	switch path {
-	case "api/ai/books", "api/ai/mail":
+	case "api/ai/books":
 		return json.RawMessage(`{"ok":true}`), f.replied, nil
 	case "api/ai/catalog":
 		return json.RawMessage(aiCatalogJSON), f.replied, nil
@@ -106,7 +106,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_records,read_settings,read_mail,actions,show,perform,join" {
+	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_records,read_settings,actions,show,perform,join" {
 		t.Fatalf("tools = %v", names)
 	}
 }
@@ -263,24 +263,17 @@ func TestNoticeHeaderIsAddedToEveryTool(t *testing.T) {
 	}
 }
 
-// list_books と read_mail は、渡された取り方だけを常駐への問い合わせにする
-func TestListBooksAndReadMailQueries(t *testing.T) {
+// read_records は、渡された取り方だけを常駐への問い合わせにする（値・数・値が無いという条件・件数・続き・何件かの id）
+func TestReadRecordsQueries(t *testing.T) {
 	api := &fakeAPI{}
 	talk(t, api,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_books","arguments":{}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_mail","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_records","arguments":{"kind":"k"}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_records","arguments":{"kind":"k","where":{"to":"b1","order":3,"seenAt":{"is":"absent"}},"limit":5,"before":"m9"}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_records","arguments":{"kind":"k","ids":["m1","m2"]}}}`,
 	)
-	if strings.Join(api.gets, " ") != "api/ai/books api/ai/mail?" {
+	want := "api/ai/records?kind=k api/ai/records?before=m9&is.seenAt=absent&kind=k&limit=5&where.order=3&where.to=b1 api/ai/records?ids=m1&ids=m2&kind=k"
+	if strings.Join(api.gets, " ") != want {
 		t.Fatalf("gets = %v", api.gets)
-	}
-	// read_mail の取り方は、渡された物だけを問い合わせにする（false の unseen は渡さない）
-	api = &fakeAPI{}
-	talk(t, api,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_mail","arguments":{"limit":5,"before":"m9","unseen":true,"unvisited":false}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_mail","arguments":{"ids":["m1","m2"]}}}`,
-	)
-	if strings.Join(api.gets, " ") != "api/ai/mail?before=m9&limit=5&unseen=1 api/ai/mail?ids=m1&ids=m2" {
-		t.Fatalf("read_mail gets = %v", api.gets)
 	}
 }
 

@@ -9,7 +9,11 @@ const leftPanel = (page: Page) => page.getByRole("complementary", { name: "å·¦ã‚
 const perform = async (page: Page, data: object) =>
   (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data })).json()
 const mailbox = async (page: Page) =>
-  (await (await page.request.get("/api/ai/mail", { headers: await joinedAiAuth() })).json()).mailbox as {
+  (
+    await (
+      await page.request.get("/api/ai/records?kind=%40matomezu%2Fbase%3Amail", { headers: await joinedAiAuth() })
+    ).json()
+  ).records as {
     id: string
     seenAt?: string
     visitedAt?: string
