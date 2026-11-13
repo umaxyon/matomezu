@@ -1,4 +1,4 @@
-// ex9 のカードと棚: 自分で足したアクションの対象の種類（レコード）。カードは番号を振る（区切りは 1 つ）。名前は重ならない（reads で同じ種類を読んで確かめる）。
+// ex9 のカードと棚: 自分で足したアクションの対象の種類（レコード）。カードは番号を振る（区切りは 1 つ）。名前は重ならない（reads で同じ名前のカードの索引キーを読んで確かめる）。
 // カードは棚を指し（refers）、閉じた棚にカードを足すのは、認可ステップ（CLOSED_SHELF）が、行った後の実際の参照で止める
 import { z } from "matomezu"
 import { kit } from "./kit"
@@ -23,6 +23,7 @@ export const CARD = kit.defineSubject({
     locked: z.literal(true).optional(), // ロックの印（base の lockable）
   }),
   refers: card => (card.shelf === undefined ? [] : [{ subject: SHELF.id, id: card.shelf }]),
+  keys: { name: { type: "text", of: card => card.name } },
   numbered: true,
   lockable: true,
 })
@@ -56,7 +57,6 @@ export const CARD_LOCK = kit.defineAction({
     "Lock the card named by on.record: while locked it cannot be changed or removed (only the user can unlock it).",
   lockSwitch: true,
   target: CARD.id,
-  reads: [SHELF.id],
   args: z.strictObject({}),
   run: now => (now === "none" || now.locked ? null : { next: { ...now, locked: true as const }, result: {} }),
 })
@@ -67,7 +67,6 @@ export const CARD_UNLOCK = kit.defineAction({
   lockSwitch: true,
   userOnly: true,
   target: CARD.id,
-  reads: [SHELF.id],
   args: z.strictObject({}),
   run: now => {
     if (now === "none" || !now.locked) return null
@@ -89,16 +88,19 @@ export const CLOSED_SHELF = kit.definePermission({
     !c.refs.some(r => r.subject === SHELF.id && r.record !== "none" && (r.record as { closed: boolean }).closed),
 })
 
+// 同じ名前のカードの、索引キーだけを読む（名前の重なりを確かめるのに、中身は要らない）
+const SAME_NAME = (name: string) => ({ subject: CARD.id, where: [{ key: "name", eq: name }], keysOnly: true }) as const
+
 // カードを作る: 名前は重ならない。番号は常駐が決める
 export const CARD_ADD = kit.defineAction({
   id: "card-add",
   title: "add card",
   aiDescription: "Add a card with the name. Refused when a card has the name. Returns the card's id and number.",
   target: CARD.id,
-  reads: [CARD.id, SHELF.id],
+  reads: args => [SAME_NAME(args.name)],
   args: z.strictObject({ name: z.string().trim().min(1).max(40), shelf: z.string().min(1).optional() }),
   run: (_now, args, ctx) => {
-    const taken = Object.values(ctx.records?.[CARD.id] ?? {}).some(c => (c as { name: string }).name === args.name)
+    const taken = Object.keys(ctx.keys?.[CARD.id] ?? {}).length > 0
     if (taken) return { declined: `a card named ${args.name} already exists` }
     const id = ctx.newId()
     if (!ctx.number) return null // 番号を振る種類のアクションだけが受け取る
@@ -113,13 +115,11 @@ export const CARD_RENAME = kit.defineAction({
   title: "rename card",
   aiDescription: "Rename the card named by on.record. Refused when another card has the name.",
   target: CARD.id,
-  reads: [CARD.id, SHELF.id],
+  reads: args => [SAME_NAME(args.name)],
   args: z.strictObject({ name: z.string().trim().min(1).max(40) }),
   run: (now, args, ctx) => {
     if (now === "none") return null
-    const taken = Object.values(ctx.records?.[CARD.id] ?? {}).some(
-      c => (c as { id: string; name: string }).name === args.name && (c as { id: string }).id !== now.id,
-    )
+    const taken = Object.keys(ctx.keys?.[CARD.id] ?? {}).some(id => id !== now.id)
     if (taken) return { declined: `a card named ${args.name} already exists` }
     return { next: { ...now, name: args.name }, result: {} }
   },
@@ -131,7 +131,6 @@ export const CARD_REMOVE = kit.defineAction({
   title: "remove card",
   aiDescription: "Remove the card named by on.record. Its number is not reused.",
   target: CARD.id,
-  reads: [SHELF.id],
   args: z.strictObject({}),
   run: now => (now === "none" ? null : { next: "removed", result: {} }),
 })

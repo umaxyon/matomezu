@@ -1,7 +1,6 @@
 // チケットのアクション。チケットを足す・直すは AI も行え、チケットを消す・ロックを外すは利用者だけ
 import { type z, z as zod } from "zod"
-import type { RecordOf } from "../../../plugin-api"
-import { byOf, type Records, WORKROOM_SUBJECT } from "../by"
+import { byOf, READS_WORKROOM_NAMES, type Records, readsBy, recordIn, WORKROOM_SUBJECT } from "../by"
 import { kit } from "../kit"
 import { NO_TAG, PROJECT, UNSORTED } from "../project"
 import { type Project, projectOf } from "../project/actions"
@@ -11,14 +10,18 @@ import { type Candidate, type Resolved, resolve } from "./resolve"
 
 export type Ticket = z.output<typeof TICKET.record>
 
-export const ticketsIn = (ctx: Records) => Object.values(ctx.records?.[TICKET.id] ?? {}) as Ticket[]
+// アクションが読んだチケット（reads が id で答えた物）
+export const ticketOf = (ctx: Records, id: string): Ticket | undefined =>
+  recordIn(ctx, TICKET.id, id) as Ticket | undefined
 
 // プロジェクトのレーン（未分類の行は除く）・チケットタグ・ワークルームの候補（id と名前）
 const lanesOf = (project: Project): Candidate[] =>
   project.lanes.flatMap(l => (l.kind === "lane" ? [{ id: l.id, name: l.name }] : []))
 const tagsOf = (project: Project): Candidate[] => project.tags.map(t => ({ id: t.id, name: t.name }))
+// 読んだ索引キー（READS_WORKROOM_NAMES）から。作った順
 const workroomsOf = (ctx: Records): Candidate[] =>
-  (Object.values(ctx.records?.[WORKROOM_SUBJECT] ?? {}) as RecordOf<typeof WORKROOM_SUBJECT>[])
+  Object.entries(ctx.keys?.[WORKROOM_SUBJECT] ?? {})
+    .map(([id, keys]) => ({ id, name: String(keys.name ?? ""), createdAt: String(keys.createdAt ?? "") }))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
     .map(w => ({ id: w.id, name: w.name }))
 
@@ -64,7 +67,11 @@ export const TICKET_ADD = kit.defineAction({
   aiDescription:
     "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tag is an enabled tag of the project by its id or name (left out or the word none: none), assignees are the workrooms by their ids or names, in order (the first is the main one; no workroom twice), priority is lowest, low, medium (the default), high or highest. A lane or tag that is named like the words unsorted or none is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. Returns the ticket's id and number, the number with the prefix of the project as label (such as M-001), and the lane, the tag and the assignees as the ids they were taken for.",
   target: TICKET.id,
-  reads: [PROJECT.id, WORKROOM_SUBJECT],
+  reads: (args, actor) => [
+    { subject: PROJECT.id, id: args.project },
+    ...(args.assignees?.length ? [READS_WORKROOM_NAMES] : []),
+    ...readsBy(actor),
+  ],
   args: zod.strictObject({
     project: zod.string().min(1),
     name: zod.string().trim().min(1).max(TICKET_NAME_MAX),
@@ -121,7 +128,8 @@ export const TICKET_UPDATE = kit.defineAction({
   aiDescription:
     "Change the name, the body, the priority, the lane, the tag or the assignees of the ticket named by on.record. assignees is the whole new list of workrooms by their ids or names, in order (the first is the main one; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tag, by their ids or names (a tag that is not enabled any more can stay on the ticket). The project of a ticket does not change. The time of the last change moves only when something changed.",
   target: TICKET.id,
-  reads: [PROJECT.id, WORKROOM_SUBJECT],
+  // プロジェクトは、チケットが指す先なので書かない
+  reads: args => (args.assignees?.length ? [READS_WORKROOM_NAMES] : []),
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(TICKET_NAME_MAX).optional(),
     body: zod.string().optional(),
@@ -161,7 +169,6 @@ export const TICKET_REMOVE = kit.defineAction({
   title: "remove ticket",
   aiDescription: "Remove the ticket named by on.record (only the user). Its number is not used again.",
   target: TICKET.id,
-  reads: [PROJECT.id],
   userOnly: true,
   args: zod.strictObject({}),
   run: now => (now === "none" ? null : { next: "removed", result: {} }),
@@ -175,7 +182,6 @@ export const TICKET_LOCK = kit.defineAction({
     "Lock the ticket named by on.record: while locked it cannot be changed or removed (only the user can unlock it). Lines of its history can still be added.",
   lockSwitch: true,
   target: TICKET.id,
-  reads: [PROJECT.id],
   args: zod.strictObject({}),
   run: now => (now === "none" || now.locked ? null : { next: { ...now, locked: true as const }, result: {} }),
 })
@@ -187,7 +193,6 @@ export const TICKET_UNLOCK = kit.defineAction({
   lockSwitch: true,
   userOnly: true,
   target: TICKET.id,
-  reads: [PROJECT.id],
   args: zod.strictObject({}),
   run: now => {
     if (now === "none" || !now.locked) return null

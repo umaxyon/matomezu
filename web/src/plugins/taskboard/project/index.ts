@@ -18,6 +18,9 @@ const PREFIX = z.string().trim().regex(PREFIX_PATTERN)
 export const sameName = (a: string, b: string, caseless = false) =>
   caseless ? a.trim().toLowerCase() === b.trim().toLowerCase() : a.trim() === b.trim()
 
+// チケットプレフィクスを比べる形（大文字と小文字を分けない）
+export const prefixKey = (prefix: string) => prefix.trim().toLowerCase()
+
 // 名前の並び names のうち、ほかと重なっている物の位置（空の名前は数えない）
 export function repeatedAt(names: readonly string[]): ReadonlySet<number> {
   const at = new Set<number>()
@@ -74,6 +77,8 @@ export const PROJECT = kit.defineSubject({
     lanes: LANES,
     tags: TAGS,
   }),
+  // prefix は、重なりを確かめるのに比べる形（前後の空白を除き、小文字にした物）
+  keys: { prefix: { type: "text", of: p => prefixKey(p.prefix) } },
   aiBrief: p => `${p.prefix} ${p.name}`,
   aiListed: p => !p.closed,
 })

@@ -31,7 +31,7 @@ import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
 import type { Library } from "./library"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
-import { readsOf, readsWholeKinds, referredOf } from "./refs"
+import { referredOf } from "./refs"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
@@ -116,8 +116,8 @@ function broken(
   return null
 }
 
-// レコードが対象のアクションの結果が、認可ステップの守らせること（keeps）を守っているか。前後のレコードが指すほかのレコードを、アクションの reads から引いて渡す。
-// 守っていなければ、守らせたステップの id。指す種類がアクションの reads に無ければ "unreadable"
+// レコードが対象のアクションの結果が、認可ステップの守らせること（keeps）を守っているか。前後のレコードが指すほかのレコードを、読み口から引いて渡す。
+// 守っていなければ、守らせたステップの id。引けなければ "unreadable"
 function brokenRecord(
   ctx: ActionContext,
   action: ActionDef,
@@ -125,7 +125,7 @@ function brokenRecord(
   after: unknown,
 ): string | "unreadable" | null {
   const reads = ctx.records ?? {}
-  const source = readsWholeKinds(action.reads) ? undefined : sourceIn(ctx)
+  const source = sourceIn(ctx)
   const was = referredOf(ctx.catalog, action.target, before, reads, source)
   const now = referredOf(ctx.catalog, action.target, after, reads, source)
   if (was === "unreadable" || now === "unreadable") return "unreadable"
@@ -200,13 +200,7 @@ function permits(
       ),
     )
   if (isRecordTarget(ctx.catalog, action.target)) {
-    const refs = referredOf(
-      ctx.catalog,
-      action.target,
-      subject,
-      ctx.records ?? {},
-      readsWholeKinds(action.reads) ? undefined : sourceIn(ctx),
-    )
+    const refs = referredOf(ctx.catalog, action.target, subject, ctx.records ?? {}, sourceIn(ctx))
     if (refs === "unreadable") return { ok: false, reason: "not-allowed" }
     return asked(undefined, undefined, { record: subject, refs })
   }
@@ -333,7 +327,7 @@ export function perform<Id extends ActionId>(
 }
 
 // レコードが対象のアクションが変えるレコードの、前 now と後 next の組（宛先 subject の 1 件と、ほかの同じ種類の others）。
-// others の前は、アクションの reads が種類の並びなら対象の種類（ctx.records）から引き（reads に対象の種類が無ければ引けないので、others は断る）、そうでなければ読み口から引く。
+// others の前は、読み口から引く（読み口の無い文脈なら、ctx.records の対象の種類から引き、それも無ければ others は断る）。
 // 同じ id を 2 度変える・合わせて RECORDS_MAX 件を超えるなら null
 function recordChanges(
   ctx: ActionContext,
@@ -344,7 +338,7 @@ function recordChanges(
 ): { now: unknown; next: unknown }[] | null {
   if (others.length + 1 > RECORDS_MAX) return null
   const target = action.target
-  const source = readsWholeKinds(action.reads) ? undefined : sourceIn(ctx)
+  const source = sourceIn(ctx)
   const table = source ? undefined : ctx.records?.[target]
   if (others.length > 0 && table === undefined && !source) return null
   const own = next === REMOVED ? subject : next
@@ -478,15 +472,19 @@ function performRecord(
   const action = ctx.catalog.actions.get(id)
   const used: Record<string, number> = {}
   const counters = world.counters[target] ?? {}
-  const read =
-    action && !readsWholeKinds(action.reads)
-      ? readFrom(ctx.catalog, source, action, args, ctx.actor)
-      : { records: readsOf(world.records, action?.reads as readonly string[] | undefined) }
+  const wanted = on && "record" in on ? on.record : undefined
+  const now = wanted === undefined ? NO_RECORD : source.byId(target, wanted)
+  if (now === undefined) return { ok: false, reason: "no-record" }
+  const referred = now === NO_RECORD ? [] : (def?.refers?.(now as never) ?? [])
+  const read = action
+    ? readFrom(ctx.catalog, source, action, args, ctx.actor, wanted, referred)
+    : { records: {}, keys: {}, record: () => NO_RECORD }
   const withBase: ActionContext & WithSource = {
     ...ctx,
     [SOURCE]: source,
     records: read.records,
-    ...("keys" in read ? { keys: read.keys, record: read.record } : {}),
+    keys: read.keys,
+    record: read.record,
     ...(action?.readsBooks ? { books: booksRead(world, action, args) } : {}),
     ...(def?.numbered
       ? {
@@ -498,9 +496,6 @@ function performRecord(
         }
       : {}),
   }
-  const wanted = on && "record" in on ? on.record : undefined
-  const now = wanted === undefined ? NO_RECORD : source.byId(target, wanted)
-  if (now === undefined) return { ok: false, reason: "no-record" }
   const done = (perform as (s: unknown, id: string, a: unknown, c: ActionContext) => ReturnType<typeof perform>)(
     now,
     id,
@@ -563,11 +558,9 @@ export function permittedIn(
     const wanted = on && "record" in on ? on.record : undefined
     const source = world.source ?? sourceOf(world.records)
     const now = wanted === undefined ? NO_RECORD : source.byId(target, wanted)
-    const action = ctx.catalog.actions.get(id)
-    const reads = readsWholeKinds(action?.reads) ? readsOf(world.records, action?.reads) : {}
     return now === undefined
       ? { ok: false, reason: "no-record" }
-      : permitted(now, id, args, { ...ctx, [SOURCE]: source, records: reads })
+      : permitted(now, id, args, { ...ctx, [SOURCE]: source, records: {} })
   }
   return permitted(target === "library" ? world.books : world.settings, id, args, ctx)
 }

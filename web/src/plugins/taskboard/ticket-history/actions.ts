@@ -1,10 +1,10 @@
 // チケット履歴のアクション
 import { type z, z as zod } from "zod"
 import { enumValuesOf } from "../../../plugin-api"
-import { byOf, WORKROOM_SUBJECT } from "../by"
+import { byOf, readsBy } from "../by"
 import { kit } from "../kit"
 import { TICKET } from "../ticket"
-import { ticketsIn } from "../ticket/actions"
+import { ticketOf } from "../ticket/actions"
 import { HISTORY, HISTORY_TOPIC, type TopicData } from "."
 
 // 履歴の行を足す。書いた者は行った者（引数では受けない）。題は、列挙 history-topic の値の id
@@ -14,7 +14,7 @@ export const TICKET_HISTORY_ADD = kit.defineAction({
   aiDescription:
     "Add a line to the history of the ticket (its id): topic is the id of a value of the enum history-topic (the values are listed in the arguments), text is what to write (needed, except for a topic whose data says textless). The line records you (your workroom, as it is now) and the time. Lines cannot be changed or removed later. The ticket's own time of the last change does not move.",
   target: HISTORY.id,
-  reads: [TICKET.id, WORKROOM_SUBJECT],
+  reads: (args, actor) => [{ subject: TICKET.id, id: args.ticket }, ...readsBy(actor)],
   args: zod.strictObject({ ticket: zod.string().min(1), topic: zod.string().min(1), text: zod.string() }),
   describeArgs: catalog => {
     const topics = enumValuesOf(catalog, HISTORY_TOPIC.id)
@@ -34,7 +34,7 @@ export const TICKET_HISTORY_ADD = kit.defineAction({
   },
   run: (now, args, ctx) => {
     if (now !== "none") return null
-    if (!ticketsIn(ctx).some(t => t.id === args.ticket)) return { declined: "the ticket is not there" }
+    if (!ticketOf(ctx, args.ticket)) return { declined: "the ticket is not there" }
     const topic = enumValuesOf(ctx.catalog, HISTORY_TOPIC.id).find(v => v.id === args.topic)
     if (!topic) return { declined: "the topic is not a value of history-topic" }
     if (args.text.trim() === "" && !(topic.data as TopicData).textless) return { declined: "the topic needs a text" }

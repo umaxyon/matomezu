@@ -82,7 +82,7 @@ func (h *Hub) Records() (map[string]map[string]json.RawMessage, map[string]map[s
 	return records, counters
 }
 
-// recordInputs は、アクションを行う前にエンジンへ渡すレコードと番号の表を in に入れる: 宛先のレコードと、アクションが読むだけの種類の全部、対象の種類の番号の表（h.mu を持って呼ぶ）
+// recordInputs は、アクションを行う前にエンジンへ渡すレコードと番号の表を in に入れる: 宛先のレコードと、対象の種類の番号の表（アクションがほかに読むレコードは、エンジンが読み口から引く）（h.mu を持って呼ぶ）
 func (h *Hub) recordInputs(in *engine.Input, needs engine.RecordNeeds, on *engine.On) {
 	if needs.Subject == "" {
 		return
@@ -91,12 +91,6 @@ func (h *Hub) recordInputs(in *engine.Input, needs engine.RecordNeeds, on *engin
 	if on != nil && on.Record != "" {
 		if e, ok := h.recordTables[needs.Subject][on.Record]; ok {
 			in.Records[needs.Subject] = map[string]json.RawMessage{on.Record: e.body}
-		}
-	}
-	for _, subject := range needs.Reads {
-		in.Records[subject] = map[string]json.RawMessage{}
-		for id, e := range h.recordTables[subject] {
-			in.Records[subject][id] = e.body
 		}
 	}
 	in.Counters = map[string]map[string]int64{needs.Subject: h.counters[needs.Subject]}

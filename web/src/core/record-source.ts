@@ -56,23 +56,32 @@ export function find(
   return out
 }
 
-// アクション action の読む物の宣言（関数）が、引数 args と行う者 actor から答えた物を、読み口から引いた結果。
-// records は中身ごと読む物（種類の id → id → レコード）、keys は索引キーだけ読む物。引数が形に合わなければ、どちらも空
+// アクション action の読む物の宣言が、引数 args・行う者 actor・宛先のレコードの id（on。作るときは undefined）から答えた物を、読み口から引いた結果。
+// records は中身ごと読む物（種類の id → id → レコード）、keys は索引キーだけ読む物。引数が形に合わなければ、どちらも空。
+// referred は、宛先のレコードが指す先（対象の定義の refers）。record で、読む物に書いていない種類でも読める
 export function readFrom(
   catalog: CoreCatalog,
   source: RecordSource,
   action: ActionDef,
   args: unknown,
   actor: Actor,
+  on?: string,
+  referred: readonly { subject: string; id: string }[] = [],
 ): { records: Records; keys: RecordKeys; record(subject: string, id: string): unknown } {
   const records: Record<string, Record<string, unknown>> = {}
   const keys: Record<string, Record<string, KeyValues>> = {}
-  // 読む物に書いた種類のレコードを、id で 1 件読む（書いていない種類と、無いレコードは none）
+  // 読む物に書いた種類のレコードと、宛先のレコードが指す先を、id で 1 件読む（どちらでもない物と、無いレコードは none）
   const record = (subject: string, id: string): unknown =>
-    subject in records || subject in keys ? (source.byId(subject, id) ?? NO_RECORD) : NO_RECORD
+    subject in records || subject in keys || referred.some(r => r.subject === subject && r.id === id)
+      ? (source.byId(subject, id) ?? NO_RECORD)
+      : NO_RECORD
   const parsed = action.args.safeParse(args)
-  if (!parsed.success || typeof action.reads !== "function") return { records, keys, record }
-  const reads = (action.reads as (args: unknown, actor: Actor) => readonly RecordRead[])(parsed.data, actor)
+  if (!parsed.success || !action.reads) return { records, keys, record }
+  const reads = (action.reads as (args: unknown, actor: Actor, on: string | undefined) => readonly RecordRead[])(
+    parsed.data,
+    actor,
+    on,
+  )
   // 種類 subject の入れ物（まだ無ければ作る。合う物が 1 件も無くても、読んだ種類は空の入れ物を持つ）
   const tableIn = <V>(all: Record<string, Record<string, V>>, subject: string): Record<string, V> => {
     const table = all[subject] ?? {}

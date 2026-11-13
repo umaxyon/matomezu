@@ -35,14 +35,16 @@ const action = (id: string, over: Record<string, unknown>): ActionDef =>
   }) as never
 
 const ADD = action("card-add", {
-  reads: [CARD] as never,
+  reads: ((args: { label: string }) => [
+    { subject: CARD, where: [{ key: "label", eq: args.label }], keysOnly: true },
+  ]) as never,
   run: ((_now: unknown, args: { label: string }, ctx: never) => {
     const c = ctx as {
       newId(): string
-      records?: Record<string, Record<string, unknown>>
+      keys?: Record<string, Record<string, unknown>>
       number(scope: string): number
     }
-    const taken = Object.values(c.records?.[CARD] ?? {}).some(r => (r as { label: string }).label === args.label)
+    const taken = Object.keys(c.keys?.[CARD] ?? {}).length > 0
     if (taken) return { declined: "the label is taken" }
     return { next: { id: c.newId(), label: args.label, no: c.number("all") }, result: {} }
   }) as never,
@@ -68,7 +70,6 @@ const SAME_ID = action("card-same-id", {
 })
 // 宛先を直し、ほかのレコードも引数 others のとおりに変える（宛先のほかに変える物を試す）
 const MANY = action("card-many", {
-  reads: [CARD] as never,
   args: z.strictObject({ label: z.string(), others: z.array(z.unknown()) }),
   run: ((now: { id: string }, args: { label: string; others: unknown[] }) => ({
     next: { ...now, label: args.label },
@@ -85,17 +86,35 @@ const MANY_UNREAD = action("card-many-unread", {
     result: {},
   })) as never,
 })
-// reads を種類の並びで書き、自分の種類を入れずに、ほかのレコードを変える
-const MANY_OTHER = action("card-many-other", {
-  reads: [] as never,
-  args: z.strictObject({ label: z.string(), others: z.array(z.unknown()) }),
-  run: ((now: { id: string }, args: { label: string; others: unknown[] }) => ({
-    next: { ...now, label: args.label },
-    others: args.others,
-    result: {},
+// カードを指すメモ（refers）と、宛先のメモが指すカードと、指していないカード c2 を ctx.record で読んで返すアクション（reads は書かない）。
+// 宛先の id が渡る reads（on）も、そのまま返す
+const NOTE = "@ex/rec:note"
+const NOTES: SubjectDef = {
+  id: NOTE,
+  title,
+  aiDescription: "a note on a card",
+  record: z.strictObject({ id: z.string().min(1), card: z.string() }),
+  refers: ((n: { card: string }) => [{ subject: CARD, id: n.card }]) as never,
+}
+const NOTE_READ = action("note-read", {
+  target: NOTE,
+  args: z.strictObject({}),
+  run: ((now: { card: string }, _args: unknown, ctx: { record(subject: string, id: string): unknown }) => ({
+    next: now,
+    result: { referred: ctx.record(CARD, now.card), other: ctx.record(CARD, "c2") },
   })) as never,
 })
-// 読む物を関数で宣言する: 引数の id の 1 件・ラベルが同じ物・番号の無い物の索引キーだけ。読んだ物をそのまま result に返す
+const NOTE_ON = action("note-on", {
+  target: NOTE,
+  args: z.strictObject({}),
+  reads: ((_args: unknown, _actor: unknown, on: string | undefined) =>
+    on === undefined ? [] : [{ subject: NOTE, id: on }]) as never,
+  run: ((now: unknown, _args: unknown, ctx: { records?: unknown }) => ({
+    next: now,
+    result: { records: ctx.records },
+  })) as never,
+})
+// 読む物を宣言する: 引数の id の 1 件・ラベルが同じ物・番号の無い物の索引キーだけ。読んだ物をそのまま result に返す
 const READS = action("card-reads", {
   args: z.strictObject({ label: z.string(), one: z.string() }),
   reads: ((args: { label: string; one: string }) => [
@@ -110,9 +129,9 @@ const READS = action("card-reads", {
 })
 const EX = {
   id: "@ex/rec",
-  subjects: [SUBJECT],
-  actions: [ADD, RENAME, REID, BAD, REMOVE, SAME_ID, MANY, MANY_UNREAD, MANY_OTHER, READS],
-  controlCenters: [{ id: CENTER, actions: [], subjects: [CARD as never] }],
+  subjects: [SUBJECT, NOTES],
+  actions: [ADD, RENAME, REID, BAD, REMOVE, SAME_ID, MANY, MANY_UNREAD, READS, NOTE_READ, NOTE_ON],
+  controlCenters: [{ id: CENTER, actions: [], subjects: [CARD as never, NOTE as never] }],
 } as unknown as Plugin
 const catalog = assemble([...BUILTIN, defineBuiltin(EX as never)], CENTER).catalog.core
 
@@ -160,7 +179,7 @@ test("同じ入力なら同じ結果（番号も）", () => {
   expect(run(empty, "card-add", { label: "a" })).toEqual(run(empty, "card-add", { label: "a" }))
 })
 
-test("reads で同じ種類のレコード全部を読め、重なる名前は run が断る", () => {
+test("reads で同じ名前のレコードの索引キーを読め、重なる名前は run が断る", () => {
   const world = apply(empty, run(empty, "card-add", { label: "a" }))
   expect(run(world, "card-add", { label: "a" })).toMatchObject({
     ok: false,
@@ -274,6 +293,7 @@ test("ロックしたレコードをロックの印を外す形で変えるの�
           locked: z.literal(true).optional(),
         }),
       },
+      NOTES,
     ],
     actions: [
       action("card-open", {
@@ -344,8 +364,22 @@ test("reads を書かないアクションも、同じ種類のほかのレコ�
   expect(many([{ id: "c2", record: REMOVED }], two(), "card-many-unread")).toMatchObject({ ok: true })
 })
 
-test("reads を種類の並びで書き、対象の種類を入れないアクションは、ほかのレコードを変えられない", () => {
-  expect(many([{ id: "c2", record: REMOVED }], two(), "card-many-other")).toEqual({ ok: false, reason: "refused" })
+test("宛先のレコードが指す先は、reads に書かなくても ctx.record で読める（指していないレコードは none）。reads には宛先の id が渡る", () => {
+  const world: World = {
+    ...empty,
+    records: {
+      [CARD]: { c1: { id: "c1", label: "a" }, c2: { id: "c2", label: "b" } },
+      [NOTE]: { n1: { id: "n1", card: "c1" } },
+    },
+  }
+  expect(run(world, "note-read", {}, { record: "n1" })).toMatchObject({
+    ok: true,
+    result: { referred: { id: "c1", label: "a" }, other: "none" },
+  })
+  expect(run(world, "note-on", {}, { record: "n1" })).toMatchObject({
+    ok: true,
+    result: { records: { [NOTE]: { n1: { id: "n1", card: "c1" } } } },
+  })
 })
 
 test(`アクション 1 回で変えられるレコードは、宛先と合わせて ${RECORDS_MAX} 件まで`, () => {
@@ -372,6 +406,7 @@ test("認可ステップは、変える全部にかかる（宛先でないロ�
           locked: z.literal(true).optional(),
         }),
       },
+      NOTES,
     ],
   } as never)
   const locked = assemble([...BUILTIN, LOCKED], CENTER).catalog.core

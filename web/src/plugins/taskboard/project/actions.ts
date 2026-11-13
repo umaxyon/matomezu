@@ -1,15 +1,25 @@
 // プロジェクトのアクション。プロジェクトを作る・閉じる・開け直すは AI も行え、プロジェクトを直す（レーン・タグのプロンプトは AI への指示なので）は利用者だけ。
 // プロジェクトを作るのは、最初の 1 度は常駐が初めて起動したときに行う（project-add の引数は省いてよい）
 import { type z, z as zod } from "zod"
-import type { Records } from "../by"
+import { type Records, recordIn } from "../by"
 import { kit } from "../kit"
-import { LANE_NAME_MAX, LANES, PREFIX, PROJECT, PROJECT_NAME_MAX, sameName, TAG, TAG_NAME_MAX, TAGS } from "."
+import { LANE_NAME_MAX, LANES, PREFIX, PROJECT, PROJECT_NAME_MAX, prefixKey, TAG, TAG_NAME_MAX, TAGS } from "."
 import { projectNameOf, sayIn, templateOf } from "./template"
 
 export type Project = z.output<typeof PROJECT.record>
 
-export const projectsIn = (ctx: Records) => Object.values(ctx.records?.[PROJECT.id] ?? {}) as Project[]
-export const projectOf = (ctx: Records, id: string): Project | undefined => projectsIn(ctx).find(p => p.id === id)
+// アクションが読んだプロジェクト（reads が id で答えた物か、宛先のチケットが指す先）
+export const projectOf = (ctx: Records, id: string): Project | undefined =>
+  recordIn(ctx, PROJECT.id, id) as Project | undefined
+
+// チケットプレフィクス prefix と重なるプロジェクトの、索引キーだけを読む
+const readsPrefix = (prefix: string) =>
+  [{ subject: PROJECT.id, where: [{ key: "prefix", eq: prefixKey(prefix) }], keysOnly: true as const }] as const
+// 読んだ中に、id が except でない、プレフィクスの重なるプロジェクトがあるか
+const prefixTaken = (ctx: Records, except?: string) =>
+  Object.keys(ctx.keys?.[PROJECT.id] ?? {}).some(id => id !== except)
+
+const PREFIX_DEFAULT = "T-"
 
 export const PROJECT_ADD = kit.defineAction({
   id: "project-add",
@@ -17,7 +27,7 @@ export const PROJECT_ADD = kit.defineAction({
   aiDescription:
     "Add a project (a task board) with the lanes and the ticket tags of the template: to do, in progress and done, the tags task and bug, each with a prompt. name (up to 30 characters) and prefix (the head of the ticket numbers: 1 to 3 letters and at most one hyphen at the end, such as T- or ABC; not the same as another project's, whatever the case) are optional when it is the first project. Returns the project's id, its prefix, and its lanes and tags as {id, name} (point at a lane or tag by its id or name; a lane or tag named like the reserved unsorted or none is pointed at by its id).",
   target: PROJECT.id,
-  reads: [PROJECT.id],
+  reads: args => readsPrefix(args.prefix ?? PREFIX_DEFAULT),
   runsOnceAtStart: true,
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(PROJECT_NAME_MAX).optional(),
@@ -25,9 +35,8 @@ export const PROJECT_ADD = kit.defineAction({
   }),
   run: (now, args, ctx) => {
     if (now !== "none") return null
-    const prefix = args.prefix ?? "T-"
-    if (projectsIn(ctx).some(p => sameName(p.prefix, prefix, true)))
-      return { declined: `a project has the prefix ${prefix} already: give another prefix` }
+    const prefix = args.prefix ?? PREFIX_DEFAULT
+    if (prefixTaken(ctx)) return { declined: `a project has the prefix ${prefix} already: give another prefix` }
     const say = sayIn(ctx.catalog.messages, ctx.lang)
     const project: Project = {
       id: ctx.newId(),
@@ -59,7 +68,7 @@ export const PROJECT_UPDATE = kit.defineAction({
   aiDescription:
     "Change the name, the prefix (as in project-add), the lanes or the ticket tags of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted or none.",
   target: PROJECT.id,
-  reads: [PROJECT.id],
+  reads: args => (args.prefix === undefined ? [] : readsPrefix(args.prefix)),
   userOnly: true,
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(PROJECT_NAME_MAX).optional(),
@@ -69,10 +78,7 @@ export const PROJECT_UPDATE = kit.defineAction({
   }),
   run: (now, args, ctx) => {
     if (now === "none") return null
-    if (
-      args.prefix !== undefined &&
-      projectsIn(ctx).some(p => p.id !== now.id && sameName(p.prefix, args.prefix as string, true))
-    )
+    if (args.prefix !== undefined && prefixTaken(ctx, now.id))
       return { declined: `a project has the prefix ${args.prefix} already` }
     const knownLanes = new Set(now.lanes.flatMap(l => (l.kind === "lane" ? [l.id] : [])))
     if (args.lanes?.some(l => l.kind === "lane" && l.id !== undefined && !knownLanes.has(l.id)))

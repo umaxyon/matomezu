@@ -36,7 +36,6 @@ import {
   restoreCounters,
   restoreRecords,
 } from "../core/records"
-import { readsWholeKinds } from "../core/refs"
 import type { Book, Page } from "../core/schema/book"
 import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
@@ -556,7 +555,7 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
     { name: workroom },
   )
 
-// アクションがレコードを対象にするとき、常駐が渡す物: 対象の種類（レコードが対象でなければ null）と、読むだけの種類と、読むだけのブックの id（アクションの readsBooks が引数 args〈JSON〉から答えた物。
+// アクションがレコードを対象にするとき、常駐が渡す物: 対象の種類（レコードが対象でなければ null）と、読むだけのブックの id（アクションの readsBooks が引数 args〈JSON〉から答えた物。
 // 引数が形に合わなければ空）。常駐が、行う前にどのレコードとブックを渡すかを決めるのに引く
 ;(globalThis as { matomezuRecordNeeds?: (action: string, args: string) => string }).matomezuRecordNeeds = (
   action,
@@ -571,7 +570,6 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
   })()
   return JSON.stringify({
     subject,
-    reads: subject !== null && def && readsWholeKinds(def.reads) ? [...def.reads] : [],
     books,
   })
 }

@@ -89,10 +89,9 @@ type AIList struct {
 	Limit int `json:"limit"`
 }
 
-// RecordNeeds は、アクションが対象にする種類（レコードが対象でなければ空）と、読むだけの種類と、読むだけのブックの id（アクションが引数から答える）
+// RecordNeeds は、アクションが対象にする種類（レコードが対象でなければ空）と、読むだけのブックの id（アクションが引数から答える）
 type RecordNeeds struct {
 	Subject string   `json:"subject"`
-	Reads   []string `json:"reads"`
 	Books   []string `json:"books"`
 }
 

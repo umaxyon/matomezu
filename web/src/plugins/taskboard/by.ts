@@ -1,7 +1,7 @@
 // 書いた者（チケットを作った者・履歴の行を書いた者）: アクターをそのまま写した形。AI は入っているワークルームの、その時の名前・鳥・配色の写しを持つ
 // （ワークルームを消しても、行の鳥が描ける）。鳥と配色の id は、タスクボードは意味を知らず、そのまま持つ
 import { z } from "zod"
-import { type Actor, isAI, type RecordOf } from "../../plugin-api"
+import { type ActionContext, type Actor, isAI, type RecordOf, type RecordRead } from "../../plugin-api"
 
 export const WORKROOM_SUBJECT = "@matomezu/base:workroom"
 
@@ -19,10 +19,24 @@ export const BY = z.discriminatedUnion("kind", [
 ])
 export type By = z.output<typeof BY>
 
-export type Records = { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> }
+// アクションが読んだ物（reads が答えたレコードと索引キー、宛先のレコードが指す先を読む record）
+export type Records = Pick<ActionContext, "records" | "keys" | "record">
+
+// アクションが読んだ、種類 subject の id のレコード（reads が id で答えた物か、宛先のレコードが指す先。無ければ undefined）
+export function recordIn(ctx: Records, subject: string, id: string): unknown | undefined {
+  const read = ctx.records?.[subject]?.[id] ?? ctx.record?.(subject, id)
+  return read === "none" ? undefined : read
+}
 
 export const workroomOf = (ctx: Records, id: string) =>
-  ctx.records?.[WORKROOM_SUBJECT]?.[id] as RecordOf<typeof WORKROOM_SUBJECT> | undefined
+  recordIn(ctx, WORKROOM_SUBJECT, id) as RecordOf<typeof WORKROOM_SUBJECT> | undefined
+
+// 書いた者を写す（byOf）アクションが読む物: 行う者が入っているワークルーム
+export const readsBy = (actor: Actor): RecordRead[] =>
+  isAI(actor) && actor.workroom !== "none" ? [{ subject: WORKROOM_SUBJECT, id: actor.workroom.id }] : []
+
+// ワークルームを名前でも指せるアクションが読む物: 全部のワークルームの索引キー（名前と作った時点）だけ
+export const READS_WORKROOM_NAMES: RecordRead = { subject: WORKROOM_SUBJECT, where: [], keysOnly: true }
 
 // 行った者を写す。入っているワークルームを確かめられない AI は null（参加が確定していない AI は、ブックでない対象のアクションを断られるので来ない）
 export function byOf(actor: Actor, ctx: Records): By | null {
