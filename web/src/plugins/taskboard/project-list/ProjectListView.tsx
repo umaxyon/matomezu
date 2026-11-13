@@ -27,7 +27,7 @@ export function ProjectListView() {
   const { dragRowProps, gripProps, markClass } = useGripDrag((dragging, over) => {
     if (!settings.canChange) return
     snapshot()
-    settings.setOrder(moved(ids, dragging, over))
+    settings.setOrder(moved(ids, dragging, over), settings.shown === undefined ? shown : undefined)
   }, ids)
   const toggle = (id: string) => {
     if (!settings.canChange) return
