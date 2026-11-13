@@ -28,6 +28,7 @@ import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
 import { joinMessages } from "./utils/join-messages"
 import { ASK_MESSAGES, CORNER_MESSAGES, ELAPSED_MESSAGES, MAX_BUTTON_MESSAGES } from "./utils/messages"
+import { WIDE_SEARCH_MESSAGES } from "./wide-search/messages"
 import { WINDOW_MESSAGES } from "./window/messages"
 import { ZOOM_MESSAGES } from "./zoom/messages"
 
@@ -53,6 +54,7 @@ export const BASE_MESSAGES = joinMessages(
   RIGHT_SIDE_PANEL_MESSAGES,
   LEFT_SIDE_PANEL_MESSAGES,
   MAIL_MESSAGES,
+  WIDE_SEARCH_MESSAGES,
   PARTICIPANT_MESSAGES,
   MARKDOWN_DOCUMENT_MESSAGES,
   OUTBOX_MESSAGES,

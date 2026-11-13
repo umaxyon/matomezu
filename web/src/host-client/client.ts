@@ -1,6 +1,7 @@
 // ホストクライアント: 画面がホスト（常駐サーバー）とブラウザに頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
 // 実装は常駐に頼むもの（server.ts）。テストはメモリに持つもの（test/host-client/memory.ts）を使う
 import type { Warning } from "../core/warnings"
+import type { WideSearchAnswer, WideSearchQuery } from "../core/wide-search"
 import type { AIEditTicketOutcome, DoneAction, HostAnswer, MatomezuInstance } from "../store/store"
 
 // 起動のときに読むもの
@@ -20,5 +21,7 @@ export interface HostClient {
   reportWarnings(warnings: readonly Warning[]): void
   // まだ見ていない AI の変更が、この窓で見えたか、見られる前に消えたこと（createMatomezu の aiEditTicket に渡す）。ホストは AI の変更ごとに残し、消えた物を AI に渡す
   reportAIEditTicket(change: AIEditTicketOutcome): void
+  // ホストの言葉の検索（横断検索）。断られた・つながらなかったときは投げる。画面には createMatomezu の search で渡す
+  search(query: WideSearchQuery): Promise<WideSearchAnswer>
   visible(): boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。createMatomezu の visible に渡す）
 }

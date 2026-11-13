@@ -104,9 +104,11 @@ export const ERRORS = {
   E309: "plugin {plugin}: only built-in plugins may give a user setting a role ({id})",
   E310: "plugin {plugin}: only built-in plugins may have normalize steps",
   E311: "plugin {plugin}: only built-in plugins may have control centers",
+  E312: "plugin {plugin}: widget {id} is for the kind {kind}, which the plugin does not own (only the owner of a kind may add a widget for it)",
 
   E401: "the server could not give the data: {status}",
   E402: "the server does not know this browser (run matomezu open in a terminal)",
+  E403: "the server could not search: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

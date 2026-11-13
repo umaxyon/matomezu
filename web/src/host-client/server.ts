@@ -20,6 +20,7 @@ import { fail, matomezuError, problem } from "../core/errors"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
+import { WIDE_SEARCH_ANSWER, wideSearchParams } from "../core/wide-search"
 import { recentBookScreen, screenOf, shownScreens, viewFrontOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type {
@@ -676,6 +677,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
       tellWarnings()
     },
     visible: () => net.visible(),
+    search: async q => {
+      const res = await net.fetch(`api/search?${wideSearchParams(q)}`)
+      if (!res.ok) fail("E403", { status: `${res.status}` })
+      return WIDE_SEARCH_ANSWER.parse(await res.json())
+    },
     reportAIEditTicket: change => {
       aiEditTickets = [...aiEditTickets, change]
       void tellAIEditTickets()

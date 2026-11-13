@@ -24,6 +24,7 @@ import {
 } from "./ticket-history"
 import { TICKET_HISTORY_ADD } from "./ticket-history/actions"
 import { TICKET_SCREEN, TICKET_SCREEN_STATE } from "./ticket-screen"
+import { TICKET_FILTER } from "./wide-search"
 
 export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -48,7 +49,7 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
     dialogs: [PROJECT_SETTINGS_DIALOG],
     screens: [TICKET_SCREEN],
     userSettings: [PROJECT_ORDER, SHOWN_PROJECTS],
-    pluginStates: [LIST_OPEN, LANE_SORTS, MAXIMIZED, CARD_VISIT, TICKET_SCREEN_STATE],
+    pluginStates: [LIST_OPEN, LANE_SORTS, MAXIMIZED, CARD_VISIT, TICKET_SCREEN_STATE, TICKET_FILTER],
   }),
 )
 
@@ -93,6 +94,7 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:maximized": typeof MAXIMIZED
     "@matomezu/taskboard:card-visit": typeof CARD_VISIT
     "@matomezu/taskboard:ticket-screen-state": typeof TICKET_SCREEN_STATE
+    "@matomezu/taskboard:ticket-filter": typeof TICKET_FILTER
   }
   interface ScreenTable {
     "@matomezu/taskboard:ticket-screen": typeof TICKET_SCREEN

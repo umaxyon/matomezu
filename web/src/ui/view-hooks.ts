@@ -233,6 +233,24 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
   )
 }
 
+// ほかのプラグインの宣言に値を入れる関数（宣言の id と値。画面の場所に入れる宣言＝address を持つ宣言だけが受ける。形は土台が宣言の形で確かめる）。入れたら true、
+// 宣言が無い・address が無い・形に合わない値・場所の無い範囲は何もせず false。ステージごとの宣言は at.stage のステージの値。
+// スクリーンごとの宣言は、at.screenDef（書き先のスクリーンの定義の id）の開いているスクリーンの値（複数なら最後にカレントにした 1 枚。開いていなければ false）。
+// screenDef を渡さなければ、このビューがいるスクリーンの値（スクリーンの外の物は false。窓のカレントスクリーンには落とさない）。
+// 同じ値なら何も変わらず、ブラウザの履歴に積まない。ほかのプラグインのコードは読まず、id の文字と値だけで頼む（自分の宣言は useSetPluginState）
+export function useSetPluginStateById(): (
+  id: string,
+  value: unknown,
+  at?: { screenDef?: string; stage?: string },
+) => boolean {
+  const { setPluginStateById } = useInstance()
+  const here = useScreenHere()?.id
+  return useCallback(
+    (id, value, at) => setPluginStateById(id, value, { ...(here !== undefined ? { screen: here } : {}), ...at }),
+    [setPluginStateById, here],
+  )
+}
+
 // 複数のプラグイン状態の値を、1 回で書く関数（途中の、片方だけ変わった状態を知らせない）。自分の kit を渡し、自分の宣言だけを書く。
 // 変え方は [宣言, ステージ（ステージに結ばない宣言は null）, 新しい値] の並び
 export function useSetPluginStates(

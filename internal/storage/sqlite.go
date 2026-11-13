@@ -151,6 +151,14 @@ var migrations = []string{
 		subject TEXT NOT NULL UNIQUE,
 		spec TEXT NOT NULL
 	);`,
+	// 言葉で探すための文字（種類と参照先ごとに 1 行。参照先はレコードの id に限らない）。文字は FTS5 の表に、同じ rowid で置く（trigram: 3 字以上の部分一致）
+	`CREATE TABLE search_docs (
+		rowid INTEGER PRIMARY KEY,
+		kind TEXT NOT NULL,
+		ref TEXT NOT NULL,
+		UNIQUE (kind, ref)
+	);
+	CREATE VIRTUAL TABLE search_fts USING fts5(title, body, tokenize = 'trigram');`,
 }
 
 type sqliteStorage struct {
@@ -318,6 +326,11 @@ func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
 		}
 		for _, r := range b.Records {
 			if err := s.txPutRecord(tx, r); err != nil {
+				return nil, err
+			}
+		}
+		for _, t := range b.SearchTexts {
+			if err := txPutSearchText(tx, t); err != nil {
 				return nil, err
 			}
 		}

@@ -41,6 +41,7 @@ export {
   useScreenId,
   useScreens,
   useSetPluginState,
+  useSetPluginStateById,
   useSetPluginStates,
   useSettings,
   useShownBook,

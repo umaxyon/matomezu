@@ -123,6 +123,7 @@ func Handler(o Options) http.Handler {
 		}
 	}))
 	mux.Handle("GET /api/data", o.screen(o.data))
+	mux.Handle("GET /api/search", o.screen(o.search(true)))
 	mux.Handle("GET /api/events", o.screen(o.events))
 	mux.Handle("GET /api/plugins/{n}/{file}", o.screen(o.pluginFile))
 	mux.Handle("GET /cookie", http.HandlerFunc(o.giveCookie))
@@ -141,6 +142,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
 	mux.Handle("GET /api/ai/watch", o.ai(o.aiWatch))
 	mux.Handle("GET /api/ai/records", o.ai(o.aiRecords))
+	mux.Handle("GET /api/ai/search", o.ai(o.search(false)))
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
 	routesForTest(mux, o)

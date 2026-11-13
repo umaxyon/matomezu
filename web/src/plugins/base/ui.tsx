@@ -1,5 +1,6 @@
 // base の見た目: 機能ごとのフォルダのダイアログ・ウィジェット・メニューのアイコンを集める。
 // 末尾で、骨組みが描くスロット・ウィジェット・メニューを core/catalog.ts に書き足す
+import type { WideSearchHit } from "../../core/wide-search"
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."
 import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from "./book-look/ui"
@@ -58,11 +59,14 @@ import { TOOL_ICONS } from "./tool-switch/icons"
 import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import type { CornerStatusProps } from "./utils/corner"
+import type { WideSearchModeProps } from "./wide-search/slots"
+import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
 import { WINDOW_ICONS } from "./window/icons"
 import { CONTROL_CENTER_PERCH, ONE_SCREEN_WIDGET, WINDOW } from "./window/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
+export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../../core/wide-search"
 export { BirdWalk } from "./birds/BirdWalk"
 export { type CodeSpan, highlightCode } from "./code-highlight/highlight"
 export { ColorPicker, type Swatch } from "./dialog-host/ColorPicker"
@@ -120,6 +124,9 @@ export { BirdFaceView } from "./participant/BirdFaceView"
 export { useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./participant/hooks"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
 export { ChoiceSetting } from "./settings/ChoiceSetting"
+export { useWideSearch, useWideSearchPanel, WIDE_SEARCH_LIMIT_MAX } from "./wide-search/hooks"
+export { WIDE_SEARCH_MODES, WIDE_SEARCH_OPENERS, type WideSearchModeProps } from "./wide-search/slots"
+export { defineWideSearchMode, defineWideSearchOpener, WIDE_SEARCH_OPENS } from "./wide-search/ui"
 
 import type { PrintSheetProps } from "./print-preview/PrintPreviewView"
 
@@ -215,6 +222,8 @@ export const BASE_UI = definePluginUi(BASE, {
     EDIT_LOCK,
     JOIN_REQUEST_ACTIONS,
     PROPOSAL_ACTIONS,
+    FULL_TEXT_MODE,
+    WIDE_SEARCH_TAB,
     MAIL_LAYER,
     NOTE_READ_NOTICE,
     NOTE_ICON,
@@ -254,6 +263,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:workroom-columns": { workroom: string } // ワークルームの枠の、情報の列の右に並べる列（選んでいるワークルームの id を受け取る）
     "@matomezu/base:workroom-row-line": { workroom: string; admin: boolean } // 参加者の一覧の、参加済みの行の下の 1 行（その行のワークルームの id と、管理者かを受け取る）
     "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
+    "@matomezu/base:wide-search-modes": WideSearchModeProps // 横断検索のタブに並べるモード（入力の下のパネル）
+    "@matomezu/base:wide-search-openers": Record<string, never> // 種類ごとの、横断検索の当たりの開き方（何も描かない）
     "@matomezu/base:stage-top": StageSlotProps
     "@matomezu/base:stage-side": StageSlotProps
     "@matomezu/base:stage-body": StageSlotProps
@@ -282,6 +293,13 @@ declare module "../../core/catalog" {
     annotationIcon?: { annotation: string }
     // 郵便のダイアログの下の行のスロットに置く物が描く、郵便の種類の本当の id
     mailActions?: { mail: string }
+    // 横断検索のモードのスロットに置く物の、切り替えに出す名前（文言の鍵）
+    wideSearchMode?: { title: MessageKey }
+    // 横断検索の当たりの開き方のスロットに置く物の、その当たりを開く関数を返すフックと、その名前を画面の物から作る関数を返すフック（任意）。開く種類は、ウィジェットの forKind（種類の持ち主だけが書ける）で引く
+    wideSearchOpener?: {
+      useOpen: () => (hit: WideSearchHit) => void
+      useLabel?: () => (hit: WideSearchHit) => string | undefined
+    }
     // コーナーステータスのスロットに置く物の名前（文言の鍵。設定画面の「コーナーステータスの並び」に出す）
     cornerStatus?: { title: MessageKey }
   }
@@ -316,6 +334,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:edit-lock": typeof EDIT_LOCK
     "@matomezu/base:join-request-actions": typeof JOIN_REQUEST_ACTIONS
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
+    "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE
+    "@matomezu/base:wide-search": typeof WIDE_SEARCH_TAB
     "@matomezu/base:mail-layer": typeof MAIL_LAYER
     "@matomezu/base:note-read-notice": typeof NOTE_READ_NOTICE
     "@matomezu/base:note-icon": typeof NOTE_ICON

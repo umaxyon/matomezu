@@ -244,6 +244,8 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
     need("tool", p.tools, ui.toolIcons, toolIcons)
     for (const w of ui.widgets ?? []) {
       if (!isOwnedBy(p.id, w.id)) fail("E301", { plugin: p.id, kind: "widget", id: w.id })
+      if (w.forKind !== undefined && !isOwnedBy(p.id, w.forKind))
+        fail("E312", { plugin: p.id, id: w.id, kind: w.forKind })
       if (widgets.has(w.id)) fail("E001", { kind: "widget", id: w.id })
       widgets.set(w.id, w)
     }

@@ -47,7 +47,7 @@ export interface SubjectDef<
   title: Tt
   aiDescription: string // AI 向けの説明（英語。MCP の actions の subjects で見せる。何のレコードで、AI がどう行うか）
   record: R // レコード 1 件の形。id（文字）を持つ
-  // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す先は core が読むので、アクションの reads に書かなくてよい）
+  // このレコードが指す、ほかのレコード（種類の id と id。レコードの中を読むのはこの定義だけ）。認可ステップが、行った後の実際のレコードの参照で守るのに使う（指す先は core が読むので、アクションの reads に書かなくてよい）。先頭は、そのレコードが属するレコード（チケット履歴ならチケット）。横断検索の当たりは、それも探せる種類のときだけ添える
   refers?(record: z.output<R>): readonly { subject: string; id: string }[]
   role?: SubjectRole // 常駐が種類で引く役（参加者・ワークルーム）
   // レコード 1 件の、形（record）のほかの確かめ。効かない所があれば warning を返す（無ければ空）。書いた種類は、形の確かめもここで行う（形に合わないレコードも渡る）。
@@ -60,6 +60,8 @@ export interface SubjectDef<
   // 一覧の既定の目次に載せるか（when。そのレコードと、その指す先（refers）だけ ctx.record で読める）と、載せない物が何か（unlisted。英語。actions の対象の定義で AI に見せる）。
   // 載せない物は、read_records の unlisted で取れる。aiList（索引キーで探す一覧）とは一緒に書けない
   aiListed?: { when(record: z.output<R>, ctx: AIListedContext): boolean; unlisted: string }
+  // 横断検索に使う文字（題 title と本文 body。どちらも無くてよい）。レコード 1 件から決まること（ほかのレコードを読まない）。書いた種類だけが、常駐の横断検索（title に当たった物は body だけに当たった物より上）に載る
+  searchTexts?(record: z.output<R>): { title?: string; body?: string }
   // 一覧（read_records）の並びの鍵（小さい順。無ければ id の順）
   aiOrder?(record: z.output<R>): number
   // 一覧（read_records）の既定の並び（索引キー）と件数。書いた種類の一覧は、索引キーで探して並べ、その件数だけ中身を読む

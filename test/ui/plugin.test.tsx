@@ -5,11 +5,12 @@ import { defineBookType } from "../../web/src/core/def/book-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
-import { BASE_UI } from "../../web/src/plugins/base/ui"
+import { BASE_UI, defineWideSearchOpener } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
+import { defineWidget } from "../../web/src/ui/layout"
 import { assembleUi, type DialogProps, definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
@@ -99,6 +100,29 @@ describe("見た目のプラグイン", () => {
       commandIcons: { "@matomezu/paper:paper-delete": <span /> },
     })
     expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E307" })
+  })
+
+  test("種類の持ち主のプラグインだけが、その種類の横断検索の開き方を名乗れる（持ち主が違えば E312、同じなら通る）", () => {
+    const opener = (id: string, kind: string) =>
+      defineWideSearchOpener({ id: id as never, kind, useOpen: () => () => {} })
+    const other = definePluginUi(definePlugin({ id: "icons" }), {
+      widgets: [opener("icons:open-ticket", "@matomezu/taskboard:ticket")],
+    })
+    expect(thrown(() => assembleUi([...BUILTIN_UI, other]))).toMatchObject({ code: "E312" })
+    // forKind を書かずに名乗る物は、引かれない（wide-search-openers.test.ts）。forKind に他の種類を書けば、defineWidget で直接書いても E312
+    const raw = definePluginUi(definePlugin({ id: "icons" }), {
+      widgets: [
+        defineWidget({
+          id: "icons:raw",
+          slots: [],
+          forKind: "@matomezu/taskboard:ticket",
+          view: () => null,
+        } as never),
+      ],
+    })
+    expect(thrown(() => assembleUi([...BUILTIN_UI, raw]))).toMatchObject({ code: "E312" })
+    const own = definePluginUi(definePlugin({ id: "icons" }), { widgets: [opener("icons:open-note", "icons:note")] })
+    expect(() => assembleUi([...BUILTIN_UI, own])).not.toThrow()
   })
 
   test("見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは error", () => {

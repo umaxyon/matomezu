@@ -102,6 +102,14 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:settings-keys",
     ],
     "@matomezu/base:mail-actions": ["@matomezu/base:join-request-actions", "@matomezu/base:proposal-actions"],
+    "@matomezu/base:wide-search-modes": [
+      "@matomezu/taskboard:wide-search-ticket",
+      "@matomezu/base:wide-search-full-text",
+    ],
+    "@matomezu/base:wide-search-openers": [
+      "@matomezu/taskboard:wide-search-open-ticket",
+      "@matomezu/taskboard:wide-search-open-history",
+    ],
     "@matomezu/base:annotation-icon": ["@matomezu/base:note-icon", "@matomezu/base:mark-icon"],
     "@matomezu/base:corner-statuses": [
       "@matomezu/base:alert-status",

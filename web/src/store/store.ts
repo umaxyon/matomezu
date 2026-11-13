@@ -68,6 +68,7 @@ import {
   zoomTo,
 } from "../core/stage"
 import type { Warning } from "../core/warnings"
+import { NO_WIDE_SEARCH_HITS, type WideSearchAnswer, type WideSearchQuery } from "../core/wide-search"
 import {
   bookScreenCurrent,
   closeScreen,
@@ -322,6 +323,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   ): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
+  // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
+  // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
+  search(query: WideSearchQuery): Promise<WideSearchAnswer>
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
   address(): Address
   // 画面の場所を address にする（core/address.ts の placeAt と、画面の場所に入れるプラグイン状態）。
@@ -336,6 +340,15 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // プラグイン状態の宣言 id の値を value にする（undefined なら消す）。ステージごとの宣言は stage のステージの値を、ステージに結ばない宣言は stage を渡さず。知らない id は E122、範囲が合わなければ E124、画面の場所に入れる宣言の形に合わない値は E123。
   // プラグインは、自分の kit と宣言を渡すフックを通して、自分の宣言だけを変える（プラグインに渡す actions には入れない）
   setPluginState(id: string, stage: string | null, value: unknown): void
+  // ほかのプラグインの宣言に値を入れる道: 画面の場所に入れる宣言（address を持つ）の id と値だけで、宣言の形で確かめて入れる。入れたら true。
+  // 宣言が無い・address が無い・形に合わない値・場所の無い範囲（ステージの宣言でステージを渡さない・開いていないスクリーン）は、何もせず false。
+  // ステージの宣言は caller.stage のステージの値、窓の宣言は窓の値。スクリーンの宣言は、caller.screenDef（書き先のスクリーンの定義の id）の開いているスクリーン（複数なら最後にカレントにした 1 枚）の値、
+  // screenDef を渡さなければ caller.screen（呼んだビューがいるスクリーン）の値（窓のカレントスクリーンには落とさない）。同じ値なら何も変わらない（ブラウザの履歴に積まない）
+  setPluginStateById(
+    id: string,
+    value: unknown,
+    caller: { screen?: string; screenDef?: string; stage?: string },
+  ): boolean
   // 複数の値をまとめて書く（store には 1 回で書く。途中の、片方だけ変わった状態を知らせない）。1 つでも知らない id・範囲違い・形違いがあれば、何も書かずに error
   setPluginStates(changes: readonly (readonly [id: string, stage: string | null, value: unknown])[]): void
   // ブラウザの履歴に積むと宣言した宣言の id の組（今の台帳のもの。追加プラグインを取り込んだら変わる。ホストクライアントが、画面の場所が移動したかを決めるのに使う）
@@ -408,6 +421,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   observe?: (done: DoneAction) => Promise<HostAnswer> | undefined
   aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に戻す・やり直すで消えたときに知らせる
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
+  search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
 }
 
 // 開いている画面の履歴の段。step は閉じて画面の履歴に入れた段、refused はホストが中のアクションを断ったこと。
@@ -763,6 +777,26 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (next !== now) setState({ pluginValues: next })
   }
   const setPluginState = (id: string, stage: string | null, value: unknown) => setPluginStates([[id, stage, value]])
+  const setPluginStateById = (
+    id: string,
+    value: unknown,
+    caller: { screen?: string; screenDef?: string; stage?: string },
+  ): boolean => {
+    const def = defs.catalog.store.pluginStates.get(id)
+    if (!def || def.address === "none" || !def.schema?.safeParse(value).success) return false
+    const win = getState().window
+    const screenAt = (): string | null => {
+      if (caller.screenDef === undefined) return caller.screen ?? null
+      const ids = win.screens.filter(s => s.def === caller.screenDef).map(s => s.id)
+      return [...win.order].reverse().find(o => ids.includes(o)) ?? null
+    }
+    const at = def.scope === "window" ? null : def.scope === "screen" ? screenAt() : (caller.stage ?? null)
+    if (def.scope !== "window" && at === null) return false
+    if (def.scope === "screen" && !win.screens.some(s => s.id === at)) return false
+    if (def.scope === "stage" && !inWindow(at as string)) return false
+    setPluginState(id, at, value)
+    return true
+  }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
       const done = run(id, args, on)
@@ -1060,6 +1094,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       checkSeen()
     },
     checkSeen,
+    search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
     address: () => addressNow(),
     locate: address => {
       const now = getState()
@@ -1114,6 +1149,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       })
     },
     setPluginState,
+    setPluginStateById,
     setPluginStates,
     pushing: () => pushingIds(defs.catalog.store.pluginStates),
     setEditLock: (key, lock) => {

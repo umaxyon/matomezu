@@ -40,6 +40,8 @@ export const TICKET = kit.defineSubject({
   },
   numbered: true,
   lockable: true,
+  // 番号と名前が題（チケットプレフィクスは別のレコードなので入れない）、本文が本文
+  searchTexts: t => ({ title: `${t.number} ${t.name}`, body: t.body }),
   aiOrder: t => t.number,
   // 完了のチケット（プロジェクトの完了のレーンにあるチケット）は、既定の目次に載せない（完了はたまる一方なので）。read_records の unlisted で取れる
   aiListed: {

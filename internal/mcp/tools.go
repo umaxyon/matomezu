@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // instructions は、つないだ AI に渡す matomezu の説明
@@ -156,6 +157,44 @@ var readTools = []readTool{
 			}
 			return api.Get("api/ai/records?" + q.Encode())
 		},
+	},
+	{
+		"search",
+		"Find records by words in their text (such as the tickets and ticket history of the task board). It answers total, how many records match, and one line per match (best first; a match in a title comes before one in a body): the kind, the id, the record's one-line brief and the part around the words found (→ kind id follows when the record belongs to another record, such as a history line to its ticket). " +
+			"Some kinds leave some of their records out (each says what in the subjects of actions, as unlisted): they are not found by default, and the answer says how many it left out (unlisted); unlisted: include finds them too, only finds just them. " +
+			"It finds words only. For questions about the whole (a list, a state, everything except the done ones), read the list with read_records, do not search. " +
+			"terms are OR: a record matching any of them is found; think of the other ways to say it (synonyms, other spellings, shorter stems) and give them all in one call. " +
+			"When the line you get is enough, do not open the record; only when it is not, read it in full with read_records (kind, id). " +
+			"Words of 1 or 2 characters can be searched too, but they are slow and match a lot, so avoid them. " +
+			"Past the limit, the answer says how many more there are and the offset to go on with.",
+		map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"terms": map[string]any{
+					"type": "array", "items": map[string]any{"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 10,
+					"description": "The words to find (OR). Case does not matter.",
+				},
+				"kinds": map[string]any{
+					"type": "array", "minItems": 1,
+					"description": "Search only these kinds (subjects' ids from the index of actions), each with where like read_records: index keys with the values they must have, or {\"is\": \"absent\"} / {\"is\": \"present\"}. Without it, every kind that can be searched.",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"kind":  map[string]any{"type": "string"},
+							"where": map[string]any{"type": "object"},
+						},
+						"required":             []string{"kind"},
+						"additionalProperties": false,
+					},
+				},
+				"unlisted": map[string]any{"type": "string", "enum": []string{"hide", "include", "only"}, "description": "For records the kinds leave out of their lists: hide (the default) does not find them, include finds all, only finds just the ones left out."},
+				"limit":    map[string]any{"type": "integer", "minimum": 1, "maximum": 50, "description": "How many matches to answer (20 without it)."},
+				"offset":   map[string]any{"type": "integer", "minimum": 0, "description": "Skip this many matches (to go on after the limit)."},
+			},
+			"required":             []string{"terms"},
+			"additionalProperties": false,
+		},
+		searchTool,
 	},
 	{
 		"read_settings",
@@ -484,4 +523,70 @@ func join(c *conn, args map[string]any) (string, bool) {
 	answer := map[string]any{"participant": done.Participant}
 	reply, _ := json.Marshal(answer)
 	return string(reply), false
+}
+
+// searchTool は search の呼び出し: 常駐の答え（JSON）を、横断検索の当たり 1 つを 1 行の文にする。先頭に総数、上限で切れたら残りの数と続きの offset
+func searchTool(api caller, args map[string]any) (json.RawMessage, error) {
+	q := url.Values{}
+	terms, _ := args["terms"].([]any)
+	for _, v := range terms {
+		if t, ok := v.(string); ok {
+			q.Add("term", t)
+		}
+	}
+	if len(q["term"]) == 0 {
+		return nil, fmt.Errorf("search needs terms (1 or more words)")
+	}
+	if kinds, ok := args["kinds"].([]any); ok && len(kinds) > 0 {
+		b, err := json.Marshal(kinds)
+		if err != nil {
+			return nil, err
+		}
+		q.Set("kinds", string(b))
+	}
+	if mode, _ := args["unlisted"].(string); mode != "" {
+		q.Set("unlisted", mode)
+	}
+	for _, name := range []string{"limit", "offset"} {
+		if n, ok := args[name].(float64); ok {
+			q.Set(name, strconv.FormatFloat(n, 'f', -1, 64))
+		}
+	}
+	raw, err := api.Get("api/ai/search?" + q.Encode())
+	if err != nil {
+		return nil, err
+	}
+	var answer struct {
+		Total    int `json:"total"`
+		Unlisted int `json:"unlisted"`
+		Hits     []struct {
+			Kind    string                     `json:"kind"`
+			ID      string                     `json:"id"`
+			Part    string                     `json:"part"`
+			Brief   string                     `json:"brief"`
+			Snippet string                     `json:"snippet"`
+			Of      *struct{ Kind, ID string } `json:"of"`
+		} `json:"hits"`
+		More int `json:"more"`
+		Next int `json:"next"`
+	}
+	if err := json.Unmarshal(raw, &answer); err != nil {
+		return nil, err
+	}
+	head := fmt.Sprintf("total: %d", answer.Total)
+	if answer.Unlisted > 0 {
+		head += fmt.Sprintf(", unlisted: %d", answer.Unlisted)
+	}
+	lines := []string{head}
+	for _, h := range answer.Hits {
+		line := h.Kind + " " + h.ID + " | " + h.Brief + " | " + h.Part + ": " + h.Snippet
+		if h.Of != nil {
+			line += " → " + h.Of.Kind + " " + h.Of.ID
+		}
+		lines = append(lines, line)
+	}
+	if answer.More > 0 {
+		lines = append(lines, fmt.Sprintf("%d more. offset=%d to go on", answer.More, answer.Next))
+	}
+	return json.RawMessage(strings.Join(lines, "\n")), nil
 }

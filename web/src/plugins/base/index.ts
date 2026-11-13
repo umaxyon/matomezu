@@ -142,6 +142,7 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
+import { WIDE_SEARCH_MODE } from "./wide-search/state"
 import { BOOK_SCREEN_DEF, CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE, ONE_SCREEN } from "./window"
 import { MAXIMIZERS } from "./window/maximize-state"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
@@ -432,6 +433,7 @@ export const BASE = defineBuiltin(
       ...MAIL_STATES,
       ...NOTE_STATES,
       ...MARK_STATES,
+      WIDE_SEARCH_MODE,
     ],
     keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE, SEARCH_KEY_SCOPE],
     keys: [
@@ -628,6 +630,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:search": typeof SEARCH_STATE
     "@matomezu/base:search-at": typeof SEARCH_AT_STATE
     "@matomezu/base:search-pick": typeof SEARCH_PICK_STATE
+    "@matomezu/base:wide-search-mode": typeof WIDE_SEARCH_MODE
     "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_STATE
     "@matomezu/base:right-side-panel-restore": typeof RIGHT_SIDE_PANEL_RESTORE_STATE
     "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_STATE

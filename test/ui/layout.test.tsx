@@ -106,6 +106,8 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:footer-menu-book-tools is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:mail-actions is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:wide-search-modes is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:wide-search-openers is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:annotation-icon is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:corner-statuses is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",

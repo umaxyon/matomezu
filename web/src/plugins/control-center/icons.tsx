@@ -137,3 +137,10 @@ export const CrownIcon = ({ width = 18 }: { width?: number }) => (
     <path d="M2 12L1 3l5.5 4.5L12 1l5.5 6.5L23 3l-1 9z" strokeLinejoin="round" />
   </svg>
 )
+
+export const SearchIcon = () => (
+  <Svg size={15}>
+    <circle cx="10.5" cy="10.5" r="6" />
+    <path d="M15 15l5.5 5.5" />
+  </Svg>
+)

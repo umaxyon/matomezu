@@ -162,3 +162,41 @@ test("入れない宣言（none）は形を確かめず、同じ値なら置き�
   expect(instance.state.getState().pluginValues).toBe(first)
   expect(code(() => instance.setPluginState("k:tab", null, "three"))).toBe("E123")
 })
+
+test("ほかのプラグインの宣言に、id と値だけで入れる道: address を持つ宣言にだけ、宣言の形で確かめて入れる。宣言の無い id・address の無い宣言・形に合わない値・場所の無い範囲は落ちる。同じ値は積まない", () => {
+  const instance = make()
+  const caller = { screen: screenOf(instance.state.getState().window).current }
+  const at = () => instance.address().window
+  expect(instance.setPluginStateById("k:tab", "two", caller)).toBe(true)
+  expect(at()).toEqual({ "k:tab": "two" })
+  // 宣言の無い id・address の無い宣言・形に合わない値は、何もせず落ちる（error にしない）
+  expect(instance.setPluginStateById("k:nope", "two", caller)).toBe(false)
+  expect(instance.setPluginStateById("k:note", "x", caller)).toBe(false)
+  expect(instance.state.getState().pluginValues.window["k:note"]).toBeUndefined()
+  expect(instance.setPluginStateById("k:tab", "three", caller)).toBe(false)
+  expect(at()).toEqual({ "k:tab": "two" })
+  // ステージの宣言は caller のステージの値。ステージを渡さない・無いステージには入れない
+  expect(instance.setPluginStateById("k:mode", "wide", caller)).toBe(false)
+  expect(instance.setPluginStateById("k:mode", "wide", { ...caller, stage: "s9" })).toBe(false)
+  expect(instance.setPluginStateById("k:mode", "wide", { ...caller, stage: "s1" })).toBe(true)
+  expect(stagePlacesOf(instance.address())[0]?.states).toEqual({ "k:mode": "wide" })
+  // スクリーンの宣言は、呼んだスクリーンの値。開いていないスクリーンには入れず、同じ値は state を作り直さない
+  const id = "@matomezu/control-center:front-screen"
+  const center = instance.state.getState().window.screens.find(s => s.def === "@matomezu/control-center:screen")!.id
+  expect(instance.setPluginStateById(id, "library", { screen: center })).toBe(true)
+  expect(instance.address().screens.find(s => s.id === center)?.states).toEqual({ [id]: "library" })
+  expect(instance.setPluginStateById(id, "library", { screen: "c99" })).toBe(false)
+  // 書き先は定義の id で渡す。渡した定義のスクリーンに入る（別のスクリーンには入らない）。窓のカレントには落とさず、開いていない定義・screenDef もスクリーンも無ければ false
+  const centerDef = "@matomezu/control-center:screen"
+  const book = instance.state.getState().window.screens.find(s => s.def !== centerDef)!.id
+  const states = (sid: string) => instance.state.getState().pluginValues.screens[sid]?.[id]
+  expect(instance.setPluginStateById(id, "projects", { screenDef: centerDef })).toBe(true)
+  expect(states(center)).toBe("projects")
+  expect(states(book)).toBeUndefined()
+  expect(instance.setPluginStateById(id, "projects", { screenDef: "@matomezu/base:nope" })).toBe(false)
+  expect(instance.setPluginStateById(id, "projects", {})).toBe(false)
+  expect(instance.setPluginStateById(id, "participants", { screen: center })).toBe(false)
+  const before = instance.state.getState().pluginValues
+  expect(instance.setPluginStateById(id, "projects", { screen: center })).toBe(true)
+  expect(instance.state.getState().pluginValues).toBe(before)
+})

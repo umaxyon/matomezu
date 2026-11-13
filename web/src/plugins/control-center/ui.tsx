@@ -1,10 +1,11 @@
 // コントロールセンターのプラグインの見た目: 窓がコントロールセンターを前に出したときの画面と、退室の確認のダイアログ。
-// 画面は郵便箱の左サイドパネルを開くので、郵便箱のタブの中身が開けるスロットを opens に書く
+// 画面は郵便箱と横断検索の左サイドパネルを開くので、そのタブの中身が開けるスロットを opens に書く
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import {
   CONTROL_CENTER_PROJECTS,
   CONTROL_CENTER_SIDE,
   MAILBOX_OPENS,
+  WIDE_SEARCH_OPENS,
   WORKROOM_COLUMNS,
   WORKROOM_ROW_LINE,
 } from "../base/ui"
@@ -17,7 +18,14 @@ import { WorkroomLeaveDialog } from "./WorkroomLeaveDialog"
 export const CONTROL_CENTER_SCREEN_WIDGET = defineWidget({
   id: kit.name("screen"),
   slots: [CONTROL_CENTER_SCREEN.id],
-  opens: [...MAILBOX_OPENS, CONTROL_CENTER_SIDE, CONTROL_CENTER_PROJECTS, WORKROOM_COLUMNS, WORKROOM_ROW_LINE],
+  opens: [
+    ...MAILBOX_OPENS,
+    ...WIDE_SEARCH_OPENS,
+    CONTROL_CENTER_SIDE,
+    CONTROL_CENTER_PROJECTS,
+    WORKROOM_COLUMNS,
+    WORKROOM_ROW_LINE,
+  ],
   view: ControlCenterScreen,
 })
 

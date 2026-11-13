@@ -56,3 +56,15 @@ export function listAIRecords(
     unlisted: mode === "hide" ? entries.filter(e => !e.listed).length : 0,
   }
 }
+
+// 種類 def のレコード 1 件（形に合うもの）が、一覧の既定の目次に載るか（aiListed を書かない種類は載る）。横断検索の当たりを、一覧と同じ aiListed で分けるのに使う
+export function isAIListed(
+  def: SubjectDef,
+  record: unknown,
+  byId: (subject: string, id: string) => unknown | undefined,
+): boolean {
+  const refs = def.refers?.(record as never) ?? []
+  const read = (subject: string, id: string): unknown =>
+    refs.some(x => x.subject === subject && x.id === id) ? (byId(subject, id) ?? "none") : "none"
+  return def.aiListed?.when(record as never, { record: read }) !== false
+}

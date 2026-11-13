@@ -239,27 +239,12 @@ func (s *sqliteStorage) Find(subject string, q Query) ([]Found, error) {
 		where = append(where, "subject = ?")
 		args = append(args, subject)
 	}
-	for _, c := range q.Where {
-		col, typ, has := k.column(c.Key)
-		if !has {
-			return nil, ErrUnknownKey
-		}
-		switch c.Op {
-		case "absent":
-			where = append(where, col+" IS NULL")
-		case "present":
-			where = append(where, col+" IS NOT NULL")
-		case "eq", "lt", "gt":
-			_, text := c.Value.(string)
-			if text != (typ == "text") {
-				return nil, ErrUnknownKey
-			}
-			where = append(where, col+map[string]string{"eq": " = ?", "lt": " < ?", "gt": " > ?"}[c.Op])
-			args = append(args, c.Value)
-		default:
-			return nil, ErrUnknownKey
-		}
+	conds, condArgs, err := condSQL(k, q.Where)
+	if err != nil {
+		return nil, err
 	}
+	where = append(where, conds...)
+	args = append(args, condArgs...)
 	query := `SELECT ` + cols + ` FROM ` + k.table
 	if len(where) > 0 {
 		query += ` WHERE ` + strings.Join(where, " AND ")
@@ -318,4 +303,32 @@ func (s *sqliteStorage) Find(subject string, q Query) ([]Found, error) {
 		out = append(out, f)
 	}
 	return out, rows.Err()
+}
+
+// condSQL は、種類 k の索引キーの条件 conds を、列への条件の文と引数にする（宣言に無いキーや、型の合わない値は ErrUnknownKey）
+func condSQL(k kind, conds []Cond) ([]string, []any, error) {
+	var where []string
+	var args []any
+	for _, c := range conds {
+		col, typ, has := k.column(c.Key)
+		if !has {
+			return nil, nil, ErrUnknownKey
+		}
+		switch c.Op {
+		case "absent":
+			where = append(where, col+" IS NULL")
+		case "present":
+			where = append(where, col+" IS NOT NULL")
+		case "eq", "lt", "gt":
+			_, text := c.Value.(string)
+			if text != (typ == "text") {
+				return nil, nil, ErrUnknownKey
+			}
+			where = append(where, col+map[string]string{"eq": " = ?", "lt": " < ?", "gt": " > ?"}[c.Op])
+			args = append(args, c.Value)
+		default:
+			return nil, nil, ErrUnknownKey
+		}
+	}
+	return where, args, nil
 }

@@ -1,0 +1,90 @@
+/* 横断検索のパネルの中身 */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.modes {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  border: none;
+  gap: 6px;
+}
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: grid;
+  grid-template-columns: 5.5em 1fr;
+  grid-template-areas:
+    "kind brief"
+    ". snippet";
+  gap: 2px 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+button.row {
+  cursor: pointer;
+}
+button.row:hover {
+  background: var(--skin-surface-hover, var(--skin-surface));
+}
+.row[aria-disabled="true"] {
+  color: var(--skin-text-muted);
+}
+.kind {
+  grid-area: kind;
+  color: var(--skin-text-muted);
+  font-size: 12px;
+}
+.brief {
+  grid-area: brief;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.snippet {
+  grid-area: snippet;
+  overflow: hidden;
+  color: var(--skin-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note {
+  margin: 0;
+  color: var(--skin-text-muted);
+  font-size: 13px;
+}
+.more {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}

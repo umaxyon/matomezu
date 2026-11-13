@@ -10,6 +10,9 @@ import { PROJECT_UPDATE } from "../project/actions"
 import { useOpenProjectSettings } from "../project-settings/useOpenProjectSettings"
 import scroll from "../scrollbar.module.css"
 import { TICKET } from "../ticket"
+import { TICKET_FILTER } from "../wide-search"
+import { FilterBanner } from "../wide-search/FilterBanner"
+import { filterTickets, isFiltering } from "../wide-search/filter"
 import { MAXIMIZED } from "."
 import { BoardLanes } from "./BoardLanes"
 import { CardVisitView } from "./CardVisitView"
@@ -22,7 +25,10 @@ import { useBoardSettings } from "./useBoardSettings"
 export function TaskboardView() {
   const t = useMessages(kit)
   const projects = useRecords(PROJECT.id, { where: [] })
-  const tickets = useRecords(TICKET.id, { where: [] })
+  const allTickets = useRecords(TICKET.id, { where: [] })
+  const filter = usePluginState(kit, TICKET_FILTER)
+  const updateFilter = useUpdatePluginState(kit, TICKET_FILTER)
+  const tickets = filterTickets(allTickets, filter)
   const workrooms = useRecords("@matomezu/base:workroom", { where: [] })
   const settings = useBoardSettings()
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
@@ -39,6 +45,7 @@ export function TaskboardView() {
   if (ordered.length === 0) return <p className={styles.empty}>{t("No projects")}</p>
   return (
     <div ref={setRoot} className={`${styles.root} ${scroll.thin}`}>
+      {isFiltering(filter) && <FilterBanner filter={filter} onClear={() => updateFilter(() => undefined)} />}
       {rendered.map(project => {
         const phase = phases[project.id] ?? "idle"
         const hidden = maximized !== undefined && maximized.board !== project.id

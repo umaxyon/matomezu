@@ -9,6 +9,7 @@ import { PROJECT_SETTINGS_MESSAGES } from "./project-settings/messages"
 import { TICKET_MESSAGES } from "./ticket/messages"
 import { TICKET_HISTORY_MESSAGES } from "./ticket-history/messages"
 import { TICKET_SCREEN_MESSAGES } from "./ticket-screen/messages"
+import { WIDE_SEARCH_MESSAGES } from "./wide-search/messages"
 
 export const TASKBOARD_MESSAGES = joinMessages(
   COMPLETION_MESSAGES,
@@ -20,4 +21,5 @@ export const TASKBOARD_MESSAGES = joinMessages(
   PROJECT_LIST_MESSAGES,
   PROJECT_SETTINGS_MESSAGES,
   TICKET_SCREEN_MESSAGES,
+  WIDE_SEARCH_MESSAGES,
 )

@@ -30,6 +30,9 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 	f.sent = append(f.sent, header.Get("X-Matomezu-Participant"))
 	f.headers = append(f.headers, header)
 	f.gets = append(f.gets, path)
+	if strings.HasPrefix(path, "api/ai/search?") {
+		return json.RawMessage(`{"total":3,"unlisted":2,"hits":[{"kind":"k","id":"t1","part":"title","brief":"1 first [todo]","snippet":"…first…","of":{"kind":"p","id":"p1"}},{"kind":"h","id":"h1","part":"body","brief":"status: ok","snippet":"ok"}],"more":1,"next":2}`), f.replied, nil
+	}
 	switch path {
 	case "api/ai/books":
 		return json.RawMessage(`{"ok":true}`), f.replied, nil
@@ -106,7 +109,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_records,read_settings,actions,show,perform,join" {
+	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_records,search,read_settings,actions,show,perform,join" {
 		t.Fatalf("tools = %v", names)
 	}
 }
@@ -339,5 +342,25 @@ func TestAPageOverTheLimitIsRefusedWithHowToNarrowIt(t *testing.T) {
 	small := got[1]["result"].(map[string]any)
 	if small["isError"] != false || small["content"].([]any)[0].(map[string]any)["text"] != `{"page":"small"}` {
 		t.Fatalf("small = %v", small)
+	}
+}
+
+// search は言葉（OR）・種類の絞り・件数・続きを常駐に渡し、横断検索の当たり 1 つを 1 行にして、先頭に総数、切れたら残りの数と続きの offset を返す
+func TestSearchAnswersOneLinePerMatch(t *testing.T) {
+	api := &fakeAPI{}
+	got := talk(t, api,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search","arguments":{"terms":["a b","c"],"kinds":[{"kind":"k","where":{"lane":"todo"}}],"limit":2,"offset":1,"unlisted":"hide"}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search","arguments":{"terms":[]}}}`,
+	)
+	want := "api/ai/search?kinds=%5B%7B%22kind%22%3A%22k%22%2C%22where%22%3A%7B%22lane%22%3A%22todo%22%7D%7D%5D&limit=2&offset=1&term=a+b&term=c&unlisted=hide"
+	if len(api.gets) != 1 || api.gets[0] != want {
+		t.Fatalf("gets = %v", api.gets)
+	}
+	lines := "total: 3, unlisted: 2\nk t1 | 1 first [todo] | title: …first… → p p1\nh h1 | status: ok | body: ok\n1 more. offset=2 to go on"
+	if textOf(got[0]) != lines {
+		t.Fatalf("answer = %q", textOf(got[0]))
+	}
+	if r := got[1]["result"].(map[string]any); r["isError"] != true {
+		t.Fatalf("no terms = %v", got[1])
 	}
 }

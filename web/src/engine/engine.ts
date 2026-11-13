@@ -5,7 +5,7 @@
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
 import { actorOfWire, type WireActor } from "../core/actor"
-import { listAIRecords, UNLISTED_MODES } from "../core/ai-list"
+import { isAIListed, listAIRecords, UNLISTED_MODES } from "../core/ai-list"
 import {
   type Annotations,
   annotationBriefs,
@@ -21,6 +21,7 @@ import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { bookType, type CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/book-type"
+import type { SubjectDef } from "../core/def/subject"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
@@ -398,10 +399,50 @@ function aiTables(of: Assembled) {
   )
 }
 
+// 種類 subject のレコード records（JSON。id → レコード）のうち、一覧の既定の目次に載せない物の id の並び（core/ai-list.ts の isAIListed）。横断検索が、横断検索の当たりを分けるのに引く。指す先は、ホストの読み口から引く
+;(globalThis as { matomezuUnlistedOf?: (subject: string, records: string) => string }).matomezuUnlistedOf = (
+  subject,
+  records,
+) => {
+  const def = assembled.catalog.core.subjects.get(subject)
+  const source = hostSource({})
+  const out: string[] = []
+  if (def) {
+    for (const [id, record] of Object.entries(parseOr(records) as Record<string, unknown>)) {
+      const parsed = def.record.safeParse(record)
+      try {
+        if (parsed.success && !isAIListed(def, parsed.data, (s, i) => source?.byId(s, i))) out.push(id)
+      } catch {}
+    }
+  }
+  return JSON.stringify(out)
+}
+
 // 変えたレコード 1 件に、索引キーの値を添える（置き場所が中身とは別に置く。消したレコードと、索引キーの無い種類には添えない）
-function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { keys?: KeyValues } {
+function withKeys(
+  catalog: CoreCatalog,
+  change: RecordChange,
+): RecordChange & { keys?: KeyValues; search?: { title: string; body: string } } {
   const def = catalog.subjects.get(change.subject)
-  return def?.keys && change.record !== REMOVED ? { ...change, keys: keyValuesOf(def, change.record) } : change
+  if (def === undefined || change.record === REMOVED) return change
+  const search = def.searchTexts ? searchTextOf(def, change.record) : undefined
+  return {
+    ...change,
+    ...(def.keys ? { keys: keyValuesOf(def, change.record) } : {}),
+    ...(search ? { search } : {}),
+  }
+}
+
+// レコード 1 件の、横断検索に使う文字（形に合わない・関数が投げたレコードは undefined）
+function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: string } | undefined {
+  const parsed = def.record.safeParse(record)
+  if (!parsed.success || def.searchTexts === undefined) return undefined
+  try {
+    const { title, body } = def.searchTexts(parsed.data as never)
+    return { title: title ?? "", body: body ?? "" }
+  } catch {
+    return undefined
+  }
 }
 // 今の機能台帳の、レコードの種類と索引キーの宣言（常駐が置き場所に伝える。索引キーは宣言の順）
 ;(globalThis as { matomezuKinds?: () => string }).matomezuKinds = () =>
@@ -410,6 +451,7 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
       subject: s.id,
       keys: Object.entries(s.keys ?? {}).map(([name, key]) => ({ name, type: key.type })),
       // AI に見せる種類か（aiBrief を書いた種類）と、その一覧の既定の並びと件数（aiList。索引キーで探す種類だけ）
+      search: s.searchTexts !== undefined,
       ai: s.aiBrief !== undefined,
       ...(s.aiBrief !== undefined && s.aiList && s.keys?.[s.aiList.order.key] ? { aiList: s.aiList } : {}),
       // 目次に載せない物がある種類の、載せない物の説明（aiListed。read_records の unlisted を受ける種類）
@@ -444,6 +486,42 @@ function withKeys(catalog: CoreCatalog, change: RecordChange): RecordChange & { 
   return JSON.stringify(
     Object.fromEntries(Object.entries(table).map(([id, record]) => [id, def ? keyValuesOf(def, record) : {}])),
   )
+}
+
+// 種類 subject のレコード records（JSON。id → レコード）の、横断検索に使う文字（id → 題と本文）。常駐が、探す文字を入れ直すのに引く（形に合わないレコードは含めない）
+;(globalThis as { matomezuSearchTextsOf?: (subject: string, records: string) => string }).matomezuSearchTextsOf = (
+  subject,
+  records,
+) => {
+  const def = assembled.catalog.core.subjects.get(subject)
+  const out: Record<string, { title: string; body: string }> = {}
+  if (def?.searchTexts) {
+    for (const [id, record] of Object.entries(parseOr(records) as Record<string, unknown>)) {
+      const text = searchTextOf(def, record)
+      if (text) out[id] = text
+    }
+  }
+  return JSON.stringify(out)
+}
+
+// 種類 subject のレコード records（JSON。id → レコード）の、親（refers の先頭 1 件。id → {subject, id}）。refers を書かない種類・指す先の無いレコード・形に合わないレコードは含めない
+;(globalThis as { matomezuParentsOf?: (subject: string, records: string) => string }).matomezuParentsOf = (
+  subject,
+  records,
+) => {
+  const def = assembled.catalog.core.subjects.get(subject)
+  const out: Record<string, { subject: string; id: string }> = {}
+  if (def?.refers) {
+    for (const [id, record] of Object.entries(parseOr(records) as Record<string, unknown>)) {
+      const parsed = def.record.safeParse(record)
+      if (!parsed.success) continue
+      try {
+        const first = def.refers(parsed.data as never)[0]
+        if (first) out[id] = { subject: first.subject, id: first.id }
+      } catch {}
+    }
+  }
+  return JSON.stringify(out)
 }
 
 // 常駐と core が種類で引く役（参加者・ワークルーム・郵便）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）

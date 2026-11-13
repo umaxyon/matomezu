@@ -64,7 +64,14 @@ type RecordChange struct {
 	Subject string          `json:"subject"`
 	ID      string          `json:"id"`
 	Record  json.RawMessage `json:"record"`
-	Keys    map[string]any  `json:"keys,omitempty"` // 索引キーの値（名前 → 文字か数。索引キーの無い種類と、消したレコードには無い）
+	Keys    map[string]any  `json:"keys,omitempty"`   // 索引キーの値（名前 → 文字か数。索引キーの無い種類と、消したレコードには無い）
+	Search  *SearchText     `json:"search,omitempty"` // 横断検索に使う文字（searchTexts を持つ種類だけ。消したレコードには無い）
+}
+
+// SearchText は、レコード 1 件の、横断検索に使う文字（題と本文。どちらも空でありうる）
+type SearchText struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
 }
 
 // KeySpec は索引キー 1 つの宣言（名前と、値の型 text か number）、Kind はレコードの種類 1 つとその索引キーの宣言
@@ -76,6 +83,7 @@ type KeySpec struct {
 type Kind struct {
 	Subject string    `json:"subject"`
 	Keys    []KeySpec `json:"keys"`
+	Search  bool      `json:"search"`           // 横断検索できる種類か（searchTexts を書いた種類）
 	AI      bool      `json:"ai"`               // AI に見せる種類か（read_records）
 	AIList  *AIList   `json:"aiList,omitempty"` // 一覧の既定の並びと件数（索引キーで探す種類だけ）
 	// 一覧の既定の目次に載せない物がある種類の、載せない物の説明（read_records の unlisted を受ける種類）
@@ -135,6 +143,9 @@ type Engine struct {
 	kinds     func() string
 	aiRows    func(string, string) string
 	keysOf    func(string, string) string
+	searchOf  func(string, string) string
+	parentsOf func(string, string) string
+	unlisted  func(string, string) string
 	perform   func(string) string
 	readAI    func() string
 	check     func(string) string
@@ -206,6 +217,15 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuKeysOf"), &e.keysOf); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuKeysOf: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuSearchTextsOf"), &e.searchOf); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuSearchTextsOf: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuParentsOf"), &e.parentsOf); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuParentsOf: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuUnlistedOf"), &e.unlisted); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuUnlistedOf: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuPerform"), &e.perform); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuPerform: %w", err)
@@ -423,6 +443,66 @@ func (e *Engine) KeysOf(subject string, records map[string]json.RawMessage) (key
 	}()
 	err = json.Unmarshal([]byte(e.keysOf(subject, string(b))), &keys)
 	return keys, err
+}
+
+// SearchTextsOf は、種類 subject のレコード records（id → レコード）の、横断検索に使う文字（id → 題と本文）。形に合わないレコードは含めない
+func (e *Engine) SearchTextsOf(subject string, records map[string]json.RawMessage) (texts map[string]SearchText, err error) {
+	b, err := json.Marshal(records)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.searchOf(subject, string(b))), &texts)
+	return texts, err
+}
+
+// Ref は、レコード 1 件の指す先（種類の id と id）
+type Ref struct {
+	Kind string `json:"subject"`
+	ID   string `json:"id"`
+}
+
+// ParentsOf は、種類 subject のレコード records（id → レコード）の親（定義の refers の先頭 1 件。id → 指す先）。refers を書かない種類や、指す先の無いレコードは含めない
+func (e *Engine) ParentsOf(subject string, records map[string]json.RawMessage) (parents map[string]Ref, err error) {
+	b, err := json.Marshal(records)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.parentsOf(subject, string(b))), &parents)
+	return parents, err
+}
+
+// UnlistedOf は、種類 subject のレコード records（id → レコード）のうち、一覧の既定の目次に載せない物の id（aiListed を書かない種類は、載せない物が無い）。
+// 指す先のレコードは src から引く（呼ぶ側が置き場所を止めておく）
+func (e *Engine) UnlistedOf(subject string, records map[string]json.RawMessage, src Source) (ids []string, err error) {
+	b, err := json.Marshal(records)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.unlisted(subject, string(b))), &ids)
+	return ids, err
 }
 
 // PerformWith は、レコードを引く口 src を渡して Perform する（src が nil なら、in の Records だけで行う）

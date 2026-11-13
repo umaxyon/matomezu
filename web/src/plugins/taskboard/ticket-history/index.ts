@@ -1,6 +1,6 @@
 // チケット履歴: チケット 1 枚についての、書いた者・時点・題（状況・プラン・質問など）・本文の 1 行。1 行が 1 件のレコードで、足すだけ（直す・消すアクションは無い）。
 // 題（topic）は列挙 history-topic の値の id で、ほかのプラグインが足せる。値が列挙から無くなっても、行は残る（読む側が扱う）。
-// 起票は履歴の行にせず、チケットの createdAt・createdBy から見せる
+// 起票はチケット履歴の行にせず、チケットの createdAt・createdBy から見せる
 import { z } from "zod"
 import { PALETTE } from "../../../plugin-api"
 import { BY } from "../by"
@@ -73,6 +73,7 @@ export const HISTORY = kit.defineSubject({
     released: z.array(z.string().min(1)).optional(), // 完了の行だけが持つ: 完了で担当を外した、ワークルームの id（担当と同じに、消したワークルームの id は書いたまま残し、読む側が外す）
   }),
   refers: h => [{ subject: TICKET.id, id: h.ticket }],
+  searchTexts: h => ({ body: h.text }),
   aiOrder: h => Date.parse(h.at) || 0,
   aiBrief: h => `${h.topic}: ${h.text}`,
 })

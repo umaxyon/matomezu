@@ -108,7 +108,15 @@ type UserBody struct {
 	Body json.RawMessage
 }
 
-// Batch は 1 回の Perform が変える物の全部。Apply が、並びの順（ブック → 消すブック → 設定 → アノテーション → AI 編集チケット → レコード → 番号の表）に 1 つのまとまりとして書く。
+// SearchText は、言葉で探すための文字 1 件（Batch の、レコードとは別の並び）。Kind と Ref で 1 件を決め（Ref はレコードの id に限らない）、
+// Title（題。本文より上に並べる）と Body（本文）を置き換える。Removed か、Title も Body も空なら消す
+type SearchText struct {
+	Kind, Ref   string
+	Title, Body string
+	Removed     bool
+}
+
+// Batch は 1 回の Perform が変える物の全部。Apply が、並びの順（ブック → 消すブック → 設定 → アノテーション → AI 編集チケット → レコード → 探す文字 → 番号の表）に 1 つのまとまりとして書く。
 // 変えない物は nil（nil でない UserBody は置き換える）
 type Batch struct {
 	Books         []BookWrite
@@ -117,6 +125,7 @@ type Batch struct {
 	Annotations   []BookBody
 	AIEditTickets []BookBody
 	Records       []RecordWrite // 変えるレコード（1 つのアクションが変えた全部）
+	SearchTexts   []SearchText  // 変える探す文字（レコードと同じ 1 回の書き込みで）
 	Counters      []Counter     // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
 }
 
@@ -139,6 +148,10 @@ type Storage interface {
 	// Records は置いてある全部のレコード（種類・id の順）、Counters は番号の表
 	Records() ([]Record, error)
 	Counters() ([]Counter, error)
+	// SyncSearch は、探す文字を入れ直す: 種類 keep の全部を texts にし（texts に無い参照先は消す）、keep に無い種類の文字は消す
+	SyncSearch(keep []string, texts []SearchText) error
+	// Search は言葉で探す（SearchQuery）
+	Search(q SearchQuery) (SearchResult, error)
 	// DeleteBook はブック id と、それを開いた時刻と、そのアノテーションと AI 編集チケットを消す（戻せない）
 	DeleteBook(id string) error
 	// PutBook は、置いてある版が base のときだけ body で書き換え、新しい版を返す。base が 0 なら、まだ無いときだけ足す。

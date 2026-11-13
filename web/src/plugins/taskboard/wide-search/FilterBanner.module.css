@@ -1,0 +1,21 @@
+/* 絞りが効いている間の印（タスクボードの上） */
+.banner {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--skin-border-strong);
+  border-radius: 6px;
+  background: var(--skin-surface-raised);
+  color: var(--skin-text);
+  font-size: 13px;
+}
+.text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

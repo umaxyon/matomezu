@@ -103,6 +103,13 @@ func (h *Hub) planRecords(plan *writePlan, out engine.Output) {
 		base := h.recordTables[c.Subject][c.ID].version
 		removed := string(c.Record) == removedRecord
 		plan.batch.Records = append(plan.batch.Records, storage.RecordWrite{Subject: c.Subject, ID: c.ID, Body: c.Record, Base: base, Removed: removed, Keys: c.Keys})
+		if h.kinds[c.Subject].Search {
+			text := storage.SearchText{Kind: c.Subject, Ref: c.ID, Removed: removed}
+			if c.Search != nil {
+				text.Title, text.Body = c.Search.Title, c.Search.Body
+			}
+			plan.batch.SearchTexts = append(plan.batch.SearchTexts, text)
+		}
 		put := recordPut{subject: c.Subject, id: c.ID, body: c.Record, version: base + 1, removed: removed}
 		if removed {
 			put.version = 0
@@ -322,7 +329,32 @@ func (h *Hub) syncKinds() error {
 			return err
 		}
 	}
-	return nil
+	return h.syncSearch(kinds)
+}
+
+// syncSearch は、横断検索に使う文字（searchTexts を書いた種類の全部のレコード）を入れ直す。
+// 文字を返す関数はプラグインの物なので、宣言が同じでも変わりうる。機能台帳から無くなった種類の文字は消える
+func (h *Hub) syncSearch(kinds []engine.Kind) error {
+	var keep []string
+	var texts []storage.SearchText
+	for _, k := range kinds {
+		if !k.Search {
+			continue
+		}
+		keep = append(keep, k.Subject)
+		bodies := map[string]json.RawMessage{}
+		for id, e := range h.recordTables[k.Subject] {
+			bodies[id] = e.body
+		}
+		found, err := h.engine.SearchTextsOf(k.Subject, bodies)
+		if err != nil {
+			return err
+		}
+		for _, id := range slices.Sorted(maps.Keys(found)) {
+			texts = append(texts, storage.SearchText{Kind: k.Subject, Ref: id, Title: found[id].Title, Body: found[id].Body})
+		}
+	}
+	return h.store.SyncSearch(keep, texts)
 }
 
 // recordSource は、アクションを行っている間にエンジンがレコードを引く口（engine.Source）。置き場所から引き、条件は索引キーの列で絞る
