@@ -2,7 +2,7 @@
 import { type z, z as zod } from "zod"
 import { byOf, READS_WORKROOM_NAMES, type Records, readsBy, recordIn, WORKROOM_SUBJECT } from "../by"
 import { kit } from "../kit"
-import { NO_TAG, PROJECT, UNSORTED } from "../project"
+import { inDoneLane, NO_TAG, PROJECT, UNSORTED } from "../project"
 import { type Project, projectOf } from "../project/actions"
 import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "."
 import { ticketLabel } from "./label"
@@ -90,7 +90,7 @@ export const TICKET_ADD = kit.defineAction({
     if (!project) return { declined: "the project is not there" }
     const lane = pickLane(project, args.lane ?? UNSORTED)
     if ("declined" in lane) return lane
-    if (lane.id === project.doneLane) return { declined: DONE_LANE_REFUSAL }
+    if (inDoneLane(project, lane.id)) return { declined: DONE_LANE_REFUSAL }
     const tag = pickTag(project, args.tag ?? NO_TAG)
     if ("declined" in tag) return tag
     const assignees = pickAssignees(ctx, args.assignees ?? [], [])
@@ -148,12 +148,12 @@ export const TICKET_UPDATE = kit.defineAction({
     if (!project) return { declined: "the project of the ticket is not there" }
     const lane = args.lane === undefined ? undefined : pickLane(project, args.lane, now.lane)
     if (lane && "declined" in lane) return lane
-    if (lane && lane.id === project.doneLane && now.lane !== project.doneLane) return { declined: DONE_LANE_REFUSAL }
+    if (lane && inDoneLane(project, lane.id) && !inDoneLane(project, now.lane)) return { declined: DONE_LANE_REFUSAL }
     const tag = args.tag === undefined ? undefined : pickTag(project, args.tag, now.tag)
     if (tag && "declined" in tag) return tag
     const assignees = args.assignees === undefined ? undefined : pickAssignees(ctx, args.assignees, now.assignees)
     if (assignees && "declined" in assignees) return assignees
-    if (assignees && assignees.ids.length > 0 && (lane?.id ?? now.lane) === project.doneLane)
+    if (assignees && assignees.ids.length > 0 && inDoneLane(project, lane?.id ?? now.lane))
       return {
         declined:
           "a ticket in the done lane has no assignees: take it out of the done lane first (change its lane), then assign",

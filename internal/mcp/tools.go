@@ -90,6 +90,7 @@ var readTools = []readTool{
 			"Without id or ids it lists the records as lines (id, a one-line brief and what the kind adds), in the order the kind decides: a kind with index keys lists the number it decides (limit: up to 100) with total, how many fit what you asked, " +
 			"and older, how many of them come after the last one listed (give that record's id as before to go on); where keeps only the records whose index keys have the values given, " +
 			"and {\"is\": \"absent\"} or {\"is\": \"present\"} in place of a value keeps the records that have no value, or some value, for that key. A kind without index keys lists up to 100 with total, and where takes its top-level fields as text. " +
+			"Some kinds leave some of their records out of the list (each says what in the subjects of actions, as unlisted): the list then says how many it left out (unlisted), and unlisted: include lists them too, only lists just them. " +
 			"With id it answers that record in full; with ids (up to 20; not together with the other arguments) those records in full, and unknown, the ids it does not have.",
 		map[string]any{
 			"type": "object",
@@ -109,8 +110,9 @@ var readTools = []readTool{
 						map[string]any{"type": "object", "properties": map[string]any{"is": map[string]any{"type": "string", "enum": []string{"absent", "present"}}}, "required": []string{"is"}, "additionalProperties": false},
 					}},
 				},
-				"limit":  map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "description": "How many records to list (the kind decides without it)."},
-				"before": map[string]any{"type": "string", "description": "The id of a record: list the records that come after it in the kind's order (not it). Give the last id of the list you have, to go on."},
+				"unlisted": map[string]any{"type": "string", "enum": []string{"hide", "include", "only"}, "description": "For a kind that leaves some records out of the list: hide (the default) lists the others, include lists all, only lists just the ones left out. Not together with id or ids."},
+				"limit":    map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "description": "How many records to list (the kind decides without it)."},
+				"before":   map[string]any{"type": "string", "description": "The id of a record: list the records that come after it in the kind's order (not it). Give the last id of the list you have, to go on."},
 			},
 			"required":             []string{"kind"},
 			"additionalProperties": false,
@@ -148,6 +150,9 @@ var readTools = []readTool{
 			}
 			if id, _ := args["before"].(string); id != "" {
 				q.Set("before", id)
+			}
+			if mode, _ := args["unlisted"].(string); mode != "" {
+				q.Set("unlisted", mode)
 			}
 			return api.Get("api/ai/records?" + q.Encode())
 		},

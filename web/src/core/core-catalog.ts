@@ -380,6 +380,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     }
     if (a.lockSwitch && (a.writes?.length ?? 0) > 0) problems.push(problem("E060", { id: a.id }))
   }
+  for (const s of parts.subjects) if (s.aiListed && s.aiList) problems.push(problem("E061", { id: s.id }))
   for (const c of parts.controlCenters) {
     for (const id of c.actions) if (!actions.has(id)) problems.push(problem("E041", { id: c.id, ref: id }))
     for (const id of c.subjects === "all" ? [] : (c.subjects ?? []))

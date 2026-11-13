@@ -32,6 +32,11 @@ export type KeysOfTypes<Kt extends Readonly<Record<string, RecordKeyDef["type"]>
   }
 }
 
+// aiListed の when が、指す先のレコードを読む口（ctx.record と同じ形。読めるのは、そのレコードが指す先だけで、無ければ none）
+export interface AIListedContext {
+  record(subject: string, id: string): unknown
+}
+
 // Ks は索引キーの宣言の組の型（kit.defineSubject が書いたとおりに残す。条件・並び・ctx.keys の型は、ここから決まる。core/record-keys.ts の KeyNameOf など）
 export interface SubjectDef<
   R extends z.ZodObject = z.ZodObject,
@@ -52,7 +57,9 @@ export interface SubjectDef<
   keys?: Ks
   // AI に見せる種類（read_records）の目次の 1 行（id とともに並ぶ題）。書いた種類だけが AI に見える（書かなければ AI には見せない）。aiListed は目次に載せるか（無ければ載せる）
   aiBrief?(record: z.output<R>, catalog: CoreCatalog): string
-  aiListed?(record: z.output<R>): boolean
+  // 一覧の既定の目次に載せるか（when。そのレコードと、その指す先（refers）だけ ctx.record で読める）と、載せない物が何か（unlisted。英語。actions の対象の定義で AI に見せる）。
+  // 載せない物は、read_records の unlisted で取れる。aiList（索引キーで探す一覧）とは一緒に書けない
+  aiListed?: { when(record: z.output<R>, ctx: AIListedContext): boolean; unlisted: string }
   // 一覧（read_records）の並びの鍵（小さい順。無ければ id の順）
   aiOrder?(record: z.output<R>): number
   // 一覧（read_records）の既定の並び（索引キー）と件数。書いた種類の一覧は、索引キーで探して並べ、その件数だけ中身を読む

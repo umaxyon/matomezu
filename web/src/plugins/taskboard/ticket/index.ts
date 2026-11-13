@@ -4,7 +4,7 @@
 import { z } from "zod"
 import { BY } from "../by"
 import { kit } from "../kit"
-import { NO_TAG, PROJECT, UNSORTED } from "../project"
+import { inDoneLane, NO_TAG, PROJECT, UNSORTED } from "../project"
 
 export const TICKET_NAME_MAX = 50
 export const PRIORITIES = ["lowest", "low", "medium", "high", "highest"] as const
@@ -14,7 +14,7 @@ export const TICKET = kit.defineSubject({
   id: "ticket",
   title: "ticket",
   aiDescription:
-    "A ticket: one card of a project's task board. It has the project's id, a number (counted for each project and never reused), a name, a body (markdown), the lane (a lane's id of the project, or unsorted), the tag (a tag's id of the project, or none), the priority (lowest, low, medium, high or highest) and the times it was filed and last changed. The assignees are workrooms' ids, in order. A lane, tag or assignee that is not there any more reads as unsorted, none or left out. It also has who filed it and when. A locked ticket cannot be changed or removed.",
+    "A ticket: one card of a project's task board. It has the project's id, a number (counted for each project and never reused), a name, a body (markdown), the lane (a lane's id of the project, or unsorted), the tag (a tag's id of the project, or none), the priority (lowest, low, medium, high or highest) and the times it was filed and last changed. The assignees are workrooms' ids, in order. A lane, tag or assignee that is not there any more reads as unsorted, none or left out. It also has who filed it and when. A locked ticket cannot be changed or removed. A completed ticket (one in the done lane of its project) is left out of the list by default: the list says how many it left out.",
   record: z.strictObject({
     id: z.string().min(1),
     project: z.string().min(1),
@@ -40,6 +40,15 @@ export const TICKET = kit.defineSubject({
   numbered: true,
   lockable: true,
   aiOrder: t => t.number,
+  // 完了のチケット（プロジェクトの完了のレーンにあるチケット）は、既定の目次に載せない（完了はたまる一方なので）。read_records の unlisted で取れる
+  aiListed: {
+    when: (t, ctx) => {
+      const project = ctx.record(PROJECT.id, t.project) as { doneLane?: string } | "none"
+      return project === "none" || !inDoneLane(project, t.lane)
+    },
+    unlisted:
+      "completed tickets (in the done lane of their project: list them with unlisted include or only, or with where project and lane)",
+  },
   aiBrief: t => `${t.number} ${t.name} [${t.lane}${t.tag === NO_TAG ? "" : `, ${t.tag}`}]`,
 })
 
