@@ -4,6 +4,7 @@
 // コントロールセンターの下の行は、スロット control-center-footer に置いたウィジェットを並べる（止まり木のボタンは UI マッピングが置く）。
 // 左に左サイドパネル（left-side-panel/）を置く。開けば、右の画面を押し縮める（前に出している物は替えない）
 import type { CSSProperties } from "react"
+import { frontOf } from "../../../core/window"
 import { Slot } from "../../../ui/Slot"
 import { useMatomezuState } from "../../../ui/store-context"
 import { LeftSidePanel } from "../left-side-panel/LeftSidePanel"
@@ -13,7 +14,7 @@ import { BOOK_SCREEN, CONTROL_CENTER_FOOTER, CONTROL_CENTER_SCREEN } from "./slo
 import styles from "./WindowView.module.css"
 
 export function WindowView() {
-  const front = useMatomezuState(s => s.window.front)
+  const front = useMatomezuState(s => frontOf(s.window))
   return (
     <div
       className={styles.window}

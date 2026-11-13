@@ -1,11 +1,19 @@
 // コントロールセンターのプラグイン: ビルトインのコントロールセンター。
 // インスタンスのコントロールセンターにすると（createMatomezu の controlCenter: CONTROL_CENTER.id）、ブックの一覧などを変えるアクションを許す
 import { defineBuiltin } from "../../plugin-api/builtin"
-import { CONTROL_CENTER, FRONT_SCREEN, LIBRARY_MAXIMIZED, PICKED_ROOM, WORKROOM_LEAVE_DIALOG } from "./control-center"
+import {
+  CONTROL_CENTER,
+  CONTROL_CENTER_SCREEN,
+  FRONT_SCREEN,
+  LIBRARY_MAXIMIZED,
+  PICKED_ROOM,
+  WORKROOM_LEAVE_DIALOG,
+} from "./control-center"
 import { kit } from "./kit"
 
 export {
   CONTROL_CENTER,
+  CONTROL_CENTER_SCREEN,
   FRONT_SCREEN,
   LIBRARY_MAXIMIZED,
   PICKED_ROOM,
@@ -15,6 +23,7 @@ export {
 export const CONTROL_CENTER_PLUGIN = defineBuiltin(
   kit.plugin({
     controlCenters: [CONTROL_CENTER],
+    screens: [CONTROL_CENTER_SCREEN],
     pluginStates: [FRONT_SCREEN, PICKED_ROOM, LIBRARY_MAXIMIZED],
     dialogs: [WORKROOM_LEAVE_DIALOG],
   }),
@@ -23,6 +32,9 @@ export const CONTROL_CENTER_PLUGIN = defineBuiltin(
 declare module "../../core/catalog" {
   interface ControlCenterTable {
     "@matomezu/control-center:control-center": typeof CONTROL_CENTER
+  }
+  interface ScreenTable {
+    "@matomezu/control-center:screen": typeof CONTROL_CENTER_SCREEN
   }
   interface PluginStateTable {
     "@matomezu/control-center:front-screen": typeof FRONT_SCREEN

@@ -43,10 +43,10 @@ export interface Workspace {
 export const MAX_STAGES = 2
 
 // ステージ 1 つ。ブックを渡せばそれを開き、無ければ何も開かない
-export function newWorkspace(catalog: CoreCatalog, book: Book | null): Workspace {
+export function newWorkspace(catalog: CoreCatalog, book: Book | null, stage = "s1"): Workspace {
   return {
-    stages: [book ? openBook(catalog, newStage("s1"), book) : newStage("s1")],
-    current: "s1",
+    stages: [book ? openBook(catalog, newStage(stage), book) : newStage(stage)],
+    current: stage,
     arrangement: { direction: "row", share: EVEN_SHARE },
     tools: {},
   }

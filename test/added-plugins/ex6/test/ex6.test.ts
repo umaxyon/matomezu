@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { act } from "@testing-library/react"
 import { addPageIn, createBookIn } from "matomezu"
-import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
+import { BUILTIN_UI, createMatomezu, openedIn } from "matomezu/testing"
 import EX6_UI from "../ui"
 
 test("答える形の無いページの重さは 0", () => {
@@ -14,7 +14,7 @@ test("答える形の無いページの重さは 0", () => {
   act(() => {
     expect(createBookIn(instance, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
   })
-  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
+  const book = (openedIn(instance) as { book: string }).book
   act(() => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })

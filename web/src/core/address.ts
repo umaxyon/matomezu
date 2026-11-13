@@ -11,7 +11,7 @@ import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import { newStage, openBook, openPage, panBy, type Stage, stopStart } from "./stage"
 import { zoomInRange } from "./viewport"
-import { type Front, mapScreen, screenOf, type WindowState } from "./window"
+import { bringFrontKind, type Front, frontOf, mapScreen, screenOf, type WindowState } from "./window"
 import { MAX_STAGES, MIN_SHARE } from "./workspace"
 
 export interface StagePlace {
@@ -38,7 +38,7 @@ export function addressOf(
 ): Address {
   const ws = screenOf(win)
   return {
-    front: win.front,
+    front: frontOf(win),
     stages: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
       return {
@@ -94,9 +94,9 @@ export function placeAt(
   win: WindowState,
   address: Address,
 ): WindowState {
-  const front = { ...win, front: address.front }
+  const front = bringFrontKind(win, address.front)
   const places = address.stages.slice(0, MAX_STAGES)
-  if (places.length === 0) return front.front === win.front ? win : front
+  if (places.length === 0) return front
   let issued = front.issued
   const ws = screenOf(front)
   const stages = places.map((place, i) => {

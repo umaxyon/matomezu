@@ -11,4 +11,5 @@ export interface ScreenDef<P extends z.ZodObject = z.ZodObject, Tt extends strin
   aiDescription: string // AI 向けの説明（英語。何を見せるスクリーンで、渡す値が何か）
   props: P // 開くときに渡す値の形（渡す値の無いスクリーンは、空のオブジェクトの形）
   stages?: true // ステージを並べるスクリーン
+  atStart?: true // 窓を開いたときから開いているスクリーン（閉じられない）
 }

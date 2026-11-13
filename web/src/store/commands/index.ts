@@ -8,7 +8,7 @@ import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { stageBlocks } from "../../core/stage"
-import { screenOf, stageIn } from "../../core/window"
+import { frontOf, screenOf, stageIn } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, pluginValueOf } from "../plugin-state"
@@ -46,7 +46,7 @@ export function commandContext(
     {
       catalog,
       controlCenter,
-      front: state.window.front,
+      front: frontOf(state.window),
       stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
       book,
       settings,

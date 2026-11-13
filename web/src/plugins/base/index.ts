@@ -143,7 +143,7 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
-import { CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE } from "./window"
+import { BOOK_SCREEN_DEF, CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE } from "./window"
 import { MAXIMIZERS } from "./window/maximize-state"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
@@ -352,6 +352,7 @@ export const BASE = defineBuiltin(
     annotations: [NOTE, MARK],
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL],
+    screens: [BOOK_SCREEN_DEF],
     checks: [
       PROP_NAMES_CHECK,
       FAMILY_TITLE_CHECK,
@@ -530,6 +531,9 @@ declare module "../../core/catalog" {
   interface AnnotationTable {
     "@matomezu/base:note": typeof NOTE
     "@matomezu/base:mark": typeof MARK
+  }
+  interface ScreenTable {
+    "@matomezu/base:book-screen": typeof BOOK_SCREEN_DEF
   }
   interface SubjectTable {
     "@matomezu/base:workroom": typeof WORKROOM

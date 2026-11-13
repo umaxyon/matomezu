@@ -1,7 +1,15 @@
 // 窓の状態（core/window.ts）: コントロールセンターかブックスクリーンを前に出す。前に出す物を替えても、ブックスクリーンの中は残る。
 // コントロールセンターを前に出している間、後ろのブックスクリーンは見えていない物として扱い、キーも届かない
 import { expect, test } from "bun:test"
-import { newWindow, screenOf } from "../../web/src/core/window"
+import {
+  bringFront,
+  closeScreen,
+  frontOf,
+  frontScreen,
+  newWindow,
+  openScreen,
+  screenOf,
+} from "../../web/src/core/window"
 import { showIn, viewOf } from "../../web/src/host-client/server"
 import { isActive } from "../../web/src/store/commands"
 import { CORE_CATALOG, newStore, sequence } from "../support"
@@ -17,10 +25,34 @@ test("ステージの番号は窓で振り、閉じたステージの番号も�
   expect(state.getState().window.issued).toBe(3)
 })
 
-test("ブックスクリーンは並びで持ち、前に出せるのは 1 つ", () => {
+test("窓は、最初から開いているスクリーンと、ブックスクリーン 1 枚で始まり、ブックスクリーンを前に出す", () => {
   const win = newWindow(CORE_CATALOG, null)
-  expect(win).toMatchObject({ front: "book-screen", screen: 0 })
-  expect(win.screens).toHaveLength(1)
+  expect(win.screens.map(s => s.def)).toEqual(["@matomezu/control-center:screen", "@matomezu/base:book-screen"])
+  expect(frontOf(win)).toBe("book-screen")
+  expect(frontScreen(win)).toMatchObject({ id: "c2", stages: { current: "s1" } })
+})
+
+test("スクリーンを開くと前に出て、閉じると 1 つ前に出していた物が前に出る。同じ定義から何枚でも開け、id は使い回さない", () => {
+  let win = newWindow(CORE_CATALOG, null)
+  win = bringFront(win, "c1")
+  const first = openScreen(win, CORE_CATALOG, "@matomezu/control-center:screen", {})
+  const second = openScreen(first.win, CORE_CATALOG, "@matomezu/control-center:screen", {})
+  expect([first.id, second.id]).toEqual(["c3", "c4"])
+  expect(frontScreen(second.win).id).toBe("c4")
+  win = closeScreen(second.win, CORE_CATALOG, "c4")
+  expect(frontScreen(win).id).toBe("c3")
+  win = closeScreen(win, CORE_CATALOG, "c3")
+  expect(frontScreen(win).id).toBe("c1")
+  expect(openScreen(win, CORE_CATALOG, "@matomezu/control-center:screen", {}).id).toBe("c5")
+})
+
+test("最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない", () => {
+  const win = newWindow(CORE_CATALOG, null)
+  expect(closeScreen(win, CORE_CATALOG, "c1")).toBe(win)
+  expect(closeScreen(win, CORE_CATALOG, "c2")).toBe(win)
+  const two = openScreen(win, CORE_CATALOG, "@matomezu/base:book-screen", {})
+  expect(frontScreen(two.win)).toMatchObject({ id: "c3", stages: { current: "s2" } })
+  expect(closeScreen(two.win, CORE_CATALOG, "c2").screens.map(s => s.id)).toEqual(["c1", "c3"])
 })
 
 test("コントロールセンターを前に出しても、ブックスクリーンの中（ステージ・倍率）は残る。戻すと同じ", () => {
@@ -28,10 +60,10 @@ test("コントロールセンターを前に出しても、ブックスクリ�
   actions.zoomStage("s1", 2)
   const before = screenOf(state.getState().window)
   actions.showControlCenter()
-  expect(state.getState().window.front).toBe("control-center")
+  expect(frontOf(state.getState().window)).toBe("control-center")
   expect(screenOf(state.getState().window)).toBe(before)
   actions.showBookScreen()
-  expect(state.getState().window.front).toBe("book-screen")
+  expect(frontOf(state.getState().window)).toBe("book-screen")
   expect(screenOf(state.getState().window)).toBe(before)
 })
 
@@ -40,10 +72,10 @@ test("止まり木のコマンドは、コントロールセンターを前に�
   const active = () => isActive(instance as never, state.getState(), "s1", CENTER)
   expect(active()).toBe(false)
   expect(actions.command("s1", CENTER)).toBe(true)
-  expect(state.getState().window.front).toBe("control-center")
+  expect(frontOf(state.getState().window)).toBe("control-center")
   expect(active()).toBe(true)
   expect(actions.command("s1", CENTER)).toBe(true)
-  expect(state.getState().window.front).toBe("book-screen")
+  expect(frontOf(state.getState().window)).toBe("book-screen")
   expect(active()).toBe(false)
 })
 
@@ -51,7 +83,7 @@ test("ブックを開くと、ブックスクリーンを前に出す", () => {
   const { actions, state } = newStore()
   actions.showControlCenter()
   actions.openBook("s1", "b2")
-  expect(state.getState().window.front).toBe("book-screen")
+  expect(frontOf(state.getState().window)).toBe("book-screen")
   expect(screenOf(state.getState().window).stages[0]?.opened?.book).toBe("b2")
 })
 
@@ -97,6 +129,6 @@ test("AI の show は、ブックを渡すとブックスクリーンを前に�
   const store = newStore()
   store.actions.showControlCenter()
   showIn(store, { book: "b2" })
-  expect(store.state.getState().window.front).toBe("book-screen")
+  expect(frontOf(store.state.getState().window)).toBe("book-screen")
   expect(screenOf(store.state.getState().window).stages[0]?.opened?.book).toBe("b2")
 })

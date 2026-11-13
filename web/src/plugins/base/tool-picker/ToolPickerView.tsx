@@ -12,7 +12,7 @@ import type { ToolId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
-import { screenOf } from "../../../core/window"
+import { bookScreenVisible, screenOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -53,7 +53,7 @@ export function ToolPickerView() {
   // 長押しで開けるステージ（ブックスクリーンが前に出ていて、紙があり、ダイアログも道具のアイコンも開いていない）。押したときに読むので ref に写す
   const pressable = useMatomezuState(
     useShallow(s =>
-      s.dialog !== null || s.window.front !== "book-screen" || screenOf(s.window).stages.some(st => st.picker !== null)
+      s.dialog !== null || !bookScreenVisible(s.window) || screenOf(s.window).stages.some(st => st.picker !== null)
         ? []
         : screenOf(s.window)
             .stages.filter(st => paperOf(st) !== null)

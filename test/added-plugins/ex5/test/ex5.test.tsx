@@ -2,7 +2,15 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { addPageIn, createBookIn, nextItemId, type PagedBook } from "matomezu"
-import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
+import {
+  BUILTIN_UI,
+  createMatomezu,
+  DEFAULT_LAYOUT,
+  MatomezuProvider,
+  openedIn,
+  placeAdded,
+  Screen,
+} from "matomezu/testing"
 import EX5_UI from "../ui"
 
 afterEach(cleanup)
@@ -26,7 +34,7 @@ const shelf = () => {
   act(() => {
     expect(createBookIn(instance, "s1", { title: "棚", type: "ex5:shelf" })).toBe(true)
   })
-  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
+  const book = (openedIn(instance) as { book: string }).book
   act(() => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })

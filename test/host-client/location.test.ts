@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { screenOf } from "../../web/src/core/window"
+import { frontOf, screenOf } from "../../web/src/core/window"
 import { followLocation, type Place, parseSearch, searchOf } from "../../web/src/host-client/location"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
@@ -130,10 +130,10 @@ test("同じ処理の中の移動（分割してブックとページを開く�
 test("URL が無い（開いた直後）なら、コントロールセンターを前に出す。URL にブックスクリーンの場所があれば、ブックスクリーンを前に出す", () => {
   const first = newStore()
   followLocation(first, fakePlace().place)
-  expect(first.state.getState().window.front).toBe("control-center")
+  expect(frontOf(first.state.getState().window)).toBe("control-center")
   const second = newStore()
   followLocation(second, fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5").place)
-  expect(second.state.getState().window.front).toBe("book-screen")
+  expect(frontOf(second.state.getState().window)).toBe("book-screen")
 })
 
 test("前に出す物は URL の f に書く（コントロールセンターの間だけ。ステージの無い URL も読む）。後ろのブックスクリーンの場所も書く", () => {
@@ -161,7 +161,7 @@ test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む�
   expect(f.pushed).toHaveLength(2)
   // 戻る: コントロールセンター
   f.back(f.pushed[0]!)
-  expect(store.state.getState().window.front).toBe("control-center")
+  expect(frontOf(store.state.getState().window)).toBe("control-center")
   expect(screenOf(store.state.getState().window).stages[0]!.opened).toEqual(was.stages[0]!.opened)
   expect(f.pushed).toHaveLength(2)
 })

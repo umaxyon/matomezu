@@ -5,6 +5,7 @@ import { z } from "zod"
 import type { PluginStateDef } from "../../web/src/core/def/plugin-state"
 import type { MatomezuError } from "../../web/src/core/errors"
 import { defineMessages } from "../../web/src/core/i18n/messages"
+import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -83,7 +84,7 @@ test("場所を当てはめると、宣言した値を丸ごと置き換える�
 test("ステージを閉じると、そのステージの値は消える", () => {
   const instance = make()
   instance.actions.split("s1")
-  const right = instance.state.getState().window.screens[0]!.stages[1]!.id
+  const right = screenOf(instance.state.getState().window).stages[1]!.id
   instance.setPluginState("k:mode", right, "right")
   expect(instance.state.getState().pluginValues.stages[right]).toEqual({ "k:mode": "right" })
   instance.actions.closeStage(right)

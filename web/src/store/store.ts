@@ -70,7 +70,7 @@ import {
 import type { Warning } from "../core/warnings"
 import {
   bookScreenVisible,
-  bringFront,
+  bringFrontKind,
   issueStage,
   mapScreen,
   mapScreens,
@@ -662,7 +662,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const commit = (next: Partial<MatomezuState>) => {
     if (Object.keys(next).length === 0) return
     const { dialog, contextMenu } = getState()
-    const stages = next.window?.screens.flatMap(ws => ws.stages)
+    const stages = next.window?.screens.flatMap(s => s.stages?.stages ?? [])
     const gone = (opened: { stage: string } | null) =>
       stages !== undefined && opened !== null && !stages.some(s => s.id === opened.stage)
     const values = next.pluginValues ?? getState().pluginValues
@@ -687,7 +687,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     )
   }
   // ステージ stage が窓のどれかのブックスクリーンにあるか
-  const inWindow = (stage: string) => getState().window.screens.some(ws => hasStage(ws, stage))
+  const inWindow = (stage: string) => stageIn(getState().window, stage) !== undefined
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // プラグイン状態の宣言 id の値を value にした値の組 values（変わらなければ values のまま）。画面の場所に入れる宣言の値は宣言の形で確かめる（合わなければ E123）。
   // ステージごとの宣言は stage のステージの値（無いステージには置かない）、ステージに結ばない宣言は stage を渡さない。知らない id は E122、範囲が合わなければ E124
@@ -781,7 +781,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const type = workspace.stages.find(s => s.id === stage)?.opened?.type
       const presentation = type && catalog.bookTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
-      const center = window.front === "control-center"
+      const center = !bookScreenVisible(window)
       for (const scope of keyScopes({ menu, dialog: dialog !== null, center }, scopes, shown, reach)) {
         const hit = findKey(table, scope, key)
         if (!hit) continue
@@ -808,8 +808,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (now.some(t => t.id === id)) setState({ toasts: now.filter(t => t.id !== id) })
     },
     // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
-    showControlCenter: () => withWindow(win => bringFront(win, "control-center")),
-    showBookScreen: () => withWindow(win => bringFront(win, "book-screen")),
+    showControlCenter: () => withWindow(win => bringFrontKind(win, "control-center")),
+    showBookScreen: () => withWindow(win => bringFrontKind(win, "book-screen")),
     split: stage =>
       withWindow(win => {
         const ws = screenOf(win)
@@ -829,7 +829,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // ブックを開くと、見る側のブックスクリーンを前に出す
       if (book && inWindow(stage))
         withWindow(win =>
-          bringFront(
+          bringFrontKind(
             mapScreen(win, ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book))),
             "book-screen",
           ),
@@ -841,7 +841,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // ページを開くと、見る側のブックスクリーンを前に出す
       if (book && hasPages(book) && inWindow(stage))
         withWindow(win =>
-          bringFront(
+          bringFrontKind(
             mapScreen(win, ws => showPage(catalog, focus(ws, stage), stage, book, page)),
             "book-screen",
           ),
@@ -1072,4 +1072,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
   }
   return instance
+}
+
+// インスタンスのステージ stage で開いているブックとページの id（何も開いていない・無いステージなら null）。テストが、開いた物を確かめるのに使う
+export const openedIn = (
+  instance: Pick<MatomezuInstance, "state">,
+  stage = "s1",
+): { book: string; page: string | null } | null => {
+  const opened = stageIn(instance.state.getState().window, stage)?.opened
+  return opened ? { book: opened.book, page: opened.page ?? null } : null
 }

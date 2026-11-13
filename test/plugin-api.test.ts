@@ -369,6 +369,7 @@ test("matomezu/testing が出す名前", () => {
     "Screen",
     "createMatomezu",
     "defineLayout",
+    "openedIn",
     "placeAdded",
   ])
 })

@@ -16,6 +16,16 @@ export const CONTROL_CENTER = kit.defineControlCenter({
   subjects: "all",
 })
 
+// コントロールセンターのスクリーン: 窓を開いたときから開いている、利用者に 1 つの入口。渡す値は無い
+export const CONTROL_CENTER_SCREEN = kit.defineScreen({
+  id: "screen",
+  title: "Control center",
+  aiDescription:
+    "The control center: the user's one entry that is not a book (the user panel, the workrooms and participants, the projects and the library).",
+  props: z.strictObject({}),
+  atStart: true,
+})
+
 // コントロールセンターの中で前に出す画面（画面の場所に入れるプラグイン状態。ステージに結ばない値で、変えるたびにブラウザの履歴に積む）。
 // 値は、プロジェクトの画面（projects）か書庫の画面（library）。値が無ければ、プロジェクトの画面を出す（frontScreenOf）
 export const FRONT_SCREEN = kit.definePluginState({

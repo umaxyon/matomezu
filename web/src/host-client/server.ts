@@ -19,7 +19,7 @@ import { fail, matomezuError, problem } from "../core/errors"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
-import { screenOf } from "../core/window"
+import { frontOf, screenOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type {
   AIEditTicketOutcome,
@@ -138,9 +138,8 @@ export function viewOf(state: MatomezuState) {
     stages: ws.stages.map(s => ({ id: s.id, ...openedOf(s) })),
     canSplit: ws.stages.length < MAX_STAGES,
   }
-  return state.window.front === "book-screen"
-    ? { front: state.window.front, ...screen }
-    : { front: state.window.front, hidden: screen }
+  const front = frontOf(state.window)
+  return front === "book-screen" ? { front, ...screen } : { front, hidden: screen }
 }
 
 // 利用者が直している物（useEditLock）を、ブックの id → 物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）

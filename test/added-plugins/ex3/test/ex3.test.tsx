@@ -1,7 +1,15 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { addPageIn, createBookIn } from "matomezu"
-import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
+import {
+  BUILTIN_UI,
+  createMatomezu,
+  DEFAULT_LAYOUT,
+  MatomezuProvider,
+  openedIn,
+  placeAdded,
+  Screen,
+} from "matomezu/testing"
 import EX3_UI from "../ui"
 
 afterEach(cleanup)
@@ -25,7 +33,7 @@ const board = (instance: ReturnType<typeof make>) => {
   act(() => {
     expect(createBookIn(instance, "s1", { title: "ボード", type: "ex3:board" })).toBe(true)
   })
-  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
+  const book = (openedIn(instance) as { book: string }).book
   act(() => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
@@ -76,7 +84,7 @@ test("既定のテーマはミントで、置いてほしいと書いたボタ�
   act(() => {
     createBookIn(instance, "s1", { title: "図面", type: "@matomezu/drawing:drawing" })
   })
-  const book = (instance.state.getState().window.screens[0]!.stages[0]!.opened as { book: string }).book
+  const book = (openedIn(instance) as { book: string }).book
   fireEvent.click(screen.getByRole("button", { name: "ミントにする" }))
   expect(instance.state.getState().books[book]).toMatchObject({ settings: { "@matomezu/base:book-theme": "ex3:mint" } })
 })
