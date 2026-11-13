@@ -122,3 +122,39 @@ test("プロジェクト設定の全般で、プレフィクスの入力とチ�
   expect(await width(dialog.getByRole("textbox", { name: "タスクプレフィクス" }))).toBeLessThan(nameWidth * 0.8)
   expect(await width(dialog.getByRole("group", { name: "チケットサイズ" }))).toBeLessThan(nameWidth * 0.4)
 })
+
+test("プロジェクト設定のタグ・レーンは、中身が少ないとスクロールバーが出ず、増えると一覧だけがスクロールする（追加ボタンは一覧の上）", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(CONTROL_CENTER_URL)
+  if ((await projects(page)).length === 0)
+    await page.request.post("/api/ai/perform", {
+      headers: await joinedAiAuth(),
+      data: { action: "@matomezu/taskboard:project-add", args: {} },
+    })
+  const first = (await projects(page))[0]!
+  await page.locator(`[data-board="${first.id}"]`).getByRole("button", { name: "プロジェクト設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
+  const scrolls = (tab: string) =>
+    dialog.getByRole("tabpanel", { name: tab }).evaluate(el => el.scrollHeight > el.clientHeight)
+  for (const [tab, add] of [
+    ["チケットタグ", "タグ追加"],
+    ["レーン", "レーン追加"],
+  ] as const) {
+    await dialog.getByRole("tab", { name: tab }).click()
+    expect(await scrolls(tab)).toBe(false)
+    const button = dialog.getByRole("button", { name: add })
+    const list = button.locator("xpath=../following-sibling::*[1]")
+    const listTop = (await list.boundingBox())!.y
+    expect((await button.boundingBox())!.y).toBeLessThan(listTop)
+    for (let i = 0; i < 14; i++) {
+      await button.click()
+      const input = dialog.getByRole("textbox", { name: tab === "レーン" ? "レーン名" : "タグ名" })
+      await input.fill(`many${i}`)
+    }
+    expect(await scrolls(tab)).toBe(false)
+    expect(await list.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true)
+    await expect(button).toBeInViewport()
+  }
+})
