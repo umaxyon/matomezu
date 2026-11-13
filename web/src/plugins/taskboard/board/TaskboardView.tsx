@@ -55,7 +55,7 @@ export function TaskboardView() {
               className={styles.board}
               title={project.name}
               actions={<SettingsGear project={project.id} onOpen={() => openSettings(project.id)} />}
-              maximized={maximized?.board === project.id && laneMax === undefined}
+              maximized={maximized?.board === project.id} // レーンの最大化の間も、タスクボードは最大化している（押すと全部を元に戻す）
               onToggleMaximize={() => updateMaximized(now => toggleBoard(now, project.id))}
             >
               <BoardLanes
