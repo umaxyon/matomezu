@@ -203,3 +203,61 @@ test("ボードのカードを押すとチケットスクリーンが開き、�
     page.getByRole("region", { name: "チケット" }).first().getByRole("heading", { name: "ログイン画面を直す" }),
   ).toBeVisible()
 })
+
+test("タグは「＋」の一覧から付け、バッヂの × で外す。付いたタグはプロジェクトの順に並び、ロック中は付け外しできない", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const { ticket } = await setup(page)
+  await page.goto(open(ticket))
+  const screen = page.getByRole("region", { name: "チケット" }).first()
+  const add = screen.getByRole("button", { name: "タグを付ける" })
+  const picker = screen.getByRole("dialog", { name: "タグを付ける" })
+  const badges = screen.locator("[data-tag]")
+  // バグを付けてからタスクを付けても、並びはプロジェクトの順（タスク・バグ）
+  await add.click()
+  await picker.getByRole("button", { name: "バグ" }).click()
+  await expect(picker).toHaveCount(0)
+  await add.click()
+  await picker.getByRole("button", { name: "タスク" }).click()
+  await expect(badges).toHaveText(["タスク", "バグ"])
+  // 全部付くと「＋」は出ない
+  await expect(add).toHaveCount(0)
+  await screen.getByRole("button", { name: "タグ「タスク」を外す" }).click()
+  await expect(badges).toHaveText(["バグ"])
+  // ロック中は × も「＋」も出ない
+  await screen.getByRole("button", { name: "チケットをロックする" }).click()
+  await expect(screen.getByRole("button", { name: "タグ「バグ」を外す" })).toHaveCount(0)
+  await expect(add).toHaveCount(0)
+})
+
+test("カードのタグは、M なら 1 行・L なら 3 行に入るだけ並び、入らない分は「+N」になる", async ({ page }) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await page.request.post("/api/perform", {
+    data: { action: "@matomezu/taskboard:project-add", args: { prefix: "T-" }, lang: "ja", now: NOW },
+  })
+  const { result } = (await made.json()) as { result: { project: string; lanes: { id: string }[] } }
+  const names = ["調べ物", "見直し", "画面", "サーバー", "急ぎ", "あとで", "相談", "文書"]
+  const tags = names.map(name => ({ name, color: "primary", enabled: true, prompt: "" }))
+  expect((await perform(page, "@matomezu/taskboard:project-update", { tags }, { record: result.project })).ok).toBe(
+    true,
+  )
+  const added = await perform(page, "@matomezu/taskboard:ticket-add", {
+    project: result.project,
+    name: "タグの多いチケット",
+    lane: result.lanes[0]?.id ?? "",
+    tags: names,
+  })
+  const card = page.locator(`[data-card="${added.result?.ticket ?? ""}"]`)
+  const shown = card.locator("[data-tag]")
+  const more = card.locator("[data-more]")
+  // M: 1 行に入るだけ。残りは +N で、並べた数と足すと全部
+  await expect(more).toBeVisible()
+  const inOne = await shown.count()
+  expect(inOne).toBeGreaterThan(0)
+  await expect(more).toHaveText(`+${names.length - inOne}`)
+  // L: 3 行まで並ぶので、M より多く並ぶ
+  await perform(page, "@matomezu/taskboard:project-update", { cardSize: "large" }, { record: result.project })
+  await expect(card).toHaveAttribute("data-size", "large")
+  await expect.poll(() => shown.count()).toBeGreaterThan(inOne)
+})

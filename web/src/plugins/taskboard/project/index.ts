@@ -1,6 +1,6 @@
 // プロジェクト: タスクボード 1 枚の区切り。名前・チケットプレフィクス（チケットの番号の頭）・閉じているか・レーンの並び・チケットタグを持つ。
 // レーンの並びには未分類の行もちょうど 1 つ入る（並べ替えた位置が残り、shown が「未分類を表示する」）。
-// チケットはレーン・タグを id で指す（消したときにチケットは書き換えず、読む側が「無い物は未分類・タグなし」とする）。
+// チケットはレーン・タグを id で指す（消したときにチケットは書き換えず、読む側が「無いレーンは未分類、無いタグは外す」とする）。
 // 閉じたプロジェクトには、チケットを足せず、プロジェクトも開け直すほかは直せない（認可ステップ closed-project）
 import { z } from "zod"
 import { PALETTE } from "../../../plugin-api"
@@ -31,7 +31,6 @@ export function repeatedAt(names: readonly string[]): ReadonlySet<number> {
 }
 
 export const UNSORTED = "unsorted" // 未分類の行・チケットのレーンの値
-export const NO_TAG = "none" // タグなしのチケットのタグの値
 // チケットカードの大きさ（チケットサイズ）: large は題を折り返し、medium は題を 1 行で切り、small は番号と題の 1 行だけ。
 // レーンは inherit でプロジェクトの大きさに従う。完了のレーンにしたレーンは、画面で small にする（DONE_LANE_CARD_SIZE）
 export const CARD_SIZES = ["large", "medium", "small"] as const

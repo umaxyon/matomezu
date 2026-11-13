@@ -1,5 +1,6 @@
 // チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前・タグのバッヂ・優先度の印・右上に担当の鳥。
-// 大きさ（チケットサイズ）で形が変わる: large は名前を折り返し、medium は名前を 1 行で … で切り、small は番号と名前の 1 行だけ（… で切る）。
+// 大きさ（チケットサイズ）で形が変わる: large は名前とタグを折り返し（タグは 3 行まで）、medium は名前を 1 行で … で切りタグも 1 行、small は番号と名前の 1 行だけ（… で切る）。
+// タグはプロジェクトの順で、入らない分は「+N」
 // 押すとチケットスクリーンを開く。チケットカードには data-card（チケットの id）を付ける
 import { useMessages, usePluginState, useScreens } from "../../../plugin-api/ui"
 import { kit } from "../kit"
@@ -8,9 +9,9 @@ import { ticketLabel } from "../ticket/label"
 import { TICKET_SCREEN } from "../ticket-screen"
 import { CARD_VISIT } from "."
 import { AssigneeStack } from "./AssigneeStack"
+import { CardTags } from "./CardTags"
 import styles from "./LaneView.module.css"
 import { PRIORITIES, type TagRecord, type TicketRecord, type WorkroomRecord } from "./shown"
-import { TagBadge } from "./TagBadge"
 
 // 優先度の棒の形（SVG の単位）: どの棒も同じ太さで描けるよう、CSS の px ではなく SVG で描く
 const BAR_WIDTH = 2
@@ -22,13 +23,13 @@ export function TicketCardView({
   size,
   ticket,
   prefix,
-  tag,
+  tags,
   assignees,
 }: {
   size: CardSize
   ticket: TicketRecord
   prefix: string
-  tag: TagRecord | undefined
+  tags: readonly TagRecord[]
   assignees: readonly WorkroomRecord[]
 }) {
   const { open } = useScreens()
@@ -66,7 +67,7 @@ export function TicketCardView({
           <span className={styles.cardId}>{ticketLabel(prefix, ticket.number)}</span>
           <span className={styles.cardName}>{ticket.name}</span>
           <span className={styles.foot}>
-            <TagBadge tag={tag} />
+            <CardTags tags={tags} lines={size === "large" ? 3 : 1} />
             <PriorityMark priority={ticket.priority} />
           </span>
         </>

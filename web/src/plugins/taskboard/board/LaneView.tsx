@@ -9,10 +9,11 @@ import { LANE_SETTLE_MS } from "../motion"
 import type { useGripDrag } from "../reorder/useGripDrag"
 import scroll from "../scrollbar.module.css"
 import { assigneesOf } from "../ticket/assignees"
+import { tagsOf } from "../ticket/tags"
 import { LANE_SORTS } from "."
 import styles from "./LaneView.module.css"
 import { SortTray } from "./SortTray"
-import { cardSizeOf, type LaneInfo, type ProjectRecord, type TicketRecord, tagOf, type WorkroomRecord } from "./shown"
+import { cardSizeOf, type LaneInfo, type ProjectRecord, type TicketRecord, type WorkroomRecord } from "./shown"
 import { DEFAULT_SORT, type SortRules, sortActive, sortTickets } from "./sort"
 import { TicketCardView } from "./TicketCardView"
 
@@ -118,7 +119,7 @@ export function LaneView({
             size={size}
             ticket={ticket}
             prefix={project.prefix}
-            tag={tagOf(project, ticket)}
+            tags={tagsOf(project, ticket)}
             assignees={assigneesOf(ticket, workrooms)}
           />
         ))}

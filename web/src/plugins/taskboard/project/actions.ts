@@ -38,7 +38,7 @@ export const PROJECT_ADD = kit.defineAction({
   id: "project-add",
   title: "add project",
   aiDescription:
-    "Add a project (a task board) with the lanes and the ticket tags of the template: to do, in progress and done, the tags task and bug, each with a prompt. name (up to 30 characters) and prefix (the head of the ticket numbers: 1 to 3 letters and at most one hyphen at the end, such as T- or ABC; not the same as another project's, whatever the case) are optional when it is the first project. Returns the project's id, its prefix, and its lanes and tags as {id, name} (point at a lane or tag by its id or name; a lane or tag named like the reserved unsorted or none is pointed at by its id).",
+    "Add a project (a task board) with the lanes and the ticket tags of the template: to do, in progress and done, the tags task and bug, each with a prompt. name (up to 30 characters) and prefix (the head of the ticket numbers: 1 to 3 letters and at most one hyphen at the end, such as T- or ABC; not the same as another project's, whatever the case) are optional when it is the first project. Returns the project's id, its prefix, and its lanes and tags as {id, name} (point at a lane or tag by its id or name; a lane named like the reserved unsorted is pointed at by its id).",
   target: PROJECT.id,
   reads: args => readsPrefix(args.prefix ?? PREFIX_DEFAULT),
   runsOnceAtStart: true,
@@ -100,7 +100,7 @@ export const PROJECT_UPDATE = kit.defineAction({
   id: "project-update",
   title: "update project",
   aiDescription:
-    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees; a workroom whose current ticket is in that lane gets none) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted or none.",
+    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees; a workroom whose current ticket is in that lane gets none) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted, or without that tag.",
   target: PROJECT.id,
   // 完了のレーンを選ぶときは、そのレーンのチケットと今のチケットを確かめるために、プロジェクトのチケットと今のチケットの索引キーを読む
   // （project は ticket・current-ticket を読まない向きなので、id だけを書く）

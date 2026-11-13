@@ -1,8 +1,47 @@
-/* チケットタグのバッヂ: タグの色の役割（外観枠の代表色）で塗り、上の字は代表色の ink。タグなしはバッヂを出さない */
+/* チケットタグのバッヂ: タグの色の役割（外観枠の代表色）で塗り、上の字は代表色の ink */
 .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   padding: 0 5px;
   border-radius: 999px;
   font-size: 10px;
   line-height: 14px;
+  white-space: nowrap;
+}
+/* 外すボタン（×）: バッヂの字の色のまま、押せる所だけ少し広げる */
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  margin-right: -3px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.remove:hover {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+/* チケットカードのタグの並び: 決めた行数に入るだけ並べ、入らない分は「+N」 */
+.fit {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 2px 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+.more {
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--skin-text-muted);
+  background: var(--skin-surface-muted);
   white-space: nowrap;
 }

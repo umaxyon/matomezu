@@ -2,6 +2,8 @@
 import { defineMessages } from "../../../plugin-api"
 
 export const TICKET_SCREEN_MESSAGES = defineMessages({
+  "Attach a tag": { en: "Attach a tag", ja: "タグを付ける" },
+  "Remove the tag {name}": { en: "Remove the tag {name}", ja: "タグ「{name}」を外す" },
   "{topic}: {names}": { en: "{topic}: {names}", ja: "{topic}: {names}" },
   "Updated the body": { en: "Updated the body", ja: "本文を更新しました" },
   "ticket screen": { en: "Ticket", ja: "チケット" },

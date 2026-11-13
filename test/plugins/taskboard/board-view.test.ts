@@ -10,7 +10,6 @@ import {
   type ProjectRecord,
   shownProjects,
   type TicketRecord,
-  tagOf,
   ticketsByLane,
 } from "../../../web/src/plugins/taskboard/board/shown"
 import { DEFAULT_SORT, type SortRules, sortTickets } from "../../../web/src/plugins/taskboard/board/sort"
@@ -18,6 +17,7 @@ import { PROJECT_ORDER, SHOWN_PROJECTS } from "../../../web/src/plugins/taskboar
 import { type CurrentRecord, currentTaskOf } from "../../../web/src/plugins/taskboard/current-ticket/task"
 import { assigneesOf } from "../../../web/src/plugins/taskboard/ticket/assignees"
 import { ticketLabel } from "../../../web/src/plugins/taskboard/ticket/label"
+import { tagsOf } from "../../../web/src/plugins/taskboard/ticket/tags"
 import { type HistoryRecord, newestFirst } from "../../../web/src/plugins/taskboard/ticket-history"
 import { CORE_CATALOG } from "../../support"
 
@@ -46,12 +46,12 @@ const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => (
   name: id,
   body: "",
   lane: "todo",
-  tag: "none",
   priority: "medium",
   assignees: [],
   createdAt: "2026-11-01T00:00:00.000Z",
   createdBy: { kind: "user" },
   updatedAt: "2026-11-01T00:00:00.000Z",
+  tags: [],
   ...over,
 })
 const line = (id: string, ticketId: string, at: string): HistoryRecord => ({
@@ -103,33 +103,34 @@ test("チケットはレーンごとに分け、無いレーンのチケット�
   })
 })
 
-test("タグは id で引き、タグなしと無いタグは無い物として読む。担当は、あるワークルームだけを書いた順に", () => {
+test("タグは id で引き、無いタグは外して、プロジェクトのタグの順に並べる。担当は、あるワークルームだけを書いた順に", () => {
   const p = project("p1")
-  expect(tagOf(p, ticket("T1", { tag: "bug" }))?.name).toBe("バグ")
-  expect(tagOf(p, ticket("T1", { tag: "none" }))).toBeUndefined()
-  expect(tagOf(p, ticket("T1", { tag: "gone" }))).toBeUndefined()
+  expect(tagsOf(p, ticket("T1", { tags: ["bug", "gone", "task"] })).map(t => t.name)).toEqual(["タスク", "バグ"])
+  expect(tagsOf(p, ticket("T1", { tags: [] }))).toEqual([])
   expect(
     assigneesOf(ticket("T1", { assignees: ["r2", "gone", "r1"] }), [{ id: "r1" }, { id: "r2" }]).map(w => w.id),
   ).toEqual(["r2", "r1"])
 })
 
-test("並べ方は、使う項目を上から比べる。既定は id の降順。タグは設定の並びの順で、タグなしと無いタグは最後。何も使わなければ元の並び", () => {
+test("並べ方は、使う項目を上から比べる。既定は id の降順。タグは設定の並びの順で、付いたタグを 1 つ目から比べ（前が同じなら短い方が先）、タグなしと無いタグだけは最後。何も使わなければ元の並び", () => {
   const list = [
-    ticket("T1", { priority: "low", tag: "bug", updatedAt: "2026-11-03T00:00:00.000Z" }),
-    ticket("T2", { priority: "high", tag: "task", updatedAt: "2026-11-01T00:00:00.000Z" }),
-    ticket("T3", { priority: "high", tag: "none", updatedAt: "2026-11-02T00:00:00.000Z" }),
+    ticket("T1", { priority: "low", tags: ["bug"], updatedAt: "2026-11-03T00:00:00.000Z" }),
+    ticket("T2", { priority: "high", tags: ["task"], updatedAt: "2026-11-01T00:00:00.000Z" }),
+    ticket("T3", { priority: "high", tags: ["gone"], updatedAt: "2026-11-02T00:00:00.000Z" }),
+    ticket("T4", { priority: "medium", tags: ["bug", "task"], updatedAt: "2026-11-01T00:00:00.000Z" }),
   ]
   const ids = (rules: SortRules) => sortTickets(list, rules, ["task", "bug"]).map(t => t.id)
-  expect(ids(DEFAULT_SORT)).toEqual(["T3", "T2", "T1"])
+  expect(ids(DEFAULT_SORT)).toEqual(["T4", "T3", "T2", "T1"])
   const on = (...keys: [string, boolean][]): SortRules =>
     DEFAULT_SORT.map(r => ({
       ...r,
       on: keys.some(([k]) => k === r.key),
       desc: keys.find(([k]) => k === r.key)?.[1] ?? false,
     }))
-  expect(ids(on(["priority", true], ["updated", false]))).toEqual(["T2", "T3", "T1"])
-  expect(ids(on(["tag", false]))).toEqual(["T2", "T1", "T3"])
-  expect(ids(on())).toEqual(["T1", "T2", "T3"])
+  expect(ids(on(["priority", true], ["updated", false]))).toEqual(["T2", "T3", "T4", "T1"])
+  // T4 はタスクとバグ（プロジェクトの順に 0・1）、T2 はタスク（0）だけ、T1 はバグ（1）
+  expect(ids(on(["tag", false]))).toEqual(["T2", "T4", "T1", "T3"])
+  expect(ids(on())).toEqual(["T1", "T2", "T3", "T4"])
 })
 
 test("番号の見せ方は、プレフィクスに 4 桁まで 0 で埋めた番号。10000 からはそのまま", () => {

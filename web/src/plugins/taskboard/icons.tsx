@@ -106,3 +106,15 @@ export const GearIcon = () => (
     <path d="M12 2.8l1.6 2.3 2.7-.6.9 2.6 2.6.9-.6 2.7 2.3 1.6-2.3 1.6.6 2.7-2.6.9-.9 2.6-2.7-.6L12 21.2l-1.6-2.3-2.7.6-.9-2.6-2.6-.9.6-2.7L2.5 12l2.3-1.6-.6-2.7 2.6-.9.9-2.6 2.7.6z" />
   </Svg>
 )
+
+export const CloseIcon = () => (
+  <Svg size={10} stroke={2.4}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </Svg>
+)
+
+export const PlusIcon = () => (
+  <Svg size={12} stroke={2}>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+)

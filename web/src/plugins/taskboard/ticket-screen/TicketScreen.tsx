@@ -32,12 +32,13 @@ import { PRIORITIES, TICKET, TICKET_NAME_MAX } from "../ticket"
 import { TICKET_LOCK, TICKET_UNLOCK, TICKET_UPDATE } from "../ticket/actions"
 import { assigneesOf } from "../ticket/assignees"
 import { ticketLabel } from "../ticket/label"
+import { tagsOf } from "../ticket/tags"
 import { HISTORY } from "../ticket-history"
 import { TICKET_SCREEN, TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "."
 import { AssigneeBirds } from "./AssigneeBirds"
+import { TagPicker } from "./TagPicker"
 import { TicketHistoryTimeline } from "./TicketHistoryTimeline"
 import styles from "./TicketScreen.module.css"
-import { TicketTagBadge } from "./TicketTagBadge"
 import { useBodyUpdateLine } from "./useBodyUpdateLine"
 import { type HistoryRow, historyRows, whenOf } from "./view"
 import { WriterBird } from "./WriterBird"
@@ -91,9 +92,10 @@ export function TicketScreen() {
       </section>
     )
 
-  const edit = (patch: { name?: string; body?: string; priority?: (typeof PRIORITIES)[number] }) =>
+  const edit = (patch: { name?: string; body?: string; priority?: (typeof PRIORITIES)[number]; tags?: string[] }) =>
     perform(TICKET_UPDATE.id, patch, { record: id })
-  const tag = project?.tags.find(x => x.id === ticket.tag)
+  const tags = project ? tagsOf(project, ticket) : []
+  const tagChoices = project?.tags.filter(tag => tag.enabled && !ticket.tags.includes(tag.id)) ?? []
   const rows = historyRows(ticket, lines)
   const question = rows.find(r => r.id === view.question)
   const assignees = assigneesOf(ticket, workrooms)
@@ -117,7 +119,7 @@ export function TicketScreen() {
         <div className={styles.content} inert={view.maximized}>
           <div className={styles.head}>
             <span className={styles.id}>{ticketLabel(project?.prefix ?? "", ticket.number)}</span>
-            {tag ? <TicketTagBadge name={tag.name} color={tag.color} /> : null}
+            <TagPicker tags={tags} choices={tagChoices} canEdit={canEdit} onChange={next => edit({ tags: next })} />
           </div>
           <NameField name={ticket.name} canEdit={canEdit} onEditing={setEditing} onRename={name => edit({ name })} />
           <div className={styles.dates}>
