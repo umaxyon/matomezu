@@ -7,6 +7,7 @@
 import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
 import type { Book } from "./schema/book"
+import type { Stage } from "./stage"
 import { newWorkspace, type Workspace } from "./workspace"
 
 // 窓が前に出している物
@@ -55,3 +56,17 @@ export function issueStage(win: WindowState): { win: WindowState; id: string } {
 
 // ブックスクリーンが見えているか（前に出ているか）。コントロールセンターを前に出している間、後ろのブックスクリーンは見えていない
 export const bookScreenVisible = (win: Pick<WindowState, "front">): boolean => win.front === "book-screen"
+
+// ステージの id から、そのステージ（どのブックスクリーンの物でも。ステージの id は窓で一意。無ければ undefined）
+export function stageIn(win: Pick<WindowState, "screens">, id: string): Stage | undefined {
+  for (const ws of win.screens) {
+    const stage = ws.stages.find(s => s.id === id)
+    if (stage) return stage
+  }
+  return undefined
+}
+
+// ステージの id から、そのステージを並べているブックスクリーン（無ければ undefined）
+export function workspaceOfStage(win: Pick<WindowState, "screens">, id: string): Workspace | undefined {
+  return win.screens.find(ws => ws.stages.some(s => s.id === id))
+}

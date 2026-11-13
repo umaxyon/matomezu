@@ -6,7 +6,7 @@ import { useCallback, useEffect } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { Rect } from "../../../core/geom"
 import type { Stage } from "../../../core/stage"
-import { screenOf } from "../../../core/window"
+import { screenOf, stageIn } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { usePluginState, useReadPluginState, useUpdatePluginState } from "../../../ui/view-hooks"
@@ -41,7 +41,7 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   const readRestore = useReadPluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const update = useUpdatePluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const actions = useActions()
-  const stageOf = useCallback((id: string) => screenOf(read().window).stages.find(s => s.id === id), [read])
+  const stageOf = useCallback((id: string) => stageIn(read().window, id), [read])
   // 見せる: 付いた先が替われば全部を囲む四角を収め（1 つなら 100%）、カレントだけが替われば倍率はそのままでカレントを真ん中へ（state.ts の revealFor）
   useEffect(() => {
     if (sliding || !stage || anchors === null || current === null || !restore) return

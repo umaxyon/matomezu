@@ -76,6 +76,7 @@ import {
   mapScreens,
   newWindow,
   screenOf,
+  stageIn,
   type WindowState,
 } from "../core/window"
 import {
@@ -836,7 +837,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openPage: (stage, page) => {
       const { books, window } = getState()
-      const book = books[screenOf(window).stages.find(s => s.id === stage)?.opened?.book ?? ""]
+      const book = books[stageIn(window, stage)?.opened?.book ?? ""]
       // ページを開くと、見る側のブックスクリーンを前に出す
       if (book && hasPages(book) && inWindow(stage))
         withWindow(win =>

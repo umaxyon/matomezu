@@ -3,7 +3,7 @@
 // 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
-import { screenOf } from "../../../core/window"
+import { screenOf, stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useLayout, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
@@ -79,8 +79,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     if (!target) return
     // 行き先のブックがもう開いていても、ブックスクリーンは前に出す
     actions.showBookScreen()
-    if (screenOf(read().window).stages.find(s => s.id === target)?.opened?.book !== to.book)
-      actions.openBook(target, to.book)
+    if (stageIn(read().window, target)?.opened?.book !== to.book) actions.openBook(target, to.book)
     if (to.page) actions.openPage(target, to.page)
     if (to.ids && to.ids.length > 0) {
       reveal(target, to.ids)

@@ -6,7 +6,7 @@ import type { ThemeDef, TokenDef } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import { resolveTokens, type Shades } from "../../../core/theme"
-import { screenOf } from "../../../core/window"
+import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
@@ -37,8 +37,7 @@ export function useAligns() {
 }
 
 // 開いたステージで開いているブックの id
-export const useBookOf = (stage: string) =>
-  useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === stage)?.opened?.book)
+export const useBookOf = (stage: string) => useMatomezuState(s => stageIn(s.window, stage)?.opened?.book)
 
 // ブック book（id）のタイプが、ブックと中の形に使えるテーマ（book-look/theme-types.ts。ブックが無ければ空）
 export function useBookThemes(book: string | undefined): ThemeDef[] {
@@ -79,7 +78,7 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
 // （当てていないか、ブックのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
 export function useThemeVars(stage: string, theme: string | undefined, defs: readonly TokenDef[]) {
   const catalog = useCatalog().core
-  const type = useMatomezuState(s => screenOf(s.window).stages.find(st => st.id === stage)?.opened?.type)
+  const type = useMatomezuState(s => stageIn(s.window, stage)?.opened?.type)
   return useMemo(() => {
     if (!theme || type === undefined || !themeFits(catalog, type, theme)) return undefined
     const owners = new Set(defs.map(d => splitId(d.id).owner))

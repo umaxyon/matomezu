@@ -8,7 +8,7 @@ import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { stageBlocks } from "../../core/stage"
-import { screenOf } from "../../core/window"
+import { screenOf, stageIn } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, pluginValueOf } from "../plugin-state"
@@ -37,7 +37,7 @@ export function commandContext(
   stageId: string,
   command: string,
 ): CommandContext | null {
-  const stage = screenOf(state.window).stages.find(s => s.id === stageId)
+  const stage = stageIn(state.window, stageId)
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
   const { settings, dialog, contextMenu } = state

@@ -10,7 +10,7 @@
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { previewing } from "../../../core/stage"
-import { screenOf } from "../../../core/window"
+import { screenOf, stageIn } from "../../../core/window"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { PressClosedContext, useOpenedRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
@@ -93,7 +93,7 @@ function scrollbarWidth(): number {
 // ステージの列の中身。印刷プレビューの間は、ステージの中身のほか（上・下の行と角）を出さない（中身の操作の道具を出さないため）
 function StageColumn({ stage }: { stage: string }) {
   const inPreview = useMatomezuState(s => {
-    const st = screenOf(s.window).stages.find(st => st.id === stage)
+    const st = stageIn(s.window, stage)
     return !!st && previewing(st)
   })
   return (

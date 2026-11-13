@@ -13,7 +13,7 @@ import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
 import { extentOf as previewArea } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
-import { screenOf } from "../../../core/window"
+import { stageIn } from "../../../core/window"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -74,17 +74,16 @@ declare module "../../../core/catalog" {
 }
 
 // ステージ stage の今の倍率（effect の中で読む）
-const zoomOf = (read: () => MatomezuState, stage: string): number | null =>
-  screenOf(read().window).stages.find(st => st.id === stage)?.zoom ?? null
+const zoomOf = (read: () => MatomezuState, stage: string): number | null => stageIn(read().window, stage)?.zoom ?? null
 
 // ステージ id の、ずらす量の範囲を決める広さを知らせたか（並べた広さ）と、表示領域の大きさ（"幅x高さ"。測る前は null）
 function useExtent(id: string): { known: boolean; size: string | null } {
   const known = useMatomezuState(s => {
-    const st = screenOf(s.window).stages.find(st => st.id === id)
+    const st = stageIn(s.window, id)
     return !!st && previewArea(st) !== null
   })
   const size = useMatomezuState(s => {
-    const view = screenOf(s.window).stages.find(st => st.id === id)?.view
+    const view = stageIn(s.window, id)?.view
     return view ? `${view.w}x${view.h}` : null
   })
   return { known, size }

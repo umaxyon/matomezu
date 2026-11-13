@@ -2,15 +2,13 @@
 // ダイアログの定義が edits を持てば、開いている間、開いたステージのブックのその物に編集ロックを掛ける
 
 import { fail } from "../../../core/errors"
-import { screenOf } from "../../../core/window"
+import { stageIn } from "../../../core/window"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useEditLock } from "../utils/useEditLock"
 
 export function DialogHost() {
   const dialog = useMatomezuState(s => s.dialog)
-  const book = useMatomezuState(
-    s => screenOf(s.window).stages.find(st => st.id === s.dialog?.stage)?.opened?.book ?? null,
-  )
+  const book = useMatomezuState(s => (s.dialog ? stageIn(s.window, s.dialog.stage)?.opened?.book : undefined) ?? null)
   const { closeDialog } = useActions()
   const ui = useUiCatalog()
   const dialogs = useCatalog().store.dialogs

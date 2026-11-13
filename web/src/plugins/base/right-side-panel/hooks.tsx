@@ -2,7 +2,7 @@
 // 開くのは、ステージに置いてそのステージをカレントにするだけ（ほかのステージで開いていた物は、入れ物が閉じる）
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { screenOf } from "../../../core/window"
+import { screenOf, stageIn } from "../../../core/window"
 import { type PluginValues, pluginValueOf } from "../../../store/plugin-state"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import {
@@ -71,7 +71,7 @@ export function useOpenRightSidePanel(): (
     (stage, open, restore = "back") => {
       if (pressClosed.current) return
       const { window } = read()
-      const now = screenOf(window).stages.find(s => s.id === stage)
+      const now = stageIn(window, stage)
       const opened = now?.opened
       if (!now || !opened) return
       const panel = { ...open, book: opened.book, page: opened.page }

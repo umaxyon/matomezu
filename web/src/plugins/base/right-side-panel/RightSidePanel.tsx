@@ -6,7 +6,7 @@
 // 選択に従う中身（ウィジェットの定義の rightSidePanel.followsSelection）を出している間は、開いたステージの中を押しても閉じず、付いた先をステージの選択に合わせる
 // （ポインタを押している間は、離してから。state.ts の followSelection）。開いたステージの中を押して離したあとに付いた先が空なら閉じる（AI が物を消すなど、押さずに空になったときは閉じない）
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
-import { screenOf } from "../../../core/window"
+import { screenOf, stageIn } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -59,7 +59,7 @@ export function RightSidePanel() {
       const s = read()
       const tool = toolOf(catalog, screenOf(s.window), stage, s.books)
       const inside = ref.current?.contains(target) ?? false
-      const st = screenOf(s.window).stages.find(st => st.id === stage)
+      const st = stageIn(s.window, stage)
       const pans = !!st && stageView(catalog, st, tool).pans // 紙をずらしているか（ずらす道具の間と、印刷プレビューの間）
       if (!pressCloses({ button: e.button, inside, kept: !!target.closest(KEEPS), pans, followed })) return
       pressClosed.current = true
@@ -145,7 +145,7 @@ function useFollowSelection(stage: string | null) {
     const open = readPanel(stage)
     if (!open) return
     // 開いたときに選択を変えたばかりのこともあるので、選択はストアから今の値を読む
-    const current = screenOf(read().window).stages.find(s => s.id === stage)?.selection ?? []
+    const current = stageIn(read().window, stage)?.selection ?? []
     const next = followSelection(open, current)
     if (next !== open) set(stage, next)
   }, [stage, shown, selection, released, read, readPanel, set])

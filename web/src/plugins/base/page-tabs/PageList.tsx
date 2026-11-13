@@ -7,7 +7,7 @@ import { useRef, useState } from "react"
 import { hasPages } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
-import { screenOf } from "../../../core/window"
+import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -47,7 +47,7 @@ function Thumbnail({ stage, book, page }: { stage: string; book: Book; page: Pag
 }
 
 export function PageList({ stage }: StageSlotProps) {
-  const opened = useMatomezuState(s => screenOf(s.window).stages.find(x => x.id === stage)?.opened)
+  const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const catalog = useCatalog().core
   const openPage = useCommand(stage, PAGE_OPEN.id)

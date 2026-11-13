@@ -1,6 +1,6 @@
 // ページを足して開く: ステージが開いているブックに、アクション page-add でページを足し、そのステージで開いてカレントにする
 import type { ArgsOf } from "../../../core/perform"
-import { screenOf } from "../../../core/window"
+import { stageIn } from "../../../core/window"
 import type { MatomezuInstance } from "../../../store/store"
 import { PAGE_ADD } from "./page-add"
 
@@ -9,7 +9,7 @@ export function addPageIn(
   stage: string,
   args: ArgsOf<typeof PAGE_ADD.id>,
 ): boolean {
-  const book = screenOf(instance.state.getState().window).stages.find(s => s.id === stage)?.opened?.book
+  const book = stageIn(instance.state.getState().window, stage)?.opened?.book
   if (book === undefined) return false
   const done = instance.actions.perform(PAGE_ADD.id, args, { book })
   if (!done.ok) return false

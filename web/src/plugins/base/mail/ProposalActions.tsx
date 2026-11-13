@@ -2,7 +2,7 @@
 // 反映（proposal-apply を行い、常駐の答えを待つ。行えなければ押せない）。反映できたら反映したと残して郵便を閉じる。どこかの窓で当たる物を直していたら断られ（being-edited）、
 // トーストで知らせて郵便は残す（直し終えてから押せる）。送ったあとに当たる物が変わっていた・変更が断られたなら、失敗したと残してトーストで知らせ、反映は押せなくなる。
 // 反映した・失敗した郵便は、ボタンを出さずに、その時刻を出す
-import { screenOf } from "../../../core/window"
+import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useReadState } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
@@ -49,8 +49,7 @@ function Proposal({ stage, mail, onClose, dock, props }: MailActionsProps & { pr
     if (!to) return
     dock()
     actions.showBookScreen()
-    if (screenOf(read().window).stages.find(s => s.id === stage)?.opened?.book !== to.book)
-      actions.openBook(stage, to.book)
+    if (stageIn(read().window, stage)?.opened?.book !== to.book) actions.openBook(stage, to.book)
     if (to.page) actions.openPage(stage, to.page)
     if (to.ids && to.ids.length > 0) {
       reveal(stage, to.ids)

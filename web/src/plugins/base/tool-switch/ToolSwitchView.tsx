@@ -4,7 +4,7 @@
 import { useEffect, useRef } from "react"
 import type { ToolId } from "../../../core/catalog"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
-import { screenOf } from "../../../core/window"
+import { screenOf, stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
@@ -40,7 +40,7 @@ export function ToolSwitchView({ stage }: { stage: string }) {
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
   const set = useMatomezuState(s => {
-    const st = screenOf(s.window).stages.find(x => x.id === stage)
+    const st = stageIn(s.window, stage)
     return st ? toolSetOf(catalog, st) : null
   })
   const order: readonly ToolId[] = set ? toolsIn(catalog, set) : []
