@@ -11,8 +11,10 @@ export function TicketHistoryTimeline({
   rows,
   openQuestion,
   onOpenQuestion,
+  workroomNames,
 }: {
   rows: readonly HistoryRow[]
+  workroomNames: Readonly<Record<string, string>> // ワークルームの id → 名前（完了の行の、外した担当を名前で見せる）
   openQuestion: string | undefined // 右に開いている質問の行の id
   onOpenQuestion: (row: HistoryRow) => void
 }) {
@@ -24,7 +26,13 @@ export function TicketHistoryTimeline({
           <div className={styles.date}>{dayHeading(d.day, lang)}</div>
           <ol className={styles.items}>
             {d.items.map(row => (
-              <Row key={row.id} row={row} open={openQuestion === row.id} onOpenQuestion={onOpenQuestion} />
+              <Row
+                key={row.id}
+                row={row}
+                open={openQuestion === row.id}
+                onOpenQuestion={onOpenQuestion}
+                workroomNames={workroomNames}
+              />
             ))}
           </ol>
         </li>
@@ -37,10 +45,12 @@ function Row({
   row,
   open,
   onOpenQuestion,
+  workroomNames,
 }: {
   row: HistoryRow
   open: boolean
   onOpenQuestion: (row: HistoryRow) => void
+  workroomNames: Readonly<Record<string, string>>
 }) {
   const t = useMessages(kit)
   const data = useTopicData(row.topic)
@@ -52,7 +62,7 @@ function Row({
       : source === "body"
         ? t("Updated the body")
         : source === "topic"
-          ? topicName
+          ? [topicName, ...(row.released ?? []).flatMap(id => workroomNames[id] ?? [])].join(" ")
           : row.text
   return (
     <li className={styles.item}>

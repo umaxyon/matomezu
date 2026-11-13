@@ -285,8 +285,8 @@ test("ticket-update は、レーン・タグ・担当を名前でも指せ、同
   const p = projects()[0] as Project
   const room = addRoom("ひよこ")
   const t = (user("ticket-add", { project: p.id, name: "a" }) as Done & { result: { ticket: string } }).result.ticket
-  expect(user("ticket-update", { lane: "完了", tag: "タスク", assignees: ["ひよこ"] }, { record: t }).ok).toBe(true)
-  expect(tickets()[0]).toMatchObject({ lane: p.lanes[2]?.id, assignees: [room] })
+  expect(user("ticket-update", { lane: "作業中", tag: "タスク", assignees: ["ひよこ"] }, { record: t }).ok).toBe(true)
+  expect(tickets()[0]).toMatchObject({ lane: p.lanes[1]?.id, assignees: [room] })
   expect(user("ticket-update", { assignees: ["ひよこ", room] }, { record: t }).ok).toBe(false)
   expect(user("ticket-update", { lane: "unsorted" }, { record: t }).ok).toBe(true)
   expect(tickets()[0]).toMatchObject({ lane: "unsorted" })

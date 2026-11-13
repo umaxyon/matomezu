@@ -74,9 +74,13 @@ test("行から作った引数でプロジェクトを直すと、残した行�
     { key: "new-1", name: " 調べ物 ", color: "success", enabled: true, prompt: "調べる" },
   ]
   const nextLanes: LaneRow[] = [...lanes.slice(0, 1), lane("new-2", "見直し"), lane("new-3", "  "), ...lanes.slice(-1)]
-  const done = perform("@matomezu/taskboard:project-update", updateArgsOf(" 新しい名前 ", "AB-", nextLanes, tags), {
-    record: p.id,
-  })
+  const done = perform(
+    "@matomezu/taskboard:project-update",
+    updateArgsOf(" 新しい名前 ", "AB-", nextLanes, tags, "none"),
+    {
+      record: p.id,
+    },
+  )
   expect(done.ok).toBe(true)
   const q = project()
   expect(q.name).toBe("新しい名前")

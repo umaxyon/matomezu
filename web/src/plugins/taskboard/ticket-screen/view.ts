@@ -32,6 +32,7 @@ export interface HistoryRow {
   text: string
   at: string
   by: By
+  released?: readonly string[] // 完了の行だけ: 完了で担当を外したワークルームの id
 }
 
 // チケット履歴の行（ticket のもの）に、起票の行を足し、新しい順（同じ時点は id の降順）に並べる

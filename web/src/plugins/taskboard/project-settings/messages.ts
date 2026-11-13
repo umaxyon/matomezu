@@ -4,6 +4,8 @@ import { defineMessages } from "../../../plugin-api"
 export const PROJECT_SETTINGS_MESSAGES = defineMessages({
   "Project settings": { en: "Project settings", ja: "プロジェクト設定" },
   General: { en: "General", ja: "全般" },
+  "Done lane": { en: "Done lane", ja: "完了のレーン" },
+  "No done lane": { en: "None", ja: "なし" },
   "Edit the name": { en: "Edit the name", ja: "名前を編集" },
   "Ticket tags": { en: "Ticket tags", ja: "チケットタグ" },
   Lanes: { en: "Lanes", ja: "レーン" },

@@ -3,9 +3,9 @@
 // 名前の入力Formを離れたとき、空か、ほかのレーンと重なっていれば片付ける（settings-rows）
 import { useId, useState } from "react"
 import { useMessages } from "../../../plugin-api/ui"
-import { Switch } from "../../base/ui"
+import { controlClass, Switch } from "../../base/ui"
 import { kit } from "../kit"
-import { LANE_NAME_MAX } from "../project"
+import { LANE_NAME_MAX, NO_DONE_LANE } from "../project"
 import { Grip } from "../reorder/Grip"
 import { useGripDrag } from "../reorder/useGripDrag"
 import { useReorderAnimation } from "../reorder/useReorderAnimation"
@@ -19,10 +19,14 @@ export function LaneSettings({
   lanes,
   repeated,
   hides,
+  done,
+  onDone,
 }: {
   lanes: EditableRows<LaneRow>
   repeated: ReadonlySet<string>
   hides: boolean // 保存すると、消したレーンのチケットがボードに出なくなる
+  done: string // 完了のレーンに選んだ行の鍵（無ければ none）
+  onDone: (key: string) => void
 }) {
   const t = useMessages(kit)
   const { rows, change, add, leave, move, nameRef } = lanes
@@ -51,6 +55,19 @@ export function LaneSettings({
         />
         <label htmlFor={switchId}>{t("Show unsorted")}</label>
       </div>
+      <label className={settings.switchRow}>
+        {t("Done lane")}
+        <select className={controlClass} value={done} onChange={e => onDone(e.target.value)}>
+          <option value={NO_DONE_LANE}>{t("No done lane")}</option>
+          {rows
+            .flatMap(r => (r.kind === "lane" && r.name.trim() !== "" ? [r] : []))
+            .map(r => (
+              <option key={r.key} value={r.key}>
+                {r.name}
+              </option>
+            ))}
+        </select>
+      </label>
       <PromptSplit
         notes={[
           ...(repeated.size > 0 ? [t("The names repeat")] : []),

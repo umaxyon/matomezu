@@ -34,6 +34,7 @@ const project = (id: string, over: Partial<ProjectRecord> = {}): ProjectRecord =
     { id: "task", name: "タスク", color: "primary", enabled: true, prompt: "" },
     { id: "bug", name: "バグ", color: "danger", enabled: true, prompt: "" },
   ],
+  doneLane: "done",
   ...over,
 })
 const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => ({

@@ -150,6 +150,7 @@ export function TicketScreen() {
               rows={rows}
               openQuestion={view.question}
               onOpenQuestion={(row: HistoryRow) => set({ question: row.id })}
+              workroomNames={Object.fromEntries(workrooms.map(w => [w.id, w.name]))}
             />
           </div>
         </div>

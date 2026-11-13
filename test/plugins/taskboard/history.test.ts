@@ -1,8 +1,9 @@
 // チケットのロック・担当・履歴・今のチケット（タスクボード）。書いた者はアクターから写し、履歴の題は列挙 history-topic の値
 
 import { expect, test } from "bun:test"
-import type { Actor } from "../../../web/src/core/actor"
-import { performIn } from "../../../web/src/core/perform"
+import { type Actor, USER } from "../../../web/src/core/actor"
+import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform"
+import { withCounters, withRecords } from "../../../web/src/core/records"
 import { CURRENT } from "../../../web/src/plugins/taskboard/current-ticket"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { HISTORY, HISTORY_TOPIC } from "../../../web/src/plugins/taskboard/ticket-history"
@@ -119,14 +120,21 @@ test("今のチケットは、AI が自分のワークルームの分だけ宣�
   expect(table(CURRENT.id)).toEqual([])
 })
 
-test("履歴の題は列挙 history-topic の値（状況・プラン・質問・本文更新）。値の data は色の役割で、質問だけ利用者への質問（asksUser）、本文更新だけ文を持たない（textless）", () => {
+test("履歴の題は列挙 history-topic の値（状況・プラン・質問・本文更新・完了）。値の data は色の役割で、質問だけ利用者への質問（asksUser）、本文更新と完了だけ文を持たない（textless）", () => {
   const values = [...CORE_CATALOG.enumValues.values()].filter(v => v.enum === HISTORY_TOPIC.id)
-  expect(values.map(v => v.id)).toEqual([A("topic-status"), A("topic-plan"), A("topic-question"), A("topic-body")])
+  expect(values.map(v => v.id)).toEqual([
+    A("topic-status"),
+    A("topic-plan"),
+    A("topic-question"),
+    A("topic-body"),
+    A("topic-complete"),
+  ])
   expect(values.map(v => v.data)).toEqual([
     { color: "primary" },
     { color: "secondary" },
     { color: "warn", asksUser: true },
     { color: "muted", textless: true },
+    { color: "success", textless: true },
   ])
 })
 
@@ -135,4 +143,111 @@ test("本文更新の題は文を持たなくてよい。ほかの題は文が�
   expect(user(A(LOG), { ticket, topic: A("topic-body"), text: "" }).ok).toBe(true)
   expect(table(HISTORY.id)[0]).toMatchObject({ topic: A("topic-body"), text: "", by: { kind: "user" } })
   expect(user(A(LOG), { ticket, topic: A("topic-status"), text: "  " }).ok).toBe(false)
+})
+
+// チケットの完了（ticket-complete）: レーン・担当・今のチケット・履歴が 1 回で、全部そろって変わる。
+// store は利用者だけが行うので、AI としても行うここだけは、世界を自分で持って結果を当てていく
+function completing() {
+  let w: World = { books: {}, settings: {}, annotations: {}, records: {}, counters: {} }
+  let n = 0
+  const act = (actor: Actor, action: string, args: unknown, on?: On) => {
+    const done = performIn(w, action.includes(":") ? action : A(action), args, on, {
+      catalog: CORE_CATALOG,
+      controlCenter: "@matomezu/control-center:control-center" as never,
+      lang: "ja",
+      newId: () => `n${++n}`,
+      now: "2026-11-12T00:00:00.000Z",
+      actor,
+    }) as PerformedIn
+    if (done.ok)
+      w = {
+        ...w,
+        ...(done.records ? { records: withRecords(w.records, done.records) } : {}),
+        counters: withCounters(w.counters, done.counters),
+      }
+    return done as unknown as Done
+  }
+  const user = (action: string, args: unknown, on?: On) => act(USER, action, args, on)
+  const table = (kind: string) => Object.values(w.records[kind] ?? {}) as Record<string, unknown>[]
+  const room = (name: string) =>
+    (user("@matomezu/base:workroom-add", { name, bird: "inko" }) as Done & { result: { workroom: string } }).result
+      .workroom
+  user("project-add", {})
+  const projectRecord = () =>
+    table(PROJECT)[0] as {
+      id: string
+      doneLane?: string
+      lanes: { kind: string; id?: string; name?: string; prompt?: string }[]
+    }
+  const project = projectRecord().id
+  const ticket = (user("ticket-add", { project, name: "t" }) as Done & { result: { ticket: string } }).result.ticket
+  const laneNamed = (name: string) => projectRecord().lanes.find(l => l.name === name)?.id as string
+  return { act, user, table, room, project, ticket, projectRecord, laneNamed }
+}
+
+test("完了にすると、チケットは完了のレーンへ移り、担当が外れ、指している全部のワークルームの今のチケットが none になり、履歴に完了の行（外した担当つき）が足される。1 回で全部", () => {
+  const { user, act, table, room, ticket, projectRecord } = completing()
+  const a = room("あ")
+  const b = room("い")
+  user("ticket-update", { assignees: [a, b] }, { record: ticket })
+  expect(act(ai(a), "current-ticket-set", { ticket }).ok).toBe(true)
+  expect(act(ai(b), "current-ticket-set", { ticket }).ok).toBe(true)
+  const done = user("ticket-complete", {}, { record: ticket })
+  expect(done).toMatchObject({ ok: true, result: { lane: projectRecord().doneLane, released: [a, b] } })
+  expect((done.result?.cleared as string[]).sort()).toEqual([a, b].sort())
+  expect(table(TICKET.id)[0]).toMatchObject({ lane: projectRecord().doneLane, assignees: [] })
+  expect(table(CURRENT.id).map(c => c.ticket)).toEqual(["none", "none"])
+  expect(table(HISTORY.id)).toEqual([
+    expect.objectContaining({ ticket, topic: A("topic-complete"), text: "", by: { kind: "user" }, released: [a, b] }),
+  ])
+})
+
+test("完了は、完了のレーンの無いプロジェクトと、もう完了しているチケットは断る。完了のレーンへほかの道で入れることも、完了のチケットに担当を付けることも断る", () => {
+  const { user, table, room, ticket, project, projectRecord, laneNamed } = completing()
+  const a = room("あ")
+  expect(projectRecord().doneLane).toBe(laneNamed("完了")) // 最初のプロジェクトの完了のレーンは、最初から決まっている
+  // 完了のレーンへは、ticket-update でも ticket-add でも入れない
+  expect(user("ticket-update", { lane: "完了" }, { record: ticket }).ok).toBe(false)
+  expect(user("ticket-add", { project, name: "x", lane: "完了" }).ok).toBe(false)
+  expect(table(TICKET.id)).toHaveLength(1)
+  expect(user("ticket-complete", {}, { record: ticket }).ok).toBe(true)
+  expect(user("ticket-complete", {}, { record: ticket }).ok).toBe(false) // もう完了している
+  // 完了のレーンにいる間は担当を付けられない。出せば付けられる（担当は戻らない）
+  expect(user("ticket-update", { assignees: [a] }, { record: ticket }).ok).toBe(false)
+  expect(user("ticket-update", { name: "z" }, { record: ticket }).ok).toBe(true)
+  expect(user("ticket-update", { lane: laneNamed("未着手") }, { record: ticket }).ok).toBe(true)
+  expect((table(TICKET.id)[0] as { assignees: string[] }).assignees).toEqual([])
+  expect(user("ticket-update", { assignees: [a] }, { record: ticket }).ok).toBe(true)
+  // 完了のレーンが無いプロジェクトでは完了できない
+  expect(user("project-update", { doneLane: "none" }, { record: project }).ok).toBe(true)
+  expect(user("ticket-complete", {}, { record: ticket }).ok).toBe(false)
+})
+
+test("完了のレーンのチケットは、今のチケットに宣言できない", () => {
+  const { user, act, room, ticket } = completing()
+  const a = room("あ")
+  expect(act(ai(a), "current-ticket-set", { ticket }).ok).toBe(true)
+  user("ticket-complete", {}, { record: ticket })
+  expect(act(ai(a), "current-ticket-set", { ticket }, { record: a }).ok).toBe(false)
+  expect(act(ai(a), "current-ticket-set", { ticket: "none" }, { record: a }).ok).toBe(true)
+})
+
+test("完了のレーンを替えるときは、新しいレーンのチケットに担当がいるか今のチケットに指されていれば断る。名前でも指せ、無いレーンは断る。レーンを消すと none になる", () => {
+  const { user, act, room, ticket, project, projectRecord, laneNamed } = completing()
+  const a = room("あ")
+  const todo = laneNamed("未着手")
+  user("ticket-update", { lane: todo, assignees: [a] }, { record: ticket })
+  const set = (doneLane: string) => user("project-update", { doneLane }, { record: project })
+  expect(set("未着手").ok).toBe(false) // 担当のいるチケットがある
+  user("ticket-update", { assignees: [] }, { record: ticket })
+  expect(act(ai(a), "current-ticket-set", { ticket }).ok).toBe(true)
+  expect(set("未着手").ok).toBe(false) // 今のチケットに指されている
+  expect(act(ai(a), "current-ticket-set", { ticket: "none" }, { record: a }).ok).toBe(true)
+  expect(set("nothing").ok).toBe(false)
+  expect(set("未着手").ok).toBe(true)
+  expect(projectRecord().doneLane).toBe(todo)
+  // 完了のレーンを並びから省くと、完了のレーンは none になる
+  const rest = projectRecord().lanes.filter(l => l.id !== todo)
+  expect(user("project-update", { lanes: rest }, { record: project }).ok).toBe(true)
+  expect(projectRecord().doneLane).toBeUndefined()
 })

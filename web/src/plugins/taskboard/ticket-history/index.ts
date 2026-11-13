@@ -49,6 +49,15 @@ export const TOPIC_BODY = kit.defineEnumValue({
   data: { color: "muted", textless: true },
 })
 
+export const TOPIC_COMPLETE = kit.defineEnumValue({
+  id: "topic-complete",
+  enum: HISTORY_TOPIC.id,
+  title: "topic complete",
+  aiDescription:
+    "The ticket was completed (ticket-complete writes this line, without text, and keeps the assignees it released in released). Do not write it yourself: complete the ticket with ticket-complete.",
+  data: { color: "success", textless: true },
+})
+
 export const HISTORY = kit.defineSubject({
   id: "ticket-history",
   title: "ticket history",
@@ -61,6 +70,7 @@ export const HISTORY = kit.defineSubject({
     text: z.string(), // 文を持たなくてよい題（data.textless）の行だけ空にできる（行う側が確かめる）
     at: z.string(),
     by: BY,
+    released: z.array(z.string().min(1)).optional(), // 完了の行だけが持つ: 完了で担当を外した、ワークルームの id（担当と同じに、消したワークルームの id は書いたまま残し、読む側が外す）
   }),
   refers: h => [{ subject: TICKET.id, id: h.ticket }],
   aiOrder: h => Date.parse(h.at) || 0,

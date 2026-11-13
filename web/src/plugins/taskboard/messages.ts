@@ -1,6 +1,7 @@
 // タスクボードの文言。フォルダごとの文言の表を 1 つにする
 import { joinMessages } from "../base"
 import { BOARD_MESSAGES } from "./board/messages"
+import { COMPLETION_MESSAGES } from "./completion/messages"
 import { CURRENT_TICKET_MESSAGES } from "./current-ticket/messages"
 import { PROJECT_MESSAGES } from "./project/messages"
 import { PROJECT_LIST_MESSAGES } from "./project-list/messages"
@@ -10,6 +11,7 @@ import { TICKET_HISTORY_MESSAGES } from "./ticket-history/messages"
 import { TICKET_SCREEN_MESSAGES } from "./ticket-screen/messages"
 
 export const TASKBOARD_MESSAGES = joinMessages(
+  COMPLETION_MESSAGES,
   PROJECT_MESSAGES,
   TICKET_MESSAGES,
   TICKET_HISTORY_MESSAGES,

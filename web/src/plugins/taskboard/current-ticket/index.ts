@@ -17,6 +17,8 @@ export const CURRENT = kit.defineSubject({
     ticket: z.string().min(1),
     at: z.string(),
   }),
+  // 今のチケットが指すチケットから、指しているワークルームを探す（完了で空にするときなど）
+  keys: { ticket: { type: "text", of: c => c.ticket } },
   refers: c => [
     { subject: WORKROOM_SUBJECT, id: c.id },
     ...(c.ticket === NO_TICKET ? [] : [{ subject: TICKET.id, id: c.ticket }]),
