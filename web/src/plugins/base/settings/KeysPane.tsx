@@ -3,10 +3,17 @@
 // 足すキーを同じ範囲のほかの行が使っていれば、付ける前に確かめる（利用者の行が先になり、向こうは効かなくなる）。
 // ほかの行が先に使っていて効いていないキーは、行の下に添える。変えた行は既定に戻せ、探す入力Form の横のボタンで全部を既定に戻せる（確かめてから）。
 // 変えるとコマンド settings-set でキーバインドの項目を書く（コマンドが押せないか、コントロールセンターがこの項目を変えさせなければ、どれも押せない）
-import { type KeyboardEvent, useState } from "react"
+import { type KeyboardEvent, useMemo, useState } from "react"
 import type { BaseKeyScope } from "../../../core/catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
-import { type KeyBinding, type KeyChanges, keyLabel, NO_KEY_CHANGES, pressedKey } from "../../../core/keys"
+import {
+  type KeyBinding,
+  type KeyChanges,
+  keyLabel,
+  NO_KEY_CHANGES,
+  pressedKey,
+  readKeyChanges,
+} from "../../../core/keys"
 import {
   BASE_KEY_SCOPE_TITLES,
   type KeyRow,
@@ -41,7 +48,8 @@ export function KeysPane({ stage }: { stage: string }) {
   const set = useCommand(stage, SETTINGS_SET_COMMAND.id)
   // 書けるか: コマンドが押せ、コントロールセンターがキーバインドの項目を変えさせないのでもない
   const writable = useAllowed(stage, SETTINGS_SET.id, { settings: [KEYS.id] }).ok && set.enabled
-  const changes = (useUserSetting(KEYS.id) as KeyChanges | undefined) ?? NO_KEY_CHANGES
+  const saved = useUserSetting(KEYS.id)
+  const changes = useMemo(() => readKeyChanges(saved), [saved])
   const [query, setQuery] = useState("")
   const [capture, setCapture] = useState<Capture | null>(null)
   const [resetting, setResetting] = useState(false)

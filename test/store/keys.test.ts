@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import type { MatomezuError } from "../../web/src/core/errors"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { NO_KEY_CHANGES } from "../../web/src/core/keys"
+import { NO_KEY_CHANGES, readKeyChanges } from "../../web/src/core/keys"
 import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
 import { defineCommand } from "../../web/src/store/commands/def"
@@ -98,11 +98,8 @@ test("範囲は狭いものから引き、メニューとダイアログが開�
     "global",
   ])
   expect(keyScopes({ menu: false, dialog: true }, [], "b:view")).toEqual(["dialog"])
-  // コントロールセンターを前に出している間は、ステージの範囲・global・見せ方の範囲を引かず、control-center を引く（ダイアログとメニューは先）
-  expect(keyScopes({ menu: false, dialog: false, center: true }, ["a:panel"], "b:view")).toEqual([
-    "a:panel",
-    "control-center",
-  ])
+  // カレントスクリーンがステージを並べないスクリーンの間は、ステージの範囲・global・見せ方の範囲を引かず、screen を引く（ダイアログとメニューは先）
+  expect(keyScopes({ menu: false, dialog: false, center: true }, ["a:panel"], "b:view")).toEqual(["a:panel", "screen"])
   expect(keyScopes({ menu: false, dialog: true, center: true })).toEqual(["dialog"])
   // テキストFormが名乗った範囲だけで引くときは、ほかの範囲を見ない
   expect(keyScopes({ menu: false, dialog: false }, ["a:field"], "b:view", "named")).toEqual(["a:field"])
@@ -223,7 +220,7 @@ test("キーの範囲は定義（KeyScopeDef）で機能台帳に並び、題名
   expect(instance.catalog.store.keyScopes.get("k:panel")?.title).toBe("k:Panel")
   expect(instance.catalog.store.keyScopes.get("@matomezu/tree:tree")?.title).toBe("@matomezu/tree:Tree")
   expect(thrown(make([scope, scope]))).toEqual(["E001"])
-  expect(Object.keys(BASE_KEY_SCOPE_TITLES)).toEqual(["global", "stage", "dialog", "menu", "control-center"])
+  expect(Object.keys(BASE_KEY_SCOPE_TITLES)).toEqual(["global", "stage", "dialog", "menu", "screen"])
 })
 
 test("設定画面の行は 範囲・コマンド・args ごと。効いていない行は first が別の行。足す・外す・行を既定に戻すは利用者の変更を作り直す", () => {
@@ -273,4 +270,12 @@ test("設定画面の行は 範囲・コマンド・args ごと。効いてい�
   // 利用者の行は先なので、ぶつかったビルトインの行が効かなくなる
   const taken = keyRows(defaults, withKeyAdded(NO_KEY_CHANGES, { key: "Y", command: "a:undo", scope: "stage" }))
   expect(taken[1]!.keys[0]!.first.binding.command).toBe("a:undo")
+})
+
+test("利用者の変更に残った前の範囲の名前 control-center は、screen として読む", () => {
+  const former = { key: "Escape", command: "a:leave", scope: "control-center" }
+  expect(readKeyChanges({ added: [former], removed: [former] })).toEqual({
+    added: [{ ...former, scope: "screen" }],
+    removed: [{ ...former, scope: "screen" }],
+  })
 })

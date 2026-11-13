@@ -42,7 +42,7 @@ export const MESSAGES = defineMessages({
   "Run matomezu open in a terminal": { ja: "ターミナルで matomezu open を実行してください" },
   // 土台のキーの範囲の題名（store/keys.ts）
   "Whole screen": { ja: "画面全体" },
-  "Control center": { ja: "コントロールセンター" },
+  "Screens without stages": { ja: "ブックスクリーン以外の画面" },
   Stage: { ja: "ステージ" },
   "While a dialog is open": { ja: "ダイアログが開いている間" },
   "While a menu is open": { ja: "メニューが開いている間" },

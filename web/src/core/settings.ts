@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { CoreCatalog } from "./core-catalog"
 import type { SettingDef, SettingOwner, SettingRole } from "./def/setting"
 import type { Lang } from "./i18n/i18n"
-import { type KeyChanges, KeyChangesSchema, NO_KEY_CHANGES } from "./keys"
+import { type KeyChanges, readKeyChanges } from "./keys"
 
 export type Settings = Readonly<Record<string, unknown>>
 export const NO_SETTINGS: Settings = {}
@@ -46,8 +46,7 @@ export function skinOf(catalog: CoreCatalog, settings: Settings): string {
 
 // キーバインドの、利用者の変更: role が keys の項目の値。無ければ変更なし
 export function keyChangesOf(catalog: CoreCatalog, settings: Settings): KeyChanges {
-  const parsed = KeyChangesSchema.safeParse(byRole(catalog, settings, "keys"))
-  return parsed.success ? parsed.data : NO_KEY_CHANGES
+  return readKeyChanges(byRole(catalog, settings, "keys"))
 }
 
 // 参加者が「生きている」とする長さ（ミリ秒）: role が participant-alive の項目の値（分の数。形に合わない値は項目の既定）。項目が無いか数でなければ 0（誰も生きていない）

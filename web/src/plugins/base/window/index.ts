@@ -58,6 +58,6 @@ export const CONTROL_CENTER_KEYS = [
     id: "control-center-leave-escape",
     key: "Escape",
     command: CONTROL_CENTER_LEAVE.id,
-    scope: "control-center",
+    scope: "screen",
   }),
 ]
