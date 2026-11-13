@@ -37,6 +37,7 @@
 /* 右の領域: 本文の枠と、その上に重ねる質問の枠。閉じている間は右へ出る */
 .right {
   position: relative;
+  overflow: hidden; /* 閉じて右へ出ている質問の枠が、画面の横スクロールを作らない */
   display: flex;
   flex: 1;
   min-width: 0;
