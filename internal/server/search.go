@@ -188,7 +188,10 @@ func (h *Hub) Search(q SearchQuery) (answer SearchAnswer, refusal string, err er
 		for _, id := range ids {
 			list = append(list, table[id])
 		}
-		rows, shown, err := h.engine.AIRows(kind, list)
+		// 題が指す先のレコードを置き場所から引くので、エンジンを呼ぶ間は h.mu を持つ（行う間と同じ）
+		h.mu.Lock()
+		rows, shown, err := h.engine.AIRows(kind, list, recordSource{h})
+		h.mu.Unlock()
 		if err != nil {
 			return answer, "", err
 		}

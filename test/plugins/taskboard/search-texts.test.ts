@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { HISTORY } from "../../../web/src/plugins/taskboard/ticket-history"
+import { CORE_CATALOG } from "../../support"
 
 test("a ticket's title is its number and name, and its body is the body", () => {
   const ticket = TICKET.record.parse({
@@ -32,4 +33,25 @@ test("a history line has only its text as the body", () => {
     by: { kind: "user" },
   })
   expect(HISTORY.searchTexts?.(line)).toEqual({ body: "確認が済んだ" })
+})
+
+test("a ticket's brief for the AI starts with its number as the board shows it: the project's prefix and 4 digits (the bare number when the project cannot be read)", () => {
+  const ticket = TICKET.record.parse({
+    id: "t1",
+    project: "p1",
+    number: 12,
+    name: "n",
+    body: "",
+    lane: "todo",
+    tags: [],
+    priority: "medium",
+    assignees: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    createdBy: { kind: "user" },
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  })
+  const withProject = (project: unknown) => ({ catalog: CORE_CATALOG, record: () => project })
+  expect(TICKET.aiBrief?.(ticket, withProject({ prefix: "M-" }))).toBe("M-0012 n [todo]")
+  expect(TICKET.aiBrief?.(ticket, withProject({ prefix: "" }))).toBe("0012 n [todo]")
+  expect(TICKET.aiBrief?.(ticket, withProject("none"))).toBe("0012 n [todo]")
 })

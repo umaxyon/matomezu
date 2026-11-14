@@ -1,5 +1,6 @@
 // メモリに持つホストクライアント（テストでホストの代わりに使う）: 残したものは読み直すと消える。
 // アクションは画面の中で済み、変わったブック（ゴミ箱のブックも）と設定をそのまま覚え、ゴミ箱から消したブックは忘れる（persist）
+import { recordContext } from "../../web/src/core/ai-list"
 import type { Book } from "../../web/src/core/schema/book"
 import type { Settings } from "../../web/src/core/settings"
 import type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../../web/src/core/wide-search"
@@ -42,7 +43,11 @@ function searchIn(instance: MatomezuInstance | undefined, q: WideSearchQuery): W
         kind,
         id,
         part: found.part,
-        brief: def.aiBrief?.(parsed, core) ?? id,
+        brief:
+          def.aiBrief?.(
+            parsed,
+            recordContext(core, def, parsed, (s, i) => records[s]?.[i]),
+          ) ?? id,
         snippet: found.snippet,
         ...(label ? { label } : {}),
         ...(parent && core.subjects.get(parent.subject)?.searchTexts

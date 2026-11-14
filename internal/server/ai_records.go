@@ -180,7 +180,10 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 			bodies = append(bodies, r.Body)
 		}
 	}
-	rows, shown, err := h.engine.AIRows(q.Kind, bodies)
+	// 題が指す先のレコードを置き場所から引くので、エンジンを呼ぶ間は h.mu を持つ（行う間と同じ）
+	h.mu.Lock()
+	rows, shown, err := h.engine.AIRows(q.Kind, bodies, recordSource{h})
+	h.mu.Unlock()
 	if err != nil || !shown {
 		return nil, "", false, err
 	}
