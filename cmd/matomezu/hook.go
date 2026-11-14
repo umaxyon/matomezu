@@ -27,6 +27,7 @@ type hookInput struct {
 	Model          string `json:"model"`           // SessionStart のモデル
 	ToModel        string `json:"to_model"`        // PostModelSwitch の、切り替えた先のモデル
 	Prompt         string `json:"prompt"`          // 話しかけのフックの、ターンを始めた入力
+	ToolName       string `json:"tool_name"`       // 道具を使う前のフックの、使う道具の名前
 	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
 }
 
@@ -179,4 +180,28 @@ func sendModel(hook hookInput, api hookAPI) {
 	}
 	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "model": model, "host": hook.Host})
 	_, _ = api(body)
+}
+
+// readOnlyTools は、AI が聞かずに使ってよい matomezu の道具（ブックや画面の状態を読むだけで、何も変えない）。
+// 変える道具（perform）、利用者の画面を切り替える道具（show）、参加を頼む道具（join）は、利用者に聞く
+var readOnlyTools = map[string]bool{
+	"actions": true, "list_books": true, "read_book": true, "read_page": true,
+	"read_records": true, "read_settings": true, "search": true, "view": true,
+}
+
+// matomezuToolPrefixes は、matomezu の MCP の道具の名前の前置き（Claude Code は、自分で登録した物と、プラグインが持つ物で名前が違う）
+var matomezuToolPrefixes = []string{"mcp__matomezu__", "mcp__plugin_matomezu_matomezu__"}
+
+// permission は、道具を使う前のフックの出力。読むだけの matomezu の道具なら、聞かずに使ってよいと答える。ほかの道具には何も言わず、利用者に聞く
+func permission(out io.Writer, hook hookInput) {
+	for _, prefix := range matomezuToolPrefixes {
+		if name, ok := strings.CutPrefix(hook.ToolName, prefix); ok && readOnlyTools[name] {
+			_ = json.NewEncoder(out).Encode(map[string]any{"hookSpecificOutput": map[string]any{
+				"hookEventName":            "PreToolUse",
+				"permissionDecision":       "allow",
+				"permissionDecisionReason": "matomezu tool that only reads",
+			}})
+			return
+		}
+	}
 }

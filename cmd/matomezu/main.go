@@ -49,6 +49,7 @@ type cli struct {
 	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
 	Watch       watchCmd       `cmd:"" help:"Print one line for each thing the user did on the screen that should wake AI (such as accepting AI's request to join), for an AI's background monitor. Waits for the server and reconnects; prints nothing else."`
 	Model       modelCmd       `cmd:"" help:"Tell the server the model of AI's session, for an AI's hook (SessionStart or PostModelSwitch) that passes the hook's JSON on stdin (model or to_model). Does nothing when the JSON has no model or the server is not running."`
+	Permission  permissionCmd  `cmd:"" help:"Answer, for an AI's hook that runs before a tool is used (the hook's JSON is on stdin), that the matomezu tools that only read may be used without asking the user. Prints nothing for any other tool."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 
@@ -104,6 +105,8 @@ type watchCmd struct {
 
 // claudeSessionEnv は、Claude Code が立てたプロセスに渡す、立てたときのセッション id の環境変数（/clear でも変わらない）
 const claudeSessionEnv = "CLAUDE_CODE_SESSION_ID"
+
+type permissionCmd struct{}
 
 type versionCmd struct{}
 
@@ -413,6 +416,12 @@ func (c *modelCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = c.Host
 	sendModel(hook, runningAPI("api/ai/model"))
+	return nil
+}
+
+// Run は、道具を使う前のフックの答えを出す（フックの JSON が標準入力に来る）
+func (c *permissionCmd) Run() error {
+	permission(os.Stdout, stdinHook())
 	return nil
 }
 
