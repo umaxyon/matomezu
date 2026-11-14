@@ -41,9 +41,11 @@ test("紙を置かずに、ソースとプレビューを左右に並べて開�
   await expect(pane(page, "プレビュー")).toHaveCount(0)
 
   await button("上下に並べる").click()
-  const top = (await pane(page, "ソース").boundingBox())!
-  const bottom = (await pane(page, "プレビュー").boundingBox())!
-  expect(bottom.y).toBeGreaterThan(top.y) // 上下
+  const top = (await pane(page, "プレビュー").boundingBox())!
+  const bottom = (await pane(page, "ソース").boundingBox())!
+  expect(bottom.y).toBeGreaterThan(top.y) // 上下は、入れ替えていなければプレビューが上
+  await button("左右に並べる").click()
+  expect((await pane(page, "ソース").boundingBox())!.x).toBeLessThan((await pane(page, "プレビュー").boundingBox())!.x) // 左右に戻せばソースが左
 })
 
 test("並べ方のボタンは上の行の左端に並び、画面を分割して出たステージの閉じるボタン（右上）と重ならない", async ({
@@ -114,7 +116,7 @@ test("境目を掴んで動かすとペインの大きさが変わり、ダブ�
   // 上下に並べ、入れ替えて、上のペインを 3 割にしてから読み直す
   await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "上下に並べる" }).click()
   await dragHeading(page, "ソース", middle(await box("プレビュー")))
-  const column = { y: (await box("プレビュー")).y, h: (await box("ソース")).height + (await box("プレビュー")).height }
+  const column = { y: (await box("ソース")).y, h: (await box("ソース")).height + (await box("プレビュー")).height }
   const mid = middle((await splitter.boundingBox())!)
   await page.mouse.move(mid.x, mid.y)
   await page.mouse.down()
@@ -125,7 +127,7 @@ test("境目を掴んで動かすとペインの大きさが変わり、ダブ�
   await expect(
     page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "上下に並べる" }),
   ).toHaveAttribute("aria-pressed", "true")
-  const [top, bottom] = [await box("プレビュー"), await box("ソース")]
+  const [top, bottom] = [await box("ソース"), await box("プレビュー")] // 上下の既定（プレビューが上）を入れ替えた
   expect(bottom.y).toBeGreaterThan(top.y)
   expect(top.height / (top.height + bottom.height)).toBeCloseTo(0.3, 1)
 })
@@ -354,4 +356,41 @@ test("ソースに書いている間（テキストFormにフォーカスがあ�
   await expect.poll(update).toBe("being-edited")
   await field.blur()
   await expect.poll(update).toBeUndefined()
+})
+
+// 本文を長くして、プレビューが縦にスクロールできるようにする
+const LONG = Array.from({ length: 120 }, (_, i) => `段落 ${i + 1}`).join("\n\n")
+
+// ＋で開くダイアログで、ページを 1 つ足す
+async function addPage(page: Page) {
+  await page.getByRole("button", { name: "ページを足す" }).click()
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
+}
+
+test("スクロール位置は、初めて開いたページは先頭から。スクロールしたら覚え、ほかのページに替えて戻したときと、読み直したときに前回の位置で開く", async ({
+  page,
+}) => {
+  await markdownBook(page)
+  await pane(page, "ソース").getByRole("textbox").click()
+  await page.keyboard.insertText(LONG)
+  const scroller = pane(page, "プレビュー").locator("[class*=scroll]")
+  await expect.poll(() => scroller.evaluate(el => el.scrollHeight > el.clientHeight + 500)).toBe(true)
+  await scroller.evaluate(el => {
+    el.scrollTop = 700
+  })
+  const kept = await scroller.evaluate(el => el.scrollTop)
+  expect(kept).toBeGreaterThan(0)
+  await expect.poll(() => urlStages(page)[0]?.s).toBeTruthy() // 覚えた位置は画面の場所に入る
+  // 初めて開くページは先頭から
+  await addPage(page)
+  await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
+  expect(await scroller.evaluate(el => el.scrollTop)).toBe(0)
+  // 戻すと前回の位置
+  await page.getByRole("tab", { name: "ページ 1" }).click()
+  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBe(kept)
+  // 読み直しても前回の位置
+  await page.reload()
+  await expect(pane(page, "プレビュー")).toBeVisible()
+  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBe(kept)
 })
