@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import {
+  binEntry,
   labVersion,
   mainPackageJson,
   platformPackageJson,
@@ -33,4 +34,8 @@ test("実行ファイルのパッケージは、その OS と CPU のときだ�
 test("プラグインの版を本体の版に書き換える", () => {
   const out = withPluginVersion('{"name":"matomezu","version":"0.1.0"}', "9.9.9")
   expect(JSON.parse(out)).toEqual({ name: "matomezu", version: "9.9.9" })
+})
+
+test("入口は、自分の親（AI のプログラム）のプロセス id を、実行ファイルに環境変数で伝える", () => {
+  expect(binEntry).toContain("MATOMEZU_HOST_PID: String(process.ppid)")
 })

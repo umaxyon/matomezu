@@ -260,7 +260,19 @@ func (c *mcpCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, strconv.Itoa(os.Getppid()), os.Getenv(claudeSessionEnv))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, hostProcess(), os.Getenv(claudeSessionEnv))
+}
+
+// hostProcessEnv は、matomezu を中継する入口（npm の node の入口）が、自分の親（AI のプログラム）のプロセス id を子の実行ファイルに伝える環境変数
+const hostProcessEnv = "MATOMEZU_HOST_PID"
+
+// hostProcess は、AI のプログラムのプロセス id。入口が伝えた物があればそれ、無ければ親のプロセス。
+// 起こす知らせの宛て先を、フックや monitor が名指す AI のプログラムと合わせるのに使う
+func hostProcess() string {
+	if pid := os.Getenv(hostProcessEnv); pid != "" {
+		return pid
+	}
+	return strconv.Itoa(os.Getppid())
 }
 
 // awaitingItem は、常駐の api/ai/awaiting が返す、AI の応えを待つアノテーション 1 つ（brief は種類の aiBrief の 1 行。無ければ空）

@@ -46,7 +46,7 @@ export const withPluginVersion = (pluginJson: string, version: string) => {
   return `${JSON.stringify(j, null, 2)}\n`
 }
 
-/** 本体の入口: OS と CPU に合うパッケージの実行ファイルを探して、そのまま動かす */
+/** 本体の入口: OS と CPU に合うパッケージの実行ファイルを探して、そのまま動かす。実行ファイルから見た親は入口になるので、入口の親（AI のプログラム）のプロセス id を伝える */
 export const binEntry = `#!/usr/bin/env node
 const { spawnSync } = require("node:child_process")
 const pkg = \`@matomezu/cli-\${process.platform}-\${process.arch}\`
@@ -58,6 +58,6 @@ try {
   console.error(\`matomezu: \${pkg} is not installed (this OS or CPU is not supported, or optional dependencies were skipped)\`)
   process.exit(1)
 }
-const r = spawnSync(bin, process.argv.slice(2), { stdio: "inherit" })
+const r = spawnSync(bin, process.argv.slice(2), { stdio: "inherit", env: { ...process.env, MATOMEZU_HOST_PID: String(process.ppid) } })
 process.exit(r.status ?? 1)
 `

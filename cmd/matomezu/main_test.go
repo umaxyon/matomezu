@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -174,5 +176,17 @@ func TestWriteRemovedSeparatesTheCauses(t *testing.T) {
 	writeRemoved(&out, nil)
 	if out.Len() != 0 {
 		t.Errorf("nothing to say, but wrote %q", out.String())
+	}
+}
+
+// 起こす知らせの宛て先になる AI のプログラムのプロセス id は、入口が伝えた物があればそれ、無ければ親のプロセス
+func TestHostProcess(t *testing.T) {
+	t.Setenv(hostProcessEnv, "")
+	if got := hostProcess(); got != strconv.Itoa(os.Getppid()) {
+		t.Fatalf("without the entry's value = %q, want the parent", got)
+	}
+	t.Setenv(hostProcessEnv, "4242")
+	if got := hostProcess(); got != "4242" {
+		t.Fatalf("with the entry's value = %q", got)
 	}
 }
