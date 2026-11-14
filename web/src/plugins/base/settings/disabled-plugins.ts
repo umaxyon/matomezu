@@ -5,11 +5,11 @@ import { kit } from "../kit"
 
 export const DISABLED_PLUGINS = kit.defineSetting({
   id: "disabled-plugins",
-  title: "Disabled plugins",
+  title: "Enabled plugins",
   schema: z.array(z.string()),
   default: [],
   role: "disabled-plugins",
-  userOnly: true, // 利用者だけが変える（AI に変えさせず、AI が読む設定にも出さない。何を信頼して動かすかは利用者が決める）
+  userOnly: true, // 利用者だけが変える（AI に変えさせず、AI が読む設定にも出さない。画面に置くかは利用者が決める）
 })
 
 // プラグイン id を有効・無効にした設定の値（ほかの無効の id と並びはそのまま。有効にすれば外し、無効にすれば末尾に足す）

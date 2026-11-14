@@ -1,8 +1,9 @@
 // プラグインフレーム: タスクボードが作るスロット（@matomezu/taskboard:plugin-frames）に追加プラグインが置いたウィジェットが、プロジェクトのレーンの右に並ぶ（そのボードのプロジェクトの id を受け取る）。
 // 利用者が無効にしたプラグインのウィジェットは置かない（組み込んだまま）
 import { afterEach, expect, test } from "bun:test"
-import { cleanup, render } from "@testing-library/react"
+import { act, cleanup, render } from "@testing-library/react"
 import { defineMessages } from "../../../web/src/core/i18n/messages"
+import { DISABLED_PLUGINS } from "../../../web/src/plugins/base/settings/disabled-plugins"
 import { PLUGIN_FRAMES } from "../../../web/src/plugins/taskboard/board/slots"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -36,16 +37,24 @@ function renderBoard(disabled: readonly string[]) {
       <WindowRoot />
     </MatomezuProvider>,
   )
-  return added.ok ? (added.result as { project: string }).project : ""
+  return { store, project: added.ok ? (added.result as { project: string }).project : "" }
 }
 
 test("プラグインフレームのスロットに置いたウィジェットが、そのボードのプロジェクトの id を受け取って並ぶ", () => {
-  const project = renderBoard([])
+  const { project } = renderBoard([])
   expect(project).not.toBe("")
   expect(document.querySelector("[data-ex-frame]")?.getAttribute("data-ex-frame")).toBe(project)
 })
 
-test("無効にしたプラグインのウィジェットは置かない（プラグインは組み込んだまま）", () => {
-  renderBoard(["@ex/frame"])
+test("動いている間にスイッチを切ると枠が消え、入れると戻る（プラグインは組み込んだまま）", () => {
+  const { store } = renderBoard(["@ex/frame"])
+  expect(document.querySelector("[data-ex-frame]")).toBeNull()
+  act(() => {
+    store.actions.perform("@matomezu/base:settings-set", { values: { [DISABLED_PLUGINS.id]: [] } })
+  })
+  expect(document.querySelector("[data-ex-frame]")).not.toBeNull()
+  act(() => {
+    store.actions.perform("@matomezu/base:settings-set", { values: { [DISABLED_PLUGINS.id]: ["@ex/frame"] } })
+  })
   expect(document.querySelector("[data-ex-frame]")).toBeNull()
 })

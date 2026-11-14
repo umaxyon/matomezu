@@ -2,8 +2,8 @@
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { ONE_SCREEN } from "."
-import { OneScreenView } from "./OneScreenView"
 import { BirdhouseButton } from "./BirdhouseButton"
+import { OneScreenView } from "./OneScreenView"
 import { CONTROL_CENTER_FOOTER } from "./slots"
 import { WindowView } from "./WindowView"
 

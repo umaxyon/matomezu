@@ -1,5 +1,5 @@
 // インスタンス（store・プラグインの見た目・UI マッピング）を画面の木に配る入れ物と、読む口・操作・表を取り出すフック
-import { createContext, type ReactNode, useContext, useMemo } from "react"
+import { createContext, type ReactNode, useContext, useMemo, useRef } from "react"
 import { useStore } from "zustand"
 import { fail, matomezuError, problem } from "../core/errors"
 import { disabledPluginsOf } from "../core/settings"
@@ -53,11 +53,15 @@ export function MatomezuProvider({
   const ui = useMemo(() => assembleUi(instance.plugins), [instance])
   // 利用者が無効にしたプラグイン（role が disabled-plugins の設定）の物は、組み込んだまま UI マッピングに置かない。warning は出さない
   const settings = useStore(instance.state, s => s.settings)
-  const disabled = useMemo(
+  const nowDisabled = useMemo(
     () =>
       disabledPluginsOf(instance.catalog.core, settings, new Set(instance.plugins.filter(isBuiltin).map(p => p.id))),
     [instance, settings],
   )
+  // 設定のどれが変わっても新しい集合ができるので、中身が同じなら前の集合を使う（UI マッピングを組み直して画面全体を描き直さない）
+  const disabledRef = useRef(nowDisabled)
+  if (!sameIds(disabledRef.current, nowDisabled)) disabledRef.current = nowDisabled
+  const disabled = disabledRef.current
   const value = useMemo(() => {
     const shown = shownLayout(layout, instance.plugins, ui, disabled)
     return { store: instance, ui, layout: shown.layout, warnings: [...warnings, ...shown.warnings] }
@@ -92,6 +96,8 @@ export function useActions(): Actions {
 export function useInstance(): MatomezuInstance {
   return useMatomezuContext().store
 }
+
+const sameIds = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every(id => b.has(id))
 
 const NO_WARNINGS: readonly Warning[] = []
 
