@@ -46,7 +46,7 @@ test("スタンプを押すと、スタンプが 1 件でき、同じ 1 回で�
   expect(perform("ex14:stamp-add", { shelf: id, mark: "◎" }).ok).toBe(true)
   const records = instance.state.getState().records
   expect(Object.values(records["ex14:stamp"] ?? {}).map(s => (s as { mark: string }).mark)).toEqual(["★", "◎"])
-  expect((records["ex9:shelf"]?.[id] as { stamps?: number }).stamps).toBe(2)
+  expect(records["ex9:shelf"]?.[id]).toMatchObject({ stamps: 2 })
   expect(perform("ex14:stamp-add", { shelf: "nothing", mark: "★" }).ok).toBe(false)
   expect(Object.keys(instance.state.getState().records["ex14:stamp"] ?? {})).toHaveLength(2)
 })

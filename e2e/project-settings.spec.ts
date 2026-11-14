@@ -158,3 +158,30 @@ test("プロジェクト設定のタグ・レーンは、中身が少ないと�
     await expect(button).toBeInViewport()
   }
 })
+
+test("プロジェクト設定で追加した行の名前は、1 文字ずつ打っても入力Formのままで、離れるとラベルになる", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  if ((await projects(page)).length === 0)
+    await page.request.post("/api/ai/perform", {
+      headers: await joinedAiAuth(),
+      data: { action: "@matomezu/taskboard:project-add", args: {} },
+    })
+  const first = (await projects(page))[0]!
+  await page.locator(`[data-board="${first.id}"]`).getByRole("button", { name: "プロジェクト設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
+  for (const [tab, add, field] of [
+    ["チケットタグ", "タグ追加", "タグ名"],
+    ["レーン", "レーン追加", "レーン名"],
+  ] as const) {
+    await dialog.getByRole("tab", { name: tab }).click()
+    await dialog.getByRole("button", { name: add }).click()
+    const input = dialog.getByRole("textbox", { name: field })
+    await input.pressSequentially("abc")
+    await expect(input).toHaveValue("abc")
+    await input.press("Enter")
+    await expect(dialog.getByRole("textbox", { name: field })).toHaveCount(0)
+    await expect(dialog.getByText("abc", { exact: true }).locator("visible=true")).toHaveCount(1)
+  }
+})

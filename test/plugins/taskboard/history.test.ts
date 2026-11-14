@@ -194,7 +194,7 @@ test("完了にすると、チケットは完了のレーンへ移り、担当�
   expect(act(ai(b), "current-ticket-set", { ticket }).ok).toBe(true)
   const done = user("ticket-complete", {}, { record: ticket })
   expect(done).toMatchObject({ ok: true, result: { lane: projectRecord().doneLane, released: [a, b] } })
-  expect((done.result?.cleared as string[]).sort()).toEqual([a, b].sort())
+  expect(((done.result?.cleared ?? []) as string[]).sort()).toEqual([a, b].sort())
   expect(table(TICKET.id)[0]).toMatchObject({ lane: projectRecord().doneLane, assignees: [] })
   expect(table(CURRENT.id).map(c => c.ticket)).toEqual(["none", "none"])
   expect(table(HISTORY.id)).toEqual([
