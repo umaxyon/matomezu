@@ -60,6 +60,8 @@ test("ページを切り抜いてトレイに入れ、トレイから置くと�
 
   // × でトレイから消える（置いた物はそのまま）
   await rows.first().getByRole("button", { name: "スクラップを消す" }).click()
+  const confirm = page.getByRole("alertdialog", { name: "このスクラップをトレイから消しますか？" })
+  await confirm.getByRole("button", { name: "スクラップを消す" }).click()
   await expect(rows).toHaveCount(0)
   await expect(placed).toHaveCount(1)
   await expect(paper(page)).toBeVisible()
@@ -117,5 +119,35 @@ test.describe("マークダウンのページ", () => {
     const placed = items(page).filter({ has: page.locator('[data-scrap="shown"]') })
     await expect(placed).toHaveCount(1)
     await expect(placed).toContainText("本文の字です。")
+  })
+})
+
+test.describe("ツリーのページ", () => {
+  test.use({
+    books: [
+      {
+        type: "@matomezu/tree:tree",
+        id: "scrap-tree",
+        title: "木",
+        pages: [
+          {
+            id: "scrap-tree-page",
+            title: "ページ 1",
+            paper: "@matomezu/base:a4",
+            orientation: "landscape",
+            root: { id: "r", caption: "根の字", children: [] },
+          },
+        ],
+      },
+    ],
+  })
+
+  test("紙の右クリックから切り抜ける", async ({ page }) => {
+    await page.goto("/?b0=scrap-tree&v0=1,0,0")
+    const empty = await onPaper(page, 900, 600)
+    await page.mouse.click(empty.x, empty.y, { button: "right" })
+    await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
+    const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
+    await expect(cut).toContainText("根の字")
   })
 })

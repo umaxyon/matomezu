@@ -49,7 +49,7 @@ export function ScrapForm({
 }: {
   value: Scrap
   onChange: (next: Scrap) => void
-  opens?: { stage: string; onOpened: () => void }
+  opens?: { stage: string; onOpened: () => void; edited: boolean } // edited: 範囲か倍率を直したか（直した後は開けない。直した分を黙って捨てないため）
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
@@ -158,6 +158,8 @@ export function ScrapForm({
           <button
             type="button"
             className={styles.link}
+            disabled={opens.edited}
+            title={opens.edited ? t("Decide or cancel the changes first") : undefined}
             onClick={() => {
               openBook(opens.stage, book.id)
               openPage(opens.stage, value.page)

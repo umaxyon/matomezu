@@ -59,7 +59,11 @@ function Editor({
           setRefused(t(refusalMessage(catalog, done, kit.message("Does not fit on the paper"))))
         }}
       >
-        <ScrapForm value={value} onChange={setValue} opens={{ stage, onOpened: onClose }} />
+        <ScrapForm
+          value={value}
+          onChange={setValue}
+          opens={{ stage, onOpened: onClose, edited: JSON.stringify(value) !== JSON.stringify(start) }}
+        />
         {refused && <Problem>{refused}</Problem>}
       </Form>
     </Dialog>

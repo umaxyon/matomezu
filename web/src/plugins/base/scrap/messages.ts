@@ -13,5 +13,13 @@ export const SCRAP_MESSAGES = defineMessages({
   "Scrap size": { en: "Size", ja: "大きさ" },
   "No Data": { en: "No Data", ja: "No Data" },
   "No scraps": { en: "No scraps", ja: "スクラップはありません" },
+  "Remove this scrap from the tray?": {
+    en: "Remove this scrap from the tray?",
+    ja: "このスクラップをトレイから消しますか？",
+  },
+  "Decide or cancel the changes first": {
+    en: "Decide or cancel the changes first",
+    ja: "先に、直した分を決めるかやめてください",
+  },
   "Does not fit on the paper at this size": { en: "Too large for the paper", ja: "紙に収まりません" },
 })

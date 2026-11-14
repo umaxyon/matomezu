@@ -1,5 +1,5 @@
 // スクラップの見た目の、base の側: 切り抜くダイアログ（ScrapForm で範囲と倍率を決め、トレイに入れる）と、スクラップトレイ（左サイドパネルのタブ）。
-// トレイは切り抜いた新しい順に並べ、押すと、今のステージで置ける「スクラップを置く枠」（scrapFrameIn）で、その値のまま置こうとする。× で消す（確かめない）
+// トレイは切り抜いた新しい順に並べ、押すと、今のステージで置ける「スクラップを置く枠」（scrapFrameIn）で、その値のまま置こうとする。× は確かめてから消す
 import { useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pagedOf } from "../../../core/book"
@@ -9,6 +9,7 @@ import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useAllowedOn, useBook, useRecords, useStage } from "../../../ui/view-hooks"
+import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -103,6 +104,12 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
     const at = pageById(s.books, scrap.page)
     return at ? `${at.book.title} › ${at.page.title}` : t("No Data")
   })
+  const [asking, setAsking] = useState(false)
+  const remove = () => {
+    setAsking(false)
+    const done = perform(SCRAP_REMOVE.id, {}, { record: id })
+    if (!done.ok) showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Remove a scrap")) })
+  }
   const size = scrapSize(scrap)
   const fit = Math.min(1, THUMB_W / size.w)
   return (
@@ -128,14 +135,19 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
         aria-label={t("Remove a scrap")}
         title={t("Remove a scrap")}
         disabled={!removable}
-        onClick={() => {
-          const done = perform(SCRAP_REMOVE.id, {}, { record: id })
-          if (!done.ok)
-            showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Remove a scrap")) })
-        }}
+        onClick={() => setAsking(true)}
       >
         ×
       </button>
+      {asking && (
+        <Confirm
+          message={t("Remove this scrap from the tray?")}
+          ok={t("Remove a scrap")}
+          cancel={t("Cancel")}
+          onOk={remove}
+          onCancel={() => setAsking(false)}
+        />
+      )}
     </li>
   )
 }
