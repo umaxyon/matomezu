@@ -38,6 +38,7 @@ import {
   type StageView,
   shapesOf,
   toPaperDelta,
+  walkShapes,
 } from "../../../plugin-api"
 import {
   type BookViewProps,
@@ -61,6 +62,7 @@ import {
 } from "../../../plugin-api/ui"
 import {
   type Edges,
+  followConnectors,
   growOf,
   minSize,
   onlySelected,
@@ -442,9 +444,16 @@ function PageItems({
   const selectable = !pans && stage.placing === null
   // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）
   const shapes = shapesOf(page).map(item => ({ item: shown(item), shift: shiftOf(item) }))
+  // ドラッグでずらした形の両端が同じだけ動くつなぐものは、手直しの点も一緒にずらして描く（離したときのデータと同じ形。followConnectors）
+  const slid = new Map<string, Point>()
+  if (shift)
+    for (const { shape } of walkShapes(shownPage)) {
+      const by = shiftOf(shape as PlacedShape)
+      if (by) slid.set(shape.id, by)
+    }
   const scene: ShapeScene = {
     stage,
-    page: shownPage,
+    page: slid.size > 0 ? followConnectors(catalog, shownPage, slid) : shownPage,
     rects: shownRects(catalog, shapes, c => {
       const item = shown(c)
       return { item, shift: shiftOf(item) }
