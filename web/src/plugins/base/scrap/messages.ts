@@ -9,8 +9,6 @@ export const SCRAP_MESSAGES = defineMessages({
   "Scrap settings": { en: "Scrap settings", ja: "スクラップの設定" },
   "Open the original page": { en: "Open the original page", ja: "元のページを開く" },
   "Put in the tray": { en: "Put in the tray", ja: "トレイに入れる" },
-  "Scrap scale": { en: "Scale", ja: "倍率" },
-  "Scrap size": { en: "Size", ja: "大きさ" },
   "No Data": { en: "No Data", ja: "No Data" },
   "No scraps": { en: "No scraps", ja: "スクラップはありません" },
   "Open the scrap tray": { en: "Open the scrap tray", ja: "スクラップトレイを開く" },

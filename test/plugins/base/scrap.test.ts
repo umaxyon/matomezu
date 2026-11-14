@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
 import { performIn } from "../../../web/src/core/perform"
 import { scrapFrameIn } from "../../../web/src/plugins/base/scrap"
-import { SCRAP, scrapSize } from "../../../web/src/plugins/base/scrap/scrap"
+import { SCRAP, scrapSize, scrapToPlace } from "../../../web/src/plugins/base/scrap/scrap"
 import { CORE_CATALOG, newStore } from "../../support"
 
 const CUT = "@matomezu/base:scrap-cut"
@@ -80,4 +80,13 @@ test("切り抜くコマンドは、開いているページ（ページタブ�
   store.actions.closeDialog()
   expect(store.actions.command("s1", "@matomezu/base:scrap-cut", { page: "other" })).toBe(true)
   expect(store.state.getState().dialog).toMatchObject({ args: { page: "other" } })
+})
+
+test("スクラップトレイから置くときは、紙の幅・高さの半分に収まるよう倍率を下げる（小さい切り抜きは上げない。下限より下げない）", () => {
+  const paper = { w: 1000, h: 800 }
+  const of = (w: number, h: number) => scrapToPlace({ page: "p", area: { x: 0, y: 0, w, h }, scale: 1 }, paper).scale
+  expect(of(1000, 800)).toBe(0.5)
+  expect(of(2000, 400)).toBe(0.25) // 幅で決まる
+  expect(of(200, 100)).toBe(1) // 収まっていれば、そのまま
+  expect(of(50000, 100)).toBe(0.1) // 倍率の下限
 })

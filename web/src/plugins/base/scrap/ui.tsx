@@ -10,7 +10,7 @@ import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useAllowedOn, useBook, useRecords, useStage } from "../../../ui/view-hooks"
+import { useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, Form } from "../dialog-host/FormParts"
@@ -23,6 +23,7 @@ import {
 } from "../left-side-panel/hooks"
 import type { LeftSidePanelEntry } from "../left-side-panel/state"
 import { defineLeftSidePanelTab } from "../left-side-panel/ui"
+import { paperSize } from "../place/items"
 import footer from "../utils/FooterButtons.module.css"
 import { refusalMessage } from "../utils/refusal"
 import { SHEET_LAYERS } from "../workspace/slots"
@@ -31,7 +32,7 @@ import { SCRAP_CUT_DIALOG, scrapFrameIn } from "."
 import { ScrapForm } from "./ScrapForm"
 import styles from "./ScrapTray.module.css"
 import { ScrapView } from "./ScrapView"
-import { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, scrapSize, wholePage } from "./scrap"
+import { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, scrapSize, scrapToPlace, wholePage } from "./scrap"
 import { SCRAP_TRAY_TAB_ID } from "./tab-id"
 
 // 切り抜くダイアログ: 範囲は、はじめはページ全体（等倍）。決めるとスクラップトレイに入れ、スクラップトレイを開く
@@ -128,7 +129,11 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
   const view = useStage(stage)
   const frame = useScrapFrame(stage)
   const placing = view?.placing
-  const pressed = frame !== null && placing?.item === frame && sameData(placing.props, scrap)
+  // 置くときの値: 開いているページの紙の半分に収める
+  const opened = usePage(stage)
+  const paper = opened ? paperSize(catalog, opened) : null
+  const toPlace = paper ? scrapToPlace(scrap, paper) : scrap
+  const pressed = frame !== null && placing?.item === frame && sameData(placing.props, toPlace)
   const removable = useAllowedOn(SCRAP_REMOVE.id, {}, { record: id }).ok
   const label = useMatomezuState(s => {
     const at = pageById(s.books, scrap.page)
@@ -150,7 +155,7 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
         aria-pressed={pressed}
         disabled={frame === null}
         title={label}
-        onClick={() => frame && togglePlacing(stage, frame, scrap)}
+        onClick={() => frame && togglePlacing(stage, frame, toPlace)}
       >
         <span className={styles.thumb} style={{ width: size.w * fit, height: size.h * fit }}>
           <span className={styles.scaled} style={{ transform: `scale(${fit})` }}>

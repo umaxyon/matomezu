@@ -1,6 +1,6 @@
-// スクラップ: 紙の右クリックの「スクラップを切り抜く」で、範囲（はじめはページ全体）と倍率を決めてスクラップトレイに入れると、左サイドパネルのスクラップトレイが開く。
+// スクラップ: 紙の右クリックの「スクラップを切り抜く」で、範囲（はじめはページ全体）を決めてスクラップトレイに入れると、左サイドパネルのスクラップトレイが開く。
 // スクラップトレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。スクラップトレイには残り、× で消える。
-// 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、倍率を変えると大きさが変わる
+// 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、枠線を切り替えられる。大きさは、四隅のつまみで比を保って変える
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { leftPanel } from "./helpers/outbox"
 import { addBox, items, onPaper, paper } from "./helpers/paper"
@@ -25,21 +25,19 @@ test.use({
   ],
 })
 
-test("ページを切り抜いてスクラップトレイに入れ、スクラップトレイから置くと中に元のページが見える。置いてもスクラップトレイに残り、× で消える。角のつまみで比を保って大きさを変えられ、ダブルクリックで倍率を直せる", async ({
+test("ページを切り抜いてスクラップトレイに入れ、スクラップトレイから置くと中に元のページが見える。置いてもスクラップトレイに残り、× で消える。角のつまみで比を保って大きさを変えられ、ダブルクリックで枠線を直せる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "元の箱")
 
-  // 紙の何も無い所を右クリックして切り抜く。倍率を 25% にしてスクラップトレイに入れる
+  // 紙の何も無い所を右クリックして切り抜く（範囲はページ全体のまま）。スクラップトレイに入れる
   const empty = await onPaper(page, 700, 500)
   await page.mouse.click(empty.x, empty.y, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
   const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
   await expect(cut.locator("[data-scrap-area]")).toBeVisible()
-  await cut.getByLabel("倍率").fill("25")
-  await expect(cut.locator("[data-scrap-size]")).toHaveText("281 × 199")
   await cut.getByRole("button", { name: "トレイに入れる" }).click()
   await expect(cut).toBeHidden()
 
@@ -50,38 +48,45 @@ test("ページを切り抜いてスクラップトレイに入れ、スクラ�
 
   // 押して、紙を押すと置かれる（中に元の箱の字が見える）
   await rows.first().getByRole("button").first().click()
-  const at = await onPaper(page, 500, 300)
+  const at = await onPaper(page, 250, 300)
   await page.mouse.click(at.x, at.y)
   const placed = items(page).filter({ has: page.locator('[data-scrap="shown"]') })
   await expect(placed).toHaveCount(1)
   await expect(placed).toContainText("元の箱")
   await expect(rows).toHaveCount(1)
+  // ページ全体の切り抜きは、紙の幅・高さの半分に収めて置かれる
+  const sheet = (await paper(page).boundingBox())!
+  const first = (await placed.boundingBox())!
+  expect(first.width).toBeLessThanOrEqual(sheet.width / 2 + 2)
+  expect(first.width).toBeGreaterThan(sheet.width / 2 - 4)
 
-  // 選ぶと、つまみは四隅だけ。右下の角を引くと、比を保ったまま大きくなる
+  // 選ぶと、つまみは四隅だけ。左上の角を内へ引くと、右下の角を止めて、比を保ったまま小さくなる
   await placed.click()
   await expect(placed.locator("[data-grip]")).toHaveCount(4)
   const small = (await placed.boundingBox())!
-  const corner = (await placed.locator('[data-grip="bottom-right"]').boundingBox())!
+  const corner = (await placed.locator('[data-grip="top-left"]').boundingBox())!
   await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2)
   await page.mouse.down()
-  await page.mouse.move(corner.x + corner.width / 2 + 60, corner.y + corner.height / 2 + 10, { steps: 4 })
+  await page.mouse.move(corner.x + corner.width / 2 + 120, corner.y + corner.height / 2 + 10, { steps: 4 })
+  // 引いている間も、その大きさで見える（右下は動かない）
+  await expect.poll(async () => (await placed.boundingBox())!.width).toBeLessThan(small.width - 60)
+  const dragging = (await placed.boundingBox())!
+  expect(Math.abs(dragging.x + dragging.width - (small.x + small.width))).toBeLessThan(2)
+  expect(Math.abs(dragging.y + dragging.height - (small.y + small.height))).toBeLessThan(2)
   await page.mouse.up()
-  await expect.poll(async () => (await placed.boundingBox())!.width).toBeGreaterThan(small.width + 30)
+  await expect.poll(async () => (await placed.boundingBox())!.width).toBeLessThan(small.width - 60)
   const grown = (await placed.boundingBox())!
   expect(Math.abs(grown.width / grown.height - small.width / small.height)).toBeLessThan(0.02)
 
-  // ダブルクリックで設定のダイアログ。倍率を 50% にすると大きくなる
-  const before = (await placed.boundingBox())!
+  // ダブルクリックで設定のダイアログ
   await placed.dblclick()
   const edit = page.getByRole("dialog", { name: "スクラップの設定" })
-  await edit.getByLabel("倍率").fill("50")
   // 枠線は初めは引いてあり、スイッチを切ると消える（自分のページを写しているので、中に写った自分の枠線もある）
   await expect(placed.locator("[data-scrap-line]").first()).toBeVisible()
   await edit.getByRole("switch", { name: "枠線" }).click()
   await edit.getByRole("button", { name: "OK" }).click()
   await expect(edit).toBeHidden()
   await expect(placed.locator("[data-scrap-line]")).toHaveCount(0)
-  await expect.poll(async () => (await placed.boundingBox())!.width).toBeGreaterThan(before.width * 1.5)
 
   // × でスクラップトレイから消える（置いた物はそのまま）
   await rows.first().getByRole("button", { name: "スクラップを消す" }).click()
@@ -132,7 +137,6 @@ test.describe("マークダウンのページ", () => {
     const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
     await expect(cut.locator("[data-scrap-area]")).toBeVisible()
     await expect(cut).toContainText("見出しの字")
-    await cut.getByLabel("倍率").fill("50")
     await cut.getByRole("button", { name: "トレイに入れる" }).click()
     await expect(cut).toBeHidden()
     // マークダウンには置けないので、スクラップトレイは開かず、入れたことだけを知らせる。スクラップトレイを開くボタンも出ない

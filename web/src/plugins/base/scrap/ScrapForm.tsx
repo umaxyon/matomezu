@@ -1,8 +1,8 @@
-// スクラップのフォームの部品: 指すページ（変えない）の全体を、置かれた所の広さに収めた絵の上で、見る範囲の枠を動かし（中をドラッグ）、角と辺で大きさを変え、倍率を数で入れる。
+// スクラップのフォームの部品: 指すページ（変えない）の全体を、置かれた所の広さに収めた絵の上で、見る範囲の枠を動かし（中をドラッグ）、角と辺で大きさを変える（倍率はここでは変えない。置いた形のつまみで変える）。
 // 決めた値は onChange で返すだけで、何のアクションを行うかは知らない（切り抜くダイアログと、置いたスクラップを直すダイアログが共に使う）。
 // 範囲は、ページの中身の位置（可変ページで中身をずらす前の位置。scrap.ts）で受けて返す。絵の上ではずらした後の位置で描く。
 // 指すページが無ければ、絵の代わりに No Data を出す。opens を渡せば「元のページを開く」を出し、押すとそのステージで元のページを開いてから onOpened を呼ぶ
-import { type PointerEvent, useRef, useState } from "react"
+import { type PointerEvent, type ReactNode, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pageById } from "../../../core/book"
 import type { Point, Rect, Size } from "../../../core/geom"
@@ -10,22 +10,12 @@ import type { ItemPage } from "../../../core/placed"
 import { DrawnScope } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { controlClass, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { pageArea } from "../place/items"
 import { useResize } from "../utils/useResize"
 import styles from "./ScrapForm.module.css"
 import { DrawnSheet } from "./ScrapView"
-import {
-  areaOfPage,
-  areaOnPage,
-  movedArea,
-  SCRAP_SCALE_MAX,
-  SCRAP_SCALE_MIN,
-  type Scrap,
-  scrapSize,
-  shiftOf,
-} from "./scrap"
+import { areaOfPage, areaOnPage, movedArea, type Scrap, shiftOf } from "./scrap"
 
 // ページの絵を収める大きさ（px。置かれた所の広さを測れるまで）
 const PICTURE = { w: 420, h: 320 }
@@ -47,9 +37,11 @@ export function ScrapForm({
   value,
   onChange,
   opens,
+  side,
 }: {
   value: Scrap
   onChange: (next: Scrap) => void
+  side?: ReactNode // 絵の右の列に置く物（使う側の設定の入力Form など）
   opens?: { stage: string; onOpened: () => void; edited: boolean } // edited: 範囲か倍率を直したか（直した後は開けない。直した分を黙って捨てないため）
 }) {
   const t = useMessages(kit)
@@ -74,7 +66,6 @@ export function ScrapForm({
   useResize(room, setPicture)
   const fit = size ? Math.min(picture.w / size.w, picture.h / size.h) : 1
   const drag = useRef<{ grip: Grip; from: Point; start: Rect; pointer: number } | null>(null)
-  const [scaleText, setScaleText] = useState(String(Math.round(value.scale * 100)))
   const shown = areaOnPage(value.area, shift)
   const press = (grip: Grip) => (e: PointerEvent<HTMLElement>) => {
     if (e.button !== 0) return
@@ -91,7 +82,6 @@ export function ScrapForm({
   const release = (e: PointerEvent<HTMLElement>) => {
     if (drag.current?.pointer === e.pointerId) drag.current = null
   }
-  const placed = scrapSize(value)
   return (
     <div className={styles.form}>
       <div ref={room} className={styles.room}>
@@ -137,30 +127,7 @@ export function ScrapForm({
         </div>
       </div>
       <div className={styles.side}>
-        <label className={rowClass}>
-          <span>{t("Scrap scale")}</span>
-          <input
-            className={`${controlClass} ${styles.scale}`}
-            type="number"
-            min={SCRAP_SCALE_MIN * 100}
-            max={SCRAP_SCALE_MAX * 100}
-            step={1}
-            value={scaleText}
-            onChange={e => {
-              setScaleText(e.target.value)
-              const n = Number(e.target.value) / 100
-              if (e.target.value !== "" && n >= SCRAP_SCALE_MIN && n <= SCRAP_SCALE_MAX)
-                onChange({ ...value, scale: n })
-            }}
-          />
-          <span>%</span>
-        </label>
-        <div className={rowClass}>
-          <span>{t("Scrap size")}</span>
-          <span data-scrap-size>
-            {placed.w} × {placed.h}
-          </span>
-        </div>
+        {side}
         {opens && book && (
           <button
             type="button"

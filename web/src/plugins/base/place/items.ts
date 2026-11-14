@@ -160,7 +160,7 @@ export interface Edges {
 
 // 辺をつかんで、紙の上で by だけ動かしたときの左上と大きさ。つかんでいない辺はそのまま。
 // 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは null）。
-// ratio なら、つかめるのは角だけで（辺なら null）、向かいの角を止めて幅と高さの比を保つ（引いた量の大きい方に合わせる）。
+// ratio なら、つかめるのは角だけで（辺なら null）、向かいの角を止めて幅と高さの比を保つ（幅と高さのうち、大きく変わった方の割合に合わせる）。
 // 大きさを項目に写す形（定義の resizedTo）は、写した項目から決まる大きさにする（離したあとの大きさと同じ）
 export function resizedBy(
   catalog: CoreCatalog,
@@ -181,7 +181,10 @@ export function resizedBy(
     const bottom = edges.y === "bottom"
     // 止めた角から紙の端までの広さ
     const room = { w: right ? paper.w - item.x : item.x + size.w, h: bottom ? paper.h - item.y : item.y + size.h }
-    const grown = Math.max((size.w + (right ? by.x : -by.x)) / size.w, (size.h + (bottom ? by.y : -by.y)) / size.h)
+    // 幅と高さのうち、大きく変わった方の割合に合わせる（横だけ・縦だけに引いても変わる）
+    const fw = (size.w + (right ? by.x : -by.x)) / size.w
+    const fh = (size.h + (bottom ? by.y : -by.y)) / size.h
+    const grown = Math.abs(fw - 1) >= Math.abs(fh - 1) ? fw : fh
     const f = Math.min(Math.max(grown, min.w / size.w, min.h / size.h), room.w / size.w, room.h / size.h)
     const wanted = { w: size.w * f, h: size.h * f }
     const to = shapeDefOf(catalog, item.item)?.resizedTo
