@@ -21,10 +21,11 @@ export const SCROLL_STATE = kit.definePluginState({
   address: "replace",
 })
 
-// ページ page の pane の位置を top にした記憶（page を新しい側に置き、MAX_REMEMBERED を超えた古いページは忘れる）
+// ページ page の位置を patch のとおりにした記憶（位置は整数に丸め、page を新しい側に置き、MAX_REMEMBERED を超えた古いページは忘れる）
 export function remember(scrolls: Scrolls | undefined, page: string, patch: PageScroll): Scrolls {
   const { [page]: now, ...others } = scrolls ?? {}
-  const all = Object.entries({ ...others, [page]: { ...now, ...patch } })
+  const rounded = Object.fromEntries(Object.entries(patch).map(([pane, top]) => [pane, Math.round(top)]))
+  const all = Object.entries({ ...others, [page]: { ...now, ...rounded } })
   return Object.fromEntries(all.slice(-MAX_REMEMBERED))
 }
 

@@ -280,7 +280,7 @@ function useScrollMemory(
       if (!el) return
       moving.current = {
         page,
-        tops: { ...(moving.current?.page === page ? moving.current.tops : {}), [name]: Math.round(el.scrollTop) },
+        tops: { ...(moving.current?.page === page ? moving.current.tops : {}), [name]: el.scrollTop },
       }
       if (timer.current) clearTimeout(timer.current)
       timer.current = setTimeout(flush, SAVE_AFTER_MS)
