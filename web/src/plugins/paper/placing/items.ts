@@ -37,6 +37,9 @@ import { type Came, clampBy, dragRects, dropManyRects, dropRects, track } from "
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
 export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
+// 位置の引き算に出る浮動小数点の誤差（99.99999999999999 など）を落とした量（線の手直しの点に足すので、整数の点が整数のままになる）
+const noiseless = (v: number): number => Math.round(v * 1e6) / 1e6
+
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）
 export function trackDrag(
   catalog: CoreCatalog,
@@ -97,7 +100,7 @@ export function moveItems(
   for (const [id, r] of after) {
     const was = frame.rects.get(id)
     if (was && was.w === r.w && was.h === r.h && (was.x !== r.x || was.y !== r.y))
-      moved.set(id, { x: r.x - was.x, y: r.y - was.y })
+      moved.set(id, { x: noiseless(r.x - was.x), y: noiseless(r.y - was.y) })
   }
   const followed = followConnectors(catalog, page, moved)
   if (frame.parent === null) return withPage(catalog, book, { ...followed, items: placedAt(catalog, followed, after) })

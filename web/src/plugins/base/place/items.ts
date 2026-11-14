@@ -434,6 +434,10 @@ function shiftedConnectors(
   return shifted
 }
 
+// 同じだけ動いたとみなす差（位置の引き算に出る浮動小数点の誤差より大きく、動かす量の刻みより小さい）
+const SAME_SHIFT = 1e-6
+const sameShift = (a: Point, b: Point): boolean => Math.abs(a.x - b.x) < SAME_SHIFT && Math.abs(a.y - b.y) < SAME_SHIFT
+
 // 形を動かす前のページ page で、形ごとに動く量 moved（形の id → 紙の上の量。子の形は親の量で動く）を受けたときの、つなぐもの:
 // 両端の形が同じだけ動くつなぐものは、定義の shift で位置を持つ物（線の手直しなど）も一緒にずらす。片方だけ・違う量で動くものはそのまま
 export function followConnectors<P extends ItemPage>(
@@ -449,7 +453,7 @@ export function followConnectors<P extends ItemPage>(
   const shifted = shiftedConnectors(catalog, page, c => {
     const a = by.get(c.from)
     const b = by.get(c.to)
-    return a && b && a.x === b.x && a.y === b.y && (a.x !== 0 || a.y !== 0) ? a : null
+    return a && b && sameShift(a, b) && (a.x !== 0 || a.y !== 0) ? a : null
   })
   return shifted.size === 0 ? page : { ...page, items: pageItemsOf(page).map(i => shifted.get(i.id) ?? i) }
 }
