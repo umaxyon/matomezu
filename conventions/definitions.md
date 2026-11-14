@@ -237,7 +237,7 @@
 
 ## AI に見せる
 
-- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションとアイテム・アノテーションの種類・ブックのタイプ・郵便の種類・対象の定義・テーマ・代表色・文字の色・言語・スキン・利用者の設定の項目の定義を、目次と、id を渡して取る全文で返す `actions`（引数なしの答えに今の warning も。architecture の「warning」）と、アクションを行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_page`・`read_records`・`search`・`read_settings`）と `show`、参加を頼む `join`。`read_records` は、対象の定義のレコード（郵便も）を、目次（id と 1 行）と、id を渡して取る全文で返し、索引キーの条件で絞れる。`search` は、対象の定義のレコードを言葉で探す。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
+- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションとアイテム・アノテーションの種類・ブックのタイプ・郵便の種類・対象の定義・テーマ・代表色・文字の色・言語・スキン・利用者の設定の項目の定義を、目次と、id を渡して取る全文で返す `actions`（引数なしの答えに今の warning も。architecture の「warning」）と、アクションを行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_page`・`read_records`・`search`・`read_settings`）と `show`、参加を頼む `join`、ほかの AI に送る `send_message`。`read_records` は、対象の定義のレコード（郵便も）を、目次（id と 1 行）と、id を渡して取る全文で返し、索引キーの条件で絞れる。`search` は、対象の定義のレコードを言葉で探す。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
 - MCP 公開ツールの引数の決まりは、inputSchema で言える物は inputSchema に書き、呼ぶ所で別に確かめない（アクションの引数は、これまでどおりアクションの `args` と `run` が確かめる）
 - AI に見せる対象の定義は、`aiBrief`（レコード 1 件の 1 行。書き方は「アノテーション」の `aiBrief` と同じ）を書いた種類だけ。`actions` の対象の定義にも、`read_records` にも、`search` にも、その種類だけが出る（書かない種類のレコードは、アクションの引数や `on` で名指されるだけ）。`aiListed` で既定の目次に載せるかを、`aiOrder` で目次の並びを決める（どちらも書かなくてよい）。`aiBrief` と `aiListed` が読めるのは、そのレコードとその指す先（`refers`。読み方は「アクション」）だけ。`aiListed` を書いた種類は、載せない物が何か（英語）も書き、`actions` の対象の定義で見せる（AI は `read_records` と `search` で、載せない物も取れる。`search` は既定では載せない物を探さない）
 - AI の `read_page` には、ページの形を描いた位置と大きさを、見せ方の定義の `aiPlaced`（base が拡張ポイントに書き足したメソッド。書かなくてよい）が答えて添える。書かなければ添えない
