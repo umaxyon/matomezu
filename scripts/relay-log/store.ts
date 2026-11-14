@@ -4,7 +4,7 @@ import { Database } from "bun:sqlite"
 import { createHash } from "node:crypto"
 import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
-import type { Body, Entry } from "../relay-log"
+import type { Body, Entry, Message } from "../relay-log"
 
 type Skeleton = { rest: Record<string, unknown>; system?: string; tools?: string; messages: string[] }
 export type NewEntry = Omit<Entry, "id">
@@ -91,6 +91,25 @@ export function openStore(path: string) {
           `SELECT ${label} AS session, COUNT(*) AS n, MAX(r.at) AS lastAt ${from} GROUP BY ${label} ORDER BY lastAt DESC`,
         )
         .all() as SessionRow[]
+    },
+    // 記録にあるメッセージを、最初に送られたリクエストの順に 1 度ずつ。session は表示の名前で絞る
+    uniqueMessages(session?: string): { session: string; at: string; message: Message }[] {
+      const where = session ? `AND ${label} = ?` : ""
+      const rows = db
+        .query(`SELECT r.at, r.skeleton, ${label} AS label ${from} WHERE r.skeleton IS NOT NULL ${where} ORDER BY r.id`)
+        .all(...(session ? [session] : [])) as { at: string; skeleton: string; label: string }[]
+      const seen = new Set<string>()
+      const out: { session: string; at: string; message: Message }[] = []
+      for (const row of rows) {
+        const s: Skeleton = JSON.parse(row.skeleton)
+        for (const h of s.messages) {
+          if (seen.has(h)) continue
+          seen.add(h)
+          const data = read(h)
+          if (data !== undefined) out.push({ session: row.label, at: row.at, message: JSON.parse(data) })
+        }
+      }
+      return out
     },
     setName(sessionId: string, name: string) {
       if (sessionId) setName.run(sessionId, name)

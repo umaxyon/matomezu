@@ -11,7 +11,7 @@
   }
   body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.5 ui-monospace,Menlo,Consolas,monospace; }
   header { display:flex; gap:16px; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:1; }
-  header b { font-size:14px; } header span { color:var(--muted); }
+  header b { font-size:14px; } header span { color:var(--muted); } a { color:inherit; }
   table { border-collapse:collapse; width:100%; }
   th, td { text-align:left; padding:3px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
   th { color:var(--muted); font-weight:normal; }
@@ -26,7 +26,7 @@
 </style>
 </head>
 <body>
-<header><b>relay-log</b><select id="session"><option value="">全セッション</option></select><span id="count"></span><span id="auto">3 秒ごとに読み直す</span></header>
+<header><b>relay-log</b><select id="session"><option value="">全セッション</option></select><span id="count"></span><span id="auto">3 秒ごとに読み直す</span><a href="/mcp">matomezu の結果のランキング</a></header>
 <table>
   <thead><tr>
     <th class="n">#</th><th>セッション</th><th>時刻</th><th>流れ</th><th>model</th><th class="n">msgs</th><th class="n">input</th>
