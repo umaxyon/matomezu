@@ -7,7 +7,7 @@ import type { Book } from "../../web/src/core/schema/book"
 import { useBookLookStyle } from "../../web/src/plugins/base/book-look/use-book-look-style"
 import { Printing } from "../../web/src/plugins/base/print-preview/printing"
 import { SheetLayers } from "../../web/src/plugins/base/print-preview/SheetLayers"
-import { ScrapPage } from "../../web/src/plugins/base/scrap/ScrapPage"
+import { ScrapView } from "../../web/src/plugins/base/scrap/ScrapView"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { useCommand } from "../../web/src/ui/commands"
@@ -190,12 +190,14 @@ test("描いているページの id には、コマンドは出ず、選択・�
   expect(instance.state.getState().contextMenu ?? null).toBeNull()
 })
 
-describe("スクラップの中（ScrapPage）", () => {
+describe("スクラップの中（ScrapView）", () => {
   test("指したページを、そのブックの物で、範囲 × 倍率の枠に描く。ステージが開いているブックや選択は写らない", () => {
     const { instance, wrap } = setup()
     act(() => instance.actions.openBook("s1", "y"))
     act(() => instance.actions.select("s1", ["l1"]))
-    const { container } = render(wrap(<ScrapPage page="px" area={{ x: 20, y: 30, w: 400, h: 200 }} scale={0.5} />))
+    const { container } = render(
+      wrap(<ScrapView scrap={{ page: "px", area: { x: 20, y: 30, w: 400, h: 200 }, scale: 0.5 }} />),
+    )
     const frame = container.querySelector<HTMLElement>('[data-scrap="shown"]')!
     expect([frame.style.width, frame.style.height]).toEqual(["200px", "100px"])
     expect(frame.querySelector('svg [data-selected="false"]')).not.toBeNull()
@@ -209,8 +211,8 @@ describe("スクラップの中（ScrapPage）", () => {
     const { container } = render(
       wrap(
         <>
-          <ScrapPage page="twin" area={{ x: 0, y: 0, w: 100, h: 50 }} scale={1} />
-          <ScrapPage page="nothing" area={{ x: 0, y: 0, w: 100, h: 50 }} scale={1} />
+          <ScrapView scrap={{ page: "twin", area: { x: 0, y: 0, w: 100, h: 50 }, scale: 1 }} />
+          <ScrapView scrap={{ page: "nothing", area: { x: 0, y: 0, w: 100, h: 50 }, scale: 1 }} />
         </>,
       ),
     )
@@ -220,7 +222,9 @@ describe("スクラップの中（ScrapPage）", () => {
   test("可変ページの中身を右・下へずらしたら、ずらした印刷区画の分だけ先を描く", () => {
     const shiftedBook = { ...X, id: "g", pages: [{ ...X.pages[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } }] }
     const { wrap } = setup([shiftedBook])
-    const { container } = render(wrap(<ScrapPage page="pg" area={{ x: 20, y: 30, w: 400, h: 200 }} scale={1} />))
+    const { container } = render(
+      wrap(<ScrapView scrap={{ page: "pg", area: { x: 20, y: 30, w: 400, h: 200 }, scale: 1 }} />),
+    )
     // A4 横の紙（1123 × 794）の 1 枚右・2 枚下
     expect(container.innerHTML).toContain(`translate(-${20 + 1123}px, -${30 + 2 * 794}px)`)
   })

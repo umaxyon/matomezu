@@ -233,6 +233,7 @@ export type { PrintSheets, SheetPurpose } from "./print-preview"
 export { breakShift } from "./print-preview/breaks"
 export { printSheetsOf, sheetShapes, sheetsOfShape } from "./print-preview/filled"
 export { BACKGROUND_PRINT, PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
+export { type Scrap, ScrapSchema, scrapSize } from "./scrap/scrap"
 export type { SearchableDef } from "./search/search"
 export {
   BOOK_TEXT_COLORS,

@@ -65,6 +65,8 @@ export {
   RichText,
   type RightSidePanelOpen,
   rowClass,
+  ScrapView,
+  type ScrapViewProps,
   SEARCH_CURRENT_HIGHLIGHT,
   SEARCH_HIGHLIGHT,
   type SearchHit,

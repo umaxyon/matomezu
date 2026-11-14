@@ -1,0 +1,29 @@
+/* スクラップの中: 細い枠線 1 本で囲み、枠の外にはみ出た所は切る */
+.frame {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  outline: 1px solid var(--theme-paper-line);
+  outline-offset: -1px;
+}
+/* 指す先が無い・輪: 灰色の枠に点線と、真ん中に字か印 */
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--skin-text) 8%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--skin-text) 45%, transparent);
+  color: color-mix(in srgb, var(--skin-text) 60%, transparent);
+  font-size: 13px;
+}
+.moved {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+/* ページの中身（紙の色で塗り、印刷区画のビューを重ねる） */
+.sheet {
+  position: relative;
+  background: var(--theme-paper);
+}
