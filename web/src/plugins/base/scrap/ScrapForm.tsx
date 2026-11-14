@@ -42,7 +42,7 @@ export function ScrapForm({
   value: Scrap
   onChange: (next: Scrap) => void
   side?: ReactNode // 絵の右の列に置く物（使う側の設定の入力Form など）
-  opens?: { stage: string; onOpened: () => void; edited: boolean } // edited: 範囲か倍率を直したか（直した後は開けない。直した分を黙って捨てないため）
+  opens?: { stage: string; onOpened: () => void; edited: boolean } // edited: 使う側の値を直したか（直した後は開けない。直した分を黙って捨てないため）
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
