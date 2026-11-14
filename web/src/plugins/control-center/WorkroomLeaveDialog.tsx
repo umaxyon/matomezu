@@ -30,6 +30,7 @@ export function WorkroomLeaveDialog({ args, onClose }: DialogProps<{ workroom: s
         </span>
         {occupant === undefined ? t("Deleting the workroom") : t("Leaving the workroom")}
       </p>
+      {occupant === undefined ? <p className={styles.warn}>{t("Cannot be undone")}</p> : null}
       <div className={styles.buttons}>
         <ActionButton onClick={onClose}>{t("Cancel")}</ActionButton>
         {occupant === undefined ? null : (

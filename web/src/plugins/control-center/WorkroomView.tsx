@@ -5,7 +5,7 @@ import type { WorkroomRow } from "../base"
 import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, WORKROOM_COLUMNS } from "../base/ui"
 import { Bird } from "./Bird"
 import { WORKROOM_LEAVE_DIALOG } from "./control-center"
-import { CrownIcon, LeaveIcon } from "./icons"
+import { CrownIcon, LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
 import text from "./text.module.css"
@@ -26,7 +26,7 @@ export function WorkroomView({ row, hidden }: { row: WorkroomRow | undefined; hi
   )
 }
 
-// 空室: 名前と（空室）、右下に部屋を削除するボタン（退室と同じアイコン。ダイアログは削除だけを選べる）
+// 空室: 名前と（空室）、右下に部屋を削除するボタン（ごみ箱のアイコン。ダイアログは削除だけを選べる）
 function Empty({ row }: { row: WorkroomRow }) {
   const t = useMessages(kit)
   const here = useScreenId()
@@ -47,7 +47,7 @@ function Empty({ row }: { row: WorkroomRow }) {
             disabled={!canRemove}
             onClick={() => openDialog(here, WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
           >
-            <LeaveIcon />
+            <TrashIcon />
           </IconButton>
         </Tip>
       </span>
