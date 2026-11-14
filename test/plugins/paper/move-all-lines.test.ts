@@ -1,5 +1,5 @@
 // 形を全部まとめて動かしたとき、線の手直し（via）は形と一緒に動く（動く量の引き算に出る浮動小数点の誤差で、片方だけ動いたとみなして消さない）。
-// 実際の図（ユーザー→main_manager・sub1_work の 2 本が via を持ち、位置は小数）を使う
+// 位置が小数で、via を持つ線が 2 本ある図を使う
 import { expect, test } from "bun:test"
 import { restoreBooks } from "../../../web/src/core/book"
 import { moveItems } from "../../../web/src/plugins/paper/placing/items"
