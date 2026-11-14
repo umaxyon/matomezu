@@ -79,3 +79,24 @@ test("ツールの結果は呼んだツールで分け、当てはまらない�
   expect(parts.at(-1)?.group).toBe("不明")
   expect(totals(parts).reduce((n, t) => n + t.chars, 0)).toBe(parts.reduce((n, p) => n + p.chars, 0))
 })
+
+test("遅延ツールの名前の一覧のサーバーで MCP の説明を切り、エージェントの種類の一覧は固定の節にする", () => {
+  const text = [
+    "The following deferred tools are now available via ToolSearch.",
+    "mcp__claude_ai_Notion__notion-fetch",
+    "Available agent types for the Agent tool:",
+    "- claude: Catch-all",
+    "Note: /w/a.md changed on disk since you last read it.",
+    "# MCP Server Instructions",
+    "## claude.ai Notion",
+    "Notion の説明",
+  ].join("\n")
+  const parts = classify({ messages: [{ role: "user", content: [{ type: "text", text }] }] })
+  expect(parts.map(p => [p.label, p.group])).toEqual([
+    ["遅延ツールの名前の一覧", "他の MCP"],
+    ["エージェントの種類の一覧", "固定"],
+    ["ファイルが変わった知らせ", "固定"],
+    ["MCP の説明の前置き", "他の MCP"],
+    ["MCP の説明 claude.ai Notion", "他の MCP"],
+  ])
+})
