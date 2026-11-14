@@ -205,14 +205,24 @@ test("on の record で指したレコードを直す。無いレコードは no
     ok: true,
     records: [{ id: "c1", record: { id: "c1", label: "b", no: 1 } }],
   })
-  expect(run(world, "card-rename", { label: "b" }, { record: "nope" })).toEqual({ ok: false, reason: "no-record" })
+  const missing = run(world, "card-rename", { label: "b" }, { record: "nope" })
+  expect(missing).toMatchObject({ ok: false, reason: "no-record" })
+  // 断りは、どの種類のどの id が無いかと、on.record の意味を言う
+  expect((missing as { detail: string }).detail).toContain("no @ex/rec:card record with the id nope")
+  expect((missing as { detail: string }).detail).toContain("on.record is the id of a record of the action's subject")
+  // AI に見せない種類（aiBrief なし）は、一覧の引き方も種類の説明も言わない
+  expect((missing as { detail: string }).detail).not.toContain("read_records")
+  expect((missing as { detail: string }).detail).not.toContain("About that subject")
   expect(run(world, "card-reid", { label: "b" }, { record: "c1" })).toEqual({ ok: false, reason: "refused" })
 })
 
 test("宣言の形に合わない新しいレコードは断る。今ある id と重なる新しいレコードも断る", () => {
   const world = apply(empty, run(empty, "card-add", { label: "a" }))
   expect(run(world, "card-bad", { label: "b" }, { record: "c1" })).toEqual({ ok: false, reason: "refused" })
-  expect(run(world, "card-same-id", { label: "x" })).toEqual({ ok: false, reason: "refused" })
+  // 今ある id のレコードを on なしで作ろうとした断りは、on.record にその id を付けて直すと言う
+  const same = run(world, "card-same-id", { label: "x" })
+  expect(same).toMatchObject({ ok: false, reason: "refused" })
+  expect((same as { detail: string }).detail).toContain("is already there: change it with on.record set to c1")
 })
 
 test("消すと removed を返し、その種類の最後の 1 件を消せば種類ごと外れる。番号は戻さない", () => {
