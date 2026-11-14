@@ -2,8 +2,9 @@
 // 常駐につながらないときは、つながるまで待つ（起動の失敗なので画面には出さない）。
 // ホストが足した追加プラグインも、ホストクライアントが読んだものをビルトインプラグインの後ろに足す。追加プラグインが借りる実物（plugin-modules）は、読む前に globalThis.__matomezuModules に置く
 
-import { StrictMode } from "react"
+import { StrictMode, useMemo } from "react"
 import { createRoot } from "react-dom/client"
+import { useStore } from "zustand"
 import { fail } from "./core/errors"
 import { warning } from "./core/warnings"
 import { followLocation } from "./host-client/location"
@@ -11,8 +12,10 @@ import { openClient } from "./host-client/open"
 import { followPrint } from "./host-client/print"
 import { UI_MODULES } from "./plugin-modules/ui"
 import { BUILTIN_CONTROL_CENTER } from "./plugins"
+import { disabledPluginIds } from "./plugins/base/utils/disabled-plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { createMatomezu } from "./store/create"
+import { isBuiltin } from "./store/plugin"
 import { loadFonts } from "./ui/fonts"
 import { placeAdded, placeAddedWithWarnings } from "./ui/layout"
 import { type AnyPluginUi, assembleUi } from "./ui/plugin"
@@ -57,10 +60,21 @@ followPrint(store)
 const root = document.getElementById("root")
 if (!root) fail("E202")
 
-createRoot(root).render(
-  <StrictMode>
-    <MatomezuProvider instance={store} layout={layout} warnings={screenWarnings}>
+// 利用者が無効にした追加プラグイン（利用者の設定の項目 disabled-plugins）は、画面の UI マッピングに置かない。ビルトインプラグインは無効にできない
+const builtinIds = new Set(store.plugins.filter(isBuiltin).map(p => p.id))
+
+function App() {
+  const setting = useStore(store.state, s => s.settings["@matomezu/base:disabled-plugins"])
+  const disabled = useMemo(() => disabledPluginIds(setting, builtinIds), [setting])
+  return (
+    <MatomezuProvider instance={store} layout={layout} warnings={screenWarnings} disabled={disabled}>
       <WindowRoot />
     </MatomezuProvider>
+  )
+}
+
+createRoot(root).render(
+  <StrictMode>
+    <App />
   </StrictMode>,
 )

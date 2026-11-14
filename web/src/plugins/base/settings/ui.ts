@@ -2,7 +2,9 @@
 import { TextColorsSetting } from "../text/TextColorsSetting"
 import { USER_TEXT_COLORS } from "../text/text-colors"
 import { CORNER_STATUS_ORDER } from "../utils/corner-order"
+import { DISABLED_PLUGINS } from "../utils/disabled-plugins"
 import { CornerStatusOrderSetting } from "./CornerStatusOrderSetting"
+import { DisabledPluginsSetting } from "./DisabledPluginsSetting"
 import { SettingsDialog } from "./SettingsDialog"
 import { SETTINGS_DIALOG } from "./settings-screen"
 import { LANG, SKIN } from "./user-settings"
@@ -17,4 +19,5 @@ export const USER_SETTING_VIEWS = {
   [SKIN.id]: { control: SkinSetting },
   [USER_TEXT_COLORS.id]: { control: TextColorsSetting },
   [CORNER_STATUS_ORDER.id]: { control: CornerStatusOrderSetting },
+  [DISABLED_PLUGINS.id]: { control: DisabledPluginsSetting },
 }

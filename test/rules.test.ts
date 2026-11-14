@@ -908,9 +908,9 @@ describe("テストの用意の手段", () => {
       "package.json",
       ...readdirSync(ROOT).filter(f => /^playwright.*\.ts$/.test(f)),
     ]
-    expect(places.filter(p => /-tags[\s"',=]+[\w,\s"']*\be2e\b/.test(readFileSync(join(ROOT, p), "utf8"))).sort()).toEqual([
-      "scripts/e2e-build.ts",
-    ])
+    expect(
+      places.filter(p => /-tags[\s"',=]+[\w,\s"']*\be2e\b/.test(readFileSync(join(ROOT, p), "utf8"))).sort(),
+    ).toEqual(["scripts/e2e-build.ts"])
   })
 
   test("e2e のファイルと、同じクレートの Go のテストのファイルの両方にある関数は、同じ中身にする（go test はタグを付けずに流す）", () => {

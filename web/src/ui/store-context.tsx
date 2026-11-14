@@ -21,8 +21,9 @@ export function shownLayout(
   layout: LayoutDef,
   plugins: readonly Plugin[],
   ui: UiCatalog,
+  disabled?: ReadonlySet<string>,
 ): { layout: LayoutDef; warnings: Warning[] } {
-  const skipped = skipAbsent(layout, new Set(plugins.map(p => p.id)))
+  const skipped = skipAbsent(layout, new Set(plugins.map(p => p.id)), disabled)
   const commands = new Set(plugins.flatMap(p => (p.commands ?? []).map(c => c.id)))
   const named = {
     screens: new Set(plugins.flatMap(p => (p.screens ?? []).map(s => s.id))),
@@ -41,18 +42,20 @@ export function MatomezuProvider({
   instance,
   layout,
   warnings = NO_WARNINGS,
+  disabled,
   children,
 }: {
   instance: MatomezuInstance<readonly AnyPluginUi[]>
   layout: LayoutDef
   warnings?: readonly Warning[]
+  disabled?: ReadonlySet<string> // 画面に置かないプラグインの id（組み込んだまま、UI マッピングから物を除く。warning は出さない）
   children: ReactNode
 }) {
   const ui = useMemo(() => assembleUi(instance.plugins), [instance])
   const value = useMemo(() => {
-    const shown = shownLayout(layout, instance.plugins, ui)
+    const shown = shownLayout(layout, instance.plugins, ui, disabled)
     return { store: instance, ui, layout: shown.layout, warnings: [...warnings, ...shown.warnings] }
-  }, [instance, ui, layout, warnings])
+  }, [instance, ui, layout, warnings, disabled])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 

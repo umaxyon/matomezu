@@ -25,6 +25,9 @@ export const TASKBOARD_UI = definePluginUi(TASKBOARD_PLUGIN, {
 })
 
 declare module "../../core/catalog" {
+  interface SlotTable {
+    "@matomezu/taskboard:plugin-frames": { project: string } // プロジェクトのレーンの右に並べる、プラグインフレーム（そのボードのプロジェクトの id を受け取る）
+  }
   interface WidgetTable {
     "@matomezu/taskboard:project-list": typeof PROJECT_LIST
     "@matomezu/taskboard:taskboard": typeof TASKBOARD

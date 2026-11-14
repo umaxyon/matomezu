@@ -1,11 +1,12 @@
 // タスクボード 1 枚のレーンの横並び。レーンのタイトル帯をドラッグすると、レーンを左右に入れ替える（プロジェクトのレーンの並びを書き換える。直せないプロジェクトと、レーンを最大化している間は動かせない）
-import { useActions, useAllowedOn } from "../../../plugin-api/ui"
+import { Slot, useActions, useAllowedOn } from "../../../plugin-api/ui"
 import { PROJECT_UPDATE } from "../project/actions"
 import { useGripDrag } from "../reorder/useGripDrag"
 import scroll from "../scrollbar.module.css"
 import { LaneView } from "./LaneView"
 import { laneKeyOf, movedLanes } from "./lane-order"
 import { lanesOf, type ProjectRecord, type TicketRecord, type WorkroomRecord } from "./shown"
+import { PLUGIN_FRAMES } from "./slots"
 import styles from "./TaskboardView.module.css"
 
 export function BoardLanes({
@@ -46,6 +47,7 @@ export function BoardLanes({
           drag={canMove ? { rowProps: dragRowProps(lane.id), gripProps: gripProps(lane.id), markClass } : undefined}
         />
       ))}
+      <Slot name={PLUGIN_FRAMES} props={{ project: project.id }} />
     </div>
   )
 }

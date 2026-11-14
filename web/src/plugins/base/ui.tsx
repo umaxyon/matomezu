@@ -36,7 +36,7 @@ import {
   SHEET_CONTENT,
 } from "./print-preview/ui"
 import { SEARCH_DIALOG } from "./search/ui"
-import { GENERAL_CATEGORY, KEYS_CATEGORY, type SettingsCategoryProps } from "./settings/categories"
+import { GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY, type SettingsCategoryProps } from "./settings/categories"
 import { SETTINGS_ICONS } from "./settings/icons"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
 import {
@@ -249,6 +249,7 @@ export const BASE_UI = definePluginUi(BASE, {
     CLOSE_BUTTON,
     GENERAL_CATEGORY,
     KEYS_CATEGORY,
+    PLUGINS_CATEGORY,
   ],
   commandIcons: {
     ...STAGE_ICONS,
@@ -367,6 +368,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:close-button": typeof CLOSE_BUTTON
     "@matomezu/base:settings-general": typeof GENERAL_CATEGORY
     "@matomezu/base:settings-keys": typeof KEYS_CATEGORY
+    "@matomezu/base:settings-plugins": typeof PLUGINS_CATEGORY
   }
   interface MenuTable {
     "@matomezu/base:stage-menu": true

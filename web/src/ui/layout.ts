@@ -194,14 +194,21 @@ function indexFor(ids: readonly string[], place: WidgetPlace): number | null {
 }
 
 // UI マッピングから、持ち主のプラグイン（id の頭）が組み込まれていない物を除く（ウィジェット・コマンド・スロット・メニュー・右クリックのメニュー・anchorMenu）。
-// 除いた物ごとに warning W010（plugin は無いプラグイン）。頭の無い名前（土台の言葉）と、持ち主がいる物は残す（無ければ checkLayout が error にする）
+// 除いた物ごとに warning W010（plugin は無いプラグイン）。頭の無い名前（土台の言葉）と、持ち主がいる物は残す（無ければ checkLayout が error にする）。
+// 利用者が無効にしたプラグイン（disabled）の物も除く（組み込まれているので warning は出さない）
 export function skipAbsent(
   layout: LayoutDef,
   present: ReadonlySet<string>,
+  disabled: ReadonlySet<string> = NO_PLUGINS,
 ): { layout: LayoutDef; warnings: Warning[] } {
   const warnings: Warning[] = []
+  let dropped = false
   const keep = (kind: string, id: string): boolean => {
     const { owner } = splitId(id)
+    if (owner !== null && disabled.has(owner)) {
+      dropped = true
+      return false
+    }
     if (owner === null || present.has(owner)) return true
     warnings.push(warning("W010", owner, { layout: layout.id, kind, id }))
     return false
@@ -233,8 +240,10 @@ export function skipAbsent(
     contextMenus: Object.fromEntries(contextMenus),
     anchorMenu,
   } as LayoutDef
-  return { layout: warnings.length > 0 ? skipped : layout, warnings }
+  return { layout: warnings.length > 0 || dropped ? skipped : layout, warnings }
 }
+
+const NO_PLUGINS: ReadonlySet<string> = new Set()
 
 export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
   typeof item === "string" ? [item] : item.either

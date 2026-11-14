@@ -143,6 +143,7 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
+import { DISABLED_PLUGINS } from "./utils/disabled-plugins"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
 import { WIDE_SEARCH_MODE } from "./wide-search/state"
 import { BOOK_SCREEN_DEF, CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE, ONE_SCREEN } from "./window"
@@ -346,6 +347,7 @@ export const BASE = defineBuiltin(
       NOTE_EXPIRY,
       PARTICIPANT_ALIVE,
       CORNER_STATUS_ORDER,
+      DISABLED_PLUGINS,
       SOFT_BREAK,
     ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
@@ -481,6 +483,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
+    "@matomezu/base:disabled-plugins": typeof DISABLED_PLUGINS
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS
     "@matomezu/base:text-colors": typeof USER_TEXT_COLORS

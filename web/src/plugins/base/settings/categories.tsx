@@ -5,6 +5,7 @@ import type { ReactNode } from "react"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
+import { DISABLED_PLUGINS } from "../utils/disabled-plugins"
 import { type PlaceInSlot, placeIn } from "../utils/place-in"
 import { KeysPane } from "./KeysPane"
 import { SETTINGS_CATEGORIES } from "./settings-screen"
@@ -38,6 +39,13 @@ export const GENERAL_CATEGORY = defineSettingsCategory({
   id: kit.name("settings-general"),
   title: kit.message("General"),
   view: ({ stage }) => <UserSettings stage={stage} />,
+})
+
+// プラグイン: 追加プラグインの有効・無効
+export const PLUGINS_CATEGORY = defineSettingsCategory({
+  id: kit.name("settings-plugins"),
+  title: kit.message("Plugins"),
+  settings: [DISABLED_PLUGINS.id],
 })
 
 export const KEYS_CATEGORY = defineSettingsCategory({

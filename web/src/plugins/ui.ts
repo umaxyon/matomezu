@@ -102,6 +102,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:settings-general",
       "@matomezu/markdown:settings",
       "@matomezu/base:settings-keys",
+      "@matomezu/base:settings-plugins",
     ],
     "@matomezu/base:mail-actions": ["@matomezu/base:join-request-actions", "@matomezu/base:proposal-actions"],
     "@matomezu/base:wide-search-modes": [
