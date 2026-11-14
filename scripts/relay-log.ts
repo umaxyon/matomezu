@@ -4,12 +4,16 @@
 //     ANTHROPIC_BASE_URL=http://127.0.0.1:18951 claude と起動する（サブスクのログインのままで通る）
 //     記録は <dir>（無ければ tmp/relay-log/<日時>）の index.jsonl に、/v1/messages の 1 リクエストを 1 行で書く
 //     --full のときだけ、本文の全文を req-NNNN.json に残す（会話の全文が入る）。認証のヘッダーの値はどちらにも残さない
+//     --full のときは、モデルの返答の生の本文も res-NNNN.txt に残す
 //   bun scripts/relay-log.ts report <dir>
 //     index.jsonl をリクエストごとの表と、大きい結果の上位にまとめる
+//   bun scripts/relay-log.ts view <dir> [--port 18952]
+//     時間順の一覧と、行を開いたときの詳細（リクエストの中身・モデルの返答）を見るページを 127.0.0.1 で配る
 // 字数は JSON にしたときの文字の数で、トークンの数ではない。トークンは API が返した usage の列で見る
 import { createHash } from "node:crypto"
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { startViewer } from "./relay-log/viewer"
 
 const UPSTREAM = "https://api.anthropic.com"
 const MATOMEZU = "mcp__matomezu__"
@@ -260,9 +264,10 @@ export function startRelay({ port, out, full, upstream = UPSTREAM }: RelayOption
         for await (const chunk of copy) {
           const s = decoder.decode(chunk, { stream: true })
           if (sse) reader.feed(s)
-          else text += s
+          if (!sse || full) text += s
         }
         reader.end()
+        if (full) writeFileSync(join(out, `res-${String(id).padStart(4, "0")}.txt`), text)
         const entry: Entry = {
           id,
           at: new Date(t0).toISOString(),
@@ -366,6 +371,12 @@ if (import.meta.main) {
     const dir = args[1]
     if (!dir) throw new Error("usage: bun scripts/relay-log.ts report <dir>")
     console.log(report(readFileSync(join(dir, "index.jsonl"), "utf8").split("\n")))
+  } else if (args[0] === "view") {
+    const dir = args[1]
+    if (!dir) throw new Error("usage: bun scripts/relay-log.ts view <dir> [--port 18952]")
+    const port = Number(flag(args, "--port") ?? 18952)
+    startViewer({ dir, port })
+    console.log(`relay-log view: http://127.0.0.1:${port}（${dir}）`)
   } else {
     const port = Number(flag(args, "--port") ?? 18951)
     const out = flag(args, "--out") ?? join("tmp", "relay-log", new Date().toISOString().replace(/[:.]/g, "-"))

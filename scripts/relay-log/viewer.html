@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>relay-log</title>
+<style>
+  :root { --bg:#fff; --fg:#1f2328; --muted:#6a737d; --line:#d8dee4; --hover:#f3f6f9; --open:#eef4ff; --warn:#b35900; --err:#c62828; --code:#f6f8fa; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14181d; --fg:#d7dde3; --muted:#8b949e; --line:#2d333b; --hover:#1c2128; --open:#18263a; --warn:#e0a040; --err:#ef7070; --code:#1c2128; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.5 ui-monospace,Menlo,Consolas,monospace; }
+  header { display:flex; gap:16px; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:1; }
+  header b { font-size:14px; } header span { color:var(--muted); }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:3px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:normal; }
+  td.n, th.n { text-align:right; }
+  tr.row { cursor:pointer; } tr.row:hover { background:var(--hover); } tr.row.open { background:var(--open); }
+  .warn { color:var(--warn); } .err { color:var(--err); } .muted { color:var(--muted); }
+  td.detail { white-space:normal; padding:8px 16px 16px 36px; background:var(--bg); }
+  h4 { margin:14px 0 4px; font-size:13px; }
+  pre { margin:2px 0; padding:6px 8px; background:var(--code); border:1px solid var(--line); border-radius:4px; white-space:pre-wrap; word-break:break-all; max-height:420px; overflow:auto; }
+  details { margin:2px 0; } summary { cursor:pointer; }
+  dl { display:grid; grid-template-columns:max-content 1fr; gap:0 16px; margin:4px 0; } dt { color:var(--muted); } dd { margin:0; }
+</style>
+</head>
+<body>
+<header><b>relay-log</b><span id="count"></span><span id="auto">3 秒ごとに読み直す</span></header>
+<table>
+  <thead><tr>
+    <th class="n">#</th><th>時刻</th><th>流れ</th><th>model</th><th class="n">msgs</th><th class="n">input</th>
+    <th class="n">cache_read</th><th class="n">cache_new</th><th class="n">output</th><th>食い違い</th>
+    <th class="n">新しい結果(字)</th><th class="n">ms</th>
+  </tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<script>
+const num = n => n === undefined ? "-" : n.toLocaleString("en-US")
+const el = (tag, props = {}, ...kids) => {
+  const e = Object.assign(document.createElement(tag), props)
+  for (const k of kids) e.append(k)
+  return e
+}
+const open = new Set()
+let entries = []
+
+async function get(path) { return (await fetch(path)).json() }
+
+function cell(text, cls = "") { return el("td", { className: cls, textContent: text }) }
+
+function renderRows() {
+  const tbody = document.getElementById("rows")
+  tbody.replaceChildren()
+  for (const e of entries) {
+    const u = e.usage, s = e.summary
+    const tr = el("tr", { className: "row" + (open.has(e.id) ? " open" : "") })
+    tr.append(
+      cell(e.id, "n"), cell(new Date(e.at).toLocaleTimeString()), cell(e.stream, "muted"), cell(s.model),
+      cell(s.messages, "n"), cell(num(u.input_tokens), "n"), cell(num(u.cache_read_input_tokens), "n"),
+      cell(num(u.cache_creation_input_tokens), "n"), cell(num(u.output_tokens), "n"),
+      e.status >= 400 ? cell("status " + e.status, "err") : cell(e.diverge, e.diverge === "none" ? "muted" : "warn"),
+      cell(num(e.newResults.reduce((n, r) => n + r.chars, 0)), "n"), cell(num(e.ms), "n"),
+    )
+    tr.onclick = () => { open.has(e.id) ? open.delete(e.id) : open.add(e.id); renderRows() }
+    tbody.append(tr)
+    if (open.has(e.id)) tbody.append(detailRow(e))
+  }
+  document.getElementById("count").textContent = entries.length + " 件"
+}
+
+function detailRow(e) {
+  const td = el("td", { className: "detail", colSpan: 12 })
+  td.append(summary(e))
+  const req = el("div", {}, el("span", { className: "muted", textContent: "読み込み中…" }))
+  const res = el("div")
+  td.append(req, res)
+  get("/api/req/" + e.id).then(r => fillRequest(req, r))
+  get("/api/res/" + e.id).then(r => fillReply(res, r))
+  return el("tr", {}, td)
+}
+
+function summary(e) {
+  const s = e.summary, dl = el("dl")
+  const rows = [
+    ["system", num(s.systemChars) + " 字"],
+    ["ツールの説明", `${s.toolsN} 個 ${num(s.toolsChars)} 字（matomezu ${s.matomezuToolsN} 個 ${num(s.matomezuToolsChars)} 字）`],
+    ["会話の文", num(s.textChars) + " 字"],
+    ["結果", `${num(s.resultChars)} 字（matomezu ${num(s.matomezuResultChars)} 字）`],
+    ["cache_control", s.marks.join(" ") || "なし"],
+    ["新しい結果", e.newResults.map(r => `${r.tool} ${num(r.chars)} 字`).join("、") || "なし"],
+  ]
+  if (e.error) rows.push(["error", e.error])
+  for (const [k, v] of rows) dl.append(el("dt", { textContent: k }), el("dd", { textContent: v }))
+  return dl
+}
+
+function blockText(b) {
+  if (typeof b === "string") return b
+  if (b.type === "text") return b.text
+  if (b.type === "tool_use") return b.name + "\n" + JSON.stringify(b.input, null, 1)
+  if (b.type === "tool_result") {
+    const c = b.content
+    return typeof c === "string" ? c : (c ?? []).map(x => x.text ?? JSON.stringify(x)).join("\n")
+  }
+  return JSON.stringify(b, null, 1)
+}
+
+function fillRequest(box, r) {
+  box.replaceChildren()
+  if (!r) {
+    box.append(el("div", { className: "muted", textContent: "中身は --full で記録したときだけ見える" }))
+    return
+  }
+  const body = r.body
+  const sys = typeof body.system === "string" ? body.system : JSON.stringify(body.system, null, 1)
+  box.append(el("h4", { textContent: "リクエスト" }))
+  box.append(details("system", sys))
+  box.append(details(`tools（${(body.tools ?? []).length} 個）`, (body.tools ?? []).map(t => t.name + (t.defer_loading ? "（defer）" : "")).join("\n")))
+  const names = new Map()
+  for (const m of body.messages ?? []) if (Array.isArray(m.content)) for (const b of m.content) if (b.type === "tool_use") names.set(b.id, b.name)
+  ;(body.messages ?? []).forEach((m, i) => {
+    const blocks = typeof m.content === "string" ? [m.content] : m.content
+    const wrap = el("details", {}, el("summary", { textContent: `msg${i} ${m.role}（${blocks.length} ブロック）` }))
+    for (const b of blocks) {
+      const kind = typeof b === "string" ? "text" : b.type === "tool_result" ? "tool_result " + (names.get(b.tool_use_id) ?? "?") : b.type
+      wrap.append(details(kind, blockText(b)))
+    }
+    box.append(wrap)
+  })
+}
+
+function fillReply(box, blocks) {
+  box.replaceChildren()
+  if (!blocks) return
+  box.append(el("h4", { textContent: "モデルの返答" }))
+  for (const b of blocks) {
+    const d = details(b.type === "tool_use" ? "tool_use " + b.name : b.type, b.type === "tool_use" ? b.input : b.text)
+    d.open = true
+    box.append(d)
+  }
+}
+
+function details(title, text) {
+  return el("details", {}, el("summary", { textContent: `${title}（${num(text.length)} 字）` }), el("pre", { textContent: text }))
+}
+
+async function load() {
+  const next = await get("/api/entries")
+  if (next.length !== entries.length) { entries = next; renderRows() }
+}
+load()
+setInterval(load, 3000)
+</script>
+</body>
+</html>
