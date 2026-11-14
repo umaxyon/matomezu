@@ -131,6 +131,12 @@ test("形の themeProp・captionProp が props に無い項目を名指したら
   expect(() => assemble(BUILTIN)).not.toThrow()
 })
 
+test("scrapFrame を、項目の形がスクラップの形でない形に書いたら E127（base の台帳アセンブルのときの確かめ）", () => {
+  expect(
+    problemsWith("@matomezu/box", "@matomezu/box:shape-nest-box", { scrapFrame: true }).map(p => [p.code, p.params.id]),
+  ).toEqual([["E127", "@matomezu/box:shape-nest-box"]])
+})
+
 test("形の仲間の名前が文言の表に無ければ E018（base の台帳アセンブルのときの確かめ）", () => {
   const found = problemsWith("@matomezu/shape", "@matomezu/shape:shape-diamond", {
     familyTitle: "no such message",

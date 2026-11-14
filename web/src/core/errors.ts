@@ -78,6 +78,7 @@ export const ERRORS = {
   E124: "plugin state {id} is a {scope} state: {need}",
   E125: "plugin state {id} belongs to another plugin than {owner}",
   E126: "this view is not drawn in a screen of {screen}",
+  E127: "item {id}: scrapFrame is for a shape whose props are a scrap",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

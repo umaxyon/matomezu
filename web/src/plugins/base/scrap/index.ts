@@ -1,10 +1,12 @@
 // スクラップの、base の側: スクラップを置く枠の印（アイテムの定義の拡張ポイント scrapFrame）、切り抜くダイアログとそれを開くコマンド。
 // 切り抜くのは、切り抜きたいページで（ページタブと紙の右クリック）。切り抜いたスクラップはスクラップトレイに入り、置くのはトレイから（ui.tsx）
 import { pagedOf } from "../../../core/book"
-import { bookType, type CoreCatalog, type ItemId } from "../../../core/core-catalog"
+import { bookType, type CatalogCheckDef, type CoreCatalog, type ItemId } from "../../../core/core-catalog"
 import type { EditList } from "../../../core/def/book-type"
 import type { ShapeData } from "../../../core/def/item"
+import { problem } from "../../../core/errors"
 import { findShape } from "../../../core/placed"
+import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import type { CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
@@ -24,6 +26,15 @@ declare module "../../../core/catalog" {
         : never
   }
 }
+
+// scrapFrame を書いた形の項目の形が、スクラップの形と同じか（台帳アセンブルのときの確かめ。スクラップの値がそのまま項目になり、余分な項目も要らないこと）
+const SAMPLE: Scrap = { page: "p", area: { x: 0, y: 0, w: 1, h: 1 }, scale: 1 }
+export const SCRAP_FRAME_CHECK: CatalogCheckDef = catalog =>
+  [...catalog.items.values()].flatMap(i => {
+    if ((i as { scrapFrame?: unknown }).scrapFrame !== true) return []
+    const parsed = i.kind === "shape" ? i.props.safeParse(SAMPLE) : undefined
+    return parsed?.success && sameData(parsed.data, SAMPLE) ? [] : [problem("E127", { id: i.id })]
+  })
 
 // ブック book の、直している並び edits に置ける、スクラップを置く枠のアイテム（いくつもあれば、置ける物の並びの先頭。無ければ null）
 export function scrapFrameIn(catalog: CoreCatalog, book: Book, edits: EditList): ItemId | null {

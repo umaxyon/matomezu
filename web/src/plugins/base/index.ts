@@ -99,7 +99,7 @@ import {
   type RIGHT_SIDE_PANEL_STATE,
   RIGHT_SIDE_PANEL_STATES,
 } from "./right-side-panel/state"
-import { SCRAP_CUT_COMMAND, SCRAP_CUT_DIALOG, SCRAP_OPEN_ORIGINAL } from "./scrap"
+import { SCRAP_CUT_COMMAND, SCRAP_CUT_DIALOG, SCRAP_FRAME_CHECK, SCRAP_OPEN_ORIGINAL } from "./scrap"
 import { SCRAP, SCRAP_CUT, SCRAP_REMOVE } from "./scrap/scrap"
 import {
   type SEARCH_CLOSE,
@@ -361,6 +361,7 @@ export const BASE = defineBuiltin(
     screenArrangements: [ONE_SCREEN],
     checks: [
       PROP_NAMES_CHECK,
+      SCRAP_FRAME_CHECK,
       FAMILY_TITLE_CHECK,
       CREATE_SETTINGS_CHECK,
       LOCKABLE_CHECK,
