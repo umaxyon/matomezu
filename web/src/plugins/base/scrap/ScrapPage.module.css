@@ -1,0 +1,16 @@
+/* スクラップの中: 枠の外にはみ出た所は切る */
+.frame {
+  position: relative;
+  overflow: hidden;
+}
+.moved {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+/* ページの中身（紙の色で塗り、印刷区画のビューを重ねる） */
+.sheet {
+  position: relative;
+  background: var(--theme-paper);
+}
