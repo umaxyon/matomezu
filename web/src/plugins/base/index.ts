@@ -125,6 +125,7 @@ import {
   SETTINGS_SET_COMMAND,
   SKIN,
 } from "./settings"
+import { DISABLED_PLUGINS } from "./settings/disabled-plugins"
 import { STAGE_CLOSE, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import {
   BACKGROUND_EDIT,
@@ -143,7 +144,6 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox/toolbox"
 import { CORNER_STATUS_ORDER } from "./utils/corner-order"
-import { DISABLED_PLUGINS } from "./utils/disabled-plugins"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
 import { WIDE_SEARCH_MODE } from "./wide-search/state"
 import { BOOK_SCREEN_DEF, CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE, ONE_SCREEN } from "./window"

@@ -6,7 +6,14 @@ import { type Actor, AI, USER } from "../../web/src/core/actor"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import type { SettingDef } from "../../web/src/core/def/setting"
 import { performIn } from "../../web/src/core/perform"
-import { aiSettings, isParticipantAlive, langOf, participantAliveMs, userSetting } from "../../web/src/core/settings"
+import {
+  aiSettings,
+  disabledPluginsOf,
+  isParticipantAlive,
+  langOf,
+  participantAliveMs,
+  userSetting,
+} from "../../web/src/core/settings"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
@@ -113,4 +120,15 @@ test("参加者が生きているかは、最後に呼ばれた時刻から有�
   expect(alive("2026-11-08T08:30:00.000Z")).toBe(false)
   expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "15" })).toBe(false)
   expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "7" })).toBe(true)
+})
+
+test("無効にしたプラグインの id の集合は、role が disabled-plugins の設定の値から、形に合わない値を無しとし、ビルトインプラグインを除く", () => {
+  const builtin = new Set(["@matomezu/base"])
+  const ids = (value: unknown) => [
+    ...disabledPluginsOf(CORE_CATALOG, { "@matomezu/base:disabled-plugins": value }, builtin),
+  ]
+  expect(ids(["@a/x", "@matomezu/base", "@a/y"])).toEqual(["@a/x", "@a/y"])
+  expect(ids(["@a/x", 3])).toEqual([]) // 形に合わない値は項目の既定（無し）
+  expect(ids("nope")).toEqual([])
+  expect([...disabledPluginsOf(CORE_CATALOG, {}, builtin)]).toEqual([])
 })

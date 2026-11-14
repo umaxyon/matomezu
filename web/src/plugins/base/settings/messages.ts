@@ -8,6 +8,10 @@ export const SETTINGS_MESSAGES = defineMessages({
   // コーナーステータスの並びの設定（CornerStatusOrderSetting.tsx）
   "Move {name} up": { en: "Move {name} up", ja: "{name}を前へ" },
   "Move {name} down": { en: "Move {name} down", ja: "{name}を後ろへ" },
+  // 追加プラグインの有効・無効の設定（DisabledPluginsSetting.tsx）
+  "Disabled plugins": { en: "Enabled plugins", ja: "有効なプラグイン" },
+  "No added plugins": { en: "No plugins have been added", ja: "追加したプラグインはありません" },
+  Plugins: { en: "Plugins", ja: "プラグイン" },
   Language: { en: "Language", ja: "言語" },
   Skin: { en: "Skin", ja: "スキン" },
   "Shortcut keys": { en: "Shortcut keys", ja: "ショートカットキー" },

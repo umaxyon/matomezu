@@ -6,7 +6,7 @@ import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useInstance } from "../../../ui/store-context"
 import { rowClass, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { withPluginEnabled } from "../utils/disabled-plugins"
+import { withPluginEnabled } from "./disabled-plugins"
 
 export function DisabledPluginsSetting({ label, value, onChange }: UserSettingControlProps<readonly string[]>) {
   const t = useMessages(kit)

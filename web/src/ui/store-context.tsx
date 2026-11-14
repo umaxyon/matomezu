@@ -2,8 +2,9 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
 import { fail, matomezuError, problem } from "../core/errors"
+import { disabledPluginsOf } from "../core/settings"
 import type { Warning } from "../core/warnings"
-import type { Catalog, Plugin } from "../store/plugin"
+import { type Catalog, isBuiltin, type Plugin } from "../store/plugin"
 import type { Actions, MatomezuInstance, MatomezuState } from "../store/store"
 import { checkLayout, type LayoutDef, skipAbsent } from "./layout"
 import { type AnyPluginUi, assembleUi, type UiCatalog } from "./plugin"
@@ -42,16 +43,21 @@ export function MatomezuProvider({
   instance,
   layout,
   warnings = NO_WARNINGS,
-  disabled,
   children,
 }: {
   instance: MatomezuInstance<readonly AnyPluginUi[]>
   layout: LayoutDef
   warnings?: readonly Warning[]
-  disabled?: ReadonlySet<string> // 画面に置かないプラグインの id（組み込んだまま、UI マッピングから物を除く。warning は出さない）
   children: ReactNode
 }) {
   const ui = useMemo(() => assembleUi(instance.plugins), [instance])
+  // 利用者が無効にしたプラグイン（role が disabled-plugins の設定）の物は、組み込んだまま UI マッピングに置かない。warning は出さない
+  const settings = useStore(instance.state, s => s.settings)
+  const disabled = useMemo(
+    () =>
+      disabledPluginsOf(instance.catalog.core, settings, new Set(instance.plugins.filter(isBuiltin).map(p => p.id))),
+    [instance, settings],
+  )
   const value = useMemo(() => {
     const shown = shownLayout(layout, instance.plugins, ui, disabled)
     return { store: instance, ui, layout: shown.layout, warnings: [...warnings, ...shown.warnings] }

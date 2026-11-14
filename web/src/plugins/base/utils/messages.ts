@@ -23,12 +23,6 @@ export const CORNER_MESSAGES = defineMessages({
   "Corner status order": { en: "Corner status order", ja: "コーナーステータスの並び" },
 })
 
-export const PLUGIN_SWITCH_MESSAGES = defineMessages({
-  "Disabled plugins": { en: "Enabled plugins", ja: "有効なプラグイン" },
-  "No added plugins": { en: "No plugins have been added", ja: "追加したプラグインはありません" },
-  Plugins: { en: "Plugins", ja: "プラグイン" },
-})
-
 // 領域の最大化のボタン（MaxButton.tsx）
 export const MAX_BUTTON_MESSAGES = defineMessages({
   "Maximize area": { en: "Maximize", ja: "最大化" },
