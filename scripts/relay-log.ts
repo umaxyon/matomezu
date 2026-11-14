@@ -13,6 +13,7 @@
 import { createHash } from "node:crypto"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { probeOf } from "./relay-log/probe"
 import { openStore, type Store } from "./relay-log/store"
 import { startViewer } from "./relay-log/viewer"
 
@@ -70,6 +71,8 @@ export type Entry = {
   newResults: ResultSize[]
   usage: Usage
   error?: string
+  // Claude Code が起動のときに残りの枠を確かめるリクエスト。429 が返っても作業の失敗ではない
+  probe?: "quota"
 }
 
 const chars = (value: unknown) => JSON.stringify(value ?? "").length
@@ -317,6 +320,7 @@ export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }
             newResults,
             usage: sse ? reader.usage : usageFromJson(text),
             ...(res.status >= 400 ? { error: text.slice(0, 500) } : {}),
+            ...(probeOf(body) ? { probe: probeOf(body) } : {}),
           },
           stored,
           keepBody ? text : undefined,
@@ -359,7 +363,7 @@ export function report(entries: Entry[]): string {
       num(u.cache_read_input_tokens),
       num(u.cache_creation_input_tokens),
       num(u.output_tokens),
-      e.status >= 400 ? `status ${e.status}` : e.diverge,
+      e.probe ? `${e.probe} の確かめ（${e.status}）` : e.status >= 400 ? `status ${e.status}` : e.diverge,
       num(e.newResults.reduce((n, r) => n + r.chars, 0)),
       `${num(s.matomezuResultChars)}/${num(s.resultChars)}`,
     ]
