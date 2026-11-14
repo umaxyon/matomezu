@@ -37,6 +37,9 @@ declare module "../../../core/catalog" {
     portsOf?(item: D): Ports // 置いた形のデータで変わるつなぎ口（あれば ports より先に使う）
     // 置いたアイテムの大きさ（w・h が無ければ、項目から決まる幅と高さ）。無ければ置いたときの w・h、それも無ければ size
     sizeOf?(item: D): Size
+    // 求めた大きさ size を、項目に写した形（sizeOf の逆。大きさが項目から決まる形が、大きさを変えられるようにするとき書く。
+    // 取れる中で一番近い大きさになる項目を返す）。書いた形は、押されても縮まない
+    resizedTo?(item: D, size: Size): D
     // 子の形を持つ形の、子の領域の左上（形の左上から。キャプションや本文の下など）。無ければ左と上から NEST_PADDING
     childOrigin?(item: D): Point
     // 子の形を持つ形の、子の領域の下に空ける高さ（キャプションや本文を底に置くときなど）。無ければ NEST_PADDING

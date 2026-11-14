@@ -218,7 +218,8 @@ export const PAPER_RESIZE = kit.defineCommand({
     const page = book?.pages.find(p => p.id === opened?.page)
     const placed = page && findShape(page, args.item)?.shape
     if (!opened?.page || !paper || !placed) return
-    const to = resizedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
+    const ratio = shapeDefOf(ctx.catalog, placed.item)?.[kit.name("stretch")] === "ratio"
+    const to = resizedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper, ratio)
     if (to) a.perform(ITEM_RESIZE.id, { page: opened.page, item: placed.id, ...to }, { book: opened.book })
   },
   when: onOpenedPage,

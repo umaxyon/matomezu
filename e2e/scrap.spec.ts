@@ -25,7 +25,7 @@ test.use({
   ],
 })
 
-test("ページを切り抜いてスクラップトレイに入れ、スクラップトレイから置くと中に元のページが見える。置いてもスクラップトレイに残り、× で消える。ダブルクリックで倍率を直せる", async ({
+test("ページを切り抜いてスクラップトレイに入れ、スクラップトレイから置くと中に元のページが見える。置いてもスクラップトレイに残り、× で消える。角のつまみで比を保って大きさを変えられ、ダブルクリックで倍率を直せる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -56,6 +56,19 @@ test("ページを切り抜いてスクラップトレイに入れ、スクラ�
   await expect(placed).toHaveCount(1)
   await expect(placed).toContainText("元の箱")
   await expect(rows).toHaveCount(1)
+
+  // 選ぶと、つまみは四隅だけ。右下の角を引くと、比を保ったまま大きくなる
+  await placed.click()
+  await expect(placed.locator("[data-grip]")).toHaveCount(4)
+  const small = (await placed.boundingBox())!
+  const corner = (await placed.locator('[data-grip="bottom-right"]').boundingBox())!
+  await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(corner.x + corner.width / 2 + 60, corner.y + corner.height / 2 + 10, { steps: 4 })
+  await page.mouse.up()
+  await expect.poll(async () => (await placed.boundingBox())!.width).toBeGreaterThan(small.width + 30)
+  const grown = (await placed.boundingBox())!
+  expect(Math.abs(grown.width / grown.height - small.width / small.height)).toBeLessThan(0.02)
 
   // ダブルクリックで設定のダイアログ。倍率を 50% にすると大きくなる
   const before = (await placed.boundingBox())!

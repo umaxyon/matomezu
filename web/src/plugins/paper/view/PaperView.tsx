@@ -430,7 +430,8 @@ function PageItems({
     const item = findShape(shownPage, placed.id)?.shape ?? placed
     const st = stretch.current
     if (!st || st.item !== item.id || !paper) return item
-    const to = resizedBy(catalog, item, st.edges, toPaperDelta(stage, stretched), paper)
+    const ratio = shapeDefOf(catalog, item.item)?.[kit.name("stretch")] === "ratio"
+    const to = resizedBy(catalog, item, st.edges, toPaperDelta(stage, stretched), paper, ratio)
     return to ? { ...item, ...to } : item
   }
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
@@ -617,9 +618,14 @@ function Item({
   const size = placedSize(catalog, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
   const tokens = useTokenScope(item.item) // そのアイテムのプラグインのテーマキー（--<名前>）
-  // 幅だけを変えられる形（@matomezu/paper:stretch）は、左右の辺だけをつかめる
+  // 幅だけを変えられる形（@matomezu/paper:stretch）は左右の辺だけ、比を保つ形は角だけをつかめる
+  const stretch = shapeDefOf(catalog, item.item)?.[kit.name("stretch")]
   const grips =
-    shapeDefOf(catalog, item.item)?.[kit.name("stretch")] === "width" ? GRIPS.filter(g => !g.edges.y) : GRIPS
+    stretch === "width"
+      ? GRIPS.filter(g => !g.edges.y)
+      : stretch === "ratio"
+        ? GRIPS.filter(g => g.edges.x && g.edges.y)
+        : GRIPS
   return (
     <div
       ref={anchor(item.id)}
