@@ -12,7 +12,7 @@ cmd="${1:-}"
 name="${2:-default}"
 dir="$LAB/run/$name"
 
-# 環境の PATH は、環境の npm の bin・環境の bin（claude への道）・node の置き場・/usr/bin:/bin だけにし、開発の道具（go・bun など）が見えないようにする
+# 環境の PATH は、環境の npm の bin・環境の bin（claude への道）・node の置き場・/usr/bin:/bin（と WSL なら Windows の System32）だけにし、開発の道具（go・bun など）が見えないようにする
 
 case "$cmd" in
 shell)
@@ -21,16 +21,20 @@ shell)
   ln -sf "$(readlink -f "$(command -v claude)")" "$dir/bin/claude"
   token=""
   [ -r "$LAB/oauth-token" ] && token="$(tr -d '[:space:]' <"$LAB/oauth-token")"
+  # WSL では、画面を Windows のブラウザで開く rundll32.exe が要る（利用者の WSL の PATH には Windows の System32 が入っている）
+  win_dir=""
+  [ -d /mnt/c/Windows/System32 ] && win_dir=":/mnt/c/Windows/System32"
   cd "$dir/work"
   exec env -i \
     HOME="$dir/home" TERM="${TERM:-xterm}" LANG="${LANG:-C.UTF-8}" \
     XDG_CONFIG_HOME="$dir/home/.config" XDG_DATA_HOME="$dir/home/.local/share" \
     XDG_CACHE_HOME="$dir/home/.cache" XDG_STATE_HOME="$dir/home/.local/state" \
     npm_config_prefix="$dir/npm" npm_config_cache="$dir/home/.npm" npm_config_registry="$REGISTRY" \
+    ${WSL_DISTRO_NAME:+WSL_DISTRO_NAME="$WSL_DISTRO_NAME"} ${WSL_INTEROP:+WSL_INTEROP="$WSL_INTEROP"} \
     CLAUDE_CONFIG_DIR="$dir/home/.claude" DISABLE_AUTOUPDATER=1 \
     ${token:+CLAUDE_CODE_OAUTH_TOKEN="$token"} \
     PS1="[lab:$name] \w \$ " \
-    PATH="$dir/npm/bin:$dir/bin:$node_dir:/usr/bin:/bin" \
+    PATH="$dir/npm/bin:$dir/bin:$node_dir:/usr/bin:/bin$win_dir" \
     bash --norc -i
   ;;
 down)
