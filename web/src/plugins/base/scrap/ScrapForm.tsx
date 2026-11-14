@@ -79,7 +79,10 @@ export function ScrapForm({
     }),
   )
   const { book, page } = found
-  const size = book && page ? pageArea(catalog, book, page)?.size : undefined
+  const area = book && page ? pageArea(catalog, book, page)?.size : undefined
+  // 測ってから描く見せ方は、描いてみて分かった広さ（DrawnSheet が知らせる）
+  const [drawn, setDrawn] = useState<Size | null>(null)
+  const size = drawn ?? area
   const paper = page ? paperSize(catalog, page) : null
   // ページの絵の上の位置 = 範囲 + ずらした量
   const shift = { x: (page?.shift?.x ?? 0) * (paper?.w ?? 0), y: (page?.shift?.y ?? 0) * (paper?.h ?? 0) }
@@ -115,11 +118,10 @@ export function ScrapForm({
             <DrawnScope catalog={catalog} book={book} page={page} zoom={fit}>
               {stage => (
                 <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
-                  <DrawnSheet stage={stage} book={book} page={page} size={size} />
+                  <DrawnSheet stage={stage} book={book} page={page} size={size} onSize={setDrawn} />
                 </div>
               )}
             </DrawnScope>
-            {/* biome-ignore lint/a11y/noStaticElementInteractions: 範囲の枠はポインタで動かす（数の入力は倍率だけ） */}
             <div
               className={styles.area}
               data-scrap-area
@@ -130,7 +132,6 @@ export function ScrapForm({
               onPointerCancel={release}
             >
               {GRIPS.map(g => (
-                // biome-ignore lint/a11y/noStaticElementInteractions: 範囲の角と辺のつまみ
                 <div
                   key={`${g.dx},${g.dy}`}
                   className={styles.grip}

@@ -1,18 +1,20 @@
 // スクラップの中を描く部品: スクラップ（scrap.ts。指すページの id・見る範囲・倍率）を、置いたときの大きさ（scrapSize）の枠に描く。ページを、そのページのブックの見た目で、見るだけに描く
 // （描いているページ。ui/drawn.tsx）。指す先のページが無ければ No Data、スクラップをたどって同じページに戻ったら輪の印を描く（どちらも灰色の枠）。
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
-import { createContext, type ReactNode, useContext, useMemo } from "react"
+import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pageById } from "../../../core/book"
+import { bookType } from "../../../core/core-catalog"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
 import { DrawnScope } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
 import { pageArea, paperSize } from "../place/items"
+import type { PrintMeasured } from "../print-preview/measures-state"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import styles from "./ScrapView.module.css"
@@ -75,25 +77,69 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   )
 }
 
-// 描いているページ stage の中身: ページの広さ size のまま、そのブックの見た目で、印刷区画 1 つのビューを並べたレイヤー（sheet-layers）を描く
+// 描いているページ stage の中身: そのブックの見た目で、印刷区画 1 つのビュー（sheet-layers）を描く。
+// 紙の見せ方などは、ページの広さ size を 1 つの印刷区画として描く。描く前に測る見せ方（printMeasure。マークダウンなど）は、見えない所で測ってから、
+// 測った数の印刷区画を紙の大きさで縦に並べる（広さは紙の幅 × 印刷区画の数の高さ。onSize で知らせる）
 export function DrawnSheet({
   stage,
   book,
   page,
   size,
+  onSize,
   children,
 }: {
   stage: string
   book: Book
   page: Page
   size: Size
+  onSize?: (size: Size) => void
   children?: ReactNode
 }) {
+  const catalog = useCatalog().core
+  const views = useUiCatalog().presentationViews
+  const Measure = views.get(bookType(catalog, book.type).presentation)?.printMeasure
+  const paper = paperSize(catalog, page as ItemPage)
   const look = useBookLookStyle(stage, book.type)
+  const [measured, setMeasured] = useState<PrintMeasured | null>(null)
+  const report = useCallback(
+    (m: PrintMeasured) =>
+      setMeasured(was => (was && was.rows === m.rows && JSON.stringify(was.data) === JSON.stringify(m.data) ? was : m)),
+    [],
+  )
+  const shown = Measure && paper ? (measured ? { w: paper.w, h: paper.h * measured.rows } : null) : size
+  const w = shown?.w
+  const h = shown?.h
+  useLayoutEffect(() => {
+    if (w !== undefined && h !== undefined) onSize?.({ w, h })
+  }, [w, h, onSize])
   return (
-    <div className={styles.sheet} style={{ ...look, width: size.w, height: size.h }}>
+    <div className={styles.sheet} style={{ ...look, width: shown?.w ?? size.w, height: shown?.h ?? size.h }}>
+      {Measure && paper && (
+        <div className={styles.measure} aria-hidden="true">
+          <Printing>
+            <Measure stage={stage} book={book} page={page} paper={paper} report={report} />
+          </Printing>
+        </div>
+      )}
       <Printing>
-        <SheetLayers stage={stage} book={book} page={page} column={0} row={0} paper={size} />
+        {Measure && paper ? (
+          measured &&
+          Array.from({ length: measured.rows }, (_, row) => (
+            <SheetLayers
+              // biome-ignore lint/suspicious/noArrayIndexKey: 印刷区画は上からの順で、並べ替えない
+              key={row}
+              stage={stage}
+              book={book}
+              page={page}
+              column={0}
+              row={row}
+              paper={paper}
+              measured={measured.data}
+            />
+          ))
+        ) : (
+          <SheetLayers stage={stage} book={book} page={page} column={0} row={0} paper={size} />
+        )}
       </Printing>
       {children}
     </div>

@@ -2,7 +2,7 @@
 // トレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。トレイには残り、× で消える。
 // 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、倍率を変えると大きさが変わる
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
-import { leftPanel } from "./helpers/outbox"
+import { leftPanel, openLeftPanel } from "./helpers/outbox"
 import { addBox, items, onPaper, paper } from "./helpers/paper"
 
 // ページの id はブックをまたいで重ならない（スクラップはページの id だけで指す）。共有の見本はどのブックも p1 なので、ここでは自分のブックを置く
@@ -63,4 +63,59 @@ test("ページを切り抜いてトレイに入れ、トレイから置くと�
   await expect(rows).toHaveCount(0)
   await expect(placed).toHaveCount(1)
   await expect(paper(page)).toBeVisible()
+})
+
+test.describe("マークダウンのページ", () => {
+  test.use({
+    // 2 冊の並びは、値と設定の組 [値, {}] で渡す（そのままだと 2 冊目を設定と読む）
+    books: [
+      [
+        {
+          type: "@matomezu/markdown:markdown",
+          id: "scrap-md",
+          title: "メモ",
+          pages: [
+            {
+              id: "scrap-md-page",
+              title: "本文",
+              paper: "@matomezu/base:a4",
+              orientation: "portrait",
+              text: "# 見出しの字\n\n本文の字です。",
+            },
+          ],
+        },
+        {
+          type: "@matomezu/drawing:drawing",
+          id: "scrap-to",
+          title: "置き先",
+          pages: [{ id: "scrap-to-page", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
+        },
+      ],
+      {},
+    ],
+  })
+
+  test("ページタブの右クリックで切り抜くと、測ってから描いた文書が見え、図面に置くと中に文書が見える", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await page.goto("/?b0=scrap-md&v0=1,0,0")
+    await page.getByRole("tab", { name: "本文" }).click({ button: "right" })
+    await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
+    const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
+    await expect(cut.locator("[data-scrap-area]")).toBeVisible()
+    await expect(cut).toContainText("見出しの字")
+    await cut.getByLabel("倍率").fill("50")
+    await cut.getByRole("button", { name: "トレイに入れる" }).click()
+    await expect(cut).toBeHidden()
+    await page.goto("/?b0=scrap-to&v0=1,0,0")
+    await openLeftPanel(page)
+    await leftPanel(page).getByRole("tab", { name: "スクラップトレイ" }).click()
+    await leftPanel(page).locator("[data-scrap-row]").first().getByRole("button").first().click()
+    const at = await onPaper(page, 300, 200)
+    await page.mouse.click(at.x, at.y)
+    const placed = items(page).filter({ has: page.locator('[data-scrap="shown"]') })
+    await expect(placed).toHaveCount(1)
+    await expect(placed).toContainText("本文の字です。")
+  })
 })
