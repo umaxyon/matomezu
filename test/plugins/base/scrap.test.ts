@@ -17,7 +17,7 @@ function ready() {
   return { store, perform, tray }
 }
 
-test("切り抜くとトレイにスクラップが 1 つ入り（指すページがあるかは確かめない）、消すと無くなる", () => {
+test("切り抜くとスクラップトレイにスクラップが 1 つ入り（指すページがあるかは確かめない）、消すと無くなる", () => {
   const { perform, tray } = ready()
   expect(perform(CUT, ONE).ok).toBe(true)
   expect(perform(CUT, { ...ONE, page: "nothing" }).ok).toBe(true)
@@ -63,7 +63,7 @@ test("置いたときの大きさは、見る範囲 × 倍率（小数は切り�
   expect(scrapSize({ area: { x: 0, y: 0, w: 101, h: 33 }, scale: 0.5 })).toEqual({ w: 51, h: 17 })
 })
 
-test("スクラップを置く枠は、ブックのタイプが置けるアイテムのうち scrapFrame の付いた物（図面・フローチャートはスクラップボックス、ツリーには無い）", () => {
+test("スクラップフレームは、ブックのタイプが置けるアイテムのうち scrapFrame の付いた物（図面・フローチャートはスクラップボックス、ツリーには無い）", () => {
   const { store } = ready()
   const catalog = store.catalog.core
   const book = (type: string) => ({ id: "x", title: "x", type, pages: [] }) as never

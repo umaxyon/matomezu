@@ -1,6 +1,6 @@
-// スクラップの見た目の、base の側: 切り抜くダイアログ（ScrapForm で範囲と倍率を決め、トレイに入れる）と、スクラップトレイ（左サイドパネルのタブ）と、トレイを開くボタン。
-// トレイを開けるのは、スクラップを置く枠を置けるブックを開いているステージだけ（ボタンは、そのときだけ出る。置けないブックに替わったら、開いているトレイを閉じる）。
-// トレイは切り抜いた新しい順に並べ、押すと、今のステージで置ける「スクラップを置く枠」（scrapFrameIn）で、その値のまま置こうとする。× は確かめてから消す
+// スクラップの見た目の、base の側: 切り抜くダイアログ（ScrapForm で範囲と倍率を決め、スクラップトレイに入れる）と、スクラップトレイ（左サイドパネルのタブ）と、スクラップトレイを開くボタン。
+// スクラップトレイを開けるのは、スクラップフレームを置けるブックを開いているステージだけ（ボタンは、そのときだけ出る。置けないブックに替わったら、開いているスクラップトレイを閉じる）。
+// スクラップトレイは切り抜いた新しい順に並べ、押すと、今のステージで置けるスクラップフレーム（scrapFrameIn）で、その値のまま置こうとする。× は確かめてから消す
 import { useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pageById, pagedOf } from "../../../core/book"
@@ -34,7 +34,7 @@ import { ScrapView } from "./ScrapView"
 import { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, scrapSize, wholePage } from "./scrap"
 import { SCRAP_TRAY_TAB_ID } from "./tab-id"
 
-// 切り抜くダイアログ: 範囲は、はじめはページ全体（等倍）。決めるとトレイに入れ、トレイを開く
+// 切り抜くダイアログ: 範囲は、はじめはページ全体（等倍）。決めるとスクラップトレイに入れ、スクラップトレイを開く
 export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
@@ -74,7 +74,7 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
             return
           }
           onClose()
-          // 置けるブックなら、トレイを開く。置けないブックでは、入れたことだけを知らせる
+          // 置けるブックなら、スクラップトレイを開く。置けないブックでは、入れたことだけを知らせる
           if (placeable) openPanel(scrapTrayEntries(stage), SCRAP_TRAY_TAB_ID)
           else showToast({ kind: "success", message: kit.message("Put in the scrap tray") })
         }}
@@ -85,7 +85,7 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
   )
 }
 
-// ステージ stage で、スクラップトレイから置く枠のアイテム（開いているブックに置けなければ null）
+// ステージ stage で、スクラップトレイから置くスクラップフレームのアイテム（開いているブックに置けなければ null）
 function useScrapFrame(stage: string) {
   const catalog = useCatalog().core
   const book = pagedOf(useBook(stage))
@@ -93,7 +93,7 @@ function useScrapFrame(stage: string) {
   return book && view ? scrapFrameIn(catalog, book, view.edits) : null
 }
 
-// スクラップトレイを開く側が、左サイドパネルに渡すタブの組（トレイだけ）
+// スクラップトレイを開く側が、左サイドパネルに渡すタブの組（スクラップトレイだけ）
 const scrapTrayEntries = (stage: string): readonly LeftSidePanelEntry[] => [
   { tab: SCRAP_TRAY_TAB_ID, props: { stage } },
 ]
@@ -190,7 +190,7 @@ export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID, {
 
 export const SCRAP_DIALOG_VIEWS = { [SCRAP_CUT_DIALOG.id]: ScrapCutDialog }
 
-// スクラップトレイを開くボタン（フッタメニューのツールボックスの並びに置く）: 置けるブックを開いているときだけ出し、押すとトレイだけを開く（もう一度押すと閉じる）
+// スクラップトレイを開くボタン（フッタメニューのツールボックスの並びに置く）: 置けるブックを開いているときだけ出し、押すとスクラップトレイだけを開く（もう一度押すと閉じる）
 function ScrapTrayButton({ stage }: StageSlotProps) {
   const t = useMessages(kit)
   const placeable = useScrapFrame(stage) !== null

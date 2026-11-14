@@ -1,5 +1,5 @@
-// スクラップの、base の側: スクラップを置く枠の印（アイテムの定義の拡張ポイント scrapFrame）、切り抜くダイアログとそれを開くコマンド。
-// 切り抜くのは、切り抜きたいページで（ページタブと紙の右クリック）。切り抜いたスクラップはスクラップトレイに入り、置くのはトレイから（ui.tsx）
+// スクラップの、base の側: スクラップフレームの印（アイテムの定義の拡張ポイント scrapFrame）、切り抜くダイアログとそれを開くコマンド。
+// 切り抜くのは、切り抜きたいページで（ページタブと紙の右クリック）。切り抜いたスクラップはスクラップトレイに入り、置くのはスクラップトレイから（ui.tsx）
 import { pagedOf } from "../../../core/book"
 import { bookType, type CatalogCheckDef, type CoreCatalog, type ItemId } from "../../../core/core-catalog"
 import type { EditList } from "../../../core/def/book-type"
@@ -13,8 +13,8 @@ import { kit } from "../kit"
 import { placeableIn } from "../toolbox/toolbox"
 import { SCRAP_CUT, type Scrap } from "./scrap"
 
-// スクラップを置く枠の印（定義オブジェクトの拡張ポイントに書き足す）。true を書いた形は、スクラップトレイから置ける。
-// 書けるのは、項目の形がスクラップと同じ形（ScrapSchema）の形だけ（トレイは、スクラップの値だけを項目にして置くため）
+// スクラップフレームの印（定義オブジェクトの拡張ポイントに書き足す）。true を書いた形は、スクラップトレイから置ける。
+// 書けるのは、項目の形がスクラップと同じ形（ScrapSchema）の形だけ（スクラップトレイは、スクラップの値だけを項目にして置くため）
 declare module "../../../core/catalog" {
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     scrapFrame?: unknown extends D["props"]
@@ -36,7 +36,7 @@ export const SCRAP_FRAME_CHECK: CatalogCheckDef = catalog =>
     return parsed?.success && sameData(parsed.data, SAMPLE) ? [] : [problem("E127", { id: i.id })]
   })
 
-// ブック book の、直している並び edits に置ける、スクラップを置く枠のアイテム（いくつもあれば、置ける物の並びの先頭。無ければ null）
+// ブック book の、直している並び edits に置ける、スクラップフレームのアイテム（いくつもあれば、置ける物の並びの先頭。無ければ null）
 export function scrapFrameIn(catalog: CoreCatalog, book: Book, edits: EditList): ItemId | null {
   const found = placeableIn(bookType(catalog, book.type), edits).find(
     id => (catalog.items.get(id) as { scrapFrame?: true } | undefined)?.scrapFrame === true,
@@ -60,7 +60,7 @@ export const SCRAP_CUT_COMMAND = kit.defineCommand({
   when: ctx => ctx.book !== null && ctx.stage.opened?.page != null,
 })
 
-// 右クリックした形 item が、スクラップを置く枠なら、その項目のスクラップ（違えば null）
+// 右クリックした形 item が、スクラップフレームなら、その項目のスクラップ（違えば null）
 function scrapOf(ctx: CommandContext, item: string | undefined): Scrap | null {
   if (item === undefined) return null
   const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
@@ -69,7 +69,7 @@ function scrapOf(ctx: CommandContext, item: string | undefined): Scrap | null {
   return placed && def?.scrapFrame === true ? (placed.props as Scrap) : null
 }
 
-// 元のページを開く: 右クリックしたスクラップ（スクラップを置く枠の形）の、指すページを、このステージで開く。指す先が無ければ何もしない
+// 元のページを開く: 右クリックしたスクラップ（スクラップフレームの形）の、指すページを、このステージで開く。指す先が無ければ何もしない
 export const SCRAP_OPEN_ORIGINAL = kit.defineCommand({
   id: "scrap-open-original",
   title: "Open the original page",
@@ -77,7 +77,7 @@ export const SCRAP_OPEN_ORIGINAL = kit.defineCommand({
     const scrap = scrapOf(ctx, item)
     if (scrap) a.openPageById(ctx.stage.id, scrap.page)
   },
-  // 右クリックのメニューでは、スクラップを置く枠の形のときだけ出す（行うときはメニューが閉じているので、形は run が確かめる）
+  // 右クリックのメニューでは、スクラップフレームの形のときだけ出す（行うときはメニューが閉じているので、形は run が確かめる）
   when: ctx => {
     const item = (ctx.contextMenu?.target as { item?: string } | undefined)?.item
     return item === undefined || scrapOf(ctx, item) !== null

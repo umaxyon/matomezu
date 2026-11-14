@@ -1,5 +1,5 @@
 // スクラップボックス（@matomezu/scrap:shape-scrap-box）: スクラップトレイのスクラップの値を持って置こうとし、紙を押すと、追加のダイアログ無しでその値のまま置く。
-// 大きさは見る範囲 × 倍率。置いたあともトレイのスクラップは変わらず、元に戻すと置いた形だけが消える
+// 大きさは見る範囲 × 倍率。置いたあともスクラップトレイのスクラップは変わらず、元に戻すと置いた形だけが消える
 import { expect, test } from "bun:test"
 import type { Point } from "../../../../web/src/core/geom"
 import type { BookOf } from "../../../../web/src/core/schema/book"
@@ -29,7 +29,7 @@ test("置こうとしている間の影の大きさは、渡した値の見る�
   expect(placingShape(catalog, BOX)).toBeNull() // スクラップの値が無ければ置けない
 })
 
-test("トレイのスクラップの値で置こうとして紙を押すと、ダイアログ無しでその値のまま置き、トレイは変わらない。元に戻すと置いた形だけが消える", () => {
+test("スクラップトレイのスクラップの値で置こうとして紙を押すと、ダイアログ無しでその値のまま置き、スクラップトレイは変わらない。元に戻すと置いた形だけが消える", () => {
   const store = sizedStore()
   const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean }
   expect(perform("@matomezu/base:scrap-cut", ONE).ok).toBe(true)

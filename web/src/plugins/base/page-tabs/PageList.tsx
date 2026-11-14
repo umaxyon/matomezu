@@ -27,7 +27,7 @@ import styles from "./PageList.module.css"
 import { useTabDrag } from "./useTabDrag"
 
 // ページ 1 枚のサムネイル
-// ステージの外で描くので、中の物には描いているページの id を渡す（ステージの選択などが中に写らない）
+// ステージの外で描くので、中の物には窓に無い id を渡す（ステージの選択などが中に写らない）
 function Thumbnail({ book, page }: { book: PagedBook; page: Page }) {
   const catalog = useCatalog().core
   const [width, setWidth] = useState(0)

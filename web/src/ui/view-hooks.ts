@@ -128,7 +128,7 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   const ids = place?.ids?.join("\n")
   const drawn = useDrawn(stage)
   const answer = useMatomezuState(s => {
-    if (drawn) return NOT_ALLOWED // 描いているページには、何も行わない
+    if (drawn) return NOT_ALLOWED // ステージの外で、見るだけに描くページには、何も行わない
     const st = stageIn(s.window, stage)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
@@ -366,7 +366,7 @@ export function usePerform(stage: string): <Id extends ActionId>(action: Id, arg
     () =>
       <Id extends ActionId>(action: Id, args: ArgsOf<Id>): Performed<Id> => {
         const loose = perform as (id: string, args: unknown, on?: ActionOn) => Performed<Id>
-        if (drawn) return { ok: false, reason: "no-book" } // 描いているページからは、何も行わない
+        if (drawn) return { ok: false, reason: "no-book" } // ステージの外で、見るだけに描くページからは、何も行わない
         if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
         if (!isOnBook(catalog.actions.get(action)?.target)) return loose(action, args)
         return book === undefined ? { ok: false, reason: "no-book" } : loose(action, args, { book })

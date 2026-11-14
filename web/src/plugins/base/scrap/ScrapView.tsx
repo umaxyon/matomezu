@@ -1,5 +1,5 @@
 // スクラップの中を描く部品: スクラップ（scrap.ts。指すページの id・見る範囲・倍率）を、置いたときの大きさ（scrapSize）の枠に描く。ページを、そのページのブックの見た目で、見るだけに描く
-// （描いているページ。ui/drawn.tsx）。指す先のページが無ければ No Data、スクラップをたどって同じページに戻ったら輪の印を描く（どちらも灰色の枠）。
+// （ステージの外で、見るだけに描くページ。ui/drawn.tsx）。指す先のページが無ければ No Data、スクラップをたどって同じページに戻ったら輪の印を描く（どちらも灰色の枠）。
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -71,7 +71,7 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   )
 }
 
-// 描いているページ stage の中身: そのブックの見た目で、印刷区画 1 つのビュー（sheet-layers）を描く。
+// ステージの外で、見るだけに描くページ stage の中身: そのブックの見た目で、印刷区画 1 つのビュー（sheet-layers）を描く。
 // 紙の見せ方などは、ページの広さ size を 1 つの印刷区画として描く。描く前に測る見せ方（printMeasure。マークダウンなど）は、見えない所で測ってから、
 // 測った数の印刷区画を紙の大きさで縦に並べる（広さは紙の幅 × 印刷区画の数の高さ。onSize で知らせる）
 export function DrawnSheet({

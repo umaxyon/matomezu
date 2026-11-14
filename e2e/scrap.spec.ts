@@ -1,5 +1,5 @@
-// スクラップ: 紙の右クリックの「スクラップを切り抜く」で、範囲（はじめはページ全体）と倍率を決めてトレイに入れると、左サイドパネルのスクラップトレイが開く。
-// トレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。トレイには残り、× で消える。
+// スクラップ: 紙の右クリックの「スクラップを切り抜く」で、範囲（はじめはページ全体）と倍率を決めてスクラップトレイに入れると、左サイドパネルのスクラップトレイが開く。
+// スクラップトレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。スクラップトレイには残り、× で消える。
 // 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、倍率を変えると大きさが変わる
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { leftPanel } from "./helpers/outbox"
@@ -25,14 +25,14 @@ test.use({
   ],
 })
 
-test("ページを切り抜いてトレイに入れ、トレイから置くと中に元のページが見える。置いてもトレイに残り、× で消える。ダブルクリックで倍率を直せる", async ({
+test("ページを切り抜いてスクラップトレイに入れ、スクラップトレイから置くと中に元のページが見える。置いてもスクラップトレイに残り、× で消える。ダブルクリックで倍率を直せる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "元の箱")
 
-  // 紙の何も無い所を右クリックして切り抜く。倍率を 25% にしてトレイに入れる
+  // 紙の何も無い所を右クリックして切り抜く。倍率を 25% にしてスクラップトレイに入れる
   const empty = await onPaper(page, 700, 500)
   await page.mouse.click(empty.x, empty.y, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
@@ -43,7 +43,7 @@ test("ページを切り抜いてトレイに入れ、トレイから置くと�
   await cut.getByRole("button", { name: "トレイに入れる" }).click()
   await expect(cut).toBeHidden()
 
-  // トレイが開き、切り抜いたスクラップが 1 つ並ぶ
+  // スクラップトレイが開き、切り抜いたスクラップが 1 つ並ぶ
   await expect(leftPanel(page).getByRole("tab", { name: "スクラップトレイ" })).toHaveAttribute("aria-selected", "true")
   const rows = leftPanel(page).locator("[data-scrap-row]")
   await expect(rows).toHaveCount(1)
@@ -66,7 +66,7 @@ test("ページを切り抜いてトレイに入れ、トレイから置くと�
   await expect(edit).toBeHidden()
   await expect.poll(async () => (await placed.boundingBox())!.width).toBeGreaterThan(before.width * 1.5)
 
-  // × でトレイから消える（置いた物はそのまま）
+  // × でスクラップトレイから消える（置いた物はそのまま）
   await rows.first().getByRole("button", { name: "スクラップを消す" }).click()
   const confirm = page.getByRole("alertdialog", { name: "このスクラップをトレイから消しますか？" })
   await confirm.getByRole("button", { name: "スクラップを消す" }).click()
@@ -118,7 +118,7 @@ test.describe("マークダウンのページ", () => {
     await cut.getByLabel("倍率").fill("50")
     await cut.getByRole("button", { name: "トレイに入れる" }).click()
     await expect(cut).toBeHidden()
-    // マークダウンには置けないので、トレイは開かず、入れたことだけを知らせる。トレイを開くボタンも出ない
+    // マークダウンには置けないので、スクラップトレイは開かず、入れたことだけを知らせる。スクラップトレイを開くボタンも出ない
     await expect(page.getByText("スクラップトレイに入れました")).toBeVisible()
     await expect(leftPanel(page)).toHaveCount(0)
     await expect(page.locator("[data-scrap-tray-opener]")).toHaveCount(0)
@@ -130,7 +130,7 @@ test.describe("マークダウンのページ", () => {
     const placed = items(page).filter({ has: page.locator('[data-scrap="shown"]') })
     await expect(placed).toHaveCount(1)
     await expect(placed).toContainText("本文の字です。")
-    // 右クリックの「元のページを開く」で、マークダウンのページへ移る（トレイは閉じる）
+    // 右クリックの「元のページを開く」で、マークダウンのページへ移る（スクラップトレイは閉じる）
     await placed.click({ button: "right" })
     await page.getByRole("menu").getByRole("menuitem", { name: "元のページを開く" }).click()
     await expect(page.getByRole("tab", { name: "本文" })).toBeVisible()

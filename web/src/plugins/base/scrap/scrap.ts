@@ -1,6 +1,6 @@
-// スクラップ: ページの一部をくり抜いて見せる参照。指すページの id・見る範囲・倍率だけを持ち、ページの中身は持たない。
+// スクラップ: ページの一部を、写さずに見せる参照。指すページの id・見る範囲・倍率だけを持ち、ページの中身は持たない。
 // スクラップトレイは、切り抜いて、まだ置いていないスクラップを集めておく所（対象の定義 scrap のレコード。利用者が消すまで残る）。
-// 置いたスクラップ（スクラップを置く枠のアイテムの項目）は、トレイのスクラップの値を写して持ち、トレイとはつながらない
+// 置いたスクラップ（スクラップフレームのアイテムの項目）は、スクラップトレイのスクラップの値を写して持ち、スクラップトレイとはつながらない
 import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point, Rect, Size } from "../../../core/geom"
@@ -47,7 +47,7 @@ export const SCRAP = kit.defineSubject({
   aiBrief: s => `${s.page} ${s.area.w}x${s.area.h} at ${s.area.x},${s.area.y} x${s.scale}`,
 })
 
-// スクラップを切り抜いてトレイに入れる。指すページがあるかは確かめない（描くときに無ければ、無いと見せる）
+// スクラップを切り抜いてスクラップトレイに入れる。指すページがあるかは確かめない（描くときに無ければ、無いと見せる）
 export const SCRAP_CUT = kit.defineAction({
   id: "scrap-cut",
   title: "Cut out a scrap",
@@ -62,7 +62,7 @@ export const SCRAP_CUT = kit.defineAction({
   },
 })
 
-// トレイのスクラップを消す（置いたスクラップは変わらない）
+// スクラップトレイのスクラップを消す（置いたスクラップは変わらない）
 export const SCRAP_REMOVE = kit.defineAction({
   id: "scrap-remove",
   title: "Remove a scrap",

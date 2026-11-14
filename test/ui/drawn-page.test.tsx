@@ -1,6 +1,6 @@
-// 描いているページ（ui/drawn.tsx）: ステージの外で、窓に無い id にページを結んで描くと、ステージが開いているブックでなく、結んだページのブックの物で描く。
+// ステージの外で、見るだけに描くページ（ui/drawn.tsx）: ステージの外で、窓に無い id にページを結んで描くと、ステージが開いているブックでなく、結んだページのブックの物で描く。
 // ステージの選択は中に写らず、中からは何も行わない
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { pagedOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
@@ -9,7 +9,6 @@ import { kit as baseKit } from "../../web/src/plugins/base/kit"
 import { PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
 import { Printing } from "../../web/src/plugins/base/print-preview/printing"
 import { SheetLayers } from "../../web/src/plugins/base/print-preview/SheetLayers"
-import { ScrapView } from "../../web/src/plugins/base/scrap/ScrapView"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { useCommand } from "../../web/src/ui/commands"
@@ -119,7 +118,7 @@ test("ステージが別のブックを開いて物を選んでいても、結�
   expect(drawn.container.querySelector('[data-selected="true"]')).toBeNull()
 })
 
-test("描いているページでは、ステージは選択も道具も無く、アクションは行えず、行っても何も変わらない", () => {
+test("ステージの外で、見るだけに描くページでは、ステージは選択も道具も無く、アクションは行えず、行っても何も変わらない", () => {
   const { instance, wrap, bookOf } = setup()
   act(() => instance.actions.openBook("s1", "y"))
   act(() => instance.actions.select("s1", ["a"]))
@@ -161,7 +160,7 @@ test("描いているページでは、ステージは選択も道具も無く�
   expect(a.props.caption).toBe("a")
 })
 
-test("描いているページの id には、コマンドは出ず、選択・広さ・右クリックのメニューは窓を変えない", () => {
+test("ステージの外で、見るだけに描くページの id には、コマンドは出ず、選択・広さ・右クリックのメニューは窓を変えない", () => {
   const { instance, wrap, bookOf } = setup()
   act(() => instance.actions.openBook("s1", "y"))
   const x = bookOf("x")
@@ -199,47 +198,7 @@ test("描いているページの id には、コマンドは出ず、選択・�
   expect(instance.state.getState().contextMenu ?? null).toBeNull()
 })
 
-describe("スクラップの中（ScrapView）", () => {
-  test("指したページを、そのブックの物で、範囲 × 倍率の枠に描く。ステージが開いているブックや選択は写らない", () => {
-    const { instance, wrap } = setup()
-    act(() => instance.actions.openBook("s1", "y"))
-    act(() => instance.actions.select("s1", ["l1"]))
-    const { container } = render(
-      wrap(<ScrapView scrap={{ page: "px", area: { x: 20, y: 30, w: 400, h: 200 }, scale: 0.5 }} />),
-    )
-    const frame = container.querySelector<HTMLElement>('[data-scrap="shown"]')!
-    expect([frame.style.width, frame.style.height]).toEqual(["200px", "100px"])
-    expect(frame.querySelector('svg [data-selected="false"]')).not.toBeNull()
-    expect(frame.querySelector('[data-selected="true"]')).toBeNull()
-    expect(frame.innerHTML).toContain("translate(-20px, -30px)")
-  })
-
-  test("指したページが無いか、同じ id のページが 2 つのブックにあれば、枠だけを描く（無い）", () => {
-    const twin = (id: string) => ({ ...Y, id, pages: [{ ...Y.pages[0]!, id: "twin" }] })
-    const { wrap } = setup([twin("t1"), twin("t2")])
-    const { container } = render(
-      wrap(
-        <>
-          <ScrapView scrap={{ page: "twin", area: { x: 0, y: 0, w: 100, h: 50 }, scale: 1 }} />
-          <ScrapView scrap={{ page: "nothing", area: { x: 0, y: 0, w: 100, h: 50 }, scale: 1 }} />
-        </>,
-      ),
-    )
-    expect(container.querySelectorAll('[data-scrap="none"]')).toHaveLength(2)
-  })
-
-  test("可変ページの中身を右・下へずらしたら、ずらした印刷区画の分だけ先を描く", () => {
-    const shiftedBook = { ...X, id: "g", pages: [{ ...X.pages[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } }] }
-    const { wrap } = setup([shiftedBook])
-    const { container } = render(
-      wrap(<ScrapView scrap={{ page: "pg", area: { x: 20, y: 30, w: 400, h: 200 }, scale: 1 }} />),
-    )
-    // A4 横の紙（1123 × 794）の 1 枚右・2 枚下
-    expect(container.innerHTML).toContain(`translate(-${20 + 1123}px, -${30 + 2 * 794}px)`)
-  })
-})
-
-test("描いているページの id には、ステージごとのプラグイン状態もパンも無く、書いても何も変わらない", () => {
+test("ステージの外で、見るだけに描くページの id には、ステージごとのプラグイン状態もパンも無く、書いても何も変わらない", () => {
   const { instance, wrap, bookOf } = setup()
   act(() => instance.actions.openBook("s1", "y"))
   const x = bookOf("x")
