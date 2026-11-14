@@ -43,20 +43,28 @@ export function MatomezuProvider({
   instance,
   layout,
   warnings = NO_WARNINGS,
+  optInAdded = false,
   children,
 }: {
   instance: MatomezuInstance<readonly AnyPluginUi[]>
   layout: LayoutDef
   warnings?: readonly Warning[]
+  optInAdded?: boolean // 追加プラグインを、利用者が設定で有効にするまで置かないか（動いている画面。テストで組むときは、渡したプラグインを全部置く）
   children: ReactNode
 }) {
   const ui = useMemo(() => assembleUi(instance.plugins), [instance])
-  // 利用者が無効にしたプラグイン（role が disabled-plugins の設定）の物は、組み込んだまま UI マッピングに置かない。warning は出さない
+  // 利用者が有効にしていない追加プラグイン（role が enabled-plugins の設定）の物は、組み込んだまま UI マッピングに置かない。warning は出さない
   const settings = useStore(instance.state, s => s.settings)
   const nowDisabled = useMemo(
     () =>
-      disabledPluginsOf(instance.catalog.core, settings, new Set(instance.plugins.filter(isBuiltin).map(p => p.id))),
-    [instance, settings],
+      optInAdded
+        ? disabledPluginsOf(
+            instance.catalog.core,
+            settings,
+            instance.plugins.filter(p => !isBuiltin(p)).map(p => p.id),
+          )
+        : NO_PLUGINS,
+    [instance, settings, optInAdded],
   )
   // 設定のどれが変わっても新しい集合ができるので、中身が同じなら前の集合を使う（UI マッピングを組み直して画面全体を描き直さない）
   const disabledRef = useRef(nowDisabled)
@@ -97,6 +105,7 @@ export function useInstance(): MatomezuInstance {
   return useMatomezuContext().store
 }
 
+const NO_PLUGINS: ReadonlySet<string> = new Set()
 const sameIds = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every(id => b.has(id))
 
 const NO_WARNINGS: readonly Warning[] = []

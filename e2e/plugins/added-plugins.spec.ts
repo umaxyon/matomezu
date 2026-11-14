@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace } from "../fixtures"
 import { footerMenuTool } from "../helpers/footer-menu"
+import { enablePlugins } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
 
 // 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが自分で足し、テストが終われば外す
@@ -149,6 +150,9 @@ test("取り込んだプラグインが置いてほしいと書いたウィジ�
   })
   expect(await linked.json()).toEqual({ ok: true, id: "ex1" })
   await page.waitForFunction(() => !("notReloaded" in window))
+  // 足したときは無効なので、有効にするまで置かない
+  await expect(page.getByRole("button", { name: "あいさつする" })).toHaveCount(0)
+  await enablePlugins(page, "ex1")
   await expect(page.getByRole("button", { name: "あいさつする" })).toBeVisible()
   const removed = await page.request.post("/api/plugins/remove", { headers: aiAuth(), data: { id: "ex1" } })
   expect(await removed.json()).toEqual({ ok: true })
@@ -170,6 +174,7 @@ test("3 つを読ませると、作り手の違うプラグインのボタンが
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2", "ex1", "ex3"])
   await page.goto(BOOK_SCREEN_URL)
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
+  await enablePlugins(page, "ex1", "ex3")
   await expect(page.getByRole("button", { name: "あいさつする" })).toBeVisible()
   await page.getByRole("button", { name: "ミントにする" }).click()
   await expect.poll(async () => (await saved(page, flow.id))?.settings?.["@matomezu/base:book-theme"]).toBe("ex3:mint")
@@ -324,6 +329,7 @@ test("ex10 のステージに結ばない宣言（address が push）は、変�
 }) => {
   await link(page, "test/added-plugins/ex10")
   await page.goto(BOOK_SCREEN_URL)
+  await enablePlugins(page, "ex10")
   const tabs = page.locator("[data-ex10-tabs]")
   await expect(tabs).toHaveAttribute("data-tab", "one")
   await tabs.locator("button").nth(1).click()
@@ -340,6 +346,7 @@ test("ex12 のスクリーンアレンジメントに替えると、スクリー
 }) => {
   await link(page, "test/added-plugins/ex12")
   await page.goto(BOOK_SCREEN_URL)
+  await enablePlugins(page, "ex12")
   await page.locator("[data-ex12-switch] button").nth(0).click()
   const rows = page.locator("[data-ex12-row]")
   await expect(rows).toHaveCount(2)

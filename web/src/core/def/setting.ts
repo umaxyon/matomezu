@@ -8,8 +8,8 @@ import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 
 // 土台が読む利用者の設定の項目の role: lang は言語（値は言語パックの id）、skin はスキン（スキンの id か "auto"）、keys はキーバインドの、利用者の変更、
-// participant-alive は参加者が「生きている」とする長さ（値は分の数。数か、数の文字）、disabled-plugins は画面に置かない追加プラグインの id の並び
-export type SettingRole = "lang" | "skin" | "keys" | "participant-alive" | "disabled-plugins"
+// participant-alive は参加者が「生きている」とする長さ（値は分の数。数か、数の文字）、enabled-plugins は画面に置かない追加プラグインの id の並び
+export type SettingRole = "lang" | "skin" | "keys" | "participant-alive" | "enabled-plugins"
 
 export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> extends SettingExtras {
   id: string // 本当の id（例: @matomezu/line:line-route）

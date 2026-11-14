@@ -6,7 +6,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { type PlaceInSlot, placeIn } from "../utils/place-in"
-import { DISABLED_PLUGINS } from "./disabled-plugins"
+import { ENABLED_PLUGINS } from "./enabled-plugins"
 import { KeysPane } from "./KeysPane"
 import { SETTINGS_CATEGORIES } from "./settings-screen"
 import { UserSettings } from "./UserSettings"
@@ -45,7 +45,7 @@ export const GENERAL_CATEGORY = defineSettingsCategory({
 export const PLUGINS_CATEGORY = defineSettingsCategory({
   id: kit.name("settings-plugins"),
   title: kit.message("Plugins"),
-  settings: [DISABLED_PLUGINS.id],
+  settings: [ENABLED_PLUGINS.id],
 })
 
 export const KEYS_CATEGORY = defineSettingsCategory({

@@ -125,7 +125,7 @@ import {
   SETTINGS_SET_COMMAND,
   SKIN,
 } from "./settings"
-import { DISABLED_PLUGINS } from "./settings/disabled-plugins"
+import { ENABLED_PLUGINS } from "./settings/enabled-plugins"
 import { STAGE_CLOSE, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import {
   BACKGROUND_EDIT,
@@ -347,7 +347,7 @@ export const BASE = defineBuiltin(
       NOTE_EXPIRY,
       PARTICIPANT_ALIVE,
       CORNER_STATUS_ORDER,
-      DISABLED_PLUGINS,
+      ENABLED_PLUGINS,
       SOFT_BREAK,
     ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
@@ -483,7 +483,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
-    "@matomezu/base:disabled-plugins": typeof DISABLED_PLUGINS
+    "@matomezu/base:enabled-plugins": typeof ENABLED_PLUGINS
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS
     "@matomezu/base:text-colors": typeof USER_TEXT_COLORS

@@ -59,7 +59,7 @@ if (!root) fail("E202")
 
 createRoot(root).render(
   <StrictMode>
-    <MatomezuProvider instance={store} layout={layout} warnings={screenWarnings}>
+    <MatomezuProvider instance={store} layout={layout} warnings={screenWarnings} optInAdded>
       <WindowRoot />
     </MatomezuProvider>
   </StrictMode>,

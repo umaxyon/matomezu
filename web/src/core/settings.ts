@@ -55,16 +55,16 @@ export function participantAliveMs(catalog: CoreCatalog, settings: Settings): nu
   return Number.isFinite(minutes) && minutes > 0 ? minutes * 60_000 : 0
 }
 
-// 画面に置かない（利用者が無効にした）プラグインの id の集合: role が disabled-plugins の項目の値（形に合わない値は無し）から、ビルトインプラグイン builtin を除いた物。
-// ビルトインプラグインは無効にできない
+// 画面に置かない（利用者が有効にしていない）追加プラグインの id の集合: 追加プラグイン added のうち、role が enabled-plugins の項目の値（形に合わない値は無し）に無い物。
+// ビルトインプラグインは追加プラグインに含めないので、いつも有効
 export function disabledPluginsOf(
   catalog: CoreCatalog,
   settings: Settings,
-  builtin: ReadonlySet<string>,
+  added: readonly string[],
 ): ReadonlySet<string> {
-  const value = byRole(catalog, settings, "disabled-plugins")
-  const ids = Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []
-  return new Set(ids.filter(id => !builtin.has(id)))
+  const value = byRole(catalog, settings, "enabled-plugins")
+  const enabled = new Set(Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [])
+  return new Set(added.filter(id => !enabled.has(id)))
 }
 
 // 参加者が時点 nowMs で生きているか: 最後に呼ばれた時刻 calledAt（無ければ呼ばれていない）から、有効時間の設定以内。画面もホスト（エンジン経由）もこれで決める

@@ -3,7 +3,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { defineMessages } from "../../../web/src/core/i18n/messages"
-import { DISABLED_PLUGINS } from "../../../web/src/plugins/base/settings/disabled-plugins"
+import { ENABLED_PLUGINS } from "../../../web/src/plugins/base/settings/enabled-plugins"
 import { PLUGIN_FRAMES } from "../../../web/src/plugins/taskboard/board/slots"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -24,16 +24,16 @@ const FRAME = defineWidget({
 })
 const EX = definePluginUi(kit.plugin({}), { widgets: [FRAME] })
 
-function renderBoard(disabled: readonly string[]) {
+function renderBoard(enabled: readonly string[]) {
   const store = createMatomezu({
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
     plugins: [...BUILTIN_UI, EX],
-    settings: { "@matomezu/base:disabled-plugins": disabled },
+    settings: { "@matomezu/base:enabled-plugins": enabled },
   })
   const added = store.actions.perform("@matomezu/taskboard:project-add", {})
   render(
-    <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)}>
+    <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)} optInAdded>
       <WindowRoot />
     </MatomezuProvider>,
   )
@@ -41,20 +41,20 @@ function renderBoard(disabled: readonly string[]) {
 }
 
 test("プラグインフレームのスロットに置いたウィジェットが、そのボードのプロジェクトの id を受け取って並ぶ", () => {
-  const { project } = renderBoard([])
+  const { project } = renderBoard(["@ex/frame"])
   expect(project).not.toBe("")
   expect(document.querySelector("[data-ex-frame]")?.getAttribute("data-ex-frame")).toBe(project)
 })
 
-test("動いている間にスイッチを切ると枠が消え、入れると戻る（プラグインは組み込んだまま）", () => {
-  const { store } = renderBoard(["@ex/frame"])
+test("足したときは無効で枠は出ず、スイッチを入れると出て、切ると消える（動いている間。プラグインは組み込んだまま）", () => {
+  const { store } = renderBoard([])
   expect(document.querySelector("[data-ex-frame]")).toBeNull()
   act(() => {
-    store.actions.perform("@matomezu/base:settings-set", { values: { [DISABLED_PLUGINS.id]: [] } })
+    store.actions.perform("@matomezu/base:settings-set", { values: { [ENABLED_PLUGINS.id]: ["@ex/frame"] } })
   })
   expect(document.querySelector("[data-ex-frame]")).not.toBeNull()
   act(() => {
-    store.actions.perform("@matomezu/base:settings-set", { values: { [DISABLED_PLUGINS.id]: ["@ex/frame"] } })
+    store.actions.perform("@matomezu/base:settings-set", { values: { [ENABLED_PLUGINS.id]: [] } })
   })
   expect(document.querySelector("[data-ex-frame]")).toBeNull()
 })
