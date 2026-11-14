@@ -14,7 +14,7 @@ import { placeableIn } from "../toolbox/toolbox"
 import { SCRAP_CUT, type Scrap } from "./scrap"
 
 // スクラップフレームの印（定義オブジェクトの拡張ポイントに書き足す）。true を書いた形は、スクラップトレイから置ける。
-// 書けるのは、項目の形がスクラップと同じ形（ScrapSchema）の形だけ（スクラップトレイは、スクラップの値だけを項目にして置くため）
+// 書けるのは、スクラップの値だけでそのまま項目になる形だけ（足す項目は省けるものに限る。スクラップトレイは、スクラップの値だけを項目にして置くため）
 declare module "../../../core/catalog" {
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     scrapFrame?: unknown extends D["props"]
@@ -27,7 +27,7 @@ declare module "../../../core/catalog" {
   }
 }
 
-// scrapFrame を書いた形の項目の形が、スクラップの形と同じか（台帳アセンブルのときの確かめ。スクラップの値がそのまま項目になり、余分な項目も要らないこと）
+// scrapFrame を書いた形が、スクラップの値だけでそのまま項目になるか（台帳アセンブルのときの確かめ。スクラップの値が通り、値が変わらないこと）
 const SAMPLE: Scrap = { page: "p", area: { x: 0, y: 0, w: 1, h: 1 }, scale: 1 }
 export const SCRAP_FRAME_CHECK: CatalogCheckDef = catalog =>
   [...catalog.items.values()].flatMap(i => {

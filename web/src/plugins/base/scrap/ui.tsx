@@ -52,7 +52,7 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
   return (
     <Dialog
       title={t("Cut out a scrap")}
-      width={640}
+      large
       onClose={onClose}
       actions={
         <>
@@ -65,6 +65,7 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
     >
       <Form
         id={form}
+        fill
         ready={value !== null}
         onSubmit={() => {
           if (!value) return

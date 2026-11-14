@@ -1,14 +1,23 @@
-// スクラップボックスのビュー: 項目のスクラップを、base の部品（ScrapView）で描く。中は見るだけで、押しても中の物は選ばれない（選ばれるのはこの形）
+// スクラップボックスのビュー: 項目のスクラップを、base の部品（ScrapView）で描き、その上に枠線を引く（大きさを変えないよう、内側に 1 本）。
+// 中は見るだけで、押しても中の物は選ばれない（選ばれるのはこの形）
 import type { ItemProps } from "../../../plugin-api"
 import type { ItemViewProps } from "../../../plugin-api/ui"
+import { colorPaint } from "../../base"
 import { ScrapView } from "../../base/ui"
-import type { SCRAP_BOX } from "."
+import { NO_LINE, type SCRAP_BOX } from "."
 import styles from "./ScrapBoxView.module.css"
 
+// 枠線の色（CSS の値。引かなければ null）: 無ければテーマの線の色、色ならその色
+export const lineColor = (line: string | undefined): string | null =>
+  line === undefined ? "var(--scrap-line)" : line === NO_LINE ? null : colorPaint(line).fill
+
 export function ScrapBoxView({ props, zoom }: ItemViewProps<ItemProps<typeof SCRAP_BOX.id>>) {
+  const { line, ...scrap } = props
+  const color = lineColor(line)
   return (
     <div className={styles.box}>
-      <ScrapView scrap={props} zoom={zoom} />
+      <ScrapView scrap={scrap} zoom={zoom} />
+      {color && <div className={styles.line} data-scrap-line style={{ outlineColor: color }} />}
     </div>
   )
 }

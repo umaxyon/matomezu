@@ -159,19 +159,41 @@ export interface Edges {
 }
 
 // 辺をつかんで、紙の上で by だけ動かしたときの左上と大きさ。つかんでいない辺はそのまま。
-// 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは null）
+// 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは null）。
+// ratio なら、つかめるのは角だけで（辺なら null）、向かいの角を止めて幅と高さの比を保つ（引いた量の大きい方に合わせる）。
+// 大きさを項目に写す形（定義の resizedTo）は、写した項目から決まる大きさにする（離したあとの大きさと同じ）
 export function resizedBy(
   catalog: CoreCatalog,
   item: PlacedShape,
   edges: Edges,
   by: Point,
   paper: Size,
+  ratio = false,
 ): { x: number; y: number; w: number; h: number } | null {
   const own = minSize(catalog, item)
   const size = placedSize(catalog, item)
   if (!own || !size) return null
   const children = childrenSize(catalog, item)
   const min = children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
+  if (ratio) {
+    if (!edges.x || !edges.y) return null
+    const right = edges.x === "right"
+    const bottom = edges.y === "bottom"
+    // 止めた角から紙の端までの広さ
+    const room = { w: right ? paper.w - item.x : item.x + size.w, h: bottom ? paper.h - item.y : item.y + size.h }
+    const grown = Math.max((size.w + (right ? by.x : -by.x)) / size.w, (size.h + (bottom ? by.y : -by.y)) / size.h)
+    const f = Math.min(Math.max(grown, min.w / size.w, min.h / size.h), room.w / size.w, room.h / size.h)
+    const wanted = { w: size.w * f, h: size.h * f }
+    const to = shapeDefOf(catalog, item.item)?.resizedTo
+    const next = to ? placedSize(catalog, to(item as ShapeData, wanted) as PlacedShape) : wanted
+    if (!next) return null
+    return {
+      x: right ? item.x : item.x + size.w - next.w,
+      y: bottom ? item.y : item.y + size.h - next.h,
+      w: next.w,
+      h: next.h,
+    }
+  }
   const span = (start: number, len: number, d: number, side: "start" | "end" | undefined, lo: number, max: number) => {
     if (side === "end") return { at: start, len: Math.min(Math.max(len + d, lo), max - start) }
     if (side !== "start") return { at: start, len }
@@ -181,7 +203,17 @@ export function resizedBy(
   }
   const h = span(item.x, size.w, by.x, edges.x && (edges.x === "left" ? "start" : "end"), min.w, paper.w)
   const v = span(item.y, size.h, by.y, edges.y && (edges.y === "top" ? "start" : "end"), min.h, paper.h)
-  return { x: h.at, y: v.at, w: h.len, h: v.len }
+  const rect = { x: h.at, y: v.at, w: h.len, h: v.len }
+  // 大きさを項目に写す形は、写した項目から決まる大きさにし、つかんでいない側の辺を止める
+  const to = shapeDefOf(catalog, item.item)?.resizedTo
+  const next = to ? placedSize(catalog, to(item as ShapeData, rect) as PlacedShape) : null
+  if (!next) return rect
+  return {
+    x: edges.x === "left" ? item.x + size.w - next.w : rect.x,
+    y: edges.y === "top" ? item.y + size.h - next.h : rect.y,
+    w: next.w,
+    h: next.h,
+  }
 }
 
 // 中身を変えた形 next の大きさ: キャプションの項目（定義の captionProp）が変わって、キャプションが見える幅（20 字まで）より狭ければ、そこまで広げる。
@@ -489,12 +521,17 @@ export function shownRects(
 
 // 編集で縮めてよい下限（紙に収める）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行。
 // 文字を縦に置く形はキャプションが全部見える高さ）。子を持つ形は、子がみな入る大きさより小さくしない（placed.ts の childrenSize）。
-// 今それより小さければ今の大きさ
+// 今それより小さければ今の大きさ。大きさを項目に写す形は、今の大きさ（縮めない）
 export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
   const floors = new Map<string, Size>()
   for (const i of shapesOf(page)) {
     const size = placedSize(catalog, i)
     if (!size) continue
+    // 大きさを項目に写す形（定義の resizedTo）は、押されても縮まない（w・h を書いても、大きさは項目から決まるため）
+    if (shapeDefOf(catalog, i.item)?.resizedTo) {
+      floors.set(i.id, size)
+      continue
+    }
     const children = childrenSize(catalog, i) ?? { w: 0, h: 0 }
     floors.set(i.id, {
       w: Math.min(size.w, Math.max(children.w, captionWidth(catalog, i))),

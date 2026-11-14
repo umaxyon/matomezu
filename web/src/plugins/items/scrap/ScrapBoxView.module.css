@@ -1,6 +1,14 @@
 /* スクラップボックス: 中の絵は入力を受けない（押すと、この形が選ばれる） */
 .box {
+  position: relative;
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+/* 枠線: 絵の上に、内側へ 1 本（形の大きさは変えない） */
+.line {
+  position: absolute;
+  inset: 0;
+  outline: 1px solid;
+  outline-offset: -1px;
 }

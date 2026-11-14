@@ -38,8 +38,9 @@ import { freeAt, moveItems, parsePlaced, subtreeOf } from "./items"
 declare module "../../../core/catalog" {
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     "@matomezu/paper:settle"?(item: D, before?: D): D
-    // 大きさを変えられる向き: "width" なら幅だけ（高さは中身から決まる形。つかめるのは左右の辺だけで、高さは置いた大きさのまま）。無ければ幅も高さも
-    "@matomezu/paper:stretch"?: "width"
+    // 大きさを変えられる向き: "width" なら幅だけ（高さは中身から決まる形。つかめるのは左右の辺だけで、高さは置いた大きさのまま）。
+    // "ratio" なら幅と高さの比を保つ（つかめるのは角だけ。高さは幅から決まる）。無ければ幅も高さも
+    "@matomezu/paper:stretch"?: "width" | "ratio"
     // false なら、コピーして貼る（id を振り直す）と壊れる形で、写さない（中の id を指す項目を持つ形など）。書かなければ写せる
     "@matomezu/paper:copies"?: false
   }
@@ -94,7 +95,10 @@ export const ITEM_PLACE = kit.defineAction({
     const props = ctx.catalog.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
     const base = { id: nextItemId(book, ctx.newId), item: args.item, x: 0, y: 0, props: props.data }
-    const resizable = ctx.catalog.items.get(args.item)?.capabilities.includes("resizable")
+    // 大きさを w・h に持つ形か（大きさを項目に写す形〈定義の resizedTo〉は、w・h を書かない。大きさは項目から決まる）
+    const resizable =
+      ctx.catalog.items.get(args.item)?.capabilities.includes("resizable") &&
+      !shapeDefOf(ctx.catalog, args.item)?.resizedTo
     const draft = parsePlaced(ctx.catalog, resizable && args.w !== undefined ? { ...base, w: args.w } : base)
     if (!draft) return null
     const size = placedSize(ctx.catalog, draft)
@@ -304,12 +308,13 @@ export const ITEM_UPDATE = kit.defineAction({
 
 // アイテムの大きさを変える（大きさを変えられるアイテムだけ）。渡した値だけを変える。x・y を渡せば左上も動かす（左や上の辺をつかんで変えるとき）。
 // 近づきすぎた相手は、育った向きに押してどけ、押した列が紙からはみ出すなら、押された形を縮めて収める（base/place/items.ts の replacePushing）。
+// 大きさを項目に写す形（定義の resizedTo）は、w・h を書かずに写した項目にし、求めた幅にならなければ（項目の取れる範囲の外）断る。
 // 一番小さい大きさより小さい・紙からはみ出す・縮めても収まらないなら断る
 export const ITEM_RESIZE = kit.defineAction({
   id: "item-resize",
   attach: ON_PAPER,
   aiDescription:
-    "Change the size of an item that can be resized: only w and h given change; x and y move its top-left too. An item whose height comes from its contents (such as a picture with its caption under it) changes only its width: its height follows the width, and h and y are ignored. A child stays in its parent's child area (x and y are from the parent's top-left) and pushes the other children, which do not shrink; its parent grows to hold it and pushes the page's shapes. Shapes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed shapes shrink (no narrower than their caption, no lower than one caption line). It is refused below the item's smallest size, off the paper, or when they cannot shrink enough.",
+    "Change the size of an item that can be resized: only w and h given change; x and y move its top-left too. An item whose height comes from its contents (such as a picture with its caption under it) changes only its width: its height follows the width, and h and y are ignored. An item that keeps its proportions (such as a scrap, whose size is its area × scale) changes by w alone: h is ignored, its height follows, and a w its own limits cannot give is refused. A child stays in its parent's child area (x and y are from the parent's top-left) and pushes the other children, which do not shrink; its parent grows to hold it and pushes the page's shapes. Shapes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed shapes shrink (no narrower than their caption, no lower than one caption line). It is refused below the item's smallest size, off the paper, or when they cannot shrink enough.",
   title: "Resize item",
   target: "book",
   args: z.strictObject({
@@ -328,14 +333,18 @@ export const ITEM_RESIZE = kit.defineAction({
     if (!page || !now || !ctx.catalog.items.get(now.item)?.capabilities.includes("resizable")) return null
     const size = placedSize(ctx.catalog, now)
     if (!size) return null
-    const widthOnly = shapeDefOf(ctx.catalog, now.item)?.[kit.name("stretch")] === "width"
-    const resized = parsePlaced(ctx.catalog, {
-      ...now,
-      x: args.x ?? now.x,
-      y: widthOnly ? now.y : (args.y ?? now.y),
-      w: args.w ?? size.w,
-      h: widthOnly ? size.h : (args.h ?? size.h),
-    })
+    const def = shapeDefOf(ctx.catalog, now.item)
+    const stretch = def?.[kit.name("stretch")]
+    const widthOnly = stretch === "width"
+    const moved = { ...now, x: args.x ?? now.x, y: widthOnly ? now.y : (args.y ?? now.y) }
+    const wanted = { w: args.w ?? size.w, h: widthOnly || stretch === "ratio" ? size.h : (args.h ?? size.h) }
+    const resized = parsePlaced(
+      ctx.catalog,
+      def?.resizedTo ? (def.resizedTo(moved as ShapeData, wanted) as PlacedShape) : { ...moved, ...wanted },
+    )
+    // 項目に写した形は、求めた幅になったか（切り上げの 1px は許す）
+    const got = resized && def?.resizedTo ? placedSize(ctx.catalog, resized) : null
+    if (got && Math.abs(got.w - wanted.w) > 1) return null
     // 幅だけの形は、新しい幅で決まる高さにする
     const fitted = resized && widthOnly ? placedSize(ctx.catalog, resized) : null
     const item = resized && fitted ? { ...resized, h: fitted.h } : resized

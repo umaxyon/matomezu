@@ -1,4 +1,4 @@
-// スクラップのフォームの部品: 指すページ（変えない）の全体を縮めた絵の上で、見る範囲の枠を動かし（中をドラッグ）、角と辺で大きさを変え、倍率を数で入れる。
+// スクラップのフォームの部品: 指すページ（変えない）の全体を、置かれた所の広さに収めた絵の上で、見る範囲の枠を動かし（中をドラッグ）、角と辺で大きさを変え、倍率を数で入れる。
 // 決めた値は onChange で返すだけで、何のアクションを行うかは知らない（切り抜くダイアログと、置いたスクラップを直すダイアログが共に使う）。
 // 範囲は、ページの中身の位置（可変ページで中身をずらす前の位置。scrap.ts）で受けて返す。絵の上ではずらした後の位置で描く。
 // 指すページが無ければ、絵の代わりに No Data を出す。opens を渡せば「元のページを開く」を出し、押すとそのステージで元のページを開いてから onOpened を呼ぶ
@@ -13,6 +13,7 @@ import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-cont
 import { controlClass, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { pageArea } from "../place/items"
+import { useResize } from "../utils/useResize"
 import styles from "./ScrapForm.module.css"
 import { DrawnSheet } from "./ScrapView"
 import {
@@ -26,7 +27,7 @@ import {
   shiftOf,
 } from "./scrap"
 
-// ページの絵を収める大きさ（px）
+// ページの絵を収める大きさ（px。置かれた所の広さを測れるまで）
 const PICTURE = { w: 420, h: 320 }
 // つかんだ所: 枠の中（動かす）か、辺・角（その向きへ大きさを変える）
 type Grip = { dx: -1 | 0 | 1; dy: -1 | 0 | 1 }
@@ -67,7 +68,11 @@ export function ScrapForm({
   const size = drawn ?? area
   // ページの絵の上の位置 = 範囲 + ずらした量
   const shift = page ? shiftOf(catalog, page) : { x: 0, y: 0 }
-  const fit = size ? Math.min(PICTURE.w / size.w, PICTURE.h / size.h) : 1
+  // 絵を収める広さ: 絵を置く所（フォームの残りの広さ）を測る
+  const room = useRef<HTMLDivElement | null>(null)
+  const [picture, setPicture] = useState<Size>(PICTURE)
+  useResize(room, setPicture)
+  const fit = size ? Math.min(picture.w / size.w, picture.h / size.h) : 1
   const drag = useRef<{ grip: Grip; from: Point; start: Rect; pointer: number } | null>(null)
   const [scaleText, setScaleText] = useState(String(Math.round(value.scale * 100)))
   const shown = areaOnPage(value.area, shift)
@@ -89,45 +94,47 @@ export function ScrapForm({
   const placed = scrapSize(value)
   return (
     <div className={styles.form}>
-      <div
-        className={styles.picture}
-        style={size ? { width: size.w * fit, height: size.h * fit } : { width: PICTURE.w, height: PICTURE.h }}
-      >
-        {book && page && size ? (
-          <>
-            <DrawnScope catalog={catalog} book={book} page={page} zoom={fit}>
-              {stage => (
-                <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
-                  <DrawnSheet stage={stage} book={book} page={page} size={size} onSize={setDrawn} />
-                </div>
-              )}
-            </DrawnScope>
-            <div
-              className={styles.area}
-              data-scrap-area
-              style={{ left: shown.x * fit, top: shown.y * fit, width: shown.w * fit, height: shown.h * fit }}
-              onPointerDown={press(MOVE)}
-              onPointerMove={move}
-              onPointerUp={release}
-              onPointerCancel={release}
-            >
-              {GRIPS.map(g => (
-                <div
-                  key={`${g.dx},${g.dy}`}
-                  className={styles.grip}
-                  data-grip={`${g.dx},${g.dy}`}
-                  style={{ left: `${(g.dx + 1) * 50}%`, top: `${(g.dy + 1) * 50}%` }}
-                  onPointerDown={press(g)}
-                  onPointerMove={move}
-                  onPointerUp={release}
-                  onPointerCancel={release}
-                />
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className={styles.none}>{t("No Data")}</div>
-        )}
+      <div ref={room} className={styles.room}>
+        <div
+          className={styles.picture}
+          style={size ? { width: size.w * fit, height: size.h * fit } : { width: PICTURE.w, height: PICTURE.h }}
+        >
+          {book && page && size ? (
+            <>
+              <DrawnScope catalog={catalog} book={book} page={page} zoom={fit}>
+                {stage => (
+                  <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
+                    <DrawnSheet stage={stage} book={book} page={page} size={size} onSize={setDrawn} />
+                  </div>
+                )}
+              </DrawnScope>
+              <div
+                className={styles.area}
+                data-scrap-area
+                style={{ left: shown.x * fit, top: shown.y * fit, width: shown.w * fit, height: shown.h * fit }}
+                onPointerDown={press(MOVE)}
+                onPointerMove={move}
+                onPointerUp={release}
+                onPointerCancel={release}
+              >
+                {GRIPS.map(g => (
+                  <div
+                    key={`${g.dx},${g.dy}`}
+                    className={styles.grip}
+                    data-grip={`${g.dx},${g.dy}`}
+                    style={{ left: `${(g.dx + 1) * 50}%`, top: `${(g.dy + 1) * 50}%` }}
+                    onPointerDown={press(g)}
+                    onPointerMove={move}
+                    onPointerUp={release}
+                    onPointerCancel={release}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className={styles.none}>{t("No Data")}</div>
+          )}
+        </div>
       </div>
       <div className={styles.side}>
         <label className={rowClass}>

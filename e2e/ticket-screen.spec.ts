@@ -85,8 +85,28 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   // 質問だけが吹き出し（押せる）で、状況の行は押せない
   await expect(screen.getByRole("button", { name: "調べています" })).toHaveCount(0)
   // 左上の戻るで閉じる
+  // 閉じるときは右へ滑り出る（最初から右に描いて、動かずに消えない）: 押した直後に、見出しは画面の中にあり、右へ動いている
+  const heading = screen.getByRole("heading", { name: "ログイン画面を直す" })
+  const before = (await heading.boundingBox())?.x ?? 0
+  const width = page.viewportSize()?.width ?? 0
   await screen.getByRole("button", { name: "戻る" }).click()
-  await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeHidden()
+  const samples = await page.evaluate(
+    () =>
+      new Promise<number[]>(resolve => {
+        const xs: number[] = []
+        const h = [...document.querySelectorAll("h1,h2,h3")].find(e => e.textContent === "ログイン画面を直す")
+        const tick = () => {
+          if (h?.isConnected) xs.push(h.getBoundingClientRect().x)
+          // 見出しが画面から外れるまで集める（コマの数で打ち切らない）
+          if (h?.isConnected) requestAnimationFrame(tick)
+          else resolve(xs)
+        }
+        requestAnimationFrame(tick)
+      }),
+  )
+  expect(samples[0]).toBeLessThan(width)
+  expect(Math.max(...samples)).toBeGreaterThan(before)
+  await expect(heading).toBeHidden()
 })
 
 test("名前・優先度・本文は直したそばから反映され、読み直しても残る。戻るで閉じる", async ({ page }) => {
