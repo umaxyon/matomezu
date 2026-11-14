@@ -407,14 +407,17 @@ func (e *Engine) Kinds() (kinds []Kind, err error) {
 	return kinds, err
 }
 
-// AIRows は、AI に見せる種類 kind のレコードの並び records の、一覧の行（受けた順のまま。id・種類が添えるフィールド・題 brief）。AI に見せない種類なら ok が false
-func (e *Engine) AIRows(kind string, records []json.RawMessage) (rows []json.RawMessage, ok bool, err error) {
+// AIRows は、AI に見せる種類 kind のレコードの並び records の、一覧の行（受けた順のまま。id・種類が添えるフィールド・題 brief）。AI に見せない種類なら ok が false。
+// 題が引く指す先のレコードは src から引く（呼ぶ側が置き場所を止めておく）
+func (e *Engine) AIRows(kind string, records []json.RawMessage, src Source) (rows []json.RawMessage, ok bool, err error) {
 	b, err := json.Marshal(records)
 	if err != nil {
 		return nil, false, err
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("engine: %v", r)

@@ -39,7 +39,18 @@ const MARKERS: Marker[] = [
     re: /^The following deferred tools are now available/,
     make: () => ({ label: "遅延ツールの名前の一覧", group: "他の MCP" }),
   },
+  {
+    re: /^The following deferred tools are no longer available/,
+    make: () => ({ label: "外れた遅延ツールの名前", group: "他の MCP" }),
+  },
+  { re: /^The following MCP servers have disconnected/, make: () => ({ label: "切れた MCP", group: "他の MCP" }) },
   { re: /^# MCP Server Instructions/, make: () => ({ label: "MCP の説明の前置き", group: "他の MCP" }) },
+  {
+    re: /^Available agent types for the Agent tool:/,
+    make: () => ({ label: "エージェントの種類の一覧", group: "固定" }),
+  },
+  { re: /^Note: \S+ changed on disk/, make: () => ({ label: "ファイルが変わった知らせ", group: "固定" }) },
+  { re: /^While auto mode is active:/, make: () => ({ label: "auto モードの指示", group: "固定" }) },
   { re: /^The following skills are available/, make: () => ({ label: "スキルの一覧", group: "スキル" }) },
   { re: /^Today's date is/, make: () => ({ label: "今日の日付", group: "固定" }) },
   { re: /^# Advisor Tool/, make: () => ({ label: "Advisor Tool", group: "固定" }) },
@@ -99,12 +110,15 @@ export function classify(body: Body): Part[] {
     if (s) servers.add(norm(s))
   }
   for (const t of tools) note(t.name)
-  for (const m of messages)
-    if (Array.isArray(m.content))
-      for (const b of m.content) {
-        const name = (b as { tool?: { definition?: { name?: string } } }).tool?.definition?.name
-        if (b.type === "tool_addition" && name) note(name)
-      }
+  // 遅延ツールは名前だけが本文の一覧に並ぶので、本文の行の頭の mcp__<サーバー>__ からも拾う
+  for (const m of messages) {
+    const blocks = typeof m.content === "string" ? [{ type: "text", text: m.content }] : m.content
+    for (const b of blocks) {
+      const name = (b as { tool?: { definition?: { name?: string } } }).tool?.definition?.name
+      if (b.type === "tool_addition" && name) note(name)
+      if (b.type === "text") for (const line of (b.text as string).match(/^mcp__\S+/gm) ?? []) note(line)
+    }
+  }
 
   const system = Array.isArray(body.system) ? body.system : body.system ? [{ text: body.system }] : []
   system.forEach((b, i) => {

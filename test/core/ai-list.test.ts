@@ -72,6 +72,19 @@ test("指す先は、そのレコードが指す先（refers）だけ読める�
   expect(seen).toEqual([box("b1", false), "none", "none"]) // t1 が指すのは b1 だけ
 })
 
+test("題（aiBrief）も、指す先（refers）だけ読める。ほかの物は none", () => {
+  const seen: unknown[] = []
+  const peek = {
+    ...THING,
+    aiBrief: (t: { id: string }, ctx: { record(s: string, id: string): unknown }) => {
+      seen.push(ctx.record("@ex/ai:box", "b1"), ctx.record("@ex/ai:box", "b2"))
+      return t.id
+    },
+  } as unknown as SubjectDef
+  listAIRecords(CORE_CATALOG, peek, [things[0]], {}, "hide", byId)
+  expect(seen).toEqual([box("b1", false), "none"])
+})
+
 test("形に合わないレコードは、載せる物として id だけの行で残す（only には出ない）。aiListed の無い種類は全部載せる", () => {
   const bad = [...things, { id: "bad", box: 1 }]
   expect(list("hide", {}, bad).rows.map(r => r.id)).toEqual(["t4", "t3", "t1", "bad"])

@@ -59,7 +59,8 @@ function renderRows() {
       cell(e.id, "n"), cell(e.session), cell(new Date(e.at).toLocaleTimeString()), cell(e.stream, "muted"), cell(s.model),
       cell(s.messages, "n"), cell(num(u.input_tokens), "n"), cell(num(u.cache_read_input_tokens), "n"),
       cell(num(u.cache_creation_input_tokens), "n"), cell(num(u.output_tokens), "n"),
-      e.status >= 400 ? cell("status " + e.status, "err") : cell(e.diverge, e.diverge === "none" ? "muted" : "warn"),
+      e.probe ? cell(`${e.probe} の確かめ（${e.status}）`, "muted")
+        : e.status >= 400 ? cell("status " + e.status, "err") : cell(e.diverge, e.diverge === "none" ? "muted" : "warn"),
       cell(num(e.newResults.reduce((n, r) => n + r.chars, 0)), "n"), cell(num(e.ms), "n"),
     )
     tr.onclick = () => { open.has(e.id) ? open.delete(e.id) : open.add(e.id); renderRows() }

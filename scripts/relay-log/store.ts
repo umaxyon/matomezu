@@ -5,6 +5,7 @@ import { createHash } from "node:crypto"
 import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import type { Body, Entry, Message } from "../relay-log"
+import { probeOf } from "./probe"
 
 type Skeleton = { rest: Record<string, unknown>; system?: string; tools?: string; messages: string[] }
 export type NewEntry = Omit<Entry, "id">
@@ -31,6 +32,25 @@ export function openStore(path: string) {
   // 一覧に出すセッションの名前: join の名前、無ければ URL で付けた名前、無ければ session_id の頭 8 字
   const label = "COALESCE(n.name, NULLIF(r.session, 'unnamed'), NULLIF(substr(r.session_id, 1, 8), ''), 'unnamed')"
   const from = "FROM requests r LEFT JOIN names n ON n.session_id = r.session_id"
+
+  // probe を付ける前に記録した行に、本文から付け直す（本文を残していない行は付けられない）
+  const markProbes = () => {
+    const rows = db
+      .query(
+        "SELECT id, entry, skeleton FROM requests WHERE json_extract(entry, '$.status') >= 400 AND json_extract(entry, '$.probe') IS NULL AND skeleton IS NOT NULL",
+      )
+      .all() as { id: number; entry: string; skeleton: string }[]
+    for (const row of rows) {
+      const s: Skeleton = JSON.parse(row.skeleton)
+      const messages = s.messages.map(h => JSON.parse(read(h) ?? "null"))
+      const probe = probeOf({ ...s.rest, messages })
+      if (probe)
+        db.query("UPDATE requests SET entry = ? WHERE id = ?").run(
+          JSON.stringify({ ...JSON.parse(row.entry), probe }),
+          row.id,
+        )
+    }
+  }
 
   const putBlob = db.prepare("INSERT OR IGNORE INTO blobs (hash, data) VALUES (?, ?)")
   const blob = (value: unknown) => {
@@ -74,6 +94,8 @@ export function openStore(path: string) {
     session: row.label,
     id: row.id,
   })
+
+  markProbes()
 
   return {
     add,

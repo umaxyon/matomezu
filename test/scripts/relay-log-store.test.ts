@@ -78,3 +78,16 @@ test("表示の名前は join の名前、URL の名前、session_id の頭 8 �
   expect(store.sessions()).toEqual([])
   store.close()
 })
+
+test("起動のときの枠の確かめは、前に記録した行にも開くときに印を付ける", () => {
+  const path = join(dir, "d.db")
+  const store = openStore(path)
+  const quota = { model: "m", max_tokens: 1, messages: [{ role: "user", content: "quota" }] } as Body
+  const id = store.add({ ...entry("a", "2026-11-14T00:00:00Z"), status: 429 }, quota, undefined)
+  const other = store.add({ ...entry("a", "2026-11-14T00:00:01Z"), status: 429 }, body(1), undefined)
+  store.close()
+  const again = openStore(path)
+  const probes = Object.fromEntries(again.entries().map(e => [e.id, e.probe]))
+  expect(probes).toEqual({ [id]: "quota", [other]: undefined })
+  again.close()
+})

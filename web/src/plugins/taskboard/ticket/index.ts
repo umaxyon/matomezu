@@ -6,6 +6,7 @@ import { z } from "zod"
 import { BY } from "../by"
 import { kit } from "../kit"
 import { inDoneLane, PROJECT, UNSORTED } from "../project"
+import { ticketLabel } from "./label"
 
 export const TICKET_NAME_MAX = 50
 export const PRIORITIES = ["lowest", "low", "medium", "high", "highest"] as const
@@ -52,7 +53,12 @@ export const TICKET = kit.defineSubject({
     unlisted:
       "completed tickets (in the done lane of their project: list them with unlisted include or only, or with where project and lane)",
   },
-  aiBrief: t => `${t.number} ${t.name} [${[t.lane, ...t.tags].join(", ")}]`,
+  // 番号は、プロジェクトのプレフィクスを付けた見せ方（プロジェクトが読めなければプレフィクス無しの 4 桁）
+  aiBrief: (t, ctx) => {
+    const project = ctx.record(PROJECT.id, t.project) as { prefix?: string } | "none"
+    const label = ticketLabel(project === "none" ? "" : (project.prefix ?? ""), t.number)
+    return `${label} ${t.name} [${[t.lane, ...t.tags].join(", ")}]`
+  },
 })
 
 export { UNSORTED }

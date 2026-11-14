@@ -29,8 +29,8 @@ export const MAIL = kit.defineSubject({
   },
   aiList: { order: { key: "order", dir: "desc" }, limit: 20 },
   // 一覧の題は、郵便の種類が答えた 1 行（種類が機能台帳に無い・形が合わない・答えなければ無し）
-  aiBrief: (m, catalog) => {
-    const def = catalog.mails.get(m.mail)
+  aiBrief: (m, ctx) => {
+    const def = ctx.catalog.mails.get(m.mail)
     return def?.aiBrief !== undefined && def.props.safeParse(m.props).success ? def.aiBrief(m.props) : ""
   },
   aiRow: m => ({

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -146,7 +147,7 @@ func TestPerformingAnAction(t *testing.T) {
 		t.Fatalf("call with a notice = %v", r)
 	}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"perform","arguments":{"args":{}}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != true {
+	if r := got[0]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[0]), "bad-args: action is needed\nthe arguments of perform (JSON Schema): ") {
 		t.Fatalf("perform without action = %v", r)
 	}
 }
@@ -362,5 +363,97 @@ func TestSearchAnswersOneLinePerMatch(t *testing.T) {
 	}
 	if r := got[1]["result"].(map[string]any); r["isError"] != true {
 		t.Fatalf("no terms = %v", got[1])
+	}
+}
+
+// MCP 公開ツールの引数は inputSchema で確かめ、合わなければ常駐を呼ばずに、合わない所と受ける名前、その MCP 公開ツールの inputSchema（description を外した物）を返す
+func TestArgumentsThatDoNotFitTheToolAreRefusedWithoutCallingTheHost(t *testing.T) {
+	api := &fakeAPI{}
+	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"actions","arguments":{"id":"x"}}}`)
+	want := "bad-args: actions does not take id (it takes ids)\nthe arguments of actions (JSON Schema): " + schemaText(actionsSchema)
+	if r := got[0]["result"].(map[string]any); r["isError"] != true || textOf(got[0]) != want {
+		t.Fatalf("actions with id = %q", textOf(got[0]))
+	}
+	if strings.Contains(textOf(got[0]), "description") || len(api.gets)+len(api.posts) != 0 {
+		t.Fatalf("text = %q, gets = %v, posts = %v", textOf(got[0]), api.gets, api.posts)
+	}
+}
+
+// checkArguments が確かめるキーワードごとに、通る値と断る値
+func TestCheckArgumentsByKeyword(t *testing.T) {
+	is := map[string]any{"type": "object", "properties": map[string]any{"is": map[string]any{"type": "string", "enum": []string{"absent", "present"}}}, "required": []string{"is"}, "additionalProperties": false}
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"s":   map[string]any{"type": "string", "minLength": 1},
+			"b":   map[string]any{"type": "boolean"},
+			"n":   map[string]any{"type": "number"},
+			"i":   map[string]any{"type": "integer", "minimum": 1, "maximum": 3},
+			"e":   map[string]any{"type": "string", "enum": []string{"x", "y"}},
+			"a":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": 2},
+			"o":   map[string]any{"type": "object", "properties": map[string]any{"k": map[string]any{"type": "string"}}, "additionalProperties": false},
+			"w":   map[string]any{"type": "object", "additionalProperties": map[string]any{"anyOf": []any{map[string]any{"type": "string"}, map[string]any{"type": "number"}, is}}},
+			"any": map[string]any{"type": "object"},
+		},
+		"required":             []string{"s"},
+		"additionalProperties": false,
+	}
+	for _, c := range []struct{ args, want string }{
+		{`{"s":"v","b":true,"n":1.5,"i":2,"e":"x","a":["p"],"o":{"k":"v"},"w":{"k1":"v","k2":3,"k3":{"is":"absent"}},"any":{"free":1}}`, ""},
+		{`{}`, "s is needed"},
+		{`{"s":""}`, "s must not be empty"},
+		{`{"s":1}`, "s must be a string"},
+		{`{"s":"v","b":"yes"}`, "b must be true or false"},
+		{`{"s":"v","n":"1"}`, "n must be a number"},
+		{`{"s":"v","i":1.5}`, "i must be an integer"},
+		{`{"s":"v","i":0}`, "i must be at least 1"},
+		{`{"s":"v","i":4}`, "i must be at most 3"},
+		{`{"s":"v","e":"z"}`, "e must be one of x, y"},
+		{`{"s":"v","a":[]}`, "a must have at least 1 items"},
+		{`{"s":"v","a":["p","q","r"]}`, "a must have at most 2 items"},
+		{`{"s":"v","a":[1]}`, "a[0] must be a string"},
+		{`{"s":"v","o":{"z":1}}`, "o does not take z (it takes k)"},
+		{`{"s":"v","w":{"k":true}}`, `w.k must be a string, a number or {"is": "absent"|"present"}`},
+		{`{"s":"v","zz":1}`, "t does not take zz (it takes a, any, b, e, i, n, o, s, w)"},
+		{`{"zz":1}`, "s is needed; t does not take zz (it takes a, any, b, e, i, n, o, s, w)"},
+	} {
+		var args map[string]any
+		if err := json.Unmarshal([]byte(c.args), &args); err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Join(checkArguments("t", schema, args), "; "); got != c.want {
+			t.Errorf("%s: got %q, want %q", c.args, got, c.want)
+		}
+	}
+}
+
+// MCP 公開ツールの inputSchema は、checkArguments が確かめるキーワードだけで書く（ほかを書くと確かめられずに通ってしまう）
+func TestToolSchemasUseOnlyTheCheckedKeywords(t *testing.T) {
+	var walk func(at string, schema map[string]any)
+	walk = func(at string, schema map[string]any) {
+		for k, v := range schema {
+			if !slices.Contains(schemaKeywords, k) {
+				t.Errorf("%s: %s is not checked by checkArguments", at, k)
+			}
+			switch k {
+			case "properties":
+				for name, prop := range v.(map[string]any) {
+					walk(at+"."+name, prop.(map[string]any))
+				}
+			case "items":
+				walk(at+"[]", v.(map[string]any))
+			case "additionalProperties":
+				if sub, ok := v.(map[string]any); ok {
+					walk(at+".*", sub)
+				}
+			case "anyOf":
+				for _, alt := range v.([]any) {
+					walk(at+"|", alt.(map[string]any))
+				}
+			}
+		}
+	}
+	for _, tl := range tools {
+		walk(tl.name, tl.schema)
 	}
 }

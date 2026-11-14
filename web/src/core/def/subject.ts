@@ -32,8 +32,9 @@ export type KeysOfTypes<Kt extends Readonly<Record<string, RecordKeyDef["type"]>
   }
 }
 
-// aiListed の when が、指す先のレコードを読む口（ctx.record と同じ形。読めるのは、そのレコードが指す先だけで、無ければ none）
-export interface AIListedContext {
+// aiBrief・aiListed の when が受ける口: 機能台帳 catalog と、指す先のレコードを読む record（読めるのは、そのレコードが指す先 refers だけで、無ければ none）
+export interface AIRecordContext {
+  readonly catalog: CoreCatalog
   record(subject: string, id: string): unknown
 }
 
@@ -56,10 +57,10 @@ export interface SubjectDef<
   // 索引キー（名前 → 宣言）。保存が中身とは別に持ち、中身を開けずに探すのに使う
   keys?: Ks
   // AI に見せる種類（read_records）の目次の 1 行（id とともに並ぶ題）。書いた種類だけが AI に見える（書かなければ AI には見せない）。aiListed は目次に載せるか（無ければ載せる）
-  aiBrief?(record: z.output<R>, catalog: CoreCatalog): string
+  aiBrief?(record: z.output<R>, ctx: AIRecordContext): string
   // 一覧の既定の目次に載せるか（when。そのレコードと、その指す先（refers）だけ ctx.record で読める）と、載せない物が何か（unlisted。英語。actions の対象の定義で AI に見せる）。
   // 載せない物は、read_records の unlisted で取れる。aiList（索引キーで探す一覧）とは一緒に書けない
-  aiListed?: { when(record: z.output<R>, ctx: AIListedContext): boolean; unlisted: string }
+  aiListed?: { when(record: z.output<R>, ctx: AIRecordContext): boolean; unlisted: string }
   // 横断検索に使う文字（題 title と本文 body。どちらも無くてよい）。レコード 1 件から決まること（ほかのレコードを読まない）。書いた種類だけが、常駐の横断検索（title に当たった物は body だけに当たった物より上）に載る
   searchTexts?(record: z.output<R>): { title?: string; body?: string }
   // 一覧（read_records）の並びの鍵（小さい順。無ければ id の順）

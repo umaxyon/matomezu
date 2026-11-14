@@ -5,7 +5,7 @@
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
 import { actorOfWire, type WireActor } from "../core/actor"
-import { isAIListed, listAIRecords, UNLISTED_MODES } from "../core/ai-list"
+import { isAIListed, listAIRecords, recordContext, UNLISTED_MODES } from "../core/ai-list"
 import {
   type Annotations,
   annotationBriefs,
@@ -411,7 +411,8 @@ function aiTables(of: Assembled) {
     for (const [id, record] of Object.entries(parseOr(records) as Record<string, unknown>)) {
       const parsed = def.record.safeParse(record)
       try {
-        if (parsed.success && !isAIListed(def, parsed.data, (s, i) => source?.byId(s, i))) out.push(id)
+        if (parsed.success && !isAIListed(assembled.catalog.core, def, parsed.data, (s, i) => source?.byId(s, i)))
+          out.push(id)
       } catch {}
     }
   }
@@ -462,7 +463,9 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
 // AI に見せる種類 kind のレコードの並び records（JSON。常駐が索引キーで探して並べた、その件数だけ）の、一覧の行: id・種類が添えるフィールド（aiRow）・題（brief）。
 // 並びは受けた順のまま。形に合わないレコードは id だけの行にする（数と続きが食い違わないように）
 ;(globalThis as { matomezuAiRows?: (kind: string, records: string) => string }).matomezuAiRows = (kind, records) => {
-  const def = assembled.catalog.core.subjects.get(kind)
+  const catalog = assembled.catalog.core
+  const source = hostSource({})
+  const def = catalog.subjects.get(kind)
   const brief = def?.aiBrief
   if (def === undefined || brief === undefined) return "null"
   return JSON.stringify(
@@ -470,7 +473,13 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
       const parsed = def.record.safeParse(r)
       if (!parsed.success) return { id: String((r as { id?: unknown } | null)?.id ?? "") }
       const { id } = parsed.data as { id: string }
-      const line = briefLine(brief(parsed.data, assembled.catalog.core), 120)
+      const line = briefLine(
+        brief(
+          parsed.data,
+          recordContext(catalog, def, parsed.data, (s, i) => source?.byId(s, i)),
+        ),
+        120,
+      )
       return { id, ...(def.aiRow?.(parsed.data) ?? {}), ...(line === "" ? {} : { brief: line }) }
     }),
   )

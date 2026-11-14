@@ -27,9 +27,9 @@ func TestAIReadsRecords(t *testing.T) {
 			t.Fatalf("ticket-add = %s", got)
 		}
 	}
-	// 並びは種類が決める（チケットは番号の順）
+	// 並びは種類が決める（チケットは番号の順）。題の番号はプロジェクトのプレフィクス付き
 	_, got = send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.project="+p, "", ai)
-	if !strings.HasPrefix(got, `{"kind":"`+ticket+`","records":[{"brief":"1 first`) || !strings.Contains(got, `"total":2`) {
+	if !strings.HasPrefix(got, `{"kind":"`+ticket+`","records":[{"brief":"T-0001 first`) || !strings.Contains(got, `"total":2`) {
 		t.Fatalf("tickets = %s", got)
 	}
 	if _, got = send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.number=2", "", ai); !strings.Contains(got, `"total":1`) {
