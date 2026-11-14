@@ -96,8 +96,9 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
         const xs: number[] = []
         const h = [...document.querySelectorAll("h1,h2,h3")].find(e => e.textContent === "ログイン画面を直す")
         const tick = () => {
-          if (h) xs.push(h.getBoundingClientRect().x)
-          if (xs.length < 8) requestAnimationFrame(tick)
+          if (h?.isConnected) xs.push(h.getBoundingClientRect().x)
+          // 見出しが画面から外れるまで集める（コマの数で打ち切らない）
+          if (h?.isConnected) requestAnimationFrame(tick)
           else resolve(xs)
         }
         requestAnimationFrame(tick)
