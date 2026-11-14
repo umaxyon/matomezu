@@ -1,0 +1,66 @@
+// スクラップ: 紙の右クリックの「スクラップを切り抜く」で、範囲（はじめはページ全体）と倍率を決めてトレイに入れると、左サイドパネルのスクラップトレイが開く。
+// トレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。トレイには残り、× で消える。
+// 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、倍率を変えると大きさが変わる
+import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
+import { leftPanel } from "./helpers/outbox"
+import { addBox, items, onPaper, paper } from "./helpers/paper"
+
+// ページの id はブックをまたいで重ならない（スクラップはページの id だけで指す）。共有の見本はどのブックも p1 なので、ここでは自分のブックを置く
+test.use({
+  books: [
+    {
+      type: "@matomezu/drawing:drawing",
+      id: "scrap-book",
+      title: "まとめ図の構想",
+      pages: [{ id: "scrap-page", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
+    },
+  ],
+})
+
+test("ページを切り抜いてトレイに入れ、トレイから置くと中に元のページが見える。置いてもトレイに残り、× で消える。ダブルクリックで倍率を直せる", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(BOOK_SCREEN_URL)
+  await addBox(page, 200, 150, "元の箱")
+
+  // 紙の何も無い所を右クリックして切り抜く。倍率を 25% にしてトレイに入れる
+  const empty = await onPaper(page, 700, 500)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
+  const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
+  await expect(cut.locator("[data-scrap-area]")).toBeVisible()
+  await cut.getByLabel("倍率").fill("25")
+  await expect(cut.locator("[data-scrap-size]")).toHaveText("281 × 199")
+  await cut.getByRole("button", { name: "トレイに入れる" }).click()
+  await expect(cut).toBeHidden()
+
+  // トレイが開き、切り抜いたスクラップが 1 つ並ぶ
+  await expect(leftPanel(page).getByRole("tab", { name: "スクラップトレイ" })).toHaveAttribute("aria-selected", "true")
+  const rows = leftPanel(page).locator("[data-scrap-row]")
+  await expect(rows).toHaveCount(1)
+
+  // 押して、紙を押すと置かれる（中に元の箱の字が見える）
+  await rows.first().getByRole("button").first().click()
+  const at = await onPaper(page, 500, 300)
+  await page.mouse.click(at.x, at.y)
+  const placed = items(page).filter({ has: page.locator('[data-scrap="shown"]') })
+  await expect(placed).toHaveCount(1)
+  await expect(placed).toContainText("元の箱")
+  await expect(rows).toHaveCount(1)
+
+  // ダブルクリックで設定のダイアログ。倍率を 50% にすると大きくなる
+  const before = (await placed.boundingBox())!
+  await placed.dblclick()
+  const edit = page.getByRole("dialog", { name: "スクラップの設定" })
+  await edit.getByLabel("倍率").fill("50")
+  await edit.getByRole("button", { name: "OK" }).click()
+  await expect(edit).toBeHidden()
+  await expect.poll(async () => (await placed.boundingBox())!.width).toBeGreaterThan(before.width * 1.5)
+
+  // × でトレイから消える（置いた物はそのまま）
+  await rows.first().getByRole("button", { name: "スクラップを消す" }).click()
+  await expect(rows).toHaveCount(0)
+  await expect(placed).toHaveCount(1)
+  await expect(paper(page)).toBeVisible()
+})

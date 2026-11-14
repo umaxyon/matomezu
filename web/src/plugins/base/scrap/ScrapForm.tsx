@@ -156,7 +156,7 @@ export function ScrapForm({
             type="number"
             min={SCRAP_SCALE_MIN * 100}
             max={SCRAP_SCALE_MAX * 100}
-            step={10}
+            step={1}
             value={scaleText}
             onChange={e => {
               setScaleText(e.target.value)
