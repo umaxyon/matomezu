@@ -1,16 +1,18 @@
 // Claude Code が API に送るリクエストを記録する中継。何がどれだけ場所を取り、キャッシュがどこで切れたかを見る
-//   bun scripts/relay-log.ts serve [--db <file>（既定は ~/.local/state/matomezu-relay/central.db）] [--port 18951] [--view-port 18952] [--no-body]
+//   bun scripts/relay-log.ts serve [--db <file>（既定は ~/.local/state/matomezu-relay/central.db）] [--port 18951] [--view-port 18952] [--no-body] [--pid-file <file>]
 //     127.0.0.1 で待ち受け、受けた物をそのまま api.anthropic.com へ渡す。全セッションが 1 つの中継につなぎ、記録は 1 つの SQLite に入る
 //     セッションは、リクエストにある Claude Code の session_id で区別する。表示の名前は matomezu に join したときのワークルーム名
 //     （フックが入れる Workroom name の行を本文から拾う。join し直せば名前も変わる）。join 前は session_id の頭 8 字。
 //     ANTHROPIC_BASE_URL の末尾に /s/<名前> を付けたときは、join 前の名前になる（先頭の /s/<名前> は外して渡す）
 //     scripts/claude-relay.sh [claude の引数...] がこれを立てて claude を起動する
 //     ビューワー（時間順の一覧と詳細、セッションの絞り込み）は --view-port で同じプロセスが配る
+//     --pid-file には待ち受けを始めたあとで自分の pid を書く（起こした側の $! は setsid が間に入ると別のプロセスになる）
 //     --no-body のときは本文（会話の全文が入る）を残さず、数字の要約だけにする。認証のヘッダーの値はどちらにも残さない
 //   bun scripts/relay-log.ts report [--db ...] [--session <名前>]   リクエストごとの表と、大きい結果の上位にまとめる
 //   bun scripts/relay-log.ts purge [--db ...] [--before <ISO の日時>]  記録を消す（--before なしは全部）
 // 字数は JSON にしたときの文字の数で、トークンの数ではない。トークンは API が返した usage の列で見る
 import { createHash } from "node:crypto"
+import { writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { probeOf } from "./relay-log/probe"
@@ -73,6 +75,8 @@ export type Entry = {
   error?: string
   // Claude Code が起動のときに残りの枠を確かめるリクエスト。429 が返っても作業の失敗ではない
   probe?: "quota"
+  // 呼び手が返答の途中で接続を切った（usage と返答は切れた所まで）
+  aborted?: true
 }
 
 const chars = (value: unknown) => JSON.stringify(value ?? "").length
@@ -297,14 +301,22 @@ export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }
 
       const sse = (res.headers.get("content-type") ?? "").includes("text/event-stream")
       const [pass, copy] = res.body.tee()
+      // 記録は返答を待たせずに走らせる。呼び手が途中で接続を切ると copy の読み取りが AbortError で止まるので、
+      // そこまでを中断した呼び出しとして記録する（拒否を放っておくと中継のプロセスごと落ちる）
       ;(async () => {
         const reader = new UsageReader()
         const decoder = new TextDecoder()
         let text = ""
-        for await (const chunk of copy) {
-          const s = decoder.decode(chunk, { stream: true })
-          if (sse) reader.feed(s)
-          if (!sse || keepBody) text += s
+        let aborted = false
+        try {
+          for await (const chunk of copy) {
+            const s = decoder.decode(chunk, { stream: true })
+            if (sse) reader.feed(s)
+            if (!sse || keepBody) text += s
+          }
+        } catch (e) {
+          if (!(e instanceof Error && e.name === "AbortError")) throw e
+          aborted = true
         }
         reader.end()
         store.add(
@@ -321,11 +333,12 @@ export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }
             usage: sse ? reader.usage : usageFromJson(text),
             ...(res.status >= 400 ? { error: text.slice(0, 500) } : {}),
             ...(probeOf(body) ? { probe: probeOf(body) } : {}),
+            ...(aborted ? { aborted } : {}),
           },
           stored,
           keepBody ? text : undefined,
         )
-      })()
+      })().catch(e => console.error("relay-log: 記録に失敗した", e))
       return new Response(pass, { status: res.status, headers: resHeaders })
     },
   })
@@ -363,7 +376,13 @@ export function report(entries: Entry[]): string {
       num(u.cache_read_input_tokens),
       num(u.cache_creation_input_tokens),
       num(u.output_tokens),
-      e.probe ? `${e.probe} の確かめ（${e.status}）` : e.status >= 400 ? `status ${e.status}` : e.diverge,
+      e.probe
+        ? `${e.probe} の確かめ（${e.status}）`
+        : e.status >= 400
+          ? `status ${e.status}`
+          : e.aborted
+            ? "中断"
+            : e.diverge,
       num(e.newResults.reduce((n, r) => n + r.chars, 0)),
       `${num(s.matomezuResultChars)}/${num(s.resultChars)}`,
     ]
@@ -424,6 +443,8 @@ if (import.meta.main) {
     const store = openStore(db)
     startRelay({ port, store, keepBody: !args.includes("--no-body") })
     startViewer({ store, port: viewPort })
+    const pidFile = flag(args, "--pid-file")
+    if (pidFile) writeFileSync(pidFile, `${process.pid}\n`)
     console.log(`relay-log: 127.0.0.1:${port} → ${UPSTREAM}、ビューワー http://127.0.0.1:${viewPort}、記録は ${db}`)
   } else if (args[0] === "report") {
     console.log(report(openStore(db).entries(flag(args, "--session"))))

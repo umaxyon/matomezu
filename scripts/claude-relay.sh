@@ -30,8 +30,7 @@ fi
 
 if ! health; then
   mkdir -p "$STATE"
-  setsid nohup bun scripts/relay-log.ts serve --db "$DB" --port "$RELAY_PORT" --view-port "$VIEW_PORT" >>"$LOG" 2>&1 &
-  echo $! >"$PIDFILE"
+  setsid nohup bun scripts/relay-log.ts serve --db "$DB" --port "$RELAY_PORT" --view-port "$VIEW_PORT" --pid-file "$PIDFILE" >>"$LOG" 2>&1 &
   for _ in 1 2 3 4 5 6 7 8 9 10; do health && break; sleep 0.5; done
 fi
 
