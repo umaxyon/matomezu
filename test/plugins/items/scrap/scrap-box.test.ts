@@ -1,16 +1,17 @@
 // スクラップボックス（@matomezu/scrap:shape-scrap-box）: スクラップトレイのスクラップの値を持って置こうとし、紙を押すと、追加のダイアログ無しでその値のまま置く。
 // 大きさは見る範囲 × 倍率。置いたあともトレイのスクラップは変わらず、元に戻すと置いた形だけが消える
 import { expect, test } from "bun:test"
-import type { Point } from "../../../web/src/core/geom"
-import type { BookOf } from "../../../web/src/core/schema/book"
-import { placement } from "../../../web/src/core/stage"
-import { screenOf } from "../../../web/src/core/window"
-import { placedSize } from "../../../web/src/plugins/base"
-import { SCRAP } from "../../../web/src/plugins/base/scrap/scrap"
-import { PLACE_OFFSET, placingShape } from "../../../web/src/plugins/paper/placing/items"
-import { sizedStore } from "../../support"
+import type { Point } from "../../../../web/src/core/geom"
+import type { BookOf } from "../../../../web/src/core/schema/book"
+import { placement } from "../../../../web/src/core/stage"
+import { screenOf } from "../../../../web/src/core/window"
+import { placedSize } from "../../../../web/src/plugins/base"
+import { SCRAP } from "../../../../web/src/plugins/base/scrap/scrap"
+import { SCRAP_BOX } from "../../../../web/src/plugins/items/scrap"
+import { PLACE_OFFSET, placingShape } from "../../../../web/src/plugins/paper/placing/items"
+import { sizedStore } from "../../../support"
 
-const BOX = "@matomezu/scrap:shape-scrap-box"
+const BOX = SCRAP_BOX.id
 const ONE = { page: "p-other", area: { x: 10, y: 20, w: 400, h: 200 }, scale: 0.5 }
 
 function pointerFor(store: ReturnType<typeof sizedStore>, at: Point): Point {

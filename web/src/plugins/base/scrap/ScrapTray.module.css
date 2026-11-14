@@ -1,0 +1,70 @@
+/* スクラップトレイ: 新しい順の縦の並び。1 行は絵と「ブック名 › ページ名」、右上に × */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.row {
+  position: relative;
+}
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pick:hover:not(:disabled) {
+  border-color: var(--skin-line, #ccc);
+}
+.pick[aria-pressed="true"] {
+  border-color: var(--skin-accent);
+  box-shadow: 0 0 0 1px var(--skin-accent);
+}
+.pick:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.thumb {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+.scaled {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.label {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--skin-surface, #fff) 85%, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.empty {
+  padding: 12px;
+  color: color-mix(in srgb, var(--skin-text) 60%, transparent);
+}

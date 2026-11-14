@@ -243,6 +243,7 @@ test("matomezu/ui が出す名前", () => {
     "SEARCH_CURRENT_HIGHLIGHT",
     "SEARCH_HIGHLIGHT",
     "STAGE_BASE_SLOTS",
+    "ScrapForm",
     "ScrapView",
     "ScreenView",
     "Section",

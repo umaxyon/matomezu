@@ -1,0 +1,80 @@
+/* スクラップのフォーム: 左にページの絵と範囲の枠、右に倍率と大きさ */
+.form {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.picture {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  outline: 1px solid var(--skin-line, #ccc);
+  user-select: none;
+  touch-action: none;
+}
+.scaled {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+/* 見る範囲の枠: 外を薄暗くする（大きな影で囲む） */
+.area {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--skin-accent);
+  box-shadow: 0 0 0 9999px color-mix(in srgb, #000 35%, transparent);
+  cursor: move;
+}
+.grip {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -6px 0 0 -6px;
+  border: 1px solid var(--skin-accent);
+  background: var(--skin-surface, #fff);
+  cursor: pointer;
+}
+.grip[data-grip="-1,-1"],
+.grip[data-grip="1,1"] {
+  cursor: nwse-resize;
+}
+.grip[data-grip="1,-1"],
+.grip[data-grip="-1,1"] {
+  cursor: nesw-resize;
+}
+.grip[data-grip="0,-1"],
+.grip[data-grip="0,1"] {
+  cursor: ns-resize;
+}
+.grip[data-grip="-1,0"],
+.grip[data-grip="1,0"] {
+  cursor: ew-resize;
+}
+.none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: color-mix(in srgb, var(--skin-text) 60%, transparent);
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 140px;
+}
+.scale {
+  width: 72px;
+}
+.link {
+  align-self: flex-start;
+  margin-top: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--skin-accent);
+  cursor: pointer;
+}

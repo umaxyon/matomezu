@@ -99,6 +99,7 @@ import {
   type RIGHT_SIDE_PANEL_STATE,
   RIGHT_SIDE_PANEL_STATES,
 } from "./right-side-panel/state"
+import { SCRAP_CUT_COMMAND, SCRAP_CUT_DIALOG } from "./scrap"
 import { SCRAP, SCRAP_CUT, SCRAP_REMOVE } from "./scrap/scrap"
 import {
   type SEARCH_CLOSE,
@@ -369,6 +370,7 @@ export const BASE = defineBuiltin(
     ],
     normalizeSteps: [VARIABLE_PAGES],
     commands: [
+      SCRAP_CUT_COMMAND,
       BOOK_NEW,
       CONTROL_CENTER_TOGGLE,
       CONTROL_CENTER_LEAVE,
@@ -417,6 +419,7 @@ export const BASE = defineBuiltin(
       OPEN_BOOK_DIALOG,
       NEW_PAGE_DIALOG,
       PAGE_DELETE_DIALOG,
+      SCRAP_CUT_DIALOG,
       PAGE_SETTINGS_DIALOG,
       BOOK_SETTINGS_DIALOG,
       NEW_BOOK_DIALOG,
@@ -583,6 +586,7 @@ declare module "../../core/catalog" {
   }
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW
+    "@matomezu/base:scrap-cut": typeof SCRAP_CUT_COMMAND
     "@matomezu/base:undo": typeof UNDO
     "@matomezu/base:redo": typeof REDO
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
@@ -664,6 +668,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-delete": typeof PAGE_DELETE_DIALOG
+    "@matomezu/base:scrap-cut": typeof SCRAP_CUT_DIALOG
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS_DIALOG
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS_DIALOG
     "@matomezu/base:settings": typeof SETTINGS_DIALOG

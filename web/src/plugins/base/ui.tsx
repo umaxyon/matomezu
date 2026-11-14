@@ -124,6 +124,7 @@ export { useAddPage } from "./page-tabs/useAddPage"
 export { BirdFaceView } from "./participant/BirdFaceView"
 export { useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./participant/hooks"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
+export { ScrapForm } from "./scrap/ScrapForm"
 export { ScrapView, type ScrapViewProps } from "./scrap/ScrapView"
 export { ChoiceSetting } from "./settings/ChoiceSetting"
 export { useWideSearch, useWideSearchPanel, WIDE_SEARCH_LIMIT_MAX } from "./wide-search/hooks"
@@ -177,6 +178,7 @@ export {
 } from "./window/slots"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
+import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_TAB } from "./scrap/ui"
 export const BASE_UI = definePluginUi(BASE, {
   dialogViews: {
     ...BOOK_OPEN_DIALOG_VIEWS,
@@ -186,6 +188,7 @@ export const BASE_UI = definePluginUi(BASE, {
     ...SETTINGS_DIALOG_VIEWS,
     ...MAIL_DIALOG_VIEWS,
     ...PARTICIPANT_DIALOG_VIEWS,
+    ...SCRAP_DIALOG_VIEWS,
   },
   settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS, ...PRINT_PREVIEW_SETTING_VIEWS },
   userSettingViews: USER_SETTING_VIEWS,
@@ -219,6 +222,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MAILBOX_BUTTON,
     OUTBOX,
     MAILBOX_TAB,
+    SCRAP_TRAY_TAB,
     MAIL_BOOKMARKS,
     MAIL_WATCH,
     EDIT_LOCK,
@@ -331,6 +335,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mailbox-button": typeof MAILBOX_BUTTON
     "@matomezu/base:outbox": typeof OUTBOX
     "@matomezu/base:mailbox": typeof MAILBOX_TAB
+    "@matomezu/base:scrap-tray": typeof SCRAP_TRAY_TAB
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
     "@matomezu/base:edit-lock": typeof EDIT_LOCK

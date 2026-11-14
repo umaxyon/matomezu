@@ -285,7 +285,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   expect(screen.getByRole("dialog", { name: "新しいページ" })).toBeTruthy()
 })
 
-test("図面の画面を右クリックすると押した位置にメニュー（一番上にページ全体を収める・初めの位置に戻す・画面の分割、区切り線の下に貼り付け、区切り線の下にページの設定・ブックの設定）が出て、設定を押すと閉じて設定のダイアログが開く", () => {
+test("図面の画面を右クリックすると押した位置にメニュー（一番上にページ全体を収める・初めの位置に戻す・画面の分割、区切り線の下に貼り付け、区切り線の下にスクラップを切り抜く・ページの設定・ブックの設定）が出て、設定を押すと閉じて設定のダイアログが開く", () => {
   renderBooksScreen()
   const paper = screen.getByRole("img", { name: "紙" })
   const notCanceled = fireEvent.contextMenu(paper, { clientX: 40, clientY: 50 })
@@ -295,7 +295,15 @@ test("図面の画面を右クリックすると押した位置にメニュー�
     within(menu)
       .getAllByRole("menuitem")
       .map(b => b.textContent),
-  ).toEqual(["ページ全体を収める", "初めの位置に戻すHome", "画面を分割", "貼り付け", "ページの設定", "ブックの設定"])
+  ).toEqual([
+    "ページ全体を収める",
+    "初めの位置に戻すHome",
+    "画面を分割",
+    "貼り付け",
+    "スクラップを切り抜く",
+    "ページの設定",
+    "ブックの設定",
+  ])
   // 一番上の 3 つ（ページ全体を収める・初めの位置に戻す・画面の分割）の下と、貼り付けの下に区切り線
   expect(within(menu).getAllByRole("separator")).toHaveLength(2)
   fireEvent.click(within(menu).getByRole("menuitem", { name: "ブックの設定" }))

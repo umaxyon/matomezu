@@ -140,6 +140,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/paper:paper-paste-at",
       "-",
+      "@matomezu/base:scrap-cut",
       "@matomezu/base:page-settings",
       "@matomezu/base:book-settings",
       "-",
@@ -196,6 +197,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:page-context": [
       "@matomezu/base:page-add-after",
       "@matomezu/base:page-duplicate",
+      "@matomezu/base:scrap-cut",
       "@matomezu/base:background-edit",
       "-",
       "@matomezu/base:page-delete",

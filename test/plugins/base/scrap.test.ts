@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
 import { performIn } from "../../../web/src/core/perform"
+import { scrapFrameIn } from "../../../web/src/plugins/base/scrap"
 import { SCRAP, scrapSize } from "../../../web/src/plugins/base/scrap/scrap"
 import { CORE_CATALOG, newStore } from "../../support"
 
@@ -60,4 +61,23 @@ test("AI は切り抜くことも消すこともできない", () => {
 test("置いたときの大きさは、見る範囲 × 倍率（小数は切り上げ）", () => {
   expect(scrapSize(ONE)).toEqual({ w: 200, h: 100 })
   expect(scrapSize({ area: { x: 0, y: 0, w: 101, h: 33 }, scale: 0.5 })).toEqual({ w: 51, h: 17 })
+})
+
+test("スクラップを置く枠は、ブックのタイプが置けるアイテムのうち scrapFrame の付いた物（図面・フローチャートはスクラップボックス、ツリーには無い）", () => {
+  const { store } = ready()
+  const catalog = store.catalog.core
+  const book = (type: string) => ({ id: "x", title: "x", type, pages: [] }) as never
+  expect(scrapFrameIn(catalog, book("@matomezu/drawing:drawing"), "items")).toBe("@matomezu/scrap:shape-scrap-box")
+  expect(scrapFrameIn(catalog, book("@matomezu/flowchart:flowchart"), "items")).toBe("@matomezu/scrap:shape-scrap-box")
+  expect(scrapFrameIn(catalog, book("@matomezu/tree:tree"), "items")).toBeNull()
+})
+
+test("切り抜くコマンドは、開いているページ（ページタブなら渡されたページ）で切り抜くダイアログを開く", () => {
+  const { store } = ready()
+  store.actions.openBook("s1", "b1")
+  expect(store.actions.command("s1", "@matomezu/base:scrap-cut", {})).toBe(true)
+  expect(store.state.getState().dialog).toMatchObject({ id: "@matomezu/base:scrap-cut", args: { page: "p1" } })
+  store.actions.closeDialog()
+  expect(store.actions.command("s1", "@matomezu/base:scrap-cut", { page: "other" })).toBe(true)
+  expect(store.state.getState().dialog).toMatchObject({ args: { page: "other" } })
 })
