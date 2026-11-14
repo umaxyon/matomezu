@@ -1,5 +1,11 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*matomezu.*",
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/permission.sh\"" }]
+      }
+    ],
     "UserPromptSubmit": [
       { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/annotations.sh\" \"$PPID\"" }] }
     ],

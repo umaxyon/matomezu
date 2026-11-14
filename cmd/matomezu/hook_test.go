@@ -202,3 +202,27 @@ func TestTalkedEchoesTheHookEventName(t *testing.T) {
 		}
 	}
 }
+
+// 道具を使う前のフック: 読むだけの matomezu の道具（自分で登録した物もプラグインの物も）は聞かずに通し、変える道具・画面を切り替える道具・参加を頼む道具・ほかの道具には何も言わない
+func TestPermissionAllowsOnlyTheToolsThatRead(t *testing.T) {
+	for tool, allowed := range map[string]bool{
+		"mcp__matomezu__list_books":                true,
+		"mcp__plugin_matomezu_matomezu__read_page": true,
+		"mcp__plugin_matomezu_matomezu__search":    true,
+		"mcp__plugin_matomezu_matomezu__perform":   false,
+		"mcp__plugin_matomezu_matomezu__show":      false,
+		"mcp__plugin_matomezu_matomezu__join":      false,
+		"mcp__other__list_books":                   false,
+		"Bash":                                     false,
+		"mcp__plugin_matomezu_matomezu__":          false,
+	} {
+		var out bytes.Buffer
+		permission(&out, readHookInput(strings.NewReader(`{"tool_name":"`+tool+`"}`)))
+		if allowed != strings.Contains(out.String(), `"permissionDecision":"allow"`) {
+			t.Errorf("%s: allowed = %v, out = %q", tool, allowed, out.String())
+		}
+		if !allowed && out.String() != "" {
+			t.Errorf("%s: should say nothing, said %q", tool, out.String())
+		}
+	}
+}
