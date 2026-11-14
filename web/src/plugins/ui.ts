@@ -13,6 +13,7 @@ import { BOX_UI } from "./items/box/ui"
 import { DATA_UI } from "./items/data/ui"
 import { LINE_UI } from "./items/line/ui"
 import { LIST_UI } from "./items/list/ui"
+import { SCRAP_BOX_UI } from "./items/scrap/ui"
 import { SHAPE_UI } from "./items/shape/ui"
 import { SLIDE_UI } from "./items/slide/ui"
 import { PAPER_UI } from "./paper/ui"
@@ -28,6 +29,7 @@ export const BUILTIN_UI = [
   LINE_UI,
   SHAPE_UI,
   ART_UI,
+  SCRAP_BOX_UI,
   SLIDE_UI,
   DRAWING_UI,
   FLOWCHART_UI,

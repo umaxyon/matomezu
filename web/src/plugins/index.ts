@@ -12,6 +12,7 @@ import { BOX_PLUGIN } from "./items/box"
 import { DATA_PLUGIN } from "./items/data"
 import { LINE_PLUGIN } from "./items/line"
 import { LIST_PLUGIN } from "./items/list"
+import { SCRAP_BOX_PLUGIN } from "./items/scrap"
 import { SHAPE_PLUGIN } from "./items/shape"
 import { SLIDE_PLUGIN } from "./items/slide"
 import { PAPER_PLUGIN } from "./paper"
@@ -27,6 +28,7 @@ export const BUILTIN = [
   LINE_PLUGIN,
   SHAPE_PLUGIN,
   ART_PLUGIN,
+  SCRAP_BOX_PLUGIN,
   SLIDE_PLUGIN,
   DRAWING_PLUGIN,
   FLOWCHART_PLUGIN,

@@ -31,6 +31,7 @@ const ITEMS = [
   "@matomezu/art:shape-forest",
   "@matomezu/art:shape-house",
   "@matomezu/art:shape-family",
+  "@matomezu/scrap:shape-scrap-box",
   "@matomezu/line:connector-line",
 ] as const
 
