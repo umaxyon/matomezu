@@ -33,7 +33,8 @@ export function NameField({
   onLeave: () => void
 }) {
   const [before, setBefore] = useState<string | null>(null) // 直す前の名前（直している間だけ）
-  const editing = before !== null || value === ""
+  const [fresh, setFresh] = useState(value === "") // 足したばかりの行（最初に名前が空）は、離れるまで入力Formのまま。打つ途中で値が空でなくなってもラベルに切り替えない
+  const editing = before !== null || fresh
   if (!editing) {
     return (
       <span className={styles.nameView}>
@@ -48,6 +49,7 @@ export function NameField({
   }
   const finish = () => {
     setBefore(null)
+    setFresh(false)
     onLeave()
   }
   return (
