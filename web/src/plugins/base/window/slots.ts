@@ -4,7 +4,7 @@ import { BOOK_SCREEN_DEF } from "."
 
 // ブックスクリーンを描くウィジェットを置くスロット（ステージの列を並べるウィジェット workspace を置く）。ブックスクリーンの定義の id そのもの
 export const BOOK_SCREEN = BOOK_SCREEN_DEF.id
-// カレントスクリーンがステージを並べないスクリーンの間の、下の行に並べるウィジェットを置くスロット（止まり木のボタンなど）。何も受け取らない
+// カレントスクリーンがステージを並べないスクリーンの間の、下の行に並べるウィジェットを置くスロット（巣箱のボタンなど）。何も受け取らない
 export const CONTROL_CENTER_FOOTER = kit.name("control-center-footer")
 // コントロールセンターの左の列の、利用者パネルと参加者の一覧の間に並べるウィジェットを置くスロット（プロジェクトの一覧など）。何も受け取らない
 export const CONTROL_CENTER_SIDE = kit.name("control-center-side")

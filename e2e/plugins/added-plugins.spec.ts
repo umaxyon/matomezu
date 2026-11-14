@@ -343,7 +343,7 @@ test("ex12 のスクリーンアレンジメントに替えると、スクリー
   await page.locator("[data-ex12-switch] button").nth(0).click()
   const rows = page.locator("[data-ex12-row]")
   await expect(rows).toHaveCount(2)
-  // 下の行（止まり木）は、このスクリーンアレンジメントには無い
+  // 下の行（巣箱のボタン）は、このスクリーンアレンジメントには無い
   await expect(page.getByRole("button", { name: "コントロールセンター" })).toHaveCount(0)
   await page.locator("[data-ex12-switch] button").nth(3).click()
   await expect(rows).toHaveCount(3)
