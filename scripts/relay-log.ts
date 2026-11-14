@@ -1,5 +1,5 @@
 // Claude Code が API に送るリクエストを記録する中継。何がどれだけ場所を取り、キャッシュがどこで切れたかを見る
-//   bun scripts/relay-log.ts serve [--db tmp/relay-log/central.db] [--port 18951] [--view-port 18952] [--no-body]
+//   bun scripts/relay-log.ts serve [--db <file>（既定は ~/.local/state/matomezu-relay/central.db）] [--port 18951] [--view-port 18952] [--no-body]
 //     127.0.0.1 で待ち受け、受けた物をそのまま api.anthropic.com へ渡す。全セッションが 1 つの中継につなぎ、記録は 1 つの SQLite に入る
 //     セッションは ANTHROPIC_BASE_URL=http://127.0.0.1:18951/s/<セッション名> で区別する（先頭の /s/<名前> は外して渡す）。
 //     scripts/claude-relay.sh <セッション名> がこれを立てて claude を起動する
@@ -9,6 +9,7 @@
 //   bun scripts/relay-log.ts purge [--db ...] [--before <ISO の日時>]  記録を消す（--before なしは全部）
 // 字数は JSON にしたときの文字の数で、トークンの数ではない。トークンは API が返した usage の列で見る
 import { createHash } from "node:crypto"
+import { homedir } from "node:os"
 import { join } from "node:path"
 import { openStore, type Store } from "./relay-log/store"
 import { startViewer } from "./relay-log/viewer"
@@ -378,6 +379,10 @@ export function report(entries: Entry[]): string {
   ].join("\n")
 }
 
+// 平行作業の worktree のどこから立てても同じ記録になるよう、worktree の外に置く
+export const defaultDb = () =>
+  join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local", "state"), "matomezu-relay", "central.db")
+
 function flag(args: string[], name: string) {
   const i = args.indexOf(name)
   return i < 0 ? undefined : args[i + 1]
@@ -385,7 +390,7 @@ function flag(args: string[], name: string) {
 
 if (import.meta.main) {
   const args = process.argv.slice(2)
-  const db = flag(args, "--db") ?? join("tmp", "relay-log", "central.db")
+  const db = flag(args, "--db") ?? defaultDb()
   const usage = "usage: bun scripts/relay-log.ts serve|report|purge [--db <file>]"
   if (args[0] === "serve") {
     const port = Number(flag(args, "--port") ?? 18951)
