@@ -203,7 +203,17 @@ export function resizedBy(
   }
   const h = span(item.x, size.w, by.x, edges.x && (edges.x === "left" ? "start" : "end"), min.w, paper.w)
   const v = span(item.y, size.h, by.y, edges.y && (edges.y === "top" ? "start" : "end"), min.h, paper.h)
-  return { x: h.at, y: v.at, w: h.len, h: v.len }
+  const rect = { x: h.at, y: v.at, w: h.len, h: v.len }
+  // 大きさを項目に写す形は、写した項目から決まる大きさにし、つかんでいない側の辺を止める
+  const to = shapeDefOf(catalog, item.item)?.resizedTo
+  const next = to ? placedSize(catalog, to(item as ShapeData, rect) as PlacedShape) : null
+  if (!next) return rect
+  return {
+    x: edges.x === "left" ? item.x + size.w - next.w : rect.x,
+    y: edges.y === "top" ? item.y + size.h - next.h : rect.y,
+    w: next.w,
+    h: next.h,
+  }
 }
 
 // 中身を変えた形 next の大きさ: キャプションの項目（定義の captionProp）が変わって、キャプションが見える幅（20 字まで）より狭ければ、そこまで広げる。
