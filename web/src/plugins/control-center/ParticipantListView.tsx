@@ -1,17 +1,24 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
 // 下の 1 行は、参加済みでは base のスロット（workroom-row-line）に置かれたウィジェットが出す（今のタスクなど）
+import { useState } from "react"
 import { Slot, useMessages, usePluginState, useScreen, useSetPluginState } from "../../plugin-api/ui"
 import { Band, Panel, useWorkroomRows, WORKROOM_ROW_LINE } from "../base/ui"
 import { Bird } from "./Bird"
 import { CONTROL_CENTER_SCREEN, PICKED_ROOM } from "./control-center"
 import { kit } from "./kit"
 import styles from "./ParticipantListView.module.css"
-import { type RowDetail, rowDetail } from "./rows"
+import { orderByChange, orderHeld, type RowDetail, rowDetail } from "./rows"
 import text from "./text.module.css"
+import { useRowSlide } from "./useRowSlide"
 
 export function ParticipantListView() {
   const t = useMessages(kit)
-  const rows = useWorkroomRows()
+  // 変化のあった順。列に触れている間は、触れた時の並びで止める（押そうとした行が動かない）
+  const ordered = orderByChange(useWorkroomRows())
+  const [held, setHeld] = useState<readonly string[] | null>(null)
+  const rows = held ? orderHeld(ordered, held) : ordered
+  const hold = () => setHeld(h => h ?? ordered.map(r => r.room.id))
+  const register = useRowSlide(rows.map(r => r.room.id))
   const me = useScreen(CONTROL_CENTER_SCREEN).id
   const picked = usePluginState(kit, PICKED_ROOM, me)
   const setPicked = useSetPluginState(kit, PICKED_ROOM)
@@ -23,13 +30,14 @@ export function ParticipantListView() {
         <h2 className={text.heading}>{t("Workrooms")}</h2>
       </Band>
       {rows.length === 0 ? <p className={text.note}>{t("No workrooms")}</p> : null}
-      <ul className={styles.rows}>
+      <ul className={styles.rows} onPointerEnter={hold} onPointerLeave={() => setHeld(null)}>
         {rows.map(row => {
           const kind = rowDetail(row)
           const detail = detailText(kind)
           return (
             <li
               key={row.room.id}
+              ref={register(row.room.id)}
               className={styles.row}
               data-selected={picked === row.room.id}
               data-admin={row.admin}

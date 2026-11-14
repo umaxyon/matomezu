@@ -12,6 +12,36 @@ export function rowDetail(row: WorkroomRow): RowDetail {
 export const pickedRow = (rows: readonly WorkroomRow[], picked: string | undefined): WorkroomRow | undefined =>
   rows.find(r => r.room.id === picked)
 
+// 列の並び: 管理者を先頭に固定し、次に、変化のあった順（参加済みの行の、呼ばれた時刻と参加した時刻の新しいほう。新しい順）、最後に変化の無い行（空室・準備中）を、受け取った順のまま。
+// 同じ時刻の行は受け取った順（作った順）のまま。並べるだけで、画面の状態は持たない
+const changedAtOf = (row: WorkroomRow): number | undefined => {
+  if (row.state !== "ready") return undefined
+  const times = [row.calledAt, row.participant?.joinedAt]
+    .flatMap(t => (t ? [Date.parse(t)] : []))
+    .filter(Number.isFinite)
+  return times.length === 0 ? undefined : Math.max(...times)
+}
+
+export function orderByChange(rows: readonly WorkroomRow[]): WorkroomRow[] {
+  const rest = rows.filter(r => !r.admin)
+  const changed = rest.flatMap(row => {
+    const at = changedAtOf(row)
+    return at === undefined ? [] : [{ row, at }]
+  })
+  changed.sort((a, b) => b.at - a.at)
+  const kept = new Set(changed.map(c => c.row))
+  return [...rows.filter(r => r.admin), ...changed.map(c => c.row), ...rest.filter(r => !kept.has(r))]
+}
+
+// 並びを止めている間（列に触れている間）の並び: 止めた時の並び（id の列）に従い、新しく出た行は最後に
+export function orderHeld(rows: readonly WorkroomRow[], held: readonly string[]): WorkroomRow[] {
+  const at = (r: WorkroomRow) => {
+    const i = held.indexOf(r.room.id)
+    return i < 0 ? held.length : i
+  }
+  return [...rows].sort((a, b) => at(a) - at(b))
+}
+
 // ワークルームの枠の「最終アクセス」の出し方: 呼ばれた時刻があればそれ、無ければ準備中か、なし
 export type LastAccess = "called" | "preparing" | "none"
 

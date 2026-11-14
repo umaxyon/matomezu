@@ -297,3 +297,32 @@ test("生きている参加者のワークルームは引き継げない。断�
   const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
   expect(Object.keys(body.records["@matomezu/base:mail"] ?? {})).toHaveLength(1) // 最初の郵便だけ
 })
+
+test("列は、呼ばれた時刻と参加の新しい順に並び、列に触れている間は並びが止まって、離れると並び直す", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(BOOK_SCREEN_URL)
+  const first = await join(page, "e2e-link-order-1", "order-1", "", "S-order-1")
+  await acceptAs(page, "あいう")
+  const second = await join(page, "e2e-link-order-2", "order-2", "", "S-order-2")
+  const dialog = await openJoinDialog(page)
+  await dialog.getByRole("textbox", { name: "ワークルーム名" }).fill("かきく")
+  await dialog.getByRole("button", { name: "受け入れる" }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect.poll(async () => (await participants(page)).filter(p => p.state === "joined").length).toBe(2)
+  await (await fromMenu(page, "コントロールセンター")).click()
+  const names = () => page.locator("[data-workroom]").evaluateAll(els => els.map(e => e.textContent ?? ""))
+  const order = async () => (await names()).map(t => (t.includes("あいう") ? "あいう" : "かきく"))
+  // あとから参加したほうが上
+  await expect.poll(order).toEqual(["かきく", "あいう"])
+  // 先に参加したほうが呼ばれると、上へ来る
+  await call(page, first.participant)
+  await expect.poll(order).toEqual(["あいう", "かきく"])
+  // 列に触れている間は、呼ばれても並びが止まる。離れると並び直す
+  await page.locator("[data-workroom]").first().hover()
+  await call(page, second.participant)
+  await expect(page.locator("[data-workroom]").first()).toContainText("あいう")
+  await page.mouse.move(0, 0)
+  await expect.poll(order).toEqual(["かきく", "あいう"])
+})
