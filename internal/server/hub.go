@@ -93,6 +93,7 @@ type Hub struct {
 	viewed           chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
 	plugins          []*plugin.Bundle // 足した追加プラグイン（plugins.go）
 	pluginsVersion   int64            // 追加プラグインが変わるたびに進む
+	disabled         []string         // 利用者が有効にしていない追加プラグインの id（エンジンが無効で組んだ物）
 	// warning のあるブックの id → その warning（読めない W004〜W006・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookWarnings map[string]engine.BookWarning

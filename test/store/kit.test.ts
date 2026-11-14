@@ -110,3 +110,12 @@ test("文言の組・言語パック・既定のキーバインドも id を持�
   })
   expect(key.id).toBe("@foo/stars:close-escape")
 })
+
+test("プラグインの名前と概要（title・description）は、自分の文言の短い鍵で書き、頭の付いた鍵になる。書かなければ付かない", () => {
+  const named = kit.plugin({ title: "Star", description: "Board" })
+  expect(named.title as string).toBe("@foo/stars:Star")
+  expect(named.description as string).toBe("@foo/stars:Board")
+  const plain = kit.plugin({})
+  expect("title" in plain).toBe(false)
+  expect("description" in plain).toBe(false)
+})

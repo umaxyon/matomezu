@@ -62,9 +62,15 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   message<const K extends keyof M & string>(key: K): Owned<P, K> // 自分の文言の本当の鍵
 
   // プラグインの束（id と、頭を付けた文言の組を足す。文言の組の id は「プラグインの id:messages」）
-  plugin<const D extends Omit<PluginParts, "messages">>(
+  // title と description は、自分の文言の短い鍵（プラグインの名前と概要。設定の「プラグイン」に出る）
+  plugin<const D extends Omit<PluginParts, "messages"> & { title?: keyof M & string; description?: keyof M & string }>(
     parts: D,
-  ): D & { id: P; messages: { id: Owned<P, "messages">; messages: OwnedMessages<P, M> } }
+  ): Omit<D, "title" | "description"> & {
+    id: P
+    messages: { id: Owned<P, "messages">; messages: OwnedMessages<P, M> }
+    title?: MessageKey
+    description?: MessageKey
+  }
 
   defineShape<
     const Id extends string,
@@ -278,9 +284,11 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     messages: ownMessages,
     name: (name: string) => owned(plugin, name),
     message,
-    plugin: (parts: { tokens?: readonly TokenDef[] }) => ({
+    plugin: (parts: { tokens?: readonly TokenDef[]; title?: string; description?: string }) => ({
       ...parts,
       ...(parts.tokens ? { tokens: tokens(parts.tokens) } : {}),
+      ...(parts.title ? { title: message(parts.title) } : {}),
+      ...(parts.description ? { description: message(parts.description) } : {}),
       id: plugin,
       messages: { id: owned(plugin, "messages"), messages: ownMessages },
     }),

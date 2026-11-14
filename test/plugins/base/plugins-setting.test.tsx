@@ -24,7 +24,7 @@ test("設定の「プラグイン」に、足した追加プラグインがス�
     plugins: [...BUILTIN_UI, EX],
   })
   render(
-    <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)} optInAdded>
+    <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)}>
       <WindowRoot />
     </MatomezuProvider>,
   )

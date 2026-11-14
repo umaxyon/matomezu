@@ -122,7 +122,7 @@ test("参加者が生きているかは、最後に呼ばれた時刻から有�
   expect(alive("2026-11-08T09:30:00.000Z", { "@matomezu/base:participant-alive": "7" })).toBe(true)
 })
 
-test("画面に置かない（有効にしていない）追加プラグインの id の集合は、追加プラグインのうち、role が enabled-plugins の設定の値（形に合わない値は無し）に無い物。足したときは無効", () => {
+test("無効の（有効にしていない）追加プラグインの id の集合は、追加プラグインのうち、role が enabled-plugins の設定の値（形に合わない値は無し）に無い物。足したときは無効", () => {
   const added = ["@a/x", "@a/y"]
   const off = (value: unknown) => [
     ...disabledPluginsOf(CORE_CATALOG, { "@matomezu/base:enabled-plugins": value }, added),

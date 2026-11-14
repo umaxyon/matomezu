@@ -1,4 +1,4 @@
-// 追加プラグインの有効・無効（利用者の設定の項目 enabled-plugins）のビュー: 入れた追加プラグインごとの行に、有効のスイッチ
+// 追加プラグインの有効・無効（利用者の設定の項目 enabled-plugins）のビュー: 入れた追加プラグインごとの行に、有効のスイッチと、プラグインが名乗った名前（無ければ id）・id・概要
 
 import { isBuiltin } from "../../../store/plugin"
 import { useMessages } from "../../../ui/i18n"
@@ -22,7 +22,16 @@ export function EnabledPluginsSetting({ label, value, onChange }: UserSettingCon
             checked={enabled.includes(p.id)}
             onChange={e => onChange(withPluginEnabled(enabled, p.id, e.target.checked))}
           />
-          <span>{p.id}</span>
+          <span>
+            {p.title ? <strong>{t(p.title)} </strong> : null}
+            <small>{p.id}</small>
+            {p.description ? (
+              <>
+                <br />
+                <small>{t(p.description)}</small>
+              </>
+            ) : null}
+          </span>
         </label>
       ))}
     </Section>

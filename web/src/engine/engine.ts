@@ -39,12 +39,19 @@ import {
   restoreRecords,
 } from "../core/records"
 import type { Book, Page } from "../core/schema/book"
-import { aiSettings, isParticipantAlive, langOf, restoreSettings, settingSchema } from "../core/settings"
+import {
+  aiSettings,
+  disabledPluginsOf,
+  isParticipantAlive,
+  langOf,
+  restoreSettings,
+  settingSchema,
+} from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
 import { aiPlacedOf, type GrowRule, JOINED_MESSAGE, textColorRef, themesFor } from "../plugins/base"
-import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
+import { type Assembled, assemble, type Plugin, warningsOf, withoutParts } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -52,12 +59,40 @@ let assembled = assemble(BUILTIN, BUILTIN_CONTROL_CENTER)
 
 // 追加プラグインを足して組み直す。新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で投げれば、前の組のまま）。
 // 返すのは JSON: warnings は warning の 1 行ずつ（常駐がログに書く）、ai は新しい組の MCP 公開ツールの actions が返す物
-function use(added: readonly Plugin[]): string {
-  const next = assemble([...BUILTIN, ...added], BUILTIN_CONTROL_CENTER)
+// settings（利用者の設定の JSON）を渡すと、利用者が有効にしていない追加プラグインは、名乗りと文言だけで組む（無効のプラグイン。disabledPluginsOf）。渡さなければ、全部有効で組む。
+// 返す disabled は、無効で組んだプラグインの id
+function use(added: readonly Plugin[], settings?: string): string {
+  let used = added
+  let disabled: string[] = []
+  if (settings !== undefined) {
+    const all = assemble([...BUILTIN, ...added], BUILTIN_CONTROL_CENTER)
+    const off = disabledPluginsOf(
+      all.catalog.core,
+      restoreSettings(JSON.parse(settings)),
+      added.map(p => p.id),
+    )
+    disabled = [...off]
+    used = added.map(p => (off.has(p.id) ? withoutParts(p) : p))
+  }
+  const next = assemble([...BUILTIN, ...used], BUILTIN_CONTROL_CENTER)
   const ai = aiCatalog(next)
   assembled = next
-  return JSON.stringify({ warnings: warningsOf(next.catalog).map(warningText), ai })
+  lastAdded = added
+  return JSON.stringify({ warnings: warningsOf(next.catalog).map(warningText), ai, disabled })
 }
+
+// 今足している追加プラグイン（組み直すときの元）
+let lastAdded: readonly Plugin[] = []
+
+// 設定 settings で、無効になる追加プラグインの id（今足している物のうち）。設定が変わったあとに、組み直すかを決めるのに使う
+;(globalThis as { matomezuDisabledPlugins?: (settings: string) => string }).matomezuDisabledPlugins = settings =>
+  JSON.stringify([
+    ...disabledPluginsOf(
+      assembled.catalog.core,
+      restoreSettings(JSON.parse(settings)),
+      lastAdded.map(p => p.id),
+    ),
+  ])
 
 // 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部、レコードが対象のアクションなら readsBooks が答えたブック。matomezuRecordNeeds の books）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
 interface Input {
@@ -339,7 +374,7 @@ function aiTables(of: Assembled) {
 ;(globalThis as { matomezuModuleNames?: () => string }).matomezuModuleNames = () =>
   JSON.stringify({ engine: Object.keys(MODULES), ui: UI_NAMES })
 
-;(globalThis as { matomezuUse?: (added: readonly Plugin[]) => string }).matomezuUse = use
+;(globalThis as { matomezuUse?: (added: readonly Plugin[], settings?: string) => string }).matomezuUse = use
 
 ;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
 

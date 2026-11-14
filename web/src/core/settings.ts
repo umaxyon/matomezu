@@ -55,7 +55,7 @@ export function participantAliveMs(catalog: CoreCatalog, settings: Settings): nu
   return Number.isFinite(minutes) && minutes > 0 ? minutes * 60_000 : 0
 }
 
-// 画面に置かない（利用者が有効にしていない）追加プラグインの id の集合: 追加プラグイン added のうち、role が enabled-plugins の項目の値（形に合わない値は無し）に無い物。
+// 無効の（利用者が有効にしていない）追加プラグインの id の集合: 追加プラグイン added のうち、role が enabled-plugins の項目の値（形に合わない値は無し）に無い物。
 // ビルトインプラグインは追加プラグインに含めないので、いつも有効
 export function disabledPluginsOf(
   catalog: CoreCatalog,

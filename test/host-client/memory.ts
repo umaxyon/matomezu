@@ -69,7 +69,7 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
   const host: MemoryClient = {
     books: kept,
     settings,
-    load: async () => ({ books: [...kept.values()], settings: host.settings, plugins: [], failed: [] }),
+    load: async () => ({ books: [...kept.values()], settings: host.settings, plugins: [], failed: [], disabled: [] }),
     observe: async () => ({ ok: true }), // ホストがいないので、断る物もいない
     reportWarnings: () => {}, // ホストがいないので、知らせる先が無い（warning は画面の中で見る）
     reportAIEditTicket: () => {}, // ホストがいないので、AI もいない

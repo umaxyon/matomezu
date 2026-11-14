@@ -1,7 +1,7 @@
 // プラグイン: 1 つの部品の定義の組（定義の種類は core/catalog.ts の PARTS と、store の物（コマンド・ダイアログ・既定のキーバインドなど））。React を使わない部分だけを持つ。
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
-import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
+import { type CorePart, type MessageKey, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
 import { buildCoreCatalog, type CatalogCheckDef, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { NormalizeStepDef } from "../core/def/normalize-step"
@@ -41,6 +41,8 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
 
 export type Plugin = PluginParts & {
   id: string // npm のパッケージ名。足す物の id は、どれも「この id:名前」（pluginKit が頭を付ける。core/names.ts）
+  title?: MessageKey // プラグインの名前（自分の文言の鍵。設定の「プラグイン」に出る。無ければ id）
+  description?: MessageKey // プラグインの概要（自分の文言の鍵。設定の「プラグイン」で名前の下に出る）
 }
 
 // プラグインが持つ、その種類の id
@@ -101,6 +103,15 @@ type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [neve
       [id in (WrongPageAdd<P> | WrongPageSettings<P>) &
         string]: "ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs を受ける"
     }
+
+// 無効にしたプラグイン: 名乗り（id・名前・概要）と文言だけを残し、定義の部品は全部外した物（組むのは名乗りと文言だけなので、アクション・種類・キーなどは台帳に入らない）。
+// 外す（組み込みから除く）のとは違い、プラグインは組み込まれたまま、設定の「プラグイン」に並ぶ
+export const withoutParts = <P extends Plugin>(p: P): Plugin => ({
+  id: p.id,
+  ...(p.title ? { title: p.title } : {}),
+  ...(p.description ? { description: p.description } : {}),
+  ...(p.messages ? { messages: p.messages } : {}),
+})
 
 // プラグインを書く入口。id の頭と、形とブックのタイプが名指すダイアログの受ける値を型で確かめる（台帳アセンブルでも確かめる）
 export const definePlugin = <const P extends Plugin>(

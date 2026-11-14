@@ -4,7 +4,8 @@ import { defineAction } from "../../web/src/core/def/action"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
-import { definePlugin } from "../../web/src/store/plugin"
+import { pluginKit } from "../../web/src/store/kit"
+import { definePlugin, withoutParts } from "../../web/src/store/plugin"
 
 // 取り込んだ追加プラグインの見本: 自分のブックのタイプとアクション（core/catalog.ts には書き足さない）
 const NOTE = defineBookType({
@@ -67,4 +68,15 @@ test("check が投げた追加プラグインも外す（画面は見た目の�
   })
   expect(failed).toEqual([{ id: "notes", error: new Error("no view") }])
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(false)
+})
+
+test("無効にしたプラグインは、名乗り（id・名前・概要）と文言だけを残し、定義の部品は全部外す", () => {
+  const kit = pluginKit("@ex/off", { Name: { en: "Name", ja: "名前" }, About: { en: "About", ja: "概要" } })
+  const plugin = kit.plugin({ title: "Name", description: "About", keys: [] })
+  const off = withoutParts(plugin)
+  expect(off.id).toBe("@ex/off")
+  expect(off.title as string).toBe("@ex/off:Name")
+  expect(off.description as string).toBe("@ex/off:About")
+  expect(off.messages).toBe(plugin.messages)
+  expect("keys" in off).toBe(false)
 })

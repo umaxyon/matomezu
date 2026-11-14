@@ -1,6 +1,6 @@
 //go:build !e2e
 
-// Go のテストの用意（booksForTest・resetForTest とその Hub のメソッドは books_for_test_e2e.go と同じ物）
+// Go のテストの用意（booksForTest・resetForTest・enablePluginsForTest・enabledPluginsSetting とその Hub のメソッドは books_for_test_e2e.go と同じ物）
 
 package server
 
@@ -58,12 +58,13 @@ func booksForTest(o Options) http.HandlerFunc {
 func resetForTest(o Options) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Books []json.RawMessage `json:"books"`
+			Books          []json.RawMessage `json:"books"`
+			EnabledPlugins []string          `json:"enabledPlugins"`
 		}
 		if !readJSON(w, r, &req) {
 			return
 		}
-		if err := o.Hub.resetForTest(req.Books); err != nil {
+		if err := o.Hub.resetForTest(req.Books, req.EnabledPlugins); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -94,7 +95,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64
 }
 
 // resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定・レコード（郵便も）も消す。つないでいる画面と追加プラグインはそのまま。画面には知らせないので、テストは開き直す）
-func (h *Hub) resetForTest(books []json.RawMessage) error {
+func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) error {
 	ids := make([]string, len(books))
 	for i, body := range books {
 		var head struct {
@@ -112,7 +113,12 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 			return err
 		}
 	}
-	if err := h.store.PutSettings(user, json.RawMessage("null")); err != nil {
+	settings := json.RawMessage("null")
+	if len(enabledPlugins) > 0 {
+		list, _ := json.Marshal(enabledPlugins)
+		settings = json.RawMessage(`{"` + enabledPluginsSetting + `":` + string(list) + `}`)
+	}
+	if err := h.store.PutSettings(user, settings); err != nil {
 		return err
 	}
 	if err := h.resetRecordsForTest(); err != nil {
@@ -124,6 +130,10 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	h.books = map[string]entry{}
 	h.order = nil
 	h.settings = nil
+	if len(enabledPlugins) > 0 {
+		h.settings = settings
+	}
+	h.reusePluginsForSettings()
 	h.participantNotes = map[string]participantNote{}
 	h.annotations = map[string]json.RawMessage{}
 	h.touched = map[string]string{}
@@ -163,3 +173,37 @@ func (h *Hub) resetRecordsForTest() error {
 	h.recordLines = map[recordKey][]string{}
 	return nil
 }
+
+// enablePluginsForTest は、POST /api/enable-plugins-for-test（{ids}。足した追加プラグインのうち ids の物だけを有効にして、エンジンを組み直し、窓に知らせる。テストの用意だけの入口）の処理
+func enablePluginsForTest(o Options) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			IDs []string `json:"ids"`
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if err := o.Hub.enablePluginsForTest(req.IDs); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, map[string]any{})
+	}
+}
+
+// enablePluginsForTest は、足した追加プラグインのうち ids の物だけを有効にする設定を残し、エンジンを組み直す
+func (h *Hub) enablePluginsForTest(ids []string) error {
+	list, _ := json.Marshal(ids)
+	settings := json.RawMessage(`{"` + enabledPluginsSetting + `":` + string(list) + `}`)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if err := h.store.PutSettings(user, settings); err != nil {
+		return err
+	}
+	h.settings = settings
+	h.reusePluginsForSettings()
+	return nil
+}
+
+// enabledPluginsSetting は、有効にした追加プラグインの id の並びを持つ利用者の設定の項目（テストの用意が書くのに使う。エンジンが role で読む）
+const enabledPluginsSetting = "@matomezu/base:enabled-plugins"

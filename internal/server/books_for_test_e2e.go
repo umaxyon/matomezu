@@ -1,6 +1,6 @@
 //go:build e2e
 
-// e2e の常駐のテストの用意（booksForTest・resetForTest とその Hub のメソッドは books_for_test_test.go と同じ物。go test はタグを付けずに流すので、そちらにも置く）
+// e2e の常駐のテストの用意（booksForTest・resetForTest・enablePluginsForTest・enabledPluginsSetting とその Hub のメソッドは books_for_test_test.go と同じ物。go test はタグを付けずに流すので、そちらにも置く）
 
 package server
 
@@ -17,6 +17,7 @@ import (
 func routesForTest(mux *http.ServeMux, o Options) {
 	mux.Handle("PUT /api/books-for-test/{id}", sameOrigin(booksForTest(o)))
 	mux.Handle("POST /api/reset-for-test", sameOrigin(resetForTest(o)))
+	mux.Handle("POST /api/enable-plugins-for-test", sameOrigin(enablePluginsForTest(o)))
 	mux.Handle("POST /api/joined-ai-for-test", sameOrigin(func(w http.ResponseWriter, _ *http.Request) {
 		id, err := o.Hub.joinedAIForTest()
 		if err != nil {
@@ -62,16 +63,17 @@ func booksForTest(o Options) http.HandlerFunc {
 	}
 }
 
-// resetForTest は、POST /api/reset-for-test（{books}。置いてある物を全部消し、books を並びの順に置く。アクションも認可も通さない、テストの用意だけの入口）の処理
+// resetForTest は、POST /api/reset-for-test（{books, enabledPlugins}。置いてある物を全部消し、books を並びの順に置く。足した追加プラグインのうち enabledPlugins の物だけを有効にする。アクションも認可も通さない、テストの用意だけの入口）の処理
 func resetForTest(o Options) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Books []json.RawMessage `json:"books"`
+			Books          []json.RawMessage `json:"books"`
+			EnabledPlugins []string          `json:"enabledPlugins"`
 		}
 		if !readJSON(w, r, &req) {
 			return
 		}
-		if err := o.Hub.resetForTest(req.Books); err != nil {
+		if err := o.Hub.resetForTest(req.Books, req.EnabledPlugins); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -102,7 +104,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64
 }
 
 // resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定・レコード（郵便も）も消す。つないでいる窓と追加プラグインはそのまま。窓には知らせないので、テストは開き直す）
-func (h *Hub) resetForTest(books []json.RawMessage) error {
+func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) error {
 	ids := make([]string, len(books))
 	for i, body := range books {
 		var head struct {
@@ -120,7 +122,12 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 			return err
 		}
 	}
-	if err := h.store.PutSettings(user, json.RawMessage("null")); err != nil {
+	settings := json.RawMessage("null")
+	if len(enabledPlugins) > 0 {
+		list, _ := json.Marshal(enabledPlugins)
+		settings = json.RawMessage(`{"` + enabledPluginsSetting + `":` + string(list) + `}`)
+	}
+	if err := h.store.PutSettings(user, settings); err != nil {
 		return err
 	}
 	if err := h.resetRecordsForTest(); err != nil {
@@ -132,6 +139,10 @@ func (h *Hub) resetForTest(books []json.RawMessage) error {
 	h.books = map[string]entry{}
 	h.order = nil
 	h.settings = nil
+	if len(enabledPlugins) > 0 {
+		h.settings = settings
+	}
+	h.reusePluginsForSettings()
 	h.participantNotes = map[string]participantNote{}
 	h.annotations = map[string]json.RawMessage{}
 	h.touched = map[string]string{}
@@ -215,3 +226,37 @@ func (h *Hub) resetRecordsForTest() error {
 	h.recordLines = map[recordKey][]string{}
 	return nil
 }
+
+// enablePluginsForTest は、POST /api/enable-plugins-for-test（{ids}。足した追加プラグインのうち ids の物だけを有効にして、エンジンを組み直し、窓に知らせる。テストの用意だけの入口）の処理
+func enablePluginsForTest(o Options) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			IDs []string `json:"ids"`
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if err := o.Hub.enablePluginsForTest(req.IDs); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, map[string]any{})
+	}
+}
+
+// enablePluginsForTest は、足した追加プラグインのうち ids の物だけを有効にする設定を残し、エンジンを組み直す
+func (h *Hub) enablePluginsForTest(ids []string) error {
+	list, _ := json.Marshal(ids)
+	settings := json.RawMessage(`{"` + enabledPluginsSetting + `":` + string(list) + `}`)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if err := h.store.PutSettings(user, settings); err != nil {
+		return err
+	}
+	h.settings = settings
+	h.reusePluginsForSettings()
+	return nil
+}
+
+// enabledPluginsSetting は、有効にした追加プラグインの id の並びを持つ利用者の設定の項目（テストの用意が書くのに使う。エンジンが role で読む）
+const enabledPluginsSetting = "@matomezu/base:enabled-plugins"

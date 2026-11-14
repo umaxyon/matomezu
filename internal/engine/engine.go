@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -137,41 +138,43 @@ type AIEditTicketChange struct {
 
 // Engine は読み込んだホストのエンジン（engine.js）
 type Engine struct {
-	mu        sync.Mutex
-	vm        *goja.Runtime
-	source    Source // 行っている間だけある、レコードを引く口（PerformWith）
-	kinds     func() string
-	aiRows    func(string, string) string
-	keysOf    func(string, string) string
-	searchOf  func(string, string) string
-	parentsOf func(string, string) string
-	unlisted  func(string, string) string
-	perform   func(string) string
-	readAI    func() string
-	check     func(string) string
-	lines     func(string) string
-	settings  func(string) string
-	notes     func(string) string
-	without   func(string, string) string
-	talk      func() string
-	join      func() string
-	alive     func(string, string, float64) bool
-	needs     func(string, string) string
-	roles     func() string
-	aiRecords func(string, string, string, string) string
-	once      func() string
-	records   func(string) string
-	joinedMsg func(string, string) string
-	live      func(string, string, string, string) string
-	forAI     func(string) string
-	briefs    func(string) string
-	placed    func(string) string
-	aiPage    func(string, string) string
-	item      func(string, string) string
-	use       goja.Callable
-	aiCatalog json.RawMessage
-	modules   plugin.Modules
-	warnings  []string
+	mu          sync.Mutex
+	vm          *goja.Runtime
+	source      Source // 行っている間だけある、レコードを引く口（PerformWith）
+	kinds       func() string
+	aiRows      func(string, string) string
+	keysOf      func(string, string) string
+	searchOf    func(string, string) string
+	parentsOf   func(string, string) string
+	unlisted    func(string, string) string
+	perform     func(string) string
+	readAI      func() string
+	check       func(string) string
+	lines       func(string) string
+	settings    func(string) string
+	notes       func(string) string
+	without     func(string, string) string
+	talk        func() string
+	join        func() string
+	alive       func(string, string, float64) bool
+	needs       func(string, string) string
+	roles       func() string
+	aiRecords   func(string, string, string, string) string
+	once        func() string
+	records     func(string) string
+	joinedMsg   func(string, string) string
+	live        func(string, string, string, string) string
+	forAI       func(string) string
+	briefs      func(string) string
+	placed      func(string) string
+	aiPage      func(string, string) string
+	item        func(string, string) string
+	use         goja.Callable
+	disabledFor goja.Callable
+	disabled    []string
+	aiCatalog   json.RawMessage
+	modules     plugin.Modules
+	warnings    []string
 }
 
 // New はホストのエンジン（engine.js）を読み込む
@@ -298,6 +301,11 @@ func New() (*Engine, error) {
 		return nil, fmt.Errorf("engine.js has no matomezuUse")
 	}
 	e.use = use
+	disabledFor, ok := goja.AssertFunction(vm.Get("matomezuDisabledPlugins"))
+	if !ok {
+		return nil, fmt.Errorf("engine.js has no matomezuDisabledPlugins")
+	}
+	e.disabledFor = disabledFor
 	var names func() string
 	if err := vm.ExportTo(vm.Get("matomezuModuleNames"), &names); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuModuleNames: %w", err)
@@ -314,9 +322,10 @@ func (e *Engine) Modules() plugin.Modules {
 	return e.modules
 }
 
-// Use は追加プラグインを動かして受け取り、ビルトインプラグインに足して組み直す。返すのはプラグインの id（bundles の順）。
+// UseFor は追加プラグインを動かして受け取り、ビルトインプラグインに足して組み直す。返すのはプラグインの id（bundles の順）。
+// settings（利用者の設定の JSON）を渡すと、利用者が有効にしていない追加プラグインは、名乗りと文言だけで組む（無効のプラグイン。Disabled が id を返す）。nil なら全部有効。
 // 動かせない・default でプラグインを出していない・manifest と id が違う・台帳アセンブルで食い違うなら error で、前の組のまま
-func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
+func (e *Engine) UseFor(bundles []*plugin.Bundle, settings json.RawMessage) (ids []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	defer func() {
@@ -348,19 +357,46 @@ func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 		ids = append(ids, id)
 	}
 	// JS の側が、新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で失敗すれば前の組のまま）
-	res, err := e.use(goja.Undefined(), e.vm.NewArray(plugins...))
+	args := []goja.Value{e.vm.NewArray(plugins...)}
+	if settings != nil {
+		args = append(args, e.vm.ToValue(string(settings)))
+	}
+	res, err := e.use(goja.Undefined(), args...)
 	if err != nil {
 		return nil, fmt.Errorf("plugins: %w", err)
 	}
 	var used struct {
 		Warnings []string        `json:"warnings"`
 		AI       json.RawMessage `json:"ai"`
+		Disabled []string        `json:"disabled"`
 	}
 	if err := json.Unmarshal([]byte(res.String()), &used); err != nil {
 		return nil, fmt.Errorf("plugins: %w", err)
 	}
 	e.warnings = used.Warnings
 	e.aiCatalog = used.AI
+	e.disabled = used.Disabled
+	return ids, nil
+}
+
+// Disabled は、最後に組み直したときに無効で組んだ追加プラグインの id
+func (e *Engine) Disabled() []string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return slices.Clone(e.disabled)
+}
+
+// DisabledFor は、設定 settings（JSON）のとき、今足している追加プラグインのうち無効になる物の id（組み直すかを決めるのに使う）
+func (e *Engine) DisabledFor(settings json.RawMessage) (ids []string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	res, err := e.disabledFor(goja.Undefined(), e.vm.ToValue(string(settings)))
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal([]byte(res.String()), &ids); err != nil {
+		return nil, err
+	}
 	return ids, nil
 }
 

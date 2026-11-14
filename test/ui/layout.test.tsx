@@ -427,19 +427,6 @@ describe("取り込んだプラグインの置き場所", () => {
   })
 })
 
-describe("無効にしたプラグインの物", () => {
-  test("組み込んだまま、その物（スロットのウィジェット・メニューの項目）を除き、warning は出さない。ほかのプラグインの物は残す", () => {
-    const all = new Set(BUILTIN_UI.map(ui => ui.id))
-    const { layout, warnings } = skipAbsent(DEFAULT_LAYOUT, all, new Set(["@matomezu/taskboard"]))
-    expect(warnings).toEqual([])
-    const widgets = Object.values(layout.slots).flat() as string[]
-    expect(widgets.filter(id => id.startsWith("@matomezu/taskboard:"))).toEqual([])
-    expect(widgets.filter(id => id.startsWith("@matomezu/base:")).length).toBeGreaterThan(0)
-    // 何も無効にしなければ、UI マッピングはそのまま
-    expect(skipAbsent(DEFAULT_LAYOUT, all, new Set()).layout).toBe(DEFAULT_LAYOUT)
-  })
-})
-
 describe("組み込まれていないプラグインの物", () => {
   const LINE_CONTEXT = "@matomezu/line:line-context"
   test("持ち主のプラグインが無い物は除いて warning W010 にし、持ち主がいるのに無い物は error", () => {

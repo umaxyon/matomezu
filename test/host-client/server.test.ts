@@ -185,7 +185,13 @@ test("読むと、置いてあるブックと設定を返す", async () => {
   const s = fakeServer({ books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: { lang: "en" } })
   const loading = s.host.load()
   s.emit("hello", { client: "c1" })
-  expect(await loading).toEqual({ books: [SAMPLE_BOOKS[0]], settings: { lang: "en" }, plugins: [], failed: [] })
+  expect(await loading).toEqual({
+    books: [SAMPLE_BOOKS[0]],
+    settings: { lang: "en" },
+    plugins: [],
+    failed: [],
+    disabled: [],
+  })
 })
 
 test("常駐が足した追加プラグインは、見た目の JS を読んで default で出したものを返し、CSS を読む。読み込めない物は外して理由を返す", async () => {

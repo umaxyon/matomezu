@@ -39,7 +39,9 @@ test.afterEach(async ({ context }) => {
 })
 
 test("常駐が結んだ追加プラグインを画面に渡し、画面はその見た目の JS を読む", async ({ page }) => {
-  expect((await data(page)).plugins).toEqual([{ id: "ex2", ui: "api/plugins/0/ui.js?v=1" }])
+  expect((await data(page)).plugins).toEqual([
+    { id: "ex2", ui: expect.stringMatching(/^api\/plugins\/0\/ui\.js\?v=\d+$/) },
+  ])
   await page.goto(BOOK_SCREEN_URL)
   await expect(page.locator("[data-ex2-diamond]")).toHaveAccessibleName("判断")
   // ひし形はテーマキー ex2:diamond-fill の色で塗る（見た目では --diamond-fill。変数が無ければ黒になる）
@@ -127,6 +129,8 @@ test("見た目の台帳アセンブルで食い違う追加プラグインは�
   await page.goto(BOOK_SCREEN_URL)
   const linked = await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir } })
   expect(await linked.json()).toEqual({ ok: true, id: "ex3" })
+  // 足したときは無効（名乗りと文言だけで組むので、見た目は食い違わない）。有効にすると、見た目の台帳アセンブルで外れる
+  await page.request.post("/api/enable-plugins-for-test", { data: { ids: ["ex2", "ex3"] } })
   await expect.poll(() => errors.some(e => e.includes("plugin ex3 is not added"))).toBe(true)
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
   // 常駐のエンジンには入っているので AI は使えるが、画面には出ない。そのことを warning として、MCP 公開ツールの actions が返す物に添える
@@ -159,7 +163,20 @@ test("取り込んだプラグインが置いてほしいと書いたウィジ�
 })
 
 // 作り手の違う見本を一緒に使うテストは、使う見本を自分で足す
+// 足した追加プラグインは無効なので、足してから有効にする（テストの用意の口。有効にする操作そのものは、設定の「プラグイン」を使うテストが確かめる）。ex2 は、はじめから有効
 const link = async (page: Page, ...dirs: string[]) => {
+  const ids: string[] = ["ex2"]
+  for (const dir of dirs) {
+    const linked = await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir: resolve(dir) } })
+    const body = await linked.json()
+    expect(body.ok).toBe(true)
+    ids.push(body.id)
+  }
+  const enabled = await page.request.post("/api/enable-plugins-for-test", { data: { ids } })
+  expect(enabled.ok()).toBe(true)
+}
+// 足すだけ（有効にしない）
+const linkOnly = async (page: Page, ...dirs: string[]) => {
   for (const dir of dirs) {
     const linked = await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir: resolve(dir) } })
     expect((await linked.json()).ok).toBe(true)
@@ -170,7 +187,7 @@ const saved = async (page: Page, id: string) => (await data(page)).books.find((b
 test("3 つを読ませると、作り手の違うプラグインのボタンが同じ UI マッピングに並び、ex3 のテーマを ex2 のブックに使える", async ({
   page,
 }) => {
-  await link(page, "test/added-plugins/ex1", "test/added-plugins/ex3")
+  await linkOnly(page, "test/added-plugins/ex1", "test/added-plugins/ex3")
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2", "ex1", "ex3"])
   await page.goto(BOOK_SCREEN_URL)
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
@@ -327,7 +344,7 @@ test("ex8 を読ませると、自分の見せ方のビューが開いたペー�
 test("ex10 のステージに結ばない宣言（address が push）は、変えると URL の w に入ってブラウザの履歴に積まれ、読み直しても戻り、戻ると前の値に戻る", async ({
   page,
 }) => {
-  await link(page, "test/added-plugins/ex10")
+  await linkOnly(page, "test/added-plugins/ex10")
   await page.goto(BOOK_SCREEN_URL)
   await enablePlugins(page, "ex10")
   const tabs = page.locator("[data-ex10-tabs]")
@@ -344,7 +361,7 @@ test("ex10 のステージに結ばない宣言（address が push）は、変�
 test("ex12 のスクリーンアレンジメントに替えると、スクリーンが縦に並び、ブックスクリーンを 2 枚並べてもどちらのステージも大きさを持つ。押したスクリーンがカレントになり、読み直しても並んだまま", async ({
   page,
 }) => {
-  await link(page, "test/added-plugins/ex12")
+  await linkOnly(page, "test/added-plugins/ex12")
   await page.goto(BOOK_SCREEN_URL)
   await enablePlugins(page, "ex12")
   await page.locator("[data-ex12-switch] button").nth(0).click()

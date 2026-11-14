@@ -10,6 +10,7 @@ export interface Loaded {
   settings: unknown // 残しておいた設定（無ければ undefined）。使える項目かは store が確かめる（createMatomezu の settings）
   plugins: readonly unknown[] // ホストが足した追加プラグイン（見た目を結んだもの）。プラグインかは台帳アセンブルが確かめる
   failed: readonly { id: string; error: unknown }[] // 読み込めなかった追加プラグインと理由（ほかのプラグインとブックは読む）
+  disabled: readonly string[] // 利用者が有効にしていない追加プラグインの id（名乗りと文言だけで組む）
 }
 
 export interface HostClient {

@@ -9,7 +9,7 @@ import type { Size } from "../core/geom"
 import { isOwnedBy } from "../core/names"
 import type { Book } from "../core/schema/book"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
-import type { IdsOf, Plugin } from "../store/plugin"
+import { type IdsOf, type Plugin, withoutParts } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
 import type { AnyWidgetDef } from "./layout"
 
@@ -150,6 +150,9 @@ export type UiParts<P> = PluginViews<P> & {
 export type PluginUi<P extends Plugin> = P & { ui: UiParts<P> }
 // 見た目を結んだプラグインのどれか
 export type AnyPluginUi = Plugin & { ui: object }
+
+// 無効にしたプラグインの見た目: 名乗りと文言だけで、見た目の部品は無い（store/plugin.ts の withoutParts）
+export const withoutUi = (p: AnyPluginUi): AnyPluginUi => ({ ...withoutParts(p), ui: {} })
 
 export const definePluginUi = <const P extends Plugin>(plugin: P, ui: UiParts<P>): PluginUi<P> => ({ ...plugin, ui })
 

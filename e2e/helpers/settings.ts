@@ -15,7 +15,15 @@ export async function enablePlugins(page: Page, ...ids: string[]) {
   await (await fromMenu(page, "設定を開く")).click()
   const dialog = settingsDialog(page)
   await dialog.getByRole("tab", { name: "プラグイン" }).click()
-  for (const id of ids) await dialog.getByRole("checkbox", { name: id }).check()
+  // 有効にすると、ホストがエンジンを組み直し、画面は読み直される（読み直しが済むまで待つ）
+  await page.evaluate(() => Object.assign(window, { notReloaded: true }))
+  for (const id of ids) {
+    await dialog.getByRole("checkbox", { name: id }).check()
+    await page.waitForFunction(() => !("notReloaded" in window))
+    await page.evaluate(() => Object.assign(window, { notReloaded: true }))
+    await (await fromMenu(page, "設定を開く")).click()
+    await dialog.getByRole("tab", { name: "プラグイン" }).click()
+  }
   await page.keyboard.press("Escape")
   await expect(dialog).toBeHidden()
   await page.mouse.move(0, 0)

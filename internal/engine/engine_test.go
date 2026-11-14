@@ -290,11 +290,43 @@ func usePlugin(t *testing.T, e *Engine, dir string) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids, err := e.Use([]*plugin.Bundle{b})
+	ids, err := e.UseAllForTest([]*plugin.Bundle{b})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return ids
+}
+
+// 追加プラグインは、利用者が設定で有効にするまで無効で、無効の間は名乗りと文言だけで組む（アクション・種類は AI にも出ない）。設定が変われば、有効になる
+func TestAnAddedPluginIsOffUntilTheUserTurnsItOn(t *testing.T) {
+	e := newEngine(t)
+	b, err := plugin.Build("../../test/added-plugins/ex2", e.Modules())
+	if err != nil {
+		t.Fatal(err)
+	}
+	off := json.RawMessage(`{}`)
+	if _, err := e.UseFor([]*plugin.Bundle{b}, off); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.Disabled(); len(got) != 1 || got[0] != "ex2" {
+		t.Fatalf("disabled = %v, want [ex2]", got)
+	}
+	if c := string(e.AICatalogForTest()); strings.Contains(c, `ex2:`) {
+		t.Fatalf("an off plugin shows up in the AI catalog: %s", c)
+	}
+	on := json.RawMessage(`{"@matomezu/base:enabled-plugins":["ex2"]}`)
+	if now, err := e.DisabledFor(on); err != nil || len(now) != 0 {
+		t.Fatalf("disabled for the enabled setting = %v, %v", now, err)
+	}
+	if now, err := e.DisabledFor(off); err != nil || len(now) != 1 {
+		t.Fatalf("disabled for the empty setting = %v, %v", now, err)
+	}
+	if _, err := e.UseFor([]*plugin.Bundle{b}, on); err != nil {
+		t.Fatal(err)
+	}
+	if len(e.Disabled()) != 0 || !strings.Contains(string(e.AICatalogForTest()), `"id":"ex2:diamond"`) {
+		t.Fatalf("the enabled plugin is not assembled: disabled = %v", e.Disabled())
+	}
 }
 
 func TestUsesAnAddedPlugin(t *testing.T) {
@@ -319,19 +351,19 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
 	e := newEngine(t)
 	b := &plugin.Bundle{Dir: "bad", Manifest: plugin.Manifest{ID: "bad", Engine: "index.ts"}, Engine: `module.exports.default = { id: "bad", items: [{ id: "@matomezu/box:shape-box" }] }`}
-	if _, err := e.Use([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "E301") {
+	if _, err := e.UseAllForTest([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "E301") {
 		t.Fatalf("err = %v", err)
 	}
 	none := &plugin.Bundle{Dir: "none", Manifest: plugin.Manifest{ID: "none", Engine: "index.ts"}, Engine: `module.exports.x = 1`}
-	if _, err := e.Use([]*plugin.Bundle{none}); err == nil || !strings.Contains(err.Error(), "export the plugin as default") {
+	if _, err := e.UseAllForTest([]*plugin.Bundle{none}); err == nil || !strings.Contains(err.Error(), "export the plugin as default") {
 		t.Fatalf("err = %v", err)
 	}
 	noID := &plugin.Bundle{Dir: "noid", Manifest: plugin.Manifest{ID: "noid", Engine: "index.ts"}, Engine: `module.exports.default = {}`}
-	if _, err := e.Use([]*plugin.Bundle{noID}); err == nil || !strings.Contains(err.Error(), "export the plugin as default") {
+	if _, err := e.UseAllForTest([]*plugin.Bundle{noID}); err == nil || !strings.Contains(err.Error(), "export the plugin as default") {
 		t.Fatalf("err = %v", err)
 	}
 	other := &plugin.Bundle{Dir: "other", Manifest: plugin.Manifest{ID: "other", Engine: "index.ts"}, Engine: `module.exports.default = { id: "another" }`}
-	if _, err := e.Use([]*plugin.Bundle{other}); err == nil || !strings.Contains(err.Error(), `the id in matomezu.json is "other", but index.ts exports "another"`) {
+	if _, err := e.UseAllForTest([]*plugin.Bundle{other}); err == nil || !strings.Contains(err.Error(), `the id in matomezu.json is "other", but index.ts exports "another"`) {
 		t.Fatalf("err = %v", err)
 	}
 	if out, err := e.Perform(place("p")); err != nil || !out.OK {
@@ -357,7 +389,7 @@ module.exports.default = {
     }
   }]
 }`}
-	if _, err := e.Use([]*plugin.Bundle{b}); err != nil {
+	if _, err := e.UseAllForTest([]*plugin.Bundle{b}); err != nil {
 		t.Fatal(err)
 	}
 	args, _ := json.Marshal(map[string]string{"text": "# A &amp; &copy;\n\n| a |\n|-|\n| x |\n\nn[^1]\n\n[^1]: f\n"})
@@ -386,7 +418,7 @@ module.exports.default = {
     run: function (b) { return { next: b, result: {} } }
   }]
 }`}
-	if _, err := e.Use([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "boom") {
+	if _, err := e.UseAllForTest([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("err = %v", err)
 	}
 	if got := string(e.AICatalogForTest()); got != before {
@@ -538,7 +570,7 @@ module.exports.default = {
     run: function (b) { while (true) {} }
   }]
 }`}
-	if _, err := e.Use([]*plugin.Bundle{b}); err != nil {
+	if _, err := e.UseAllForTest([]*plugin.Bundle{b}); err != nil {
 		t.Fatal(err)
 	}
 	spin := Input{Action: "stuck:spin", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en", Books: []json.RawMessage{json.RawMessage(book)}, TimeoutSec: 1}
@@ -587,4 +619,9 @@ func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
 	if err != nil || string(same) != page {
 		t.Fatalf("AIPage of a slide book = %s, %v", same, err)
 	}
+}
+
+// UseAllForTest は追加プラグインを全部有効にして組み直す（UseFor に設定を渡さない形。ホストは UseFor を使う）
+func (e *Engine) UseAllForTest(bundles []*plugin.Bundle) (ids []string, err error) {
+	return e.UseFor(bundles, nil)
 }

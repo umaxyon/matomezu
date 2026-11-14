@@ -41,6 +41,10 @@ func newServerWith(t *testing.T, o Options) *httptest.Server {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// 追加プラグインは、利用者が有効にするまで無効。このテストで足す見本は、はじめから有効にしておく（有効・無効の確かめは TestAddedPluginsAreOffUntilEnabled）
+	if err := store.PutSettings(user, json.RawMessage(`{"`+enabledPluginsSetting+`":["a","b","ex1","ex2","ex3","ex9","ex10","ex12","ex14"]}`)); err != nil {
+		t.Fatal(err)
+	}
 	hub, err := NewHub(store, eng)
 	if err != nil {
 		t.Fatal(err)
@@ -361,7 +365,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
 		!strings.HasPrefix(body, `{"annotations":{},"books":[],"counters":{},"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
-		!strings.HasSuffix(body, `},"settings":null,"touched":{}}`) {
+		!strings.Contains(body, `},"settings":{"`+enabledPluginsSetting+`":[`) || !strings.HasSuffix(body, `]},"touched":{}}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
@@ -1527,5 +1531,72 @@ func TestFirstProjectIsMadeOnce(t *testing.T) {
 		if r.Subject == "@matomezu/taskboard:project" {
 			t.Fatalf("project made again: %v", r)
 		}
+	}
+}
+
+// 追加プラグインは、足したときは無効で（画面は名乗りと文言だけで組み、エンジンはアクション・種類を AI にも出さない）、利用者が設定で有効にすると有効になる。
+// 設定を変えると、ホストはエンジンを組み直し、窓に plugins を知らせる（窓は読み直す）
+func TestAddedPluginsAreOffUntilEnabled(t *testing.T) {
+	web := fstest.MapFS{"index.html": {Data: []byte("<!doctype html>top")}}
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hub, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := Options{Web: web, Token: "secret", Version: "v1", Hub: hub, Cookies: NewScreenCookies(nil, nil)}
+	s := httptest.NewUnstartedServer(withRoutesForTest(Handler(o), o))
+	s.Config.RegisterOnShutdown(hub.CloseAll)
+	s.Start()
+	cookieTestBrowser(t, s, o.Cookies)
+	t.Cleanup(hub.CloseAll)
+	t.Cleanup(s.Close)
+	screen := listen(t, s.URL)
+	next(t, screen) // hello
+	catalog := func() string { _, c := get(t, s.URL+"/api/ai/catalog", "secret"); return c }
+	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
+		t.Fatalf("link = %s", got)
+	}
+	if got := next(t, screen); got != `plugins {"version":1}` {
+		t.Fatalf("event = %s", got)
+	}
+	if _, body := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(body, `"id":"ex2","ui":"api/plugins/0/ui.js?v=1","disabled":true`) {
+		t.Fatalf("a plugin that was just added is not marked off: %s", body)
+	}
+	if c := catalog(); strings.Contains(c, `ex2:diamond`) {
+		t.Fatalf("an off plugin shows up in the AI catalog: %s", c)
+	}
+	// 有効にすると、組み直して窓に知らせる
+	set := func(ids string) {
+		send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"`+enabledPluginsSetting+`":`+ids+`}},"lang":"ja","client":"c1","seq":1}`, nil)
+	}
+	set(`["ex2"]`)
+	next(t, screen) // settings
+	if got := next(t, screen); got != `plugins {"version":2}` {
+		t.Fatalf("event after enabling = %s", got)
+	}
+	next(t, screen) // ack
+	if c := catalog(); !strings.Contains(c, `ex2:diamond`) {
+		t.Fatalf("the enabled plugin is not in the AI catalog")
+	}
+	if _, body := send(t, "GET", s.URL+"/api/data", "", nil); strings.Contains(body, `"disabled":true`) {
+		t.Fatalf("an enabled plugin is marked off: %s", body)
+	}
+	// 設定がほかの項目だけ変わっても、組み直さない
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja","client":"c1","seq":2}`, nil)
+	next(t, screen) // settings
+	next(t, screen) // ack
+	// 無効に戻すと、また組み直す
+	set(`[]`)
+	next(t, screen) // settings
+	if got := next(t, screen); got != `plugins {"version":3}` {
+		t.Fatalf("event after disabling = %s", got)
 	}
 }

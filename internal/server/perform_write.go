@@ -141,6 +141,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	if len(out.Settings) > 0 {
 		h.settings = out.Settings
 		h.broadcast("settings", map[string]any{"settings": out.Settings, "client": p.Client, "seq": p.Seq})
+		h.reusePluginsForSettings()
 	}
 	h.applyRecords(plan, out, p)
 	for book, body := range out.Annotations {

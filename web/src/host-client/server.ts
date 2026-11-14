@@ -200,7 +200,9 @@ const DataSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   records: z.unknown().optional(),
   counters: z.unknown().optional(),
-  plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
+  plugins: z
+    .array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional(), disabled: z.boolean().optional() }))
+    .optional(),
   touched: z.record(z.string(), z.string()).optional(),
   participantCalls: z.record(z.string(), z.string()).optional(),
   participantReady: z.array(z.string()).optional(),
@@ -253,7 +255,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
   let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → モデルとブランチ（どちらも無い参加者は持たない）
-  let plugins: { id: string; ui: string; css?: string }[] = []
+  let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
   let pending: Pending[] = []
   let client = ""
   let link = 0 // 今のつながりの番号（hello のたびに増やす）
@@ -664,7 +666,13 @@ export function serverClient(net: Net = browserNet): ServerClient {
         if (r?.status === "fulfilled") added.push(r.value)
         else failed.push({ id: p.id, error: r?.reason })
       })
-      return { books: [...confirmed.values()].map(e => e.book), settings, plugins: added, failed }
+      return {
+        books: [...confirmed.values()].map(e => e.book),
+        settings,
+        plugins: added,
+        failed,
+        disabled: plugins.filter(p => p.disabled).map(p => p.id),
+      }
     },
     observe: done =>
       new Promise<HostAnswer>(answer => {

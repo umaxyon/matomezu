@@ -15,7 +15,7 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { createMatomezu } from "./store/create"
 import { loadFonts } from "./ui/fonts"
 import { placeAdded, placeAddedWithWarnings } from "./ui/layout"
-import { type AnyPluginUi, assembleUi } from "./ui/plugin"
+import { type AnyPluginUi, assembleUi, withoutUi } from "./ui/plugin"
 import { MatomezuProvider, shownLayout } from "./ui/store-context"
 import { WindowRoot } from "./ui/WindowRoot"
 import "./ui/skin.css"
@@ -36,7 +36,9 @@ const store = createMatomezu({
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、台帳アセンブルで確かめる（見た目と、置いた UI マッピングも）。
 // 読み込めないもの・台帳アセンブルで食い違うもの・UI マッピングが食い違うものは外す（ほかのプラグインとブックは使える）
-const added = store.use(saved.plugins as AnyPluginUi[], all => {
+// 利用者が有効にしていない追加プラグインは、名乗りと文言だけで組む（ホストのエンジンも同じ。設定の「プラグイン」に並べる）
+const offered = (saved.plugins as AnyPluginUi[]).map(p => (saved.disabled.includes(p.id) ? withoutUi(p) : p))
+const added = store.use(offered, all => {
   shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
 })
 const failed = [...saved.failed, ...added.failed]
@@ -59,7 +61,7 @@ if (!root) fail("E202")
 
 createRoot(root).render(
   <StrictMode>
-    <MatomezuProvider instance={store} layout={layout} warnings={screenWarnings} optInAdded>
+    <MatomezuProvider instance={store} layout={layout} warnings={screenWarnings}>
       <WindowRoot />
     </MatomezuProvider>
   </StrictMode>,

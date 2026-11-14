@@ -214,11 +214,13 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 		ID  string `json:"id"`
 		UI  string `json:"ui"`
 		CSS string `json:"css,omitempty"`
+		// 利用者が有効にしていない追加プラグイン（画面も、名乗りと文言だけで組む）
+		Disabled bool `json:"disabled,omitempty"`
 	}
 	files, v := o.Hub.Plugins()
 	plugins := make([]plugin, len(files))
 	for i, p := range files {
-		plugins[i] = plugin{ID: p.ID, UI: fmt.Sprintf("api/plugins/%d/ui.js?v=%d", i, v)}
+		plugins[i] = plugin{ID: p.ID, UI: fmt.Sprintf("api/plugins/%d/ui.js?v=%d", i, v), Disabled: p.Disabled}
 		if p.CSS != nil {
 			plugins[i].CSS = fmt.Sprintf("api/plugins/%d/ui.css?v=%d", i, v)
 		}

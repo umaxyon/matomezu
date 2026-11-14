@@ -1,10 +1,9 @@
 // インスタンス（store・プラグインの見た目・UI マッピング）を画面の木に配る入れ物と、読む口・操作・表を取り出すフック
-import { createContext, type ReactNode, useContext, useMemo, useRef } from "react"
+import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
 import { fail, matomezuError, problem } from "../core/errors"
-import { disabledPluginsOf } from "../core/settings"
 import type { Warning } from "../core/warnings"
-import { type Catalog, isBuiltin, type Plugin } from "../store/plugin"
+import type { Catalog, Plugin } from "../store/plugin"
 import type { Actions, MatomezuInstance, MatomezuState } from "../store/store"
 import { checkLayout, type LayoutDef, skipAbsent } from "./layout"
 import { type AnyPluginUi, assembleUi, type UiCatalog } from "./plugin"
@@ -22,9 +21,8 @@ export function shownLayout(
   layout: LayoutDef,
   plugins: readonly Plugin[],
   ui: UiCatalog,
-  disabled?: ReadonlySet<string>,
 ): { layout: LayoutDef; warnings: Warning[] } {
-  const skipped = skipAbsent(layout, new Set(plugins.map(p => p.id)), disabled)
+  const skipped = skipAbsent(layout, new Set(plugins.map(p => p.id)))
   const commands = new Set(plugins.flatMap(p => (p.commands ?? []).map(c => c.id)))
   const named = {
     screens: new Set(plugins.flatMap(p => (p.screens ?? []).map(s => s.id))),
@@ -43,37 +41,18 @@ export function MatomezuProvider({
   instance,
   layout,
   warnings = NO_WARNINGS,
-  optInAdded = false,
   children,
 }: {
   instance: MatomezuInstance<readonly AnyPluginUi[]>
   layout: LayoutDef
   warnings?: readonly Warning[]
-  optInAdded?: boolean // 追加プラグインを、利用者が設定で有効にするまで置かないか（動いている画面。テストで組むときは、渡したプラグインを全部置く）
   children: ReactNode
 }) {
   const ui = useMemo(() => assembleUi(instance.plugins), [instance])
-  // 利用者が有効にしていない追加プラグイン（role が enabled-plugins の設定）の物は、組み込んだまま UI マッピングに置かない。warning は出さない
-  const settings = useStore(instance.state, s => s.settings)
-  const nowDisabled = useMemo(
-    () =>
-      optInAdded
-        ? disabledPluginsOf(
-            instance.catalog.core,
-            settings,
-            instance.plugins.filter(p => !isBuiltin(p)).map(p => p.id),
-          )
-        : NO_PLUGINS,
-    [instance, settings, optInAdded],
-  )
-  // 設定のどれが変わっても新しい集合ができるので、中身が同じなら前の集合を使う（UI マッピングを組み直して画面全体を描き直さない）
-  const disabledRef = useRef(nowDisabled)
-  if (!sameIds(disabledRef.current, nowDisabled)) disabledRef.current = nowDisabled
-  const disabled = disabledRef.current
   const value = useMemo(() => {
-    const shown = shownLayout(layout, instance.plugins, ui, disabled)
+    const shown = shownLayout(layout, instance.plugins, ui)
     return { store: instance, ui, layout: shown.layout, warnings: [...warnings, ...shown.warnings] }
-  }, [instance, ui, layout, warnings, disabled])
+  }, [instance, ui, layout, warnings])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
@@ -104,9 +83,6 @@ export function useActions(): Actions {
 export function useInstance(): MatomezuInstance {
   return useMatomezuContext().store
 }
-
-const NO_PLUGINS: ReadonlySet<string> = new Set()
-const sameIds = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every(id => b.has(id))
 
 const NO_WARNINGS: readonly Warning[] = []
 

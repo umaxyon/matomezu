@@ -46,6 +46,8 @@ export const joinedAiAuth = async () => {
 
 // ワーカーごとの Playwright の option（playwright.config.ts の use で渡す）
 export type HostOptions = { hostArgs: string[] }
+// テストごとの Playwright の option
+export type TestOptions = { enabledPlugins: readonly string[] }
 
 // 開いた直後（URL が無いとき）はコントロールセンターが前に出る。ブックスクリーンから始めるテストは BOOK_SCREEN_URL、コントロールセンターから始めるテストは CONTROL_CENTER_URL を開く
 export const BOOK_SCREEN_URL = "/?f=book"
@@ -89,11 +91,19 @@ const giveCookie = async (host: Host, context: BrowserContext) => {
 }
 
 export const test = base.extend<
-  { books: readonly object[]; reset: undefined; withCookie: undefined; newPage: () => Promise<Page> },
+  {
+    books: readonly object[]
+    enabledPlugins: readonly string[]
+    reset: undefined
+    withCookie: undefined
+    newPage: () => Promise<Page>
+  },
   HostOptions & { host: Host }
 >({
   // 常駐の serve に足す引数（追加プラグインのフォルダを結ぶ --plugin など）
   hostArgs: [[], { option: true, scope: "worker" }],
+  // 有効にしておく追加プラグインの id（足した追加プラグインは、利用者が有効にするまで無効）
+  enabledPlugins: [[], { option: true }],
   host: [
     async ({ hostArgs }, use, info) => {
       const home = homeOf(info.workerIndex)
@@ -147,11 +157,11 @@ export const test = base.extend<
     })
   },
   reset: [
-    async ({ host, books }, use) => {
+    async ({ host, books, enabledPlugins }, use) => {
       const done = await fetch(`${host.url}/api/reset-for-test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ books }),
+        body: JSON.stringify({ books, enabledPlugins }),
       })
       if (!done.ok) throw new Error(`reset-for-test: ${done.status} ${await done.text()}`)
       await use(undefined)
