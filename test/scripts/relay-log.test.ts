@@ -170,3 +170,51 @@ test("中継は返答をそのまま渡し、セッション名を付けて SQLi
   expect(JSON.stringify(got.stored)).not.toContain("secret-token")
   expect(report(got.entries)).toContain("mcp__matomezu__read_page: 1 回、52 字")
 })
+
+// 上流が最初のかけらを返したところで、呼び手が接続を切る（Claude Code の中断）
+const abortScenario = `
+import { startRelay } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log.ts"))}
+import { openStore } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log/store.ts"))}
+const [db, body] = process.argv.slice(1)
+const upstream = Bun.serve({ port: 0, hostname: "127.0.0.1", idleTimeout: 0, fetch() {
+  const stream = new ReadableStream({ async start(c) {
+    c.enqueue(new TextEncoder().encode('event: message_start\\ndata: {"type":"message_start","message":{"usage":{"input_tokens":5}}}\\n\\n'))
+    await Bun.sleep(5000)
+    c.close()
+  } })
+  return new Response(stream, { headers: { "content-type": "text/event-stream" } })
+} })
+const store = openStore(db)
+const relay = startRelay({ port: 0, store, upstream: "http://127.0.0.1:" + upstream.port })
+const ac = new AbortController()
+const res = await fetch("http://127.0.0.1:" + relay.port + "/v1/messages", {
+  method: "POST", headers: { "content-type": "application/json" }, body, signal: ac.signal,
+})
+const reader = res.body.getReader()
+await reader.read()
+ac.abort()
+let entries = []
+for (let i = 0; i < 200 && !entries.length; i++) { await Bun.sleep(10); entries = store.entries() }
+const health = await (await fetch("http://127.0.0.1:" + relay.port + "/__relay/health")).text()
+console.log(JSON.stringify({ health, entries }))
+relay.stop(true); upstream.stop(true)
+process.exit(0)
+`
+
+test("呼び手が返答の途中で接続を切っても中継は落ちず、中断した呼び出しを記録する", async () => {
+  const child = Bun.spawn(["bun", "-e", abortScenario, join(dir, "abort.db"), JSON.stringify(body())], {
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  const [out, err, code] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ])
+  expect({ code, err: err.includes("AbortError") ? err.slice(0, 300) : "" }).toEqual({ code: 0, err: "" })
+  const got = JSON.parse(out)
+  expect(got.health).toBe("ok")
+  expect(got.entries.map((e: { aborted?: boolean; usage: unknown }) => [e.aborted, e.usage])).toEqual([
+    [true, { input_tokens: 5 }],
+  ])
+})
