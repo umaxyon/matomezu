@@ -26,6 +26,12 @@ export const ScrapSchema = z.strictObject({
 })
 export type Scrap = z.output<typeof ScrapSchema>
 
+// スクラップトレイから紙 paper に置くときのスクラップ: 紙の幅・高さの半分に収まるよう倍率を下げる（上げはしない。倍率の下限より下げない）
+export const scrapToPlace = (scrap: Scrap, paper: Size): Scrap => ({
+  ...scrap,
+  scale: Math.max(SCRAP_SCALE_MIN, Math.min(scrap.scale, paper.w / 2 / scrap.area.w, paper.h / 2 / scrap.area.h)),
+})
+
 // スクラップを置いたときの大きさ（見る範囲 × 倍率。小数は切り上げる）
 export const scrapSize = (scrap: Pick<Scrap, "area" | "scale">): Size => ({
   w: Math.ceil(scrap.area.w * scrap.scale),

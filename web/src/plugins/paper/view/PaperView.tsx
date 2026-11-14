@@ -432,7 +432,11 @@ function PageItems({
     if (!st || st.item !== item.id || !paper) return item
     const ratio = shapeDefOf(catalog, item.item)?.[kit.name("stretch")] === "ratio"
     const to = resizedBy(catalog, item, st.edges, toPaperDelta(stage, stretched), paper, ratio)
-    return to ? { ...item, ...to } : item
+    if (!to) return item
+    // 大きさを項目に写す形は、写した項目で描く（w・h を書いても、大きさは項目から決まるため）
+    const write = shapeDefOf(catalog, item.item)?.resizedTo
+    const sized = write ? (write(item as never, to) as PlacedShape) : { ...item, w: to.w, h: to.h }
+    return { ...sized, x: to.x, y: to.y }
   }
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
   const selectable = !pans && stage.placing === null
