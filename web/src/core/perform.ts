@@ -393,15 +393,17 @@ export type PerformedIn =
   | { ok: false; reason: "no-book" }
   | { ok: false; reason: "no-record"; detail: string }
 
-// on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか、直し方（AI に見える種類なら一覧の引き方）、種類の説明（id が何の id か）
+// on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか。AI に見える種類なら、直し方（一覧の引き方）と種類の説明（id が何の id か）も
 function noRecord(
   catalog: CoreCatalog,
   target: string,
   wanted: string,
 ): { ok: false; reason: "no-record"; detail: string } {
   const def = catalog.subjects.get(target)
-  const list = def?.aiBrief ? `; read_records with kind ${target} lists the records` : ""
-  const about = def ? ` About that subject: ${def.aiDescription}` : ""
+  // AI に見せる種類（aiBrief を書いた種類）だけ、一覧の引き方と種類の説明を言う
+  const shown = def?.aiBrief !== undefined
+  const list = shown ? `; read_records with kind ${target} lists the records` : ""
+  const about = shown ? ` About that subject: ${def.aiDescription}` : ""
   return {
     ok: false,
     reason: "no-record",

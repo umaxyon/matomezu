@@ -210,6 +210,9 @@ test("on の record で指したレコードを直す。無いレコードは no
   // 断りは、どの種類のどの id が無いかと、on.record の意味を言う
   expect((missing as { detail: string }).detail).toContain("no @ex/rec:card record with the id nope")
   expect((missing as { detail: string }).detail).toContain("on.record is the id of a record of the action's subject")
+  // AI に見せない種類（aiBrief なし）は、一覧の引き方も種類の説明も言わない
+  expect((missing as { detail: string }).detail).not.toContain("read_records")
+  expect((missing as { detail: string }).detail).not.toContain("About that subject")
   expect(run(world, "card-reid", { label: "b" }, { record: "c1" })).toEqual({ ok: false, reason: "refused" })
 })
 
