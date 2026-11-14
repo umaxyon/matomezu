@@ -27,7 +27,7 @@ test("カードを作ると番号が 1 から振られ、名前が重なれば�
   expect(perform("ex9:card-remove", {}, { record: apple }).ok).toBe(true)
   const third = perform("ex9:card-add", { name: "ぶどう" })
   expect(third.ok && third.result).toMatchObject({ no: 3 })
-  expect(perform("ex9:card-remove", {}, { record: "nothing" })).toEqual({ ok: false, reason: "no-record" })
+  expect(perform("ex9:card-remove", {}, { record: "nothing" })).toMatchObject({ ok: false, reason: "no-record" })
 })
 
 test("閉じた棚にカードを足せない。棚が無ければ足せず（reads に無い参照は引けない）、開いている棚には足せる。カードを足すのは棚を引数で指す形でも、守るのは行った後の参照", () => {

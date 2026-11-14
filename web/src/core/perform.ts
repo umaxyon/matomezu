@@ -391,7 +391,23 @@ export type PerformedIn =
     }
   | Refused
   | { ok: false; reason: "no-book" }
-  | { ok: false; reason: "no-record" }
+  | { ok: false; reason: "no-record"; detail: string }
+
+// on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか、直し方（AI に見える種類なら一覧の引き方）、種類の説明（id が何の id か）
+function noRecord(
+  catalog: CoreCatalog,
+  target: string,
+  wanted: string,
+): { ok: false; reason: "no-record"; detail: string } {
+  const def = catalog.subjects.get(target)
+  const list = def?.aiBrief ? `; read_records with kind ${target} lists the records` : ""
+  const about = def ? ` About that subject: ${def.aiDescription}` : ""
+  return {
+    ok: false,
+    reason: "no-record",
+    detail: `there is no ${target} record with the id ${wanted} (on.record is the id of a record of the action's subject${list}).${about}`,
+  }
+}
 
 // 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
 // ブックとアノテーションが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
@@ -481,7 +497,7 @@ function performRecord(
   const counters = world.counters[target] ?? {}
   const wanted = on && "record" in on ? on.record : undefined
   const now = wanted === undefined ? NO_RECORD : source.byId(target, wanted)
-  if (now === undefined) return { ok: false, reason: "no-record" }
+  if (now === undefined) return noRecord(ctx.catalog, target, wanted as string)
   const referred = now === NO_RECORD ? [] : (def?.refers?.(now as never) ?? [])
   const read = action
     ? readFrom(ctx.catalog, source, action, args, ctx.actor, wanted, referred)
@@ -515,7 +531,12 @@ function performRecord(
   if (next === REMOVED) changes.push({ subject: target, id: wanted as string, record: REMOVED })
   else if (next !== now) {
     const made = (next as { id: string }).id
-    if (now === NO_RECORD && source.byId(target, made) !== undefined) return { ok: false, reason: "refused" }
+    if (now === NO_RECORD && source.byId(target, made) !== undefined)
+      return {
+        ok: false,
+        reason: "refused",
+        detail: `the ${target} record ${made} is already there: change it with on.record set to ${made}; leaving on out makes a new record`,
+      }
     changes.push({ subject: target, id: made, record: next })
   }
   for (const o of done.others ?? []) {
@@ -554,7 +575,7 @@ export function permittedIn(
   args: unknown,
   on: ActionOn | undefined,
   ctx: PermitContext,
-): Permitted | Refused | { ok: false; reason: "no-book" | "no-record" } {
+): Permitted | Refused | { ok: false; reason: "no-book" } | ReturnType<typeof noRecord> {
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   if (target === "book" || target === "annotations") {
     const book = bookIn(world, on)
@@ -567,7 +588,7 @@ export function permittedIn(
     const source = world.source ?? sourceOf(world.records)
     const now = wanted === undefined ? NO_RECORD : source.byId(target, wanted)
     return now === undefined
-      ? { ok: false, reason: "no-record" }
+      ? noRecord(ctx.catalog, target, wanted as string)
       : permitted(now, id, args, { ...ctx, [SOURCE]: source, records: {} })
   }
   return permitted(target === "library" ? world.books : world.settings, id, args, ctx)
