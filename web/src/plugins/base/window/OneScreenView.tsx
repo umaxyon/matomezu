@@ -69,7 +69,7 @@ export function OneScreenView() {
   )
 }
 
-// ステージを並べないスクリーン 1 枚。slides なら、描いた次のコマで右から滑り込ませる。closed を渡すと、閉じたスクリーンを右へ滑り出しながら描く
+// ステージを並べないスクリーン 1 枚。slides なら、描いた次のコマで右から滑り込ませる。closed を渡すと、閉じたスクリーンを、位置を戻した形で描いた次のコマに右へ滑り出させる（最初から右に描くと、動かずに消える）
 function PlainScreen({
   screen,
   top,
@@ -81,14 +81,15 @@ function PlainScreen({
   slides: boolean
   closed?: OpenedScreen
 }) {
-  const [entered, setEntered] = useState(!slides)
+  const goal = !closed
+  const [entered, setEntered] = useState(closed ? true : !slides)
   useEffect(() => {
-    if (entered) return
-    const frame = requestAnimationFrame(() => setEntered(true))
+    if (entered === goal) return
+    const frame = requestAnimationFrame(() => setEntered(goal))
     return () => cancelAnimationFrame(frame)
-  }, [entered])
+  }, [entered, goal])
   return (
-    <div className={styles.plain} data-in={closed ? false : entered} data-top={top} inert={!top}>
+    <div className={styles.plain} data-in={entered} data-top={top} inert={!top}>
       <ScreenView screen={screen} {...(closed ? { closed } : {})} />
     </div>
   )
