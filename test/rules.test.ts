@@ -908,7 +908,7 @@ describe("テストの用意の手段", () => {
       "package.json",
       ...readdirSync(ROOT).filter(f => /^playwright.*\.ts$/.test(f)),
     ]
-    expect(places.filter(p => /-tags\b/.test(readFileSync(join(ROOT, p), "utf8"))).sort()).toEqual([
+    expect(places.filter(p => /-tags\W+e2e\b/.test(readFileSync(join(ROOT, p), "utf8"))).sort()).toEqual([
       "scripts/e2e-build.ts",
     ])
   })

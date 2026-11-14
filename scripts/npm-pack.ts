@@ -1,6 +1,7 @@
 // 利用者に配る npm のパッケージを作り、あれば内部の npm レジストリ（Verdaccio）に出す。
 // bun scripts/npm-pack.ts --out <作る先のフォルダ> [--version <版>] [--publish <publish 用の .npmrc>] [--target linux-x64]...
 // 版は、無ければ時刻から決める（内部のレジストリで試す版）。--publish を付けると、publish してから latest をその版にする。
+// 実行ファイルは、画面（web/dist）を埋め込む（ビルドタグ embed）。
 // 作る物: <out>/matomezu（本体。bin/matomezu.js と plugin/）と <out>/cli-<os>-<cpu>（OS ごとの実行ファイル）。
 import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
@@ -47,6 +48,8 @@ for (const t of targets) {
       "go",
       "build",
       "-trimpath",
+      "-tags",
+      "embed",
       "-ldflags",
       `-s -w -X main.version=${version}`,
       "-o",

@@ -20,7 +20,7 @@ shell)
   node_dir="$(dirname "$(asdf which node 2>/dev/null || readlink -f "$(command -v node)")")"
   ln -sf "$(readlink -f "$(command -v claude)")" "$dir/bin/claude"
   token=""
-  [ -r "$LAB/oauth-token" ] && token="$(tr -d '\n' <"$LAB/oauth-token")"
+  [ -r "$LAB/oauth-token" ] && token="$(tr -d '[:space:]' <"$LAB/oauth-token")"
   cd "$dir/work"
   exec env -i \
     HOME="$dir/home" TERM="${TERM:-xterm}" LANG="${LANG:-C.UTF-8}" \
