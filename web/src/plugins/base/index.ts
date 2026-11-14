@@ -175,6 +175,12 @@ export {
   SOFT_BREAK,
   type SoftBreak,
   softBreakOf,
+  splitWords,
+  type WordFinder,
+  type WordLink,
+  type WordMatch,
+  type WordPiece,
+  wordLinksOf,
 } from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export { itemMinimapMarks, type MinimapMark } from "./minimap/marks"

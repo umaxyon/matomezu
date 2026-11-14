@@ -46,6 +46,10 @@ export type {
   SoftBreak,
   TextBlock,
   Weight,
+  WordFinder,
+  WordLink,
+  WordMatch,
+  WordPiece,
   WorkroomRow,
   WorkroomState,
 } from "../plugins/base"
@@ -138,6 +142,7 @@ export {
   shownRects,
   slideOffsetOf,
   softBreakOf,
+  splitWords,
   TEXT_LOOK,
   textBlock,
   textBlockHeight,
@@ -154,6 +159,7 @@ export {
   unpinPage,
   widenForCaption,
   withPage,
+  wordLinksOf,
   wrap,
   wrapRich,
 } from "../plugins/base"

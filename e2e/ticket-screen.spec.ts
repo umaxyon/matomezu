@@ -299,3 +299,39 @@ test("カードのタグは、M なら 1 行・L なら 3 行に入るだけ並�
   await expect(card).toHaveAttribute("data-size", "large")
   await expect.poll(() => shown.count()).toBeGreaterThan(inOne)
 })
+
+test("本文・履歴の文の、今あるチケットの番号がリンクになり、押すとそのチケットが開く。コードの中・今無い番号はそのまま", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "L-" })
+  const project = made.result?.project ?? ""
+  const first = (await perform(page, "@matomezu/taskboard:ticket-add", { project, name: "行き先のチケット" })).result
+    ?.ticket as string
+  const from = (
+    await perform(page, "@matomezu/taskboard:ticket-add", {
+      project,
+      name: "元のチケット",
+      body: "続きは L-0001 を見る。`L-0001` はコード。L-0099 は無い。",
+    })
+  ).result?.ticket as string
+  await perform(page, "@matomezu/taskboard:ticket-history-add", {
+    ticket: from,
+    topic: "@matomezu/taskboard:topic-status",
+    text: "L-0001 を調べた",
+  })
+  await page.goto(open(from))
+  const screen = page.getByRole("region", { name: "チケット" }).first()
+  await expect(screen.getByRole("heading", { name: "元のチケット" })).toBeVisible()
+  // 本文は、普通の文字の L-0001 だけがリンク（コードの中と、今無い L-0099 は違う）
+  const links = screen.locator("[data-markdown-word-link]")
+  await expect(links).toHaveCount(1)
+  await expect(links.first()).toHaveText("L-0001")
+  await expect(screen.getByText("L-0099")).toBeVisible()
+  // 履歴の行の L-0001 もリンク
+  await expect(screen.getByRole("button", { name: "L-0001" })).toHaveCount(1)
+  // 本文のリンクを押すと、そのチケットが開く
+  await links.first().click()
+  await expect(screen.getByRole("heading", { name: "行き先のチケット" })).toBeVisible()
+  expect(first).not.toBe("")
+})

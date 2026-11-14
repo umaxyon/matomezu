@@ -16,3 +16,5 @@ export {
 } from "./parse"
 export { SOFT_BREAK, type SoftBreak, softBreakOf } from "./soft-break"
 export { MARKDOWN_DOCUMENT_TOKENS } from "./tokens"
+// 文中の言葉をリンクにする（word-links.ts）
+export { splitWords, type WordFinder, type WordLink, type WordMatch, type WordPiece, wordLinksOf } from "./word-links"
