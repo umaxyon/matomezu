@@ -123,6 +123,7 @@ const Rows = memo(function Rows({
   // 書いている字（どの中身のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ entry: string; text: string } | null>(null)
   const [noteDraft, setNoteDraft] = useState<{ entry: string; text: string } | null>(null) // 書いている説明
+  const [composing, setComposing] = useState<string | null>(null) // 変換中（確定する前）の字。名前の枠の幅だけに使う
   const ended = useRef(false)
   const editor = useRef<RichInputHandle>(null)
   const drag = usePaperDrag(stage, area)
@@ -168,6 +169,7 @@ const Rows = memo(function Rows({
   const end = (commit: boolean) => {
     if (ended.current) return
     ended.current = true
+    setComposing(null)
     if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
     const todo = editEnd(dir, selected, commit ? text : null)
     if (todo.kind === "remove") {
@@ -271,10 +273,11 @@ const Rows = memo(function Rows({
           style={{
             left: nameLeft(at.x) - EDITOR_INSET,
             top: at.y,
-            width: editorWidth(text ?? at.name, at.w - (nameLeft(at.x) - at.x)),
+            width: editorWidth(composing ?? text ?? at.name, at.w - (nameLeft(at.x) - at.x)),
             height: at.h,
           }}
           onChange={next => setDraft({ entry: selected, text: next })}
+          onCompose={setComposing}
           onFocus={() => {
             ended.current = false
           }}

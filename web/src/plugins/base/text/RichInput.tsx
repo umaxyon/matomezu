@@ -1,7 +1,7 @@
 // 本文の装飾を見たまま編集する入力Form（contenteditable）。記号は見せず、太字・文字の色の区切りを span で描き、書き換えるたびに本文の文字列（rich.ts の記号の形）に戻して onChange に渡す。
 // 字の並びと装飾は edit.ts で扱い、位置は平文の位置。value が外から変わったときだけ描き直す（打っている間の字の並びは入力Form のものを正とする）。
 // ブラウザに任せない所: 改行（multiline のときだけ「\n」を足し、1 行なら足さない）、貼り付け（文字だけ。1 行なら改行を空白に）、落とす、ブラウザの太字などの装飾、元に戻す・やり直し（自前の履歴）。
-// 日本語の変換中は描き直さず、変換を終えてから読む。maxLength は記号の形の字数で数え、超える書き換えは取り消す。
+// 日本語の変換中は描き直さず、変換を終えてから読む（onCompose には、変換中の字を、確定した本文と同じ形で知らせる。終えると null。枠の幅を字に合わせて広げるのに使う）。maxLength は記号の形の字数で数え、超える書き換えは取り消す。
 // 範囲を選ばずに装飾のボックスを押すと、その所から次に書く字にその装飾を付ける
 import {
   type CSSProperties,
@@ -44,6 +44,7 @@ export function RichInput({
   stage,
   value,
   onChange,
+  onCompose,
   multiline,
   maxLength = Number.POSITIVE_INFINITY,
   id,
@@ -61,6 +62,7 @@ export function RichInput({
   stage: string // 文字の色を決めるブックを開いているステージ（ステージの外のダイアログでも、その色で描く）
   value: string
   onChange: (text: string) => void
+  onCompose?: (text: string | null) => void // 変換中の字（確定する前）。変換を終えたら null
   multiline: boolean
   maxLength?: number
   id?: string
@@ -84,6 +86,8 @@ export function RichInput({
   const steps = useRef<{ past: Snapshot[]; future: Snapshot[] }>({ past: [], future: [] })
   const change = useRef(onChange)
   change.current = onChange
+  const compose = useRef(onCompose)
+  compose.current = onCompose
 
   // 字の並びを描き、範囲を選び直す
   const draw = (next: StyledChar[], sel: Selection | null) => {
@@ -199,7 +203,10 @@ export function RichInput({
       }
     }
     const onInput = (e: Event) => {
-      if (composing.current || (e as InputEvent).isComposing) return
+      if (composing.current || (e as InputEvent).isComposing) {
+        compose.current?.(textOf(readChars(root, multiline)))
+        return
+      }
       sync(before.current)
     }
     const onCompositionStart = () => {
@@ -210,6 +217,7 @@ export function RichInput({
     }
     const onCompositionEnd = () => {
       composing.current = false
+      compose.current?.(null)
       sync(before.current)
     }
     const onPaste = (e: ClipboardEvent) => {

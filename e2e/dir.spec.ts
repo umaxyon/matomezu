@@ -1,5 +1,6 @@
 // ディレクトリ構成図のブック（@matomezu/dir）: キーで中身を足して名前を書き、行をドラッグして付け替え、▸・▾ で開け閉めする
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { imeCompose } from "./helpers/ime"
 import { newBook } from "./helpers/new-book"
 import { paper } from "./helpers/paper"
 
@@ -74,4 +75,15 @@ test("足して名前を書いた行は、1 回の Ctrl+Z で消える。あと�
   await expect(rows(page)).toHaveText(["proj", "a.ts"])
   await page.keyboard.press("Control+z")
   await expect(rows(page)).toHaveText(["proj"])
+})
+
+test("日本語の変換中（確定する前）の名前にも、入力の枠が合わせて広がる", async ({ page }) => {
+  await dirBook(page)
+  await page.keyboard.press("Tab")
+  await page.keyboard.press("Enter") // フォルダ
+  const input = paper(page).getByRole("textbox", { name: "名前" })
+  await expect(input).toBeFocused()
+  const before = (await input.boundingBox())!.width
+  await imeCompose(page, "とても長いフォルダの名前")
+  await expect.poll(async () => (await input.boundingBox())!.width).toBeGreaterThan(before)
 })

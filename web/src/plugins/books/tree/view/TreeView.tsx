@@ -175,6 +175,7 @@ const Tree = memo(function Tree({
     selected !== null
   // 書いている字（どの節のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
+  const [composing, setComposing] = useState<string | null>(null) // 変換中（確定する前）の字。枠の幅だけに使う
   const ended = useRef(false)
   const editor = useRef<RichInputHandle>(null)
   // 節のドラッグ: 動かし始めたら、ポインタの所を中心に倍率を 100% にし（遠くの節にも落とせる）、終えたら編集の道具の倍率に戻す
@@ -209,6 +210,7 @@ const Tree = memo(function Tree({
   const end = (commit: boolean) => {
     if (ended.current) return
     ended.current = true
+    setComposing(null)
     if (stage.editing === ADDED_EDIT) continueStep(book.id)
     const todo = editEnd(tree, selected, commit ? text : null)
     if (todo.kind === "remove") {
@@ -342,8 +344,9 @@ const Tree = memo(function Tree({
           multiline={false}
           autoFocus
           value={text ?? at.caption}
-          style={{ left: at.x, top: at.y, width: editorWidth(text ?? at.caption, at.w), height: at.h }}
+          style={{ left: at.x, top: at.y, width: editorWidth(composing ?? text ?? at.caption, at.w), height: at.h }}
           onChange={next => setDraft({ node: selected, text: next })}
+          onCompose={setComposing}
           onFocus={() => {
             ended.current = false
           }}
