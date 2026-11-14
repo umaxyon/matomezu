@@ -1,18 +1,15 @@
-// 窓のコマンドのアイコン: 止まり木（横に伸びた枝と、枝の左右の小さな足がかり）
+// 窓のコマンドのアイコン: 巣箱（斜めから見た屋根と箱、正面の丸い入口、その下の止まり棒と支柱）
 import { icon } from "../icon"
 import { CONTROL_CENTER_TOGGLE } from "."
 
-export const PERCH = icon(
+export const BIRDHOUSE = icon(
   <>
-    <path d="M2.5 16c3-1.2 6 0.2 9.5-0.6s6.3-1.4 9.5-0.2" />
-    <path d="M7 15.4L5 8.5" />
-    <path d="M6 12l-2.2-1" />
-    <path d="M17 14.8l2.2-7" />
-    <path d="M18.2 11l2.3-0.8" />
-    <path d="M12 15.4v3.6" />
+    <path d="m2 9 7-7 9 1 5 7-8-1-6-7M4 7v11l11 1 6-3v-6M15 9v10" />
+    <circle cx="9.3" cy="11" r="2.2" />
+    <path d="M7 15.5h4.5M11.5 18.7V23M9 23h5" />
   </>,
 )
 
 export const WINDOW_ICONS = {
-  [CONTROL_CENTER_TOGGLE.id]: PERCH,
+  [CONTROL_CENTER_TOGGLE.id]: BIRDHOUSE,
 }

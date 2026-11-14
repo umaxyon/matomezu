@@ -1,4 +1,4 @@
-// 窓: コントロールセンターかブックスクリーンを前に出す。開いた直後はコントロールセンター、止まり木のボタンで行き来し、戻ってもブックスクリーンの中は残る。
+// 窓: コントロールセンターかブックスクリーンを前に出す。開いた直後はコントロールセンター、巣箱のボタンで行き来し、戻ってもブックスクリーンの中は残る。
 // 前に出す物を替えるのはブラウザの履歴に 1 つ積み、戻る・進むで戻る
 import {
   BOOK_SCREEN_DEF,
@@ -25,7 +25,7 @@ test("開いた直後（URL が無いとき）はコントロールセンター�
   await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
 })
 
-test("止まり木のボタンでコントロールセンターへ行き、押すとブックスクリーンへ戻る。戻ってもステージの中は残る", async ({
+test("巣箱のボタンでコントロールセンターへ行き、押すとブックスクリーンへ戻る。戻ってもステージの中は残る", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -35,10 +35,10 @@ test("止まり木のボタンでコントロールセンターへ行き、押�
   await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
-  // センターの下の行の止まり木は押された状態で、押すと戻る
-  const perch = page.getByRole("button", { name: "コントロールセンター" })
-  await expect(perch).toHaveAttribute("aria-pressed", "true")
-  await perch.click()
+  // センターの下の行の巣箱のボタンは押された状態で、押すと戻る
+  const birdhouse = page.getByRole("button", { name: "コントロールセンター" })
+  await expect(birdhouse).toHaveAttribute("aria-pressed", "true")
+  await birdhouse.click()
   await expect(center(page)).toBeHidden()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(2)
 })

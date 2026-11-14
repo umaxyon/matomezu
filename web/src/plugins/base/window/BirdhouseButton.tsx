@@ -1,4 +1,4 @@
-// 止まり木のボタン（ウィジェット control-center-perch）。カレントスクリーンがステージを並べないスクリーンの間は押された状態で、押すとブックスクリーンへ戻る。
+// 巣箱のボタン（ウィジェット control-center-birdhouse）。カレントスクリーンがステージを並べないスクリーンの間は押された状態で、押すとブックスクリーンへ戻る。
 // コマンドは、描いている場所のスクリーンから呼ぶ（スクリーンの外に置かれていれば、カレントスクリーンから）
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -8,7 +8,7 @@ import { kit } from "../kit"
 import buttons from "../utils/FooterButtons.module.css"
 import { CONTROL_CENTER_TOGGLE } from "."
 
-export function PerchButton() {
+export function BirdhouseButton() {
   const command = useCommand(useScreenId(), CONTROL_CENTER_TOGGLE.id)
   const icon = useUiCatalog().commandIcons.get(CONTROL_CENTER_TOGGLE.id)
   const t = useMessages(kit)

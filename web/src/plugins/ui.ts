@@ -64,7 +64,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:workroom-columns": ["@matomezu/taskboard:workroom-columns"],
     "@matomezu/base:workroom-row-line": ["@matomezu/taskboard:workroom-current-line"],
     "@matomezu/base:one-screen": ["@matomezu/base:one-screen-view"],
-    "@matomezu/base:control-center-footer": ["@matomezu/base:control-center-perch"],
+    "@matomezu/base:control-center-footer": ["@matomezu/base:control-center-birdhouse"],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-side": ["@matomezu/base:page-list"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],

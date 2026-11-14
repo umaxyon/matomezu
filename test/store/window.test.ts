@@ -78,7 +78,7 @@ test("コントロールセンターを前に出しても、ブックスクリ�
   expect(screenOf(state.getState().window)).toBe(before)
 })
 
-test("止まり木のコマンドは、コントロールセンターを前に出し、前に出している間は押すとブックスクリーンへ戻る。前に出している間は押された状態", () => {
+test("巣箱のコマンドは、コントロールセンターを前に出し、前に出している間は押すとブックスクリーンへ戻る。前に出している間は押された状態", () => {
   const { actions, state, ...instance } = newStore()
   const active = () => isActive(instance as never, state.getState(), "s1", CENTER)
   expect(active()).toBe(false)
