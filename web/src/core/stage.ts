@@ -229,6 +229,17 @@ export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage 
   return settle(leave(opening(edited(stage), opened)), HOME)
 }
 
+// ブック book のページ page を開いた形（紙とずらした量はページから写す）
+export function openedAt(catalog: CoreCatalog, book: PagedBook, page: Page): Opened {
+  return {
+    type: book.type,
+    book: book.id,
+    page: page.id,
+    paper: stagePaper(catalog, book.type, page),
+    ...shiftOf(page),
+  }
+}
+
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は紙の左上に戻す（初めの位置が届いたらそこへ合わせる）。
 // 印刷プレビューの間なら閉じて、そのページの編集にする（開いていたページなら、閉じるのと同じ）
 export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, page: string): Stage {

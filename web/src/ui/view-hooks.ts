@@ -33,6 +33,7 @@ import type { PluginKit } from "../store/kit"
 import { ownedPluginState, pluginValueOf } from "../store/plugin-state"
 import type { Performed } from "../store/store"
 import { worldOf } from "../store/world"
+import { stageFor, useDrawn } from "./drawn"
 import type { UiCatalog } from "./plugin"
 import { useScreenHere } from "./screen-context"
 import {
@@ -47,16 +48,18 @@ import {
 
 // そのステージが開いているブック（何も開いていなければ null）
 export function useBook(stage: string): Book | null {
+  const drawn = useDrawn(stage)
   return useMatomezuState(s => {
-    const o = stageIn(s.window, stage)?.opened
+    const o = stageFor(s.window, drawn, stage)?.opened
     return o ? (s.books[o.book] ?? null) : null
   })
 }
 
 // そのステージが開いているページ（ページを持たないブック・ページを開いていなければ null）
 export function usePage(stage: string): ItemPage | null {
+  const drawn = useDrawn(stage)
   return useMatomezuState(s => {
-    const o = stageIn(s.window, stage)?.opened
+    const o = stageFor(s.window, drawn, stage)?.opened
     const book = o ? pagedOf(s.books[o.book]) : undefined
     return (book?.pages.find(p => p.id === o?.page) as ItemPage | undefined) ?? null
   })
@@ -69,8 +72,9 @@ export function useItem<Id extends ItemId>(
   item: string,
   id?: Id,
 ): PlacedOf<Id> | undefined {
+  const drawn = useDrawn(stage)
   return useMatomezuState(s => {
-    const o = stageIn(s.window, stage)?.opened
+    const o = stageFor(s.window, drawn, stage)?.opened
     const book = o ? pagedOf(s.books[o.book]) : undefined
     const p = book?.pages.find(p => p.id === page) as ItemPage | undefined
     // ページのアイテムか、どの深さの子の形も
@@ -94,7 +98,8 @@ export function useShownBook(stage: string): Book | null {
 // 見せ方が描くのに使う
 export function useShownPage(stage: string): ItemPage | null {
   const page = usePage(stage)
-  const book = useMatomezuState(s => stageIn(s.window, stage)?.opened?.book)
+  const drawn = useDrawn(stage)
+  const book = useMatomezuState(s => stageFor(s.window, drawn, stage)?.opened?.book)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
     if (!page || !preview || preview.book !== book) return page
@@ -121,7 +126,9 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   const settings = where && "settings" in where ? where.settings.join("\n") : undefined
   const place = where && !("settings" in where) ? where : undefined
   const ids = place?.ids?.join("\n")
+  const drawn = useDrawn(stage)
   const answer = useMatomezuState(s => {
+    if (drawn) return NOT_ALLOWED // 描いているページには、何も行わない
     const st = stageIn(s.window, stage)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
@@ -161,9 +168,10 @@ export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, 
 // そのステージ（読むだけ。無いステージなら null）。紙をずらしただけでは描き直さない
 export function useStage(stage: string): StageView | null {
   const catalog = useCatalog().core
+  const drawn = useDrawn(stage)
   const found = useMatomezuState(
     useShallow(s => {
-      const st = stageIn(s.window, stage)
+      const st = stageFor(s.window, drawn, stage)
       return st
         ? {
             id: st.id,
@@ -178,7 +186,7 @@ export function useStage(stage: string): StageView | null {
         : null
     }),
   )
-  const tool = useMatomezuState(s => toolOf(catalog, workspaceOf(s.window, stage), stage, s.books))
+  const tool = useMatomezuState(s => (drawn ? null : toolOf(catalog, workspaceOf(s.window, stage), stage, s.books)))
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 
@@ -353,15 +361,17 @@ export function usePerform(stage: string): <Id extends ActionId>(action: Id, arg
   const catalog = useCatalog().core
   const book = useMatomezuState(s => stageIn(s.window, stage)?.opened?.book)
   const mode = useMatomezuState(s => stageIn(s.window, stage)?.mode.kind ?? "edit")
+  const drawn = useDrawn(stage) !== undefined
   return useMemo(
     () =>
       <Id extends ActionId>(action: Id, args: ArgsOf<Id>): Performed<Id> => {
         const loose = perform as (id: string, args: unknown, on?: ActionOn) => Performed<Id>
+        if (drawn) return { ok: false, reason: "no-book" } // 描いているページからは、何も行わない
         if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
         if (!isOnBook(catalog.actions.get(action)?.target)) return loose(action, args)
         return book === undefined ? { ok: false, reason: "no-book" } : loose(action, args, { book })
       },
-    [perform, catalog, book, mode],
+    [perform, catalog, book, mode, drawn],
   )
 }
 
