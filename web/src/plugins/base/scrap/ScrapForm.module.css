@@ -1,8 +1,18 @@
 /* スクラップのフォーム: 左にページの絵と範囲の枠、右に倍率と大きさ */
 .form {
   display: flex;
+  flex: 1;
   gap: 16px;
   align-items: flex-start;
+  min-height: 0;
+}
+/* 絵を置く所: フォームの残りの広さ（絵はこの中に収まる大きさで、左上に描く） */
+.room {
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 320px;
+  overflow: hidden;
 }
 .picture {
   position: relative;

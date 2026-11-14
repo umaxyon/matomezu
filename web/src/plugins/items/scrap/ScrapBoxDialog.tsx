@@ -1,11 +1,24 @@
-// スクラップボックスの編集のダイアログ: 見る範囲と倍率を base の ScrapForm で直し、アクション item-update で書く（指すページは変えない）。
+// スクラップボックスの編集のダイアログ: 見る範囲と倍率を base の ScrapForm で直し、枠線（引くか・色）を決め、アクション item-update で書く（指すページは変えない）。
+// 枠線の色の「なし」は、テーマの線の色（項目を持たない）。
 // 紙に収まらないなど断られたら、閉じずに理由を出す。「元のページを開く」で、このステージで元のページを開いて閉じる
 import { useState } from "react"
 import type { ItemProps, ShapeEditArgs } from "../../../plugin-api"
 import { type DialogProps, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
-import { ActionButton, Dialog, Form, Problem, ScrapForm } from "../../base/ui"
-import type { SCRAP_BOX } from "."
+import {
+  ActionButton,
+  ColorPicker,
+  Dialog,
+  Form,
+  Problem,
+  rowClass,
+  ScrapForm,
+  Switch,
+  useBookOf,
+  useBookTheme,
+  useSwatches,
+} from "../../base/ui"
+import { NO_LINE, type SCRAP_BOX, SCRAP_LINE } from "."
 import { kit } from "./kit"
 
 type ScrapProps = ItemProps<typeof SCRAP_BOX.id>
@@ -31,12 +44,16 @@ function Editor({
   const catalog = useCoreCatalog()
   const perform = usePerform(stage)
   const [value, setValue] = useState(start)
+  const { line, ...scrap } = value
+  const swatches = useSwatches(useBookTheme(useBookOf(stage)), SCRAP_LINE)
+  // 枠線だけを変える（色の「なし」は項目を外す）
+  const withLine = (next: string | undefined) => setValue(next === undefined ? scrap : { ...scrap, line: next })
   const [refused, setRefused] = useState<string | null>(null)
   const form = "scrap-box-edit-form"
   return (
     <Dialog
       title={t("Scrap settings")}
-      width={640}
+      large
       onClose={onClose}
       actions={
         <>
@@ -49,6 +66,7 @@ function Editor({
     >
       <Form
         id={form}
+        fill
         ready
         onSubmit={() => {
           const done = perform("@matomezu/paper:item-update", { page: args.page, item: args.item, props: value })
@@ -60,10 +78,23 @@ function Editor({
         }}
       >
         <ScrapForm
-          value={value}
-          onChange={setValue}
+          value={scrap}
+          onChange={next => setValue(line === undefined ? next : { ...next, line })}
           opens={{ stage, onOpened: onClose, edited: JSON.stringify(value) !== JSON.stringify(start) }}
         />
+        <div className={rowClass}>
+          <span>{t("Border")}</span>
+          <Switch label={t("Border")} checked={line !== NO_LINE} onChange={on => withLine(on ? undefined : NO_LINE)} />
+          {swatches && line !== NO_LINE && (
+            <ColorPicker
+              label={t("Border color")}
+              value={line}
+              palette={swatches.palette}
+              none={swatches.none}
+              onChange={withLine}
+            />
+          )}
+        </div>
         {refused && <Problem>{refused}</Problem>}
       </Form>
     </Dialog>

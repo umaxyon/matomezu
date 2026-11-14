@@ -1,10 +1,8 @@
-/* スクラップの中: 細い枠線 1 本で囲み、枠の外にはみ出た所は切る */
+/* スクラップの中: 枠の外にはみ出た所は切る（枠線は、置く側が引く） */
 .frame {
   position: relative;
   box-sizing: border-box;
   overflow: hidden;
-  outline: 1px solid var(--theme-paper-line, var(--skin-border));
-  outline-offset: -1px;
 }
 /* 指す先が無い・輪: 灰色の枠に点線と、真ん中に字か印 */
 .empty {

@@ -8,6 +8,7 @@ import { screenOf } from "../../../../web/src/core/window"
 import { placedSize } from "../../../../web/src/plugins/base"
 import { SCRAP } from "../../../../web/src/plugins/base/scrap/scrap"
 import { SCRAP_BOX } from "../../../../web/src/plugins/items/scrap"
+import { lineColor } from "../../../../web/src/plugins/items/scrap/ScrapBoxView"
 import { PLACE_OFFSET, placingShape } from "../../../../web/src/plugins/paper/placing/items"
 import { sizedStore } from "../../../support"
 
@@ -44,4 +45,14 @@ test("スクラップトレイのスクラップの値で置こうとして紙�
   store.actions.command("s1", "@matomezu/base:undo")
   expect(items(store)).toHaveLength(0)
   expect(tray(store)).toEqual(before)
+})
+
+test("枠線 line は省ける: 無ければテーマの線の色、none なら引かない、色ならその色。ほかの値は項目の形に合わない", () => {
+  expect(SCRAP_BOX.props.parse(ONE)).toEqual(ONE) // スクラップの値だけで項目になる（スクラップトレイから置ける）
+  expect(SCRAP_BOX.props.safeParse({ ...ONE, line: "none" }).success).toBe(true)
+  expect(SCRAP_BOX.props.safeParse({ ...ONE, line: "#336699" }).success).toBe(true)
+  expect(SCRAP_BOX.props.safeParse({ ...ONE, line: "red" }).success).toBe(false)
+  expect(lineColor(undefined)).toBe("var(--scrap-line)")
+  expect(lineColor("none")).toBeNull()
+  expect(lineColor("#336699")).toBe("#336699")
 })

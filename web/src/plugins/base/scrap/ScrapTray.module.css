@@ -38,6 +38,8 @@
   position: relative;
   display: block;
   overflow: hidden;
+  outline: 1px solid var(--skin-border);
+  outline-offset: -1px;
 }
 .scaled {
   position: absolute;

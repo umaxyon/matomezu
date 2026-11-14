@@ -62,8 +62,12 @@ test("ページを切り抜いてスクラップトレイに入れ、スクラ�
   await placed.dblclick()
   const edit = page.getByRole("dialog", { name: "スクラップの設定" })
   await edit.getByLabel("倍率").fill("50")
+  // 枠線は初めは引いてあり、スイッチを切ると消える（自分のページを写しているので、中に写った自分の枠線もある）
+  await expect(placed.locator("[data-scrap-line]").first()).toBeVisible()
+  await edit.getByRole("switch", { name: "枠線" }).click()
   await edit.getByRole("button", { name: "OK" }).click()
   await expect(edit).toBeHidden()
+  await expect(placed.locator("[data-scrap-line]")).toHaveCount(0)
   await expect.poll(async () => (await placed.boundingBox())!.width).toBeGreaterThan(before.width * 1.5)
 
   // × でスクラップトレイから消える（置いた物はそのまま）

@@ -2,6 +2,7 @@
 // aside は見出しのすぐ右に置く物、actions は見出しの行の右に並べる物（ボタンなど。何を置くかは使う側が決める）。開くと、中身の最初の入力Form（選択肢のボタンは除く）に焦点を当てる。
 // 開いたときの上辺の位置を保ち、中身が増えたり減ったりしても下へ伸び縮みする（画面の下に入らなければ、入るだけ上へずらす）。
 // height を渡すと、ダイアログの高さをその高さ（画面に収まらなければ画面の高さ）に決め、中身が増えても大きさを変えない（入らない分は中身だけスクロール。見出しの行は動かない）。
+// large なら、幅も高さも窓の 90% に決める（大きな絵の上で操作するダイアログ。width・height より先）。
 // 決める・閉じるキー（既定は Enter・Escape）はキーバインドが受け、決めるように頼まれたら（store の dialog.submitted）中身の form を送る。
 // docked なら、窓の右の端に寄せて後ろを暗くせず、ほかの操作を止めない（ダイアログを見ながら図を動かせるように）
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react"
@@ -17,6 +18,7 @@ export function Dialog({
   actions,
   height,
   width,
+  large = false,
   docked = false,
   onClose,
   children,
@@ -25,6 +27,7 @@ export function Dialog({
   aside?: ReactNode
   actions?: ReactNode
   height?: number // ダイアログの高さ（px）
+  large?: boolean // 幅も高さも窓の 90% にする
   docked?: boolean // 窓の右の端に寄せ、ほかの操作を止めない
   width?: number // ダイアログの幅（px。無ければ 360。画面に収まらなければ画面の幅）
   onClose: () => void
@@ -99,11 +102,15 @@ export function Dialog({
     >
       <div
         className={styles.body}
-        data-fixed={height !== undefined}
-        style={{
-          ...(height === undefined ? {} : { height: `min(${height}px, calc(100vh - 32px))` }),
-          ...(width === undefined ? {} : { width: `min(${width}px, calc(100vw - 32px))` }),
-        }}
+        data-fixed={large || height !== undefined}
+        style={
+          large
+            ? { width: "90vw", height: "90vh" }
+            : {
+                ...(height === undefined ? {} : { height: `min(${height}px, calc(100vh - 32px))` }),
+                ...(width === undefined ? {} : { width: `min(${width}px, calc(100vw - 32px))` }),
+              }
+        }
       >
         <div className={styles.head}>
           <h2 className={styles.title}>{title}</h2>

@@ -155,6 +155,7 @@ export function Form({
   submit,
   ready,
   disabled = false,
+  fill = false,
   onSubmit,
   children,
 }: {
@@ -162,6 +163,7 @@ export function Form({
   submit?: string
   ready: boolean
   disabled?: boolean // 中の項目を全部押せなくする（認可ステップが止めているときなど）
+  fill?: boolean // 高さを決めたダイアログの、中身の高さいっぱいに広げる
   onSubmit: () => void
   children: ReactNode
 }) {
@@ -169,6 +171,7 @@ export function Form({
     <form
       id={id}
       className={styles.form}
+      data-fill={fill}
       onKeyDown={e => {
         if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault()
       }}
