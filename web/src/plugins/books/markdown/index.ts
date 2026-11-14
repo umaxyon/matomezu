@@ -6,6 +6,7 @@ import { GITHUB_LIKE } from "./github-like"
 import { kit } from "./kit"
 import { MARKDOWN, MARKDOWN_PRESENTATION, SOURCE_KEY_SCOPE } from "./markdown"
 import { MARKDOWN_STATES, type PANE_LAYOUT_STATE, type PANE_OPENING_STATE } from "./panes"
+import type { SCROLL_STATE } from "./scroll-memory"
 import { type CURRENT_LINE, type LINE_NUMBERS, type SHOW_WHITESPACE, SOURCE_LOOK_SETTINGS } from "./source-look"
 import { TAB_KEY } from "./tab-key"
 
@@ -47,6 +48,7 @@ declare module "../../../core/catalog" {
   interface PluginStateTable {
     "@matomezu/markdown:pane-layout": typeof PANE_LAYOUT_STATE
     "@matomezu/markdown:pane-opening": typeof PANE_OPENING_STATE
+    "@matomezu/markdown:scroll-memory": typeof SCROLL_STATE
   }
   interface KeyScopeTable {
     "@matomezu/markdown:source": typeof SOURCE_KEY_SCOPE // ソースのペインのテキストFormの中のキー

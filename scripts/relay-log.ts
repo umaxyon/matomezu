@@ -1,15 +1,20 @@
 // Claude Code が API に送るリクエストを記録する中継。何がどれだけ場所を取り、キャッシュがどこで切れたかを見る
-//   bun scripts/relay-log.ts [--port 18951] [--out <dir>] [--full]
-//     127.0.0.1 で待ち受け、受けた物をそのまま api.anthropic.com へ渡す。記録したいセッションは別の端末で
-//     ANTHROPIC_BASE_URL=http://127.0.0.1:18951 claude と起動する（サブスクのログインのままで通る）
-//     記録は <dir>（無ければ tmp/relay-log/<日時>）の index.jsonl に、/v1/messages の 1 リクエストを 1 行で書く
-//     --full のときだけ、本文の全文を req-NNNN.json に残す（会話の全文が入る）。認証のヘッダーの値はどちらにも残さない
-//   bun scripts/relay-log.ts report <dir>
-//     index.jsonl をリクエストごとの表と、大きい結果の上位にまとめる
+//   bun scripts/relay-log.ts serve [--db <file>（既定は ~/.local/state/matomezu-relay/central.db）] [--port 18951] [--view-port 18952] [--no-body]
+//     127.0.0.1 で待ち受け、受けた物をそのまま api.anthropic.com へ渡す。全セッションが 1 つの中継につなぎ、記録は 1 つの SQLite に入る
+//     セッションは、リクエストにある Claude Code の session_id で区別する。表示の名前は matomezu に join したときのワークルーム名
+//     （フックが入れる Workroom name の行を本文から拾う。join し直せば名前も変わる）。join 前は session_id の頭 8 字。
+//     ANTHROPIC_BASE_URL の末尾に /s/<名前> を付けたときは、join 前の名前になる（先頭の /s/<名前> は外して渡す）
+//     scripts/claude-relay.sh [claude の引数...] がこれを立てて claude を起動する
+//     ビューワー（時間順の一覧と詳細、セッションの絞り込み）は --view-port で同じプロセスが配る
+//     --no-body のときは本文（会話の全文が入る）を残さず、数字の要約だけにする。認証のヘッダーの値はどちらにも残さない
+//   bun scripts/relay-log.ts report [--db ...] [--session <名前>]   リクエストごとの表と、大きい結果の上位にまとめる
+//   bun scripts/relay-log.ts purge [--db ...] [--before <ISO の日時>]  記録を消す（--before なしは全部）
 // 字数は JSON にしたときの文字の数で、トークンの数ではない。トークンは API が返した usage の列で見る
 import { createHash } from "node:crypto"
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
 import { join } from "node:path"
+import { openStore, type Store } from "./relay-log/store"
+import { startViewer } from "./relay-log/viewer"
 
 const UPSTREAM = "https://api.anthropic.com"
 const MATOMEZU = "mcp__matomezu__"
@@ -25,6 +30,7 @@ export type Body = {
   system?: unknown
   tools?: { name: string; defer_loading?: boolean }[]
   messages?: Message[]
+  metadata?: { user_id?: string }
 }
 
 export type ResultSize = { id: string; tool: string; chars: number }
@@ -51,6 +57,9 @@ export type Usage = Record<string, number>
 export type Entry = {
   id: number
   at: string
+  // 中継の URL の /s/<名前> の名前（無ければ unnamed）と、リクエストの metadata にある Claude Code のセッション id
+  session: string
+  sessionId: string
   status: number
   ms: number
   stream: string
@@ -202,29 +211,61 @@ export function usageFromJson(text: string): Usage {
   return usage
 }
 
-export type RelayOptions = { port: number; out: string; full: boolean; upstream?: string }
+export type RelayOptions = { port: number; store: Store; keepBody?: boolean; upstream?: string }
 
-export function startRelay({ port, out, full, upstream = UPSTREAM }: RelayOptions) {
-  mkdirSync(out, { recursive: true })
-  const index = join(out, "index.jsonl")
+// /s/<名前>/v1/messages → セッション名と、上流へ渡す道。名前は英数字と _ . - の 40 字まで（ほかは unnamed）
+export function routeOf(pathname: string): { session: string; path: string } {
+  const m = pathname.match(/^\/s\/([^/]+)(\/.*)?$/)
+  if (!m) return { session: "unnamed", path: pathname }
+  return { session: /^[\w.-]{1,40}$/.test(m[1]!) ? m[1]! : "unnamed", path: m[2] ?? "/" }
+}
+
+export function sessionIdOf(body: Body): string {
+  try {
+    return JSON.parse(body.metadata?.user_id ?? "{}").session_id ?? ""
+  } catch {
+    return ""
+  }
+}
+
+// join のあとにフックが入れる「Workroom name: <名前>」の最後の 1 つ（join し直して名前が変われば、新しい名前になる）
+export function workroomNameOf(body: Body): string | undefined {
+  let name: string | undefined
+  for (const m of body.messages ?? []) {
+    if (typeof m.content === "string") continue
+    for (const b of m.content) {
+      if (
+        b.type !== "text" ||
+        typeof b.text !== "string" ||
+        !b.text.startsWith("UserPromptSubmit hook additional context:")
+      )
+        continue
+      name = b.text.match(/Workroom name: (.+)$/m)?.[1]?.trim() ?? name
+    }
+  }
+  return name
+}
+
+export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }: RelayOptions) {
   const lastPrefix = new Map<string, string[]>()
   const seen = new Set<string>()
-  let seq = 0
   return Bun.serve({
     port,
     hostname: "127.0.0.1",
     idleTimeout: 0,
     async fetch(req) {
       const url = new URL(req.url)
+      if (url.pathname === "/__relay/health") return new Response("ok")
+      const route = routeOf(url.pathname)
       const headers = new Headers()
       req.headers.forEach((value, name) => {
         if (!DROP_UPSTREAM.has(name.toLowerCase())) headers.set(name, value)
       })
       headers.set("accept-encoding", "identity")
       const raw = req.method === "GET" || req.method === "HEAD" ? undefined : await req.arrayBuffer()
-      const recorded = req.method === "POST" && url.pathname === "/v1/messages"
+      const recorded = req.method === "POST" && route.path === "/v1/messages"
       const t0 = Date.now()
-      const res = await fetch(upstream + url.pathname + url.search, {
+      const res = await fetch(upstream + route.path + url.search, {
         method: req.method,
         headers,
         body: raw,
@@ -235,21 +276,21 @@ export function startRelay({ port, out, full, upstream = UPSTREAM }: RelayOption
       resHeaders.delete("content-length")
       if (!recorded || !res.body) return new Response(res.body, { status: res.status, headers: resHeaders })
 
-      const id = ++seq
       let body: Body = {}
       try {
         body = JSON.parse(new TextDecoder().decode(raw))
       } catch {}
+      const sessionId = sessionIdOf(body)
+      const workroom = workroomNameOf(body)
+      if (workroom) store.setName(sessionId, workroom)
       const { prefix, results, ...summary } = summarize(body)
       const stream = hash(summary.model, summary.systemHash).slice(0, 4)
-      const diverge = divergeAt(lastPrefix.get(stream), prefix)
-      lastPrefix.set(stream, prefix)
+      const key = `${sessionId || route.session}:${stream}`
+      const diverge = divergeAt(lastPrefix.get(key), prefix)
+      lastPrefix.set(key, prefix)
       const newResults = results.filter(r => !seen.has(r.id))
       for (const r of newResults) seen.add(r.id)
-      if (full) {
-        const file = join(out, `req-${String(id).padStart(4, "0")}.json`)
-        writeFileSync(file, JSON.stringify({ headers: headersForLog(req.headers), body }, null, 1))
-      }
+      const stored = keepBody ? { ...body, headers: headersForLog(req.headers) } : undefined
 
       const sse = (res.headers.get("content-type") ?? "").includes("text/event-stream")
       const [pass, copy] = res.body.tee()
@@ -260,22 +301,26 @@ export function startRelay({ port, out, full, upstream = UPSTREAM }: RelayOption
         for await (const chunk of copy) {
           const s = decoder.decode(chunk, { stream: true })
           if (sse) reader.feed(s)
-          else text += s
+          if (!sse || keepBody) text += s
         }
         reader.end()
-        const entry: Entry = {
-          id,
-          at: new Date(t0).toISOString(),
-          status: res.status,
-          ms: Date.now() - t0,
-          stream,
-          diverge,
-          summary,
-          newResults,
-          usage: sse ? reader.usage : usageFromJson(text),
-          ...(res.status >= 400 ? { error: text.slice(0, 500) } : {}),
-        }
-        appendFileSync(index, `${JSON.stringify(entry)}\n`)
+        store.add(
+          {
+            at: new Date(t0).toISOString(),
+            session: route.session,
+            sessionId,
+            status: res.status,
+            ms: Date.now() - t0,
+            stream,
+            diverge,
+            summary,
+            newResults,
+            usage: sse ? reader.usage : usageFromJson(text),
+            ...(res.status >= 400 ? { error: text.slice(0, 500) } : {}),
+          },
+          stored,
+          keepBody ? text : undefined,
+        )
       })()
       return new Response(pass, { status: res.status, headers: resHeaders })
     },
@@ -284,10 +329,10 @@ export function startRelay({ port, out, full, upstream = UPSTREAM }: RelayOption
 
 const num = (n: number | undefined) => (n === undefined ? "-" : n.toLocaleString("en-US"))
 
-export function report(lines: string[]): string {
-  const entries: Entry[] = lines.filter(l => l.trim() !== "").map(l => JSON.parse(l))
+export function report(entries: Entry[]): string {
   const head = [
     "#",
+    "セッション",
     "時刻",
     "流れ",
     "model",
@@ -305,6 +350,7 @@ export function report(lines: string[]): string {
     const s = e.summary
     return [
       String(e.id),
+      e.session,
       e.at.slice(11, 19),
       e.stream,
       s.model,
@@ -355,6 +401,10 @@ export function report(lines: string[]): string {
   ].join("\n")
 }
 
+// 平行作業の worktree のどこから立てても同じ記録になるよう、worktree の外に置く
+export const defaultDb = () =>
+  join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local", "state"), "matomezu-relay", "central.db")
+
 function flag(args: string[], name: string) {
   const i = args.indexOf(name)
   return i < 0 ? undefined : args[i + 1]
@@ -362,15 +412,21 @@ function flag(args: string[], name: string) {
 
 if (import.meta.main) {
   const args = process.argv.slice(2)
-  if (args[0] === "report") {
-    const dir = args[1]
-    if (!dir) throw new Error("usage: bun scripts/relay-log.ts report <dir>")
-    console.log(report(readFileSync(join(dir, "index.jsonl"), "utf8").split("\n")))
-  } else {
+  const db = flag(args, "--db") ?? defaultDb()
+  const usage = "usage: bun scripts/relay-log.ts serve|report|purge [--db <file>]"
+  if (args[0] === "serve") {
     const port = Number(flag(args, "--port") ?? 18951)
-    const out = flag(args, "--out") ?? join("tmp", "relay-log", new Date().toISOString().replace(/[:.]/g, "-"))
-    startRelay({ port, out, full: args.includes("--full") })
-    console.log(`relay-log: 127.0.0.1:${port} → ${UPSTREAM}、記録は ${out}`)
-    console.log(`記録するセッションは ANTHROPIC_BASE_URL=http://127.0.0.1:${port} claude で起動する`)
+    const viewPort = Number(flag(args, "--view-port") ?? 18952)
+    const store = openStore(db)
+    startRelay({ port, store, keepBody: !args.includes("--no-body") })
+    startViewer({ store, port: viewPort })
+    console.log(`relay-log: 127.0.0.1:${port} → ${UPSTREAM}、ビューワー http://127.0.0.1:${viewPort}、記録は ${db}`)
+  } else if (args[0] === "report") {
+    console.log(report(openStore(db).entries(flag(args, "--session"))))
+  } else if (args[0] === "purge") {
+    console.log(`${openStore(db).purge(flag(args, "--before"))} 件を消した`)
+  } else {
+    console.error(usage)
+    process.exit(1)
   }
 }

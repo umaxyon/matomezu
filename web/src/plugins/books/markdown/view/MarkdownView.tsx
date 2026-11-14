@@ -36,11 +36,13 @@ import { PANE_LAYOUT_COMMANDS } from "../commands"
 import { kit } from "../kit"
 import { PANE_CONTEXT } from "../markdown"
 import {
+  chosenWith,
   EVEN_PANE_SHARE,
   openingFor,
   PANE_LAYOUT_STATE,
   PANE_OPENING_STATE,
   PANES,
+  type Pane,
   type PaneLayout,
   paneInputOf,
   paneLayoutOf,
@@ -49,6 +51,7 @@ import {
   splitOf,
   swapPanes,
 } from "../panes"
+import { type PageScroll, positionOf, remember, SCROLL_STATE, type Scrolls } from "../scroll-memory"
 import { followScroll, type PaneMarks } from "../scroll-sync"
 import { shrinkTo } from "../shrink"
 import styles from "./MarkdownView.module.css"
@@ -69,8 +72,9 @@ export function MarkdownView({ stage }: BookViewProps) {
   const layout = paneLayoutOf(chosen, opening, shownPage)
   const setChosen = useSetPluginState(kit, PANE_LAYOUT_STATE)
   const setOpening = useSetPluginState(kit, PANE_OPENING_STATE)
-  const setLayout = (next: PaneLayout) => setChosen(stage, next)
-  const swap = usePaneSwap(() => setLayout(swapPanes(layout)))
+  // 入れ替えるときだけ first を書き、境目を動かすだけなら入れ替えていないまま
+  const setLayout = (patch: Partial<PaneLayout>) => setChosen(stage, chosenWith(chosen, layout, patch))
+  const swap = usePaneSwap(() => setLayout({ first: swapPanes(layout).first }))
   const openMenu = useContextMenu(stage, PANE_CONTEXT)
   const panes = useRef<HTMLDivElement>(null)
   const source = useRef<HTMLDivElement>(null)
@@ -86,12 +90,16 @@ export function MarkdownView({ stage }: BookViewProps) {
     const next = openingFor(opening, { id: openedId, text: openedText ?? "" })
     if (next) setOpening(stage, next)
   }, [openedId])
+  const scrolls = usePluginState(kit, SCROLL_STATE, stage)
+  const setScrolls = useSetPluginState(kit, SCROLL_STATE)
+  const memory = useScrollMemory(page?.id, scrolls, next => setScrolls(stage, next), source, rendered)
   if (!page || !book) return <NoPages stage={stage} />
   const width = paperSize(catalog, page)?.w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
   const follow = () => {
     const [from, to] = [source.current, rendered.current]
-    if (!from || !to) return
+    memory.moved("source")
+    if (!from || !to || memory.restoring()) return
     // ソースの目印は原文の中の始まりの位置を持ち、描いた文書の目印は並びの順に文書のブロックに当たる
     const written = marksOf(from, mark => Number(mark.getAttribute("data-markdown-block")))
     const drawn = marksOf(to, (_, i) => document.blocks[i]?.range.start ?? -1)
@@ -147,6 +155,7 @@ export function MarkdownView({ stage }: BookViewProps) {
                   document={document}
                   width={width}
                   scrollRef={rendered}
+                  onScroll={() => memory.moved("rendered")}
                   followHit={!shown.includes("source")}
                   onContextMenu={menu}
                 />
@@ -158,8 +167,8 @@ export function MarkdownView({ stage }: BookViewProps) {
           <SplitHandle
             direction={split}
             frame={panes}
-            onMove={(at, length) => setLayout({ ...layout, share: shareAt(at, length, layout.share) })}
-            onReset={() => setLayout({ ...layout, share: EVEN_PANE_SHARE })}
+            onMove={(at, length) => setLayout({ share: shareAt(at, length, layout.share) })}
+            onReset={() => setLayout({ share: EVEN_PANE_SHARE })}
             className={styles.splitter}
             data-pane-splitter
           />
@@ -184,6 +193,7 @@ function Rendered({
   document,
   width,
   scrollRef: ref,
+  onScroll,
   followHit,
   onContextMenu,
 }: {
@@ -192,6 +202,7 @@ function Rendered({
   document: MarkdownDocument
   width: number | undefined
   scrollRef: RefObject<HTMLDivElement | null>
+  onScroll: () => void
   followHit: boolean
   onContextMenu: (e: MouseEvent) => void
 }) {
@@ -218,12 +229,69 @@ function Rendered({
   const softBreak = softBreakOf(useUserSetting(SOFT_BREAK.id))
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける
-    <div ref={ref} className={`${styles.scroll} ${styles.rendered}`} onContextMenu={onContextMenu}>
+    <div ref={ref} className={`${styles.scroll} ${styles.rendered}`} onScroll={onScroll} onContextMenu={onContextMenu}>
       <article className={styles.document} style={width ? { width, zoom, minHeight: `${100 / zoom}%` } : undefined}>
         <MarkdownDocumentView document={document} softBreak={softBreak} />
       </article>
     </div>
   )
+}
+
+// ページごとのスクロール位置の記憶（scroll-memory.ts）: ページを開いたとき（替えたとき）に覚えた位置へ戻し（覚えていなければ先頭）、スクロールしたら止まってから覚える。
+// 戻したことで起きるソースのスクロールには、描いた文書のペインを付いて行かせない（restoring。別々に覚えた位置を戻すため）。ページを替えるときは、前のページの位置を先に覚える
+const SAVE_AFTER_MS = 300
+function useScrollMemory(
+  page: string | undefined,
+  scrolls: Scrolls | undefined,
+  save: (next: Scrolls) => void,
+  source: RefObject<HTMLDivElement | null>,
+  rendered: RefObject<HTMLDivElement | null>,
+) {
+  const latest = useRef({ scrolls, save })
+  latest.current = { scrolls, save }
+  const pane = { source, rendered }
+  const moving = useRef<{ page: string; tops: PageScroll } | null>(null) // まだ覚えていない動き
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const restoredByScroll = useRef(false) // 戻したことで起きるスクロールの知らせを待っている
+  const flush = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+    const m = moving.current
+    moving.current = null
+    if (m) latest.current.save(remember(latest.current.scrolls, m.page, m.tops))
+  }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ページが替わったときだけ戻す（フックの中身は ref で読む）
+  useLayoutEffect(() => {
+    if (page === undefined) return
+    for (const name of PANES) {
+      const el = pane[name].current
+      if (!el) continue
+      const to = positionOf(latest.current.scrolls, page, name)
+      const before = el.scrollTop
+      el.scrollTop = to
+      if (name === "source" && el.scrollTop !== before) restoredByScroll.current = true
+    }
+    return flush
+  }, [page])
+  return {
+    moved(name: Pane) {
+      if (page === undefined) return
+      const el = pane[name].current
+      if (!el) return
+      moving.current = {
+        page,
+        tops: { ...(moving.current?.page === page ? moving.current.tops : {}), [name]: el.scrollTop },
+      }
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(flush, SAVE_AFTER_MS)
+    },
+    // 戻したことで起きたソースのスクロールか（1 回だけ true）
+    restoring() {
+      const was = restoredByScroll.current
+      restoredByScroll.current = false
+      return was
+    },
+  }
 }
 
 // スクロールするペイン el の、ブロックの目印（data-markdown-block）ごとの上端と、いちばん下までのスクロールの量（縮めた倍率も含めて、見えている位置で測る）。

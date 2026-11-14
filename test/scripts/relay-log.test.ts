@@ -8,8 +8,11 @@ import {
   divergeAt,
   headersForLog,
   report,
+  routeOf,
+  sessionIdOf,
   summarize,
   UsageReader,
+  workroomNameOf,
 } from "../../scripts/relay-log"
 
 test("記録するヘッダーは、許可した物のほかは値を残さない", () => {
@@ -96,47 +99,74 @@ test("キャッシュで同じに扱われる違い（印の移動・文字列�
   expect(divergeAt(a, summarize(marked).prefix)).toBe("none")
 })
 
+test("join のあとのフックの文から、最後のワークルーム名を拾う", () => {
+  const hook = (name: string) => ({
+    type: "text",
+    text: `UserPromptSubmit hook additional context: You joined matomezu. Workroom name: ${name}`,
+  })
+  const msgs = (...blocks: Block[]) => ({ messages: [{ role: "system", content: blocks }] })
+  expect(workroomNameOf(msgs(hook("debug_work")))).toBe("debug_work")
+  expect(workroomNameOf(msgs(hook("old"), hook("new")))).toBe("new")
+  // フックの文でない本文に同じ言い回しがあっても拾わない
+  expect(workroomNameOf(msgs({ type: "text", text: "Workroom name: fake" }))).toBeUndefined()
+  expect(workroomNameOf({ messages: [{ role: "user", content: "x" }] })).toBeUndefined()
+})
+
 const dir = mkdtempSync(join(tmpdir(), "relay-log-"))
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
+test("中継の URL の /s/<名前> からセッション名を取り、上流へ渡す道から外す", () => {
+  expect(routeOf("/s/sub1_work/v1/messages")).toEqual({ session: "sub1_work", path: "/v1/messages" })
+  expect(routeOf("/v1/messages")).toEqual({ session: "unnamed", path: "/v1/messages" })
+  expect(routeOf("/s/bad name!/v1/messages").session).toBe("unnamed")
+  expect(sessionIdOf({ metadata: { user_id: JSON.stringify({ session_id: "abc" }) } })).toBe("abc")
+  expect(sessionIdOf({})).toBe("")
+})
+
 // 中継は Bun の fetch と Response で動く。このプロセスでは happy-dom がそれを差し替えているので、子のプロセスで動かす
 const scenario = `
-import { readdirSync, readFileSync } from "node:fs"
-import { join } from "node:path"
 import { startRelay } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log.ts"))}
-const [out, body, sse] = process.argv.slice(1)
+import { openStore } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log/store.ts"))}
+const [db, body, sse] = process.argv.slice(1)
 let seenAuth = ""
+let seenPath = ""
 const upstream = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch(req) {
   seenAuth = req.headers.get("authorization") ?? ""
+  seenPath = new URL(req.url).pathname
   return new Response(sse, { headers: { "content-type": "text/event-stream" } })
 } })
-const relay = startRelay({ port: 0, out, full: true, upstream: "http://127.0.0.1:" + upstream.port })
-const res = await fetch("http://127.0.0.1:" + relay.port + "/v1/messages", {
+const store = openStore(db)
+const relay = startRelay({ port: 0, store, upstream: "http://127.0.0.1:" + upstream.port })
+const health = await (await fetch("http://127.0.0.1:" + relay.port + "/__relay/health")).text()
+const res = await fetch("http://127.0.0.1:" + relay.port + "/s/sub1_work/v1/messages", {
   method: "POST", headers: { authorization: "Bearer secret-token", "content-type": "application/json" }, body,
 })
 const text = await res.text()
-let index = ""
-for (let i = 0; i < 200 && !index; i++) { await Bun.sleep(10); try { index = readFileSync(join(out, "index.jsonl"), "utf8") } catch {} }
-const files = Object.fromEntries(readdirSync(out).map(f => [f, readFileSync(join(out, f), "utf8")]))
-console.log(JSON.stringify({ text, seenAuth, index, files }))
+let entries = []
+for (let i = 0; i < 200 && !entries.length; i++) { await Bun.sleep(10); entries = store.entries() }
+console.log(JSON.stringify({ health, text, seenAuth, seenPath, entries, stored: store.body(entries[0].id), reply: store.reply(entries[0].id) }))
 relay.stop(true); upstream.stop(true)
 `
 
-test("中継は返答をそのまま渡し、記録に認証の値を残さない", async () => {
+test("中継は返答をそのまま渡し、セッション名を付けて SQLite に記録し、認証の値を残さない", async () => {
   const sse =
     'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":5,"cache_read_input_tokens":40}}}\n\n' +
     'event: message_delta\ndata: {"type":"message_delta","usage":{"output_tokens":2}}\n\n'
-  const out = join(dir, "log")
-  const child = Bun.spawn(["bun", "-e", scenario, out, JSON.stringify(body()), sse], {
+  const child = Bun.spawn(["bun", "-e", scenario, join(dir, "log.db"), JSON.stringify(body()), sse], {
     stdout: "pipe",
     stderr: "inherit",
   })
   const got = JSON.parse(await new Response(child.stdout).text())
+  expect(got.health).toBe("ok")
   expect(got.text).toBe(sse)
   expect(got.seenAuth).toBe("Bearer secret-token")
-  const entry = JSON.parse(got.index)
+  expect(got.seenPath).toBe("/v1/messages")
+  const entry = got.entries[0]
+  expect(entry.session).toBe("sub1_work")
   expect(entry.usage).toEqual({ input_tokens: 5, cache_read_input_tokens: 40, output_tokens: 2 })
   expect(entry.newResults.map((r: { id: string }) => r.id)).toEqual(["t1", "t2"])
-  for (const text of Object.values(got.files)) expect(text).not.toContain("secret-token")
-  expect(report([got.index])).toContain("mcp__matomezu__read_page: 1 回、52 字")
+  expect(got.stored.messages).toEqual(body().messages)
+  expect(got.reply).toBe(sse)
+  expect(JSON.stringify(got.stored)).not.toContain("secret-token")
+  expect(report(got.entries)).toContain("mcp__matomezu__read_page: 1 回、52 字")
 })

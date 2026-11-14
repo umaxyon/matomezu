@@ -5,9 +5,10 @@ import type { CommandContext } from "../../../plugin-api"
 import { kit } from "./kit"
 import { MARKDOWN_PRESENTATION, SOURCE_KEYS_SCOPE } from "./markdown"
 import {
+  type ChosenLayout,
+  chosenWith,
   PANE_LAYOUT_STATE,
   PANE_OPENING_STATE,
-  type PaneLayout,
   type PaneMode,
   paneInputOf,
   paneLayoutOf,
@@ -28,12 +29,11 @@ function openedPage(ctx: CommandContext): { id: string; text: string } | null {
 const toMode = (mode: PaneMode) => ({
   run: (
     ctx: CommandContext,
-    a: { updatePluginState(def: typeof PANE_LAYOUT_STATE, f: (now: PaneLayout | undefined) => PaneLayout): void },
+    a: { updatePluginState(def: typeof PANE_LAYOUT_STATE, f: (now: ChosenLayout | undefined) => ChosenLayout): void },
   ) =>
-    a.updatePluginState(PANE_LAYOUT_STATE, now => ({
-      ...paneLayoutOf(now, ctx.pluginState(PANE_OPENING_STATE), openedPage(ctx)),
-      mode,
-    })),
+    a.updatePluginState(PANE_LAYOUT_STATE, now =>
+      chosenWith(now, paneLayoutOf(now, ctx.pluginState(PANE_OPENING_STATE), openedPage(ctx)), { mode }),
+    ),
   when: onMarkdown,
   active: (ctx: CommandContext) =>
     paneLayoutOf(ctx.pluginState(PANE_LAYOUT_STATE), ctx.pluginState(PANE_OPENING_STATE), openedPage(ctx)).mode ===

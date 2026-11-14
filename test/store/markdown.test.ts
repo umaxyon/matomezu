@@ -8,6 +8,7 @@ import { growOf } from "../../web/src/plugins/base"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import {
+  chosenWith,
   openingFor,
   openingModeOf,
   PANE_LAYOUT_STATE,
@@ -16,6 +17,7 @@ import {
   shownPanes,
   swapPanes,
 } from "../../web/src/plugins/books/markdown/panes"
+import { MAX_REMEMBERED, positionOf, remember, SCROLL_STATE } from "../../web/src/plugins/books/markdown/scroll-memory"
 import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
 import { isActive, isShown } from "../../web/src/store/commands"
 import type { DoneAction as Done } from "../../web/src/store/store"
@@ -146,6 +148,40 @@ test("入れ替えると、並べたときの左（上）のペインが替わ�
   expect(shownPanes({ ...swapPanes(layout), mode: "source-only" })).toEqual(["source"])
 })
 
+test("入れ替えていなければ、並べる向きの既定: 左右はソースが左、上下はプレビューが上。入れ替えたら向きを変えても守る", () => {
+  expect(shownPanes(paneLayoutOf({ mode: "split-row", share: 0.5 }, undefined, EMPTY))).toEqual(["source", "rendered"])
+  expect(shownPanes(paneLayoutOf({ mode: "split-column", share: 0.5 }, undefined, EMPTY))).toEqual([
+    "rendered",
+    "source",
+  ])
+  expect(shownPanes(paneLayoutOf({ mode: "split-column", first: "source", share: 0.5 }, undefined, EMPTY))).toEqual([
+    "source",
+    "rendered",
+  ])
+  // 境目だけ動かしても first は書かず、向きを変えれば既定が向きに付いて行く
+  const layout = paneLayoutOf(undefined, undefined, EMPTY)
+  expect(chosenWith(undefined, layout, { share: 0.3 })).toEqual({ mode: "split-row", share: 0.3 })
+  expect(chosenWith({ mode: "split-row", share: 0.3 }, layout, { mode: "split-column" })).toEqual({
+    mode: "split-column",
+    share: 0.3,
+  })
+})
+
+test("スクロール位置の記憶: ページごとにペインを別々に覚え、覚えていなければ先頭。新しく触った 30 ページまで", () => {
+  expect(positionOf(undefined, "a", "source")).toBe(0)
+  const one = remember(undefined, "a", { source: 120 })
+  expect(positionOf(one, "a", "source")).toBe(120)
+  expect(positionOf(one, "a", "rendered")).toBe(0)
+  const two = remember(one, "a", { rendered: 40 })
+  expect(two.a).toEqual({ source: 120, rendered: 40 })
+  let many = two
+  for (let i = 0; i < 40; i++) many = remember(many, `p${i}`, { source: i })
+  expect(Object.keys(many)).toHaveLength(MAX_REMEMBERED)
+  expect(many.a).toBeUndefined()
+  expect(Object.keys(many).at(-1)).toBe("p39")
+  expect(SCROLL_STATE.schema!.safeParse({ a: { source: -1 } }).success).toBe(false)
+})
+
 test("境目の割合は、始めからの長さを並べた長さで割り、下限 0.15 から 0.85 に収める。長さが 0 なら今のまま", () => {
   expect(shareAt(300, 1000, 0.5)).toBe(0.3)
   expect(shareAt(10, 1000, 0.5)).toBe(0.15)
@@ -159,10 +195,10 @@ test("並べ方は画面の場所に入り、場所を当てはめると戻る�
   const { state, actions } = store
   actions.command("s1", "@matomezu/markdown:pane-split-column")
   const placed = store.address()
-  expect(stagePlacesOf(placed)[0]!.states).toEqual({ [PL]: { mode: "split-column", first: "source", share: 0.5 } })
+  expect(stagePlacesOf(placed)[0]!.states).toEqual({ [PL]: { mode: "split-column", share: 0.5 } })
   actions.command("s1", "@matomezu/markdown:pane-show-source")
   store.locate(placed)
-  expect(placedOf(store, "s1")).toEqual({ mode: "split-column", first: "source", share: 0.5 })
+  expect(placedOf(store, "s1")).toEqual({ mode: "split-column", share: 0.5 })
   const at = (states: Record<string, unknown>) => withStagePlaces(placed, [{ ...stagePlacesOf(placed)[0]!, states }])
   store.locate(at({ [PL]: { mode: "diagonal" } }))
   expect(placedOf(store, "s1")).toBeUndefined()
