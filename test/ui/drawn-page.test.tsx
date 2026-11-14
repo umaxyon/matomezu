@@ -5,6 +5,8 @@ import { act, cleanup, render } from "@testing-library/react"
 import { pagedOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
 import { useBookLookStyle } from "../../web/src/plugins/base/book-look/use-book-look-style"
+import { kit as baseKit } from "../../web/src/plugins/base/kit"
+import { PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
 import { Printing } from "../../web/src/plugins/base/print-preview/printing"
 import { SheetLayers } from "../../web/src/plugins/base/print-preview/SheetLayers"
 import { ScrapView } from "../../web/src/plugins/base/scrap/ScrapView"
@@ -14,7 +16,14 @@ import { useCommand } from "../../web/src/ui/commands"
 import { useContextMenu } from "../../web/src/ui/context-menu"
 import { DrawnScope } from "../../web/src/ui/drawn"
 import { MatomezuProvider, useCatalog } from "../../web/src/ui/store-context"
-import { useAllowed, usePerform, useStage, useStageArea } from "../../web/src/ui/view-hooks"
+import {
+  useAllowed,
+  usePerform,
+  usePluginState,
+  useStage,
+  useStageArea,
+  useStagePan,
+} from "../../web/src/ui/view-hooks"
 
 afterEach(cleanup)
 
@@ -228,4 +237,30 @@ describe("スクラップの中（ScrapView）", () => {
     // A4 横の紙（1123 × 794）の 1 枚右・2 枚下
     expect(container.innerHTML).toContain(`translate(-${20 + 1123}px, -${30 + 2 * 794}px)`)
   })
+})
+
+test("描いているページの id には、ステージごとのプラグイン状態もパンも無く、書いても何も変わらない", () => {
+  const { instance, wrap, bookOf } = setup()
+  act(() => instance.actions.openBook("s1", "y"))
+  const x = bookOf("x")
+  let seen: { state: unknown; pan: unknown } | null = null
+  let id = ""
+  function Probe({ stage }: { stage: string }) {
+    id = stage
+    seen = { state: usePluginState(baseKit, PRINT_MEASURES, stage), pan: useStagePan(stage) }
+    return null
+  }
+  function Scope() {
+    const catalog = useCatalog().core
+    return (
+      <DrawnScope catalog={catalog} book={x} page={x.pages[0]!} zoom={1}>
+        {stage => <Probe stage={stage} />}
+      </DrawnScope>
+    )
+  }
+  render(wrap(<Scope />))
+  expect(seen!).toEqual({ state: undefined, pan: null })
+  const before = instance.state.getState().pluginValues
+  act(() => instance.setPluginState(PRINT_MEASURES.id, id, { book: "x", pages: {} }))
+  expect(instance.state.getState().pluginValues).toBe(before)
 })
