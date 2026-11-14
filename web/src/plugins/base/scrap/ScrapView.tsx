@@ -3,6 +3,7 @@
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { pageById } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
@@ -17,7 +18,7 @@ import type { PrintMeasured } from "../print-preview/measures-state"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import styles from "./ScrapView.module.css"
-import { areaOnPage, pageById, type Scrap, scrapSize, shiftOf } from "./scrap"
+import { areaOnPage, type Scrap, scrapSize, shiftOf } from "./scrap"
 
 // 描いている途中のスクラップがたどったページの id。同じページに戻ったら輪
 const TracedContext = createContext<readonly string[]>([])

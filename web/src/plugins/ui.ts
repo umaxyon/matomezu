@@ -92,7 +92,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:print-preview-button",
       "@matomezu/base:mailbox-button",
     ],
-    "@matomezu/base:footer-menu-book-tools": ["@matomezu/base:toolbox"],
+    "@matomezu/base:footer-menu-book-tools": ["@matomezu/base:toolbox", "@matomezu/base:scrap-tray-button"],
     "@matomezu/base:right-side-panel": [
       "@matomezu/base:note-panel",
       "@matomezu/base:print-preview-panel",
@@ -190,6 +190,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     "@matomezu/paper:item-context": [
       "@matomezu/paper:paper-edit",
+      "@matomezu/base:scrap-open-original",
       "-",
       "@matomezu/paper:paper-cut",
       "@matomezu/paper:paper-copy",

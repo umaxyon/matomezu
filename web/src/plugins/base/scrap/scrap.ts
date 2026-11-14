@@ -2,11 +2,10 @@
 // スクラップトレイは、切り抜いて、まだ置いていないスクラップを集めておく所（対象の定義 scrap のレコード。利用者が消すまで残る）。
 // 置いたスクラップ（スクラップを置く枠のアイテムの項目）は、トレイのスクラップの値を写して持ち、トレイとはつながらない
 import { z } from "zod"
-import { type PagedBook, pagedOf } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
-import type { Book, Page } from "../../../core/schema/book"
+import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { pageArea, paperSize } from "../place/items"
 
@@ -73,22 +72,6 @@ export const SCRAP_REMOVE = kit.defineAction({
   args: z.strictObject({}),
   run: now => (now === "none" ? null : { next: "removed" as const, result: {} }),
 })
-
-// ページの id から、そのページと、今それを持っているブック（ページの id はブックをまたいでも重ならない。同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする）
-export function pageById(
-  books: Readonly<Record<string, Book>>,
-  id: string,
-): { book: PagedBook; page: Page } | undefined {
-  let found: { book: PagedBook; page: Page } | undefined
-  for (const b of Object.values(books)) {
-    const book = pagedOf(b)
-    const page = book?.pages.find(p => p.id === id)
-    if (!book || !page) continue
-    if (found) return undefined
-    found = { book, page }
-  }
-  return found
-}
 
 // 可変ページの中身をずらした量（px。ページのずらした印刷区画の数 × 紙の大きさ）
 export function shiftOf(catalog: CoreCatalog, page: ItemPage): Point {

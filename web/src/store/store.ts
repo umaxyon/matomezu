@@ -5,7 +5,7 @@ import { createStore, type StoreApi } from "zustand/vanilla"
 import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
-import { checkBooks, hasPages } from "../core/book"
+import { checkBooks, hasPages, pageById } from "../core/book"
 import type {
   ActionId,
   ControlCenterId,
@@ -248,6 +248,7 @@ export interface Actions {
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（ページを持つブックは最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにして、そのブックスクリーンをカレントスクリーンにする
+  openPageById(stage: string, page: string): void // ページ page を持つブックをそのステージで開き、そのページを開く（ページが無ければ何もしない）
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
   setStageArea(id: string, area: Size | null, origin?: Point | null): void
@@ -967,6 +968,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
             screenOfStage(win, stage)?.id ?? "",
           ),
         )
+    },
+    openPageById: (stage, page) => {
+      const at = pageById(getState().books, page)
+      if (!at) return
+      if (stageIn(getState().window, stage)?.opened?.book !== at.book.id) actions.openBook(stage, at.book.id)
+      actions.openPage(stage, page)
     },
     resizeStage: (id, view) => withStageScreen(id, ws => mapStage(ws, id, s => resize(s, view))),
     setStageArea: (id, area, origin) => withStageScreen(id, ws => mapStage(ws, id, s => setArea(s, area, origin))),

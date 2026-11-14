@@ -178,7 +178,7 @@ export {
 } from "./window/slots"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
-import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_TAB } from "./scrap/ui"
+import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_BUTTON, SCRAP_TRAY_TAB } from "./scrap/ui"
 export const BASE_UI = definePluginUi(BASE, {
   dialogViews: {
     ...BOOK_OPEN_DIALOG_VIEWS,
@@ -223,6 +223,7 @@ export const BASE_UI = definePluginUi(BASE, {
     OUTBOX,
     MAILBOX_TAB,
     SCRAP_TRAY_TAB,
+    SCRAP_TRAY_BUTTON,
     MAIL_BOOKMARKS,
     MAIL_WATCH,
     EDIT_LOCK,
@@ -336,6 +337,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:outbox": typeof OUTBOX
     "@matomezu/base:mailbox": typeof MAILBOX_TAB
     "@matomezu/base:scrap-tray": typeof SCRAP_TRAY_TAB
+    "@matomezu/base:scrap-tray-button": typeof SCRAP_TRAY_BUTTON
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
     "@matomezu/base:edit-lock": typeof EDIT_LOCK

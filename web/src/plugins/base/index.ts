@@ -99,7 +99,7 @@ import {
   type RIGHT_SIDE_PANEL_STATE,
   RIGHT_SIDE_PANEL_STATES,
 } from "./right-side-panel/state"
-import { SCRAP_CUT_COMMAND, SCRAP_CUT_DIALOG } from "./scrap"
+import { SCRAP_CUT_COMMAND, SCRAP_CUT_DIALOG, SCRAP_OPEN_ORIGINAL } from "./scrap"
 import { SCRAP, SCRAP_CUT, SCRAP_REMOVE } from "./scrap/scrap"
 import {
   type SEARCH_CLOSE,
@@ -371,6 +371,7 @@ export const BASE = defineBuiltin(
     normalizeSteps: [VARIABLE_PAGES],
     commands: [
       SCRAP_CUT_COMMAND,
+      SCRAP_OPEN_ORIGINAL,
       BOOK_NEW,
       CONTROL_CENTER_TOGGLE,
       CONTROL_CENTER_LEAVE,
@@ -587,6 +588,7 @@ declare module "../../core/catalog" {
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW
     "@matomezu/base:scrap-cut": typeof SCRAP_CUT_COMMAND
+    "@matomezu/base:scrap-open-original": typeof SCRAP_OPEN_ORIGINAL
     "@matomezu/base:undo": typeof UNDO
     "@matomezu/base:redo": typeof REDO
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE

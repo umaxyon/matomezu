@@ -26,7 +26,7 @@ export function useOpenMail(): (id: string) => void {
   )
 }
 
-// 郵便箱の左サイドパネル（郵便箱と、ステージ stage の送信トレイとスクラップトレイ）を開閉する。open は、今その組を開いているか。
+// 郵便箱の左サイドパネル（郵便箱と、ステージ stage の送信トレイ）を開閉する。open は、今その組を開いているか。
 // 開く側のウィジェットは、MAILBOX_OPENS を opens に書く（郵便箱のタブの中身が開けるスロットを使うため）
 // stage を渡さなければ（ステージを持たないスクリーンから開くとき）、送信トレイは、いちばん最近カレントにしたブックスクリーンのカレントのステージの物
 export function useMailboxPanel(stage?: string): { open: boolean; toggle: () => void } {

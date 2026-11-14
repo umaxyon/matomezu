@@ -4,6 +4,7 @@
 // 指すページが無ければ、絵の代わりに No Data を出す。opens を渡せば「元のページを開く」を出し、押すとそのステージで元のページを開いてから onOpened を呼ぶ
 import { type PointerEvent, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { pageById } from "../../../core/book"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import { DrawnScope } from "../../../ui/drawn"
@@ -18,7 +19,6 @@ import {
   areaOfPage,
   areaOnPage,
   movedArea,
-  pageById,
   SCRAP_SCALE_MAX,
   SCRAP_SCALE_MIN,
   type Scrap,
@@ -53,7 +53,7 @@ export function ScrapForm({
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const { openBook, openPage } = useActions()
+  const { openPageById } = useActions()
   const found = useMatomezuState(
     useShallow(s => {
       const at = pageById(s.books, value.page)
@@ -161,8 +161,7 @@ export function ScrapForm({
             disabled={opens.edited}
             title={opens.edited ? t("Decide or cancel the changes first") : undefined}
             onClick={() => {
-              openBook(opens.stage, book.id)
-              openPage(opens.stage, value.page)
+              openPageById(opens.stage, value.page)
               opens.onOpened()
             }}
           >

@@ -135,3 +135,19 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
   if (!(bookType(catalog, book.type).holds?.(book, catalog) ?? true)) return false
   return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }
+
+// ページの id から、そのページと、今それを持っているブック（ページの id はブックをまたいでも重ならない。同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする）
+export function pageById(
+  books: Readonly<Record<string, Book>>,
+  id: string,
+): { book: PagedBook; page: Page } | undefined {
+  let found: { book: PagedBook; page: Page } | undefined
+  for (const b of Object.values(books)) {
+    const book = pagedOf(b)
+    const page = book?.pages.find(p => p.id === id)
+    if (!book || !page) continue
+    if (found) return undefined
+    found = { book, page }
+  }
+  return found
+}

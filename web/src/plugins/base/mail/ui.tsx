@@ -5,7 +5,6 @@ import { kit } from "../kit"
 import { LeftSidePanelOpenButton } from "../left-side-panel/OpenButton"
 import { defineLeftSidePanelTab, opensOf } from "../left-side-panel/ui"
 import { OUTBOX } from "../outbox/ui"
-import { SCRAP_TRAY_TAB } from "../scrap/ui"
 import { type PlaceInSlot, placeIn } from "../utils/place-in"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { STAGE_SLOTS, type StageSlotProps } from "../workspace/ui"
@@ -48,8 +47,8 @@ export const MAILBOX_TAB = defineLeftSidePanelTab<typeof MAILBOX_TAB_ID>({
   view: MailboxView,
 })
 
-// 郵便箱を開く側（郵便箱のボタンとしおり）が、左サイドパネルに渡すタブ（郵便箱・送信トレイ・スクラップトレイ）の opens を名乗る
-export const MAILBOX_OPENS = opensOf(MAILBOX_TAB, OUTBOX, SCRAP_TRAY_TAB)
+// 郵便箱を開く側（郵便箱のボタンとしおり）が、左サイドパネルに渡すタブ（郵便箱と送信トレイ）の opens を名乗る
+export const MAILBOX_OPENS = opensOf(MAILBOX_TAB, OUTBOX)
 
 export const MAIL_BOOKMARKS = defineWidget({
   id: kit.name("mail-bookmarks"),
