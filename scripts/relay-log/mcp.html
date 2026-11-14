@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>relay-log MCP の結果</title>
+<style>
+  :root { --bg:#fff; --fg:#1f2328; --muted:#6a737d; --line:#d8dee4; --bar:#4a7fd1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14181d; --fg:#d7dde3; --muted:#8b949e; --line:#2d333b; --bar:#5b8fe0; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.5 ui-monospace,Menlo,Consolas,monospace; }
+  header { display:flex; gap:16px; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); }
+  header b { font-size:14px; } header span { color:var(--muted); } a { color:inherit; }
+  main { padding:8px 16px 32px; max-width:1100px; }
+  h3 { margin:18px 0 6px; font-size:13px; } h3 span { color:var(--muted); font-weight:normal; }
+  .chart { display:grid; grid-template-columns:minmax(0, 22em) 1fr; gap:3px 12px; align-items:center; }
+  .label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track { display:flex; align-items:center; gap:8px; min-width:0; }
+  .bar { height:14px; background:var(--bar); border-radius:2px; flex:none; min-width:2px; }
+  .value { white-space:nowrap; } .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<header><a href="/">一覧へ</a><b>matomezu の MCP の結果の大きさ</b><select id="session"><option value="">全セッション</option></select><button type="button" id="reload">読み直す</button><span id="count"></span></header>
+<main>
+  <h3>ツールごとの合計 <span>（perform は action ごと。字数は結果の JSON の長さ、呼び出し 1 回を 1 回だけ数える）</span></h3>
+  <div class="chart" id="byTool"></div>
+  <h3>1 回ずつの上位 20</h3>
+  <div class="chart" id="top"></div>
+</main>
+<script>
+const num = n => n.toLocaleString("en-US")
+const el = (tag, props = {}, ...kids) => {
+  const e = Object.assign(document.createElement(tag), props)
+  for (const k of kids) e.append(k)
+  return e
+}
+async function get(path) { return (await fetch(path)).json() }
+
+function bars(box, rows) {
+  box.replaceChildren()
+  const max = Math.max(1, ...rows.map(r => r.value))
+  for (const r of rows) {
+    box.append(
+      el("div", { className: "label", textContent: r.label, title: r.title ?? r.label }),
+      el("div", { className: "track" },
+        el("div", { className: "bar", style: `width:${(r.value / max) * 70}%` }),
+        el("span", { className: "value" }, `${num(r.value)} 字 `, el("span", { className: "muted", textContent: r.note }))),
+    )
+  }
+  if (rows.length === 0) box.append(el("div", { className: "muted", textContent: "まだ記録が無い" }))
+}
+
+const args = input => {
+  const text = JSON.stringify(input ?? {})
+  return text === "{}" ? "" : ` ${text}`
+}
+
+async function load() {
+  const select = document.getElementById("session")
+  const sessions = await get("/api/sessions")
+  const names = ["", ...sessions.map(s => s.session)]
+  if (names.join("\n") !== [...select.options].map(o => o.value).join("\n")) {
+    const current = select.value
+    select.replaceChildren(...names.map(n => el("option", { value: n, textContent: n || "全セッション" })))
+    select.value = names.includes(current) ? current : ""
+  }
+  const r = await get(`/api/mcp${select.value ? `?session=${encodeURIComponent(select.value)}` : ""}`)
+  bars(document.getElementById("byTool"), r.byTool.map(t => ({
+    label: t.key, value: t.chars, note: `${t.calls} 回 最大 ${num(t.max)} 字`,
+  })))
+  bars(document.getElementById("top"), r.top.map(c => ({
+    label: c.tool + args(c.input), title: `${c.tool} ${JSON.stringify(c.input ?? {}, null, 1)}`, value: c.chars,
+    note: `${c.session} ${new Date(c.at).toLocaleTimeString()}`,
+  })))
+  const calls = r.byTool.reduce((n, t) => n + t.calls, 0)
+  document.getElementById("count").textContent = `${calls} 回 ${num(r.byTool.reduce((n, t) => n + t.chars, 0))} 字`
+}
+document.getElementById("session").onchange = load
+document.getElementById("reload").onclick = load
+load()
+</script>
+</body>
+</html>
