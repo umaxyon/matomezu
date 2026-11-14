@@ -35,7 +35,7 @@ const drawing = (id: string, settings: object) => ({
   settings,
   pages: [
     {
-      id: "p1",
+      id: `p${id}`,
       title: "P",
       paper: "@matomezu/base:a4",
       orientation: "landscape",
@@ -48,7 +48,7 @@ const drawing = (id: string, settings: object) => ({
   ],
 })
 
-// x はテーマと線の引き方を選んだブック、y は何も選んでいないブック（どちらもページ p1 に同じ id の箱と線がある）
+// x はテーマと線の引き方を選んだブック、y は何も選んでいないブック（ページ px・py に、同じ id の箱と線がある）
 const X = drawing("x", { "@matomezu/base:book-theme": "sticky", "@matomezu/line:line-route": "straight" })
 const Y = drawing("y", {})
 
@@ -72,7 +72,7 @@ function setup(extra: readonly object[] = []) {
 
 const SIZE = { w: 1123, h: 794 }
 
-// ステージの id で、そのステージのブックのページ p1 を描く（ブックの見た目の CSS 変数も付ける）
+// ステージの id で、そのステージのブックの 1 枚目のページを描く（ブックの見た目の CSS 変数も付ける）
 function Sheet({ stage, book }: { stage: string; book: ReturnType<ReturnType<typeof setup>["bookOf"]> }) {
   const look = useBookLookStyle(stage, book.type)
   return (
@@ -125,7 +125,7 @@ test("描いているページでは、ステージは選択も道具も無く�
       allowed,
       done:
         seen?.done ??
-        perform("@matomezu/paper:item-update", { page: "p1", item: "a", props: { caption: "変えた" } } as never),
+        perform("@matomezu/paper:item-update", { page: "px", item: "a", props: { caption: "変えた" } } as never),
     }
     return null
   }
@@ -140,7 +140,7 @@ test("描いているページでは、ステージは選択も道具も無く�
   render(wrap(<Scope />))
   const got = seen!
   expect(got.stage).toMatchObject({
-    opened: { book: "x", page: "p1" },
+    opened: { book: "x", page: "px" },
     zoom: 0.5,
     selection: [],
     tool: null,
@@ -166,7 +166,7 @@ test("描いているページの id には、コマンドは出ず、選択・�
     const menu = useContextMenu(stage, "@matomezu/base:page-context")
     shown = { inStage: inStage.shown, inDrawn: inDrawn.shown }
     return (
-      <button type="button" data-menu onContextMenu={e => menu(e, { page: "p1" } as never)}>
+      <button type="button" data-menu onContextMenu={e => menu(e, { page: "py" } as never)}>
         menu
       </button>
     )
@@ -195,9 +195,7 @@ describe("スクラップの中（ScrapPage）", () => {
     const { instance, wrap } = setup()
     act(() => instance.actions.openBook("s1", "y"))
     act(() => instance.actions.select("s1", ["l1"]))
-    const { container } = render(
-      wrap(<ScrapPage book="x" page="p1" area={{ x: 20, y: 30, w: 400, h: 200 }} scale={0.5} />),
-    )
+    const { container } = render(wrap(<ScrapPage page="px" area={{ x: 20, y: 30, w: 400, h: 200 }} scale={0.5} />))
     const frame = container.querySelector<HTMLElement>('[data-scrap="shown"]')!
     expect([frame.style.width, frame.style.height]).toEqual(["200px", "100px"])
     expect(frame.querySelector('svg [data-selected="false"]')).not.toBeNull()
@@ -205,13 +203,14 @@ describe("スクラップの中（ScrapPage）", () => {
     expect(frame.innerHTML).toContain("translate(-20px, -30px)")
   })
 
-  test("指したブックかページが無ければ、枠だけを描く（無い）", () => {
-    const { wrap } = setup()
+  test("指したページが無いか、同じ id のページが 2 つのブックにあれば、枠だけを描く（無い）", () => {
+    const twin = (id: string) => ({ ...Y, id, pages: [{ ...Y.pages[0]!, id: "twin" }] })
+    const { wrap } = setup([twin("t1"), twin("t2")])
     const { container } = render(
       wrap(
         <>
-          <ScrapPage book="nothing" page="p1" area={{ x: 0, y: 0, w: 100, h: 50 }} scale={1} />
-          <ScrapPage book="x" page="nothing" area={{ x: 0, y: 0, w: 100, h: 50 }} scale={1} />
+          <ScrapPage page="twin" area={{ x: 0, y: 0, w: 100, h: 50 }} scale={1} />
+          <ScrapPage page="nothing" area={{ x: 0, y: 0, w: 100, h: 50 }} scale={1} />
         </>,
       ),
     )
@@ -219,11 +218,9 @@ describe("スクラップの中（ScrapPage）", () => {
   })
 
   test("可変ページの中身を右・下へずらしたら、ずらした印刷区画の分だけ先を描く", () => {
-    const shiftedBook = { ...X, id: "g", pages: [{ ...X.pages[0]!, grows: "all", shift: { x: 1, y: 2 } }] }
+    const shiftedBook = { ...X, id: "g", pages: [{ ...X.pages[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } }] }
     const { wrap } = setup([shiftedBook])
-    const { container } = render(
-      wrap(<ScrapPage book="g" page="p1" area={{ x: 20, y: 30, w: 400, h: 200 }} scale={1} />),
-    )
+    const { container } = render(wrap(<ScrapPage page="pg" area={{ x: 20, y: 30, w: 400, h: 200 }} scale={1} />))
     // A4 横の紙（1123 × 794）の 1 枚右・2 枚下
     expect(container.innerHTML).toContain(`translate(-${20 + 1123}px, -${30 + 2 * 794}px)`)
   })

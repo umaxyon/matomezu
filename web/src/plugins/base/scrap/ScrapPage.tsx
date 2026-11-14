@@ -1,8 +1,9 @@
-// スクラップの中: ブック book のページ page の範囲 area を、倍率 scale で描く（枠の大きさは area × scale）。ページを、そのページのブックの見た目で、見るだけに描く
-// （描いているページ。ui/drawn.tsx）。指す先のブックかページが無ければ「無い」、スクラップをたどって同じページに戻ったら「輪」を描く。
+// スクラップの中: ページ page（id だけで指す）の範囲 area を、倍率 scale で描く（枠の大きさは area × scale）。ページを、そのページのブックの見た目で、見るだけに描く
+// （描いているページ。ui/drawn.tsx）。指す先のページが無ければ「無い」、スクラップをたどって同じページに戻ったら「輪」を描く。
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
 import { createContext, type ReactNode, useContext, useMemo } from "react"
-import { pagedOf } from "../../../core/book"
+import { useShallow } from "zustand/react/shallow"
+import { pageById } from "../../../core/book"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
@@ -14,12 +15,10 @@ import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import styles from "./ScrapPage.module.css"
 
-// 描いている途中のスクラップがたどったページ（ブックの id とページの id）。同じページに戻ったら輪
+// 描いている途中のスクラップがたどったページの id。同じページに戻ったら輪
 const TracedContext = createContext<readonly string[]>([])
-const traceKey = (book: string, page: string) => `${book}\n${page}`
 
 export interface ScrapPageProps {
-  book: string // 指すページのブックの id
   page: string // 指すページの id
   area: Rect // 描く範囲（ページの中身の位置。紙の左上が 0）
   scale: number // 倍率
@@ -34,17 +33,22 @@ const shifted = (area: Rect, shift: Point | undefined, paper: Size): Point => ({
   y: area.y + (shift?.y ?? 0) * paper.h,
 })
 
-export function ScrapPage({ book: bookId, page: pageId, area, scale, zoom = 1 }: ScrapPageProps) {
+export function ScrapPage({ page: pageId, area, scale, zoom = 1 }: ScrapPageProps) {
   const catalog = useCatalog().core
   const traced = useContext(TracedContext)
-  const book = useMatomezuState(s => pagedOf(s.books[bookId] as Book | undefined) ?? null)
-  const page = book?.pages.find(p => p.id === pageId) as ItemPage | undefined
-  const key = traceKey(bookId, pageId)
-  const state: ScrapState = !book || !page ? "none" : traced.includes(key) ? "loop" : "shown"
+  // ページの見た目と設定は、今そのページを持っているブックから引く
+  const found = useMatomezuState(
+    useShallow(s => {
+      const at = pageById(s.books, pageId)
+      return { book: at?.book ?? null, page: (at?.page as ItemPage | undefined) ?? null }
+    }),
+  )
+  const { book, page } = found
+  const state: ScrapState = !book || !page ? "none" : traced.includes(pageId) ? "loop" : "shown"
   const frame = { width: area.w * scale, height: area.h * scale }
   const size = book && page ? pageArea(catalog, book, page)?.size : undefined
   const paper = page ? paperSize(catalog, page) : null
-  const inner = useMemo(() => [...traced, key], [traced, key])
+  const inner = useMemo(() => [...traced, pageId], [traced, pageId])
   if (state !== "shown" || !book || !page || !size || !paper)
     return <div className={styles.frame} data-scrap={state === "loop" ? "loop" : "none"} style={frame} />
   const at = shifted(area, page.shift, paper)
