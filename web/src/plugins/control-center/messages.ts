@@ -28,6 +28,7 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   Leave: { en: "Leave", ja: "退室" },
   "Leave the workroom": { en: "Leave the workroom", ja: "退室する" },
   "Leaving the workroom": { en: "will be left.", ja: "から退室します。" },
+  "Deleting the workroom": { en: "will be deleted.", ja: "を削除します。" },
   Cancel: { en: "Cancel", ja: "キャンセル" },
   "Leave the room": { en: "Leave the room", ja: "部屋を出る" },
   "Delete the room": { en: "Delete the room", ja: "部屋を削除する" },
