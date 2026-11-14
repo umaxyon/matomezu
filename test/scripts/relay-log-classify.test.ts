@@ -100,3 +100,26 @@ test("遅延ツールの名前の一覧のサーバーで MCP の説明を切り
     ["MCP の説明 claude.ai Notion", "他の MCP"],
   ])
 })
+
+test("プラグインから入れた matomezu の道具（mcp__plugin_matomezu_matomezu__）も matomezu に分ける", () => {
+  const parts = classify({
+    tools: [{ name: "mcp__plugin_matomezu_matomezu__search" }],
+    messages: [
+      {
+        role: "assistant",
+        content: [{ type: "tool_use", id: "a", name: "mcp__plugin_matomezu_matomezu__search", input: {} }],
+      },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "a", content: "x" }] },
+      {
+        role: "user",
+        content: [{ type: "text", text: "# MCP Server Instructions\n## plugin:matomezu:matomezu\nmatomezu の説明" }],
+      },
+    ],
+  })
+  expect(parts.filter(p => p.group === "matomezu").map(p => p.label)).toEqual([
+    "mcp__plugin_matomezu_matomezu__search",
+    "呼び出し mcp__plugin_matomezu_matomezu__search",
+    "結果 mcp__plugin_matomezu_matomezu__search",
+    "MCP の説明 plugin:matomezu:matomezu",
+  ])
+})

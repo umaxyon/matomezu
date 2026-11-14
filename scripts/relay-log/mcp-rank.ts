@@ -1,8 +1,7 @@
 // matomezu の MCP の結果を大きさで並べる。結果は以後のリクエストで毎回送り直されるので、呼び出し 1 回につき 1 回だけ数える。
 // 字数は classify と同じく、tool_result の content を JSON にした長さ
 import type { Message } from "../relay-log"
-
-const MATOMEZU = "mcp__matomezu__"
+import { matomezuTool } from "./matomezu"
 
 export type McpCall = { session: string; at: string; tool: string; key: string; input: unknown; chars: number }
 export type McpToolRank = { key: string; calls: number; chars: number; max: number }
@@ -21,8 +20,8 @@ export function matomezuCalls(messages: { session: string; at: string; message: 
   for (const { session, at, message } of messages) {
     if (!Array.isArray(message.content)) continue
     for (const b of message.content) {
-      if (b.type === "tool_use" && typeof b.name === "string" && b.name.startsWith(MATOMEZU))
-        uses.set(b.id as string, { name: b.name.slice(MATOMEZU.length), input: b.input })
+      const tool = b.type === "tool_use" && typeof b.name === "string" ? matomezuTool(b.name) : undefined
+      if (tool) uses.set(b.id as string, { name: tool, input: b.input })
       if (b.type !== "tool_result") continue
       const id = b.tool_use_id as string
       const use = uses.get(id)
