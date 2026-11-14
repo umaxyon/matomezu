@@ -78,3 +78,8 @@ test("記録の読み出しは、送り直されたメッセージを 1 度だ�
   expect(store.uniqueMessages("one")).toHaveLength(2)
   store.close()
 })
+
+test("プラグインから入れた matomezu の道具も、前置きを外した名前で数える", () => {
+  const calls = matomezuCalls(wrap([use("p", "mcp__plugin_matomezu_matomezu__actions", {}), result("p", "x")]))
+  expect(calls.map(c => c.tool)).toEqual(["actions"])
+})

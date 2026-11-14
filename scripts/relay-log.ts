@@ -15,12 +15,12 @@ import { createHash } from "node:crypto"
 import { writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { isMatomezuTool } from "./relay-log/matomezu"
 import { probeOf } from "./relay-log/probe"
 import { openStore, type Store } from "./relay-log/store"
 import { startViewer } from "./relay-log/viewer"
 
 const UPSTREAM = "https://api.anthropic.com"
-const MATOMEZU = "mcp__matomezu__"
 // 値を記録してよいヘッダー。ほかは名前だけを残す
 const KEEP_HEADERS = new Set(["content-type", "accept", "user-agent", "x-app", "anthropic-version", "anthropic-beta"])
 // 上流へ渡さないヘッダー（つなぎ方は中継が決める。圧縮は外して SSE をそのまま読めるようにする）
@@ -137,7 +137,7 @@ export function summarize(body: Body): Summary {
   const push = (...values: unknown[]) => prefix.push(hash(prefix.at(-1), ...values))
   push(asBlocks(withoutMarks(body.system)))
   for (const m of messages) push(m.role, asBlocks(withoutMarks(m.content)))
-  const matomezuTools = tools.filter(t => t.name.startsWith(MATOMEZU))
+  const matomezuTools = tools.filter(t => isMatomezuTool(t.name))
   return {
     model: body.model ?? "?",
     messages: messages.length,
@@ -150,7 +150,7 @@ export function summarize(body: Body): Summary {
     matomezuToolsChars: chars(matomezuTools),
     textChars,
     resultChars: results.reduce((n, r) => n + r.chars, 0),
-    matomezuResultChars: results.filter(r => r.tool.startsWith(MATOMEZU)).reduce((n, r) => n + r.chars, 0),
+    matomezuResultChars: results.filter(r => isMatomezuTool(r.tool)).reduce((n, r) => n + r.chars, 0),
     marks,
     prefix,
     results,
@@ -398,7 +398,7 @@ export function report(entries: Entry[]): string {
     byTool.set(r.tool, { n: t.n + 1, chars: t.chars + r.chars })
   }
   const total = all.reduce((n, r) => n + r.chars, 0)
-  const matomezu = all.filter(r => r.tool.startsWith(MATOMEZU)).reduce((n, r) => n + r.chars, 0)
+  const matomezu = all.filter(r => isMatomezuTool(r.tool)).reduce((n, r) => n + r.chars, 0)
   const last = entries.at(-1)?.summary
   return [
     "## リクエスト",

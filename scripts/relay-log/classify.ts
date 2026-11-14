@@ -1,6 +1,7 @@
 // リクエストの中身を、場所と由来（誰が直せるか）で分ける。AI の判断は使わず、場所（system・tools・メッセージの役割と種類）、
 // ツール名の前置き、Claude Code が本文に入れる決まった見出しだけで決める。当てはまらない物は「不明」にして、隠さない
 import type { Body } from "../relay-log"
+import { isMatomezuTool, MATOMEZU_SERVERS } from "./matomezu"
 
 export type Group = "matomezu" | "指示・メモリ" | "スキル" | "他の MCP" | "フック" | "会話" | "固定" | "不明"
 // 利用者や開発者が直せない（Claude Code が毎回入れる）物と、会話そのもの。トグルで隠す
@@ -8,13 +9,12 @@ export const HIDDEN_BY_DEFAULT: Group[] = ["固定", "会話"]
 
 export type Part = { where: string; label: string; group: Group; chars: number; text: string }
 
-const MATOMEZU = "mcp__matomezu__"
 const norm = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "_").toLowerCase()
 
 const serverOf = (tool: string) => tool.match(/^mcp__(.+?)__/)?.[1]
 
 function toolGroup(name: string): Group {
-  if (name.startsWith(MATOMEZU)) return "matomezu"
+  if (isMatomezuTool(name)) return "matomezu"
   return name.startsWith("mcp__") ? "他の MCP" : "固定"
 }
 
@@ -78,7 +78,7 @@ export function splitSections(
     if (name && servers.has(norm(name))) {
       out.push({
         label: `MCP の説明 ${name}`,
-        group: norm(name) === "matomezu" ? "matomezu" : "他の MCP",
+        group: MATOMEZU_SERVERS.has(norm(name)) ? "matomezu" : "他の MCP",
         lines: [line],
       })
       continue
@@ -154,7 +154,7 @@ export function classify(body: Body): Part[] {
         parts.push({
           where,
           label: `呼び出し ${name}`,
-          group: name.startsWith(MATOMEZU) ? "matomezu" : "会話",
+          group: isMatomezuTool(name) ? "matomezu" : "会話",
           chars: JSON.stringify(b).length,
           text,
         })
@@ -163,7 +163,7 @@ export function classify(body: Body): Part[] {
         parts.push({
           where,
           label: `結果 ${name}`,
-          group: name.startsWith(MATOMEZU) ? "matomezu" : "会話",
+          group: isMatomezuTool(name) ? "matomezu" : "会話",
           chars: JSON.stringify(b.content ?? "").length,
           text: asText(b.content),
         })
