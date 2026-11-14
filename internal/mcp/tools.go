@@ -14,29 +14,31 @@ const instructions = "matomezu shows books (such as diagrams) to the user in a b
 	"The user may put notes and marks on things in a book; view and list_books tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
 	"Changes appear at once on screens showing that book; use show to put a book on the user's screen. "
 
-type readTool struct {
+// tool は MCP 公開ツール 1 つ: 名前・説明・受ける引数の形（inputSchema）と、確かめた引数で呼ぶ所（AI に返す文と、失敗したか）
+type tool struct {
 	name        string
 	description string
 	schema      map[string]any
-	call        func(api caller, args map[string]any) (json.RawMessage, error)
+	call        func(c *conn, args map[string]any) (string, bool)
 }
 
 var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
 
-var readTools = []readTool{
+// tools は MCP 公開ツールの全部（tools/list に出す順）。追加プラグインを足しても変わらない
+var tools = []tool{
 	{
 		"view",
 		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. front tells what the window brings to front: book-screen, or control-center, which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). null when no window is open.",
 		noArgs,
-		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") },
+		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") }, nil),
 	},
 	{
 		"list_books",
 		"List the books: id, type, title, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
-		func(api caller, _ map[string]any) (json.RawMessage, error) {
+		reading(func(api caller, _ map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/books")
-		},
+		}, nil),
 	},
 	{
 		"read_book",
@@ -48,10 +50,10 @@ var readTools = []readTool{
 			"required":             []string{"book"},
 			"additionalProperties": false,
 		},
-		func(api caller, args map[string]any) (json.RawMessage, error) {
+		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
 			id, _ := args["book"].(string)
 			return api.Get("api/ai/books/" + url.PathEscape(id) + "?outline=1") // 1 冊だけのブックの id は / を含む
-		},
+		}, nil),
 	},
 	{
 		"read_page",
@@ -68,7 +70,7 @@ var readTools = []readTool{
 			"required":             []string{"book", "page"},
 			"additionalProperties": false,
 		},
-		func(api caller, args map[string]any) (json.RawMessage, error) {
+		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
 			book, _ := args["book"].(string)
 			page, _ := args["page"].(string)
 			q := url.Values{}
@@ -83,7 +85,7 @@ var readTools = []readTool{
 				path += "?" + q.Encode()
 			}
 			return api.Get(path)
-		},
+		}, narrowPage),
 	},
 	{
 		"read_records",
@@ -118,7 +120,7 @@ var readTools = []readTool{
 			"required":             []string{"kind"},
 			"additionalProperties": false,
 		},
-		func(api caller, args map[string]any) (json.RawMessage, error) {
+		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
 			q := url.Values{}
 			kind, _ := args["kind"].(string)
 			q.Set("kind", kind)
@@ -156,7 +158,7 @@ var readTools = []readTool{
 				q.Set("unlisted", mode)
 			}
 			return api.Get("api/ai/records?" + q.Encode())
-		},
+		}, nil),
 	},
 	{
 		"search",
@@ -194,13 +196,13 @@ var readTools = []readTool{
 			"required":             []string{"terms"},
 			"additionalProperties": false,
 		},
-		searchTool,
+		reading(searchTool, nil),
 	},
 	{
 		"read_settings",
 		"Read the user's settings: the value of each setting in actions, keyed by the setting's id (a setting the user has not changed has its default, or is left out when it has none).",
 		noArgs,
-		func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
+		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") }, nil),
 	},
 	{
 		"actions",
@@ -211,10 +213,30 @@ var readTools = []readTool{
 			"warnings (only when there are some, without ids) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",
 		actionsSchema,
-		func(api caller, args map[string]any) (json.RawMessage, error) {
+		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/catalog" + idsQuery(args))
-		},
+		}, nil),
 	},
+	{"show", showDescription, showSchema, func(c *conn, args map[string]any) (string, bool) { return show(c, args) }},
+	{"perform", performDescription, performSchema, func(c *conn, args map[string]any) (string, bool) { return perform(c, args) }},
+	{"join", joinDescription, joinSchema, join},
+}
+
+// reading は、読む MCP 公開ツールの呼び出しを tools の表の形にする。narrow があれば、上限を超える答えを返さずに絞り方を返す
+// （受け取る側〈AI のクライアント〉に上限があり、超えると途中で切れて AI が気づけないため）
+func reading(read func(api caller, args map[string]any) (json.RawMessage, error), narrow func(args map[string]any) string) func(c *conn, args map[string]any) (string, bool) {
+	return func(c *conn, args map[string]any) (string, bool) {
+		out, err := read(c, args)
+		if err != nil {
+			return err.Error(), true
+		}
+		if narrow != nil {
+			if n := len([]rune(string(out))); n > maxAnswer {
+				return fmt.Sprintf("too-large: the answer is %d characters, over the limit of %d, so it is not returned; %s", n, maxAnswer, narrow(args)), true
+			}
+		}
+		return string(out), false
+	}
 }
 
 // actionsSchema は actions の受ける形。ids は 1 つ以上の id（actions の目次の id）
@@ -292,18 +314,13 @@ var showSchema = map[string]any{
 const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current, and the book screen comes to front if the control center was in front. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
-// listTools は MCP 公開ツールの一覧（読む MCP 公開ツール・show・perform・join）。追加プラグインを足しても変わらない
+// listTools は MCP 公開ツールの一覧。追加プラグインを足しても変わらない
 func listTools() []map[string]any {
-	tools := []map[string]any{}
-	for _, t := range readTools {
-		tools = append(tools, map[string]any{"name": t.name, "description": t.description, "inputSchema": t.schema})
+	list := []map[string]any{}
+	for _, t := range tools {
+		list = append(list, map[string]any{"name": t.name, "description": t.description, "inputSchema": t.schema})
 	}
-	tools = append(tools,
-		map[string]any{"name": "show", "description": showDescription, "inputSchema": showSchema},
-		map[string]any{"name": "perform", "description": performDescription, "inputSchema": performSchema},
-		map[string]any{"name": "join", "description": joinDescription, "inputSchema": joinSchema},
-	)
-	return tools
+	return list
 }
 
 // callTool は MCP 公開ツールを呼び、AI に返す文と、失敗したかを返す。
@@ -318,61 +335,41 @@ func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
 	return text, failed
 }
 
-// maxAnswer は、読む MCP 公開ツールの 1 つの答えの文字数の上限。受け取る側（AI のクライアント）に上限があり、超えると途中で切れて AI が気づけないので、
-// 絞って読めるツールは、超える答えを返さずに絞り方を返す
+// maxAnswer は、読む MCP 公開ツールの 1 つの答えの文字数の上限
 const maxAnswer = 60000
 
-// tooLarge は、答えが上限を超えたときの、絞り方の説明（絞って読めるツールだけ）
-var tooLarge = map[string]func(args map[string]any) string{
-	"read_page": func(args map[string]any) string {
-		if item, _ := args["item"].(string); item != "" {
-			return "read an item inside it: call read_page with outline to see the items of the page, or read_page with the id of an item inside this one"
-		}
-		return "call read_page with outline to see the items of the page (id, item, size), then with item to read them one at a time"
-	},
+// narrowPage は、read_page の答えが上限を超えたときの絞り方の説明
+func narrowPage(args map[string]any) string {
+	if item, _ := args["item"].(string); item != "" {
+		return "read an item inside it: call read_page with outline to see the items of the page, or read_page with the id of an item inside this one"
+	}
+	return "call read_page with outline to see the items of the page (id, item, size), then with item to read them one at a time"
 }
 
+// dispatch は、引数をその MCP 公開ツールの inputSchema で確かめてから呼ぶ。合わなければ呼ばずに、合わない所とその inputSchema を返す（AI が 1 回で直せるように）
 func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
-	var api caller = c
 	args := map[string]any{}
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &args); err != nil {
 			return "the arguments are not a JSON object", true
 		}
-	}
-	for _, t := range readTools {
-		if t.name == name {
-			out, err := t.call(api, args)
-			if err != nil {
-				return err.Error(), true
-			}
-			if narrow, ok := tooLarge[name]; ok {
-				if n := len([]rune(string(out))); n > maxAnswer {
-					return fmt.Sprintf("too-large: the answer is %d characters, over the limit of %d, so it is not returned; %s", n, maxAnswer, narrow(args)), true
-				}
-			}
-			return string(out), false
+		if args == nil {
+			args = map[string]any{}
 		}
 	}
-	if name == "show" {
-		return show(api, args)
-	}
-	if name == "perform" {
-		return perform(api, args)
-	}
-	if name == "join" {
-		return join(c, args)
+	for _, t := range tools {
+		if t.name != name {
+			continue
+		}
+		if problems := checkArguments(name, t.schema, args); len(problems) > 0 {
+			return "bad-args: " + strings.Join(problems, "; ") + "\nthe arguments of " + name + " (JSON Schema): " + schemaText(t.schema), true
+		}
+		return t.call(c, args)
 	}
 	return "unknown tool: " + name, true
 }
 
 func perform(api caller, args map[string]any) (string, bool) {
-	if _, ok := args["action"].(string); !ok {
-		return "perform needs action (an action's id, see actions)", true
-	}
-	if _, ok := args["args"].(map[string]any); !ok {
-		args["args"] = map[string]any{}
-	}
 	out, err := api.Post("api/ai/perform", args)
 	if err != nil {
 		return err.Error(), true
@@ -475,9 +472,9 @@ func refusalText(reason, detail string) string {
 var joinSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"model":       map[string]any{"type": "string", "description": "The name of the model you are, such as claude-opus-4 or gpt-5."},
+		"model":       map[string]any{"type": "string", "minLength": 1, "description": "The name of the model you are, such as claude-opus-4 or gpt-5."},
 		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
-		"link":        map[string]any{"type": "string", "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
+		"link":        map[string]any{"type": "string", "minLength": 1, "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
 		"workroom":    map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a workroom whose participant is not alive any more, or an empty one), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
 	},
 	"required":             []string{"model", "link"},
@@ -492,9 +489,6 @@ const joinDescription = "Ask to join the user's workroom as a participant. The u
 func join(c *conn, args map[string]any) (string, bool) {
 	model, _ := args["model"].(string)
 	link, _ := args["link"].(string)
-	if model == "" || link == "" {
-		return "join needs model and link (a new uuid you make for this session)", true
-	}
 	sessionName, _ := args["sessionName"].(string)
 	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link}
 	if workroom, _ := args["workroom"].(string); workroom != "" {
@@ -533,9 +527,6 @@ func searchTool(api caller, args map[string]any) (json.RawMessage, error) {
 		if t, ok := v.(string); ok {
 			q.Add("term", t)
 		}
-	}
-	if len(q["term"]) == 0 {
-		return nil, fmt.Errorf("search needs terms (1 or more words)")
 	}
 	if kinds, ok := args["kinds"].([]any); ok && len(kinds) > 0 {
 		b, err := json.Marshal(kinds)
