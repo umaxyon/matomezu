@@ -3,6 +3,7 @@
 // 127.0.0.1 だけで待ち受ける。記録を書いている最中の中継があっても、ページが定期的に読み直す
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { classify, HIDDEN_BY_DEFAULT, totals } from "./classify"
 import { parseReply } from "./reply"
 
 const pad = (id: number) => String(id).padStart(4, "0")
@@ -32,9 +33,15 @@ export function startViewer({ dir, port }: { dir: string; port: number }) {
             }),
         )
       }
-      const m = path.match(/^\/api\/(req|res)\/(\d+)$/)
+      const m = path.match(/^\/api\/(req|res|parts)\/(\d+)$/)
       if (m) {
         const id = Number(m[2])
+        if (m[1] === "parts") {
+          const text = read(`req-${pad(id)}.json`)
+          if (text === undefined) return json(null)
+          const parts = classify(JSON.parse(text).body)
+          return json({ hidden: HIDDEN_BY_DEFAULT, totals: totals(parts), parts })
+        }
         if (m[1] === "req") {
           const text = read(`req-${pad(id)}.json`)
           return text === undefined ? json(null) : json(JSON.parse(text))
