@@ -21,7 +21,7 @@ export function usePlaceTarget(stage: string, pointer: Point | null): Placing | 
   const placing = view?.placing ?? null
   const at = pointer && placeAt(toPaperAt, pointer)
   const point = pointer && toPaperAt(pointer)
-  const shape = placing ? placingShape(catalog, placing) : null
+  const shape = placing ? placingShape(catalog, placing.item, placing.props) : null
   const size = shape && placedSize(catalog, shape)
   if (!at || !point || !shape || !size || !book || !page) return null
   return { at, target: placeTarget(catalog, book, page, point, at, shape), size }

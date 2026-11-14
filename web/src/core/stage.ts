@@ -44,6 +44,12 @@ const shiftOf = (page: Page | undefined): { shift?: Point } => (page?.shift ? { 
 // 開いたページはそのまま持つ（閉じたらそのページの編集に戻る）
 export type StageMode = { kind: "edit" } | { kind: "print-preview"; area?: Size; back: { zoom: number; pan: Point } }
 
+// 置こうとしている物: アイテムと、置くときに渡す項目の値（無ければ、アイテムの既定の項目で置く）
+export interface Placing {
+  item: ItemId
+  props?: Readonly<Record<string, unknown>>
+}
+
 export interface Stage {
   id: string
   opened: Opened | null // 何も開いていなければ null
@@ -53,7 +59,7 @@ export interface Stage {
   view: Size | null // 表示領域の大きさ（測るまでは null）
   // 直している並び: ページの items か、背景（ページの slide。背景を持つタイプの、背景編集モードの間）。開くページやブックが替わると items に戻る
   edits: EditList
-  placing: ItemId | null // 置こうとしているアイテム（ツールボックスで選んだもの。置くか取り消すまで）
+  placing: Placing | null // 置こうとしている物（ツールボックスなどで選んだもの。置くか取り消すまで）
   selection: readonly string[] // 選んでいる物の id（開いているページのアイテムや、ページのフィールドの中の物）
   // 選んでいる物を、今その場で編集中か（選びが替わる・開くものが変わる・道具を替えると終わる）。
   // 何をしているかをプラグインが名前で分けるときは、その名前（種類を選ぶなど。true は名前を分けない編集）
@@ -376,9 +382,10 @@ export function setPreviewArea(stage: Stage, area: Size): Stage {
 }
 
 // アイテムを置こうとする。同じアイテムをもう一度選べば取り消す（道具を選択にするのは workspace.ts の togglePlacing）
-export function togglePlacing(stage: Stage, item: ItemId): Stage {
+export function togglePlacing(stage: Stage, item: ItemId, props?: Placing["props"]): Stage {
   if (previewing(stage)) return stage
-  return { ...stage, placing: stage.placing === item ? null : item }
+  const next: Placing = props ? { item, props } : { item }
+  return { ...stage, placing: sameData(stage.placing, next) ? null : next }
 }
 
 export function stopPlacing(stage: Stage): Stage {

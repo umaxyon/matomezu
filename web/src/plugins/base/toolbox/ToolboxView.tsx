@@ -16,7 +16,7 @@ import { panelOf, toolboxOf } from "./toolbox"
 
 export function ToolboxView({ stage }: { stage: string }) {
   const book = useBook(stage) ?? undefined
-  const placing = useMatomezuState(s => stageIn(s.window, stage)?.placing ?? null)
+  const placing = useMatomezuState(s => stageIn(s.window, stage)?.placing?.item ?? null)
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core

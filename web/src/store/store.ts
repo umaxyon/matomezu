@@ -266,7 +266,8 @@ export interface Actions {
   requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
-  togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
+  // そのステージでアイテムを置こうとする（同じものなら取り消す）。props は置くときに渡す項目の値（無ければアイテムの既定）
+  togglePlacing(stage: string, item: ItemId, props?: Readonly<Record<string, unknown>>): void
   stopPlacing(stage: string): void
   select(stage: string, ids: readonly string[]): void // そのステージで選ぶ物（開いているページのもの）
   // そのステージで選んでいる物を、その場で編集し始める・終える（何をするかを名前で分けるときは、その名前で始める）
@@ -980,7 +981,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     requestPrint: () => setState({ printRequests: getState().printRequests + 1 }),
     setPreviewArea: (id, area) => withStageScreen(id, ws => mapStage(ws, id, s => setPreviewArea(s, area))),
     setTool: (id, tool) => withStageScreen(id, ws => setTool(catalog, ws, id, tool)),
-    togglePlacing: (id, item) => withStageScreen(id, ws => togglePlacing(catalog, ws, id, item)),
+    togglePlacing: (id, item, props) => withStageScreen(id, ws => togglePlacing(catalog, ws, id, item, props)),
     stopPlacing: id => withStageScreen(id, ws => mapStage(ws, id, s => stopPlacing(s))),
     select: (id, ids) => withStageScreen(id, ws => mapStage(ws, id, s => select(s, ids))),
     setEditing: (id, editing) => withStageScreen(id, ws => mapStage(ws, id, s => setEditing(s, editing))),

@@ -10,6 +10,7 @@ import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
 import type { Library } from "./library"
 import type { Book } from "./schema/book"
+import type { Placing } from "./stage"
 import {
   closeBook,
   followBook as followStage,
@@ -147,10 +148,16 @@ export function setTool(catalog: CoreCatalog, ws: Workspace, id: string, tool: s
   return { ...ws, stages, tools: { ...ws.tools, [set]: tool } }
 }
 
-// ステージでアイテムを置こうとする（同じアイテムなら取り消す）。置くのは置く道具（places）の仕事なので、そのステージの組の道具を置く道具にする。
+// ステージでアイテムを置こうとする（同じアイテムと値なら取り消す）。props は置くときに渡す項目の値。置くのは置く道具（places）の仕事なので、そのステージの組の道具を置く道具にする。
 // ほかのステージの置こうとしているアイテムはそのまま
-export function togglePlacing(catalog: CoreCatalog, ws: Workspace, id: string, item: ItemId): Workspace {
-  const next = mapStage(ws, id, s => togglePlacingOn(s, item))
+export function togglePlacing(
+  catalog: CoreCatalog,
+  ws: Workspace,
+  id: string,
+  item: ItemId,
+  props?: Placing["props"],
+): Workspace {
+  const next = mapStage(ws, id, s => togglePlacingOn(s, item, props))
   const stage = next.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
   const places = set ? placingTool(catalog, set) : null

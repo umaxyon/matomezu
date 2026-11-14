@@ -40,8 +40,9 @@ export const PAPER_PLACE = kit.defineCommand({
     const point = ctx.toPaper(pointer)
     const book = pagedOf(ctx.book)
     const page = book?.pages.find(p => p.id === stage.opened?.page)
-    const shape = stage.placing && placingShape(ctx.catalog, stage.placing)
-    if (!at || !point || !book || !page || !stage.placing || !stage.opened || !shape) return
+    const placing = stage.placing
+    const shape = placing && placingShape(ctx.catalog, placing.item, placing.props)
+    if (!at || !point || !book || !page || !placing || !stage.opened || !shape) return
     const target = placeTarget(ctx.catalog, book, page, point, at, shape)
     const warn = (done: { reason: string; permission?: string }) =>
       a.showToast({
@@ -62,15 +63,20 @@ export const PAPER_PLACE = kit.defineCommand({
       ...(target.free ? {} : { at: target.at }),
       ...(target.parent === null ? {} : { parent: target.parent }),
     }
-    // 形の定義が名指す追加のダイアログ（無ければそのまま置く）
-    const def = shapeDefOf(ctx.catalog, stage.placing)
+    // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
+    const def = shapeDefOf(ctx.catalog, placing.item)
     const dialog = def && shapeDialogs(def).add
-    if (dialog) {
+    if (dialog && !placing.props) {
       a.stopPlacing(stage.id)
       a.openDialog(stage.id, dialog, where)
       return
     }
-    const done = a.perform(ITEM_PLACE.id, { ...where, item: stage.placing, crowd: "push" }, { book: stage.opened.book })
+    const given = placing.props ? { props: placing.props } : {}
+    const done = a.perform(
+      ITEM_PLACE.id,
+      { ...where, item: placing.item, ...given, crowd: "push" },
+      { book: stage.opened.book },
+    )
     if (!done.ok) {
       warn(done)
       return

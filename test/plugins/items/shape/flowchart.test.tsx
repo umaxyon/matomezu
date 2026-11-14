@@ -62,7 +62,7 @@ test("フローチャートのツールボックス（下の行のフッタメ�
   ).toEqual(names)
   fireEvent.click(within(panel).getByRole("button", { name: "ひし形", hidden: true }))
   expect(screen.queryByRole("group", { name: "形", hidden: true })).toBeNull()
-  expect(screenOf(store.state.getState().window).stages[0]!.placing).toBe("@matomezu/shape:shape-diamond")
+  expect(screenOf(store.state.getState().window).stages[0]!.placing?.item).toBe("@matomezu/shape:shape-diamond")
   expect(screen.getByRole("button", { name: "形", hidden: true }).getAttribute("aria-pressed")).toBe("true")
 })
 

@@ -169,7 +169,8 @@ function SlidePageView({
   const offset = book && page ? slideOffsetOf(catalog, book, page) : { x: 0, y: 0 }
   const chosen = shapes.filter(s => stage.selection.includes(s.id)) // 選んでいるアイテム（重ねの順）
   const selected = chosen.length === 1 && stage.selection.length === 1 ? chosen[0] : undefined
-  const placing = operable && stage.placing !== null && placeable.includes(stage.placing) ? stage.placing : null
+  const placing =
+    operable && stage.placing !== null && placeable.includes(stage.placing.item) ? stage.placing.item : null
   const editing = stage.editing === true || stage.editing === ADDED_EDIT ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
   const minOf = (item: string): number => {
     const def = catalog.items.get(item)

@@ -77,7 +77,7 @@ test("紙から少しでもはみ出す所では置かず、置こうとした�
   const right = w?.status === "known" ? w.size.w - 64 + 1 : 0
   store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: right, y: 0 }))
   expect(page(store).items).toBeUndefined()
-  expect(screenOf(store.state.getState().window).stages[0]!.placing).toBe("@matomezu/box:shape-nest-box")
+  expect(screenOf(store.state.getState().window).stages[0]!.placing?.item).toBe("@matomezu/box:shape-nest-box")
 })
 
 test("アイテムの id は振った値から作り、ブックのどのページのアイテムとも重なれば振り直す", () => {
@@ -136,7 +136,9 @@ test("ハンドの道具でアイテムを置こうとすると、選択の道�
   const store = ready()
   store.actions.setTool("s1", "@matomezu/base:hand")
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
-  expect(screenOf(store.state.getState().window).stages[0]).toMatchObject({ placing: "@matomezu/box:shape-nest-box" })
+  expect(screenOf(store.state.getState().window).stages[0]).toMatchObject({
+    placing: { item: "@matomezu/box:shape-nest-box" },
+  })
   expect(toolAt(store)).toBe("@matomezu/base:select")
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
   expect(screenOf(store.state.getState().window).stages[0]!.placing).toBeNull()
@@ -266,7 +268,7 @@ test("置こうとしているアイテムはステージごと。道具を替�
   store.actions.openBook("s2", "b2")
   store.actions.setTool("s1", "@matomezu/base:hand")
   store.actions.togglePlacing("s2", "@matomezu/box:shape-nest-box")
-  const placing = () => screenOf(store.state.getState().window).stages.map(s => s.placing)
+  const placing = () => screenOf(store.state.getState().window).stages.map(s => s.placing?.item ?? null)
   expect(placing()).toEqual([null, "@matomezu/box:shape-nest-box"])
   expect(toolAt(store, "s1")).toBe("@matomezu/base:select")
   store.actions.setTool("s1", "@matomezu/base:hand")
