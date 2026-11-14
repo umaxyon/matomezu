@@ -53,7 +53,7 @@ export const TICKET = kit.defineSubject({
     unlisted:
       "completed tickets (in the done lane of their project: list them with unlisted include or only, or with where project and lane)",
   },
-  // 番号は、プロジェクトのプレフィクスを付けた見せ方（プロジェクトが読めなければ数のまま）
+  // 番号は、プロジェクトのプレフィクスを付けた見せ方（プロジェクトが読めなければプレフィクス無しの 4 桁）
   aiBrief: (t, ctx) => {
     const project = ctx.record(PROJECT.id, t.project) as { prefix?: string } | "none"
     const label = ticketLabel(project === "none" ? "" : (project.prefix ?? ""), t.number)

@@ -35,7 +35,7 @@ test("a history line has only its text as the body", () => {
   expect(HISTORY.searchTexts?.(line)).toEqual({ body: "確認が済んだ" })
 })
 
-test("a ticket's brief for the AI starts with its number as the board shows it: the project's prefix and 4 digits (the bare number when the project cannot be read)", () => {
+test("a ticket's brief for the AI starts with its number as the board shows it: the project's prefix and 4 digits (4 digits without a prefix when the project cannot be read)", () => {
   const ticket = TICKET.record.parse({
     id: "t1",
     project: "p1",
