@@ -26,7 +26,10 @@ const MARKERS: Marker[] = [
   { re: /^Attribution for git commits/, make: () => ({ label: "コミットの署名の指示", group: "固定" }) },
   {
     re: /^Contents of (\S+) \(/,
-    make: m => ({ label: `${/MEMORY\.md$/.test(m[1]) ? "メモリ" : "指示"} ${shortPath(m[1])}`, group: "指示・メモリ" }),
+    make: m => {
+      const path = m[1] ?? ""
+      return { label: `${/MEMORY\.md$/.test(path) ? "メモリ" : "指示"} ${shortPath(path)}`, group: "指示・メモリ" }
+    },
   },
   { re: /^# userEmail/, make: () => ({ label: "userEmail", group: "固定" }) },
   { re: /^# gitStatus/, make: () => ({ label: "gitStatus", group: "固定" }) },
@@ -60,11 +63,11 @@ export function splitSections(
       continue
     }
     // MCP の説明の中の「## サーバー名」。名前がツールの前置きにあるサーバーだけを節の切れ目にする
-    const h = inMcp ? line.match(/^## (.+)$/) : null
-    if (h && servers.has(norm(h[1]))) {
+    const name = inMcp ? line.match(/^## (.+)$/)?.[1] : undefined
+    if (name && servers.has(norm(name))) {
       out.push({
-        label: `MCP の説明 ${h[1]}`,
-        group: norm(h[1]) === "matomezu" ? "matomezu" : "他の MCP",
+        label: `MCP の説明 ${name}`,
+        group: norm(name) === "matomezu" ? "matomezu" : "他の MCP",
         lines: [line],
       })
       continue
