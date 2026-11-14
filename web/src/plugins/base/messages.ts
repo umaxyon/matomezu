@@ -19,6 +19,7 @@ import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { PARTICIPANT_MESSAGES } from "./participant/messages"
 import { PRINT_PREVIEW_MESSAGES } from "./print-preview/messages"
 import { RIGHT_SIDE_PANEL_MESSAGES } from "./right-side-panel/messages"
+import { SCRAP_MESSAGES } from "./scrap/messages"
 import { SEARCH_MESSAGES } from "./search/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
 import { STAGE_MESSAGES } from "./stage/messages"
@@ -54,6 +55,7 @@ export const BASE_MESSAGES = joinMessages(
   RIGHT_SIDE_PANEL_MESSAGES,
   LEFT_SIDE_PANEL_MESSAGES,
   MAIL_MESSAGES,
+  SCRAP_MESSAGES,
   WIDE_SEARCH_MESSAGES,
   PARTICIPANT_MESSAGES,
   MARKDOWN_DOCUMENT_MESSAGES,

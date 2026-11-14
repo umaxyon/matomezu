@@ -99,6 +99,7 @@ import {
   type RIGHT_SIDE_PANEL_STATE,
   RIGHT_SIDE_PANEL_STATES,
 } from "./right-side-panel/state"
+import { SCRAP, SCRAP_CUT, SCRAP_REMOVE } from "./scrap/scrap"
 import {
   type SEARCH_CLOSE,
   SEARCH_COMMANDS,
@@ -304,6 +305,8 @@ export const BASE = defineBuiltin(
       MAIL_SEEN,
       MAIL_VISITED,
       MAIL_REMOVE,
+      SCRAP_CUT,
+      SCRAP_REMOVE,
       PROPOSAL_SEND,
       PROPOSAL_APPLY,
       PROPOSAL_SETTLE,
@@ -351,7 +354,7 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [NOTE, MARK],
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
-    subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL],
+    subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF],
     screenArrangements: [ONE_SCREEN],
     checks: [
@@ -503,6 +506,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-seen": typeof MAIL_SEEN
     "@matomezu/base:mail-visited": typeof MAIL_VISITED
     "@matomezu/base:mail-remove": typeof MAIL_REMOVE
+    "@matomezu/base:scrap-cut": typeof SCRAP_CUT
+    "@matomezu/base:scrap-remove": typeof SCRAP_REMOVE
     "@matomezu/base:proposal-send": typeof PROPOSAL_SEND
     "@matomezu/base:proposal-apply": typeof PROPOSAL_APPLY
     "@matomezu/base:proposal-settle": typeof PROPOSAL_SETTLE
@@ -544,6 +549,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant": typeof PARTICIPANT
     "@matomezu/base:admin-mark": typeof ADMIN_MARK
     "@matomezu/base:mail": typeof MAIL
+    "@matomezu/base:scrap": typeof SCRAP
   }
   interface MailTable {
     "@matomezu/base:letter": typeof MAIL_LETTER
