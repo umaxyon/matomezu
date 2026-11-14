@@ -5,7 +5,7 @@ import type { WorkroomRow } from "../base"
 import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, WORKROOM_COLUMNS } from "../base/ui"
 import { Bird } from "./Bird"
 import { WORKROOM_LEAVE_DIALOG } from "./control-center"
-import { CrownIcon, LeaveIcon } from "./icons"
+import { CrownIcon, LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
 import text from "./text.module.css"
@@ -16,16 +16,42 @@ export function WorkroomView({ row, hidden }: { row: WorkroomRow | undefined; hi
   return (
     <Panel className={styles.room} data-max={hidden} data-workroom-panel>
       {row && row.state === "empty" ? (
-        <p className={text.note}>
-          {row.room.name}
-          {t("(empty)")}
-        </p>
+        <Empty row={row} />
       ) : row ? (
         <Occupied row={row} />
       ) : (
         <p className={text.note}>{t("Workroom information")}</p>
       )}
     </Panel>
+  )
+}
+
+// 空室: 名前と（空室）、右下に部屋を削除するボタン（ごみ箱のアイコン。ダイアログは削除だけを選べる）
+function Empty({ row }: { row: WorkroomRow }) {
+  const t = useMessages(kit)
+  const here = useScreenId()
+  const { openDialog } = useActions()
+  const canRemove = useAllowedOn("@matomezu/base:workroom-remove", {}, { record: row.room.id }).ok
+  return (
+    <div className={styles.empty}>
+      <p className={text.note}>
+        {row.room.name}
+        {t("(empty)")}
+      </p>
+      <span className={styles.leave}>
+        <Tip text={t("Delete the room")} side="above">
+          <IconButton
+            className={styles.leaveButton}
+            label={t("Delete the room")}
+            title={undefined}
+            disabled={!canRemove}
+            onClick={() => openDialog(here, WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
+          >
+            <TrashIcon />
+          </IconButton>
+        </Tip>
+      </span>
+    </div>
   )
 }
 

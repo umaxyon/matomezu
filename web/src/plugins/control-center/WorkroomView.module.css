@@ -9,6 +9,14 @@
 .room[data-max="true"] {
   transform: translateY(calc(100% + var(--off-screen)));
 }
+/* 空室の枠。削除のボタンの置き場（右下）の基準 */
+.empty {
+  --leave-size: 24px;
+  --edge-gap: 8px;
+  position: relative;
+  flex: 1;
+  height: 100%;
+}
 .leave {
   position: absolute;
   right: var(--edge-gap); /* ボタンの枠の右端を、右の縦の罫線から --edge-gap に置く */
