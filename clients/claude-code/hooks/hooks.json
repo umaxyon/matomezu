@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__plugin_matomezu_matomezu__.*",
+        "matcher": "mcp__.*matomezu.*",
         "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/permission.sh\"" }]
       }
     ],

@@ -6,7 +6,19 @@ matomezu は、人と AI が同じ図を見て、直し合うための図エデ�
 
 ### 入れる
 
-【未確定】npm で入れるときのパッケージ名とコマンド。
+npm で入れます。node と npm が要ります。
+
+1. `npm i -g matomezu` を打つ
+2. `matomezu version` を打って、版が出れば入っています
+
+- 更新するときも、`npm i -g matomezu` を打ちます
+- Claude Code のプラグインも一緒に入ります。Claude Code に組み込むのは、別に 1 度だけ行います（16 章「Claude Code のプラグイン」）
+
+使える OS: Linux・macOS・Windows（64 ビット。Linux と macOS は Arm も）。
+
+注: 合わない OS で動かすと、`matomezu: ... is not installed (this OS or CPU is not supported, or optional dependencies were skipped)` と出て、動きません。npm の設定で「optional dependencies」を入れないようにしているときも同じです。
+
+【未確定】公開の npm に出しているか（今は内部のレジストリで試している段階）。
 
 ### 起動する
 
@@ -24,6 +36,7 @@ matomezu は、人と AI が同じ図を見て、直し合うための図エデ�
 - 一度 `matomezu open` で開いたブラウザなら、この URL を開いて使えます。初めてのブラウザには、「matomezu open で開く」という案内が（URL とは別に）出ます
 
 注: 窓が 1 つも無いときに AI がブックを画面に出すと、matomezu がブラウザを開きます。そのブラウザも、そのまま使えます。窓が開いていれば、ブラウザは開きません。
+注: WSL では、Windows のブラウザが開きます。Windows の System32 のフォルダ（`rundll32.exe` のある所）が PATH に無いと、ブラウザが開きません。
 
 ### 使えるブラウザ
 
@@ -2658,19 +2671,37 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 | 話しかけたときの知らせ | 話しかけるたびに、まだ読まれていない伝言とマークが AI に届く。読まれた伝言の伝言期限が数え始まる（13 章「AI とのやり取り」）。参加しましたの知らせが出る（下の「参加しましたの知らせ」） |
 | モデルの知らせ | セッションが始まったときと、モデルを切り替えたときに、ワークルームの枠のモデルが替わる（下の「モデルとブランチ」） |
 | 画面の操作を待つ | 画面で参加を受け入れる・断ると、AI が動き出す（下の「画面の操作で AI を動かす（Claude Code）」） |
+| 道具の許可 | AI が読むだけの道具を、利用者に聞かずに使う（下の「道具の許可」） |
 
 - フックを自分で書く要はありません
 - /clear のあとも、同じ参加者のまま続きます（下の「/clear のあと」）
 - プラグインを入れないと、参加を受け入れても AI はずっと「準備中」のままです（下の「参加しましたの知らせ」）
 
+プラグインは、npm で入れた matomezu に入っています（1 章「入れる」）。
+
 入れ方（利用者ごとに 1 度）:
 
-1. `claude plugin marketplace add （matomezu のリポジトリ）/clients/claude-code` を打つ
-2. `claude plugin install matomezu@matomezu` を打つ
+1. `npm i -g matomezu` で matomezu を入れておく
+2. `claude plugin marketplace add $(npm root -g)/matomezu/plugin` を打つ
+3. `claude plugin install matomezu@matomezu` を打つ
 
-注: 【未確定】この入れ方は開発中の物です。npm で入れた matomezu のときの入れ方は、まだ決まっていません。
+- matomezu を npm で更新すると、プラグインも同じ版に新しくなります
+- 入れたあとは、Claude Code から AI に「matomezu に参加して」と頼めば、参加の流れに進めます（下の「AI の参加」）
+
 注: 前に Claude Code へ手で登録した matomezu の MCP は外します。
 注: プラグインの MCP の道具は、Claude Code の上で `mcp__plugin_matomezu_matomezu__` で始まる名前になります。手で登録したときの `mcp__matomezu__` とは違います。
+注: matomezu のリポジトリから試すときは、2 の代わりに `claude plugin marketplace add （matomezu のリポジトリ）/clients/claude-code` を打ちます。
+
+#### 道具の許可
+
+プラグインを入れると、AI は、読むだけの matomezu の道具を、利用者に聞かずに使います。許可の設定を自分で書く要はありません。
+
+| 道具 | 利用者に聞くか |
+|---|---|
+| actions・list_books・read_book・read_page・read_records・read_settings・search・view（読むだけ） | 聞かない |
+| perform（ブックなどを変える） | 聞く |
+| show（ブックを画面に出す） | 聞く |
+| join（参加を頼む） | 聞く |
 
 matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
 
