@@ -1,6 +1,7 @@
 // ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
+import { imeCompose } from "./helpers/ime"
 import { newBook } from "./helpers/new-book"
 import { paper, settled } from "./helpers/paper"
 import { selectText } from "./helpers/rich"
@@ -300,4 +301,15 @@ test("節をその場で書いている間は、AI がその節を変えると�
   await page.keyboard.press("Enter")
   await expect.poll(async () => (await rename()).ok).toBe(true)
   await expect(child).toHaveText("AI")
+})
+
+test("日本語の変換中（確定する前）の字にも、入力の枠が合わせて広がる", async ({ page }) => {
+  await treeBook(page)
+  const paperEl = paper(page)
+  await paperEl.getByRole("button", { name: "子を足す" }).click()
+  const input = paperEl.getByRole("textbox", { name: "キャプション" })
+  await expect(input).toBeFocused()
+  const before = (await input.boundingBox())!.width
+  await imeCompose(page, "とても長いキャプションの子")
+  await expect.poll(async () => (await input.boundingBox())!.width).toBeGreaterThan(before)
 })
