@@ -9,7 +9,7 @@ import (
 )
 
 // schemaKeywords は、MCP 公開ツールの inputSchema に書いてよいキーワード。checkArguments はこれだけを確かめる（ほかを書くと Go のテストで落ちる）
-var schemaKeywords = []string{"type", "description", "properties", "required", "additionalProperties", "enum", "minimum", "maximum", "minLength", "items", "minItems", "maxItems", "anyOf"}
+var schemaKeywords = []string{"type", "description", "properties", "required", "additionalProperties", "enum", "minimum", "maximum", "minLength", "maxLength", "items", "minItems", "maxItems", "anyOf"}
 
 // checkArguments は、MCP 公開ツール tool に届いた引数を、その MCP 公開ツールの inputSchema で確かめ、合わない所を 1 つずつ文にして返す（合えば空）
 func checkArguments(tool string, schema map[string]any, args map[string]any) []string {
@@ -61,6 +61,9 @@ func checkValue(tool string, schema map[string]any, v any, at string) []string {
 			} else {
 				problems = append(problems, fmt.Sprintf("%s must have at least %v characters", at, n))
 			}
+		}
+		if n, ok := num(schema["maxLength"]); ok && float64(len([]rune(value))) > n {
+			problems = append(problems, fmt.Sprintf("%s must have at most %v characters", at, n))
 		}
 	case float64:
 		if n, ok := num(schema["minimum"]); ok && value < n {

@@ -99,6 +99,13 @@ export const LeaveIcon = () => (
   </Svg>
 )
 
+// ごみ箱（空室の部屋を削除する）
+export const TrashIcon = () => (
+  <Svg size={16} stroke={1.7}>
+    <path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l.8 12.5h9.4L17.5 7M10 11v5M14 11v5" />
+  </Svg>
+)
+
 // そこへ移って見せる（照準: 丸と四方の線）
 export const LocateIcon = () => (
   <Svg size={14} stroke={1.7}>

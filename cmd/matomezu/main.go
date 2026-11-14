@@ -99,8 +99,11 @@ type modelCmd struct {
 }
 
 type watchCmd struct {
-	Host    string `required:"" help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed."`
-	Session string `help:"Session id the host program started with (Claude Code: CLAUDE_CODE_SESSION_ID). When both this and the one MCP sent on join are known, they must match too."`
+	Host      string        `required:"" help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed."`
+	Session   string        `help:"Session id the host program started with (Claude Code: CLAUDE_CODE_SESSION_ID). When both this and the one MCP sent on join are known, they must match too."`
+	MaxLine   int           `help:"The longest line the host program takes (characters). Longer lines are split. 0 for no limit."`
+	MaxNotice int           `help:"The longest notice the host program takes at once (characters, counting the line breaks). A message too long for it comes as a short notice, and its text with the next matomezu call. 0 for no limit."`
+	Gap       time.Duration `help:"How long to wait after each notice before the next (so the host program does not join them into one notice)."`
 }
 
 // claudeSessionEnv は、Claude Code が立てたプロセスに渡す、立てたときのセッション id の環境変数（/clear でも変わらない）

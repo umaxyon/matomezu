@@ -1,6 +1,7 @@
 package main
 
-// AI を起こす知らせ（watch）: 常駐の GET /api/ai/watch につなぎ、利用者が画面で行った事のうち AI を起こす物（参加の要求が受け入れられた・断られたなど）の 1 行ずつを標準出力に書く。
+// AI を起こす知らせ（watch）: 常駐の GET /api/ai/watch につなぎ、利用者が画面で行った事のうち AI を起こす物（参加の要求が受け入れられた・断られたなど）と、ほかの AI からの AI 間メッセージを標準出力に書く。
+// 受け取る AI のプログラムの上限（1 行・1 回の知らせ）と知らせの間は、--max-line・--max-notice・--gap で名乗る（常駐が合わせて流す）。
 // AI の側で裏に走らせ、書いた 1 行で AI のターンを始める物（Claude Code のプラグインの monitor。clients/claude-code）が動かす。
 // --host の AI のプログラムのプロセス id から join した参加者への知らせだけが届く
 
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,7 +28,7 @@ const watchRetry = 3 * time.Second
 func (c *watchCmd) Run() error {
 	for processAlive(c.Host) {
 		if s := runningServer(); s != nil {
-			_ = watchOnce(s, c.Host, c.Session, os.Stdout)
+			_ = watchOnce(s, c.query(), c.Host, os.Stdout)
 		}
 		time.Sleep(watchRetry)
 	}
@@ -46,9 +48,24 @@ func runningServer() *home.Server {
 	return s
 }
 
-// watchOnce は、常駐 s の起こす知らせにつなぎ、切れるまで、届いた知らせの文を 1 行ずつ out に書く
-func watchOnce(s *home.Server, host, session string, out io.Writer) error {
-	res, err := request(s, http.MethodGet, "api/ai/watch?host="+url.QueryEscape(host)+"&session="+url.QueryEscape(session), nil, 0, nil)
+// query は、常駐の起こす知らせの口に渡す問い合わせ（宛て先と、受け取る側の流し方）
+func (c *watchCmd) query() string {
+	q := url.Values{"host": {c.Host}, "session": {c.Session}}
+	if c.MaxLine > 0 {
+		q.Set("maxLine", strconv.Itoa(c.MaxLine))
+	}
+	if c.MaxNotice > 0 {
+		q.Set("maxNotice", strconv.Itoa(c.MaxNotice))
+	}
+	if c.Gap > 0 {
+		q.Set("gap", strconv.FormatInt(c.Gap.Milliseconds(), 10))
+	}
+	return q.Encode()
+}
+
+// watchOnce は、常駐 s の起こす知らせ（問い合わせ query）につなぎ、切れるまで、届いた知らせの文を out に書く（文が改行を含めば何行にもなる）。host のプロセスが居なくなったら終える
+func watchOnce(s *home.Server, query, host string, out io.Writer) error {
+	res, err := request(s, http.MethodGet, "api/ai/watch?"+query, nil, 0, nil)
 	if err != nil {
 		return err
 	}

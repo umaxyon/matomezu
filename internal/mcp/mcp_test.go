@@ -110,7 +110,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_records,search,read_settings,actions,show,perform,join" {
+	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_records,search,read_settings,actions,show,perform,join,send_message" {
 		t.Fatalf("tools = %v", names)
 	}
 }
@@ -297,6 +297,25 @@ func TestJoinPassesTheWorkroom(t *testing.T) {
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","workroom":"ひよこ"}}}`)
 	if r := got[0]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[0]), "workroom-in-use: ") {
 		t.Fatalf("refused = %v", got[0])
+	}
+}
+
+// send_message は宛て先と本文を常駐に渡し、預かったら queued を、断られたら理由を返す。本文の上限は inputSchema が決める
+func TestSendMessagePassesToAndText(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"queued":true}`}
+	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"すずめ","text":"hi"}}}`)
+	if len(api.posts) != 1 || !strings.Contains(api.posts[0], `"to":"すずめ"`) || !strings.Contains(api.posts[0], `"text":"hi"`) || textOf(got[0]) != `{"ok":true,"queued":true}` {
+		t.Fatalf("posted = %v, answered = %v", api.posts, got[0])
+	}
+	api = &fakeAPI{answer: `{"ok":false,"reason":"unknown-recipient","detail":"no AI is in a workroom named x; you can send to: すずめ"}`}
+	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"x","text":"hi"}}}`)
+	if r := got[0]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[0]), "unknown-recipient: ") {
+		t.Fatalf("refused = %v", got[0])
+	}
+	api = &fakeAPI{}
+	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"x","text":"`+strings.Repeat("a", 4001)+`"}}}`)
+	if r := got[0]["result"].(map[string]any); r["isError"] != true || len(api.posts) != 0 {
+		t.Fatalf("too long = %v", got[0])
 	}
 }
 

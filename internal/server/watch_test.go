@@ -33,18 +33,16 @@ func joinFromSession(t *testing.T, url, link, host, session string) string {
 	return joined.Participant
 }
 
-// wakes は、通り道 l に届いている知らせの文（知らせはアクションの返事より前に入るので、待たない）
-func wakes(l *wakeLine) []string {
+// wakes は、通り道 l に流れる知らせの文の全部（流したら行列から外す。知らせはアクションの返事より前に入るので、待たない）
+func wakes(hub *Hub, l *wakeLine) []string {
 	var out []string
 	for {
-		select {
-		case ev := <-l.ch:
-			var wake struct{ Text string }
-			_ = json.Unmarshal(ev.data, &wake)
-			out = append(out, wake.Text)
-		default:
+		it, ok := hub.nextWake(l)
+		if !ok {
 			return out
 		}
+		out = append(out, it.line)
+		hub.doneWake(it)
 	}
 }
 
@@ -61,17 +59,17 @@ func makeRoom(t *testing.T, url, name string) string {
 // 窓で受け入れると、その参加者が join したプロセス id の通り道にだけ、ワークルーム名つきの 1 行が届く
 func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	mine, other := hub.OpenWakes("100", ""), hub.OpenWakes("200", "")
+	mine, other := hub.OpenWakesWith("100", "", WakeLimits{}), hub.OpenWakesWith("200", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "L1", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("accept = %s", out)
 	}
-	got := wakes(mine)
+	got := wakes(hub, mine)
 	if len(got) != 1 || !strings.Contains(got[0], "accepted") || !strings.Contains(got[0], "ひよこ") {
 		t.Fatalf("wakes = %q", got)
 	}
-	if got := wakes(other); len(got) != 0 {
+	if got := wakes(hub, other); len(got) != 0 {
 		t.Fatalf("another process woke: %q", got)
 	}
 }
@@ -79,18 +77,18 @@ func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 // 窓で断ると「断られた」が届く。AI と常駐（利用者として行う物）が行ったアクションでは起こさない
 func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	w := hub.OpenWakes("100", "")
+	w := hub.OpenWakesWith("100", "", WakeLimits{})
 	first := joinFrom(t, s.URL, "L1", "100") // join の中の、AI と常駐が行うアクション（参加者を作る・郵便を送る）では起こさない
 	room := makeRoom(t, s.URL, "ひよこ")
 	acceptIn(t, s.URL, first, room) // 窓の印の無い（常駐が行う）受け入れでは起こさない
-	if got := wakes(w); len(got) != 0 {
+	if got := wakes(hub, w); len(got) != 0 {
 		t.Fatalf("woke without a window: %q", got)
 	}
 	second := joinFrom(t, s.URL, "L2", "100")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, second); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("decline = %s", out)
 	}
-	got := wakes(w)
+	got := wakes(hub, w)
 	if len(got) != 1 || !strings.Contains(got[0], "declined") {
 		t.Fatalf("wakes = %q", got)
 	}
@@ -139,11 +137,11 @@ func TestWatchStreamsWakes(t *testing.T) {
 // 起こされたターン（woken）のフックは、利用者トリガートークのときのアクションを行わず、プロセス id が合うだけでは結ばない。会話の記録の link で結び、「参加しました」を 1 度だけ返す
 func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakes("100", "")
+	line := hub.OpenWakesWith("100", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "6f1c2a3e-1111-4222-8333-444455556666", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
-	if got := wakes(line); len(got) != 1 {
+	if got := wakes(hub, line); len(got) != 1 {
 		t.Fatalf("wakes = %q", got)
 	}
 	// プロセス id が合うだけでは結ばない（記録を調べる値打ちがあると返す）
@@ -160,13 +158,17 @@ func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 	}
 }
 
-// MCP と通り道の両方が立てたときのセッション id を添えていれば、それも合う通り道だけに届く（プロセス id が使い回された別の AI のプログラムには届かない）。どちらかが無ければプロセス id だけで決める
+// MCP と通り道の両方が立てたときのセッション id を添えていれば、それも合う通り道だけに届く（プロセス id が使い回された別の AI のプログラムには届かない）。どちらかが無ければプロセス id だけで決める。届くのは 1 度だけ
 func TestWakeNeedsTheSameHostSessionWhenBothAreKnown(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	same, reused, unknown := hub.OpenWakes("100", "HS1"), hub.OpenWakes("100", "HS2"), hub.OpenWakes("100", "")
+	same, reused, unknown := hub.OpenWakesWith("100", "HS1", WakeLimits{}), hub.OpenWakesWith("100", "HS2", WakeLimits{}), hub.OpenWakesWith("100", "", WakeLimits{})
 	participant := joinFromSession(t, s.URL, "L1", "100", "HS1")
 	windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, participant)
-	if len(wakes(same)) != 1 || len(wakes(reused)) != 0 || len(wakes(unknown)) != 1 {
-		t.Fatal("wakes went to the wrong lines")
+	if len(wakes(hub, reused)) != 0 {
+		t.Fatal("a line of another session got the wake")
+	}
+	// 合う通り道が 2 本あっても、先に取った方が行列から外すので、届くのは 1 度だけ
+	if n := len(wakes(hub, same)) + len(wakes(hub, unknown)); n != 1 {
+		t.Fatalf("wakes = %d, want 1", n)
 	}
 }
