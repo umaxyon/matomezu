@@ -92,9 +92,10 @@ func TestTalkedWithoutNewsPrintsTheContextOnly(t *testing.T) {
 	}
 }
 
-// フックのスクリプト: アノテーションの文は talked の --context に渡り、フックの標準入力はそのまま talked に届く。常駐の実行ファイルが無ければ何も出さない
+// フックのスクリプト: アノテーションの文は talked の --context に渡り、フックの標準入力はそのまま talked に届く。matomezu の実行ファイルが無ければ何も出さない。
+// 実行ファイルは、リポジトリの .dev-home にあればそれ、無ければ PATH の matomezu（開発のリポジトリでない案件のセッションでも走る）
 func TestAnnotationsHookScript(t *testing.T) {
-	script, err := filepath.Abs("../../.claude/hooks/annotations.sh")
+	script, err := filepath.Abs("../../clients/claude-code/scripts/annotations.sh")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,10 +103,11 @@ func TestAnnotationsHookScript(t *testing.T) {
 	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
 		t.Skipf("git: %v %s", err, out)
 	}
+	pathDir := t.TempDir() // PATH の先頭（最初は matomezu が無い）
 	// 引数は Claude Code のプロセス id（フックのコマンドの $PPID）。talked に --host で渡る
 	run := func(stdin string) string {
 		cmd := exec.Command("sh", script, "123")
-		cmd.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+repo)
+		cmd.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+repo, "PATH="+pathDir+":/usr/bin:/bin")
 		cmd.Stdin = strings.NewReader(stdin)
 		out, err := cmd.Output()
 		if err != nil {
@@ -116,17 +118,13 @@ func TestAnnotationsHookScript(t *testing.T) {
 	if got := run("{}"); got != "" {
 		t.Fatalf("without the server's executable = %q", got)
 	}
-	home := filepath.Join(repo, ".dev-home")
-	if err := os.MkdirAll(home, 0o755); err != nil {
-		t.Fatal(err)
-	}
 	fake := `#!/bin/sh
 case "$1" in
 annotations) printf '%s' "$FAKE_NOTES" ;;
 talked) in=$(cat); printf 'talked[%s][%s][%s][%s]' "$2" "$3" "$4" "$5" ; printf '%s' "$in" > "$FAKE_STDIN" ;;
 esac
 `
-	if err := os.WriteFile(filepath.Join(home, "matomezu"), []byte(fake), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(pathDir, "matomezu"), []byte(fake), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	stdinFile := filepath.Join(t.TempDir(), "stdin")
@@ -139,6 +137,17 @@ esac
 		if b, _ := os.ReadFile(stdinFile); string(b) != `{"session_id":"S1"}` {
 			t.Fatalf("talked's stdin = %q", b)
 		}
+	}
+	// リポジトリに .dev-home の matomezu があれば、PATH の物より先に使う
+	home := filepath.Join(repo, ".dev-home")
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "matomezu"), []byte("#!/bin/sh\ncase \"$1\" in talked) cat >/dev/null; printf dev ;; esac\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := run(`{}`); got != "dev" {
+		t.Fatalf("with .dev-home = %q, want the .dev-home executable", got)
 	}
 }
 
