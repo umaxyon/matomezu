@@ -4,6 +4,7 @@
 #   scripts/npm-lab.sh shell [名前]   環境を作って（あれば再利用して）、その中のシェルに入る（名前の既定は default）
 #   scripts/npm-lab.sh down [名前]    環境の常駐を止めて、フォルダを消す
 # 環境は ~/matomezu-lab/run/<名前>。claude のログインは、~/matomezu-lab/oauth-token（claude setup-token の鍵）があれば CLAUDE_CODE_OAUTH_TOKEN で渡す。
+# Claude Code は HOME を付け替えても本物のホームの ~/.claude/CLAUDE.md を読むので、CLAUDE.md の読み込みを止める（利用者の手元をまねるのに、開発者の指示が混ざらないように）。
 # 画面の待ち受けは既定の 7230 なので、同時に入れる環境は 1 つ
 set -eu
 LAB="$HOME/matomezu-lab"
@@ -31,7 +32,7 @@ shell)
     XDG_CACHE_HOME="$dir/home/.cache" XDG_STATE_HOME="$dir/home/.local/state" \
     npm_config_prefix="$dir/npm" npm_config_cache="$dir/home/.npm" npm_config_registry="$REGISTRY" \
     ${WSL_DISTRO_NAME:+WSL_DISTRO_NAME="$WSL_DISTRO_NAME"} ${WSL_INTEROP:+WSL_INTEROP="$WSL_INTEROP"} \
-    CLAUDE_CONFIG_DIR="$dir/home/.claude" DISABLE_AUTOUPDATER=1 \
+    CLAUDE_CONFIG_DIR="$dir/home/.claude" DISABLE_AUTOUPDATER=1 CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 \
     ${token:+CLAUDE_CODE_OAUTH_TOKEN="$token"} \
     PS1="[lab:$name] \w \$ " \
     PATH="$dir/npm/bin:$dir/bin:$node_dir:/usr/bin:/bin$win_dir" \
