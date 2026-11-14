@@ -2,7 +2,8 @@
 // トレイは切り抜いた新しい順に並べ、押すと、今のステージで置ける「スクラップを置く枠」（scrapFrameIn）で、その値のまま置こうとする。× で消す（確かめない）
 import { useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { pageById, pagedOf } from "../../../core/book"
+import { pagedOf } from "../../../core/book"
+import type { ItemPage } from "../../../core/placed"
 import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -14,13 +15,13 @@ import { kit } from "../kit"
 import { useOpenLeftSidePanel } from "../left-side-panel/hooks"
 import { defineLeftSidePanelTab } from "../left-side-panel/ui"
 import { mailboxEntries } from "../mail/entries"
-import { pageArea, paperSize } from "../place/items"
 import { refusalMessage } from "../utils/refusal"
+import { SHEET_LAYERS } from "../workspace/slots"
 import { SCRAP_CUT_DIALOG, scrapFrameIn } from "."
 import { ScrapForm } from "./ScrapForm"
 import styles from "./ScrapTray.module.css"
 import { ScrapView } from "./ScrapView"
-import { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, scrapSize } from "./scrap"
+import { pageById, SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, scrapSize, wholePage } from "./scrap"
 import { SCRAP_TRAY_TAB_ID } from "./tab-id"
 
 // 切り抜くダイアログ: 範囲は、はじめはページ全体（等倍）。決めるとトレイに入れ、トレイを開く
@@ -32,14 +33,7 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
   const start = useMatomezuState(
     useShallow(s => {
       const at = pageById(s.books, args.page)
-      if (!at) return null
-      const size = pageArea(catalog, at.book, at.page)?.size
-      const paper = paperSize(catalog, at.page)
-      if (!size || !paper) return null
-      // ページ全体を、中身をずらす前の位置で
-      const x = -(at.page.shift?.x ?? 0) * paper.w
-      const y = -(at.page.shift?.y ?? 0) * paper.h
-      return { x, y, w: size.w, h: size.h }
+      return at ? wholePage(catalog, at.book, at.page as ItemPage) : null
     }),
   )
   const [value, setValue] = useState<Scrap | null>(start ? { page: args.page, area: start, scale: 1 } : null)
@@ -149,6 +143,7 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
 export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID, { stage: string }>({
   id: SCRAP_TRAY_TAB_ID,
   title: kit.message("Scrap tray"),
+  opens: [SHEET_LAYERS], // 一覧の絵（ScrapView）が、ページの中身のレイヤーを描く
   view: ScrapTrayView,
 })
 

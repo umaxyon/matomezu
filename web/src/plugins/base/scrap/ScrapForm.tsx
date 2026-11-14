@@ -4,7 +4,6 @@
 // 指すページが無ければ、絵の代わりに No Data を出す。opens を渡せば「元のページを開く」を出し、押すとそのステージで元のページを開いてから onOpened を呼ぶ
 import { type PointerEvent, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { pageById } from "../../../core/book"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import { DrawnScope } from "../../../ui/drawn"
@@ -12,16 +11,23 @@ import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { controlClass, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { pageArea, paperSize } from "../place/items"
+import { pageArea } from "../place/items"
 import styles from "./ScrapForm.module.css"
 import { DrawnSheet } from "./ScrapView"
-import { SCRAP_SCALE_MAX, SCRAP_SCALE_MIN, type Scrap, scrapSize } from "./scrap"
+import {
+  areaOfPage,
+  areaOnPage,
+  movedArea,
+  pageById,
+  SCRAP_SCALE_MAX,
+  SCRAP_SCALE_MIN,
+  type Scrap,
+  scrapSize,
+  shiftOf,
+} from "./scrap"
 
 // ページの絵を収める大きさ（px）
 const PICTURE = { w: 420, h: 320 }
-// 範囲の一番小さい大きさ（ページの px）
-const MIN_AREA = 16
-
 // つかんだ所: 枠の中（動かす）か、辺・角（その向きへ大きさを変える）
 type Grip = { dx: -1 | 0 | 1; dy: -1 | 0 | 1 }
 const GRIPS: readonly Grip[] = [
@@ -35,30 +41,6 @@ const GRIPS: readonly Grip[] = [
   { dx: -1, dy: 0 },
 ]
 const MOVE: Grip = { dx: 0, dy: 0 }
-
-const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
-
-// 範囲 r を、つかんだ所 grip を by だけ動かした範囲（ページ size の中に収め、一番小さい大きさを保つ）
-export function movedArea(r: Rect, grip: Grip, by: Point, size: Size): Rect {
-  if (grip.dx === 0 && grip.dy === 0)
-    return { ...r, x: clamp(r.x + by.x, 0, size.w - r.w), y: clamp(r.y + by.y, 0, size.h - r.h) }
-  let { x, y, w, h } = r
-  if (grip.dx === 1) w = clamp(w + by.x, MIN_AREA, size.w - x)
-  if (grip.dx === -1) {
-    const left = clamp(x + by.x, 0, x + w - MIN_AREA)
-    w += x - left
-    x = left
-  }
-  if (grip.dy === 1) h = clamp(h + by.y, MIN_AREA, size.h - y)
-  if (grip.dy === -1) {
-    const top = clamp(y + by.y, 0, y + h - MIN_AREA)
-    h += y - top
-    y = top
-  }
-  return { x, y, w, h }
-}
-
-const round = (r: Rect): Rect => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) })
 
 export function ScrapForm({
   value,
@@ -83,13 +65,12 @@ export function ScrapForm({
   // 測ってから描く見せ方は、描いてみて分かった広さ（DrawnSheet が知らせる）
   const [drawn, setDrawn] = useState<Size | null>(null)
   const size = drawn ?? area
-  const paper = page ? paperSize(catalog, page) : null
   // ページの絵の上の位置 = 範囲 + ずらした量
-  const shift = { x: (page?.shift?.x ?? 0) * (paper?.w ?? 0), y: (page?.shift?.y ?? 0) * (paper?.h ?? 0) }
+  const shift = page ? shiftOf(catalog, page) : { x: 0, y: 0 }
   const fit = size ? Math.min(PICTURE.w / size.w, PICTURE.h / size.h) : 1
   const drag = useRef<{ grip: Grip; from: Point; start: Rect; pointer: number } | null>(null)
   const [scaleText, setScaleText] = useState(String(Math.round(value.scale * 100)))
-  const shown = { ...value.area, x: value.area.x + shift.x, y: value.area.y + shift.y }
+  const shown = areaOnPage(value.area, shift)
   const press = (grip: Grip) => (e: PointerEvent<HTMLElement>) => {
     if (e.button !== 0) return
     e.stopPropagation()
@@ -100,8 +81,7 @@ export function ScrapForm({
     const d = drag.current
     if (!d || d.pointer !== e.pointerId || !size) return
     const by = { x: (e.clientX - d.from.x) / fit, y: (e.clientY - d.from.y) / fit }
-    const next = round(movedArea(d.start, d.grip, by, size))
-    onChange({ ...value, area: { ...next, x: next.x - shift.x, y: next.y - shift.y } })
+    onChange({ ...value, area: areaOfPage(movedArea(d.start, d.grip, by, size), shift) })
   }
   const release = (e: PointerEvent<HTMLElement>) => {
     if (drag.current?.pointer === e.pointerId) drag.current = null

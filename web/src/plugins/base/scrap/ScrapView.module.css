@@ -3,7 +3,7 @@
   position: relative;
   box-sizing: border-box;
   overflow: hidden;
-  outline: 1px solid var(--theme-paper-line, var(--skin-line, #c8c8c8));
+  outline: 1px solid var(--theme-paper-line, var(--skin-border));
   outline-offset: -1px;
 }
 /* 指す先が無い・輪: 灰色の枠に点線と、真ん中に字か印 */

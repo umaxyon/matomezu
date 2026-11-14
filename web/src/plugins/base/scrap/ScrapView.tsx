@@ -3,9 +3,8 @@
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { pageById } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
-import type { Point, Rect, Size } from "../../../core/geom"
+import type { Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
 import { DrawnScope } from "../../../ui/drawn"
@@ -18,7 +17,7 @@ import type { PrintMeasured } from "../print-preview/measures-state"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import styles from "./ScrapView.module.css"
-import { type Scrap, scrapSize } from "./scrap"
+import { areaOnPage, pageById, type Scrap, scrapSize, shiftOf } from "./scrap"
 
 // 描いている途中のスクラップがたどったページの id。同じページに戻ったら輪
 const TracedContext = createContext<readonly string[]>([])
@@ -29,12 +28,6 @@ export interface ScrapViewProps {
 }
 
 export type ScrapState = "shown" | "none" | "loop"
-
-// 範囲 area を、ページのずらした量 shift（印刷区画の数）だけ動かした、ページの上の位置
-const shifted = (area: Rect, shift: Point | undefined, paper: Size): Point => ({
-  x: area.x + (shift?.x ?? 0) * paper.w,
-  y: area.y + (shift?.y ?? 0) * paper.h,
-})
 
 export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   const { page: pageId, area, scale } = scrap
@@ -61,7 +54,7 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
         {state === "loop" ? <LoopMark /> : t("No Data")}
       </div>
     )
-  const at = shifted(area, page.shift, paper)
+  const at = areaOnPage(area, shiftOf(catalog, page))
   return (
     <div className={styles.frame} data-scrap="shown" style={frame}>
       <TracedContext.Provider value={inner}>

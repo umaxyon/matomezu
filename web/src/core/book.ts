@@ -135,24 +135,3 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
   if (!(bookType(catalog, book.type).holds?.(book, catalog) ?? true)) return false
   return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }
-
-// ページの id から、そのページと、今それを持っているブック。同じ id のページが 2 つのブックにあれば、どちらとも決めずに無いとする
-// （ページの id はインスタンスの中で重ならない決まり。重なるのは、その決まりより前の短い id のデータだけ）
-export function pageById(
-  books: Readonly<Record<string, Book>>,
-  id: string,
-): { book: PagedBook; page: Page } | undefined {
-  return (pageIndexes.get(books) ?? indexPages(books)).get(id) ?? undefined
-}
-
-const pageIndexes = new WeakMap<object, Map<string, { book: PagedBook; page: Page } | null>>()
-
-function indexPages(books: Readonly<Record<string, Book>>) {
-  const index = new Map<string, { book: PagedBook; page: Page } | null>()
-  for (const b of Object.values(books)) {
-    const book = pagedOf(b)
-    for (const page of book?.pages ?? []) index.set(page.id, book && !index.has(page.id) ? { book, page } : null)
-  }
-  pageIndexes.set(books, index)
-  return index
-}

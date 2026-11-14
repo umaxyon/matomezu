@@ -8,7 +8,7 @@
   position: relative;
   flex: none;
   overflow: hidden;
-  outline: 1px solid var(--skin-line, #ccc);
+  outline: 1px solid var(--skin-border);
   user-select: none;
   touch-action: none;
 }
@@ -33,7 +33,7 @@
   height: 10px;
   margin: -6px 0 0 -6px;
   border: 1px solid var(--skin-accent);
-  background: var(--skin-surface, #fff);
+  background: var(--skin-surface);
   cursor: pointer;
 }
 .grip[data-grip="-1,-1"],

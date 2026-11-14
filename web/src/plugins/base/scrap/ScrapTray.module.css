@@ -24,7 +24,7 @@
   cursor: pointer;
 }
 .pick:hover:not(:disabled) {
-  border-color: var(--skin-line, #ccc);
+  border-color: var(--skin-border);
 }
 .pick[aria-pressed="true"] {
   border-color: var(--skin-accent);
@@ -60,7 +60,7 @@
   height: 22px;
   border: none;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--skin-surface, #fff) 85%, transparent);
+  background: color-mix(in srgb, var(--skin-surface) 85%, transparent);
   color: inherit;
   cursor: pointer;
 }
