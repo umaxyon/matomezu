@@ -59,7 +59,7 @@ func makeRoom(t *testing.T, url, name string) string {
 // 窓で受け入れると、その参加者が join したプロセス id の通り道にだけ、ワークルーム名つきの 1 行が届く
 func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	mine, other := hub.OpenWakes("100", ""), hub.OpenWakes("200", "")
+	mine, other := hub.OpenWakesWith("100", "", WakeLimits{}), hub.OpenWakesWith("200", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "L1", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	if out := windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant); !strings.Contains(out, `"ok":true`) {
@@ -77,7 +77,7 @@ func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 // 窓で断ると「断られた」が届く。AI と常駐（利用者として行う物）が行ったアクションでは起こさない
 func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	w := hub.OpenWakes("100", "")
+	w := hub.OpenWakesWith("100", "", WakeLimits{})
 	first := joinFrom(t, s.URL, "L1", "100") // join の中の、AI と常駐が行うアクション（参加者を作る・郵便を送る）では起こさない
 	room := makeRoom(t, s.URL, "ひよこ")
 	acceptIn(t, s.URL, first, room) // 窓の印の無い（常駐が行う）受け入れでは起こさない
@@ -137,7 +137,7 @@ func TestWatchStreamsWakes(t *testing.T) {
 // 起こされたターン（woken）のフックは、利用者トリガートークのときのアクションを行わず、プロセス id が合うだけでは結ばない。会話の記録の link で結び、「参加しました」を 1 度だけ返す
 func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	line := hub.OpenWakes("100", "")
+	line := hub.OpenWakesWith("100", "", WakeLimits{})
 	participant := joinFrom(t, s.URL, "6f1c2a3e-1111-4222-8333-444455556666", "100")
 	room := makeRoom(t, s.URL, "ひよこ")
 	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, participant)
@@ -161,7 +161,7 @@ func TestWokenTurnBindsByLinkAndWelcomesOnce(t *testing.T) {
 // MCP と通り道の両方が立てたときのセッション id を添えていれば、それも合う通り道だけに届く（プロセス id が使い回された別の AI のプログラムには届かない）。どちらかが無ければプロセス id だけで決める。届くのは 1 度だけ
 func TestWakeNeedsTheSameHostSessionWhenBothAreKnown(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	same, reused, unknown := hub.OpenWakes("100", "HS1"), hub.OpenWakes("100", "HS2"), hub.OpenWakes("100", "")
+	same, reused, unknown := hub.OpenWakesWith("100", "HS1", WakeLimits{}), hub.OpenWakesWith("100", "HS2", WakeLimits{}), hub.OpenWakesWith("100", "", WakeLimits{})
 	participant := joinFromSession(t, s.URL, "L1", "100", "HS1")
 	windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, participant)
 	if len(wakes(hub, reused)) != 0 {

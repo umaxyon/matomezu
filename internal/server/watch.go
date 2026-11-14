@@ -87,11 +87,6 @@ const wakeLineMax = 300
 // wakeQueueMax は、参加者 1 人の行列の上限（件）
 const wakeQueueMax = 50
 
-// OpenWakes は、プロセス id host（立てたときのセッション id session）の AI の、起こす知らせの通り道を、上限なしでつなぐ
-func (h *Hub) OpenWakes(host, session string) *wakeLine {
-	return h.OpenWakesWith(host, session, WakeLimits{})
-}
-
 // OpenWakesWith は、受け取る側が名乗った流し方 limits で通り道をつなぐ。溜まっていた知らせがあれば合図する
 func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
 	h.mu.Lock()

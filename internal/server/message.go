@@ -3,10 +3,10 @@ package server
 // AI 間メッセージ: 参加が確定した AI が、ほかのワークルームの参加者へ、利用者を介さずに送る文。郵便とは別物で、ブックもレコードも変えない（アクションを通さない）。
 // 常駐は封筒（Envelope）を宛て先の参加者の、起こす知らせの行列に入れ、受け取られるまで持つ（watch.go）。宛て先は送った時点の参加者で、その参加者が受け入れ済みでなくなったら捨てる（引き継いだ参加者には渡さない）。
 // 送り手は呼び出しの参加の id から決め、引数では受けない（偽れない）。宛て先はワークルームの名前で指す。
-// 封筒の形（id・送り手・宛て先・本文・送った時刻）は、マシンをまたいで運ぶときも変えない。送り手・宛て先の Address は、のちにマシンを足せる形にしておく。id で重なりを見分け、同じ封筒は二度入れない
+// 封筒の形（id・送り手・宛て先・本文・送った時刻）は、マシンをまたいで運ぶときも変えない。id で重なりを見分け、同じ封筒は二度入れない
 //
 //	POST /api/ai/message {"to", "text"}  {"ok": true, "queued": true}、または断った理由 {"ok": false, "reason", "detail"}
-//	  断る理由: not-joined（送り手の参加が確定していない）・unknown-recipient（その名前のワークルームが無いか、受け入れ済みの参加者がいない。detail に送れる名前）・to-self（自分のワークルーム）
+//	  断る理由: not-joined（送り手の参加が確定していない）・unknown-recipient（その名前のワークルームが無いか、参加が確定した参加者がいない。detail に送れる名前）・to-self（自分のワークルーム）
 
 import (
 	"crypto/rand"
@@ -64,13 +64,13 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	var from *participantRecord
-	occupant := map[string]string{} // ワークルームの id → 受け入れ済みの参加者の id
+	occupant := map[string]string{} // ワークルームの id → 参加が確定した（準備中でない）参加者の id
 	for i, r := range records {
-		if r.State != "joined" || r.Workroom == "" {
+		if r.State != "joined" || r.Workroom == "" || !h.participantNotes[r.ID].ready() {
 			continue
 		}
 		occupant[r.Workroom] = r.ID
-		if r.ID == req.Participant && h.participantNotes[r.ID].ready() {
+		if r.ID == req.Participant {
 			from = &records[i]
 		}
 	}
