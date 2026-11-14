@@ -18,9 +18,19 @@ export function openStore(path: string) {
   db.run("PRAGMA journal_mode = WAL")
   db.run("CREATE TABLE IF NOT EXISTS blobs (hash TEXT PRIMARY KEY, data TEXT NOT NULL)")
   db.run(
-    "CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, session TEXT NOT NULL, entry TEXT NOT NULL, skeleton TEXT, reply TEXT)",
+    "CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, session TEXT NOT NULL, session_id TEXT NOT NULL DEFAULT '', entry TEXT NOT NULL, skeleton TEXT, reply TEXT)",
   )
+  const columns = db.query("PRAGMA table_info(requests)").all() as { name: string }[]
+  if (!columns.some(c => c.name === "session_id")) {
+    db.run("ALTER TABLE requests ADD COLUMN session_id TEXT NOT NULL DEFAULT ''")
+    db.run("UPDATE requests SET session_id = COALESCE(json_extract(entry, '$.sessionId'), '')")
+  }
   db.run("CREATE INDEX IF NOT EXISTS requests_session ON requests (session, id)")
+  // join で決まったワークルーム名（Claude Code のセッション id ごとに、最後に見た名前）
+  db.run("CREATE TABLE IF NOT EXISTS names (session_id TEXT PRIMARY KEY, name TEXT NOT NULL)")
+  // 一覧に出すセッションの名前: join の名前、無ければ URL で付けた名前、無ければ session_id の頭 8 字
+  const label = "COALESCE(n.name, NULLIF(r.session, 'unnamed'), NULLIF(substr(r.session_id, 1, 8), ''), 'unnamed')"
+  const from = "FROM requests r LEFT JOIN names n ON n.session_id = r.session_id"
 
   const putBlob = db.prepare("INSERT OR IGNORE INTO blobs (hash, data) VALUES (?, ?)")
   const blob = (value: unknown) => {
@@ -33,7 +43,10 @@ export function openStore(path: string) {
   const read = (hash: string | undefined | null) =>
     hash ? (getBlob.get(hash) as { data: string } | null)?.data : undefined
 
-  const insert = db.prepare("INSERT INTO requests (at, session, entry, skeleton, reply) VALUES (?, ?, ?, ?, ?)")
+  const insert = db.prepare(
+    "INSERT INTO requests (at, session, session_id, entry, skeleton, reply) VALUES (?, ?, ?, ?, ?, ?)",
+  )
+  const setName = db.prepare("INSERT OR REPLACE INTO names (session_id, name) VALUES (?, ?)")
   const add = db.transaction((entry: NewEntry, body: Body | undefined, reply: string | undefined): number => {
     let skeleton: Skeleton | null = null
     if (body) {
@@ -48,6 +61,7 @@ export function openStore(path: string) {
     const result = insert.run(
       entry.at,
       entry.session,
+      entry.sessionId,
       JSON.stringify(entry),
       skeleton && JSON.stringify(skeleton),
       reply === undefined ? null : blob(reply),
@@ -55,22 +69,31 @@ export function openStore(path: string) {
     return Number(result.lastInsertRowid)
   })
 
-  const withId = (row: { id: number; entry: string }): Entry => ({ ...JSON.parse(row.entry), id: row.id })
+  const withId = (row: { id: number; entry: string; label: string }): Entry => ({
+    ...JSON.parse(row.entry),
+    session: row.label,
+    id: row.id,
+  })
 
   return {
     add,
+    // session は表示の名前（label）で絞る
     entries(session?: string, limit = 5000): Entry[] {
-      const rows = (
-        session
-          ? db.query("SELECT id, entry FROM requests WHERE session = ? ORDER BY id DESC LIMIT ?").all(session, limit)
-          : db.query("SELECT id, entry FROM requests ORDER BY id DESC LIMIT ?").all(limit)
-      ) as { id: number; entry: string }[]
+      const where = session ? `WHERE ${label} = ?` : ""
+      const rows = db
+        .query(`SELECT r.id, r.entry, ${label} AS label ${from} ${where} ORDER BY r.id DESC LIMIT ?`)
+        .all(...(session ? [session, limit] : [limit])) as { id: number; entry: string; label: string }[]
       return rows.reverse().map(withId)
     },
     sessions(): SessionRow[] {
       return db
-        .query("SELECT session, COUNT(*) AS n, MAX(at) AS lastAt FROM requests GROUP BY session ORDER BY lastAt DESC")
+        .query(
+          `SELECT ${label} AS session, COUNT(*) AS n, MAX(r.at) AS lastAt ${from} GROUP BY ${label} ORDER BY lastAt DESC`,
+        )
         .all() as SessionRow[]
+    },
+    setName(sessionId: string, name: string) {
+      if (sessionId) setName.run(sessionId, name)
     },
     body(id: number): Body | undefined {
       const row = db.query("SELECT skeleton FROM requests WHERE id = ?").get(id) as { skeleton: string | null } | null
@@ -93,6 +116,7 @@ export function openStore(path: string) {
       const result = before
         ? db.query("DELETE FROM requests WHERE at < ?").run(before)
         : db.query("DELETE FROM requests").run()
+      db.run("DELETE FROM names WHERE session_id NOT IN (SELECT session_id FROM requests)")
       const keep = new Set<string>()
       for (const row of db.query("SELECT skeleton, reply FROM requests").all() as {
         skeleton: string | null

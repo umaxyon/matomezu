@@ -55,3 +55,26 @@ test("セッションで絞り込み、一覧を出し、消したあとに残�
   expect(store.entries()).toEqual([])
   store.close()
 })
+
+test("表示の名前は join の名前、URL の名前、session_id の頭 8 字の順で決まり、名前が変われば過去の行も変わる", () => {
+  const store = openStore(join(dir, "c.db"))
+  const e = (session: string, sessionId: string) => ({ ...entry(session, "2026-11-14T00:00:00Z"), sessionId })
+  store.add(e("unnamed", "12345678-aaaa"), body(2), "r")
+  store.add(e("viaurl", "ffffffff-bbbb"), body(2), "r")
+  store.add(e("unnamed", "99999999-cccc"), body(2), "r")
+  expect(store.entries().map(x => x.session)).toEqual(["12345678", "viaurl", "99999999"])
+  store.setName("12345678-aaaa", "sub1_work")
+  store.setName("ffffffff-bbbb", "sub2_work")
+  expect(store.entries().map(x => x.session)).toEqual(["sub1_work", "sub2_work", "99999999"])
+  expect(store.entries("sub1_work")).toHaveLength(1)
+  store.setName("12345678-aaaa", "renamed")
+  expect(
+    store
+      .sessions()
+      .map(x => x.session)
+      .sort(),
+  ).toEqual(["99999999", "renamed", "sub2_work"])
+  store.purge()
+  expect(store.sessions()).toEqual([])
+  store.close()
+})

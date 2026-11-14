@@ -12,6 +12,7 @@ import {
   sessionIdOf,
   summarize,
   UsageReader,
+  workroomNameOf,
 } from "../../scripts/relay-log"
 
 test("記録するヘッダーは、許可した物のほかは値を残さない", () => {
@@ -96,6 +97,19 @@ test("キャッシュで同じに扱われる違い（印の移動・文字列�
   marked.messages[0] = { role: "user", content: [{ type: "text", text: "hi", cache_control: { type: "ephemeral" } }] }
   marked.tools?.push({ name: "mcp__matomezu__view", defer_loading: true })
   expect(divergeAt(a, summarize(marked).prefix)).toBe("none")
+})
+
+test("join のあとのフックの文から、最後のワークルーム名を拾う", () => {
+  const hook = (name: string) => ({
+    type: "text",
+    text: `UserPromptSubmit hook additional context: You joined matomezu. Workroom name: ${name}`,
+  })
+  const msgs = (...blocks: Block[]) => ({ messages: [{ role: "system", content: blocks }] })
+  expect(workroomNameOf(msgs(hook("debug_work")))).toBe("debug_work")
+  expect(workroomNameOf(msgs(hook("old"), hook("new")))).toBe("new")
+  // フックの文でない本文に同じ言い回しがあっても拾わない
+  expect(workroomNameOf(msgs({ type: "text", text: "Workroom name: fake" }))).toBeUndefined()
+  expect(workroomNameOf({ messages: [{ role: "user", content: "x" }] })).toBeUndefined()
 })
 
 const dir = mkdtempSync(join(tmpdir(), "relay-log-"))

@@ -1,8 +1,10 @@
 // Claude Code が API に送るリクエストを記録する中継。何がどれだけ場所を取り、キャッシュがどこで切れたかを見る
 //   bun scripts/relay-log.ts serve [--db <file>（既定は ~/.local/state/matomezu-relay/central.db）] [--port 18951] [--view-port 18952] [--no-body]
 //     127.0.0.1 で待ち受け、受けた物をそのまま api.anthropic.com へ渡す。全セッションが 1 つの中継につなぎ、記録は 1 つの SQLite に入る
-//     セッションは ANTHROPIC_BASE_URL=http://127.0.0.1:18951/s/<セッション名> で区別する（先頭の /s/<名前> は外して渡す）。
-//     scripts/claude-relay.sh <セッション名> がこれを立てて claude を起動する
+//     セッションは、リクエストにある Claude Code の session_id で区別する。表示の名前は matomezu に join したときのワークルーム名
+//     （フックが入れる Workroom name の行を本文から拾う。join し直せば名前も変わる）。join 前は session_id の頭 8 字。
+//     ANTHROPIC_BASE_URL の末尾に /s/<名前> を付けたときは、join 前の名前になる（先頭の /s/<名前> は外して渡す）
+//     scripts/claude-relay.sh [claude の引数...] がこれを立てて claude を起動する
 //     ビューワー（時間順の一覧と詳細、セッションの絞り込み）は --view-port で同じプロセスが配る
 //     --no-body のときは本文（会話の全文が入る）を残さず、数字の要約だけにする。認証のヘッダーの値はどちらにも残さない
 //   bun scripts/relay-log.ts report [--db ...] [--session <名前>]   リクエストごとの表と、大きい結果の上位にまとめる
@@ -226,6 +228,24 @@ export function sessionIdOf(body: Body): string {
   }
 }
 
+// join のあとにフックが入れる「Workroom name: <名前>」の最後の 1 つ（join し直して名前が変われば、新しい名前になる）
+export function workroomNameOf(body: Body): string | undefined {
+  let name: string | undefined
+  for (const m of body.messages ?? []) {
+    if (typeof m.content === "string") continue
+    for (const b of m.content) {
+      if (
+        b.type !== "text" ||
+        typeof b.text !== "string" ||
+        !b.text.startsWith("UserPromptSubmit hook additional context:")
+      )
+        continue
+      name = b.text.match(/Workroom name: (.+)$/m)?.[1]?.trim() ?? name
+    }
+  }
+  return name
+}
+
 export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }: RelayOptions) {
   const lastPrefix = new Map<string, string[]>()
   const seen = new Set<string>()
@@ -261,6 +281,8 @@ export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }
         body = JSON.parse(new TextDecoder().decode(raw))
       } catch {}
       const sessionId = sessionIdOf(body)
+      const workroom = workroomNameOf(body)
+      if (workroom) store.setName(sessionId, workroom)
       const { prefix, results, ...summary } = summarize(body)
       const stream = hash(summary.model, summary.systemHash).slice(0, 4)
       const key = `${sessionId || route.session}:${stream}`

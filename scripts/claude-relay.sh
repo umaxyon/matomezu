@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # 中央の中継（scripts/relay-log.ts serve）を通して claude を起動する。中継が動いていなければ立てる
-#   scripts/claude-relay.sh <セッション名> [claude に渡す引数...]
+#   scripts/claude-relay.sh [claude に渡す引数...]
+#   セッションの名前は、matomezu に join したときのワークルーム名が記録から付く（join 前は session_id の頭 8 字）。
+#   join 前の名前を付けたいときだけ、RELAY_NAME=<名前> を付ける
 #   scripts/claude-relay.sh --stop        中央の中継を止める
-#   環境変数: RELAY_PORT（既定 18951）VIEW_PORT（既定 18952）RELAY_DB（既定 ~/.local/state/matomezu-relay/central.db）
+#   環境変数: RELAY_NAME（任意）RELAY_PORT（既定 18951）VIEW_PORT（既定 18952）RELAY_DB（既定 ~/.local/state/matomezu-relay/central.db）
 # 中継を立てられなければ、警告を出して中継なしで claude を起動する（中継の障害で作業が止まらないように）
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -20,10 +22,11 @@ if [ "${1:-}" = "--stop" ]; then
   rm -f "$PIDFILE"
   exit 0
 fi
-if [ $# -lt 1 ]; then echo "usage: scripts/claude-relay.sh <セッション名> [claude の引数...]" >&2; exit 2; fi
-SESSION=$1
-shift
-if ! [[ "$SESSION" =~ ^[A-Za-z0-9_.-]{1,40}$ ]]; then echo "セッション名は英数字と _ . - の 40 字まで" >&2; exit 2; fi
+BASE="http://127.0.0.1:$RELAY_PORT"
+if [ -n "${RELAY_NAME:-}" ]; then
+  if ! [[ "$RELAY_NAME" =~ ^[A-Za-z0-9_.-]{1,40}$ ]]; then echo "RELAY_NAME は英数字と _ . - の 40 字まで" >&2; exit 2; fi
+  BASE="$BASE/s/$RELAY_NAME"
+fi
 
 if ! health; then
   mkdir -p "$STATE"
@@ -33,8 +36,8 @@ if ! health; then
 fi
 
 if health; then
-  echo "中継: セッション $SESSION、ビューワー http://127.0.0.1:$VIEW_PORT" >&2
-  ANTHROPIC_BASE_URL="http://127.0.0.1:$RELAY_PORT/s/$SESSION" exec claude "$@"
+  echo "中継: ビューワー http://127.0.0.1:$VIEW_PORT" >&2
+  ANTHROPIC_BASE_URL="$BASE" exec claude "$@"
 fi
 echo "警告: 中継を立てられなかった（$LOG を見る）。中継なしで claude を起動する" >&2
 exec claude "$@"
