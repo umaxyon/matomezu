@@ -32,7 +32,7 @@
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部と、
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
-//	GET  /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>]  SSE。そのプロセス id の AI を起こす知らせ（event: wake、data: {"text"}。参加の要求が受け入れられた・断られたなど。watch.go）
+//	GET  /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>][&maxLine&maxNotice&gap]  SSE。そのプロセス id の AI を起こす知らせ（event: wake、data: {"text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
 //	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
 //	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
@@ -41,6 +41,7 @@
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
+//	POST /api/ai/message     {"to", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（受け取られるまで常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
@@ -162,6 +163,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/ai/perform", o.ai(o.aiPerform))
 	mux.Handle("POST /api/ai/show", o.ai(o.aiShow))
 	mux.Handle("POST /api/ai/join", o.ai(o.aiJoin))
+	mux.Handle("POST /api/ai/message", o.ai(o.aiMessage))
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux

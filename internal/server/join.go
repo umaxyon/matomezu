@@ -526,18 +526,20 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 				fmt.Fprintln(os.Stderr, "could not save the last call of participant", id, ":", err)
 			}
 		}
+		// 行列の AI 間メッセージも、この返事で渡す（watch.go。通り道で先に渡った物は行列に無い）
+		notices := h.takeMessages(id)
 		if !n.Told {
 			n.Told = true
 			h.participantNotes[id] = n
 			if err := h.putParticipantNotes(); err != nil {
 				n.Told = false
 				h.participantNotes[id] = n
-				return ""
+				return strings.Join(notices, "\n")
 			}
-			return joinedText(roomName(rooms, s.Workroom))
+			notices = append([]string{joinedText(roomName(rooms, s.Workroom))}, notices...)
 		}
 		h.participantNotes[id] = n
-		return ""
+		return strings.Join(notices, "\n")
 	}
 	if h.goneTold[id] {
 		return ""

@@ -88,6 +88,10 @@ type Hub struct {
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
 	clients          map[string]*client
 	wakeLines        map[*wakeLine]struct{} // AI を起こす知らせの通り道（watch.go）
+	wakeQueue        map[string][]wakeItem  // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
+	wakeSeq          int64                  // 起こす知らせの番号の最後（watch.go）
+	seenEnvelopes    map[string]bool        // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
+	seenOrder        []string               // seenEnvelopes に入れた順（古い物から忘れる）
 	next             int
 	ticks            int64            // フォーカスの順を振る数
 	viewed           chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
@@ -399,9 +403,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		} else if p.Client != "" {
 			by = "window"
 		}
-		// 窓のアクションで要求中の参加者が受け入れられた・断られたら、その AI を起こす（watch.go。起こす通り道が無ければ見ない）
+		// 窓のアクションで要求中の参加者が受け入れられた・断られたら、その AI に知らせる（watch.go。受け取られるまで行列で持つ）
 		var requested map[string]bool
-		if by == "window" && len(h.wakeLines) > 0 {
+		if by == "window" {
 			requested = h.requestedParticipants()
 		}
 		act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
@@ -664,8 +668,7 @@ func (h *Hub) CloseAll() {
 		h.drop(c)
 	}
 	for l := range h.wakeLines {
-		delete(h.wakeLines, l)
-		close(l.ch)
+		h.closeWakesLocked(l)
 	}
 }
 

@@ -4,4 +4,5 @@
 # join したときに MCP が添えた物と同じなので、その参加者への知らせだけが届く。matomezu が見つからなければ何も出さずに終える
 . "$(dirname "$0")/find-matomezu.sh"
 [ -n "$matomezu_bin" ] || exit 0
-exec "$matomezu_bin" watch --host "$1" --session "$2"
+# Claude Code の monitor は、1 行を約 500 字で、続けて出した行を 1 回の知らせにまとめて約 3,000 字で切る。間を 1 秒空ければ別の知らせになる（2026-11-15 実測、v2.1.325）
+exec "$matomezu_bin" watch --host "$1" --session "$2" --max-line 480 --max-notice 2800 --gap 1s

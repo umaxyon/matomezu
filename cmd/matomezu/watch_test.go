@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // watch は SSE の wake の知らせの文だけを 1 行ずつ書き、ほかの知らせ（keep）は書かない
@@ -28,5 +29,16 @@ func TestProcessAliveAndReadWakesStops(t *testing.T) {
 	var out bytes.Buffer
 	if err := readWakes(strings.NewReader("event: wake\ndata: {\"text\":\"a\"}\n\n"), &out, func() bool { return false }); err != nil || out.Len() != 0 {
 		t.Fatalf("out = %q", out.String())
+	}
+}
+
+// 受け取る側の流し方は、名乗った物だけを常駐の口に渡す
+func TestWatchQueryCarriesTheLimits(t *testing.T) {
+	c := watchCmd{Host: "42", Session: "S", MaxLine: 480, MaxNotice: 2800, Gap: time.Second}
+	if got := c.query(); got != "gap=1000&host=42&maxLine=480&maxNotice=2800&session=S" {
+		t.Fatalf("query = %s", got)
+	}
+	if got := (&watchCmd{Host: "42"}).query(); got != "host=42&session=" {
+		t.Fatalf("query = %s", got)
 	}
 }
