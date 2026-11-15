@@ -2,7 +2,7 @@
 // アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（塗りは塗らない。枠の色は枠なし）か、テーマの代表色か、好きな色
 import { useRef, useState } from "react"
 import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
-import { ColorPicker, useBookOf, useBookTheme, useSwatches } from "../../../base/ui"
+import { ColorPicker, useBookOf, usePageTheme, useSwatches } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
 import {
@@ -53,7 +53,7 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
   const set = useCommand(SLIDE_SET.id)
   const book = useBookOf()
   const { continueStep } = useActions()
-  const swatches = useSwatches(useBookTheme(book), SLIDE_INK)
+  const swatches = useSwatches(usePageTheme(), SLIDE_INK)
   if (!subject) return null
   const change = (props: Record<string, unknown>, continues = false) => {
     if (continues && book) continueStep(book) // 入力の途中の変更は、最初の変更の元に戻す 1 段に続ける

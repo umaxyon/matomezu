@@ -11,7 +11,7 @@ import type { Book, Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useBookLookStyle } from "../book-look/use-book-look-style"
+import { usePageLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
 import { pageArea, paperSize } from "../place/items"
 import type { PrintMeasured } from "../print-preview/measures-state"
@@ -89,7 +89,7 @@ export function DrawnSheet({
   const views = useUiCatalog().presentationViews
   const Measure = views.get(pageType(catalog, book.type).presentation)?.printMeasure
   const paper = paperSize(catalog, page as ItemPage)
-  const look = useBookLookStyle(book.type)
+  const look = usePageLookStyle()
   const [measured, setMeasured] = useState<PrintMeasured | null>(null)
   const report = useCallback(
     (m: PrintMeasured) =>

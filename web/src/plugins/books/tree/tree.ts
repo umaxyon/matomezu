@@ -5,10 +5,10 @@ import { z } from "zod"
 import type { PageSettingsArgs } from "../../../plugin-api"
 import {
   BACKGROUND_PRINT,
+  DIAGRAM_THEME_TYPE,
   PAGE_PAPER_COLOR,
   PAGE_TEXT_COLORS,
   PAGE_THEME,
-  DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
 } from "../../base"

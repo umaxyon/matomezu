@@ -7,7 +7,6 @@ import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { slideIsBackground } from "../../../core/def/page-type"
 import type { Point, Rect } from "../../../core/geom"
 import { byConnector, type ItemPage, shapesOf, slideOf } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
 import { type SettingReader, settingsAt } from "../book-settings"
 import type { GrowSides } from "../place/grow"
 import { growOf } from "../place/items"
@@ -47,14 +46,13 @@ interface MinimapOn {
 
 const rectMark = (r: Rect): MinimapMark => ({ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h })
 
-// ブック book のページ page の絵。drawn は、紙が描いたつなぐものの絵（種類の id ごと。無ければ定義の minimap で作る）
+// ページ page の絵。drawn は、紙が描いたつなぐものの絵（種類の id ごと。無ければ定義の minimap で作る）
 export function minimapMarks(
   catalog: CoreCatalog,
-  book: Book,
   page: ItemPage,
   drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
 ): readonly MinimapMark[] {
-  const type = pageType(catalog, book.type)
+  const type = pageType(catalog, page.type)
   const minimap = catalog.presentations.get(type.presentation)?.minimap
   if (!minimap) return []
   // 背景（ページの slide。背景を持つタイプ）は、ミニマップに描かない（中身の位置の目印）

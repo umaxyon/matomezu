@@ -96,6 +96,7 @@ export function useShownBook(): Book | null {
 }
 
 // 描くページに、ダイアログの下書き（選んでいて、まだ確定していない値。アイテムの項目と、ページの設定の項目）を重ねたページ。
+// ページの設定の項目の下書きは、ページを名指した下書きならそのページにだけ、ページを名指さない下書き（ブックのページをまとめて変えるダイアログ）なら、そのブックのどのページにも重ねる。
 // 見せ方が描くのに使う
 export function useShownPage(): ItemPage | null {
   const page = usePage()
@@ -105,7 +106,7 @@ export function useShownPage(): ItemPage | null {
   return useMemo(() => {
     if (!page || !preview || preview.book !== book) return page
     if (preview.item === undefined)
-      return preview.page === (page as { id?: string }).id ? withSettings(page, preview.props) : page
+      return preview.page === undefined || preview.page === page.id ? withSettings(page, preview.props) : page
     // ページのアイテムか、どの深さの子の形も
     const shown = (i: PlacedItem): PlacedItem =>
       ({ ...i, props: { ...(i.props as object), ...preview.props }, ...preview.content }) as PlacedItem

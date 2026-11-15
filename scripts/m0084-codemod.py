@@ -36,7 +36,7 @@ RULES = [
     # ページのタイプで決まる物: ブックを渡していた引数を外す（外す引数は、ブックを指す名前のときだけ。流し直しても、ほかの引数を外さない）
     (
         re.compile(
-            rf"\b(growOf|slideOffsetOf|roomOf|tidyPage|frameOf|widenForCaption|itemAiPlaced|pageArea)\(({ARG}), {BOOKARG}, "
+            rf"\b(growOf|slideOffsetOf|roomOf|tidyPage|frameOf|widenForCaption|itemAiPlaced|pageArea|minimapMarks)\(({ARG}), {BOOKARG}, "
         ),
         r"\1(\2, ",
         [],
@@ -46,10 +46,18 @@ RULES = [
     (re.compile(r"\bBOOK_PAPER_COLOR\b"), "PAGE_PAPER_COLOR", []),
     (re.compile(r"\bBOOK_TEXT_COLORS\b"), "PAGE_TEXT_COLORS", []),
     (re.compile(r"@matomezu/base:book-(theme|paper-color|text-colors)\b"), r"@matomezu/base:page-\1", []),
+    # テーマは描いているページから引く（ブックの id を渡さない）
+    (re.compile(rf"\buseBookTheme\({ARG}?\)"), "usePageTheme()", []),
+    (re.compile(rf"\buseBookThemes\({ARG}?\)"), "usePageThemes()", []),
+    (re.compile(r"\buseBookTheme\b(?!\()"), "usePageTheme", []),
+    (re.compile(r"\buseBookThemes\b(?!\()"), "usePageThemes", []),
+    (re.compile(r"\buseBookThemeVars\b"), "usePageThemeVars", []),
+    (re.compile(r"\buseBookLookStyle\({ARG}?\)".replace("{ARG}", ARG)), "usePageLookStyle()", []),
+    (re.compile(r"\buseBookLookStyle\b(?!\()"), "usePageLookStyle", []),
     # 付く先: ページを持つタイプ → どのブックにも
     (re.compile(r"attach: \{ pages: true \}"), "attach: { books: true }", []),
     # 開いているもの
-    (re.compile(r"\b([\w.]+\.opened)\?\.page\b(?! ===? null)"), r"shownPageId(\1 ?? null)", ["shownPageId"]),
+    (re.compile(r"\b((?:\w+(?:\?\.|\.))+opened)\?\.page\b(?! ===? null)"), r"shownPageId(\1 ?? null)", ["shownPageId"]),
 ]
 
 BOOK_FNS = {"findPage", "pagesOf", "findFolder", "lineupOf"}

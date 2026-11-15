@@ -4,7 +4,7 @@
 import { useLayoutEffect, useMemo } from "react"
 import { pageType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
-import { areaOf, paperOf } from "../../../core/stage"
+import { areaOf, openedPage, paperOf } from "../../../core/stage"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useActions, useBook, usePage, useStage } from "../../../ui/view-hooks"
 import { printAreaLines } from "../place/grow"
@@ -17,7 +17,7 @@ import { usePrintAreasHidden } from "./print-areas"
 
 export function PaperLayer() {
   const stage = useStage()
-  if (!stage?.opened || stage.opened.page === null) return null
+  if (!openedPage(stage?.opened ?? null) || !stage) return null
   return <PaperFrame stage={stage} className={styles.paper} aria-hidden="true" data-paper-surface />
 }
 
@@ -79,7 +79,7 @@ function useStartReport() {
   const x = start?.x
   const y = start?.y
   useLayoutEffect(() => {
-    if (x !== undefined && y !== undefined && opened?.paper) setStageStart({ x, y })
+    if (x !== undefined && y !== undefined && openedPage(opened ?? null)?.paper) setStageStart({ x, y })
   }, [setStageStart, x, y, opened])
 }
 
@@ -89,8 +89,8 @@ export function BookContentLayer() {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
   const hidden = useContentHidden()
-  const type = stage?.opened?.type
-  if (!type) return null
+  const type = openedPage(stage?.opened ?? null)?.type
+  if (!type || !stage) return null
   const presentation = pageType(catalog, type).presentation
   const View = (views.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })).view
   if (stage.edits !== "slide") return <View />

@@ -14,7 +14,7 @@ import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useBookLookStyle } from "../book-look/use-book-look-style"
+import { usePageLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { pageArea } from "../place/items"
@@ -53,7 +53,7 @@ function ThumbnailFrame({
   scale: number
   onWidth(w: number): void
 }) {
-  const look = useBookLookStyle(book.type)
+  const look = usePageLookStyle()
   const frame = useRef<HTMLDivElement | null>(null)
   useResize(frame, size => onWidth(size.w))
   return (

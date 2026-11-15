@@ -28,8 +28,8 @@ import {
   Switch,
   SwitchPanel,
   useBookOf,
-  useBookTheme,
-  useBookThemes,
+  usePageTheme,
+  usePageThemes,
   useSwatches,
 } from "../../base/ui"
 import { ROW_LINES } from "./actions"
@@ -66,7 +66,7 @@ const EMPTY: ListProps = {
 
 export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   const { select } = useActions()
   const perform = usePerform()
   const add = (props: ListProps) => {
@@ -94,7 +94,7 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 
 export function EditListDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   const found = useItem(args.page, args.item, LIST.id)
   const { previewDialog } = useActions()
   const perform = usePerform()
@@ -176,7 +176,7 @@ function ListDialog({
   const catalog = useCoreCatalog()
   const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
   const { caption, captionAlign } = head
-  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
+  const themes = usePageThemes() // ブックのタイプが使えるテーマ
   // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
   const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
   const [theme, setTheme] = useState(startTheme)

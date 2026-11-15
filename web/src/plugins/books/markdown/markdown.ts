@@ -3,7 +3,7 @@
 // どのページもいつも可変ページで、下へ増やす。新しいページとページの設定のダイアログは base の物。原文は base の page-update で、丸ごとか 1 か所の置き換えで変える。道具は持たない。見た目（テーマと紙の色）は base の設定の項目で変えられ、描いた文書の色・字の大きさ・余白はテーマで差し替える（tokens.ts）
 
 import { z } from "zod"
-import { PAGE_PAPER_COLOR, PAGE_THEME, DOCUMENT_THEME_TYPE, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
+import { DOCUMENT_THEME_TYPE, PAGE_PAPER_COLOR, PAGE_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
 import { kit } from "./kit"
 import { pageFieldsInput } from "./page-fields"
 import { sourceEdit } from "./source-edit"

@@ -1,18 +1,27 @@
-// ステージで開いたブックを描く所に付ける CSS 変数: ブックのテーマの値と文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）と、
-// ブックのタイプのプラグインのテーマキー（--<名前>）。ステージの中のブックの中身と、印刷で body の直下に描く物が使う
-import { type CSSProperties, useMemo } from "react"
-import type { PageTypeId } from "../../../core/core-catalog"
+// ページを描く所に付ける CSS 変数: 描いているページ（ui/scope.tsx の描いている場所）のテーマの値と文字の色の値（どちらも設定のダイアログの下書きを重ねる）と、
+// ページのタイプのプラグインのテーマキー（--<名前>）。テーマはページごとなので、ページを描く所ごとに置く:
+// ステージは開いているページ、ステージの外で見るだけに描くページ（印刷の区画・サムネイル・スクラップ）は、そのページ（PageLook で包む）
+import { type CSSProperties, type ReactNode, useMemo } from "react"
 import { useTokenScope } from "../../../ui/theme-vars"
+import { useShownPage } from "../../../ui/view-hooks"
 import { textColorVars } from "../text"
 import { useTextColors } from "../text/use-text-colors"
-import { useBookThemeVars } from "./use-book-theme-vars"
+import { usePageThemeVars } from "./use-book-theme-vars"
 
-export function useBookLookStyle(type: PageTypeId): CSSProperties {
-  const theme = useBookThemeVars()
+// 描いているページの見た目の CSS 変数（ページを描いていなければ空）
+export function usePageLookStyle(): CSSProperties {
+  const theme = usePageThemeVars()
   const colors = useTextColors()
-  const tokens = useTokenScope(type)
+  const type = useShownPage()?.type
+  const tokens = useTokenScope(type ?? "")
   return useMemo(
-    () => ({ ...(colors ? { ...theme, ...textColorVars(colors) } : {}), ...tokens }) as CSSProperties,
-    [theme, colors, tokens],
+    () => ({ ...(colors ? { ...theme, ...textColorVars(colors) } : {}), ...(type ? tokens : {}) }) as CSSProperties,
+    [theme, colors, tokens, type],
   )
+}
+
+// 描いているページの見た目の CSS 変数を、中の物に渡す（箱を作らない要素で包む。描いている場所を置いた中で使う）
+export function PageLook({ children }: { children: ReactNode }) {
+  const style = usePageLookStyle()
+  return <div style={{ display: "contents", ...style }}>{children}</div>
 }

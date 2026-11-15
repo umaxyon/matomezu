@@ -11,7 +11,8 @@ import { useMessages } from "../../../ui/i18n"
 import { openedOf, pageTypeOf, useScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
-import { bookTheme } from "../book-look/look"
+import { usePage, useShownPage } from "../../../ui/view-hooks"
+import { pageTheme } from "../book-look/look"
 import { themeFits, themesFor } from "../book-look/theme-types"
 import { shadeOf, useDarkScheme } from "../book-look/use-dark-scheme"
 import { kit } from "../kit"
@@ -43,20 +44,18 @@ export function useBookOf(): string | undefined {
   return useMatomezuState(s => openedOf(s, scope)?.book)
 }
 
-// ブック book（id）のタイプが、ブックと中の形に使えるテーマ（book-look/theme-types.ts。ブックが無ければ空）
-export function useBookThemes(book: string | undefined): ThemeDef[] {
+// 描いているページのタイプが、ページと中の形に使えるテーマ（book-look/theme-types.ts。ページを描いていなければ空）
+export function usePageThemes(): ThemeDef[] {
   const catalog = useCatalog().core
-  const type = useMatomezuState(s => (book ? s.books[book]?.type : undefined))
+  const type = usePage()?.type
   return useMemo(() => (type === undefined ? [] : themesFor(catalog, type)), [catalog, type])
 }
 
-// ブックのテーマの id
-export function useBookTheme(book: string | undefined) {
+// 描いているページのテーマの id（設定のダイアログの下書きを重ねたページで決める。ページを描いていなければ undefined）
+export function usePageTheme(): string | undefined {
   const catalog = useCatalog().core
-  return useMatomezuState(s => {
-    const b = book ? s.books[book] : undefined
-    return b ? bookTheme(catalog, b) : undefined
-  })
+  const page = useShownPage()
+  return useMemo(() => (page ? pageTheme(catalog, page) : undefined), [catalog, page])
 }
 
 // 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りのテーマキー fill の値）。表に無いテーマなら null

@@ -1,12 +1,12 @@
-// 描いているページのブックのテーマの値（CSS 変数）。ブックの設定のダイアログの下書きを重ねたブックで決める。ブックを開いていなければ undefined
+// 描いているページのテーマの値（CSS 変数）。設定のダイアログの下書きを重ねたページで決める。ページを描いていなければ undefined
 import { type CSSProperties, useMemo } from "react"
 import { useCatalog } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
-import { useShownBook } from "../../../ui/view-hooks"
-import { bookTokens } from "./look"
+import { useShownPage } from "../../../ui/view-hooks"
+import { pageTokens } from "./look"
 
-export function useBookThemeVars(): CSSProperties | undefined {
+export function usePageThemeVars(): CSSProperties | undefined {
   const catalog = useCatalog().core
-  const book = useShownBook()
-  return useMemo(() => (book ? themeVars(bookTokens(catalog, book)) : undefined), [catalog, book])
+  const page = useShownPage()
+  return useMemo(() => (page ? themeVars(pageTokens(catalog, page)) : undefined), [catalog, page])
 }

@@ -26,8 +26,8 @@ import {
   rowClass,
   type TextDraft,
   useBookOf,
-  useBookTheme,
-  useBookThemes,
+  usePageTheme,
+  usePageThemes,
   useSwatches,
 } from "../../base/ui"
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
@@ -56,7 +56,7 @@ export const AddNestBoxDialog = addDialog(NEST_BOX.id)
 
 function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   const { select } = useActions()
   const perform = usePerform()
   const add = (props: BoxProps) => {
@@ -83,7 +83,7 @@ function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typ
 
 export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   // 編集するのは箱か内包ボックス（項目は同じ）
   const box = useItem(args.page, args.item, BOX.id)
   const nestBox = useItem(args.page, args.item, NEST_BOX.id)
@@ -162,7 +162,7 @@ function BoxDialog({
   })
   const { body, captionAlign, bodyAlign } = text
   const [vAlign, setVAlign] = useState(start.vAlign)
-  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
+  const themes = usePageThemes() // ブックのタイプが使えるテーマ
   // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
   const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
   const [theme, setTheme] = useState(startTheme)

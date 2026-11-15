@@ -3,10 +3,10 @@
 // 見せ方は専用（slide）で、紙の見せ方（paper）の置く・動かす・大きさを変えるアクションは付かない
 import { z } from "zod"
 import {
-  PAGE_PAPER_COLOR,
-  PAGE_THEME,
   DIAGRAM_THEME_TYPE,
   itemMinimapMarks,
+  PAGE_PAPER_COLOR,
+  PAGE_THEME,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
 } from "../../base"

@@ -2,7 +2,7 @@
 // 縦の棒なら上下に、横の棒なら左右にドラッグして領域の大きさを変え、ドラッグの間は onDrag でその大きさを渡して描き直させる。
 // 離したらアクション item-update で labelSize を書く。書き換えが止められていれば出さない
 import { type PointerEvent, useRef } from "react"
-import { type Size, toPaperDelta } from "../../../plugin-api"
+import { type Size, shownPageId, toPaperDelta } from "../../../plugin-api"
 import { useAllowed, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
 import { onlySelected } from "../../base"
 import styles from "./ChartView.module.css"
@@ -22,7 +22,7 @@ export function LabelGrip({
 }) {
   const t = useMessages(kit)
   const at = useStage()
-  const page = at?.opened?.page ?? undefined
+  const page = shownPageId(at?.opened ?? null) ?? undefined
   const perform = usePerform()
   const allowed = useAllowed("@matomezu/paper:item-update", { page, ids: [id] }).ok
   // つかんだポインタと、つかんだ所と、つかんだときの領域の大きさ

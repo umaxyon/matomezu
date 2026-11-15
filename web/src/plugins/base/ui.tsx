@@ -95,8 +95,8 @@ export {
   ALIGN_ICONS,
   useAligns,
   useBookOf,
-  useBookTheme,
-  useBookThemes,
+  usePageTheme,
+  usePageThemes,
   useSwatches,
   useThemeVars,
 } from "./item-parts/parts"
