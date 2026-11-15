@@ -346,6 +346,33 @@ export function boundActions(actions: PlaceActions, at: string | null): BoundPla
   ) as unknown as BoundPlaceActions
 }
 
+// 何も行わない、窓に向ける操作（操作を向ける先が無い所で使う。アクションは no-book で断り、id を返す操作は空の文字を返す）
+const NOTHING = () => {}
+export const REFUSED_WINDOW_ACTIONS: WindowActions = {
+  perform: () => ({ ok: false, reason: "no-book" }),
+  performConfirmed: async () => ({ ok: false, reason: "no-book" }),
+  closeDialog: NOTHING,
+  previewDialog: NOTHING,
+  submitDialog: NOTHING,
+  pressKey: () => false,
+  closeContextMenu: NOTHING,
+  showToast: () => "",
+  dismissToast: NOTHING,
+  openScreen: () => "",
+  setScreenProps: () => false,
+  makeScreenCurrent: NOTHING,
+  closeScreen: NOTHING,
+  setScreenArrangement: NOTHING,
+  showStage: NOTHING,
+  moveDivider: NOTHING,
+  evenDivider: NOTHING,
+  requestPrint: NOTHING,
+  requestBack: NOTHING,
+  closePicker: NOTHING,
+  moveHistory: NOTHING,
+  continueStep: NOTHING,
+}
+
 // 画面の操作（store が持つ形。場所に向ける操作は、場所を第 1 引数に取る）
 export interface Actions extends WindowActions, PlaceActions {}
 

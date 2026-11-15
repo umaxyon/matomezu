@@ -394,7 +394,6 @@ test("プラグインに見せるステージ（StageView）のフィールド",
   expect(names(stageView(CORE_CATALOG, newStage("s1"), null))).toEqual([
     "editing",
     "edits",
-    "id",
     "mode",
     "opened",
     "pans",

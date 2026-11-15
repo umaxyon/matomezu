@@ -6,7 +6,7 @@
 import type { Point, Size } from "../../../core/geom"
 import { extentOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN, ZOOM_MAX, ZOOM_MIN, zoomInRange } from "../../../core/viewport"
-import { type CommandContext, workspaceOf } from "../../../store/commands/def"
+import { type CommandContext, calledStageOf } from "../../../store/commands/def"
 import type { Actions, BoundPlaceActions } from "../../../store/store"
 import { kit } from "../kit"
 
@@ -83,7 +83,7 @@ export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: St
 }
 
 // 呼ばれたステージの中の状態（表示領域の大きさとずらす量）
-export const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
+export const stageOf = (ctx: CommandContext) => calledStageOf(ctx)
 
 export const ZOOM_IN = kit.defineCommand({
   id: "zoom-in",

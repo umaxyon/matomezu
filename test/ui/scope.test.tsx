@@ -10,6 +10,7 @@ import { kit as baseKit } from "../../web/src/plugins/base/kit"
 import { PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
 import { Printing } from "../../web/src/plugins/base/print-preview/printing"
 import { SheetLayers } from "../../web/src/plugins/base/print-preview/SheetLayers"
+import { WIDE_SEARCH_MODE } from "../../web/src/plugins/base/wide-search/state"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { useCommand } from "../../web/src/ui/commands"
@@ -152,6 +153,7 @@ function probeOf(seen: { now: Seen | null }) {
     const openMenu = useContextMenu("@matomezu/base:page-context")
     const actions = useActions()
     const setState = useSetPluginState(baseKit, PRINT_MEASURES)
+    const setWindowState = useSetPluginState(baseKit, WIDE_SEARCH_MODE) // 窓の範囲の宣言
     useStageArea({ w: 5000, h: 5000 })
     seen.now = {
       stage: view,
@@ -175,6 +177,8 @@ function probeOf(seen: { now: Seen | null }) {
           actions.zoomStage(3)
           actions.openDialog("@matomezu/base:book-settings" as never, undefined as never)
           setState({ book: "x", pages: {} })
+          setWindowState("words")
+          actions.showToast({ kind: "info", message: baseKit.message("Applied") })
           fit.run()
           settings.run()
         }}
@@ -225,6 +229,7 @@ test("ステージの中に置いたステージの外で見るだけに描く�
   expect(after.window).toBe(before.window)
   expect(after.books).toBe(before.books)
   expect(after.pluginValues).toBe(before.pluginValues)
+  expect(after.toasts).toBe(before.toasts)
   expect(after.dialog).toBeNull()
   expect(after.contextMenu ?? null).toBeNull()
 })

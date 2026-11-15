@@ -31,7 +31,13 @@ import { stageBlocks, toPaper } from "../core/stage"
 import { currentScreen, shownScreens, stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
 import { ownedPluginState } from "../store/plugin-state"
-import { type BoundPlaceActions, boundActions, type Performed, type WindowActions } from "../store/store"
+import {
+  type BoundPlaceActions,
+  boundActions,
+  type Performed,
+  REFUSED_WINDOW_ACTIONS,
+  type WindowActions,
+} from "../store/store"
 import { worldOf } from "../store/world"
 import {
   type Owner,
@@ -167,18 +173,22 @@ export function useStage(): StageView | null {
 }
 
 // 値のある場所: ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーン（どちらも呼び出しには渡さなくてよい。描いている場所から決まる）。
-// 向け先がステージでない所（ステージの外で見るだけに描くページの中など）では、ステージごとの宣言の値は無く、置いても何も変わらない。
+// 向け先がステージでない所では、ステージごとの宣言の値は無く、置いても何も変わらない。向け先が無い所（ステージの外で見るだけに描くページの中）では、どの範囲の値も置けない（読むことはできる）。
 // スクリーンごとの宣言は、スクリーンの id を渡して名指せる（スクリーンを並べるスクリーンアレンジメントのウィジェットが、並べる 1 枚ごとの値を読み書きするとき）
 type At<Sc extends PluginStateScope> = Sc extends "screen" ? [screen?: string] : []
 
 // 宣言の範囲 scope の値がある場所の id（窓の範囲は ""。場所が無ければ null）。given は、呼び出しに渡されたスクリーンの id
-function usePluginPlace(scope: PluginStateScope): (given: string | undefined) => string | null {
+function usePluginPlace(
+  scope: PluginStateScope,
+  use: "read" | "write" = "read",
+): (given: string | undefined) => string | null {
   const here = useScope()
+  const closed = use === "write" && here.actsOn.kind === "none" // 向け先が無い所からは、どの範囲の値も書かない
   const stage = useStageId()
   const screen = useScreenHere()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
   return useCallback(
-    given => (scope === "window" ? "" : scope === "screen" ? (given ?? screen) : stage),
-    [scope, stage, screen],
+    given => (closed ? null : scope === "window" ? "" : scope === "screen" ? (given ?? screen) : stage),
+    [scope, stage, screen, closed],
   )
 }
 
@@ -213,7 +223,7 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
   def: PluginStateDef<S> & { scope: Sc },
 ): (...args: [...At<Sc>, S | undefined] | [S | undefined]) => void {
   const set = useSetPluginStateAt(kit, def)
-  const placeOf = usePluginPlace(def.scope)
+  const placeOf = usePluginPlace(def.scope, "write")
   const named = def.scope === "screen"
   return useCallback(
     (...args: unknown[]) => {
@@ -234,14 +244,16 @@ export function useSetPluginStateById(): (id: string, value: unknown, at?: { scr
   const { setPluginStateById } = useInstance()
   const here = useScreenHere()?.id
   const stage = useStageId()
+  const nowhere = useScope().actsOn.kind === "none"
   return useCallback(
     (id, value, at) =>
+      !nowhere &&
       setPluginStateById(id, value, {
         ...(here !== undefined ? { screen: here } : {}),
         ...(stage !== null ? { stage } : {}),
         ...(at?.screenDef !== undefined ? { screenDef: at.screenDef } : {}),
       }),
-    [setPluginStateById, here, stage],
+    [setPluginStateById, here, stage, nowhere],
   )
 }
 
@@ -255,8 +267,10 @@ export function useSetPluginStates(
   const here = useScope()
   const stage = useStageId()
   const screen = useScreenHere()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
+  const nowhere = here.actsOn.kind === "none"
   return useCallback(
     changes =>
+      !nowhere &&
       setPluginStates(
         changes.flatMap(([def, value]) => {
           const at = def.scope === "window" ? null : def.scope === "screen" ? screen : stage
@@ -264,7 +278,7 @@ export function useSetPluginStates(
           return [[ownedPluginState(id, def).id, at, value] as const]
         }),
       ),
-    [setPluginStates, id, stage, screen],
+    [setPluginStates, id, stage, screen, nowhere],
   )
 }
 
@@ -274,7 +288,7 @@ export function useUpdatePluginState<S, Sc extends PluginStateScope>(
   def: PluginStateDef<S> & { scope: Sc },
 ): (...args: [...At<Sc>, (now: S | undefined) => S | undefined] | [(now: S | undefined) => S | undefined]) => void {
   const update = useUpdatePluginStateAt(kit, def)
-  const placeOf = usePluginPlace(def.scope)
+  const placeOf = usePluginPlace(def.scope, "write")
   const named = def.scope === "screen"
   return useCallback(
     (...args: unknown[]) => {
@@ -335,12 +349,16 @@ export function useLatestPan(): () => Point | null {
 }
 
 // 描いている場所（ui/scope.tsx）から呼ぶ画面の操作: 窓に向ける操作はそのまま、場所に向ける操作は、向け先（ステージかスクリーン）に向けた形（第 1 引数が無い）。
-// 向け先が無い所（ステージの外で見るだけに描くページの中）では、場所に向ける操作は何もしない。
+// 向け先が無い所（ステージの外で見るだけに描くページの中）では、どの操作も何もしない（アクションは no-book で断る）。
 // 場所を第 1 引数に取る素の操作（ui/store-context.tsx の useStoreActions）は、土台と骨組みだけが使う
 export function useActions(): WindowActions & BoundPlaceActions {
   const actions = useStoreActions()
   const at = useAt()
-  return useMemo(() => ({ ...actions, ...boundActions(actions, at) }), [actions, at])
+  const nowhere = useScope().actsOn.kind === "none"
+  return useMemo(
+    () => ({ ...(nowhere ? REFUSED_WINDOW_ACTIONS : actions), ...boundActions(actions, at) }),
+    [actions, at, nowhere],
+  )
 }
 
 // 機能台帳（定義の表。読むだけ。コマンドの ctx.catalog と同じ物）

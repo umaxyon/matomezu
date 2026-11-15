@@ -8,7 +8,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
-import { workspaceOf } from "../../../store/commands/def"
+import { calledStageOf } from "../../../store/commands/def"
 import { withBookSettings } from "../book-look"
 import { type SettingReader, settingValue } from "../book-settings"
 import { kit } from "../kit"
@@ -118,7 +118,7 @@ const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book)
 // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば、印刷プレビューは開かず、それを知らせる右サイドパネルを開く
 function openPreview(ctx: CommandContext, a: CommandActions) {
   const book = ctx.book
-  const now = workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
+  const now = calledStageOf(ctx)
   const opened = now?.opened
   if (book && now && opened && hasCrossing(ctx.catalog, book)) {
     const open = { ...printCheckOpen(book.id), book: opened.book, page: opened.page }

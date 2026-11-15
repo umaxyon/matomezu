@@ -72,7 +72,7 @@ export const ERRORS = {
   E113: "unknown setting: {id}",
   E114: "unknown tool set: {id}",
   E115: "unknown tool: {id}",
-  E116: "stage {id}: the command context was not made by matomezu (a copy of it does not carry the workspace)",
+  E116: "the command context was not made by matomezu (a copy of it does not carry the workspace)",
   E117: "the window has no book screen numbered {index}",
   E122: "unknown plugin state: {id}",
   E123: "plugin state {id}: the value does not fit its schema",
