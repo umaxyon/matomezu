@@ -163,24 +163,24 @@ function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
 }
 
 // ブックのデータの形: 名前 title（1 字以上）・ロック locked・ゴミ箱に入れた時刻 trashed・並び lineup・ブックが持つ設定の項目（holder が "book" の項目）。
-// 並びの 1 つは、ページ（タイプごとの形のどれか）か、1 つのタイプのページだけを入れるフォルダ（中身も同じ並びで、入るのはページだけ）
+// 並びの 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるフォルダ（中身も同じ並びで、入るのはページだけ）
 function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<string, z.ZodObject>): z.ZodType {
   const [first, ...rest] = [...pageSchemas.values()]
   if (!first) return fail("E015")
-  const pageEntry = z.strictObject({ kind: z.literal("page"), page: z.discriminatedUnion("type", [first, ...rest]) })
+  const page = z.discriminatedUnion("type", [first, ...rest])
   const folderEntry = z.strictObject({
     kind: z.literal("folder"),
     id: z.string().min(1),
     title: z.string().min(1),
     pageType: z.string().min(1),
-    lineup: z.array(pageEntry),
+    lineup: z.array(page),
   })
   return z.strictObject({
     id: z.string().min(1),
     title: z.string().min(1),
     locked: z.literal(true).optional(),
     trashed: z.iso.datetime().optional(),
-    lineup: z.array(z.discriminatedUnion("kind", [pageEntry, folderEntry])),
+    lineup: z.array(z.union([page, folderEntry])),
     ...settingsField(
       parts,
       parts.settings.filter(d => d.holder === "book").map(d => d.id),

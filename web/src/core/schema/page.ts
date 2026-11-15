@@ -4,6 +4,8 @@ import { z } from "zod"
 import { GROW_CHOICES, ORIENTATIONS } from "../def/paper"
 
 export const PageSchema = z.strictObject({
+  // 並びの中での種類（ブックの並びには、ページとフォルダが入る。見分けは形でなく、この名前でする）
+  kind: z.literal("page"),
   id: z.string().min(1),
   type: z.string().min(1), // ページのタイプの id（作ったあとは変えない）
   title: z.string(),

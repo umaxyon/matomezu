@@ -255,7 +255,7 @@ export function openedAt(catalog: CoreCatalog, book: Pick<Book, "id">, page: Pag
 function openedFirst(catalog: CoreCatalog, book: Book): Opened {
   const [first] = lineupOf(book)
   if (!first) return { kind: "none", book: book.id }
-  return first.kind === "page" ? openedAt(catalog, book, first.page) : openedIn(catalog, book, first.id)
+  return first.kind === "page" ? openedAt(catalog, book, first) : openedIn(catalog, book, first.id)
 }
 
 // ブック book のフォルダ folder を開いた形: 中の最初のページ（空なら、フォルダ。フォルダが無ければ何も開かない）
@@ -264,7 +264,7 @@ function openedIn(catalog: CoreCatalog, book: Book, folder: string): Opened {
   if (!found) return { kind: "none", book: book.id }
   const [first] = found.lineup
   return first
-    ? openedAt(catalog, book, first.page)
+    ? openedAt(catalog, book, first)
     : { kind: "folder", book: book.id, folder: found.id, type: found.pageType as PageTypeId }
 }
 
@@ -363,7 +363,7 @@ function neighbourOf(catalog: CoreCatalog, book: Book, was: Opened, before?: Boo
   }
   const folder = before ? folderOf(before, was) : was.kind === "folder" ? was.folder : null
   if (folder !== null && findFolder(book, folder)) {
-    const inFolder = (b: Book) => (findFolder(b, folder)?.lineup ?? []).map(e => e.page.id)
+    const inFolder = (b: Book) => (findFolder(b, folder)?.lineup ?? []).map(e => e.id)
     const now = new Set(inFolder(book))
     const next =
       was.kind === "page" && before

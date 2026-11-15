@@ -6,7 +6,7 @@ import { freshPageId } from "./ids"
 import { splitId } from "./names"
 import type { PaperChoice } from "./paper"
 import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"
-import type { Book, FolderEntry, LineupEntry, Page, PageEntry } from "./schema/book"
+import type { AnyPage, Book, FolderEntry, LineupEntry, Page } from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
 // 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは warning（ページのタイプが無い W004・形が合わない W005・
@@ -48,7 +48,7 @@ function rawPageTypes(book: unknown): string[] {
     typeof v === "object" && v !== null ? (v as Record<string, unknown>)[k] : undefined
   const types = (entries: unknown[]): string[] =>
     entries.flatMap(e => {
-      const type = field(field(e, "page"), "type")
+      const type = field(e, "kind") === "page" ? field(e, "type") : undefined
       return [...(typeof type === "string" ? [type] : []), ...types(list(field(e, "lineup")))]
     })
   return types(list(field(book, "lineup")))
@@ -77,7 +77,7 @@ export const lineupOf = (book: Book): readonly LineupEntry[] => book.lineup
 
 // このブックが持つページを、並びの順に（フォルダの中のページも、フォルダの所に続けて）。よそのページを指すだけの要素は含めない
 export const pagesOf = (book: Book): readonly ItemPage[] =>
-  book.lineup.flatMap(e => (e.kind === "page" ? [e.page as ItemPage] : e.lineup.map(p => p.page as ItemPage)))
+  book.lineup.flatMap((e): readonly ItemPage[] => (e.kind === "page" ? [e] : e.lineup))
 
 // ブックのフォルダを、並びの順に
 export const foldersOf = (book: Book): readonly FolderEntry[] =>
@@ -87,10 +87,10 @@ export const foldersOf = (book: Book): readonly FolderEntry[] =>
 export function findPage(book: Book, id: string): { page: ItemPage; folder: FolderEntry | null } | undefined {
   for (const e of book.lineup) {
     if (e.kind === "page") {
-      if (e.page.id === id) return { page: e.page as ItemPage, folder: null }
+      if (e.id === id) return { page: e, folder: null }
     } else {
-      const found = e.lineup.find(p => p.page.id === id)
-      if (found) return { page: found.page as ItemPage, folder: e }
+      const found = e.lineup.find(p => p.id === id)
+      if (found) return { page: found, folder: e }
     }
   }
   return undefined
@@ -98,8 +98,8 @@ export function findPage(book: Book, id: string): { page: ItemPage; folder: Fold
 
 export const findFolder = (book: Book, id: string): FolderEntry | undefined => foldersOf(book).find(f => f.id === id)
 
-// 並びの 1 つ 1 つのページの要素を f で替える（フォルダの中も。f が undefined を返した要素は除く）
-function mapPages<B extends Book>(book: B, f: (entry: PageEntry) => PageEntry | undefined): B {
+// 並びのページを 1 枚ずつ f で替える（フォルダの中も。f が undefined を返したページは除く）
+function mapPages<B extends Book>(book: B, f: (page: AnyPage) => AnyPage | undefined): B {
   const lineup = book.lineup.flatMap((e): LineupEntry[] => {
     if (e.kind === "page") return [f(e)].flatMap(x => x ?? [])
     return [{ ...e, lineup: e.lineup.flatMap(p => f(p) ?? []) }]
@@ -109,11 +109,11 @@ function mapPages<B extends Book>(book: B, f: (entry: PageEntry) => PageEntry | 
 
 // ページを並びの要素にする。page に置いたアイテムがページのタイプの選んだものかは型では確かめられないので、ページの型だと言い張る
 // （形は perform がアクションの後に機能台帳のブックの形で確かめ直す）
-const entryOf = (page: ItemPage): PageEntry => ({ kind: "page", page: page as PageEntry["page"] })
+const entryOf = (page: ItemPage): AnyPage => page as AnyPage
 
 // ブック book の、同じ id のページを page に替える（場所は変えない。無ければ何も変えない）
 export function putPage<B extends Book>(book: B, page: ItemPage): B {
-  return mapPages(book, e => (e.page.id === page.id ? entryOf(page) : e))
+  return mapPages(book, e => (e.id === page.id ? entryOf(page) : e))
 }
 
 // ページを入れる所: 並びの index 番目（省けば末尾）か、フォルダ folder の中の index 番目（省けば末尾）
@@ -135,15 +135,14 @@ export function addPage<B extends Book>(book: B, page: ItemPage, into: Into = {}
 
 // ブック book から、id が page のページを除く
 export function removePage<B extends Book>(book: B, page: string): B {
-  return mapPages(book, e => (e.page.id === page ? undefined : e))
+  return mapPages(book, e => (e.id === page ? undefined : e))
 }
 
 // 並びの要素（ページかフォルダ）を、同じ入れ物の中の index 番目へ動かす（並びに直に入っている物は並びの中、フォルダの中のページはそのフォルダの中。
 // index が後ろすぎれば末尾。id が無ければ何も変えない）
 export function moveEntry<B extends Book>(book: B, id: string, index: number): B {
-  const idOf = (e: LineupEntry) => (e.kind === "page" ? e.page.id : e.id)
   const moved = <E extends LineupEntry>(list: readonly E[]): readonly E[] => {
-    const entry = list.find(e => idOf(e) === id)
+    const entry = list.find(e => e.id === id)
     return entry
       ? insertAt(
           list.filter(e => e !== entry),
@@ -152,7 +151,7 @@ export function moveEntry<B extends Book>(book: B, id: string, index: number): B
         )
       : list
   }
-  if (book.lineup.some(e => idOf(e) === id)) return { ...book, lineup: moved(book.lineup) }
+  if (book.lineup.some(e => e.id === id)) return { ...book, lineup: moved(book.lineup) }
   return { ...book, lineup: book.lineup.map(e => (e.kind === "folder" ? { ...e, lineup: moved(e.lineup) } : e)) }
 }
 
@@ -185,7 +184,7 @@ export function newPage(
   init: { type: string; title: string; grows?: Page["grows"] } & PaperChoice,
   newId: () => string,
 ): Page {
-  return { id: freshPageId(newId, lineupIds(book)), ...init }
+  return { kind: "page", id: freshPageId(newId, lineupIds(book)), ...init }
 }
 
 // ブックかページの設定の項目（settings のフィールド）を変えた値: patch（項目の id → 値）の null の項目は消し、undefined の項目は変えない。
@@ -210,8 +209,8 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
   const grouping = (type: string) => catalog.pageTypes.get(type)?.grouping
   for (const e of book.lineup) {
     if (e.kind === "page") {
-      if (grouping(e.page.type) !== "none") return false
-    } else if (grouping(e.pageType) !== "own-folder" || e.lineup.some(p => p.page.type !== e.pageType)) return false
+      if (grouping(e.type) !== "none") return false
+    } else if (grouping(e.pageType) !== "own-folder" || e.lineup.some(p => p.type !== e.pageType)) return false
   }
   return pagesOf(book).every(p => (pageType(catalog, p.type).holds?.(p, catalog) ?? true) && pageHolds(catalog, p))
 }

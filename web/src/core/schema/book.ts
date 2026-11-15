@@ -33,19 +33,16 @@ export type PageData<T> = Page &
 export type AnyPage = { [K in PageTypeId]: PageData<PageTypeTable[K]> }[PageTypeId]
 export type PageOf<T extends PageTypeId> = PageData<PageTypeTable[T]>
 
-// 並びの 1 つ: ページか、1 つのタイプのページだけを入れるフォルダ（フォルダの中身も同じ並びで、入るのはページだけ）
-export interface PageEntry {
-  kind: "page"
-  page: AnyPage
-}
+// 並びの 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるフォルダ（kind: "folder"。中身も同じ並びで、入るのはページだけ）。
+// どちらも並びの中で id を持つ（置き直しの Patch が、並びを id ごとにたどる。core/patch.ts）
 export interface FolderEntry {
   kind: "folder"
   id: string
   title: string
   pageType: string // 入れるページのタイプの id
-  lineup: readonly PageEntry[]
+  lineup: readonly AnyPage[]
 }
-export type LineupEntry = PageEntry | FolderEntry
+export type LineupEntry = AnyPage | FolderEntry
 
 // ブック（名前 title・ロック locked・ゴミ箱に入れた時刻 trashed・並び lineup・ブックが持つ設定の項目）
 export type Book = {
