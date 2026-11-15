@@ -261,7 +261,7 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
     return store.state.getState().books[book]
   }
   const first = make()
-  expect(first).toMatchObject({ pages: [{ root: { children: [{ caption: "子", children: [{ caption: "孫" }] }] } }] })
+  expect(first).toMatchObject({ lineup: [{ root: { children: [{ caption: "子", children: [{ caption: "孫" }] }] } }] })
   expect(make()).toEqual(first)
 })
 

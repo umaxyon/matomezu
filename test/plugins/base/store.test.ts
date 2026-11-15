@@ -3,7 +3,6 @@ import { shownPageId, shownType } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { currentStage } from "../../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
-import { pagesBook } from "../../lineup"
 import { newStore } from "../../support"
 
 test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
@@ -12,7 +11,7 @@ test("ページを足すと、そのステージのブックに入り、その�
   actions.openBook("s2", "b1")
   addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   const s = state.getState()
-  expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "n1" }] })
+  expect(s.books.b1).toMatchObject({ lineup: [{ id: "p1" }, { id: "n1" }] })
   expect(screenOf(s.window).stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "n1" }])
   expect(currentStage(screenOf(s.window)).id).toBe("s2")
 })
@@ -65,10 +64,7 @@ test("ブックを開いていないステージには、ページは足せな�
   const { state, actions } = newStore()
   actions.split("s1")
   const s = state.getState()
-  expect(screenOf(s.window).stages.map(st => shownType(st.opened ?? null))).toEqual([
-    "@matomezu/drawing:drawing",
-    undefined,
-  ])
+  expect(screenOf(s.window).stages.map(st => shownType(st.opened ?? null))).toEqual(["@matomezu/drawing:drawing", null])
   expect(addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "x" })).toBe(false)
   expect(state.getState()).toBe(s)
 })
@@ -79,20 +75,8 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
   expect(createBookIn({ state, actions }, "s2", { title: " " })).toBe(false)
   expect(createBookIn({ state, actions }, "s2", { title: "新しい図" })).toBe(true)
   const s = state.getState()
-  expect(s.books.made).toEqual(
-    pagesBook({
-      type: "@matomezu/drawing:drawing",
-      id: "made",
-      title: "新しい図",
-      pages: [],
-    }),
-  )
-  expect(screenOf(s.window).stages[1]!.opened).toEqual({
-    type: "@matomezu/drawing:drawing",
-    book: "made",
-    page: null,
-    paper: null,
-  })
+  expect(s.books.made).toEqual({ id: "made", title: "新しい図", lineup: [] })
+  expect(screenOf(s.window).stages[1]!.opened).toEqual({ kind: "none", book: "made" })
   expect(screenOf(s.window).current).toBe("s2")
   addPageIn({ state, actions }, "s2", {
     type: "@matomezu/drawing:drawing",
