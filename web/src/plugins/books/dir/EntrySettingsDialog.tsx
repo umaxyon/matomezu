@@ -45,7 +45,8 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
       entry: entry.id,
       name,
       description: description.trim() === "" ? null : description,
-      icon: icon ?? null,
+      // 変えていないアイコンは送らない（足したプラグインが無効で値が無くても、名前などは直せる）
+      ...(icon === entry.icon ? {} : { icon: icon ?? null }),
     })
     if (done.ok) onClose()
     else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
