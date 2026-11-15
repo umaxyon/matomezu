@@ -22,6 +22,9 @@ const HooksSendHost = false
 // DeliverArgs は、起こす知らせを Codex の会話に渡すコマンドの、matomezu の実行ファイルに続く引数（Codex には裏で動かし続ける仕組みが無いので、MCP の中の watch が渡す）
 var DeliverArgs = []string{"codex", "deliver"}
 
+// PackageFolder は、npm の matomezu のパッケージの中の、このプラグインのフォルダ（scripts/npm-pack.ts が置く）
+const PackageFolder = "codex-plugin"
+
 // Home は、Codex の設定のフォルダ（CODEX_HOME、無ければ ~/.codex）
 func Home() string {
 	if d := os.Getenv("CODEX_HOME"); d != "" {

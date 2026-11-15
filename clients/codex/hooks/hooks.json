@@ -1,6 +1,26 @@
 {
   "hooks": {
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "matomezu codex hook prompt" }] }],
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "matomezu codex hook model" }] }]
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v matomezu >/dev/null 2>&1; then exec matomezu codex hook prompt; else echo '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.\"}'; fi",
+            "commandWindows": "if (Get-Command matomezu -ErrorAction SilentlyContinue) { matomezu codex hook prompt } else { '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.\"}' }"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v matomezu >/dev/null 2>&1; then exec matomezu codex hook model; else echo '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.\"}'; fi",
+            "commandWindows": "if (Get-Command matomezu -ErrorAction SilentlyContinue) { matomezu codex hook model } else { '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.\"}' }"
+          }
+        ]
+      }
+    ]
   }
 }

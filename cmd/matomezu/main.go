@@ -54,6 +54,7 @@ type cli struct {
 	ClaudeCode  claudeCodeCmd  `cmd:"" name:"claude-code" help:"Commands that matomezu's Claude Code plugin runs (its MCP, hooks and monitor)."`
 	Codex       codexCmd       `cmd:"" help:"Commands that matomezu's Codex plugin runs (its MCP, hooks, and the command that hands wake notices to a Codex conversation)."`
 	Opencode    opencodeCmd    `cmd:"" help:"Commands that matomezu's opencode plugin runs (the command that hands wake notices to an opencode conversation)."`
+	PluginPath  pluginPathCmd  `cmd:"" name:"plugin-path" help:"Print the folder of matomezu's plugin for an AI program, to add it from (such as claude plugin marketplace add)."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 

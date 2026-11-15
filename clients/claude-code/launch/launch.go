@@ -3,6 +3,9 @@ package launch
 
 import "time"
 
+// PackageFolder は、npm の matomezu のパッケージの中の、このプラグインのフォルダ（scripts/npm-pack.ts が置く）
+const PackageFolder = "plugin"
+
 // SessionEnv は、Claude Code が立てたプロセス（MCP・フック・monitor）に渡す、立てたときのセッション id の環境変数（MCP と monitor では /clear でも変わらない）
 const SessionEnv = "CLAUDE_CODE_SESSION_ID"
 
