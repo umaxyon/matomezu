@@ -46,9 +46,7 @@ func Deliver(ctx context.Context, socket, thread, text, version string) (Result,
 	if thread == "" {
 		return Absent, errors.New("no session id of the conversation")
 	}
-	if _, err := os.Stat(socket); err != nil {
-		return Absent, err
-	}
+	// ソケットのファイルの有無は先に見ない（Windows の AF_UNIX のソケットは os.Stat が読めないことがある）。つなげなければ Absent
 	client := &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}}

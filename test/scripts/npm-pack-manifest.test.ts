@@ -19,6 +19,7 @@ test("本体は、実行ファイルのパッケージを全部、同じ版で o
   expect(Object.keys(main.optionalDependencies)).toEqual(TARGETS.map(platformPackageName))
   expect(new Set(Object.values(main.optionalDependencies))).toEqual(new Set(["1.2.3"]))
   expect(main.files).toContain("plugin")
+  expect(main.files).toContain("codex-plugin")
 })
 
 test("実行ファイルのパッケージは、その OS と CPU のときだけ入る", () => {

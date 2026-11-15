@@ -35,7 +35,7 @@ export const mainPackageJson = (version: string, targets: Target[] = TARGETS) =>
   version,
   description: "A diagram editor where AI and people look at the same book and fix it together",
   bin: { matomezu: "bin/matomezu.js" },
-  files: ["bin", "plugin"],
+  files: ["bin", "plugin", "codex-plugin"],
   optionalDependencies: Object.fromEntries(targets.map(t => [platformPackageName(t), version])),
 })
 
