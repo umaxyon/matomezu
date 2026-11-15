@@ -2,8 +2,7 @@
 // （ex6 の連携ポイント ex6-spec が拡張ポイントに書き足したもの）に聞く。答えない形は 0
 
 import type {} from "ex6-spec"
-import { shapesOf, z } from "matomezu"
-import { findPage } from "../../../web/src/core/book"
+import { findPage, shapesOf, z } from "matomezu"
 import { kit } from "./kit"
 
 // ページの形の重さの合計

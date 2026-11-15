@@ -1,8 +1,7 @@
 // ex4 の 2 つ目のつなぐもの「関係線」: 形どうしを点線で結ぶ。ビルトインの線と同じページに引ける。
 // 整え（tidy）と関係の決まり（holds）を持たない（端の形を消したときに何が起きるかを見るため）
 
-import { putPage, shapesOf, z } from "matomezu"
-import { findPage } from "../../../web/src/core/book"
+import { findPage, putPage, shapesOf, z } from "matomezu"
 import { kit } from "./kit"
 
 export const RELATION = kit.defineConnector({

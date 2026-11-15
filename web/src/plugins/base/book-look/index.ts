@@ -4,15 +4,15 @@
 import { z } from "zod"
 import { findPage, pagesOf, putPage, withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
-import { bookSettingsPatch, type SettingGroup, settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
+import { bookSettingsPatch, type SettingGroup, settingsArgs, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../page-tabs/page-problems"
-import { PAGE_PAPER_COLOR } from "./look"
+import { withPageSettings } from "./page-settings"
 
 export { PAGE_PAPER_COLOR, PAGE_THEME, pageTheme, pageTokens } from "./look"
+export { withPageSettings } from "./page-settings"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
@@ -29,16 +29,6 @@ export function withBookSettings(
   const patch = bookSettingsPatch(catalog, group)?.safeParse(settings)
   if (!patch?.success) return null
   return withSettings<Book>(book, patch.data as Record<string, unknown>)
-}
-
-// ページ page に、ページの設定の項目 settings（そのタイプが選んだ項目だけ。null は消す）を当てたページ。形に合わない・選んでいない項目があれば null。紙の色は小文字にそろえる
-export function withPageSettings(catalog: CoreCatalog, page: ItemPage, settings: unknown): ItemPage | null {
-  const patch = settingsPatchOf(catalog, page.type)?.safeParse(settings)
-  if (!patch?.success) return null
-  const values = { ...(patch.data as Record<string, unknown>) }
-  const paper = values[PAGE_PAPER_COLOR.id]
-  if (typeof paper === "string") values[PAGE_PAPER_COLOR.id] = paper.toLowerCase()
-  return withSettings(page, values)
 }
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。

@@ -1,11 +1,12 @@
 // ページを変える: アクション page-update（ページの名前と、紙・向き・可変ページか、タイプが選んだページの設定の項目（plugins/base/book-settings.ts）と、タイプがページに足したフィールド（page-fields.ts））
 
 import { z } from "zod"
-import { findPage, putPage, withSettings } from "../../../core/book"
+import { findPage, putPage } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { GROW_CHOICES, ORIENTATIONS } from "../../../core/def/paper"
 import type { Book, Page } from "../../../core/schema/book"
-import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
+import { withPageSettings } from "../book-look/page-settings"
+import { settingsArgs, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblems } from "./page-problems"
@@ -50,12 +51,9 @@ export const PAGE_UPDATE = kit.defineAction({
     if (!papered) return null
     const page = { ...papered, ...(args.title === undefined ? {} : { title: args.title }) }
     const result = written.result === undefined ? {} : { fields: written.result }
-    const patch =
-      args.settings === undefined ? null : settingsPatchOf(ctx.catalog, found.type)?.safeParse(args.settings)
-    if (patch === undefined || patch?.success === false) return null
-    const next = patch
-      ? settleBook(ctx.catalog, putPage(book, withSettings(page, patch.data as Record<string, unknown>)))
-      : putPage(book, page)
+    const set = args.settings === undefined ? page : withPageSettings(ctx.catalog, page, args.settings)
+    if (!set) return null
+    const next = args.settings === undefined ? putPage(book, page) : settleBook(ctx.catalog, putPage(book, set))
     if (pageProblems(ctx.catalog, next, [found.id]).length > 0) return null
     return { next, result }
   },

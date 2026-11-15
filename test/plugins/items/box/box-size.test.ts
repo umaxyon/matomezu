@@ -217,12 +217,12 @@ test("縦の位置は書いていなければ自動（本文も子も無けれ�
   expect(vAlignOf({ body: "", vAlign: "bottom" }, true)).toBe("bottom")
 })
 
-test("ブックのタイプが使えないテーマが残った箱も、テーマに触れない直しはでき、残ったテーマはデータに残る。そのテーマを渡して直すのは断る", () => {
+test("ページのタイプが使えないテーマが残った箱も、テーマに触れない直しはでき、残ったテーマはデータに残る。そのテーマを渡して直すのは断る", () => {
   const first = ready()
   expect(place(first, { caption: "付箋", theme: "@matomezu/base:sticky" }).ok).toBe(true)
   // 図のブックが使えないテーマが残ったブックを読み込む（テーマタイプが後で変わったときなど）
   const books = JSON.parse(JSON.stringify(first.state.getState().books))
-  books.pagesOf(b1)[0].items[0].props.theme = "@matomezu/markdown:github-like"
+  books.b1.lineup[0].items[0].props.theme = "@matomezu/markdown:github-like"
   const store = newStore({ books: Object.values(books) })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const update = (props: Record<string, unknown>) =>

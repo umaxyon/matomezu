@@ -1,46 +1,51 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import type { Book } from "../../../web/src/core/schema/book"
-import { bookTheme, bookTokens } from "../../../web/src/plugins/base/book-look/look"
+import { pageTheme, pageTokens } from "../../../web/src/plugins/base/book-look/look"
+import { ownSettings } from "../../../web/src/plugins/base/book-settings"
 import { newStore } from "../../support"
 
 const book = (store: ReturnType<typeof newStore>) => store.state.getState().books.b1 as Book
+const page = (store: ReturnType<typeof newStore>) => pagesOf(book(store))[0]!
 const update = (store: ReturnType<typeof newStore>, args: Record<string, unknown>) =>
   store.actions.perform("@matomezu/base:book-update", args, { book: "b1" })
+const updatePage = (store: ReturnType<typeof newStore>, settings: Record<string, unknown>) =>
+  store.actions.perform("@matomezu/base:page-update", { page: "p1", settings }, { book: "b1" })
 
 const THEME = "@matomezu/base:page-theme"
 const PAPER = "@matomezu/base:page-paper-color"
-const look = (settings: Record<string, unknown>) => ({ settings })
 
-test("ブックのテーマと紙の色は base の設定の項目で、@matomezu/base:book-update の settings で変える。渡さない項目はそのまま、null で消す。表に無いテーマ・タイプが使えないテーマ・色の値でないものは断る", () => {
+test("ページのテーマと紙の色は base のページの設定の項目で、@matomezu/base:page-update の settings で変える。渡さない項目はそのまま、null で消す。表に無いテーマ・タイプが使えないテーマ・色の値でないものは断る", () => {
   const store = newStore()
-  expect(update(store, look({ [THEME]: "@matomezu/base:sticky", [PAPER]: "#FEFCE8" })).ok).toBe(true)
-  expect(book(store).settings).toEqual({ [THEME]: "@matomezu/base:sticky", [PAPER]: "#fefce8" })
-  expect(update(store, look({ [PAPER]: null })).ok).toBe(true)
-  expect(book(store).settings).toEqual({ [THEME]: "@matomezu/base:sticky" })
-  expect(update(store, look({ [THEME]: "nope" })).ok).toBe(false)
-  expect(update(store, look({ [THEME]: "@matomezu/markdown:github-like" })).ok).toBe(false) // 図のブックは文書のテーマを選べない
-  expect(update(store, look({ [PAPER]: "yellow" })).ok).toBe(false)
-  expect(update(store, look({ [THEME]: null })).ok).toBe(true)
-  expect("settings" in book(store)).toBe(false)
-  // 古い形の引数は受け付けない
-  expect(update(store, { theme: "@matomezu/base:sticky" }).ok).toBe(false)
+  expect(updatePage(store, { [THEME]: "@matomezu/base:sticky", [PAPER]: "#FEFCE8" }).ok).toBe(true)
+  expect(ownSettings(page(store))).toEqual({ [THEME]: "@matomezu/base:sticky", [PAPER]: "#fefce8" })
+  expect(updatePage(store, { [PAPER]: null }).ok).toBe(true)
+  expect(ownSettings(page(store))).toEqual({ [THEME]: "@matomezu/base:sticky" })
+  expect(updatePage(store, { [THEME]: "nope" }).ok).toBe(false)
+  expect(updatePage(store, { [THEME]: "@matomezu/markdown:github-like" }).ok).toBe(false) // 図のページは文書のテーマを選べない
+  expect(updatePage(store, { [PAPER]: "yellow" }).ok).toBe(false)
+  expect(updatePage(store, { [THEME]: null }).ok).toBe(true)
+  expect("settings" in page(store)).toBe(false)
+  // ブックはページの見た目の項目を持たない
+  expect(update(store, { settings: { [THEME]: "@matomezu/base:sticky" } }).ok).toBe(false)
 })
 
-test("ブックのテーマは、テーマの項目（無いか、表に無いか、タイプが選べなければブックのタイプの既定のテーマ）。紙の色は紙のテーマキーを上書きする。箱のテーマキーもブックのテーマで決まる", () => {
+test("ページのテーマは、テーマの項目（無いか、表に無いか、タイプが選べなければページのタイプの既定のテーマ）。紙の色は紙のテーマキーを上書きする。箱のテーマキーもページのテーマで決まる", () => {
   const store = newStore()
   const catalog = store.catalog.core
-  expect(bookTheme(catalog, book(store))).toBe("@matomezu/base:standard")
-  expect(bookTokens(catalog, book(store))["@matomezu/box:box-fill"]).toEqual({ light: "#ffffff", dark: "#ffffff" })
-  update(store, look({ [THEME]: "@matomezu/base:sticky" }))
-  expect(bookTheme(catalog, book(store))).toBe("@matomezu/base:sticky")
-  expect(bookTokens(catalog, book(store))["@matomezu/box:box-fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })
-  expect(bookTokens(catalog, book(store)).paper).toEqual({ light: "#f4efe4", dark: "#f4efe4" })
-  update(store, look({ [PAPER]: "#0f172a" }))
-  expect(bookTokens(catalog, book(store)).paper).toEqual({ light: "#0f172a", dark: "#0f172a" })
-  expect(bookTheme(catalog, { ...book(store), settings: { [THEME]: "nope" } })).toBe("@matomezu/base:standard")
+  expect(pageTheme(catalog, page(store))).toBe("@matomezu/base:standard")
+  expect(pageTokens(catalog, page(store))["@matomezu/box:box-fill"]).toEqual({ light: "#ffffff", dark: "#ffffff" })
+  updatePage(store, { [THEME]: "@matomezu/base:sticky" })
+  expect(pageTheme(catalog, page(store))).toBe("@matomezu/base:sticky")
+  expect(pageTokens(catalog, page(store))["@matomezu/box:box-fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })
+  expect(pageTokens(catalog, page(store)).paper).toEqual({ light: "#f4efe4", dark: "#f4efe4" })
+  updatePage(store, { [PAPER]: "#0f172a" })
+  expect(pageTokens(catalog, page(store)).paper).toEqual({ light: "#0f172a", dark: "#0f172a" })
+  const nope = { ...page(store), settings: { [THEME]: "nope" } }
+  expect(pageTheme(catalog, nope)).toBe("@matomezu/base:standard")
   // データに残った、タイプが使えないテーマも使わない（データは消さない）
-  const doc = { ...book(store), settings: { [THEME]: "@matomezu/markdown:github-like" } }
-  expect(bookTheme(catalog, doc)).toBe("@matomezu/base:standard")
+  const doc = { ...page(store), settings: { [THEME]: "@matomezu/markdown:github-like" } }
+  expect(pageTheme(catalog, doc)).toBe("@matomezu/base:standard")
 })
 
 test("ダイアログの下書きは、アイテムを指さなければブックそのものの下書き", () => {

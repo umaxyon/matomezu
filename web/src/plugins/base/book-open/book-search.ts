@@ -1,4 +1,3 @@
-
 import type { Book } from "../../../core/schema/book"
 
 const normalize = (s: string) => s.normalize("NFKC").toLowerCase()

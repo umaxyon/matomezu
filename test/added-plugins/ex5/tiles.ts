@@ -1,8 +1,7 @@
 // ex5 の形「タイル」: 色の札（tiles）を並べる入れ物。文字は持たない（captionProp なし）。
 // 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身のフィールドは children でなく tiles
 
-import { hasPages, putPage, z } from "matomezu"
-import { findPage, pagesOf } from "../../../web/src/core/book"
+import { findPage, putPage, z } from "matomezu"
 import { kit } from "./kit"
 
 const TILES_SIZE = { w: 160, h: 96 }
@@ -60,16 +59,13 @@ export const TILE_LIMIT_PERMISSION = kit.definePermission({
   denies: q =>
     q.kind === "book" &&
     q.action.id === TILE_ADD.id &&
-    hasPages(q.book) &&
-    tilesOn((q.pagesOf(book) as readonly TilesPage[]).find(p => p.id === q.where?.page)) >= TILE_LIMIT,
+    tilesOn(findPage(q.book, q.where?.page ?? "")?.page as TilesPage | undefined) >= TILE_LIMIT,
   // 札を足すほかのアクションも、行った後の変化で止める（変わったページの札が上限を超えたら守っていない）
-  keeps: c =>
-    c.kind !== "book" ||
-    !c.after ||
-    !hasPages(c.after) ||
-    c.changes.pages.every(
-      p => tilesOn(pagesOf(c.after as { pages: readonly TilesPage[] }).find(t => t.id === p.id)) <= TILE_LIMIT,
-    ),
+  keeps: c => {
+    if (c.kind !== "book" || !c.after) return true
+    const after = c.after
+    return c.changes.pages.every(p => tilesOn(findPage(after, p.id)?.page as TilesPage | undefined) <= TILE_LIMIT)
+  },
 })
 
 // 仕分けの道具（自分の道具の見本。ドラッグで紙をずらさず、置く道具でもない）と、ビルトインの選択とハンドに挟んだ棚の道具の組

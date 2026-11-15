@@ -1,8 +1,7 @@
 // ex2 のブックのタイプ「フロー」: 自分の形（判断のひし形）と設定の項目（流れの向き）と自分のアクションを持ち、
 // ビルトインの見せ方（紙）・箱・線・線の設定を id で選ぶ
 
-import { putPage, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
-import { findPage } from "../../../web/src/core/book"
+import { findPage, putPage, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
 
 export const DIAMOND_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "diamond-add" })
