@@ -418,7 +418,6 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
   expect(
     store.actions.perform("@matomezu/base:book-create", {
       title: "木",
-      type: "@matomezu/tree:tree",
     }),
   ).toEqual({
     ok: false,
