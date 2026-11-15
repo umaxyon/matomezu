@@ -626,7 +626,7 @@ func (e *Engine) UseAllForTest(bundles []*plugin.Bundle) (ids []string, err erro
 	return e.UseFor(bundles, nil)
 }
 
-// AI のプログラムが終わったときに常駐が行うアクションは、アクションの定義が役 runsWhenAIEnds で名乗る（Go は id を知らない）
+// 参加者のセッションが終わったときに常駐が行うアクションは、アクションの定義が役 runsWhenAIEnds で名乗る（Go は id を知らない）
 func TestEndActionsAreNamedByTheDefinition(t *testing.T) {
 	e := newEngine(t)
 	ids, err := e.EndActions()

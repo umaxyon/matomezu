@@ -49,7 +49,7 @@ import {
 } from "./at-hooks"
 import type { UiCatalog } from "./plugin"
 import { bookOf, openedOf, pageOf, useAt, useScope, useStageId } from "./scope"
-import { useScreenHere } from "./screen-context"
+import { useScreenContext } from "./screen-context"
 import {
   useCatalog,
   useControlCenter,
@@ -186,7 +186,7 @@ function usePluginPlace(
   const here = useScope()
   const closed = use === "write" && here.actsOn.kind === "none" // 向け先が無い所からは、どの範囲の値も書かない
   const stage = useStageId()
-  const screen = useScreenHere()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
+  const screen = useScreenContext()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
   return useCallback(
     given => (closed ? null : scope === "window" ? "" : scope === "screen" ? (given ?? screen) : stage),
     [scope, stage, screen, closed],
@@ -243,7 +243,7 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
 // 同じ値なら何も変わらず、ブラウザの履歴に積まない。ほかのプラグインのコードは読まず、id の文字と値だけで頼む（自分の宣言は useSetPluginState）
 export function useSetPluginStateById(): (id: string, value: unknown, at?: { screenDef?: string }) => boolean {
   const { setPluginStateById } = useInstance()
-  const here = useScreenHere()?.id
+  const here = useScreenContext()?.id
   const stage = useStageId()
   const nowhere = useScope().actsOn.kind === "none"
   return useCallback(
@@ -267,7 +267,7 @@ export function useSetPluginStates(
   const id = kit.id
   const here = useScope()
   const stage = useStageId()
-  const screen = useScreenHere()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
+  const screen = useScreenContext()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
   const nowhere = here.actsOn.kind === "none"
   return useCallback(
     changes =>
@@ -452,7 +452,7 @@ interface PropsShape<P> {
   safeParse(value: unknown): { success: true; data: P } | { success: false }
 }
 
-// 描いている場所のスクリーン（定義 def のスクリーンの中のビューが使う）: 開いた 1 枚の id・渡された値・見えているか・カレントスクリーンか。
+// 描いている場所のスクリーン（定義 def のスクリーンの中のビューが使う）: 開いた 1 枚の id・渡された値・見えているか・カレントスクリーンか（定義を問わず見えているか・カレントスクリーンかだけを知るなら useScreenHere）。
 // スクリーンの外や、ほかの定義のスクリーンの中で呼べば E126
 export function useScreen<P>(def: { id: string; props: PropsShape<P> }): {
   id: string
@@ -460,9 +460,18 @@ export function useScreen<P>(def: { id: string; props: PropsShape<P> }): {
   shown: boolean
   current: boolean
 } {
-  const here = useScreenHere()
+  const here = useScreenContext()
   if (here === null || here.def !== def.id) return fail("E126", { screen: def.id })
   return here as { id: string; props: P; shown: boolean; current: boolean }
+}
+
+// 描いている場所のスクリーンが、見えているか・カレントスクリーンか（定義を問わない。スクリーンの定義を持たないビューが、自分のいるスクリーンを知るのに使う）。
+// スクリーンの外（窓の枠のウィジェットなど）で呼べば null
+export function useScreenHere(): { shown: boolean; current: boolean } | null {
+  const here = useScreenContext()
+  const shown = here?.shown
+  const current = here?.current
+  return useMemo(() => (shown === undefined || current === undefined ? null : { shown, current }), [shown, current])
 }
 
 // 窓のスクリーン: 開いているスクリーンの並び（開いた順。1 枚ごとの id・定義の id・渡された値・見えているか・カレントスクリーンか）と、
