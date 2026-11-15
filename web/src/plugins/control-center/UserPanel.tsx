@@ -1,11 +1,14 @@
 // 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く
 import type { ReactNode } from "react"
-import { useCommand, useMessages, useScreenId } from "../../plugin-api/ui"
+import { useCommand, useMessages, useScreenId, useUiCatalog } from "../../plugin-api/ui"
 import { Band, IconButton, Panel, Tip, useMailboxPanel, useWideSearchPanel } from "../base/ui"
 import type { FrontScreen } from "./control-center"
 import { AvatarIcon, GearIcon, LibraryIcon, MailIcon, ProjectIcon, SearchIcon } from "./icons"
 import { kit } from "./kit"
 import styles from "./UserPanel.module.css"
+
+// 巣箱のボタンのコマンドの id（別のプラグインの定義は id で選ぶ。絵を引くのに使う）
+const BIRDHOUSE_COMMAND = "@matomezu/base:control-center-toggle"
 
 type Tile = { label: string; icon: ReactNode; onClick: () => void; pressed: boolean }
 
@@ -14,6 +17,8 @@ export function UserPanel({ screen, onShow }: { screen: FrontScreen; onShow: (to
   const mailbox = useMailboxPanel()
   const wideSearch = useWideSearchPanel()
   const settings = useCommand(useScreenId(), "@matomezu/base:settings-open")
+  // 題の左の巣箱の絵（見た目だけ。帯やフッターの巣箱のボタンと同じ絵を、そのコマンドの id で引く）
+  const birdhouse = useUiCatalog().commandIcons.get(BIRDHOUSE_COMMAND)
   const tiles: Tile[] = [
     { label: t("Mailbox"), icon: <MailIcon />, onClick: mailbox.toggle, pressed: mailbox.open },
     { label: t("Library"), icon: <LibraryIcon />, onClick: () => onShow("library"), pressed: screen === "library" },
@@ -23,7 +28,10 @@ export function UserPanel({ screen, onShow }: { screen: FrontScreen; onShow: (to
   return (
     <Panel>
       <Band spread>
-        <h1 className={styles.title}>{t("Control center")}</h1>
+        <h1 className={styles.title}>
+          <span className={styles.birdhouse}>{birdhouse}</span>
+          {t("Control center")}
+        </h1>
         <IconButton label={t("Global settings")} onClick={() => settings.run()}>
           <GearIcon />
         </IconButton>

@@ -47,6 +47,17 @@ const rows = (page: Page) => page.getByRole("listitem")
 const row = (page: Page, name: string) => rows(page).filter({ hasText: name })
 const roomPanel = (page: Page) => page.locator("[data-workroom-panel]")
 
+test("題の左に巣箱の絵が線の絵で出る（塗らない）。見た目だけで、押しても画面は変わらない", async ({ page }) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const title = page.getByRole("heading", { name: "コントロールセンター" })
+  const icon = title.locator("svg")
+  await expect(icon).toBeVisible()
+  expect(await icon.evaluate(e => getComputedStyle(e).fill)).toBe("none")
+  await icon.click()
+  await expect(title).toBeVisible()
+  await expect(page.getByRole("button", { name: "プロジェクト" }).first()).toHaveAttribute("aria-pressed", "true")
+})
+
 test("前に出す画面は、書庫とプロジェクトを替えるたびに履歴に積まれ、戻ると前の画面が前に出る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
