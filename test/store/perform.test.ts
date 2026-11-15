@@ -69,7 +69,7 @@ describe("アクションの入口", () => {
       newId: () => "n1",
     })
     instance.use([notes])
-    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ" })
     expect(untyped(instance.actions).perform("notes:rename", { title: "新" }, { book: "n1" })).toEqual({
       ok: true,
       result: { was: "メモ" },
@@ -89,7 +89,7 @@ describe("アクションの入口", () => {
       newId: () => "n1",
     })
     instance.use([notes])
-    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ" })
     const before = instance.state.getState().books.n1
     expect(untyped(instance.actions).perform("notes:break", {}, { book: "n1" })).toEqual({
       ok: false,
@@ -111,7 +111,7 @@ describe("アクションの入口", () => {
       },
     })
     instance.use([notes])
-    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ" })
     untyped(instance.actions).perform("notes:stamp", {}, { book: "n1" })
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
     expect(done.at(-1)).toMatchObject({ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" })
@@ -132,7 +132,7 @@ describe("アクションの入口", () => {
       },
     })
     instance.use([notes])
-    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ" })
     untyped(instance.actions).perform("notes:stamp", {}, { book: "n1" })
     const good = done.at(-1)!
     const bad = {
@@ -159,7 +159,7 @@ describe("アクションの入口", () => {
         ),
     })
     instance.use([notes])
-    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ" })
     const act = untyped(instance.actions)
     act.perform("notes:rename", { title: "通る" }, { book: "n1" })
     await Promise.resolve()
@@ -182,7 +182,7 @@ describe("アクションの入口", () => {
 
   test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
     const { state, actions } = newStore({ newId: () => "made" })
-    createBookIn({ state, actions }, "s1", { title: "空", type: "@matomezu/drawing:drawing" })
+    createBookIn({ state, actions }, "s1", { title: "空" })
     actions.split("s1")
     actions.openBook("s2", "made")
     const done = actions.perform("@matomezu/base:page-add", { title: "最初" }, { book: "made" })
@@ -193,7 +193,7 @@ describe("アクションの入口", () => {
   test("宛先のブックが無い・タイプが許さない・引数の形が違うときは断り、状態を変えない", () => {
     const instance = newStore({ newId: () => "n1" })
     instance.use([notes])
-    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ" })
     const { state, actions } = instance
     const before = state.getState()
     expect(actions.perform("@matomezu/base:page-add", { title: "x" }, { book: "nope" })).toEqual({

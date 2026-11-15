@@ -32,11 +32,11 @@ const make = () => {
 // フローのブックを作って開き、ページを 1 つ足す
 const flow = (instance: ReturnType<typeof make>) => {
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "フロー", type: "ex2:flow" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "フロー" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex2:flow", title: "p1" })).toBe(true)
   })
   const page = () =>
     pagesOf(
@@ -138,11 +138,11 @@ test("追加のダイアログで置き、編集のダイアログで答える�
 test("判断のひし形は、選んでいないビルトインのタイプ（図面）のブックには置けない", () => {
   const instance = make()
   act(() => {
-    createBookIn(instance, "s1", { title: "図面", type: "@matomezu/drawing:drawing" })
+    createBookIn(instance, "s1", { title: "図面" })
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    addPageIn(instance, "s1", { title: "p1" })
+    addPageIn(instance, "s1", { type: "@matomezu/drawing:drawing", title: "p1" })
   })
   const page = pagesOf(instance.state.getState().books[book] as { pages: readonly { id: string }[] })[0]!
   const r = instance.actions.perform(

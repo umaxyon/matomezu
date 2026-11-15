@@ -10,7 +10,7 @@ test("ページを足すと、そのステージのブックに入り、その�
   const { state, actions } = newStore()
   actions.split("s1")
   actions.openBook("s2", "b1")
-  addPageIn({ state, actions }, "s2", { title: "ページ 2" })
+  addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   const s = state.getState()
   expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "n1" }] })
   expect(screenOf(s.window).stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "n1" }])
@@ -19,7 +19,7 @@ test("ページを足すと、そのステージのブックに入り、その�
 
 test("ページを開くのは指定したステージで、そのステージがカレントになる", () => {
   const { state, actions } = newStore()
-  addPageIn({ state, actions }, "s1", { title: "ページ 2" })
+  addPageIn({ state, actions }, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   actions.split("s1")
   actions.openBook("s2", "b1")
   actions.openPage("s2", "p1")
@@ -69,15 +69,15 @@ test("ブックを開いていないステージには、ページは足せな�
     "@matomezu/drawing:drawing",
     undefined,
   ])
-  expect(addPageIn({ state, actions }, "s2", { title: "x" })).toBe(false)
+  expect(addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "x" })).toBe(false)
   expect(state.getState()).toBe(s)
 })
 
 test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
   const { state, actions } = newStore({ newId: () => "made" })
   actions.split("s1")
-  expect(createBookIn({ state, actions }, "s2", { title: " ", type: "@matomezu/drawing:drawing" })).toBe(false)
-  expect(createBookIn({ state, actions }, "s2", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
+  expect(createBookIn({ state, actions }, "s2", { title: " " })).toBe(false)
+  expect(createBookIn({ state, actions }, "s2", { title: "新しい図" })).toBe(true)
   const s = state.getState()
   expect(s.books.made).toEqual(
     pagesBook({
@@ -94,7 +94,12 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
     paper: null,
   })
   expect(screenOf(s.window).current).toBe("s2")
-  addPageIn({ state, actions }, "s2", { title: "最初", paper: "@matomezu/base:a3", orientation: "portrait" })
+  addPageIn({ state, actions }, "s2", {
+    type: "@matomezu/drawing:drawing",
+    title: "最初",
+    paper: "@matomezu/base:a3",
+    orientation: "portrait",
+  })
   expect(screenOf(state.getState().window).stages[1]!.opened).toMatchObject({
     page: "made",
     paper: { size: { w: 1123, h: 1587 } },
@@ -125,13 +130,13 @@ test("言語とスキンの設定を変える（書いた項目だけ変わり�
 
 test("ページの無いブックを 2 つのステージで開いて最初のページを作ると、どちらのステージもそのページを開く", () => {
   const { state, actions } = newStore()
-  createBookIn({ state, actions }, "s1", { title: "空", type: "@matomezu/drawing:drawing" })
+  createBookIn({ state, actions }, "s1", { title: "空" })
   actions.split("s1")
   actions.openBook("s2", "n1")
-  addPageIn({ state, actions }, "s2", { title: "最初" })
+  addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "最初" })
   expect(screenOf(state.getState().window).stages.map(st => shownPageId(st.opened ?? null))).toEqual(["n2", "n2"])
   // ほかのページを見ているステージは変えない
-  addPageIn({ state, actions }, "s2", { title: "次" })
+  addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "次" })
   expect(screenOf(state.getState().window).stages.map(st => shownPageId(st.opened ?? null))).toEqual(["n2", "n3"])
 })
 

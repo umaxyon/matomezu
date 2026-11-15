@@ -14,11 +14,11 @@ test("答える形の無いページの重さは 0", () => {
     lang: "ja",
   })
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "図" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "@matomezu/drawing:drawing", title: "p1" })).toBe(true)
   })
   const on = { book }
   const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: readonly { id: string }[] })[0]!.id

@@ -26,7 +26,7 @@ function open(type: string) {
     </MatomezuProvider>,
   )
   act(() => {
-    createBookIn(instance, "s1", { title: "ブック", type: type as never })
+    createBookIn(instance, "s1", { title: "ブック" })
   })
   const book = Object.keys(instance.state.getState().books)[0] as string
   const add = (title: string) =>

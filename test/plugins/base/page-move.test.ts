@@ -9,8 +9,8 @@ import { newStore } from "../../support"
 function setup() {
   const store = newStore()
   const book = () => store.state.getState().books.b1 as Book
-  addPageIn(store, "s1", { title: "ページ 2" })
-  addPageIn(store, "s1", { title: "ページ 3" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 3" })
   const ids = pagesOf(book()).map(p => p.id)
   const order = () => pagesOf(book()).map(p => ids.indexOf(p.id))
   const move = (page: number, index?: number) =>

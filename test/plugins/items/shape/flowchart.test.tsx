@@ -21,11 +21,11 @@ afterEach(cleanup)
 function flowchart() {
   const store = renderScreen()
   act(() => {
-    expect(createBookIn(store, "s1", { title: "流れ", type: "@matomezu/flowchart:flowchart" })).toBe(true)
+    expect(createBookIn(store, "s1", { title: "流れ" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   act(() => {
-    expect(addPageIn(store, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(store, "s1", { type: "@matomezu/flowchart:flowchart", title: "p1" })).toBe(true)
   })
   const book = () => store.state.getState().books[id] as Book
   const page = () => pagesOf(book())[0]!

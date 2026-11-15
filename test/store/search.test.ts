@@ -13,8 +13,9 @@ import { newStore } from "../support"
 
 function markdownStore(texts: readonly string[]) {
   const store = newStore()
-  createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
-  for (const [i, text] of texts.entries()) addPageIn(store, "s1", { title: `p${i + 1}`, fields: { text } })
+  createBookIn(store, "s1", { title: "メモ" })
+  for (const [i, text] of texts.entries())
+    addPageIn(store, "s1", { title: `p${i + 1}`, fields: { type: "@matomezu/markdown:markdown", text } })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
   const book = () => store.state.getState().books[id] as Book
   const pages = () => pagesOf(book()).map(p => p.id)

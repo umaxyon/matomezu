@@ -19,7 +19,7 @@ function setup() {
     controlCenter: "@matomezu/control-center:control-center",
     newId: sequence(),
   })
-  createBookIn(instance, "s1", { title: "スライド", type: "@matomezu/slide-book:slide" as never })
+  createBookIn(instance, "s1", { title: "スライド" })
   const book = Object.keys(instance.state.getState().books).find(
     id => (instance.state.getState().books[id] as { type: string }).type === "@matomezu/slide-book:slide",
   ) as string

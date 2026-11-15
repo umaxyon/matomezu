@@ -34,11 +34,11 @@ const shelf = () => {
     </MatomezuProvider>,
   )
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "棚", type: "ex5:shelf" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "棚" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex5:shelf", title: "p1" })).toBe(true)
   })
   const on = { book }
   const page = () => pagesOf(instance.state.getState().books[book] as unknown as { pages: Page[] })[0]!

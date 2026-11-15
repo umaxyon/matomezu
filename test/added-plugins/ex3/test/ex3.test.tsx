@@ -32,11 +32,11 @@ const make = () => {
 
 const board = (instance: ReturnType<typeof make>) => {
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "ボード", type: "ex3:board" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "ボード" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex3:board", title: "p1" })).toBe(true)
   })
   const page = () =>
     pagesOf(
@@ -83,7 +83,7 @@ test("ボードは自分の紙（正方形）で始まり、星とビルトイ�
 test("既定のテーマはミントで、置いてほしいと書いたボタンで、開いているブックをミントにする", () => {
   const instance = make()
   act(() => {
-    createBookIn(instance, "s1", { title: "図面", type: "@matomezu/drawing:drawing" })
+    createBookIn(instance, "s1", { title: "図面" })
   })
   const book = (openedIn(instance) as { book: string }).book
   fireEvent.click(screen.getByRole("button", { name: "ミントにする" }))

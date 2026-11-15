@@ -1,4 +1,5 @@
 // スライドのブックのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブは出ない
+import { pagesBook } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 
 const page3 = (id: string, title: string) => ({
@@ -21,12 +22,12 @@ const page3 = (id: string, title: string) => ({
 
 test.use({
   books: [
-    {
+    pagesBook({
       type: "@matomezu/slide-book:slide",
       id: "b1",
       title: "スライド",
       pages: [page3("p1", "一枚目"), page3("p2", "二枚目"), page3("p3", "三枚目")],
-    },
+    }),
   ],
 })
 
@@ -80,12 +81,12 @@ test("右クリックで、ここに追加・複製・削除ができる（削�
 test.describe("ロック中のページ", () => {
   test.use({
     books: [
-      {
+      pagesBook({
         type: "@matomezu/slide-book:slide",
         id: "b1",
         title: "スライド",
         pages: [page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }],
-      },
+      }),
     ],
   })
 
@@ -106,7 +107,7 @@ test.describe("ロック中のページ", () => {
 
 test.describe("ページが 0 枚", () => {
   test.use({
-    books: [{ type: "@matomezu/slide-book:slide", id: "b1", title: "スライド", pages: [] }],
+    books: [pagesBook({ type: "@matomezu/slide-book:slide", id: "b1", title: "スライド", pages: [] })],
   })
 
   test("ページ一覧の＋で、ダイアログ無しで「（無題）」のページを足せる", async ({ page }) => {

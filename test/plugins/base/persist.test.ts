@@ -63,7 +63,7 @@ test("メモリのホストは残したものを次に読む", async () => {
   const host = memoryClient([])
   const store = newStore({ books: [], savedBooks: (await host.load()).books })
   host.connect(store)
-  createBookIn(store, "s1", { title: "新しいブック", type: "@matomezu/drawing:drawing" })
+  createBookIn(store, "s1", { title: "新しいブック" })
   store.actions.perform("@matomezu/base:settings-set", { values: { [SKIN]: "@matomezu/base:dark" } }).ok
   const again = await host.load()
   expect(again.books).toContainEqual(expect.objectContaining({ title: "新しいブック" }))

@@ -1,3 +1,4 @@
+import { pagesBook } from "../test/lineup"
 // e2e が初めに置くブック: 図面のブック 8 冊（どれも A4 横のページが 1 つ）。テストは、置く前にホストを空にして、これを置き直す
 const TITLES = [
   "まとめ図の構想",
@@ -10,9 +11,9 @@ const TITLES = [
   "Design Notes",
 ]
 
-export const E2E_BOOKS = TITLES.map((title, i) => ({
+export const E2E_BOOKS = TITLES.map((title, i) => (pagesBook({
   type: "@matomezu/drawing:drawing",
   id: `b${i + 1}`,
   title,
   pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
-}))
+})))

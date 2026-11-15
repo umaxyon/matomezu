@@ -10,7 +10,7 @@ import { newStore } from "../../support"
 
 function ready() {
   const store = newStore()
-  expect(createBookIn(store, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
+  expect(createBookIn(store, "s1", { title: "図" })).toBe(true)
   const books = store.state.getState().books as Readonly<Record<string, Book>>
   const id = Object.keys(books).at(-1)!
   return { books, id }
@@ -32,8 +32,8 @@ test("ページを指しているときは、そのページがブックに無�
 
 test("物を指しているときは、1 つでも今もあれば true、どれも無ければ false", () => {
   const store = newStore()
-  expect(createBookIn(store, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
-  expect(addPageIn(store, "s1", { title: "p" })).toBe(true)
+  expect(createBookIn(store, "s1", { title: "図" })).toBe(true)
+  expect(addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "p" })).toBe(true)
   const id = Object.keys(store.state.getState().books).at(-1)!
   const page = pagesOf(store.state.getState().books[id] as unknown as { pages: { id: string }[] })[0]?.id ?? ""
   const placed = store.actions.perform(

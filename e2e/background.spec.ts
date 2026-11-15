@@ -1,5 +1,6 @@
 // 背景（ページの slide）: 図面のブックで、中身の下に敷かれ、ふだんは触れない。フッタの「背景を編集」ボタンかページの右クリックのメニューで背景編集モードに入ると、
 // 中身が薄くなって触れず、ページタブが消え、帯が出て、背景の形を選んで直せる。終了・ボタンをもう一度・Escape で出る。印刷には、中身の載った印刷区画にだけ背景が出る（印刷対象で変えられる）
+import { pagesBook } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { addBox, items, onPaper } from "./helpers/paper"
@@ -17,7 +18,7 @@ const backdrop = {
 
 test.use({
   books: [
-    {
+    pagesBook({
       type: "@matomezu/drawing:drawing",
       id: "b1",
       title: "図面",
@@ -25,7 +26,7 @@ test.use({
         { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape", slide: [backdrop] },
         { id: "p2", title: "ページ 2", paper: "@matomezu/base:a4", orientation: "landscape", slide: [backdrop] },
       ],
-    },
+    }),
   ],
 })
 

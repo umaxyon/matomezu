@@ -1,4 +1,5 @@
 // 背景の印刷「必ず」: 可変ページで、中身の外枠の外にある背景だけの印刷区画も、印刷プレビューに並ぶ（「中身があれば」では並ばない）
+import { pagesBook } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -12,7 +13,7 @@ const farEllipse = {
   props: { fill: "#f6c177", stroke: "#286983", width: 3 },
 }
 
-const bookWith = (settings: object) => ({
+const bookWith = (settings: object) => (pagesBook({
   type: "@matomezu/drawing:drawing",
   id: "b1",
   title: "図面",
@@ -28,7 +29,7 @@ const bookWith = (settings: object) => ({
       slide: [farEllipse],
     },
   ],
-})
+}))
 
 test.describe("必ず", () => {
   test.use({ books: [bookWith({ "@matomezu/base:background-print": "always" })] })

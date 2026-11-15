@@ -1,6 +1,7 @@
 // スクラップ: 紙の右クリックの「スクラップを切り抜く」で、範囲（はじめはページ全体）を決めてスクラップトレイに入れると、左サイドパネルのスクラップトレイが開く。
 // スクラップトレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。スクラップトレイには残り、× で消える。
 // 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、枠線を切り替えられる。大きさは、四隅のつまみで比を保って変える
+import { pagesBook } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { leftPanel } from "./helpers/outbox"
 import { addBox, items, onPaper, paper } from "./helpers/paper"
@@ -16,12 +17,12 @@ async function openScrapTray(page: Page) {
 // ページの id はブックをまたいで重ならない（スクラップはページの id だけで指す）。共有の見本はどのブックも p1 なので、ここでは自分のブックを置く
 test.use({
   books: [
-    {
+    pagesBook({
       type: "@matomezu/drawing:drawing",
       id: "scrap-book",
       title: "まとめ図の構想",
       pages: [{ id: "scrap-page", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
-    },
+    }),
   ],
 })
 
@@ -102,7 +103,7 @@ test.describe("マークダウンのページ", () => {
     // 2 冊の並びは、値と設定の組 [値, {}] で渡す（そのままだと 2 冊目を設定と読む）
     books: [
       [
-        {
+        pagesBook({
           type: "@matomezu/markdown:markdown",
           id: "scrap-md",
           title: "メモ",
@@ -115,13 +116,13 @@ test.describe("マークダウンのページ", () => {
               text: "# 見出しの字\n\n本文の字です。",
             },
           ],
-        },
-        {
+        }),
+        pagesBook({
           type: "@matomezu/drawing:drawing",
           id: "scrap-to",
           title: "置き先",
           pages: [{ id: "scrap-to-page", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
-        },
+        }),
       ],
       {},
     ],
@@ -162,7 +163,7 @@ test.describe("マークダウンのページ", () => {
 test.describe("ツリーのページ", () => {
   test.use({
     books: [
-      {
+      pagesBook({
         type: "@matomezu/tree:tree",
         id: "scrap-tree",
         title: "木",
@@ -175,7 +176,7 @@ test.describe("ツリーのページ", () => {
             root: { id: "r", caption: "根の字", children: [] },
           },
         ],
-      },
+      }),
     ],
   })
 

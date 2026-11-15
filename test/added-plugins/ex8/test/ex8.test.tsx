@@ -31,11 +31,11 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
     </MatomezuProvider>,
   )
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "単語帳", type: "ex8:deck" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "単語帳" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex8:deck", title: "1" })).toBe(true)
   })
   expect(document.querySelector("[data-ex8-deck] p")?.textContent).toBe("カードがありません")
   const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: { id: string }[] })[0]!.id
@@ -74,8 +74,8 @@ test("カードの並べ方は画面の場所に入り（読み直しても戻�
     </MatomezuProvider>,
   )
   act(() => {
-    createBookIn(instance, "s1", { title: "単語帳", type: "ex8:deck" })
-    addPageIn(instance, "s1", { title: "1" })
+    createBookIn(instance, "s1", { title: "単語帳" })
+    addPageIn(instance, "s1", { type: "ex8:deck", title: "1" })
   })
   const book = (openedIn(instance) as { book: string }).book
   const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: { id: string }[] })[0]!.id

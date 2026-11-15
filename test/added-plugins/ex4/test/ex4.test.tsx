@@ -40,11 +40,11 @@ interface Page {
 const map = () => {
   const instance = make()
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "関係図", type: "ex4:map" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "関係図" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex4:map", title: "p1" })).toBe(true)
   })
   const on = { book }
   const page = () => pagesOf(instance.state.getState().books[book] as unknown as { pages: Page[] })[0]!

@@ -1,4 +1,5 @@
 import { pagesOf } from "../../web/src/core/book"
+import { pagesBook } from "../../test/lineup"
 import { E2E_BOOKS } from "../books"
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { addBox } from "../helpers/paper"
@@ -132,7 +133,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
 })
 
 // 線のあるブック: 箱 a・b・c と、a から b（終点に矢印・キャプション）・a から c・b から c の線
-const LINE_BOOK = {
+const LINE_BOOK = pagesBook({
   type: "@matomezu/drawing:drawing",
   id: "e2e-line",
   title: "線",
@@ -158,7 +159,7 @@ const LINE_BOOK = {
       ],
     },
   ],
-}
+})
 
 test("線は箱より手前に描かれ、選択の道具で押すと選ばれ、Delete と右クリックのメニューで消せる。箱を消すと、つながる線も消える", async ({
   page,

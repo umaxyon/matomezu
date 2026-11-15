@@ -30,8 +30,8 @@ function setup() {
     </MatomezuProvider>,
   )
   act(() => {
-    createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
-    addPageIn(store, "s1", { title: "ページ 1" })
+    createBookIn(store, "s1", { title: "メモ" })
+    addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 1" })
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as Book

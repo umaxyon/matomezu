@@ -14,7 +14,7 @@ afterEach(cleanup)
 function setup() {
   const store = renderScreen()
   act(() => {
-    expect(createBookIn(store, "s1", { title: "構成", type: "@matomezu/dir:dir" })).toBe(true)
+    expect(createBookIn(store, "s1", { title: "構成" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }

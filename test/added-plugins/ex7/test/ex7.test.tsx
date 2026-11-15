@@ -16,11 +16,11 @@ test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重
     lang: "ja",
   })
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "置き場", type: "ex7:yard" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "置き場" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex7:yard", title: "p1" })).toBe(true)
   })
   const on = { book }
   const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: readonly { id: string }[] })[0]!.id

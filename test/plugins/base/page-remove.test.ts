@@ -12,8 +12,8 @@ test("@matomezu/base:page-remove はページを消し、開いていたステ�
   const store = newStore()
   const { state, actions } = store
   const book = () => state.getState().books.b1 as Book
-  addPageIn(store, "s1", { title: "ページ 2" })
-  addPageIn(store, "s1", { title: "ページ 3" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 3" })
   const [first, second, third] = pagesOf(book()).map(p => p.id) as [string, string, string]
   actions.openPage("s1", second)
   expect(actions.perform("@matomezu/base:page-remove", { page: second }, { book: "b1" }).ok).toBe(true)

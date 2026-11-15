@@ -29,8 +29,8 @@ import { newStore } from "../support"
 
 const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
   const store = newStore(options)
-  createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
-  addPageIn(store, "s1", { title: "ページ 1" })
+  createBookIn(store, "s1", { title: "メモ" })
+  addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 1" })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
   const book = () => store.state.getState().books[id] as Book
   return { store, id, book }
@@ -276,7 +276,7 @@ test("ほかのタイプのブックでは、ペインの並べ方のコマン�
 test("ページを切り替えても、紙を変えても、ステージに紙を置かない。紙で決まる倍率・道具のアイコンのコマンドは出さない", () => {
   const { store, id, book } = markdownStore()
   const { state, actions } = store
-  addPageIn(store, "s1", { title: "ページ 2" })
+  addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 2" })
   const [first, second] = pagesOf(book()).map(p => p.id) as [string, string]
   expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened ?? null)).toBe(second)
   actions.openPage("s1", first)

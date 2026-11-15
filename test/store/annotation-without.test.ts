@@ -31,7 +31,7 @@ function ready() {
     newId: () => "n1",
   })
   store.use([definePlugin({ id: "plain", pageTypes: [PLAIN] })])
-  createBookIn(store, "s1", { title: "メモ", type: "plain:note" as never })
+  createBookIn(store, "s1", { title: "メモ" })
   return store
 }
 

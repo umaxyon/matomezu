@@ -29,7 +29,7 @@ test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテ
     </MatomezuProvider>,
   )
   act(() => {
-    createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
+    createBookIn(store, "s1", { title: "メモ" })
   })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
   act(() => {

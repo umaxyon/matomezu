@@ -56,7 +56,7 @@ describe("スライドのレイヤー", () => {
       </MatomezuProvider>,
     )
     act(() => {
-      createBookIn(instance, "s1", { title: "背景", type: "back:back" as never })
+      createBookIn(instance, "s1", { title: "背景" })
     })
     expect(screen.getByText("back view")).toBeTruthy()
     expect(layer()).toBeNull() // ページが無い間は描かない

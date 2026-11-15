@@ -38,7 +38,7 @@ test("ロック中のページは変えられず消せない。ほかのペー�
   const store = newStore()
   const { state, actions } = store
   const book = () => state.getState().books.b1 as Drawing
-  addPageIn(store, "s1", { title: "ページ 2" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   const [first, second] = pagesOf(book()).map(p => p.id) as [string, string]
   expect(actions.perform("@matomezu/base:page-lock", { page: first }, { book: "b1" }).ok).toBe(true)
   expect(pagesOf(book())[0]?.locked).toBe(true)
@@ -106,7 +106,7 @@ test("変える所を言わないアクションは、行う前にはページ�
 test("ロック中は、行うアクションをどれも認可ステップに止められるコマンドを押せない。設定のダイアログはロックを外すために押せる", () => {
   const store = newStore()
   const { state, actions } = store
-  addPageIn(store, "s1", { title: "ページ 2" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   const enabled = (id: CommandId) => isEnabled(store, state.getState(), "s1", id)
   // 箱を置こうとしている（paper-place を出す）
   const placing = () => {

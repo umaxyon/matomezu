@@ -1,4 +1,5 @@
 // ツリーとディレクトリ構成図の背景の印刷: ブックの設定に「背景の印刷」が出て、「必ず」にすると背景だけの印刷区画も印刷プレビューに並ぶ
+import { pagesBook } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -12,7 +13,7 @@ const farEllipse = {
   props: { fill: "#f6c177", stroke: "#286983", width: 3 },
 }
 
-const treeBook = (settings: object) => ({
+const treeBook = (settings: object) => (pagesBook({
   type: "@matomezu/tree:tree",
   id: "t1",
   title: "木",
@@ -28,9 +29,9 @@ const treeBook = (settings: object) => ({
       slide: [farEllipse],
     },
   ],
-})
+}))
 
-const dirBook = (settings: object) => ({
+const dirBook = (settings: object) => (pagesBook({
   type: "@matomezu/dir:dir",
   id: "d1",
   title: "構成",
@@ -46,7 +47,7 @@ const dirBook = (settings: object) => ({
       slide: [{ ...farEllipse, x: 200, y: 1500 }],
     },
   ],
-})
+}))
 
 const SETTING = "@matomezu/base:background-print"
 

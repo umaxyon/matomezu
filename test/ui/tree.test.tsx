@@ -23,7 +23,7 @@ afterEach(cleanup)
 function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   const store = renderScreen({ plugins })
   act(() => {
-    expect(createBookIn(store, "s1", { title: "木", type: "@matomezu/tree:tree" })).toBe(true)
+    expect(createBookIn(store, "s1", { title: "木" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }
@@ -76,7 +76,9 @@ test("新しいページの伸びる向きは「ブック継承」から始ま�
 test("ページとブックの設定のダイアログで伸びる向きを選ぶと、確定の前から並べ直して見せ、キャンセルで元に戻す", () => {
   const { store, id } = setup()
   act(() => {
-    expect(addPageIn(store, "s1", { title: "p1", fields: { root: { caption: "根" } } })).toBe(true)
+    expect(
+      addPageIn(store, "s1", { title: "p1", fields: { root: { type: "@matomezu/tree:tree", caption: "根" } } }),
+    ).toBe(true)
   })
   const page = pagesOf(store.state.getState().books[id] as { pages: readonly { id: string }[] })[0]!.id
   const top = () =>
@@ -104,7 +106,9 @@ test("ページとブックの設定のダイアログで伸びる向きを選�
 test("ツリーの道具の組は編集とハンド（初めは編集）。編集の道具の間は紙をずらさない", () => {
   const { store } = setup()
   act(() => {
-    expect(addPageIn(store, "s1", { title: "p1", fields: { root: { caption: "根" } } })).toBe(true)
+    expect(
+      addPageIn(store, "s1", { title: "p1", fields: { root: { type: "@matomezu/tree:tree", caption: "根" } } }),
+    ).toBe(true)
   })
   expect(toolsIn(store.catalog.core, "@matomezu/tree:tree")).toEqual(["@matomezu/tree:edit", "@matomezu/base:hand"])
   expect(keepsPan(store.catalog.core, "@matomezu/tree:edit")).toBe(true)
@@ -116,7 +120,7 @@ test("ツリーの道具の組は編集とハンド（初めは編集）。編�
 test("根を渡さずにページは作れない（根はツリーのページのフィールド）", () => {
   const { store } = setup()
   act(() => {
-    expect(addPageIn(store, "s1", { title: "p1" })).toBe(false)
+    expect(addPageIn(store, "s1", { type: "@matomezu/tree:tree", title: "p1" })).toBe(false)
   })
 })
 
