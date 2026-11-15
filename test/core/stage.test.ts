@@ -22,7 +22,7 @@ import {
   zoomTo,
 } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
-import { pagesBook } from "../lineup"
+import { pagesBook, withPages } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 describe("stage", () => {
@@ -127,7 +127,7 @@ describe("stage", () => {
   })
 
   test("ページの無いブックを開くと、ページも紙も開かず、ずらせない", () => {
-    const opened = openBook(CORE_CATALOG, resize(stage, small), { ...paged, id: "b0", pages: [] })
+    const opened = openBook(CORE_CATALOG, resize(stage, small), withPages({ ...paged, id: "b0" }, []))
     expect(opened.opened).toEqual({ type: "@matomezu/drawing:drawing", book: "b0", page: null, paper: null })
     expect(placement(opened)).toBeNull()
     expect(panBy(opened, -10, -10)).toBe(opened)
@@ -168,7 +168,7 @@ test("見せ方が知らせた広さ（可変ページ）は、紙の枠とず�
   expect(areaOf(back)).toEqual(sheet)
   expect(back.pan.y).toBe(300 - contentSize(sheet, 1).h)
   // 開いているページの紙が変われば、知らせた広さは捨てる（知らせ直すまで紙 1 枚）
-  const a3 = { ...book, pages: [{ ...pagesOf(book)[0]!, paper: "@matomezu/base:a3" }] }
+  const a3 = withPages(book, [{ ...pagesOf(book)[0]!, paper: "@matomezu/base:a3" }])
   expect(areaOf(followBook(CORE_CATALOG, grown, a3))).toEqual(paperOf(followBook(CORE_CATALOG, grown, a3)))
 })
 
@@ -185,7 +185,7 @@ test("開いているページの中身をずらした（ページの shift が�
   const start = setArea(resize(openBook(CORE_CATALOG, newStage("s1"), book), view), { w: sheet.w * 3, h: sheet.h * 3 })
   const at = panBy(start, -sheet.w, -sheet.h) // 2 つ目の印刷区画の左上あたりを見ている
   // 右へ印刷区画 1 つ分、下へは動かさずにずらす
-  const shifted = followBook(CORE_CATALOG, at, { ...book, pages: [{ ...page, shift: { x: 1, y: 0 } }] })
+  const shifted = followBook(CORE_CATALOG, at, withPages(book, [{ ...page, shift: { x: 1, y: 0 } }]))
   expect(shifted.pan).toEqual({ x: at.pan.x - sheet.w, y: at.pan.y })
   expect(areaOf(shifted)).toEqual({ w: sheet.w * 4, h: sheet.h * 3 })
   // 詰めて戻せば、パンも戻る
@@ -266,7 +266,7 @@ test("開いていたページが無くなって隣のページを開いたと�
   const area = { w: sheet.w * 2, h: sheet.h * 2 }
   const start = { x: sheet.w, y: sheet.h }
   const settledAt = panBy(setStart(setArea(opened, area), start), 50, 50)
-  const removed = followBook(CORE_CATALOG, settledAt, { ...book, pages: [p2] }, book)
+  const removed = followBook(CORE_CATALOG, settledAt, withPages(book, [p2]), book)
   expect([shownPageId(removed.opened ?? null), removed.starting, removed.pan]).toEqual(["p2", true, { x: 0, y: 0 }])
   expect(setStart(setArea(removed, area), start).pan).toEqual({ x: -sheet.w, y: -sheet.h })
   // 印刷プレビューを開けば印を下ろし、閉じて知らせが届いても合わせない

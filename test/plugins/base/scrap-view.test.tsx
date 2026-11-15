@@ -6,7 +6,7 @@ import { ScrapView } from "../../../web/src/plugins/base/scrap/ScrapView"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
-import { pagesBook } from "../../lineup"
+import { pagesBook, withPages } from "../../lineup"
 
 afterEach(cleanup)
 
@@ -78,7 +78,7 @@ describe("スクラップの中（ScrapView）", () => {
   })
 
   test("指したページが無いか、同じ id のページが 2 つのブックにあれば、枠だけを描く（無い）", () => {
-    const twin = (id: string) => ({ ...Y, id, pages: [{ ...Y.pages[0]!, id: "twin" }] })
+    const twin = (id: string) => withPages({ ...Y, id }, [{ ...Y.pages[0]!, id: "twin" }])
     const { wrap } = setup([twin("t1"), twin("t2")])
     const { container } = render(
       wrap(
@@ -92,7 +92,9 @@ describe("スクラップの中（ScrapView）", () => {
   })
 
   test("可変ページの中身を右・下へずらしたら、ずらした印刷区画の分だけ先を描く", () => {
-    const shiftedBook = { ...X, id: "g", pages: [{ ...X.pages[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } }] }
+    const shiftedBook = withPages({ ...X, id: "g" }, [
+      { ...X.pages[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } },
+    ])
     const { wrap } = setup([shiftedBook])
     const { container } = render(
       wrap(<ScrapView scrap={{ page: "pg", area: { x: 20, y: 30, w: 400, h: 200 }, scale: 1 }} />),

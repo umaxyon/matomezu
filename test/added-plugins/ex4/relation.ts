@@ -42,7 +42,6 @@ export const MAP = kit.definePageType({
   version: 1,
   title: "map",
   schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },

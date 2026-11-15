@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { deniedBy, inspect } from "../../web/src/core/inspect"
+import { withPages } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 
@@ -23,10 +24,10 @@ describe("inspect: アクションの許可", () => {
       inspect(CORE_CATALOG, { kind: "action", actor: USER, action: "@matomezu/base:book-unlock", book: locked }).value,
     ).toBe(true)
     const page = drawing.pages[0]!.id
-    const pageLocked = {
-      ...drawing,
-      pages: drawing.pages.map((p, i) => (i === 0 ? { ...p, locked: true as const } : p)),
-    }
+    const pageLocked = withPages(
+      drawing,
+      drawing.pages.map((p, i) => (i === 0 ? { ...p, locked: true as const } : p)),
+    )
     const update = { kind: "action", actor: USER, action: "@matomezu/base:page-update", book: pageLocked } as const
     expect(inspect(CORE_CATALOG, { ...update, where: { page } })).toMatchObject({ value: false, decidedBy: lock })
     expect(inspect(CORE_CATALOG, update).value).toBe(true)

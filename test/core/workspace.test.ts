@@ -18,7 +18,7 @@ import {
   split,
   unsplit,
 } from "../../web/src/core/workspace"
-import { pagesBook } from "../lineup"
+import { pagesBook, withPages } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 describe("workspace", () => {
@@ -89,9 +89,9 @@ describe("workspace", () => {
   test("ブックが変わると、開いているステージを合わせる。開いていたページが無くなれば最初のページ、紙が変われば紙を決め直す", () => {
     const two = showPage(CORE_CATALOG, split(ws, "s2"), "s1", book, "p2")
     const both = mapStage(two, "s2", s => ({ ...s, opened: two.stages[0]!.opened }))
-    const removed = { ...book, pages: [pagesOf(book)[0]!] }
+    const removed = withPages(book, [pagesOf(book)[0]!])
     expect(followBook(CORE_CATALOG, both, removed).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["p1", "p1"])
-    const a3 = { ...book, pages: [pagesOf(book)[0]!, { ...pagesOf(book)[1]!, paper: "@matomezu/base:a3" }] }
+    const a3 = withPages(book, [pagesOf(book)[0]!, { ...pagesOf(book)[1]!, paper: "@matomezu/base:a3" }])
     expect(followBook(CORE_CATALOG, both, a3).stages[0]!.opened?.paper).toMatchObject({
       status: "known",
       size: { w: 1587, h: 1123 },
@@ -101,12 +101,16 @@ describe("workspace", () => {
 
   test("変わる前のブックを渡すと、開いていたページが無くなったときは隣のページ（後ろ、無ければ前）を開く", () => {
     const page = (id: string) => ({ ...pagesOf(book)[0]!, id })
-    const three = { ...book, pages: [page("p1"), page("p2"), page("p3")] }
+    const three = withPages(book, [page("p1"), page("p2"), page("p3")])
     const at = (id: string) => showPage(CORE_CATALOG, ws, "s1", three, id)
-    const without = (id: string) => ({ ...three, pages: three.pages.filter(p => p.id !== id) })
+    const without = (id: string) =>
+      withPages(
+        three,
+        three.pages.filter(p => p.id !== id),
+      )
     expect(followBook(CORE_CATALOG, at("p2"), without("p2"), three).stages[0]!.opened?.page).toBe("p3")
     expect(followBook(CORE_CATALOG, at("p3"), without("p3"), three).stages[0]!.opened?.page).toBe("p2")
-    expect(followBook(CORE_CATALOG, at("p1"), { ...three, pages: [] }, three).stages[0]!.opened?.page).toBeNull()
+    expect(followBook(CORE_CATALOG, at("p1"), withPages(three, []), three).stages[0]!.opened?.page).toBeNull()
   })
 
   test("ブックの一覧が変わると、無くなったブックを開いていたステージは何も開かない", () => {

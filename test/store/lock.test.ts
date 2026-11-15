@@ -12,6 +12,7 @@ import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import type { CommandId } from "../../web/src/store/commands"
 import { isEnabled } from "../../web/src/store/commands"
+import { withPages } from "../lineup"
 import { CORE_CATALOG, newStore } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
@@ -88,11 +89,11 @@ test("変える所を言わないアクションは、行う前にはページ�
   const action = CORE_CATALOG.actions.get("@matomezu/base:page-update")!
   expect(LOCK.denies({ kind: "book", action, book: before, actor: USER })).toBe(false)
   expect(LOCK.denies({ kind: "book", action, book: before, where: { page: "p1" }, actor: USER })).toBe(true)
-  const after = { ...before, pages: [{ ...page, title: "x" }] } as unknown as Book
+  const after = withPages(before, [{ ...page, title: "x" }]) as unknown as Book
   expect(LOCK.keeps!({ kind: "book", action, before, after, changes: changesOf(before, after), actor: USER })).toBe(
     false,
   )
-  const unlocked = { ...before, pages: [{ id: "p1", title: "1" }] } as unknown as Book
+  const unlocked = withPages(before, [{ id: "p1", title: "1" }]) as unknown as Book
   expect(
     LOCK.keeps!({ kind: "book", action, before, after: unlocked, changes: changesOf(before, unlocked), actor: USER }),
   ).toBe(true)

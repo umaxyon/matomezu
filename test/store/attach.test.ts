@@ -42,7 +42,6 @@ const NOTE = notes.definePageType({
   version: 1,
   title: "Note",
   schema: z.strictObject({ id: z.string() }),
-  create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: false,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
@@ -99,7 +98,6 @@ const BOARD = boards.definePageType({
   version: 1,
   title: "Board",
   schema: z.strictObject({ id: z.string() }),
-  create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },

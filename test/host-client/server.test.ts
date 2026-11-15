@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
+import { withPages } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, showCenter } from "../support"
 
@@ -151,15 +152,13 @@ const place = (store: ReturnType<typeof newStore>) =>
     { book: "b1" },
   )
 // 常駐が知らせる、アイテムを足した b1
-const b1With = (...ids: string[]) => ({
-  ...SAMPLE_BOOKS[0],
-  pages: [
+const b1With = (...ids: string[]) =>
+  withPages(SAMPLE_BOOKS[0], [
     {
       ...SAMPLE_BOOKS[0]!.pages[0],
       items: ids.map(id => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: {} })),
     },
-  ],
-})
+  ])
 
 test("知らせにつながらなければ NoServer", async () => {
   const s = fakeServer()

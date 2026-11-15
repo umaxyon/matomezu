@@ -2,7 +2,7 @@
 // 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身のフィールドは children でなく tiles
 
 import { hasPages, putPage, z } from "matomezu"
-import { findPage, pagesOf } from "../../../web/src/core/book"
+import { findPage } from "../../../web/src/core/book"
 import { kit } from "./kit"
 
 const TILES_SIZE = { w: 160, h: 96 }
@@ -85,7 +85,6 @@ export const SHELF = kit.definePageType({
   version: 1,
   title: "shelf",
   schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },

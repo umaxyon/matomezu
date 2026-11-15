@@ -1,4 +1,5 @@
 // ページの slide（形だけの並び）の土台の扱い: 台帳アセンブルの誤り（E042・E043）、読み込み（W005・W007）、置けるアイテムの一本化（attach・テーマキー・ツールボックス）
+
 import { expect, test } from "bun:test"
 import { checkBooks } from "../../web/src/core/book"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog"
@@ -22,14 +23,13 @@ const bookWith = (slide: object[]) => ({
   pages: [{ ...page, slide }],
 })
 
-test("slide に置けるのは形だけ（E042）で、ページを持たないタイプは slide を持てない（E043）", () => {
+test("slide に置けるのは形だけ（E042）", () => {
   const withLine = { ...slideType, slide: { allowed: ["@matomezu/line:connector-line"] } }
   const parts = (t: typeof slideType) => ({
     ...BUILTIN_PARTS,
     pageTypes: BUILTIN_PARTS.pageTypes.map(b => (b === slideType ? t : b)),
   })
   expect(checkCoreCatalog(parts(withLine)).map(p => p.code)).toContain("E042")
-  expect(checkCoreCatalog(parts({ ...slideType, pages: null })).map(p => p.code)).toContain("E043")
 })
 
 test("slide のアイテムは、機能台帳に無ければ W007 で残し、allowed に無い形は読めない（W005）", () => {

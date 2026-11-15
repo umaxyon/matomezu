@@ -1,5 +1,6 @@
 // ex7 の形「木箱」: 積んだ荷の重さ（load）を持ち、ex6 の重さのメソッド "ex6:weight" に答える。
 // ex6-spec を型だけ読むと（index.ts）、形の定義オブジェクトに "ex6:weight" が書ける（ex6-spec が拡張ポイントに書き足したもの）
+
 import { z } from "matomezu"
 import { kit } from "./kit"
 
@@ -22,7 +23,6 @@ export const YARD = kit.definePageType({
   version: 1,
   title: "yard",
   schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },

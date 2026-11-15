@@ -163,7 +163,7 @@ describe("インスタンスを作る", () => {
   })
 
   test("ブックのタイプが名指すページのダイアログは、ページを作るなら値を受けず、ページの設定なら PageSettingsArgs を受けるものでなければ型の誤り", () => {
-    const paged = <const G>(dialogs: G) => ({ ...LEAF, pages: { ...LEAF.pages, dialogs } })
+    const paged = <const G>(dialogs: G) => ({ ...LEAF, dialogs })
     const add = "@matomezu/base:page-new"
     const settings = "@matomezu/base:page-settings"
     definePlugin({ id: "notes", pageTypes: [paged({ add, settings })] })

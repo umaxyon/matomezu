@@ -84,3 +84,10 @@ export function pagesBook(book: {
     type === SLIDE ? [{ kind: "folder", id: `${id}-slides`, title, pageType: type, lineup: made }] : made
   return { id, title, lineup, ...(Object.keys(onBook).length > 0 ? { settings: onBook } : {}), ...rest }
 }
+
+// ブック book の並びを、ページ pages に替えたブック（テストが書くページに kind と type が無ければ、book の最初のページのタイプ。無ければ図面）
+export function withPages(book: Book, pages: readonly object[]): Book {
+  const first = book.lineup.find(e => e.kind === "page")
+  const type = first?.kind === "page" ? first.type : DRAWING
+  return { ...book, lineup: pages.map(p => ({ kind: "page", type, ...p }) as AnyPage) }
+}

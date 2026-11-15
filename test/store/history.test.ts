@@ -10,6 +10,7 @@ import { BUILTIN } from "../../web/src/plugins"
 import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
+import { withPages } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, sequence, sizedStore } from "../support"
 
@@ -156,7 +157,10 @@ test("戻すまでの間に AI が変えた所は、画面の履歴の段が変�
     i === all.length - 1 ? { ...x, props: { ...x.props, caption: "AI" } } : x,
   )
   // AI の変更は常駐から知らされる（置いた箱のキャプションと、ブックの名前を変える）
-  store.receive({ books: [{ ...book, title: "AI の名前", pages: [{ ...page!, items }, ...rest] }], settings: {} }, [])
+  store.receive(
+    { books: [withPages({ ...book, title: "AI の名前" }, [{ ...page!, items }, ...rest])], settings: {} },
+    [],
+  )
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)
   store.actions.command("s1", "@matomezu/base:undo")

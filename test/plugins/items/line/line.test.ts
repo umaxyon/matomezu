@@ -12,6 +12,7 @@ import { GAP } from "../../../../web/src/plugins/base/place/push"
 import { alignedEndsOf } from "../../../../web/src/plugins/items/line/drawn"
 import { elbowAt, usesLines } from "../../../../web/src/plugins/items/line/line"
 import { CAPTION_GAP, LINK_GAP, linesOf } from "../../../../web/src/plugins/items/line/placed"
+import { withPages } from "../../../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG, sequence, sizedStore } from "../../../support"
 
 const ready = () => sizedStore()
@@ -174,10 +175,8 @@ test("関係の決まりを守らないブック（線の端が無い・行に�
   place(store, 400, 100)
   connect(store, "n1", "n2")
   const good = book(store)
-  const withLines = (items: unknown[]) => ({
-    ...good,
-    pages: [{ ...good.pages[0]!, items: [...shapesOf(good.pages[0]!), ...items] }],
-  })
+  const withLines = (items: unknown[]) =>
+    withPages(good, [{ ...good.pages[0]!, items: [...shapesOf(good.pages[0]!), ...items] }])
   const line = (id: string, from: string, to: string) => ({
     id,
     item: "@matomezu/line:connector-line",

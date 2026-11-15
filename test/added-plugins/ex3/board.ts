@@ -1,5 +1,6 @@
 // ex3 のブックのタイプ「ボード」: 自分の形（星）・紙（正方形）・設定の項目（方眼）・テーマ（ミント）を持ち、ビルトインの見せ方（紙）・リスト・線を id で選ぶ。
 // テーマはほかのタイプのブックにも id で選べ、スキンは利用者が設定で選ぶ
+
 import { type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
 
@@ -104,7 +105,6 @@ export const BOARD = kit.definePageType({
   version: 1,
   title: "board",
   schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pages: {
     paper: {
