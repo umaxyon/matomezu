@@ -1,4 +1,4 @@
-# Codex のプラグインのスクリプトが読み込む（. で取り込む）: どの matomezu を呼ぶかを決める。呼び出しごとの選び方をここ 1 か所にそろえ、フック・monitor・MCP が同じ常駐を見るようにする。
+# Codex のプラグインのスクリプトが読み込む（. で取り込む）: どの matomezu を呼ぶかを決める。呼び出しごとの選び方をここ 1 か所にそろえ、フックと MCP が同じ常駐を見るようにする。
 # 開いているフォルダが matomezu のリポジトリ（git の共通のフォルダの隣に開発の常駐 .dev-home がある）なら、その常駐（MATOMEZU_HOME も合わせる）。そうでなければ PATH の matomezu。どちらも無ければ matomezu_bin は空
 # 結果: matomezu_bin（実行ファイル）、matomezu_dev_root（開発のときだけ、リポジトリの根）
 matomezu_bin=""

@@ -688,9 +688,9 @@ test("Go のパッケージは internal の下と、実行ファイルの入口�
   ].sort()
   expect(outside.filter(d => !d.startsWith("clients/"))).toEqual(["cmd/matomezu", "web"])
   const own = /"github\.com\/umaxyon\/matomezu\//
-  const bad = [...filesEnding(join(ROOT, "web"), ".go"), ...filesEnding(join(ROOT, "clients"), ".go")]
-    .filter(f => !f.endsWith("_test.go"))
-    .filter(f => own.test(readFileSync(f, "utf8")))
+  const bad = [...filesEnding(join(ROOT, "web"), ".go"), ...filesEnding(join(ROOT, "clients"), ".go")].filter(f =>
+    own.test(readFileSync(f, "utf8")),
+  )
   expect(bad).toEqual([])
   const readsClients = filesEnding(join(ROOT, "internal"), ".go").filter(f =>
     /"github\.com\/umaxyon\/matomezu\/clients\//.test(readFileSync(f, "utf8")),
