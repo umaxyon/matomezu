@@ -3,7 +3,7 @@
 // 版は、無ければ時刻から決める（内部のレジストリで試す版）。--publish を付けると、publish してから latest をその版にする。
 // 実行ファイルは、画面（web/dist）を埋め込む（ビルドタグ embed）。
 // 作る物: <out>/matomezu（本体。bin/matomezu.js と、Claude Code のプラグイン plugin/ と Codex のプラグイン codex-plugin/）と <out>/cli-<os>-<cpu>（OS ごとの実行ファイル）と <out>/opencode（opencode のプラグイン matomezu-opencode）。
-import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import {
   binEntry,
@@ -62,15 +62,16 @@ for (const t of targets) {
   )
   writeJson(join(dir, "package.json"), platformPackageJson(t, version))
 }
+/** cpSync の filter: Go のパッケージのフォルダ（.go のファイルを持つ）とその中を写さない */
+const notGoPackage = (src: string) =>
+  !statSync(src).isDirectory() || !readdirSync(src).some(name => name.endsWith(".go"))
 const main = join(out, "matomezu")
 mkdirSync(join(main, "bin"), { recursive: true })
 writeFileSync(join(main, "bin", "matomezu.js"), binEntry)
 chmodSync(join(main, "bin", "matomezu.js"), 0o755)
-// プラグイン。中の Go のパッケージ（deliver・launch）は本体の実行ファイルに組み込むので入れない
-const notGo = (client: string) => (src: string) =>
-  !["deliver", "launch"].some(dir => src.startsWith(join("clients", client, dir)))
-cpSync("clients/claude-code", join(main, "plugin"), { recursive: true, filter: notGo("claude-code") })
-cpSync("clients/codex", join(main, "codex-plugin"), { recursive: true, filter: notGo("codex") })
+// プラグイン。中の Go のパッケージ（.go のあるフォルダ）は本体の実行ファイルに組み込むので入れない
+cpSync("clients/claude-code", join(main, "plugin"), { recursive: true, filter: notGoPackage })
+cpSync("clients/codex", join(main, "codex-plugin"), { recursive: true, filter: notGoPackage })
 for (const pluginJson of [
   join(main, "plugin", ".claude-plugin", "plugin.json"),
   join(main, "codex-plugin", ".codex-plugin", "plugin.json"),
