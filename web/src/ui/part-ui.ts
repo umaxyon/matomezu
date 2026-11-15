@@ -31,7 +31,7 @@ export const PART_UI = {
   screens: { views: [], define: ["defineScreen"] },
   screenArrangements: { views: [], define: ["defineScreenArrangement"] },
   enums: { views: [], define: ["defineEnum"] },
-  enumValues: { views: [], define: ["defineEnumValue"] },
+  enumValues: { views: ["enumValueIcons"], define: ["defineEnumValue"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
   textColors: { views: [], define: ["defineTextColor"] },

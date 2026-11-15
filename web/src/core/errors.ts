@@ -107,6 +107,7 @@ export const ERRORS = {
   E311: "plugin {plugin}: only built-in plugins may have control centers",
   E312: "plugin {plugin}: widget {id} is for the kind {kind}, which the plugin does not own (only the owner of a kind may add a widget for it)",
   E313: "plugin {plugin}: bookTypeIcons has {id}, which is not its own book type",
+  E314: "plugin {plugin}: enumValueIcons has {id}, which is not its own enum value",
 
   E401: "the server could not give the data: {status}",
   E402: "the server does not know this browser (run matomezu open in a terminal)",

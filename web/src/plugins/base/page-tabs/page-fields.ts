@@ -10,11 +10,11 @@ import { contentIdMaker } from "../utils/ids"
 
 export type FieldsOf = "add" | "update"
 
-// タイプの受け方の 1 つ: 受ける形 args と、受けた値 input をページ page に書いて、書き足すフィールドを返す書き方 write（断るなら null）。
+// タイプの受け方の 1 つ: 受ける形 args（機能台帳で変わる形、たとえば別のプラグインが足す値から選ぶ形は、台帳から作る関数）と、受けた値 input をページ page に書いて、書き足すフィールドを返す書き方 write（断るなら null）。
 // 書けるのはタイプがページに足したフィールドだけ（ほかのフィールドを返せば断る）。新しい id は makeId で振る（ブックの全部のページの中身と重ならない）。
 // result は、アクションの結果の fields に入れて返す物（振った id など）。形と書き方の型を合わせるには pageFieldsWay で作る
 export interface PageFieldsWay<A extends z.ZodObject = z.ZodObject> {
-  args: A
+  args: A | ((catalog: CoreCatalog) => A)
   write(
     page: Readonly<Record<string, unknown>>,
     input: z.infer<A>,
@@ -45,7 +45,8 @@ const wayOf = (catalog: CoreCatalog, type: string, of: FieldsOf) => bookType(cat
 
 // タイプ type のブックの、作るとき・直すときに受ける形（フィールドの無いタイプは null）
 export function fieldsArgsOf(catalog: CoreCatalog, type: string, of: FieldsOf): z.ZodObject | null {
-  return wayOf(catalog, type, of)?.args ?? defaultArgs(catalog, type)
+  const args = wayOf(catalog, type, of)?.args
+  return (typeof args === "function" ? args(catalog) : args) ?? defaultArgs(catalog, type)
 }
 
 // 渡したフィールド fields を受けて書いたページと、受け方の返した結果（形に合わない・フィールドの無いタイプ・受け方が断れば null）

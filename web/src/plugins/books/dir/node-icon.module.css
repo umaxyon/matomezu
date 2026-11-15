@@ -1,0 +1,9 @@
+/* 行の頭の絵の枠。絵（svg）は枠いっぱいに描く */
+.icon {
+  display: inline-flex;
+}
+.icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

@@ -1,7 +1,7 @@
 // ディレクトリ構成図を組み立てる計算（データを書き換えず、新しい根を返す）: 中身を足す・名前と色を替える・中身ごと消す・付け替える・
 // フォルダを開け閉めする・フォルダの直下を名前で並べる・パスの並びから組み立てる
 import { parseRich, plainOf } from "../../base"
-import type { DirEntry, DirFolder, IconName } from "./entry"
+import type { DirEntry, DirFolder } from "./entry"
 
 // 中身を entries に替えたフォルダ（無くなれば children も消す）
 function withKids(f: DirFolder, kids: DirEntry[]): DirFolder {
@@ -75,7 +75,7 @@ export function addEntries(
 export function changeEntry(
   root: DirFolder,
   id: string,
-  patch: { name?: string; description?: string | null; icon?: IconName | null },
+  patch: { name?: string; description?: string | null; icon?: string | null },
 ): DirFolder | null {
   return mapEntry(root, id, e => {
     const { icon: _icon, description: _description, ...rest } = e

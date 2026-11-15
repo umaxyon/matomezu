@@ -78,7 +78,7 @@ export function addEntry(ctx: CommandContext, a: CommandActions, at: AddAt, kind
     },
     on,
   )
-  const added = done.ok ? done.result.entries[0]?.id : undefined
+  const added = done.ok ? done.result?.entries[0]?.id : undefined
   if (!added) {
     refused(ctx, a, done.ok ? { reason: "refused" } : done)
     return

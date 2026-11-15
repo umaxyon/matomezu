@@ -14,6 +14,7 @@ import {
   NODE_SIZE_EDIT,
   TREE_KEYS,
 } from "./commands"
+import { TREE_ENTRY_ICON } from "./entry-icon"
 import { GROW } from "./grow"
 import { kit } from "./kit"
 import { LINE_SHAPE } from "./line-shape"
@@ -33,6 +34,7 @@ import {
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [TREE],
+    enumValues: [TREE_ENTRY_ICON],
     pluginStates: TREE_STATES,
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],
@@ -56,6 +58,9 @@ export const TREE_PLUGIN = defineBuiltin(
 )
 
 declare module "../../../core/catalog" {
+  interface EnumValueTable {
+    "@matomezu/tree:entry-icon": typeof TREE_ENTRY_ICON
+  }
   interface BookTypeTable {
     "@matomezu/tree:tree": typeof TREE
   }

@@ -13,6 +13,7 @@ export type {
   BookViewDef,
   BookViewProps,
   DialogProps,
+  EnumValueIcon,
   ItemUi,
   ItemViewProps,
   SettingControlProps,

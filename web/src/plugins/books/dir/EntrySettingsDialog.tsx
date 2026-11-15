@@ -2,7 +2,7 @@
 // 確定でアクション entry-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
 import { type MessageKey, pagedOf } from "../../../plugin-api"
-import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform, useT } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
@@ -19,7 +19,8 @@ import {
 import { ENTRY_UPDATE } from "./actions"
 import styles from "./EntrySettingsDialog.module.css"
 import { entryOf } from "./edit"
-import { dirRootOf, FILE_ICONS, FOLDER_ICONS, type IconName } from "./entry"
+import { dirRootOf } from "./entry"
+import { DEFAULT_ICON, iconsFor } from "./entry-icon"
 import { kit } from "./kit"
 import { NodeIcon } from "./node-icon"
 
@@ -33,8 +34,9 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
   const perform = usePerform(stage)
   const [name, setName] = useState(entry?.name ?? "")
   const [description, setDescription] = useState(entry?.description ?? "")
-  const [icon, setIcon] = useState<IconName | undefined>(entry?.icon)
+  const [icon, setIcon] = useState<string | undefined>(entry?.icon)
   const catalog = useCoreCatalog()
+  const tr = useT() // ほかのプラグインが足したアイコンの名前も引く
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !entry) return null
   const submit = () => {
@@ -79,20 +81,22 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
         <div className={rowClass}>
           <span>{t("Icon")}</span>
           <div className={styles.icons} role="radiogroup" aria-label={t("Icon")}>
-            {(entry.kind === "file" ? FILE_ICONS : FOLDER_ICONS).map((name, i) => (
-              <button
-                key={name}
-                type="button"
-                role="radio"
-                className={styles.icon}
-                aria-checked={(icon ?? (i === 0 ? name : undefined)) === name}
-                aria-label={t(ICON_NAMES[name])}
-                title={t(ICON_NAMES[name])}
-                onClick={() => setIcon(i === 0 ? undefined : name)}
-              >
-                <NodeIcon kind={entry.kind} icon={name} open={false} size={18} />
-              </button>
-            ))}
+            {iconsFor(catalog, entry.kind)
+              .sort((x, y) => Number(y.id === DEFAULT_ICON[entry.kind]) - Number(x.id === DEFAULT_ICON[entry.kind]))
+              .map(value => (
+                <button
+                  key={value.id}
+                  type="button"
+                  role="radio"
+                  className={styles.icon}
+                  aria-checked={(icon ?? DEFAULT_ICON[entry.kind]) === value.id}
+                  aria-label={tr(value.title)}
+                  title={tr(value.title)}
+                  onClick={() => setIcon(value.id === DEFAULT_ICON[entry.kind] ? undefined : value.id)}
+                >
+                  <NodeIcon kind={entry.kind} icon={value.id} open={false} size={18} />
+                </button>
+              ))}
           </div>
         </div>
         {refused && <Problem>{t(refused)}</Problem>}
@@ -135,18 +139,3 @@ function RichLineInput({
     </div>
   )
 }
-
-// アイコンの名前（選ぶボタンの名前）
-const ICON_NAMES = {
-  folder: "Folder",
-  book: "Book",
-  file: "File",
-  drawing: "Drawing",
-  flowchart: "Flowchart",
-  tree: "Tree",
-  directory: "Directory icon",
-  markdown: "Markdown",
-  slide: "Slide",
-  "class-diagram": "Class diagram",
-  html: "HTML",
-} as const

@@ -104,10 +104,15 @@ test("中身を足す・書き換える（根も）・消す・移す・並べ�
   expect(rowNames()).toEqual(["proj", "src", "z.ts", "a.ts", "README.md"])
   expect(perform("@matomezu/dir:folder-sort", { page: ids.page, folder: ids.src, order: "asc" }).ok).toBe(true)
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "z.ts", "README.md"])
-  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.root, name: "app", icon: "book" }).ok).toBe(
-    true,
-  )
-  expect(book().pages[0]).toMatchObject({ root: { name: "app", icon: "book" } })
+  expect(
+    perform("@matomezu/dir:entry-update", {
+      page: ids.page,
+      entry: ids.root,
+      name: "app",
+      icon: "@matomezu/dir:entry-icon-book",
+    }).ok,
+  ).toBe(true)
+  expect(book().pages[0]).toMatchObject({ root: { name: "app", icon: "@matomezu/dir:entry-icon-book" } })
   expect(perform("@matomezu/dir:entry-move", { page: ids.page, entry: ids.readme, parent: ids.src }).ok).toBe(true)
   expect(rowNames()).toEqual(["app", "src", "a.ts", "z.ts", "README.md"])
   expect(perform("@matomezu/dir:entry-move", { page: ids.page, entry: ids.src, parent: ids.a }).ok).toBe(false)
@@ -407,4 +412,33 @@ test("説明を出している間は、説明の列をダブルクリックし�
     settings: { "@matomezu/dir:notes": { shown: false, dots: false, divider: false } },
   })
   expect(cell(ids.a)).toBeNull()
+})
+
+test("中身のアイコンは、列挙 entry-icon の値で種類に合う物だけ付けられる（足すときの入れ子・書き換え・ページを作るときの根のどれも）。行の頭の絵は、選んだ値の絵になる", () => {
+  const { perform, book } = setup()
+  const ids = addProject(perform)
+  const DRAWING = "@matomezu/drawing:entry-icon"
+  const BOOK = "@matomezu/dir:entry-icon-book"
+  // 種類に合わない・値の無いアイコンは断られる
+  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.src, icon: DRAWING }).ok).toBe(false)
+  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: BOOK }).ok).toBe(false)
+  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: "nothing" }).ok).toBe(false)
+  const nested = (icon: string) =>
+    perform("@matomezu/dir:entry-add", {
+      page: ids.page,
+      parent: ids.root,
+      entries: [{ kind: "folder", name: "d", children: [{ kind: "file", name: "f", icon }] }],
+    }).ok
+  expect(nested(BOOK)).toBe(false)
+  expect(nested(DRAWING)).toBe(true)
+  const root = (icon: string) => perform("@matomezu/base:page-add", { fields: { root: { name: "r", icon } } }).ok
+  expect(root(DRAWING)).toBe(false)
+  expect(root(BOOK)).toBe(true)
+  // 合う物は付き、行の頭の絵になる
+  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: DRAWING }).ok).toBe(true)
+  expect(book().pages[0]).toMatchObject({ root: { children: [{ kind: "folder" }, { icon: DRAWING }, { name: "d" }] } })
+  const paper = screen.getByRole("img", { name: "紙" })
+  expect(paper.querySelector(`[data-icon="${DRAWING}"] svg`)).not.toBeNull()
+  // 値が無くなった中身は、既定の絵で描く（データは消えない）
+  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: null }).ok).toBe(true)
 })

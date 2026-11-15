@@ -1,36 +1,22 @@
-// 行の頭の絵: 種類の既定か、選んだアイコン（entry.ts の FOLDER_ICONS・FILE_ICONS）。フォルダとブックは、開いている（中身が見えている）ときに開いた絵にする
-import type { ReactNode } from "react"
-import type { IconName, Kind } from "./entry"
-import {
-  BookIcon,
-  BookOpenIcon,
-  ClassDiagramIcon,
-  DirectoryIcon,
-  DrawingIcon,
-  FileIcon,
-  FlowchartIcon,
-  FolderIcon,
-  FolderOpenIcon,
-  HtmlIcon,
-  MarkdownIcon,
-  SlideIcon,
-  TreeIcon,
-} from "./node-icons"
+// 行の頭の絵: 中身の icon（列挙 entry-icon の値の id）の絵を、値を足したプラグインが結んだ絵の表（enumValueIcons）から引く。
+// 値や絵が無ければ、種類の既定の絵。開け閉めのある絵（フォルダなど）は、開いているときに開いた絵にする。大きさは size（絵は枠いっぱいに描く）
+import { useUiCatalog } from "../../../plugin-api/ui"
+import type { Kind } from "./entry"
+import { DEFAULT_ICON } from "./entry-icon"
+import styles from "./node-icon.module.css"
 
-const FILES: Readonly<Record<string, (size: number) => ReactNode>> = {
-  file: size => <FileIcon size={size} />,
-  drawing: size => <DrawingIcon size={size} />,
-  flowchart: size => <FlowchartIcon size={size} />,
-  tree: size => <TreeIcon size={size} />,
-  directory: size => <DirectoryIcon size={size} />,
-  markdown: size => <MarkdownIcon size={size} />,
-  slide: size => <SlideIcon size={size} />,
-  "class-diagram": size => <ClassDiagramIcon size={size} />,
-  html: size => <HtmlIcon size={size} />,
-}
-
-export function NodeIcon({ kind, icon, open, size }: { kind: Kind; icon?: IconName; open: boolean; size: number }) {
-  if (kind === "file") return FILES[icon ?? "file"]?.(size) ?? <FileIcon size={size} />
-  if (icon === "book") return open ? <BookOpenIcon size={size} /> : <BookIcon size={size} />
-  return open ? <FolderOpenIcon size={size} /> : <FolderIcon size={size} />
+export function NodeIcon({ kind, icon, open, size }: { kind: Kind; icon?: string; open: boolean; size: number }) {
+  const icons = useUiCatalog().enumValueIcons
+  const picture = (icon === undefined ? undefined : icons.get(icon)) ?? icons.get(DEFAULT_ICON[kind])
+  const shown =
+    typeof picture === "object" && picture !== null && "closed" in picture && "open" in picture
+      ? open
+        ? picture.open
+        : picture.closed
+      : picture
+  return (
+    <span className={styles.icon} style={{ width: size, height: size }}>
+      {shown}
+    </span>
+  )
 }

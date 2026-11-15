@@ -106,11 +106,11 @@ test("ページタブの頭にブックのタイプのアイコンが付き、�
   await expect(file.getByRole("radio", { name: "ブック" })).toHaveCount(0)
   await file.getByRole("radio", { name: "図面" }).click()
   await file.getByRole("button", { name: "確定" }).click()
-  await expect(row(page, "a.ts").locator("[data-icon]")).toHaveAttribute("data-icon", "drawing")
+  await expect(row(page, "a.ts").locator("[data-icon]")).toHaveAttribute("data-icon", "@matomezu/drawing:entry-icon")
   // フォルダ（根）: folder と book の 2 つだけ
   const folder = await settings("proj")
   await expect(folder.getByRole("radio")).toHaveCount(2)
   await folder.getByRole("radio", { name: "ブック" }).click()
   await folder.getByRole("button", { name: "確定" }).click()
-  await expect(row(page, "proj").locator("[data-icon]")).toHaveAttribute("data-icon", "book")
+  await expect(row(page, "proj").locator("[data-icon]")).toHaveAttribute("data-icon", "@matomezu/dir:entry-icon-book")
 })

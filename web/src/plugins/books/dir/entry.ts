@@ -8,39 +8,17 @@ import { z } from "zod"
 export const KINDS = ["folder", "file"] as const
 export type Kind = (typeof KINDS)[number]
 
-// 中身のアイコン（絵の名前）: フォルダは folder（既定）か book、ファイルは file（既定）かそれ以外。絵は node-icons.tsx
-export const FOLDER_ICONS = ["folder", "book"] as const
-export const FILE_ICONS = [
-  "file",
-  "drawing",
-  "flowchart",
-  "tree",
-  "directory",
-  "markdown",
-  "slide",
-  "class-diagram",
-  "html",
-] as const
-export type FolderIconName = (typeof FOLDER_ICONS)[number]
-export type FileIconName = (typeof FILE_ICONS)[number]
-export const ICONS = [...FOLDER_ICONS, ...FILE_ICONS] as const
-export type IconName = (typeof ICONS)[number]
-
-const folderIcon = () =>
-  z
-    .enum(FOLDER_ICONS)
-    .describe("The icon drawn at the head of the row: folder (the default) or book (a book is a folder of pages)")
-const fileIcon = () =>
-  z
-    .enum(FILE_ICONS)
-    .describe("The icon drawn at the head of the row: file (the default) or the icon of a kind of diagram or document")
+// 中身のアイコン: 列挙 entry-icon の値の id（entry-icon.ts）。無ければ種類の既定の絵。ある・種類に合うかは、データの形でなく、アクションが確かめる
+const ICON_DOC =
+  "The id of a value of the enum entry-icon for this kind, drawn at the head of the row (the default icon of its kind without it)"
+const iconText = (doc: string = ICON_DOC) => z.string().min(1).describe(doc)
 
 export interface DirFile {
   id: string
   kind: "file"
   name: string
   description?: string
-  icon?: FileIconName
+  icon?: string
 }
 
 export interface DirFolder {
@@ -48,7 +26,7 @@ export interface DirFolder {
   kind: "folder"
   name: string
   description?: string
-  icon?: FolderIconName
+  icon?: string
   closed?: boolean
   children?: DirEntry[]
 }
@@ -76,7 +54,7 @@ const FileSchema = z.strictObject({
   kind: z.literal("file"),
   name: nameText(),
   description: descriptionText().optional(),
-  icon: fileIcon().optional(),
+  icon: iconText().optional(),
 })
 
 export const DirFolderSchema: z.ZodType<DirFolder> = z.strictObject({
@@ -84,7 +62,7 @@ export const DirFolderSchema: z.ZodType<DirFolder> = z.strictObject({
   kind: z.literal("folder"),
   name: nameText(),
   description: descriptionText().optional(),
-  icon: folderIcon().optional(),
+  icon: iconText().optional(),
   closed: z.boolean().optional(),
   get children() {
     return z.array(z.union([FileSchema, DirFolderSchema])).optional()
@@ -97,36 +75,54 @@ export const dirRootOf = (page: object | null | undefined): DirFolder | undefine
 
 // 足すときに受ける中身（id は書かない。閉じているかと中身はフォルダだけ）
 export type NewEntry =
-  | { kind: "file"; name: string; description?: string; icon?: FileIconName }
+  | { kind: "file"; name: string; description?: string; icon?: string }
   | {
       kind: "folder"
       name: string
       description?: string
-      icon?: FolderIconName
+      icon?: string
       closed?: boolean
       children?: NewEntry[]
     }
 
-const NewFileSchema = z.strictObject({
-  kind: z.literal("file"),
-  name: nameText(),
-  description: descriptionText().optional(),
-  icon: fileIcon().optional(),
-})
+// 足すときに受ける中身の形。AI に見せるときは、icon の説明に選べるアイコンの一覧を入れる（describeArgs）
+export const newEntryOf = (iconDoc?: string): z.ZodType<NewEntry> => {
+  const schema: z.ZodType<NewEntry> = z.union([
+    z.strictObject({
+      kind: z.literal("file"),
+      name: nameText(),
+      description: descriptionText().optional(),
+      icon: iconText(iconDoc).optional(),
+    }),
+    z.strictObject({
+      kind: z.literal("folder"),
+      name: nameText(),
+      description: descriptionText().optional(),
+      icon: iconText(iconDoc).optional(),
+      closed: z.boolean().optional().describe("Drawn closed (its contents hidden)"),
+      get children() {
+        return z.array(schema).optional()
+      },
+    }),
+  ])
+  return schema
+}
 
-export const NewEntrySchema: z.ZodType<NewEntry> = z.union([
-  NewFileSchema,
-  z.strictObject({
-    kind: z.literal("folder"),
-    name: nameText(),
-    description: descriptionText().optional(),
-    icon: folderIcon().optional(),
-    closed: z.boolean().optional().describe("Drawn closed (its contents hidden)"),
-    get children() {
-      return z.array(NewEntrySchema).optional()
-    },
-  }),
-])
+export const NewEntrySchema = newEntryOf()
+
+// 受けた中身の入れ子のどれかが、アイコンを選べない（種類に合わない・値が無い）ときのわけ（無ければ null）。アイコンの検査（entry-icon.ts の iconProblem）を渡して使う
+export function newEntriesProblem(
+  entries: readonly NewEntry[],
+  problem: (kind: Kind, icon: string) => string | null,
+): string | null {
+  for (const e of entries) {
+    const here = e.icon === undefined ? null : problem(e.kind, e.icon)
+    if (here) return here
+    const below = e.kind === "folder" ? newEntriesProblem(e.children ?? [], problem) : null
+    if (below) return below
+  }
+  return null
+}
 
 // 振った id（受けた中身と同じ入れ子）
 export interface GivenId {

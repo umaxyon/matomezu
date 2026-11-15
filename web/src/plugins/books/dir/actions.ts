@@ -4,8 +4,17 @@
 import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
 import { contentIdMaker, growOf } from "../../base"
-import { addEntries, buildPaths, changeEntry, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
-import { type DirFolder, descriptionText, dirRootOf, giveIds, ICONS, NewEntrySchema } from "./entry"
+import { addEntries, buildPaths, changeEntry, entryOf, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
+import {
+  type DirFolder,
+  descriptionText,
+  dirRootOf,
+  giveIds,
+  NewEntrySchema,
+  newEntriesProblem,
+  newEntryOf,
+} from "./entry"
+import { iconProblem, iconsDescription } from "./entry-icon"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 
@@ -40,11 +49,20 @@ export const ENTRY_ADD = kit.defineAction({
     index: z.number().int().min(0).optional(),
     entries: z.array(NewEntrySchema).min(1),
   }),
+  describeArgs: catalog =>
+    z.strictObject({
+      page: PAGE,
+      parent: z.string().min(1),
+      index: z.number().int().min(0).optional(),
+      entries: z.array(newEntryOf(iconsDescription(catalog))).min(1),
+    }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     if (!dir) return null
+    const problem = newEntriesProblem(args.entries, (kind, icon) => iconProblem(ctx.catalog, kind, icon))
+    if (problem) return { declined: problem }
     const given = giveIds(args.entries, contentIdMaker(book, ctx.newId))
     const next = addEntries(dir.root, args.parent, given.entries, args.index)
     const written = next && dir.put(next)
@@ -78,7 +96,7 @@ export const ENTRY_UPDATE = kit.defineAction({
   id: "entry-update",
   attach: ON_DIRS,
   aiDescription:
-    "Change a folder or file of a directory page (the root too): its name, its description (null or empty removes it) and its icon (folder or book for a folder; file, drawing, flowchart, tree, directory, markdown, slide, class-diagram or html for a file; null for the kind's default). Only what is given changes. Returns nothing. Refused for an entry not in the page or when the rows would not fit on the paper.",
+    "Change a folder or file of a directory page (the root too): its name, its description (null or empty removes it) and its icon (the id of a value of the enum entry-icon that fits its kind, listed in the arguments; null for the kind's default). Only what is given changes. Returns nothing. Refused for an entry not in the page or when the rows would not fit on the paper.",
   title: "Update entry",
   target: "book",
   args: z.strictObject({
@@ -86,12 +104,25 @@ export const ENTRY_UPDATE = kit.defineAction({
     entry: z.string().min(1),
     name: z.string().optional(),
     description: descriptionText().nullable().optional(),
-    icon: z.enum(ICONS).nullable().optional(),
+    icon: z.string().min(1).nullable().optional(),
   }),
+  describeArgs: catalog =>
+    z.strictObject({
+      page: PAGE,
+      entry: z.string().min(1),
+      name: z.string().optional(),
+      description: descriptionText().nullable().optional(),
+      icon: z.string().min(1).nullable().optional().describe(iconsDescription(catalog)),
+    }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
+    const target = dir && entryOf(dir.root, args.entry)
+    if (target && typeof args.icon === "string") {
+      const problem = iconProblem(ctx.catalog, target.kind, args.icon)
+      if (problem) return { declined: problem }
+    }
     const next =
       dir && changeEntry(dir.root, args.entry, { name: args.name, description: args.description, icon: args.icon })
     const written = next && dir?.put(next)

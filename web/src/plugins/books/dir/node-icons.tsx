@@ -62,16 +62,6 @@ export const DirectoryIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 )
 
-export const DrawingIcon = ({ size = 16 }: { size?: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" fill="none">
-    <path
-      d="M4 2.75h9a2.25 2.25 0 0 1 2.25 2.25v4.292A6.75 6.75 0 0 0 9.255 16.25H4A2.25 2.25 0 0 1 1.75 14V5A2.25 2.25 0 0 1 4 2.75Z"
-      fill="#4E82C2"
-    />
-    <circle cx="16" cy="16" r="5.25" fill="#A9C9EF" />
-  </svg>
-)
-
 export const FileIcon = ({ size = 16 }: { size?: number }) => (
   <svg
     viewBox="0 0 24 24"
@@ -86,24 +76,6 @@ export const FileIcon = ({ size = 16 }: { size?: number }) => (
   >
     <path d="M5 2h9l5 5v15H5Z" fill="#EEE6F7" strokeWidth="1.6" />
     <path d="M14 2v5h5" fill="none" strokeWidth="1.6" />
-  </svg>
-)
-
-export const FlowchartIcon = ({ size = 16 }: { size?: number }) => (
-  <svg
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    aria-hidden="true"
-    fill="#9170BD"
-    stroke="#9170BD"
-    strokeWidth=".5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="m7.5 1.5 6 6-6 6-6-6Z" />
-    <path d="M7.5 12v6H16" fill="none" strokeWidth="2" />
-    <rect x="15" y="14" width="8" height="8" rx="1.5" />
   </svg>
 )
 
@@ -135,60 +107,5 @@ export const HtmlIcon = ({ size = 16 }: { size?: number }) => (
   >
     <rect x="1" y="3" width="22" height="18" rx="2" />
     <path d="M2 7h20m-14 4-3 3 3 3m8-6 3 3-3 3m-3-6-2 6" stroke="#fff" strokeWidth="1.7" fill="none" />
-  </svg>
-)
-
-export const MarkdownIcon = ({ size = 16 }: { size?: number }) => (
-  <svg
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    aria-hidden="true"
-    fill="#72849F"
-    stroke="#72849F"
-    strokeWidth=".5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="1" y="4" width="22" height="16" rx="2.5" />
-    <path d="M5 15V9l3 3.5L11 9v6m6-6v6m-2.5-2.5L17 15l2.5-2.5" stroke="#fff" fill="none" strokeWidth="1.8" />
-  </svg>
-)
-
-export const SlideIcon = ({ size = 16 }: { size?: number }) => (
-  <svg
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    aria-hidden="true"
-    fill="#CA8055"
-    stroke="#CA8055"
-    strokeWidth=".5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="1" y="3" width="22" height="15" rx="2" />
-    <path d="M12 18v4m-4 0h8" fill="none" strokeWidth="2" />
-    <path d="M5 7h10M5 11h5" fill="none" stroke="#fff" strokeWidth="1.8" />
-    <path d="m16 10 4 5h-8Z" fill="#fff" stroke="none" />
-  </svg>
-)
-
-export const TreeIcon = ({ size = 16 }: { size?: number }) => (
-  <svg
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    aria-hidden="true"
-    fill="#3D947D"
-    stroke="#3D947D"
-    strokeWidth=".5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 8v5M4.5 17v-4h15v4" fill="none" strokeWidth="2" />
-    <rect x="8" y="2" width="8" height="7" rx="1.4" />
-    <rect x="1" y="16" width="7" height="6" rx="1.2" />
-    <rect x="16" y="16" width="7" height="6" rx="1.2" />
   </svg>
 )
