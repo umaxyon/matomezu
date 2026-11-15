@@ -15,7 +15,7 @@ import type { Stage } from "../core/stage"
 import { stageIn } from "../core/window"
 import { NO_STAGE } from "../store/dialogs"
 import type { MatomezuState } from "../store/store"
-import { useScreenHere } from "./screen-context"
+import { useScreenContext } from "./screen-context"
 import { useMatomezuState, useReadState } from "./store-context"
 
 // 操作の向け先: ステージ・スクリーン・窓（スクリーンの外の、何も置いていない所）・無し（見るだけ）
@@ -79,7 +79,7 @@ export function ActsOnScope({ at, children }: { at: string; children: ReactNode 
 // 描いている場所（何も置いていなければ、描いているスクリーン。その外なら窓）
 export function useScope(): Scope {
   const placed = useContext(ScopeContext)
-  const screen = useScreenHere()?.id
+  const screen = useScreenContext()?.id
   return useMemo<Scope>(
     () =>
       placed ??
