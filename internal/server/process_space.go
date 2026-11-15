@@ -18,3 +18,24 @@ func ProcessSpace() string {
 	}
 	return runtime.GOOS + "|" + host
 }
+
+// ProcessSpaceEnded は、名乗った印 said（ProcessSpace の値）の範囲にあったプロセスが、今の印 now の範囲から見て終わっているか。
+// 同じ印ならプロセスが居るかを見る（居なければ終わっている）。印の起動ごとの識別子（Linux の boot_id）が変わっていれば、機械が起動し直されているので、居たプロセスは全部終わっている。
+// それ以外（名前空間だけが違う・ほかの OS の印が違う）は、プロセス id を確かめられないので、終わったとは言わない
+func ProcessSpaceEnded(said, now, pid string, alive func(string) bool) bool {
+	if said == now {
+		return !alive(pid)
+	}
+	saidBoot, saidOK := bootOf(said)
+	nowBoot, nowOK := bootOf(now)
+	return saidOK && nowOK && saidBoot != nowBoot
+}
+
+// bootOf は、Linux の印（linux|名前空間|boot_id）の起動ごとの識別子（空なら取れない）
+func bootOf(space string) (string, bool) {
+	parts := strings.Split(space, "|")
+	if len(parts) != 3 || parts[0] != "linux" || parts[2] == "" {
+		return "", false
+	}
+	return parts[2], true
+}

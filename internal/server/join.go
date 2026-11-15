@@ -627,13 +627,12 @@ func (h *Hub) WorkroomOf(id string) string {
 	return ""
 }
 
-// hostEnded は、参加者 id が、セッションごとのプロセスだと名乗った Host を持ち、その範囲の印が常駐のと同じで、その Host が居ないか
-// （名乗っていない・範囲が違う・居るなら false。確かめられないときは退室させない側に倒す）
+// hostEnded は、参加者 id が、セッションごとのプロセスだと名乗った Host を持ち、その Host が終わっているか（ProcessSpaceEnded。名乗っていない・確かめられないなら false で、退室させない側に倒す）
 func (h *Hub) hostEnded(id string) bool {
 	h.mu.Lock()
 	n := h.participantNotes[id]
 	h.mu.Unlock()
-	return n.ProcHost != "" && n.ProcSpace == ProcessSpace() && !ProcessAlive(n.ProcHost)
+	return n.ProcHost != "" && ProcessSpaceEnded(n.ProcSpace, ProcessSpace(), n.ProcHost, ProcessAlive)
 }
 
 // leaveEnded は、AI のプログラムが終わった参加者 id を、利用者として退室させる（ワークルームは空室で残る。アクションは定義が役 runsWhenAIEnds で名乗る）。

@@ -21,3 +21,26 @@ func TestProcessAlive(t *testing.T) {
 		t.Fatalf("space = %q", ProcessSpace())
 	}
 }
+
+// 印が同じなら居るかを見る。起動ごとの識別子が変わっていれば（機械が起動し直された）終わっている。名前空間だけが違うときと、ほかの OS の印が違うときは、終わったとは言わない
+func TestProcessSpaceEnded(t *testing.T) {
+	gone := func(string) bool { return false }
+	here := func(string) bool { return true }
+	for _, c := range []struct {
+		name      string
+		said, now string
+		alive     func(string) bool
+		want      bool
+	}{
+		{"same space, the process is gone", "linux|ns1|boot1", "linux|ns1|boot1", gone, true},
+		{"same space, the process is alive", "linux|ns1|boot1", "linux|ns1|boot1", here, false},
+		{"rebooted since", "linux|ns1|boot1", "linux|ns9|boot2", here, true},
+		{"another namespace on the same boot", "linux|ns1|boot1", "linux|ns2|boot1", gone, false},
+		{"another OS", "windows|host", "linux|ns1|boot1", gone, false},
+		{"no boot id", "linux|ns1|", "linux|ns2|boot1", gone, false},
+	} {
+		if got := ProcessSpaceEnded(c.said, c.now, "42", c.alive); got != c.want {
+			t.Errorf("%s: ended = %v, want %v", c.name, got, c.want)
+		}
+	}
+}

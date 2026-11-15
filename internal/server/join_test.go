@@ -550,6 +550,12 @@ func TestJoinedTextComesFromTheMessageTable(t *testing.T) {
 }
 
 // 居なくなったプロセスの pid（終わらせて待った子プロセスの pid）
+// spaceHasBoot は、この機械の印が起動ごとの識別子を持つか（Linux のとき。持たなければ「起動し直された」を確かめられない）
+func spaceHasBoot() bool {
+	_, ok := bootOf(ProcessSpace())
+	return ok
+}
+
 func deadPid(t *testing.T) string {
 	t.Helper()
 	cmd := exec.Command(os.Args[0], "-test.run=^$")
@@ -570,6 +576,9 @@ func TestJoinFreesTheRoomOfAParticipantWhoseHostProgramEnded(t *testing.T) {
 		{"the host is gone", func(dead string) map[string]string {
 			return map[string]string{HostHeader: dead, HostScopeHeader: "process", HostSpaceHeader: ProcessSpace()}
 		}, true},
+		{"the machine was started again since", func(string) map[string]string {
+			return map[string]string{HostHeader: strconv.Itoa(os.Getpid()), HostScopeHeader: "process", HostSpaceHeader: "linux|ns0|boot-before"}
+		}, spaceHasBoot()},
 		{"the host is alive", func(string) map[string]string {
 			return map[string]string{HostHeader: strconv.Itoa(os.Getpid()), HostScopeHeader: "process", HostSpaceHeader: ProcessSpace()}
 		}, false},
