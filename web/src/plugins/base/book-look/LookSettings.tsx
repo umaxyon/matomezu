@@ -9,7 +9,7 @@ import { useCatalog } from "../../../ui/store-context"
 import { ColorPicker } from "../dialog-host/ColorPicker"
 import { controlClass, Field, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { BOOK_PAPER_COLOR, bookTokens } from "./look"
+import { bookTokens, PAGE_PAPER_COLOR } from "./look"
 import { themeFits, themesFor } from "./theme-types"
 import { shadeOf, useDarkScheme } from "./use-dark-scheme"
 
@@ -46,7 +46,7 @@ export function PaperColorSetting({ label, value, book, onChange }: SettingContr
   // 「なし」のときの紙の色: 選んでいるテーマの紙の色
   const none = useMemo(() => {
     const settings = { ...(book as { settings?: Record<string, unknown> }).settings }
-    delete settings[BOOK_PAPER_COLOR.id]
+    delete settings[PAGE_PAPER_COLOR.id]
     const paper = bookTokens(catalog, { ...book, settings } as Book).paper
     return paper ? shadeOf(paper, dark) : "#ffffff"
   }, [catalog, book, dark])

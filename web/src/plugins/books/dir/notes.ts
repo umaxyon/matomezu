@@ -10,6 +10,7 @@ export const NOTE_DEFAULT: NoteLook = { shown: true, dots: false, divider: false
 
 export const NOTES = kit.defineSetting({
   id: "notes",
+  holder: "page",
   title: "Show descriptions",
   schema: NoteLookSchema,
   default: NOTE_DEFAULT,

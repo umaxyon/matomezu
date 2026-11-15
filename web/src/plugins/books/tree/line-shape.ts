@@ -13,6 +13,7 @@ export const DEFAULT_LINE_SHAPE: LineShape = "elbow"
 
 export const LINE_SHAPE = kit.defineSetting({
   id: "line-shape",
+  holder: "page",
   title: "Line shape",
   schema: z.enum(LINE_SHAPES),
   default: DEFAULT_LINE_SHAPE,

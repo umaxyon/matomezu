@@ -11,6 +11,7 @@ export const DEFAULT_NODE_SHAPE: NodeShape = "box"
 
 export const NODE_SHAPE = kit.defineSetting({
   id: "node-shape",
+  holder: "page",
   title: "Node shape",
   schema: z.enum(NODE_SHAPES),
   default: DEFAULT_NODE_SHAPE,

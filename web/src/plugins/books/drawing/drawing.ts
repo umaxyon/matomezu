@@ -2,9 +2,9 @@
 import { z } from "zod"
 import {
   BACKGROUND_PRINT,
-  BOOK_PAPER_COLOR,
-  BOOK_TEXT_COLORS,
-  BOOK_THEME,
+  PAGE_PAPER_COLOR,
+  PAGE_TEXT_COLORS,
+  PAGE_THEME,
   DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
@@ -74,10 +74,10 @@ export const DRAWING = kit.definePageType({
   printCrossing: "ask", // 形は利用者が手で置くので、印刷区画をまたいだ形は印刷プレビューの前に直してもらう
   settings: {
     book: [
-      BOOK_THEME.id,
-      BOOK_PAPER_COLOR.id,
+      PAGE_THEME.id,
+      PAGE_PAPER_COLOR.id,
       "@matomezu/line:line-route",
-      BOOK_TEXT_COLORS.id,
+      PAGE_TEXT_COLORS.id,
       ...PRINT_PREVIEW_SETTINGS,
       BACKGROUND_PRINT.id,
     ],

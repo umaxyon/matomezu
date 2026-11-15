@@ -1,51 +1,58 @@
-// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book-update（ブックの名前と、ブックのタイプが選んだ設定の項目 settings。plugins/base/book-settings.ts）。
-// テーマと紙の色も設定の項目（look.ts）で、選んだタイプのブックだけが持つ
+// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book-update（ブックの名前と、ブックが持つ設定の項目 settings。plugins/base/book-settings.ts）と、
+// アクション pages-update（ブックのページの設定の項目を、まとめて変える）。テーマと紙の色はページの設定の項目（look.ts）で、選んだタイプのページだけが持つ
+
 import { z } from "zod"
-import { withSettings } from "../../../core/book"
+import { findPage, pagesOf, putPage, withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
+import type { Where } from "../../../core/def/action"
+import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
-import { type SettingGroup, settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
+import { bookSettingsPatch, type SettingGroup, settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../page-tabs/page-problems"
-import { BOOK_PAPER_COLOR } from "./look"
+import { PAGE_PAPER_COLOR } from "./look"
 
-export { BOOK_PAPER_COLOR, BOOK_THEME, bookTheme, bookTokens } from "./look"
+export { PAGE_PAPER_COLOR, PAGE_THEME, pageTheme, pageTokens } from "./look"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
-  settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだ項目（形はタイプが決める）
+  settings: z.record(z.string(), z.unknown()).optional(), // ブックが持つ設定の項目（印刷プレビューの組を除く）
 })
 
-// ブック book に、ブックの設定の項目 settings（ブックのタイプが選んだ、組 group の項目だけ。null は消す）を当てたブック。形に合わない・選んでいないタイプなら null。
-// 紙の色は小文字にそろえ、ページを整え（settleBook）、問題の出るページがあれば断る（book-update と book-create が使う）
+// ブック book に、ブックが持つ設定の項目 settings（組 group の項目だけ。null は消す）を当てたブック。形に合わない・項目が無ければ null（book-update と print-preview-update が使う）
 export function withBookSettings(
   catalog: CoreCatalog,
   book: Book,
   settings: unknown,
   group: SettingGroup = "general",
 ): Book | null {
-  const patch = settingsPatchOf(catalog, book, "book", group)?.safeParse(settings)
+  const patch = bookSettingsPatch(catalog, group)?.safeParse(settings)
+  if (!patch?.success) return null
+  return withSettings<Book>(book, patch.data as Record<string, unknown>)
+}
+
+// ページ page に、ページの設定の項目 settings（そのタイプが選んだ項目だけ。null は消す）を当てたページ。形に合わない・選んでいない項目があれば null。紙の色は小文字にそろえる
+export function withPageSettings(catalog: CoreCatalog, page: ItemPage, settings: unknown): ItemPage | null {
+  const patch = settingsPatchOf(catalog, page.type)?.safeParse(settings)
   if (!patch?.success) return null
   const values = { ...(patch.data as Record<string, unknown>) }
-  const paper = values[BOOK_PAPER_COLOR.id]
-  if (typeof paper === "string") values[BOOK_PAPER_COLOR.id] = paper.toLowerCase()
-  const settled = settleBook(catalog, withSettings<Book>(book, values))
-  return pageProblems(catalog, settled).length > 0 ? null : settled
+  const paper = values[PAGE_PAPER_COLOR.id]
+  if (typeof paper === "string") values[PAGE_PAPER_COLOR.id] = paper.toLowerCase()
+  return withSettings(page, values)
 }
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
-// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す。テーマはブックのタイプが使えるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
+// settings はブックが持つ設定の項目だけ（形に合わない・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
   attach: { books: true },
   aiDescription:
-    "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes its book type lists in actions, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default). The print preview settings (@matomezu/base:print-preview-*) are changed by @matomezu/base:print-preview-update, not here (refused).",
+    "Change a book: title (not empty) and settings, the ones a book holds, keyed by the setting's id. Only what is given changes; null removes a setting (back to its default). The look of pages (theme, paper color and so on) belongs to each page: change it with page-update, or for many pages at once with pages-update. The print preview settings (@matomezu/base:print-preview-*) are changed by @matomezu/base:print-preview-update, not here (refused).",
   title: "Change book",
   target: "book",
   permissionScope: "book",
   args: ARGS,
-  describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "book").optional() }),
   run: (book, args, ctx) => {
     const next: Book = args.title === undefined ? book : { ...book, title: args.title }
     if (args.settings === undefined) return { next, result: null }
@@ -54,12 +61,51 @@ export const BOOK_UPDATE = kit.defineAction({
   },
 })
 
+const PAGES_ARGS = z.strictObject({
+  pages: z.union([z.literal("all"), z.array(z.string().min(1)).min(1)]), // 変えるページ: ブックの全部（all）か、ページの id の並び
+  settings: z.record(z.string(), z.unknown()), // ページの設定の項目（項目の id → 値。null は消す）
+})
+
+// ブックのページの設定の項目を、まとめて変える。変えるのは、渡した項目を全部持ち、値が合うタイプのページだけで、合わないページ（項目を選んでいないタイプ・
+// そのタイプで使えないテーマなど）は変えずに飛ばす。変えたページは整え（settleBook）、変えたページに問題が出れば断る。1 枚も変えられなければ断る
+export const PAGES_UPDATE = kit.defineAction({
+  id: "pages-update",
+  attach: { books: true },
+  aiDescription:
+    'Change the page settings of many pages of a book at once (such as @matomezu/base:page-theme and @matomezu/base:page-paper-color): pages is "all" or the ids of the pages, settings the values keyed by the setting\'s id (null removes one). A page is changed only when its page type has every given setting and takes the values (a theme must be one its page type lists); the other pages are left as they are. Returns updated (the ids of the pages changed) and skipped (the ids left as they were). Refused when no page can be changed, or for a page id not in the book.',
+  title: "Change pages",
+  target: "book",
+  permissionScope: (args: z.infer<typeof PAGES_ARGS>): Where => (args.pages === "all" ? { allPages: true } : {}),
+  args: PAGES_ARGS,
+  describeArgs: catalog => PAGES_ARGS.extend({ settings: settingsArgs(catalog) }),
+  run: (book, args, ctx) => {
+    if (args.pages !== "all" && args.pages.some(id => !findPage(book, id))) return null
+    const targets = pagesOf(book).filter(p => args.pages === "all" || args.pages.includes(p.id))
+    let next: Book = book
+    const updated: string[] = []
+    const skipped: string[] = []
+    for (const page of targets) {
+      const changed = withPageSettings(ctx.catalog, page, args.settings)
+      if (!changed) {
+        skipped.push(page.id)
+        continue
+      }
+      next = putPage(next, changed)
+      updated.push(page.id)
+    }
+    if (updated.length === 0) return null
+    const settled = settleBook(ctx.catalog, next)
+    if (pageProblems(ctx.catalog, settled, updated).length > 0) return null
+    return { next: settled, result: { updated, skipped } }
+  },
+})
+
 export const BOOK_SETTINGS_DIALOG = kit.defineDialog({ id: "book-settings" })
 
-// ブックの設定のダイアログを開く（ブックのタイプが book-update を使える、名前と見た目を変えられるブックだけ）
+// ブックの設定のダイアログを開く
 export const BOOK_SETTINGS = kit.defineCommand({
   id: "book-settings",
-  performs: [BOOK_UPDATE.id, BOOK_LOCK.id, BOOK_UNLOCK.id],
+  performs: [BOOK_UPDATE.id, PAGES_UPDATE.id, BOOK_LOCK.id, BOOK_UNLOCK.id],
   permissionScope: "book",
   title: "Book settings",
   run: (_ctx, a) => a.openDialog(BOOK_SETTINGS_DIALOG.id),

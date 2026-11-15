@@ -3,8 +3,8 @@
 // 見せ方は専用（slide）で、紙の見せ方（paper）の置く・動かす・大きさを変えるアクションは付かない
 import { z } from "zod"
 import {
-  BOOK_PAPER_COLOR,
-  BOOK_THEME,
+  PAGE_PAPER_COLOR,
+  PAGE_THEME,
   DIAGRAM_THEME_TYPE,
   itemMinimapMarks,
   PAPER_IDS,
@@ -47,7 +47,7 @@ export const SLIDE_BOOK = kit.definePageType({
   presentation: SLIDE_PRESENTATION.id,
   tokens: [],
   settings: {
-    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, ...PRINT_PREVIEW_SETTINGS, SLIDE_PRINT.id],
+    book: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, ...PRINT_PREVIEW_SETTINGS, SLIDE_PRINT.id],
     page: [SLIDE_PRINT.id],
   },
 })

@@ -3,9 +3,9 @@
 import { z } from "zod"
 import {
   BACKGROUND_PRINT,
-  BOOK_PAPER_COLOR,
-  BOOK_TEXT_COLORS,
-  BOOK_THEME,
+  PAGE_PAPER_COLOR,
+  PAGE_TEXT_COLORS,
+  PAGE_THEME,
   DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
@@ -20,6 +20,7 @@ export type FlowDirection = (typeof FLOW_DIRECTIONS)[number]
 // 流れの向き（ブックとページに持たせる。ページはブックを継承できる。無ければ下へ）
 export const FLOW_DIRECTION = kit.defineSetting({
   id: "flow-direction",
+  holder: "page",
   title: "Flow direction",
   schema: z.enum(FLOW_DIRECTIONS),
   default: "down",
@@ -118,11 +119,11 @@ export const FLOWCHART = kit.definePageType({
   growFrom: setting => (turnedRight(setting) ? { x: "start", y: "center" } : { x: "center", y: "start" }),
   settings: {
     book: [
-      BOOK_THEME.id,
-      BOOK_PAPER_COLOR.id,
+      PAGE_THEME.id,
+      PAGE_PAPER_COLOR.id,
       "@matomezu/line:line-route",
       kit.name("flow-direction"),
-      BOOK_TEXT_COLORS.id,
+      PAGE_TEXT_COLORS.id,
       ...PRINT_PREVIEW_SETTINGS,
       BACKGROUND_PRINT.id,
     ],

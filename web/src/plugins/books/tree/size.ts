@@ -11,6 +11,7 @@ export const DEFAULT_NODE_SIZE: NodeSize = "fixed-20"
 
 export const NODE_SIZE = kit.defineSetting({
   id: "node-size",
+  holder: "page",
   title: "Node size",
   schema: z.enum(NODE_SIZES),
   default: DEFAULT_NODE_SIZE,

@@ -1,7 +1,14 @@
 // base（ほかのプラグインが読んでよいプラグイン）: ステージ（分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・利用者の設定（言語・スキン・キーバインド・文字の色）・標準のテーマ・スキン（ダーク・ライト）と、その既定のキーバインド。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
-import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
+import {
+  BOOK_SETTINGS,
+  BOOK_SETTINGS_DIALOG,
+  BOOK_UPDATE,
+  PAGE_PAPER_COLOR,
+  PAGE_THEME,
+  PAGES_UPDATE,
+} from "./book-look"
 import { THEME_TYPES_CHECK } from "./book-look/theme-types"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { CREATE_SETTINGS_CHECK } from "./book-new/book-create"
@@ -46,6 +53,7 @@ import { NOTE_EXPIRY } from "./note/expiry"
 // 拡張ポイントに書き足したフィールド listed の型（outbox/listed.ts の declare module）
 import type {} from "./outbox/listed"
 import {
+  FOLDER_OPEN,
   NEW_PAGE_DIALOG,
   PAGE_ADD,
   PAGE_ADD_AFTER,
@@ -57,6 +65,7 @@ import {
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
 } from "./page-tabs"
+import { FOLDER_DUPLICATE, FOLDER_MOVE, FOLDER_REMOVE, FOLDER_UPDATE } from "./page-tabs/folders"
 import { PAGE_DUPLICATE } from "./page-tabs/page-duplicate"
 import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
@@ -135,7 +144,7 @@ import {
   BACKGROUND_TOGGLE,
 } from "./stage/background"
 import { type CONTENT_HIDDEN, type PRINT_AREAS_HIDDEN, STAGE_STATES } from "./stage/states"
-import { BOOK_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
+import { PAGE_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_PICKER_HOLD } from "./tool-picker/hold"
 import { TOOL_NEXT } from "./tool-switch"
@@ -150,7 +159,7 @@ import { BOOK_SCREEN_DEF, CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CEN
 import { MAXIMIZERS } from "./window/maximize-state"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
-export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
+export { PAGE_PAPER_COLOR, PAGE_THEME } from "./book-look"
 export { DIAGRAM_THEME_TYPE, DOCUMENT_THEME_TYPE, themeFits, themesFor } from "./book-look/theme-types"
 export { createBookIn } from "./book-new/create-book"
 export type { PageContext, SettingReader } from "./book-settings"
@@ -244,8 +253,8 @@ export { BACKGROUND_PRINT, PRINT_PREVIEW_SETTINGS } from "./print-preview/settin
 export { type Scrap, ScrapSchema, scrapSize } from "./scrap/scrap"
 export type { SearchableDef } from "./search/search"
 export {
-  BOOK_TEXT_COLORS,
   clampRich,
+  PAGE_TEXT_COLORS,
   parseRich,
   plainOf,
   type RichLine,
@@ -292,6 +301,11 @@ export const BASE = defineBuiltin(
       PAGE_UPDATE,
       PAGE_MOVE,
       PAGE_DUPLICATE,
+      FOLDER_UPDATE,
+      FOLDER_MOVE,
+      FOLDER_DUPLICATE,
+      FOLDER_REMOVE,
+      PAGES_UPDATE,
       PAGE_REMOVE,
       PAGE_LOCK,
       PAGE_UNLOCK,
@@ -334,9 +348,9 @@ export const BASE = defineBuiltin(
       MAIL_JOIN_REQUEST_SEND,
     ],
     settings: [
-      BOOK_THEME,
-      BOOK_PAPER_COLOR,
-      BOOK_TEXT_COLORS,
+      PAGE_THEME,
+      PAGE_PAPER_COLOR,
+      PAGE_TEXT_COLORS,
       PRINT_PREVIEW_FLOW,
       PRINT_PREVIEW_ORDER,
       PRINT_PREVIEW_SHEET_NUMBERS,
@@ -406,6 +420,7 @@ export const BASE = defineBuiltin(
       MENU_CLOSE,
       BOOK_OPEN,
       PAGE_NEW,
+      FOLDER_OPEN,
       PAGE_OPEN,
       PAGE_ADD_AFTER,
       PAGE_DUPLICATE_COMMAND,
@@ -472,9 +487,9 @@ export const BASE = defineBuiltin(
 declare module "../../core/catalog" {
   interface MessageTable extends Readonly<typeof kit.messages> {}
   interface SettingTable {
-    "@matomezu/base:book-theme": typeof BOOK_THEME
-    "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
-    "@matomezu/base:book-text-colors": typeof BOOK_TEXT_COLORS
+    "@matomezu/base:page-theme": typeof PAGE_THEME
+    "@matomezu/base:page-paper-color": typeof PAGE_PAPER_COLOR
+    "@matomezu/base:page-text-colors": typeof PAGE_TEXT_COLORS
     "@matomezu/base:print-preview-flow": typeof PRINT_PREVIEW_FLOW
     "@matomezu/base:background-print": typeof BACKGROUND_PRINT
     "@matomezu/base:print-preview-order": typeof PRINT_PREVIEW_ORDER
@@ -501,6 +516,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-update": typeof PAGE_UPDATE
     "@matomezu/base:page-move": typeof PAGE_MOVE
     "@matomezu/base:page-duplicate": typeof PAGE_DUPLICATE
+    "@matomezu/base:folder-update": typeof FOLDER_UPDATE
+    "@matomezu/base:folder-move": typeof FOLDER_MOVE
+    "@matomezu/base:folder-duplicate": typeof FOLDER_DUPLICATE
+    "@matomezu/base:folder-remove": typeof FOLDER_REMOVE
+    "@matomezu/base:pages-update": typeof PAGES_UPDATE
     "@matomezu/base:page-remove": typeof PAGE_REMOVE
     "@matomezu/base:page-lock": typeof PAGE_LOCK
     "@matomezu/base:page-unlock": typeof PAGE_UNLOCK
@@ -626,6 +646,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-open": typeof BOOK_OPEN
     "@matomezu/base:page-new": typeof PAGE_NEW
     "@matomezu/base:page-open": typeof PAGE_OPEN
+    "@matomezu/base:folder-open": typeof FOLDER_OPEN
     "@matomezu/base:page-add-after": typeof PAGE_ADD_AFTER
     "@matomezu/base:page-duplicate": typeof PAGE_DUPLICATE_COMMAND
     "@matomezu/base:page-delete": typeof PAGE_DELETE

@@ -41,6 +41,11 @@ RULES = [
         r"\1(\2, ",
         [],
     ),
+    # テーマ・紙の色・文字の色はページの設定の項目（名前を替える）
+    (re.compile(r"\bBOOK_THEME\b"), "PAGE_THEME", []),
+    (re.compile(r"\bBOOK_PAPER_COLOR\b"), "PAGE_PAPER_COLOR", []),
+    (re.compile(r"\bBOOK_TEXT_COLORS\b"), "PAGE_TEXT_COLORS", []),
+    (re.compile(r"@matomezu/base:book-(theme|paper-color|text-colors)\b"), r"@matomezu/base:page-\1", []),
     # 付く先: ページを持つタイプ → どのブックにも
     (re.compile(r"attach: \{ pages: true \}"), "attach: { books: true }", []),
     # 開いているもの

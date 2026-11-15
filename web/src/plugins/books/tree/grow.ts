@@ -8,6 +8,7 @@ export type Grow = (typeof GROWS)[number]
 
 export const GROW = kit.defineSetting({
   id: "grow",
+  holder: "page",
   title: "Grow direction",
   schema: z.enum(GROWS),
   default: "down",

@@ -8,6 +8,7 @@ export type SlidePrint = (typeof SLIDE_PRINTS)[number]
 
 export const SLIDE_PRINT = kit.defineSetting({
   id: "slide-print",
+  holder: "page",
   title: "Print slides",
   schema: z.enum(SLIDE_PRINTS),
   default: "auto",

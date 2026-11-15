@@ -5,9 +5,9 @@ import { z } from "zod"
 import type { PageSettingsArgs } from "../../../plugin-api"
 import {
   BACKGROUND_PRINT,
-  BOOK_PAPER_COLOR,
-  BOOK_TEXT_COLORS,
-  BOOK_THEME,
+  PAGE_PAPER_COLOR,
+  PAGE_TEXT_COLORS,
+  PAGE_THEME,
   DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
@@ -113,13 +113,13 @@ export const TREE = kit.definePageType({
   tools: TREE_TOOLS.id,
   settings: {
     book: [
-      BOOK_THEME.id,
-      BOOK_PAPER_COLOR.id,
+      PAGE_THEME.id,
+      PAGE_PAPER_COLOR.id,
       kit.name("grow"),
       kit.name("node-size"),
       kit.name("node-shape"),
       kit.name("line-shape"),
-      BOOK_TEXT_COLORS.id,
+      PAGE_TEXT_COLORS.id,
       ...PRINT_PREVIEW_SETTINGS,
       BACKGROUND_PRINT.id,
     ],

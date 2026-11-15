@@ -3,13 +3,13 @@
 import { BOOK_SETTINGS, BOOK_SETTINGS_DIALOG } from "."
 import { BookSettingsDialog } from "./BookSettingsDialog"
 import { PaperColorSetting, ThemeSetting } from "./LookSettings"
-import { BOOK_PAPER_COLOR, BOOK_THEME } from "./look"
+import { PAGE_PAPER_COLOR, PAGE_THEME } from "./look"
 
 export const BOOK_LOOK_DIALOG_VIEWS = { [BOOK_SETTINGS_DIALOG.id]: BookSettingsDialog }
 
 export const BOOK_LOOK_SETTING_VIEWS = {
-  [BOOK_THEME.id]: { control: ThemeSetting },
-  [BOOK_PAPER_COLOR.id]: { control: PaperColorSetting },
+  [PAGE_THEME.id]: { control: ThemeSetting },
+  [PAGE_PAPER_COLOR.id]: { control: PaperColorSetting },
 }
 
 export const BOOK_LOOK_ICONS = {

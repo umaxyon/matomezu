@@ -4,9 +4,9 @@
 import { z } from "zod"
 import {
   BACKGROUND_PRINT,
-  BOOK_PAPER_COLOR,
-  BOOK_TEXT_COLORS,
-  BOOK_THEME,
+  PAGE_PAPER_COLOR,
+  PAGE_TEXT_COLORS,
+  PAGE_THEME,
   DIAGRAM_THEME_TYPE,
   PAPER_IDS,
   PRINT_PREVIEW_SETTINGS,
@@ -92,7 +92,7 @@ export const DIR = kit.definePageType({
   ],
   tools: DIR_TOOLS.id,
   settings: {
-    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, BOOK_TEXT_COLORS.id, ...PRINT_PREVIEW_SETTINGS, BACKGROUND_PRINT.id],
+    book: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, PAGE_TEXT_COLORS.id, ...PRINT_PREVIEW_SETTINGS, BACKGROUND_PRINT.id],
     page: [kit.name("notes"), BACKGROUND_PRINT.id], // 説明の見せ方（notes.ts）と背景の印刷
   },
 })

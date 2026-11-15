@@ -47,6 +47,7 @@ export const LinePatchSchema = z.strictObject(
 // 線の既定の通り方（ブックとページの設定の項目。線が自分の通り方を持たなければこれ）
 export const LINE_ROUTE = kit.defineSetting({
   id: "line-route",
+  holder: "page",
   title: "Line route",
   schema: z.enum(ROUTES),
   default: "elbow",
