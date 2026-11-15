@@ -19,7 +19,7 @@ import {
 import { ENTRY_UPDATE } from "./actions"
 import styles from "./EntrySettingsDialog.module.css"
 import { entryOf } from "./edit"
-import { dirRootOf, FILE_ICONS, FOLDER_ICONS, type Icon } from "./entry"
+import { dirRootOf, FILE_ICONS, FOLDER_ICONS, type IconName } from "./entry"
 import { kit } from "./kit"
 import { NodeIcon } from "./node-icon"
 
@@ -33,7 +33,7 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
   const perform = usePerform(stage)
   const [name, setName] = useState(entry?.name ?? "")
   const [description, setDescription] = useState(entry?.description ?? "")
-  const [icon, setIcon] = useState<Icon | undefined>(entry?.icon)
+  const [icon, setIcon] = useState<IconName | undefined>(entry?.icon)
   const catalog = useCoreCatalog()
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !entry) return null

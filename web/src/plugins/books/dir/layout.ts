@@ -8,7 +8,7 @@
 import type { Point } from "../../../plugin-api"
 import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, wrapRich } from "../../base"
 import { rowsOf } from "./edit"
-import type { DirFolder, Icon, Kind } from "./entry"
+import type { DirFolder, IconName, Kind } from "./entry"
 import { NOTE_DEFAULT, type NoteLook } from "./notes"
 
 export const MARGIN = 24 // 紙の辺と、いちばん外の行の間
@@ -30,7 +30,7 @@ export interface LaidRow {
   kind: Kind
   name: string
   line: RichLine // 見せる名前（装飾の区切りの並び）
-  icon?: Icon // 選んだアイコン（無ければ種類の既定）
+  icon?: IconName // 選んだアイコン（無ければ種類の既定）
   closed: boolean // 閉じたフォルダ
   hasKids: boolean // 中身のあるフォルダ
   x: number // アイコンの左

@@ -1,4 +1,4 @@
-// ユーザーが用意した、matomezu のアイコン（svg。24 の四角の固定色）
+// matomezu のアイコン（svg を写した物。24 の四角の固定色）
 
 export const BookIcon = ({ size = 16 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" fill="none">

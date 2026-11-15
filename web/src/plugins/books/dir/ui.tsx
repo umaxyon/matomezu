@@ -7,8 +7,8 @@ import { EntrySettingsDialog } from "./EntrySettingsDialog"
 import { DIR_TOOL_ICONS } from "./icons"
 import { NewDirPageDialog } from "./NewDirPageDialog"
 import { NoteSetting } from "./NoteSetting"
+import { DirectoryIcon } from "./node-icons"
 import { NOTES } from "./notes"
-import { DirectoryIcon } from "./type-icon"
 import { DIR_VIEW } from "./view/ui"
 
 export const DIR_UI = definePluginUi(DIR_PLUGIN, {

@@ -21,10 +21,10 @@ export const FILE_ICONS = [
   "class-diagram",
   "html",
 ] as const
-export type FolderIcon = (typeof FOLDER_ICONS)[number]
-export type FileIcon = (typeof FILE_ICONS)[number]
+export type FolderIconName = (typeof FOLDER_ICONS)[number]
+export type FileIconName = (typeof FILE_ICONS)[number]
 export const ICONS = [...FOLDER_ICONS, ...FILE_ICONS] as const
-export type Icon = (typeof ICONS)[number]
+export type IconName = (typeof ICONS)[number]
 
 const folderIcon = () =>
   z
@@ -40,7 +40,7 @@ export interface DirFile {
   kind: "file"
   name: string
   description?: string
-  icon?: FileIcon
+  icon?: FileIconName
 }
 
 export interface DirFolder {
@@ -48,7 +48,7 @@ export interface DirFolder {
   kind: "folder"
   name: string
   description?: string
-  icon?: FolderIcon
+  icon?: FolderIconName
   closed?: boolean
   children?: DirEntry[]
 }
@@ -97,8 +97,15 @@ export const dirRootOf = (page: object | null | undefined): DirFolder | undefine
 
 // 足すときに受ける中身（id は書かない。閉じているかと中身はフォルダだけ）
 export type NewEntry =
-  | { kind: "file"; name: string; description?: string; icon?: FileIcon }
-  | { kind: "folder"; name: string; description?: string; icon?: FolderIcon; closed?: boolean; children?: NewEntry[] }
+  | { kind: "file"; name: string; description?: string; icon?: FileIconName }
+  | {
+      kind: "folder"
+      name: string
+      description?: string
+      icon?: FolderIconName
+      closed?: boolean
+      children?: NewEntry[]
+    }
 
 const NewFileSchema = z.strictObject({
   kind: z.literal("file"),

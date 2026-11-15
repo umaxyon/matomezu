@@ -1,4 +1,4 @@
-// ユーザーが用意した、matomezu のアイコン（svg。24 の四角の固定色）
+// matomezu のアイコン（svg を写した物。24 の四角の固定色）
 
 export const TreeIcon = ({ size = 16 }: { size?: number }) => (
   <svg

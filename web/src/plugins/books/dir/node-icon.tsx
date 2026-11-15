@@ -1,6 +1,6 @@
 // 行の頭の絵: 種類の既定か、選んだアイコン（entry.ts の FOLDER_ICONS・FILE_ICONS）。フォルダとブックは、開いている（中身が見えている）ときに開いた絵にする
 import type { ReactNode } from "react"
-import type { Icon, Kind } from "./entry"
+import type { IconName, Kind } from "./entry"
 import {
   BookIcon,
   BookOpenIcon,
@@ -29,7 +29,7 @@ const FILES: Readonly<Record<string, (size: number) => ReactNode>> = {
   html: size => <HtmlIcon size={size} />,
 }
 
-export function NodeIcon({ kind, icon, open, size }: { kind: Kind; icon?: Icon; open: boolean; size: number }) {
+export function NodeIcon({ kind, icon, open, size }: { kind: Kind; icon?: IconName; open: boolean; size: number }) {
   if (kind === "file") return FILES[icon ?? "file"]?.(size) ?? <FileIcon size={size} />
   if (icon === "book") return open ? <BookOpenIcon size={size} /> : <BookIcon size={size} />
   return open ? <FolderOpenIcon size={size} /> : <FolderIcon size={size} />
