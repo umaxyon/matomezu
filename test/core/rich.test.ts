@@ -1,7 +1,7 @@
 // 本文の装飾（base の text/rich.ts・edit.ts・text-colors.ts）
 
 import { expect, test } from "bun:test"
-import type { Book } from "../../web/src/core/schema/book"
+import { pagesOf } from "../../web/src/core/book"
 import { restoreSettings, userSetting } from "../../web/src/core/settings"
 import { TEXT_LOOK, wrap } from "../../web/src/plugins/base"
 import {
@@ -19,7 +19,7 @@ import {
   textColorsOf,
   withTextColor,
 } from "../../web/src/plugins/base/text/text-colors"
-import { pagesBook } from "../lineup"
+import { drawingPage } from "../lineup"
 import { CORE_CATALOG, newStore } from "../support"
 
 const W = "@matomezu/base:warn"
@@ -107,20 +107,14 @@ test("記号の字の前の \\ でただの文字になり、戻すときは記�
   }
 })
 
-test("文字の色は定義の色を、テーマ、ブックの設定、利用者の上書きの順に上書きする", () => {
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing",
-    id: "b",
-    title: "",
-    pages: [],
-    settings: { "@matomezu/base:page-text-colors": { [W]: "#111111" } },
-  }) as unknown as Book
-  const plain = { ...book, settings: undefined } as unknown as Book
+test("文字の色は定義の色を、テーマ、ページの設定、利用者の上書きの順に上書きする", () => {
+  const page = drawingPage("p1", { settings: { "@matomezu/base:page-text-colors": { [W]: "#111111" } } })
+  const plain = drawingPage("p1")
   expect(textColorsOf(CORE_CATALOG, plain).get(W)).toBe("#d97706")
-  expect(textColorsOf(CORE_CATALOG, book).get(W)).toBe("#111111")
-  expect(textColorsOf(CORE_CATALOG, book, { [W]: "#222222" }).get(W)).toBe("#222222")
+  expect(textColorsOf(CORE_CATALOG, page).get(W)).toBe("#111111")
+  expect(textColorsOf(CORE_CATALOG, page, { [W]: "#222222" }).get(W)).toBe("#222222")
   const themed = (more: Record<string, unknown>) =>
-    ({ ...book, settings: { "@matomezu/base:page-theme": "@matomezu/base:matomezu", ...more } }) as unknown as Book
+    drawingPage("p1", { settings: { "@matomezu/base:page-theme": "@matomezu/base:matomezu", ...more } })
   expect(textColorsOf(CORE_CATALOG, themed({})).get(W)).toBe("#b86e00")
   expect(textColorsOf(CORE_CATALOG, themed({ "@matomezu/base:page-text-colors": { [W]: "#111111" } })).get(W)).toBe(
     "#111111",
@@ -133,7 +127,7 @@ test("文字の色は定義の色を、テーマ、ブックの設定、利用�
   ])
 })
 
-test("利用者の文字の色は利用者の設定の項目 text-colors で、値を丸ごと置き換え（null で既定に戻す）、ブックの色より強い。形の合わない色は断り、無い色の id は残す", () => {
+test("利用者の文字の色は利用者の設定の項目 text-colors で、値を丸ごと置き換え（null で既定に戻す）、ページの色より強い。形の合わない色は断り、無い色の id は残す", () => {
   const store = newStore()
   const { state, actions } = store
   const set = (colors: Record<string, string> | null) =>
@@ -141,8 +135,8 @@ test("利用者の文字の色は利用者の設定の項目 text-colors で、�
   const viewer = () => userSetting(CORE_CATALOG, state.getState().settings, "@matomezu/base:text-colors") as TextColors
   expect(set({ [W]: "#abcdef" })).toBe(true)
   expect(viewer()).toEqual({ [W]: "#abcdef" })
-  const book = state.getState().books.b1 as Book
-  expect(textColorsOf(CORE_CATALOG, book, viewer()).get(W)).toBe("#abcdef")
+  const page = pagesOf(state.getState().books.b1!)[0]!
+  expect(textColorsOf(CORE_CATALOG, page, viewer()).get(W)).toBe("#abcdef")
   expect(set({ [W]: "red" })).toBe(false)
   expect(set({ "@ex/p:none": "#000000" })).toBe(true)
   expect(viewer()).toEqual({ "@ex/p:none": "#000000" })

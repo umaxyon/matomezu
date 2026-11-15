@@ -62,8 +62,7 @@ test("置けるアイテムは items.allowed と slide.allowed の合わせ: ア
   const onlySlide = { ...drawing, items: { ...drawing.items, allowed: [] }, slide: { allowed: [box.id] } }
   const ids = tokenDefsOf(CORE_CATALOG, onlySlide).map(d => d.id)
   for (const t of box.tokens) expect(ids).toContain(t.id)
-  const book = { type: SLIDE_TYPE } as never
-  expect(toolboxOf(CORE_CATALOG, book, "items")).toEqual(slideType.slide!.allowed as never)
+  expect(toolboxOf(CORE_CATALOG, SLIDE_TYPE, "items")).toEqual(slideType.slide!.allowed as never)
 })
 
 test("ミニマップと印刷区画の既定は、ページの slide の形も数える（形の定義の minimap。無いなら置いた四角）", () => {

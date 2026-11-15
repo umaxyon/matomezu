@@ -58,7 +58,7 @@ export const ERRORS = {
   E054: "screen arrangement {id}: atStart is held by {other} too",
   E055: "screen {id}: stages is held by {other} too",
 
-  E101: "unknown book type: {id}",
+  E101: "unknown page type: {id}",
   E102: "unknown theme: {id}",
   E105: "no current stage: {id}",
   E107: "unknown command: {id}",
