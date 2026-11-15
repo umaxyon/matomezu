@@ -73,7 +73,10 @@ def fix_import(s: str, path: str, mod: str, add: set[str], remove: set[str], typ
         whole_type = bool(m.group(1))
         names = names_of(m.group(2))
         bare = lambda n: n.replace("type ", "")
-        names = [n for n in names if bare(n) not in remove]
+        kept = [n for n in names if bare(n) not in remove]
+        if len(kept) == len(names) and not (used - {bare(n) for n in names}):
+            return s  # 足す物も外す物も無ければ、書き換えない
+        names = kept
         if whole_type:
             names = ["type " + n for n in names]
         have = {bare(n) for n in names}
