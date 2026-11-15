@@ -147,7 +147,7 @@ test("ツリーのように並べ方を描くときに決めるタイプは、�
   }
   const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] }
   expect(filledSheets(store.catalog.core, tree as never, page)).toBeNull()
-  expect(sheetsOfPage(store.catalog.core, tree as never, page)).toEqual({
+  expect(sheetsOfPage(store.catalog.core, page)).toEqual({
     columns: 1,
     rows: 1,
     filled: new Set(["0,0"]),
@@ -161,7 +161,7 @@ test("可変ページのツリーとディレクトリ構成図で中身があ�
   const children = Array.from({ length: 40 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` }))
   const treePage = { id: "p1", title: "1", ...paper, root: { id: "r", caption: "根", children } }
   const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [treePage] }
-  const t = sheetsOfPage(store.catalog.core, tree as never, treePage)!
+  const t = sheetsOfPage(store.catalog.core, treePage)!
   expect(t.columns * t.rows).toBeGreaterThan(1)
   expect(t.filled?.size).toBeGreaterThan(1)
   const files = Array.from({ length: 80 }, (_, i) => ({ id: `f${i}`, kind: "file" as const, name: `file${i}.ts` }))
@@ -172,7 +172,7 @@ test("可変ページのツリーとディレクトリ構成図で中身があ�
     root: { id: "r", kind: "folder" as const, name: "proj", children: files },
   }
   const dir = { type: "@matomezu/dir:dir" as const, id: "d1", title: "構成", pages: [dirPage] }
-  const d = sheetsOfPage(store.catalog.core, dir as never, dirPage)!
+  const d = sheetsOfPage(store.catalog.core, dirPage)!
   expect(d.rows).toBeGreaterThan(1)
   expect(d.filled?.has("0,1")).toBe(true)
 })
@@ -230,8 +230,8 @@ test("印刷のときの改ページ: ツリーとディレクトリ構成図の
   const last = Math.max(...laidDir.rows.map(r => r.y + r.h))
   expect(laidDir.divider?.to.y).toBeGreaterThanOrEqual(last)
   // 書く画面の暗くする印刷区画は、改ページの前の並べ方で数える（印刷の並べ方より印刷区画が増えない）
-  const printed = sheetsOfPage(store.catalog.core, dir as never, dirPage as never)!
-  const screen = sheetsOfPage(store.catalog.core, dir as never, dirPage as never, "screen")!
+  const printed = sheetsOfPage(store.catalog.core, dirPage as never)!
+  const screen = sheetsOfPage(store.catalog.core, dirPage as never, "screen")!
   expect(screen.rows).toBeLessThanOrEqual(printed.rows)
 })
 

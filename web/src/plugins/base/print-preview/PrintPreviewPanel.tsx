@@ -9,7 +9,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
-import { ownSettings, settingDefs } from "../book-settings"
+import { bookSettingDefs, ownSettings } from "../book-settings"
 import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK } from "../lock"
@@ -62,7 +62,7 @@ export function PrintPreviewPanel() {
         />
       </fieldset>
       <fieldset className={styles.settings} disabled={blocked}>
-        {settingDefs(catalog, book.type, "book", "print-preview").map(def => {
+        {bookSettingDefs(catalog, "print-preview").map(def => {
           const id = def.id
           const Control = ui.settingViews.get(id)?.control
           if (!Control) return null

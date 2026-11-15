@@ -7,6 +7,7 @@ export const PAGE_MESSAGES = defineMessages({
   "Unknown paper": { en: "Unknown paper", ja: "不明な紙" },
   "New page": { en: "New page", ja: "新しいページ" },
   "Page name": { en: "Page name", ja: "ページの名前" },
+  "Folder name": { en: "Folder name", ja: "フォルダの名前" },
   "Paper size": { en: "Paper size", ja: "紙のサイズ" },
   Create: { en: "Create", ja: "作成" },
   "Update page": { en: "Update page", ja: "ページを変える" },

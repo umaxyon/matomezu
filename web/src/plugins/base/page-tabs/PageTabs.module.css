@@ -77,6 +77,11 @@
   background: var(--skin-stage);
   border-color: var(--skin-border);
 }
+/* ＋とそのメニューの置き場所 */
+.addBox {
+  display: flex;
+  align-self: center;
+}
 .add {
   align-self: center;
   margin-left: 2px;

@@ -13,10 +13,10 @@ export function SheetLayers(props: Omit<PrintSheetProps, "zoom">) {
   return <Slot name={SHEET_LAYERS} props={{ ...props, zoom }} />
 }
 
-// ブックの中身のレイヤー: ブックのタイプの見せ方の印刷区画 1 つのビュー（無ければ白紙）
+// ページの中身のレイヤー: ページのタイプの見せ方の印刷区画 1 つのビュー（無ければ白紙）
 export function SheetContent(props: PrintSheetProps) {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const Sheet = views.get(pageType(catalog, props.book.type).presentation)?.printSheet
+  const Sheet = views.get(pageType(catalog, props.page.type).presentation)?.printSheet
   return Sheet ? <Sheet {...props} /> : null
 }

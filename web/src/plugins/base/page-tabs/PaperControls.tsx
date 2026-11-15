@@ -1,4 +1,4 @@
-// 紙・向き・可変ページかの入力Form（ページを作るダイアログと、ページの設定のダイアログ）。選べる紙と向きはブックのタイプの規定で決まり（1 つしか無ければ選べない）、
+// 紙・向き・可変ページかの入力Form（ページを作るダイアログと、ページの設定のダイアログ）。選べる紙と向きはページのタイプの規定で決まり（1 つしか無ければ選べない）、
 // 可変ページかは、タイプが増やす向きの決め方を持つときだけ出す（利用者が向きを選ぶタイプなら、可変ページにすると増やす向きも選べる）。ページの設定では、変えた項目だけをアクション page-update に渡し、形が紙に入らなければ問題にする
 
 import { useState } from "react"
@@ -33,20 +33,21 @@ export interface PaperValue {
   grows: Page["grows"]
 }
 
-// page はページの設定なら変えるページ、ページを作るなら null（タイプの規定の既定から始める）
-export function usePaperControls(book: Book | undefined, page: Page | null) {
+// page はページの設定なら変えるページ、ページを作るなら null（タイプ type の規定の既定から始める。page があれば type はそのページのタイプ）
+export function usePaperControls(book: Book | undefined, page: Page | null, type: string | undefined) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const [value, setValue] = useState<PaperValue | null>(() => {
-    if (!book) return null
-    const from = page ?? defaultPaper(catalog, book)
-    const choices = growChoices(catalog, book)
+    if (!book || type === undefined) return null
+    const from = page ?? defaultPaper(catalog, book, type)
+    const choices = growChoices(catalog, type)
     const grows = page?.grows === true && choices[0] ? choices[0] : page?.grows
     return { paper: from.paper, orientation: from.orientation, grows }
   })
-  if (!book || !value) return { controls: null, value: null, patch: {}, draft: (p: Page) => p, problems: [] }
-  const { papers, orientations } = page ? paperChoicesFor(catalog, book, page.id) : paperChoices(catalog, book)
-  const choices = growChoices(catalog, book)
+  if (!book || !value || type === undefined)
+    return { controls: null, value: null, patch: {}, draft: (p: Page) => p, problems: [] }
+  const { papers, orientations } = page ? paperChoicesFor(catalog, book, page) : paperChoices(catalog, book, type)
+  const choices = growChoices(catalog, type)
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
   // 変えた項目（ページを作るなら全部）
   const patch = {
@@ -104,7 +105,7 @@ export function usePaperControls(book: Book | undefined, page: Page | null) {
           </select>
         )}
       </Field>
-      {canGrow(catalog, book) && (
+      {canGrow(catalog, type) && (
         <div className={rowClass}>
           <span>{t("Variable page")}</span>
           <Switch

@@ -2,15 +2,17 @@
 // 開くのはフッタメニューのボタン（コマンド print-preview-open）。開くと右サイドパネルに印刷プレビューの設定を出し、右サイドパネルを閉じれば印刷プレビューも閉じる
 // （閉じたときに戻す見え方は、ステージの印刷プレビューが持つ。右サイドパネルの戻しは使わない）。
 // 設定（settings.ts）を変えるのはアクション print-preview-update だけで、印刷プレビューの間も行え、画面の履歴（Undo）には入れない
+
 import { z } from "zod"
-import { hasPages } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
+import { shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { calledStageOf } from "../../../store/commands/def"
 import { withBookSettings } from "../book-look"
 import type { SettingReader } from "../book-settings"
+import { bookSettingValue } from "../book-settings"
 import { kit } from "../kit"
 import type { GrowSides } from "../place/grow"
 import { openedRestore, RIGHT_SIDE_PANEL_RESTORE_STATE, RIGHT_SIDE_PANEL_STATE } from "../right-side-panel/state"
@@ -121,7 +123,7 @@ function openPreview(ctx: CommandContext, a: CommandActions) {
   const now = calledStageOf(ctx)
   const opened = now?.opened
   if (book && now && opened && hasCrossing(ctx.catalog, book)) {
-    const open = { ...printCheckOpen(book.id), book: opened.book, page: opened.page }
+    const open = { ...printCheckOpen(book.id), book: opened.book, page: shownPageId(opened) }
     a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => open)
     a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, open, now))
     return
@@ -134,7 +136,7 @@ export const PRINT_PREVIEW_OPEN = kit.defineCommand({
   id: "print-preview-open",
   title: "Print preview",
   run: (ctx, a) => openPreview(ctx, a),
-  when: ctx => ctx.book !== null && hasPages(ctx.book) && ctx.stage.mode === "edit",
+  when: ctx => ctx.book !== null && ctx.stage.mode === "edit",
 })
 
 // 印刷: 印刷プレビューの間は、並べた印刷区画を刷る（印刷ダイアログ。測っている途中と、並べる物が無い間は押せない）。
@@ -146,7 +148,7 @@ export const PRINT = kit.defineCommand({
     if (ctx.stage.mode === "edit") openPreview(ctx, a)
     else if (ctx.pluginState(PRINT_READY_STATE)) a.requestPrint()
   },
-  when: ctx => ctx.book !== null && hasPages(ctx.book),
+  when: ctx => ctx.book !== null,
   enabled: ctx => ctx.stage.mode === "edit" || ctx.pluginState(PRINT_READY_STATE) === true,
 })
 

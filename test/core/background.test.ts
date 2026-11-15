@@ -63,7 +63,7 @@ test("背景編集モードの間は、ページを替えない。印刷プレ�
 test("背景だけの印刷区画は載らない（auto）。印刷対象が always なら中身が無くても載り、never でも auto と同じに載らない", () => {
   const sheetsFor = (setting?: string) => {
     const page = { ...pages[0], ...(setting ? { settings: { "@matomezu/base:background-print": setting } } : {}) }
-    return sheetsOfPage(CORE_CATALOG, book(DRAWING, { pages: [page] }), page as never)
+    return sheetsOfPage(CORE_CATALOG, page as never)
   }
   expect(sheetsFor()?.filled).toEqual(new Set())
   expect(sheetsFor("always")?.filled).toBeNull()
@@ -91,7 +91,7 @@ test("可変ページで背景を必ず印刷するときは、背景だけの�
       pages: [page],
       ...(setting ? { settings: { "@matomezu/base:background-print": setting } } : {}),
     })
-    return sheetsOfPage(CORE_CATALOG, b, page as never)
+    return sheetsOfPage(CORE_CATALOG, page as never)
   }
   const always = sheetsFor("always")
   expect(always?.filled).toBeNull()

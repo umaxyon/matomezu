@@ -101,7 +101,7 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   const book = state.getState().books.b1!
   const page = (book as { pages: readonly ItemPage[] }).pages.find(p => p.id === "p1")!
   const sheet = paperOf(stage())!
-  const start = startOf(catalog.core, book, page)
+  const start = startOf(catalog.core, page)
   expect(start).toEqual({ x: sheet.w, y: sheet.h })
   actions.setStageArea("s1", roomOf(catalog.core, book, page))
   actions.setStageStart("s1", start)
@@ -126,7 +126,7 @@ test("ツリーの可変ページも、左へ増やす向きなら左の印刷�
     root: { id: "r", caption: "根", children },
   }
   const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] }
-  expect(startOf(catalog.core, tree as never, page as never)).toEqual({ x: 1123, y: 0 })
+  expect(startOf(catalog.core, page as never)).toEqual({ x: 1123, y: 0 })
   // 中身の無いページ・可変ページでないページは紙の左上
   const plain = { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "landscape" as const, items: [] }
   const drawing = {
@@ -135,5 +135,5 @@ test("ツリーの可変ページも、左へ増やす向きなら左の印刷�
     title: "図",
     pages: [plain],
   }
-  expect(startOf(catalog.core, drawing as never, plain as never)).toEqual({ x: 0, y: 0 })
+  expect(startOf(catalog.core, plain as never)).toEqual({ x: 0, y: 0 })
 })

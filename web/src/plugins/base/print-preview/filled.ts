@@ -8,7 +8,6 @@ import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/page-type"
 import type { Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage, type PlacedShape, shapesOf, slideOf } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { type GrowSides, grownArea } from "../place/grow"
 import { paperSize } from "../place/items"
@@ -83,10 +82,10 @@ export function sheetShapes(
   return { shapes, here: shapes.filter(on) }
 }
 
-// ブック book のページ page で、何かが載っている印刷区画の鍵（判定できないタイプなら null）
-export function filledSheets(catalog: CoreCatalog, book: Book, page: ItemPage): ReadonlySet<string> | null {
+// ページ page で、何かが載っている印刷区画の鍵（判定できないタイプなら null）
+export function filledSheets(catalog: CoreCatalog, page: ItemPage): ReadonlySet<string> | null {
   const paper = paperSize(catalog, page)
-  const type = pageType(catalog, book.type)
+  const type = pageType(catalog, page.type)
   if (!paper || placeableIn(type, "items").length === 0) return null
   const filled = new Set<string>()
   const rects = rectsOf(catalog, page)

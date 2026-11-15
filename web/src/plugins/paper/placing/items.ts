@@ -41,14 +41,7 @@ export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 const noiseless = (v: number): number => Math.round(v * 1e6) / 1e6
 
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）
-export function trackDrag(
-  catalog: CoreCatalog,
-  page: ItemPage,
-  id: string,
-  prev: Point,
-  by: Point,
-  came: Came,
-): Came {
+export function trackDrag(catalog: CoreCatalog, page: ItemPage, id: string, prev: Point, by: Point, came: Came): Came {
   const frame = frameAround(catalog, page, id)
   return frame ? track(frame.rects, id, prev, by, came) : came
 }

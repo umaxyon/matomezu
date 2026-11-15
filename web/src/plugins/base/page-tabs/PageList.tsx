@@ -1,19 +1,20 @@
-// ステージの左に縦に並べるページ一覧（ウィジェット page-list。スロット stage-side）: ブックのタイプが ページ一覧（pageList）を選んでいるときだけ出す。
-// ページごとに、ページの番号とサムネイルを並べる。サムネイルは、ブックのタイプの見せ方の印刷区画 1 つのビュー（printSheet）で描き、一覧の幅に合わせて縮める
+// ステージの左に縦に並べるページ一覧（ウィジェット page-list。スロット stage-side）: フォルダ（スライド）を開いている間だけ出し、開いているフォルダのページを並べる。
+// ページごとに、ページの番号とサムネイルを並べる。サムネイルは、ページのタイプの見せ方の印刷区画 1 つのビュー（printSheet）で描き、一覧の幅に合わせて縮める
 // （ステージの拡大縮小には従わない）。押したページをそのステージで開く（コマンド page-open）。開いているページは枠と太字の番号で示す。
 // ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-context。ここに追加・複製・削除）。
-// 一覧の下の＋は、最後にページを足す（コマンド page-add-after。ページが 0 枚でも出す）。ロック中のページには鍵の印を付ける
+// 一覧の下の＋は、最後にページを足す（コマンド page-add-after。空のフォルダなら、そのフォルダに足して開く）。ロック中のページには鍵の印を付ける
 
 import { useRef, useState } from "react"
-import { hasPages, pagesOf } from "../../../core/book"
-import { pageType } from "../../../core/core-catalog"
+import { findFolder, pagesIn } from "../../../core/book"
 import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
+import { folderOf, shownPageId } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useAllowed } from "../../../ui/view-hooks"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
@@ -23,6 +24,8 @@ import { SheetLayers } from "../print-preview/SheetLayers"
 import { useResize } from "../utils/useResize"
 import { PAGE_ADD_AFTER, PAGE_CONTEXT, PAGE_OPEN } from "."
 import styles from "./PageList.module.css"
+import { PAGE_ADD } from "./page-add"
+import { useAddPage } from "./useAddPage"
 import { useTabDrag } from "./useTabDrag"
 
 // ページ 1 枚のサムネイル
@@ -72,27 +75,31 @@ function ThumbnailFrame({
 export function PageList() {
   const opened = useStageHere(st => st?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
-  const catalog = useCatalog().core
   const openPage = useCommand(PAGE_OPEN.id)
   const addAfter = useCommand(PAGE_ADD_AFTER.id)
+  const addInto = useAddPage()
+  const adds = useAllowed(PAGE_ADD.id).ok
   const openMenu = useContextMenu(PAGE_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
-  const pages = book && hasPages(book) ? book.pages : []
+  const folder = book && opened ? findFolder(book, folderOf(book, opened) ?? "") : undefined
+  const pages = book && folder ? pagesIn(book, folder.id) : []
   const drag = useTabDrag(
     list,
     pages.map(p => p.id),
     "y",
   )
-  if (!book || !hasPages(book) || !pageType(catalog, book.type).pageList || !openPage.enabled) return null
+  if (!book || !folder || !openPage.enabled) return null
+  const shown = shownPageId(opened ?? null)
+  const last = pages.at(-1)
   return (
     <nav className={styles.list} aria-label={t("Page list")} ref={list} data-page-list>
-      {pagesOf(book).map((p, i) => (
+      {pages.map((p, i) => (
         <div
           key={p.id}
           className={styles.item}
           ref={drag.slot(p.id)}
-          data-selected={p.id === opened?.page}
+          data-selected={p.id === shown}
           data-carried={drag.drag?.id === p.id}
           data-page={p.id}
         >
@@ -106,7 +113,7 @@ export function PageList() {
             type="button"
             className={styles.page}
             aria-label={p.title}
-            aria-current={p.id === opened?.page ? "page" : undefined}
+            aria-current={p.id === shown ? "page" : undefined}
             onClick={() => {
               if (!drag.swallowClick()) openPage.run(p.id)
             }}
@@ -118,12 +125,14 @@ export function PageList() {
         </div>
       ))}
       {drag.bar !== null && <div className={styles.dropBar} style={{ top: drag.bar }} />}
-      {addAfter.shown && (
+      {(last ? addAfter.shown : adds) && (
         <button
           type="button"
           className={styles.add}
           aria-label={t("Add page")}
-          onClick={() => addAfter.run({ page: pagesOf(book).at(-1)?.id })}
+          onClick={() =>
+            last ? addAfter.run({ page: last.id }) : addInto({ type: folder.pageType, into: { folder: folder.id } })
+          }
         >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3v10M3 8h10" />
