@@ -1,4 +1,4 @@
-// タイプがページに足したフィールド（pages.fields。ツリーの根など）: base のアクション page-add・page-update が fields（フィールドの名前 → 値）で受け付ける。
+// タイプがページに足したフィールド（fields。ツリーの根など）: base のアクション page-add・page-update が fields（フィールドの名前 → 値）で受け付ける。
 // 受け方はタイプが決められる（pageFieldsInput。作るとき・直すときごとに、受ける形と、ページへの書き方）。決めていなければ、base は中身を解釈せず、
 // タイプのフィールドの形で確かめて、書いたフィールドを丸ごと替える。書いたあとのページがタイプの形に合うかは、ブックのデータの形が確かめる。
 // AI には、タイプごとの受ける形を引数の形に入れて見せる（fieldsArgs）
@@ -35,7 +35,7 @@ declare module "../../../core/catalog" {
 
 // base の受け方の形: タイプのフィールドだけを、どれも書かなくてよい形で（フィールドの無いタイプは null）
 function defaultArgs(catalog: CoreCatalog, type: string): z.ZodObject | null {
-  const fields = pageType(catalog, type).pages?.fields ?? {}
+  const fields = pageType(catalog, type).fields ?? {}
   return Object.keys(fields).length > 0
     ? z.strictObject(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.optional()])))
     : null
@@ -43,7 +43,7 @@ function defaultArgs(catalog: CoreCatalog, type: string): z.ZodObject | null {
 
 const wayOf = (catalog: CoreCatalog, type: string, of: FieldsOf) => pageType(catalog, type).pageFieldsInput?.[of]
 
-// タイプ type のブックの、作るとき・直すときに受ける形（フィールドの無いタイプは null）
+// タイプ type のページの、作るとき・直すときに受ける形（フィールドの無いタイプは null）
 export function fieldsArgsOf(catalog: CoreCatalog, type: string, of: FieldsOf): z.ZodObject | null {
   const args = wayOf(catalog, type, of)?.args
   return (typeof args === "function" ? args(catalog) : args) ?? defaultArgs(catalog, type)
@@ -59,12 +59,12 @@ export function writeFields(
   newId: () => string,
 ): { page: Page; result?: unknown } | null {
   if (fields === undefined) return { page }
-  const parsed = fieldsArgsOf(catalog, book.type, of)?.safeParse(fields)
+  const parsed = fieldsArgsOf(catalog, page.type, of)?.safeParse(fields)
   if (!parsed?.success) return null
-  const way = wayOf(catalog, book.type, of)
+  const way = wayOf(catalog, page.type, of)
   if (!way) return { page: { ...page, ...parsed.data } }
   const written = way.write(page as Readonly<Record<string, unknown>>, parsed.data, contentIdMaker(book, newId))
-  const own = pageType(catalog, book.type).pages?.fields ?? {}
+  const own = pageType(catalog, page.type).fields ?? {}
   if (!written || !Object.keys(written.fields).every(k => k in own)) return null
   return { page: { ...page, ...written.fields }, result: written.result }
 }
@@ -73,7 +73,7 @@ export function writeFields(
 export function fieldsArgs(catalog: CoreCatalog, of: FieldsOf): z.ZodType {
   const each = [...catalog.pageTypes.values()].flatMap(t => {
     const args = fieldsArgsOf(catalog, t.id, of)
-    return args ? [args.describe(`page fields of ${t.id} books`)] : []
+    return args ? [args.describe(`page fields of ${t.id} pages`)] : []
   })
   const [first, ...rest] = each
   return first ? (rest.length ? z.union([first, ...rest]) : first) : z.strictObject({})

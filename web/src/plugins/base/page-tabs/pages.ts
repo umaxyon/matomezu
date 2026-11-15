@@ -1,9 +1,8 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
-import { findPage, hasPages, pagesOf, putPage } from "../../../core/book"
+import { findPage, pagesOf, putPage } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
-import { fail } from "../../../core/errors"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
 import type { PaperChoice, PaperRule } from "../../../core/paper"
 import type { Book, Page } from "../../../core/schema/book"
@@ -12,11 +11,8 @@ import { setField } from "../fields"
 import { kit } from "../kit"
 import { extentOf, growOf, paddedFor, pageArea } from "../place/items"
 
-function pagesRule(catalog: CoreCatalog, book: Book) {
-  const rule = pageType(catalog, book.type).pages
-  if (!rule) return fail("E103", { type: book.type })
-  return rule
-}
+// タイプ type のページの、紙の規定
+const paperRule = (catalog: CoreCatalog, type: string): PaperRule => pageType(catalog, type).paper
 
 // 次のページに選べる紙と向き。1 冊の紙をそろえる規定では、最初のページの紙と向きだけ
 export interface PaperOptions {
@@ -24,43 +20,47 @@ export interface PaperOptions {
   orientations: readonly Orientation[]
 }
 
-// 規定の下で、次のページに選べる紙と向き
+// 規定の下で、次のページに選べる紙と向き（pages は、そろえる相手のページ）
 export function choosablePapers(rule: PaperRule, pages: readonly Page[]): PaperOptions {
   const first = pages[0]
   if (rule.perPage || !first) return { papers: rule.allowed, orientations: ORIENTATIONS }
   return { papers: [first.paper], orientations: [first.orientation] }
 }
 
-export function paperChoices(catalog: CoreCatalog, book: Book): PaperOptions {
-  return choosablePapers(pagesRule(catalog, book).paper, pagesOf(book))
-}
-
-// ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、1 冊の紙をそろえる規定の手本にしない）
-export function paperChoicesFor(catalog: CoreCatalog, book: Book, page: string): PaperOptions {
+// ブック book に足す、タイプ type の次のページに選べる紙と向き（紙をそろえる規定のタイプは、ブックの中の同じタイプのページにそろえる）
+export function paperChoices(catalog: CoreCatalog, book: Book, type: string): PaperOptions {
   return choosablePapers(
-    pagesRule(catalog, book).paper,
-    pagesOf(book).filter(p => p.id !== page),
+    paperRule(catalog, type),
+    pagesOf(book).filter(p => p.type === type),
   )
 }
 
-// ブックのタイプのページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
-export function canGrow(catalog: CoreCatalog, book: Book): boolean {
-  const rule = pageType(catalog, book.type).grow
+// ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、紙をそろえる規定の手本にしない）
+export function paperChoicesFor(catalog: CoreCatalog, book: Book, page: Page): PaperOptions {
+  return choosablePapers(
+    paperRule(catalog, page.type),
+    pagesOf(book).filter(p => p.type === page.type && p.id !== page.id),
+  )
+}
+
+// タイプ type のページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
+export function canGrow(catalog: CoreCatalog, type: string): boolean {
+  const rule = pageType(catalog, type).grow
   return rule !== undefined && !("always" in rule)
 }
 
-// ブックのタイプで利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
-export function growChoices(catalog: CoreCatalog, book: Book): readonly GrowChoice[] {
-  const rule = pageType(catalog, book.type).grow
+// タイプ type で利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
+export function growChoices(catalog: CoreCatalog, type: string): readonly GrowChoice[] {
+  const rule = pageType(catalog, type).grow
   return rule && "choices" in rule ? rule.choices : []
 }
 
-// 可変ページにするか（true・false）か、選んだ増やす向き grows を、ページの grows の値にしたもの。作れない・選べない向きなら null。
+// 可変ページにするか（true・false）か、選んだ増やす向き grows を、タイプ type のページの grows の値にしたもの。作れない・選べない向きなら null。
 // 向きを選べるタイプで true なら既定の向き。false なら undefined（可変ページでない）
-export function growsValue(catalog: CoreCatalog, book: Book, grows: boolean | GrowChoice): Page["grows"] | null {
+export function growsValue(catalog: CoreCatalog, type: string, grows: boolean | GrowChoice): Page["grows"] | null {
   if (grows === false) return undefined
-  if (!canGrow(catalog, book)) return null
-  const choices = growChoices(catalog, book)
+  if (!canGrow(catalog, type)) return null
+  const choices = growChoices(catalog, type)
   if (grows === true) return choices[0] ?? true
   return choices.includes(grows) ? grows : null
 }
@@ -73,7 +73,7 @@ export const withGrows = <P extends Page>(page: P, grows: Page["grows"]): P =>
 // 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す）。紙・向き・可変ページかを変えたか、
 // 中身をずらしたページの形が、増やさない向きで紙からはみ出すなら null（ノーマライズステップ variable-pages.ts と、ページの設定のダイアログが使う）
 export function normalizedPage(catalog: CoreCatalog, before: Book, after: Book, page: Page): Page | null {
-  const prev = hasPages(before) ? findPage(before, page.id)?.page : undefined
+  const prev = findPage(before, page.id)?.page
   const was = prev && growOf(catalog, prev)
   const padded = paddedFor(catalog, page, growOf(catalog, page), was)
   const papered =
@@ -88,10 +88,10 @@ export function canChoose(options: PaperOptions, choice: PaperChoice): boolean {
   return options.papers.includes(choice.paper) && options.orientations.includes(choice.orientation)
 }
 
-// 次のページの紙の既定（規定の既定を選べなければ、選べるものの最初）
-export function defaultPaper(catalog: CoreCatalog, book: Book): PaperChoice {
-  const rule = pagesRule(catalog, book).paper
-  const { papers, orientations } = paperChoices(catalog, book)
+// ブック book に足す、タイプ type の次のページの紙の既定（規定の既定を選べなければ、選べるものの最初）
+export function defaultPaper(catalog: CoreCatalog, book: Book, type: string): PaperChoice {
+  const rule = paperRule(catalog, type)
+  const { papers, orientations } = paperChoices(catalog, book, type)
   return {
     paper: papers.includes(rule.default) ? rule.default : (papers[0] ?? rule.default),
     orientation: orientations.includes(rule.orientation) ? rule.orientation : (orientations[0] ?? rule.orientation),
