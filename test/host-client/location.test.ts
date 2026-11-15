@@ -94,8 +94,8 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出し
         states: {},
         stages: {
           places: [
-            { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} },
-            { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
+            { book: "b1", page: "p1", folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+            { book: null, page: null, folder: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
           ],
           current: 1,
           share: 0.4,
@@ -150,8 +150,8 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
     former: true,
     front: "book-screen",
     stages: [
-      { book: "b1", page: "p1", zoom: 1, pan: { x: 0, y: 0 }, states: {} },
-      { book: null, page: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
+      { book: "b1", page: "p1", folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+      { book: null, page: null, folder: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
     ],
     current: 1,
     share: 0.4,

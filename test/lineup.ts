@@ -74,9 +74,9 @@ export function pagesBook(book: {
     const own = (p as { settings?: Record<string, unknown> }).settings
     const merged = { ...onPage, ...own }
     return {
+      ...p,
       kind: "page",
       type,
-      ...p,
       ...(Object.keys(merged).length > 0 ? { settings: merged } : {}),
     } as AnyPage
   })

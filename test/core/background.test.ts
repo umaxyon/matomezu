@@ -8,11 +8,13 @@ import {
   openBook,
   openPage,
   openPrintPreview,
+  shownPageId,
   startBackground,
 } from "../../web/src/core/stage"
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
 import { sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { placeableIn } from "../../web/src/plugins/base/toolbox/toolbox"
+import { pagesBook } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const typeOf = (id: string) => BUILTIN_PARTS.pageTypes.find(t => t.id === id)!
@@ -21,10 +23,26 @@ const SLIDE = "@matomezu/slide-book:slide"
 const ELLIPSE = "@matomezu/slide:slide-ellipse"
 const backdrop = { id: "bg", item: ELLIPSE, x: 10, y: 10, w: 100, h: 60, props: {} }
 const pages = [
-  { id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape" as const, slide: [backdrop] },
-  { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "landscape" as const, slide: [backdrop] },
+  {
+    kind: "page" as const,
+    type: DRAWING,
+    id: "p1",
+    title: "1",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape" as const,
+    slide: [backdrop],
+  },
+  {
+    kind: "page" as const,
+    type: DRAWING,
+    id: "p2",
+    title: "2",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape" as const,
+    slide: [backdrop],
+  },
 ]
-const book = (type: string, extra: object = {}) => ({ type, id: "b1", title: "B", pages, ...extra }) as never
+const book = (type: string, extra: object = {}) => pagesBook({ type, id: "b1", title: "B", pages, ...extra })
 
 test("slide が背景か本体かは、タイプが slide に background を書いたかで決まる。直している並びで置ける物が変わる", () => {
   expect(slideIsBackground(typeOf(DRAWING))).toBe(true)
@@ -57,7 +75,7 @@ test("背景編集モードの間は、ページを替えない。印刷プレ�
   expect(openPage(CORE_CATALOG, entered, b, "p2")).toBe(entered)
   expect(openPrintPreview(entered).edits).toBe("slide")
   expect(openBook(CORE_CATALOG, entered, b).edits).toBe("items")
-  expect(openPage(CORE_CATALOG, endBackground(entered), b, "p2").opened?.page).toBe("p2")
+  expect(shownPageId(openPage(CORE_CATALOG, endBackground(entered), b, "p2").opened ?? null)).toBe("p2")
 })
 
 test("背景だけの印刷区画は載らない（auto）。印刷対象が always なら中身が無くても載り、never でも auto と同じに載らない", () => {
@@ -71,13 +89,14 @@ test("背景だけの印刷区画は載らない（auto）。印刷対象が alw
 })
 
 test("ミニマップには背景を描かない", () => {
-  const b = book(DRAWING)
   expect(minimapMarks(CORE_CATALOG, pages[0] as never)).toEqual([])
 })
 
 test("可変ページで背景を必ず印刷するときは、背景だけの印刷区画も並べる（背景が中身の外枠の外にあっても数える）", () => {
   const far = { id: "far", item: ELLIPSE, x: 1300, y: 900, w: 100, h: 60, props: {} }
   const page = {
+    kind: "page" as const,
+    type: DRAWING,
     id: "p1",
     title: "1",
     paper: "@matomezu/base:a4",
@@ -87,11 +106,8 @@ test("可変ページで背景を必ず印刷するときは、背景だけの�
     slide: [far],
   }
   const sheetsFor = (setting?: string) => {
-    const b = book(DRAWING, {
-      pages: [page],
-      ...(setting ? { settings: { "@matomezu/base:background-print": setting } } : {}),
-    })
-    return sheetsOfPage(CORE_CATALOG, page as never)
+    const p = { ...page, ...(setting ? { settings: { "@matomezu/base:background-print": setting } } : {}) }
+    return sheetsOfPage(CORE_CATALOG, p as never)
   }
   const always = sheetsFor("always")
   expect(always?.filled).toBeNull()
@@ -102,11 +118,8 @@ test("可変ページで背景を必ず印刷するときは、背景だけの�
   expect(auto?.rows).toBe(1)
 })
 
-test("背景を持つタイプは、ブックとページの設定に背景の印刷（BACKGROUND_PRINT）を並べる", () => {
+test("背景を持つタイプは、ページの設定に背景の印刷（BACKGROUND_PRINT）を並べる", () => {
   const withBackground = BUILTIN_PARTS.pageTypes.filter(t => slideIsBackground(t))
   expect(withBackground.length).toBeGreaterThan(0)
-  for (const t of withBackground) {
-    expect(t.settings?.book ?? []).toContain("@matomezu/base:background-print")
-    expect(t.settings?.page ?? []).toContain("@matomezu/base:background-print")
-  }
+  for (const t of withBackground) expect(t.settings ?? []).toContain("@matomezu/base:background-print")
 })
