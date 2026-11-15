@@ -26,13 +26,12 @@ const update = (store: Store, item: string, props: Record<string, unknown>) =>
   store.actions.perform("@matomezu/paper:item-update", { page: "p1", item, props }, { book: "b1" })
 
 test("図面のツールボックスは箱とリストとデータのボタンで、シェイプ 15 はシェイプパネルに並ぶ（8 つの形は図面には無い）", () => {
-  const store = ready()
-  expect(toolboxOf(CORE_CATALOG, book(store), "items")).toEqual([
+  expect(toolboxOf(CORE_CATALOG, "@matomezu/drawing:drawing", "items")).toEqual([
     "@matomezu/box:shape-nest-box",
     "@matomezu/list:shape-list",
     "@matomezu/data:shape-data",
   ])
-  expect(panelOf(CORE_CATALOG, book(store), "items")).toEqual(ARTS.map(a => a.item.id))
+  expect(panelOf(CORE_CATALOG, "@matomezu/drawing:drawing", "items")).toEqual(ARTS.map(a => a.item.id))
   expect(ARTS).toHaveLength(15)
 })
 

@@ -7,6 +7,7 @@ import { shapesOf } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { screenOf } from "../../../../web/src/core/window"
 import { addPageIn, createBookIn, portAreasOf, rectsOf } from "../../../../web/src/plugins/base"
+import { ownSettings } from "../../../../web/src/plugins/base/book-settings"
 import { floorsOf } from "../../../../web/src/plugins/base/place/items"
 import { ALIGN_MARGIN } from "../../../../web/src/plugins/books/flowchart/actions"
 import { linesOf } from "../../../../web/src/plugins/items/line/placed"
@@ -112,7 +113,7 @@ test("流れの向きはページの設定で、既定は下へ。右へに変�
       ).ok,
     ).toBe(true)
   })
-  expect(page().settings).toMatchObject({ "@matomezu/flowchart:flow-direction": "right" })
+  expect(ownSettings(page())).toMatchObject({ "@matomezu/flowchart:flow-direction": "right" })
 })
 
 test("形は辺の真ん中（頂点）だけに線をつなぎ、平行四辺形と台形は食い込みの半分だけ内側につなぐ。箱はふち全体", () => {
