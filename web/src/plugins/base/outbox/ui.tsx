@@ -27,6 +27,7 @@ export const defineAnnotationIcon = <const Id extends string>(def: {
 export const OUTBOX = defineLeftSidePanelTab<typeof OUTBOX_TAB_ID>({
   id: OUTBOX_TAB_ID,
   title: kit.message("Outbox"),
+  scope: "stage",
   opens: [ANNOTATION_ICON],
   view: Outbox,
 })

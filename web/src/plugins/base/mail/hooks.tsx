@@ -1,11 +1,10 @@
 // 郵便箱を読み、郵便を開くフック
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { sameData } from "../../../core/same"
 import { screenOf, stageIn } from "../../../core/window"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
-import { useLeftSidePanel, useToggleLeftSidePanel } from "../left-side-panel/hooks"
+import { useLeftSidePanelShowsAt, useToggleLeftSidePanelAt } from "../left-side-panel/hooks"
 import { useRequestReveal } from "../utils/reveal-request"
 import { mailboxOf } from "."
 import { useSetBirdVisitAt } from "./bird-visit"
@@ -33,12 +32,12 @@ export function useOpenMail(): (id: string) => void {
 // 開く側のウィジェットは、MAILBOX_OPENS を opens に書く（郵便箱のタブの中身が開けるスロットを使うため）
 // 送信トレイは、描いている場所（ui/scope.tsx）のステージの物。ステージを持たないスクリーンから開くときは、いちばん最近カレントにしたブックスクリーンのカレントのステージの物
 export function useMailboxPanel(): { open: boolean; toggle: () => void } {
-  const panel = useLeftSidePanel()
-  const toggle = useToggleLeftSidePanel()
+  const toggle = useToggleLeftSidePanelAt()
   const here = useStageId()
   const recent = useMatomezuState(s => screenOf(s.window).current)
-  const entries = mailboxEntries(here ?? recent)
-  return { open: !!panel && sameData(panel.entries, entries), toggle: () => toggle(entries) }
+  const stage = here ?? recent
+  const open = useLeftSidePanelShowsAt(stage, mailboxEntries)
+  return { open, toggle: () => toggle(stage, mailboxEntries) }
 }
 
 let visits = 0 // 行き先を開いた回の番号（bird-visit.tsx の seq）

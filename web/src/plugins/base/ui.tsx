@@ -294,7 +294,8 @@ declare module "../../core/catalog" {
     // ステージの選択に従うか（followsSelection。従う中身を出している間は、付いた先がステージの選択になり、開いたステージの中を押しても閉じない）
     rightSidePanel?: { width: number; followsSelection?: boolean }
     // 左サイドパネルのタブ（どのスロットにも置かない）の名前（文言の鍵）と、開くボタンとタブに出す数（未読など）を読むフック（無ければ出さない）
-    leftSidePanel?: { title: MessageKey; useCount?: () => number }
+    // scope は、タブが見せる物の範囲: "stage" なら開いた所のステージの物を見せ（中身はそのステージの中として描かれる）、"window" なら窓に 1 つの物
+    leftSidePanel?: { title: MessageKey; useCount?: () => number; scope: "stage" | "window" }
     // 設定カテゴリのスロットに置く物の、左の一覧に出す題名（文言の鍵）と、並べる利用者の設定の項目の id（無ければ中身はウィジェットのビューが描く）
     settingsCategory?: { title: MessageKey; settings?: readonly string[] }
     // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id

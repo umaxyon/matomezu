@@ -7,7 +7,7 @@ import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { icon } from "../icon"
 import { kit } from "../kit"
-import { useOpenLeftSidePanel } from "../left-side-panel/hooks"
+import { useOpenLeftSidePanelAt } from "../left-side-panel/hooks"
 import { Tip } from "../utils/Tip"
 import styles from "./Bookmarks.module.css"
 import { mailboxEntries } from "./entries"
@@ -31,7 +31,7 @@ export function MailBookmarks() {
   const unread = useMailbox().filter(m => !m.seenAt)
   const stage = useMatomezuState(s => screenOf(s.window).current)
   const open = useOpenMail()
-  const openPanel = useOpenLeftSidePanel()
+  const openPanel = useOpenLeftSidePanelAt()
   const actions = useStoreActions()
   if (unread.length === 0) return null
   if (unread.length > MAX_EACH)
@@ -44,7 +44,7 @@ export function MailBookmarks() {
           aria-label={t("{n} unread mail", { n: unread.length })}
           onClick={() => {
             actions.showStage(stage)
-            openPanel(mailboxEntries(stage), MAILBOX_TAB_ID)
+            openPanel(stage, mailboxEntries, MAILBOX_TAB_ID)
           }}
         >
           {LETTER_ICON}

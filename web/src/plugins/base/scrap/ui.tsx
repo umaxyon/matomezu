@@ -9,7 +9,6 @@ import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import type { DialogProps } from "../../../ui/plugin"
-import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useActions, useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
@@ -18,7 +17,7 @@ import { ActionButton, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import {
   useCloseLeftSidePanel,
-  useLeftSidePanel,
+  useLeftSidePanelShows,
   useOpenLeftSidePanel,
   useToggleLeftSidePanel,
 } from "../left-side-panel/hooks"
@@ -38,7 +37,6 @@ import { SCRAP_TRAY_TAB_ID } from "./tab-id"
 
 // 切り抜くダイアログ: 範囲は、はじめはページ全体（等倍）。決めるとスクラップトレイに入れ、スクラップトレイを開く
 export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>) {
-  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const { perform, showToast } = useActions()
@@ -79,7 +77,7 @@ export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>)
           }
           onClose()
           // 置けるブックなら、スクラップトレイを開く。置けないブックでは、入れたことだけを知らせる
-          if (placeable) openPanel(scrapTrayEntries(stage), SCRAP_TRAY_TAB_ID)
+          if (placeable) openPanel(scrapTrayEntries, SCRAP_TRAY_TAB_ID)
           else showToast({ kind: "success", message: kit.message("Put in the scrap tray") })
         }}
       >
@@ -98,9 +96,7 @@ function useScrapFrame() {
 }
 
 // スクラップトレイを開く側が、左サイドパネルに渡すタブの組（スクラップトレイだけ）
-const scrapTrayEntries = (stage: string): readonly LeftSidePanelEntry[] => [
-  { tab: SCRAP_TRAY_TAB_ID, props: {}, stage },
-]
+const scrapTrayEntries: readonly LeftSidePanelEntry[] = [{ tab: SCRAP_TRAY_TAB_ID, props: {} }]
 
 // スクラップトレイ（描いている場所は、開く側が名指した、置くステージ）。そのステージで置けないブックに替わったら閉じる
 function ScrapTrayView() {
@@ -192,6 +188,7 @@ function Row({ id, scrap }: { id: string; scrap: Scrap }) {
 export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID>({
   id: SCRAP_TRAY_TAB_ID,
   title: kit.message("Scrap tray"),
+  scope: "stage",
   opens: [SHEET_LAYERS], // 一覧の絵（ScrapView）が、ページの中身のレイヤーを描く
   view: ScrapTrayView,
 })
@@ -200,22 +197,20 @@ export const SCRAP_DIALOG_VIEWS = { [SCRAP_CUT_DIALOG.id]: ScrapCutDialog }
 
 // スクラップトレイを開くボタン（フッタメニューのツールボックスの並びに置く）: 置けるブックを開いているときだけ出し、押すとスクラップトレイだけを開く（もう一度押すと閉じる）
 function ScrapTrayButton() {
-  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const placeable = useScrapFrame() !== null
-  const open = useLeftSidePanel()
+  const pressed = useLeftSidePanelShows(scrapTrayEntries)
   const toggle = useToggleLeftSidePanel()
   if (!placeable) return null
-  const entries = scrapTrayEntries(stage)
   return (
     <button
       type="button"
       className={footer.item}
       aria-label={t("Open the scrap tray")}
       title={t("Open the scrap tray")}
-      aria-pressed={!!open && sameData(open.entries, entries)}
+      aria-pressed={pressed}
       data-scrap-tray-opener
-      onClick={() => toggle(entries)}
+      onClick={() => toggle(scrapTrayEntries)}
     >
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <path d="M4 14h4l1.5 2h5l1.5-2h4v5H4z" fill="none" stroke="currentColor" strokeWidth="1.5" />

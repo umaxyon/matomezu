@@ -12,13 +12,18 @@ export const defineLeftSidePanelTab = <const Id extends string, P = Record<strin
   title: MessageKey
   opens?: readonly SlotId[]
   useCount?: () => number // 開くボタンとタブに出す数（未読など）を読むフック
+  scope?: "stage" | "window" // タブが見せる物の範囲（無ければ "window"）。"stage" なら、開いた所のステージの物を見せる
   view: (props: P) => ReactNode
 }) =>
   defineWidget({
     id: def.id,
     slots: [] as readonly never[],
     ...(def.opens ? { opens: def.opens } : {}),
-    leftSidePanel: { title: def.title, ...(def.useCount ? { useCount: def.useCount } : {}) },
+    leftSidePanel: {
+      title: def.title,
+      scope: def.scope ?? "window",
+      ...(def.useCount ? { useCount: def.useCount } : {}),
+    },
     view: def.view,
   }) as WidgetDef<never> & { id: Id; view: (props: P) => ReactNode }
 
