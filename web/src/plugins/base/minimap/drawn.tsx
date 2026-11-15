@@ -1,7 +1,9 @@
 // 紙に描いたつなぐもののミニマップの絵（base が持つステージのプラグイン状態 minimap-drawn。つなぐものの種類の id ごと）。
 // つなぐもののビューは描くたびに、描いた形からミニマップの絵を作って useDrawnMinimap で置く。ミニマップは置いた絵があればそれを描き、
 // 無ければ（まだ描いていない・別のページを描いた絵）定義の minimap で作る
+
 import { useLayoutEffect } from "react"
+import type { LegacyId } from "../../../core/legacy"
 import { checkLegacy, useScope } from "../../../ui/scope"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -29,7 +31,12 @@ const sameMarks = (a: readonly MinimapMark[], b: readonly MinimapMark[]): boolea
 // 印刷区画の中で描いたビュー（印刷区画ごとに、寄せた位置で描く）は、置きも消しもしない（編集のミニマップの絵を上書きしないように）
 export function useDrawnMinimap(item: string, page: string, marks: readonly MinimapMark[] | null): void
 // 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
-export function useDrawnMinimap(legacy: string, item: string, page: string, marks: readonly MinimapMark[] | null): void
+export function useDrawnMinimap(
+  legacy: LegacyId,
+  item: string,
+  page: string,
+  marks: readonly MinimapMark[] | null,
+): void
 export function useDrawnMinimap(...given: readonly unknown[]): void {
   const old = given.length === 4
   const [item, page, marks] = (old ? given.slice(1) : given) as [string, string, readonly MinimapMark[] | null]

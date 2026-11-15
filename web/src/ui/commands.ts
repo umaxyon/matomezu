@@ -1,7 +1,9 @@
 // 描いている場所（ui/scope.tsx）から呼ぶコマンド。出すか・押せるかが変わったときだけ描き直す。インスタンスに無いコマンドなら error。
 // 呼ぶ場所は向け先で決まる: ステージから呼ぶコマンドは向け先のステージ、スクリーンから呼ぶコマンドはそのスクリーン（向け先がステージなら、それを並べているスクリーン）。
 // 向け先が無い所（見るだけのページの中）では、どのコマンドも出ず、呼んでも行わない
+
 import type { MessageKey } from "../core/i18n/i18n"
+import type { LegacyId } from "../core/legacy"
 import { type CommandArgs, type CommandId, commandDef, isActive, isEnabled, isShown } from "../store/commands"
 import { checkLegacy, useAt, useScope } from "./scope"
 import { useActions, useInstance, useMatomezuState } from "./store-context"
@@ -17,7 +19,7 @@ export interface CommandHandle<Id extends CommandId> {
 // arg は、押す前から分かっている引数（右クリックしたページのように、押せるかが引数で決まるコマンドのとき）
 export function useCommand<Id extends CommandId>(id: Id, arg?: CommandArgs<Id>[0]): CommandHandle<Id>
 // 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
-export function useCommand<Id extends CommandId>(legacy: string, id: Id, arg?: CommandArgs<Id>[0]): CommandHandle<Id>
+export function useCommand<Id extends CommandId>(legacy: LegacyId, id: Id, arg?: CommandArgs<Id>[0]): CommandHandle<Id>
 export function useCommand<Id extends CommandId>(...given: readonly unknown[]): CommandHandle<Id> {
   const defs = useInstance()
   // 古い形は、第 1 引数がコマンドの id でない（ステージの id）

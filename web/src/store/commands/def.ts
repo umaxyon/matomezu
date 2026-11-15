@@ -9,12 +9,16 @@ import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
+import type { LegacyOn } from "../../core/legacy"
 import type { Book } from "../../core/schema/book"
 import { toPaper } from "../../core/stage"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
-import type { Actions, BoundPlaceActions, Settings } from "../store"
+import type { BoundPlaceActions, PlaceActions, Settings, WindowActions } from "../store"
+
+// 橋渡しの間だけ: 場所を第 1 引数に取る操作（a.select(ctx.stage.id, ids)）も受ける
+type LegacyPlaceActions = LegacyOn extends true ? PlaceActions : unknown
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
@@ -102,7 +106,7 @@ export function withWorkspace(ctx: Omit<CommandContext, "toPaper">, workspace: W
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx) ?? fail("E116", { id: ctx.stage.id })
 
 // コマンドが受け取る store の操作: 画面の操作（Actions）に、そのコマンドを持つプラグインのプラグイン状態を変える操作を足したもの
-export interface CommandActions extends Actions {
+export interface CommandActions extends WindowActions, LegacyPlaceActions {
   // 橋渡しの間だけ: 場所に向ける操作を、呼ばれた場所（ステージから呼ぶコマンドはそのステージ、スクリーンから呼ぶコマンドはそのスクリーン）に向けた形。
   // 最後に、これをコマンドが受け取る操作そのものにする（a.here.select(ids) → a.select(ids)）
   here: BoundPlaceActions

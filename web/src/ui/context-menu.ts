@@ -1,7 +1,9 @@
 // 右クリックのメニュー: コンポーネントが右クリックを受けてメニューを開く口と、UI マッピングに書いたメニューの中身を読む口
+
 import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
+import type { LegacyId } from "../core/legacy"
 import { isShown } from "../store/commands"
 import { type AnchorMenuCommandId, type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
 import { checkLegacy, useAt, useScope } from "./scope"
@@ -45,7 +47,7 @@ export function suppressContextMenu(): void {
 export function useContextMenu<M extends ContextMenuId>(id: M): (e: MouseEvent, target: ContextMenuTable[M]) => void
 // 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
 export function useContextMenu<M extends ContextMenuId>(
-  legacy: string,
+  legacy: LegacyId,
   id: M,
 ): (e: MouseEvent, target: ContextMenuTable[M]) => void
 export function useContextMenu<M extends ContextMenuId>(

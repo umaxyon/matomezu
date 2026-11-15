@@ -1,5 +1,7 @@
 // ステージの骨組み: ステージの列を並べ、列ごとにベーススロットを開ける
+
 import type { ReactNode } from "react"
+import type { LegacyStageProps } from "../../../core/legacy"
 import { defineWidget } from "../../../ui/layout"
 import { FOOTER_MENU_SLOTS } from "../book-name/footer-menu"
 import { kit } from "../kit"
@@ -9,9 +11,8 @@ import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_SIDE, STAGE_TOP } from ".
 import { WorkspaceView } from "./WorkspaceView"
 
 // ステージの列のスロットと、下の行のフッタメニューのスロット。どれも、そのステージの id を渡す
-export interface StageSlotProps {
-  stage: string
-}
+// 橋渡しの間だけ（ステージの id は、描いている場所からフックが引く。最後に、スロットには何も渡さない）
+export type StageSlotProps = LegacyStageProps
 export const STAGE_SLOTS = [STAGE_TOP, STAGE_BOTTOM, STAGE_CORNER, ...FOOTER_MENU_SLOTS] as const
 // ステージのベーススロット: ステージの骨組み（根に置き、ステージの列を並べるウィジェット）が、列ごとに必ず開けるスロット
 export const STAGE_BASE_SLOTS = [STAGE_TOP, STAGE_SIDE, STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER] as const

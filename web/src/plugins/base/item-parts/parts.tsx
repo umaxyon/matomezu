@@ -1,9 +1,11 @@
 // 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（開いているブック・ブックのテーマ・使えるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
 // 形に当てたテーマの値を CSS 変数にするフック
+
 import { type CSSProperties, useMemo } from "react"
 import { PALETTE } from "../../../core/color"
 import type { ThemeDef, TokenDef } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
+import type { LegacyId } from "../../../core/legacy"
 import { splitId } from "../../../core/names"
 import { resolveTokens, type Shades } from "../../../core/theme"
 import { useMessages } from "../../../ui/i18n"
@@ -37,7 +39,7 @@ export function useAligns() {
 }
 
 // 描くページのブックの id（描いている場所。ui/scope.tsx）
-export function useBookOf(legacy?: string): string | undefined {
+export function useBookOf(legacy?: LegacyId): string | undefined {
   const scope = useScope()
   checkLegacy(scope, legacy, "useBookOf")
   return useMatomezuState(s => openedOf(s, scope)?.book)
@@ -83,7 +85,7 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
 export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined
 // 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
 export function useThemeVars(
-  legacy: string,
+  legacy: LegacyId,
   theme: string | undefined,
   defs: readonly TokenDef[],
 ): CSSProperties | undefined
