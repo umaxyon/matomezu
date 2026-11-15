@@ -284,4 +284,52 @@ test("ダイアログなどを開いた場所を置くと、中のフックは�
   press(container)
   expect(instance.state.getState().window).toBe(before.window)
   expect(instance.state.getState().dialog).toBeNull()
+  cleanup()
+  // ダイアログなどを開いたステージが、もう無いとき（スクリーンのコマンドも出ない）
+  const closed: { now: Seen | null } = { now: null }
+  const Closed = probeOf(closed)
+  render(
+    wrap(
+      <ActsOnScope at="no-such-stage">
+        <Closed />
+      </ActsOnScope>,
+    ),
+  )
+  expect(closed.now).toMatchObject({ stage: null, page: undefined, command: false, screenCommand: false })
+  expect(closed.now?.done).toEqual({ ok: false, reason: "no-book" })
+})
+
+test("スクリーンを開いた場所に置くと、スクリーンのコマンドは出て、ステージのコマンドは出ない。窓（ステージを持たずに開いた印）も同じ", () => {
+  const { instance, wrap } = setup()
+  const screen = instance.state.getState().window.screens[0]!.id
+  for (const at of [screen, "none"]) {
+    const seen: { now: Seen | null } = { now: null }
+    const Probe = probeOf(seen)
+    render(
+      wrap(
+        <ActsOnScope at={at}>
+          <Probe />
+        </ActsOnScope>,
+      ),
+    )
+    expect(seen.now).toMatchObject({ stage: null, page: undefined, command: false, screenCommand: true })
+    cleanup()
+  }
+})
+
+test("橋渡しの間: 古い形で、描いている場所と違うステージの id を渡すと落ちる", () => {
+  const { wrap } = setup()
+  function Probe() {
+    useStage("s2")
+    return null
+  }
+  expect(() =>
+    render(
+      wrap(
+        <StageScope stage="s1">
+          <Probe />
+        </StageScope>,
+      ),
+    ),
+  ).toThrow(RangeError)
 })

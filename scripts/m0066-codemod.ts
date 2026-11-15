@@ -2,40 +2,14 @@
 // 何度流しても同じ結果になる（新しい形はそのまま）。main を取り込んだあとに流し直せる。
 //   bun scripts/m0066-codemod.ts web/src/plugins test/added-plugins
 // 書き換えるのは、第 1 引数が「自分のステージ」と分かる書き方（stage・stage.id・props.stage・here・useScreenId()・ctx.stage.id）だけ。
-// ほかの書き方と、useActions・セッターの呼び出し・props の stage は、scripts/m0066-left.sh が出す型の誤りを見て手で直す（docs/m0066-guide.md）
+// ほかの書き方と、useActions・セッターの呼び出し・props の stage は、scripts/m0066-left.sh が出す型の誤りを見て手で直す（手引きは、記憶フォルダの m0066-rewrite-guide.md）
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { PLACE_ACTIONS } from "../web/src/store/store"
 
 const STAGE = String.raw`(?:stage|stage\.id|props\.stage|here|useScreenId\(\))`
-const PLACE_OPS = [
-  "command",
-  "openDialog",
-  "openContextMenu",
-  "split",
-  "unsplit",
-  "closeStage",
-  "focusStage",
-  "openBook",
-  "openPage",
-  "openPageById",
-  "resizeStage",
-  "setStageArea",
-  "setStageStart",
-  "panStageBy",
-  "zoomStage",
-  "resetStageView",
-  "openPrintPreview",
-  "closePrintPreview",
-  "startBackground",
-  "endBackground",
-  "setPreviewArea",
-  "setTool",
-  "togglePlacing",
-  "stopPlacing",
-  "select",
-  "setEditing",
-  "openPicker",
-].join("|")
+// 場所に向ける操作の名前（store の一覧から。操作が増えてもずれない）
+const PLACE_OPS = Object.keys(PLACE_ACTIONS).join("|")
 
 const RULES: readonly (readonly [RegExp, string])[] = [
   // 引数がステージだけのフック: useBook(stage) → useBook()
@@ -59,10 +33,7 @@ const RULES: readonly (readonly [RegExp, string])[] = [
   // ステージごとのプラグイン状態: usePluginState(kit, DEF, stage) → usePluginState(kit, DEF)
   [new RegExp(String.raw`\busePluginState\(([^(),]+),\s*([^(),]+),\s*${STAGE}\s*\)`, "g"), "usePluginState($1, $2)"],
   // コマンドの run が受ける操作: a.select(ctx.stage.id, ids) → a.here.select(ids)（最後に a.select(ids) にする）
-  [
-    new RegExp(String.raw`\b(a|actions)\.(${PLACE_OPS})\(\s*ctx\.(?:stage|screen)\.id\s*,\s*`, "g"),
-    "$1.here.$2(",
-  ],
+  [new RegExp(String.raw`\b(a|actions)\.(${PLACE_OPS})\(\s*ctx\.(?:stage|screen)\.id\s*,\s*`, "g"), "$1.here.$2("],
   [new RegExp(String.raw`\b(a|actions)\.(${PLACE_OPS})\(\s*ctx\.(?:stage|screen)\.id\s*\)`, "g"), "$1.here.$2()"],
 ]
 

@@ -72,16 +72,18 @@ export function PageScope({
   )
 }
 
-// 開いた場所 at（ステージの id か、スクリーンの id。store のダイアログ・右クリックのメニューが持つ値）の中: ステージならそのステージ、
-// ほかはスクリーンを向け先にする（描くページは無い）
+// 開いた場所 at（ステージの id か、スクリーンの id。store のダイアログ・右クリックのメニューが持つ値）の中: 開いているスクリーンの id ならそのスクリーン、
+// ステージを持たずに開いた印（NO_STAGE）なら窓、ほかはステージを向け先にする（もう無いステージなら、中からは何も行えない。useStageId・useAt が見る）
 export function ActsOnScope({ at, children }: { at: string; children: ReactNode }) {
-  const isStage = useMatomezuState(s => stageIn(s.window, at) !== undefined)
+  const isScreen = useMatomezuState(s => s.window.screens.some(x => x.id === at))
   const scope = useMemo<Scope>(
     () =>
-      isStage
-        ? { page: { from: "stage", stage: at }, actsOn: { kind: "stage", stage: at }, legacy: at }
-        : { page: null, actsOn: at === NO_STAGE ? WINDOW : { kind: "screen", screen: at }, legacy: at },
-    [at, isStage],
+      at === NO_STAGE
+        ? { page: null, actsOn: WINDOW, legacy: at }
+        : isScreen
+          ? { page: null, actsOn: { kind: "screen", screen: at }, legacy: at }
+          : { page: { from: "stage", stage: at }, actsOn: { kind: "stage", stage: at }, legacy: at },
+    [at, isScreen],
   )
   return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
 }
@@ -111,10 +113,9 @@ export function useStageId(): string | null {
 // store の操作・コマンドに渡す、呼ぶ場所の値（ステージの id・スクリーンの id・窓は NO_STAGE）。向け先が無いか、向け先のステージがもう無ければ null
 export function useAt(): string | null {
   const { actsOn } = useScope()
-  const stage = actsOn.kind === "stage" ? actsOn.stage : null
-  const gone = useMatomezuState(s => stage !== null && stageIn(s.window, stage) === undefined)
-  if (gone || actsOn.kind === "none") return null
-  return actsOn.kind === "stage" ? actsOn.stage : actsOn.kind === "screen" ? actsOn.screen : NO_STAGE
+  const stage = useStageId() // 向け先がステージで、まだあるときだけ id
+  if (actsOn.kind === "stage") return stage
+  return actsOn.kind === "screen" ? actsOn.screen : actsOn.kind === "window" ? NO_STAGE : null
 }
 
 // 描くページの、ブックの id とページの id（描くページが無ければ null。ページを開いていなければ page は null）
