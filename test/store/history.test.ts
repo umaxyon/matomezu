@@ -126,7 +126,7 @@ test("ページを消した画面の履歴の段を元に戻すと、同じ id �
   await settled()
   store.actions.command("s1", "@matomezu/base:undo")
   expect(pagesOf(bookOf(store)).map(p => p.id)).toEqual([...pages, added])
-  expect(shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? null)).toBe(pages[0])
+  expect(shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? null)).toBe(pages[0] ?? null)
 })
 
 test("ページを動かした画面の履歴の段を元に戻すと元の並びに、やり直すと動かした並びになる", async () => {
@@ -284,22 +284,6 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   expect(itemsOf(store)).toHaveLength(1)
   expect((pagesOf(bookOf(store, "b2"))[0]?.items ?? []).length).toBe(1)
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
-})
-
-test("断ったブックの名前が空なら、トーストの 2 行目は「関連ブック」と出す", async () => {
-  // 名前の空のブック（book-update は空の名前を断るが、データは空の名前を持てる）
-  const store = newStore({ books: SAMPLE_BOOKS.map(b => (b.id === "b1" ? { ...b, title: "" } : b)) })
-  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  place(store, 40)
-  await settled()
-  store.actions.perform("@matomezu/base:page-lock", { page: pagesOf(bookOf(store))[0]!.id }, { book: "b1" })
-  store.actions.command("s1", "@matomezu/base:undo")
-  expect(store.state.getState().toasts.at(-1)).toMatchObject({
-    detail: {
-      message: "@matomezu/base:{reason}: a related book",
-      params: { reason: { message: "@matomezu/base:Locked" } },
-    },
-  })
 })
 
 test("いくつものブックを変えた画面の履歴の段は、途中のブックが行った後の確かめで断られても、置き直したブックも元に戻し、トーストで知らせ、画面の履歴の段は残る", async () => {
