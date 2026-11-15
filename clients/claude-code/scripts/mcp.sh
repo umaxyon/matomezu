@@ -8,8 +8,8 @@ if [ -z "$matomezu_bin" ]; then
 fi
 if [ -n "$matomezu_dev_root" ]; then
   if [ -d "$matomezu_dev_root/web/dist" ]; then
-    exec "$matomezu_bin" mcp --host-scope process --web "$matomezu_dev_root/web/dist" --addr 127.0.0.1:5300
+    exec "$matomezu_bin" mcp --session-ends-with program --web "$matomezu_dev_root/web/dist" --addr 127.0.0.1:5300
   fi
-  exec "$matomezu_bin" mcp --host-scope process --addr 127.0.0.1:5300
+  exec "$matomezu_bin" mcp --session-ends-with program --addr 127.0.0.1:5300
 fi
-exec "$matomezu_bin" mcp --host-scope process
+exec "$matomezu_bin" mcp --session-ends-with program
