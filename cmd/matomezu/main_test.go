@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	codexsessionend "github.com/umaxyon/matomezu/clients/codex/sessionend"
 	"github.com/umaxyon/matomezu/internal/home"
 )
 
@@ -199,6 +200,22 @@ func TestSessionPid(t *testing.T) {
 		}
 		if got := sessionPidSpace(c.endsWith); (got != "") != (c.endsWith != "") {
 			t.Fatalf("sessionPidSpace(%q) = %q", c.endsWith, got)
+		}
+	}
+}
+
+// codex-session-end の見立てを mcp --session-ends-with の値に読み替える: MCP のプロセスなら mcp、分からなければ名乗らない
+func TestCodexSessionEndsWith(t *testing.T) {
+	cases := []struct {
+		watch codexsessionend.Process
+		want  string
+	}{
+		{codexsessionend.MCPProcess, "mcp"},
+		{codexsessionend.Unknown, ""},
+	}
+	for _, c := range cases {
+		if got := codexSessionEndsWith(c.watch); got != c.want {
+			t.Fatalf("codexSessionEndsWith(%q) = %q, want %q", c.watch, got, c.want)
 		}
 	}
 }
