@@ -75,8 +75,8 @@ describe("watch", () => {
       String(process.pid),
       "--",
       "/w1/matomezu",
-      "deliver",
       "opencode",
+      "deliver",
     ])
     stopA1()
     stopA1()

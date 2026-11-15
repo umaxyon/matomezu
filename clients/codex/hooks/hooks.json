@@ -1,24 +1,6 @@
 {
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "d=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-.}}\"; [ -f \"$d/scripts/annotations.sh\" ] && sh \"$d/scripts/annotations.sh\"; exit 0"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "d=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-.}}\"; [ -f \"$d/scripts/model.sh\" ] && sh \"$d/scripts/model.sh\"; exit 0"
-          }
-        ]
-      }
-    ]
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "matomezu codex hook prompt" }] }],
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "matomezu codex hook model" }] }]
   }
 }

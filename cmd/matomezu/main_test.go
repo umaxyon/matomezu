@@ -179,34 +179,23 @@ func TestWriteRemovedSeparatesTheCauses(t *testing.T) {
 	}
 }
 
-// 起こす知らせの宛て先になる AI のプログラムのプロセス id は、入口が伝えた物があればそれ、無ければ親のプロセス
-func TestHostProcess(t *testing.T) {
-	t.Setenv(hostProcessEnv, "")
-	if got := hostProcess(); got != strconv.Itoa(os.Getppid()) {
-		t.Fatalf("without the entry's value = %q, want the parent", got)
-	}
-	t.Setenv(hostProcessEnv, "4242")
-	if got := hostProcess(); got != "4242" {
-		t.Fatalf("with the entry's value = %q", got)
-	}
-}
-
-// --session-ends-with が指すプロセス: program は AI のプログラム、mcp は自分（入口を通ったなら入口）、空は名乗らない
+// --session-ends-with が指すプロセス: program は AI のプログラム、mcp は自分（親が入口なら入口）、空は名乗らない
 func TestSessionPid(t *testing.T) {
 	me, parent := strconv.Itoa(os.Getpid()), strconv.Itoa(os.Getppid())
 	cases := []struct {
-		endsWith, entry, want string
+		endsWith, host, entry, want string
 	}{
-		{"program", "", parent},
-		{"program", "4242", "4242"},
-		{"mcp", "", me},
-		{"mcp", "4242", parent},
-		{"", "4242", ""},
+		{"program", "4242", "", "4242"},
+		{"program", "", "", ""},
+		{"mcp", "4242", "", me},
+		{"mcp", "4242", parent, parent},
+		{"mcp", "4242", "999999", me},
+		{"", "4242", parent, ""},
 	}
 	for _, c := range cases {
-		t.Setenv(hostProcessEnv, c.entry)
-		if got := sessionPid(c.endsWith); got != c.want {
-			t.Fatalf("sessionPid(%q) with entry %q = %q, want %q", c.endsWith, c.entry, got, c.want)
+		t.Setenv(entryPIDEnv, c.entry)
+		if got := sessionPid(c.endsWith, c.host); got != c.want {
+			t.Fatalf("sessionPid(%q, %q) with entry %q = %q, want %q", c.endsWith, c.host, c.entry, got, c.want)
 		}
 		if got := sessionPidSpace(c.endsWith); (got != "") != (c.endsWith != "") {
 			t.Fatalf("sessionPidSpace(%q) = %q", c.endsWith, got)

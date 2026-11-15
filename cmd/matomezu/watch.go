@@ -62,13 +62,17 @@ type deliverer interface {
 const watchRetry = 3 * time.Second
 
 // Run は、常駐の AI を起こす知らせ（GET /api/ai/watch）につなぎ、届いた 1 行ずつを標準出力に書く。常駐が立っていなければ待ち、切れたらつなぎ直す（常駐は立てない）。
-// --host のプロセスが居なくなったら終える（AI のプログラムが閉じたのに残らないように）
+// --host のプロセスか、起動したときの親の列のどれかか、行を読む AI のプログラムが居なくなったら終える（AI のプログラムが閉じたのに残らないように）
 func (c *watchCmd) Run() error {
+	if c.Host == "" && c.Session == "" {
+		return errors.New("--host or --session is needed (whose notices to print)")
+	}
+	alive := c.alive()
 	d := c.deliverer(os.Stdout)
 	defer d.close()
-	for server.ProcessAlive(c.Host) {
+	for alive() {
 		if s := runningServer(); s != nil {
-			_ = watchOnce(s, c.query(), c.Host, d)
+			_ = watchOnce(s, c.query(), alive, d)
 		}
 		time.Sleep(watchRetry)
 	}
@@ -124,8 +128,17 @@ func (c *watchCmd) query() string {
 	return q.Encode()
 }
 
-// watchOnce は、常駐 s の起こす知らせ（問い合わせ query）につなぎ、切れるまで、届いた知らせを d で渡して、結果を常駐に返す。host のプロセスが居なくなったら終える
-func watchOnce(s *home.Server, query, host string, d deliverer) error {
+// alive は、watch を続けるか（--host のプロセスと、起動したときの親の列が居て、行を標準出力に書くなら、その読み手が居る間）
+func (c *watchCmd) alive() func() bool {
+	ancestors := ancestorsAlive()
+	printing := len(deliverCommand(c.Deliver)) == 0
+	return func() bool {
+		return ancestors() && (c.Host == "" || server.ProcessAlive(c.Host)) && (!printing || stdoutRead())
+	}
+}
+
+// watchOnce は、常駐 s の起こす知らせ（問い合わせ query）につなぎ、切れるまで、届いた知らせを d で渡して、結果を常駐に返す。alive が false になったら終える
+func watchOnce(s *home.Server, query string, alive func() bool, d deliverer) error {
 	res, err := request(s, http.MethodGet, "api/ai/watch?"+query, nil, 0, nil)
 	if err != nil {
 		return err
@@ -134,7 +147,7 @@ func watchOnce(s *home.Server, query, host string, d deliverer) error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("watch: %s", res.Status)
 	}
-	return readWakes(res.Body, func() bool { return server.ProcessAlive(host) }, func(w wakeOut) {
+	return readWakes(res.Body, alive, func(w wakeOut) {
 		body, _ := json.Marshal(map[string]any{"line": w.Line, "id": w.ID, "result": d.deliver(w)})
 		if r, err := request(s, http.MethodPost, "api/ai/watch/ack", body, 10*time.Second, nil); err == nil {
 			r.Body.Close()

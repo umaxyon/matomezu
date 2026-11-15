@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
 	"github.com/umaxyon/matomezu/internal/browser"
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/home"
@@ -47,10 +48,12 @@ type cli struct {
 	MCP         mcpCmd         `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Annotations annotationsCmd `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, and AI's changes the user undid before seeing them, for an AI's hook. Prints nothing when there are none or the server is not running."`
 	Talked      talkedCmd      `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
-	Deliver     deliverCmd     `cmd:"" help:"Hand a wake notice to an AI's program (a deliver command for watch and mcp: the text on stdin, the session id of the conversation in MATOMEZU_SESSION). Exits 0 when delivered, 3 when the program does not have that conversation, 1 when it failed."`
 	Watch       watchCmd       `cmd:"" help:"Print one line for each thing the user did on the screen that should wake AI (such as accepting AI's request to join), for an AI's background monitor. Waits for the server and reconnects; prints nothing else."`
 	Model       modelCmd       `cmd:"" help:"Tell the server the model of AI's session, for an AI's hook (SessionStart or PostModelSwitch) that passes the hook's JSON on stdin (model or to_model). Does nothing when the JSON has no model or the server is not running."`
 	Permission  permissionCmd  `cmd:"" help:"Answer, for an AI's hook that runs before a tool is used (the hook's JSON is on stdin), that the matomezu tools that only read may be used without asking the user. Prints nothing for any other tool."`
+	ClaudeCode  claudeCodeCmd  `cmd:"" name:"claude-code" help:"Commands that matomezu's Claude Code plugin runs (its MCP, hooks and monitor)."`
+	Codex       codexCmd       `cmd:"" help:"Commands that matomezu's Codex plugin runs (its MCP, hooks, and the command that hands wake notices to a Codex conversation)."`
+	Opencode    opencodeCmd    `cmd:"" help:"Commands that matomezu's opencode plugin runs (the command that hands wake notices to an opencode conversation)."`
 	Version     versionCmd     `cmd:"" help:"Print the version."`
 }
 
@@ -105,7 +108,7 @@ type modelCmd struct {
 }
 
 type watchCmd struct {
-	Host      string        `required:"" help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed."`
+	Host      string        `help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed. Leave it out when the program is not known: then --session alone says whose lines are printed (one of the two is needed)."`
 	Session   string        `help:"Session id the host program started with (Claude Code: CLAUDE_CODE_SESSION_ID). When both this and the one MCP sent on join are known, they must match too."`
 	MaxLine   int           `help:"The longest line the host program takes (characters). Longer lines are split. 0 for no limit."`
 	MaxNotice int           `help:"The longest notice the host program takes at once (characters, counting the line breaks). A message too long for it comes as a short notice, and its text with the next matomezu call. 0 for no limit."`
@@ -113,9 +116,6 @@ type watchCmd struct {
 	Resident  bool          `help:"Start the command after -- once and keep it running: write one JSON line {id, session, text} to its stdin for each notice, and read one JSON line {id, result} (delivered, absent or failed) from its stdout."`
 	Deliver   []string      `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each notice to the AI, instead of printing it: started for each notice with the text on stdin, the session id of the conversation in MATOMEZU_SESSION and the notice id in MATOMEZU_WAKE_ID; exit 0 when delivered, 3 when the AI's program does not have that conversation, anything else when it failed."`
 }
-
-// claudeSessionEnv は、Claude Code が立てたプロセスに渡す、立てたときのセッション id の環境変数（/clear でも変わらない）
-const claudeSessionEnv = "CLAUDE_CODE_SESSION_ID"
 
 type permissionCmd struct{}
 
@@ -275,22 +275,28 @@ func (c *mcpCmd) Run() error {
 		return err
 	}
 	// 渡すコマンドがあれば、起こす知らせの watch も並べて動かす（標準出力は MCP が使うので、渡すコマンドが無いときは動かさない）
+	host := hostProcess()
+	session := os.Getenv(claudelaunch.SessionEnv) // プラグインを使わずに matomezu mcp を登録した Claude Code でも、セッション id を添える
 	if len(deliverCommand(c.Deliver)) > 0 {
-		w := &watchCmd{Host: hostProcess(), Session: os.Getenv(claudeSessionEnv), Resident: c.Resident, Deliver: c.Deliver}
-		go func() { _ = w.Run() }()
+		w := &watchCmd{Host: host, Session: session, Resident: c.Resident, Deliver: c.Deliver}
+		go func() {
+			if err := w.Run(); err != nil {
+				fmt.Fprintln(os.Stderr, "matomezu mcp: wake notices are not handed to the AI:", err)
+			}
+		}()
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, hostProcess(), os.Getenv(claudeSessionEnv), sessionPid(c.SessionEndsWith), sessionPidSpace(c.SessionEndsWith))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith))
 }
 
 // sessionPid は、--session-ends-with の値 endsWith が指す、セッションと同じだけ生きるプロセスの id（空なら名乗らない）。
-// program は AI のプログラム（hostProcess）。mcp はこの MCP のプロセスで、入口（npm の node の入口）を通ったなら、AI のプログラムが立てた入口のプロセス
-func sessionPid(endsWith string) string {
+// program は AI のプログラム（親をたどった host）。mcp はこの MCP のプロセスで、npm の node の入口を通ったなら（入口が親なら）その入口のプロセス
+func sessionPid(endsWith, host string) string {
 	switch endsWith {
 	case "program":
-		return hostProcess()
+		return host
 	case "mcp":
-		if os.Getenv(hostProcessEnv) != "" {
-			return strconv.Itoa(os.Getppid())
+		if entry := os.Getenv(entryPIDEnv); entry != "" && entry == strconv.Itoa(os.Getppid()) {
+			return entry
 		}
 		return strconv.Itoa(os.Getpid())
 	}
@@ -303,18 +309,6 @@ func sessionPidSpace(endsWith string) string {
 		return ""
 	}
 	return server.ProcessSpace()
-}
-
-// hostProcessEnv は、matomezu を中継する入口（npm の node の入口）が、自分の親（AI のプログラム）のプロセス id を子の実行ファイルに伝える環境変数
-const hostProcessEnv = "MATOMEZU_HOST_PID"
-
-// hostProcess は、AI のプログラムのプロセス id。入口が伝えた物があればそれ、無ければ親のプロセス。
-// 起こす知らせの宛て先を、フックや monitor が名指す AI のプログラムと合わせるのに使う
-func hostProcess() string {
-	if pid := os.Getenv(hostProcessEnv); pid != "" {
-		return pid
-	}
-	return strconv.Itoa(os.Getppid())
 }
 
 // awaitingItem は、常駐の api/ai/awaiting が返す、AI の応えを待つアノテーション 1 つ（brief は種類の aiBrief の 1 行。無ければ空）
@@ -360,17 +354,23 @@ func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 // Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、ターンの始まりに添える）。
 // 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（AI のターンを止めない）
 func (c *annotationsCmd) Run() error {
+	writeAnnotations(os.Stdout)
+	return nil
+}
+
+// writeAnnotations は、AI の応えを待つアノテーションと、AI に知らせる事（利用者が見る前に戻した変更など）を out に書く。常駐が立っていなければ何も書かない
+func writeAnnotations(out io.Writer) {
 	h, err := openHome()
 	if err != nil {
-		return nil
+		return
 	}
 	s, err := running(h)
 	if err != nil || s == nil {
-		return nil
+		return
 	}
-	out, _, _, err := send(s, http.MethodGet, "api/ai/awaiting", nil, nil)
+	body, _, _, err := send(s, http.MethodGet, "api/ai/awaiting", nil, nil)
 	if err != nil {
-		return nil
+		return
 	}
 	var got struct {
 		Awaiting []awaitingItem `json:"awaiting"`
@@ -388,26 +388,25 @@ func (c *annotationsCmd) Run() error {
 		} `json:"failed"`
 		Removed []removedTicket `json:"removed"`
 	}
-	if json.Unmarshal(out, &got) != nil {
-		return nil
+	if json.Unmarshal(body, &got) != nil {
+		return
 	}
-	writeAwaiting(os.Stdout, got.Awaiting)
+	writeAwaiting(out, got.Awaiting)
 	if len(got.Undone) > 0 {
-		fmt.Printf("matomezu: %d change(s) you made were undone by the user before they saw them. "+
+		fmt.Fprintf(out, "matomezu: %d change(s) you made were undone by the user before they saw them. "+
 			"Do not redo them on your own; ask the user if they are still needed. lost is what was put back and the values you had written.\n", len(got.Undone))
 		for _, u := range got.Undone {
-			fmt.Printf("- book %q (%s) at %s: %s\n", u.Title, u.Book, u.At, u.Lost)
+			fmt.Fprintf(out, "- book %q (%s) at %s: %s\n", u.Title, u.Book, u.At, u.Lost)
 		}
 	}
 	if len(got.Failed) > 0 {
-		fmt.Printf("matomezu: %d change(s) you sent for the user to apply could not be applied (what they change was changed or removed after you sent them, "+
+		fmt.Fprintf(out, "matomezu: %d change(s) you sent for the user to apply could not be applied (what they change was changed or removed after you sent them, "+
 			"or one of the changes was refused), so nothing was changed. Read the book again and think again (change it yourself, or send a new proposal). changed is what was changed or removed.\n", len(got.Failed))
 		for _, f := range got.Failed {
-			fmt.Printf("- book %q (%s), %s: changed %v\n", f.Title, f.Book, f.Key, f.Changed)
+			fmt.Fprintf(out, "- book %q (%s), %s: changed %v\n", f.Title, f.Book, f.Key, f.Changed)
 		}
 	}
-	writeRemoved(os.Stdout, got.Removed)
-	return nil
+	writeRemoved(out, got.Removed)
 }
 
 // removedTicket は、郵便が消えたと記した AI 編集チケット 1 つ（cause は上限で消えた limit か、利用者が消した user）

@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "matomezu": {
-      "command": "sh",
-      "args": ["./scripts/mcp.sh"],
-      "cwd": ".",
+      "command": "matomezu",
+      "args": ["codex", "mcp"],
       "env_vars": ["CODEX_HOME"]
     }
   }

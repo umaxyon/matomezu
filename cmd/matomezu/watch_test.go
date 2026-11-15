@@ -111,16 +111,16 @@ func TestDeliverCommandFromTheCommandLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.Parse([]string{"watch", "--host", "1", "--", "/bin/m", "deliver", "codex"}); err != nil {
+	if _, err := p.Parse([]string{"watch", "--host", "1", "--", "/bin/m", "codex", "deliver"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := deliverCommand(c.Watch.Deliver); strings.Join(got, " ") != "/bin/m deliver codex" {
+	if got := deliverCommand(c.Watch.Deliver); strings.Join(got, " ") != "/bin/m codex deliver" {
 		t.Fatalf("watch = %q", got)
 	}
-	if _, err := p.Parse([]string{"mcp", "--", "/bin/m", "deliver", "codex"}); err != nil {
+	if _, err := p.Parse([]string{"mcp", "--", "/bin/m", "codex", "deliver"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := deliverCommand(c.MCP.Deliver); strings.Join(got, " ") != "/bin/m deliver codex" {
+	if got := deliverCommand(c.MCP.Deliver); strings.Join(got, " ") != "/bin/m codex deliver" {
 		t.Fatalf("mcp = %q", got)
 	}
 }
