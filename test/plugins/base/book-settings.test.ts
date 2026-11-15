@@ -76,40 +76,40 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
   const byType = Object.fromEntries((schema.anyOf ?? []).map(s => [s.description, Object.keys(s.properties ?? {})]))
   expect(byType).toEqual({
     "settings of @matomezu/dir:dir books": [
-      "@matomezu/base:book-theme",
-      "@matomezu/base:book-paper-color",
-      "@matomezu/base:book-text-colors",
+      "@matomezu/base:page-theme",
+      "@matomezu/base:page-paper-color",
+      "@matomezu/base:page-text-colors",
       "@matomezu/base:background-print",
     ],
     "settings of @matomezu/drawing:drawing books": [
-      "@matomezu/base:book-theme",
-      "@matomezu/base:book-paper-color",
+      "@matomezu/base:page-theme",
+      "@matomezu/base:page-paper-color",
       "@matomezu/line:line-route",
-      "@matomezu/base:book-text-colors",
+      "@matomezu/base:page-text-colors",
       "@matomezu/base:background-print",
     ],
     "settings of @matomezu/flowchart:flowchart books": [
-      "@matomezu/base:book-theme",
-      "@matomezu/base:book-paper-color",
+      "@matomezu/base:page-theme",
+      "@matomezu/base:page-paper-color",
       "@matomezu/line:line-route",
       "@matomezu/flowchart:flow-direction",
-      "@matomezu/base:book-text-colors",
+      "@matomezu/base:page-text-colors",
       "@matomezu/base:background-print",
     ],
-    "settings of @matomezu/markdown:markdown books": ["@matomezu/base:book-theme", "@matomezu/base:book-paper-color"],
+    "settings of @matomezu/markdown:markdown books": ["@matomezu/base:page-theme", "@matomezu/base:page-paper-color"],
     "settings of @matomezu/slide-book:slide books": [
-      "@matomezu/base:book-theme",
-      "@matomezu/base:book-paper-color",
+      "@matomezu/base:page-theme",
+      "@matomezu/base:page-paper-color",
       "@matomezu/slide-book:slide-print",
     ],
     "settings of @matomezu/tree:tree books": [
-      "@matomezu/base:book-theme",
-      "@matomezu/base:book-paper-color",
+      "@matomezu/base:page-theme",
+      "@matomezu/base:page-paper-color",
       "@matomezu/tree:grow",
       "@matomezu/tree:node-size",
       "@matomezu/tree:node-shape",
       "@matomezu/tree:line-shape",
-      "@matomezu/base:book-text-colors",
+      "@matomezu/base:page-text-colors",
       "@matomezu/base:background-print",
     ],
   })
@@ -131,7 +131,7 @@ test("ブックの設定の項目も、変えるときの値の形は機能台�
   const theme = (id: string) =>
     store.actions.perform(
       "@matomezu/base:book-update",
-      { settings: { "@matomezu/base:book-theme": id } },
+      { settings: { "@matomezu/base:page-theme": id } },
       { book: "b1" },
     ).ok
   expect(theme("@matomezu/base:sticky")).toBe(true)

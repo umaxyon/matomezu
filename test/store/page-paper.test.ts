@@ -1,7 +1,7 @@
 // ページの紙・向き・伸びるか: page-add で決め、page-update であとから変える（plugins/base/page-tabs）
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { putPage } from "../../web/src/core/book"
+import { findPage, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import type { BookOf } from "../../web/src/core/schema/book"
@@ -176,7 +176,7 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
   // ページの設定のダイアログが確かめる下書き（normalizedPage）も、アクションのあとと同じく空きを詰めてから紙に入るかを見る
   const book = state.getState().books.b1 as Drawing
-  const off = withGrows(book.pages.find(p => p.id === page) as Drawing["pages"][number], undefined)
+  const off = withGrows(findPage(book, page)?.page as Drawing["pages"][number], undefined)
   expect(normalizedPage(CORE_CATALOG, book, putPage(book, off), off)).toMatchObject({ items: [{ x: 100, y: 100 }] })
   // 可変ページをやめると、空きを詰めて紙 1 枚に戻す
   expect(actions.perform("@matomezu/base:page-update", { page, grows: false }, { book: "b1" }).ok).toBe(true)
@@ -190,12 +190,12 @@ const SHIFTER = defineAction({
   title: "@matomezu/drawing:Drawing",
   aiDescription: "Write a page's shift.",
   target: "book",
-  attach: { pages: true },
+  attach: { books: true },
   permissionScope: "book",
   args: z.strictObject({ page: z.string() }),
   run: (book, args) => ({
     next: putPage(book, {
-      ...(book.pages.find(p => p.id === args.page) as Drawing["pages"][number]),
+      ...(findPage(book, args.page)?.page as Drawing["pages"][number]),
       shift: { x: 1, y: 0 },
     }),
     result: {},

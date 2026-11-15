@@ -74,7 +74,7 @@ describe("コントロールセンター", () => {
     expect(some.state.getState().settings).toEqual({})
     expect(some.actions.perform("@matomezu/base:settings-set", { values: lang }).ok).toBe(true)
     // fixedUserSettings に利用者の設定の項目でない id を書いても台帳アセンブルでき、その行だけ効かず warning を残す
-    const warned = withCenter({ fixedUserSettings: ["@matomezu/base:book-theme"] })
+    const warned = withCenter({ fixedUserSettings: ["@matomezu/base:page-theme"] })
     expect(warningsOf(warned.catalog).map(w => w.code)).toContain("W013")
     // 断りには、使えない項目と理由が付く
     expect(some.actions.perform("@matomezu/base:settings-set", { values: skin })).toEqual({

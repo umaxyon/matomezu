@@ -8,8 +8,8 @@ const book = (store: ReturnType<typeof newStore>) =>
 const update = (store: ReturnType<typeof newStore>, args: Record<string, unknown>) =>
   store.actions.perform("@matomezu/base:book-update", args, { book: "b1" })
 
-const THEME = "@matomezu/base:book-theme"
-const PAPER = "@matomezu/base:book-paper-color"
+const THEME = "@matomezu/base:page-theme"
+const PAPER = "@matomezu/base:page-paper-color"
 const look = (settings: Record<string, unknown>) => ({ settings })
 
 test("ブックのテーマと紙の色は base の設定の項目で、@matomezu/base:book-update の settings で変える。渡さない項目はそのまま、null で消す。表に無いテーマ・タイプが使えないテーマ・色の値でないものは断る", () => {

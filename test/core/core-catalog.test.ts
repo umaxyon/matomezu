@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
+import { pagesOf } from "../../web/src/core/book"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { ERRORS, problemText } from "../../web/src/core/errors"
@@ -191,7 +192,7 @@ describe("アクションを行う", () => {
       ctx,
     )
     expect(done).toMatchObject({ ok: true, result: { page: "new" } })
-    expect(done.ok && "pages" in done.next && done.next.pages.at(-1)).toEqual({
+    expect(done.ok && "pages" in done.next && done.pagesOf(next).at(-1)).toEqual({
       id: "new",
       title: "表紙",
       paper: "@matomezu/base:a3",
@@ -199,7 +200,7 @@ describe("アクションを行う", () => {
     })
     // 紙を決めなければ、規定の既定
     const plain = perform(book, "@matomezu/base:page-add", { title: "次" }, ctx)
-    expect(plain.ok && "pages" in plain.next && plain.next.pages.at(-1)).toMatchObject({
+    expect(plain.ok && "pages" in plain.next && plain.pagesOf(next).at(-1)).toMatchObject({
       paper: "@matomezu/base:a4",
       orientation: "landscape",
     })

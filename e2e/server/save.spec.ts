@@ -1,3 +1,4 @@
+import { pagesOf } from "../../web/src/core/book"
 import { E2E_BOOKS } from "../books"
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { addBox } from "../helpers/paper"
@@ -203,7 +204,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   await expect
     .poll(async () => {
       const saved = (await data(page)).books.find((x: { id: string }) => x.id === LINE_BOOK.id)
-      return saved?.book.pages[0].items.map((i: { id: string }) => i.id)
+      return saved?.pagesOf(book)[0].items.map((i: { id: string }) => i.id)
     })
     .toEqual(["a", "c"])
 })

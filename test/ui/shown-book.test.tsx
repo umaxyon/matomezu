@@ -13,7 +13,7 @@ import { sequence } from "../support"
 
 afterEach(cleanup)
 
-const PAPER = "@matomezu/base:book-paper-color"
+const PAPER = "@matomezu/base:page-paper-color"
 
 test("ブックを指す下書きは重なり、アイテムやページを指す下書きと、ほかのブックの下書きは重ならない（データは変えない）", () => {
   const instance = createMatomezu({

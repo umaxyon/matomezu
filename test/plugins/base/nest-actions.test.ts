@@ -329,7 +329,7 @@ function besideEdge(x = 460, own = 200) {
   place(store, { at: { x: 20, y: 40 }, parent: big, w: 300, h: 600 })
   place(store, { at: { x: 340, y: 40 }, parent: big, w: 300, h: 600 })
   const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
-  const paper = roomOf(CORE_CATALOG, book, page(store))!
+  const paper = roomOf(CORE_CATALOG, page(store))!
   return { store, big, paper }
 }
 // ページのどの形も（子の形も、描く大きさで）紙の中か
@@ -511,7 +511,7 @@ test("座標を渡さずに置くとき、紙に空きが無ければ断る", ()
   const store = newStore()
   place(store, { at: { x: 500, y: 300 }, w: 100, h: 60 })
   const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
-  const paper = roomOf(CORE_CATALOG, book, page(store))!
+  const paper = roomOf(CORE_CATALOG, page(store))!
   const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: paper.w, h: paper.h })
   expect((done as { detail?: string }).detail).toStartWith("there is no free spot for it")
   // 画面が知らせ方を変えられるよう、断りの種類も添える

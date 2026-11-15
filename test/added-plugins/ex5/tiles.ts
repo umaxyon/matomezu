@@ -1,6 +1,8 @@
 // ex5 の形「タイル」: 色の札（tiles）を並べる入れ物。文字は持たない（captionProp なし）。
 // 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身のフィールドは children でなく tiles
+
 import { hasPages, putPage, z } from "matomezu"
+import { findPage, pagesOf } from "../../../web/src/core/book"
 import { kit } from "./kit"
 
 const TILES_SIZE = { w: 160, h: 96 }
@@ -35,7 +37,7 @@ export const TILE_ADD = kit.defineAction({
   args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), color: z.string() }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const item = page?.items?.find(i => i.id === args.item)
     if (!page || item?.item !== TILES.id) return null
     const id = ctx.newId()
@@ -59,7 +61,7 @@ export const TILE_LIMIT_PERMISSION = kit.definePermission({
     q.kind === "book" &&
     q.action.id === TILE_ADD.id &&
     hasPages(q.book) &&
-    tilesOn((q.book.pages as readonly TilesPage[]).find(p => p.id === q.where?.page)) >= TILE_LIMIT,
+    tilesOn((q.pagesOf(book) as readonly TilesPage[]).find(p => p.id === q.where?.page)) >= TILE_LIMIT,
   // 札を足すほかのアクションも、行った後の変化で止める（変わったページの札が上限を超えたら守っていない）
   keeps: c =>
     c.kind !== "book" ||
@@ -97,5 +99,5 @@ export const SHELF = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: kit.name("shelf-tools"),
-  settings: { book: ["@matomezu/base:book-theme"], page: [] },
+  settings: { book: ["@matomezu/base:page-theme"], page: [] },
 })

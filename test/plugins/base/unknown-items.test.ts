@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import type { ItemPage } from "../../../web/src/core/placed"
 import { rectsOf } from "../../../web/src/plugins/base"
 import { newStore } from "../../support"
@@ -45,7 +46,7 @@ test("機能台帳に無いアイテムのあるブックも読め、知らな�
   expect(
     store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "b", props: { caption: "箱2" } }, on).ok,
   ).toBe(true)
-  expect(page(store).items?.find(i => i.id === "l") as unknown).toEqual(book.pages[0]!.items[2])
+  expect(page(store).items?.find(i => i.id === "l") as unknown).toEqual(pagesOf(book)[0]!.items[2])
   expect(store.actions.perform("@matomezu/paper:item-remove", { page: "p1", items: ["s"] }, on).ok).toBe(true)
   expect(page(store).items?.map(i => i.id)).not.toContain("s")
 })

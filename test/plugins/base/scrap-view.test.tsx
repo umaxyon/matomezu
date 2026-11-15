@@ -39,7 +39,7 @@ const drawing = (id: string, settings: object) => ({
 })
 
 // x はテーマと線の引き方を選んだブック、y は何も選んでいないブック（ページ px・py に、同じ id の箱と線がある）
-const X = drawing("x", { "@matomezu/base:book-theme": "sticky", "@matomezu/line:line-route": "straight" })
+const X = drawing("x", { "@matomezu/base:page-theme": "sticky", "@matomezu/line:line-route": "straight" })
 const Y = drawing("y", {})
 
 function setup(extra: readonly object[] = []) {

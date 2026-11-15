@@ -72,7 +72,7 @@ test("背景だけの印刷区画は載らない（auto）。印刷対象が alw
 
 test("ミニマップには背景を描かない", () => {
   const b = book(DRAWING)
-  expect(minimapMarks(CORE_CATALOG, b, pages[0] as never)).toEqual([])
+  expect(minimapMarks(CORE_CATALOG, pages[0] as never)).toEqual([])
 })
 
 test("可変ページで背景を必ず印刷するときは、背景だけの印刷区画も並べる（背景が中身の外枠の外にあっても数える）", () => {

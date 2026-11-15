@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { shownPageId } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { currentStage } from "../../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
@@ -122,10 +123,10 @@ test("ページの無いブックを 2 つのステージで開いて最初の�
   actions.split("s1")
   actions.openBook("s2", "n1")
   addPageIn({ state, actions }, "s2", { title: "最初" })
-  expect(screenOf(state.getState().window).stages.map(st => st.opened?.page)).toEqual(["n2", "n2"])
+  expect(screenOf(state.getState().window).stages.map(st => shownPageId(st.opened ?? null))).toEqual(["n2", "n2"])
   // ほかのページを見ているステージは変えない
   addPageIn({ state, actions }, "s2", { title: "次" })
-  expect(screenOf(state.getState().window).stages.map(st => st.opened?.page)).toEqual(["n2", "n3"])
+  expect(screenOf(state.getState().window).stages.map(st => shownPageId(st.opened ?? null))).toEqual(["n2", "n3"])
 })
 
 test("閉じたステージへの分割と分割の取りやめは、ほかのステージにかけない", () => {

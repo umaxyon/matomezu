@@ -1,6 +1,6 @@
 // ex8 のブックのタイプ「単語帳」: ページ 1 つがカードの束で、カードの文字はページのフィールド cards に持つ（置けるアイテムは無い）。
 // 自分の見せ方（カード）を持ち、ステージに紙を置かずにビューがカードを並べる。ページは紙を持ち、印刷プレビューでは 1 ページを紙 1 枚に描く
-import { BOOK_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS, z } from "matomezu"
+import { PAGE_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS, z } from "matomezu"
 import { kit } from "./kit"
 
 // 単語帳のテーマタイプ（自分で足す。単語帳はこれだけを使うので、選べるのは "all" のテーマと、黒板のテーマ）
@@ -67,5 +67,5 @@ export const DECK = kit.definePageType({
   themeTypes: [CARD_THEMES],
   presentation: CARDS.id,
   tokens: [],
-  settings: { book: [BOOK_THEME.id, ...PRINT_PREVIEW_SETTINGS], page: [] },
+  settings: { book: [PAGE_THEME.id, ...PRINT_PREVIEW_SETTINGS], page: [] },
 })

@@ -1,7 +1,8 @@
 // アクションの中で振る id（core/ids.ts の idMaker と、base の utils/ids.ts）: ブックの全部のページの中身の、どの深さの id とも重ならず、続けて振った id どうしも重ならない。changedIn は、前後の値で物が変わったか
+
 import { expect, test } from "bun:test"
-import type { PagedBook } from "../../web/src/core/book"
 import { changedIn, idMaker, idsIn } from "../../web/src/core/ids"
+import type { Book } from "../../web/src/core/schema/book"
 import { contentIdMaker } from "../../web/src/plugins/base/utils/ids"
 
 // 決めた並びの値を返す newId（尽きたら同じ値を返し続ける）
@@ -36,7 +37,7 @@ test("contentIdMaker は、ほかのページのアイテムの中身やペー�
       { id: "p1", title: "1", items: [{ id: "i1", item: "x", children: [{ id: "row1" }] }] },
       { id: "p2", title: "2", nodes: [{ id: "n1", children: [{ id: "n2" }] }] },
     ],
-  } as unknown as PagedBook
+  } as unknown as Book
   const make = contentIdMaker(book, seq("i1", "row1", "n1", "n2", "p1", "z"))
   expect(make()).toBe("p1")
   expect(make()).toBe("z")

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { addPage, createBook } from "../../web/src/core/book"
+import { addPage, createBook, pagesOf } from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
 import { choosablePapers, defaultPaper, paperChoices } from "../../web/src/plugins/base/page-tabs/pages"
@@ -23,8 +23,8 @@ test("ページを足すと、newId の値そのままの id（uuid）で、決�
     () => ids.shift()!,
   )
   expect(page).toEqual({ id: "p-2a", title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" })
-  expect(next.pages.map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
-  expect(book.pages).toHaveLength(2)
+  expect(pagesOf(next).map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
+  expect(pagesOf(book)).toHaveLength(2)
 })
 
 test("作ったブックは、そのタイプの形の空のブック", () => {

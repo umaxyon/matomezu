@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import {
   areaOf,
   closePrintPreview,
@@ -16,6 +17,7 @@ import {
   setArea,
   setEditing,
   setStart,
+  shownPageId,
   toPaper,
   zoomTo,
 } from "../../web/src/core/stage"
@@ -165,7 +167,7 @@ test("見せ方が知らせた広さ（可変ページ）は、紙の枠とず�
   expect(areaOf(back)).toEqual(sheet)
   expect(back.pan.y).toBe(300 - contentSize(sheet, 1).h)
   // 開いているページの紙が変われば、知らせた広さは捨てる（知らせ直すまで紙 1 枚）
-  const a3 = { ...book, pages: [{ ...book.pages[0]!, paper: "@matomezu/base:a3" }] }
+  const a3 = { ...book, pages: [{ ...pagesOf(book)[0]!, paper: "@matomezu/base:a3" }] }
   expect(areaOf(followBook(CORE_CATALOG, grown, a3))).toEqual(paperOf(followBook(CORE_CATALOG, grown, a3)))
 })
 
@@ -264,7 +266,7 @@ test("開いていたページが無くなって隣のページを開いたと�
   const start = { x: sheet.w, y: sheet.h }
   const settledAt = panBy(setStart(setArea(opened, area), start), 50, 50)
   const removed = followBook(CORE_CATALOG, settledAt, { ...book, pages: [p2] }, book)
-  expect([removed.opened?.page, removed.starting, removed.pan]).toEqual(["p2", true, { x: 0, y: 0 }])
+  expect([shownPageId(removed.opened ?? null), removed.starting, removed.pan]).toEqual(["p2", true, { x: 0, y: 0 }])
   expect(setStart(setArea(removed, area), start).pan).toEqual({ x: -sheet.w, y: -sheet.h })
   // 印刷プレビューを開けば印を下ろし、閉じて知らせが届いても合わせない
   const previewed = openPrintPreview(opened)

@@ -42,7 +42,7 @@ test("機能台帳に無いアイテムと設定の項目は、ブックを読�
     ...ok,
     id: "y2",
     title: "選んでいない",
-    pages: [{ ...page, settings: { "@matomezu/base:book-theme": "x" } }],
+    pages: [{ ...page, settings: { "@matomezu/base:page-theme": "x" } }],
   }
   const misfit = {
     ...ok,

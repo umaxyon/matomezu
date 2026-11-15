@@ -1,6 +1,8 @@
 // 画面の履歴: 利用者が画面で行ったアクションを、同じ処理の中のものは 1 つの画面の履歴の段にまとめて、ブックごとに覚える。元に戻す（undo）は画面の履歴の段が変えた所を前の値に、
 // やり直す（redo）は後の値に置き直す（book-revert を同じ道で送る）。ロックの掛け外しは覚えない。新しい画面の履歴の段を入れると、そのブックのやり直せる画面の履歴の段は消える
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
@@ -149,7 +151,7 @@ test("戻すまでの間に AI が変えた所は、画面の履歴の段が変�
   place(store, 40, "1")
   await settled()
   const book = bookOf(store)
-  const [page, ...rest] = book.pages
+  const [page, ...rest] = pagesOf(book)
   const items = page!.items!.map((x, i, all) =>
     i === all.length - 1 ? { ...x, props: { ...x.props, caption: "AI" } } : x,
   )

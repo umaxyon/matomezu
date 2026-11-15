@@ -10,6 +10,7 @@ import {
   resize,
   select,
   setPreviewArea,
+  shownPageId,
   stageBlocks,
   zoomTo,
 } from "../../web/src/core/stage"
@@ -79,7 +80,7 @@ describe("ステージの印刷プレビュー", () => {
     expect({ zoom: closed.zoom, pan: closed.pan }).toEqual({ zoom: editing.zoom, pan: editing.pan })
     const other = openPage(CORE_CATALOG, shown, book, "p2")
     expect(other.mode.kind).toBe("edit")
-    expect(other.opened?.page).toBe("p2")
+    expect(shownPageId(other.opened ?? null)).toBe("p2")
     expect(other.zoom).toBe(editing.zoom)
     expect(openPage(CORE_CATALOG, shown, book, "p1").mode.kind).toBe("edit")
   })

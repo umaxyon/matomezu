@@ -897,7 +897,7 @@ test("book-create は、タイプが選んだブックの設定の項目を受�
     const theme = store.actions.perform("@matomezu/base:book-create", {
       title: "テーマの無い木",
       type: "@matomezu/tree:tree",
-      settings: { "@matomezu/base:book-theme": "no-such-theme" },
+      settings: { "@matomezu/base:page-theme": "no-such-theme" },
     })
     expect(theme.ok).toBe(false)
   })

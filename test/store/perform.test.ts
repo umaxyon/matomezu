@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
+import { pagesOf } from "../../web/src/core/book"
 import { defineAction, pagedOnly } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
+import type { Book } from "../../web/src/core/schema/book"
+import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -185,7 +188,7 @@ describe("アクションの入口", () => {
     actions.openBook("s2", "made")
     const done = actions.perform("@matomezu/base:page-add", { title: "最初" }, { book: "made" })
     expect(done).toEqual({ ok: true, result: { page: "made" } })
-    expect(screenOf(state.getState().window).stages.map(s => s.opened?.page)).toEqual(["made", "made"])
+    expect(screenOf(state.getState().window).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["made", "made"])
   })
 
   test("宛先のブックが無い・タイプが許さない・引数の形が違うときは断り、状態を変えない", () => {
@@ -235,7 +238,7 @@ describe("アクションの入口", () => {
   })
 })
 
-test("付く先がページを持つタイプだけ（pages・items）のアクションの run は PagedBook を受ける。books・presentations も書いたら Book のまま（ビルトインのタイプはどれもページを持つので、型は pagedOnly の答えだけを確かめる）", () => {
+test("付く先がページを持つタイプだけ（pages・items）のアクションの run は Book を受ける。books・presentations も書いたら Book のまま（ビルトインのタイプはどれもページを持つので、型は pagedOnly の答えだけを確かめる）", () => {
   expect(pagedOnly({ pages: true })).toBe(true)
   expect(pagedOnly({ items: ["@matomezu/box:shape-nest-box"] })).toBe(true)
   expect(pagedOnly({ items: ["@matomezu/box:shape-nest-box"], books: true })).toBe(false)
@@ -244,11 +247,11 @@ test("付く先がページを持つタイプだけ（pages・items）のアク�
   defineAction({
     id: "t:paged",
     title: "@matomezu/drawing:Drawing",
-    attach: { pages: true },
+    attach: { books: true },
     aiDescription: "",
     target: "book",
     permissionScope: "book",
     args: z.strictObject({}),
-    run: book => ({ next: book, result: book.pages.length }), // pages を言い張りなしで読める
+    run: book => ({ next: book, result: pagesOf(book).length }), // pages を言い張りなしで読める
   })
 })

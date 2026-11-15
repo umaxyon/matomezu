@@ -14,7 +14,7 @@ export const USE_MINT = kit.defineCommand({
     if (ctx.book)
       a.perform(
         "@matomezu/base:book-update",
-        { settings: { "@matomezu/base:book-theme": MINT.id } },
+        { settings: { "@matomezu/base:page-theme": MINT.id } },
         { book: ctx.book.id },
       )
   },

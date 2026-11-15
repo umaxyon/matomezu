@@ -1,6 +1,8 @@
 // ex4 の 2 つ目のつなぐもの「関係線」: 形どうしを点線で結ぶ。ビルトインの線と同じページに引ける。
 // 整え（tidy）と関係の決まり（holds）を持たない（端の形を消したときに何が起きるかを見るため）
+
 import { putPage, shapesOf, z } from "matomezu"
+import { findPage } from "../../../web/src/core/book"
 import { kit } from "./kit"
 
 export const RELATION = kit.defineConnector({
@@ -24,7 +26,7 @@ export const RELATE = kit.defineAction({
   args: z.strictObject({ page: z.string().min(1), from: z.string().min(1), to: z.string().min(1) }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     if (!page) return null
     const shapes = new Set(shapesOf(page).map(s => s.id))
     if (!shapes.has(args.from) || !shapes.has(args.to)) return null

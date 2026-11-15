@@ -111,16 +111,16 @@ test("文字の色は定義の色を、テーマ、ブックの設定、利用�
     id: "b",
     title: "",
     pages: [],
-    settings: { "@matomezu/base:book-text-colors": { [W]: "#111111" } },
+    settings: { "@matomezu/base:page-text-colors": { [W]: "#111111" } },
   } as unknown as Book
   const plain = { ...book, settings: undefined } as unknown as Book
   expect(textColorsOf(CORE_CATALOG, plain).get(W)).toBe("#d97706")
   expect(textColorsOf(CORE_CATALOG, book).get(W)).toBe("#111111")
   expect(textColorsOf(CORE_CATALOG, book, { [W]: "#222222" }).get(W)).toBe("#222222")
   const themed = (more: Record<string, unknown>) =>
-    ({ ...book, settings: { "@matomezu/base:book-theme": "@matomezu/base:matomezu", ...more } }) as unknown as Book
+    ({ ...book, settings: { "@matomezu/base:page-theme": "@matomezu/base:matomezu", ...more } }) as unknown as Book
   expect(textColorsOf(CORE_CATALOG, themed({})).get(W)).toBe("#b86e00")
-  expect(textColorsOf(CORE_CATALOG, themed({ "@matomezu/base:book-text-colors": { [W]: "#111111" } })).get(W)).toBe(
+  expect(textColorsOf(CORE_CATALOG, themed({ "@matomezu/base:page-text-colors": { [W]: "#111111" } })).get(W)).toBe(
     "#111111",
   )
   expect([...textColorsOf(CORE_CATALOG, plain).keys()]).toEqual([

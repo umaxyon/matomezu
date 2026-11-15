@@ -1,6 +1,8 @@
 // ex2 のブックのタイプ「フロー」: 自分の形（判断のひし形）と設定の項目（流れの向き）と自分のアクションを持ち、
 // ビルトインの見せ方（紙）・箱・線・線の設定を id で選ぶ
+
 import { putPage, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
+import { findPage } from "../../../web/src/core/book"
 import { kit } from "./kit"
 
 export const DIAMOND_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "diamond-add" })
@@ -35,7 +37,7 @@ export const ANSWER = kit.defineAction({
   args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), answer: z.enum(["yes", "no"]) }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args) => {
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const item = page?.items?.find(i => i.id === args.item)
     if (!page || item?.item !== DIAMOND.id) return null
     const items = page.items?.map(i => (i === item ? { ...item, props: { ...item.props, answer: args.answer } } : i))
@@ -73,7 +75,7 @@ export const FLOW = kit.definePageType({
   tokens: [],
   tools: "@matomezu/paper:paper",
   settings: {
-    book: ["@matomezu/base:book-theme", "@matomezu/line:line-route", FLOW_DIRECTION.id],
+    book: ["@matomezu/base:page-theme", "@matomezu/line:line-route", FLOW_DIRECTION.id],
     page: ["@matomezu/line:line-route"],
   },
 })

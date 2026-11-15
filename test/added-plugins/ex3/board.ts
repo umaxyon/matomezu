@@ -123,5 +123,5 @@ export const BOARD = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  settings: { book: ["@matomezu/base:book-theme", GRID.id], page: [] },
+  settings: { book: ["@matomezu/base:page-theme", GRID.id], page: [] },
 })

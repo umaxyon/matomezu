@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { PagedBook } from "../../web/src/core/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { pageContext } from "../../web/src/plugins/base/book-settings"
 import { growOf, paperSize } from "../../web/src/plugins/base/place/items"
@@ -79,7 +79,7 @@ test("印刷区画に載っているか: 形は掛かっている印刷区画の
       { page: "p1", item: BOX, at: { x, y: 40 }, props: { caption }, crowd: "push" },
       { book: "b1" },
     )
-  const book = () => store.state.getState().books.b1 as PagedBook
+  const book = () => store.state.getState().books.b1 as Book
   const filled = () => [...(filledSheets(store.catalog.core, book(), book().pages[0]!) ?? [])].sort()
   const paperW = paperSize(store.catalog.core, book().pages[0]!)!.w
   expect(place(40, "一").ok).toBe(true)
@@ -103,7 +103,7 @@ test("印刷区画に載っているか: 手で直した線の角がある印刷
       { page: "p1", item: BOX, at: { x, y }, w, h: 64 },
       { book: "b1" },
     )
-  const book = () => store.state.getState().books.b1 as PagedBook
+  const book = () => store.state.getState().books.b1 as Book
   const filled = () => [...(filledSheets(store.catalog.core, book(), book().pages[0]!) ?? [])].sort()
   const paper = paperSize(store.catalog.core, book().pages[0]!)!
   expect(place(100, 100).ok).toBe(true) // n1
@@ -180,7 +180,7 @@ test("可変ページのツリーとディレクトリ構成図で中身があ�
 test("印刷区画より大きい形は、またいでも直せないので、印刷区画より大きい形として挙げる（印刷プレビューは開ける）", () => {
   const store = newStore()
   store.actions.perform("@matomezu/base:page-update", { page: "p1", grows: "right-down" }, { book: "b1" })
-  const book = () => store.state.getState().books.b1 as PagedBook
+  const book = () => store.state.getState().books.b1 as Book
   const paper = paperSize(store.catalog.core, book().pages[0]!)!
   const done = store.actions.perform(
     "@matomezu/paper:item-place",

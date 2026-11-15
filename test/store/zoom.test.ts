@@ -103,7 +103,7 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   const sheet = paperOf(stage())!
   const start = startOf(catalog.core, page)
   expect(start).toEqual({ x: sheet.w, y: sheet.h })
-  actions.setStageArea("s1", roomOf(catalog.core, book, page))
+  actions.setStageArea("s1", roomOf(catalog.core, page))
   actions.setStageStart("s1", start)
   expect(stage().pan).toEqual({ x: -sheet.w, y: -sheet.h })
   expect(enabled()).toBe(false)
