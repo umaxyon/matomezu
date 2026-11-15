@@ -1,8 +1,10 @@
 // 伝言が読まれた知らせ（ウィジェット note-read-notice。根に置き、何も描かない）: この窓の伝言が、AI に読まれた（readAt が無い物から有る物に変わった）のを見たら、
 // マーキーのトーストで「AI が伝言を読みました」と知らせる。いくつかまとめて読まれても 1 回。読み込んだときから読まれていた物では知らせない
+
 import { useEffect, useRef } from "react"
 import type { Annotations } from "../../../core/annotation"
-import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
+import { useMatomezuState } from "../../../ui/store-context"
+import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { NOTE, type NoteProps } from "."
 
@@ -24,7 +26,7 @@ export function newlyRead(before: ReadonlySet<string>, all: Annotations): boolea
 
 export function ReadNotice() {
   const annotations = useMatomezuState(s => s.annotations)
-  const { showToast } = useStoreActions()
+  const { showToast } = useActions()
   const before = useRef<Set<string> | null>(null)
   useEffect(() => {
     if (before.current && newlyRead(before.current, annotations))

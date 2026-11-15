@@ -4,8 +4,8 @@
 import { useState } from "react"
 import type { Book } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState, useStoreActions } from "../../../ui/store-context"
-import { useAllowedOn } from "../../../ui/view-hooks"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useActions, useAllowedOn } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -87,7 +87,7 @@ function TrashRow({ book, onRestore, onDelete }: { book: Book; onRestore: () => 
 
 // 一覧が対象のアクションを行う関数: 断られたら断りをトーストに出す（refused は断りの理由が無いときの文言）
 function useLibraryPerform(): (action: string, args: unknown, refused: Parameters<typeof kit.message>[0]) => void {
-  const { perform, showToast } = useStoreActions()
+  const { perform, showToast } = useActions()
   const catalog = useCatalog().core
   const run = perform as (
     action: string,

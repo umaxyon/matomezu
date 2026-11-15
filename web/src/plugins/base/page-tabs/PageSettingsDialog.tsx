@@ -7,8 +7,7 @@ import { useEffect, useId, useState } from "react"
 import { pagedOf, putPage, withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useStoreActions } from "../../../ui/store-context"
-import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
@@ -37,7 +36,7 @@ export function PageSettingsDialog({ args, onClose }: DialogProps<{ page: string
   const [confirming, setConfirming] = useState(false)
   const settings = useSettingControls(book, "page", page ?? null)
   const paper = usePaperControls(book, page ?? null)
-  const { previewDialog } = useStoreActions()
+  const { previewDialog } = useActions()
   const perform = usePerform()
   const bookId = book?.id
   const pageId = page?.id

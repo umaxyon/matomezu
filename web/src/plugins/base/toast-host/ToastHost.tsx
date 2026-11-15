@@ -1,10 +1,12 @@
 // トーストの置き場（ウィジェット toast-host）: store の出しているトースト（toasts）を、画面の下の真ん中に、古いものを上にして積む。
 // 原因（detail）は 2 行目に出す。種類ごとの出しておく時間（TOAST_MS）が過ぎるか、押すと消える。
 // 見せ方がマーキー（form が marquee）の物は、画面の上の真ん中に、決まった幅の帯で 1 つずつ出す: 下りてきて文を右から左へ流し、流し終えたら引っ込んで消える
+
 import { useEffect } from "react"
 import type { Toast } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
-import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
+import { useMatomezuState } from "../../../ui/store-context"
+import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import styles from "./ToastHost.module.css"
 
@@ -36,7 +38,7 @@ export function ToastHost() {
 
 // マーキー: 下りる・流す・引っ込むの動きは CSS が持ち、引っ込み終えたら消す（動きを減らす設定では、動かさずに少し出して消す）
 function Marquee({ toast }: { toast: Toast }) {
-  const { dismissToast } = useStoreActions()
+  const { dismissToast } = useActions()
   const t = useMessages(kit)
   return (
     <div
@@ -53,7 +55,7 @@ function Marquee({ toast }: { toast: Toast }) {
 }
 
 function ToastView({ toast }: { toast: Toast }) {
-  const { dismissToast } = useStoreActions()
+  const { dismissToast } = useActions()
   const t = useMessages(kit)
   useEffect(() => {
     const ms = TOAST_MS[toast.kind]

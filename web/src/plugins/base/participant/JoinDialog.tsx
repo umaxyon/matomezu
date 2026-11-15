@@ -6,8 +6,7 @@
 import { useId, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useStoreActions } from "../../../ui/store-context"
-import { useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
+import { useActions, useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
 import { BIRD_IDS, type Bird } from "../birds"
 import { BIRD_PALETTES } from "../birds/colors"
 import { Dialog } from "../dialog-host/Dialog"
@@ -46,7 +45,7 @@ type Mode = "new" | "takeover"
 function JoinForm({ participant, onClose }: { participant: string; onClose: () => void }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const { perform, showToast } = useStoreActions()
+  const { perform, showToast } = useActions()
   const participants = useParticipants()
   const rooms = useWorkrooms()
   const calls = useParticipantCalls()
