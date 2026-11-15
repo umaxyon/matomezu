@@ -114,3 +114,24 @@ test("ページタブの頭にブックのタイプのアイコンが付き、�
   await folder.getByRole("button", { name: "確定" }).click()
   await expect(row(page, "proj").locator("[data-icon]")).toHaveAttribute("data-icon", "@matomezu/dir:entry-icon-book")
 })
+
+test("選んだ行の横の＋は、乗せたらすぐ吹き出しが出て、動きの名前とショートカットキーを示す。Shift+D・Shift+F はそのキーで、＋と同じ足し方（フォルダの行は中に足す）", async ({
+  page,
+}) => {
+  await dirBook(page)
+  const folderPlus = paper(page).getByRole("button", { name: "フォルダを足す" })
+  await folderPlus.hover()
+  const bubble = page.getByText("Shift+D", { exact: true })
+  await expect(bubble).toBeVisible()
+  await expect(bubble.locator("..")).toContainText("フォルダを足す")
+  await paper(page).getByRole("button", { name: "ファイルを足す" }).hover()
+  await expect(page.getByText("Shift+F", { exact: true })).toBeVisible()
+  // Shift+D は、選んでいるフォルダ（根）の中にフォルダを足して、名前を書き始める
+  await page.keyboard.press("Shift+D")
+  await write(page, "src")
+  await expect(rows(page)).toHaveText(["proj", "src"])
+  // 選んだ行は足した src（フォルダ）。Shift+F は src の中にファイルを足す
+  await page.keyboard.press("Shift+F")
+  await write(page, "a.ts")
+  await expect(rows(page)).toHaveText(["proj", "src", "a.ts"])
+})

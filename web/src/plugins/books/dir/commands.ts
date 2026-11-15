@@ -306,6 +306,8 @@ export const DIR_KEYS = [
   kit.defineKey({ id: "entry-rename-f2", key: "F2", command: ENTRY_RENAME.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "folder-add-below-d", key: "D", command: FOLDER_ADD_BELOW.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "file-add-below-f", key: "F", command: FILE_ADD_BELOW.id, scope: DIR_KEYS_SCOPE }),
+  kit.defineKey({ id: "folder-add-shift-d", key: "Shift+D", command: FOLDER_ADD.id, scope: DIR_KEYS_SCOPE }),
+  kit.defineKey({ id: "file-add-shift-f", key: "Shift+F", command: FILE_ADD.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "entry-kind-pick-tab", key: "Tab", command: ENTRY_KIND_PICK.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "entry-delete-delete", key: "Delete", command: ENTRY_DELETE.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "entry-delete-backspace", key: "Backspace", command: ENTRY_DELETE.id, scope: DIR_KEYS_SCOPE }),
