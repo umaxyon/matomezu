@@ -16,7 +16,7 @@ import type { ConnectorUi } from "./connector"
 import type { AnyWidgetDef } from "./layout"
 
 // ブックのビューが受け取る物は無い（描くページと操作は、フックが描いている場所から引く。ui/scope.tsx）。stage は橋渡しの間だけ
-export type BookViewProps = LegacyStageProps
+export type BookViewProps = Partial<LegacyStageProps>
 // ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、UI マッピングには書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
 export interface BookViewDef extends BookViewExtras {
@@ -27,7 +27,7 @@ export interface BookViewDef extends BookViewExtras {
 export type DialogProps<A = undefined> = {
   args: A
   onClose: () => void
-} & LegacyStageProps // stage（開いたステージ）は橋渡しの間だけ
+} & Partial<LegacyStageProps> // stage（開いたステージ）は橋渡しの間だけ（渡さなくてよい）
 // どのダイアログのビューも入る型（表に入れるときに使う。渡す値の型は id ごとに違うので、表の上では見ない）
 // biome-ignore lint/suspicious/noExplicitAny: 関数コンポーネントとクラスコンポーネントの両方を受けるには any しかない
 type AnyDialogView = ComponentType<DialogProps<any>>

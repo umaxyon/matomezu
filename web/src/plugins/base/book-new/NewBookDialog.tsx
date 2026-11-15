@@ -10,6 +10,7 @@ import { bookType } from "../../../core/core-catalog"
 import { worldOf } from "../../../store/world"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
+import { useStageId } from "../../../ui/scope"
 import { useControlCenter, useMatomezuState } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
@@ -20,16 +21,17 @@ import { typesToCreate } from "./book-create"
 import styles from "./NewBookDialog.module.css"
 import { useCreateBook } from "./useCreateBook"
 
-export function NewBookDialog({ stage, onClose }: DialogProps) {
+export function NewBookDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   return (
     <Dialog title={t("New book")} onClose={onClose}>
-      <NewBookForm stage={stage} onDone={onClose} />
+      <NewBookForm onDone={onClose} />
     </Dialog>
   )
 }
 
-function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
+function NewBookForm({ onDone }: { onDone: () => void }) {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const createAndOpen = useCreateBook(stage)
   const [title, setTitle] = useState("")

@@ -16,6 +16,7 @@ import {
   useItemAt,
   useMessages,
   usePerform,
+  useStage,
 } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -61,12 +62,8 @@ const addDialog = (item: typeof BOX.id | typeof NEST_BOX.id) =>
 export const AddBoxDialog = addDialog(BOX.id)
 export const AddNestBoxDialog = addDialog(NEST_BOX.id)
 
-function AddBox({
-  stage,
-  args,
-  onClose,
-  item,
-}: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
+function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
+  const stage = useStage()?.id ?? ""
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
   const { select } = useActionsHere()
@@ -94,7 +91,8 @@ function AddBox({
   )
 }
 
-export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
+export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const stage = useStage()?.id ?? ""
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
   // 編集するのは箱か内包ボックス（項目は同じ）

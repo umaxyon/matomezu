@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
-import { type DialogProps, useActionsHere, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useActionsHere, useItemAt, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
 import { ActionButton, BodyField, CaptionField, Dialog, DividerField, Form, rowClass, useBookOf } from "../../base/ui"
 import { ROW_ADD, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
@@ -15,7 +15,8 @@ type Text = Omit<RowProps, "checked">
 
 const EMPTY: Text = { caption: "", rule: true, body: "", captionAlign: "left", bodyAlign: "left" }
 
-export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string }>) {
+export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list: string }>) {
+  const stage = useStage()?.id ?? ""
   const book = useBookOf()
   const perform = usePerform()
   const add = (props: Text) => {
@@ -35,7 +36,8 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
   )
 }
 
-export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
+export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
+  const stage = useStage()?.id ?? ""
   const book = useBookOf()
   const rows = useItemAt(args.page, args.list, LIST.id)?.children
   const start = rows?.find(r => r.id === args.row)?.props

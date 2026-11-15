@@ -5,6 +5,7 @@ import { type PointerEvent, useRef } from "react"
 import { extentOf, previewing } from "../../../core/stage"
 import { contentSize } from "../../../core/viewport"
 import { stageIn } from "../../../core/window"
+import { useStageId } from "../../../ui/scope"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import styles from "./PreviewScrollbars.module.css"
 import { panForDrag, panForTrack, type ScrollAxis, shownBars, thumbOf } from "./scrollbar"
@@ -13,7 +14,8 @@ type Along = "x" | "y"
 
 const BAR = 10 // バーの太さ（px。PreviewScrollbars.module.css と同じ）。両方のバーを出すときは、溝をこの分だけ短くして右下の角を空ける
 
-export function PreviewScrollbars({ stage }: { stage: string }) {
+export function PreviewScrollbars() {
+  const stage = useStageId() ?? ""
   const st = useMatomezuState(s => stageIn(s.window, stage) ?? null)
   const area = st ? extentOf(st) : null
   if (!st || !previewing(st) || !area || !st.view) return null

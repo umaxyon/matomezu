@@ -5,7 +5,6 @@ import { useLayoutEffect, useMemo } from "react"
 import { bookType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
 import { areaOf, paperOf } from "../../../core/stage"
-import { useStageId } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useActionsHere, useBook, usePage, useStage } from "../../../ui/view-hooks"
 import { printAreaLines } from "../place/grow"
@@ -26,7 +25,6 @@ export function PaperLayer() {
 // （見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。フッタメニューのボタンで、線と影を一緒に隠せる）。
 // 初めの位置（暗くしない所の左上）も、ここからステージに知らせる
 export function PrintAreaLayer() {
-  const id = useStageId() ?? ""
   const stage = useStage()
   const book = useBook()
   const page = usePage()
@@ -41,7 +39,7 @@ export function PrintAreaLayer() {
     () => (columns > 0 && book && page ? unprintedSheets(catalog, book, page, columns, rows) : []),
     [catalog, book, page, columns, rows],
   )
-  useStartReport(id)
+  useStartReport()
   if (!stage || !area || !paper || !lines) return null
   const { xs, ys } = lines
   return (
@@ -71,23 +69,22 @@ export function PrintAreaLayer() {
 
 // ステージに、初めの位置で表示領域の左上に置く紙の点（startOf。暗くしない印刷区画の左上）を知らせる。
 // ステージは開くたびに知らされた点を捨てるので、開いているもの（opened）が替わるたびにも知らせ直す（同じ点なら、ステージは変わらない）
-function useStartReport(id: string) {
+function useStartReport() {
   const { setStageStart } = useActionsHere()
   const catalog = useCatalog().core
-  const book = useBook(id)
-  const page = usePage(id)
-  const opened = useStage(id)?.opened
+  const book = useBook()
+  const page = usePage()
+  const opened = useStage()?.opened
   const start = useMemo(() => (book && page ? startOf(catalog, book, page) : null), [catalog, book, page])
   const x = start?.x
   const y = start?.y
   useLayoutEffect(() => {
     if (x !== undefined && y !== undefined && opened?.paper) setStageStart({ x, y })
-  }, [setStageStart, id, x, y, opened])
+  }, [setStageStart, x, y, opened])
 }
 
 // ブックの中身のレイヤー。背景編集モードの間は、中身を薄くして触れなくする（中身を隠していれば描かない）。背景は、この下のレイヤー（slide-layer）が描いて操作を受ける
 export function BookContentLayer() {
-  const id = useStageId() ?? ""
   const stage = useStage()
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
@@ -96,10 +93,10 @@ export function BookContentLayer() {
   if (!type) return null
   const presentation = bookType(catalog, type).presentation
   const View = (views.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })).view
-  if (stage.edits !== "slide") return <View stage={id} />
+  if (stage.edits !== "slide") return <View />
   return (
     <div className={styles.dimmed} data-content-dimmed data-content-hidden={hidden}>
-      <View stage={id} />
+      <View />
     </div>
   )
 }

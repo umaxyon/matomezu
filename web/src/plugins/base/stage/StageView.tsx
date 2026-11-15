@@ -13,6 +13,7 @@ import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
+import { useStageId } from "../../../ui/scope"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBook, useStage } from "../../../ui/view-hooks"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
@@ -36,17 +37,18 @@ interface Drag {
   y: number
 }
 
-export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
-  const stage = useStage(id) // パンの量を読まない（パンのたびに描き直さない）
+export const StageView = memo(function StageView() {
+  const id = useStageId() ?? ""
+  const stage = useStage() // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => workspaceOf(s.window, id).current === id)
-  const book = useBook(id)
+  const book = useBook()
   const catalog = useCatalog().core
   const tool = stage?.tool ?? null
   const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
   const inPreview = stage?.mode === "print-preview"
   const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
-  const wheelZoom = useCommand(id, ZOOM_WHEEL.id)
+  const wheelZoom = useCommand(ZOOM_WHEEL.id)
   const t = useMessages(kit)
   const ref = useRef<HTMLElement>(null)
   const drag = useRef<Drag | null>(null)
@@ -162,7 +164,7 @@ function BookContent({ stage, type, previewing }: { stage: string; type: BookTyp
   return (
     <div className={styles.book} style={style}>
       {previewing ? (
-        <PrintPreviewView stage={stage} />
+        <PrintPreviewView />
       ) : (
         <AnchorsProvider stage={stage}>
           <CornersProvider>

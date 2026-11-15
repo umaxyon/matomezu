@@ -1,13 +1,14 @@
 // 郵便の見た目のウィジェット: 郵便箱（左サイドパネルのタブ）と、それを開くボタン、しおりと見張り（根に置く）、行き先の物のレイヤー（ブックのレイヤー）。郵便のダイアログ
 import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
+import { useStageId } from "../../../ui/scope"
 import { kit } from "../kit"
 import { LeftSidePanelOpenButton } from "../left-side-panel/OpenButton"
 import { defineLeftSidePanelTab, opensOf } from "../left-side-panel/ui"
 import { OUTBOX } from "../outbox/ui"
 import { type PlaceInSlot, placeIn } from "../utils/place-in"
 import { BOOK_LAYERS } from "../workspace/slots"
-import { STAGE_SLOTS, type StageSlotProps } from "../workspace/ui"
+import { STAGE_SLOTS } from "../workspace/ui"
 import { MailBookmarks } from "./Bookmarks"
 import { MAIL_DIALOG } from "./dialogs"
 import { mailboxEntries } from "./entries"
@@ -75,5 +76,11 @@ export const MAILBOX_BUTTON = defineWidget({
   id: kit.name("mailbox-button"),
   slots: STAGE_SLOTS,
   opens: MAILBOX_OPENS,
-  view: ({ stage }: StageSlotProps) => <LeftSidePanelOpenButton entries={mailboxEntries(stage)} />,
+  view: MailboxButton,
 })
+
+// 郵便箱を開くボタン（開く送信トレイは、描いている場所のステージの物）
+function MailboxButton() {
+  const stage = useStageId() ?? ""
+  return <LeftSidePanelOpenButton entries={mailboxEntries(stage)} />
+}

@@ -7,9 +7,9 @@ import { printAreaLines } from "../place/grow"
 import styles from "../utils/FooterButtons.module.css"
 import { usePrintAreasHidden, useTogglePrintAreas } from "./print-areas"
 
-export function PrintAreaToggle({ stage: id }: { stage: string }) {
+export function PrintAreaToggle() {
   const t = useMessages(kit)
-  const stage = useStage(id)
+  const stage = useStage()
   const hidden = usePrintAreasHidden()
   const toggle = useTogglePrintAreas()
   const paper = stage && paperOf(stage)

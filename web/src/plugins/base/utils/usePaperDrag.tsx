@@ -42,13 +42,12 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
   const paperAt = useEffectEvent(toPaperAt)
   const begin = useEffectEvent((p: Point) => ways.begin?.(p))
   const end = useEffectEvent(() => ways.end?.())
-  const id = stage.id
   const pressed = state !== null
   const pointer = useRef<Point | null>(null) // 最後のポインタの所（画面の座標）
   // 紙がずれたり倍率が変わったりしたら（描き直したあとのステージで）、ポインタの下の紙の所を追い直す。
   // 紙をずらす量は押している間だけ追う（押していなければ、ずらしても描き直さない）
   const { opened, zoom } = stage
-  const pan = useStagePan(id, pressed)
+  const pan = useStagePan(pressed)
   useEffect(() => {
     const d = latest.current
     const c = pointer.current
@@ -100,7 +99,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
       window.removeEventListener("pointerup", up)
       window.removeEventListener("pointercancel", cancel)
     }
-  }, [pressed, id, area, panStageBy])
+  }, [pressed, area, panStageBy])
   // 押した物 item（id と、紙の座標の左上）と、押した所（画面の座標）
   const start = (item: { id: string; x: number; y: number }, cx: number, cy: number) => {
     const at = toPaperAt(cx, cy)

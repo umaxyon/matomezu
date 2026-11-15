@@ -3,10 +3,9 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
 import styles from "../utils/FooterButtons.module.css"
-import type { StageSlotProps } from "../workspace/ui"
 import { PRINT_PREVIEW_OPEN } from "."
 
-export function PrintPreviewButton(_props: StageSlotProps) {
+export function PrintPreviewButton() {
   const t = useMessages(kit)
   const open = useCommand(PRINT_PREVIEW_OPEN.id)
   if (!open.shown) return null

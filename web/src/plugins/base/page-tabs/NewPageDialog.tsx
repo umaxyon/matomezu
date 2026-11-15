@@ -3,6 +3,7 @@ import { useState } from "react"
 import { hasPages, type PagedBook } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
+import { useStageId } from "../../../ui/scope"
 import { useBook } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
@@ -11,18 +12,19 @@ import { usePaperControls } from "./PaperControls"
 import { nextPageTitle } from "./pages"
 import { useAddPage } from "./useAddPage"
 
-export function NewPageDialog({ stage, onClose }: DialogProps) {
+export function NewPageDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   const book = useBook() ?? undefined
   if (!book || !hasPages(book)) return null
   return (
     <Dialog title={t("New page")} onClose={onClose}>
-      <NewPageForm stage={stage} book={book} onDone={onClose} />
+      <NewPageForm book={book} onDone={onClose} />
     </Dialog>
   )
 }
 
-function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; onDone: () => void }) {
+function NewPageForm({ book, onDone }: { book: PagedBook; onDone: () => void }) {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const addPage = useAddPage(stage)
   const [title, setTitle] = useState(() => nextPageTitle(book, t))

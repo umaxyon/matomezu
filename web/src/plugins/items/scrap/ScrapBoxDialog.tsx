@@ -3,7 +3,7 @@
 // 紙に収まらないなど断られたら、閉じずに理由を出す。「元のページを開く」で、このステージで元のページを開いて閉じる
 import { useState } from "react"
 import type { ItemProps, ShapeEditArgs } from "../../../plugin-api"
-import { type DialogProps, useCoreCatalog, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useCoreCatalog, useItemAt, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
@@ -23,23 +23,14 @@ import { kit } from "./kit"
 
 type ScrapProps = ItemProps<typeof SCRAP_BOX.id>
 
-export function EditScrapBoxDialog({ stage, args, onClose }: DialogProps<ShapeEditArgs>) {
+export function EditScrapBoxDialog({ args, onClose }: DialogProps<ShapeEditArgs>) {
   const placed = useItemAt(args.page, args.item)
   const start = placed?.props as ScrapProps | undefined
-  return start ? <Editor stage={stage} args={args} start={start} onClose={onClose} /> : null
+  return start ? <Editor args={args} start={start} onClose={onClose} /> : null
 }
 
-function Editor({
-  stage,
-  args,
-  start,
-  onClose,
-}: {
-  stage: string
-  args: ShapeEditArgs
-  start: ScrapProps
-  onClose: () => void
-}) {
+function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapProps; onClose: () => void }) {
+  const stage = useStage()?.id ?? ""
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const perform = usePerform()

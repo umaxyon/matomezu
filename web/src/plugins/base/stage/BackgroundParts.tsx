@@ -9,11 +9,10 @@ import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { BACKGROUND_PRINT, type BackgroundPrint } from "../print-preview/settings"
 import footer from "../utils/FooterButtons.module.css"
-import type { StageSlotProps } from "../workspace/ui"
 import styles from "./BackgroundParts.module.css"
 import { BACKGROUND_END, BACKGROUND_HIDE_CONTENT, BACKGROUND_PRINT_SET, BACKGROUND_TOGGLE } from "./background"
 
-export function BackgroundBand(_props: StageSlotProps) {
+export function BackgroundBand() {
   const t = useMessages(kit)
   const end = useCommand(BACKGROUND_END.id)
   const hide = useCommand(BACKGROUND_HIDE_CONTENT.id)
@@ -31,7 +30,7 @@ export function BackgroundBand(_props: StageSlotProps) {
   )
 }
 
-export function BackgroundButton(_props: { stage: string }) {
+export function BackgroundButton() {
   const t = useMessages(kit)
   const toggle = useCommand(BACKGROUND_TOGGLE.id)
   if (!toggle.shown) return null
@@ -53,7 +52,7 @@ export function BackgroundButton(_props: { stage: string }) {
 }
 
 // 背景の印刷（自動・する・しない）。自動は、中身の載った印刷区画にだけ背景を敷く
-export function BackgroundPrintControl(_props: { stage: string }) {
+export function BackgroundPrintControl() {
   const t = useMessages(kit)
   const set = useCommand(BACKGROUND_PRINT_SET.id)
   const catalog = useCatalog().core

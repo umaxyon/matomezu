@@ -81,7 +81,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
         <>
           {items.length > 0 && <hr className={styles.separator} />}
           {anchored.map(id => (
-            <AnchorMenuItem key={id} stage={menu.stage} id={id} anchor={anchor} />
+            <AnchorMenuItem key={id} id={id} anchor={anchor} />
           ))}
         </>
       )}
@@ -90,7 +90,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
 }
 
 function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMenuCommandId<ContextMenuId> }) {
-  const command = useCommand(menu.stage, id, menu.target as never)
+  const command = useCommand(id, menu.target as never)
   const icon = useUiCatalog().commandIcons.get(id)
   const key = useKeyLabel(id)
   const { closeContextMenu } = useActions()
@@ -115,7 +115,7 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
 }
 
 // anchorMenu の項目: 押すと閉じてから、押した物のアンカーの id を渡してコマンドを呼ぶ
-function AnchorMenuItem({ id, anchor }: { stage: string; id: AnchorMenuCommandId; anchor: string }) {
+function AnchorMenuItem({ id, anchor }: { id: AnchorMenuCommandId; anchor: string }) {
   const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)
   const { closeContextMenu } = useActions()

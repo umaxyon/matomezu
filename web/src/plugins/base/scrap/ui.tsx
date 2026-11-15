@@ -37,7 +37,8 @@ import { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, scrapSize, scrapToPlace, wh
 import { SCRAP_TRAY_TAB_ID } from "./tab-id"
 
 // 切り抜くダイアログ: 範囲は、はじめはページ全体（等倍）。決めるとスクラップトレイに入れ、スクラップトレイを開く
-export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
+export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>) {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const { perform, showToast } = useActionsHere()

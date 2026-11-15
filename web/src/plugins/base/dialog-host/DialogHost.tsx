@@ -20,12 +20,7 @@ export function DialogHost() {
   const View = ui.dialogViews.get(dialog.id) ?? fail("E109", { kind: "dialog", id: dialog.id })
   return (
     <ActsOnScope at={dialog.stage}>
-      <View
-        key={`${dialog.id}:${dialog.stage}`}
-        stage={dialog.stage}
-        args={dialog.args as never}
-        onClose={closeDialog}
-      />
+      <View key={`${dialog.id}:${dialog.stage}`} args={dialog.args as never} onClose={closeDialog} />
     </ActsOnScope>
   )
 }

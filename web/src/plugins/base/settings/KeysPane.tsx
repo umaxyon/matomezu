@@ -41,7 +41,7 @@ type Capture = { row: string; pending?: { binding: KeyBinding; other: string } }
 // 行の見分け（範囲・コマンド・args。行は描くたびに作り直すので、これで比べる）
 const rowId = (r: KeyRow) => JSON.stringify([r.scope, r.command, r.args ?? null])
 
-export function KeysPane(_props: { stage: string }) {
+export function KeysPane() {
   const t = useMessages(kit)
   const catalog = useCatalog()
   const mac = isMac()

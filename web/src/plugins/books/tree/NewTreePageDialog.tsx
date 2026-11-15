@@ -3,14 +3,15 @@
 // （あとでブックの向きを変えると、ページもそれに従う）。紙と紙の向きはブックのタイプの既定
 import { useState } from "react"
 import { pagedOf } from "../../../plugin-api"
-import { type DialogProps, useBook, useCoreCatalog, useMessages } from "../../../plugin-api/ui"
+import { type DialogProps, useBook, useCoreCatalog, useMessages, useStage } from "../../../plugin-api/ui"
 import { nextPageTitle, settingValue } from "../../base"
 import { controlClass, Dialog, Field, Form, InheritChoices, useAddPage } from "../../base/ui"
 import { GROW_NAMES, useGrowOptions } from "./GrowSetting"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 
-export function NewTreePageDialog({ stage, onClose }: DialogProps) {
+export function NewTreePageDialog({ onClose }: DialogProps) {
+  const stage = useStage()?.id ?? ""
   const t = useMessages(kit)
   const book = pagedOf(useBook())
   const addPage = useAddPage(stage)

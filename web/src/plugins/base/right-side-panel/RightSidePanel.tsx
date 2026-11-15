@@ -15,7 +15,6 @@ import { useActions, useLayout, useMatomezuState, useReadState } from "../../../
 import { useCoreCatalog, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { POPUP_KEEPS } from "../utils/popup-keeps"
-import type { StageSlotProps } from "../workspace/ui"
 import {
   PressClosedContext,
   useCloseRightSidePanel,
@@ -192,10 +191,10 @@ function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpe
 
 // 開いている中身: UI マッピングが右サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く。描いている場所は、開いたステージ
 function Content({ stage, widget }: { stage: string; widget: string }) {
-  const View = useUiCatalog().widgets.get(widget)?.view as ((props: StageSlotProps) => ReactNode) | undefined
+  const View = useUiCatalog().widgets.get(widget)?.view as (() => ReactNode) | undefined
   return View ? (
     <StageScope stage={stage}>
-      <View stage={stage} />
+      <View />
     </StageScope>
   ) : null
 }

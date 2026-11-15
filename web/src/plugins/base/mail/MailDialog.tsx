@@ -35,7 +35,9 @@ const DIALOG_WIDTH = 620
 
 let visits = 0 // 行き先の物を開いた回の番号（bird-visit.tsx の seq）
 
-export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string }>) {
+export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
+  // 開いた場所（ステージか、ステージを持たないスクリーン）。行き先を開くステージを、ここから決める
+  const stage = useMatomezuState(s => s.dialog?.stage ?? "")
   const t = useMessages(kit)
   const form = useId()
   const buttons = useRef<HTMLFormElement>(null)

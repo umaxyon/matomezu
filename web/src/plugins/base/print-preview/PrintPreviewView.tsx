@@ -19,7 +19,7 @@ import { stageIn } from "../../../core/window"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { PageScope } from "../../../ui/scope"
+import { PageScope, useStageId } from "../../../ui/scope"
 import { useActions, useCatalog, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
@@ -91,12 +91,13 @@ function useExtent(id: string): { known: boolean; size: string | null } {
   return { known, size }
 }
 
-export function PrintPreviewView({ stage: id }: { stage: string }) {
-  const stage = useStage(id) // パンの量を読まない（ずらす量は useStagePan だけが読む）
+export function PrintPreviewView() {
+  const id = useStageId() ?? ""
+  const stage = useStage() // パンの量を読まない（ずらす量は useStagePan だけが読む）
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const book = useBook(id)
+  const book = useBook()
   const pan = useStagePan(id)
   const panel = useRightSidePanel(id)
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
@@ -153,7 +154,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
   // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、
   // そのあと表示領域の大きさが変わっても、倍率を変えていなければ合わせ直す
-  const fit = useCommand(id, PRINT_PREVIEW_FIT.id)
+  const fit = useCommand(PRINT_PREVIEW_FIT.id)
   const fitRef = useRef(fit)
   fitRef.current = fit
   const sliding = useSidePanelSliding(shown ? id : null)
