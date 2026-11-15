@@ -123,6 +123,7 @@ test("タブの左のボタンでダイアログを開き、選んだブック�
 test("＋でページを作るダイアログが開き（紙は A 判とレター・タブロイド・16:9）、名前と紙を決めて作ると、そのタブが選ばれる。名前が空なら作れない", () => {
   renderBooksScreen()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
   const dialog = screen.getByRole("dialog", { name: "新しいページ" })
   const name = within(dialog).getByLabelText("ページの名前") as HTMLInputElement
   expect(name.value).toBe("ページ 2")
@@ -155,6 +156,7 @@ test("日本語の変換を確定する Enter では、候補を選ばない", (
 test("言語を英語にすると、画面の文言が英語になり、＋で足すページの名前の案も英語になる", () => {
   renderBooksScreen({ books: SAMPLE_BOOKS, lang: "en" })
   fireEvent.click(screen.getByRole("button", { name: "Add page" }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "Drawing" }))
   const dialog = screen.getByRole("dialog", { name: "New page" })
   fireEvent.click(within(dialog).getByRole("button", { name: "Create" }))
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["ページ 1", "Page 2"])
@@ -180,8 +182,17 @@ test("新しいブックのダイアログでブックを作ると、そのス�
   const store = renderBooksScreen()
   act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
   const dialog = screen.getByRole("dialog", { name: "新しいブック" })
-  const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
-  expect([...type.options].map(o => o.textContent)).toEqual([
+  // 聞くのは名前だけ（タイプはページが持つ）
+  expect(within(dialog).queryByLabelText("ブックのタイプ")).toBeNull()
+  expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "新しい図" } })
+  fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
+  expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("新しい図")
+  expect(screen.queryAllByRole("tab")).toHaveLength(0)
+  expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
+  // ページタブの＋はタイプの一覧を出す（ページを開いていなければ機能台帳の順）
+  fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  expect(screen.getAllByRole("menuitem").map(m => m.textContent)).toEqual([
     "図面",
     "フローチャート",
     "ツリー",
@@ -189,13 +200,7 @@ test("新しいブックのダイアログでブックを作ると、そのス�
     "マークダウン",
     "スライド",
   ])
-  expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
-  fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "新しい図" } })
-  fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
-  expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("新しい図")
-  expect(screen.queryAllByRole("tab")).toHaveLength(0)
-  expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
-  fireEvent.click(screen.getByRole("button", { name: "ページを作る" }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
   const page = screen.getByRole("dialog", { name: "新しいページ" })
   expect((within(page).getByLabelText("ページの名前") as HTMLInputElement).value).toBe("ページ 1")
   fireEvent.click(within(page).getByRole("button", { name: "作成" }))
@@ -228,6 +233,7 @@ test("インスタンスに無いスキンが設定に残っていても、自�
 test("文字の変換中の Escape ではダイアログを閉じず、変換していない Escape で閉じる", () => {
   const store = renderBooksScreen()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
   const name = within(screen.getByRole("dialog", { name: "新しいページ" })).getByRole("textbox")
   fireEvent.keyDown(name, { key: "Escape", isComposing: true })
   expect(store.state.getState().dialog).toMatchObject({ id: "@matomezu/base:page-new" })
@@ -282,6 +288,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
     </StrictMode>,
   )
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
   await new Promise(r => setTimeout(r, 50))
   expect(store.state.getState().dialog).toMatchObject({ id: "@matomezu/base:page-new" })
   expect(screen.getByRole("dialog", { name: "新しいページ" })).toBeTruthy()
@@ -317,7 +324,7 @@ test("図面の画面を右クリックすると押した位置にメニュー�
 
 test("ページの設定のダイアログの「ページを削除」は、確かめてからページを消す。やめれば消さない", () => {
   const store = renderBooksScreen()
-  const pages = () => pagesOf(store.state.getState().books.b1 as { pages: readonly unknown[] }).length
+  const pages = () => pagesOf(store.state.getState().books.b1!).length
   const before = pages()
   const open = () => {
     fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))
@@ -368,7 +375,7 @@ test("認可ステップがページの削除を止めていれば、ページ�
   expect((screen.getByRole("button", { name: "ページを削除" }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-test("認可ステップがあるブックのゴミ箱入れとあるタイプのブックの作成を止めていれば、ブックを開くダイアログのその行にゴミ箱のボタンが出ず、新しいブックのダイアログにそのタイプが出ない。行っても断る", () => {
+test("認可ステップがあるブックのゴミ箱入れを止めていれば、ブックを開くダイアログのその行にゴミ箱のボタンが出ない。行っても断る", () => {
   const kit = pluginKit("@ex/keep", defineMessages({ keep: { en: "Keep", ja: "残す" } }))
   const keep = definePluginUi(
     kit.plugin({
@@ -376,11 +383,9 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
         kit.definePermission({
           id: "keep",
           title: "keep",
-          aiDescription: "this book stays, and no tree is made",
+          aiDescription: "this book stays",
           denies: q =>
-            q.kind === "book" &&
-            ((q.action.id === "@matomezu/base:book-trash" && q.book.title === "API の一覧") ||
-              (q.action.id === "@matomezu/base:book-create" && q.book.type === "@matomezu/tree:tree")),
+            q.kind === "book" && q.action.id === "@matomezu/base:book-trash" && q.book.title === "API の一覧",
         }),
       ],
     }),
@@ -405,21 +410,6 @@ test("認可ステップがあるブックのゴミ箱入れとあるタイプ�
   expect(within(row("データの形")).getByRole("button", { name: "ゴミ箱に入れる" })).toBeTruthy()
   const api = Object.values(store.state.getState().books).find(b => b.title === "API の一覧")!
   expect(store.actions.perform("@matomezu/base:book-trash", { book: api.id })).toEqual({
-    ok: false,
-    reason: "denied",
-    permission: "@ex/keep:keep",
-  })
-  fireEvent.keyDown(dialog, { key: "Escape" })
-  act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
-  const type = within(screen.getByRole("dialog", { name: "新しいブック" })).getByLabelText(
-    "ブックのタイプ",
-  ) as HTMLSelectElement
-  expect([...type.options].map(o => o.textContent)).not.toContain("ツリー")
-  expect(
-    store.actions.perform("@matomezu/base:book-create", {
-      title: "木",
-    }),
-  ).toEqual({
     ok: false,
     reason: "denied",
     permission: "@ex/keep:keep",
@@ -517,8 +507,21 @@ test("ステージの上の行と下の行を右クリックしても、ブラ�
 })
 
 test("読めないブックは、ブックを開くの一覧に押せない行として、開けない理由を添えて出る（データには手を付けない）", () => {
-  const gone = { type: "@foo/stamps:board", id: "x1", title: "スタンプ帳", pages: [] }
-  const broken = pagesBook({ type: "@matomezu/drawing:drawing", id: "x2", title: "壊れた図面", pages: "?" })
+  const gone = {
+    id: "x1",
+    title: "スタンプ帳",
+    lineup: [
+      {
+        kind: "page",
+        id: "p1",
+        type: "@foo/stamps:board",
+        title: "1",
+        paper: "@matomezu/base:a4",
+        orientation: "landscape",
+      },
+    ],
+  }
+  const broken = { id: "x2", title: "壊れた図面", lineup: "?" }
   const store = renderBooksScreen({ savedBooks: [gone, broken] })
   expect(store.state.getState().books.x1).toBeUndefined()
   fireEvent.click(fromMenu("ブックを開く"))
@@ -527,8 +530,8 @@ test("読めないブックは、ブックを開くの一覧に押せない行�
     .getAllByRole("option")
     .filter(o => o.getAttribute("aria-disabled") === "true")
   expect(rows.map(r => r.textContent)).toEqual([
-    "スタンプ帳開けません: ブックのタイプ @foo/stamps:board がありません",
-    "壊れた図面開けません: ブックのタイプ @matomezu/drawing:drawing の形に合いません",
+    "スタンプ帳開けません: ページのタイプ @foo/stamps:board がありません",
+    "壊れた図面開けません: ブックの形に合いません",
   ])
   // 押しても開かない
   fireEvent.click(rows[0]!)
@@ -681,9 +684,7 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
   fireEvent.pointerDown(grip, { button: 0, pointerId: 2, clientX: 300 })
   fireEvent.pointerMove(grip, { pointerId: 2, clientX: 260 })
   fireEvent.pointerUp(grip, { pointerId: 2, clientX: 260 })
-  const placed = pagesOf(
-    store.state.getState().books.w1 as { pages: readonly { items: readonly { id: string; props: object }[] }[] },
-  )[0]!.items[1]!
+  const placed = pagesOf(store.state.getState().books.w1!)[0]!.items![1]!
   expect(placed.props).toMatchObject({ bodyWidth: 220 - 18 - 40 })
   expect(item("l").querySelector<HTMLElement>("hr")?.style.width).toBe(`${220 - 18 - 40}px`) // 区切り線も本文の列の幅
 })

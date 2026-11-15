@@ -3,17 +3,17 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const BOOK_OPEN_MESSAGES = defineMessages({
   "Open book": { en: "Open book", ja: "ブックを開く" },
-  "Cannot open: there is no book type {type}": {
-    en: "Cannot open: there is no book type {type}",
-    ja: "開けません: ブックのタイプ {type} がありません",
+  "Cannot open: there is no page type {type}": {
+    en: "Cannot open: there is no page type {type}",
+    ja: "開けません: ページのタイプ {type} がありません",
   },
-  "Cannot open: it does not fit the book type {type}": {
-    en: "Cannot open: it does not fit the book type {type}",
-    ja: "開けません: ブックのタイプ {type} の形に合いません",
+  "Cannot open: it does not fit the shape of a book": {
+    en: "Cannot open: it does not fit the shape of a book",
+    ja: "開けません: ブックの形に合いません",
   },
-  "Cannot open: it breaks the rules of the book type {type}": {
-    en: "Cannot open: it breaks the rules of the book type {type}",
-    ja: "開けません: ブックのタイプ {type} の決まりを守っていません",
+  "Cannot open: it breaks the rules of its lineup or of a page type": {
+    en: "Cannot open: it breaks the rules of its lineup or of a page type",
+    ja: "開けません: 並びかページのタイプの決まりを守っていません",
   },
   "Untitled ({id})": { en: "Untitled ({id})", ja: "名前なし（{id}）" },
   "Move to trash": { en: "Move to trash", ja: "ゴミ箱に入れる" },
