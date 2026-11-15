@@ -15,7 +15,7 @@ import type { PluginStateAddress, PluginStateDef, PluginStateSchema, PluginState
 import type { PresentationDef } from "../core/def/presentation"
 import type { ScreenArrangementDef } from "../core/def/screen-arrangement"
 import type { ScreenDef } from "../core/def/screen-def"
-import type { DefaultedSettingDef, SettingDef } from "../core/def/setting"
+import type { DefaultedSettingDef, SettingDef, SettingHolder } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
 import type { KeysOfTypes, RecordKeyDef, SubjectDef } from "../core/def/subject"
 import type { TextColorDef } from "../core/def/text-color"
@@ -34,6 +34,9 @@ export type OwnedMessages<P extends string, M> = { readonly [K in keyof M & stri
 type Titled<D, K extends string> = Omit<D, "id" | "title"> & { title: K }
 type Placed<D, Id extends string> = Omit<D, "id" | "title"> & { id: Id; title: MessageKey }
 type ShapeProps = ShapeItemDef["props"]
+
+// 設定の項目の定義の、持つ所（holder を書いた定義はその値、書かない定義は持たない）
+type Held<H> = H extends SettingHolder ? { holder: H } : { holder?: never }
 
 // 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
 export interface PluginKit<P extends string, M extends MessageMap> {
@@ -94,12 +97,21 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> }
 
   // 既定を持つ項目は、読むとき（settingValue）に必ず値があると分かるように、default を持つ形で返す
-  defineSetting<const Id extends string, S extends SettingDef["schema"]>(
-    def: DefaultedSettingDef<S, keyof M & string> & { id: Id },
-  ): Omit<DefaultedSettingDef<S>, "id"> & { id: Owned<P, Id> }
-  defineSetting<const Id extends string, S extends SettingDef["schema"]>(
-    def: SettingDef<S, keyof M & string> & { id: Id },
-  ): Omit<SettingDef<S>, "id"> & { id: Owned<P, Id> }
+  // 設定の項目。holder（"page" か "book"）を書いた定義はページ・ブックの項目、書かない定義は利用者の設定の項目（型に holder が残り、読む関数が合う項目だけを受ける）
+  defineSetting<
+    const Id extends string,
+    S extends SettingDef["schema"],
+    const H extends SettingHolder | undefined = undefined,
+  >(
+    def: Omit<DefaultedSettingDef<S, keyof M & string>, "holder"> & { id: Id; holder?: H },
+  ): Omit<DefaultedSettingDef<S>, "id" | "holder"> & { id: Owned<P, Id> } & Held<H>
+  defineSetting<
+    const Id extends string,
+    S extends SettingDef["schema"],
+    const H extends SettingHolder | undefined = undefined,
+  >(
+    def: Omit<SettingDef<S, keyof M & string>, "holder"> & { id: Id; holder?: H },
+  ): Omit<SettingDef<S>, "id" | "holder"> & { id: Owned<P, Id> } & Held<H>
 
   definePresentation<const Id extends string>(
     def: Omit<PresentationDef, "id"> & { id: Id },
