@@ -18,7 +18,7 @@ test("状態のブックは、作ったときのものもアクションのあ�
     ;(after as { title: string }).title = "x"
   }).toThrow()
   expect(() => {
-    ;(pagesOf(after) as { title: string }[]).push({ title: "x" })
+    ;(after.lineup as unknown[]).push({ title: "x" })
   }).toThrow()
   expect((before as { title: string }).title).not.toBe("新しい名前")
 })

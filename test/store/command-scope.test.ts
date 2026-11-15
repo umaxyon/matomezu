@@ -4,7 +4,7 @@ import type { MessageKey } from "../../web/src/core/catalog"
 import { type CommandContext, commandScopeOf, defineCommand } from "../../web/src/store/commands/def"
 
 test("コマンドの許可スコープ: 言葉ごとに、呼ばれた場所の様子から所を出す", () => {
-  const ctx = () => ({ stage: { opened: { page: "p1" }, selection: ["a"] } }) as unknown as CommandContext
+  const ctx = () => ({ stage: { opened: { kind: "page", page: "p1" }, selection: ["a"] } }) as unknown as CommandContext
   expect(commandScopeOf("book", ctx())).toEqual({})
   expect(commandScopeOf("opened-page", ctx())).toEqual({ page: "p1" })
   expect(commandScopeOf("selection", ctx())).toEqual({ page: "p1", ids: ["a"] })

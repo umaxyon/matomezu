@@ -48,7 +48,7 @@ test("どのページもいつも下へ増やす可変ページ。page-add・pag
   const { perform } = store.actions
   const page = pagesOf(book())[0]!
   expect(page.grows).toBeUndefined()
-  expect(growOf(store.catalog.core, book(), page)).toEqual({ up: false, down: true, left: false, right: false })
+  expect(growOf(store.catalog.core, page)).toEqual({ up: false, down: true, left: false, right: false })
   expect(
     perform("@matomezu/base:page-add", { type: "@matomezu/markdown:markdown", title: "2", grows: true }, { book: id })
       .ok,

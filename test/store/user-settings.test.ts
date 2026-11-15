@@ -82,8 +82,12 @@ test("role と userOnly は利用者の設定の項目だけが持ち、1 つの
   const codes = (parts: Partial<typeof BUILTIN_PARTS>) =>
     checkCoreCatalog({ ...BUILTIN_PARTS, ...parts }).map(p => p.code)
   expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, { ...lang, id: "@ex/u:lang2" }] })).toEqual(["E037"])
-  expect(codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, role: "skin" }] })).toEqual(["E036"])
-  expect(codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, userOnly: true }] })).toEqual(["E036"])
+  expect(
+    codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, holder: "page", role: "skin" } as SettingDef] }),
+  ).toEqual(["E036"])
+  expect(
+    codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, holder: "page", userOnly: true } as SettingDef] }),
+  ).toEqual(["E036"])
   expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, BUILTIN_PARTS.settings[0] as SettingDef] })).toEqual([
     "E001",
   ])

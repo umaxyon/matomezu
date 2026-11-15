@@ -22,7 +22,7 @@ test("ロック中のブックは変えられず（認可ステップ lock が�
   const { state, actions } = newStore()
   const book = () => state.getState().books.b1 as Drawing
   expect(actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
-  expect(Object.keys(book()).slice(0, 4)).toEqual(["type", "id", "title", "locked"])
+  expect(Object.keys(book()).slice(0, 4)).toEqual(["id", "title", "locked", "lineup"])
   expect(actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(false)
   expect(actions.perform("@matomezu/base:book-update", { title: "x" }, { book: "b1" })).toEqual({
     ok: false,

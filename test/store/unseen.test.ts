@@ -143,7 +143,12 @@ test("AI の変更が見えたら seen を、見られる前に戻すが上書�
   foreign(store, { ...bookOf(store), title: "AI の題" }, "ai", "7")
   const page = pagesOf(bookOf(store))[0]!.id
   expect(told).toEqual([
-    { book: "b1", act: "5", outcome: "lost", lost: [{ at: `pages/${page}/items/${item}/props/caption`, value: "AI" }] },
+    {
+      book: "b1",
+      act: "5",
+      outcome: "lost",
+      lost: [{ at: `lineup/${page}/items/${item}/props/caption`, value: "AI" }],
+    },
     { book: "b1", act: "7", outcome: "seen" },
   ])
 })

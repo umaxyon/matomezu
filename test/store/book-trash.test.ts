@@ -19,7 +19,7 @@ test("book-trash はブックに時刻を付けてゴミ箱へ移し、開いて
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(true)
   expect("b1" in state.getState().books).toBe(false)
   expect(state.getState().trash.b1?.trashed).toBe(NOW)
-  expect(Object.keys(state.getState().trash.b1 ?? {}).slice(0, 4)).toEqual(["type", "id", "title", "trashed"])
+  expect(Object.keys(state.getState().trash.b1 ?? {}).slice(0, 4)).toEqual(["id", "title", "trashed", "lineup"])
   expect(screenOf(state.getState().window).stages[0]?.opened).toBeNull()
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(false)
 })

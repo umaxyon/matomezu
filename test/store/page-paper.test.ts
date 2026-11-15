@@ -85,10 +85,10 @@ test("伸びられるタイプのページは、作るときもあとからも�
   const pages = () => pagesOf(instance.state.getState().books.n1 as unknown as { pages: Record<string, unknown>[] })
   expect(createBookIn(instance, "s1", { title: "表" })).toBe(true)
   expect(
-    perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "p", grows: true }, { book: "n1" })
+    perform("@matomezu/base:page-add", { type: "notes:sheet", title: "p", grows: true }, { book: "n1" })
       .ok,
   ).toBe(true)
-  expect(Object.keys(pages()[0] ?? {})).toEqual(["id", "title", "paper", "orientation", "grows"])
+  expect(Object.keys(pages()[0] ?? {})).toEqual(["kind", "id", "type", "title", "paper", "orientation", "grows"])
   // タイプが向きを決めるなら grows は true だけ（向きは選べない）
   expect(pages()[0]?.grows).toBe(true)
   expect(perform("@matomezu/base:page-update", { page: "n2", grows: "down" }, { book: "n1" }).ok).toBe(false)
@@ -98,7 +98,7 @@ test("伸びられるタイプのページは、作るときもあとからも�
   expect(perform("@matomezu/base:page-update", { page: "n2", paper: "@matomezu/base:a3" }, { book: "n1" }).ok).toBe(
     true,
   )
-  expect(perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "q" }, { book: "n1" }).ok).toBe(
+  expect(perform("@matomezu/base:page-add", { type: "notes:sheet", title: "q" }, { book: "n1" }).ok).toBe(
     true,
   )
   expect(pages()[1]).toMatchObject({ paper: "@matomezu/base:a3" })
@@ -128,7 +128,7 @@ test("可変ページは、伸びない向き（下へだけ伸びるなら横�
   expect(
     perform(
       "@matomezu/base:page-add",
-      { type: "@matomezu/drawing:drawing", title: "p", orientation: "portrait", grows: true },
+      { type: "notes:scroll", title: "p", orientation: "portrait", grows: true },
       { book },
     ).ok,
   ).toBe(true)
@@ -246,7 +246,7 @@ test("フローチャートの可変ページは、流れの始まりの側を�
       },
     )[0]
   expect(
-    actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "p", grows: true }, { book })
+    actions.perform("@matomezu/base:page-add", { type: "@matomezu/flowchart:flowchart", title: "p", grows: true }, { book })
       .ok,
   ).toBe(true)
   const page = pageOf()?.id as string
