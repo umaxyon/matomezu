@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 # 型に出ない古い読み方（文字列の鍵・言い張った型・古い名前）
 OLD='"pages" in |\.pages as |\bhasPages\(|\bpagedOf\(|\bPagedBook\b|\bdefineBookType\b|\bBookOf<|\bBookData<|\bbook\.type\b|\bbookItems\(|\bcreateBook\(|\bcreatableTypes\(|"pages":|\bactionsOf\(|base:book-(theme|paper-color|text-colors)|fields\.pages\b|[!=]== "pages"|"pages"\)|json:"pages"|\["pages"\]|BOOK_(THEME|PAPER_COLOR|TEXT_COLORS)\b'
 # 並び（lineup）を core の外で直に読む所（読むのは core/book.ts の関数だけ）
-DIRECT='\.lineup\b'
+DIRECT='(?<!changes)\.lineup\b'
 types=$(bunx tsc --noEmit -p . 2>&1 | grep "error TS" || true)
 old=$(git grep -n -E "$OLD" -- web/src test e2e internal ':!web/src/core/book.ts' || true)
-direct=$(git grep -n -E "$DIRECT" -- web/src/plugins web/src/store web/src/ui web/src/engine web/src/host-client || true)
+direct=$(git grep -n -P "$DIRECT" -- web/src/plugins web/src/store web/src/ui web/src/engine web/src/host-client || true)
 count() { [ -z "$1" ] && echo 0 || echo "$1" | wc -l; }
 echo "typecheck: $(count "$types")  (web/src: $(count "$(echo "$types" | grep '^web/src' || true)"), test: $(count "$(echo "$types" | grep -E '^(test|e2e)' || true)"))"
 echo "old reads (grep): $(count "$old")"
