@@ -149,7 +149,7 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 		t.Fatalf("a notice without the participant's id = %q", h.Get(NoticeHeader))
 	}
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
-	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ" {
+	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText {
 		t.Fatalf("notice = %q", text)
 	}
 	hub.mu.Lock()
@@ -308,7 +308,7 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 		t.Fatalf("ready while preparing = %v", ready)
 	}
 	r := talk(`{"sessionId":"S9"}`)
-	if len(r.Welcomes) != 1 || r.Welcomes[0].Workroom != "ひよこ" || r.Welcomes[0].ForAI != "You joined matomezu. Workroom name: ひよこ" ||
+	if len(r.Welcomes) != 1 || r.Welcomes[0].Workroom != "ひよこ" || r.Welcomes[0].ForAI != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText ||
 		!strings.Contains(r.Welcomes[0].Message, "ひよこ") {
 		t.Fatalf("welcome = %+v", r)
 	}
