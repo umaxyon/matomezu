@@ -1,35 +1,37 @@
-// テーマと紙の色の設定のコンポーネント（設定の項目 book-theme・book-paper-color のビュー）。
-// テーマはブックのタイプが使えるテーマから選ぶ（theme-types.ts。ブックのタイプの既定のテーマを選べば値を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）
+// テーマと紙の色の設定のコンポーネント（設定の項目 page-theme・page-paper-color のビュー）。
+// テーマはページのタイプが使えるテーマから選ぶ（theme-types.ts。ページのタイプの既定のテーマを選べば値を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）
+
 import { useMemo } from "react"
+import { withSettings } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
-import type { Book } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import type { SettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
 import { ColorPicker } from "../dialog-host/ColorPicker"
 import { controlClass, Field, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { bookTokens, PAGE_PAPER_COLOR } from "./look"
+import { PAGE_PAPER_COLOR, pageTokens } from "./look"
 import { themeFits, themesFor } from "./theme-types"
 import { shadeOf, useDarkScheme } from "./use-dark-scheme"
 
 // 紙の色の見本（白・淡い灰・淡い黄・淡い緑・淡い青・濃い灰・濃い紺・濃い茶）
 const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"]
 
-export function ThemeSetting({ label, value, book, onChange }: SettingControlProps<string>) {
+export function ThemeSetting({ label, value, page, onChange }: SettingControlProps<string>) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const typeTheme = pageType(catalog, book.type).theme
+  if (!page) return null
+  const typeTheme = pageType(catalog, page.type).theme
   return (
     <Field label={label}>
       {id => (
         <select
           id={id}
           className={controlClass}
-          value={value !== undefined && themeFits(catalog, book.type, value) ? value : typeTheme}
+          value={value !== undefined && themeFits(catalog, page.type, value) ? value : typeTheme}
           onChange={e => onChange(e.target.value === typeTheme ? undefined : e.target.value)}
         >
-          {themesFor(catalog, book.type).map(th => (
+          {themesFor(catalog, page.type).map(th => (
             <option key={th.id} value={th.id}>
               {t(th.title)}
             </option>
@@ -40,16 +42,15 @@ export function ThemeSetting({ label, value, book, onChange }: SettingControlPro
   )
 }
 
-export function PaperColorSetting({ label, value, book, onChange }: SettingControlProps<string>) {
+export function PaperColorSetting({ label, value, page, onChange }: SettingControlProps<string>) {
   const catalog = useCatalog().core
   const dark = useDarkScheme()
   // 「なし」のときの紙の色: 選んでいるテーマの紙の色
   const none = useMemo(() => {
-    const settings = { ...(book as { settings?: Record<string, unknown> }).settings }
-    delete settings[PAGE_PAPER_COLOR.id]
-    const paper = bookTokens(catalog, { ...book, settings } as Book).paper
+    if (!page) return "#ffffff"
+    const paper = pageTokens(catalog, withSettings(page, { [PAGE_PAPER_COLOR.id]: null })).paper
     return paper ? shadeOf(paper, dark) : "#ffffff"
-  }, [catalog, book, dark])
+  }, [catalog, page, dark])
   const swatches = PAPER_PRESETS.map(hex => ({ name: hex, hex, label: hex }))
   return (
     <div className={rowClass}>
