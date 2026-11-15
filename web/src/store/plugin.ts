@@ -88,20 +88,24 @@ type ShapeDialogCheck<P> = [WrongAdd<P> | WrongEdit<P>] extends [never]
         string]: "形の追加のダイアログは ShapeAddArgs、編集のダイアログは ShapeEditArgs を受ける"
     }
 
-// ブックのタイプが名指すページを作るダイアログとページの設定のダイアログのうち、受ける値が合わないもの（ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs）
+// ページのタイプが名指すページを作るダイアログとページの設定のダイアログのうち、受ける値が合わないもの
+// （ページを作るダイアログは、値を受けないか、作るタイプと入れるフォルダ { type, folder? } を受け、ページの設定のダイアログは PageSettingsArgs）
 type PageDialogsOf<P> = P extends { pageTypes?: readonly (infer T)[] }
-  ? T extends { pages: { dialogs?: infer G } }
+  ? T extends { dialogs?: infer G }
     ? NonNullable<G>
     : never
   : never
-type WrongPageAdd<P> = Exclude<AddOf<PageDialogsOf<P>>, DialogTaking<undefined> | undefined>
+type WrongPageAdd<P> = Exclude<
+  AddOf<PageDialogsOf<P>>,
+  DialogTaking<undefined> | DialogTaking<{ type: string; folder?: string }> | undefined
+>
 type SettingsDialogOf<G> = G extends { settings: infer S } ? S : never
 type WrongPageSettings<P> = Exclude<SettingsDialogOf<PageDialogsOf<P>>, DialogTaking<PageSettingsArgs> | undefined>
 type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [never]
   ? unknown
   : {
       [id in (WrongPageAdd<P> | WrongPageSettings<P>) &
-        string]: "ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs を受ける"
+        string]: "ページを作るダイアログは値を受けないか { type, folder? } を受け、ページの設定のダイアログは PageSettingsArgs を受ける"
     }
 
 // 無効にしたプラグイン: 名乗り（id・名前・概要）と文言だけを残し、定義の部品は全部外した物（組むのは名乗りと文言だけなので、アクション・種類・キーなどは台帳に入らない）。
