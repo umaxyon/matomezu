@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
-import type { ItemPage } from "../../../web/src/core/placed"
 import { rectsOf } from "../../../web/src/plugins/base"
 import { pagesBook } from "../../lineup"
 import { newStore } from "../../support"
@@ -25,8 +24,7 @@ const book = pagesBook({
   ],
 })
 
-const page = (store: ReturnType<typeof newStore>) =>
-  pagesOf(store.state.getState().books.u1 as unknown as { pages: ItemPage[] })[0]!
+const page = (store: ReturnType<typeof newStore>) => pagesOf(store.state.getState().books.u1!)[0]!
 
 test("機能台帳に無いアイテムのあるブックも読め、知らない形は 64×64 の四角として並べ、動かし・消せる。知らない物のデータはそのまま残る", () => {
   const store = newStore({ savedBooks: [book] })
@@ -47,7 +45,7 @@ test("機能台帳に無いアイテムのあるブックも読め、知らな�
   expect(
     store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "b", props: { caption: "箱2" } }, on).ok,
   ).toBe(true)
-  expect(page(store).items?.find(i => i.id === "l") as unknown).toEqual(pagesOf(book)[0]!.items[2])
+  expect(page(store).items?.find(i => i.id === "l") as unknown).toEqual(pagesOf(book)[0]!.items?.[2])
   expect(store.actions.perform("@matomezu/paper:item-remove", { page: "p1", items: ["s"] }, on).ok).toBe(true)
   expect(page(store).items?.map(i => i.id)).not.toContain("s")
 })

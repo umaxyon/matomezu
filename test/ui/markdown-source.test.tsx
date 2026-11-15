@@ -35,7 +35,7 @@ function setup() {
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as Book
-  const text = () => pagesOf(book())[0]!.text ?? ""
+  const text = () => (pagesOf(book())[0] as { text?: string }).text ?? ""
   const field = () => within(screen.getByRole("region", { name: "ソース" })).getByRole("textbox") as HTMLTextAreaElement
   const undos = () => store.state.getState().history[id]?.undo.length ?? 0
   const settle = () => act(() => Promise.resolve())

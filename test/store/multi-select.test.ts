@@ -116,7 +116,6 @@ test("一緒に動かせるのは、ページの形どうしか、同じ親の�
   place(store, 600, 100)
   place(store, 20, 60, "n1")
   place(store, 160, 60, "n1")
-  const book = store.state.getState().books.b1 as Book
   expect(movableTogether(CORE_CATALOG, page(store), ["n1", "n2"])).toBe(true)
   expect(movableTogether(CORE_CATALOG, page(store), ["n3", "n4"])).toBe(true)
   expect(movableTogether(CORE_CATALOG, page(store), ["n2", "n3"])).toBe(false)

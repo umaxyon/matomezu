@@ -94,11 +94,11 @@ test("1 つ置換は今の当たりだけを替えて次へ、全部置換は範
   actions.command("s1", "@matomezu/base:search-next")
   expect(search()!.current).toMatchObject({ start: 4 })
   actions.command("s1", "@matomezu/base:search-replace-one")
-  expect(pagesOf(book()).map(p => p.text)).toEqual(["cat dog", "cat"])
+  expect(pagesOf(book()).map(p => (p as { text?: string }).text)).toEqual(["cat dog", "cat"])
   actions.command("s1", "@matomezu/base:search-replace-all")
-  expect(pagesOf(book()).map(p => p.text)).toEqual(["dog dog", "dog"])
+  expect(pagesOf(book()).map(p => (p as { text?: string }).text)).toEqual(["dog dog", "dog"])
   actions.command("s1", "@matomezu/base:undo")
-  expect(pagesOf(book()).map(p => p.text)).toEqual(["cat dog", "cat"])
+  expect(pagesOf(book()).map(p => (p as { text?: string }).text)).toEqual(["cat dog", "cat"])
 })
 
 test("長さの違う置き換えでも、1 つ置換のあとの今の当たりは次の当たりを指し、続けて押せる", () => {
@@ -108,10 +108,10 @@ test("長さの違う置き換えでも、1 つ置換のあとの今の当たり
   setQuery("cat", { replacement: "x" })
   actions.command("s1", "@matomezu/base:search-next")
   actions.command("s1", "@matomezu/base:search-replace-one")
-  expect(pagesOf(book())[0]!.text).toBe("x cat cat")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("x cat cat")
   expect(search()!.current).toMatchObject({ start: 2, end: 5 })
   actions.command("s1", "@matomezu/base:search-replace-one")
-  expect(pagesOf(book())[0]!.text).toBe("x x cat")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("x x cat")
 })
 
 test("ページにロックが掛かっていると、そのページを替える置換は押せない（ブック全体の全部置換も）", () => {

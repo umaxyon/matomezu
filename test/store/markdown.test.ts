@@ -70,7 +70,7 @@ test("原文はページのフィールド text（無ければ空の文書）。
     { book: id },
   )
   expect(done.ok).toBe(true)
-  expect(pagesOf(book())[0]!.text).toBe("# 見出し")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("# 見出し")
 })
 
 test("page-update の find・replace は、原文にちょうど 1 か所ある find を替える", () => {
@@ -80,7 +80,7 @@ test("page-update の find・replace は、原文にちょうど 1 か所ある 
     store.actions.perform("@matomezu/base:page-update", { page, fields }, { book: id })
   expect(update({ text: "# 見出し\n本文" }).ok).toBe(true)
   expect(update({ find: "本文", replace: "直した本文" }).ok).toBe(true)
-  expect(pagesOf(book())[0]!.text).toBe("# 見出し\n直した本文")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("# 見出し\n直した本文")
 })
 
 test("原文の改行はいつも \\n だけ: page-add・page-update の text と find・replace の \\r\\n と \\r を \\n にそろえる", () => {
@@ -93,12 +93,12 @@ test("原文の改行はいつも \\n だけ: page-add・page-update の text �
       fields: { text: "a\r\nb\rc" },
     }).ok,
   ).toBe(true)
-  expect(pagesOf(book())[1]!.text).toBe("a\nb\nc")
+  expect((pagesOf(book())[1] as { text?: string }).text).toBe("a\nb\nc")
   const page = pagesOf(book())[0]!.id
   expect(perform("@matomezu/base:page-update", { page, fields: { text: "x\r\ny" } }).ok).toBe(true)
-  expect(pagesOf(book())[0]!.text).toBe("x\ny")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("x\ny")
   expect(perform("@matomezu/base:page-update", { page, fields: { find: "x\r\ny", replace: "1\r\n2" } }).ok).toBe(true)
-  expect(pagesOf(book())[0]!.text).toBe("1\n2")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("1\n2")
 })
 
 test("find が無い・2 か所以上（重なりも数える）・text と一緒なら断る", () => {
@@ -111,7 +111,7 @@ test("find が無い・2 か所以上（重なりも数える）・text と一�
   expect(update({ find: "x", replace: "b" }).ok).toBe(false)
   expect(update({ find: "aa", replace: "b" }).ok).toBe(false)
   expect(update({ text: "aab", find: "b", replace: "c" }).ok).toBe(false)
-  expect(pagesOf(book())[0]!.text).toBe("aaa")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("aaa")
 })
 
 const PL = "@matomezu/markdown:pane-layout" // 利用者が選んだ並べ方の、画面の場所に入れるプラグイン状態の宣言の id
@@ -317,9 +317,9 @@ test("ソースのペインで書いた所は、ホストで AI の変更のあ�
   // AI が先頭に行を足したホストのブックに、foo の後ろへ書いた物を行い直す
   write("# T\n\nfoo\n", "# T\n\nfoo bar\n")
   store.receive({ books: [confirmed("AI\n# T\n\nfoo\n")], settings: {} }, [done.at(-1)!])
-  expect(pagesOf(book())[0]!.text).toBe("AI\n# T\n\nfoo bar\n")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("AI\n# T\n\nfoo bar\n")
   // AI が foo を消したなら、書いた物は行えずに落ちる
   write("AI\n# T\n\nfoo bar\n", "AI\n# T\n\nfoo bar!\n")
   store.receive({ books: [confirmed("AI\n# T\n\n")], settings: {} }, [done.at(-1)!])
-  expect(pagesOf(book())[0]!.text).toBe("AI\n# T\n\n")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("AI\n# T\n\n")
 })

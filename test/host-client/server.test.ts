@@ -154,7 +154,7 @@ const place = (store: ReturnType<typeof newStore>) =>
   )
 // 常駐が知らせる、アイテムを足した b1
 const b1With = (...ids: string[]) =>
-  withPages(SAMPLE_BOOKS[0], [
+  withPages(SAMPLE_BOOKS[0]!, [
     {
       ...pagesOf(SAMPLE_BOOKS[0]!)[0],
       items: ids.map(id => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: {} })),

@@ -11,7 +11,7 @@ test("状態のブックは、作ったときのものもアクションのあ�
   const before = state.getState().books.b1
   expect(Object.isFrozen(before)).toBe(true)
   expect(actions.perform("@matomezu/base:book-update", { title: "新しい名前" }, { book: "b1" }).ok).toBe(true)
-  const after = state.getState().books.b1 as { title: string; pages: readonly { title: string }[] }
+  const after = state.getState().books.b1!
   expect(Object.isFrozen(after)).toBe(true)
   expect(Object.isFrozen(pagesOf(after)[0])).toBe(true)
   expect(() => {

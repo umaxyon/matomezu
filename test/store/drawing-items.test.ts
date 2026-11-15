@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { Point } from "../../web/src/core/geom"
 import type { Book } from "../../web/src/core/schema/book"
-import { placement } from "../../web/src/core/stage"
+import { openedPage, placement } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { toolOf } from "../../web/src/core/workspace"
 import { BUILTIN } from "../../web/src/plugins"
@@ -74,7 +74,7 @@ test("紙から少しでもはみ出す所では置かず、置こうとした�
   const store = ready()
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
   store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: -1, y: 0 }))
-  const w = screenOf(store.state.getState().window).stages[0]!.opened!.paper
+  const w = openedPage(screenOf(store.state.getState().window).stages[0]!.opened ?? null)?.paper
   const right = w?.status === "known" ? w.size.w - 64 + 1 : 0
   store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: right, y: 0 }))
   expect(page(store).items).toBeUndefined()

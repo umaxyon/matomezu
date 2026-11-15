@@ -21,7 +21,7 @@ const box = (id: string, x: number) => ({
   props: { caption: id },
 })
 
-const drawing = (id: string, settings: object) =>
+const drawing = (id: string, settings: Readonly<Record<string, unknown>>) =>
   pagesBook({
     type: "@matomezu/drawing:drawing",
     id,

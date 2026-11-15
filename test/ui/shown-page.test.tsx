@@ -53,5 +53,5 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
   )
   const caption = (page: ItemPage | null) => (findShape(page!, child)!.shape.props as { caption: string }).caption
   expect(caption(shown)).toBe("下書き")
-  expect(caption(pagesOf(instance.state.getState().books.b1 as unknown as { pages: ItemPage[] })[0]!)).toBe("前")
+  expect(caption(pagesOf(instance.state.getState().books.b1!)[0]!)).toBe("前")
 })

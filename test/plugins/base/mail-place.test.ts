@@ -35,7 +35,7 @@ test("物を指しているときは、1 つでも今もあれば true、どれ�
   expect(createBookIn(store, "s1", { title: "図" })).toBe(true)
   expect(addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "p" })).toBe(true)
   const id = Object.keys(store.state.getState().books).at(-1)!
-  const page = pagesOf(store.state.getState().books[id] as unknown as { pages: { id: string }[] })[0]?.id ?? ""
+  const page = pagesOf(store.state.getState().books[id]!)[0]?.id ?? ""
   const placed = store.actions.perform(
     "@matomezu/paper:item-place",
     { page, item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 } },

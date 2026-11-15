@@ -48,11 +48,8 @@ function ready() {
   const props = () => mail().props as ProposalProps
   const apply = () => perform(APPLY, { page: "p1", changes: props().changes, snapshot: props().snapshot }, on)
   const caption = (item: string) =>
-    pagesOf(
-      store.state.getState().books.b1 as unknown as {
-        pages: { items: { id: string; props: { caption: string } }[] }[]
-      },
-    )[0]?.items.find(i => i.id === item)?.props.caption
+    (pagesOf(store.state.getState().books.b1!)[0]?.items?.find(i => i.id === item)?.props as { caption?: string })
+      ?.caption
   return { store, perform, on, one, two, rename, send, mail, props, apply, caption }
 }
 
