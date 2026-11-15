@@ -47,7 +47,7 @@ export function MarkLayer() {
           addedAt={(m.props as MarkProps).addedAt}
         />
       ))}
-      {picker && <PickerStand key={picker.anchors.join(" ")} stage={stage} picker={picker} />}
+      {picker && <PickerStand key={picker.anchors.join(" ")} picker={picker} />}
     </>
   )
 }
@@ -135,7 +135,7 @@ function MarkBird({
 }
 
 // マークの種類を選ぶスタンド: 6 つの種類の絵を並べ、押した種類を付ける。Esc か、ほかを押すと付けずに閉じる
-function PickerStand({ picker }: { stage: string; picker: AnchorTargets }) {
+function PickerStand({ picker }: { picker: AnchorTargets }) {
   const t = useMessages(kit)
   const run = usePerformOrToast("The mark was refused")
   const setPicker = useSetAnchorTargets(MARK_PICKER)

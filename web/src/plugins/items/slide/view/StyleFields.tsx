@@ -20,7 +20,6 @@ import styles from "./Selection.module.css"
 // 選んだアイテム: item は種類の id、props は項目
 export interface StyleSubject {
   id: string
-  stage: string
   item: string
   props: Readonly<Record<string, unknown>>
 }

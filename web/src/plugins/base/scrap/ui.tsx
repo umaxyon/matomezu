@@ -89,7 +89,7 @@ export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>)
   )
 }
 
-// ステージ stage で、スクラップトレイから置くスクラップフレームのアイテム（開いているブックに置けなければ null）
+// 描いている場所のステージで、スクラップトレイから置くスクラップフレームのアイテム（開いているブックに置けなければ null）
 function useScrapFrame() {
   const catalog = useCatalog().core
   const book = pagedOf(useBook())
@@ -103,7 +103,7 @@ const scrapTrayEntries = (stage: string): readonly LeftSidePanelEntry[] => [
 ]
 
 // スクラップトレイ（開く側が、置くステージ stage を渡す）。そのステージで置けないブックに替わったら閉じる
-function ScrapTrayView({ stage }: { stage: string }) {
+function ScrapTrayView(_props: { stage: string }) {
   const t = useMessages(kit)
   const placeable = useScrapFrame() !== null
   const close = useCloseLeftSidePanel()
@@ -115,7 +115,7 @@ function ScrapTrayView({ stage }: { stage: string }) {
   return (
     <ul className={styles.list}>
       {scraps.map(s => (
-        <Row key={s.id} stage={stage} id={s.id} scrap={{ page: s.page, area: s.area, scale: s.scale }} />
+        <Row key={s.id} id={s.id} scrap={{ page: s.page, area: s.area, scale: s.scale }} />
       ))}
     </ul>
   )
@@ -124,7 +124,7 @@ function ScrapTrayView({ stage }: { stage: string }) {
 // 一覧の絵の幅（px）
 const THUMB_W = 220
 
-function Row({ id, scrap }: { stage: string; id: string; scrap: Scrap }) {
+function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const { perform, togglePlacing, showToast } = useActionsHere()

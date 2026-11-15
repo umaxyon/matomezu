@@ -5,7 +5,7 @@ import { useBook, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorLabel } from "./labels"
 
-// ステージ stage のブックの物 id の、画面に出す名前（種類の名前は今の言葉で。ブックに無ければ id）
+// 描いている場所のブックの物 id の、画面に出す名前（種類の名前は今の言葉で。ブックに無ければ id）
 export function useAnchorName(id: string): string {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()

@@ -21,7 +21,7 @@ import { SETTINGS_CATEGORIES } from "./settings-screen"
 import styles from "./UserSettings.module.css"
 import { type AutoInput, autoInputOf } from "./user-settings"
 
-export function UserSettings({ stage, settings }: { stage: string; settings?: readonly string[] | undefined }) {
+export function UserSettings({ settings }: { stage: string; settings?: readonly string[] | undefined }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().userSettingViews
@@ -45,7 +45,7 @@ export function UserSettings({ stage, settings }: { stage: string; settings?: re
     const owner = settings ? kit.id : (splitId(def.id).owner ?? "") // 項目を名指して並べるなら、見出しを付けない
     groups.set(owner, [
       ...(groups.get(owner) ?? []),
-      <SettingItem key={def.id} stage={stage} id={def.id} enabled={set.enabled}>
+      <SettingItem key={def.id} id={def.id} enabled={set.enabled}>
         {View ? (
           <View label={label} value={value} onChange={onChange} />
         ) : (
@@ -65,7 +65,7 @@ export function UserSettings({ stage, settings }: { stage: string; settings?: re
 }
 
 // 項目ごとの囲み: その項目を変えられるか（コントロールセンターが変えさせない項目でないか）を問い、変えられなければまとめて押せなくする
-function SettingItem({ id, enabled, children }: { stage: string; id: string; enabled: boolean; children: ReactNode }) {
+function SettingItem({ id, enabled, children }: { id: string; enabled: boolean; children: ReactNode }) {
   const allowed = useAllowed(SETTINGS_SET.id, { settings: [id] })
   return (
     <fieldset className={styles.item} disabled={!enabled || !allowed.ok}>

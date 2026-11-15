@@ -20,16 +20,7 @@ export interface SlideItemEdit {
   onCancel: () => void
 }
 
-export function SlideItem({
-  shape,
-  zoom,
-  edit,
-}: {
-  shape: PlacedShape
-  stage: string
-  zoom: number
-  edit?: SlideItemEdit
-}) {
+export function SlideItem({ shape, zoom, edit }: { shape: PlacedShape; zoom: number; edit?: SlideItemEdit }) {
   const ui = useUiCatalog()
   const anchor = useAnchorRef()
   const tokens = useTokenScope(shape.item) // このアイテムのプラグインのテーマキー（--<名前>）

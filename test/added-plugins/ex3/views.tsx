@@ -66,7 +66,7 @@ export function GridSetting({ label, value, inherited, onChange }: SettingContro
 }
 
 // ステージの下の行に置くボタン。紙のあるブックを開いていなければ出ない
-export function MintButton(_props: { stage: string }) {
+export function MintButton() {
   const mint = useCommand(USE_MINT.id)
   const t = useMessages(kit)
   if (!mint.shown) return null

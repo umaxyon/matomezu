@@ -1,7 +1,7 @@
 // ex12 のビュー: 縦に並べるスクリーンアレンジメント、ラベルを見せるスクリーン、切り替えのボタン
 import {
   ScreenView,
-  useActions,
+  useActionsHere,
   useMessages,
   usePluginState,
   useScreen,
@@ -68,7 +68,7 @@ export function Ex12Panel() {
 // ステージの上の行に置く切り替え: 縦に並べる・1 枚ずつ・パネルを足す・ブックスクリーンを足す
 export function Ex12Switch() {
   const t = useMessages(kit)
-  const { setScreenArrangement, openScreen } = useActions()
+  const { setScreenArrangement, openScreen } = useActionsHere()
   const { screens, open } = useScreens()
   return (
     <div data-ex12-switch>

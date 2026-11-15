@@ -12,7 +12,7 @@ import { SEARCH_PICK_STATE, SEARCH_STATE } from "./state"
 export const SEARCH_HIGHLIGHT = "matomezu-search"
 export const SEARCH_CURRENT_HIGHLIGHT = "matomezu-search-current"
 
-// ステージ stage のページ page で、光らせる当たり（検索ダイアログを閉じていれば無い）と今の当たり（このページに無ければ none）
+// 描いている場所のステージのページ page で、光らせる当たり（検索ダイアログを閉じていれば無い）と今の当たり（このページに無ければ none）
 export function useSearchHits(page: string): { hits: readonly SearchHit[]; current: SearchHit | "none" } {
   const catalog = useCoreCatalog()
   const book = useBook()

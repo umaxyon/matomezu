@@ -6,6 +6,12 @@ cd "$(dirname "$0")/.."
 f=web/src/core/legacy.ts
 trap 'sed -i "s/^export type LegacyOn = false$/export type LegacyOn = true/" "$f"' EXIT
 sed -i 's/^export type LegacyOn = true$/export type LegacyOn = false/' "$f"
-out=$(bun run typecheck 2>&1 | grep "error TS" || true)
+# typecheck は && でつないでいて、最初の tsc が落ちると見本を見ない。だから 1 つずつ流す
+out=""
+for p in . test/added-plugins/ex1 test/added-plugins/ex2 test/added-plugins/ex3 test/added-plugins/ex4 test/added-plugins/ex4/tsconfig.without-tests.json test/added-plugins/ex5 test/added-plugins/ex6-spec test/added-plugins/ex6 test/added-plugins/ex7 test/added-plugins/ex8 test/added-plugins/ex9 test/added-plugins/ex10 test/added-plugins/ex11 test/added-plugins/ex12 test/added-plugins/ex13 test/added-plugins/ex14 test/type-checks/unowned-names; do
+  out="$out
+$(bunx tsc --noEmit -p "$p" 2>&1 | grep "error TS" || true)"
+done
+out=$(echo "$out" | grep "error TS" | sort -u || true)
 if [ "${1:-}" = "-v" ]; then echo "$out"; else echo "$out" | sed -E 's/\([0-9]+,[0-9]+\).*//' | sort | uniq -c | sort -rn; fi
 echo "left: $(echo "$out" | grep -c "error TS")"

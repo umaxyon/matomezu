@@ -11,7 +11,7 @@ export interface Placing {
   size: Size
 }
 
-// ステージ stage で、ポインタ pointer（紙のビューの左上から）の所に置くときの置く所。置こうとしていない・ポインタが無いなら null
+// 描いている場所のステージで、ポインタ pointer（紙のビューの左上から）の所に置くときの置く所。置こうとしていない・ポインタが無いなら null
 export function usePlaceTarget(pointer: Point | null): Placing | null {
   const view = useStage()
   const catalog = useCoreCatalog()

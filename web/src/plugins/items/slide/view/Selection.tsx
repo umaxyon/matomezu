@@ -24,7 +24,6 @@ export const GRIPS = [
 
 export interface SelectedItem {
   id: string
-  stage: string
   rect: Rect
   rotation: number
   kind: string // アイテムの種類の id
@@ -93,7 +92,7 @@ function Bar({ item }: { item: SelectedItem }) {
           )}
           <StyleFields
             key={`${item.id}:${item.kind}`}
-            subjects={[{ id: item.id, stage: item.stage, item: item.kind, props: item.props }]}
+            subjects={[{ id: item.id, item: item.kind, props: item.props }]}
           />
         </div>
       </div>

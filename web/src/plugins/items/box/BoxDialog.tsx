@@ -16,7 +16,6 @@ import {
   useItemAt,
   useMessages,
   usePerform,
-  useStage,
 } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -63,7 +62,6 @@ export const AddBoxDialog = addDialog(BOX.id)
 export const AddNestBoxDialog = addDialog(NEST_BOX.id)
 
 function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
-  const stage = useStage()?.id ?? ""
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
   const { select } = useActionsHere()
@@ -78,7 +76,6 @@ function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typ
   }
   return (
     <BoxDialog
-      stage={stage}
       title={kit.message("Add box")}
       submit={kit.message("Add")}
       start={EMPTY}
@@ -92,7 +89,6 @@ function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typ
 }
 
 export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const stage = useStage()?.id ?? ""
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
   // 編集するのは箱か内包ボックス（項目は同じ）
@@ -125,7 +121,6 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
   }
   return (
     <BoxDialog
-      stage={stage}
       title={kit.message("Edit box")}
       submit={kit.message("OK")}
       start={start}
@@ -152,7 +147,6 @@ function BoxDialog({
   onClose,
   hasChildren = false,
 }: {
-  stage: string
   title: MessageKey
   submit: MessageKey
   start: BoxProps

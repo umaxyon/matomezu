@@ -472,7 +472,6 @@ function PageItems({
   const render = (item: PlacedShape, shift: Point | null): ReactNode => (
     <Item
       key={item.id}
-      stage={stage.id}
       zoom={stage.zoom}
       item={item}
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
@@ -538,7 +537,6 @@ function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<str
 }
 
 interface ItemProps {
-  stage: string
   zoom: number // ステージの今の倍率（形のビューに渡す）
   item: PlacedShape
   onHover(on: boolean): void
@@ -597,7 +595,6 @@ const GRIPS: readonly { at: string; edges: Edges }[] = [
 
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く
 function Item({
-  stage,
   zoom,
   item,
   onHover,

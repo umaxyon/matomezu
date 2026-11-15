@@ -440,13 +440,12 @@ function SlidePageView({
   const groupRect = chosenShown.length > 1 ? unionOf(chosenShown.map(s => boundsOf(rectOf(s), rotationOf(s)))) : null
   const group = groupRect && {
     rect: groupRect,
-    subjects: chosenShown.map(s => ({ id: s.id, stage: stage.id, item: s.item, props: shapeProps(s) })),
+    subjects: chosenShown.map(s => ({ id: s.id, item: s.item, props: shapeProps(s) })),
   }
   const ghost = drawn && placing ? { item: placing, points: drawn } : null
   const item: SelectedItem | null = current
     ? {
         id: current.id,
-        stage: stage.id,
         rect: rectOf(current),
         rotation: rotationOf(current),
         kind: current.item,
@@ -477,7 +476,6 @@ function SlidePageView({
               <SlideItem
                 key={shape.id}
                 shape={shape}
-                stage={stage.id}
                 zoom={stage.zoom}
                 edit={{
                   editing: editing === shape.id,

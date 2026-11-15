@@ -62,7 +62,7 @@ export function useDrawnMinimap(...given: readonly unknown[]): void {
   )
 }
 
-// ステージ stage に置いた絵の表。置き直すまで同じ表を返す
+// 描いている場所のステージに置いた絵の表。置き直すまで同じ表を返す
 export const useDrawnTable = (): DrawnTable => usePluginState(kit, MINIMAP_DRAWN) ?? NONE
 
 // 表 table の、つなぐもの item がページ page に描いた絵（無ければ undefined）

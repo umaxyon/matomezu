@@ -8,7 +8,7 @@ import { type BirdVisit, MAIL_BIRD_VISIT } from "./states"
 
 export type { BirdVisit }
 
-// ステージ stage で、鳥を連れてきている郵便の行き先の物（無ければ null）
+// 描いている場所のステージで、鳥を連れてきている郵便の行き先の物（無ければ null）
 export const useBirdVisit = (): BirdVisit | null => usePluginState(kit, MAIL_BIRD_VISIT) ?? null
 
 // ステージ stage で、郵便の行き先の物を置く（null で消す）関数（郵便のダイアログが、行き先を開いたステージを名指して置く）
