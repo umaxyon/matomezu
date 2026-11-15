@@ -38,21 +38,22 @@ type caller interface {
 	Post(path string, body any) (json.RawMessage, error)
 }
 
-// conn は 1 つの接続の状態。参加の id を以後の呼び出し全部に添え、返事のヘッダの知らせを 1 回の呼び出しの間だけ持つ
+// conn は 1 つの接続の状態。join で受けた参加の id を、その呼び出しのセッション id に結んで持ち、以後の呼び出しに添える。返事のヘッダの知らせは 1 回の呼び出しの間だけ持つ。
+// 1 つの MCP のプロセスを、いくつものセッションが使い回す AI（opencode）があるので、参加の id はセッション id ごとに持つ
 type conn struct {
-	api         API
-	version     string
-	ai          string        // initialize で届いた clientInfo の名前と版
-	env         string        // 環境名
-	branch      func() string // 呼び出しのたびに git のブランチを読む（読めなければ空）
-	host        string        // AI のプログラムのプロセス id
-	hostSession string        // AI のプログラムが MCP を立てたときのセッション id（分からなければ空）
-	hostScope   string        // "process": Host は AI のセッションごとのプロセスだと名乗る（空は名乗らない）
-	hostSpace   string        // Host のプロセス id が通じる範囲の印（hostScope を名乗るとき）
-	participant string        // join の返事で受けた参加の id
-	sessionID   string        // いま処理している呼び出しの _meta にあったセッション id
-	model       string        // いま処理している呼び出しの _meta にあったモデル（無ければ空）
-	notice      string        // いま処理している呼び出しの返事で届いた知らせ
+	api          API
+	version      string
+	ai           string            // initialize で届いた clientInfo の名前と版
+	env          string            // 環境名
+	branch       func() string     // 呼び出しのたびに git のブランチを読む（読めなければ空）
+	host         string            // AI のプログラムのプロセス id
+	hostSession  string            // AI のプログラムが MCP を立てたときのセッション id（分からなければ空）
+	hostScope    string            // "process": Host は AI のセッションごとのプロセスだと名乗る（空は名乗らない）
+	hostSpace    string            // Host のプロセス id が通じる範囲の印（hostScope を名乗るとき）
+	participants map[string]string // join の返事で受けた参加の id。join の呼び出しのセッション id（無ければ空）ごと
+	sessionID    string            // いま処理している呼び出しの _meta にあったセッション id
+	model        string            // いま処理している呼び出しの _meta にあったモデル（無ければ空）
+	notice       string            // いま処理している呼び出しの返事で届いた知らせ
 }
 
 func (c *conn) header() http.Header {
@@ -67,14 +68,32 @@ func (c *conn) header() http.Header {
 	if c.hostSession != "" {
 		h.Set(hostSessionHeader, c.hostSession)
 	}
-	if c.participant != "" {
-		h.Set(participantHeader, c.participant)
+	if p := c.participant(); p != "" {
+		h.Set(participantHeader, p)
 		h.Set(branchHeader, url.QueryEscape(c.branch()))
 		if c.model != "" {
 			h.Set(modelHeader, url.QueryEscape(c.model))
 		}
 	}
 	return h
+}
+
+// participant は、いま処理している呼び出しの参加の id（無ければ空）。セッション id が同じ参加者があればそれ。
+// 無ければ、参加者が 1 人だけで、その人か呼び出しのどちらかにセッション id が無いときだけ、その人（セッション id を一方だけ添える AI のため）。
+// どちらにもセッション id があって違うときは、ほかのセッションの参加者を添えない
+func (c *conn) participant() string {
+	if p, ok := c.participants[c.sessionID]; ok {
+		return p
+	}
+	if len(c.participants) != 1 {
+		return ""
+	}
+	for session, p := range c.participants {
+		if session == "" || c.sessionID == "" {
+			return p
+		}
+	}
+	return ""
 }
 
 func (c *conn) heard(h http.Header) {
@@ -124,7 +143,7 @@ type response struct {
 // hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。起こす知らせの宛て先）。
 // hostScope が process なら、host は AI のそのセッションごとのプロセスだと名乗り（hostSpace はその印）、host が居なくなったら、常駐が退室させる
 func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host, hostSession, hostScope, hostSpace string) error {
-	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession, hostScope: hostScope, hostSpace: hostSpace}
+	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession, hostScope: hostScope, hostSpace: hostSpace, participants: map[string]string{}}
 	var mu sync.Mutex
 	enc := json.NewEncoder(out)
 	write := func(r response) {

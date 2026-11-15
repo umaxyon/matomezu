@@ -486,7 +486,7 @@ const joinDescription = "Ask to join the user's workroom as a participant. The u
 	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name (with matomezu's background watch, such as its Claude Code plugin, a turn starts by itself when the user accepts, and that turn's hook tells it); an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Meanwhile books and annotations work the same, but actions on anything else (such as the control center's records) are refused (not-allowed, reason not-joined). Call it once per session (asking again with the same link answers with the participant you already are). " +
 	"With workroom, you say which workroom you would like to continue (the name you were given when you joined before) or the name you would like for a new one: it is refused with workroom-in-use while the workroom has a participant who is alive (do not ask again; tell the user in the chat). Otherwise the user chooses on the screen whether you take over a participant who joined before or start new. Use the same workroom name each time you continue the same work."
 
-// join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を以後の呼び出し全部に添える
+// join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を、この呼び出しのセッション id に結んで以後の呼び出しに添える
 func join(c *conn, args map[string]any) (string, bool) {
 	model, _ := args["model"].(string)
 	link, _ := args["link"].(string)
@@ -514,7 +514,7 @@ func join(c *conn, args map[string]any) (string, bool) {
 	if !done.OK {
 		return refusalText(done.Reason, done.Detail), true
 	}
-	c.participant = done.Participant
+	c.participants[c.sessionID] = done.Participant
 	answer := map[string]any{"participant": done.Participant}
 	reply, _ := json.Marshal(answer)
 	return string(reply), false

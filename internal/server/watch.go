@@ -376,13 +376,9 @@ func (h *Hub) wakeOnParticipants(before map[string]bool) {
 		case !ok:
 			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: the user declined your request to join (participant " + id + "). Tell the user, and do not ask again unless the user asks.")})
 		case s.State == "joined":
-			// 「参加しました」が届く所は、セッション id の結び方で決まる（AI の種類は見ない）。
-			// join で結んだ AI は受け入れた時点で準備中でなく、参加の id の付いた次の呼び出しの返事に添う。フックで結ぶ AI は、このターンの話しかけのフックが添える
-			welcome := "The welcome comes with this turn."
-			if h.participantNotes[id].BoundBy == boundByJoin {
-				welcome = "The welcome comes with your next matomezu call."
-			}
-			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join (participant " + id + ", workroom " + rooms[s.Workroom] + "). " + welcome)})
+			// 「参加しました」は、このターンの始まりのフック（talked）か、参加の id の付いた次の呼び出しの返事の、先に来た方が 1 度だけ添える
+			// （伝えたと印を付けるので二重にならない。どちらが先かは AI のプログラムによるので、文は両方を言う）
+			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join (participant " + id + ", workroom " + rooms[s.Workroom] + "). The welcome comes with this turn or with your next matomezu call.")})
 		}
 	}
 }

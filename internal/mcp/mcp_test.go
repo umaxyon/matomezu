@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -16,6 +17,7 @@ type fakeAPI struct {
 	posts   []string
 	gets    []string // 読む口に頼んだ道筋（問い合わせを含む）
 	answer  string
+	answers []string      // あれば、post ごとに先頭から 1 つずつ answer の代わりに返す
 	sent    []string      // 呼び出しごとに添えた参加の id
 	headers []http.Header // 呼び出しごとに添えたヘッダ
 	replied http.Header   // 返事に付けるヘッダ
@@ -58,6 +60,11 @@ func (f *fakeAPI) Post(path string, body any, header http.Header) (json.RawMessa
 	f.headers = append(f.headers, header)
 	b, _ := json.Marshal(body)
 	f.posts = append(f.posts, path+" "+string(b))
+	if len(f.answers) > 0 {
+		a := f.answers[0]
+		f.answers = f.answers[1:]
+		return json.RawMessage(a), f.replied, nil
+	}
 	return json.RawMessage(f.answer), f.replied, nil
 }
 
@@ -253,6 +260,24 @@ func TestJoinFillsWhoAndAttachesTheParticipantToLaterCalls(t *testing.T) {
 	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L"}}}`)
 	if r := got[0]["result"].(map[string]any); r["isError"] != true || textOf(got[0]) != "already-participating: participant p1 is already joined" {
 		t.Fatalf("refused join = %v", got[0])
+	}
+}
+
+// 1 つの MCP のプロセスをいくつものセッションが使い回す AI（opencode）: 参加の id は join したセッションの呼び出しにだけ付き、
+// ほかのセッションの呼び出しには付かない。セッションごとに join すれば、それぞれの参加の id が付く
+func TestTheParticipantGoesOnlyWithTheSessionThatJoined(t *testing.T) {
+	api := &fakeAPI{answers: []string{`{"ok":true,"participant":"p1"}`, `{"ok":true,"participant":"p2"}`}}
+	call := func(id int, session string) string {
+		return fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"view","arguments":{},"_meta":{"ai.opencode/sessionID":"%s"}}}`, id, session)
+	}
+	join := func(id int, session string) string {
+		return fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L-%s"},"_meta":{"ai.opencode/sessionID":"%s"}}}`, id, session, session)
+	}
+	talk(t, api, join(1, "ses_A"), call(2, "ses_A"), call(3, "ses_B"), join(4, "ses_B"), call(5, "ses_B"), call(6, "ses_A"),
+		`{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"view","arguments":{}}}`)
+	// join のときはそのセッションの参加者はまだ無い。セッション id の無い呼び出しには、参加者が 2 人なので付けない
+	if strings.Join(api.sent, ",") != ",p1,,,p2,p1," {
+		t.Fatalf("sent = %q", api.sent)
 	}
 }
 
