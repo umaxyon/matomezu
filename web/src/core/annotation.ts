@@ -67,7 +67,7 @@ function anchorTypes(book: Book): ReadonlyMap<string, string> {
 function fits(catalog: CoreCatalog, types: ReadonlyMap<string, string>, a: Annotation): boolean {
   if (!AnnotationSchema.safeParse(a).success) return false
   const def = catalog.annotations.get(a.annotation)
-  if (!def || !def.props.safeParse(a.props).success) return false
+  if (!def?.props.safeParse(a.props).success) return false
   return a.anchors.every(id => {
     const type = types.get(id)
     return type !== undefined && annotationAllowed(catalog, type, a.annotation)

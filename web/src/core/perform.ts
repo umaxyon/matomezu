@@ -245,7 +245,7 @@ function permits(
 // 引数が形に合わなければ、所を名指さないブック全体として問う
 export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args: unknown): boolean {
   const action: ActionDef | undefined = catalog.actions.get(id)
-  if (!action || action.target !== "book") return false
+  if (action?.target !== "book") return false
   const parsed = action.args.safeParse(args)
   const where = parsed.success ? scopeOf(action.permissionScope as AnyPermissionScope, parsed.data) : undefined
   const answer = inspect(catalog, { kind: "action", action: id, book, ...(where ? { where } : {}), actor: USER })

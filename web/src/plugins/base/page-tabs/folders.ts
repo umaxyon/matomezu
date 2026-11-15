@@ -85,7 +85,7 @@ export const FOLDER_DUPLICATE = kit.defineAction({
       lineupOf(book).findIndex(e => e.id === source.id) + 1,
     )
     const made = lineupOf(next)[lineupOf(book).findIndex(e => e.id === source.id) + 1]
-    if (!made || made.kind !== "folder") return null
+    if (made?.kind !== "folder") return null
     const pages: string[] = []
     for (const page of pagesIn(book, source.id)) {
       const { id: _id, locked: _locked, ...content } = page
