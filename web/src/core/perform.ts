@@ -28,7 +28,7 @@ import {
 } from "./def/action"
 import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
+import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
 import type { Library } from "./library"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
@@ -173,32 +173,30 @@ function permits(
   action: ActionDef,
   subject: unknown,
   args: { success: true; data: unknown } | { success: false },
-  raw: unknown,
 ): Permitted {
   const settings =
     args.success && action.target === "settings"
       ? settingsScopeOf(action.permissionScope as AnySettingsScope, args.data)
       : undefined
-  const asked = (
+  const asking = (
     book: Book | undefined,
     where: Where | undefined,
     record?: { record: unknown; refs: readonly Referred[] },
   ) =>
-    answerOf(
-      inspect(
-        ctx.catalog,
-        {
-          kind: "action",
-          action: action.id,
-          book,
-          ...(where ? { where } : {}),
-          ...(settings ? { settings } : {}),
-          ...(record ? { record } : {}),
-          actor: ctx.actor,
-        },
-        ctx,
-      ),
+    inspect(
+      ctx.catalog,
+      {
+        kind: "action",
+        action: action.id,
+        book,
+        ...(where ? { where } : {}),
+        ...(settings ? { settings } : {}),
+        ...(record ? { record } : {}),
+        actor: ctx.actor,
+      },
+      ctx,
     )
+  const asked = (...at: Parameters<typeof asking>) => answerOf(asking(...at))
   if (isRecordTarget(ctx.catalog, action.target)) {
     const refs = referredOf(ctx.catalog, action.target, subject, ctx.records ?? {}, sourceIn(ctx))
     if (refs === "unreadable") return { ok: false, reason: "not-allowed" }
@@ -226,28 +224,24 @@ function permits(
       : action.target === "annotations"
         ? (subject as BookAnnotations).book
         : undefined
-  // 所は引数から出す。引数が形に合わなくても、名指したページは読めるだけ読む（ページのタイプで決まるアクションを、引数の誤りでブック全体として問わないように。誤りは bad-args で断る）
-  // （読むのは、引数の名前で書いた許可スコープだけ。関数の許可スコープは、形の合った引数にだけ呼ぶ）
-  const scope = action.permissionScope as AnyPermissionScope | undefined
-  const named = typeof raw === "object" && raw !== null ? raw : {}
-  const where =
-    action.target !== "book"
-      ? undefined
-      : args.success
-        ? scopeOf(scope, args.data)
-        : typeof scope === "object"
-          ? scopeOf(scope, named)
-          : undefined
-  return asked(book, where)
+  if (action.target !== "book") return asked(book, undefined)
+  const answer = asking(book, placeOf(action, args))
+  // 引数が形に合わなければ所が出せないので、所のステップ（ページのタイプと付く先）では止めない（行う側が bad-args で断る。認可ステップなどが止めるなら、そちらが先）
+  return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
 }
 
+// ブックが対象のアクション action が、引数で名指す所（引数が形に合わなければ、分からない）
+const placeOf = (action: ActionDef, args: { success: true; data: unknown } | { success: false }): Where | undefined =>
+  args.success ? scopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data) : undefined
+
 // ブック book に、ブックが対象のアクション id を引数 args で行えるか、認可ステップを除いて問う（引数が名指すページのタイプと、アクションの付く先だけで決まる）。
-// 引数が形に合わなければ、所を名指さないブック全体として問う
+// 引数が形に合わなければ行えない
 export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args: unknown): boolean {
   const action: ActionDef | undefined = catalog.actions.get(id)
   if (action?.target !== "book") return false
   const parsed = action.args.safeParse(args)
-  const where = parsed.success ? scopeOf(action.permissionScope as AnyPermissionScope, parsed.data) : undefined
+  if (!parsed.success) return false
+  const where = placeOf(action, parsed)
   const answer = inspect(catalog, { kind: "action", action: id, book, ...(where ? { where } : {}), actor: USER })
   return withoutPermissions(answer).value === true
 }
@@ -275,7 +269,7 @@ function answerOf(answer: Inspected<boolean>): Permitted {
 export function permitted(subject: unknown, id: string, args: unknown, ctx: PermitContext): Permitted | Refused {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  return permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args), args)
+  return permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
 }
 
 export function perform<Id extends ActionId>(
@@ -287,7 +281,7 @@ export function perform<Id extends ActionId>(
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
   const parsed = action.args.safeParse(args)
-  const permitted = permits(ctx, action, subject, parsed, args)
+  const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
   const ran = action.run(subject as never, parsed.data, ctx)

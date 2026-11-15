@@ -11,10 +11,10 @@ test("コマンドの許可スコープ: 言葉ごとに、呼ばれた場所の
   expect(commandScopeOf(undefined, ctx())).toBeUndefined()
 })
 
-test("コマンドの許可スコープが { page } なら、その名前の引数のページ（まだ引数が無ければブック）", () => {
+test("コマンドの許可スコープが { page } なら、その名前の引数のページ（まだ引数が無ければ分からない。問う側が開いているページで問う）", () => {
   const ctx = {} as CommandContext
   expect(commandScopeOf({ page: "page" }, ctx, { page: "p2" })).toEqual({ page: "p2" })
-  expect(commandScopeOf({ page: "page" }, ctx)).toEqual({})
+  expect(commandScopeOf({ page: "page" }, ctx)).toBeUndefined()
 })
 
 test("コマンドの許可スコープが関数なら、呼ばれた引数も受け取る（まだ引数が無ければ undefined）", () => {

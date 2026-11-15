@@ -118,26 +118,26 @@ const ask = (c: Called, method: "when" | "enabled" | "active"): boolean | undefi
   (c.def[method] as ((ctx: ScreenCommandContext) => boolean) | undefined)?.(c.ctx)
 
 // コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければコントロールセンター）で使えるか（認可ステップは見ない）
-function performable(c: Called): boolean {
+function performable(c: Called, arg?: unknown): boolean {
   const book = "book" in c.ctx ? (c.ctx.book ?? undefined) : undefined
-  const where = whereOf(c)
+  const where = whereOf(c, arg)
   return (c.def.performs ?? []).every(
     action =>
       withoutPermissions(inspect(c.ctx.catalog, actionQuery(c.ctx.catalog, action, book, where), c.ctx)).value === true,
   )
 }
 
-// 使えるかを問う所: コマンドの許可スコープの所。書いていなければ開いているページ（ページのタイプで決まるアクションを、ブック全体として問わないように）
+// 使えるかを問う所: コマンドの許可スコープの所。書いていない・引数がまだ無くて分からないなら、開いているページ（ページのタイプで決まるアクションを、ブック全体として問わないように）
 function whereOf(c: Called, arg?: unknown): Where | undefined {
   if (!("stage" in c.ctx)) return undefined
   const page = shownPageId(c.ctx.stage.opened ?? null)
   return commandScopeOf(c.def.permissionScope, c.ctx, arg) ?? (page === null ? undefined : { page })
 }
 
-// 出すか: 行うアクションが使え、when が出すとするとき
-export function isShown(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {
+// 出すか: 行うアクションが使え、when が出すとするとき（arg は、押す前から分かっている引数）
+export function isShown(defs: Assembled, state: MatomezuState, at: string, id: CommandId, arg?: unknown): boolean {
   const c = called(defs, state, at, id)
-  return c !== null && performable(c) && ask(c, "when") === true
+  return c !== null && performable(c, arg) && ask(c, "when") === true
 }
 
 // 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。

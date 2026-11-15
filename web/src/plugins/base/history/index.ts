@@ -9,7 +9,7 @@ import type { Book } from "../../../core/schema/book"
 import { shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { applyRestore, PatchSchema, restoredPages } from "./restore"
+import { applyRestore, PatchSchema, restoredEntries } from "./restore"
 
 export const HISTORY_RESTORE = kit.defineAction({
   id: "book-revert",
@@ -19,10 +19,10 @@ export const HISTORY_RESTORE = kit.defineAction({
   aiDescription: "The screen's undo and redo: put back what one step of the user's history changed.",
   title: "Undo or redo",
   target: "book",
-  // 変えるページが 1 つならそのページとアイテム。いくつもなら所は言えず、ページのロックは行った後の keeps が止める
+  // 置き直す並びの要素が 1 つなら、それをページとして名指す（とアイテム）。フォルダなら無いページを名指すことになり、いくつもなら所は言えない。どちらも、ロックは行った後の keeps が止める
   permissionScope: (args: Patch) => {
-    const pages = restoredPages(args)
-    const page = pages.length === 1 ? pages[0] : undefined
+    const entries = restoredEntries(args)
+    const page = entries.length === 1 ? entries[0] : undefined
     return page ? { page: page.id, ...(page.items ? { items: [...page.items] } : {}) } : {}
   },
   args: PatchSchema,
@@ -31,7 +31,7 @@ export const HISTORY_RESTORE = kit.defineAction({
 
 // 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとのブック to に在る最初のページ
 const pageOf = (args: Patch, to: Book): string | undefined =>
-  restoredPages(args).find(p => findPage(to, p.id) !== undefined)?.id
+  restoredEntries(args).find(p => findPage(to, p.id) !== undefined)?.id
 
 // 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、画面の履歴の段は動かさない。
 // いくつものブックを変えた画面の履歴の段で途中のブックが断られたら、置き直したブックを元に戻す（どのブックも画面の履歴の段のとおりのまま）

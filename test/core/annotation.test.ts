@@ -150,8 +150,8 @@ test("タイプの混ざるブックでは、結び付く物のあるページ�
   } as typeof CORE_CATALOG
   const box = (id: string) => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: id } })
   const mixed = testBook("m", "混ざる", [
-    drawingPage("p1", { items: [box("a")] }),
-    testPage(FLOWCHART, "p2", { title: "流れ", items: [box("b")] }),
+    drawingPage("p1", { items: [box("a")] as never }),
+    testPage(FLOWCHART, "p2", { title: "流れ", items: [box("b")] as never }),
   ])
   const on = (id: string, anchors: string[]): Annotation => ({ ...GOOD, id, anchors })
   const codes = (a: Annotation) => checkAnnotations(catalog, mixed, [a]).map(w => w.code)

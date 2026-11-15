@@ -21,6 +21,7 @@ export type Source =
   | { source: "pageType"; id: string; field: "actions.without" | "actions.add" } // ページのタイプが外す・足すアクション
   | { source: "action"; id: string; field: "attach"; pageType: string } // アクションの付く先が、そのタイプのページに当てはまるか
   | { source: "action"; id: string; field: "attach.books" } // アクションが、どのブックにも付くか（ページを名指さないとき）
+  | { source: "action"; id: string; field: "run" } // 名指した所がブックに無い: ここでは止めず、行う側（run）が断る
   | { source: "action"; id: string; field: "userOnly" } // 利用者だけが行うアクションを、AI が頼んだ
   | { source: "participation"; id: string } // 参加が確定していない AI が、ブックでない対象のアクションを頼んだ
   | { source: "userSetting"; id: string; field: "userOnly" } // 利用者だけが変える利用者の設定の項目を、AI が変えようとした
@@ -103,6 +104,7 @@ function typeSteps(def: ActionDef, type: PageTypeDef): Step<boolean>[] {
 // - ほか（ブック全体が対象）: タイプに依らない付く先（attach の books）だけで決める
 function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where | undefined): Step<boolean>[] {
   const types = typesAt(catalog, def, book, where)
+  if (types === "missing") return [{ from: { source: "action", id: def.id, field: "run" }, value: true }]
   if (types === null)
     return [{ from: { source: "action", id: def.id, field: "attach.books" }, value: def.attach?.books === true }]
   const [first, ...rest] = types.map(t => typeSteps(def, t))
@@ -112,8 +114,14 @@ function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Whe
   return [first, ...rest].find(steps => decide(steps).value !== true) ?? first
 }
 
-// 所 where が名指すページのタイプ（重ねずに）。ページを名指さなければ null（アノテーションが対象なら、ブックの全部のページのタイプ）
-function typesAt(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where | undefined): PageTypeDef[] | null {
+// 所 where が名指すページのタイプ（重ねずに）。ページを名指さなければ null（アノテーションが対象なら、ブックの全部のページのタイプ）。
+// 名指したページ・物がブックに無ければ "missing"（タイプでは決められない。無い物は run が断る）
+function typesAt(
+  catalog: CoreCatalog,
+  def: ActionDef,
+  book: Book,
+  where: Where | undefined,
+): PageTypeDef[] | "missing" | null {
   // 許可スコープが "book" のアクションは、問う側が所を添えても、ページのタイプでは決めない（画面と perform で答えが割れないように）
   if (def.target === "book" && def.permissionScope === "book") return null
   const pages = pagesOf(book)
@@ -128,10 +136,15 @@ function typesAt(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where 
         : def.target === "annotations"
           ? pages
           : null
-  // 名指したページ・物がブックに無ければ、ここでは決めない（ブック全体として問い、無い物は run が断る）
-  if (named === null || (named.length === 0 && def.target !== "annotations")) return null
+  if (named === null) return null
+  if (named.length === 0 && def.target !== "annotations") return "missing"
   return [...new Set(named.map(p => p.type))].map(t => pageType(catalog, t))
 }
+
+// 答え answer を決めたのが、所のステップ（ページのタイプとアクションの付く先）か
+export const decidedByPlace = (answer: Inspected<boolean>): boolean =>
+  answer.decidedBy?.source === "pageType" ||
+  (answer.decidedBy?.source === "action" && answer.decidedBy.field !== "userOnly")
 
 // タイプ type でアクションを使えるか（typeSteps で決まる答え）
 export const typeAllows = (def: ActionDef, type: PageTypeDef): boolean => decide(typeSteps(def, type)).value === true

@@ -20,7 +20,7 @@ export function useCommand<Id extends CommandId>(id: Id, arg?: CommandArgs<Id>[0
   const defs = useInstance()
   const at = useAt()
   const def = commandDef(defs, id)
-  const shown = useMatomezuState(s => at !== null && isShown(defs, s, at, id))
+  const shown = useMatomezuState(s => at !== null && isShown(defs, s, at, id, arg))
   const enabled = useMatomezuState(s => at !== null && isEnabled(defs, s, at, id, arg))
   const active = useMatomezuState(s => at !== null && isActive(defs, s, at, id))
   const { command } = useStoreActions()

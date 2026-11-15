@@ -1,11 +1,11 @@
 // 画面の履歴の段の置き直し（base の book-revert）: patchOf が 2 つのブックの違う所だけを片方の値にする値を作り、applyRestore が今のブックの上で行う。
-// 置き直すページと最上位のアイテム（restoredPages）が、認可の所（permissionScope）と、置き直したあとに開くページを決める
+// 置き直すページと最上位のアイテム（restoredEntries）が、認可の所（permissionScope）と、置き直したあとに開くページを決める
 // （値の置き直しそのものは core/patch.test.ts）
 import { expect, test } from "bun:test"
 import { type Patch, patchOf } from "../../web/src/core/patch"
 import type { Book } from "../../web/src/core/schema/book"
 import { HISTORY_RESTORE } from "../../web/src/plugins/base/history"
-import { applyRestore, restoredPages } from "../../web/src/plugins/base/history/restore"
+import { applyRestore, restoredEntries } from "../../web/src/plugins/base/history/restore"
 
 const item = (id: string, caption = id) => ({ id, item: "x", x: 0, y: 0, props: { caption } })
 const book = (fields: Record<string, unknown>, lineup: unknown[]) =>
@@ -31,7 +31,7 @@ test("ブックのフィールド・ページ・アイテムを、前の値に�
 test("置き直すページと最上位のアイテム: ページの中だけを変えたならそのアイテム、ページを足した・消したなら丸ごと", () => {
   const before = book({}, [page("p", [item("a"), item("b")]), page("q", [])])
   const after = book({}, [page("p", [item("a", "A"), item("b")]), page("r", [])])
-  expect(restoredPages(patch(after, before))).toEqual([
+  expect(restoredEntries(patch(after, before))).toEqual([
     { id: "r", gone: true, items: undefined },
     { id: "p", gone: false, items: ["a"] },
     { id: "q", gone: false, items: undefined },
@@ -57,8 +57,8 @@ test("ページの名前だけの置き直しも、そのページを認可の�
 test("フォルダの中のページは、そのページとアイテムを置き直す。フォルダの名前だけの置き直しは、フォルダの id を返す（ページとして使う側がブックで確かめる）", () => {
   const before = book({}, [folder("f", [page("s", [item("a")])])])
   const changed = book({}, [folder("f", [page("s", [item("a", "A")])])])
-  expect(restoredPages(patch(changed, before))).toEqual([{ id: "s", gone: false, items: ["a"] }])
+  expect(restoredEntries(patch(changed, before))).toEqual([{ id: "s", gone: false, items: ["a"] }])
   const renamed = book({}, [folder("f", [page("s", [item("a")])], "別")])
-  expect(restoredPages(patch(renamed, before))).toEqual([{ id: "f", gone: false, items: [] }])
+  expect(restoredEntries(patch(renamed, before))).toEqual([{ id: "f", gone: false, items: [] }])
   expect(applyRestore(renamed, patch(renamed, before))).toEqual(before)
 })

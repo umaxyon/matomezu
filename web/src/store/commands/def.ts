@@ -45,7 +45,8 @@ export function commandScopeOf(
   if (typeof scope === "function") return scope(ctx, args as never)
   if (typeof scope === "object") {
     const page = typeof args === "object" && args !== null ? (args as Record<string, unknown>)[scope.page] : undefined
-    return typeof page === "string" ? { page } : {}
+    // 引数がまだ無ければ、所は分からない（問う側が、開いているページで問う）
+    return typeof page === "string" ? { page } : undefined
   }
   const page = shownPageId(ctx.stage.opened) ?? undefined
   const on = page ? { page } : {}

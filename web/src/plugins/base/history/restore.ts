@@ -21,11 +21,11 @@ export const PatchSchema: z.ZodType<Patch> = z.lazy(() =>
 const fieldOf = (p: Patch, key: string): Patch | undefined => ("fields" in p ? p.fields[key] : undefined)
 const listOf = (p: Patch | undefined): readonly ListPatch[] => (p && "list" in p ? p.list : [])
 
-// 置き直すページ（ブックの並び lineup の要素と、フォルダの中の要素）と、その中で置き直す最上位のアイテム（ページを丸ごと置き直すなら undefined）。
+// 置き直す並びの要素（ブックの並び lineup の要素と、フォルダの中のページ）と、その中で置き直す最上位のアイテム（要素を丸ごと置き直すなら undefined）。
 // 中の並び（lineup）のフィールドを置き直す要素はフォルダ（ページは lineup という名前のフィールドを持てない。台帳アセンブルの E030）なので、その中のページを返す。
 // ほかの要素は、ページかフォルダかを Patch からは見分けられない（名前だけの置き直し・丸ごと足す・消す）ので、そのまま返す。
-// フォルダの id が混ざるので、ページとして使う側がブックで確かめる（認可の所は、無いページを名指せばブック全体として問われ、行った後の確かめが見る）
-export function restoredPages(p: Patch): { id: string; gone: boolean; items: readonly string[] | undefined }[] {
+// フォルダの id が混ざるので、ページとして使う側がブックで確かめる（認可の所は、無いページを名指せばページのタイプでは決まらず、行った後の確かめが見る）
+export function restoredEntries(p: Patch): { id: string; gone: boolean; items: readonly string[] | undefined }[] {
   return listOf(fieldOf(p, "lineup")).flatMap(q => {
     const inner = "fields" in q.patch ? fieldOf(q.patch, "lineup") : undefined
     return inner ? listOf(inner).map(restored) : [restored(q)]

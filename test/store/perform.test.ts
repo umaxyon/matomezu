@@ -245,6 +245,14 @@ describe("アクションの入口", () => {
       ok: false,
       reason: "bad-args",
     })
+    // ページのタイプで決まるアクションも、引数の形が違えば bad-args（所が出せないので、タイプでは断らない）、名指したページが無ければ run が断る
+    expect(untyped(actions).perform("@matomezu/line:line-connect", { page: "n2", from: 1 }, { book: "n1" })).toEqual({
+      ok: false,
+      reason: "bad-args",
+    })
+    expect(
+      actions.perform("@matomezu/line:line-connect", { page: "nope", from: "a", to: "b" }, { book: "n1" }),
+    ).toEqual({ ok: false, reason: "refused" })
     expect(state.getState()).toBe(before)
   })
 

@@ -62,6 +62,19 @@ describe("inspect: アクションの許可", () => {
     })
   })
 
+  test("名指したページがブックに無ければ、ここでは止めない（無い物は run が断る）", () => {
+    const book = testBook("m2", "図", [drawingPage("p1")])
+    expect(
+      inspect(CORE_CATALOG, {
+        kind: "action",
+        actor: USER,
+        action: "@matomezu/paper:item-place",
+        book,
+        where: { page: "nope" },
+      }),
+    ).toMatchObject({ value: true, decidedBy: { source: "action", id: "@matomezu/paper:item-place", field: "run" } })
+  })
+
   test("ブックが対象でないアクションは、コントロールセンターが決める。コントロールセンターが無ければ使えない", () => {
     expect(
       inspect(
