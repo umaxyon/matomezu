@@ -116,7 +116,7 @@ export const DATA_SET = kit.defineAction({
       if (!props) return null
       const { table: _, ...rest } = now
       const emptied = { ...rest, props }
-      const shown = widenForCaption(ctx.catalog, book, page, now, emptied as PlacedShape)
+      const shown = widenForCaption(ctx.catalog, page, now, emptied as PlacedShape)
       const next =
         replaceShapePushing(ctx.catalog, book, args.page, args.item, () => shown) ??
         (shown !== emptied ? replaceShapePushing(ctx.catalog, book, args.page, args.item, () => emptied) : null)
@@ -146,7 +146,7 @@ export const DATA_SET = kit.defineAction({
     const fitted = props.view === "table" && room ? fitTable(table.data, props, room) : null
     const item = { ...now, props, table: table.data }
     // 表に合わせないときは、キャプションが見える幅まで広げる（広げて置けなければ、大きさはそのまま）
-    const shown = fitted ? item : widenForCaption(ctx.catalog, book, page, now, item as PlacedShape)
+    const shown = fitted ? item : widenForCaption(ctx.catalog, page, now, item as PlacedShape)
     const next =
       (fitted && replaceShapePushing(ctx.catalog, book, args.page, args.item, () => ({ ...item, ...fitted }))) ??
       (shown !== item ? replaceShapePushing(ctx.catalog, book, args.page, args.item, () => shown) : null) ??

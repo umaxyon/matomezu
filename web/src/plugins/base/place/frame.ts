@@ -35,8 +35,8 @@ function childRects(catalog: CoreCatalog, parent: PlacedShape, origin: Point): M
   return rects
 }
 
-// ブック book のページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形・描けない紙なら null
-export function frameOf(catalog: CoreCatalog, book: Book, page: ItemPage, parent: string | null): Frame | null {
+// ページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形・描けない紙なら null
+export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | null): Frame | null {
   if (parent === null) {
     const paper = roomOf(catalog, page)
     return paper && { parent, origin: { x: 0, y: 0 }, paper, rects: rectsOf(catalog, page) }
@@ -50,7 +50,7 @@ export function frameOf(catalog: CoreCatalog, book: Book, page: ItemPage, parent
 // ブック book のページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら null
 export function frameAround(catalog: CoreCatalog, book: Book, page: ItemPage, id: string): Frame | null {
   const found = findShape(page, id)
-  return found ? frameOf(catalog, book, page, found.parent) : null
+  return found ? frameOf(catalog, page, found.parent) : null
 }
 
 // Frame の中の四角を、データの位置にしたもの（Frame の左上を足す）
@@ -101,7 +101,7 @@ export function placeChild<B extends Book>(
   at: Point,
 ): B | null {
   const page = findPage(book, pageId)?.page
-  const frame = page && frameOf(catalog, book, page, parent)
+  const frame = page && frameOf(catalog, page, parent)
   const size = placedSize(catalog, shape)
   if (!page || !frame || !size) return null
   const rect = { x: Math.max(0, at.x - frame.origin.x), y: Math.max(0, at.y - frame.origin.y), ...size }

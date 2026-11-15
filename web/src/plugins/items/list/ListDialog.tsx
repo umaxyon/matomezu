@@ -8,7 +8,7 @@
 // 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのまま item-place に渡してリストを置き（ほかの形は画面と同じに押す）、置いたリストを選ぶ。編集はリストの項目を書き換える（item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
+import type { Book, ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {

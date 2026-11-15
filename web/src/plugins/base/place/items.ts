@@ -124,7 +124,7 @@ declare module "../../../core/catalog" {
 export const gapOf = (catalog: CoreCatalog, page: ItemPage): Gap => connectorGaps(catalog, page, evenGap)
 
 // 形が変わったあとのページ（つなぐものの定義の整えを全部かける。そのページで効いている設定の値で）
-export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, book: Book, page: P): P =>
+export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, page: P): P =>
   tidyItems(catalog, page, settingsAt(catalog, page))
 
 // 次に置くアイテムの id（newId から振る。ブックの全部のページの中身の、どの深さの id とも重ならない。utils/ids.ts の contentIdMaker で振る）
@@ -221,11 +221,10 @@ export function resizedBy(
 
 // 中身を変えた形 next の大きさ: キャプションの項目（定義の captionProp）が変わって、キャプションが見える幅（20 字まで）より狭ければ、そこまで広げる。
 // 文字を縦に置く形（定義の captionHeight を持つ形）は、見える高さまで縦にも広げる。
-// 広げる向きはブックのタイプの growFrom（無ければ左・上を保って右・下へ。center なら真ん中を保って両側へ）で、紙からははみ出さない。
+// 広げる向きはページのタイプの growFrom（無ければ左・上を保って右・下へ。center なら真ん中を保って両側へ）で、紙からははみ出さない。
 // 狭めはしない。キャプションが変わらないか、captionProp の無い形ならそのまま
 export function widenForCaption(
   catalog: CoreCatalog,
-  book: Book,
   page: ItemPage,
   before: PlacedShape,
   next: PlacedShape,
@@ -237,7 +236,7 @@ export function widenForCaption(
   const size = placedSize(catalog, next)
   const paper = roomOf(catalog, page)
   if (!size || !paper) return next
-  const from = catalog.pageTypes.get(book.type)?.growFrom?.(settingsAt(catalog, page))
+  const from = catalog.pageTypes.get(page.type)?.growFrom?.(settingsAt(catalog, page))
   // 1 つの向きに、want まで広げた位置と長さ（at は左か上、len は今の長さ、room は紙の長さ）
   const grow = (at: number, len: number, want: number, room: number, center: boolean) => {
     const to = Math.min(want, center ? room : room - at)
@@ -251,7 +250,7 @@ export function widenForCaption(
   return { ...next, x: x.at, y: y.at, w: x.len, h: y.len }
 }
 
-// 形の個別のテーマ（定義の themeProp が名指す項目）を、ブックのタイプ type のブックで使えるか（book-look/theme-types.ts。themeProp の無い形と、値が無いときは true）
+// 形の個別のテーマ（定義の themeProp が名指す項目）を、タイプ type のページで使えるか（book-look/theme-types.ts。themeProp の無い形と、値が無いときは true）
 export function shapeThemeFits(catalog: CoreCatalog, type: string, item: { item: string; props: object }): boolean {
   const prop = shapeDefOf(catalog, item.item)?.themeProp
   if (prop === undefined) return true
@@ -265,10 +264,10 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
   return paper.status === "unshowable" ? null : paper.size
 }
 
-// ブック book のページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
+// ページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
 // タイプが決めるタイプは、そのページで効いている設定の値から。いつも可変ページのタイプは、どのページもタイプの向き
-export function growOf(catalog: CoreCatalog, book: Book, page: ItemPage): GrowSides | undefined {
-  const rule = catalog.pageTypes.get(book.type)?.grow
+export function growOf(catalog: CoreCatalog, page: ItemPage): GrowSides | undefined {
+  const rule = catalog.pageTypes.get(page.type)?.grow
   if (rule && "always" in rule) return rule.always
   if (!page.grows || !rule) return undefined
   if ("sides" in rule) return rule.sides(settingsAt(catalog, page))
@@ -284,11 +283,11 @@ declare module "../../../core/catalog" {
   }
 }
 
-// ブック book のページ page の slide の形を、描くときにずらす量（紙の上。ブックのタイプの contentOrigin の印刷区画の数に、紙の大きさを掛ける）。
+// ページ page の slide の形を、描くときにずらす量（紙の上。ページのタイプの contentOrigin の印刷区画の数に、紙の大きさを掛ける）。
 // 位置をデータに持つ見せ方は、データの slide の座標をずらすので、ここでは 0
-export function slideOffsetOf(catalog: CoreCatalog, book: Book, page: ItemPage): Point {
+export function slideOffsetOf(catalog: CoreCatalog, page: ItemPage): Point {
   const paper = paperSize(catalog, page)
-  const origin = pageType(catalog, book.type).contentOrigin?.(
+  const origin = pageType(catalog, page.type).contentOrigin?.(
     catalog,
     page,
     settingsAt(catalog, page),
@@ -297,11 +296,10 @@ export function slideOffsetOf(catalog: CoreCatalog, book: Book, page: ItemPage):
   return paper && origin ? { x: origin.x * paper.w, y: origin.y * paper.h } : { x: 0, y: 0 }
 }
 
-// ブック book のページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
+// ページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
 // （spare なら右・下へ増やす向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
 export function pageArea(
   catalog: CoreCatalog,
-  book: Book,
   page: ItemPage,
   spare = false,
 ): { columns: number; rows: number; size: Size } | null {
@@ -314,7 +312,7 @@ export function pageArea(
 
 // ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
 // 右・下へ増やす向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）。描けない紙なら null
-export function roomOf(catalog: CoreCatalog, book: Book, page: ItemPage): Size | null {
+export function roomOf(catalog: CoreCatalog, page: ItemPage): Size | null {
   const paper = paperSize(catalog, page)
   const grow = growOf(catalog, page)
   if (!paper || !grow) return paper

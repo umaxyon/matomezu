@@ -204,7 +204,7 @@ export function freeAt(
   size: Size,
   fits: (at: Point) => boolean = () => true,
 ): Point | null {
-  const frame = frameOf(catalog, book, page, parent)
+  const frame = frameOf(catalog, page, parent)
   if (!frame) return null
   const at = (spot: Point) => ({ x: spot.x + frame.origin.x, y: spot.y + frame.origin.y })
   const spot = freeSpotIn(frame, size, s => fits(at(s)))

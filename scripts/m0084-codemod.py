@@ -16,6 +16,8 @@ DIRS = sys.argv[1:] or ["web/src/plugins", "test", "e2e"]
 # ブックを指す変数の名前（この名前の .pages だけを書き換える。タイプの定義の pages や、変化の pages は触らない）
 BOOKS = r"(?:book|next|after|before|draft|made\.book|done\.book|read|opened\.book)"
 ARG = r"[\w.]+(?:\([^()]*\))?"  # 引数 1 つ（名前か、かっこが 1 段の呼び出し）
+# 外す引数（ブックを指す名前）
+BOOKARG = r"(?:book|next|after|before|draft|b|made|done\.book|[\w.]*[bB]ook)"
 
 RULES = [
     # ページを探す
@@ -28,12 +30,17 @@ RULES = [
     # ブックの型
     (re.compile(r"\bPagedBook\b"), "Book", []),
     # 設定の読み方: 2 つ目の引数のブックを外す（ページに null を渡している所は、どのページで読むかを決める所なので触らない）
-    (re.compile(rf"\bsettingValue\(({ARG}), {ARG}, (?!null\b)({ARG}), ({ARG})\)"), r"settingValue(\1, \2, \3)", []),
-    (re.compile(rf"\bsettingsAt\(({ARG}), {ARG}, (?!null\b)({ARG})\)"), r"settingsAt(\1, \2)", []),
-    (re.compile(rf"\bpageContext\(({ARG}), {ARG}, (?!null\b)({ARG})\)"), r"pageContext(\1, \2)", []),
-    # ページのタイプで決まる物: ブックを渡していた引数を外す
-    (re.compile(rf"\b(growOf|slideOffsetOf|roomOf|tidyPage)\(({ARG}), {ARG}, ({ARG})\)"), r"\1(\2, \3)", []),
-    (re.compile(rf"\bpageArea\(({ARG}), {ARG}, ({ARG})"), r"pageArea(\1, \2", []),
+    (re.compile(rf"\bsettingValue\(({ARG}), {BOOKARG}, (?!null\b)({ARG}), ({ARG})\)"), r"settingValue(\1, \2, \3)", []),
+    (re.compile(rf"\bsettingsAt\(({ARG}), {BOOKARG}, (?!null\b)({ARG})\)"), r"settingsAt(\1, \2)", []),
+    (re.compile(rf"\bpageContext\(({ARG}), {BOOKARG}, (?!null\b)({ARG})\)"), r"pageContext(\1, \2)", []),
+    # ページのタイプで決まる物: ブックを渡していた引数を外す（外す引数は、ブックを指す名前のときだけ。流し直しても、ほかの引数を外さない）
+    (
+        re.compile(
+            rf"\b(growOf|slideOffsetOf|roomOf|tidyPage|frameOf|widenForCaption|itemAiPlaced|pageArea)\(({ARG}), {BOOKARG}, "
+        ),
+        r"\1(\2, ",
+        [],
+    ),
     # 付く先: ページを持つタイプ → どのブックにも
     (re.compile(r"attach: \{ pages: true \}"), "attach: { books: true }", []),
     # 開いているもの

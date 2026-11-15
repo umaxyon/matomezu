@@ -294,7 +294,7 @@ export const ITEM_UPDATE = kit.defineAction({
     if (!parsed || !page || !shapeThemeFits(ctx.catalog, book.type, given)) return null
     const item =
       (shapeDefOf(ctx.catalog, parsed.item)?.[kit.name("settle")]?.(parsed, now) as PlacedShape | undefined) ?? parsed
-    const wide = widenForCaption(ctx.catalog, book, page, now, item)
+    const wide = widenForCaption(ctx.catalog, page, now, item)
     const next =
       replaceAnywhere(ctx.catalog, book, page, wide, false) ??
       (wide !== item ? replaceAnywhere(ctx.catalog, book, page, item, false) : null)
