@@ -10,8 +10,7 @@ import (
 	"strings"
 )
 
-// Codex の MCP とフックの親は app-server（いくつもの会話を受け持つ）なので、フックはプロセス id を添えない（結び直しに使えない）。
-// セッションの終わりをどのプロセスで知るかは、実測だけが根拠なので sessionend（codex-session-end）に置く
+// Codex の MCP とフックの親は app-server（いくつもの会話を受け持つ）なので、フックはプロセス id を添えない（結び直しに使えない）
 
 // HooksSendHost は、フックが AI のプログラムのプロセス id を添えるか
 const HooksSendHost = false
