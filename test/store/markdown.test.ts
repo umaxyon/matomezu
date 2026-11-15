@@ -5,6 +5,7 @@ import { expect, test } from "bun:test"
 import { stagePlacesOf, withStagePlaces } from "../../web/src/core/address"
 import { pagesOf } from "../../web/src/core/book"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { growOf } from "../../web/src/plugins/base"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
@@ -277,7 +278,7 @@ test("ページを切り替えても、紙を変えても、ステージに紙�
   const { state, actions } = store
   addPageIn(store, "s1", { title: "ページ 2" })
   const [first, second] = pagesOf(book()).map(p => p.id) as [string, string]
-  expect(screenOf(state.getState().window).stages[0]!.opened?.page).toBe(second)
+  expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened ?? null)).toBe(second)
   actions.openPage("s1", first)
   expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: null })
   actions.perform("@matomezu/base:page-update", { page: first, paper: "@matomezu/base:a3" }, { book: id })

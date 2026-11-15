@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
-import { panBy, shownPageId } from "../../web/src/core/stage"
+import { openedPage, panBy, shownPageId } from "../../web/src/core/stage"
 import {
   close,
   currentStage,
@@ -92,7 +92,7 @@ describe("workspace", () => {
     const removed = withPages(book, [pagesOf(book)[0]!])
     expect(followBook(CORE_CATALOG, both, removed).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["p1", "p1"])
     const a3 = withPages(book, [pagesOf(book)[0]!, { ...pagesOf(book)[1]!, paper: "@matomezu/base:a3" }])
-    expect(followBook(CORE_CATALOG, both, a3).stages[0]!.opened?.paper).toMatchObject({
+    expect(openedPage(followBook(CORE_CATALOG, both, a3).stages[0]!.opened ?? null)?.paper).toMatchObject({
       status: "known",
       size: { w: 1587, h: 1123 },
     })
@@ -108,9 +108,11 @@ describe("workspace", () => {
         three,
         pagesOf(three).filter(p => p.id !== id),
       )
-    expect(followBook(CORE_CATALOG, at("p2"), without("p2"), three).stages[0]!.opened?.page).toBe("p3")
-    expect(followBook(CORE_CATALOG, at("p3"), without("p3"), three).stages[0]!.opened?.page).toBe("p2")
-    expect(followBook(CORE_CATALOG, at("p1"), withPages(three, []), three).stages[0]!.opened?.page).toBeNull()
+    expect(shownPageId(followBook(CORE_CATALOG, at("p2"), without("p2"), three).stages[0]!.opened ?? null)).toBe("p3")
+    expect(shownPageId(followBook(CORE_CATALOG, at("p3"), without("p3"), three).stages[0]!.opened ?? null)).toBe("p2")
+    expect(
+      shownPageId(followBook(CORE_CATALOG, at("p1"), withPages(three, []), three).stages[0]!.opened ?? null),
+    ).toBeNull()
   })
 
   test("ブックの一覧が変わると、無くなったブックを開いていたステージは何も開かない", () => {

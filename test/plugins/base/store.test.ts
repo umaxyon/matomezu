@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { shownPageId } from "../../../web/src/core/stage"
+import { shownPageId, shownType } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { currentStage } from "../../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
@@ -65,7 +65,10 @@ test("ブックを開いていないステージには、ページは足せな�
   const { state, actions } = newStore()
   actions.split("s1")
   const s = state.getState()
-  expect(screenOf(s.window).stages.map(st => st.opened?.type)).toEqual(["@matomezu/drawing:drawing", undefined])
+  expect(screenOf(s.window).stages.map(st => shownType(st.opened ?? null))).toEqual([
+    "@matomezu/drawing:drawing",
+    undefined,
+  ])
   expect(addPageIn({ state, actions }, "s2", { title: "x" })).toBe(false)
   expect(state.getState()).toBe(s)
 })

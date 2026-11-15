@@ -6,6 +6,7 @@ import {
   followBook,
   newStage,
   openBook,
+  openedPage,
   openPage,
   openPrintPreview,
   panBy,
@@ -211,10 +212,10 @@ test("位置をデータに持たない見せ方が、描く中身をずらし�
   // 左へ印刷区画 1 つ分あふれて、右へ印刷区画 2 つ分ずらすことになった
   const moved = setArea(at, { w: sheet.w * 4, h: sheet.h * 2 }, { x: 2, y: 0 })
   expect(moved.pan).toEqual({ x: at.pan.x - sheet.w, y: at.pan.y })
-  expect(moved.opened?.origin).toEqual({ x: 2, y: 0 })
+  expect(openedPage(moved.opened ?? null)?.origin).toEqual({ x: 2, y: 0 })
   // 同じ広さとずらした量なら同じ値。紙 1 枚に戻せば、ずらした量も無くなる
   expect(setArea(moved, { w: sheet.w * 4, h: sheet.h * 2 }, { x: 2, y: 0 })).toBe(moved)
-  expect(setArea(moved, null).opened?.origin).toBeUndefined()
+  expect(openedPage(setArea(moved, null).opened ?? null)?.origin).toBeUndefined()
 })
 
 test("開いたばかりのページは、知らせた初めの位置（start）を表示領域の左上に置く。紙の左上でなければ広さが届くまで待ち、動かしたあとや開き直すまでは合わせない", () => {
