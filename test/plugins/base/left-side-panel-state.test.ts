@@ -6,7 +6,7 @@ import {
 } from "../../../web/src/plugins/base/left-side-panel/state"
 
 const mail: LeftSidePanelEntry = { tab: "m", props: {} }
-const outbox = (stage: string): LeftSidePanelEntry => ({ tab: "o", props: { stage } })
+const outbox = (stage: string): LeftSidePanelEntry => ({ tab: "o", props: {}, stage })
 
 test("開くボタンを押したあとの左サイドパネル: 同じ組なら閉じ、違えば置き換え（開くタブは、今のタブが組にあればそのまま、無ければ最初）", () => {
   const both = [mail, outbox("s1")]

@@ -17,7 +17,7 @@ import { kit } from "../kit"
 import { POPUP_KEEPS } from "../utils/popup-keeps"
 import {
   PressClosedContext,
-  useCloseRightSidePanel,
+  useCloseRightSidePanelAt,
   useOpenedRightSidePanel,
   useStagesWithRightSidePanel,
 } from "./hooks"
@@ -39,7 +39,7 @@ export function RightSidePanel() {
   const widget = useUiCatalog().widgets.get(opened?.open.widget ?? "")
   const width = opened ? `min(${widget?.rightSidePanel?.width ?? WIDTH}px, 100vw)` : 0
   const ref = useRef<HTMLElement>(null)
-  const close = useCloseRightSidePanel()
+  const close = useCloseRightSidePanelAt()
   const read = useReadState()
   const catalog = useCoreCatalog()
   const pressClosed = useContext(PressClosedContext)
@@ -155,7 +155,7 @@ function useFollowSelection(stage: string | null) {
 function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: string | number }) {
   const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
-  const close = useCloseRightSidePanel()
+  const close = useCloseRightSidePanelAt()
   const view = useStageAt(stage)
   const stages = useMatomezuState(s => screenOf(s.window).stages.length)
   // 開いたら中にフォーカスを入れる（Esc を右サイドパネルのキーの範囲で受けるため。中の物がもう取っていれば、そのまま）

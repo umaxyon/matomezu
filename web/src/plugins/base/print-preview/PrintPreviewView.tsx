@@ -26,7 +26,7 @@ import { bookTitle } from "../book-open/book-title"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/items"
-import { useOpenRightSidePanel, useRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
+import { useOpenRightSidePanelAt, useRightSidePanelAt, useSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets, hasCrossing } from "./book-sheets"
@@ -99,7 +99,7 @@ export function PrintPreviewView() {
   const views = useUiCatalog().presentationViews
   const book = useBook()
   const pan = useStagePan()
-  const panel = useRightSidePanel(id)
+  const panel = useRightSidePanelAt(id)
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
   const read = useReadState()
   const lang = useMatomezuState(s => s.lang)
@@ -167,7 +167,7 @@ export function PrintPreviewView() {
     fitRef.current.run()
     fitted.current = { zoom: zoomOf(read, id), size }
   }, [known, size, shown, sliding, id, read])
-  const openPanel = useOpenRightSidePanel()
+  const openPanel = useOpenRightSidePanelAt()
   const seen = useRef(false) // 右サイドパネルに中身を出したか
   const opened = stage?.opened ?? null
   // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば（AI が印刷プレビューで開いた・開いている間に AI が動かした）、

@@ -130,7 +130,7 @@ const Rows = memo(function Rows({
   const drag = usePaperDrag(stage, area)
   const renamable = useAllowed(ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
   // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
-  const follows = useFollowsSelection(stage.id)
+  const follows = useFollowsSelection()
   const movable = useAllowed(ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
   const root = dirRootOf(page)
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる

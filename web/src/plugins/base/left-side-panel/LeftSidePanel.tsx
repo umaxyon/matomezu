@@ -9,7 +9,7 @@ import { kit } from "../kit"
 import { useCloseLeftSidePanel, useLeftSidePanel, useSetLeftSidePanelTab } from "./hooks"
 import styles from "./LeftSidePanel.module.css"
 import { LEFT_SIDE_PANEL } from "./slots"
-import type { LeftSidePanelOpen } from "./state"
+import type { LeftSidePanelEntry, LeftSidePanelOpen } from "./state"
 
 export const LEFT_SIDE_PANEL_WIDTH = 400 // 開いているときの幅（px。窓より広ければ窓の幅になる）
 
@@ -72,25 +72,18 @@ function Opened({ open, width }: { open: LeftSidePanelOpen; width: string | numb
         </button>
       </div>
       <div className={styles.body} role="tabpanel">
-        {current && <Content widget={current.tab} props={current.props} />}
+        {current && <Content entry={current} />}
       </div>
     </div>
   )
 }
 
-// 開いているタブの中身: 開いているタブのウィジェットを、開く側が渡した物のまま描く
-function Content({ widget, props }: { widget: string; props: unknown }) {
-  const View = useUiCatalog().widgets.get(widget)?.view as ((props: unknown) => ReactNode) | undefined
-  // 橋渡しの間: 渡す物に stage があれば、そのステージを描いている場所にする（最後は、開いた側の向け先をパネルの状態に持つ）
-  const stage = (props as { stage?: unknown } | null)?.stage
+// 開いているタブの中身: 開いているタブのウィジェットを、開く側が渡した物のまま描く。タブがステージを名指していれば、そのステージを描いている場所にする（ui/scope.tsx）
+function Content({ entry }: { entry: LeftSidePanelEntry }) {
+  const View = useUiCatalog().widgets.get(entry.tab)?.view as ((props: unknown) => ReactNode) | undefined
   if (!View) return null
-  return typeof stage === "string" ? (
-    <StageScope stage={stage}>
-      <View {...(props as object)} />
-    </StageScope>
-  ) : (
-    <View {...(props as object)} />
-  )
+  const view = <View {...(entry.props as object)} />
+  return entry.stage === undefined ? view : <StageScope stage={entry.stage}>{view}</StageScope>
 }
 
 // タブに出す数（未読など。0 なら出さない）

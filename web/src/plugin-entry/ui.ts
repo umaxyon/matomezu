@@ -74,7 +74,6 @@ export {
   Section,
   SelectButton,
   SettingRow,
-  type SettingsCategoryProps,
   STAGE_BASE_SLOTS,
   type StageSlotProps,
   type Swatch,

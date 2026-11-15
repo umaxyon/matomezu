@@ -2,16 +2,15 @@
 // そのページを開く。根のフォルダの名前の初めの値はページ名と同じ。紙と紙の向きはブックのタイプの既定
 import { useState } from "react"
 import { pagedOf } from "../../../plugin-api"
-import { type DialogProps, useBook, useMessages, useStage } from "../../../plugin-api/ui"
+import { type DialogProps, useBook, useMessages } from "../../../plugin-api/ui"
 import { nextPageTitle } from "../../base"
 import { controlClass, Dialog, Field, Form, useAddPage } from "../../base/ui"
 import { kit } from "./kit"
 
 export function NewDirPageDialog({ onClose }: DialogProps) {
-  const stage = useStage()?.id ?? ""
   const t = useMessages(kit)
   const book = pagedOf(useBook())
-  const addPage = useAddPage(stage)
+  const addPage = useAddPage()
   const [title, setTitle] = useState(() => (book ? nextPageTitle(book, t) : ""))
   const [name, setName] = useState<string | null>(null) // null はページ名と同じ
   if (!book) return null

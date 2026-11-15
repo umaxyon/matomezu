@@ -116,7 +116,6 @@ const local = (e: PointerEvent<Element>, el: Element): Point => {
 
 export function PaperView() {
   const stage = useStage()
-  const id = stage?.id ?? ""
   const openMenu = useContextMenu(PAPER_CONTEXT)
   const place = useCommand(PAPER_PLACE.id)
   const { select } = useActionsHere()
@@ -129,7 +128,7 @@ export function PaperView() {
   const page = usePage()
   const toPaperAt = useToPaper()
   const sweep = useRef<Sweep | null>(null)
-  const followed = useFollowsSelection(id)
+  const followed = useFollowsSelection()
   const placed = usePlaceTarget(placing ? pointer : null) // 置こうとしている間の、押すと置く所
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
@@ -296,7 +295,7 @@ function PageItems({
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
   const book = useBook()
-  const followed = useFollowsSelection(stage.id)
+  const followed = useFollowsSelection()
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
   const room = useMemo(
     () => (book && growOf(catalog, book, page) ? roomOf(catalog, book, page) : null),

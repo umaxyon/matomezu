@@ -3,6 +3,7 @@ import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { sameData } from "../../../core/same"
 import { screenOf } from "../../../core/window"
+import { useStageId } from "../../../ui/scope"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useLeftSidePanel, useToggleLeftSidePanel } from "../left-side-panel/hooks"
 import { mailboxOf } from "."
@@ -26,13 +27,14 @@ export function useOpenMail(): (id: string) => void {
   )
 }
 
-// 郵便箱の左サイドパネル（郵便箱と、ステージ stage の送信トレイ）を開閉する。open は、今その組を開いているか。
+// 郵便箱の左サイドパネル（郵便箱と、送信トレイ）を開閉する。open は、今その組を開いているか。
 // 開く側のウィジェットは、MAILBOX_OPENS を opens に書く（郵便箱のタブの中身が開けるスロットを使うため）
-// stage を渡さなければ（ステージを持たないスクリーンから開くとき）、送信トレイは、いちばん最近カレントにしたブックスクリーンのカレントのステージの物
-export function useMailboxPanel(stage?: string): { open: boolean; toggle: () => void } {
+// 送信トレイは、描いている場所（ui/scope.tsx）のステージの物。ステージを持たないスクリーンから開くときは、いちばん最近カレントにしたブックスクリーンのカレントのステージの物
+export function useMailboxPanel(): { open: boolean; toggle: () => void } {
   const panel = useLeftSidePanel()
   const toggle = useToggleLeftSidePanel()
+  const here = useStageId()
   const recent = useMatomezuState(s => screenOf(s.window).current)
-  const entries = mailboxEntries(stage ?? recent)
+  const entries = mailboxEntries(here ?? recent)
   return { open: !!panel && sameData(panel.entries, entries), toggle: () => toggle(entries) }
 }

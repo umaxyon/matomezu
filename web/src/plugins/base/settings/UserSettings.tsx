@@ -21,7 +21,7 @@ import { SETTINGS_CATEGORIES } from "./settings-screen"
 import styles from "./UserSettings.module.css"
 import { type AutoInput, autoInputOf } from "./user-settings"
 
-export function UserSettings({ settings }: { stage: string; settings?: readonly string[] | undefined }) {
+export function UserSettings({ settings }: { settings?: readonly string[] | undefined }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().userSettingViews

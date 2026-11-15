@@ -8,7 +8,6 @@
 // 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import type { Bird } from "../birds"
 import { BirdWalk, birdClass, FRONT, frameStyle } from "../birds/BirdWalk"
@@ -33,8 +32,7 @@ const ALERT = 18 // びっくりマークの丸の大きさ
 const arriving = new Set<string>()
 
 export function MarkLayer() {
-  const stage = useStageId() ?? ""
-  const marks = useAnnotationsOf(stage, MARK.id)
+  const marks = useAnnotationsOf(MARK.id)
   const picker = useAnchorTargets(MARK_PICKER)
   return (
     <>

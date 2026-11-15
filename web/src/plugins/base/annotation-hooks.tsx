@@ -2,9 +2,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Annotation, unexpired } from "../../core/annotation"
-import { stageIn } from "../../core/window"
 import { useActions, useMatomezuState } from "../../ui/store-context"
 import { useCoreCatalog, usePerform } from "../../ui/view-hooks"
+import { useBookOf } from "./item-parts/parts"
 import { kit } from "./kit"
 import { refusalMessage } from "./utils/refusal"
 
@@ -23,10 +23,10 @@ function useNow(): string {
   return now
 }
 
-// ステージで開いているブックの、全部のアノテーション。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
-export function useAnnotationsIn(stage: string): readonly Annotation[] {
+// 描いている場所のブックの、全部のアノテーション。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
+export function useAnnotationsIn(): readonly Annotation[] {
   const catalog = useCoreCatalog()
-  const book = useMatomezuState(s => stageIn(s.window, stage)?.opened?.book ?? null)
+  const book = useBookOf() ?? null
   const all = useMatomezuState(s => (book && s.annotations[book]) || NONE)
   const settings = useMatomezuState(s => s.settings)
   const locked = useMatomezuState(
@@ -36,9 +36,9 @@ export function useAnnotationsIn(stage: string): readonly Annotation[] {
   return useMemo(() => unexpired(catalog, all, settings, now, new Set(locked)), [catalog, all, settings, now, locked])
 }
 
-// ステージで開いているブックの、種類 annotation のアノテーション
-export function useAnnotationsOf(stage: string, annotation: string): readonly Annotation[] {
-  const all = useAnnotationsIn(stage)
+// 描いている場所のブックの、種類 annotation のアノテーション
+export function useAnnotationsOf(annotation: string): readonly Annotation[] {
+  const all = useAnnotationsIn()
   return useMemo(() => all.filter(a => a.annotation === annotation), [all, annotation])
 }
 

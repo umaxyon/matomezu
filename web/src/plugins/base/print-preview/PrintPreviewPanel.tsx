@@ -31,7 +31,7 @@ export function PrintPreviewPanel() {
   const catalog = useCatalog().core
   const ui = useUiCatalog()
   const book = useBook()
-  const open = useRightSidePanel(stage)
+  const open = useRightSidePanel()
   const close = useCloseRightSidePanel()
   const perform = usePerform()
   const previewing = useMatomezuState(s => {
@@ -45,7 +45,7 @@ export function PrintPreviewPanel() {
   const lockable = useAllowed(book?.locked ? BOOK_UNLOCK.id : BOOK_LOCK.id).ok
   const mine = open?.widget === PRINT_PREVIEW_PANEL_ID
   useEffect(() => {
-    if (mine && !previewing) close(stage)
+    if (mine && !previewing) close()
   }, [mine, previewing, close, stage])
   if (!book || !mine) return null
   const locked = book.locked === true

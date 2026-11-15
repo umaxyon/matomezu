@@ -5,6 +5,7 @@ import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { useSetPluginStateAt } from "../../../ui/at-hooks"
+import { useStageId } from "../../../ui/scope"
 import { useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { REVEALING_STATE } from "./reveal-state"
@@ -22,4 +23,16 @@ export function useRequestReveal(): (stage: string, ids: readonly string[]) => v
 export function useClearRevealRequest(): (stage: string) => void {
   const set = useSetPluginStateAt(kit, REVEALING_STATE)
   return useCallback((stage: string) => set(stage, undefined), [set])
+}
+
+// 描いている場所のステージで、物 ids を見せてと頼む関数（描いている場所がステージでなければ、何もしない）
+export function useRevealHere(): (ids: readonly string[]) => void {
+  const stage = useStageId()
+  const reveal = useRequestReveal()
+  return useCallback(
+    ids => {
+      if (stage !== null) reveal(stage, ids)
+    },
+    [stage, reveal],
+  )
 }

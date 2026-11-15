@@ -4,8 +4,7 @@ import { kit } from "../kit"
 
 export const ANNOTATION_ICON = kit.name("annotation-icon")
 
-// 送信トレイの行の絵のスロットに渡す物: 開いたステージと、行のアノテーション
+// 送信トレイの行の絵のスロットに渡す物: 行のアノテーション
 export interface AnnotationIconProps {
-  stage: string
   annotation: Annotation
 }

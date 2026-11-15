@@ -99,11 +99,11 @@ function useScrapFrame() {
 
 // スクラップトレイを開く側が、左サイドパネルに渡すタブの組（スクラップトレイだけ）
 const scrapTrayEntries = (stage: string): readonly LeftSidePanelEntry[] => [
-  { tab: SCRAP_TRAY_TAB_ID, props: { stage } },
+  { tab: SCRAP_TRAY_TAB_ID, props: {}, stage },
 ]
 
-// スクラップトレイ（開く側が、置くステージ stage を渡す）。そのステージで置けないブックに替わったら閉じる
-function ScrapTrayView(_props: { stage: string }) {
+// スクラップトレイ（描いている場所は、開く側が名指した、置くステージ）。そのステージで置けないブックに替わったら閉じる
+function ScrapTrayView() {
   const t = useMessages(kit)
   const placeable = useScrapFrame() !== null
   const close = useCloseLeftSidePanel()
@@ -189,7 +189,7 @@ function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   )
 }
 
-export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID, { stage: string }>({
+export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID>({
   id: SCRAP_TRAY_TAB_ID,
   title: kit.message("Scrap tray"),
   opens: [SHEET_LAYERS], // 一覧の絵（ScrapView）が、ページの中身のレイヤーを描く

@@ -1,11 +1,13 @@
-// ブックを作って開くフック: アクション book-create でブックを作り、ステージ stage で開いてカレントにする（create-book.ts の createBookIn）。
+// ブックを作って開くフック: アクション book-create でブックを作り、描いている場所（ui/scope.tsx）のステージで開いてカレントにする（create-book.ts の createBookIn）。
 // 作れたかを返す
 import type { ArgsOf } from "../../../core/perform"
+import { useStageId } from "../../../ui/scope"
 import { useInstance } from "../../../ui/store-context"
 import type { BOOK_CREATE } from "./book-create"
 import { createBookIn } from "./create-book"
 
-export function useCreateBook(stage: string): (args: ArgsOf<typeof BOOK_CREATE.id>) => boolean {
+export function useCreateBook(): (args: ArgsOf<typeof BOOK_CREATE.id>) => boolean {
   const instance = useInstance()
-  return args => createBookIn(instance, stage, args)
+  const stage = useStageId()
+  return args => stage !== null && createBookIn(instance, stage, args)
 }

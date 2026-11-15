@@ -116,7 +116,7 @@ export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
         {Actions ? (
           <>
             <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
-            <Actions stage={stage} mail={mail} onClose={onClose} dock={() => setDocked(true)} />
+            <Actions mail={mail} onClose={onClose} dock={() => setDocked(true)} />
           </>
         ) : opens ? (
           <>

@@ -3,7 +3,7 @@
 // 紙に収まらないなど断られたら、閉じずに理由を出す。「元のページを開く」で、このステージで元のページを開いて閉じる
 import { useState } from "react"
 import type { ItemProps, ShapeEditArgs } from "../../../plugin-api"
-import { type DialogProps, useCoreCatalog, useItemAt, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
+import { type DialogProps, useCoreCatalog, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
@@ -30,7 +30,6 @@ export function EditScrapBoxDialog({ args, onClose }: DialogProps<ShapeEditArgs>
 }
 
 function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapProps; onClose: () => void }) {
-  const stage = useStage()?.id ?? ""
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const perform = usePerform()
@@ -71,7 +70,7 @@ function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapPro
         <ScrapForm
           value={scrap}
           onChange={next => setValue(line === undefined ? next : { ...next, line })}
-          opens={{ stage, onOpened: onClose, edited: JSON.stringify(value) !== JSON.stringify(start) }}
+          opens={{ onOpened: onClose, edited: JSON.stringify(value) !== JSON.stringify(start) }}
           side={
             <div className={rowClass}>
               <span>{t("Border")}</span>

@@ -3,7 +3,6 @@
 // またいだ形が無くなれば、印刷プレビューを開くボタンを出す
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
 import { useCatalog } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -15,11 +14,10 @@ import { PRINT_CHECK_PANEL_ID, printCheckOpen } from "./panel-id"
 import { ShapeBadges } from "./ShapeBadges"
 
 export function PrintCheckPanel() {
-  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const book = useBook()
-  const open = useRightSidePanel(stage)
+  const open = useRightSidePanel()
   const reopen = useOpenRightSidePanel()
   const preview = useCommand(PRINT_PREVIEW_OPEN.id)
   if (!book || open?.widget !== PRINT_CHECK_PANEL_ID) return null
@@ -27,7 +25,7 @@ export function PrintCheckPanel() {
   const crossing = found.flatMap(f => f.crossing.map(id => ({ page: f.page, id })))
   const oversized = found.flatMap(f => f.oversized.map(id => ({ page: f.page, id })))
   // ほかのページの形へ移ると右サイドパネルは閉じるので、開き直す
-  const keep = () => reopen(stage, printCheckOpen(book.id))
+  const keep = () => reopen(printCheckOpen(book.id))
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>

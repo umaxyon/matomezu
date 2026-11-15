@@ -148,7 +148,7 @@ function SlidePageView({
   const book = useShownBook()
   const page = useShownPage()
   const catalog = useCoreCatalog()
-  const followed = useFollowsSelection(stage.id)
+  const followed = useFollowsSelection()
   const toPaperAt = useToPaper()
   const { select, setEditing, continueStep } = useActionsHere()
   const put = useCommand(SLIDE_PUT.id)

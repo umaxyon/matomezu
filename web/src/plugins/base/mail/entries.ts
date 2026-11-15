@@ -5,5 +5,5 @@ import { MAILBOX_TAB_ID } from "./tab-id"
 
 export const mailboxEntries = (stage: string): readonly LeftSidePanelEntry[] => [
   { tab: MAILBOX_TAB_ID, props: {} },
-  { tab: OUTBOX_TAB_ID, props: { stage } },
+  { tab: OUTBOX_TAB_ID, props: {}, stage },
 ]

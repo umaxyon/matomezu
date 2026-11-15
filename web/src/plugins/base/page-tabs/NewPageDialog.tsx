@@ -3,7 +3,6 @@ import { useState } from "react"
 import { hasPages, type PagedBook } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useStageId } from "../../../ui/scope"
 import { useBook } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
@@ -24,9 +23,8 @@ export function NewPageDialog({ onClose }: DialogProps) {
 }
 
 function NewPageForm({ book, onDone }: { book: PagedBook; onDone: () => void }) {
-  const stage = useStageId() ?? ""
   const t = useMessages(kit)
-  const addPage = useAddPage(stage)
+  const addPage = useAddPage()
   const [title, setTitle] = useState(() => nextPageTitle(book, t))
   const paper = usePaperControls(book, null)
   return (

@@ -36,7 +36,7 @@ import {
   SHEET_CONTENT,
 } from "./print-preview/ui"
 import { SEARCH_DIALOG } from "./search/ui"
-import { GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY, type SettingsCategoryProps } from "./settings/categories"
+import { GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY } from "./settings/categories"
 import { SETTINGS_ICONS } from "./settings/icons"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
 import {
@@ -150,7 +150,7 @@ export {
   useSearchHits,
   useSearchPick,
 } from "./search/highlights"
-export { defineSettingsCategory, type SettingsCategoryProps } from "./settings/categories"
+export { defineSettingsCategory } from "./settings/categories"
 export { SettingRow } from "./settings/SettingRow"
 export { UserSettings } from "./settings/ui"
 export {
@@ -285,7 +285,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:footer-menu-basics": StageSlotProps
     "@matomezu/base:footer-menu-book-tools": StageSlotProps
     "@matomezu/base:right-side-panel": StageSlotProps
-    "@matomezu/base:settings-categories": SettingsCategoryProps
+    "@matomezu/base:settings-categories": Record<string, never>
     "@matomezu/base:annotation-icon": AnnotationIconProps
     "@matomezu/base:corner-statuses": CornerStatusProps
   }

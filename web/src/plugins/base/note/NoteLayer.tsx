@@ -49,7 +49,7 @@ const TAIL_H = 16
 
 export function NoteLayer() {
   const stage = useStageId() ?? ""
-  const notes = useAnnotationsOf(stage, NOTE.id)
+  const notes = useAnnotationsOf(NOTE.id)
   return (
     <>
       {notes.map(n => {
@@ -68,8 +68,8 @@ export function NoteLayer() {
 function useOpenNote(stage: string, note: string, anchors: readonly string[]) {
   const openPanel = useOpenRightSidePanel()
   const closePanel = useCloseRightSidePanel()
-  const shown = useRightSidePanel(stage)
-  const follows = useFollowsSelection(stage)
+  const shown = useRightSidePanel()
+  const follows = useFollowsSelection()
   const read = useReadState()
   const { select } = useActionsHere()
   const anchor = anchors.at(-1) ?? ""
@@ -84,8 +84,8 @@ function useOpenNote(stage: string, note: string, anchors: readonly string[]) {
     follows
       ? pick(e)
       : shown && shown.subject !== note
-        ? closePanel(stage)
-        : openPanel(stage, { widget: NOTE_PANEL_ID, subject: note, anchors, current: anchor })
+        ? closePanel()
+        : openPanel({ widget: NOTE_PANEL_ID, subject: note, anchors, current: anchor })
   return { open, busy }
 }
 

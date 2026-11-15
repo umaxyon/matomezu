@@ -28,13 +28,13 @@ const BADGE_CHARS = 10 // バッジに出す、名前の始めの字数
 
 export function NotePanel() {
   const stage = useStageId() ?? ""
-  const open = useRightSidePanel(stage)
-  const notes = useAnnotationsOf(stage, NOTE.id)
+  const open = useRightSidePanel()
+  const notes = useAnnotationsOf(NOTE.id)
   const close = useCloseRightSidePanel()
   const note = open ? notes.find(n => n.id === open.subject) : undefined
   const gone = !!open && open.subject !== NEW_NOTE && !note
   useEffect(() => {
-    if (gone) close(stage)
+    if (gone) close()
   }, [gone, close, stage])
   if (!open || (open.subject !== NEW_NOTE && !note)) return null
   return (
@@ -77,17 +77,10 @@ function Badges({ open }: { open: RightSidePanelOpen }) {
 }
 
 function Badge({ id, current }: { id: string; current: boolean }) {
-  const stage = useStageId() ?? ""
   const setCurrent = useSetRightSidePanelCurrent()
   const name = useAnchorName(id)
   return (
-    <button
-      type="button"
-      className={styles.badge}
-      aria-pressed={current}
-      title={name}
-      onClick={() => setCurrent(stage, id)}
-    >
+    <button type="button" className={styles.badge} aria-pressed={current} title={name} onClick={() => setCurrent(id)}>
       {clampChars(name, BADGE_CHARS)}
     </button>
   )
@@ -113,7 +106,6 @@ function Lost({ anchors }: { anchors: readonly string[] }) {
 
 // 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）
 function NewNote({ open }: { open: RightSidePanelOpen }) {
-  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const run = usePerformOrToast("The note was refused")
   const close = useCloseRightSidePanel()
@@ -121,7 +113,7 @@ function NewNote({ open }: { open: RightSidePanelOpen }) {
   const [text, setText] = useState("")
   const ready = addable && NoteTextSchema.safeParse(text).success && open.anchors.length > 0
   const add = () => {
-    if (ready && run(NOTE_ADD.id, { anchors: ordered(open), text })) close(stage)
+    if (ready && run(NOTE_ADD.id, { anchors: ordered(open), text })) close()
   }
   return (
     <>
@@ -154,7 +146,6 @@ function NoteEditor({
   props: NoteProps
   open: RightSidePanelOpen
 }) {
-  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const run = usePerformOrToast("The note was refused")
   const close = useCloseRightSidePanel()
@@ -179,7 +170,7 @@ function NoteEditor({
       ...(textChanged ? { text } : {}),
       ...(moved ? { anchors: next } : {}),
     })
-    if (done) close(stage)
+    if (done) close()
   }
   return (
     <>

@@ -33,7 +33,7 @@ interface Shown {
 
 export function NoteBirds() {
   const stage = useStageId() ?? ""
-  const open = useRightSidePanel(stage)
+  const open = useRightSidePanel()
   const anchors = open?.widget === NOTE_PANEL_ID ? open.anchors : NONE
   const [shown, setShown] = useState<readonly Shown[]>([])
   const readBirds = useReadPluginState(kit, NOTE_BIRDS)
@@ -79,7 +79,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
     const timer = setTimeout(onGone, LEAVE * 1000 + 500)
     return () => clearTimeout(timer)
   }, [shown.leaving, onGone])
-  const remove = () => takeOff(stage, shown.anchor)
+  const remove = () => takeOff(shown.anchor)
   const removeAsk = useRemoveAsk(remove)
   const name = useAnchorName(shown.anchor)
   return (
@@ -103,7 +103,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
                 className={birdClass}
                 aria-label={t("Bird of the note")}
                 onClick={() => {
-                  setCurrent(stage, shown.anchor)
+                  setCurrent(shown.anchor)
                   toggle()
                 }}
                 style={style}

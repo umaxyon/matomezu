@@ -9,7 +9,8 @@ import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope } from "../../../ui/scope"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useActionsHere } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { pageArea } from "../place/items"
 import { useResize } from "../utils/useResize"
@@ -42,11 +43,11 @@ export function ScrapForm({
   value: Scrap
   onChange: (next: Scrap) => void
   side?: ReactNode // 絵の右の列に置く物（使う側の設定の入力Form など）
-  opens?: { stage: string; onOpened: () => void; edited: boolean } // edited: 使う側の値を直したか（直した後は開けない。直した分を黙って捨てないため）
+  opens?: { onOpened: () => void; edited: boolean } // edited: 使う側の値を直したか（直した後は開けない。直した分を黙って捨てないため）
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const { openPageById } = useActions()
+  const { openPageById } = useActionsHere()
   const found = useMatomezuState(
     useShallow(s => {
       const at = pageById(s.books, value.page)
@@ -133,7 +134,7 @@ export function ScrapForm({
             disabled={opens.edited}
             title={opens.edited ? t("Decide or cancel the changes first") : undefined}
             onClick={() => {
-              openPageById(opens.stage, value.page)
+              openPageById(value.page)
               opens.onOpened()
             }}
           >

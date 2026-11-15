@@ -3,10 +3,12 @@
 import { sameData } from "../../../core/same"
 import { kit } from "../kit"
 
-// 開く側が渡す、タブ 1 つ分: タブのウィジェットの id と、そのタブの view に渡す物（関数を含まない、データだけ）
+// 開く側が渡す、タブ 1 つ分: タブのウィジェットの id と、そのタブの view に渡す物（関数を含まない、データだけ）と、
+// そのタブの中身を描く場所にするステージ（あるステージの物を見せるタブ。無ければ、左サイドパネルの置かれた所のまま）
 export interface LeftSidePanelEntry {
   tab: string
   props: unknown
+  stage?: string
 }
 
 // 開いている左サイドパネル: 渡されたタブの組と、開いているタブ（組の中のタブの id）

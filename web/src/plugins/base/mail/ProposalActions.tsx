@@ -4,6 +4,7 @@
 // 反映した・失敗した郵便は、ボタンを出さずに、その時刻を出す
 import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useActions, useReadState } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
@@ -23,7 +24,8 @@ export function ProposalActions(at: MailActionsProps) {
   return props ? <Proposal {...at} props={props} /> : null
 }
 
-function Proposal({ stage, mail, onClose, dock, props }: MailActionsProps & { props: ProposalProps }) {
+function Proposal({ mail, onClose, dock, props }: MailActionsProps & { props: ProposalProps }) {
+  const stage = useStageId() // 郵便のダイアログを開いたステージ（ステージを持たないスクリーンから開いたなら無く、行き先は開かない）
   const t = useMessages(kit)
   const actions = useActions()
   const read = useReadState()
@@ -48,6 +50,7 @@ function Proposal({ stage, mail, onClose, dock, props }: MailActionsProps & { pr
     const to = mail.to
     if (!to) return
     dock()
+    if (stage === null) return
     actions.showStage(stage)
     if (stageIn(read().window, stage)?.opened?.book !== to.book) actions.openBook(stage, to.book)
     if (to.page) actions.openPage(stage, to.page)

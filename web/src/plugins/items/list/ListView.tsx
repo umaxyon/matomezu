@@ -239,7 +239,7 @@ export function ListView({
   const { select } = useActionsHere()
   const at = useStage()
   const selection = at?.selection ?? []
-  const followed = useFollowsSelection(at?.id ?? "")
+  const followed = useFollowsSelection()
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
   const pans = at?.pans === true
   const stretch = useRef<Stretch | null>(null)
