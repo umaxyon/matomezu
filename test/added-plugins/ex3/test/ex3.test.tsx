@@ -71,7 +71,11 @@ test("ボードは自分の紙（正方形）で始まり、星とビルトイ�
       ok: true,
     })
     expect(
-      instance.actions.perform("@matomezu/base:book-update", { settings: { "ex3:board-grid": true } }, on),
+      instance.actions.perform(
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "ex3:board-grid": true } },
+        on,
+      ),
     ).toMatchObject({
       ok: true,
     })

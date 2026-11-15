@@ -255,8 +255,8 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   expect(elbow()).toBe(true)
   expect(
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/line:line-route": "straight" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/line:line-route": "straight" } },
       { book: "b1" },
     ).ok,
   ).toBe(true)
@@ -278,8 +278,8 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   expect(elbow()).toBe(false)
   expect(
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/line:line-route": null } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/line:line-route": null } },
       { book: "b1" },
     ).ok,
   ).toBe(true)
@@ -319,7 +319,12 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   expect(usesLines(noLines, book)).toBe(false)
   expect(perform(book, "@matomezu/line:line-connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)
   expect(
-    perform(book, "@matomezu/base:book-update", { settings: { "@matomezu/line:line-route": "straight" } }, ctx).ok,
+    perform(
+      book,
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/line:line-route": "straight" } },
+      ctx,
+    ).ok,
   ).toBe(false)
   expect(
     perform(
@@ -333,6 +338,11 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   const ok = { ...ctx, catalog: CORE_CATALOG }
   expect(perform(book, "@matomezu/line:line-connect", { page: "p1", from: "n1", to: "n2" }, ok).ok).toBe(true)
   expect(
-    perform(book, "@matomezu/base:book-update", { settings: { "@matomezu/line:line-route": "straight" } }, ok).ok,
+    perform(
+      book,
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/line:line-route": "straight" } },
+      ok,
+    ).ok,
   ).toBe(true)
 })

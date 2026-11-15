@@ -25,15 +25,16 @@ test("@matomezu/base:book-update・@matomezu/base:page-update は、ブックの
   const book = () => store.state.getState().books.b1 as Book
   expect(
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/line:line-route": "straight" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/line:line-route": "straight" } },
       { book: "b1" },
     ).ok,
   ).toBe(true)
   expect(book().settings?.["@matomezu/line:line-route"]).toBe("straight")
-  expect(store.actions.perform("@matomezu/base:book-update", { settings: { color: "red" } }, { book: "b1" }).ok).toBe(
-    false,
-  )
+  expect(
+    store.actions.perform("@matomezu/base:pages-update", { pages: "all", settings: { color: "red" } }, { book: "b1" })
+      .ok,
+  ).toBe(false)
   expect(
     store.actions.perform(
       "@matomezu/base:page-update",
@@ -130,8 +131,8 @@ test("ブックの設定の項目も、変えるときの値の形は機能台�
   const store = newStore()
   const theme = (id: string) =>
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/base:page-theme": id } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/base:page-theme": id } },
       { book: "b1" },
     ).ok
   expect(theme("@matomezu/base:sticky")).toBe(true)

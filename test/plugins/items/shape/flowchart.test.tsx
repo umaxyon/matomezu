@@ -101,18 +101,18 @@ test("形の追加のダイアログでキャプションを決めて置き、�
   expect(shapesOf(page()).find(i => i.id === hexagon.id)?.props).toMatchObject({ caption: "準備する" })
 })
 
-test("流れの向きはブックの設定で、既定は下へ。右へに変えられる", () => {
-  const { store, on, book } = flowchart()
+test("流れの向きはページの設定で、既定は下へ。右へに変えられる", () => {
+  const { store, on, page } = flowchart()
   act(() => {
     expect(
       store.actions.perform(
-        "@matomezu/base:book-update",
-        { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
         on,
       ).ok,
     ).toBe(true)
   })
-  expect(book().settings).toMatchObject({ "@matomezu/flowchart:flow-direction": "right" })
+  expect(page().settings).toMatchObject({ "@matomezu/flowchart:flow-direction": "right" })
 })
 
 test("形は辺の真ん中（頂点）だけに線をつなぎ、平行四辺形と台形は食い込みの半分だけ内側につなぐ。箱はふち全体", () => {
@@ -212,8 +212,8 @@ test("流れの向きが右へのブックの自動で整列は、本筋を横�
   const ids = chart(f)
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
   })
@@ -444,8 +444,8 @@ test("キャプションで形が広がるとき、流れが下へなら横の�
   expect(Math.abs(rect().x + rect().w / 2 - center)).toBeLessThanOrEqual(1)
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
   })
@@ -479,8 +479,8 @@ test("台形は向きを持つ: 横向きなら反時計回りに 90 度回し�
   expect(areas().get(sideways!.id)).toMatchObject({ x: sideways!.x, y: sideways!.y + TURNED_SLANT / 2 })
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
   })
@@ -507,8 +507,8 @@ test("台形の編集のダイアログで向きを切り替えると、幅と�
   expect(size()).toMatchObject({ w: h, h: w })
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
   })
@@ -524,8 +524,8 @@ test("確認のダイアログで「台形の向きを合わせる」をオン�
   const { store, on, page } = f
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
     store.actions.perform(
@@ -551,8 +551,8 @@ test("90 度回転した台形は、キャプションが伸びたら縦に広�
   const { store, on, page } = flowchart()
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
     store.actions.perform(
@@ -586,8 +586,8 @@ test("確認のダイアログの切り替えは、仲間の形をまとめた�
   const { store, on, page } = flowchart()
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
     store.actions.perform(

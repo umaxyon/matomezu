@@ -7,14 +7,14 @@ import { kit } from "./kit"
 // 開いているブックのテーマをミントにする（ほかの作り手のタイプのブックにも、そのタイプが図のテーマタイプを使えば使える）
 export const USE_MINT = kit.defineCommand({
   id: "mint",
-  performs: ["@matomezu/base:book-update"],
+  performs: ["@matomezu/base:pages-update"],
   permissionScope: "book",
   title: "useMint",
   run: (ctx, a) => {
     if (ctx.book)
       a.perform(
-        "@matomezu/base:book-update",
-        { settings: { "@matomezu/base:page-theme": MINT.id } },
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "@matomezu/base:page-theme": MINT.id } },
         { book: ctx.book.id },
       )
   },

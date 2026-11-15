@@ -71,7 +71,11 @@ test("フローのブックに判断のひし形とビルトインの箱を置�
       ok: true,
     })
     expect(
-      instance.actions.perform("@matomezu/base:book-update", { settings: { "ex2:flow-direction": "right" } }, on),
+      instance.actions.perform(
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "ex2:flow-direction": "right" } },
+        on,
+      ),
     ).toMatchObject({
       ok: true,
     })

@@ -56,7 +56,11 @@ test("ページを作るボタンでツリーのダイアログが開き、ペ�
 test("新しいページの伸びる向きは「ブック継承」から始まり、そのままならページに書かない（あとでブックの向きを変えると、ページも従う）", () => {
   const { store, id, book } = setup()
   act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+    store.actions.perform(
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/tree:grow": "right" } },
+      { book: id },
+    )
   })
   fireEvent.click(screen.getByRole("button", { name: "ページを作る" }))
   const dialog = screen.getByRole("dialog", { name: "新しいページ" })
@@ -68,7 +72,11 @@ test("新しいページの伸びる向きは「ブック継承」から始ま�
   const root = () => screen.getByRole("img", { name: "紙" }).querySelector('[data-root="true"]') as HTMLElement
   expect(Number.parseFloat(root().style.left)).toBe(24) // ブックの右へ
   act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "down" } }, { book: id })
+    store.actions.perform(
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/tree:grow": "down" } },
+      { book: id },
+    )
   })
   expect(Number.parseFloat(root().style.top)).toBe(24) // ブックの下へに従う
 })
@@ -469,7 +477,11 @@ test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足�
 test("中央の木の根で Tab を押すと、子の少ない向きへ子を足す", () => {
   const { store, id, book } = setup()
   act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "center" } }, { book: id })
+    store.actions.perform(
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/tree:grow": "center" } },
+      { book: id },
+    )
   })
   addTree(store, id, { caption: "根", children: [{ caption: "上", side: "up" }] })
   fireEvent.keyDown(window, { key: "Tab" })
@@ -546,7 +558,11 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
 test("中央の木の根には上下左右の 4 つの＋が出て、押した向きへ伸びる子を足す", () => {
   const { store, id, book } = setup()
   act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "center" } }, { book: id })
+    store.actions.perform(
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/tree:grow": "center" } },
+      { book: id },
+    )
   })
   addTree(store, id, { caption: "根" })
   const paper = () => screen.getByRole("img", { name: "紙" })
@@ -603,7 +619,11 @@ const MOST_RIGHT = (() => {
 test("節を足すのが紙に入らなければ、node-add は断る。＋で断られたらトースト「紙に入りません」を出し、空の子は残らない", () => {
   const { store, id, book } = setup()
   act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+    store.actions.perform(
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/tree:grow": "right" } },
+      { book: id },
+    )
   })
   const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
   const root = done.fields!.root
@@ -627,7 +647,11 @@ test("節を足すのが紙に入らなければ、node-add は断る。＋で�
 test("向きを変えると紙に入らなくなるなら、ページとブックの設定の変更は断る。設定のダイアログは、確定の前から入らないページの名前と知らせを出し、確定できない", () => {
   const { store, id, book } = setup()
   act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+    store.actions.perform(
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/tree:grow": "right" } },
+      { book: id },
+    )
   })
   expect(fitsWith(MOST_RIGHT, "down")).toBe(false) // 右へなら入り、下へなら入らない数
   const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
@@ -640,8 +664,11 @@ test("向きを変えると紙に入らなくなるなら、ページとブッ�
       ).ok,
     ).toBe(false)
     expect(
-      store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "down" } }, { book: id })
-        .ok,
+      store.actions.perform(
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "@matomezu/tree:grow": "down" } },
+        { book: id },
+      ).ok,
     ).toBe(false)
   })
   expect(book()).toMatchObject({ settings: { "@matomezu/tree:grow": "right" } })
@@ -797,7 +824,11 @@ test("ツリーのページの設定の鍵でページをロックし、ロッ�
 test("ツリーのページの設定でも、選んでいる値で木が紙に入らなければ、確定の前から知らせを出して確定できない", () => {
   const { store, id } = setup()
   act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+    store.actions.perform(
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/tree:grow": "right" } },
+      { book: id },
+    )
   })
   const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
   act(() => store.actions.openDialog("s1", "@matomezu/tree:page-settings", { page: done.page }))
