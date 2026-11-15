@@ -156,7 +156,7 @@ const place = (store: ReturnType<typeof newStore>) =>
 const b1With = (...ids: string[]) =>
   withPages(SAMPLE_BOOKS[0], [
     {
-      ...SAMPLE_BOOKS[0]!.pages[0],
+      ...pagesOf(SAMPLE_BOOKS[0]!)[0],
       items: ids.map(id => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: {} })),
     },
   ])

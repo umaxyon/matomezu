@@ -19,20 +19,20 @@ function setup() {
     controlCenter: "@matomezu/control-center:control-center",
     newId: sequence(),
   })
-  createBookIn(instance, "s1", { title: "スライド" })
-  const book = Object.keys(instance.state.getState().books).find(
-    id => (instance.state.getState().books[id] as { type: string }).type === "@matomezu/slide-book:slide",
-  ) as string
+  // スライドのフォルダに 1 枚入れたブックを作る
+  createBookIn(instance, "s1", {
+    title: "スライド",
+    page: { type: "@matomezu/slide-book:slide", title: "1", into: { newFolder: "スライド" } },
+  })
+  const book = Object.keys(instance.state.getState().books).at(-1) as string
   const perform = (id: string, args: object) =>
     (
       instance.actions as unknown as {
         perform(id: string, a: object, on: { book: string }): { ok: boolean; result?: unknown }
       }
     ).perform(id, args, { book })
-  expect(perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "1" }).ok).toBe(true)
   const slide = () =>
-    (instance.state.getState().books[book] as unknown as { pages: { id: string; slide?: Record<string, unknown>[] }[] })
-      .pages[0]
+    pagesOf(instance.state.getState().books[book]!)[0] as { id: string; slide?: Record<string, unknown>[] }
   const page = slide()?.id as string
   return { perform, page, slide: () => slide()?.slide ?? [] }
 }
@@ -132,8 +132,7 @@ test("文字枠を置いて続けて打った文字は、置いた画面の履�
       }),
     ] as never,
   })
-  const state = () =>
-    pagesOf(store.state.getState().books.b1 as unknown as { pages: { slide: { id: string }[] }[] })[0]!.slide
+  const state = () => pagesOf(store.state.getState().books.b1!)[0]!.slide ?? []
   const on = { book: "b1" }
   const put = store.actions.perform(
     "@matomezu/slide:slide-place",
@@ -163,8 +162,10 @@ test("続けている画面の履歴の段には、コマンド（slide-set）�
     ] as never,
   })
   const slide = () =>
-    (store.state.getState().books.b1 as unknown as { pages: { slide: { id: string; props: { width?: number } }[] }[] })
-      .pages[0]!.slide
+    (pagesOf(store.state.getState().books.b1!)[0]!.slide ?? []) as unknown as {
+      id: string
+      props: { width?: number }
+    }[]
   const on = { book: "b1" }
   store.actions.perform(
     "@matomezu/slide:slide-place",
