@@ -47,11 +47,18 @@ test("認可の所は、置き直すページが 1 つならそのページと�
   expect(scope(patch(two, before))).toEqual({})
 })
 
-test("フォルダの中のページは、そのページとアイテムを置き直す。フォルダの名前だけの置き直しはページを返さない", () => {
+test("ページの名前だけの置き直しも、そのページを認可の所にする", () => {
+  const scope = HISTORY_RESTORE.permissionScope as (args: Patch) => unknown
+  const before = book({}, [page("p", [item("a")]), page("q", [])])
+  const renamed = book({}, [{ ...page("p", [item("a")]), title: "別" }, page("q", [])])
+  expect(scope(patch(renamed, before))).toEqual({ page: "p", items: [] })
+})
+
+test("フォルダの中のページは、そのページとアイテムを置き直す。フォルダの名前だけの置き直しは、フォルダの id を返す（ページとして使う側がブックで確かめる）", () => {
   const before = book({}, [folder("f", [page("s", [item("a")])])])
   const changed = book({}, [folder("f", [page("s", [item("a", "A")])])])
   expect(restoredPages(patch(changed, before))).toEqual([{ id: "s", gone: false, items: ["a"] }])
   const renamed = book({}, [folder("f", [page("s", [item("a")])], "別")])
-  expect(restoredPages(patch(renamed, before))).toEqual([])
+  expect(restoredPages(patch(renamed, before))).toEqual([{ id: "f", gone: false, items: [] }])
   expect(applyRestore(renamed, patch(renamed, before))).toEqual(before)
 })

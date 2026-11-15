@@ -23,14 +23,12 @@ const listOf = (p: Patch | undefined): readonly ListPatch[] => (p && "list" in p
 
 // 置き直すページ（ブックの並び lineup の要素と、フォルダの中の要素）と、その中で置き直す最上位のアイテム（ページを丸ごと置き直すなら undefined）。
 // 中の並び（lineup）のフィールドを置き直す要素はフォルダ（ページは lineup という名前のフィールドを持てない。台帳アセンブルの E030）なので、その中のページを返す。
-// フォルダを丸ごと足す・消す置き直しと、フォルダの名前だけの置き直しは、ページを返さない（認可は、行った後の確かめが見る）
+// ほかの要素は、ページかフォルダかを Patch からは見分けられない（名前だけの置き直し・丸ごと足す・消す）ので、そのまま返す。
+// フォルダの id が混ざるので、ページとして使う側がブックで確かめる（認可の所は、無いページを名指せばブック全体として問われ、行った後の確かめが見る）
 export function restoredPages(p: Patch): { id: string; gone: boolean; items: readonly string[] | undefined }[] {
   return listOf(fieldOf(p, "lineup")).flatMap(q => {
     const inner = "fields" in q.patch ? fieldOf(q.patch, "lineup") : undefined
-    if (inner) return listOf(inner).map(restored)
-    // フォルダの名前だけなど、ページの中身に触れない置き直し
-    if ("fields" in q.patch && Object.keys(q.patch.fields).every(k => k === "title" || k === "pageType")) return []
-    return [restored(q)]
+    return inner ? listOf(inner).map(restored) : [restored(q)]
   })
 }
 

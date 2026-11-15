@@ -13,7 +13,7 @@ import {
 import { performIn } from "../../web/src/core/perform"
 import type { Book } from "../../web/src/core/schema/book"
 import { warningText } from "../../web/src/core/warnings"
-import { pagesBook } from "../lineup"
+import { drawingPage, FLOWCHART, pagesBook, testBook, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 const book = pagesBook({
@@ -137,4 +137,25 @@ test("伝言は、会話の時点から伝言期限（利用者の設定。既�
   expect(
     unexpired(CORE_CATALOG, list, { "@matomezu/base:note-expiry": "0" }, "2026-11-05T00:00:01.000Z").map(a => a.id),
   ).toEqual(["c7"])
+})
+
+test("タイプの混ざるブックでは、結び付く物のあるページのタイプごとに使えるかが決まる（またがるなら、どのページのタイプでも使えるときだけ）", () => {
+  const flowchart = CORE_CATALOG.pageTypes.get(FLOWCHART)!
+  const catalog = {
+    ...CORE_CATALOG,
+    pageTypes: new Map([
+      ...CORE_CATALOG.pageTypes,
+      [FLOWCHART, { ...flowchart, annotations: { without: ["@matomezu/base:note"] } }],
+    ]),
+  } as typeof CORE_CATALOG
+  const box = (id: string) => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: id } })
+  const mixed = testBook("m", "混ざる", [
+    drawingPage("p1", { items: [box("a")] }),
+    testPage(FLOWCHART, "p2", { title: "流れ", items: [box("b")] }),
+  ])
+  const on = (id: string, anchors: string[]): Annotation => ({ ...GOOD, id, anchors })
+  const codes = (a: Annotation) => checkAnnotations(catalog, mixed, [a]).map(w => w.code)
+  expect(codes(on("n1", ["a"]))).toEqual([])
+  expect(codes(on("n2", ["b"]))).toEqual(["W019"])
+  expect(codes(on("n3", ["a", "b"]))).toEqual(["W019"])
 })

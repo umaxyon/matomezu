@@ -2,8 +2,10 @@
 // 行ったアクションと、その窓で見えた AI とほかの窓の変更から作る（ロックの掛け外しのように history: false のアクションは入らない）。
 // 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す
 
+import { findPage } from "../../../core/book"
 import type { HistoryStep } from "../../../core/history"
 import { type Patch, patchOf } from "../../../core/patch"
+import type { Book } from "../../../core/schema/book"
 import { shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
@@ -27,8 +29,9 @@ export const HISTORY_RESTORE = kit.defineAction({
   run: (book, args) => ({ next: applyRestore(book, args), result: {} }),
 })
 
-// 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとも残る最初のページ
-const pageOf = (args: Patch): string | undefined => restoredPages(args).find(p => !p.gone)?.id
+// 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとのブック to に在る最初のページ
+const pageOf = (args: Patch, to: Book): string | undefined =>
+  restoredPages(args).find(p => findPage(to, p.id) !== undefined)?.id
 
 // 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、画面の履歴の段は動かさない。
 // いくつものブックを変えた画面の履歴の段で途中のブックが断られたら、置き直したブックを元に戻す（どのブックも画面の履歴の段のとおりのまま）
@@ -36,7 +39,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
   const opened = ctx.stage.opened
   if (!step || !opened) return
-  const done: { book: string; args: Patch; back: Patch }[] = []
+  const done: { book: string; args: Patch; to: Book; back: Patch }[] = []
   for (const [book, { before, after }] of Object.entries(step.books)) {
     const [was, to] = from === "undo" ? [after, before] : [before, after]
     const args = patchOf(was, to)
@@ -55,10 +58,10 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
       })
       return
     }
-    done.push({ book, args, back: patchOf(to, was) as Patch })
+    done.push({ book, args, to, back: patchOf(to, was) as Patch })
   }
   const shown = done.find(d => d.book === opened.book)
-  const page = shown && pageOf(shown.args)
+  const page = shown && pageOf(shown.args, shown.to)
   if (page && page !== shownPageId(opened)) a.openPage(page)
   a.moveHistory(opened.book, from)
 }
