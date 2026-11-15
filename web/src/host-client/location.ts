@@ -1,6 +1,6 @@
 // ブラウザの URL と画面の場所（core/address.ts）の行き来（ルーターは入れない。開いている場所は store が持ち、URL はそれを映す）。
 // 開いたときは URL の場所を当てはめ（store の locate）、見ているものが変わったら URL に書く。移動（ステージの数か、ブック・ページが変わった。積むと宣言した画面の状態の値が変わった）
-// ならブラウザの履歴に積み（pushState）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。同じ同期の処理の中の
+// ならブラウザの履歴に積み（pushState。行の番号を {i} に持ち、戻る先があるかを store に知らせる）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。同じ同期の処理の中の
 // 変わりは、終わってから 1 つにまとめて書く（分割してブックとページを開いても、ブラウザの履歴に積むのは 1 つ）。ブラウザの戻る・進む（popstate）は、その URL の場所を当てはめる。
 // URL の形: 値 1 つ（sc）に、場所を短い名前の JSON で書く（searchOf）。前の形（b0・p0・v0・s0…、c・r・w・f）は読むだけで、書かない。
 // URL が無ければ、開いた直後はステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする。プラグイン状態の中身は読まない（形を確かめるのは store の locate）
@@ -10,8 +10,10 @@ import type { MatomezuInstance } from "../store/store"
 // URL とのやり取り（テストでは差し替える）
 export interface Place {
   search(): string // 今の URL の ? から後ろ
-  push(search: string): void // ブラウザの履歴に積む
-  replace(search: string): void // 今のブラウザの履歴を書き換える
+  index(): number // 今のブラウザの履歴の行の、このタブのアプリが積んだ順の番号（アプリが積んだ最初の行が 0。無ければ 0）
+  push(search: string, index: number): void // ブラウザの履歴に、番号 index の行として積む
+  replace(search: string): void // 今のブラウザの履歴を書き換える（行の番号は変えない）
+  back(): void // ブラウザの履歴を 1 つ戻す
   onPop(listener: () => void): () => void // 戻る・進むで URL が変わったら呼ぶ。止める関数を返す
   later(run: () => void): () => void // しばらくしてから run を呼ぶ（書き換えをまとめる）。取り消す関数を返す
 }
@@ -21,8 +23,14 @@ export const REPLACE_AFTER = 300
 
 export const browserPlace: Place = {
   search: () => window.location.search,
-  push: search => window.history.pushState(null, "", search),
-  replace: search => window.history.replaceState(null, "", search),
+  index: () => {
+    const state: unknown = window.history.state
+    const i = typeof state === "object" && state !== null ? (state as { i?: unknown }).i : undefined
+    return typeof i === "number" && Number.isInteger(i) && i > 0 ? i : 0
+  },
+  push: (search, index) => window.history.pushState({ i: index }, "", search),
+  replace: search => window.history.replaceState(window.history.state, "", search),
+  back: () => window.history.back(),
   onPop: listener => {
     window.addEventListener("popstate", listener)
     return () => window.removeEventListener("popstate", listener)
@@ -216,7 +224,7 @@ function statesOf(text: string | null): Readonly<Record<string, unknown>> {
 export function followLocation(
   instance: Pick<MatomezuInstance, "state" | "address" | "locate"> & {
     pushing?(): ReadonlySet<string>
-    takeReplacedScreens?(): ReadonlySet<string>
+    setCanGoBack?(can: boolean): void
   },
   place: Place = browserPlace,
 ) {
@@ -235,6 +243,9 @@ export function followLocation(
   instance.locate(read(start))
   let shown = instance.address()
   place.replace(searchOf(shown))
+  // このタブのアプリの中に戻る先があるか（アプリが積んだ行の番号が 0 より大きい）を、store に知らせる
+  const knowBack = () => instance.setCanGoBack?.(place.index() > 0)
+  knowBack()
   let pending: (() => void) | null = null // まとめて書き換えるのを待っている書き換え（取り消す関数）
   let popping = false // 戻る・進むの場所を当てはめている間（URL に書き戻さない）
   let queued = false // 処理が終わってから書くのを待っている
@@ -247,27 +258,27 @@ export function followLocation(
     if (search === searchOf(shown)) return
     pending?.()
     pending = null
-    // setScreenProps で渡す値だけを替えたスクリーンは、替える前の値を今の値にそろえて比べる（それだけの違いなら、積まずに置き換える）
-    const replaced = instance.takeReplacedScreens?.() ?? new Set<string>()
-    const before: Address = replaced.size
-      ? {
-          ...shown,
-          screens: shown.screens.map(s =>
-            replaced.has(s.id) ? { ...s, props: now.screens.find(n => n.id === s.id)?.props ?? s.props } : s,
-          ),
-        }
-      : shown
-    if (moved(before, now, instance.pushing?.())) place.push(search)
-    else pending = place.later(() => place.replace(search))
+    if (moved(shown, now, instance.pushing?.())) {
+      place.push(search, place.index() + 1)
+      knowBack()
+    } else pending = place.later(() => place.replace(search))
     shown = now
   }
-  const stopState = instance.state.subscribe(() => {
+  // 画面が頼んだ「ブラウザの履歴を 1 つ戻す」（backRequests が増えたら戻す。戻った場所は、下の戻る・進むで当てはまる）
+  let backed = instance.state.getState().backRequests
+  const stopState = instance.state.subscribe(state => {
+    if (state.backRequests !== backed) {
+      backed = state.backRequests
+      place.back()
+      return
+    }
     if (popping || queued) return
     queued = true
     queueMicrotask(write)
   })
   // 戻る・進む: その URL の場所を当てはめ、今の場所として覚える（書き戻さない）
   const stopPop = place.onPop(() => {
+    knowBack()
     const address = parseSearch(place.search())
     if (!address) return
     pending?.()

@@ -11,7 +11,6 @@ import {
   useRecord,
   useRecords,
   useScreen,
-  useScreens,
   useUpdatePluginState,
   useUserSetting,
 } from "../../../plugin-api/ui"
@@ -26,7 +25,7 @@ import {
   useMarkdownDocument,
   useRecordEditLock,
 } from "../../base/ui"
-import { BackIcon, BookIcon, PencilIcon } from "../icons"
+import { BookIcon, PencilIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import scroll from "../scrollbar.module.css"
@@ -38,6 +37,7 @@ import { tagsOf } from "../ticket/tags"
 import { HISTORY } from "../ticket-history"
 import { TICKET_SCREEN, TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "."
 import { AssigneeBirds } from "./AssigneeBirds"
+import { BackBar } from "./BackBar"
 import { LinkedText } from "./LinkedText"
 import { TagPicker } from "./TagPicker"
 import { TicketHistoryTimeline } from "./TicketHistoryTimeline"
@@ -60,8 +60,6 @@ export function TicketScreen() {
   const t = useMessages(kit)
   const me = useScreen(TICKET_SCREEN)
   const id = me.props.ticket
-  const { close: closeScreen } = useScreens()
-  const close = () => closeScreen(me.id)
   const ticket = useRecord(TICKET.id, id)
   const project = useRecord(PROJECT.id, ticket?.project ?? "")
   const lines = useRecords(HISTORY.id, { where: [] })
@@ -87,9 +85,7 @@ export function TicketScreen() {
       <section className={styles.screen} aria-label={t("ticket screen")}>
         <div className={`${styles.ticket} ${styles.alone}`}>
           <div className={styles.band}>
-            <IconButton label={t("Back")} onClick={close}>
-              <BackIcon />
-            </IconButton>
+            <BackBar screen={me.id} />
             <span className={styles.bandTitle}>{t("ticket screen")}</span>
           </div>
           <p className={styles.empty}>{t("The ticket is not there")}</p>
@@ -108,9 +104,7 @@ export function TicketScreen() {
     <section className={styles.screen} aria-label={t("ticket screen")}>
       <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
         <div className={styles.band}>
-          <IconButton label={t("Back")} onClick={close}>
-            <BackIcon />
-          </IconButton>
+          <BackBar screen={me.id} />
           <span className={styles.bandTitle}>{t("ticket screen")}</span>
           <span className={styles.bandEnd}>
             <LockToggle

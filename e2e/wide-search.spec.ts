@@ -109,7 +109,7 @@ test("書庫が前に出ていても、チケットモードで絞るとボー�
   await expect(page.locator(`[data-card="${hit}"]`)).toBeVisible()
 })
 
-test("全文モードで続けて別のチケットを開いても、スクリーンは積まず、戻る矢印 1 回でコントロールセンターに戻る。当たった所は赤字になる", async ({
+test("全文モードで続けて別のチケットを開いても、スクリーンは積まず、ブラウザの履歴には積む。戻るで前のチケット、もう 1 回でコントロールセンターに戻る。当たった所は赤字になる", async ({
   page,
 }) => {
   const word = `かさね${Date.now()}`
@@ -132,8 +132,10 @@ test("全文モードで続けて別のチケットを開いても、スクリ�
   const length = await page.evaluate(() => history.length)
   await side.getByRole("button", { name: new RegExp(`${word}の二枚目`) }).click()
   await expect(page.getByRole("heading", { name: `${word}の二枚目` })).toBeVisible()
-  // ブラウザの履歴にも積まない（今の行を置き換える）
-  expect(await page.evaluate(() => history.length)).toBe(length)
+  // ブラウザの履歴には積む（戻ると前のチケットに戻る）
+  expect(await page.evaluate(() => history.length)).toBe(length + 1)
+  await page.getByRole("button", { name: "戻る" }).click()
+  await expect(page.getByRole("heading", { name: `${word}を直す` })).toBeVisible()
   await page.getByRole("button", { name: "戻る" }).click()
   await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeVisible()
 })

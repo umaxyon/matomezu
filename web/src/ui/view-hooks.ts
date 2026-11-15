@@ -441,7 +441,7 @@ export function useScreen<P>(def: { id: string; props: PropsShape<P> }): {
 export function useScreens(): {
   screens: readonly { id: string; def: string; props: unknown; shown: boolean; current: boolean }[]
   open<P>(def: { id: string; props: PropsShape<P> }, props: P): string
-  setProps<P>(id: string, def: { id: string; props: PropsShape<P> }, props: P): boolean // 開いているスクリーン id（定義 def の物）の渡す値を替える（積まない）
+  setProps<P>(id: string, def: { id: string; props: PropsShape<P> }, props: P): boolean // 開いているスクリーン id（定義 def の物）の渡す値を替える（スクリーンは積まず、ブラウザの履歴には積む）
   makeCurrent(id: string): void
   close(id: string): void
 } {
@@ -470,4 +470,12 @@ export function useScreens(): {
     [setScreenProps],
   )
   return { screens, open, setProps, makeCurrent: makeScreenCurrent, close: closeScreen }
+}
+
+// ブラウザの履歴を 1 つ戻す（ブラウザの戻るボタンと同じ。ブック・ページ・スクリーンの移動を、積んだ順に戻る）。
+// canGoBack は、このタブのアプリの中に戻る先があるか（無いときの goBack は何もしない。アプリの外へは出ない）
+export function useBrowserBack(): { canGoBack: boolean; goBack(): void } {
+  const canGoBack = useMatomezuState(s => s.canGoBack)
+  const { requestBack } = useActions()
+  return { canGoBack, goBack: requestBack }
 }

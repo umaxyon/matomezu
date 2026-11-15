@@ -28,6 +28,7 @@ export {
   useAllowed,
   useAllowedOn,
   useBook,
+  useBrowserBack,
   useCoreCatalog,
   useItem,
   useLatestPan,
