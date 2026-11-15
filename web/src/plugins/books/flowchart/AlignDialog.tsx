@@ -20,7 +20,7 @@ export function AlignDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const [adapt, setAdapt] = useState(false)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page) return null
-  const titles = [...new Set(adaptedTitles(catalog, book, page).map(k => t(k)))]
+  const titles = [...new Set(adaptedTitles(catalog, page).map(k => t(k)))]
   const adaptable = titles.length > 0
   const label = t("Fit {shapes} to the page and align", { shapes: titles.join(t("List separator")) })
   const run = () => {

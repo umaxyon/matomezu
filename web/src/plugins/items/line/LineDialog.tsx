@@ -72,7 +72,7 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   const line = useItem(args.page, args.item, LINE.id)
   const { previewDialog } = useActions()
   const perform = usePerform()
-  const elbow = drawing && page ? elbowAt(catalog, drawing, page) : true
+  const elbow = page ? elbowAt(catalog, page) : true
   const startRoute: LineRoute = line?.props.route ?? (elbow ? "elbow" : "straight")
   const [caption, setCaption] = useState(line?.props.caption ?? "")
   const [route, setRoute] = useState<LineRoute>(startRoute)
@@ -106,7 +106,7 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   const self = line.from === line.to
   // キャプションの候補: ブックのタイプが、始点のアイテムに決めたもの
   const fromItem = findShape(page, line.from)?.shape.item
-  const words = !self && fromItem && drawing ? captionWordsOf(catalog, drawing, fromItem) : []
+  const words = !self && fromItem ? captionWordsOf(catalog, page, fromItem) : []
   const rects = portAreasOf(catalog, page)
   const p = line.props
   const fixed = p.exitAt !== undefined || p.enterAt !== undefined

@@ -2,9 +2,11 @@
 // 行の出し方は種類が答える（定義の listed。listed.ts）: 左に種類の絵（スロット annotation-icon のウィジェット）、文（無ければ付けた物の名前。吹き出しと同じ字数まで）、付けた時刻。
 // AI が読んだ物は薄くして「既読」。行を押すと（左サイドパネルは閉じず）、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
 // 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
+
 import { type ReactNode, useMemo } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import type { ActionId } from "../../../core/catalog"
+import { shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useLayout } from "../../../ui/store-context"
 import { useActions, useAllowed, useBook, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
@@ -91,7 +93,7 @@ function useGo(): (a: AiAnnotation, panel: string | undefined) => void {
   const openPanel = useOpenRightSidePanel()
   const reveal = useRevealHere()
   return (a, panel) => {
-    if (a.page && opened?.page !== a.page) openPage(a.page)
+    if (a.page && shownPageId(opened ?? null) !== a.page) openPage(a.page)
     if (panel) {
       openPanel({ widget: panel, subject: a.id, anchors: a.anchors, current: a.anchors.at(-1) ?? "" })
       return

@@ -47,8 +47,8 @@ export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | n
   return { parent, origin, paper: CHILD_AREA, rects: childRects(catalog, shape, origin) }
 }
 
-// ブック book のページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら null
-export function frameAround(catalog: CoreCatalog, book: Book, page: ItemPage, id: string): Frame | null {
+// ページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら null
+export function frameAround(catalog: CoreCatalog, page: ItemPage, id: string): Frame | null {
   const found = findShape(page, id)
   return found ? frameOf(catalog, page, found.parent) : null
 }
@@ -117,7 +117,7 @@ export function replaceChild<B extends Book>(
   next: PlacedShape,
 ): B | null {
   const page = findPage(book, pageId)?.page
-  const frame = page && frameAround(catalog, book, page, next.id)
+  const frame = page && frameAround(catalog, page, next.id)
   const size = placedSize(catalog, next)
   if (!page || !frame || frame.parent === null || !size) return null
   const rect = { x: next.x - frame.origin.x, y: next.y - frame.origin.y, ...size }

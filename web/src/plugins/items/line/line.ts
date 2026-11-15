@@ -3,7 +3,7 @@
 // 端は自由か、形のふちの上に固定（exitAt・enterAt。ふちを左上から時計回りに一周した割合）。手で直した折れ線の途中の区間（via）は、両端が固定のときだけ持つ。
 // 道筋は持たず、つないだ形の位置から描くたびに決める（route.ts）
 import { z } from "zod"
-import { type Book, bookItems, type CoreCatalog, type ItemId, type MessageKey } from "../../../plugin-api"
+import { allowedItems, type CoreCatalog, type ItemId, type ItemPage, type MessageKey } from "../../../plugin-api"
 import { settingValue } from "../../base"
 import { CAPTION_OFFSET_MAX } from "./caption"
 import { linesBelongingPoints, linesBounds, linesMinimap } from "./drawn"
@@ -93,13 +93,17 @@ export interface LineOptions {
   captions?: readonly { from: readonly ItemId[]; words: readonly MessageKey[] }[]
 }
 
-// ブックのタイプが線に渡す指定（無ければ空）
-export const lineOptionsOf = (catalog: CoreCatalog, book: Pick<Book, "type">): LineOptions =>
-  catalog.pageTypes.get(book.type)?.items.options?.[LINE.id] ?? {}
+// ページのタイプが線に渡す指定（無ければ空）
+export const lineOptionsOf = (catalog: CoreCatalog, page: Pick<ItemPage, "type">): LineOptions =>
+  catalog.pageTypes.get(page.type)?.items.options?.[LINE.id] ?? {}
 
 // 始点が from のアイテムの線の、キャプションの候補（文言の鍵）
-export const captionWordsOf = (catalog: CoreCatalog, book: Pick<Book, "type">, from: string): readonly MessageKey[] =>
-  (lineOptionsOf(catalog, book).captions ?? []).flatMap(c =>
+export const captionWordsOf = (
+  catalog: CoreCatalog,
+  page: Pick<ItemPage, "type">,
+  from: string,
+): readonly MessageKey[] =>
+  (lineOptionsOf(catalog, page).captions ?? []).flatMap(c =>
     (c.from as readonly string[]).includes(from) ? c.words : [],
   )
 
@@ -109,10 +113,10 @@ export const LINE_EDIT_DIALOG = kit.defineDialogWith<{ page: string; item: strin
   edits: a => [a.item],
 })
 
-// ページ page の線の既定が折れ線か（ページの既定、無ければブックの既定、それも無ければ設定の既定）
-export const elbowAt = (catalog: CoreCatalog, book: Book, page: object | null): boolean =>
+// ページ page の線の既定が折れ線か（ページの既定、無ければ設定の既定）
+export const elbowAt = (catalog: CoreCatalog, page: object | null): boolean =>
   settingValue(catalog, page, LINE_ROUTE) === "elbow"
 
-// ブックで線が使えるか（線のアイテムが、そのブックで使えるアイテムに入っている）。線を引く操作と、線の既定の通り方の設定はこれで出し分ける
-export const usesLines = (catalog: CoreCatalog, book: Pick<Book, "type">): boolean =>
-  bookItems(catalog, book).includes(LINE.id)
+// ページで線が使えるか（線のアイテムが、そのページのタイプで置けるアイテムに入っている）。線を引く操作と、線の既定の通り方の設定はこれで出し分ける
+export const usesLines = (catalog: CoreCatalog, page: Pick<ItemPage, "type">): boolean =>
+  allowedItems(catalog, page).includes(LINE.id)

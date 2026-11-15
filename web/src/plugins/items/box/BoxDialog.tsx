@@ -72,7 +72,6 @@ function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typ
       title={kit.message("Add box")}
       submit={kit.message("Add")}
       start={EMPTY}
-      book={book}
       bookTheme={bookTheme}
       ready={book !== undefined}
       onSubmit={add}
@@ -118,7 +117,6 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
       submit={kit.message("OK")}
       start={start}
       hasChildren={hasChildren}
-      book={book}
       bookTheme={bookTheme}
       ready
       onSubmit={update}
@@ -132,7 +130,6 @@ function BoxDialog({
   title,
   submit,
   start,
-  book,
   bookTheme,
   ready,
   onSubmit,
@@ -143,7 +140,6 @@ function BoxDialog({
   title: MessageKey
   submit: MessageKey
   start: BoxProps
-  book: string | undefined // 開いているブックの id（使えるテーマを決める）
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
   onSubmit: (props: BoxProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）

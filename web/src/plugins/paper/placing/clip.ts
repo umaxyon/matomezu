@@ -3,8 +3,8 @@
 // 形の位置（x・y）は、写したときの紙の上の左上（子の形も、根の形にして写す）。貼るときは id をブックで重ならないように振り直す
 
 import {
+  allowedItems,
   type Book,
-  bookItems,
   type CoreCatalog,
   connectorSchema,
   connectorsOf,
@@ -63,15 +63,15 @@ function shapeIds(shape: ShapeData): string[] {
 }
 
 // 渡された形 raw を確かめた形。ブックで使えるアイテム・使えるテーマ・写せる形だけ。子の形もたどる。通らなければ null
-function parsedTree(catalog: CoreCatalog, book: Book, raw: unknown): PlacedShape | null {
+function parsedTree(catalog: CoreCatalog, page: Pick<ItemPage, "type">, raw: unknown): PlacedShape | null {
   if (typeof raw !== "object" || raw === null || typeof (raw as { item?: unknown }).item !== "string") return null
   const value = raw as { item: string; shapes?: unknown; [field: string]: unknown }
-  if (!bookItems(catalog, book).includes(value.item)) return null
+  if (!allowedItems(catalog, page).includes(value.item)) return null
   const shape = parsePlaced(catalog, value)
-  if (!shape || !shapeThemeFits(catalog, book.type, shape) || shapeDefOf(catalog, shape.item)?.[COPIES] === false)
+  if (!shape || !shapeThemeFits(catalog, page.type, shape) || shapeDefOf(catalog, shape.item)?.[COPIES] === false)
     return null
   const children = Array.isArray(value.shapes) ? value.shapes : []
-  return children.every(child => parsedTree(catalog, book, child) !== null) ? shape : null
+  return children.every(child => parsedTree(catalog, page, child) !== null) ? shape : null
 }
 
 // 写しの根の形が占める範囲（紙の上の左上と大きさ）
@@ -114,12 +114,12 @@ export function pasted(
 ): Pasted | Declined | null {
   const page = findPage(book, args.page)?.page
   if (!page) return null
-  const parsed = args.shapes.map(raw => parsedTree(catalog, book, raw))
+  const parsed = args.shapes.map(raw => parsedTree(catalog, page, raw))
   if (parsed.length === 0 || parsed.some(s => s === null)) return null
   const connectors = (args.connectors ?? []).map(raw => {
     const item = typeof raw === "object" && raw !== null ? (raw as { item?: unknown }).item : undefined
     const def = typeof item === "string" ? catalog.items.get(item) : undefined
-    const ok = def?.kind === "connector" && bookItems(catalog, book).includes(def.id)
+    const ok = def?.kind === "connector" && allowedItems(catalog, page).includes(def.id)
     const result = ok ? connectorSchema(def).safeParse(raw) : null
     return result?.success ? (result.data as unknown as PlacedConnector) : null
   })
@@ -158,7 +158,7 @@ export function pasted(
     const tried = tryAt(at)
     return tried !== null && (push || tried.moved.length === 0)
   }
-  const at = args.at ?? freeAt(catalog, book, page, parent, box.size, calm)
+  const at = args.at ?? freeAt(catalog, page, parent, box.size, calm)
   if (!at)
     return {
       declined: `there is no free spot for it${push ? "" : ' (crowd "push" pushes the others)'}`,
@@ -167,7 +167,7 @@ export function pasted(
   const tried = tryAt(at)
   if (!tried) return null
   if (!push && tried.moved.length > 0)
-    return crowded(catalog, page, tried.moved, freeAt(catalog, book, page, parent, box.size, calm))
+    return crowded(catalog, page, tried.moved, freeAt(catalog, page, parent, box.size, calm))
   return { next: tried.next, items: copy.shapes.map(s => s.id), at }
 }
 
@@ -197,6 +197,6 @@ export function nearestPaste(
     return done !== null && "next" in done
   }
   if (fits(asked)) return asked
-  const spot = freeAt(catalog, book, found, parent, size, fits)
+  const spot = freeAt(catalog, found, parent, size, fits)
   return spot && stepToward(asked, spot, fits)
 }

@@ -145,7 +145,7 @@ export function alignedRects(
 
 // ページ page をそのページに合わせたとき（adaptPage）に変わる形の名前（文言の鍵）。仲間の形はまとめた名前（base が書き足した familyTitle。台形と台形（逆）は「台形」）、
 // 同じ名前は 1 つで、ページの順。変わる形が無ければ空
-export function adaptedTitles(catalog: CoreCatalog, book: Book, page: ItemPage): MessageKey[] {
+export function adaptedTitles(catalog: CoreCatalog, page: ItemPage): MessageKey[] {
   const adapted = adaptPage(catalog, page, pageContext(catalog, page))
   const before = new Map(shapesOf(page).map(s => [s.id, s]))
   const titles = shapesOf(adapted)

@@ -83,7 +83,6 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       submit={kit.message("Add")}
       start={EMPTY}
       checked={false}
-      book={book}
       bookTheme={bookTheme}
       ready={book !== undefined}
       onSubmit={add}
@@ -136,7 +135,6 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
       start={found.props}
       checked={rows.some(r => r.props.checked === true)}
       hasRows={rows.length > 0}
-      book={book}
       bookTheme={bookTheme}
       ready
       onSubmit={update}
@@ -152,7 +150,6 @@ function ListDialog({
   start,
   checked,
   hasRows = false,
-  book,
   bookTheme,
   ready,
   onSubmit,
@@ -164,7 +161,6 @@ function ListDialog({
   start: ListProps
   checked: boolean // チェックの入った行があるか（チェックリストを切るときに確かめる）
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
-  book: string | undefined // 開いているブックの id（使えるテーマを決める）
   bookTheme: string | undefined
   ready: boolean
   onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）

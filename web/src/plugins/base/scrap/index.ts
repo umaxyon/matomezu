@@ -8,8 +8,7 @@ import type { EditList } from "../../../core/def/page-type"
 import { problem } from "../../../core/errors"
 import { findShape } from "../../../core/placed"
 import { sameData } from "../../../core/same"
-import type { Book } from "../../../core/schema/book"
-import { openedPage } from "../../../core/stage"
+import { openedPage, shownPageId } from "../../../core/stage"
 import type { CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { placeableIn } from "../toolbox/toolbox"
@@ -38,9 +37,9 @@ export const SCRAP_FRAME_CHECK: CatalogCheckDef = catalog =>
     return parsed?.success && sameData(parsed.data, SAMPLE) ? [] : [problem("E127", { id: i.id })]
   })
 
-// ブック book の、直している並び edits に置ける、スクラップフレームのアイテム（いくつもあれば、置ける物の並びの先頭。無ければ null）
-export function scrapFrameIn(catalog: CoreCatalog, book: Book, edits: EditList): ItemId | null {
-  const found = placeableIn(pageType(catalog, book.type), edits).find(
+// タイプ type のページの、直している並び edits に置ける、スクラップフレームのアイテム（いくつもあれば、置ける物の並びの先頭。無ければ null）
+export function scrapFrameIn(catalog: CoreCatalog, type: string, edits: EditList): ItemId | null {
+  const found = placeableIn(pageType(catalog, type), edits).find(
     id => (catalog.items.get(id) as { scrapFrame?: true } | undefined)?.scrapFrame === true,
   )
   return (found as ItemId | undefined) ?? null

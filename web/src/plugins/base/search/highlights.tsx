@@ -2,6 +2,7 @@
 // 光らせる Range を名前ごとに窓 1 つの表（CSS Custom Highlight API）へ足し・外すフック、閉じたときに今の当たりを受け取るフック。
 // どこを光らせるか（原文の位置から描いた要素の Range を作る）は、描いたビューが決める（ほかのプラグインのビューの中には手を入れない）
 import { useEffect, useMemo, useRef } from "react"
+import { findPage } from "../../../core/book"
 import { useBook, useCoreCatalog, usePluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import type { SearchHit } from "./find"
@@ -18,9 +19,9 @@ export function useSearchHits(page: string): { hits: readonly SearchHit[]; curre
   const book = useBook()
   const search = usePluginState(kit, SEARCH_STATE)
   return useMemo(() => {
-    const s = searchableOf(catalog, book)
-    if (!search || s === "none" || !book) return { hits: [], current: "none" }
-    const found = hitsIn(s, book, search.query, "page", page)
+    if (!search || !book || searchableOf(catalog, findPage(book, page)?.page) === "none")
+      return { hits: [], current: "none" }
+    const found = hitsIn(catalog, book, search.query, "page", page)
     if (found === "bad-pattern") return { hits: [], current: "none" }
     const hits = found[0]?.hits ?? []
     // 原文が変わって当たりでなくなった今の当たりは光らせない

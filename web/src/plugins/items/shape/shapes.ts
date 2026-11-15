@@ -38,9 +38,10 @@ export interface ShapeOptions {
 
 // 回せる形 item を、ブック book のページ page に置くときの最初の向き（タイプの指定 ShapeOptions の turned。ページの設定で決める）
 export function startTurned(catalog: CoreCatalog, book: Book, page: string, item: string): boolean {
-  const options = catalog.pageTypes.get(book.type)?.items.options as Record<string, ShapeOptions> | undefined
-  const placed = (book ? findPage(book, page)?.page : undefined) ?? null
-  return options?.[item]?.turned?.(pageContext(catalog, placed).setting) ?? false
+  const placed = findPage(book, page)?.page
+  const options =
+    placed && (catalog.pageTypes.get(placed.type)?.items.options as Record<string, ShapeOptions> | undefined)
+  return (placed && options?.[item]?.turned?.(pageContext(catalog, placed).setting)) ?? false
 }
 
 // 編集のダイアログ（どの形も同じ）

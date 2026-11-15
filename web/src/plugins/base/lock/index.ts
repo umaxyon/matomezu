@@ -2,7 +2,7 @@
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
 import { isAI } from "../../../core/actor"
-import { findPage, hasPages, pagesOf, putPage } from "../../../core/book"
+import { findPage, pagesOf, putPage } from "../../../core/book"
 import type { CatalogCheckDef } from "../../../core/core-catalog"
 import type { PermissionCheck } from "../../../core/def/permission"
 import { problem } from "../../../core/errors"
@@ -34,8 +34,8 @@ const lockBook = (book: Book, on: boolean): Book | null =>
   !!book.locked === on ? null : setField(book, ["title"], "locked", on ? true : undefined)
 
 function lockPage(book: Book, page: string, on: boolean): Book | null {
-  const found = hasPages(book) ? findPage(book, page)?.page : undefined
-  if (!hasPages(book) || !found || !!found.locked === on) return null
+  const found = findPage(book, page)?.page
+  if (!found || !!found.locked === on) return null
   return putPage(book, setField(found, ["orientation"], "locked", on ? true : undefined))
 }
 

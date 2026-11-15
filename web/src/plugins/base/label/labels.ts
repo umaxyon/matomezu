@@ -1,3 +1,4 @@
+import { pagesOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { idsIn } from "../../../core/ids"
 import { connectorsOf, walkShapes } from "../../../core/placed"
@@ -17,8 +18,8 @@ function plain(text: string | null | undefined): { text: string } | null {
 // ブック book の物 id の名前（ブックに無ければ null）
 export function anchorLabel(catalog: CoreCatalog, book: Book | null, id: string): AnchorLabel | null {
   if (!book) return null
-  const type = pageType(catalog, book.type)
-  for (const page of book?.pages ?? []) {
+  for (const page of pagesOf(book)) {
+    const type = pageType(catalog, page.type)
     // 中の形は別に歩くので、形の中の物から外す
     const shape = walkShapes(page).find(({ shape }) => idsIn({ ...shape, shapes: undefined }).includes(id))?.shape
     if (shape) {

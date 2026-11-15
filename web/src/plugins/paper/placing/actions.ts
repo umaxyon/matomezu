@@ -2,7 +2,7 @@
 
 import { z } from "zod"
 import {
-  bookItems,
+  allowedItems,
   type CoreCatalog,
   findPage,
   findShape,
@@ -90,7 +90,7 @@ export const ITEM_PLACE = kit.defineAction({
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     const page = findPage(book, args.page)?.page
-    if (!page || !bookItems(ctx.catalog, book).includes(args.item)) return null
+    if (!page || !allowedItems(ctx.catalog, page).includes(args.item)) return null
     const props = ctx.catalog.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
     const base = { id: nextItemId(book, ctx.newId), item: args.item, x: 0, y: 0, props: props.data }
@@ -103,7 +103,7 @@ export const ITEM_PLACE = kit.defineAction({
     const size = placedSize(ctx.catalog, draft)
     const item = resizable && size ? parsePlaced(ctx.catalog, { ...draft, w: size.w, h: args.h ?? size.h }) : draft
     const sized = item && placedSize(ctx.catalog, item)
-    if (!item || !sized || !shapeThemeFits(ctx.catalog, book.type, item)) return null
+    if (!item || !sized || !shapeThemeFits(ctx.catalog, page.type, item)) return null
     const parent = args.parent ?? null
     const push = args.crowd === "push"
     const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
@@ -124,7 +124,7 @@ export const ITEM_PLACE = kit.defineAction({
       const tried = tryAt(at)
       return tried !== null && (push || tried.moved.length === 0)
     }
-    const at = args.at ?? freeAt(ctx.catalog, book, page, parent, sized, calm)
+    const at = args.at ?? freeAt(ctx.catalog, page, parent, sized, calm)
     if (!at)
       return {
         declined: `there is no free spot for it${push ? "" : ' (crowd "push" pushes the others)'}`,
@@ -133,7 +133,7 @@ export const ITEM_PLACE = kit.defineAction({
     const tried = tryAt(at)
     if (!tried) return null
     if (!push && tried.moved.length > 0)
-      return crowded(ctx.catalog, page, tried.moved, freeAt(ctx.catalog, book, page, parent, sized, calm))
+      return crowded(ctx.catalog, page, tried.moved, freeAt(ctx.catalog, page, parent, sized, calm))
     return { next: tried.next, result: { item: item.id, at: { x: tried.found.x, y: tried.found.y } } }
   },
 })
@@ -259,7 +259,7 @@ export const ITEM_REPARENT = kit.defineAction({
     // 添える空き（入れる先の中の、ほかの形を動かさない所。紙の上の位置）
     const size = placedSize(ctx.catalog, shape)
     const calm = (at: Point) => tryAt({ x: at.x + origin.x, y: at.y + origin.y })?.moved.length === 0
-    const spot = size && freeAt(ctx.catalog, without, out, args.parent, size, calm)
+    const spot = size && freeAt(ctx.catalog, out, args.parent, size, calm)
     return crowded(ctx.catalog, page, tried.moved, spot ? { x: spot.x + origin.x, y: spot.y + origin.y } : null)
   },
 })
@@ -291,7 +291,7 @@ export const ITEM_UPDATE = kit.defineAction({
       item: now.item,
       props: Object.fromEntries(Object.entries(args.props).filter(([, v]) => v !== null)),
     }
-    if (!parsed || !page || !shapeThemeFits(ctx.catalog, book.type, given)) return null
+    if (!parsed || !page || !shapeThemeFits(ctx.catalog, page.type, given)) return null
     const item =
       (shapeDefOf(ctx.catalog, parsed.item)?.[kit.name("settle")]?.(parsed, now) as PlacedShape | undefined) ?? parsed
     const wide = widenForCaption(ctx.catalog, page, now, item)

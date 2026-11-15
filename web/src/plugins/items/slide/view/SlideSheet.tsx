@@ -17,9 +17,9 @@ import styles from "./SlideSheet.module.css"
 
 type ShapeView = (p: ItemViewProps<PlacedShape["props"]>) => ReactNode
 
-export function SlideSheet({ zoom, book, page }: PrintSheetProps) {
+export function SlideSheet({ zoom, page }: PrintSheetProps) {
   const catalog = useCoreCatalog()
-  const type = pageType(catalog, book.type)
+  const type = pageType(catalog, page.type)
   if (!type.slide) return null
   if (slideIsBackground(type) && settingValue(catalog, page, BACKGROUND_PRINT) === "never") return null
   const offset = slideOffsetOf(catalog, page as ItemPage)

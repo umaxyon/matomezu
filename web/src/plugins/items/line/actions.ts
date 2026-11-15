@@ -20,12 +20,12 @@ import { canConnect, linesOf, type PlacedLine, patchedProps, tidyLines } from ".
 const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLine>
 
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
-const tidied = (catalog: CoreCatalog, book: Book, page: ItemPage, line: PlacedLine): PlacedLine =>
-  tidyLines([line], portAreasOf(catalog, page), elbowAt(catalog, book, page))[0] ?? line
+const tidied = (catalog: CoreCatalog, page: ItemPage, line: PlacedLine): PlacedLine =>
+  tidyLines([line], portAreasOf(catalog, page), elbowAt(catalog, page))[0] ?? line
 
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
-const viaDrawn = (catalog: CoreCatalog, book: Book, page: ItemPage, line: PlacedLine): boolean =>
-  !line.props.via || tidied(catalog, book, page, line).props.via !== undefined
+const viaDrawn = (catalog: CoreCatalog, page: ItemPage, line: PlacedLine): boolean =>
+  !line.props.via || tidied(catalog, page, line).props.via !== undefined
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、stay の形（無ければ始点）はそのままでもう一方をどける
 function withLine(catalog: CoreCatalog, book: Book, page: ItemPage, line: PlacedLine, stay = line.from): Book | null {
@@ -66,7 +66,7 @@ export const LINE_CONNECT = kit.defineAction({
       to: args.to,
       props: args.props ?? {},
     })
-    if (!line.success || !viaDrawn(ctx.catalog, book, page, line.data)) return null
+    if (!line.success || !viaDrawn(ctx.catalog, page, line.data)) return null
     const next = withLine(ctx.catalog, book, page, line.data)
     return next && { next, result: { line: line.data.id } }
   },
@@ -95,8 +95,8 @@ export const LINE_UPDATE = kit.defineAction({
     if (!page || !now) return null
     const line = PlacedLineSchema.safeParse({ ...now, props: patchedProps(now.props, args.props) })
     if (!line.success) return null
-    if (args.props.via != null && !viaDrawn(ctx.catalog, book, page, line.data)) return null
-    const next = withLine(ctx.catalog, book, page, tidied(ctx.catalog, book, page, line.data))
+    if (args.props.via != null && !viaDrawn(ctx.catalog, page, line.data)) return null
+    const next = withLine(ctx.catalog, book, page, tidied(ctx.catalog, page, line.data))
     return next && { next, result: {} }
   },
 })

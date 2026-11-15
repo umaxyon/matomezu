@@ -1,4 +1,5 @@
 // 伝言のコマンド: 右クリックで押した物（アンカーの付いた物）に、伝言を新しく書き始める（右サイドパネルを伝言の中身で開く）。UI マッピングの anchorMenu に置く
+import { shownPageId } from "../../../core/stage"
 import { calledStageOf } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
@@ -23,7 +24,7 @@ export const NOTE_NEW = kit.defineCommand({
       anchors,
       current: anchor,
       book: opened.book,
-      page: opened.page,
+      page: shownPageId(opened),
     }
     a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => panel)
     a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, panel, now))

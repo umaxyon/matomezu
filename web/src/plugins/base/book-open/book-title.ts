@@ -1,12 +1,10 @@
 // 画面に出すブックの名前
 
-import { type CoreCatalog, pageType } from "../../../core/core-catalog"
-import { type Lang, translate } from "../../../core/i18n/i18n"
+import type { CoreCatalog } from "../../../core/core-catalog"
+import type { Lang } from "../../../core/i18n/i18n"
 import type { Book } from "../../../core/schema/book"
 
-// 画面に出すブックの名前。題名を持たないか空のブックは、タイプの名前で呼ぶ
-export function bookTitle(catalog: CoreCatalog, book: Book, lang: Lang): string {
-  return "title" in book && book.title.trim() !== ""
-    ? book.title
-    : translate(catalog.messages, lang, pageType(catalog, book.type).title)
+// 画面に出すブックの名前（ブックの題は 1 字以上）
+export function bookTitle(_catalog: CoreCatalog, book: Book, _lang: Lang): string {
+  return book.title
 }

@@ -1,6 +1,6 @@
 // ツリーのページを作るダイアログ: ページ名（初めは base の nextPageTitle）・伸びる向き・根のキャプションを決めて、そのステージのブックに足し（base の useAddPage。アクション page-add。
 // 伸びる向きはページの設定の項目、根はページのフィールド root）、そのページを開く。伸びる向きの初めの値は「ブック継承」で、そのままならページに書かない
-// （あとでブックの向きを変えると、ページもそれに従う）。紙と紙の向きはブックのタイプの既定
+// （ページに書かなければ、設定の項目の既定の向き）。紙と紙の向きはタイプの既定
 import { useState } from "react"
 import { type DialogProps, useBook, useCoreCatalog, useMessages } from "../../../plugin-api/ui"
 import { nextPageTitle, settingValue } from "../../base"
@@ -8,6 +8,7 @@ import { controlClass, Dialog, Field, Form, InheritChoices, useAddPage } from ".
 import { GROW_NAMES, useGrowOptions } from "./GrowSetting"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
+import { TREE } from "./tree"
 
 export function NewTreePageDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
@@ -19,9 +20,10 @@ export function NewTreePageDialog({ onClose }: DialogProps) {
   const [grow, setGrow] = useState<Grow | undefined>(undefined) // undefined はブック継承
   const [caption, setCaption] = useState("")
   if (!book) return null
-  const inherited = settingValue(catalog, book, null, GROW)
+  const inherited = settingValue(catalog, null, GROW) // 書かないときの向き（設定の項目の既定）
   const create = () => {
     const added = addPage({
+      type: TREE.id,
       title,
       ...(grow ? { settings: { [GROW.id]: grow } } : {}),
       fields: { root: { caption } },

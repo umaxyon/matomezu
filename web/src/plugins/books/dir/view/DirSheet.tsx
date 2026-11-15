@@ -8,7 +8,7 @@ import { printLaid } from "../print"
 import { RowFace } from "./DirView"
 import styles from "./DirView.module.css"
 
-export function DirSheet({ book, page, paper }: PrintSheetProps) {
+export function DirSheet({ page, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const laid = printLaid(catalog, page, {
     setting: pageContext(catalog, page).setting,

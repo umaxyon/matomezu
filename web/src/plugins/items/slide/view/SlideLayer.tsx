@@ -9,6 +9,7 @@
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import {
   type ItemId,
+  openedPage,
   type PlacedShape,
   type Point,
   pageType,
@@ -128,11 +129,11 @@ const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f
 export function SlideLayer() {
   const stage = useStage()
   const catalog = useCoreCatalog()
-  const type = stage?.opened?.type
-  const slide = type ? pageType(catalog, type).slide : undefined
-  if (!stage || !slide || stage.opened?.page == null) return null
+  const opened = openedPage(stage?.opened ?? null)
+  const slide = opened ? pageType(catalog, opened.type).slide : undefined
+  if (!stage || !opened || !slide) return null
   // slide がページの本体のタイプは、紙の何も無い所の押しも受ける（選びを外す）。背景のタイプは、背景編集モードの間だけ操作を受ける（ふだんは描くだけ）
-  const body = !slideIsBackground(pageType(catalog, type as string))
+  const body = !slideIsBackground(pageType(catalog, opened.type))
   return <SlidePageView stage={stage} operable={body || stage.edits === "slide"} placeable={slide.allowed} />
 }
 

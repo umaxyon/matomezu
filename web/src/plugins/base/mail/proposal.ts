@@ -9,8 +9,9 @@
 import { z } from "zod"
 import { USER } from "../../../core/actor"
 import { pagesOf } from "../../../core/book"
-import type { ActionContext } from "../../../core/def/action"
-import { actionsOf, perform } from "../../../core/perform"
+import { type ActionContext, type AnyPermissionScope, scopeOf } from "../../../core/def/action"
+import { actionQuery, inspect, withoutPermissions } from "../../../core/inspect"
+import { perform } from "../../../core/perform"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
@@ -106,10 +107,11 @@ function carry(
       after = done.next as Book
       continue
     }
-    // 送ってから反映するまでにプラグインが変わっていても、そのブックのタイプで使えないアクションは行わない
-    if (!actionsOf(ctx.catalog, after).includes(c.action))
-      return { declined: `${what}: it cannot be done on this book` }
+    // 送ってから反映するまでにプラグインが変わっていても、所（引数が名指すページ）のタイプで使えないアクションは行わない（認可ステップは反映の perform が見る）
     const parsed = def.args.safeParse(c.args)
+    const where = parsed.success ? scopeOf(def.permissionScope as AnyPermissionScope, parsed.data) : undefined
+    if (withoutPermissions(inspect(ctx.catalog, actionQuery(ctx.catalog, c.action, after, where))).value !== true)
+      return { declined: `${what}: it cannot be done on this book` }
     const ran = parsed.success ? def.run(after as never, parsed.data as never, counted) : null
     if (adds) return { declined: `${what}: it adds things; only changes to things there now can be carried` }
     if (!ran || "declined" in ran) return { declined: `${what} is refused` }
@@ -152,7 +154,7 @@ export const PROPOSAL_SEND = kit.defineAction({
     const touched = ownChanged(book, carried.after).filter(id => id !== book.id)
     if (touched.length === 0) return { declined: "the changes change nothing" }
     const before = ownValues(book)
-    const pages = new Set("pages" in book ? (pagesOf(book) as readonly { id: string }[]).map(p => p.id) : [])
+    const pages = new Set(pagesOf(book).map(p => p.id))
     const things = touched.filter(id => !pages.has(id))
     const added = mailAdded(ctx, {
       mail: MAIL_PROPOSAL.id,

@@ -337,7 +337,7 @@ function PageItems({
     const items = shapesIn(page, press.drag)
     // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
     const movable =
-      (reparenting ? reparent.enabled : move.enabled) && book !== null && movableTogether(catalog, book, page, items)
+      (reparenting ? reparent.enabled : move.enabled) && book !== null && movableTogether(catalog, page, items)
     if (!movable && press.release === null) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = {
@@ -366,9 +366,9 @@ function PageItems({
       setTarget(point ? dropTarget(catalog, page, d.items[0] as string, point) : null)
     } else if (d.items.length === 1 && book) {
       const id = d.items[0] as string
-      d.came = trackDrag(catalog, book, page, id, d.prev, by, d.came)
+      d.came = trackDrag(catalog, page, id, d.prev, by, d.came)
       // 入れ替えが起きたら覚える（このドラッグの終わりまで）
-      const plan = dragging(catalog, book, page, id, by, d.came)
+      const plan = dragging(catalog, page, id, by, d.came)
       const moved = ([k, r]: [string, Rect]) => {
         const now = findShape(page, k)?.shape
         return k !== id && (r.x !== now?.x || r.y !== now?.y)
@@ -395,7 +395,7 @@ function PageItems({
   const dragged = shift && d ? d.items : []
   const plan =
     shift && book && d?.items.length === 1 && !d.reparent
-      ? dragging(catalog, book, page, d.items[0] as string, shift, d.came)
+      ? dragging(catalog, page, d.items[0] as string, shift, d.came)
       : null
   // ドラッグ中にずらして描く量（紙の上）
   const shiftOf = (item: PlacedShape): Point | null => {

@@ -11,7 +11,6 @@ import {
   useCommand,
   useContextMenu,
   useCoreCatalog,
-  useShownBook,
   useStage,
 } from "../../../plugin-api/ui"
 import { type PortArea, portAreasOf, toggledSelection } from "../../base"
@@ -47,11 +46,10 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const stage = useStage()
   const selection = stage?.selection ?? NO_SELECTION
   const placing = stage?.placing ?? null
-  const book = useShownBook()
   // 線は形のつながる範囲（つなぎ口で縮めた四角）につなぐ
   const rects = portAreasOf(catalog, page, scene.rects)
-  // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
-  const elbow = book ? elbowAt(catalog, book, page) : true
+  // ページの線の既定が折れ線か（ページ → 設定の既定）
+  const elbow = elbowAt(catalog, page)
   const lineEdit = useCommand(LINE_EDIT.id)
   const openLineMenu = useContextMenu(LINE_CONTEXT)
   const { select } = useActions()

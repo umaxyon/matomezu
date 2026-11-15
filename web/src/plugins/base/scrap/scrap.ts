@@ -5,7 +5,6 @@ import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { pageArea, paperSize } from "../place/items"
 
@@ -92,7 +91,7 @@ export const areaOnPage = (area: Rect, shift: Point): Rect => ({ ...area, x: are
 export const areaOfPage = (rect: Rect, shift: Point): Rect => ({ ...rect, x: rect.x - shift.x, y: rect.y - shift.y })
 
 // 切り抜いた直後の範囲: ページ全体（描けない紙なら null）
-export function wholePage(catalog: CoreCatalog, book: Book, page: ItemPage): Rect | null {
+export function wholePage(catalog: CoreCatalog, page: ItemPage): Rect | null {
   const size = pageArea(catalog, page)?.size
   if (!size) return null
   return areaOfPage({ x: 0, y: 0, w: size.w, h: size.h }, shiftOf(catalog, page))
