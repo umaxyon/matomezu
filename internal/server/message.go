@@ -131,7 +131,7 @@ func (h *Hub) deliver(e Envelope) {
 // 封筒の id を添える（渡せたのに結果が常駐に届かなかった知らせは、もう一度渡るので、受け手が重なりに気づけるように）
 func messageLine(e Envelope) string {
 	return "matomezu: the AI in workroom " + quote(e.From.Workroom) + " sent you a message (id " + e.ID + "): " + quote(e.Text) +
-		" (reply with send_message to " + quote(e.From.Workroom) + ")"
+		" (the AI does not see what you answer in this conversation; to answer it, call send_message to " + quote(e.From.Workroom) + ")"
 }
 
 // quote は、文字列を JSON の文字列にする（< > & を逃がさない）
