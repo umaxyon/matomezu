@@ -356,6 +356,12 @@ test("番号のリンクで別のチケットへ移ると履歴に積まれ、�
   await expect(screen.getByRole("heading", { name: "リンク元" })).toBeVisible()
   await expect(screen.getByRole("button", { name: "戻る" })).toBeDisabled()
   await expect(screen.getByRole("button", { name: "コントロールセンター" })).toBeEnabled()
+  // 巣箱の絵は線だけの絵（塗らない。塗ると黒い塊になる）
+  const fill = await screen
+    .getByRole("button", { name: "コントロールセンター" })
+    .locator("svg")
+    .evaluate(e => getComputedStyle(e).fill)
+  expect(fill).toBe("none")
   // 本文のリンクで移ると、戻るが押せるようになり、押すと前のチケットに戻る
   await screen.locator("[data-markdown-word-link]").click()
   await expect(screen.getByRole("heading", { name: "リンク先" })).toBeVisible()

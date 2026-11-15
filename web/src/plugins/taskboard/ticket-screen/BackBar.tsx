@@ -32,7 +32,7 @@ export function BackBar({ screen, folded = false }: { screen: string; folded?: b
         {folded ? null : t("Back")}
       </button>
       {folded ? null : <span className={styles.divider} aria-hidden="true" />}
-      <IconButton label={t("Control center")} onClick={toCenter}>
+      <IconButton className={styles.birdhouse} label={t("Control center")} onClick={toCenter}>
         {icon}
       </IconButton>
     </span>
