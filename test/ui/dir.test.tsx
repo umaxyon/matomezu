@@ -17,7 +17,7 @@ function setup() {
     expect(createBookIn(store, "s1", { title: "構成" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
-  const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }
+  const book = () => store.state.getState().books[id]!
   const perform = (action: string, args: unknown) => {
     let done: ReturnType<typeof store.actions.perform> | undefined
     act(() => {
@@ -55,9 +55,10 @@ function addProject(perform: ReturnType<typeof setup>["perform"]) {
 const rowNames = () =>
   [...screen.getByRole("img", { name: "紙" }).querySelectorAll("[data-entry]")].map(e => e.textContent)
 
-test("ページを作るボタンでダイアログが開き、根のフォルダの名前は初めはページ名。作ると根の行が紙に描かれる", () => {
+test("ページタブの＋でディレクトリ構成図を選ぶとダイアログが開き、根のフォルダの名前は初めはページ名。作ると根の行が紙に描かれる", () => {
   const { book } = setup()
-  fireEvent.click(screen.getByRole("button", { name: "ページを作る" }))
+  fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "ディレクトリ構成図" }))
   const dialog = screen.getByRole("dialog", { name: "新しいページ" })
   fireEvent.change(within(dialog).getByLabelText("ページ名"), { target: { value: "構成図" } })
   expect((within(dialog).getByLabelText("根のフォルダの名前") as HTMLInputElement).value).toBe("構成図")
