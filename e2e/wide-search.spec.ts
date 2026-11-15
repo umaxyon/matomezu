@@ -82,15 +82,40 @@ test("チケットモードは、パネルを開いたままボードを絞り�
   await expect(side.getByRole("textbox", { name: "検索する言葉" })).toHaveCount(0)
   await expect(page.locator(`[data-card="${hit}"]`)).toBeVisible()
   await expect(page.locator(`[data-card="${other}"]`)).toHaveCount(0)
-  // 絞りの印はボードの上には出ず、左サイドパネルの中に出る
+  // 絞りの印（検索中の帯）はボードの上には出ず、左サイドパネルの中に出る。パネルを閉じていても、プロジェクトの題の帯には押した状態のろうとが出る
   const mark = page.getByRole("status").filter({ hasText: "検索中" })
   await expect(mark).toHaveCount(0)
+  const indicator = page.locator("[data-board]").first().getByRole("button", { name: "絞り込み中（押すと解除）" })
+  await expect(indicator).toHaveAttribute("aria-pressed", "true")
   await page.getByRole("button", { name: "横断検索" }).click()
   await expect(mark).toContainText(word)
   await expect(side.locator(mark)).toHaveCount(1)
   await mark.getByRole("button", { name: "絞りを解除" }).click()
   await expect(mark).toHaveCount(0)
   await expect(page.locator(`[data-card="${other}"]`)).toBeVisible()
+  // 絞りが解けると、題の帯のろうとも消える
+  await expect(indicator).toHaveCount(0)
+})
+
+test("絞っている間だけ題の帯に押した状態のろうとが出て、押すと絞りが解ける（パネルを閉じたままでよい）", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const word = `ろうと${Date.now()}`
+  const { hit, other } = await setup(page, word)
+  const indicator = page.locator("[data-board]").first().getByRole("button", { name: "絞り込み中（押すと解除）" })
+  await expect(indicator).toHaveCount(0)
+  await page.getByRole("button", { name: "横断検索" }).click()
+  await panel(page).getByRole("textbox", { name: "検索する言葉" }).fill(word)
+  await expect(page.locator(`[data-card="${other}"]`)).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await expect(panel(page).getByRole("textbox", { name: "検索する言葉" })).toHaveCount(0)
+  // 絵は線だけ（塗らない）。押すと絞りが解け、ろうとも消える
+  expect(await indicator.locator("svg").evaluate(e => getComputedStyle(e).fill)).toBe("none")
+  await indicator.click()
+  await expect(page.locator(`[data-card="${other}"]`)).toBeVisible()
+  await expect(page.locator(`[data-card="${hit}"]`)).toBeVisible()
+  await expect(indicator).toHaveCount(0)
 })
 
 test("書庫が前に出ていても、チケットモードで絞るとボードが出る。カードの番号（M-0050 の形）でも当たる", async ({

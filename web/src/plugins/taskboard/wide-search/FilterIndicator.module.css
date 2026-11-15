@@ -1,0 +1,6 @@
+/* 押した状態（絞りが効いている）: 色と地を強調の色にする */
+.pressed {
+  color: var(--skin-accent);
+  background: var(--skin-btn);
+  border-color: var(--skin-border-strong);
+}

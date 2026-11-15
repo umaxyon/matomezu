@@ -118,3 +118,10 @@ export const PlusIcon = () => (
     <path d="M12 5v14M5 12h14" />
   </Svg>
 )
+
+// ろうと（絞り込み。検索で絞っている間の印）
+export const FilterIcon = () => (
+  <Svg size={16}>
+    <path d="M4 5h16l-6 7.5V19l-4-2v-4.5z" />
+  </Svg>
+)

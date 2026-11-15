@@ -11,6 +11,7 @@ export const WIDE_SEARCH_MESSAGES = defineMessages({
   "Could not search": { en: "Could not search", ja: "検索できませんでした" },
   Filtering: { en: "Filtering", ja: "検索中" },
   "Clear the filter": { en: "Clear the filter", ja: "絞りを解除" },
+  "Filtering, press to clear": { en: "Filtering (press to clear)", ja: "絞り込み中（押すと解除）" },
   "{n} projects": { en: "{n} projects", ja: "プロジェクト {n}" },
   "{n} tags": { en: "{n} tags", ja: "タグ {n}" },
   "{n} priorities": { en: "{n} priorities", ja: "優先度 {n}" },
