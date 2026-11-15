@@ -33,7 +33,7 @@ test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテ
   })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
   act(() => {
-    store.actions.perform("@matomezu/base:page-add", { title: "1" }, { book: id })
+    store.actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "1" }, { book: id })
   })
   await act(() => Promise.resolve())
   const pages = () => {

@@ -185,7 +185,11 @@ describe("アクションの入口", () => {
     createBookIn({ state, actions }, "s1", { title: "空" })
     actions.split("s1")
     actions.openBook("s2", "made")
-    const done = actions.perform("@matomezu/base:page-add", { title: "最初" }, { book: "made" })
+    const done = actions.perform(
+      "@matomezu/base:page-add",
+      { type: "@matomezu/drawing:drawing", title: "最初" },
+      { book: "made" },
+    )
     expect(done).toEqual({ ok: true, result: { page: "made" } })
     expect(screenOf(state.getState().window).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["made", "made"])
   })
@@ -196,15 +200,21 @@ describe("アクションの入口", () => {
     createBookIn(instance, "s1", { title: "メモ" })
     const { state, actions } = instance
     const before = state.getState()
-    expect(actions.perform("@matomezu/base:page-add", { title: "x" }, { book: "nope" })).toEqual({
+    expect(
+      actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "x" }, { book: "nope" }),
+    ).toEqual({
       ok: false,
       reason: "no-book",
     })
-    expect(actions.perform("@matomezu/base:page-add", { title: "x" }, { book: "n1" })).toEqual({
+    expect(
+      actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "x" }, { book: "n1" }),
+    ).toEqual({
       ok: false,
       reason: "not-allowed",
     })
-    expect(actions.perform("@matomezu/base:page-add", { title: "" }, { book: "b1" })).toEqual({
+    expect(
+      actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "" }, { book: "b1" }),
+    ).toEqual({
       ok: false,
       reason: "bad-args",
     })
@@ -227,11 +237,11 @@ describe("アクションの入口", () => {
     const { actions } = newStore()
     const typeOnly = () => {
       // @ts-expect-error ブックが対象のアクションには宛先が要る
-      actions.perform("@matomezu/base:page-add", { title: "x" })
+      actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "x" })
       // @ts-expect-error 設定のアクションに宛先は渡さない
       actions.perform("@matomezu/base:settings-set", { values: { "@matomezu/base:lang": "en" } }, { book: "b1" })
       // @ts-expect-error 引数の型が違う
-      actions.perform("@matomezu/base:page-add", { title: 1 }, { book: "b1" })
+      actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: 1 }, { book: "b1" })
     }
     expect(typeof typeOnly).toBe("function")
   })

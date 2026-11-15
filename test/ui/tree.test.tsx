@@ -136,7 +136,11 @@ test("根を渡さずにページは作れない（根はツリーのページ�
 function addTree(store: ReturnType<typeof setup>["store"], id: string, root: unknown) {
   let done: ReturnType<typeof store.actions.perform> | undefined
   act(() => {
-    done = store.actions.perform("@matomezu/base:page-add", { title: "p1", fields: { root } }, { book: id })
+    done = store.actions.perform(
+      "@matomezu/base:page-add",
+      { type: "@matomezu/tree:tree", title: "p1", fields: { root } },
+      { book: id },
+    )
   })
   if (!done?.ok) throw new Error("page-add refused")
   return done.result as {
@@ -191,7 +195,11 @@ test("ページを作るとき、根の子は id を書かずに入れ子で渡�
   act(() => {
     const given = { caption: "根", children: [{ id: "x", caption: "子" }] }
     expect(
-      store.actions.perform("@matomezu/base:page-add", { title: "p2", fields: { root: given } }, { book: id }).ok,
+      store.actions.perform(
+        "@matomezu/base:page-add",
+        { type: "@matomezu/tree:tree", title: "p2", fields: { root: given } },
+        { book: id },
+      ).ok,
     ).toBe(false)
   })
 })
@@ -243,6 +251,7 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
       store.actions.perform(
         "@matomezu/base:page-add",
         {
+          type: "@matomezu/tree:tree",
           title: "p1",
           fields: { root: { caption: "根", children: [{ caption: "子", children: [{ caption: "孫" }] }] } },
         },

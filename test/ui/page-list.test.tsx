@@ -31,7 +31,11 @@ function open(type: string) {
   const book = Object.keys(instance.state.getState().books)[0] as string
   const add = (title: string) =>
     act(() => {
-      ;(instance.actions as unknown as Perform).perform("@matomezu/base:page-add", { title }, { book })
+      ;(instance.actions as unknown as Perform).perform(
+        "@matomezu/base:page-add",
+        { type: "@matomezu/drawing:drawing", title },
+        { book },
+      )
     })
   add("一枚目")
   add("二枚目")

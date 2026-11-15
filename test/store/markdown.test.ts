@@ -49,9 +49,15 @@ test("どのページもいつも下へ増やす可変ページ。page-add・pag
   const page = pagesOf(book())[0]!
   expect(page.grows).toBeUndefined()
   expect(growOf(store.catalog.core, book(), page)).toEqual({ up: false, down: true, left: false, right: false })
-  expect(perform("@matomezu/base:page-add", { title: "2", grows: true }, { book: id }).ok).toBe(false)
+  expect(
+    perform("@matomezu/base:page-add", { type: "@matomezu/markdown:markdown", title: "2", grows: true }, { book: id })
+      .ok,
+  ).toBe(false)
   expect(perform("@matomezu/base:page-update", { page: page.id, grows: "down" }, { book: id }).ok).toBe(false)
-  expect(perform("@matomezu/base:page-add", { title: "2", grows: false }, { book: id }).ok).toBe(true)
+  expect(
+    perform("@matomezu/base:page-add", { type: "@matomezu/markdown:markdown", title: "2", grows: false }, { book: id })
+      .ok,
+  ).toBe(true)
 })
 
 test("原文はページのフィールド text（無ければ空の文書）。page-update で丸ごと替える", () => {
@@ -80,7 +86,13 @@ test("page-update の find・replace は、原文にちょうど 1 か所ある 
 test("原文の改行はいつも \\n だけ: page-add・page-update の text と find・replace の \\r\\n と \\r を \\n にそろえる", () => {
   const { store, id, book } = markdownStore()
   const perform = (action: string, args: object) => store.actions.perform(action as never, args as never, { book: id })
-  expect(perform("@matomezu/base:page-add", { title: "2", fields: { text: "a\r\nb\rc" } }).ok).toBe(true)
+  expect(
+    perform("@matomezu/base:page-add", {
+      type: "@matomezu/markdown:markdown",
+      title: "2",
+      fields: { text: "a\r\nb\rc" },
+    }).ok,
+  ).toBe(true)
   expect(pagesOf(book())[1]!.text).toBe("a\nb\nc")
   const page = pagesOf(book())[0]!.id
   expect(perform("@matomezu/base:page-update", { page, fields: { text: "x\r\ny" } }).ok).toBe(true)

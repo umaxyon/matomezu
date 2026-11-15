@@ -187,10 +187,22 @@ describe("インスタンスを作る", () => {
     expect(untyped(instance.actions).command("s1", "@matomezu/base:page-new")).toBe(true)
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:leaf-new", stage: "s1" })
     // 要るフィールド（根）を渡さなければ、ブックのデータの形に合わず断る。タイプに無いフィールドも断る
-    expect(perform("@matomezu/base:page-add", { title: "p" }, { book: "n1" }).ok).toBe(false)
-    expect(perform("@matomezu/base:page-add", { title: "p", fields: { stem: {} } }, { book: "n1" }).ok).toBe(false)
     expect(
-      perform("@matomezu/base:page-add", { title: "p", fields: { root: { caption: "根" } } }, { book: "n1" }).ok,
+      perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "p" }, { book: "n1" }).ok,
+    ).toBe(false)
+    expect(
+      perform(
+        "@matomezu/base:page-add",
+        { type: "@matomezu/drawing:drawing", title: "p", fields: { stem: {} } },
+        { book: "n1" },
+      ).ok,
+    ).toBe(false)
+    expect(
+      perform(
+        "@matomezu/base:page-add",
+        { type: "@matomezu/drawing:drawing", title: "p", fields: { root: { caption: "根" } } },
+        { book: "n1" },
+      ).ok,
     ).toBe(true)
     const page = () => pagesOf(instance.state.getState().books.n1 as unknown as { pages: { root: unknown }[] })[0]
     expect(page()).toMatchObject({ id: "n1", title: "p", root: { caption: "根" } })

@@ -115,7 +115,11 @@ test("ロック中のページを変えた画面の履歴の段は、元に戻�
 test("ページを消した画面の履歴の段を元に戻すと、同じ id のページが元の並びの所に戻り、そのページを開く", async () => {
   const store = ready()
   const pages = pagesOf(bookOf(store)).map(p => p.id)
-  store.actions.perform("@matomezu/base:page-add", { title: "2 枚目" }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/drawing:drawing", title: "2 枚目" },
+    { book: "b1" },
+  )
   await settled()
   const added = pagesOf(bookOf(store)).at(-1)!.id
   store.actions.perform("@matomezu/base:page-remove", { page: pages[0]! }, { book: "b1" })
@@ -127,7 +131,11 @@ test("ページを消した画面の履歴の段を元に戻すと、同じ id �
 
 test("ページを動かした画面の履歴の段を元に戻すと元の並びに、やり直すと動かした並びになる", async () => {
   const store = ready()
-  store.actions.perform("@matomezu/base:page-add", { title: "2 枚目" }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/drawing:drawing", title: "2 枚目" },
+    { book: "b1" },
+  )
   await settled()
   const ids = pagesOf(bookOf(store)).map(p => p.id)
   store.actions.perform("@matomezu/base:page-move", { page: ids[0]!, index: 1 }, { book: "b1" })
@@ -183,7 +191,11 @@ test("continueStep のあとに同じ処理で行ったアクションは、そ�
   store.actions.command("s1", "@matomezu/base:undo")
   expect(itemsOf(store)).toEqual(before)
   // ページを足して、続けてそのページを消すと、何も変わらないので画面の履歴の段は無くなる
-  store.actions.perform("@matomezu/base:page-add", { title: "足した" }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/drawing:drawing", title: "足した" },
+    { book: "b1" },
+  )
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)
   store.actions.continueStep("b1")

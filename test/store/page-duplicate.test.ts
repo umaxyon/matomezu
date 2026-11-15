@@ -33,21 +33,28 @@ function slideSetup(newId: () => string = sequence()) {
 
 test("page-add の index は、その番号の前に入れる。省略は最後、並びの外は断る。名前を省くと「Untitled」", () => {
   const s = slideSetup()
-  expect(s.perform("@matomezu/base:page-add", { title: "A" }).ok).toBe(true)
-  expect(s.perform("@matomezu/base:page-add", { title: "B" }).ok).toBe(true)
-  expect(s.perform("@matomezu/base:page-add", { title: "C", index: 1 }).ok).toBe(true)
+  expect(s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "A" }).ok).toBe(true)
+  expect(s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "B" }).ok).toBe(true)
+  expect(s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "C", index: 1 }).ok).toBe(
+    true,
+  )
   expect(pagesOf(s)().map(p => p.title)).toEqual(["A", "C", "B"])
-  expect(s.perform("@matomezu/base:page-add", { title: "D", index: 3 }).ok).toBe(true)
+  expect(s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "D", index: 3 }).ok).toBe(
+    true,
+  )
   expect(pagesOf(s)().map(p => p.title)).toEqual(["A", "C", "B", "D"])
-  expect(s.perform("@matomezu/base:page-add", { title: "E", index: 6 }).ok).toBe(false)
-  expect(s.perform("@matomezu/base:page-add", { index: 0 }).ok).toBe(true)
+  expect(s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "E", index: 6 }).ok).toBe(
+    false,
+  )
+  expect(s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", index: 0 }).ok).toBe(true)
   expect(pagesOf(s)()[0]?.title).toBe("Untitled")
 })
 
 test("page-duplicate は元のすぐ後ろに写しを足し、中の id を振り直す。ロックは写さない", () => {
   const s = slideSetup()
-  const first = s.perform("@matomezu/base:page-add", { title: "A" }).result?.page as string
-  s.perform("@matomezu/base:page-add", { title: "B" })
+  const first = s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "A" }).result
+    ?.page as string
+  s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "B" })
   const placed = s.perform("@matomezu/slide:slide-place", {
     page: first,
     item: TEXT,
@@ -79,7 +86,8 @@ test("ページの id は newId の値そのまま（uuid）。page-add でも p
   const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`
   const s = slideSetup(uuid)
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/
-  const added = s.perform("@matomezu/base:page-add", { title: "A" }).result?.page as string
+  const added = s.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "A" }).result
+    ?.page as string
   expect(added).toMatch(UUID)
   const copied = s.perform("@matomezu/base:page-duplicate", { page: added }).result?.page as string
   expect(copied).toMatch(UUID)

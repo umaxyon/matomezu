@@ -86,7 +86,7 @@ test("見える所に無い物の変更は溜めておき、見えたら時刻�
 test("開いていないページの変更は、そのページを開いたら見えたとする", async () => {
   const store = ready(sequence())
   const book = bookOf(store)
-  store.actions.perform("@matomezu/base:page-add", { title: "2" }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "2" }, { book: "b1" })
   await settled()
   confirm(store)
   const [, second] = pagesOf(bookOf(store))

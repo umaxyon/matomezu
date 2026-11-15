@@ -31,6 +31,7 @@ function setup() {
 // 根 proj（src（a.ts）と README.md）のページを作り、その id と振った id を返す
 function addProject(perform: ReturnType<typeof setup>["perform"]) {
   const done = perform("@matomezu/base:page-add", {
+    type: "@matomezu/dir:dir",
     title: "p1",
     fields: {
       root: {
@@ -433,7 +434,8 @@ test("中身のアイコンは、列挙 entry-icon の値で種類に合う物�
     }).ok
   expect(nested(BOOK)).toBe(false)
   expect(nested(DRAWING)).toBe(true)
-  const root = (icon: string) => perform("@matomezu/base:page-add", { fields: { root: { name: "r", icon } } }).ok
+  const root = (icon: string) =>
+    perform("@matomezu/base:page-add", { type: "@matomezu/dir:dir", fields: { root: { name: "r", icon } } }).ok
   expect(root(DRAWING)).toBe(false)
   expect(root(BOOK)).toBe(true)
   // 合う物は付き、行の頭の絵になる

@@ -29,7 +29,7 @@ function setup() {
         perform(id: string, a: object, on: { book: string }): { ok: boolean; result?: unknown }
       }
     ).perform(id, args, { book })
-  expect(perform("@matomezu/base:page-add", { title: "1" }).ok).toBe(true)
+  expect(perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "1" }).ok).toBe(true)
   const slide = () =>
     (instance.state.getState().books[book] as unknown as { pages: { id: string; slide?: Record<string, unknown>[] }[] })
       .pages[0]

@@ -68,7 +68,7 @@ describe("スライドのレイヤー", () => {
         }
       ).perform(
         "@matomezu/base:page-add",
-        { title: "1" },
+        { type: "@matomezu/drawing:drawing", title: "1" },
         { book: Object.keys(instance.state.getState().books)[0] as string },
       )
     })
