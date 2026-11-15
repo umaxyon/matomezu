@@ -104,7 +104,7 @@ export function TicketScreen() {
     <section className={styles.screen} aria-label={t("ticket screen")}>
       <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
         <div className={styles.band}>
-          <BackBar screen={me.id} />
+          <BackBar screen={me.id} folded={view.maximized} />
           <span className={styles.bandTitle}>{t("ticket screen")}</span>
           <span className={styles.bandEnd}>
             <LockToggle

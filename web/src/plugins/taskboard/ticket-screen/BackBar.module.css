@@ -1,3 +1,13 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* 左の枠を畳んでいる間: 絵だけの 2 つを縦に並べる */
+.bar[data-folded="true"] {
+  flex-direction: column;
+  gap: 6px;
+}
 /* 帯の「← 戻る」: アイコンと文字を 1 つのボタンに。戻る先が無いときは薄くして押せない */
 .back {
   display: inline-flex;
@@ -25,4 +35,10 @@
   width: 1px;
   margin: 2px 2px;
   background: var(--skin-border);
+}
+/* 畳んでいる間の戻るは、絵だけの幅 */
+.bar[data-folded="true"] .back {
+  width: 24px;
+  padding: 0;
+  justify-content: center;
 }

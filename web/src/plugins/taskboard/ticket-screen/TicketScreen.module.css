@@ -1,7 +1,7 @@
 /* 重ね場所（スクリーンの枠）の全面に出る。左のチケットの枠と、右の領域（本文の枠と、その上に重ねる質問の枠）。地は奥の面 */
 .screen {
   --ticket-width: 450px;
-  --ticket-folded-width: 40px; /* 本文を最大化して、戻るボタンだけにした幅 */
+  --ticket-folded-width: 40px; /* 本文を最大化して、戻る・巣箱のボタンだけにした幅 */
   --gap: 6px;
   --motion: 0.3s;
   --slide-out: calc(100% + var(--gap)); /* 右へ出て、見えなくなる所 */
