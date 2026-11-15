@@ -39,7 +39,7 @@ const backUi = definePluginUi(back, { presentationViews: { "back:look": { view: 
 const layer = () => document.querySelector<HTMLElement>("[data-slide-layer]")
 
 describe("スライドのレイヤー", () => {
-  test("背景を持つタイプのブックでは描かれ、背景編集モードで置こうとしている間（slide のアイテム）だけ押しを受ける", () => {
+  test("背景を持つタイプのページでは描かれ、背景編集モードで置こうとしている間（slide のアイテム）だけ押しを受ける", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN_UI, backUi],
       partial: true,
@@ -54,8 +54,8 @@ describe("スライドのレイヤー", () => {
     act(() => {
       createBookIn(instance, "s1", { title: "背景" })
     })
-    expect(screen.getByText("back view")).toBeTruthy()
-    expect(layer()).toBeNull() // ページが無い間は描かない
+    expect(screen.queryByText("back view")).toBeNull() // ページが無い間は、見せ方も slide のレイヤーも描かない
+    expect(layer()).toBeNull()
     const stage = screenOf(instance.state.getState().window).current as string
     act(() => {
       ;(
@@ -64,10 +64,11 @@ describe("スライドのレイヤー", () => {
         }
       ).perform(
         "@matomezu/base:page-add",
-        { type: "@matomezu/drawing:drawing", title: "1" },
+        { type: "back:back", title: "1" },
         { book: Object.keys(instance.state.getState().books)[0] as string },
       )
     })
+    expect(screen.getByText("back view")).toBeTruthy()
     expect(layer()?.dataset.active).toBe("false") // 押しはステージと下のレイヤーへ通す
     act(() => instance.actions.togglePlacing(stage, BOX))
     expect(layer()?.dataset.active).toBe("false") // 紙のアイテムを置こうとしている間は取らない

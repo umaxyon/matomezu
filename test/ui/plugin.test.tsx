@@ -73,7 +73,7 @@ describe("見た目のプラグイン", () => {
       </MatomezuProvider>,
     )
     act(() => {
-      createBookIn(instance, "s1", { title: "メモ" })
+      createBookIn(instance, "s1", { title: "メモ", page: { type: "notes:note" } as never })
     })
     expect(screen.getByText("note view")).toBeTruthy()
     act(() => instance.actions.openDialog("s1", "@matomezu/base:book-new"))

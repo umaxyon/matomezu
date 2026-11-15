@@ -3,7 +3,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { pagedOf, pagesOf } from "../../web/src/core/book"
+import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { usePageLookStyle } from "../../web/src/plugins/base/book-look/use-page-look-style"
@@ -44,7 +44,7 @@ const box = (id: string, x: number) => ({
   props: { caption: id },
 })
 
-const drawing = (id: string, settings: object) =>
+const drawing = (id: string, settings: Readonly<Record<string, unknown>>) =>
   pagesBook({
     type: "@matomezu/drawing:drawing",
     id,
@@ -83,7 +83,7 @@ function setup(extra: readonly object[] = []) {
       {node}
     </MatomezuProvider>
   )
-  const bookOf = (id: string) => pagedOf(instance.state.getState().books[id] as Book)!
+  const bookOf = (id: string) => instance.state.getState().books[id] as Book
   return { instance, wrap, bookOf }
 }
 
