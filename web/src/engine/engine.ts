@@ -15,7 +15,7 @@ import {
   talkActions,
   unexpired,
 } from "../core/annotation"
-import { checkBooks, restoreBooks } from "../core/book"
+import { checkBooks, findPage, pagesOf, restoreBooks } from "../core/book"
 import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -38,7 +38,7 @@ import {
   restoreCounters,
   restoreRecords,
 } from "../core/records"
-import type { Book, Page } from "../core/schema/book"
+import type { Book } from "../core/schema/book"
 import {
   aiSettings,
   disabledPluginsOf,
@@ -251,17 +251,15 @@ function perform(input: Input): Output {
 // 中身をずらした可変ページ（ページの shift が変わった）があれば、AI への知らせ（位置が変わったので読み直す）
 function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly Book[]): string | null {
   const shiftOf = (b: Book | undefined, page: string) =>
-    (b && "pages" in b ? (b.pages as readonly Page[]).find(p => p.id === page)?.shift : undefined) ?? { x: 0, y: 0 }
+    (b ? findPage(b, page)?.page.shift : undefined) ?? { x: 0, y: 0 }
   const moved = changed.flatMap(b =>
-    "pages" in b
-      ? (b.pages as readonly Page[]).flatMap(p => {
-          const was = shiftOf(before[b.id], p.id)
-          const now = shiftOf(b, p.id)
-          const dx = now.x - was.x
-          const dy = now.y - was.y
-          return dx || dy ? [`page ${p.id} of book ${b.id} by ${dx} paper(s) right and ${dy} down`] : []
-        })
-      : [],
+    pagesOf(b).flatMap(p => {
+      const was = shiftOf(before[b.id], p.id)
+      const now = shiftOf(b, p.id)
+      const dx = now.x - was.x
+      const dy = now.y - was.y
+      return dx || dy ? [`page ${p.id} of book ${b.id} by ${dx} paper(s) right and ${dy} down`] : []
+    }),
   )
   return moved.length
     ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`

@@ -76,6 +76,7 @@ export function searchOf(address: Address): string {
               l: s.stages.places.map(p => ({
                 b: p.book,
                 ...(p.page !== null ? { p: p.page } : {}),
+                ...(p.folder !== null ? { f: p.folder } : {}),
                 v: [round(p.zoom), round(p.pan.x), round(p.pan.y)] as [number, number, number],
                 ...(some(p.states) ? { s: { ...p.states } } : {}),
               })),
