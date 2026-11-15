@@ -8,9 +8,15 @@
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { screenOf, stageIn, workspaceOf } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"
+import {
+  useReadPluginStateAt as useReadPluginState,
+  useSetPluginStateAt as useSetPluginState,
+  useStageAt,
+} from "../../../ui/at-hooks"
 import { useMessages } from "../../../ui/i18n"
+import { StageScope } from "../../../ui/scope"
 import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useCoreCatalog, useReadPluginState, useSetPluginState, useStage, useUiCatalog } from "../../../ui/view-hooks"
+import { useCoreCatalog, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { POPUP_KEEPS } from "../utils/popup-keeps"
 import type { StageSlotProps } from "../workspace/ui"
@@ -98,7 +104,7 @@ function useFollowSelection(stage: string | null) {
   const readPanel = useReadPluginState(kit, RIGHT_SIDE_PANEL_STATE)
   const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
   const opened = useOpenedRightSidePanel()
-  const selection = useStage(stage ?? "")?.selection
+  const selection = useStageAt(stage)?.selection
   const following = useRef<string | null>(null)
   useEffect(() => {
     const was = following.current
@@ -155,7 +161,7 @@ function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpe
   const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
   const close = useCloseRightSidePanel()
-  const view = useStage(stage)
+  const view = useStageAt(stage)
   const stages = useMatomezuState(s => screenOf(s.window).stages.length)
   // 開いたら中にフォーカスを入れる（Esc を右サイドパネルのキーの範囲で受けるため。中の物がもう取っていれば、そのまま）
   useEffect(() => {
@@ -188,8 +194,12 @@ function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpe
   )
 }
 
-// 開いている中身: UI マッピングが右サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く
+// 開いている中身: UI マッピングが右サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く。描いている場所は、開いたステージ
 function Content({ stage, widget }: { stage: string; widget: string }) {
   const View = useUiCatalog().widgets.get(widget)?.view as ((props: StageSlotProps) => ReactNode) | undefined
-  return View ? <View stage={stage} /> : null
+  return View ? (
+    <StageScope stage={stage}>
+      <View stage={stage} />
+    </StageScope>
+  ) : null
 }

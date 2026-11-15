@@ -1,4 +1,5 @@
 // 印刷区画の区切りの線のレイヤー（base の stage/layers.tsx の PrintAreaLayer）: 見せ方が知らせた広さが紙 1 枚より大きいときだけ、紙 1 枚ごとの境目に線を引く
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { paperOf } from "../../web/src/core/stage"
@@ -6,6 +7,7 @@ import { screenOf } from "../../web/src/core/window"
 import { PrintAreaLayer } from "../../web/src/plugins/base/stage/layers"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
+import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { SAMPLE_BOOKS } from "../sample-books"
 
@@ -21,7 +23,9 @@ test("紙 1 枚で描くページには線を引かず、広さが右に 2 枚�
   instance.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const { container } = render(
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
-      <PrintAreaLayer stage="s1" />
+      <StageScope stage="s1">
+        <PrintAreaLayer stage="s1" />
+      </StageScope>
     </MatomezuProvider>,
   )
   expect(container.querySelector("[data-print-areas]")).toBeNull()

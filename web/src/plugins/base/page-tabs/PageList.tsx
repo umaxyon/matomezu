@@ -11,8 +11,8 @@ import type { Page } from "../../../core/schema/book"
 import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
-import { DrawnScope } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
+import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
@@ -34,9 +34,9 @@ function Thumbnail({ book, page }: { book: PagedBook; page: Page }) {
   const size = pageArea(catalog, book, page)?.size ?? { w: 1280, h: 720 }
   const scale = width / size.w
   return (
-    <DrawnScope catalog={catalog} book={book} page={page} zoom={scale || 1}>
+    <PageScope book={book.id} page={page.id} zoom={scale || 1}>
       {stage => <ThumbnailFrame stage={stage} book={book} page={page} size={size} scale={scale} onWidth={setWidth} />}
-    </DrawnScope>
+    </PageScope>
   )
 }
 

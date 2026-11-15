@@ -26,12 +26,14 @@ export { useActions, useLayoutWarnings } from "../ui/store-context"
 export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"
 export {
   type Allowed,
+  useActionsHere,
   useAllowed,
   useAllowedOn,
   useBook,
   useBrowserBack,
   useCoreCatalog,
   useItem,
+  useItemAt,
   useLatestPan,
   usePage,
   usePerform,

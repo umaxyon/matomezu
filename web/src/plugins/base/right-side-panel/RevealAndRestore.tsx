@@ -8,8 +8,12 @@ import type { Rect } from "../../../core/geom"
 import type { Stage } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
+import {
+  usePluginStateAt as usePluginState,
+  useReadPluginStateAt as useReadPluginState,
+  useUpdatePluginStateAt as useUpdatePluginState,
+} from "../../../ui/at-hooks"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { usePluginState, useReadPluginState, useUpdatePluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorElementIn, revealedRect } from "../utils/anchors"
 import { stageElement } from "../utils/stage-element"
@@ -23,7 +27,7 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   const stage = found?.stage ?? null
   const anchors = found?.open.anchors ?? null
   const current = found?.open.current ?? null
-  const restore = usePluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE, stage ?? "")
+  const restore = usePluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE, stage)
   const kept = useMatomezuState(
     useShallow(s =>
       screenOf(s.window)

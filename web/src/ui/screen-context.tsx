@@ -1,6 +1,6 @@
 // 描いている場所のスクリーン: 窓の枠が、開いているスクリーン 1 枚ごとに、その中のビューへ渡す（そのスクリーンの id・定義の id・渡された値・見えているか・カレントスクリーンか）。
 // スクリーンの中のビュー（ウィジェット・ダイアログなど）は、自分がどのスクリーンにいるかを、ここから読む
-import { createContext, type ReactNode, useContext } from "react"
+import { createContext, type ReactNode, useContext, useMemo } from "react"
 
 export interface ScreenHere {
   id: string // 開いた 1 枚ごとの id
@@ -12,8 +12,11 @@ export interface ScreenHere {
 
 const ScreenContext = createContext<ScreenHere | null>(null)
 
+// 渡す値は、中身が同じ間は同じ参照に保つ（描いている場所を読む物を、スクリーンの中の何かが変わるたびに描き直さないため）
 export function ScreenProvider({ screen, children }: { screen: ScreenHere; children: ReactNode }) {
-  return <ScreenContext.Provider value={screen}>{children}</ScreenContext.Provider>
+  const { id, def, props, shown, current } = screen
+  const value = useMemo(() => ({ id, def, props, shown, current }), [id, def, props, shown, current])
+  return <ScreenContext.Provider value={value}>{children}</ScreenContext.Provider>
 }
 
 // 描いている場所のスクリーン（スクリーンの外で描いているなら null）

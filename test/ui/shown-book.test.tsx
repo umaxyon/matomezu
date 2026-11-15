@@ -1,9 +1,11 @@
 // 見せ方が描くブック（useShownBook）: ブックの設定のダイアログの下書き（アイテムもページも指さないもの）だけを、そのブックの設定の項目に重ねる
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
+import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { useShownBook } from "../../web/src/ui/view-hooks"
 import { SAMPLE_BOOKS } from "../sample-books"
@@ -24,14 +26,16 @@ test("ブックを指す下書きは重なり、アイテムやページを指�
   instance.actions.openDialog("s1", "@matomezu/base:book-settings" as never, undefined as never)
   let shown: Book | null = null
   function Probe() {
-    shown = useShownBook("s1")
+    shown = useShownBook()
     return null
   }
   const settingsOf = (book: Book | null) => (book as { settings?: Record<string, unknown> } | null)?.settings ?? {}
   const paper = () => settingsOf(shown)[PAPER]
   render(
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
-      <Probe />
+      <StageScope stage="s1">
+        <Probe />
+      </StageScope>
     </MatomezuProvider>,
   )
   const draft = (preview: object) => {

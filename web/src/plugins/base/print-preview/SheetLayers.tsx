@@ -2,12 +2,15 @@
 // 印刷プレビューと印刷と、ページ一覧のサムネイルが使う（描く物が同じになる）
 import { bookType } from "../../../core/core-catalog"
 import { Slot } from "../../../ui/Slot"
+import { useZoomHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { SHEET_LAYERS } from "../workspace/slots"
 import type { PrintSheetProps } from "./PrintPreviewView"
 
-export function SheetLayers(props: PrintSheetProps) {
-  return <Slot name={SHEET_LAYERS} props={props} />
+// 倍率は、描いている場所（ui/scope.tsx）の倍率を渡す
+export function SheetLayers(props: Omit<PrintSheetProps, "zoom">) {
+  const zoom = useZoomHere()
+  return <Slot name={SHEET_LAYERS} props={{ ...props, zoom }} />
 }
 
 // ブックの中身のレイヤー: ブックのタイプの見せ方の印刷区画 1 つのビュー（無ければ白紙）

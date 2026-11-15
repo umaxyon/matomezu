@@ -13,6 +13,7 @@ import { previewing } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import type { MatomezuState } from "../../../store/store"
 import { Slot } from "../../../ui/Slot"
+import { StageScope } from "../../../ui/scope"
 import { useScreenHere } from "../../../ui/screen-context"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { PressClosedContext, useOpenedRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
@@ -95,14 +96,15 @@ function scrollbarWidth(): number {
   return width
 }
 
-// ステージの列の中身。印刷プレビューの間は、ステージの中身のほか（上・下の行と角）を出さない（中身の操作の道具を出さないため）
+// ステージの列の中身。中の物の描いている場所を、そのステージにする（ui/scope.tsx）。
+// 印刷プレビューの間は、ステージの中身のほか（上・下の行と角）を出さない（中身の操作の道具を出さないため）
 function StageColumn({ stage }: { stage: string }) {
   const inPreview = useMatomezuState(s => {
     const st = stageIn(s.window, stage)
     return !!st && previewing(st)
   })
   return (
-    <>
+    <StageScope stage={stage}>
       {!inPreview && (
         <div className={styles.top}>
           <Slot name={STAGE_TOP} props={{ stage }} />
@@ -124,7 +126,7 @@ function StageColumn({ stage }: { stage: string }) {
           <Slot name={STAGE_CORNER} props={{ stage }} />
         </div>
       )}
-    </>
+    </StageScope>
   )
 }
 

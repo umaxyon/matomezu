@@ -1,5 +1,7 @@
-// プラグインの見た目が使うフック（matomezu/ui）: matomezu が渡すステージの id から、約束のものだけを引く。状態を丸ごとは見せない。
-// データはブック・ページ・アイテム、ステージは読むだけの StageView（プラグインが持つ状態は usePluginState・useSetPluginState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ
+// プラグインの見た目が使うフック（matomezu/ui）: 描いている場所（ui/scope.tsx）から、約束のものだけを引く。状態を丸ごとは見せない。
+// 読む物（ブック・ページ・アイテム）は描くページから、操作（アクション・ステージごとのプラグイン状態・紙をずらす量など）は向け先から引く。
+// ステージは読むだけの StageView（プラグインが持つ状態は usePluginState・useSetPluginState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ。
+// 橋渡しの間、古い形（第 1 引数にステージの id）も受け、描いている場所と違えば落とす
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { USER } from "../core/actor"
@@ -26,56 +28,51 @@ import { find, sourceOf } from "../core/record-source"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { stageBlocks, toPaper } from "../core/stage"
-import { currentScreen, shownScreens, stageIn, workspaceOf } from "../core/window"
-import { type StageView, stageView, toolOf } from "../core/workspace"
-import { NO_STAGE } from "../store/dialogs"
-import type { PluginKit } from "../store/kit"
-import { ownedPluginState, pluginValueOf } from "../store/plugin-state"
-import type { Performed } from "../store/store"
+import { currentScreen, shownScreens, stageIn } from "../core/window"
+import type { StageView } from "../core/workspace"
+import { ownedPluginState } from "../store/plugin-state"
+import { type BoundPlaceActions, boundActions, type Performed, type WindowActions } from "../store/store"
 import { worldOf } from "../store/world"
-import { stageFor, useDrawn } from "./drawn"
+import {
+  type Owner,
+  usePluginStateAt,
+  useReadPluginStateAt,
+  useSetPluginStateAt,
+  useStageAt,
+  useUpdatePluginStateAt,
+} from "./at-hooks"
 import type { UiCatalog } from "./plugin"
+import { bookOf, checkLegacy, openedOf, pageOf, useAt, useScope, useStageId } from "./scope"
 import { useScreenHere } from "./screen-context"
 import {
-  useActions,
   useCatalog,
   useControlCenter,
   useInstance,
   useMatomezuState,
   useReadState,
+  useActions as useStoreActions,
   useUiCatalog as useUi,
 } from "./store-context"
 
-// そのステージが開いているブック（何も開いていなければ null）
-export function useBook(stage: string): Book | null {
-  const drawn = useDrawn(stage)
-  return useMatomezuState(s => {
-    const o = stageFor(s.window, drawn, stage)?.opened
-    return o ? (s.books[o.book] ?? null) : null
-  })
+// 描くページのブック（何も開いていなければ null）
+export function useBook(legacy?: string): Book | null {
+  const scope = useScope()
+  checkLegacy(scope, legacy, "useBook")
+  return useMatomezuState(s => bookOf(s, scope))
 }
 
-// そのステージが開いているページ（ページを持たないブック・ページを開いていなければ null）
-export function usePage(stage: string): ItemPage | null {
-  const drawn = useDrawn(stage)
-  return useMatomezuState(s => {
-    const o = stageFor(s.window, drawn, stage)?.opened
-    const book = o ? pagedOf(s.books[o.book]) : undefined
-    return (book?.pages.find(p => p.id === o?.page) as ItemPage | undefined) ?? null
-  })
+// 描くページ（ページを持たないブック・ページを開いていなければ null）
+export function usePage(legacy?: string): ItemPage | null {
+  const scope = useScope()
+  checkLegacy(scope, legacy, "usePage")
+  return useMatomezuState(s => pageOf(s, scope))
 }
 
-// そのステージが開いているブックの、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
-export function useItem<Id extends ItemId>(
-  stage: string,
-  page: string,
-  item: string,
-  id?: Id,
-): PlacedOf<Id> | undefined {
-  const drawn = useDrawn(stage)
+// 描くページのブックの、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
+export function useItemAt<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | undefined {
+  const scope = useScope()
   return useMatomezuState(s => {
-    const o = stageFor(s.window, drawn, stage)?.opened
-    const book = o ? pagedOf(s.books[o.book]) : undefined
+    const book = pagedOf(bookOf(s, scope) ?? undefined)
     const p = book?.pages.find(p => p.id === page) as ItemPage | undefined
     // ページのアイテムか、どの深さの子の形も
     const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
@@ -83,9 +80,20 @@ export function useItem<Id extends ItemId>(
   })
 }
 
-// そのステージが開いているブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。見せ方が描くのに使う
-export function useShownBook(stage: string): Book | null {
-  const book = useBook(stage)
+// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）。新しい形は useItemAt（最後に useItem に戻す）
+export function useItem<Id extends ItemId>(
+  legacy: string,
+  page: string,
+  item: string,
+  id?: Id,
+): PlacedOf<Id> | undefined {
+  checkLegacy(useScope(), legacy, "useItem")
+  return useItemAt(page, item, id)
+}
+
+// 描くページのブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。見せ方が描くのに使う
+export function useShownBook(legacy?: string): Book | null {
+  const book = useBook(legacy)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
     if (!book || !preview || preview.book !== book.id || preview.item !== undefined || preview.page !== undefined)
@@ -94,12 +102,12 @@ export function useShownBook(stage: string): Book | null {
   }, [book, preview])
 }
 
-// そのステージが開いているページに、ダイアログの下書き（選んでいて、まだ確定していない値。アイテムの項目と、ページの設定の項目）を重ねたページ。
+// 描くページに、ダイアログの下書き（選んでいて、まだ確定していない値。アイテムの項目と、ページの設定の項目）を重ねたページ。
 // 見せ方が描くのに使う
-export function useShownPage(stage: string): ItemPage | null {
-  const page = usePage(stage)
-  const drawn = useDrawn(stage)
-  const book = useMatomezuState(s => stageFor(s.window, drawn, stage)?.opened?.book)
+export function useShownPage(legacy?: string): ItemPage | null {
+  const page = usePage(legacy)
+  const scope = useScope()
+  const book = useMatomezuState(s => openedOf(s, scope)?.book)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
     if (!page || !preview || preview.book !== book) return page
@@ -115,28 +123,37 @@ export function useShownPage(stage: string): ItemPage | null {
 }
 
 // アクションを行えるか（認可ステップも見る）: 使えれば ok、認可ステップが止めたなら permission にそのステップの id（タイプなどで使えなければ null）。
-// ブックが対象のアクションは、そのステージで開いているブックの where の所で問う（where を渡さなければ、開いているページ）。
+// ブックが対象のアクションは、向け先のステージで開いているブックの where の所で問う（where を渡さなければ、開いているページ）。
+// 向け先が無い所（見るだけのページの中）では、行えない。
 // 利用者の設定が対象のアクションは、where に変える項目の id（settings）を渡して問う。
 // 止められたときに、薄くする・消すなどをどうするかは、使う側が決める
 export type Allowed = { ok: true } | { ok: false; permission: string | null }
 
-export function useAllowed(stage: string, action: ActionId, where?: Where | { settings: readonly string[] }): Allowed {
+export function useAllowed(action: ActionId, where?: Where | { settings: readonly string[] }): Allowed
+// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
+export function useAllowed(legacy: string, action: ActionId, where?: Where | { settings: readonly string[] }): Allowed
+export function useAllowed(...given: readonly unknown[]): Allowed {
+  const old = typeof given[1] === "string"
+  const action = (old ? given[1] : given[0]) as ActionId
+  const where = (old ? given[2] : given[1]) as Where | { settings: readonly string[] } | undefined
+  const scope = useScope()
+  checkLegacy(scope, old ? (given[0] as string) : undefined, "useAllowed")
+  const at = useAt()
   const catalog = useCatalog().core
   const controlCenter = useControlCenter()
   const settings = where && "settings" in where ? where.settings.join("\n") : undefined
   const place = where && !("settings" in where) ? where : undefined
   const ids = place?.ids?.join("\n")
-  const drawn = useDrawn(stage)
   const answer = useMatomezuState(s => {
-    if (drawn) return NOT_ALLOWED // ステージの外で、見るだけに描くページには、何も行わない
-    const st = stageIn(s.window, stage)
+    if (at === null) return NOT_ALLOWED // 向け先が無い所からは、何も行わない
+    const st = stageIn(s.window, at)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
     const book = o ? s.books[o.book] : undefined
     const page = place?.page ?? o?.page ?? undefined
-    const at = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
+    const on = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
-    const done = inspect(catalog, { ...actionQuery(catalog, action, book, at), ...changed }, { controlCenter })
+    const done = inspect(catalog, { ...actionQuery(catalog, action, book, on), ...changed }, { controlCenter })
     return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
   return allowedOf(answer)
@@ -165,79 +182,70 @@ export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, 
   return allowedOf(answer)
 }
 
-// そのステージ（読むだけ。無いステージなら null）。紙をずらしただけでは描き直さない
-export function useStage(stage: string): StageView | null {
-  const catalog = useCatalog().core
-  const drawn = useDrawn(stage)
-  const found = useMatomezuState(
-    useShallow(s => {
-      const st = stageFor(s.window, drawn, stage)
-      return st
-        ? {
-            id: st.id,
-            opened: st.opened,
-            zoom: st.zoom,
-            selection: st.selection,
-            editing: st.editing,
-            placing: st.placing,
-            edits: st.edits,
-            mode: st.mode,
-          }
-        : null
-    }),
+// 向け先のステージ（読むだけ。向け先がステージでなければ null。見るだけのページの中でも null）。紙をずらしただけでは描き直さない
+export function useStage(legacy?: string): StageView | null {
+  const scope = useScope()
+  checkLegacy(scope, legacy, "useStage")
+  return useStageAt(useStageId())
+}
+
+// 値のある場所: ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーン（どちらも呼び出しには渡さない。描いている場所から決まる）。
+// 向け先がステージでない所（見るだけのページの中など）では、ステージごとの宣言の値は無く、置いても何も変わらない。
+// スクリーンごとの宣言は、スクリーンの id を渡して名指せる（スクリーンを並べるスクリーンアレンジメントのウィジェットが、並べる 1 枚ごとの値を読み書きするとき）
+// 橋渡しの間だけ: ステージごとの宣言に、ステージの id を渡す古い形も受ける
+type At<Sc extends PluginStateScope> = Sc extends "window" ? [] : [place?: string]
+
+// 宣言の範囲 scope の値がある場所の id（窓の範囲は ""。場所が無ければ null）。given は呼び出しに渡された id
+function usePluginPlace(scope: PluginStateScope): (given: string | undefined, hook: string) => string | null {
+  const here = useScope()
+  const stage = useStageId()
+  const screen = useScreenHere()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
+  return useCallback(
+    (given, hook) => {
+      if (scope === "window") return ""
+      if (scope === "screen") return given ?? screen
+      checkLegacy(here, given, hook)
+      return stage
+    },
+    [scope, here, stage, screen],
   )
-  const tool = useMatomezuState(s => (drawn ? null : toolOf(catalog, workspaceOf(s.window, stage), stage, s.books)))
-  return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 
-// プラグイン状態の持ち主（プラグインの kit。kit の id が頭の宣言だけを読み書きする。id だけの物は受けない）
-// biome-ignore lint/suspicious/noExplicitAny: どのプラグインの kit も受ける（文言の表の型は見ない）
-type Owner = PluginKit<string, any>
-
-// ステージごとの宣言は、読み書きするステージ stage を呼び出しに渡す（ステージに結ばない宣言は渡さない）
-// 値のある場所: ステージごとの宣言はステージの id、スクリーンごとの宣言は開いているスクリーンの id（useScreen が返す自分の id など）
-type At<Sc extends PluginStateScope> = Sc extends "stage"
-  ? [stage: string]
-  : Sc extends "screen"
-    ? [screen: string]
-    : []
-
-// プラグイン状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。
-// ステージごとの宣言は読むステージ stage も渡す。置き直すたびに描き直す
-export function usePluginState<S>(kit: Owner, def: PluginStateDef<S> & { scope: "window" }): S | undefined
-export function usePluginState<S>(kit: Owner, def: PluginStateDef<S> & { scope: "stage" }, stage: string): S | undefined
-export function usePluginState<S>(
-  kit: Owner,
-  def: PluginStateDef<S> & { scope: "screen" },
-  screen: string,
-): S | undefined
-export function usePluginState<S>(kit: Owner, def: PluginStateDef<S>, stage = ""): S | undefined {
-  const own = ownedPluginState(kit.id, def)
-  return useMatomezuState(s => pluginValueOf(s.pluginValues, stage, own))
+// プラグイン状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。置き直すたびに描き直す
+export function usePluginState<S>(kit: Owner, def: PluginStateDef<S>, place?: string): S | undefined {
+  return usePluginStateAt(kit, def, usePluginPlace(def.scope)(place, "usePluginState"))
 }
 
-// プラグイン状態 def を、描き直さずに読む関数（置いた側が、前に置いた値と比べるときなど。ステージごとの宣言は、読むステージを呼び出しに渡す）
+// プラグイン状態 def を、描き直さずに読む関数（置いた側が、前に置いた値と比べるときなど）
 export function useReadPluginState<S, Sc extends PluginStateScope>(
   kit: Owner,
   def: PluginStateDef<S> & { scope: Sc },
 ): (...at: At<Sc>) => S | undefined {
-  const read = useReadState()
-  const own = ownedPluginState(kit.id, def)
-  return useCallback((...at: string[]) => pluginValueOf(read().pluginValues, at[0] ?? "", own), [read, own])
+  const read = useReadPluginStateAt(kit, def)
+  const placeOf = usePluginPlace(def.scope)
+  return useCallback(
+    (...given: readonly (string | undefined)[]) => {
+      const at = placeOf(given[0], "useReadPluginState")
+      return at === null ? undefined : read(at)
+    },
+    [read, placeOf],
+  )
 }
 
-// プラグイン状態 def の値を変える関数（最後の引数が新しい値。undefined なら消す。ステージごとの宣言は、先頭にステージを渡す。無いステージには置かない。
-// 画面の場所に入れる宣言の形に合わなければ E123）
+// プラグイン状態 def の値を変える関数（引数が新しい値。undefined なら消す。場所が無ければ置かない。画面の場所に入れる宣言の形に合わなければ E123）
 export function useSetPluginState<S, Sc extends PluginStateScope>(
   kit: Owner,
   def: PluginStateDef<S> & { scope: Sc },
-): (...args: [...At<Sc>, S | undefined]) => void {
-  const { setPluginState } = useInstance()
-  const own = ownedPluginState(kit.id, def)
+): (...args: [...At<Sc>, S | undefined] | [S | undefined]) => void {
+  const set = useSetPluginStateAt(kit, def)
+  const placeOf = usePluginPlace(def.scope)
+  const named = def.scope !== "window"
   return useCallback(
-    (...args: unknown[]) =>
-      setPluginState(own.id, own.scope === "window" ? null : (args[0] as string), args[args.length - 1]),
-    [setPluginState, own],
+    (...args: unknown[]) => {
+      const at = placeOf(named && args.length === 2 ? (args[0] as string) : undefined, "useSetPluginState")
+      if (at !== null) set(at, args[args.length - 1] as S | undefined)
+    },
+    [set, placeOf, named],
   )
 }
 
@@ -245,6 +253,7 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
 // 宣言が無い・address が無い・形に合わない値・場所の無い範囲は何もせず false。ステージごとの宣言は at.stage のステージの値。
 // スクリーンごとの宣言は、at.screenDef（書き先のスクリーンの定義の id）の開いているスクリーンの値（複数なら最後にカレントにした 1 枚。開いていなければ false）。
 // screenDef を渡さなければ、このビューがいるスクリーンの値（スクリーンの外の物は false。窓のカレントスクリーンには落とさない）。
+// ステージごとの宣言は、向け先のステージの値（向け先がステージでなければ false）。
 // 同じ値なら何も変わらず、ブラウザの履歴に積まない。ほかのプラグインのコードは読まず、id の文字と値だけで頼む（自分の宣言は useSetPluginState）
 export function useSetPluginStateById(): (
   id: string,
@@ -253,81 +262,139 @@ export function useSetPluginStateById(): (
 ) => boolean {
   const { setPluginStateById } = useInstance()
   const here = useScreenHere()?.id
+  const scope = useScope()
+  const stage = useStageId()
   return useCallback(
-    (id, value, at) => setPluginStateById(id, value, { ...(here !== undefined ? { screen: here } : {}), ...at }),
-    [setPluginStateById, here],
+    (id, value, at) => {
+      checkLegacy(scope, at?.stage, "useSetPluginStateById")
+      return setPluginStateById(id, value, {
+        ...(here !== undefined ? { screen: here } : {}),
+        ...(stage !== null ? { stage } : {}),
+        ...(at?.screenDef !== undefined ? { screenDef: at.screenDef } : {}),
+      })
+    },
+    [setPluginStateById, here, scope, stage],
   )
 }
 
 // 複数のプラグイン状態の値を、1 回で書く関数（途中の、片方だけ変わった状態を知らせない）。自分の kit を渡し、自分の宣言だけを書く。
-// 変え方は [宣言, ステージ（ステージに結ばない宣言は null）, 新しい値] の並び
+// 変え方は [宣言, 新しい値] の並び（ステージごとの宣言は向け先のステージの値。向け先がステージでなければ、その変え方は捨てる）
+// 橋渡しの間だけ: 古い形 [宣言, ステージ（ステージに結ばない宣言は null）, 新しい値] も受ける
 export function useSetPluginStates(
   kit: Owner,
-): (changes: readonly (readonly [def: PluginStateDef<unknown>, stage: string | null, value: unknown])[]) => void {
+): (
+  changes: readonly (
+    | readonly [def: PluginStateDef<unknown>, value: unknown]
+    | readonly [def: PluginStateDef<unknown>, legacy: string | null, value: unknown]
+  )[],
+) => void {
   const { setPluginStates } = useInstance()
   const id = kit.id
+  const scope = useScope()
+  const stage = useStageId()
   return useCallback(
     changes =>
-      setPluginStates(changes.map(([def, stage, value]) => [ownedPluginState(id, def).id, stage, value] as const)),
-    [setPluginStates, id],
+      setPluginStates(
+        changes.flatMap(change => {
+          const def = change[0]
+          if (change.length === 3 && change[1] !== null) checkLegacy(scope, change[1], "useSetPluginStates")
+          const at = def.scope === "window" ? null : stage
+          if (def.scope !== "window" && at === null) return []
+          return [[ownedPluginState(id, def).id, at, change[change.length - 1]] as const]
+        }),
+      ),
+    [setPluginStates, id, scope, stage],
   )
 }
 
-// プラグイン状態 def の値を、今の値から change が返す値にする関数（最後の引数が change。ステージごとの宣言は、先頭にステージを渡す）
+// プラグイン状態 def の値を、今の値から change が返す値にする関数（引数が change。場所が無ければ何もしない）
 export function useUpdatePluginState<S, Sc extends PluginStateScope>(
   kit: Owner,
   def: PluginStateDef<S> & { scope: Sc },
-): (...args: [...At<Sc>, (now: S | undefined) => S | undefined]) => void {
-  const { setPluginState } = useInstance()
-  const read = useReadState()
-  const own = ownedPluginState(kit.id, def)
+): (...args: [...At<Sc>, (now: S | undefined) => S | undefined] | [(now: S | undefined) => S | undefined]) => void {
+  const update = useUpdatePluginStateAt(kit, def)
+  const placeOf = usePluginPlace(def.scope)
+  const named = def.scope !== "window"
   return useCallback(
     (...args: unknown[]) => {
-      const stage = own.scope === "window" ? null : (args[0] as string)
-      const change = args[args.length - 1] as (now: S | undefined) => S | undefined
-      setPluginState(own.id, stage, change(pluginValueOf(read().pluginValues, stage ?? "", own)))
+      const at = placeOf(named && args.length === 2 ? (args[0] as string) : undefined, "useUpdatePluginState")
+      if (at !== null) update(at, args[args.length - 1] as (now: S | undefined) => S | undefined)
     },
-    [setPluginState, read, own],
+    [update, placeOf, named],
   )
 }
 
-// 見せ方のビューが、そのステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。
+// 見せ方のビューが、向け先のステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。
 // 位置をデータに持たない見せ方は、描く中身を右・下へずらした量 origin（印刷区画の数）も知らせる（変わったら、ステージがパンを合わせる）。
-// 広さかずらした量が変わったときだけ知らせ、ビューが消えたら紙 1 枚に戻す。ずらす量の範囲・紙の枠・全体を収める倍率・ミニマップは、この広さで決まる
-export function useStageArea(stage: string, area: Size | null, origin: Point | null = null): void {
-  const { setStageArea } = useActions()
+// 広さかずらした量が変わったときだけ知らせ、ビューが消えたら紙 1 枚に戻す。ずらす量の範囲・紙の枠・全体を収める倍率・ミニマップは、この広さで決まる。
+// 向け先がステージでない所（見るだけのページの中）では、何も知らせない
+export function useStageArea(area: Size | null, origin?: Point | null): void
+// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
+export function useStageArea(legacy: string, area: Size | null, origin?: Point | null): void
+export function useStageArea(...given: readonly unknown[]): void {
+  const old = typeof given[0] === "string"
+  const area = (old ? given[1] : given[0]) as Size | null
+  const origin = ((old ? given[2] : given[1]) ?? null) as Point | null
+  checkLegacy(useScope(), old ? (given[0] as string) : undefined, "useStageArea")
+  const stage = useStageId()
+  const { setStageArea } = useStoreActions()
   const w = area?.w
   const h = area?.h
   const ox = origin?.x ?? 0
   const oy = origin?.y ?? 0
   useLayoutEffect(() => {
-    setStageArea(stage, w !== undefined && h !== undefined ? { w, h } : null, { x: ox, y: oy })
+    if (stage !== null) setStageArea(stage, w !== undefined && h !== undefined ? { w, h } : null, { x: ox, y: oy })
   }, [setStageArea, stage, w, h, ox, oy])
-  useLayoutEffect(() => () => setStageArea(stage, null), [setStageArea, stage])
+  useLayoutEffect(
+    () => () => {
+      if (stage !== null) setStageArea(stage, null)
+    },
+    [setStageArea, stage],
+  )
 }
 
-// そのステージの紙をずらす量（無いステージなら null）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
+// 向け先のステージの紙をずらす量（向け先がステージでなければ null）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
 // watch が false の間は null を返し、ずらしても描き直さない（ドラッグの間だけ追うときなど）
-export function useStagePan(stage: string, watch = true): Point | null {
-  return useMatomezuState(s => (watch ? (stageIn(s.window, stage)?.pan ?? null) : null))
+export function useStagePan(watch?: boolean): Point | null
+// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
+export function useStagePan(legacy: string, watch?: boolean): Point | null
+export function useStagePan(...given: readonly unknown[]): Point | null {
+  const old = typeof given[0] === "string"
+  const watch = ((old ? given[1] : given[0]) ?? true) as boolean
+  checkLegacy(useScope(), old ? (given[0] as string) : undefined, "useStagePan")
+  const stage = useStageId()
+  return useMatomezuState(s => (watch && stage !== null ? (stageIn(s.window, stage)?.pan ?? null) : null))
 }
 
-// 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す関数（描き直さない。押した所を直すときなど、イベントや effect の中で使う）
-export function useToPaper(stage: string): (p: Point) => Point | null {
+// 表示領域の中の点（左上から）を、向け先のステージの今の紙の上の点に直す関数（描き直さない。押した所を直すときなど、イベントや effect の中で使う）
+export function useToPaper(legacy?: string): (p: Point) => Point | null {
+  checkLegacy(useScope(), legacy, "useToPaper")
+  const stage = useStageId()
   const read = useReadState()
   return useCallback(
     (p: Point) => {
-      const st = stageIn(read().window, stage)
+      const st = stage === null ? undefined : stageIn(read().window, stage)
       return st ? toPaper(st, p) : null
     },
     [read, stage],
   )
 }
 
-// そのステージの今の紙をずらす量を読む関数（描き直さない。押した所を紙の上の点に直すときなど、イベントや effect の中で読む）
-export function useLatestPan(stage: string): () => Point | null {
+// 向け先のステージの今の紙をずらす量を読む関数（描き直さない。押した所を紙の上の点に直すときなど、イベントや effect の中で読む）
+export function useLatestPan(legacy?: string): () => Point | null {
+  checkLegacy(useScope(), legacy, "useLatestPan")
+  const stage = useStageId()
   const read = useReadState()
-  return useCallback(() => stageIn(read().window, stage)?.pan ?? null, [read, stage])
+  return useCallback(() => (stage === null ? null : (stageIn(read().window, stage)?.pan ?? null)), [read, stage])
+}
+
+// 描いている場所（ui/scope.tsx）から呼ぶ画面の操作: 窓に向ける操作はそのまま、場所に向ける操作は、向け先（ステージかスクリーン）に向けた形（第 1 引数が無い）。
+// 向け先が無い所（見るだけのページの中）では、場所に向ける操作は何もしない。
+// 橋渡しの間だけの名前（最後に、これを useActions にする。場所を第 1 引数に取る今の useActions は、土台と骨組みだけが使う）
+export function useActionsHere(): WindowActions & BoundPlaceActions {
+  const actions = useStoreActions()
+  const at = useAt()
+  return useMemo(() => ({ ...actions, ...boundActions(actions, at) }), [actions, at])
 }
 
 // 機能台帳（定義の表。読むだけ。コマンドの ctx.catalog と同じ物）
@@ -354,30 +421,31 @@ export function useUserSetting(id: string): unknown {
   return useMemo(() => userSetting(catalog, values, id), [catalog, values, id])
 }
 
-// そのステージが開いているブックにアクションを行う関数（ブックかアノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
+// 向け先のステージが開いているブックにアクションを行う関数（ブックかアノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
+// 向け先が無い所（見るだけのページの中）からは行わず、no-book を返す。
 // 印刷プレビューの間のステージからは、ブックを変えるアクションを行わず print-preview を返す（core/stage.ts の stageBlocks）
-export function usePerform(stage: string): <Id extends ActionId>(action: Id, args: ArgsOf<Id>) => Performed<Id> {
-  const { perform } = useActions()
+export function usePerform(legacy?: string): <Id extends ActionId>(action: Id, args: ArgsOf<Id>) => Performed<Id> {
+  checkLegacy(useScope(), legacy, "usePerform")
+  const at = useAt()
+  const { perform } = useStoreActions()
   const catalog = useCatalog().core
-  const book = useMatomezuState(s => stageIn(s.window, stage)?.opened?.book)
-  const mode = useMatomezuState(s => stageIn(s.window, stage)?.mode.kind ?? "edit")
-  const drawn = useDrawn(stage) !== undefined
+  const book = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.book))
+  const mode = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.mode.kind) ?? "edit")
   return useMemo(
     () =>
       <Id extends ActionId>(action: Id, args: ArgsOf<Id>): Performed<Id> => {
         const loose = perform as (id: string, args: unknown, on?: ActionOn) => Performed<Id>
-        if (drawn) return { ok: false, reason: "no-book" } // ステージの外で、見るだけに描くページからは、何も行わない
+        if (at === null) return { ok: false, reason: "no-book" } // 向け先が無い所からは、何も行わない
         if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
         if (!isOnBook(catalog.actions.get(action)?.target)) return loose(action, args)
         return book === undefined ? { ok: false, reason: "no-book" } : loose(action, args, { book })
       },
-    [perform, catalog, book, mode, drawn],
+    [perform, catalog, book, mode, at],
   )
 }
 
-// 描いている場所のスクリーンの id（スクリーンの外で描いているなら none）。ステージを持たない所から、ダイアログを開く（openDialog）・コマンドを呼ぶ（useCommand）・
-// 行えるかを問う（useAllowed）ときに、ステージの id の代わりに渡す
-export const useScreenId = (): string => useScreenHere()?.id ?? NO_STAGE
+// 橋渡しの間だけ: 描いている場所の、古い形のフックに渡す値（ステージの id・スクリーンの id・窓は none）。最後に無くす
+export const useScreenId = (): string => useScope().legacy
 
 // useRecords の読み方: 索引キーの条件（全部を読むなら空）・並び（無ければ id の順）・件数（無ければ合う全部）。
 // 合うか・並びは、アクションの reads とホストの読みと同じ関数（core/record-keys.ts）で決める
@@ -449,7 +517,7 @@ export function useScreens(): {
   const opened = useMatomezuState(s => s.window.screens)
   const current = useMatomezuState(s => currentScreen(s.window).id)
   const shown = useMatomezuState(useShallow(s => shownScreens(catalog, s.window)))
-  const { openScreen, setScreenProps, makeScreenCurrent, closeScreen } = useActions()
+  const { openScreen, setScreenProps, makeScreenCurrent, closeScreen } = useStoreActions()
   const screens = useMemo(
     () =>
       opened.map(s => ({
@@ -476,6 +544,6 @@ export function useScreens(): {
 // canGoBack は、この窓の中に戻る先があるか（無いときの goBack は何もしない。窓の外へは出ない）
 export function useBrowserBack(): { canGoBack: boolean; goBack(): void } {
   const canGoBack = useMatomezuState(s => s.canGoBack)
-  const { requestBack } = useActions()
+  const { requestBack } = useStoreActions()
   return { canGoBack, goBack: requestBack }
 }

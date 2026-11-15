@@ -17,6 +17,7 @@ import { stageIn } from "../../../core/window"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { PageScope } from "../../../ui/scope"
 import { useActions, useCatalog, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
@@ -42,6 +43,7 @@ import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_SHEET_N
 // （印刷区画の左上が原点になるようずらし、はみ出した所を切るのは印刷プレビュー）。描く物を、その印刷区画に載る物に絞ってよい。入力は受けない
 export interface PrintSheetProps {
   stage: string
+  zoom: number // 描いている倍率（紙の上の 1px が画面の何 px か。画面の上で一定に描く線などに使う）
   book: Book
   page: Page
   column: number
@@ -218,7 +220,10 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     <div ref={measureBox} className={styles.measure} aria-hidden="true">
       <Printing>
         {measuring.map(({ page: p, paper }) => (
-          <Measure key={p.id} stage={id} book={book} page={p} paper={paper} report={reporterOf(p.id)} />
+          // 測るページを、見るだけのページとして描く
+          <PageScope key={p.id} book={book.id} page={p.id} zoom={1}>
+            {legacy => <Measure stage={legacy} book={book} page={p} paper={paper} report={reporterOf(p.id)} />}
+          </PageScope>
         ))}
       </Printing>
     </div>
@@ -260,7 +265,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
             data-sheet-page={s.page}
           >
             <SheetFrame
-              stage={id}
+              zoom={zoom}
               book={book}
               page={pageOf(s.page)}
               sheet={s}

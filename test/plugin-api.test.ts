@@ -292,6 +292,7 @@ test("matomezu/ui が出す名前", () => {
     "tabEntry",
     "themeVars",
     "useActions",
+    "useActionsHere",
     "useAddPage",
     "useAligns",
     "useAllowed",
@@ -318,6 +319,7 @@ test("matomezu/ui が出す名前", () => {
     "useFollowsSelection",
     "useHighlightRanges",
     "useItem",
+    "useItemAt",
     "useLatestPan",
     "useLayoutWarnings",
     "useLeftSidePanel",
@@ -462,6 +464,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "endBackground",
     "evenDivider",
     "focusStage",
+    "here",
     "makeScreenCurrent",
     "moveDivider",
     "moveHistory",
@@ -501,8 +504,8 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "updatePluginState",
     "zoomStage",
   ])
-  // useActions の操作は、そこから updatePluginState を除いた物
-  expect(names(store.actions)).toEqual(names(got).filter(n => n !== "updatePluginState"))
+  // useActions の操作は、そこから updatePluginState（と、橋渡しの間だけの here）を除いた物
+  expect(names(store.actions)).toEqual(names(got).filter(n => n !== "updatePluginState" && n !== "here"))
 })
 
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {

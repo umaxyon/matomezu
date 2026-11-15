@@ -452,6 +452,7 @@ function PageItems({
       if (by) slid.set(shape.id, by)
     }
   const scene: ShapeScene = {
+    zoom: stage.zoom,
     stage,
     page: slid.size > 0 ? followConnectors(catalog, shownPage, slid) : shownPage,
     rects: shownRects(catalog, shapes, c => {

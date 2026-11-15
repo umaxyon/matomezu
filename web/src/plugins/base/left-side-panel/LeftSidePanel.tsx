@@ -3,6 +3,7 @@
 // 開いたら中にフォーカスを入れ、Esc は左サイドパネルのキーの範囲で閉じる。外を押しても閉じない（閉じるのは、閉じるボタン・Esc・開くボタン）
 import { type ReactNode, useEffect, useRef } from "react"
 import { useMessages, useT } from "../../../ui/i18n"
+import { StageScope } from "../../../ui/scope"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useCloseLeftSidePanel, useLeftSidePanel, useSetLeftSidePanelTab } from "./hooks"
@@ -80,7 +81,16 @@ function Opened({ open, width }: { open: LeftSidePanelOpen; width: string | numb
 // 開いているタブの中身: 開いているタブのウィジェットを、開く側が渡した物のまま描く
 function Content({ widget, props }: { widget: string; props: unknown }) {
   const View = useUiCatalog().widgets.get(widget)?.view as ((props: unknown) => ReactNode) | undefined
-  return View ? <View {...(props as object)} /> : null
+  // 橋渡しの間: 渡す物に stage があれば、そのステージを描いている場所にする（最後は、開いた側の向け先をパネルの状態に持つ）
+  const stage = (props as { stage?: unknown } | null)?.stage
+  if (!View) return null
+  return typeof stage === "string" ? (
+    <StageScope stage={stage}>
+      <View {...(props as object)} />
+    </StageScope>
+  ) : (
+    <View {...(props as object)} />
+  )
 }
 
 // タブに出す数（未読など。0 なら出さない）

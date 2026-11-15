@@ -8,7 +8,6 @@ import {
   type ShapeScene,
   TokenScope,
   useCoreCatalog,
-  useStage,
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
@@ -19,15 +18,13 @@ import styles from "./PaperView.module.css"
 const NONE: readonly string[] = []
 const NO_IDS: ReadonlySet<string> = new Set()
 
-export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintSheetProps) {
+export function PaperSheet({ stage: id, zoom, book, page, column, row, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
-  const stage = useStage(id)
-  if (!stage) return null
   const itemPage = page as ItemPage
   const { shapes, here } = sheetShapes(catalog, itemPage, paper, column, row)
   const scene: ShapeScene = {
-    stage,
+    zoom,
     page: itemPage,
     rects: shownRects(
       catalog,
@@ -47,7 +44,7 @@ export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintS
     return view ? [{ id: c, View: view }] : []
   })
   // この印刷区画に掛かる形だけを描く（またいだ形は、紙の境目で切れる）
-  const items = here.map(item => <SheetItem key={item.id} catalog={catalog} stage={id} zoom={stage.zoom} item={item} />)
+  const items = here.map(item => <SheetItem key={item.id} catalog={catalog} stage={id} zoom={zoom} item={item} />)
   return connectors.reduceRight<ReactNode>(
     (inner, { id: c, View }) => (
       <TokenScope key={c} def={c}>

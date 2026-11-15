@@ -358,8 +358,8 @@ export function revealedRect(base: Element, view: Element, found: readonly { el:
 // アンカーの要素の四角と、clipped なら囲む Revealable の見える所（どちらもスタンドのレイヤーの左上から）と、レイヤー（置ける範囲）の大きさ。
 // パン・倍率・大きさ・スクロールと、レイヤーの大きさ（ステージの幅が動くなど）が変われば測り直す
 function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped: boolean): Measured | null {
-  const stage = useStage(ctx?.stage ?? "")
-  const pan = useStagePan(ctx?.stage ?? "")
+  const stage = useStage()
+  const pan = useStagePan()
   const version = useSyncExternalStore(ctx?.anchors.subscribe ?? noSubscribe, ctx?.anchors.snapshot ?? zero)
   const [tick, setTick] = useState(0)
   const measure = useCallback((): Measured | null => {
@@ -373,7 +373,7 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
   }, [ctx, ids, clipped])
   const [measured, setMeasured] = useState<Measured | null>(null)
   // 開いているブックのデータ（物の位置や大きさが変わる）
-  const book = useBook(ctx?.stage ?? "")
+  const book = useBook()
   // パン・倍率・アンカー・ブックのデータが替わったとき、紙が動き終えるまで（なめらかに移す間も）コマごとに測る
   // biome-ignore lint/correctness/useExhaustiveDependencies: パン・倍率・アンカーの表・ブックのデータ・スクロールが変わるたびに測り直す
   useLayoutEffect(() => {

@@ -10,7 +10,9 @@ import type { ItemPage } from "../core/placed"
 import type { StageView } from "../core/workspace"
 
 export interface ShapeScene {
-  stage: StageView // 描いているステージ（読むだけ）
+  zoom: number // 描いている倍率（紙の上の 1px が画面の何 px か）
+  // 橋渡しの間だけ: 描いているステージ（ステージの外で描くときは無い）。選択などは useStage() で読む（ステージの外では null）。最後に無くす
+  stage?: StageView
   page: ItemPage
   rects: ReadonlyMap<string, Rect> // 描いている形の四角（下書き・大きさを変えている途中・動かしている途中の位置を重ねたもの）
   // 利用者が形を動かす操作の様子（つなぐものは、形の位置が変わった理由で、前に描いた形を保つか引き直すかを決める）

@@ -10,24 +10,23 @@ import {
   slideIsBackground,
   slideOf,
 } from "../../../../plugin-api"
-import { type ItemViewProps, useCoreCatalog, useStage, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
+import { type ItemViewProps, useCoreCatalog, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
 import { BACKGROUND_PRINT, settingValue, slideOffsetOf } from "../../../base"
 import type { PrintSheetProps } from "../../../base/ui"
 import styles from "./SlideSheet.module.css"
 
 type ShapeView = (p: ItemViewProps<PlacedShape["props"]>) => ReactNode
 
-export function SlideSheet({ stage: id, book, page }: PrintSheetProps) {
-  const stage = useStage(id)
+export function SlideSheet({ stage: id, zoom, book, page }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const type = bookType(catalog, book.type)
-  if (!stage || !type.slide) return null
+  if (!type.slide) return null
   if (slideIsBackground(type) && settingValue(catalog, book, page, BACKGROUND_PRINT) === "never") return null
   const offset = slideOffsetOf(catalog, book, page as ItemPage)
   return (
     <>
       {slideOf(page as ItemPage).map(shape => (
-        <SheetShape key={shape.id} shape={shape} offset={offset} stage={id} zoom={stage.zoom} />
+        <SheetShape key={shape.id} shape={shape} offset={offset} stage={id} zoom={zoom} />
       ))}
     </>
   )

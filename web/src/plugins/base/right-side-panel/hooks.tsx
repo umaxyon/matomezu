@@ -4,14 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useShallow } from "zustand/react/shallow"
 import { screenOf, stageIn } from "../../../core/window"
 import { type PluginValues, pluginValueOf } from "../../../store/plugin-state"
-import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import {
-  useReadPluginState,
-  useSetPluginState,
-  useSetPluginStates,
-  useUiCatalog,
-  useUpdatePluginState,
-} from "../../../ui/view-hooks"
+  useReadPluginStateAt as useReadPluginState,
+  useSetPluginStateAt as useSetPluginState,
+  useSetPluginStatesAt as useSetPluginStates,
+} from "../../../ui/at-hooks"
+import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { SLIDE_MS } from "../window/slide"
 import {
@@ -134,8 +133,8 @@ export function useSetRightSidePanelCurrent(): (stage: string, anchor: string) =
 
 // ステージ stage の右サイドパネルを閉じる関数
 export function useCloseRightSidePanel(): (stage: string) => void {
-  const update = useUpdatePluginState(kit, RIGHT_SIDE_PANEL_STATE)
-  return useCallback(stage => update(stage, () => undefined), [update])
+  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  return useCallback(stage => set(stage, undefined), [set])
 }
 
 // サイドパネル（右か左）を開いたステージが替わってから、幅を動かし終えるまで true（替わったのと同じ描き方で true にし、列の幅と一緒に動きを付ける）。

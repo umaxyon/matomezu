@@ -2,6 +2,7 @@
 // UI マッピングに書いたそのメニューのコマンドの並びで描く（区切り線も）。出ていないコマンドは並べず、押せないものは押せない見た目にする。出るコマンドが無ければ閉じる。
 // 外を押す・閉じるキー（キーバインドの menu-close。既定は Escape）・窓の大きさが変わると閉じ（窓から離れただけでは閉じない）、
 // 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える。
+// 中の項目の描いている場所は、メニューを開いた場所（ui/scope.tsx）。
 // 押した物にアンカーが付いていれば、どのメニューにも、区切り線のあとに UI マッピングの anchorMenu のコマンドを足し、押した物のアンカーの id を渡す
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ContextMenuId } from "../../../core/catalog"
@@ -12,6 +13,7 @@ import { useAnchorMenuItems, useContextMenuItems } from "../../../ui/context-men
 import { useMessages } from "../../../ui/i18n"
 import { useKeyLabel } from "../../../ui/keys"
 import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
+import { ActsOnScope } from "../../../ui/scope"
 import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { useAnchorContextMenu } from "./anchor-context"
@@ -23,7 +25,11 @@ export function ContextMenuHost() {
   useAnchorContextMenu()
   const menu = useMatomezuState(s => s.contextMenu)
   if (!menu) return null
-  return <ContextMenu key={`${menu.id}:${menu.stage}:${menu.at.x}:${menu.at.y}`} menu={menu} />
+  return (
+    <ActsOnScope at={menu.stage}>
+      <ContextMenu key={`${menu.id}:${menu.stage}:${menu.at.x}:${menu.at.y}`} menu={menu} />
+    </ActsOnScope>
+  )
 }
 
 function ContextMenu({ menu }: { menu: OpenedContextMenu }) {

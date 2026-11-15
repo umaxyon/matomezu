@@ -3,7 +3,7 @@
 // （区間・端・札はアクション line-update、ほかの形の上で離した端はコマンド line-drop でつなぎ替え）。項目は edit.ts の純粋な関数で決める。
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
-import type { CoreCatalog, ItemPage, Point, StageView } from "../../../plugin-api"
+import type { CoreCatalog, ItemPage, Point } from "../../../plugin-api"
 import { useAllowed, useCommand, usePerform, useToPaper } from "../../../plugin-api/ui"
 import { LINE_UPDATE } from "./actions"
 import { LINE_RECONNECT_DROP } from "./commands"
@@ -40,16 +40,12 @@ export interface LineScene {
 
 const SLOP = 3 // 札は、これだけ動かすまではドラッグにしない（押して離せば線を選ぶだけ）
 
-export function useLineEdit(
-  stage: StageView,
-  catalog: CoreCatalog,
-  localOf: (e: PointerEvent<Element>) => Point | null,
-) {
-  const perform = usePerform(stage.id)
-  const drop = useCommand(stage.id, LINE_RECONNECT_DROP.id)
-  const toPaperAt = useToPaper(stage.id)
+export function useLineEdit(catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
+  const perform = usePerform()
+  const drop = useCommand(LINE_RECONNECT_DROP.id)
+  const toPaperAt = useToPaper()
   // 線を直せるか（認可ステップが止めていれば、札・折れ目・端を動かし始めない）
-  const editable = useAllowed(stage.id, LINE_UPDATE.id).ok
+  const editable = useAllowed(LINE_UPDATE.id).ok
   const drag = useRef<Drag | null>(null)
   const [draft, setDraft] = useState<{ id: string; props: Props } | null>(null)
   const [snap, setSnap] = useState<Point | null>(null)

@@ -9,6 +9,7 @@ import { screenOf } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { StageScope } from "../../../ui/scope"
 import { useMatomezuState } from "../../../ui/store-context"
 import {
   useBook,
@@ -43,7 +44,12 @@ export function SearchDialogHost() {
     if (open(ws.current)) return ws.current
     return ws.stages.find(st => open(st.id))?.id ?? null
   })
-  return stage ? <SearchDialog key={stage} stage={stage} /> : null
+  // 中の物の描いている場所を、検索を開いたステージにする
+  return stage ? (
+    <StageScope stage={stage}>
+      <SearchDialog key={stage} stage={stage} />
+    </StageScope>
+  ) : null
 }
 
 function SearchDialog({ stage }: { stage: string }) {

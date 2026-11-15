@@ -1,10 +1,11 @@
 // 物を見せてという頼み: base のプラグイン状態 revealing に、見せたい物の id を置く。ステージのアンカーの表（anchors.tsx）が、
-// 物が描かれたら倍率そのままで真ん中へ見せて、頼みを消す（ほかのページを開いてから見せるときに、描かれるのを待つため）
+// 物が描かれたら倍率そのままで真ん中へ見せて、頼みを消す（ほかのページを開いてから見せるときに、描かれるのを待つため）。
+// 頼む側は、見せたいステージを名指す（郵便のダイアログが、行き先を開いたステージに頼むなど）
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pluginValueOf } from "../../../store/plugin-state"
+import { useSetPluginStateAt as useSetPluginState } from "../../../ui/at-hooks"
 import { useMatomezuState } from "../../../ui/store-context"
-import { useSetPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { REVEALING_STATE } from "./reveal-state"
 

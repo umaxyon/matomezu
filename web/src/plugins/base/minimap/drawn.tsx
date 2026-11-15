@@ -2,6 +2,7 @@
 // つなぐもののビューは描くたびに、描いた形からミニマップの絵を作って useDrawnMinimap で置く。ミニマップは置いた絵があればそれを描き、
 // 無ければ（まだ描いていない・別のページを描いた絵）定義の minimap で作る
 import { useLayoutEffect } from "react"
+import { checkLegacy, useScope } from "../../../ui/scope"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { usePrinting } from "../print-preview/printing"
@@ -23,28 +24,34 @@ const samePoints = (a: MinimapMark, b: MinimapMark): boolean => {
 const sameMarks = (a: readonly MinimapMark[], b: readonly MinimapMark[]): boolean =>
   a.length === b.length && a.every((m, i) => samePoints(m, b[i] as MinimapMark))
 
-// つなぐもの item のビューが、ステージ stage のページ page に描いた絵 marks を置く（null なら置き直さない。形を動かしている間など）。
+// つなぐもの item のビューが、向け先のステージのページ page に描いた絵 marks を置く（null なら置き直さない。形を動かしている間など。向け先がステージでなければ何も置かない）。
 // 前と同じ絵なら置き直さない。ビューが消えたら絵も消す。置いた絵は購読しない（置くたびにビューが描き直されないように）。
 // 印刷区画の中で描いたビュー（印刷区画ごとに、寄せた位置で描く）は、置きも消しもしない（編集のミニマップの絵を上書きしないように）
-export function useDrawnMinimap(stage: string, item: string, page: string, marks: readonly MinimapMark[] | null) {
+export function useDrawnMinimap(item: string, page: string, marks: readonly MinimapMark[] | null): void
+// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
+export function useDrawnMinimap(legacy: string, item: string, page: string, marks: readonly MinimapMark[] | null): void
+export function useDrawnMinimap(...given: readonly unknown[]): void {
+  const old = given.length === 4
+  const [item, page, marks] = (old ? given.slice(1) : given) as [string, string, readonly MinimapMark[] | null]
+  checkLegacy(useScope(), old ? (given[0] as string) : undefined, "useDrawnMinimap")
   const set = useSetPluginState(kit, MINIMAP_DRAWN)
   const read = useReadPluginState(kit, MINIMAP_DRAWN)
   const printing = usePrinting() // 印刷区画の中で描いているか
   useLayoutEffect(() => {
     if (!marks || printing) return
-    const table = read(stage) ?? NONE
+    const table = read() ?? NONE
     const now = table[item]
     if (now?.page === page && sameMarks(now.marks, marks)) return
-    set(stage, { ...table, [item]: { page, marks } })
+    set({ ...table, [item]: { page, marks } })
   })
   useLayoutEffect(
     () => () => {
       if (printing) return
-      const { [item]: gone, ...rest } = read(stage) ?? NONE
+      const { [item]: gone, ...rest } = read() ?? NONE
       if (!gone) return
-      set(stage, Object.keys(rest).length === 0 ? undefined : rest)
+      set(Object.keys(rest).length === 0 ? undefined : rest)
     },
-    [read, set, stage, item, printing],
+    [read, set, item, printing],
   )
 }
 

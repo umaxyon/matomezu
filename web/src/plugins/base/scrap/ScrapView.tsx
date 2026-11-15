@@ -1,5 +1,5 @@
 // スクラップの中を描く部品: スクラップ（scrap.ts。指すページの id・見る範囲・倍率）を、置いたときの大きさ（scrapSize）の枠に描く。ページを、そのページのブックの見た目で、見るだけに描く
-// （ステージの外で、見るだけに描くページ。ui/drawn.tsx）。指す先のページが無ければ No Data、スクラップをたどって同じページに戻ったら輪の印を描く（どちらも灰色の枠）。
+// （ステージの外で、見るだけに描くページ。ui/scope.tsx）。指す先のページが無ければ No Data、スクラップをたどって同じページに戻ったら輪の印を描く（どちらも灰色の枠）。
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -8,8 +8,8 @@ import { bookType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
-import { DrawnScope } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
+import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
@@ -59,13 +59,13 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   return (
     <div className={styles.frame} data-scrap="shown" style={frame}>
       <TracedContext.Provider value={inner}>
-        <DrawnScope catalog={catalog} book={book} page={page} zoom={zoom * scale}>
+        <PageScope book={book.id} page={page.id} zoom={zoom * scale}>
           {stage => (
             <div className={styles.moved} style={{ transform: `scale(${scale}) translate(${-at.x}px, ${-at.y}px)` }}>
               <DrawnSheet stage={stage} book={book} page={page} size={size} />
             </div>
           )}
-        </DrawnScope>
+        </PageScope>
       </TracedContext.Provider>
     </div>
   )

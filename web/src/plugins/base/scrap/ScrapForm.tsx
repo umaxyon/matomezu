@@ -7,8 +7,8 @@ import { useShallow } from "zustand/react/shallow"
 import { pageById } from "../../../core/book"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
-import { DrawnScope } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
+import { PageScope } from "../../../ui/scope"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { pageArea } from "../place/items"
@@ -91,13 +91,13 @@ export function ScrapForm({
         >
           {book && page && size ? (
             <>
-              <DrawnScope catalog={catalog} book={book} page={page} zoom={fit}>
+              <PageScope book={book.id} page={page.id} zoom={fit}>
                 {stage => (
                   <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
                     <DrawnSheet stage={stage} book={book} page={page} size={size} onSize={setDrawn} />
                   </div>
                 )}
-              </DrawnScope>
+              </PageScope>
               <div
                 className={styles.area}
                 data-scrap-area

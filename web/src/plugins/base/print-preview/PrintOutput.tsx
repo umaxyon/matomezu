@@ -38,7 +38,7 @@ export function PrintOutput({
           style={{ width: s.w, height: s.h, page: pageNameOf(s) }}
           data-print-sheet={pageNameOf(s)}
         >
-          <SheetFrame stage={stage} book={book} page={s.page} sheet={s} measured={s.measured} labels={s.labels} />
+          <SheetFrame zoom={1} book={book} page={s.page} sheet={s} measured={s.measured} labels={s.labels} />
         </div>
       ))}
     </div>,

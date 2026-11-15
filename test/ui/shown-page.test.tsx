@@ -1,9 +1,11 @@
 // 見せ方が描くページ（useShownPage）: ダイアログの下書きを、ページのアイテムにも、どの深さの子の形にも重ねる
+
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
 import { findShape, type ItemPage } from "../../web/src/core/placed"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
+import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { useShownPage } from "../../web/src/ui/view-hooks"
 import { SAMPLE_BOOKS } from "../sample-books"
@@ -38,12 +40,14 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
   instance.actions.previewDialog({ book: "b1", item: child, props: { caption: "下書き" } })
   let shown: ItemPage | null = null
   function Probe() {
-    shown = useShownPage("s1")
+    shown = useShownPage()
     return null
   }
   render(
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
-      <Probe />
+      <StageScope stage="s1">
+        <Probe />
+      </StageScope>
     </MatomezuProvider>,
   )
   const caption = (page: ItemPage | null) => (findShape(page!, child)!.shape.props as { caption: string }).caption
