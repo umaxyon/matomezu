@@ -1,6 +1,6 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
-import { findPage, pagesOf, putPage } from "../../../core/book"
+import { findPage, lineupOf, pagesOf, putPage } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
@@ -98,9 +98,16 @@ export function defaultPaper(catalog: CoreCatalog, book: Book, type: string): Pa
   }
 }
 
-// 次のページの題名の案（t は見た目の t()。今の言語で引く）
-export function nextPageTitle(book: Book, t: (key: MessageKey, params?: Params) => string): string {
-  return t(kit.message("Page {n}"), { n: pagesOf(book).length + 1 })
+// 次のページの題名の案（t は見た目の t()。今の言語で引く）。同じ入れ物の名前 taken（省けば、ブックの並び）と重ならない番号にする
+export function nextPageTitle(
+  book: Book,
+  t: (key: MessageKey, params?: Params) => string,
+  taken: readonly string[] = lineupOf(book).map(e => e.title),
+): string {
+  for (let n = taken.length + 1; ; n++) {
+    const title = t(kit.message("Page {n}"), { n })
+    if (!taken.includes(title)) return title
+  }
 }
 
 // ブック book のページ page の形が、ページの広さに収まるか（可変ページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）

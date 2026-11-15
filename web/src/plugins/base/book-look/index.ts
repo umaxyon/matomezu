@@ -4,7 +4,6 @@
 import { z } from "zod"
 import { findPage, pagesOf, putPage, withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { Where } from "../../../core/def/action"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { bookSettingsPatch, type SettingGroup, settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
@@ -66,16 +65,16 @@ const PAGES_ARGS = z.strictObject({
   settings: z.record(z.string(), z.unknown()), // ページの設定の項目（項目の id → 値。null は消す）
 })
 
-// ブックのページの設定の項目を、まとめて変える。変えるのは、渡した項目を全部持ち、値が合うタイプのページだけで、合わないページ（項目を選んでいないタイプ・
+// ブックのページの設定の項目を、まとめて変える。変えるのは、ロックしておらず、渡した項目を全部持ち、値が合うタイプのページだけで、合わないページ（ロックしたページ・項目を選んでいないタイプ・
 // そのタイプで使えないテーマなど）は変えずに飛ばす。変えたページは整え（settleBook）、変えたページに問題が出れば断る。1 枚も変えられなければ断る
 export const PAGES_UPDATE = kit.defineAction({
   id: "pages-update",
   attach: { books: true },
   aiDescription:
-    'Change the page settings of many pages of a book at once (such as @matomezu/base:page-theme and @matomezu/base:page-paper-color): pages is "all" or the ids of the pages, settings the values keyed by the setting\'s id (null removes one). A page is changed only when its page type has every given setting and takes the values (a theme must be one its page type lists); the other pages are left as they are. Returns updated (the ids of the pages changed) and skipped (the ids left as they were). Refused when no page can be changed, or for a page id not in the book.',
+    'Change the page settings of many pages of a book at once (such as @matomezu/base:page-theme and @matomezu/base:page-paper-color): pages is "all" or the ids of the pages, settings the values keyed by the setting\'s id (null removes one). A page is changed only when it is not locked, its page type has every given setting and takes the values (a theme must be one its page type lists); the other pages are left as they are. Returns updated (the ids of the pages changed) and skipped (the ids left as they were). Refused when no page can be changed, or for a page id not in the book.',
   title: "Change pages",
   target: "book",
-  permissionScope: (args: z.infer<typeof PAGES_ARGS>): Where => (args.pages === "all" ? { allPages: true } : {}),
+  permissionScope: "book",
   args: PAGES_ARGS,
   describeArgs: catalog => PAGES_ARGS.extend({ settings: settingsArgs(catalog) }),
   run: (book, args, ctx) => {
@@ -85,7 +84,8 @@ export const PAGES_UPDATE = kit.defineAction({
     const updated: string[] = []
     const skipped: string[] = []
     for (const page of targets) {
-      const changed = withPageSettings(ctx.catalog, page, args.settings)
+      // ロックしたページは変えずに飛ばす（合わないページと同じ扱い）
+      const changed = page.locked ? null : withPageSettings(ctx.catalog, page, args.settings)
       if (!changed) {
         skipped.push(page.id)
         continue

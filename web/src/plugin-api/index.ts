@@ -4,18 +4,19 @@
 export type { Actor } from "../core/actor"
 export { isAI, isUser } from "../core/actor"
 export type { Annotation, BookAnnotations } from "../core/annotation"
-export type { Into } from "../core/book"
+export type { PageInto } from "../core/book"
 export {
   addFolder,
   addPage,
+  allowedItems,
   findFolder,
   findPage,
   foldersOf,
+  freeTitle,
   lineupIds,
   lineupOf,
   moveEntry,
   newPage,
-  pageItems,
   pagesIn,
   pagesOf,
   putFolder,

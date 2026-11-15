@@ -127,13 +127,13 @@ export function putPage<B extends Book>(book: B, page: ItemPage): B {
 }
 
 // ページを入れる所: 並びの index 番目（省けば末尾）か、フォルダ folder の中の index 番目（省けば末尾）
-export type Into = { index?: number } | { folder: string; index?: number }
+export type PageInto = { index?: number } | { folder: string; index?: number }
 
 const insertAt = <T>(list: readonly T[], item: T, index?: number): T[] =>
   index === undefined || index >= list.length ? [...list, item] : [...list.slice(0, index), item, ...list.slice(index)]
 
 // ページを into の所に足す（フォルダを名指して無ければ、何も変えない）
-export function addPage<B extends Book>(book: B, page: ItemPage, into: Into = {}): B {
+export function addPage<B extends Book>(book: B, page: ItemPage, into: PageInto = {}): B {
   if (!("folder" in into)) return { ...book, lineup: insertAt<LineupEntry>(book.lineup, entryOf(page), into.index) }
   return {
     ...book,
@@ -180,11 +180,20 @@ export function removeFolder<B extends Book>(book: B, id: string): B {
   return { ...book, lineup: book.lineup.filter(e => !(e.kind === "folder" && e.id === id)) }
 }
 
+// 名前 title を、同じ入れ物の名前 taken と重ならない名前にする（重ならなければそのまま。重なれば「名前 2」から番号を付ける）
+export function freeTitle(title: string, taken: readonly string[]): string {
+  if (!taken.includes(title)) return title
+  for (let n = 2; ; n++) {
+    const made = `${title} ${n}`
+    if (!taken.includes(made)) return made
+  }
+}
+
 // ブックの中の id（ページとフォルダ）。新しい id を振るときに、重ならないようにする相手
 export const lineupIds = (book: Book): string[] => [...pagesOf(book).map(p => p.id), ...foldersOf(book).map(f => f.id)]
 
 // タイプのページで使えるアイテム（タイプの候補。データに置ける・引けるのはこの中だけ）
-export function pageItems(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
+export function allowedItems(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
   return pageType(catalog, page.type).items.allowed
 }
 
@@ -212,10 +221,13 @@ export function withSettings<T extends object>(target: T, patch: Readonly<Record
 // ブックが、データの形の外の決まりを守っているか:
 // - ページとフォルダの id は、ブックの中で重ならない
 // - まとまるタイプ（grouping が own-folder）のページは、そのタイプのフォルダの中にだけある。フォルダが入れるタイプは、まとまるタイプ
+// - 同じ入れ物の中（ブックの並び・フォルダの中）で、名前（ページとフォルダの title）は重ならない
 // - どのページも、タイプの決まり（holds）と、つなぐものの定義の決まりを守る
 export function holds(catalog: CoreCatalog, book: Book): boolean {
   const ids = lineupIds(book)
   if (new Set(ids).size !== ids.length) return false
+  const distinct = (entries: readonly LineupEntry[]) => new Set(entries.map(e => e.title)).size === entries.length
+  if (!distinct(book.lineup) || !foldersOf(book).every(f => distinct(f.lineup))) return false
   const grouping = (type: string) => catalog.pageTypes.get(type)?.grouping
   for (const e of book.lineup) {
     if (e.kind === "page") {

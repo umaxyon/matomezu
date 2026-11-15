@@ -5,7 +5,7 @@ import {
   addFolder,
   addPage,
   findFolder,
-  foldersOf,
+  freeTitle,
   lineupIds,
   lineupOf,
   moveEntry,
@@ -18,7 +18,6 @@ import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
-import { numberedTitle } from "./page-duplicate"
 
 const FOLDER = z.string().min(1)
 
@@ -27,14 +26,14 @@ export const FOLDER_UPDATE = kit.defineAction({
   id: "folder-update",
   attach: { books: true },
   aiDescription:
-    "Rename a folder of a book (a folder holds the pages of one page type whose grouping is own-folder, and shows as one page tab named after it). Returns nothing. Refused for a folder not in the book, or a title another folder of the book has.",
+    "Rename a folder of a book (a folder holds the pages of one page type whose grouping is own-folder, and shows as one page tab named after it). Returns nothing. Refused for a folder not in the book, or a title another entry of the book's lineup (a page outside folders, or a folder) has.",
   title: "Rename folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER, title: z.string().trim().min(1) }),
   permissionScope: "book",
   run: (book, args) => {
     if (!findFolder(book, args.folder)) return null
-    if (foldersOf(book).some(f => f.id !== args.folder && f.title === args.title)) return null
+    if (lineupOf(book).some(e => e.id !== args.folder && e.title === args.title)) return null
     return { next: putFolder(book, args.folder, f => ({ ...f, title: args.title })), result: {} }
   },
 })
@@ -63,7 +62,7 @@ export const FOLDER_DUPLICATE = kit.defineAction({
   id: "folder-duplicate",
   attach: { books: true },
   aiDescription:
-    "Duplicate a folder with its pages: a copy is added right after it. title is the copy's name and must differ from the other folders'; without it the copy is named after the original with a number. The pages and everything on them get new ids; locks, notes and marks are not copied. Returns the new folder's id and its pages' ids, in order. Refused for a folder not in the book or a title already used.",
+    "Duplicate a folder with its pages: a copy is added right after it. title is the copy's name and must differ from the other entries' of the book's lineup; without it the copy is named after the original with a number. The pages and everything on them get new ids; locks, notes and marks are not copied. Returns the new folder's id and its pages' ids, in order. Refused for a folder not in the book or a title already used.",
   title: "Duplicate folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER, title: z.string().trim().min(1).optional() }),
@@ -71,7 +70,7 @@ export const FOLDER_DUPLICATE = kit.defineAction({
   run: (book, args, ctx) => {
     const source = findFolder(book, args.folder)
     if (!source) return null
-    const titles = foldersOf(book).map(f => f.title)
+    const titles = lineupOf(book).map(e => e.title)
     if (args.title !== undefined && titles.includes(args.title)) return null
     const taken = lineupIds(book)
     const fresh = () => {
@@ -82,7 +81,7 @@ export const FOLDER_DUPLICATE = kit.defineAction({
     // 中の物の id は、写したページを足しながら振り直す（写しどうしでも重ならないように、足したブックの上で振る）
     let next: Book = addFolder(
       book,
-      { ...source, id: fresh(), title: args.title ?? numberedTitle(source.title, titles), lineup: [] },
+      { ...source, id: fresh(), title: args.title ?? freeTitle(source.title, titles), lineup: [] },
       lineupOf(book).findIndex(e => e.id === source.id) + 1,
     )
     const made = lineupOf(next)[lineupOf(book).findIndex(e => e.id === source.id) + 1]

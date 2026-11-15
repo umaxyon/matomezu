@@ -3,7 +3,7 @@
 // ロックは写さない。伝言・マークなど物に付けた物は写さない。使えるのは、タイプが宣言した（duplicatesPages）ページだけ（宣言の無いタイプは、中の id を指す別のフィールドを持ちうるので断る）。
 // 写しの名前は、同じ入れ物のほかのページと重ならない名前にする（渡した名前が重なれば断る。渡さなければ、元の名前に番号を付ける）
 import { z } from "zod"
-import { addPage, findPage, lineupIds, siblingsOf } from "../../../core/book"
+import { addPage, findPage, freeTitle, lineupIds, siblingsOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
@@ -11,14 +11,6 @@ import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
 
 const ARGS = z.strictObject({ page: z.string().min(1), title: z.string().trim().min(1).optional() })
-
-// 名前 title に番号を付けた、taken に無い名前（「名前 2」から）
-export function numberedTitle(title: string, taken: readonly string[]): string {
-  for (let n = 2; ; n++) {
-    const made = `${title} ${n}`
-    if (!taken.includes(made)) return made
-  }
-}
 
 export const PAGE_DUPLICATE = kit.defineAction({
   id: "page-duplicate",
@@ -40,7 +32,7 @@ export const PAGE_DUPLICATE = kit.defineAction({
     const page: ItemPage = {
       ...renewedIds(book, content, ctx.newId),
       id,
-      title: args.title ?? numberedTitle(at.page.title, titles),
+      title: args.title ?? freeTitle(at.page.title, titles),
     }
     const index = siblings.findIndex(e => e.id === args.page) + 1
     return {

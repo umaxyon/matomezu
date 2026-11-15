@@ -9,10 +9,11 @@ import {
   addPage,
   findFolder,
   findPage,
-  type Into,
+  freeTitle,
   lineupIds,
   lineupOf,
   newPage,
+  type PageInto,
   pagesIn,
   putPage,
   withSettings,
@@ -83,7 +84,14 @@ export function withNewPage(
   if (grows === null) return null
   const settings = args.settings === undefined ? null : settingsPatchOf(catalog, type.id)?.safeParse(args.settings)
   if (settings === undefined || settings?.success === false) return null
-  const title = args.title ?? translate(catalog.messages, ctx.lang as never, kit.message("Untitled"))
+  // 名前は、同じ入れ物の中で重ならない（渡した名前が重なれば、並びの決まりで断られる。渡さなければ、重ならない「（無題）」）
+  const siblings = folder ? pagesIn(book, folder.id) : args.into ? [] : lineupOf(book)
+  const title =
+    args.title ??
+    freeTitle(
+      translate(catalog.messages, ctx.lang as never, kit.message("Untitled")),
+      siblings.map(e => e.title),
+    )
   const fresh = newPage(book, { type: type.id, title, ...choice, ...(grows === undefined ? {} : { grows }) }, ctx.newId)
   // 新しいフォルダの id は、足すページとも、ブックのほかの id とも重ならない
   const made =
@@ -96,7 +104,7 @@ export function withNewPage(
           lineup: [],
         }
       : undefined
-  const into: Into = made ? { folder: made.id } : folder ? { folder: folder.id, index: at } : { index: at }
+  const into: PageInto = made ? { folder: made.id } : folder ? { folder: folder.id, index: at } : { index: at }
   const based = made ? addFolder(book, made, args.index) : book
   const placed = addPage(based, fresh as ItemPage, clean(into))
   const written = writeFields(catalog, placed, fresh, args.fields, "add", ctx.newId)
@@ -119,7 +127,7 @@ export function withNewPage(
 }
 
 // index が無ければ、フィールドを持たない形にする（exactOptionalPropertyTypes のため）
-const clean = (into: { folder?: string; index?: number | undefined }): Into => {
+const clean = (into: { folder?: string; index?: number | undefined }): PageInto => {
   const index = into.index === undefined ? {} : { index: into.index }
   return into.folder === undefined ? index : { folder: into.folder, ...index }
 }
