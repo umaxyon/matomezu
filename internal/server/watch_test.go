@@ -172,3 +172,39 @@ func TestWakeNeedsTheSameHostSessionWhenBothAreKnown(t *testing.T) {
 		t.Fatalf("wakes = %d, want 1", n)
 	}
 }
+
+// AI のプログラムまでたどれない通り道（Windows の Claude Code の monitor）と MCP は、立てたときのセッション id だけでも合う。
+// 片方にしか無い id は比べず、両方に無ければ合わない
+func TestWakeReachesBySessionWhenTheHostIsUnknown(t *testing.T) {
+	for _, c := range []struct {
+		name                  string
+		lineHost, lineSession string
+		wakeHost, wakeSession string
+		want                  bool
+	}{
+		{"host and session", "100", "S1", "100", "S1", true},
+		{"host only", "100", "", "100", "S1", true},
+		{"session only on the line", "", "S1", "100", "S1", true},
+		{"session only on the join", "100", "S1", "", "S1", true},
+		{"session differs", "", "S2", "100", "S1", false},
+		{"host differs", "200", "S1", "100", "S1", false},
+		{"nothing in common", "100", "", "", "S1", false},
+		{"nothing known", "", "", "", "", false},
+	} {
+		l := &wakeLine{host: c.lineHost, session: c.lineSession}
+		if got := l.reaches(participantNote{WakeHost: c.wakeHost, WakeSession: c.wakeSession}); got != c.want {
+			t.Errorf("%s: reaches = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// MCP が AI のプログラムを名乗れなくても、セッション id を添えていれば、その通り道に知らせが届く
+func TestWakeWithoutHostReachesTheSession(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	line := hub.OpenWakesWith("", "HS1", WakeLimits{})
+	participant := joinFromSession(t, s.URL, "L1", "", "HS1")
+	windowPerform(t, s.URL, "@matomezu/base:participant-decline", `{}`, participant)
+	if len(wakes(hub, line)) != 1 {
+		t.Fatal("the line of the session did not get the wake")
+	}
+}

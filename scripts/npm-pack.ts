@@ -66,12 +66,11 @@ const main = join(out, "matomezu")
 mkdirSync(join(main, "bin"), { recursive: true })
 writeFileSync(join(main, "bin", "matomezu.js"), binEntry)
 chmodSync(join(main, "bin", "matomezu.js"), 0o755)
-cpSync("clients/claude-code", join(main, "plugin"), { recursive: true })
-// Codex のプラグイン。deliver は本体の実行ファイルに組み込む Go のパッケージなので入れない
-cpSync("clients/codex", join(main, "codex-plugin"), {
-  recursive: true,
-  filter: src => !src.startsWith(join("clients", "codex", "deliver")),
-})
+// プラグイン。中の Go のパッケージ（deliver・launch）は本体の実行ファイルに組み込むので入れない
+const notGo = (client: string) => (src: string) =>
+  !["deliver", "launch"].some(dir => src.startsWith(join("clients", client, dir)))
+cpSync("clients/claude-code", join(main, "plugin"), { recursive: true, filter: notGo("claude-code") })
+cpSync("clients/codex", join(main, "codex-plugin"), { recursive: true, filter: notGo("codex") })
 for (const pluginJson of [
   join(main, "plugin", ".claude-plugin", "plugin.json"),
   join(main, "codex-plugin", ".codex-plugin", "plugin.json"),

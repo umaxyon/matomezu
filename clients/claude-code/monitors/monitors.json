@@ -1,7 +1,7 @@
 [
   {
     "name": "matomezu",
-    "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/watch.sh\" \"$PPID\" \"$CLAUDE_CODE_SESSION_ID\"",
+    "command": "matomezu claude-code watch",
     "description": "What the user did on the matomezu screen for you"
   }
 ]

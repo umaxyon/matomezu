@@ -1,4 +1,4 @@
-// Package deliver は、opencode の会話に matomezu の起こす知らせを渡す（matomezu deliver opencode の中身）。
+// Package deliver は、opencode の会話に matomezu の起こす知らせを渡す（matomezu opencode deliver の中身）。
 // opencode の TUI は、マシンに 1 つのサーバー（opencode serve --service）につなぐ。サーバーは動いている間、状態のフォルダ（$XDG_STATE_HOME/opencode、
 // 無ければ ~/.local/state/opencode）の service.json に、待ち受けの url と Basic 認証の鍵を置く。そこへ POST /api/session/{セッション id}/synthetic で本文を送る。
 // 送った本文は利用者の発言でない入力（synthetic）としてその会話に入り（入力を待っている会話は動き出し、生成中の会話には割り込む）、TUI には説明（description）だけが出る。

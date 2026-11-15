@@ -21,7 +21,7 @@ package server
 // 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断りは伝え済み（goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、参加の id の付いた次の呼び出しの返事が添える
 //
-//	GET  /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>][&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>]
+//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>]
 //	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は宛て先の参加者に結んだセッション id、分からなければ空）
 //	POST /api/ai/watch/ack {"line", "id", "result"}  result は delivered・absent・failed。{} を返す
 
@@ -153,9 +153,14 @@ func (h *Hub) closeWakesLocked(w *wakeLine) {
 	}
 }
 
-// reaches は、参加者の記録 n の宛て先に、通り道 l が合うか
+// reaches は、参加者の記録 n の宛て先に、通り道 l が合うか。AI のプログラムのプロセス id かセッション id の少なくとも一方が両方で分かって等しく、
+// もう一方は、両方で分かっていれば等しい（Windows では、AI のプログラムまでたどれない watch がある）
 func (l *wakeLine) reaches(n participantNote) bool {
-	return n.WakeHost != "" && l.host == n.WakeHost && (n.WakeSession == "" || l.session == "" || l.session == n.WakeSession)
+	host := l.host != "" && l.host == n.WakeHost
+	session := l.session != "" && l.session == n.WakeSession
+	hostOK := l.host == "" || n.WakeHost == "" || host
+	sessionOK := l.session == "" || n.WakeSession == "" || session
+	return (host || session) && hostOK && sessionOK
 }
 
 // signalWakes は、参加者 participant に届く通り道に、流せる知らせがあるかもしれないと合図する（h.mu を持って呼ぶ）
@@ -385,8 +390,8 @@ func (h *Hub) wakeOnParticipants(before map[string]bool) {
 
 func (o Options) aiWatch(w http.ResponseWriter, r *http.Request) {
 	host := r.URL.Query().Get("host")
-	if host == "" {
-		http.Error(w, "host is needed (the process id of the AI's program)", http.StatusBadRequest)
+	if host == "" && r.URL.Query().Get("session") == "" {
+		http.Error(w, "host or session is needed (the process id of the AI's program, or the session id it started with)", http.StatusBadRequest)
 		return
 	}
 	flusher, ok := w.(http.Flusher)

@@ -108,7 +108,7 @@ export const startWatch = (m: Matomezu, p: Processes = processes) => {
   const w = all.get(key) ?? { users: 0 }
   all.set(key, w)
   if (w.child === undefined || w.child.exitCode !== null || w.child.signalCode !== null) {
-    w.child = p.spawn(m, ["watch", "--host", String(process.pid), "--", m.bin, "deliver", "opencode"])
+    w.child = p.spawn(m, ["watch", "--host", String(process.pid), "--", m.bin, "opencode", "deliver"])
   }
   w.users++
   let released = false
@@ -165,7 +165,7 @@ export type McpServer = { type: "local"; command: string[]; environment?: Record
 export type Say = (sessionID: string, message: string) => Promise<unknown>
 
 // mcpServer は、matomezu m の MCP の起動のしかた。開発の常駐なら、開発の画面を配る web/dist（あれば）と開発の常駐の待ち受けを渡す。
-// 起こす知らせを渡すコマンド（-- deliver opencode）は付けない: 同じプロセスの watch が渡し、MCP はフォルダごとに立つので、付けると watch が増える
+// 起こす知らせを渡すコマンド（-- opencode deliver）は付けない: 同じプロセスの watch が渡し、MCP はフォルダごとに立つので、付けると watch が増える
 export const mcpServer = (m: Matomezu): McpServer => {
   if (m.root === undefined) return { type: "local", command: [m.bin, "mcp"] }
   const web = join(m.root, "web", "dist")
@@ -227,7 +227,7 @@ export const talked = async (session: SessionApi, m: Matomezu, say: Say, e: Prom
 // 知らせ済みの、起こす知らせの入力の id（ターンの中でモデルを呼ぶたびに context のフックが走るので、1 度だけ知らせる）
 const wakes = shared<true>("wakes")
 
-// wokenTurn は、起こす知らせ（matomezu deliver opencode が synthetic の入力で渡す。prompt のフックは走らない）で始まったターンを、
+// wokenTurn は、起こす知らせ（matomezu opencode deliver が synthetic の入力で渡す。prompt のフックは走らない）で始まったターンを、
 // そのターンの最初のモデルの呼び出し（context のフック e）で matomezu m に知らせ、答えを会話に当てる。
 // 文脈の項目は次の段から効くので、AI に足す文はこの呼び出しの system にも足す
 export const wokenTurn = async (

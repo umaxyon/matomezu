@@ -41,8 +41,8 @@ test("プラグインの版を本体の版に書き換える", () => {
   expect(JSON.parse(out)).toEqual({ name: "matomezu", version: "9.9.9" })
 })
 
-test("入口は、自分の親（AI のプログラム）のプロセス id を、実行ファイルに環境変数で伝える", () => {
-  expect(binEntry).toContain("MATOMEZU_HOST_PID: String(process.ppid)")
+test("入口は、親をたどるときに飛ばす入口として、自分のプロセス id を実行ファイルに環境変数で伝える", () => {
+  expect(binEntry).toContain("MATOMEZU_ENTRY_PID: String(process.pid)")
 })
 
 test("opencode のプラグインは、本体と同じ版の別のパッケージで、サーバーと TUI の入口と、それらが読むファイルを持つ", () => {

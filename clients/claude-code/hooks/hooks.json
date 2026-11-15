@@ -3,17 +3,11 @@
     "PreToolUse": [
       {
         "matcher": "mcp__.*matomezu.*",
-        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/permission.sh\"" }]
+        "hooks": [{ "type": "command", "command": "matomezu claude-code hook permission" }]
       }
     ],
-    "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/annotations.sh\" \"$PPID\"" }] }
-    ],
-    "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/model.sh\" \"$PPID\"" }] }
-    ],
-    "PostModelSwitch": [
-      { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/model.sh\" \"$PPID\"" }] }
-    ]
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook prompt" }] }],
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook model" }] }],
+    "PostModelSwitch": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook model" }] }]
   }
 }

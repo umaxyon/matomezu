@@ -1,4 +1,4 @@
-// Package deliver は、Codex の会話に matomezu の起こす知らせを渡す（matomezu deliver codex の中身）。
+// Package deliver は、Codex の会話に matomezu の起こす知らせを渡す（matomezu codex deliver の中身）。
 // 会話を持つ Codex の app-server（daemon）の制御ソケット（<CODEX_HOME>/app-server-control/app-server-control.sock）に WebSocket でつなぎ、
 // initialize・initialized のあと、thread/loaded/list でその app-server が会話を持つかを確かめ、turn/start の toolOutput で本文を渡す。
 // 入力を待っている会話はそれで動き出し、生成中の会話には同じターンに足される。

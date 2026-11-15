@@ -328,10 +328,10 @@ func (h *Hub) performAs(action string, args map[string]any) (Performed, error) {
 }
 
 // noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id を、
-// 起こす知らせの宛て先として書く（Host が空なら何もしない）。要求中の間も残す（受け入れ・断りの知らせの宛て先。watch.go）。セッション id の結び直し（Host）には使わない。
+// 起こす知らせの宛て先として書く（どちらも空なら何もしない）。要求中の間も残す（受け入れ・断りの知らせの宛て先。watch.go）。セッション id の結び直し（Host）には使わない。
 // MCP が Host の中身を名乗っていれば（process）、退室の見張りの宛てとして Host と範囲の印も書く
 func (h *Hub) noteJoinHost(id string, req JoinRequest) {
-	if req.Host == "" {
+	if req.Host == "" && req.HostSession == "" {
 		return
 	}
 	h.mu.Lock()
@@ -339,7 +339,7 @@ func (h *Hub) noteJoinHost(id string, req JoinRequest) {
 	n := h.participantNotes[id]
 	n.WakeHost = req.Host
 	n.WakeSession = req.HostSession
-	if req.HostScope == hostScopeProcess {
+	if req.HostScope == hostScopeProcess && req.Host != "" {
 		n.ProcHost, n.ProcSpace = req.Host, req.HostSpace
 	}
 	h.participantNotes[id] = n

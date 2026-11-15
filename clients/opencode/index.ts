@@ -1,5 +1,5 @@
 // opencode のプラグイン（V2）: opencode のサーバー（opencode serve --service）のプロセスの中で動き、会話を開いたフォルダごとに setup が 1 回ずつ走る。
-// - 起こす知らせ: opencode のサーバーのプロセスに、使う matomezu ごとに 1 本だけ matomezu watch を起こし、知らせを matomezu deliver opencode で会話に渡させる
+// - 起こす知らせ: opencode のサーバーのプロセスに、使う matomezu ごとに 1 本だけ matomezu watch を起こし、知らせを matomezu opencode deliver で会話に渡させる
 //   （どのフォルダの setup からでも同じ 1 本を使い、最後の後始末で止める。--host はこのプロセスの id で、MCP の親と同じ）
 // - ターンの始まり（prompt のフック）: Claude Code のフックの annotations.sh と同じく、matomezu annotations の文を添えて matomezu talked を呼び、
 //   AI に足す文を、その会話の文脈の項目（instructions の entry）に入れ、題名があれば会話の題名にする
