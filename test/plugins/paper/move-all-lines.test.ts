@@ -1,8 +1,10 @@
 // 形を全部まとめて動かしたとき、線の手直し（via）は形と一緒に動く（動く量の引き算に出る浮動小数点の誤差で、片方だけ動いたとみなして消さない）。
 // 位置が小数で、via を持つ線が 2 本ある図を使う
+
 import { expect, test } from "bun:test"
-import { restoreBooks } from "../../../web/src/core/book"
+import { pagesOf, restoreBooks } from "../../../web/src/core/book"
 import { moveItems } from "../../../web/src/plugins/paper/placing/items"
+import { pagesBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const S = (
@@ -96,12 +98,12 @@ const items = [
   L("6b14987870", "c585cfbc31", "e6a849e362", { route: "straight", endHead: "arrow", exitAt: 0.3871, enterAt: 0.7118 }),
 ]
 test("全部を右へ動かしても、via は動いた量だけずれる（動かす量が 1〜170（紙に収まる範囲）のどれでも消えない）", () => {
-  const raw = {
+  const raw = pagesBook({
     id: "b",
     type: "@matomezu/drawing:drawing",
     title: "t",
     pages: [{ id: "p", title: "現在", paper: "@matomezu/base:a4", orientation: "landscape", items }],
-  }
+  })
   const [book] = restoreBooks(CORE_CATALOG, [raw as never])
   const ids = [
     "eb78b10e2b",
@@ -117,7 +119,10 @@ test("全部を右へ動かしても、via は動いた量だけずれる（動�
   for (let dx = 1; dx <= 170; dx++) {
     const next = moveItems(CORE_CATALOG, book as never, "p", ids, { x: dx, y: 0 })
     expect(next).not.toBeNull()
-    const items = (next?.pages[0]?.items ?? []) as unknown as { id: string; props: { via?: number[] } }[]
+    const items = ((next ? pagesOf(next)[0]?.items : undefined) ?? []) as unknown as {
+      id: string
+      props: { via?: number[] }
+    }[]
     const via = (id: string) => items.find(i => i.id === id)?.props.via
     expect([dx, via("e13444b0aa"), via("6dc9c52e35")]).toEqual([dx, [173 + dx], [172 + dx]])
   }

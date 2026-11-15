@@ -2,12 +2,13 @@
 
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
+import type { Where } from "../../core/def/action"
 import type { PluginStateDef } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
-import { stageBlocks } from "../../core/stage"
+import { shownPageId, stageBlocks } from "../../core/stage"
 import { currentScreen, type OpenedScreen, screenOfStage, stageIn, workspaceOf } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
@@ -119,10 +120,18 @@ const ask = (c: Called, method: "when" | "enabled" | "active"): boolean | undefi
 // コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければコントロールセンター）で使えるか（認可ステップは見ない）
 function performable(c: Called): boolean {
   const book = "book" in c.ctx ? (c.ctx.book ?? undefined) : undefined
+  const where = whereOf(c)
   return (c.def.performs ?? []).every(
     action =>
-      withoutPermissions(inspect(c.ctx.catalog, actionQuery(c.ctx.catalog, action, book), c.ctx)).value === true,
+      withoutPermissions(inspect(c.ctx.catalog, actionQuery(c.ctx.catalog, action, book, where), c.ctx)).value === true,
   )
+}
+
+// 使えるかを問う所: コマンドの許可スコープの所。書いていなければ開いているページ（ページのタイプで決まるアクションを、ブック全体として問わないように）
+function whereOf(c: Called, arg?: unknown): Where | undefined {
+  if (!("stage" in c.ctx)) return undefined
+  const page = shownPageId(c.ctx.stage.opened ?? null)
+  return commandScopeOf(c.def.permissionScope, c.ctx, arg) ?? (page === null ? undefined : { page })
 }
 
 // 出すか: 行うアクションが使え、when が出すとするとき
@@ -141,7 +150,7 @@ function permitted(c: Called, arg?: unknown): boolean {
     return actions.some(action => inspect(ctx.catalog, actionQuery(ctx.catalog, action, undefined), ctx).value === true)
   }
   const ctx = c.ctx
-  const where = commandScopeOf(c.def.permissionScope, ctx, arg)
+  const where = whereOf(c, arg)
   return actions.some(
     action =>
       !stageBlocks(ctx.catalog, ctx.stage.mode, action) &&
