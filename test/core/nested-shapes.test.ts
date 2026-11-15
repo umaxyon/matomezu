@@ -1,7 +1,7 @@
 // 子の形（ケイパビリティ nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
 
 import { describe, expect, test } from "bun:test"
-import { pagedOf, restoreBooks } from "../../web/src/core/book"
+import { pagesOf, restoreBooks } from "../../web/src/core/book"
 import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
 import { shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
@@ -52,7 +52,7 @@ describe("子の形を受け付けるブックの形", () => {
     expect(reads([box("a", 0, 0, [{ ...box("b", 0, 0), props: { caption: 1 } }])])).toBe(false)
     const stray = { id: "s", x: 1, y: 2, item: "@foo/stars:star", props: { n: 5 } }
     const [restored] = restoreBooks(nesting, [book([box("a", 0, 0, [stray])])])
-    expect((pagedOf(restored)?.pages[0] as ItemPage | undefined)?.items?.[0]).toMatchObject({ shapes: [stray] })
+    expect((restored ? pagesOf(restored)[0] : undefined)?.items?.[0]).toMatchObject({ shapes: [stray] })
   })
 })
 

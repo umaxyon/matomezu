@@ -11,7 +11,15 @@ const BOX = "@matomezu/box:shape-nest-box"
 const setting = () => undefined
 
 const page = (items: unknown[]): ItemPage =>
-  ({ id: "p1", title: "", paper: "@matomezu/base:a4", orientation: "landscape", items }) as ItemPage
+  ({
+    kind: "page",
+    id: "p1",
+    type: "@matomezu/drawing:drawing",
+    title: "",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape",
+    items,
+  }) as unknown as ItemPage
 const box = (id: string, x: number) => ({ id, item: BOX, x, y: 100, w: 100, h: 60, props: {} })
 const line = (id: string, from: string, to: string, props: Record<string, unknown> = {}) => ({
   id,
