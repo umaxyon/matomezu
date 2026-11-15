@@ -47,7 +47,7 @@ const map = () => {
     expect(addPageIn(instance, "s1", { type: "ex4:map", title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = () => pagesOf(instance.state.getState().books[book] as unknown as { pages: Page[] })[0]!
+  const page = () => pagesOf(instance.state.getState().books[book]!)[0] as unknown as Page
   const box = (x: number) => {
     let r: ReturnType<typeof instance.actions.perform> | undefined
     act(() => {

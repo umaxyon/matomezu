@@ -49,6 +49,7 @@ export const FLOW_DIRECTIONS = ["down", "right"] as const
 // 流れの向き（ブックに持たせる）
 export const FLOW_DIRECTION = kit.defineSetting({
   id: "flow-direction",
+  holder: "page",
   title: "flowDirection",
   schema: z.enum(FLOW_DIRECTIONS),
   default: "down",

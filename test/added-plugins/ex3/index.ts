@@ -1,6 +1,6 @@
 // ex3: ex1・ex2 とは別の作り手の追加プラグイン（React なし）。ほかの見本とは id でだけ関わる。
 // ブックのタイプ・形・紙・設定の項目・テーマ・スキンと、開いているブックをミントにするコマンド
-import { definePlugin, themeFits } from "matomezu"
+import { definePlugin, shownType, themeFits } from "matomezu"
 import { BOARD, GRID, MINT, NIGHT, SQUARE, STAR, STAR_ADD_DIALOG, STAR_EDIT_DIALOG } from "./board"
 import { kit } from "./kit"
 
@@ -18,7 +18,11 @@ export const USE_MINT = kit.defineCommand({
         { book: ctx.book.id },
       )
   },
-  when: ctx => ctx.book !== null && "pages" in ctx.book && themeFits(ctx.catalog, ctx.book.type, MINT.id),
+  // 開いているページのタイプがミントのテーマを使えるときだけ
+  when: ctx => {
+    const type = shownType(ctx.stage.opened ?? null)
+    return ctx.book !== null && type !== null && themeFits(ctx.catalog, type, MINT.id)
+  },
 })
 
 export const EX3 = definePlugin(

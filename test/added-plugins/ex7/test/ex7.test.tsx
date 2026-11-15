@@ -23,7 +23,7 @@ test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重
     expect(addPageIn(instance, "s1", { type: "ex7:yard", title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: readonly { id: string }[] })[0]!.id
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     for (const [x, load] of [
       [40, 3],

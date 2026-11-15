@@ -7,9 +7,7 @@ const instance = createMatomezu({
   plugins: [...BUILTIN_UI, EX3_UI],
   controlCenter: "@matomezu/control-center:control-center",
 })
-createBookIn(instance, "s1", { title: "ボード" })
-// @ts-expect-error 知らないブックのタイプ
-createBookIn(instance, "s1", { title: "月" })
+createBookIn(instance, "s1", { title: "ボード", page: { type: "ex3:board" } })
 // @ts-expect-error 知らないコマンド
 instance.actions.command("s1", "ex3:nope")
 // @ts-expect-error 型を書き足した ex3 を渡し忘れた

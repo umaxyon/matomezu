@@ -38,12 +38,7 @@ const flow = (instance: ReturnType<typeof make>) => {
   act(() => {
     expect(addPageIn(instance, "s1", { type: "ex2:flow", title: "p1" })).toBe(true)
   })
-  const page = () =>
-    pagesOf(
-      instance.state.getState().books[book] as unknown as {
-        pages: { id: string; items?: { id: string; props?: object }[] }[]
-      },
-    )[0]!
+  const page = () => pagesOf(instance.state.getState().books[book]!)[0]!
   return { on: { book }, page }
 }
 
@@ -148,7 +143,7 @@ test("判断のひし形は、選んでいないビルトインのタイプ（�
   act(() => {
     addPageIn(instance, "s1", { type: "@matomezu/drawing:drawing", title: "p1" })
   })
-  const page = pagesOf(instance.state.getState().books[book] as { pages: readonly { id: string }[] })[0]!
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!
   const r = instance.actions.perform(
     "@matomezu/paper:item-place",
     { page: page.id, item: "ex2:diamond", at: { x: 0, y: 0 } },

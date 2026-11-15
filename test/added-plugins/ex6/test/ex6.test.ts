@@ -21,7 +21,7 @@ test("答える形の無いページの重さは 0", () => {
     expect(addPageIn(instance, "s1", { type: "@matomezu/drawing:drawing", title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: readonly { id: string }[] })[0]!.id
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     expect(
       instance.actions.perform(

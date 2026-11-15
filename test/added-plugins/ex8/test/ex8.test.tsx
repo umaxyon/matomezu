@@ -38,7 +38,7 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
     expect(addPageIn(instance, "s1", { type: "ex8:deck", title: "1" })).toBe(true)
   })
   expect(document.querySelector("[data-ex8-deck] p")?.textContent).toBe("カードがありません")
-  const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: { id: string }[] })[0]!.id
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     expect(
       instance.actions.perform(
@@ -78,7 +78,7 @@ test("カードの並べ方は画面の場所に入り（読み直しても戻�
     addPageIn(instance, "s1", { type: "ex8:deck", title: "1" })
   })
   const book = (openedIn(instance) as { book: string }).book
-  const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: { id: string }[] })[0]!.id
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     instance.actions.perform(
       "@matomezu/base:page-update",

@@ -31,6 +31,7 @@ export const SQUARE = kit.definePaper({ id: "square", title: "square", size: { w
 // 方眼を出すか（ブックに持たせる）
 export const GRID = kit.defineSetting({
   id: "board-grid",
+  holder: "page",
   title: "grid",
   schema: z.boolean(),
   default: false,
