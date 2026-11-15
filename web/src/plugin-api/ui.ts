@@ -42,6 +42,7 @@ export {
   useRecord,
   useRecords,
   useScreen,
+  useScreenHere,
   useScreens,
   useSetPluginState,
   useSetPluginStateById,

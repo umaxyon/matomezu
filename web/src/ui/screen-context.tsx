@@ -20,4 +20,4 @@ export function ScreenProvider({ screen, children }: { screen: ScreenHere; child
 }
 
 // 描いている場所のスクリーン（スクリーンの外で描いているなら null）
-export const useScreenHere = (): ScreenHere | null => useContext(ScreenContext)
+export const useScreenContext = (): ScreenHere | null => useContext(ScreenContext)
