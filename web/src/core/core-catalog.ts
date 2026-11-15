@@ -327,7 +327,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (other !== undefined) problems.push(problem("E044", { id: a.id, role: a.runsWhenAIJoins, other }))
     joinRoles.set(a.runsWhenAIJoins, a.id)
   }
-  // AI のプログラムが終わったときの役（runsWhenAIEnds）も、1 つのアクションだけが名乗る
+  // 参加者のセッションが終わったときの役（runsWhenAIEnds）も、1 つのアクションだけが名乗る
   let ender: string | undefined
   for (const a of parts.actions) {
     if (!a.runsWhenAIEnds) continue

@@ -702,12 +702,12 @@ func (e *Engine) JoinActions() (ids *JoinActions, err error) {
 	return ids, err
 }
 
-// EndActions は、AI のプログラムが終わったときに常駐が行うアクションの id（参加者を外す Leave）
+// EndActions は、参加者のセッションが終わったときに常駐が行うアクションの id（参加者を外す Leave）
 type EndActions struct {
 	Leave string `json:"leave"`
 }
 
-// EndActions は、AI のプログラムが終わったときに常駐が行うアクション。アクションの定義が役を名乗る（Go はアクションの id を知らない）。無ければ nil
+// EndActions は、参加者のセッションが終わったときに常駐が行うアクション。アクションの定義が役を名乗る（Go はアクションの id を知らない）。無ければ nil
 func (e *Engine) EndActions() (ids *EndActions, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

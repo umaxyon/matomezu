@@ -502,20 +502,25 @@ func TestToolSchemasUseOnlyTheCheckedKeywords(t *testing.T) {
 	}
 }
 
-// Host の中身を名乗った MCP（Serve に scope を渡す）は、いつも（join も）名乗りと範囲の印を添える。名乗らなければ添えない
-func TestTheHostScopeAndSpaceGoWhenSaid(t *testing.T) {
-	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
-	var out bytes.Buffer
+// セッションのプロセスを名乗った MCP（Serve に pid を渡す）は、いつも（join も）その pid と範囲の印を添える。名乗らなければ添えない
+func TestTheSessionPidAndSpaceGoWhenSaid(t *testing.T) {
 	line := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L1"}}}`
-	if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, "4242", "HS1", "process", "space-1"); err != nil {
-		t.Fatal(err)
+	cases := []struct {
+		name, pid, space string
+	}{
+		{"said", "5151", "space-1"},
+		{"not said", "", ""},
 	}
-	if h := api.headers[0]; h.Get("X-Matomezu-Host-Scope") != "process" || h.Get("X-Matomezu-Host-Space") != "space-1" {
-		t.Fatalf("headers = %v", h)
-	}
-	said := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
-	talk(t, said, line)
-	if h := said.headers[0]; h.Get("X-Matomezu-Host-Scope") != "" || h.Get("X-Matomezu-Host-Space") != "" {
-		t.Fatalf("a host that did not say what it is carries %v", h)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
+			var out bytes.Buffer
+			if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, "4242", "HS1", c.pid, c.space); err != nil {
+				t.Fatal(err)
+			}
+			if h := api.headers[0]; h.Get("X-Matomezu-Session-Pid") != c.pid || h.Get("X-Matomezu-Session-Pid-Space") != c.space || h.Get("X-Matomezu-Host") != "4242" {
+				t.Fatalf("headers = %v", h)
+			}
+		})
 	}
 }

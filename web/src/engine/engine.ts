@@ -655,7 +655,7 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
 ;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
   JSON.stringify(joinActions(assembled.catalog.core))
 
-// AI のプログラムが終わったときに行うアクション（runsWhenAIEnds）の id（無ければ null。常駐が、セッションごとのプロセスが居なくなった参加者を退室させるのに行う）
+// 参加者のセッションが終わったときに行うアクション（runsWhenAIEnds）の id（無ければ null。常駐が、セッションの終わった参加者を退室させるのに行う）
 ;(globalThis as { matomezuEndActions?: () => string }).matomezuEndActions = () =>
   JSON.stringify(endActions(assembled.catalog.core))
 

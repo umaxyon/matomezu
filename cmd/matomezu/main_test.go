@@ -190,3 +190,26 @@ func TestHostProcess(t *testing.T) {
 		t.Fatalf("with the entry's value = %q", got)
 	}
 }
+
+// --session-ends-with が指すプロセス: program は AI のプログラム、mcp は自分（入口を通ったなら入口）、空は名乗らない
+func TestSessionPid(t *testing.T) {
+	me, parent := strconv.Itoa(os.Getpid()), strconv.Itoa(os.Getppid())
+	cases := []struct {
+		endsWith, entry, want string
+	}{
+		{"program", "", parent},
+		{"program", "4242", "4242"},
+		{"mcp", "", me},
+		{"mcp", "4242", parent},
+		{"", "4242", ""},
+	}
+	for _, c := range cases {
+		t.Setenv(hostProcessEnv, c.entry)
+		if got := sessionPid(c.endsWith); got != c.want {
+			t.Fatalf("sessionPid(%q) with entry %q = %q, want %q", c.endsWith, c.entry, got, c.want)
+		}
+		if got := sessionPidSpace(c.endsWith); (got != "") != (c.endsWith != "") {
+			t.Fatalf("sessionPidSpace(%q) = %q", c.endsWith, got)
+		}
+	}
+}

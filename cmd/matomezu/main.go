@@ -86,9 +86,9 @@ type openCmd struct{}
 
 type mcpCmd struct {
 	serverFlags
-	Resident  bool     `help:"With a deliver command: start it once and keep it running (as watch --resident)."`
-	HostScope string   `enum:"process," default:"" help:"Say what the host program (the process id sent as the AI's program) is: process means it is the AI's program of this one session, so when it is gone the session has ended and matomezu may remove the participant. Leave it out when the host is shared by many sessions (an AI's resident server) or may be a wrapper that ends sooner."`
-	Deliver   []string `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each wake notice to the AI, as watch does with it. The MCP then also watches for the notices of its host program while it runs (for an AI program that has no background monitor)."`
+	Resident        bool     `help:"With a deliver command: start it once and keep it running (as watch --resident)."`
+	SessionEndsWith string   `enum:"program,mcp," default:"" help:"Say which process lives as long as this session, so that when it is gone the session has ended and matomezu may remove the participant: program is the AI's program (when it runs this one session only), mcp is this MCP's own process (or the entry that started it). Leave it out when neither can be said."`
+	Deliver         []string `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each wake notice to the AI, as watch does with it. The MCP then also watches for the notices of its host program while it runs (for an AI program that has no background monitor)."`
 }
 
 type annotationsCmd struct{}
@@ -279,12 +279,27 @@ func (c *mcpCmd) Run() error {
 		w := &watchCmd{Host: hostProcess(), Session: os.Getenv(claudeSessionEnv), Resident: c.Resident, Deliver: c.Deliver}
 		go func() { _ = w.Run() }()
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, hostProcess(), os.Getenv(claudeSessionEnv), c.HostScope, hostSpaceFor(c.HostScope))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, hostProcess(), os.Getenv(claudeSessionEnv), sessionPid(c.SessionEndsWith), sessionPidSpace(c.SessionEndsWith))
 }
 
-// hostSpaceFor は、MCP が Host の範囲を名乗るとき（scope が空でないとき）の、プロセス id が通じる範囲の印
-func hostSpaceFor(scope string) string {
-	if scope == "" {
+// sessionPid は、--session-ends-with の値 endsWith が指す、セッションと同じだけ生きるプロセスの id（空なら名乗らない）。
+// program は AI のプログラム（hostProcess）。mcp はこの MCP のプロセスで、入口（npm の node の入口）を通ったなら、AI のプログラムが立てた入口のプロセス
+func sessionPid(endsWith string) string {
+	switch endsWith {
+	case "program":
+		return hostProcess()
+	case "mcp":
+		if os.Getenv(hostProcessEnv) != "" {
+			return strconv.Itoa(os.Getppid())
+		}
+		return strconv.Itoa(os.Getpid())
+	}
+	return ""
+}
+
+// sessionPidSpace は、セッションのプロセスを名乗るとき（endsWith が空でないとき）の、プロセス id が通じる範囲の印
+func sessionPidSpace(endsWith string) string {
+	if endsWith == "" {
 		return ""
 	}
 	return server.ProcessSpace()
