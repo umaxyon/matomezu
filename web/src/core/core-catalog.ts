@@ -18,7 +18,7 @@ import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
 import type { ScreenArrangementDef } from "./def/screen-arrangement"
 import type { ScreenDef } from "./def/screen-def"
-import type { SettingDef, SettingRole } from "./def/setting"
+import type { HeldSettingDef, SettingDef, SettingRole, UserSettingDef } from "./def/setting"
 import type { SkinDef } from "./def/skin"
 import { SUBJECT_ROLE_FIELDS, type SubjectDef } from "./def/subject"
 import type { TextColorDef } from "./def/text-color"
@@ -46,8 +46,8 @@ declare module "./catalog" {
     controlCenters: ControlCenterDef
     items: ItemDef
     actions: ActionDef
-    settings: SettingDef
-    userSettings: SettingDef
+    settings: HeldSettingDef
+    userSettings: UserSettingDef
     presentations: PresentationDef
     themes: ThemeDef
     papers: PaperDef
@@ -74,16 +74,10 @@ export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable
   normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（ビルトインプラグインが持つ。並びの順にかける）
 }
 
-// ブックのタイプごとに組み立てたデータの形（ページを持たないタイプは page が null）
-export interface BookSchemas {
-  book: z.ZodObject
-  page: z.ZodObject | null
-}
-
-// 作った表。種類ごとに id で引く。bookSchema は、表のブックのタイプの形を 1 つに束ねた、ブックのデータの形
+// 作った表。種類ごとに id で引く。pageSchemas は、ページのタイプごとに組み立てたページのデータの形。bookSchema は、ブックのデータの形（並びのページは、タイプごとの形のどれか）
 export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDefTable[K]> } & {
   parts: CoreCatalogParts
-  schemas: ReadonlyMap<string, BookSchemas>
+  pageSchemas: ReadonlyMap<string, z.ZodObject>
   messageSets: ReadonlyMap<string, MessageSetDef> // 文言の組（土台の組を含む）
   languagePacks: ReadonlyMap<string, LanguagePackDef> // 言語パック（土台の言語を含む）
   messages: Messages // 文言の組と言語パックを重ねた、文言の鍵 → 言語ごとの訳
@@ -105,9 +99,8 @@ export type CatalogCheckDef = (catalog: CoreCatalog) => readonly (Problem | Warn
 export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   const problems = checkCoreCatalog(parts)
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
-  const schemas = new Map(parts.pageTypes.map(t => [t.id, buildBookSchemas(parts, t)]))
-  const [first, ...rest] = [...schemas.values()].map(s => s.book)
-  if (!first) return fail("E015")
+  const pageSchemas = new Map(parts.pageTypes.map(t => [t.id, buildPageSchema(parts, t)]))
+  if (pageSchemas.size === 0) return fail("E015")
   // 種類ごとの表（Object.fromEntries はフィールドの型を残さないので、種類ごとの定義の型を言い張る）
   const tables = Object.fromEntries(partsOf("core").map(k => [k, byId<{ id: string }>(parts[k])])) as unknown as {
     [K in CorePart]: ReadonlyMap<string, PartDefTable[K]>
@@ -115,12 +108,12 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   return {
     ...tables,
     parts,
-    schemas,
+    pageSchemas,
     messageSets: byId(allMessages(parts)),
     languagePacks: byId(allLanguages(parts)),
     messages: mergeMessages(parts),
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
-    bookSchema: z.discriminatedUnion("type", [first, ...rest]),
+    bookSchema: buildBookSchema(parts, pageSchemas),
     warnings: coreWarnings(parts),
     tokens: byId(parts.tokens),
     normalizeSteps: parts.normalizeSteps,
@@ -128,29 +121,26 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   }
 }
 
-// ブックが自分のフィールドの後ろに持つフィールドの前の、頭のフィールド（ここまでの後ろにページと設定の項目のフィールド settings を入れる。保存したデータのフィールドの並びを変えない）
-const HEAD = ["type", "id"]
-
-// タイプのブックとページのデータの形: ページの形は、土台のページのフィールド・タイプがページに足すフィールド（pages.fields）・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
-// ブックの形は、タイプの頭のフィールド・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかのフィールド
-function buildBookSchemas(parts: CoreCatalogParts, t: PageTypeDef): BookSchemas {
+// 選んだ設定の項目を、項目の id を鍵にした settings のフィールドにする。
+// 機能台帳に無い項目（プラグインを外したなど）は、そのまま残す（機能台帳にあって選んでいない項目があれば形に合わない）
+function settingsField(parts: CoreCatalogParts, ids: readonly string[]): Record<string, z.ZodType> {
   const settings = byId(parts.settings)
-  // 選んだ設定の項目を、項目の id を鍵にした settings のフィールドにする（選んでいなければフィールドを足さない）。
-  // 機能台帳に無い項目（プラグインを外したなど）は、そのまま残す（機能台帳にあって選んでいない項目があれば形に合わない）
-  const fields = (ids: readonly string[] = []) => {
-    const defs = ids.flatMap(id => settings.get(id) ?? [])
-    return {
-      settings: z
-        .object(Object.fromEntries(defs.map(d => [d.id, d.schema.optional()])))
-        .catchall(z.unknown())
-        .superRefine((v, ctx) => {
-          for (const k of Object.keys(v))
-            if (!ids.includes(k) && settings.has(k))
-              ctx.addIssue({ code: "custom", path: [k], message: "not selected" })
-        })
-        .optional(),
-    }
+  const defs = ids.flatMap(id => settings.get(id) ?? [])
+  return {
+    settings: z
+      .object(Object.fromEntries(defs.map(d => [d.id, d.schema.optional()])))
+      .catchall(z.unknown())
+      .superRefine((v, ctx) => {
+        for (const k of Object.keys(v))
+          if (!ids.includes(k) && settings.has(k)) ctx.addIssue({ code: "custom", path: [k], message: "not selected" })
+      })
+      .optional(),
   }
+}
+
+// タイプのページのデータの形: 土台のページのフィールド（type はそのタイプの id だけ）・タイプがページに足すフィールド（fields）・
+// タイプが選んだアイテムを置いた並び（items）・形だけの並び（slide）・ページの設定の項目（settings）
+function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
   const items = byId(parts.items)
   const allowed = t.items.allowed.flatMap(id => items.get(id) ?? [])
   // 機能台帳に無いアイテム（プラグインを外したなど）: id と item だけを確かめ、ほかのフィールドはそのまま残す
@@ -163,32 +153,39 @@ function buildBookSchemas(parts: CoreCatalogParts, t: PageTypeDef): BookSchemas 
     ? z.union([z.discriminatedUnion("item", [firstShape, ...moreShapes]), unknownItem])
     : unknownItem
   const [one, ...more] = placed
-  const page = t.pages
-    ? PageSchema.extend({
-        ...t.pages.fields,
-        items: z
-          .array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknownItem]) : unknownItem)
-          .optional(),
-        ...slideField(t, items),
-        ...fields(t.settings?.page),
-      })
-    : null
-  const own = Object.entries(t.schema.shape)
-  // type・id・title・locked・trashed の順（type は pluginKit が後から足す。名前 title・ロック locked・ゴミ箱に入れた時刻 trashed は土台のフィールドで、どのタイプも持つ。名前は空でもよい）
-  const head = [
-    ...HEAD.flatMap(h => own.filter(([k]) => k === h)),
-    ["title", z.string().default("")] as const,
-    ["locked", z.literal(true).optional()] as const,
-    ["trashed", z.iso.datetime().optional()] as const,
-  ]
-  const tail = own.filter(([k]) => !HEAD.includes(k))
-  const book = z.strictObject({
-    ...Object.fromEntries(head),
-    ...(page ? { pages: z.array(page) } : {}),
-    ...fields(t.settings?.book),
-    ...Object.fromEntries(tail),
+  return PageSchema.extend({
+    type: z.literal(t.id),
+    ...t.fields,
+    items: z.array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknownItem]) : unknownItem).optional(),
+    ...slideField(t, items),
+    ...settingsField(parts, t.settings ?? []),
   })
-  return { book, page }
+}
+
+// ブックのデータの形: 名前 title（1 字以上）・ロック locked・ゴミ箱に入れた時刻 trashed・並び lineup・ブックが持つ設定の項目（holder が "book" の項目）。
+// 並びの 1 つは、ページ（タイプごとの形のどれか）か、1 つのタイプのページだけを入れるフォルダ（中身も同じ並びで、入るのはページだけ）
+function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<string, z.ZodObject>): z.ZodType {
+  const [first, ...rest] = [...pageSchemas.values()]
+  if (!first) return fail("E015")
+  const pageEntry = z.strictObject({ kind: z.literal("page"), page: z.discriminatedUnion("type", [first, ...rest]) })
+  const folderEntry = z.strictObject({
+    kind: z.literal("folder"),
+    id: z.string().min(1),
+    title: z.string().min(1),
+    pageType: z.string().min(1),
+    lineup: z.array(pageEntry),
+  })
+  return z.strictObject({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    locked: z.literal(true).optional(),
+    trashed: z.iso.datetime().optional(),
+    lineup: z.array(z.discriminatedUnion("kind", [pageEntry, folderEntry])),
+    ...settingsField(
+      parts,
+      parts.settings.filter(d => d.holder === "book").map(d => d.id),
+    ),
+  })
 }
 
 // ページの slide（形だけの並び）: タイプが選んだ形を置いた並び。選んでいなければフィールドを足さない。
@@ -204,12 +201,12 @@ function slideField(t: PageTypeDef, items: ReadonlyMap<string, ItemDef>): Record
   return { slide: z.array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknown]) : unknown).optional() }
 }
 
-// ブックのタイプのデータの形（組み立てたもの）
-export function bookSchemas(catalog: CoreCatalog, id: string): BookSchemas {
-  return catalog.schemas.get(id) ?? fail("E101", { id })
+// ページのタイプのデータの形（組み立てたもの）
+export function pageSchema(catalog: CoreCatalog, id: string): z.ZodObject {
+  return catalog.pageSchemas.get(id) ?? fail("E101", { id })
 }
 
-// ブックのタイプは、データのタイプが表に無ければ error。ほかの定義は catalog.items.get(id) などで引き、知らない id なら undefined
+// ページのタイプは、データのタイプが表に無ければ error。ほかの定義は catalog.items.get(id) などで引き、知らない id なら undefined
 // （データに残った、外したプラグインのアイテムなど）
 export function pageType(catalog: CoreCatalog, id: string): PageTypeDef {
   return catalog.pageTypes.get(id) ?? fail("E101", { id })
@@ -394,27 +391,18 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       if (!subjects.has(id)) problems.push(problem("E047", { id: c.id, ref: id }))
   }
   for (const t of parts.pageTypes) {
-    const literal = t.schema.shape.type
-    // id だけを通す形か（ほかの文字も通すなら literal ではない）
-    if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
-      problems.push(problem("E002", { id: t.id }))
-    for (const field of ["title", "locked", "trashed", "pages", "settings"])
-      if (field in t.schema.shape) problems.push(problem("E025", { id: t.id, field }))
-    for (const id of [...(t.settings?.book ?? []), ...(t.settings?.page ?? [])])
-      if (!settings.has(id)) problems.push(problem("E008", { id: t.id, kind: "setting", ref: id }))
-    if (t.pages) {
-      const rule = t.pages.paper
-      for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
-      if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
-      for (const field of [...Object.keys(PageSchema.shape), "items", "slide", "settings"])
-        if (field in (t.pages.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
+    for (const id of t.settings ?? []) {
+      const def = settings.get(id)
+      if (!def) problems.push(problem("E008", { id: t.id, kind: "setting", ref: id }))
+      else if (def.holder !== "page") problems.push(problem("E062", { id: t.id, setting: id }))
     }
-    const built = buildBookSchemas(parts, t).book
-    if (!built.safeParse(t.create({ id: "check", title: "check" })).success)
-      problems.push(problem("E007", { id: t.id }))
+    const rule = t.paper
+    for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
+    if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
+    for (const field of [...Object.keys(PageSchema.shape), "items", "slide", "settings"])
+      if (field in (t.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
     for (const id of t.items.allowed)
       if (!items.has(id)) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
-    if (t.slide && !t.pages) problems.push(problem("E043", { id: t.id }))
     for (const id of t.slide?.allowed ?? []) {
       const def = items.get(id)
       if (!def) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
