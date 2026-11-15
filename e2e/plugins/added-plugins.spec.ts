@@ -1,6 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { pagesIn } from "../books"
 import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace } from "../fixtures"
 import { footerMenuTool } from "../helpers/footer-menu"
 import { enablePlugins } from "../helpers/settings"
@@ -242,19 +243,27 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await (await fromMenu(page, "画面を分割")).click()
   await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  const types = dialog.getByLabel("ブックのタイプ")
-  await expect(types.locator("option")).toContainText(["フロー", "ボード"])
-  await types.selectOption({ label: "ボード" })
   await page.keyboard.type("星のボード")
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()
   await page.getByRole("button", { name: "ステージを閉じる" }).first().click()
-  await page.getByRole("button", { name: "ページを作る" }).click()
+  // ページタブの＋のメニューに、足したプラグインのページのタイプも並ぶ
+  await page.getByRole("button", { name: "ページを足す" }).click()
+  await expect(page.getByRole("menu", { name: "ページを足す" }).getByRole("menuitem")).toContainText([
+    "フロー",
+    "ボード",
+  ])
+  await page.getByRole("menuitem", { name: "ボード" }).click()
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   const board = async () =>
-    (await data(page)).books.find((b: { book: { type: string } }) => b.book.type === "ex3:board")?.book
-  await expect.poll(async () => (await board())?.pages?.[0]?.paper).toBe("ex3:square")
+    (await data(page)).books.find((b: { book: { title: string } }) => b.book.title === "星のボード")?.book
+  await expect
+    .poll(async () => {
+      const found = await board()
+      return found ? pagesIn<{ paper: string }>(found)[0]?.paper : undefined
+    })
+    .toBe("ex3:square")
   await page.reload()
   expect((await board())?.title).toBe("星のボード")
 })
