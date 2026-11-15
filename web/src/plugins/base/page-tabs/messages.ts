@@ -20,6 +20,10 @@ export const PAGE_MESSAGES = defineMessages({
   "Delete page...": { en: "Delete page...", ja: "削除…" },
   "Page list": { en: "Page list", ja: "ページ一覧" },
   "Move page": { en: "Move page", ja: "ページを動かす" },
+  "Rename folder": { en: "Rename folder", ja: "フォルダの名前を変える" },
+  "Move folder": { en: "Move folder", ja: "フォルダを動かす" },
+  "Duplicate folder": { en: "Duplicate folder", ja: "フォルダを複製" },
+  "Remove folder": { en: "Remove folder", ja: "フォルダを消す" },
   "Delete page": { en: "Delete page", ja: "ページを削除" },
   "The page and its contents will be deleted": {
     en: "The page and its contents will be deleted",

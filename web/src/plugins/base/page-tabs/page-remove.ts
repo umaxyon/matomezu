@@ -1,6 +1,6 @@
-// ページを消す: アクション page-remove（ページの中のアイテムと線もいっしょに消える。最後の 1 枚も消せる）
+// ページを消す: アクション page-remove（ページの中のアイテムと線もいっしょに消える。最後の 1 枚も消せる。フォルダの最後の 1 枚を消しても、フォルダは残る）
 import { z } from "zod"
-import { hasPages, pagesOf, removePage } from "../../../core/book"
+import { findPage, removePage } from "../../../core/book"
 import { kit } from "../kit"
 
 const ARGS = z.strictObject({ page: z.string().min(1) })
@@ -10,13 +10,13 @@ export const PAGE_REMOVE = kit.defineAction({
   id: "page-remove",
   attach: { books: true },
   aiDescription:
-    "Remove a page with everything on it (it cannot be undone). The last page can be removed too; the book then has no pages.",
+    "Remove a page with everything on it (it cannot be undone). The last page can be removed too; the book then has no pages. Removing the last page of a folder leaves the folder, empty.",
   title: "Remove page",
   target: "book",
   args: ARGS,
   permissionScope: { page: "page" },
   run: (book, args) => {
-    if (!hasPages(book) || !pagesOf(book).some(p => p.id === args.page)) return null
+    if (!findPage(book, args.page)) return null
     return { next: removePage(book, args.page), result: {} }
   },
 })
