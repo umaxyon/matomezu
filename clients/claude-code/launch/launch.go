@@ -13,8 +13,11 @@ const (
 	Gap       = time.Second
 )
 
-// IsProgram は、名前 name（小文字、.exe を除いた物）のプロセスが Claude Code の本体か（ネイティブの版は claude、npm で入れた版は node）。
-// 本体のプロセスは、その会話 1 つだけを受け持つ（終わったら会話が終わった）
-func IsProgram(name string) bool {
-	return name == "claude" || name == "node"
+// HostIsSession は、matomezu が親をたどって当たったプロセス（名前 name は小文字、.exe を除いた物）が、その会話 1 つだけを受け持つ Claude Code の本体か
+// （終わったら会話が終わった、として退室させてよいか）。確かめられるのはネイティブの版（claude）だけ。npm で入れた版（node）は、node で動くほかのプログラムと見分けられないので名乗らない
+func HostIsSession(name string) bool {
+	return name == "claude"
 }
+
+// HooksSendHost は、フックが AI のプログラムのプロセス id を添えるか。Claude Code の本体は会話ごとなので、/clear で変わったセッション id を同じ参加者に結び直すのに使える
+const HooksSendHost = true

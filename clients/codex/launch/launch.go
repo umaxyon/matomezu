@@ -10,6 +10,18 @@ import (
 	"strings"
 )
 
+// Codex の MCP とフックの親は app-server（いくつもの会話を受け持つ）なので、
+// 会話 1 つだけの物とは名乗らず、フックはプロセス id を添えない（結び直しに使えない）
+
+// HostIsSession は、matomezu が親をたどって当たったプロセスが、その会話 1 つだけを受け持つか（Codex では、いつも違う）
+func HostIsSession(string) bool { return false }
+
+// HooksSendHost は、フックが AI のプログラムのプロセス id を添えるか
+const HooksSendHost = false
+
+// DeliverArgs は、起こす知らせを Codex の会話に渡すコマンドの、matomezu の実行ファイルに続く引数（Codex には裏で動かし続ける仕組みが無いので、MCP の中の watch が渡す）
+var DeliverArgs = []string{"codex", "deliver"}
+
 // Home は、Codex の設定のフォルダ（CODEX_HOME、無ければ ~/.codex）
 func Home() string {
 	if d := os.Getenv("CODEX_HOME"); d != "" {

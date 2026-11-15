@@ -13,8 +13,7 @@ func (t tree) table(pid int) (procInfo, bool) {
 	return p, ok
 }
 
-// AI のプログラムは、中継（シェル・volta・matomezu 自身・npm の入口の node）を飛ばした最初のプロセス。
-// 鎖は Windows の実機（node は volta、Git for Windows あり）で見た物
+// AI のプログラムは、中継（シェル・volta・matomezu 自身・npm の入口の node）を飛ばした最初のプロセス
 func TestFindHostSkipsTheRelays(t *testing.T) {
 	for _, c := range []struct {
 		name  string

@@ -24,7 +24,7 @@ type procTable func(pid int) (procInfo, bool)
 var relayNames = map[string]bool{
 	"sh": true, "bash": true, "dash": true, "zsh": true,
 	"cmd": true, "powershell": true, "pwsh": true,
-	"volta": true,
+	"volta":    true,
 	"matomezu": true, // 開発の版を起動し直したときの、起動し直した側
 }
 

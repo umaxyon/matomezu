@@ -51,16 +51,29 @@ func claudeDev() string {
 
 type claudeMCPCmd struct{}
 
-// Run は、Claude Code の MCP を出す。たどった AI のプログラムが Claude Code の本体なら、その会話 1 つだけの物と名乗る（終わったら退室させてよい）
+// Run は、Claude Code の MCP を出す
 func (claudeMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, HostScope: hostScope(claudelaunch.HostIsSession)}
 	if root := claudeDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
-	if _, name := hostProgram(); claudelaunch.IsProgram(procName(name)) {
-		c.HostScope = hostScopeProcess
-	}
 	return c.Run()
+}
+
+// hostScope は、mcp --host-scope の値: たどった AI のプログラムが、その AI の事情（isSession）で会話 1 つだけの物なら process、そうでないか分からなければ空
+func hostScope(isSession func(name string) bool) string {
+	if _, name := hostProgram(); name != "" && isSession(procName(name)) {
+		return hostScopeProcess
+	}
+	return ""
+}
+
+// hookHost は、フックが添える AI のプログラムのプロセス id（その AI の事情 send で添えないなら空）
+func hookHost(send bool) string {
+	if !send {
+		return ""
+	}
+	return hostProcess()
 }
 
 // hostScopeProcess は、mcp --host-scope の、AI のプログラムがその会話 1 つだけの物という値
@@ -74,19 +87,19 @@ type claudeHookCmd struct {
 
 type claudePromptCmd struct{}
 
-// Run は、ターンの始まりを知らせ、待つアノテーションを添える。AI のプログラムのプロセス id を添え、/clear で変わったセッション id を同じ参加者に結び直させる
+// Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (claudePromptCmd) Run() error {
 	claudeDev()
-	hookPrompt(hostProcess())
+	hookPrompt(hookHost(claudelaunch.HooksSendHost))
 	return nil
 }
 
 type claudeModelCmd struct{}
 
-// Run は、セッションのモデルを知らせる（AI のプログラムのプロセス id を添える）
+// Run は、セッションのモデルを知らせる
 func (claudeModelCmd) Run() error {
 	claudeDev()
-	hookModel(hostProcess())
+	hookModel(hookHost(claudelaunch.HooksSendHost))
 	return nil
 }
 
@@ -129,10 +142,9 @@ func codexDev() string {
 
 type codexMCPCmd struct{}
 
-// Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす（Codex には裏で動かし続ける仕組みが無く、MCP は入力を待つ間も生きているため）。
-// Codex の MCP の親は、いくつもの会話を受け持つ app-server なので、会話 1 つだけの物とは名乗らない
+// Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, Deliver: []string{selfExecutable(), "codex", "deliver"}}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, HostScope: hostScope(codexlaunch.HostIsSession), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
@@ -146,10 +158,10 @@ type codexHookCmd struct {
 
 type codexPromptCmd struct{}
 
-// Run は、ターンの始まりを知らせ、待つアノテーションを添える。AI のプログラムのプロセス id は添えない（いくつもの会話を受け持つ app-server なので、結び直しに使えない）
+// Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (codexPromptCmd) Run() error {
 	codexDev()
-	hookPrompt("")
+	hookPrompt(hookHost(codexlaunch.HooksSendHost))
 	return nil
 }
 
@@ -158,7 +170,7 @@ type codexModelCmd struct{}
 // Run は、セッションのモデルを知らせる
 func (codexModelCmd) Run() error {
 	codexDev()
-	hookModel("")
+	hookModel(hookHost(codexlaunch.HooksSendHost))
 	return nil
 }
 

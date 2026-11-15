@@ -1,14 +1,14 @@
 // opencode のプラグイン（V2）: opencode のサーバー（opencode serve --service）のプロセスの中で動き、会話を開いたフォルダごとに setup が 1 回ずつ走る。
 // - 起こす知らせ: opencode のサーバーのプロセスに、使う matomezu ごとに 1 本だけ matomezu watch を起こし、知らせを matomezu opencode deliver で会話に渡させる
 //   （どのフォルダの setup からでも同じ 1 本を使い、最後の後始末で止める。--host はこのプロセスの id で、MCP の親と同じ）
-// - ターンの始まり（prompt のフック）: Claude Code のフックの annotations.sh と同じく、matomezu annotations の文を添えて matomezu talked を呼び、
+// - ターンの始まり（prompt のフック）: matomezu annotations の文を添えて matomezu talked を呼び、
 //   AI に足す文を、その会話の文脈の項目（instructions の entry）に入れ、題名があれば会話の題名にする
 // - 起こす知らせで始まったターン（synthetic の入力。prompt のフックは走らない）: 最初のモデルの呼び出しの context のフックで、talked に --woken を付けて同じことをする
-// - モデル（context のフック）: Claude Code の model.sh と同じく、会話のモデルが変わったら matomezu model で知らせる
+// - モデル（context のフック）: 会話のモデルが変わったら matomezu model で知らせる
 // - 利用者に見せる文（talked の message）: プラグインの RPC の知らせで、その会話を開いている TUI に渡す（TUI のプラグイン tui.ts がトーストで出す）
-// - MCP: matomezu の MCP を、フォルダごとに "matomezu" の名で足す（clients/claude-code/scripts/mcp.sh と同じ決まりで、開発の常駐を選ぶ）
+// - MCP: matomezu の MCP を、フォルダごとに "matomezu" の名で足す（開くフォルダが matomezu のリポジトリなら、開発の常駐を選ぶ）
 // 親を持つ会話（サブエージェントの会話）では、ターンの始まりとモデルを行わない（Claude Code はサブエージェントのターンでフックを呼ばない）
-// どの matomezu を呼ぶかは clients/claude-code/scripts/find-matomezu.sh と同じ決まり。見つからなければ何もしない
+// どの matomezu を呼ぶかは findMatomezu が決める。見つからなければ何もしない
 import { Rpc } from "@opencode/plugin/rpc"
 import { Schema } from "effect"
 import {

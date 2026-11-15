@@ -16,7 +16,7 @@ const COMMAND_TIMEOUT = 10_000
 // 使う matomezu: 実行ファイルと、開発の常駐のとき（matomezu のリポジトリ）はそのリポジトリの根と保管庫フォルダ
 export type Matomezu = { bin: string; root?: string; home?: string }
 
-// 開発の常駐の待ち受け（clients/claude-code/scripts/mcp.sh と同じ）
+// 開発の常駐の待ち受け（scripts/dev.ts が立てる常駐）
 const DEV_ADDR = "127.0.0.1:5300"
 
 export const ignore = () => {}

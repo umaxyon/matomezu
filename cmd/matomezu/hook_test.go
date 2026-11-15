@@ -91,7 +91,6 @@ func TestTalkedWithoutNewsPrintsTheContextOnly(t *testing.T) {
 	}
 }
 
-
 // モデルのフックは、SessionStart の model と PostModelSwitch の to_model を、セッション id とAI のプログラムのプロセス id を添えて送る。どちらも無ければ送らない
 func TestModelHookSendsTheModel(t *testing.T) {
 	var sent []string
