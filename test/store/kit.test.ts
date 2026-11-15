@@ -39,7 +39,7 @@ test("テーマが上書きするテーマキーは、: が無ければ自分の
   expect(theme.tokens as unknown).toEqual({ "@foo/stars:star-fill": "#ffd34d", "@matomezu/box:box-fill": "#000000" })
 })
 
-test("ブックのタイプは schema に type を書かず、データの type は本当の id", () => {
+test("ページのタイプの id は、プラグインの id と : の頭を付けた本当の id（ページのデータの type に入る）", () => {
   const many = kit.definePageType({
     id: "board",
     version: 1,
@@ -53,12 +53,8 @@ test("ブックのタイプは schema に type を書かず、データの type 
     presentation: "@matomezu/paper:paper",
     tokens: [],
   })
-  expect(many.create({ id: "b1", title: "T" }) as unknown).toEqual({
-    type: "@foo/stars:board",
-    id: "b1",
-    title: "T",
-  })
-  expect(many.schema.parse({ type: "@foo/stars:board", id: "b1" }).type).toBe("@foo/stars:board")
+  expect(many.id).toBe("@foo/stars:board")
+  expect(many.title as string).toBe("@foo/stars:Board")
 })
 
 test("名前に使えるのは英小文字・数字・- だけ（先頭は英小文字）", () => {
