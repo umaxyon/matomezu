@@ -2,7 +2,7 @@
 // 描く形は、受け取った印刷区画に掛かる物だけ（base の sheetShapes。つなぐものは、全部の形の位置で引く）。ページの原点で描く。
 // 入力を受けず、形にはアンカーも、e2e や操作が探す印（data-item など）も付けない（同じ形が印刷区画の数だけ描かれるため）
 import type { ReactNode } from "react"
-import { bookItems, type CoreCatalog, type ItemPage, type PlacedShape } from "../../../plugin-api"
+import { allowedItems, type CoreCatalog, type ItemPage, type PlacedShape } from "../../../plugin-api"
 import {
   type ItemViewProps,
   type ShapeScene,
@@ -18,7 +18,7 @@ import styles from "./PaperView.module.css"
 const NONE: readonly string[] = []
 const NO_IDS: ReadonlySet<string> = new Set()
 
-export function PaperSheet({ zoom, book, page, column, row, paper }: PrintSheetProps) {
+export function PaperSheet({ zoom, page, column, row, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
   const itemPage = page as ItemPage
@@ -39,7 +39,7 @@ export function PaperSheet({ zoom, book, page, column, row, paper }: PrintSheetP
     hover: null,
     localOf: () => null,
   }
-  const connectors = bookItems(catalog, book).flatMap(c => {
+  const connectors = allowedItems(catalog, page).flatMap(c => {
     const view = ui.connectors.get(c)?.view
     return view ? [{ id: c, View: view }] : []
   })

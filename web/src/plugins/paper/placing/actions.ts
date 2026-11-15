@@ -113,7 +113,7 @@ export const ITEM_PLACE = kit.defineAction({
         parent === null
           ? placeItem(ctx.catalog, book, args.page, { ...item, ...at })
           : placeChild(ctx.catalog, book, args.page, parent, item, at)
-      const placed = next?.pages.find(p => p.id === args.page)
+      const placed = next ? findPage(next, args.page)?.page : undefined
       const found = placed && findShape(placed, item.id)?.shape
       return next && placed && found
         ? { next, found, moved: movedShapes(ctx.catalog, page, placed, new Set(), grows) }
@@ -250,7 +250,7 @@ export const ITEM_REPARENT = kit.defineAction({
             y: where.y - origin.y,
           })
         : placeItem(ctx.catalog, without, args.page, { ...shape, ...where })
-      const after = next?.pages.find(p => p.id === args.page)
+      const after = next ? findPage(next, args.page)?.page : undefined
       return next && after ? { next, moved: movedShapes(ctx.catalog, page, after, free, grows) } : null
     }
     const tried = tryAt(args.at ?? found.at)

@@ -8,7 +8,6 @@
 // 右サイドパネルに出している間、刷れるなら（測り終え、並べる物がある）、刷る物（PrintOutput）を置いておき、刷れるかをステージの状態に置く（印刷のコマンドが読む）
 
 import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } from "react"
-import { pagedOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
@@ -122,7 +121,7 @@ export function PrintPreviewView() {
     return made
   }
   const Measure = book ? views.get(pageType(catalog, book.type).presentation)?.printMeasure : undefined
-  const pages = useMemo(() => (book && pagedOf(book)?.pages) || [], [book])
+  const pages = useMemo(() => (book && book?.pages) || [], [book])
   // 測るページ（紙のあるページ）と、その紙の大きさ
   const measuring = useMemo(
     () =>
@@ -205,9 +204,9 @@ export function PrintPreviewView() {
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   // ブック名・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {
-    sheetNumbers: settingValue(catalog, book, null, PRINT_PREVIEW_SHEET_NUMBERS) === "shown",
-    bookName: settingValue(catalog, book, null, PRINT_PREVIEW_BOOK_NAME) === "shown",
-    pageName: settingValue(catalog, book, null, PRINT_PREVIEW_PAGE_NAME) === "shown",
+    sheetNumbers: bookSettingValue(catalog, book, PRINT_PREVIEW_SHEET_NUMBERS) === "shown",
+    bookName: bookSettingValue(catalog, book, PRINT_PREVIEW_BOOK_NAME) === "shown",
+    pageName: bookSettingValue(catalog, book, PRINT_PREVIEW_PAGE_NAME) === "shown",
   }
   const labelsOf = (s: { index: number; page: string }) =>
     sheetLabels(s.index, layout.sheets.length, shows, {

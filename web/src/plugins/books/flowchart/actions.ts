@@ -8,9 +8,9 @@ import {
   type CommandContext,
   type CoreCatalog,
   connectorsOf,
+  findPage,
   type ItemPage,
   type MessageKey,
-  pagedOf,
   type Rect,
   shapesOf,
   shownPageId,
@@ -167,8 +167,8 @@ export const PAGE_ALIGN = kit.defineAction({
   args: z.strictObject({ page: z.string().min(1), adapt: z.boolean().optional() }),
   permissionScope: { page: "page" },
   run: (subject, args, ctx) => {
-    const book = pagedOf(subject)
-    const page = book?.pages.find(p => p.id === args.page)
+    const book = subject
+    const page = book ? findPage(book, args.page)?.page : undefined
     if (!book || !page) return null
     const dir = settingValue(ctx.catalog, page, FLOW_DIRECTION)
     // adapt なら、先に形をそのページに合わせる（台形の向きをページの流れの向きにそろえる）

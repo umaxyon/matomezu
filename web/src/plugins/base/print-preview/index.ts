@@ -110,7 +110,7 @@ export const PRINT_PREVIEW_FIT = kit.defineCommand({
 
 // 印刷プレビューで合わせる辺（縦に並べるなら幅、横に並べるなら高さ）
 export function fitSide(catalog: CoreCatalog, book: Book | null): "width" | "height" {
-  return book && settingValue(catalog, book, null, PRINT_PREVIEW_FLOW) === "row" ? "height" : "width"
+  return book && bookSettingValue(catalog, book, PRINT_PREVIEW_FLOW) === "row" ? "height" : "width"
 }
 const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book)
 

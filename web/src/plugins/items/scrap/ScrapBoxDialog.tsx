@@ -14,7 +14,6 @@ import {
   rowClass,
   ScrapForm,
   Switch,
-  useBookOf,
   usePageTheme,
   useSwatches,
 } from "../../base/ui"

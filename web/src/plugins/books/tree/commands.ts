@@ -1,7 +1,7 @@
 // ツリーのコマンド: 上下左右のキーで、選んでいる節を動かす（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ）と、
 // Home で根を選び、F2 で、選んでいる節のキャプションをその場で書き始める。Tab で子を、Enter ですぐ後ろの兄弟を足して、その場で書き始める（根に兄弟は足せない）。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
 // 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、節の色と、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーの見せ方の範囲（ステージの範囲より先に探す）
-import { type CommandContext, pagedOf, shownPageId } from "../../../plugin-api"
+import { type CommandContext, findPage, openedPage, shownPageId } from "../../../plugin-api"
 import { refusalMessage, settingValue } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { ADDED_EDIT, type Arrow, addArgs, afterRemove, keyPlus, moveFrom, NODE_COLOR_PICK, selectedIn } from "./edit"
@@ -13,8 +13,9 @@ import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
 function treeAt(ctx: CommandContext) {
-  const book = pagedOf(ctx.book)
-  const page = book?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
+  const opened = openedPage(ctx.stage.opened ?? null)
+  const book = ctx.book
+  const page = opened && book ? findPage(book, opened.page)?.page : undefined
   const root = treeRootOf(page)
   if (!book || !page || !root) return null
   return { book, page, root, grow: settingValue(ctx.catalog, page, GROW) }

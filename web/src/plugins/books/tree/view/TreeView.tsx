@@ -12,7 +12,7 @@
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
 // 足す・書き換える・付け替えるのが紙に入らないので断られたら、トーストで知らせる
 import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
-import { paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
+import { openedPage, paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
 import {
   useActions,
   useAllowed,
@@ -105,8 +105,7 @@ function Content({
   const w = size?.w
   const h = size?.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
-  const paper = stage.opened?.paper
-  if (stage.opened?.page === null) return <NoPages stage={stage} />
+  const paper = openedPage(stage.opened ?? null)?.paper
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
   if (!paperSize) return null
   return (
@@ -160,11 +159,11 @@ const Tree = memo(function Tree({
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
   const openNodeMenu = useContextMenu(NODE_CONTEXT)
   const root = treeRootOf(page)
-  const grow = settingValue(catalog, book ?? null, page ?? null, GROW)
+  const grow = settingValue(catalog, page ?? null, GROW)
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root ? selectedIn(root, stage.selection) : null
   const nodeWrite = useNodeWrite(page?.id, selected !== null && selected === root?.id)
-  const swatches = useSwatches(useBookTheme(book?.id), NODE_FILL) // 節の色のスタンドに並べる色
+  const swatches = useSwatches(usePageTheme(), NODE_FILL) // 節の色のスタンドに並べる色
   const picking = usingEdit && stage.editing === NODE_COLOR_PICK && selected !== null // 節の色を選んでいる
   // 背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は、節の書き換えにしない
   const writing =
@@ -184,8 +183,8 @@ const Tree = memo(function Tree({
   })
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root && selected && text !== null ? withCaption(root, selected, text) : root
-  const shape = settingValue(catalog, book ?? null, page ?? null, NODE_SHAPE)
-  const lineShape = settingValue(catalog, book ?? null, page ?? null, LINE_SHAPE)
+  const shape = settingValue(catalog, page ?? null, NODE_SHAPE)
+  const lineShape = settingValue(catalog, page ?? null, LINE_SHAPE)
   // ページの増やす向き（可変ページでなければ undefined）
   const growing = book && page ? growOf(catalog, page) : undefined
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた木を並べる
@@ -502,19 +501,4 @@ function useCentered(
     centerNow.current()
     if (latest.current.zoom !== zoomed.current) waiting.current = false
   }, [regained, stage.zoom])
-}
-
-function NoPages(_props: { stage: StageView }) {
-  const t = useMessages(kit)
-  const newPage = useCommand("@matomezu/base:page-new")
-  return (
-    <div className={styles.empty}>
-      <p className={styles.prompt}>{t("No pages")}</p>
-      {newPage.shown && (
-        <button type="button" className={styles.create} onClick={() => newPage.run()}>
-          {t("Create page")}
-        </button>
-      )}
-    </div>
-  )
 }

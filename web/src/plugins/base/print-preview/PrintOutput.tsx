@@ -2,7 +2,6 @@
 // 画面では見えず、刷るときだけこれを出す（画面を隠すのも PrintOutput.module.css）。紙は印刷区画の大きさの名前付きの @page で、余白 0（print-pages.ts）。
 // ステージの中は倍率とずらしと切り取りが掛かり改ページが効かないので、body の直下に描き、ブックのテーマの値を包み直す
 import { createPortal } from "react-dom"
-import type { PageTypeId } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
 import styles from "./PrintOutput.module.css"

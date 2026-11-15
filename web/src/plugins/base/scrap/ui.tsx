@@ -3,7 +3,7 @@
 // スクラップトレイは切り抜いた新しい順に並べ、押すと、今のステージで置けるスクラップフレーム（scrapFrameIn）で、その値のまま置こうとする。× は確かめてから消す
 import { useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { pageById, pagedOf } from "../../../core/book"
+import { pageById } from "../../../core/book"
 import type { ItemPage } from "../../../core/placed"
 import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
@@ -90,7 +90,7 @@ export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>)
 // 描いている場所のステージで、スクラップトレイから置くスクラップフレームのアイテム（開いているブックに置けなければ null）
 function useScrapFrame() {
   const catalog = useCatalog().core
-  const book = pagedOf(useBook())
+  const book = useBook()
   const view = useStage()
   return book && view ? scrapFrameIn(catalog, book, view.edits) : null
 }

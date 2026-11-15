@@ -1,5 +1,4 @@
 // 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
-import { z } from "zod"
 import {
   BACKGROUND_PRINT,
   DIAGRAM_THEME_TYPE,
@@ -7,7 +6,6 @@ import {
   PAGE_TEXT_COLORS,
   PAGE_THEME,
   PAPER_IDS,
-  PRINT_PREVIEW_SETTINGS,
 } from "../../base"
 import { kit } from "./kit"
 
@@ -47,17 +45,13 @@ export const DRAWING = kit.definePageType({
   id: "drawing",
   version: 1,
   title: "Drawing",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
+  grouping: "none",
   grow: { choices: ["right-down", "right", "down", "all"] }, // 可変ページの増やす向き（base の拡張ポイント）
-  pages: {
-    paper: {
-      allowed: PAPER_IDS,
-      default: "@matomezu/base:a4",
-      orientation: "landscape",
-      perPage: true,
-    },
+  paper: {
+    allowed: PAPER_IDS,
+    default: "@matomezu/base:a4",
+    orientation: "landscape",
+    perPage: true,
   },
   items: {
     allowed: ITEMS,
@@ -72,15 +66,5 @@ export const DRAWING = kit.definePageType({
   tools: "@matomezu/paper:paper",
   // テーマ・紙の色・線の既定の通り方（ページは線の既定の通り方を持たなければブックの既定を継ぐ）
   printCrossing: "ask", // 形は利用者が手で置くので、印刷区画をまたいだ形は印刷プレビューの前に直してもらう
-  settings: {
-    book: [
-      PAGE_THEME.id,
-      PAGE_PAPER_COLOR.id,
-      "@matomezu/line:line-route",
-      PAGE_TEXT_COLORS.id,
-      ...PRINT_PREVIEW_SETTINGS,
-      BACKGROUND_PRINT.id,
-    ],
-    page: ["@matomezu/line:line-route", BACKGROUND_PRINT.id],
-  },
+  settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, "@matomezu/line:line-route", PAGE_TEXT_COLORS.id, BACKGROUND_PRINT.id],
 })

@@ -4,9 +4,10 @@ import {
   areaOf,
   type CommandContext,
   connectorsOf,
+  findPage,
   findShape,
+  openedPage,
   type Point,
-  pagedOf,
   type ShapeAddArgs,
   shapeDialogs,
   shapesOf,
@@ -21,6 +22,12 @@ import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape }
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
 export const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
+
+// 開いているページ（ブックに無ければ undefined）
+export function pageOpenedIn(ctx: CommandContext) {
+  const id = shownPageId(ctx.stage.opened ?? null)
+  return ctx.book && id !== null ? findPage(ctx.book, id)?.page : undefined
+}
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
 export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
@@ -39,8 +46,8 @@ export const PAPER_PLACE = kit.defineCommand({
     const { stage } = ctx
     const at = placeAt(ctx.toPaper, pointer)
     const point = ctx.toPaper(pointer)
-    const book = pagedOf(ctx.book)
-    const page = book?.pages.find(p => p.id === shownPageId(stage.opened ?? null))
+    const book = ctx.book
+    const page = pageOpenedIn(ctx)
     const placing = stage.placing
     const shape = placing && placingShape(ctx.catalog, placing.item, placing.props)
     if (!at || !point || !book || !page || !placing || !stage.opened || !shape) return
@@ -94,7 +101,7 @@ function editable(ctx: CommandContext): boolean {
   const target = ctx.contextMenu?.target as { item?: string } | undefined
   if (target?.item === undefined) return true
   if (amongSelected(ctx.stage.selection, target.item)) return false
-  const page = pagedOf(ctx.book)?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
+  const page = pageOpenedIn(ctx)
   const placed = page && findShape(page, target.item)?.shape
   const def = placed && shapeDefOf(ctx.catalog, placed.item)
   return def ? shapeDialogs(def).edit !== undefined : false
@@ -109,8 +116,7 @@ export const PAPER_EDIT = kit.defineCommand({
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     const page = shownPageId(ctx.stage.opened ?? null)
-    const book = pagedOf(ctx.book) ?? null
-    const found = book?.pages.find(p => p.id === page)
+    const found = pageOpenedIn(ctx)
     const placed = found && findShape(found, item)?.shape
     const def = placed && shapeDefOf(ctx.catalog, placed.item)
     const dialog = def && shapeDialogs(def).edit
@@ -123,7 +129,7 @@ export const PAPER_EDIT = kit.defineCommand({
 
 // 選んでいる物が、開いているページのアイテム（どの深さの形も、つなぐものも）だけか（リストの行など、形の中の物が混じれば、ほかのコマンドの物）
 export function itemsSelected(ctx: CommandContext): boolean {
-  const page = pagedOf(ctx.book)?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
+  const page = pageOpenedIn(ctx)
   const { selection } = ctx.stage
   if (!page || selection.length === 0) return false
   const connectors = new Set(connectorsOf(page).map(c => c.id))
@@ -137,8 +143,9 @@ export const PAPER_DELETE = kit.defineCommand({
   permissionScope: "selection",
   title: "Delete",
   run: (ctx, a) => {
-    const { opened, selection } = ctx.stage
-    if (!opened?.page || selection.length === 0) return
+    const opened = openedPage(ctx.stage.opened ?? null)
+    const { selection } = ctx.stage
+    if (!opened || selection.length === 0) return
     const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
     if (done.ok) a.select([])
   },
@@ -150,7 +157,7 @@ export const PAPER_SELECT_ALL = kit.defineCommand({
   id: "paper-select-all",
   title: "Select all",
   run: (ctx, a) => {
-    const page = pagedOf(ctx.book)?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
+    const page = pageOpenedIn(ctx)
     if (!page) return
     const shapes = new Set(shapesOf(page).map(s => s.id))
     const connectors = connectorsOf(page).filter(c => shapes.has(c.from) && shapes.has(c.to))
@@ -167,13 +174,12 @@ export const PAPER_MOVE = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Move items",
   run: (ctx, a, args: { items: readonly string[]; by: Point; came?: Came }) => {
-    const { opened } = ctx.stage
-    if (!opened?.page || args.items.length === 0) return
+    const opened = openedPage(ctx.stage.opened ?? null)
+    if (!opened || !ctx.book || args.items.length === 0) return
     const asked = toPaperDelta(ctx.stage, args.by)
     const came = args.came && { came: { ...args.came } }
     const crowd = "push" as const
-    const paged = pagedOf(ctx.book)
-    const by = (paged && nearestMove(ctx.catalog, paged, opened.page, args.items, asked, args.came)) || asked
+    const by = nearestMove(ctx.catalog, ctx.book, opened.page, args.items, asked, args.came) || asked
     a.perform(ITEM_MOVE.id, { page: opened.page, items: [...args.items], by, crowd, ...came }, { book: opened.book })
   },
   when: onOpenedPage,
@@ -187,20 +193,19 @@ export const PAPER_REPARENT = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Reparent item",
   run: (ctx, a, args: { item: string; parent: string | null; by: Point }) => {
-    const { opened } = ctx.stage
-    const page = pagedOf(ctx.book)?.pages.find(p => p.id === opened?.page)
+    const opened = openedPage(ctx.stage.opened ?? null)
+    const page = pageOpenedIn(ctx)
     const found = page && findShape(page, args.item)
-    if (!opened?.page || !found) return
+    if (!opened || !ctx.book || !found) return
     const by = toPaperDelta(ctx.stage, args.by)
     const on = { book: opened.book }
-    const paged = pagedOf(ctx.book)
     if (found.parent === args.parent) {
-      const near = paged && nearestMove(ctx.catalog, paged, opened.page, [args.item], by)
+      const near = nearestMove(ctx.catalog, ctx.book, opened.page, [args.item], by)
       a.perform(ITEM_MOVE.id, { page: opened.page, items: [args.item], by: near || by, crowd: "push" }, on)
       return
     }
     const asked = { x: found.at.x + by.x, y: found.at.y + by.y }
-    const at = (paged && nearestReparent(ctx.catalog, paged, opened.page, args.item, args.parent, asked)) || asked
+    const at = nearestReparent(ctx.catalog, ctx.book, opened.page, args.item, args.parent, asked) || asked
     a.perform(ITEM_REPARENT.id, { page: opened.page, item: args.item, parent: args.parent, at, crowd: "push" }, on)
   },
   when: onOpenedPage,
@@ -213,12 +218,11 @@ export const PAPER_RESIZE = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Resize item",
   run: (ctx, a, args: { item: string; edges: Edges; by: Point }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     const paper = areaOf(ctx.stage)
-    const book = pagedOf(ctx.book) ?? null
-    const page = book?.pages.find(p => p.id === opened?.page)
+    const page = pageOpenedIn(ctx)
     const placed = page && findShape(page, args.item)?.shape
-    if (!opened?.page || !paper || !placed) return
+    if (!opened || !paper || !placed) return
     const ratio = shapeDefOf(ctx.catalog, placed.item)?.[kit.name("stretch")] === "ratio"
     const to = resizedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper, ratio)
     if (to) a.perform(ITEM_RESIZE.id, { page: opened.page, item: placed.id, ...to }, { book: opened.book })

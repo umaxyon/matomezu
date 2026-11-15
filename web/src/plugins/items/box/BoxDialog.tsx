@@ -8,7 +8,7 @@
 // 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して箱を置き（ほかの形は画面と同じに押す）、置いた箱を選ぶ。編集は箱の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { Book, ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
+import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {

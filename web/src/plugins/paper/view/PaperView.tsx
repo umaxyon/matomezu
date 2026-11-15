@@ -27,11 +27,12 @@ import {
   useState,
 } from "react"
 import {
+  allowedItems,
   areaOf,
-  bookItems,
   type CoreCatalog,
   findShape,
   type ItemPage,
+  openedPage,
   type PlacedShape,
   type Point,
   type Rect,
@@ -216,8 +217,7 @@ function Content({
   localOf: LocalOf
 }) {
   const t = useMessages(kit)
-  const paper = stage.opened?.paper
-  if (stage.opened?.page === null) return <NoPages stage={stage} />
+  const paper = openedPage(stage.opened ?? null)?.paper
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
   return (
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
@@ -299,8 +299,8 @@ function PageItems({
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
   const room = useMemo(() => (book && growOf(catalog, page) ? roomOf(catalog, page) : null), [catalog, book, page])
   useStageArea(room)
-  // ブックで使えるつなぐもののビュー
-  const connectors = (book ? bookItems(catalog, book) : []).flatMap(id => {
+  // ページに置けるつなぐもののビュー
+  const connectors = allowedItems(catalog, page).flatMap(id => {
     const c = ui.connectors.get(id)
     return c ? [{ id, ...c }] : []
   })
@@ -694,20 +694,5 @@ function Ghost({ placed }: { placed: Placing }) {
       data-fits={target?.fits === true}
       style={{ left: at.x, top: at.y, width: size.w, height: size.h }}
     />
-  )
-}
-
-function NoPages(_props: { stage: StageView }) {
-  const t = useMessages(kit)
-  const newPage = useCommand("@matomezu/base:page-new")
-  return (
-    <div className={styles.empty}>
-      <p className={styles.prompt}>{t("No pages")}</p>
-      {newPage.shown && (
-        <button type="button" className={styles.create} onClick={() => newPage.run()}>
-          {t("Create page")}
-        </button>
-      )}
-    </div>
   )
 }

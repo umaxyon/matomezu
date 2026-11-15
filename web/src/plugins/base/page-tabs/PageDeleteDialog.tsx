@@ -1,5 +1,5 @@
 // ページを消す前に確かめるダイアログ: ページ一覧の右クリックのメニューから開く。消す（アクション page-remove）と中身ごと消え戻せないので、押す前に知らせる。断られたら開いたままにする
-import { pagedOf } from "../../../core/book"
+import { findPage } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
@@ -10,8 +10,8 @@ import { PAGE_REMOVE } from "./page-remove"
 
 export function PageDeleteDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
-  const book = pagedOf(useBook())
-  const page = book?.pages.find(p => p.id === args.page)
+  const book = useBook()
+  const page = book ? findPage(book, args.page)?.page : undefined
   const removable = useAllowed(PAGE_REMOVE.id, { page: args.page }).ok
   const perform = usePerform()
   if (!page) return null

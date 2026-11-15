@@ -149,7 +149,7 @@ export function pasted(
           ? placeItem(catalog, next, args.page, { ...s, ...to })
           : placeChild(catalog, next, args.page, parent, { ...s, ...to }, to)
     }
-    const placed = next?.pages.find(p => p.id === args.page)
+    const placed = next ? findPage(next, args.page)?.page : undefined
     if (!next || !placed || !copy.shapes.every(s => findShape(placed, s.id))) return null
     const withLines = putPage(next, { ...placed, items: [...pageItemsOf(placed), ...copy.connectors] })
     return { next: withLines, moved: movedShapes(catalog, page, placed, new Set(), grows) }

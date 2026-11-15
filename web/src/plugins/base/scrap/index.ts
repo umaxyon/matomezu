@@ -1,7 +1,7 @@
 // スクラップの、base の側: スクラップフレームの印（アイテムの定義の拡張ポイント scrapFrame）、切り抜くダイアログとそれを開くコマンド。
 // 切り抜くのは、切り抜きたいページで（ページタブと紙の右クリック）。切り抜いたスクラップはスクラップトレイに入り、置くのはスクラップトレイから（ui.tsx）
 
-import { pagedOf } from "../../../core/book"
+import { findPage } from "../../../core/book"
 import { type CatalogCheckDef, type CoreCatalog, type ItemId, pageType } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
 import type { EditList } from "../../../core/def/page-type"
@@ -9,7 +9,7 @@ import { problem } from "../../../core/errors"
 import { findShape } from "../../../core/placed"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
-import { shownPageId } from "../../../core/stage"
+import { openedPage } from "../../../core/stage"
 import type { CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { placeableIn } from "../toolbox/toolbox"
@@ -65,7 +65,8 @@ export const SCRAP_CUT_COMMAND = kit.defineCommand({
 // 右クリックした形 item が、スクラップフレームなら、その項目のスクラップ（違えば null）
 function scrapOf(ctx: CommandContext, item: string | undefined): Scrap | null {
   if (item === undefined) return null
-  const page = pagedOf(ctx.book)?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
+  const opened = openedPage(ctx.stage.opened ?? null)
+  const page = opened && ctx.book ? findPage(ctx.book, opened.page)?.page : undefined
   const placed = page && findShape(page, item)?.shape
   const def = placed && (ctx.catalog.items.get(placed.item) as { scrapFrame?: true } | undefined)
   return placed && def?.scrapFrame === true ? (placed.props as Scrap) : null

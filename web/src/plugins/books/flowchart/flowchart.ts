@@ -8,7 +8,6 @@ import {
   PAGE_TEXT_COLORS,
   PAGE_THEME,
   PAPER_IDS,
-  PRINT_PREVIEW_SETTINGS,
   type SettingReader,
 } from "../../base"
 import { kit } from "./kit"
@@ -78,9 +77,7 @@ export const FLOWCHART = kit.definePageType({
   id: "flowchart",
   version: 1,
   title: "Flowchart",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
+  grouping: "none",
   // 可変ページは、流れの始まりの側を固定して残りの 3 つの向きへ増やす（下へなら上を、右へなら左を固定。base の拡張ポイント）
   grow: {
     sides: setting =>
@@ -88,13 +85,11 @@ export const FLOWCHART = kit.definePageType({
         ? { up: true, down: true, left: false, right: true }
         : { up: false, down: true, left: true, right: true },
   },
-  pages: {
-    paper: {
-      allowed: PAPER_IDS,
-      default: "@matomezu/base:a4",
-      orientation: "portrait",
-      perPage: true,
-    },
+  paper: {
+    allowed: PAPER_IDS,
+    default: "@matomezu/base:a4",
+    orientation: "portrait",
+    perPage: true,
   },
   slide: { allowed: BACKGROUND_ITEMS, background: true },
   items: {
@@ -117,16 +112,12 @@ export const FLOWCHART = kit.definePageType({
   tools: FLOWCHART_TOOLS.id,
   // キャプションで形が広がるときは、流れが下へなら横の真ん中を保ち（本筋の縦の線がずれない）、右へなら左を保つ
   growFrom: setting => (turnedRight(setting) ? { x: "start", y: "center" } : { x: "center", y: "start" }),
-  settings: {
-    book: [
-      PAGE_THEME.id,
-      PAGE_PAPER_COLOR.id,
-      "@matomezu/line:line-route",
-      kit.name("flow-direction"),
-      PAGE_TEXT_COLORS.id,
-      ...PRINT_PREVIEW_SETTINGS,
-      BACKGROUND_PRINT.id,
-    ],
-    page: ["@matomezu/line:line-route", kit.name("flow-direction"), BACKGROUND_PRINT.id],
-  },
+  settings: [
+    PAGE_THEME.id,
+    PAGE_PAPER_COLOR.id,
+    "@matomezu/line:line-route",
+    kit.name("flow-direction"),
+    PAGE_TEXT_COLORS.id,
+    BACKGROUND_PRINT.id,
+  ],
 })

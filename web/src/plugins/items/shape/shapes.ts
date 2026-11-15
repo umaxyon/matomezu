@@ -3,7 +3,7 @@
 // 項目はキャプションと寄せ・色（代表色の名前か #rrggbb）。個別のテーマは持たない（いつもブックのテーマで描く）。台形とその逆は向きも持つ（turnable）。テーマキーは 8 つの形で共通の 1 組。
 // 置くときは形ごとの追加のダイアログでキャプションと色を聞いてから置き、中身は 1 つの編集のダイアログで変える
 import { z } from "zod"
-import { type Book, type CoreCatalog, pagedOf, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
+import { type Book, type CoreCatalog, findPage, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
 import { AlignSchema, ColorSchema, pageContext, type SettingReader } from "../../base"
 import { kit } from "./kit"
 import type { SHAPE_MESSAGES } from "./messages"
@@ -39,7 +39,7 @@ export interface ShapeOptions {
 // 回せる形 item を、ブック book のページ page に置くときの最初の向き（タイプの指定 ShapeOptions の turned。ページの設定で決める）
 export function startTurned(catalog: CoreCatalog, book: Book, page: string, item: string): boolean {
   const options = catalog.pageTypes.get(book.type)?.items.options as Record<string, ShapeOptions> | undefined
-  const placed = pagedOf(book)?.pages.find(p => p.id === page) ?? null
+  const placed = (book ? findPage(book, page)?.page : undefined) ?? null
   return options?.[item]?.turned?.(pageContext(catalog, placed).setting) ?? false
 }
 

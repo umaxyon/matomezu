@@ -2,7 +2,6 @@
 // 伸びる向きはページの設定の項目、根はページのフィールド root）、そのページを開く。伸びる向きの初めの値は「ブック継承」で、そのままならページに書かない
 // （あとでブックの向きを変えると、ページもそれに従う）。紙と紙の向きはブックのタイプの既定
 import { useState } from "react"
-import { pagedOf } from "../../../plugin-api"
 import { type DialogProps, useBook, useCoreCatalog, useMessages } from "../../../plugin-api/ui"
 import { nextPageTitle, settingValue } from "../../base"
 import { controlClass, Dialog, Field, Form, InheritChoices, useAddPage } from "../../base/ui"
@@ -12,7 +11,7 @@ import { kit } from "./kit"
 
 export function NewTreePageDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
-  const book = pagedOf(useBook())
+  const book = useBook()
   const addPage = useAddPage()
   const options = useGrowOptions()
   const catalog = useCoreCatalog()

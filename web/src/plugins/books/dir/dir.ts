@@ -1,7 +1,6 @@
 // ディレクトリ構成図のブック: ページごとに紙を置き、ページのフィールド root（根のフォルダ）から下の中身を、自分の見せ方（dir）で上から下へ並べて描く。紙に置けるアイテムは無い。
 // 新しいページを作るダイアログは自分の物（根のフォルダの名前を聞く）、ページの設定のダイアログは base の物（ページ名・削除と、説明の見せ方の設定の項目）。道具は自分の組（tools.ts。鉛筆とハンド）。
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
-import { z } from "zod"
 import {
   BACKGROUND_PRINT,
   DIAGRAM_THEME_TYPE,
@@ -9,7 +8,6 @@ import {
   PAGE_TEXT_COLORS,
   PAGE_THEME,
   PAPER_IDS,
-  PRINT_PREVIEW_SETTINGS,
 } from "../../base"
 import { entryOf } from "./edit"
 import { DirFolderSchema, dirRootOf } from "./entry"
@@ -57,9 +55,7 @@ export const DIR = kit.definePageType({
   id: "dir",
   version: 1,
   title: "Directory",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
+  grouping: "none",
   pageFieldsInput, // 根は作るときに中身ごと受けて id を振る。直すときは受けない（中身はディレクトリ構成図のアクションで替える）
   // 行が紙に入らないページは問題
   pageProblem: (catalog, page, _setting, grow) =>
@@ -70,16 +66,14 @@ export const DIR = kit.definePageType({
     const root = dirRootOf(page)
     return (root && entryOf(root, id)?.name) ?? ""
   },
-  pages: {
-    paper: {
-      allowed: PAPER_IDS,
-      default: "@matomezu/base:a4",
-      orientation: "portrait",
-      perPage: true,
-    },
-    fields: { root: DirFolderSchema },
-    dialogs: { add: NEW_DIR_PAGE_DIALOG.id },
+  paper: {
+    allowed: PAPER_IDS,
+    default: "@matomezu/base:a4",
+    orientation: "portrait",
+    perPage: true,
   },
+  fields: { root: DirFolderSchema },
+  dialogs: { add: NEW_DIR_PAGE_DIALOG.id },
   items: { allowed: [] },
   slide: { allowed: BACKGROUND_ITEMS, background: true },
   actions: {}, // 使うアクションは、見せ方について来る
@@ -91,8 +85,5 @@ export const DIR = kit.definePageType({
     { id: "dir-line", fallback: "line" }, // 罫線
   ],
   tools: DIR_TOOLS.id,
-  settings: {
-    book: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, PAGE_TEXT_COLORS.id, ...PRINT_PREVIEW_SETTINGS, BACKGROUND_PRINT.id],
-    page: [kit.name("notes"), BACKGROUND_PRINT.id], // 説明の見せ方（notes.ts）と背景の印刷
-  },
+  settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, PAGE_TEXT_COLORS.id, kit.name("notes"), BACKGROUND_PRINT.id], // notes は説明の見せ方（notes.ts）
 })

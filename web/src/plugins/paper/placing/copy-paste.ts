@@ -1,15 +1,7 @@
 // コピー・切り取り・貼り付け・複製のコマンド。写し（clip.ts の Clip）は紙のプラグインのプラグイン状態（CLIP_STATE）に置く（ブック・ページをまたいで貼れる。読み込み直すと消える）。
 // 貼るときは、アクション item-paste に写しを渡す（選んだ物に応じて入れる先を決め、収まらなければ収まる一番近い所へ寄せる）
 
-import {
-  type Book,
-  type CommandContext,
-  findShape,
-  type Point,
-  pagedOf,
-  shownPageId,
-  walkShapes,
-} from "../../../plugin-api"
+import { type CommandContext, findPage, findShape, openedPage, type Point, walkShapes } from "../../../plugin-api"
 import { placedSize, refusalMessage, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_PASTE, ITEM_REMOVE } from "./actions"
@@ -21,8 +13,10 @@ import { CLIP_STATE } from "./states"
 const clipIn = (ctx: CommandContext): Clip | null => ctx.pluginState(CLIP_STATE) ?? null
 
 // 開いているページ
-const pageOf = (ctx: CommandContext) =>
-  pagedOf(ctx.book)?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
+function pageOf(ctx: CommandContext) {
+  const opened = openedPage(ctx.stage.opened ?? null)
+  return opened && ctx.book ? findPage(ctx.book, opened.page)?.page : undefined
+}
 
 // 写しをプラグイン状態に置く
 const keep = (a: { updatePluginState(def: typeof CLIP_STATE, change: () => Clip): void }, clip: Clip) =>
@@ -50,8 +44,8 @@ function pasteAt(
   where: { parent: string | null; at?: Point },
   quiet = false,
 ): boolean {
-  const { opened } = ctx.stage
-  const paged: Book | undefined = pagedOf(ctx.book)
+  const opened = openedPage(ctx.stage.opened ?? null)
+  const paged = ctx.book
   const page = pageOf(ctx)
   if (!opened?.page || !paged || !page) return false
   const at = where.at && (nearestPaste(ctx.catalog, paged, page.id, clip, where.parent, where.at) ?? undefined)
@@ -116,7 +110,8 @@ export const PAPER_CUT = kit.defineCommand({
   permissionScope: "selection",
   title: "Cut",
   run: (ctx, a) => {
-    const { opened, selection } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
+    const { selection } = ctx.stage
     const clip = copiedClip(ctx, a)
     if (!opened?.page || !clip) return
     const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
