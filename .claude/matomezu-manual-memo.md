@@ -12,9 +12,26 @@ npm で入れます。node と npm が要ります。
 2. `matomezu version` を打って、版が出れば入っています
 
 - 更新するときも、`npm i -g matomezu` を打ちます
-- Claude Code のプラグインも一緒に入ります。Claude Code に組み込むのは、別に 1 度だけ行います（16 章「Claude Code のプラグイン」）
+- 更新する前に、`matomezu stop` で止めておきます（下の注）
+- Claude Code と Codex のプラグインも一緒に入ります。AI に組み込むのは、別に 1 度だけ行います（16 章「Claude Code のプラグイン」「Codex のプラグイン」）
+
+注: Windows では、動いている matomezu を上書きできません。止めずに入れ直すと失敗します。
 
 使える OS: Linux・macOS・Windows（64 ビット。Linux と macOS は Arm も）。
+
+プラグインの置き場所:
+
+npm で入れた matomezu のフォルダの下にあります。
+
+| プラグイン | 置き場所 |
+|---|---|
+| Claude Code のプラグイン | （matomezu のフォルダ）/plugin |
+| Codex のプラグイン | （matomezu のフォルダ）/codex-plugin |
+
+matomezu のフォルダは、ふつうは `npm root -g` が出すフォルダの下の matomezu です。
+
+注: volta で node を入れているときは、`npm root -g` が出すフォルダに matomezu はありません。matomezu のフォルダは `%LOCALAPPDATA%\Volta\tools\image\packages\matomezu\node_modules\matomezu` です（Windows のとき）。
+注: volta の npm でレジストリを指すときは、`--registry=URL` と `=` でつなぎます。`--registry URL` と空白で区切ると、読み違えます。
 
 注: 合わない OS で動かすと、`matomezu: ... is not installed (this OS or CPU is not supported, or optional dependencies were skipped)` と出て、動きません。npm の設定で「optional dependencies」を入れないようにしているときも同じです。
 
@@ -2755,7 +2772,7 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 入れ方（利用者ごとに 1 度）:
 
 1. `npm i -g matomezu` で matomezu を入れておく
-2. `claude plugin marketplace add $(npm root -g)/matomezu/plugin` を打つ
+2. `claude plugin marketplace add （matomezu のフォルダ）/plugin` を打つ（1 章「入れる」の「プラグインの置き場所」）。ふつうは `claude plugin marketplace add $(npm root -g)/matomezu/plugin` です
 3. `claude plugin install matomezu@matomezu` を打つ
 
 - matomezu を npm で更新すると、プラグインも同じ版に新しくなります
@@ -2764,6 +2781,7 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 注: 前に Claude Code へ手で登録した matomezu の MCP は外します。
 注: プラグインの MCP の道具は、Claude Code の上で `mcp__plugin_matomezu_matomezu__` で始まる名前になります。手で登録したときの `mcp__matomezu__` とは違います。
 注: matomezu のリポジトリから試すときは、2 の代わりに `claude plugin marketplace add （matomezu のリポジトリ）/clients/claude-code` を打ちます。
+注: Windows（WSL でない）でも、そのまま使えます。
 
 #### 道具の許可
 
@@ -2778,8 +2796,19 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 
 matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
 
-- 話しかけたときの知らせ・モデルの知らせ・画面の操作を待つ事は、何もしません。エラーも出ません
+- 話しかけたときの知らせ・モデルの知らせ・画面の操作を待つ事は、動きません
+- 話しかけるたびなどに、Claude Code に「Hook failed」などの警告が出ます。話しかけた文は、そのまま AI に届きます
 - MCP はつながりません
+
+例えば、次のときに起きます。
+
+- npm の matomezu を消したが、プラグインが残っている
+- node の版を切り替えて、matomezu の入っていない node になった
+
+直し方は、次のどちらかです。
+
+- `npm i -g matomezu` で入れ直す
+- プラグインを外す（`claude plugin uninstall matomezu@matomezu`）
 
 注: matomezu が起動していないだけなら、話しかけたときの知らせとモデルの知らせは何もしません。画面の操作を待つ事は、起動したらつながります。
 
@@ -2799,12 +2828,14 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 
 入れ方（利用者ごとに 1 度）:
 
-1. matomezu を入れておく（1 章「入れる」）
-2. `codex plugin marketplace add （matomezu のリポジトリ）/clients/codex` を打つ
+1. `npm i -g matomezu` で matomezu を入れておく（1 章「入れる」）
+2. `codex plugin marketplace add （matomezu のフォルダ）/codex-plugin` を打つ（1 章「入れる」の「プラグインの置き場所」）
 3. Codex の中で、matomezu のプラグインを入れる
 
-注: npm で入れた matomezu には、Codex のプラグインは入っていません。今は matomezu のリポジトリから入れます。
-注: matomezu のリポジトリから入れると、AI がつなぐのは、そのリポジトリで動かしている開発用の matomezu です。npm で入れた matomezu ではありません。
+- matomezu を npm で更新すると、プラグインも同じ版に新しくなります
+- Windows（WSL でない）でも、そのまま使えます
+
+注: matomezu のリポジトリから試すときは、2 の代わりに `codex plugin marketplace add （matomezu のリポジトリ）/clients/codex` を打ちます。AI がつなぐのは、そのリポジトリで動かしている開発用の matomezu です。
 
 メッセージで AI が動き出すように、Codex は次のように起動します。
 
@@ -2812,12 +2843,18 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 - 端末のアプリが `--no-daemon` を足すときは、`command codex` で起動します。続きから始めるときは `command codex resume --last` です
 
 注: 例えば Orca の端末で `codex` と打つと、Orca が `--no-daemon` を足します。
-注: Windows の Codex は、メッセージで動き出しません。メッセージは、次に AI が matomezu を使った時に届きます。
+注: Windows で、管理者として起動した Codex は、メッセージで動き出しません。メッセージは、次に AI が matomezu を使った時に届きます。
 
 matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
 
-- 話しかけたときの知らせとモデルの知らせは、何もしません。話しかけた文は、そのまま AI に届きます
+- 話しかけたときの知らせとモデルの知らせは、動きません
+- 話しかけるたびなどに、Codex に警告が出ます。話しかけた文は、そのまま AI に届きます
 - MCP はつながりません
+
+直し方は、次のどちらかです（起きるときは、上の「Claude Code のプラグイン」と同じです）。
+
+- `npm i -g matomezu` で入れ直す
+- プラグインを外す（`codex plugin remove matomezu@matomezu`）
 
 ### opencode のプラグイン
 
@@ -3167,6 +3204,8 @@ AI が動き出す操作:
 - matomezu が起動していない間は待ち、起動したらつながります
 - Claude Code を閉じると、`matomezu watch` も止まります
 
+注: Windows では、止まるまでに 30 秒ほどかかることがあります。
+
 注: 受け入れた・断った時に `matomezu watch` がまだつながっていなくても、知らせは消えません。つながった時に届きます。
 注: 届く前に matomezu を起動し直すと、知らせは消えます。そのときは、次に話しかけたときに伝わります。
 
@@ -3228,9 +3267,19 @@ AI が動き出す操作:
 
 - 会話が無いと答えたメッセージは、次に AI が matomezu を使った時に届きます
 - 失敗と答えたメッセージは、間を置いて、もう一度渡されます
-- `matomezu watch` には、`--host` で AI のプログラムのプロセス id を付けます
+- `matomezu watch` には、`--host`（AI のプログラムのプロセス id）か `--session`（会話のセッション id）の、少なくとも 1 つを付けます
 
 注: 渡すコマンドを作るのは、ほかの AI に matomezu をつなぐ人です。Codex と opencode は、プラグインが行います。
+
+プラグインが呼ぶコマンド（自分でフックを書くときの参考。利用者が打つ物ではありません）:
+
+| AI | コマンド |
+|---|---|
+| Claude Code | `matomezu claude-code mcp`・`matomezu claude-code hook prompt`・`matomezu claude-code hook model`・`matomezu claude-code hook permission`・`matomezu claude-code watch` |
+| Codex | `matomezu codex mcp`・`matomezu codex hook prompt`・`matomezu codex hook model`・`matomezu codex deliver`（渡すコマンド） |
+| opencode | `matomezu opencode deliver`（渡すコマンド） |
+
+注: 前の `matomezu deliver codex`・`matomezu deliver opencode` は、`matomezu codex deliver`・`matomezu opencode deliver` に替わりました。
 
 ### モデルとブランチ
 
