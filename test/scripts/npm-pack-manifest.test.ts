@@ -1,8 +1,12 @@
 import { expect, test } from "bun:test"
+import { existsSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 import {
   binEntry,
   labVersion,
   mainPackageJson,
+  OPENCODE_FILES,
+  opencodePackageJson,
   platformPackageJson,
   platformPackageName,
   TARGETS,
@@ -39,4 +43,17 @@ test("プラグインの版を本体の版に書き換える", () => {
 
 test("入口は、自分の親（AI のプログラム）のプロセス id を、実行ファイルに環境変数で伝える", () => {
   expect(binEntry).toContain("MATOMEZU_HOST_PID: String(process.ppid)")
+})
+
+test("opencode のプラグインは、本体と同じ版の別のパッケージで、サーバーと TUI の入口と、それらが読むファイルを持つ", () => {
+  const pkg = opencodePackageJson("1.2.3")
+  expect(pkg).toMatchObject({ name: "matomezu-opencode", version: "1.2.3", main: "index.ts", type: "module" })
+  expect(pkg.files).toEqual(OPENCODE_FILES)
+  const dir = join(import.meta.dir, "../../clients/opencode")
+  for (const f of OPENCODE_FILES) expect(existsSync(join(dir, f))).toBe(true)
+  // 入れたファイルが読む、同じフォルダのファイルも入っている
+  for (const f of OPENCODE_FILES) {
+    for (const m of readFileSync(join(dir, f), "utf8").matchAll(/from "\.\/([^"]+)"/g))
+      expect(OPENCODE_FILES).toContain(`${m[1]}.ts`)
+  }
 })

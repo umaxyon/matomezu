@@ -96,6 +96,8 @@ type annotationsCmd struct{}
 type talkedCmd struct {
 	Context string `help:"Text the hook adds to what it tells AI (such as the output of annotations). It is printed as it is when there is nothing to say as JSON."`
 	Host    string `help:"Process id of AI's host program (such as Claude Code). The server ties a new session id of the same process to its participant (after /clear)."`
+	Format  string `default:"hook" enum:"hook,split" help:"Shape of the answer: hook (the hook's JSON that Claude Code, Codex and Gemini CLI read; --context as it is when there is nothing else to say) or split (one JSON for any AI program: message to show the user, forAi to add to what AI reads this turn, sessionTitle for the conversation; nothing when all are empty)."`
+	Woken   bool   `help:"The turn was started by a wake notice (such as matomezu deliver), not by the user talking. Without it, a prompt wrapped in <task-notification> (Claude Code) is taken as woken."`
 }
 
 type modelCmd struct {
@@ -428,7 +430,8 @@ func writeRemoved(w io.Writer, removed []removedTicket) {
 func (c *talkedCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = c.Host
-	talked(os.Stdout, hook, c.Context, runningAPI("api/ai/talked"))
+	hook.Woken = c.Woken
+	talked(os.Stdout, hook, c.Context, c.Format, runningAPI("api/ai/talked"))
 	return nil
 }
 

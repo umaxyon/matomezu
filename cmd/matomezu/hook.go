@@ -3,6 +3,8 @@ package main
 // 話しかけのフック（talked）: AI の話しかけのフック（Claude Code の UserPromptSubmit・Gemini CLI の BeforeAgent）が標準入力に渡す JSON（session_id・transcript_path）から、
 // ターンの始まりを常駐に知らせ、会話の記録から使い捨ての uuid を拾って参加者にセッション id を結ばせ、結べた参加者を利用者に伝える。
 // 伝えるのはフックの JSON の出力（systemMessage が利用者に見え、sessionTitle が Claude Code のセッション名になり、additionalContext が AI に届く）。
+// --format split では、AI の種類を問わない JSON（message は利用者に見せる文、forAi は AI に足す文、sessionTitle は会話の題名）を出し、
+// AI の側の部品（opencode のプラグインなど）が、その AI のプログラムでの見せ方・渡し方を決める。
 //
 // モデルのフック（model）: AI の SessionStart と PostModelSwitch のフックが標準入力に渡す JSON（session_id と、model か to_model）から、
 // セッションのモデルを常駐に知らせる（参加者の様子に出す）。
@@ -29,6 +31,7 @@ type hookInput struct {
 	Prompt         string `json:"prompt"`          // 話しかけのフックの、ターンを始めた入力
 	ToolName       string `json:"tool_name"`       // 道具を使う前のフックの、使う道具の名前
 	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
+	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す）
 }
 
 // eventName は、フックの出力に書くイベント名（入力のイベント名。無ければ UserPromptSubmit）
@@ -39,10 +42,10 @@ func (in hookInput) eventName() string {
 	return "UserPromptSubmit"
 }
 
-// woken は、ターンが利用者トリガートークでなく、裏の知らせ（plugin の monitor の 1 行・裏で走らせた物の終わりなど）で始まったか
-// （Claude Code は、その入力を <task-notification> で包んで渡す）
+// woken は、ターンが利用者トリガートークでなく、裏の知らせ（plugin の monitor の 1 行・裏で走らせた物の終わりなど）で始まったか。
+// フックが --woken で渡していればそれ。渡さないフック（Claude Code）は、入力が <task-notification> で包まれているかで見分ける
 func (in hookInput) woken() bool {
-	return strings.HasPrefix(strings.TrimSpace(in.Prompt), "<task-notification>")
+	return in.Woken || strings.HasPrefix(strings.TrimSpace(in.Prompt), "<task-notification>")
 }
 
 // model は、フックが知らせるモデル（切り替えた先があればそれ。どちらも無ければ空）
@@ -84,12 +87,43 @@ const (
 
 var uuidShape = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
 
-// talked はターンの始まりを常駐に知らせ、out に出すものを書く。context は、フックが AI に添える文（annotations の出力など）。
-// 伝えることがあるときは 1 つの JSON を書き、無ければ context だけをそのまま書く（フックの出力は JSON か文のどちらか 1 つ）
-func talked(out io.Writer, hook hookInput, context string, api hookAPI) {
+// 話しかけのフックの答えの形（talked の --format）
+const (
+	formatHook  = "hook"  // AI のフックの JSON（Claude Code・Codex・Gemini CLI のフックが読む形）。伝えることが無ければ context だけを文のまま
+	formatSplit = "split" // AI の種類を問わない JSON（利用者に見せる文・AI に足す文・題名を分けた物）。伝えることも context も無ければ何も書かない
+)
+
+// talkedSplit は、--format split の答え（無い物は書かない）
+type talkedSplit struct {
+	Message      string `json:"message,omitempty"`      // 利用者に見せる文
+	ForAI        string `json:"forAi,omitempty"`        // AI に足す文（このターンの AI への入力に添える）
+	SessionTitle string `json:"sessionTitle,omitempty"` // 会話の題名（参加者が 1 人なら、そのワークルームの名前）
+}
+
+// talked はターンの始まりを常駐に知らせ、out に答えの形 format（formatHook か formatSplit）で書く。context は、フックが AI に添える文（annotations の出力など）。
+// formatHook では、伝えることがあるときは 1 つの JSON を書き、無ければ context だけをそのまま書く（フックの出力は JSON か文のどちらか 1 つ）
+func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) {
 	var reply talkReply
 	if api != nil {
 		reply = askTalked(hook, api)
+	}
+	var say, ai []string
+	for _, w := range reply.Welcomes {
+		say = append(say, w.Message)
+		ai = append(ai, w.ForAI)
+	}
+	// 参加者が 1 人なら、その名前をセッション名にする（元のセッション名は常駐の参加者が持っている）
+	title := ""
+	if len(reply.Welcomes) == 1 {
+		title = reply.Welcomes[0].Workroom
+	}
+	forAI := strings.TrimSpace(strings.Join(append(ai, context), "\n"))
+	if format == formatSplit {
+		split := talkedSplit{Message: strings.Join(say, "\n"), ForAI: forAI, SessionTitle: title}
+		if split != (talkedSplit{}) {
+			_ = json.NewEncoder(out).Encode(split)
+		}
+		return
 	}
 	if len(reply.Welcomes) == 0 {
 		if strings.TrimSpace(context) != "" {
@@ -97,18 +131,9 @@ func talked(out io.Writer, hook hookInput, context string, api hookAPI) {
 		}
 		return
 	}
-	var say, ai []string
-	for _, w := range reply.Welcomes {
-		say = append(say, w.Message)
-		ai = append(ai, w.ForAI)
-	}
-	special := map[string]any{
-		"hookEventName": hook.eventName(),
-		// 参加者が 1 人なら、その名前をセッション名にする（元のセッション名は常駐の参加者が持っている）
-		"additionalContext": strings.TrimSpace(strings.Join(append(ai, context), "\n")),
-	}
-	if len(reply.Welcomes) == 1 {
-		special["sessionTitle"] = reply.Welcomes[0].Workroom
+	special := map[string]any{"hookEventName": hook.eventName(), "additionalContext": forAI}
+	if title != "" {
+		special["sessionTitle"] = title
 	}
 	_ = json.NewEncoder(out).Encode(map[string]any{
 		"systemMessage":      strings.Join(say, "\n"),

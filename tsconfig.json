@@ -17,6 +17,6 @@
       "decode-named-character-reference": ["./node_modules/decode-named-character-reference/index.js"]
     }
   },
-  "include": ["web/src", "test", "e2e", "playwright.config.ts", "playwright.perf.config.ts"],
+  "include": ["web/src", "test", "e2e", "clients", "playwright.config.ts", "playwright.perf.config.ts"],
   "exclude": ["test/added-plugins", "test/type-checks"]
 }
