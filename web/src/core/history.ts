@@ -40,16 +40,13 @@ function changedIds(item: string, p: Patch): string[] {
   return own.length + children.length > 0 ? [...own, ...children] : [item]
 }
 
-// 並びの Patch の中の、ページ page の Patch。並びそのもの（要素の足し引き・順・フォルダの名前など）が変わっていれば "lineup"、
-// ページ page に触れていなければ undefined。フォルダの中のページは、フォルダの要素の lineup をたどる
-function patchOfPage(list: readonly ListPatch[], page: string): ListPatch | "lineup" | undefined {
+// 並びの Patch の中の、ページ page の Patch（ページ page に触れていなければ undefined）。フォルダの中のページは、フォルダの要素の中の並び（lineup）をたどる。
+// 中の並び（lineup）のフィールドを持つのはフォルダだけ（ページは lineup という名前のフィールドを持てない。台帳アセンブルの E030）
+function patchOfPage(list: readonly ListPatch[], page: string): ListPatch | undefined {
   for (const x of list) {
     if (x.id === page) return x
-    if (!("fields" in x.patch)) return "lineup"
-    if (Object.keys(x.patch.fields).some(k => k !== "lineup")) return "lineup"
-    const inner = x.patch.fields.lineup
-    if (!inner || !("list" in inner)) continue
-    const found = inner.list.find(y => y.id === page)
+    const inner = "fields" in x.patch ? x.patch.fields.lineup : undefined
+    const found = inner && "list" in inner ? inner.list.find(y => y.id === page) : undefined
     if (found) return found
   }
   return undefined
@@ -68,7 +65,6 @@ export function changeSeen(
   const lineup = made.fields.lineup
   if (!lineup || !("list" in lineup) || lineup.list.length === 0) return true
   const q = patchOfPage(lineup.list, page)
-  if (q === "lineup") return true
   if (!q) return false
   if (!("fields" in q.patch) || Object.keys(q.patch.fields).some(k => k !== "items")) return true
   const items = q.patch.fields.items

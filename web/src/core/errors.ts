@@ -48,6 +48,9 @@ export const ERRORS = {
   E060: "action {id}: lockSwitch cannot have writes",
   E061: "subject {id}: aiListed and aiList cannot be given together",
   E062: "pageType {id}: settings has {setting}, which is not a page setting (its holder is not page)",
+  E063: 'action {id}: its permissionScope is "book" (no page named), so its attach cannot have {attach} (they depend on a page type)',
+  E064: "setting {id}: a page or book setting needs holder (page or book)",
+  E065: "userSetting {id}: a user setting takes no holder",
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
   E049: "action {id}: lockSwitch is only for an action whose target is a lockable subject",
   E052: "skin {id}: palette has {color} for {role}, which is not #rrggbb",
@@ -103,7 +106,7 @@ export const ERRORS = {
   E310: "plugin {plugin}: only built-in plugins may have normalize steps",
   E311: "plugin {plugin}: only built-in plugins may have control centers",
   E312: "plugin {plugin}: widget {id} is for the kind {kind}, which the plugin does not own (only the owner of a kind may add a widget for it)",
-  E313: "plugin {plugin}: pageTypeIcons has {id}, which is not its own book type",
+  E313: "plugin {plugin}: pageTypeIcons has {id}, which is not its own page type",
   E314: "plugin {plugin}: enumValueIcons has {id}, which is not its own enum value",
 
   E401: "the server could not give the data: {status}",

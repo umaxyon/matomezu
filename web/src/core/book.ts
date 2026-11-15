@@ -48,7 +48,8 @@ function rawPageTypes(book: unknown): string[] {
     typeof v === "object" && v !== null ? (v as Record<string, unknown>)[k] : undefined
   const types = (entries: unknown[]): string[] =>
     entries.flatMap(e => {
-      const type = field(e, "kind") === "page" ? field(e, "type") : undefined
+      // ページのタイプと、フォルダが入れるタイプ
+      const type = field(e, "kind") === "page" ? field(e, "type") : field(e, "pageType")
       return [...(typeof type === "string" ? [type] : []), ...types(list(field(e, "lineup")))]
     })
   return types(list(field(book, "lineup")))
@@ -224,10 +225,14 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
   return pagesOf(book).every(p => (pageType(catalog, p.type).holds?.(p, catalog) ?? true) && pageHolds(catalog, p))
 }
 
-// ブックを変えた前と後で、同じ id のページのタイプが同じか（ページのタイプは、作ったあと変えない）
+// ブックを変えた前と後で、同じ id のページのタイプと、同じ id のフォルダが入れるタイプが同じか（どちらも、作ったあと変えない）
 export function keepsPageTypes(before: Book, after: Book): boolean {
-  const was = new Map(pagesOf(before).map(p => [p.id, p.type]))
-  return pagesOf(after).every(p => !was.has(p.id) || was.get(p.id) === p.type)
+  const typed = (book: Book) => [
+    ...pagesOf(book).map(p => [p.id, p.type] as const),
+    ...foldersOf(book).map(f => [f.id, f.pageType] as const),
+  ]
+  const was = new Map(typed(before))
+  return typed(after).every(([id, type]) => !was.has(id) || was.get(id) === type)
 }
 
 // ページの id から、そのページと、今それを持っているブック（ページの id はブックをまたいでも重ならない。同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする）

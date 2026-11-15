@@ -51,6 +51,7 @@ import {
   closePrintPreview,
   endBackground,
   openBook,
+  openedPage,
   openPicker,
   openPrintPreview,
   panBy,
@@ -981,7 +982,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
       const stage = contextMenu?.stage ?? picker ?? opener ?? screenOf(window).current
       const menu = contextMenu !== null || picker !== undefined
-      const type = shownType(stageIn(window, stage)?.opened ?? null)
+      // 見せ方のキーの範囲は、ページを開いているときだけ（空のフォルダでは、見せ方のビューを描かない）
+      const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
       const center = !bookScreenCurrent(window)

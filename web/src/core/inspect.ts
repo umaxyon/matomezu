@@ -18,7 +18,7 @@ import type { Book } from "./schema/book"
 // ステップの出どころ
 export type Source =
   | { source: "catalog"; table: "actions"; id: string } // 表にその定義があるか
-  | { source: "pageType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
+  | { source: "pageType"; id: string; field: "actions.without" | "actions.add" } // ページのタイプが外す・足すアクション
   | { source: "action"; id: string; field: "attach"; pageType: string } // アクションの付く先が、そのタイプのページに当てはまるか
   | { source: "action"; id: string; field: "attach.books" } // アクションが、どのブックにも付くか（ページを名指さないとき）
   | { source: "action"; id: string; field: "userOnly" } // 利用者だけが行うアクションを、AI が頼んだ
@@ -114,6 +114,8 @@ function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Whe
 
 // 所 where が名指すページのタイプ（重ねずに）。ページを名指さなければ null（アノテーションが対象なら、ブックの全部のページのタイプ）
 function typesAt(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where | undefined): PageTypeDef[] | null {
+  // 許可スコープが "book" のアクションは、問う側が所を添えても、ページのタイプでは決めない（画面と perform で答えが割れないように）
+  if (def.target === "book" && def.permissionScope === "book") return null
   const pages = pagesOf(book)
   const named =
     where?.page !== undefined
@@ -186,7 +188,7 @@ function userSettingSteps(
 }
 
 // アクションの許可: 表にあるか → AI が利用者だけのアクション・項目を頼んだか → 認可ステップ（ブックがあるとき）→
-// ブックとアノテーションが対象ならそのブックのタイプ、そのほかが対象ならコントロールセンター（変えさせない項目 → アクションを使えるか）
+// ブックとアノテーションが対象なら所が名指すページのタイプ（名指さなければ、タイプに依らない付く先）、そのほかが対象ならコントロールセンター（変えさせない項目 → アクションを使えるか）
 function action(
   catalog: CoreCatalog,
   q: Extract<Query, { kind: "action" }>,

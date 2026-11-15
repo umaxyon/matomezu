@@ -38,7 +38,7 @@ export interface PageTypeDef extends PageTypeExtras {
   version: number // ページのデータの形の版
   title: MessageKey // タイプの名前
   paper: PaperRule
-  // そのタイプのページが土台のフィールドのほかに持つフィールド（ツリーの根など。土台のフィールド id・type・title・paper・orientation・grows・shift・locked・items・slide・settings とは別の名前）
+  // そのタイプのページが土台のフィールドのほかに持つフィールド（ツリーの根など。土台のフィールド kind・id・type・title・paper・orientation・grows・shift・locked・items・slide・settings と、フォルダの lineup とは別の名前）
   fields?: Readonly<Record<string, z.ZodType>>
   dialogs?: PageDialogs
   grouping: PageGrouping

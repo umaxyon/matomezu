@@ -390,6 +390,15 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     for (const id of c.subjects === "all" ? [] : (c.subjects ?? []))
       if (!subjects.has(id)) problems.push(problem("E047", { id: c.id, ref: id }))
   }
+  // ページ・ブックの設定の項目は持つ所（holder）を書き、利用者の設定の項目は書かない（書き違えると、どこにも持たれない項目になる）
+  for (const d of parts.settings) if (d.holder === undefined) problems.push(problem("E064", { id: d.id }))
+  for (const d of parts.userSettings) if (d.holder !== undefined) problems.push(problem("E065", { id: d.id }))
+  // 許可スコープが "book" のアクションは、ページを名指さないので、ページのタイプで決まる付く先（items・presentations・annotations）を持てない
+  for (const a of parts.actions)
+    if (a.target === "book" && a.permissionScope === "book" && a.attach) {
+      const typed = (["items", "presentations", "annotations"] as const).filter(k => a.attach?.[k] !== undefined)
+      if (typed.length > 0) problems.push(problem("E063", { id: a.id, attach: typed.join(", ") }))
+    }
   for (const t of parts.pageTypes) {
     for (const id of t.settings ?? []) {
       const def = settings.get(id)
@@ -399,7 +408,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     const rule = t.paper
     for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
     if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
-    for (const field of [...Object.keys(PageSchema.shape), "items", "slide", "settings"])
+    // lineup は、並びの要素のうちフォルダだけが持つ名前（置き直しの Patch が、この名前でフォルダを見分ける）
+    for (const field of [...Object.keys(PageSchema.shape), "items", "slide", "settings", "lineup"])
       if (field in (t.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
     for (const id of t.items.allowed)
       if (!items.has(id)) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
