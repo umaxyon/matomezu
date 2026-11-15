@@ -21,16 +21,17 @@ npm で入れます。node と npm が要ります。
 
 プラグインの置き場所:
 
-npm で入れた matomezu のフォルダの下にあります。
+npm で入れた matomezu のフォルダの下にあります。場所は `matomezu plugin-path` で出せます。
 
-| プラグイン | 置き場所 |
+| プラグイン | 場所を出すコマンド |
 |---|---|
-| Claude Code のプラグイン | （matomezu のフォルダ）/plugin |
-| Codex のプラグイン | （matomezu のフォルダ）/codex-plugin |
+| Claude Code のプラグイン | `matomezu plugin-path claude-code` |
+| Codex のプラグイン | `matomezu plugin-path codex` |
 
-matomezu のフォルダは、ふつうは `npm root -g` が出すフォルダの下の matomezu です。
+- フォルダが 1 行で出ます。プラグインを入れるときは、これを渡します（16 章「Claude Code のプラグイン」「Codex のプラグイン」）
+- node の入れ方（volta など）で場所が変わっても、正しいフォルダが出ます
 
-注: volta で node を入れているときは、`npm root -g` が出すフォルダに matomezu はありません。matomezu のフォルダは `%LOCALAPPDATA%\Volta\tools\image\packages\matomezu\node_modules\matomezu` です（Windows のとき）。
+注: プラグインのフォルダが見つからないときは、`the plugin folder was not found (it comes with matomezu installed by npm: npm i -g matomezu)` と出ます。`npm i -g matomezu` で入れ直します。
 注: volta の npm でレジストリを指すときは、`--registry=URL` と `=` でつなぎます。`--registry URL` と空白で区切ると、読み違えます。
 
 注: 合わない OS で動かすと、`matomezu: ... is not installed (this OS or CPU is not supported, or optional dependencies were skipped)` と出て、動きません。npm の設定で「optional dependencies」を入れないようにしているときも同じです。
@@ -2772,7 +2773,9 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 入れ方（利用者ごとに 1 度）:
 
 1. `npm i -g matomezu` で matomezu を入れておく
-2. `claude plugin marketplace add （matomezu のフォルダ）/plugin` を打つ（1 章「入れる」の「プラグインの置き場所」）。ふつうは `claude plugin marketplace add $(npm root -g)/matomezu/plugin` です
+2. 次を打つ（1 章「入れる」の「プラグインの置き場所」）
+   - PowerShell: `claude plugin marketplace add (matomezu plugin-path claude-code)`
+   - Linux・macOS などのシェル: `claude plugin marketplace add "$(matomezu plugin-path claude-code)"`
 3. `claude plugin install matomezu@matomezu` を打つ
 
 - matomezu を npm で更新すると、プラグインも同じ版に新しくなります
@@ -2797,7 +2800,10 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
 
 - 話しかけたときの知らせ・モデルの知らせ・画面の操作を待つ事は、動きません
-- 話しかけるたびなどに、Claude Code に「Hook failed」などの警告が出ます。話しかけた文は、そのまま AI に届きます
+- 話しかけるたびなどに、Claude Code にフックの失敗の知らせが出ます。話しかけた文は、そのまま AI に届きます
+
+注: 知らせは、例えば `UserPromptSubmit hook error` に、シェルの `matomezu: command not found` などの 1 行が添えられた形です。
+【未確認】Windows で出る知らせの文言。
 - MCP はつながりません
 
 例えば、次のときに起きます。
@@ -2829,8 +2835,10 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 入れ方（利用者ごとに 1 度）:
 
 1. `npm i -g matomezu` で matomezu を入れておく（1 章「入れる」）
-2. `codex plugin marketplace add （matomezu のフォルダ）/codex-plugin` を打つ（1 章「入れる」の「プラグインの置き場所」）
-3. Codex の中で、matomezu のプラグインを入れる
+2. 次を打つ（1 章「入れる」の「プラグインの置き場所」）
+   - PowerShell: `codex plugin marketplace add (matomezu plugin-path codex)`
+   - Linux・macOS などのシェル: `codex plugin marketplace add "$(matomezu plugin-path codex)"`
+3. `codex plugin add matomezu@matomezu` を打つ（Codex の中なら `/plugins` から matomezu を選んで入れる）。入れたら Codex を起動し直す
 
 - matomezu を npm で更新すると、プラグインも同じ版に新しくなります
 - Windows（WSL でない）でも、そのまま使えます
@@ -2848,7 +2856,9 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
 
 - 話しかけたときの知らせとモデルの知らせは、動きません
-- 話しかけるたびなどに、Codex に警告が出ます。話しかけた文は、そのまま AI に届きます
+- 話しかけるたびと、セッションの始まりに、Codex に `matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.` と出ます。話しかけた文は、そのまま AI に届きます
+
+【未確認】Windows で、この文が実際に出るか。
 - MCP はつながりません
 
 直し方は、次のどちらかです（起きるときは、上の「Claude Code のプラグイン」と同じです）。
