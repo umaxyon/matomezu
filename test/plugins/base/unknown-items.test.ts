@@ -26,7 +26,7 @@ const book = pagesBook({
 })
 
 const page = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.u1 as unknown as { pages: ItemPage[] }).pages[0]!
+  pagesOf(store.state.getState().books.u1 as unknown as { pages: ItemPage[] })[0]!
 
 test("機能台帳に無いアイテムのあるブックも読め、知らない形は 64×64 の四角として並べ、動かし・消せる。知らない物のデータはそのまま残る", () => {
   const store = newStore({ savedBooks: [book] })

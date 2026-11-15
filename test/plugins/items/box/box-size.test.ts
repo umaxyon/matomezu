@@ -17,7 +17,7 @@ import {
 } from "../../../../web/src/plugins/items/box/size"
 import { newStore, sizedStore } from "../../../support"
 
-const page = (store: ReturnType<typeof newStore>) => (store.state.getState().books.b1 as Book).pages[0]!
+const page = (store: ReturnType<typeof newStore>) => pagesOf(store.state.getState().books.b1 as Book)[0]!
 const items = (store: ReturnType<typeof newStore>) => shapesOf(page(store))
 const ALIGNS = { captionAlign: "center", bodyAlign: "left" } as const
 const box = (body: string, rule = true) => ({ caption: "見出し", rule, body, ...ALIGNS })

@@ -10,6 +10,7 @@ import {
   placeAdded,
   WindowRoot,
 } from "matomezu/testing"
+import { pagesOf } from "../../../../web/src/core/book"
 import EX2_UI from "../ui"
 
 afterEach(cleanup)
@@ -38,11 +39,11 @@ const flow = (instance: ReturnType<typeof make>) => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const page = () =>
-    (
+    pagesOf(
       instance.state.getState().books[book] as unknown as {
         pages: { id: string; items?: { id: string; props?: object }[] }[]
-      }
-    ).pages[0]!
+      },
+    )[0]!
   return { on: { book }, page }
 }
 
@@ -143,7 +144,7 @@ test("判断のひし形は、選んでいないビルトインのタイプ（�
   act(() => {
     addPageIn(instance, "s1", { title: "p1" })
   })
-  const page = (instance.state.getState().books[book] as { pages: readonly { id: string }[] }).pages[0]!
+  const page = pagesOf(instance.state.getState().books[book] as { pages: readonly { id: string }[] })[0]!
   const r = instance.actions.perform(
     "@matomezu/paper:item-place",
     { page: page.id, item: "ex2:diamond", at: { x: 0, y: 0 } },

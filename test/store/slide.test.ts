@@ -1,6 +1,7 @@
 // スライドのブック: ページの slide にアイテムを置く・動かす・大きさを変える・項目を変える・重ねを変える・消す（plugins/items/slide）
 
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
@@ -132,7 +133,7 @@ test("文字枠を置いて続けて打った文字は、置いた画面の履�
     ] as never,
   })
   const state = () =>
-    (store.state.getState().books.b1 as unknown as { pages: { slide: { id: string }[] }[] }).pages[0]!.slide
+    pagesOf(store.state.getState().books.b1 as unknown as { pages: { slide: { id: string }[] }[] })[0]!.slide
   const on = { book: "b1" }
   const put = store.actions.perform(
     "@matomezu/slide:slide-place",

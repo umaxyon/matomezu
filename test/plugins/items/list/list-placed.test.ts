@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import type { Point } from "../../../../web/src/core/geom"
 import { shapesOf } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
@@ -19,7 +20,7 @@ const PAPER = { w: 1123, h: 794 } // A4 横
 const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
 const at = (store: Store, id: string) =>
-  shapesOf((store.state.getState().books.b1 as Book).pages[0]!).find(i => i.id === id)!
+  shapesOf(pagesOf(store.state.getState().books.b1 as Book)[0]!).find(i => i.id === id)!
 const place = (store: Store, item: string, x: number, y: number, extra: Record<string, unknown> = {}) =>
   store.actions.perform("@matomezu/paper:item-place", { page: "p1", item, at: { x, y }, ...extra }, { book: "b1" })
 const resize = (store: Store, item: string, size: { w?: number; h?: number }) =>

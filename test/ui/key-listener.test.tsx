@@ -1,6 +1,8 @@
 // キーの受け口（ui/keys.ts）: テキストFormの中のキーは、テキストFormが自分の要素で名乗った範囲だけで引き、名乗っていなければテキストFormに任せる
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { pagesOf } from "../../web/src/core/book"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -34,7 +36,10 @@ test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテ
     store.actions.perform("@matomezu/base:page-add", { title: "1" }, { book: id })
   })
   await act(() => Promise.resolve())
-  const pages = () => (store.state.getState().books[id] as { pages?: readonly unknown[] } | undefined)?.pages?.length
+  const pages = () => {
+    const book = store.state.getState().books[id]
+    return book ? pagesOf(book).length : undefined
+  }
   expect(pages()).toBe(1)
   expect(fireEvent.keyDown(screen.getByLabelText("親が名乗る"), { key: "z", ctrlKey: true })).toBe(true)
   expect(pages()).toBe(1)

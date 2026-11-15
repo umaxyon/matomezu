@@ -1,4 +1,5 @@
 // ex5（文字を持たず、中身のフィールドが children でない形）で、自分の意味の theme の項目・文字を持たない形の幅・children でない中身のフィールドを確かめる（themeProp の型は type-checks.ts）
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { addPageIn, type Book, createBookIn, nextItemId } from "matomezu"
@@ -11,6 +12,7 @@ import {
   placeAdded,
   WindowRoot,
 } from "matomezu/testing"
+import { pagesOf } from "../../../../web/src/core/book"
 import EX5_UI from "../ui"
 
 afterEach(cleanup)
@@ -39,7 +41,7 @@ const shelf = () => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = () => (instance.state.getState().books[book] as unknown as { pages: Page[] }).pages[0]!
+  const page = () => pagesOf(instance.state.getState().books[book] as unknown as { pages: Page[] })[0]!
   const place = (props: { theme?: "warm" | "cool"; caption?: string }, w?: number) => {
     let r: ReturnType<typeof instance.actions.perform> | undefined
     act(() => {

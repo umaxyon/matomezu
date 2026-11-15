@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { StrictMode } from "react"
+import { pagesOf } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -316,7 +317,7 @@ test("図面の画面を右クリックすると押した位置にメニュー�
 
 test("ページの設定のダイアログの「ページを削除」は、確かめてからページを消す。やめれば消さない", () => {
   const store = renderBooksScreen()
-  const pages = () => (store.state.getState().books.b1 as { pages: readonly unknown[] }).pages.length
+  const pages = () => pagesOf(store.state.getState().books.b1 as { pages: readonly unknown[] }).length
   const before = pages()
   const open = () => {
     fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))
@@ -681,9 +682,9 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
   fireEvent.pointerDown(grip, { button: 0, pointerId: 2, clientX: 300 })
   fireEvent.pointerMove(grip, { pointerId: 2, clientX: 260 })
   fireEvent.pointerUp(grip, { pointerId: 2, clientX: 260 })
-  const placed = (
-    store.state.getState().books.w1 as { pages: readonly { items: readonly { id: string; props: object }[] }[] }
-  ).pages[0]!.items[1]!
+  const placed = pagesOf(
+    store.state.getState().books.w1 as { pages: readonly { items: readonly { id: string; props: object }[] }[] },
+  )[0]!.items[1]!
   expect(placed.props).toMatchObject({ bodyWidth: 220 - 18 - 40 })
   expect(item("l").querySelector<HTMLElement>("hr")?.style.width).toBe(`${220 - 18 - 40}px`) // 区切り線も本文の列の幅
 })

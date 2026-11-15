@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
 import { type Annotation, annotationsForAi } from "../../../web/src/core/annotation"
+import { pagesOf } from "../../../web/src/core/book"
 import { performIn } from "../../../web/src/core/perform"
 import type { Book } from "../../../web/src/core/schema/book"
 import { MARK_PICKER } from "../../../web/src/plugins/base/mark/states"
@@ -18,7 +19,7 @@ const ON = { book: "b1" }
 function ready() {
   const store = newStore()
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  const page = (store.state.getState().books.b1 as Drawing).pages[0]!.id
+  const page = pagesOf(store.state.getState().books.b1 as Drawing)[0]!.id
   const place = (x: number) =>
     store.actions.perform(
       "@matomezu/paper:item-place",

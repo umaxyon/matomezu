@@ -1,5 +1,7 @@
 // base のアクション page-duplicate（ページを複製する）と page-add の index（入れる所）。page-duplicate は、タイプが宣言した（duplicatesPages）スライドのブックだけが使える
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
@@ -25,7 +27,7 @@ function slideSetup(newId: () => string = sequence()) {
         perform(id: string, a: object, on: { book: string }): { ok: boolean; result?: { page?: string } }
       }
     ).perform(id, args, { book })
-  const pages = () => (instance.state.getState().books[book] as unknown as { pages: Pages }).pages
+  const pages = () => pagesOf(instance.state.getState().books[book] as unknown as { pages: Pages })
   return { perform, pages }
 }
 
@@ -34,12 +36,12 @@ test("page-add の index は、その番号の前に入れる。省略は最後�
   expect(s.perform("@matomezu/base:page-add", { title: "A" }).ok).toBe(true)
   expect(s.perform("@matomezu/base:page-add", { title: "B" }).ok).toBe(true)
   expect(s.perform("@matomezu/base:page-add", { title: "C", index: 1 }).ok).toBe(true)
-  expect(s.pages().map(p => p.title)).toEqual(["A", "C", "B"])
+  expect(pagesOf(s)().map(p => p.title)).toEqual(["A", "C", "B"])
   expect(s.perform("@matomezu/base:page-add", { title: "D", index: 3 }).ok).toBe(true)
-  expect(s.pages().map(p => p.title)).toEqual(["A", "C", "B", "D"])
+  expect(pagesOf(s)().map(p => p.title)).toEqual(["A", "C", "B", "D"])
   expect(s.perform("@matomezu/base:page-add", { title: "E", index: 6 }).ok).toBe(false)
   expect(s.perform("@matomezu/base:page-add", { index: 0 }).ok).toBe(true)
-  expect(s.pages()[0]?.title).toBe("Untitled")
+  expect(pagesOf(s)()[0]?.title).toBe("Untitled")
 })
 
 test("page-duplicate は元のすぐ後ろに写しを足し、中の id を振り直す。ロックは写さない", () => {
@@ -56,7 +58,7 @@ test("page-duplicate は元のすぐ後ろに写しを足し、中の id を振�
   expect(s.perform("@matomezu/base:page-lock", { page: first }).ok).toBe(true)
   const done = s.perform("@matomezu/base:page-duplicate", { page: first, title: "A 写し" })
   expect(done.ok).toBe(true)
-  const pages = s.pages()
+  const pages = pagesOf(s)()
   expect(pages.map(p => p.title)).toEqual(["A", "A 写し", "B"])
   const [a, copy] = [pages[0], pages[1]]
   expect(copy?.id).toBe(done.result?.page as string)
@@ -82,5 +84,5 @@ test("ページの id は newId の値そのまま（uuid）。page-add でも p
   const copied = s.perform("@matomezu/base:page-duplicate", { page: added }).result?.page as string
   expect(copied).toMatch(UUID)
   expect(copied).not.toBe(added)
-  expect(s.pages().map(p => p.id)).toEqual([added, copied])
+  expect(pagesOf(s)().map(p => p.id)).toEqual([added, copied])
 })

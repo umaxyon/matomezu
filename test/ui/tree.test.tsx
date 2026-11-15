@@ -78,7 +78,7 @@ test("ページとブックの設定のダイアログで伸びる向きを選�
   act(() => {
     expect(addPageIn(store, "s1", { title: "p1", fields: { root: { caption: "根" } } })).toBe(true)
   })
-  const page = (store.state.getState().books[id] as { pages: readonly { id: string }[] }).pages[0]!.id
+  const page = pagesOf(store.state.getState().books[id] as { pages: readonly { id: string }[] })[0]!.id
   const top = () =>
     Number.parseFloat(
       (screen.getByRole("img", { name: "紙" }).querySelector('[data-root="true"]') as HTMLElement).style.top,
@@ -144,7 +144,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
   expect(paper.querySelector("svg")!.querySelectorAll("path")).toHaveLength(2) // 親から子への線（＋ の印の svg は数えない）
   const top = (n: string) => Number.parseFloat(node(n).style.top)
   expect(top(a!)).toBeGreaterThan(top(done.fields!.root.id)) // 既定は下へ
-  const page = (store.state.getState().books[id] as { pages: readonly { id: string }[] }).pages[0]!.id
+  const page = pagesOf(store.state.getState().books[id] as { pages: readonly { id: string }[] })[0]!.id
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",

@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import { shapesOf } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { shownRects } from "../../../web/src/plugins/base/place/items"
@@ -99,7 +100,7 @@ test("描いている形の四角: 左上と大きさに、ドラッグでずら
     { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 100, y: 100 }, w: 100, h: 64 },
     { book: "b1" },
   )
-  const page = (store.state.getState().books.b1 as Book).pages[0]!
+  const page = pagesOf(store.state.getState().books.b1 as Book)[0]!
   const [box] = shapesOf(page)
   expect(shownRects(CORE_CATALOG, [{ item: box!, shift: null }]).get(box!.id)).toEqual({
     x: 100,

@@ -270,7 +270,7 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
     },
   })
   expect(itemsOf(store)).toHaveLength(1)
-  expect((bookOf(store, "b2").pages[0]?.items ?? []).length).toBe(1)
+  expect((pagesOf(bookOf(store, "b2"))[0]?.items ?? []).length).toBe(1)
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
 })
 
@@ -314,7 +314,7 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
     partial: true,
   })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  const boxes = (book: string) => ((store.state.getState().books[book] as Drawing).pages[0]?.items ?? []).length
+  const boxes = (book: string) => (pagesOf(store.state.getState().books[book] as Drawing)[0]?.items ?? []).length
   const placeIn = (book: string) =>
     store.actions.perform(
       "@matomezu/paper:item-place",

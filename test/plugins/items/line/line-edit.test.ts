@@ -1,6 +1,7 @@
 // 線をじかに直す決まり（items/line/edit.ts）と、端のつなぎ替え（line-reconnect）
 
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { rectsOf } from "../../../../web/src/plugins/base"
@@ -22,7 +23,7 @@ function ready(boxes: [number, number][]) {
   return store
 }
 type Store = ReturnType<typeof ready>
-const page = (store: Store) => (store.state.getState().books.b1 as Book).pages[0]!
+const page = (store: Store) => pagesOf(store.state.getState().books.b1 as Book)[0]!
 const connect = (store: Store, from: string, to: string, props: Record<string, unknown> = {}) =>
   store.actions.perform("@matomezu/line:line-connect", { page: "p1", from, to, props }, { book: "b1" })
 const scene = (store: Store) => {

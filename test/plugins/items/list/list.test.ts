@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { plainOf } from "../../../../web/src/plugins/base/text/rich"
@@ -9,7 +10,7 @@ import { LIST_SIZE, linesFor, listLayout, rowHeight } from "../../../../web/src/
 import { type newStore, sizedStore } from "../../../support"
 
 const ready = () => sizedStore()
-const items = (store: ReturnType<typeof newStore>) => shapesOf((store.state.getState().books.b1 as Book).pages[0]!)
+const items = (store: ReturnType<typeof newStore>) => shapesOf(pagesOf(store.state.getState().books.b1 as Book)[0]!)
 const list = (store: ReturnType<typeof newStore>) => {
   const found = items(store).find(i => i.item === "@matomezu/list:shape-list")!
   return found as Extract<typeof found, { item: "@matomezu/list:shape-list" }>

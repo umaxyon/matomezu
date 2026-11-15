@@ -2,7 +2,7 @@
 // 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身のフィールドは children でなく tiles
 
 import { hasPages, putPage, z } from "matomezu"
-import { findPage } from "../../../web/src/core/book"
+import { findPage, pagesOf } from "../../../web/src/core/book"
 import { kit } from "./kit"
 
 const TILES_SIZE = { w: 160, h: 96 }
@@ -68,7 +68,7 @@ export const TILE_LIMIT_PERMISSION = kit.definePermission({
     !c.after ||
     !hasPages(c.after) ||
     c.changes.pages.every(
-      p => tilesOn((c.after as { pages: readonly TilesPage[] }).pages.find(t => t.id === p.id)) <= TILE_LIMIT,
+      p => tilesOn(pagesOf(c.after as { pages: readonly TilesPage[] }).find(t => t.id === p.id)) <= TILE_LIMIT,
     ),
 })
 

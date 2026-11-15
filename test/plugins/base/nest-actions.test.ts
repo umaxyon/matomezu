@@ -1,5 +1,7 @@
 // 子の形のアクション: 親を渡して置く・子を動かす・変える・大きさを変える・子孫ごと消す・付け替え（紙のプラグインの item-*）
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import { findShape, type ItemPage, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
@@ -21,7 +23,7 @@ const NEST = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
 
 const page = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as Book).pages[0] as unknown as ItemPage
+  pagesOf(store.state.getState().books.b1 as Book)[0] as unknown as ItemPage
 const run = (store: ReturnType<typeof newStore>, action: string, args: object) =>
   store.actions.perform(action as never, { page: "p1", ...args } as never, { book: "b1" })
 const place = (store: ReturnType<typeof newStore>, args: object) => {

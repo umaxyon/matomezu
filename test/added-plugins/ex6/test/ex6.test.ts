@@ -1,8 +1,10 @@
 // ex6 だけで組む: "ex6:weight" に答える形が無ければ、ページの重さは 0（答えない形は数えない）
+
 import { expect, test } from "bun:test"
 import { act } from "@testing-library/react"
 import { addPageIn, createBookIn } from "matomezu"
 import { BUILTIN_UI, createMatomezu, openedIn } from "matomezu/testing"
+import { pagesOf } from "../../../../web/src/core/book"
 import EX6_UI from "../ui"
 
 test("答える形の無いページの重さは 0", () => {
@@ -19,7 +21,7 @@ test("答える形の無いページの重さは 0", () => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = (instance.state.getState().books[book] as unknown as { pages: readonly { id: string }[] }).pages[0]!.id
+  const page = pagesOf(instance.state.getState().books[book] as unknown as { pages: readonly { id: string }[] })[0]!.id
   act(() => {
     expect(
       instance.actions.perform(

@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import { shapesOf } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { GAP, planPlace, pushFrom, pushShrinking, type Rect } from "../../../web/src/plugins/base/place/push"
@@ -41,7 +42,7 @@ test("押した先が紙からはみ出すなら収まらない。前から近�
 })
 
 const ready = () => sizedStore()
-const items = (store: ReturnType<typeof newStore>) => shapesOf((store.state.getState().books.b1 as Book).pages[0]!)
+const items = (store: ReturnType<typeof newStore>) => shapesOf(pagesOf(store.state.getState().books.b1 as Book)[0]!)
 const at = (store: ReturnType<typeof newStore>, id: string) => items(store).find(i => i.id === id)!
 const place = (store: ReturnType<typeof newStore>, x: number, y: number, w: number, caption = "") =>
   store.actions.perform(

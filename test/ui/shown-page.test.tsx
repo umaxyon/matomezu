@@ -2,6 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
+import { pagesOf } from "../../web/src/core/book"
 import { findShape, type ItemPage } from "../../web/src/core/placed"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -52,5 +53,5 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
   )
   const caption = (page: ItemPage | null) => (findShape(page!, child)!.shape.props as { caption: string }).caption
   expect(caption(shown)).toBe("下書き")
-  expect(caption((instance.state.getState().books.b1 as unknown as { pages: ItemPage[] }).pages[0]!)).toBe("前")
+  expect(caption(pagesOf(instance.state.getState().books.b1 as unknown as { pages: ItemPage[] })[0]!)).toBe("前")
 })

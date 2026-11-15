@@ -10,6 +10,7 @@ import {
   placeAdded,
   WindowRoot,
 } from "matomezu/testing"
+import { pagesOf } from "../../../../web/src/core/book"
 import EX3_UI from "../ui"
 
 afterEach(cleanup)
@@ -38,11 +39,11 @@ const board = (instance: ReturnType<typeof make>) => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const page = () =>
-    (
+    pagesOf(
       instance.state.getState().books[book] as unknown as {
         pages: { id: string; paper: string; items?: { id: string }[] }[]
-      }
-    ).pages[0]!
+      },
+    )[0]!
   return { on: { book }, page }
 }
 

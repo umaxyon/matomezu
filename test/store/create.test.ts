@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
+import { pagesOf } from "../../web/src/core/book"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { type MatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
@@ -191,7 +192,7 @@ describe("インスタンスを作る", () => {
     expect(
       perform("@matomezu/base:page-add", { title: "p", fields: { root: { caption: "根" } } }, { book: "n1" }).ok,
     ).toBe(true)
-    const page = () => (instance.state.getState().books.n1 as unknown as { pages: { root: unknown }[] }).pages[0]
+    const page = () => pagesOf(instance.state.getState().books.n1 as unknown as { pages: { root: unknown }[] })[0]
     expect(page()).toMatchObject({ id: "n1", title: "p", root: { caption: "根" } })
     expect(
       perform("@matomezu/base:page-update", { page: "n1", fields: { root: { caption: "幹" } } }, { book: "n1" }).ok,

@@ -1,6 +1,7 @@
 // 郵便の行き先が今もあるか（base/mail/place.ts の placeExists）: ブック・ページ・物のどれが無くなっても無い。物は 1 つでも残っていれば有る
 
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import type { Book } from "../../../web/src/core/schema/book"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
@@ -34,7 +35,7 @@ test("物を指しているときは、1 つでも今もあれば true、どれ�
   expect(createBookIn(store, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
   expect(addPageIn(store, "s1", { title: "p" })).toBe(true)
   const id = Object.keys(store.state.getState().books).at(-1)!
-  const page = (store.state.getState().books[id] as unknown as { pages: { id: string }[] }).pages[0]?.id ?? ""
+  const page = pagesOf(store.state.getState().books[id] as unknown as { pages: { id: string }[] })[0]?.id ?? ""
   const placed = store.actions.perform(
     "@matomezu/paper:item-place",
     { page, item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 } },

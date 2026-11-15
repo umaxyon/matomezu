@@ -1,6 +1,8 @@
 // 複数選択: Mod+クリックの選び方（placing/selection.ts）、ブックが変わったら無くなった物を選択から外す（core の followBook）、全部を選ぶ・まとめて消すコマンド、
 // 複数を選んだ右クリックのメニュー、両端の形を一緒に動かした線の手直し（base の followConnectors）
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import { type ItemPage, shapesOf } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
@@ -24,7 +26,7 @@ const EMPTY = { id: "p0", items: [] } as unknown as ItemPage
 
 const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
-const page = (store: Store) => (store.state.getState().books.b1 as Book).pages[0]!
+const page = (store: Store) => pagesOf(store.state.getState().books.b1 as Book)[0]!
 const selection = (store: Store) => screenOf(store.state.getState().window).stages[0]!.selection
 const place = (store: Store, x: number, y: number, parent?: string, size = { w: 100, h: 64 }) =>
   store.actions.perform(

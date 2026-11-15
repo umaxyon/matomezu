@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import type { Point } from "../../web/src/core/geom"
 import type { Book } from "../../web/src/core/schema/book"
 import { placement } from "../../web/src/core/stage"
@@ -20,7 +21,7 @@ function pointerFor(store: ReturnType<typeof newStore>, at: Point): Point {
   return { x: p.x + at.x * p.zoom + PLACE_OFFSET.x, y: p.y + at.y * p.zoom + PLACE_OFFSET.y }
 }
 const page = (store: ReturnType<typeof newStore>, book = "b1", i = 0) =>
-  (store.state.getState().books[book] as Book).pages[i]!
+  pagesOf(store.state.getState().books[book] as Book)[i]!
 
 // そのステージの今の道具
 const toolAt = (store: ReturnType<typeof newStore>, stage = "s1") =>

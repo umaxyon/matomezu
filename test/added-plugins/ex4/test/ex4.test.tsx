@@ -12,6 +12,7 @@ import {
   placeAdded,
   WindowRoot,
 } from "matomezu/testing"
+import { pagesOf } from "../../../../web/src/core/book"
 import EX4_UI from "../ui"
 
 afterEach(cleanup)
@@ -46,7 +47,7 @@ const map = () => {
     expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = () => (instance.state.getState().books[book] as unknown as { pages: Page[] }).pages[0]!
+  const page = () => pagesOf(instance.state.getState().books[book] as unknown as { pages: Page[] })[0]!
   const box = (x: number) => {
     let r: ReturnType<typeof instance.actions.perform> | undefined
     act(() => {
