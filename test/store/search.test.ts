@@ -19,7 +19,7 @@ function markdownStore(texts: readonly string[]) {
     addPageIn(store, "s1", {
       type: "@matomezu/markdown:markdown",
       title: `p${i + 1}`,
-      fields: { type: "@matomezu/drawing:drawing", text },
+      fields: { text },
     })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
   const book = () => store.state.getState().books[id] as Book

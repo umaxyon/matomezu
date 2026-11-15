@@ -88,9 +88,9 @@ test("role と userOnly は利用者の設定の項目だけが持ち、1 つの
   expect(
     codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, holder: "page", userOnly: true } as SettingDef] }),
   ).toEqual(["E036"])
-  expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, BUILTIN_PARTS.settings[0] as SettingDef] })).toEqual([
-    "E001",
-  ])
+  // ページの設定の項目と同じ id の利用者の設定の項目は E001（holder を外しても同じ）
+  const { holder: _, ...same } = BUILTIN_PARTS.settings[0]!
+  expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, same as SettingDef] })).toEqual(["E001"])
   // role の無い台帳アセンブルもできる（土台は既定で読む）
   expect(buildCoreCatalog({ ...BUILTIN_PARTS, userSettings: [] }).roles.size).toBe(0)
 })
