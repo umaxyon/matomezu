@@ -31,11 +31,10 @@ test("idMaker は、使われている id と、前に振った id を避けて�
 test("contentIdMaker は、ほかのページのアイテムの中身やページのフィールドの中の id も避け、ページの id は避けない", () => {
   const book = {
     id: "book",
-    type: "t",
     title: "b",
-    pages: [
-      { id: "p1", title: "1", items: [{ id: "i1", item: "x", children: [{ id: "row1" }] }] },
-      { id: "p2", title: "2", nodes: [{ id: "n1", children: [{ id: "n2" }] }] },
+    lineup: [
+      { kind: "page", id: "p1", type: "t", title: "1", items: [{ id: "i1", item: "x", children: [{ id: "row1" }] }] },
+      { kind: "page", id: "p2", type: "t", title: "2", nodes: [{ id: "n1", children: [{ id: "n2" }] }] },
     ],
   } as unknown as Book
   const make = contentIdMaker(book, seq("i1", "row1", "n1", "n2", "p1", "z"))

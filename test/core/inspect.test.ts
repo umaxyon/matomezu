@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
 import { deniedBy, inspect } from "../../web/src/core/inspect"
-import { withPages } from "../lineup"
+import { DRAWING, drawingPage, MARKDOWN, testBook, testPage, withPages } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 
@@ -41,17 +41,24 @@ describe("inspect: アクションの許可", () => {
     ).toBe(null)
   })
 
-  test("ブックが対象のアクションは、そのブックのタイプが決める", () => {
+  test("ページを名指すアクションは、名指したページのタイプが決め、ブック全体のアクションは、タイプに依らない付く先（attach の books）が決める", () => {
+    const mixed = testBook("m1", "混ざる", [drawingPage("p1"), testPage(MARKDOWN, "m1p", { title: "文書" })])
+    const place = { kind: "action", actor: USER, action: "@matomezu/paper:item-place", book: mixed } as const
+    expect(inspect(CORE_CATALOG, { ...place, where: { page: "p1" } })).toMatchObject({
+      value: true,
+      decidedBy: { source: "action", id: "@matomezu/paper:item-place", field: "attach", pageType: DRAWING },
+    })
+    expect(inspect(CORE_CATALOG, { ...place, where: { page: "m1p" } })).toMatchObject({
+      value: false,
+      decidedBy: { source: "action", id: "@matomezu/paper:item-place", field: "attach", pageType: MARKDOWN },
+    })
+    // ページを名指さなければ、ブック全体として問う（置くアクションはタイプに依らない付く先を持たない）
+    expect(inspect(CORE_CATALOG, place).value).toBe(false)
     expect(
-      inspect(CORE_CATALOG, { kind: "action", actor: USER, action: "@matomezu/base:page-add", book: drawing }),
+      inspect(CORE_CATALOG, { kind: "action", actor: USER, action: "@matomezu/base:page-add", book: mixed }),
     ).toMatchObject({
       value: true,
-      decidedBy: {
-        source: "action",
-        id: "@matomezu/base:page-add",
-        field: "attach",
-        pageType: "@matomezu/drawing:drawing",
-      },
+      decidedBy: { source: "action", id: "@matomezu/base:page-add", field: "attach.books" },
     })
   })
 

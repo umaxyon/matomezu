@@ -8,14 +8,17 @@ import { HISTORY_RESTORE } from "../../web/src/plugins/base/history"
 import { applyRestore, restoredPages } from "../../web/src/plugins/base/history/restore"
 
 const item = (id: string, caption = id) => ({ id, item: "x", x: 0, y: 0, props: { caption } })
-const book = (fields: Record<string, unknown>, pages: unknown[]) =>
-  ({ type: "t", id: "b", title: "本", ...fields, pages }) as unknown as Book
+const book = (fields: Record<string, unknown>, lineup: unknown[]) =>
+  ({ id: "b", title: "本", ...fields, lineup }) as unknown as Book
 const page = (id: string, items: unknown[], fields: Record<string, unknown> = {}) => ({
+  kind: "page",
   id,
+  type: "t",
   title: id,
   ...fields,
   items,
 })
+const folder = (id: string, lineup: unknown[], title = id) => ({ kind: "folder", id, title, pageType: "t", lineup })
 const patch = (from: Book, to: Book) => patchOf(from, to) as Patch
 
 test("ブックのフィールド・ページ・アイテムを、前の値に戻し、後の値にやり直す", () => {
@@ -42,4 +45,13 @@ test("認可の所は、置き直すページが 1 つならそのページと�
   const two = book({}, [page("p", [item("a", "A")]), page("q", [item("x", "X")])])
   expect(scope(patch(one, before))).toEqual({ page: "p", items: ["a"] })
   expect(scope(patch(two, before))).toEqual({})
+})
+
+test("フォルダの中のページは、そのページとアイテムを置き直す。フォルダの名前だけの置き直しはページを返さない", () => {
+  const before = book({}, [folder("f", [page("s", [item("a")])])])
+  const changed = book({}, [folder("f", [page("s", [item("a", "A")])])])
+  expect(restoredPages(patch(changed, before))).toEqual([{ id: "s", gone: false, items: ["a"] }])
+  const renamed = book({}, [folder("f", [page("s", [item("a")])], "別")])
+  expect(restoredPages(patch(renamed, before))).toEqual([])
+  expect(applyRestore(renamed, patch(renamed, before))).toEqual(before)
 })
