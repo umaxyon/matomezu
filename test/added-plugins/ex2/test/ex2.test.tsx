@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { addPageIn, createBookIn } from "matomezu"
+import { addPageIn, createBookIn, pagesOf } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -10,7 +10,6 @@ import {
   placeAdded,
   WindowRoot,
 } from "matomezu/testing"
-import { pagesOf } from "../../../../web/src/core/book"
 import EX2_UI from "../ui"
 
 afterEach(cleanup)
@@ -75,10 +74,7 @@ test("フローのブックに判断のひし形とビルトインの箱を置�
       ok: true,
     })
   })
-  expect(instance.state.getState().books[on.book]).toMatchObject({
-    type: "ex2:flow",
-    settings: { "ex2:flow-direction": "right" },
-  })
+  expect(page()).toMatchObject({ type: "ex2:flow", settings: { "ex2:flow-direction": "right" } })
   expect(page().items).toHaveLength(3)
   expect(document.querySelector("[data-ex2-diamond]")?.textContent).toBe("判断")
 })

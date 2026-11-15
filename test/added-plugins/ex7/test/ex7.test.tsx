@@ -4,9 +4,8 @@
 import { expect, test } from "bun:test"
 import { act } from "@testing-library/react"
 import EX6_UI from "ex6/ui"
-import { addPageIn, createBookIn } from "matomezu"
+import { addPageIn, createBookIn, pagesOf } from "matomezu"
 import { BUILTIN_UI, createMatomezu, openedIn } from "matomezu/testing"
-import { pagesOf } from "../../../../web/src/core/book"
 import EX7_UI from "../ui"
 
 test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重さを足し合わせる", () => {

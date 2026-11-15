@@ -2,9 +2,8 @@
 
 import { expect, test } from "bun:test"
 import { act } from "@testing-library/react"
-import { addPageIn, createBookIn } from "matomezu"
+import { addPageIn, createBookIn, pagesOf } from "matomezu"
 import { BUILTIN_UI, createMatomezu, openedIn } from "matomezu/testing"
-import { pagesOf } from "../../../../web/src/core/book"
 import EX6_UI from "../ui"
 
 test("答える形の無いページの重さは 0", () => {

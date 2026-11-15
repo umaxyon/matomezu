@@ -2,7 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { addPageIn, type Book, createBookIn, nextItemId } from "matomezu"
+import { addPageIn, type Book, createBookIn, nextItemId, pagesOf } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -12,7 +12,6 @@ import {
   placeAdded,
   WindowRoot,
 } from "matomezu/testing"
-import { pagesOf } from "../../../../web/src/core/book"
 import EX5_UI from "../ui"
 
 afterEach(cleanup)
