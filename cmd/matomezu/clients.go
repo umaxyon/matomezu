@@ -11,6 +11,7 @@ import (
 
 	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
 	codexlaunch "github.com/umaxyon/matomezu/clients/codex/launch"
+	codexsessionend "github.com/umaxyon/matomezu/clients/codex/sessionend"
 )
 
 // devAddr は、開発の常駐の待ち受け（scripts/dev.ts）
@@ -137,9 +138,17 @@ func codexDev() string {
 
 type codexMCPCmd struct{}
 
+// codexSessionEndsWith は、codex-session-end の見立て watch を、mcp --session-ends-with の値に読み替える（分からなければ名乗らない）
+func codexSessionEndsWith(watch codexsessionend.Process) string {
+	if watch == codexsessionend.MCPProcess {
+		return "mcp"
+	}
+	return ""
+}
+
 // Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: sessionEndsWith(codexlaunch.SessionEndsWith), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
