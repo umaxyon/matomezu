@@ -2,7 +2,7 @@
 // bun scripts/npm-pack.ts --out <作る先のフォルダ> [--version <版>] [--publish <publish 用の .npmrc>] [--target linux-x64]...
 // 版は、無ければ時刻から決める（内部のレジストリで試す版）。--publish を付けると、publish してから latest をその版にする。
 // 実行ファイルは、画面（web/dist）を埋め込む（ビルドタグ embed）。
-// 作る物: <out>/matomezu（本体。bin/matomezu.js と plugin/）と <out>/cli-<os>-<cpu>（OS ごとの実行ファイル）。
+// 作る物: <out>/matomezu（本体。bin/matomezu.js と plugin/）と <out>/cli-<os>-<cpu>（OS ごとの実行ファイル）と <out>/opencode（opencode のプラグイン matomezu-opencode）。
 import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import {
@@ -10,6 +10,8 @@ import {
   exeName,
   labVersion,
   mainPackageJson,
+  OPENCODE_FILES,
+  opencodePackageJson,
   platformPackageJson,
   platformPackageName,
   TARGETS,
@@ -68,6 +70,10 @@ cpSync("clients/claude-code", join(main, "plugin"), { recursive: true })
 const pluginJson = join(main, "plugin", ".claude-plugin", "plugin.json")
 writeFileSync(pluginJson, withPluginVersion(readFileSync(pluginJson, "utf8"), version))
 writeJson(join(main, "package.json"), mainPackageJson(version, targets))
+const opencode = join(out, "opencode")
+mkdirSync(opencode, { recursive: true })
+for (const f of OPENCODE_FILES) cpSync(join("clients/opencode", f), join(opencode, f))
+writeJson(join(opencode, "package.json"), opencodePackageJson(version))
 console.log(`built ${version} in ${out}`)
 
 if (npmrc) {
@@ -77,7 +83,8 @@ if (npmrc) {
     run(["npm", "publish", dir, "--userconfig", npmrc, "--registry", registry, "--tag", "lab", "--access", "public"])
   for (const t of targets) await publish(join(out, `cli-${t.os}-${t.cpu}`))
   await publish(main)
-  for (const name of ["matomezu", ...targets.map(platformPackageName)])
+  await publish(opencode)
+  for (const name of ["matomezu", "matomezu-opencode", ...targets.map(platformPackageName)])
     await run(["npm", "dist-tag", "add", `${name}@${version}`, "latest", "--userconfig", npmrc, "--registry", registry])
   console.log(`published ${version} to ${registry}`)
 }

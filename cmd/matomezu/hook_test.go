@@ -49,7 +49,7 @@ func TestTalkedBindsTheSessionAndWelcomes(t *testing.T) {
 	}
 	f := &fakeTalk{}
 	var out bytes.Buffer
-	talked(&out, hookInput{SessionID: "S1", TranscriptPath: path}, "NOTE", f.api)
+	talked(&out, hookInput{SessionID: "S1", TranscriptPath: path}, "NOTE", formatHook, f.api)
 	var got struct {
 		SystemMessage string `json:"systemMessage"`
 		Special       struct {
@@ -72,7 +72,7 @@ func TestTalkedBindsTheSessionAndWelcomes(t *testing.T) {
 	// 結べたあと: 伝え済みなので文だけ（記録は読まない）
 	f.bodies = nil
 	out.Reset()
-	talked(&out, hookInput{SessionID: "S1", TranscriptPath: path}, "NOTE", f.api)
+	talked(&out, hookInput{SessionID: "S1", TranscriptPath: path}, "NOTE", formatHook, f.api)
 	if out.String() != "NOTE\n" || len(f.bodies) != 1 {
 		t.Fatalf("after: %q, calls %v", out.String(), f.bodies)
 	}
@@ -81,12 +81,12 @@ func TestTalkedBindsTheSessionAndWelcomes(t *testing.T) {
 // 常駐が無いときと、伝えることが無いときは、渡された文だけを書く（文も無ければ何も書かない）
 func TestTalkedWithoutNewsPrintsTheContextOnly(t *testing.T) {
 	var out bytes.Buffer
-	talked(&out, hookInput{}, "NOTE\n", nil)
+	talked(&out, hookInput{}, "NOTE\n", formatHook, nil)
 	if out.String() != "NOTE\n" {
 		t.Fatalf("out = %q", out.String())
 	}
 	out.Reset()
-	talked(&out, hookInput{SessionID: "S1"}, "", (&fakeTalk{bound: true, told: true}).api)
+	talked(&out, hookInput{SessionID: "S1"}, "", formatHook, (&fakeTalk{bound: true, told: true}).api)
 	if out.String() != "" {
 		t.Fatalf("out = %q", out.String())
 	}
@@ -173,14 +173,43 @@ func TestModelHookSendsTheModel(t *testing.T) {
 	}
 }
 
-// 裏の知らせで始まったターン（入力が <task-notification> で始まる）は woken を付けて知らせる。利用者トリガートークには付けない
+// 裏の知らせで始まったターン（--woken を渡したフックか、入力が <task-notification> で始まる）は woken を付けて知らせる。利用者トリガートークには付けない
 func TestTalkedTellsWhetherTheTurnWasWoken(t *testing.T) {
-	f := &fakeTalk{bound: true, told: true}
-	for _, prompt := range []string{"<task-notification>\n<summary>Monitor event: \"matomezu\"</summary>\n</task-notification>", "こんにちは"} {
-		talked(&bytes.Buffer{}, hookInput{SessionID: "S1", Prompt: prompt}, "", f.api)
+	for _, c := range []struct {
+		hook  hookInput
+		woken bool
+	}{
+		{hookInput{SessionID: "S1", Prompt: "<task-notification>\n<summary>Monitor event: \"matomezu\"</summary>\n</task-notification>"}, true},
+		{hookInput{SessionID: "S1", Prompt: "matomezu: the user accepted your request to join", Woken: true}, true},
+		{hookInput{SessionID: "S1", Prompt: "こんにちは"}, false},
+	} {
+		f := &fakeTalk{bound: true, told: true}
+		talked(&bytes.Buffer{}, c.hook, "", formatHook, f.api)
+		if len(f.bodies) != 1 || f.bodies[0]["woken"] != c.woken {
+			t.Errorf("%q (flag %v): calls = %v", c.hook.Prompt, c.hook.Woken, f.bodies)
+		}
 	}
-	if len(f.bodies) != 2 || f.bodies[0]["woken"] != true || f.bodies[1]["woken"] != false {
-		t.Fatalf("calls = %v", f.bodies)
+}
+
+// --format split: 利用者に見せる文・AI に足す文・題名を分けた 1 つの JSON。伝えることが無ければ context だけを forAi に、それも無ければ何も書かない
+func TestTalkedSplitAnswer(t *testing.T) {
+	welcome := func([]byte) ([]byte, error) {
+		return []byte(`{"welcomes":[{"workroom":"ひよこ","message":"参加しました","forAi":"You joined"}],"unbound":false}`), nil
+	}
+	var out bytes.Buffer
+	talked(&out, hookInput{SessionID: "S1"}, "NOTE\n", formatSplit, welcome)
+	if out.String() != `{"message":"参加しました","forAi":"You joined\nNOTE","sessionTitle":"ひよこ"}`+"\n" {
+		t.Fatalf("welcome: %q", out.String())
+	}
+	out.Reset()
+	talked(&out, hookInput{SessionID: "S1"}, "NOTE\n", formatSplit, nil)
+	if out.String() != `{"forAi":"NOTE"}`+"\n" {
+		t.Fatalf("context only: %q", out.String())
+	}
+	out.Reset()
+	talked(&out, hookInput{SessionID: "S1"}, " \n", formatSplit, (&fakeTalk{bound: true, told: true}).api)
+	if out.String() != "" {
+		t.Fatalf("nothing: %q", out.String())
 	}
 }
 
@@ -191,7 +220,7 @@ func TestTalkedEchoesTheHookEventName(t *testing.T) {
 			return []byte(`{"welcomes":[{"workroom":"ひよこ","message":"m","forAi":"a"}],"unbound":false}`), nil
 		}
 		var out bytes.Buffer
-		talked(&out, hookInput{SessionID: "S1", HookEventName: c.in}, "NOTE", welcome)
+		talked(&out, hookInput{SessionID: "S1", HookEventName: c.in}, "NOTE", formatHook, welcome)
 		var got struct {
 			Special struct {
 				Event string `json:"hookEventName"`

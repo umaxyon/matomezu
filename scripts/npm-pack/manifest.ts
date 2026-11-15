@@ -1,6 +1,7 @@
 // npm で配るパッケージの中身を決める（作る・publish するのは scripts/npm-pack.ts）。
 // 本体の matomezu は、OS と CPU ごとの実行ファイルのパッケージ（@matomezu/cli-<os>-<cpu>）を optionalDependencies に持ち、入口の bin/matomezu.js が合う物を探して動かす。
 // Claude Code のプラグイン（clients/claude-code）は、実行ファイルと同じ版で配るため本体の plugin/ に入れる。
+// opencode のプラグイン（clients/opencode）は、opencode が npm のパッケージとして入れるので、別のパッケージ matomezu-opencode にして本体と同じ版で配る。
 
 /** 実行ファイルを作る先 1 つ。os・cpu は npm（process.platform・process.arch）の呼び名、goos・goarch は Go の呼び名 */
 export type Target = { os: string; cpu: string; goos: string; goarch: string }
@@ -37,6 +38,19 @@ export const mainPackageJson = (version: string, targets: Target[] = TARGETS) =>
   bin: { matomezu: "bin/matomezu.js" },
   files: ["bin", "plugin"],
   optionalDependencies: Object.fromEntries(targets.map(t => [platformPackageName(t), version])),
+})
+
+/** opencode のプラグインのパッケージに入れるファイル（clients/opencode の中。サーバーの入口 index.ts と TUI の入口 tui.ts、それらが読む物） */
+export const OPENCODE_FILES = ["index.ts", "matomezu.ts", "names.ts", "tui.ts"]
+
+export const opencodePackageJson = (version: string) => ({
+  name: "matomezu-opencode",
+  version,
+  description:
+    "matomezu for opencode: the MCP tools, the hooks that tell matomezu the user talked to AI, and the wake notices",
+  type: "module",
+  main: "index.ts",
+  files: OPENCODE_FILES,
 })
 
 /** プラグインの plugin.json の版を、本体の版に合わせる（版が同じままだと、入れ済みのプラグインに更新が届かないため） */

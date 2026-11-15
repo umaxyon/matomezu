@@ -303,8 +303,8 @@ test("見た目を結ぶ（definePluginUi）のは、プラグインの ui.tsx �
   expect(offenders).toEqual([])
 })
 
-// 単体のテストの置き場: test の直下は全体を見張るテストだけ。test/<クレート> はそのクレート（かその置き場の手伝い）を、test/plugins/<置き場> はそのプラグインを、test/scripts は scripts のスクリプトを読む
-test("単体のテストは、確かめる物の置き場（クレート・test/plugins/<プラグイン>・test/scripts）に置く", () => {
+// 単体のテストの置き場: test の直下は全体を見張るテストだけ。test/<クレート> はそのクレート（かその置き場の手伝い）を、test/plugins/<置き場> はそのプラグインを、test/scripts は scripts のスクリプトを、test/clients/<AI の名前> はその AI ごとの部品を読む
+test("単体のテストは、確かめる物の置き場（クレート・test/plugins/<プラグイン>・test/scripts・test/clients/<AI の名前>）に置く", () => {
   const TEST = join(ROOT, "test")
   const tests = filesUnder(TEST)
     .filter(path => /\.test\.tsx?$/.test(path) && !path.includes("/added-plugins/") && !path.includes("/type-checks/"))
@@ -331,6 +331,11 @@ test("単体のテストは、確かめる物の置き場（クレート・test/
     const reads = targetsOf(rel, text)
     if (parts[0] === "scripts")
       return reads.some(t => t.startsWith("../scripts/")) ? [] : [`${rel}: scripts のスクリプトを読まない`]
+    if (parts[0] === "clients") {
+      const ai = parts.slice(1, -1).join("/")
+      if (ai === "") return [`${rel}: test/clients の直下`]
+      return reads.some(t => t.startsWith(`../clients/${ai}/`)) ? [] : [`${rel}: clients/${ai} を読まない`]
+    }
     if (!CRATE_DIRS.includes(parts[0]!)) return [`${rel}: クレートの名前でないフォルダ`]
     if (parts[0] === "plugins") {
       const place = parts.slice(1, -1).join("/")
