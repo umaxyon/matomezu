@@ -49,7 +49,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 	<-c.ch // hello
 
 	do := func() (Performed, error) {
-		return hub.Perform(Perform{Action: "@matomezu/base:page-add", Args: json.RawMessage(`{"title":"追加"}`), On: &engine.On{Book: "b1"}, Client: c.id, Seq: 1, Key: "k1"})
+		return hub.Perform(Perform{Action: "@matomezu/base:page-add", Args: json.RawMessage(`{"type":"@matomezu/drawing:drawing","title":"追加"}`), On: &engine.On{Book: "b1"}, Client: c.id, Seq: 1, Key: "k1"})
 	}
 	if _, err := do(); err == nil || !strings.Contains(err.Error(), "refused") {
 		t.Fatalf("perform = %v; want the refused error", err)

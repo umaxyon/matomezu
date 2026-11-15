@@ -11,7 +11,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/plugin"
 )
 
-const book = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
+const book = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 func newEngine(t *testing.T) *Engine {
 	t.Helper()
@@ -60,7 +60,7 @@ func TestRefusals(t *testing.T) {
 	cases := map[string]Input{
 		"unknown":  {Action: "nope", Lang: "ja"},
 		"no-book":  {Action: "@matomezu/paper:item-place", Args: place().Args, On: &On{Book: "b9"}, Lang: "ja", Books: place().Books},
-		"bad-args": {Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "ja", Books: place().Books},
+		"bad-args": {Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{"page":"p1"}`), On: &On{Book: "b1"}, Lang: "ja", Books: place().Books},
 	}
 	for want, in := range cases {
 		out, err := e.Perform(in)
@@ -88,7 +88,7 @@ func TestARefusalCarriesTheActionsReason(t *testing.T) {
 // AI に見せる描いた位置と大きさ: w・h を書いていない箱は定義の大きさ、子で大きく描く内包ボックスは子が入る大きさで、子は紙の上の位置
 func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
 	e := newEngine(t)
-	const drawn = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+	const drawn = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"a","x":10,"y":20,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"},"shapes":[` +
 		`{"id":"c","x":8,"y":40,"item":"@matomezu/box:shape-nest-box","w":300,"h":100,"props":{"caption":"","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"}}]}]}]}`
 	out, err := e.AIPlaced(json.RawMessage(drawn))
@@ -115,12 +115,12 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
 	out, err := e.Perform(Input{
 		Action: "@matomezu/base:book-create",
-		Args:   json.RawMessage(`{"title":"New","type":"@matomezu/drawing:drawing"}`),
+		Args:   json.RawMessage(`{"title":"New"}`),
 		Lang:   "ja",
 		IDs:    []string{"nb"},
 		Books:  []json.RawMessage{json.RawMessage(book)},
 	})
-	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"type":"@matomezu/drawing:drawing","id":"nb","title":"New","pages":[]}` {
+	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"id":"nb","title":"New","lineup":[]}` {
 		t.Fatalf("@matomezu/base:book-create = %+v %s, %v", out, out.Books, err)
 	}
 	out, err = e.Perform(Input{Action: "@matomezu/base:settings-set", Args: json.RawMessage(`{"values":{"@matomezu/base:lang":"matomezu:en"}}`), Lang: "ja", Settings: json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja"}`)})
@@ -194,11 +194,11 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
 	var c struct {
 		PageTypes []struct {
-			ID     string          `json:"id"`
-			Pages  bool            `json:"pages"`
-			Grows  json.RawMessage `json:"grows"`
-			Items  []string        `json:"items"`
-			Themes []string        `json:"themes"`
+			ID       string          `json:"id"`
+			Grouping string          `json:"grouping"`
+			Grows    json.RawMessage `json:"grows"`
+			Items    []string        `json:"items"`
+			Themes   []string        `json:"themes"`
 		} `json:"pageTypes"`
 		Items []struct {
 			ID   string `json:"id"`
@@ -212,7 +212,7 @@ func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
 	grows := map[string]string{}
 	themes := map[string]string{}
 	for _, b := range c.PageTypes {
-		types[b.ID] = fmt.Sprint(b.Pages, " ", strings.Join(b.Items, ","))
+		types[b.ID] = fmt.Sprint(b.Grouping, " ", strings.Join(b.Items, ","))
 		grows[b.ID] = string(b.Grows)
 		themes[b.ID] = strings.Join(b.Themes, ",")
 	}
@@ -230,7 +230,7 @@ func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
 	for _, i := range c.Items {
 		kinds[i.ID] = i.Kind
 	}
-	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "true ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
+	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "none ") || !strings.HasPrefix(types["@matomezu/slide-book:slide"], "own-folder ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
 		kinds["@matomezu/box:shape-box"] != "shape" || kinds["@matomezu/line:connector-line"] != "connector" {
 		t.Fatalf("book types = %v, item kinds = %v", types, kinds)
 	}
@@ -265,7 +265,7 @@ func TestAICatalogDescribesListRows(t *testing.T) {
 // 線の道筋の計算（route）を通るアクションも、画面と同じに行える: つないだ箱が近ければどけ、手で直した区間が引けるかを確かめる
 func TestConnectsItemsWithALine(t *testing.T) {
 	e := newEngine(t)
-	two := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+	two := `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"a","x":100,"y":100,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}},` +
 		`{"id":"b","x":400,"y":300,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}}]}]}`
 	out, err := e.Perform(Input{
@@ -339,11 +339,11 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 	}
 	out, err := e.Perform(Input{
 		Action: "@matomezu/base:book-create",
-		Args:   json.RawMessage(`{"title":"Flow","type":"ex2:flow"}`),
+		Args:   json.RawMessage(`{"title":"Flow","page":{"type":"ex2:flow"}}`),
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
 	})
-	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"type":"ex2:flow","id":"fb"`) {
+	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"fp","type":"ex2:flow"`) {
 		t.Fatalf("@matomezu/base:book-create = %+v %s, %v", out, out.Books, err)
 	}
 }
@@ -454,8 +454,8 @@ func TestWarningLinesUseTheTable(t *testing.T) {
 
 func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 	e := newEngine(t)
-	noType := json.RawMessage(`{"type":"@foo/stamps:board","id":"x1","title":"S"}`)
-	star := json.RawMessage(`{"type":"@matomezu/drawing:drawing","id":"y1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":1,"y":1,"props":{}}]}]}`)
+	noType := json.RawMessage(`{"id":"x1","title":"S","lineup":[{"kind":"page","id":"p1","type":"@foo/stamps:board","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`)
+	star := json.RawMessage(`{"id":"y1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":1,"y":1,"props":{}}]}]}`)
 	found, err := e.CheckBooks([]json.RawMessage{noType, star})
 	if err != nil {
 		t.Fatal(err)
@@ -596,13 +596,16 @@ module.exports.default = {
 // AI に見せるページ: 背景を持つタイプ（図面）のページは、背景の形の図形の情報を見せず、背景の文字だけを background に入れる。背景を持たないタイプはそのまま
 func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
 	e := newEngine(t)
-	const page = `{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","slide":[` +
-		`{"id":"s1","item":"@matomezu/slide:slide-text","x":1,"y":2,"w":300,"h":40,"props":{"text":"社外秘"}},` +
-		`{"id":"s2","item":"@matomezu/slide:slide-ellipse","x":5,"y":6,"w":100,"h":60,"props":{"fill":"#f6c177","stroke":"#286983","width":3}}]}`
-	book := func(typ string) json.RawMessage {
-		return json.RawMessage(`{"type":"` + typ + `","id":"b1","title":"T","pages":[` + page + `]}`)
+	pageOf := func(typ string) string {
+		return `{"kind":"page","id":"p1","type":"` + typ + `","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","slide":[` +
+			`{"id":"s1","item":"@matomezu/slide:slide-text","x":1,"y":2,"w":300,"h":40,"props":{"text":"社外秘"}},` +
+			`{"id":"s2","item":"@matomezu/slide:slide-ellipse","x":5,"y":6,"w":100,"h":60,"props":{"fill":"#f6c177","stroke":"#286983","width":3}}]}`
 	}
-	out, err := e.AIPage(book("@matomezu/drawing:drawing"), json.RawMessage(page))
+	book := func(page string) json.RawMessage {
+		return json.RawMessage(`{"id":"b1","title":"T","lineup":[` + page + `]}`)
+	}
+	drawing := pageOf("@matomezu/drawing:drawing")
+	out, err := e.AIPage(book(drawing), json.RawMessage(drawing))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -615,8 +618,9 @@ func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
 	if err := json.Unmarshal(out, &got); err != nil || got.Slide != nil || len(got.Background.Texts) != 1 || got.Background.Texts[0] != "社外秘" {
 		t.Fatalf("AIPage = %s, %v", out, err)
 	}
-	same, err := e.AIPage(book("@matomezu/slide-book:slide"), json.RawMessage(page))
-	if err != nil || string(same) != page {
+	slide := pageOf("@matomezu/slide-book:slide")
+	same, err := e.AIPage(book(slide), json.RawMessage(slide))
+	if err != nil || string(same) != slide {
 		t.Fatalf("AIPage of a slide book = %s, %v", same, err)
 	}
 }

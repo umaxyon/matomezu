@@ -464,7 +464,6 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	type head struct {
 		ID      string `json:"id"`
-		Type    string `json:"type"`
 		Title   string `json:"title"`
 		Version int64  `json:"version"`
 		Problem string `json:"problem,omitempty"`  // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）

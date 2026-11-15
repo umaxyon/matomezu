@@ -173,6 +173,7 @@ function permits(
   action: ActionDef,
   subject: unknown,
   args: { success: true; data: unknown } | { success: false },
+  raw: unknown,
 ): Permitted {
   const settings =
     args.success && action.target === "settings"
@@ -225,10 +226,18 @@ function permits(
       : action.target === "annotations"
         ? (subject as BookAnnotations).book
         : undefined
+  // 所は引数から出す。引数が形に合わなくても、名指したページは読めるだけ読む（ページのタイプで決まるアクションを、引数の誤りでブック全体として問わないように。誤りは bad-args で断る）
+  // （読むのは、引数の名前で書いた許可スコープだけ。関数の許可スコープは、形の合った引数にだけ呼ぶ）
+  const scope = action.permissionScope as AnyPermissionScope | undefined
+  const named = typeof raw === "object" && raw !== null ? raw : {}
   const where =
-    args.success && action.target === "book"
-      ? scopeOf(action.permissionScope as AnyPermissionScope, args.data)
-      : undefined
+    action.target !== "book"
+      ? undefined
+      : args.success
+        ? scopeOf(scope, args.data)
+        : typeof scope === "object"
+          ? scopeOf(scope, named)
+          : undefined
   return asked(book, where)
 }
 
@@ -266,7 +275,7 @@ function answerOf(answer: Inspected<boolean>): Permitted {
 export function permitted(subject: unknown, id: string, args: unknown, ctx: PermitContext): Permitted | Refused {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  return permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
+  return permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args), args)
 }
 
 export function perform<Id extends ActionId>(
@@ -278,7 +287,7 @@ export function perform<Id extends ActionId>(
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
   const parsed = action.args.safeParse(args)
-  const permitted = permits(ctx, action, subject, parsed)
+  const permitted = permits(ctx, action, subject, parsed, args)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
   const ran = action.run(subject as never, parsed.data, ctx)

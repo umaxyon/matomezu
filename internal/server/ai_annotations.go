@@ -81,29 +81,17 @@ func (h *Hub) AIPage(book, page json.RawMessage) (json.RawMessage, error) {
 	return h.engine.AIPage(book, page)
 }
 
-// AIBook は、AI に見せるブック（本文）: 全部のページを AIPage に通す（読めない形のブックは、渡したまま返す）
+// AIBook は、AI に見せるブック（本文）: 並びの全部のページ（フォルダの中も）を AIPage に通す（読めない形のブックは、渡したまま返す）
 func (h *Hub) AIBook(book json.RawMessage) (json.RawMessage, error) {
-	var body map[string]json.RawMessage
-	if json.Unmarshal(book, &body) != nil {
+	lineup := lineupOf(book)
+	if lineup == nil {
 		return book, nil
 	}
-	var pages []json.RawMessage
-	if json.Unmarshal(body["pages"], &pages) != nil {
-		return book, nil
-	}
-	for i, p := range pages {
-		shown, err := h.AIPage(book, p)
-		if err != nil {
-			return nil, err
-		}
-		pages[i] = shown
-	}
-	raw, err := json.Marshal(pages)
+	shown, err := mapLineup(lineup, func(p json.RawMessage) (json.RawMessage, error) { return h.AIPage(book, p) }, nil)
 	if err != nil {
 		return nil, err
 	}
-	body["pages"] = raw
-	return json.Marshal(body)
+	return withLineup(book, shown)
 }
 
 // AIPlaced は、ブック（本文）のページの id ごとの、形の描いた位置と大きさ（engine.AIPlaced。見せ方が答えなければ null）
@@ -145,13 +133,9 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no such book", http.StatusNotFound)
 		return
 	}
-	var body struct {
-		Pages []json.RawMessage `json:"pages"`
-	}
-	_ = json.Unmarshal(b.Body, &body)
 	want := r.PathValue("page")
 	var page json.RawMessage
-	for _, p := range body.Pages {
+	for _, p := range pagesOfBook(b.Body) {
 		var head struct {
 			ID string `json:"id"`
 		}
