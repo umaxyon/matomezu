@@ -12,7 +12,7 @@ import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { PageScope } from "../../../ui/scope"
+import { PageScope, useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
@@ -21,7 +21,6 @@ import { pageArea } from "../place/items"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import { useResize } from "../utils/useResize"
-import type { StageSlotProps } from "../workspace/ui"
 import { PAGE_ADD_AFTER, PAGE_CONTEXT, PAGE_OPEN } from "."
 import styles from "./PageList.module.css"
 import { useTabDrag } from "./useTabDrag"
@@ -70,7 +69,8 @@ function ThumbnailFrame({
   )
 }
 
-export function PageList({ stage }: StageSlotProps) {
+export function PageList() {
+  const stage = useStageId() ?? ""
   const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const catalog = useCatalog().core

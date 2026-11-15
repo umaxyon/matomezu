@@ -5,19 +5,19 @@ import { useLayoutEffect, useMemo } from "react"
 import { bookType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
 import { areaOf, paperOf } from "../../../core/stage"
+import { useStageId } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useActionsHere, useBook, usePage, useStage } from "../../../ui/view-hooks"
 import { printAreaLines } from "../place/grow"
 import { startOf, unprintedSheets } from "../print-preview/book-sheets"
 import { sheetKey } from "../print-preview/filled"
 import { PaperFrame } from "../utils/PaperFrame"
-import type { StageSlotProps } from "../workspace/ui"
 import { useContentHidden } from "./background-state"
 import styles from "./layers.module.css"
 import { usePrintAreasHidden } from "./print-areas"
 
-export function PaperLayer({ stage: id }: StageSlotProps) {
-  const stage = useStage(id)
+export function PaperLayer() {
+  const stage = useStage()
   if (!stage?.opened || stage.opened.page === null) return null
   return <PaperFrame stage={stage} className={styles.paper} aria-hidden="true" data-paper-surface />
 }
@@ -25,10 +25,11 @@ export function PaperLayer({ stage: id }: StageSlotProps) {
 // 可変ページの、印刷区画の境目の破線と、印刷しない印刷区画（何も載っていない印刷区画。印刷プレビューに並べない物と同じ）の薄い影
 // （見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。フッタメニューのボタンで、線と影を一緒に隠せる）。
 // 初めの位置（暗くしない所の左上）も、ここからステージに知らせる
-export function PrintAreaLayer({ stage: id }: StageSlotProps) {
-  const stage = useStage(id)
-  const book = useBook(id)
-  const page = usePage(id)
+export function PrintAreaLayer() {
+  const id = useStageId() ?? ""
+  const stage = useStage()
+  const book = useBook()
+  const page = usePage()
   const catalog = useCatalog().core
   const paper = stage && paperOf(stage)
   const area = stage && areaOf(stage)
@@ -85,8 +86,9 @@ function useStartReport(id: string) {
 }
 
 // ブックの中身のレイヤー。背景編集モードの間は、中身を薄くして触れなくする（中身を隠していれば描かない）。背景は、この下のレイヤー（slide-layer）が描いて操作を受ける
-export function BookContentLayer({ stage: id }: StageSlotProps) {
-  const stage = useStage(id)
+export function BookContentLayer() {
+  const id = useStageId() ?? ""
+  const stage = useStage()
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
   const hidden = useContentHidden()

@@ -8,6 +8,7 @@
 // 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import type { Bird } from "../birds"
 import { BirdWalk, birdClass, FRONT, frameStyle } from "../birds/BirdWalk"
@@ -21,7 +22,6 @@ import { Ask, useRemoveAsk } from "../utils/Ask"
 import { Stand, StandAt } from "../utils/anchors"
 import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
-import type { StageSlotProps } from "../workspace/ui"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import styles from "./MarkLayer.module.css"
 import { MARK_PICKER } from "./states"
@@ -32,7 +32,8 @@ const ALERT = 18 // びっくりマークの丸の大きさ
 // この画面で付けたばかりのマーク（最初に描くときだけ、飛んでくるか顔を出す）
 const arriving = new Set<string>()
 
-export function MarkLayer({ stage }: StageSlotProps) {
+export function MarkLayer() {
+  const stage = useStageId() ?? ""
   const marks = useAnnotationsOf(stage, MARK.id)
   const picker = useAnchorTargets(MARK_PICKER)
   return (
@@ -134,12 +135,12 @@ function MarkBird({
 }
 
 // マークの種類を選ぶスタンド: 6 つの種類の絵を並べ、押した種類を付ける。Esc か、ほかを押すと付けずに閉じる
-function PickerStand({ stage, picker }: { stage: string; picker: AnchorTargets }) {
+function PickerStand({ picker }: { stage: string; picker: AnchorTargets }) {
   const t = useMessages(kit)
   const run = usePerformOrToast("The mark was refused")
   const setPicker = useSetAnchorTargets(MARK_PICKER)
   const ref = useRef<HTMLDivElement>(null)
-  const end = () => setPicker(stage, null)
+  const end = () => setPicker(null)
   const pick = (kind: MarkKind) => {
     const done = run(MARK_ADD.id, { anchors: [...picker.anchors], kind })
     if (done) {

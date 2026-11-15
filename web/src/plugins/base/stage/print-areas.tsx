@@ -7,8 +7,8 @@ import { PRINT_AREAS_HIDDEN } from "./states"
 export const usePrintAreasHidden = (): boolean => usePluginState(kit, PRINT_AREAS_HIDDEN) ?? false
 
 // ステージの区切りの線を、見せる・隠すを入れ替える関数
-export function useTogglePrintAreas(): (stage: string) => void {
+export function useTogglePrintAreas(): () => void {
   const read = useReadPluginState(kit, PRINT_AREAS_HIDDEN)
   const set = useSetPluginState(kit, PRINT_AREAS_HIDDEN)
-  return stage => set(stage, read(stage) ? undefined : true)
+  return () => set(read() ? undefined : true)
 }

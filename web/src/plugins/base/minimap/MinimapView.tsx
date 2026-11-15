@@ -10,6 +10,7 @@ import { toolSetOf } from "../../../core/tools"
 import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useActionsHere, useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
@@ -22,25 +23,16 @@ import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
 import { type MinimapMark, minimapMarks } from "./marks"
 
-export function MinimapView({
-  stage: id,
-  width,
-  height,
-  className,
-}: {
-  stage: string
-  width: number
-  height: number
-  className?: string
-}) {
+export function MinimapView({ width, height, className }: { width: number; height: number; className?: string }) {
+  const id = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const stage = useMatomezuState(s => stageIn(s.window, id))
-  const book = useShownBook(id) // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
-  const page = useShownPage(id)
-  const held = keepsPan(catalog, useStage(id)?.tool ?? null)
+  const book = useShownBook() // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
+  const page = useShownPage()
+  const held = keepsPan(catalog, useStage()?.tool ?? null)
   const { panStageBy, focusStage } = useActionsHere()
-  const toolSet = useCommand(id, TOOL_SET.id)
+  const toolSet = useCommand(TOOL_SET.id)
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)

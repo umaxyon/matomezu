@@ -9,7 +9,6 @@
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
 import { type MouseEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react"
 import {
-  type BookViewProps,
   useBook,
   useCommand,
   useContextMenu,
@@ -61,7 +60,7 @@ import { usePaneSwap } from "./usePaneSwap"
 
 const TITLES = { source: "Source", rendered: "Preview" } as const
 
-export function MarkdownView({ stage }: BookViewProps) {
+export function MarkdownView() {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const page = useShownPage()
@@ -73,7 +72,7 @@ export function MarkdownView({ stage }: BookViewProps) {
   const setChosen = useSetPluginState(kit, PANE_LAYOUT_STATE)
   const setOpening = useSetPluginState(kit, PANE_OPENING_STATE)
   // 入れ替えるときだけ first を書き、境目を動かすだけなら入れ替えていないまま
-  const setLayout = (patch: Partial<PaneLayout>) => setChosen(stage, chosenWith(chosen, layout, patch))
+  const setLayout = (patch: Partial<PaneLayout>) => setChosen(chosenWith(chosen, layout, patch))
   const swap = usePaneSwap(() => setLayout({ first: swapPanes(layout).first }))
   const openMenu = useContextMenu(PANE_CONTEXT)
   const panes = useRef<HTMLDivElement>(null)
@@ -88,12 +87,12 @@ export function MarkdownView({ stage }: BookViewProps) {
   useEffect(() => {
     if (openedId === undefined) return
     const next = openingFor(opening, { id: openedId, text: openedText ?? "" })
-    if (next) setOpening(stage, next)
+    if (next) setOpening(next)
   }, [openedId])
   const scrolls = usePluginState(kit, SCROLL_STATE)
   const setScrolls = useSetPluginState(kit, SCROLL_STATE)
-  const memory = useScrollMemory(page?.id, scrolls, next => setScrolls(stage, next), source, rendered)
-  if (!page || !book) return <NoPages stage={stage} />
+  const memory = useScrollMemory(page?.id, scrolls, next => setScrolls(next), source, rendered)
+  if (!page || !book) return <NoPages />
   const width = paperSize(catalog, page)?.w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
   const follow = () => {
@@ -140,7 +139,6 @@ export function MarkdownView({ stage }: BookViewProps) {
               {pane === "source" ? (
                 <SourcePane
                   key={page.id}
-                  stage={stage}
                   book={book.id}
                   page={page.id}
                   text={text}
@@ -332,7 +330,7 @@ function LayoutButton({ id }: { id: (typeof PANE_LAYOUT_COMMANDS)[number]["id"] 
   )
 }
 
-function NoPages(_props: { stage: string }) {
+function NoPages() {
   const t = useMessages(kit)
   const newPage = useCommand("@matomezu/base:page-new")
   return (

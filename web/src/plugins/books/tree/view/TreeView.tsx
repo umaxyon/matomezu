@@ -14,7 +14,6 @@
 import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
 import { paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
 import {
-  type BookViewProps,
   useActionsHere,
   useAllowed,
   useCommand,
@@ -76,9 +75,9 @@ import { nodePaint } from "./paint"
 import styles from "./TreeView.module.css"
 import { useNodeWrite } from "./useNodeWrite"
 
-export function TreeView({ stage: id }: BookViewProps) {
-  const stage = useStage(id)
-  const openMenu = useContextMenu(id, TREE_CONTEXT)
+export function TreeView() {
+  const stage = useStage()
+  const openMenu = useContextMenu(TREE_CONTEXT)
   const ref = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<Size | null>(null)
   useResize(ref, setView)
@@ -431,18 +430,18 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
   useEffect(() => {
     if (was.current === page) return
     was.current = page
-    writeFocus(stage.id, undefined)
+    writeFocus(undefined)
   }, [page])
   // ページを替えて入るとき（ページの右クリックのメニュー）は、替えたあとに外すので、この順
   // biome-ignore lint/correctness/useExhaustiveDependencies: 入ったときだけ外す
   useEffect(() => {
     if (!background) return
-    writeFocus(stage.id, true)
+    writeFocus(true)
     fitRef.current.run()
   }, [background])
   useEffect(() => {
-    if (items && released && (selecting || editing)) writeFocus(stage.id, undefined)
-  }, [items, released, selecting, editing, writeFocus, stage.id])
+    if (items && released && (selecting || editing)) writeFocus(undefined)
+  }, [items, released, selecting, editing, writeFocus])
   return !released && !background
 }
 

@@ -28,7 +28,7 @@ import {
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { slideOffsetOf } from "../../../base"
-import { PaperFrame, type StageSlotProps, useFollowsSelection } from "../../../base/ui"
+import { PaperFrame, useFollowsSelection } from "../../../base/ui"
 import { SLIDE_DELETE, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
 import {
   boundsOf,
@@ -125,8 +125,8 @@ function squaredEnd(start: Point, at: Point): Point {
 const round = (n: number): number => Math.round(n * 100) / 100
 const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f.w), h: round(f.h) })
 
-export function SlideLayer({ stage: id }: StageSlotProps) {
-  const stage = useStage(id)
+export function SlideLayer() {
+  const stage = useStage()
   const catalog = useCoreCatalog()
   const type = stage?.opened?.type
   const slide = type ? bookType(catalog, type).slide : undefined

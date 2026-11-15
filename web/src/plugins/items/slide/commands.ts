@@ -126,10 +126,10 @@ export const SLIDE_DELETE = kit.defineCommand({
   permissionScope: "selection",
   title: "Delete",
   run: (ctx, a) => {
-    const { opened, id } = ctx.stage
+    const { opened } = ctx.stage
     if (!opened?.page) return
     for (const item of selectedOnSlide(ctx)) a.perform(REMOVE, { page: opened.page, item }, { book: opened.book })
-    a.select(id, [])
+    a.here.select([])
   },
   when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
 })

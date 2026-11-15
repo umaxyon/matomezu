@@ -97,8 +97,8 @@ function SearchDialog({ stage }: { stage: string }) {
 
   // 検索を change で変える（探す字か切り替えが変われば、今の当たりを選び直す。search.ts の changedSearch）
   const update = (change: Partial<SearchOpen>) => {
-    const was = readSearch(stage)
-    if (was) setSearch(stage, changedSearch(s, book, was, change, opened))
+    const was = readSearch()
+    if (was) setSearch(changedSearch(s, book, was, change, opened))
   }
   const query = (change: Partial<SearchOpen["query"]>) => update({ query: { ...search.query, ...change } })
 
@@ -110,12 +110,7 @@ function SearchDialog({ stage }: { stage: string }) {
       data-key-scope={SEARCH_KEY_SCOPE.id}
       style={at ? { left: at.x, top: at.y } : { right: FIRST_AT.right, top: FIRST_AT.top }}
     >
-      <Head
-        title={t("Search")}
-        closeLabel={t("Close search")}
-        onClose={() => close.run()}
-        onMove={p => setAt(stage, p)}
-      />
+      <Head title={t("Search")} closeLabel={t("Close search")} onClose={() => close.run()} onMove={p => setAt(p)} />
       <div className={styles.row}>
         <label className={styles.label} htmlFor={`${stage}-search-find`}>
           {t("Find")}

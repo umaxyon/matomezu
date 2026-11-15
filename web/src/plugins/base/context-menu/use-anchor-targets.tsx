@@ -11,7 +11,7 @@ type Targets = PluginStateDef<AnchorTargets> & { scope: "stage" }
 export const useAnchorTargets = (state: Targets): AnchorTargets | null => usePluginState(kit, state) ?? null
 
 // ステージの付ける先を置く（null なら終える）関数
-export function useSetAnchorTargets(state: Targets): (stage: string, targets: AnchorTargets | null) => void {
+export function useSetAnchorTargets(state: Targets): (targets: AnchorTargets | null) => void {
   const set = useSetPluginState(kit, state)
-  return useCallback((stage, targets) => set(stage, targets ?? undefined), [set])
+  return useCallback(targets => set(targets ?? undefined), [set])
 }

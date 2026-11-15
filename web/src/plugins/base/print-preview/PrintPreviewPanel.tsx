@@ -7,6 +7,7 @@ import { previewing as isPreviewing } from "../../../core/stage"
 import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { ownSettings, settingDefs } from "../book-settings"
@@ -15,7 +16,6 @@ import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
 import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
-import type { StageSlotProps } from "../workspace/ui"
 import { ZoomBar, ZoomButton } from "../zoom/ZoomBar"
 import { fitSide, PRINT, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
 import { bookCrossings } from "./book-sheets"
@@ -25,7 +25,8 @@ import { ShapeBadges } from "./ShapeBadges"
 
 type Patch = Readonly<Record<string, string | null>>
 
-export function PrintPreviewPanel({ stage }: StageSlotProps) {
+export function PrintPreviewPanel() {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const ui = useUiCatalog()
@@ -56,8 +57,8 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>
-      <PrintButton stage={stage} />
-      <ZoomBar stage={stage} fits={<FitButton stage={stage} />} />
+      <PrintButton />
+      <ZoomBar fits={<FitButton />} />
       <fieldset className={styles.tools} disabled={!lockable}>
         <LockToggle
           locked={locked}
@@ -86,7 +87,7 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
       {oversized.length > 0 && (
         <>
           <p className={styles.note}>{t("Larger than a print area, so cut at the sheet edges")}</p>
-          <ShapeBadges stage={stage} shapes={oversized} label="Boxes larger than a print area" />
+          <ShapeBadges shapes={oversized} label="Boxes larger than a print area" />
         </>
       )}
       {confirming && (
@@ -108,7 +109,7 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
 }
 
 // 並べる向きと交わる辺を合わせるボタン（縦に並べるなら幅に合わせる ⟷、横なら高さに合わせる ↕）
-function FitButton(_props: { stage: string }) {
+function FitButton() {
   const catalog = useCatalog().core
   const book = useBook()
   const fit = useCommand(PRINT_PREVIEW_FIT.id)
@@ -122,7 +123,7 @@ function FitButton(_props: { stage: string }) {
 }
 
 // 印刷のボタン（見出しの下に、横いっぱいの幅で）
-function PrintButton(_props: { stage: string }) {
+function PrintButton() {
   const t = useMessages(kit)
   const print = useCommand(PRINT.id)
   if (!print.shown) return null

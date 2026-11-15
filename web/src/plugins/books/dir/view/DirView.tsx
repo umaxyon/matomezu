@@ -26,7 +26,6 @@ import {
 } from "react"
 import { paperOf, type StageView } from "../../../../plugin-api"
 import {
-  type BookViewProps,
   useActionsHere,
   useAllowed,
   useCommand,
@@ -69,9 +68,9 @@ import styles from "./DirView.module.css"
 // 説明をその場で書いている間の、その場の編集の名前
 const NOTE_EDIT = kit.name("note-edit")
 
-export function DirView({ stage: id }: BookViewProps) {
-  const stage = useStage(id)
-  const openMenu = useContextMenu(id, DIR_CONTEXT)
+export function DirView() {
+  const stage = useStage()
+  const openMenu = useContextMenu(DIR_CONTEXT)
   const ref = useRef<HTMLDivElement>(null)
   if (!stage) return null
   return (

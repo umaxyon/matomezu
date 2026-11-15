@@ -41,7 +41,6 @@ import {
   walkShapes,
 } from "../../../plugin-api"
 import {
-  type BookViewProps,
   type ItemViewProps,
   type ShapeScene,
   TokenScope,
@@ -115,10 +114,11 @@ const local = (e: PointerEvent<Element>, el: Element): Point => {
   return { x: e.clientX - r.left, y: e.clientY - r.top }
 }
 
-export function PaperView({ stage: id }: BookViewProps) {
-  const stage = useStage(id)
-  const openMenu = useContextMenu(id, PAPER_CONTEXT)
-  const place = useCommand(id, PAPER_PLACE.id)
+export function PaperView() {
+  const stage = useStage()
+  const id = stage?.id ?? ""
+  const openMenu = useContextMenu(PAPER_CONTEXT)
+  const place = useCommand(PAPER_PLACE.id)
   const { select } = useActionsHere()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
@@ -126,8 +126,8 @@ export function PaperView({ stage: id }: BookViewProps) {
   const pans = stage?.pans === true
   const localOf = useCallback((e: PointerEvent<Element>) => ref.current && local(e, ref.current), [])
   const catalog = useCoreCatalog()
-  const page = usePage(id)
-  const toPaperAt = useToPaper(id)
+  const page = usePage()
+  const toPaperAt = useToPaper()
   const sweep = useRef<Sweep | null>(null)
   const followed = useFollowsSelection(id)
   const placed = usePlaceTarget(placing ? pointer : null) // 置こうとしている間の、押すと置く所

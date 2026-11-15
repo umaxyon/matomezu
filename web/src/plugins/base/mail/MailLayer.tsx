@@ -4,17 +4,18 @@
 import { useEffect, useState } from "react"
 import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useMatomezuState } from "../../../ui/store-context"
 import { BIRD_IDS, type Bird } from "../birds"
 import { pickBird } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { kit } from "../kit"
 import { AnchorFrame, StandAt } from "../utils/anchors"
-import type { StageSlotProps } from "../workspace/ui"
 import { type BirdVisit, useBirdVisit, useSetBirdVisit } from "./bird-visit"
 import styles from "./MailLayer.module.css"
 
-export function MailLayer({ stage }: StageSlotProps) {
+export function MailLayer() {
+  const stage = useStageId() ?? ""
   const visit = useBirdVisit()
   const set = useSetBirdVisit()
   const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened ?? null)

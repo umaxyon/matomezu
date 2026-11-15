@@ -3,13 +3,15 @@
 import type { CSSProperties } from "react"
 import { paperOf } from "../../../core/stage"
 import { stageIn } from "../../../core/window"
+import { useStageId } from "../../../ui/scope"
 import { useMatomezuState } from "../../../ui/store-context"
 import { MINIMAP_SIZE as MAP } from "../minimap/geometry"
 import { MinimapView } from "../minimap/MinimapView"
 import { ZoomBar } from "../zoom/ZoomBar"
 import styles from "./FooterMenuMinimap.module.css"
 
-export function FooterMenuMinimap({ stage }: { stage: string }) {
+export function FooterMenuMinimap() {
+  const stage = useStageId() ?? ""
   const hasPaper = useMatomezuState(s => {
     const st = stageIn(s.window, stage)
     return st !== undefined && paperOf(st) !== null
@@ -19,9 +21,9 @@ export function FooterMenuMinimap({ stage }: { stage: string }) {
   return (
     <div className={styles.cell} style={size}>
       <div className={styles.map} data-minimap="footer-menu">
-        <MinimapView stage={stage} width={MAP.w} height={MAP.h} className={styles.mapView} />
+        <MinimapView width={MAP.w} height={MAP.h} className={styles.mapView} />
       </div>
-      <ZoomBar stage={stage} className={styles.zoomBar} />
+      <ZoomBar className={styles.zoomBar} />
     </div>
   )
 }

@@ -298,8 +298,8 @@ function Picker({ last }: { last: { current: Point | null } }) {
             ["--map-h" as string]: `${MINIMAP_SIZE.h}px`,
           }}
         >
-          <MinimapView stage={opened.id} width={MINIMAP_SIZE.w} height={MINIMAP_SIZE.h} className={styles.mapView} />
-          <ZoomBar stage={opened.id} />
+          <MinimapView width={MINIMAP_SIZE.w} height={MINIMAP_SIZE.h} className={styles.mapView} />
+          <ZoomBar />
         </div>
       )}
       {tip && hovered && (

@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react"
 import { anchorIds } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useAllowed, useBook, useUserSetting } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
@@ -16,7 +17,6 @@ import { useCloseRightSidePanel, useRightSidePanel, useSetRightSidePanelCurrent 
 import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { useEditLock } from "../utils/useEditLock"
-import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
 import { expiryOutlook, hoursAndMinutes, NOTE_EXPIRY } from "./expiry"
 import { GrowingText } from "./NoteForm"
@@ -26,7 +26,8 @@ import { NEW_NOTE } from "./panel-id"
 
 const BADGE_CHARS = 10 // バッジに出す、名前の始めの字数
 
-export function NotePanel({ stage }: StageSlotProps) {
+export function NotePanel() {
+  const stage = useStageId() ?? ""
   const open = useRightSidePanel(stage)
   const notes = useAnnotationsOf(stage, NOTE.id)
   const close = useCloseRightSidePanel()
@@ -38,20 +39,19 @@ export function NotePanel({ stage }: StageSlotProps) {
   if (!open || (open.subject !== NEW_NOTE && !note)) return null
   return (
     <div className={styles.panel}>
-      <Badges stage={stage} open={open} />
+      <Badges open={open} />
       <Lost anchors={open.anchors} />
       {note ? (
         // 文が外で変わったら、テキストFormを新しい文で始め直す
         <NoteEditor
           key={`${note.id}:${(note.props as NoteProps).text}`}
-          stage={stage}
           id={note.id}
           anchors={note.anchors}
           props={note.props as NoteProps}
           open={open}
         />
       ) : (
-        <NewNote stage={stage} open={open} />
+        <NewNote open={open} />
       )}
     </div>
   )
@@ -64,19 +64,20 @@ const ordered = (open: RightSidePanelOpen): string[] =>
     : [...open.anchors]
 
 // 付ける先の名前のバッジ: カレントは色違い。押すとその物をカレントにする。名前は BADGE_CHARS 字で切り、全体はツールチップで見せる
-function Badges({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
+function Badges({ open }: { open: RightSidePanelOpen }) {
   const t = useMessages(kit)
   return (
     // biome-ignore lint/a11y/useSemanticElements: バッジを束ねる並びで、入力Formのまとまり（fieldset）ではない
     <div className={styles.badges} role="group" aria-label={t("Things the note is on")}>
       {open.anchors.map(id => (
-        <Badge key={id} stage={stage} id={id} current={id === open.current} />
+        <Badge key={id} id={id} current={id === open.current} />
       ))}
     </div>
   )
 }
 
-function Badge({ stage, id, current }: { stage: string; id: string; current: boolean }) {
+function Badge({ id, current }: { id: string; current: boolean }) {
+  const stage = useStageId() ?? ""
   const setCurrent = useSetRightSidePanelCurrent()
   const name = useAnchorName(id)
   return (
@@ -111,7 +112,8 @@ function Lost({ anchors }: { anchors: readonly string[] }) {
 }
 
 // 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）
-function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
+function NewNote({ open }: { open: RightSidePanelOpen }) {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const run = usePerformOrToast("The note was refused")
   const close = useCloseRightSidePanel()
@@ -142,18 +144,17 @@ function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
 
 // 付けた伝言: 文を直すか付ける先を変えて「再送」。たたむ・消すは、押したときに変える
 function NoteEditor({
-  stage,
   id,
   anchors,
   props,
   open,
 }: {
-  stage: string
   id: string
   anchors: readonly string[]
   props: NoteProps
   open: RightSidePanelOpen
 }) {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const run = usePerformOrToast("The note was refused")
   const close = useCloseRightSidePanel()

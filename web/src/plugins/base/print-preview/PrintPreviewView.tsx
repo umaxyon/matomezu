@@ -105,7 +105,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
   const bookId = book?.id
   const measures = useMeasures(bookId)
-  const report = useReportMeasure(id, bookId)
+  const report = useReportMeasure(bookId)
   // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ブックが替われば作り直す）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 知らせる先（ブック）が替わったら表を空にする
   const reporters = useMemo(() => new Map<string, (m: PrintMeasured) => void>(), [report])
@@ -148,7 +148,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   }, [layout, pending, id, setPreviewArea])
   // 刷れるか（測り終え、並べる印刷区画が 1 つ以上ある。印刷のコマンドが読む）
   const ready = !!layout && !pending && layout.sheets.length > 0
-  const setPrintReady = useSetPrintReady(id)
+  const setPrintReady = useSetPrintReady()
   useEffect(() => setPrintReady(ready), [ready, setPrintReady])
   const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
   // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、

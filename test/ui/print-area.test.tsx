@@ -24,7 +24,7 @@ test("紙 1 枚で描くページには線を引かず、広さが右に 2 枚�
   const { container } = render(
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
       <StageScope stage="s1">
-        <PrintAreaLayer stage="s1" />
+        <PrintAreaLayer />
       </StageScope>
     </MatomezuProvider>,
   )

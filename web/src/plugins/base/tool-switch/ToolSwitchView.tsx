@@ -7,6 +7,7 @@ import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { stageIn, workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useStage } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -34,7 +35,8 @@ function look(deg: number) {
 const angle = (icon: number, front: number, count: number) =>
   (((((icon - front) * (360 / count) + 180) % 360) + 360) % 360) - 180
 
-export function ToolSwitchView({ stage }: { stage: string }) {
+export function ToolSwitchView() {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const next = useCommand(TOOL_NEXT.id)
   const catalog = useCatalog().core

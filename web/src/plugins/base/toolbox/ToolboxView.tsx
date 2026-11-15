@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
 import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage } from "../../../ui/view-hooks"
 import { useCloseFooterMenu } from "../book-name/footer-menu-context"
@@ -14,7 +15,8 @@ import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
 
-export function ToolboxView({ stage }: { stage: string }) {
+export function ToolboxView() {
+  const stage = useStageId() ?? ""
   const book = useBook() ?? undefined
   const placing = useMatomezuState(s => stageIn(s.window, stage)?.placing?.item ?? null)
   const { togglePlacing } = useActions()

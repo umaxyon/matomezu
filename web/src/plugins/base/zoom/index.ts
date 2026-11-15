@@ -7,7 +7,7 @@ import type { Point, Size } from "../../../core/geom"
 import { extentOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN, ZOOM_MAX, ZOOM_MIN, zoomInRange } from "../../../core/viewport"
 import { type CommandContext, workspaceOf } from "../../../store/commands/def"
-import type { Actions } from "../../../store/store"
+import type { Actions, BoundPlaceActions } from "../../../store/store"
 import { kit } from "../kit"
 
 export { ZOOM_MAX, ZOOM_MIN }
@@ -67,7 +67,15 @@ export function fitSideView(stage: Stage, side: "width" | "height"): Stage {
 // ステージの見え方（倍率とずらす量）
 export type ViewAt = Pick<Stage, "zoom" | "pan">
 
+// コマンドが、呼ばれたステージ stage を見え方 target へ移す（moveView と同じ。操作 a は、呼ばれたステージに向けた形）
+export function moveHere(a: Pick<BoundPlaceActions, "zoomStage" | "panStageBy">, stage: Stage, target: ViewAt): void {
+  const zoomed = zoomTo(stage, target.zoom)
+  a.zoomStage(target.zoom)
+  a.panStageBy(target.pan.x - zoomed.pan.x, target.pan.y - zoomed.pan.y)
+}
+
 // ステージ stage を、見え方 target（倍率とずらす量）へ移す: 倍率を変えてから（ずらす量はストアと同じ zoomTo で決まる）、target のずらす量との差だけずらす
+// （骨組みが、名指したステージを動かすとき）
 export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: Stage, target: ViewAt): void {
   const zoomed = zoomTo(stage, target.zoom)
   a.zoomStage(stage.id, target.zoom)
@@ -120,7 +128,7 @@ export const ZOOM_FIT = kit.defineCommand({
   title: "Fit the page",
   run: (ctx, a) => {
     const stage = stageOf(ctx)
-    if (stage) moveView(a, stage, fitView(stage))
+    if (stage) moveHere(a.here, stage, fitView(stage))
   },
   when: zoomable,
   enabled: ctx => {

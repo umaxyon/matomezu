@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import { workspaceOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
+import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
@@ -21,7 +22,8 @@ import { FooterMenuContext } from "./footer-menu-context"
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
 
-export function BookName({ stage }: { stage: string }) {
+export function BookName() {
+  const stage = useStageId() ?? ""
   const book = useBook() ?? undefined
   const lang = useMatomezuState(s => s.lang)
   const current = useMatomezuState(s => workspaceOf(s.window, stage).current === stage)

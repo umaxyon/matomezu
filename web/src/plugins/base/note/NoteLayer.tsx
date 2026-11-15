@@ -15,6 +15,7 @@
 import type { MouseEvent, ReactNode } from "react"
 import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useReadState } from "../../../ui/store-context"
 import { useActionsHere, useAllowed } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
@@ -34,7 +35,6 @@ import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import { facingY } from "../utils/stand-place"
 import { modPressed } from "../utils/ui"
-import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
 import { NoteBirds } from "./NoteBirds"
 import styles from "./NoteLayer.module.css"
@@ -47,7 +47,8 @@ const BUBBLE_MIN_W = 72
 const TAIL_W = 14 // 吹き出しの尾の幅と高さ（尾の先は左下。吹き出しの左の、物とのすき間に出す）
 const TAIL_H = 16
 
-export function NoteLayer({ stage }: StageSlotProps) {
+export function NoteLayer() {
+  const stage = useStageId() ?? ""
   const notes = useAnnotationsOf(stage, NOTE.id)
   return (
     <>
@@ -56,7 +57,7 @@ export function NoteLayer({ stage }: StageSlotProps) {
         const Shown = props.readAt !== undefined ? ReadNote : props.bubble ? BubbleStand : FoldedNote
         return <Shown key={n.id} stage={stage} id={n.id} anchors={n.anchors} props={props} />
       })}
-      <NoteBirds stage={stage} />
+      <NoteBirds />
     </>
   )
 }

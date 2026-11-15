@@ -38,7 +38,6 @@ import { mirrorRanges, scrollToRange } from "./search-ranges"
 const NO_LOCK: readonly string[] = []
 
 type Props = {
-  stage: string
   book: string
   page: string
   text: string // ページの原文

@@ -3,18 +3,19 @@
 // またいだ形が無くなれば、印刷プレビューを開くボタンを出す
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useCatalog } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useOpenRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
-import type { StageSlotProps } from "../workspace/ui"
 import { PRINT_PREVIEW_OPEN } from "."
 import { bookCrossings } from "./book-sheets"
 import styles from "./PrintPreviewPanel.module.css"
 import { PRINT_CHECK_PANEL_ID, printCheckOpen } from "./panel-id"
 import { ShapeBadges } from "./ShapeBadges"
 
-export function PrintCheckPanel({ stage }: StageSlotProps) {
+export function PrintCheckPanel() {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const book = useBook()
@@ -33,7 +34,7 @@ export function PrintCheckPanel({ stage }: StageSlotProps) {
       {crossing.length > 0 ? (
         <>
           <p className={styles.message}>{t("Fix the boxes that cross print areas")}</p>
-          <ShapeBadges stage={stage} shapes={crossing} label="Boxes that cross print areas" opened={keep} />
+          <ShapeBadges shapes={crossing} label="Boxes that cross print areas" opened={keep} />
         </>
       ) : (
         <button type="button" className={styles.action} disabled={!preview.enabled} onClick={() => preview.run()}>
@@ -43,7 +44,7 @@ export function PrintCheckPanel({ stage }: StageSlotProps) {
       {oversized.length > 0 && (
         <>
           <p className={styles.note}>{t("Larger than a print area, so cut at the sheet edges")}</p>
-          <ShapeBadges stage={stage} shapes={oversized} label="Boxes larger than a print area" opened={keep} />
+          <ShapeBadges shapes={oversized} label="Boxes larger than a print area" opened={keep} />
         </>
       )}
     </div>

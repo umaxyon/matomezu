@@ -67,8 +67,8 @@ export const PAPER_PLACE = kit.defineCommand({
     const def = shapeDefOf(ctx.catalog, placing.item)
     const dialog = def && shapeDialogs(def).add
     if (dialog && !placing.props) {
-      a.stopPlacing(stage.id)
-      a.openDialog(stage.id, dialog, where)
+      a.here.stopPlacing()
+      a.here.openDialog(dialog, where)
       return
     }
     const given = placing.props ? { props: placing.props } : {}
@@ -81,8 +81,8 @@ export const PAPER_PLACE = kit.defineCommand({
       warn(done)
       return
     }
-    a.stopPlacing(stage.id)
-    a.select(stage.id, [done.result.item])
+    a.here.stopPlacing()
+    a.here.select([done.result.item])
   },
   when: ctx => onOpenedPage(ctx) && ctx.stage.placing !== null,
 })
@@ -136,10 +136,10 @@ export const PAPER_DELETE = kit.defineCommand({
   permissionScope: "selection",
   title: "Delete",
   run: (ctx, a) => {
-    const { opened, selection, id } = ctx.stage
+    const { opened, selection } = ctx.stage
     if (!opened?.page || selection.length === 0) return
     const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
-    if (done.ok) a.select(id, [])
+    if (done.ok) a.here.select([])
   },
   when: itemsSelected,
 })

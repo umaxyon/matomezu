@@ -14,7 +14,7 @@ import { type SettingReader, settingValue } from "../book-settings"
 import { kit } from "../kit"
 import type { GrowSides } from "../place/grow"
 import { openedRestore, RIGHT_SIDE_PANEL_RESTORE_STATE, RIGHT_SIDE_PANEL_STATE } from "../right-side-panel/state"
-import { fitSideView, moveView, stageOf } from "../zoom"
+import { fitSideView, moveHere, stageOf } from "../zoom"
 import { hasCrossing } from "./book-sheets"
 import { printCheckOpen } from "./panel-id"
 import { PRINT_READY_STATE } from "./print-state"
@@ -99,7 +99,7 @@ export const PRINT_PREVIEW_FIT = kit.defineCommand({
   title: "Fit to width",
   run: (ctx, a) => {
     const stage = stageOf(ctx)
-    if (stage) moveView(a, stage, fitSideView(stage, sideOf(ctx)))
+    if (stage) moveHere(a.here, stage, fitSideView(stage, sideOf(ctx)))
   },
   when: ctx => ctx.stage.mode === "print-preview",
   enabled: ctx => {

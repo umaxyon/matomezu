@@ -6,6 +6,7 @@
 // 付ける先がいくつかあるときは、カレントの物に明るい色の枠を重ねて、どれがカレントかを示す
 import { useEffect, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import type { Bird } from "../birds"
 import { assignBirds } from "../birds/assign"
@@ -30,7 +31,8 @@ interface Shown {
   leaving: boolean
 }
 
-export function NoteBirds({ stage }: { stage: string }) {
+export function NoteBirds() {
+  const stage = useStageId() ?? ""
   const open = useRightSidePanel(stage)
   const anchors = open?.widget === NOTE_PANEL_ID ? open.anchors : NONE
   const [shown, setShown] = useState<readonly Shown[]>([])
@@ -39,8 +41,8 @@ export function NoteBirds({ stage }: { stage: string }) {
   const key = anchors.join(" ")
   // biome-ignore lint/correctness/useExhaustiveDependencies: 付ける先の並びが替わったときだけ割り当て直す
   useEffect(() => {
-    const next = assignBirds(readBirds(stage) ?? {}, anchors, Math.random)
-    setBirds(stage, Object.keys(next.birds).length === 0 ? undefined : next.birds)
+    const next = assignBirds(readBirds() ?? {}, anchors, Math.random)
+    setBirds(Object.keys(next.birds).length === 0 ? undefined : next.birds)
     setShown(now => [
       ...now.filter(s => s.leaving && !anchors.includes(s.anchor)),
       ...next.left.map(l => ({ ...l, leaving: true })),

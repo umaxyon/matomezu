@@ -5,6 +5,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { useStageId } from "../../../ui/scope"
 import { useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_OUT, ZOOM_RESET } from "."
@@ -13,7 +14,8 @@ import { useZoomWheel } from "./useZoomWheel"
 import styles from "./ZoomBar.module.css"
 
 // className は帯に足す見た目（置く所に合わせた余白など）。fits は、ページ全体を収めるの右に足すボタン（置く所だけの合わせ方）
-export function ZoomBar({ stage, className, fits }: { stage: string; className?: string; fits?: ReactNode }) {
+export function ZoomBar({ className, fits }: { className?: string; fits?: ReactNode }) {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const zoom = useMatomezuState(s => stageIn(s.window, stage)?.zoom ?? 1)
   const reset = useCommand(ZOOM_RESET.id)

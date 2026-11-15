@@ -9,6 +9,7 @@ import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import type { DialogProps } from "../../../ui/plugin"
+import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useActionsHere, useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
@@ -27,7 +28,7 @@ import { paperSize } from "../place/items"
 import footer from "../utils/FooterButtons.module.css"
 import { refusalMessage } from "../utils/refusal"
 import { SHEET_LAYERS } from "../workspace/slots"
-import { STAGE_SLOTS, type StageSlotProps } from "../workspace/ui"
+import { STAGE_SLOTS } from "../workspace/ui"
 import { SCRAP_CUT_DIALOG, scrapFrameIn } from "."
 import { ScrapForm } from "./ScrapForm"
 import styles from "./ScrapTray.module.css"
@@ -197,7 +198,8 @@ export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID, {
 export const SCRAP_DIALOG_VIEWS = { [SCRAP_CUT_DIALOG.id]: ScrapCutDialog }
 
 // スクラップトレイを開くボタン（フッタメニューのツールボックスの並びに置く）: 置けるブックを開いているときだけ出し、押すとスクラップトレイだけを開く（もう一度押すと閉じる）
-function ScrapTrayButton({ stage }: StageSlotProps) {
+function ScrapTrayButton() {
+  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const placeable = useScrapFrame() !== null
   const open = useLeftSidePanel()

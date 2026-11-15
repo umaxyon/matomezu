@@ -6,16 +6,16 @@ import { REDO, UNDO } from "../history"
 import { kit } from "../kit"
 import styles from "../utils/FooterButtons.module.css"
 
-export function HistoryButtons({ stage }: { stage: string }) {
+export function HistoryButtons() {
   return (
     <div className={styles.buttons}>
-      <HistoryButton stage={stage} id={UNDO.id} />
-      <HistoryButton stage={stage} id={REDO.id} />
+      <HistoryButton id={UNDO.id} />
+      <HistoryButton id={REDO.id} />
     </div>
   )
 }
 
-function HistoryButton({ id }: { stage: string; id: typeof UNDO.id | typeof REDO.id }) {
+function HistoryButton({ id }: { id: typeof UNDO.id | typeof REDO.id }) {
   const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)
   const t = useMessages(kit)
