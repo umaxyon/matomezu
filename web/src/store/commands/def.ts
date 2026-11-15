@@ -10,7 +10,7 @@ import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
-import { type Stage, toPaper } from "../../core/stage"
+import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
@@ -47,7 +47,7 @@ export function commandScopeOf(
     const page = typeof args === "object" && args !== null ? (args as Record<string, unknown>)[scope.page] : undefined
     return typeof page === "string" ? { page } : {}
   }
-  const page = ctx.stage.opened?.page ?? undefined
+  const page = shownPageId(ctx.stage.opened) ?? undefined
   const on = page ? { page } : {}
   return scope === "opened-page" ? on : { ...on, ids: ctx.stage.selection }
 }

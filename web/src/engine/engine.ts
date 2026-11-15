@@ -18,7 +18,7 @@ import {
 import { checkBooks, restoreBooks } from "../core/book"
 import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
-import { type CoreCatalog, pageType } from "../core/core-catalog"
+import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
@@ -306,12 +306,12 @@ function aiTables(of: Assembled) {
     pageTypes: [...catalog.pageTypes.values()].map(t => ({
       id: t.id,
       title: en(t.title),
-      pages: t.pages !== null,
-      grows: t.pages ? growsOf(t.grow) : "none", // 可変ページの決め方
+      grouping: t.grouping, // own-folder のタイプのページは、そのタイプのフォルダの中にだけ置ける
+      grows: growsOf(t.grow), // 可変ページの決め方
       items: t.items.allowed, // ページに置けるアイテム
       // ページの slide（形だけの並び）に置けるアイテムと、その並びがページの背景か本体か（無ければ null）。read_page には、背景は有無と文字だけが見える（page.background.texts）
       slide: t.slide ? { items: t.slide.allowed, role: slideIsBackground(t) ? "background" : "body" } : null,
-      themes: themesFor(catalog, t.id).map(th => th.id), // そのタイプのブックと中の形に当てられるテーマ（テーマタイプの重なりは、ここで計算して出す）
+      themes: themesFor(catalog, t.id).map(th => th.id), // そのタイプのページと中の形に当てられるテーマ（テーマタイプの重なりは、ここで計算して出す）
     })),
     items: [...catalog.items.values()].map(i => ({
       id: i.id,
@@ -612,14 +612,9 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
 ;(globalThis as { matomezuAiPage?: (book: string, page: string) => string }).matomezuAiPage = (book, page) => {
   const catalog = assembled.catalog.core
   const [read] = restoreBooks(catalog, [JSON.parse(book)])
-  const body = JSON.parse(page) as { slide?: { id: string; item: string }[] }
-  if (
-    !read ||
-    !Array.isArray(body.slide) ||
-    body.slide.length === 0 ||
-    !slideIsBackground(pageType(catalog, read.type))
-  )
-    return page
+  const body = JSON.parse(page) as { type?: string; slide?: { id: string; item: string }[] }
+  const type = typeof body.type === "string" ? catalog.pageTypes.get(body.type) : undefined
+  if (!read || !type || !Array.isArray(body.slide) || body.slide.length === 0 || !slideIsBackground(type)) return page
   const { slide, ...rest } = body
   const texts = slide.flatMap(s => {
     const def = catalog.items.get(s.item)

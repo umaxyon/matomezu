@@ -14,6 +14,7 @@ import {
   followBook as followStage,
   newStage,
   openBook,
+  openFolder,
   openPage,
   type Placing,
   type Stage,
@@ -168,6 +169,11 @@ export function togglePlacing(
 // ステージに、開いているブックのページを開く
 export function showPage(catalog: CoreCatalog, ws: Workspace, stage: string, book: Book, page: string): Workspace {
   return mapStage(ws, stage, s => openPage(catalog, s, book, page))
+}
+
+// ステージに、開いているブックのフォルダを開く（中の最初のページ。空ならフォルダ）
+export function showFolder(catalog: CoreCatalog, ws: Workspace, stage: string, book: Book, folder: string): Workspace {
+  return mapStage(ws, stage, s => openFolder(catalog, s, book, folder))
 }
 
 // ブックが変わったとき、そのブックを開いている全部のステージを合わせる（stage.ts の followBook。before は変わる前のブック）

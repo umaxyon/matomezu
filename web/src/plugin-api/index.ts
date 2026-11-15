@@ -4,8 +4,25 @@
 export type { Actor } from "../core/actor"
 export { isAI, isUser } from "../core/actor"
 export type { Annotation, BookAnnotations } from "../core/annotation"
-export type { PagedBook } from "../core/book"
-export { bookItems, creatableTypes, createBook, hasPages, pagedOf, putPage, withSettings } from "../core/book"
+export type { Into } from "../core/book"
+export {
+  addFolder,
+  addPage,
+  findFolder,
+  findPage,
+  foldersOf,
+  lineupIds,
+  lineupOf,
+  moveEntry,
+  newPage,
+  pageItems,
+  pagesOf,
+  putFolder,
+  putPage,
+  removeFolder,
+  removePage,
+  withSettings,
+} from "../core/book"
 export type {
   ActionId,
   CommandId,
@@ -51,7 +68,7 @@ export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"
 export type { Owned } from "../core/names"
-export { actionsOf } from "../core/perform"
+export { actionsOfPage } from "../core/perform"
 export type { ItemPage, PlacedConnector, PlacedOf, PlacedShape, ShapeOnPage } from "../core/placed"
 export {
   connectableShape,

@@ -5,7 +5,7 @@ import { createStore, type StoreApi } from "zustand/vanilla"
 import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
-import { checkBooks, hasPages, pageById } from "../core/book"
+import { checkBooks, findPage, pageById } from "../core/book"
 import type {
   ActionId,
   ControlCenterId,
@@ -62,6 +62,8 @@ import {
   setEditing,
   setPreviewArea,
   setStart,
+  shownPageId,
+  shownType,
   startBackground,
   stopPlacing,
   toPaper,
@@ -97,6 +99,7 @@ import {
   mapStage,
   moveDivider,
   setTool,
+  showFolder,
   showPage,
   split,
   togglePlacing,
@@ -267,6 +270,7 @@ export interface PlaceActions {
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（ページを持つブックは最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにして、そのブックスクリーンをカレントスクリーンにする
+  openFolder(stage: string, folder: string): void // そのステージで開いているブックのフォルダを開く（中の最初のページ。空ならフォルダ）
   openPageById(stage: string, page: string): void // ページ page を持つブックをそのステージで開き、そのページを開く（ページが無ければ何もしない）
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
@@ -315,6 +319,7 @@ export const PLACE_ACTIONS: { readonly [K in keyof PlaceActions]: true } = {
   focusStage: true,
   openBook: true,
   openPage: true,
+  openFolder: true,
   openPageById: true,
   resizeStage: true,
   setStageArea: true,
@@ -668,13 +673,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 印刷プレビューの間と、表示領域を測るまでは、どの物も見えていない）
   const seenTestOf = (st: Stage): SeenTest | undefined => {
     const opened = st.opened
-    const def = opened && catalog.presentations.get(catalog.pageTypes.get(opened.type)?.presentation ?? "")
+    const type = shownType(opened)
+    const def = type && catalog.presentations.get(catalog.pageTypes.get(type)?.presentation ?? "")
     if (!def?.seen) return undefined
     const a = st.view && toPaper(st, { x: 0, y: 0 })
     const b = st.view && toPaper(st, { x: st.view.w, y: st.view.h })
     const shown = st.mode.kind === "edit" && a && b ? { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y } : null
     return (page, item, book) => {
-      const p = shown && hasPages(book) ? book.pages.find(x => x.id === page) : undefined
+      const p = shown ? findPage(book, page)?.page : undefined
       return !!p && !!shown && !!def.seen?.(catalog, p, item, shown)
     }
   }
@@ -685,7 +691,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       .some(
         st =>
           st.opened?.book === u.book &&
-          changeSeen(u.made, u.step.books[u.book] as HistoryStep["books"][string], st.opened.page, seenTestOf(st)),
+          changeSeen(
+            u.made,
+            u.step.books[u.book] as HistoryStep["books"][string],
+            shownPageId(st.opened),
+            seenTestOf(st),
+          ),
       )
   // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
@@ -970,7 +981,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
       const stage = contextMenu?.stage ?? picker ?? opener ?? screenOf(window).current
       const menu = contextMenu !== null || picker !== undefined
-      const type = stageIn(window, stage)?.opened?.type
+      const type = shownType(stageIn(window, stage)?.opened ?? null)
       const presentation = type && catalog.pageTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
       const center = !bookScreenCurrent(window)
@@ -1053,10 +1064,22 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { books, window } = getState()
       const book = books[stageIn(window, stage)?.opened?.book ?? ""]
       // ページを開くと、そのブックスクリーンをカレントスクリーンにする
-      if (book && hasPages(book) && inWindow(stage))
+      if (book && inWindow(stage))
         withWindow(win =>
           makeCurrent(
             mapScreenOfStage(win, stage, ws => showPage(catalog, focus(ws, stage), stage, book, page)),
+            screenOfStage(win, stage)?.id ?? "",
+          ),
+        )
+    },
+    openFolder: (stage, folder) => {
+      const { books, window } = getState()
+      const book = books[stageIn(window, stage)?.opened?.book ?? ""]
+      // フォルダを開くと、そのブックスクリーンをカレントスクリーンにする
+      if (book && inWindow(stage))
+        withWindow(win =>
+          makeCurrent(
+            mapScreenOfStage(win, stage, ws => showFolder(catalog, focus(ws, stage), stage, book, folder)),
             screenOfStage(win, stage)?.id ?? "",
           ),
         )
@@ -1334,7 +1357,7 @@ export const openedIn = (
   stage = "s1",
 ): { book: string; page: string | null } | null => {
   const opened = stageIn(instance.state.getState().window, stage)?.opened
-  return opened ? { book: opened.book, page: opened.page ?? null } : null
+  return opened ? { book: opened.book, page: shownPageId(opened) } : null
 }
 
 // 画面の場所の中の、ブックスクリーンのステージの並びを読む・差し替える関数（core/address.ts。テストが、場所を作って当てはめるのに使う）

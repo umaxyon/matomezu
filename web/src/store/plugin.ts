@@ -206,7 +206,7 @@ export function assemble(
       for (const dialog of [i.dialogs?.add, i.dialogs?.edit])
         if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
   for (const t of all("pageTypes"))
-    for (const dialog of [t.pages?.dialogs?.add, t.pages?.dialogs?.settings])
+    for (const dialog of [t.dialogs?.add, t.dialogs?.settings])
       if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E031", { id: t.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const catalog = buildCoreCatalog({

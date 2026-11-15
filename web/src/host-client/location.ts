@@ -134,6 +134,7 @@ function writtenAddress(text: string): Address | null {
         {
           book: typeof p.b === "string" && p.b !== "" ? p.b : null,
           page: typeof p.p === "string" ? p.p : null,
+          folder: typeof p.f === "string" ? p.f : null,
           zoom: num(v[0], 1),
           pan: { x: num(v[1], 0), y: num(v[2], 0) },
           states: isObject(p.s) ? p.s : {},
@@ -167,6 +168,7 @@ function formerAddress(q: URLSearchParams): FormerAddress | null {
     stages.push({
       book: q.get(`b${i}`) || null,
       page: q.get(`p${i}`) || null,
+      folder: null,
       zoom: n(zoom, 1),
       pan: { x: n(x, 0), y: n(y, 0) },
       states: statesOf(q.get(`s${i}`)),

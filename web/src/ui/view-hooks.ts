@@ -5,7 +5,7 @@
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { USER } from "../core/actor"
-import { pagedOf, withSettings } from "../core/book"
+import { findPage, withSettings } from "../core/book"
 import type { ActionId, ItemId, SubjectId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isOnBook, type RecordOf, type Where } from "../core/def/action"
@@ -27,7 +27,7 @@ import { type Condition, type ConditionOf, inOrder, type Order, type OrderOf, un
 import { find, sourceOf } from "../core/record-source"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
-import { stageBlocks, toPaper } from "../core/stage"
+import { shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { currentScreen, shownScreens, stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
 import { ownedPluginState } from "../store/plugin-state"
@@ -76,8 +76,8 @@ export function usePage(): ItemPage | null {
 export function useItem<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | undefined {
   const scope = useScope()
   return useMatomezuState(s => {
-    const book = pagedOf(bookOf(s, scope) ?? undefined)
-    const p = book?.pages.find(p => p.id === page) as ItemPage | undefined
+    const book = bookOf(s, scope)
+    const p = book ? findPage(book, page)?.page : undefined
     // ページのアイテムか、どの深さの子の形も
     const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
     return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : undefined
@@ -135,7 +135,7 @@ export function useAllowed(action: ActionId, where?: Where | { settings: readonl
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
     const book = o ? s.books[o.book] : undefined
-    const page = place?.page ?? o?.page ?? undefined
+    const page = place?.page ?? shownPageId(o ?? null) ?? undefined
     const on = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
     const done = inspect(catalog, { ...actionQuery(catalog, action, book, on), ...changed }, { controlCenter })
