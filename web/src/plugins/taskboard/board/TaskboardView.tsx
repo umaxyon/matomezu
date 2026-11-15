@@ -61,8 +61,8 @@ export function TaskboardView() {
               title={project.name}
               actions={
                 <>
-                  <FilterIndicator />
                   <SettingsGear project={project.id} onOpen={() => openSettings(project.id)} />
+                  <FilterIndicator />
                 </>
               }
               maximized={maximized?.board === project.id} // レーンの最大化の間も、タスクボードは最大化している（押すと全部を元に戻す）
