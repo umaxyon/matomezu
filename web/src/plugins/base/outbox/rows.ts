@@ -20,10 +20,10 @@ export function listedPages(catalog: CoreCatalog, book: Book, annotations: reado
       .map((a, i) => ({ a, i, at: addedAtOf(catalog, a) }))
       .sort((x, y) => (x.at && y.at ? y.at.localeCompare(x.at) : x.at ? -1 : y.at ? 1 : x.i - y.i))
       .map(r => r.a)
-  const pages = "pages" in book ? (pagesOf(book) as readonly { id: string; title?: string }[]) : []
+  const pages = pagesOf(book)
   const listed: ListedPage[] = pages.flatMap(p => {
     const rows = all.filter(a => a.page === p.id)
-    return rows.length > 0 ? [{ page: p.id, title: p.title ?? "", rows: newest(rows) }] : []
+    return rows.length > 0 ? [{ page: p.id, title: p.title, rows: newest(rows) }] : []
   })
   const lost = all.filter(a => a.page === null || !pages.some(p => p.id === a.page))
   return lost.length > 0 ? [...listed, { page: null, title: "", rows: newest(lost) }] : listed

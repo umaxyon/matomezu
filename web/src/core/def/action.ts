@@ -290,7 +290,6 @@ export interface ActionDef<
   // 許可スコープ（ブックが対象・一覧が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
   // ブックと一覧では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
   permissionScope?: AnyPermissionScope | AnyLibraryScope | AnySettingsScope
-  // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | Declined | null
 }
 
