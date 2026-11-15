@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { withPages } from "../lineup"
@@ -144,7 +144,7 @@ async function connected(server = fakeServer()) {
   return { ...server, store, stop }
 }
 const itemsOf = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!.items?.map(i => i.id) ?? []
+  (store.state.getState().books.b1 as Book).pages[0]!.items?.map(i => i.id) ?? []
 const place = (store: ReturnType<typeof newStore>) =>
   store.actions.perform(
     "@matomezu/paper:item-place",

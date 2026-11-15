@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { resolveTokens } from "../../../../web/src/core/theme"
 import { screenOf } from "../../../../web/src/core/window"
 import { textBlock } from "../../../../web/src/plugins/base/text/block"
@@ -17,8 +17,7 @@ import {
 } from "../../../../web/src/plugins/items/box/size"
 import { newStore, sizedStore } from "../../../support"
 
-const page = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
+const page = (store: ReturnType<typeof newStore>) => (store.state.getState().books.b1 as Book).pages[0]!
 const items = (store: ReturnType<typeof newStore>) => shapesOf(page(store))
 const ALIGNS = { captionAlign: "center", bodyAlign: "left" } as const
 const box = (body: string, rule = true) => ({ caption: "見出し", rule, body, ...ALIGNS })

@@ -6,7 +6,7 @@ import { pagesOf } from "../../web/src/core/book"
 import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
-import type { Book, BookOf } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { refusalMessage } from "../../web/src/plugins/base"
 import { LOCK } from "../../web/src/plugins/base/lock"
@@ -16,7 +16,7 @@ import { isEnabled } from "../../web/src/store/commands"
 import { withPages } from "../lineup"
 import { CORE_CATALOG, newStore } from "../support"
 
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 
 test("ロック中のブックは変えられず（認可ステップ lock が止める）、外せば変えられる。locked は title の次に並ぶ", () => {
   const { state, actions } = newStore()

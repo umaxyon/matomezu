@@ -1,10 +1,9 @@
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { bookTheme, bookTokens } from "../../../web/src/plugins/base/book-look/look"
 import { newStore } from "../../support"
 
-const book = (store: ReturnType<typeof newStore>) =>
-  store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+const book = (store: ReturnType<typeof newStore>) => store.state.getState().books.b1 as Book
 const update = (store: ReturnType<typeof newStore>, args: Record<string, unknown>) =>
   store.actions.perform("@matomezu/base:book-update", args, { book: "b1" })
 

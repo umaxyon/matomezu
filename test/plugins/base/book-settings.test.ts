@@ -2,12 +2,12 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { pagesOf, withSettings } from "../../../web/src/core/book"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { settingsArgs, settingsPatchOf } from "../../../web/src/plugins/base/book-settings"
 import { CORE_CATALOG, newStore } from "../../support"
 
 test("選んだ項目を、変えるときに渡す形にする: どれも書かなくてよく、null は消す。選んでいない項目は受け付けない", () => {
-  const book = newStore().state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = newStore().state.getState().books.b1 as Book
   const patch = settingsPatchOf(CORE_CATALOG, book, "book")
   if (!patch) throw new Error("no settings")
   expect(patch.safeParse({}).success).toBe(true)
@@ -22,7 +22,7 @@ test("選んだ項目を、変えるときに渡す形にする: どれも書か
 
 test("@matomezu/base:book-update・@matomezu/base:page-update は、ブックのタイプが宣言した項目だけを settings で受け付ける。宣言の無い項目・無いページは断る", () => {
   const store = newStore()
-  const book = () => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = () => store.state.getState().books.b1 as Book
   expect(
     store.actions.perform(
       "@matomezu/base:book-update",
@@ -117,7 +117,7 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
 
 test("@matomezu/base:page-add も、ページの設定の項目を settings で受け付けて作る。選んでいない項目は断る", () => {
   const store = newStore()
-  const book = () => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = () => store.state.getState().books.b1 as Book
   const add = (settings: unknown) =>
     store.actions.perform("@matomezu/base:page-add", { title: "直線", settings } as never, { book: "b1" })
   expect(add({ "@matomezu/flowchart:flow-direction": "right" }).ok).toBe(false)

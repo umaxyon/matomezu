@@ -1,11 +1,11 @@
 // 可変ページの中身のずらし（base の place/items の alignPadding）: 左・上へ増やすとき、ページの slide の形も、中身（items）と同じ量でずれる
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { paperSize } from "../../../web/src/plugins/base/place/items"
 import { ELLIPSE } from "../../../web/src/plugins/items/slide/slide"
 import { CORE_CATALOG, newStore } from "../../support"
 
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 
 test("左・上へ増やす可変ページにすると、slide の形も中身と同じ印刷区画の分ずれ、可変ページをやめると戻る", () => {
   const { state, actions } = newStore()

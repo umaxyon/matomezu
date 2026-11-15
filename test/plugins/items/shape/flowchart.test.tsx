@@ -4,7 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { screenOf } from "../../../../web/src/core/window"
 import { addPageIn, createBookIn, portAreasOf, rectsOf } from "../../../../web/src/plugins/base"
 import { floorsOf } from "../../../../web/src/plugins/base/place/items"
@@ -27,7 +27,7 @@ function flowchart() {
   act(() => {
     expect(addPageIn(store, "s1", { title: "p1" })).toBe(true)
   })
-  const book = () => store.state.getState().books[id] as BookOf<"@matomezu/flowchart:flowchart">
+  const book = () => store.state.getState().books[id] as Book
   const page = () => pagesOf(book())[0]!
   return { store, on: { book: id }, book, page }
 }

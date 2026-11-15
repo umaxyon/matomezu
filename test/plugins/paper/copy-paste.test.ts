@@ -1,7 +1,9 @@
 // コピーして貼る: 選びから写しを作り（clipOf）、アクション item-paste が id を振り直して置く
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import { connectorsOf, findShape, type ItemPage, shapesOf, walkShapes } from "../../../web/src/core/placed"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { type Clip, clipOf, nearestPaste } from "../../../web/src/plugins/paper/placing/clip"
 import { CORE_CATALOG, newStore, sizedStore } from "../../support"
@@ -11,8 +13,8 @@ const BOX = "@matomezu/art:shape-pc"
 const DATA = "@matomezu/data:shape-data"
 
 type Store = ReturnType<typeof newStore>
-const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
-const page = (store: Store) => book(store).pages[0] as unknown as ItemPage
+const book = (store: Store) => store.state.getState().books.b1 as Book
+const page = (store: Store) => pagesOf(book(store))[0] as unknown as ItemPage
 const run = (store: Store, action: string, args: object) =>
   store.actions.perform(action as never, { page: "p1", ...args } as never, { book: "b1" })
 const place = (store: Store, item: string, args: object = {}) => {

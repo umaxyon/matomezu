@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
-import type { BookOf } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
@@ -16,7 +16,7 @@ function markdownStore(texts: readonly string[]) {
   createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
   for (const [i, text] of texts.entries()) addPageIn(store, "s1", { title: `p${i + 1}`, fields: { text } })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
-  const book = () => store.state.getState().books[id] as BookOf<"@matomezu/markdown:markdown">
+  const book = () => store.state.getState().books[id] as Book
   const pages = () => pagesOf(book()).map(p => p.id)
   const search = () => pluginValueOf(store.state.getState().pluginValues, "s1", SEARCH_STATE)
   const setQuery = (text: string, more: object = {}) =>

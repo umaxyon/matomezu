@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { shownPageId } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { addPageIn } from "../../../web/src/plugins/base/page-tabs/add-page"
@@ -11,7 +11,7 @@ import { newStore } from "../../support"
 test("@matomezu/base:page-remove はページを消し、開いていたステージは後ろのページを開く。無いページは断る。最後の 1 枚も消せる", () => {
   const store = newStore()
   const { state, actions } = store
-  const book = () => state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = () => state.getState().books.b1 as Book
   addPageIn(store, "s1", { title: "ページ 2" })
   addPageIn(store, "s1", { title: "ページ 3" })
   const [first, second, third] = pagesOf(book()).map(p => p.id) as [string, string, string]

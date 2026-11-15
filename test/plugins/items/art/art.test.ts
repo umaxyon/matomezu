@@ -1,7 +1,9 @@
 // シェイプ（@matomezu/art）: 図面に置け、絵は決まった大きさで、キャプションは足元で幅に合わせて折り返す。変えられるのは幅だけ
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { panelOf, toolboxOf } from "../../../../web/src/plugins/base/toolbox/toolbox"
 import { ARTS, DB, PERSON } from "../../../../web/src/plugins/items/art/art"
 import { PICTURES } from "../../../../web/src/plugins/items/art/pictures"
@@ -10,8 +12,8 @@ import { CORE_CATALOG, sizedStore } from "../../../support"
 
 const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
-const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
-const at = (store: Store, id: string) => shapesOf(book(store).pages[0]!).find(i => i.id === id)!
+const book = (store: Store) => store.state.getState().books.b1 as Book
+const at = (store: Store, id: string) => shapesOf(pagesOf(book(store))[0]!).find(i => i.id === id)!
 const place = (store: Store, item: string, props: Record<string, unknown>) =>
   store.actions.perform(
     "@matomezu/paper:item-place",

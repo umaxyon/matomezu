@@ -4,14 +4,14 @@ import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
 import { type Annotation, annotationsForAi } from "../../../web/src/core/annotation"
 import { performIn } from "../../../web/src/core/perform"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { MARK_PICKER } from "../../../web/src/plugins/base/mark/states"
 import { NEW_NOTE } from "../../../web/src/plugins/base/note/panel-id"
 import { RIGHT_SIDE_PANEL_STATE } from "../../../web/src/plugins/base/right-side-panel/state"
 import { pluginValueOf } from "../../../web/src/store/plugin-state"
 import { CORE_CATALOG, newStore } from "../../support"
 
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 const ON = { book: "b1" }
 
 // 見本のブック b1 の最初のページに箱を 2 つ置いた store

@@ -4,7 +4,7 @@ import { z } from "zod"
 import { findPage, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
-import type { BookOf } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { normalizedPage, withGrows } from "../../web/src/plugins/base/page-tabs/pages"
@@ -13,7 +13,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import { CORE_CATALOG, newStore, sequence } from "../support"
 
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 
 test("紙と向きはあとから変えられ、形が紙からはみ出す変更は断る。図面のページは可変ページにでき、そうすれば紙の外へ広がってよい", () => {
   const { state, actions } = newStore()

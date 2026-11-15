@@ -1,7 +1,7 @@
 // 子の形のアクション: 親を渡して置く・子を動かす・変える・大きさを変える・子孫ごと消す・付け替え（紙のプラグインの item-*）
 import { expect, test } from "bun:test"
 import { findShape, type ItemPage, walkShapes } from "../../../web/src/core/placed"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { childOrigin, frameOf, freeSpotIn } from "../../../web/src/plugins/base/place/frame"
 import { floorsOf, resizedBy, roomOf } from "../../../web/src/plugins/base/place/items"
@@ -21,7 +21,7 @@ const NEST = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
 
 const page = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0] as unknown as ItemPage
+  (store.state.getState().books.b1 as Book).pages[0] as unknown as ItemPage
 const run = (store: ReturnType<typeof newStore>, action: string, args: object) =>
   store.actions.perform(action as never, { page: "p1", ...args } as never, { book: "b1" })
 const place = (store: ReturnType<typeof newStore>, args: object) => {
@@ -328,7 +328,7 @@ function besideEdge(x = 460, own = 200) {
   const big = place(store, { at: { x, y: 40 }, w: own, h: 100 })!
   place(store, { at: { x: 20, y: 40 }, parent: big, w: 300, h: 600 })
   place(store, { at: { x: 340, y: 40 }, parent: big, w: 300, h: 600 })
-  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = store.state.getState().books.b1 as Book
   const paper = roomOf(CORE_CATALOG, page(store))!
   return { store, big, paper }
 }
@@ -376,8 +376,7 @@ test("内包ボックスの辺をつまんで縮めると、子がみな入る�
   expect(tall.h).toBe(placedSize(CORE_CATALOG, shape as never)!.h)
 })
 
-const drawing = (store: ReturnType<typeof newStore>) =>
-  store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+const drawing = (store: ReturnType<typeof newStore>) => store.state.getState().books.b1 as Book
 
 test("置く先: 点の下に形が無ければページのその所、子を持てる形の上ならその中（親の左上から）、子を持てない形の上ならその親の中の空き", () => {
   const store = newStore()
@@ -510,7 +509,7 @@ test("押し方を渡さずに動かすと、正面の形と入れ替わるな�
 test("座標を渡さずに置くとき、紙に空きが無ければ断る", () => {
   const store = newStore()
   place(store, { at: { x: 500, y: 300 }, w: 100, h: 60 })
-  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = store.state.getState().books.b1 as Book
   const paper = roomOf(CORE_CATALOG, page(store))!
   const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: paper.w, h: paper.h })
   expect((done as { detail?: string }).detail).toStartWith("there is no free spot for it")

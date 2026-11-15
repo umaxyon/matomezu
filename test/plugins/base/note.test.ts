@@ -7,11 +7,11 @@ import { AI } from "../../../web/src/core/actor"
 import type { Annotation } from "../../../web/src/core/annotation"
 import { defineAction } from "../../../web/src/core/def/action"
 import { performIn } from "../../../web/src/core/perform"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { expiryOutlook } from "../../../web/src/plugins/base/note/expiry"
 import { CORE_CATALOG, newStore } from "../../support"
 
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 const ON = { book: "b1" }
 
 // 見本のブック b1 の最初のページに箱を 2 つ置いた store

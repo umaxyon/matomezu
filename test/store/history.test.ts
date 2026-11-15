@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import type { BookOf } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
@@ -16,9 +16,9 @@ import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, sequence, sizedStore } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 const bookOf = (store: ReturnType<typeof newStore>, id = "b1") => store.state.getState().books[id] as Drawing
-const itemsOf = (store: ReturnType<typeof newStore>, i = 0) => (bookOf(store).pages[i]?.items ?? []).map(x => x.id)
+const itemsOf = (store: ReturnType<typeof newStore>, i = 0) => (pagesOf(bookOf(store))[i]?.items ?? []).map(x => x.id)
 const historyOf = (store: ReturnType<typeof newStore>, id = "b1") => store.state.getState().history[id]
 // 同じ処理が終わる（開いている画面の履歴の段が画面の履歴に入る）のを待つ
 const settled = () => Promise.resolve()
@@ -27,7 +27,7 @@ const ready = () => sizedStore()
 const place = (store: ReturnType<typeof newStore>, x: number, caption = "箱") =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: bookOf(store).pages[0]!.id, item: BOX, at: { x, y: 40 }, props: { caption } },
+    { page: pagesOf(bookOf(store))[0]!.id, item: BOX, at: { x, y: 40 }, props: { caption } },
     { book: "b1" },
   )
 
@@ -36,13 +36,13 @@ test("箱を置いた画面の履歴の段を元に戻すと箱が消え、や�
   const before = itemsOf(store)
   expect(place(store, 40).ok).toBe(true)
   await settled()
-  const placed = bookOf(store).pages[0]!.items!.at(-1)!
+  const placed = pagesOf(bookOf(store))[0]!.items!.at(-1)!
   expect(historyOf(store)?.undo).toHaveLength(1)
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(itemsOf(store)).toEqual(before)
   expect(historyOf(store)?.redo).toHaveLength(1)
   expect(store.actions.command("s1", "@matomezu/base:redo")).toBe(true)
-  expect(bookOf(store).pages[0]!.items!.at(-1)).toEqual(placed)
+  expect(pagesOf(bookOf(store))[0]!.items!.at(-1)).toEqual(placed)
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
 })
 
@@ -98,7 +98,7 @@ test("ロック中のページを変えた画面の履歴の段は、元に戻�
   const store = ready()
   place(store, 40)
   await settled()
-  const page = bookOf(store).pages[0]!.id
+  const page = pagesOf(bookOf(store))[0]!.id
   store.actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({
@@ -114,14 +114,14 @@ test("ロック中のページを変えた画面の履歴の段は、元に戻�
 
 test("ページを消した画面の履歴の段を元に戻すと、同じ id のページが元の並びの所に戻り、そのページを開く", async () => {
   const store = ready()
-  const pages = bookOf(store).pages.map(p => p.id)
+  const pages = pagesOf(bookOf(store)).map(p => p.id)
   store.actions.perform("@matomezu/base:page-add", { title: "2 枚目" }, { book: "b1" })
   await settled()
-  const added = bookOf(store).pages.at(-1)!.id
+  const added = pagesOf(bookOf(store)).at(-1)!.id
   store.actions.perform("@matomezu/base:page-remove", { page: pages[0]! }, { book: "b1" })
   await settled()
   store.actions.command("s1", "@matomezu/base:undo")
-  expect(bookOf(store).pages.map(p => p.id)).toEqual([...pages, added])
+  expect(pagesOf(bookOf(store)).map(p => p.id)).toEqual([...pages, added])
   expect(shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? null)).toBe(pages[0])
 })
 
@@ -129,14 +129,14 @@ test("ページを動かした画面の履歴の段を元に戻すと元の並�
   const store = ready()
   store.actions.perform("@matomezu/base:page-add", { title: "2 枚目" }, { book: "b1" })
   await settled()
-  const ids = bookOf(store).pages.map(p => p.id)
+  const ids = pagesOf(bookOf(store)).map(p => p.id)
   store.actions.perform("@matomezu/base:page-move", { page: ids[0]!, index: 1 }, { book: "b1" })
   await settled()
-  expect(bookOf(store).pages.map(p => p.id)).toEqual([ids[1]!, ids[0]!])
+  expect(pagesOf(bookOf(store)).map(p => p.id)).toEqual([ids[1]!, ids[0]!])
   store.actions.command("s1", "@matomezu/base:undo")
-  expect(bookOf(store).pages.map(p => p.id)).toEqual(ids)
+  expect(pagesOf(bookOf(store)).map(p => p.id)).toEqual(ids)
   store.actions.command("s1", "@matomezu/base:redo")
-  expect(bookOf(store).pages.map(p => p.id)).toEqual([ids[1]!, ids[0]!])
+  expect(pagesOf(bookOf(store)).map(p => p.id)).toEqual([ids[1]!, ids[0]!])
 })
 
 test("ブックの名前を変えた画面の履歴の段を戻すと、前の名前に戻る", async () => {
@@ -174,8 +174,8 @@ test("continueStep のあとに同じ処理で行ったアクションは、そ�
   const before = itemsOf(store)
   place(store, 40, "足した")
   await settled()
-  const id = bookOf(store).pages[0]!.items!.at(-1)!.id
-  const page = bookOf(store).pages[0]!.id
+  const id = pagesOf(bookOf(store))[0]!.items!.at(-1)!.id
+  const page = pagesOf(bookOf(store))[0]!.id
   store.actions.continueStep("b1")
   store.actions.perform("@matomezu/paper:item-update", { page, item: id, props: { caption: "書いた" } }, { book: "b1" })
   await settled()
@@ -187,14 +187,14 @@ test("continueStep のあとに同じ処理で行ったアクションは、そ�
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)
   store.actions.continueStep("b1")
-  store.actions.perform("@matomezu/base:page-remove", { page: bookOf(store).pages.at(-1)!.id }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-remove", { page: pagesOf(bookOf(store)).at(-1)!.id }, { book: "b1" })
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(0)
 })
 
 test("continueStep で足すのは、そのブックに最後に入れた画面の履歴の段だけ。元に戻したあとは別の画面の履歴の段になり、ほかのブックの段が挟まっても足す", async () => {
   const store = ready()
-  const captions = () => bookOf(store).pages[0]!.items!.map(i => (i.props as { caption?: string }).caption)
+  const captions = () => pagesOf(bookOf(store))[0]!.items!.map(i => (i.props as { caption?: string }).caption)
   place(store, 40, "A")
   await settled()
   place(store, 200, "B")
@@ -230,7 +230,7 @@ test("いくつものブックを変えた画面の履歴の段にも、どち�
     store.actions.perform(
       "@matomezu/paper:item-place",
       {
-        page: book === "b1" ? bookOf(store).pages[0]!.id : "p1",
+        page: book === "b1" ? pagesOf(bookOf(store))[0]!.id : "p1",
         item: BOX,
         at: { x, y: 40 },
         props: { caption: "箱" },
@@ -280,7 +280,7 @@ test("断ったブックの名前が空なら、トーストの 2 行目は「�
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   place(store, 40)
   await settled()
-  store.actions.perform("@matomezu/base:page-lock", { page: bookOf(store).pages[0]!.id }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-lock", { page: pagesOf(bookOf(store))[0]!.id }, { book: "b1" })
   store.actions.command("s1", "@matomezu/base:undo")
   expect(store.state.getState().toasts.at(-1)).toMatchObject({
     detail: {
@@ -336,10 +336,10 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
 
 test("上下左右へ増やす可変ページで、左の空きへ置いて中身をずらした段を元に戻すと、ずらした量（shift）も前に戻る", async () => {
   const store = ready()
-  const page = bookOf(store).pages[0]!.id
+  const page = pagesOf(bookOf(store))[0]!.id
   expect(store.actions.perform("@matomezu/base:page-update", { page, grows: "all" }, { book: "b1" }).ok).toBe(true)
   await settled()
-  const shift = () => bookOf(store).pages[0]!.shift
+  const shift = () => pagesOf(bookOf(store))[0]!.shift
   const was = shift()
   expect(
     store.actions.perform("@matomezu/paper:item-place", { page, item: BOX, at: { x: 20, y: 900 } }, { book: "b1" }).ok,

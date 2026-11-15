@@ -4,7 +4,7 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
-import type { BookOf } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -34,7 +34,7 @@ function setup() {
     addPageIn(store, "s1", { title: "ページ 1" })
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
-  const book = () => store.state.getState().books[id] as BookOf<"@matomezu/markdown:markdown">
+  const book = () => store.state.getState().books[id] as Book
   const text = () => pagesOf(book())[0]!.text ?? ""
   const field = () => within(screen.getByRole("region", { name: "ソース" })).getByRole("textbox") as HTMLTextAreaElement
   const undos = () => store.state.getState().history[id]?.undo.length ?? 0

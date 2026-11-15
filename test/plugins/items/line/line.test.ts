@@ -6,7 +6,7 @@ import { pagesOf, restoreBooks } from "../../../../web/src/core/book"
 import { buildCoreCatalog } from "../../../../web/src/core/core-catalog"
 import { perform } from "../../../../web/src/core/perform"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { rectsOf } from "../../../../web/src/plugins/base"
 import { GAP } from "../../../../web/src/plugins/base/place/push"
 import { alignedEndsOf } from "../../../../web/src/plugins/items/line/drawn"
@@ -17,8 +17,8 @@ import { BUILTIN_PARTS, CORE_CATALOG, sequence, sizedStore } from "../../../supp
 
 const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
-const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
-const page = (store: Store) => book(store).pages[0]!
+const book = (store: Store) => store.state.getState().books.b1 as Book
+const page = (store: Store) => pagesOf(book(store))[0]!
 const shape = (store: Store, id: string) => shapesOf(page(store)).find(i => i.id === id)!
 const lines = (store: Store) => linesOf(page(store))
 const place = (store: Store, x: number, y: number, item = "@matomezu/box:shape-nest-box") =>
@@ -250,7 +250,7 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   place(store, 400, 300)
   const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
   connect(store, "n1", "n2", { ...ends, via: [300] })
-  const book = () => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = () => store.state.getState().books.b1 as Book
   const elbow = () => elbowAt(CORE_CATALOG, book(), page(store))
   expect(elbow()).toBe(true)
   expect(
@@ -291,7 +291,7 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
-  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = store.state.getState().books.b1 as Book
   // 図面のタイプから、線と線の既定の通り方を外した機能台帳
   const noLines = buildCoreCatalog({
     ...BUILTIN_PARTS,

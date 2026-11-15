@@ -2,13 +2,13 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { addPageIn } from "../../../web/src/plugins/base/page-tabs/add-page"
 import { newStore } from "../../support"
 
 function setup() {
   const store = newStore()
-  const book = () => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const book = () => store.state.getState().books.b1 as Book
   addPageIn(store, "s1", { title: "ページ 2" })
   addPageIn(store, "s1", { title: "ページ 3" })
   const ids = pagesOf(book()).map(p => p.id)
