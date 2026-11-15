@@ -36,7 +36,7 @@ import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
 
 export const DIR_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [DIR],
+    pageTypes: [DIR],
     enums: [ENTRY_ICON],
     enumValues: [ICON_FOLDER, ICON_BOOK, ICON_FILE, ICON_DIRECTORY, ICON_CLASS_DIAGRAM, ICON_HTML],
     presentations: [DIR_PRESENTATION],
@@ -68,7 +68,7 @@ export const DIR_PLUGIN = defineBuiltin(
 )
 
 declare module "../../../core/catalog" {
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/dir:dir": typeof DIR
   }
   interface PresentationTable {

@@ -7,7 +7,7 @@ import { SLIDE_BOOK, SLIDE_PRESENTATION } from "./slide-book"
 
 export const SLIDE_BOOK_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [SLIDE_BOOK],
+    pageTypes: [SLIDE_BOOK],
     enumValues: [SLIDE_BOOK_ENTRY_ICON],
     presentations: [SLIDE_PRESENTATION],
     settings: [SLIDE_PRINT],
@@ -18,7 +18,7 @@ declare module "../../../core/catalog" {
   interface EnumValueTable {
     "@matomezu/slide-book:entry-icon": typeof SLIDE_BOOK_ENTRY_ICON
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/slide-book:slide": typeof SLIDE_BOOK
   }
   interface SettingTable {

@@ -5,7 +5,7 @@
 // 一覧の下の＋は、最後にページを足す（コマンド page-add-after。ページが 0 枚でも出す）。ロック中のページには鍵の印を付ける
 import { useRef, useState } from "react"
 import { hasPages, type PagedBook } from "../../../core/book"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { Page } from "../../../core/schema/book"
 import { useCommand } from "../../../ui/commands"
@@ -83,7 +83,7 @@ export function PageList() {
     pages.map(p => p.id),
     "y",
   )
-  if (!book || !hasPages(book) || !bookType(catalog, book.type).pageList || !openPage.enabled) return null
+  if (!book || !hasPages(book) || !pageType(catalog, book.type).pageList || !openPage.enabled) return null
   return (
     <nav className={styles.list} aria-label={t("Page list")} ref={list} data-page-list>
       {book.pages.map((p, i) => (

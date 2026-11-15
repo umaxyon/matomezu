@@ -48,7 +48,7 @@ describe("inspect: アクションの許可", () => {
         source: "action",
         id: "@matomezu/base:page-add",
         field: "attach",
-        bookType: "@matomezu/drawing:drawing",
+        pageType: "@matomezu/drawing:drawing",
       },
     })
   })

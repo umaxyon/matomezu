@@ -17,7 +17,7 @@ export const CRATE = kit.defineShape({
 })
 
 // 置き場: 木箱を置くタイプ
-export const YARD = kit.defineBookType({
+export const YARD = kit.definePageType({
   id: "yard",
   version: 1,
   title: "yard",

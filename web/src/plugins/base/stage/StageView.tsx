@@ -7,7 +7,7 @@
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
 // コマンドが出ているステージならブラウザの拡大は止める）
 import { memo, type PointerEvent, useEffect, useRef, useState, type WheelEvent } from "react"
-import type { BookTypeId } from "../../../core/core-catalog"
+import type { PageTypeId } from "../../../core/core-catalog"
 import { paperOf } from "../../../core/stage"
 import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
@@ -159,7 +159,7 @@ function EmptyStage({ onSelect }: { stage: string; onSelect: (book: string) => v
 
 // 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表と、物の角に出す物の表はレイヤーみんなで使う）。
 // 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）
-function BookContent({ stage, type, previewing }: { stage: string; type: BookTypeId; previewing: boolean }) {
+function BookContent({ stage, type, previewing }: { stage: string; type: PageTypeId; previewing: boolean }) {
   const style = useBookLookStyle(type) // ブックのテーマの値・文字の色の値・タイプのプラグインのテーマキー
   return (
     <div className={styles.book} style={style}>

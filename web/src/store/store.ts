@@ -668,7 +668,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 印刷プレビューの間と、表示領域を測るまでは、どの物も見えていない）
   const seenTestOf = (st: Stage): SeenTest | undefined => {
     const opened = st.opened
-    const def = opened && catalog.presentations.get(catalog.bookTypes.get(opened.type)?.presentation ?? "")
+    const def = opened && catalog.presentations.get(catalog.pageTypes.get(opened.type)?.presentation ?? "")
     if (!def?.seen) return undefined
     const a = st.view && toPaper(st, { x: 0, y: 0 })
     const b = st.view && toPaper(st, { x: st.view.w, y: st.view.h })
@@ -971,7 +971,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const stage = contextMenu?.stage ?? picker ?? opener ?? screenOf(window).current
       const menu = contextMenu !== null || picker !== undefined
       const type = stageIn(window, stage)?.opened?.type
-      const presentation = type && catalog.bookTypes.get(type)?.presentation
+      const presentation = type && catalog.pageTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
       const center = !bookScreenCurrent(window)
       for (const scope of keyScopes({ menu, dialog: dialog !== null, center }, scopes, shown, reach)) {

@@ -172,8 +172,8 @@ test("ホストのエンジンが読むプラグインは、ビルトインの�
 })
 
 test("ブックのタイプの名前で振る舞いを分けない（使えるかは、タイプが選んだものと宣言で決める）", () => {
-  const bookTypeIs = /\b(?:book|ctx\.book|opened|stage\.opened)\??\.type\s*[!=]==\s*["']/
-  const offenders = sources.filter(f => bookTypeIs.test(f.text)).map(f => f.rel)
+  const pageTypeIs = /\b(?:book|ctx\.book|opened|stage\.opened)\??\.type\s*[!=]==\s*["']/
+  const offenders = sources.filter(f => pageTypeIs.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])
 })
 

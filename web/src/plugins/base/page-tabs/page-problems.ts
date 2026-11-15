@@ -2,7 +2,7 @@
 // base のアクション page-add・page-update・book-update は、書いたあとのページ（book-update は全部のページ）に問題があれば断る。
 // 断ったことを利用者に知らせるか、どう知らせるかは呼んだ側が決める（問題の文言は任意。base のダイアログは、文言があればダイアログの中に出す）
 import { hasPages } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
@@ -15,7 +15,7 @@ export interface PageProblem {
 }
 
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     // page で効いている設定の値は setting で読む（ブックとページの設定の項目を、ページ → ブック → 既定の順に）。
     // grow はページの増やす向き（可変ページでなければ undefined。place/items の growOf）
     pageProblem?(
@@ -33,7 +33,7 @@ export function pageProblems(
   book: Book,
   pages?: readonly string[],
 ): { page: ItemPage; problem: PageProblem }[] {
-  const check = bookType(catalog, book.type).pageProblem
+  const check = pageType(catalog, book.type).pageProblem
   if (!check || !hasPages(book)) return []
   return book.pages.flatMap(page => {
     if (pages && !pages.includes(page.id)) return []

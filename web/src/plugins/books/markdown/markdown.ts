@@ -31,7 +31,7 @@ export const SOURCE_KEYS_SCOPE = SOURCE_KEY_SCOPE.id
 // ビューが開く右クリックのメニュー: ペインのタブ（右クリックしたペインを受け取る）（ui.tsx で core/catalog.ts に書き足す）
 export const PANE_CONTEXT = kit.name("pane-context")
 
-export const MARKDOWN = kit.defineBookType({
+export const MARKDOWN = kit.definePageType({
   id: "markdown",
   version: 1,
   title: "Markdown",

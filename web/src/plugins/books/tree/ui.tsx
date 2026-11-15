@@ -20,7 +20,7 @@ import { TreeIcon } from "./type-icon"
 import { TREE_VIEW } from "./view/ui"
 
 export const TREE_UI = definePluginUi(TREE_PLUGIN, {
-  bookTypeIcons: { [TREE.id]: <TreeIcon /> },
+  pageTypeIcons: { [TREE.id]: <TreeIcon /> },
   enumValueIcons: { [TREE_ENTRY_ICON.id]: <TreeIcon /> },
   presentationViews: { [TREE_PRESENTATION.id]: TREE_VIEW },
   settingViews: {

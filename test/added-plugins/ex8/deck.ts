@@ -50,7 +50,7 @@ export const DECK_PICKED = kit.definePluginStateOf<number>()({ id: "picked", sco
 // カードの見せ方: ステージに紙を置かない（ビューが描く広さとスクロールを持つ）
 export const CARDS = kit.definePresentation({ id: "cards", paper: false })
 
-export const DECK = kit.defineBookType({
+export const DECK = kit.definePageType({
   id: "deck",
   version: 1,
   title: "deck",

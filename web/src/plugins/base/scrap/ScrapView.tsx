@@ -4,7 +4,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pageById } from "../../../core/book"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
@@ -87,7 +87,7 @@ export function DrawnSheet({
 }) {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const Measure = views.get(bookType(catalog, book.type).presentation)?.printMeasure
+  const Measure = views.get(pageType(catalog, book.type).presentation)?.printMeasure
   const paper = paperSize(catalog, page as ItemPage)
   const look = useBookLookStyle(book.type)
   const [measured, setMeasured] = useState<PrintMeasured | null>(null)

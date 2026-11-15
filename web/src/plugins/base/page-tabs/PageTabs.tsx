@@ -5,7 +5,7 @@
 // タブはドラッグで並べ替えられる（useTabDrag。アクション page-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
 import { useRef } from "react"
 import { hasPages } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
@@ -21,7 +21,7 @@ import { useTabDrag } from "./useTabDrag"
 
 // ページタブの横に、ページを足すボタンを出すか（タイプが出すと決める。ページを作れるかはコマンド page-new が決める）
 function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
-  return hasPages(book) && bookType(catalog, book.type).addPagesFromTabs === true
+  return hasPages(book) && pageType(catalog, book.type).addPagesFromTabs === true
 }
 
 // 横にあふれた要素の上で、ホイールの縦の回転を横のスクロールにする（あふれていない・横に回したときは、そのまま）。
@@ -44,7 +44,7 @@ export function PageTabs() {
   const newPage = useCommand(PAGE_NEW.id)
   const openMenu = useContextMenu(PAGE_CONTEXT)
   const catalog = useCatalog().core
-  const typeIcon = useUiCatalog().bookTypeIcons.get(book?.type ?? "") ?? <FileIcon /> // ブックのタイプのアイコン（名乗らないタイプは通常のファイル）
+  const typeIcon = useUiCatalog().pageTypeIcons.get(book?.type ?? "") ?? <FileIcon /> // ブックのタイプのアイコン（名乗らないタイプは通常のファイル）
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
   const pages = book && hasPages(book) ? book.pages : []
@@ -52,7 +52,7 @@ export function PageTabs() {
     list,
     pages.map(p => p.id),
   )
-  if (!book || !hasPages(book) || bookType(catalog, book.type).pageList || !openPage.enabled)
+  if (!book || !hasPages(book) || pageType(catalog, book.type).pageList || !openPage.enabled)
     return <div className={styles.tabs} data-page-tabs />
   const { drag } = tabDrag
   const grabbed = drag && book.pages.find(p => p.id === drag.id)

@@ -1,7 +1,7 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
 import { hasPages, type PagedBook, putPage } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import { fail } from "../../../core/errors"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
@@ -13,7 +13,7 @@ import { kit } from "../kit"
 import { extentOf, growOf, paddedFor, pageArea } from "../place/items"
 
 function pagesRule(catalog: CoreCatalog, book: PagedBook) {
-  const rule = bookType(catalog, book.type).pages
+  const rule = pageType(catalog, book.type).pages
   if (!rule) return fail("E103", { type: book.type })
   return rule
 }
@@ -45,13 +45,13 @@ export function paperChoicesFor(catalog: CoreCatalog, book: PagedBook, page: str
 
 // ブックのタイプのページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
 export function canGrow(catalog: CoreCatalog, book: PagedBook): boolean {
-  const rule = bookType(catalog, book.type).grow
+  const rule = pageType(catalog, book.type).grow
   return rule !== undefined && !("always" in rule)
 }
 
 // ブックのタイプで利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
 export function growChoices(catalog: CoreCatalog, book: PagedBook): readonly GrowChoice[] {
-  const rule = bookType(catalog, book.type).grow
+  const rule = pageType(catalog, book.type).grow
   return rule && "choices" in rule ? rule.choices : []
 }
 

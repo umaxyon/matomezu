@@ -4,18 +4,18 @@
 import type { ActionId, DialogExtras, MessageKey } from "../core/catalog"
 import type { ActionAttach, ActionDef, ActionTarget, ScopeRequired } from "../core/def/action"
 import type { AnnotationDef } from "../core/def/annotation"
-import {
-  type BookSchema,
-  type BookTypeDef,
-  type DataOf,
-  type NewBook,
-  type WithTypeField,
-  withTypeField,
-} from "../core/def/book-type"
 import type { ControlCenterDef } from "../core/def/control-center"
 import type { EnumDataOf, EnumDef, EnumValueDef } from "../core/def/enum"
 import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
 import type { MailDef } from "../core/def/mail"
+import {
+  type BookSchema,
+  type DataOf,
+  type NewBook,
+  type PageTypeDef,
+  type WithTypeField,
+  withTypeField,
+} from "../core/def/page-type"
 import type { PaperDef } from "../core/def/paper"
 import type { PermissionDef } from "../core/def/permission"
 import type { PluginStateAddress, PluginStateDef, PluginStateSchema, PluginStateScope } from "../core/def/plugin-state"
@@ -44,10 +44,10 @@ type ShapeProps = ShapeItemDef["props"]
 
 // ブックのタイプ（schema に type は書かない）。create の返すデータの形は、台帳アセンブルが schema で確かめる
 // （ここで schema から型を作って縛ると、型の推論が回って崩れる）
-type BookTypeIn<S extends BookSchema, K extends string> = Titled<Omit<BookTypeDef<S>, "create">, K> & {
+type PageTypeIn<S extends BookSchema, K extends string> = Titled<Omit<PageTypeDef<S>, "create">, K> & {
   create(init: NewBook): object
 }
-type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<T, "id" | "title" | "schema" | "create"> & {
+type PageTypeOut<T, S extends BookSchema, Id extends string> = Omit<T, "id" | "title" | "schema" | "create"> & {
   id: Id
   title: MessageKey
   schema: WithTypeField<S, Id>
@@ -178,9 +178,9 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   ): Omit<EnumValueDef<E>, "id"> & { id: Owned<P, Id> }
 
   // ブックのタイプ: データの type は本当の id。schema に type は書かず、ここで足す
-  defineBookType<const Id extends string, const S extends BookSchema, const T extends BookTypeIn<S, keyof M & string>>(
+  definePageType<const Id extends string, const S extends BookSchema, const T extends PageTypeIn<S, keyof M & string>>(
     def: T & { id: Id; schema: S },
-  ): BookTypeOut<T, S, Owned<P, Id>>
+  ): PageTypeOut<T, S, Owned<P, Id>>
 
   // コントロールセンター（ブックでない、利用者に 1 つの入口。core/def/control-center.ts）
   defineControlCenter<const Id extends string, const T extends Omit<ControlCenterDef, "id">>(
@@ -307,7 +307,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineScreenArrangement: place,
     defineEnum: place,
     defineEnumValue: place,
-    defineBookType: (def: { id: string; schema: BookSchema; create(init: NewBook): object }) => {
+    definePageType: (def: { id: string; schema: BookSchema; create(init: NewBook): object }) => {
       const id = owned(plugin, def.id)
       return {
         ...place(def),

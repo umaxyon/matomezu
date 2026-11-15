@@ -1,7 +1,7 @@
 // ブックの全ページの印刷区画の数と、印刷プレビューの並べ方（ブックの設定の項目で決める）。何も載っていない印刷区画は並べない（filled.ts）
 import { pagedOf } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import { slideIsBackground } from "../../../core/def/book-type"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
+import { slideIsBackground } from "../../../core/def/page-type"
 import type { Point } from "../../../core/geom"
 import { type ItemPage, slideOf } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
@@ -21,7 +21,7 @@ export function sheetsOfPage(
   page: ItemPage,
   purpose: SheetPurpose = "print",
 ): (Omit<PrintSheets, "filled"> & { filled: ReadonlySet<string> | null }) | null {
-  const type = bookType(catalog, book.type)
+  const type = pageType(catalog, book.type)
   const own = catalog.presentations.get(type.presentation)?.printSheets
   const sheets = own
     ? own(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), purpose })
@@ -80,7 +80,7 @@ export function bookCrossings(
   catalog: CoreCatalog,
   book: Book,
 ): { page: string; crossing: readonly string[]; oversized: readonly string[] }[] {
-  if (bookType(catalog, book.type).printCrossing !== "ask") return []
+  if (pageType(catalog, book.type).printCrossing !== "ask") return []
   return (pagedOf(book)?.pages ?? []).flatMap(page => {
     if (!growOf(catalog, book, page)) return []
     const found = crossingShapes(catalog, page)

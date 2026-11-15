@@ -13,7 +13,7 @@ import { TAB_KEY } from "./tab-key"
 
 export const MARKDOWN_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [MARKDOWN],
+    pageTypes: [MARKDOWN],
     enumValues: [MARKDOWN_ENTRY_ICON],
     presentations: [MARKDOWN_PRESENTATION],
     commands: [...PANE_LAYOUT_COMMANDS],
@@ -29,7 +29,7 @@ declare module "../../../core/catalog" {
   interface EnumValueTable {
     "@matomezu/markdown:entry-icon": typeof MARKDOWN_ENTRY_ICON
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/markdown:markdown": typeof MARKDOWN
   }
   interface PresentationTable {

@@ -8,12 +8,12 @@ export type { PagedBook } from "../core/book"
 export { bookItems, creatableTypes, createBook, hasPages, pagedOf, putPage, withSettings } from "../core/book"
 export type {
   ActionId,
-  BookTypeId,
   CommandId,
   DialogId,
   ItemId,
   KeyScopeId,
   MessageKey,
+  PageTypeId,
   PaperId,
   PresentationId,
   SettingId,
@@ -24,11 +24,9 @@ export type {
 } from "../core/catalog"
 export { HEX, isLight, isPaletteName, PALETTE } from "../core/color"
 export type { CoreCatalog, ItemProps } from "../core/core-catalog"
-export { bookType } from "../core/core-catalog"
+export { pageType } from "../core/core-catalog"
 export type { ActionContext, ActionDef, Declined, RecordOf, RecordRead } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
-export type { BookTypeDef } from "../core/def/book-type"
-export { slideIsBackground } from "../core/def/book-type"
 export type { EnumDef, EnumValueDef } from "../core/def/enum"
 export type {
   ConnectorData,
@@ -37,6 +35,8 @@ export type {
   ShapeData,
   ShapeEditArgs,
 } from "../core/def/item"
+export type { PageTypeDef } from "../core/def/page-type"
+export { slideIsBackground } from "../core/def/page-type"
 export type { PaperDef } from "../core/def/paper"
 export type { PluginStateDef } from "../core/def/plugin-state"
 export type { PresentationDef } from "../core/def/presentation"

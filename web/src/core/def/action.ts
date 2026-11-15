@@ -12,7 +12,7 @@ import type { Condition, ConditionOf, KeyValuesOf } from "../record-keys"
 import type { Records } from "../records"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
-import { type BookTypeDef, placeableOf } from "./book-type"
+import { type PageTypeDef, placeableOf } from "./page-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはコントロールセンターが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
@@ -150,7 +150,7 @@ export type RunSubject<T extends ActionTarget, At> = T extends "book"
   : SubjectData<T>
 
 // アクションがタイプ type に付くか（attach のどれかに当てはまるか）
-export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): boolean {
+export function attachedTo(def: Pick<ActionDef, "attach">, type: PageTypeDef): boolean {
   const a = def.attach
   if (!a) return false
   return (

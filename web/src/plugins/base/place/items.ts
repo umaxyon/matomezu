@@ -2,7 +2,7 @@
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）。
 // 形が変わったあとは、ページのつなぐものの決まりで整える（placed.ts の tidyConnectors）
 import { type PagedBook, putPage } from "../../../core/book"
-import { bookType, type CatalogCheckDef, type CoreCatalog } from "../../../core/core-catalog"
+import { type CatalogCheckDef, type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
@@ -113,7 +113,7 @@ declare module "../../../core/catalog" {
     // （print-preview/filled.ts）。引数は bounds と同じ。無ければ、つなぐものはどの印刷区画にも載らない（形の印刷区画だけで決まる）
     printBelongingPoints?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: SettingReader): Point[]
   }
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     // 中身（キャプション）で形の大きさが変わるときに、横と縦で保つ所。setting はそのページで効いている設定の値（設定で変えてよい）。
     // 無ければ左と上を保つ
     growFrom?(setting: SettingReader): { x: GrowFrom; y: GrowFrom }
@@ -237,7 +237,7 @@ export function widenForCaption(
   const size = placedSize(catalog, next)
   const paper = roomOf(catalog, book, page)
   if (!size || !paper) return next
-  const from = catalog.bookTypes.get(book.type)?.growFrom?.(settingsAt(catalog, book, page))
+  const from = catalog.pageTypes.get(book.type)?.growFrom?.(settingsAt(catalog, book, page))
   // 1 つの向きに、want まで広げた位置と長さ（at は左か上、len は今の長さ、room は紙の長さ）
   const grow = (at: number, len: number, want: number, room: number, center: boolean) => {
     const to = Math.min(want, center ? room : room - at)
@@ -268,7 +268,7 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
 // ブック book のページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
 // タイプが決めるタイプは、そのページで効いている設定の値から。いつも可変ページのタイプは、どのページもタイプの向き
 export function growOf(catalog: CoreCatalog, book: Book, page: ItemPage): GrowSides | undefined {
-  const rule = catalog.bookTypes.get(book.type)?.grow
+  const rule = catalog.pageTypes.get(book.type)?.grow
   if (rule && "always" in rule) return rule.always
   if (!page.grows || !rule) return undefined
   if ("sides" in rule) return rule.sides(settingsAt(catalog, book, page))
@@ -277,7 +277,7 @@ export function growOf(catalog: CoreCatalog, book: Book, page: ItemPage): GrowSi
 }
 
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     // 位置をデータに持たない見せ方が、可変ページで描く中身を右・下へずらした印刷区画の数（ページの slide の形も、同じだけずらして描く。無ければ 0）。
     // page で効いている設定の値は setting、ページの増やす向きは grow（可変ページでなければ undefined。growOf）
     contentOrigin?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader, grow: GrowSides | undefined): Point
@@ -288,7 +288,7 @@ declare module "../../../core/catalog" {
 // 位置をデータに持つ見せ方は、データの slide の座標をずらすので、ここでは 0
 export function slideOffsetOf(catalog: CoreCatalog, book: Book, page: ItemPage): Point {
   const paper = paperSize(catalog, page)
-  const origin = bookType(catalog, book.type).contentOrigin?.(
+  const origin = pageType(catalog, book.type).contentOrigin?.(
     catalog,
     page,
     settingsAt(catalog, book, page),
@@ -371,7 +371,7 @@ export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingR
 // 形をそのブックに合わせたページ（整列など）: 形に、定義のブックへの合わせ（adapt）をかける。タイプがその形に渡す指定と、
 // そのページで効いている設定の値で合わせる（context）。変わらなければそのまま
 export function adaptPage<P extends ItemPage>(catalog: CoreCatalog, page: P, context: PageContext): P {
-  const options = catalog.bookTypes.get(context.type)?.items.options as Record<string, unknown> | undefined
+  const options = catalog.pageTypes.get(context.type)?.items.options as Record<string, unknown> | undefined
   let changed = false
   const items = pageItemsOf(page).map(i => {
     if (!isShape(i)) return i

@@ -1,14 +1,14 @@
 // タイプが使わせないアノテーションの種類（annotations.without）: 伝言とマークを外したタイプのブックには付けられず、右クリックのコマンドも出さない
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePageType } from "../../web/src/core/def/page-type"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 
-const PLAIN = defineBookType({
+const PLAIN = definePageType({
   id: "plain:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
@@ -30,7 +30,7 @@ function ready() {
     controlCenter: "@matomezu/control-center:control-center",
     newId: () => "n1",
   })
-  store.use([definePlugin({ id: "plain", bookTypes: [PLAIN] })])
+  store.use([definePlugin({ id: "plain", pageTypes: [PLAIN] })])
   createBookIn(store, "s1", { title: "メモ", type: "plain:note" as never })
   return store
 }

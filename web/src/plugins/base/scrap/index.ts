@@ -1,9 +1,9 @@
 // スクラップの、base の側: スクラップフレームの印（アイテムの定義の拡張ポイント scrapFrame）、切り抜くダイアログとそれを開くコマンド。
 // 切り抜くのは、切り抜きたいページで（ページタブと紙の右クリック）。切り抜いたスクラップはスクラップトレイに入り、置くのはスクラップトレイから（ui.tsx）
 import { pagedOf } from "../../../core/book"
-import { bookType, type CatalogCheckDef, type CoreCatalog, type ItemId } from "../../../core/core-catalog"
-import type { EditList } from "../../../core/def/book-type"
+import { type CatalogCheckDef, type CoreCatalog, type ItemId, pageType } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
+import type { EditList } from "../../../core/def/page-type"
 import { problem } from "../../../core/errors"
 import { findShape } from "../../../core/placed"
 import { sameData } from "../../../core/same"
@@ -38,7 +38,7 @@ export const SCRAP_FRAME_CHECK: CatalogCheckDef = catalog =>
 
 // ブック book の、直している並び edits に置ける、スクラップフレームのアイテム（いくつもあれば、置ける物の並びの先頭。無ければ null）
 export function scrapFrameIn(catalog: CoreCatalog, book: Book, edits: EditList): ItemId | null {
-  const found = placeableIn(bookType(catalog, book.type), edits).find(
+  const found = placeableIn(pageType(catalog, book.type), edits).find(
     id => (catalog.items.get(id) as { scrapFrame?: true } | undefined)?.scrapFrame === true,
   )
   return (found as ItemId | undefined) ?? null

@@ -9,7 +9,7 @@
 
 import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } from "react"
 import { pagedOf } from "../../../core/book"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
 import { extentOf as previewArea } from "../../../core/stage"
@@ -121,7 +121,7 @@ export function PrintPreviewView() {
     reporters.set(page, made)
     return made
   }
-  const Measure = book ? views.get(bookType(catalog, book.type).presentation)?.printMeasure : undefined
+  const Measure = book ? views.get(pageType(catalog, book.type).presentation)?.printMeasure : undefined
   const pages = useMemo(() => (book && pagedOf(book)?.pages) || [], [book])
   // 測るページ（紙のあるページ）と、その紙の大きさ
   const measuring = useMemo(

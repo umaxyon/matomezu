@@ -3,7 +3,7 @@
 // 種類の期限（expiresAt）の過ぎたアノテーションも残らない（消すのは常駐で、画面はそれまで出さない）
 import { z } from "zod"
 import { briefLine } from "./brief"
-import { bookType, type CoreCatalog } from "./core-catalog"
+import { type CoreCatalog, pageType } from "./core-catalog"
 import { idsIn } from "./ids"
 import { splitId } from "./names"
 import type { Book } from "./schema/book"
@@ -54,7 +54,7 @@ export function prune(annotations: readonly Annotation[], book: Book): readonly 
 
 // タイプ type のブックで、種類 id のアノテーションを使えるか（種類が機能台帳にあり、タイプが外していない）
 const annotationAllowed = (catalog: CoreCatalog, type: string, id: string): boolean =>
-  catalog.annotations.has(id) && !(bookType(catalog, type).annotations?.without?.includes(id as never) ?? false)
+  catalog.annotations.has(id) && !(pageType(catalog, type).annotations?.without?.includes(id as never) ?? false)
 
 // 1 つのアノテーションが決まりを守っているか: 形が合い、ブックのタイプが種類を使え、種類の形に合い、アンカーがどれもブックにある
 function fits(catalog: CoreCatalog, book: Book, ids: ReadonlySet<string>, a: Annotation): boolean {

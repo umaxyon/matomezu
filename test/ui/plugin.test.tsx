@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { z } from "zod"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -19,7 +19,7 @@ afterEach(cleanup)
 
 // テストのプラグイン（型の core/catalog.ts は書き足さないので、インスタンスは partial で作る）
 const NOTE_LOOK = definePresentation({ id: "notes:note" })
-const NOTE = defineBookType({
+const NOTE = definePageType({
   id: "notes:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
@@ -35,7 +35,7 @@ const NOTE = defineBookType({
 })
 const notes = definePlugin({
   id: "notes",
-  bookTypes: [NOTE],
+  pageTypes: [NOTE],
   presentations: [NOTE_LOOK],
   dialogs: [defineDialog({ id: "notes:shot" })],
 })
@@ -104,12 +104,12 @@ describe("見た目のプラグイン", () => {
 
   test("ブックのタイプのアイコンは自分のタイプにだけ付けられる（ほかのプラグインのタイプなら E313）。名乗らないタイプは表に入らない", () => {
     const icons = definePluginUi(definePlugin({ id: "icons" }), {
-      bookTypeIcons: { "@matomezu/drawing:drawing": <span /> },
+      pageTypeIcons: { "@matomezu/drawing:drawing": <span /> },
     })
     expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E313" })
     const catalog = assembleUi(BUILTIN_UI)
-    expect(catalog.bookTypeIcons.has("@matomezu/drawing:drawing")).toBe(true)
-    expect(catalog.bookTypeIcons.has("@matomezu/nothing:nothing")).toBe(false)
+    expect(catalog.pageTypeIcons.has("@matomezu/drawing:drawing")).toBe(true)
+    expect(catalog.pageTypeIcons.has("@matomezu/nothing:nothing")).toBe(false)
   })
 
   test("列挙の値のアイコンは自分が足した値にだけ付けられる（ほかのプラグインの値なら E314）", () => {

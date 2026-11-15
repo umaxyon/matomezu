@@ -1,7 +1,7 @@
 // ブックの中を探す（見た目を持たない計算）: 見せ方がフィールド search（PresentationExtras）を持てば、そのブックのページの原文を探し、
 // 今の当たりから次・前の当たりへ進み、当たりを置き換える page-update の fields を作り、検索ダイアログに出す数を数える。探す・置き換える計算は find.ts
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
 import { findAll, replaceAll, replaceOne, type SearchHit, type SearchQuery } from "./find"
 import type { SearchOpen, SearchSpot } from "./state"
@@ -22,7 +22,7 @@ declare module "../../../core/catalog" {
 // ブック book が探せるなら、その見せ方の search（探せなければ none）
 export function searchableOf(catalog: CoreCatalog, book: Book | null): SearchableDef | "none" {
   if (!book) return "none"
-  const presentation = bookType(catalog, book.type).presentation
+  const presentation = pageType(catalog, book.type).presentation
   return (presentation ? catalog.presentations.get(presentation)?.search : undefined) ?? "none"
 }
 

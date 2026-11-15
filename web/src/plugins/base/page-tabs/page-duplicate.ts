@@ -3,7 +3,7 @@
 // ロックは写さない。伝言・マークなど物に付けた物は写さない。使えるのは、タイプが宣言した（duplicatesPages）ブックだけ（宣言の無いタイプは、中の id を指す別のフィールドを持ちうるので断る）
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
@@ -21,7 +21,7 @@ export const PAGE_DUPLICATE = kit.defineAction({
   args: ARGS,
   permissionScope: "book",
   run: (book, args, ctx) => {
-    if (!hasPages(book) || !bookType(ctx.catalog, book.type).duplicatesPages) return null
+    if (!hasPages(book) || !pageType(ctx.catalog, book.type).duplicatesPages) return null
     const from = book.pages.findIndex(p => p.id === args.page)
     const source = book.pages[from]
     if (!source) return null

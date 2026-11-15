@@ -3,12 +3,12 @@ import { definePlugin } from "matomezu"
 import { kit } from "./kit"
 import { MAP, RELATE, RELATION } from "./relation"
 
-export const EX4 = definePlugin(kit.plugin({ bookTypes: [MAP], items: [RELATION], actions: [RELATE] }))
+export const EX4 = definePlugin(kit.plugin({ pageTypes: [MAP], items: [RELATION], actions: [RELATE] }))
 
 export default EX4
 
 declare module "matomezu/catalog" {
-  interface BookTypeTable {
+  interface PageTypeTable {
     "ex4:map": typeof MAP
   }
   interface ItemTable {

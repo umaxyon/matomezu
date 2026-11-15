@@ -296,7 +296,7 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   // 図面のタイプから、線と線の既定の通り方を外した機能台帳
   const noLines = buildCoreCatalog({
     ...BUILTIN_PARTS,
-    bookTypes: BUILTIN_PARTS.bookTypes.map(t =>
+    pageTypes: BUILTIN_PARTS.pageTypes.map(t =>
       t.id === "@matomezu/drawing:drawing"
         ? {
             ...t,

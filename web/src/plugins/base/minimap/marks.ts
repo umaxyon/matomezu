@@ -2,9 +2,9 @@
 // 置いたアイテムで描く見せ方（紙など）は itemMinimapMarks を使う: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
 // つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角。
 // つなぐものは、紙が描いた絵（drawn.tsx）があればそれを使う
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import { slideIsBackground } from "../../../core/def/book-type"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
+import { slideIsBackground } from "../../../core/def/page-type"
 import type { Point, Rect } from "../../../core/geom"
 import { byConnector, type ItemPage, shapesOf, slideOf } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
@@ -54,7 +54,7 @@ export function minimapMarks(
   page: ItemPage,
   drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
 ): readonly MinimapMark[] {
-  const type = bookType(catalog, book.type)
+  const type = pageType(catalog, book.type)
   const minimap = catalog.presentations.get(type.presentation)?.minimap
   if (!minimap) return []
   // 背景（ページの slide。背景を持つタイプ）は、ミニマップに描かない（中身の位置の目印）

@@ -3,7 +3,7 @@
 // 倍率と、開いたブックのビューが決める移り変わりの値（BookViewDef の motion）が変わったときだけ、なめらかに移す（どのレイヤーの枠も同じ値で動く）。
 // 中には、紙の倍率を --paper-zoom で渡す（画面の上で同じ大きさに出す物が打ち消すのに使う）。紙が無ければ何も描かない
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import { placement } from "../../../core/stage"
 import type { StageView } from "../../../core/workspace"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
@@ -56,6 +56,6 @@ function usePaperMotionKey(stage: StageView): string {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
   const type = stage.opened?.type
-  const motion = type ? views.get(bookType(catalog, type).presentation)?.motion : undefined
+  const motion = type ? views.get(pageType(catalog, type).presentation)?.motion : undefined
   return motion ? motion(stage) : ""
 }

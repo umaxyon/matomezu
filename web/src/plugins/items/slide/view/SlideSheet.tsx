@@ -3,10 +3,10 @@
 // 入力は受けない。紙の外にはみ出た所は、紙の境目で切れる。アイテムの絵は、アイテムの定義の見た目（ui 台帳）で引く
 import type { ReactNode } from "react"
 import {
-  bookType,
   type ItemPage,
   type PlacedShape,
   type Point,
+  pageType,
   slideIsBackground,
   slideOf,
 } from "../../../../plugin-api"
@@ -19,7 +19,7 @@ type ShapeView = (p: ItemViewProps<PlacedShape["props"]>) => ReactNode
 
 export function SlideSheet({ zoom, book, page }: PrintSheetProps) {
   const catalog = useCoreCatalog()
-  const type = bookType(catalog, book.type)
+  const type = pageType(catalog, book.type)
   if (!type.slide) return null
   if (slideIsBackground(type) && settingValue(catalog, book, page, BACKGROUND_PRINT) === "never") return null
   const offset = slideOffsetOf(catalog, book, page as ItemPage)

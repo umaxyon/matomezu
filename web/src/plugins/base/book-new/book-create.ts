@@ -3,8 +3,8 @@
 // ブックを作るダイアログが聞く項目は、タイプが createSettings で選ぶ（定義オブジェクトの拡張ポイントに書き足す）
 import { z } from "zod"
 import { creatableTypes, createBook } from "../../../core/book"
-import type { BookTypeId } from "../../../core/catalog"
-import { bookType, type CatalogCheckDef } from "../../../core/core-catalog"
+import type { PageTypeId } from "../../../core/catalog"
+import { type CatalogCheckDef, pageType } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
 import { type PermitContext, permittedIn, type World } from "../../../core/perform"
 import { withBookSettings } from "../book-look"
@@ -13,12 +13,12 @@ import { kit } from "../kit"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),
-  type: z.custom<BookTypeId>(v => typeof v === "string" && v.length > 0),
+  type: z.custom<PageTypeId>(v => typeof v === "string" && v.length > 0),
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだブックの設定の項目（形はタイプが決める）
 })
 
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     createSettings?: readonly string[] // ブックを作るダイアログで聞く、ブックの設定の項目の id（タイプが選んだ項目のうち）
   }
 }
@@ -26,7 +26,7 @@ declare module "../../../core/catalog" {
 export const BOOK_CREATE = kit.defineAction({
   id: "book-create",
   aiDescription:
-    "Create a book. type is one of the book types that are creatable (bookTypes in actions); settings are its book settings, the ones its type has. Returns the new book's id.",
+    "Create a book. type is one of the book types that are creatable (pageTypes in actions); settings are its book settings, the ones its type has. Returns the new book's id.",
   title: "New book",
   target: "library",
   permissionScope: { create: "type" },
@@ -49,9 +49,9 @@ export const BOOK_CREATE = kit.defineAction({
 
 // タイプの createSettings が、そのタイプのブックの設定の項目を名指しているか（台帳アセンブルのときの確かめ）
 export const CREATE_SETTINGS_CHECK: CatalogCheckDef = catalog =>
-  [...catalog.bookTypes.values()].flatMap(t =>
+  [...catalog.pageTypes.values()].flatMap(t =>
     (t.createSettings ?? []).flatMap(setting =>
-      (bookType(catalog, t.id).settings?.book ?? []).includes(setting) ? [] : [problem("E035", { id: t.id, setting })],
+      (pageType(catalog, t.id).settings?.book ?? []).includes(setting) ? [] : [problem("E035", { id: t.id, setting })],
     ),
   )
 

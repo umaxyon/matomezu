@@ -4,8 +4,8 @@
 // つなぐもの（線など）は、手で決めた所を表す点（定義の printBelongingPoints。線では手で直した区間の折れ目）がある印刷区画に載る（両端は形の印刷区画に載るので数えない。
 // 通り抜けるだけの印刷区画には載らない）。判定できるのは、アイテムの位置をデータに持つタイプ（置けるアイテムのあるタイプ）だけ。
 // ほかのタイプは null（どの印刷区画も載っているとして扱う）。ページの slide の形は、本体のタイプでだけ数える（背景は数えない）
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import { slideIsBackground } from "../../../core/def/book-type"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
+import { slideIsBackground } from "../../../core/def/page-type"
 import type { Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage, type PlacedShape, shapesOf, slideOf } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
@@ -86,7 +86,7 @@ export function sheetShapes(
 // ブック book のページ page で、何かが載っている印刷区画の鍵（判定できないタイプなら null）
 export function filledSheets(catalog: CoreCatalog, book: Book, page: ItemPage): ReadonlySet<string> | null {
   const paper = paperSize(catalog, page)
-  const type = bookType(catalog, book.type)
+  const type = pageType(catalog, book.type)
   if (!paper || placeableIn(type, "items").length === 0) return null
   const filled = new Set<string>()
   const rects = rectsOf(catalog, page)

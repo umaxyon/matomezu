@@ -53,7 +53,7 @@ export const ENTRY_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; entry:
   edits: a => [a.entry],
 })
 
-export const DIR = kit.defineBookType({
+export const DIR = kit.definePageType({
   id: "dir",
   version: 1,
   title: "Directory",

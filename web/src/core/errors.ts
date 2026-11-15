@@ -3,12 +3,12 @@
 // 番号の範囲: E0xx 定義の組の食い違い（機能台帳）、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン、E4xx ホストとブラウザとのやり取り
 export const ERRORS = {
   E001: "{kind} {id}: id is registered twice",
-  E002: 'bookType {id}: schema.type must be the literal "{id}"',
-  E004: "bookType {id}: unknown paper {paper}",
-  E005: "bookType {id}: default paper {paper} is not allowed",
-  E007: "bookType {id}: create must return a book of the schema",
-  E008: "bookType {id}: unknown {kind} {ref}",
-  E010: "bookType {id}: unknown theme {theme}",
+  E002: 'pageType {id}: schema.type must be the literal "{id}"',
+  E004: "pageType {id}: unknown paper {paper}",
+  E005: "pageType {id}: default paper {paper} is not allowed",
+  E007: "pageType {id}: create must return a book of the schema",
+  E008: "pageType {id}: unknown {kind} {ref}",
+  E010: "pageType {id}: unknown theme {theme}",
   E011: "{owner}: token {token} is declared twice",
   E012: "{owner}: token {token} falls back to unknown {fallback}",
   E014: "paper {id}: size must be portrait (w <= h)",
@@ -21,24 +21,24 @@ export const ERRORS = {
   E022: "key {key} of command {command} cannot be read",
   E023: "key {key} in scope {scope} is bound twice by the built-in plugins",
   E024: "key {key} binds unknown command {command}",
-  E025: "bookType {id}: schema must not have {field} (the catalog adds it)",
+  E025: "pageType {id}: schema must not have {field} (the catalog adds it)",
   E026: "item {id}: unknown dialog {dialog}",
   E028: "item {id}: {field} names {prop}, which is not in its props",
-  E029: "bookType {id}: options for item {ref}, which is not allowed",
-  E030: "bookType {id}: pages.fields must not have {field} (a page has it already)",
-  E031: "bookType {id}: unknown dialog {dialog}",
+  E029: "pageType {id}: options for item {ref}, which is not allowed",
+  E030: "pageType {id}: pages.fields must not have {field} (a page has it already)",
+  E031: "pageType {id}: unknown dialog {dialog}",
   E032: "toolSet {id}: unknown tool {tool}",
   E033: "toolSet {id}: has no tools",
   E034: "textColor {id}: color {color} is not #rrggbb",
-  E035: "bookType {id}: createSettings has {setting}, which is not one of its book settings",
+  E035: "pageType {id}: createSettings has {setting}, which is not one of its book settings",
   E036: "setting {id}: only a user setting may have {field}",
   E037: "userSetting {id}: role {role} is held by {other} too",
   E038: "theme {id}: textColors has {color} for {textColor}, which is not #rrggbb",
-  E039: "bookType {id}: default theme {theme} is not one of the themes for its theme types",
+  E039: "pageType {id}: default theme {theme} is not one of the themes for its theme types",
   E040: "{kind} {id}: theme types must be {expected}",
   E041: "controlCenter {id}: unknown action {ref}",
-  E042: "bookType {id}: slide has {ref}, which is not a shape item",
-  E043: "bookType {id}: slide needs pages",
+  E042: "pageType {id}: slide has {ref}, which is not a shape item",
+  E043: "pageType {id}: slide needs pages",
   E044: "action {id}: runsWhenAIJoins {role} is named by {other} too",
   E070: "action {id}: runsWhenAIEnds is named by {other} too",
   E045: "subject {id}: record needs an id (a string)",
@@ -107,7 +107,7 @@ export const ERRORS = {
   E310: "plugin {plugin}: only built-in plugins may have normalize steps",
   E311: "plugin {plugin}: only built-in plugins may have control centers",
   E312: "plugin {plugin}: widget {id} is for the kind {kind}, which the plugin does not own (only the owner of a kind may add a widget for it)",
-  E313: "plugin {plugin}: bookTypeIcons has {id}, which is not its own book type",
+  E313: "plugin {plugin}: pageTypeIcons has {id}, which is not its own book type",
   E314: "plugin {plugin}: enumValueIcons has {id}, which is not its own enum value",
 
   E401: "the server could not give the data: {status}",
@@ -133,7 +133,7 @@ export function problem<C extends ErrorCode>(code: C, ...params: ParamsArg<C>): 
   return { code, params: params[0] ?? {} }
 }
 
-// 「E004 bookType drawing: unknown paper a3」の形の文
+// 「E004 pageType drawing: unknown paper a3」の形の文
 export function problemText(p: Problem): string {
   const text = (ERRORS[p.code] as string).replace(/\{(\w+)\}/g, (all, name: string) => String(p.params[name] ?? all))
   return `${p.code} ${text}`

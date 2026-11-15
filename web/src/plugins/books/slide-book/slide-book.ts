@@ -27,7 +27,7 @@ const SLIDE_ITEMS = [
   "@matomezu/slide:slide-ellipse",
 ] as const
 
-export const SLIDE_BOOK = kit.defineBookType({
+export const SLIDE_BOOK = kit.definePageType({
   id: "slide",
   version: 1,
   title: "Slide",

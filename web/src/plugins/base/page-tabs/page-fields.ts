@@ -4,7 +4,7 @@
 // AI には、タイプごとの受ける形を引数の形に入れて見せる（fieldsArgs）
 import { z } from "zod"
 import type { PagedBook } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Page } from "../../../core/schema/book"
 import { contentIdMaker } from "../utils/ids"
 
@@ -28,20 +28,20 @@ export const pageFieldsWay = <A extends z.ZodObject>(way: PageFieldsWay<A>): Pag
 
 // ページのフィールドの受け方（定義オブジェクトの拡張ポイントに書き足す。add は page-add、update は page-update。無いものは base の受け方）
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     pageFieldsInput?: { add?: PageFieldsWay; update?: PageFieldsWay }
   }
 }
 
 // base の受け方の形: タイプのフィールドだけを、どれも書かなくてよい形で（フィールドの無いタイプは null）
 function defaultArgs(catalog: CoreCatalog, type: string): z.ZodObject | null {
-  const fields = bookType(catalog, type).pages?.fields ?? {}
+  const fields = pageType(catalog, type).pages?.fields ?? {}
   return Object.keys(fields).length > 0
     ? z.strictObject(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.optional()])))
     : null
 }
 
-const wayOf = (catalog: CoreCatalog, type: string, of: FieldsOf) => bookType(catalog, type).pageFieldsInput?.[of]
+const wayOf = (catalog: CoreCatalog, type: string, of: FieldsOf) => pageType(catalog, type).pageFieldsInput?.[of]
 
 // タイプ type のブックの、作るとき・直すときに受ける形（フィールドの無いタイプは null）
 export function fieldsArgsOf(catalog: CoreCatalog, type: string, of: FieldsOf): z.ZodObject | null {
@@ -64,14 +64,14 @@ export function writeFields(
   const way = wayOf(catalog, book.type, of)
   if (!way) return { page: { ...page, ...parsed.data } }
   const written = way.write(page as Readonly<Record<string, unknown>>, parsed.data, contentIdMaker(book, newId))
-  const own = bookType(catalog, book.type).pages?.fields ?? {}
+  const own = pageType(catalog, book.type).pages?.fields ?? {}
   if (!written || !Object.keys(written.fields).every(k => k in own)) return null
   return { page: { ...page, ...written.fields }, result: written.result }
 }
 
 // AI に見せる fields の形: フィールドを足したタイプごとの、作るとき・直すときに受ける形のどれか（説明にタイプの id）
 export function fieldsArgs(catalog: CoreCatalog, of: FieldsOf): z.ZodType {
-  const each = [...catalog.bookTypes.values()].flatMap(t => {
+  const each = [...catalog.pageTypes.values()].flatMap(t => {
     const args = fieldsArgsOf(catalog, t.id, of)
     return args ? [args.describe(`page fields of ${t.id} books`)] : []
   })

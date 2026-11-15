@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePageType } from "../../web/src/core/def/page-type"
 import { ERRORS, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import type { LanguagePackDef } from "../../web/src/core/i18n/messages"
@@ -17,7 +17,7 @@ import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 describe("機能台帳", () => {
   test("ビルトインプラグインのテーマが上書きするテーマキーは、どれもビルトインプラグインのアイテム・タイプ・プラグインが宣言している（インスタンスに無いアイテムのテーマキーの上書きは error にせず、使わないだけ）", () => {
     const declared = new Set(
-      [...[...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens), ...BUILTIN_PARTS.tokens].map(
+      [...[...BUILTIN_PARTS.pageTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens), ...BUILTIN_PARTS.tokens].map(
         k => k.id,
       ),
     )
@@ -30,10 +30,10 @@ describe("機能台帳", () => {
   })
 
   test("食い違いのある定義の組からは表を作らず、直す所を並べる", () => {
-    const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing")!
+    const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
     const broken = {
       ...BUILTIN_PARTS,
-      bookTypes: [drawing, drawing],
+      pageTypes: [drawing, drawing],
       items: [],
       themes: BUILTIN_PARTS.themes.filter(th => !th.tokens), // 外したアイテムのテーマキーを上書きするテーマも外す
       papers: BUILTIN_PARTS.papers.filter(p => p.id !== "@matomezu/base:a3"),
@@ -44,9 +44,9 @@ describe("機能台帳", () => {
     const drawingProblems = ["E004" as const, ...placeable.map(() => "E008" as const)]
     expect(problems.map(p => p.code)).toEqual(["E001", ...drawingProblems, ...drawingProblems])
     expect(problems.map(problemText).slice(0, 3)).toEqual([
-      "E001 bookType @matomezu/drawing:drawing: id is registered twice",
-      "E004 bookType @matomezu/drawing:drawing: unknown paper @matomezu/base:a3",
-      "E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-nest-box",
+      "E001 pageType @matomezu/drawing:drawing: id is registered twice",
+      "E004 pageType @matomezu/drawing:drawing: unknown paper @matomezu/base:a3",
+      "E008 pageType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-nest-box",
     ])
     const thrown = (() => {
       try {
@@ -57,9 +57,9 @@ describe("機能台帳", () => {
     })()
     expect(thrown).toMatchObject({ name: "MatomezuError", code: "E016", details: problems })
     expect(String(thrown)).toContain(
-      "E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-nest-box",
+      "E008 pageType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-nest-box",
     )
-    expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 core catalog has no book type")
+    expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, pageTypes: [] })).toThrow("E015 core catalog has no book type")
   })
 
   test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は error", () => {
@@ -150,8 +150,8 @@ describe("機能台帳", () => {
 
   test("作った表は id で引け、ブックのデータの形を持つ", () => {
     const catalog = buildCoreCatalog(BUILTIN_PARTS)
-    expect(catalog.bookTypes.get("@matomezu/drawing:drawing")).toBe(
-      BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing"),
+    expect(catalog.pageTypes.get("@matomezu/drawing:drawing")).toBe(
+      BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing"),
     )
     expect(catalog.items.get("nope")).toBeUndefined()
     expect(catalog.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
@@ -165,7 +165,7 @@ describe("機能台帳", () => {
   })
 
   test("ブックのデータは、そのタイプの形で検査する", () => {
-    for (const t of BUILTIN_PARTS.bookTypes) expect(t.schema.shape.type.value).toBe(t.id)
+    for (const t of BUILTIN_PARTS.pageTypes) expect(t.schema.shape.type.value).toBe(t.id)
     expect(CORE_CATALOG.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
     expect(CORE_CATALOG.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
   })
@@ -312,7 +312,7 @@ describe("error の表", () => {
 })
 
 describe("機能台帳ごとに別の世界", () => {
-  const NOTES = defineBookType({
+  const NOTES = definePageType({
     id: "notes",
     version: 1,
     title: "@matomezu/drawing:Drawing",
@@ -326,7 +326,7 @@ describe("機能台帳ごとに別の世界", () => {
     presentation: "@matomezu/paper:paper", // 画面に出さないので、見せ方は表にあるものを借りる
     tokens: [],
   })
-  const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })
+  const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, pageTypes: [...BUILTIN_PARTS.pageTypes, NOTES] })
   const library = {}
 
   test("足したタイプのブックは、それを持つ表でだけ作れて、データの形もその表で通る", () => {
@@ -364,7 +364,7 @@ describe("機能台帳ごとに別の世界", () => {
 })
 
 test("ブックのタイプのテーマキーは、データに置けるアイテム（allowed）のテーマキーと、その持ち主のプラグインが持つテーマキーを含む", () => {
-  const base = CORE_CATALOG.bookTypes.get("@matomezu/drawing:drawing")!
+  const base = CORE_CATALOG.pageTypes.get("@matomezu/drawing:drawing")!
   // 形を置けるタイプ。形のテーマキーはプラグインが持つ
   const drawing = {
     ...base,
@@ -383,25 +383,25 @@ test("プラグインが持つテーマキーを、アイテムでも宣言し�
 })
 
 test("タイプが allowed に無いアイテムへ指定を渡したら E029", () => {
-  const flowchart = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/flowchart:flowchart")!
+  const flowchart = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/flowchart:flowchart")!
   const without = flowchart.items.allowed.filter(id => id !== "@matomezu/line:connector-line")
   const bad = { ...flowchart, items: { ...flowchart.items, allowed: without } }
-  const parts = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === flowchart ? bad : t)) }
+  const parts = { ...BUILTIN_PARTS, pageTypes: BUILTIN_PARTS.pageTypes.map(t => (t === flowchart ? bad : t)) }
   expect(checkCoreCatalog(parts).map(p => p.code)).toEqual(["E029"])
 })
 
 test("タイプがページに足すフィールド（pages.fields）は、そのタイプのページの形に入る。土台のページのフィールドと同じ名前なら E030", () => {
-  const tree = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/tree:tree")!
+  const tree = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/tree:tree")!
   const pages = tree.pages!
   const withRoot = { ...tree, pages: { ...pages, fields: { root: z.strictObject({ caption: z.string() }) } } }
-  const parts = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === tree ? withRoot : t)) }
+  const parts = { ...BUILTIN_PARTS, pageTypes: BUILTIN_PARTS.pageTypes.map(t => (t === tree ? withRoot : t)) }
   expect(checkCoreCatalog(parts)).toEqual([])
   const page = buildCoreCatalog(parts).schemas.get(tree.id)!.page!
   const base = { id: "p1", title: "p", paper: "@matomezu/base:a4", orientation: "landscape" }
   expect(page.safeParse({ ...base, root: { caption: "根" } }).success).toBe(true)
   expect(page.safeParse(base).success).toBe(false)
   const clash = { ...tree, pages: { ...pages, fields: { title: z.string(), items: z.array(z.unknown()) } } }
-  const bad = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === tree ? clash : t)) }
+  const bad = { ...BUILTIN_PARTS, pageTypes: BUILTIN_PARTS.pageTypes.map(t => (t === tree ? clash : t)) }
   expect(checkCoreCatalog(bad).map(p => [p.code, p.params.field])).toEqual([
     ["E030", "title"],
     ["E030", "items"],
@@ -410,7 +410,7 @@ test("タイプがページに足すフィールド（pages.fields）は、そ�
 
 test("付け替えの道具は図面の道具の組だけにあり、フローチャートの組は選択とハンド（形が子を持たない）", () => {
   const toolsOf = (type: string) => {
-    const set = BUILTIN_PARTS.bookTypes.find(t => t.id === type)!.tools
+    const set = BUILTIN_PARTS.pageTypes.find(t => t.id === type)!.tools
     return BUILTIN_PARTS.toolSets.find(s => s.id === set)!.tools
   }
   expect(toolsOf("@matomezu/drawing:drawing")).toContain("@matomezu/paper:reparent")
@@ -421,15 +421,15 @@ test("道具の組に無い道具を並べたら E032、道具の無い組は E0
   const set = BUILTIN_PARTS.toolSets.find(s => s.id === "@matomezu/paper:paper")!
   const unknown = { ...set, tools: [...set.tools, "@matomezu/base:pencil"] }
   const empty = { id: "@matomezu/paper:empty", tools: [] }
-  const tree = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/tree:tree")!
+  const tree = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/tree:tree")!
   const lost = { ...tree, tools: "@matomezu/tree:none" }
   const parts = {
     ...BUILTIN_PARTS,
     toolSets: [...BUILTIN_PARTS.toolSets.filter(s => s !== set), unknown, empty],
-    bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === tree ? lost : t)),
+    pageTypes: BUILTIN_PARTS.pageTypes.map(t => (t === tree ? lost : t)),
   }
   expect(checkCoreCatalog(parts).map(problemText)).toEqual([
-    "E008 bookType @matomezu/tree:tree: unknown toolSet @matomezu/tree:none",
+    "E008 pageType @matomezu/tree:tree: unknown toolSet @matomezu/tree:none",
     "E032 toolSet @matomezu/paper:paper: unknown tool @matomezu/base:pencil",
     "E033 toolSet @matomezu/paper:empty: has no tools",
   ])

@@ -2,7 +2,7 @@
 // どちらも既定を持たず、値が無ければテーマはブックのタイプのテーマ、紙の色はテーマの紙の色
 import { z } from "zod"
 import { HEX } from "../../../core/color"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { resolveTokens, type Shades, shades, tokenDefsOf } from "../../../core/theme"
 import { settingValue } from "../book-settings"
@@ -15,7 +15,7 @@ export const BOOK_THEME = kit.defineSetting({
   title: "Theme",
   schema: z.string().min(1),
   describe: (catalog, of) => {
-    const ids = (of === "user" ? [...catalog.themes.values()] : themesFor(catalog, of.bookType)).map(t => t.id)
+    const ids = (of === "user" ? [...catalog.themes.values()] : themesFor(catalog, of.pageType)).map(t => t.id)
     return ids.length > 0 ? z.enum(ids as [string, ...string[]]) : z.never()
   },
 })
@@ -30,12 +30,12 @@ export const BOOK_PAPER_COLOR = kit.defineSetting({
 // ブックのテーマの id: ブックのテーマの項目（タイプが使えなければ使わない）か、ブックのタイプの既定のテーマ
 export function bookTheme(catalog: CoreCatalog, book: Book): string {
   const own = settingValue(catalog, book, null, BOOK_THEME)
-  return own !== undefined && themeFits(catalog, book.type, own) ? own : bookType(catalog, book.type).theme
+  return own !== undefined && themeFits(catalog, book.type, own) ? own : pageType(catalog, book.type).theme
 }
 
 // ブックを描くのに使うテーマの値（ブックのタイプのテーマキー。core の tokenDefsOf）。紙の色があれば紙のテーマキーをその色にする
 export function bookTokens(catalog: CoreCatalog, book: Book): Record<string, Shades> {
-  const type = bookType(catalog, book.type)
+  const type = pageType(catalog, book.type)
   const values = resolveTokens(catalog, bookTheme(catalog, book), tokenDefsOf(catalog, type))
   const paper = settingValue(catalog, book, null, BOOK_PAPER_COLOR)
   return paper === undefined ? values : { ...values, paper: shades(paper) }

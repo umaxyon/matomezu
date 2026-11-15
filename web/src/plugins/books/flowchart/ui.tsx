@@ -9,7 +9,7 @@ import { FLOW_DIRECTION, FLOWCHART } from "./flowchart"
 import { FlowchartIcon } from "./type-icon"
 
 export const FLOWCHART_UI = definePluginUi(FLOWCHART_PLUGIN, {
-  bookTypeIcons: { [FLOWCHART.id]: <FlowchartIcon /> },
+  pageTypeIcons: { [FLOWCHART.id]: <FlowchartIcon /> },
   enumValueIcons: { [FLOWCHART_ENTRY_ICON.id]: <FlowchartIcon /> },
   settingViews: { [FLOW_DIRECTION.id]: { control: FlowDirectionSetting } },
   dialogViews: { [PAGE_ALIGN_DIALOG.id]: AlignDialog },

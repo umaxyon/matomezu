@@ -40,7 +40,7 @@ export interface PrintSheets {
 }
 
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     // 印刷区画の境目をまたぐ形の扱い: ask なら、印刷プレビューを開く前に直してもらう（利用者が手で形を置くタイプ）。
     // 無ければ、またいだまま紙の境目で切れて刷る（並べ方が自動のタイプ）。印刷区画より大きい形は、どちらでも切れて刷る
     printCrossing?: "ask"

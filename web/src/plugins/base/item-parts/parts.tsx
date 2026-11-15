@@ -8,7 +8,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import { resolveTokens, type Shades } from "../../../core/theme"
 import { useMessages } from "../../../ui/i18n"
-import { bookTypeOf, openedOf, useScope } from "../../../ui/scope"
+import { openedOf, pageTypeOf, useScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { bookTheme } from "../book-look/look"
@@ -83,7 +83,7 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
 export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined {
   const catalog = useCatalog().core
   const scope = useScope()
-  const type = useMatomezuState(s => bookTypeOf(s, scope))
+  const type = useMatomezuState(s => pageTypeOf(s, scope))
   return useMemo(() => {
     if (!theme || type === undefined || !themeFits(catalog, type, theme)) return undefined
     const owners = new Set(defs.map(d => splitId(d.id).owner))

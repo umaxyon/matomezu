@@ -1,7 +1,7 @@
 // テーマと紙の色の設定のコンポーネント（設定の項目 book-theme・book-paper-color のビュー）。
 // テーマはブックのタイプが使えるテーマから選ぶ（theme-types.ts。ブックのタイプの既定のテーマを選べば値を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）
 import { useMemo } from "react"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import type { SettingControlProps } from "../../../ui/plugin"
@@ -19,7 +19,7 @@ const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#
 export function ThemeSetting({ label, value, book, onChange }: SettingControlProps<string>) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const typeTheme = bookType(catalog, book.type).theme
+  const typeTheme = pageType(catalog, book.type).theme
   return (
     <Field label={label}>
       {id => (

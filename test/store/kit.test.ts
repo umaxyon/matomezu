@@ -40,7 +40,7 @@ test("テーマが上書きするテーマキーは、: が無ければ自分の
 })
 
 test("ブックのタイプは schema に type を書かず、データの type は本当の id", () => {
-  const many = kit.defineBookType({
+  const many = kit.definePageType({
     id: "board",
     version: 1,
     title: "Board",

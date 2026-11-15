@@ -53,7 +53,7 @@ export const FLOW_DIRECTION = kit.defineSetting({
   default: "down",
 })
 
-export const FLOW = kit.defineBookType({
+export const FLOW = kit.definePageType({
   id: "flow",
   version: 1,
   title: "flow",

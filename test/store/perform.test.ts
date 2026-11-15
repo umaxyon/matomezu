@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { defineAction, pagedOnly } from "../../web/src/core/def/action"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePageType } from "../../web/src/core/def/page-type"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -12,7 +12,7 @@ import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore } from "../support"
 
 // 追加プラグインの見本: 自分のブックのタイプと、そのタイプで使えるアクション（core/catalog.ts には書き足さない）
-const NOTE = defineBookType({
+const NOTE = definePageType({
   id: "notes:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
@@ -55,7 +55,7 @@ const STAMP = defineAction({
   args: z.strictObject({}),
   run: (book, _args, ctx) => ({ next: { ...book, title: ctx.now }, result: {} }),
 })
-const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME, BREAK, STAMP] })
+const notes = definePlugin({ id: "notes", pageTypes: [NOTE], actions: [RENAME, BREAK, STAMP] })
 const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unknown, on?: { book: string }): unknown }
 
 describe("アクションの入口", () => {

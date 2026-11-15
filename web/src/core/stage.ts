@@ -7,9 +7,9 @@
 import { anchorIds } from "./annotation"
 import { hasPages, type PagedBook } from "./book"
 import type { ItemId } from "./catalog"
-import type { BookTypeId, CoreCatalog } from "./core-catalog"
+import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isOnBook } from "./def/action"
-import { type EditList, slideIsBackground } from "./def/book-type"
+import { type EditList, slideIsBackground } from "./def/page-type"
 import type { Point, Size } from "./geom"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
 import { sameData } from "./same"
@@ -21,7 +21,7 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 // shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）。
 // origin は、位置をデータに持たない見せ方が、描く中身を右・下へずらした量（印刷区画の数。見せ方が広さと一緒に知らせる。変わったらパンを合わせる）
 export interface Opened {
-  type: BookTypeId
+  type: PageTypeId
   book: string // ブックの id
   page: string | null // 開いているページの id（ページを持たないタイプと、ページが無いブックは null）
   paper: ResolvedPaper | null // 開いているページの描く紙（ページを開いていなければ null）
@@ -31,8 +31,8 @@ export interface Opened {
 }
 
 // ページ page の紙を、ステージに置く紙に決める（タイプ type の見せ方が紙を置かなければ null）
-function stagePaper(catalog: CoreCatalog, type: BookTypeId, page: PaperChoice): ResolvedPaper | null {
-  const presentation = catalog.presentations.get(catalog.bookTypes.get(type)?.presentation ?? "")
+function stagePaper(catalog: CoreCatalog, type: PageTypeId, page: PaperChoice): ResolvedPaper | null {
+  const presentation = catalog.presentations.get(catalog.pageTypes.get(type)?.presentation ?? "")
   return presentation?.paper === false ? null : resolvePaper(catalog, page)
 }
 
@@ -344,7 +344,7 @@ export const editingBackground = (stage: Pick<Stage, "edits">): boolean => stage
 export function startBackground(catalog: CoreCatalog, stage: Stage): Stage {
   const o = stage.opened
   if (!o || o.page === null || previewing(stage) || editingBackground(stage)) return stage
-  const type = catalog.bookTypes.get(o.type)
+  const type = catalog.pageTypes.get(o.type)
   if (!type || !slideIsBackground(type)) return stage
   return leave({ ...stage, edits: "slide" })
 }

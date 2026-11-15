@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { z } from "zod"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -20,7 +20,7 @@ afterEach(cleanup)
 const TEXT = "@matomezu/slide:slide-text"
 const BOX = "@matomezu/box:shape-nest-box"
 const LOOK = definePresentation({ id: "back:look" })
-const BACK = defineBookType({
+const BACK = definePageType({
   id: "back:back",
   version: 1,
   title: "@matomezu/drawing:Drawing",
@@ -37,7 +37,7 @@ const BACK = defineBookType({
   presentation: LOOK.id,
   tokens: [],
 })
-const back = definePlugin({ id: "back", bookTypes: [BACK], presentations: [LOOK] })
+const back = definePlugin({ id: "back", pageTypes: [BACK], presentations: [LOOK] })
 const backUi = definePluginUi(back, { presentationViews: { "back:look": { view: () => <p>back view</p> } } })
 
 const layer = () => document.querySelector<HTMLElement>("[data-slide-layer]")

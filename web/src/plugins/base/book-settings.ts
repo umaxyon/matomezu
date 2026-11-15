@@ -5,7 +5,7 @@
 import { z } from "zod"
 import { hasPages, putPage } from "../../core/book"
 
-import { bookType, type CoreCatalog } from "../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../core/core-catalog"
 import type { DefaultedSettingDef, SettingDef } from "../../core/def/setting"
 import { fail } from "../../core/errors"
 import type { ItemPage } from "../../core/placed"
@@ -30,7 +30,7 @@ export function settingDefs(
   of: SettingsOf,
   group: SettingGroup = "general",
 ): SettingDef[] {
-  return (bookType(catalog, type).settings?.[of] ?? [])
+  return (pageType(catalog, type).settings?.[of] ?? [])
     .filter(id => groupOf(id) === group)
     .map(id => catalog.settings.get(id) ?? fail("E113", { id }))
 }
@@ -38,7 +38,7 @@ export function settingDefs(
 // タイプ type が選んだ項目を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。項目の id で渡す。値の形は、そのタイプの項目として機能台帳から組み立てた形か schema）
 function settingsPatch(catalog: CoreCatalog, type: string, defs: readonly SettingDef[]): z.ZodObject {
   return z.strictObject(
-    Object.fromEntries(defs.map(d => [d.id, settingSchema(catalog, d, { bookType: type }).nullable().optional()])),
+    Object.fromEntries(defs.map(d => [d.id, settingSchema(catalog, d, { pageType: type }).nullable().optional()])),
   )
 }
 
@@ -59,7 +59,7 @@ export function settingsPatchOf(
 
 // AI に見せる settings の形: 項目（組 group の物）を選んだタイプごとの形のどれか（説明にタイプの id）
 export function settingsArgs(catalog: CoreCatalog, of: SettingsOf, group: SettingGroup = "general"): z.ZodType {
-  const each = [...catalog.bookTypes.values()].flatMap(t => {
+  const each = [...catalog.pageTypes.values()].flatMap(t => {
     const defs = settingDefs(catalog, t.id, of, group)
     return defs.length > 0 ? [settingsPatch(catalog, t.id, defs).describe(`settings of ${t.id} books`)] : []
   })

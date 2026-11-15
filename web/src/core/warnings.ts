@@ -2,8 +2,8 @@
 // error（core/errors.ts）と違い、止めない（インスタンスは作り、ほかは動く）。
 // 番号は一度付けたら変えず、消した番号も使い回さない。文は開発者に向けたもので、画面には出さない。{name} は渡す値で置き換える
 export const WARNINGS = {
-  W001: "bookType {type}: without names {action}, which is not attached to it",
-  W002: "bookType {type}: add names {action}, which is already attached to it",
+  W001: "pageType {type}: without names {action}, which is not attached to it",
+  W002: "pageType {type}: add names {action}, which is already attached to it",
   W003: "command {command}: performs {action}, which is not in the catalog",
   W004: "book {book} ({title}): its type {type} is not in the catalog",
   W005: "book {book} ({title}): it does not fit its type {type}",

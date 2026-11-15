@@ -6,7 +6,7 @@ import { kit } from "./kit"
 
 export const DRAWING_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [DRAWING],
+    pageTypes: [DRAWING],
     enumValues: [DRAWING_ENTRY_ICON],
   }),
 )
@@ -15,7 +15,7 @@ declare module "../../../core/catalog" {
   interface EnumValueTable {
     "@matomezu/drawing:entry-icon": typeof DRAWING_ENTRY_ICON
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/drawing:drawing": typeof DRAWING
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}

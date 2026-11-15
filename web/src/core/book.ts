@@ -1,7 +1,7 @@
 // ブックの操作（データを書き換えず、新しい値を返す）
 
-import { bookType, type CoreCatalog } from "./core-catalog"
-import type { NewBook } from "./def/book-type"
+import { type CoreCatalog, pageType } from "./core-catalog"
+import type { NewBook } from "./def/page-type"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
 import type { PaperChoice } from "./paper"
@@ -26,7 +26,7 @@ export function checkBooks(
     const type = typeof raw.type === "string" ? raw.type : ""
     const params = { book: String(raw.id ?? ""), title: typeof raw.title === "string" ? raw.title : "", type }
     const plugin = splitId(type).owner ?? ""
-    if (!catalog.bookTypes.has(type)) {
+    if (!catalog.pageTypes.has(type)) {
       warnings.push(warning("W004", plugin, params))
       continue
     }
@@ -89,17 +89,17 @@ export const pagesOf = (book: Book): readonly Page[] => pagedOf(book)?.pages ?? 
 
 // 表の、ブックを作れるタイプの id（表の順）
 export function creatableTypes(catalog: CoreCatalog): string[] {
-  return catalog.parts.bookTypes.map(t => t.id)
+  return catalog.parts.pageTypes.map(t => t.id)
 }
 
 // そのタイプの空のブック
 export function createBook(catalog: CoreCatalog, type: string, init: NewBook): Book {
-  return bookType(catalog, type).create(init) as Book
+  return pageType(catalog, type).create(init) as Book
 }
 
 // ブックで使えるアイテム（タイプの候補。データに置ける・引けるのはこの中だけ）
 export function bookItems(catalog: CoreCatalog, book: Pick<Book, "type">): readonly string[] {
-  return bookType(catalog, book.type).items.allowed
+  return pageType(catalog, book.type).items.allowed
 }
 
 // ページを末尾に足す。id は newId の値（uuid。ブックのほかのページと重ならない）
@@ -132,7 +132,7 @@ export function withSettings<T extends object>(target: T, patch: Readonly<Record
 
 // ブックが、データの形の外の決まり（アイテムどうしの関係）を守っているか: タイプの決まりと、どのページもつなぐものの定義の決まり
 export function holds(catalog: CoreCatalog, book: Book): boolean {
-  if (!(bookType(catalog, book.type).holds?.(book, catalog) ?? true)) return false
+  if (!(pageType(catalog, book.type).holds?.(book, catalog) ?? true)) return false
   return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }
 

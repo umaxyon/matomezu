@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePageType } from "../../web/src/core/def/page-type"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -49,7 +49,7 @@ test("紙と向きはあとから変えられ、形が紙からはみ出す変�
 })
 
 // 伸びられるタイプの見本（core/catalog.ts には書き足さないので、インスタンスは partial で作る）
-const SHEET = defineBookType({
+const SHEET = definePageType({
   id: "notes:sheet",
   version: 1,
   title: "@matomezu/drawing:Drawing",
@@ -75,7 +75,7 @@ const SHEET = defineBookType({
 test("伸びられるタイプのページは、作るときもあとからも可変ページにでき、grows は向きの次に並ぶ。1 冊の紙をそろえる規定では、ほかのページがあれば紙を変えられない", () => {
   const ids = ["n1", "n2", "n3"]
   const instance = createMatomezu({
-    plugins: [...BUILTIN, definePlugin({ id: "notes", bookTypes: [SHEET] })],
+    plugins: [...BUILTIN, definePlugin({ id: "notes", pageTypes: [SHEET] })],
     partial: true,
     controlCenter: "@matomezu/control-center:control-center",
     newId: () => ids.shift() ?? "nx",
@@ -102,7 +102,7 @@ test("伸びられるタイプのページは、作るときもあとからも�
 })
 
 // 下へだけ伸びられる、形を置くタイプの見本（図面のブックのタイプを借りる）
-const SCROLL = defineBookType({
+const SCROLL = definePageType({
   ...DRAWING,
   id: "notes:scroll",
   schema: z.strictObject({ type: z.literal("notes:scroll"), id: z.string().min(1) }),
@@ -112,7 +112,7 @@ const SCROLL = defineBookType({
 
 test("可変ページは、伸びない向き（下へだけ伸びるなら横）だけ紙 1 枚に収まればよい。伸びるのをやめるのは、形が紙 1 枚に入るときだけ", () => {
   const instance = createMatomezu({
-    plugins: [...BUILTIN, definePlugin({ id: "notes", bookTypes: [SCROLL] })],
+    plugins: [...BUILTIN, definePlugin({ id: "notes", pageTypes: [SCROLL] })],
     partial: true,
     controlCenter: "@matomezu/control-center:control-center",
     newId: sequence(),

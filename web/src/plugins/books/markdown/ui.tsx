@@ -21,7 +21,7 @@ export const MARKDOWN_SETTINGS_CATEGORY = defineSettingsCategory({
 })
 
 export const MARKDOWN_UI = definePluginUi(MARKDOWN_PLUGIN, {
-  bookTypeIcons: { [MARKDOWN.id]: <MarkdownIcon /> },
+  pageTypeIcons: { [MARKDOWN.id]: <MarkdownIcon /> },
   enumValueIcons: { [MARKDOWN_ENTRY_ICON.id]: <MarkdownIcon /> },
   presentationViews: { [MARKDOWN_PRESENTATION.id]: MARKDOWN_VIEW },
   userSettingViews: { [TAB_KEY.id]: { control: TabKeySetting } },

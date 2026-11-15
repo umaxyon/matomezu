@@ -36,7 +36,7 @@ test("ビルトインプラグインは warning を出さない", () => {
 
 // 間違いを含むプラグイン: タイプの without に付いていないアクション、add にすでに付いているアクション、コマンドの performs に表に無いアクション
 const notes = pluginKit("notes", { Note: { en: "Note" } })
-const NOTE = notes.defineBookType({
+const NOTE = notes.definePageType({
   id: "note",
   version: 1,
   title: "Note",
@@ -61,7 +61,7 @@ const GHOST = notes.defineCommand({
   when: () => true,
 })
 const SCRIBBLE = notes.defineTool({ id: "scribble", title: "Note", performs: ["notes:nothing" as never] })
-const PLUGIN = definePlugin(notes.plugin({ bookTypes: [NOTE], commands: [GHOST], tools: [SCRIBBLE] }))
+const PLUGIN = definePlugin(notes.plugin({ pageTypes: [NOTE], commands: [GHOST], tools: [SCRIBBLE] }))
 
 test("without・add・performs の間違いは warning（W001〜W003・W012）で、その行だけ効かず、プラグインのほかは動く", () => {
   const instance = createMatomezu({
@@ -71,8 +71,8 @@ test("without・add・performs の間違いは warning（W001〜W003・W012）�
   })
   expect(warningsOf(instance.catalog).map(warningText)).toEqual([
     "W012 notes: tool notes:scribble: performs notes:nothing, which is not in the catalog",
-    "W001 notes: bookType notes:note: without names @matomezu/list:row-add, which is not attached to it",
-    "W002 notes: bookType notes:note: add names @matomezu/base:page-add, which is already attached to it",
+    "W001 notes: pageType notes:note: without names @matomezu/list:row-add, which is not attached to it",
+    "W002 notes: pageType notes:note: add names @matomezu/base:page-add, which is already attached to it",
     "W003 notes: command notes:ghost: performs notes:nothing, which is not in the catalog",
   ])
   expect(createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })).toBe(true)
@@ -93,7 +93,7 @@ test("コマンドは、行うアクションが今のブックで使えなけ�
 
 // 線を置けないタイプが線のアクションを足していても、線の入った結果はブックの形に合わないので断る（線のアクションの run は、線を使うタイプかを確かめない）
 const boards = pluginKit("boards", { Board: { en: "Board" } })
-const BOARD = boards.defineBookType({
+const BOARD = boards.definePageType({
   id: "board",
   version: 1,
   title: "Board",
@@ -113,7 +113,7 @@ const BOARD = boards.defineBookType({
 
 test("線を置けないタイプが line-connect を足していても、線を引くのは断る", () => {
   const instance = createMatomezu({
-    plugins: [...BUILTIN, definePlugin(boards.plugin({ bookTypes: [BOARD] }))],
+    plugins: [...BUILTIN, definePlugin(boards.plugin({ pageTypes: [BOARD] }))],
     partial: true,
     controlCenter: "@matomezu/control-center:control-center",
   })

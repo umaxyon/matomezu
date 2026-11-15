@@ -1,6 +1,6 @@
 // 背景（ページの slide。背景を持つタイプ）: 本体か背景かの判定、直している並びとステージの背景編集モード、印刷区画とミニマップの扱い
 import { expect, test } from "bun:test"
-import { slideIsBackground } from "../../web/src/core/def/book-type"
+import { slideIsBackground } from "../../web/src/core/def/page-type"
 import {
   editingBackground,
   endBackground,
@@ -15,7 +15,7 @@ import { sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-shee
 import { placeableIn } from "../../web/src/plugins/base/toolbox/toolbox"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
-const typeOf = (id: string) => BUILTIN_PARTS.bookTypes.find(t => t.id === id)!
+const typeOf = (id: string) => BUILTIN_PARTS.pageTypes.find(t => t.id === id)!
 const DRAWING = "@matomezu/drawing:drawing"
 const SLIDE = "@matomezu/slide-book:slide"
 const ELLIPSE = "@matomezu/slide:slide-ellipse"
@@ -103,7 +103,7 @@ test("可変ページで背景を必ず印刷するときは、背景だけの�
 })
 
 test("背景を持つタイプは、ブックとページの設定に背景の印刷（BACKGROUND_PRINT）を並べる", () => {
-  const withBackground = BUILTIN_PARTS.bookTypes.filter(t => slideIsBackground(t))
+  const withBackground = BUILTIN_PARTS.pageTypes.filter(t => slideIsBackground(t))
   expect(withBackground.length).toBeGreaterThan(0)
   for (const t of withBackground) {
     expect(t.settings?.book ?? []).toContain("@matomezu/base:background-print")

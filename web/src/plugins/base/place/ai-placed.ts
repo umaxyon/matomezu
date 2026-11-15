@@ -3,7 +3,7 @@
 // 置いたアイテムで描く見せ方（紙など）は itemAiPlaced を使う: どの深さの形も、置いた順に
 
 import { hasPages } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { allRectsOf } from "./placed"
@@ -31,7 +31,7 @@ export const itemAiPlaced = (catalog: CoreCatalog, _book: Book, page: ItemPage):
 
 // ブック book のページごとの、描いた位置と大きさ（ページの id ごと）。見せ方が aiPlaced を持たないか、ページの無いブックなら null
 export function aiPlacedOf(catalog: CoreCatalog, book: Book): Record<string, readonly AiPlaced[]> | null {
-  const aiPlaced = catalog.presentations.get(bookType(catalog, book.type).presentation)?.aiPlaced
+  const aiPlaced = catalog.presentations.get(pageType(catalog, book.type).presentation)?.aiPlaced
   if (!aiPlaced || !hasPages(book)) return null
   return Object.fromEntries((book.pages as readonly ItemPage[]).map(p => [p.id, aiPlaced(catalog, book, p)]))
 }

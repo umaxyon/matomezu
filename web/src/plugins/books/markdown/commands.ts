@@ -16,7 +16,7 @@ import {
 
 // 開いているブックのタイプが、マークダウンの見せ方で描くか
 const onMarkdown = (ctx: CommandContext) =>
-  ctx.book !== null && ctx.catalog.bookTypes.get(ctx.book.type)?.presentation === MARKDOWN_PRESENTATION.id
+  ctx.book !== null && ctx.catalog.pageTypes.get(ctx.book.type)?.presentation === MARKDOWN_PRESENTATION.id
 
 // 開いているページ（id と本文）
 function openedPage(ctx: CommandContext): { id: string; text: string } | null {

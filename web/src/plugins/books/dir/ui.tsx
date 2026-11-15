@@ -22,7 +22,7 @@ import { NOTES } from "./notes"
 import { DIR_VIEW } from "./view/ui"
 
 export const DIR_UI = definePluginUi(DIR_PLUGIN, {
-  bookTypeIcons: { [DIR.id]: <DirectoryIcon /> },
+  pageTypeIcons: { [DIR.id]: <DirectoryIcon /> },
   enumValueIcons: {
     [ICON_FOLDER.id]: { closed: <FolderIcon />, open: <FolderOpenIcon /> },
     [ICON_BOOK.id]: { closed: <BookIcon />, open: <BookOpenIcon /> },

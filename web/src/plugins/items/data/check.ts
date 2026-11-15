@@ -11,7 +11,7 @@ const RULES = [
 
 export const DATA_TOKENS_CHECK: CatalogCheckDef = catalog => {
   const declared = [
-    ...[...catalog.bookTypes.values(), ...catalog.items.values()].flatMap(d => d.tokens),
+    ...[...catalog.pageTypes.values(), ...catalog.items.values()].flatMap(d => d.tokens),
     ...catalog.tokens.values(),
   ]
   return [...catalog.themes.values()].flatMap(t =>

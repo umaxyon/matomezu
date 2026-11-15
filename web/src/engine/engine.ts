@@ -18,9 +18,9 @@ import {
 import { checkBooks, restoreBooks } from "../core/book"
 import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
-import { bookType, type CoreCatalog } from "../core/core-catalog"
+import { type CoreCatalog, pageType } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
-import { slideIsBackground } from "../core/def/book-type"
+import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
@@ -303,7 +303,7 @@ function aiTables(of: Assembled) {
         description: a.aiDescription,
         args: z.toJSONSchema(a.describeArgs?.(catalog) ?? a.args, { io: "input", unrepresentable: "any" }),
       })),
-    bookTypes: [...catalog.bookTypes.values()].map(t => ({
+    pageTypes: [...catalog.pageTypes.values()].map(t => ({
       id: t.id,
       title: en(t.title),
       pages: t.pages !== null,
@@ -617,7 +617,7 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
     !read ||
     !Array.isArray(body.slide) ||
     body.slide.length === 0 ||
-    !slideIsBackground(bookType(catalog, read.type))
+    !slideIsBackground(pageType(catalog, read.type))
   )
     return page
   const { slide, ...rest } = body

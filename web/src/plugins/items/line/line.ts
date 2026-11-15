@@ -94,7 +94,7 @@ export interface LineOptions {
 
 // ブックのタイプが線に渡す指定（無ければ空）
 export const lineOptionsOf = (catalog: CoreCatalog, book: Pick<Book, "type">): LineOptions =>
-  catalog.bookTypes.get(book.type)?.items.options?.[LINE.id] ?? {}
+  catalog.pageTypes.get(book.type)?.items.options?.[LINE.id] ?? {}
 
 // 始点が from のアイテムの線の、キャプションの候補（文言の鍵）
 export const captionWordsOf = (catalog: CoreCatalog, book: Pick<Book, "type">, from: string): readonly MessageKey[] =>

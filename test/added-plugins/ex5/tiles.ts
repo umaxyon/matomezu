@@ -78,7 +78,7 @@ export const SHELF_TOOLS = kit.defineToolSet({
 })
 
 // 棚の図: タイルとビルトインの箱を置くタイプ
-export const SHELF = kit.defineBookType({
+export const SHELF = kit.definePageType({
   id: "shelf",
   version: 1,
   title: "shelf",

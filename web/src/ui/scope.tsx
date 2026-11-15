@@ -8,7 +8,7 @@
 // コンテキストの値は id と数だけで、同じ場所の間は同じ参照（ブックやページの中身・選択・紙をずらす量は入れない。変わるたびに中の全部を描き直さないため）
 import { createContext, type ReactNode, useCallback, useContext, useMemo } from "react"
 import { pagedOf } from "../core/book"
-import type { BookTypeId } from "../core/catalog"
+import type { PageTypeId } from "../core/catalog"
 import type { ItemPage } from "../core/placed"
 import type { Book } from "../core/schema/book"
 import type { Stage } from "../core/stage"
@@ -126,7 +126,7 @@ export function pageOf(s: MatomezuState, scope: Scope): ItemPage | null {
 }
 
 // 描くページのブックのタイプ（描くページが無ければ undefined）
-export function bookTypeOf(s: MatomezuState, scope: Scope): BookTypeId | undefined {
+export function pageTypeOf(s: MatomezuState, scope: Scope): PageTypeId | undefined {
   const ref = scope.page
   if (!ref) return undefined
   return ref.from === "page" ? s.books[ref.book]?.type : stageIn(s.window, ref.stage)?.opened?.type

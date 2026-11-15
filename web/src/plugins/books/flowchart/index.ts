@@ -9,7 +9,7 @@ import { FLOWCHART_TOOLS } from "./tools"
 
 export const FLOWCHART_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [FLOWCHART],
+    pageTypes: [FLOWCHART],
     enumValues: [FLOWCHART_ENTRY_ICON],
     settings: [FLOW_DIRECTION],
     actions: [PAGE_ALIGN],
@@ -23,7 +23,7 @@ declare module "../../../core/catalog" {
   interface EnumValueTable {
     "@matomezu/flowchart:entry-icon": typeof FLOWCHART_ENTRY_ICON
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/flowchart:flowchart": typeof FLOWCHART
   }
   interface SettingTable {

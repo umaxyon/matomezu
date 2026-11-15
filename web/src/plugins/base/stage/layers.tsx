@@ -2,7 +2,7 @@
 // 紙の面と区切りの線は紙の座標の枠（PaperFrame）に描き、ポインタは受けない（上のレイヤーとステージが受ける）。ページが無い・紙を出せないときは描かない（知らせはブックのビューが出す）
 
 import { useLayoutEffect, useMemo } from "react"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
 import { areaOf, paperOf } from "../../../core/stage"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
@@ -91,7 +91,7 @@ export function BookContentLayer() {
   const hidden = useContentHidden()
   const type = stage?.opened?.type
   if (!type) return null
-  const presentation = bookType(catalog, type).presentation
+  const presentation = pageType(catalog, type).presentation
   const View = (views.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })).view
   if (stage.edits !== "slide") return <View />
   return (

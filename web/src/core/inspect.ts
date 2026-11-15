@@ -4,10 +4,10 @@
 
 import { type Actor, hasJoined, isAI, USER } from "./actor"
 import type { ActionId, SubjectId } from "./catalog"
-import { bookType, type CoreCatalog } from "./core-catalog"
+import { type CoreCatalog, pageType } from "./core-catalog"
 import { type ActionContext, type ActionDef, attachedTo, BASE_TARGETS, isOnBook, type Where } from "./def/action"
-import type { BookTypeDef } from "./def/book-type"
 import type { ControlCenterDef } from "./def/control-center"
+import type { PageTypeDef } from "./def/page-type"
 import type { PermissionQuery, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
 import type { KeyBinding } from "./keys"
@@ -16,8 +16,8 @@ import type { Book } from "./schema/book"
 // ステップの出どころ
 export type Source =
   | { source: "catalog"; table: "actions"; id: string } // 表にその定義があるか
-  | { source: "bookType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
-  | { source: "action"; id: string; field: "attach"; bookType: string } // アクションの付く先が、そのタイプに当てはまるか
+  | { source: "pageType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
+  | { source: "action"; id: string; field: "attach"; pageType: string } // アクションの付く先が、そのタイプに当てはまるか
   | { source: "action"; id: string; field: "userOnly" } // 利用者だけが行うアクションを、AI が頼んだ
   | { source: "participation"; id: string } // 参加が確定していない AI が、ブックでない対象のアクションを頼んだ
   | { source: "userSetting"; id: string; field: "userOnly" } // 利用者だけが変える利用者の設定の項目を、AI が変えようとした
@@ -80,22 +80,22 @@ const decide = <V>(steps: Step<V>[]): Inspected<V> => {
 }
 
 // タイプ type でアクションを使えるかのステップ: タイプが外す（without）→ タイプが足す（add）→ アクションの付く先（attach）
-function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
+function typeSteps(def: ActionDef, type: PageTypeDef): Step<boolean>[] {
   return [
     {
-      from: { source: "bookType", id: type.id, field: "actions.without" },
+      from: { source: "pageType", id: type.id, field: "actions.without" },
       value: type.actions.without?.includes(def.id as ActionId) ? false : null,
     },
     {
-      from: { source: "bookType", id: type.id, field: "actions.add" },
+      from: { source: "pageType", id: type.id, field: "actions.add" },
       value: type.actions.add?.includes(def.id as ActionId) ? true : null,
     },
-    { from: { source: "action", id: def.id, field: "attach", bookType: type.id }, value: attachedTo(def, type) },
+    { from: { source: "action", id: def.id, field: "attach", pageType: type.id }, value: attachedTo(def, type) },
   ]
 }
 
 // タイプ type でアクションを使えるか（typeSteps で決まる答え）
-export const typeAllows = (def: ActionDef, type: BookTypeDef): boolean => decide(typeSteps(def, type)).value === true
+export const typeAllows = (def: ActionDef, type: PageTypeDef): boolean => decide(typeSteps(def, type)).value === true
 
 // 認可ステップ: 表の並びで、止めるなら false（許すことはしないので、ほかは null）
 function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean>[] {
@@ -185,7 +185,7 @@ function action(
       : []
   if (def.target === "book" || def.target === "annotations")
     return book
-      ? decide([known, userOnly, ...permitted, ...typeSteps(def, bookType(catalog, book.type))])
+      ? decide([known, userOnly, ...permitted, ...typeSteps(def, pageType(catalog, book.type))])
       : decide([known, userOnly])
   const center = controlCenter === null ? undefined : catalog.controlCenters.get(controlCenter)
   if (!center)

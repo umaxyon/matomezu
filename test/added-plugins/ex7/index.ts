@@ -5,12 +5,12 @@ import { definePlugin } from "matomezu"
 import { CRATE, YARD } from "./crate"
 import { kit } from "./kit"
 
-export const EX7 = definePlugin(kit.plugin({ bookTypes: [YARD], items: [CRATE] }))
+export const EX7 = definePlugin(kit.plugin({ pageTypes: [YARD], items: [CRATE] }))
 
 export default EX7
 
 declare module "matomezu/catalog" {
-  interface BookTypeTable {
+  interface PageTypeTable {
     "ex7:yard": typeof YARD
   }
   interface ItemTable {

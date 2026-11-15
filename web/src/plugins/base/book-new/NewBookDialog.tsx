@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { USER } from "../../../core/actor"
 import { createBook } from "../../../core/book"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import { worldOf } from "../../../store/world"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -38,7 +38,7 @@ function NewBookForm({ onDone }: { onDone: () => void }) {
   const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, controlCenter, actor: USER })))
   const [type, setType] = useState(types[0] ?? "")
   const [settings, setSettings] = useState<SettingsPatch>({})
-  const asks = type ? (bookType(catalog, type).createSettings ?? []) : []
+  const asks = type ? (pageType(catalog, type).createSettings ?? []) : []
   return (
     <Form
       submit={t("Create")}
@@ -69,7 +69,7 @@ function NewBookForm({ onDone }: { onDone: () => void }) {
           >
             {types.map(c => (
               <option key={c} value={c}>
-                {t(bookType(catalog, c).title)}
+                {t(pageType(catalog, c).title)}
               </option>
             ))}
           </select>
@@ -100,5 +100,5 @@ function CreateSettingsInputs({
   const draft = useMemo(() => createBook(catalog, type, { id: "new", title: "" }), [catalog, type])
   const settings = useSettingControls(draft, "book", null, asks)
   useEffect(() => onChange(settings.patch), [settings.patch, onChange])
-  return <Section title={t("{type} settings", { type: t(bookType(catalog, type).title) })}>{settings.controls}</Section>
+  return <Section title={t("{type} settings", { type: t(pageType(catalog, type).title) })}>{settings.controls}</Section>
 }

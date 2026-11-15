@@ -23,7 +23,7 @@ export const USE_MINT = kit.defineCommand({
 
 export const EX3 = definePlugin(
   kit.plugin({
-    bookTypes: [BOARD],
+    pageTypes: [BOARD],
     items: [STAR],
     papers: [SQUARE],
     settings: [GRID],
@@ -37,7 +37,7 @@ export const EX3 = definePlugin(
 export default EX3
 
 declare module "matomezu/catalog" {
-  interface BookTypeTable {
+  interface PageTypeTable {
     "ex3:board": typeof BOARD
   }
   interface ItemTable {

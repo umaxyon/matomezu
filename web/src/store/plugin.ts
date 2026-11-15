@@ -89,7 +89,7 @@ type ShapeDialogCheck<P> = [WrongAdd<P> | WrongEdit<P>] extends [never]
     }
 
 // ブックのタイプが名指すページを作るダイアログとページの設定のダイアログのうち、受ける値が合わないもの（ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs）
-type PageDialogsOf<P> = P extends { bookTypes?: readonly (infer T)[] }
+type PageDialogsOf<P> = P extends { pageTypes?: readonly (infer T)[] }
   ? T extends { pages: { dialogs?: infer G } }
     ? NonNullable<G>
     : never
@@ -168,7 +168,7 @@ export function assemble(
     for (const d of p.userSettings ?? []) if (d.role && !isBuiltin(p)) fail("E309", { plugin: p.id, id: d.id })
     for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!isOwnedBy(p.id, d.id)) fail("E301", { plugin: p.id, kind, id: d.id })
-    for (const t of [...(p.items ?? []), ...(p.bookTypes ?? [])].flatMap(o => o.tokens).concat(p.tokens ?? [])) {
+    for (const t of [...(p.items ?? []), ...(p.pageTypes ?? [])].flatMap(o => o.tokens).concat(p.tokens ?? [])) {
       if (!isOwnedBy(p.id, t.id)) fail("E301", { plugin: p.id, kind: "token", id: t.id })
       if (/^(theme|skin)-/.test(splitId(t.id).name)) fail("E306", { plugin: p.id, token: t.id })
     }
@@ -205,7 +205,7 @@ export function assemble(
     if (i.kind === "shape")
       for (const dialog of [i.dialogs?.add, i.dialogs?.edit])
         if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
-  for (const t of all("bookTypes"))
+  for (const t of all("pageTypes"))
     for (const dialog of [t.pages?.dialogs?.add, t.pages?.dialogs?.settings])
       if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E031", { id: t.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)

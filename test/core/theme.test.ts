@@ -51,7 +51,7 @@ test("ビルトインプラグインと画面の CSS とビューが書いた --
   )
   const own = new Map<string, Set<string>>() // プラグインのフォルダ → 自分のテーマキーの --名前（アイテム・タイプ・プラグインが持つもの）
   for (const t of [
-    ...[...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens),
+    ...[...BUILTIN_PARTS.pageTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens),
     ...BUILTIN_PARTS.tokens,
   ]) {
     const dir = dirOf(t.id)

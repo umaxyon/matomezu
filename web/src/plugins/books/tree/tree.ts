@@ -66,7 +66,7 @@ export const NODE_SIZE_DIALOG = kit.defineDialogWith<{ page: string; node: strin
 // 節の塗りのテーマキー（無ければテーマの塗り。節の色を選ぶときの「なし」の色）
 export const NODE_FILL = { id: kit.name("tree-node-fill"), fallback: "fill" } as const
 
-export const TREE = kit.defineBookType({
+export const TREE = kit.definePageType({
   id: "tree",
   version: 1,
   title: "Tree",

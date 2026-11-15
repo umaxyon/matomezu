@@ -33,7 +33,7 @@ import {
 
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [TREE],
+    pageTypes: [TREE],
     enumValues: [TREE_ENTRY_ICON],
     pluginStates: TREE_STATES,
     presentations: [TREE_PRESENTATION],
@@ -61,7 +61,7 @@ declare module "../../../core/catalog" {
   interface EnumValueTable {
     "@matomezu/tree:entry-icon": typeof TREE_ENTRY_ICON
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/tree:tree": typeof TREE
   }
   interface PresentationTable {

@@ -6,7 +6,7 @@ import type { ItemPage } from "../../../core/placed"
 // 物の名前を返すメソッド（物の名前を出す所が引く。引くのは labels.ts）（定義オブジェクトの拡張ポイントに書き足す）。名前は本文と同じ書き方でよい（装飾は引く側が外す）。
 // 引く側が id を持つ物を探して、その物の定義のメソッドだけを呼ぶ。名前が空なら、画面はその物の種類の名前で呼ぶ
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     // ページ page の中の物 id の名前（形とつなぐものの中に無い物。ツリーの節など）
     labelOf?(page: ItemPage, id: string): string
   }

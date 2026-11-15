@@ -10,10 +10,10 @@ import { LINE_ROUTE } from "../../web/src/plugins/items/line/line"
 import { assemble, type Plugin, warningsOf } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
-const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing")!
+const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
 const withDrawing = (patch: object) => ({
   ...BUILTIN_PARTS,
-  bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t.id === "@matomezu/drawing:drawing" ? { ...t, ...patch } : t)),
+  pageTypes: BUILTIN_PARTS.pageTypes.map(t => (t.id === "@matomezu/drawing:drawing" ? { ...t, ...patch } : t)),
 })
 const page = (items: unknown[], extra: object = {}) => ({
   id: "p1",
@@ -147,7 +147,7 @@ test("形の仲間の名前が文言の表に無ければ E018（base の台帳�
 test("ブックのタイプの createSettings がブックの設定の項目に無い項目を名指したら E035（base の台帳アセンブルのときの確かめ）", () => {
   const plugins = (BUILTIN as readonly Plugin[]).map(p =>
     p.id === "@matomezu/tree"
-      ? { ...p, bookTypes: (p.bookTypes ?? []).map(t => ({ ...t, createSettings: ["@matomezu/tree:no-such"] })) }
+      ? { ...p, pageTypes: (p.pageTypes ?? []).map(t => ({ ...t, createSettings: ["@matomezu/tree:no-such"] })) }
       : p,
   )
   let found: { code: string }[] = []

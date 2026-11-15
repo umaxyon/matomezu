@@ -142,12 +142,12 @@ export interface Overrides {
 export type EnumValueIcon = ReactNode | { readonly closed: ReactNode; readonly open: ReactNode }
 
 // widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、
-// bookTypeIcons はブックのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
+// pageTypeIcons はブックのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
 // enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）
 export type UiParts<P> = PluginViews<P> & {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: { [id in IdsOf<P, "commands">]?: ReactNode }
-  bookTypeIcons?: { [id in IdsOf<P, "bookTypes">]?: ReactNode }
+  pageTypeIcons?: { [id in IdsOf<P, "pageTypes">]?: ReactNode }
   enumValueIcons?: { [id in IdsOf<P, "enumValues">]?: EnumValueIcon }
   overrides?: Overrides
 }
@@ -171,7 +171,7 @@ export interface UiCatalog {
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
   toolIcons: ReadonlyMap<string, ReactNode>
-  bookTypeIcons: ReadonlyMap<string, ReactNode>
+  pageTypeIcons: ReadonlyMap<string, ReactNode>
   enumValueIcons: ReadonlyMap<string, EnumValueIcon>
 }
 
@@ -185,7 +185,7 @@ interface LooseUi {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
   toolIcons?: Record<string, ReactNode>
-  bookTypeIcons?: Record<string, ReactNode>
+  pageTypeIcons?: Record<string, ReactNode>
   enumValueIcons?: Record<string, EnumValueIcon>
   overrides?: {
     presentationViews?: Record<string, BookViewDef>
@@ -215,7 +215,7 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
   const toolIcons = new Map<string, ReactNode>()
-  const bookTypeIcons = new Map<string, ReactNode>()
+  const pageTypeIcons = new Map<string, ReactNode>()
   const enumValueIcons = new Map<string, EnumValueIcon>()
   const uis = plugins.map(p => {
     const ui = (p as Partial<AnyPluginUi>).ui as LooseUi | undefined
@@ -267,10 +267,10 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
       if (!own.has(id)) fail("E307", { plugin: p.id, command: id })
       commandIcons.set(id, icon)
     }
-    const ownTypes = new Set((p.bookTypes ?? []).map(t => t.id))
-    for (const [id, icon] of Object.entries(ui.bookTypeIcons ?? {})) {
+    const ownTypes = new Set((p.pageTypes ?? []).map(t => t.id))
+    for (const [id, icon] of Object.entries(ui.pageTypeIcons ?? {})) {
       if (!ownTypes.has(id)) fail("E313", { plugin: p.id, id })
-      bookTypeIcons.set(id, icon)
+      pageTypeIcons.set(id, icon)
     }
     const ownValues = new Set((p.enumValues ?? []).map(v => v.id))
     for (const [id, icon] of Object.entries(ui.enumValueIcons ?? {})) {
@@ -308,7 +308,7 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
     widgets,
     commandIcons,
     toolIcons,
-    bookTypeIcons,
+    pageTypeIcons,
     enumValueIcons,
   }
 }

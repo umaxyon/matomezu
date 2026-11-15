@@ -43,7 +43,7 @@ const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-ellipse",
 ] as const
 
-export const DRAWING = kit.defineBookType({
+export const DRAWING = kit.definePageType({
   id: "drawing",
   version: 1,
   title: "Drawing",

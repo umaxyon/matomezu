@@ -99,7 +99,7 @@ export const NIGHT = kit.defineSkin({
   palette: { primary: "#7aa2ff" }, // 外観枠の代表色は役割ごとに上書きできる（書かない役割は、暗いスキンの既定）
 })
 
-export const BOARD = kit.defineBookType({
+export const BOARD = kit.definePageType({
   id: "board",
   version: 1,
   title: "board",

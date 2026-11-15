@@ -6,7 +6,7 @@ import { type Annotations, annotationsSettle, type BookAnnotations, prune } from
 import { creatableTypes, createBook, holds } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
-import { bookType, type CoreCatalog } from "./core-catalog"
+import { type CoreCatalog, pageType } from "./core-catalog"
 import {
   type ActionContext,
   type ActionDef,
@@ -71,7 +71,7 @@ export type Performed<Id extends ActionId> =
 
 // タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
 function typeActions(catalog: CoreCatalog, type: string): readonly string[] {
-  const t = bookType(catalog, type)
+  const t = pageType(catalog, type)
   return [...catalog.actions.values()].filter(a => typeAllows(a, t)).map(a => a.id)
 }
 

@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { checkBooks } from "../../web/src/core/book"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { attachedTo } from "../../web/src/core/def/action"
-import { placeableOf } from "../../web/src/core/def/book-type"
+import { placeableOf } from "../../web/src/core/def/page-type"
 import { tokenDefsOf } from "../../web/src/core/theme"
 import { warningText } from "../../web/src/core/warnings"
 import { itemMinimapMarks } from "../../web/src/plugins/base/minimap/marks"
@@ -12,7 +12,7 @@ import { toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const SLIDE_TYPE = "@matomezu/slide-book:slide"
-const slideType = BUILTIN_PARTS.bookTypes.find(t => t.id === SLIDE_TYPE)!
+const slideType = BUILTIN_PARTS.pageTypes.find(t => t.id === SLIDE_TYPE)!
 const TEXT = "@matomezu/slide:slide-text"
 const page = { id: "p1", title: "P", paper: "@matomezu/base:ratio-16x9", orientation: "landscape" as const }
 const bookWith = (slide: object[]) => ({
@@ -26,7 +26,7 @@ test("slide に置けるのは形だけ（E042）で、ページを持たない�
   const withLine = { ...slideType, slide: { allowed: ["@matomezu/line:connector-line"] } }
   const parts = (t: typeof slideType) => ({
     ...BUILTIN_PARTS,
-    bookTypes: BUILTIN_PARTS.bookTypes.map(b => (b === slideType ? t : b)),
+    pageTypes: BUILTIN_PARTS.pageTypes.map(b => (b === slideType ? t : b)),
   })
   expect(checkCoreCatalog(parts(withLine)).map(p => p.code)).toContain("E042")
   expect(checkCoreCatalog(parts({ ...slideType, pages: null })).map(p => p.code)).toContain("E043")
@@ -49,9 +49,9 @@ test("置けるアイテムは items.allowed と slide.allowed の合わせ: ア
   expect(placeableOf(slideType)).toEqual(slideType.slide!.allowed)
   const update = BUILTIN_PARTS.actions.find(a => a.id === "@matomezu/slide:slide-update")!
   expect(attachedTo(update, slideType)).toBe(true)
-  const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing")!
+  const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
   expect(attachedTo(update, drawing)).toBe(true) // 図面は背景（slide）を持つ
-  const markdown = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/markdown:markdown")!
+  const markdown = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/markdown:markdown")!
   expect(attachedTo(update, markdown)).toBe(false)
   // slide にだけ置けるアイテムのテーマキーも、タイプの宣言に入る
   const box = BUILTIN_PARTS.items.find(i => i.id === "@matomezu/list:shape-list")!

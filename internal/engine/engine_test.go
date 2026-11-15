@@ -191,15 +191,15 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 	}
 }
 
-func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
+func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
 	var c struct {
-		BookTypes []struct {
+		PageTypes []struct {
 			ID     string          `json:"id"`
 			Pages  bool            `json:"pages"`
 			Grows  json.RawMessage `json:"grows"`
 			Items  []string        `json:"items"`
 			Themes []string        `json:"themes"`
-		} `json:"bookTypes"`
+		} `json:"pageTypes"`
 		Items []struct {
 			ID   string `json:"id"`
 			Kind string `json:"kind"`
@@ -211,7 +211,7 @@ func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
 	types := map[string]string{}
 	grows := map[string]string{}
 	themes := map[string]string{}
-	for _, b := range c.BookTypes {
+	for _, b := range c.PageTypes {
 		types[b.ID] = fmt.Sprint(b.Pages, " ", strings.Join(b.Items, ","))
 		grows[b.ID] = string(b.Grows)
 		themes[b.ID] = strings.Join(b.Themes, ",")

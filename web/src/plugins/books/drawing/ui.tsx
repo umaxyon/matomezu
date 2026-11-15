@@ -6,6 +6,6 @@ import { DRAWING_ENTRY_ICON } from "./entry-icon"
 import { DrawingIcon } from "./type-icon"
 
 export const DRAWING_UI = definePluginUi(DRAWING_PLUGIN, {
-  bookTypeIcons: { [DRAWING.id]: <DrawingIcon /> },
+  pageTypeIcons: { [DRAWING.id]: <DrawingIcon /> },
   enumValueIcons: { [DRAWING_ENTRY_ICON.id]: <DrawingIcon /> },
 })

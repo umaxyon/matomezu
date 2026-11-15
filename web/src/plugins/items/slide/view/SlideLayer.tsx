@@ -8,10 +8,10 @@
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import {
-  bookType,
   type ItemId,
   type PlacedShape,
   type Point,
+  pageType,
   type Rect,
   type StageView,
   slideIsBackground,
@@ -129,10 +129,10 @@ export function SlideLayer() {
   const stage = useStage()
   const catalog = useCoreCatalog()
   const type = stage?.opened?.type
-  const slide = type ? bookType(catalog, type).slide : undefined
+  const slide = type ? pageType(catalog, type).slide : undefined
   if (!stage || !slide || stage.opened?.page == null) return null
   // slide がページの本体のタイプは、紙の何も無い所の押しも受ける（選びを外す）。背景のタイプは、背景編集モードの間だけ操作を受ける（ふだんは描くだけ）
-  const body = !slideIsBackground(bookType(catalog, type as string))
+  const body = !slideIsBackground(pageType(catalog, type as string))
   return <SlidePageView stage={stage} operable={body || stage.edits === "slide"} placeable={slide.allowed} />
 }
 

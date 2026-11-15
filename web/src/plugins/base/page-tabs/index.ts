@@ -2,7 +2,7 @@
 // ページを作るダイアログとページの設定のダイアログは、ブックのタイプが自分のものにできる（pages.dialogs。行うアクションは同じ page-add・page-update）
 
 import { hasPages } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { editingBackground } from "../../../core/stage"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
@@ -17,7 +17,7 @@ export { PAGE_ADD } from "./page-add"
 
 // ページタブの横に、ページを足すボタンを出すか（定義オブジェクトの拡張ポイントに書き足す。無ければ出さない。ページを持つタイプだけが使う）
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     addPagesFromTabs?: boolean
     // ページ一覧（ステージの左に、ページのサムネイルを縦に並べる）を出すか。出すタイプはページタブを出さない（無ければ出さない。ページを持つタイプだけが使う）
     pageList?: boolean
@@ -49,7 +49,7 @@ export function pageDialog(catalog: CoreCatalog, book: Book, of: "add"): DialogT
 export function pageDialog(catalog: CoreCatalog, book: Book, of: "settings"): DialogTaking<PageSettingsArgs>
 export function pageDialog(catalog: CoreCatalog, book: Book, of: "add" | "settings"): string {
   return (
-    bookType(catalog, book.type).pages?.dialogs?.[of] ?? (of === "add" ? NEW_PAGE_DIALOG.id : PAGE_SETTINGS_DIALOG.id)
+    pageType(catalog, book.type).pages?.dialogs?.[of] ?? (of === "add" ? NEW_PAGE_DIALOG.id : PAGE_SETTINGS_DIALOG.id)
   )
 }
 
@@ -114,7 +114,7 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
     if (done.ok) a.openPage(done.result.page)
   },
   permissionScope: { page: "page" },
-  when: ctx => ctx.book !== null && hasPages(ctx.book) && bookType(ctx.catalog, ctx.book.type).duplicatesPages === true,
+  when: ctx => ctx.book !== null && hasPages(ctx.book) && pageType(ctx.catalog, ctx.book.type).duplicatesPages === true,
 })
 
 // ページ page を消す前に確かめるダイアログを開く

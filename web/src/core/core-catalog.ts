@@ -7,12 +7,12 @@ import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, p
 import { HEX } from "./color"
 import { type ActionDef, attachedTo, BASE_TARGETS } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
-import type { BookTypeDef } from "./def/book-type"
 import type { ControlCenterDef } from "./def/control-center"
 import type { EnumDef, EnumValueDef } from "./def/enum"
 import type { ItemDef } from "./def/item"
 import type { MailDef } from "./def/mail"
 import type { NormalizeStepDef } from "./def/normalize-step"
+import type { PageTypeDef } from "./def/page-type"
 import type { PaperDef } from "./def/paper"
 import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
@@ -34,7 +34,7 @@ import { PageSchema } from "./schema/page"
 import { writtenValues } from "./theme"
 import { type Warning, warning } from "./warnings"
 
-export type { ActionId, BookTypeId, ItemId, PaperId, SettingId, SkinId, ThemeId } from "./catalog"
+export type { ActionId, ItemId, PageTypeId, PaperId, SettingId, SkinId, ThemeId } from "./catalog"
 
 // アイテムの、置いたものが持つ項目の型
 export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
@@ -42,7 +42,7 @@ export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
 // core 台帳の定義の種類の、定義の型（スキンは matomezu 外観枠の色や形で、利用者の設定で選ぶ）
 declare module "./catalog" {
   interface PartDefTable {
-    bookTypes: BookTypeDef
+    pageTypes: PageTypeDef
     controlCenters: ControlCenterDef
     items: ItemDef
     actions: ActionDef
@@ -105,7 +105,7 @@ export type CatalogCheckDef = (catalog: CoreCatalog) => readonly (Problem | Warn
 export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   const problems = checkCoreCatalog(parts)
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
-  const schemas = new Map(parts.bookTypes.map(t => [t.id, buildBookSchemas(parts, t)]))
+  const schemas = new Map(parts.pageTypes.map(t => [t.id, buildBookSchemas(parts, t)]))
   const [first, ...rest] = [...schemas.values()].map(s => s.book)
   if (!first) return fail("E015")
   // 種類ごとの表（Object.fromEntries はフィールドの型を残さないので、種類ごとの定義の型を言い張る）
@@ -133,7 +133,7 @@ const HEAD = ["type", "id"]
 
 // タイプのブックとページのデータの形: ページの形は、土台のページのフィールド・タイプがページに足すフィールド（pages.fields）・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
 // ブックの形は、タイプの頭のフィールド・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかのフィールド
-function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas {
+function buildBookSchemas(parts: CoreCatalogParts, t: PageTypeDef): BookSchemas {
   const settings = byId(parts.settings)
   // 選んだ設定の項目を、項目の id を鍵にした settings のフィールドにする（選んでいなければフィールドを足さない）。
   // 機能台帳に無い項目（プラグインを外したなど）は、そのまま残す（機能台帳にあって選んでいない項目があれば形に合わない）
@@ -193,7 +193,7 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
 
 // ページの slide（形だけの並び）: タイプが選んだ形を置いた並び。選んでいなければフィールドを足さない。
 // 機能台帳に無いアイテム（プラグインを外したなど）は、items と同じく id と item だけを確かめて残す
-function slideField(t: BookTypeDef, items: ReadonlyMap<string, ItemDef>): Record<string, z.ZodType> {
+function slideField(t: PageTypeDef, items: ReadonlyMap<string, ItemDef>): Record<string, z.ZodType> {
   if (!t.slide) return {}
   const shapes = t.slide.allowed.flatMap(id => {
     const def = items.get(id)
@@ -211,8 +211,8 @@ export function bookSchemas(catalog: CoreCatalog, id: string): BookSchemas {
 
 // ブックのタイプは、データのタイプが表に無ければ error。ほかの定義は catalog.items.get(id) などで引き、知らない id なら undefined
 // （データに残った、外したプラグインのアイテムなど）
-export function bookType(catalog: CoreCatalog, id: string): BookTypeDef {
-  return catalog.bookTypes.get(id) ?? fail("E101", { id })
+export function pageType(catalog: CoreCatalog, id: string): PageTypeDef {
+  return catalog.pageTypes.get(id) ?? fail("E101", { id })
 }
 
 const allMessages = (parts: CoreCatalogParts) => [CORE_MESSAGES, ...parts.messages]
@@ -233,7 +233,7 @@ function mergeMessages(parts: CoreCatalogParts): Messages {
 
 // 宣言されたテーマキーと、宣言した物（アイテムとブックのタイプは自分の id、プラグインのテーマキーはプラグインの id）
 const tokenDefs = (parts: CoreCatalogParts) => [
-  ...[...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k }))),
+  ...[...parts.pageTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k }))),
   ...parts.tokens.map(k => ({ owner: splitId(k.id).owner ?? k.id, ...k })),
 ]
 
@@ -271,7 +271,7 @@ function coreWarnings(parts: CoreCatalogParts): Warning[] {
     ...parts.enumValues
       .filter(v => !enums.has(v.enum))
       .map(v => warning("W026", splitId(v.id).owner ?? "", { id: v.id, enum: v.enum })),
-    ...parts.bookTypes.flatMap(t => {
+    ...parts.pageTypes.flatMap(t => {
       const plugin = splitId(t.id).owner ?? ""
       const attached = (id: string) => {
         const a = actions.get(id)
@@ -393,7 +393,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     for (const id of c.subjects === "all" ? [] : (c.subjects ?? []))
       if (!subjects.has(id)) problems.push(problem("E047", { id: c.id, ref: id }))
   }
-  for (const t of parts.bookTypes) {
+  for (const t of parts.pageTypes) {
     const literal = t.schema.shape.type
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
     if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
