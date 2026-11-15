@@ -84,7 +84,7 @@ export const PRINT_PREVIEW_UPDATE = kit.defineAction({
   history: false,
   inPrintPreview: "runs",
   attach: { books: true },
-  aiDescription: `Change how the print preview arranges a book's print areas (the book types with pages): ${PRINT_PREVIEW_FLOW.id} column (top to bottom, the default) or row (left to right); ${PRINT_PREVIEW_ORDER.id}, the order of a variable page's print areas, across (left to right, then the next row; the default) or down (top to bottom, then the next column); ${PRINT_PREVIEW_SHEET_NUMBERS.id}, ${PRINT_PREVIEW_BOOK_NAME.id} and ${PRINT_PREVIEW_PAGE_NAME.id}, shown or hidden (the default) on each sheet (with both names, "book - page" at the top left). Only what is given changes; null goes back to the default. The user's undo does not take it back.`,
+  aiDescription: `Change how the print preview arranges a book's print areas: ${PRINT_PREVIEW_FLOW.id} column (top to bottom, the default) or row (left to right); ${PRINT_PREVIEW_ORDER.id}, the order of a variable page's print areas, across (left to right, then the next row; the default) or down (top to bottom, then the next column); ${PRINT_PREVIEW_SHEET_NUMBERS.id}, ${PRINT_PREVIEW_BOOK_NAME.id} and ${PRINT_PREVIEW_PAGE_NAME.id}, shown or hidden (the default) on each sheet (with both names, "book - page" at the top left). Only what is given changes; null goes back to the default. The user's undo does not take it back.`,
   title: "Change print preview",
   target: "book",
   permissionScope: "book",

@@ -1,6 +1,6 @@
-// core 台帳: ブックのタイプ・アイテム・アクション・設定の項目・テーマ・紙の表。定義の組（CoreCatalogParts）から buildCoreCatalog で作り、作った後は変えない。
-// 表どうしの参照（ブックのタイプが使うアイテムなど）が実在するかは checkCoreCatalog が確かめ、食い違いがあれば作らない。
-// ブックのデータの形は、ブックのタイプが自分で持つフィールドに、タイプが選んだものから組み立てたフィールド（ページと、そこに置けるアイテム・設定の項目）を足して作る（buildBookSchemas）
+// core 台帳: ページのタイプ・アイテム・アクション・設定の項目・テーマ・紙の表。定義の組（CoreCatalogParts）から buildCoreCatalog で作り、作った後は変えない。
+// 表どうしの参照（ページのタイプが使うアイテムなど）が実在するかは checkCoreCatalog が確かめ、食い違いがあれば作らない。
+// ブックのデータの形は、ページのタイプが自分で持つフィールドに、タイプが選んだものから組み立てたフィールド（ページと、そこに置けるアイテム・設定の項目）を足して作る（buildBookSchemas）
 
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
@@ -84,7 +84,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語 → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
   warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（core/warnings.ts）
-  tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとブックのタイプのテーマキーは、その定義の tokens）
+  tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとページのタイプのテーマキーは、その定義の tokens）
   normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts）
   roles: ReadonlyMap<SettingRole, SettingDef> // role → その role を持つ利用者の設定の項目（土台は role で引く）
 }
@@ -228,7 +228,7 @@ function mergeMessages(parts: CoreCatalogParts): Messages {
   return messages
 }
 
-// 宣言されたテーマキーと、宣言した物（アイテムとブックのタイプは自分の id、プラグインのテーマキーはプラグインの id）
+// 宣言されたテーマキーと、宣言した物（アイテムとページのタイプは自分の id、プラグインのテーマキーはプラグインの id）
 const tokenDefs = (parts: CoreCatalogParts) => [
   ...[...parts.pageTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k }))),
   ...parts.tokens.map(k => ({ owner: splitId(k.id).owner ?? k.id, ...k })),

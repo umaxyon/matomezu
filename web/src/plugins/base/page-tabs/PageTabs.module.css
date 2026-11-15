@@ -46,7 +46,7 @@
 .tab[data-locked="true"] {
   padding-left: 24px;
 }
-/* ページのタブの頭の、ブックのタイプのアイコン */
+/* ページのタブの頭の、ページのタイプのアイコン */
 .typeIcon {
   display: inline-flex;
   margin-right: 6px;

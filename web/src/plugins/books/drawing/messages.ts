@@ -1,4 +1,4 @@
-// 図面のプラグインの文言（ブックのタイプの名前）
+// 図面のプラグインの文言（ページのタイプの名前）
 import { defineMessages } from "../../../plugin-api"
 
 export const DRAWING_MESSAGES = defineMessages({

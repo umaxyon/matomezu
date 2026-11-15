@@ -117,7 +117,7 @@ export const withoutParts = <P extends Plugin>(p: P): Plugin => ({
   ...(p.messages ? { messages: p.messages } : {}),
 })
 
-// プラグインを書く入口。id の頭と、形とブックのタイプが名指すダイアログの受ける値を型で確かめる（台帳アセンブルでも確かめる）
+// プラグインを書く入口。id の頭と、形とページのタイプが名指すダイアログの受ける値を型で確かめる（台帳アセンブルでも確かめる）
 export const definePlugin = <const P extends Plugin>(
   plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never; normalizeSteps?: never },
 ): P => plugin

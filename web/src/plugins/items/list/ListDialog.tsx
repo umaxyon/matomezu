@@ -172,7 +172,7 @@ function ListDialog({
   const catalog = useCoreCatalog()
   const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
   const { caption, captionAlign } = head
-  const themes = usePageThemes() // ブックのタイプが使えるテーマ
+  const themes = usePageThemes() // ページのタイプが使えるテーマ
   // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
   const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
   const [theme, setTheme] = useState(startTheme)

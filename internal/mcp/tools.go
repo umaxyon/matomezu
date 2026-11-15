@@ -34,7 +34,7 @@ var tools = []tool{
 	},
 	{
 		"list_books",
-		"List the books: id, type, title, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
+		"List the books: id, title, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (the type of one of its pages is not installed, or it does not fit the rules of a book) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/books")
@@ -42,7 +42,7 @@ var tools = []tool{
 	},
 	{
 		"read_book",
-		"Read a book: the book without its pages' contents (type, title, settings and so on), its pages as an outline (id, title, size in characters), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). " +
+		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type and size in characters; or a folder of pages of one type: kind folder, id, title, pageType and its own lineup of pages), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). " +
 			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
@@ -57,7 +57,7 @@ var tools = []tool{
 	},
 	{
 		"read_page",
-		"Read one page of a book (the page and the items on it), the book's version, placed (where each shape is drawn, when the book type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+		"Read one page of a book (the page and the items on it), the book's version, placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
 			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",
@@ -208,7 +208,7 @@ var tools = []tool{
 		"actions",
 		"List what can be done now (it changes when plugins are added or removed). Without ids, it answers version (changes when the list changes: keep what you read while it stays the same) and index: " +
 			"the actions (id, target and title: target tells what an action is done on), the items (shape or connector), the user settings, " +
-			"the book types (which can be created, whether they have pages and which items they place), the kinds of annotations and mail, the subjects (kinds of records that actions work on, with the shape of a record; perform takes on.record for them), the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
+			"the page types (whether pages of the type go in a folder of their own, and which items they place), the kinds of annotations and mail, the subjects (kinds of records that actions work on, with the shape of a record; perform takes on.record for them), the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
 			"With ids (ids from the index), it answers the whole entry of each: an action's description and args (JSON Schema, for perform), an item's props (JSON Schema) and default size, a setting's schema; unknown lists ids it does not have. " +
 			"warnings (only when there are some, without ids) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",

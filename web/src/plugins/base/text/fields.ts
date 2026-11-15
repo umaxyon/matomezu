@@ -21,7 +21,7 @@ export const TEXT_LOOK = {
   body: { size: 13, weight: 400 } satisfies Font,
 } as const
 
-// 本文の形（装飾の書き方を AI に見せる。本文を持つ形とブックのタイプが共に使う）
+// 本文の形（装飾の書き方を AI に見せる。本文を持つ形とページのタイプが共に使う）
 export const bodyText = () =>
   z
     .string()

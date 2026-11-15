@@ -16,7 +16,7 @@ import type { AnyWidgetDef } from "./layout"
 
 // ブックのビューが受け取る物は無い（描くページと操作は、フックが描いている場所から引く。ui/scope.tsx）
 export type BookViewProps = Record<string, never>
-// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、UI マッピングには書かない）。
+// ブックのビュー: 開いたページのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、UI マッピングには書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
 export interface BookViewDef extends BookViewExtras {
   view: ComponentType<BookViewProps>
@@ -144,7 +144,7 @@ export interface Overrides {
 export type EnumValueIcon = ReactNode | { readonly closed: ReactNode; readonly open: ReactNode }
 
 // widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、
-// pageTypeIcons はブックのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
+// pageTypeIcons はページのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
 // enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）
 export type UiParts<P> = PluginViews<P> & {
   widgets?: readonly AnyWidgetDef[]

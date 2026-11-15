@@ -60,7 +60,7 @@ export function resolveTokens(
   return values
 }
 
-// ブックのタイプ type のブックを描くのに使うテーマキーの宣言: タイプのテーマキーと、タイプが置けるアイテム（allowed）のテーマキー、
+// ページのタイプ type のブックを描くのに使うテーマキーの宣言: タイプのテーマキーと、タイプが置けるアイテム（allowed）のテーマキー、
 // そのアイテムの持ち主のプラグインが持つテーマキー（いくつものアイテムが共に使うもの）。同じ id は 1 つにまとめる
 export function tokenDefsOf(catalog: CoreCatalog, type: PageTypeDef): TokenDef[] {
   const items = placeableOf(type).flatMap(id => catalog.items.get(id) ?? [])

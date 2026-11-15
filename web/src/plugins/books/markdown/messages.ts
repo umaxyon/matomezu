@@ -1,4 +1,4 @@
-// マークダウンのプラグインの文言（ブックのタイプの名前、ペインのタブ、ペインの分割のコマンド、ソースの Tab キーの設定の項目）
+// マークダウンのプラグインの文言（ページのタイプの名前、ペインのタブ、ペインの分割のコマンド、ソースの Tab キーの設定の項目）
 import { defineMessages } from "../../../plugin-api"
 
 export const MARKDOWN_MESSAGES = defineMessages({

@@ -1,4 +1,4 @@
-// スライドのブックのプラグイン: スライドのブックのタイプと、その見せ方。スライドのアイテムとアクションは slide プラグインの物
+// スライドのブックのプラグイン: スライドのページのタイプと、その見せ方。スライドのアイテムとアクションは slide プラグインの物
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { SLIDE_BOOK_ENTRY_ICON } from "./entry-icon"
 import { kit } from "./kit"

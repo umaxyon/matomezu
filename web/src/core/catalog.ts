@@ -41,8 +41,8 @@ export interface CapabilityTable {
   nests: true
 }
 
-// テーマタイプ（テーマがどのブックのタイプ向けか）の id → true。土台は意味を知らない。base が図（@matomezu/base:diagram）と文書（@matomezu/base:document）を書き足す。
-// プラグインは自分の id を頭に付けたテーマタイプを書き足せる。テーマとブックのタイプがテーマタイプを書くのは、base が書き足した拡張ポイント（plugins/base/book-look/theme-types.ts）
+// テーマタイプ（テーマがどのページのタイプ向けか）の id → true。土台は意味を知らない。base が図（@matomezu/base:diagram）と文書（@matomezu/base:document）を書き足す。
+// プラグインは自分の id を頭に付けたテーマタイプを書き足せる。テーマとページのタイプがテーマタイプを書くのは、base が書き足した拡張ポイント（plugins/base/book-look/theme-types.ts）
 export interface ThemeTypeTable {}
 
 // 土台のキーの範囲（キーバインドが効く所）: global（ダイアログもメニューも開いていないとき、ステージに結び付かない画面全体のキー）・stage（カレントのステージ）・

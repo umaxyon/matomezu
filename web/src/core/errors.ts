@@ -10,7 +10,7 @@ export const ERRORS = {
   E011: "{owner}: token {token} is declared twice",
   E012: "{owner}: token {token} falls back to unknown {fallback}",
   E014: "paper {id}: size must be portrait (w <= h)",
-  E015: "core catalog has no book type",
+  E015: "core catalog has no page type",
   E016: "catalog has {count} problems",
   E017: "message {key} has different {lang} translations",
   E018: "{kind} {id}: title {title} is not in the messages",

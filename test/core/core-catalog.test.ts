@@ -61,7 +61,7 @@ describe("機能台帳", () => {
     expect(String(thrown)).toContain(
       "E008 pageType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-nest-box",
     )
-    expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, pageTypes: [] })).toThrow("E015 core catalog has no book type")
+    expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, pageTypes: [] })).toThrow("E015 core catalog has no page type")
   })
 
   test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は error", () => {

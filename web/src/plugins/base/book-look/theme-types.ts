@@ -1,4 +1,4 @@
-// テーマタイプ: テーマがどのブックのタイプ向けか（図・文書など）。テーマは向くテーマタイプを書き（どのタイプにも向くテーマは "all"）、ブックのタイプは使うテーマタイプを書く。
+// テーマタイプ: テーマがどのページのタイプ向けか（図・文書など）。テーマは向くテーマタイプを書き（どのタイプにも向くテーマは "all"）、ページのタイプは使うテーマタイプを書く。
 // タイプのブックと、その中の形に使えるテーマは、"all" のテーマと、テーマタイプが 1 つでも重なるテーマ（themesFor）。使えないテーマは選ばせず（ダイアログ）、アクションは断り、
 // データに残っていても使わない（表に無いテーマと同じく、タイプの既定のテーマかブックのテーマで描く。データは消さない）
 
@@ -30,13 +30,13 @@ export const DOCUMENT_THEME_TYPE = kit.name("document") satisfies ThemeType
 const fits = (theme: ThemeDef, types: readonly string[]) =>
   theme.themeTypes === "all" || (Array.isArray(theme.themeTypes) && theme.themeTypes.some(t => types.includes(t)))
 
-// ブックのタイプ type のブックと、その中の形に使えるテーマ（機能台帳の順。表に無いタイプなら "all" のテーマだけ）
+// ページのタイプ type のブックと、その中の形に使えるテーマ（機能台帳の順。表に無いタイプなら "all" のテーマだけ）
 export function themesFor(catalog: CoreCatalog, type: string): ThemeDef[] {
   const types = catalog.pageTypes.get(type)?.themeTypes ?? []
   return [...catalog.themes.values()].filter(t => fits(t, types))
 }
 
-// テーマ theme（id）を、ブックのタイプ type のブックと、その中の形に使えるか（表に無いテーマは使えない）
+// テーマ theme（id）を、ページのタイプ type のブックと、その中の形に使えるか（表に無いテーマは使えない）
 export function themeFits(catalog: CoreCatalog, type: string, theme: string): boolean {
   const def = catalog.themes.get(theme)
   return def !== undefined && fits(def, catalog.pageTypes.get(type)?.themeTypes ?? [])
@@ -44,7 +44,7 @@ export function themeFits(catalog: CoreCatalog, type: string, theme: string): bo
 
 const isTypes = (v: unknown): v is readonly string[] => Array.isArray(v) && v.every(t => typeof t === "string")
 
-// テーマとブックのタイプがテーマタイプを書いているか（E040。型の無い書き方の追加プラグイン向け）と、タイプの既定のテーマが使えるか（E039）。台帳アセンブルのときの確かめ
+// テーマとページのタイプがテーマタイプを書いているか（E040。型の無い書き方の追加プラグイン向け）と、タイプの既定のテーマが使えるか（E039）。台帳アセンブルのときの確かめ
 export const THEME_TYPES_CHECK: CatalogCheckDef = catalog => [
   ...[...catalog.themes.values()].flatMap(t =>
     t.themeTypes === "all" || isTypes(t.themeTypes)

@@ -1,4 +1,4 @@
-// フローチャートのプラグイン: フローチャートのブックのタイプと、流れの向きの設定の項目、自動で整列するアクションとコマンドと確認のダイアログ。
+// フローチャートのプラグイン: フローチャートのページのタイプと、流れの向きの設定の項目、自動で整列するアクションとコマンドと確認のダイアログ。
 // 形・箱・線・見せ方・ほかの設定の項目は、ほかのプラグインの定義を id で選ぶ（flowchart.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PAGE_ALIGN, PAGE_ALIGN_COMMAND, PAGE_ALIGN_DIALOG } from "./actions"

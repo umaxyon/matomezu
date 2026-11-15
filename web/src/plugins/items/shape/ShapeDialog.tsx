@@ -43,7 +43,7 @@ type Look = Pick<ShapeProps, "captionAlign" | "color">
 
 const EMPTY: ShapeProps = { caption: "", captionAlign: "center" }
 
-// 形 item を置く追加のダイアログ。回せる形（turnable）は、ブックのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
+// 形 item を置く追加のダイアログ。回せる形（turnable）は、ページのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
 export function addShapeDialog(item: string, turnable = false) {
   return function AddShapeDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf()

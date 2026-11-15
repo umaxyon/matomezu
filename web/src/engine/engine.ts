@@ -138,7 +138,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   unknown: "there is no action with that id (see actions)",
   "bad-args": "the args do not match the action's args (see actions)",
   "not-allowed":
-    "this book's type (or, for the library, the settings and the records, the control center) does not allow it",
+    "the page's type (or, for an action on the whole book, the action itself; or, for the library, the settings and the records, the control center) does not allow it",
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
@@ -265,7 +265,7 @@ function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly B
     ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
     : null
 }
-// ブックのタイプのページの可変ページの決め方（aiCatalog）: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、
+// ページのタイプのページの可変ページの決め方（aiCatalog）: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、
 // どのページもいつも可変ページの always、可変ページを作れない none
 const growsOf = (rule: GrowRule | undefined): readonly string[] | "by-type" | "always" | "none" =>
   !rule ? "none" : "always" in rule ? "always" : "choices" in rule ? rule.choices : "by-type"

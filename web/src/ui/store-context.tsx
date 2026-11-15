@@ -98,7 +98,7 @@ export function useCatalog(): Catalog {
   return useMatomezuContext().store.catalog
 }
 
-// インスタンスの見た目の表（ブックのタイプ・アイテム・ダイアログのビュー・ウィジェット・コマンドのアイコン）
+// インスタンスの見た目の表（ページのタイプ・アイテム・ダイアログのビュー・ウィジェット・コマンドのアイコン）
 export function useUiCatalog(): UiCatalog {
   return useMatomezuContext().ui
 }

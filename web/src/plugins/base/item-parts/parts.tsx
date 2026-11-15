@@ -78,7 +78,7 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
 }
 
 // 描くページのブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
-// （当てていないか、ブックのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
+// （当てていないか、ページのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
 export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined {
   const catalog = useCatalog().core
   const scope = useScope()

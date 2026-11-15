@@ -1,4 +1,4 @@
-// ディレクトリ構成図のプラグインの文言（ブックのタイプの名前、道具、アクションとコマンド、ページを作るダイアログ、ビュー）
+// ディレクトリ構成図のプラグインの文言（ページのタイプの名前、道具、アクションとコマンド、ページを作るダイアログ、ビュー）
 import { defineMessages } from "../../../plugin-api"
 
 export const DIR_MESSAGES = defineMessages({

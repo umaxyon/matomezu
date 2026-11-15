@@ -15,7 +15,7 @@ import { type PageTypeDef, placeableOf } from "./page-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはコントロールセンターが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
-// 使えるかは book と同じくそのブックのタイプが決める
+// 使えるかは book と同じくそのページのタイプが決める
 export interface Subjects {
   library: Library
   book: Book
@@ -64,7 +64,7 @@ export type BookTarget = "book" | "annotations"
 export const isOnBook = (target: ActionTarget | undefined): boolean => target === "book" || target === "annotations"
 
 export interface ActionContext {
-  catalog: CoreCatalog // 使う機能台帳（アクション・ブックのタイプ・紙など）
+  catalog: CoreCatalog // 使う機能台帳（アクション・ページのタイプ・紙など）
   controlCenter: string | null // インスタンスのコントロールセンターの定義の id（一覧と設定のアクションを許すかは、これが決める）。無ければ断る
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
@@ -285,7 +285,7 @@ export interface ActionDef<
   // レコードが対象のアクションが読むだけのブックの id を、引数から答える（そのブックだけが ctx.books に入る。無ければブックを読まない）
   readsBooks?: T extends SubjectId ? BooksOfArgs<A> : never
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
-  // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
+  // LLM に見せる引数の形を、機能台帳から組み立てる（ページのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
   // 許可スコープ（ブックが対象・一覧が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
   // ブックと一覧では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）

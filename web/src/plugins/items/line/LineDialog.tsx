@@ -104,7 +104,7 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   }, [changed, route, dash, startHead, endHead, preview])
   if (!book || !page || !line) return null
   const self = line.from === line.to
-  // キャプションの候補: ブックのタイプが、始点のアイテムに決めたもの
+  // キャプションの候補: ページのタイプが、始点のアイテムに決めたもの
   const fromItem = findShape(page, line.from)?.shape.item
   const words = !self && fromItem ? captionWordsOf(catalog, page, fromItem) : []
   const rects = portAreasOf(catalog, page)

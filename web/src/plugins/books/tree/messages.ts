@@ -1,4 +1,4 @@
-// ツリーのプラグインの文言（ブックのタイプの名前、伸びる向きの設定、ページを作るダイアログ、ツリーのビュー）
+// ツリーのプラグインの文言（ページのタイプの名前、伸びる向きの設定、ページを作るダイアログ、ツリーのビュー）
 import { defineMessages } from "../../../plugin-api"
 
 export const TREE_MESSAGES = defineMessages({
