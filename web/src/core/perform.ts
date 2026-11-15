@@ -1,9 +1,9 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book と annotations が対象ならそのブックのタイプ、library・settings と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
+// 使えるかは、book と annotations が対象ならアクションが名指すページのタイプ（名指さなければ、タイプに依らない付く先だけ）、library・settings と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
-import { creatableTypes, createBook, holds } from "./book"
+import { holds, keepsPageTypes } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -18,7 +18,6 @@ import {
   type AnySettingsScope,
   libraryScopeOf,
   type OtherRecord,
-  pagedOnly,
   type SubjectData,
   type Subjects,
   scopeOf,
@@ -33,7 +32,7 @@ import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSourc
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { referredOf } from "./refs"
 import { sameData } from "./same"
-import type { Book } from "./schema/book"
+import type { Book, Page } from "./schema/book"
 import type { Settings } from "./settings"
 import { settledAfter } from "./settle"
 
@@ -69,14 +68,11 @@ export type Performed<Id extends ActionId> =
     }
   | Refused
 
-// タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
-function typeActions(catalog: CoreCatalog, type: string): readonly string[] {
-  const t = pageType(catalog, type)
+// タイプ type のページで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
+export function actionsOfPage(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
+  const t = pageType(catalog, page.type)
   return [...catalog.actions.values()].filter(a => typeAllows(a, t)).map(a => a.id)
 }
-
-// ブックで使えるアクション
-export const actionsOf = (catalog: CoreCatalog, book: Book): readonly string[] => typeActions(catalog, book.type)
 
 // アクションが返したブック after を、ノーマライズステップ（core/def/normalize-step.ts）を順にかけて整えたもの。
 // run がステップだけが書くページのフィールドを変えていたら（前の状態に戻すアクションを除く）、または整えられなければ null
@@ -212,10 +208,7 @@ function permits(
       const book = library[t.book]
       return book ? [{ book, where: t.where }] : []
     })
-    const creatable = creatableTypes(ctx.catalog)
-    const made = (targets?.creates ?? []).flatMap(type =>
-      creatable.includes(type as never) ? [{ book: createBook(ctx.catalog, type, NEW_BOOK), where: {} }] : [],
-    )
+    const made = targets?.creates ? [{ book: NEW_BOOK, where: {} }] : []
     const asks = [...books, ...made]
     if (asks.length === 0) return asked(undefined, undefined)
     for (const a of asks) {
@@ -237,8 +230,8 @@ function permits(
   return asked(book, where)
 }
 
-// 作るブックを認可ステップに問うときの id と名前（問うためだけの物で、作るブックの中身はタイプが決める）
-const NEW_BOOK = { id: "new-book", title: "new book" }
+// 作るブックを認可ステップに問うときの、空のブック（問うためだけの物）
+const NEW_BOOK: Book = { id: "new-book", title: "new book", lineup: [] }
 
 // 行う前の問いの答え: 使えるか、止めた理由
 export type Permitted = { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string }
@@ -275,8 +268,6 @@ export function perform<Id extends ActionId>(
   const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
-  // 付く先がページを持つタイプだけのアクションに、ページの無いブックは渡さない（run は PagedBook を受ける）
-  if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
   const ran = action.run(subject as never, parsed.data, ctx)
   if (!ran) return { ok: false, reason: "refused" }
   if ("declined" in ran)
@@ -297,7 +288,11 @@ export function perform<Id extends ActionId>(
           ? broken(ctx, action, pair.book, pair.book)
           : null
   if (permission) return { ok: false, reason: "denied", permission }
-  if (action.target === "book" && !settles(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
+  if (action.target === "book") {
+    // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
+    if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(subject as Book, done.next as Book))
+      return { ok: false, reason: "refused" }
+  }
   if (action.target === "library" && !librarySettles(ctx.catalog, subject as Library, done.next as Library))
     return { ok: false, reason: "refused" }
   if (action.target === "annotations") {

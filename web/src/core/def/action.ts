@@ -3,7 +3,6 @@
 import type { z } from "zod"
 import { type Actor, isAI } from "../actor"
 import type { BookAnnotations } from "../annotation"
-import type { PagedBook } from "../book"
 import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
@@ -118,44 +117,25 @@ export interface Declined {
 }
 
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）
-// 付く先: items はそのアイテムを置けるタイプ、presentations はその見せ方のタイプ、pages はページを持つタイプ、books はどのタイプも、
-// annotations はそのアノテーションの種類を使えるタイプ
+// 付く先: books はどのブックにも（ページのタイプに依らない）。items はそのアイテムを置けるタイプのページ、presentations はその見せ方のタイプのページ、
+// annotations はそのアノテーションの種類を使えるタイプのページ。ページのタイプで決まる付く先（items・presentations・annotations）を持つ、ブックが対象のアクションは、
+// 許可スコープでページを名指す（どのページのタイプで決めるかが、そこで決まる。名指さなければ、books の付く先だけで決まる）
 export interface ActionAttach {
   items?: readonly string[]
   presentations?: readonly string[]
-  pages?: true
   books?: true
   annotations?: readonly string[]
 }
 
-// 付く先がページを持つタイプだけか（pages か items だけを書き、books・presentations を書いていない）。
-// そうなら run にはページを持つブックだけが来る（perform がページの無いブックには断る）
-type PagedOnly = ({ pages: true } | { items: readonly string[] }) & {
-  books?: undefined
-  presentations?: undefined
-  annotations?: undefined
-}
-export const pagedOnly = (attach: ActionAttach | undefined): boolean =>
-  attach !== undefined &&
-  attach.books === undefined &&
-  attach.presentations === undefined &&
-  attach.annotations === undefined &&
-  (attach.pages === true || attach.items !== undefined)
+// run が受け取る対象: ブックが対象ならブック
+export type RunSubject<T extends ActionTarget, _At> = T extends "book" ? Book : SubjectData<T>
 
-// run が受け取る対象: ブックが対象で、付く先がページを持つタイプだけなら PagedBook
-export type RunSubject<T extends ActionTarget, At> = T extends "book"
-  ? At extends PagedOnly
-    ? PagedBook
-    : Book
-  : SubjectData<T>
-
-// アクションがタイプ type に付くか（attach のどれかに当てはまるか）
+// アクションがタイプ type のページに付くか（attach のどれかに当てはまるか）
 export function attachedTo(def: Pick<ActionDef, "attach">, type: PageTypeDef): boolean {
   const a = def.attach
   if (!a) return false
   return (
     a.books === true ||
-    (a.pages === true && type.pages !== null) ||
     (a.items?.some(id => placeableOf(type).includes(id)) ?? false) ||
     (a.presentations?.includes(type.presentation) ?? false) ||
     (a.annotations?.some(id => !type.annotations?.without?.includes(id as never)) ?? false)
@@ -197,19 +177,19 @@ export type AnySettingsScope = { settings: string } | ((args: never) => readonly
 
 // 一覧が対象のアクションの許可スコープ: どのブックを変えるかの宣言。認可ステップは、行う前に変えるブックごとに問う。
 // book・books には、ブックの id・ブックの id の並びが入っている引数の名前を書き、where に "all-pages" を書けば、そのブックのページを含む全部を変える。
-// create には、作るブックのタイプの id が入っている引数の名前を書く（認可ステップは、そのタイプで作る空のブックで問う）。
+// ブックを作るアクションは "create" と書く（認可ステップは、空のブックで問う）。
 // 引数の名前で言えなければ、引数から変えるブックを返す関数を書く。行う前に変えるブックが分からなければ "unknown"（行った後の確かめだけで止める）
 export type LibraryScope<A = unknown> =
   | "unknown"
   | { book: ArgsOfType<A, string>; where?: "all-pages" }
   | { books: ArgsOfType<A, readonly string[]>; where?: "all-pages" }
-  | { create: ArgsOfType<A, string> }
+  | "create"
   | ((args: A) => LibraryTargets)
 
-// 一覧が対象のアクションが変えるブック: books は今あるブックの id と、その中の所、creates は作るブックのタイプの id
+// 一覧が対象のアクションが変えるブック: books は今あるブックの id と、その中の所、creates はブックを作るか
 export interface LibraryTargets {
   books: readonly { book: string; where: Where }[]
-  creates: readonly string[]
+  creates: boolean
 }
 
 // 表に並べたアクションの、一覧の許可スコープ（引数の形を問わない形）
@@ -217,7 +197,7 @@ export type AnyLibraryScope =
   | "unknown"
   | { book: string; where?: "all-pages" }
   | { books: string; where?: "all-pages" }
-  | { create: string }
+  | "create"
   | ((args: never) => LibraryTargets)
 
 // ブックが対象・一覧が対象・利用者の設定が対象のアクションは、許可スコープを必ず書く（defineAction の型が求める）
@@ -233,14 +213,11 @@ export type ScopeRequired<T extends ActionTarget, A> = T extends "book"
 export function libraryScopeOf(scope: AnyLibraryScope | undefined, args: unknown): LibraryTargets | null {
   if (scope === undefined || scope === "unknown") return null
   if (typeof scope === "function") return (scope as (args: unknown) => LibraryTargets)(args)
+  if (scope === "create") return { books: [], creates: true }
   const a = args as Record<string, unknown>
-  if ("create" in scope) {
-    const type = a[scope.create]
-    return { books: [], creates: typeof type === "string" ? [type] : [] }
-  }
   const where: Where = scope.where === "all-pages" ? { allPages: true } : {}
   const ids = "book" in scope ? [a[scope.book]] : Array.isArray(a[scope.books]) ? (a[scope.books] as unknown[]) : []
-  return { books: ids.flatMap(id => (typeof id === "string" ? [{ book: id, where }] : [])), creates: [] }
+  return { books: ids.flatMap(id => (typeof id === "string" ? [{ book: id, where }] : [])), creates: false }
 }
 
 // 許可スコープから、引数 args での所を出す

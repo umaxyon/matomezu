@@ -1,6 +1,6 @@
 // ページのタイプの定義: ページのデータの形・並べ方の決まり・使えるアイテムとアクションの規定・既定のテーマ。
 // アイテム・アクション・テーマは id で参照する（アイテムとアクションはページのタイプを知らない）。ブックはタイプを持たず、タイプの違うページを並べる
-import { z } from "zod"
+import type { z } from "zod"
 import type { ActionId, AnnotationId, ItemOptionTable, PageTypeExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"

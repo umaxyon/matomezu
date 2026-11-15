@@ -46,7 +46,8 @@ export type PermissionQuery = BookPermissionQuery | RecordPermissionQuery
 export interface Changes {
   gone: boolean // ブックが一覧から無くなった
   added: boolean // ブックが一覧に新しく増えた（fields は増えたブックのフィールド全部、pages はどのページも足した）
-  fields: readonly string[] // 変わったブックのフィールド（pages を除く）
+  fields: readonly string[] // 変わったブックのフィールド（並び lineup を除く）
+  lineup: boolean // 並びが変わった（ページやフォルダの順・入っているフォルダ・フォルダの足し引きと名前。ページの中身の変化は pages）
   pages: readonly PageChange[] // 足した・消した・変わったページ
 }
 
