@@ -3,8 +3,7 @@
 // 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す
 import type { HistoryStep } from "../../../core/history"
 import { type Patch, patchOf } from "../../../core/patch"
-import type { CommandContext } from "../../../store/commands/def"
-import type { Actions } from "../../../store/store"
+import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { applyRestore, PatchSchema, restoredPages } from "./restore"
 
@@ -31,7 +30,7 @@ const pageOf = (args: Patch): string | undefined => restoredPages(args).find(p =
 
 // 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前（名前が空なら「関連ブック」）と認可ステップの名前）、画面の履歴の段は動かさない。
 // いくつものブックを変えた画面の履歴の段で途中のブックが断られたら、置き直したブックを元に戻す（どのブックも画面の履歴の段のとおりのまま）
-function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
+function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
   const opened = ctx.stage.opened
   if (!step || !opened) return
@@ -58,7 +57,7 @@ function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
   }
   const shown = done.find(d => d.book === opened.book)
   const page = shown && pageOf(shown.args)
-  if (page && page !== opened.page) a.openPage(ctx.stage.id, page)
+  if (page && page !== opened.page) a.openPage(page)
   a.moveHistory(opened.book, from)
 }
 

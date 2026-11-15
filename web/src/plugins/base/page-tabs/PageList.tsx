@@ -8,11 +8,10 @@ import { hasPages, type PagedBook } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { Page } from "../../../core/schema/book"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
-import { DrawnScope } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
+import { PageScope, useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
@@ -21,7 +20,6 @@ import { pageArea } from "../place/items"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import { useResize } from "../utils/useResize"
-import type { StageSlotProps } from "../workspace/ui"
 import { PAGE_ADD_AFTER, PAGE_CONTEXT, PAGE_OPEN } from "."
 import styles from "./PageList.module.css"
 import { useTabDrag } from "./useTabDrag"
@@ -34,29 +32,27 @@ function Thumbnail({ book, page }: { book: PagedBook; page: Page }) {
   const size = pageArea(catalog, book, page)?.size ?? { w: 1280, h: 720 }
   const scale = width / size.w
   return (
-    <DrawnScope catalog={catalog} book={book} page={page} zoom={scale || 1}>
-      {stage => <ThumbnailFrame stage={stage} book={book} page={page} size={size} scale={scale} onWidth={setWidth} />}
-    </DrawnScope>
+    <PageScope book={book.id} page={page.id} zoom={scale || 1}>
+      <ThumbnailFrame book={book} page={page} size={size} scale={scale} onWidth={setWidth} />
+    </PageScope>
   )
 }
 
 // 紙の大きさ（無ければ 16:9）のままのビューを、一覧の幅に合わせて縮める
 function ThumbnailFrame({
-  stage,
   book,
   page,
   size,
   scale,
   onWidth,
 }: {
-  stage: string
   book: PagedBook
   page: Page
   size: Size
   scale: number
   onWidth(w: number): void
 }) {
-  const look = useBookLookStyle(stage, book.type)
+  const look = useBookLookStyle(book.type)
   const frame = useRef<HTMLDivElement | null>(null)
   useResize(frame, size => onWidth(size.w))
   return (
@@ -64,7 +60,7 @@ function ThumbnailFrame({
       {scale > 0 && (
         <div className={styles.scaled} style={{ width: size.w, height: size.h, transform: `scale(${scale})` }}>
           <Printing>
-            <SheetLayers stage={stage} book={book} page={page} column={0} row={0} paper={size} />
+            <SheetLayers book={book} page={page} column={0} row={0} paper={size} />
           </Printing>
         </div>
       )}
@@ -72,18 +68,17 @@ function ThumbnailFrame({
   )
 }
 
-export function PageList({ stage }: StageSlotProps) {
-  const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened)
+export function PageList() {
+  const opened = useStageHere(st => st?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const catalog = useCatalog().core
-  const openPage = useCommand(stage, PAGE_OPEN.id)
-  const addAfter = useCommand(stage, PAGE_ADD_AFTER.id)
-  const openMenu = useContextMenu(stage, PAGE_CONTEXT)
+  const openPage = useCommand(PAGE_OPEN.id)
+  const addAfter = useCommand(PAGE_ADD_AFTER.id)
+  const openMenu = useContextMenu(PAGE_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
   const pages = book && hasPages(book) ? book.pages : []
   const drag = useTabDrag(
-    stage,
     list,
     pages.map(p => p.id),
     "y",

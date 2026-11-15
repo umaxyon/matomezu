@@ -10,6 +10,6 @@ export const SETTINGS_DIALOG = kit.defineDialog({ id: "settings" })
 export const SETTINGS_OPEN = kit.defineScreenCommand({
   id: "settings-open",
   title: "Open settings",
-  run: (ctx, a) => a.openDialog(ctx.screen.id, SETTINGS_DIALOG.id),
+  run: (_ctx, a) => a.openDialog(SETTINGS_DIALOG.id),
   when: () => true,
 })

@@ -67,8 +67,8 @@ export const PAPER_PLACE = kit.defineCommand({
     const def = shapeDefOf(ctx.catalog, placing.item)
     const dialog = def && shapeDialogs(def).add
     if (dialog && !placing.props) {
-      a.stopPlacing(stage.id)
-      a.openDialog(stage.id, dialog, where)
+      a.stopPlacing()
+      a.openDialog(dialog, where)
       return
     }
     const given = placing.props ? { props: placing.props } : {}
@@ -81,8 +81,8 @@ export const PAPER_PLACE = kit.defineCommand({
       warn(done)
       return
     }
-    a.stopPlacing(stage.id)
-    a.select(stage.id, [done.result.item])
+    a.stopPlacing()
+    a.select([done.result.item])
   },
   when: ctx => onOpenedPage(ctx) && ctx.stage.placing !== null,
 })
@@ -114,7 +114,7 @@ export const PAPER_EDIT = kit.defineCommand({
     const def = placed && shapeDefOf(ctx.catalog, placed.item)
     const dialog = def && shapeDialogs(def).edit
     if (!page || !dialog) return
-    a.openDialog(ctx.stage.id, dialog, { page, item })
+    a.openDialog(dialog, { page, item })
   },
   // 右クリックのメニューでは、編集のダイアログを持つ形のときだけ出す
   when: ctx => onOpenedPage(ctx) && editable(ctx),
@@ -136,10 +136,10 @@ export const PAPER_DELETE = kit.defineCommand({
   permissionScope: "selection",
   title: "Delete",
   run: (ctx, a) => {
-    const { opened, selection, id } = ctx.stage
+    const { opened, selection } = ctx.stage
     if (!opened?.page || selection.length === 0) return
     const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
-    if (done.ok) a.select(id, [])
+    if (done.ok) a.select([])
   },
   when: itemsSelected,
 })
@@ -153,7 +153,7 @@ export const PAPER_SELECT_ALL = kit.defineCommand({
     if (!page) return
     const shapes = new Set(shapesOf(page).map(s => s.id))
     const connectors = connectorsOf(page).filter(c => shapes.has(c.from) && shapes.has(c.to))
-    a.select(ctx.stage.id, [...shapes, ...connectors.map(c => c.id)])
+    a.select([...shapes, ...connectors.map(c => c.id)])
   },
   when: onOpenedPage,
 })

@@ -14,7 +14,6 @@ export function TextBlockView({
   inner,
   least,
   maxH,
-  stage,
   grips,
   lineColor,
   onBodyWidth,
@@ -23,12 +22,11 @@ export function TextBlockView({
   inner: number // 形の中の幅（枠と左右の余白の内側）
   least: number // 本文の列の一番狭い幅
   maxH: number // 塊に使える高さ
-  stage: string
   grips: boolean
   lineColor: string
   onBodyWidth: (width: number | null) => void
 }) {
-  const at = useStage(stage)
+  const at = useStage()
   // 本文の列の端をつかんでいるドラッグ（つかんだ側と、画面の上の始めの x）と、今の本文の幅（動かしていなければ undefined）
   const grab = useRef<{ pointer: number; side: "left" | "right"; start: number } | null>(null)
   const [dragged, setDragged] = useState<number | null | undefined>(undefined)

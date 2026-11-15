@@ -75,7 +75,9 @@ export function useReadState(): () => MatomezuState {
   return useMatomezuContext().store.state.getState
 }
 
-export function useActions(): Actions {
+// 画面の操作（store が持つ素の形。場所に向ける操作は、場所を第 1 引数に取る）。土台と base の骨組みだけが使う。
+// プラグインのビューは、描いている場所に向けた形（ui/view-hooks.ts の useActions）を使う
+export function useStoreActions(): Actions {
   return useMatomezuContext().store.actions
 }
 

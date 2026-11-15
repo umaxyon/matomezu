@@ -6,7 +6,7 @@ import type { ScreenId } from "../core/catalog"
 import { currentScreen, type OpenedScreen, shownScreens } from "../core/window"
 import { Slot } from "./Slot"
 import { ScreenProvider } from "./screen-context"
-import { useActions, useInstance, useMatomezuState } from "./store-context"
+import { useInstance, useMatomezuState, useStoreActions } from "./store-context"
 
 // closed を渡すと、もう閉じたスクリーンを、閉じたときの値で描く（閉じる動きの間だけ描き続けるのに使う。カレントスクリーンにはしない）
 export function ScreenView({ screen, closed }: { screen: string; closed?: OpenedScreen }) {
@@ -15,7 +15,7 @@ export function ScreenView({ screen, closed }: { screen: string; closed?: Opened
   const opened = live ?? closed
   const current = useMatomezuState(s => currentScreen(s.window).id === screen)
   const shown = useMatomezuState(s => shownScreens(catalog, s.window).includes(screen))
-  const { makeScreenCurrent } = useActions()
+  const { makeScreenCurrent } = useStoreActions()
   const take = useCallback(() => {
     if (live) makeScreenCurrent(screen)
   }, [makeScreenCurrent, screen, live])

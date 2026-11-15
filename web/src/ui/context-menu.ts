@@ -1,10 +1,12 @@
 // 右クリックのメニュー: コンポーネントが右クリックを受けてメニューを開く口と、UI マッピングに書いたメニューの中身を読む口
+
 import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
 import { isShown } from "../store/commands"
 import { type AnchorMenuCommandId, type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
-import { useActions, useInstance, useLayout, useMatomezuState } from "./store-context"
+import { useAt } from "./scope"
+import { useInstance, useLayout, useMatomezuState, useStoreActions } from "./store-context"
 
 // 右ボタンの押し続け: ブラウザが右クリックを知らせるのは、Windows では離したとき、Mac・Linux では押したとき。
 // 右ボタンを押している間に開こうとしたメニューは待たせ、離したときに開く（どの OS でも離したときに出る）。
@@ -38,14 +40,15 @@ export function suppressContextMenu(): void {
   Object.assign(press, { pending: null, suppressed: true })
 }
 
-// そのステージで、右クリックされた物 target のメニュー id を、押した位置に開く。ブラウザのメニューは出さない。
-// 右ボタンを押している間なら、離したときに開く。開くコンポーネント（ウィジェットかブックのビュー）は、そのメニューを contextMenus に書く
-export function useContextMenu<M extends ContextMenuId>(
-  stage: string,
-  id: M,
-): (e: MouseEvent, target: ContextMenuTable[M]) => void {
+// 向け先のステージで、右クリックされた物 target のメニュー id を、押した位置に開く。ブラウザのメニューは出さない。
+// 右ボタンを押している間なら、離したときに開く。開くコンポーネント（ウィジェットかブックのビュー）は、そのメニューを contextMenus に書く。
+// 向け先が無い所（ステージの外で見るだけに描くページの中）では、開かない（右クリックは外へ渡す）
+export function useContextMenu<M extends ContextMenuId>(id: M): (e: MouseEvent, target: ContextMenuTable[M]) => void {
+  const at = useAt()
   const open = useOpenContextMenu()
-  return (e, target) => open(e, stage, id, target)
+  return (e, target) => {
+    if (at !== null) open(e, at, id, target)
+  }
 }
 
 // 右クリック e で、ステージ stage にメニュー id を開く口（useContextMenu と同じ。開くステージが、右クリックを受けたときに決まる所で使う）
@@ -55,7 +58,7 @@ export function useOpenContextMenu(): <M extends ContextMenuId>(
   id: M,
   target: ContextMenuTable[M],
 ) => void {
-  const { openContextMenu } = useActions()
+  const { openContextMenu } = useStoreActions()
   return (e, stage, id, target) => {
     e.preventDefault()
     e.stopPropagation()

@@ -10,41 +10,30 @@ import {
   slideIsBackground,
   slideOf,
 } from "../../../../plugin-api"
-import { type ItemViewProps, useCoreCatalog, useStage, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
+import { type ItemViewProps, useCoreCatalog, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
 import { BACKGROUND_PRINT, settingValue, slideOffsetOf } from "../../../base"
 import type { PrintSheetProps } from "../../../base/ui"
 import styles from "./SlideSheet.module.css"
 
 type ShapeView = (p: ItemViewProps<PlacedShape["props"]>) => ReactNode
 
-export function SlideSheet({ stage: id, book, page }: PrintSheetProps) {
-  const stage = useStage(id)
+export function SlideSheet({ zoom, book, page }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const type = bookType(catalog, book.type)
-  if (!stage || !type.slide) return null
+  if (!type.slide) return null
   if (slideIsBackground(type) && settingValue(catalog, book, page, BACKGROUND_PRINT) === "never") return null
   const offset = slideOffsetOf(catalog, book, page as ItemPage)
   return (
     <>
       {slideOf(page as ItemPage).map(shape => (
-        <SheetShape key={shape.id} shape={shape} offset={offset} stage={id} zoom={stage.zoom} />
+        <SheetShape key={shape.id} shape={shape} offset={offset} zoom={zoom} />
       ))}
     </>
   )
 }
 
 // アイテム 1 つ（そのアイテムのプラグインのテーマキー --<名前> を、描く要素に置く）
-function SheetShape({
-  shape,
-  offset,
-  stage,
-  zoom,
-}: {
-  shape: PlacedShape
-  offset: Point
-  stage: string
-  zoom: number
-}) {
+function SheetShape({ shape, offset, zoom }: { shape: PlacedShape; offset: Point; zoom: number }) {
   const ui = useUiCatalog()
   const tokens = useTokenScope(shape.item)
   const View = ui.items.get(shape.item)?.view as ShapeView | undefined
@@ -62,17 +51,7 @@ function SheetShape({
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {View && (
-        <View
-          props={shape.props}
-          size={size}
-          id={shape.id}
-          stage={stage}
-          content={{}}
-          zoom={zoom}
-          hasChildren={false}
-        />
-      )}
+      {View && <View props={shape.props} size={size} id={shape.id} content={{}} zoom={zoom} hasChildren={false} />}
     </div>
   )
 }

@@ -1,7 +1,6 @@
 // ex8 の見た目を結ぶ: カードの見せ方のビュー（開いたページのカードを並べ、自分でスクロールする。並べ替えるボタンと、押したカードを選ぶ）と、
 // 印刷区画 1 つのビュー（ページのカードを紙に並べる）
 import {
-  type BookViewProps,
   definePluginUi,
   type PrintSheetProps,
   useMessages,
@@ -39,12 +38,12 @@ function Cards({
   )
 }
 
-function CardsView({ stage }: BookViewProps) {
+function CardsView() {
   const t = useMessages(kit)
-  const written = cardsOf(usePage(stage))
-  const order = usePluginState(kit, DECK_ORDER, stage) ?? "written"
+  const written = cardsOf(usePage())
+  const order = usePluginState(kit, DECK_ORDER) ?? "written"
   const setOrder = useSetPluginState(kit, DECK_ORDER)
-  const picked = usePluginState(kit, DECK_PICKED, stage) ?? "none"
+  const picked = usePluginState(kit, DECK_PICKED) ?? "none"
   const setPicked = useSetPluginState(kit, DECK_PICKED)
   const cards = order === "sorted" ? [...written].sort() : written
   return (
@@ -52,12 +51,12 @@ function CardsView({ stage }: BookViewProps) {
       <button
         type="button"
         aria-pressed={order === "sorted"}
-        onClick={() => setOrder(stage, order === "sorted" ? "written" : "sorted")}
+        onClick={() => setOrder(order === "sorted" ? "written" : "sorted")}
       >
         {t("sort cards")}
       </button>
       {cards.length > 0 ? (
-        <Cards cards={cards} picked={picked} onPick={i => setPicked(stage, i)} />
+        <Cards cards={cards} picked={picked} onPick={i => setPicked(i)} />
       ) : (
         <p className={styles.empty}>{t("no cards")}</p>
       )}

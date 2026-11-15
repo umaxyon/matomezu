@@ -1,5 +1,5 @@
 // スクラップの中を描く部品: スクラップ（scrap.ts。指すページの id・見る範囲・倍率）を、置いたときの大きさ（scrapSize）の枠に描く。ページを、そのページのブックの見た目で、見るだけに描く
-// （ステージの外で、見るだけに描くページ。ui/drawn.tsx）。指す先のページが無ければ No Data、スクラップをたどって同じページに戻ったら輪の印を描く（どちらも灰色の枠）。
+// （ステージの外で、見るだけに描くページ。ui/scope.tsx）。指す先のページが無ければ No Data、スクラップをたどって同じページに戻ったら輪の印を描く（どちらも灰色の枠）。
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -8,8 +8,8 @@ import { bookType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
-import { DrawnScope } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
+import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
@@ -59,13 +59,11 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   return (
     <div className={styles.frame} data-scrap="shown" style={frame}>
       <TracedContext.Provider value={inner}>
-        <DrawnScope catalog={catalog} book={book} page={page} zoom={zoom * scale}>
-          {stage => (
-            <div className={styles.moved} style={{ transform: `scale(${scale}) translate(${-at.x}px, ${-at.y}px)` }}>
-              <DrawnSheet stage={stage} book={book} page={page} size={size} />
-            </div>
-          )}
-        </DrawnScope>
+        <PageScope book={book.id} page={page.id} zoom={zoom * scale}>
+          <div className={styles.moved} style={{ transform: `scale(${scale}) translate(${-at.x}px, ${-at.y}px)` }}>
+            <DrawnSheet book={book} page={page} size={size} />
+          </div>
+        </PageScope>
       </TracedContext.Provider>
     </div>
   )
@@ -75,14 +73,12 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
 // 紙の見せ方などは、ページの広さ size を 1 つの印刷区画として描く。描く前に測る見せ方（printMeasure。マークダウンなど）は、見えない所で測ってから、
 // 測った数の印刷区画を紙の大きさで縦に並べる（広さは紙の幅 × 印刷区画の数の高さ。onSize で知らせる）
 export function DrawnSheet({
-  stage,
   book,
   page,
   size,
   onSize,
   children,
 }: {
-  stage: string
   book: Book
   page: Page
   size: Size
@@ -93,7 +89,7 @@ export function DrawnSheet({
   const views = useUiCatalog().presentationViews
   const Measure = views.get(bookType(catalog, book.type).presentation)?.printMeasure
   const paper = paperSize(catalog, page as ItemPage)
-  const look = useBookLookStyle(stage, book.type)
+  const look = useBookLookStyle(book.type)
   const [measured, setMeasured] = useState<PrintMeasured | null>(null)
   const report = useCallback(
     (m: PrintMeasured) =>
@@ -111,7 +107,7 @@ export function DrawnSheet({
       {Measure && paper && (
         <div className={styles.measure} aria-hidden="true">
           <Printing>
-            <Measure stage={stage} book={book} page={page} paper={paper} report={report} />
+            <Measure book={book} page={page} paper={paper} report={report} />
           </Printing>
         </div>
       )}
@@ -122,7 +118,6 @@ export function DrawnSheet({
             <SheetLayers
               // biome-ignore lint/suspicious/noArrayIndexKey: 印刷区画は上からの順で、並べ替えない
               key={row}
-              stage={stage}
               book={book}
               page={page}
               column={0}
@@ -132,7 +127,7 @@ export function DrawnSheet({
             />
           ))
         ) : (
-          <SheetLayers stage={stage} book={book} page={page} column={0} row={0} paper={size} />
+          <SheetLayers book={book} page={page} column={0} row={0} paper={size} />
         )}
       </Printing>
       {children}

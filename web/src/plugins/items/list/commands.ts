@@ -16,7 +16,7 @@ export const LIST_ADD_ROW = kit.defineCommand({
   title: "Add row",
   run: (ctx, a, { list }: { list: string }) => {
     const page = ctx.stage.opened?.page
-    if (page) a.openDialog(ctx.stage.id, ROW_ADD_DIALOG.id, { page, list })
+    if (page) a.openDialog(ROW_ADD_DIALOG.id, { page, list })
   },
   when: onOpenedPage,
 })
@@ -29,7 +29,7 @@ export const LIST_EDIT_ROW = kit.defineCommand({
   title: "Edit row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
     const page = ctx.stage.opened?.page
-    if (page) a.openDialog(ctx.stage.id, ROW_EDIT_DIALOG.id, { page, list, row })
+    if (page) a.openDialog(ROW_EDIT_DIALOG.id, { page, list, row })
   },
   when: onOpenedPage,
 })
@@ -73,7 +73,7 @@ export const LIST_DELETE_ROWS = kit.defineCommand({
     const book = ctx.stage.opened?.book
     if (!found || !book) return
     const done = a.perform(ROW_REMOVE.id, { page: found.page, list: found.list, rows: [...found.rows] }, { book })
-    if (done.ok) a.select(ctx.stage.id, [])
+    if (done.ok) a.select([])
   },
   when: ctx => selectedRows(ctx) !== null,
 })

@@ -2,6 +2,7 @@
 // UI マッピングに書いたそのメニューのコマンドの並びで描く（区切り線も）。出ていないコマンドは並べず、押せないものは押せない見た目にする。出るコマンドが無ければ閉じる。
 // 外を押す・閉じるキー（キーバインドの menu-close。既定は Escape）・窓の大きさが変わると閉じ（窓から離れただけでは閉じない）、
 // 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える。
+// 中の項目の描いている場所は、メニューを開いた場所（ui/scope.tsx）。
 // 押した物にアンカーが付いていれば、どのメニューにも、区切り線のあとに UI マッピングの anchorMenu のコマンドを足し、押した物のアンカーの id を渡す
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ContextMenuId } from "../../../core/catalog"
@@ -12,7 +13,8 @@ import { useAnchorMenuItems, useContextMenuItems } from "../../../ui/context-men
 import { useMessages } from "../../../ui/i18n"
 import { useKeyLabel } from "../../../ui/keys"
 import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
-import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { ActsOnScope } from "../../../ui/scope"
+import { useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { useAnchorContextMenu } from "./anchor-context"
 import styles from "./ContextMenuHost.module.css"
@@ -23,11 +25,15 @@ export function ContextMenuHost() {
   useAnchorContextMenu()
   const menu = useMatomezuState(s => s.contextMenu)
   if (!menu) return null
-  return <ContextMenu key={`${menu.id}:${menu.stage}:${menu.at.x}:${menu.at.y}`} menu={menu} />
+  return (
+    <ActsOnScope at={menu.stage}>
+      <ContextMenu key={`${menu.id}:${menu.stage}:${menu.at.x}:${menu.at.y}`} menu={menu} />
+    </ActsOnScope>
+  )
 }
 
 function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
-  const { closeContextMenu } = useActions()
+  const { closeContextMenu } = useStoreActions()
   const items = useContextMenuItems(menu.stage, menu.id as ContextMenuId)
   const t = useMessages(kit)
   const [anchor] = useState(() => pressedAnchor(menu.at)) // 開いたときの、押した物のアンカー
@@ -75,7 +81,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
         <>
           {items.length > 0 && <hr className={styles.separator} />}
           {anchored.map(id => (
-            <AnchorMenuItem key={id} stage={menu.stage} id={id} anchor={anchor} />
+            <AnchorMenuItem key={id} id={id} anchor={anchor} />
           ))}
         </>
       )}
@@ -84,10 +90,10 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
 }
 
 function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMenuCommandId<ContextMenuId> }) {
-  const command = useCommand(menu.stage, id, menu.target as never)
+  const command = useCommand(id, menu.target as never)
   const icon = useUiCatalog().commandIcons.get(id)
   const key = useKeyLabel(id)
-  const { closeContextMenu } = useActions()
+  const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
     <button
@@ -109,10 +115,10 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
 }
 
 // anchorMenu の項目: 押すと閉じてから、押した物のアンカーの id を渡してコマンドを呼ぶ
-function AnchorMenuItem({ stage, id, anchor }: { stage: string; id: AnchorMenuCommandId; anchor: string }) {
-  const command = useCommand(stage, id)
+function AnchorMenuItem({ id, anchor }: { id: AnchorMenuCommandId; anchor: string }) {
+  const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)
-  const { closeContextMenu } = useActions()
+  const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
     <button

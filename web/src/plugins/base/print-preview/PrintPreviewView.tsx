@@ -6,6 +6,7 @@
 // 右サイドパネルに印刷プレビューの中身を出していたのに出さなくなったら（閉じた・ほかの物に替わった）、印刷プレビューを閉じる。
 // 初めから出ていなければ（AI が印刷プレビューで開いたときなど）、出す。
 // 右サイドパネルに出している間、刷れるなら（測り終え、並べる物がある）、刷る物（PrintOutput）を置いておき、刷れるかをステージの状態に置く（印刷のコマンドが読む）
+
 import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } from "react"
 import { pagedOf } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
@@ -17,13 +18,14 @@ import { stageIn } from "../../../core/window"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useCatalog, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
+import { PageScope, useStageId } from "../../../ui/scope"
+import { useCatalog, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/items"
-import { useOpenRightSidePanel, useRightSidePanel, useSidePanelSliding } from "../right-side-panel/hooks"
+import { useOpenRightSidePanelAt, useRightSidePanelAt, useSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
 import { bookSheets, hasCrossing } from "./book-sheets"
@@ -37,11 +39,11 @@ import { Printing } from "./printing"
 import { SheetFrame } from "./SheetFrame"
 import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_SHEET_NUMBERS } from "./settings"
 
-// 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: 描いているステージ（印刷プレビューの間）・ブック・ページと、
+// 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: ブック・ページと、
 // そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
 // （印刷区画の左上が原点になるようずらし、はみ出した所を切るのは印刷プレビュー）。描く物を、その印刷区画に載る物に絞ってよい。入力は受けない
 export interface PrintSheetProps {
-  stage: string
+  zoom: number // 描いている倍率（紙の上の 1px が画面の何 px か。画面の上で一定に描く線などに使う）
   book: Book
   page: Page
   column: number
@@ -50,11 +52,10 @@ export interface PrintSheetProps {
   measured?: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測る見せ方だけ）
 }
 
-// 測るだけのビュー（ブックのビューの定義の printMeasure）が受け取る物: 描いているステージ・ブック・ページと、紙の大きさ paper、測った結果を知らせる report。
+// 測るだけのビュー（ブックのビューの定義の printMeasure）が受け取る物: ブック・ページと、紙の大きさ paper、測った結果を知らせる report。
 // ページの中身を見えない所に描いて測り、印刷区画の数（rows。1 列に並べる）と、各印刷区画のビューに渡すデータ（data。印刷区画 1 つのビューの
 // measured に届く）を知らせる。測り直すたびに知らせてよい（同じ結果なら並べ直さない）。入力は受けない
 export interface PrintMeasureProps {
-  stage: string
   book: Book
   page: Page
   paper: Size
@@ -89,21 +90,22 @@ function useExtent(id: string): { known: boolean; size: string | null } {
   return { known, size }
 }
 
-export function PrintPreviewView({ stage: id }: { stage: string }) {
-  const stage = useStage(id) // パンの量を読まない（ずらす量は useStagePan だけが読む）
+export function PrintPreviewView() {
+  const id = useStageId() ?? ""
+  const stage = useStage() // パンの量を読まない（ずらす量は useStagePan だけが読む）
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const book = useBook(id)
-  const pan = useStagePan(id)
-  const panel = useRightSidePanel(id)
-  const { setPreviewArea, closePrintPreview, openPage } = useActions()
+  const book = useBook()
+  const pan = useStagePan()
+  const panel = useRightSidePanelAt(id)
+  const { setPreviewArea, closePrintPreview, openPage } = useStoreActions()
   const read = useReadState()
   const lang = useMatomezuState(s => s.lang)
   // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
   const bookId = book?.id
-  const measures = useMeasures(id, bookId)
-  const report = useReportMeasure(id, bookId)
+  const measures = useMeasures(bookId)
+  const report = useReportMeasure(bookId)
   // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ブックが替われば作り直す）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 知らせる先（ブック）が替わったら表を空にする
   const reporters = useMemo(() => new Map<string, (m: PrintMeasured) => void>(), [report])
@@ -146,12 +148,12 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   }, [layout, pending, id, setPreviewArea])
   // 刷れるか（測り終え、並べる印刷区画が 1 つ以上ある。印刷のコマンドが読む）
   const ready = !!layout && !pending && layout.sheets.length > 0
-  const setPrintReady = useSetPrintReady(id)
+  const setPrintReady = useSetPrintReady()
   useEffect(() => setPrintReady(ready), [ready, setPrintReady])
   const shown = panel?.widget === PRINT_PREVIEW_PANEL_ID
   // 初めは、並べる向きと交わる辺を表示領域に合わせる（幅に合わせる。print-preview-fit）。右サイドパネルが出て表示領域が狭まり終えてから合わせ、
   // そのあと表示領域の大きさが変わっても、倍率を変えていなければ合わせ直す
-  const fit = useCommand(id, PRINT_PREVIEW_FIT.id)
+  const fit = useCommand(PRINT_PREVIEW_FIT.id)
   const fitRef = useRef(fit)
   fitRef.current = fit
   const sliding = useSidePanelSliding(shown ? id : null)
@@ -164,7 +166,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     fitRef.current.run()
     fitted.current = { zoom: zoomOf(read, id), size }
   }, [known, size, shown, sliding, id, read])
-  const openPanel = useOpenRightSidePanel()
+  const openPanel = useOpenRightSidePanelAt()
   const seen = useRef(false) // 右サイドパネルに中身を出したか
   const opened = stage?.opened ?? null
   // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば（AI が印刷プレビューで開いた・開いている間に AI が動かした）、
@@ -218,7 +220,10 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
     <div ref={measureBox} className={styles.measure} aria-hidden="true">
       <Printing>
         {measuring.map(({ page: p, paper }) => (
-          <Measure key={p.id} stage={id} book={book} page={p} paper={paper} report={reporterOf(p.id)} />
+          // 測るページを、ステージの外で見るだけに描くページとして描く
+          <PageScope key={p.id} book={book.id} page={p.id} zoom={1}>
+            <Measure book={book} page={p} paper={paper} report={reporterOf(p.id)} />
+          </PageScope>
         ))}
       </Printing>
     </div>
@@ -260,7 +265,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
             data-sheet-page={s.page}
           >
             <SheetFrame
-              stage={id}
+              zoom={zoom}
               book={book}
               page={pageOf(s.page)}
               sheet={s}

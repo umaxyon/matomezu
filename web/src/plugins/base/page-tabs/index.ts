@@ -59,7 +59,7 @@ export const PAGE_NEW = kit.defineCommand({
   permissionScope: "book",
   title: "New page",
   run: (ctx, a) => {
-    if (ctx.book) a.openDialog(ctx.stage.id, pageDialog(ctx.catalog, ctx.book, "add"))
+    if (ctx.book) a.openDialog(pageDialog(ctx.catalog, ctx.book, "add"))
   },
   when: ctx => ctx.book !== null,
 })
@@ -67,7 +67,7 @@ export const PAGE_NEW = kit.defineCommand({
 export const PAGE_OPEN = kit.defineCommand({
   id: "page-open",
   title: "Open page",
-  run: (ctx, a, page: string) => a.openPage(ctx.stage.id, page),
+  run: (_ctx, a, page: string) => a.openPage(page),
   when: ctx => ctx.book !== null && hasPages(ctx.book),
   enabled: ctx => !editingBackground(ctx.stage), // 背景編集モードの間は、ページを替えない（ページタブとページ一覧はこれを見て止まる）
 })
@@ -81,7 +81,7 @@ export const PAGE_SETTINGS = kit.defineCommand({
   title: "Page settings",
   run: (ctx, a) => {
     const page = ctx.stage.opened?.page
-    if (page && ctx.book) a.openDialog(ctx.stage.id, pageDialog(ctx.catalog, ctx.book, "settings"), { page })
+    if (page && ctx.book) a.openDialog(pageDialog(ctx.catalog, ctx.book, "settings"), { page })
   },
   when: ctx => ctx.book !== null && ctx.stage.opened?.page != null,
 })
@@ -98,7 +98,7 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
     const at = page === undefined ? book.pages.length - 1 : book.pages.findIndex(p => p.id === page)
     if (at < 0 && book.pages.length > 0) return
     const done = a.perform(PAGE_ADD.id, { index: at + 1 }, { book: book.id })
-    if (done.ok) a.openPage(ctx.stage.id, done.result.page)
+    if (done.ok) a.openPage(done.result.page)
   },
   when: ctx => ctx.book !== null && hasPages(ctx.book),
 })
@@ -111,7 +111,7 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
   run: (ctx, a, { page }: { page: string }) => {
     if (!ctx.book) return
     const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: ctx.book.id })
-    if (done.ok) a.openPage(ctx.stage.id, done.result.page)
+    if (done.ok) a.openPage(done.result.page)
   },
   permissionScope: { page: "page" },
   when: ctx => ctx.book !== null && hasPages(ctx.book) && bookType(ctx.catalog, ctx.book.type).duplicatesPages === true,
@@ -122,7 +122,7 @@ export const PAGE_DELETE = kit.defineCommand({
   id: "page-delete",
   performs: [PAGE_REMOVE.id],
   title: "Delete page...",
-  run: (ctx, a, { page }: { page: string }) => a.openDialog(ctx.stage.id, PAGE_DELETE_DIALOG.id, { page }),
+  run: (_ctx, a, { page }: { page: string }) => a.openDialog(PAGE_DELETE_DIALOG.id, { page }),
   permissionScope: { page: "page" },
   when: ctx => ctx.book !== null && hasPages(ctx.book),
 })

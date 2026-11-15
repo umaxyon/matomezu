@@ -41,7 +41,6 @@ import {
   walkShapes,
 } from "../../../plugin-api"
 import {
-  type BookViewProps,
   type ItemViewProps,
   type ShapeScene,
   TokenScope,
@@ -115,10 +114,10 @@ const local = (e: PointerEvent<Element>, el: Element): Point => {
   return { x: e.clientX - r.left, y: e.clientY - r.top }
 }
 
-export function PaperView({ stage: id }: BookViewProps) {
-  const stage = useStage(id)
-  const openMenu = useContextMenu(id, PAPER_CONTEXT)
-  const place = useCommand(id, PAPER_PLACE.id)
+export function PaperView() {
+  const stage = useStage()
+  const openMenu = useContextMenu(PAPER_CONTEXT)
+  const place = useCommand(PAPER_PLACE.id)
   const { select } = useActions()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
@@ -126,11 +125,11 @@ export function PaperView({ stage: id }: BookViewProps) {
   const pans = stage?.pans === true
   const localOf = useCallback((e: PointerEvent<Element>) => ref.current && local(e, ref.current), [])
   const catalog = useCoreCatalog()
-  const page = usePage(id)
-  const toPaperAt = useToPaper(id)
+  const page = usePage()
+  const toPaperAt = useToPaper()
   const sweep = useRef<Sweep | null>(null)
-  const followed = useFollowsSelection(id)
-  const placed = usePlaceTarget(id, placing ? pointer : null) // 置こうとしている間の、押すと置く所
+  const followed = useFollowsSelection()
+  const placed = usePlaceTarget(placing ? pointer : null) // 置こうとしている間の、押すと置く所
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -151,7 +150,7 @@ export function PaperView({ stage: id }: BookViewProps) {
     if (!a || !b) return
     const r = sweptBox(a, b)
     setBox(r)
-    select(id, sweptSelection(sw.base, sweptItems(catalog, page, r), sw.mod))
+    select(sweptSelection(sw.base, sweptItems(catalog, page, r), sw.mod))
   }
   const endSweep = (e: PointerEvent<HTMLDivElement>) => {
     if (sweep.current?.pointer !== e.pointerId) return
@@ -168,7 +167,7 @@ export function PaperView({ stage: id }: BookViewProps) {
     if (pans || (e.target as Element).closest("[data-item]")) return
     // 何も無い所を押すと選択を外す（Mod なら選択はそのまま）。選択の道具なら、そこから範囲のドラッグを始める
     const mod = modPressed(e)
-    if (!mod) select(id, [])
+    if (!mod) select([])
     if (stage?.tool !== "@matomezu/base:select") return
     sweep.current = {
       pointer: e.pointerId,
@@ -271,8 +270,8 @@ const Items = memo(function Items({
   localOf: LocalOf
 }) {
   const catalog = useCoreCatalog()
-  const page = usePage(stage.id)
-  const draft = useShownPage(stage.id)
+  const page = usePage()
+  const draft = useShownPage()
   const shownPage = useMemo(() => (page && draft ? settledDraft(catalog, page, draft) : null), [catalog, page, draft])
   return page && shownPage ? (
     <PageItems stage={stage} page={page} shownPage={shownPage} into={into} localOf={localOf} />
@@ -295,30 +294,30 @@ function PageItems({
 }) {
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
-  const book = useBook(stage.id)
-  const followed = useFollowsSelection(stage.id)
+  const book = useBook()
+  const followed = useFollowsSelection()
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
   const room = useMemo(
     () => (book && growOf(catalog, book, page) ? roomOf(catalog, book, page) : null),
     [catalog, book, page],
   )
-  useStageArea(stage.id, room)
+  useStageArea(room)
   // ブックで使えるつなぐもののビュー
   const connectors = (book ? bookItems(catalog, book) : []).flatMap(id => {
     const c = ui.connectors.get(id)
     return c ? [{ id, ...c }] : []
   })
-  const move = useCommand(stage.id, PAPER_MOVE.id)
-  const reparent = useCommand(stage.id, PAPER_REPARENT.id)
+  const move = useCommand(PAPER_MOVE.id)
+  const reparent = useCommand(PAPER_REPARENT.id)
   // 付け替えの道具のドラッグで、離すと入れる先（形の id。null はページ。ドラッグしていなければ undefined）
   const [target, setTarget] = useState<string | null | undefined>(undefined)
-  const edit = useCommand(stage.id, PAPER_EDIT.id)
-  const openMenu = useContextMenu(stage.id, ITEM_CONTEXT)
+  const edit = useCommand(PAPER_EDIT.id)
+  const openMenu = useContextMenu(ITEM_CONTEXT)
   const { select } = useActions()
-  const toPaperAt = useToPaper(stage.id)
+  const toPaperAt = useToPaper()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
-  const resize = useCommand(stage.id, PAPER_RESIZE.id)
+  const resize = useCommand(PAPER_RESIZE.id)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
   const pans = stage.pans
@@ -336,7 +335,7 @@ function PageItems({
     const press = reparenting
       ? { now: [id], drag: [id], release: null }
       : pressSelection(page, stage.selection, id, { mod: modPressed(e), followed })
-    select(stage.id, press.now)
+    select(press.now)
     if (followed) return
     const items = shapesIn(page, press.drag)
     // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
@@ -389,7 +388,7 @@ function PageItems({
     setMoved(null)
     setTarget(undefined)
     settled.current = new Set(d.items)
-    if (drop && !d.travelled && d.release) select(stage.id, d.release)
+    if (drop && !d.travelled && d.release) select(d.release)
     if (!drop || !d.movable || !moved || (moved.x === 0 && moved.y === 0)) return
     if (d.reparent) reparent.run({ item: d.items[0] as string, parent: target ?? null, by: moved })
     else move.run({ items: d.items, by: moved, came: d.came })
@@ -452,7 +451,7 @@ function PageItems({
       if (by) slid.set(shape.id, by)
     }
   const scene: ShapeScene = {
-    stage,
+    zoom: stage.zoom,
     page: slid.size > 0 ? followConnectors(catalog, shownPage, slid) : shownPage,
     rects: shownRects(catalog, shapes, c => {
       const item = shown(c)
@@ -472,7 +471,6 @@ function PageItems({
   const render = (item: PlacedShape, shift: Point | null): ReactNode => (
     <Item
       key={item.id}
-      stage={stage.id}
       zoom={stage.zoom}
       item={item}
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
@@ -510,12 +508,12 @@ function PageItems({
       onPointerCancel={e => endDrag(e, false)}
       onDoubleClick={() => {
         if (pans || stage.placing !== null) return
-        select(stage.id, [item.id])
+        select([item.id])
         edit.run({ item: item.id })
       }}
       onContextMenu={e => {
         if (stage.placing !== null) return
-        if (!stage.selection.includes(item.id)) select(stage.id, [item.id])
+        if (!stage.selection.includes(item.id)) select([item.id])
         openMenu(e, { item: item.id })
       }}
     />
@@ -538,7 +536,6 @@ function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<str
 }
 
 interface ItemProps {
-  stage: string
   zoom: number // ステージの今の倍率（形のビューに渡す）
   item: PlacedShape
   onHover(on: boolean): void
@@ -597,7 +594,6 @@ const GRIPS: readonly { at: string; edges: Edges }[] = [
 
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く
 function Item({
-  stage,
   zoom,
   item,
   onHover,
@@ -666,7 +662,6 @@ function Item({
           props={item.props}
           size={size}
           id={item.id}
-          stage={stage}
           content={contentOf(catalog, item)}
           zoom={zoom}
           hasChildren={(item.shapes?.length ?? 0) > 0}
@@ -705,9 +700,9 @@ function Ghost({ placed }: { placed: Placing }) {
   )
 }
 
-function NoPages({ stage }: { stage: StageView }) {
+function NoPages(_props: { stage: StageView }) {
   const t = useMessages(kit)
-  const newPage = useCommand(stage.id, "@matomezu/base:page-new")
+  const newPage = useCommand("@matomezu/base:page-new")
   return (
     <div className={styles.empty}>
       <p className={styles.prompt}>{t("No pages")}</p>

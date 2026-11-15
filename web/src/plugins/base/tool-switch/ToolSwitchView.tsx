@@ -4,10 +4,11 @@
 import { useEffect, useRef } from "react"
 import type { ToolId } from "../../../core/catalog"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
-import { stageIn, workspaceOf } from "../../../core/window"
+import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useStageHere } from "../../../ui/scope"
+import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useStage } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { TOOL_NEXT } from "."
@@ -34,20 +35,17 @@ function look(deg: number) {
 const angle = (icon: number, front: number, count: number) =>
   (((((icon - front) * (360 / count) + 180) % 360) + 360) % 360) - 180
 
-export function ToolSwitchView({ stage }: { stage: string }) {
+export function ToolSwitchView() {
   const t = useMessages(kit)
-  const next = useCommand(stage, TOOL_NEXT.id)
+  const next = useCommand(TOOL_NEXT.id)
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
-  const set = useMatomezuState(s => {
-    const st = stageIn(s.window, stage)
-    return st ? toolSetOf(catalog, st) : null
-  })
+  const set = useStageHere(st => (st ? toolSetOf(catalog, st) : null))
   const order: readonly ToolId[] = set ? toolsIn(catalog, set) : []
-  const tool = useStage(stage)?.tool ?? order[0] ?? null
+  const tool = useStage()?.tool ?? order[0] ?? null
   // 使えない道具（斜めの線を引く）。並びを文字で比べて、変わったときだけ描き直す
-  const unusable = useMatomezuState(s =>
-    unusableTools(catalog, workspaceOf(s.window, stage), stage, s.books).join("\n"),
+  const unusable = useStageHere((st, s) =>
+    st ? unusableTools(catalog, workspaceOf(s.window, st.id), st.id, s.books).join("\n") : "",
   ).split("\n")
   const icons = useRef<(HTMLSpanElement | null)[]>([])
   const shown = useRef<ToolId | null>(tool)

@@ -7,7 +7,7 @@ import { defineLeftSidePanelTab, opensOf } from "../left-side-panel/ui"
 import { OUTBOX } from "../outbox/ui"
 import { type PlaceInSlot, placeIn } from "../utils/place-in"
 import { BOOK_LAYERS } from "../workspace/slots"
-import { STAGE_SLOTS, type StageSlotProps } from "../workspace/ui"
+import { STAGE_SLOTS } from "../workspace/ui"
 import { MailBookmarks } from "./Bookmarks"
 import { MAIL_DIALOG } from "./dialogs"
 import { mailboxEntries } from "./entries"
@@ -75,5 +75,10 @@ export const MAILBOX_BUTTON = defineWidget({
   id: kit.name("mailbox-button"),
   slots: STAGE_SLOTS,
   opens: MAILBOX_OPENS,
-  view: ({ stage }: StageSlotProps) => <LeftSidePanelOpenButton entries={mailboxEntries(stage)} />,
+  view: MailboxButton,
 })
+
+// 郵便箱を開くボタン（開く送信トレイは、描いている場所のステージの物）
+function MailboxButton() {
+  return <LeftSidePanelOpenButton entries={mailboxEntries} />
+}

@@ -11,14 +11,12 @@ import styles from "./NodeColorStand.module.css"
 import { useNodeWrite } from "./useNodeWrite"
 
 export function NodeColorStand({
-  stage,
   page,
   node,
   isRoot,
   color,
   swatches,
 }: {
-  stage: string
   page: string
   node: string
   isRoot: boolean
@@ -28,7 +26,7 @@ export function NodeColorStand({
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const { setEditing, showToast } = useActions()
-  const { allowed, write } = useNodeWrite(stage, page, isRoot)
+  const { allowed, write } = useNodeWrite(page, isRoot)
   const [picked, setPicked] = useState<{ color: string | undefined } | null>(null) // 好きな色で選んでいる色（閉じるときに塗る）
   const ref = useRef<HTMLDivElement>(null)
   const pending = useRef(picked)
@@ -39,13 +37,13 @@ export function NodeColorStand({
     const done = paint(next)
     if (!done.ok)
       showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
-    setEditing(stage, false)
+    setEditing(false)
   }
   // 閉じる（好きな色を選んでいれば、その色で塗る）
   const close = () => {
     const p = pending.current
     if (p && p.color !== color) choose(p.color)
-    else setEditing(stage, false)
+    else setEditing(false)
   }
 
   // 外を押すと閉じ、Esc は選んでいた好きな色を塗らずに閉じる（好きな色のポップアップの中も、このスタンドの中）
@@ -56,7 +54,7 @@ export function NodeColorStand({
       close()
     }
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setEditing(stage, false)
+      if (e.key === "Escape") setEditing(false)
     }
     document.addEventListener("pointerdown", down, true)
     window.addEventListener("keydown", key)

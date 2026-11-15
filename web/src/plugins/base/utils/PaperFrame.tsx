@@ -17,7 +17,7 @@ type Props = Omit<HTMLAttributes<HTMLDivElement>, "style" | "children"> & {
 }
 
 export function PaperFrame({ stage, style, children, ...rest }: Props) {
-  const pan = useStagePan(stage.id)
+  const pan = useStagePan()
   const p = pan && placement({ ...stage, pan })
   const motion = useZoomMotion(stage.zoom, usePaperMotionKey(stage))
   if (!p) return null

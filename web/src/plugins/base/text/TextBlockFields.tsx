@@ -71,14 +71,12 @@ export function DividerField<T extends TextDraft>({ text, onChange }: { text: T;
   )
 }
 
-// 本文: stage は色を決めるブックを開いているステージ、rows は入力Formの高さの行の数
+// 本文: rows は入力Formの高さの行の数（色は、描いている場所のブックの物）
 export function BodyField<T extends TextDraft>({
-  stage,
   text,
   onChange,
   rows,
 }: {
-  stage: string
   text: T
   onChange: (text: T) => void
   rows: number
@@ -100,7 +98,6 @@ export function BodyField<T extends TextDraft>({
       {id => (
         <RichBody
           id={id}
-          stage={stage}
           label={t("Body")}
           rows={rows}
           maxLength={BODY_MAX}

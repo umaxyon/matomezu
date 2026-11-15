@@ -9,15 +9,15 @@ import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useActions, useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import {
   useCloseLeftSidePanel,
-  useLeftSidePanel,
+  useLeftSidePanelShows,
   useOpenLeftSidePanel,
   useToggleLeftSidePanel,
 } from "../left-side-panel/hooks"
@@ -27,7 +27,7 @@ import { paperSize } from "../place/items"
 import footer from "../utils/FooterButtons.module.css"
 import { refusalMessage } from "../utils/refusal"
 import { SHEET_LAYERS } from "../workspace/slots"
-import { STAGE_SLOTS, type StageSlotProps } from "../workspace/ui"
+import { STAGE_SLOTS } from "../workspace/ui"
 import { SCRAP_CUT_DIALOG, scrapFrameIn } from "."
 import { ScrapForm } from "./ScrapForm"
 import styles from "./ScrapTray.module.css"
@@ -36,12 +36,12 @@ import { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, scrapSize, scrapToPlace, wh
 import { SCRAP_TRAY_TAB_ID } from "./tab-id"
 
 // 切り抜くダイアログ: 範囲は、はじめはページ全体（等倍）。決めるとスクラップトレイに入れ、スクラップトレイを開く
-export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
+export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const { perform, showToast } = useActions()
   const openPanel = useOpenLeftSidePanel()
-  const placeable = useScrapFrame(stage) !== null
+  const placeable = useScrapFrame() !== null
   const start = useMatomezuState(
     useShallow(s => {
       const at = pageById(s.books, args.page)
@@ -77,7 +77,7 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
           }
           onClose()
           // 置けるブックなら、スクラップトレイを開く。置けないブックでは、入れたことだけを知らせる
-          if (placeable) openPanel(scrapTrayEntries(stage), SCRAP_TRAY_TAB_ID)
+          if (placeable) openPanel(scrapTrayEntries, SCRAP_TRAY_TAB_ID)
           else showToast({ kind: "success", message: kit.message("Put in the scrap tray") })
         }}
       >
@@ -87,23 +87,21 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
   )
 }
 
-// ステージ stage で、スクラップトレイから置くスクラップフレームのアイテム（開いているブックに置けなければ null）
-function useScrapFrame(stage: string) {
+// 描いている場所のステージで、スクラップトレイから置くスクラップフレームのアイテム（開いているブックに置けなければ null）
+function useScrapFrame() {
   const catalog = useCatalog().core
-  const book = pagedOf(useBook(stage))
-  const view = useStage(stage)
+  const book = pagedOf(useBook())
+  const view = useStage()
   return book && view ? scrapFrameIn(catalog, book, view.edits) : null
 }
 
 // スクラップトレイを開く側が、左サイドパネルに渡すタブの組（スクラップトレイだけ）
-const scrapTrayEntries = (stage: string): readonly LeftSidePanelEntry[] => [
-  { tab: SCRAP_TRAY_TAB_ID, props: { stage } },
-]
+const scrapTrayEntries: readonly LeftSidePanelEntry[] = [{ tab: SCRAP_TRAY_TAB_ID, props: {} }]
 
-// スクラップトレイ（開く側が、置くステージ stage を渡す）。そのステージで置けないブックに替わったら閉じる
-function ScrapTrayView({ stage }: { stage: string }) {
+// スクラップトレイ（描いている場所は、開いた所のステージ。そこに置く）。そのステージで置けないブックに替わったら閉じる
+function ScrapTrayView() {
   const t = useMessages(kit)
-  const placeable = useScrapFrame(stage) !== null
+  const placeable = useScrapFrame() !== null
   const close = useCloseLeftSidePanel()
   useEffect(() => {
     if (!placeable) close()
@@ -113,7 +111,7 @@ function ScrapTrayView({ stage }: { stage: string }) {
   return (
     <ul className={styles.list}>
       {scraps.map(s => (
-        <Row key={s.id} stage={stage} id={s.id} scrap={{ page: s.page, area: s.area, scale: s.scale }} />
+        <Row key={s.id} id={s.id} scrap={{ page: s.page, area: s.area, scale: s.scale }} />
       ))}
     </ul>
   )
@@ -122,15 +120,15 @@ function ScrapTrayView({ stage }: { stage: string }) {
 // 一覧の絵の幅（px）
 const THUMB_W = 220
 
-function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) {
+function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const { perform, togglePlacing, showToast } = useActions()
-  const view = useStage(stage)
-  const frame = useScrapFrame(stage)
+  const view = useStage()
+  const frame = useScrapFrame()
   const placing = view?.placing
   // 置くときの値: 開いているページの紙の半分に収める
-  const opened = usePage(stage)
+  const opened = usePage()
   const paper = opened ? paperSize(catalog, opened) : null
   const toPlace = paper ? scrapToPlace(scrap, paper) : scrap
   const pressed = frame !== null && placing?.item === frame && sameData(placing.props, toPlace)
@@ -155,7 +153,7 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
         aria-pressed={pressed}
         disabled={frame === null}
         title={label}
-        onClick={() => frame && togglePlacing(stage, frame, toPlace)}
+        onClick={() => frame && togglePlacing(frame, toPlace)}
       >
         <span className={styles.thumb} style={{ width: size.w * fit, height: size.h * fit }}>
           <span className={styles.scaled} style={{ transform: `scale(${fit})` }}>
@@ -187,9 +185,10 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
   )
 }
 
-export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID, { stage: string }>({
+export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID>({
   id: SCRAP_TRAY_TAB_ID,
   title: kit.message("Scrap tray"),
+  scope: "stage",
   opens: [SHEET_LAYERS], // 一覧の絵（ScrapView）が、ページの中身のレイヤーを描く
   view: ScrapTrayView,
 })
@@ -197,22 +196,21 @@ export const SCRAP_TRAY_TAB = defineLeftSidePanelTab<typeof SCRAP_TRAY_TAB_ID, {
 export const SCRAP_DIALOG_VIEWS = { [SCRAP_CUT_DIALOG.id]: ScrapCutDialog }
 
 // スクラップトレイを開くボタン（フッタメニューのツールボックスの並びに置く）: 置けるブックを開いているときだけ出し、押すとスクラップトレイだけを開く（もう一度押すと閉じる）
-function ScrapTrayButton({ stage }: StageSlotProps) {
+function ScrapTrayButton() {
   const t = useMessages(kit)
-  const placeable = useScrapFrame(stage) !== null
-  const open = useLeftSidePanel()
+  const placeable = useScrapFrame() !== null
+  const pressed = useLeftSidePanelShows(scrapTrayEntries)
   const toggle = useToggleLeftSidePanel()
   if (!placeable) return null
-  const entries = scrapTrayEntries(stage)
   return (
     <button
       type="button"
       className={footer.item}
       aria-label={t("Open the scrap tray")}
       title={t("Open the scrap tray")}
-      aria-pressed={!!open && sameData(open.entries, entries)}
+      aria-pressed={pressed}
       data-scrap-tray-opener
-      onClick={() => toggle(entries)}
+      onClick={() => toggle(scrapTrayEntries)}
     >
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <path d="M4 14h4l1.5 2h5l1.5-2h4v5H4z" fill="none" stroke="currentColor" strokeWidth="1.5" />

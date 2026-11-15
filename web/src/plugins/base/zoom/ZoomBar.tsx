@@ -2,10 +2,9 @@
 // 帯の上でホイールを回すと、回した量をコマンド zoom-wheel に渡して、表示領域の真ん中を動かさずに拡大縮小する（ページをスクロールさせない）
 import type { ReactNode } from "react"
 import type { MessageKey } from "../../../core/i18n/i18n"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useMatomezuState } from "../../../ui/store-context"
+import { useZoomHere } from "../../../ui/scope"
 import { kit } from "../kit"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_OUT, ZOOM_RESET } from "."
 import { ZOOM_ICONS } from "./icons"
@@ -13,14 +12,14 @@ import { useZoomWheel } from "./useZoomWheel"
 import styles from "./ZoomBar.module.css"
 
 // className は帯に足す見た目（置く所に合わせた余白など）。fits は、ページ全体を収めるの右に足すボタン（置く所だけの合わせ方）
-export function ZoomBar({ stage, className, fits }: { stage: string; className?: string; fits?: ReactNode }) {
+export function ZoomBar({ className, fits }: { className?: string; fits?: ReactNode }) {
   const t = useMessages(kit)
-  const zoom = useMatomezuState(s => stageIn(s.window, stage)?.zoom ?? 1)
-  const reset = useCommand(stage, ZOOM_RESET.id)
-  const fit = useCommand(stage, ZOOM_FIT.id)
-  const out = useCommand(stage, ZOOM_OUT.id)
-  const zin = useCommand(stage, ZOOM_IN.id)
-  const ref = useZoomWheel(stage)
+  const zoom = useZoomHere()
+  const reset = useCommand(ZOOM_RESET.id)
+  const fit = useCommand(ZOOM_FIT.id)
+  const out = useCommand(ZOOM_OUT.id)
+  const zin = useCommand(ZOOM_IN.id)
+  const ref = useZoomWheel()
   return (
     <div
       ref={ref}

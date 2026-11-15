@@ -9,6 +9,7 @@ import { screenOf } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { StageScope } from "../../../ui/scope"
 import { useMatomezuState } from "../../../ui/store-context"
 import {
   useBook,
@@ -43,24 +44,29 @@ export function SearchDialogHost() {
     if (open(ws.current)) return ws.current
     return ws.stages.find(st => open(st.id))?.id ?? null
   })
-  return stage ? <SearchDialog key={stage} stage={stage} /> : null
+  // 中の物の描いている場所を、検索を開いたステージにする
+  return stage ? (
+    <StageScope stage={stage}>
+      <SearchDialog key={stage} stage={stage} />
+    </StageScope>
+  ) : null
 }
 
 function SearchDialog({ stage }: { stage: string }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useBook(stage)
-  const opened = useStage(stage)?.opened?.page ?? null
-  const search = usePluginState(kit, SEARCH_STATE, stage)
-  const at = usePluginState(kit, SEARCH_AT_STATE, stage)
+  const book = useBook()
+  const opened = useStage()?.opened?.page ?? null
+  const search = usePluginState(kit, SEARCH_STATE)
+  const at = usePluginState(kit, SEARCH_AT_STATE)
   const readSearch = useReadPluginState(kit, SEARCH_STATE)
   const setSearch = useSetPluginState(kit, SEARCH_STATE)
   const setAt = useSetPluginState(kit, SEARCH_AT_STATE)
-  const next = useCommand(stage, SEARCH_NEXT.id)
-  const previous = useCommand(stage, SEARCH_PREVIOUS.id)
-  const close = useCommand(stage, SEARCH_CLOSE.id)
-  const replaceOne = useCommand(stage, SEARCH_REPLACE_ONE.id)
-  const replaceAll = useCommand(stage, SEARCH_REPLACE_ALL.id)
+  const next = useCommand(SEARCH_NEXT.id)
+  const previous = useCommand(SEARCH_PREVIOUS.id)
+  const close = useCommand(SEARCH_CLOSE.id)
+  const replaceOne = useCommand(SEARCH_REPLACE_ONE.id)
+  const replaceAll = useCommand(SEARCH_REPLACE_ALL.id)
   const find = useRef<HTMLInputElement>(null)
   const replace = useRef<HTMLInputElement>(null)
   // 開くたびに、開き方の入力Formに焦点を当てて中の字を選ぶ（打つ・切り替えるたびには当てない）
@@ -91,8 +97,8 @@ function SearchDialog({ stage }: { stage: string }) {
 
   // 検索を change で変える（探す字か切り替えが変われば、今の当たりを選び直す。search.ts の changedSearch）
   const update = (change: Partial<SearchOpen>) => {
-    const was = readSearch(stage)
-    if (was) setSearch(stage, changedSearch(s, book, was, change, opened))
+    const was = readSearch()
+    if (was) setSearch(changedSearch(s, book, was, change, opened))
   }
   const query = (change: Partial<SearchOpen["query"]>) => update({ query: { ...search.query, ...change } })
 
@@ -104,12 +110,7 @@ function SearchDialog({ stage }: { stage: string }) {
       data-key-scope={SEARCH_KEY_SCOPE.id}
       style={at ? { left: at.x, top: at.y } : { right: FIRST_AT.right, top: FIRST_AT.top }}
     >
-      <Head
-        title={t("Search")}
-        closeLabel={t("Close search")}
-        onClose={() => close.run()}
-        onMove={p => setAt(stage, p)}
-      />
+      <Head title={t("Search")} closeLabel={t("Close search")} onClose={() => close.run()} onMove={p => setAt(p)} />
       <div className={styles.row}>
         <label className={styles.label} htmlFor={`${stage}-search-find`}>
           {t("Find")}

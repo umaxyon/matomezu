@@ -9,14 +9,13 @@ import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { BACKGROUND_PRINT, type BackgroundPrint } from "../print-preview/settings"
 import footer from "../utils/FooterButtons.module.css"
-import type { StageSlotProps } from "../workspace/ui"
 import styles from "./BackgroundParts.module.css"
 import { BACKGROUND_END, BACKGROUND_HIDE_CONTENT, BACKGROUND_PRINT_SET, BACKGROUND_TOGGLE } from "./background"
 
-export function BackgroundBand({ stage }: StageSlotProps) {
+export function BackgroundBand() {
   const t = useMessages(kit)
-  const end = useCommand(stage, BACKGROUND_END.id)
-  const hide = useCommand(stage, BACKGROUND_HIDE_CONTENT.id)
+  const end = useCommand(BACKGROUND_END.id)
+  const hide = useCommand(BACKGROUND_HIDE_CONTENT.id)
   if (!end.shown) return null
   return (
     <div className={styles.band} role="toolbar" aria-label={t("Editing background")} data-background-band>
@@ -31,9 +30,9 @@ export function BackgroundBand({ stage }: StageSlotProps) {
   )
 }
 
-export function BackgroundButton({ stage }: { stage: string }) {
+export function BackgroundButton() {
   const t = useMessages(kit)
-  const toggle = useCommand(stage, BACKGROUND_TOGGLE.id)
+  const toggle = useCommand(BACKGROUND_TOGGLE.id)
   if (!toggle.shown) return null
   return (
     <button
@@ -53,12 +52,12 @@ export function BackgroundButton({ stage }: { stage: string }) {
 }
 
 // 背景の印刷（自動・する・しない）。自動は、中身の載った印刷区画にだけ背景を敷く
-export function BackgroundPrintControl({ stage }: { stage: string }) {
+export function BackgroundPrintControl() {
   const t = useMessages(kit)
-  const set = useCommand(stage, BACKGROUND_PRINT_SET.id)
+  const set = useCommand(BACKGROUND_PRINT_SET.id)
   const catalog = useCatalog().core
-  const book = useBook(stage)
-  const page = usePage(stage)
+  const book = useBook()
+  const page = usePage()
   if (!set.shown || !book || !page) return null
   const now = settingValue(catalog, book, page, BACKGROUND_PRINT)
   const choices: { value: BackgroundPrint; label: string }[] = [

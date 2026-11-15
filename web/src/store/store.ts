@@ -208,18 +208,14 @@ export interface HostRefused {
   by: "host"
 }
 
-export interface Actions {
+// 画面の操作のうち、窓に向ける物（呼ぶ場所によらない）
+export interface WindowActions {
   // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも追加プラグインのアクションも、画面と AI から同じ入口を通る）。
   // ブックが変われば、そのブックを開いている全部のステージを合わせ、一覧が変われば、無くなったブックを開いていたステージは何も開かない
   perform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
   // perform と同じく行い、ホストが確かめた答えを待って返す（ホストが断ったら、その reason。ホストが無ければ行った結果をそのまま返す）。
   // ほかの窓だけが知る事（ほかの窓の編集ロックなど）で断られたことを、利用者に知らせたいときに使う
   performConfirmed<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Promise<Performed<Id> | HostRefused>
-  // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す
-  command<Id extends CommandId>(stage: string, id: Id, ...args: CommandArgs<Id>): boolean
-  // そのステージから開くダイアログを出す（出ていたものは閉じる）。値を渡すダイアログには、その値を渡す
-  // ダイアログを開く。at は、開く場所: ステージの id か、開いているスクリーンの id（ステージを持たないスクリーンから開くとき）。どちらでもなければ開かない
-  openDialog<Id extends DialogId>(at: string, id: Id, ...args: DialogArgs<Id>): void
   closeDialog(): void
   // 開いているダイアログの下書きを置く（null で消す）。ダイアログを閉じると下書きも消える
   previewDialog(preview: DialogPreview | null): void
@@ -228,8 +224,6 @@ export interface Actions {
   // 範囲は狭い方から順に引き、その場で使えるコマンドに当たった所で行う（使えないキーバインドは無いものとして、次の範囲の同じキーを探す）。scopes は押した所の要素が名乗ったプラグインの範囲。
   // reach が "named" なら scopes だけを引く（テキストFormが自分で名乗った範囲）。行ったか返す
   pressKey(key: string, scopes?: readonly string[], reach?: KeyReach): boolean
-  // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
-  openContextMenu(stage: string, id: string, target: unknown, at: Point): void
   closeContextMenu(): void
   showToast(toast: ToastInput): string // トーストを出し、その id を返す
   dismissToast(id: string): void // トーストを消す（もう無ければ何もしない）
@@ -243,10 +237,32 @@ export interface Actions {
   closeScreen(id: string): void
   setScreenArrangement(def: string): void // スクリーンアレンジメントを、定義 def に替える（機能台帳に無ければ替えない）
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
-  split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
-  unsplit(stage: string): void // そのステージだけを残す
   moveDivider(x: number, width: number): void // 分けている境目を、並べた幅 width の左から x の所へ（ドラッグした位置）
   evenDivider(): void // 分けている境目を真ん中に戻す
+  requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
+  requestBack(): void // ブラウザの履歴を 1 つ戻してほしいと頼む（戻すのはホストクライアント。戻る先が無い canGoBack が false のときは、頼んでも何も起きない）
+  closePicker(): void
+  // ブック book の画面の履歴の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
+  // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
+  moveHistory(book: string, from: "undo" | "redo"): void
+  // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
+  // 足すのは、そのブックに最後に入れた画面の履歴の段が、そのブックの最後の物のときだけ（元に戻す・やり直すのあとは足さずに、別の画面の履歴の段になる）。
+  // 足したあと何も変わらなければ（足した物を書かずに消したなど）、その画面の履歴の段ごと無くなる
+  continueStep(book: string): void
+}
+
+// 画面の操作のうち、場所（ステージの id。ダイアログとコマンドは、ステージを持たないスクリーンの id も）に向ける物。どれも第 1 引数が向ける場所。
+// プラグインの見た目とコマンドには、描いている場所・呼ばれた場所に向けた形（BoundPlaceActions。第 1 引数が無い）で渡す
+export interface PlaceActions {
+  // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す
+  command<Id extends CommandId>(stage: string, id: Id, ...args: CommandArgs<Id>): boolean
+  // そのステージから開くダイアログを出す（出ていたものは閉じる）。値を渡すダイアログには、その値を渡す
+  // ダイアログを開く。at は、開く場所: ステージの id か、開いているスクリーンの id（ステージを持たないスクリーンから開くとき）。どちらでもなければ開かない
+  openDialog<Id extends DialogId>(at: string, id: Id, ...args: DialogArgs<Id>): void
+  // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
+  openContextMenu(stage: string, id: string, target: unknown, at: Point): void
+  split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
+  unsplit(stage: string): void // そのステージだけを残す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（ページを持つブックは最初のページ）、カレントにする
@@ -267,8 +283,6 @@ export interface Actions {
   startBackground(id: string): void // そのステージを背景編集モードにする（背景を持つタイプのブックのページを開いている編集の間だけ）
   endBackground(id: string): void // そのステージの背景編集モードを終える
   setPreviewArea(id: string, area: Size): void // 印刷プレビューで並べた広さ（見せ方が知らせる）
-  requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
-  requestBack(): void // ブラウザの履歴を 1 つ戻してほしいと頼む（戻すのはホストクライアント。戻る先が無い canGoBack が false のときは、頼んでも何も起きない）
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
   // そのステージでアイテムを置こうとする（同じものなら取り消す）。props は置くときに渡す項目の値（無ければアイテムの既定）
@@ -279,15 +293,88 @@ export interface Actions {
   setEditing(stage: string, editing: boolean | string): void
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
-  closePicker(): void
-  // ブック book の画面の履歴の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
-  // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
-  moveHistory(book: string, from: "undo" | "redo"): void
-  // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
-  // 足すのは、そのブックに最後に入れた画面の履歴の段が、そのブックの最後の物のときだけ（元に戻す・やり直すのあとは足さずに、別の画面の履歴の段になる）。
-  // 足したあと何も変わらなければ（足した物を書かずに消したなど）、その画面の履歴の段ごと無くなる
-  continueStep(book: string): void
 }
+
+// 場所に向ける操作 A の、場所を決めた形（第 1 引数を外した物）
+type Bound<A> = { [K in keyof A]: A[K] extends (at: string, ...rest: infer R) => infer T ? (...rest: R) => T : never }
+
+// 場所に向ける操作を、決まった場所（描いている場所・呼ばれた場所）に向けた形。向ける場所が無ければ、何もしない
+export interface BoundPlaceActions extends Omit<Bound<PlaceActions>, "command" | "openDialog"> {
+  command<Id extends CommandId>(id: Id, ...args: CommandArgs<Id>): boolean
+  openDialog<Id extends DialogId>(id: Id, ...args: DialogArgs<Id>): void
+}
+
+// 場所に向ける操作の名前（PlaceActions に操作を足したら、ここにも書く。書き忘れは型の誤り）
+export const PLACE_ACTIONS: { readonly [K in keyof PlaceActions]: true } = {
+  command: true,
+  openDialog: true,
+  openContextMenu: true,
+  split: true,
+  unsplit: true,
+  closeStage: true,
+  focusStage: true,
+  openBook: true,
+  openPage: true,
+  openPageById: true,
+  resizeStage: true,
+  setStageArea: true,
+  setStageStart: true,
+  panStageBy: true,
+  zoomStage: true,
+  resetStageView: true,
+  openPrintPreview: true,
+  closePrintPreview: true,
+  startBackground: true,
+  endBackground: true,
+  setPreviewArea: true,
+  setTool: true,
+  togglePlacing: true,
+  stopPlacing: true,
+  select: true,
+  setEditing: true,
+  openPicker: true,
+}
+
+// 操作 actions の、場所に向ける物を、場所 at（null なら向ける場所が無い: 何もしない）に向けた形
+export function boundActions(actions: PlaceActions, at: string | null): BoundPlaceActions {
+  const loose = actions as unknown as Record<string, (at: string, ...rest: unknown[]) => unknown>
+  return Object.fromEntries(
+    Object.keys(PLACE_ACTIONS).map(k => [
+      k,
+      (...rest: unknown[]) => (at === null ? (k === "command" ? false : undefined) : loose[k]?.(at, ...rest)),
+    ]),
+  ) as unknown as BoundPlaceActions
+}
+
+// 何も行わない、窓に向ける操作（操作を向ける先が無い所で使う。アクションは no-book で断り、id を返す操作は空の文字を返す）
+const NOTHING = () => {}
+export const REFUSED_WINDOW_ACTIONS: WindowActions = {
+  perform: () => ({ ok: false, reason: "no-book" }),
+  performConfirmed: async () => ({ ok: false, reason: "no-book" }),
+  closeDialog: NOTHING,
+  previewDialog: NOTHING,
+  submitDialog: NOTHING,
+  pressKey: () => false,
+  closeContextMenu: NOTHING,
+  showToast: () => "",
+  dismissToast: NOTHING,
+  openScreen: () => "",
+  setScreenProps: () => false,
+  makeScreenCurrent: NOTHING,
+  closeScreen: NOTHING,
+  setScreenArrangement: NOTHING,
+  showStage: NOTHING,
+  moveDivider: NOTHING,
+  evenDivider: NOTHING,
+  requestPrint: NOTHING,
+  requestBack: NOTHING,
+  closePicker: NOTHING,
+  moveHistory: NOTHING,
+  continueStep: NOTHING,
+}
+
+// 画面の操作（store が持つ形。場所に向ける操作は、場所を第 1 引数に取る）
+export interface Actions extends WindowActions, PlaceActions {}
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
 export interface DoneAction {
@@ -845,7 +932,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         pending.push([own.id, at, next])
       }
       const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
-      run(call.ctx, { ...actions, updatePluginState }, args[0] as never)
+      // 呼ばれた場所（ステージか、スクリーン）に向けた操作
+      run(call.ctx, { ...actions, ...boundActions(actions, stage), updatePluginState }, args[0] as never)
       if (pending.length > 0) {
         const now = getState().pluginValues
         const next = working()

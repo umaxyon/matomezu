@@ -7,10 +7,10 @@ import { useRef } from "react"
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
+import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
@@ -37,19 +37,18 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
   return () => el.removeEventListener("wheel", onWheel)
 }
 
-export function PageTabs({ stage }: { stage: string }) {
-  const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened)
+export function PageTabs() {
+  const opened = useStageHere(st => st?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
-  const openPage = useCommand(stage, PAGE_OPEN.id)
-  const newPage = useCommand(stage, PAGE_NEW.id)
-  const openMenu = useContextMenu(stage, PAGE_CONTEXT)
+  const openPage = useCommand(PAGE_OPEN.id)
+  const newPage = useCommand(PAGE_NEW.id)
+  const openMenu = useContextMenu(PAGE_CONTEXT)
   const catalog = useCatalog().core
   const typeIcon = useUiCatalog().bookTypeIcons.get(book?.type ?? "") ?? <FileIcon /> // ブックのタイプのアイコン（名乗らないタイプは通常のファイル）
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
   const pages = book && hasPages(book) ? book.pages : []
   const tabDrag = useTabDrag(
-    stage,
     list,
     pages.map(p => p.id),
   )

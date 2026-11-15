@@ -11,10 +11,7 @@ export const TOOL_NEXT = kit.defineCommand({
     const set = toolSetOf(ctx.catalog, ctx.stage)
     const usable = (tool: string) => toolUsable(ctx.catalog, tool, ctx.book, ctx.stage.opened?.page ?? null)
     if (set)
-      a.setTool(
-        ctx.stage.id,
-        nextTool(ctx.catalog, set, ctx.stage.tool ?? toolIn(ctx.catalog, workspaceOf(ctx).tools, set), usable),
-      )
+      a.setTool(nextTool(ctx.catalog, set, ctx.stage.tool ?? toolIn(ctx.catalog, workspaceOf(ctx).tools, set), usable))
   },
   when: ctx => paperOf(ctx.stage) !== null && toolSetOf(ctx.catalog, ctx.stage) !== null,
 })

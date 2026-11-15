@@ -8,15 +8,16 @@
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { screenOf, stageIn, workspaceOf } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"
+import { useReadPluginStateAt, useSetPluginStateAt, useStageAt } from "../../../ui/at-hooks"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useCoreCatalog, useReadPluginState, useSetPluginState, useStage, useUiCatalog } from "../../../ui/view-hooks"
+import { StageScope } from "../../../ui/scope"
+import { useLayout, useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
+import { useCoreCatalog, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { POPUP_KEEPS } from "../utils/popup-keeps"
-import type { StageSlotProps } from "../workspace/ui"
 import {
   PressClosedContext,
-  useCloseRightSidePanel,
+  useCloseRightSidePanelAt,
   useOpenedRightSidePanel,
   useStagesWithRightSidePanel,
 } from "./hooks"
@@ -38,7 +39,7 @@ export function RightSidePanel() {
   const widget = useUiCatalog().widgets.get(opened?.open.widget ?? "")
   const width = opened ? `min(${widget?.rightSidePanel?.width ?? WIDTH}px, 100vw)` : 0
   const ref = useRef<HTMLElement>(null)
-  const close = useCloseRightSidePanel()
+  const close = useCloseRightSidePanelAt()
   const read = useReadState()
   const catalog = useCoreCatalog()
   const pressClosed = useContext(PressClosedContext)
@@ -94,11 +95,11 @@ export function RightSidePanel() {
 // 閉じたら（従う中身でなくなったら）選択を外す
 function useFollowSelection(stage: string | null) {
   const read = useReadState()
-  const { select } = useActions()
-  const readPanel = useReadPluginState(kit, RIGHT_SIDE_PANEL_STATE)
-  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  const { select } = useStoreActions()
+  const readPanel = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
+  const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   const opened = useOpenedRightSidePanel()
-  const selection = useStage(stage ?? "")?.selection
+  const selection = useStageAt(stage)?.selection
   const following = useRef<string | null>(null)
   useEffect(() => {
     const was = following.current
@@ -154,8 +155,8 @@ function useFollowSelection(stage: string | null) {
 function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpen; width: string | number }) {
   const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
-  const close = useCloseRightSidePanel()
-  const view = useStage(stage)
+  const close = useCloseRightSidePanelAt()
+  const view = useStageAt(stage)
   const stages = useMatomezuState(s => screenOf(s.window).stages.length)
   // 開いたら中にフォーカスを入れる（Esc を右サイドパネルのキーの範囲で受けるため。中の物がもう取っていれば、そのまま）
   useEffect(() => {
@@ -188,8 +189,12 @@ function Opened({ stage, open, width }: { stage: string; open: RightSidePanelOpe
   )
 }
 
-// 開いている中身: UI マッピングが右サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く
+// 開いている中身: UI マッピングが右サイドパネルのスロットに置いたウィジェットのうち、開いている 1 つだけを描く。描いている場所は、開いたステージ
 function Content({ stage, widget }: { stage: string; widget: string }) {
-  const View = useUiCatalog().widgets.get(widget)?.view as ((props: StageSlotProps) => ReactNode) | undefined
-  return View ? <View stage={stage} /> : null
+  const View = useUiCatalog().widgets.get(widget)?.view as (() => ReactNode) | undefined
+  return View ? (
+    <StageScope stage={stage}>
+      <View />
+    </StageScope>
+  ) : null
 }

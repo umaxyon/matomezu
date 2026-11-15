@@ -3,14 +3,14 @@
 // 渡すのは今の形の様子（ShapeScene）だけで、つなぐものの状態（引いている途中など）はつなぐもののビューが持つ。
 // つなぐもののビューは、形に求める見た目（ShapeMarks）を ShapeMarksProvider で返す（つなぐものがいくつあっても、求めを合わせて形に届く）。
 // 形の要素は data-shape と data-item（形の id）を持つ（つなぐもののビューは、ポインタの下の形をこれで探す）
+
 import { type ComponentType, createContext, createElement, type PointerEvent, type ReactNode, useContext } from "react"
 import type { ContextMenuId } from "../core/catalog"
 import type { Point, Rect } from "../core/geom"
 import type { ItemPage } from "../core/placed"
-import type { StageView } from "../core/workspace"
 
 export interface ShapeScene {
-  stage: StageView // 描いているステージ（読むだけ）
+  zoom: number // 描いている倍率（紙の上の 1px が画面の何 px か）
   page: ItemPage
   rects: ReadonlyMap<string, Rect> // 描いている形の四角（下書き・大きさを変えている途中・動かしている途中の位置を重ねたもの）
   // 利用者が形を動かす操作の様子（つなぐものは、形の位置が変わった理由で、前に描いた形を保つか引き直すかを決める）

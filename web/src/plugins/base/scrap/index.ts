@@ -55,7 +55,7 @@ export const SCRAP_CUT_COMMAND = kit.defineCommand({
   // 受けるのは、ページタブの右クリックのページか、紙の右クリックの所（使わない）
   run: (ctx, a, target: { page?: string; pointer?: unknown }) => {
     const page = target.page ?? ctx.stage.opened?.page
-    if (page) a.openDialog(ctx.stage.id, SCRAP_CUT_DIALOG.id, { page })
+    if (page) a.openDialog(SCRAP_CUT_DIALOG.id, { page })
   },
   when: ctx => ctx.book !== null && ctx.stage.opened?.page != null,
 })
@@ -75,7 +75,7 @@ export const SCRAP_OPEN_ORIGINAL = kit.defineCommand({
   title: "Open the original page",
   run: (ctx, a, { item }: { item: string }) => {
     const scrap = scrapOf(ctx, item)
-    if (scrap) a.openPageById(ctx.stage.id, scrap.page)
+    if (scrap) a.openPageById(scrap.page)
   },
   // 右クリックのメニューでは、スクラップフレームの形のときだけ出す（行うときはメニューが閉じているので、形は run が確かめる）
   when: ctx => {

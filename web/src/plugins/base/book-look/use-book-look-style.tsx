@@ -7,9 +7,9 @@ import { textColorVars } from "../text"
 import { useTextColors } from "../text/use-text-colors"
 import { useBookThemeVars } from "./use-book-theme-vars"
 
-export function useBookLookStyle(stage: string, type: BookTypeId): CSSProperties {
-  const theme = useBookThemeVars(stage)
-  const colors = useTextColors(stage)
+export function useBookLookStyle(type: BookTypeId): CSSProperties {
+  const theme = useBookThemeVars()
+  const colors = useTextColors()
   const tokens = useTokenScope(type)
   return useMemo(
     () => ({ ...(colors ? { ...theme, ...textColorVars(colors) } : {}), ...tokens }) as CSSProperties,

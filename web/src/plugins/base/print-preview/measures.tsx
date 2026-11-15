@@ -8,38 +8,38 @@ import { PRINT_READY_STATE } from "./print-state"
 
 const NONE: Readonly<Record<string, PrintMeasured>> = {}
 
-// ステージ stage で、ブック book のページを測った結果（まだ無ければ空。置き直すまで同じ表を返す）
-export function useMeasures(stage: string, book: string | undefined): Readonly<Record<string, PrintMeasured>> {
-  const m = usePluginState(kit, PRINT_MEASURES, stage)
+// 描いている場所のステージで、ブック book のページを測った結果（まだ無ければ空。置き直すまで同じ表を返す）
+export function useMeasures(book: string | undefined): Readonly<Record<string, PrintMeasured>> {
+  const m = usePluginState(kit, PRINT_MEASURES)
   return m && m.book === book ? m.pages : NONE
 }
 
-// ステージ stage で、ブック book のページ page を測った結果を置く関数（同じ結果なら置き直さない。ほかのブックの結果は捨てる）
-export function useReportMeasure(stage: string, book: string | undefined): (page: string, m: PrintMeasured) => void {
+// 描いている場所のステージで、ブック book のページ page を測った結果を置く関数（同じ結果なら置き直さない。ほかのブックの結果は捨てる）
+export function useReportMeasure(book: string | undefined): (page: string, m: PrintMeasured) => void {
   const read = useReadPluginState(kit, PRINT_MEASURES)
   const set = useSetPluginState(kit, PRINT_MEASURES)
   return useCallback(
     (page, m) => {
       if (!book) return
-      const now = read(stage)
+      const now = read()
       const pages = now?.book === book ? now.pages : NONE
       const was = pages[page]
       if (was && was.rows === m.rows && JSON.stringify(was.data) === JSON.stringify(m.data)) return
-      set(stage, { book, pages: { ...pages, [page]: m } })
+      set({ book, pages: { ...pages, [page]: m } })
     },
-    [read, set, stage, book],
+    [read, set, book],
   )
 }
 
-// ステージ stage に、刷れるかを置く（print-state.ts。前と同じなら置き直さない）
-export function useSetPrintReady(stage: string): (ready: boolean) => void {
+// 描いている場所のステージに、刷れるかを置く（print-state.ts。前と同じなら置き直さない）
+export function useSetPrintReady(): (ready: boolean) => void {
   const read = useReadPluginState(kit, PRINT_READY_STATE)
   const set = useSetPluginState(kit, PRINT_READY_STATE)
   return useCallback(
     ready => {
-      if ((read(stage) ?? false) === ready) return
-      set(stage, ready ? true : undefined)
+      if ((read() ?? false) === ready) return
+      set(ready ? true : undefined)
     },
-    [read, set, stage],
+    [read, set],
   )
 }

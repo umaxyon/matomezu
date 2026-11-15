@@ -1,13 +1,14 @@
 // 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（開いているブック・ブックのテーマ・使えるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
 // 形に当てたテーマの値を CSS 変数にするフック
-import { useMemo } from "react"
+
+import { type CSSProperties, useMemo } from "react"
 import { PALETTE } from "../../../core/color"
 import type { ThemeDef, TokenDef } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import { resolveTokens, type Shades } from "../../../core/theme"
-import { stageFor, useDrawn } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
+import { bookTypeOf, openedOf, useScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { bookTheme } from "../book-look/look"
@@ -36,10 +37,10 @@ export function useAligns() {
   return ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
 }
 
-// 開いたステージで開いているブックの id
-export function useBookOf(stage: string): string | undefined {
-  const drawn = useDrawn(stage)
-  return useMatomezuState(s => stageFor(s.window, drawn, stage)?.opened?.book)
+// 描くページのブックの id（描いている場所。ui/scope.tsx）
+export function useBookOf(): string | undefined {
+  const scope = useScope()
+  return useMatomezuState(s => openedOf(s, scope)?.book)
 }
 
 // ブック book（id）のタイプが、ブックと中の形に使えるテーマ（book-look/theme-types.ts。ブックが無ければ空）
@@ -77,12 +78,12 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
   }, [catalog, looks, fill, t, dark])
 }
 
-// ステージ stage で開いているブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
+// 描くページのブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
 // （当てていないか、ブックのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
-export function useThemeVars(stage: string, theme: string | undefined, defs: readonly TokenDef[]) {
+export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined {
   const catalog = useCatalog().core
-  const drawn = useDrawn(stage)
-  const type = useMatomezuState(s => stageFor(s.window, drawn, stage)?.opened?.type)
+  const scope = useScope()
+  const type = useMatomezuState(s => bookTypeOf(s, scope))
   return useMemo(() => {
     if (!theme || type === undefined || !themeFits(catalog, type, theme)) return undefined
     const owners = new Set(defs.map(d => splitId(d.id).owner))

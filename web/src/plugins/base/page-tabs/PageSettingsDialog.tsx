@@ -7,8 +7,7 @@ import { useEffect, useId, useState } from "react"
 import { pagedOf, putPage, withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions } from "../../../ui/store-context"
-import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
@@ -22,23 +21,23 @@ import { usePaperControls } from "./PaperControls"
 import { PAGE_REMOVE } from "./page-remove"
 import { PAGE_UPDATE } from "./page-update"
 
-export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
+export function PageSettingsDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
   const form = useId()
-  const book = pagedOf(useBook(stage)) // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
+  const book = pagedOf(useBook()) // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
   const page = book?.pages.find(p => p.id === args.page)
   const [title, setTitle] = useState(page?.title ?? "")
   const [locked, setLocked] = useState(page?.locked === true)
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
-  const update = useAllowed(stage, PAGE_UPDATE.id, { page: args.page })
+  const update = useAllowed(PAGE_UPDATE.id, { page: args.page })
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
   // 削除できるか（ページとブックのロック・ほかの認可ステップも見る）
-  const removable = useAllowed(stage, PAGE_REMOVE.id, { page: args.page }).ok
+  const removable = useAllowed(PAGE_REMOVE.id, { page: args.page }).ok
   const [confirming, setConfirming] = useState(false)
   const settings = useSettingControls(book, "page", page ?? null)
   const paper = usePaperControls(book, page ?? null)
   const { previewDialog } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const bookId = book?.id
   const pageId = page?.id
   const changed = Object.keys(settings.patch).length > 0

@@ -11,7 +11,7 @@ export const INSPECT_DIALOG = kit.defineDialogWith<{ item: string }>()({ id: "in
 export const HELLO = kit.defineCommand({
   id: "hello",
   title: "sayHello",
-  run: (ctx, a) => a.openDialog(ctx.stage.id, HELLO_DIALOG.id),
+  run: (_ctx, a) => a.openDialog(HELLO_DIALOG.id),
   when: () => true,
   place: { menus: ["@matomezu/base:stage-menu"] },
 })
@@ -35,8 +35,8 @@ const PACKS = { ja: "matomezu:ja", en: "matomezu:en", fr: FRENCH.id } as const
 export const SWITCH_LANG = kit.defineCommand({
   id: "lang",
   title: "switchLanguage",
-  run: (ctx, a, lang: keyof typeof PACKS) => {
-    a.command(ctx.stage.id, "@matomezu/base:settings-set", { "@matomezu/base:lang": PACKS[lang] })
+  run: (_ctx, a, lang: keyof typeof PACKS) => {
+    a.command("@matomezu/base:settings-set", { "@matomezu/base:lang": PACKS[lang] })
   },
   when: () => true,
 })
@@ -45,7 +45,7 @@ export const SWITCH_LANG = kit.defineCommand({
 export const INSPECT = kit.defineCommand({
   id: "inspect",
   title: "inspectItem",
-  run: (ctx, a, target: { item: string }) => a.openDialog(ctx.stage.id, INSPECT_DIALOG.id, target),
+  run: (_ctx, a, target: { item: string }) => a.openDialog(INSPECT_DIALOG.id, target),
   when: () => true,
   place: { contextMenus: ["@matomezu/paper:item-context"] },
 })

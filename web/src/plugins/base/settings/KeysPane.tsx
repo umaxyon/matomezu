@@ -41,13 +41,13 @@ type Capture = { row: string; pending?: { binding: KeyBinding; other: string } }
 // 行の見分け（範囲・コマンド・args。行は描くたびに作り直すので、これで比べる）
 const rowId = (r: KeyRow) => JSON.stringify([r.scope, r.command, r.args ?? null])
 
-export function KeysPane({ stage }: { stage: string }) {
+export function KeysPane() {
   const t = useMessages(kit)
   const catalog = useCatalog()
   const mac = isMac()
-  const set = useCommand(stage, SETTINGS_SET_COMMAND.id)
+  const set = useCommand(SETTINGS_SET_COMMAND.id)
   // 書けるか: コマンドが押せ、コントロールセンターがキーバインドの項目を変えさせないのでもない
-  const writable = useAllowed(stage, SETTINGS_SET.id, { settings: [KEYS.id] }).ok && set.enabled
+  const writable = useAllowed(SETTINGS_SET.id, { settings: [KEYS.id] }).ok && set.enabled
   const saved = useUserSetting(KEYS.id)
   const changes = useMemo(() => readKeyChanges(saved), [saved])
   const [query, setQuery] = useState("")

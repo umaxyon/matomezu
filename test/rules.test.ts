@@ -192,6 +192,44 @@ test("状態を変えるのは store の中だけ（画面は setState を使わ
   expect(offenders).toEqual([])
 })
 
+// 骨組み: ステージ・ダイアログ・パネルなど、描いている場所（ui/scope.tsx）を置く側のファイルと、場所を名指す操作を、描いている場所に向けたフックにして出すファイル。
+// ここに無いファイルは、場所を id で名指さない
+const FRAMES = [
+  "book-new/useCreateBook.tsx",
+  "context-menu/ContextMenuHost.tsx",
+  "dialog-host/DialogHost.tsx",
+  "left-side-panel/LeftSidePanel.tsx",
+  "left-side-panel/hooks.tsx",
+  "mail/Bookmarks.tsx",
+  "mail/MailDialog.tsx",
+  "mail/MailWatch.tsx",
+  "mail/bird-visit.tsx",
+  "mail/hooks.tsx",
+  "page-tabs/PageList.tsx",
+  "page-tabs/useAddPage.tsx",
+  "print-preview/PrintPreviewView.tsx",
+  "print-preview/SheetFrame.tsx",
+  "right-side-panel/RevealAndRestore.tsx",
+  "right-side-panel/RightSidePanel.tsx",
+  "right-side-panel/hooks.tsx",
+  "scrap/ScrapForm.tsx",
+  "scrap/ScrapView.tsx",
+  "search/SearchDialog.tsx",
+  "stage/StageView.tsx",
+  "tool-picker/ToolPickerView.tsx",
+  "utils/reveal-request.tsx",
+  "workspace/WorkspaceView.tsx",
+].map(f => `plugins/base/${f}`)
+
+test("場所（ステージ・スクリーン）を id で名指すのは土台と base の骨組みだけ（場所を置く物・id を取るフック・場所を引数に取る素の操作・向け先のステージの id を、ほかは使わない）", () => {
+  const names = /\b(StageScope|PageScope|ActsOnScope|useStoreActions|useStageId)\b|ui\/at-hooks"/
+  const users = sources
+    .filter(f => crateOf(f.rel) !== "ui" && names.test(f.text))
+    .map(f => f.rel)
+    .sort()
+  expect(users).toEqual([...FRAMES].sort())
+})
+
 test("土台（core・store・ui）は、プラグインの物を id で名指さない", () => {
   const offenders = sources
     .filter(f => ["core", "store", "ui"].includes(crateOf(f.rel)))

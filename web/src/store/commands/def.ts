@@ -10,11 +10,11 @@ import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
-import { toPaper } from "../../core/stage"
+import { type Stage, toPaper } from "../../core/stage"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
-import type { Actions, Settings } from "../store"
+import type { BoundPlaceActions, Settings, WindowActions } from "../store"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
@@ -83,26 +83,37 @@ export interface CommandContext extends ScreenCommandContext {
 }
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）
-const workspaces = new WeakMap<CommandContext, Workspace>()
+const workspaces = new WeakMap<CommandContext, { workspace: Workspace; stage: string }>()
 
 // ctx に、ステージの並び workspace から紙の上の点を求める toPaper を足した、コマンドの文脈
-export function withWorkspace(ctx: Omit<CommandContext, "toPaper">, workspace: Workspace): CommandContext {
+export function withWorkspace(
+  ctx: Omit<CommandContext, "toPaper">,
+  workspace: Workspace,
+  stageId: string,
+): CommandContext {
   const full: CommandContext = {
     ...ctx,
     toPaper: p => {
-      const stage = workspace.stages.find(s => s.id === ctx.stage.id)
+      const stage = workspace.stages.find(s => s.id === stageId)
       return stage ? toPaper(stage, p) : null
     },
   }
-  workspaces.set(full, workspace)
+  workspaces.set(full, { workspace, stage: stageId })
   return full
 }
 
 // コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
-export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx) ?? fail("E116", { id: ctx.stage.id })
+export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx)?.workspace ?? fail("E116")
 
-// コマンドが受け取る store の操作: 画面の操作（Actions）に、そのコマンドを持つプラグインのプラグイン状態を変える操作を足したもの
-export interface CommandActions extends Actions {
+// コマンドの文脈 ctx の、呼ばれたステージの中の状態（表示領域の大きさ・ずらす量など。プラグイン API の文脈には出さない。base のコマンドが読む）
+export function calledStageOf(ctx: CommandContext): Stage | undefined {
+  const held = workspaces.get(ctx)
+  return held?.workspace.stages.find(s => s.id === held.stage)
+}
+
+// コマンドが受け取る store の操作: 窓の操作と、呼ばれた場所（ステージから呼ぶコマンドはそのステージ、スクリーンから呼ぶコマンドはそのスクリーン）に向けた操作に、
+// そのコマンドを持つプラグインのプラグイン状態を変える操作を足したもの
+export interface CommandActions extends WindowActions, BoundPlaceActions {
   // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（undefined なら消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
   updatePluginState<S>(def: PluginStateDef<S>, change: (now: S | undefined) => S | undefined): void
 }

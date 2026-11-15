@@ -41,7 +41,7 @@ function pasteAt(
   where: { parent: string | null; at?: Point },
   quiet = false,
 ): boolean {
-  const { opened, id } = ctx.stage
+  const { opened } = ctx.stage
   const paged: PagedBook | undefined = pagedOf(ctx.book)
   const page = pageOf(ctx)
   if (!opened?.page || !paged || !page) return false
@@ -66,7 +66,7 @@ function pasteAt(
       })
     return false
   }
-  a.select(id, done.result.items)
+  a.select(done.result.items)
   return true
 }
 
@@ -107,13 +107,13 @@ export const PAPER_CUT = kit.defineCommand({
   permissionScope: "selection",
   title: "Cut",
   run: (ctx, a) => {
-    const { opened, selection, id } = ctx.stage
+    const { opened, selection } = ctx.stage
     const clip = copiedClip(ctx, a)
     if (!opened?.page || !clip) return
     const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
     if (!done.ok) return
     keep(a, clip)
-    a.select(id, [])
+    a.select([])
   },
   when: ctx => onOpenedPage(ctx) && itemsSelected(ctx),
 })

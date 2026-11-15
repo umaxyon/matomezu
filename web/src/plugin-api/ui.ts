@@ -22,10 +22,12 @@ export type {
 export { definePluginUi } from "../ui/plugin"
 export { ScreenView } from "../ui/ScreenView"
 export { Slot } from "../ui/Slot"
-export { useActions, useLayoutWarnings } from "../ui/store-context"
+
+export { useLayoutWarnings } from "../ui/store-context"
 export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"
 export {
   type Allowed,
+  useActions,
   useAllowed,
   useAllowedOn,
   useBook,
@@ -40,7 +42,6 @@ export {
   useRecord,
   useRecords,
   useScreen,
-  useScreenId,
   useScreens,
   useSetPluginState,
   useSetPluginStateById,

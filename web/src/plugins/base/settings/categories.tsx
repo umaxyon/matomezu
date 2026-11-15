@@ -11,17 +11,12 @@ import { KeysPane } from "./KeysPane"
 import { SETTINGS_CATEGORIES } from "./settings-screen"
 import { UserSettings } from "./UserSettings"
 
-// 設定カテゴリの中身のビューが受け取る物: 設定画面を開いたステージ
-export interface SettingsCategoryProps {
-  stage: string
-}
-
 // 設定カテゴリのウィジェット。settings を並べるなら view は書かない（書けば view が中身を描く）。
 // place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾、before・after ならその設定カテゴリの前・後ろ）
 export const defineSettingsCategory = <const Id extends string>(
   def: { id: Id; title: MessageKey; place?: PlaceInSlot } & (
     | { settings: readonly string[]; view?: never }
-    | { view: (props: SettingsCategoryProps) => ReactNode; settings?: never }
+    | { view: () => ReactNode; settings?: never }
   ),
 ) => {
   const settings = def.settings
@@ -30,7 +25,7 @@ export const defineSettingsCategory = <const Id extends string>(
     slots: [SETTINGS_CATEGORIES],
     ...(def.place ? { place: placeIn(SETTINGS_CATEGORIES, def.place) } : {}),
     settingsCategory: { title: def.title, ...(settings ? { settings } : {}) },
-    view: def.view ?? (({ stage }: SettingsCategoryProps) => <UserSettings stage={stage} settings={settings} />),
+    view: def.view ?? (() => <UserSettings settings={settings} />),
   })
 }
 
@@ -38,7 +33,7 @@ export const defineSettingsCategory = <const Id extends string>(
 export const GENERAL_CATEGORY = defineSettingsCategory({
   id: kit.name("settings-general"),
   title: kit.message("General"),
-  view: ({ stage }) => <UserSettings stage={stage} />,
+  view: () => <UserSettings />,
 })
 
 // プラグイン: 追加プラグインの有効・無効

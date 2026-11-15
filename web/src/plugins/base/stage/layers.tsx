@@ -5,19 +5,18 @@ import { useLayoutEffect, useMemo } from "react"
 import { bookType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
 import { areaOf, paperOf } from "../../../core/stage"
-import { useActions, useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { useBook, usePage, useStage } from "../../../ui/view-hooks"
+import { useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useBook, usePage, useStage } from "../../../ui/view-hooks"
 import { printAreaLines } from "../place/grow"
 import { startOf, unprintedSheets } from "../print-preview/book-sheets"
 import { sheetKey } from "../print-preview/filled"
 import { PaperFrame } from "../utils/PaperFrame"
-import type { StageSlotProps } from "../workspace/ui"
 import { useContentHidden } from "./background-state"
 import styles from "./layers.module.css"
 import { usePrintAreasHidden } from "./print-areas"
 
-export function PaperLayer({ stage: id }: StageSlotProps) {
-  const stage = useStage(id)
+export function PaperLayer() {
+  const stage = useStage()
   if (!stage?.opened || stage.opened.page === null) return null
   return <PaperFrame stage={stage} className={styles.paper} aria-hidden="true" data-paper-surface />
 }
@@ -25,14 +24,14 @@ export function PaperLayer({ stage: id }: StageSlotProps) {
 // 可変ページの、印刷区画の境目の破線と、印刷しない印刷区画（何も載っていない印刷区画。印刷プレビューに並べない物と同じ）の薄い影
 // （見せ方が知らせた広さが紙 1 枚より大きいときだけ。番号は出さない。フッタメニューのボタンで、線と影を一緒に隠せる）。
 // 初めの位置（暗くしない所の左上）も、ここからステージに知らせる
-export function PrintAreaLayer({ stage: id }: StageSlotProps) {
-  const stage = useStage(id)
-  const book = useBook(id)
-  const page = usePage(id)
+export function PrintAreaLayer() {
+  const stage = useStage()
+  const book = useBook()
+  const page = usePage()
   const catalog = useCatalog().core
   const paper = stage && paperOf(stage)
   const area = stage && areaOf(stage)
-  const hidden = usePrintAreasHidden(id)
+  const hidden = usePrintAreasHidden()
   const lines = paper && area && !hidden ? printAreaLines(paper, area) : null
   const columns = lines?.columns ?? 0
   const rows = lines?.rows ?? 0
@@ -40,7 +39,7 @@ export function PrintAreaLayer({ stage: id }: StageSlotProps) {
     () => (columns > 0 && book && page ? unprintedSheets(catalog, book, page, columns, rows) : []),
     [catalog, book, page, columns, rows],
   )
-  useStartReport(id)
+  useStartReport()
   if (!stage || !area || !paper || !lines) return null
   const { xs, ys } = lines
   return (
@@ -70,34 +69,34 @@ export function PrintAreaLayer({ stage: id }: StageSlotProps) {
 
 // ステージに、初めの位置で表示領域の左上に置く紙の点（startOf。暗くしない印刷区画の左上）を知らせる。
 // ステージは開くたびに知らされた点を捨てるので、開いているもの（opened）が替わるたびにも知らせ直す（同じ点なら、ステージは変わらない）
-function useStartReport(id: string) {
+function useStartReport() {
   const { setStageStart } = useActions()
   const catalog = useCatalog().core
-  const book = useBook(id)
-  const page = usePage(id)
-  const opened = useStage(id)?.opened
+  const book = useBook()
+  const page = usePage()
+  const opened = useStage()?.opened
   const start = useMemo(() => (book && page ? startOf(catalog, book, page) : null), [catalog, book, page])
   const x = start?.x
   const y = start?.y
   useLayoutEffect(() => {
-    if (x !== undefined && y !== undefined && opened?.paper) setStageStart(id, { x, y })
-  }, [setStageStart, id, x, y, opened])
+    if (x !== undefined && y !== undefined && opened?.paper) setStageStart({ x, y })
+  }, [setStageStart, x, y, opened])
 }
 
 // ブックの中身のレイヤー。背景編集モードの間は、中身を薄くして触れなくする（中身を隠していれば描かない）。背景は、この下のレイヤー（slide-layer）が描いて操作を受ける
-export function BookContentLayer({ stage: id }: StageSlotProps) {
-  const stage = useStage(id)
+export function BookContentLayer() {
+  const stage = useStage()
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const hidden = useContentHidden(id)
+  const hidden = useContentHidden()
   const type = stage?.opened?.type
   if (!type) return null
   const presentation = bookType(catalog, type).presentation
   const View = (views.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })).view
-  if (stage.edits !== "slide") return <View stage={id} />
+  if (stage.edits !== "slide") return <View />
   return (
     <div className={styles.dimmed} data-content-dimmed data-content-hidden={hidden}>
-      <View stage={id} />
+      <View />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・現在のタスク・履歴。
 // 情報の列の右下に退室のアイコン。情報の列の右には、base のスロット（workroom-columns）に置かれたウィジェットの列（現在のタスク・履歴など）が並ぶ
-import { Slot, useActions, useAllowedOn, useMessages, useScreenId } from "../../plugin-api/ui"
+import { Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
 import type { WorkroomRow } from "../base"
 import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, WORKROOM_COLUMNS } from "../base/ui"
 import { Bird } from "./Bird"
@@ -29,7 +29,6 @@ export function WorkroomView({ row, hidden }: { row: WorkroomRow | undefined; hi
 // 空室: 名前と（空室）、右下に部屋を削除するボタン（ごみ箱のアイコン。ダイアログは削除だけを選べる）
 function Empty({ row }: { row: WorkroomRow }) {
   const t = useMessages(kit)
-  const here = useScreenId()
   const { openDialog } = useActions()
   const canRemove = useAllowedOn("@matomezu/base:workroom-remove", {}, { record: row.room.id }).ok
   return (
@@ -45,7 +44,7 @@ function Empty({ row }: { row: WorkroomRow }) {
             label={t("Delete the room")}
             title={undefined}
             disabled={!canRemove}
-            onClick={() => openDialog(here, WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
+            onClick={() => openDialog(WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
           >
             <TrashIcon />
           </IconButton>
@@ -57,7 +56,6 @@ function Empty({ row }: { row: WorkroomRow }) {
 
 function Occupied({ row }: { row: WorkroomRow }) {
   const t = useMessages(kit)
-  const here = useScreenId()
   const { openDialog } = useActions()
   const rooms = useWorkroomActions()
   const participant = row.participant
@@ -115,7 +113,7 @@ function Occupied({ row }: { row: WorkroomRow }) {
               label={t("Leave")}
               title={undefined}
               disabled={!canLeave}
-              onClick={() => openDialog(here, WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
+              onClick={() => openDialog(WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
             >
               <LeaveIcon />
             </IconButton>

@@ -8,7 +8,6 @@ import {
   type ShapeScene,
   TokenScope,
   useCoreCatalog,
-  useStage,
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
@@ -19,15 +18,13 @@ import styles from "./PaperView.module.css"
 const NONE: readonly string[] = []
 const NO_IDS: ReadonlySet<string> = new Set()
 
-export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintSheetProps) {
+export function PaperSheet({ zoom, book, page, column, row, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
-  const stage = useStage(id)
-  if (!stage) return null
   const itemPage = page as ItemPage
   const { shapes, here } = sheetShapes(catalog, itemPage, paper, column, row)
   const scene: ShapeScene = {
-    stage,
+    zoom,
     page: itemPage,
     rects: shownRects(
       catalog,
@@ -47,7 +44,7 @@ export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintS
     return view ? [{ id: c, View: view }] : []
   })
   // この印刷区画に掛かる形だけを描く（またいだ形は、紙の境目で切れる）
-  const items = here.map(item => <SheetItem key={item.id} catalog={catalog} stage={id} zoom={stage.zoom} item={item} />)
+  const items = here.map(item => <SheetItem key={item.id} catalog={catalog} zoom={zoom} item={item} />)
   return connectors.reduceRight<ReactNode>(
     (inner, { id: c, View }) => (
       <TokenScope key={c} def={c}>
@@ -59,17 +56,7 @@ export function PaperSheet({ stage: id, book, page, column, row, paper }: PrintS
 }
 
 // 置いた形 1 つと、その中の子の形（子は親の左上からの位置で、親の中に描く）。結んだビューで描き、ビューの無い形は枠だけを描く
-function SheetItem({
-  catalog,
-  stage,
-  zoom,
-  item,
-}: {
-  catalog: CoreCatalog
-  stage: string
-  zoom: number
-  item: PlacedShape
-}) {
+function SheetItem({ catalog, zoom, item }: { catalog: CoreCatalog; zoom: number; item: PlacedShape }) {
   const ui = useUiCatalog().items.get(item.item)
   const tokens = useTokenScope(item.item)
   const size = placedSize(catalog, item)
@@ -93,7 +80,6 @@ function SheetItem({
           props={item.props}
           size={size}
           id={item.id}
-          stage={stage}
           content={content}
           zoom={zoom}
           hasChildren={(item.shapes?.length ?? 0) > 0}
@@ -102,7 +88,7 @@ function SheetItem({
         <div className={styles.unknownItem} />
       )}
       {((item.shapes ?? []) as PlacedShape[]).map(c => (
-        <SheetItem key={c.id} catalog={catalog} stage={stage} zoom={zoom} item={c} />
+        <SheetItem key={c.id} catalog={catalog} zoom={zoom} item={c} />
       ))}
     </div>
   )

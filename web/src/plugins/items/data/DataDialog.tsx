@@ -34,9 +34,9 @@ import { kit } from "./kit"
 import { type DataTextDraft, TextFields } from "./TextFields"
 import { type ColumnType, MAX_CELL_CHARS, MAX_COLUMNS, MAX_ROWS } from "./table"
 
-export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const placed = useItem(stage, args.page, args.item, DATA.id)
-  const perform = usePerform(stage)
+export function EditDataDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const placed = useItem(args.page, args.item, DATA.id)
+  const perform = usePerform()
   if (!placed) return null
   // 表と一緒に、見た目・文字・軸を書く（表の見た目なら、大きさが表と文字に合う。軸は列と行の位置で書く）
   const save = (d: Draft, a: AxesDraft, text: DataTextDraft) => {
@@ -51,7 +51,6 @@ export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: str
       start={toDraft(placed.table)}
       startAxes={toAxesDraft(placed.props, placed.table)}
       startText={textDraftOf(placed.props)}
-      stage={stage}
       onSubmit={save}
       onClose={onClose}
     />
@@ -72,14 +71,12 @@ function DataDialog({
   start,
   startAxes,
   startText,
-  stage,
   onSubmit,
   onClose,
 }: {
   start: Draft
   startAxes: AxesDraft
   startText: DataTextDraft
-  stage: string
   onSubmit: (d: Draft, a: AxesDraft, text: DataTextDraft) => boolean // 決められたか
   onClose: () => void
 }) {
@@ -118,7 +115,7 @@ function DataDialog({
       }
     >
       <Form id={form} ready={ok} onSubmit={() => setProblem(onSubmit(draft, axes, text) ? null : "fit")}>
-        <TextFields stage={stage} text={text} onChange={setText} />
+        <TextFields text={text} onChange={setText} />
         <AxesFields draft={draft} axes={axes} onChange={setAxes} />
         <div className={styles.grid}>
           <table>

@@ -12,6 +12,7 @@ import {
   useContextMenu,
   useCoreCatalog,
   useShownBook,
+  useStage,
 } from "../../../plugin-api/ui"
 import { type PortArea, portAreasOf, toggledSelection } from "../../base"
 import { modPressed, useDrawnMinimap } from "../../base/ui"
@@ -37,20 +38,25 @@ interface Linking {
   portsOf(id: string): readonly Side[]
 }
 const LinkingContext = createContext<Linking | null>(null)
+const NO_SELECTION: readonly string[] = []
 
 export function LineView({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
-  const { stage, page, localOf } = scene
+  const { page, localOf } = scene
   const catalog = useCoreCatalog()
-  const book = useShownBook(stage.id)
+  // 選んでいる物と、置こうとしている物は、向け先のステージから読む（ステージの外で描くときは、どちらも無い）
+  const stage = useStage()
+  const selection = stage?.selection ?? NO_SELECTION
+  const placing = stage?.placing ?? null
+  const book = useShownBook()
   // 線は形のつながる範囲（つなぎ口で縮めた四角）につなぐ
   const rects = portAreasOf(catalog, page, scene.rects)
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
   const elbow = book ? elbowAt(catalog, book, page) : true
-  const lineEdit = useCommand(stage.id, LINE_EDIT.id)
-  const openLineMenu = useContextMenu(stage.id, LINE_CONTEXT)
+  const lineEdit = useCommand(LINE_EDIT.id)
+  const openLineMenu = useContextMenu(LINE_CONTEXT)
   const { select } = useActions()
-  const linkDrag = useLinkDrag(stage, catalog, localOf)
-  const lineDrag = useLineEdit(stage, catalog, localOf)
+  const linkDrag = useLinkDrag(catalog, localOf)
+  const lineDrag = useLineEdit(catalog, localOf)
   // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角
   const memo = useRef(new Map<string, EndMemory>())
   const cache = useRef<LineCache>(newLineCache())
@@ -78,17 +84,12 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const lines = drawLines(drafted, rects, elbow, { memory, loose: settle, cache: cache.current })
   const { selectable } = scene
   const lineScene = { page, lines: drafted, drawn: lines, rects, elbow }
-  const only = stage.selection.length === 1 ? stage.selection[0] : undefined
+  const only = selection.length === 1 ? selection[0] : undefined
   // つまむ印を出す線: 直せるときの、1 本だけ選んでいる線
   const editing = selectable && lineDrag.editable && only && drafted.some(l => l.id === only) ? only : null
 
   // ミニマップの線は、紙に描いた点の並びで描かせる（形を動かしている間は置き直さない。ミニマップの形も、離すまで動かないため）
-  useDrawnMinimap(
-    stage.id,
-    LINE.id,
-    page.id,
-    scene.busy ? null : lines.map(d => ({ kind: "polyline", points: d.points })),
-  )
+  useDrawnMinimap(LINE.id, page.id, scene.busy ? null : lines.map(d => ({ kind: "polyline", points: d.points })))
 
   // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
   useLayoutEffect(() => {
@@ -105,7 +106,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
       !selectable ||
       scene.busy ||
       scene.hover !== id ||
-      stage.selection.includes(id) ||
+      selection.includes(id) ||
       !targetsFrom(catalog, page, id).size
     )
       return []
@@ -118,7 +119,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
     target: linkDrag.tip?.target ?? lineDrag.target ?? null,
   }
   const from = l && rects.get(l.from)
-  const zoom = stage.zoom
+  const zoom = scene.zoom
 
   return (
     <ShapeMarksProvider value={marks}>
@@ -126,20 +127,20 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
         {children}
         <DrawnLinesView
           lines={lines}
-          selection={stage.selection}
+          selection={selection}
           selectable={selectable}
           onPointerDown={(e, id) => {
             if (e.button !== 0 || !selectable) return
-            select(stage.id, modPressed(e) ? toggledSelection(stage.selection, id) : [id])
+            select(modPressed(e) ? toggledSelection(selection, id) : [id])
           }}
           onDoubleClick={id => {
             if (!selectable) return
-            select(stage.id, [id])
+            select([id])
             lineEdit.run({ item: id })
           }}
           onContextMenu={(e, id) => {
-            if (stage.placing !== null) return
-            if (!stage.selection.includes(id)) select(stage.id, [id])
+            if (placing !== null) return
+            if (!selection.includes(id)) select([id])
             openLineMenu(e, { item: id })
           }}
           editing={editing}
@@ -154,10 +155,10 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
               if (e.button !== 0 || !selectable) return
               // Mod なら選択に足す・外すだけで、キャプションは動かさない
               if (modPressed(e)) {
-                select(stage.id, toggledSelection(stage.selection, id))
+                select(toggledSelection(selection, id))
                 return
               }
-              select(stage.id, [id])
+              select([id])
               lineDrag.startCaption(e, id)
             },
             move: e => lineDrag.move(e, lineScene),

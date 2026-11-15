@@ -14,7 +14,6 @@
 import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
 import { paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
 import {
-  type BookViewProps,
   useActions,
   useAllowed,
   useCommand,
@@ -76,9 +75,9 @@ import { nodePaint } from "./paint"
 import styles from "./TreeView.module.css"
 import { useNodeWrite } from "./useNodeWrite"
 
-export function TreeView({ stage: id }: BookViewProps) {
-  const stage = useStage(id)
-  const openMenu = useContextMenu(id, TREE_CONTEXT)
+export function TreeView() {
+  const stage = useStage()
+  const openMenu = useContextMenu(TREE_CONTEXT)
   const ref = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<Size | null>(null)
   useResize(ref, setView)
@@ -144,27 +143,27 @@ const Tree = memo(function Tree({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useShownBook(stage.id)
-  const page = useShownPage(stage.id)
-  const perform = usePerform(stage.id)
+  const book = useShownBook()
+  const page = useShownPage()
+  const perform = usePerform()
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog, continueStep } = useActions()
   const anchor = useAnchorRef() // 節にアンカーを付ける（そばにスタンドを立てられる）
   // 変更を始めてよいか（動かす・書き換える・足す。認可ステップが止めていれば始めない）
   const where = page ? { page: page.id } : undefined
   // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
-  const follows = useFollowsSelection(stage.id)
-  const movable = useAllowed(stage.id, NODE_MOVE.id, where).ok && !follows
-  const editable = useAllowed(stage.id, NODE_UPDATE.id, where).ok
-  const addable = useAllowed(stage.id, NODE_ADD.id, where).ok
+  const follows = useFollowsSelection()
+  const movable = useAllowed(NODE_MOVE.id, where).ok && !follows
+  const editable = useAllowed(NODE_UPDATE.id, where).ok
+  const addable = useAllowed(NODE_ADD.id, where).ok
   // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
-  const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
+  const openNodeMenu = useContextMenu(NODE_CONTEXT)
   const root = treeRootOf(page)
   const grow = settingValue(catalog, book ?? null, page ?? null, GROW)
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root ? selectedIn(root, stage.selection) : null
-  const nodeWrite = useNodeWrite(stage.id, page?.id, selected !== null && selected === root?.id)
+  const nodeWrite = useNodeWrite(page?.id, selected !== null && selected === root?.id)
   const swatches = useSwatches(useBookTheme(book?.id), NODE_FILL) // 節の色のスタンドに並べる色
   const picking = usingEdit && stage.editing === NODE_COLOR_PICK && selected !== null // 節の色を選んでいる
   // 背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は、節の書き換えにしない
@@ -180,8 +179,8 @@ const Tree = memo(function Tree({
   const editor = useRef<RichInputHandle>(null)
   // 節のドラッグ: 動かし始めたら、ポインタの所を中心に倍率を 100% にし（遠くの節にも落とせる）、終えたら編集の道具の倍率に戻す
   const drag = usePaperDrag(stage, area, {
-    begin: p => zoomStage(stage.id, 1, p),
-    end: () => zoomStage(stage.id, toolZoom(true)),
+    begin: p => zoomStage(1, p),
+    end: () => zoomStage(toolZoom(true)),
   })
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root && selected && text !== null ? withCaption(root, selected, text) : root
@@ -195,12 +194,12 @@ const Tree = memo(function Tree({
       ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
-  useStageArea(stage.id, laid && growing ? laidArea(paper, growing, laid, true).size : null, laidOrigin(laid))
+  useStageArea(laid && growing ? laidArea(paper, growing, laid, true).size : null, laidOrigin(laid))
   const at = laid?.nodes.find(n => n.id === selected)
   // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
   const focused = useFocus(stage, page?.id)
-  useToolZoom(stage.id, usingEdit, focused, zoomStage)
+  useToolZoom(usingEdit, focused, zoomStage)
   useCentered(stage, usingEdit && focused && !drag.state ? at : undefined, view, panStageBy)
   if (!book || !page || !root || !laid || !selected) return null
   const tree = root
@@ -215,7 +214,7 @@ const Tree = memo(function Tree({
     const todo = editEnd(tree, selected, commit ? text : null)
     if (todo.kind === "remove") {
       const next = afterRemove(tree, grow, selected)
-      if (perform(NODE_REMOVE.id, { page: pageId, node: selected }).ok && next) select(stage.id, [next])
+      if (perform(NODE_REMOVE.id, { page: pageId, node: selected }).ok && next) select([next])
     }
     const done =
       todo.kind === "root" || todo.kind === "child"
@@ -223,15 +222,15 @@ const Tree = memo(function Tree({
         : null
     if (done && !done.ok) refused(done) // 書けない字は書かず、元のキャプションのまま
     setDraft(null)
-    setEditing(stage.id, false)
+    setEditing(false)
   }
   // ＋: 空の節を足して選び、その場で編集し始める
   const add = (plus: Plus) => {
     const done = perform(NODE_ADD.id, addArgs(pageId, plus))
     const id = done.ok ? done.result.nodes[0]?.id : undefined
     if (!id) return refused(done.ok ? { reason: "refused" } : done)
-    select(stage.id, [id])
-    setEditing(stage.id, ADDED_EDIT)
+    select([id])
+    setEditing(ADDED_EDIT)
   }
   const { nodes, lines } = laid
   // ドラッグで動かしている節（押しただけでまだ動かしていなければ null）と、落とす先
@@ -269,20 +268,20 @@ const Tree = memo(function Tree({
           onPointerDown={e => {
             if (e.button !== 0 || !usingEdit) return
             if (writing) end(true) // 入力Formが外れるより先に選びが替わるので、ここで確定する
-            select(stage.id, [n.id])
+            select([n.id])
             if (n.id !== tree.id && movable) drag.start(n, e.clientX, e.clientY)
           }}
           onContextMenu={e => {
             if (!usingEdit) return
             if (writing) end(true)
-            select(stage.id, [n.id])
+            select([n.id])
             openNodeMenu(e, {})
           }}
           onDoubleClick={() => {
             if (!usingEdit) return
-            select(stage.id, [n.id])
-            if (n.id === tree.id) openDialog(stage.id, TREE_PAGE_SETTINGS_DIALOG.id, { page: pageId })
-            else if (editable) setEditing(stage.id, true)
+            select([n.id])
+            if (n.id === tree.id) openDialog(TREE_PAGE_SETTINGS_DIALOG.id, { page: pageId })
+            else if (editable) setEditing(true)
           }}
         >
           {/* 編集している節の字は描かない（下線の形の入力Formは地が透けるので、字がダブって見える） */}
@@ -323,7 +322,6 @@ const Tree = memo(function Tree({
       )}
       {picking && swatches && (
         <NodeColorStand
-          stage={stage.id}
           page={pageId}
           node={selected}
           isRoot={selected === tree.id}
@@ -331,13 +329,10 @@ const Tree = memo(function Tree({
           swatches={swatches}
         />
       )}
-      {writing && at && (
-        <RichBar stage={stage.id} target={editor} className={styles.editorBar} style={{ left: at.x, top: at.y }} />
-      )}
+      {writing && at && <RichBar target={editor} className={styles.editorBar} style={{ left: at.x, top: at.y }} />}
       {writing && at && (
         <RichInput
           ref={editor}
-          stage={stage.id}
           className={styles.editor}
           data={{ "data-shape": selected === tree.id ? "box" : shape }}
           label={t("Caption")}
@@ -420,9 +415,9 @@ export function NodeText({ node: n }: { node: LaidNode }) {
 // 節のフォーカスが付いているか。背景編集モードに入ると外し、ページ全体を収める（出ても外れたまま、見え方も変えない）。
 // 選びが空でなくなる（節を選ぶ）・節の書き換えを始める・ページが替わると、付いた状態に戻る
 function useFocus(stage: StageView, page: string | undefined): boolean {
-  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE, stage.id) === true
+  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE) === true
   const writeFocus = useSetPluginState(kit, TREE_FOCUS_RELEASED_STATE)
-  const fit = useCommand(stage.id, "@matomezu/base:zoom-fit")
+  const fit = useCommand("@matomezu/base:zoom-fit")
   const background = stage.edits === "slide"
   const items = stage.edits === "items"
   const selecting = stage.selection.length > 0
@@ -434,32 +429,27 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
   useEffect(() => {
     if (was.current === page) return
     was.current = page
-    writeFocus(stage.id, undefined)
+    writeFocus(undefined)
   }, [page])
   // ページを替えて入るとき（ページの右クリックのメニュー）は、替えたあとに外すので、この順
   // biome-ignore lint/correctness/useExhaustiveDependencies: 入ったときだけ外す
   useEffect(() => {
     if (!background) return
-    writeFocus(stage.id, true)
+    writeFocus(true)
     fitRef.current.run()
   }, [background])
   useEffect(() => {
-    if (items && released && (selecting || editing)) writeFocus(stage.id, undefined)
-  }, [items, released, selecting, editing, writeFocus, stage.id])
+    if (items && released && (selecting || editing)) writeFocus(undefined)
+  }, [items, released, selecting, editing, writeFocus])
   return !released && !background
 }
 
 // 道具が替わったら（初めて描くときも）、道具の倍率にする（edit.ts の toolZoom）
 // （節のフォーカスを外している間は、見え方を変えない。付き直したら、道具の倍率にする）
-function useToolZoom(
-  stage: string,
-  usingEdit: boolean,
-  focused: boolean,
-  zoomStage: (stage: string, zoom: number) => void,
-) {
+function useToolZoom(usingEdit: boolean, focused: boolean, zoomStage: (zoom: number) => void) {
   useEffect(() => {
-    if (focused) zoomStage(stage, toolZoom(usingEdit))
-  }, [stage, usingEdit, focused, zoomStage])
+    if (focused) zoomStage(toolZoom(usingEdit))
+  }, [usingEdit, focused, zoomStage])
 }
 
 // 紙の上の四角 rect（無ければ何もしない）の真ん中が、大きさ view のビューの真ん中に来るように紙をずらす（紙の端では、ずらせる所まで）。
@@ -469,11 +459,11 @@ function useCentered(
   stage: StageView,
   rect: { x: number; y: number; w: number; h: number } | undefined,
   view: Size | null,
-  panStageBy: (stage: string, dx: number, dy: number) => void,
+  panStageBy: (dx: number, dy: number) => void,
 ) {
   const latest = useRef(stage)
   latest.current = stage
-  const latestPan = useLatestPan(stage.id)
+  const latestPan = useLatestPan()
   const { x, y, w, h } = rect ?? {}
   const [regained, setRegained] = useState(0)
   const waiting = useRef(false)
@@ -486,7 +476,7 @@ function useCentered(
     const at = pan && placement({ ...latest.current, pan })
     if (x === undefined || y === undefined || w === undefined || h === undefined || !view?.w || !view.h || !at) return
     const shift = centerShift({ x, y, w, h }, view, at)
-    if (shift) panStageBy(latest.current.id, shift.dx, shift.dy)
+    if (shift) panStageBy(shift.dx, shift.dy)
   }
   const isNone = rect === undefined
   // 付き直したときだけ、倍率が反映された描き直しを待つ（道具の倍率が今と同じなら倍率は替わらないので、少し待って待つのをやめる）
@@ -514,9 +504,9 @@ function useCentered(
   }, [regained, stage.zoom])
 }
 
-function NoPages({ stage }: { stage: StageView }) {
+function NoPages(_props: { stage: StageView }) {
   const t = useMessages(kit)
-  const newPage = useCommand(stage.id, "@matomezu/base:page-new")
+  const newPage = useCommand("@matomezu/base:page-new")
   return (
     <div className={styles.empty}>
       <p className={styles.prompt}>{t("No pages")}</p>

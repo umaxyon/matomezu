@@ -139,7 +139,6 @@ export function ListView({
   props,
   size,
   id,
-  stage,
   content,
   zoom,
 }: ItemViewProps<ItemProps<typeof LIST.id>, { readonly children?: readonly ListRow[] }>) {
@@ -167,13 +166,13 @@ export function ListView({
   const catalog = useCoreCatalog()
   const rows: readonly ListRow[] = content.children ?? []
   const theme = props.theme
-  const vars = useThemeVars(stage, theme, LOOK_TOKENS)
-  const add = useCommand(stage, LIST_ADD_ROW.id)
-  const edit = useCommand(stage, LIST_EDIT_ROW.id)
-  const check = useCommand(stage, LIST_CHECK.id)
-  const openMenu = useContextMenu(stage, ROW_CONTEXT)
-  const stretchRow = useCommand(stage, LIST_STRETCH_ROW.id)
-  const moveRow = useCommand(stage, LIST_MOVE_ROW.id)
+  const vars = useThemeVars(theme, LOOK_TOKENS)
+  const add = useCommand(LIST_ADD_ROW.id)
+  const edit = useCommand(LIST_EDIT_ROW.id)
+  const check = useCommand(LIST_CHECK.id)
+  const openMenu = useContextMenu(ROW_CONTEXT)
+  const stretchRow = useCommand(LIST_STRETCH_ROW.id)
+  const moveRow = useCommand(LIST_MOVE_ROW.id)
   // 写しに写し取るテーマの変数の名前（テーマが違ってもテーマキーは同じ）
   const ghostNames = useMemo(() => {
     const any = [...catalog.themes.keys()][0]
@@ -207,7 +206,7 @@ export function ListView({
       )
       if (next === "list") return
       e.stopPropagation()
-      select(stage, next)
+      select(next)
       // 選択に従う右サイドパネルを開いている間は、選ぶだけで行を運ばない
       if (mod || followed) return
       if (!moveRow.enabled || !canCarry({ props }, row)) return
@@ -238,9 +237,9 @@ export function ListView({
     onPointerCancel: () => endCarry(false),
   })
   const { select } = useActions()
-  const at = useStage(stage)
+  const at = useStage()
   const selection = at?.selection ?? []
-  const followed = useFollowsSelection(stage)
+  const followed = useFollowsSelection()
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
   const pans = at?.pans === true
   const stretch = useRef<Stretch | null>(null)
@@ -258,7 +257,7 @@ export function ListView({
       e.stopPropagation()
       e.currentTarget.setPointerCapture(e.pointerId)
       stretch.current = { pointer: e.pointerId, row, height, start: e.clientY }
-      select(stage, [row])
+      select([row])
     },
     onPointerMove: (e: PointerEvent<HTMLDivElement>) => {
       const st = stretch.current

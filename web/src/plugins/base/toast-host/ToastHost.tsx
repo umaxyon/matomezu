@@ -1,10 +1,12 @@
 // トーストの置き場（ウィジェット toast-host）: store の出しているトースト（toasts）を、画面の下の真ん中に、古いものを上にして積む。
 // 原因（detail）は 2 行目に出す。種類ごとの出しておく時間（TOAST_MS）が過ぎるか、押すと消える。
 // 見せ方がマーキー（form が marquee）の物は、画面の上の真ん中に、決まった幅の帯で 1 つずつ出す: 下りてきて文を右から左へ流し、流し終えたら引っ込んで消える
+
 import { useEffect } from "react"
 import type { Toast } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { useMatomezuState } from "../../../ui/store-context"
+import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import styles from "./ToastHost.module.css"
 

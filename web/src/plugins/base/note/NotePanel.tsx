@@ -16,7 +16,6 @@ import { useCloseRightSidePanel, useRightSidePanel, useSetRightSidePanelCurrent 
 import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { useEditLock } from "../utils/useEditLock"
-import type { StageSlotProps } from "../workspace/ui"
 import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
 import { expiryOutlook, hoursAndMinutes, NOTE_EXPIRY } from "./expiry"
 import { GrowingText } from "./NoteForm"
@@ -26,32 +25,31 @@ import { NEW_NOTE } from "./panel-id"
 
 const BADGE_CHARS = 10 // バッジに出す、名前の始めの字数
 
-export function NotePanel({ stage }: StageSlotProps) {
-  const open = useRightSidePanel(stage)
-  const notes = useAnnotationsOf(stage, NOTE.id)
+export function NotePanel() {
+  const open = useRightSidePanel()
+  const notes = useAnnotationsOf(NOTE.id)
   const close = useCloseRightSidePanel()
   const note = open ? notes.find(n => n.id === open.subject) : undefined
   const gone = !!open && open.subject !== NEW_NOTE && !note
   useEffect(() => {
-    if (gone) close(stage)
-  }, [gone, close, stage])
+    if (gone) close()
+  }, [gone, close])
   if (!open || (open.subject !== NEW_NOTE && !note)) return null
   return (
     <div className={styles.panel}>
-      <Badges stage={stage} open={open} />
-      <Lost stage={stage} anchors={open.anchors} />
+      <Badges open={open} />
+      <Lost anchors={open.anchors} />
       {note ? (
         // 文が外で変わったら、テキストFormを新しい文で始め直す
         <NoteEditor
           key={`${note.id}:${(note.props as NoteProps).text}`}
-          stage={stage}
           id={note.id}
           anchors={note.anchors}
           props={note.props as NoteProps}
           open={open}
         />
       ) : (
-        <NewNote stage={stage} open={open} />
+        <NewNote open={open} />
       )}
     </div>
   )
@@ -64,38 +62,32 @@ const ordered = (open: RightSidePanelOpen): string[] =>
     : [...open.anchors]
 
 // 付ける先の名前のバッジ: カレントは色違い。押すとその物をカレントにする。名前は BADGE_CHARS 字で切り、全体はツールチップで見せる
-function Badges({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
+function Badges({ open }: { open: RightSidePanelOpen }) {
   const t = useMessages(kit)
   return (
     // biome-ignore lint/a11y/useSemanticElements: バッジを束ねる並びで、入力Formのまとまり（fieldset）ではない
     <div className={styles.badges} role="group" aria-label={t("Things the note is on")}>
       {open.anchors.map(id => (
-        <Badge key={id} stage={stage} id={id} current={id === open.current} />
+        <Badge key={id} id={id} current={id === open.current} />
       ))}
     </div>
   )
 }
 
-function Badge({ stage, id, current }: { stage: string; id: string; current: boolean }) {
+function Badge({ id, current }: { id: string; current: boolean }) {
   const setCurrent = useSetRightSidePanelCurrent()
-  const name = useAnchorName(stage, id)
+  const name = useAnchorName(id)
   return (
-    <button
-      type="button"
-      className={styles.badge}
-      aria-pressed={current}
-      title={name}
-      onClick={() => setCurrent(stage, id)}
-    >
+    <button type="button" className={styles.badge} aria-pressed={current} title={name} onClick={() => setCurrent(id)}>
       {clampChars(name, BADGE_CHARS)}
     </button>
   )
 }
 
 // 付ける先の物がブックから消えたら（AI が消したなど）出す知らせ（閉じるまで出したまま）
-function Lost({ stage, anchors }: { stage: string; anchors: readonly string[] }) {
+function Lost({ anchors }: { anchors: readonly string[] }) {
   const t = useMessages(kit)
-  const book = useBook(stage)
+  const book = useBook()
   const [lost, setLost] = useState(false)
   const before = useRef(anchors)
   useEffect(() => {
@@ -111,15 +103,15 @@ function Lost({ stage, anchors }: { stage: string; anchors: readonly string[] })
 }
 
 // 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）
-function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
+function NewNote({ open }: { open: RightSidePanelOpen }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The note was refused")
+  const run = usePerformOrToast("The note was refused")
   const close = useCloseRightSidePanel()
-  const addable = useAllowed(stage, NOTE_ADD.id).ok
+  const addable = useAllowed(NOTE_ADD.id).ok
   const [text, setText] = useState("")
   const ready = addable && NoteTextSchema.safeParse(text).success && open.anchors.length > 0
   const add = () => {
-    if (ready && run(NOTE_ADD.id, { anchors: ordered(open), text })) close(stage)
+    if (ready && run(NOTE_ADD.id, { anchors: ordered(open), text })) close()
   }
   return (
     <>
@@ -142,23 +134,21 @@ function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
 
 // 付けた伝言: 文を直すか付ける先を変えて「再送」。たたむ・消すは、押したときに変える
 function NoteEditor({
-  stage,
   id,
   anchors,
   props,
   open,
 }: {
-  stage: string
   id: string
   anchors: readonly string[]
   props: NoteProps
   open: RightSidePanelOpen
 }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The note was refused")
+  const run = usePerformOrToast("The note was refused")
   const close = useCloseRightSidePanel()
-  const updatable = useAllowed(stage, NOTE_UPDATE.id).ok
-  const removable = useAllowed(stage, NOTE_REMOVE.id).ok
+  const updatable = useAllowed(NOTE_UPDATE.id).ok
+  const removable = useAllowed(NOTE_REMOVE.id).ok
   const [text, setText] = useState(props.text)
   const next = ordered(open)
   const moved = next.length !== anchors.length || next.some((a, i) => anchors[i] !== a)
@@ -178,7 +168,7 @@ function NoteEditor({
       ...(textChanged ? { text } : {}),
       ...(moved ? { anchors: next } : {}),
     })
-    if (done) close(stage)
+    if (done) close()
   }
   return (
     <>

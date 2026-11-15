@@ -96,6 +96,7 @@ export function commandContext(
       bookHistory: (book && state.history[book.id]) || NO_HISTORY,
     },
     workspace,
+    stageId,
   )
 }
 

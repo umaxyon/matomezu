@@ -13,7 +13,8 @@ import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useStageId } from "../../../ui/scope"
+import { useCatalog, useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useBook, useStage } from "../../../ui/view-hooks"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { BOOK_NEW } from "../book-new"
@@ -36,17 +37,18 @@ interface Drag {
   y: number
 }
 
-export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
-  const stage = useStage(id) // パンの量を読まない（パンのたびに描き直さない）
+export const StageView = memo(function StageView() {
+  const id = useStageId() ?? ""
+  const stage = useStage() // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => workspaceOf(s.window, id).current === id)
-  const book = useBook(id)
+  const book = useBook()
   const catalog = useCatalog().core
   const tool = stage?.tool ?? null
   const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
   const inPreview = stage?.mode === "print-preview"
   const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
-  const { focusStage, resizeStage, panStageBy, openBook } = useActions()
-  const wheelZoom = useCommand(id, ZOOM_WHEEL.id)
+  const { focusStage, resizeStage, panStageBy, openBook } = useStoreActions()
+  const wheelZoom = useCommand(ZOOM_WHEEL.id)
   const t = useMessages(kit)
   const ref = useRef<HTMLElement>(null)
   const drag = useRef<Drag | null>(null)
@@ -137,9 +139,9 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 })
 
 // 何も開いていないステージの中身: ブックを作るボタンと、ブックを探すコンポーネント
-function EmptyStage({ stage, onSelect }: { stage: string; onSelect: (book: string) => void }) {
+function EmptyStage({ onSelect }: { stage: string; onSelect: (book: string) => void }) {
   const t = useMessages(kit)
-  const newBook = useCommand(stage, BOOK_NEW.id)
+  const newBook = useCommand(BOOK_NEW.id)
   return (
     <div className={styles.empty}>
       {newBook.shown && (
@@ -158,15 +160,15 @@ function EmptyStage({ stage, onSelect }: { stage: string; onSelect: (book: strin
 // 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表と、物の角に出す物の表はレイヤーみんなで使う）。
 // 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）
 function BookContent({ stage, type, previewing }: { stage: string; type: BookTypeId; previewing: boolean }) {
-  const style = useBookLookStyle(stage, type) // ブックのテーマの値・文字の色の値・タイプのプラグインのテーマキー
+  const style = useBookLookStyle(type) // ブックのテーマの値・文字の色の値・タイプのプラグインのテーマキー
   return (
     <div className={styles.book} style={style}>
       {previewing ? (
-        <PrintPreviewView stage={stage} />
+        <PrintPreviewView />
       ) : (
         <AnchorsProvider stage={stage}>
           <CornersProvider>
-            <Slot name={BOOK_LAYERS} props={{ stage }} />
+            <Slot name={BOOK_LAYERS} props={{}} />
           </CornersProvider>
         </AnchorsProvider>
       )}

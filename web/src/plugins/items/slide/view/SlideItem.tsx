@@ -20,17 +20,7 @@ export interface SlideItemEdit {
   onCancel: () => void
 }
 
-export function SlideItem({
-  shape,
-  stage,
-  zoom,
-  edit,
-}: {
-  shape: PlacedShape
-  stage: string
-  zoom: number
-  edit?: SlideItemEdit
-}) {
+export function SlideItem({ shape, zoom, edit }: { shape: PlacedShape; zoom: number; edit?: SlideItemEdit }) {
   const ui = useUiCatalog()
   const anchor = useAnchorRef()
   const tokens = useTokenScope(shape.item) // このアイテムのプラグインのテーマキー（--<名前>）
@@ -73,17 +63,7 @@ export function SlideItem({
           }}
         />
       ) : (
-        View && (
-          <View
-            props={shape.props}
-            size={size}
-            id={shape.id}
-            stage={stage}
-            content={{}}
-            zoom={zoom}
-            hasChildren={false}
-          />
-        )
+        View && <View props={shape.props} size={size} id={shape.id} content={{}} zoom={zoom} hasChildren={false} />
       )}
     </div>
   )

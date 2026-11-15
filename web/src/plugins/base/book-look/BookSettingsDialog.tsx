@@ -7,8 +7,7 @@ import { useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions } from "../../../ui/store-context"
-import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -19,16 +18,16 @@ import { changeWithLock } from "../utils/lock"
 import { useSettingControls } from "../utils/SettingControls"
 import { BOOK_UPDATE } from "."
 
-export function BookSettingsDialog({ stage, onClose }: DialogProps) {
+export function BookSettingsDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   const form = useId()
-  const book = useBook(stage) ?? undefined // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
+  const book = useBook() ?? undefined // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
   const { previewDialog } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const [title, setTitle] = useState(book?.title ?? "")
   const [locked, setLocked] = useState(book?.locked === true)
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
-  const update = useAllowed(stage, BOOK_UPDATE.id)
+  const update = useAllowed(BOOK_UPDATE.id)
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
   const settings = useSettingControls(book, "book", null)
   const id = book?.id

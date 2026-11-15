@@ -54,27 +54,21 @@ const addDialog = (item: typeof BOX.id | typeof NEST_BOX.id) =>
 export const AddBoxDialog = addDialog(BOX.id)
 export const AddNestBoxDialog = addDialog(NEST_BOX.id)
 
-function AddBox({
-  stage,
-  args,
-  onClose,
-  item,
-}: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
-  const book = useBookOf(stage)
+function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
+  const book = useBookOf()
   const bookTheme = useBookTheme(book)
   const { select } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const add = (props: BoxProps) => {
     if (!book) return { reason: "no-book" }
     const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
     if (!done.ok) return done
-    select(stage, [done.result.item])
+    select([done.result.item])
     onClose()
     return null
   }
   return (
     <BoxDialog
-      stage={stage}
       title={kit.message("Add box")}
       submit={kit.message("Add")}
       start={EMPTY}
@@ -87,16 +81,16 @@ function AddBox({
   )
 }
 
-export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const book = useBookOf(stage)
+export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const book = useBookOf()
   const bookTheme = useBookTheme(book)
   // 編集するのは箱か内包ボックス（項目は同じ）
-  const box = useItem(stage, args.page, args.item, BOX.id)
-  const nestBox = useItem(stage, args.page, args.item, NEST_BOX.id)
+  const box = useItem(args.page, args.item, BOX.id)
+  const nestBox = useItem(args.page, args.item, NEST_BOX.id)
   const start = (box ?? nestBox)?.props
   const hasChildren = (nestBox?.shapes?.length ?? 0) > 0
   const { previewDialog } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const preview = useCallback(
     (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
     [book, args.item, previewDialog],
@@ -120,7 +114,6 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   }
   return (
     <BoxDialog
-      stage={stage}
       title={kit.message("Edit box")}
       submit={kit.message("OK")}
       start={start}
@@ -136,7 +129,6 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
 }
 
 function BoxDialog({
-  stage,
   title,
   submit,
   start,
@@ -148,7 +140,6 @@ function BoxDialog({
   onClose,
   hasChildren = false,
 }: {
-  stage: string
   title: MessageKey
   submit: MessageKey
   start: BoxProps
@@ -244,7 +235,7 @@ function BoxDialog({
           }
         />
         <DividerField text={text} onChange={setText} />
-        <BodyField stage={stage} text={text} onChange={setText} rows={4} />
+        <BodyField text={text} onChange={setText} rows={4} />
         <Field label={t("Theme")}>
           {id => (
             <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>

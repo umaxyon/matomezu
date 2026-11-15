@@ -11,19 +11,17 @@ import type { RichInputHandle } from "./RichInput"
 import { useTextColors } from "./use-text-colors"
 
 export function RichBar({
-  stage,
   target,
   className,
   style,
 }: {
-  stage: string // 色を決めるブックを開いているステージ
   target: RefObject<RichInputHandle | null>
   className?: string
   style?: CSSProperties
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const colors = useTextColors(stage)
+  const colors = useTextColors()
   const apply = (d: Decoration) => target.current?.decorate(d)
   // 押しても焦点を移さない
   const keep = (e: { preventDefault(): void; stopPropagation(): void }) => {

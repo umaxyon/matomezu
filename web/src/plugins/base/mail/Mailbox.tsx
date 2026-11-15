@@ -2,8 +2,7 @@
 // 種類が印を添えれば（反映済みなど）、題のあとに出す。行を押すと郵便のダイアログを開く（本文はダイアログで見せ、そこで見たことになる）。「取消」は確かめてから、その郵便を消す（消せなければ押せず、断られたらトースト）
 
 import { useMessages } from "../../../ui/i18n"
-import { useActions } from "../../../ui/store-context"
-import { useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
+import { useActions, useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import styles from "../left-side-panel/PanelRows.module.css"
 import { shownTime } from "../left-side-panel/time"

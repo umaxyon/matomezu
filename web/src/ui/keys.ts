@@ -7,7 +7,7 @@ import { useEffect } from "react"
 import type { CommandId } from "../core/catalog"
 import { keyLabel, pressedKey, seenInText } from "../core/keys"
 import { keysOf } from "../store/keys"
-import { useActions, useInstance, useMatomezuState } from "./store-context"
+import { useInstance, useMatomezuState, useStoreActions } from "./store-context"
 
 // Mac か（Mod を Cmd にし、キーの名前を記号で出す）
 export const isMac = (): boolean => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
@@ -31,7 +31,7 @@ function scopesOf(el: Element | null): string[] {
 
 // 画面の根に 1 つ置く
 export function KeyListener() {
-  const { pressKey } = useActions()
+  const { pressKey } = useStoreActions()
   useEffect(() => {
     const mac = isMac()
     const onKey = (e: KeyboardEvent) => {

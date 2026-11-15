@@ -20,18 +20,18 @@ import { typesToCreate } from "./book-create"
 import styles from "./NewBookDialog.module.css"
 import { useCreateBook } from "./useCreateBook"
 
-export function NewBookDialog({ stage, onClose }: DialogProps) {
+export function NewBookDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   return (
     <Dialog title={t("New book")} onClose={onClose}>
-      <NewBookForm stage={stage} onDone={onClose} />
+      <NewBookForm onDone={onClose} />
     </Dialog>
   )
 }
 
-function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
+function NewBookForm({ onDone }: { onDone: () => void }) {
   const t = useMessages(kit)
-  const createAndOpen = useCreateBook(stage)
+  const createAndOpen = useCreateBook()
   const [title, setTitle] = useState("")
   const catalog = useCoreCatalog()
   const controlCenter = useControlCenter()

@@ -9,26 +9,26 @@ import styles from "../utils/FooterButtons.module.css"
 import { useCloseFooterMenu } from "./footer-menu-context"
 import { STAGE_MENU } from "./menu"
 
-export function StageMenuButtons({ stage }: { stage: string }) {
+export function StageMenuButtons() {
   const items = useMenu(STAGE_MENU)
   return (
     <div className={styles.buttons}>
       {items.map(item => (
-        <MenuEntry key={menuCommands(item).join(" ")} stage={stage} item={item} />
+        <MenuEntry key={menuCommands(item).join(" ")} item={item} />
       ))}
     </div>
   )
 }
 
 // 項目 1 つ。切り替えなら出ているコマンドを出し、どれも出ていなければ描かない
-function MenuEntry({ stage, item }: { stage: string; item: MenuItem }) {
-  const id = useMenuCommand(stage, item)
-  return id ? <MenuButton stage={stage} id={id} /> : null
+function MenuEntry({ item }: { item: MenuItem }) {
+  const id = useMenuCommand(item)
+  return id ? <MenuButton id={id} /> : null
 }
 
 // コマンドのボタン。アイコンが無ければ名前を出し、押されている状態はコマンドの active、押せるかは enabled
-function MenuButton({ stage, id }: { stage: string; id: MenuCommandId }) {
-  const command = useCommand(stage, id)
+function MenuButton({ id }: { id: MenuCommandId }) {
+  const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)
   const close = useCloseFooterMenu()
   const t = useMessages(kit)

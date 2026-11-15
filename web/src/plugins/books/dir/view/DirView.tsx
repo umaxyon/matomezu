@@ -26,7 +26,6 @@ import {
 } from "react"
 import { paperOf, type StageView } from "../../../../plugin-api"
 import {
-  type BookViewProps,
   useActions,
   useAllowed,
   useCommand,
@@ -69,9 +68,9 @@ import styles from "./DirView.module.css"
 // 説明をその場で書いている間の、その場の編集の名前
 const NOTE_EDIT = kit.name("note-edit")
 
-export function DirView({ stage: id }: BookViewProps) {
-  const stage = useStage(id)
-  const openMenu = useContextMenu(id, DIR_CONTEXT)
+export function DirView() {
+  const stage = useStage()
+  const openMenu = useContextMenu(DIR_CONTEXT)
   const ref = useRef<HTMLDivElement>(null)
   if (!stage) return null
   return (
@@ -114,14 +113,14 @@ const Rows = memo(function Rows({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useShownBook(stage.id)
-  const page = useShownPage(stage.id)
-  const perform = usePerform(stage.id)
+  const book = useShownBook()
+  const page = useShownPage()
+  const perform = usePerform()
   const { select, setEditing, showToast, continueStep } = useActions()
-  const toggle = useCommand(stage.id, FOLDER_TOGGLE.id)
-  const addFolder = useCommand(stage.id, FOLDER_ADD.id)
-  const addFile = useCommand(stage.id, FILE_ADD.id)
-  const openEntryMenu = useContextMenu(stage.id, ENTRY_CONTEXT)
+  const toggle = useCommand(FOLDER_TOGGLE.id)
+  const addFolder = useCommand(FOLDER_ADD.id)
+  const addFile = useCommand(FILE_ADD.id)
+  const openEntryMenu = useContextMenu(ENTRY_CONTEXT)
   // 書いている字（どの中身のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ entry: string; text: string } | null>(null)
   const [noteDraft, setNoteDraft] = useState<{ entry: string; text: string } | null>(null) // 書いている説明
@@ -129,10 +128,10 @@ const Rows = memo(function Rows({
   const ended = useRef(false)
   const editor = useRef<RichInputHandle>(null)
   const drag = usePaperDrag(stage, area)
-  const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
+  const renamable = useAllowed(ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
   // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
-  const follows = useFollowsSelection(stage.id)
-  const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
+  const follows = useFollowsSelection()
+  const movable = useAllowed(ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
   const root = dirRootOf(page)
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
   const growing = book && page ? growOf(catalog, book, page) : undefined // ページの増やす向き
@@ -142,7 +141,7 @@ const Rows = memo(function Rows({
     growing && book && page
       ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing })
       : null
-  useStageArea(stage.id, growing && wide ? laidArea(paper, growing, wide, true).size : null)
+  useStageArea(growing && wide ? laidArea(paper, growing, wide, true).size : null)
   if (!page || !root) return null
   const dir = root
   const usingPencil = stage.tool === PENCIL_TOOL.id
@@ -176,14 +175,14 @@ const Rows = memo(function Rows({
     const todo = editEnd(dir, selected, commit ? text : null)
     if (todo.kind === "remove") {
       const next = afterRemove(dir, selected)
-      if (perform(ENTRY_REMOVE.id, { page: pageId, entry: selected }).ok && next) select(stage.id, [next])
+      if (perform(ENTRY_REMOVE.id, { page: pageId, entry: selected }).ok && next) select([next])
     }
     if (todo.kind === "rename") {
       const done = perform(ENTRY_UPDATE.id, { page: pageId, entry: selected, name: todo.name })
       if (!done.ok) refused(done) // 書けない字は書かず、元の名前のまま
     }
     setDraft(null)
-    setEditing(stage.id, false)
+    setEditing(false)
   }
   // 説明のその場の編集を終える（commit なら書いた字を確定する。することは edit.ts の noteEnd が決める）
   const endNote = (commit: boolean) => {
@@ -195,7 +194,7 @@ const Rows = memo(function Rows({
       if (!done.ok) refused(done)
     }
     setNoteDraft(null)
-    setEditing(stage.id, false)
+    setEditing(false)
   }
   // 書いている途中の名前か説明を確定する（入力Formが外れるより先に選びが替わるので、押したときに確定する）
   const settle = () => {
@@ -239,25 +238,24 @@ const Rows = memo(function Rows({
           onPointerDown={e => {
             if (e.button !== 0 || !usingPencil) return
             settle()
-            select(stage.id, [r.id])
+            select([r.id])
             if (r.id !== dir.id && movable) drag.start(r, e.clientX, e.clientY)
           }}
           onDoubleClick={() => {
             if (!usingPencil || !renamable) return
-            select(stage.id, [r.id])
-            setEditing(stage.id, true)
+            select([r.id])
+            setEditing(true)
           }}
           onContextMenu={e => {
             if (!usingPencil) return
             settle()
-            select(stage.id, [r.id])
+            select([r.id])
             openEntryMenu(e, {})
           }}
         />
       ))}
       {writing && at && (
         <RichBar
-          stage={stage.id}
           target={editor}
           className={styles.editorBar}
           style={{ left: nameLeft(at.x) - EDITOR_INSET, top: at.y }}
@@ -266,7 +264,6 @@ const Rows = memo(function Rows({
       {writing && at && (
         <RichInput
           ref={editor}
-          stage={stage.id}
           className={styles.editor}
           label={t("Name")}
           multiline={false}
@@ -300,12 +297,12 @@ const Rows = memo(function Rows({
             onPointerDown={e => {
               if (e.button !== 0) return
               settle()
-              select(stage.id, [r.id])
+              select([r.id])
             }}
             onDoubleClick={() => {
               if (!renamable) return
-              select(stage.id, [r.id])
-              setEditing(stage.id, NOTE_EDIT)
+              select([r.id])
+              setEditing(NOTE_EDIT)
             }}
           />
         ))}
@@ -324,17 +321,11 @@ const Rows = memo(function Rows({
           ) : null,
         )}
       {noting && notes && at && (
-        <RichBar
-          stage={stage.id}
-          target={editor}
-          className={styles.editorBar}
-          style={{ left: notes.x - EDITOR_INSET, top: at.y }}
-        />
+        <RichBar target={editor} className={styles.editorBar} style={{ left: notes.x - EDITOR_INSET, top: at.y }} />
       )}
       {noting && notes && at && (
         <RichInput
           ref={editor}
-          stage={stage.id}
           className={styles.editor}
           label={t("Description")}
           multiline={false}
@@ -375,10 +366,10 @@ const Rows = memo(function Rows({
         <KindPicker
           at={{ x: at.x + at.w + PLUS_GAP, y: at.y }}
           onPick={kind => {
-            setEditing(stage.id, false)
+            setEditing(false)
             ;(kind === "folder" ? addFolder : addFile).run()
           }}
-          onCancel={() => setEditing(stage.id, false)}
+          onCancel={() => setEditing(false)}
         />
       )}
       {usingPencil && !writing && !picking && !dragging && at && (
@@ -554,9 +545,9 @@ export function RowFace({ row: r }: { row: LaidRow }) {
 const FOLDER_ICON = <FolderIcon size={ICON} />
 const FILE_ICON = <FileIcon size={ICON} />
 
-function NoPages({ stage }: { stage: StageView }) {
+function NoPages(_props: { stage: StageView }) {
   const t = useMessages(kit)
-  const newPage = useCommand(stage.id, "@matomezu/base:page-new")
+  const newPage = useCommand("@matomezu/base:page-new")
   return (
     <div className={styles.empty}>
       <p className={styles.prompt}>{t("No pages")}</p>

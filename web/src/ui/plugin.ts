@@ -2,6 +2,7 @@
 // ウィジェット（スロットに置けるコンポーネント）とコマンドのアイコンを足す。
 // ビューは、そのプラグインの id を全部持たないと型の誤り（利用者の設定の項目のビューは書かなくてよい）。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
 // 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と台帳アセンブルで確かめる）
+
 import type { ComponentType, ReactNode } from "react"
 import type { BookViewExtras, ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
 import { fail } from "../core/errors"
@@ -13,10 +14,8 @@ import { type IdsOf, type Plugin, withoutParts } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
 import type { AnyWidgetDef } from "./layout"
 
-// stage はステージの id（中身は useStage などのフックで引く）
-export interface BookViewProps {
-  stage: string
-}
+// ブックのビューが受け取る物は無い（描くページと操作は、フックが描いている場所から引く。ui/scope.tsx）
+export type BookViewProps = Record<string, never>
 // ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、UI マッピングには書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
 export interface BookViewDef extends BookViewExtras {
@@ -25,21 +24,19 @@ export interface BookViewDef extends BookViewExtras {
 }
 // A は開くときに渡された値の型（値を渡さないダイアログは undefined）
 export interface DialogProps<A = undefined> {
-  stage: string // 開いたステージ
   args: A
   onClose: () => void
 }
 // どのダイアログのビューも入る型（表に入れるときに使う。渡す値の型は id ごとに違うので、表の上では見ない）
 // biome-ignore lint/suspicious/noExplicitAny: 関数コンポーネントとクラスコンポーネントの両方を受けるには any しかない
 type AnyDialogView = ComponentType<DialogProps<any>>
-// アイテムのビューに渡す値: 項目（props）・大きさ（紙の上の px）・アイテムの id・描いているステージ・
+// アイテムのビューに渡す値: 項目（props）・大きさ（紙の上の px）・アイテムの id・
 // 中身（形の定義の content に宣言したフィールドの名前 → その値。データに無いフィールドは undefined）・
 // 今の倍率（紙の上の 1px が画面の何 px か。倍率を変えると、新しい値で描き直す）
 export interface ItemViewProps<Props, Content = Readonly<Record<string, unknown>>> {
   props: Props
   size: Size
   id: string
-  stage: string
   content: Content
   zoom: number
   hasChildren: boolean // 子の形を 1 つ以上持っているか（子はビューの外で、子の領域に描く）

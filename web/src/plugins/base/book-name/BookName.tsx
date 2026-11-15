@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import { workspaceOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
+import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
@@ -21,10 +22,10 @@ import { FooterMenuContext } from "./footer-menu-context"
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
 
-export function BookName({ stage }: { stage: string }) {
-  const book = useBook(stage) ?? undefined
+export function BookName() {
+  const book = useBook() ?? undefined
   const lang = useMatomezuState(s => s.lang)
-  const current = useMatomezuState(s => workspaceOf(s.window, stage).current === stage)
+  const current = useStageHere((st, s) => st !== null && workspaceOf(s.window, st.id).current === st.id)
   const t = useMessages(kit)
   const [open, setOpen] = useState(false)
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -81,7 +82,6 @@ export function BookName({ stage }: { stage: string }) {
         )}
       </div>
       <FooterMenu
-        stage={stage}
         open={open}
         own={own}
         onPick={() => {
@@ -95,12 +95,10 @@ export function BookName({ stage }: { stage: string }) {
 
 // 下から上がるフッタメニュー。閉じている間は見えず、押せず、読み上げにも出ない。own は下の行の外に置かれたときの、乗ったかを見る受け取り
 function FooterMenu({
-  stage,
   open,
   own,
   onPick,
 }: {
-  stage: string
   open: boolean
   own: { onMouseEnter?: () => void; onMouseLeave?: () => void }
   onPick: () => void
@@ -111,7 +109,7 @@ function FooterMenu({
         <div className={styles.row}>
           {FOOTER_MENU_SLOTS.map(name => (
             <div key={name} className={styles.part}>
-              <Slot name={name} props={{ stage }} />
+              <Slot name={name} props={{}} />
             </div>
           ))}
         </div>

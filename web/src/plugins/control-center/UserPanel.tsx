@@ -1,6 +1,6 @@
 // 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く
 import type { ReactNode } from "react"
-import { useCommand, useMessages, useScreenId, useUiCatalog } from "../../plugin-api/ui"
+import { useCommand, useMessages, useUiCatalog } from "../../plugin-api/ui"
 import { Band, IconButton, Panel, Tip, useMailboxPanel, useWideSearchPanel } from "../base/ui"
 import type { FrontScreen } from "./control-center"
 import { AvatarIcon, GearIcon, LibraryIcon, MailIcon, ProjectIcon, SearchIcon } from "./icons"
@@ -16,7 +16,7 @@ export function UserPanel({ screen, onShow }: { screen: FrontScreen; onShow: (to
   const t = useMessages(kit)
   const mailbox = useMailboxPanel()
   const wideSearch = useWideSearchPanel()
-  const settings = useCommand(useScreenId(), "@matomezu/base:settings-open")
+  const settings = useCommand("@matomezu/base:settings-open")
   // 題の左の巣箱の絵（見た目だけ。帯やフッターの巣箱のボタンと同じ絵を、そのコマンドの id で引く）
   const birdhouse = useUiCatalog().commandIcons.get(BIRDHOUSE_COMMAND)
   const tiles: Tile[] = [

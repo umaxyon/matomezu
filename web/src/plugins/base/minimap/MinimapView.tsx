@@ -7,11 +7,11 @@ import { memo, type PointerEvent, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { areaOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
+import { useStageHere } from "../../../ui/scope"
+import { useCatalog } from "../../../ui/store-context"
+import { useActions, useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { kit } from "../kit"
 import { TOOL_SET } from "../tool-picker"
@@ -22,35 +22,25 @@ import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
 import { type MinimapMark, minimapMarks } from "./marks"
 
-export function MinimapView({
-  stage: id,
-  width,
-  height,
-  className,
-}: {
-  stage: string
-  width: number
-  height: number
-  className?: string
-}) {
+export function MinimapView({ width, height, className }: { width: number; height: number; className?: string }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const stage = useMatomezuState(s => stageIn(s.window, id))
-  const book = useShownBook(id) // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
-  const page = useShownPage(id)
-  const held = keepsPan(catalog, useStage(id)?.tool ?? null)
+  const stage = useStageHere(st => st)
+  const book = useShownBook() // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
+  const page = useShownPage()
+  const held = keepsPan(catalog, useStage()?.tool ?? null)
   const { panStageBy, focusStage } = useActions()
-  const toolSet = useCommand(id, TOOL_SET.id)
+  const toolSet = useCommand(TOOL_SET.id)
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
-  const vars = useBookThemeVars(id)
-  const drawn = useDrawnTable(id)
+  const vars = useBookThemeVars()
+  const drawn = useDrawnTable()
   const marks = useMemo(
     () => (book && page ? minimapMarks(catalog, book, page, item => drawnOn(drawn, item, page.id)) : []),
     [catalog, book, page, drawn],
   )
-  const attachWheel = useZoomWheel(id)
+  const attachWheel = useZoomWheel()
   const paper = stage ? areaOf(stage) : null
   if (!stage || !book || !paper) return null
   const scale = fitScale(paper, width, height)
@@ -66,13 +56,13 @@ export function MinimapView({
     const s = latest.current
     if (!s) return
     const want = panFor(to, s.zoom)
-    panStageBy(id, want.x - s.pan.x, want.y - s.pan.y)
+    panStageBy(want.x - s.pan.x, want.y - s.pan.y)
   }
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    focusStage(id)
+    focusStage()
     if (!seen) return
     if (held) {
       const set = stage ? toolSetOf(catalog, stage) : null

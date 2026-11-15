@@ -6,8 +6,8 @@
 import type { Point, Size } from "../../../core/geom"
 import { extentOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN, ZOOM_MAX, ZOOM_MIN, zoomInRange } from "../../../core/viewport"
-import { type CommandContext, workspaceOf } from "../../../store/commands/def"
-import type { Actions } from "../../../store/store"
+import { type CommandContext, calledStageOf } from "../../../store/commands/def"
+import type { Actions, BoundPlaceActions } from "../../../store/store"
 import { kit } from "../kit"
 
 export { ZOOM_MAX, ZOOM_MIN }
@@ -67,7 +67,15 @@ export function fitSideView(stage: Stage, side: "width" | "height"): Stage {
 // ステージの見え方（倍率とずらす量）
 export type ViewAt = Pick<Stage, "zoom" | "pan">
 
+// コマンドが、呼ばれたステージ stage を見え方 target へ移す（moveView と同じ。操作 a は、呼ばれたステージに向けた形）
+export function moveHere(a: Pick<BoundPlaceActions, "zoomStage" | "panStageBy">, stage: Stage, target: ViewAt): void {
+  const zoomed = zoomTo(stage, target.zoom)
+  a.zoomStage(target.zoom)
+  a.panStageBy(target.pan.x - zoomed.pan.x, target.pan.y - zoomed.pan.y)
+}
+
 // ステージ stage を、見え方 target（倍率とずらす量）へ移す: 倍率を変えてから（ずらす量はストアと同じ zoomTo で決まる）、target のずらす量との差だけずらす
+// （骨組みが、名指したステージを動かすとき）
 export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: Stage, target: ViewAt): void {
   const zoomed = zoomTo(stage, target.zoom)
   a.zoomStage(stage.id, target.zoom)
@@ -75,12 +83,12 @@ export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: St
 }
 
 // 呼ばれたステージの中の状態（表示領域の大きさとずらす量）
-export const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s => s.id === ctx.stage.id)
+export const stageOf = (ctx: CommandContext) => calledStageOf(ctx)
 
 export const ZOOM_IN = kit.defineCommand({
   id: "zoom-in",
   title: "Zoom in",
-  run: (ctx, a, at: Point | null) => a.zoomStage(ctx.stage.id, stepZoom(ctx.stage.zoom, 1), at ?? undefined),
+  run: (ctx, a, at: Point | null) => a.zoomStage(stepZoom(ctx.stage.zoom, 1), at ?? undefined),
   when: zoomable,
   enabled: ctx => stepZoom(ctx.stage.zoom, 1) !== ctx.stage.zoom,
 })
@@ -88,7 +96,7 @@ export const ZOOM_IN = kit.defineCommand({
 export const ZOOM_OUT = kit.defineCommand({
   id: "zoom-out",
   title: "Zoom out",
-  run: (ctx, a, at: Point | null) => a.zoomStage(ctx.stage.id, stepZoom(ctx.stage.zoom, -1), at ?? undefined),
+  run: (ctx, a, at: Point | null) => a.zoomStage(stepZoom(ctx.stage.zoom, -1), at ?? undefined),
   when: zoomable,
   enabled: ctx => stepZoom(ctx.stage.zoom, -1) !== ctx.stage.zoom,
 })
@@ -97,8 +105,7 @@ export const ZOOM_OUT = kit.defineCommand({
 export const ZOOM_WHEEL = kit.defineCommand({
   id: "zoom-wheel",
   title: "Zoom",
-  run: (ctx, a, wheel: { delta: number; at?: Point }) =>
-    a.zoomStage(ctx.stage.id, wheelZoom(ctx.stage.zoom, wheel.delta), wheel.at),
+  run: (ctx, a, wheel: { delta: number; at?: Point }) => a.zoomStage(wheelZoom(ctx.stage.zoom, wheel.delta), wheel.at),
   when: zoomable,
 })
 
@@ -106,7 +113,7 @@ export const ZOOM_WHEEL = kit.defineCommand({
 export const ZOOM_RESET = kit.defineCommand({
   id: "zoom-reset",
   title: "Reset view",
-  run: (ctx, a) => a.resetStageView(ctx.stage.id),
+  run: (_ctx, a) => a.resetStageView(),
   when: zoomable,
   enabled: ctx => {
     const stage = stageOf(ctx)
@@ -120,7 +127,7 @@ export const ZOOM_FIT = kit.defineCommand({
   title: "Fit the page",
   run: (ctx, a) => {
     const stage = stageOf(ctx)
-    if (stage) moveView(a, stage, fitView(stage))
+    if (stage) moveHere(a, stage, fitView(stage))
   },
   when: zoomable,
   enabled: ctx => {

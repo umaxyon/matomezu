@@ -59,14 +59,12 @@ export function ChartView({
   table,
   props: placed,
   size,
-  stage,
   id,
   motion,
 }: {
   table: Table
   props: DataProps
   size: Size
-  stage: string
   id: string
   motion: { trigger: MotionTrigger | null; round: number } // 動かすきっかけと、その回の番号（変われば描き直して動かし直す）
 }) {
@@ -100,7 +98,7 @@ export function ChartView({
     body = c ? (
       <CartesianChart c={c} names={seriesNames(table, props)} radius={look.radius} hover={hover} leave={leave} />
     ) : null
-    if (c) grip = <LabelGrip c={c} size={size} stage={stage} id={id} onDrag={setDragged} />
+    if (c) grip = <LabelGrip c={c} size={size} id={id} onDrag={setDragged} />
   }
   if (!body) return <Notice>{t("Choose the axes")}</Notice>
   return (

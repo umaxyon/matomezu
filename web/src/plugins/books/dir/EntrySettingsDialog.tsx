@@ -23,14 +23,14 @@ import { DEFAULT_ICON, iconsFor } from "./entry-icon"
 import { kit } from "./kit"
 import { NodeIcon } from "./node-icon"
 
-export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page: string; entry: string }>) {
+export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: string; entry: string }>) {
   const t = useMessages(kit)
   const form = useId()
-  const book = pagedOf(useBook(stage))
+  const book = pagedOf(useBook())
   const page = book?.pages.find(p => p.id === args.page)
   const root = dirRootOf(page)
   const entry = root ? entryOf(root, args.entry) : null
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const [name, setName] = useState(entry?.name ?? "")
   const [description, setDescription] = useState(entry?.description ?? "")
   const [icon, setIcon] = useState<string | undefined>(entry?.icon)
@@ -65,18 +65,10 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
     >
       <Form id={form} ready={name.trim() !== ""} onSubmit={submit}>
         <Field label={t("Name")}>
-          {id => <RichLineInput id={id} stage={stage} label={t("Name")} value={name} onChange={setName} autoFocus />}
+          {id => <RichLineInput id={id} label={t("Name")} value={name} onChange={setName} autoFocus />}
         </Field>
         <Field label={t("Description")}>
-          {id => (
-            <RichLineInput
-              id={id}
-              stage={stage}
-              label={t("Description")}
-              value={description}
-              onChange={setDescription}
-            />
-          )}
+          {id => <RichLineInput id={id} label={t("Description")} value={description} onChange={setDescription} />}
         </Field>
         <Field label={t("Icon")}>
           {() => (
@@ -109,14 +101,12 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
 // 1 行の見たまま編集の入力Formと、その上の装飾のボックス
 function RichLineInput({
   id,
-  stage,
   label,
   value,
   onChange,
   autoFocus,
 }: {
   id: string
-  stage: string
   label: string
   value: string
   onChange: (text: string) => void
@@ -125,10 +115,9 @@ function RichLineInput({
   const ref = useRef<RichInputHandle>(null)
   return (
     <div>
-      <RichBar stage={stage} target={ref} />
+      <RichBar target={ref} />
       <RichInput
         ref={ref}
-        stage={stage}
         id={id}
         label={label}
         multiline={false}

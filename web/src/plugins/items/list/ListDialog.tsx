@@ -64,16 +64,16 @@ const EMPTY: ListProps = {
   checkedOrder: "none",
 }
 
-export function AddListDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
-  const book = useBookOf(stage)
+export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
+  const book = useBookOf()
   const bookTheme = useBookTheme(book)
   const { select } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const add = (props: ListProps) => {
     if (!book) return { reason: "no-book" }
     const done = perform("@matomezu/paper:item-place", { ...args, item: LIST.id, props, crowd: "push" })
     if (!done.ok) return done
-    select(stage, [done.result.item])
+    select([done.result.item])
     onClose()
     return null
   }
@@ -92,12 +92,12 @@ export function AddListDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs
   )
 }
 
-export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const book = useBookOf(stage)
+export function EditListDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const found = useItem(stage, args.page, args.item, LIST.id)
+  const found = useItem(args.page, args.item, LIST.id)
   const { previewDialog } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(
     (look: Look | null, rowLines?: RowsLines) => {

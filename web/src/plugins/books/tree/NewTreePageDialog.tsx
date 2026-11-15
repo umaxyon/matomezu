@@ -10,10 +10,10 @@ import { GROW_NAMES, useGrowOptions } from "./GrowSetting"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 
-export function NewTreePageDialog({ stage, onClose }: DialogProps) {
+export function NewTreePageDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
-  const book = pagedOf(useBook(stage))
-  const addPage = useAddPage(stage)
+  const book = pagedOf(useBook())
+  const addPage = useAddPage()
   const options = useGrowOptions()
   const catalog = useCoreCatalog()
   const [title, setTitle] = useState(() => (book ? nextPageTitle(book, t) : ""))

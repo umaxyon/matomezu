@@ -21,7 +21,6 @@ import { Ask, useRemoveAsk } from "../utils/Ask"
 import { Stand, StandAt } from "../utils/anchors"
 import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
-import type { StageSlotProps } from "../workspace/ui"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import styles from "./MarkLayer.module.css"
 import { MARK_PICKER } from "./states"
@@ -32,44 +31,31 @@ const ALERT = 18 // びっくりマークの丸の大きさ
 // この画面で付けたばかりのマーク（最初に描くときだけ、飛んでくるか顔を出す）
 const arriving = new Set<string>()
 
-export function MarkLayer({ stage }: StageSlotProps) {
-  const marks = useAnnotationsOf(stage, MARK.id)
-  const picker = useAnchorTargets(stage, MARK_PICKER)
+export function MarkLayer() {
+  const marks = useAnnotationsOf(MARK.id)
+  const picker = useAnchorTargets(MARK_PICKER)
   return (
     <>
       {marks.map(m => (
         <MarkStand
           key={m.id}
-          stage={stage}
           id={m.id}
           anchor={m.anchors.at(-1) ?? ""}
           kind={(m.props as MarkProps).kind}
           addedAt={(m.props as MarkProps).addedAt}
         />
       ))}
-      {picker && <PickerStand key={picker.anchors.join(" ")} stage={stage} picker={picker} />}
+      {picker && <PickerStand key={picker.anchors.join(" ")} picker={picker} />}
     </>
   )
 }
 
-function MarkStand({
-  stage,
-  id,
-  anchor,
-  kind,
-  addedAt,
-}: {
-  stage: string
-  id: string
-  anchor: string
-  kind: MarkKind
-  addedAt: string
-}) {
+function MarkStand({ id, anchor, kind, addedAt }: { id: string; anchor: string; kind: MarkKind; addedAt: string }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The mark was refused")
+  const run = usePerformOrToast("The mark was refused")
   const remove = () => run(MARK_REMOVE.id, { mark: id })
   const title = t(MARK_KINDS.find(k => k.id === kind)?.title ?? "Mark")
-  const awayLabel = t("Show {name}", { name: useAnchorName(stage, anchor) })
+  const awayLabel = t("Show {name}", { name: useAnchorName(anchor) })
   if (kind === "alert")
     return (
       <AtCorner
@@ -147,12 +133,12 @@ function MarkBird({
 }
 
 // マークの種類を選ぶスタンド: 6 つの種類の絵を並べ、押した種類を付ける。Esc か、ほかを押すと付けずに閉じる
-function PickerStand({ stage, picker }: { stage: string; picker: AnchorTargets }) {
+function PickerStand({ picker }: { picker: AnchorTargets }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The mark was refused")
+  const run = usePerformOrToast("The mark was refused")
   const setPicker = useSetAnchorTargets(MARK_PICKER)
   const ref = useRef<HTMLDivElement>(null)
-  const end = () => setPicker(stage, null)
+  const end = () => setPicker(null)
   const pick = (kind: MarkKind) => {
     const done = run(MARK_ADD.id, { anchors: [...picker.anchors], kind })
     if (done) {

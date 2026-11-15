@@ -29,16 +29,16 @@ type ArtProps = ItemProps<typeof PERSON.item.id>
 
 // 絵 item を置く追加のダイアログ
 export function addArtDialog(item: string) {
-  return function AddArtDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
-    const book = useBookOf(stage)
+  return function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
+    const book = useBookOf()
     const bookTheme = useBookTheme(book)
     const { select } = useActions()
-    const perform = usePerform(stage)
+    const perform = usePerform()
     const add = (props: ArtProps) => {
       if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
       if (!done.ok) return done
-      select(stage, [done.result.item])
+      select([done.result.item])
       onClose()
       return null
     }
@@ -56,13 +56,13 @@ export function addArtDialog(item: string) {
   }
 }
 
-export function EditArtDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const book = useBookOf(stage)
+export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const placed = useItem(stage, args.page, args.item)
+  const placed = useItem(args.page, args.item)
   const start = placed?.props as ArtProps | undefined
   const { previewDialog } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const preview = useCallback(
     (color: ArtProps["color"] | null) =>
       previewDialog(color !== null && book ? { book, item: args.item, props: { color } } : null),

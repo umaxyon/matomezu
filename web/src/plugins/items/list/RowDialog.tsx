@@ -15,16 +15,15 @@ type Text = Omit<RowProps, "checked">
 
 const EMPTY: Text = { caption: "", rule: true, body: "", captionAlign: "left", bodyAlign: "left" }
 
-export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string }>) {
-  const book = useBookOf(stage)
-  const perform = usePerform(stage)
+export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list: string }>) {
+  const book = useBookOf()
+  const perform = usePerform()
   const add = (props: Text) => {
     if (!book) return
     if (perform(ROW_ADD.id, { page: args.page, list: args.list, props }).ok) onClose()
   }
   return (
     <RowDialog
-      stage={stage}
       title={kit.message("Add row")}
       submit={kit.message("Add")}
       start={EMPTY}
@@ -35,11 +34,11 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
   )
 }
 
-export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
-  const book = useBookOf(stage)
-  const rows = useItem(stage, args.page, args.list, LIST.id)?.children
+export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
+  const book = useBookOf()
+  const rows = useItem(args.page, args.list, LIST.id)?.children
   const start = rows?.find(r => r.id === args.row)?.props
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const { previewDialog } = useActions()
   // 書いている行の項目を、リストの行に重ねて見せる
   const preview = useCallback(
@@ -67,7 +66,6 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
   }
   return (
     <RowDialog
-      stage={stage}
       title={kit.message("Edit row")}
       submit={kit.message("OK")}
       start={start}
@@ -81,7 +79,6 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
 }
 
 function RowDialog({
-  stage,
   title,
   submit,
   start,
@@ -91,7 +88,6 @@ function RowDialog({
   onRemove,
   onClose,
 }: {
-  stage: string
   title: MessageKey
   submit: MessageKey
   start: Text
@@ -135,7 +131,7 @@ function RowDialog({
       <Form id={form} ready={ready} onSubmit={() => onSubmit(text)}>
         <CaptionField text={text} onChange={setText} />
         <DividerField text={text} onChange={setText} />
-        <BodyField stage={stage} text={text} onChange={setText} rows={4} />
+        <BodyField text={text} onChange={setText} rows={4} />
         {onRemove && (
           <div className={rowClass}>
             <ActionButton danger onClick={onRemove}>

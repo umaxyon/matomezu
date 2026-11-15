@@ -6,8 +6,7 @@ import { type RefObject, useEffect, useEffectEvent, useRef, useState } from "rea
 import type { Point } from "../../../core/geom"
 import { toPaper } from "../../../core/stage"
 import type { StageView } from "../../../core/workspace"
-import { useActions } from "../../../ui/store-context"
-import { useStagePan, useToPaper } from "../../../ui/view-hooks"
+import { useActions, useStagePan, useToPaper } from "../../../ui/view-hooks"
 import { DRAG_START } from "./drag"
 import { edgePanner } from "./edge-pan"
 
@@ -34,7 +33,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
     const r = area.current?.getBoundingClientRect()
     return r ? { x: cx - r.left, y: cy - r.top } : null
   }
-  const toPaperOf = useToPaper(stage.id)
+  const toPaperOf = useToPaper()
   const toPaperAt = (cx: number, cy: number): Point | null => {
     const p = local(cx, cy)
     return p ? toPaperOf(p) : null
@@ -43,13 +42,12 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
   const paperAt = useEffectEvent(toPaperAt)
   const begin = useEffectEvent((p: Point) => ways.begin?.(p))
   const end = useEffectEvent(() => ways.end?.())
-  const id = stage.id
   const pressed = state !== null
   const pointer = useRef<Point | null>(null) // 最後のポインタの所（画面の座標）
   // 紙がずれたり倍率が変わったりしたら（描き直したあとのステージで）、ポインタの下の紙の所を追い直す。
   // 紙をずらす量は押している間だけ追う（押していなければ、ずらしても描き直さない）
   const { opened, zoom } = stage
-  const pan = useStagePan(id, pressed)
+  const pan = useStagePan(pressed)
   useEffect(() => {
     const d = latest.current
     const c = pointer.current
@@ -66,7 +64,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
         const r = area.current?.getBoundingClientRect()
         return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null
       },
-      (dx, dy) => panStageBy(id, dx, dy),
+      (dx, dy) => panStageBy(dx, dy),
     )
     const move = (e: PointerEvent) => {
       const d = latest.current
@@ -101,7 +99,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
       window.removeEventListener("pointerup", up)
       window.removeEventListener("pointercancel", cancel)
     }
-  }, [pressed, id, area, panStageBy])
+  }, [pressed, area, panStageBy])
   // 押した物 item（id と、紙の座標の左上）と、押した所（画面の座標）
   const start = (item: { id: string; x: number; y: number }, cx: number, cy: number) => {
     const at = toPaperAt(cx, cy)

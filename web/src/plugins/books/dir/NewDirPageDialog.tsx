@@ -7,10 +7,10 @@ import { nextPageTitle } from "../../base"
 import { controlClass, Dialog, Field, Form, useAddPage } from "../../base/ui"
 import { kit } from "./kit"
 
-export function NewDirPageDialog({ stage, onClose }: DialogProps) {
+export function NewDirPageDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
-  const book = pagedOf(useBook(stage))
-  const addPage = useAddPage(stage)
+  const book = pagedOf(useBook())
+  const addPage = useAddPage()
   const [title, setTitle] = useState(() => (book ? nextPageTitle(book, t) : ""))
   const [name, setName] = useState<string | null>(null) // null はページ名と同じ
   if (!book) return null

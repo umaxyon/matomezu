@@ -23,29 +23,19 @@ import { kit } from "./kit"
 
 type ScrapProps = ItemProps<typeof SCRAP_BOX.id>
 
-export function EditScrapBoxDialog({ stage, args, onClose }: DialogProps<ShapeEditArgs>) {
-  const placed = useItem(stage, args.page, args.item)
+export function EditScrapBoxDialog({ args, onClose }: DialogProps<ShapeEditArgs>) {
+  const placed = useItem(args.page, args.item)
   const start = placed?.props as ScrapProps | undefined
-  return start ? <Editor stage={stage} args={args} start={start} onClose={onClose} /> : null
+  return start ? <Editor args={args} start={start} onClose={onClose} /> : null
 }
 
-function Editor({
-  stage,
-  args,
-  start,
-  onClose,
-}: {
-  stage: string
-  args: ShapeEditArgs
-  start: ScrapProps
-  onClose: () => void
-}) {
+function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapProps; onClose: () => void }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const [value, setValue] = useState(start)
   const { line, ...scrap } = value
-  const swatches = useSwatches(useBookTheme(useBookOf(stage)), SCRAP_LINE)
+  const swatches = useSwatches(useBookTheme(useBookOf()), SCRAP_LINE)
   // 枠線だけを変える（色の「なし」は項目を外す）
   const withLine = (next: string | undefined) => setValue(next === undefined ? scrap : { ...scrap, line: next })
   const [refused, setRefused] = useState<string | null>(null)
@@ -80,7 +70,7 @@ function Editor({
         <ScrapForm
           value={scrap}
           onChange={next => setValue(line === undefined ? next : { ...next, line })}
-          opens={{ stage, onOpened: onClose, edited: JSON.stringify(value) !== JSON.stringify(start) }}
+          opens={{ onOpened: onClose, edited: JSON.stringify(value) !== JSON.stringify(start) }}
           side={
             <div className={rowClass}>
               <span>{t("Border")}</span>

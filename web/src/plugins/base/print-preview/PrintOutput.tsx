@@ -17,7 +17,6 @@ export interface OutputSheet extends SheetAt {
 }
 
 export function PrintOutput({
-  stage,
   type,
   book,
   sheets,
@@ -27,7 +26,7 @@ export function PrintOutput({
   book: Book
   sheets: readonly OutputSheet[]
 }) {
-  const style = useBookLookStyle(stage, type)
+  const style = useBookLookStyle(type)
   return createPortal(
     <div className={styles.output} style={style} data-print-output={sheets.length} aria-hidden="true">
       <style>{pageRules(sheets)}</style>
@@ -38,7 +37,7 @@ export function PrintOutput({
           style={{ width: s.w, height: s.h, page: pageNameOf(s) }}
           data-print-sheet={pageNameOf(s)}
         >
-          <SheetFrame stage={stage} book={book} page={s.page} sheet={s} measured={s.measured} labels={s.labels} />
+          <SheetFrame zoom={1} book={book} page={s.page} sheet={s} measured={s.measured} labels={s.labels} />
         </div>
       ))}
     </div>,

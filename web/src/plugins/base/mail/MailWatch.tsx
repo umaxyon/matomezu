@@ -4,7 +4,7 @@
 import { useEffect, useRef } from "react"
 import { shownBookScreens } from "../../../core/window"
 import { useT } from "../../../ui/i18n"
-import { useActions, useReadState } from "../../../ui/store-context"
+import { useReadState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorElementIn } from "../utils/anchors"
@@ -19,7 +19,7 @@ export function MailWatch() {
   const mailbox = useMailbox()
   const catalog = useCoreCatalog()
   const t = useT()
-  const { showToast } = useActions()
+  const { showToast } = useStoreActions()
   const read = useReadState()
   const before = useRef<Set<string> | null>(null)
   useEffect(() => {
@@ -43,7 +43,7 @@ export function MailWatch() {
 function useVisited() {
   const read = useReadState()
   const catalog = useCoreCatalog()
-  const { perform } = useActions()
+  const { perform } = useStoreActions()
   const waiting = useMailbox().some(m => m.to && !m.visitedAt)
   useEffect(() => {
     if (!waiting) return

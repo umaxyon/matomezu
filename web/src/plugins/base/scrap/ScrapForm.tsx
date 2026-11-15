@@ -7,9 +7,10 @@ import { useShallow } from "zustand/react/shallow"
 import { pageById } from "../../../core/book"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
-import { DrawnScope } from "../../../ui/drawn"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { PageScope } from "../../../ui/scope"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { pageArea } from "../place/items"
 import { useResize } from "../utils/useResize"
@@ -42,7 +43,7 @@ export function ScrapForm({
   value: Scrap
   onChange: (next: Scrap) => void
   side?: ReactNode // 絵の右の列に置く物（使う側の設定の入力Form など）
-  opens?: { stage: string; onOpened: () => void; edited: boolean } // edited: 使う側の値を直したか（直した後は開けない。直した分を黙って捨てないため）
+  opens?: { onOpened: () => void; edited: boolean } // edited: 使う側の値を直したか（直した後は開けない。直した分を黙って捨てないため）
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
@@ -91,13 +92,11 @@ export function ScrapForm({
         >
           {book && page && size ? (
             <>
-              <DrawnScope catalog={catalog} book={book} page={page} zoom={fit}>
-                {stage => (
-                  <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
-                    <DrawnSheet stage={stage} book={book} page={page} size={size} onSize={setDrawn} />
-                  </div>
-                )}
-              </DrawnScope>
+              <PageScope book={book.id} page={page.id} zoom={fit}>
+                <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
+                  <DrawnSheet book={book} page={page} size={size} onSize={setDrawn} />
+                </div>
+              </PageScope>
               <div
                 className={styles.area}
                 data-scrap-area
@@ -135,7 +134,7 @@ export function ScrapForm({
             disabled={opens.edited}
             title={opens.edited ? t("Decide or cancel the changes first") : undefined}
             onClick={() => {
-              openPageById(opens.stage, value.page)
+              openPageById(value.page)
               opens.onOpened()
             }}
           >

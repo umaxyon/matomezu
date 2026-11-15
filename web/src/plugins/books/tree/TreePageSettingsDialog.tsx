@@ -28,13 +28,13 @@ import {
 import { kit } from "./kit"
 import { treeRootOf } from "./node"
 
-export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<PageSettingsArgs>) {
+export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettingsArgs>) {
   const t = useMessages(kit)
   const form = useId()
-  const book = pagedOf(useBook(stage))
+  const book = pagedOf(useBook())
   const page = book?.pages.find(p => p.id === args.page)
   const root = treeRootOf(page)
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const { previewDialog } = useActions()
   const [title, setTitle] = useState(page?.title ?? "")
   const settings = useSettingControls(book, "page", page ?? null)
@@ -45,9 +45,9 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
   const [confirming, setConfirming] = useState(false)
   const [locked, setLocked] = useState(page?.locked === true)
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
-  const update = useAllowed(stage, "@matomezu/base:page-update", { page: args.page })
+  const update = useAllowed("@matomezu/base:page-update", { page: args.page })
   const blocked = !update.ok && update.permission !== null && !(update.permission === "@matomezu/base:lock" && !locked)
-  const removable = useAllowed(stage, "@matomezu/base:page-remove", { page: args.page }).ok
+  const removable = useAllowed("@matomezu/base:page-remove", { page: args.page }).ok
   const bookId = book?.id
   const pageId = page?.id
   const changed = Object.keys(settings.patch).length > 0
@@ -114,15 +114,7 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
         </Field>
         <Field label={t("Root body")}>
           {fid => (
-            <RichBody
-              id={fid}
-              stage={stage}
-              label={t("Root body")}
-              rows={4}
-              maxLength={BODY_MAX}
-              value={body}
-              onChange={setBody}
-            />
+            <RichBody id={fid} label={t("Root body")} rows={4} maxLength={BODY_MAX} value={body} onChange={setBody} />
           )}
         </Field>
         <div className={rowClass}>

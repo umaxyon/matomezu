@@ -1,18 +1,16 @@
 // 左サイドパネルを開くボタン: 渡すタブの組 entries で開き、今と同じ組を開いていれば閉じる（押されている印も、同じ組を開いているときだけ）。
 // 渡すタブが数（未読など。タブの定義の useCount）を答えれば、その合計を角に出す
 
-import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import styles from "../utils/FooterButtons.module.css"
-import { useLeftSidePanel, useToggleLeftSidePanel } from "./hooks"
+import { useLeftSidePanelShows, useToggleLeftSidePanel } from "./hooks"
 import own from "./LeftSidePanel.module.css"
 import type { LeftSidePanelEntry } from "./state"
 
 export function LeftSidePanelOpenButton({ entries }: { entries: readonly LeftSidePanelEntry[] }) {
   const t = useMessages(kit)
-  const open = useLeftSidePanel()
   const toggle = useToggleLeftSidePanel()
   const widgets = useUiCatalog().widgets
   const counters = entries.flatMap(e => {
@@ -25,7 +23,7 @@ export function LeftSidePanelOpenButton({ entries }: { entries: readonly LeftSid
       className={`${styles.item} ${own.opener}`}
       aria-label={t("Open the left side panel")}
       title={t("Open the left side panel")}
-      aria-pressed={!!open && sameData(open.entries, entries)}
+      aria-pressed={useLeftSidePanelShows(entries)}
       data-left-side-panel-opener
       onClick={() => toggle(entries)}
     >

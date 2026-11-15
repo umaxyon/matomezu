@@ -5,22 +5,21 @@ import { type ReactNode, useState } from "react"
 import { useT } from "../../../ui/i18n"
 import { useLayout, useUiCatalog } from "../../../ui/store-context"
 import { SideTabs } from "../utils/SideTabs"
-import type { SettingsCategoryProps } from "./categories"
 import { SETTINGS_CATEGORIES } from "./settings-screen"
 
-export function SettingsScreen({ stage }: { stage: string }) {
+export function SettingsScreen() {
   const t = useT() // 題名はほかのプラグインの文言の鍵でもある
   const widgets = useUiCatalog().widgets
   const categories = (useLayout().slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => {
     const def = widgets.get(id)
-    const View = def?.view as ((props: SettingsCategoryProps) => ReactNode) | undefined
+    const View = def?.view as (() => ReactNode) | undefined
     return def?.settingsCategory && View ? [{ id, title: t(def.settingsCategory.title), View }] : []
   })
   const [current, setCurrent] = useState<string | undefined>(undefined)
   const shown = categories.find(s => s.id === current) ?? categories[0]
   return (
     <SideTabs tabs={categories} selected={shown?.id} onSelect={setCurrent}>
-      {shown && <shown.View stage={stage} />}
+      {shown && <shown.View />}
     </SideTabs>
   )
 }

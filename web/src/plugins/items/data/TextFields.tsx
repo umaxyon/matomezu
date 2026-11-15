@@ -9,21 +9,13 @@ export type DataTextDraft = Pick<DataProps, "caption" | "rule" | "body" | "capti
 
 const TEXT_AT_TITLES = { top: "Top", bottom: "Bottom", none: "Hidden" } as const
 
-export function TextFields({
-  stage,
-  text,
-  onChange,
-}: {
-  stage: string
-  text: DataTextDraft
-  onChange: (t: DataTextDraft) => void
-}) {
+export function TextFields({ text, onChange }: { text: DataTextDraft; onChange: (t: DataTextDraft) => void }) {
   const t = useMessages(kit)
   return (
     <>
       <CaptionField text={text} onChange={onChange} />
       <DividerField text={text} onChange={onChange} />
-      <BodyField stage={stage} text={text} onChange={onChange} rows={3} />
+      <BodyField text={text} onChange={onChange} rows={3} />
       <Field label={t("Text position")}>
         {id => (
           <select

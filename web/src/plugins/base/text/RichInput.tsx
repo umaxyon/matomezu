@@ -41,7 +41,6 @@ const HISTORY_MAX = 200
 
 export function RichInput({
   ref,
-  stage,
   value,
   onChange,
   onCompose,
@@ -59,7 +58,6 @@ export function RichInput({
   data,
 }: {
   ref?: Ref<RichInputHandle>
-  stage: string // 文字の色を決めるブックを開いているステージ（ステージの外のダイアログでも、その色で描く）
   value: string
   onChange: (text: string) => void
   onCompose?: (text: string | null) => void // 変換中の字（確定する前）。変換を終えたら null
@@ -77,7 +75,7 @@ export function RichInput({
   data?: Readonly<Record<`data-${string}`, string>> // 見た目を分ける data- の属性
 }) {
   const el = useRef<HTMLDivElement>(null)
-  const colors = useTextColors(stage)
+  const colors = useTextColors()
   const emitted = useRef<string | null>(null) // 最後に描いた・渡した本文
   const chars = useRef<StyledChar[]>([])
   const before = useRef<Selection>({ start: 0, end: 0 }) // 書き換える前の範囲（超えて取り消すときに戻す）

@@ -36,7 +36,7 @@ import {
   SHEET_CONTENT,
 } from "./print-preview/ui"
 import { SEARCH_DIALOG } from "./search/ui"
-import { GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY, type SettingsCategoryProps } from "./settings/categories"
+import { GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY } from "./settings/categories"
 import { SETTINGS_ICONS } from "./settings/icons"
 import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
 import {
@@ -63,7 +63,7 @@ import type { WideSearchModeProps } from "./wide-search/slots"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
 import { WINDOW_ICONS } from "./window/icons"
 import { CONTROL_CENTER_BIRDHOUSE, ONE_SCREEN_WIDGET, WINDOW } from "./window/ui"
-import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
+import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../../core/wide-search"
@@ -150,7 +150,7 @@ export {
   useSearchHits,
   useSearchPick,
 } from "./search/highlights"
-export { defineSettingsCategory, type SettingsCategoryProps } from "./settings/categories"
+export { defineSettingsCategory } from "./settings/categories"
 export { SettingRow } from "./settings/SettingRow"
 export { UserSettings } from "./settings/ui"
 export {
@@ -176,7 +176,7 @@ export {
   WORKROOM_COLUMNS,
   WORKROOM_ROW_LINE,
 } from "./window/slots"
-export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
+export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"
 
 import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_BUTTON, SCRAP_TRAY_TAB } from "./scrap/ui"
 export const BASE_UI = definePluginUi(BASE, {
@@ -273,19 +273,19 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
     "@matomezu/base:wide-search-modes": WideSearchModeProps // 横断検索のタブに並べるモード（入力の下のパネル）
     "@matomezu/base:wide-search-openers": Record<string, never> // 種類ごとの、横断検索の当たりの開き方（何も描かない）
-    "@matomezu/base:stage-top": StageSlotProps
-    "@matomezu/base:stage-side": StageSlotProps
-    "@matomezu/base:stage-body": StageSlotProps
-    "@matomezu/base:book-layers": StageSlotProps
+    "@matomezu/base:stage-top": Record<string, never>
+    "@matomezu/base:stage-side": Record<string, never>
+    "@matomezu/base:stage-body": Record<string, never>
+    "@matomezu/base:book-layers": Record<string, never>
     "@matomezu/base:sheet-layers": PrintSheetProps // 印刷区画 1 つの中のレイヤー
-    "@matomezu/base:stage-bottom": StageSlotProps
-    "@matomezu/base:stage-corner": StageSlotProps
-    "@matomezu/base:footer-menu-map": StageSlotProps
-    "@matomezu/base:footer-menu-history": StageSlotProps
-    "@matomezu/base:footer-menu-basics": StageSlotProps
-    "@matomezu/base:footer-menu-book-tools": StageSlotProps
-    "@matomezu/base:right-side-panel": StageSlotProps
-    "@matomezu/base:settings-categories": SettingsCategoryProps
+    "@matomezu/base:stage-bottom": Record<string, never>
+    "@matomezu/base:stage-corner": Record<string, never>
+    "@matomezu/base:footer-menu-map": Record<string, never>
+    "@matomezu/base:footer-menu-history": Record<string, never>
+    "@matomezu/base:footer-menu-basics": Record<string, never>
+    "@matomezu/base:footer-menu-book-tools": Record<string, never>
+    "@matomezu/base:right-side-panel": Record<string, never>
+    "@matomezu/base:settings-categories": Record<string, never>
     "@matomezu/base:annotation-icon": AnnotationIconProps
     "@matomezu/base:corner-statuses": CornerStatusProps
   }
@@ -294,7 +294,8 @@ declare module "../../core/catalog" {
     // ステージの選択に従うか（followsSelection。従う中身を出している間は、付いた先がステージの選択になり、開いたステージの中を押しても閉じない）
     rightSidePanel?: { width: number; followsSelection?: boolean }
     // 左サイドパネルのタブ（どのスロットにも置かない）の名前（文言の鍵）と、開くボタンとタブに出す数（未読など）を読むフック（無ければ出さない）
-    leftSidePanel?: { title: MessageKey; useCount?: () => number }
+    // scope は、タブが見せる物の範囲: "stage" なら開いた所のステージの物を見せ（中身はそのステージの中として描かれる）、"window" なら窓に 1 つの物
+    leftSidePanel?: { title: MessageKey; useCount?: () => number; scope: "stage" | "window" }
     // 設定カテゴリのスロットに置く物の、左の一覧に出す題名（文言の鍵）と、並べる利用者の設定の項目の id（無ければ中身はウィジェットのビューが描く）
     settingsCategory?: { title: MessageKey; settings?: readonly string[] }
     // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id

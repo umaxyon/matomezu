@@ -15,7 +15,7 @@ import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
 import { Ask, useRemoveAsk } from "../utils/Ask"
-import { AnchorFrame, anchorElementIn, StandAt } from "../utils/anchors"
+import { AnchorFrame, StandAt, useAnchorElement } from "../utils/anchors"
 import { NOTE_BIRDS } from "./birds-state"
 import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
@@ -30,8 +30,8 @@ interface Shown {
   leaving: boolean
 }
 
-export function NoteBirds({ stage }: { stage: string }) {
-  const open = useRightSidePanel(stage)
+export function NoteBirds() {
+  const open = useRightSidePanel()
   const anchors = open?.widget === NOTE_PANEL_ID ? open.anchors : NONE
   const [shown, setShown] = useState<readonly Shown[]>([])
   const readBirds = useReadPluginState(kit, NOTE_BIRDS)
@@ -39,8 +39,8 @@ export function NoteBirds({ stage }: { stage: string }) {
   const key = anchors.join(" ")
   // biome-ignore lint/correctness/useExhaustiveDependencies: 付ける先の並びが替わったときだけ割り当て直す
   useEffect(() => {
-    const next = assignBirds(readBirds(stage) ?? {}, anchors, Math.random)
-    setBirds(stage, Object.keys(next.birds).length === 0 ? undefined : next.birds)
+    const next = assignBirds(readBirds() ?? {}, anchors, Math.random)
+    setBirds(Object.keys(next.birds).length === 0 ? undefined : next.birds)
     setShown(now => [
       ...now.filter(s => s.leaving && !anchors.includes(s.anchor)),
       ...next.left.map(l => ({ ...l, leaving: true })),
@@ -58,18 +58,19 @@ export function NoteBirds({ stage }: { stage: string }) {
       {current && <AnchorFrame anchor={current} className={styles.current} />}
       {shown.map(s => (
         <StandAt key={`${s.anchor}:${s.bird}`} anchor={s.anchor} side="edge" span edgePinned through>
-          <NoteBird stage={stage} shown={s} onGone={() => gone(s)} />
+          <NoteBird shown={s} onGone={() => gone(s)} />
         </StandAt>
       ))}
     </>
   )
 }
 
-function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGone: () => void }) {
+function NoteBird({ shown, onGone }: { shown: Shown; onGone: () => void }) {
   const t = useMessages(kit)
   const setCurrent = useSetRightSidePanelCurrent()
   const takeOff = useTakeOffAnchor()
-  const [origin] = useState(() => (shown.from ? (anchorElementIn(stage, shown.from)?.el ?? null) : null))
+  const find = useAnchorElement()
+  const [origin] = useState(() => (shown.from ? find(shown.from) : null))
   const [asking, setAsking] = useState(false)
   // 物が消えて描かれなくなっても、飛び去りが終わる頃に消す
   useEffect(() => {
@@ -77,9 +78,9 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
     const timer = setTimeout(onGone, LEAVE * 1000 + 500)
     return () => clearTimeout(timer)
   }, [shown.leaving, onGone])
-  const remove = () => takeOff(stage, shown.anchor)
+  const remove = () => takeOff(shown.anchor)
   const removeAsk = useRemoveAsk(remove)
-  const name = useAnchorName(stage, shown.anchor)
+  const name = useAnchorName(shown.anchor)
   return (
     <BirdWalk
       bird={shown.bird}
@@ -101,7 +102,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
                 className={birdClass}
                 aria-label={t("Bird of the note")}
                 onClick={() => {
-                  setCurrent(stage, shown.anchor)
+                  setCurrent(shown.anchor)
                   toggle()
                 }}
                 style={style}

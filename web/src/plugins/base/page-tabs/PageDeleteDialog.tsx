@@ -8,12 +8,12 @@ import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { PAGE_REMOVE } from "./page-remove"
 
-export function PageDeleteDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
+export function PageDeleteDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
-  const book = pagedOf(useBook(stage))
+  const book = pagedOf(useBook())
   const page = book?.pages.find(p => p.id === args.page)
-  const removable = useAllowed(stage, PAGE_REMOVE.id, { page: args.page }).ok
-  const perform = usePerform(stage)
+  const removable = useAllowed(PAGE_REMOVE.id, { page: args.page }).ok
+  const perform = usePerform()
   if (!page) return null
   return (
     <Dialog

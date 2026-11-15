@@ -20,8 +20,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import type { Point, Rect, Size } from "../../../core/geom"
-import { useActions } from "../../../ui/store-context"
-import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
+import { useActions, useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
 import { KEEP_INSIDE } from "./keep-inside"
@@ -116,6 +115,12 @@ export function anchorElementIn(stage: string, id: string): { view: Element; el:
   const view = stageElement(stage)
   const el = view?.querySelector(`[${ANCHOR_ATTR}="${CSS.escape(id)}"]`)
   return view && el ? { view, el } : null
+}
+
+// 描いている場所のステージの中で、id のアンカーが付いた要素を探す関数（ステージの中で描いているときだけ見つかる）
+export function useAnchorElement(): (id: string) => Element | null {
+  const stage = useContext(Context)?.stage
+  return useCallback((id: string) => (stage === undefined ? null : (anchorElementIn(stage, id)?.el ?? null)), [stage])
 }
 
 interface StandContext {
@@ -312,11 +317,7 @@ export function StandAt({
 
 // ステージのアンカーの表 ctx で、アンカー ids の物を見せる: 物を囲む Revealable に頼んでから、紙をなめらかにずらして物を表示領域の真ん中へ動かす
 // （倍率は変えない。紙の端で、ずらせる所まで）。どれも描かれていなければ何もせず false
-function showAnchors(
-  ctx: StandContext,
-  ids: readonly string[],
-  panStageBy: (stage: string, dx: number, dy: number) => void,
-): boolean {
+function showAnchors(ctx: StandContext, ids: readonly string[], panStageBy: (dx: number, dy: number) => void): boolean {
   const layer = ctx.layer
   const view = stageElement(ctx.stage)
   if (!layer || !view) return false
@@ -327,7 +328,7 @@ function showAnchors(
   const now = revealedRect(layer, view, found)
   if (!now) return false
   const by = revealShift(now, { w: layer.clientWidth, h: layer.clientHeight })
-  glidePan((dx, dy) => panStageBy(ctx.stage, dx, dy), by.x, by.y)
+  glidePan((dx, dy) => panStageBy(dx, dy), by.x, by.y)
   return true
 }
 
@@ -358,8 +359,8 @@ export function revealedRect(base: Element, view: Element, found: readonly { el:
 // アンカーの要素の四角と、clipped なら囲む Revealable の見える所（どちらもスタンドのレイヤーの左上から）と、レイヤー（置ける範囲）の大きさ。
 // パン・倍率・大きさ・スクロールと、レイヤーの大きさ（ステージの幅が動くなど）が変われば測り直す
 function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped: boolean): Measured | null {
-  const stage = useStage(ctx?.stage ?? "")
-  const pan = useStagePan(ctx?.stage ?? "")
+  const stage = useStage()
+  const pan = useStagePan()
   const version = useSyncExternalStore(ctx?.anchors.subscribe ?? noSubscribe, ctx?.anchors.snapshot ?? zero)
   const [tick, setTick] = useState(0)
   const measure = useCallback((): Measured | null => {
@@ -373,7 +374,7 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
   }, [ctx, ids, clipped])
   const [measured, setMeasured] = useState<Measured | null>(null)
   // 開いているブックのデータ（物の位置や大きさが変わる）
-  const book = useBook(ctx?.stage ?? "")
+  const book = useBook()
   // パン・倍率・アンカー・ブックのデータが替わったとき、紙が動き終えるまで（なめらかに移す間も）コマごとに測る
   // biome-ignore lint/correctness/useExhaustiveDependencies: パン・倍率・アンカーの表・ブックのデータ・スクロールが変わるたびに測り直す
   useLayoutEffect(() => {

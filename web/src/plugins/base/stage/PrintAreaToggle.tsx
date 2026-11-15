@@ -7,10 +7,10 @@ import { printAreaLines } from "../place/grow"
 import styles from "../utils/FooterButtons.module.css"
 import { usePrintAreasHidden, useTogglePrintAreas } from "./print-areas"
 
-export function PrintAreaToggle({ stage: id }: { stage: string }) {
+export function PrintAreaToggle() {
   const t = useMessages(kit)
-  const stage = useStage(id)
-  const hidden = usePrintAreasHidden(id)
+  const stage = useStage()
+  const hidden = usePrintAreasHidden()
   const toggle = useTogglePrintAreas()
   const paper = stage && paperOf(stage)
   const area = stage && areaOf(stage)
@@ -22,7 +22,7 @@ export function PrintAreaToggle({ stage: id }: { stage: string }) {
       aria-label={t("Print areas")}
       title={t("Print areas")}
       aria-pressed={!hidden}
-      onClick={() => toggle(id)}
+      onClick={() => toggle()}
     >
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <rect x="3" y="4" width="18" height="16" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />

@@ -3,19 +3,17 @@
 // 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
-import { screenOf, stageIn } from "../../../core/window"
+import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useLayout, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
+import { useLayout, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { useCloseLeftSidePanel, useLeftSidePanel } from "../left-side-panel/hooks"
-import { useRequestReveal } from "../utils/reveal-request"
 import { MAIL_SEEN, MAIL_VISITED } from "."
-import { useSetBirdVisit } from "./bird-visit"
-import { useMailbox } from "./hooks"
+import { useMailbox, useShowMailPlaceAt } from "./hooks"
 import own from "./Mail.module.css"
 import { type OpenChoice, openChoices, openStageOf } from "./open-choices"
 import { placeExists } from "./place"
@@ -33,9 +31,9 @@ const CHOICE_TITLES = {
 // ボタンが 4 つ並んでも（英語の「Close the mailbox too」「Open on the left」「Open on the right」を含め）1 行に収まる幅。ダイアログの既定の幅 360 には収まらない
 const DIALOG_WIDTH = 620
 
-let visits = 0 // 行き先の物を開いた回の番号（bird-visit.tsx の seq）
-
-export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string }>) {
+export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
+  // 開いた場所（ステージか、ステージを持たないスクリーン）。行き先を開くステージを、ここから決める
+  const stage = useMatomezuState(s => s.dialog?.stage ?? "")
   const t = useMessages(kit)
   const form = useId()
   const buttons = useRef<HTMLFormElement>(null)
@@ -44,12 +42,11 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
   const books = useMatomezuState(s => s.books)
   const stages = useMatomezuState(s => screenOf(s.window).stages)
   const read = useReadState()
-  const actions = useActions()
+  const actions = useStoreActions()
   const closeLeft = useCloseLeftSidePanel()
   const left = useLeftSidePanel()
   const mailboxOpened = left?.tab === MAILBOX_TAB_ID
-  const reveal = useRequestReveal()
-  const bringBird = useSetBirdVisit()
+  const showPlace = useShowMailPlaceAt()
   const seen = !!mail?.seenAt
   const [docked, setDocked] = useState(false) // 窓の右の端に寄せているか（種類のボタンが頼む）
   // この種類のボタンのウィジェット（あれば、開くボタンの代わりにそのボタンを並べる）
@@ -77,14 +74,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
     if (choice === "split") actions.split(stage)
     const target = openStageOf(screenOf(read().window), stage, choice)
     if (!target) return
-    // 行き先のブックがもう開いていても、そのステージを見せる（ブックスクリーンをカレントスクリーンにする）
-    actions.showStage(target)
-    if (stageIn(read().window, target)?.opened?.book !== to.book) actions.openBook(target, to.book)
-    if (to.page) actions.openPage(target, to.page)
-    if (to.ids && to.ids.length > 0) {
-      reveal(target, to.ids)
-      bringBird(target, { mail: mail.id, seq: ++visits, book: to.book, page: to.page ?? null, ids: to.ids })
-    }
+    showPlace(target, mail)
     actions.perform(MAIL_VISITED.id, {}, { record: mail.id })
   }
   const opens = to && !Actions ? openChoices({ stages }, stage) : null
@@ -114,7 +104,7 @@ export function MailDialog({ stage, args, onClose }: DialogProps<{ mail: string 
         {Actions ? (
           <>
             <ActionButton onClick={onClose}>{t("Close")}</ActionButton>
-            <Actions stage={stage} mail={mail} onClose={onClose} dock={() => setDocked(true)} />
+            <Actions mail={mail} onClose={onClose} dock={() => setDocked(true)} />
           </>
         ) : opens ? (
           <>

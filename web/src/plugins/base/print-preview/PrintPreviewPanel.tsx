@@ -4,10 +4,10 @@
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
 import { useEffect, useState } from "react"
 import { previewing as isPreviewing } from "../../../core/stage"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useStageHere } from "../../../ui/scope"
+import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { ownSettings, settingDefs } from "../book-settings"
 import { Confirm } from "../dialog-host/Confirm"
@@ -15,7 +15,6 @@ import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
 import { useCloseRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
-import type { StageSlotProps } from "../workspace/ui"
 import { ZoomBar, ZoomButton } from "../zoom/ZoomBar"
 import { fitSide, PRINT, PRINT_PREVIEW_FIT, PRINT_PREVIEW_UPDATE } from "."
 import { bookCrossings } from "./book-sheets"
@@ -25,27 +24,24 @@ import { ShapeBadges } from "./ShapeBadges"
 
 type Patch = Readonly<Record<string, string | null>>
 
-export function PrintPreviewPanel({ stage }: StageSlotProps) {
+export function PrintPreviewPanel() {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const ui = useUiCatalog()
-  const book = useBook(stage)
-  const open = useRightSidePanel(stage)
+  const book = useBook()
+  const open = useRightSidePanel()
   const close = useCloseRightSidePanel()
-  const perform = usePerform(stage)
-  const previewing = useMatomezuState(s => {
-    const st = stageIn(s.window, stage)
-    return !!st && isPreviewing(st)
-  })
+  const perform = usePerform()
+  const previewing = useStageHere(st => !!st && isPreviewing(st))
   const [confirming, setConfirming] = useState<Patch | null>(null)
   // 変えられるか（ロックで止められるなら、確かめてから外して変えるので変えられる。ほかの認可ステップに止められるなら変えられない）
-  const changing = useAllowed(stage, PRINT_PREVIEW_UPDATE.id)
+  const changing = useAllowed(PRINT_PREVIEW_UPDATE.id)
   const blocked = !changing.ok && changing.permission !== null && changing.permission !== LOCK.id
-  const lockable = useAllowed(stage, book?.locked ? BOOK_UNLOCK.id : BOOK_LOCK.id).ok
+  const lockable = useAllowed(book?.locked ? BOOK_UNLOCK.id : BOOK_LOCK.id).ok
   const mine = open?.widget === PRINT_PREVIEW_PANEL_ID
   useEffect(() => {
-    if (mine && !previewing) close(stage)
-  }, [mine, previewing, close, stage])
+    if (mine && !previewing) close()
+  }, [mine, previewing, close])
   if (!book || !mine) return null
   const locked = book.locked === true
   const update = (patch: Patch) => perform(PRINT_PREVIEW_UPDATE.id, { settings: patch })
@@ -56,8 +52,8 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>
-      <PrintButton stage={stage} />
-      <ZoomBar stage={stage} fits={<FitButton stage={stage} />} />
+      <PrintButton />
+      <ZoomBar fits={<FitButton />} />
       <fieldset className={styles.tools} disabled={!lockable}>
         <LockToggle
           locked={locked}
@@ -86,7 +82,7 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
       {oversized.length > 0 && (
         <>
           <p className={styles.note}>{t("Larger than a print area, so cut at the sheet edges")}</p>
-          <ShapeBadges stage={stage} shapes={oversized} label="Boxes larger than a print area" />
+          <ShapeBadges shapes={oversized} label="Boxes larger than a print area" />
         </>
       )}
       {confirming && (
@@ -108,10 +104,10 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
 }
 
 // 並べる向きと交わる辺を合わせるボタン（縦に並べるなら幅に合わせる ⟷、横なら高さに合わせる ↕）
-function FitButton({ stage }: { stage: string }) {
+function FitButton() {
   const catalog = useCatalog().core
-  const book = useBook(stage)
-  const fit = useCommand(stage, PRINT_PREVIEW_FIT.id)
+  const book = useBook()
+  const fit = useCommand(PRINT_PREVIEW_FIT.id)
   const width = fitSide(catalog, book ?? null) === "width"
   const icon = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -122,9 +118,9 @@ function FitButton({ stage }: { stage: string }) {
 }
 
 // 印刷のボタン（見出しの下に、横いっぱいの幅で）
-function PrintButton({ stage }: { stage: string }) {
+function PrintButton() {
   const t = useMessages(kit)
-  const print = useCommand(stage, PRINT.id)
+  const print = useCommand(PRINT.id)
   if (!print.shown) return null
   return (
     <button type="button" className={styles.print} disabled={!print.enabled} onClick={() => print.run()}>

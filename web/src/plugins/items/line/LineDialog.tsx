@@ -62,16 +62,16 @@ const HEAD_LABELS: Record<Head, MessageKey> = {
   oneMany: kit.message("ER: one or more"),
 }
 
-export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
+export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const book = useBookOf(stage)
-  const drawing = useBook(stage)
+  const book = useBookOf()
+  const drawing = useBook()
   const page = (drawing && pagedOf(drawing)?.pages.find(p => p.id === args.page)) || undefined
-  const line = useItem(stage, args.page, args.item, LINE.id)
+  const line = useItem(args.page, args.item, LINE.id)
   const { previewDialog } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const elbow = drawing && page ? elbowAt(catalog, drawing, page) : true
   const startRoute: LineRoute = line?.props.route ?? (elbow ? "elbow" : "straight")
   const [caption, setCaption] = useState(line?.props.caption ?? "")

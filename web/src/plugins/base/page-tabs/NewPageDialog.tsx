@@ -11,20 +11,20 @@ import { usePaperControls } from "./PaperControls"
 import { nextPageTitle } from "./pages"
 import { useAddPage } from "./useAddPage"
 
-export function NewPageDialog({ stage, onClose }: DialogProps) {
+export function NewPageDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
-  const book = useBook(stage) ?? undefined
+  const book = useBook() ?? undefined
   if (!book || !hasPages(book)) return null
   return (
     <Dialog title={t("New page")} onClose={onClose}>
-      <NewPageForm stage={stage} book={book} onDone={onClose} />
+      <NewPageForm book={book} onDone={onClose} />
     </Dialog>
   )
 }
 
-function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; onDone: () => void }) {
+function NewPageForm({ book, onDone }: { book: PagedBook; onDone: () => void }) {
   const t = useMessages(kit)
-  const addPage = useAddPage(stage)
+  const addPage = useAddPage()
   const [title, setTitle] = useState(() => nextPageTitle(book, t))
   const paper = usePaperControls(book, null)
   return (

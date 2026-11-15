@@ -6,7 +6,7 @@
 // アイコンはポインタの位置から回りながら広がり、乗るとポインタの側に名前を出す。並びの外側（ポインタと反対の側）には、ミニマップ（base/minimap の MinimapView）と、
 // その下に拡大縮小の帯（base/zoom の ZoomBar）を一緒に出し、少し遅れて浮かび上がらせる（紙が収まっていても出す。入らなければ出さない。置き方は layout.ts）。
 // 離れたかはアイコンとミニマップを合わせた枠から測る（ボタンを押している間は、離れても閉じない。四角をドラッグするため）。押し続けの途中の様子と最後のポインタの位置だけはビューに持つ
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ToolId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
@@ -16,7 +16,8 @@ import { allStages, bookScreenCurrent, screenOf, workspaceOf } from "../../../co
 import { useCommand } from "../../../ui/commands"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { StageScope } from "../../../ui/scope"
+import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useStage, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { MINIMAP_SIZE } from "../minimap/geometry"
@@ -46,7 +47,7 @@ interface Press {
 const typing = (el: Element | null) => !!el?.closest("input, textarea, select, [contenteditable]")
 
 export function ToolPickerView() {
-  const { openPicker, closeContextMenu } = useActions()
+  const { openPicker, closeContextMenu } = useStoreActions()
   const last = useRef<Point | null>(null)
   const press = useRef<Press | null>(null)
   const [ring, setRing] = useState<Point | null>(null)
@@ -117,7 +118,9 @@ export function ToolPickerView() {
   return (
     <>
       {ring && <Ring at={ring} holdMs={holdMs} />}
-      <Picker last={last} />
+      <PickerScope>
+        <Picker last={last} />
+      </PickerScope>
     </>
   )
 }
@@ -149,21 +152,27 @@ function Ring({ at, holdMs }: { at: Point; holdMs: number }) {
   )
 }
 
+// 道具のアイコンを開いているステージを、中の物の描いている場所にする（開いていなければ、窓のまま）
+function PickerScope({ children }: { children: ReactNode }) {
+  const opened = useMatomezuState(s => allStages(s.window).find(st => st.picker !== null)?.id)
+  return opened === undefined ? children : <StageScope stage={opened}>{children}</StageScope>
+}
+
 // 開いている道具のアイコン。出す所は開いたときの値（無ければ最後のポインタの位置。ステージの外なら真ん中）
 function Picker({ last }: { last: { current: Point | null } }) {
   const t = useMessages(kit)
   const opened = useMatomezuState(s => allStages(s.window).find(st => st.picker !== null))
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
-  const current = useStage(opened?.id ?? "")?.tool ?? null
+  const current = useStage()?.tool ?? null
   const set = opened ? toolSetOf(catalog, opened) : null
   const picks: readonly ToolId[] = set ? toolsIn(catalog, set) : []
   // 使えない道具（開いているページで、行うアクションをどれも認可ステップに止められる）。並びを文字で比べて、変わったときだけ描き直す
   const unusable = useMatomezuState(s =>
     opened ? unusableTools(catalog, workspaceOf(s.window, opened.id), opened.id, s.books).join("\n") : "",
   ).split("\n")
-  const { closePicker } = useActions()
-  const setTool = useCommand(opened?.id ?? "", TOOL_SET.id)
+  const { closePicker } = useStoreActions()
+  const setTool = useCommand(TOOL_SET.id)
   const [hover, setHover] = useState<number | null>(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
   const mapRef = useRef<HTMLDivElement>(null)
@@ -289,8 +298,8 @@ function Picker({ last }: { last: { current: Point | null } }) {
             ["--map-h" as string]: `${MINIMAP_SIZE.h}px`,
           }}
         >
-          <MinimapView stage={opened.id} width={MINIMAP_SIZE.w} height={MINIMAP_SIZE.h} className={styles.mapView} />
-          <ZoomBar stage={opened.id} />
+          <MinimapView width={MINIMAP_SIZE.w} height={MINIMAP_SIZE.h} className={styles.mapView} />
+          <ZoomBar />
         </div>
       )}
       {tip && hovered && (

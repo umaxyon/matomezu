@@ -5,22 +5,22 @@
 // シェイプパネルのどれかを置こうとしている間は、「形」のボタンを押されている見た目にする
 import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
-import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useBook, useStage } from "../../../ui/view-hooks"
+import { useStageHere } from "../../../ui/scope"
+import { useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useBook, useStage } from "../../../ui/view-hooks"
 import { useCloseFooterMenu } from "../book-name/footer-menu-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
 
-export function ToolboxView({ stage }: { stage: string }) {
-  const book = useBook(stage) ?? undefined
-  const placing = useMatomezuState(s => stageIn(s.window, stage)?.placing?.item ?? null)
+export function ToolboxView() {
+  const book = useBook() ?? undefined
+  const placing = useStageHere(st => st?.placing?.item ?? null)
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const edits = useStage(stage)?.edits ?? "items"
+  const edits = useStage()?.edits ?? "items"
   const tools = book ? toolboxOf(catalog, book, edits) : []
   const panel = book ? panelOf(catalog, book, edits) : []
   if (tools.length === 0 && panel.length === 0) return null
@@ -32,7 +32,7 @@ export function ToolboxView({ stage }: { stage: string }) {
           id={id}
           className={styles.tool}
           pressed={placing === id}
-          onClick={() => togglePlacing(stage, id)}
+          onClick={() => togglePlacing(id)}
         />
       ))}
       {panel.length > 0 && (
@@ -40,7 +40,7 @@ export function ToolboxView({ stage }: { stage: string }) {
           items={panel}
           placing={placing}
           onPick={id => {
-            if (placing !== id) togglePlacing(stage, id)
+            if (placing !== id) togglePlacing(id)
           }}
         />
       )}

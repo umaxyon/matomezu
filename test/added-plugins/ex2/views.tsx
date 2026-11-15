@@ -35,9 +35,9 @@ export const DIAMOND_ICON = (
   </svg>
 )
 
-export function AddDiamondDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
+export function AddDiamondDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const t = useMessages(kit)
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const [caption, setCaption] = useState("")
   const add = () => {
     // 置く所はそのまま渡し、画面で置くので、ほかの形は押してどける
@@ -58,10 +58,10 @@ export function AddDiamondDialog({ stage, args, onClose }: DialogProps<ShapeAddA
 }
 
 // 今の答えのボタンを押された見た目にする（useItem で開いた判断のひし形を読む）
-export function EditDiamondDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
+export function EditDiamondDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useMessages(kit)
-  const diamond = useItem(stage, args.page, args.item, DIAMOND.id)
-  const perform = usePerform(stage)
+  const diamond = useItem(args.page, args.item, DIAMOND.id)
+  const perform = usePerform()
   const answer = (value: "yes" | "no") => {
     if (perform(ANSWER.id, { ...args, answer: value }).ok) onClose()
   }
