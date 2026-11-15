@@ -4,11 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useShallow } from "zustand/react/shallow"
 import { screenOf, stageIn } from "../../../core/window"
 import { type PluginValues, pluginValueOf } from "../../../store/plugin-state"
-import {
-  useReadPluginStateAt as useReadPluginState,
-  useSetPluginStateAt as useSetPluginState,
-  useSetPluginStatesAt as useSetPluginStates,
-} from "../../../ui/at-hooks"
+import { useReadPluginStateAt, useSetPluginStateAt, useSetPluginStatesAt } from "../../../ui/at-hooks"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
@@ -62,8 +58,8 @@ export function useOpenRightSidePanel(): (
   restore?: "back" | "none",
 ) => void {
   const read = useReadState()
-  const readRestore = useReadPluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
-  const setStates = useSetPluginStates(kit)
+  const readRestore = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
+  const setStates = useSetPluginStatesAt(kit)
   const { showStage } = useActions()
   const pressClosed = useContext(PressClosedContext)
   return useCallback(
@@ -98,8 +94,8 @@ export function useFollowsSelection(stage: string): boolean {
 
 // 選択に従う中身で、ステージ stage の付いた先から anchor を外す関数: 選択からも外し、カレントは一つ前の物へ（state.ts の withoutAnchor）。残りが無ければ閉じる
 export function useTakeOffAnchor(): (stage: string, anchor: string) => void {
-  const readPanel = useReadPluginState(kit, RIGHT_SIDE_PANEL_STATE)
-  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  const readPanel = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
+  const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   const { select } = useActions()
   const close = useCloseRightSidePanel()
   return useCallback(
@@ -120,8 +116,8 @@ export function useTakeOffAnchor(): (stage: string, anchor: string) => void {
 
 // ステージ stage の右サイドパネルのカレントを、付いた先の 1 つ anchor にする関数（付いた先の並びも、ステージの選択も変えない）
 export function useSetRightSidePanelCurrent(): (stage: string, anchor: string) => void {
-  const readPanel = useReadPluginState(kit, RIGHT_SIDE_PANEL_STATE)
-  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  const readPanel = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
+  const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   return useCallback(
     (stage, anchor) => {
       const open = readPanel(stage)
@@ -133,7 +129,7 @@ export function useSetRightSidePanelCurrent(): (stage: string, anchor: string) =
 
 // ステージ stage の右サイドパネルを閉じる関数
 export function useCloseRightSidePanel(): (stage: string) => void {
-  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   return useCallback(stage => set(stage, undefined), [set])
 }
 

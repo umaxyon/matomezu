@@ -8,11 +8,7 @@ import type { Rect } from "../../../core/geom"
 import type { Stage } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
-import {
-  usePluginStateAt as usePluginState,
-  useReadPluginStateAt as useReadPluginState,
-  useUpdatePluginStateAt as useUpdatePluginState,
-} from "../../../ui/at-hooks"
+import { usePluginStateAt, useReadPluginStateAt, useUpdatePluginStateAt } from "../../../ui/at-hooks"
 import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { anchorElementIn, revealedRect } from "../utils/anchors"
@@ -27,7 +23,7 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   const stage = found?.stage ?? null
   const anchors = found?.open.anchors ?? null
   const current = found?.open.current ?? null
-  const restore = usePluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE, stage)
+  const restore = usePluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE, stage)
   const kept = useMatomezuState(
     useShallow(s =>
       screenOf(s.window)
@@ -42,8 +38,8 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
     ),
   )
   const read = useReadState()
-  const readRestore = useReadPluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
-  const update = useUpdatePluginState(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
+  const readRestore = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
+  const update = useUpdatePluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const actions = useActions()
   const stageOf = useCallback((id: string) => stageIn(read().window, id), [read])
   // 見せる: 付いた先が替われば全部を囲む四角を収め（1 つなら 100%）、カレントだけが替われば倍率はそのままでカレントを真ん中へ（state.ts の revealFor）

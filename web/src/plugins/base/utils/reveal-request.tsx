@@ -4,7 +4,7 @@
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pluginValueOf } from "../../../store/plugin-state"
-import { useSetPluginStateAt as useSetPluginState } from "../../../ui/at-hooks"
+import { useSetPluginStateAt } from "../../../ui/at-hooks"
 import { useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { REVEALING_STATE } from "./reveal-state"
@@ -15,11 +15,11 @@ export const useRevealRequest = (stage: string): readonly string[] | null =>
 
 // ステージ stage で、物 ids を見せてと頼む関数
 export function useRequestReveal(): (stage: string, ids: readonly string[]) => void {
-  return useSetPluginState(kit, REVEALING_STATE)
+  return useSetPluginStateAt(kit, REVEALING_STATE)
 }
 
 // ステージ stage の、見せてという頼みを消す関数
 export function useClearRevealRequest(): (stage: string) => void {
-  const set = useSetPluginState(kit, REVEALING_STATE)
+  const set = useSetPluginStateAt(kit, REVEALING_STATE)
   return useCallback((stage: string) => set(stage, undefined), [set])
 }

@@ -23,12 +23,7 @@ export { definePluginUi } from "../ui/plugin"
 export { ScreenView } from "../ui/ScreenView"
 export { Slot } from "../ui/Slot"
 
-import type { LegacyOnly } from "../core/legacy"
-import { useActions as useStoreActions } from "../ui/store-context"
-
 export { useLayoutWarnings } from "../ui/store-context"
-// 橋渡しの間だけ: 場所を第 1 引数に取る操作。プラグインは useActionsHere を使う（最後に、それを useActions にする）
-export const useActions: LegacyOnly<typeof useStoreActions> = useStoreActions as never
 export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"
 export {
   type Allowed,
@@ -41,6 +36,7 @@ export {
   useItem,
   useItemAt,
   useLatestPan,
+  useLegacyActions as useActions,
   usePage,
   usePerform,
   usePluginState,

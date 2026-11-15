@@ -8,11 +8,7 @@
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { screenOf, stageIn, workspaceOf } from "../../../core/window"
 import { stageView, toolOf } from "../../../core/workspace"
-import {
-  useReadPluginStateAt as useReadPluginState,
-  useSetPluginStateAt as useSetPluginState,
-  useStageAt,
-} from "../../../ui/at-hooks"
+import { useReadPluginStateAt, useSetPluginStateAt, useStageAt } from "../../../ui/at-hooks"
 import { useMessages } from "../../../ui/i18n"
 import { StageScope } from "../../../ui/scope"
 import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -101,8 +97,8 @@ export function RightSidePanel() {
 function useFollowSelection(stage: string | null) {
   const read = useReadState()
   const { select } = useActions()
-  const readPanel = useReadPluginState(kit, RIGHT_SIDE_PANEL_STATE)
-  const set = useSetPluginState(kit, RIGHT_SIDE_PANEL_STATE)
+  const readPanel = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
+  const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   const opened = useOpenedRightSidePanel()
   const selection = useStageAt(stage)?.selection
   const following = useRef<string | null>(null)

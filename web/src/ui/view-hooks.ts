@@ -400,6 +400,9 @@ export function useActionsHere(): WindowActions & BoundPlaceActions {
   return useMemo(() => ({ ...actions, ...boundActions(actions, at) }), [actions, at])
 }
 
+// 橋渡しの間だけ: プラグイン API の useActions（場所を第 1 引数に取る操作）。プラグインは useActionsHere を使う（最後に、それを useActions にする）
+export const useLegacyActions: LegacyOnly<typeof useStoreActions> = useStoreActions as never
+
 // 機能台帳（定義の表。読むだけ。コマンドの ctx.catalog と同じ物）
 export function useCoreCatalog(): CoreCatalog {
   return useCatalog().core
