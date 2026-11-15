@@ -60,7 +60,6 @@ export const ERRORS = {
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
-  E103: "book type {type} has no pages",
   E105: "no current stage: {id}",
   E107: "unknown command: {id}",
   E108: "unknown dialog: {id}",
