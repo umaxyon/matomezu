@@ -148,7 +148,7 @@ export function useSidePanelSliding(stage: string | null): boolean {
 }
 
 // ここから下は、描いている場所（ui/scope.tsx）のステージの右サイドパネルを読み書きするフック（プラグインと、骨組みでない部品が使う。ステージを名指さない）。
-// 描いている場所がステージでなければ（見るだけのページの中など）、開いておらず、開け閉めもしない
+// 描いている場所がステージでなければ（ステージの外で見るだけに描くページの中など）、開いておらず、開け閉めもしない
 
 // 描いている場所のステージの右サイドパネル（開いていなければ null）
 export const useRightSidePanel = (): RightSidePanelOpen | null => useRightSidePanelAt(useStageId())

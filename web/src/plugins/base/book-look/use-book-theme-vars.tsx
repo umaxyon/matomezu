@@ -1,4 +1,4 @@
-// ステージ stage が開いているブックのテーマの値（CSS 変数）。ブックの設定のダイアログの下書きを重ねたブックで決める。ブックを開いていなければ undefined
+// 描いているページのブックのテーマの値（CSS 変数）。ブックの設定のダイアログの下書きを重ねたブックで決める。ブックを開いていなければ undefined
 import { type CSSProperties, useMemo } from "react"
 import { useCatalog } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"

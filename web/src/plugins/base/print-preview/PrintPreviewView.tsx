@@ -220,7 +220,7 @@ export function PrintPreviewView() {
     <div ref={measureBox} className={styles.measure} aria-hidden="true">
       <Printing>
         {measuring.map(({ page: p, paper }) => (
-          // 測るページを、見るだけのページとして描く
+          // 測るページを、ステージの外で見るだけに描くページとして描く
           <PageScope key={p.id} book={book.id} page={p.id} zoom={1}>
             <Measure book={book} page={p} paper={paper} report={reporterOf(p.id)} />
           </PageScope>

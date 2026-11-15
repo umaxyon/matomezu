@@ -1,7 +1,7 @@
 // 描いている場所: ビューのまわりに置く、描くページと、操作の向け先の組。提供はこの 1 つだけで、ページと向け先は必ず一緒に置く
-// （見るだけのページを置くと、外のステージの向け先は必ず消える。別々に置けないので、食い違わない）。
+// （ステージの外で見るだけに描くページを置くと、外のステージの向け先は必ず消える。別々に置けないので、食い違わない）。
 //   ステージ: 描くページはそのステージが開いている物、向け先はそのステージ（StageScope）
-//   見るだけのページ: 描くページは渡されたブックのページ、向け先は無し（PageScope。ページ一覧のサムネイル・スクラップの中・印刷プレビューの区画）
+//   ステージの外で見るだけに描くページ: 描くページは渡されたブックのページ、向け先は無し（PageScope。ページ一覧のサムネイル・スクラップの中・印刷プレビューの区画）
 //   スクリーン: 描くページは無く、向け先はそのスクリーン（ステージを持たないスクリーンから開いたダイアログなど。ActsOnScope）
 //   何も置いていない所: 描いているスクリーン（ui/screen-context.tsx）が向け先。スクリーンの外（窓の根）なら窓
 // フック（ui/view-hooks.ts など）は、読む物を描くページから、操作を向け先から引く。向け先が無い所からは、何も行えない。
@@ -44,7 +44,7 @@ export function StageScope({ stage, children }: { stage: string; children: React
   return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
 }
 
-// 見るだけのページ: ブック book のページ page を倍率 zoom で描く。中からは何も行えない（外がステージでも、向け先は無しになる）
+// ステージの外で見るだけに描くページ: ブック book のページ page を倍率 zoom で描く。中からは何も行えない（外がステージでも、向け先は無しになる）
 export function PageScope({
   book,
   page,
@@ -132,7 +132,7 @@ export function bookTypeOf(s: MatomezuState, scope: Scope): BookTypeId | undefin
   return ref.from === "page" ? s.books[ref.book]?.type : stageIn(s.window, ref.stage)?.opened?.type
 }
 
-// 描くページの倍率（見るだけのページは渡された倍率、ステージはそのステージの倍率。描くページが無ければ null）
+// 描くページの倍率（ステージの外で見るだけに描くページは渡された倍率、ステージはそのステージの倍率。描くページが無ければ null）
 export function zoomOf(s: MatomezuState, scope: Scope): number | null {
   const ref = scope.page
   if (!ref) return null

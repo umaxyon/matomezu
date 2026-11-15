@@ -1,4 +1,4 @@
-// 描いている場所（ui/scope.tsx）: 見るだけのページ（PageScope）の中は、置いたページのブックの物で描き、外がステージでも、その選択は写らず、中からは何も行えない。
+// 描いている場所（ui/scope.tsx）: ステージの外で見るだけに描くページ（PageScope）の中は、置いたページのブックの物で描き、外がステージでも、その選択は写らず、中からは何も行えない。
 // ダイアログの中は開いたステージが、無くなったステージを置いた所は何も行えない所が、描いている場所になる
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
@@ -97,7 +97,7 @@ function Sheet({ book }: { book: ReturnType<ReturnType<typeof setup>["bookOf"]> 
   )
 }
 
-test("ステージが別のブックを開いて物を選んでいても、見るだけのページは、置いたページのブックのテーマと線の引き方で、ステージで開いたときと同じに描き、選択は写らない", () => {
+test("ステージが別のブックを開いて物を選んでいても、ステージの外で見るだけに描くページは、置いたページのブックのテーマと線の引き方で、ステージで開いたときと同じに描き、選択は写らない", () => {
   const { instance, wrap, bookOf } = setup()
   const x = bookOf("x")
   // ステージで x を開き、何も選ばずに描いた物
@@ -193,7 +193,7 @@ const press = (container: HTMLElement) => {
   })
 }
 
-test("ステージの中に置いた見るだけのページの中では、ステージも道具も無く、コマンドは（ステージのコマンドもスクリーンのコマンドも）出ず、何を行っても何も変わらない", () => {
+test("ステージの中に置いたステージの外で見るだけに描くページの中では、ステージも道具も無く、コマンドは（ステージのコマンドもスクリーンのコマンドも）出ず、何を行っても何も変わらない", () => {
   const { instance, wrap } = setup()
   act(() => instance.actions.openBook("s1", "y"))
   act(() => instance.actions.select("s1", ["b"]))

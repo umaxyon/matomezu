@@ -1,6 +1,6 @@
 // 描いている場所（ui/scope.tsx）から呼ぶコマンド。出すか・押せるかが変わったときだけ描き直す。インスタンスに無いコマンドなら error。
 // 呼ぶ場所は向け先で決まる: ステージから呼ぶコマンドは向け先のステージ、スクリーンから呼ぶコマンドはそのスクリーン（向け先がステージなら、それを並べているスクリーン）。
-// 向け先が無い所（見るだけのページの中）では、どのコマンドも出ず、呼んでも行わない
+// 向け先が無い所（ステージの外で見るだけに描くページの中）では、どのコマンドも出ず、呼んでも行わない
 
 import type { MessageKey } from "../core/i18n/i18n"
 import { type CommandArgs, type CommandId, commandDef, isActive, isEnabled, isShown } from "../store/commands"

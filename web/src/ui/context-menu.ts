@@ -42,7 +42,7 @@ export function suppressContextMenu(): void {
 
 // 向け先のステージで、右クリックされた物 target のメニュー id を、押した位置に開く。ブラウザのメニューは出さない。
 // 右ボタンを押している間なら、離したときに開く。開くコンポーネント（ウィジェットかブックのビュー）は、そのメニューを contextMenus に書く。
-// 向け先が無い所（見るだけのページの中）では、開かない（右クリックは外へ渡す）
+// 向け先が無い所（ステージの外で見るだけに描くページの中）では、開かない（右クリックは外へ渡す）
 export function useContextMenu<M extends ContextMenuId>(id: M): (e: MouseEvent, target: ContextMenuTable[M]) => void {
   const at = useAt()
   const open = useOpenContextMenu()
