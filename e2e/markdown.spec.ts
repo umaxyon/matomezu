@@ -310,7 +310,7 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
   await expect(field()).toHaveValue("AI の行\n# 見出し")
 })
 
-test("ブックの設定のテーマは、マークダウンのブックが選べるテーマ（標準と GitHub 風）だけを並べ、GitHub 風にすると描いた文書の字が大きくなる", async ({
+test("ページの設定のテーマは、マークダウンのページが選べるテーマ（標準と GitHub 風）だけを並べ、GitHub 風にすると描いた文書の字が大きくなる", async ({
   page,
 }) => {
   await markdownBook(page)
@@ -318,8 +318,9 @@ test("ブックの設定のテーマは、マークダウンのブックが選�
   await page.keyboard.type("本文")
   const paragraph = pane(page, "プレビュー").locator("p")
   await expect(paragraph).toContainText("本文")
-  await (await fromMenu(page, "ブックの設定")).click()
-  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  await pane(page, "プレビュー").click({ button: "right", position: { x: 60, y: 120 } })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
   const theme = dialog.getByLabel("テーマ")
   await expect(theme.locator("option")).toHaveText(["標準", "GitHub 風"])
   await theme.selectOption({ label: "GitHub 風" })

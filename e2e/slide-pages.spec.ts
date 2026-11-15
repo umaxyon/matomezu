@@ -31,7 +31,9 @@ test.use({
   ],
 })
 
-test("ページ一覧はサムネイルを縦に並べ、ページタブにはフォルダが 1 つのタブで出る。押したページが開く", async ({ page }) => {
+test("ページ一覧はサムネイルを縦に並べ、ページタブにはフォルダが 1 つのタブで出る。押したページが開く", async ({
+  page,
+}) => {
   await page.goto(BOOK_SCREEN_URL)
   const list = page.locator("[data-page-list]")
   await expect(list).toBeVisible()

@@ -17,7 +17,7 @@ test("分割した右のステージで中身が縦にスクロールしても�
   const add = page.getByRole("dialog", { name: "新しいブック" })
   await page.keyboard.type("長い文書")
   await add.getByRole("button", { name: "作成" }).click()
-  await addFromTabs(right, "マークダウン")
+  await addFromTabs(page.getByRole("tablist", { name: "長い文書" }), "マークダウン")
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await right.getByRole("region", { name: "ソース" }).getByRole("textbox").click()
   await page.keyboard.insertText(Array.from({ length: 60 }, (_, i) => `段落 ${i + 1}`).join("\n\n"))

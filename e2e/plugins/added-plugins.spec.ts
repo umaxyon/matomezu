@@ -10,13 +10,21 @@ import { fromMenu } from "../helpers/stage-menu"
 // 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが自分で足し、テストが終われば外す
 
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
+// 保存したフローのブックの、最初のページのテーマ
+const pageTheme = async (page: Page) => {
+  const found = await saved(page, flow.id)
+  return found
+    ? pagesIn<{ settings?: Record<string, unknown> }>(found)[0]?.settings?.["@matomezu/base:page-theme"]
+    : undefined
+}
 const flow = {
-  type: "ex2:flow",
   id: "flow-1",
   title: "フロー",
-  pages: [
+  lineup: [
     {
+      kind: "page",
       id: "p1",
+      type: "ex2:flow",
       title: "P",
       paper: "@matomezu/base:a4",
       orientation: "landscape",
@@ -195,10 +203,10 @@ test("3 つを読ませると、作り手の違うプラグインのボタンが
   await enablePlugins(page, "ex1", "ex3")
   await expect(page.getByRole("button", { name: "あいさつする" })).toBeVisible()
   await page.getByRole("button", { name: "ミントにする" }).click()
-  await expect.poll(async () => (await saved(page, flow.id))?.settings?.["@matomezu/base:page-theme"]).toBe("ex3:mint")
+  await expect.poll(async () => await pageTheme(page)).toBe("ex3:mint")
   await page.reload()
   await expect(page.getByRole("button", { name: "ミントにする" })).toBeVisible()
-  expect((await saved(page, flow.id))?.settings?.["@matomezu/base:page-theme"]).toBe("ex3:mint")
+  expect(await pageTheme(page)).toBe("ex3:mint")
 })
 
 test("AI は actions で追加プラグインのアクションを読み、perform で行える。形は選んだタイプのブックにだけ置ける", async ({
@@ -273,12 +281,13 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
 }) => {
   await link(page, "test/added-plugins/ex6", "test/added-plugins/ex7")
   const yard = {
-    type: "ex7:yard",
     id: "yard-1",
     title: "置き場",
-    pages: [
+    lineup: [
       {
+        kind: "page",
         id: "p1",
+        type: "ex7:yard",
         title: "P",
         paper: "@matomezu/base:a4",
         orientation: "landscape",
@@ -332,12 +341,27 @@ test("ex8 を読ませると、自分の見せ方のビューが開いたペー�
 }) => {
   await link(page, "test/added-plugins/ex8")
   const deck = {
-    type: "ex8:deck",
     id: "deck-1",
     title: "単語帳",
-    pages: [
-      { id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "portrait", cards: ["りんご", "みかん"] },
-      { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "portrait", cards: ["ぶどう"] },
+    lineup: [
+      {
+        kind: "page",
+        id: "p1",
+        type: "ex8:deck",
+        title: "1",
+        paper: "@matomezu/base:a4",
+        orientation: "portrait",
+        cards: ["りんご", "みかん"],
+      },
+      {
+        kind: "page",
+        id: "p2",
+        type: "ex8:deck",
+        title: "2",
+        paper: "@matomezu/base:a4",
+        orientation: "portrait",
+        cards: ["ぶどう"],
+      },
     ],
   }
   expect((await page.request.put(`/api/books-for-test/${deck.id}`, { data: { book: deck, base: 0 } })).ok()).toBe(true)

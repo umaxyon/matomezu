@@ -521,7 +521,7 @@ test("テーマの色はテーマを変えるとそのテーマの色になり�
   expect(await fill()).toBe("rgb(255, 255, 255)")
 })
 
-test("設定のダイアログでブックのテーマと紙の色を選ぶと、確定の前から紙と中の箱に出る。キャンセルで戻り、確定でそのままになる", async ({
+test("ページの設定のダイアログでテーマと紙の色を選ぶと、確定の前から紙と中の箱に出る。キャンセルで戻り、確定でそのままになる", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -533,11 +533,11 @@ test("設定のダイアログでブックのテーマと紙の色を選ぶと�
     paper: await surface.evaluate(el => getComputedStyle(el).backgroundColor),
     box: await box.evaluate(el => getComputedStyle(el).backgroundColor),
   })
-  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
   const choose = async () => {
     const at = (await paper.boundingBox())!
     await page.mouse.click(at.x + 600, at.y + 400, { button: "right" })
-    await page.getByRole("menu").getByRole("menuitem", { name: "ブックの設定" }).click()
+    await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
     await dialog.getByLabel("テーマ").selectOption({ label: "付箋紙" })
     await expect.poll(look).toEqual({ paper: "rgb(244, 239, 228)", box: "rgb(255, 243, 166)" })
     await dialog.getByRole("button", { name: "紙の色" }).click()
@@ -1197,32 +1197,4 @@ test("線の色は、灰色を紙の色に 4 割混ぜた色。利用者の OS �
   expect(light).toEqual([189, 189, 197]) // rgb(90, 90, 110) を 4 割、白を 6 割
   await page.emulateMedia({ colorScheme: "dark" })
   expect(await rgb()).toEqual(light)
-})
-
-test("ブックの設定で線の既定の通り方を直線にすると、ページの設定が「ブックを継承」のページの線が直線になる", async ({
-  page,
-}) => {
-  await page.goto(BOOK_SCREEN_URL)
-  for (const [x, y, caption] of [
-    [150, 150, "始"],
-    [550, 350, "終"],
-  ] as const) {
-    await addBox(page, x, y, caption)
-  }
-  const empty = await onPaper(page, 900, 600)
-  await page.mouse.click(empty.x, empty.y)
-  await drawLine(page, "始", "終")
-  const points = page.locator("[data-item]:not([data-shape]) polyline").last()
-  await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBeGreaterThan(2)
-  await page.mouse.click(empty.x, empty.y, { button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "ブックの設定" }).click()
-  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
-  await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
-  await dialog.getByRole("button", { name: "確定" }).click()
-  await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2)
-  // ページの設定の「ブック継承」のボタンの名前に、今のブックの既定が添えてある
-  await page.mouse.click(empty.x, empty.y, { button: "right" })
-  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
-  const pageDialog = page.getByRole("dialog", { name: "ページの設定" })
-  await expect(pageDialog.getByRole("radio", { name: "ブックを継承（直線）" })).toBeChecked()
 })

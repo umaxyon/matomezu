@@ -292,7 +292,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
   await expect
     .poll(async () => {
       const b = (await data(page)).books.find((x: { id: string }) => x.id === "e2e-locked").book
-      return [b.locked, b.pages[0].locked]
+      return [b.locked, pagesIn<{ locked?: true }>(b)[0]?.locked]
     })
     .toEqual([undefined, undefined])
 })
@@ -334,8 +334,10 @@ test("AI がマークダウンのページの原文を page-update で変える�
   await field().click()
   await page.keyboard.press("ControlOrMeta+End")
   await page.keyboard.type("\n\n本文")
-  const textOf = async () =>
-    ((await bookIn(page, result.book)) as { pages?: { text?: string }[] } | undefined)?.pages?.[0]?.text
+  const textOf = async () => {
+    const found = (await bookIn(page, result.book)) as { lineup: unknown[] } | undefined
+    return found ? pagesIn<{ text?: string }>(found)[0]?.text : undefined
+  }
   await expect.poll(textOf).toBe("# AI の見出し\n\n本文")
   await expect.poll(() => urlStages(page)[0]?.s).toBeTruthy()
   await page.reload()

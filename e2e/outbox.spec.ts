@@ -113,7 +113,7 @@ test("開いているブックが替わっても、左サイドパネルは閉�
   ).json()
   await openOutbox(page)
   await page.request.post("/api/ai/show", { headers: ai, data: { book: made.result.book } })
-  await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "ほかの")
+  await expect(page.getByRole("tablist", { name: "ほかの" })).toBeVisible()
   await expect(leftPanel(page)).toBeVisible()
 })
 
