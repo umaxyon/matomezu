@@ -10,11 +10,7 @@ import (
 	"strings"
 )
 
-// Codex の MCP とフックの親は app-server（いくつもの会話を受け持つ）なので、
-// 会話 1 つだけの物とは名乗らず、フックはプロセス id を添えない（結び直しに使えない）
-
-// SessionEndsWith は、mcp --session-ends-with の値: セッションと同じだけ生きるプロセス（Codex の本体は会話 1 つだけの物でないので program は名乗らない）
-func SessionEndsWith(string) string { return "" }
+// Codex の MCP とフックの親は app-server（いくつもの会話を受け持つ）なので、フックはプロセス id を添えない（結び直しに使えない）
 
 // HooksSendHost は、フックが AI のプログラムのプロセス id を添えるか
 const HooksSendHost = false
