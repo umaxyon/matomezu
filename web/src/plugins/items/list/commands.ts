@@ -1,12 +1,20 @@
 // リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す（選んでいる行を Delete で消すのも）、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
-import { type CommandContext, type ItemPage, type Point, pagedOf, toPaperDelta, walkShapes } from "../../../plugin-api"
+import {
+  type CommandContext,
+  type ItemPage,
+  type Point,
+  pagedOf,
+  shownPageId,
+  toPaperDelta,
+  walkShapes,
+} from "../../../plugin-api"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { LIST, LIST_ROWS_SCOPE, type ListRow, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 import { linesFor } from "./size"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
+const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
 // リスト list の最後に行を足すダイアログを開く
 export const LIST_ADD_ROW = kit.defineCommand({
@@ -15,7 +23,7 @@ export const LIST_ADD_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Add row",
   run: (ctx, a, { list }: { list: string }) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     if (page) a.openDialog(ROW_ADD_DIALOG.id, { page, list })
   },
   when: onOpenedPage,
@@ -28,7 +36,7 @@ export const LIST_EDIT_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Edit row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     if (page) a.openDialog(ROW_EDIT_DIALOG.id, { page, list, row })
   },
   when: onOpenedPage,

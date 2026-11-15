@@ -2,10 +2,10 @@
 // 受け方はタイプが決められる（pageFieldsInput。作るとき・直すときごとに、受ける形と、ページへの書き方）。決めていなければ、base は中身を解釈せず、
 // タイプのフィールドの形で確かめて、書いたフィールドを丸ごと替える。書いたあとのページがタイプの形に合うかは、ブックのデータの形が確かめる。
 // AI には、タイプごとの受ける形を引数の形に入れて見せる（fieldsArgs）
+
 import { z } from "zod"
-import type { PagedBook } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
-import type { Page } from "../../../core/schema/book"
+import type { Book, Page } from "../../../core/schema/book"
 import { contentIdMaker } from "../utils/ids"
 
 export type FieldsOf = "add" | "update"
@@ -52,7 +52,7 @@ export function fieldsArgsOf(catalog: CoreCatalog, type: string, of: FieldsOf): 
 // 渡したフィールド fields を受けて書いたページと、受け方の返した結果（形に合わない・フィールドの無いタイプ・受け方が断れば null）
 export function writeFields(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   page: Page,
   fields: Readonly<Record<string, unknown>> | undefined,
   of: FieldsOf,

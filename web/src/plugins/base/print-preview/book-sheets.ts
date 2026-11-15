@@ -24,14 +24,14 @@ export function sheetsOfPage(
   const type = pageType(catalog, book.type)
   const own = catalog.presentations.get(type.presentation)?.printSheets
   const sheets = own
-    ? own(catalog, page, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), purpose })
+    ? own(catalog, page, { setting: settingsAt(catalog, page), grow: growOf(catalog, page), purpose })
     : (() => {
-        const area = pageArea(catalog, book, page)
+        const area = pageArea(catalog, page)
         return area && { columns: area.columns, rows: area.rows, filled: filledSheets(catalog, book, page) }
       })()
   // 背景を「必ず」印刷するページは、中身が無くても、どの印刷区画も載っているとする（背景は、載っている印刷区画に敷く）。
   // 可変ページは、中身の外枠の外にある背景も入るだけ、右・下へ印刷区画を増やして数える
-  if (sheets && slideIsBackground(type) && settingValue(catalog, book, page, BACKGROUND_PRINT) === "always")
+  if (sheets && slideIsBackground(type) && settingValue(catalog, page, BACKGROUND_PRINT) === "always")
     return { ...backgroundCovered(catalog, book, page, sheets), filled: null }
   return sheets
 }
@@ -44,8 +44,8 @@ function backgroundCovered<S extends Omit<PrintSheets, "filled">>(
   sheets: S,
 ): S {
   const paper = paperSize(catalog, page)
-  if (!paper || !growOf(catalog, book, page)) return sheets
-  const offset = slideOffsetOf(catalog, book, page)
+  if (!paper || !growOf(catalog, page)) return sheets
+  const offset = slideOffsetOf(catalog, page)
   let columns = sheets.columns
   let rows = sheets.rows
   for (const s of slideOf(page)) {
@@ -82,7 +82,7 @@ export function bookCrossings(
 ): { page: string; crossing: readonly string[]; oversized: readonly string[] }[] {
   if (pageType(catalog, book.type).printCrossing !== "ask") return []
   return (pagedOf(book)?.pages ?? []).flatMap(page => {
-    if (!growOf(catalog, book, page)) return []
+    if (!growOf(catalog, page)) return []
     const found = crossingShapes(catalog, page)
     return found.crossing.length + found.oversized.length > 0 ? [{ page: page.id, ...found }] : []
   })

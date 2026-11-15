@@ -1,6 +1,8 @@
 // ページを作るダイアログ: 名前と紙（紙・向き・伸びるか。PaperControls.tsx）を決めて、そのステージのブックに足し（アクション page-add）、そのページを開く
+
 import { useState } from "react"
-import { hasPages, type PagedBook } from "../../../core/book"
+import { hasPages } from "../../../core/book"
+import type { Book } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useBook } from "../../../ui/view-hooks"
@@ -22,7 +24,7 @@ export function NewPageDialog({ onClose }: DialogProps) {
   )
 }
 
-function NewPageForm({ book, onDone }: { book: PagedBook; onDone: () => void }) {
+function NewPageForm({ book, onDone }: { book: Book; onDone: () => void }) {
   const t = useMessages(kit)
   const addPage = useAddPage()
   const [title, setTitle] = useState(() => nextPageTitle(book, t))

@@ -3,15 +3,15 @@
 // 形の位置（x・y）は、写したときの紙の上の左上（子の形も、根の形にして写す）。貼るときは id をブックで重ならないように振り直す
 
 import {
+  type Book,
   bookItems,
   type CoreCatalog,
   connectorSchema,
   connectorsOf,
   type Declined,
+  findPage,
   findShape,
-  hasPages,
   type ItemPage,
-  type PagedBook,
   type PlacedConnector,
   type PlacedShape,
   type Point,
@@ -63,7 +63,7 @@ function shapeIds(shape: ShapeData): string[] {
 }
 
 // 渡された形 raw を確かめた形。ブックで使えるアイテム・使えるテーマ・写せる形だけ。子の形もたどる。通らなければ null
-function parsedTree(catalog: CoreCatalog, book: PagedBook, raw: unknown): PlacedShape | null {
+function parsedTree(catalog: CoreCatalog, book: Book, raw: unknown): PlacedShape | null {
   if (typeof raw !== "object" || raw === null || typeof (raw as { item?: unknown }).item !== "string") return null
   const value = raw as { item: string; shapes?: unknown; [field: string]: unknown }
   if (!bookItems(catalog, book).includes(value.item)) return null
@@ -99,7 +99,7 @@ export interface PasteArgs {
 }
 
 export interface Pasted {
-  next: PagedBook
+  next: Book
   items: string[] // 貼った根の形の id
   at: Point // 写しの範囲の左上
 }
@@ -108,12 +108,11 @@ export interface Pasted {
 // ほかの形を動かすことになる（crowd が push でない）・空きが無いなら、断りの文
 export function pasted(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   newId: () => string,
   args: PasteArgs,
 ): Pasted | Declined | null {
-  if (!hasPages(book)) return null
-  const page = book.pages.find(p => p.id === args.page)
+  const page = findPage(book, args.page)?.page
   if (!page) return null
   const parsed = args.shapes.map(raw => parsedTree(catalog, book, raw))
   if (parsed.length === 0 || parsed.some(s => s === null)) return null
@@ -141,7 +140,7 @@ export function pasted(
   const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
   // 範囲の左上を at にして貼ったブックと、動いたほかの形
   const tryAt = (at: Point) => {
-    let next: PagedBook | null = book
+    let next: Book | null = book
     for (const s of copy.shapes) {
       const to = { x: at.x + s.x - box.origin.x, y: at.y + s.y - box.origin.y }
       if (next === null) break
@@ -176,13 +175,13 @@ export function pasted(
 // 入れる先の最初の空きへ向けて 1px ずつ寄せる（stepToward）。どこにも貼れなければ null
 export function nearestPaste(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   page: string,
   clip: Clip,
   parent: string | null,
   asked: Point,
 ): Point | null {
-  const found = book.pages.find(p => p.id === page)
+  const found = findPage(book, page)?.page
   const size = clipSize(catalog, clip)
   if (!found || !size) return null
   let n = 0

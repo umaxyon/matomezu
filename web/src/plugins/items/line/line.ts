@@ -110,7 +110,7 @@ export const LINE_EDIT_DIALOG = kit.defineDialogWith<{ page: string; item: strin
 
 // ページ page の線の既定が折れ線か（ページの既定、無ければブックの既定、それも無ければ設定の既定）
 export const elbowAt = (catalog: CoreCatalog, book: Book, page: object | null): boolean =>
-  settingValue(catalog, book, page, LINE_ROUTE) === "elbow"
+  settingValue(catalog, page, LINE_ROUTE) === "elbow"
 
 // ブックで線が使えるか（線のアイテムが、そのブックで使えるアイテムに入っている）。線を引く操作と、線の既定の通り方の設定はこれで出し分ける
 export const usesLines = (catalog: CoreCatalog, book: Pick<Book, "type">): boolean =>

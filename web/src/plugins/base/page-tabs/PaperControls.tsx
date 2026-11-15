@@ -1,9 +1,10 @@
 // 紙・向き・可変ページかの入力Form（ページを作るダイアログと、ページの設定のダイアログ）。選べる紙と向きはブックのタイプの規定で決まり（1 つしか無ければ選べない）、
 // 可変ページかは、タイプが増やす向きの決め方を持つときだけ出す（利用者が向きを選ぶタイプなら、可変ページにすると増やす向きも選べる）。ページの設定では、変えた項目だけをアクション page-update に渡し、形が紙に入らなければ問題にする
+
 import { useState } from "react"
-import { type PagedBook, putPage } from "../../../core/book"
+import { putPage } from "../../../core/book"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
-import type { Page } from "../../../core/schema/book"
+import type { Book, Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
@@ -33,7 +34,7 @@ export interface PaperValue {
 }
 
 // page はページの設定なら変えるページ、ページを作るなら null（タイプの規定の既定から始める）
-export function usePaperControls(book: PagedBook | undefined, page: Page | null) {
+export function usePaperControls(book: Book | undefined, page: Page | null) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const [value, setValue] = useState<PaperValue | null>(() => {

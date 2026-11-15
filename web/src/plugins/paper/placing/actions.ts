@@ -4,8 +4,8 @@ import { z } from "zod"
 import {
   bookItems,
   type CoreCatalog,
+  findPage,
   findShape,
-  hasPages,
   type ItemPage,
   type PlacedShape,
   type Point,
@@ -89,8 +89,7 @@ export const ITEM_PLACE = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     if (!page || !bookItems(ctx.catalog, book).includes(args.item)) return null
     const props = ctx.catalog.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
@@ -184,11 +183,10 @@ export const ITEM_MOVE = kit.defineAction({
   }),
   permissionScope: { page: "page", items: "items" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
     const next = moveItems(ctx.catalog, book, args.page, args.items, args.by, args.came)
     if (!next || args.crowd === "push") return next && { next, result: {} }
-    const page = book.pages.find(p => p.id === args.page)
-    const moved = next.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
+    const moved = findPage(next, args.page)?.page
     if (!page || !moved) return null
     const before = allRectsOf(ctx.catalog, page)
     const after = allRectsOf(ctx.catalog, moved)
@@ -227,8 +225,7 @@ export const ITEM_REPARENT = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const found = page && findShape(page, args.item)
     if (!page || !found || found.parent === args.parent) return null
     // 抜いたページ（線の整えはまだかけない。抜いた形につながる線を残すため）
@@ -284,8 +281,7 @@ export const ITEM_UPDATE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const now = page && findShape(page, args.item)?.shape
     if (!now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
@@ -327,8 +323,7 @@ export const ITEM_RESIZE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const now = page && findShape(page, args.item)?.shape
     if (!page || !now || !ctx.catalog.items.get(now.item)?.capabilities.includes("resizable")) return null
     const size = placedSize(ctx.catalog, now)
@@ -365,7 +360,6 @@ export const ITEM_REMOVE = kit.defineAction({
   args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),
   permissionScope: { page: "page", items: "items" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
     const next = removeItems(ctx.catalog, book, args.page, args.items)
     return next && { next, result: {} }
   },

@@ -46,7 +46,7 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   const state: ScrapState = !book || !page ? "none" : traced.includes(pageId) ? "loop" : "shown"
   const placed = scrapSize(scrap)
   const frame = { width: placed.w, height: placed.h }
-  const size = book && page ? pageArea(catalog, book, page)?.size : undefined
+  const size = book && page ? pageArea(catalog, page)?.size : undefined
   const paper = page ? paperSize(catalog, page) : null
   const inner = useMemo(() => [...traced, pageId], [traced, pageId])
   if (state !== "shown" || !book || !page || !size || !paper)

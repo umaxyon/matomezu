@@ -11,8 +11,8 @@ import styles from "./DirView.module.css"
 export function DirSheet({ book, page, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const laid = printLaid(catalog, page, {
-    setting: pageContext(catalog, book, page).setting,
-    grow: growOf(catalog, book, page),
+    setting: pageContext(catalog, page).setting,
+    grow: growOf(catalog, page),
   })
   if (!laid) return null
   const { rows, lines, notes, divider } = laid

@@ -40,7 +40,7 @@ export interface ShapeOptions {
 export function startTurned(catalog: CoreCatalog, book: Book, page: string, item: string): boolean {
   const options = catalog.pageTypes.get(book.type)?.items.options as Record<string, ShapeOptions> | undefined
   const placed = pagedOf(book)?.pages.find(p => p.id === page) ?? null
-  return options?.[item]?.turned?.(pageContext(catalog, book, placed).setting) ?? false
+  return options?.[item]?.turned?.(pageContext(catalog, placed).setting) ?? false
 }
 
 // 編集のダイアログ（どの形も同じ）

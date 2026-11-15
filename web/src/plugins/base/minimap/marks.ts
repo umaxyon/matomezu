@@ -59,7 +59,7 @@ export function minimapMarks(
   if (!minimap) return []
   // 背景（ページの slide。背景を持つタイプ）は、ミニマップに描かない（中身の位置の目印）
   const shown = slideIsBackground(type) ? { ...page, slide: undefined } : page
-  return minimap(catalog, shown, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), drawn })
+  return minimap(catalog, shown, { setting: settingsAt(catalog, page), grow: growOf(catalog, page), drawn })
 }
 
 // 置いたアイテムの絵（ページの slide の形も含む。背景は minimapMarks が外す。見せ方の minimap に、そのまま書ける）

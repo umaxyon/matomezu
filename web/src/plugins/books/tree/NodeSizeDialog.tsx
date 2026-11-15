@@ -24,7 +24,7 @@ export function NodeSizeDialog({ args, onClose }: DialogProps<{ page: string; no
   const [size, setSize] = useState<NodeSize | undefined>(node?.size)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !node) return null
-  const inherited = settingValue(catalog, book, page, NODE_SIZE)
+  const inherited = settingValue(catalog, page, NODE_SIZE)
   const submit = () => {
     const done = perform(NODE_UPDATE.id, { page: page.id, node: node.id, size: size ?? null })
     if (done.ok) onClose()

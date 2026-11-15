@@ -93,7 +93,7 @@ export const areaOfPage = (rect: Rect, shift: Point): Rect => ({ ...rect, x: rec
 
 // 切り抜いた直後の範囲: ページ全体（描けない紙なら null）
 export function wholePage(catalog: CoreCatalog, book: Book, page: ItemPage): Rect | null {
-  const size = pageArea(catalog, book, page)?.size
+  const size = pageArea(catalog, page)?.size
   if (!size) return null
   return areaOfPage({ x: 0, y: 0, w: size.w, h: size.h }, shiftOf(catalog, page))
 }

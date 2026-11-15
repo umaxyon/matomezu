@@ -1,9 +1,10 @@
 // ページを変える: アクション page-update（ページの名前と、紙・向き・可変ページか、ブックのタイプが選んだページの設定の項目（plugins/base/book-settings.ts）と、タイプがページに足したフィールド（page-fields.ts））
+
 import { z } from "zod"
-import { hasPages, type PagedBook, putPage, withSettings } from "../../../core/book"
+import { findPage, hasPages, putPage, withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { GROW_CHOICES, ORIENTATIONS } from "../../../core/def/paper"
-import type { Page } from "../../../core/schema/book"
+import type { Book, Page } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, writeFields } from "./page-fields"
@@ -28,7 +29,7 @@ const ARGS = z.strictObject({
 // 受け方が結果を返せば、結果の fields に入れて返す。変えたページにタイプが問題を知らせれば断る（page-problems.ts）
 export const PAGE_UPDATE = kit.defineAction({
   id: "page-update",
-  attach: { pages: true },
+  attach: { books: true },
   aiDescription:
     "Change a page: title (not empty), paper and orientation (among the book type's; refused if the page's shapes would not fit), grows (the ways to grow by whole papers or true, as in page-add; false keeps it to one paper; refused if the shapes would not fit), fields (the page's own fields its book type adds, each replaced whole unless its book type says otherwise; what the book type returns comes back in fields) and settings, the ones its book type has (keyed by the setting's id; for a drawing, @matomezu/line:line-route: how its lines run when they have no route of their own, straight or elbow). Only what is given changes; null removes a setting (a drawing page then follows its book's @matomezu/line:line-route).",
   title: "Update page",
@@ -41,7 +42,7 @@ export const PAGE_UPDATE = kit.defineAction({
     }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    const found = hasPages(book) ? book.pages.find(p => p.id === args.page) : undefined
+    const found = hasPages(book) ? findPage(book, args.page)?.page : undefined
     if (!hasPages(book) || !found) return null
     const written = writeFields(ctx.catalog, book, found, args.fields, "update", ctx.newId)
     if (!written) return null
@@ -61,7 +62,7 @@ export const PAGE_UPDATE = kit.defineAction({
 })
 
 // ページ page の紙・向き・可変ページかを args のとおりにしたもの（どれも渡さなければ page のまま）。選べない紙・向き・増やす向き、可変ページを作れないタイプなら null
-function withPaper(catalog: CoreCatalog, book: PagedBook, page: Page, args: z.infer<typeof ARGS>): Page | null {
+function withPaper(catalog: CoreCatalog, book: Book, page: Page, args: z.infer<typeof ARGS>): Page | null {
   if (args.paper === undefined && args.orientation === undefined && args.grows === undefined) return page
   const choice = { paper: args.paper ?? page.paper, orientation: args.orientation ?? page.orientation }
   if (!canChoose(paperChoicesFor(catalog, book, page.id), choice)) return null

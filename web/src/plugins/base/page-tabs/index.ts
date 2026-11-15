@@ -1,10 +1,10 @@
 // ページ: ページを作る・開くコマンドと、ページを作るダイアログ（作るものはダイアログで決める）。ページの設定のダイアログと、それを開くコマンド。
 // ページを作るダイアログとページの設定のダイアログは、ブックのタイプが自分のものにできる（pages.dialogs。行うアクションは同じ page-add・page-update）
 
-import { hasPages } from "../../../core/book"
+import { hasPages, pagesOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
-import { editingBackground } from "../../../core/stage"
+import { editingBackground, shownPageId } from "../../../core/stage"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
@@ -80,10 +80,10 @@ export const PAGE_SETTINGS = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Page settings",
   run: (ctx, a) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     if (page && ctx.book) a.openDialog(pageDialog(ctx.catalog, ctx.book, "settings"), { page })
   },
-  when: ctx => ctx.book !== null && ctx.stage.opened?.page != null,
+  when: ctx => ctx.book !== null && shownPageId(ctx.stage.opened ?? null) != null,
 })
 
 // ページ page のすぐ後ろ（page が無ければ最後）に、新しいページを足して開く（ダイアログ無し。名前と紙はタイプの既定）
@@ -95,8 +95,8 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
   run: (ctx, a, { page }: { page?: string }) => {
     const { book } = ctx
     if (!book || !hasPages(book)) return
-    const at = page === undefined ? book.pages.length - 1 : book.pages.findIndex(p => p.id === page)
-    if (at < 0 && book.pages.length > 0) return
+    const at = page === undefined ? pagesOf(book).length - 1 : pagesOf(book).findIndex(p => p.id === page)
+    if (at < 0 && pagesOf(book).length > 0) return
     const done = a.perform(PAGE_ADD.id, { index: at + 1 }, { book: book.id })
     if (done.ok) a.openPage(done.result.page)
   },

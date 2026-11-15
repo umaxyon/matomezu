@@ -3,7 +3,7 @@
 // 根のキャプションと本文は、ページのフィールドの受け方（page-fields.ts）で base の page-update が替える。
 // ページのフィールド root を書き換える。書き換えた木が紙に入らなければ断る。ツリーの見せ方について来る
 import { z } from "zod"
-import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
+import { type Book, type CoreCatalog, findPage, putPage } from "../../../plugin-api"
 import { ColorSchema, contentIdMaker, growOf, pageContext } from "../../base"
 import { addNodes, changeNode, moveNode, nodeOf, removeNode } from "./edit"
 import { treeFits } from "./fit"
@@ -14,21 +14,15 @@ import { NODE_SIZES } from "./size"
 const ON_TREES = { presentations: [kit.name("tree")] }
 
 // ページ page の根と、根を替えたブックを作る関数（ツリーのページでなければ null）
-function treeOf(book: PagedBook, page: string, catalog: CoreCatalog) {
-  const found = book.pages.find(p => p.id === page)
+function treeOf(book: Book, page: string, catalog: CoreCatalog) {
+  const found = findPage(book, page)?.page
   const root = treeRootOf(found)
   if (!found || !root) return null
   return {
     root,
     put: (next: TreeRoot) => {
       const written = { ...found, root: next }
-      const fits = treeFits(
-        catalog,
-        written,
-        pageContext(catalog, book, written).setting,
-        growOf(catalog, book, written),
-        next,
-      )
+      const fits = treeFits(catalog, written, pageContext(catalog, written).setting, growOf(catalog, written), next)
       return fits ? putPage(book, written) : null
     },
   }
@@ -49,7 +43,6 @@ export const NODE_ADD = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
     if (!tree) return null
     const parent = args.parent === tree.root.id ? tree.root : nodeOf(tree.root, args.parent)
@@ -76,7 +69,6 @@ export const NODE_UPDATE = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
     const next = tree && changeNode(tree.root, args.node, { caption: args.caption, size: args.size, color: args.color })
     const written = next && tree?.put(next)
@@ -94,7 +86,6 @@ export const NODE_REMOVE = kit.defineAction({
   args: z.strictObject({ page: z.string().min(1), node: z.string().min(1) }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
     const next = tree && removeNode(tree.root, args.node)
     const written = next && tree?.put(next)
@@ -118,7 +109,6 @@ export const NODE_MOVE = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
     const next = tree && moveNode(tree.root, args.node, args.parent, args.index, args.side)
     const written = next && tree?.put(next)

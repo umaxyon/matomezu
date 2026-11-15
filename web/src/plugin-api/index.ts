@@ -83,7 +83,17 @@ export {
   walkShapes,
 } from "../core/placed"
 export type { Book } from "../core/schema/book"
-export { areaOf, paperOf, placement, toPaper, toPaperDelta } from "../core/stage"
+export {
+  areaOf,
+  folderOf,
+  openedPage,
+  paperOf,
+  placement,
+  shownPageId,
+  shownType,
+  toPaper,
+  toPaperDelta,
+} from "../core/stage"
 export { resolveTokens } from "../core/theme"
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/wide-search"
 export type { StageView } from "../core/workspace"

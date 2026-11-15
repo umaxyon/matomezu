@@ -86,6 +86,9 @@ def fix_import(s: str, path: str, mod: str, add: set[str], remove: set[str], typ
 def run(path: str) -> bool:
     s = open(path, encoding="utf-8").read()
     was = s
+    # PagedBook は import から外してから、使う所を Book に替える（core/book は Book を出していない）
+    s = fix_import(s, path, "core/book", set(), {"PagedBook"})
+    s = fix_import(s, path, "plugin-api", set(), {"PagedBook"})
     for pat, to, _ in RULES:
         s = pat.sub(to, s)
     if s == was and not re.search(r"\b(PagedBook|hasPages|pagedOf)\b", s):

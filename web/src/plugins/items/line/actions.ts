@@ -2,10 +2,11 @@
 
 import { z } from "zod"
 import {
+  type Book,
   type CoreCatalog,
   connectorSchema,
+  findPage,
   type ItemPage,
-  type PagedBook,
   pageItemsOf,
   putPage,
 } from "../../../plugin-api"
@@ -19,21 +20,15 @@ import { canConnect, linesOf, type PlacedLine, patchedProps, tidyLines } from ".
 const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLine>
 
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
-const tidied = (catalog: CoreCatalog, book: PagedBook, page: ItemPage, line: PlacedLine): PlacedLine =>
+const tidied = (catalog: CoreCatalog, book: Book, page: ItemPage, line: PlacedLine): PlacedLine =>
   tidyLines([line], portAreasOf(catalog, page), elbowAt(catalog, book, page))[0] ?? line
 
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
-const viaDrawn = (catalog: CoreCatalog, book: PagedBook, page: ItemPage, line: PlacedLine): boolean =>
+const viaDrawn = (catalog: CoreCatalog, book: Book, page: ItemPage, line: PlacedLine): boolean =>
   !line.props.via || tidied(catalog, book, page, line).props.via !== undefined
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、stay の形（無ければ始点）はそのままでもう一方をどける
-function withLine(
-  catalog: CoreCatalog,
-  book: PagedBook,
-  page: ItemPage,
-  line: PlacedLine,
-  stay = line.from,
-): PagedBook | null {
+function withLine(catalog: CoreCatalog, book: Book, page: ItemPage, line: PlacedLine, stay = line.from): Book | null {
   const items = pageItemsOf(page)
   const next = items.some(i => i.id === line.id) ? items.map(i => (i.id === line.id ? line : i)) : [...items, line]
   const changed = putPage(book, { ...page, items: next })
@@ -61,7 +56,7 @@ export const LINE_CONNECT = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     if (!page || !connectable(ctx.catalog, page, args.from) || !connectable(ctx.catalog, page, args.to)) return null
     if (!canConnect(linesOf(page), args.from, args.to)) return null
     const line = PlacedLineSchema.safeParse({
@@ -95,7 +90,7 @@ export const LINE_UPDATE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "line" },
   run: (book, args, ctx) => {
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now) return null
     const line = PlacedLineSchema.safeParse({ ...now, props: patchedProps(now.props, args.props) })
@@ -126,7 +121,7 @@ export const LINE_RECONNECT = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "line" },
   run: (book, args, ctx) => {
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now || now[args.end] === args.item || !connectable(ctx.catalog, page, args.item)) return null
     const moved = { ...now, [args.end]: args.item }

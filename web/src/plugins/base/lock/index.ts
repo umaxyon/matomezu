@@ -2,7 +2,7 @@
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
 import { isAI } from "../../../core/actor"
-import { hasPages, pagesOf, putPage } from "../../../core/book"
+import { findPage, hasPages, pagesOf, putPage } from "../../../core/book"
 import type { CatalogCheckDef } from "../../../core/core-catalog"
 import type { PermissionCheck } from "../../../core/def/permission"
 import { problem } from "../../../core/errors"
@@ -34,7 +34,7 @@ const lockBook = (book: Book, on: boolean): Book | null =>
   !!book.locked === on ? null : setField(book, ["title"], "locked", on ? true : undefined)
 
 function lockPage(book: Book, page: string, on: boolean): Book | null {
-  const found = hasPages(book) ? book.pages.find(p => p.id === page) : undefined
+  const found = hasPages(book) ? findPage(book, page)?.page : undefined
   if (!hasPages(book) || !found || !!found.locked === on) return null
   return putPage(book, setField(found, ["orientation"], "locked", on ? true : undefined))
 }
@@ -77,7 +77,7 @@ export const BOOK_UNLOCK = kit.defineAction({
 export const PAGE_LOCK = kit.defineAction({
   id: "page-lock",
   history: false,
-  attach: { pages: true },
+  attach: { books: true },
   aiDescription: `Lock a page: while locked, the page and everything on it cannot be changed or removed and its book cannot be moved to the trash, by the user or by AI (denied by ${kit.name("lock")}). Only the user can unlock it. Refused if the page does not exist or is already locked.`,
   title: "Lock page",
   target: "book",
@@ -92,7 +92,7 @@ export const PAGE_LOCK = kit.defineAction({
 export const PAGE_UNLOCK = kit.defineAction({
   id: "page-unlock",
   history: false,
-  attach: { pages: true },
+  attach: { books: true },
   userOnly: true,
   aiDescription: "Unlock a page (only the user can).",
   title: "Unlock page",

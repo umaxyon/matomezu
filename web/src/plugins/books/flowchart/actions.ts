@@ -4,15 +4,16 @@
 // 並べ直したら線の端の固定と手直しを外す（つなぐものの定義の unpin）。紙に収まらなければ間隔を詰めて試し、それでも収まらなければ断る（可変ページは、下へ段を重ね、広いチャートは右へはみ出して印刷区画を増やすので断らない）
 import { z } from "zod"
 import {
+  type Book,
   type CommandContext,
   type CoreCatalog,
   connectorsOf,
   type ItemPage,
   type MessageKey,
-  type PagedBook,
   pagedOf,
   type Rect,
   shapesOf,
+  shownPageId,
 } from "../../../plugin-api"
 import {
   adaptPage,
@@ -144,8 +145,8 @@ export function alignedRects(
 
 // ページ page をそのページに合わせたとき（adaptPage）に変わる形の名前（文言の鍵）。仲間の形はまとめた名前（base が書き足した familyTitle。台形と台形（逆）は「台形」）、
 // 同じ名前は 1 つで、ページの順。変わる形が無ければ空
-export function adaptedTitles(catalog: CoreCatalog, book: PagedBook, page: ItemPage): MessageKey[] {
-  const adapted = adaptPage(catalog, page, pageContext(catalog, book, page))
+export function adaptedTitles(catalog: CoreCatalog, book: Book, page: ItemPage): MessageKey[] {
+  const adapted = adaptPage(catalog, page, pageContext(catalog, page))
   const before = new Map(shapesOf(page).map(s => [s.id, s]))
   const titles = shapesOf(adapted)
     .filter(s => before.get(s.id) !== s)
@@ -169,18 +170,18 @@ export const PAGE_ALIGN = kit.defineAction({
     const book = pagedOf(subject)
     const page = book?.pages.find(p => p.id === args.page)
     if (!book || !page) return null
-    const dir = settingValue(ctx.catalog, book, page, FLOW_DIRECTION)
+    const dir = settingValue(ctx.catalog, page, FLOW_DIRECTION)
     // adapt なら、先に形をそのページに合わせる（台形の向きをページの流れの向きにそろえる）
-    const shaped = args.adapt ? adaptPage(ctx.catalog, page, pageContext(ctx.catalog, book, page)) : page
+    const shaped = args.adapt ? adaptPage(ctx.catalog, page, pageContext(ctx.catalog, page)) : page
     const rects = alignedRects(
       ctx.catalog,
       shaped,
       dir,
-      pageContext(ctx.catalog, book, page).setting,
-      growOf(ctx.catalog, book, page) !== undefined,
+      pageContext(ctx.catalog, page).setting,
+      growOf(ctx.catalog, page) !== undefined,
     )
     if (!rects) return null
-    const next: PagedBook = withPage(
+    const next: Book = withPage(
       ctx.catalog,
       book,
       unpinPage(ctx.catalog, { ...shaped, items: placedAt(ctx.catalog, shaped, rects) }),
@@ -190,7 +191,7 @@ export const PAGE_ALIGN = kit.defineAction({
 })
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
+const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
 // 自動で整列の確認のダイアログ（ページ page を整える）
 export const PAGE_ALIGN_DIALOG = kit.defineDialogWith<{ page: string }>()({ id: "page-align" })
@@ -202,7 +203,7 @@ export const PAGE_ALIGN_COMMAND = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Auto align",
   run: (ctx, a) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     if (page) a.openDialog(PAGE_ALIGN_DIALOG.id, { page })
   },
   when: onOpenedPage,

@@ -3,7 +3,7 @@
 import { hasPages } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/page-type"
-import { editingBackground as isEditing } from "../../../core/stage"
+import { editingBackground as isEditing, shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../page-tabs/page-update"
@@ -16,7 +16,7 @@ const editingBackground = (ctx: CommandContext): boolean => isEditing(ctx.stage)
 const hasBackground = (ctx: CommandContext): boolean =>
   ctx.book !== null &&
   hasPages(ctx.book) &&
-  ctx.stage.opened?.page != null &&
+  shownPageId(ctx.stage.opened ?? null) != null &&
   slideIsBackground(pageType(ctx.catalog, ctx.book.type))
 
 // 背景編集モードに入ったとき、前に隠していた中身は見せる
@@ -43,7 +43,7 @@ export const BACKGROUND_EDIT = kit.defineCommand({
   id: "background-edit",
   title: "Edit background",
   run: (ctx, a, { page }: { page: string }) => {
-    if (ctx.stage.opened?.page !== page) a.openPage(page)
+    if (shownPageId(ctx.stage.opened ?? null) !== page) a.openPage(page)
     showContent(a)
     a.startBackground()
   },

@@ -1,21 +1,6 @@
 // 紙のページに置いたアイテムのドラッグ（データを書き換えず、新しい値を返す）。置く・押す・消すなどはbase（place/items.ts）。
 // ページの形は紙の中で、子の形は親の子の領域の中で動かす（base の place/frame.ts の Frame。決まりは同じ）
-import {
-  type Book,
-  type CoreCatalog,
-  findShape,
-  type ItemPage,
-  type PagedBook,
-  type PlacedShape,
-  type Point,
-  putPage,
-  type Rect,
-  replaceShape,
-  type ShapeOnPage,
-  type Size,
-  shapeSchema,
-  walkShapes,
-} from "../../../plugin-api"
+import { type Book, type CoreCatalog, findShape, type ItemPage, type Book, findPage, type PlacedShape, type Point, putPage, type Rect, replaceShape, type ShapeOnPage, type Size, shapeSchema, walkShapes } from "../../../plugin-api"
 import {
   childOrigin,
   commitChildren,
@@ -78,13 +63,13 @@ export function movableTogether(catalog: CoreCatalog, book: Book, page: ItemPage
 // came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いページ・無いアイテム・収まらないなら null
 export function moveItems(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   ids: readonly string[],
   by: Point,
   came?: Came,
-): PagedBook | null {
-  const page = book.pages.find(p => p.id === pageId)
+): Book | null {
+  const page = findPage(book, pageId)?.page
   const frame = page && ids[0] !== undefined ? frameAround(catalog, book, page, ids[0]) : null
   if (!page || !frame) return null
   // どれも同じ Frame の形（ページの形と子の形、親の違う子は一緒に動かさない）
@@ -111,13 +96,13 @@ export function moveItems(
 // 始めの位置へ 1px ずつ（大きい方の軸で数えた歩数。400 まで）戻して、最初に収まる量（stepToward）。決まった手順なので同じ入力なら同じ結果。収まる量が無ければ null
 export function nearestMove(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   ids: readonly string[],
   by: Point,
   came?: Came,
 ): Point | null {
-  const page = book.pages.find(p => p.id === pageId)
+  const page = findPage(book, pageId)?.page
   const frame = page && ids[0] !== undefined ? frameAround(catalog, book, page, ids[0]) : null
   if (!frame) return null
   const to = clampBy(frame.rects, ids, by, frame.paper)
@@ -128,13 +113,13 @@ export function nearestMove(
 // （action の item-reparent と同じ決まり。抜いて、親の子の領域の左上より左や上なら寄せて入れる）
 export function reparentedAt(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   item: string,
   parent: string | null,
   where: Point,
-): PagedBook | null {
-  const page = book.pages.find(p => p.id === pageId)
+): Book | null {
+  const page = findPage(book, pageId)?.page
   const found = page && findShape(page, item)
   const out = page && replaceShape(page, item, () => null)
   if (!page || !found || !out || found.parent === parent) return null
@@ -152,13 +137,13 @@ export function reparentedAt(
 // 最初に入れられる at。無ければ null
 export function nearestReparent(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   item: string,
   parent: string | null,
   at: Point,
 ): Point | null {
-  const page = book.pages.find(p => p.id === pageId)
+  const page = findPage(book, pageId)?.page
   const found = page && findShape(page, item)
   const into = page && parent !== null ? findShape(page, parent) : null
   if (!page || !found) return null
@@ -259,7 +244,7 @@ export interface PlaceTarget {
 // 置けるか（fits）は、画面と同じに押して置いてみて決める（親が育って紙からはみ出すなら置けない）
 export function placeTarget(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   page: ItemPage,
   pointer: Point,
   at: Point,

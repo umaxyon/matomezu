@@ -134,12 +134,12 @@ const Rows = memo(function Rows({
   const movable = useAllowed(ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
   const root = dirRootOf(page)
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
-  const growing = book && page ? growOf(catalog, book, page) : undefined // ページの増やす向き
+  const growing = book && page ? growOf(catalog, page) : undefined // ページの増やす向き
   const variable = growing !== undefined
   // 印刷と同じ並べ方（print.ts の laidPage）で並べた広さ
   const wide =
     growing && book && page
-      ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing })
+      ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing })
       : null
   useStageArea(growing && wide ? laidArea(paper, growing, wide, true).size : null)
   if (!page || !root) return null

@@ -97,7 +97,7 @@ export function filledSheets(catalog: CoreCatalog, book: Book, page: ItemPage): 
     if (size) for (const c of sheetsOfShape({ x: s.x, y: s.y, ...size }, paper)) filled.add(sheetKey(c.column, c.row))
   }
   const areas = portAreasOf(catalog, page, rects)
-  const setting = settingsAt(catalog, book, page)
+  const setting = settingsAt(catalog, page)
   for (const [def, list] of byConnector(catalog, page))
     for (const p of def.printBelongingPoints?.(list, areas, setting) ?? [])
       filled.add(sheetKey(Math.max(0, Math.floor(p.x / paper.w)), Math.max(0, Math.floor(p.y / paper.h))))

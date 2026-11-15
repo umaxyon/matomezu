@@ -4,7 +4,7 @@
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする。
 // タブはドラッグで並べ替えられる（useTabDrag。アクション page-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
 import { useRef } from "react"
-import { hasPages } from "../../../core/book"
+import { findPage, hasPages, pagesOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { useCommand } from "../../../ui/commands"
@@ -55,7 +55,7 @@ export function PageTabs() {
   if (!book || !hasPages(book) || pageType(catalog, book.type).pageList || !openPage.enabled)
     return <div className={styles.tabs} data-page-tabs />
   const { drag } = tabDrag
-  const grabbed = drag && book.pages.find(p => p.id === drag.id)
+  const grabbed = drag && findPage(book, drag.id)?.page
   return (
     <div
       className={styles.tabs}
@@ -67,7 +67,7 @@ export function PageTabs() {
         return sideways(el)
       }}
     >
-      {book.pages.map(p => (
+      {pagesOf(book).map(p => (
         <span key={p.id} className={styles.slot} ref={tabDrag.slot(p.id)} data-carried={drag?.id === p.id}>
           <button
             type="button"

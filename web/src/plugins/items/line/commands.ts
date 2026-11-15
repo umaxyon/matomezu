@@ -1,6 +1,6 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（ラインビューから呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import { type CommandContext, type Point, pagedOf } from "../../../plugin-api"
+import { type CommandContext, type Point, pagedOf, shownPageId } from "../../../plugin-api"
 import { amongSelected, portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
@@ -10,7 +10,7 @@ import { linesOf } from "./placed"
 import type { Side } from "./route"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
+const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
 // 形 from の side の辺の〇から引き、形 to の上の at（表示領域の左上からの画面の座標）で離したときに線を引く（connect.ts の drawnLineProps の端と矢印）。
 // 引けない相手なら何もしない
@@ -39,7 +39,7 @@ export const LINE_EDIT = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     if (page) a.openDialog(LINE_EDIT_DIALOG.id, { page, item })
   },
   when: ctx => {

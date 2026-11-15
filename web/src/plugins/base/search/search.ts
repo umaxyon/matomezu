@@ -1,5 +1,6 @@
 // ブックの中を探す（見た目を持たない計算）: 見せ方がフィールド search（PresentationExtras）を持てば、そのブックのページの原文を探し、
 // 今の当たりから次・前の当たりへ進み、当たりを置き換える page-update の fields を作り、検索ダイアログに出す数を数える。探す・置き換える計算は find.ts
+import { pagesOf } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { pageType } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
@@ -27,7 +28,8 @@ export function searchableOf(catalog: CoreCatalog, book: Book | null): Searchabl
 }
 
 // ブック book のページ（ページを持たなければ空）
-export const pagesOf = (book: Book): readonly Page[] => ("pages" in book && Array.isArray(book.pages) ? book.pages : [])
+export const pagesOf = (book: Book): readonly Page[] =>
+  "pages" in book && Array.isArray(pagesOf(book)) ? book.pages : []
 
 // 探す範囲のページごとの当たり（page なら開いているページ opened だけ。正規表現が読めなければ bad-pattern）
 export function hitsIn(

@@ -1,6 +1,6 @@
 // データのアクション: 中身の表を丸ごと入れ替える（data-set）。見た目・文字・軸も一緒に変えられる
 import { z } from "zod"
-import { findShape, type PlacedShape } from "../../../plugin-api"
+import { findPage, findShape, type PlacedShape } from "../../../plugin-api"
 import { contentIdMaker, replaceShapePushing, roomOf, textPatch, widenForCaption } from "../../base"
 import { settleAxes } from "./axes"
 import {
@@ -105,7 +105,7 @@ export const DATA_SET = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const now = page && findShape(page, args.item)?.shape
     if (!now || now.item !== DATA.id) return null
     const before = now.table
@@ -140,7 +140,7 @@ export const DATA_SET = kit.defineAction({
     // 軸は新しい表に合わせる（無くなった列の軸を外し、グラフで軸が無ければ既定の列を選ぶ）
     const props = settleAxes(patched, table.data)
     // 表の見た目なら、表と文字の領域が全部見える大きさ（紙の端で止める）に合わせる。合わせて置けなければ、大きさはそのまま
-    const paper = roomOf(ctx.catalog, book, page)
+    const paper = roomOf(ctx.catalog, page)
     const onPage = page.items?.some(i => i.id === args.item) ?? false
     const room = paper && (onPage ? { w: paper.w - now.x, h: paper.h - now.y } : paper)
     const fitted = props.view === "table" && room ? fitTable(table.data, props, room) : null

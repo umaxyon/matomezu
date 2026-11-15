@@ -1,7 +1,7 @@
 // ページの問題: ブックのタイプが、ページを見て問題（ツリーが紙に入らないなど）を知らせる（定義オブジェクトの拡張ポイントに書き足す）。
 // base のアクション page-add・page-update・book-update は、書いたあとのページ（book-update は全部のページ）に問題があれば断る。
 // 断ったことを利用者に知らせるか、どう知らせるかは呼んだ側が決める（問題の文言は任意。base のダイアログは、文言があればダイアログの中に出す）
-import { hasPages } from "../../../core/book"
+import { hasPages, pagesOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
@@ -35,9 +35,9 @@ export function pageProblems(
 ): { page: ItemPage; problem: PageProblem }[] {
   const check = pageType(catalog, book.type).pageProblem
   if (!check || !hasPages(book)) return []
-  return book.pages.flatMap(page => {
+  return pagesOf(book).flatMap(page => {
     if (pages && !pages.includes(page.id)) return []
-    const problem = check(catalog, page, settingsAt(catalog, book, page), growOf(catalog, book, page))
+    const problem = check(catalog, page, settingsAt(catalog, page), growOf(catalog, page))
     return problem ? [{ page, problem }] : []
   })
 }

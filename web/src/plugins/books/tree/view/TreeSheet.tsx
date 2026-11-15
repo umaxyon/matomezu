@@ -15,8 +15,8 @@ import styles from "./TreeView.module.css"
 
 export function TreeSheet({ book, page, paper }: PrintSheetProps) {
   const catalog = useCoreCatalog()
-  const setting = pageContext(catalog, book, page).setting
-  const laid = printLaid(catalog, page, { setting, grow: growOf(catalog, book, page) })
+  const setting = pageContext(catalog, page).setting
+  const laid = printLaid(catalog, page, { setting, grow: growOf(catalog, page) })
   const root = treeRootOf(page)
   if (!laid || !root) return null
   const lineShape = setting(LINE_SHAPE)

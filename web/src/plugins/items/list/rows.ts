@@ -1,6 +1,6 @@
 // リストの行の操作（データを書き換えず、新しい値を返す）。リストはページに置いたアイテムで、行は children に順に並ぶ
 
-import { findShape, type ItemPage, type PagedBook, putPage, replaceShape } from "../../../plugin-api"
+import { type Book, findPage, findShape, type ItemPage, putPage, replaceShape } from "../../../plugin-api"
 import { LIST, type ListRow, type RowProps } from "./list"
 import type { PlacedList } from "./placed"
 import { placedListWidth, type RowsLines, rewrittenLines } from "./size"
@@ -22,14 +22,14 @@ export function rowPress(
 }
 
 // ページのリスト list（どの深さの子の形も探す。無いか、リストでなければ null）
-export function findList(book: PagedBook, pageId: string, list: string): { page: ItemPage; list: PlacedList } | null {
-  const page = book.pages.find(p => p.id === pageId)
+export function findList(book: Book, pageId: string, list: string): { page: ItemPage; list: PlacedList } | null {
+  const page = findPage(book, pageId)?.page
   const found = page && findShape(page, list)?.shape
   return page && found?.item === LIST.id ? { page, list: found as PlacedList } : null
 }
 
 // ページのリストを next に置き換えたブック（どの深さの子の形も置き換える）
-export function withList(book: PagedBook, page: ItemPage, next: PlacedList): PagedBook {
+export function withList(book: Book, page: ItemPage, next: PlacedList): Book {
   return putPage(book, replaceShape(page, next.id, () => next) ?? page)
 }
 

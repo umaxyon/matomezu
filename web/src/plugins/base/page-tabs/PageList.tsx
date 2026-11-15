@@ -3,11 +3,12 @@
 // （ステージの拡大縮小には従わない）。押したページをそのステージで開く（コマンド page-open）。開いているページは枠と太字の番号で示す。
 // ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-context。ここに追加・複製・削除）。
 // 一覧の下の＋は、最後にページを足す（コマンド page-add-after。ページが 0 枚でも出す）。ロック中のページには鍵の印を付ける
+
 import { useRef, useState } from "react"
-import { hasPages, type PagedBook } from "../../../core/book"
+import { hasPages, pagesOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
-import type { Page } from "../../../core/schema/book"
+import type { Book, Page } from "../../../core/schema/book"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -26,10 +27,10 @@ import { useTabDrag } from "./useTabDrag"
 
 // ページ 1 枚のサムネイル
 // ステージの外で描くので、中の物には窓に無い id を渡す（ステージの選択などが中に写らない）
-function Thumbnail({ book, page }: { book: PagedBook; page: Page }) {
+function Thumbnail({ book, page }: { book: Book; page: Page }) {
   const catalog = useCatalog().core
   const [width, setWidth] = useState(0)
-  const size = pageArea(catalog, book, page)?.size ?? { w: 1280, h: 720 }
+  const size = pageArea(catalog, page)?.size ?? { w: 1280, h: 720 }
   const scale = width / size.w
   return (
     <PageScope book={book.id} page={page.id} zoom={scale || 1}>
@@ -46,7 +47,7 @@ function ThumbnailFrame({
   scale,
   onWidth,
 }: {
-  book: PagedBook
+  book: Book
   page: Page
   size: Size
   scale: number
@@ -86,7 +87,7 @@ export function PageList() {
   if (!book || !hasPages(book) || !pageType(catalog, book.type).pageList || !openPage.enabled) return null
   return (
     <nav className={styles.list} aria-label={t("Page list")} ref={list} data-page-list>
-      {book.pages.map((p, i) => (
+      {pagesOf(book).map((p, i) => (
         <div
           key={p.id}
           className={styles.item}
@@ -122,7 +123,7 @@ export function PageList() {
           type="button"
           className={styles.add}
           aria-label={t("Add page")}
-          onClick={() => addAfter.run({ page: book.pages.at(-1)?.id })}
+          onClick={() => addAfter.run({ page: pagesOf(book).at(-1)?.id })}
         >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3v10M3 8h10" />

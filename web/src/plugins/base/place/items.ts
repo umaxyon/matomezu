@@ -1,7 +1,7 @@
 // ページに置いたアイテムの操作（データを書き換えず、新しい値を返す）。
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）。
 // 形が変わったあとは、ページのつなぐものの決まりで整える（placed.ts の tidyConnectors）
-import { type PagedBook, putPage } from "../../../core/book"
+import { findPage, putPage } from "../../../core/book"
 import { type CatalogCheckDef, type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
@@ -124,11 +124,11 @@ declare module "../../../core/catalog" {
 export const gapOf = (catalog: CoreCatalog, page: ItemPage): Gap => connectorGaps(catalog, page, evenGap)
 
 // 形が変わったあとのページ（つなぐものの定義の整えを全部かける。そのページで効いている設定の値で）
-export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, book: PagedBook, page: P): P =>
-  tidyItems(catalog, page, settingsAt(catalog, book, page))
+export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, book: Book, page: P): P =>
+  tidyItems(catalog, page, settingsAt(catalog, page))
 
 // 次に置くアイテムの id（newId から振る。ブックの全部のページの中身の、どの深さの id とも重ならない。utils/ids.ts の contentIdMaker で振る）
-export function nextItemId(book: PagedBook, newId: () => string): string {
+export function nextItemId(book: Book, newId: () => string): string {
   return contentIdMaker(book, newId)()
 }
 
@@ -235,9 +235,9 @@ export function widenForCaption(
   const caption = (p: PlacedShape) => (p.props as Record<string, unknown>)[prop]
   if (caption(next) === caption(before)) return next
   const size = placedSize(catalog, next)
-  const paper = roomOf(catalog, book, page)
+  const paper = roomOf(catalog, page)
   if (!size || !paper) return next
-  const from = catalog.pageTypes.get(book.type)?.growFrom?.(settingsAt(catalog, book, page))
+  const from = catalog.pageTypes.get(book.type)?.growFrom?.(settingsAt(catalog, page))
   // 1 つの向きに、want まで広げた位置と長さ（at は左か上、len は今の長さ、room は紙の長さ）
   const grow = (at: number, len: number, want: number, room: number, center: boolean) => {
     const to = Math.min(want, center ? room : room - at)
@@ -271,7 +271,7 @@ export function growOf(catalog: CoreCatalog, book: Book, page: ItemPage): GrowSi
   const rule = catalog.pageTypes.get(book.type)?.grow
   if (rule && "always" in rule) return rule.always
   if (!page.grows || !rule) return undefined
-  if ("sides" in rule) return rule.sides(settingsAt(catalog, book, page))
+  if ("sides" in rule) return rule.sides(settingsAt(catalog, page))
   const chosen = page.grows === true || !rule.choices.includes(page.grows) ? rule.choices[0] : page.grows
   return chosen && GROW_CHOICE_SIDES[chosen]
 }
@@ -291,8 +291,8 @@ export function slideOffsetOf(catalog: CoreCatalog, book: Book, page: ItemPage):
   const origin = pageType(catalog, book.type).contentOrigin?.(
     catalog,
     page,
-    settingsAt(catalog, book, page),
-    growOf(catalog, book, page),
+    settingsAt(catalog, page),
+    growOf(catalog, page),
   )
   return paper && origin ? { x: origin.x * paper.w, y: origin.y * paper.h } : { x: 0, y: 0 }
 }
@@ -307,16 +307,16 @@ export function pageArea(
 ): { columns: number; rows: number; size: Size } | null {
   const paper = paperSize(catalog, page)
   if (!paper) return null
-  const grow = growOf(catalog, book, page)
+  const grow = growOf(catalog, page)
   if (!grow) return { columns: 1, rows: 1, size: paper }
-  return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, book, page)), spare)
+  return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, page)), spare)
 }
 
 // ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
 // 右・下へ増やす向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）。描けない紙なら null
 export function roomOf(catalog: CoreCatalog, book: Book, page: ItemPage): Size | null {
   const paper = paperSize(catalog, page)
-  const grow = growOf(catalog, book, page)
+  const grow = growOf(catalog, page)
   if (!paper || !grow) return paper
   const rects = [...rectsOf(catalog, page).values()]
   const extent = rects.length
@@ -331,13 +331,13 @@ export function roomOf(catalog: CoreCatalog, book: Book, page: ItemPage): Size |
 }
 
 // ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
-export function withPage<B extends PagedBook>(catalog: CoreCatalog, book: B, page: ItemPage): B {
-  return putPage(book, tidyPage(catalog, book, page))
+export function withPage<B extends Book>(catalog: CoreCatalog, book: B, page: ItemPage): B {
+  return putPage(book, tidyPage(catalog, page))
 }
 
 // 押したあとのページ next に替える（withPage）。ただし、紙 paper の中にあった形と新しく置いた形が、描く大きさ（placedSize）で紙からはみ出すなら null。
 // 押す計画の四角と描く大きさがずれても（子を持つ形は子より小さく描けないなど）、紙の外へは書かない。前から紙の外にある形は問わない
-function pushedPage<B extends PagedBook>(
+function pushedPage<B extends Book>(
   catalog: CoreCatalog,
   book: B,
   page: ItemPage,
@@ -484,14 +484,9 @@ export function unpinPage<P extends ItemPage>(catalog: CoreCatalog, page: P): P 
 
 // ページにアイテムを置く（id は nextItemId で振ったもの）。重なった相手は右へ、駄目なら下へ押し、それも駄目なら押した列を縮めて右へ・下へ（push.ts の planPlace）。
 // 無いページ・はみ出す所・押した相手が収まらないなら null
-export function placeItem<B extends PagedBook>(
-  catalog: CoreCatalog,
-  book: B,
-  pageId: string,
-  item: PlacedShape,
-): B | null {
-  const page = book.pages.find(p => p.id === pageId)
-  const paper = page && roomOf(catalog, book, page)
+export function placeItem<B extends Book>(catalog: CoreCatalog, book: B, pageId: string, item: PlacedShape): B | null {
+  const page = findPage(book, pageId)?.page
+  const paper = page && roomOf(catalog, page)
   const size = placedSize(catalog, item)
   if (!page || !paper || !size) return null
   const after = planPlace(
@@ -550,15 +545,15 @@ export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
 
 // ページのアイテムを next に置き換え、近づきすぎた相手を押してどける（push.ts）。shrink なら、押した列が紙からはみ出すとき縮めて収める。
 // 無いページ・無いアイテム・id の違うもの・はみ出す・押した相手が紙に収まらないなら null
-export function replacePushing<B extends PagedBook>(
+export function replacePushing<B extends Book>(
   catalog: CoreCatalog,
   book: B,
   pageId: string,
   next: PlacedShape,
   shrink: boolean,
 ): B | null {
-  const page = book.pages.find(p => p.id === pageId)
-  const paper = page && roomOf(catalog, book, page)
+  const page = findPage(book, pageId)?.page
+  const paper = page && roomOf(catalog, page)
   const size = placedSize(catalog, next)
   if (!page || !paper || !size || !shapesOf(page).some(i => i.id === next.id)) return null
   const before = rectsOf(catalog, page)
@@ -591,13 +586,13 @@ export function placedAt(catalog: CoreCatalog, page: ItemPage, rects: ReadonlyMa
 
 // ページのアイテム ids（形も線も、どの深さの子の形も）を消す。形は子孫ごと消え、消した形につながる線も消える（tidyPage）。
 // 無いページ・無いアイテムを含むなら null
-export function removeItems<B extends PagedBook>(
+export function removeItems<B extends Book>(
   catalog: CoreCatalog,
   book: B,
   pageId: string,
   ids: readonly string[],
 ): B | null {
-  const page = book.pages.find(p => p.id === pageId)
+  const page = findPage(book, pageId)?.page
   if (!page) return null
   const targets = new Set(ids)
   const found = (p: ItemPage, id: string) => pageItemsOf(p).some(i => i.id === id) || findShape(p, id) !== undefined
@@ -617,14 +612,14 @@ function rootOf(page: ItemPage, id: string): string | null {
 
 // ページのどの深さの形 id も f の返す形に置き換え、変えたあとの一番上の祖先の大きさで、近づきすぎたページの形を押してどける（縮めない。replacePushing）。
 // f が null を返せば子孫ごと除く（祖先は縮むだけなので押さない）。無いページ・無い形・はみ出す・押した相手が紙に収まらないなら null
-export function replaceShapePushing<B extends PagedBook>(
+export function replaceShapePushing<B extends Book>(
   catalog: CoreCatalog,
   book: B,
   pageId: string,
   id: string,
   f: (shape: PlacedShape) => PlacedShape | null,
 ): B | null {
-  const page = book.pages.find(p => p.id === pageId)
+  const page = findPage(book, pageId)?.page
   const root = page && rootOf(page, id)
   const next = page && replaceShape(page, id, f)
   if (!page || !root || !next) return null
@@ -634,15 +629,15 @@ export function replaceShapePushing<B extends PagedBook>(
 
 // ページの形 a と b の組が、間隔の下限（gapOf。線でつないだあとなど）より近ければ、a はそのままで b の側をどける
 // （離れていた方の向きへ。押した先も押し、紙の端で詰まれば押された形を縮める）。どけられなければ null。近くなければそのまま
-export function keepApart<B extends PagedBook>(
+export function keepApart<B extends Book>(
   catalog: CoreCatalog,
   book: B,
   pageId: string,
   a: string,
   b: string,
 ): B | null {
-  const page = book.pages.find(p => p.id === pageId)
-  const paper = page && roomOf(catalog, book, page)
+  const page = findPage(book, pageId)?.page
+  const paper = page && roomOf(catalog, page)
   if (!page || !paper) return null
   const before = rectsOf(catalog, page)
   const ra = before.get(a)

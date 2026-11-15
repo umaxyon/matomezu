@@ -3,9 +3,10 @@
 // 位置と大きさは、書いたとおりに残る。アクションはスライドのアイテムを置けるタイプについて来る
 import { z } from "zod"
 import {
+  type Book,
   type CoreCatalog,
+  findPage,
   type ItemPage,
-  type PagedBook,
   type PlacedShape,
   putPage,
   type ShapeData,
@@ -33,10 +34,10 @@ const ON_SLIDE = { items: SLIDE_ITEMS.map(def => def.id) }
 
 type Shape = ShapeData<Record<string, unknown>>
 const shapes = (page: ItemPage): Shape[] => slideOf(page) as unknown as Shape[]
-const pageOf = (book: PagedBook, id: string): ItemPage | undefined => book.pages.find(p => p.id === id)
+const pageOf = (book: Book, id: string): ItemPage | undefined => findPage(book, id)?.page
 
 // ページの slide を next にしたブック
-const withSlide = (book: PagedBook, page: ItemPage, next: readonly Shape[]): PagedBook =>
+const withSlide = (book: Book, page: ItemPage, next: readonly Shape[]): Book =>
   putPage(book, { ...page, slide: next as unknown as PlacedShape[] })
 
 // 形が、そのアイテムの定義の形（項目・最小の大きさ）に合うか
@@ -50,11 +51,11 @@ const round = (n: number): number => Math.round(n * 100) / 100
 // slide の形 id を f で置き換えたブック。形が無いか、f が null か、合わなければ null
 function change(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   id: string,
   f: (shape: Shape) => Shape | null,
-): PagedBook | null {
+): Book | null {
   const page = pageOf(book, pageId)
   const now = page && shapes(page).find(s => s.id === id)
   const next = now && f(now)

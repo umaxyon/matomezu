@@ -5,8 +5,10 @@
 // 少しでも違う・無いなら失敗にする。反映は 1 つのアクションで、乗せた変更を順に行い、1 つでも断られたら全部取り消す。
 // 送ると AI 編集チケットを作り、反映したら閉じ、失敗したら失敗にし、反映も失敗もしないまま郵便が消えたら消えたと記す（郵便箱の上限で消えたか、利用者が消したか。
 // 失敗と消えたことは、次の利用者トリガートークのときに AI に渡る）
+
 import { z } from "zod"
 import { USER } from "../../../core/actor"
+import { pagesOf } from "../../../core/book"
 import type { ActionContext } from "../../../core/def/action"
 import { actionsOf, perform } from "../../../core/perform"
 import { sameData } from "../../../core/same"
@@ -150,7 +152,7 @@ export const PROPOSAL_SEND = kit.defineAction({
     const touched = ownChanged(book, carried.after).filter(id => id !== book.id)
     if (touched.length === 0) return { declined: "the changes change nothing" }
     const before = ownValues(book)
-    const pages = new Set("pages" in book ? (book.pages as readonly { id: string }[]).map(p => p.id) : [])
+    const pages = new Set("pages" in book ? (pagesOf(book) as readonly { id: string }[]).map(p => p.id) : [])
     const things = touched.filter(id => !pages.has(id))
     const added = mailAdded(ctx, {
       mail: MAIL_PROPOSAL.id,

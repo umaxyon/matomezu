@@ -21,7 +21,7 @@ export function SlideSheet({ zoom, book, page }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const type = pageType(catalog, book.type)
   if (!type.slide) return null
-  if (slideIsBackground(type) && settingValue(catalog, book, page, BACKGROUND_PRINT) === "never") return null
+  if (slideIsBackground(type) && settingValue(catalog, page, BACKGROUND_PRINT) === "never") return null
   const offset = slideOffsetOf(catalog, book, page as ItemPage)
   return (
     <>

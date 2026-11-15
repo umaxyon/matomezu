@@ -10,6 +10,7 @@ import {
   type ShapeAddArgs,
   shapeDialogs,
   shapesOf,
+  shownPageId,
   toPaperDelta,
 } from "../../../plugin-api"
 import { amongSelected, type Edges, refusalMessage, resizedBy, shapeDefOf } from "../../base"
@@ -19,7 +20,7 @@ import type { Came } from "./drag"
 import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape } from "./items"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-export const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
+export const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
 export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
@@ -39,7 +40,7 @@ export const PAPER_PLACE = kit.defineCommand({
     const at = placeAt(ctx.toPaper, pointer)
     const point = ctx.toPaper(pointer)
     const book = pagedOf(ctx.book)
-    const page = book?.pages.find(p => p.id === stage.opened?.page)
+    const page = book?.pages.find(p => p.id === shownPageId(stage.opened ?? null))
     const placing = stage.placing
     const shape = placing && placingShape(ctx.catalog, placing.item, placing.props)
     if (!at || !point || !book || !page || !placing || !stage.opened || !shape) return
@@ -93,7 +94,7 @@ function editable(ctx: CommandContext): boolean {
   const target = ctx.contextMenu?.target as { item?: string } | undefined
   if (target?.item === undefined) return true
   if (amongSelected(ctx.stage.selection, target.item)) return false
-  const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+  const page = pagedOf(ctx.book)?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
   const placed = page && findShape(page, target.item)?.shape
   const def = placed && shapeDefOf(ctx.catalog, placed.item)
   return def ? shapeDialogs(def).edit !== undefined : false
@@ -107,7 +108,7 @@ export const PAPER_EDIT = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     const book = pagedOf(ctx.book) ?? null
     const found = book?.pages.find(p => p.id === page)
     const placed = found && findShape(found, item)?.shape
@@ -122,7 +123,7 @@ export const PAPER_EDIT = kit.defineCommand({
 
 // 選んでいる物が、開いているページのアイテム（どの深さの形も、つなぐものも）だけか（リストの行など、形の中の物が混じれば、ほかのコマンドの物）
 export function itemsSelected(ctx: CommandContext): boolean {
-  const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+  const page = pagedOf(ctx.book)?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
   const { selection } = ctx.stage
   if (!page || selection.length === 0) return false
   const connectors = new Set(connectorsOf(page).map(c => c.id))
@@ -149,7 +150,7 @@ export const PAPER_SELECT_ALL = kit.defineCommand({
   id: "paper-select-all",
   title: "Select all",
   run: (ctx, a) => {
-    const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+    const page = pagedOf(ctx.book)?.pages.find(p => p.id === shownPageId(ctx.stage.opened ?? null))
     if (!page) return
     const shapes = new Set(shapesOf(page).map(s => s.id))
     const connectors = connectorsOf(page).filter(c => shapes.has(c.from) && shapes.has(c.to))

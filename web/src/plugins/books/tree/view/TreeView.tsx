@@ -187,11 +187,11 @@ const Tree = memo(function Tree({
   const shape = settingValue(catalog, book ?? null, page ?? null, NODE_SHAPE)
   const lineShape = settingValue(catalog, book ?? null, page ?? null, LINE_SHAPE)
   // ページの増やす向き（可変ページでなければ undefined）
-  const growing = book && page ? growOf(catalog, book, page) : undefined
+  const growing = book && page ? growOf(catalog, page) : undefined
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた木を並べる
   const laid =
     book && page && shown
-      ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing }, shown)
+      ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
   useStageArea(laid && growing ? laidArea(paper, growing, laid, true).size : null, laidOrigin(laid))

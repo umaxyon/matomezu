@@ -297,10 +297,7 @@ function PageItems({
   const book = useBook()
   const followed = useFollowsSelection()
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
-  const room = useMemo(
-    () => (book && growOf(catalog, book, page) ? roomOf(catalog, book, page) : null),
-    [catalog, book, page],
-  )
+  const room = useMemo(() => (book && growOf(catalog, page) ? roomOf(catalog, page) : null), [catalog, book, page])
   useStageArea(room)
   // ブックで使えるつなぐもののビュー
   const connectors = (book ? bookItems(catalog, book) : []).flatMap(id => {
