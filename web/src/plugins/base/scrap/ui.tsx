@@ -98,7 +98,7 @@ function useScrapFrame() {
 // スクラップトレイを開く側が、左サイドパネルに渡すタブの組（スクラップトレイだけ）
 const scrapTrayEntries: readonly LeftSidePanelEntry[] = [{ tab: SCRAP_TRAY_TAB_ID, props: {} }]
 
-// スクラップトレイ（描いている場所は、開く側が名指した、置くステージ）。そのステージで置けないブックに替わったら閉じる
+// スクラップトレイ（描いている場所は、開いた所のステージ。そこに置く）。そのステージで置けないブックに替わったら閉じる
 function ScrapTrayView() {
   const t = useMessages(kit)
   const placeable = useScrapFrame() !== null

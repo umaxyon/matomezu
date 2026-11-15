@@ -1,4 +1,4 @@
-// ステージの列のスロットの名前（base の ui.tsx で、core/catalog.ts の SlotTable に書き足す）。どれも、そのステージの id を渡す
+// ステージの列のスロットの名前（base の ui.tsx で、core/catalog.ts の SlotTable に書き足す）。どれも、何も渡さない
 import { kit } from "../kit"
 
 export const STAGE_TOP = kit.name("stage-top")
