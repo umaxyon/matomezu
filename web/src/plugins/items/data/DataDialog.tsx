@@ -72,7 +72,6 @@ function DataDialog({
   start,
   startAxes,
   startText,
-  stage,
   onSubmit,
   onClose,
 }: {
@@ -118,7 +117,7 @@ function DataDialog({
       }
     >
       <Form id={form} ready={ok} onSubmit={() => setProblem(onSubmit(draft, axes, text) ? null : "fit")}>
-        <TextFields stage={stage} text={text} onChange={setText} />
+        <TextFields text={text} onChange={setText} />
         <AxesFields draft={draft} axes={axes} onChange={setAxes} />
         <div className={styles.grid}>
           <table>

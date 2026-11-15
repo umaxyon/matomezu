@@ -11,7 +11,7 @@ import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
-  useActions,
+  useActionsHere,
   useCoreCatalog,
   useItemAt,
   useMessages,
@@ -71,16 +71,16 @@ const EMPTY: ListProps = {
   checkedOrder: "none",
 }
 
-export function AddListDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
+export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const { select } = useActions()
+  const { select } = useActionsHere()
   const perform = usePerform()
   const add = (props: ListProps) => {
     if (!book) return { reason: "no-book" }
     const done = perform("@matomezu/paper:item-place", { ...args, item: LIST.id, props, crowd: "push" })
     if (!done.ok) return done
-    select(stage, [done.result.item])
+    select([done.result.item])
     onClose()
     return null
   }
@@ -103,7 +103,7 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
   const found = useItemAt(args.page, args.item, LIST.id)
-  const { previewDialog } = useActions()
+  const { previewDialog } = useActionsHere()
   const perform = usePerform()
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(

@@ -6,8 +6,7 @@ import { type RefObject, useEffect, useEffectEvent, useRef, useState } from "rea
 import type { Point } from "../../../core/geom"
 import { toPaper } from "../../../core/stage"
 import type { StageView } from "../../../core/workspace"
-import { useActions } from "../../../ui/store-context"
-import { useStagePan, useToPaper } from "../../../ui/view-hooks"
+import { useActionsHere, useStagePan, useToPaper } from "../../../ui/view-hooks"
 import { DRAG_START } from "./drag"
 import { edgePanner } from "./edge-pan"
 
@@ -25,7 +24,7 @@ export interface PaperDragWays {
 }
 
 export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | null>, ways: PaperDragWays = {}) {
-  const { panStageBy } = useActions()
+  const { panStageBy } = useActionsHere()
   const [state, setPress] = useState<PaperDrag | null>(null)
   const latest = useRef(state)
   latest.current = state
@@ -66,7 +65,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
         const r = area.current?.getBoundingClientRect()
         return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null
       },
-      (dx, dy) => panStageBy(id, dx, dy),
+      (dx, dy) => panStageBy(dx, dy),
     )
     const move = (e: PointerEvent) => {
       const d = latest.current

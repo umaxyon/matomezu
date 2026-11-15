@@ -22,7 +22,6 @@ export function TextBlockView({
   inner: number // 形の中の幅（枠と左右の余白の内側）
   least: number // 本文の列の一番狭い幅
   maxH: number // 塊に使える高さ
-  stage: string
   grips: boolean
   lineColor: string
   onBodyWidth: (width: number | null) => void

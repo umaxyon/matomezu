@@ -15,8 +15,8 @@
 import type { MouseEvent, ReactNode } from "react"
 import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useReadState } from "../../../ui/store-context"
-import { useAllowed } from "../../../ui/view-hooks"
+import { useReadState } from "../../../ui/store-context"
+import { useActionsHere, useAllowed } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -70,14 +70,14 @@ function useOpenNote(stage: string, note: string, anchors: readonly string[]) {
   const shown = useRightSidePanel(stage)
   const follows = useFollowsSelection(stage)
   const read = useReadState()
-  const { select } = useActions()
+  const { select } = useActionsHere()
   const anchor = anchors.at(-1) ?? ""
   const busy = !!shown && shown.subject !== note && shown.subject !== NEW_NOTE
   // 物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）
   const pick = (e: MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.blur()
     const now = stageIn(read().window, stage)?.selection ?? []
-    select(stage, pointedSelection(now, anchor, modPressed(e)))
+    select(pointedSelection(now, anchor, modPressed(e)))
   }
   const open = (e: MouseEvent<HTMLButtonElement>) =>
     follows

@@ -5,7 +5,7 @@
 import { useEffect, useId, useState } from "react"
 import {
   type DialogProps,
-  useActions,
+  useActionsHere,
   useAllowedOn,
   useCoreCatalog,
   useMessages,
@@ -60,7 +60,7 @@ function Settings({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const actions = useActions()
+  const actions = useActionsHere()
   const form = useId()
   const [tab, setTab] = useState<Tab>("general")
   const [name, setName] = useState(project.name)

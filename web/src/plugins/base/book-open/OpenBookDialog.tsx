@@ -4,7 +4,8 @@
 import { useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { useMatomezuState } from "../../../ui/store-context"
+import { useActionsHere } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { Choices, ChoiceText } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -12,8 +13,8 @@ import { BookSearch } from "./BookSearch"
 import { BOOK_TRASH } from "./book-trash"
 import { TrashList } from "./TrashList"
 
-export function OpenBookDialog({ stage, onClose }: DialogProps) {
-  const { openBook, perform } = useActions()
+export function OpenBookDialog({ onClose }: DialogProps) {
+  const { openBook, perform } = useActionsHere()
   const count = useMatomezuState(s => Object.keys(s.trash).length)
   const t = useMessages(kit)
   const [view, setView] = useState<"books" | "trash">("books")
@@ -38,7 +39,7 @@ export function OpenBookDialog({ stage, onClose }: DialogProps) {
         <BookSearch
           autoFocus
           onSelect={book => {
-            openBook(stage, book)
+            openBook(book)
             onClose()
           }}
           onTrash={book => perform(BOOK_TRASH.id, { book })}

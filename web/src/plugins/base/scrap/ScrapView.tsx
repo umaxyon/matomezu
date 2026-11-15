@@ -60,11 +60,9 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
     <div className={styles.frame} data-scrap="shown" style={frame}>
       <TracedContext.Provider value={inner}>
         <PageScope book={book.id} page={page.id} zoom={zoom * scale}>
-          {stage => (
-            <div className={styles.moved} style={{ transform: `scale(${scale}) translate(${-at.x}px, ${-at.y}px)` }}>
-              <DrawnSheet stage={stage} book={book} page={page} size={size} />
-            </div>
-          )}
+          <div className={styles.moved} style={{ transform: `scale(${scale}) translate(${-at.x}px, ${-at.y}px)` }}>
+            <DrawnSheet book={book} page={page} size={size} />
+          </div>
         </PageScope>
       </TracedContext.Provider>
     </div>
@@ -75,14 +73,12 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
 // 紙の見せ方などは、ページの広さ size を 1 つの印刷区画として描く。描く前に測る見せ方（printMeasure。マークダウンなど）は、見えない所で測ってから、
 // 測った数の印刷区画を紙の大きさで縦に並べる（広さは紙の幅 × 印刷区画の数の高さ。onSize で知らせる）
 export function DrawnSheet({
-  stage,
   book,
   page,
   size,
   onSize,
   children,
 }: {
-  stage: string
   book: Book
   page: Page
   size: Size
@@ -111,7 +107,7 @@ export function DrawnSheet({
       {Measure && paper && (
         <div className={styles.measure} aria-hidden="true">
           <Printing>
-            <Measure stage={stage} book={book} page={page} paper={paper} report={report} />
+            <Measure book={book} page={page} paper={paper} report={report} />
           </Printing>
         </div>
       )}
@@ -122,7 +118,6 @@ export function DrawnSheet({
             <SheetLayers
               // biome-ignore lint/suspicious/noArrayIndexKey: 印刷区画は上からの順で、並べ替えない
               key={row}
-              stage={stage}
               book={book}
               page={page}
               column={0}
@@ -132,7 +127,7 @@ export function DrawnSheet({
             />
           ))
         ) : (
-          <SheetLayers stage={stage} book={book} page={page} column={0} row={0} paper={size} />
+          <SheetLayers book={book} page={page} column={0} row={0} paper={size} />
         )}
       </Printing>
       {children}

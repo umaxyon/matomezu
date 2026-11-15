@@ -113,7 +113,7 @@ export function MarkdownView({ stage }: BookViewProps) {
     <div className={styles.markdown} data-split={split}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 右クリックのメニューはポインタの操作で、キーの操作はメニューとコマンドが受ける */}
       <div className={styles.bar} onContextMenu={menu}>
-        <LayoutButtons stage={stage} />
+        <LayoutButtons />
       </div>
       <div ref={panes} className={styles.panes}>
         {PANES.filter(pane => shown.includes(pane)).map(pane => {
@@ -150,7 +150,6 @@ export function MarkdownView({ stage }: BookViewProps) {
                 />
               ) : (
                 <Rendered
-                  stage={stage}
                   page={page.id}
                   document={document}
                   width={width}
@@ -196,7 +195,6 @@ function Rendered({
   followHit,
   onContextMenu,
 }: {
-  stage: string
   page: string
   document: MarkdownDocument
   width: number | undefined
@@ -304,18 +302,18 @@ function marksOf(el: HTMLElement, startOf: (mark: Element, i: number) => number)
 }
 
 // 上の行の右端の、並べ方の 4 つのボタン（今の並べ方のボタンは押した見た目）
-function LayoutButtons({ stage }: { stage: string }) {
+function LayoutButtons() {
   const t = useMessages(kit)
   return (
     <div className={styles.layouts} role="toolbar" aria-label={t("Panes")}>
       {PANE_LAYOUT_COMMANDS.map(c => (
-        <LayoutButton key={c.id} stage={stage} id={c.id} />
+        <LayoutButton key={c.id} id={c.id} />
       ))}
     </div>
   )
 }
 
-function LayoutButton({ id }: { stage: string; id: (typeof PANE_LAYOUT_COMMANDS)[number]["id"] }) {
+function LayoutButton({ id }: { id: (typeof PANE_LAYOUT_COMMANDS)[number]["id"] }) {
   const t = useMessages(kit)
   const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)

@@ -7,7 +7,7 @@
 // 押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）
 import { useEffect, useId, useState } from "react"
 import { type PageSettingsArgs, pagedOf, putPage, withSettings } from "../../../plugin-api"
-import { type DialogProps, useActions, useAllowed, useBook, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useActionsHere, useAllowed, useBook, useMessages, usePerform } from "../../../plugin-api/ui"
 import { BODY_MAX, changeWithLock } from "../../base"
 import {
   ActionButton,
@@ -28,14 +28,14 @@ import {
 import { kit } from "./kit"
 import { treeRootOf } from "./node"
 
-export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<PageSettingsArgs>) {
+export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettingsArgs>) {
   const t = useMessages(kit)
   const form = useId()
   const book = pagedOf(useBook())
   const page = book?.pages.find(p => p.id === args.page)
   const root = treeRootOf(page)
   const perform = usePerform()
-  const { previewDialog } = useActions()
+  const { previewDialog } = useActionsHere()
   const [title, setTitle] = useState(page?.title ?? "")
   const settings = useSettingControls(book, "page", page ?? null)
   const paper = usePaperControls(book, page ?? null)
@@ -114,15 +114,7 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
         </Field>
         <Field label={t("Root body")}>
           {fid => (
-            <RichBody
-              id={fid}
-              stage={stage}
-              label={t("Root body")}
-              rows={4}
-              maxLength={BODY_MAX}
-              value={body}
-              onChange={setBody}
-            />
+            <RichBody id={fid} label={t("Root body")} rows={4} maxLength={BODY_MAX} value={body} onChange={setBody} />
           )}
         </Field>
         <div className={rowClass}>

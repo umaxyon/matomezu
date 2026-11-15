@@ -18,7 +18,7 @@ import {
   slideOf,
 } from "../../../../plugin-api"
 import {
-  useActions,
+  useActionsHere,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -150,7 +150,7 @@ function SlidePageView({
   const catalog = useCoreCatalog()
   const followed = useFollowsSelection(stage.id)
   const toPaperAt = useToPaper()
-  const { select, setEditing, continueStep } = useActions()
+  const { select, setEditing, continueStep } = useActionsHere()
   const put = useCommand(SLIDE_PUT.id)
   const moveTo = useCommand(SLIDE_MOVE_TO.id)
   const reshape = useCommand(SLIDE_RESHAPE.id)
@@ -181,7 +181,7 @@ function SlidePageView({
   useEffect(() => {
     if (typeNext.current && selected && selected.item === TEXT) {
       typeNext.current = false
-      setEditing(stage.id, ADDED_EDIT)
+      setEditing(ADDED_EDIT)
     }
   }, [selected, stage.id, setEditing])
 
@@ -273,7 +273,6 @@ function SlidePageView({
     if (shape && additive) {
       // Shift・Ctrl（Mac は Command）を押しながら押すと、選びに足す・外す
       select(
-        stage.id,
         stage.selection.includes(shape.id)
           ? stage.selection.filter(i => i !== shape.id)
           : [...stage.selection, shape.id],
@@ -285,7 +284,7 @@ function SlidePageView({
     const grabbed = shape ?? (edge ? chosen.at(-1) : undefined)
     if (grabbed) {
       const group = stage.selection.includes(grabbed.id) ? chosen : [grabbed]
-      if (!stage.selection.includes(grabbed.id)) select(stage.id, [grabbed.id])
+      if (!stage.selection.includes(grabbed.id)) select([grabbed.id])
       if (followed || !moveTo.enabled) return
       capture()
       drag.current = {
@@ -299,7 +298,7 @@ function SlidePageView({
       return
     }
     // 何も無い所からドラッグ枠（Shift・Ctrl を押していれば、今の選びに足す）
-    if (!additive) select(stage.id, [])
+    if (!additive) select([])
     capture()
     drag.current = { kind: "dragFrame", pointer: e.pointerId, start: at, base: additive ? stage.selection : [] }
   }
@@ -356,11 +355,11 @@ function SlidePageView({
             at: { x: round(i.rect.x + moved.by.x), y: round(i.rect.y + moved.by.y) },
           })),
         })
-      } else if (d.items.length > 1) select(stage.id, [d.click]) // 複数を選んでいて、動かさずに離したら、押した物だけを選ぶ
+      } else if (d.items.length > 1) select([d.click]) // 複数を選んでいて、動かさずに離したら、押した物だけを選ぶ
     } else if (d.kind === "dragFrame") {
       if (swept && Math.hypot(swept.w, swept.h) >= CLICK / stage.zoom) {
         const hit = shapes.filter(s => touches(boundsOf(rectOf(s), rotationOf(s)), swept)).map(s => s.id)
-        select(stage.id, [...d.base, ...hit.filter(id => !d.base.includes(id))])
+        select([...d.base, ...hit.filter(id => !d.base.includes(id))])
       }
     } else if (d.kind === "point" && l?.points) {
       const shape = shapes.find(s => s.id === d.item)
@@ -400,7 +399,7 @@ function SlidePageView({
     const el = (e.target as Element).closest<HTMLElement>("[data-item]")
     const shape = el && shapes.find(s => s.id === el.dataset.item)
     if (!shape || followed) return
-    if (!stage.selection.includes(shape.id)) select(stage.id, [shape.id])
+    if (!stage.selection.includes(shape.id)) select([shape.id])
     openMenu(e, { item: shape.id })
   }
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -410,8 +409,8 @@ function SlidePageView({
       .find((n): n is HTMLElement => n instanceof HTMLElement && n.dataset.item !== undefined)
     const shape = el && shapes.find(s => s.id === el.dataset.item)
     if (shape?.item === TEXT && set.enabled && !followed) {
-      select(stage.id, [shape.id])
-      setEditing(stage.id, true)
+      select([shape.id])
+      setEditing(true)
     }
   }
 
@@ -484,7 +483,7 @@ function SlidePageView({
                   editing: editing === shape.id,
                   onCommit: (text, grown) => {
                     if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
-                    setEditing(stage.id, false)
+                    setEditing(false)
                     // 何も書かずに終えた文字枠は、何も言わずに消す（置いた直後なら、置いたことごと無かったことになる）
                     if (text === "") {
                       remove.run()
@@ -497,7 +496,7 @@ function SlidePageView({
                   onCancel: () => {
                     // やめても、文字が空のままの文字枠（置いた直後）は残さない
                     if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
-                    setEditing(stage.id, false)
+                    setEditing(false)
                     if ((shapeProps(shape).text ?? "") === "") remove.run()
                   },
                 }}

@@ -40,7 +40,6 @@ export function MarkLayer({ stage }: StageSlotProps) {
       {marks.map(m => (
         <MarkStand
           key={m.id}
-          stage={stage}
           id={m.id}
           anchor={m.anchors.at(-1) ?? ""}
           kind={(m.props as MarkProps).kind}
@@ -52,18 +51,7 @@ export function MarkLayer({ stage }: StageSlotProps) {
   )
 }
 
-function MarkStand({
-  id,
-  anchor,
-  kind,
-  addedAt,
-}: {
-  stage: string
-  id: string
-  anchor: string
-  kind: MarkKind
-  addedAt: string
-}) {
+function MarkStand({ id, anchor, kind, addedAt }: { id: string; anchor: string; kind: MarkKind; addedAt: string }) {
   const t = useMessages(kit)
   const run = usePerformOrToast("The mark was refused")
   const remove = () => run(MARK_REMOVE.id, { mark: id })

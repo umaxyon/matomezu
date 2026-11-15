@@ -27,7 +27,7 @@ import {
 import { paperOf, type StageView } from "../../../../plugin-api"
 import {
   type BookViewProps,
-  useActions,
+  useActionsHere,
   useAllowed,
   useCommand,
   useContextMenu,
@@ -117,7 +117,7 @@ const Rows = memo(function Rows({
   const book = useShownBook()
   const page = useShownPage()
   const perform = usePerform()
-  const { select, setEditing, showToast, continueStep } = useActions()
+  const { select, setEditing, showToast, continueStep } = useActionsHere()
   const toggle = useCommand(FOLDER_TOGGLE.id)
   const addFolder = useCommand(FOLDER_ADD.id)
   const addFile = useCommand(FILE_ADD.id)
@@ -176,14 +176,14 @@ const Rows = memo(function Rows({
     const todo = editEnd(dir, selected, commit ? text : null)
     if (todo.kind === "remove") {
       const next = afterRemove(dir, selected)
-      if (perform(ENTRY_REMOVE.id, { page: pageId, entry: selected }).ok && next) select(stage.id, [next])
+      if (perform(ENTRY_REMOVE.id, { page: pageId, entry: selected }).ok && next) select([next])
     }
     if (todo.kind === "rename") {
       const done = perform(ENTRY_UPDATE.id, { page: pageId, entry: selected, name: todo.name })
       if (!done.ok) refused(done) // 書けない字は書かず、元の名前のまま
     }
     setDraft(null)
-    setEditing(stage.id, false)
+    setEditing(false)
   }
   // 説明のその場の編集を終える（commit なら書いた字を確定する。することは edit.ts の noteEnd が決める）
   const endNote = (commit: boolean) => {
@@ -195,7 +195,7 @@ const Rows = memo(function Rows({
       if (!done.ok) refused(done)
     }
     setNoteDraft(null)
-    setEditing(stage.id, false)
+    setEditing(false)
   }
   // 書いている途中の名前か説明を確定する（入力Formが外れるより先に選びが替わるので、押したときに確定する）
   const settle = () => {
@@ -239,25 +239,24 @@ const Rows = memo(function Rows({
           onPointerDown={e => {
             if (e.button !== 0 || !usingPencil) return
             settle()
-            select(stage.id, [r.id])
+            select([r.id])
             if (r.id !== dir.id && movable) drag.start(r, e.clientX, e.clientY)
           }}
           onDoubleClick={() => {
             if (!usingPencil || !renamable) return
-            select(stage.id, [r.id])
-            setEditing(stage.id, true)
+            select([r.id])
+            setEditing(true)
           }}
           onContextMenu={e => {
             if (!usingPencil) return
             settle()
-            select(stage.id, [r.id])
+            select([r.id])
             openEntryMenu(e, {})
           }}
         />
       ))}
       {writing && at && (
         <RichBar
-          stage={stage.id}
           target={editor}
           className={styles.editorBar}
           style={{ left: nameLeft(at.x) - EDITOR_INSET, top: at.y }}
@@ -266,7 +265,6 @@ const Rows = memo(function Rows({
       {writing && at && (
         <RichInput
           ref={editor}
-          stage={stage.id}
           className={styles.editor}
           label={t("Name")}
           multiline={false}
@@ -300,12 +298,12 @@ const Rows = memo(function Rows({
             onPointerDown={e => {
               if (e.button !== 0) return
               settle()
-              select(stage.id, [r.id])
+              select([r.id])
             }}
             onDoubleClick={() => {
               if (!renamable) return
-              select(stage.id, [r.id])
-              setEditing(stage.id, NOTE_EDIT)
+              select([r.id])
+              setEditing(NOTE_EDIT)
             }}
           />
         ))}
@@ -324,17 +322,11 @@ const Rows = memo(function Rows({
           ) : null,
         )}
       {noting && notes && at && (
-        <RichBar
-          stage={stage.id}
-          target={editor}
-          className={styles.editorBar}
-          style={{ left: notes.x - EDITOR_INSET, top: at.y }}
-        />
+        <RichBar target={editor} className={styles.editorBar} style={{ left: notes.x - EDITOR_INSET, top: at.y }} />
       )}
       {noting && notes && at && (
         <RichInput
           ref={editor}
-          stage={stage.id}
           className={styles.editor}
           label={t("Description")}
           multiline={false}
@@ -375,10 +367,10 @@ const Rows = memo(function Rows({
         <KindPicker
           at={{ x: at.x + at.w + PLUS_GAP, y: at.y }}
           onPick={kind => {
-            setEditing(stage.id, false)
+            setEditing(false)
             ;(kind === "folder" ? addFolder : addFile).run()
           }}
-          onCancel={() => setEditing(stage.id, false)}
+          onCancel={() => setEditing(false)}
         />
       )}
       {usingPencil && !writing && !picking && !dragging && at && (

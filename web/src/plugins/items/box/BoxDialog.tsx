@@ -11,7 +11,7 @@ import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
-  useActions,
+  useActionsHere,
   useCoreCatalog,
   useItemAt,
   useMessages,
@@ -69,13 +69,13 @@ function AddBox({
 }: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const { select } = useActions()
+  const { select } = useActionsHere()
   const perform = usePerform()
   const add = (props: BoxProps) => {
     if (!book) return { reason: "no-book" }
     const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
     if (!done.ok) return done
-    select(stage, [done.result.item])
+    select([done.result.item])
     onClose()
     return null
   }
@@ -102,7 +102,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const nestBox = useItemAt(args.page, args.item, NEST_BOX.id)
   const start = (box ?? nestBox)?.props
   const hasChildren = (nestBox?.shapes?.length ?? 0) > 0
-  const { previewDialog } = useActions()
+  const { previewDialog } = useActionsHere()
   const perform = usePerform()
   const preview = useCallback(
     (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
@@ -143,7 +143,6 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
 }
 
 function BoxDialog({
-  stage,
   title,
   submit,
   start,
@@ -251,7 +250,7 @@ function BoxDialog({
           }
         />
         <DividerField text={text} onChange={setText} />
-        <BodyField stage={stage} text={text} onChange={setText} rows={4} />
+        <BodyField text={text} onChange={setText} rows={4} />
         <Field label={t("Theme")}>
           {id => (
             <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>

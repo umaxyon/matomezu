@@ -37,17 +37,14 @@ export function SheetFrame({
         <div className={styles.origin} style={{ left: -sheet.column * sheet.w, top: -sheet.row * sheet.h }}>
           <Printing>
             <PageScope book={book.id} page={page.id} zoom={zoom}>
-              {legacy => (
-                <SheetLayers
-                  stage={legacy}
-                  book={book}
-                  page={page}
-                  column={sheet.column}
-                  row={sheet.row}
-                  paper={{ w: sheet.w, h: sheet.h }}
-                  {...(measured !== undefined ? { measured } : {})}
-                />
-              )}
+              <SheetLayers
+                book={book}
+                page={page}
+                column={sheet.column}
+                row={sheet.row}
+                paper={{ w: sheet.w, h: sheet.h }}
+                {...(measured !== undefined ? { measured } : {})}
+              />
             </PageScope>
           </Printing>
         </div>

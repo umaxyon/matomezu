@@ -58,7 +58,6 @@ export function RichInput({
   data,
 }: {
   ref?: Ref<RichInputHandle>
-  stage: string // 文字の色を決めるブックを開いているステージ（ステージの外のダイアログでも、その色で描く）
   value: string
   onChange: (text: string) => void
   onCompose?: (text: string | null) => void // 変換中の字（確定する前）。変換を終えたら null

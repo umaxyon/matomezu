@@ -5,8 +5,8 @@ import { useLayoutEffect, useMemo } from "react"
 import { bookType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
 import { areaOf, paperOf } from "../../../core/stage"
-import { useActions, useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { useBook, usePage, useStage } from "../../../ui/view-hooks"
+import { useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useActionsHere, useBook, usePage, useStage } from "../../../ui/view-hooks"
 import { printAreaLines } from "../place/grow"
 import { startOf, unprintedSheets } from "../print-preview/book-sheets"
 import { sheetKey } from "../print-preview/filled"
@@ -71,7 +71,7 @@ export function PrintAreaLayer({ stage: id }: StageSlotProps) {
 // ステージに、初めの位置で表示領域の左上に置く紙の点（startOf。暗くしない印刷区画の左上）を知らせる。
 // ステージは開くたびに知らされた点を捨てるので、開いているもの（opened）が替わるたびにも知らせ直す（同じ点なら、ステージは変わらない）
 function useStartReport(id: string) {
-  const { setStageStart } = useActions()
+  const { setStageStart } = useActionsHere()
   const catalog = useCatalog().core
   const book = useBook(id)
   const page = usePage(id)
@@ -80,7 +80,7 @@ function useStartReport(id: string) {
   const x = start?.x
   const y = start?.y
   useLayoutEffect(() => {
-    if (x !== undefined && y !== undefined && opened?.paper) setStageStart(id, { x, y })
+    if (x !== undefined && y !== undefined && opened?.paper) setStageStart({ x, y })
   }, [setStageStart, id, x, y, opened])
 }
 

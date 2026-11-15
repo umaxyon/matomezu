@@ -21,7 +21,7 @@ import { type ItemProps, resolveTokens, toPaperDelta } from "../../../plugin-api
 import {
   type ItemViewProps,
   themeVars,
-  useActions,
+  useActionsHere,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -207,7 +207,7 @@ export function ListView({
       )
       if (next === "list") return
       e.stopPropagation()
-      select(stage, next)
+      select(next)
       // 選択に従う右サイドパネルを開いている間は、選ぶだけで行を運ばない
       if (mod || followed) return
       if (!moveRow.enabled || !canCarry({ props }, row)) return
@@ -237,10 +237,10 @@ export function ListView({
     },
     onPointerCancel: () => endCarry(false),
   })
-  const { select } = useActions()
+  const { select } = useActionsHere()
   const at = useStage()
   const selection = at?.selection ?? []
-  const followed = useFollowsSelection(stage)
+  const followed = useFollowsSelection(stage ?? "")
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
   const pans = at?.pans === true
   const stretch = useRef<Stretch | null>(null)
@@ -258,7 +258,7 @@ export function ListView({
       e.stopPropagation()
       e.currentTarget.setPointerCapture(e.pointerId)
       stretch.current = { pointer: e.pointerId, row, height, start: e.clientY }
-      select(stage, [row])
+      select([row])
     },
     onPointerMove: (e: PointerEvent<HTMLDivElement>) => {
       const st = stretch.current

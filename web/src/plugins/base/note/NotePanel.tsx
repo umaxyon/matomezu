@@ -39,7 +39,7 @@ export function NotePanel({ stage }: StageSlotProps) {
   return (
     <div className={styles.panel}>
       <Badges stage={stage} open={open} />
-      <Lost stage={stage} anchors={open.anchors} />
+      <Lost anchors={open.anchors} />
       {note ? (
         // 文が外で変わったら、テキストFormを新しい文で始め直す
         <NoteEditor
@@ -93,7 +93,7 @@ function Badge({ stage, id, current }: { stage: string; id: string; current: boo
 }
 
 // 付ける先の物がブックから消えたら（AI が消したなど）出す知らせ（閉じるまで出したまま）
-function Lost({ anchors }: { stage: string; anchors: readonly string[] }) {
+function Lost({ anchors }: { anchors: readonly string[] }) {
   const t = useMessages(kit)
   const book = useBook()
   const [lost, setLost] = useState(false)

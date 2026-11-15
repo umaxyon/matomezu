@@ -17,7 +17,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { useActions, useAllowed, usePerform, useUserSetting } from "../../../../plugin-api/ui"
+import { useActionsHere, useAllowed, usePerform, useUserSetting } from "../../../../plugin-api/ui"
 import type { MarkdownDocument } from "../../../base"
 import {
   SEARCH_CURRENT_HIGHLIGHT,
@@ -49,7 +49,7 @@ type Props = {
 
 export function SourcePane({ book, page, text, document, scrollRef, onScroll }: Props) {
   const perform = usePerform()
-  const { continueStep } = useActions()
+  const { continueStep } = useActionsHere()
   const allowed = useAllowed("@matomezu/base:page-update", { page })
   const tab = tabKeyText(useUserSetting(TAB_KEY.id))
   const numbered = useUserSetting(LINE_NUMBERS.id) === true

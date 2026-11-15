@@ -92,11 +92,9 @@ export function ScrapForm({
           {book && page && size ? (
             <>
               <PageScope book={book.id} page={page.id} zoom={fit}>
-                {stage => (
-                  <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
-                    <DrawnSheet stage={stage} book={book} page={page} size={size} onSize={setDrawn} />
-                  </div>
-                )}
+                <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
+                  <DrawnSheet book={book} page={page} size={size} onSize={setDrawn} />
+                </div>
               </PageScope>
               <div
                 className={styles.area}

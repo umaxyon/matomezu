@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
-import { type DialogProps, useActions, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useActionsHere, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
 import { ActionButton, BodyField, CaptionField, Dialog, DividerField, Form, rowClass, useBookOf } from "../../base/ui"
 import { ROW_ADD, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
@@ -40,7 +40,7 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const rows = useItemAt(args.page, args.list, LIST.id)?.children
   const start = rows?.find(r => r.id === args.row)?.props
   const perform = usePerform()
-  const { previewDialog } = useActions()
+  const { previewDialog } = useActionsHere()
   // 書いている行の項目を、リストの行に重ねて見せる
   const preview = useCallback(
     (text: Text | null) =>
@@ -81,7 +81,6 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
 }
 
 function RowDialog({
-  stage,
   title,
   submit,
   start,
@@ -135,7 +134,7 @@ function RowDialog({
       <Form id={form} ready={ready} onSubmit={() => onSubmit(text)}>
         <CaptionField text={text} onChange={setText} />
         <DividerField text={text} onChange={setText} />
-        <BodyField stage={stage} text={text} onChange={setText} rows={4} />
+        <BodyField text={text} onChange={setText} rows={4} />
         {onRemove && (
           <div className={rowClass}>
             <ActionButton danger onClick={onRemove}>

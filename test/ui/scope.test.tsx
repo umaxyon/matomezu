@@ -23,7 +23,6 @@ import {
   usePage,
   usePerform,
   usePluginState,
-  useScreenId,
   useSetPluginState,
   useStage,
   useStageArea,
@@ -92,7 +91,7 @@ function Sheet({ book }: { book: ReturnType<ReturnType<typeof setup>["bookOf"]> 
   return (
     <div data-sheet style={look}>
       <Printing>
-        <SheetLayers stage={useScreenId()} book={book} page={book.pages[0]!} column={0} row={0} paper={SIZE} />
+        <SheetLayers book={book} page={book.pages[0]!} column={0} row={0} paper={SIZE} />
       </Printing>
     </div>
   )

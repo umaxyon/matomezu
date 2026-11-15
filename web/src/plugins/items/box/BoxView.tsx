@@ -16,7 +16,7 @@ import { boxTextArea, vAlignOf } from "./size"
 
 type BoxProps = ItemProps<typeof BOX.id>
 
-export function BoxView({ props, size, hasChildren, id, stage }: ItemViewProps<BoxProps>) {
+export function BoxView({ props, size, hasChildren, id }: ItemViewProps<BoxProps>) {
   const theme = props.theme
   const vars = useThemeVars(theme, BOX_TOKENS)
   const at = useStage()
@@ -34,7 +34,6 @@ export function BoxView({ props, size, hasChildren, id, stage }: ItemViewProps<B
         <TextBlockView
           props={props}
           {...boxTextArea(size)}
-          stage={stage}
           grips={grips}
           lineColor="var(--box-line)"
           onBodyWidth={bodyWidth => {

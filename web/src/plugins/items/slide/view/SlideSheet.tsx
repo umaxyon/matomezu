@@ -17,7 +17,7 @@ import styles from "./SlideSheet.module.css"
 
 type ShapeView = (p: ItemViewProps<PlacedShape["props"]>) => ReactNode
 
-export function SlideSheet({ stage: id, zoom, book, page }: PrintSheetProps) {
+export function SlideSheet({ zoom, book, page }: PrintSheetProps) {
   const catalog = useCoreCatalog()
   const type = bookType(catalog, book.type)
   if (!type.slide) return null
@@ -26,24 +26,14 @@ export function SlideSheet({ stage: id, zoom, book, page }: PrintSheetProps) {
   return (
     <>
       {slideOf(page as ItemPage).map(shape => (
-        <SheetShape key={shape.id} shape={shape} offset={offset} stage={id} zoom={zoom} />
+        <SheetShape key={shape.id} shape={shape} offset={offset} zoom={zoom} />
       ))}
     </>
   )
 }
 
 // アイテム 1 つ（そのアイテムのプラグインのテーマキー --<名前> を、描く要素に置く）
-function SheetShape({
-  shape,
-  offset,
-  stage,
-  zoom,
-}: {
-  shape: PlacedShape
-  offset: Point
-  stage: string
-  zoom: number
-}) {
+function SheetShape({ shape, offset, zoom }: { shape: PlacedShape; offset: Point; zoom: number }) {
   const ui = useUiCatalog()
   const tokens = useTokenScope(shape.item)
   const View = ui.items.get(shape.item)?.view as ShapeView | undefined
@@ -61,17 +51,7 @@ function SheetShape({
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {View && (
-        <View
-          props={shape.props}
-          size={size}
-          id={shape.id}
-          stage={stage}
-          content={{}}
-          zoom={zoom}
-          hasChildren={false}
-        />
-      )}
+      {View && <View props={shape.props} size={size} id={shape.id} content={{}} zoom={zoom} hasChildren={false} />}
     </div>
   )
 }

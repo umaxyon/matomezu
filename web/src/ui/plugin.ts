@@ -41,7 +41,7 @@ export type ItemViewProps<Props, Content = Readonly<Record<string, unknown>>> = 
   content: Content
   zoom: number
   hasChildren: boolean // 子の形を 1 つ以上持っているか（子はビューの外で、子の領域に描く）
-} & LegacyStageProps // stage は橋渡しの間だけ
+} & Partial<LegacyStageProps> // stage は橋渡しの間だけ（渡さなくてよい）
 
 // アイテムのビューは、そのアイテムの項目（props）のデータを受け取る
 export interface ItemUi<Props = never, Content = never> {

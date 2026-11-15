@@ -9,8 +9,8 @@ import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useActionsHere, useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, Form } from "../dialog-host/FormParts"
@@ -39,7 +39,7 @@ import { SCRAP_TRAY_TAB_ID } from "./tab-id"
 export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const { perform, showToast } = useActions()
+  const { perform, showToast } = useActionsHere()
   const openPanel = useOpenLeftSidePanel()
   const placeable = useScrapFrame() !== null
   const start = useMatomezuState(
@@ -122,10 +122,10 @@ function ScrapTrayView({ stage }: { stage: string }) {
 // 一覧の絵の幅（px）
 const THUMB_W = 220
 
-function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) {
+function Row({ id, scrap }: { stage: string; id: string; scrap: Scrap }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const { perform, togglePlacing, showToast } = useActions()
+  const { perform, togglePlacing, showToast } = useActionsHere()
   const view = useStage()
   const frame = useScrapFrame()
   const placing = view?.placing
@@ -155,7 +155,7 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
         aria-pressed={pressed}
         disabled={frame === null}
         title={label}
-        onClick={() => frame && togglePlacing(stage, frame, toPlace)}
+        onClick={() => frame && togglePlacing(frame, toPlace)}
       >
         <span className={styles.thumb} style={{ width: size.w * fit, height: size.h * fit }}>
           <span className={styles.scaled} style={{ transform: `scale(${fit})` }}>

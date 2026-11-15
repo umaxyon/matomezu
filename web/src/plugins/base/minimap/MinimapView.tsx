@@ -10,8 +10,8 @@ import { toolSetOf } from "../../../core/tools"
 import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useActionsHere, useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { kit } from "../kit"
 import { TOOL_SET } from "../tool-picker"
@@ -39,7 +39,7 @@ export function MinimapView({
   const book = useShownBook(id) // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
   const page = useShownPage(id)
   const held = keepsPan(catalog, useStage(id)?.tool ?? null)
-  const { panStageBy, focusStage } = useActions()
+  const { panStageBy, focusStage } = useActionsHere()
   const toolSet = useCommand(id, TOOL_SET.id)
   const latest = useRef(stage)
   latest.current = stage
@@ -66,13 +66,13 @@ export function MinimapView({
     const s = latest.current
     if (!s) return
     const want = panFor(to, s.zoom)
-    panStageBy(id, want.x - s.pan.x, want.y - s.pan.y)
+    panStageBy(want.x - s.pan.x, want.y - s.pan.y)
   }
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    focusStage(id)
+    focusStage()
     if (!seen) return
     if (held) {
       const set = stage ? toolSetOf(catalog, stage) : null

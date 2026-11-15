@@ -15,7 +15,6 @@ export function RichBar({
   className,
   style,
 }: {
-  stage: string // 色を決めるブックを開いているステージ
   target: RefObject<RichInputHandle | null>
   className?: string
   style?: CSSProperties

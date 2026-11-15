@@ -7,7 +7,6 @@ import { RichInput, type RichInputHandle } from "./RichInput"
 
 export function RichBody({
   id,
-  stage,
   label,
   value,
   rows,
@@ -15,7 +14,6 @@ export function RichBody({
   onChange,
 }: {
   id: string
-  stage: string // 色を決めるブックを開いているステージ
   label: string
   value: string
   rows: number
@@ -25,10 +23,9 @@ export function RichBody({
   const ref = useRef<RichInputHandle>(null)
   return (
     <div className={styles.joined}>
-      <RichBar stage={stage} target={ref} className={styles.top} />
+      <RichBar target={ref} className={styles.top} />
       <RichInput
         ref={ref}
-        stage={stage}
         id={id}
         label={label}
         multiline

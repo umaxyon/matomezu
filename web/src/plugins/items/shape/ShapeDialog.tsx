@@ -8,7 +8,7 @@ import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
-  useActions,
+  useActionsHere,
   useBook,
   useCoreCatalog,
   useItemAt,
@@ -45,19 +45,19 @@ const EMPTY: ShapeProps = { caption: "", captionAlign: "center" }
 
 // 形 item を置く追加のダイアログ。回せる形（turnable）は、ブックのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
 export function addShapeDialog(item: string, turnable = false) {
-  return function AddShapeDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
+  return function AddShapeDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf()
     const bookTheme = useBookTheme(book)
     const catalog = useCoreCatalog()
     const opened = useBook()
     const turned = opened ? startTurned(catalog, opened, args.page, item) : false
-    const { select } = useActions()
+    const { select } = useActionsHere()
     const perform = usePerform()
     const add = (props: ShapeProps) => {
       if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
       if (!done.ok) return done
-      select(stage, [done.result.item])
+      select([done.result.item])
       onClose()
       return null
     }
@@ -82,7 +82,7 @@ export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; i
   // 回せる形は、向きの切り替えを出す（向きを書いていないデータは縦向き）
   const props = placed?.props as ShapeProps | undefined
   const start = props && placed && TURNABLE.includes(placed.item) ? { ...props, turned: props.turned ?? false } : props
-  const { previewDialog } = useActions()
+  const { previewDialog } = useActionsHere()
   const perform = usePerform()
   const preview = useCallback(
     (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),

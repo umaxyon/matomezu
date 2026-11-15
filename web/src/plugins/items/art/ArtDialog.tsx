@@ -6,7 +6,7 @@ import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
-  useActions,
+  useActionsHere,
   useCoreCatalog,
   useItemAt,
   useMessages,
@@ -36,16 +36,16 @@ type ArtProps = ItemProps<typeof PERSON.item.id>
 
 // 絵 item を置く追加のダイアログ
 export function addArtDialog(item: string) {
-  return function AddArtDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
+  return function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf()
     const bookTheme = useBookTheme(book)
-    const { select } = useActions()
+    const { select } = useActionsHere()
     const perform = usePerform()
     const add = (props: ArtProps) => {
       if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
       if (!done.ok) return done
-      select(stage, [done.result.item])
+      select([done.result.item])
       onClose()
       return null
     }
@@ -68,7 +68,7 @@ export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; ite
   const bookTheme = useBookTheme(book)
   const placed = useItemAt(args.page, args.item)
   const start = placed?.props as ArtProps | undefined
-  const { previewDialog } = useActions()
+  const { previewDialog } = useActionsHere()
   const perform = usePerform()
   const preview = useCallback(
     (color: ArtProps["color"] | null) =>

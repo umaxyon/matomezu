@@ -45,7 +45,7 @@ import {
   type ItemViewProps,
   type ShapeScene,
   TokenScope,
-  useActions,
+  useActionsHere,
   useBook,
   useCommand,
   useContextMenu,
@@ -119,7 +119,7 @@ export function PaperView({ stage: id }: BookViewProps) {
   const stage = useStage(id)
   const openMenu = useContextMenu(id, PAPER_CONTEXT)
   const place = useCommand(id, PAPER_PLACE.id)
-  const { select } = useActions()
+  const { select } = useActionsHere()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage?.placing != null
@@ -151,7 +151,7 @@ export function PaperView({ stage: id }: BookViewProps) {
     if (!a || !b) return
     const r = sweptBox(a, b)
     setBox(r)
-    select(id, sweptSelection(sw.base, sweptItems(catalog, page, r), sw.mod))
+    select(sweptSelection(sw.base, sweptItems(catalog, page, r), sw.mod))
   }
   const endSweep = (e: PointerEvent<HTMLDivElement>) => {
     if (sweep.current?.pointer !== e.pointerId) return
@@ -168,7 +168,7 @@ export function PaperView({ stage: id }: BookViewProps) {
     if (pans || (e.target as Element).closest("[data-item]")) return
     // 何も無い所を押すと選択を外す（Mod なら選択はそのまま）。選択の道具なら、そこから範囲のドラッグを始める
     const mod = modPressed(e)
-    if (!mod) select(id, [])
+    if (!mod) select([])
     if (stage?.tool !== "@matomezu/base:select") return
     sweep.current = {
       pointer: e.pointerId,
@@ -314,7 +314,7 @@ function PageItems({
   const [target, setTarget] = useState<string | null | undefined>(undefined)
   const edit = useCommand(PAPER_EDIT.id)
   const openMenu = useContextMenu(ITEM_CONTEXT)
-  const { select } = useActions()
+  const { select } = useActionsHere()
   const toPaperAt = useToPaper()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
@@ -336,7 +336,7 @@ function PageItems({
     const press = reparenting
       ? { now: [id], drag: [id], release: null }
       : pressSelection(page, stage.selection, id, { mod: modPressed(e), followed })
-    select(stage.id, press.now)
+    select(press.now)
     if (followed) return
     const items = shapesIn(page, press.drag)
     // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
@@ -389,7 +389,7 @@ function PageItems({
     setMoved(null)
     setTarget(undefined)
     settled.current = new Set(d.items)
-    if (drop && !d.travelled && d.release) select(stage.id, d.release)
+    if (drop && !d.travelled && d.release) select(d.release)
     if (!drop || !d.movable || !moved || (moved.x === 0 && moved.y === 0)) return
     if (d.reparent) reparent.run({ item: d.items[0] as string, parent: target ?? null, by: moved })
     else move.run({ items: d.items, by: moved, came: d.came })
@@ -511,12 +511,12 @@ function PageItems({
       onPointerCancel={e => endDrag(e, false)}
       onDoubleClick={() => {
         if (pans || stage.placing !== null) return
-        select(stage.id, [item.id])
+        select([item.id])
         edit.run({ item: item.id })
       }}
       onContextMenu={e => {
         if (stage.placing !== null) return
-        if (!stage.selection.includes(item.id)) select(stage.id, [item.id])
+        if (!stage.selection.includes(item.id)) select([item.id])
         openMenu(e, { item: item.id })
       }}
     />

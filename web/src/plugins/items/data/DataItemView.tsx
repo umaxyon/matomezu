@@ -20,13 +20,7 @@ import type { Table } from "./table"
 
 type DataProps = ItemProps<typeof DATA.id>
 
-export function DataItemView({
-  props,
-  content,
-  size,
-  stage,
-  id,
-}: ItemViewProps<DataProps, { readonly table?: Table }>) {
+export function DataItemView({ props, content, size, id }: ItemViewProps<DataProps, { readonly table?: Table }>) {
   const t = useMessages(kit)
   const vars = useThemeVars(props.theme, DATA_TOKENS)
   const at = useStage()
@@ -43,7 +37,6 @@ export function DataItemView({
         inner={areas.text.inner}
         least={areas.text.least}
         maxH={areas.text.maxH}
-        stage={stage}
         grips={grips}
         lineColor="var(--data-line)"
         onBodyWidth={bodyWidth => {
@@ -55,7 +48,7 @@ export function DataItemView({
   let body: ReactNode
   if (!table) body = <div className={styles.noData}>{t("No Data")}</div>
   else if (props.view !== "table")
-    body = <ChartView table={table} props={props} size={areas.content} stage={stage} id={id} motion={motion} />
+    body = <ChartView table={table} props={props} size={areas.content} id={id} motion={motion} />
   else body = <TableView table={table} />
   return (
     <div

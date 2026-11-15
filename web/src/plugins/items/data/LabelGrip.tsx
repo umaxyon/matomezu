@@ -17,7 +17,6 @@ export function LabelGrip({
 }: {
   c: CartesianLayout
   size: Size
-  stage: string
   id: string
   onDrag: (labelSize: number | undefined) => void // ドラッグの間の大きさ（離せば undefined）
 }) {

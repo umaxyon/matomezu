@@ -8,7 +8,7 @@ import { useCallback, useEffect, useId, useState } from "react"
 import { findShape, type MessageKey, pagedOf } from "../../../plugin-api"
 import {
   type DialogProps,
-  useActions,
+  useActionsHere,
   useBook,
   useCoreCatalog,
   useItemAt,
@@ -70,7 +70,7 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   const drawing = useBook()
   const page = (drawing && pagedOf(drawing)?.pages.find(p => p.id === args.page)) || undefined
   const line = useItemAt(args.page, args.item, LINE.id)
-  const { previewDialog } = useActions()
+  const { previewDialog } = useActionsHere()
   const perform = usePerform()
   const elbow = drawing && page ? elbowAt(catalog, drawing, page) : true
   const startRoute: LineRoute = line?.props.route ?? (elbow ? "elbow" : "straight")

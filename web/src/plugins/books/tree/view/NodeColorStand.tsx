@@ -3,7 +3,7 @@
 // 子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）で塗る（useNodeWrite）。塗れなければ（ロックなど）色は押せない形で出す。
 // 断られたら、トーストで知らせる。外を押すと閉じ（好きな色を選んでいれば塗る）、Esc は塗らずに閉じる
 import { useEffect, useRef, useState } from "react"
-import { useActions, useCoreCatalog, useMessages } from "../../../../plugin-api/ui"
+import { useActionsHere, useCoreCatalog, useMessages } from "../../../../plugin-api/ui"
 import { refusalMessage } from "../../../base"
 import { ColorPicker, Stand, type Swatch } from "../../../base/ui"
 import { kit } from "../kit"
@@ -11,7 +11,6 @@ import styles from "./NodeColorStand.module.css"
 import { useNodeWrite } from "./useNodeWrite"
 
 export function NodeColorStand({
-  stage,
   page,
   node,
   isRoot,
@@ -27,7 +26,7 @@ export function NodeColorStand({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const { setEditing, showToast } = useActions()
+  const { setEditing, showToast } = useActionsHere()
   const { allowed, write } = useNodeWrite(page, isRoot)
   const [picked, setPicked] = useState<{ color: string | undefined } | null>(null) // 好きな色で選んでいる色（閉じるときに塗る）
   const ref = useRef<HTMLDivElement>(null)
@@ -39,13 +38,13 @@ export function NodeColorStand({
     const done = paint(next)
     if (!done.ok)
       showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
-    setEditing(stage, false)
+    setEditing(false)
   }
   // 閉じる（好きな色を選んでいれば、その色で塗る）
   const close = () => {
     const p = pending.current
     if (p && p.color !== color) choose(p.color)
-    else setEditing(stage, false)
+    else setEditing(false)
   }
 
   // 外を押すと閉じ、Esc は選んでいた好きな色を塗らずに閉じる（好きな色のポップアップの中も、このスタンドの中）
@@ -56,7 +55,7 @@ export function NodeColorStand({
       close()
     }
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setEditing(stage, false)
+      if (e.key === "Escape") setEditing(false)
     }
     document.addEventListener("pointerdown", down, true)
     window.addEventListener("keydown", key)

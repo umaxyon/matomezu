@@ -35,21 +35,19 @@ function Thumbnail({ book, page }: { book: PagedBook; page: Page }) {
   const scale = width / size.w
   return (
     <PageScope book={book.id} page={page.id} zoom={scale || 1}>
-      {stage => <ThumbnailFrame stage={stage} book={book} page={page} size={size} scale={scale} onWidth={setWidth} />}
+      <ThumbnailFrame book={book} page={page} size={size} scale={scale} onWidth={setWidth} />
     </PageScope>
   )
 }
 
 // 紙の大きさ（無ければ 16:9）のままのビューを、一覧の幅に合わせて縮める
 function ThumbnailFrame({
-  stage,
   book,
   page,
   size,
   scale,
   onWidth,
 }: {
-  stage: string
   book: PagedBook
   page: Page
   size: Size
@@ -64,7 +62,7 @@ function ThumbnailFrame({
       {scale > 0 && (
         <div className={styles.scaled} style={{ width: size.w, height: size.h, transform: `scale(${scale})` }}>
           <Printing>
-            <SheetLayers stage={stage} book={book} page={page} column={0} row={0} paper={size} />
+            <SheetLayers book={book} page={page} column={0} row={0} paper={size} />
           </Printing>
         </div>
       )}
