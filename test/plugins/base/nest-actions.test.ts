@@ -330,7 +330,6 @@ function besideEdge(x = 460, own = 200) {
   const big = place(store, { at: { x, y: 40 }, w: own, h: 100 })!
   place(store, { at: { x: 20, y: 40 }, parent: big, w: 300, h: 600 })
   place(store, { at: { x: 340, y: 40 }, parent: big, w: 300, h: 600 })
-  const book = store.state.getState().books.b1 as Book
   const paper = roomOf(CORE_CATALOG, page(store))!
   return { store, big, paper }
 }
@@ -429,10 +428,10 @@ test("空きの格子: 子の領域では必ず見つかり（行が下へ増え
   const store = newStore()
   const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
   for (const x of [0, 108]) place(store, { at: { x: O.x + x, y: O.y }, parent: a, w: 100, h: 60 })
-  const frame = frameOf(CORE_CATALOG, drawing(store), page(store), a)!
+  const frame = frameOf(CORE_CATALOG, page(store), a)!
   // 兄弟 2 つと置く形で 3 つ: 列は 2、空いた目は 2 行目の左
   expect(freeSpotIn(frame, { w: 100, h: 60 })).toEqual({ x: 0, y: 68 })
-  const paper = frameOf(CORE_CATALOG, drawing(store), page(store), null)!
+  const paper = frameOf(CORE_CATALOG, page(store), null)!
   expect(freeSpotIn(paper, { w: paper.paper.w, h: paper.paper.h })).toBeNull()
 })
 
@@ -511,7 +510,6 @@ test("押し方を渡さずに動かすと、正面の形と入れ替わるな�
 test("座標を渡さずに置くとき、紙に空きが無ければ断る", () => {
   const store = newStore()
   place(store, { at: { x: 500, y: 300 }, w: 100, h: 60 })
-  const book = store.state.getState().books.b1 as Book
   const paper = roomOf(CORE_CATALOG, page(store))!
   const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: paper.w, h: paper.h })
   expect((done as { detail?: string }).detail).toStartWith("there is no free spot for it")

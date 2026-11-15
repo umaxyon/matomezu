@@ -8,6 +8,7 @@ import { perform } from "../../../../web/src/core/perform"
 import { shapesOf } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { rectsOf } from "../../../../web/src/plugins/base"
+import { ownSettings } from "../../../../web/src/plugins/base/book-settings"
 import { GAP } from "../../../../web/src/plugins/base/place/push"
 import { alignedEndsOf } from "../../../../web/src/plugins/items/line/drawn"
 import { elbowAt, usesLines } from "../../../../web/src/plugins/items/line/line"
@@ -219,7 +220,7 @@ test("@matomezu/base:page-update（ページの設定の項目 lineRoute）: ペ
       { book: "b1" },
     )
   expect(pageUpdate("straight").ok).toBe(true)
-  expect(page(store).settings?.["@matomezu/line:line-route"]).toBe("straight")
+  expect(ownSettings(page(store))["@matomezu/line:line-route"]).toBe("straight")
   expect(lines(store)[0]!.props).toEqual(ends)
   expect(pageUpdate(null).ok).toBe(true)
   expect("settings" in page(store)).toBe(false)
@@ -244,14 +245,13 @@ test("整列の位置: 横に並ぶ箱どうしは、向き合う辺の重なる
   expect(alignedEndsOf(lines(store)[0]!, rectsOf(CORE_CATALOG, page(store)), true)).toBeNull()
 })
 
-test("線の既定の通り方は、ページ → ブック → 折れ線の順に決まる。ブックを直線にすると（@matomezu/base:book-update の設定の項目）、ページの既定の無いページの線が直線になり、引けなくなった via を消す", () => {
+test("線の既定の通り方は、ページ → 折れ線の順に決まる。全部のページを直線にすると（@matomezu/base:pages-update）、そのページの線が直線になり、引けなくなった via を消す", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 300)
   const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
   connect(store, "n1", "n2", { ...ends, via: [300] })
-  const book = () => store.state.getState().books.b1 as Book
-  const elbow = () => elbowAt(CORE_CATALOG, book(), page(store))
+  const elbow = () => elbowAt(CORE_CATALOG, page(store))
   expect(elbow()).toBe(true)
   expect(
     store.actions.perform(
@@ -260,34 +260,20 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
       { book: "b1" },
     ).ok,
   ).toBe(true)
-  expect(book().settings?.["@matomezu/line:line-route"]).toBe("straight")
+  expect(ownSettings(page(store))["@matomezu/line:line-route"]).toBe("straight")
   expect(elbow()).toBe(false)
   expect(lines(store)[0]!.props).toEqual(ends)
-  // ページの既定はブックより先
-  store.actions.perform(
-    "@matomezu/base:page-update",
-    { page: "p1", settings: { "@matomezu/line:line-route": "elbow" } },
-    { book: "b1" },
-  )
-  expect(elbow()).toBe(true)
+  // 値を外せば、設定の既定（折れ線）に戻る
   store.actions.perform(
     "@matomezu/base:page-update",
     { page: "p1", settings: { "@matomezu/line:line-route": null } },
     { book: "b1" },
   )
-  expect(elbow()).toBe(false)
-  expect(
-    store.actions.perform(
-      "@matomezu/base:pages-update",
-      { pages: "all", settings: { "@matomezu/line:line-route": null } },
-      { book: "b1" },
-    ).ok,
-  ).toBe(true)
-  expect("settings" in book()).toBe(false)
   expect(elbow()).toBe(true)
+  expect("settings" in page(store)).toBe(false)
 })
 
-test("線と線の既定の通り方を選ばないタイプのブックでは、線を引けず、線の既定の通り方も変えられない", () => {
+test("線と線の既定の通り方を選ばないタイプのページでは、線を引けず、線の既定の通り方も変えられない", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
@@ -302,7 +288,7 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
             items: {
               allowed: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list"],
             },
-            settings: {},
+            settings: [],
           }
         : t,
     ),
@@ -315,8 +301,8 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
     now: "2026-10-26T00:00:00.000Z",
     actor: USER,
   }
-  expect(usesLines(CORE_CATALOG, book)).toBe(true)
-  expect(usesLines(noLines, book)).toBe(false)
+  expect(usesLines(CORE_CATALOG, pagesOf(book)[0]!)).toBe(true)
+  expect(usesLines(noLines, pagesOf(book)[0]!)).toBe(false)
   expect(perform(book, "@matomezu/line:line-connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)
   expect(
     perform(
