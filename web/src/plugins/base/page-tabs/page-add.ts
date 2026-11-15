@@ -13,6 +13,7 @@ import {
   lineupIds,
   lineupOf,
   newPage,
+  pagesIn,
   putPage,
   withSettings,
 } from "../../../core/book"
@@ -70,7 +71,7 @@ export function withNewPage(
   if ((type.grouping === "own-folder") !== (args.into !== undefined)) return null
   const folder = args.into && "folder" in args.into ? findFolder(book, args.into.folder) : undefined
   if (args.into && "folder" in args.into && folder?.pageType !== type.id) return null
-  const size = folder ? folder.lineup.length : args.into ? 0 : lineupOf(book).length
+  const size = folder ? pagesIn(book, folder.id).length : args.into ? 0 : lineupOf(book).length
   const at = args.into && "newFolder" in args.into ? undefined : args.index
   if (at !== undefined && at > size) return null
   if (args.into && "newFolder" in args.into && args.index !== undefined && args.index > lineupOf(book).length)

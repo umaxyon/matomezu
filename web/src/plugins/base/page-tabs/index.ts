@@ -1,7 +1,7 @@
 // ページ: ページを作る・開くコマンドと、ページを作るダイアログ（作るものはダイアログで決める）。ページの設定のダイアログと、それを開くコマンド。
 // ページを作るダイアログとページの設定のダイアログは、ページのタイプが自分のものにできる（dialogs。行うアクションは同じ page-add・page-update）
 
-import { findPage } from "../../../core/book"
+import { findPage, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { editingBackground, openedPage } from "../../../core/stage"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
@@ -104,7 +104,7 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
     const { book } = ctx
     const at = book ? findPage(book, page) : undefined
     if (!book || !at) return
-    const siblings = at.folder ? at.folder.lineup : book.lineup
+    const siblings = siblingsOf(book, page) ?? []
     const index = siblings.findIndex(e => e.id === page) + 1
     const done = a.perform(
       PAGE_ADD.id,

@@ -126,7 +126,8 @@ function typesAt(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where 
         : def.target === "annotations"
           ? pages
           : null
-  if (named === null) return null
+  // 名指したページ・物がブックに無ければ、ここでは決めない（ブック全体として問い、無い物は run が断る）
+  if (named === null || (named.length === 0 && def.target !== "annotations")) return null
   return [...new Set(named.map(p => p.type))].map(t => pageType(catalog, t))
 }
 

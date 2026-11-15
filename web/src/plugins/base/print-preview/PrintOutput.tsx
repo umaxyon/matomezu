@@ -4,7 +4,7 @@
 import { createPortal } from "react-dom"
 import type { PageTypeId } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
-import { usePageLookStyle } from "../book-look/use-book-look-style"
+import { usePageLookStyle } from "../book-look/use-page-look-style"
 import styles from "./PrintOutput.module.css"
 import { pageNameOf, pageRules, type SheetLabels } from "./print-pages"
 import { type SheetAt, SheetFrame } from "./SheetFrame"

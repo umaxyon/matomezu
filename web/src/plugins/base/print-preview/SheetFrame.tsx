@@ -3,7 +3,7 @@
 // 名前（ブック名とページ名。左上）と印刷区画の番号（下の真ん中）を中身の上に重ねる。印刷プレビューの画面と、刷る物の両方が使う（外の枠は使う側が置く）
 import type { Book, Page } from "../../../core/schema/book"
 import { PageScope } from "../../../ui/scope"
-import { PageLook } from "../book-look/use-book-look-style"
+import { PageLook } from "../book-look/use-page-look-style"
 import styles from "./PrintPreviewView.module.css"
 import type { SheetLabels } from "./print-pages"
 import { Printing } from "./printing"

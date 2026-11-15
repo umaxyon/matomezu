@@ -6,7 +6,7 @@ import { useTokenScope } from "../../../ui/theme-vars"
 import { useShownPage } from "../../../ui/view-hooks"
 import { textColorVars } from "../text"
 import { useTextColors } from "../text/use-text-colors"
-import { usePageThemeVars } from "./use-book-theme-vars"
+import { usePageThemeVars } from "./use-page-theme-vars"
 
 // 描いているページの見た目の CSS 変数（ページを描いていなければ空）
 export function usePageLookStyle(): CSSProperties {

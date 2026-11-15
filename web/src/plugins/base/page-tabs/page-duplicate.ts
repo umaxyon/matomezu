@@ -3,7 +3,7 @@
 // ロックは写さない。伝言・マークなど物に付けた物は写さない。使えるのは、タイプが宣言した（duplicatesPages）ページだけ（宣言の無いタイプは、中の id を指す別のフィールドを持ちうるので断る）。
 // 写しの名前は、同じ入れ物のほかのページと重ならない名前にする（渡した名前が重なれば断る。渡さなければ、元の名前に番号を付ける）
 import { z } from "zod"
-import { addPage, findPage, lineupIds, lineupOf } from "../../../core/book"
+import { addPage, findPage, lineupIds, siblingsOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
@@ -32,7 +32,7 @@ export const PAGE_DUPLICATE = kit.defineAction({
   run: (book, args, ctx) => {
     const at = findPage(book, args.page)
     if (!at || !pageType(ctx.catalog, at.page.type).duplicatesPages) return null
-    const siblings = at.folder ? at.folder.lineup : lineupOf(book)
+    const siblings = siblingsOf(book, args.page) ?? []
     const titles = siblings.map(e => e.title)
     if (args.title !== undefined && titles.includes(args.title)) return null
     const { id: _id, locked: _locked, ...content } = at.page

@@ -1,7 +1,7 @@
 // ページを動かす: アクション page-move（同じ入れ物の中で並びを入れ替える。ページの中身は変わらない）。
 // 並びに直に入っているページはブックの並びの中、フォルダの中のページはそのフォルダの中で動く（入れ物をまたいでは動かさない）
 import { z } from "zod"
-import { findPage, lineupOf, moveEntry } from "../../../core/book"
+import { findPage, moveEntry, siblingsOf } from "../../../core/book"
 import { kit } from "../kit"
 
 const ARGS = z.strictObject({ page: z.string().min(1), index: z.number().int().min(0).optional() })
@@ -17,9 +17,9 @@ export const PAGE_MOVE = kit.defineAction({
   args: ARGS,
   permissionScope: "book",
   run: (book, args) => {
-    const at = findPage(book, args.page)
-    if (!at) return null
-    const ids = (at.folder ? at.folder.lineup : lineupOf(book)).map(e => e.id)
+    const siblings = findPage(book, args.page) && siblingsOf(book, args.page)
+    if (!siblings) return null
+    const ids = siblings.map(e => e.id)
     const from = ids.indexOf(args.page)
     const to = args.index ?? ids.length - 1
     if (to > ids.length - 1 || to === from) return null

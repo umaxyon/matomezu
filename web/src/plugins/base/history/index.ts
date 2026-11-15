@@ -1,8 +1,10 @@
 // 画面の履歴（Undo・Redo）: 戻す・やり直すコマンドと、画面の履歴の段が変えた所を置き直すアクション（book-revert）。履歴は store が、利用者が画面で
 // 行ったアクションと、その窓で見えた AI とほかの窓の変更から作る（ロックの掛け外しのように history: false のアクションは入らない）。
 // 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す
+
 import type { HistoryStep } from "../../../core/history"
 import { type Patch, patchOf } from "../../../core/patch"
+import { shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { applyRestore, PatchSchema, restoredPages } from "./restore"
@@ -57,7 +59,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   }
   const shown = done.find(d => d.book === opened.book)
   const page = shown && pageOf(shown.args)
-  if (page && page !== opened.page) a.openPage(page)
+  if (page && page !== shownPageId(opened)) a.openPage(page)
   a.moveHistory(opened.book, from)
 }
 

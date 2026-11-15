@@ -3,16 +3,19 @@
 import { z } from "zod"
 import {
   addFolder,
+  addPage,
   findFolder,
   foldersOf,
   lineupIds,
   lineupOf,
   moveEntry,
+  pagesIn,
   putFolder,
   removeFolder,
 } from "../../../core/book"
 import { freshPageId } from "../../../core/ids"
-import type { AnyPage, Book } from "../../../core/schema/book"
+import type { ItemPage } from "../../../core/placed"
+import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
 import { numberedTitle } from "./page-duplicate"
@@ -85,11 +88,11 @@ export const FOLDER_DUPLICATE = kit.defineAction({
     const made = lineupOf(next)[lineupOf(book).findIndex(e => e.id === source.id) + 1]
     if (!made || made.kind !== "folder") return null
     const pages: string[] = []
-    for (const page of source.lineup) {
+    for (const page of pagesIn(book, source.id)) {
       const { id: _id, locked: _locked, ...content } = page
-      const copy = { ...renewedIds(next, content, ctx.newId), id: fresh() } as AnyPage
+      const copy = { ...renewedIds(next, content, ctx.newId), id: fresh() } as ItemPage
       pages.push(copy.id)
-      next = putFolder(next, made.id, f => ({ ...f, lineup: [...f.lineup, copy] }))
+      next = addPage(next, copy, { folder: made.id })
     }
     return { next, result: { folder: made.id, pages } }
   },

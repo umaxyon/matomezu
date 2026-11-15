@@ -16,11 +16,13 @@ export {
   moveEntry,
   newPage,
   pageItems,
+  pagesIn,
   pagesOf,
   putFolder,
   putPage,
   removeFolder,
   removePage,
+  siblingsOf,
   withSettings,
 } from "../core/book"
 export type {

@@ -96,6 +96,15 @@ export function findPage(book: Book, id: string): { page: ItemPage; folder: Fold
   return undefined
 }
 
+// id の要素（ページかフォルダ）と同じ入れ物の並び: 並びに直に入っている要素ならブックの並び、フォルダの中のページならそのフォルダの並び（無ければ undefined）
+export function siblingsOf(book: Book, id: string): readonly LineupEntry[] | undefined {
+  if (book.lineup.some(e => e.id === id)) return book.lineup
+  return foldersOf(book).find(f => f.lineup.some(p => p.id === id))?.lineup
+}
+
+// フォルダ folder の中のページを、並びの順に（フォルダが無ければ空）
+export const pagesIn = (book: Book, folder: string): readonly ItemPage[] => findFolder(book, folder)?.lineup ?? []
+
 export const findFolder = (book: Book, id: string): FolderEntry | undefined => foldersOf(book).find(f => f.id === id)
 
 // 並びのページを 1 枚ずつ f で替える（フォルダの中も。f が undefined を返したページは除く）
