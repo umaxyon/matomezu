@@ -22,7 +22,7 @@ import { newStore, showBooks, showCenter } from "../support"
 // 書いた URL を覚える偽の Place（later はすぐには呼ばず、flush で呼ぶ）
 function fakePlace(start = "") {
   let now = start
-  let at = 0 // 今のブラウザの履歴の行の番号（アプリが積んだ順）
+  let at = 0 // 今のブラウザの履歴の行の番号（この窓が積んだ順）
   const rows = new Map<number, string>() // 行の番号 → その行の URL
   let backs = 0 // place.back が呼ばれた回数
   const pushed: string[] = []
@@ -325,7 +325,7 @@ test("スクリーンを開くのも、開いているスクリーンの渡す�
   expect(JSON.stringify(store.address().screens.find(s => s.id === id)?.props)).toContain("t1")
 })
 
-test("このタブのアプリが積んだ行が無ければ canGoBack は false、積めば true、戻って先頭に着けば false。requestBack は戻れるときだけブラウザの履歴を戻す", async () => {
+test("この窓が積んだ行が無ければ canGoBack は false、積めば true、戻って先頭に着けば false。requestBack は戻れるときだけブラウザの履歴を戻す", async () => {
   const store = createMatomezu({
     plugins: BUILTIN,
     controlCenter: "@matomezu/control-center:control-center",
@@ -341,7 +341,7 @@ test("このタブのアプリが積んだ行が無ければ canGoBack は false
   expect(store.state.getState().canGoBack).toBe(true)
   store.actions.requestBack()
   expect(f.backCalls()).toBe(1)
-  // 戻って、アプリが積む前の最初の行に着けば、もう戻る先は無い
+  // 戻って、この窓が積む前の最初の行に着けば、もう戻る先は無い
   f.back("")
   expect(store.state.getState().canGoBack).toBe(false)
 })

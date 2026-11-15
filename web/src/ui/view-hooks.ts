@@ -473,7 +473,7 @@ export function useScreens(): {
 }
 
 // ブラウザの履歴を 1 つ戻す（ブラウザの戻るボタンと同じ。ブック・ページ・スクリーンの移動を、積んだ順に戻る）。
-// canGoBack は、このタブのアプリの中に戻る先があるか（無いときの goBack は何もしない。アプリの外へは出ない）
+// canGoBack は、この窓の中に戻る先があるか（無いときの goBack は何もしない。窓の外へは出ない）
 export function useBrowserBack(): { canGoBack: boolean; goBack(): void } {
   const canGoBack = useMatomezuState(s => s.canGoBack)
   const { requestBack } = useActions()

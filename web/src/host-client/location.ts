@@ -10,7 +10,7 @@ import type { MatomezuInstance } from "../store/store"
 // URL とのやり取り（テストでは差し替える）
 export interface Place {
   search(): string // 今の URL の ? から後ろ
-  index(): number // 今のブラウザの履歴の行の、このタブのアプリが積んだ順の番号（アプリが積んだ最初の行が 0。無ければ 0）
+  index(): number // 今のブラウザの履歴の行の、この窓が積んだ順の番号（窓が積んだ最初の行が 0。無ければ 0）
   push(search: string, index: number): void // ブラウザの履歴に、番号 index の行として積む
   replace(search: string): void // 今のブラウザの履歴を書き換える（行の番号は変えない）
   back(): void // ブラウザの履歴を 1 つ戻す
@@ -243,7 +243,7 @@ export function followLocation(
   instance.locate(read(start))
   let shown = instance.address()
   place.replace(searchOf(shown))
-  // このタブのアプリの中に戻る先があるか（アプリが積んだ行の番号が 0 より大きい）を、store に知らせる
+  // この窓の中に戻る先があるか（窓が積んだ行の番号が 0 より大きい）を、store に知らせる
   const knowBack = () => instance.setCanGoBack?.(place.index() > 0)
   knowBack()
   let pending: (() => void) | null = null // まとめて書き換えるのを待っている書き換え（取り消す関数）

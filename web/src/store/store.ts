@@ -157,7 +157,7 @@ export interface MatomezuState {
   editLocks: Readonly<Record<string, EditLock>>
   // 印刷を頼んだ回数（requestPrint で増える。ホストクライアントが、増えたら画面を刷る）
   printRequests: number
-  // ブラウザの履歴を 1 つ戻してほしいと頼んだ回数（requestBack で増える。ホストクライアントが、増えたら戻す）と、このタブのアプリの中に戻る先があるか（ホストクライアントが入れる）
+  // ブラウザの履歴を 1 つ戻してほしいと頼んだ回数（requestBack で増える。ホストクライアントが、増えたら戻す）と、この窓の中に戻る先があるか（ホストクライアントが入れる）
   backRequests: number
   canGoBack: boolean
 }
@@ -344,7 +344,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setOffline(offline: boolean): void
   // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setLastWindow(last: boolean): void
-  // このタブのアプリの中に戻る先があるか（canGoBack）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  // この窓の中に戻る先があるか（canGoBack）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setCanGoBack(can: boolean): void
   // 今の利用者の設定でのキーバインドの表（作り直すのは利用者の変更が変わったときだけ。画面がキーの名前を出すのに使う）
   keys(): KeyTable
