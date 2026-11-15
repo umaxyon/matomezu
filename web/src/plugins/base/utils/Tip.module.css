@@ -26,6 +26,18 @@
 .tip:has(:focus-visible) .bubble {
   visibility: visible;
 }
+/* 題とキーを 1 行に並べる */
+.bubble {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+/* 題に添えるキー */
+.key {
+  flex: none;
+  color: var(--skin-text-muted);
+  font: inherit;
+}
 /* 文字: 長い題は 1 行で省略する（尾をはみ出して描くので、省略は吹き出しでなく文字の箱で行う） */
 .text {
   display: block;

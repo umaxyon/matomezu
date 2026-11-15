@@ -46,6 +46,7 @@ import {
   RichInput,
   type RichInputHandle,
   RichText,
+  Tip,
   useAnchorRef,
   useFollowsSelection,
   usePaperDrag,
@@ -383,26 +384,26 @@ const Rows = memo(function Rows({
       {usingPencil && !writing && !picking && !dragging && at && (
         <div className={styles.pluses} style={{ left: at.x + at.w + PLUS_GAP, top: at.y + at.h / 2 }}>
           {[
-            { command: addFolder, kind: "folder", label: "Add folder", icon: FOLDER_ICON },
-            { command: addFile, kind: "file", label: "Add file", icon: FILE_ICON },
+            { command: addFolder, id: FOLDER_ADD.id, kind: "folder", label: "Add folder", icon: FOLDER_ICON },
+            { command: addFile, id: FILE_ADD.id, kind: "file", label: "Add file", icon: FILE_ICON },
           ].map(p =>
             p.command.shown ? (
-              <button
-                key={p.label}
-                type="button"
-                className={styles.plus}
-                data-kind={p.kind}
-                aria-label={t(p.label as "Add folder" | "Add file")}
-                title={t(p.label as "Add folder" | "Add file")}
-                disabled={!p.command.enabled}
-                onPointerDown={e => e.stopPropagation()}
-                onClick={() => p.command.run()}
-              >
-                <span className={styles.plusIcon}>{p.icon}</span>
-                <svg className={styles.plusMark} viewBox="0 0 10 10" aria-hidden="true">
-                  <path d="M5 1V9M1 5H9" />
-                </svg>
-              </button>
+              <Tip key={p.label} text={t(p.label as "Add folder" | "Add file")} command={p.id}>
+                <button
+                  type="button"
+                  className={styles.plus}
+                  data-kind={p.kind}
+                  aria-label={t(p.label as "Add folder" | "Add file")}
+                  disabled={!p.command.enabled}
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={() => p.command.run()}
+                >
+                  <span className={styles.plusIcon}>{p.icon}</span>
+                  <svg className={styles.plusMark} viewBox="0 0 10 10" aria-hidden="true">
+                    <path d="M5 1V9M1 5H9" />
+                  </svg>
+                </button>
+              </Tip>
             ) : null,
           )}
         </div>
