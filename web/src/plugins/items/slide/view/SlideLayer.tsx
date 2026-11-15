@@ -543,7 +543,6 @@ function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[
       <div style={{ position: "absolute", left: x, top: y, pointerEvents: "none" }}>
         <EllipseView
           id=""
-          stage=""
           props={{}}
           content={{}}
           zoom={zoom}

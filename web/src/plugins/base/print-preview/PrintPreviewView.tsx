@@ -98,7 +98,7 @@ export function PrintPreviewView() {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
   const book = useBook()
-  const pan = useStagePan(id)
+  const pan = useStagePan()
   const panel = useRightSidePanel(id)
   const { setPreviewArea, closePrintPreview, openPage } = useActions()
   const read = useReadState()

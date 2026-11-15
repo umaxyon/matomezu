@@ -20,8 +20,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import type { Point, Rect, Size } from "../../../core/geom"
-import { useActions } from "../../../ui/store-context"
-import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
+import { useActionsHere, useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
 import { KEEP_INSIDE } from "./keep-inside"
@@ -234,7 +233,7 @@ export function StandAt({
   children,
 }: StandProps & { side?: StandPlace; turn?: StandTurn; minRoom?: number; through?: boolean }) {
   const ctx = useContext(Context)
-  const { panStageBy } = useActions()
+  const { panStageBy } = useActionsHere()
   const ids = useMemo(() => (typeof anchor === "string" ? [anchor] : anchor), [anchor])
   const measured = useAnchorRect(ctx, ids, edgePinned)
   const ref = useRef<HTMLDivElement>(null)
@@ -312,11 +311,7 @@ export function StandAt({
 
 // ステージのアンカーの表 ctx で、アンカー ids の物を見せる: 物を囲む Revealable に頼んでから、紙をなめらかにずらして物を表示領域の真ん中へ動かす
 // （倍率は変えない。紙の端で、ずらせる所まで）。どれも描かれていなければ何もせず false
-function showAnchors(
-  ctx: StandContext,
-  ids: readonly string[],
-  panStageBy: (stage: string, dx: number, dy: number) => void,
-): boolean {
+function showAnchors(ctx: StandContext, ids: readonly string[], panStageBy: (dx: number, dy: number) => void): boolean {
   const layer = ctx.layer
   const view = stageElement(ctx.stage)
   if (!layer || !view) return false
@@ -327,7 +322,7 @@ function showAnchors(
   const now = revealedRect(layer, view, found)
   if (!now) return false
   const by = revealShift(now, { w: layer.clientWidth, h: layer.clientHeight })
-  glidePan((dx, dy) => panStageBy(ctx.stage, dx, dy), by.x, by.y)
+  glidePan((dx, dy) => panStageBy(dx, dy), by.x, by.y)
   return true
 }
 
@@ -335,7 +330,7 @@ function showAnchors(
 function RevealRequested({ ctx }: { ctx: StandContext }) {
   const ids = useRevealRequest(ctx.stage)
   const clear = useClearRevealRequest()
-  const { panStageBy } = useActions()
+  const { panStageBy } = useActionsHere()
   const version = useSyncExternalStore(ctx.anchors.subscribe, ctx.anchors.snapshot)
   // biome-ignore lint/correctness/useExhaustiveDependencies: アンカーが描かれるたび（version）に見直す
   useEffect(() => {

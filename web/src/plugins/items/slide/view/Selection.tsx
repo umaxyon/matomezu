@@ -74,7 +74,7 @@ export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolea
 
 function Bar({ item }: { item: SelectedItem }) {
   const t = useMessages(kit)
-  const set = useCommand(item.stage, SLIDE_SET.id)
+  const set = useCommand(SLIDE_SET.id)
   return (
     <Stand anchor={item.id} side="above" through label={t("Change on slide")}>
       <div className={styles.barBox}>
@@ -104,7 +104,7 @@ function Bar({ item }: { item: SelectedItem }) {
 // 角度の数字の入力。決める（Enter か外へ出る）と角度を変える。0 は角度を消す（水平）。入力が数字でなければ元に戻す
 function AngleField({ item }: { item: SelectedItem }) {
   const t = useMessages(kit)
-  const set = useCommand(item.stage, SLIDE_SET.id)
+  const set = useCommand(SLIDE_SET.id)
   const [text, setText] = useState(String(Math.round(item.rotation * 100) / 100))
   const commit = () => {
     const n = Number(text)

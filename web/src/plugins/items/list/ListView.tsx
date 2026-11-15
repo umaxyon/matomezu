@@ -139,7 +139,6 @@ export function ListView({
   props,
   size,
   id,
-  stage,
   content,
   zoom,
 }: ItemViewProps<ItemProps<typeof LIST.id>, { readonly children?: readonly ListRow[] }>) {
@@ -240,7 +239,7 @@ export function ListView({
   const { select } = useActionsHere()
   const at = useStage()
   const selection = at?.selection ?? []
-  const followed = useFollowsSelection(stage ?? "")
+  const followed = useFollowsSelection(at?.id ?? "")
   // 紙をずらす道具（ハンドなど）の間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
   const pans = at?.pans === true
   const stretch = useRef<Stretch | null>(null)

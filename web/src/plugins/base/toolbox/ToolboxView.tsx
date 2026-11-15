@@ -8,8 +8,8 @@ import type { ItemId } from "../../../core/core-catalog"
 import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useStageId } from "../../../ui/scope"
-import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useBook, useStage } from "../../../ui/view-hooks"
+import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useActionsHere, useBook, useStage } from "../../../ui/view-hooks"
 import { useCloseFooterMenu } from "../book-name/footer-menu-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
@@ -19,7 +19,7 @@ export function ToolboxView() {
   const stage = useStageId() ?? ""
   const book = useBook() ?? undefined
   const placing = useMatomezuState(s => stageIn(s.window, stage)?.placing?.item ?? null)
-  const { togglePlacing } = useActions()
+  const { togglePlacing } = useActionsHere()
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const edits = useStage()?.edits ?? "items"
@@ -34,7 +34,7 @@ export function ToolboxView() {
           id={id}
           className={styles.tool}
           pressed={placing === id}
-          onClick={() => togglePlacing(stage, id)}
+          onClick={() => togglePlacing(id)}
         />
       ))}
       {panel.length > 0 && (
@@ -42,7 +42,7 @@ export function ToolboxView() {
           items={panel}
           placing={placing}
           onPick={id => {
-            if (placing !== id) togglePlacing(stage, id)
+            if (placing !== id) togglePlacing(id)
           }}
         />
       )}

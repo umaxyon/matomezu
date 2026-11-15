@@ -51,8 +51,8 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
   const subject = subjects[0]
   const fields = commonFields(subjects.map(s => s.item))
   const t = useMessages(kit)
-  const set = useCommand(subject?.stage ?? "", SLIDE_SET.id)
-  const book = useBookOf(subject?.stage ?? "")
+  const set = useCommand(SLIDE_SET.id)
+  const book = useBookOf()
   const { continueStep } = useActionsHere()
   const swatches = useSwatches(useBookTheme(book), SLIDE_INK)
   if (!subject) return null

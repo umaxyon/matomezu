@@ -6,7 +6,8 @@ import { extentOf, previewing } from "../../../core/stage"
 import { contentSize } from "../../../core/viewport"
 import { stageIn } from "../../../core/window"
 import { useStageId } from "../../../ui/scope"
-import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useActionsHere } from "../../../ui/view-hooks"
 import styles from "./PreviewScrollbars.module.css"
 import { panForDrag, panForTrack, type ScrollAxis, shownBars, thumbOf } from "./scrollbar"
 
@@ -36,7 +37,7 @@ export function PreviewScrollbars() {
 }
 
 function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; along: Along; corner: boolean }) {
-  const { panStageBy, focusStage } = useActions()
+  const { panStageBy, focusStage } = useActionsHere()
   const read = useReadState()
   const track = useRef<HTMLDivElement>(null)
   const drag = useRef<{ pointer: number; at: number; start: number } | null>(null)
@@ -47,18 +48,18 @@ function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; 
     const now = stageIn(read().window, stage)?.pan
     if (!now) return
     const by = target - now[along]
-    panStageBy(stage, along === "x" ? by : 0, along === "y" ? by : 0)
+    panStageBy(along === "x" ? by : 0, along === "y" ? by : 0)
   }
   // 押したらステージをカレントにする（字の選択を始めないよう、溝で mousedown の既定の動きを止める）
   const onTrack = (e: PointerEvent<HTMLDivElement>) => {
-    focusStage(stage)
+    focusStage()
     const el = track.current
     if (e.button !== 0 || !el || e.target !== el) return
     const box = el.getBoundingClientRect()
     panTo(panForTrack(axis, length, at(e) - (along === "y" ? box.top : box.left)))
   }
   const onThumb = (e: PointerEvent<HTMLDivElement>) => {
-    focusStage(stage)
+    focusStage()
     if (e.button !== 0) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { pointer: e.pointerId, at: at(e), start: axis.pan }

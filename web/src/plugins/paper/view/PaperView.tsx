@@ -453,7 +453,6 @@ function PageItems({
     }
   const scene: ShapeScene = {
     zoom: stage.zoom,
-    stage,
     page: slid.size > 0 ? followConnectors(catalog, shownPage, slid) : shownPage,
     rects: shownRects(catalog, shapes, c => {
       const item = shown(c)
@@ -667,7 +666,6 @@ function Item({
           props={item.props}
           size={size}
           id={item.id}
-          stage={stage}
           content={contentOf(catalog, item)}
           zoom={zoom}
           hasChildren={(item.shapes?.length ?? 0) > 0}

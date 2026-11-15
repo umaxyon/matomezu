@@ -1,8 +1,7 @@
 // 参加要求の郵便のダイアログの下の行: 断る（アクション participant-decline。断りは残さない）と、受け入れる（受け入れのダイアログを開く。引き継ぐか新しく始めるかはそこで選ぶ）。
 // 参加者がまだ保留中のときだけ出す（受け入れ済み・断り済みなら、何も出さない）
 import { useMessages } from "../../../ui/i18n"
-import { useActions } from "../../../ui/store-context"
-import { useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
+import { useActionsHere, useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { MailActionsProps } from "../mail/slots"
@@ -11,10 +10,10 @@ import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE } from "."
 import { PARTICIPANT_JOIN_DIALOG } from "./dialogs"
 import { useParticipants } from "./hooks"
 
-export function JoinRequestActions({ stage, mail, onClose }: MailActionsProps) {
+export function JoinRequestActions({ mail, onClose }: MailActionsProps) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const { perform, showToast, openDialog } = useActions()
+  const { perform, showToast, openDialog } = useActionsHere()
   const id = (mail.props as { participant?: string }).participant ?? ""
   const requested = useParticipants().some(p => p.id === id && p.state === "requested")
   const canDecline = useAllowedOn(PARTICIPANT_DECLINE.id, {}, { record: id }).ok
@@ -34,7 +33,7 @@ export function JoinRequestActions({ stage, mail, onClose }: MailActionsProps) {
       </ActionButton>
       <ActionButton
         primary
-        onClick={() => openDialog(stage, PARTICIPANT_JOIN_DIALOG.id, { participant: id })}
+        onClick={() => openDialog(PARTICIPANT_JOIN_DIALOG.id, { participant: id })}
         disabled={!canAccept}
       >
         {t("Accept")}

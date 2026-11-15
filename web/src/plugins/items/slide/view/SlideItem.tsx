@@ -22,7 +22,6 @@ export interface SlideItemEdit {
 
 export function SlideItem({
   shape,
-  stage,
   zoom,
   edit,
 }: {
@@ -73,17 +72,7 @@ export function SlideItem({
           }}
         />
       ) : (
-        View && (
-          <View
-            props={shape.props}
-            size={size}
-            id={shape.id}
-            stage={stage}
-            content={{}}
-            zoom={zoom}
-            hasChildren={false}
-          />
-        )
+        View && <View props={shape.props} size={size} id={shape.id} content={{}} zoom={zoom} hasChildren={false} />
       )}
     </div>
   )
