@@ -45,6 +45,7 @@ test("ブックのタイプは schema に type を書かず、データの type 
     version: 1,
     title: "Board",
     grouping: "none",
+    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
     items: { allowed: [] },
     actions: {},
     theme: "@matomezu/base:standard",

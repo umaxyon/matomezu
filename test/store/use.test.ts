@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
+import { findPage, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { BUILTIN } from "../../web/src/plugins"
@@ -7,12 +8,13 @@ import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, withoutParts } from "../../web/src/store/plugin"
 
-// 取り込んだ追加プラグインの見本: 自分のブックのタイプとアクション（core/catalog.ts には書き足さない）
+// 取り込んだ追加プラグインの見本: 自分のページのタイプとアクション（core/catalog.ts には書き足さない）
 const NOTE = definePageType({
   id: "notes:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
   grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   items: { allowed: [] },
   actions: { add: ["notes:rename" as never] },
   theme: "@matomezu/base:standard",
@@ -23,16 +25,25 @@ const NOTE = definePageType({
 const RENAME = defineAction({
   id: "notes:rename",
   title: "@matomezu/drawing:Drawing",
-  aiDescription: "Rename a notes book.",
+  aiDescription: "Rename a notes page.",
   target: "book",
-  permissionScope: "book",
-  args: z.strictObject({ title: z.string().min(1) }),
-  run: (book, args) => ({ next: { ...book, title: args.title }, result: {} }),
+  permissionScope: { page: "page" },
+  args: z.strictObject({ page: z.string().min(1), title: z.string().min(1) }),
+  run: (book, args) => {
+    const page = findPage(book, args.page)?.page
+    return page ? { next: putPage(book, { ...page, title: args.title }), result: {} } : null
+  },
 })
 const notes = definePlugin({ id: "notes", pageTypes: [NOTE], actions: [RENAME] })
 // id の頭を付けていないので台帳アセンブルで食い違う
 const broken = { id: "bad", actions: [{ ...RENAME, id: "rename" }] } as unknown as typeof notes
-const saved = { type: "notes:note", id: "n1", title: "メモ" }
+const saved = {
+  id: "n1",
+  title: "メモ",
+  lineup: [
+    { kind: "page", id: "p1", type: "notes:note", title: "メモ", paper: "@matomezu/base:a4", orientation: "landscape" },
+  ],
+}
 
 const make = () =>
   createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center", savedBooks: [saved] })
@@ -45,7 +56,7 @@ test("取り込んだ追加プラグインを use で足すと組み直し、作
   expect(instance.plugins.at(-1) as unknown).toBe(notes)
   expect(instance.state.getState().books.n1 as unknown).toEqual(saved)
   const perform = instance.actions.perform as unknown as (id: string, args: unknown, on: { book: string }) => unknown
-  expect(perform("notes:rename", { title: "新" }, { book: "n1" })).toEqual({ ok: true, result: {} })
+  expect(perform("notes:rename", { page: "p1", title: "新" }, { book: "n1" })).toEqual({ ok: true, result: {} })
 })
 
 test("台帳アセンブルで食い違う追加プラグインは外して、ほかは足す。use は前に足したものと置き換える", () => {
