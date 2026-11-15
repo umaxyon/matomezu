@@ -9,14 +9,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
-import {
-  type DialogProps,
-  useActionsHere,
-  useCoreCatalog,
-  useItemAt,
-  useMessages,
-  usePerform,
-} from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
@@ -64,7 +57,7 @@ export const AddNestBoxDialog = addDialog(NEST_BOX.id)
 function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const { select } = useActionsHere()
+  const { select } = useActions()
   const perform = usePerform()
   const add = (props: BoxProps) => {
     if (!book) return { reason: "no-book" }
@@ -92,11 +85,11 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
   // 編集するのは箱か内包ボックス（項目は同じ）
-  const box = useItemAt(args.page, args.item, BOX.id)
-  const nestBox = useItemAt(args.page, args.item, NEST_BOX.id)
+  const box = useItem(args.page, args.item, BOX.id)
+  const nestBox = useItem(args.page, args.item, NEST_BOX.id)
   const start = (box ?? nestBox)?.props
   const hasChildren = (nestBox?.shapes?.length ?? 0) > 0
-  const { previewDialog } = useActionsHere()
+  const { previewDialog } = useActions()
   const perform = usePerform()
   const preview = useCallback(
     (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),

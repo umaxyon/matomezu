@@ -83,7 +83,6 @@ export function BookName() {
         )}
       </div>
       <FooterMenu
-        stage={stage}
         open={open}
         own={own}
         onPick={() => {
@@ -97,12 +96,10 @@ export function BookName() {
 
 // 下から上がるフッタメニュー。閉じている間は見えず、押せず、読み上げにも出ない。own は下の行の外に置かれたときの、乗ったかを見る受け取り
 function FooterMenu({
-  stage,
   open,
   own,
   onPick,
 }: {
-  stage: string
   open: boolean
   own: { onMouseEnter?: () => void; onMouseLeave?: () => void }
   onPick: () => void
@@ -113,7 +110,7 @@ function FooterMenu({
         <div className={styles.row}>
           {FOOTER_MENU_SLOTS.map(name => (
             <div key={name} className={styles.part}>
-              <Slot name={name} props={{ stage }} />
+              <Slot name={name} props={{}} />
             </div>
           ))}
         </div>

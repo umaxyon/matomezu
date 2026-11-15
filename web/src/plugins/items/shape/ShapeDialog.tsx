@@ -8,10 +8,10 @@ import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
-  useActionsHere,
+  useActions,
   useBook,
   useCoreCatalog,
-  useItemAt,
+  useItem,
   useMessages,
   usePerform,
 } from "../../../plugin-api/ui"
@@ -51,7 +51,7 @@ export function addShapeDialog(item: string, turnable = false) {
     const catalog = useCoreCatalog()
     const opened = useBook()
     const turned = opened ? startTurned(catalog, opened, args.page, item) : false
-    const { select } = useActionsHere()
+    const { select } = useActions()
     const perform = usePerform()
     const add = (props: ShapeProps) => {
       if (!book) return { reason: "no-book" }
@@ -78,11 +78,11 @@ export function addShapeDialog(item: string, turnable = false) {
 export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const placed = useItemAt(args.page, args.item)
+  const placed = useItem(args.page, args.item)
   // 回せる形は、向きの切り替えを出す（向きを書いていないデータは縦向き）
   const props = placed?.props as ShapeProps | undefined
   const start = props && placed && TURNABLE.includes(placed.item) ? { ...props, turned: props.turned ?? false } : props
-  const { previewDialog } = useActionsHere()
+  const { previewDialog } = useActions()
   const perform = usePerform()
   const preview = useCallback(
     (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),

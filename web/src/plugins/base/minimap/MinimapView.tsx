@@ -12,7 +12,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useActionsHere, useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
+import { useActions, useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { kit } from "../kit"
 import { TOOL_SET } from "../tool-picker"
@@ -31,7 +31,7 @@ export function MinimapView({ width, height, className }: { width: number; heigh
   const book = useShownBook() // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
   const page = useShownPage()
   const held = keepsPan(catalog, useStage()?.tool ?? null)
-  const { panStageBy, focusStage } = useActionsHere()
+  const { panStageBy, focusStage } = useActions()
   const toolSet = useCommand(TOOL_SET.id)
   const latest = useRef(stage)
   latest.current = stage

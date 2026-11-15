@@ -6,7 +6,7 @@
 //   何も置いていない所: 描いているスクリーン（ui/screen-context.tsx）が向け先。スクリーンの外（窓の根）なら窓
 // フック（ui/view-hooks.ts など）は、読む物を描くページから、操作を向け先から引く。向け先が無い所からは、何も行えない。
 // コンテキストの値は id と数だけで、同じ場所の間は同じ参照（ブックやページの中身・選択・紙をずらす量は入れない。変わるたびに中の全部を描き直さないため）
-import { createContext, type ReactNode, useContext, useId, useMemo } from "react"
+import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { pagedOf } from "../core/book"
 import type { BookTypeId } from "../core/catalog"
 import type { ItemPage } from "../core/placed"
@@ -31,8 +31,6 @@ type PageRef = { from: "stage"; stage: string } | { from: "page"; book: string; 
 export interface Scope {
   page: PageRef | null
   actsOn: ActsOn
-  // 橋渡しの間だけ: 古い形のフックが第 1 引数に受けていた値（ステージの id・スクリーンの id・見るだけのページの印）。向け先と違う値を渡したら落とす
-  legacy: string
 }
 
 const NONE: ActsOn = { kind: "none" }
@@ -41,10 +39,7 @@ const ScopeContext = createContext<Scope | null>(null)
 
 // ステージ stage の中: 描くページはそのステージが開いている物、向け先はそのステージ
 export function StageScope({ stage, children }: { stage: string; children: ReactNode }) {
-  const scope = useMemo<Scope>(
-    () => ({ page: { from: "stage", stage }, actsOn: { kind: "stage", stage }, legacy: stage }),
-    [stage],
-  )
+  const scope = useMemo<Scope>(() => ({ page: { from: "stage", stage }, actsOn: { kind: "stage", stage } }), [stage])
   return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
 }
 
@@ -58,18 +53,10 @@ export function PageScope({
   book: string
   page: string
   zoom: number
-  children: ReactNode | ((legacy: string) => ReactNode)
+  children: ReactNode
 }) {
-  const id = `drawn:${useId()}`
-  const scope = useMemo<Scope>(
-    () => ({ page: { from: "page", book, page, zoom }, actsOn: NONE, legacy: id }),
-    [book, page, zoom, id],
-  )
-  return (
-    <ScopeContext.Provider value={scope}>
-      {typeof children === "function" ? children(id) : children}
-    </ScopeContext.Provider>
-  )
+  const scope = useMemo<Scope>(() => ({ page: { from: "page", book, page, zoom }, actsOn: NONE }), [book, page, zoom])
+  return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
 }
 
 // 開いた場所 at（ステージの id か、スクリーンの id。store のダイアログ・右クリックのメニューが持つ値）の中: 開いているスクリーンの id ならそのスクリーン、
@@ -79,10 +66,10 @@ export function ActsOnScope({ at, children }: { at: string; children: ReactNode 
   const scope = useMemo<Scope>(
     () =>
       at === NO_STAGE
-        ? { page: null, actsOn: WINDOW, legacy: at }
+        ? { page: null, actsOn: WINDOW }
         : isScreen
-          ? { page: null, actsOn: { kind: "screen", screen: at }, legacy: at }
-          : { page: { from: "stage", stage: at }, actsOn: { kind: "stage", stage: at }, legacy: at },
+          ? { page: null, actsOn: { kind: "screen", screen: at } }
+          : { page: { from: "stage", stage: at }, actsOn: { kind: "stage", stage: at } },
     [at, isScreen],
   )
   return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
@@ -95,9 +82,7 @@ export function useScope(): Scope {
   return useMemo<Scope>(
     () =>
       placed ??
-      (screen === undefined
-        ? { page: null, actsOn: WINDOW, legacy: NO_STAGE }
-        : { page: null, actsOn: { kind: "screen", screen }, legacy: screen }),
+      (screen === undefined ? { page: null, actsOn: WINDOW } : { page: null, actsOn: { kind: "screen", screen } }),
     [placed, screen],
   )
 }
@@ -151,13 +136,6 @@ export function zoomOf(s: MatomezuState, scope: Scope): number | null {
   const ref = scope.page
   if (!ref) return null
   return ref.from === "page" ? ref.zoom : (stageIn(s.window, ref.stage)?.zoom ?? null)
-}
-
-// 橋渡しの間だけ: 古い形の第 1 引数 given が、描いている場所と同じかを確かめる（違えば、スコープを置き忘れた所か、ほかの場所を名指している所）
-export function checkLegacy(scope: Scope, given: string | undefined, hook: string): void {
-  // 橋渡しの間だけの確かめなので、error の表（core/errors.ts）に番号を足さない
-  if (given !== undefined && given !== scope.legacy)
-    throw new RangeError(`${hook}: the place given (${given}) is not the scope here (${scope.legacy})`)
 }
 
 // 描くページの今の倍率（描くページが無ければ 1）

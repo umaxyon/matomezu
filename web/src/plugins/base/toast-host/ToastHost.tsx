@@ -4,7 +4,7 @@
 import { useEffect } from "react"
 import type { Toast } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "./ToastHost.module.css"
 
@@ -36,7 +36,7 @@ export function ToastHost() {
 
 // マーキー: 下りる・流す・引っ込むの動きは CSS が持ち、引っ込み終えたら消す（動きを減らす設定では、動かさずに少し出して消す）
 function Marquee({ toast }: { toast: Toast }) {
-  const { dismissToast } = useActions()
+  const { dismissToast } = useStoreActions()
   const t = useMessages(kit)
   return (
     <div
@@ -53,7 +53,7 @@ function Marquee({ toast }: { toast: Toast }) {
 }
 
 function ToastView({ toast }: { toast: Toast }) {
-  const { dismissToast } = useActions()
+  const { dismissToast } = useStoreActions()
   const t = useMessages(kit)
   useEffect(() => {
     const ms = TOAST_MS[toast.kind]

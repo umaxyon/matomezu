@@ -1,7 +1,7 @@
 // バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
 // アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（塗りは塗らない。枠の色は枠なし）か、テーマの代表色か、好きな色
 import { useRef, useState } from "react"
-import { useActionsHere, useCommand, useMessages } from "../../../../plugin-api/ui"
+import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
 import { ColorPicker, useBookOf, useBookTheme, useSwatches } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
@@ -52,7 +52,7 @@ export function StyleFields({ subjects }: { subjects: readonly StyleSubject[] })
   const t = useMessages(kit)
   const set = useCommand(SLIDE_SET.id)
   const book = useBookOf()
-  const { continueStep } = useActionsHere()
+  const { continueStep } = useActions()
   const swatches = useSwatches(useBookTheme(book), SLIDE_INK)
   if (!subject) return null
   const change = (props: Record<string, unknown>, continues = false) => {

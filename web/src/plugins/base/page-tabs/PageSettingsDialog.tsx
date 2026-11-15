@@ -7,7 +7,7 @@ import { useEffect, useId, useState } from "react"
 import { pagedOf, putPage, withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions } from "../../../ui/store-context"
+import { useStoreActions } from "../../../ui/store-context"
 import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
@@ -37,7 +37,7 @@ export function PageSettingsDialog({ args, onClose }: DialogProps<{ page: string
   const [confirming, setConfirming] = useState(false)
   const settings = useSettingControls(book, "page", page ?? null)
   const paper = usePaperControls(book, page ?? null)
-  const { previewDialog } = useActions()
+  const { previewDialog } = useStoreActions()
   const perform = usePerform()
   const bookId = book?.id
   const pageId = page?.id

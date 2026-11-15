@@ -4,7 +4,7 @@ import { useShallow } from "zustand/react/shallow"
 import { sameData } from "../../../core/same"
 import { screenOf } from "../../../core/window"
 import { useStageId } from "../../../ui/scope"
-import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useLeftSidePanel, useToggleLeftSidePanel } from "../left-side-panel/hooks"
 import { mailboxOf } from "."
 import { MAIL_DIALOG } from "./dialogs"
@@ -19,7 +19,7 @@ export const useUnreadMail = (): number => useMailbox().filter(m => !m.seenAt).l
 
 // 前に出せるブックスクリーンのカレントのステージで、郵便 id のダイアログを開く関数（前に出している物は替えない）
 export function useOpenMail(): (id: string) => void {
-  const { openDialog } = useActions()
+  const { openDialog } = useStoreActions()
   const read = useReadState()
   return useCallback(
     id => openDialog(screenOf(read().window).current, MAIL_DIALOG.id, { mail: id }),

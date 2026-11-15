@@ -5,7 +5,7 @@ import { kit } from "../kit"
 export const TOOLBOX_CANCEL = kit.defineCommand({
   id: "toolbox-cancel",
   title: "Cancel placing",
-  run: (ctx, a) => (ctx.stage.placing !== null ? a.here.stopPlacing() : a.here.endBackground()),
+  run: (ctx, a) => (ctx.stage.placing !== null ? a.stopPlacing() : a.endBackground()),
   when: ctx => ctx.stage.placing !== null || editingBackground(ctx.stage),
 })
 

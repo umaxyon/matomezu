@@ -203,7 +203,7 @@ export const PAGE_ALIGN_COMMAND = kit.defineCommand({
   title: "Auto align",
   run: (ctx, a) => {
     const page = ctx.stage.opened?.page
-    if (page) a.here.openDialog(PAGE_ALIGN_DIALOG.id, { page })
+    if (page) a.openDialog(PAGE_ALIGN_DIALOG.id, { page })
   },
   when: onOpenedPage,
 })

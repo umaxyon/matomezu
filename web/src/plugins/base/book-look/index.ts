@@ -62,6 +62,6 @@ export const BOOK_SETTINGS = kit.defineCommand({
   performs: [BOOK_UPDATE.id, BOOK_LOCK.id, BOOK_UNLOCK.id],
   permissionScope: "book",
   title: "Book settings",
-  run: (_ctx, a) => a.here.openDialog(BOOK_SETTINGS_DIALOG.id),
+  run: (_ctx, a) => a.openDialog(BOOK_SETTINGS_DIALOG.id),
   when: () => true,
 })

@@ -46,7 +46,7 @@ export function PrintPreviewPanel() {
   const mine = open?.widget === PRINT_PREVIEW_PANEL_ID
   useEffect(() => {
     if (mine && !previewing) close()
-  }, [mine, previewing, close, stage])
+  }, [mine, previewing, close])
   if (!book || !mine) return null
   const locked = book.locked === true
   const update = (patch: Patch) => perform(PRINT_PREVIEW_UPDATE.id, { settings: patch })

@@ -14,7 +14,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useKeyLabel } from "../../../ui/keys"
 import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
 import { ActsOnScope } from "../../../ui/scope"
-import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { useAnchorContextMenu } from "./anchor-context"
 import styles from "./ContextMenuHost.module.css"
@@ -33,7 +33,7 @@ export function ContextMenuHost() {
 }
 
 function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
-  const { closeContextMenu } = useActions()
+  const { closeContextMenu } = useStoreActions()
   const items = useContextMenuItems(menu.stage, menu.id as ContextMenuId)
   const t = useMessages(kit)
   const [anchor] = useState(() => pressedAnchor(menu.at)) // 開いたときの、押した物のアンカー
@@ -93,7 +93,7 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
   const command = useCommand(id, menu.target as never)
   const icon = useUiCatalog().commandIcons.get(id)
   const key = useKeyLabel(id)
-  const { closeContextMenu } = useActions()
+  const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
     <button
@@ -118,7 +118,7 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
 function AnchorMenuItem({ id, anchor }: { id: AnchorMenuCommandId; anchor: string }) {
   const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)
-  const { closeContextMenu } = useActions()
+  const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
     <button

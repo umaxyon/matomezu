@@ -6,7 +6,7 @@ import { screenOf, stageIn } from "../../../core/window"
 import { type PluginValues, pluginValueOf } from "../../../store/plugin-state"
 import { useReadPluginStateAt, useSetPluginStateAt, useSetPluginStatesAt } from "../../../ui/at-hooks"
 import { useStageId } from "../../../ui/scope"
-import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { SLIDE_MS } from "../window/slide"
@@ -61,7 +61,7 @@ export function useOpenRightSidePanelAt(): (
   const read = useReadState()
   const readRestore = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const setStates = useSetPluginStatesAt(kit)
-  const { showStage } = useActions()
+  const { showStage } = useStoreActions()
   const pressClosed = useContext(PressClosedContext)
   return useCallback(
     (stage, open, restore = "back") => {
@@ -97,7 +97,7 @@ export function useFollowsSelectionAt(stage: string | null): boolean {
 export function useTakeOffAnchorAt(): (stage: string, anchor: string) => void {
   const readPanel = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
-  const { select } = useActions()
+  const { select } = useStoreActions()
   const close = useCloseRightSidePanelAt()
   return useCallback(
     (stage, anchor) => {

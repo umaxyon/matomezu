@@ -63,7 +63,7 @@ import type { WideSearchModeProps } from "./wide-search/slots"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
 import { WINDOW_ICONS } from "./window/icons"
 import { CONTROL_CENTER_BIRDHOUSE, ONE_SCREEN_WIDGET, WINDOW } from "./window/ui"
-import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
+import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../../core/wide-search"
@@ -176,7 +176,7 @@ export {
   WORKROOM_COLUMNS,
   WORKROOM_ROW_LINE,
 } from "./window/slots"
-export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
+export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"
 
 import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_BUTTON, SCRAP_TRAY_TAB } from "./scrap/ui"
 export const BASE_UI = definePluginUi(BASE, {
@@ -273,18 +273,18 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
     "@matomezu/base:wide-search-modes": WideSearchModeProps // 横断検索のタブに並べるモード（入力の下のパネル）
     "@matomezu/base:wide-search-openers": Record<string, never> // 種類ごとの、横断検索の当たりの開き方（何も描かない）
-    "@matomezu/base:stage-top": StageSlotProps
-    "@matomezu/base:stage-side": StageSlotProps
-    "@matomezu/base:stage-body": StageSlotProps
-    "@matomezu/base:book-layers": StageSlotProps
+    "@matomezu/base:stage-top": Record<string, never>
+    "@matomezu/base:stage-side": Record<string, never>
+    "@matomezu/base:stage-body": Record<string, never>
+    "@matomezu/base:book-layers": Record<string, never>
     "@matomezu/base:sheet-layers": PrintSheetProps // 印刷区画 1 つの中のレイヤー
-    "@matomezu/base:stage-bottom": StageSlotProps
-    "@matomezu/base:stage-corner": StageSlotProps
-    "@matomezu/base:footer-menu-map": StageSlotProps
-    "@matomezu/base:footer-menu-history": StageSlotProps
-    "@matomezu/base:footer-menu-basics": StageSlotProps
-    "@matomezu/base:footer-menu-book-tools": StageSlotProps
-    "@matomezu/base:right-side-panel": StageSlotProps
+    "@matomezu/base:stage-bottom": Record<string, never>
+    "@matomezu/base:stage-corner": Record<string, never>
+    "@matomezu/base:footer-menu-map": Record<string, never>
+    "@matomezu/base:footer-menu-history": Record<string, never>
+    "@matomezu/base:footer-menu-basics": Record<string, never>
+    "@matomezu/base:footer-menu-book-tools": Record<string, never>
+    "@matomezu/base:right-side-panel": Record<string, never>
     "@matomezu/base:settings-categories": Record<string, never>
     "@matomezu/base:annotation-icon": AnnotationIconProps
     "@matomezu/base:corner-statuses": CornerStatusProps

@@ -14,7 +14,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageId } from "../../../ui/scope"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useBook, useStage } from "../../../ui/view-hooks"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { BOOK_NEW } from "../book-new"
@@ -47,7 +47,7 @@ export const StageView = memo(function StageView() {
   const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
   const inPreview = stage?.mode === "print-preview"
   const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
-  const { focusStage, resizeStage, panStageBy, openBook } = useActions()
+  const { focusStage, resizeStage, panStageBy, openBook } = useStoreActions()
   const wheelZoom = useCommand(ZOOM_WHEEL.id)
   const t = useMessages(kit)
   const ref = useRef<HTMLElement>(null)
@@ -168,7 +168,7 @@ function BookContent({ stage, type, previewing }: { stage: string; type: BookTyp
       ) : (
         <AnchorsProvider stage={stage}>
           <CornersProvider>
-            <Slot name={BOOK_LAYERS} props={{ stage }} />
+            <Slot name={BOOK_LAYERS} props={{}} />
           </CornersProvider>
         </AnchorsProvider>
       )}

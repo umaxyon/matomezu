@@ -7,7 +7,7 @@ import { useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions } from "../../../ui/store-context"
+import { useStoreActions } from "../../../ui/store-context"
 import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
@@ -23,7 +23,7 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   const form = useId()
   const book = useBook() ?? undefined // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
-  const { previewDialog } = useActions()
+  const { previewDialog } = useStoreActions()
   const perform = usePerform()
   const [title, setTitle] = useState(book?.title ?? "")
   const [locked, setLocked] = useState(book?.locked === true)

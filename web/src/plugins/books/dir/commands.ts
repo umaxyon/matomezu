@@ -83,8 +83,8 @@ export function addEntry(ctx: CommandContext, a: CommandActions, at: AddAt, kind
     refused(ctx, a, done.ok ? { reason: "refused" } : done)
     return
   }
-  a.here.select([added])
-  a.here.setEditing(ADDED_EDIT)
+  a.select([added])
+  a.setEditing(ADDED_EDIT)
 }
 
 // 選んでいる行
@@ -98,7 +98,7 @@ export const ENTRY_SELECT_MOVE = kit.defineCommand({
   title: "Move selection",
   run: (ctx, a, args: { to: "up" | "down" }) => {
     const s = selected(ctx)
-    if (s) a.here.select([rowFrom(s.root, s.id, args.to)])
+    if (s) a.select([rowFrom(s.root, s.id, args.to)])
   },
   when: penciling,
 })
@@ -116,7 +116,7 @@ export const ENTRY_LEFT = kit.defineCommand({
     const e = entryOf(s.root, s.id)
     if (e?.kind === "folder" && !e.closed && (e.children?.length ?? 0) > 0)
       a.perform(FOLDER_CLOSE.id, { page: s.page.id, folder: s.id, closed: true }, { book: opened.book })
-    else a.here.select([parentOf(s.root, s.id)])
+    else a.select([parentOf(s.root, s.id)])
   },
   when: penciling,
 })
@@ -146,7 +146,7 @@ export const ENTRY_SELECT_ROOT = kit.defineCommand({
   title: "Select root",
   run: (ctx, a) => {
     const dir = dirAt(ctx)
-    if (dir) a.here.select([dir.root.id])
+    if (dir) a.select([dir.root.id])
   },
   when: penciling,
 })
@@ -160,8 +160,8 @@ export const ENTRY_RENAME = kit.defineCommand({
   run: (ctx, a) => {
     const s = selected(ctx)
     if (!s) return
-    a.here.select([s.id])
-    a.here.setEditing(true)
+    a.select([s.id])
+    a.setEditing(true)
   },
   when: penciling,
 })
@@ -218,8 +218,8 @@ export const ENTRY_KIND_PICK = kit.defineCommand({
   run: (ctx, a) => {
     const s = selected(ctx)
     if (!s) return
-    a.here.select([s.id])
-    a.here.setEditing(KIND_PICK)
+    a.select([s.id])
+    a.setEditing(KIND_PICK)
   },
   when: ctx => {
     const s = penciling(ctx) ? selected(ctx) : null
@@ -235,7 +235,7 @@ export const ENTRY_SETTINGS = kit.defineCommand({
   title: "Settings…",
   run: (ctx, a) => {
     const s = selected(ctx)
-    if (s) a.here.openDialog(ENTRY_SETTINGS_DIALOG.id, { page: s.page.id, entry: s.id })
+    if (s) a.openDialog(ENTRY_SETTINGS_DIALOG.id, { page: s.page.id, entry: s.id })
   },
   when: penciling,
 })
@@ -273,7 +273,7 @@ export const ENTRY_DELETE = kit.defineCommand({
     const opened = ctx.stage.opened
     const next = s && afterRemove(s.root, s.id)
     if (!s || !opened || !next) return
-    if (a.perform(ENTRY_REMOVE.id, { page: s.page.id, entry: s.id }, { book: opened.book }).ok) a.here.select([next])
+    if (a.perform(ENTRY_REMOVE.id, { page: s.page.id, entry: s.id }, { book: opened.book }).ok) a.select([next])
   },
   when: ctx => {
     const s = penciling(ctx) ? selected(ctx) : null

@@ -18,7 +18,7 @@ import { useMenuCommand } from "../../web/src/ui/menu"
 import { ActsOnScope, PageScope, StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import {
-  useActionsHere,
+  useActions,
   useAllowed,
   usePage,
   usePerform,
@@ -150,7 +150,7 @@ function probeOf(seen: { now: Seen | null }) {
     const settings = useCommand("@matomezu/base:settings-open") // スクリーンから呼ぶコマンド
     const menu = useMenuCommand("@matomezu/base:zoom-fit" as never)
     const openMenu = useContextMenu("@matomezu/base:page-context")
-    const actions = useActionsHere()
+    const actions = useActions()
     const setState = useSetPluginState(baseKit, PRINT_MEASURES)
     useStageArea({ w: 5000, h: 5000 })
     seen.now = {
@@ -314,21 +314,4 @@ test("スクリーンを開いた場所に置くと、スクリーンのコマ�
     expect(seen.now).toMatchObject({ stage: null, page: undefined, command: false, screenCommand: true })
     cleanup()
   }
-})
-
-test("橋渡しの間: 古い形で、描いている場所と違うステージの id を渡すと落ちる", () => {
-  const { wrap } = setup()
-  function Probe() {
-    useStage("s2")
-    return null
-  }
-  expect(() =>
-    render(
-      wrap(
-        <StageScope stage="s1">
-          <Probe />
-        </StageScope>,
-      ),
-    ),
-  ).toThrow(RangeError)
 })

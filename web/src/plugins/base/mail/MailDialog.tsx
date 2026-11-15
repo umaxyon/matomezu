@@ -6,7 +6,7 @@ import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } fr
 import { screenOf, stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useLayout, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
+import { useLayout, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
@@ -46,7 +46,7 @@ export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
   const books = useMatomezuState(s => s.books)
   const stages = useMatomezuState(s => screenOf(s.window).stages)
   const read = useReadState()
-  const actions = useActions()
+  const actions = useStoreActions()
   const closeLeft = useCloseLeftSidePanel()
   const left = useLeftSidePanel()
   const mailboxOpened = left?.tab === MAILBOX_TAB_ID

@@ -31,7 +31,7 @@ const NOTE = defineBookType({
 const SHOOT = defineCommand({
   id: "notes:shoot",
   title: "@matomezu/drawing:Drawing",
-  run: (_ctx, a) => (a.here.openDialog as (id: string) => void)("notes:shot"),
+  run: (_ctx, a) => (a.openDialog as (id: string) => void)("notes:shot"),
   when: () => true,
 })
 const notes = definePlugin({

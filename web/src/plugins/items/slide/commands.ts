@@ -58,8 +58,8 @@ export const SLIDE_PUT = kit.defineCommand({
       a.showToast({ kind: "warn", message: kit.message("Cannot place here") })
       return
     }
-    a.here.stopPlacing()
-    a.here.select([(done.result as { item: string }).item])
+    a.stopPlacing()
+    a.select([(done.result as { item: string }).item])
   },
   when: ctx => onPage(ctx) && ctx.stage.placing !== null,
 })
@@ -129,7 +129,7 @@ export const SLIDE_DELETE = kit.defineCommand({
     const { opened } = ctx.stage
     if (!opened?.page) return
     for (const item of selectedOnSlide(ctx)) a.perform(REMOVE, { page: opened.page, item }, { book: opened.book })
-    a.here.select([])
+    a.select([])
   },
   when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
 })

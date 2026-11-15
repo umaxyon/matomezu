@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Annotation, unexpired } from "../../core/annotation"
-import { useActions, useMatomezuState } from "../../ui/store-context"
+import { useMatomezuState, useStoreActions } from "../../ui/store-context"
 import { useCoreCatalog, usePerform } from "../../ui/view-hooks"
 import { useBookOf } from "./item-parts/parts"
 import { kit } from "./kit"
@@ -48,7 +48,7 @@ export function usePerformOrToast(
 ): (action: string, args: unknown) => false | object {
   const perform = usePerform() as (action: string, args: unknown) => { ok: boolean; result?: unknown }
   const catalog = useCoreCatalog()
-  const { showToast } = useActions()
+  const { showToast } = useStoreActions()
   return (action, args) => {
     const done = perform(action, args)
     if (done.ok) return (done.result as object | undefined) ?? {}

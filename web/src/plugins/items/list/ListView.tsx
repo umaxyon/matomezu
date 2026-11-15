@@ -21,7 +21,7 @@ import { type ItemProps, resolveTokens, toPaperDelta } from "../../../plugin-api
 import {
   type ItemViewProps,
   themeVars,
-  useActionsHere,
+  useActions,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -236,7 +236,7 @@ export function ListView({
     },
     onPointerCancel: () => endCarry(false),
   })
-  const { select } = useActionsHere()
+  const { select } = useActions()
   const at = useStage()
   const selection = at?.selection ?? []
   const followed = useFollowsSelection()

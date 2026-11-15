@@ -17,7 +17,7 @@ import { useCommand } from "../../../ui/commands"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { StageScope } from "../../../ui/scope"
-import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useStage, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { MINIMAP_SIZE } from "../minimap/geometry"
@@ -47,7 +47,7 @@ interface Press {
 const typing = (el: Element | null) => !!el?.closest("input, textarea, select, [contenteditable]")
 
 export function ToolPickerView() {
-  const { openPicker, closeContextMenu } = useActions()
+  const { openPicker, closeContextMenu } = useStoreActions()
   const last = useRef<Point | null>(null)
   const press = useRef<Press | null>(null)
   const [ring, setRing] = useState<Point | null>(null)
@@ -171,7 +171,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const unusable = useMatomezuState(s =>
     opened ? unusableTools(catalog, workspaceOf(s.window, opened.id), opened.id, s.books).join("\n") : "",
   ).split("\n")
-  const { closePicker } = useActions()
+  const { closePicker } = useStoreActions()
   const setTool = useCommand(TOOL_SET.id)
   const [hover, setHover] = useState<number | null>(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])

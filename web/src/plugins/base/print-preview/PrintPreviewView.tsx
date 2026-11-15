@@ -11,7 +11,6 @@ import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } fr
 import { pagedOf } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
-import type { LegacyStageProps } from "../../../core/legacy"
 import type { Book, Page } from "../../../core/schema/book"
 import { extentOf as previewArea } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
@@ -20,7 +19,7 @@ import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageId } from "../../../ui/scope"
-import { useActions, useCatalog, useMatomezuState, useReadState, useUiCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
 import { settingValue } from "../book-settings"
@@ -40,10 +39,10 @@ import { Printing } from "./printing"
 import { SheetFrame } from "./SheetFrame"
 import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_SHEET_NUMBERS } from "./settings"
 
-// 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: 描いているステージ（印刷プレビューの間）・ブック・ページと、
+// 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: ブック・ページと、
 // そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
 // （印刷区画の左上が原点になるようずらし、はみ出した所を切るのは印刷プレビュー）。描く物を、その印刷区画に載る物に絞ってよい。入力は受けない
-export type PrintSheetProps = Partial<LegacyStageProps> & {
+export interface PrintSheetProps {
   zoom: number // 描いている倍率（紙の上の 1px が画面の何 px か。画面の上で一定に描く線などに使う）
   book: Book
   page: Page
@@ -53,10 +52,10 @@ export type PrintSheetProps = Partial<LegacyStageProps> & {
   measured?: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測る見せ方だけ）
 }
 
-// 測るだけのビュー（ブックのビューの定義の printMeasure）が受け取る物: 描いているステージ・ブック・ページと、紙の大きさ paper、測った結果を知らせる report。
+// 測るだけのビュー（ブックのビューの定義の printMeasure）が受け取る物: ブック・ページと、紙の大きさ paper、測った結果を知らせる report。
 // ページの中身を見えない所に描いて測り、印刷区画の数（rows。1 列に並べる）と、各印刷区画のビューに渡すデータ（data。印刷区画 1 つのビューの
 // measured に届く）を知らせる。測り直すたびに知らせてよい（同じ結果なら並べ直さない）。入力は受けない
-export type PrintMeasureProps = Partial<LegacyStageProps> & {
+export interface PrintMeasureProps {
   book: Book
   page: Page
   paper: Size
@@ -100,7 +99,7 @@ export function PrintPreviewView() {
   const book = useBook()
   const pan = useStagePan()
   const panel = useRightSidePanelAt(id)
-  const { setPreviewArea, closePrintPreview, openPage } = useActions()
+  const { setPreviewArea, closePrintPreview, openPage } = useStoreActions()
   const read = useReadState()
   const lang = useMatomezuState(s => s.lang)
   // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）

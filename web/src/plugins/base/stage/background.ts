@@ -28,11 +28,11 @@ export const BACKGROUND_TOGGLE = kit.defineCommand({
   title: "Edit background",
   run: (ctx, a) => {
     if (editingBackground(ctx)) {
-      a.here.endBackground()
+      a.endBackground()
       return
     }
     showContent(a)
-    a.here.startBackground()
+    a.startBackground()
   },
   when: hasBackground,
   active: editingBackground,
@@ -43,9 +43,9 @@ export const BACKGROUND_EDIT = kit.defineCommand({
   id: "background-edit",
   title: "Edit background",
   run: (ctx, a, { page }: { page: string }) => {
-    if (ctx.stage.opened?.page !== page) a.here.openPage(page)
+    if (ctx.stage.opened?.page !== page) a.openPage(page)
     showContent(a)
-    a.here.startBackground()
+    a.startBackground()
   },
   when: ctx =>
     ctx.book !== null &&
@@ -58,7 +58,7 @@ export const BACKGROUND_EDIT = kit.defineCommand({
 export const BACKGROUND_END = kit.defineCommand({
   id: "background-end",
   title: "End background editing",
-  run: (_ctx, a) => a.here.endBackground(),
+  run: (_ctx, a) => a.endBackground(),
   when: editingBackground,
 })
 

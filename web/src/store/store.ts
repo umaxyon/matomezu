@@ -906,8 +906,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
       // 呼ばれた場所（ステージか、スクリーン）に向けた操作
-      const here = boundActions(actions, stage)
-      run(call.ctx, { ...actions, here, updatePluginState }, args[0] as never)
+      run(call.ctx, { ...actions, ...boundActions(actions, stage), updatePluginState }, args[0] as never)
       if (pending.length > 0) {
         const now = getState().pluginValues
         const next = working()

@@ -5,7 +5,7 @@ import {
   type DialogProps,
   type ItemViewProps,
   type SettingControlProps,
-  useItemAt,
+  useItem,
   useMessages,
   usePerform,
 } from "matomezu/ui"
@@ -57,10 +57,10 @@ export function AddDiamondDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   )
 }
 
-// 今の答えのボタンを押された見た目にする（useItemAt で開いた判断のひし形を読む）
+// 今の答えのボタンを押された見た目にする（useItem で開いた判断のひし形を読む）
 export function EditDiamondDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useMessages(kit)
-  const diamond = useItemAt(args.page, args.item, DIAMOND.id)
+  const diamond = useItem(args.page, args.item, DIAMOND.id)
   const perform = usePerform()
   const answer = (value: "yes" | "no") => {
     if (perform(ANSWER.id, { ...args, answer: value }).ok) onClose()

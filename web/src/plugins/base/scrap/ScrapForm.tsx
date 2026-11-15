@@ -10,7 +10,7 @@ import type { ItemPage } from "../../../core/placed"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useActionsHere } from "../../../ui/view-hooks"
+import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { pageArea } from "../place/items"
 import { useResize } from "../utils/useResize"
@@ -47,7 +47,7 @@ export function ScrapForm({
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const { openPageById } = useActionsHere()
+  const { openPageById } = useActions()
   const found = useMatomezuState(
     useShallow(s => {
       const at = pageById(s.books, value.page)

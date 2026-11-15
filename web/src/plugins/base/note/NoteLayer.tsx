@@ -17,7 +17,7 @@ import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useStageId } from "../../../ui/scope"
 import { useReadState } from "../../../ui/store-context"
-import { useActionsHere, useAllowed } from "../../../ui/view-hooks"
+import { useActions, useAllowed } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -71,7 +71,7 @@ function useOpenNote(stage: string, note: string, anchors: readonly string[]) {
   const shown = useRightSidePanel()
   const follows = useFollowsSelection()
   const read = useReadState()
-  const { select } = useActionsHere()
+  const { select } = useActions()
   const anchor = anchors.at(-1) ?? ""
   const busy = !!shown && shown.subject !== note && shown.subject !== NEW_NOTE
   // 物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）

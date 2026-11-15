@@ -4,14 +4,7 @@
 // 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して絵を置き（ほかの形は画面と同じに押す）、置いた絵を選ぶ。編集は絵の項目を書き換える（アクション item-update）
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
-import {
-  type DialogProps,
-  useActionsHere,
-  useCoreCatalog,
-  useItemAt,
-  useMessages,
-  usePerform,
-} from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
@@ -39,7 +32,7 @@ export function addArtDialog(item: string) {
   return function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf()
     const bookTheme = useBookTheme(book)
-    const { select } = useActionsHere()
+    const { select } = useActions()
     const perform = usePerform()
     const add = (props: ArtProps) => {
       if (!book) return { reason: "no-book" }
@@ -66,9 +59,9 @@ export function addArtDialog(item: string) {
 export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const placed = useItemAt(args.page, args.item)
+  const placed = useItem(args.page, args.item)
   const start = placed?.props as ArtProps | undefined
-  const { previewDialog } = useActionsHere()
+  const { previewDialog } = useActions()
   const perform = usePerform()
   const preview = useCallback(
     (color: ArtProps["color"] | null) =>

@@ -1,7 +1,6 @@
 // プラグインの見た目が使うフック（matomezu/ui）: 描いている場所（ui/scope.tsx）から、約束のものだけを引く。状態を丸ごとは見せない。
 // 読む物（ブック・ページ・アイテム）は描くページから、操作（アクション・ステージごとのプラグイン状態・紙をずらす量など）は向け先から引く。
 // ステージは読むだけの StageView（プラグインが持つ状態は usePluginState・useSetPluginState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ。
-// 橋渡しの間、古い形（第 1 引数にステージの id）も受け、描いている場所と違えば落とす
 
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -15,7 +14,6 @@ import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
-import type { LegacyId, LegacyOnly } from "../core/legacy"
 import { type ArgsOf, type Permitted, permittedIn } from "../core/perform"
 import {
   findShape,
@@ -44,7 +42,7 @@ import {
   useUpdatePluginStateAt,
 } from "./at-hooks"
 import type { UiCatalog } from "./plugin"
-import { bookOf, checkLegacy, openedOf, pageOf, useAt, useScope, useStageId } from "./scope"
+import { bookOf, openedOf, pageOf, useAt, useScope, useStageId } from "./scope"
 import { useScreenHere } from "./screen-context"
 import {
   useCatalog,
@@ -52,26 +50,24 @@ import {
   useInstance,
   useMatomezuState,
   useReadState,
-  useActions as useStoreActions,
+  useStoreActions,
   useUiCatalog as useUi,
 } from "./store-context"
 
 // 描くページのブック（何も開いていなければ null）
-export function useBook(legacy?: LegacyId): Book | null {
+export function useBook(): Book | null {
   const scope = useScope()
-  checkLegacy(scope, legacy, "useBook")
   return useMatomezuState(s => bookOf(s, scope))
 }
 
 // 描くページ（ページを持たないブック・ページを開いていなければ null）
-export function usePage(legacy?: LegacyId): ItemPage | null {
+export function usePage(): ItemPage | null {
   const scope = useScope()
-  checkLegacy(scope, legacy, "usePage")
   return useMatomezuState(s => pageOf(s, scope))
 }
 
 // 描くページのブックの、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
-export function useItemAt<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | undefined {
+export function useItem<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | undefined {
   const scope = useScope()
   return useMatomezuState(s => {
     const book = pagedOf(bookOf(s, scope) ?? undefined)
@@ -82,17 +78,9 @@ export function useItemAt<Id extends ItemId>(page: string, item: string, id?: Id
   })
 }
 
-// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）。新しい形は useItemAt（最後に useItem に戻す）
-export const useItem: LegacyOnly<
-  <Id extends ItemId>(legacy: string, page: string, item: string, id?: Id) => PlacedOf<Id> | undefined
-> = (<Id extends ItemId>(legacy: string, page: string, item: string, id?: Id) => {
-  checkLegacy(useScope(), legacy, "useItem")
-  return useItemAt(page, item, id)
-}) as never
-
 // 描くページのブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。見せ方が描くのに使う
-export function useShownBook(legacy?: LegacyId): Book | null {
-  const book = useBook(legacy)
+export function useShownBook(): Book | null {
+  const book = useBook()
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
     if (!book || !preview || preview.book !== book.id || preview.item !== undefined || preview.page !== undefined)
@@ -103,8 +91,8 @@ export function useShownBook(legacy?: LegacyId): Book | null {
 
 // 描くページに、ダイアログの下書き（選んでいて、まだ確定していない値。アイテムの項目と、ページの設定の項目）を重ねたページ。
 // 見せ方が描くのに使う
-export function useShownPage(legacy?: LegacyId): ItemPage | null {
-  const page = usePage(legacy)
+export function useShownPage(): ItemPage | null {
+  const page = usePage()
   const scope = useScope()
   const book = useMatomezuState(s => openedOf(s, scope)?.book)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
@@ -128,15 +116,7 @@ export function useShownPage(legacy?: LegacyId): ItemPage | null {
 // 止められたときに、薄くする・消すなどをどうするかは、使う側が決める
 export type Allowed = { ok: true } | { ok: false; permission: string | null }
 
-export function useAllowed(action: ActionId, where?: Where | { settings: readonly string[] }): Allowed
-// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
-export function useAllowed(legacy: LegacyId, action: ActionId, where?: Where | { settings: readonly string[] }): Allowed
-export function useAllowed(...given: readonly unknown[]): Allowed {
-  const old = typeof given[1] === "string"
-  const action = (old ? given[1] : given[0]) as ActionId
-  const where = (old ? given[2] : given[1]) as Where | { settings: readonly string[] } | undefined
-  const scope = useScope()
-  checkLegacy(scope, old ? (given[0] as string) : undefined, "useAllowed")
+export function useAllowed(action: ActionId, where?: Where | { settings: readonly string[] }): Allowed {
   const at = useAt()
   const catalog = useCatalog().core
   const controlCenter = useControlCenter()
@@ -182,41 +162,29 @@ export function useAllowedOn<Id extends ActionId>(action: Id, args: ArgsOf<Id>, 
 }
 
 // 向け先のステージ（読むだけ。向け先がステージでなければ null。見るだけのページの中でも null）。紙をずらしただけでは描き直さない
-export function useStage(legacy?: LegacyId): StageView | null {
-  const scope = useScope()
-  checkLegacy(scope, legacy, "useStage")
+export function useStage(): StageView | null {
   return useStageAt(useStageId())
 }
 
-// 値のある場所: ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーン（どちらも呼び出しには渡さない。描いている場所から決まる）。
+// 値のある場所: ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーン（どちらも呼び出しには渡さなくてよい。描いている場所から決まる）。
 // 向け先がステージでない所（見るだけのページの中など）では、ステージごとの宣言の値は無く、置いても何も変わらない。
 // スクリーンごとの宣言は、スクリーンの id を渡して名指せる（スクリーンを並べるスクリーンアレンジメントのウィジェットが、並べる 1 枚ごとの値を読み書きするとき）
-// 橋渡しの間だけ: ステージごとの宣言に、ステージの id を渡す古い形も受ける
-type At<Sc extends PluginStateScope> = Sc extends "window"
-  ? []
-  : Sc extends "stage"
-    ? [legacy?: LegacyId]
-    : [screen?: string]
+type At<Sc extends PluginStateScope> = Sc extends "screen" ? [screen?: string] : []
 
-// 宣言の範囲 scope の値がある場所の id（窓の範囲は ""。場所が無ければ null）。given は呼び出しに渡された id
-function usePluginPlace(scope: PluginStateScope): (given: string | undefined, hook: string) => string | null {
+// 宣言の範囲 scope の値がある場所の id（窓の範囲は ""。場所が無ければ null）。given は、呼び出しに渡されたスクリーンの id
+function usePluginPlace(scope: PluginStateScope): (given: string | undefined) => string | null {
   const here = useScope()
   const stage = useStageId()
   const screen = useScreenHere()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
   return useCallback(
-    (given, hook) => {
-      if (scope === "window") return ""
-      if (scope === "screen") return given ?? screen
-      checkLegacy(here, given, hook)
-      return stage
-    },
-    [scope, here, stage, screen],
+    given => (scope === "window" ? "" : scope === "screen" ? (given ?? screen) : stage),
+    [scope, stage, screen],
   )
 }
 
 // プラグイン状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。置き直すたびに描き直す
-export function usePluginState<S>(kit: Owner, def: PluginStateDef<S>, place?: string): S | undefined {
-  return usePluginStateAt(kit, def, usePluginPlace(def.scope)(place, "usePluginState"))
+export function usePluginState<S>(kit: Owner, def: PluginStateDef<S>, screen?: string): S | undefined {
+  return usePluginStateAt(kit, def, usePluginPlace(def.scope)(def.scope === "screen" ? screen : undefined))
 }
 
 // プラグイン状態 def を、描き直さずに読む関数（置いた側が、前に置いた値と比べるときなど）
@@ -228,7 +196,7 @@ export function useReadPluginState<S, Sc extends PluginStateScope>(
   const placeOf = usePluginPlace(def.scope)
   return useCallback(
     (...given: readonly (string | undefined)[]) => {
-      const at = placeOf(given[0], "useReadPluginState")
+      const at = placeOf(given[0])
       return at === null ? undefined : read(at)
     },
     [read, placeOf],
@@ -242,10 +210,10 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
 ): (...args: [...At<Sc>, S | undefined] | [S | undefined]) => void {
   const set = useSetPluginStateAt(kit, def)
   const placeOf = usePluginPlace(def.scope)
-  const named = def.scope !== "window"
+  const named = def.scope === "screen"
   return useCallback(
     (...args: unknown[]) => {
-      const at = placeOf(named && args.length === 2 ? (args[0] as string) : undefined, "useSetPluginState")
+      const at = placeOf(named && args.length === 2 ? (args[0] as string) : undefined)
       if (at !== null) set(at, args[args.length - 1] as S | undefined)
     },
     [set, placeOf, named],
@@ -258,55 +226,41 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
 // screenDef を渡さなければ、このビューがいるスクリーンの値（スクリーンの外の物は false。窓のカレントスクリーンには落とさない）。
 // ステージごとの宣言は、向け先のステージの値（向け先がステージでなければ false）。
 // 同じ値なら何も変わらず、ブラウザの履歴に積まない。ほかのプラグインのコードは読まず、id の文字と値だけで頼む（自分の宣言は useSetPluginState）
-export function useSetPluginStateById(): (
-  id: string,
-  value: unknown,
-  at?: { screenDef?: string; stage?: string },
-) => boolean {
+export function useSetPluginStateById(): (id: string, value: unknown, at?: { screenDef?: string }) => boolean {
   const { setPluginStateById } = useInstance()
   const here = useScreenHere()?.id
-  const scope = useScope()
   const stage = useStageId()
   return useCallback(
-    (id, value, at) => {
-      checkLegacy(scope, at?.stage, "useSetPluginStateById")
-      return setPluginStateById(id, value, {
+    (id, value, at) =>
+      setPluginStateById(id, value, {
         ...(here !== undefined ? { screen: here } : {}),
         ...(stage !== null ? { stage } : {}),
         ...(at?.screenDef !== undefined ? { screenDef: at.screenDef } : {}),
-      })
-    },
-    [setPluginStateById, here, scope, stage],
+      }),
+    [setPluginStateById, here, stage],
   )
 }
 
 // 複数のプラグイン状態の値を、1 回で書く関数（途中の、片方だけ変わった状態を知らせない）。自分の kit を渡し、自分の宣言だけを書く。
-// 変え方は [宣言, 新しい値] の並び（ステージごとの宣言は向け先のステージの値。向け先がステージでなければ、その変え方は捨てる）
-// 橋渡しの間だけ: 古い形 [宣言, ステージ（ステージに結ばない宣言は null）, 新しい値] も受ける
+// 変え方は [宣言, 新しい値] の並び（ステージごとの宣言は向け先のステージ、スクリーンごとの宣言は描いているスクリーンの値。その場所が無ければ、その変え方は捨てる）
 export function useSetPluginStates(
   kit: Owner,
-): (
-  changes: readonly (
-    | readonly [def: PluginStateDef<unknown>, value: unknown]
-    | readonly [def: PluginStateDef<unknown>, legacy: LegacyId | null, value: unknown]
-  )[],
-) => void {
+): (changes: readonly (readonly [def: PluginStateDef<unknown>, value: unknown])[]) => void {
   const { setPluginStates } = useInstance()
   const id = kit.id
-  const scope = useScope()
+  const here = useScope()
   const stage = useStageId()
+  const screen = useScreenHere()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
   return useCallback(
     changes =>
       setPluginStates(
-        changes.flatMap(change => {
-          const def = change[0]
-          if (change.length === 3 && change[1] !== null) checkLegacy(scope, change[1], "useSetPluginStates")
-          const at = def.scope === "window" ? null : stage
+        changes.flatMap(([def, value]) => {
+          const at = def.scope === "window" ? null : def.scope === "screen" ? screen : stage
           if (def.scope !== "window" && at === null) return []
-          return [[ownedPluginState(id, def).id, at, change[change.length - 1]] as const]
+          return [[ownedPluginState(id, def).id, at, value] as const]
         }),
       ),
-    [setPluginStates, id, scope, stage],
+    [setPluginStates, id, stage, screen],
   )
 }
 
@@ -317,10 +271,10 @@ export function useUpdatePluginState<S, Sc extends PluginStateScope>(
 ): (...args: [...At<Sc>, (now: S | undefined) => S | undefined] | [(now: S | undefined) => S | undefined]) => void {
   const update = useUpdatePluginStateAt(kit, def)
   const placeOf = usePluginPlace(def.scope)
-  const named = def.scope !== "window"
+  const named = def.scope === "screen"
   return useCallback(
     (...args: unknown[]) => {
-      const at = placeOf(named && args.length === 2 ? (args[0] as string) : undefined, "useUpdatePluginState")
+      const at = placeOf(named && args.length === 2 ? (args[0] as string) : undefined)
       if (at !== null) update(at, args[args.length - 1] as (now: S | undefined) => S | undefined)
     },
     [update, placeOf, named],
@@ -331,14 +285,7 @@ export function useUpdatePluginState<S, Sc extends PluginStateScope>(
 // 位置をデータに持たない見せ方は、描く中身を右・下へずらした量 origin（印刷区画の数）も知らせる（変わったら、ステージがパンを合わせる）。
 // 広さかずらした量が変わったときだけ知らせ、ビューが消えたら紙 1 枚に戻す。ずらす量の範囲・紙の枠・全体を収める倍率・ミニマップは、この広さで決まる。
 // 向け先がステージでない所（見るだけのページの中）では、何も知らせない
-export function useStageArea(area: Size | null, origin?: Point | null): void
-// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
-export function useStageArea(legacy: LegacyId, area: Size | null, origin?: Point | null): void
-export function useStageArea(...given: readonly unknown[]): void {
-  const old = typeof given[0] === "string"
-  const area = (old ? given[1] : given[0]) as Size | null
-  const origin = ((old ? given[2] : given[1]) ?? null) as Point | null
-  checkLegacy(useScope(), old ? (given[0] as string) : undefined, "useStageArea")
+export function useStageArea(area: Size | null, origin: Point | null = null): void {
   const stage = useStageId()
   const { setStageArea } = useStoreActions()
   const w = area?.w
@@ -358,20 +305,13 @@ export function useStageArea(...given: readonly unknown[]): void {
 
 // 向け先のステージの紙をずらす量（向け先がステージでなければ null）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
 // watch が false の間は null を返し、ずらしても描き直さない（ドラッグの間だけ追うときなど）
-export function useStagePan(watch?: boolean): Point | null
-// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
-export function useStagePan(legacy: LegacyId, watch?: boolean): Point | null
-export function useStagePan(...given: readonly unknown[]): Point | null {
-  const old = typeof given[0] === "string"
-  const watch = ((old ? given[1] : given[0]) ?? true) as boolean
-  checkLegacy(useScope(), old ? (given[0] as string) : undefined, "useStagePan")
+export function useStagePan(watch = true): Point | null {
   const stage = useStageId()
   return useMatomezuState(s => (watch && stage !== null ? (stageIn(s.window, stage)?.pan ?? null) : null))
 }
 
 // 表示領域の中の点（左上から）を、向け先のステージの今の紙の上の点に直す関数（描き直さない。押した所を直すときなど、イベントや effect の中で使う）
-export function useToPaper(legacy?: LegacyId): (p: Point) => Point | null {
-  checkLegacy(useScope(), legacy, "useToPaper")
+export function useToPaper(): (p: Point) => Point | null {
   const stage = useStageId()
   const read = useReadState()
   return useCallback(
@@ -384,8 +324,7 @@ export function useToPaper(legacy?: LegacyId): (p: Point) => Point | null {
 }
 
 // 向け先のステージの今の紙をずらす量を読む関数（描き直さない。押した所を紙の上の点に直すときなど、イベントや effect の中で読む）
-export function useLatestPan(legacy?: LegacyId): () => Point | null {
-  checkLegacy(useScope(), legacy, "useLatestPan")
+export function useLatestPan(): () => Point | null {
   const stage = useStageId()
   const read = useReadState()
   return useCallback(() => (stage === null ? null : (stageIn(read().window, stage)?.pan ?? null)), [read, stage])
@@ -393,15 +332,12 @@ export function useLatestPan(legacy?: LegacyId): () => Point | null {
 
 // 描いている場所（ui/scope.tsx）から呼ぶ画面の操作: 窓に向ける操作はそのまま、場所に向ける操作は、向け先（ステージかスクリーン）に向けた形（第 1 引数が無い）。
 // 向け先が無い所（見るだけのページの中）では、場所に向ける操作は何もしない。
-// 橋渡しの間だけの名前（最後に、これを useActions にする。場所を第 1 引数に取る今の useActions は、土台と骨組みだけが使う）
-export function useActionsHere(): WindowActions & BoundPlaceActions {
+// 場所を第 1 引数に取る素の操作（ui/store-context.tsx の useStoreActions）は、土台と骨組みだけが使う
+export function useActions(): WindowActions & BoundPlaceActions {
   const actions = useStoreActions()
   const at = useAt()
   return useMemo(() => ({ ...actions, ...boundActions(actions, at) }), [actions, at])
 }
-
-// 橋渡しの間だけ: プラグイン API の useActions（場所を第 1 引数に取る操作）。プラグインは useActionsHere を使う（最後に、それを useActions にする）
-export const useLegacyActions: LegacyOnly<typeof useStoreActions> = useStoreActions as never
 
 // 機能台帳（定義の表。読むだけ。コマンドの ctx.catalog と同じ物）
 export function useCoreCatalog(): CoreCatalog {
@@ -430,8 +366,7 @@ export function useUserSetting(id: string): unknown {
 // 向け先のステージが開いているブックにアクションを行う関数（ブックかアノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
 // 向け先が無い所（見るだけのページの中）からは行わず、no-book を返す。
 // 印刷プレビューの間のステージからは、ブックを変えるアクションを行わず print-preview を返す（core/stage.ts の stageBlocks）
-export function usePerform(legacy?: LegacyId): <Id extends ActionId>(action: Id, args: ArgsOf<Id>) => Performed<Id> {
-  checkLegacy(useScope(), legacy, "usePerform")
+export function usePerform(): <Id extends ActionId>(action: Id, args: ArgsOf<Id>) => Performed<Id> {
   const at = useAt()
   const { perform } = useStoreActions()
   const catalog = useCatalog().core
@@ -449,9 +384,6 @@ export function usePerform(legacy?: LegacyId): <Id extends ActionId>(action: Id,
     [perform, catalog, book, mode, at],
   )
 }
-
-// 橋渡しの間だけ: 描いている場所の、古い形のフックに渡す値（ステージの id・スクリーンの id・窓は none）。最後に無くす
-export const useScreenId: LegacyOnly<() => string> = (() => useScope().legacy) as LegacyOnly<() => string>
 
 // useRecords の読み方: 索引キーの条件（全部を読むなら空）・並び（無ければ id の順）・件数（無ければ合う全部）。
 // 合うか・並びは、アクションの reads とホストの読みと同じ関数（core/record-keys.ts）で決める

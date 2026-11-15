@@ -99,7 +99,7 @@ export const PRINT_PREVIEW_FIT = kit.defineCommand({
   title: "Fit to width",
   run: (ctx, a) => {
     const stage = stageOf(ctx)
-    if (stage) moveHere(a.here, stage, fitSideView(stage, sideOf(ctx)))
+    if (stage) moveHere(a, stage, fitSideView(stage, sideOf(ctx)))
   },
   when: ctx => ctx.stage.mode === "print-preview",
   enabled: ctx => {
@@ -126,7 +126,7 @@ function openPreview(ctx: CommandContext, a: CommandActions) {
     a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, open, now))
     return
   }
-  a.here.openPrintPreview()
+  a.openPrintPreview()
 }
 
 // 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）

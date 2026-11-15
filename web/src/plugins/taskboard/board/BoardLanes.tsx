@@ -1,5 +1,5 @@
 // タスクボード 1 枚のレーンの横並び。レーンのタイトル帯をドラッグすると、レーンを左右に入れ替える（プロジェクトのレーンの並びを書き換える。直せないプロジェクトと、レーンを最大化している間は動かせない）
-import { Slot, useActionsHere, useAllowedOn } from "../../../plugin-api/ui"
+import { Slot, useActions, useAllowedOn } from "../../../plugin-api/ui"
 import { PROJECT_UPDATE } from "../project/actions"
 import { useGripDrag } from "../reorder/useGripDrag"
 import scroll from "../scrollbar.module.css"
@@ -22,7 +22,7 @@ export function BoardLanes({
   laneMax: string | undefined // 最大化しているレーンの id
   onToggleMaximize: (lane: string) => void
 }) {
-  const actions = useActionsHere()
+  const actions = useActions()
   const canMove = useAllowedOn(PROJECT_UPDATE.id, {}, { record: project.id }).ok && laneMax === undefined
   const lanes = lanesOf(project)
   const { dragRowProps, gripProps, markClass } = useGripDrag(

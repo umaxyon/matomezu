@@ -5,11 +5,10 @@ import { type CSSProperties, useMemo } from "react"
 import { PALETTE } from "../../../core/color"
 import type { ThemeDef, TokenDef } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
-import type { LegacyId } from "../../../core/legacy"
 import { splitId } from "../../../core/names"
 import { resolveTokens, type Shades } from "../../../core/theme"
 import { useMessages } from "../../../ui/i18n"
-import { bookTypeOf, checkLegacy, openedOf, useScope } from "../../../ui/scope"
+import { bookTypeOf, openedOf, useScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { bookTheme } from "../book-look/look"
@@ -39,9 +38,8 @@ export function useAligns() {
 }
 
 // 描くページのブックの id（描いている場所。ui/scope.tsx）
-export function useBookOf(legacy?: LegacyId): string | undefined {
+export function useBookOf(): string | undefined {
   const scope = useScope()
-  checkLegacy(scope, legacy, "useBookOf")
   return useMatomezuState(s => openedOf(s, scope)?.book)
 }
 
@@ -82,20 +80,9 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
 
 // 描くページのブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
 // （当てていないか、ブックのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
-export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined
-// 橋渡しの間だけ: 古い形（第 1 引数にステージの id）
-export function useThemeVars(
-  legacy: LegacyId,
-  theme: string | undefined,
-  defs: readonly TokenDef[],
-): CSSProperties | undefined
-export function useThemeVars(...given: readonly unknown[]): CSSProperties | undefined {
-  const old = given.length === 3
-  const theme = (old ? given[1] : given[0]) as string | undefined
-  const defs = (old ? given[2] : given[1]) as readonly TokenDef[]
+export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined {
   const catalog = useCatalog().core
   const scope = useScope()
-  checkLegacy(scope, old ? (given[0] as string) : undefined, "useThemeVars")
   const type = useMatomezuState(s => bookTypeOf(s, scope))
   return useMemo(() => {
     if (!theme || type === undefined || !themeFits(catalog, type, theme)) return undefined

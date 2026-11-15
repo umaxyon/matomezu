@@ -75,7 +75,6 @@ export {
   SelectButton,
   SettingRow,
   STAGE_BASE_SLOTS,
-  type StageSlotProps,
   type Swatch,
   Switch,
   SwitchPanel,

@@ -3,7 +3,7 @@
 // 子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）で塗る（useNodeWrite）。塗れなければ（ロックなど）色は押せない形で出す。
 // 断られたら、トーストで知らせる。外を押すと閉じ（好きな色を選んでいれば塗る）、Esc は塗らずに閉じる
 import { useEffect, useRef, useState } from "react"
-import { useActionsHere, useCoreCatalog, useMessages } from "../../../../plugin-api/ui"
+import { useActions, useCoreCatalog, useMessages } from "../../../../plugin-api/ui"
 import { refusalMessage } from "../../../base"
 import { ColorPicker, Stand, type Swatch } from "../../../base/ui"
 import { kit } from "../kit"
@@ -26,7 +26,7 @@ export function NodeColorStand({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const { setEditing, showToast } = useActionsHere()
+  const { setEditing, showToast } = useActions()
   const { allowed, write } = useNodeWrite(page, isRoot)
   const [picked, setPicked] = useState<{ color: string | undefined } | null>(null) // 好きな色で選んでいる色（閉じるときに塗る）
   const ref = useRef<HTMLDivElement>(null)

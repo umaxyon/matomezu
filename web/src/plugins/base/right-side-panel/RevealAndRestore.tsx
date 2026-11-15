@@ -9,7 +9,7 @@ import type { Stage } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { usePluginStateAt, useReadPluginStateAt, useUpdatePluginStateAt } from "../../../ui/at-hooks"
-import { useActions, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { anchorElementIn, revealedRect } from "../utils/anchors"
 import { stageElement } from "../utils/stage-element"
@@ -40,7 +40,7 @@ export function RevealAndRestore({ sliding }: { sliding: boolean }) {
   const read = useReadState()
   const readRestore = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
   const update = useUpdatePluginStateAt(kit, RIGHT_SIDE_PANEL_RESTORE_STATE)
-  const actions = useActions()
+  const actions = useStoreActions()
   const stageOf = useCallback((id: string) => stageIn(read().window, id), [read])
   // 見せる: 付いた先が替われば全部を囲む四角を収め（1 つなら 100%）、カレントだけが替われば倍率はそのままでカレントを真ん中へ（state.ts の revealFor）
   useEffect(() => {

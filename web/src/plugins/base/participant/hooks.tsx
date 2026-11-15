@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { isParticipantAlive } from "../../../core/settings"
 import type { ParticipantLive } from "../../../store/store"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
@@ -77,7 +77,7 @@ export interface WorkroomActions {
 }
 
 export function useWorkroomActions(): WorkroomActions {
-  const { perform, showToast } = useActions()
+  const { perform, showToast } = useStoreActions()
   const catalog = useCoreCatalog()
   return useMemo(() => {
     const doing = perform as unknown as Do

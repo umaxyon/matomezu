@@ -2,7 +2,7 @@
 // 形を選び、真ん中に見せる（印刷プレビューの間なら、ページを開くと印刷プレビューは閉じる）。opened は、ページを開いたあとに呼ぶ（右サイドパネルを開き直すなど）
 import { useMessages } from "../../../ui/i18n"
 import { useStageId } from "../../../ui/scope"
-import { useActionsHere } from "../../../ui/view-hooks"
+import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { clampChars } from "../text/text"
@@ -22,7 +22,7 @@ export function ShapeBadges({
 }) {
   const stage = useStageId() ?? ""
   const t = useMessages(kit)
-  const { openPage, select } = useActionsHere()
+  const { openPage, select } = useActions()
   const reveal = useRequestReveal()
   const go = (page: string, id: string) => {
     openPage(page)

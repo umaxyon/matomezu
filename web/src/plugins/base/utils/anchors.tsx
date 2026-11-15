@@ -20,7 +20,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import type { Point, Rect, Size } from "../../../core/geom"
-import { useActionsHere, useBook, useStage, useStagePan } from "../../../ui/view-hooks"
+import { useActions, useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import styles from "./anchors.module.css"
 import { glidePan } from "./glide-pan"
 import { KEEP_INSIDE } from "./keep-inside"
@@ -233,7 +233,7 @@ export function StandAt({
   children,
 }: StandProps & { side?: StandPlace; turn?: StandTurn; minRoom?: number; through?: boolean }) {
   const ctx = useContext(Context)
-  const { panStageBy } = useActionsHere()
+  const { panStageBy } = useActions()
   const ids = useMemo(() => (typeof anchor === "string" ? [anchor] : anchor), [anchor])
   const measured = useAnchorRect(ctx, ids, edgePinned)
   const ref = useRef<HTMLDivElement>(null)
@@ -330,7 +330,7 @@ function showAnchors(ctx: StandContext, ids: readonly string[], panStageBy: (dx:
 function RevealRequested({ ctx }: { ctx: StandContext }) {
   const ids = useRevealRequest(ctx.stage)
   const clear = useClearRevealRequest()
-  const { panStageBy } = useActionsHere()
+  const { panStageBy } = useActions()
   const version = useSyncExternalStore(ctx.anchors.subscribe, ctx.anchors.snapshot)
   // biome-ignore lint/correctness/useExhaustiveDependencies: アンカーが描かれるたび（version）に見直す
   useEffect(() => {

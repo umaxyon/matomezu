@@ -4,7 +4,7 @@
 // ロック中のチケットは薄くして直せなくし、帯のロックで掛け外しする。直している間（名前の入力か本文の編集にフォーカスがある間）は、チケットに編集ロックを掛ける。画面の状態は、開いているチケットが替われば初めに戻る
 import { type KeyboardEvent, useMemo, useState } from "react"
 import {
-  useActionsHere,
+  useActions,
   useAllowedOn,
   useMessages,
   usePluginState,
@@ -65,7 +65,7 @@ export function TicketScreen() {
   const lines = useRecords(HISTORY.id, { where: [] })
   const workrooms = useRecords(WORKROOM, { where: [] })
   const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
-  const { perform } = useActionsHere()
+  const { perform } = useActions()
   // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）
   const [now, update] = [
     usePluginState(kit, TICKET_SCREEN_STATE, me.id),

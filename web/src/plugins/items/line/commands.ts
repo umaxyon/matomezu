@@ -40,7 +40,7 @@ export const LINE_EDIT = kit.defineCommand({
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     const page = ctx.stage.opened?.page
-    if (page) a.here.openDialog(LINE_EDIT_DIALOG.id, { page, item })
+    if (page) a.openDialog(LINE_EDIT_DIALOG.id, { page, item })
   },
   when: ctx => {
     const target = ctx.contextMenu?.target as { item?: string } | undefined

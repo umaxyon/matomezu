@@ -5,7 +5,7 @@
 import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useStageId } from "../../../ui/scope"
-import { useActions, useReadState } from "../../../ui/store-context"
+import { useReadState, useStoreActions } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -27,7 +27,7 @@ export function ProposalActions(at: MailActionsProps) {
 function Proposal({ mail, onClose, dock, props }: MailActionsProps & { props: ProposalProps }) {
   const stage = useStageId() // 郵便のダイアログを開いたステージ（ステージを持たないスクリーンから開いたなら無く、行き先は開かない）
   const t = useMessages(kit)
-  const actions = useActions()
+  const actions = useStoreActions()
   const read = useReadState()
   const reveal = useRequestReveal()
   const bringBird = useSetBirdVisit()

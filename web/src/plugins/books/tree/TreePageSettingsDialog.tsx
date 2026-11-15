@@ -7,7 +7,7 @@
 // 押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）
 import { useEffect, useId, useState } from "react"
 import { type PageSettingsArgs, pagedOf, putPage, withSettings } from "../../../plugin-api"
-import { type DialogProps, useActionsHere, useAllowed, useBook, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useAllowed, useBook, useMessages, usePerform } from "../../../plugin-api/ui"
 import { BODY_MAX, changeWithLock } from "../../base"
 import {
   ActionButton,
@@ -35,7 +35,7 @@ export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettin
   const page = book?.pages.find(p => p.id === args.page)
   const root = treeRootOf(page)
   const perform = usePerform()
-  const { previewDialog } = useActionsHere()
+  const { previewDialog } = useActions()
   const [title, setTitle] = useState(page?.title ?? "")
   const settings = useSettingControls(book, "page", page ?? null)
   const paper = usePaperControls(book, page ?? null)

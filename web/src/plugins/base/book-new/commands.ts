@@ -8,6 +8,6 @@ export const BOOK_NEW = kit.defineCommand({
   id: "book-new",
   performs: [BOOK_CREATE.id],
   title: "New book",
-  run: (_ctx, a) => a.here.openDialog(NEW_BOOK_DIALOG.id),
+  run: (_ctx, a) => a.openDialog(NEW_BOOK_DIALOG.id),
   when: ctx => ctx.book === null,
 })

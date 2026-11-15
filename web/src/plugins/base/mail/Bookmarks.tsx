@@ -3,7 +3,7 @@
 
 import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { icon } from "../icon"
 import { kit } from "../kit"
@@ -32,7 +32,7 @@ export function MailBookmarks() {
   const stage = useMatomezuState(s => screenOf(s.window).current)
   const open = useOpenMail()
   const openPanel = useOpenLeftSidePanel()
-  const actions = useActions()
+  const actions = useStoreActions()
   if (unread.length === 0) return null
   if (unread.length > MAX_EACH)
     return (

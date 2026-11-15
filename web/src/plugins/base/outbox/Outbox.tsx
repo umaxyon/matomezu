@@ -7,7 +7,7 @@ import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import type { ActionId } from "../../../core/catalog"
 import { useMessages } from "../../../ui/i18n"
 import { useLayout } from "../../../ui/store-context"
-import { useActionsHere, useAllowed, useBook, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useBook, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
 import { useAnnotationsIn, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -87,7 +87,7 @@ function Icon({ annotation: a }: { annotation: Annotation }) {
 // 無ければ付けた物を倍率そのままで見せる
 function useGo(): (a: AiAnnotation, panel: string | undefined) => void {
   const opened = useStage()?.opened
-  const { openPage } = useActionsHere()
+  const { openPage } = useActions()
   const openPanel = useOpenRightSidePanel()
   const reveal = useRevealHere()
   return (a, panel) => {

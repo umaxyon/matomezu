@@ -11,7 +11,7 @@ import { defineWidget } from "../../../ui/layout"
 import type { DialogProps } from "../../../ui/plugin"
 import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useActionsHere, useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
+import { useActions, useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, Form } from "../dialog-host/FormParts"
@@ -41,7 +41,7 @@ export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>)
   const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const { perform, showToast } = useActionsHere()
+  const { perform, showToast } = useActions()
   const openPanel = useOpenLeftSidePanel()
   const placeable = useScrapFrame() !== null
   const start = useMatomezuState(
@@ -127,7 +127,7 @@ const THUMB_W = 220
 function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const { perform, togglePlacing, showToast } = useActionsHere()
+  const { perform, togglePlacing, showToast } = useActions()
   const view = useStage()
   const frame = useScrapFrame()
   const placing = view?.placing

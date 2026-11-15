@@ -66,7 +66,7 @@ function pasteAt(
       })
     return false
   }
-  a.here.select(done.result.items)
+  a.select(done.result.items)
   return true
 }
 
@@ -113,7 +113,7 @@ export const PAPER_CUT = kit.defineCommand({
     const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
     if (!done.ok) return
     keep(a, clip)
-    a.here.select([])
+    a.select([])
   },
   when: ctx => onOpenedPage(ctx) && itemsSelected(ctx),
 })

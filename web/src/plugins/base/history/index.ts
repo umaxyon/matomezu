@@ -57,7 +57,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   }
   const shown = done.find(d => d.book === opened.book)
   const page = shown && pageOf(shown.args)
-  if (page && page !== opened.page) a.here.openPage(page)
+  if (page && page !== opened.page) a.openPage(page)
   a.moveHistory(opened.book, from)
 }
 

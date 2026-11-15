@@ -9,7 +9,7 @@ import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useActionsHere, useBook, useStage } from "../../../ui/view-hooks"
+import { useActions, useBook, useStage } from "../../../ui/view-hooks"
 import { useCloseFooterMenu } from "../book-name/footer-menu-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
@@ -19,7 +19,7 @@ export function ToolboxView() {
   const stage = useStageId() ?? ""
   const book = useBook() ?? undefined
   const placing = useMatomezuState(s => stageIn(s.window, stage)?.placing?.item ?? null)
-  const { togglePlacing } = useActionsHere()
+  const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const edits = useStage()?.edits ?? "items"

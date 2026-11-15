@@ -2,7 +2,7 @@
 // マーキーのトーストで「AI が伝言を読みました」と知らせる。いくつかまとめて読まれても 1 回。読み込んだときから読まれていた物では知らせない
 import { useEffect, useRef } from "react"
 import type { Annotations } from "../../../core/annotation"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { NOTE, type NoteProps } from "."
 
@@ -24,7 +24,7 @@ export function newlyRead(before: ReadonlySet<string>, all: Annotations): boolea
 
 export function ReadNotice() {
   const annotations = useMatomezuState(s => s.annotations)
-  const { showToast } = useActions()
+  const { showToast } = useStoreActions()
   const before = useRef<Set<string> | null>(null)
   useEffect(() => {
     if (before.current && newlyRead(before.current, annotations))

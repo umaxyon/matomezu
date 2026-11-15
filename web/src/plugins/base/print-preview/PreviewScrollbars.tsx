@@ -7,7 +7,7 @@ import { contentSize } from "../../../core/viewport"
 import { stageIn } from "../../../core/window"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useActionsHere } from "../../../ui/view-hooks"
+import { useActions } from "../../../ui/view-hooks"
 import styles from "./PreviewScrollbars.module.css"
 import { panForDrag, panForTrack, type ScrollAxis, shownBars, thumbOf } from "./scrollbar"
 
@@ -37,7 +37,7 @@ export function PreviewScrollbars() {
 }
 
 function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; along: Along; corner: boolean }) {
-  const { panStageBy, focusStage } = useActionsHere()
+  const { panStageBy, focusStage } = useActions()
   const read = useReadState()
   const track = useRef<HTMLDivElement>(null)
   const drag = useRef<{ pointer: number; at: number; start: number } | null>(null)

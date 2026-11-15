@@ -26,7 +26,7 @@ import {
 } from "react"
 import { paperOf, type StageView } from "../../../../plugin-api"
 import {
-  useActionsHere,
+  useActions,
   useAllowed,
   useCommand,
   useContextMenu,
@@ -116,7 +116,7 @@ const Rows = memo(function Rows({
   const book = useShownBook()
   const page = useShownPage()
   const perform = usePerform()
-  const { select, setEditing, showToast, continueStep } = useActionsHere()
+  const { select, setEditing, showToast, continueStep } = useActions()
   const toggle = useCommand(FOLDER_TOGGLE.id)
   const addFolder = useCommand(FOLDER_ADD.id)
   const addFile = useCommand(FILE_ADD.id)

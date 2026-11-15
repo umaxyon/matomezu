@@ -10,7 +10,7 @@ export const TOOL_SET = kit.defineCommand({
   id: "tool-set",
   title: "Set tool",
   run: (ctx, a, tool: ToolId) => {
-    if (toolUsable(ctx.catalog, tool, ctx.book, ctx.stage.opened?.page ?? null)) a.here.setTool(tool)
+    if (toolUsable(ctx.catalog, tool, ctx.book, ctx.stage.opened?.page ?? null)) a.setTool(tool)
   },
   when: ctx => paperOf(ctx.stage) !== null,
 })
@@ -19,7 +19,7 @@ export const TOOL_SET = kit.defineCommand({
 export const TOOL_PICKER = kit.defineCommand({
   id: "tool-picker",
   title: "Tool picker",
-  run: (_ctx, a) => a.here.openPicker(null),
+  run: (_ctx, a) => a.openPicker(null),
   when: ctx => paperOf(ctx.stage) !== null,
 })
 

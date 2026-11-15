@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
-import { type DialogProps, useActionsHere, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { ActionButton, BodyField, CaptionField, Dialog, DividerField, Form, rowClass, useBookOf } from "../../base/ui"
 import { ROW_ADD, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
@@ -36,10 +36,10 @@ export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list
 
 export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
   const book = useBookOf()
-  const rows = useItemAt(args.page, args.list, LIST.id)?.children
+  const rows = useItem(args.page, args.list, LIST.id)?.children
   const start = rows?.find(r => r.id === args.row)?.props
   const perform = usePerform()
-  const { previewDialog } = useActionsHere()
+  const { previewDialog } = useActions()
   // 書いている行の項目を、リストの行に重ねて見せる
   const preview = useCallback(
     (text: Text | null) =>

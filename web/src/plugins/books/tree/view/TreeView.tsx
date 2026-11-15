@@ -14,7 +14,7 @@
 import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
 import { paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
 import {
-  useActionsHere,
+  useActions,
   useAllowed,
   useCommand,
   useContextMenu,
@@ -146,7 +146,7 @@ const Tree = memo(function Tree({
   const book = useShownBook()
   const page = useShownPage()
   const perform = usePerform()
-  const { select, setEditing, panStageBy, zoomStage, showToast, openDialog, continueStep } = useActionsHere()
+  const { select, setEditing, panStageBy, zoomStage, showToast, openDialog, continueStep } = useActions()
   const anchor = useAnchorRef() // 節にアンカーを付ける（そばにスタンドを立てられる）
   // 変更を始めてよいか（動かす・書き換える・足す。認可ステップが止めていれば始めない）
   const where = page ? { page: page.id } : undefined
@@ -199,7 +199,7 @@ const Tree = memo(function Tree({
   // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
   const focused = useFocus(stage, page?.id)
-  useToolZoom(stage.id, usingEdit, focused, zoomStage)
+  useToolZoom(usingEdit, focused, zoomStage)
   useCentered(stage, usingEdit && focused && !drag.state ? at : undefined, view, panStageBy)
   if (!book || !page || !root || !laid || !selected) return null
   const tree = root
@@ -447,10 +447,10 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
 
 // 道具が替わったら（初めて描くときも）、道具の倍率にする（edit.ts の toolZoom）
 // （節のフォーカスを外している間は、見え方を変えない。付き直したら、道具の倍率にする）
-function useToolZoom(stage: string, usingEdit: boolean, focused: boolean, zoomStage: (zoom: number) => void) {
+function useToolZoom(usingEdit: boolean, focused: boolean, zoomStage: (zoom: number) => void) {
   useEffect(() => {
     if (focused) zoomStage(toolZoom(usingEdit))
-  }, [stage, usingEdit, focused, zoomStage])
+  }, [usingEdit, focused, zoomStage])
 }
 
 // 紙の上の四角 rect（無ければ何もしない）の真ん中が、大きさ view のビューの真ん中に来るように紙をずらす（紙の端では、ずらせる所まで）。

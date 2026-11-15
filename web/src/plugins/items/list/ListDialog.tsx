@@ -9,14 +9,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
-import {
-  type DialogProps,
-  useActionsHere,
-  useCoreCatalog,
-  useItemAt,
-  useMessages,
-  usePerform,
-} from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
@@ -74,7 +67,7 @@ const EMPTY: ListProps = {
 export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const { select } = useActionsHere()
+  const { select } = useActions()
   const perform = usePerform()
   const add = (props: ListProps) => {
     if (!book) return { reason: "no-book" }
@@ -102,8 +95,8 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 export function EditListDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const found = useItemAt(args.page, args.item, LIST.id)
-  const { previewDialog } = useActionsHere()
+  const found = useItem(args.page, args.item, LIST.id)
+  const { previewDialog } = useActions()
   const perform = usePerform()
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(

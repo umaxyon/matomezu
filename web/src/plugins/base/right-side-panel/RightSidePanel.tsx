@@ -11,7 +11,7 @@ import { stageView, toolOf } from "../../../core/workspace"
 import { useReadPluginStateAt, useSetPluginStateAt, useStageAt } from "../../../ui/at-hooks"
 import { useMessages } from "../../../ui/i18n"
 import { StageScope } from "../../../ui/scope"
-import { useActions, useLayout, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useLayout, useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { POPUP_KEEPS } from "../utils/popup-keeps"
@@ -95,7 +95,7 @@ export function RightSidePanel() {
 // 閉じたら（従う中身でなくなったら）選択を外す
 function useFollowSelection(stage: string | null) {
   const read = useReadState()
-  const { select } = useActions()
+  const { select } = useStoreActions()
   const readPanel = useReadPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   const set = useSetPluginStateAt(kit, RIGHT_SIDE_PANEL_STATE)
   const opened = useOpenedRightSidePanel()

@@ -8,7 +8,6 @@
 import { useEffect, useRef, useState } from "react"
 import { anchorIds } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
 import { useAllowed, useBook, useUserSetting } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
@@ -27,7 +26,6 @@ import { NEW_NOTE } from "./panel-id"
 const BADGE_CHARS = 10 // バッジに出す、名前の始めの字数
 
 export function NotePanel() {
-  const stage = useStageId() ?? ""
   const open = useRightSidePanel()
   const notes = useAnnotationsOf(NOTE.id)
   const close = useCloseRightSidePanel()
@@ -35,7 +33,7 @@ export function NotePanel() {
   const gone = !!open && open.subject !== NEW_NOTE && !note
   useEffect(() => {
     if (gone) close()
-  }, [gone, close, stage])
+  }, [gone, close])
   if (!open || (open.subject !== NEW_NOTE && !note)) return null
   return (
     <div className={styles.panel}>

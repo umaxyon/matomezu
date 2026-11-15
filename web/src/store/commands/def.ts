@@ -9,16 +9,12 @@ import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
-import type { LegacyOn } from "../../core/legacy"
 import type { Book } from "../../core/schema/book"
 import { toPaper } from "../../core/stage"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
-import type { BoundPlaceActions, PlaceActions, Settings, WindowActions } from "../store"
-
-// 橋渡しの間だけ: 場所を第 1 引数に取る操作（a.select(ctx.stage.id, ids)）も受ける
-type LegacyPlaceActions = LegacyOn extends true ? PlaceActions : unknown
+import type { BoundPlaceActions, Settings, WindowActions } from "../store"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
@@ -105,11 +101,9 @@ export function withWorkspace(ctx: Omit<CommandContext, "toPaper">, workspace: W
 // コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx) ?? fail("E116", { id: ctx.stage.id })
 
-// コマンドが受け取る store の操作: 画面の操作（Actions）に、そのコマンドを持つプラグインのプラグイン状態を変える操作を足したもの
-export interface CommandActions extends WindowActions, LegacyPlaceActions {
-  // 橋渡しの間だけ: 場所に向ける操作を、呼ばれた場所（ステージから呼ぶコマンドはそのステージ、スクリーンから呼ぶコマンドはそのスクリーン）に向けた形。
-  // 最後に、これをコマンドが受け取る操作そのものにする（a.here.select(ids) → a.select(ids)）
-  here: BoundPlaceActions
+// コマンドが受け取る store の操作: 窓の操作と、呼ばれた場所（ステージから呼ぶコマンドはそのステージ、スクリーンから呼ぶコマンドはそのスクリーン）に向けた操作に、
+// そのコマンドを持つプラグインのプラグイン状態を変える操作を足したもの
+export interface CommandActions extends WindowActions, BoundPlaceActions {
   // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（undefined なら消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
   updatePluginState<S>(def: PluginStateDef<S>, change: (now: S | undefined) => S | undefined): void
 }

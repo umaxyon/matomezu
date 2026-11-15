@@ -18,7 +18,7 @@ import {
   slideOf,
 } from "../../../../plugin-api"
 import {
-  useActionsHere,
+  useActions,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -150,7 +150,7 @@ function SlidePageView({
   const catalog = useCoreCatalog()
   const followed = useFollowsSelection()
   const toPaperAt = useToPaper()
-  const { select, setEditing, continueStep } = useActionsHere()
+  const { select, setEditing, continueStep } = useActions()
   const put = useCommand(SLIDE_PUT.id)
   const moveTo = useCommand(SLIDE_MOVE_TO.id)
   const reshape = useCommand(SLIDE_RESHAPE.id)
@@ -183,7 +183,7 @@ function SlidePageView({
       typeNext.current = false
       setEditing(ADDED_EDIT)
     }
-  }, [selected, stage.id, setEditing])
+  }, [selected, setEditing])
 
   const paperAt = (e: PointerEvent<Element>): Point | null => {
     const el = ref.current

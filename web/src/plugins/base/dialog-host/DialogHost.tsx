@@ -5,13 +5,13 @@
 import { fail } from "../../../core/errors"
 import { stageIn } from "../../../core/window"
 import { ActsOnScope } from "../../../ui/scope"
-import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useEditLock } from "../utils/useEditLock"
 
 export function DialogHost() {
   const dialog = useMatomezuState(s => s.dialog)
   const book = useMatomezuState(s => (s.dialog ? stageIn(s.window, s.dialog.stage)?.opened?.book : undefined) ?? null)
-  const { closeDialog } = useActions()
+  const { closeDialog } = useStoreActions()
   const ui = useUiCatalog()
   const dialogs = useCatalog().store.dialogs
   const def = dialog ? dialogs.get(dialog.id) : undefined

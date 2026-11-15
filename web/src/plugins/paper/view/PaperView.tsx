@@ -44,7 +44,7 @@ import {
   type ItemViewProps,
   type ShapeScene,
   TokenScope,
-  useActionsHere,
+  useActions,
   useBook,
   useCommand,
   useContextMenu,
@@ -118,7 +118,7 @@ export function PaperView() {
   const stage = useStage()
   const openMenu = useContextMenu(PAPER_CONTEXT)
   const place = useCommand(PAPER_PLACE.id)
-  const { select } = useActionsHere()
+  const { select } = useActions()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage?.placing != null
@@ -313,7 +313,7 @@ function PageItems({
   const [target, setTarget] = useState<string | null | undefined>(undefined)
   const edit = useCommand(PAPER_EDIT.id)
   const openMenu = useContextMenu(ITEM_CONTEXT)
-  const { select } = useActionsHere()
+  const { select } = useActions()
   const toPaperAt = useToPaper()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)

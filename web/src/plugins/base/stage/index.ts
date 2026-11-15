@@ -7,7 +7,7 @@ const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
 export const STAGE_SPLIT = kit.defineCommand({
   id: "stage-split",
   title: "Split screen",
-  run: (_ctx, a) => a.here.split(),
+  run: (_ctx, a) => a.split(),
   when: ctx => !isSplit(ctx),
   active: isSplit,
 })
@@ -15,7 +15,7 @@ export const STAGE_SPLIT = kit.defineCommand({
 export const STAGE_UNSPLIT = kit.defineCommand({
   id: "stage-unsplit",
   title: "Unsplit",
-  run: (_ctx, a) => a.here.unsplit(),
+  run: (_ctx, a) => a.unsplit(),
   when: isSplit,
   active: isSplit, // 分割の切り替えのボタンで、分割していることを押されている見た目で示す
 })
@@ -23,6 +23,6 @@ export const STAGE_UNSPLIT = kit.defineCommand({
 export const STAGE_CLOSE = kit.defineCommand({
   id: "stage-close",
   title: "Close stage",
-  run: (_ctx, a) => a.here.closeStage(),
+  run: (_ctx, a) => a.closeStage(),
   when: isSplit,
 })

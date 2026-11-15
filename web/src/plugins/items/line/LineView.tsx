@@ -7,7 +7,7 @@ import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } fr
 import {
   ShapeMarksProvider,
   type ShapeScene,
-  useActionsHere,
+  useActions,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -54,7 +54,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
   const elbow = book ? elbowAt(catalog, book, page) : true
   const lineEdit = useCommand(LINE_EDIT.id)
   const openLineMenu = useContextMenu(LINE_CONTEXT)
-  const { select } = useActionsHere()
+  const { select } = useActions()
   const linkDrag = useLinkDrag(catalog, localOf)
   const lineDrag = useLineEdit(catalog, localOf)
   // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角
