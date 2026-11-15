@@ -1,4 +1,4 @@
-// スライドのブックのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブは出ない
+// スライドのフォルダのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブには、フォルダが 1 つのタブで出る
 import { pagesBook } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 
@@ -31,11 +31,11 @@ test.use({
   ],
 })
 
-test("ページ一覧はサムネイルを縦に並べ、ページタブは出ない。押したページが開く", async ({ page }) => {
+test("ページ一覧はサムネイルを縦に並べ、ページタブにはフォルダが 1 つのタブで出る。押したページが開く", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const list = page.locator("[data-page-list]")
   await expect(list).toBeVisible()
-  await expect(page.getByRole("tab")).toHaveCount(0)
+  await expect(page.getByRole("tab")).toHaveText(["スライド"])
   const pages = list.locator("[data-page]")
   await expect(pages).toHaveCount(3)
   await expect(pages.nth(0).locator("button")).toHaveAttribute("aria-current", "page")
@@ -105,16 +105,22 @@ test.describe("ロック中のページ", () => {
   })
 })
 
-test.describe("ページが 0 枚", () => {
+test.describe("空のフォルダ", () => {
   test.use({
-    books: [pagesBook({ type: "@matomezu/slide-book:slide", id: "b1", title: "スライド", pages: [] })],
+    books: [
+      {
+        id: "b1",
+        title: "スライド",
+        lineup: [{ kind: "folder", id: "f1", title: "スライド", pageType: "@matomezu/slide-book:slide", lineup: [] }],
+      },
+    ],
   })
 
   test("ページ一覧の＋で、ダイアログ無しで「（無題）」のページを足せる", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     const pages = page.locator("[data-page-list] [data-page]")
     await expect(pages).toHaveCount(0)
-    await page.getByRole("button", { name: "ページを足す" }).click()
+    await page.getByRole("navigation", { name: "ページ一覧" }).getByRole("button", { name: "ページを足す" }).click()
     await expect(pages).toHaveCount(1)
     await expect(pages.nth(0).locator("button")).toHaveAttribute("aria-label", "（無題）")
   })

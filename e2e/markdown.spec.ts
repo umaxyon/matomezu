@@ -1,7 +1,7 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを（選んでいなければ空のページは左右、本文のあるページはプレビューだけで）開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
 import { pageIn } from "./books"
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test, urlStages } from "./fixtures"
-import { newBook } from "./helpers/new-book"
+import { addFromTabs, newBook } from "./helpers/new-book"
 import { openGeneral, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -364,7 +364,7 @@ const LONG = Array.from({ length: 120 }, (_, i) => `段落 ${i + 1}`).join("\n\n
 
 // ＋で開くダイアログで、ページを 1 つ足す
 async function addPage(page: Page) {
-  await page.getByRole("button", { name: "ページを足す" }).click()
+  await addFromTabs(page, "マークダウン")
   await page.keyboard.press("Enter")
   await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
 }

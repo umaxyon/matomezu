@@ -1,5 +1,5 @@
 // 新しいブックを作る e2e の補助
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 import { fromMenu } from "./stage-menu"
 
 // 画面を分け、ブックを開いていない右のステージの「新しいブック」で、名前 title のブックを作り（ブックは名前だけ）、
@@ -14,4 +14,10 @@ export async function newBook(page: Page, title: string, type: string) {
   await page.getByRole("button", { name: "ページを足す" }).click()
   await page.getByRole("menu", { name: "ページを足す" }).getByRole("menuitem", { name: type }).click()
   return page.getByRole("dialog", { name: "新しいページ" })
+}
+
+// scope（画面かステージかタブの列）のページタブの＋を押し、メニューでタイプ type（ページのタイプの名前）を選ぶ
+export async function addFromTabs(scope: Page | Locator, type = "図面") {
+  await scope.locator('[aria-haspopup="menu"][aria-label="ページを足す"]').click()
+  await scope.getByRole("menuitem", { name: type, exact: true }).click()
 }

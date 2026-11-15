@@ -3,7 +3,7 @@
 import { pageIn } from "./books"
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
-import { newBook } from "./helpers/new-book"
+import { addFromTabs, newBook } from "./helpers/new-book"
 import { addBox, items } from "./helpers/paper"
 
 test("置いた箱を Ctrl+Z で元に戻すと消え、Ctrl+Shift+Z と Ctrl+Y でやり直すと戻る", async ({ page }) => {
@@ -69,7 +69,7 @@ test("ページタブをドラッグして並べ替えられ、元に戻すで�
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
-  await page.getByRole("button", { name: "ページを足す" }).click()
+  await addFromTabs(page)
   const dialog = page.getByRole("dialog", { name: "新しいページ" })
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()

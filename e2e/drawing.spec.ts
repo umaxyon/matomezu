@@ -1,5 +1,6 @@
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
+import { addFromTabs } from "./helpers/new-book"
 import { addBox, confirmBox, items, onPaper, zoomOf } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 import { BODY, coreWidthOf } from "./text-widths"
@@ -671,7 +672,7 @@ test("上下左右へ増やす可変ページを開くと、左上の空きの�
   await expect(dialog).toBeHidden()
   await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "3x3")
   // ほかのページを開いてから戻ると、箱の載った印刷区画の左上が表示領域の左上に来る（箱は、紙 1 枚のときと同じ所に見える）
-  await page.getByRole("button", { name: "ページを足す" }).click()
+  await addFromTabs(page)
   await page.keyboard.press("Enter")
   await page.getByRole("tab", { name: "ページ 1" }).click()
   const at = async () => (await box.boundingBox())!

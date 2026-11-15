@@ -1,5 +1,6 @@
 // スクロールバーが幅を取る環境（Windows など）での見た目。ヘッドレスのブラウザは既定でスクロールバーを隠すので、隠さずに起動する
 import { aiAuth, BOOK_SCREEN_URL, expect, test } from "./fixtures"
+import { addFromTabs } from "./helpers/new-book"
 import { fromMenu } from "./helpers/stage-menu"
 
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } })
@@ -16,8 +17,7 @@ test("分割した右のステージで中身が縦にスクロールしても�
   const add = page.getByRole("dialog", { name: "新しいブック" })
   await page.keyboard.type("長い文書")
   await add.getByRole("button", { name: "作成" }).click()
-  await right.getByRole("button", { name: "ページを足す" }).click()
-  await page.getByRole("menuitem", { name: "マークダウン" }).click()
+  await addFromTabs(right, "マークダウン")
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await right.getByRole("region", { name: "ソース" }).getByRole("textbox").click()
   await page.keyboard.insertText(Array.from({ length: 60 }, (_, i) => `段落 ${i + 1}`).join("\n\n"))

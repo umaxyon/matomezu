@@ -107,13 +107,13 @@ test("開いているブックが替わっても、左サイドパネルは閉�
       headers: ai,
       data: {
         action: "@matomezu/base:book-create",
-        args: { type: "@matomezu/drawing:drawing", title: "ほかの" },
+        args: { title: "ほかの" },
       },
     })
   ).json()
   await openOutbox(page)
   await page.request.post("/api/ai/show", { headers: ai, data: { book: made.result.book } })
-  await expect(page.getByRole("region", { name: "ステージ" })).toContainText("ページがありません")
+  await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "ほかの")
   await expect(leftPanel(page)).toBeVisible()
 })
 
