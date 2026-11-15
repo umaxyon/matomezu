@@ -85,7 +85,11 @@ test("ページとブックの設定のダイアログで伸びる向きを選�
   const { store, id } = setup()
   act(() => {
     expect(
-      addPageIn(store, "s1", { type: "@matomezu/tree:tree", title: "p1", fields: { root: { caption: "根" } } }),
+      addPageIn(store, "s1", {
+        type: "@matomezu/tree:tree",
+        title: "p1",
+        fields: { root: { type: "@matomezu/drawing:drawing", caption: "根" } },
+      }),
     ).toBe(true)
   })
   const page = pagesOf(store.state.getState().books[id] as { pages: readonly { id: string }[] })[0]!.id
@@ -115,7 +119,11 @@ test("ツリーの道具の組は編集とハンド（初めは編集）。編�
   const { store } = setup()
   act(() => {
     expect(
-      addPageIn(store, "s1", { type: "@matomezu/tree:tree", title: "p1", fields: { root: { caption: "根" } } }),
+      addPageIn(store, "s1", {
+        type: "@matomezu/tree:tree",
+        title: "p1",
+        fields: { root: { type: "@matomezu/drawing:drawing", caption: "根" } },
+      }),
     ).toBe(true)
   })
   expect(toolsIn(store.catalog.core, "@matomezu/tree:tree")).toEqual(["@matomezu/tree:edit", "@matomezu/base:hand"])

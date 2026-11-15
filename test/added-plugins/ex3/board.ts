@@ -104,15 +104,12 @@ export const BOARD = kit.definePageType({
   id: "board",
   version: 1,
   title: "board",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: {
-      allowed: [SQUARE.id, "@matomezu/base:a4"],
-      default: SQUARE.id,
-      orientation: "portrait",
-      perPage: true,
-    },
+  grouping: "none",
+  paper: {
+    allowed: [SQUARE.id, "@matomezu/base:a4"],
+    default: SQUARE.id,
+    orientation: "portrait",
+    perPage: true,
   },
   items: {
     allowed: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
@@ -123,5 +120,5 @@ export const BOARD = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  settings: { book: ["@matomezu/base:page-theme", GRID.id], page: [] },
+  settings: ["@matomezu/base:page-theme", GRID.id],
 })

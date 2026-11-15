@@ -58,11 +58,8 @@ export const FLOW = kit.definePageType({
   id: "flow",
   version: 1,
   title: "flow",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
   items: {
     allowed: [DIAMOND.id, "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },
@@ -72,8 +69,5 @@ export const FLOW = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  settings: {
-    book: ["@matomezu/base:page-theme", "@matomezu/line:line-route", FLOW_DIRECTION.id],
-    page: ["@matomezu/line:line-route"],
-  },
+  settings: ["@matomezu/base:page-theme", "@matomezu/line:line-route", FLOW_DIRECTION.id],
 })

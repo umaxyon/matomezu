@@ -1,6 +1,5 @@
 // タイプが使わせないアノテーションの種類（annotations.without）: 伝言とマークを外したタイプのブックには付けられず、右クリックのコマンドも出さない
 import { expect, test } from "bun:test"
-import { z } from "zod"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -12,9 +11,7 @@ const PLAIN = definePageType({
   id: "plain:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("plain:note"), id: z.string().min(1) }),
-  create: init => ({ type: "plain:note" as const, ...init }),
-  pages: null,
+  grouping: "none",
   items: { allowed: [] },
   actions: {},
   annotations: { without: ["@matomezu/base:note", "@matomezu/base:mark"] },

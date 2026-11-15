@@ -80,11 +80,8 @@ export const SHELF = kit.definePageType({
   id: "shelf",
   version: 1,
   title: "shelf",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   items: {
     allowed: [kit.name("tiles"), "@matomezu/box:shape-box"],
   },
@@ -94,5 +91,5 @@ export const SHELF = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: kit.name("shelf-tools"),
-  settings: { book: ["@matomezu/base:page-theme"], page: [] },
+  settings: ["@matomezu/base:page-theme"],
 })

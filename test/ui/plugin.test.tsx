@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
-import { z } from "zod"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { BUILTIN } from "../../web/src/plugins"
@@ -23,9 +22,7 @@ const NOTE = definePageType({
   id: "notes:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1) }),
-  create: init => ({ type: "notes:note" as const, ...init }),
-  pages: null,
+  grouping: "none",
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",

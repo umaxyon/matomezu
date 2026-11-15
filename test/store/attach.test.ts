@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test"
-import { z } from "zod"
 import { actionsOf } from "../../web/src/core/perform"
 import { warningText } from "../../web/src/core/warnings"
 import { screenOf } from "../../web/src/core/window"
@@ -41,11 +40,8 @@ const NOTE = notes.definePageType({
   id: "note",
   version: 1,
   title: "Note",
-  schema: z.strictObject({ id: z.string() }),
-  addPagesFromTabs: false,
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
   items: { allowed: [] },
   actions: { add: ["@matomezu/base:page-add"], without: ["@matomezu/list:row-add"] },
   theme: "@matomezu/base:standard",
@@ -97,11 +93,8 @@ const BOARD = boards.definePageType({
   id: "board",
   version: 1,
   title: "Board",
-  schema: z.strictObject({ id: z.string() }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   items: { allowed: ["@matomezu/box:shape-nest-box"] },
   actions: { add: ["@matomezu/line:line-connect"] },
   theme: "@matomezu/base:standard",

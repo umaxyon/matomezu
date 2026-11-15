@@ -40,11 +40,8 @@ export const MAP = kit.definePageType({
   id: "map",
   version: 1,
   title: "map",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   items: {
     allowed: [kit.name("relation"), "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },
@@ -54,5 +51,5 @@ export const MAP = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  settings: { book: [], page: [] },
+  settings: [],
 })

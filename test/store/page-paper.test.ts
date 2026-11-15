@@ -57,17 +57,14 @@ const SHEET = definePageType({
   id: "notes:sheet",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("notes:sheet"), id: z.string().min(1) }),
-  create: init => ({ type: "notes:sheet" as const, ...init, pages: [] }),
-  grow: { sides: () => ({ up: false, down: true, left: false, right: true }) },
-  pages: {
-    paper: {
-      allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
-      default: "@matomezu/base:a4",
-      orientation: "portrait",
-      perPage: false,
-    },
+  grouping: "none",
+  paper: {
+    allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
+    default: "@matomezu/base:a4",
+    orientation: "portrait",
+    perPage: false,
   },
+  grow: { sides: () => ({ up: false, down: true, left: false, right: true }) },
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
@@ -114,8 +111,6 @@ test("伸びられるタイプのページは、作るときもあとからも�
 const SCROLL = definePageType({
   ...DRAWING,
   id: "notes:scroll",
-  schema: z.strictObject({ type: z.literal("notes:scroll"), id: z.string().min(1) }),
-  create: init => ({ type: "notes:scroll" as const, ...init, pages: [] }),
   grow: { choices: ["down"] },
 })
 

@@ -22,11 +22,8 @@ export const YARD = kit.definePageType({
   id: "yard",
   version: 1,
   title: "yard",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   items: { allowed: [kit.name("crate")] },
   actions: {},
   theme: "@matomezu/base:standard",

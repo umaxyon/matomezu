@@ -3,7 +3,6 @@
 
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
-import { z } from "zod"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { screenOf } from "../../web/src/core/window"
@@ -24,11 +23,8 @@ const BACK = definePageType({
   id: "back:back",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("back:back"), id: z.string().min(1) }),
-  create: init => ({ type: "back:back" as const, ...init, pages: [] }),
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   items: { allowed: [BOX] },
   slide: { allowed: [TEXT], background: true },
   actions: {},
