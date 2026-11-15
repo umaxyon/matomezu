@@ -2,15 +2,17 @@
 // 末尾で、ビューが開く右クリックのメニューを core/catalog.ts に書き足す
 import { definePluginUi } from "../../../plugin-api/ui"
 import { DIR_PLUGIN } from "."
-import { DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
+import { DIR, DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
 import { EntrySettingsDialog } from "./EntrySettingsDialog"
 import { DIR_TOOL_ICONS } from "./icons"
 import { NewDirPageDialog } from "./NewDirPageDialog"
 import { NoteSetting } from "./NoteSetting"
 import { NOTES } from "./notes"
+import { DirectoryIcon } from "./type-icon"
 import { DIR_VIEW } from "./view/ui"
 
 export const DIR_UI = definePluginUi(DIR_PLUGIN, {
+  bookTypeIcons: { [DIR.id]: <DirectoryIcon /> },
   presentationViews: { [DIR_PRESENTATION.id]: DIR_VIEW },
   settingViews: {
     [NOTES.id]: { control: NoteSetting },

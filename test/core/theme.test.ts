@@ -7,7 +7,6 @@ import { defineTheme, THEME_TOKENS, themeVar, tokenVarName } from "../../web/src
 import { splitId } from "../../web/src/core/names"
 import { resolveTokens, shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
-import { FILE_COLOR, FOLDER_COLOR } from "../../web/src/plugins/books/dir/dir"
 import { NODE_FILL } from "../../web/src/plugins/books/tree/tree"
 import { LIST_FILL } from "../../web/src/plugins/items/list/list"
 import { ownTokenVars, themeVars } from "../../web/src/ui/theme-vars"
@@ -94,10 +93,8 @@ const dirOf = (id: string) => {
   return `${dir}/`
 }
 
-test("色の候補に使うテーマキーの定義（ダイアログが持つ物）は長い id で宣言し、テーマ（matomezu）ごとの値を引ける", () => {
-  for (const def of [LIST_FILL, NODE_FILL, FILE_COLOR, FOLDER_COLOR]) expect(def.id.startsWith("@matomezu/")).toBe(true)
-  // フォルダのアイコンは、matomezu のテーマでは琥珀色（dir が自分の宣言の themeValues に持つ）
-  expect(resolveTokens(CORE_CATALOG, "@matomezu/base:matomezu", [FOLDER_COLOR])[FOLDER_COLOR.id]?.light).toBe("#f5a623")
+test("色の候補に使うテーマキーの定義（ダイアログが持つ物）は長い id で宣言する", () => {
+  for (const def of [LIST_FILL, NODE_FILL]) expect(def.id.startsWith("@matomezu/")).toBe(true)
 })
 
 test("テーマキーの値は、テーマの上書き、宣言のテーマごとの値、既定の順に引く", () => {

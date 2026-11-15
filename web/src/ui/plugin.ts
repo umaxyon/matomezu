@@ -141,10 +141,12 @@ export interface Overrides {
   widgets?: { [id in WidgetId]?: (props: WidgetProps<id>) => ReactNode }
 }
 
-// widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）
+// widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、
+// bookTypeIcons はブックのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）
 export type UiParts<P> = PluginViews<P> & {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: { [id in IdsOf<P, "commands">]?: ReactNode }
+  bookTypeIcons?: { [id in IdsOf<P, "bookTypes">]?: ReactNode }
   overrides?: Overrides
 }
 export type PluginUi<P extends Plugin> = P & { ui: UiParts<P> }
@@ -167,6 +169,7 @@ export interface UiCatalog {
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
   toolIcons: ReadonlyMap<string, ReactNode>
+  bookTypeIcons: ReadonlyMap<string, ReactNode>
 }
 
 interface LooseUi {
@@ -179,6 +182,7 @@ interface LooseUi {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
   toolIcons?: Record<string, ReactNode>
+  bookTypeIcons?: Record<string, ReactNode>
   overrides?: {
     presentationViews?: Record<string, BookViewDef>
     dialogViews?: Record<string, AnyDialogView>
@@ -207,6 +211,7 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
   const toolIcons = new Map<string, ReactNode>()
+  const bookTypeIcons = new Map<string, ReactNode>()
   const uis = plugins.map(p => {
     const ui = (p as Partial<AnyPluginUi>).ui as LooseUi | undefined
     if (!ui) return fail("E203", { plugin: p.id })
@@ -257,6 +262,11 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
       if (!own.has(id)) fail("E307", { plugin: p.id, command: id })
       commandIcons.set(id, icon)
     }
+    const ownTypes = new Set((p.bookTypes ?? []).map(t => t.id))
+    for (const [id, icon] of Object.entries(ui.bookTypeIcons ?? {})) {
+      if (!ownTypes.has(id)) fail("E313", { plugin: p.id, id })
+      bookTypeIcons.set(id, icon)
+    }
   }
   const overridden = new Set<string>()
   for (const { p, ui } of uis)
@@ -288,5 +298,6 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
     widgets,
     commandIcons,
     toolIcons,
+    bookTypeIcons,
   }
 }

@@ -3,9 +3,9 @@
 // ページのフィールド root を書き換える。書き換えた行が紙に入らなければ断る。ディレクトリ構成図の見せ方について来る
 import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
-import { ColorSchema, contentIdMaker, growOf } from "../../base"
+import { contentIdMaker, growOf } from "../../base"
 import { addEntries, buildPaths, changeEntry, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
-import { type DirFolder, descriptionText, dirRootOf, giveIds, NewEntrySchema } from "./entry"
+import { type DirFolder, descriptionText, dirRootOf, giveIds, ICONS, NewEntrySchema } from "./entry"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 
@@ -78,7 +78,7 @@ export const ENTRY_UPDATE = kit.defineAction({
   id: "entry-update",
   attach: ON_DIRS,
   aiDescription:
-    "Change a folder or file of a directory page (the root too): its name, its description (null or empty removes it) and its color (a palette name or #rrggbb; null for the theme's color). Only what is given changes. Returns nothing. Refused for an entry not in the page or when the rows would not fit on the paper.",
+    "Change a folder or file of a directory page (the root too): its name, its description (null or empty removes it) and its icon (folder or book for a folder; file, drawing, flowchart, tree, directory, markdown, slide, class-diagram or html for a file; null for the kind's default). Only what is given changes. Returns nothing. Refused for an entry not in the page or when the rows would not fit on the paper.",
   title: "Update entry",
   target: "book",
   args: z.strictObject({
@@ -86,14 +86,14 @@ export const ENTRY_UPDATE = kit.defineAction({
     entry: z.string().min(1),
     name: z.string().optional(),
     description: descriptionText().nullable().optional(),
-    color: ColorSchema.nullable().optional(),
+    icon: z.enum(ICONS).nullable().optional(),
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     const next =
-      dir && changeEntry(dir.root, args.entry, { name: args.name, description: args.description, color: args.color })
+      dir && changeEntry(dir.root, args.entry, { name: args.name, description: args.description, icon: args.icon })
     const written = next && dir?.put(next)
     return written ? { next: written, result: {} } : null
   },

@@ -15,7 +15,6 @@
 // 鉛筆の間は、根でない行を押して動かすとドラッグになり、落とした所で中身ごと付け替える（落とす先は drag.ts が決める。行の写しがポインタに付き、元の行と中身は薄く、
 // 中へ入るフォルダの行には点線の枠、行の間に入る所には線を出す）。ポインタが端に近ければ紙をずらす。付け替えが紙に入らず断られたら、トーストで知らせる
 import {
-  type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
   memo,
@@ -40,7 +39,7 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { colorPaint, growOf, pageContext, refusalMessage, settingValue } from "../../../base"
+import { growOf, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
   PaperFrame,
   RichBar,
@@ -59,6 +58,8 @@ import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from 
 import { type DirFolder, dirRootOf } from "../entry"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, layoutDir, nameLeft } from "../layout"
+import { NodeIcon } from "../node-icon"
+import { FileIcon, FolderIcon } from "../node-icons"
 import { NOTES } from "../notes"
 import { laidArea, laidPage } from "../print"
 import { PENCIL_TOOL } from "../tools"
@@ -357,7 +358,6 @@ const Rows = memo(function Rows({
             top: dragging.at.y - dragging.grab.y,
             width: ghost.w,
             height: ghost.h,
-            ...paint(ghost.color),
           }}
         >
           <RowFace row={ghost} />
@@ -473,10 +473,6 @@ const EDITOR_INSET = 6
 // 選んでいる行の右と＋の間
 const PLUS_GAP = 2
 
-// 中身の色（color）を塗る CSS 変数: アイコンの色（--dir-icon）を上書きする。代表色の名前は、ブックのテーマの代表色のテーマキーを指す
-export const paint = (color: string | undefined): CSSProperties | undefined =>
-  color === undefined ? undefined : ({ "--dir-icon": colorPaint(color).fill } as CSSProperties)
-
 function Row({
   row: r,
   toggle,
@@ -509,7 +505,7 @@ function Row({
         data-selected={selected}
         data-dragging={dragged}
         data-drop={dropInto}
-        style={{ left: r.x, top: r.y, width: r.w, height: r.h, ...paint(r.color) }}
+        style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
         onPointerDown={onPointerDown}
         onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
@@ -543,8 +539,8 @@ function Row({
 export function RowFace({ row: r }: { row: LaidRow }) {
   return (
     <>
-      <span className={styles.icon} style={{ width: ICON, height: ICON }}>
-        {r.kind === "file" ? FILE_ICON : r.closed || !r.hasKids ? FOLDER_ICON : OPEN_FOLDER_ICON}
+      <span className={styles.icon} style={{ width: ICON, height: ICON }} data-icon={r.icon}>
+        <NodeIcon kind={r.kind} {...(r.icon ? { icon: r.icon } : {})} open={!r.closed && r.hasKids} size={ICON} />
       </span>
       <span className={styles.name} style={{ left: nameLeft(0) }}>
         <RichText line={r.line} />
@@ -553,24 +549,9 @@ export function RowFace({ row: r }: { row: LaidRow }) {
   )
 }
 
-// アイコン（16 の四角の中）: 閉じたフォルダ・開いたフォルダ・ファイル
-const FOLDER_ICON = (
-  <svg viewBox="0 0 16 16" aria-hidden="true">
-    <path className={styles.fill} d="M1.5 3.5h4.2l1.5 1.5h7.3v8.5h-13z" />
-  </svg>
-)
-const OPEN_FOLDER_ICON = (
-  <svg viewBox="0 0 16 16" aria-hidden="true">
-    <path className={styles.fill} d="M1.5 3.5h4.2l1.5 1.5h6.3v2H4.2L1.5 13.5z" />
-    <path className={styles.fill} d="M4.2 7h11l-2.7 6.5h-11z" />
-  </svg>
-)
-const FILE_ICON = (
-  <svg viewBox="0 0 16 16" aria-hidden="true">
-    <path className={styles.page} d="M3.5 1.5h6l3 3v10h-9z" />
-    <path className={styles.page} d="M9.5 1.5v3h3" />
-  </svg>
-)
+// 足す種類を選ぶボタンの絵（フォルダとファイルの既定の絵）
+const FOLDER_ICON = <FolderIcon size={ICON} />
+const FILE_ICON = <FileIcon size={ICON} />
 
 function NoPages({ stage }: { stage: StageView }) {
   const t = useMessages(kit)

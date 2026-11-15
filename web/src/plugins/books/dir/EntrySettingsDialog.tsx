@@ -1,4 +1,4 @@
-// ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、色をブックのテーマの代表色・好きな色・「なし」（テーマのアイコンの色）から選ぶ。
+// ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、アイコン（フォルダは folder・book、ファイルは file とそれ以外）を選ぶ。
 // 確定でアクション entry-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
 import { type MessageKey, pagedOf } from "../../../plugin-api"
@@ -6,7 +6,6 @@ import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } fr
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
-  ColorPicker,
   controlClass,
   Dialog,
   Field,
@@ -16,14 +15,13 @@ import {
   RichInput,
   type RichInputHandle,
   rowClass,
-  useBookTheme,
-  useSwatches,
 } from "../../base/ui"
 import { ENTRY_UPDATE } from "./actions"
-import { FILE_COLOR, FOLDER_COLOR } from "./dir"
+import styles from "./EntrySettingsDialog.module.css"
 import { entryOf } from "./edit"
-import { dirRootOf } from "./entry"
+import { dirRootOf, FILE_ICONS, FOLDER_ICONS, type Icon } from "./entry"
 import { kit } from "./kit"
+import { NodeIcon } from "./node-icon"
 
 export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page: string; entry: string }>) {
   const t = useMessages(kit)
@@ -33,10 +31,9 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
   const root = dirRootOf(page)
   const entry = root ? entryOf(root, args.entry) : null
   const perform = usePerform(stage)
-  const swatches = useSwatches(useBookTheme(book?.id), entry?.kind === "file" ? FILE_COLOR : FOLDER_COLOR)
   const [name, setName] = useState(entry?.name ?? "")
   const [description, setDescription] = useState(entry?.description ?? "")
-  const [color, setColor] = useState<string | undefined>(entry?.color)
+  const [icon, setIcon] = useState<Icon | undefined>(entry?.icon)
   const catalog = useCoreCatalog()
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !entry) return null
@@ -46,7 +43,7 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
       entry: entry.id,
       name,
       description: description.trim() === "" ? null : description,
-      color: color ?? null,
+      icon: icon ?? null,
     })
     if (done.ok) onClose()
     else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
@@ -79,18 +76,25 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
             />
           )}
         </Field>
-        {swatches && (
-          <div className={rowClass}>
-            <span>{t("Color")}</span>
-            <ColorPicker
-              label={t("Color")}
-              value={color}
-              palette={swatches.palette}
-              none={swatches.none}
-              onChange={setColor}
-            />
+        <div className={rowClass}>
+          <span>{t("Icon")}</span>
+          <div className={styles.icons} role="radiogroup" aria-label={t("Icon")}>
+            {(entry.kind === "file" ? FILE_ICONS : FOLDER_ICONS).map((name, i) => (
+              <button
+                key={name}
+                type="button"
+                role="radio"
+                className={styles.icon}
+                aria-checked={(icon ?? (i === 0 ? name : undefined)) === name}
+                aria-label={t(ICON_NAMES[name])}
+                title={t(ICON_NAMES[name])}
+                onClick={() => setIcon(i === 0 ? undefined : name)}
+              >
+                <NodeIcon kind={entry.kind} icon={name} open={false} size={18} />
+              </button>
+            ))}
           </div>
-        )}
+        </div>
         {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
@@ -131,3 +135,18 @@ function RichLineInput({
     </div>
   )
 }
+
+// アイコンの名前（選ぶボタンの名前）
+const ICON_NAMES = {
+  folder: "Folder",
+  book: "Book",
+  file: "File",
+  drawing: "Drawing",
+  flowchart: "Flowchart",
+  tree: "Tree",
+  directory: "Directory icon",
+  markdown: "Markdown",
+  slide: "Slide",
+  "class-diagram": "Class diagram",
+  html: "HTML",
+} as const

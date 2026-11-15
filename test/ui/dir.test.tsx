@@ -104,10 +104,10 @@ test("中身を足す・書き換える（根も）・消す・移す・並べ�
   expect(rowNames()).toEqual(["proj", "src", "z.ts", "a.ts", "README.md"])
   expect(perform("@matomezu/dir:folder-sort", { page: ids.page, folder: ids.src, order: "asc" }).ok).toBe(true)
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "z.ts", "README.md"])
-  expect(
-    perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.root, name: "app", color: "danger" }).ok,
-  ).toBe(true)
-  expect(book().pages[0]).toMatchObject({ root: { name: "app", color: "danger" } })
+  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.root, name: "app", icon: "book" }).ok).toBe(
+    true,
+  )
+  expect(book().pages[0]).toMatchObject({ root: { name: "app", icon: "book" } })
   expect(perform("@matomezu/dir:entry-move", { page: ids.page, entry: ids.readme, parent: ids.src }).ok).toBe(true)
   expect(rowNames()).toEqual(["app", "src", "a.ts", "z.ts", "README.md"])
   expect(perform("@matomezu/dir:entry-move", { page: ids.page, entry: ids.src, parent: ids.a }).ok).toBe(false)

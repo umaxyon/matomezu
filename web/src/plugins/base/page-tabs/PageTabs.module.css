@@ -46,6 +46,12 @@
 .tab[data-locked="true"] {
   padding-left: 24px;
 }
+/* ページのタブの頭の、ブックのタイプのアイコン */
+.typeIcon {
+  display: inline-flex;
+  margin-right: 6px;
+  vertical-align: middle;
+}
 .tab {
   max-width: 200px;
   height: 25px;

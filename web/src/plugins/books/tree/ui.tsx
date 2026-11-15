@@ -14,10 +14,12 @@ import { NodeSizeSetting } from "./NodeSizeSetting"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 import { TreePageSettingsDialog } from "./TreePageSettingsDialog"
-import { NEW_TREE_PAGE_DIALOG, NODE_SIZE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, TREE_PRESENTATION } from "./tree"
+import { NEW_TREE_PAGE_DIALOG, NODE_SIZE_DIALOG, TREE, TREE_PAGE_SETTINGS_DIALOG, TREE_PRESENTATION } from "./tree"
+import { TreeIcon } from "./type-icon"
 import { TREE_VIEW } from "./view/ui"
 
 export const TREE_UI = definePluginUi(TREE_PLUGIN, {
+  bookTypeIcons: { [TREE.id]: <TreeIcon /> },
   presentationViews: { [TREE_PRESENTATION.id]: TREE_VIEW },
   settingViews: {
     [GROW.id]: { control: GrowSetting },

@@ -11,10 +11,11 @@ import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { PAGE_CONTEXT, PAGE_NEW, PAGE_OPEN } from "."
+import { FileIcon } from "./FileIcon"
 import styles from "./PageTabs.module.css"
 import { useTabDrag } from "./useTabDrag"
 
@@ -43,6 +44,7 @@ export function PageTabs({ stage }: { stage: string }) {
   const newPage = useCommand(stage, PAGE_NEW.id)
   const openMenu = useContextMenu(stage, PAGE_CONTEXT)
   const catalog = useCatalog().core
+  const typeIcon = useUiCatalog().bookTypeIcons.get(book?.type ?? "") ?? <FileIcon /> // ブックのタイプのアイコン（名乗らないタイプは通常のファイル）
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
   const pages = book && hasPages(book) ? book.pages : []
@@ -80,6 +82,9 @@ export function PageTabs({ stage }: { stage: string }) {
             onContextMenu={e => openMenu(e, { page: p.id })}
             {...tabDrag.handlers(p.id)}
           >
+            <span className={styles.typeIcon} aria-hidden="true">
+              {typeIcon}
+            </span>
             {p.title}
           </button>
           {p.locked && (

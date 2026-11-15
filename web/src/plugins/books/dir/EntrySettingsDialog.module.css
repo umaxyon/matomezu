@@ -1,0 +1,24 @@
+/* アイコンを選ぶ並び（ラジオ）。選んでいるアイコンは枠で示す */
+.icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.icon:hover {
+  background: var(--skin-btn-hover);
+}
+.icon[aria-checked="true"] {
+  border-color: var(--skin-accent);
+  background: var(--skin-accent-subtle);
+}
