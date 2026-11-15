@@ -11,7 +11,6 @@ import {
 } from "./book-look"
 import { THEME_TYPES_CHECK } from "./book-look/theme-types"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
-import { CREATE_SETTINGS_CHECK } from "./book-new/book-create"
 import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRASH_EMPTY } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
@@ -385,7 +384,6 @@ export const BASE = defineBuiltin(
       PROP_NAMES_CHECK,
       SCRAP_FRAME_CHECK,
       FAMILY_TITLE_CHECK,
-      CREATE_SETTINGS_CHECK,
       LOCKABLE_CHECK,
       OPTION_TITLES_CHECK,
       THEME_TEXT_COLORS_CHECK,

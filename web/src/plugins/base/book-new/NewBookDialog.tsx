@@ -1,23 +1,12 @@
-// ブックを作るダイアログ: 名前とタイプを決めて作り（アクション book-create）、そのステージで開く。
-// 選べるタイプは、作れるタイプのうちアクション book-create を行えるもの（追加プラグインの認可ステップがタイプごとに止めることもある）。
-// タイプが作るときに聞く設定の項目（createSettings）を選んでいれば、そのタイプを選んだときに項目を開いて見せ（アコーディオン）、決めた値も一緒に渡す
+// ブックを作るダイアログ: 名前を決めて作り（アクション book-create）、そのステージで開く。
+// 出来るのはページの無いブック（ブックはタイプを持たない。ページは、開いたあとにページタブの＋から、タイプを選んで足す）
 
-import { useEffect, useMemo, useState } from "react"
-import { useShallow } from "zustand/react/shallow"
-import { USER } from "../../../core/actor"
-import { createBook } from "../../../core/book"
-import { pageType } from "../../../core/core-catalog"
-import { worldOf } from "../../../store/world"
+import { useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useControlCenter, useMatomezuState } from "../../../ui/store-context"
-import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
-import { controlClass, Field, Form, Section } from "../dialog-host/FormParts"
+import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { type SettingsPatch, useSettingControls } from "../utils/SettingControls"
-import { typesToCreate } from "./book-create"
-import styles from "./NewBookDialog.module.css"
 import { useCreateBook } from "./useCreateBook"
 
 export function NewBookDialog({ onClose }: DialogProps) {
@@ -33,20 +22,12 @@ function NewBookForm({ onDone }: { onDone: () => void }) {
   const t = useMessages(kit)
   const createAndOpen = useCreateBook()
   const [title, setTitle] = useState("")
-  const catalog = useCoreCatalog()
-  const controlCenter = useControlCenter()
-  const types = useMatomezuState(useShallow(s => typesToCreate(worldOf(s), { catalog, controlCenter, actor: USER })))
-  const [type, setType] = useState(types[0] ?? "")
-  const [settings, setSettings] = useState<SettingsPatch>({})
-  const asks = type ? (pageType(catalog, type).createSettings ?? []) : []
   return (
     <Form
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        // 選べるタイプは動いている機能台帳から来る（core/catalog.ts に無い追加プラグインのタイプもある）ので、型を外して渡す
-        const chosen = asks.length > 0 && Object.keys(settings).length > 0 ? { settings } : {}
-        if (createAndOpen({ title, type: type as never, ...chosen })) onDone()
+        if (createAndOpen({ title })) onDone()
       }}
     >
       <Field label={t("Book name")}>
@@ -55,50 +36,6 @@ function NewBookForm({ onDone }: { onDone: () => void }) {
           <input id={id} className={controlClass} value={title} autoFocus onChange={e => setTitle(e.target.value)} />
         )}
       </Field>
-      <Field label={t("Book type")}>
-        {id => (
-          <select
-            id={id}
-            className={controlClass}
-            value={type}
-            disabled={types.length < 2}
-            onChange={e => {
-              setType(e.target.value)
-              setSettings({})
-            }}
-          >
-            {types.map(c => (
-              <option key={c} value={c}>
-                {t(pageType(catalog, c).title)}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
-      <div className={styles.more} data-open={asks.length > 0}>
-        <div className={styles.inner}>
-          {asks.length > 0 && <CreateSettingsInputs key={type} type={type} asks={asks} onChange={setSettings} />}
-        </div>
-      </div>
     </Form>
   )
-}
-
-// タイプ type が作るときに聞く設定の項目 asks の入力（タイプを替えれば初めから）。変えた値を onChange で渡す
-function CreateSettingsInputs({
-  type,
-  asks,
-  onChange,
-}: {
-  type: string
-  asks: readonly string[]
-  onChange: (settings: SettingsPatch) => void
-}) {
-  const t = useMessages(kit)
-  const catalog = useCoreCatalog()
-  // 項目のビューに渡すブック（まだ作っていないので、そのタイプの空のブック）
-  const draft = useMemo(() => createBook(catalog, type, { id: "new", title: "" }), [catalog, type])
-  const settings = useSettingControls(draft, "book", null, asks)
-  useEffect(() => onChange(settings.patch), [settings.patch, onChange])
-  return <Section title={t("{type} settings", { type: t(pageType(catalog, type).title) })}>{settings.controls}</Section>
 }

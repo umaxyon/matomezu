@@ -50,13 +50,20 @@ export type NewPageArgs = z.infer<typeof NEW_PAGE_ARGS>
 export const describeNewPage = (catalog: CoreCatalog) =>
   NEW_PAGE_ARGS.extend({ settings: settingsArgs(catalog).optional(), fields: fieldsArgs(catalog, "add").optional() })
 
+// 足したページの結果: ページの id、新しく作ったフォルダの id、フィールドの受け方の返した結果
+export interface NewPageResult {
+  page: string
+  folder?: string
+  fields?: unknown
+}
+
 // ブック book に、引数 args のページを足したブックと、足したページの id（と、フィールドの受け方の返した結果・新しく作ったフォルダの id）。足せなければ null
 export function withNewPage(
   catalog: CoreCatalog,
   book: Book,
   args: NewPageArgs,
   ctx: { lang: string; newId: () => string },
-): { book: Book; result: { page: string; folder?: string; fields?: unknown } } | null {
+): { book: Book; result: NewPageResult } | null {
   const type = catalog.pageTypes.get(args.type)
   if (!type) return null
   // 入れる所: まとまるタイプは into が要り、まとまらないタイプは into を書けない
