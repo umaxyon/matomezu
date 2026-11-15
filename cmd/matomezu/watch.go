@@ -76,14 +76,23 @@ func (c *watchCmd) Run() error {
 
 // deliverer は、引数で決めた渡し方
 func (c *watchCmd) deliverer(out io.Writer) deliverer {
+	args := deliverCommand(c.Deliver)
 	switch {
-	case len(c.Deliver) == 0:
+	case len(args) == 0:
 		return printDeliverer{out}
 	case c.Resident:
-		return &residentDeliverer{args: c.Deliver}
+		return &residentDeliverer{args: args}
 	default:
-		return commandDeliverer{args: c.Deliver}
+		return commandDeliverer{args: args}
 	}
+}
+
+// deliverCommand は、-- のあとに受けた渡すコマンド（kong の passthrough は、区切りの -- も頭に残す）
+func deliverCommand(args []string) []string {
+	if len(args) > 0 && args[0] == "--" {
+		return args[1:]
+	}
+	return args
 }
 
 // runningServer は、立っていて答える常駐のつなぎ方（無ければ nil）

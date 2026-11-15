@@ -272,7 +272,7 @@ func (c *mcpCmd) Run() error {
 		return err
 	}
 	// 渡すコマンドがあれば、起こす知らせの watch も並べて動かす（標準出力は MCP が使うので、渡すコマンドが無いときは動かさない）
-	if len(c.Deliver) > 0 {
+	if len(deliverCommand(c.Deliver)) > 0 {
 		w := &watchCmd{Host: hostProcess(), Session: os.Getenv(claudeSessionEnv), Resident: c.Resident, Deliver: c.Deliver}
 		go func() { _ = w.Run() }()
 	}

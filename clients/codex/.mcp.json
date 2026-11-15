@@ -2,7 +2,8 @@
   "mcpServers": {
     "matomezu": {
       "command": "sh",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp.sh"],
+      "args": ["./scripts/mcp.sh"],
+      "cwd": ".",
       "env_vars": ["CODEX_HOME"]
     }
   }

@@ -1,10 +1,6 @@
 {
   "hooks": {
-    "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/annotations.sh\"" }] }
-    ],
-    "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/model.sh\"" }] }
-    ]
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "sh ./scripts/annotations.sh" }] }],
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "sh ./scripts/model.sh" }] }]
   }
 }

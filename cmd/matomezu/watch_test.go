@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/alecthomas/kong"
 )
 
 // watch は SSE の wake の知らせの文だけを 1 行ずつ書き、ほかの知らせ（keep）は書かない
@@ -98,5 +100,26 @@ func TestDeliverCommands(t *testing.T) {
 		if strings.Join(got, ",") != "delivered,absent,failed" {
 			t.Fatalf("%s: %v", mode, got)
 		}
+	}
+}
+
+// 渡すコマンドは、watch でも mcp でも、コマンドの行の -- のあとから受け、区切りの -- は含めない
+func TestDeliverCommandFromTheCommandLine(t *testing.T) {
+	var c cli
+	p, err := kong.New(&c, kong.Vars{"addr": DefaultAddr})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Parse([]string{"watch", "--host", "1", "--", "/bin/m", "deliver", "codex"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := deliverCommand(c.Watch.Deliver); strings.Join(got, " ") != "/bin/m deliver codex" {
+		t.Fatalf("watch = %q", got)
+	}
+	if _, err := p.Parse([]string{"mcp", "--", "/bin/m", "deliver", "codex"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := deliverCommand(c.MCP.Deliver); strings.Join(got, " ") != "/bin/m deliver codex" {
+		t.Fatalf("mcp = %q", got)
 	}
 }
