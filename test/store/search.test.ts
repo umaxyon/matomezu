@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
+import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
@@ -73,7 +74,7 @@ test("ブック全体では、当たりのある次のページを開いて移�
   actions.openPage("s1", pages()[0]!)
   actions.command("s1", "@matomezu/base:search-open-book")
   setQuery("x")
-  const opened = () => screenOf(state.getState().window).stages[0]!.opened!.page
+  const opened = () => shownPageId(screenOf(state.getState().window).stages[0]!.opened ?? null)
   actions.command("s1", "@matomezu/base:search-next")
   expect([opened(), search()!.current]).toEqual([pages()[0]!, { page: pages()[0]!, start: 0, end: 1 }])
   actions.command("s1", "@matomezu/base:search-next")

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
-import { actionsOf } from "../../web/src/core/perform"
+import { actionsOfPage } from "../../web/src/core/perform"
+import { shownPageId } from "../../web/src/core/stage"
 import { warningText } from "../../web/src/core/warnings"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
@@ -8,13 +9,10 @@ import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
-import { pagesBook } from "../lineup"
 import { CORE_CATALOG, newStore } from "../support"
 
-const drawing = pagesBook({ type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", pages: [] })
-
-test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。ブックが対象でないアクションは、どのタイプにも付かない", () => {
-  const ids = actionsOf(CORE_CATALOG, drawing)
+test("アクションは、タイプが選んだアイテム・見せ方と、どのブックにも付くアクションが付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。ブックが対象でないアクションは、どのタイプにも付かない", () => {
+  const ids = actionsOfPage(CORE_CATALOG, { type: "@matomezu/drawing:drawing" })
   for (const id of [
     "@matomezu/base:page-add",
     "@matomezu/base:book-update",
@@ -112,10 +110,9 @@ test("線を置けないタイプが line-connect を足していても、線を
   expect(createBookIn(instance, "s1", { title: "B" })).toBe(true)
   const id = screenOf(instance.state.getState().window).stages[0]!.opened!.book
   expect(
-    instance.actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "P" }, { book: id })
-      .ok,
+    instance.actions.perform("@matomezu/base:page-add", { type: "boards:board", title: "P" }, { book: id }).ok,
   ).toBe(true)
-  const p = screenOf(instance.state.getState().window).stages[0]!.opened!.page!
+  const p = shownPageId(screenOf(instance.state.getState().window).stages[0]!.opened ?? null)!
   const place = (x: number) =>
     instance.actions.perform(
       "@matomezu/paper:item-place",
