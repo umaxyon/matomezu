@@ -148,3 +148,43 @@ func TestOSProcTableReadsTheParent(t *testing.T) {
 		t.Fatalf("parent = %+v (%v), me = %+v", parent, ok, me)
 	}
 }
+
+// 親の列: AI のプログラムまでの全員を持ち、どれかが居なくなるか、同じ id の別のプロセスに替わったら、居ないと答える。
+// たどれなくなったときは、たどれた所までを持つ
+func TestLineageAlive(t *testing.T) {
+	procs := tree{
+		10: {parent: 0, name: "claude.exe", started: 1},
+		11: {parent: 10, name: "bash.exe", started: 2},
+		12: {parent: 11, name: "volta.exe", started: 3},
+		13: {parent: 12, name: "node.exe", started: 4},
+		14: {parent: 13, name: "matomezu.exe", started: 5},
+	}
+	line, host, _ := lineage(14, procs.table, 13)
+	if host != 10 || len(line) != 4 {
+		t.Fatalf("host = %d, line = %v", host, line)
+	}
+	if !lineageAlive(line, procs.table) {
+		t.Fatal("all are alive")
+	}
+	delete(procs, 11) // AI のプログラムが中継のシェルを止めた（その子の volta・node は残る）
+	if lineageAlive(line, procs.table) {
+		t.Fatal("the shell is gone")
+	}
+	procs[11] = procInfo{parent: 1, name: "notepad.exe", started: 9} // 同じ id が使い回された
+	if lineageAlive(line, procs.table) {
+		t.Fatal("the id was reused")
+	}
+
+	broken := tree{
+		11: {parent: 30, name: "bash.exe", started: 2},
+		12: {parent: 11, name: "matomezu.exe", started: 3},
+	}
+	line, host, _ = lineage(12, broken.table, 0)
+	if host != 0 || len(line) != 1 || line[0].pid != 11 {
+		t.Fatalf("broken chain: host = %d, line = %v", host, line)
+	}
+	delete(broken, 11)
+	if lineageAlive(line, broken.table) {
+		t.Fatal("the only known parent is gone")
+	}
+}

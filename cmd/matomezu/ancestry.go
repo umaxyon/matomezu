@@ -39,28 +39,61 @@ func procName(name string) string {
 	return strings.TrimSuffix(strings.ToLower(name), ".exe")
 }
 
-// findHost は、プロセス self から親をたどり、中継（relayNames と、プロセス id が entry の npm の入口）を飛ばした最初のプロセスの id と名前を返す。
-// 親が居ない・親が子より後に起動した（プロセス id が使い回された）・根に着いたときは、分からないとして 0 を返す
-func findHost(self int, table procTable, entry int) (int, string) {
+// ancestor は、たどった親 1 つ（プロセス id と起動した時。起動した時で、同じ id の別のプロセスと見分ける）
+type ancestor struct {
+	pid     int
+	started int64
+}
+
+// lineage は、プロセス self から親をたどり、中継（relayNames と、プロセス id が entry の npm の入口）を飛ばした最初のプロセス（AI のプログラム）までの親の列と、
+// AI のプログラムの id と名前を返す。親が居ない・親が子より後に起動した（プロセス id が使い回された）・根に着いたときは、そこまでの列と、分からないとして 0 を返す
+func lineage(self int, table procTable, entry int) ([]ancestor, int, string) {
 	child, ok := table(self)
 	if !ok {
-		return 0, ""
+		return nil, 0, ""
 	}
+	var line []ancestor
 	for range maxAncestry {
 		pid := child.parent
 		if pid <= 1 {
-			return 0, ""
+			return line, 0, ""
 		}
 		p, ok := table(pid)
 		if !ok || p.started > child.started {
-			return 0, ""
+			return line, 0, ""
 		}
+		line = append(line, ancestor{pid: pid, started: p.started})
 		if pid != entry && !relayNames[procName(p.name)] {
-			return pid, p.name
+			return line, pid, p.name
 		}
 		child = p
 	}
-	return 0, ""
+	return line, 0, ""
+}
+
+// findHost は、プロセス self から親をたどった AI のプログラムの id と名前（分からなければ 0）
+func findHost(self int, table procTable, entry int) (int, string) {
+	_, pid, name := lineage(self, table, entry)
+	return pid, name
+}
+
+// lineageAlive は、親の列 line のどれもが、まだ居るか（同じ id で、同じ時に起動した物か）。
+// AI のプログラムが終わると、中継（シェルなど）も止められる。Windows では、止められた中継の子の子は残るので、列のどこかが居なくなったら終える目印にする
+func lineageAlive(line []ancestor, table procTable) bool {
+	for _, a := range line {
+		p, ok := table(a.pid)
+		if !ok || p.started != a.started {
+			return false
+		}
+	}
+	return true
+}
+
+// ancestorsAlive は、起動したときの親の列（AI のプログラムまでか、たどれる所まで）が、どれもまだ居る間 true を返す関数
+func ancestorsAlive() func() bool {
+	entry, _ := strconv.Atoi(os.Getenv(entryPIDEnv))
+	line, _, _ := lineage(os.Getpid(), osProcTable, entry)
+	return func() bool { return lineageAlive(line, osProcTable) }
 }
 
 // hostProgram は、この matomezu を起動した AI のプログラムのプロセス id と名前（分からなければ空）

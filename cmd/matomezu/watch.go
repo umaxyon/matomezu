@@ -62,7 +62,7 @@ type deliverer interface {
 const watchRetry = 3 * time.Second
 
 // Run は、常駐の AI を起こす知らせ（GET /api/ai/watch）につなぎ、届いた 1 行ずつを標準出力に書く。常駐が立っていなければ待ち、切れたらつなぎ直す（常駐は立てない）。
-// --host のプロセスか、起動したときの親が居なくなったら終える（AI のプログラムが閉じたのに残らないように。Windows では、AI のプログラムが終わっても子の子は止まらない）
+// --host のプロセスか、起動したときの親の列のどれかが居なくなったら終える（AI のプログラムが閉じたのに残らないように。Windows では、AI のプログラムが終わっても子の子は止まらない）
 func (c *watchCmd) Run() error {
 	if c.Host == "" && c.Session == "" {
 		return errors.New("--host or --session is needed (whose notices to print)")
@@ -128,10 +128,10 @@ func (c *watchCmd) query() string {
 	return q.Encode()
 }
 
-// alive は、watch を続けるか（--host のプロセスと、起動したときの親が居る間）
+// alive は、watch を続けるか（--host のプロセスと、起動したときの親の列が居る間）
 func (c *watchCmd) alive() func() bool {
-	parent := parentAlive()
-	return func() bool { return parent() && (c.Host == "" || server.ProcessAlive(c.Host)) }
+	ancestors := ancestorsAlive()
+	return func() bool { return ancestors() && (c.Host == "" || server.ProcessAlive(c.Host)) }
 }
 
 // watchOnce は、常駐 s の起こす知らせ（問い合わせ query）につなぎ、切れるまで、届いた知らせを d で渡して、結果を常駐に返す。alive が false になったら終える
