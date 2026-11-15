@@ -30,7 +30,7 @@ export interface LaidRow {
   kind: Kind
   name: string
   line: RichLine // 見せる名前（装飾の区切りの並び）
-  color?: string
+  icon?: string // 選んだアイコン（無ければ種類の既定）
   closed: boolean // 閉じたフォルダ
   hasKids: boolean // 中身のあるフォルダ
   x: number // アイコンの左
@@ -85,7 +85,7 @@ export function layoutDir(
       kind: entry.kind,
       name: entry.name,
       line: line ?? [],
-      ...(entry.color ? { color: entry.color } : {}),
+      ...(entry.icon ? { icon: entry.icon } : {}),
       closed: folder?.closed === true,
       hasKids: (folder?.children?.length ?? 0) > 0,
       x,

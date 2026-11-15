@@ -11,10 +11,10 @@ import {
   useRecord,
   useRecords,
   useScreen,
-  useScreens,
   useUpdatePluginState,
   useUserSetting,
 } from "../../../plugin-api/ui"
+import { wordLinksOf } from "../../base"
 import {
   IconButton,
   LockToggle,
@@ -25,7 +25,7 @@ import {
   useMarkdownDocument,
   useRecordEditLock,
 } from "../../base/ui"
-import { BackIcon, BookIcon, PencilIcon } from "../icons"
+import { BookIcon, PencilIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import scroll from "../scrollbar.module.css"
@@ -37,10 +37,13 @@ import { tagsOf } from "../ticket/tags"
 import { HISTORY } from "../ticket-history"
 import { TICKET_SCREEN, TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "."
 import { AssigneeBirds } from "./AssigneeBirds"
+import { BackBar } from "./BackBar"
+import { LinkedText } from "./LinkedText"
 import { TagPicker } from "./TagPicker"
 import { TicketHistoryTimeline } from "./TicketHistoryTimeline"
 import styles from "./TicketScreen.module.css"
 import { useBodyUpdateLine } from "./useBodyUpdateLine"
+import { useTicketRefs } from "./useTicketRefs"
 import { type HistoryRow, historyRows, whenOf } from "./view"
 import { WriterBird } from "./WriterBird"
 
@@ -57,8 +60,6 @@ export function TicketScreen() {
   const t = useMessages(kit)
   const me = useScreen(TICKET_SCREEN)
   const id = me.props.ticket
-  const { close: closeScreen } = useScreens()
-  const close = () => closeScreen(me.id)
   const ticket = useRecord(TICKET.id, id)
   const project = useRecord(PROJECT.id, ticket?.project ?? "")
   const lines = useRecords(HISTORY.id, { where: [] })
@@ -84,10 +85,7 @@ export function TicketScreen() {
       <section className={styles.screen} aria-label={t("ticket screen")}>
         <div className={`${styles.ticket} ${styles.alone}`}>
           <div className={styles.band}>
-            <IconButton label={t("Back")} onClick={close}>
-              <BackIcon />
-            </IconButton>
-            <span className={styles.bandTitle}>{t("ticket screen")}</span>
+            <BackBar screen={me.id} />
           </div>
           <p className={styles.empty}>{t("The ticket is not there")}</p>
         </div>
@@ -105,10 +103,7 @@ export function TicketScreen() {
     <section className={styles.screen} aria-label={t("ticket screen")}>
       <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
         <div className={styles.band}>
-          <IconButton label={t("Back")} onClick={close}>
-            <BackIcon />
-          </IconButton>
-          <span className={styles.bandTitle}>{t("ticket screen")}</span>
+          <BackBar screen={me.id} folded={view.maximized} />
           <span className={styles.bandEnd}>
             <LockToggle
               locked={locked}
@@ -151,6 +146,7 @@ export function TicketScreen() {
           <div className={styles.sectionHead}>{t("History")}</div>
           <div className={`${styles.historyScroll} ${scroll.thin}`}>
             <TicketHistoryTimeline
+              ticket={id}
               rows={rows}
               openQuestion={view.question}
               onOpenQuestion={(row: HistoryRow) => set({ question: row.id })}
@@ -176,7 +172,7 @@ export function TicketScreen() {
           />
         </Side>
         <Side open={question !== undefined} title={t("Question")} className={styles.question}>
-          {question ? <QuestionView row={question} onClose={() => set({ question: undefined })} /> : null}
+          {question ? <QuestionView ticket={id} row={question} onClose={() => set({ question: undefined })} /> : null}
         </Side>
       </div>
     </section>
@@ -350,6 +346,9 @@ function BodyPanes({
   const t = useMessages(kit)
   const [composing, setComposing] = useState<string | null>(null) // 変換中の字（変換が決まるまで送らない）
   const document = useMarkdownDocument(body, ticket)
+  // 本文の文中のチケットの番号は、今あるチケットのときだけリンクにする（原文は変えない）
+  const refs = useTicketRefs(ticket)
+  const wordLinks = useMemo(() => wordLinksOf(document, refs.find), [document, refs.find])
   const softBreak = useUserSetting("@matomezu/base:soft-break") === "space" ? "space" : "line-break"
   return (
     <>
@@ -393,7 +392,12 @@ function BodyPanes({
           <div className={`${styles.preview} ${scroll.thin}`}>
             {body ? (
               <div className={styles.markdown} style={markdownDocumentOnSkin()}>
-                <MarkdownDocumentView document={document} softBreak={softBreak} />
+                <MarkdownDocumentView
+                  document={document}
+                  softBreak={softBreak}
+                  wordLinks={wordLinks}
+                  onWordLink={refs.open}
+                />
               </div>
             ) : (
               <p className={styles.empty}>{t("No body")}</p>
@@ -406,8 +410,9 @@ function BodyPanes({
 }
 
 // チケット履歴の質問を開いた枠（右の領域の上に重ねる）: 質問した者の鳥・時刻・質問の文と、閉じるボタン
-function QuestionView({ row, onClose }: { row: HistoryRow; onClose: () => void }) {
+function QuestionView({ ticket, row, onClose }: { ticket: string; row: HistoryRow; onClose: () => void }) {
   const t = useMessages(kit)
+  const refs = useTicketRefs(ticket)
   return (
     <>
       <div className={styles.band}>
@@ -422,7 +427,9 @@ function QuestionView({ row, onClose }: { row: HistoryRow; onClose: () => void }
           </button>
         </span>
       </div>
-      <p className={`${styles.questionText} ${scroll.thin}`}>{row.text}</p>
+      <p className={`${styles.questionText} ${scroll.thin}`}>
+        <LinkedText text={row.text} find={refs.find} open={refs.open} />
+      </p>
     </>
   )
 }

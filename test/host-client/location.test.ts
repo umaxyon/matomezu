@@ -22,15 +22,24 @@ import { newStore, showBooks, showCenter } from "../support"
 // 書いた URL を覚える偽の Place（later はすぐには呼ばず、flush で呼ぶ）
 function fakePlace(start = "") {
   let now = start
+  let at = 0 // 今のブラウザの履歴の行の番号（この窓が積んだ順）
+  const rows = new Map<number, string>() // 行の番号 → その行の URL
+  let backs = 0 // place.back が呼ばれた回数
   const pushed: string[] = []
   const replaced: string[] = []
   let pop: () => void = () => {}
   let waiting: (() => void) | null = null
   const place: Place = {
     search: () => now,
-    push: s => {
+    index: () => at,
+    push: (s, index) => {
       now = s
+      at = index
+      rows.set(index, s)
       pushed.push(s)
+    },
+    back: () => {
+      backs++
     },
     replace: s => {
       now = s
@@ -57,8 +66,10 @@ function fakePlace(start = "") {
     },
     back: (search: string) => {
       now = search
+      at = [...rows].find(([, v]) => v === search)?.[0] ?? 0
       pop()
     },
+    backCalls: () => backs,
   }
 }
 
@@ -294,7 +305,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
   expect(store.address().window).toEqual({ "k:tab": "two" })
 })
 
-test("スクリーンを開くと履歴に積むが、setScreenProps で渡す値だけを替えたときは積まず、今の行を置き換える", async () => {
+test("スクリーンを開くのも、開いているスクリーンの渡す値を setScreenProps で替えるのも、履歴に積む。戻ると前の渡す値に戻る", async () => {
   const store = createMatomezu({
     plugins: BUILTIN,
     controlCenter: "@matomezu/control-center:control-center",
@@ -307,12 +318,30 @@ test("スクリーンを開くと履歴に積むが、setScreenProps で渡す�
   expect(f.pushed).toHaveLength(1)
   expect(store.actions.setScreenProps(id, { ticket: "t2" })).toBe(true)
   await settled()
-  expect(f.pushed).toHaveLength(1)
-  f.flush()
-  expect(f.replaced.at(-1)).toContain("t2")
-  expect(f.replaced.at(-1)).not.toContain("t1")
-  // ほかの経路（別のスクリーンを開く）は積む
-  store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t3" })
-  await settled()
   expect(f.pushed).toHaveLength(2)
+  expect(f.pushed[1]).toContain("t2")
+  // 戻ると、前の渡す値（t1）が当たる
+  f.back(f.pushed[0]!)
+  expect(JSON.stringify(store.address().screens.find(s => s.id === id)?.props)).toContain("t1")
+})
+
+test("この窓が積んだ行が無ければ canGoBack は false、積めば true、戻って先頭に着けば false。requestBack は戻れるときだけブラウザの履歴を戻す", async () => {
+  const store = createMatomezu({
+    plugins: BUILTIN,
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
+  const f = fakePlace()
+  followLocation(store, f.place)
+  expect(store.state.getState().canGoBack).toBe(false)
+  store.actions.requestBack()
+  expect(f.backCalls()).toBe(0)
+  store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
+  await settled()
+  expect(store.state.getState().canGoBack).toBe(true)
+  store.actions.requestBack()
+  expect(f.backCalls()).toBe(1)
+  // 戻って、この窓が積む前の最初の行に着けば、もう戻る先は無い
+  f.back("")
+  expect(store.state.getState().canGoBack).toBe(false)
 })

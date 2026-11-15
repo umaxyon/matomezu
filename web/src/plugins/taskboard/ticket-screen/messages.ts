@@ -8,6 +8,7 @@ export const TICKET_SCREEN_MESSAGES = defineMessages({
   "Updated the body": { en: "Updated the body", ja: "本文を更新しました" },
   "ticket screen": { en: "Ticket", ja: "チケット" },
   Back: { en: "Back", ja: "戻る" },
+  "Control center": { en: "Control center", ja: "コントロールセンター" },
   Filed: { en: "Filed", ja: "起票" },
   "Filed this ticket": { en: "Filed this ticket", ja: "チケットを起票しました" },
   "Filed at": { en: "Filed", ja: "起票日時" },

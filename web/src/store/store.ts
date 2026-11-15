@@ -157,6 +157,9 @@ export interface MatomezuState {
   editLocks: Readonly<Record<string, EditLock>>
   // 印刷を頼んだ回数（requestPrint で増える。ホストクライアントが、増えたら画面を刷る）
   printRequests: number
+  // ブラウザの履歴を 1 つ戻してほしいと頼んだ回数（requestBack で増える。ホストクライアントが、増えたら戻す）と、この窓の中に戻る先があるか（ホストクライアントが入れる）
+  backRequests: number
+  canGoBack: boolean
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
@@ -233,7 +236,7 @@ export interface Actions {
   // スクリーンを 1 枚開いてカレントにし、開いた 1 枚の id を返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
   // 機能台帳に無い定義・形に合わない値なら開かず、refused を返す
   openScreen(def: string, props: unknown): string
-  // 開いているスクリーン id に渡す値を props に替える（スクリーンを積まない。値は、そのスクリーンの定義の props の形。無いスクリーン・形に合わない値なら替えず false）
+  // 開いているスクリーン id に渡す値を props に替える（スクリーンを積まず、ブラウザの履歴には積む。値は、そのスクリーンの定義の props の形。無いスクリーン・形に合わない値なら替えず false）
   setScreenProps(id: string, props: unknown): boolean
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   // 開いているスクリーン id を閉じる（カレントスクリーンだったなら、1 つ前にカレントだった物がカレントになる）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
@@ -265,6 +268,7 @@ export interface Actions {
   endBackground(id: string): void // そのステージの背景編集モードを終える
   setPreviewArea(id: string, area: Size): void // 印刷プレビューで並べた広さ（見せ方が知らせる）
   requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
+  requestBack(): void // ブラウザの履歴を 1 つ戻してほしいと頼む（戻すのはホストクライアント。戻る先が無い canGoBack が false のときは、頼んでも何も起きない）
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
   // そのステージでアイテムを置こうとする（同じものなら取り消す）。props は置くときに渡す項目の値（無ければアイテムの既定）
@@ -331,8 +335,6 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
   // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
-  // setScreenProps で渡す値を替えたスクリーンの id（前に取り出してから今まで）を返して空にする。ホストクライアントだけが使う: 渡す値だけが変わった場所は、ブラウザの履歴に積まず今の行を置き換える
-  takeReplacedScreens(): ReadonlySet<string>
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
   address(): Address
   // 画面の場所を address にする（core/address.ts の placeAt と、画面の場所に入れるプラグイン状態）。
@@ -342,6 +344,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setOffline(offline: boolean): void
   // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setLastWindow(last: boolean): void
+  // この窓の中に戻る先があるか（canGoBack）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setCanGoBack(can: boolean): void
   // 今の利用者の設定でのキーバインドの表（作り直すのは利用者の変更が変わったときだけ。画面がキーの名前を出すのに使う）
   keys(): KeyTable
   // プラグイン状態の宣言 id の値を value にする（undefined なら消す）。ステージごとの宣言は stage のステージの値を、ステージに結ばない宣言は stage を渡さず。知らない id は E122、範囲が合わなければ E124、画面の場所に入れる宣言の形に合わない値は E123。
@@ -405,6 +409,8 @@ function initialState(
     pluginValues: NO_PLUGIN_STATES,
     editLocks: {},
     printRequests: 0,
+    backRequests: 0,
+    canGoBack: false,
   }
 }
 
@@ -784,7 +790,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (next !== now) setState({ pluginValues: next })
   }
   const setPluginState = (id: string, stage: string | null, value: unknown) => setPluginStates([[id, stage, value]])
-  let replacedScreens = new Set<string>() // setScreenProps で渡す値を替えたスクリーンの id（takeReplacedScreens が空にする）
   const setPluginStateById = (
     id: string,
     value: unknown,
@@ -919,7 +924,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const fits = screen && catalog.screens.get(screen.def)?.props.safeParse(props)
       if (!fits?.success) return false
       withWindow(win => withScreenProps(win, id, fits.data))
-      replacedScreens.add(id)
       return true
     },
     makeScreenCurrent: id => withWindow(win => makeCurrent(win, id)),
@@ -986,6 +990,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     startBackground: id => withStageScreen(id, ws => mapStage(ws, id, s => startBackground(catalog, s))),
     endBackground: id => withStageScreen(id, ws => mapStage(ws, id, endBackground)),
     requestPrint: () => setState({ printRequests: getState().printRequests + 1 }),
+    requestBack: () => {
+      if (getState().canGoBack) setState({ backRequests: getState().backRequests + 1 })
+    },
     setPreviewArea: (id, area) => withStageScreen(id, ws => mapStage(ws, id, s => setPreviewArea(s, area))),
     setTool: (id, tool) => withStageScreen(id, ws => setTool(catalog, ws, id, tool)),
     togglePlacing: (id, item, props) => withStageScreen(id, ws => togglePlacing(catalog, ws, id, item, props)),
@@ -1117,11 +1124,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     checkSeen,
     search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
-    takeReplacedScreens: () => {
-      const taken = replacedScreens
-      replacedScreens = new Set()
-      return taken
-    },
     address: () => addressNow(),
     locate: address => {
       const now = getState()
@@ -1187,6 +1189,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })
+    },
+    setCanGoBack: can => {
+      if (getState().canGoBack !== can) setState({ canGoBack: can })
     },
     setLastWindow: last => {
       if (getState().lastWindow !== last) setState({ lastWindow: last })

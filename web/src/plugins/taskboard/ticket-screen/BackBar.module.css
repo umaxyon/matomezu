@@ -1,0 +1,54 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* 左の枠を畳んでいる間: 絵だけの 2 つを縦に並べる */
+.bar[data-folded="true"] {
+  flex-direction: column;
+  gap: 6px;
+}
+/* 帯の「← 戻る」: アイコンと文字を 1 つのボタンに。戻る先が無いときは薄くして押せない */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px 0 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--skin-text);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.back:hover:not(:disabled) {
+  background: var(--skin-btn-hover);
+}
+.back:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 2px;
+  background: var(--skin-border);
+}
+/* 畳んでいる間の戻るは、絵だけの幅 */
+.bar[data-folded="true"] .back {
+  width: 24px;
+  padding: 0;
+  justify-content: center;
+}
+/* 巣箱の絵は線だけで描く絵（塗らず、線は文字の色）。フッターの巣箱のボタンと同じ描き方にする */
+.birdhouse svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}

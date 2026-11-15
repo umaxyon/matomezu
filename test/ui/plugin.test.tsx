@@ -102,6 +102,24 @@ describe("見た目のプラグイン", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E307" })
   })
 
+  test("ブックのタイプのアイコンは自分のタイプにだけ付けられる（ほかのプラグインのタイプなら E313）。名乗らないタイプは表に入らない", () => {
+    const icons = definePluginUi(definePlugin({ id: "icons" }), {
+      bookTypeIcons: { "@matomezu/drawing:drawing": <span /> },
+    })
+    expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E313" })
+    const catalog = assembleUi(BUILTIN_UI)
+    expect(catalog.bookTypeIcons.has("@matomezu/drawing:drawing")).toBe(true)
+    expect(catalog.bookTypeIcons.has("@matomezu/nothing:nothing")).toBe(false)
+  })
+
+  test("列挙の値のアイコンは自分が足した値にだけ付けられる（ほかのプラグインの値なら E314）", () => {
+    const icons = definePluginUi(definePlugin({ id: "icons" }), {
+      enumValueIcons: { "@matomezu/drawing:entry-icon": <span /> },
+    })
+    expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E314" })
+    expect(assembleUi(BUILTIN_UI).enumValueIcons.has("@matomezu/drawing:entry-icon")).toBe(true)
+  })
+
   test("種類の持ち主のプラグインだけが、その種類の横断検索の開き方を名乗れる（持ち主が違えば E312、同じなら通る）", () => {
     const opener = (id: string, kind: string) =>
       defineWideSearchOpener({ id: id as never, kind, useOpen: () => () => {} })

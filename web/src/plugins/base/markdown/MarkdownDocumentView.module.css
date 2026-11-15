@@ -123,6 +123,10 @@
   color: var(--markdown-link);
   text-decoration: var(--markdown-link-decoration);
 }
+/* 文中の言葉のリンク（色と下線は普通のリンクと同じ） */
+.wordLink {
+  cursor: pointer;
+}
 /* 開かないリンク（行き先を選ばなかった物） */
 .deadLink {
   text-decoration: underline dotted;

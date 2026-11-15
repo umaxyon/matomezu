@@ -5,7 +5,7 @@ import { useCoreCatalog } from "../../../../plugin-api/ui"
 import { growOf, pageContext } from "../../../base"
 import { type PrintSheetProps, RichText } from "../../../base/ui"
 import { printLaid } from "../print"
-import { paint, RowFace } from "./DirView"
+import { RowFace } from "./DirView"
 import styles from "./DirView.module.css"
 
 export function DirSheet({ book, page, paper }: PrintSheetProps) {
@@ -32,7 +32,7 @@ export function DirSheet({ book, page, paper }: PrintSheetProps) {
           key={r.id}
           className={styles.row}
           data-kind={r.kind}
-          style={{ left: r.x, top: r.y, width: r.w, height: r.h, ...paint(r.color) }}
+          style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
         >
           <RowFace row={r} />
         </div>

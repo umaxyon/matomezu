@@ -80,12 +80,6 @@
   white-space: pre; /* 名前は 1 行（並べ方が幅を決める） */
   user-select: none;
 }
-.row[data-kind="folder"] {
-  --dir-icon: var(--dir-folder);
-}
-.row[data-kind="file"] {
-  --dir-icon: var(--dir-file);
-}
 .icon {
   position: absolute;
   left: 0;
@@ -96,17 +90,6 @@
   display: block;
   width: 100%;
   height: 100%;
-}
-/* フォルダのアイコンは中身の色で塗り、ファイルのアイコンは線を中身の色で */
-.fill {
-  fill: var(--dir-icon);
-  stroke: none;
-}
-.page {
-  fill: var(--theme-paper);
-  stroke: var(--dir-icon);
-  stroke-width: 1.2;
-  stroke-linejoin: round;
 }
 .name {
   position: absolute;
@@ -207,12 +190,6 @@
   width: 100%;
   height: 100%;
 }
-.plus[data-kind="folder"] {
-  --dir-icon: var(--dir-folder);
-}
-.plus[data-kind="file"] {
-  --dir-icon: var(--dir-file);
-}
 /* ＋の印（アイコンの右下） */
 .plusMark {
   position: absolute;
@@ -251,12 +228,6 @@
 .pick svg {
   width: 16px;
   height: 16px;
-}
-.pick[data-kind="folder"] {
-  --dir-icon: var(--dir-folder);
-}
-.pick[data-kind="file"] {
-  --dir-icon: var(--dir-file);
 }
 .pick:hover,
 .pick:focus-visible,

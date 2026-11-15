@@ -21,6 +21,15 @@ import {
   FOLDER_TOGGLE,
 } from "./commands"
 import { DIR, DIR_KEY_SCOPE, DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
+import {
+  ENTRY_ICON,
+  ICON_BOOK,
+  ICON_CLASS_DIAGRAM,
+  ICON_DIRECTORY,
+  ICON_FILE,
+  ICON_FOLDER,
+  ICON_HTML,
+} from "./entry-icon"
 import { kit } from "./kit"
 import { NOTES } from "./notes"
 import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
@@ -28,6 +37,8 @@ import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
 export const DIR_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [DIR],
+    enums: [ENTRY_ICON],
+    enumValues: [ICON_FOLDER, ICON_BOOK, ICON_FILE, ICON_DIRECTORY, ICON_CLASS_DIAGRAM, ICON_HTML],
     presentations: [DIR_PRESENTATION],
     settings: [NOTES],
     dialogs: [NEW_DIR_PAGE_DIALOG, ENTRY_SETTINGS_DIALOG],
@@ -62,6 +73,17 @@ declare module "../../../core/catalog" {
   }
   interface PresentationTable {
     "@matomezu/dir:dir": typeof DIR_PRESENTATION
+  }
+  interface EnumTable {
+    "@matomezu/dir:entry-icon": typeof ENTRY_ICON
+  }
+  interface EnumValueTable {
+    "@matomezu/dir:entry-icon-folder": typeof ICON_FOLDER
+    "@matomezu/dir:entry-icon-book": typeof ICON_BOOK
+    "@matomezu/dir:entry-icon-file": typeof ICON_FILE
+    "@matomezu/dir:entry-icon-directory": typeof ICON_DIRECTORY
+    "@matomezu/dir:entry-icon-class-diagram": typeof ICON_CLASS_DIAGRAM
+    "@matomezu/dir:entry-icon-html": typeof ICON_HTML
   }
   interface SettingTable {
     "@matomezu/dir:notes": typeof NOTES

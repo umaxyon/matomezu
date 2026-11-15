@@ -154,6 +154,7 @@ test("matomezu が出す名前", () => {
     "slideOf",
     "slideOffsetOf",
     "softBreakOf",
+    "splitWords",
     "textBlock",
     "textBlockHeight",
     "textColorId",
@@ -176,6 +177,7 @@ test("matomezu が出す名前", () => {
     "widenForCaption",
     "withPage",
     "withSettings",
+    "wordLinksOf",
     "wrap",
     "wrapRich",
     "z",
@@ -302,6 +304,7 @@ test("matomezu/ui が出す名前", () => {
     "useBookOf",
     "useBookTheme",
     "useBookThemes",
+    "useBrowserBack",
     "useCloseLeftSidePanel",
     "useCloseRightSidePanel",
     "useCommand",
@@ -433,7 +436,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
   ])
 })
 
-test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグイン状態を変える updatePluginState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setPluginState・setPluginStates は渡さない）", () => {
+test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグイン状態を変える updatePluginState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setCanGoBack・setPluginState・setPluginStates は渡さない）", () => {
   const store = newStore()
   const def = commandDef(store, "@matomezu/base:mark-new")
   const run = def.run
@@ -475,6 +478,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "performConfirmed",
     "pressKey",
     "previewDialog",
+    "requestBack",
     "requestPrint",
     "resetStageView",
     "resizeStage",

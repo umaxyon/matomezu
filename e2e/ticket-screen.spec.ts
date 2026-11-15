@@ -1,5 +1,5 @@
 // チケットスクリーン: URL で開く（開いているチケットの id が画面の場所に入る）。番号・名前・タグ・担当・履歴（起票の行つき・質問の吹き出し）を見せ、名前・本文・優先度を直すと反映し、
-// 読み直しても残り、戻るで閉じる。ロック中は直せず、AI の上書きは直している間だけ断られる
+// 読み直しても残り、巣箱で閉じる。ロック中は直せず、AI の上書きは直している間だけ断られる
 import { aiAuth, CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
 const NOW = "2026-11-12T00:00:00.000Z"
@@ -55,7 +55,7 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   const box = await screen.boundingBox()
   const size = page.viewportSize()
   expect(box?.height ?? 0).toBeGreaterThan((size?.height ?? 0) - 60)
-  await expect(page.getByRole("button", { name: "コントロールセンター" })).toBeVisible()
+  await expect(page.locator("footer").getByRole("button", { name: "コントロールセンター" })).toBeVisible()
   // 閉じて右へ出ている質問の枠が、チケットスクリーンを包むスクロールの枠に横スクロールを作らない
   const wide = await screen.evaluate(el => {
     for (let e = el.parentElement; e; e = e.parentElement) {
@@ -84,12 +84,12 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await expect(page.getByRole("region", { name: "質問", includeHidden: false })).toHaveCount(0)
   // 質問だけが吹き出し（押せる）で、状況の行は押せない
   await expect(screen.getByRole("button", { name: "調べています" })).toHaveCount(0)
-  // 左上の戻るで閉じる
+  // 帯の巣箱（コントロールセンターへ）で閉じる
   // 閉じるときは右へ滑り出る（最初から右に描いて、動かずに消えない）: 押した直後に、見出しは画面の中にあり、右へ動いている
   const heading = screen.getByRole("heading", { name: "ログイン画面を直す" })
   const before = (await heading.boundingBox())?.x ?? 0
   const width = page.viewportSize()?.width ?? 0
-  await screen.getByRole("button", { name: "戻る" }).click()
+  await screen.getByRole("button", { name: "コントロールセンター" }).click()
   const samples = await page.evaluate(
     () =>
       new Promise<number[]>(resolve => {
@@ -109,7 +109,7 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await expect(heading).toBeHidden()
 })
 
-test("名前・優先度・本文は直したそばから反映され、読み直しても残る。戻るで閉じる", async ({ page }) => {
+test("名前・優先度・本文は直したそばから反映され、読み直しても残る。巣箱で閉じる", async ({ page }) => {
   await page.goto(CONTROL_CENTER_URL)
   const { ticket } = await setup(page)
   await page.goto(open(ticket))
@@ -200,7 +200,7 @@ test("本文を直してチケットスクリーンから離れると、チケ�
   await slider.focus()
   await slider.press("ArrowRight")
   await expect(slider).toHaveAttribute("aria-valuetext", "大")
-  await screen.getByRole("button", { name: "戻る" }).click()
+  await screen.getByRole("button", { name: "コントロールセンター" }).click()
   await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeHidden()
   expect(await lines()).toHaveLength(0)
   // 本文を何度か打って戻る: 1 行
@@ -210,14 +210,16 @@ test("本文を直してチケットスクリーンから離れると、チケ�
   const source = again.getByRole("textbox", { name: "本文（マークダウン）" })
   await source.fill("一度目")
   await source.fill("二度目")
-  await again.getByRole("button", { name: "戻る" }).click()
+  await again.getByRole("button", { name: "コントロールセンター" }).click()
   await expect.poll(async () => (await lines()).map(l => [l.text, l.by.kind])).toEqual([["", "user"]])
   // チケット履歴の一覧には、題と文が出る
   await page.goto(open(ticket))
   await expect(page.getByRole("region", { name: "チケット" }).first().getByText("本文を更新しました")).toBeVisible()
 })
 
-test("ボードのカードを押すとチケットスクリーンが開き、戻るで閉じる。もう一度押すと、また開く", async ({ page }) => {
+test("ボードのカードを押すとチケットスクリーンが開き、帯の戻る（ブラウザの履歴を戻す）で閉じる。もう一度押すと、また開く", async ({
+  page,
+}) => {
   await page.goto(CONTROL_CENTER_URL)
   // レーンに入れたチケットが、ボードのカードになる（未分類のチケットは、レーンには出ない）
   const made = await page.request.post("/api/perform", {
@@ -298,4 +300,74 @@ test("カードのタグは、M なら 1 行・L なら 3 行に入るだけ並�
   await perform(page, "@matomezu/taskboard:project-update", { cardSize: "large" }, { record: result.project })
   await expect(card).toHaveAttribute("data-size", "large")
   await expect.poll(() => shown.count()).toBeGreaterThan(inOne)
+})
+
+test("本文・履歴の文の、今あるチケットの番号がリンクになり、押すとそのチケットが開く。コードの中・今無い番号はそのまま", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "L-" })
+  const project = made.result?.project ?? ""
+  const first = (await perform(page, "@matomezu/taskboard:ticket-add", { project, name: "行き先のチケット" })).result
+    ?.ticket as string
+  const from = (
+    await perform(page, "@matomezu/taskboard:ticket-add", {
+      project,
+      name: "元のチケット",
+      body: "続きは L-0001 を見る。`L-0001` はコード。L-0099 は無い。",
+    })
+  ).result?.ticket as string
+  await perform(page, "@matomezu/taskboard:ticket-history-add", {
+    ticket: from,
+    topic: "@matomezu/taskboard:topic-status",
+    text: "L-0001 を調べた",
+  })
+  await page.goto(open(from))
+  const screen = page.getByRole("region", { name: "チケット" }).first()
+  await expect(screen.getByRole("heading", { name: "元のチケット" })).toBeVisible()
+  // 本文は、普通の文字の L-0001 だけがリンク（コードの中と、今無い L-0099 は違う）
+  const links = screen.locator("[data-markdown-word-link]")
+  await expect(links).toHaveCount(1)
+  await expect(links.first()).toHaveText("L-0001")
+  await expect(screen.getByText("L-0099")).toBeVisible()
+  // 履歴の行の L-0001 もリンク
+  await expect(screen.getByRole("button", { name: "L-0001" })).toHaveCount(1)
+  // 本文のリンクを押すと、そのチケットが開く
+  await links.first().click()
+  await expect(screen.getByRole("heading", { name: "行き先のチケット" })).toBeVisible()
+  expect(first).not.toBe("")
+})
+
+test("番号のリンクで別のチケットへ移ると履歴に積まれ、帯の戻るで前のチケット、もう 1 回で来た所（コントロールセンター）に戻る。URL で直接開いた直後は戻るが押せず、巣箱は一発でコントロールセンターへ戻る", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "B-" })
+  const project = made.result?.project ?? ""
+  const target = (await perform(page, "@matomezu/taskboard:ticket-add", { project, name: "リンク先" })).result
+    ?.ticket as string
+  const from = (
+    await perform(page, "@matomezu/taskboard:ticket-add", { project, name: "リンク元", body: "先は B-0001 です" })
+  ).result?.ticket as string
+  expect(target).not.toBe(from)
+  // 直接開いた直後は、戻る先が無いので押せない。巣箱はある
+  await page.goto(open(from))
+  const screen = page.getByRole("region", { name: "チケット" }).first()
+  await expect(screen.getByRole("heading", { name: "リンク元" })).toBeVisible()
+  await expect(screen.getByRole("button", { name: "戻る" })).toBeDisabled()
+  await expect(screen.getByRole("button", { name: "コントロールセンター" })).toBeEnabled()
+  // 巣箱の絵は線だけの絵（塗らない。塗ると黒い塊になる）
+  const fill = await screen
+    .getByRole("button", { name: "コントロールセンター" })
+    .locator("svg")
+    .evaluate(e => getComputedStyle(e).fill)
+  expect(fill).toBe("none")
+  // 本文のリンクで移ると、戻るが押せるようになり、押すと前のチケットに戻る
+  await screen.locator("[data-markdown-word-link]").click()
+  await expect(screen.getByRole("heading", { name: "リンク先" })).toBeVisible()
+  await expect(screen.getByRole("button", { name: "戻る" })).toBeEnabled()
+  await screen.getByRole("button", { name: "戻る" }).click()
+  await expect(screen.getByRole("heading", { name: "リンク元" })).toBeVisible()
+  // 先頭に戻ったので、また押せない
+  await expect(screen.getByRole("button", { name: "戻る" })).toBeDisabled()
 })

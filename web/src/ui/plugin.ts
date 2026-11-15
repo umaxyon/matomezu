@@ -141,10 +141,17 @@ export interface Overrides {
   widgets?: { [id in WidgetId]?: (props: WidgetProps<id>) => ReactNode }
 }
 
-// widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）
+// 列挙の値のアイコン: 絵 1 つ。開け閉めのある物（フォルダなど）は、閉じた絵と開いた絵
+export type EnumValueIcon = ReactNode | { readonly closed: ReactNode; readonly open: ReactNode }
+
+// widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、
+// bookTypeIcons はブックのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
+// enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）
 export type UiParts<P> = PluginViews<P> & {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: { [id in IdsOf<P, "commands">]?: ReactNode }
+  bookTypeIcons?: { [id in IdsOf<P, "bookTypes">]?: ReactNode }
+  enumValueIcons?: { [id in IdsOf<P, "enumValues">]?: EnumValueIcon }
   overrides?: Overrides
 }
 export type PluginUi<P extends Plugin> = P & { ui: UiParts<P> }
@@ -167,6 +174,8 @@ export interface UiCatalog {
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
   toolIcons: ReadonlyMap<string, ReactNode>
+  bookTypeIcons: ReadonlyMap<string, ReactNode>
+  enumValueIcons: ReadonlyMap<string, EnumValueIcon>
 }
 
 interface LooseUi {
@@ -179,6 +188,8 @@ interface LooseUi {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
   toolIcons?: Record<string, ReactNode>
+  bookTypeIcons?: Record<string, ReactNode>
+  enumValueIcons?: Record<string, EnumValueIcon>
   overrides?: {
     presentationViews?: Record<string, BookViewDef>
     dialogViews?: Record<string, AnyDialogView>
@@ -207,6 +218,8 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
   const toolIcons = new Map<string, ReactNode>()
+  const bookTypeIcons = new Map<string, ReactNode>()
+  const enumValueIcons = new Map<string, EnumValueIcon>()
   const uis = plugins.map(p => {
     const ui = (p as Partial<AnyPluginUi>).ui as LooseUi | undefined
     if (!ui) return fail("E203", { plugin: p.id })
@@ -257,6 +270,16 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
       if (!own.has(id)) fail("E307", { plugin: p.id, command: id })
       commandIcons.set(id, icon)
     }
+    const ownTypes = new Set((p.bookTypes ?? []).map(t => t.id))
+    for (const [id, icon] of Object.entries(ui.bookTypeIcons ?? {})) {
+      if (!ownTypes.has(id)) fail("E313", { plugin: p.id, id })
+      bookTypeIcons.set(id, icon)
+    }
+    const ownValues = new Set((p.enumValues ?? []).map(v => v.id))
+    for (const [id, icon] of Object.entries(ui.enumValueIcons ?? {})) {
+      if (!ownValues.has(id)) fail("E314", { plugin: p.id, id })
+      enumValueIcons.set(id, icon)
+    }
   }
   const overridden = new Set<string>()
   for (const { p, ui } of uis)
@@ -288,5 +311,7 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
     widgets,
     commandIcons,
     toolIcons,
+    bookTypeIcons,
+    enumValueIcons,
   }
 }

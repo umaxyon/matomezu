@@ -16,7 +16,8 @@ import {
   sortFolder,
 } from "../../../../web/src/plugins/books/dir/edit"
 import type { DirEntry, DirFolder } from "../../../../web/src/plugins/books/dir/entry"
-import { giveIds } from "../../../../web/src/plugins/books/dir/entry"
+import { DirFolderSchema, giveIds } from "../../../../web/src/plugins/books/dir/entry"
+import { iconProblem } from "../../../../web/src/plugins/books/dir/entry-icon"
 import {
   DIVIDER_GAP,
   ICON,
@@ -28,6 +29,7 @@ import {
   NOTE_LIMIT,
   ROW,
 } from "../../../../web/src/plugins/books/dir/layout"
+import { CORE_CATALOG } from "../../../support"
 
 // 根 r の中に フォルダ src（a.ts・ui（b.tsx））と README.md
 const dir: DirFolder = {
@@ -67,10 +69,15 @@ test("フォルダの中の決めた所（無ければ末尾）に足す。フ�
   expect(addEntries(dir, "x", [file("n")])).toBeNull()
 })
 
-test("名前と色を替える（根も）。色の null は消す", () => {
-  const named = changeEntry(dir, "a", { name: "**main**.ts", color: "danger" })
-  expect(entryOf(named!, "a")).toEqual({ id: "a", kind: "file", name: "**main**.ts", color: "danger" })
-  expect(entryOf(changeEntry(named!, "a", { color: null })!, "a")).toEqual({
+test("名前とアイコンを替える（根も）。アイコンの null は消す", () => {
+  const named = changeEntry(dir, "a", { name: "**main**.ts", icon: "@matomezu/markdown:entry-icon" })
+  expect(entryOf(named!, "a")).toEqual({
+    id: "a",
+    kind: "file",
+    name: "**main**.ts",
+    icon: "@matomezu/markdown:entry-icon",
+  })
+  expect(entryOf(changeEntry(named!, "a", { icon: null })!, "a")).toEqual({
     id: "a",
     kind: "file",
     name: "**main**.ts",
@@ -154,7 +161,14 @@ test("パスの並びから組み立てる。末尾が / ならフォルダ、�
 test("足すときに受けた入れ子に上から id を振る。閉じているかはフォルダだけ", () => {
   let n = 0
   const given = giveIds(
-    [{ kind: "folder", name: "lib", closed: true, children: [{ kind: "file", name: "x.ts", color: "blue" }] }],
+    [
+      {
+        kind: "folder",
+        name: "lib",
+        closed: true,
+        children: [{ kind: "file", name: "x.ts", icon: "@matomezu/drawing:entry-icon" }],
+      },
+    ],
     () => `g${++n}`,
   )
   expect(given.entries).toEqual([
@@ -163,7 +177,7 @@ test("足すときに受けた入れ子に上から id を振る。閉じてい�
       kind: "folder",
       name: "lib",
       closed: true,
-      children: [{ id: "g2", kind: "file", name: "x.ts", color: "blue" }],
+      children: [{ id: "g2", kind: "file", name: "x.ts", icon: "@matomezu/drawing:entry-icon" }],
     },
   ])
   expect(given.ids).toEqual([{ id: "g1", children: [{ id: "g2" }] }])
@@ -291,4 +305,15 @@ test("説明のその場の編集を終えると、書いた字に替える。�
   expect(noteEnd(root, "a", "****")).toBeNull()
   expect(noteEnd(root, "b", "")).toBeUndefined() // 無い説明を空のまま
   expect(noteEnd(root, "b", "書いた")).toBe("書いた")
+})
+
+test("中身のアイコンは、列挙 entry-icon の値で種類に合う物だけがアクションの検査で通る（データの形は字だけ。ほかのプラグインが足した値も選べる）", () => {
+  expect(iconProblem(CORE_CATALOG, "folder", "@matomezu/dir:entry-icon-book")).toBeNull()
+  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/dir:entry-icon-class-diagram")).toBeNull()
+  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/drawing:entry-icon")).toBeNull()
+  expect(iconProblem(CORE_CATALOG, "folder", "@matomezu/drawing:entry-icon")).not.toBeNull()
+  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/dir:entry-icon-book")).not.toBeNull()
+  expect(iconProblem(CORE_CATALOG, "file", "nothing")).not.toBeNull()
+  // データの形は、台帳にある値かを確かめない（値を足したプラグインを外してもブックが読める）
+  expect(DirFolderSchema.safeParse({ id: "r", kind: "folder", name: "r", icon: "nothing" }).success).toBe(true)
 })

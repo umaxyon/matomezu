@@ -53,18 +53,6 @@ export const ENTRY_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; entry:
   edits: a => [a.entry],
 })
 
-// 中身の色（無ければテーマの色）のテーマキー
-export const FOLDER_COLOR = {
-  id: kit.name("dir-folder"),
-  value: "#d9a441",
-  themeValues: { "@matomezu/base:matomezu": "#f5a623" },
-} as const // フォルダのアイコン（標準は黄土色。テーマごとの値は themeValues）
-export const FILE_COLOR = {
-  id: kit.name("dir-file"),
-  value: "#8a8f9c",
-  themeValues: { "@matomezu/base:matomezu": "#8a8178" },
-} as const // ファイルのアイコン（標準は灰色）
-
 export const DIR = kit.defineBookType({
   id: "dir",
   version: 1,
@@ -99,8 +87,6 @@ export const DIR = kit.defineBookType({
   themeTypes: [DIAGRAM_THEME_TYPE], // 使えるテーマのテーマタイプ
   presentation: DIR_PRESENTATION.id,
   tokens: [
-    FOLDER_COLOR,
-    FILE_COLOR,
     { id: "dir-text", fallback: "text" }, // 名前の字
     { id: "dir-line", fallback: "line" }, // 罫線
   ],

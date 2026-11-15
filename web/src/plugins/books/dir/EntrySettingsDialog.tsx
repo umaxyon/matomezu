@@ -1,12 +1,11 @@
-// ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、色をブックのテーマの代表色・好きな色・「なし」（テーマのアイコンの色）から選ぶ。
+// ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、アイコン（フォルダは folder・book、ファイルは file とそれ以外）を選ぶ。
 // 確定でアクション entry-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
 import { type MessageKey, pagedOf } from "../../../plugin-api"
-import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform, useT } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
-  ColorPicker,
   controlClass,
   Dialog,
   Field,
@@ -15,15 +14,14 @@ import {
   RichBar,
   RichInput,
   type RichInputHandle,
-  rowClass,
-  useBookTheme,
-  useSwatches,
 } from "../../base/ui"
 import { ENTRY_UPDATE } from "./actions"
-import { FILE_COLOR, FOLDER_COLOR } from "./dir"
+import styles from "./EntrySettingsDialog.module.css"
 import { entryOf } from "./edit"
 import { dirRootOf } from "./entry"
+import { DEFAULT_ICON, iconsFor } from "./entry-icon"
 import { kit } from "./kit"
+import { NodeIcon } from "./node-icon"
 
 export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page: string; entry: string }>) {
   const t = useMessages(kit)
@@ -33,11 +31,11 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
   const root = dirRootOf(page)
   const entry = root ? entryOf(root, args.entry) : null
   const perform = usePerform(stage)
-  const swatches = useSwatches(useBookTheme(book?.id), entry?.kind === "file" ? FILE_COLOR : FOLDER_COLOR)
   const [name, setName] = useState(entry?.name ?? "")
   const [description, setDescription] = useState(entry?.description ?? "")
-  const [color, setColor] = useState<string | undefined>(entry?.color)
+  const [icon, setIcon] = useState<string | undefined>(entry?.icon)
   const catalog = useCoreCatalog()
+  const tr = useT() // ほかのプラグインが足したアイコンの名前も引く
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !entry) return null
   const submit = () => {
@@ -46,7 +44,8 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
       entry: entry.id,
       name,
       description: description.trim() === "" ? null : description,
-      color: color ?? null,
+      // 変えていないアイコンは送らない（足したプラグインが無効で値が無くても、名前などは直せる）
+      ...(icon === entry.icon ? {} : { icon: icon ?? null }),
     })
     if (done.ok) onClose()
     else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
@@ -79,18 +78,28 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
             />
           )}
         </Field>
-        {swatches && (
-          <div className={rowClass}>
-            <span>{t("Color")}</span>
-            <ColorPicker
-              label={t("Color")}
-              value={color}
-              palette={swatches.palette}
-              none={swatches.none}
-              onChange={setColor}
-            />
-          </div>
-        )}
+        <Field label={t("Icon")}>
+          {() => (
+            <div className={styles.icons} role="radiogroup" aria-label={t("Icon")}>
+              {iconsFor(catalog, entry.kind)
+                .sort((x, y) => Number(y.id === DEFAULT_ICON[entry.kind]) - Number(x.id === DEFAULT_ICON[entry.kind]))
+                .map(value => (
+                  <button
+                    key={value.id}
+                    type="button"
+                    role="radio"
+                    className={styles.icon}
+                    aria-checked={(icon ?? DEFAULT_ICON[entry.kind]) === value.id}
+                    aria-label={tr(value.title)}
+                    title={tr(value.title)}
+                    onClick={() => setIcon(value.id === DEFAULT_ICON[entry.kind] ? undefined : value.id)}
+                  >
+                    <NodeIcon kind={entry.kind} icon={value.id} open={false} size={18} />
+                  </button>
+                ))}
+            </div>
+          )}
+        </Field>
         {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>

@@ -2,6 +2,7 @@
 // 形・箱・線・見せ方・ほかの設定の項目は、ほかのプラグインの定義を id で選ぶ（flowchart.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PAGE_ALIGN, PAGE_ALIGN_COMMAND, PAGE_ALIGN_DIALOG } from "./actions"
+import { FLOWCHART_ENTRY_ICON } from "./entry-icon"
 import { FLOW_DIRECTION, FLOWCHART } from "./flowchart"
 import { kit } from "./kit"
 import { FLOWCHART_TOOLS } from "./tools"
@@ -9,6 +10,7 @@ import { FLOWCHART_TOOLS } from "./tools"
 export const FLOWCHART_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [FLOWCHART],
+    enumValues: [FLOWCHART_ENTRY_ICON],
     settings: [FLOW_DIRECTION],
     actions: [PAGE_ALIGN],
     commands: [PAGE_ALIGN_COMMAND],
@@ -18,6 +20,9 @@ export const FLOWCHART_PLUGIN = defineBuiltin(
 )
 
 declare module "../../../core/catalog" {
+  interface EnumValueTable {
+    "@matomezu/flowchart:entry-icon": typeof FLOWCHART_ENTRY_ICON
+  }
   interface BookTypeTable {
     "@matomezu/flowchart:flowchart": typeof FLOWCHART
   }

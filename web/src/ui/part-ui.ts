@@ -15,7 +15,7 @@ export interface PartUi {
 }
 
 export const PART_UI = {
-  bookTypes: { views: [], define: ["defineBookType"] },
+  bookTypes: { views: ["bookTypeIcons"], define: ["defineBookType"] },
   controlCenters: { views: [], define: ["defineControlCenter"] },
   items: { views: ["items", "connectors"], define: ["defineShape", "defineConnector"] },
   actions: { views: [], define: ["defineAction"] },
@@ -31,7 +31,7 @@ export const PART_UI = {
   screens: { views: [], define: ["defineScreen"] },
   screenArrangements: { views: [], define: ["defineScreenArrangement"] },
   enums: { views: [], define: ["defineEnum"] },
-  enumValues: { views: [], define: ["defineEnumValue"] },
+  enumValues: { views: ["enumValueIcons"], define: ["defineEnumValue"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
   textColors: { views: [], define: ["defineTextColor"] },

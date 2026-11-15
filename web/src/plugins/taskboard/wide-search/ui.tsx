@@ -1,12 +1,12 @@
 // 横断検索（タスクボード側）の見た目: 「チケット」のモードと、チケット・チケット履歴の横断検索の当たりの開き方
-import { useRecords, useScreens } from "../../../plugin-api/ui"
+import { useRecords } from "../../../plugin-api/ui"
 import { defineWideSearchMode, defineWideSearchOpener, type WideSearchHit } from "../../base/ui"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { TICKET } from "../ticket"
 import { ticketLabel } from "../ticket/label"
 import { HISTORY } from "../ticket-history"
-import { TICKET_SCREEN } from "../ticket-screen"
+import { useOpenTicket } from "../ticket-screen/useOpenTicket"
 import { TicketMode } from "./TicketMode"
 
 export const TICKET_MODE = defineWideSearchMode({
@@ -15,16 +15,12 @@ export const TICKET_MODE = defineWideSearchMode({
   view: TicketMode,
 })
 
-// チケットスクリーンでチケット ticket を開く関数を返すフック（当たった物がチケット履歴なら、その親のチケット）
-const useOpenTicket = (ticketOf: (hit: WideSearchHit) => string | undefined) => {
-  const { screens, open, setProps } = useScreens()
+// チケットスクリーンでチケットを開く関数を返すフック（当たった物がチケット履歴なら、その親のチケット）
+const useOpenHit = (ticketOf: (hit: WideSearchHit) => string | undefined) => {
+  const open = useOpenTicket()
   return (hit: WideSearchHit) => {
     const ticket = ticketOf(hit)
-    if (ticket === undefined) return
-    // 今のスクリーンがチケットスクリーンなら、積まずに中身のチケットだけ替える（戻る矢印 1 回でコントロールセンターに戻る）
-    const here = screens.find(s => s.current)
-    if (here?.def === TICKET_SCREEN.id) setProps(here.id, TICKET_SCREEN, { ticket })
-    else open(TICKET_SCREEN, { ticket })
+    if (ticket !== undefined) open(ticket)
   }
 }
 
@@ -43,13 +39,13 @@ const useTicketLabel = (ticketOf: (hit: WideSearchHit) => string | undefined) =>
 export const TICKET_OPENER = defineWideSearchOpener({
   id: kit.name("wide-search-open-ticket"),
   kind: TICKET.id,
-  useOpen: () => useOpenTicket(hit => hit.id),
+  useOpen: () => useOpenHit(hit => hit.id),
   useLabel: () => useTicketLabel(hit => hit.id),
 })
 
 export const HISTORY_OPENER = defineWideSearchOpener({
   id: kit.name("wide-search-open-history"),
   kind: HISTORY.id,
-  useOpen: () => useOpenTicket(hit => hit.of?.id),
+  useOpen: () => useOpenHit(hit => hit.of?.id),
   useLabel: () => useTicketLabel(hit => hit.of?.id),
 })

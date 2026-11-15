@@ -2,23 +2,28 @@
 // 利用者への質問の題（列挙の値の data.asksUser）だけは、右端の鳥から出る吹き出しにして押せる（押すと onOpenQuestion。開いている質問の吹き出しは色を当てる）。左の縦の線と点で時間の流れを見せる
 import { useMessages, useSettings } from "../../../plugin-api/ui"
 import { kit } from "../kit"
+import { LinkedText } from "./LinkedText"
 import styles from "./TicketHistoryTimeline.module.css"
 import { TopicBadge, useTopicData, useTopicName } from "./TopicBadge"
+import { useTicketRefs } from "./useTicketRefs"
 import { dayHeading, groupByDay, type HistoryRow, namesLine, rowTextSource, timeOf } from "./view"
 import { WriterBird } from "./WriterBird"
 
 export function TicketHistoryTimeline({
+  ticket,
   rows,
   openQuestion,
   onOpenQuestion,
   workroomNames,
 }: {
+  ticket: string // 開いているチケットの id（文中の自分の番号は、押しても何もしない）
   rows: readonly HistoryRow[]
   workroomNames: Readonly<Record<string, string>> // ワークルームの id → 名前（完了の行の、外した担当を名前で見せる）
   openQuestion: string | undefined // 右に開いている質問の行の id
   onOpenQuestion: (row: HistoryRow) => void
 }) {
   const { lang } = useSettings()
+  const refs = useTicketRefs(ticket)
   return (
     <ol className={styles.timeline}>
       {groupByDay(rows).map(d => (
@@ -32,6 +37,7 @@ export function TicketHistoryTimeline({
                 open={openQuestion === row.id}
                 onOpenQuestion={onOpenQuestion}
                 workroomNames={workroomNames}
+                refs={refs}
               />
             ))}
           </ol>
@@ -46,11 +52,13 @@ function Row({
   open,
   onOpenQuestion,
   workroomNames,
+  refs,
 }: {
   row: HistoryRow
   open: boolean
   onOpenQuestion: (row: HistoryRow) => void
   workroomNames: Readonly<Record<string, string>>
+  refs: ReturnType<typeof useTicketRefs>
 }) {
   const t = useMessages(kit)
   const { lang } = useSettings()
@@ -84,7 +92,7 @@ function Row({
         </button>
       ) : (
         <span className={styles.clip} title={text}>
-          {text}
+          {source === "text" ? <LinkedText text={text} find={refs.find} open={refs.open} /> : text}
         </span>
       )}
       <WriterBird by={row.by} />
