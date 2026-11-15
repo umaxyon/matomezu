@@ -1,6 +1,5 @@
-import { pagesOf } from "../../web/src/core/book"
 import { pagesBook } from "../../test/lineup"
-import { E2E_BOOKS } from "../books"
+import { E2E_BOOKS, pagesIn } from "../books"
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
@@ -63,7 +62,7 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
     h: 64,
     props: { caption: "残る箱" },
   }
-  await put(a, { ...E2E_1, pages: [{ ...E2E_1.pages[0]!, items: [box] }] })
+  await put(a, { ...E2E_1, lineup: [{ ...pagesIn(E2E_1)[0]!, items: [box] }] })
   for (const page of [a, b]) {
     await page.goto(BOOK_SCREEN_URL)
     await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", E2E_1.title)
@@ -205,7 +204,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   await expect
     .poll(async () => {
       const saved = (await data(page)).books.find((x: { id: string }) => x.id === LINE_BOOK.id)
-      return saved?.pagesOf(book)[0].items.map((i: { id: string }) => i.id)
+      return saved ? pagesIn<{ items: { id: string }[] }>(saved.book)[0]!.items.map(i => i.id) : undefined
     })
     .toEqual(["a", "c"])
 })
@@ -265,7 +264,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
     id: "e2e-locked",
     title: "鍵のブック",
     locked: true,
-    pages: [{ ...E2E_1.pages[0]!, locked: true }],
+    lineup: [{ ...pagesIn(E2E_1)[0]!, locked: true }],
   })
   await page.goto("/?b0=e2e-locked")
   await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(2)

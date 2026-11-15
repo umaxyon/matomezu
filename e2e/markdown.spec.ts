@@ -1,5 +1,5 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを（選んでいなければ空のページは左右、本文のあるページはプレビューだけで）開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
-import { findPage } from "../web/src/core/book"
+import { pageIn } from "./books"
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test, urlStages } from "./fixtures"
 import { newBook } from "./helpers/new-book"
 import { openGeneral, settingsDialog } from "./helpers/settings"
@@ -281,9 +281,9 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
   // 書いた物が常駐に届いてから、AI が書く
   const text = async () => {
     const got = (await (await page.request.get(`/api/ai/books/${view.book}`, { headers: ai })).json()) as {
-      book: { pages: { id: string; text?: string }[] }
+      book: { lineup: unknown[] }
     }
-    return got.findPage(book, view.page)?.page?.text
+    return pageIn<{ text?: string }>(got.book, view.page)?.text
   }
   await expect.poll(text).toBe("# 見出し")
   // 書いている間は AI が書けない（編集ロック）ので、フォーカスを外してから AI が書く

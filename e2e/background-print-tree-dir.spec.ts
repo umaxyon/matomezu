@@ -13,41 +13,43 @@ const farEllipse = {
   props: { fill: "#f6c177", stroke: "#286983", width: 3 },
 }
 
-const treeBook = (settings: object) => (pagesBook({
-  type: "@matomezu/tree:tree",
-  id: "t1",
-  title: "木",
-  settings,
-  pages: [
-    {
-      id: "p1",
-      title: "ページ 1",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
-      grows: "right-down",
-      root: { id: "root", caption: "根", children: [] },
-      slide: [farEllipse],
-    },
-  ],
-}))
+const treeBook = (settings: Readonly<Record<string, unknown>>) =>
+  pagesBook({
+    type: "@matomezu/tree:tree",
+    id: "t1",
+    title: "木",
+    settings,
+    pages: [
+      {
+        id: "p1",
+        title: "ページ 1",
+        paper: "@matomezu/base:a4",
+        orientation: "landscape",
+        grows: "right-down",
+        root: { id: "root", caption: "根", children: [] },
+        slide: [farEllipse],
+      },
+    ],
+  })
 
-const dirBook = (settings: object) => (pagesBook({
-  type: "@matomezu/dir:dir",
-  id: "d1",
-  title: "構成",
-  settings,
-  pages: [
-    {
-      id: "p1",
-      title: "ページ 1",
-      paper: "@matomezu/base:a4",
-      orientation: "portrait",
-      grows: "down",
-      root: { id: "root", kind: "folder", name: "proj", children: [] },
-      slide: [{ ...farEllipse, x: 200, y: 1500 }],
-    },
-  ],
-}))
+const dirBook = (settings: Readonly<Record<string, unknown>>) =>
+  pagesBook({
+    type: "@matomezu/dir:dir",
+    id: "d1",
+    title: "構成",
+    settings,
+    pages: [
+      {
+        id: "p1",
+        title: "ページ 1",
+        paper: "@matomezu/base:a4",
+        orientation: "portrait",
+        grows: "down",
+        root: { id: "root", kind: "folder", name: "proj", children: [] },
+        slide: [{ ...farEllipse, x: 200, y: 1500 }],
+      },
+    ],
+  })
 
 const SETTING = "@matomezu/base:background-print"
 

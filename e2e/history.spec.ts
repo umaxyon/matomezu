@@ -1,6 +1,6 @@
 // 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない。
 // 画面に見えた AI の変更は、画面の履歴に時刻の位置で入り、新しい方から戻る
-import { findPage } from "../web/src/core/book"
+import { pageIn } from "./books"
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { newBook } from "./helpers/new-book"
@@ -113,9 +113,9 @@ async function aiReady(page: Page) {
   // AI が箱の名前を書き換える（箱は、ページに最初に置いた物）
   const rename = async (caption: string) => {
     const read = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()) as {
-      book: { pages: { id: string; items: { id: string }[] }[] }
+      book: { lineup: unknown[] }
     }
-    const item = read.findPage(book, shown)?.page!.items[0]!.id
+    const item = pageIn<{ items: { id: string }[] }>(read.book, shown)!.items[0]!.id
     await page.request.post("/api/ai/perform", {
       headers: ai,
       data: { action: "@matomezu/paper:item-update", args: { page: shown, item, props: { caption } }, on: { book } },
@@ -147,9 +147,9 @@ test("見えている箱を AI が書き換えたら、Ctrl+Z はまず AI の�
   await addBox(page, 200, 150, "自分")
   await expect(items(page)).toHaveText("自分")
   const read = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()) as {
-    book: { pages: { id: string; items: { id: string }[] }[] }
+    book: { lineup: unknown[] }
   }
-  const item = read.findPage(book, shown)?.page!.items[0]!.id
+  const item = pageIn<{ items: { id: string }[] }>(read.book, shown)!.items[0]!.id
   await page.request.post("/api/ai/perform", {
     headers: ai,
     data: {

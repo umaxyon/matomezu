@@ -13,23 +13,24 @@ const farEllipse = {
   props: { fill: "#f6c177", stroke: "#286983", width: 3 },
 }
 
-const bookWith = (settings: object) => (pagesBook({
-  type: "@matomezu/drawing:drawing",
-  id: "b1",
-  title: "図面",
-  settings,
-  pages: [
-    {
-      id: "p1",
-      title: "ページ 1",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
-      grows: "right-down",
-      items: [{ id: "n1", item: "@matomezu/box:shape-nest-box", x: 40, y: 40, props: { caption: "箱" } }],
-      slide: [farEllipse],
-    },
-  ],
-}))
+const bookWith = (settings: Readonly<Record<string, unknown>>) =>
+  pagesBook({
+    type: "@matomezu/drawing:drawing",
+    id: "b1",
+    title: "図面",
+    settings,
+    pages: [
+      {
+        id: "p1",
+        title: "ページ 1",
+        paper: "@matomezu/base:a4",
+        orientation: "landscape",
+        grows: "right-down",
+        items: [{ id: "n1", item: "@matomezu/box:shape-nest-box", x: 40, y: 40, props: { caption: "箱" } }],
+        slide: [farEllipse],
+      },
+    ],
+  })
 
 test.describe("必ず", () => {
   test.use({ books: [bookWith({ "@matomezu/base:background-print": "always" })] })

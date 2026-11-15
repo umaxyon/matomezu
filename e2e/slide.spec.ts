@@ -1,5 +1,6 @@
 // スライドのブック（@matomezu/slide-book）: ページの slide に置いたアイテム（文字枠・自由な線・直線・楕円）を、書いた位置と大きさ・角度で重ねの順に描く。紙の外にはみ出た部分は切る
 import { pagesBook } from "../test/lineup"
+import { pagesIn } from "./books"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { onPaper, paper } from "./helpers/paper"
@@ -433,10 +434,12 @@ test.describe("スライドの印刷", () => {
 })
 
 test.describe("スライドの印刷の設定", () => {
-  const EMPTY = {
-    ...SLIDE_BOOK,
-    pages: [{ ...SLIDE_BOOK.pages[0], slide: [], settings: { "@matomezu/slide-book:slide-print": "always" } }],
-  }
+  const EMPTY = pagesBook({
+    type: "@matomezu/slide-book:slide",
+    id: "b1",
+    title: "スライド",
+    pages: [{ ...pagesIn(SLIDE_BOOK)[0], slide: [], settings: { "@matomezu/slide-book:slide-print": "always" } }],
+  })
   test.use({ books: [EMPTY] })
 
   test("何も無いスライドも、ページの設定が必ずなら 1 枚出る", async ({ page }) => {
