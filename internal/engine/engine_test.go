@@ -625,3 +625,12 @@ func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
 func (e *Engine) UseAllForTest(bundles []*plugin.Bundle) (ids []string, err error) {
 	return e.UseFor(bundles, nil)
 }
+
+// AI のプログラムが終わったときに常駐が行うアクションは、アクションの定義が役 runsWhenAIEnds で名乗る（Go は id を知らない）
+func TestEndActionsAreNamedByTheDefinition(t *testing.T) {
+	e := newEngine(t)
+	ids, err := e.EndActions()
+	if err != nil || ids == nil || ids.Leave != "@matomezu/base:participant-remove" {
+		t.Fatalf("end actions = %+v, %v", ids, err)
+	}
+}

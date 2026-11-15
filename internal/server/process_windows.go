@@ -1,6 +1,6 @@
 //go:build windows
 
-package main
+package server
 
 import (
 	"strconv"
@@ -9,8 +9,8 @@ import (
 
 const processQueryLimitedInformation = 0x1000
 
-// processAlive は、プロセス id pid のプロセスがまだ居るか（数でなければ居るとみなす）
-func processAlive(pid string) bool {
+// ProcessAlive は、プロセス id pid のプロセスがまだ居るか（数でなければ居るとみなす）
+func ProcessAlive(pid string) bool {
 	n, err := strconv.Atoi(pid)
 	if err != nil || n <= 0 {
 		return true

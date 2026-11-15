@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/home"
+	"github.com/umaxyon/matomezu/internal/server"
 )
 
 // wakeOut は、常駐が通り道に流す知らせ 1 つ（server.WakeOut と同じ形）
@@ -65,7 +66,7 @@ const watchRetry = 3 * time.Second
 func (c *watchCmd) Run() error {
 	d := c.deliverer(os.Stdout)
 	defer d.close()
-	for processAlive(c.Host) {
+	for server.ProcessAlive(c.Host) {
 		if s := runningServer(); s != nil {
 			_ = watchOnce(s, c.query(), c.Host, d)
 		}
@@ -133,7 +134,7 @@ func watchOnce(s *home.Server, query, host string, d deliverer) error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("watch: %s", res.Status)
 	}
-	return readWakes(res.Body, func() bool { return processAlive(host) }, func(w wakeOut) {
+	return readWakes(res.Body, func() bool { return server.ProcessAlive(host) }, func(w wakeOut) {
 		body, _ := json.Marshal(map[string]any{"line": w.Line, "id": w.ID, "result": d.deliver(w)})
 		if r, err := request(s, http.MethodPost, "api/ai/watch/ack", body, 10*time.Second, nil); err == nil {
 			r.Body.Close()

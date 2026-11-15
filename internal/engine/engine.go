@@ -156,6 +156,7 @@ type Engine struct {
 	without     func(string, string) string
 	talk        func() string
 	join        func() string
+	end         func() string
 	alive       func(string, string, float64) bool
 	needs       func(string, string) string
 	roles       func() string
@@ -271,6 +272,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuJoinActions"), &e.join); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuJoinActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuEndActions"), &e.end); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuEndActions: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuParticipantAlive"), &e.alive); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuParticipantAlive: %w", err)
@@ -695,6 +699,24 @@ func (e *Engine) JoinActions() (ids *JoinActions, err error) {
 		}
 	}()
 	err = json.Unmarshal([]byte(e.join()), &ids)
+	return ids, err
+}
+
+// EndActions は、AI のプログラムが終わったときに常駐が行うアクションの id（参加者を外す Leave）
+type EndActions struct {
+	Leave string `json:"leave"`
+}
+
+// EndActions は、AI のプログラムが終わったときに常駐が行うアクション。アクションの定義が役を名乗る（Go はアクションの id を知らない）。無ければ nil
+func (e *Engine) EndActions() (ids *EndActions, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.end()), &ids)
 	return ids, err
 }
 

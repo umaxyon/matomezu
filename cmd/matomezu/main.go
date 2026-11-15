@@ -86,8 +86,9 @@ type openCmd struct{}
 
 type mcpCmd struct {
 	serverFlags
-	Resident bool     `help:"With a deliver command: start it once and keep it running (as watch --resident)."`
-	Deliver  []string `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each wake notice to the AI, as watch does with it. The MCP then also watches for the notices of its host program while it runs (for an AI program that has no background monitor)."`
+	Resident  bool     `help:"With a deliver command: start it once and keep it running (as watch --resident)."`
+	HostScope string   `enum:"process," default:"" help:"Say what the host program (the process id sent as the AI's program) is: process means it is the AI's program of this one session, so when it is gone the session has ended and matomezu may remove the participant. Leave it out when the host is shared by many sessions (an AI's resident server) or may be a wrapper that ends sooner."`
+	Deliver   []string `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each wake notice to the AI, as watch does with it. The MCP then also watches for the notices of its host program while it runs (for an AI program that has no background monitor)."`
 }
 
 type annotationsCmd struct{}
@@ -276,7 +277,15 @@ func (c *mcpCmd) Run() error {
 		w := &watchCmd{Host: hostProcess(), Session: os.Getenv(claudeSessionEnv), Resident: c.Resident, Deliver: c.Deliver}
 		go func() { _ = w.Run() }()
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, hostProcess(), os.Getenv(claudeSessionEnv))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, hostProcess(), os.Getenv(claudeSessionEnv), c.HostScope, hostSpaceFor(c.HostScope))
+}
+
+// hostSpaceFor は、MCP が Host の範囲を名乗るとき（scope が空でないとき）の、プロセス id が通じる範囲の印
+func hostSpaceFor(scope string) string {
+	if scope == "" {
+		return ""
+	}
+	return server.ProcessSpace()
 }
 
 // hostProcessEnv は、matomezu を中継する入口（npm の node の入口）が、自分の親（AI のプログラム）のプロセス id を子の実行ファイルに伝える環境変数

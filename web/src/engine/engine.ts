@@ -25,7 +25,7 @@ import type { SubjectDef } from "../core/def/subject"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
-import { joinActions } from "../core/participant"
+import { endActions, joinActions } from "../core/participant"
 import { type PerformedIn, performIn } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
 import { type Condition, type KeyValues, keyValuesOf } from "../core/record-keys"
@@ -654,6 +654,10 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
 // AI が参加を頼むときに行うアクション（runsWhenAIJoins）の id（役 participant と notice。役が揃わなければ null。常駐が MCP の join で行う）
 ;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
   JSON.stringify(joinActions(assembled.catalog.core))
+
+// AI のプログラムが終わったときに行うアクション（runsWhenAIEnds）の id（無ければ null。常駐が、セッションごとのプロセスが居なくなった参加者を退室させるのに行う）
+;(globalThis as { matomezuEndActions?: () => string }).matomezuEndActions = () =>
+  JSON.stringify(endActions(assembled.catalog.core))
 
 // 参加者が時点 nowMs（ミリ秒）で生きているか（利用者の設定の参加の有効時間で決まる。常駐が、同じ名前の参加者を引き継げるかを決めるのに読む）
 ;(

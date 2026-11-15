@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -543,5 +546,69 @@ func TestJoinedTextComesFromTheMessageTable(t *testing.T) {
 	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:lang":"matomezu:ja"}},"lang":"ja"}`, nil)
 	if got := hub.userJoinedText("ひよこ"); got != "matomezu に参加しました。ワークルーム名: ひよこ" {
 		t.Fatalf("ja = %q", got)
+	}
+}
+
+// 居なくなったプロセスの pid（終わらせて待った子プロセスの pid）
+func deadPid(t *testing.T) string {
+	t.Helper()
+	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+	return strconv.Itoa(cmd.ProcessState.Pid())
+}
+
+// AI のセッションごとのプロセスだと名乗った Host が居なくなった参加者の部屋に、同じ名前で join すると、その参加者は退室して（部屋は空室になり）join が通る。
+// 名乗っていない・範囲の印が違う・Host が居る参加者の部屋には、生きているあいだ workroom-in-use で断る
+func TestJoinFreesTheRoomOfAParticipantWhoseHostProgramEnded(t *testing.T) {
+	cases := []struct {
+		name   string
+		header func(dead string) map[string]string
+		frees  bool
+	}{
+		{"the host is gone", func(dead string) map[string]string {
+			return map[string]string{HostHeader: dead, HostScopeHeader: "process", HostSpaceHeader: ProcessSpace()}
+		}, true},
+		{"the host is alive", func(string) map[string]string {
+			return map[string]string{HostHeader: strconv.Itoa(os.Getpid()), HostScopeHeader: "process", HostSpaceHeader: ProcessSpace()}
+		}, false},
+		{"another space (the pid cannot be checked here)", func(dead string) map[string]string {
+			return map[string]string{HostHeader: dead, HostScopeHeader: "process", HostSpaceHeader: "elsewhere"}
+		}, false},
+		{"not said to be a process of one session", func(dead string) map[string]string {
+			return map[string]string{HostHeader: dead}
+		}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s, _ := joinWorld(t, joinStore(t))
+			got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "", `,"sessionId":"S1"`), c.header(deadPid(t)))
+			var first Joined
+			_ = json.Unmarshal([]byte(got), &first)
+			acceptRoom(t, s.URL, first.Participant, "ひよこ")
+			call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
+
+			second, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "", `,"workroom":"ひよこ"`), nil)
+			rows, _ := table(t, s.URL)
+			if !c.frees {
+				if !strings.Contains(second, `"reason":"workroom-in-use"`) {
+					t.Fatalf("join = %s", second)
+				}
+				return
+			}
+			var made Joined
+			if json.Unmarshal([]byte(second), &made) != nil || !made.OK || made.Participant == first.Participant {
+				t.Fatalf("join = %s", second)
+			}
+			for _, r := range rows {
+				if r.ID == first.Participant {
+					t.Fatalf("the participant of the ended program is still in the table: %+v", rows)
+				}
+			}
+			if len(rows) != 1 || rows[0].State != "requested" || rows[0].WantedName != "ひよこ" {
+				t.Fatalf("participants = %+v", rows)
+			}
+		})
 	}
 }

@@ -174,6 +174,7 @@ export const PARTICIPANT_REMOVE = kit.defineAction({
   title: "Remove a participant",
   target: PARTICIPANT.id,
   userOnly: true,
+  runsWhenAIEnds: true,
   args: z.strictObject({}),
   run: now => (now === "none" || now.state !== "joined" ? null : { next: "removed", result: {} }),
 })

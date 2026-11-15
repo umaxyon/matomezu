@@ -36,6 +36,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 const (
@@ -49,9 +51,16 @@ const (
 	HostHeader = "X-Matomezu-Host"
 	// HostSessionHeader は、MCP が、AI のプログラムが MCP を立てたときのセッション id を添えるヘッダ（分かるときだけ。起こす知らせの宛て先。watch.go）
 	HostSessionHeader = "X-Matomezu-Host-Session"
+	// HostScopeHeader は、MCP が Host の中身を名乗るヘッダ（process: AI のセッションごとのプロセスで、居なくなればセッションが終わった。名乗らない MCP は、共有のプロセスかもしれないので見ない）
+	HostScopeHeader = "X-Matomezu-Host-Scope"
+	// HostSpaceHeader は、Host を名乗った MCP が、プロセス id が通じる範囲の印を添えるヘッダ（常駐が同じ印のときだけ、Host が居るかを確かめる）
+	HostSpaceHeader = "X-Matomezu-Host-Space"
 	// ModelHeader は、MCP が、呼び出しが運んだモデルを添えるヘッダ（値は URL エンコード。無ければ添えない）
 	ModelHeader = "X-Matomezu-Model"
 )
+
+// hostScopeProcess は、MCP が Host を「AI のセッションごとのプロセス」だと名乗る値
+const hostScopeProcess = "process"
 
 // participantNote は参加者 1 人の、常駐だけが持つ記録
 type participantNote struct {
@@ -64,6 +73,8 @@ type participantNote struct {
 	Host        string `json:"host,omitempty"`        // AI のプログラム（Claude Code など）のプロセス id（MCP とフックが添える）
 	WakeHost    string `json:"wakeHost,omitempty"`    // join の頼みに MCP が添えた AI のプログラムのプロセス id（起こす知らせの宛て先だけに使う。結び直しには使わない。watch.go）
 	WakeSession string `json:"wakeSession,omitempty"` // join の頼みに MCP が添えた、AI のプログラムが MCP を立てたときのセッション id（起こす知らせの宛て先。watch.go）
+	ProcHost    string `json:"procHost,omitempty"`    // AI のセッションごとのプロセスだと MCP が名乗った Host のプロセス id（居なくなったら退室。名乗った呼び出しだけが書く）
+	ProcSpace   string `json:"procSpace,omitempty"`   // その Host のプロセス id が通じる範囲の印（常駐の印と同じときだけ、Host が居るかを確かめる）
 }
 
 // live は、窓に知らせる参加者の様子（モデルとブランチ。空は省く）
@@ -125,6 +136,8 @@ type JoinRequest struct {
 	Participant string `json:"-"`
 	Host        string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。起こす知らせの宛て先。watch.go）
 	HostSession string `json:"-"` // AI のプログラムが MCP を立てたときのセッション id（MCP が X-Matomezu-Host-Session で添える。起こす知らせの宛て先。watch.go）
+	HostScope   string `json:"-"` // MCP が名乗った Host の中身（X-Matomezu-Host-Scope。process か空）
+	HostSpace   string `json:"-"` // Host を名乗った MCP の、プロセス id が通じる範囲の印（X-Matomezu-Host-Space）
 }
 
 // Joined は参加の頼みの結果。弾いたり断られたりしたら OK は false で、Reason と Detail に理由
@@ -206,7 +219,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	for _, s := range records {
 		if (req.Participant != "" && s.ID == req.Participant && sitting(s)) || (req.Link != "" && s.Link == req.Link) {
 			h.noteSession(s.ID, req.SessionID)
-			h.noteJoinHost(s.ID, req.Host, req.HostSession)
+			h.noteJoinHost(s.ID, req)
 			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 		}
 	}
@@ -222,6 +235,13 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			}
 			for _, s := range records {
 				if s.State != "joined" || s.Workroom != room.ID {
+					continue
+				}
+				// 居座っている参加者の AI のプログラム（セッションごとのプロセスだと名乗った Host）が居なくなっていれば、そのセッションは終わっている。退室させて、部屋を空ける
+				if h.hostEnded(s.ID) {
+					if err := h.leaveEnded(s.ID); err != nil {
+						return Joined{}, err
+					}
 					continue
 				}
 				alive, err := h.alive(s.ID, time.Now())
@@ -277,7 +297,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		return refused(told), err
 	}
 	h.noteSession(result.Participant, req.SessionID)
-	h.noteJoinHost(result.Participant, req.Host, req.HostSession)
+	h.noteJoinHost(result.Participant, req)
 	return Joined{OK: true, Participant: result.Participant}, h.settleNotes()
 }
 
@@ -307,17 +327,21 @@ func (h *Hub) performAs(action string, args map[string]any) (Performed, error) {
 	return h.Perform(Perform{Action: action, Args: b, By: "ai"})
 }
 
-// noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id host と、それが MCP を立てたときのセッション id session を、
-// 起こす知らせの宛て先として書く（host が空なら何もしない）。要求中の間も残す（受け入れ・断りの知らせの宛て先。watch.go）。セッション id の結び直し（Host）には使わない
-func (h *Hub) noteJoinHost(id, host, session string) {
-	if host == "" {
+// noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id を、
+// 起こす知らせの宛て先として書く（Host が空なら何もしない）。要求中の間も残す（受け入れ・断りの知らせの宛て先。watch.go）。セッション id の結び直し（Host）には使わない。
+// MCP が Host の中身を名乗っていれば（process）、退室の見張りの宛てとして Host と範囲の印も書く
+func (h *Hub) noteJoinHost(id string, req JoinRequest) {
+	if req.Host == "" {
 		return
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	n := h.participantNotes[id]
-	n.WakeHost = host
-	n.WakeSession = session
+	n.WakeHost = req.Host
+	n.WakeSession = req.HostSession
+	if req.HostScope == hostScopeProcess {
+		n.ProcHost, n.ProcSpace = req.Host, req.HostSpace
+	}
 	h.participantNotes[id] = n
 }
 
@@ -438,12 +462,14 @@ type CallerSays struct {
 	Branch     string // git のブランチ（空はブランチが無い）
 	BranchSent bool   // ブランチのヘッダが付いていた（付いていなければブランチを変えない）
 	Host       string // AI のプログラムのプロセス id（空なら変えない）
+	HostScope  string // MCP が名乗った Host の中身（process か空）
+	HostSpace  string // Host を名乗った MCP の、プロセス id が通じる範囲の印
 	Model      string // 呼び出しが運んだモデル（空なら変えない）
 }
 
 // callerSays は、呼び出しのヘッダから MCP が添えたものを読む
 func callerSays(header http.Header) CallerSays {
-	says := CallerSays{Host: header.Get(HostHeader)}
+	says := CallerSays{Host: header.Get(HostHeader), HostScope: header.Get(HostScopeHeader), HostSpace: header.Get(HostSpaceHeader)}
 	if v := header.Get(ModelHeader); v != "" {
 		if m, err := url.QueryUnescape(v); err == nil {
 			says.Model = m
@@ -512,6 +538,9 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 		}
 		if says.Host != "" {
 			n.Host = says.Host
+			if says.HostScope == hostScopeProcess {
+				n.ProcHost, n.ProcSpace = says.Host, says.HostSpace
+			}
 		}
 		h.participantNotes[id] = n
 		announceCall := now.Sub(before) >= callsAnnounceGap
@@ -569,6 +598,8 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	req.Participant = r.Header.Get(ParticipantHeader)
 	req.Host = r.Header.Get(HostHeader)
 	req.HostSession = r.Header.Get(HostSessionHeader)
+	req.HostScope = r.Header.Get(HostScopeHeader)
+	req.HostSpace = r.Header.Get(HostSpaceHeader)
 	done, err := o.Hub.AIJoin(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -594,4 +625,34 @@ func (h *Hub) WorkroomOf(id string) string {
 		}
 	}
 	return ""
+}
+
+// hostEnded は、参加者 id が、セッションごとのプロセスだと名乗った Host を持ち、その範囲の印が常駐のと同じで、その Host が居ないか
+// （名乗っていない・範囲が違う・居るなら false。確かめられないときは退室させない側に倒す）
+func (h *Hub) hostEnded(id string) bool {
+	h.mu.Lock()
+	n := h.participantNotes[id]
+	h.mu.Unlock()
+	return n.ProcHost != "" && n.ProcSpace == ProcessSpace() && !ProcessAlive(n.ProcHost)
+}
+
+// leaveEnded は、AI のプログラムが終わった参加者 id を、利用者として退室させる（ワークルームは空室で残る。アクションは定義が役 runsWhenAIEnds で名乗る）。
+// 起こす知らせの行列は、宛先が参加者でなくなったので捨てられる（watch.go の stale）
+func (h *Hub) leaveEnded(id string) error {
+	ids, err := h.engine.EndActions()
+	if err != nil {
+		return err
+	}
+	if ids == nil {
+		return nil
+	}
+	fmt.Fprintln(os.Stderr, "participant", id, "left: its AI program ended")
+	done, err := h.Perform(Perform{Action: ids.Leave, Args: json.RawMessage("{}"), On: &engine.On{Record: id}})
+	if err != nil {
+		return err
+	}
+	if !done.OK {
+		return fmt.Errorf("participant %s could not leave: %s", id, done.Detail)
+	}
+	return nil
 }

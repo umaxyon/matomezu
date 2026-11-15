@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/umaxyon/matomezu/internal/server"
 )
 
 // watch は SSE の wake の知らせの文だけを 1 行ずつ書き、ほかの知らせ（keep）は書かない
@@ -30,7 +31,7 @@ func TestReadWakesPrintsOnlyWakeLines(t *testing.T) {
 
 // プロセス id のプロセスが居なければ、読むのをやめる。居るプロセス（自分）と、数でない id は居るとみなす
 func TestProcessAliveAndReadWakesStops(t *testing.T) {
-	if !processAlive(strconv.Itoa(os.Getpid())) || !processAlive("x") || processAlive("999999999") {
+	if !server.ProcessAlive(strconv.Itoa(os.Getpid())) || !server.ProcessAlive("x") || server.ProcessAlive("999999999") {
 		t.Fatal("processAlive")
 	}
 	called := false

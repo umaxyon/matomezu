@@ -40,6 +40,7 @@ export const ERRORS = {
   E042: "bookType {id}: slide has {ref}, which is not a shape item",
   E043: "bookType {id}: slide needs pages",
   E044: "action {id}: runsWhenAIJoins {role} is named by {other} too",
+  E070: "action {id}: runsWhenAIEnds is named by {other} too",
   E045: "subject {id}: record needs an id (a string)",
   E046: "action {id}: target {target} is not a subject",
   E047: "controlCenter {id}: unknown subject {ref}",

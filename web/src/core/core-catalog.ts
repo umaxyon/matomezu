@@ -327,6 +327,13 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (other !== undefined) problems.push(problem("E044", { id: a.id, role: a.runsWhenAIJoins, other }))
     joinRoles.set(a.runsWhenAIJoins, a.id)
   }
+  // AI のプログラムが終わったときの役（runsWhenAIEnds）も、1 つのアクションだけが名乗る
+  let ender: string | undefined
+  for (const a of parts.actions) {
+    if (!a.runsWhenAIEnds) continue
+    if (ender !== undefined) problems.push(problem("E070", { id: a.id, other: ender }))
+    ender ??= a.id
+  }
   for (const [kind, defs] of [
     ["messages", allMessages(parts)],
     ["language", allLanguages(parts)],

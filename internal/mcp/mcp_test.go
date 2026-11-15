@@ -71,7 +71,7 @@ func talk(t *testing.T, api API, lines ...string) []map[string]any {
 func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[string]any {
 	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1"); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -474,5 +474,23 @@ func TestToolSchemasUseOnlyTheCheckedKeywords(t *testing.T) {
 	}
 	for _, tl := range tools {
 		walk(tl.name, tl.schema)
+	}
+}
+
+// Host の中身を名乗った MCP（Serve に scope を渡す）は、いつも（join も）名乗りと範囲の印を添える。名乗らなければ添えない
+func TestTheHostScopeAndSpaceGoWhenSaid(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
+	var out bytes.Buffer
+	line := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L1"}}}`
+	if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, "4242", "HS1", "process", "space-1"); err != nil {
+		t.Fatal(err)
+	}
+	if h := api.headers[0]; h.Get("X-Matomezu-Host-Scope") != "process" || h.Get("X-Matomezu-Host-Space") != "space-1" {
+		t.Fatalf("headers = %v", h)
+	}
+	said := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
+	talk(t, said, line)
+	if h := said.headers[0]; h.Get("X-Matomezu-Host-Scope") != "" || h.Get("X-Matomezu-Host-Space") != "" {
+		t.Fatalf("a host that did not say what it is carries %v", h)
 	}
 }
