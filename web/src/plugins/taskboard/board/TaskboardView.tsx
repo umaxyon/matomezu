@@ -11,6 +11,7 @@ import { useOpenProjectSettings } from "../project-settings/useOpenProjectSettin
 import scroll from "../scrollbar.module.css"
 import { TICKET } from "../ticket"
 import { TICKET_FILTER } from "../wide-search"
+import { FilterIndicator } from "../wide-search/FilterIndicator"
 import { filterTickets } from "../wide-search/filter"
 import { MAXIMIZED } from "."
 import { BoardLanes } from "./BoardLanes"
@@ -58,7 +59,12 @@ export function TaskboardView() {
             <TitledArea
               className={styles.board}
               title={project.name}
-              actions={<SettingsGear project={project.id} onOpen={() => openSettings(project.id)} />}
+              actions={
+                <>
+                  <FilterIndicator />
+                  <SettingsGear project={project.id} onOpen={() => openSettings(project.id)} />
+                </>
+              }
               maximized={maximized?.board === project.id} // レーンの最大化の間も、タスクボードは最大化している（押すと全部を元に戻す）
               onToggleMaximize={() => updateMaximized(now => toggleBoard(now, project.id))}
             >
