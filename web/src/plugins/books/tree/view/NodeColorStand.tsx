@@ -17,7 +17,6 @@ export function NodeColorStand({
   color,
   swatches,
 }: {
-  stage: string
   page: string
   node: string
   isRoot: boolean

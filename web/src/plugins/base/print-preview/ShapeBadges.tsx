@@ -1,12 +1,11 @@
 // 形のバッジの並び（印刷区画をまたいだ形・印刷区画より大きい形を知らせる右サイドパネルが使う）: 形の名前のバッジを並べ、押すとその形のページを開いて
 // 形を選び、真ん中に見せる（印刷プレビューの間なら、ページを開くと印刷プレビューは閉じる）。opened は、ページを開いたあとに呼ぶ（右サイドパネルを開き直すなど）
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
 import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { clampChars } from "../text/text"
-import { useRequestReveal } from "../utils/reveal-request"
+import { useRevealHere } from "../utils/reveal-request"
 import styles from "./PrintPreviewPanel.module.css"
 
 const BADGE_CHARS = 10 // バッジに出す、名前の始めの字数
@@ -20,15 +19,14 @@ export function ShapeBadges({
   label: Parameters<typeof kit.message>[0]
   opened?: () => void
 }) {
-  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const { openPage, select } = useActions()
-  const reveal = useRequestReveal()
+  const reveal = useRevealHere()
   const go = (page: string, id: string) => {
     openPage(page)
     opened?.()
     select([id])
-    reveal(stage, [id])
+    reveal([id])
   }
   return (
     // biome-ignore lint/a11y/useSemanticElements: バッジを束ねる並びで、入力Formのまとまり（fieldset）ではない

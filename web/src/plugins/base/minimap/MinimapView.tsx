@@ -7,11 +7,10 @@ import { memo, type PointerEvent, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { areaOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useStageHere } from "../../../ui/scope"
+import { useCatalog } from "../../../ui/store-context"
 import { useActions, useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
 import { useBookThemeVars } from "../book-look/use-book-theme-vars"
 import { kit } from "../kit"
@@ -24,10 +23,9 @@ import styles from "./MinimapView.module.css"
 import { type MinimapMark, minimapMarks } from "./marks"
 
 export function MinimapView({ width, height, className }: { width: number; height: number; className?: string }) {
-  const id = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const stage = useMatomezuState(s => stageIn(s.window, id))
+  const stage = useStageHere(st => st)
   const book = useShownBook() // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
   const page = useShownPage()
   const held = keepsPan(catalog, useStage()?.tool ?? null)

@@ -6,7 +6,6 @@
 // 付ける先がいくつかあるときは、カレントの物に明るい色の枠を重ねて、どれがカレントかを示す
 import { useEffect, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
 import { useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import type { Bird } from "../birds"
 import { assignBirds } from "../birds/assign"
@@ -16,7 +15,7 @@ import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useRightSidePanel, useSetRightSidePanelCurrent, useTakeOffAnchor } from "../right-side-panel/hooks"
 import { Ask, useRemoveAsk } from "../utils/Ask"
-import { AnchorFrame, anchorElementIn, StandAt } from "../utils/anchors"
+import { AnchorFrame, StandAt, useAnchorElement } from "../utils/anchors"
 import { NOTE_BIRDS } from "./birds-state"
 import styles from "./NoteLayer.module.css"
 import { NOTE_PANEL_ID } from "./panel-id"
@@ -32,7 +31,6 @@ interface Shown {
 }
 
 export function NoteBirds() {
-  const stage = useStageId() ?? ""
   const open = useRightSidePanel()
   const anchors = open?.widget === NOTE_PANEL_ID ? open.anchors : NONE
   const [shown, setShown] = useState<readonly Shown[]>([])
@@ -60,18 +58,19 @@ export function NoteBirds() {
       {current && <AnchorFrame anchor={current} className={styles.current} />}
       {shown.map(s => (
         <StandAt key={`${s.anchor}:${s.bird}`} anchor={s.anchor} side="edge" span edgePinned through>
-          <NoteBird stage={stage} shown={s} onGone={() => gone(s)} />
+          <NoteBird shown={s} onGone={() => gone(s)} />
         </StandAt>
       ))}
     </>
   )
 }
 
-function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGone: () => void }) {
+function NoteBird({ shown, onGone }: { shown: Shown; onGone: () => void }) {
   const t = useMessages(kit)
   const setCurrent = useSetRightSidePanelCurrent()
   const takeOff = useTakeOffAnchor()
-  const [origin] = useState(() => (shown.from ? (anchorElementIn(stage, shown.from)?.el ?? null) : null))
+  const find = useAnchorElement()
+  const [origin] = useState(() => (shown.from ? find(shown.from) : null))
   const [asking, setAsking] = useState(false)
   // 物が消えて描かれなくなっても、飛び去りが終わる頃に消す
   useEffect(() => {

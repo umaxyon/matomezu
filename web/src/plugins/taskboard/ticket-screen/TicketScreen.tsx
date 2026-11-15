@@ -67,12 +67,9 @@ export function TicketScreen() {
   const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
   const { perform } = useActions()
   // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）
-  const [now, update] = [
-    usePluginState(kit, TICKET_SCREEN_STATE, me.id),
-    useUpdatePluginState(kit, TICKET_SCREEN_STATE),
-  ]
+  const [now, update] = [usePluginState(kit, TICKET_SCREEN_STATE), useUpdatePluginState(kit, TICKET_SCREEN_STATE)]
   const view = viewOf(now, id)
-  const set = (patch: Partial<TicketScreenState>) => update(me.id, cur => ({ ...viewOf(cur, id), ...patch }))
+  const set = (patch: Partial<TicketScreenState>) => update(cur => ({ ...viewOf(cur, id), ...patch }))
   const [editing, setEditing] = useState(false) // 名前の入力か本文の編集にフォーカスがある間
   useRecordEditLock(TICKET.id, editing ? [id] : [])
   const allowed = useAllowedOn(TICKET_UPDATE.id, {}, { record: id })

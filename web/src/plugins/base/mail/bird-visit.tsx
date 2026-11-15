@@ -2,7 +2,7 @@
 // 行き先の物のレイヤー（MailLayer）が、行き先の物の枠を光らせ、鳥を連れてきて、鳥が飛び去ったら消す。ステージが行き先から離れても消す
 import { useCallback } from "react"
 import { useSetPluginStateAt } from "../../../ui/at-hooks"
-import { usePluginState } from "../../../ui/view-hooks"
+import { usePluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { type BirdVisit, MAIL_BIRD_VISIT } from "./states"
 
@@ -12,7 +12,13 @@ export type { BirdVisit }
 export const useBirdVisit = (): BirdVisit | null => usePluginState(kit, MAIL_BIRD_VISIT) ?? null
 
 // ステージ stage で、郵便の行き先の物を置く（null で消す）関数（郵便のダイアログが、行き先を開いたステージを名指して置く）
-export function useSetBirdVisit(): (stage: string, visit: BirdVisit | null) => void {
+export function useSetBirdVisitAt(): (stage: string, visit: BirdVisit | null) => void {
   const set = useSetPluginStateAt(kit, MAIL_BIRD_VISIT)
   return useCallback((stage, visit) => set(stage, visit ?? undefined), [set])
+}
+
+// 描いている場所のステージの、郵便の行き先の物を消す関数
+export function useClearBirdVisit(): () => void {
+  const set = useSetPluginState(kit, MAIL_BIRD_VISIT)
+  return useCallback(() => set(undefined), [set])
 }

@@ -6,16 +6,17 @@
 //   何も置いていない所: 描いているスクリーン（ui/screen-context.tsx）が向け先。スクリーンの外（窓の根）なら窓
 // フック（ui/view-hooks.ts など）は、読む物を描くページから、操作を向け先から引く。向け先が無い所からは、何も行えない。
 // コンテキストの値は id と数だけで、同じ場所の間は同じ参照（ブックやページの中身・選択・紙をずらす量は入れない。変わるたびに中の全部を描き直さないため）
-import { createContext, type ReactNode, useContext, useMemo } from "react"
+import { createContext, type ReactNode, useCallback, useContext, useMemo } from "react"
 import { pagedOf } from "../core/book"
 import type { BookTypeId } from "../core/catalog"
 import type { ItemPage } from "../core/placed"
 import type { Book } from "../core/schema/book"
+import type { Stage } from "../core/stage"
 import { stageIn } from "../core/window"
 import { NO_STAGE } from "../store/dialogs"
 import type { MatomezuState } from "../store/store"
 import { useScreenHere } from "./screen-context"
-import { useMatomezuState } from "./store-context"
+import { useMatomezuState, useReadState } from "./store-context"
 
 // 操作の向け先: ステージ・スクリーン・窓（スクリーンの外の、何も置いていない所）・無し（見るだけ）
 export type ActsOn =
@@ -142,4 +143,18 @@ export function zoomOf(s: MatomezuState, scope: Scope): number | null {
 export function useZoomHere(): number {
   const scope = useScope()
   return useMatomezuState(s => zoomOf(s, scope)) ?? 1
+}
+
+// 向け先のステージの素の状態（向け先がステージでないか、もう無ければ null）と窓の状態から、pick が選んだ物を読む。
+// 土台と base だけが使う（プラグイン API には出さない。プラグインのビューは ui/view-hooks.ts のフックで約束の物だけを引く）
+export function useStageHere<T>(pick: (stage: Stage | null, s: MatomezuState) => T): T {
+  const id = useStageId()
+  return useMatomezuState(s => pick(id === null ? null : (stageIn(s.window, id) ?? null), s))
+}
+
+// 向け先のステージの今の素の状態を返す関数（描き直さない。イベントや effect の中で使う）
+export function useReadStageHere(): () => Stage | null {
+  const id = useStageId()
+  const read = useReadState()
+  return useCallback(() => (id === null ? null : (stageIn(read().window, id) ?? null)), [read, id])
 }

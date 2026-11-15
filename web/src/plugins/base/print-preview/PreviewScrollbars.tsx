@@ -4,10 +4,8 @@
 import { type PointerEvent, useRef } from "react"
 import { extentOf, previewing } from "../../../core/stage"
 import { contentSize } from "../../../core/viewport"
-import { stageIn } from "../../../core/window"
-import { useStageId } from "../../../ui/scope"
-import { useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useActions } from "../../../ui/view-hooks"
+import { useStageHere } from "../../../ui/scope"
+import { useActions, useLatestPan } from "../../../ui/view-hooks"
 import styles from "./PreviewScrollbars.module.css"
 import { panForDrag, panForTrack, type ScrollAxis, shownBars, thumbOf } from "./scrollbar"
 
@@ -16,8 +14,7 @@ type Along = "x" | "y"
 const BAR = 10 // バーの太さ（px。PreviewScrollbars.module.css と同じ）。両方のバーを出すときは、溝をこの分だけ短くして右下の角を空ける
 
 export function PreviewScrollbars() {
-  const stage = useStageId() ?? ""
-  const st = useMatomezuState(s => stageIn(s.window, stage) ?? null)
+  const st = useStageHere(st => st)
   const area = st ? extentOf(st) : null
   if (!st || !previewing(st) || !area || !st.view) return null
   const content = contentSize(area, st.zoom)
@@ -30,22 +27,22 @@ export function PreviewScrollbars() {
   const corner = shown.x && shown.y
   return (
     <>
-      {shown.y && <Bar stage={stage} axis={axes.y} along="y" corner={corner} />}
-      {shown.x && <Bar stage={stage} axis={axes.x} along="x" corner={corner} />}
+      {shown.y && <Bar axis={axes.y} along="y" corner={corner} />}
+      {shown.x && <Bar axis={axes.x} along="x" corner={corner} />}
     </>
   )
 }
 
-function Bar({ stage, axis, along, corner }: { stage: string; axis: ScrollAxis; along: Along; corner: boolean }) {
+function Bar({ axis, along, corner }: { axis: ScrollAxis; along: Along; corner: boolean }) {
   const { panStageBy, focusStage } = useActions()
-  const read = useReadState()
+  const latestPan = useLatestPan()
   const track = useRef<HTMLDivElement>(null)
   const drag = useRef<{ pointer: number; at: number; start: number } | null>(null)
   const length = axis.view - (corner ? BAR : 0) // 溝の長さ
   const at = (e: PointerEvent) => (along === "y" ? e.clientY : e.clientX)
   // ずらす量を target にする（今のずらす量との差をステージに渡す）
   const panTo = (target: number) => {
-    const now = stageIn(read().window, stage)?.pan
+    const now = latestPan()
     if (!now) return
     const by = target - now[along]
     panStageBy(along === "x" ? by : 0, along === "y" ? by : 0)

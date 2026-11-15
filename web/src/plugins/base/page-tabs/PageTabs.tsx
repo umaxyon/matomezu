@@ -7,11 +7,10 @@ import { useRef } from "react"
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
+import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
@@ -39,8 +38,7 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
 }
 
 export function PageTabs() {
-  const stage = useStageId() ?? ""
-  const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened)
+  const opened = useStageHere(st => st?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const openPage = useCommand(PAGE_OPEN.id)
   const newPage = useCommand(PAGE_NEW.id)

@@ -117,6 +117,12 @@ export function anchorElementIn(stage: string, id: string): { view: Element; el:
   return view && el ? { view, el } : null
 }
 
+// 描いている場所のステージの中で、id のアンカーが付いた要素を探す関数（ステージの中で描いているときだけ見つかる）
+export function useAnchorElement(): (id: string) => Element | null {
+  const stage = useContext(Context)?.stage
+  return useCallback((id: string) => (stage === undefined ? null : (anchorElementIn(stage, id)?.el ?? null)), [stage])
+}
+
 interface StandContext {
   stage: string
   anchors: Anchors

@@ -8,11 +8,10 @@ import { hasPages, type PagedBook } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { Page } from "../../../core/schema/book"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { PageScope, useStageId } from "../../../ui/scope"
+import { PageScope, useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBookLookStyle } from "../book-look/use-book-look-style"
 import { kit } from "../kit"
@@ -70,8 +69,7 @@ function ThumbnailFrame({
 }
 
 export function PageList() {
-  const stage = useStageId() ?? ""
-  const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened)
+  const opened = useStageHere(st => st?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const catalog = useCatalog().core
   const openPage = useCommand(PAGE_OPEN.id)

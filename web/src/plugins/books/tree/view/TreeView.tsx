@@ -322,7 +322,6 @@ const Tree = memo(function Tree({
       )}
       {picking && swatches && (
         <NodeColorStand
-          stage={stage.id}
           page={pageId}
           node={selected}
           isRoot={selected === tree.id}

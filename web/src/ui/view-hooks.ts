@@ -183,8 +183,12 @@ function usePluginPlace(scope: PluginStateScope): (given: string | undefined) =>
 }
 
 // プラグイン状態 def の今の値（無ければ undefined）。自分の kit を渡し、自分の宣言だけを読む（ほかのプラグインの宣言は E125）。置き直すたびに描き直す
-export function usePluginState<S>(kit: Owner, def: PluginStateDef<S>, screen?: string): S | undefined {
-  return usePluginStateAt(kit, def, usePluginPlace(def.scope)(def.scope === "screen" ? screen : undefined))
+export function usePluginState<S, Sc extends PluginStateScope>(
+  kit: Owner,
+  def: PluginStateDef<S> & { scope: Sc },
+  ...at: At<Sc>
+): S | undefined {
+  return usePluginStateAt(kit, def, usePluginPlace(def.scope)(at[0]))
 }
 
 // プラグイン状態 def を、描き直さずに読む関数（置いた側が、前に置いた値と比べるときなど）

@@ -5,10 +5,9 @@
 // シェイプパネルのどれかを置こうとしている間は、「形」のボタンを押されている見た目にする
 import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
-import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
-import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useStageHere } from "../../../ui/scope"
+import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useActions, useBook, useStage } from "../../../ui/view-hooks"
 import { useCloseFooterMenu } from "../book-name/footer-menu-context"
 import { kit } from "../kit"
@@ -16,9 +15,8 @@ import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
 
 export function ToolboxView() {
-  const stage = useStageId() ?? ""
   const book = useBook() ?? undefined
-  const placing = useMatomezuState(s => stageIn(s.window, stage)?.placing?.item ?? null)
+  const placing = useStageHere(st => st?.placing?.item ?? null)
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core

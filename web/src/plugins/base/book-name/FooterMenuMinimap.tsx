@@ -2,20 +2,14 @@
 // 帯の左端にそろえて、行にぴったり付けて載せる（台は帯より広く、右隣のスロットの上にかかってよい）。紙の無いステージでは描かない
 import type { CSSProperties } from "react"
 import { paperOf } from "../../../core/stage"
-import { stageIn } from "../../../core/window"
-import { useStageId } from "../../../ui/scope"
-import { useMatomezuState } from "../../../ui/store-context"
+import { useStageHere } from "../../../ui/scope"
 import { MINIMAP_SIZE as MAP } from "../minimap/geometry"
 import { MinimapView } from "../minimap/MinimapView"
 import { ZoomBar } from "../zoom/ZoomBar"
 import styles from "./FooterMenuMinimap.module.css"
 
 export function FooterMenuMinimap() {
-  const stage = useStageId() ?? ""
-  const hasPaper = useMatomezuState(s => {
-    const st = stageIn(s.window, stage)
-    return st !== undefined && paperOf(st) !== null
-  })
+  const hasPaper = useStageHere(st => st !== null && paperOf(st) !== null)
   if (!hasPaper) return null
   const size = { ["--map-w" as string]: `${MAP.w}px`, ["--map-h" as string]: `${MAP.h}px` } as CSSProperties
   return (

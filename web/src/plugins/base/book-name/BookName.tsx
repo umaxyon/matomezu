@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import { workspaceOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
-import { useStageId } from "../../../ui/scope"
+import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
 import { bookTitle } from "../book-open/book-title"
@@ -23,10 +23,9 @@ import { FooterMenuContext } from "./footer-menu-context"
 const LEAVE_MS = 250
 
 export function BookName() {
-  const stage = useStageId() ?? ""
   const book = useBook() ?? undefined
   const lang = useMatomezuState(s => s.lang)
-  const current = useMatomezuState(s => workspaceOf(s.window, stage).current === stage)
+  const current = useStageHere((st, s) => st !== null && workspaceOf(s.window, st.id).current === st.id)
   const t = useMessages(kit)
   const [open, setOpen] = useState(false)
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null)

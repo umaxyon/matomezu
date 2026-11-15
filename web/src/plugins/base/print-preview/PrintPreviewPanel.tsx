@@ -4,11 +4,10 @@
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
 import { useEffect, useState } from "react"
 import { previewing as isPreviewing } from "../../../core/stage"
-import { stageIn } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
-import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useStageHere } from "../../../ui/scope"
+import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { ownSettings, settingDefs } from "../book-settings"
 import { Confirm } from "../dialog-host/Confirm"
@@ -26,7 +25,6 @@ import { ShapeBadges } from "./ShapeBadges"
 type Patch = Readonly<Record<string, string | null>>
 
 export function PrintPreviewPanel() {
-  const stage = useStageId() ?? ""
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const ui = useUiCatalog()
@@ -34,10 +32,7 @@ export function PrintPreviewPanel() {
   const open = useRightSidePanel()
   const close = useCloseRightSidePanel()
   const perform = usePerform()
-  const previewing = useMatomezuState(s => {
-    const st = stageIn(s.window, stage)
-    return !!st && isPreviewing(st)
-  })
+  const previewing = useStageHere(st => !!st && isPreviewing(st))
   const [confirming, setConfirming] = useState<Patch | null>(null)
   // 変えられるか（ロックで止められるなら、確かめてから外して変えるので変えられる。ほかの認可ステップに止められるなら変えられない）
   const changing = useAllowed(PRINT_PREVIEW_UPDATE.id)

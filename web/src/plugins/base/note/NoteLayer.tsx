@@ -13,10 +13,8 @@
 // 表示で吹き出しに戻し、消すで伝言を消す（タッチでは出さず、右サイドパネルのボタンを使う。既読のチェックには出さない。変えられないときと、角の絵を押せない間は出さない）。
 // 吹き出しの色はスキンの bubble だけで、物や伝言の様子では変えない。右サイドパネルが伝言を出している間は、付ける先に鳥を出す（NoteBirds）
 import type { MouseEvent, ReactNode } from "react"
-import { stageIn } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
-import { useStageId } from "../../../ui/scope"
-import { useReadState } from "../../../ui/store-context"
+import { useReadStageHere } from "../../../ui/scope"
 import { useActions, useAllowed } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
@@ -48,14 +46,13 @@ const TAIL_W = 14 // 吹き出しの尾の幅と高さ（尾の先は左下。�
 const TAIL_H = 16
 
 export function NoteLayer() {
-  const stage = useStageId() ?? ""
   const notes = useAnnotationsOf(NOTE.id)
   return (
     <>
       {notes.map(n => {
         const props = n.props as NoteProps
         const Shown = props.readAt !== undefined ? ReadNote : props.bubble ? BubbleStand : FoldedNote
-        return <Shown key={n.id} stage={stage} id={n.id} anchors={n.anchors} props={props} />
+        return <Shown key={n.id} id={n.id} anchors={n.anchors} props={props} />
       })}
       <NoteBirds />
     </>
@@ -65,19 +62,19 @@ export function NoteLayer() {
 // 伝言の吹き出し・絵・チェックを押したとき: 選択に従う中身を出している間は、物を押したのと同じに選ぶ（Mod なら足す・外す）。
 // 右サイドパネルがほかの物を出している間は閉じるだけ。そうでなければ、伝言 note（付けた先 anchors、吹き出しの物は最後）で開く。
 // busy は、右サイドパネルが、新しく書いている伝言でもこの伝言でもない物を出しているか（角の絵とチェックは、その間は薄くして押せない）
-function useOpenNote(stage: string, note: string, anchors: readonly string[]) {
+function useOpenNote(note: string, anchors: readonly string[]) {
   const openPanel = useOpenRightSidePanel()
   const closePanel = useCloseRightSidePanel()
   const shown = useRightSidePanel()
   const follows = useFollowsSelection()
-  const read = useReadState()
+  const readStage = useReadStageHere()
   const { select } = useActions()
   const anchor = anchors.at(-1) ?? ""
   const busy = !!shown && shown.subject !== note && shown.subject !== NEW_NOTE
   // 物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）
   const pick = (e: MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.blur()
-    const now = stageIn(read().window, stage)?.selection ?? []
+    const now = readStage()?.selection ?? []
     select(pointedSelection(now, anchor, modPressed(e)))
   }
   const open = (e: MouseEvent<HTMLButtonElement>) =>
@@ -90,23 +87,22 @@ function useOpenNote(stage: string, note: string, anchors: readonly string[]) {
 }
 
 interface NoteViewProps {
-  stage: string
   id: string
   anchors: readonly string[]
   props: NoteProps
 }
 
 // AI が読んだ伝言: 物の右上の角に、緑の丸のチェック。物が見える所の外にある間は、縁に緑の丸のチェックのマークポインタ
-function ReadNote({ stage, id, anchors, props }: NoteViewProps) {
+function ReadNote({ id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
-  const { open, busy } = useOpenNote(stage, id, anchors)
+  const { open, busy } = useOpenNote(id, anchors)
   return (
     <AtCorner
       anchor={anchor}
       status={READ_NOTE_STATUS_ID}
       at={props.addedAt}
-      pointer={<ReadPointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}
+      pointer={<ReadPointer anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} />}
     >
       <CornerNoteButton
         className={styles.readCheck}
@@ -130,7 +126,6 @@ function NotePointer({
   center,
   onOpen,
 }: {
-  stage: string
   anchor: string
   center: { x: number; y: number }
   onOpen: (e: MouseEvent<HTMLButtonElement>) => void
@@ -152,7 +147,7 @@ function NotePointer({
 }
 
 // AI が読んだ伝言の、付けた物が見える所の外にある間のマークポインタ（緑の丸のチェック。押すと付けた物を見せる）
-function ReadPointer({ anchor, center }: { stage: string; anchor: string; center: { x: number; y: number } }) {
+function ReadPointer({ anchor, center }: { anchor: string; center: { x: number; y: number } }) {
   const t = useMessages(kit)
   return (
     <StandPointer
@@ -167,18 +162,14 @@ function ReadPointer({ anchor, center }: { stage: string; anchor: string; center
 }
 
 // 吹き出しを出す、読まれていない伝言（物の右。入らなければ範囲の右の端で止める）
-function BubbleStand({ stage, id, anchors, props }: NoteViewProps) {
+function BubbleStand({ id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
-  const { open } = useOpenNote(stage, id, anchors)
+  const { open } = useOpenNote(id, anchors)
   const asks = useNoteAsks(id, "hide")
   return (
     <StandAt anchor={anchor} side="right" turn="none" minRoom={BUBBLE_MIN_W} edgePinned label={t("Note")}>
-      <Away
-        pointer={
-          <NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} onOpen={open} />
-        }
-      >
+      <Away pointer={<NotePointer anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} onOpen={open} />}>
         <Ask items={asks} opens="hover" place="aboveRight">
           {() => <BubbleButton text={props.text} onClick={open} />}
         </Ask>
@@ -188,17 +179,17 @@ function BubbleStand({ stage, id, anchors, props }: NoteViewProps) {
 }
 
 // たたんだ、読まれていない伝言: 物の右上の角に伝言の絵
-function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
+function FoldedNote({ id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
-  const { open, busy } = useOpenNote(stage, id, anchors)
+  const { open, busy } = useOpenNote(id, anchors)
   const asks = useNoteAsks(id, "showOrRemove")
   return (
     <AtCorner
       anchor={anchor}
       status={FOLDED_NOTE_STATUS_ID}
       at={props.addedAt}
-      pointer={<NotePointer stage={stage} anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} onOpen={open} />}
+      pointer={<NotePointer anchor={anchor} center={{ x: POINTER / 2, y: POINTER / 2 }} onOpen={open} />}
     >
       <FoldedAsk asks={busy ? [] : asks}>
         <CornerNoteButton
