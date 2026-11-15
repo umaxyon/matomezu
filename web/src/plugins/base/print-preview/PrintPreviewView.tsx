@@ -21,7 +21,6 @@ import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
-import { bookTitle } from "../book-open/book-title"
 import { bookSettingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/items"
@@ -101,7 +100,6 @@ export function PrintPreviewView() {
   const panel = useRightSidePanelAt(id)
   const { setPreviewArea, closePrintPreview, openPage } = useStoreActions()
   const read = useReadState()
-  const lang = useMatomezuState(s => s.lang)
   // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
   const bookId = book?.id
   const measures = useMeasures(bookId)
@@ -209,7 +207,7 @@ export function PrintPreviewView() {
   }
   const labelsOf = (s: { index: number; page: string }) =>
     sheetLabels(s.index, layout.sheets.length, shows, {
-      book: bookTitle(catalog, book, lang),
+      book: book.title,
       page: pageOf(s.page)?.title ?? "",
     })
   const origin = paperOrigin(pan)

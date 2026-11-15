@@ -9,9 +9,8 @@
 import { z } from "zod"
 import { USER } from "../../../core/actor"
 import { pagesOf } from "../../../core/book"
-import { type ActionContext, type AnyPermissionScope, scopeOf } from "../../../core/def/action"
-import { actionQuery, inspect, withoutPermissions } from "../../../core/inspect"
-import { perform } from "../../../core/perform"
+import type { ActionContext } from "../../../core/def/action"
+import { allowedOnBook, perform } from "../../../core/perform"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
@@ -108,10 +107,9 @@ function carry(
       continue
     }
     // 送ってから反映するまでにプラグインが変わっていても、所（引数が名指すページ）のタイプで使えないアクションは行わない（認可ステップは反映の perform が見る）
-    const parsed = def.args.safeParse(c.args)
-    const where = parsed.success ? scopeOf(def.permissionScope as AnyPermissionScope, parsed.data) : undefined
-    if (withoutPermissions(inspect(ctx.catalog, actionQuery(ctx.catalog, c.action, after, where))).value !== true)
+    if (!allowedOnBook(ctx.catalog, after, c.action, c.args))
       return { declined: `${what}: it cannot be done on this book` }
+    const parsed = def.args.safeParse(c.args)
     const ran = parsed.success ? def.run(after as never, parsed.data as never, counted) : null
     if (adds) return { declined: `${what}: it adds things; only changes to things there now can be carried` }
     if (!ran || "declined" in ran) return { declined: `${what} is refused` }

@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test"
 import { searchBooks } from "../../../web/src/plugins/base/book-open/book-search"
 import { pagesBook } from "../../lineup"
-import { CORE_CATALOG } from "../../support"
 
 const book = (id: string, title: string) =>
   pagesBook({
@@ -19,30 +18,24 @@ const books = [
 ]
 
 test("言葉が無ければ全部を、並びを変えずに返す", () => {
-  expect(searchBooks(CORE_CATALOG, books, "  ", "ja").map(b => b.id)).toEqual(["u", "a", "b", "c", "d"])
+  expect(searchBooks(books, "  ").map(b => b.id)).toEqual(["u", "a", "b", "c", "d"])
 })
 
 test("空白で区切った言葉が全部含まれるブックだけを返す", () => {
-  expect(searchBooks(CORE_CATALOG, books, "画面", "ja").map(b => b.id)).toEqual(["a", "d"])
-  expect(searchBooks(CORE_CATALOG, books, "画面 一覧", "ja").map(b => b.id)).toEqual(["d"])
+  expect(searchBooks(books, "画面").map(b => b.id)).toEqual(["a", "d"])
+  expect(searchBooks(books, "画面 一覧").map(b => b.id)).toEqual(["d"])
 })
 
 test("全角と半角、大文字と小文字は区別しない", () => {
-  expect(searchBooks(CORE_CATALOG, books, "ａｐｉ", "ja").map(b => b.id)).toEqual(["b"])
-  expect(searchBooks(CORE_CATALOG, books, "design notes", "ja").map(b => b.id)).toEqual(["c"])
+  expect(searchBooks(books, "ａｐｉ").map(b => b.id)).toEqual(["b"])
+  expect(searchBooks(books, "design notes").map(b => b.id)).toEqual(["c"])
 })
 
 test("当てはまらなければ空", () => {
-  expect(searchBooks(CORE_CATALOG, books, "無い言葉", "ja")).toEqual([])
-})
-
-test("名前が空のブックは、タイプの名前（画面の言葉）で探す", () => {
-  expect(searchBooks(CORE_CATALOG, books, "図面", "ja").map(b => b.id)).toEqual(["u"])
-  expect(searchBooks(CORE_CATALOG, books, "drawing", "en").map(b => b.id)).toEqual(["u"])
-  expect(searchBooks(CORE_CATALOG, books, "drawing", "ja")).toEqual([])
+  expect(searchBooks(books, "無い言葉")).toEqual([])
 })
 
 test("触れた時刻があれば新しい順に並べ、時刻の無いブックは後ろに元の並びのまま", () => {
   const touched = { c: "2026-10-27T01:00:00Z", a: "2026-10-27T02:00:00Z" }
-  expect(searchBooks(CORE_CATALOG, books, "", "ja", touched).map(b => b.id)).toEqual(["a", "c", "u", "b", "d"])
+  expect(searchBooks(books, "", touched).map(b => b.id)).toEqual(["a", "c", "u", "b", "d"])
 })

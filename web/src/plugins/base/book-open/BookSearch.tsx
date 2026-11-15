@@ -10,13 +10,12 @@ import { useShallow } from "zustand/react/shallow"
 import type { Book } from "../../../core/schema/book"
 import type { Warning } from "../../../core/warnings"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useMatomezuState } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
 import { matchesQuery, searchBooks } from "./book-search"
-import { bookTitle } from "./book-title"
 import { BOOK_TRASH, isTrashCandidate } from "./book-trash"
 import { TrashIcon } from "./TrashIcon"
 
@@ -32,16 +31,14 @@ export function BookSearch({
   const books = useMatomezuState(useShallow(s => Object.values(s.books)))
   const unreadable = useMatomezuState(s => s.unreadable)
   const partial = useMatomezuState(s => s.partial)
-  const lang = useMatomezuState(s => s.lang)
   const touched = useMatomezuState(s => s.touched)
   const elapsed = useElapsed()
-  const catalog = useCatalog().core
   const t = useMessages(kit)
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
   const listId = useId()
   const activeRef = useRef<HTMLDivElement>(null)
-  const found = searchBooks(catalog, books, query, lang, touched)
+  const found = searchBooks(books, query, touched)
   const broken = unreadable.filter(n => matchesQuery(n.params.title ?? "", query))
   const reason = (n: Warning) =>
     n.code === "W004"
@@ -109,7 +106,7 @@ export function BookSearch({
               onClick={() => onSelect(b.id)}
             >
               <span className={styles.title}>
-                {bookTitle(catalog, b, lang)}
+                {b.title}
                 {partial.some(n => n.params.book === b.id) && (
                   <span className={styles.partial}>{t("Some parts cannot be shown")}</span>
                 )}

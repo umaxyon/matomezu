@@ -1,7 +1,9 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
 // 使えるかは、book と annotations が対象ならアクションが名指すページのタイプ（名指さなければ、タイプに依らない付く先だけ）、library・settings と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
+
 import type { z } from "zod"
+import { USER } from "./actor"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
 import { holds, keepsPageTypes } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
@@ -26,7 +28,7 @@ import {
 } from "./def/action"
 import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
+import { deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
 import type { Library } from "./library"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
@@ -228,6 +230,17 @@ function permits(
       ? scopeOf(action.permissionScope as AnyPermissionScope, args.data)
       : undefined
   return asked(book, where)
+}
+
+// ブック book に、ブックが対象のアクション id を引数 args で行えるか、認可ステップを除いて問う（引数が名指すページのタイプと、アクションの付く先だけで決まる）。
+// 引数が形に合わなければ、所を名指さないブック全体として問う
+export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args: unknown): boolean {
+  const action: ActionDef | undefined = catalog.actions.get(id)
+  if (!action || action.target !== "book") return false
+  const parsed = action.args.safeParse(args)
+  const where = parsed.success ? scopeOf(action.permissionScope as AnyPermissionScope, parsed.data) : undefined
+  const answer = inspect(catalog, { kind: "action", action: id, book, ...(where ? { where } : {}), actor: USER })
+  return withoutPermissions(answer).value === true
 }
 
 // 作るブックを認可ステップに問うときの、空のブック（問うためだけの物）
