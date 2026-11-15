@@ -565,27 +565,32 @@ func deadPid(t *testing.T) string {
 	return strconv.Itoa(cmd.ProcessState.Pid())
 }
 
-// AI のセッションごとのプロセスだと名乗った Host が居なくなった参加者の部屋に、同じ名前で join すると、その参加者は退室して（部屋は空室になり）join が通る。
-// 名乗っていない・範囲の印が違う・Host が居る参加者の部屋には、生きているあいだ workroom-in-use で断る
-func TestJoinFreesTheRoomOfAParticipantWhoseHostProgramEnded(t *testing.T) {
+// セッションと同じだけ生きるプロセスを名乗った参加者の部屋に、同じ名前で join すると、そのプロセスが居なくなっていれば、その参加者は退室して（部屋は空室になり）join が通る。
+// 名乗っていない・範囲の印が違う・プロセスが居る参加者の部屋には、生きているあいだ workroom-in-use で断る。
+// 名乗るプロセスは AI のプログラム（Host と同じ pid）でも、MCP 自身（Host と別の pid）でもよく、常駐は名乗られた pid だけを見る
+func TestJoinFreesTheRoomOfAParticipantWhoseSessionEnded(t *testing.T) {
+	me := strconv.Itoa(os.Getpid())
 	cases := []struct {
 		name   string
 		header func(dead string) map[string]string
 		frees  bool
 	}{
-		{"the host is gone", func(dead string) map[string]string {
-			return map[string]string{HostHeader: dead, HostScopeHeader: "process", HostSpaceHeader: ProcessSpace()}
+		{"the AI's program is gone", func(dead string) map[string]string {
+			return map[string]string{HostHeader: dead, SessionPidHeader: dead, SessionPidSpaceHeader: ProcessSpace()}
+		}, true},
+		{"the MCP is gone while the AI's program (shared) is alive", func(dead string) map[string]string {
+			return map[string]string{HostHeader: me, SessionPidHeader: dead, SessionPidSpaceHeader: ProcessSpace()}
 		}, true},
 		{"the machine was started again since", func(string) map[string]string {
-			return map[string]string{HostHeader: strconv.Itoa(os.Getpid()), HostScopeHeader: "process", HostSpaceHeader: "linux|ns0|boot-before"}
+			return map[string]string{HostHeader: me, SessionPidHeader: me, SessionPidSpaceHeader: "linux|ns0|boot-before"}
 		}, spaceHasBoot()},
-		{"the host is alive", func(string) map[string]string {
-			return map[string]string{HostHeader: strconv.Itoa(os.Getpid()), HostScopeHeader: "process", HostSpaceHeader: ProcessSpace()}
+		{"the process is alive", func(string) map[string]string {
+			return map[string]string{HostHeader: me, SessionPidHeader: me, SessionPidSpaceHeader: ProcessSpace()}
 		}, false},
 		{"another space (the pid cannot be checked here)", func(dead string) map[string]string {
-			return map[string]string{HostHeader: dead, HostScopeHeader: "process", HostSpaceHeader: "elsewhere"}
+			return map[string]string{HostHeader: dead, SessionPidHeader: dead, SessionPidSpaceHeader: "elsewhere"}
 		}, false},
-		{"not said to be a process of one session", func(dead string) map[string]string {
+		{"no process said to live as long as the session", func(dead string) map[string]string {
 			return map[string]string{HostHeader: dead}
 		}, false},
 	}
@@ -612,10 +617,48 @@ func TestJoinFreesTheRoomOfAParticipantWhoseHostProgramEnded(t *testing.T) {
 			}
 			for _, r := range rows {
 				if r.ID == first.Participant {
-					t.Fatalf("the participant of the ended program is still in the table: %+v", rows)
+					t.Fatalf("the participant of the ended session is still in the table: %+v", rows)
 				}
 			}
 			if len(rows) != 1 || rows[0].State != "requested" || rows[0].WantedName != "ひよこ" {
+				t.Fatalf("participants = %+v", rows)
+			}
+		})
+	}
+}
+
+// セッションの終わった参加者を退室させた join は、退室した参加者を「参加済み」と答えない（同じセッション名でも、新しい参加者の要求になる）。
+// 同じ link の頼み直しは、同じ会話が続けて頼んだもの（resume で MCP が替わったなど）なので、退室させずに同じ参加者のまま答える
+func TestJoinAfterAnEndedSessionLeftDoesNotAnswerWithIt(t *testing.T) {
+	cases := []struct {
+		link string
+		same bool
+	}{
+		{"L2", false},
+		{"L1", true},
+	}
+	for _, c := range cases {
+		t.Run("link "+c.link, func(t *testing.T) {
+			s, _ := joinWorld(t, joinStore(t))
+			dead := deadPid(t)
+			said := map[string]string{HostHeader: dead, SessionPidHeader: dead, SessionPidSpaceHeader: ProcessSpace()}
+			got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "sess", `,"sessionId":"S1"`), said)
+			var first Joined
+			_ = json.Unmarshal([]byte(got), &first)
+			acceptRoom(t, s.URL, first.Participant, "ひよこ")
+			call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant})
+
+			second, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith(c.link, "sess", `,"workroom":"ひよこ"`), nil)
+			var made Joined
+			if json.Unmarshal([]byte(second), &made) != nil || !made.OK || (made.Participant == first.Participant) != c.same {
+				t.Fatalf("join = %s", second)
+			}
+			rows, _ := table(t, s.URL)
+			want := "requested"
+			if c.same {
+				want = "joined"
+			}
+			if len(rows) != 1 || rows[0].ID != made.Participant || rows[0].State != want {
 				t.Fatalf("participants = %+v", rows)
 			}
 		})

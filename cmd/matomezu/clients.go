@@ -53,19 +53,17 @@ type claudeMCPCmd struct{}
 
 // Run は、Claude Code の MCP を出す
 func (claudeMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, HostScope: hostScope(claudelaunch.HostIsSession)}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: sessionEndsWith(claudelaunch.SessionEndsWith)}
 	if root := claudeDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
 	return c.Run()
 }
 
-// hostScope は、mcp --host-scope の値: たどった AI のプログラムが、その AI の事情（isSession）で会話 1 つだけの物なら process、そうでないか分からなければ空
-func hostScope(isSession func(name string) bool) string {
-	if _, name := hostProgram(); name != "" && isSession(procName(name)) {
-		return hostScopeProcess
-	}
-	return ""
+// sessionEndsWith は、mcp --session-ends-with の値: たどった AI のプログラムの名前から、その AI の事情（choose）で決める（たどれなければ、空の名前で聞く）
+func sessionEndsWith(choose func(name string) string) string {
+	_, name := hostProgram()
+	return choose(procName(name))
 }
 
 // hookHost は、フックが添える AI のプログラムのプロセス id（その AI の事情 send で添えないなら空）
@@ -75,9 +73,6 @@ func hookHost(send bool) string {
 	}
 	return hostProcess()
 }
-
-// hostScopeProcess は、mcp --host-scope の、AI のプログラムがその会話 1 つだけの物という値
-const hostScopeProcess = "process"
 
 type claudeHookCmd struct {
 	Prompt     claudePromptCmd     `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
@@ -144,7 +139,7 @@ type codexMCPCmd struct{}
 
 // Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, HostScope: hostScope(codexlaunch.HostIsSession), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: sessionEndsWith(codexlaunch.SessionEndsWith), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}

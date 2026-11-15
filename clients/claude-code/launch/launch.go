@@ -13,10 +13,14 @@ const (
 	Gap       = time.Second
 )
 
-// HostIsSession は、matomezu が親をたどって当たったプロセス（名前 name は小文字、.exe を除いた物）が、その会話 1 つだけを受け持つ Claude Code の本体か
-// （終わったら会話が終わった、として退室させてよいか）。確かめられるのはネイティブの版（claude）だけ。npm で入れた版（node）は、node で動くほかのプログラムと見分けられないので名乗らない
-func HostIsSession(name string) bool {
-	return name == "claude"
+// SessionEndsWith は、mcp --session-ends-with の値: セッションと同じだけ生きるプロセス。matomezu が親をたどって当たったプロセス（名前 name は小文字、.exe を除いた物）が
+// Claude Code の本体なら、その会話 1 つだけを受け持つので program。確かめられるのはネイティブの版（claude）だけで、npm で入れた版（node）は node で動くほかのプログラムと
+// 見分けられないので名乗らない（空）
+func SessionEndsWith(name string) string {
+	if name == "claude" {
+		return "program"
+	}
+	return ""
 }
 
 // HooksSendHost は、フックが AI のプログラムのプロセス id を添えるか。Claude Code の本体は会話ごとなので、/clear で変わったセッション id を同じ参加者に結び直すのに使える

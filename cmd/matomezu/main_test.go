@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -174,5 +176,29 @@ func TestWriteRemovedSeparatesTheCauses(t *testing.T) {
 	writeRemoved(&out, nil)
 	if out.Len() != 0 {
 		t.Errorf("nothing to say, but wrote %q", out.String())
+	}
+}
+
+// --session-ends-with が指すプロセス: program は AI のプログラム、mcp は自分（親が入口なら入口）、空は名乗らない
+func TestSessionPid(t *testing.T) {
+	me, parent := strconv.Itoa(os.Getpid()), strconv.Itoa(os.Getppid())
+	cases := []struct {
+		endsWith, host, entry, want string
+	}{
+		{"program", "4242", "", "4242"},
+		{"program", "", "", ""},
+		{"mcp", "4242", "", me},
+		{"mcp", "4242", parent, parent},
+		{"mcp", "4242", "999999", me},
+		{"", "4242", parent, ""},
+	}
+	for _, c := range cases {
+		t.Setenv(entryPIDEnv, c.entry)
+		if got := sessionPid(c.endsWith, c.host); got != c.want {
+			t.Fatalf("sessionPid(%q, %q) with entry %q = %q, want %q", c.endsWith, c.host, c.entry, got, c.want)
+		}
+		if got := sessionPidSpace(c.endsWith); (got != "") != (c.endsWith != "") {
+			t.Fatalf("sessionPidSpace(%q) = %q", c.endsWith, got)
+		}
 	}
 }

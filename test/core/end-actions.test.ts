@@ -3,8 +3,8 @@ import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { endActions } from "../../web/src/core/participant"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
-// AI のプログラムが終わったときに常駐が行うアクションは、アクションの定義が runsWhenAIEnds で名乗る。1 つのアクションだけが名乗る（2 つ目は E070）
-test("AI のプログラムが終わったときのアクションは、参加者を外すアクションが名乗る", () => {
+// 参加者のセッションが終わったときに常駐が行うアクションは、アクションの定義が runsWhenAIEnds で名乗る。1 つのアクションだけが名乗る（2 つ目は E070）
+test("参加者のセッションが終わったときのアクションは、参加者を外すアクションが名乗る", () => {
   expect(endActions(CORE_CATALOG)).toEqual({ leave: "@matomezu/base:participant-remove" })
 })
 

@@ -16,14 +16,14 @@ import (
 
 // 常駐の AI の入口とやりとりするヘッダ（server の ParticipantHeader・NoticeHeader・BranchHeader・HostHeader・ModelHeader と同じ名前）
 const (
-	participantHeader = "X-Matomezu-Participant"  // 送る: join の返事で受けた参加の id
-	noticeHeader      = "X-Matomezu-Notice"       // 返る: AI への知らせ（値は URL エンコード）
-	branchHeader      = "X-Matomezu-Branch"       // 送る: 参加の id と一緒にいつも。git のブランチ（値は URL エンコード。空はブランチが無い）
-	hostHeader        = "X-Matomezu-Host"         // 送る: いつも（join も）。AI のプログラムのプロセス id
-	hostSessionHeader = "X-Matomezu-Host-Session" // 送る: いつも（join も）。AI のプログラムが MCP を立てたときのセッション id（分かるときだけ。/clear でも変わらない）
-	hostScopeHeader   = "X-Matomezu-Host-Scope"   // 送る: 名乗ったとき（process: Host は AI のセッションごとのプロセスで、居なくなればセッションが終わったということ）
-	hostSpaceHeader   = "X-Matomezu-Host-Space"   // 送る: Host の範囲を名乗ったとき。プロセス id が通じる範囲の印（常駐が同じ印のときだけ Host を確かめる）
-	modelHeader       = "X-Matomezu-Model"        // 送る: 参加の id と一緒に、呼び出しの _meta にモデルがあったとき。今のモデル（値は URL エンコード）
+	participantHeader     = "X-Matomezu-Participant"       // 送る: join の返事で受けた参加の id
+	noticeHeader          = "X-Matomezu-Notice"            // 返る: AI への知らせ（値は URL エンコード）
+	branchHeader          = "X-Matomezu-Branch"            // 送る: 参加の id と一緒にいつも。git のブランチ（値は URL エンコード。空はブランチが無い）
+	hostHeader            = "X-Matomezu-Host"              // 送る: いつも（join も）。AI のプログラムのプロセス id
+	hostSessionHeader     = "X-Matomezu-Host-Session"      // 送る: いつも（join も）。AI のプログラムが MCP を立てたときのセッション id（分かるときだけ。/clear でも変わらない）
+	sessionPidHeader      = "X-Matomezu-Session-Pid"       // 送る: 名乗ったとき。セッションと同じだけ生きるプロセスの id（居なくなればセッションが終わったということ）
+	sessionPidSpaceHeader = "X-Matomezu-Session-Pid-Space" // 送る: セッションのプロセスを名乗ったとき。プロセス id が通じる範囲の印（常駐が同じ印のときだけ確かめる）
+	modelHeader           = "X-Matomezu-Model"             // 送る: 参加の id と一緒に、呼び出しの _meta にモデルがあったとき。今のモデル（値は URL エンコード）
 )
 
 // API は常駐の AI の入口を呼ぶ口。header は送るヘッダ、戻りの 2 つ目は返事のヘッダ
@@ -48,8 +48,8 @@ type conn struct {
 	branch       func() string     // 呼び出しのたびに git のブランチを読む（読めなければ空）
 	host         string            // AI のプログラムのプロセス id
 	hostSession  string            // AI のプログラムが MCP を立てたときのセッション id（分からなければ空）
-	hostScope    string            // "process": Host は AI のセッションごとのプロセスだと名乗る（空は名乗らない）
-	hostSpace    string            // Host のプロセス id が通じる範囲の印（hostScope を名乗るとき）
+	sessionPid   string            // セッションと同じだけ生きるプロセスの id（空は名乗らない）
+	pidSpace     string            // sessionPid が通じる範囲の印（sessionPid を名乗るとき）
 	participants map[string]string // join の返事で受けた参加の id。join の呼び出しのセッション id（無ければ空）ごと
 	sessionID    string            // いま処理している呼び出しの _meta にあったセッション id
 	model        string            // いま処理している呼び出しの _meta にあったモデル（無ければ空）
@@ -61,9 +61,9 @@ func (c *conn) header() http.Header {
 	if c.host != "" {
 		h.Set(hostHeader, c.host)
 	}
-	if c.hostScope != "" {
-		h.Set(hostScopeHeader, c.hostScope)
-		h.Set(hostSpaceHeader, c.hostSpace)
+	if c.sessionPid != "" {
+		h.Set(sessionPidHeader, c.sessionPid)
+		h.Set(sessionPidSpaceHeader, c.pidSpace)
 	}
 	if c.hostSession != "" {
 		h.Set(hostSessionHeader, c.hostSession)
@@ -141,9 +141,9 @@ type response struct {
 // Serve は in から頼みを読み、out に答えを書く。in が終わると戻る
 // env は環境名（join で常駐に渡す）。branch は git のブランチを読む関数（参加の id と一緒に常駐に添える）、host は AI のプログラムのプロセス id、
 // hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。起こす知らせの宛て先）。
-// hostScope が process なら、host は AI のそのセッションごとのプロセスだと名乗り（hostSpace はその印）、host が居なくなったら、常駐が退室させる
-func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host, hostSession, hostScope, hostSpace string) error {
-	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession, hostScope: hostScope, hostSpace: hostSpace, participants: map[string]string{}}
+// sessionPid が空でなければ、それがセッションと同じだけ生きるプロセスだと名乗り（pidSpace はその印）、居なくなったら、常駐が退室させる
+func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host, hostSession, sessionPid, pidSpace string) error {
+	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, participants: map[string]string{}}
 	var mu sync.Mutex
 	enc := json.NewEncoder(out)
 	write := func(r response) {
