@@ -86,7 +86,6 @@ export function TicketScreen() {
         <div className={`${styles.ticket} ${styles.alone}`}>
           <div className={styles.band}>
             <BackBar screen={me.id} />
-            <span className={styles.bandTitle}>{t("ticket screen")}</span>
           </div>
           <p className={styles.empty}>{t("The ticket is not there")}</p>
         </div>
@@ -105,7 +104,6 @@ export function TicketScreen() {
       <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
         <div className={styles.band}>
           <BackBar screen={me.id} folded={view.maximized} />
-          <span className={styles.bandTitle}>{t("ticket screen")}</span>
           <span className={styles.bandEnd}>
             <LockToggle
               locked={locked}
